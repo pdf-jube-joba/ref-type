@@ -187,7 +187,7 @@ module 内の import 別名を、その module の利用側から修飾して参
 
 ## Fredholm 性の具体的な作用素への特殊化
 
-次の 16 行の具体例で、零 Hilbert 空間の恒等作用素に汎用定理を適用したい。
+次の具体例で、零 Hilbert 空間の恒等作用素に汎用定理を適用したい。
 `fredholmOfParametrix` の特殊化で、元の `Fredholm(V, space, norm, W, target, targetNorm, f)` が残り、具体的な結論と変換可能にならない。
 `Examples.ref` と同じ条件で `target/release/cli libs/analysis/fredholm_operators --module fredholm_operators.Examples --full-check-local` により再現できる。
 
@@ -208,7 +208,7 @@ module 内の import 別名を、その module の利用側から修飾して参
 ```
 
 現在は、作用素を定理の通常の引数に移す次の適用も試している。
-この回避案も、具体的な利用の検査が必要であり、成功を確認できていない。
+この回避案でも、`Space.Operators.Hilbert.atkinson` の検査で特殊化に関する型エラーを確認した。
 
 ```ref
 \module Test {

@@ -44,7 +44,7 @@ A11 は特殊化時の型エラーでブロックされており、完了して�
 `Examples` の零 Hilbert 空間上の恒等作用素に `fredholmOfParametrix` を適用すると、特殊化後の定義本体の検査で、元の `Fredholm(V, space, norm, W, target, targetNorm, f)` が残り、具体的な `Point` と `identity` に対応する結論と変換可能にならない。
 独立したキャッシュでも同じ失敗を確認した。
 命題の structure を論理積に変更し、型引数を明示し、公開定理を汎用モジュールへ移す回避も試した。
-`Space.Operators.Hilbert.atkinson` は最後の移動案である。
+`Space.Operators.Hilbert.atkinson` は最後の移動案であり、この案でも型エラーを確認した。
 
 指数の合成則・直和則・コンパクト摂動不変性・ノルム連続族での局所定数性は未実装である。
 特殊化の失敗を回避して具体的な利用例を完成できるまで、A11 の完了やマージの根拠にはできない。
