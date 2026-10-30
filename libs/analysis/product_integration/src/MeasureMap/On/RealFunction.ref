@@ -1,0 +1,45 @@
+\import Real.Estimates[].Product[] \as Product;
+\import Target.Functions[mu := target] \as Functions;
+\import TI.Linear[] \as Linear;
+\definition absolute: TI.NonnegativeMeasurable := TI.NonnegativeMeasurable {
+  function := \fun (y: B) => Product.abs (f y),
+  measurable := Functions.absMeasurable f (TI.integralLaw f).integrable.left,
+  nonnegative := \fun (y: B) => Product.absNonnegative (f y),
+};
+\import \root.MeasureMap[A := A, B := B, source := source, target := target].On[map := map].Nonnegative[f := absolute] \as Absolute;
+\definition function: A -> Real.Real := \fun (x: A) => f (map.function x);
+\definition integrable: SI.Integrable function := \block {
+  \takefrom b: \Cast[Real.Real] ({ b: Real.Real \where TI.IntegralBound[absolute.function, b] }) \by (TI.integralLaw f).integrable.right.right \then
+  \let bound: TI.IntegralBound[absolute.function, b] := \bysub(Real.Real, { b: Real.Real \where TI.IntegralBound[absolute.function, b] }, b) \then
+  \return Logic.And[_, _]::# (measurable f (TI.integralLaw f).integrable.left)
+    (Logic.And[_, _]::# (\fun (x: A) => Product.absNonnegative (f (map.function x)))
+      (Logic.existsIntro[Real.Real, { b: Real.Real \where SI.IntegralBound[(\fun (x: A) => Product.abs (function x)), b] }] b
+        (SI.IntegralBound[(\fun (x: A) => Product.abs (function x)), b] {
+          nonnegative := bound.nonnegative,
+          bound := \fun (r: Real.Real) (member: Source.below (SI.lowerIntegral (\fun (x: A) => Product.abs (function x))) r) => bound.bound r
+            (\idelim SI.lowerIntegral (\fun (x: A) => Product.abs (function x)) = TI.lowerIntegral absolute.function \with v: Source.Value => Source.below v r \by {
+              base: member, equality: Absolute.lower }),
+        })))
+};
+\definition representative: SI.Representatives := \into[A -> Real.Real](function, SI.Representatives) \by { integrable };
+\import \root.MeasureMap[A := A, B := B, source := source, target := target].On[map := map].Nonnegative[f := Linear.positiveData f] \as Positive;
+\import \root.MeasureMap[A := A, B := B, source := source, target := target].On[map := map].Nonnegative[f := Linear.negativeData f] \as Negative;
+\definition hasIntegral: SI.HasIntegral[function, TI.integral f] := SI.HasIntegral[function, TI.integral f] {
+  integrable := integrable,
+  parts := \block {
+    \takefrom p: \Cast[Real.Real] ({ p: Real.Real \where \exists ( q: Real.Real \where TI.Parts[f, TI.integral f, p, q] ) }) \by (TI.integralLaw f).parts \then
+    \takefrom q: \Cast[Real.Real] ({ q: Real.Real \where TI.Parts[f, TI.integral f, p, q] })
+      \by (\bysub(Real.Real, { p: Real.Real \where \exists ( q: Real.Real \where TI.Parts[f, TI.integral f, p, q] ) }, p)) \then
+    \let parts: TI.Parts[f, TI.integral f, p, q] := \bysub(Real.Real, { q: Real.Real \where TI.Parts[f, TI.integral f, p, q] }, q) \then
+    \return Logic.existsIntro[Real.Real, { p: Real.Real \where \exists ( q: Real.Real \where SI.Parts[function, TI.integral f, p, q] ) }] p
+      (Logic.existsIntro[Real.Real, { q: Real.Real \where SI.Parts[function, TI.integral f, p, q] }] q (SI.Parts[function, TI.integral f, p, q] {
+        positiveLaw := \idelim TI.lowerIntegral (TI.positivePart f) = SI.lowerIntegral (SI.positivePart function) \with v: Source.Value =>
+          R.Completeness[].LeastUpperBound[v, p] \by { base: parts.positiveLaw, equality: sym!{Source.Value} _ _ Positive.lower },
+        negativeLaw := \idelim TI.lowerIntegral (TI.negativePart f) = SI.lowerIntegral (SI.negativePart function) \with v: Source.Value =>
+          R.Completeness[].LeastUpperBound[v, q] \by { base: parts.negativeLaw, equality: sym!{Source.Value} _ _ Negative.lower },
+        difference := parts.difference,
+      }))
+  },
+};
+\definition integral: SI.integral representative = TI.integral f :=
+  SI.integralUnique function (SI.integral representative) (TI.integral f) (SI.integralLaw representative) hasIntegral;

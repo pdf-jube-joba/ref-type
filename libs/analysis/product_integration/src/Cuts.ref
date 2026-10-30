@@ -44,3 +44,15 @@
         \return R.ltLeTrans r (s k) v (\bysub(N.Nat^, { k: N.Nat^ \where R.Lt r (s k) }, k)) (law.upper (s k) (ScalarSup.member s k))
       },
       \fun (r: Real.Real) (less: R.Lt r v) => ScalarSup.above s v r law less);
+\import R.Completeness[] \as Complete;
+\use std.Logic[].Equality[].sym;
+\definition supremum[v: Real.Real]: Complete.LeastUpperBound[cut v, v] := Complete.LeastUpperBound[cut v, v] {
+  upper := \fun (r: Real.Real) (less: R.Lt r v) => Order.leOfLt r v less,
+  least := \fun (b: Real.Real) (upper: Complete.UpperBound (cut v) b) => Order.leOfNotLtReverse v b
+    (\fun (less: R.Lt b v) => R.ltNotLeReverse b (Real.midpoint b v) (Values.midpointStrictLeft b v less)
+      (upper (Real.midpoint b v) (Values.midpointStrictRight b v less))),
+};
+\definition injective: \forall (a, b: Real.Real) -> cut a = cut b -> a = b :=
+  \fun (a, b: Real.Real) (same: cut a = cut b) => Complete.leastUpperBoundUnique (cut a) a b (supremum a)
+    (\idelim cut b = cut a \with v: M.Value => Complete.LeastUpperBound[v, b] \by {
+      base: supremum b, equality: sym!{M.Value} _ _ same });

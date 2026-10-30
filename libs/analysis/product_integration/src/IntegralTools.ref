@@ -1,0 +1,79 @@
+\import functional_analysis.Measure[A := A] \as M;
+\import M.Integral[mu := mu] \as I;
+\import I.Zero[] \as Zero;
+\import I.Absolute[] \as Absolute;
+\import I.Linear[] \as Linear;
+\import I.Scaling[] \as Scaling;
+\import M.ValueLaws[].SupAdd[] \as SupAdd;
+\import M.Finite[mu := mu] \as Finite;
+\import std.Data[].Nat[] \as N;
+\import std.Data[].FinSet[] \as Fin;
+\import std.Logic[].Proposition[] \as Logic;
+\import real.Analysis[] \as Real;
+\import Real.FiniteSums[] \as Sums;
+\import Real.Estimates[].Product[] \as Product;
+\import dedekind_reals.DedekindReal[] \as R;
+\import R.Completeness[] \as Complete;
+\import R.Arithmetic[].Prop[] \as Laws;
+\use std.Logic[].Equality[].sym;
+\use std.Logic[].Equality[].congr;
+\use std.Logic[].Equality[].eq_reason_in;
+\definition nonnegativeSup: \forall (f: A -> Real.Real) (v: Real.Real) -> (\forall (x: A) -> R.Le Real.zero (f x)) ->
+  M.IsMeasurable mu f -> Complete.LeastUpperBound[I.lowerIntegral f, v] -> I.HasIntegral[f, v] :=
+  \fun (f: A -> Real.Real) (v: Real.Real) (nonnegative: \forall (x: A) -> R.Le Real.zero (f x)) (measurable: M.IsMeasurable mu f)
+    (sup: Complete.LeastUpperBound[I.lowerIntegral f, v]) => \block {
+      \let vp: R.Le Real.zero v := Zero.zeroSup.least v (\fun (r: Real.Real) (less: R.Lt r Real.zero) => sup.upper r (I.lowerIntegralNegative f r less)) \then
+      \let finite: I.Finite f := Logic.And[_, _]::# nonnegative (Logic.existsIntro[Real.Real, { b: Real.Real \where I.IntegralBound[f, b] }] v
+        (I.IntegralBound[f, v] { nonnegative := vp, bound := sup.upper })) \then
+      \let absolute: (\fun (x: A) => Product.abs (f x)) = f := \axiom:funext((\fun (x: A) => Product.abs (f x)), f,
+        \fun (x: A) => Product.absOfNonnegative (f x) (nonnegative x)) \then
+      \return I.HasIntegral[f, v] {
+        integrable := Logic.And[_, _]::# measurable (\idelim f = (\fun (x: A) => Product.abs (f x)) \with g: (A -> Real.Real) => I.Finite g \by {
+          base: finite, equality: sym!{{A -> Real.Real}} _ _ absolute }),
+        parts := Logic.existsIntro[Real.Real, { p: Real.Real \where \exists ( q: Real.Real \where I.Parts[f, v, p, q] ) }] v
+          (Logic.existsIntro[Real.Real, { q: Real.Real \where I.Parts[f, v, v, q] }] Real.zero (I.Parts[f, v, v, Real.zero] {
+            positiveLaw := \idelim I.lowerIntegral f = I.lowerIntegral (I.positivePart f) \with w: M.Value => Complete.LeastUpperBound[w, v] \by {
+              base: sup, equality: sym!{M.Value} _ _ (congr!{{A -> Real.Real} M.Value} I.lowerIntegral _ _ (Absolute.positivePartOfNonnegative f nonnegative)) },
+            negativeLaw := \idelim I.lowerIntegral Zero.function = I.lowerIntegral (I.negativePart f) \with w: M.Value => Complete.LeastUpperBound[w, Real.zero] \by {
+              base: \idelim M.zero = I.lowerIntegral Zero.function \with w: M.Value => Complete.LeastUpperBound[w, Real.zero] \by {
+                base: Zero.zeroSup, equality: sym!{M.Value} _ _ Zero.lowerZero },
+              equality: sym!{M.Value} _ _ (congr!{{A -> Real.Real} M.Value} I.lowerIntegral _ _ (Absolute.negativePartOfNonnegative f nonnegative)) },
+            difference := sym!{Real.Real} _ _ (Laws.subZeroRight v),
+          })),
+      }
+    };
+\definition integralSup: \forall (f: I.Representatives) (v: Real.Real) -> (\forall (x: A) -> R.Le Real.zero (f x)) ->
+  Complete.LeastUpperBound[I.lowerIntegral f, v] -> I.integral f = v :=
+  \fun (f: I.Representatives) (v: Real.Real) (nonnegative: \forall (x: A) -> R.Le Real.zero (f x)) (law: Complete.LeastUpperBound[I.lowerIntegral f, v]) =>
+    I.integralUnique f (I.integral f) v (I.integralLaw f) (nonnegativeSup f v nonnegative (I.integralLaw f).integrable.left law);
+\definition sum: \forall (n: N.Nat^) -> (Fin.Fin n -> I.Representatives) -> I.Representatives :=
+  \induction (n: N.Nat^) \return (Fin.Fin n -> I.Representatives) -> I.Representatives \with {
+    | zero: \fun (_: Fin.Fin N.Nat^::zero -> I.Representatives) => Zero.representative
+    | succ: \fun (n: N.Nat^) (previous: (Fin.Fin n -> I.Representatives) -> I.Representatives) (f: Fin.Fin (N.Nat^::succ n) -> I.Representatives) =>
+      Linear.addRepresentative (f (Fin.zero n)) (previous (\fun (i: Fin.Fin n) => f (Fin.succ n i)))
+  };
+\definition sumFunction: \forall (n: N.Nat^) (f: Fin.Fin n -> I.Representatives) (x: A) -> sum n f x = Sums.sum n (\fun (i: Fin.Fin n) => f i x) :=
+  \induction (n: N.Nat^) \return \forall (f: Fin.Fin n -> I.Representatives) (x: A) -> sum n f x = Sums.sum n (\fun (i: Fin.Fin n) => f i x) \with {
+    | zero: \fun (_: Fin.Fin N.Nat^::zero -> I.Representatives) (_: A) => \refl(Real.zero)
+    | succ: \fun (n: N.Nat^) (previous: _) (f: Fin.Fin (N.Nat^::succ n) -> I.Representatives) (x: A) =>
+      congr!{Real.Real Real.Real} (Real.add (f (Fin.zero n) x)) _ _ (previous (\fun (i: Fin.Fin n) => f (Fin.succ n i)) x)
+  };
+\definition integralSum: \forall (n: N.Nat^) (f: Fin.Fin n -> I.Representatives) -> I.integral (sum n f) = Sums.sum n (\fun (i: Fin.Fin n) => I.integral (f i)) :=
+  \induction (n: N.Nat^) \return \forall (f: Fin.Fin n -> I.Representatives) -> I.integral (sum n f) = Sums.sum n (\fun (i: Fin.Fin n) => I.integral (f i)) \with {
+    | zero: \fun (_: Fin.Fin N.Nat^::zero -> I.Representatives) => Zero.integralZero
+    | succ: \fun (n: N.Nat^) (previous: _) (f: Fin.Fin (N.Nat^::succ n) -> I.Representatives) => eq_reason_in!{Real.Real _
+      "=" _ "by" { Linear.integralAdd (f (Fin.zero n)) (sum n (\fun (i: Fin.Fin n) => f (Fin.succ n i))) }
+      "=" _ "by" { congr!{Real.Real Real.Real} (Real.add (I.integral (f (Fin.zero n)))) _ _ (previous (\fun (i: Fin.Fin n) => f (Fin.succ n i))) }
+    }
+  };
+\definition valuesSup: \forall (n: N.Nat^) (f: Fin.Fin n -> M.Value) (p: Fin.Fin n -> Real.Real) ->
+  (\forall (i: Fin.Fin n) -> Complete.LeastUpperBound[f i, p i]) -> Complete.LeastUpperBound[M.sum n f, Sums.sum n p] :=
+  \induction (n: N.Nat^) \return \forall (f: Fin.Fin n -> M.Value) (p: Fin.Fin n -> Real.Real) ->
+    (\forall (i: Fin.Fin n) -> Complete.LeastUpperBound[f i, p i]) -> Complete.LeastUpperBound[M.sum n f, Sums.sum n p] \with {
+      | zero: \fun (_: Fin.Fin N.Nat^::zero -> M.Value) (_: Fin.Fin N.Nat^::zero -> Real.Real) (_: _) => Zero.zeroSup
+      | succ: \fun (n: N.Nat^) (previous: _) (f: Fin.Fin (N.Nat^::succ n) -> M.Value) (p: Fin.Fin (N.Nat^::succ n) -> Real.Real)
+        (law: \forall (i: Fin.Fin (N.Nat^::succ n)) -> Complete.LeastUpperBound[f i, p i]) =>
+        SupAdd.leastUpper (f (Fin.zero n)) (M.sum n (\fun (i: Fin.Fin n) => f (Fin.succ n i))) (p (Fin.zero n)) (Sums.sum n (\fun (i: Fin.Fin n) => p (Fin.succ n i)))
+          (law (Fin.zero n)) (previous (\fun (i: Fin.Fin n) => f (Fin.succ n i)) (\fun (i: Fin.Fin n) => p (Fin.succ n i)) (\fun (i: Fin.Fin n) => law (Fin.succ n i)))
+    };
+\module Simple(n: N.Nat^, s: I.CompleteSimple[n]);

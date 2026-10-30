@@ -1,0 +1,109 @@
+\import \root.FiniteProduct[A := A, B := B, mu := mu, nu := nu] \as Left;
+\import \root.FiniteProduct[A := B, B := A, mu := nu, nu := mu] \as Right;
+\import \root.ProductSigma[A := A, B := B, left := mu.sigma, right := nu.sigma] \as Sigma;
+\import \root.ProductSigma[A := B, B := A, left := nu.sigma, right := mu.sigma] \as OtherSigma;
+\import std.Data[].Pair[] \as Pair;
+\import std.Data[].Nat[] \as N;
+\import std.Logic[].Proposition[] \as Logic;
+\import functional_analysis.Measure[A := Sigma.Point] \as M;
+\import M.Sigma[] \as MS;
+\import functional_analysis.Measure[A := OtherSigma.Point] \as Other;
+\import topology.Topology[Carrier := Sigma.Point] \as Sets;
+\import topology.Topology[Carrier := OtherSigma.Point] \as OtherSets;
+\import topology.Topology[Carrier := A] \as ASets;
+\import topology.Topology[Carrier := B] \as BSets;
+\import \root.Generated[A := Sigma.Point, generators := Sigma.generators] \as Generated;
+\import euclidean_measure.Pushforward[A := OtherSigma.Point, B := Sigma.Point, source := Right.measure, map := Pair.swap B A] \as Push;
+\import M.Finite[mu := Push.measure] \as PushFinite;
+\import \root.Cuts[A := Sigma.Point] \as Cuts;
+\import \root.FiniteSpaces[A := A].On[mu := mu] \as AIntegral;
+\import \root.FiniteSpaces[A := B].On[mu := nu] \as BIntegral;
+\import real.Analysis[] \as Real;
+\import dedekind_reals.DedekindReal[] \as R;
+\import R.Arithmetic[].Prop[] \as Laws;
+\use std.Logic[].Equality[].sym;
+\use std.Logic[].Equality[].congr;
+\use std.Logic[].Equality[].eq_reason_in;
+\definition preimageRectangle: \forall (U: \Pow A) (V: \Pow B) -> Push.preimage (Sigma.rectangle U V) = OtherSigma.rectangle V U :=
+  \fun (U: \Pow A) (V: \Pow B) => \axiom:setext(Push.preimage (Sigma.rectangle U V), OtherSigma.rectangle V U,
+    \fun (p: OtherSigma.Point) (member: OtherSets.Member (Push.preimage (Sigma.rectangle U V)) p) => Logic.And[_, _]::# member.right member.left,
+    \fun (p: OtherSigma.Point) (member: OtherSets.Member (OtherSigma.rectangle V U) p) => Logic.And[_, _]::# member.right member.left);
+\definition rectangleMeasurable: \forall (U: \Pow A) (V: \Pow B) -> functional_analysis.Measure[A := A].Measurable mu.sigma U ->
+  functional_analysis.Measure[A := B].Measurable nu.sigma V -> M.Measurable Push.sigma (Sigma.rectangle U V) :=
+  \fun (U: \Pow A) (V: \Pow B) (u: functional_analysis.Measure[A := A].Measurable mu.sigma U) (v: functional_analysis.Measure[A := B].Measurable nu.sigma V) =>
+    \idelim OtherSigma.rectangle V U = Push.preimage (Sigma.rectangle U V) \with S: \Pow OtherSigma.Point => Other.Measurable OtherSigma.sigma S \by {
+      base: OtherSigma.rectangleMeasurable V U v u, equality: sym!{\Pow OtherSigma.Point} _ _ (preimageRectangle U V) };
+\definition included: \forall (S: \Pow Sigma.Point) -> M.Measurable Sigma.sigma S -> M.Measurable Push.sigma S :=
+  Generated.least Push.sigma (\fun (S: \Pow Sigma.Point) (member: \exists Sigma.Rectangle[S]) => \block {
+    \takefrom rectangle: Sigma.Rectangle[S] \by member \then
+    \return \idelim Sigma.rectangle rectangle.leftSet rectangle.rightSet = S \with T: \Pow Sigma.Point => M.Measurable Push.sigma T \by {
+      base: rectangleMeasurable rectangle.leftSet rectangle.rightSet rectangle.leftMeasurable rectangle.rightMeasurable,
+      equality: sym!{\Pow Sigma.Point} _ _ rectangle.equality }
+  });
+\definition reversedData: M.MeasureData := M.MeasureData { sigma := Sigma.sigma, value := Push.measure.value };
+\definition reversed: M.Measure := \into[M.MeasureData](reversedData, M.Measure) \by {
+  M.MeasureLaws[reversedData] {
+    nonnegative := \fun (S: \Pow Sigma.Point) (valid: M.Measurable Sigma.sigma S) => PushFinite.laws.nonnegative S (included S valid),
+    empty := PushFinite.laws.empty,
+    countableAdditivity := \fun (f: N.Nat^ -> \Pow Sigma.Point) (valid: \forall (k: N.Nat^) -> M.Measurable Sigma.sigma (f k)) (disjoint: M.Disjoint f) =>
+      PushFinite.laws.countableAdditivity f (\fun (k: N.Nat^) => included (f k) (valid k)) disjoint,
+  }
+};
+\definition preimageWhole: Push.preimage Sets.Whole = OtherSets.Whole := \axiom:setext(Push.preimage Sets.Whole, OtherSets.Whole,
+  \fun (p: OtherSigma.Point) (_: Pair.swap B A p = Pair.swap B A p) => \refl(p),
+  \fun (p: OtherSigma.Point) (_: p = p) => \refl(Pair.swap B A p));
+\import \root.Finiteness[A := Sigma.Point, mu := reversed] \as RF;
+\definition finite: RF.FiniteSet[Sets.Whole] := RF.FiniteSet[Sets.Whole] {
+  measurable := MS.wholeMeasurable Sigma.sigma,
+  bounded := \idelim Right.measure.value OtherSets.Whole = reversed.value Sets.Whole \with v: M.Value =>
+    \exists ( b: Real.Real \where \forall (r: Real.Real) -> M.below v r -> R.Le r b ) \by {
+      base: Right.finite.bounded,
+      equality: sym!{M.Value} _ _ (congr!{{\Pow OtherSigma.Point} M.Value} Right.measure.value _ _ preimageWhole) },
+};
+\definition finiteReversed: \root.FiniteSpaces[A := Sigma.Point].Measure := \into[M.Measure](reversed, \root.FiniteSpaces[A := Sigma.Point].Measure) \by { finite };
+\import \root.FiniteUniqueness[A := Sigma.Point, mu := Left.finiteMeasure, nu := finiteReversed, generators := Sigma.generators] \as Unique;
+\definition rectangleAgreement: \forall (U: \Pow A) (V: \Pow B) -> functional_analysis.Measure[A := A].Measurable mu.sigma U ->
+  functional_analysis.Measure[A := B].Measurable nu.sigma V -> Unique.Agreement[Sigma.rectangle U V] :=
+  \fun (U: \Pow A) (V: \Pow B) (u: functional_analysis.Measure[A := A].Measurable mu.sigma U) (v: functional_analysis.Measure[A := B].Measurable nu.sigma V) =>
+    Unique.Agreement[Sigma.rectangle U V] {
+      leftMeasurable := Sigma.rectangleMeasurable U V u v,
+      rightMeasurable := Sigma.rectangleMeasurable U V u v,
+      equality := eq_reason_in!{M.Value _
+        "=" _ "by" { Left.rectangle U V u v }
+        "=" _ "by" { congr!{Real.Real M.Value} Cuts.cut _ _ (Laws.fieldMulComm (AIntegral.mass U u) (BIntegral.mass V v)) }
+        "=" _ "by" { sym!{M.Value} _ _ (Right.rectangle V U v u) }
+        "=" _ "by" { congr!{{\Pow OtherSigma.Point} M.Value} Right.measure.value _ _ (sym!{\Pow OtherSigma.Point} _ _ (preimageRectangle U V)) }
+      },
+    };
+\import functional_analysis.Measure[A := A].Sigma[] \as ASigma;
+\import functional_analysis.Measure[A := B].Sigma[] \as BSigma;
+\definition wholeRectangle: Sigma.rectangle ASets.Whole BSets.Whole = Sets.Whole :=
+  \axiom:setext(Sigma.rectangle ASets.Whole BSets.Whole, Sets.Whole,
+    \fun (p: Sigma.Point) (_: Sets.Member (Sigma.rectangle ASets.Whole BSets.Whole) p) => \refl(p),
+    \fun (p: Sigma.Point) (_: p = p) => Logic.And[_, _]::# (\refl(Pair.first A B p)) (\refl(Pair.second A B p)));
+\definition whole: Unique.Agreement[Sets.Whole] :=
+  \idelim Sigma.rectangle ASets.Whole BSets.Whole = Sets.Whole \with S: \Pow Sigma.Point => Unique.Agreement[S] \by {
+    base: rectangleAgreement ASets.Whole BSets.Whole (ASigma.wholeMeasurable mu.sigma) (BSigma.wholeMeasurable nu.sigma), equality: wholeRectangle };
+\definition agreement: \forall (S: \Pow Sigma.Point) -> M.Measurable Sigma.sigma S -> Unique.Agreement[S] :=
+  Unique.theorem Sigma.piSystem whole (\fun (S: \Pow Sigma.Point) (member: \exists Sigma.Rectangle[S]) => \block {
+    \takefrom rectangle: Sigma.Rectangle[S] \by member \then
+    \return \idelim Sigma.rectangle rectangle.leftSet rectangle.rightSet = S \with T: \Pow Sigma.Point => Unique.Agreement[T] \by {
+      base: rectangleAgreement rectangle.leftSet rectangle.rightSet rectangle.leftMeasurable rectangle.rightMeasurable,
+      equality: sym!{\Pow Sigma.Point} _ _ rectangle.equality }
+  });
+\definition symmetry: \forall (S: \Pow Sigma.Point) -> M.Measurable Sigma.sigma S ->
+  Left.measure.value S = Right.measure.value (Push.preimage S) :=
+  \fun (S: \Pow Sigma.Point) (valid: M.Measurable Sigma.sigma S) => (agreement S valid).equality;
+\import \root.FiniteKernel[A := A, B := B, mu := mu, nu := nu] \as LeftKernel;
+\import \root.FiniteKernel[A := B, B := A, mu := nu, nu := mu] \as RightKernel;
+\import functional_analysis.Measure[A := A].Integral[mu := mu] \as LeftIntegral;
+\import functional_analysis.Measure[A := B].Integral[mu := nu] \as RightIntegral;
+\definition setFubini: \forall (S: \Pow Sigma.Point) -> M.Measurable Sigma.sigma S ->
+  \forall (left: LeftKernel.Witness[S]) (right: RightKernel.Witness[Push.preimage S]) ->
+  LeftIntegral.integral left.function = RightIntegral.integral right.function :=
+  \fun (S: \Pow Sigma.Point) (valid: M.Measurable Sigma.sigma S)
+    (left: LeftKernel.Witness[S]) (right: RightKernel.Witness[Push.preimage S]) => Cuts.injective _ _ (eq_reason_in!{M.Value _
+      "=" _ "by" { sym!{M.Value} _ _ (Left.valueCut S left) }
+      "=" _ "by" { symmetry S valid }
+      "=" _ "by" { Right.valueCut (Push.preimage S) right }
+    });
