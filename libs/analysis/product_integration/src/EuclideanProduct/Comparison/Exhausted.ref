@@ -1,0 +1,19 @@
+\import \root.Decomposition[A := E.Point, mu := Lebesgue.measure, exhaustion := Euclidean.exhaustion] \as Decomposition;
+\import M.Finite[mu := Lebesgue.measure] \as LebesgueFinite;
+\definition sets[k: N.Nat^]: \Pow E.Point := Sets.Intersection S (Decomposition.piece k);
+\definition measurable: M.Measurable E.Borel[].sigma S -> \forall (k: N.Nat^) -> M.Measurable E.Borel[].sigma (sets k) :=
+  \fun (valid: M.Measurable E.Borel[].sigma S) (k: N.Nat^) => MS.intersectionMeasurable E.Borel[].sigma S (Decomposition.piece k) valid
+    (MS.incrementsMeasurable E.Borel[].sigma Euclidean.exhaustion.sets
+      (\fun (j: N.Nat^) => E.Borel[].closed (E.points (Exhaustion.box j)) (Boxes.pointsClosed (Exhaustion.box j))) k);
+\definition disjoint: M.Disjoint sets := \fun (i, j: N.Nat^) (different: Logic.Not (i = j)) (x: E.Point)
+  (first: Sets.Member (sets i) x) (second: Sets.Member (sets j) x) => MS.incrementsDisjoint Euclidean.exhaustion.sets i j different x first.right second.right;
+\definition theorem: M.Measurable E.Borel[].sigma S -> Push.measure.value S = E.outer S := \fun (valid: M.Measurable E.Borel[].sigma S) => eq_reason_in!{M.Value _
+  "=" _ "by" { congr!{{\Pow E.Point} M.Value} Push.measure.value _ _ (sym!{{\Pow E.Point}} _ _ (Decomposition.partition S)) }
+  "=" _ "by" { Finite.laws.countableAdditivity sets (\fun (k: N.Nat^) => Borel.measurable (sets k) (measurable valid k)) disjoint }
+  "=" _ "by" { congr!{{N.Nat^ -> M.Value} M.Value} M.series _ _ (\axiom:funext(
+    (\fun (k: N.Nat^) => Push.measure.value (sets k)), (\fun (k: N.Nat^) => E.outer (sets k)),
+    \fun (k: N.Nat^) => bounded (Exhaustion.box k) (sets k) (measurable valid k)
+      (\fun (x: E.Point) (member: Sets.Member (sets k) x) => member.right.left))) }
+  "=" _ "by" { sym!{M.Value} _ _ (LebesgueFinite.laws.countableAdditivity sets (\fun (k: N.Nat^) => EB.borelMeasurable (sets k) (measurable valid k)) disjoint) }
+  "=" _ "by" { congr!{{\Pow E.Point} M.Value} E.outer _ _ (Decomposition.partition S) }
+};

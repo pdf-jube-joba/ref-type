@@ -1,0 +1,29 @@
+\definition leftSet[valid: M.Measurable E.Borel[].sigma S]: PF.FiniteMeasurableSet := PF.intersection (box b) S (Borel.measurable S valid);
+\definition rightSet[valid: M.Measurable E.Borel[].sigma S]: LF.FiniteMeasurableSet := LF.intersection (lebesgueBox b) S (EB.borelMeasurable S valid);
+\definition leftDifference[valid: M.Measurable E.Borel[].sigma S]: PF.FiniteMeasurableSet := PF.difference (box b) S (Borel.measurable S valid);
+\definition rightDifference[valid: M.Measurable E.Borel[].sigma S]: LF.FiniteMeasurableSet := LF.difference (lebesgueBox b) S (EB.borelMeasurable S valid);
+\definition wholeMass: PF.mass (box b) = LF.mass (lebesgueBox b) := Cuts.injective _ _ (eq_reason_in!{M.Value _
+  "=" _ "by" { sym!{M.Value} _ _ (PF.massCut (box b)) }
+  "=" _ "by" { Volumes.theorem b }
+  "=" _ "by" { sym!{M.Value} _ _ (euclidean_measure.BoxVolume[n := Index.total].boxVolume b) }
+  "=" _ "by" { LF.massCut (lebesgueBox b) }
+});
+\definition partitions: \forall (valid: M.Measurable E.Borel[].sigma S) -> Real.add (PF.mass (leftSet valid)) (PF.mass (leftDifference valid)) =
+  Real.add (LF.mass (rightSet valid)) (LF.mass (rightDifference valid)) := \fun (valid: M.Measurable E.Borel[].sigma S) => eq_reason_in!{Real.Real _
+  "=" _ "by" { sym!{Real.Real} _ _ (PF.massPartition (box b) S (Borel.measurable S valid)) }
+  "=" _ "by" { wholeMass }
+  "=" _ "by" { LF.massPartition (lebesgueBox b) S (EB.borelMeasurable S valid) }
+};
+\definition massEquality: \forall (valid: M.Measurable E.Borel[].sigma S) -> PF.mass (leftSet valid) = LF.mass (rightSet valid) :=
+  \fun (valid: M.Measurable E.Borel[].sigma S) => Order.leAntisym _ _
+    (massDomination (leftSet valid) (rightSet valid) (\refl(Sets.Intersection (E.points b) S)))
+    (Laws.leAddCancelRight (LF.mass (rightSet valid)) (PF.mass (leftSet valid)) (PF.mass (leftDifference valid))
+      (Order.leReplaceRight _ _ _ (sym!{Real.Real} _ _ (partitions valid))
+        (Laws.addMonotoneLeft (PF.mass (leftDifference valid)) (LF.mass (rightDifference valid)) (LF.mass (rightSet valid))
+          (massDomination (leftDifference valid) (rightDifference valid) (\refl(MS.difference (E.points b) S))))));
+\definition theorem: M.Measurable E.Borel[].sigma S -> Push.measure.value (Sets.Intersection (E.points b) S) = E.outer (Sets.Intersection (E.points b) S) :=
+  \fun (valid: M.Measurable E.Borel[].sigma S) => eq_reason_in!{M.Value _
+    "=" _ "by" { PF.massCut (leftSet valid) }
+    "=" _ "by" { congr!{Real.Real M.Value} Cuts.cut _ _ (massEquality valid) }
+    "=" _ "by" { sym!{M.Value} _ _ (LF.massCut (rightSet valid)) }
+  };

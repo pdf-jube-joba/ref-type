@@ -36,6 +36,20 @@
         }),
     };
 \import M.Integral[mu := mu].Convergence[] \as C;
+\import \root.SeriesValues[A := A, mu := mu] \as Series;
+\use std.Logic[].Equality[].congr;
+\use std.Logic[].Equality[].eq_reason_in;
+\definition unionBound: \forall (sets: N.Nat^ -> \Pow A) -> (\forall (k: N.Nat^) -> M.Measurable mu.sigma (sets k)) ->
+  M.ValueLaws[].Included (mu.value (M.union sets)) (M.series (\fun (k: N.Nat^) => mu.value (sets k))) :=
+  \fun (sets: N.Nat^ -> \Pow A) (valid: \forall (k: N.Nat^) -> M.Measurable mu.sigma (sets k)) (r: Real.Real) (member: M.below (mu.value (M.union sets)) r) =>
+    Series.seriesMonotone (\fun (k: N.Nat^) => mu.value (Sigma.increments sets k)) (\fun (k: N.Nat^) => mu.value (sets k))
+      (\fun (k: N.Nat^) => Finite.monotone (Sigma.increments sets k) (sets k) (Sigma.incrementsMeasurable mu.sigma sets valid k) (valid k)
+        (\fun (x: A) (inside: Sets.Member (Sigma.increments sets k) x) => inside.left)) r
+      (\idelim mu.value (M.union sets) = M.series (\fun (k: N.Nat^) => mu.value (Sigma.increments sets k)) \with v: M.Value => M.below v r \by {
+        base: member, equality: eq_reason_in!{M.Value _
+          "=" _ "by" { congr!{{\Pow A} M.Value} mu.value _ _ (sym!{{\Pow A}} _ _ (Sigma.incrementUnion sets)) }
+          "=" _ "by" { Finite.laws.countableAdditivity (Sigma.increments sets) (Sigma.incrementsMeasurable mu.sigma sets valid) (Sigma.incrementsDisjoint sets) }
+        } });
 \definition valuesSupremum: \forall (values: N.Nat^ -> M.Value) (sequence: N.Nat^ -> Real.Real) (v: Real.Real) ->
   (\forall (k: N.Nat^) -> Complete.LeastUpperBound[values k, sequence k]) ->
   Complete.LeastUpperBound[C.Sup values, v] -> Complete.LeastUpperBound[ScalarSup.values sequence, v] :=

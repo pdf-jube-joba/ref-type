@@ -1,0 +1,101 @@
+\import std.Data[].Nat[] \as N;
+\import std.Data[].FinSet[] \as Fin;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Classical[] \as Classical;
+\import euclidean_measure.Euclidean[n := n] \as E;
+\import euclidean_measure.Coordinate[n := n] \as Coordinate;
+\import topological_algebra.Euclidean[].Dimension[n := n].Countability[] \as Basis;
+\import topological_algebra.Euclidean[].Dimension[n := n].Topology[] \as Topology;
+\import topology.Topology[Carrier := E.Point] \as Sets;
+\import functional_analysis.Measure[A := E.Point] \as Measure;
+\import Measure.Sigma[] \as Sigma;
+\import dedekind_reals.DedekindReal[] \as R;
+\import R.Arithmetic[].Prop[] \as Laws;
+\import R.Arithmetic[].Def[] \as Arithmetic;
+\import R.Order[] \as Order;
+\import real.Analysis[] \as Real;
+\import E.Reflection[] \as Reflection;
+\import E.MeasureConstruction[] \as Construction;
+\use std.Logic[].Equality[].sym;
+\import functional_analysis.Measure[A := E.Point] \as M;
+\definition above: Fin.Fin n -> Real.Real -> \Pow E.Point := euclidean_measure.EuclideanBorel[n := n].above;
+\definition below: Fin.Fin n -> Real.Real -> \Pow E.Point := euclidean_measure.EuclideanBorel[n := n].below;
+\definition finiteMeet: \forall (k: N.Nat^) -> (Fin.Fin k -> \Pow E.Point) -> \Pow E.Point :=
+  \induction (k: N.Nat^) \return (Fin.Fin k -> \Pow E.Point) -> \Pow E.Point \with {
+    | zero: \fun (_: Fin.Fin N.Nat^::zero -> \Pow E.Point) => Sets.Whole
+    | succ: \fun (k: N.Nat^) (prior: (Fin.Fin k -> \Pow E.Point) -> \Pow E.Point) (f: Fin.Fin (N.Nat^::succ k) -> \Pow E.Point) =>
+      Sets.Intersection (f (Fin.zero k)) (prior (\fun (i: Fin.Fin k) => f (Fin.succ k i)))
+  };
+\definition finiteMeetMeasurable: \forall (k: N.Nat^) (f: Fin.Fin k -> \Pow E.Point) ->
+  (\forall (i: Fin.Fin k) -> M.Measurable sigma (f i)) -> M.Measurable sigma (finiteMeet k f) :=
+  \induction (k: N.Nat^) \return \forall (f: Fin.Fin k -> \Pow E.Point) ->
+    (\forall (i: Fin.Fin k) -> M.Measurable sigma (f i)) -> M.Measurable sigma (finiteMeet k f) \with {
+      | zero: \fun (f: Fin.Fin N.Nat^::zero -> \Pow E.Point) (_: _) => Sigma.wholeMeasurable sigma
+      | succ: \fun (k: N.Nat^) (prior: _) (f: Fin.Fin (N.Nat^::succ k) -> \Pow E.Point) (valid: _) =>
+        Sigma.intersectionMeasurable sigma (f (Fin.zero k)) (finiteMeet k (\fun (i: Fin.Fin k) => f (Fin.succ k i)))
+          (valid (Fin.zero k)) (prior (\fun (i: Fin.Fin k) => f (Fin.succ k i)) (\fun (i: Fin.Fin k) => valid (Fin.succ k i)))
+    };
+\definition finiteMeetMember: \forall (k: N.Nat^) (f: Fin.Fin k -> \Pow E.Point) (x: E.Point) ->
+  Sets.Member (finiteMeet k f) x -> \forall (i: Fin.Fin k) -> Sets.Member (f i) x :=
+  \induction (k: N.Nat^) \return \forall (f: Fin.Fin k -> \Pow E.Point) (x: E.Point) -> Sets.Member (finiteMeet k f) x -> \forall (i: Fin.Fin k) -> Sets.Member (f i) x \with {
+    | zero: \fun (f: _) (x: _) (_: _) (i: Fin.Fin N.Nat^::zero) => Logic.falseElim _ (Fin.zeroImpossible i (Fin.bound N.Nat^::zero i))
+    | succ: \fun (k: N.Nat^) (prior: _) (f: Fin.Fin (N.Nat^::succ k) -> \Pow E.Point) (x: E.Point) (member: Sets.Member (finiteMeet (N.Nat^::succ k) f) x) =>
+      Fin.cases k (\fun (i: Fin.Fin (N.Nat^::succ k)) => Sets.Member (f i) x) member.left
+        (\fun (i: Fin.Fin k) => prior (\fun (j: Fin.Fin k) => f (Fin.succ k j)) x member.right i)
+  };
+\definition finiteMeetIntro: \forall (k: N.Nat^) (f: Fin.Fin k -> \Pow E.Point) (x: E.Point) ->
+  (\forall (i: Fin.Fin k) -> Sets.Member (f i) x) -> Sets.Member (finiteMeet k f) x :=
+  \induction (k: N.Nat^) \return \forall (f: Fin.Fin k -> \Pow E.Point) (x: E.Point) ->
+    (\forall (i: Fin.Fin k) -> Sets.Member (f i) x) -> Sets.Member (finiteMeet k f) x \with {
+      | zero: \fun (f: _) (x: E.Point) (_: _) => \refl(x)
+      | succ: \fun (k: N.Nat^) (prior: _) (f: Fin.Fin (N.Nat^::succ k) -> \Pow E.Point) (x: E.Point) (member: _) =>
+        Logic.And[_, _]::# (member (Fin.zero k)) (prior (\fun (i: Fin.Fin k) => f (Fin.succ k i)) x (\fun (i: Fin.Fin k) => member (Fin.succ k i)))
+    };
+\definition coordinateInterval[a, b: Basis.Endpoints] [i: Fin.Fin n]: \Pow E.Point :=
+  Sets.Intersection (above i (Arithmetic.ofRat (a i))) (below i (Arithmetic.ofRat (b i)));
+\definition rectangleAsMeet: \forall (a, b: Basis.Endpoints) -> Basis.rectangle a b = finiteMeet n (coordinateInterval a b) :=
+  \fun (a, b: Basis.Endpoints) => \axiom:setext(Basis.rectangle a b, finiteMeet n (coordinateInterval a b),
+    \fun (x: E.Point) (member: Sets.Member (Basis.rectangle a b) x) => finiteMeetIntro n (coordinateInterval a b) x member,
+    \fun (x: E.Point) (member: Sets.Member (finiteMeet n (coordinateInterval a b)) x) => finiteMeetMember n (coordinateInterval a b) x member);
+\definition basisMeasurable: \forall (j: N.Nat^) -> M.Measurable sigma (Basis.basis j) :=
+  \fun (j: N.Nat^) => \idelim finiteMeet n (coordinateInterval (Basis.lower j) (Basis.upper j)) = Basis.basis j \with S: \Pow E.Point => M.Measurable sigma S
+    \by { base: finiteMeetMeasurable n (coordinateInterval (Basis.lower j) (Basis.upper j))
+      (\fun (i: Fin.Fin n) => Sigma.intersectionMeasurable sigma (above i (Arithmetic.ofRat (Basis.lower j i))) (below i (Arithmetic.ofRat (Basis.upper j i)))
+        (data.above i (Arithmetic.ofRat (Basis.lower j i))) (data.below i (Arithmetic.ofRat (Basis.upper j i)))),
+      equality: sym!{{\Pow E.Point}} _ _ (rectangleAsMeet (Basis.lower j) (Basis.upper j)) };
+\definition selected[U: \Pow E.Point] [j: N.Nat^]: \Pow E.Point :=
+  { x: E.Point \where Logic.And[Sets.Subset (Basis.basis j) U, Sets.Member (Basis.basis j) x] };
+\definition selectedMeasurable: \forall (U: \Pow E.Point) (j: N.Nat^) -> M.Measurable sigma (selected U j) :=
+  \fun (U: \Pow E.Point) (j: N.Nat^) => Logic.orElim (Sets.Subset (Basis.basis j) U) (Logic.Not (Sets.Subset (Basis.basis j) U)) (M.Measurable sigma (selected U j))
+    (Classical.excludedMiddle (Sets.Subset (Basis.basis j) U))
+    (\fun (included: Sets.Subset (Basis.basis j) U) =>
+      \idelim Basis.basis j = selected U j \with S: \Pow E.Point => M.Measurable sigma S
+        \by { base: basisMeasurable j, equality: \axiom:setext(Basis.basis j, selected U j,
+          \fun (x: E.Point) (member: Sets.Member (Basis.basis j) x) => Logic.And[_, _]::# included member,
+          \fun (x: E.Point) (member: Sets.Member (selected U j) x) => member.right) })
+    (\fun (outside: Logic.Not (Sets.Subset (Basis.basis j) U)) =>
+      \idelim Sets.Empty = selected U j \with S: \Pow E.Point => M.Measurable sigma S
+        \by { base: (Sigma.laws sigma).empty, equality: \axiom:setext(Sets.Empty, selected U j,
+          \fun (x: E.Point) (empty: Logic.False) => Logic.falseElim _ empty,
+          \fun (x: E.Point) (member: Sets.Member (selected U j) x) => outside member.left) });
+\definition openAsUnion: \forall (U: \Pow E.Point) -> Sets.IsOpenIn Topology.topology U -> Measure.union (selected U) = U :=
+  \fun (U: \Pow E.Point) (open: Sets.IsOpenIn Topology.topology U) => \axiom:setext(Measure.union (selected U), U,
+    \fun (x: E.Point) (member: Sets.Member (Measure.union (selected U)) x) => \block {
+      \takefrom j: \Cast[N.Nat^] ({ j: N.Nat^ \where Sets.Member (selected U j) x }) \by member \then
+      \let inside: Sets.Member (selected U j) x := \bysub(N.Nat^, { j: N.Nat^ \where Sets.Member (selected U j) x }, j) \then
+      \return inside.left x inside.right
+    },
+    \fun (x: E.Point) (inside: Sets.Member U x) => \block {
+      \takefrom j: \Cast[N.Nat^] ({ j: N.Nat^ \where Logic.And[Sets.Member (Basis.basis j) x, Sets.Subset (Basis.basis j) U] })
+        \by Basis.refines U open x inside \then
+      \let data: Logic.And[Sets.Member (Basis.basis j) x, Sets.Subset (Basis.basis j) U] :=
+        \bysub(N.Nat^, { j: N.Nat^ \where Logic.And[Sets.Member (Basis.basis j) x, Sets.Subset (Basis.basis j) U] }, j) \then
+      \return Logic.existsIntro[N.Nat^, { j: N.Nat^ \where Sets.Member (selected U j) x }] j (Logic.And[_, _]::# data.right data.left)
+    });
+\definition openMeasurable: \forall (U: \Pow E.Point) -> Sets.IsOpenIn Topology.topology U -> M.Measurable sigma U :=
+  \fun (U: \Pow E.Point) (open: Sets.IsOpenIn Topology.topology U) =>
+    \idelim Measure.union (selected U) = U \with S: \Pow E.Point => M.Measurable sigma S
+      \by { base: (Sigma.laws sigma).countableUnion (selected U) (selectedMeasurable U), equality: openAsUnion U open };
+\definition borelMeasurable: \forall (S: \Pow E.Point) -> Measure.Measurable E.Borel[].sigma S -> M.Measurable sigma S :=
+  \fun (S: \Pow E.Point) (borel: Measure.Measurable E.Borel[].sigma S) =>
+    E.Borel[].smallest sigma openMeasurable S borel;

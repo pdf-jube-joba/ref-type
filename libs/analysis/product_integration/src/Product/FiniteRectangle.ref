@@ -1,0 +1,67 @@
+\import \root.Cuts[A := Sigma.Point] \as Cuts;
+\import \root.SeriesValues[A := Sigma.Point, mu := measure] \as Values;
+\import M.Integral[mu := measure].Scaling[] \as Scaling;
+\import M.ValueLaws[] \as Value;
+\import real.Analysis[] \as Real;
+\import dedekind_reals.DedekindReal[] \as Order;
+\import Order.Arithmetic[].Prop[] \as Laws;
+\use std.Logic[].Equality[].trans;
+\use std.Logic[].Equality[].sym;
+\definition scaleCut: \forall (c: Scaling.NonnegativeScalar) (d: Real.Real) -> Order.Le Real.zero d ->
+  M.scale c (Cuts.cut d) = Cuts.cut (Real.mul c d) :=
+  \fun (c: Scaling.NonnegativeScalar) (d: Real.Real) (nonnegative: Order.Le Real.zero d) =>
+    Cuts.fromSup (M.scale c (Cuts.cut d)) (Real.mul c d)
+      (Value.scaleNonnegative c (Cuts.cut d) (Scaling.nonnegative c) (Cuts.nonnegative d nonnegative))
+      (Scaling.supScale c (Cuts.cut d) d (Cuts.nonnegative d nonnegative) (Cuts.supremum d));
+\definition leftValid: L.Measurable mu.sigma U := (LF.finiteLaw U).measurable;
+\definition rightValid: R.Measurable nu.sigma V := (RF.finiteLaw V).measurable;
+\definition leftMass[i: N.Nat^]: Scaling.NonnegativeScalar := \into[Real.Real](\root.FiniteSpaces[A := A].On[mu := leftMeasure i].mass U leftValid, Scaling.NonnegativeScalar) \by {
+  \root.Finiteness[A := A, mu := leftMeasure i].massNonnegative (\root.FiniteSpaces[A := A].On[mu := leftMeasure i].finite U leftValid)
+};
+\definition rightMass[j: N.Nat^]: Scaling.NonnegativeScalar := \into[Real.Real](\root.FiniteSpaces[A := B].On[mu := rightMeasure j].mass V rightValid, Scaling.NonnegativeScalar) \by {
+  \root.Finiteness[A := B, mu := rightMeasure j].massNonnegative (\root.FiniteSpaces[A := B].On[mu := rightMeasure j].finite V rightValid)
+};
+\definition leftSum: M.series (\fun (i: N.Nat^) => Cuts.cut (leftMass i)) = Cuts.cut (LF.mass U) := eq_reason_in!{M.Value _
+  "=" _ "by" { congr!{{N.Nat^ -> M.Value} M.Value} M.series _ _ (\axiom:funext(
+    (\fun (i: N.Nat^) => Cuts.cut (leftMass i)), (\fun (i: N.Nat^) => (leftMeasure i).value U),
+    \fun (i: N.Nat^) => sym!{L.Value} _ _ (\root.Finiteness[A := A, mu := leftMeasure i].massCut (\root.FiniteSpaces[A := A].On[mu := leftMeasure i].finite U leftValid)))) }
+  "=" _ "by" { sym!{L.Value} _ _ (\root.Decomposition[A := A, mu := mu, exhaustion := left].value U leftValid) }
+  "=" _ "by" { LF.massCut U }
+};
+\definition rightSum: M.series (\fun (j: N.Nat^) => Cuts.cut (rightMass j)) = Cuts.cut (RF.mass V) := eq_reason_in!{M.Value _
+  "=" _ "by" { congr!{{N.Nat^ -> M.Value} M.Value} M.series _ _ (\axiom:funext(
+    (\fun (j: N.Nat^) => Cuts.cut (rightMass j)), (\fun (j: N.Nat^) => (rightMeasure j).value V),
+    \fun (j: N.Nat^) => sym!{R.Value} _ _ (\root.Finiteness[A := B, mu := rightMeasure j].massCut (\root.FiniteSpaces[A := B].On[mu := rightMeasure j].finite V rightValid)))) }
+  "=" _ "by" { sym!{R.Value} _ _ (\root.Decomposition[A := B, mu := nu, exhaustion := right].value V rightValid) }
+  "=" _ "by" { RF.massCut V }
+};
+\definition row[i: N.Nat^]: M.series (\fun (j: N.Nat^) => Cuts.cut (Real.mul (leftMass i) (rightMass j))) = Cuts.cut (Real.mul (leftMass i) (RF.mass V)) := eq_reason_in!{M.Value _
+  "=" _ "by" { congr!{{N.Nat^ -> M.Value} M.Value} M.series _ _ (\axiom:funext(
+    (\fun (j: N.Nat^) => Cuts.cut (Real.mul (leftMass i) (rightMass j))),
+    (\fun (j: N.Nat^) => M.scale (leftMass i) (Cuts.cut (rightMass j))),
+    \fun (j: N.Nat^) => sym!{M.Value} _ _ (scaleCut (leftMass i) (rightMass j) (Scaling.nonnegative (rightMass j))))) }
+  "=" _ "by" { sym!{M.Value} _ _ (Values.scale (leftMass i) (\fun (j: N.Nat^) => Cuts.cut (rightMass j)) (Scaling.nonnegative (leftMass i))
+    (\fun (j: N.Nat^) => Cuts.nonnegative (rightMass j) (Scaling.nonnegative (rightMass j)))) }
+  "=" _ "by" { congr!{M.Value M.Value} (M.scale (leftMass i)) _ _ rightSum }
+  "=" _ "by" { scaleCut (leftMass i) (RF.mass V) (RF.massNonnegative V) }
+};
+\definition coefficient: Scaling.NonnegativeScalar := \into[Real.Real](RF.mass V, Scaling.NonnegativeScalar) \by { RF.massNonnegative V };
+\definition theorem: measure.value (Sigma.rectangle U V) = Cuts.cut (Real.mul (LF.mass U) (RF.mass V)) := eq_reason_in!{M.Value _
+  "=" _ "by" { \root.Product[A := A, B := B, mu := mu, nu := nu, left := left, right := right].Rectangle[
+    U := \into[\Pow A](U, MeasurableLeft) \by { leftValid }, V := \into[\Pow B](V, MeasurableRight) \by { rightValid }].formula }
+  "=" _ "by" { congr!{{N.Nat^ -> M.Value} M.Value} M.series _ _ (\axiom:funext(
+    (\fun (i: N.Nat^) => M.series (\fun (j: N.Nat^) => Cuts.cut (Real.mul (leftMass i) (rightMass j)))),
+    (\fun (i: N.Nat^) => Cuts.cut (Real.mul (leftMass i) (RF.mass V))), row)) }
+  "=" _ "by" { congr!{{N.Nat^ -> M.Value} M.Value} M.series _ _ (\axiom:funext(
+    (\fun (i: N.Nat^) => Cuts.cut (Real.mul (leftMass i) coefficient)),
+    (\fun (i: N.Nat^) => M.scale coefficient (Cuts.cut (leftMass i))),
+    \fun (i: N.Nat^) => eq_reason_in!{M.Value _
+      "=" _ "by" { congr!{Real.Real M.Value} Cuts.cut _ _ (Laws.fieldMulComm (leftMass i) coefficient) }
+      "=" _ "by" { sym!{M.Value} _ _ (scaleCut coefficient (leftMass i) (Scaling.nonnegative (leftMass i))) }
+    })) }
+  "=" _ "by" { sym!{M.Value} _ _ (Values.scale coefficient (\fun (i: N.Nat^) => Cuts.cut (leftMass i)) (Scaling.nonnegative coefficient)
+    (\fun (i: N.Nat^) => Cuts.nonnegative (leftMass i) (Scaling.nonnegative (leftMass i)))) }
+  "=" _ "by" { congr!{M.Value M.Value} (M.scale coefficient) _ _ leftSum }
+  "=" _ "by" { scaleCut coefficient (LF.mass U) (LF.massNonnegative U) }
+  "=" _ "by" { congr!{Real.Real M.Value} Cuts.cut _ _ (Laws.fieldMulComm coefficient (LF.mass U)) }
+};
