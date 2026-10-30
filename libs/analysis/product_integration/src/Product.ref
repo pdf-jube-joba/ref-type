@@ -1,0 +1,36 @@
+\import std.Data[].Nat[] \as N;
+\import functional_analysis.Measure[A := A] \as L;
+\import functional_analysis.Measure[A := B] \as R;
+\import L.Sigma[] \as LeftSigma;
+\import R.Sigma[] \as RightSigma;
+\import \root.Finiteness[A := A, mu := mu] \as LF;
+\import \root.Finiteness[A := B, mu := nu] \as RF;
+\import \root.ProductSigma[A := A, B := B, left := mu.sigma, right := nu.sigma] \as Sigma;
+\import functional_analysis.Measure[A := Sigma.Point] \as M;
+\import topology.Topology[Carrier := A] \as LeftSets;
+\import topology.Topology[Carrier := B] \as RightSets;
+\import \root.MeasureSeries[A := Sigma.Point] \as Series;
+\import std.Logic[].Proposition[] \as Logic;
+\definition leftSet[k: N.Nat^]: LF.FiniteMeasurableSet := \into[\Pow A](LeftSigma.increments left.sets k, LF.FiniteMeasurableSet) \by {
+  LF.subsetFinite (LeftSigma.increments left.sets k) (left.sets k)
+    (LeftSigma.incrementsMeasurable mu.sigma left.sets (\fun (k: N.Nat^) => (left.finite k).measurable) k)
+    (\fun (x: A) (member: LeftSets.Member (LeftSigma.increments left.sets k) x) => member.left) (left.finite k)
+};
+\definition rightSet[k: N.Nat^]: RF.FiniteMeasurableSet := \into[\Pow B](RightSigma.increments right.sets k, RF.FiniteMeasurableSet) \by {
+  RF.subsetFinite (RightSigma.increments right.sets k) (right.sets k)
+    (RightSigma.incrementsMeasurable nu.sigma right.sets (\fun (k: N.Nat^) => (right.finite k).measurable) k)
+    (\fun (x: B) (member: RightSets.Member (RightSigma.increments right.sets k) x) => member.left) (right.finite k)
+};
+\definition leftMeasure[k: N.Nat^]: \root.FiniteSpaces[A := A].Measure := LF.Restriction[S := leftSet k].finiteMeasure;
+\definition rightMeasure[k: N.Nat^]: \root.FiniteSpaces[A := B].Measure := RF.Restriction[S := rightSet k].finiteMeasure;
+\module Row(i: N.Nat^);
+\definition family: Series.Family := Series.Family {
+  sigma := Sigma.sigma,
+  measures := \fun (i: N.Nat^) => \root.Product[A := A, B := B, mu := mu, nu := nu, left := left, right := right].Row[i := i].measure,
+  measurable := \fun (S: \Pow Sigma.Point) (valid: M.Measurable Sigma.sigma S) (_: N.Nat^) => valid,
+};
+\import Series.Sum[data := family] \as Sum;
+\definition measure: M.Measure := Sum.measure;
+\definition MeasurableLeft: \Set := \Cast[\Pow A] ({ U: \Pow A \where L.Measurable mu.sigma U });
+\definition MeasurableRight: \Set := \Cast[\Pow B] ({ V: \Pow B \where R.Measurable nu.sigma V });
+\module Rectangle(U: MeasurableLeft, V: MeasurableRight);
