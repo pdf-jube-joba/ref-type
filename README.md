@@ -22,6 +22,15 @@ Linux と Python 3.11 以降で、リポジトリのルートから実行する�
 cargo build -p cli --release --locked && python3 scripts/check_all.py
 ```
 
+Rust/Cargo が PATH にあるシェルで実行する。
+今回の検証用クラウド環境では、保存済みの Rust 1.95.0 設定の読み込みも同じ呼び出しに含める。
+
+```sh
+source /workspace/ref-type-env.sh && cargo build -p cli --release --locked && python3 scripts/check_all.py
+```
+
+検証条件と結果は [全体検査の記録](benchmarks/records/repository-check/README.md) にまとめる。
+
 `libs` の全 module と依存先を列挙し、開始時のソースを固定して順番に通常検査する。
 処理系・ソース・依存・検査範囲が一致する検証済みキャッシュは再利用する。
 パッケージごとの子プロセスでメモリを解放し、上限に達した範囲は自身と子 module に分割して続行する。
