@@ -1,0 +1,60 @@
+\import \parent.Plane[] \as Plane;
+\import topology.Topology[Carrier := Plane.Carrier] \as Base;
+\definition bounded: \Pow Plane.Carrier := { z: Plane.Carrier \where R.Le (Plane.radius z) Real.one };
+\import Base.Subspace[S := bounded] \as Subspace;
+\definition Carrier: \Set := Subspace.CarrierSet;
+\definition topology: topology.Topology[Carrier := Carrier].Topology := Subspace.topology Plane.topology;
+\definition xBound: \forall (z: Carrier) -> Logic.And[R.Le (Real.neg Real.one) (Plane.x z), R.Le (Plane.x z) Real.one] :=
+  \fun (z: Carrier) => Logic.And[_, _]::#
+    (R.leReplaceRight (Real.neg Real.one) (Real.neg (Real.neg (Plane.x z))) (Plane.x z) (Laws.negInvolutive (Plane.x z))
+      (Laws.negAntitone (Real.neg (Plane.x z)) Real.one
+        (R.leTrans _ (Distance.max (Plane.x z) (Real.neg (Plane.x z))) _ (Distance.maxRight (Plane.x z) (Real.neg (Plane.x z)))
+          (R.leTrans _ (Plane.radius z) _ (Distance.maxLeft (Distance.max (Plane.x z) (Real.neg (Plane.x z))) (Distance.max (Plane.y z) (Real.neg (Plane.y z)))) (\bysub(Plane.Carrier, bounded, z))))))
+    (R.leTrans _ (Distance.max (Plane.x z) (Real.neg (Plane.x z))) _ (Distance.maxLeft (Plane.x z) (Real.neg (Plane.x z)))
+      (R.leTrans _ (Plane.radius z) _ (Distance.maxLeft (Distance.max (Plane.x z) (Real.neg (Plane.x z))) (Distance.max (Plane.y z) (Real.neg (Plane.y z)))) (\bysub(Plane.Carrier, bounded, z))));
+\definition yBound: \forall (z: Carrier) -> Logic.And[R.Le (Real.neg Real.one) (Plane.y z), R.Le (Plane.y z) Real.one] :=
+  \fun (z: Carrier) => Logic.And[_, _]::#
+    (R.leReplaceRight (Real.neg Real.one) (Real.neg (Real.neg (Plane.y z))) (Plane.y z) (Laws.negInvolutive (Plane.y z))
+      (Laws.negAntitone (Real.neg (Plane.y z)) Real.one
+        (R.leTrans _ (Distance.max (Plane.y z) (Real.neg (Plane.y z))) _ (Distance.maxRight (Plane.y z) (Real.neg (Plane.y z)))
+          (R.leTrans _ (Plane.radius z) _ (Distance.maxRight (Distance.max (Plane.x z) (Real.neg (Plane.x z))) (Distance.max (Plane.y z) (Real.neg (Plane.y z)))) (\bysub(Plane.Carrier, bounded, z))))))
+    (R.leTrans _ (Distance.max (Plane.y z) (Real.neg (Plane.y z))) _ (Distance.maxLeft (Plane.y z) (Real.neg (Plane.y z)))
+      (R.leTrans _ (Plane.radius z) _ (Distance.maxRight (Distance.max (Plane.x z) (Real.neg (Plane.x z))) (Distance.max (Plane.y z) (Real.neg (Plane.y z)))) (\bysub(Plane.Carrier, bounded, z))));
+\definition coordinatesRegular: topology.Continuity[A := Carrier, B := Plane.Carrier].Continuous topology Plane.topology (\fun (z: Carrier) => z) :=
+  topology.Continuity[A := Plane.Carrier, B := Plane.Carrier].Corestriction[S := bounded].inclusionContinuous Plane.topology;
+\import topology.Topology[Carrier := Real.Real].Subspace[S := Line.ClosedInterval (Real.neg Real.one) Real.one] \as Segment;
+\definition J: \Set := Segment.CarrierSet;
+\definition segmentTopology: topology.Topology[Carrier := J].Topology := Segment.topology Line.topology;
+\import topological_constructions.Product[A := J, B := J] \as Box;
+\import Box.Maps[] \as BoxProjections;
+\definition boxTopology: topology.Topology[Carrier := Box.CarrierSet].Topology := Box.topology segmentTopology segmentTopology;
+\definition raw[z: Box.CarrierSet]: Plane.Carrier := std.Data[].Pair[].pair Real.Real Real.Real (std.Data[].Pair[].first J J z) (std.Data[].Pair[].second J J z);
+\definition rawBound: \forall (z: Box.CarrierSet) -> R.Le (Plane.radius (raw z)) Real.one :=
+  \fun (z: Box.CarrierSet) => Distance.maxLeast _ _ Real.one
+    (Distance.maxLeast _ _ Real.one (\bysub(Real.Real, Line.ClosedInterval (Real.neg Real.one) Real.one, std.Data[].Pair[].first J J z)).right
+      (R.leReplaceRight _ (Real.neg (Real.neg Real.one)) Real.one (Laws.negInvolutive Real.one)
+        (Laws.negAntitone _ _ (\bysub(Real.Real, Line.ClosedInterval (Real.neg Real.one) Real.one, std.Data[].Pair[].first J J z)).left)))
+    (Distance.maxLeast _ _ Real.one (\bysub(Real.Real, Line.ClosedInterval (Real.neg Real.one) Real.one, std.Data[].Pair[].second J J z)).right
+      (R.leReplaceRight _ (Real.neg (Real.neg Real.one)) Real.one (Laws.negInvolutive Real.one)
+        (Laws.negAntitone _ _ (\bysub(Real.Real, Line.ClosedInterval (Real.neg Real.one) Real.one, std.Data[].Pair[].second J J z)).left)));
+\definition into[z: Box.CarrierSet]: Carrier := \into[Plane.Carrier](raw z, bounded) \by { rawBound z };
+\import topology.Continuity[A := J, B := Real.Real].Corestriction[S := Line.ClosedInterval (Real.neg Real.one) Real.one] \as SegmentMaps;
+\definition regular: topology.Continuity[A := Box.CarrierSet, B := Carrier].Continuous boxTopology topology into :=
+  topology.Continuity[A := Box.CarrierSet, B := Plane.Carrier].Corestriction[S := bounded].corestrictContinuous boxTopology Plane.topology into
+    (topological_constructions.Product[A := Real.Real, B := Real.Real].Universal[X := Box.CarrierSet].pairContinuous boxTopology Line.topology Line.topology
+      (\fun (z: Box.CarrierSet) => std.Data[].Pair[].first J J z) (\fun (z: Box.CarrierSet) => std.Data[].Pair[].second J J z)
+      (topology.Composition[A := Box.CarrierSet, B := J, C := Real.Real].composeContinuous boxTopology segmentTopology Line.topology
+        (std.Data[].Pair[].first J J) (\fun (v: J) => v) (BoxProjections.firstContinuous segmentTopology segmentTopology) (SegmentMaps.inclusionContinuous Line.topology))
+      (topology.Composition[A := Box.CarrierSet, B := J, C := Real.Real].composeContinuous boxTopology segmentTopology Line.topology
+        (std.Data[].Pair[].second J J) (\fun (v: J) => v) (BoxProjections.secondContinuous segmentTopology segmentTopology) (SegmentMaps.inclusionContinuous Line.topology)));
+\definition from[z: Carrier]: Box.CarrierSet := std.Data[].Pair[].pair J J
+  (\into[Real.Real](Plane.x z, Line.ClosedInterval (Real.neg Real.one) Real.one) \by { xBound z })
+  (\into[Real.Real](Plane.y z, Line.ClosedInterval (Real.neg Real.one) Real.one) \by { yBound z });
+\definition onto: \forall (z: Carrier) -> \exists (p: Box.CarrierSet \where into p = z) :=
+  \fun (z: Carrier) => Logic.existsIntro[Box.CarrierSet, { p: Box.CarrierSet \where into p = z }] (from z)
+    (std.Data[].Pair[].Prop[A := Real.Real, B := Real.Real].eta z);
+\definition compact: topology.Topology[Carrier := Carrier].IsCompact topology :=
+  topology.Compactness[A := Box.CarrierSet, B := Carrier].surjectiveImage boxTopology topology into regular onto
+    (Box.Compactness[].productCompact segmentTopology segmentTopology
+      (Segment.Properties[].compact Line.topology (Line.CompactIntervals[].intervalCompact (Real.neg Real.one) Real.one))
+      (Segment.Properties[].compact Line.topology (Line.CompactIntervals[].intervalCompact (Real.neg Real.one) Real.one)));

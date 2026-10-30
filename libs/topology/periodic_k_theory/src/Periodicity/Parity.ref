@@ -1,0 +1,82 @@
+\import std.Data[].Bool[] \as B;
+\import B.Prop[] \as Bool;
+\import std.Data[].Nat[].Basic[].Def[] \as Nat;
+\import std.Data[].Nat[].Basic[].Prop[] \as NatLaws;
+\import std.Arithmetic[].Int[] \as I;
+\import I.Math[] \as Math;
+\definition xor: B.Bool^ -> B.Bool^ -> B.Bool^ := B.Xor.specification;
+\definition and: B.Bool^ -> B.Bool^ -> B.Bool^ := B.And.specification;
+\definition neg: B.Bool^ -> B.Bool^ := B.Neg.specification;
+\module Truth;
+\import Truth[] \as Boolean;
+\definition natural: N.Nat^ -> B.Bool^ := \induction (n: N.Nat^) \return B.Bool^ \with {
+  | zero: B.Bool^::false
+  | succ: \fun (n: N.Nat^)(previous: B.Bool^) => neg previous
+};
+\definition naturalAdd: \forall (a, b: N.Nat^) -> natural (Nat.add a b) = xor (natural a) (natural b) :=
+  \fun (a: N.Nat^) => \induction (b: N.Nat^) \return natural (Nat.add a b) = xor (natural a) (natural b) \with {
+    | zero: sym!{{B.Bool^}} _ _ (Boolean.xorZeroRight (natural a))
+    | succ: \fun (n: N.Nat^)(previous: _) => trans!{{B.Bool^}} _ _ _
+      (congr!{{B.Bool^} {B.Bool^}} neg _ _ previous) (sym!{{B.Bool^}} _ _ (Boolean.xorNegRight (natural a) (natural n)))
+  };
+\definition naturalMul: \forall (a, b: N.Nat^) -> natural (Nat.mul a b) = and (natural a) (natural b) :=
+  \fun (a: N.Nat^) => \induction (b: N.Nat^) \return natural (Nat.mul a b) = and (natural a) (natural b) \with {
+    | zero: sym!{{B.Bool^}} _ _ (Boolean.andZeroRight (natural a))
+    | succ: \fun (n: N.Nat^)(previous: _) => trans!{{B.Bool^}} _ _ _
+      (congr!{{N.Nat^} {B.Bool^}} natural _ _ (NatLaws.mulSuccRight a n))
+      (trans!{{B.Bool^}} _ _ _ (naturalAdd a (Nat.mul a n))
+        (trans!{{B.Bool^}} _ _ _ (congr!{{B.Bool^} {B.Bool^}} (xor (natural a)) _ _ previous)
+          (sym!{{B.Bool^}} _ _ (Boolean.mulStep (natural a) (natural n)))))
+  };
+\definition naturalPeriod: \forall (n: N.Nat^) -> natural (N.Nat^::succ (N.Nat^::succ n)) = natural n :=
+  \fun (n: N.Nat^) => Bool.negInvolutive (natural n);
+\definition value[z: I.Int^]: B.Bool^ := xor (natural (I.Positive.specification z)) (natural (I.Negative.specification z));
+\definition difference: \forall (a, b: N.Nat^) -> value (I.Diff.specification a b) = xor (natural a) (natural b) := \block {
+  \fun (a, b: N.Nat^) \then
+  \let z: I.Int^ := I.Diff.specification a b \then
+  \let balance: xor (natural a) (natural (I.Negative.specification z)) = xor (natural (I.Positive.specification z)) (natural b) :=
+    trans!{{B.Bool^}} _ _ _ (sym!{{B.Bool^}} _ _ (naturalAdd a (I.Negative.specification z)))
+      (trans!{{B.Bool^}} _ _ _ (congr!{{N.Nat^} {B.Bool^}} natural _ _ (Math.diffBalance b a)) (naturalAdd (I.Positive.specification z) b)) \then
+  \return sym!{{B.Bool^}} _ _ (Boolean.cross (natural a) (natural b) (natural (I.Positive.specification z)) (natural (I.Negative.specification z)) balance)
+};
+\definition additive: \forall (a, b: I.Int^) -> value (I.Add.specification a b) = xor (value a) (value b) :=
+  \fun (a, b: I.Int^) => trans!{{B.Bool^}} _ _ _
+    (difference (Nat.add (I.Positive.specification a) (I.Positive.specification b)) (Nat.add (I.Negative.specification a) (I.Negative.specification b)))
+    (trans!{{B.Bool^}} _ _ _
+      (congr!{{B.Bool^} {B.Bool^} {B.Bool^}} xor _ _ _ _
+        (naturalAdd (I.Positive.specification a) (I.Positive.specification b)) (naturalAdd (I.Negative.specification a) (I.Negative.specification b)))
+      (Boolean.four (natural (I.Positive.specification a)) (natural (I.Positive.specification b)) (natural (I.Negative.specification a)) (natural (I.Negative.specification b))));
+\definition negative: \forall (a: I.Int^) -> value (I.Neg.specification a) = value a :=
+  \fun (a: I.Int^) => trans!{{B.Bool^}} _ _ _ (difference (I.Negative.specification a) (I.Positive.specification a))
+    (Bool.xorComm (natural (I.Negative.specification a)) (natural (I.Positive.specification a)));
+\definition expanded[a, b, c, d: N.Nat^]: natural (Nat.add (Nat.mul a b) (Nat.mul c d)) = xor (and (natural a) (natural b)) (and (natural c) (natural d)) :=
+  trans!{{B.Bool^}} _ _ _ (naturalAdd (Nat.mul a b) (Nat.mul c d))
+    (congr!{{B.Bool^} {B.Bool^} {B.Bool^}} xor _ _ _ _ (naturalMul a b) (naturalMul c d));
+\definition multiplicative: \forall (a, b: I.Int^) -> value (I.Mul.specification a b) = and (value a) (value b) :=
+  \fun (a, b: I.Int^) => trans!{{B.Bool^}} _ _ _
+    (difference (Nat.add (Nat.mul (I.Positive.specification a) (I.Positive.specification b)) (Nat.mul (I.Negative.specification a) (I.Negative.specification b)))
+      (Nat.add (Nat.mul (I.Positive.specification a) (I.Negative.specification b)) (Nat.mul (I.Negative.specification a) (I.Positive.specification b))))
+    (trans!{{B.Bool^}} _ _ _
+      (congr!{{B.Bool^} {B.Bool^} {B.Bool^}} xor _ _ _ _
+        (expanded (I.Positive.specification a) (I.Positive.specification b) (I.Negative.specification a) (I.Negative.specification b))
+        (expanded (I.Positive.specification a) (I.Negative.specification b) (I.Negative.specification a) (I.Positive.specification b)))
+      (Boolean.product (natural (I.Positive.specification a)) (natural (I.Negative.specification a)) (natural (I.Positive.specification b)) (natural (I.Negative.specification b))));
+\definition two: I.Int^ := I.Add.specification I.One.specification I.One.specification;
+\definition zero: value I.Zero.specification = B.Bool^::false := \refl(B.Bool^::false);
+\definition one: value I.One.specification = B.Bool^::true := \refl(B.Bool^::true);
+\definition twoEven: value two = B.Bool^::false := \refl(B.Bool^::false);
+\definition period: \forall (z: I.Int^) -> value (I.Add.specification z two) = value z :=
+  \fun (z: I.Int^) => trans!{{B.Bool^}} _ _ _ (additive z two)
+    (trans!{{B.Bool^}} _ _ _ (congr!{{B.Bool^} {B.Bool^}} (xor (value z)) _ _ twoEven) (Boolean.xorZeroRight (value z)));
+\definition negativeNatural: \forall (n: N.Nat^) -> value (I.NegOfNat.specification n) = natural n :=
+  \fun (n: N.Nat^) => difference N.Nat^::zero n;
+\definition positiveNatural: \forall (n: N.Nat^) -> value (I.OfNat.specification n) = natural n :=
+  \fun (n: N.Nat^) => Boolean.xorZeroRight (natural n);
+\definition index[p: B.Bool^]: N.Nat^ := (\induction (p: B.Bool^) \return N.Nat^ \with {
+  | false: N.Nat^::zero
+  | true: Bott.one
+}) p;
+\definition naturalIndex: \forall (p: B.Bool^) -> natural (index p) = p := \induction (p: B.Bool^) \return natural (index p) = p \with {
+  | false: \refl(B.Bool^::false)
+  | true: \refl(B.Bool^::true)
+};

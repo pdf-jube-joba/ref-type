@@ -1,0 +1,23 @@
+\import Spectral.Pencil[A := B, z := Op.inv z] \as Pencil;
+\definition formula: Operations.scale z Pencil.entries = value z := MatrixLaws.ext (Operations.scale z Pencil.entries) (value z) (\fun (i, j: Matrices.Index) => eq_reason_in!{{C.Complex} {Op.mul z (Pencil.entries i j)}
+  "=" { Op.mul z (Op.add (Op.mul (Op.inv z) (Matrices.identity i j)) (Op.neg (B i j))) } "by" { congr!{{C.Complex} {C.Complex}} (Op.mul z) (Pencil.entries i j) (Op.add (Op.mul (Op.inv z) (Matrices.identity i j)) (Op.neg (B i j))) (MatrixLaws.entry Pencil.entries (Spectral.Characteristic[].Evaluation[z := Op.inv z].entries B) Pencil.entriesFormula i j) }
+  "=" { Op.add (Op.mul z (Op.mul (Op.inv z) (Matrices.identity i j))) (Op.mul z (Op.neg (B i j))) } "by" { Laws.mulAddLeft z (Op.mul (Op.inv z) (Matrices.identity i j)) (Op.neg (B i j)) }
+  "=" { value z i j } "by" { congr!{{C.Complex} {C.Complex} {C.Complex}} Op.add _ _ _ _
+    (trans!{{C.Complex}} _ _ _ (sym!{{C.Complex}} _ _ (Laws.mulAssoc z (Op.inv z) (Matrices.identity i j)))
+      (trans!{{C.Complex}} _ _ _ (congr!{{C.Complex} {C.Complex}} (\fun (a: C.Complex) => Op.mul a (Matrices.identity i j)) _ _ (Laws.inverseNonzeroRight z nonzero)) (Laws.mulOneLeft (Matrices.identity i j))))
+    (Arithmetic.mulNegRight z (B i j)) }
+});
+\definition root: Matrices.determinant (value z) = Op.zero -> Monic.monicEvaluate coefficients (Op.inv z) = Op.zero :=
+  \fun (singular: _) => dedekind_reals.DedekindReal[].Order[].byContradiction (Monic.monicEvaluate coefficients (Op.inv z) = Op.zero)
+    (\block {
+      \fun (notRoot: _) \then
+      \let nonsingular: Field.Nonzero Pencil.entries := \fun (zero: _) => notRoot (eq_reason_in!{{C.Complex} _
+        "=" _ "by" { sym!{{C.Complex}} _ _ (Evaluation.agrees coefficients (Op.inv z)) }
+        "=" _ "by" { congr!{{algebra.Polynomial[].Over[R := C.Complex, coefficients := std.Alg[].Field[].fieldAsCommutativeRing C.Complex Scalars.field].Carrier} {C.Complex}} (Evaluation.apply (Op.inv z)) _ _ (sym!{{algebra.Polynomial[].Over[R := C.Complex, coefficients := std.Alg[].Field[].fieldAsCommutativeRing C.Complex Scalars.field].Carrier}} _ _ (Characteristic.monic B)) }
+        "=" _ "by" { Pencil.determinant }
+        "=" _ "by" zero
+      }) \then
+      \let matrix: Field.Nonsingular := \into[Matrices.Matrix](Pencil.entries, Field.Nonsingular) \by { nonsingular } \then
+      \return \root.Periodicity[].ComplexLinear[n := n].Scale[A := matrix, z := z, nonzero := nonzero].invertible
+        (trans!{{C.Complex}} _ _ _ (congr!{{Matrices.Matrix} {C.Complex}} Matrices.determinant _ _ formula) singular)
+    });

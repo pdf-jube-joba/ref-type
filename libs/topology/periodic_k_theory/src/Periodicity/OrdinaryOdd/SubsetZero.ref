@@ -1,0 +1,40 @@
+\import \root.Periodicity[].Point[] \as Point;
+\import std.Data[].FinSet[] \as Fin;
+\definition constant[a: Pair.A]: Fin.Fin Bott.one := Fin.zero N.Nat^::zero;
+\definition constantRegular: topology.Continuity[A := Pair.A, B := Fin.Fin Bott.one].Continuous Pair.subspace
+  (topology.Topology[Carrier := Fin.Fin Bott.one].Discrete) constant := topology.Maps[A := Pair.A, B := Fin.Fin Bott.one].constantContinuous
+    Pair.subspace (topology.Topology[Carrier := Fin.Fin Bott.one].Discrete) (Fin.zero N.Nat^::zero);
+\import KTheory.FiniteDiscrete[n := Bott.one] \as Finite;
+\import Relative.Absolute[X := Fin.Fin Bott.one, space := topology.Topology[Carrier := Fin.Fin Bott.one].Discrete,
+  compact := Finite.compact, hausdorff := Finite.hausdorff] \as PointAbsolute;
+\import PointAbsolute.Mapping[Y := Pair.A, source := Pair.subspace,
+  sourceCompact := Restriction.compactSubset, sourceHausdorff := Restriction.hausdorffSubset,
+  f := constant, regular := constantRegular] \as Collapse;
+\definition section[p: Fin.Fin Bott.one]: Pair.A := point;
+\definition sectionRegular: topology.Continuity[A := Fin.Fin Bott.one, B := Pair.A].Continuous
+  (topology.Topology[Carrier := Fin.Fin Bott.one].Discrete) Pair.subspace section := topology.Maps[A := Fin.Fin Bott.one, B := Pair.A].constantContinuous
+    (topology.Topology[Carrier := Fin.Fin Bott.one].Discrete) Pair.subspace point;
+\import Subset.Mapping[Y := Fin.Fin Bott.one, source := topology.Topology[Carrier := Fin.Fin Bott.one].Discrete,
+  sourceCompact := Finite.compact, sourceHausdorff := Finite.hausdorff, f := section, regular := sectionRegular] \as Section;
+\import topological_constructions.Coproduct[A := Fin.Fin Bott.one, B := Fin.Fin Bott.one] \as PointSum;
+\definition leftInverse: \forall (a: Subset.model.Carrier) -> Section.map (Collapse.map a) = a :=
+  \induction (a: Subset.model.Carrier) \return Section.map (Collapse.map a) = a \with {
+    | inl: \fun (a: Pair.A) => congr!{{Pair.A} {Subset.model.Carrier}} Sum.inl _ _ (sym!{{Pair.A}} _ _ (singleton a))
+    | inr: \fun (p: Fin.Fin Bott.one) => \refl(Sum.inr p)
+  };
+\definition rightInverse: \forall (p: Point.model.Carrier) -> Collapse.map (Section.map p) = p :=
+  \induction (p: Point.model.Carrier) \return Collapse.map (Section.map p) = p \with {
+    | inl: \fun (p: Fin.Fin Bott.one) => congr!{{Fin.Fin Bott.one} {Point.model.Carrier}} PointSum.inl _ _ (sym!{{Fin.Fin Bott.one}} _ _ (Fin.singletonValue p))
+    | inr: \fun (p: Fin.Fin Bott.one) => \refl(PointSum.inr p)
+  };
+\definition equivalence: Relative.Equivalence[source := Subset.model, target := Point.model].Data :=
+  Relative.Equivalence[source := Subset.model, target := Point.model].Data {
+    forward := Collapse.map, backward := Section.map, leftInverse := leftInverse, rightInverse := rightInverse
+  };
+\import Relative.Equivalence[source := Subset.model, target := Point.model].With[e := equivalence].Negative[degree := Bott.one] \as Transport;
+\import Relative.Negative[original := Subset.model, degree := Bott.one] \as Native;
+\definition zero: \forall (x: Native.Carrier) -> x = Native.group.base.unit := \fun (x: Native.Carrier) => eq_reason_in!{{Native.Carrier} x
+  "=" _ "by" { sym!{{Native.Carrier}} _ _ (Transport.leftInverse x) }
+  "=" _ "by" { congr!{{Point.Odd} {Native.Carrier}} Transport.forward _ _ (Point.oddZero (Transport.backward x)) }
+  "=" _ "by" { Transport.forwardZero }
+};

@@ -1,0 +1,32 @@
+\import Relative.Pair[X := Smash.model.Carrier, space := (Relative.details Smash.model).topology,
+  compact := (Relative.details Smash.model).compact, hausdorff := (Relative.details Smash.model).hausdorff,
+  subset := Smash.wedge, closed := Smash.wedgeClosed].Quotient[].MapsEqual[target := Reduced.result] \as SourceEquality;
+\import Relative.Pair[X := Intermediate.model.Carrier, space := (Relative.details Intermediate.model).topology,
+  compact := (Relative.details Intermediate.model).compact, hausdorff := (Relative.details Intermediate.model).hausdorff,
+  subset := Intermediate.wedge, closed := Intermediate.wedgeClosed].Quotient[].MapsEqual[target := Intermediate.result] \as TargetEquality;
+\import Relative.Composition[source := Reduced.result, middle := Intermediate.result, target := Reduced.result,
+  first := Induced.map, second := Reverse.map] \as LeftComposite;
+\import Relative.Composition[source := Intermediate.result, middle := Reduced.result, target := Intermediate.result,
+  first := Reverse.map, second := Induced.map] \as RightComposite;
+\import Relative.Identity[model := Reduced.result] \as SourceIdentity;
+\import Relative.Identity[model := Intermediate.result] \as TargetIdentity;
+\definition leftOnProjection: \forall (z: Smash.model.Carrier) -> Reverse.map (Induced.map (Smash.projection z)) = Smash.projection z :=
+  \fun (z: Smash.model.Carrier) => trans!{{Reduced.result.Carrier}} _ _ _
+    (congr!{{Intermediate.result.Carrier} {Reduced.result.Carrier}} Reverse.map _ _ (Induced.onProjection z))
+    (trans!{{Reduced.result.Carrier}} _ _ _ (Reverse.onProjection (Induced.productMap z))
+      (congr!{{Smash.model.Carrier} {Reduced.result.Carrier}} Smash.projection _ _
+        (std.Data[].Pair[].Prop[A := Quotient.model.Carrier, B := sphere.Carrier].ext (Reverse.productMap (Induced.productMap z)) z (\refl(Smash.first z))
+          (Point.equivalence.leftInverse (Smash.second z)))));
+\definition rightOnProjection: \forall (z: Intermediate.model.Carrier) -> Induced.map (Reverse.map (Intermediate.projection z)) = Intermediate.projection z :=
+  \fun (z: Intermediate.model.Carrier) => trans!{{Intermediate.result.Carrier}} _ _ _
+    (congr!{{Reduced.result.Carrier} {Intermediate.result.Carrier}} Induced.map _ _ (Reverse.onProjection z))
+    (trans!{{Intermediate.result.Carrier}} _ _ _ (Induced.onProjection (Reverse.productMap z))
+      (congr!{{Intermediate.model.Carrier} {Intermediate.result.Carrier}} Intermediate.projection _ _
+        (std.Data[].Pair[].Prop[A := Quotient.model.Carrier, B := RightQuotient.model.Carrier].ext (Induced.productMap (Reverse.productMap z)) z (\refl(Intermediate.first z))
+          (Point.equivalence.rightInverse (Intermediate.second z)))));
+\definition equivalence: Relative.Equivalence[source := Reduced.result, target := Intermediate.result].Data :=
+  Relative.Equivalence[source := Reduced.result, target := Intermediate.result].Data {
+    forward := Induced.map, backward := Reverse.map,
+    leftInverse := SourceEquality.pointwise LeftComposite.map SourceIdentity.map leftOnProjection,
+    rightInverse := TargetEquality.pointwise RightComposite.map TargetIdentity.map rightOnProjection
+  };

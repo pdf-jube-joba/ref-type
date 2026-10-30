@@ -1,0 +1,39 @@
+\import \root.Periodicity[].SixTerm[X := Y, space := sourceSpace, compact := sourceCompact, hausdorff := sourceHausdorff,
+  subset := sourceSubset, closed := sourceClosed] \as Other;
+\import Relative.Pair[X := Y, space := sourceSpace, compact := sourceCompact, hausdorff := sourceHausdorff, subset := sourceSubset, closed := sourceClosed] \as Domain;
+\import Domain.Restriction[] \as SourceRestriction;
+\import Pair.Mapping[Y := Y, source := sourceSpace, sourceCompact := sourceCompact, sourceHausdorff := sourceHausdorff,
+  sourceSubset := sourceSubset, sourceClosed := sourceClosed, f := mapping, regular := regular, preserves := preserves] \as Mapping;
+\import Mapping.Augmented[] \as AugmentedMap;
+\import AugmentedMap.Negative[degree := N.Nat^::zero] \as EvenNatural;
+\import AugmentedMap.Negative[degree := Bott.one] \as OddNatural;
+\import Relative.Absolute[X := X, space := space, compact := compact, hausdorff := hausdorff].Mapping[Y := Y, source := sourceSpace,
+  sourceCompact := sourceCompact, sourceHausdorff := sourceHausdorff, f := mapping, regular := regular] \as WholeMap;
+\import Relative.Absolute[X := Pair.A, space := Pair.subspace, compact := Restriction.compactSubset, hausdorff := Restriction.hausdorffSubset].Mapping[
+  Y := Domain.A, source := Domain.subspace, sourceCompact := SourceRestriction.compactSubset, sourceHausdorff := SourceRestriction.hausdorffSubset,
+  f := AugmentedMap.onSubset, regular := AugmentedMap.subsetContinuous] \as SubsetMap;
+\import Relative.NegativeMap[source := Other.relativeModel, target := relativeModel, f := Mapping.quotientMap, degree := N.Nat^::zero] \as Relative0;
+\import Relative.NegativeMap[source := Other.relativeModel, target := relativeModel, f := Mapping.quotientMap, degree := Bott.one] \as Relative1;
+\import WholeMap.Negative[degree := N.Nat^::zero] \as Whole0;
+\import WholeMap.Negative[degree := Bott.one] \as Whole1;
+\import SubsetMap.Negative[degree := N.Nat^::zero] \as Subset0;
+\import SubsetMap.Negative[degree := Bott.one] \as Subset1;
+\import SubsetMap.Negative[degree := Bott.two] \as Subset2;
+\definition relativeEven: RelativeEven -> Other.RelativeEven := Relative0.map;
+\definition wholeEven: WholeEven -> Other.WholeEven := Whole0.map;
+\definition subsetEven: SubsetEven -> Other.SubsetEven := Subset0.map;
+\definition relativeOdd: RelativeOdd -> Other.RelativeOdd := Relative1.map;
+\definition wholeOdd: WholeOdd -> Other.WholeOdd := Whole1.map;
+\definition subsetOdd: SubsetOdd -> Other.SubsetOdd := Subset1.map;
+\definition forgetEvenEquation: \forall (q: RelativeEven) -> Other.forgetEven (relativeEven q) = wholeEven (forgetEven q) := EvenNatural.forget;
+\definition restrictionEvenEquation: \forall (x: WholeEven) -> Other.restrictionEven (wholeEven x) = subsetEven (restrictionEven x) := EvenNatural.restriction;
+\definition boundaryOddEquation: \forall (a: SubsetOdd) -> Other.boundaryOdd (subsetOdd a) = relativeEven (boundaryOdd a) := EvenNatural.boundary;
+\definition forgetOddEquation: \forall (q: RelativeOdd) -> Other.forgetOdd (relativeOdd q) = wholeOdd (forgetOdd q) := OddNatural.forget;
+\definition restrictionOddEquation: \forall (x: WholeOdd) -> Other.restrictionOdd (wholeOdd x) = subsetOdd (restrictionOdd x) := OddNatural.restriction;
+\import \root.Periodicity[].TwoShift[model := Other.subsetModel] \as OtherPeriod;
+\import OtherPeriod.Naturality[other := subsetModel, mapping := SubsetMap.map] \as PeriodNatural;
+\import Domain.Augmented[].Sequence[degree := Bott.one] \as SourceOdd;
+\definition boundaryEvenEquation: \forall (a: SubsetEven) -> Other.boundaryEven (subsetEven a) = relativeOdd (boundaryEven a) :=
+  \fun (a: SubsetEven) => trans!{{Other.RelativeOdd}} _ _ _
+    (congr!{{SourceOdd.Second} {Other.RelativeOdd}} SourceOdd.boundary _ _ (sym!{{SourceOdd.Second}} _ _ (PeriodNatural.forwardEquation a)))
+    (OddNatural.boundary (SubsetPeriod.forward a));

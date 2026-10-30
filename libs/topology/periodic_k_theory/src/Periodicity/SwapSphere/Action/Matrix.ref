@@ -1,0 +1,28 @@
+\import Fin.Tuples[A := M.Index -> C.Complex] \as Rows;
+\definition row0: M.Index -> C.Complex := Tuples.extend Bott.one a (\fun (_: Fin.Fin Bott.one) => b);
+\definition row1: M.Index -> C.Complex := Tuples.extend Bott.one c (\fun (_: Fin.Fin Bott.one) => d);
+\definition value: M.Matrix := Rows.extend Bott.one row0 (\fun (_: Fin.Fin Bott.one) => row1);
+\definition at00: value first first = a := trans!{{C.Complex}} _ _ _
+  (congr!{{M.Index -> C.Complex} {C.Complex}} (\fun (row: M.Index -> C.Complex) => row first) _ _ (Rows.atZero Bott.one row0 (\fun (_: Fin.Fin Bott.one) => row1)))
+  (Tuples.atZero Bott.one a (\fun (_: Fin.Fin Bott.one) => b));
+\definition at01: value first second = b := trans!{{C.Complex}} _ _ _
+  (congr!{{M.Index -> C.Complex} {C.Complex}} (\fun (row: M.Index -> C.Complex) => row second) _ _ (Rows.atZero Bott.one row0 (\fun (_: Fin.Fin Bott.one) => row1)))
+  (Tuples.atSuccessor Bott.one a (\fun (_: Fin.Fin Bott.one) => b) (Fin.zero N.Nat^::zero));
+\definition at10: value second first = c := trans!{{C.Complex}} _ _ _
+  (congr!{{M.Index -> C.Complex} {C.Complex}} (\fun (row: M.Index -> C.Complex) => row first) _ _ (Rows.atSuccessor Bott.one row0 (\fun (_: Fin.Fin Bott.one) => row1) (Fin.zero N.Nat^::zero)))
+  (Tuples.atZero Bott.one c (\fun (_: Fin.Fin Bott.one) => d));
+\definition at11: value second second = d := trans!{{C.Complex}} _ _ _
+  (congr!{{M.Index -> C.Complex} {C.Complex}} (\fun (row: M.Index -> C.Complex) => row second) _ _ (Rows.atSuccessor Bott.one row0 (\fun (_: Fin.Fin Bott.one) => row1) (Fin.zero N.Nat^::zero)))
+  (Tuples.atSuccessor Bott.one c (\fun (_: Fin.Fin Bott.one) => d) (Fin.zero N.Nat^::zero));
+\definition applyFirst: \forall (v: M.Vector) -> (M.linear value).apply v first = Op.add (Op.mul a (v first)) (Op.mul b (v second)) :=
+  \fun (v: M.Vector) => trans!{{C.Complex}} _ _ _
+    (congr!{{C.Complex} {C.Complex}} (Op.add (Op.mul (value first first) (v first))) _ _ (Scalar.addZeroRight (Op.mul (value first second) (v second))))
+    (congr!{{C.Complex} {C.Complex} {C.Complex}} Op.add _ _ _ _
+      (congr!{{C.Complex} {C.Complex}} (\fun (z: C.Complex) => Op.mul z (v first)) _ _ at00)
+      (congr!{{C.Complex} {C.Complex}} (\fun (z: C.Complex) => Op.mul z (v second)) _ _ at01));
+\definition applySecond: \forall (v: M.Vector) -> (M.linear value).apply v second = Op.add (Op.mul c (v first)) (Op.mul d (v second)) :=
+  \fun (v: M.Vector) => trans!{{C.Complex}} _ _ _
+    (congr!{{C.Complex} {C.Complex}} (Op.add (Op.mul (value second first) (v first))) _ _ (Scalar.addZeroRight (Op.mul (value second second) (v second))))
+    (congr!{{C.Complex} {C.Complex} {C.Complex}} Op.add _ _ _ _
+      (congr!{{C.Complex} {C.Complex}} (\fun (z: C.Complex) => Op.mul z (v first)) _ _ at10)
+      (congr!{{C.Complex} {C.Complex}} (\fun (z: C.Complex) => Op.mul z (v second)) _ _ at11));

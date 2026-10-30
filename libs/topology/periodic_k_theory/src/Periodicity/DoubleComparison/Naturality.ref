@@ -1,0 +1,64 @@
+\import \root.Periodicity[].DoubleComparison[model := other] \as Other;
+\import \root.Periodicity[].SmashUnit[model := other] \as OtherUnit;
+\import Unit.Naturality[other := other, mapping := mapping] \as UnitNatural;
+\import Relative.Identity[model := SphereModel.zero] \as ZeroIdentity;
+\import UnitSmash.Mapping[targetLeft := SphereModel.zero, targetRight := other, f := ZeroIdentity.map, g := mapping] \as UnitMap;
+\import Relative.Smash[left := SphereModel.zero, right := other] \as OtherUnitSmash;
+\import Relative.Smash[left := SphereModel.source, right := other] \as OtherSuspended;
+\import Relative.Smash[left := sphere, right := other] \as OtherSphere;
+\import Relative.Smash[left := other, right := sphere] \as OtherResult;
+\import Relative.Identity[model := SphereModel.source] \as SuspendedIdentity;
+\import Relative.Identity[model := sphere] \as SphereIdentity;
+\import SuspendedSmash.Mapping[targetLeft := SphereModel.source, targetRight := other,
+  f := Relative.iterateMap Bott.two SphereModel.zero SphereModel.zero ZeroIdentity.map, g := mapping] \as Shifted;
+\import SuspendedSmash.Mapping[targetLeft := SphereModel.source, targetRight := other, f := SuspendedIdentity.map, g := mapping] \as DoubleMap;
+\import SphereSmash.Mapping[targetLeft := sphere, targetRight := other, f := SphereIdentity.map, g := mapping] \as SphereMap;
+\import Result.Mapping[targetLeft := other, targetRight := sphere, f := mapping, g := SphereIdentity.map] \as ResultMap;
+\definition map: Relative.Map Result.result OtherResult.result := ResultMap.map;
+\definition doubleMap: Relative.Map double Other.double := Relative.iterateMap Bott.two model other mapping;
+\definition inclusionCommutes: \forall (x: model.Carrier) -> OtherUnit.inclusion (mapping x) = UnitNatural.map (Unit.inclusion x) :=
+  \fun (x: model.Carrier) => sym!{{OtherUnit.source.Carrier}} _ _ (UnitNatural.inclusionEquation x);
+\import Relative.Square[A := model, B := other, C := Unit.source, D := OtherUnit.source,
+  f := mapping, g := OtherUnit.inclusion, h := Unit.inclusion, k := UnitNatural.map,
+  commutes := inclusionCommutes] \as InclusionSquare;
+\definition liftSource: lift.forward = Relative.iterateMap Bott.two model Unit.source Unit.inclusion :=
+  Relative.Equivalence[source := model, target := Unit.source].With[e := Unit.inverse].forwardAt Bott.two;
+\definition liftTarget: Other.lift.forward = Relative.iterateMap Bott.two other OtherUnit.source OtherUnit.inclusion :=
+  Relative.Equivalence[source := other, target := OtherUnit.source].With[e := OtherUnit.inverse].forwardAt Bott.two;
+\definition liftNaturality: \forall (x: double.Carrier) -> Other.lift.forward (doubleMap x) =
+  Relative.iterateMap Bott.two Unit.source OtherUnit.source UnitMap.map (lift.forward x) :=
+  \fun (x: double.Carrier) => eq_reason_in!{{(Relative.iterate Bott.two OtherUnit.source).Carrier} _
+    "=" _ "by" { congr!{{Relative.Map Other.double (Relative.iterate Bott.two OtherUnit.source)} {(Relative.iterate Bott.two OtherUnit.source).Carrier}}
+      (\fun (m: Relative.Map Other.double (Relative.iterate Bott.two OtherUnit.source)) => m (doubleMap x)) _ _ liftTarget }
+    "=" _ "by" { InclusionSquare.iteratedEquation Bott.two x }
+    "=" _ "by" { congr!{{(Relative.iterate Bott.two Unit.source).Carrier} {(Relative.iterate Bott.two OtherUnit.source).Carrier}}
+      (Relative.iterateMap Bott.two Unit.source OtherUnit.source UnitMap.map) _ _
+      (sym!{{(Relative.iterate Bott.two Unit.source).Carrier}} _ _
+        (congr!{{Relative.Map double (Relative.iterate Bott.two Unit.source)} {(Relative.iterate Bott.two Unit.source).Carrier}}
+          (\fun (m: Relative.Map double (Relative.iterate Bott.two Unit.source)) => m x) _ _ liftSource)) }
+  };
+\definition shiftedIdentity: \forall (x: SuspendedSmash.result.Carrier) -> Shifted.map x = DoubleMap.map x :=
+  \fun (x: SuspendedSmash.result.Carrier) => congr!{{Relative.Map SphereModel.source SphereModel.source} {OtherSuspended.result.Carrier}}
+    (\fun (m: Relative.Map SphereModel.source SphereModel.source) => SuspendedSmash.Mapping[targetLeft := SphereModel.source, targetRight := other, f := m, g := mapping].map x)
+    _ _ (ZeroIdentity.iterateEquation Bott.two);
+\definition iterationNaturality: \forall (x: (Relative.iterate Bott.two Unit.source).Carrier) ->
+  (OtherUnitSmash.leftIteration Bott.two).forward (Relative.iterateMap Bott.two Unit.source OtherUnit.source UnitMap.map x) =
+  DoubleMap.map ((UnitSmash.leftIteration Bott.two).forward x) :=
+  \fun (x: (Relative.iterate Bott.two Unit.source).Carrier) => trans!{{OtherSuspended.result.Carrier}} _ _ _
+    (UnitMap.leftIterationNaturality Bott.two x) (shiftedIdentity ((UnitSmash.leftIteration Bott.two).forward x));
+\import \root.Periodicity[].SmashEquivalence[left := SphereModel.source, targetLeft := sphere, right := other,
+  e := SphereModel.Common[].equivalence] \as OtherSphereComparison;
+\import SphereComparison.Naturality[other := other, mapping := mapping] \as SphereNatural;
+\import SphereMap.SymmetryNaturality[] \as Symmetry;
+\definition afterLift[z: (Relative.iterate Bott.two OtherUnit.source).Carrier]: OtherResult.result.Carrier :=
+  OtherSphere.Symmetry[].equivalence.forward (OtherSphereComparison.equivalence.forward ((OtherUnitSmash.leftIteration Bott.two).forward z));
+\definition equation: \forall (x: double.Carrier) -> Other.equivalence.forward (doubleMap x) = map (equivalence.forward x) :=
+  \fun (x: double.Carrier) => eq_reason_in!{{OtherResult.result.Carrier} _
+    "=" _ "by" { congr!{{(Relative.iterate Bott.two OtherUnit.source).Carrier} {OtherResult.result.Carrier}} afterLift _ _ (liftNaturality x) }
+    "=" _ "by" { congr!{{OtherSuspended.result.Carrier} {OtherResult.result.Carrier}}
+      (\fun (z: OtherSuspended.result.Carrier) => OtherSphere.Symmetry[].equivalence.forward (OtherSphereComparison.equivalence.forward z)) _ _
+      (iterationNaturality (lift.forward x)) }
+    "=" _ "by" { congr!{{OtherSphere.result.Carrier} {OtherResult.result.Carrier}} OtherSphere.Symmetry[].equivalence.forward _ _
+      (SphereNatural.equation ((UnitSmash.leftIteration Bott.two).forward (lift.forward x))) }
+    "=" _ "by" { Symmetry.equation (sphereComparison.forward x) }
+  };

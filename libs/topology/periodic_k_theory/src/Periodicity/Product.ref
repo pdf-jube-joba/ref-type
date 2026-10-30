@@ -1,0 +1,57 @@
+\import \root.Periodicity[].Parity[] \as P;
+\import std.Arithmetic[].Int[] \as I;
+\import std.Data[].Bool[] \as B;
+\import std.Data[].Nat[].Basic[].Def[] \as Nat;
+\import Relative.Smash[left := left, right := right] \as Smash;
+\definition result: Relative.CompactPointed := Smash.result;
+\definition degree: I.Int^ := I.Add.specification first second;
+\definition First: \Set := \root.Periodicity[].Integer[].At[model := left, degree := first].Carrier;
+\definition Second: \Set := \root.Periodicity[].Integer[].At[model := right, degree := second].Carrier;
+\definition Result: \Set := \root.Periodicity[].Integer[].At[model := result, degree := degree].Carrier;
+\definition firstGroup: std.Alg[].Alg[].CommutativeGroup[First] := \root.Periodicity[].Integer[].At[model := left, degree := first].group;
+\definition secondGroup: std.Alg[].Alg[].CommutativeGroup[Second] := \root.Periodicity[].Integer[].At[model := right, degree := second].group;
+\definition resultGroup: std.Alg[].Alg[].CommutativeGroup[Result] := \root.Periodicity[].Integer[].At[model := result, degree := degree].group;
+\import \root.Periodicity[].Bigraded[left := left, right := right, first := P.value first, second := P.value second] \as Native;
+\import \root.Periodicity[].Integer[].Transport[model := result] \as Transport;
+\definition parity: P.xor (P.value first) (P.value second) = P.value degree := sym!{{B.Bool^}} _ _ (P.additive first second);
+\definition transport: Transport.Data (P.xor (P.value first) (P.value second)) (P.value degree) :=
+  Transport.apply (P.xor (P.value first) (P.value second)) (P.value degree) parity;
+\definition product[a: First][b: Second]: Result := transport.forward (Native.product a b);
+\definition additiveLeft: \forall (a, c: First)(b: Second) -> product (firstGroup.base.op a c) b = resultGroup.base.op (product a b) (product c b) :=
+  \fun (a, c: First)(b: Second) => trans!{Result} _ _ _
+    (congr!{{Native.Result} Result} transport.forward _ _ (Native.additiveLeft a c b)) (transport.forwardAdd (Native.product a b) (Native.product c b));
+\definition additiveRight: \forall (a: First)(b, c: Second) -> product a (secondGroup.base.op b c) = resultGroup.base.op (product a b) (product a c) :=
+  \fun (a: First)(b, c: Second) => trans!{Result} _ _ _
+    (congr!{{Native.Result} Result} transport.forward _ _ (Native.additiveRight a b c)) (transport.forwardAdd (Native.product a b) (Native.product a c));
+\definition zeroLeft: \forall (b: Second) -> product firstGroup.base.unit b = resultGroup.base.unit := \fun (b: Second) => trans!{Result} _ _ _
+  (congr!{{Native.Result} Result} transport.forward _ _ (Native.zeroLeft b)) transport.forwardZero;
+\definition zeroRight: \forall (a: First) -> product a secondGroup.base.unit = resultGroup.base.unit := \fun (a: First) => trans!{Result} _ _ _
+  (congr!{{Native.Result} Result} transport.forward _ _ (Native.zeroRight a)) transport.forwardZero;
+\import Relative.GroupCalculus[X := First, group := firstGroup] \as FirstLaws;
+\import Relative.GroupCalculus[X := Second, group := secondGroup] \as SecondLaws;
+\definition negativeLeft[a: First][b: Second]: product (firstGroup.base.inv a) b = resultGroup.base.inv (product a b) :=
+  FirstLaws.Mapping[Y := Result, target := resultGroup, f := (\fun (x: First) => product x b),
+    additive := (\fun (x, y: First) => additiveLeft x y b), preservesZero := zeroLeft b].inverse a;
+\definition negativeRight[a: First][b: Second]: product a (secondGroup.base.inv b) = resultGroup.base.inv (product a b) :=
+  SecondLaws.Mapping[Y := Result, target := resultGroup, f := product a, additive := additiveRight a, preservesZero := zeroRight a].inverse b;
+\definition koszulParity: P.value (I.Mul.specification first second) = P.and (P.value first) (P.value second) := P.multiplicative first second;
+
+\import Relative.Smash[left := right, right := left] \as Reverse;
+\import \root.Periodicity[].Integer[].Transport[model := Reverse.result] \as ReverseTransport;
+\definition ReverseResult: \Set := \root.Periodicity[].Integer[].At[model := Reverse.result, degree := degree].Carrier;
+\definition reverseTransport: ReverseTransport.Data (P.xor (P.value first) (P.value second)) (P.value degree) :=
+  ReverseTransport.apply (P.xor (P.value first) (P.value second)) (P.value degree) parity;
+\definition reverseProduct[b: Second][a: First]: ReverseResult := reverseTransport.forward (Native.reverseProduct b a);
+\import Relative.NegativeMap[source := result, target := Reverse.result, f := Smash.Symmetry[].equivalence.forward, degree := P.index (P.value degree)] \as Swap;
+\definition reversed[a: First][b: Second]: Result := Swap.map (reverseProduct b a);
+\import \root.Periodicity[].Sign[X := Result, group := resultGroup] \as Signs;
+\definition signed[x: Result]: Result := Signs.apply (P.and (P.value first) (P.value second)) x;
+\import \root.Periodicity[].Sign[X := Native.Result, group := Native.resultGroup].Mapping[Y := Result, target := resultGroup,
+  f := transport.forward, additive := transport.forwardAdd, preservesZero := transport.forwardZero] \as SignTransport;
+\definition gradedCommutative: \forall (a: First)(b: Second) -> reversed a b = signed (product a b) :=
+  \fun (a: First)(b: Second) => eq_reason_in!{Result _
+    "=" _ "by" { sym!{Result} _ _ (Transport.Naturality[other := Reverse.result, mapping := Smash.Symmetry[].equivalence.forward].equation
+      (P.xor (P.value first) (P.value second)) (P.value degree) parity (Native.reverseProduct b a)) }
+    "=" _ "by" { congr!{{Native.Result} Result} transport.forward _ _ (\root.Periodicity[].Commutativity[left := left, right := right].equation (P.value first) (P.value second) a b) }
+    "=" _ "by" { SignTransport.equation (P.and (P.value first) (P.value second)) (Native.product a b) }
+  };

@@ -1,0 +1,22 @@
+\import \root.Periodicity[].SuspensionSphere[] \as SphereModel;
+\import \root.Periodicity[].SmashUnit[model := model] \as Unit;
+\import Relative.Smash[left := SphereModel.zero, right := model] \as UnitSmash;
+\import Relative.Smash[left := SphereModel.source, right := model] \as SuspendedSmash;
+\import Relative.Smash[left := sphere, right := model] \as SphereSmash;
+\import Relative.Smash[left := model, right := sphere] \as Result;
+\definition double: Relative.CompactPointed := Relative.iterate Bott.two model;
+\definition lift: Relative.Equivalence[source := double, target := Relative.iterate Bott.two Unit.source].Data :=
+  Relative.Equivalence[source := model, target := Unit.source].With[e := Unit.inverse].iterate Bott.two;
+\definition suspended: Relative.Equivalence[source := double, target := SuspendedSmash.result].Data :=
+  Relative.Equivalence[source := double, target := SuspendedSmash.result].Compose[
+    middle := Relative.iterate Bott.two Unit.source, first := lift, second := UnitSmash.leftIteration Bott.two].result;
+\import \root.Periodicity[].SmashEquivalence[left := SphereModel.source, targetLeft := sphere, right := model,
+  e := SphereModel.Common[].equivalence] \as SphereComparison;
+\definition sphereComparison: Relative.Equivalence[source := double, target := SphereSmash.result].Data :=
+  Relative.Equivalence[source := double, target := SphereSmash.result].Compose[
+    middle := SuspendedSmash.result, first := suspended, second := SphereComparison.equivalence].result;
+\definition equivalence: Relative.Equivalence[source := double, target := Result.result].Data :=
+  Relative.Equivalence[source := double, target := Result.result].Compose[
+    middle := SphereSmash.result, first := sphereComparison, second := SphereSmash.Symmetry[].equivalence].result;
+\module Naturality(other: Relative.CompactPointed, mapping: Relative.Map model other);
+\module Coordinates;

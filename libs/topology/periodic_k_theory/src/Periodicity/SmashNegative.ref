@@ -1,0 +1,28 @@
+\import Relative.Negative[original := model, degree := degree] \as Source;
+\import Relative.Smash[left := model, right := sphere] \as Smash;
+\import Relative.Negative[original := Smash.result, degree := degree] \as Target;
+\import \root.Periodicity[].Reduced[model := Relative.iterate degree model] \as Reduced;
+\import Reduced.Inverse[] \as Inverse;
+\import Relative.Equivalence[source := Relative.iterate degree Smash.result, target := Reduced.result].With[e := Smash.leftIteration degree].Groups[] \as Transport;
+\definition forward[a: Source.Carrier]: Target.Carrier := Transport.forward (Reduced.forward a);
+\definition backward[q: Target.Carrier]: Source.Carrier := Inverse.backward (Transport.backward q);
+\definition leftInverse: \forall (a: Source.Carrier) -> backward (forward a) = a :=
+  \fun (a: Source.Carrier) => trans!{{Source.Carrier}} _ _ _
+    (congr!{{Reduced.TargetCarrier} {Source.Carrier}} Inverse.backward _ _ (Transport.rightInverse (Reduced.forward a)))
+    (Inverse.leftInverse a);
+\definition rightInverse: \forall (q: Target.Carrier) -> forward (backward q) = q :=
+  \fun (q: Target.Carrier) => trans!{{Target.Carrier}} _ _ _
+    (congr!{{Reduced.TargetCarrier} {Target.Carrier}} Transport.forward _ _ (Inverse.rightInverse (Transport.backward q)))
+    (Transport.leftInverse q);
+\definition forwardAdd: \forall (a, b: Source.Carrier) -> forward (Source.group.base.op a b) = Target.group.base.op (forward a) (forward b) :=
+  \fun (a, b: Source.Carrier) => trans!{{Target.Carrier}} _ _ _
+    (congr!{{Reduced.TargetCarrier} {Target.Carrier}} Transport.forward _ _ (Inverse.forwardAdd a b))
+    (Transport.forwardAdd (Reduced.forward a) (Reduced.forward b));
+\definition backwardAdd: \forall (q, r: Target.Carrier) -> backward (Target.group.base.op q r) = Source.group.base.op (backward q) (backward r) :=
+  \fun (q, r: Target.Carrier) => trans!{{Source.Carrier}} _ _ _
+    (congr!{{Reduced.TargetCarrier} {Source.Carrier}} Inverse.backward _ _ (Transport.backwardAdd q r))
+    (Inverse.backwardAdd (Transport.backward q) (Transport.backward r));
+\definition forwardZero: forward Source.group.base.unit = Target.group.base.unit := trans!{{Target.Carrier}} _ _ _
+  (congr!{{Reduced.TargetCarrier} {Target.Carrier}} Transport.forward _ _ Inverse.forwardZero) Transport.forwardZero;
+\definition backwardZero: backward Target.group.base.unit = Source.group.base.unit := trans!{{Source.Carrier}} _ _ _
+  (congr!{{Reduced.TargetCarrier} {Source.Carrier}} Inverse.backward _ _ Transport.backwardZero) Inverse.backwardZero;

@@ -1,0 +1,36 @@
+\import std.Data[].FinSet[] \as Fin;
+\import std.Arithmetic[].Int[] \as I;
+\import KTheory.Point[] \as Point;
+\import KTheory.FiniteDiscrete[n := Bott.one] \as Finite;
+\import KTheory.On[X := Fin.Fin Bott.one, baseSpace := topology.Topology[Carrier := Fin.Fin Bott.one].Discrete,
+  compact := Finite.compact, hausdorff := Finite.hausdorff] \as PointTheory;
+\import PointTheory.K0[] \as PointK;
+\import PointTheory.Ranks[] \as PointRanks;
+\import PointTheory.Trivial[n := Bott.two] \as Trivial;
+\import Bundles.Trivial[X := Fin.Fin Bott.one, n := Bott.two, baseSpace := topology.Topology[Carrier := Fin.Fin Bott.one].Discrete] \as NativeTrivial;
+\import Bundles.Family[X := Fin.Fin Bott.one, F := Trivial.FiberAt].Of[bundle := Trivial.trivialBundle] \as Rank;
+\import PointRanks.Of[F := Trivial.FiberAt, original := Trivial.trivialBundle, same := \refl(topology.Topology[Carrier := Fin.Fin Bott.one].Discrete)] \as ClassRank;
+\definition trivialRank: Point.forward (PointK.include Trivial.value) = I.integer Bott.two N.Nat^::zero := eq_reason_in!{{I.Int^} _
+  "=" _ "by" { congr!{{Fin.Fin Bott.one -> I.Int^} {I.Int^}} (\fun (f: Fin.Fin Bott.one -> I.Int^) => f Point.point) _ _ (PointRanks.rankIncludes Trivial.value) }
+  "=" _ "by" { congr!{{Fin.Fin Bott.one -> I.Int^} {I.Int^}} (\fun (f: Fin.Fin Bott.one -> I.Int^) => f Point.point) _ _ ClassRank.onBundle }
+  "=" _ "by" { congr!{{N.Nat^} {I.Int^}} (\fun (n: N.Nat^) => I.integer n N.Nat^::zero) _ _ (Rank.rankFrame Point.point Bott.two NativeTrivial.identity) }
+};
+\definition sumRank: Point.forward (PointK.add PointK.one PointK.one) = I.integer Bott.two N.Nat^::zero :=
+  trans!{{I.Int^}} _ _ _ (Point.additive PointK.one PointK.one)
+    (trans!{{I.Int^}} _ _ _ (congr!{{I.Int^} {I.Int^} {I.Int^}} I.Add.specification _ _ _ _ Point.oneRank Point.oneRank) (\refl(I.integer Bott.two N.Nat^::zero)));
+\definition atPoint: PointK.include Trivial.value = PointK.add PointK.one PointK.one := Point.injective _ _
+  (trans!{{I.Int^}} _ _ _ trivialRank (sym!{{I.Int^}} _ _ sumRank));
+\definition constant[p: sphere.Carrier]: Fin.Fin Bott.one := Point.point;
+\definition regular: topology.Continuity[A := sphere.Carrier, B := Fin.Fin Bott.one].Continuous Sphere.sphereTopology
+  (topology.Topology[Carrier := Fin.Fin Bott.one].Discrete) constant :=
+  topology.Maps[A := sphere.Carrier, B := Fin.Fin Bott.one].constantContinuous Sphere.sphereTopology (topology.Topology[Carrier := Fin.Fin Bott.one].Discrete) Point.point;
+\import PointTheory.Pullback[Y := sphere.Carrier, space := Sphere.sphereTopology, sourceCompact := Compactness.sphere, sourceHausdorff := Compactness.sphereHausdorff,
+  f := constant, regular := regular] \as Extend;
+\definition one: Extend.K0[].map PointK.one = K.one := trans!{{K.Carrier}} _ _ _ (Extend.K0[].onIncludes PointTheory.Line[].value)
+  (congr!{{SphereTheory.Classes} {K.Carrier}} K.include _ _ Extend.Line[].equation);
+\definition twoUnits: K.include SphereTheory.Trivial[n := Bott.two].value = K.add K.one K.one := eq_reason_in!{{K.Carrier} _
+  "=" _ "by" { sym!{{K.Carrier}} _ _ Extend.Trivial[n := Bott.two].onK0 }
+  "=" _ "by" { congr!{{PointK.Carrier} {K.Carrier}} Extend.K0[].map _ _ atPoint }
+  "=" _ "by" { Extend.K0[].additive PointK.one PointK.one }
+  "=" _ "by" { congr!{{K.Carrier} {K.Carrier} {K.Carrier}} K.add _ _ _ _ one one }
+};

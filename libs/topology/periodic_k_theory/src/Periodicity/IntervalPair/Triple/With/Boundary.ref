@@ -1,0 +1,25 @@
+\import Spaces.Linear[V := V, W := E x, source := Bundles.coordinates n, target := positive.space x].Composition[U := W, domain := Bundles.coordinates m] \as ToPositive;
+\import Spaces.Linear[V := E x, W := F x, source := positive.space x, target := negative.space x].Composition[U := V, domain := Bundles.coordinates n] \as Across;
+\import Spaces.Linear[V := F x, W := W, source := negative.space x, target := Bundles.coordinates m].Composition[U := V, domain := Bundles.coordinates n] \as ToNegative;
+\import Spaces.Linear[V := F x, W := E x, source := negative.space x, target := positive.space x].Composition[U := W, domain := Bundles.coordinates m] \as BackAcross;
+\import Spaces.Linear[V := W, W := F x, source := Bundles.coordinates m, target := negative.space x].Composition[U := W, domain := Bundles.coordinates m] \as FromNegative;
+\import Spaces.Linear[V := E x, W := V, source := positive.space x, target := Bundles.coordinates n].Composition[U := W, domain := Bundles.coordinates m] \as FromPositive;
+\definition forward: Spaces.Linear[V := V, W := W, source := Bundles.coordinates n, target := Bundles.coordinates m].Map :=
+  ToNegative.compose (f.forward.fiber x) (Across.compose (t.comparison.forward.fiber x) (e.backward.fiber x));
+\definition backward: Spaces.Linear[V := W, W := V, source := Bundles.coordinates m, target := Bundles.coordinates n].Map :=
+  FromPositive.compose (e.forward.fiber x) (BackAcross.compose (t.comparison.backward.fiber x) (f.backward.fiber x));
+\definition isomorphism: CoordinateIso.Isomorphism := CoordinateIso.Isomorphism {
+  forward := forward, backward := backward,
+  leftInverse := \fun (v: V) => trans!{V} _ _ _
+    (congr!{{F x} V} (\fun (w: F x) => (e.forward.fiber x).apply ((t.comparison.backward.fiber x).apply w)) _ _
+      ((\bysub(SecondIso.Data, SecondIso.Isomorphism, f)).leftInverse x ((t.comparison.forward.fiber x).apply ((e.backward.fiber x).apply v))))
+    (trans!{V} _ _ _ (congr!{{E x} V} (e.forward.fiber x).apply _ _
+      ((\bysub(BoundaryIso.Data, BoundaryIso.Isomorphism, t.comparison)).leftInverse x ((e.backward.fiber x).apply v)))
+      ((\bysub(FirstIso.Data, FirstIso.Isomorphism, e)).rightInverse x v)),
+  rightInverse := \fun (v: W) => trans!{W} _ _ _
+    (congr!{{E x} W} (\fun (w: E x) => (f.forward.fiber x).apply ((t.comparison.forward.fiber x).apply w)) _ _
+      ((\bysub(FirstIso.Data, FirstIso.Isomorphism, e)).leftInverse x ((t.comparison.backward.fiber x).apply ((f.backward.fiber x).apply v))))
+    (trans!{W} _ _ _ (congr!{{F x} W} (f.forward.fiber x).apply _ _
+      ((\bysub(BoundaryIso.Data, BoundaryIso.Isomorphism, t.comparison)).rightInverse x ((f.backward.fiber x).apply v)))
+      ((\bysub(SecondIso.Data, SecondIso.Isomorphism, f)).rightInverse x v))
+};

@@ -1,0 +1,24 @@
+\import Relative.Smash[left := model, right := sphere] \as Smash;
+\import Smash.External[] \as External;
+\import Relative.Identity[model := model] \as Identity;
+\import Smash.Mapping[targetLeft := model, targetRight := sphere, f := Identity.map, g := \parent.Continuity[].map] \as Mapping;
+\definition map: Relative.Map Smash.result Smash.result := Mapping.map;
+\definition Carrier: \Set := Relative.Reduced[model := Smash.result].Carrier;
+\definition group: std.Alg[].Alg[].CommutativeGroup[Carrier] := Relative.Reduced[model := Smash.result].group;
+\import Relative.Reduced[model := model] \as Source;
+\import Relative.Pullback[source := Smash.result, target := Smash.result, f := map] \as Pullback;
+\import \root.Periodicity[].Reduced[model := model] \as Period;
+\definition productSign: \forall (a: Source.Carrier) -> Pullback.map (External.product a beta) = group.base.inv (External.product a beta) :=
+  \fun (a: Source.Carrier) => eq_reason_in!{Carrier _
+    "=" _ "by" { Mapping.External[].naturality a beta }
+    "=" _ "by" { congr!{{Source.Carrier} {SphereGroup.Carrier} Carrier} External.product _ _ _ _
+      (Relative.PullbackIdentity[model := model].equation a) (\root.Periodicity[].SwapSphere[].bottSign) }
+    "=" _ "by" { Relative.GroupCalculus[X := SphereGroup.Carrier, group := SphereGroup.group].Mapping[Y := Carrier, target := group,
+      f := External.product a, additive := External.additiveRight a, preservesZero := External.zeroRight a].inverse beta }
+  };
+\definition sign: \forall (q: Carrier) -> Pullback.map q = group.base.inv q := \fun (q: Carrier) => eq_reason_in!{Carrier _
+  "=" _ "by" { congr!{Carrier Carrier} Pullback.map _ _ (sym!{Carrier} _ _ (Period.Inverse[].rightInverse q)) }
+  "=" _ "by" { productSign (Period.Inverse[].backward q) }
+  "=" _ "by" { congr!{Carrier Carrier} group.base.inv _ _ (Period.Inverse[].rightInverse q) }
+};
+\module Twist;

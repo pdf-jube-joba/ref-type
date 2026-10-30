@@ -1,0 +1,45 @@
+\import Paths.IntervalPaths[] \as IntervalPaths;
+\definition h: Time.Carrier -> Units.Carrier := IntervalPaths.evaluate h0 Units.identity path;
+\definition regular: topology.Continuity[A := Time.Carrier, B := Units.Carrier].Continuous Time.topology Units.topology h :=
+  IntervalPaths.continuous h0 Units.identity path;
+\definition atStart: h Time.start = h0 := IntervalPaths.start h0 Units.identity path;
+\definition atEnd: h Time.end = Units.identity := IntervalPaths.end h0 Units.identity path;
+\import Bundles.Trivial[X := Time.Carrier, n := n, baseSpace := Time.topology] \as FirstTrivial;
+\import Bundles.Trivial[X := Time.Carrier, n := m, baseSpace := Time.topology] \as SecondTrivial;
+\import Units.BundleFamily[X := Time.Carrier, baseSpace := Time.topology, H := h, continuousH := regular] \as Gauge;
+\import Operations.TrivialIsomorphism[X := Time.Carrier, n := n, m := m, base := Time.topology, linear := c] \as Constant;
+\import Operations.IsomorphismComposition[X := Time.Carrier, F := E, G := (\fun (_: Time.Carrier) => V), H := (\fun (_: Time.Carrier) => V),
+  source := positive, middle := FirstTrivial.bundle, target := FirstTrivial.bundle] \as FirstStep;
+\definition first: FirstStep.Isomorphism := FirstStep.compose e Gauge.isomorphism;
+\import Operations.IsomorphismComposition[X := Time.Carrier, F := E, G := (\fun (_: Time.Carrier) => V), H := (\fun (_: Time.Carrier) => W),
+  source := positive, middle := FirstTrivial.bundle, target := SecondTrivial.bundle] \as SecondStep;
+\definition second: SecondStep.Isomorphism := SecondStep.compose first Constant.isomorphism;
+\import Operations.IsomorphismComposition[X := Time.Carrier, F := E, G := (\fun (_: Time.Carrier) => W), H := F,
+  source := positive, middle := SecondTrivial.bundle, target := negative] \as LastStep;
+\definition isomorphism: LastStep.Isomorphism := LastStep.compose second (SecondIso.inverse f);
+\definition startEquation: \forall (v: E Time.start) -> (isomorphism.forward.fiber Time.start).apply v = (t.comparison.forward.fiber start).apply v :=
+  \fun (v: E Time.start) => eq_reason_in!{{F Time.start} _
+    "=" _ "by" { congr!{{Units.Carrier} {F Time.start}} (\fun (u: Units.Carrier) => (f.backward.fiber Time.start).apply (c.forward.apply (u.apply ((e.forward.fiber Time.start).apply v)))) _ _ atStart }
+    "=" _ "by" { congr!{W {F Time.start}} (f.backward.fiber Time.start).apply _ _
+      ((CoordinateIso.laws c).rightInverse ((\parent.Boundary[x := start].isomorphism).forward.apply ((e.forward.fiber Time.start).apply v))) }
+    "=" _ "by" { congr!{{E Time.start} {F Time.start}} (\fun (w: E Time.start) => (f.backward.fiber Time.start).apply ((f.forward.fiber Time.start).apply ((t.comparison.forward.fiber start).apply w))) _ _
+      ((\bysub(FirstIso.Data, FirstIso.Isomorphism, e)).leftInverse Time.start v) }
+    "=" _ "by" { (\bysub(SecondIso.Data, SecondIso.Isomorphism, f)).leftInverse Time.start ((t.comparison.forward.fiber start).apply v) }
+  };
+\definition endEquation: \forall (v: E Time.end) -> (isomorphism.forward.fiber Time.end).apply v = (t.comparison.forward.fiber end).apply v :=
+  \fun (v: E Time.end) => eq_reason_in!{{F Time.end} _
+    "=" _ "by" { congr!{{Units.Carrier} {F Time.end}} (\fun (u: Units.Carrier) => (f.backward.fiber Time.end).apply (c.forward.apply (u.apply ((e.forward.fiber Time.end).apply v)))) _ _ atEnd }
+    "=" _ "by" { congr!{{E Time.end} {F Time.end}} (\fun (w: E Time.end) => (f.backward.fiber Time.end).apply ((f.forward.fiber Time.end).apply ((t.comparison.forward.fiber end).apply w))) _ _
+      ((\bysub(FirstIso.Data, FirstIso.Isomorphism, e)).leftInverse Time.end v) }
+    "=" _ "by" { (\bysub(SecondIso.Data, SecondIso.Isomorphism, f)).leftInverse Time.end ((t.comparison.forward.fiber end).apply v) }
+  };
+\definition agrees: \forall (x: Pair.A)(v: E x) -> (isomorphism.forward.fiber x).apply v = (t.comparison.forward.fiber x).apply v :=
+  \fun (x: Pair.A) => Logic.orElim[x = Time.start, x = Time.end, \forall (v: E x) -> (isomorphism.forward.fiber x).apply v = (t.comparison.forward.fiber x).apply v]
+    (\bysub(Time.Carrier, boundary, x))
+    (\fun (same: _) => \idelim start = x \with a: Pair.A => \forall (v: E a) -> (isomorphism.forward.fiber a).apply v = (t.comparison.forward.fiber a).apply v \by {
+      base: startEquation, equality: sym!{{Time.Carrier}} _ _ same
+    })
+    (\fun (same: _) => \idelim end = x \with a: Pair.A => \forall (v: E a) -> (isomorphism.forward.fiber a).apply v = (t.comparison.forward.fiber a).apply v \by {
+      base: endEquation, equality: sym!{{Time.Carrier}} _ _ same
+    });
+\definition witness: Pair.Global[t := t].Witness := Pair.Global[t := t].Witness { isomorphism := isomorphism, agrees := agrees };

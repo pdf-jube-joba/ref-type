@@ -1,0 +1,22 @@
+\definition reflects: \forall (a: SubsetEven)(w: Odd.First) -> Odd.restrictionNegative w = SubsetPeriod.forward a -> restrictionEven (WholePeriod.backward w) = a := \block {
+  \fun (a: SubsetEven)(w: Odd.First)(same: _) \then
+  \let relation: SubsetPeriod.forward (restrictionEven (WholePeriod.backward w)) = SubsetPeriod.forward a :=
+    trans!{{Odd.Second}} _ _ _ (sym!{{Odd.Second}} _ _ (restrictionPeriodicity (WholePeriod.backward w)))
+      (trans!{{Odd.Second}} _ _ _ (congr!{{Odd.First} {Odd.Second}} Odd.restrictionNegative _ _ (WholePeriod.rightInverse w)) same) \then
+  \return trans!{SubsetEven} _ _ _ (sym!{SubsetEven} _ _ (SubsetPeriod.leftInverse (restrictionEven (WholePeriod.backward w))))
+    (trans!{SubsetEven} _ _ _ (congr!{{Odd.Second} SubsetEven} SubsetPeriod.backward _ _ relation) (SubsetPeriod.leftInverse a))
+};
+\definition preimage: \forall (a: SubsetEven) -> boundaryEven a = relativeOddGroup.base.unit -> \exists (x: WholeEven \where restrictionEven x = a) := \block {
+  \fun (a: SubsetEven)(zero: _) \then
+  \takefrom w: \Cast[Odd.First] ({ w: Odd.First \where Odd.restrictionNegative w = SubsetPeriod.forward a }) \by (Odd.exactSecond (SubsetPeriod.forward a)).ltr zero \then
+  \return Logic.existsIntro[WholeEven, { x: WholeEven \where restrictionEven x = a }] (WholePeriod.backward w)
+    (reflects a w (\bysub(Odd.First, { w: Odd.First \where Odd.restrictionNegative w = SubsetPeriod.forward a }, w)))
+};
+\definition kernel: \forall (a: SubsetEven) -> (\exists (x: WholeEven \where restrictionEven x = a)) -> boundaryEven a = relativeOddGroup.base.unit := \block {
+  \fun (a: SubsetEven)(image: _) \then
+  \takefrom x: \Cast[WholeEven] ({ x: WholeEven \where restrictionEven x = a }) \by image \then
+  \return (Odd.exactSecond (SubsetPeriod.forward a)).rtl (Logic.existsIntro[Odd.First, { w: Odd.First \where Odd.restrictionNegative w = SubsetPeriod.forward a }] (WholePeriod.forward x)
+    (trans!{{Odd.Second}} _ _ _ (restrictionPeriodicity x)
+      (congr!{SubsetEven {Odd.Second}} SubsetPeriod.forward _ _ (\bysub(WholeEven, { x: WholeEven \where restrictionEven x = a }, x)))))
+};
+\definition exact[a: SubsetEven]: Logic.PropEquiv[boundaryEven a = relativeOddGroup.base.unit, \exists (x: WholeEven \where restrictionEven x = a)] := Logic.PropEquiv[_, _] { ltr := preimage a, rtl := kernel a };

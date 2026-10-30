@@ -1,0 +1,71 @@
+\import std.Data[].Bool[] \as B;
+\import \root.Periodicity[].Bigraded[left := left, right := right, first := B.Bool^::false, second := B.Bool^::false] \as Even;
+\import \root.Periodicity[].Bigraded[left := left, right := right, first := B.Bool^::false, second := B.Bool^::true] \as FirstMixed;
+\import \root.Periodicity[].Bigraded[left := left, right := right, first := B.Bool^::true, second := B.Bool^::false] \as SecondMixed;
+\import \root.Periodicity[].Bigraded[left := left, right := right, first := B.Bool^::true, second := B.Bool^::true] \as Odd;
+\import Relative.Smash[left := left, right := right] \as Smash;
+\import Relative.Smash[left := right, right := left] \as Reverse;
+\import Smash.Graded[firstDegree := N.Nat^::zero, secondDegree := N.Nat^::zero] \as N00;
+\import Reverse.Graded[firstDegree := N.Nat^::zero, secondDegree := N.Nat^::zero] \as R00;
+\import Smash.Graded[firstDegree := N.Nat^::zero, secondDegree := Bott.one] \as N01;
+\import Reverse.Graded[firstDegree := Bott.one, secondDegree := N.Nat^::zero] \as R10;
+\import Smash.Graded[firstDegree := Bott.one, secondDegree := N.Nat^::zero] \as N10;
+\import Reverse.Graded[firstDegree := N.Nat^::zero, secondDegree := Bott.one] \as R01;
+\import Smash.Graded[firstDegree := Bott.one, secondDegree := Bott.one] \as N11;
+\import Reverse.Graded[firstDegree := Bott.one, secondDegree := Bott.one] \as R11;
+\import Smash.External[] \as Source;
+\import Reverse.External[] \as Target;
+\import Relative.Pullback[source := Smash.result, target := Reverse.result, f := Smash.Symmetry[].equivalence.forward] \as Pull;
+\import Relative.NegativeMap[source := Smash.result, target := Reverse.result, f := Smash.Symmetry[].equivalence.forward, degree := Bott.one] \as NegativePull;
+\import \root.Periodicity[].Integer[].Transport[model := Smash.result] \as T;
+\import \root.Periodicity[].Integer[].Transport[model := Reverse.result] \as RT;
+\definition evenFormula: \forall (a: Even.First)(b: Even.Second) -> Even.product a b = N00.product a b :=
+  \fun (a: Even.First)(b: Even.Second) => T.loopForward B.Bool^::false Even.parity (N00.product a b);
+\definition evenReverse: \forall (a: Even.First)(b: Even.Second) -> Even.reverseProduct b a = R00.product b a :=
+  \fun (a: Even.First)(b: Even.Second) => RT.loopForward B.Bool^::false Even.reverseParity (R00.product b a);
+\definition evenEven: Even.Equation := \fun (a: Even.First)(b: Even.Second) => eq_reason_in!{{Even.Result} { Even.reversed a b }
+  "=" _ "by" { congr!{{Even.ReverseResult} {Even.Result}} Pull.map _ _ (evenReverse a b) }
+  "=" _ "by" { congr!{{Relative.Reduced[model := Reverse.result].Carrier} {Even.Result}} Pull.map _ _ (Relative.PullbackIdentity[model := Reverse.result].equation (Target.product b a)) }
+  "=" _ "by" { \root.Periodicity[].ExternalSymmetry[left := left, right := right].symmetry a b }
+  "=" _ "by" { sym!{{Even.Result}} _ _ (Relative.PullbackIdentity[model := Smash.result].equation (Source.product a b)) }
+  "=" _ "by" { sym!{{Even.Result}} _ _ (evenFormula a b) }
+};
+\definition firstMixedFormula: \forall (a: FirstMixed.First)(b: FirstMixed.Second) -> FirstMixed.product a b = N01.product a b :=
+  \fun (a: FirstMixed.First)(b: FirstMixed.Second) => T.loopForward B.Bool^::true FirstMixed.parity (N01.product a b);
+\definition firstMixedReverse: \forall (a: FirstMixed.First)(b: FirstMixed.Second) -> FirstMixed.reverseProduct b a = R10.product b a :=
+  \fun (a: FirstMixed.First)(b: FirstMixed.Second) => RT.loopForward B.Bool^::true FirstMixed.reverseParity (R10.product b a);
+\definition evenOdd: FirstMixed.Equation := \fun (a: FirstMixed.First)(b: FirstMixed.Second) => trans!{{FirstMixed.Result}} _ _ _
+  (congr!{{FirstMixed.ReverseResult} {FirstMixed.Result}} NegativePull.map _ _ (firstMixedReverse a b))
+  (trans!{{FirstMixed.Result}} _ _ _ (\root.Periodicity[].MixedProduct[left := left, right := right].symmetry a b) (sym!{{FirstMixed.Result}} _ _ (firstMixedFormula a b)));
+\definition secondMixedFormula: \forall (a: SecondMixed.First)(b: SecondMixed.Second) -> SecondMixed.product a b = N10.product a b :=
+  \fun (a: SecondMixed.First)(b: SecondMixed.Second) => T.loopForward B.Bool^::true SecondMixed.parity (N10.product a b);
+\definition secondMixedReverse: \forall (a: SecondMixed.First)(b: SecondMixed.Second) -> SecondMixed.reverseProduct b a = R01.product b a :=
+  \fun (a: SecondMixed.First)(b: SecondMixed.Second) => RT.loopForward B.Bool^::true SecondMixed.reverseParity (R01.product b a);
+\import \root.Periodicity[].MixedProduct[left := right, right := left] \as ReverseMixed;
+\definition oddEven: SecondMixed.Equation := \fun (a: SecondMixed.First)(b: SecondMixed.Second) => eq_reason_in!{{SecondMixed.Result} { SecondMixed.reversed a b }
+  "=" _ "by" { congr!{{SecondMixed.ReverseResult} {SecondMixed.Result}} NegativePull.map _ _ (secondMixedReverse a b) }
+  "=" _ "by" { congr!{{SecondMixed.ReverseResult} {SecondMixed.Result}} NegativePull.map _ _ (sym!{{SecondMixed.ReverseResult}} _ _ (ReverseMixed.symmetry b a)) }
+  "=" _ "by" { \root.Periodicity[].ExternalSymmetry[left := left, right := right].Involution[].At[degree := Bott.one].equation (N10.product a b) }
+  "=" _ "by" { sym!{{SecondMixed.Result}} _ _ (secondMixedFormula a b) }
+};
+\import \root.Periodicity[].Integer[].Comparison[model := Smash.result] \as Comparison;
+\import \root.Periodicity[].Integer[].Comparison[model := Reverse.result] \as ReverseComparison;
+\import \root.Periodicity[].OddProduct[left := left, right := right] \as OddProduct;
+\import \root.Periodicity[].OddProduct[left := right, right := left] \as ReverseOddProduct;
+\definition oddFormula: \forall (a: Odd.First)(b: Odd.Second) -> Odd.product a b = OddProduct.product a b :=
+  \fun (a: Odd.First)(b: Odd.Second) => trans!{{Odd.Result}} _ _ _
+    (T.loopForward B.Bool^::false Odd.parity ((Comparison.normal Bott.two).forward (N11.product a b))) (Comparison.twoFormula (N11.product a b));
+\definition oddReverse: \forall (a: Odd.First)(b: Odd.Second) -> Odd.reverseProduct b a = ReverseOddProduct.product b a :=
+  \fun (a: Odd.First)(b: Odd.Second) => trans!{{Odd.ReverseResult}} _ _ _
+    (RT.loopForward B.Bool^::false Odd.reverseParity ((ReverseComparison.normal Bott.two).forward (R11.product b a))) (ReverseComparison.twoFormula (R11.product b a));
+\definition oddOdd: Odd.Equation := \fun (a: Odd.First)(b: Odd.Second) => eq_reason_in!{{Odd.Result} { Odd.reversed a b }
+  "=" _ "by" { congr!{{Odd.ReverseResult} {Odd.Result}} Pull.map _ _ (oddReverse a b) }
+  "=" _ "by" { OddProduct.Symmetry[].normalized a b }
+  "=" _ "by" { congr!{{Odd.Result} {Odd.Result}} (Relative.Negative[original := Smash.result, degree := N.Nat^::zero].group.base.inv) _ _ (sym!{{Odd.Result}} _ _ (oddFormula a b)) }
+};
+\definition Equation[first, second: B.Bool^]: \Prop := \root.Periodicity[].Bigraded[left := left, right := right, first := first, second := second].Equation;
+\definition equation: \forall (first, second: B.Bool^) -> Equation first second :=
+  \induction (first: B.Bool^) \return \forall (second: B.Bool^) -> Equation first second \with {
+    | false: \induction (second: B.Bool^) \return Equation B.Bool^::false second \with { | false: evenEven | true: evenOdd }
+    | true: \induction (second: B.Bool^) \return Equation B.Bool^::true second \with { | false: oddEven | true: oddOdd }
+  };

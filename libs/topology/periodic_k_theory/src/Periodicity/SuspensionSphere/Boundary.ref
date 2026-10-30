@@ -1,0 +1,63 @@
+\import \root.Periodicity[].SquareSphere[].TimeCoordinates[] \as Center;
+\import \root.Periodicity[].SquareSphere[].Plane[] \as Plane;
+\import \root.Periodicity[].SquareSphere[].Square[] \as Square;
+\import \root.Periodicity[].SquareSphere[].Scalar[] \as Scalar;
+\import \root.Periodicity[].SquareSphere[] \as Geometry;
+\import real.Analysis[] \as Real;
+\import dedekind_reals.DedekindReal[] \as R;
+\import R.Arithmetic[].Prop[] \as Laws;
+\import Real.Distance[] \as Distance;
+\definition negate[a: Real.Real][same: Real.neg a = Real.one]: a = Real.neg Real.one :=
+  trans!{{Real.Real}} _ _ _ (sym!{{Real.Real}} _ _ (Laws.negInvolutive a)) (congr!{{Real.Real} {Real.Real}} Real.neg _ _ same);
+\definition toEdge: \forall (z: Times.CarrierSet) -> Plane.gap (Center.square z) = Real.zero -> Edge z := \block {
+  \fun (z: Times.CarrierSet)(edge: Plane.gap (Center.square z) = Real.zero) \then
+  \let radius: Plane.radius (Center.square z) = Real.one := sym!{{Real.Real}} _ _ (Distance.subZeroEq Real.one (Plane.radius (Center.square z)) edge) \then
+  \let ax: Real.Real := Center.center (outerTime z) \then
+  \let ay: Real.Real := Center.center (innerTime z) \then
+  \return Logic.orElim[ax = Geometry.maximum ax ay, Logic.Or[Real.neg ax = Geometry.maximum ax ay, Logic.Or[ay = Geometry.maximum ax ay, Real.neg ay = Geometry.maximum ax ay]], Edge z]
+    (Scalar.maximumAttains ax ay)
+    (\fun (same: ax = Geometry.maximum ax ay) => Logic.Or[_, _]::right (Logic.Or[_, _]::left (Center.atEnd (outerTime z) (trans!{{Real.Real}} ax (Geometry.maximum ax ay) Real.one same radius))))
+    (\fun (rest: Logic.Or[Real.neg ax = Geometry.maximum ax ay, Logic.Or[ay = Geometry.maximum ax ay, Real.neg ay = Geometry.maximum ax ay]]) =>
+      Logic.orElim[Real.neg ax = Geometry.maximum ax ay, Logic.Or[ay = Geometry.maximum ax ay, Real.neg ay = Geometry.maximum ax ay], Edge z] rest
+        (\fun (same: Real.neg ax = Geometry.maximum ax ay) => Logic.Or[_, _]::left (Center.atStart (outerTime z) (negate ax (trans!{{Real.Real}} (Real.neg ax) (Geometry.maximum ax ay) Real.one same radius))))
+        (\fun (rest: Logic.Or[ay = Geometry.maximum ax ay, Real.neg ay = Geometry.maximum ax ay]) =>
+          Logic.orElim[ay = Geometry.maximum ax ay, Real.neg ay = Geometry.maximum ax ay, Edge z] rest
+            (\fun (same: ay = Geometry.maximum ax ay) => Logic.Or[_, _]::right (Logic.Or[_, _]::right (Logic.Or[_, _]::right (Center.atEnd (innerTime z) (trans!{{Real.Real}} ay (Geometry.maximum ax ay) Real.one same radius)))))
+            (\fun (same: Real.neg ay = Geometry.maximum ax ay) => Logic.Or[_, _]::right (Logic.Or[_, _]::right (Logic.Or[_, _]::left (Center.atStart (innerTime z) (negate ay (trans!{{Real.Real}} (Real.neg ay) (Geometry.maximum ax ay) Real.one same radius))))))))
+};
+\definition xUnit: \forall (z: Square.Carrier) -> Logic.Or[Plane.x z = Real.one, Plane.x z = Real.neg Real.one] -> Plane.gap z = Real.zero := \block {
+  \fun (z: Square.Carrier)(unit: _) \then
+  \let positive: R.Le (Plane.x z) (Plane.radius z) := R.leTrans _ (Distance.max (Plane.x z) (Real.neg (Plane.x z))) _
+    (Distance.maxLeft (Plane.x z) (Real.neg (Plane.x z))) (Distance.maxLeft _ _) \then
+  \let negative: R.Le (Real.neg (Plane.x z)) (Plane.radius z) := R.leTrans _ (Distance.max (Plane.x z) (Real.neg (Plane.x z))) _
+    (Distance.maxRight (Plane.x z) (Real.neg (Plane.x z))) (Distance.maxLeft _ _) \then
+  \let lower: R.Le Real.one (Plane.radius z) := Logic.orElim[Plane.x z = Real.one, Plane.x z = Real.neg Real.one, R.Le Real.one (Plane.radius z)] unit
+    (\fun (same: _) => R.leReplaceLeft (Plane.x z) Real.one (Plane.radius z) same positive)
+    (\fun (same: _) => R.leReplaceLeft (Real.neg (Plane.x z)) Real.one (Plane.radius z)
+      (trans!{{Real.Real}} _ _ _ (congr!{{Real.Real} {Real.Real}} Real.neg _ _ same) (Laws.negInvolutive Real.one)) negative) \then
+  \return trans!{{Real.Real}} _ _ _
+    (congr!{{Real.Real} {Real.Real}} (Real.sub Real.one) _ _ (R.leAntisym _ _ (\bysub(Plane.Carrier, Square.bounded, z)) lower)) (Laws.subSelf Real.one)
+};
+\definition yUnit: \forall (z: Square.Carrier) -> Logic.Or[Plane.y z = Real.one, Plane.y z = Real.neg Real.one] -> Plane.gap z = Real.zero := \block {
+  \fun (z: Square.Carrier)(unit: _) \then
+  \let positive: R.Le (Plane.y z) (Plane.radius z) := R.leTrans _ (Distance.max (Plane.y z) (Real.neg (Plane.y z))) _
+    (Distance.maxLeft (Plane.y z) (Real.neg (Plane.y z))) (Distance.maxRight _ _) \then
+  \let negative: R.Le (Real.neg (Plane.y z)) (Plane.radius z) := R.leTrans _ (Distance.max (Plane.y z) (Real.neg (Plane.y z))) _
+    (Distance.maxRight (Plane.y z) (Real.neg (Plane.y z))) (Distance.maxRight _ _) \then
+  \let lower: R.Le Real.one (Plane.radius z) := Logic.orElim[Plane.y z = Real.one, Plane.y z = Real.neg Real.one, R.Le Real.one (Plane.radius z)] unit
+    (\fun (same: _) => R.leReplaceLeft (Plane.y z) Real.one (Plane.radius z) same positive)
+    (\fun (same: _) => R.leReplaceLeft (Real.neg (Plane.y z)) Real.one (Plane.radius z)
+      (trans!{{Real.Real}} _ _ _ (congr!{{Real.Real} {Real.Real}} Real.neg _ _ same) (Laws.negInvolutive Real.one)) negative) \then
+  \return trans!{{Real.Real}} _ _ _
+    (congr!{{Real.Real} {Real.Real}} (Real.sub Real.one) _ _ (R.leAntisym _ _ (\bysub(Plane.Carrier, Square.bounded, z)) lower)) (Laws.subSelf Real.one)
+};
+\definition fromEdge: \forall (z: Times.CarrierSet) -> Edge z -> Plane.gap (Center.square z) = Real.zero :=
+  \fun (z: Times.CarrierSet)(edge: _) => Logic.orElim[outerTime z = Time.start, Logic.Or[outerTime z = Time.end, Logic.Or[innerTime z = Time.start, innerTime z = Time.end]], Plane.gap (Center.square z) = Real.zero] edge
+    (\fun (same: _) => xUnit (Center.square z) (Logic.Or[_, _]::right (trans!{{Real.Real}} _ _ _ (congr!{{Time.Carrier} {Real.Real}} Center.center _ _ same) Center.start)))
+    (\fun (rest: Logic.Or[outerTime z = Time.end, Logic.Or[innerTime z = Time.start, innerTime z = Time.end]]) =>
+      Logic.orElim[outerTime z = Time.end, Logic.Or[innerTime z = Time.start, innerTime z = Time.end], Plane.gap (Center.square z) = Real.zero] rest
+        (\fun (same: _) => xUnit (Center.square z) (Logic.Or[_, _]::left (trans!{{Real.Real}} _ _ _ (congr!{{Time.Carrier} {Real.Real}} Center.center _ _ same) Center.end)))
+        (\fun (rest: Logic.Or[innerTime z = Time.start, innerTime z = Time.end]) =>
+          Logic.orElim[innerTime z = Time.start, innerTime z = Time.end, Plane.gap (Center.square z) = Real.zero] rest
+            (\fun (same: _) => yUnit (Center.square z) (Logic.Or[_, _]::right (trans!{{Real.Real}} _ _ _ (congr!{{Time.Carrier} {Real.Real}} Center.center _ _ same) Center.start)))
+            (\fun (same: _) => yUnit (Center.square z) (Logic.Or[_, _]::left (trans!{{Real.Real}} _ _ _ (congr!{{Time.Carrier} {Real.Real}} Center.center _ _ same) Center.end)))));

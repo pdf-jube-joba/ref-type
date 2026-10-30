@@ -1,0 +1,38 @@
+\import Relative.Smash[left := left, right := right] \as A;
+\import Relative.Smash[left := targetLeft, right := right] \as B;
+\import Relative.Identity[model := right] \as RightIdentity;
+\import A.Mapping[targetLeft := targetLeft, targetRight := right, f := e.forward, g := RightIdentity.map] \as Forward;
+\import B.Mapping[targetLeft := left, targetRight := right, f := e.backward, g := RightIdentity.map] \as Backward;
+\import Relative.Pair[X := A.model.Carrier, space := (Relative.details A.model).topology,
+  compact := (Relative.details A.model).compact, hausdorff := (Relative.details A.model).hausdorff,
+  subset := A.wedge, closed := A.wedgeClosed].Quotient[].MapsEqual[target := A.result] \as SourceEquality;
+\import Relative.Pair[X := B.model.Carrier, space := (Relative.details B.model).topology,
+  compact := (Relative.details B.model).compact, hausdorff := (Relative.details B.model).hausdorff,
+  subset := B.wedge, closed := B.wedgeClosed].Quotient[].MapsEqual[target := B.result] \as TargetEquality;
+\import Relative.Composition[source := A.result, middle := B.result, target := A.result, first := Forward.map, second := Backward.map] \as LeftComposite;
+\import Relative.Composition[source := B.result, middle := A.result, target := B.result, first := Backward.map, second := Forward.map] \as RightComposite;
+\import Relative.Identity[model := A.result] \as SourceIdentity;
+\import Relative.Identity[model := B.result] \as TargetIdentity;
+\definition leftOnProjection: \forall (z: A.model.Carrier) -> Backward.map (Forward.map (A.projection z)) = A.projection z :=
+  \fun (z: A.model.Carrier) => trans!{{A.result.Carrier}} _ _ _
+    (congr!{{B.result.Carrier} {A.result.Carrier}} Backward.map _ _ (Forward.onProjection z))
+    (trans!{{A.result.Carrier}} _ _ _ (Backward.onProjection (Forward.productMap z))
+      (congr!{{A.model.Carrier} {A.result.Carrier}} A.projection _ _
+        (std.Data[].Pair[].Prop[A := left.Carrier, B := right.Carrier].ext (Backward.productMap (Forward.productMap z)) z (e.leftInverse (A.first z)) (\refl(A.second z)))));
+\definition rightOnProjection: \forall (z: B.model.Carrier) -> Forward.map (Backward.map (B.projection z)) = B.projection z :=
+  \fun (z: B.model.Carrier) => trans!{{B.result.Carrier}} _ _ _
+    (congr!{{A.result.Carrier} {B.result.Carrier}} Forward.map _ _ (Backward.onProjection z))
+    (trans!{{B.result.Carrier}} _ _ _ (Forward.onProjection (Backward.productMap z))
+      (congr!{{B.model.Carrier} {B.result.Carrier}} B.projection _ _
+        (std.Data[].Pair[].Prop[A := targetLeft.Carrier, B := right.Carrier].ext (Forward.productMap (Backward.productMap z)) z (e.rightInverse (B.first z)) (\refl(B.second z)))));
+\definition equivalence: Relative.Equivalence[source := A.result, target := B.result].Data :=
+  Relative.Equivalence[source := A.result, target := B.result].Data {
+    forward := Forward.map, backward := Backward.map,
+    leftInverse := SourceEquality.pointwise LeftComposite.map SourceIdentity.map leftOnProjection,
+    rightInverse := TargetEquality.pointwise RightComposite.map TargetIdentity.map rightOnProjection
+  };
+\definition source: Relative.CompactPointed := A.result;
+\definition target: Relative.CompactPointed := B.result;
+\definition raw: A.model.Carrier -> B.model.Carrier := Forward.raw;
+\definition onProjection: \forall (z: A.model.Carrier) -> equivalence.forward (A.projection z) = B.projection (raw z) := Forward.onProjection;
+\module Naturality(other: Relative.CompactPointed, mapping: Relative.Map right other);

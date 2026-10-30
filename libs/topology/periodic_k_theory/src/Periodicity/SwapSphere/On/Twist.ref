@@ -1,0 +1,27 @@
+\import \root.Periodicity[].DoubleComparison[model := model] \as Comparison;
+\definition double: Relative.CompactPointed := Relative.iterate Bott.two model;
+\definition result: Relative.CompactPointed := Smash.result;
+\import Relative.Composition[source := double, middle := result, target := result,
+  first := Comparison.equivalence.forward, second := \root.Periodicity[].SwapSphere[].On[model := model].map] \as First;
+\import Relative.Composition[source := double, middle := result, target := double,
+  first := First.map, second := Comparison.equivalence.backward] \as Second;
+\definition map: Relative.Map double double := Second.map;
+\definition Carrier: \Set := Relative.Negative[original := model, degree := Bott.two].Carrier;
+\definition group: std.Alg[].Alg[].CommutativeGroup[Carrier] := Relative.Negative[original := model, degree := Bott.two].group;
+\definition Middle: \Set := Relative.Reduced[model := result].Carrier;
+\definition middleGroup: std.Alg[].Alg[].CommutativeGroup[Middle] := Relative.Reduced[model := result].group;
+\import Relative.Equivalence[source := double, target := result].With[e := Comparison.equivalence].Groups[] \as Transport;
+\import Relative.Pullback[source := double, target := double, f := map] \as Pull;
+\import Relative.PullbackComposition[source := double, middle := result, target := double, first := First.map, second := Comparison.equivalence.backward] \as LastPull;
+\import Relative.PullbackComposition[source := double, middle := result, target := result,
+  first := Comparison.equivalence.forward, second := \root.Periodicity[].SwapSphere[].On[model := model].map] \as FirstPull;
+\import Relative.GroupCalculus[X := Middle, group := middleGroup].Mapping[Y := Carrier, target := group, f := Transport.forward,
+  additive := Transport.forwardAdd, preservesZero := Transport.forwardZero] \as Linear;
+\definition sign: \forall (q: Carrier) -> Pull.map q = group.base.inv q := \fun (q: Carrier) => eq_reason_in!{Carrier _
+  "=" _ "by" { LastPull.equation q }
+  "=" _ "by" { FirstPull.equation (Transport.backward q) }
+  "=" _ "by" { congr!{Middle Carrier} Transport.forward _ _ (\root.Periodicity[].SwapSphere[].On[model := model].sign (Transport.backward q)) }
+  "=" _ "by" { Linear.inverse (Transport.backward q) }
+  "=" _ "by" { congr!{Carrier Carrier} group.base.inv _ _ (Transport.leftInverse q) }
+};
+\module Coordinates;

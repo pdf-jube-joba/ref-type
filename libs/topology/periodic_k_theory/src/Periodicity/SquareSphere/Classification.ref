@@ -1,0 +1,56 @@
+\import \parent.Plane[] \as Plane;
+\import \parent.Square[] \as Square;
+\import \parent.Scalar[] \as Scalar;
+\import \parent.Stereographic[] \as Stereo;
+\import \parent.Forward[] \as Forward;
+\import \parent.Pole[] \as Pole;
+\import std.Logic[].Classical[] \as Classical;
+\definition negativeOne: R.Le (Real.neg Real.one) Real.one := R.leTrans _ Real.zero Real.one
+  (R.leReplaceRight (Real.neg Real.one) (Real.neg Real.zero) Real.zero Laws.negZero (Laws.negAntitone Real.zero Real.one Laws.oneNonnegative)) Laws.oneNonnegative;
+\definition cornerRaw: Plane.Carrier := std.Data[].Pair[].pair Real.Real Real.Real Real.one Real.one;
+\definition cornerRadius: Plane.radius cornerRaw = Real.one := trans!{{Real.Real}} _ _ _
+  (Distance.maxSame (Distance.max Real.one (Real.neg Real.one))) (Distance.maxOfGe Real.one (Real.neg Real.one) negativeOne);
+\definition corner: Square.Carrier := \into[Plane.Carrier](cornerRaw, Square.bounded) \by {
+  R.leReplaceLeft Real.one (Plane.radius cornerRaw) Real.one (sym!{{Real.Real}} _ _ cornerRadius) (R.leRefl Real.one)
+};
+\definition cornerGap: Plane.gap corner = Real.zero := trans!{{Real.Real}} _ _ _
+  (congr!{{Real.Real} {Real.Real}} (Real.sub Real.one) _ _ cornerRadius) (Laws.subSelf Real.one);
+\definition cornerEquation: Forward.map corner = (Relative.details sphere).point := \parent.Boundary[z := corner, edge := cornerGap].equation;
+\definition onto: \forall (p: sphere.Carrier) -> \exists (z: Square.Carrier \where Forward.map z = p) :=
+  \fun (p: sphere.Carrier) => Logic.orElim[Stereo.head p = Real.one, Logic.Not (Stereo.head p = Real.one), \exists (z: Square.Carrier \where Forward.map z = p)]
+    (Classical.excludedMiddle (Stereo.head p = Real.one))
+    (\fun (same: Stereo.head p = Real.one) => Logic.existsIntro[Square.Carrier, { z: Square.Carrier \where Forward.map z = p }] corner
+      (trans!{{sphere.Carrier}} _ _ _ cornerEquation (sym!{{sphere.Carrier}} _ _ (Pole.characterizes p same))))
+    (\fun (off: Logic.Not (Stereo.head p = Real.one)) => Logic.existsIntro[Square.Carrier, { z: Square.Carrier \where Forward.map z = p }]
+      \parent.Candidate[p := p, off := off].point \parent.Candidate[p := p, off := off].equation);
+\definition Off: \Set := \Cast[sphere.Carrier] ({ p: sphere.Carrier \where Logic.Not (Stereo.head p = Real.one) });
+\definition section[p: Off]: Square.Carrier := \parent.Candidate[p := p, off := (\bysub(sphere.Carrier, Off, p))].point;
+\definition interiorInjective: \forall (z, w: Square.Carrier) -> Logic.Not (Plane.gap z = Real.zero) -> Logic.Not (Plane.gap w = Real.zero) -> Forward.map z = Forward.map w -> z = w := \block {
+  \fun (z, w: Square.Carrier)(iz: _)(iw: _)(same: _) \then
+  \let first: Off := \into[sphere.Carrier](Forward.map z, Off) \by { \parent.Interior[z := z, inside := iz].off } \then
+  \let second: Off := \into[sphere.Carrier](Forward.map w, Off) \by { \parent.Interior[z := w, inside := iw].off } \then
+  \let left: section first = z := \parent.Interior[z := z, inside := iz].equation \then
+  \let right: section second = w := \parent.Interior[z := w, inside := iw].equation \then
+  \return trans!{{Square.Carrier}} _ _ _ (sym!{{Square.Carrier}} _ _ left)
+    (trans!{{Square.Carrier}} _ _ _ (congr!{Off {Square.Carrier}} section first second same) right)
+};
+\definition interiorNotPole: \forall (z: Square.Carrier) -> Logic.Not (Plane.gap z = Real.zero) -> Logic.Not (Forward.map z = (Relative.details sphere).point) :=
+  \fun (z: Square.Carrier)(inside: _)(same: _) => \parent.Interior[z := z, inside := inside].off
+    (trans!{{Real.Real}} _ _ _ (congr!{{sphere.Carrier} {Real.Real}} Stereo.head _ _ same) Pole.height);
+\definition separates: \forall (z, w: Square.Carrier) -> Forward.map z = Forward.map w ->
+  Logic.Or[z = w, Logic.And[Plane.gap z = Real.zero, Plane.gap w = Real.zero]] :=
+  \fun (z, w: Square.Carrier)(same: _) => Logic.orElim[Plane.gap z = Real.zero, Logic.Not (Plane.gap z = Real.zero),
+    Logic.Or[z = w, Logic.And[Plane.gap z = Real.zero, Plane.gap w = Real.zero]]]
+    (Classical.excludedMiddle (Plane.gap z = Real.zero))
+    (\fun (ez: Plane.gap z = Real.zero) => Logic.orElim[Plane.gap w = Real.zero, Logic.Not (Plane.gap w = Real.zero),
+      Logic.Or[z = w, Logic.And[Plane.gap z = Real.zero, Plane.gap w = Real.zero]]]
+      (Classical.excludedMiddle (Plane.gap w = Real.zero))
+      (\fun (ew: Plane.gap w = Real.zero) => Logic.Or[_, _]::right (Logic.And[_, _]::# ez ew))
+      (\fun (iw: _) => Logic.falseElim _ (interiorNotPole w iw
+        (trans!{{sphere.Carrier}} _ _ _ (sym!{{sphere.Carrier}} _ _ same) \parent.Boundary[z := z, edge := ez].equation))))
+    (\fun (iz: _) => Logic.orElim[Plane.gap w = Real.zero, Logic.Not (Plane.gap w = Real.zero),
+      Logic.Or[z = w, Logic.And[Plane.gap z = Real.zero, Plane.gap w = Real.zero]]]
+      (Classical.excludedMiddle (Plane.gap w = Real.zero))
+      (\fun (ew: _) => Logic.falseElim _ (interiorNotPole z iz
+        (trans!{{sphere.Carrier}} _ _ _ same \parent.Boundary[z := w, edge := ew].equation)))
+      (\fun (iw: _) => Logic.Or[_, _]::left (interiorInjective z w iz iw same)));

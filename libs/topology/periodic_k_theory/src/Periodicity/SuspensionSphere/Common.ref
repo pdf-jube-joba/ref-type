@@ -1,0 +1,42 @@
+\import \parent.Collapsed[] \as Collapsed;
+\import \parent.Separation[] \as Separation;
+\import \parent.Continuity[] \as Continuous;
+\import \parent.Boundary[] \as Boundary;
+\import \root.Periodicity[].SquareSphere[].TimeCoordinates[] \as Center;
+\import \root.Periodicity[].SquareSphere[].Square[] \as Square;
+\import \root.Periodicity[].SquareSphere[].Forward[] \as SphereMap;
+\import \root.Periodicity[].SquareSphere[].Classification[] \as Classification;
+\import topological_constructions.Coproduct[A := Times.CarrierSet, B := Times.CarrierSet] \as Sum;
+\import Sum.Properties[left := timeTopology, right := timeTopology] \as SumSpace;
+\definition R: \Set := Sum.Carrier;
+\definition topology: topology.Topology[Carrier := R].Topology := SumSpace.space;
+\definition gLive[z: Times.CarrierSet]: sphere.Carrier := SphereMap.map (Center.square z);
+\definition fAll: R -> source.Carrier := Sum.Universal[C := source.Carrier].copair (\fun (_: Times.CarrierSet) => (Relative.details source).point) f;
+\definition gAll: R -> sphere.Carrier := Sum.Universal[C := sphere.Carrier].copair (\fun (_: Times.CarrierSet) => (Relative.details sphere).point) gLive;
+\definition compactTimes: topology.Topology[Carrier := Times.CarrierSet].IsCompact timeTopology :=
+  Times.Compactness[].productCompact Time.topology Time.topology Time.compact Time.compact;
+\definition compact: topology.Topology[Carrier := R].IsCompact topology := SumSpace.compact compactTimes compactTimes;
+\definition fRegular: topology.Continuity[A := R, B := source.Carrier].Continuous topology (Relative.details source).topology fAll :=
+  Sum.Universal[C := source.Carrier].continuous timeTopology timeTopology (Relative.details source).topology
+    (\fun (_: Times.CarrierSet) => (Relative.details source).point) f
+    (topology.Maps[A := Times.CarrierSet, B := source.Carrier].constantContinuous timeTopology (Relative.details source).topology (Relative.details source).point) Continuous.continuous;
+\definition gLiveRegular: topology.Continuity[A := Times.CarrierSet, B := sphere.Carrier].Continuous timeTopology (Relative.details sphere).topology gLive :=
+  topology.Composition[A := Times.CarrierSet, B := Square.Carrier, C := sphere.Carrier].composeContinuous timeTopology Square.topology (Relative.details sphere).topology
+    Center.square (\fun (z: Square.Carrier) => SphereMap.map z) Center.continuous
+    (topology.Composition[A := Square.Carrier, B := \root.Periodicity[].SquareSphere[].Plane[].Carrier, C := sphere.Carrier].composeContinuous Square.topology \root.Periodicity[].SquareSphere[].Plane[].topology (Relative.details sphere).topology
+      (\fun (z: Square.Carrier) => z) SphereMap.map Square.coordinatesRegular SphereMap.continuous);
+\definition gRegular: topology.Continuity[A := R, B := sphere.Carrier].Continuous topology (Relative.details sphere).topology gAll :=
+  Sum.Universal[C := sphere.Carrier].continuous timeTopology timeTopology (Relative.details sphere).topology
+    (\fun (_: Times.CarrierSet) => (Relative.details sphere).point) gLive
+    (topology.Maps[A := Times.CarrierSet, B := sphere.Carrier].constantContinuous timeTopology (Relative.details sphere).topology (Relative.details sphere).point) gLiveRegular;
+\definition origin: Times.CarrierSet := Pair.pair Time.Carrier Time.Carrier Time.start Time.start;
+\definition r0: R := Sum.inl origin;
+\module Onto;
+\module Fibers;
+\import Relative.CommonQuotient[R := R, space := topology, compact := compact, source := source, target := sphere,
+    f := fAll, g := gAll, fRegular := fRegular, gRegular := gRegular, fOnto := Onto[].ontoSource, gOnto := Onto[].ontoTarget,
+    forwardFibers := Fibers[].forward, backwardFibers := Fibers[].backward, r0 := r0,
+    sourcePoint := \refl((Relative.details source).point), targetPoint := \refl((Relative.details sphere).point)] \as Quotient;
+\definition equivalence: Relative.Equivalence[source := source, target := sphere].Data := Quotient.equivalence;
+\definition onLive: \forall (z: Times.CarrierSet) -> equivalence.forward (f z) = gLive z :=
+  \fun (z: Times.CarrierSet) => Quotient.onSource (Sum.inr z);

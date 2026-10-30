@@ -1,0 +1,29 @@
+\import topological_algebra.Coordinates[K := Real.Real, I := Sphere.Index] \as CoordinatesTopology;
+\import metric_spaces.RealFunctions[A := sphere.Carrier] \as Functions;
+\import metric_spaces.RealLine[] \as Line;
+\definition inclusion: topology.Continuity[A := sphere.Carrier, B := Sphere.Coordinate].Continuous (Relative.details sphere).topology Sphere.topology (\fun (p: sphere.Carrier) => p) :=
+  topology.Continuity[A := Sphere.Coordinate, B := Sphere.Coordinate].Corestriction[S := Sphere.Boundary].inclusionContinuous Sphere.topology;
+\definition evaluation[i: Sphere.Index]: Functions.Continuous (Relative.details sphere).topology (\fun (p: sphere.Carrier) => p i) :=
+  topology.Composition[A := sphere.Carrier, B := Sphere.Coordinate, C := Real.Real].composeContinuous (Relative.details sphere).topology Sphere.topology Line.topology
+    (\fun (p: sphere.Carrier) => p) (\fun (p: Sphere.Coordinate) => p i) inclusion (CoordinatesTopology.evaluationContinuous Line.topology i);
+\definition headContinuous: Functions.Continuous (Relative.details sphere).topology Coordinates.head := evaluation (Fin.zero Bott.two);
+\definition xContinuous: Functions.Continuous (Relative.details sphere).topology Coordinates.x := evaluation (Fin.succ Bott.two (Fin.zero Bott.one));
+\definition yContinuous: Functions.Continuous (Relative.details sphere).topology Coordinates.y := evaluation (Fin.succ Bott.two (Fin.succ Bott.one (Fin.zero N.Nat^::zero)));
+\definition continuous: topology.Continuity[A := sphere.Carrier, B := sphere.Carrier].Continuous (Relative.details sphere).topology (Relative.details sphere).topology swap :=
+  topology.Continuity[A := sphere.Carrier, B := Sphere.Coordinate].Corestriction[S := Sphere.Boundary].corestrictContinuous (Relative.details sphere).topology Sphere.topology swap
+    (Split2.Continuity[A := sphere.Carrier].joinContinuous (Relative.details sphere).topology Coordinates.head
+      (\fun (p: sphere.Carrier) => Split1.join (Coordinates.y p) (\fun (_: D1.Index) => Coordinates.x p)) headContinuous
+      (\fun (i: D2.Index) => topology.Composition[A := sphere.Carrier, B := D2.Coordinate, C := Real.Real].composeContinuous (Relative.details sphere).topology D2.topology Line.topology
+        (\fun (p: sphere.Carrier) => Split1.join (Coordinates.y p) (\fun (_: D1.Index) => Coordinates.x p)) (\fun (v: D2.Coordinate) => v i)
+        (Split1.Continuity[A := sphere.Carrier].joinContinuous (Relative.details sphere).topology Coordinates.y (\fun (p: sphere.Carrier)(_ : D1.Index) => Coordinates.x p)
+          yContinuous (\fun (_: D1.Index) => xContinuous))
+        (topological_algebra.Coordinates[K := Real.Real, I := D2.Index].evaluationContinuous Line.topology i)));
+\definition pointed: swap (Relative.details sphere).point = (Relative.details sphere).point := Pole.characterizes _
+  (trans!{{Real.Real}} _ _ _ (head (Relative.details sphere).point) Pole.height);
+\import algebraic_topology.Pointed[A := sphere.Carrier].Maps[B := sphere.Carrier] \as Maps;
+\definition map: Relative.Map sphere sphere := \into[sphere.Carrier -> sphere.Carrier](swap, Relative.Map sphere sphere) \by {
+  Maps.Laws[Relative.pointed sphere, Relative.pointed sphere, swap] { continuous := continuous, pointed := pointed }
+};
+\definition equivalence: Relative.Equivalence[source := sphere, target := sphere].Data := Relative.Equivalence[source := sphere, target := sphere].Data {
+  forward := map, backward := map, leftInverse := involutive, rightInverse := involutive
+};

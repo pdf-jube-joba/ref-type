@@ -1,0 +1,19 @@
+\import \root.Periodicity[].Reduced[model := other] \as Other;
+\import Other.Inverse[] \as OtherInverse;
+\import \parent.Inverse[] \as LocalInverse;
+\import Relative.Identity[model := sphere] \as SphereIdentity;
+\import Smash.Mapping[targetLeft := other, targetRight := sphere, f := f, g := SphereIdentity.map] \as Induced;
+\import Induced.External[] \as Native;
+\import Relative.Pullback[source := model, target := other, f := f] \as Pull;
+\import Relative.Pullback[source := Smash.result, target := Other.result, f := Induced.map] \as SmashPull;
+\definition forwardEquation: \forall (a: Other.SourceCarrier) -> SmashPull.map (Other.forward a) = forward (Pull.map a) :=
+  \fun (a: Other.SourceCarrier) => trans!{{TargetCarrier}} _ _ _ (Native.naturality a beta)
+    (congr!{{SphereGroup.Carrier} {TargetCarrier}} (External.product (Pull.map a)) _ _
+      (Relative.PullbackIdentity[model := sphere].equation beta));
+\definition backwardEquation: \forall (q: Other.TargetCarrier) -> LocalInverse.backward (SmashPull.map q) = Pull.map (OtherInverse.backward q) :=
+  \fun (q: Other.TargetCarrier) => trans!{{SourceCarrier}} _ _ _
+    (congr!{{Other.TargetCarrier} {SourceCarrier}}
+      (\fun (r: Other.TargetCarrier) => LocalInverse.backward (SmashPull.map r)) _ _ (sym!{{Other.TargetCarrier}} _ _ (OtherInverse.rightInverse q)))
+    (trans!{{SourceCarrier}} _ _ _
+      (congr!{{TargetCarrier} {SourceCarrier}} LocalInverse.backward _ _ (forwardEquation (OtherInverse.backward q)))
+      (LocalInverse.leftInverse (Pull.map (OtherInverse.backward q))));

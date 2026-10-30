@@ -1,0 +1,33 @@
+\definition raw[t, s: Time.Carrier][i: zero.Carrier]: source.Carrier := Second.class (Outer.at t (First.class (Inner.at s i)));
+\definition rawZero: \forall (t, s: Time.Carrier) -> raw t s (Relative.details zero).point = (Relative.details source).point :=
+  \fun (t, s: Time.Carrier) => Second.collapsed (Outer.at t (First.class (Inner.at s (Relative.details zero).point)))
+    (Logic.Or[_, _]::right (Logic.Or[_, _]::right (First.collapsed (Inner.at s (Relative.details zero).point) (Logic.Or[_, _]::right (Logic.Or[_, _]::right (\refl((Relative.details zero).point)))))));
+\definition represented: \forall (t, s: Time.Carrier)(i: zero.Carrier) -> \exists (r: R \where fAll r = raw t s i) :=
+  \fun (t, s: Time.Carrier) => Fin.cases Bott.one (\fun (i: zero.Carrier) => \exists (r: R \where fAll r = raw t s i))
+    (Logic.existsIntro[R, { r: R \where fAll r = raw t s (Relative.details zero).point }] r0 (sym!{{source.Carrier}} _ _ (rawZero t s)))
+    (\fun (i: Fin.Fin Bott.one) => \idelim live = Fin.succ Bott.one i \with j: zero.Carrier => \exists (r: R \where fAll r = raw t s j) \by {
+      base: Logic.existsIntro[R, { r: R \where fAll r = raw t s live }] (Sum.inr (Pair.pair Time.Carrier Time.Carrier t s)) (\refl(raw t s live)),
+      equality: congr!{{Fin.Fin Bott.one} {zero.Carrier}} (Fin.succ Bott.one) _ _ (sym!{{Fin.Fin Bott.one}} _ _ (Fin.singletonValue i))
+    });
+\definition ontoSource: \forall (q: source.Carrier) -> \exists (r: R \where fAll r = q) := \block {
+  \fun (q: source.Carrier) \then
+  \takefrom v: \Cast[Outer.Carrier] ({ v: Outer.Carrier \where Second.class v = q }) \by Second.onto q \then
+  \takefrom w: \Cast[Inner.Carrier] ({ w: Inner.Carrier \where First.class w = Outer.point v }) \by First.onto (Outer.point v) \then
+  \takefrom r: \Cast[R] ({ r: R \where fAll r = raw (Outer.time v) (Inner.time w) (Inner.point w) }) \by represented (Outer.time v) (Inner.time w) (Inner.point w) \then
+  \let inner: First.class (Inner.at (Inner.time w) (Inner.point w)) = Outer.point v := trans!{{firstModel.Carrier}} _ _ _
+    (congr!{{Inner.Carrier} {firstModel.Carrier}} First.class _ _ (Pair.Prop[A := Time.Carrier, B := zero.Carrier].eta w))
+    (\bysub(Inner.Carrier, { w: Inner.Carrier \where First.class w = Outer.point v }, w)) \then
+  \return Logic.existsIntro[R, { s: R \where fAll s = q }] r (trans!{{source.Carrier}} _ _ _
+    (\bysub(R, { r: R \where fAll r = raw (Outer.time v) (Inner.time w) (Inner.point w) }, r))
+    (trans!{{source.Carrier}} _ _ _
+      (congr!{{firstModel.Carrier} {source.Carrier}} (\fun (p: firstModel.Carrier) => Second.class (Outer.at (Outer.time v) p)) _ _ inner)
+      (trans!{{source.Carrier}} _ _ _ (congr!{{Outer.Carrier} {source.Carrier}} Second.class _ _ (Pair.Prop[A := Time.Carrier, B := firstModel.Carrier].eta v))
+        (\bysub(Outer.Carrier, { v: Outer.Carrier \where Second.class v = q }, v)))))
+};
+\definition ontoTarget: \forall (p: sphere.Carrier) -> \exists (r: R \where gAll r = p) := \block {
+  \fun (p: sphere.Carrier) \then
+  \takefrom z: \Cast[Square.Carrier] ({ z: Square.Carrier \where SphereMap.map z = p }) \by Classification.onto p \then
+  \return Logic.existsIntro[R, { r: R \where gAll r = p }] (Sum.inr (Center.time z))
+    (trans!{{sphere.Carrier}} _ _ _ (congr!{{Square.Carrier} {sphere.Carrier}} (\fun (z: Square.Carrier) => SphereMap.map z) _ _ (Center.squareTime z))
+      (\bysub(Square.Carrier, { z: Square.Carrier \where SphereMap.map z = p }, z)))
+};

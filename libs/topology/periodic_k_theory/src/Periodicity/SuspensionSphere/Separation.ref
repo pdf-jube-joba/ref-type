@@ -1,0 +1,21 @@
+\import \parent.Collapsed[] \as Collapsed;
+\definition Relation[z, w: Times.CarrierSet]: \Prop := Logic.Or[z = w, Logic.And[Edge z, Edge w]];
+\definition innerCollapsed: \forall (z, w: Times.CarrierSet) -> Logic.And[\In[Inner.Carrier] First.Collapsed (inner z), \In[Inner.Carrier] First.Collapsed (inner w)] -> Relation z w :=
+  \fun (z, w: Times.CarrierSet)(both: Logic.And[\In[Inner.Carrier] First.Collapsed (inner z), \In[Inner.Carrier] First.Collapsed (inner w)]) => Logic.Or[_, _]::right (Logic.And[_, _]::#
+    (Collapsed.inside z (First.collapsed (inner z) both.left))
+    (Collapsed.inside w (First.collapsed (inner w) both.right)));
+\definition sameOuter: \forall (z, w: Times.CarrierSet) -> outer z = outer w -> Relation z w :=
+  \fun (z, w: Times.CarrierSet)(same: outer z = outer w) => Logic.orElim[inner z = inner w,
+    Logic.And[\In[Inner.Carrier] First.Collapsed (inner z), \In[Inner.Carrier] First.Collapsed (inner w)], Relation z w]
+    (First.separates (inner z) (inner w) (congr!{{Outer.Carrier} {firstModel.Carrier}} Outer.point (outer z) (outer w) same))
+    (\fun (innerSame: inner z = inner w) => Logic.Or[_, _]::left (Pair.Prop[A := Time.Carrier, B := Time.Carrier].ext z w
+      (congr!{{Outer.Carrier} {Time.Carrier}} Outer.time (outer z) (outer w) same)
+      (congr!{{Inner.Carrier} {Time.Carrier}} Inner.time (inner z) (inner w) innerSame)))
+    (innerCollapsed z w);
+\definition separates: \forall (z, w: Times.CarrierSet) -> f z = f w -> Relation z w :=
+  \fun (z, w: Times.CarrierSet)(same: _) => Logic.orElim[outer z = outer w,
+    Logic.And[\In[Outer.Carrier] Second.Collapsed (outer z), \In[Outer.Carrier] Second.Collapsed (outer w)], Relation z w]
+    (Second.separates (outer z) (outer w) same) (sameOuter z w)
+    (\fun (both: Logic.And[\In[Outer.Carrier] Second.Collapsed (outer z), \In[Outer.Carrier] Second.Collapsed (outer w)]) => Logic.Or[_, _]::right (Logic.And[_, _]::#
+      (Collapsed.atPoint z (Second.collapsed (outer z) both.left))
+      (Collapsed.atPoint w (Second.collapsed (outer w) both.right))));

@@ -1,0 +1,50 @@
+\import Relative.Pair[X := X, space := space, compact := compact, hausdorff := hausdorff, subset := subset, closed := closed] \as Pair;
+\import Pair.Quotient[] \as Quotient;
+\import \root.Periodicity[].PointPair[model := sphere] \as Point;
+\import Pair.Product[Y := sphere.Carrier, otherSpace := (Relative.details sphere).topology,
+  otherCompact := (Relative.details sphere).compact, otherHausdorff := (Relative.details sphere).hausdorff,
+  otherSubset := Point.subset, otherClosed := Point.closed] \as Product;
+\import \root.Periodicity[].Reduced[model := Quotient.model] \as Reduced;
+\import Reduced.Inverse[] \as Inverse;
+\import Relative.Pair[X := sphere.Carrier, space := (Relative.details sphere).topology,
+  compact := (Relative.details sphere).compact, hausdorff := (Relative.details sphere).hausdorff,
+  subset := Point.subset, closed := Point.closed].Quotient[] \as RightQuotient;
+\import Relative.Equivalence[source := sphere, target := RightQuotient.model].With[e := Point.equivalence].Groups[] \as PointGroups;
+\import Relative.Smash[left := Quotient.model, right := sphere] \as Smash;
+\import Relative.Smash[left := Quotient.model, right := RightQuotient.model] \as Intermediate;
+\import Relative.Identity[model := Quotient.model] \as Identity;
+\import Smash.Mapping[targetLeft := Quotient.model, targetRight := RightQuotient.model, f := Identity.map, g := Point.equivalence.forward] \as Induced;
+\import Intermediate.Mapping[targetLeft := Quotient.model, targetRight := sphere, f := Identity.map, g := Point.equivalence.backward] \as Reverse;
+\module Comparison;
+\import Comparison[] \as Compare;
+\import Relative.Equivalence[source := Reduced.result, target := Intermediate.result].With[e := Compare.equivalence].Groups[] \as SphereTransport;
+\import Product.QuotientComparison[] \as ProductComparison;
+\import Relative.Equivalence[source := Product.model, target := Intermediate.result].With[e := ProductComparison.equivalence].Groups[] \as Transport;
+\definition betaRelative: RightQuotient.Relative := PointGroups.backward beta;
+\definition forward[a: Quotient.Relative]: Product.Relative := Transport.forward (SphereTransport.backward (Reduced.forward a));
+\definition backward[q: Product.Relative]: Quotient.Relative := Inverse.backward (SphereTransport.forward (Transport.backward q));
+\definition leftInverse: \forall (a: Quotient.Relative) -> backward (forward a) = a :=
+  \fun (a: Quotient.Relative) => trans!{{Quotient.Relative}} _ _ _
+    (congr!{{Relative.Reduced[model := Intermediate.result].Carrier} {Quotient.Relative}}
+      (\fun (v: Relative.Reduced[model := Intermediate.result].Carrier) => Inverse.backward (SphereTransport.forward v)) _ _
+      (Transport.rightInverse (SphereTransport.backward (Reduced.forward a))))
+    (trans!{{Quotient.Relative}} _ _ _
+      (congr!{{Reduced.TargetCarrier} {Quotient.Relative}} Inverse.backward _ _ (SphereTransport.leftInverse (Reduced.forward a)))
+      (Inverse.leftInverse a));
+\definition rightInverse: \forall (q: Product.Relative) -> forward (backward q) = q :=
+  \fun (q: Product.Relative) => trans!{{Product.Relative}} _ _ _
+    (congr!{{Reduced.TargetCarrier} {Product.Relative}}
+      (\fun (v: Reduced.TargetCarrier) => Transport.forward (SphereTransport.backward v)) _ _
+      (Inverse.rightInverse (SphereTransport.forward (Transport.backward q))))
+    (trans!{{Product.Relative}} _ _ _
+      (congr!{{Relative.Reduced[model := Intermediate.result].Carrier} {Product.Relative}} Transport.forward _ _ (SphereTransport.rightInverse (Transport.backward q)))
+      (Transport.leftInverse q));
+\definition forwardAdd: \forall (a, b: Quotient.Relative) -> forward (Quotient.group.base.op a b) = Product.group.base.op (forward a) (forward b) :=
+  \fun (a, b: Quotient.Relative) => trans!{{Product.Relative}} _ _ _
+    (congr!{{Reduced.TargetCarrier} {Product.Relative}}
+      (\fun (v: Reduced.TargetCarrier) => Transport.forward (SphereTransport.backward v)) _ _ (Inverse.forwardAdd a b))
+    (trans!{{Product.Relative}} _ _ _
+      (congr!{{Relative.Reduced[model := Intermediate.result].Carrier} {Product.Relative}} Transport.forward _ _
+        (SphereTransport.backwardAdd (Reduced.forward a) (Reduced.forward b)))
+      (Transport.forwardAdd (SphereTransport.backward (Reduced.forward a)) (SphereTransport.backward (Reduced.forward b))));
+\module Formula;

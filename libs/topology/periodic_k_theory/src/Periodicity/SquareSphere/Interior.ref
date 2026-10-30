@@ -1,0 +1,55 @@
+\import \parent.Plane[] \as Plane;
+\import \parent.Scalar[] \as Scalar;
+\import \parent.Stereographic[] \as Stereo;
+\import \parent.Forward[] \as Forward;
+\import Real.Inverse[] \as Inverse;
+\definition gapNonnegative: R.Le Real.zero (Plane.gap z) := Distance.subNonnegative Real.one (Plane.radius z)
+  (\bysub(Plane.Carrier, \parent.Square[].bounded, z));
+\definition gapPositive: R.Lt Real.zero (Plane.gap z) := Order.ltOfLeNotEq Real.zero (Plane.gap z) gapNonnegative
+  (\fun (same: Real.zero = Plane.gap z) => inside (sym!{{Real.Real}} _ _ same));
+\definition denominatorNonnegative: R.Le Real.zero (Plane.denominator z) := Laws.addNonnegative _ _
+  (Plane.r2Nonnegative z) (Algebra.squareNonnegative (Plane.gap z));
+\definition denominatorPositive: R.Lt Real.zero (Plane.denominator z) := Order.ltOfLeNotEq Real.zero (Plane.denominator z) denominatorNonnegative
+  (\fun (same: Real.zero = Plane.denominator z) => Plane.nonzero z (sym!{{Real.Real}} _ _ same));
+\definition weightPositive: R.Lt Real.zero (Plane.weight z) := Estimates.Product[].mulPositive (double (Plane.gap z)) (Plane.inverse z)
+  (R.ltReplaceLeft (Real.add Real.zero Real.zero) Real.zero (double (Plane.gap z)) (Laws.addZeroLeft Real.zero)
+    (Estimates.addLt Real.zero Real.zero (Plane.gap z) (Plane.gap z) gapPositive gapPositive))
+  (Estimates.Product[].invPositive (Plane.denominator z) denominatorPositive);
+\definition gapFormula: Stereo.gap (Forward.map z) = Real.mul (Plane.weight z) (Plane.gap z) :=
+  Scalar.cancelRight _ _ _ (Plane.nonzero z) (eq_reason_in!{{Real.Real} _
+    "=" _ "by" { congr!{{Real.Real} {Real.Real}} (\fun (h: Real.Real) => Real.mul (Real.sub Real.one h) (Plane.denominator z)) _ _ (Stereo.headFormula z) }
+    "=" _ "by" { Algebra.subMul Real.one (Plane.height z) (Plane.denominator z) }
+    "=" _ "by" { congr!{{Real.Real} {Real.Real} {Real.Real}} Real.sub _ _ _ _ (Laws.fieldMulOneLeft (Plane.denominator z)) (Forward.heightTimes z) }
+    "=" _ "by" { Algebra.subAdd (Plane.r2 z) (square (Plane.gap z)) (Plane.r2 z) (Real.neg (square (Plane.gap z))) }
+    "=" _ "by" { congr!{{Real.Real} {Real.Real} {Real.Real}} Real.add _ _ _ _ (Laws.subSelf (Plane.r2 z)) (Algebra.subNeg (square (Plane.gap z)) (square (Plane.gap z))) }
+    "=" _ "by" { Laws.addZeroLeft (double (square (Plane.gap z))) }
+    "=" _ "by" { sym!{{Real.Real}} _ _ (Scalar.doubleProduct (Plane.gap z) (Plane.gap z)) }
+    "=" _ "by" { sym!{{Real.Real}} _ _ (Forward.coordinateTimes z (Plane.gap z)) }
+  });
+\definition gapImagePositive: R.Lt Real.zero (Stereo.gap (Forward.map z)) := R.ltReplaceRight Real.zero _ _ (sym!{{Real.Real}} _ _ gapFormula)
+  (Estimates.Product[].mulPositive (Plane.weight z) (Plane.gap z) weightPositive gapPositive);
+\definition off: Logic.Not (Stereo.head (Forward.map z) = Real.one) :=
+  \fun (same: Stereo.head (Forward.map z) = Real.one) => Inverse.positiveNonzero (Stereo.gap (Forward.map z)) gapImagePositive
+    (trans!{{Real.Real}} _ _ _ (congr!{{Real.Real} {Real.Real}} (Real.sub Real.one) _ _ same) (Laws.subSelf Real.one));
+\import \parent.Candidate[p := Forward.map z, off := off] \as Candidate;
+\definition maximumFormula: maximum (Stereo.x (Forward.map z)) (Stereo.y (Forward.map z)) = Real.mul (Plane.weight z) (Plane.radius z) :=
+  trans!{{Real.Real}} _ _ _
+    (congr!{{Real.Real} {Real.Real} {Real.Real}} maximum _ _ _ _ (Stereo.xFormula z) (Stereo.yFormula z))
+    (Scalar.maximumScale (Plane.weight z) (Plane.x z) (Plane.y z) (Order.leOfLt _ _ weightPositive));
+\definition totalFormula: Candidate.total = Plane.weight z := eq_reason_in!{{Real.Real} _
+  "=" _ "by" { congr!{{Real.Real} {Real.Real} {Real.Real}} Real.add _ _ _ _ gapFormula maximumFormula }
+  "=" _ "by" { sym!{{Real.Real}} _ _ (Laws.fieldMulAdd (Plane.weight z) (Plane.gap z) (Plane.radius z)) }
+  "=" _ "by" { congr!{{Real.Real} {Real.Real}} (Real.mul (Plane.weight z)) _ _ (Distance.subAddCancel Real.one (Plane.radius z)) }
+  "=" _ "by" { Algebra.mulOneRight (Plane.weight z) }
+};
+\definition coordinate: \forall (v: Real.Real) -> Real.mul Candidate.k (Real.mul (Plane.weight z) v) = v :=
+  \fun (v: Real.Real) => eq_reason_in!{{Real.Real} _
+    "=" _ "by" { congr!{{Real.Real} {Real.Real}} (\fun (a: Real.Real) => Real.mul a (Real.mul (Plane.weight z) v)) _ _
+      (congr!{{Real.Real} {Real.Real}} Laws.fieldInv _ _ totalFormula) }
+    "=" _ "by" { sym!{{Real.Real}} _ _ (Laws.fieldMulAssoc (Laws.fieldInv (Plane.weight z)) (Plane.weight z) v) }
+    "=" _ "by" { congr!{{Real.Real} {Real.Real}} (\fun (a: Real.Real) => Real.mul a v) _ _ (Laws.fieldInverseNonzero (Plane.weight z) (Inverse.positiveNonzero (Plane.weight z) weightPositive)) }
+    "=" _ "by" { Laws.fieldMulOneLeft v }
+  };
+\definition equation: Candidate.point = z := std.Data[].Pair[].Prop[A := Real.Real, B := Real.Real].ext _ _
+  (trans!{{Real.Real}} _ _ _ (congr!{{Real.Real} {Real.Real}} (Real.mul Candidate.k) _ _ (Stereo.xFormula z)) (coordinate (Plane.x z)))
+  (trans!{{Real.Real}} _ _ _ (congr!{{Real.Real} {Real.Real}} (Real.mul Candidate.k) _ _ (Stereo.yFormula z)) (coordinate (Plane.y z)));

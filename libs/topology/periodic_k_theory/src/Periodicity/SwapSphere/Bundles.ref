@@ -1,0 +1,76 @@
+\import \parent.Action[] \as Action;
+\import \parent.Intertwiner[] \as Intertwiner;
+\import \parent.Continuity[] \as Continuous;
+\import complex.Complex[] \as C;
+\import C.Algebra[] \as Scalars;
+\import hermitian_frames.Hermitian[].Over[K := C.Complex, field := Scalars.field, scalar := linear_algebra.Hermitian[].Complex[].scalar,
+  topological := hermitian_frames.Hermitian[].Complex[].topological].At[n := Bott.two] \as Native;
+\import vector_bundles.Bundles[].Over[K := C.Complex, field := Scalars.field, conjugation := linear_algebra.Hermitian[].Complex[].scalar,
+  scalar := vector_bundles.Bundles[].Complex[].scalar] \as Bundles;
+\import linear_algebra.Commutative[K := C.Complex, scalarRing := std.Alg[].Field[].fieldAsCommutativeRing C.Complex Scalars.field] \as Spaces;
+\import bundle_complements.Complements[].Over[K := C.Complex, field := Scalars.field, conjugation := linear_algebra.Hermitian[].Complex[].scalar,
+  scalar := vector_bundles.Bundles[].Complex[].scalar] \as Complements;
+\import grassmannians.Complex[n := Bott.two, k := Bott.one].Model[] \as Model;
+\import Bott.ProjectiveLine[].Homeomorphism[] \as Home;
+\definition P[p: sphere.Carrier]: Native.Projection := Model.projection (Home.backward p);
+\definition regular: Native.Families[X := sphere.Carrier].Matrix[m := Bott.two].Regular Sphere.sphereTopology (\fun (p: sphere.Carrier) => (P p).map) :=
+  \fun (v: Native.Vector)(i: Fin.Fin Bott.two) => topology.Composition[A := sphere.Carrier, B := Bott.ProjectiveLine[].Carrier, C := C.Complex].composeContinuous
+    Sphere.sphereTopology Bott.ProjectiveLine[].topology topological_algebra.Complex[].topology Home.backward
+    (\fun (p: Bott.ProjectiveLine[].Carrier) => (Model.projection p).map.apply v i) Home.homeomorphism.backwardContinuous (Model.regular v i);
+\import Complements.Projection[X := sphere.Carrier, n := Bott.two, baseSpace := Sphere.sphereTopology, P := P, regular := regular] \as Original;
+\import Original.Complement[] \as Complement;
+\import Complements.Projection[X := sphere.Carrier, n := Bott.two, baseSpace := Sphere.sphereTopology, P := Complement.Q, regular := Complement.qRegular] \as Source;
+\definition swappedRegular: Native.Families[X := sphere.Carrier].Matrix[m := Bott.two].Regular Sphere.sphereTopology (\fun (p: sphere.Carrier) => (P (swap p)).map) :=
+  \fun (v: Native.Vector)(i: Fin.Fin Bott.two) => topology.Composition[A := sphere.Carrier, B := sphere.Carrier, C := C.Complex].composeContinuous
+    Sphere.sphereTopology Sphere.sphereTopology topological_algebra.Complex[].topology swap (\fun (p: sphere.Carrier) => (P p).map.apply v i) Continuous.continuous (regular v i);
+\import Complements.Projection[X := sphere.Carrier, n := Bott.two, baseSpace := Sphere.sphereTopology, P := (\fun (p: sphere.Carrier) => P (swap p)), regular := swappedRegular] \as Target;
+\definition forwardValue[p: sphere.Carrier][v: Source.Fiber p]: Target.Fiber p := \into[Native.Vector](Action.forward.apply v, Target.Image p) \by {
+  trans!{{Native.Vector}} _ _ _ (Intertwiner.equation p v)
+    (congr!{{Native.Vector} {Native.Vector}} Action.forward.apply _ _ (\bysub(Native.Vector, Source.Image p, v)))
+};
+\definition backwardFixed: \forall (p: sphere.Carrier)(w: Target.Fiber p) -> (Complement.Q p).map.apply (Action.backward.apply w) = Action.backward.apply w :=
+  \fun (p: sphere.Carrier)(w: Target.Fiber p) => eq_reason_in!{{Native.Vector} _
+    "=" _ "by" { sym!{{Native.Vector}} _ _ (Action.left ((Complement.Q p).map.apply (Action.backward.apply w))) }
+    "=" _ "by" { congr!{{Native.Vector} {Native.Vector}} Action.backward.apply _ _ (sym!{{Native.Vector}} _ _ (Intertwiner.equation p (Action.backward.apply w))) }
+    "=" _ "by" { congr!{{Native.Vector} {Native.Vector}} (\fun (v: Native.Vector) => Action.backward.apply ((P (swap p)).map.apply v)) _ _ (Action.right w) }
+    "=" _ "by" { congr!{{Native.Vector} {Native.Vector}} Action.backward.apply _ _ (\bysub(Native.Vector, Target.Image p, w)) }
+  };
+\definition backwardValue[p: sphere.Carrier][w: Target.Fiber p]: Source.Fiber p := \into[Native.Vector](Action.backward.apply w, Source.Image p) \by { backwardFixed p w };
+\definition forwardLinear[p: sphere.Carrier]: Spaces.Linear[V := Source.Fiber p, W := Target.Fiber p, source := Source.fiberSpace p, target := Target.fiberSpace p].Map :=
+  Spaces.Linear[V := Source.Fiber p, W := Target.Fiber p, source := Source.fiberSpace p, target := Target.fiberSpace p].Map {
+    apply := forwardValue p, preservesAdd := \fun (v, w: Source.Fiber p) => Action.forward.preservesAdd v w,
+    preservesScale := \fun (a: C.Complex)(v: Source.Fiber p) => Action.forward.preservesScale a v
+  };
+\definition backwardLinear[p: sphere.Carrier]: Spaces.Linear[V := Target.Fiber p, W := Source.Fiber p, source := Target.fiberSpace p, target := Source.fiberSpace p].Map :=
+  Spaces.Linear[V := Target.Fiber p, W := Source.Fiber p, source := Target.fiberSpace p, target := Source.fiberSpace p].Map {
+    apply := backwardValue p, preservesAdd := \fun (v, w: Target.Fiber p) => Action.backward.preservesAdd v w,
+    preservesScale := \fun (a: C.Complex)(v: Target.Fiber p) => Action.backward.preservesScale a v
+  };
+\import Bundles.Family[X := sphere.Carrier, F := Source.Fiber] \as SourceTotal;
+\import Bundles.Family[X := sphere.Carrier, F := Target.Fiber] \as TargetTotal;
+\import Bundles.Morphisms[X := sphere.Carrier, Y := sphere.Carrier, F := Source.Fiber, G := Target.Fiber, source := Source.bundle, target := Target.bundle, f := (\fun (p: sphere.Carrier) => p)] \as Forward;
+\import Bundles.Morphisms[X := sphere.Carrier, Y := sphere.Carrier, F := Target.Fiber, G := Source.Fiber, source := Target.bundle, target := Source.bundle, f := (\fun (p: sphere.Carrier) => p)] \as Backward;
+\definition forwardData: Forward.Data := Forward.Data { fiber := forwardLinear };
+\definition backwardData: Backward.Data := Backward.Data { fiber := backwardLinear };
+\import bundle_homotopy.Homotopy[].Over[K := C.Complex, field := Scalars.field, conjugation := linear_algebra.Hermitian[].Complex[].scalar,
+  scalar := vector_bundles.Bundles[].Complex[].scalar].Projections[n := Bott.two].Operators[] \as Operators;
+\definition forwardRegular: Native.Families[X := SourceTotal.Point].Matrix[m := Bott.two].Regular Source.topology (\fun (_: SourceTotal.Point) => Action.forward) :=
+  Native.Families[X := SourceTotal.Point].Matrix[m := Bott.two].constant Source.topology Action.forward;
+\definition backwardRegular: Native.Families[X := TargetTotal.Point].Matrix[m := Bott.two].Regular Target.topology (\fun (_: TargetTotal.Point) => Action.backward) :=
+  Native.Families[X := TargetTotal.Point].Matrix[m := Bott.two].constant Target.topology Action.backward;
+\definition forward: Forward.Map := \into[Forward.Data](forwardData, Forward.Map) \by {
+  Target.Universal[Y := SourceTotal.Point, source := Source.topology].continuous (Forward.total forwardData) Source.projectionContinuous
+    (Operators.Evaluation[Y := SourceTotal.Point, source := Source.topology, H := (\fun (_: SourceTotal.Point) => Action.forward), regular := forwardRegular,
+      v := (\fun (p: SourceTotal.Point) => p.vector), vectorRegular := Source.vectorContinuous].continuous)
+};
+\definition backward: Backward.Map := \into[Backward.Data](backwardData, Backward.Map) \by {
+  Source.Universal[Y := TargetTotal.Point, source := Target.topology].continuous (Backward.total backwardData) Target.projectionContinuous
+    (Operators.Evaluation[Y := TargetTotal.Point, source := Target.topology, H := (\fun (_: TargetTotal.Point) => Action.backward), regular := backwardRegular,
+      v := (\fun (p: TargetTotal.Point) => p.vector), vectorRegular := Target.vectorContinuous].continuous)
+};
+\definition isomorphism: Bundles.Isomorphisms[X := sphere.Carrier, F := Source.Fiber, G := Target.Fiber, source := Source.bundle, target := Target.bundle].Isomorphism :=
+  Bundles.Isomorphisms[X := sphere.Carrier, F := Source.Fiber, G := Target.Fiber, source := Source.bundle, target := Target.bundle].Isomorphism {
+    forward := forward, backward := backward, leftInverse := \fun (p: sphere.Carrier)(v: Source.Fiber p) => Action.left v,
+    rightInverse := \fun (p: sphere.Carrier)(v: Target.Fiber p) => Action.right v
+  };
+\module Class;

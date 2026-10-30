@@ -1,0 +1,57 @@
+\import Relative.Smash[left := left, right := right] \as Smash;
+\import Relative.Smash[left := right, right := left] \as Reverse;
+\import Smash.Symmetry[] \as Symmetry;
+\import algebraic_topology.Pointed[A := Smash.model.Carrier].Maps[B := Reverse.model.Carrier] \as Maps;
+\definition raw: Relative.Map Smash.model Reverse.model := \into[Smash.model.Carrier -> Reverse.model.Carrier](Symmetry.swap, Relative.Map Smash.model Reverse.model) \by {
+  Maps.Laws[Relative.pointed Smash.model, Relative.pointed Reverse.model, Symmetry.swap] { continuous := Symmetry.swapRegular, pointed := \refl((Relative.details Reverse.model).point) }
+};
+\import Relative.Square[A := Smash.model, B := Smash.result, C := Reverse.model, D := Reverse.result,
+  f := Smash.projection, g := Symmetry.equivalence.forward, h := raw, k := Reverse.projection, commutes := Symmetry.onProjection] \as Square;
+\import Smash.External[] \as First;
+\import Reverse.External[] \as Second;
+\import Relative.Reduced[model := left] \as Left;
+\import Relative.Reduced[model := right] \as Right;
+\import Relative.Reduced[model := Smash.model] \as Cartesian;
+\import Relative.Reduced[model := Reverse.model] \as ReversedCartesian;
+\import Relative.Reduced[model := Smash.result] \as Target;
+\import Relative.Pullback[source := Smash.result, target := Reverse.result, f := Symmetry.equivalence.forward] \as Pull;
+\import Relative.Pullback[source := Smash.model, target := Reverse.model, f := raw] \as CartesianPull;
+\import Relative.PairIteration[pair := Smash.pair].Sequence[degree := N.Nat^::zero] \as SourceTerm;
+\import Relative.PairIteration[pair := Reverse.pair].Sequence[degree := N.Nat^::zero] \as TargetTerm;
+\import Relative.Pullback[source := Smash.model, target := Smash.result, f := Smash.projection] \as SourceProjection;
+\import Relative.Pullback[source := Reverse.model, target := Reverse.result, f := Reverse.projection] \as TargetProjection;
+\definition forget: \forall (q: Relative.Reduced[model := Reverse.result].Carrier) -> First.forget (Pull.map q) = CartesianPull.map (Second.forget q) :=
+  \fun (q: Relative.Reduced[model := Reverse.result].Carrier) => trans!{{Cartesian.Carrier}} _ _ _ (SourceTerm.forgetFormula (Pull.map q))
+    (trans!{{Cartesian.Carrier}} _ _ _ (Square.Negative[degree := N.Nat^::zero].equation q)
+      (congr!{{ReversedCartesian.Carrier} {Cartesian.Carrier}} CartesianPull.map _ _ (sym!{{ReversedCartesian.Carrier}} _ _ (TargetTerm.forgetFormula q))));
+\import Relative.Identity[model := left] \as LeftIdentity;
+\import Relative.Identity[model := right] \as RightIdentity;
+\definition firstEquation: \forall (z: Smash.model.Carrier) -> Reverse.secondMap (raw z) = LeftIdentity.map (Smash.firstMap z) := \fun (z: Smash.model.Carrier) => \refl(Smash.first z);
+\definition secondEquation: \forall (z: Smash.model.Carrier) -> Reverse.firstMap (raw z) = RightIdentity.map (Smash.secondMap z) := \fun (z: Smash.model.Carrier) => \refl(Smash.second z);
+\import Relative.Square[A := Smash.model, B := Reverse.model, C := left, D := left,
+  f := raw, g := Reverse.secondMap, h := Smash.firstMap, k := LeftIdentity.map, commutes := firstEquation] \as FirstSquare;
+\import Relative.Square[A := Smash.model, B := Reverse.model, C := right, D := right,
+  f := raw, g := Reverse.firstMap, h := Smash.secondMap, k := RightIdentity.map, commutes := secondEquation] \as SecondSquare;
+\import Relative.Pullback[source := Smash.model, target := left, f := Smash.firstMap] \as FirstPull;
+\import Relative.Pullback[source := Smash.model, target := right, f := Smash.secondMap] \as SecondPull;
+\import Relative.Pullback[source := Reverse.model, target := left, f := Reverse.secondMap] \as ReverseSecond;
+\import Relative.Pullback[source := Reverse.model, target := right, f := Reverse.firstMap] \as ReverseFirst;
+\import Cartesian.Multiplication[] \as Multiplication;
+\import KTheory.On[X := Smash.model.Carrier, baseSpace := (Relative.details Smash.model).topology,
+  compact := (Relative.details Smash.model).compact, hausdorff := (Relative.details Smash.model).hausdorff].K0[] \as Ordinary;
+\definition firstPull: \forall (a: Left.Carrier) -> CartesianPull.map (ReverseSecond.map a) = FirstPull.map a :=
+  \fun (a: Left.Carrier) => trans!{{Cartesian.Carrier}} _ _ _ (FirstSquare.Negative[degree := N.Nat^::zero].equation a)
+    (congr!{{Left.Carrier} {Cartesian.Carrier}} FirstPull.map _ _ (Relative.PullbackIdentity[model := left].equation a));
+\definition secondPull: \forall (b: Right.Carrier) -> CartesianPull.map (ReverseFirst.map b) = SecondPull.map b :=
+  \fun (b: Right.Carrier) => trans!{{Cartesian.Carrier}} _ _ _ (SecondSquare.Negative[degree := N.Nat^::zero].equation b)
+    (congr!{{Right.Carrier} {Cartesian.Carrier}} SecondPull.map _ _ (Relative.PullbackIdentity[model := right].equation b));
+\definition symmetry: \forall (a: Left.Carrier)(b: Right.Carrier) -> Pull.map (Second.product b a) = First.product a b :=
+  \fun (a: Left.Carrier)(b: Right.Carrier) => First.forgetInjective _ _ (eq_reason_in!{{Ordinary.Carrier} _
+    "=" _ "by" { forget (Second.product b a) }
+    "=" _ "by" { congr!{{ReversedCartesian.Carrier} {Cartesian.Carrier}} CartesianPull.map _ _ (Second.formula b a) }
+    "=" _ "by" { CartesianPull.Multiplication[].equation (ReverseFirst.map b) (ReverseSecond.map a) }
+    "=" _ "by" { congr!{{Cartesian.Carrier} {Cartesian.Carrier} {Cartesian.Carrier}} Multiplication.mul _ _ _ _ (secondPull b) (firstPull a) }
+    "=" _ "by" { Ordinary.commutativeRing.mulCommutative (SecondPull.map b) (FirstPull.map a) }
+    "=" _ "by" { sym!{{Cartesian.Carrier}} _ _ (First.formula a b) }
+  });
+\module Involution;

@@ -1,0 +1,53 @@
+\import Relative.Smash[left := left, right := right] \as Smash;
+\import Relative.Smash[left := right, right := left] \as Reverse;
+\import Smash.Graded[firstDegree := N.Nat^::zero, secondDegree := Bott.one] \as First;
+\import Reverse.Graded[firstDegree := Bott.one, secondDegree := N.Nat^::zero] \as Second;
+\import \root.Periodicity[].Coordinates[model := right] \as Right;
+\import \root.Periodicity[].Coordinates[model := Smash.result] \as Source;
+\import \root.Periodicity[].Coordinates[model := Reverse.result] \as Target;
+\import Source.Mapping[other := Reverse.result, mapping := Smash.Symmetry[].equivalence.forward] \as LiftCoordinates;
+\import \root.Periodicity[].SmashCoordinates[left := left, right := right].Mixed[] \as FirstCoordinates;
+\import \root.Periodicity[].SmashCoordinates[left := right, right := left].Mixed[] \as SecondCoordinates;
+\import Relative.Smash[left := left, right := Right.once] \as Both;
+\import Relative.Smash[left := Right.once, right := left] \as Other;
+\import std.Data[].Pair[] \as Pairs;
+\import algebraic_topology.Interval[] \as Time;
+\definition lift: Relative.Map Source.once Target.once := Relative.SuspendedMap[source := Smash.result, target := Reverse.result, f := Smash.Symmetry[].equivalence.forward].map;
+\definition onClass: \forall (t: Time.Carrier)(a: left.Carrier)(b: right.Carrier) ->
+  Both.Symmetry[].equivalence.forward (First.equivalence.forward (Source.single t (Smash.projection (Pairs.pair left.Carrier right.Carrier a b)))) =
+  Second.equivalence.forward (lift (Source.single t (Smash.projection (Pairs.pair left.Carrier right.Carrier a b)))) :=
+  \fun (t: Time.Carrier)(a: left.Carrier)(b: right.Carrier) => eq_reason_in!{{Other.result.Carrier} _
+    "=" _ "by" { congr!{{Both.result.Carrier} {Other.result.Carrier}} Both.Symmetry[].equivalence.forward _ _ (FirstCoordinates.rightEquation t a b) }
+    "=" _ "by" { Both.Symmetry[].onProjection (Pairs.pair left.Carrier Right.once.Carrier a (Right.single t b)) }
+    "=" _ "by" { sym!{{Other.result.Carrier}} _ _ (SecondCoordinates.leftEquation t b a) }
+    "=" _ "by" { congr!{{Reverse.result.Carrier} {Other.result.Carrier}}
+      (\fun (z: Reverse.result.Carrier) => Second.equivalence.forward (Target.single t z)) _ _
+        (sym!{{Reverse.result.Carrier}} _ _ (Smash.Symmetry[].onProjection (Pairs.pair left.Carrier right.Carrier a b))) }
+    "=" _ "by" { congr!{{Target.once.Carrier} {Other.result.Carrier}} Second.equivalence.forward _ _
+      (sym!{{Target.once.Carrier}} _ _ (LiftCoordinates.singleEquation t (Smash.projection (Pairs.pair left.Carrier right.Carrier a b)))) }
+  };
+\definition onSingle: \forall (t: Time.Carrier)(z: Smash.result.Carrier) -> Both.Symmetry[].equivalence.forward (First.equivalence.forward (Source.single t z)) = Second.equivalence.forward (lift (Source.single t z)) := \block {
+  \fun (t: Time.Carrier)(z: Smash.result.Carrier) \then
+  \takefrom p: \Cast[Smash.model.Carrier] ({ p: Smash.model.Carrier \where Smash.projection p = z }) \by Smash.projectionOnto z \then
+  \return \idelim Smash.projection (Pairs.pair left.Carrier right.Carrier (Smash.first p) (Smash.second p)) = z
+    \with w: Smash.result.Carrier => Both.Symmetry[].equivalence.forward (First.equivalence.forward (Source.single t w)) = Second.equivalence.forward (lift (Source.single t w)) \by {
+      base: onClass t (Smash.first p) (Smash.second p),
+      equality: trans!{{Smash.result.Carrier}} _ _ _ (congr!{{Smash.model.Carrier} {Smash.result.Carrier}} Smash.projection _ _ (Pairs.Prop[A := left.Carrier, B := right.Carrier].eta p))
+        (\bysub(Smash.model.Carrier, { p: Smash.model.Carrier \where Smash.projection p = z }, p))
+    }
+};
+\definition equation: \forall (q: Source.once.Carrier) -> Both.Symmetry[].equivalence.forward (First.equivalence.forward q) = Second.equivalence.forward (lift q) :=
+  Source.singleInduction (\fun (q: Source.once.Carrier) => Both.Symmetry[].equivalence.forward (First.equivalence.forward q) = Second.equivalence.forward (lift q)) onSingle;
+\import Relative.Square[A := Source.once, B := Both.result, C := Target.once, D := Other.result,
+  f := First.equivalence.forward, g := Both.Symmetry[].equivalence.forward, h := lift, k := Second.equivalence.forward, commutes := equation] \as Square;
+\import \root.Periodicity[].ExternalSymmetry[left := left, right := Right.once] \as External;
+\import Relative.Equivalence[source := Source.once, target := Both.result].With[e := First.equivalence].Groups[] \as Transport;
+\import Relative.Negative[original := right, degree := Bott.one] \as Odd;
+\import Relative.Reduced[model := left] \as Even;
+\import Relative.Negative[original := Smash.result, degree := Bott.one] \as Result;
+\import Relative.NegativeMap[source := Smash.result, target := Reverse.result, f := Smash.Symmetry[].equivalence.forward, degree := Bott.one] \as Pull;
+\import Other.External[] \as Reversed;
+\definition symmetry: \forall (a: Even.Carrier)(b: Odd.Carrier) -> Pull.map (Second.product b a) = First.product a b :=
+  \fun (a: Even.Carrier)(b: Odd.Carrier) => trans!{{Result.Carrier}} _ _ _
+    (sym!{{Result.Carrier}} _ _ (Square.Negative[degree := N.Nat^::zero].equation (Reversed.product b a)))
+    (congr!{{Relative.Reduced[model := Both.result].Carrier} {Result.Carrier}} Transport.forward _ _ (External.symmetry a b));

@@ -1,0 +1,45 @@
+\import std.Data[].Bool[] \as B;
+\import std.Arithmetic[].Int[] \as I;
+\import std.Arithmetic[].IntAlgebra[] \as Integers;
+\import std.Alg[].Alg[] \as Alg;
+\import algebra.Group[].Of[Carrier := I.Int^, group := Integers.additiveCommutativeGroup].Subgroups[] \as Subgroups;
+\definition predicate[p: B.Bool^]: \Pow I.Int^ := { z: I.Int^ \where p = B.Bool^::true -> z = I.Zero.specification };
+\definition Carrier[p: B.Bool^]: \Set := \Cast[I.Int^] (predicate p);
+\definition closed[p: B.Bool^]: Subgroups.Closed[predicate p] := Subgroups.Closed[predicate p] {
+  zero := \fun (_: p = B.Bool^::true) => \refl(I.Zero.specification),
+  add := \fun (a, b: I.Int^)(first: p = B.Bool^::true -> a = I.Zero.specification)(second: p = B.Bool^::true -> b = I.Zero.specification)(odd: p = B.Bool^::true) =>
+    trans!{{I.Int^}} _ _ _ (congr!{{I.Int^} {I.Int^} {I.Int^}} I.Add.specification _ _ _ _ (first odd) (second odd)) (\refl(I.Zero.specification)),
+  neg := \fun (a: I.Int^)(zero: p = B.Bool^::true -> a = I.Zero.specification)(odd: p = B.Bool^::true) =>
+    trans!{{I.Int^}} _ _ _ (congr!{{I.Int^} {I.Int^}} I.Neg.specification _ _ (zero odd)) (\refl(I.Zero.specification))
+};
+\definition group[p: B.Bool^]: Alg.CommutativeGroup[Carrier p] := Subgroups.subgroup (predicate p) (closed p);
+\definition evenValue[z: I.Int^]: Carrier B.Bool^::false := \into[I.Int^](z, predicate B.Bool^::false) \by {
+  \fun (bad: B.Bool^::false = B.Bool^::true) => Logic.falseElim _ (B.Prop[].falseNeTrue bad)
+};
+\definition oddValue: Carrier B.Bool^::true := (group B.Bool^::true).base.unit;
+\definition oddZero: \forall (x: Carrier B.Bool^::true) -> x = oddValue := \fun (x: Carrier B.Bool^::true) =>
+  (\bysub(I.Int^, predicate B.Bool^::true, x)) (\refl(B.Bool^::true));
+\import \root.Periodicity[].Parity[] \as P;
+\import \root.Periodicity[].SuspensionSphere[] \as SphereModel;
+\import \root.Periodicity[].Point[].SphereZero[] \as Even;
+\import \root.Periodicity[].IntervalPair[].Circle[] \as Odd;
+\definition Source[p: B.Bool^]: \Set := Relative.Negative[original := SphereModel.zero, degree := P.index p].Carrier;
+\definition sourceGroup[p: B.Bool^]: Alg.CommutativeGroup[Source p] := Relative.Negative[original := SphereModel.zero, degree := P.index p].group;
+\definition Data[p: B.Bool^]: \Set := \root.Periodicity[].Isomorphism[A := Source p, B := Carrier p, source := sourceGroup p, target := group p].Data;
+\definition even: Data B.Bool^::false := \root.Periodicity[].Isomorphism[A := Source B.Bool^::false, B := Carrier B.Bool^::false, source := sourceGroup B.Bool^::false, target := group B.Bool^::false].Data {
+  forward := \fun (x: Even.Carrier) => evenValue (Even.forward x), backward := \fun (x: Carrier B.Bool^::false) => Even.backward x,
+  leftInverse := Even.leftInverse, rightInverse := \fun (x: Carrier B.Bool^::false) => Even.rightInverse x,
+  forwardAdd := Even.forwardAdd, backwardAdd := \fun (a, b: Carrier B.Bool^::false) => Even.backwardAdd a b,
+  forwardZero := Even.forwardZero, backwardZero := Even.backwardZero
+};
+\definition odd: Data B.Bool^::true := \root.Periodicity[].Isomorphism[A := Source B.Bool^::true, B := Carrier B.Bool^::true, source := sourceGroup B.Bool^::true, target := group B.Bool^::true].Data {
+  forward := \fun (_: Odd.Carrier) => oddValue, backward := \fun (_: Carrier B.Bool^::true) => Odd.group.base.unit,
+  leftInverse := \fun (x: Odd.Carrier) => sym!{{Odd.Carrier}} _ _ (Odd.zero x), rightInverse := \fun (x: Carrier B.Bool^::true) => sym!{{Carrier B.Bool^::true}} _ _ (oddZero x),
+  forwardAdd := \fun (_: Odd.Carrier)(_: Odd.Carrier) => sym!{{Carrier B.Bool^::true}} _ _ ((group B.Bool^::true).group.monoid.leftIdentity oddValue),
+  backwardAdd := \fun (_: Carrier B.Bool^::true)(_: Carrier B.Bool^::true) => sym!{{Odd.Carrier}} _ _ (Odd.group.group.monoid.leftIdentity Odd.group.base.unit),
+  forwardZero := \refl(oddValue), backwardZero := \refl(Odd.group.base.unit)
+};
+\definition isomorphism: \forall (p: B.Bool^) -> Data p := \induction (p: B.Bool^) \return Data p \with {
+  | false: even
+  | true: odd
+};

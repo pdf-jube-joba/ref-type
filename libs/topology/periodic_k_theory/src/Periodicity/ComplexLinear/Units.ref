@@ -1,0 +1,29 @@
+\import bundle_homotopy.Homotopy[].Over[K := C.Complex, field := Scalars.field,
+  conjugation := linear_algebra.Hermitian[].Complex[].scalar, scalar := vector_bundles.Bundles[].Complex[].scalar].Projections[n := n].Operators[] \as Operators;
+\import Operators.Units[] \as Native;
+\import hermitian_frames.Hermitian[].Over[K := C.Complex, field := Scalars.field, scalar := linear_algebra.Hermitian[].Complex[].scalar,
+  topological := hermitian_frames.Hermitian[].Complex[].topological].At[n := n] \as Hermitian;
+\import Hermitian.Families[X := Field.Nonsingular].Matrix[m := n] \as Families;
+\definition ofMatrix[A: Field.Nonsingular]: Native.Carrier := \into[Spaces.Linear[V := Matrices.Vector, W := Matrices.Vector,
+  source := Spaces.Coordinates[I := Matrices.Index].space, target := Spaces.Coordinates[I := Matrices.Index].space].Map](Matrices.linear A, Native.Carrier) \by {
+    \fun (zero: _) => (\bysub(Matrices.Matrix, Field.Nonsingular, A))
+      (trans!{{C.Complex}} _ _ _ (sym!{{C.Complex}} _ _ (congr!{{Matrices.Matrix} {C.Complex}} Matrices.determinant _ _ (Representation.entriesLinear A))) zero)
+  };
+\definition inclusion[A: Field.Nonsingular]: Matrices.Matrix := A;
+\definition inclusionContinuous: topology.Continuity[A := Field.Nonsingular, B := Matrices.Matrix].Continuous topology Top.topology inclusion :=
+  topology.Continuity[A := Matrices.Matrix, B := Matrices.Matrix].Corestriction[S := { a: Matrices.Matrix \where Field.Nonzero a }].inclusionContinuous Top.topology;
+\definition regular: Families.Regular topology (\fun (A: Field.Nonsingular) => Matrices.linear A) :=
+  Families.regularOfComponents topology (\fun (A: Field.Nonsingular) => Matrices.linear A)
+    (\fun (j, i: Matrices.Index) => \idelim (\fun (A: Field.Nonsingular) => A i j) = (\fun (A: Field.Nonsingular) => (Matrices.linear A).apply (linear_algebra.Commutative[K := C.Complex, scalarRing := std.Alg[].Field[].fieldAsCommutativeRing C.Complex Scalars.field].FiniteCoordinates[n := n].vectors j) i)
+      \with f: (Field.Nonsingular -> C.Complex) => topology.Continuity[A := Field.Nonsingular, B := C.Complex].Continuous topology Plane.topology f \by {
+        base: topology.Composition[A := Field.Nonsingular, B := Matrices.Matrix, C := C.Complex].composeContinuous topology Top.topology Plane.topology inclusion
+          (\fun (A: Matrices.Matrix) => A i j) inclusionContinuous
+          (topological_algebra.Matrix[K := C.Complex, I := Matrices.Index, J := Matrices.Index].entryContinuous Plane.topology i j),
+        equality: \axiom:funext((\fun (A: Field.Nonsingular) => A i j), (\fun (A: Field.Nonsingular) => (Matrices.linear A).apply (linear_algebra.Commutative[K := C.Complex, scalarRing := std.Alg[].Field[].fieldAsCommutativeRing C.Complex Scalars.field].FiniteCoordinates[n := n].vectors j) i),
+          \fun (A: Field.Nonsingular) => sym!{{C.Complex}} _ _ (congr!{{Matrices.Vector} {C.Complex}} (\fun (v: Matrices.Vector) => v i) _ _ (Matrices.onBasis A j)))
+      });
+\definition continuous: topology.Continuity[A := Field.Nonsingular, B := Native.Carrier].Continuous topology Native.topology ofMatrix :=
+  topology.Continuity[A := Field.Nonsingular, B := Spaces.Linear[V := Matrices.Vector, W := Matrices.Vector,
+    source := Spaces.Coordinates[I := Matrices.Index].space, target := Spaces.Coordinates[I := Matrices.Index].space].Map].Corestriction[S := Native.Invertible].corestrictContinuous topology Operators.topology ofMatrix
+    (Operators.Family[X := Field.Nonsingular, source := topology, H := (\fun (A: Field.Nonsingular) => Matrices.linear A)].continuous regular);
+\module At(h: Native.Carrier);

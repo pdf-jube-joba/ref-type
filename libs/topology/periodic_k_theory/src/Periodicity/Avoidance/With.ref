@@ -1,0 +1,71 @@
+\definition y: Real.Real := Real.add (bound roots) Real.one;
+\definition w: C.Complex := C.make Real.half y;
+\definition onePositive: R.Lt Real.zero Real.one := Order.ltOfLeNotEq Real.zero Real.one Laws.oneNonnegative Laws.zeroNeOne;
+\definition boundBelow: R.Lt (bound roots) y :=
+  R.ltReplaceLeft _ _ _ (Laws.addZeroRight (bound roots)) (Laws.ltAddLeft (bound roots) Real.zero Real.one onePositive);
+\definition avoidsFirst: \forall (z: C.Complex) -> Members.Occurs z roots -> Logic.Not (y = firstSlope z) :=
+  \fun (z: C.Complex)(member: _)(same: _) => R.ltNotLeReverse (firstSlope z) y
+    (R.leLtTrans _ _ _ (bounds roots z member).left boundBelow)
+    (R.leReplaceRight y y (firstSlope z) same (R.leRefl y));
+\definition avoidsSecond: \forall (z: C.Complex) -> Members.Occurs z roots -> Logic.Not (y = secondSlope z) :=
+  \fun (z: C.Complex)(member: _)(same: _) => R.ltNotLeReverse (secondSlope z) y
+    (R.leLtTrans _ _ _ (bounds roots z member).right boundBelow)
+    (R.leReplaceRight y y (secondSlope z) same (R.leRefl y));
+\definition first[t: Real.Real]: C.Complex := C.make (Real.mul t Real.half) (Real.mul t y);
+\definition second[t: Real.Real]: C.Complex := C.make (Real.sub Real.one (Real.mul t Real.half)) (Real.mul t y);
+\definition halfNonzero: Logic.Not (Real.half = Real.zero) :=
+  \fun (zero: _) => Laws.zeroNeOne (trans!{{Real.Real}} _ _ _
+    (sym!{{Real.Real}} _ _ (trans!{{Real.Real}} _ _ _ (congr!{{Real.Real} {Real.Real} {Real.Real}} Real.add _ _ _ _ zero zero) (Laws.addZeroLeft Real.zero)))
+    (Real.Estimates[].halfDouble));
+\definition timesHalfNonzero: \forall (t: Real.Real) -> Logic.Not (t = Real.zero) -> Logic.Not (Real.mul t Real.half = Real.zero) :=
+  \fun (t: Real.Real)(nonzero: _)(zero: _) => nonzero (eq_reason_in!{{Real.Real} t
+    "=" _ "by" { sym!{{Real.Real}} _ _ (Algebra.mulOneRight t) }
+    "=" { Real.mul t (Real.mul Real.half (Laws.fieldInv Real.half)) } "by" {
+      congr!{{Real.Real} {Real.Real}} (Real.mul t) _ _ (sym!{{Real.Real}} _ _
+        (trans!{{Real.Real}} _ _ _ (Laws.fieldMulComm Real.half (Laws.fieldInv Real.half)) (Laws.fieldInverseNonzero Real.half halfNonzero))) }
+    "=" _ "by" { sym!{{Real.Real}} _ _ (Laws.fieldMulAssoc t Real.half (Laws.fieldInv Real.half)) }
+    "=" _ "by" { congr!{{Real.Real} {Real.Real}} (\fun (a: Real.Real) => Real.mul a (Laws.fieldInv Real.half)) _ _ zero }
+    "=" _ "by" { Laws.fieldMulZeroLeft (Laws.fieldInv Real.half) }
+  });
+\definition ratio: \forall (t: Real.Real) -> Logic.Not (t = Real.zero) -> slope (Real.mul t Real.half) (Real.mul t y) = y :=
+  \fun (t: Real.Real)(nonzero: _) => eq_reason_in!{{Real.Real} _
+    "=" { Real.mul (Real.mul t Real.half) (Real.mul y (Laws.fieldInv (Real.mul t Real.half))) } "by" {
+      trans!{{Real.Real}} _ _ _
+        (congr!{{Real.Real} {Real.Real}} (\fun (a: Real.Real) => Real.mul a (Laws.fieldInv (Real.mul t Real.half))) _ _
+          (trans!{{Real.Real}} _ _ _ (Algebra.mulSwap Real.half t y) (sym!{{Real.Real}} _ _ (Laws.fieldMulAssoc t Real.half y))))
+        (Laws.fieldMulAssoc (Real.mul t Real.half) y (Laws.fieldInv (Real.mul t Real.half))) }
+    "=" { Real.mul y (Real.mul (Real.mul t Real.half) (Laws.fieldInv (Real.mul t Real.half))) } "by" { Algebra.mulSwap (Real.mul t Real.half) y (Laws.fieldInv (Real.mul t Real.half)) }
+    "=" { Real.mul y Real.one } "by" {
+      congr!{{Real.Real} {Real.Real}} (Real.mul y) _ _
+        (trans!{{Real.Real}} _ _ _ (Laws.fieldMulComm (Real.mul t Real.half) (Laws.fieldInv (Real.mul t Real.half))) (Laws.fieldInverseNonzero (Real.mul t Real.half) (timesHalfNonzero t nonzero))) }
+    "=" y "by" { Algebra.mulOneRight y }
+  };
+\definition firstZero: first Real.zero = Op.zero := ComplexLaws.makeCong _ _ _ _ (Laws.fieldMulZeroLeft Real.half) (Laws.fieldMulZeroLeft y);
+\definition secondZero: second Real.zero = Op.one := ComplexLaws.makeCong _ _ _ _
+  (trans!{{Real.Real}} _ _ _ (congr!{{Real.Real} {Real.Real}} (Real.sub Real.one) _ _ (Laws.fieldMulZeroLeft Real.half)) (Laws.subZeroRight Real.one)) (Laws.fieldMulZeroLeft y);
+\definition firstAvoids: \forall (t: Real.Real)(z: C.Complex) -> Members.Occurs z roots -> first t = z -> z = Op.zero :=
+  \fun (t: Real.Real)(z: C.Complex)(member: _)(same: _) =>
+    Logic.orElim[t = Real.zero, Logic.Not (t = Real.zero), z = Op.zero]
+      (std.Logic[].Classical[].excludedMiddle (t = Real.zero))
+      (\fun (zero: _) => trans!{{C.Complex}} _ _ _ (sym!{{C.Complex}} _ _ same)
+        (trans!{{C.Complex}} _ _ _ (congr!{{Real.Real} {C.Complex}} first _ _ zero) firstZero))
+      (\fun (nonzero: _) => Logic.falseElim _ (avoidsFirst z member (eq_reason_in!{{Real.Real} y
+        "=" _ "by" { sym!{{Real.Real}} _ _ (ratio t nonzero) }
+        "=" _ "by" { congr!{{Real.Real} {Real.Real} {Real.Real}} slope _ _ _ _
+          (congr!{{C.Complex} {Real.Real}} C.re _ _ same) (congr!{{C.Complex} {Real.Real}} C.im _ _ same) }
+      })));
+\definition secondAvoids: \forall (t: Real.Real)(z: C.Complex) -> Members.Occurs z roots -> second t = z -> z = Op.one :=
+  \fun (t: Real.Real)(z: C.Complex)(member: _)(same: _) =>
+    Logic.orElim[t = Real.zero, Logic.Not (t = Real.zero), z = Op.one]
+      (std.Logic[].Classical[].excludedMiddle (t = Real.zero))
+      (\fun (zero: _) => trans!{{C.Complex}} _ _ _ (sym!{{C.Complex}} _ _ same)
+        (trans!{{C.Complex}} _ _ _ (congr!{{Real.Real} {C.Complex}} second _ _ zero) secondZero))
+      (\fun (nonzero: _) => Logic.falseElim _ (avoidsSecond z member (eq_reason_in!{{Real.Real} y
+        "=" _ "by" { sym!{{Real.Real}} _ _ (ratio t nonzero) }
+        "=" _ "by" { congr!{{Real.Real} {Real.Real} {Real.Real}} slope _ _ _ _
+          (trans!{{Real.Real}} _ _ _ (sym!{{Real.Real}} _ _ (Algebra.subSub Real.one (Real.mul t Real.half)))
+            (congr!{{Real.Real} {Real.Real}} (Real.sub Real.one) _ _ (congr!{{C.Complex} {Real.Real}} C.re _ _ same)))
+          (congr!{{C.Complex} {Real.Real}} C.im _ _ same) }
+      })));
+\module Path(predicate: \Pow C.Complex, atZero: \In[C.Complex] predicate Op.zero, atOne: \In[C.Complex] predicate Op.one,
+  covers: \forall (z: C.Complex) -> Logic.Not (\In[C.Complex] predicate z) -> Members.Occurs z roots);

@@ -1,0 +1,44 @@
+\import algebraic_topology.Interval[] \as Time;
+\import algebraic_topology.Cylinder[A := model.Carrier] \as Cylinder;
+\import Relative.Suspension[original := model] \as Suspension;
+\import algebraic_topology.Cylinder[A := Suspension.result.Carrier] \as Twice;
+\import Relative.Suspension[original := Suspension.result] \as Double;
+\definition once: Relative.CompactPointed := Relative.iterate Bott.one model;
+\definition twice: Relative.CompactPointed := Relative.iterate Bott.two model;
+\definition single[t: Time.Carrier][x: model.Carrier]: Suspension.result.Carrier := Suspension.class (Cylinder.at t x);
+\definition double[t, s: Time.Carrier][x: model.Carrier]: Double.result.Carrier := Double.class (Twice.at t (single s x));
+\definition singleInduction[P: Suspension.result.Carrier -> \Prop]
+  [step: \forall (t: Time.Carrier)(x: model.Carrier) -> P (single t x)]: \forall (q: Suspension.result.Carrier) -> P q := \block {
+  \fun (q: Suspension.result.Carrier) \then
+  \takefrom z: \Cast[Cylinder.Carrier] ({ z: Cylinder.Carrier \where Suspension.class z = q }) \by Suspension.onto q \then
+  \return \idelim single (Cylinder.time z) (Cylinder.point z) = q \with a: Suspension.result.Carrier => P a \by {
+    base: step (Cylinder.time z) (Cylinder.point z),
+    equality: trans!{{Suspension.result.Carrier}} _ _ _
+      (congr!{{Cylinder.Carrier} {Suspension.result.Carrier}} Suspension.class _ _ (std.Data[].Pair[].Prop[A := Time.Carrier, B := model.Carrier].eta z))
+      (\bysub(Cylinder.Carrier, { z: Cylinder.Carrier \where Suspension.class z = q }, z))
+  }
+};
+\definition doubleInduction[P: Double.result.Carrier -> \Prop]
+  [step: \forall (t, s: Time.Carrier)(x: model.Carrier) -> P (double t s x)]: \forall (q: Double.result.Carrier) -> P q := \block {
+  \fun (q: Double.result.Carrier) \then
+  \takefrom z: \Cast[Twice.Carrier] ({ z: Twice.Carrier \where Double.class z = q }) \by Double.onto q \then
+  \return \idelim Double.class (Twice.at (Twice.time z) (Twice.point z)) = q \with a: Double.result.Carrier => P a \by {
+    base: singleInduction (\fun (a: Suspension.result.Carrier) => P (Double.class (Twice.at (Twice.time z) a))) (step (Twice.time z)) (Twice.point z),
+    equality: trans!{{Double.result.Carrier}} _ _ _
+      (congr!{{Twice.Carrier} {Double.result.Carrier}} Double.class _ _ (std.Data[].Pair[].Prop[A := Time.Carrier, B := Suspension.result.Carrier].eta z))
+      (\bysub(Twice.Carrier, { z: Twice.Carrier \where Double.class z = q }, z))
+  }
+};
+\module Mapping(other: Relative.CompactPointed, mapping: Relative.Map model other) {
+  \import \parent.\parent.Coordinates[model := other] \as Target;
+  \import algebraic_topology.Suspension[A := model.Carrier].Pointed[source := (Relative.details model).topology, basepoint := (Relative.details model).point].Mapping[
+    B := other.Carrier, target := Relative.pointed other, f := mapping] \as Native;
+  \definition singleEquation: \forall (t: Time.Carrier)(x: model.Carrier) -> Relative.SuspendedMap[source := model, target := other, f := mapping].map (single t x) = Target.single t (mapping x) :=
+    \fun (t: Time.Carrier)(x: model.Carrier) => Native.onClass (Cylinder.at t x);
+  \import algebraic_topology.Suspension[A := Suspension.result.Carrier].Pointed[source := (Relative.details Suspension.result).topology, basepoint := (Relative.details Suspension.result).point].Mapping[
+    B := Relative.Suspension[original := other].result.Carrier, target := Relative.pointed (Relative.Suspension[original := other].result),
+    f := Relative.SuspendedMap[source := model, target := other, f := mapping].map] \as TwiceNative;
+  \definition doubleEquation: \forall (t, s: Time.Carrier)(x: model.Carrier) -> Relative.iterateMap Bott.two model other mapping (double t s x) = Target.double t s (mapping x) :=
+    \fun (t, s: Time.Carrier)(x: model.Carrier) => trans!{{Target.twice.Carrier}} _ _ _ (TwiceNative.onClass (Twice.at t (single s x)))
+      (congr!{{Target.once.Carrier} {Target.twice.Carrier}} (\fun (a: Target.once.Carrier) => Relative.Suspension[original := Target.once].class (algebraic_topology.Cylinder[A := Target.once.Carrier].at t a)) _ _ (singleEquation s x));
+}

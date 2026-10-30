@@ -1,0 +1,79 @@
+\import \root.Periodicity[].SuspensionSphere[] \as SphereModel;
+\definition circle: Relative.CompactPointed := SphereModel.firstModel;
+\import Relative.Suspension[original := SphereModel.zero] \as Suspension;
+\import algebraic_topology.Cylinder[A := SphereModel.zero.Carrier] \as Cylinder;
+\import std.Data[].Pair[] \as Pairs;
+\import std.Data[].FinSet[] \as Fin;
+\import Pair.Quotient[] \as Q;
+\definition loop[t: Time.Carrier]: circle.Carrier := Suspension.class (Cylinder.at t SphereModel.live);
+\definition point: circle.Carrier := (Relative.details circle).point;
+\definition toPoint: \forall (t: Time.Carrier) -> \In[Time.Carrier] boundary t -> loop t = point :=
+  \fun (t: Time.Carrier)(edge: _) => Suspension.collapsed (Cylinder.at t SphereModel.live)
+    (Logic.orElim[t = Time.start, t = Time.end, \In[Cylinder.Carrier] Suspension.Collapsed (Cylinder.at t SphereModel.live)] edge
+      (\fun (same: _) => Logic.Or[_, _]::left same) (\fun (same: _) => Logic.Or[_, _]::right (Logic.Or[_, _]::left same)));
+\definition atPoint: \forall (t: Time.Carrier) -> loop t = point -> \In[Time.Carrier] boundary t :=
+  \fun (t: Time.Carrier)(same: _) => Logic.orElim[t = Time.start, Logic.Or[t = Time.end, SphereModel.live = (Relative.details SphereModel.zero).point], \In[Time.Carrier] boundary t]
+    (Suspension.atPoint (Cylinder.at t SphereModel.live) same)
+    (\fun (atStart: _) => Logic.Or[_, _]::left atStart)
+    (\fun (rest: Logic.Or[t = Time.end, SphereModel.live = (Relative.details SphereModel.zero).point]) => Logic.orElim[t = Time.end, SphereModel.live = (Relative.details SphereModel.zero).point, \In[Time.Carrier] boundary t] rest
+      (\fun (atEnd: _) => Logic.Or[_, _]::right atEnd) (\fun (bad: _) => Logic.falseElim _ (SphereModel.liveDifferent bad)));
+\definition loopContinuous: topology.Continuity[A := Time.Carrier, B := circle.Carrier].Continuous Time.topology (Relative.details circle).topology loop :=
+  topology.Composition[A := Time.Carrier, B := Cylinder.Carrier, C := circle.Carrier].composeContinuous Time.topology (Cylinder.topology (Relative.details SphereModel.zero).topology) (Relative.details circle).topology
+    (\fun (t: Time.Carrier) => Cylinder.at t SphereModel.live) Suspension.class
+    (topological_constructions.Product[A := Time.Carrier, B := SphereModel.zero.Carrier].Universal[X := Time.Carrier].pairContinuous Time.topology Time.topology (Relative.details SphereModel.zero).topology
+      (\fun (t: Time.Carrier) => t) (\fun (_: Time.Carrier) => SphereModel.live)
+      (topology.Maps[A := Time.Carrier, B := Time.Carrier].Identity[].continuous Time.topology)
+      (topology.Maps[A := Time.Carrier, B := SphereModel.zero.Carrier].constantContinuous Time.topology (Relative.details SphereModel.zero).topology SphereModel.live)) Suspension.classContinuous;
+\definition quotientOnto: \forall (q: Q.Carrier) -> \exists (t: Time.Carrier \where Q.projection t = q) :=
+  \fun (q: Q.Carrier) => Logic.orElim[q = Q.point, Logic.Not (q = Q.point), \exists (t: Time.Carrier \where Q.projection t = q)]
+    (std.Logic[].Classical[].excludedMiddle (q = Q.point))
+    (\fun (same: _) => Logic.existsIntro[Time.Carrier, { t: Time.Carrier \where Q.projection t = q }] Time.start
+      (trans!{{Q.Carrier}} _ _ _ (Q.onSubset start) (sym!{{Q.Carrier}} _ _ same))) (Q.representative q);
+\definition represented: \forall (t: Time.Carrier)(i: SphereModel.zero.Carrier) -> \exists (s: Time.Carrier \where loop s = Suspension.class (Cylinder.at t i)) :=
+  \fun (t: Time.Carrier) => Fin.cases Bott.one (\fun (i: SphereModel.zero.Carrier) => \exists (s: Time.Carrier \where loop s = Suspension.class (Cylinder.at t i)))
+    (Logic.existsIntro[Time.Carrier, { s: Time.Carrier \where loop s = Suspension.class (Cylinder.at t (Relative.details SphereModel.zero).point) }] Time.start
+      (trans!{{circle.Carrier}} _ _ _ (toPoint Time.start (Logic.Or[_, _]::left (\refl(Time.start))))
+        (sym!{{circle.Carrier}} _ _ (Suspension.collapsed (Cylinder.at t (Relative.details SphereModel.zero).point) (Logic.Or[_, _]::right (Logic.Or[_, _]::right (\refl((Relative.details SphereModel.zero).point))))))))
+    (\fun (i: Fin.Fin Bott.one) => \idelim SphereModel.live = Fin.succ Bott.one i \with j: SphereModel.zero.Carrier => \exists (s: Time.Carrier \where loop s = Suspension.class (Cylinder.at t j)) \by {
+      base: Logic.existsIntro[Time.Carrier, { s: Time.Carrier \where loop s = loop t }] t (\refl(loop t)),
+      equality: congr!{{Fin.Fin Bott.one} {SphereModel.zero.Carrier}} (Fin.succ Bott.one) _ _ (sym!{{Fin.Fin Bott.one}} _ _ (Fin.singletonValue i))
+    });
+\definition loopOnto: \forall (q: circle.Carrier) -> \exists (t: Time.Carrier \where loop t = q) := \block {
+  \fun (q: circle.Carrier) \then
+  \takefrom z: \Cast[Cylinder.Carrier] ({ z: Cylinder.Carrier \where Suspension.class z = q }) \by Suspension.onto q \then
+  \takefrom t: \Cast[Time.Carrier] ({ t: Time.Carrier \where loop t = Suspension.class (Cylinder.at (Cylinder.time z) (Cylinder.point z)) }) \by represented (Cylinder.time z) (Cylinder.point z) \then
+  \return Logic.existsIntro[Time.Carrier, { t: Time.Carrier \where loop t = q }] t
+    (trans!{{circle.Carrier}} _ _ _ (\bysub(Time.Carrier, { t: Time.Carrier \where loop t = Suspension.class (Cylinder.at (Cylinder.time z) (Cylinder.point z)) }, t))
+      (trans!{{circle.Carrier}} _ _ _ (congr!{{Cylinder.Carrier} {circle.Carrier}} Suspension.class _ _ (Pairs.Prop[A := Time.Carrier, B := SphereModel.zero.Carrier].eta z))
+        (\bysub(Cylinder.Carrier, { z: Cylinder.Carrier \where Suspension.class z = q }, z))))
+};
+\definition forwardFibers: \forall (t, s: Time.Carrier) -> Q.projection t = Q.projection s -> loop t = loop s :=
+  \fun (t, s: Time.Carrier)(same: _) => Logic.orElim[t = s, Logic.And[\In[Time.Carrier] boundary t, \In[Time.Carrier] boundary s], loop t = loop s]
+    (Q.separates t s same) (\fun (equal: _) => congr!{{Time.Carrier} {circle.Carrier}} loop _ _ equal)
+    (\fun (both: Logic.And[\In[Time.Carrier] boundary t, \In[Time.Carrier] boundary s]) => trans!{{circle.Carrier}} _ _ _ (toPoint t both.left) (sym!{{circle.Carrier}} _ _ (toPoint s both.right)));
+\definition backwardFibers: \forall (t, s: Time.Carrier) -> loop t = loop s -> Q.projection t = Q.projection s :=
+  \fun (t, s: Time.Carrier)(same: _) => Logic.orElim[Cylinder.at t SphereModel.live = Cylinder.at s SphereModel.live,
+    Logic.And[\In[Cylinder.Carrier] Suspension.Collapsed (Cylinder.at t SphereModel.live), \In[Cylinder.Carrier] Suspension.Collapsed (Cylinder.at s SphereModel.live)], Q.projection t = Q.projection s]
+    (Suspension.separates (Cylinder.at t SphereModel.live) (Cylinder.at s SphereModel.live) same)
+    (\fun (equal: _) => congr!{{Time.Carrier} {Q.Carrier}} Q.projection _ _ (congr!{{Cylinder.Carrier} {Time.Carrier}} Cylinder.time _ _ equal))
+    (\fun (both: Logic.And[\In[Cylinder.Carrier] Suspension.Collapsed (Cylinder.at t SphereModel.live), \In[Cylinder.Carrier] Suspension.Collapsed (Cylinder.at s SphereModel.live)]) =>
+      trans!{{Q.Carrier}} _ _ _
+        (Q.onSubset (\into[Time.Carrier](t, boundary) \by { atPoint t (Suspension.collapsed (Cylinder.at t SphereModel.live) both.left) }))
+        (sym!{{Q.Carrier}} _ _ (Q.onSubset (\into[Time.Carrier](s, boundary) \by { atPoint s (Suspension.collapsed (Cylinder.at s SphereModel.live) both.right) }))));
+\definition targetPoint: loop Time.start = point := toPoint Time.start (Logic.Or[_, _]::left (\refl(Time.start)));
+\definition equivalence: Relative.Equivalence[source := Q.model, target := circle].Data :=
+  Relative.CommonQuotient[R := Time.Carrier, space := Time.topology, compact := Time.compact, source := Q.model, target := circle,
+    f := Q.projection, g := loop, fRegular := Q.continuous, gRegular := loopContinuous, fOnto := quotientOnto, gOnto := loopOnto,
+    forwardFibers := forwardFibers, backwardFibers := backwardFibers, r0 := Time.start, sourcePoint := Q.onSubset start,
+    targetPoint := targetPoint].equivalence;
+\import Relative.Equivalence[source := Q.model, target := circle].With[e := equivalence].Groups[] \as Transport;
+\import Pair.Comparison[] \as Compare;
+\definition Carrier: \Set := Relative.Reduced[model := circle].Carrier;
+\definition group: std.Alg[].Alg[].CommutativeGroup[Carrier] := Relative.Reduced[model := circle].group;
+\definition zero: \forall (x: Carrier) -> x = group.base.unit := \fun (x: Carrier) => eq_reason_in!{Carrier x
+  "=" _ "by" { sym!{Carrier} _ _ (Transport.rightInverse x) }
+  "=" _ "by" { congr!{{Q.Relative} Carrier} Transport.backward _ _ (sym!{{Q.Relative}} _ _ (Compare.isomorphism.rightInverse (Transport.forward x))) }
+  "=" _ "by" { congr!{{Group.Carrier} Carrier} (\fun (q: Group.Carrier) => Transport.backward (Compare.isomorphism.forward q)) _ _ (\root.Periodicity[].IntervalPair[].zero (Compare.isomorphism.backward (Transport.forward x))) }
+  "=" _ "by" { congr!{{Q.Relative} Carrier} Transport.backward _ _ Compare.forwardZero }
+  "=" _ "by" { Transport.backwardZero }
+};
