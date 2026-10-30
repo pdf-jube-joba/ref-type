@@ -1,0 +1,55 @@
+\import algebraic_topology.Interval[] \as Time;
+\import std.Data[].Pair[] \as Pairs;
+\import Relative.Smash[left := left, right := right] \as Smash;
+\import Relative.Smash[left := right, right := left] \as Reverse;
+\import \root.Periodicity[].Coordinates[model := left] \as Left;
+\import \root.Periodicity[].Coordinates[model := right] \as Right;
+\import \root.Periodicity[].Coordinates[model := Smash.result] \as Source;
+\import \root.Periodicity[].Coordinates[model := Reverse.result] \as Reversed;
+\import Relative.Smash[left := Left.once, right := right] \as LeftShift;
+\import Relative.Smash[left := left, right := Right.once] \as RightShift;
+\import Relative.Smash[left := Right.once, right := left] \as ReverseShift;
+\definition twiceLeft: Relative.CompactPointed := Relative.iterate Bott.two left;
+\import Relative.Smash[left := twiceLeft, right := right] \as DoubleLeft;
+\definition pair[a: left.Carrier][b: right.Carrier]: Smash.model.Carrier := Pairs.pair left.Carrier right.Carrier a b;
+\definition class[a: left.Carrier][b: right.Carrier]: Smash.result.Carrier := Smash.projection (pair a b);
+\definition leftEquation: \forall (t: Time.Carrier)(a: left.Carrier)(b: right.Carrier) ->
+  Smash.Suspension[].equivalence.forward (Source.single t (class a b)) = LeftShift.projection (Pairs.pair Left.once.Carrier right.Carrier (Left.single t a) b) :=
+  \fun (t: Time.Carrier)(a: left.Carrier)(b: right.Carrier) => Smash.Suspension[].onCylinder (algebraic_topology.Cylinder[A := Smash.model.Carrier].at t (pair a b));
+\import Source.Mapping[other := Reverse.result, mapping := Smash.Symmetry[].equivalence.forward] \as SwapSuspension;
+\definition rightEquation: \forall (t: Time.Carrier)(a: left.Carrier)(b: right.Carrier) ->
+  Smash.RightSuspension[].equivalence.forward (Source.single t (class a b)) = RightShift.projection (Pairs.pair left.Carrier Right.once.Carrier a (Right.single t b)) :=
+  \fun (t: Time.Carrier)(a: left.Carrier)(b: right.Carrier) => eq_reason_in!{{RightShift.result.Carrier} _
+    "=" _ "by" { congr!{{Reversed.once.Carrier} {RightShift.result.Carrier}}
+      (\fun (z: Reversed.once.Carrier) => ReverseShift.Symmetry[].equivalence.forward (Reverse.Suspension[].equivalence.forward z)) _ _ (SwapSuspension.singleEquation t (class a b)) }
+    "=" _ "by" { congr!{{Reverse.result.Carrier} {RightShift.result.Carrier}}
+      (\fun (z: Reverse.result.Carrier) => ReverseShift.Symmetry[].equivalence.forward (Reverse.Suspension[].equivalence.forward (Reversed.single t z))) _ _ (Smash.Symmetry[].onProjection (pair a b)) }
+    "=" _ "by" { congr!{{ReverseShift.result.Carrier} {RightShift.result.Carrier}} ReverseShift.Symmetry[].equivalence.forward _ _
+      (Reverse.Suspension[].onCylinder (algebraic_topology.Cylinder[A := Reverse.model.Carrier].at t (Pairs.pair right.Carrier left.Carrier b a))) }
+    "=" _ "by" { ReverseShift.Symmetry[].onProjection (Pairs.pair Right.once.Carrier left.Carrier (Right.single t b) a) }
+  };
+\import Relative.Identity[model := Smash.result] \as Identity;
+\import Source.Mapping[other := Smash.result, mapping := Identity.map] \as IdentityCoordinates;
+\definition leftOne: \forall (t: Time.Carrier)(a: left.Carrier)(b: right.Carrier) ->
+  (Smash.leftIteration Bott.one).forward (Source.single t (class a b)) = LeftShift.projection (Pairs.pair Left.once.Carrier right.Carrier (Left.single t a) b) :=
+  \fun (t: Time.Carrier)(a: left.Carrier)(b: right.Carrier) => trans!{{LeftShift.result.Carrier}} _ _ _
+    (congr!{{Source.once.Carrier} {LeftShift.result.Carrier}} Smash.Suspension[].equivalence.forward _ _ (IdentityCoordinates.singleEquation t (class a b))) (leftEquation t a b);
+\definition rightOne: \forall (t: Time.Carrier)(a: left.Carrier)(b: right.Carrier) ->
+  (Smash.rightIteration Bott.one).forward (Source.single t (class a b)) = RightShift.projection (Pairs.pair left.Carrier Right.once.Carrier a (Right.single t b)) :=
+  \fun (t: Time.Carrier)(a: left.Carrier)(b: right.Carrier) => trans!{{RightShift.result.Carrier}} _ _ _
+    (congr!{{Source.once.Carrier} {RightShift.result.Carrier}} Smash.RightSuspension[].equivalence.forward _ _ (IdentityCoordinates.singleEquation t (class a b))) (rightEquation t a b);
+\import \root.Periodicity[].Coordinates[model := LeftShift.result] \as Middle;
+\import \root.Periodicity[].Coordinates[model := Left.once] \as LeftCoordinates;
+\import \root.Periodicity[].Coordinates[model := Source.once] \as SourceOnce;
+\import SourceOnce.Mapping[other := LeftShift.result, mapping := (Smash.leftIteration Bott.one).forward] \as Lift;
+\definition secondMap: Middle.once.Carrier -> DoubleLeft.result.Carrier := LeftShift.Suspension[].equivalence.forward;
+\definition leftTwo: \forall (t, s: Time.Carrier)(a: left.Carrier)(b: right.Carrier) ->
+  (Smash.leftIteration Bott.two).forward (Source.double t s (class a b)) = DoubleLeft.projection (Pairs.pair Left.twice.Carrier right.Carrier (Left.double t s a) b) :=
+  \fun (t, s: Time.Carrier)(a: left.Carrier)(b: right.Carrier) => eq_reason_in!{{DoubleLeft.result.Carrier} _
+    "=" _ "by" { congr!{{Middle.once.Carrier} {DoubleLeft.result.Carrier}} secondMap _ _ (Lift.singleEquation t (Source.single s (class a b))) }
+    "=" _ "by" { congr!{{LeftShift.result.Carrier} {DoubleLeft.result.Carrier}}
+      (\fun (z: LeftShift.result.Carrier) => secondMap (Middle.single t z)) _ _ (leftOne s a b) }
+    "=" _ "by" { LeftShift.Suspension[].onCylinder (algebraic_topology.Cylinder[A := LeftShift.model.Carrier].at t (Pairs.pair Left.once.Carrier right.Carrier (Left.single s a) b)) }
+  };
+\module Odd;
+\module Mixed;

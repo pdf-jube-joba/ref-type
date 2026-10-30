@@ -1,0 +1,72 @@
+\import Relative.Smash[left := right, right := left] \as Reverse;
+\import Reverse.Graded[firstDegree := Bott.one, secondDegree := Bott.one] \as ReverseNative;
+\import \root.Periodicity[].Coordinates[model := left] \as Left;
+\import \root.Periodicity[].Coordinates[model := right] \as Right;
+\import \root.Periodicity[].Coordinates[model := Smash.result] \as Source;
+\import \root.Periodicity[].Coordinates[model := Reverse.result] \as Target;
+\import Source.Mapping[other := Reverse.result, mapping := Smash.Symmetry[].equivalence.forward] \as SwapCoordinates;
+\import \root.Periodicity[].SmashCoordinates[left := left, right := right].Odd[] \as ForwardCoordinates;
+\import \root.Periodicity[].SmashCoordinates[left := right, right := left].Odd[] \as ReverseCoordinates;
+\import \root.Periodicity[].SwapSphere[].On[model := Smash.result].Twist[].Coordinates[] \as TwistCoordinates;
+\import Relative.Smash[left := Left.once, right := Right.once] \as Both;
+\import Relative.Smash[left := Right.once, right := Left.once] \as OtherBoth;
+\import std.Data[].Pair[] \as Pairs;
+\import algebraic_topology.Interval[] \as Time;
+\definition lift: Relative.Map Source.twice Target.twice := Relative.iterateMap Bott.two Smash.result Reverse.result Smash.Symmetry[].equivalence.forward;
+\import Relative.Composition[source := Source.twice, middle := Source.twice, target := Target.twice,
+  first := Twist.map, second := lift] \as Composite;
+\definition onClass: \forall (t, s: Time.Carrier)(a: left.Carrier)(b: right.Carrier) ->
+  Both.Symmetry[].equivalence.forward (Native.equivalence.forward (Source.double t s (Smash.projection (Pairs.pair left.Carrier right.Carrier a b)))) =
+  ReverseNative.equivalence.forward (Composite.map (Source.double t s (Smash.projection (Pairs.pair left.Carrier right.Carrier a b)))) :=
+  \fun (t, s: Time.Carrier)(a: left.Carrier)(b: right.Carrier) => eq_reason_in!{{OtherBoth.result.Carrier} _
+    "=" _ "by" { congr!{{Both.result.Carrier} {OtherBoth.result.Carrier}} Both.Symmetry[].equivalence.forward _ _ (ForwardCoordinates.equation t s a b) }
+    "=" _ "by" { Both.Symmetry[].onProjection (Pairs.pair Left.once.Carrier Right.once.Carrier (Left.single t a) (Right.single s b)) }
+    "=" _ "by" { sym!{{OtherBoth.result.Carrier}} _ _ (ReverseCoordinates.equation s t b a) }
+    "=" _ "by" { congr!{{Reverse.result.Carrier} {OtherBoth.result.Carrier}}
+      (\fun (z: Reverse.result.Carrier) => ReverseNative.equivalence.forward (Target.double s t z)) _ _
+        (sym!{{Reverse.result.Carrier}} _ _ (Smash.Symmetry[].onProjection (Pairs.pair left.Carrier right.Carrier a b))) }
+    "=" _ "by" { congr!{{Target.twice.Carrier} {OtherBoth.result.Carrier}} ReverseNative.equivalence.forward _ _
+      (sym!{{Target.twice.Carrier}} _ _ (SwapCoordinates.doubleEquation s t (Smash.projection (Pairs.pair left.Carrier right.Carrier a b)))) }
+    "=" _ "by" { congr!{{Source.twice.Carrier} {OtherBoth.result.Carrier}}
+      (\fun (z: Source.twice.Carrier) => ReverseNative.equivalence.forward (lift z)) _ _
+        (sym!{{Source.twice.Carrier}} _ _ (TwistCoordinates.equation t s (Smash.projection (Pairs.pair left.Carrier right.Carrier a b)))) }
+  };
+\definition onDouble: \forall (t, s: Time.Carrier)(z: Smash.result.Carrier) ->
+  Both.Symmetry[].equivalence.forward (Native.equivalence.forward (Source.double t s z)) = ReverseNative.equivalence.forward (Composite.map (Source.double t s z)) := \block {
+  \fun (t, s: Time.Carrier)(z: Smash.result.Carrier) \then
+  \takefrom p: \Cast[Smash.model.Carrier] ({ p: Smash.model.Carrier \where Smash.projection p = z }) \by Smash.projectionOnto z \then
+  \return \idelim Smash.projection (Pairs.pair left.Carrier right.Carrier (Smash.first p) (Smash.second p)) = z
+    \with w: Smash.result.Carrier => Both.Symmetry[].equivalence.forward (Native.equivalence.forward (Source.double t s w)) = ReverseNative.equivalence.forward (Composite.map (Source.double t s w)) \by {
+      base: onClass t s (Smash.first p) (Smash.second p),
+      equality: trans!{{Smash.result.Carrier}} _ _ _ (congr!{{Smash.model.Carrier} {Smash.result.Carrier}} Smash.projection _ _ (Pairs.Prop[A := left.Carrier, B := right.Carrier].eta p))
+        (\bysub(Smash.model.Carrier, { p: Smash.model.Carrier \where Smash.projection p = z }, p))
+    }
+};
+\definition equation: \forall (q: Source.twice.Carrier) -> Both.Symmetry[].equivalence.forward (Native.equivalence.forward q) = ReverseNative.equivalence.forward (Composite.map q) :=
+  Source.doubleInduction (\fun (q: Source.twice.Carrier) => Both.Symmetry[].equivalence.forward (Native.equivalence.forward q) = ReverseNative.equivalence.forward (Composite.map q)) onDouble;
+\import Relative.Square[A := Source.twice, B := Both.result, C := Target.twice, D := OtherBoth.result,
+  f := Native.equivalence.forward, g := Both.Symmetry[].equivalence.forward, h := Composite.map, k := ReverseNative.equivalence.forward, commutes := equation] \as Square;
+\import \root.Periodicity[].ExternalSymmetry[left := Left.once, right := Right.once] \as External;
+\import Relative.Equivalence[source := Source.twice, target := Both.result].With[e := Native.equivalence].Groups[] \as NativeTransport;
+\import Relative.Equivalence[source := Target.twice, target := OtherBoth.result].With[e := ReverseNative.equivalence].Groups[] \as ReverseTransport;
+\import OtherBoth.External[] \as ReverseExternal;
+\import Relative.NegativeMap[source := Smash.result, target := Reverse.result, f := Smash.Symmetry[].equivalence.forward, degree := Bott.two] \as BasePull;
+\import Relative.PullbackComposition[source := Source.twice, middle := Source.twice, target := Target.twice, first := Twist.map, second := lift] \as Composition;
+\definition negativeReverse: \forall (a: First)(b: Second) -> Native.product a b = Twist.group.base.inv (BasePull.map (ReverseNative.product b a)) :=
+  \fun (a: First)(b: Second) => eq_reason_in!{{Twist.Carrier} _
+    "=" _ "by" { congr!{{Relative.Reduced[model := Both.result].Carrier} {Twist.Carrier}} NativeTransport.forward _ _
+      (sym!{{Relative.Reduced[model := Both.result].Carrier}} _ _ (External.symmetry a b)) }
+    "=" _ "by" { Square.Negative[degree := N.Nat^::zero].equation (ReverseExternal.product b a) }
+    "=" _ "by" { Composition.equation (ReverseNative.product b a) }
+    "=" _ "by" { Twist.sign (BasePull.map (ReverseNative.product b a)) }
+  };
+\import Relative.GroupCalculus[X := Twist.Carrier, group := Twist.group] \as Laws;
+\definition graded: \forall (a: First)(b: Second) -> BasePull.map (ReverseNative.product b a) = Twist.group.base.inv (Native.product a b) :=
+  \fun (a: First)(b: Second) => trans!{{Twist.Carrier}} _ _ _ (sym!{{Twist.Carrier}} _ _ (Laws.negateNegate (BasePull.map (ReverseNative.product b a))))
+    (congr!{{Twist.Carrier} {Twist.Carrier}} Twist.group.base.inv _ _ (sym!{{Twist.Carrier}} _ _ (negativeReverse a b)));
+\import \root.Periodicity[].OddProduct[left := right, right := left] \as Reversed;
+\import Relative.Pullback[source := Smash.result, target := Reverse.result, f := Smash.Symmetry[].equivalence.forward] \as SwapPull;
+\definition normalized: \forall (a: First)(b: Second) -> SwapPull.map (Reversed.product b a) = group.base.inv (product a b) :=
+  \fun (a: First)(b: Second) => trans!{Result} _ _ _
+    (sym!{Result} _ _ (Period.Naturality[other := Reverse.result, mapping := Smash.Symmetry[].equivalence.forward].backwardEquation (ReverseNative.product b a)))
+    (trans!{Result} _ _ _ (congr!{{Twist.Carrier} Result} Period.backward _ _ (graded a b)) (Linear.inverse (Native.product a b)));

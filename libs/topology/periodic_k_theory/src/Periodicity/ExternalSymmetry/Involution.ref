@@ -1,0 +1,23 @@
+\import Relative.Composition[source := Smash.result, middle := Reverse.result, target := Smash.result,
+  first := Symmetry.equivalence.forward, second := Reverse.Symmetry[].equivalence.forward] \as Composition;
+\import Relative.Identity[model := Smash.result] \as Identity;
+\import Relative.Pair[X := Smash.model.Carrier, space := (Relative.details Smash.model).topology,
+  compact := (Relative.details Smash.model).compact, hausdorff := (Relative.details Smash.model).hausdorff,
+  subset := Smash.wedge, closed := Smash.wedgeClosed].Quotient[].MapsEqual[target := Smash.result] \as Equality;
+\definition onProjection: \forall (z: Smash.model.Carrier) -> Composition.map (Smash.projection z) = Smash.projection z :=
+  \fun (z: Smash.model.Carrier) => trans!{{Smash.result.Carrier}} _ _ _
+    (congr!{{Reverse.result.Carrier} {Smash.result.Carrier}} Reverse.Symmetry[].equivalence.forward _ _ (Symmetry.onProjection z))
+    (trans!{{Smash.result.Carrier}} _ _ _ (Reverse.Symmetry[].onProjection (Symmetry.swap z))
+      (congr!{{Smash.model.Carrier} {Smash.result.Carrier}} Smash.projection _ _ (std.Data[].Pair[].Prop[A := left.Carrier, B := right.Carrier].eta z)));
+\definition equation: \forall (z: Smash.result.Carrier) -> Composition.map z = z := Equality.pointwise Composition.map Identity.map onProjection;
+\import Relative.Square[A := Smash.result, B := Reverse.result, C := Smash.result, D := Smash.result,
+  f := Symmetry.equivalence.forward, g := Reverse.Symmetry[].equivalence.forward, h := Identity.map, k := Identity.map, commutes := equation] \as Square;
+\module At(degree: N.Nat^) {
+  \import Relative.Negative[original := Smash.result, degree := degree] \as Native;
+  \import Relative.NegativeMap[source := Smash.result, target := Reverse.result, f := Symmetry.equivalence.forward, degree := degree] \as Forward;
+  \import Relative.NegativeMap[source := Reverse.result, target := Smash.result, f := Reverse.Symmetry[].equivalence.forward, degree := degree] \as Backward;
+  \import Relative.NegativeMap[source := Smash.result, target := Smash.result, f := Identity.map, degree := degree] \as Id;
+  \definition equation: \forall (x: Native.Carrier) -> Forward.map (Backward.map x) = x := \fun (x: Native.Carrier) =>
+    trans!{{Native.Carrier}} _ _ _ (Square.Negative[degree := degree].equation x)
+      (trans!{{Native.Carrier}} _ _ _ (Identity.Negative[degree := degree].equation (Id.map x)) (Identity.Negative[degree := degree].equation x));
+}

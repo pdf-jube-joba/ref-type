@@ -1,0 +1,87 @@
+\import \root.Periodicity[].PointPair[model := model] \as PointPair;
+\import Relative.Pair[X := model.Carrier, space := (Relative.details model).topology,
+  compact := (Relative.details model).compact, hausdorff := (Relative.details model).hausdorff,
+  subset := PointPair.subset, closed := PointPair.closed] \as Pair;
+\import Pair.Restriction[] \as Restriction;
+\import Pair.Augmented[] \as Augmented;
+\import Pair.Quotient[] \as Quotient;
+\import Relative.Absolute[X := model.Carrier, space := (Relative.details model).topology,
+  compact := (Relative.details model).compact, hausdorff := (Relative.details model).hausdorff] \as Whole;
+\import Relative.Absolute[X := Pair.A, space := Pair.subspace,
+  compact := Restriction.compactSubset, hausdorff := Restriction.hausdorffSubset] \as Subset;
+\definition point: Pair.A := \into[model.Carrier]((Relative.details model).point, PointPair.subset) \by { \refl((Relative.details model).point) };
+\definition singleton: \forall (a: Pair.A) -> a = point := \fun (a: Pair.A) => \bysub(model.Carrier, PointPair.subset, a);
+\definition retraction[x: model.Carrier]: Pair.A := point;
+\definition retractionRegular: topology.Continuity[A := model.Carrier, B := Pair.A].Continuous (Relative.details model).topology Pair.subspace retraction :=
+  topology.Maps[A := model.Carrier, B := Pair.A].constantContinuous (Relative.details model).topology Pair.subspace point;
+\import Subset.Mapping[Y := model.Carrier, source := (Relative.details model).topology,
+  sourceCompact := (Relative.details model).compact, sourceHausdorff := (Relative.details model).hausdorff,
+  f := retraction, regular := retractionRegular] \as Retraction;
+\import topological_constructions.Coproduct[A := Pair.A, B := std.Data[].FinSet[].Fin Bott.one] \as Sum;
+\module RetractionLaw;
+\module SubsetZero;
+\import Pair.Augmented[].Sequence[degree := Bott.one] \as Term;
+\import RetractionLaw[] \as RetractionLaw;
+\import SubsetZero[] \as SubsetZero;
+\definition boundaryZero: \forall (s: Term.Second) -> Term.boundary s = Term.thirdGroup.base.unit :=
+  \fun (s: Term.Second) => (Term.exactSecond s).rtl
+    (Logic.existsIntro[Term.First, { a: Term.First \where Term.restrictionNegative a = s }]
+      (Retraction.Negative[degree := (N.Nat^::succ Bott.one)].map s)
+      (trans!{{Term.Second}} _ _ _ (Term.restrictionNegativeFormula (Retraction.Negative[degree := (N.Nat^::succ Bott.one)].map s))
+        (RetractionLaw.At[degree := (N.Nat^::succ Bott.one)].equation s)));
+\definition onto: \forall (x: Term.Fourth) -> \exists (q: Term.Third \where Term.forget q = x) :=
+  \fun (x: Term.Fourth) => (Term.exactFourth x).ltr (SubsetZero.zero (Term.restriction x));
+\definition kernel: \forall (q: Term.Third) -> Term.forget q = Term.fourthGroup.base.unit -> q = Term.thirdGroup.base.unit := \block {
+  \fun (q: Term.Third)(vanishes: Term.forget q = Term.fourthGroup.base.unit) \then
+  \takefrom s: \Cast[Term.Second] ({ s: Term.Second \where Term.boundary s = q }) \by (Term.exactThird q).ltr vanishes \then
+  \return trans!{{Term.Third}} _ _ _ (sym!{{Term.Third}} _ _ (\bysub(Term.Second, { s: Term.Second \where Term.boundary s = q }, s))) (boundaryZero s)
+};
+\import Relative.GroupCalculus[X := Term.Third, group := Term.thirdGroup] \as Source;
+\import Source.Mapping[Y := Term.Fourth, target := Term.fourthGroup, f := Term.forget, additive := Term.forgetAdd, preservesZero := Term.forgetZero] \as Mapping;
+\import algebra.Group[].Of[Carrier := Term.Fourth, group := Term.fourthGroup] \as TargetGroup;
+\definition injective: \forall (q, r: Term.Third) -> Term.forget q = Term.forget r -> q = r :=
+  \fun (q, r: Term.Third)(same: Term.forget q = Term.forget r) => Source.subEqual q r (kernel (Source.sub q r)
+    (trans!{{Term.Fourth}} _ _ _ (Mapping.difference q r)
+      (trans!{{Term.Fourth}} _ _ _ (congr!{{Term.Fourth} {Term.Fourth}} (\fun (v: Term.Fourth) => Term.fourthGroup.base.op v (Term.fourthGroup.base.inv (Term.forget r))) _ _ same)
+        (TargetGroup.inverseRight (Term.forget r)))));
+\definition Value[x: Term.Fourth]: \Set := \Cast[Term.Third] ({ q: Term.Third \where Term.forget q = x });
+\definition unique: \forall (x: Term.Fourth)(q, r: Value x) -> q = r := \fun (x: Term.Fourth)(q, r: Value x) => injective q r
+  (trans!{{Term.Fourth}} _ _ _ (\bysub(Term.Third, { q: Term.Third \where Term.forget q = x }, q))
+    (sym!{{Term.Fourth}} _ _ (\bysub(Term.Third, { q: Term.Third \where Term.forget q = x }, r))));
+\definition chosen[x: Term.Fourth]: Value x := \choice Value x \by { existence: onto x, uniqueness: unique x };
+\definition inverse[x: Term.Fourth]: Term.Third := chosen x;
+\definition inverseRight: \forall (x: Term.Fourth) -> Term.forget (inverse x) = x :=
+  \fun (x: Term.Fourth) => \bysub(Term.Third, { q: Term.Third \where Term.forget q = x }, chosen x);
+\definition inverseLeft: \forall (q: Term.Third) -> inverse (Term.forget q) = q := \fun (q: Term.Third) => injective _ _ (inverseRight (Term.forget q));
+\definition inverseAdd: \forall (x, y: Term.Fourth) -> inverse (Term.fourthGroup.base.op x y) = Term.thirdGroup.base.op (inverse x) (inverse y) :=
+  \fun (x, y: Term.Fourth) => injective _ _ (trans!{{Term.Fourth}} _ _ _ (inverseRight (Term.fourthGroup.base.op x y))
+    (sym!{{Term.Fourth}} _ _ (trans!{{Term.Fourth}} _ _ _ (Term.forgetAdd (inverse x) (inverse y))
+      (congr!{{Term.Fourth} {Term.Fourth} {Term.Fourth}} Term.fourthGroup.base.op _ _ _ _ (inverseRight x) (inverseRight y)))));
+\import Relative.Equivalence[source := model, target := Quotient.model].With[e := PointPair.equivalence].Negative[degree := Bott.one] \as Transport;
+\definition Reduced: \Set := Relative.Negative[original := model, degree := Bott.one].Carrier;
+\definition reducedGroup: std.Alg[].Alg[].CommutativeGroup[Reduced] := Relative.Negative[original := model, degree := Bott.one].group;
+\definition Absolute: \Set := Term.Fourth;
+\definition absoluteGroup: std.Alg[].Alg[].CommutativeGroup[Absolute] := Term.fourthGroup;
+\definition forward[q: Reduced]: Absolute := Term.forget (Transport.backward q);
+\definition backward[x: Absolute]: Reduced := Transport.forward (inverse x);
+\definition leftInverse: \forall (q: Reduced) -> backward (forward q) = q := \fun (q: Reduced) => trans!{Reduced} _ _ _
+  (congr!{{Term.Third} Reduced} Transport.forward _ _ (inverseLeft (Transport.backward q))) (Transport.leftInverse q);
+\definition rightInverse: \forall (x: Absolute) -> forward (backward x) = x := \fun (x: Absolute) => trans!{Absolute} _ _ _
+  (congr!{{Term.Third} Absolute} Term.forget _ _ (Transport.rightInverse (inverse x))) (inverseRight x);
+\definition forwardAdd: \forall (q, r: Reduced) -> forward (reducedGroup.base.op q r) = absoluteGroup.base.op (forward q) (forward r) :=
+  \fun (q, r: Reduced) => trans!{Absolute} _ _ _ (congr!{{Term.Third} Absolute} Term.forget _ _ (Transport.inverseAdditive q r))
+    (Term.forgetAdd (Transport.backward q) (Transport.backward r));
+\definition backwardAdd: \forall (x, y: Absolute) -> backward (absoluteGroup.base.op x y) = reducedGroup.base.op (backward x) (backward y) :=
+  \fun (x, y: Absolute) => trans!{Reduced} _ _ _ (congr!{{Term.Third} Reduced} Transport.forward _ _ (inverseAdd x y)) (Transport.additive (inverse x) (inverse y));
+
+\definition forwardZero: forward reducedGroup.base.unit = absoluteGroup.base.unit := trans!{Absolute} _ _ _
+  (congr!{{Term.Third} Absolute} Term.forget _ _ Transport.backwardZero) Term.forgetZero;
+\definition inverseZero: inverse absoluteGroup.base.unit = Term.thirdGroup.base.unit := injective _ _
+  (trans!{Absolute} _ _ _ (inverseRight absoluteGroup.base.unit) (sym!{Absolute} _ _ Term.forgetZero));
+\definition backwardZero: backward absoluteGroup.base.unit = reducedGroup.base.unit := trans!{Reduced} _ _ _
+  (congr!{{Term.Third} Reduced} Transport.forward _ _ inverseZero) Transport.forwardZero;
+\definition isomorphism: \root.Periodicity[].Isomorphism[A := Reduced, B := Absolute, source := reducedGroup, target := absoluteGroup].Data :=
+  \root.Periodicity[].Isomorphism[A := Reduced, B := Absolute, source := reducedGroup, target := absoluteGroup].Data {
+    forward := forward, backward := backward, leftInverse := leftInverse, rightInverse := rightInverse,
+    forwardAdd := forwardAdd, backwardAdd := backwardAdd, forwardZero := forwardZero, backwardZero := backwardZero
+  };

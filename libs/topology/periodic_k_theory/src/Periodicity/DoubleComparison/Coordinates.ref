@@ -1,0 +1,28 @@
+\import algebraic_topology.Interval[] \as Time;
+\import std.Data[].Pair[] \as Pairs;
+\import \root.Periodicity[].Coordinates[model := model] \as Source;
+\import \root.Periodicity[].Coordinates[model := Unit.source] \as Target;
+\import \root.Periodicity[].Coordinates[model := SphereModel.zero] \as SphereCoordinates;
+\import Relative.Equivalence[source := model, target := Unit.source].With[e := Unit.inverse] \as UnitLift;
+\import Source.Mapping[other := Unit.source, mapping := Unit.inverse.forward] \as LiftCoordinates;
+\import \root.Periodicity[].SmashCoordinates[left := SphereModel.zero, right := model] \as SmashCoordinates;
+\import \root.Periodicity[].SquareSphere[].TimeCoordinates[] \as Center;
+\import \root.Periodicity[].SquareSphere[].Forward[] \as SphereMap;
+\definition spherePoint[t, s: Time.Carrier]: sphere.Carrier := SphereMap.map (Center.square (Pairs.pair Time.Carrier Time.Carrier t s));
+\definition equation: \forall (t, s: Time.Carrier)(x: model.Carrier) -> equivalence.forward (Source.double t s x) =
+  Result.projection (Pairs.pair model.Carrier sphere.Carrier x (spherePoint t s)) :=
+  \fun (t, s: Time.Carrier)(x: model.Carrier) => eq_reason_in!{{Result.result.Carrier} _
+    "=" _ "by" { congr!{{Target.twice.Carrier} {Result.result.Carrier}}
+      (\fun (z: Target.twice.Carrier) => SphereSmash.Symmetry[].equivalence.forward (SphereComparison.equivalence.forward ((UnitSmash.leftIteration Bott.two).forward z))) _ _
+        (congr!{{Relative.Map Source.twice Target.twice} {Target.twice.Carrier}} (\fun (f: Relative.Map Source.twice Target.twice) => f (Source.double t s x)) _ _ (UnitLift.forwardAt Bott.two)) }
+    "=" _ "by" { congr!{{Target.twice.Carrier} {Result.result.Carrier}}
+      (\fun (z: Target.twice.Carrier) => SphereSmash.Symmetry[].equivalence.forward (SphereComparison.equivalence.forward ((UnitSmash.leftIteration Bott.two).forward z))) _ _ (LiftCoordinates.doubleEquation t s x) }
+    "=" _ "by" { congr!{{SuspendedSmash.result.Carrier} {Result.result.Carrier}}
+      (\fun (z: SuspendedSmash.result.Carrier) => SphereSmash.Symmetry[].equivalence.forward (SphereComparison.equivalence.forward z)) _ _ (SmashCoordinates.leftTwo t s SphereModel.live x) }
+    "=" _ "by" { congr!{{SphereSmash.result.Carrier} {Result.result.Carrier}} SphereSmash.Symmetry[].equivalence.forward _ _
+      (SphereComparison.onProjection (Pairs.pair SphereModel.source.Carrier model.Carrier (SphereCoordinates.double t s SphereModel.live) x)) }
+    "=" _ "by" { congr!{{sphere.Carrier} {Result.result.Carrier}}
+      (\fun (p: sphere.Carrier) => SphereSmash.Symmetry[].equivalence.forward (SphereSmash.projection (Pairs.pair sphere.Carrier model.Carrier p x))) _ _
+        (SphereModel.Common[].onLive (Pairs.pair Time.Carrier Time.Carrier t s)) }
+    "=" _ "by" { SphereSmash.Symmetry[].onProjection (Pairs.pair sphere.Carrier model.Carrier (spherePoint t s) x) }
+  };

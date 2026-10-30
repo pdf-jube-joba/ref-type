@@ -12,9 +12,11 @@
 | `TwoShift` / `Negative` | \(\widetilde K^{-n}(X)\cong\widetilde K^{-(n+2)}(X)\) |
 | `Integer.At` / `Absolute` / `Pair` | 全整数次数の群と2周期同型、引き戻し |
 | `SixTerm` / `SixTerm.Naturality` | 閉対の6項完全列、6か所の完全性、6つの可換正方形 |
-| `Product` | 整数次数の外積、双加法性、零元、負号、Koszul 指数の偶奇 |
+| `Product` / `Commutativity` | 整数次数の外積、双加法性、因子交換の Koszul 符号 |
 | `SwapSphere` / `OddProduct` | suspension の2座標交換による Bott 元の負号と奇次数の積の符号 |
 | `Point.At` / `Spheres.At` | 一点と被約球面群の整数次数での計算 |
+| `RankSplit` / `OrdinaryOdd` | 通常群と被約群のランク分解、負一次群の比較 |
+| `Spheres.Ordinary` / `Spheres.OrdinaryOdd` | 通常の球面群の整数座標 |
 | `BottSpheres` | 反復 Bott 外積による生成元、整数との同型、奇群の消滅 |
 
 `Reduced.Naturality`、`TwoShift.Naturality`、`Negative.Naturality` は Bott 同型と引き戻しの可換性を公開する。
@@ -23,6 +25,9 @@
 `SquareSphere` と `SuspensionSphere` は、正方形の境界を潰した空間から通常の \(S^2\) への具体的な基点付き同相を構成する。
 `DoubleComparison` は、これを任意のコンパクト基点付き空間に対する \(\Sigma^2X\cong X\wedge S^2\) に移す。
 座標交換の符号は、射影直線の束とその直交補空間を定数複素行列で比較して証明する。
+`SwapSphere.On.Twist.Coordinates.equation` は、この自己写像が二重 suspension の時間座標の交換であることを示す。
+`ExternalSymmetry` と `MixedProduct` を合わせ、`Product.gradedCommutative` は実際の因子交換で引き戻した逆順の外積が \((-1)^{ij}\) 倍であることを示す。
+`reverseProduct` は共通の出力次数 \(i+j\) に正規化した逆順の外積であり、`koszulParity` が符号の偶奇を整数積と同定する。
 
 一点の負一次群の消滅では、有限個の複素数を避ける折れ線から一般線形群の道連結性を証明する。
 その経路で区間の両端の束同型を延長し、区間・境界対の相対群が零であることを示す。
@@ -39,6 +44,9 @@ K^j(*)\cong
 \]
 `Coefficients.Carrier false` は全整数、`Coefficients.Carrier true` は零のみを許す整数の部分群である。
 `Spheres.At.parityFormula` と `isomorphism` がこの表を型付きで与える。
+`RankSplit` は任意の基点付きコンパクト空間で \(K^0(X)\cong\mathbb Z\oplus\widetilde K^0(X)\) を構成する。
+`OrdinaryOdd` は一点を含む対の分裂完全列から \(K^{-1}(X)\cong\widetilde K^{-1}(X)\) を構成する。
+したがって `Spheres.Ordinary` は偶数次元で \(\mathbb Z^2\)、奇数次元で \(\mathbb Z\) を与え、`Spheres.OrdinaryOdd` は偶数次元で零、奇数次元で \(\mathbb Z\) を与える。
 `BottSpheres.comparison` は、反復 smash による偶数次元球面モデルと suspension モデルを同定する。
 `iteratedBott` は各生成元が直前の生成元と Bott 元との外積であることを示し、`normalized` は整数座標が1であることを示す。
 
@@ -52,4 +60,4 @@ K^j(*)\cong
 ```
 
 通常検査はリポジトリルートで `cargo build -p cli --release --locked` と `python3 scripts/check_all.py` を実行する。
-このパッケージの大きい比較図式には、必要に応じて `--memory-mib 8192` を指定する。
+このパッケージの大きい比較図式には、必要に応じて `--memory-mib 10240` を指定する。

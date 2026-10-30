@@ -1,0 +1,44 @@
+\import \root.Periodicity[].SquareSphere[].Plane[] \as Plane;
+\import \root.Periodicity[].SquareSphere[].Forward[] \as Forward;
+\import \root.Periodicity[].SquareSphere[].Stereographic[] \as Stereo;
+\import \root.Periodicity[].SquareSphere[].TimeCoordinates[] \as Center;
+\import real.Analysis[].Distance[] \as Distance;
+\import std.Data[].Pair[] \as Pair;
+\import algebraic_topology.Interval[] \as Time;
+\definition transpose[z: Plane.Carrier]: Plane.Carrier := Pair.pair Real.Real Real.Real (Plane.y z) (Plane.x z);
+\definition gap: \forall (z: Plane.Carrier) -> Plane.gap (transpose z) = Plane.gap z := \fun (z: Plane.Carrier) =>
+  congr!{{Real.Real} {Real.Real}} (Real.sub Real.one) _ _ (Distance.maxComm (Distance.max (Plane.y z) (Real.neg (Plane.y z))) (Distance.max (Plane.x z) (Real.neg (Plane.x z))));
+\definition squared: \forall (z: Plane.Carrier) -> Plane.r2 (transpose z) = Plane.r2 z := \fun (z: Plane.Carrier) =>
+  Laws.addComm (Real.mul (Plane.y z) (Plane.y z)) (Real.mul (Plane.x z) (Plane.x z));
+\definition inverse: \forall (z: Plane.Carrier) -> Plane.inverse (transpose z) = Plane.inverse z := \fun (z: Plane.Carrier) =>
+  congr!{{Real.Real} {Real.Real}} Laws.fieldInv _ _ (congr!{{Real.Real} {Real.Real} {Real.Real}} Real.add _ _ _ _ (squared z)
+    (congr!{{Real.Real} {Real.Real} {Real.Real}} Real.mul _ _ _ _ (gap z) (gap z)));
+\definition height: \forall (z: Plane.Carrier) -> Plane.height (transpose z) = Plane.height z := \fun (z: Plane.Carrier) =>
+  congr!{{Real.Real} {Real.Real} {Real.Real}} Real.mul _ _ _ _
+    (congr!{{Real.Real} {Real.Real} {Real.Real}} Real.sub _ _ _ _ (squared z) (congr!{{Real.Real} {Real.Real} {Real.Real}} Real.mul _ _ _ _ (gap z) (gap z))) (inverse z);
+\definition weight: \forall (z: Plane.Carrier) -> Plane.weight (transpose z) = Plane.weight z := \fun (z: Plane.Carrier) =>
+  congr!{{Real.Real} {Real.Real} {Real.Real}} Real.mul _ _ _ _
+    (congr!{{Real.Real} {Real.Real} {Real.Real}} Real.add _ _ _ _ (gap z) (gap z)) (inverse z);
+\definition equation: \forall (z: Plane.Carrier) -> Forward.map (transpose z) = swap (Forward.map z) :=
+  \fun (z: Plane.Carrier) => Stereo.extent _ _
+    (eq_reason_in!{{Real.Real} _
+      "=" _ "by" { Stereo.headFormula (transpose z) }
+      "=" _ "by" { height z }
+      "=" _ "by" { sym!{{Real.Real}} _ _ (Stereo.headFormula z) }
+      "=" _ "by" { sym!{{Real.Real}} _ _ (\root.Periodicity[].SwapSphere[].head (Forward.map z)) }
+    })
+    (eq_reason_in!{{Real.Real} _
+      "=" _ "by" { Stereo.xFormula (transpose z) }
+      "=" _ "by" { congr!{{Real.Real} {Real.Real}} (\fun (a: Real.Real) => Real.mul a (Plane.y z)) _ _ (weight z) }
+      "=" _ "by" { sym!{{Real.Real}} _ _ (Stereo.yFormula z) }
+      "=" _ "by" { sym!{{Real.Real}} _ _ (\root.Periodicity[].SwapSphere[].x (Forward.map z)) }
+    })
+    (eq_reason_in!{{Real.Real} _
+      "=" _ "by" { Stereo.yFormula (transpose z) }
+      "=" _ "by" { congr!{{Real.Real} {Real.Real}} (\fun (a: Real.Real) => Real.mul a (Plane.x z)) _ _ (weight z) }
+      "=" _ "by" { sym!{{Real.Real}} _ _ (Stereo.xFormula z) }
+      "=" _ "by" { sym!{{Real.Real}} _ _ (\root.Periodicity[].SwapSphere[].y (Forward.map z)) }
+    });
+\definition timeEquation: \forall (t, s: Time.Carrier) ->
+  swap (Forward.map (Center.square (Pair.pair Time.Carrier Time.Carrier t s))) = Forward.map (Center.square (Pair.pair Time.Carrier Time.Carrier s t)) :=
+  \fun (t, s: Time.Carrier) => sym!{{sphere.Carrier}} _ _ (equation (Center.square (Pair.pair Time.Carrier Time.Carrier t s)));

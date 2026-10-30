@@ -1,0 +1,74 @@
+\import KTheory.On[X := model.Carrier, baseSpace := (Relative.details model).topology,
+  compact := (Relative.details model).compact, hausdorff := (Relative.details model).hausdorff] \as Theory;
+\import Theory.K0[] \as K;
+\import Theory.Ranks[] \as Ranks;
+\import Relative.Reduced[model := model] \as Reduced;
+\import std.Data[].FinSet[] \as Fin;
+\import std.Arithmetic[].Int[] \as I;
+\import std.Arithmetic[].IntAlgebra[] \as Integers;
+\import KTheory.FiniteDiscrete[n := Bott.one] \as Finite;
+\import KTheory.Point[] \as Point;
+\import KTheory.On[X := Fin.Fin Bott.one, baseSpace := topology.Topology[Carrier := Fin.Fin Bott.one].Discrete,
+  compact := Finite.compact, hausdorff := Finite.hausdorff] \as PointTheory;
+\definition constant[x: model.Carrier]: Fin.Fin Bott.one := Point.point;
+\definition constantRegular: topology.Continuity[A := model.Carrier, B := Fin.Fin Bott.one].Continuous (Relative.details model).topology
+  (topology.Topology[Carrier := Fin.Fin Bott.one].Discrete) constant := topology.Maps[A := model.Carrier, B := Fin.Fin Bott.one].constantContinuous
+    (Relative.details model).topology (topology.Topology[Carrier := Fin.Fin Bott.one].Discrete) Point.point;
+\import PointTheory.Pullback[Y := model.Carrier, space := (Relative.details model).topology, sourceCompact := (Relative.details model).compact,
+  sourceHausdorff := (Relative.details model).hausdorff, f := constant, regular := constantRegular] \as Extend;
+\definition Carrier: \Set := K.Carrier;
+\definition rank[a: Carrier]: I.Int^ := Ranks.rank a (Relative.details model).point;
+\definition section[z: I.Int^]: Carrier := Extend.K0[].map (Point.backward z);
+\definition rankSection: \forall (z: I.Int^) -> rank (section z) = z := \fun (z: I.Int^) => trans!{{I.Int^}} _ _ _
+  (Extend.Ranks[].naturality (Point.backward z) (Relative.details model).point) (Point.rightInverse z);
+\definition rankAdd: \forall (a, b: Carrier) -> rank (K.add a b) = I.Add.specification (rank a) (rank b) :=
+  \fun (a, b: Carrier) => congr!{{model.Carrier -> I.Int^} {I.Int^}} (\fun (f: model.Carrier -> I.Int^) => f (Relative.details model).point) _ _ (Ranks.rankAdd a b);
+\definition rankNeg: \forall (a: Carrier) -> rank (K.neg a) = I.Neg.specification (rank a) :=
+  \fun (a: Carrier) => congr!{{model.Carrier -> I.Int^} {I.Int^}} (\fun (f: model.Carrier -> I.Int^) => f (Relative.details model).point) _ _ (Ranks.rankNeg a);
+\definition sectionAdd: \forall (a, b: I.Int^) -> section (I.Add.specification a b) = K.add (section a) (section b) :=
+  \fun (a, b: I.Int^) => trans!{Carrier} _ _ _ (congr!{{Point.Carrier} Carrier} Extend.K0[].map _ _ (Point.backwardAdd a b))
+    (Extend.K0[].additive (Point.backward a) (Point.backward b));
+\import Relative.GroupCalculus[X := Carrier, group := K.group] \as Source;
+\definition remainder[a: Carrier]: Reduced.Carrier := \into[Carrier](Source.sub a (section (rank a)), Ranks.Reduced[point := (Relative.details model).point].kernel) \by {
+  trans!{{I.Int^}} _ _ _ (rankAdd a (K.neg (section (rank a))))
+    (trans!{{I.Int^}} _ _ _ (congr!{{I.Int^} {I.Int^}} (I.Add.specification (rank a)) _ _
+      (trans!{{I.Int^}} _ _ _ (rankNeg (section (rank a))) (congr!{{I.Int^} {I.Int^}} I.Neg.specification _ _ (rankSection (rank a)))))
+      (Integers.additiveGroupLaws.rightInverse (rank a)))
+};
+\import algebra.Groups[].On[G := I.Int^, group := std.Alg[].Alg[].asGroup I.Int^ Integers.additiveCommutativeGroup].Product[
+  H := Reduced.Carrier, other := std.Alg[].Alg[].asGroup Reduced.Carrier Reduced.group] \as Product;
+\definition Coordinates: \Set := Product.Pair;
+\definition pair[z: I.Int^][q: Reduced.Carrier]: Coordinates := Product.Pair { first := z, second := q };
+\definition ext: \forall (p, q: Coordinates) -> p.first = q.first -> p.second = q.second -> p = q := Product.ext;
+\definition forward[a: Carrier]: Coordinates := Product.Pair { first := rank a, second := remainder a };
+\definition backward[p: Coordinates]: Carrier := K.add (section p.first) p.second;
+\definition leftInverse: \forall (a: Carrier) -> backward (forward a) = a := \fun (a: Carrier) => Source.restore a (section (rank a));
+\definition rankBackward: \forall (p: Coordinates) -> rank (backward p) = p.first := \fun (p: Coordinates) => eq_reason_in!{{I.Int^} _
+  "=" _ "by" { rankAdd (section p.first) p.second }
+  "=" _ "by" { congr!{{I.Int^} {I.Int^} {I.Int^}} I.Add.specification _ _ _ _ (rankSection p.first)
+    (\bysub(Carrier, Ranks.Reduced[point := (Relative.details model).point].kernel, p.second)) }
+  "=" _ "by" { Integers.additiveGroupLaws.monoid.rightIdentity p.first }
+};
+\import algebra.Group[].Of[Carrier := Carrier, group := K.group] \as Group;
+\definition remainderBackward: \forall (p: Coordinates) -> remainder (backward p) = p.second := \fun (p: Coordinates) => eq_reason_in!{Carrier _
+  "=" _ "by" { congr!{{I.Int^} Carrier} (\fun (z: I.Int^) => Source.sub (backward p) (section z)) _ _ (rankBackward p) }
+  "=" _ "by" { Group.swapLast (section p.first) p.second (K.neg (section p.first)) }
+  "=" _ "by" { congr!{Carrier Carrier} (\fun (a: Carrier) => K.add a p.second) _ _ (Group.inverseRight (section p.first)) }
+  "=" _ "by" { Group.zeroLeft p.second }
+};
+\definition rightInverse: \forall (p: Coordinates) -> forward (backward p) = p := \fun (p: Coordinates) => Product.ext _ _ (rankBackward p) (remainderBackward p);
+\definition remainderAdd: \forall (a, b: Carrier) -> remainder (K.add a b) = Reduced.group.base.op (remainder a) (remainder b) :=
+  \fun (a, b: Carrier) => eq_reason_in!{Carrier _
+    "=" _ "by" { congr!{{I.Int^} Carrier} (\fun (z: I.Int^) => Source.sub (K.add a b) (section z)) _ _ (rankAdd a b) }
+    "=" _ "by" { congr!{Carrier Carrier} (Source.sub (K.add a b)) _ _ (sectionAdd (rank a) (rank b)) }
+    "=" _ "by" { Source.subAdd a b (section (rank a)) (section (rank b)) }
+  };
+\definition additive: \forall (a, b: Carrier) -> forward (K.add a b) = Product.product (forward a) (forward b) :=
+  \fun (a, b: Carrier) => Product.ext _ _ (rankAdd a b) (remainderAdd a b);
+
+\definition coordinateGroup: std.Alg[].Alg[].CommutativeGroup[Coordinates] := std.Alg[].Alg[].CommutativeGroup[Coordinates] {
+  base := Product.group,
+  group := \bysub(std.Alg[].Alg[].GroupData[Coordinates], { data: std.Alg[].Alg[].GroupData[Coordinates] \where std.Alg[].Alg[].GroupLaws[Coordinates, data] }, Product.group),
+  commutative := \fun (p, q: Coordinates) => Product.ext _ _
+    (Integers.additiveCommutativeGroup.commutative p.first q.first) (Reduced.group.commutative p.second q.second)
+};

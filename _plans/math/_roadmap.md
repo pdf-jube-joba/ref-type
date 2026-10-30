@@ -126,10 +126,11 @@ B02 の束演算は B07・C05 でも利用でき、A01 の後は A02 へ進め�
 | K07 clutching の安定線形化 | [clutching_linearization](../../libs/topology/clutching_linearization/README.md) |
 | K02 CW cofibration と Puppe 列 | [puppe_sequences](../../libs/topology/puppe_sequences/README.md) |
 | K03 相対 K 群と負次数の完全列 | [relative_k_theory](../../libs/topology/relative_k_theory/README.md) |
+| K09 Bott 周期性と整数次数 | [periodic_k_theory](../../libs/topology/periodic_k_theory/README.md) |
 
 ## タスク一覧
 
-未完了77件、概算合計402千行。
+未完了76件、概算合計397千行。
 
 ### 線形代数と特性級数
 
@@ -171,12 +172,11 @@ B02 の束演算は B07・C05 でも利用でき、A01 の後は A02 へ進め�
 
 ### 位相的 K 理論
 
-5件、概算27千行。
+4件、概算22千行。
 
 | タスク | 概算（千行） |
 | --- | ---: |
 | [K08 Bott の基本積定理](k08-bott-product.md) | 5 |
-| [K09 Bott 周期性と整数次数](k09-bott-periodicity.md) | 5 |
 | [K10 コンパクト台付き K 理論とシンボルの表示](k10-compact-support-k.md) | 6 |
 | [K11 K 理論の Thom 同型](k11-k-thom.md) | 5 |
 | [K12 Chern 指標と Thom 類の比較](k12-chern-character-thom.md) | 6 |

@@ -1,0 +1,29 @@
+\definition model: Relative.CompactPointed := sphere dimension;
+\import \root.Periodicity[].RankSplit[model := model] \as Split;
+\import \parent.At[dimension := dimension, degree := I.Zero.specification] \as Reduced;
+\import algebra.Groups[].On[G := I.Int^, group := std.Alg[].Alg[].asGroup I.Int^ std.Arithmetic[].IntAlgebra[].additiveCommutativeGroup].Product[
+  H := Reduced.Coefficient, other := std.Alg[].Alg[].asGroup Reduced.Coefficient Reduced.coefficientGroup] \as Product;
+\definition Carrier: \Set := Split.Carrier;
+\definition Coordinates: \Set := Product.Pair;
+\definition encode[p: Split.Coordinates]: Coordinates := Product.Pair { first := p.first, second := Reduced.forward p.second };
+\definition decode[p: Coordinates]: Split.Coordinates := Split.pair p.first (Reduced.backward p.second);
+\definition forward[a: Carrier]: Coordinates := encode (Split.forward a);
+\definition backward[p: Coordinates]: Carrier := Split.backward (decode p);
+\definition decodeEncode: \forall (p: Split.Coordinates) -> decode (encode p) = p := \fun (p: Split.Coordinates) =>
+  Split.ext (decode (encode p)) p (\refl(p.first)) (Reduced.leftInverse p.second);
+\definition encodeDecode: \forall (p: Coordinates) -> encode (decode p) = p := \fun (p: Coordinates) =>
+  Product.ext (encode (decode p)) p (\refl(p.first)) (Reduced.rightInverse p.second);
+\definition leftInverse: \forall (a: Carrier) -> backward (forward a) = a := \fun (a: Carrier) => trans!{Carrier} _ _ _
+  (congr!{{Split.Coordinates} Carrier} Split.backward _ _ (decodeEncode (Split.forward a))) (Split.leftInverse a);
+\definition rightInverse: \forall (p: Coordinates) -> forward (backward p) = p := \fun (p: Coordinates) => trans!{Coordinates} _ _ _
+  (congr!{{Split.Coordinates} Coordinates} encode _ _ (Split.rightInverse (decode p))) (encodeDecode p);
+\definition parity: Reduced.parity = P.natural dimension := \refl(P.natural dimension);
+
+\definition group: std.Alg[].Alg[].CommutativeGroup[Carrier] := KTheory.On[X := model.Carrier, baseSpace := (Relative.details model).topology,
+  compact := (Relative.details model).compact, hausdorff := (Relative.details model).hausdorff].K0[].group;
+\definition encodeAdd: \forall (p, q: Split.Coordinates) -> encode (Split.coordinateGroup.base.op p q) = Product.product (encode p) (encode q) :=
+  \fun (p, q: Split.Coordinates) => Product.ext (encode (Split.coordinateGroup.base.op p q)) (Product.product (encode p) (encode q))
+    (\refl(I.Add.specification p.first q.first)) (Reduced.forwardAdd p.second q.second);
+\definition additive: \forall (a, b: Carrier) -> forward (group.base.op a b) = Product.product (forward a) (forward b) :=
+  \fun (a, b: Carrier) => trans!{Coordinates} _ _ _
+    (congr!{{Split.Coordinates} Coordinates} encode _ _ (Split.additive a b)) (encodeAdd (Split.forward a) (Split.forward b));
