@@ -1,0 +1,31 @@
+\import topology.Topology[Carrier := A] \as Source;
+\import topology.Topology[Carrier := B] \as Target;
+\import topology.Homeomorphism[A := A, B := B] \as Homeomorphism;
+\definition laws: Homeomorphism.Laws[source, target, h] := Homeomorphism.laws source target h;
+\import topology.Maps[A := A, B := B] \as Forward;
+\import topology.Maps[A := B, B := A] \as Backward;
+\definition preimageImage[K: \Pow B]: Forward.Preimage h.forward K = Backward.Image h.backward K :=
+  \axiom:setext(Forward.Preimage h.forward K, Backward.Image h.backward K,
+    \fun (x: A)(member: Target.Member K (h.forward x)) => Logic.existsIntro[B, { y: B \where Logic.And[Target.Member K y, h.backward y = x] }] (h.forward x)
+      (Logic.And[_, _]::# member (laws.leftInverse x)),
+    \fun (x: A)(member: _) => Backward.imageElim h.backward K x (Target.Member K (h.forward x))
+      (\fun (y: B)(inside: _)(same: h.backward y = x) => \idelim y = h.forward x \with z: B => Target.Member K z \by {
+        base: inside, equality: trans!{B} _ _ _ (sym!{B} _ _ (laws.rightInverse y)) (congr!{A B} h.forward _ _ same)
+      }) member);
+\definition proper: \root.Support[].Proper[A := A, B := B, source := source, target := target].IsProper h.forward :=
+  \fun (K: _)(compact: _) => \idelim Backward.Image h.backward K = Forward.Preimage h.forward K
+    \with L: \Pow A => Source.IsCompactIn source L \by {
+      base: topology.Compactness[A := B, B := A].continuousImage target source h.backward laws.backwardContinuous K compact,
+      equality: sym!{\Pow A} _ _ (preimageImage K)
+    };
+\definition locallyCompact: topology.LocallyCompact[A := B].IsLocallyCompact target -> topology.LocallyCompact[A := A].IsLocallyCompact source := \block {
+  \fun (local: _)(x: A) \then
+  \takefrom n: topology.LocallyCompact[A := B].CompactNeighborhood[target, h.forward x] \by local (h.forward x) \then
+  \return \exact(topology.LocallyCompact[A := A].CompactNeighborhood[source, x] {
+    openSet := Forward.Preimage h.forward n.openSet, compactSet := Forward.Preimage h.forward n.compactSet,
+    open := laws.forwardContinuous n.openSet n.open, contains := n.contains,
+    enclosed := \fun (y: A)(inside: _) => n.enclosed (h.forward y) inside,
+    compact := proper n.compactSet n.compact
+  }, topology.LocallyCompact[A := A].CompactNeighborhood[source, x])
+};
+\module Extension;

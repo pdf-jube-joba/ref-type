@@ -1,0 +1,38 @@
+\definition subset: \Pow Carrier := Space.Complement (Space.Singleton point);
+\import Space.Subspace[S := subset] \as Part;
+\definition Point: \Set := Part.CarrierSet;
+\definition subspace: topology.Topology[Carrier := Point].Topology := Part.topology topology;
+\definition forward[x: X]: Point := \into[Carrier](inclusion x, subset) \by { different x };
+\definition representatives: \forall (p: Carrier) -> Logic.Not (p = point) -> \exists (x: X \where inclusion x = p) :=
+  \induction (p: Carrier) \return Logic.Not (p = point) -> \exists (x: X \where inclusion x = p) \with {
+    | none: \fun (no: _) => Logic.falseElim _ (no (\refl(point)))
+    | some: \fun (x: X)(_: _) => Logic.existsIntro[X, { y: X \where inclusion y = inclusion x }] x (\refl(inclusion x))
+  };
+\definition Values[p: Point]: \Set := \Cast[X] ({ x: X \where inclusion x = p });
+\definition unique: \forall (p: Point)(x, y: Values p) -> x = y :=
+  \fun (p: Point)(x, y: Values p) => injective x y (trans!{Carrier} _ _ _ (\bysub(X, Values p, x)) (sym!{Carrier} _ _ (\bysub(X, Values p, y))));
+\definition backward[p: Point]: Values p := \choice Values p \by {
+  existence: representatives p (\bysub(Carrier, subset, p)), uniqueness: unique p
+};
+\definition rightInverse: \forall (p: Point) -> forward (backward p) = p := \fun (p: Point) => \bysub(X, Values p, backward p);
+\definition leftInverse: \forall (x: X) -> backward (forward x) = x := \fun (x: X) => injective (backward (forward x)) x (rightInverse (forward x));
+\definition forwardContinuous: topology.Continuity[A := X, B := Point].Continuous space subspace forward :=
+  topology.Continuity[A := X, B := Carrier].Corestriction[S := subset].corestrictContinuous space topology forward inclusionContinuous;
+\import topology.Topology[Carrier := Point] \as Sub;
+\import topology.Maps[A := Point, B := X] \as InverseMaps;
+\definition preimage[U: \Pow X]: InverseMaps.Preimage backward U = Part.Trace (lift U) :=
+  \axiom:setext(InverseMaps.Preimage backward U, Part.Trace (lift U),
+    \fun (p: Point)(inside: Base.Member U (backward p)) => \idelim inclusion (backward p) = p \with q: Carrier => Space.Member (lift U) q
+      \by { base: inside, equality: rightInverse p },
+    \fun (p: Point)(inside: Space.Member (lift U) p) => \idelim p = inclusion (backward p) \with q: Carrier => Space.Member (lift U) q
+      \by { base: inside, equality: sym!{Carrier} _ _ (rightInverse p) });
+\definition backwardContinuous: topology.Continuity[A := Point, B := X].Continuous subspace space backward :=
+  \fun (U: _)(uo: _) => \idelim Part.Trace (lift U) = InverseMaps.Preimage backward U
+    \with V: \Pow Point => Sub.IsOpenIn subspace V \by {
+      base: Part.traceOpen topology (lift U) (liftOpen U uo), equality: sym!{\Pow Point} _ _ (preimage U)
+    };
+\definition homeomorphism: topology.Homeomorphism[A := X, B := Point].Homeomorphism[space, subspace] :=
+  topology.Homeomorphism[A := X, B := Point].Homeomorphism[space, subspace] {
+    forward := forward, backward := backward, leftInverse := leftInverse, rightInverse := rightInverse,
+    forwardContinuous := forwardContinuous, backwardContinuous := backwardContinuous
+  };

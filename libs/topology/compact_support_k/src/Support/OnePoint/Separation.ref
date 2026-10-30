@@ -1,0 +1,73 @@
+\import topology.LocallyCompact[A := X] \as Local;
+\structure Neighborhoods[p, q: Carrier]: \Set := {
+  first: \Pow Carrier, second: \Pow Carrier,
+  firstOpen: Space.IsOpenIn topology first, secondOpen: Space.IsOpenIn topology second,
+  firstContains: Space.Member first p, secondContains: Space.Member second q,
+  disjoint: Space.Disjoint first second
+};
+\definition reverse: \forall (p, q: Carrier) -> Neighborhoods[p, q] -> Neighborhoods[q, p] :=
+  \fun (p, q: _)(n: _) => Neighborhoods[q, p] {
+    first := n.second, second := n.first, firstOpen := n.secondOpen, secondOpen := n.firstOpen,
+    firstContains := n.secondContains, secondContains := n.firstContains,
+    disjoint := \fun (r: _)(a: _)(b: _) => n.disjoint r b a
+  };
+\definition atInfinity: \forall (x: X) -> \exists Neighborhoods[inclusion x, point] := \block {
+  \fun (x: X) \then
+  \takefrom n: Local.CompactNeighborhood[space, x] \by locallyCompact x \then
+  \return \exact(Neighborhoods[inclusion x, point] {
+    first := lift n.openSet, second := neighborhood n.compactSet,
+    firstOpen := liftOpen n.openSet n.open,
+    secondOpen := neighborhoodOpen n.compactSet (Compact.compactClosed space hausdorff n.compactSet n.compact) n.compact,
+    firstContains := n.contains, secondContains := \refl(point),
+    disjoint := \induction (p: Carrier) \return Space.Member (lift n.openSet) p -> Space.Member (neighborhood n.compactSet) p -> Logic.False \with {
+      | none: \fun (impossible: Logic.False)(_: _) => impossible
+      | some: \fun (y: X)(inside: _)(outside: _) => outside (n.enclosed y inside)
+    }
+  }, Neighborhoods[inclusion x, point])
+};
+\definition finite: \forall (x, y: X) -> Logic.Not (inclusion x = inclusion y) -> \exists Neighborhoods[inclusion x, inclusion y] := \block {
+  \fun (x, y: X)(different: _) \then
+  \takefrom U: \Cast[\Pow X] ({ U: \Pow X \where Base.RegularChoice[space, Base.Singleton y, x, U] })
+    \by hausdorff x y (\fun (same: _) => different (congr!{X Carrier} inclusion x y same)) \then
+  \let u: Base.RegularChoice[space, Base.Singleton y, x, U] := \bysub(\Pow X,
+    { U: \Pow X \where Base.RegularChoice[space, Base.Singleton y, x, U] }, U) \then
+  \takefrom V: \Cast[\Pow X] ({ V: \Pow X \where Base.NormalPartner[space, Base.Singleton y, U, V] }) \by u.partner \then
+  \let v: Base.NormalPartner[space, Base.Singleton y, U, V] := \bysub(\Pow X,
+    { V: \Pow X \where Base.NormalPartner[space, Base.Singleton y, U, V] }, V) \then
+  \return \exact(Neighborhoods[inclusion x, inclusion y] {
+    first := lift U, second := lift V, firstOpen := liftOpen U u.open, secondOpen := liftOpen V v.open,
+    firstContains := u.contains, secondContains := v.covers y (\refl(y)),
+    disjoint := \induction (p: Carrier) \return Space.Member (lift U) p -> Space.Member (lift V) p -> Logic.False \with {
+      | none: \fun (impossible: Logic.False)(_: _) => impossible
+      | some: \fun (z: X)(a: _)(b: _) => v.disjoint z a b
+    }
+  }, Neighborhoods[inclusion x, inclusion y])
+};
+\definition separated: \forall (p, q: Carrier) -> Logic.Not (p = q) -> \exists Neighborhoods[p, q] :=
+  \induction (p: Carrier) \return \forall (q: Carrier) -> Logic.Not (p = q) -> \exists Neighborhoods[p, q] \with {
+    | none: \induction (q: Carrier) \return Logic.Not (point = q) -> \exists Neighborhoods[point, q] \with {
+      | none: \fun (different: _) => Logic.falseElim (\exists Neighborhoods[point, point]) (different (\refl(point)))
+      | some: \fun (y: X)(_: _) => \block {
+        \takefrom n: Neighborhoods[inclusion y, point] \by atInfinity y \then
+        \return \exact(reverse (inclusion y) point n, Neighborhoods[point, inclusion y])
+      }
+    }
+    | some: \fun (x: X) => \induction (q: Carrier) \return Logic.Not (inclusion x = q) -> \exists Neighborhoods[inclusion x, q] \with {
+      | none: \fun (_: _) => atInfinity x
+      | some: \fun (y: X) => finite x y
+    }
+  };
+\definition hausdorffCompactification: Space.IsT2 topology := \block {
+  \fun (p, q: Carrier)(different: _) \then
+  \takefrom n: Neighborhoods[p, q] \by separated p q different \then
+  \return Logic.existsIntro[\Pow Carrier, { U: \Pow Carrier \where Space.RegularChoice[topology, Space.Singleton q, p, U] }] n.first
+    (Space.RegularChoice[topology, Space.Singleton q, p, n.first] {
+      open := n.firstOpen, contains := n.firstContains,
+      partner := Logic.existsIntro[\Pow Carrier, { V: \Pow Carrier \where Space.NormalPartner[topology, Space.Singleton q, n.first, V] }] n.second
+        (Space.NormalPartner[topology, Space.Singleton q, n.first, n.second] {
+          open := n.secondOpen, disjoint := n.disjoint,
+          covers := \fun (r: Carrier)(same: r = q) => \idelim q = r \with s: Carrier => Space.Member n.second s
+            \by { base: n.secondContains, equality: sym!{Carrier} _ _ same }
+        })
+    })
+};

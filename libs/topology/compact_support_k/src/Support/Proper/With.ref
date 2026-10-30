@@ -1,0 +1,24 @@
+\import \root.Support[].OnePoint[X := A, space := source] \as Domain;
+\import \root.Support[].OnePoint[X := B, space := target] \as Range;
+\definition extension: Domain.Carrier -> Range.Carrier :=
+  \induction (p: Domain.Carrier) \return Range.Carrier \with {
+    | none: Range.point | some: \fun (x: A) => Range.inclusion (f x)
+  };
+\import topology.Maps[A := Domain.Carrier, B := Range.Carrier] \as ExtendedMaps;
+\definition traceEquation[U: \Pow Range.Carrier]: Domain.trace (ExtendedMaps.Preimage extension U) = Maps.Preimage f (Range.trace U) :=
+  \axiom:setext(Domain.trace (ExtendedMaps.Preimage extension U), Maps.Preimage f (Range.trace U),
+    \fun (x: A)(h: _) => h, \fun (x: A)(h: _) => h);
+\definition remainderEquation[U: \Pow Range.Carrier]: Domain.remainder (ExtendedMaps.Preimage extension U) = Maps.Preimage f (Range.remainder U) :=
+  \axiom:setext(Domain.remainder (ExtendedMaps.Preimage extension U), Maps.Preimage f (Range.remainder U),
+    \fun (x: A)(h: _) => h, \fun (x: A)(h: _) => h);
+\definition extensionContinuous: topology.Continuity[A := Domain.Carrier, B := Range.Carrier].Continuous Domain.topology Range.topology extension :=
+  \fun (U: _)(open: Range.Open[U]) => Domain.Open[ExtendedMaps.Preimage extension U] {
+    traceOpen := topology.Maps[A := A, B := Domain.Carrier].openTransport source (Maps.Preimage f (Range.trace U)) (Domain.trace (ExtendedMaps.Preimage extension U))
+      (sym!{\Pow A} _ _ (traceEquation U)) (continuous (Range.trace U) open.traceOpen),
+    atInfinity := \fun (atInfinity: _) => \idelim Maps.Preimage f (Range.remainder U) = Domain.remainder (ExtendedMaps.Preimage extension U)
+      \with K: \Pow A => Source.IsCompactIn source K \by {
+        base: proper (Range.remainder U) (open.atInfinity atInfinity), equality: sym!{\Pow A} _ _ (remainderEquation U)
+      }
+  };
+\definition atInfinity: extension Domain.point = Range.point := \refl(Range.point);
+\definition onFinite: \forall (x: A) -> extension (Domain.inclusion x) = Range.inclusion (f x) := \fun (x: A) => \refl(Range.inclusion (f x));

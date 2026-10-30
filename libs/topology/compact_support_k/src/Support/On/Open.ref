@@ -1,0 +1,55 @@
+\import \root.Support[].OpenPart[M := Compactification.Carrier, space := Compactification.topology,
+  compact := Compactness.compact, hausdorff := Separation.hausdorffCompactification,
+  U := Compactification.lift U, open := Compactification.liftOpen U open] \as Part;
+\definition Carrier: \Set := Part.Carrier;
+\definition topology: topology.Topology[Carrier := Carrier].Topology := Part.topology;
+\definition representedHausdorff: topology.Topology[Carrier := Carrier].IsT2 topology := Part.separated;
+\definition representedLocallyCompact: topology.LocallyCompact[A := Carrier].IsLocallyCompact topology := Part.locallyCompact;
+\import \root.Support[].On[X := Carrier, space := topology, hausdorff := representedHausdorff, locallyCompact := representedLocallyCompact] \as Theory;
+\definition openModel: Relative.CompactPointed := Theory.model;
+\import \root.Support[].OnePoint[X := Carrier, space := topology] \as Plus;
+\import Part.Collapse[] \as Collapse;
+\definition collapse: Relative.Map model openModel := \into[Compactification.Carrier -> Plus.Carrier](Collapse.map, Relative.Map model openModel) \by {
+  algebraic_topology.Pointed[A := Compactification.Carrier].Maps[B := Plus.Carrier].Laws[Relative.pointed model, Relative.pointed openModel, Collapse.map] {
+    continuous := Collapse.continuous, pointed := Collapse.offPart Compactification.point (\fun (h: Logic.False) => h)
+  }
+};
+\module RepresentedAt(degree: std.Arithmetic[].Int[].Int^) {
+  \import Periodic.Integer[].At[model := openModel, degree := degree] \as Source;
+  \import Periodic.Integer[].At[model := model, degree := degree] \as Target;
+  \import Target.Pullback[other := openModel, mapping := collapse] \as Pull;
+  \definition Carrier: \Set := Source.Carrier;
+  \definition group: std.Alg[].Alg[].CommutativeGroup[Carrier] := Source.group;
+  \definition extendByZero: Carrier -> Target.Carrier := Pull.map;
+  \definition additive: \forall (a, b: Carrier) -> extendByZero (group.base.op a b) = Target.group.base.op (extendByZero a) (extendByZero b) := Pull.additive;
+  \definition preservesZero: extendByZero group.base.unit = Target.group.base.unit := Pull.preservesZero;
+}
+\module Coordinates;
+\import Coordinates[] \as Coord;
+\definition originalHausdorff: topology.Topology[Carrier := Coord.OriginalPoint].IsT2 Coord.originalTopology :=
+  topology.Topology[Carrier := X].Subspace[S := U].Properties[].hausdorff space hausdorff;
+\import \root.Support[].On[X := Coord.OriginalPoint, space := Coord.originalTopology,
+  hausdorff := originalHausdorff, locallyCompact := Coord.originalLocallyCompact] \as OriginalTheory;
+\import \root.Support[].OnePoint[X := Coord.OriginalPoint, space := Coord.originalTopology] \as OriginalPlus;
+\import \root.Support[].Homeomorphic[A := Coord.OriginalPoint, B := Carrier, source := Coord.originalTopology,
+  target := topology, h := Coord.homeomorphism].Extension[] \as Transport;
+\definition originalCollapse[p: Compactification.Carrier]: OriginalPlus.Carrier := Transport.homeomorphism.backward (Collapse.map p);
+\definition originalMapping: Relative.Map model OriginalTheory.model := \into[Compactification.Carrier -> OriginalPlus.Carrier](originalCollapse, Relative.Map model OriginalTheory.model) \by {
+  algebraic_topology.Pointed[A := Compactification.Carrier].Maps[B := OriginalPlus.Carrier].Laws[Relative.pointed model, Relative.pointed OriginalTheory.model, originalCollapse] {
+    continuous := topology.Composition[A := Compactification.Carrier, B := Plus.Carrier, C := OriginalPlus.Carrier].composeContinuous
+      Compactification.topology Plus.topology OriginalPlus.topology Collapse.map Transport.homeomorphism.backward Collapse.continuous
+      (topology.Homeomorphism[A := OriginalPlus.Carrier, B := Plus.Carrier].laws OriginalPlus.topology Plus.topology Transport.homeomorphism).backwardContinuous,
+    pointed := congr!{{Plus.Carrier} {OriginalPlus.Carrier}} Transport.homeomorphism.backward _ _
+      (Collapse.offPart Compactification.point (\fun (h: Logic.False) => h))
+  }
+};
+\module At(degree: std.Arithmetic[].Int[].Int^) {
+  \import Periodic.Integer[].At[model := OriginalTheory.model, degree := degree] \as Source;
+  \import Periodic.Integer[].At[model := model, degree := degree] \as Target;
+  \import Target.Pullback[other := OriginalTheory.model, mapping := originalMapping] \as Pull;
+  \definition Carrier: \Set := Source.Carrier;
+  \definition group: std.Alg[].Alg[].CommutativeGroup[Carrier] := Source.group;
+  \definition extendByZero: Carrier -> Target.Carrier := Pull.map;
+  \definition additive: \forall (a, b: Carrier) -> extendByZero (group.base.op a b) = Target.group.base.op (extendByZero a) (extendByZero b) := Pull.additive;
+  \definition preservesZero: extendByZero group.base.unit = Target.group.base.unit := Pull.preservesZero;
+}

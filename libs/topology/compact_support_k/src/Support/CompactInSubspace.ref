@@ -1,0 +1,22 @@
+\import topology.Topology[Carrier := M] \as Ambient;
+\import Ambient.Subspace[S := S] \as Target;
+\import Ambient.Subspace[S := K] \as Domain;
+\definition inclusion[x: Domain.CarrierSet]: Target.CarrierSet := \into[M](x, S) \by { included x (\bysub(M, K, x)) };
+\definition continuous: topology.Continuity[A := Domain.CarrierSet, B := Target.CarrierSet].Continuous (Domain.topology space) (Target.topology space) inclusion :=
+  topology.Continuity[A := Domain.CarrierSet, B := M].Corestriction[S := S].corestrictContinuous (Domain.topology space) space inclusion
+    (topology.Continuity[A := Domain.CarrierSet, B := M].Corestriction[S := K].inclusionContinuous space);
+\import topology.Topology[Carrier := Target.CarrierSet] \as Sub;
+\import topology.Maps[A := Domain.CarrierSet, B := Target.CarrierSet] \as Maps;
+\definition imageEquation: Maps.Image inclusion (topology.Topology[Carrier := Domain.CarrierSet].Whole) = Target.Trace K :=
+  \axiom:setext(Maps.Image inclusion (topology.Topology[Carrier := Domain.CarrierSet].Whole), Target.Trace K,
+    \fun (y: Target.CarrierSet)(member: _) => Maps.imageElim inclusion (topology.Topology[Carrier := Domain.CarrierSet].Whole) y (Sub.Member (Target.Trace K) y)
+      (\fun (x: Domain.CarrierSet)(_: _)(same: inclusion x = y) => \idelim inclusion x = y
+        \with z: Target.CarrierSet => Sub.Member (Target.Trace K) z \by { base: \bysub(M, K, x), equality: same }) member,
+    \fun (y: Target.CarrierSet)(member: Sub.Member (Target.Trace K) y) =>
+      Maps.imageMember inclusion (topology.Topology[Carrier := Domain.CarrierSet].Whole) (\into[M](y, K) \by { member }) (\refl(y)));
+\definition compactTrace: Sub.IsCompactIn (Target.topology space) (Target.Trace K) :=
+  \idelim Maps.Image inclusion (topology.Topology[Carrier := Domain.CarrierSet].Whole) = Target.Trace K
+    \with W: \Pow Target.CarrierSet => Sub.IsCompactIn (Target.topology space) W \by {
+      base: topology.Compactness[A := Domain.CarrierSet, B := Target.CarrierSet].continuousImage (Domain.topology space) (Target.topology space)
+        inclusion continuous (topology.Topology[Carrier := Domain.CarrierSet].Whole) (Domain.Properties[].compact space compact), equality: imageEquation
+    };

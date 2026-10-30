@@ -1,0 +1,21 @@
+\import Pair.Excision[U := U, open := open, included := included] \as Native;
+\import \root.Support[].ClosedPair[M := Native.Y, space := Native.source, compact := Native.compactSource, hausdorff := Native.hausdorffSource,
+  subset := Native.sourceSubset, closed := Native.closedSource] \as Excised;
+\import Relative.Pair[X := Native.Y, space := Native.source, compact := Native.compactSource, hausdorff := Native.hausdorffSource,
+  subset := Native.sourceSubset, closed := Native.closedSource].Quotient[] \as ExcisedQuotient;
+\definition first: Relative.Equivalence[source := Excised.model, target := ExcisedQuotient.model].Data :=
+  Relative.Equivalence[source := ExcisedQuotient.model, target := Excised.model].inverse Excised.equivalence;
+\definition middle: Relative.Equivalence[source := Excised.model, target := Quotient.model].Data :=
+  Relative.Equivalence[source := Excised.model, target := Quotient.model].Compose[middle := ExcisedQuotient.model, first := first, second := Native.equivalence].result;
+\definition excision: Relative.Equivalence[source := Excised.model, target := model].Data :=
+  Relative.Equivalence[source := Excised.model, target := model].Compose[middle := Quotient.model, first := middle, second := equivalence].result;
+\module At(degree: std.Arithmetic[].Int[].Int^) {
+  \import periodic_k_theory.Periodicity[].Parity[] \as Parity;
+  \import Relative.Equivalence[source := Excised.model, target := model].With[e := excision].Negative[degree := Parity.index (Parity.value degree)] \as Transport;
+  \import periodic_k_theory.Periodicity[].Integer[].At[model := model, degree := degree] \as Range;
+  \import periodic_k_theory.Periodicity[].Integer[].At[model := Excised.model, degree := degree] \as Domain;
+  \definition restrict: Range.Carrier -> Domain.Carrier := Transport.forward;
+  \definition extend: Domain.Carrier -> Range.Carrier := Transport.backward;
+  \definition leftInverse: \forall (q: Range.Carrier) -> extend (restrict q) = q := Transport.rightInverse;
+  \definition rightInverse: \forall (q: Domain.Carrier) -> restrict (extend q) = q := Transport.leftInverse;
+}

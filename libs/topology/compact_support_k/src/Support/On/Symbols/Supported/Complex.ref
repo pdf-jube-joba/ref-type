@@ -1,0 +1,26 @@
+\import complex.Complex[] \as C;
+\import linear_algebra.Hermitian[].Complex[] \as Hermitian;
+\import vector_bundles.Bundles[].Complex[] \as Scalar;
+\import bundle_complements.Complements[].Over[K := C.Complex, field := C.Algebra[].field, conjugation := Hermitian.scalar, scalar := Scalar.scalar] \as Complements;
+\import bundle_extension.Extension[].ComplexMaps[X := Compactification.Carrier, subset := Point.subset,
+  F := Bundles.Fiber t.positive, G := Bundles.Fiber t.negative, source := Bundles.bundle t.positive, target := Bundles.bundle t.negative,
+  baseSpace := Compactification.topology, sourceSame := (\refl(Compactification.topology)), same := (\refl(Compactification.topology))] \as Forward;
+\import bundle_extension.Extension[].ComplexMaps[X := Compactification.Carrier, subset := Point.subset,
+  F := Bundles.Fiber t.negative, G := Bundles.Fiber t.positive, source := Bundles.bundle t.negative, target := Bundles.bundle t.positive,
+  baseSpace := Compactification.topology, sourceSame := (\refl(Compactification.topology)), same := (sym!{{topology.Topology[Carrier := Compactification.Carrier].Topology}}
+    (Bundles.bundle t.positive).baseSpace (Bundles.bundle t.negative).baseSpace (\refl(Compactification.topology)))] \as Backward;
+\import Complements.For[X := Compactification.Carrier, F := Bundles.Fiber t.positive, bundle := Bundles.bundle t.positive] \as Positive;
+\import Complements.For[X := Compactification.Carrier, F := Bundles.Fiber t.negative, bundle := Bundles.bundle t.negative] \as Negative;
+\structure Witness: \Set := {
+  forward: Forward.Result[t.comparison.forward],
+  backward: Backward.Result[t.comparison.backward],
+  positive: Positive.Embedding, negative: Negative.Embedding
+};
+\definition existence: \exists Witness := \block {
+  \takefrom h: Forward.Result[t.comparison.forward] \by Forward.extend t.comparison.forward Compactness.compact Separation.hausdorffCompactification Point.closed \then
+  \takefrom g: Backward.Result[t.comparison.backward] \by Backward.extend t.comparison.backward Compactness.compact Separation.hausdorffCompactification Point.closed \then
+  \takefrom p: Positive.Embedding \by Positive.embeddingExists Compactness.compact Separation.hausdorffCompactification \then
+  \takefrom q: Negative.Embedding \by Negative.embeddingExists Compactness.compact Separation.hausdorffCompactification \then
+  \return \exact(Witness { forward := h, backward := g, positive := p, negative := q }, Witness)
+};
+\module With(w: Witness);

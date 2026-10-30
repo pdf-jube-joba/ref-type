@@ -1,0 +1,26 @@
+\import \root.Support[].On[X := Y, space := otherSpace, hausdorff := otherHausdorff, locallyCompact := otherLocallyCompact] \as Other;
+\import Relative.Smash[left := model, right := Other.model] \as Smash;
+\import \root.Support[].ClosedPair[M := Smash.model.Carrier, space := Smash.topology, compact := Smash.compact,
+  hausdorff := Smash.hausdorff, subset := Smash.wedge, closed := Smash.wedgeClosed] \as Complement;
+\definition Carrier: \Set := Complement.Interior;
+\definition topology: topology.Topology[Carrier := Carrier].Topology := Complement.interiorTopology;
+\definition compactification: Relative.CompactPointed := Complement.model;
+\module At(first, second: std.Arithmetic[].Int[].Int^) {
+  \import Periodic.Product[left := model, right := Other.model, first := first, second := second] \as Product;
+  \import Complement.At[degree := Product.degree] \as Transport;
+  \import Periodic.Integer[].At[model := compactification, degree := Product.degree] \as Result;
+  \definition First: \Set := Product.First;
+  \definition Second: \Set := Product.Second;
+  \definition Carrier: \Set := Result.Carrier;
+  \definition group: std.Alg[].Alg[].CommutativeGroup[Carrier] := Result.group;
+  \definition external[a: First][b: Second]: Carrier := Transport.toCompactSupport (Product.product a b);
+  \definition additiveLeft: \forall (a, c: First)(b: Second) -> external (Product.firstGroup.base.op a c) b = group.base.op (external a b) (external c b) :=
+    \fun (a, c: First)(b: Second) => trans!{Carrier} _ _ _
+      (congr!{{Product.Result} Carrier} Transport.toCompactSupport _ _ (Product.additiveLeft a c b))
+      (Transport.additive (Product.product a b) (Product.product c b));
+  \definition additiveRight: \forall (a: First)(b, c: Second) -> external a (Product.secondGroup.base.op b c) = group.base.op (external a b) (external a c) :=
+    \fun (a: First)(b, c: Second) => trans!{Carrier} _ _ _
+      (congr!{{Product.Result} Carrier} Transport.toCompactSupport _ _ (Product.additiveRight a b c))
+      (Transport.additive (Product.product a b) (Product.product a c));
+}
+\module Coordinates;

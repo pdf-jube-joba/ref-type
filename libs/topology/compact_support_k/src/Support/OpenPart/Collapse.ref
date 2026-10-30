@@ -1,0 +1,82 @@
+\import \root.Support[].OnePoint[X := Carrier, space := topology] \as Plus;
+\import topology.Topology[Carrier := Plus.Carrier] \as PlusSpace;
+\structure Graph[x: M, p: Plus.Carrier]: \Prop := {
+  inside: \forall (h: Ambient.Member U x) -> p = Plus.inclusion (\into[M](x, U) \by { h }),
+  outside: Logic.Not (Ambient.Member U x) -> p = Plus.point
+};
+\definition Values[x: M]: \Set := \Cast[Plus.Carrier] ({ p: Plus.Carrier \where Graph[x, p] });
+\definition existence: \forall (x: M) -> \exists Values x := \fun (x: M) =>
+  either!{{(Classical.excludedMiddle (Ambient.Member U x))} {\exists Values x}
+    {\fun (h: _) => Logic.existsIntro[Plus.Carrier, { p: Plus.Carrier \where Graph[x, p] }]
+      (Plus.inclusion (\into[M](x, U) \by { h })) (Graph[x, Plus.inclusion (\into[M](x, U) \by { h })] {
+        inside := \fun (_: _) => \refl(Plus.inclusion (\into[M](x, U) \by { h })),
+        outside := \fun (no: _) => Logic.falseElim _ (no h)
+      })}
+    {\fun (no: _) => Logic.existsIntro[Plus.Carrier, { p: Plus.Carrier \where Graph[x, p] }] Plus.point
+      (Graph[x, Plus.point] { inside := \fun (h: _) => Logic.falseElim _ (no h), outside := \fun (_: _) => \refl(Plus.point) })}
+  };
+\definition unique: \forall (x: M)(p, q: Values x) -> p = q := \fun (x: M)(p, q: Values x) =>
+  either!{{(Classical.excludedMiddle (Ambient.Member U x))} {p = q}
+    {\fun (h: _) => trans!{{Plus.Carrier}} _ _ _ ((\bysub(Plus.Carrier, Values x, p)).inside h)
+      (sym!{{Plus.Carrier}} _ _ ((\bysub(Plus.Carrier, Values x, q)).inside h))}
+    {\fun (no: _) => trans!{{Plus.Carrier}} _ _ _ ((\bysub(Plus.Carrier, Values x, p)).outside no)
+      (sym!{{Plus.Carrier}} _ _ ((\bysub(Plus.Carrier, Values x, q)).outside no))}
+  };
+\definition chosen[x: M]: Values x := \choice Values x \by { existence: existence x, uniqueness: unique x };
+\definition map[x: M]: Plus.Carrier := chosen x;
+\definition graph[x: M]: Graph[x, map x] := \bysub(Plus.Carrier, Values x, chosen x);
+\definition onPart: \forall (x: Carrier) -> map x = Plus.inclusion x := \fun (x: Carrier) => (graph x).inside (\bysub(M, U, x));
+\definition offPart: \forall (x: M) -> Logic.Not (Ambient.Member U x) -> map x = Plus.point := \fun (x: M) => (graph x).outside;
+\import topology.Maps[A := M, B := Plus.Carrier] \as Pull;
+\import topology.Maps[A := Carrier, B := M] \as Push;
+\import topology.Topology[Carrier := Carrier] \as Sub;
+\definition finitePreimage: \forall (W: \Pow Plus.Carrier) -> Logic.Not (PlusSpace.Member W Plus.point) ->
+  Pull.Preimage map W = Part.Open[].image (Plus.trace W) := \fun (W: _)(away: _) =>
+  \axiom:setext(Pull.Preimage map W, Part.Open[].image (Plus.trace W),
+    \block {
+      \fun (x: M)(member: PlusSpace.Member W (map x)) \then
+      \let inside: Ambient.Member U x := Ambient.Finite[].doubleNegElim (Ambient.Member U x)
+        (\fun (outside: _) => away (\idelim map x = Plus.point \with p: Plus.Carrier => PlusSpace.Member W p
+          \by { base: member, equality: offPart x outside })) \then
+      \let y: Carrier := \into[M](x, U) \by { inside } \then
+      \return Part.Open[].imageMember (Plus.trace W) y
+        (\idelim map x = Plus.inclusion y \with p: Plus.Carrier => PlusSpace.Member W p
+          \by { base: member, equality: onPart y })
+    },
+    \fun (x: M)(member: _) => Part.Open[].imageElim (Plus.trace W) x (PlusSpace.Member W (map x))
+      (\fun (y: Carrier)(inside: _)(same: y = x) => \idelim y = x \with z: M => PlusSpace.Member W (map z)
+        \by { base: \idelim Plus.inclusion y = map y \with p: Plus.Carrier => PlusSpace.Member W p
+          \by { base: inside, equality: sym!{{Plus.Carrier}} _ _ (onPart y) }, equality: same }) member);
+\definition infinitePreimage: \forall (W: \Pow Plus.Carrier) -> PlusSpace.Member W Plus.point ->
+  Pull.Preimage map W = Ambient.Complement (Push.Image inclusion (Plus.remainder W)) := \fun (W: _)(atInfinity: _) =>
+  \axiom:setext(Pull.Preimage map W, Ambient.Complement (Push.Image inclusion (Plus.remainder W)),
+    \fun (x: M)(inside: PlusSpace.Member W (map x))(member: Ambient.Member (Push.Image inclusion (Plus.remainder W)) x) => Push.imageElim inclusion (Plus.remainder W) x Logic.False
+      (\fun (y: Carrier)(outside: Sub.Member (Plus.remainder W) y)(same: inclusion y = x) => outside
+        (\idelim map x = Plus.inclusion y \with p: Plus.Carrier => PlusSpace.Member W p
+          \by { base: inside, equality: trans!{{Plus.Carrier}} _ _ _
+            (congr!{M {Plus.Carrier}} map _ _ (sym!{M} _ _ same)) (onPart y) })) member,
+    \fun (x: M)(outside: Ambient.Member (Ambient.Complement (Push.Image inclusion (Plus.remainder W))) x) => either!{{(Classical.excludedMiddle (Ambient.Member U x))} {PlusSpace.Member W (map x)}
+      {\fun (inside: _) => \block {
+        \let y: Carrier := \into[M](x, U) \by { inside } \then
+        \let inW: PlusSpace.Member W (Plus.inclusion y) := Ambient.Finite[].doubleNegElim (PlusSpace.Member W (Plus.inclusion y))
+          (\fun (no: _) => outside (Push.imageMember inclusion (Plus.remainder W) y no)) \then
+        \return \idelim Plus.inclusion y = map x \with p: Plus.Carrier => PlusSpace.Member W p
+          \by { base: inW, equality: sym!{{Plus.Carrier}} _ _ (onPart y) }
+      }}
+      {\fun (no: _) => \idelim Plus.point = map x \with p: Plus.Carrier => PlusSpace.Member W p
+        \by { base: atInfinity, equality: sym!{{Plus.Carrier}} _ _ (offPart x no) }}
+    });
+\definition continuous: topology.Continuity[A := M, B := Plus.Carrier].Continuous space Plus.topology map :=
+  \fun (W: _)(wo: Plus.Open[W]) => either!{{(Classical.excludedMiddle (PlusSpace.Member W Plus.point))}
+    {Ambient.IsOpenIn space (Pull.Preimage map W)}
+    {\fun (atInfinity: _) => \idelim Ambient.Complement (Push.Image inclusion (Plus.remainder W)) = Pull.Preimage map W
+      \with V: \Pow M => Ambient.IsOpenIn space V \by {
+        base: Ambient.Compactness[].compactClosed space hausdorff (Push.Image inclusion (Plus.remainder W))
+          (topology.Compactness[A := Carrier, B := M].continuousImage topology space inclusion inclusionContinuous (Plus.remainder W) (wo.atInfinity atInfinity)),
+        equality: sym!{\Pow M} _ _ (infinitePreimage W atInfinity)
+      }}
+    {\fun (away: _) => \idelim Part.Open[].image (Plus.trace W) = Pull.Preimage map W
+      \with V: \Pow M => Ambient.IsOpenIn space V \by {
+        base: Part.Open[].imageOpen space open (Plus.trace W) wo.traceOpen, equality: sym!{\Pow M} _ _ (finitePreimage W away)
+      }}
+  };

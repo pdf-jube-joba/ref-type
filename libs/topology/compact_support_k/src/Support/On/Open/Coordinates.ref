@@ -1,0 +1,34 @@
+\import topology.Topology[Carrier := X].Subspace[S := U] \as Original;
+\import Compactification.Outside[] \as Outside;
+\definition OriginalPoint: \Set := Original.CarrierSet;
+\definition originalTopology: topology.Topology[Carrier := OriginalPoint].Topology := Original.topology space;
+\definition forward[x: OriginalPoint]: Carrier := \into[Compactification.Carrier](Compactification.inclusion x, Compactification.lift U) \by { \bysub(X, U, x) };
+\definition finite[p: Carrier]: Outside.Point := \into[Compactification.Carrier](p, Outside.subset) \by {
+  \fun (same: p = Compactification.point) => \idelim p = Compactification.point
+    \with q: Compactification.Carrier => \In[Compactification.Carrier] (Compactification.lift U) q
+    \by { base: \bysub(Compactification.Carrier, Compactification.lift U, p), equality: same }
+};
+\definition backward[p: Carrier]: OriginalPoint := \into[X](Outside.backward (finite p), U) \by {
+  \idelim p = Compactification.inclusion (Outside.backward (finite p))
+    \with q: Compactification.Carrier => \In[Compactification.Carrier] (Compactification.lift U) q
+    \by { base: \bysub(Compactification.Carrier, Compactification.lift U, p), equality: sym!{{Compactification.Carrier}} _ _ (Outside.rightInverse (finite p)) }
+};
+\definition leftInverse: \forall (x: OriginalPoint) -> backward (forward x) = x := \fun (x: OriginalPoint) => Outside.leftInverse x;
+\definition rightInverse: \forall (p: Carrier) -> forward (backward p) = p := \fun (p: Carrier) => Outside.rightInverse (finite p);
+\definition forwardContinuous: topology.Continuity[A := OriginalPoint, B := Carrier].Continuous originalTopology topology forward :=
+  topology.Continuity[A := OriginalPoint, B := Compactification.Carrier].Corestriction[S := Compactification.lift U].corestrictContinuous originalTopology Compactification.topology forward
+    (topology.Composition[A := OriginalPoint, B := X, C := Compactification.Carrier].composeContinuous originalTopology space Compactification.topology
+      (\fun (x: OriginalPoint) => x) Compactification.inclusion (topology.Continuity[A := OriginalPoint, B := X].Corestriction[S := U].inclusionContinuous space) Compactification.inclusionContinuous);
+\definition finiteContinuous: topology.Continuity[A := Carrier, B := Outside.Point].Continuous topology Outside.subspace finite :=
+  topology.Continuity[A := Carrier, B := Compactification.Carrier].Corestriction[S := Outside.subset].corestrictContinuous topology Compactification.topology finite
+    (topology.Continuity[A := Carrier, B := Compactification.Carrier].Corestriction[S := Compactification.lift U].inclusionContinuous Compactification.topology);
+\definition backwardContinuous: topology.Continuity[A := Carrier, B := OriginalPoint].Continuous topology originalTopology backward :=
+  topology.Continuity[A := Carrier, B := X].Corestriction[S := U].corestrictContinuous topology space backward
+    (topology.Composition[A := Carrier, B := Outside.Point, C := X].composeContinuous topology Outside.subspace space finite Outside.backward finiteContinuous Outside.backwardContinuous);
+\definition homeomorphism: topology.Homeomorphism[A := OriginalPoint, B := Carrier].Homeomorphism[originalTopology, topology] :=
+  topology.Homeomorphism[A := OriginalPoint, B := Carrier].Homeomorphism[originalTopology, topology] {
+    forward := forward, backward := backward, leftInverse := leftInverse, rightInverse := rightInverse,
+    forwardContinuous := forwardContinuous, backwardContinuous := backwardContinuous
+  };
+\definition originalLocallyCompact: topology.LocallyCompact[A := OriginalPoint].IsLocallyCompact originalTopology :=
+  \root.Support[].Homeomorphic[A := OriginalPoint, B := Carrier, source := originalTopology, target := topology, h := homeomorphism].locallyCompact representedLocallyCompact;
