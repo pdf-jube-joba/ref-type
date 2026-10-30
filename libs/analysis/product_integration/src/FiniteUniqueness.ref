@@ -1,0 +1,68 @@
+\import functional_analysis.Measure[A := A] \as M;
+\import M.Sigma[] \as Sigma;
+\import M.Finite[mu := mu] \as LeftFinite;
+\import M.Finite[mu := nu] \as RightFinite;
+\import \root.FiniteSpaces[A := A].On[mu := mu] \as Left;
+\import \root.FiniteSpaces[A := A].On[mu := nu] \as Right;
+\import \root.Finiteness[A := A, mu := mu] \as LF;
+\import \root.Finiteness[A := A, mu := nu] \as RF;
+\import \root.Generated[A := A, generators := generators] \as Generated;
+\import Generated.Pi[] \as Pi;
+\import \root.Cuts[A := A] \as Cuts;
+\import topology.Topology[Carrier := A] \as Sets;
+\import real.Analysis[] \as Real;
+\import dedekind_reals.DedekindReal[] \as R;
+\import R.Completeness[] \as Complete;
+\import std.Data[].Nat[] \as N;
+\import std.Logic[].Proposition[] \as Logic;
+\use std.Logic[].Equality[].congr;
+\use std.Logic[].Equality[].sym;
+\use std.Logic[].Equality[].eq_reason_in;
+\structure Agreement[S: \Pow A]: \Prop := {
+  leftMeasurable: M.Measurable mu.sigma S,
+  rightMeasurable: M.Measurable nu.sigma S,
+  equality: mu.value S = nu.value S,
+};
+\definition leftCut: \forall (S: \Pow A) (valid: M.Measurable mu.sigma S) (v: Real.Real) -> Complete.LeastUpperBound[mu.value S, v] -> mu.value S = Cuts.cut v :=
+  \fun (S: \Pow A) (valid: M.Measurable mu.sigma S) (v: Real.Real) (law: Complete.LeastUpperBound[mu.value S, v]) => eq_reason_in!{M.Value _
+    "=" _ "by" { LF.massCut (Left.finite S valid) }
+    "=" _ "by" { congr!{Real.Real M.Value} Cuts.cut _ _ (Complete.leastUpperBoundUnique (mu.value S) (Left.mass S valid) v (Left.massLaw S valid) law) }
+  };
+\definition rightCut: \forall (S: \Pow A) (valid: M.Measurable nu.sigma S) (v: Real.Real) -> Complete.LeastUpperBound[nu.value S, v] -> nu.value S = Cuts.cut v :=
+  \fun (S: \Pow A) (valid: M.Measurable nu.sigma S) (v: Real.Real) (law: Complete.LeastUpperBound[nu.value S, v]) => eq_reason_in!{M.Value _
+    "=" _ "by" { RF.massCut (Right.finite S valid) }
+    "=" _ "by" { congr!{Real.Real M.Value} Cuts.cut _ _ (Complete.leastUpperBoundUnique (nu.value S) (Right.mass S valid) v (Right.massLaw S valid) law) }
+  };
+\definition rightLaw: \forall (S: \Pow A) (agree: Agreement[S]) -> Complete.LeastUpperBound[nu.value S, Left.mass S agree.leftMeasurable] :=
+  \fun (S: \Pow A) (agree: Agreement[S]) => \idelim mu.value S = nu.value S \with v: M.Value => Complete.LeastUpperBound[v, Left.mass S agree.leftMeasurable] \by {
+    base: Left.massLaw S agree.leftMeasurable, equality: agree.equality };
+\definition difference: \forall (S, T: \Pow A) -> Agreement[S] -> Agreement[T] -> Sets.Subset T S -> Agreement[Sigma.difference S T] :=
+  \fun (S, T: \Pow A) (s: Agreement[S]) (t: Agreement[T]) (subset: Sets.Subset T S) => Agreement[Sigma.difference S T] {
+    leftMeasurable := Sigma.differenceMeasurable mu.sigma S T s.leftMeasurable t.leftMeasurable,
+    rightMeasurable := Sigma.differenceMeasurable nu.sigma S T s.rightMeasurable t.rightMeasurable,
+    equality := eq_reason_in!{M.Value _
+      "=" _ "by" { leftCut (Sigma.difference S T) (Sigma.differenceMeasurable mu.sigma S T s.leftMeasurable t.leftMeasurable)
+        (Real.sub (Left.mass S s.leftMeasurable) (Left.mass T t.leftMeasurable))
+        (Left.differenceSup S T (Left.mass S s.leftMeasurable) (Left.mass T t.leftMeasurable) s.leftMeasurable t.leftMeasurable subset
+          (Left.massLaw S s.leftMeasurable) (Left.massLaw T t.leftMeasurable)) }
+      "=" _ "by" { sym!{M.Value} _ _ (rightCut (Sigma.difference S T) (Sigma.differenceMeasurable nu.sigma S T s.rightMeasurable t.rightMeasurable)
+        (Real.sub (Left.mass S s.leftMeasurable) (Left.mass T t.leftMeasurable))
+        (Right.differenceSup S T (Left.mass S s.leftMeasurable) (Left.mass T t.leftMeasurable) s.rightMeasurable t.rightMeasurable subset (rightLaw S s) (rightLaw T t))) }
+    },
+  };
+\definition union: \forall (f: N.Nat^ -> \Pow A) -> (\forall (k: N.Nat^) -> Agreement[f k]) -> M.Disjoint f -> Agreement[M.union f] :=
+  \fun (f: N.Nat^ -> \Pow A) (valid: \forall (k: N.Nat^) -> Agreement[f k]) (disjoint: M.Disjoint f) => Agreement[M.union f] {
+    leftMeasurable := (Sigma.laws mu.sigma).countableUnion f (\fun (k: N.Nat^) => (valid k).leftMeasurable),
+    rightMeasurable := (Sigma.laws nu.sigma).countableUnion f (\fun (k: N.Nat^) => (valid k).rightMeasurable),
+    equality := eq_reason_in!{M.Value _
+      "=" _ "by" { LeftFinite.laws.countableAdditivity f (\fun (k: N.Nat^) => (valid k).leftMeasurable) disjoint }
+      "=" _ "by" { congr!{{N.Nat^ -> M.Value} M.Value} M.series _ _ (\axiom:funext((\fun (k: N.Nat^) => mu.value (f k)), (\fun (k: N.Nat^) => nu.value (f k)), \fun (k: N.Nat^) => (valid k).equality)) }
+      "=" _ "by" { sym!{M.Value} _ _ (RightFinite.laws.countableAdditivity f (\fun (k: N.Nat^) => (valid k).rightMeasurable) disjoint) }
+    },
+  };
+\definition agreements: \Pow (\Pow A) := { S: \Pow A \where Agreement[S] };
+\definition dynkin: Agreement[Sets.Whole] -> Generated.DynkinLaws[agreements] :=
+  \fun (whole: Agreement[Sets.Whole]) => Generated.DynkinLaws[agreements] { whole := whole, difference := difference, disjointUnion := union };
+\definition theorem: Generated.PiSystem -> Agreement[Sets.Whole] ->
+  (\forall (S: \Pow A) -> \In[\Pow A] generators S -> Agreement[S]) -> \forall (S: \Pow A) -> Generated.Member S -> Agreement[S] :=
+  \fun (pi: Generated.PiSystem) (whole: Agreement[Sets.Whole]) => Pi.theorem pi agreements (dynkin whole);

@@ -34,3 +34,27 @@
 \definition MeasurableLeft: \Set := \Cast[\Pow A] ({ U: \Pow A \where L.Measurable mu.sigma U });
 \definition MeasurableRight: \Set := \Cast[\Pow B] ({ V: \Pow B \where R.Measurable nu.sigma V });
 \module Rectangle(U: MeasurableLeft, V: MeasurableRight);
+\import L.Finite[mu := mu] \as LeftFinite;
+\import R.Finite[mu := nu] \as RightFinite;
+\use std.Logic[].Equality[].congr;
+\use std.Logic[].Equality[].eq_reason_in;
+\definition leftOffDiagonal: \forall (i, k: N.Nat^) -> Logic.Not (k = i) -> (leftMeasure k).value (leftSet i) = L.zero :=
+  \fun (i, k: N.Nat^) (different: Logic.Not (k = i)) => eq_reason_in!{L.Value _
+    "=" _ "by" { congr!{{\Pow A} L.Value} mu.value _ _ (\axiom:setext(LeftSets.Intersection (leftSet i) (leftSet k), LeftSets.Empty,
+      \fun (x: A) (both: LeftSets.Member (LeftSets.Intersection (leftSet i) (leftSet k)) x) =>
+        LeftSigma.incrementsDisjoint left.sets k i different x both.right both.left,
+      \fun (x: A) (empty: Logic.False) => Logic.falseElim _ empty)) }
+    "=" _ "by" { LeftFinite.laws.empty }
+  };
+\definition rightOffDiagonal: \forall (j, k: N.Nat^) -> Logic.Not (k = j) -> (rightMeasure k).value (rightSet j) = R.zero :=
+  \fun (j, k: N.Nat^) (different: Logic.Not (k = j)) => eq_reason_in!{R.Value _
+    "=" _ "by" { congr!{{\Pow B} R.Value} nu.value _ _ (\axiom:setext(RightSets.Intersection (rightSet j) (rightSet k), RightSets.Empty,
+      \fun (x: B) (both: RightSets.Member (RightSets.Intersection (rightSet j) (rightSet k)) x) =>
+        RightSigma.incrementsDisjoint right.sets k j different x both.right both.left,
+      \fun (x: B) (empty: Logic.False) => Logic.falseElim _ empty)) }
+    "=" _ "by" { RightFinite.laws.empty }
+  };
+\module Block(i, j: N.Nat^);
+\module Exhaustion;
+\definition sigmaFinite: \root.Finiteness[A := Sigma.Point, mu := measure].SigmaFinite :=
+  \root.Product[A := A, B := B, mu := mu, nu := nu, left := left, right := right].Exhaustion[].sigmaFinite;

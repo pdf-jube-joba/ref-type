@@ -1,0 +1,41 @@
+\import real.Analysis[] \as Real;
+\import dedekind_reals.DedekindReal[] \as RealOrder;
+\import \root.Finiteness[A := Sigma.Point, mu := measure] \as F;
+\import \root.SeriesValues[A := Sigma.Point, mu := measure] \as Values;
+\import M.Continuity[mu := measure] \as Continuity;
+\use std.Logic[].Equality[].sym;
+\use std.Logic[].Equality[].trans;
+\definition set: \Pow Sigma.Point := Sigma.rectangle (leftSet i) (rightSet j);
+\definition component[k, l: N.Nat^]: M.Measure := \root.FiniteProduct[A := A, B := B, mu := leftMeasure k, nu := rightMeasure l].measure;
+\definition laws[k, l: N.Nat^]: M.MeasureLaws[component k l] := \bysub(M.MeasureData, M.Measure, component k l);
+\definition measurable: M.Measurable Sigma.sigma set := Sigma.rectangleMeasurable (leftSet i) (rightSet j) (LF.finiteLaw (leftSet i)).measurable (RF.finiteLaw (rightSet j)).measurable;
+\definition value[k, l: N.Nat^]: M.Value := (component k l).value set;
+\definition offRow: \forall (k: N.Nat^) -> Logic.Not (k = i) -> \forall (l: N.Nat^) -> value k l = M.zero :=
+  \fun (k: N.Nat^) (different: Logic.Not (k = i)) (l: N.Nat^) =>
+    \root.FiniteProduct[A := A, B := B, mu := leftMeasure k, nu := rightMeasure l].rectangleNullLeft (leftSet i) (rightSet j)
+      (LF.finiteLaw (leftSet i)).measurable (RF.finiteLaw (rightSet j)).measurable (leftOffDiagonal i k different);
+\definition offColumn: \forall (l: N.Nat^) -> Logic.Not (l = j) -> value i l = M.zero :=
+  \fun (l: N.Nat^) (different: Logic.Not (l = j)) =>
+    \root.FiniteProduct[A := A, B := B, mu := leftMeasure i, nu := rightMeasure l].rectangleNullRight (leftSet i) (rightSet j)
+      (LF.finiteLaw (leftSet i)).measurable (RF.finiteLaw (rightSet j)).measurable (rightOffDiagonal j l different);
+\definition row[k: N.Nat^]: M.Value := M.series (value k);
+\definition rowZero: \forall (k: N.Nat^) -> Logic.Not (k = i) -> row k = M.zero :=
+  \fun (k: N.Nat^) (different: Logic.Not (k = i)) => eq_reason_in!{M.Value _
+    "=" _ "by" { congr!{{N.Nat^ -> M.Value} M.Value} M.series _ _
+      (\axiom:funext(value k, (\fun (_: N.Nat^) => M.zero), offRow k different)) }
+    "=" _ "by" { Continuity.zeroSeries }
+  };
+\definition formula: measure.value set = value i j := trans!{M.Value} _ _ _
+  (Values.single row i (\fun (k: N.Nat^) => Values.seriesNonnegative (value k) (\fun (l: N.Nat^) => (laws k l).nonnegative set measurable)) rowZero)
+  (Values.single (value i) j (\fun (l: N.Nat^) => (laws i l).nonnegative set measurable) offColumn);
+\import \root.FiniteProduct[A := A, B := B, mu := leftMeasure i, nu := rightMeasure j] \as Selected;
+\import \root.Finiteness[A := Sigma.Point, mu := Selected.measure] \as SelectedFiniteness;
+\import \root.FiniteSpaces[A := Sigma.Point].On[mu := Selected.finiteMeasure] \as SelectedSpace;
+\definition selectedFinite: SelectedFiniteness.FiniteSet[set] :=
+  SelectedFiniteness.finiteLaw (SelectedSpace.finite set measurable);
+\definition finite: F.FiniteSet[set] := F.FiniteSet[set] {
+  measurable := measurable,
+  bounded := \idelim value i j = measure.value set \with v: M.Value =>
+    \exists ( b: Real.Real \where \forall (r: Real.Real) -> M.below v r -> RealOrder.Le r b ) \by {
+      base: selectedFinite.bounded, equality: sym!{M.Value} _ _ formula },
+};

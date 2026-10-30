@@ -152,3 +152,51 @@
   \fun (f: N.Nat^ -> N.Nat^ -> M.Value) (valid: \forall (i, j: N.Nat^) -> M.NonnegativeValue[f i j]) =>
     \axiom:setext(M.series (\fun (i: N.Nat^) => M.series (f i)), M.series (\fun (j: N.Nat^) => M.series (\fun (i: N.Nat^) => f i j)),
       swapIncluded f valid, swapIncluded (\fun (j, i: N.Nat^) => f i j) (\fun (j, i: N.Nat^) => valid i j));
+\definition partialZero: \forall (f: N.Nat^ -> M.Value) (n: N.Nat^) ->
+  (\forall (j: N.Nat^) -> Nat.Lt j n -> f j = M.zero) -> M.partialSum f n = M.zero :=
+  \fun (f: N.Nat^ -> M.Value) => \induction (n: N.Nat^) \return
+    (\forall (j: N.Nat^) -> Nat.Lt j n -> f j = M.zero) -> M.partialSum f n = M.zero \with {
+      | zero: \fun (_: _) => \refl(M.zero)
+      | succ: \fun (n: N.Nat^) (prior: _) (zero: \forall (j: N.Nat^) -> Nat.Lt j (N.Nat^::succ n) -> f j = M.zero) => eq_reason_in!{M.Value _
+        "=" _ "by" { congr!{M.Value M.Value M.Value} M.add _ _ _ _
+          (prior (\fun (j: N.Nat^) (before: Nat.Lt j n) => zero j (Nat.ltLeTrans j n (N.Nat^::succ n) before (Nat.leSelfSucc n))))
+          (zero n (Nat.ltOfSuccLe (N.Nat^::succ n) n (Nat.leRefl (N.Nat^::succ n)))) }
+        "=" _ "by" { V.addZero M.zero V.zeroNonnegative }
+      }
+    };
+\use std.Logic[].Equality[].trans;
+\definition singlePartial: \forall (f: N.Nat^ -> M.Value) (pivot: N.Nat^) ->
+  (\forall (j: N.Nat^) -> M.NonnegativeValue[f j]) ->
+  (\forall (j: N.Nat^) -> Logic.Not (j = pivot) -> f j = M.zero) ->
+  \forall (n: N.Nat^) -> V.Included (M.partialSum f n) (f pivot) :=
+  \fun (f: N.Nat^ -> M.Value) (pivot: N.Nat^) (valid: \forall (j: N.Nat^) -> M.NonnegativeValue[f j])
+    (vanishes: \forall (j: N.Nat^) -> Logic.Not (j = pivot) -> f j = M.zero) =>
+    \induction (n: N.Nat^) \return V.Included (M.partialSum f n) (f pivot) \with {
+      | zero: Series.zeroIncluded (f pivot) (valid pivot)
+      | succ: \fun (n: N.Nat^) (prior: V.Included (M.partialSum f n) (f pivot)) (r: Real.Real) (member: M.below (M.partialSum f (N.Nat^::succ n)) r) =>
+        Logic.orElim _ _ (M.below (f pivot) r) (std.Logic[].Classical[].excludedMiddle (n = pivot))
+          (\fun (same: n = pivot) => \idelim M.add (M.partialSum f n) (f n) = f pivot \with v: M.Value => M.below v r \by {
+            base: member, equality: eq_reason_in!{M.Value _
+              "=" _ "by" { congr!{M.Value M.Value M.Value} M.add _ _ _ _
+                (partialZero f n (\fun (j: N.Nat^) (less: Nat.Lt j n) => vanishes j
+                  (\fun (equal: j = pivot) => Nat.ltNe j n less (trans!{N.Nat^} _ _ _ equal (sym!{N.Nat^} _ _ same)))))
+                (congr!{N.Nat^ M.Value} f _ _ same) }
+              "=" _ "by" { Series.zeroAdd (f pivot) (valid pivot) }
+            } })
+          (\fun (different: Logic.Not (n = pivot)) => prior r
+            (\idelim M.add (M.partialSum f n) (f n) = M.partialSum f n \with v: M.Value => M.below v r \by {
+              base: member, equality: eq_reason_in!{M.Value _
+                "=" _ "by" { congr!{M.Value M.Value} (M.add (M.partialSum f n)) _ _ (vanishes n different) }
+                "=" _ "by" { V.addZero (M.partialSum f n) (partialNonnegative f valid n) }
+              } }))
+    };
+\definition single: \forall (f: N.Nat^ -> M.Value) (pivot: N.Nat^) ->
+  (\forall (j: N.Nat^) -> M.NonnegativeValue[f j]) ->
+  (\forall (j: N.Nat^) -> Logic.Not (j = pivot) -> f j = M.zero) -> M.series f = f pivot :=
+  \fun (f: N.Nat^ -> M.Value) (pivot: N.Nat^) (valid: \forall (j: N.Nat^) -> M.NonnegativeValue[f j])
+    (vanishes: \forall (j: N.Nat^) -> Logic.Not (j = pivot) -> f j = M.zero) => \axiom:setext(M.series f, f pivot,
+      \fun (r: Real.Real) (member: M.below (M.series f) r) => \block {
+        \takefrom n: \Cast[N.Nat^] ({ n: N.Nat^ \where M.below (M.partialSum f n) r }) \by member \then
+        \return singlePartial f pivot valid vanishes n r (\bysub(N.Nat^, { n: N.Nat^ \where M.below (M.partialSum f n) r }, n))
+      },
+      seriesContains f valid pivot);
