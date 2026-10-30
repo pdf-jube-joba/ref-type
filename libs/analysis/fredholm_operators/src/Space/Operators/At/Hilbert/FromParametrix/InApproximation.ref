@@ -1,0 +1,31 @@
+\import EndBounded.UnitBounds[].Difference[] \as Difference;
+\definition error: EndBounded.Map := Difference.bounded (rightDefect s) a R.half halfPositive near;
+\import \root.Space[V := W, space := target, norm := targetNorm] \as TargetSpace;
+\import TargetSpace.NearIdentity[e := error] \as Neumann;
+\definition small: Neumann.Small := Difference.bound (rightDefect s) a R.half Estimates.halfNonnegative near;
+\definition inverse: EndBounded.Map := Neumann.inverse complete.complete small;
+\import TargetEnd.After[U := V, codomain := space, codomainNorm := norm] \as Compose;
+\definition map: Reverse.Map := Compose.compose inverse s;
+\definition neumannFormula: \forall (y: W) -> Neumann.map.apply y = target.add (f.apply (s.apply y)) (a.apply y) :=
+  \fun (y: W) => eq_reason_in!{W _
+    "=" _ "by" { congr!{W W} (TargetNormed.sub y) _ _ (Difference.formula (rightDefect s) a y) }
+    "=" _ "by" { congr!{W W} (target.add y) _ _ (TargetNormed.negativeSub ((rightDefect s).apply y) (a.apply y)) }
+    "=" _ "by" { congr!{W W} (target.add y) _ _ (TargetVectors.comm (a.apply y) (target.neg ((rightDefect s).apply y))) }
+    "=" _ "by" { sym!{W} _ _ (TargetVectors.assoc y (target.neg ((rightDefect s).apply y)) (a.apply y)) }
+    "=" _ "by" { congr!{W W} (\fun (z: W) => target.add z (a.apply y)) _ _ (TargetSpace.subtractResidual y (f.apply (s.apply y))) }
+  };
+\import Finite.Before[U := W, domain := target] \as FiniteBefore;
+\import Algebra.Linear[V := W, W := W, source := target, target := target] \as EndMaps;
+\import EndMaps.Composition[U := W, domain := target] \as EndCompose;
+\definition equation: \forall (y: W) -> (EndCompose.compose a inverse).apply y = (rightDefect map).apply y :=
+  \fun (y: W) => sym!{W} _ _ (eq_reason_in!{W _
+    "=" _ "by" { congr!{W W} (\fun (z: W) => TargetNormed.sub z (f.apply (map.apply y))) _ _ (sym!{W} _ _ (Neumann.rightInverse complete.complete small y)) }
+    "=" _ "by" { congr!{W W} (\fun (z: W) => TargetNormed.sub z (f.apply (map.apply y))) _ _ (neumannFormula (inverse.apply y)) }
+    "=" _ "by" { TargetSpace.subtractAddLeft (f.apply (map.apply y)) (a.apply (inverse.apply y)) }
+  });
+\definition finite: Finite.FiniteRank (rightDefect map) :=
+  \idelim EndCompose.compose a inverse = rightDefect map \with h: EndMaps.Map => Finite.FiniteRank h \by {
+    base: FiniteBefore.finite a inverse finite,
+    equality: EndMaps.ext (EndCompose.compose a inverse) (rightDefect map)
+      (\axiom:funext((EndCompose.compose a inverse).apply, (rightDefect map).apply, equation))
+  };

@@ -1,0 +1,23 @@
+\import Restricted.Projection[complete := complete] \as Projection;
+\import Source.Operators[W := Restricted.Point, target := Points.induced, norm := norm, targetNorm := Restricted.restrictedNorm] \as Retraction;
+\definition retraction: Retraction.Map := \into[Algebra.Linear[V := V, W := Restricted.Point, source := space, target := Points.induced].Map](Projection.linear, Retraction.Map) \by {
+  Logic.existsIntro[R.Real, { c: R.Real \where Retraction.Bound[Projection.linear, c] }] R.one (Retraction.Bound[Projection.linear, R.one] {
+    nonnegative := Laws.oneNonnegative,
+    estimate := \fun (x: V) => Order.leReplaceRight _ (norm.realNorm.norm x) (R.mul R.one (norm.realNorm.norm x))
+      (sym!{R.Real} _ _ (Laws.fieldMulOneLeft _)) (Projection.contractive x),
+  })
+};
+\import End.Compact[].Before[U := Restricted.Point, domain := Points.induced, domainNorm := Restricted.restrictedNorm] \as Restrict;
+\import Inclusion.Compact[].After[U := Restricted.Point, codomain := Points.induced, codomainNorm := Restricted.restrictedNorm] \as Project;
+\definition finiteDimensional: \forall (f: End.Map) -> End.Compact[].Compact f ->
+  (\forall (x: Restricted.Point) -> f.apply x = x) -> FiniteDimensional := \block {
+  \fun (f: End.Map)(compact: End.Compact[].Compact f)(fixed: \forall (x: Restricted.Point) -> f.apply x = x) \then
+  \let composed: SmallEnd.Map := Project.compose (Restrict.compose f inclusion) retraction \then
+  \let equation: \forall (x: Restricted.Point) -> composed.apply x = x :=
+    \fun (x: Restricted.Point) => trans!{V} _ _ _ (congr!{V V} (Projection.point) _ _ (fixed x)) (Projection.fixes x) \then
+  \let equal: composed = Identity.identity := Algebra.Linear[V := Restricted.Point, W := Restricted.Point, source := Points.induced, target := Points.induced].ext composed Identity.identity
+    (\axiom:funext(composed.apply, Identity.identity.apply, equation)) \then
+  \return Identity.finiteDimensional (Restricted.hilbert complete)
+    (\idelim composed = Identity.identity \with h: SmallEnd.Map => SmallEnd.Compact[].Compact h
+      \by { base: Project.compact (Restrict.compose f inclusion) retraction (Restrict.compact f inclusion compact), equality: equal })
+};

@@ -1,0 +1,38 @@
+\import std.Arithmetic[].Int[] \as Z;
+\structure Decomposition: \Set := {
+  kernelFrame: KernelDimension.Frame,
+  cokernelFrame: CokernelDimension.Frame,
+};
+\definition fromDecomposition[d: Decomposition]: Z.Integer := Z.integer (KernelDimension.dimension d.kernelFrame) (CokernelDimension.dimension d.cokernelFrame);
+\definition independent: \forall (d, e: Decomposition) -> fromDecomposition d = fromDecomposition e :=
+  \fun (d, e: Decomposition) => congr!{N.Nat^ N.Nat^ Z.Integer} Z.integer _ _ _ _
+    (KernelDimension.dimensionIndependent d.kernelFrame e.kernelFrame) (CokernelDimension.dimensionIndependent d.cokernelFrame e.cokernelFrame);
+\definition decompositionExists: KernelDimension.FiniteDimensional -> CokernelDimension.FiniteDimensional -> \exists Decomposition := \block {
+  \fun (finiteKernel: KernelDimension.FiniteDimensional)(finiteCokernel: CokernelDimension.FiniteDimensional) \then
+  \takefrom kernelFrame: KernelDimension.Frame \by KernelDimension.frameExists finiteKernel \then
+  \takefrom cokernelFrame: CokernelDimension.Frame \by CokernelDimension.frameExists finiteCokernel \then
+  \return \exact(Decomposition { kernelFrame := kernelFrame, cokernelFrame := cokernelFrame }, Decomposition)
+};
+\definition Represents[k: Z.Integer]: \Prop := \exists ( d: Decomposition \where fromDecomposition d = k );
+\definition Value: \Set := \Cast[Z.Integer] ({ k: Z.Integer \where Represents k });
+\definition unique: \forall (k, l: Value) -> k = l := \block {
+  \fun (k, l: Value) \then
+  \takefrom d: \Cast[Decomposition] ({ d: Decomposition \where fromDecomposition d = k }) \by \bysub(Z.Integer, { k: Z.Integer \where Represents k }, k) \then
+  \takefrom e: \Cast[Decomposition] ({ e: Decomposition \where fromDecomposition e = l }) \by \bysub(Z.Integer, { k: Z.Integer \where Represents k }, l) \then
+  \return trans!{Z.Integer} _ _ _ (sym!{Z.Integer} _ _ (\bysub(Decomposition, { d: Decomposition \where fromDecomposition d = k }, d)))
+    (trans!{Z.Integer} _ _ _ (independent d e) (\bysub(Decomposition, { e: Decomposition \where fromDecomposition e = l }, e)))
+};
+\definition exists: KernelDimension.FiniteDimensional -> CokernelDimension.FiniteDimensional -> \exists Value := \block {
+  \fun (finiteKernel: KernelDimension.FiniteDimensional)(finiteCokernel: CokernelDimension.FiniteDimensional) \then
+  \takefrom d: Decomposition \by decompositionExists finiteKernel finiteCokernel \then
+  \return \exact(\into[Z.Integer](fromDecomposition d, { k: Z.Integer \where Represents k }) \by {
+    Logic.existsIntro[Decomposition, { e: Decomposition \where fromDecomposition e = fromDecomposition d }] d (\refl(fromDecomposition d))
+  }, Value)
+};
+\definition value[finiteKernel: KernelDimension.FiniteDimensional][finiteCokernel: CokernelDimension.FiniteDimensional]: Value :=
+  \choice Value \by { existence: exists finiteKernel finiteCokernel, uniqueness: unique };
+\definition calculate: \forall (finiteKernel: KernelDimension.FiniteDimensional)(finiteCokernel: CokernelDimension.FiniteDimensional)(d: Decomposition) -> value finiteKernel finiteCokernel = fromDecomposition d :=
+  \fun (finiteKernel: KernelDimension.FiniteDimensional)(finiteCokernel: CokernelDimension.FiniteDimensional)(d: Decomposition) => unique (value finiteKernel finiteCokernel)
+    (\into[Z.Integer](fromDecomposition d, { k: Z.Integer \where Represents k }) \by {
+      Logic.existsIntro[Decomposition, { e: Decomposition \where fromDecomposition e = fromDecomposition d }] d (\refl(fromDecomposition d))
+    });

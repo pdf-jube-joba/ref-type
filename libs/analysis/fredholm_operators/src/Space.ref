@@ -1,0 +1,31 @@
+\import complex.Complex[] \as C;
+\import real.Analysis[] \as R;
+\import linear_algebra.Commutative[K := C.Complex, scalarRing := std.Alg[].Field[].fieldAsCommutativeRing C.Complex C.Algebra[].field] \as Algebra;
+\import complex_hilbert.Space[V := V, space := space] \as Source;
+\import functional_analysis.Normed[V := V, space := Source.realSpace] \as SourceNormed;
+\import Algebra.Laws[V := V, space := space] \as SourceVectors;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as E;
+\import dedekind_reals.DedekindReal[] \as Order;
+\import Order.Arithmetic[].Prop[] \as Laws;
+\use E.congr;
+\use E.sym;
+\use E.trans;
+\use E.eq_reason_in;
+\module Operators(W: \Set, target: Algebra.VectorSpace W, targetNorm: complex_hilbert.Space[V := W, space := target].Norm);
+
+\module Hilbert(inner: linear_algebra.Complex[].InnerProduct[V := V, space := space].InnerProduct);
+
+\module NearIdentity(e: complex_hilbert.Space[V := V, space := space].Operators[W := V, target := space, norm := norm, targetNorm := norm].Map);
+
+\definition subtractResidual: \forall (x, y: V) -> SourceNormed.sub x (SourceNormed.sub x y) = y :=
+  \fun (x, y: V) => SourceVectors.cancelLeft (SourceNormed.sub x y) _ y
+    (trans!{V} _ _ _ (SourceVectors.comm (SourceNormed.sub x y) (SourceNormed.sub x (SourceNormed.sub x y)))
+      (trans!{V} _ _ _ (SourceNormed.subAddCancel x (SourceNormed.sub x y)) (sym!{V} _ _ (SourceNormed.subAddCancel x y))));
+\definition subtractAddLeft: \forall (x, y: V) -> SourceNormed.sub (space.add x y) x = y :=
+  \fun (x, y: V) => eq_reason_in!{V _
+    "=" _ "by" { congr!{V V} (\fun (z: V) => SourceNormed.sub z x) _ _ (SourceVectors.comm x y) }
+    "=" _ "by" { SourceVectors.assoc y x (space.neg x) }
+    "=" _ "by" { congr!{V V} (space.add y) _ _ (SourceNormed.subSelf x) }
+    "=" _ "by" { SourceVectors.zeroRight y }
+  };

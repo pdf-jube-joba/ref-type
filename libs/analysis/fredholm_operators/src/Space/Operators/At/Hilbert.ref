@@ -1,0 +1,40 @@
+\import Source.Hilbert[norm := norm, inner := inner] \as Hilbert;
+\import Hilbert.Subspaces[] \as ClosedSubspaces;
+\definition closedKernel: ClosedSubspaces.ClosedSubspace := \into[SourceSubspaces.Subspace](kernel, ClosedSubspaces.ClosedSubspace) \by { kernelClosed };
+\import \root.Space[V := V, space := space, norm := norm].Hilbert[inner := inner].FixedSubspace[S := closedKernel] \as FixedKernel;
+\definition Fredholm: \Prop := Logic.And[ClosedRange, Logic.And[KernelDimension.FiniteDimensional, CokernelDimension.FiniteDimensional]];
+
+\definition parametrixFiniteKernel: \forall (complete: Hilbert.Complete)(s: Reverse.Map) -> Parametrix s -> KernelDimension.FiniteDimensional :=
+  \fun (complete: Hilbert.Complete)(s: Reverse.Map)(parametrix: Parametrix s) => FixedKernel.finiteDimensional complete (leftDefect s) parametrix.left
+    (\fun (x: KernelSpace) => trans!{V} _ _ _
+      (congr!{V V} (SourceNormed.sub x) _ _ (trans!{V} _ _ _
+        (congr!{W V} s.apply _ _ (\bysub(V, kernel.carrier, x))) s.preservesZero)) (SourceNormed.subZeroRight x));
+
+\import \parent.Index[] \as Index;
+\definition index[fredholm: Fredholm]: std.Arithmetic[].Int[].Integer := Index.value fredholm.right.left fredholm.right.right;
+\definition indexFromDecomposition: \forall (fredholm: Fredholm)(d: Index.Decomposition) -> index fredholm = Index.fromDecomposition d :=
+  \fun (fredholm: Fredholm) => Index.calculate fredholm.right.left fredholm.right.right;
+
+\import Target.Hilbert[norm := targetNorm, inner := targetInner] \as TargetHilbert;
+\module FromFredholm(complete: Hilbert.Complete, targetComplete: TargetHilbert.Complete, fredholm: Fredholm);
+
+\definition parametrixExists: \forall (complete: Hilbert.Complete)(targetComplete: TargetHilbert.Complete) -> Fredholm -> HasParametrix :=
+  \fun (complete: Hilbert.Complete)(targetComplete: TargetHilbert.Complete)(fredholm: Fredholm) =>
+    Logic.existsIntro[Reverse.Map, { s: Reverse.Map \where Parametrix s }] (FromFredholm[complete := complete, targetComplete := targetComplete, fredholm := fredholm].parametrix)
+      (FromFredholm[complete := complete, targetComplete := targetComplete, fredholm := fredholm].parametrixLaw);
+
+\module FiniteRight(s: Reverse.Map, finite: complex_hilbert.FiniteRank[V := W, W := W, source := target, target := target].FiniteRank (rightDefect s));
+
+\module FromParametrix(s: Reverse.Map);
+
+\module Cokernel(s: Reverse.Map, closed: ClosedRange);
+\definition fredholmOfParametrix: \forall (complete: Hilbert.Complete)(targetComplete: TargetHilbert.Complete)(s: Reverse.Map) -> Parametrix s -> Fredholm :=
+  \fun (complete: Hilbert.Complete)(targetComplete: TargetHilbert.Complete)(s: Reverse.Map)(p: Parametrix s)  => Logic.And[ClosedRange, Logic.And[KernelDimension.FiniteDimensional, CokernelDimension.FiniteDimensional]]::# (FromParametrix[s := s].closedRange targetComplete p.right)
+    (Logic.And[KernelDimension.FiniteDimensional, CokernelDimension.FiniteDimensional]::# (parametrixFiniteKernel complete s p)
+      (Cokernel[s := s, closed := FromParametrix[s := s].closedRange targetComplete p.right].finite targetComplete p.right));
+\definition atkinson: \forall (complete: Hilbert.Complete)(targetComplete: TargetHilbert.Complete) -> HasParametrix -> Fredholm := \block {
+  \fun (complete: Hilbert.Complete)(targetComplete: TargetHilbert.Complete)(exists: HasParametrix) \then
+  \takefrom s: \Cast[Reverse.Map] ({ s: Reverse.Map \where Parametrix s }) \by exists \then
+  \return fredholmOfParametrix complete targetComplete s (\bysub(Reverse.Map, { s: Reverse.Map \where Parametrix s }, s))
+};
+

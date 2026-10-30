@@ -1,0 +1,36 @@
+\import metric_spaces.MetricSpace[Carrier := V] \as Metrics;
+\definition completeMetric: Metrics.CompleteMetric := \into[Metrics.Metric](SourceNormed.metric norm.realNorm, Metrics.CompleteMetric) \by {
+  Metrics.Completeness[SourceNormed.metric norm.realNorm] { converges := complete }
+};
+\import Metrics.Complete[metric := completeMetric] \as FixedPoints;
+\import SourceNormed.Operators[W := V, target := Source.realSpace, norm := norm.realNorm, targetNorm := norm.realNorm] \as RealEnd;
+\definition realBound: RealEnd.Bound[Bounded.realMap e, R.half] := RealEnd.Bound[Bounded.realMap e, R.half] {
+  nonnegative := small.nonnegative, estimate := small.estimate,
+};
+\definition contraction[y: V]: FixedPoints.Contraction := FixedPoints.Contraction {
+  apply := \fun (x: V) => space.add (e.apply x) y,
+  bound := \fun (x, z: V) => Order.leReplaceLeft _ _ _
+    (sym!{R.Real} _ _ (SourceNormed.translateDistance norm.realNorm (e.apply x) (e.apply z) y))
+    (RealEnd.distanceBound (Bounded.realMap e) R.half realBound x z),
+};
+\definition fixes: \forall (y, x: V) -> map.apply x = y -> (contraction y).apply x = x :=
+  \fun (y, x: V)(equal: map.apply x = y) => trans!{V} _ _ _ (congr!{V V} (space.add (e.apply x)) _ _ (sym!{V} _ _ equal))
+    (trans!{V} _ _ _ (SourceVectors.comm (e.apply x) (SourceNormed.sub x (e.apply x))) (SourceNormed.subAddCancel x (e.apply x)));
+\definition injective: Inverse.Injective :=
+  \fun (x, z: V)(equal: map.apply x = map.apply z) => FixedPoints.fixedUnique (contraction (map.apply z))
+    (\into[V](x, { x: V \where (contraction (map.apply z)).apply x = x }) \by { fixes (map.apply z) x equal })
+    (\into[V](z, { x: V \where (contraction (map.apply z)).apply x = x }) \by { fixes (map.apply z) z (\refl(map.apply z)) });
+\definition onto: Inverse.Onto := \block {
+  \fun (y: V) \then
+  \let x: FixedPoints.Fixed (contraction y) := FixedPoints.fixedPoint (contraction y) space.zero \then
+  \let fixed: space.add (e.apply x) y = x := \bysub(V, { x: V \where (contraction y).apply x = x }, x) \then
+  \let equation: map.apply x = y := SourceVectors.cancelLeft (e.apply x) (map.apply x) y
+    (trans!{V} _ _ _ (fixes (map.apply x) x (\refl(map.apply x))) (sym!{V} _ _ fixed)) \then
+  \return Logic.existsIntro[V, { x: V \where map.apply x = y }] x equation
+};
+\import End.At[f := map].Inverse[s := Inverse.backward injective onto] \as BoundedInverse;
+\definition inverse: End.Map := \into[Algebra.Linear[V := V, W := V, source := space, target := space].Map](Inverse.backward injective onto, End.Map) \by {
+  BoundedInverse.bounded complete complete (Inverse.leftInverse injective onto) (Inverse.rightInverse injective onto)
+};
+\definition leftInverse: \forall (x: V) -> inverse.apply (map.apply x) = x := Inverse.leftInverse injective onto;
+\definition rightInverse: \forall (x: V) -> map.apply (inverse.apply x) = x := Inverse.rightInverse injective onto;

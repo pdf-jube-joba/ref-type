@@ -183,3 +183,40 @@ module 内の import 別名を、その module の利用側から修飾して参
 \import \root.Wrapper[] \as API;
 \definition result: N.Nat^ := API.value;
 ```
+
+
+## Fredholm 性の具体的な作用素への特殊化
+
+次の 16 行の具体例で、零 Hilbert 空間の恒等作用素に汎用定理を適用したい。
+`fredholmOfParametrix` の特殊化で、元の `Fredholm(V, space, norm, W, target, targetNorm, f)` が残り、具体的な結論と変換可能にならない。
+`Examples.ref` と同じ条件で `target/release/cli libs/analysis/fredholm_operators --module fredholm_operators.Examples --full-check-local` により再現できる。
+
+```ref
+\module Test {
+  \import complex_hilbert.Examples[] \as Z;
+  \import fredholm_operators.Space[V := Z.Point, space := Z.space, norm := Z.norm].Operators[W := Z.Point, target := Z.space, targetNorm := Z.norm] \as O;
+  \import O.At[f := Z.identity] \as I;
+  \import I.Hilbert[inner := Z.inner, targetInner := Z.inner] \as H;
+  \import complex_hilbert.Space[V := Z.Point, space := Z.space].Operators[W := Z.Point, target := Z.space, norm := Z.norm, targetNorm := Z.norm].Compact[] \as K;
+  \import functional_analysis.Normed[V := Z.Point, space := complex_hilbert.Space[V := Z.Point, space := Z.space].realSpace] \as N;
+  \import std.Logic[].Proposition[] \as Logic;
+  \definition p: I.Parametrix Z.identity := Logic.And[_, _]::#
+    (K.zeroImage (I.leftDefect Z.identity) (\fun (x: Z.Point) => N.subSelf x))
+    (K.zeroImage (I.rightDefect Z.identity) (\fun (x: Z.Point) => N.subSelf x));
+  \definition fredholm: H.Fredholm := H.fredholmOfParametrix Z.complete Z.complete Z.identity p;
+}
+```
+
+現在は、作用素を定理の通常の引数に移す次の適用も試している。
+この回避案も、具体的な利用の検査が必要であり、成功を確認できていない。
+
+```ref
+\module Test {
+  \import complex_hilbert.Examples[] \as Z;
+  \import fredholm_operators.Space[V := Z.Point, space := Z.space, norm := Z.norm].Operators[W := Z.Point, target := Z.space, targetNorm := Z.norm] \as O;
+  \import O.At[f := Z.identity] \as I;
+  \import I.Hilbert[inner := Z.inner, targetInner := Z.inner] \as H;
+  \definition apply: I.Parametrix Z.identity -> H.Fredholm :=
+    \fun (p: I.Parametrix Z.identity) => O.Hilbert[inner := Z.inner, targetInner := Z.inner].atkinson Z.identity Z.complete Z.complete Z.identity p;
+}
+```

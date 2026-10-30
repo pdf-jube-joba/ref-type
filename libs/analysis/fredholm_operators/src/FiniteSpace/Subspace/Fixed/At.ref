@@ -1,0 +1,27 @@
+\import Algebra.Coordinates[I := Fin.Fin n] \as Coordinates;
+\import Algebra.Linear[V := Points.Carrier, W := Coordinates.Vector, source := Points.induced, target := Coordinates.space] \as Into;
+\definition into: Into.Map := Into.Map {
+  apply := \fun (x: Points.Carrier) => factor.into.apply x,
+  preservesAdd := \fun (x, y: Points.Carrier) => factor.into.preservesAdd x y,
+  preservesScale := \fun (a: C.Complex)(x: Points.Carrier) => factor.into.preservesScale a x,
+};
+\import Algebra.Subspace[V := Coordinates.Vector, space := Coordinates.space] \as CoordinateSubspaces;
+\definition coordinateImage: CoordinateSubspaces.Subspace := CoordinateSubspaces.Image[U := Points.Carrier, source := Points.induced].image into;
+\import finitely_generated_modules.FieldSubspaces[].Over[K := C.Complex, field := C.Algebra[].field] \as Subspaces;
+\import Algebra.Quotient[V := Coordinates.Vector, space := Coordinates.space] \as CoordinateQuotient;
+\definition moduleImage: Subspaces.Submodule n := CoordinateQuotient.asSubmodule coordinateImage;
+\import Subspaces.Dimension[n := n].Of[S := moduleImage] \as Retractions;
+\definition inS: \forall (a: Retractions.Carrier) -> \In[V] S.carrier (factor.out.apply a) := \block {
+  \fun (a: Retractions.Carrier) \then
+  \takefrom x: \Cast[Points.Carrier] ({ x: Points.Carrier \where into.apply x = a }) \by \bysub(Coordinates.Vector, coordinateImage.carrier, a) \then
+  \let same: factor.out.apply a = x := trans!{V} _ _ _ (congr!{{Coordinates.Vector} V} factor.out.apply _ _
+    (sym!{{Coordinates.Vector}} _ _ (\bysub(Points.Carrier, { x: Points.Carrier \where into.apply x = a }, x))))
+      (trans!{V} _ _ _ (factor.equation x) (fixed x)) \then
+  \return \idelim x = factor.out.apply a \with y: V => \In[V] S.carrier y
+    \by { base: \bysub(V, S.carrier, x), equality: sym!{V} _ _ same }
+};
+\module Selected(r: Retractions.Retraction);
+\definition finite: Small.FiniteDimensional := \block {
+  \takefrom r: Retractions.Retraction \by Subspaces.existence n moduleImage \then
+  \return Selected[r := r].finite
+};

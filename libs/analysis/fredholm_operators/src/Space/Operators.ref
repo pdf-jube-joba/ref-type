@@ -1,0 +1,50 @@
+\import complex_hilbert.Space[V := W, space := target] \as Target;
+\import functional_analysis.Normed[V := W, space := Target.realSpace] \as TargetNormed;
+\import Source.Operators[W := W, target := target, norm := norm, targetNorm := targetNorm] \as Bounded;
+\import Algebra.Linear[V := V, W := W, source := space, target := target] \as Linear;
+\import Linear.Operations[] \as Operations;
+\import Algebra.Laws[V := W, space := target] \as TargetVectors;
+\import Bounded.Compact[] \as CompactOperators;
+\import CompactOperators.Addition[] \as Addition;
+\definition Map: \Set := Bounded.Map;
+\definition Compact[f: Map]: \Prop := CompactOperators.Compact f;
+\definition plus[f, g: Map]: Map := Addition.plus f g;
+\definition negativeLinear[f: Linear.Map]: Linear.Map := Linear.Map {
+  apply := \fun (x: V) => target.neg (f.apply x),
+  preservesAdd := \fun (x, y: V) => trans!{W} _ _ _
+    (congr!{W W} target.neg _ _ (f.preservesAdd x y)) (TargetNormed.negativeAdd (f.apply x) (f.apply y)),
+  preservesScale := \fun (a: C.Complex)(x: V) => trans!{W} _ _ _
+    (congr!{W W} target.neg _ _ (f.preservesScale a x)) (sym!{W} _ _ (TargetVectors.scaleNegative a (f.apply x))),
+};
+\definition negative[f: Map]: Map := \into[Linear.Map](negativeLinear f, Map) \by { \block {
+  \takefrom c: \Cast[R.Real] ({ c: R.Real \where Bounded.Bound[f, c] }) \by Bounded.bounded f \then
+  \let bound: Bounded.Bound[f, c] := \bysub(R.Real, { c: R.Real \where Bounded.Bound[f, c] }, c) \then
+  \return Logic.existsIntro[R.Real, { c: R.Real \where Bounded.Bound[negativeLinear f, c] }] c (Bounded.Bound[negativeLinear f, c] {
+    nonnegative := bound.nonnegative,
+    estimate := \fun (x: V) => Order.leReplaceLeft _ _ _ (sym!{R.Real} _ _ (TargetNormed.normNegative targetNorm.realNorm (f.apply x))) (bound.estimate x),
+  })
+} };
+\definition difference[f, g: Map]: Map := plus f (negative g);
+\definition zero: Map := \into[Linear.Map](Operations.zeroMap, Map) \by {
+  Logic.existsIntro[R.Real, { c: R.Real \where Bounded.Bound[Operations.zeroMap, c] }] R.zero (Bounded.Bound[Operations.zeroMap, R.zero] {
+    nonnegative := Order.leRefl R.zero,
+    estimate := \fun (x: V) => Order.leReplace R.zero (targetNorm.realNorm.norm target.zero) R.zero (R.mul R.zero (norm.realNorm.norm x))
+      (sym!{R.Real} _ _ targetNorm.realNorm.zero) (sym!{R.Real} _ _ (Laws.fieldMulZeroLeft _)) (Order.leRefl R.zero),
+  })
+};
+\definition ext: \forall (f, g: Map) -> (\forall (x: V) -> f.apply x = g.apply x) -> f = g :=
+  \fun (f, g: Map)(same: _) => Linear.ext f g (\axiom:funext(f.apply, g.apply, same));
+\definition compactEqual: \forall (f, g: Map) -> (\forall (x: V) -> f.apply x = g.apply x) -> Compact f -> Compact g :=
+  \fun (f, g: Map)(same: _)(compact: Compact f) => \idelim f = g \with h: Map => Compact h
+    \by { base: compact, equality: ext f g same };
+\definition compactZero: Compact zero := CompactOperators.zeroImage zero (\fun (x: V) => \refl(target.zero));
+\definition compactPlus: \forall (f, g: Map) -> Compact f -> Compact g -> Compact (plus f g) := Addition.compact;
+\module After(U: \Set, codomain: Algebra.VectorSpace U, codomainNorm: complex_hilbert.Space[V := U, space := codomain].Norm);
+\module Ideal;
+
+\module At(f: Map);
+
+
+
+
+\module Hilbert(inner: linear_algebra.Complex[].InnerProduct[V := V, space := space].InnerProduct, targetInner: linear_algebra.Complex[].InnerProduct[V := W, space := target].InnerProduct);

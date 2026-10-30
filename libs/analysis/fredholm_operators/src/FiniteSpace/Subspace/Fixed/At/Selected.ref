@@ -1,0 +1,18 @@
+\import complex_hilbert.FiniteRank[V := Points.Carrier, W := Points.Carrier, source := Points.induced, target := Points.induced] \as SmallRank;
+\definition out: Algebra.Linear[V := Coordinates.Vector, W := Points.Carrier, source := Coordinates.space, target := Points.induced].Map :=
+  Algebra.Linear[V := Coordinates.Vector, W := Points.Carrier, source := Coordinates.space, target := Points.induced].Map {
+    apply := \fun (a: Coordinates.Vector) => \into[V](factor.out.apply (r.apply a), S.carrier) \by { inS (r.apply a) },
+    preservesAdd := \fun (a, b: Coordinates.Vector) => trans!{V} _ _ _
+      (congr!{{Coordinates.Vector} V} factor.out.apply _ _ (r.addition a b)) (factor.out.preservesAdd (r.apply a) (r.apply b)),
+    preservesScale := \fun (a: C.Complex)(x: Coordinates.Vector) => trans!{V} _ _ _
+      (congr!{{Coordinates.Vector} V} factor.out.apply _ _ (r.scalar a x)) (factor.out.preservesScale a (r.apply x)),
+  };
+\definition finite: Small.FiniteDimensional := Logic.existsIntro[N.Nat^, { n: N.Nat^ \where \exists SmallRank.Through[n := n].Factor Small.identity }] n
+  (\exact(SmallRank.Through[n := n].Factor[Small.identity] {
+    into := into, out := out,
+    equation := \fun (x: Points.Carrier) => trans!{V} _ _ _ (congr!{{Coordinates.Vector} V} factor.out.apply _ _
+      ((\bysub(Retractions.Map, { r: Retractions.Map \where Retractions.Splits r }, r))
+        (\into[Coordinates.Vector](into.apply x, coordinateImage.carrier) \by {
+          Logic.existsIntro[Points.Carrier, { z: Points.Carrier \where into.apply z = into.apply x }] x (\refl(into.apply x))
+        }))) (trans!{V} _ _ _ (factor.equation x) (fixed x)),
+  }, SmallRank.Through[n := n].Factor Small.identity));

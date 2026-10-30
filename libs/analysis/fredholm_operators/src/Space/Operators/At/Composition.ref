@@ -1,0 +1,30 @@
+\import \parent.\parent.After[U := U, codomain := codomain, codomainNorm := codomainNorm] \as Forward;
+\import \root.Space[V := W, space := target, norm := targetNorm].Operators[W := U, target := codomain, targetNorm := codomainNorm] \as Next;
+\import Next.At[f := g] \as NextOperator;
+\import \root.Space[V := U, space := codomain, norm := codomainNorm].Operators[W := W, target := target, targetNorm := targetNorm] \as NextReverse;
+\import NextReverse.After[U := V, codomain := space, codomainNorm := norm] \as Backward;
+\import \root.Space[V := V, space := space, norm := norm].Operators[W := U, target := codomain, targetNorm := codomainNorm] \as Result;
+\import Result.At[f := Forward.compose f g] \as ResultOperator;
+\import Result.After[U := V, codomain := space, codomainNorm := norm] \as ResultLeft;
+\import \root.Space[V := U, space := codomain, norm := codomainNorm].Operators[W := V, target := space, targetNorm := norm].After[U := U, codomain := codomain, codomainNorm := codomainNorm] \as ResultRight;
+\import \parent.\parent.After[U := W, codomain := target, codomainNorm := targetNorm] \as Middle;
+\import NextReverse.After[U := W, codomain := target, codomainNorm := targetNorm] \as BeforeMiddle;
+\import Next.After[U := W, codomain := target, codomainNorm := targetNorm] \as NextLeft;
+\import Reverse.After[U := U, codomain := codomain, codomainNorm := codomainNorm] \as Last;
+\import \root.Space[V := U, space := codomain, norm := codomainNorm].Operators[W := U, target := codomain, targetNorm := codomainNorm] \as LastEnd;
+\import LastEnd.Ideal[] \as LastIdeal;
+\import NextReverse.After[U := U, codomain := codomain, codomainNorm := codomainNorm] \as NextRight;
+\definition composeParametrix: \forall (s: Reverse.Map)(t: NextReverse.Map) -> Parametrix s -> NextOperator.Parametrix t ->
+  ResultOperator.Parametrix (Backward.compose t s) := \block {
+  \fun (s: Reverse.Map)(t: NextReverse.Map)(p: Parametrix s)(q: NextOperator.Parametrix t) \then
+  \let leftMiddle: SourceIdeal.Equivalent[ComposeBack.compose f s, ComposeBack.compose (Middle.compose f (NextLeft.compose g t)) s] :=
+    ComposeBack.equivalentAfter (Middle.compose f TargetIdeal.identity) (Middle.compose f (NextLeft.compose g t)) s
+      (Middle.equivalentBefore f TargetIdeal.identity (NextLeft.compose g t) q.left) \then
+  \let left: SourceIdeal.Equivalent[SourceIdeal.identity, ResultLeft.compose (Forward.compose f g) (Backward.compose t s)] :=
+    SourceIdeal.transitive SourceIdeal.identity (ComposeBack.compose f s) (ResultLeft.compose (Forward.compose f g) (Backward.compose t s)) p.left leftMiddle \then
+  \let rightMiddle: LastIdeal.Equivalent[NextRight.compose t g, NextRight.compose (BeforeMiddle.compose t (ComposeForward.compose s f)) g] :=
+    NextRight.equivalentAfter (BeforeMiddle.compose t TargetIdeal.identity) (BeforeMiddle.compose t (ComposeForward.compose s f)) g
+      (BeforeMiddle.equivalentBefore t TargetIdeal.identity (ComposeForward.compose s f) p.right) \then
+  \return Logic.And[_, _]::# left
+    (LastIdeal.transitive LastIdeal.identity (NextRight.compose t g) (ResultRight.compose (Backward.compose t s) (Forward.compose f g)) q.right rightMiddle)
+};

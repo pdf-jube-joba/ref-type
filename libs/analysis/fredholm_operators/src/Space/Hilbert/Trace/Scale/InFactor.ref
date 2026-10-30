@@ -1,0 +1,21 @@
+\import Algebra.Coordinates[I := Fin.Fin n] \as Coordinates;
+\import Algebra.Linear[V := Coordinates.Vector, W := V, source := Coordinates.space, target := space].Operations[] \as Out;
+\definition scaled: Finite.Through[n := n].Factor (Operations.scale a f) := Finite.Through[n := n].Factor[Operations.scale a f] {
+  into := factor.into, out := Out.scale a factor.out,
+  equation := \fun (x: V) => congr!{V V} (space.smul a) _ _ (factor.equation x),
+};
+\import Algebra.Linear[V := V, W := Coordinates.Vector, source := space, target := Coordinates.space].Composition[U := Coordinates.Vector, domain := Coordinates.space] \as Compose;
+\import Algebra.Linear[V := Coordinates.Vector, W := Coordinates.Vector, source := Coordinates.space, target := Coordinates.space] \as Maps;
+\import Maps.Operations[] \as CoordinateOperations;
+\import Algebra.FiniteCoordinates[n := n] \as Basis;
+\import Algebra.Finite[V := Coordinates.Vector, I := Fin.Fin n, space := Coordinates.space] \as CoordinateTrace;
+\import \parent.\parent.Factor[n := n, f := f, factor := factor] \as Factor;
+\definition scalar: \forall (ff: Finite.FiniteRank f)(sf: Finite.FiniteRank (Operations.scale a f)) -> trace (Operations.scale a f) sf = C.Def[].mul a (trace f ff) :=
+  \fun (ff: Finite.FiniteRank f)(sf: Finite.FiniteRank (Operations.scale a f)) => eq_reason_in!{C.Complex _
+    "=" _ "by" { calculate (Operations.scale a f) sf n scaled }
+    "=" _ "by" { congr!{Maps.Map C.Complex} (CoordinateTrace.trace Basis.basis) _ _ (Maps.ext (Compose.compose factor.into scaled.out) (CoordinateOperations.scale a (Compose.compose factor.into factor.out))
+      (\axiom:funext((Compose.compose factor.into scaled.out).apply, (CoordinateOperations.scale a (Compose.compose factor.into factor.out)).apply,
+        \fun (x: Coordinates.Vector) => factor.into.preservesScale a (factor.out.apply x)))) }
+    "=" _ "by" { CoordinateTrace.Trace[].traceScale Basis.basis a (Compose.compose factor.into factor.out) }
+    "=" _ "by" { congr!{C.Complex C.Complex} (C.Def[].mul a) _ _ (sym!{C.Complex} _ _ (calculate f ff n factor)) }
+  };

@@ -1,0 +1,149 @@
+\import ClosedSubspaces.In[S := closedKernel].Projection[complete := complete] \as KernelProjection;
+\import KernelProjection.Complement[] \as Complement;
+\import SourceEnd.At[f := KernelProjection.projection] \as ProjectionKernel;
+\import Hilbert.Geometry[] \as Geometry;
+\definition zeroLeft: \forall (x: V) -> inner.inner space.zero x = C.Def[].zero :=
+  \fun (x: V) => trans!{C.Complex} _ _ _ (inner.conjugateSymmetric space.zero x)
+    (trans!{C.Complex} _ _ _ (congr!{C.Complex C.Complex} C.Def[].conj _ _ (inner.zeroRight x)) (C.Prop[].conjOfReal R.zero));
+\definition complementClosed: ClosedSubspaces.Closed Complement.subspace := \block {
+  \fun (s: N.Nat^ -> V)(x: V)(members: \forall (n: N.Nat^) -> SourceSubspaces.Member Complement.subspace (s n))
+    (converges: SourceSequences.Converges (SourceNormed.metric norm.realNorm) s x) \then
+  \let zero: KernelProjection.projection.apply x = space.zero := ProjectionKernel.kernelClosed s x
+    (\fun (n: N.Nat^) => Complement.projectionZero (\into[V](s n, Complement.subspace.carrier) \by { members n })) converges \then
+  \return \fun (k: KernelSpace) => eq_reason_in!{C.Complex _
+    "=" _ "by" { inner.conjugateSymmetric k x }
+    "=" _ "by" { congr!{C.Complex C.Complex} C.Def[].conj _ _ (KernelProjection.equation x k) }
+    "=" _ "by" { congr!{V C.Complex} (\fun (v: V) => C.Def[].conj (inner.inner v k)) _ _ zero }
+    "=" _ "by" { congr!{C.Complex C.Complex} C.Def[].conj _ _ (zeroLeft k) }
+    "=" _ "by" { C.Prop[].conjOfReal R.zero }
+  }
+};
+\definition closedComplement: ClosedSubspaces.ClosedSubspace := \into[SourceSubspaces.Subspace](Complement.subspace, ClosedSubspaces.ClosedSubspace) \by { complementClosed };
+\import ClosedSubspaces.In[S := closedComplement] \as Domain;
+\import SourceSubspaces.Of[subspace := Complement.subspace] \as DomainPoints;
+\import TargetHilbert.Subspaces[] \as TargetClosed;
+\definition closedImage: TargetClosed.ClosedSubspace := \into[TargetSubspaces.Subspace](image, TargetClosed.ClosedSubspace) \by { fredholm.left };
+\import TargetClosed.In[S := closedImage] \as Range;
+\import Algebra.Linear[V := Domain.Point, W := Range.Point, source := DomainPoints.induced, target := Image.induced] \as RestrictedMaps;
+\definition restrictedLinear: RestrictedMaps.Map := RestrictedMaps.Map {
+  apply := \fun (x: Domain.Point) => \into[W](f.apply x, image.carrier) \by { Logic.existsIntro[V, { v: V \where f.apply v = f.apply x }] x (\refl(f.apply x)) },
+  preservesAdd := \fun (x, y: Domain.Point) => f.preservesAdd x y,
+  preservesScale := \fun (a: C.Complex)(x: Domain.Point) => f.preservesScale a x,
+};
+\import complex_hilbert.Space[V := Domain.Point, space := DomainPoints.induced].Operators[W := Range.Point, target := Image.induced, norm := Domain.restrictedNorm, targetNorm := Range.restrictedNorm] \as RestrictedBounded;
+\definition restricted: RestrictedBounded.Map := \into[RestrictedMaps.Map](restrictedLinear, RestrictedBounded.Map) \by { \block {
+  \takefrom c: \Cast[R.Real] ({ c: R.Real \where Bounded.Bound[f, c] }) \by Bounded.bounded f \then
+  \let bound: Bounded.Bound[f, c] := \bysub(R.Real, { c: R.Real \where Bounded.Bound[f, c] }, c) \then
+  \return Logic.existsIntro[R.Real, { c: R.Real \where RestrictedBounded.Bound[restrictedLinear, c] }] c (RestrictedBounded.Bound[restrictedLinear, c] {
+    nonnegative := bound.nonnegative, estimate := \fun (x: Domain.Point) => bound.estimate x,
+  })
+} };
+\import Algebra.Isomorphism[V := Domain.Point, W := Range.Point, source := DomainPoints.induced, target := Image.induced].OfBijective[f := restrictedLinear] \as Inverse;
+\definition injective: Inverse.Injective := \block {
+  \fun (x, y: Domain.Point)(equal: restrictedLinear.apply x = restrictedLinear.apply y) \then
+  \let z: Domain.Point := DomainPoints.plus x (DomainPoints.negative y) \then
+  \let zero: f.apply z = target.zero := trans!{W} _ _ _ (RealOperators.preservesSub (Bounded.realMap f) x y)
+    (trans!{W} _ _ _ (congr!{W W} (\fun (v: W) => TargetNormed.sub v (f.apply y)) _ _ equal) (TargetNormed.subSelf (f.apply y))) \then
+  \let k: KernelSpace := \into[V](z, kernel.carrier) \by { zero } \then
+  \let orthogonal: inner.inner k z = C.Def[].zero := (\bysub(V, Complement.subspace.carrier, z)) k \then
+  \return SourceNormed.subZero x y (inner.definite z orthogonal)
+};
+\definition onto: Inverse.Onto := \block {
+  \fun (y: Range.Point) \then
+  \takefrom x: \Cast[V] ({ x: V \where f.apply x = y }) \by \bysub(W, image.carrier, y) \then
+  \let k: KernelSpace := KernelProjection.point x \then
+  \let zero: f.apply k = target.zero := \bysub(V, kernel.carrier, k) \then
+  \let equal: restrictedLinear.apply (Complement.residual x) = y := eq_reason_in!{W _
+    "=" _ "by" { RealOperators.preservesSub (Bounded.realMap f) x k }
+    "=" _ "by" { congr!{W W} (TargetNormed.sub (f.apply x)) _ _ zero }
+    "=" _ "by" { TargetNormed.subZeroRight (f.apply x) }
+    "=" _ "by" { \bysub(V, { x: V \where f.apply x = y }, x) }
+  } \then
+  \return Logic.existsIntro[Domain.Point, { z: Domain.Point \where restrictedLinear.apply z = y }] (Complement.residual x) equal
+};
+\import \root.Space[V := Domain.Point, space := DomainPoints.induced, norm := Domain.restrictedNorm].Operators[W := Range.Point, target := Image.induced, targetNorm := Range.restrictedNorm].At[f := restricted].Inverse[s := Inverse.backward injective onto] \as BoundedInverse;
+\import complex_hilbert.Space[V := Range.Point, space := Image.induced].Operators[W := Domain.Point, target := DomainPoints.induced, norm := Range.restrictedNorm, targetNorm := Domain.restrictedNorm] \as ReverseRestricted;
+\definition inverse: ReverseRestricted.Map := \into[Algebra.Linear[V := Range.Point, W := Domain.Point, source := Image.induced, target := DomainPoints.induced].Map](Inverse.backward injective onto, ReverseRestricted.Map) \by {
+  BoundedInverse.bounded (Domain.hilbert complete).complete (Range.hilbert targetComplete).complete (Inverse.leftInverse injective onto) (Inverse.rightInverse injective onto)
+};
+
+\import Range.Projection[complete := targetComplete] \as RangeProjection;
+\import Target.Operators[W := Range.Point, target := Image.induced, norm := targetNorm, targetNorm := Range.restrictedNorm] \as ProjectRange;
+\definition projectRange: ProjectRange.Map := \into[Algebra.Linear[V := W, W := Range.Point, source := target, target := Image.induced].Map](RangeProjection.linear, ProjectRange.Map) \by {
+  Logic.existsIntro[R.Real, { c: R.Real \where ProjectRange.Bound[RangeProjection.linear, c] }] R.one (ProjectRange.Bound[RangeProjection.linear, R.one] {
+    nonnegative := Laws.oneNonnegative,
+    estimate := \fun (y: W) => Order.leReplaceRight _ (targetNorm.realNorm.norm y) (R.mul R.one (targetNorm.realNorm.norm y))
+      (sym!{R.Real} _ _ (Laws.fieldMulOneLeft _)) (RangeProjection.contractive y),
+  })
+};
+\import complex_hilbert.Space[V := Domain.Point, space := DomainPoints.induced].Operators[W := V, target := space, norm := Domain.restrictedNorm, targetNorm := norm] \as IncludeDomain;
+\definition includeDomain: IncludeDomain.Map := \into[Algebra.Linear[V := Domain.Point, W := V, source := DomainPoints.induced, target := space].Map](DomainPoints.inclusion, IncludeDomain.Map) \by {
+  Logic.existsIntro[R.Real, { c: R.Real \where IncludeDomain.Bound[DomainPoints.inclusion, c] }] R.one (IncludeDomain.Bound[DomainPoints.inclusion, R.one] {
+    nonnegative := Laws.oneNonnegative,
+    estimate := \fun (x: Domain.Point) => Order.leReplaceRight _ (norm.realNorm.norm x) (R.mul R.one (norm.realNorm.norm x))
+      (sym!{R.Real} _ _ (Laws.fieldMulOneLeft _)) (Order.leRefl _),
+  })
+};
+\import ReverseRestricted.Compact[].After[U := V, codomain := space, codomainNorm := norm] \as Include;
+\import ProjectRange.Compact[].After[U := V, codomain := space, codomainNorm := norm] \as Extend;
+\definition parametrix: Reverse.Map := Extend.compose projectRange (Include.compose inverse includeDomain);
+\definition onRange: \forall (y: Range.Point) -> parametrix.apply y = inverse.apply y :=
+  \fun (y: Range.Point) => congr!{Range.Point V} (\fun (z: Range.Point) => inverse.apply z) (RangeProjection.point y) y (RangeProjection.fixes y);
+\definition imagePoint[x: V]: Range.Point := \into[W](f.apply x, image.carrier) \by { Logic.existsIntro[V, { z: V \where f.apply z = f.apply x }] x (\refl(f.apply x)) };
+\definition preservesResidual: \forall (x: V) -> restrictedLinear.apply (Complement.residual x) = imagePoint x :=
+  \fun (x: V) => trans!{W} _ _ _ (RealOperators.preservesSub (Bounded.realMap f) x (KernelProjection.point x))
+    (trans!{W} _ _ _ (congr!{W W} (TargetNormed.sub (f.apply x)) _ _ (\bysub(V, kernel.carrier, KernelProjection.point x))) (TargetNormed.subZeroRight (f.apply x)));
+\definition onImage: \forall (x: V) -> parametrix.apply (f.apply x) = Complement.residual x :=
+  \fun (x: V) => trans!{V} _ _ _ (onRange (imagePoint x))
+    (trans!{V} _ _ _ (congr!{Range.Point V} (\fun (z: Range.Point) => inverse.apply z) (imagePoint x) (restrictedLinear.apply (Complement.residual x)) (sym!{Range.Point} _ _ (preservesResidual x)))
+      (Inverse.leftInverse injective onto (Complement.residual x)));
+\definition imageAfter: \forall (y: W) -> f.apply (parametrix.apply y) = RangeProjection.projection.apply y :=
+  \fun (y: W) => Inverse.rightInverse injective onto (RangeProjection.point y);
+\definition leftEquation: \forall (x: V) -> (leftDefect parametrix).apply x = KernelProjection.projection.apply x :=
+  \fun (x: V) => trans!{V} _ _ _ (congr!{V V} (SourceNormed.sub x) _ _ (onImage x))
+    (SourceVectors.cancelLeft (Complement.residual x) (SourceNormed.sub x (Complement.residual x)) (KernelProjection.point x)
+      (eq_reason_in!{V _
+        "=" _ "by" { SourceVectors.comm (Complement.residual x) (SourceNormed.sub x (Complement.residual x)) }
+        "=" _ "by" { SourceNormed.subAddCancel x (Complement.residual x) }
+        "=" _ "by" { sym!{V} _ _ (SourceNormed.subAddCancel x (KernelProjection.point x)) }
+      }));
+\import KernelDimension.Through[U := V, W := V, domain := space, codomain := space, into := KernelProjection.linear, out := Kernel.inclusion] \as KernelFinite;
+\import complex_hilbert.FiniteRank[V := V, W := V, source := space, target := space] \as SourceFinite;
+\import Algebra.Linear[V := V, W := V, source := space, target := space] \as SourceMaps;
+\import Algebra.Linear[V := KernelSpace, W := V, source := Kernel.induced, target := space].Composition[U := V, domain := space] \as KernelCompose;
+\definition leftFinite: SourceFinite.FiniteRank (leftDefect parametrix) :=
+  \idelim KernelCompose.compose Kernel.inclusion KernelProjection.linear = leftDefect parametrix
+    \with h: SourceMaps.Map => SourceFinite.FiniteRank h \by {
+      base: KernelFinite.finite fredholm.right.left,
+      equality: SourceMaps.ext (KernelCompose.compose Kernel.inclusion KernelProjection.linear) (leftDefect parametrix)
+        (\axiom:funext((KernelCompose.compose Kernel.inclusion KernelProjection.linear).apply, (leftDefect parametrix).apply,
+          \fun (x: V) => sym!{V} _ _ (leftEquation x)))
+    };
+\import RangeProjection.Complement[] \as TargetComplement;
+
+\import Algebra.Subspace[V := W, space := target].Of[subspace := TargetComplement.subspace] \as ComplementPoints;
+\import Quotient.Universal[U := ComplementPoints.Carrier, target := ComplementPoints.induced] \as QuotientDescent;
+\import Algebra.Linear[V := CokernelSpace, W := W, source := Quotient.vectorSpace, target := target] \as FromCokernel;
+\definition cokernelOut: FromCokernel.Map := FromCokernel.Map {
+  apply := \fun (q: CokernelSpace) => TargetComplement.forward.apply q,
+  preservesAdd := \fun (x, y: CokernelSpace) => TargetComplement.forward.preservesAdd x y,
+  preservesScale := \fun (a: C.Complex)(x: CokernelSpace) => TargetComplement.forward.preservesScale a x,
+};
+\import CokernelDimension.Through[U := W, W := W, domain := target, codomain := target, into := Quotient.projection, out := cokernelOut] \as CokernelFinite;
+\import complex_hilbert.FiniteRank[V := W, W := W, source := target, target := target] \as TargetFinite;
+\import Algebra.Linear[V := W, W := W, source := target, target := target] \as TargetMaps;
+\import FromCokernel.Composition[U := W, domain := target] \as CokernelCompose;
+\definition rightEquation: \forall (y: W) -> (CokernelCompose.compose cokernelOut Quotient.projection).apply y = (rightDefect parametrix).apply y :=
+  \fun (y: W) => trans!{W} _ _ _ (QuotientDescent.onClass TargetComplement.linear TargetComplement.vanishes y)
+    (congr!{W W} (TargetNormed.sub y) (RangeProjection.projection.apply y) (f.apply (parametrix.apply y)) (sym!{W} _ _ (imageAfter y)));
+\definition rightFinite: TargetFinite.FiniteRank (rightDefect parametrix) :=
+  \idelim CokernelCompose.compose cokernelOut Quotient.projection = rightDefect parametrix
+    \with h: TargetMaps.Map => TargetFinite.FiniteRank h \by {
+      base: CokernelFinite.finite fredholm.right.right,
+      equality: TargetMaps.ext (CokernelCompose.compose cokernelOut Quotient.projection) (rightDefect parametrix)
+        (\axiom:funext((CokernelCompose.compose cokernelOut Quotient.projection).apply, (rightDefect parametrix).apply, rightEquation))
+    };
+\import Source.Operators[W := V, target := space, norm := norm, targetNorm := norm].Compact[].FiniteRank[targetInner := inner] \as SourceCompact;
+\import Target.Operators[W := W, target := target, norm := targetNorm, targetNorm := targetNorm].Compact[].FiniteRank[targetInner := targetInner] \as TargetCompact;
+\definition parametrixLaw: Parametrix parametrix := Logic.And[_, _]::#
+  (SourceCompact.compact complete (leftDefect parametrix) leftFinite) (TargetCompact.compact targetComplete (rightDefect parametrix) rightFinite);

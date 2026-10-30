@@ -1,0 +1,50 @@
+\import ClosedSubspaces.In[S := closedImage].Projection[complete := complete] \as Projection;
+\import Projection.Complement[] \as Complement;
+\import Projection.Complement[].Norm[] \as Norm;
+\import TargetEnd.At[f := Projection.projection] \as ProjectionKernel;
+\definition zeroLeft: \forall (y: W) -> targetInner.inner target.zero y = C.Def[].zero :=
+  \fun (y: W) => trans!{C.Complex} _ _ _ (targetInner.conjugateSymmetric target.zero y)
+    (trans!{C.Complex} _ _ _ (congr!{C.Complex C.Complex} C.Def[].conj _ _ (targetInner.zeroRight y)) (C.Prop[].conjOfReal R.zero));
+\definition complementClosed: ClosedSubspaces.Closed Complement.subspace := \block {
+  \fun (sequence: N.Nat^ -> W)(y: W)(members: \forall (n: N.Nat^) -> TargetSubspaces.Member Complement.subspace (sequence n))
+    (converges: TargetSequences.Converges (TargetNormed.metric targetNorm.realNorm) sequence y) \then
+  \let zero: Projection.projection.apply y = target.zero := ProjectionKernel.kernelClosed sequence y
+    (\fun (n: N.Nat^) => Complement.projectionZero (\into[W](sequence n, Complement.subspace.carrier) \by { members n })) converges \then
+  \return \fun (x: ImageSpace) => eq_reason_in!{C.Complex _
+    "=" _ "by" { targetInner.conjugateSymmetric x y }
+    "=" _ "by" { congr!{C.Complex C.Complex} C.Def[].conj _ _ (Projection.equation y x) }
+    "=" _ "by" { congr!{W C.Complex} (\fun (v: W) => C.Def[].conj (targetInner.inner v x)) _ _ zero }
+    "=" _ "by" { congr!{C.Complex C.Complex} C.Def[].conj _ _ (zeroLeft x) }
+    "=" _ "by" { C.Prop[].conjOfReal R.zero }
+  }
+};
+\definition closedComplement: ClosedSubspaces.ClosedSubspace := \into[TargetSubspaces.Subspace](Complement.subspace, ClosedSubspaces.ClosedSubspace) \by { complementClosed };
+\import Algebra.Subspace[V := W, space := target].Of[subspace := Complement.subspace] \as Points;
+\import \root.Space[V := W, space := target, norm := targetNorm].Hilbert[inner := targetInner].FixedSubspace[S := closedComplement] \as Fixed;
+\import \root.FiniteSpace[V := Points.Carrier, space := Points.induced] \as Dimension;
+\definition residual: TargetEnd.Map := TargetEnd.difference TargetIdeal.identity Projection.projection;
+\import TargetEnd.After[U := W, codomain := target, codomainNorm := targetNorm] \as Compose;
+\import TargetNormed.Operators[W := W, target := Target.realSpace, norm := targetNorm.realNorm, targetNorm := targetNorm.realNorm] \as RealEnd;
+\import Target.Operators[W := W, target := target, norm := targetNorm, targetNorm := targetNorm] \as EndBounded;
+\definition fixes: \forall (y: Points.Carrier) -> (Compose.compose (rightDefect s) residual).apply y = y :=
+  \fun (y: Points.Carrier) => eq_reason_in!{W _
+    "=" _ "by" { RealEnd.preservesSub (EndBounded.realMap residual) y (f.apply (s.apply y)) }
+    "=" _ "by" { congr!{W W W} TargetNormed.sub _ _ _ _ (Complement.residualFixes y)
+      (Complement.vanishes (f.apply (s.apply y)) (Logic.existsIntro[V, { x: V \where f.apply x = f.apply (s.apply y) }] (s.apply y) (\refl(f.apply (s.apply y))))) }
+    "=" _ "by" { TargetNormed.subZeroRight y }
+  };
+\definition finiteComplement: TargetEnd.Compact (rightDefect s) -> Dimension.FiniteDimensional :=
+  \fun (compact: TargetEnd.Compact (rightDefect s)) => Fixed.finiteDimensional complete (Compose.compose (rightDefect s) residual)
+    (Compose.compactAfter (rightDefect s) residual compact) fixes;
+\import Dimension.Through[U := CokernelSpace, W := CokernelSpace, domain := Quotient.vectorSpace, codomain := Quotient.vectorSpace, into := Complement.forward, out := Complement.backward] \as Through;
+\import Algebra.Linear[V := Points.Carrier, W := CokernelSpace, source := Points.induced, target := Quotient.vectorSpace].Composition[U := CokernelSpace, domain := Quotient.vectorSpace] \as QuotientCompose;
+\import Algebra.Linear[V := CokernelSpace, W := CokernelSpace, source := Quotient.vectorSpace, target := Quotient.vectorSpace] \as QuotientEnd;
+\import complex_hilbert.FiniteRank[V := CokernelSpace, W := CokernelSpace, source := Quotient.vectorSpace, target := Quotient.vectorSpace] \as QuotientRank;
+\definition finite: TargetEnd.Compact (rightDefect s) -> CokernelDimension.FiniteDimensional :=
+  \fun (compact: TargetEnd.Compact (rightDefect s)) =>
+    \idelim QuotientCompose.compose Complement.backward Complement.forward = CokernelDimension.identity
+      \with h: QuotientEnd.Map => QuotientRank.FiniteRank h \by {
+        base: Through.finite (finiteComplement compact),
+        equality: QuotientEnd.ext (QuotientCompose.compose Complement.backward Complement.forward) CokernelDimension.identity
+          (\axiom:funext((QuotientCompose.compose Complement.backward Complement.forward).apply, CokernelDimension.identity.apply, Complement.leftInverse))
+      };
