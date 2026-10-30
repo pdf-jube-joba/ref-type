@@ -1,0 +1,18 @@
+\import complex.Complex[] \as C;
+\import measure_convergence.On[A := Sigma.Point, mu := Product.measure].Complex[] \as JC;
+\import measure_convergence.On[A := A, mu := mu].Complex[] \as LC;
+\import measure_convergence.On[A := B, mu := nu].Complex[] \as RC;
+\structure Certificate[f: JC.Representatives]: \Set := {
+  exception: Null.NullSet,
+  sections: A -> RC.Representatives,
+  sectionValues: \forall (x: A) -> Logic.Not (ASets.Member exception x) -> \forall (y: B) -> sections x y = f (Pair.pair A B x y),
+  outer: LC.Representatives,
+  outerValues: \forall (x: A) -> outer x = RC.integral (sections x),
+  exchange: JC.integral f = LC.integral outer,
+};
+\module For(f: JC.Representatives, re: AEFubini[JC.realPart f], im: AEFubini[JC.imaginaryPart f]);
+\definition fubini: \forall (f: JC.Representatives) -> \exists Certificate[f] := \fun (f: JC.Representatives) => \block {
+  \takefrom re: AEFubini[JC.realPart f] \by \root.Integration[A := A, B := B, mu := mu, nu := nu, left := left, right := right].fubini (JC.realPart f) \then
+  \takefrom im: AEFubini[JC.imaginaryPart f] \by \root.Integration[A := A, B := B, mu := mu, nu := nu, left := left, right := right].fubini (JC.imaginaryPart f) \then
+  \return \exact(\root.Integration[A := A, B := B, mu := mu, nu := nu, left := left, right := right].Complex[].For[f := f, re := re, im := im].certificate, Certificate[f])
+};

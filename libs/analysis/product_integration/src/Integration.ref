@@ -1,0 +1,64 @@
+\import \root.Product[A := A, B := B, mu := mu, nu := nu, left := left, right := right] \as Product;
+\import \root.Decomposition[A := A, mu := mu, exhaustion := left] \as Left;
+\import \root.Decomposition[A := B, mu := nu, exhaustion := right] \as Right;
+\import \root.ProductSigma[A := A, B := B, left := mu.sigma, right := nu.sigma] \as Sigma;
+\import functional_analysis.Measure[A := A] \as LM;
+\import functional_analysis.Measure[A := B] \as RM;
+\import functional_analysis.Measure[A := Sigma.Point] \as PM;
+\import LM.Integral[mu := mu] \as LI;
+\import RM.Integral[mu := nu] \as RI;
+\import PM.Integral[mu := Product.measure] \as PI;
+\import \root.ExtendedIntegral[A := A, mu := mu] \as E;
+\import \root.SeriesValues[A := Sigma.Point, mu := Product.measure] \as Values;
+\import \root.IntegralTools[A := Sigma.Point, mu := Product.measure] \as Joint;
+\import \root.IntegralTools[A := A, mu := mu] \as LeftTools;
+\import \root.IntegralTools[A := B, mu := nu] \as RightTools;
+\import topology.Topology[Carrier := A] \as ASets;
+\import LI.Null[] \as Null;
+\import std.Data[].Nat[] \as N;
+\import std.Data[].Pair[] \as Pair;
+\import std.Logic[].Proposition[] \as Logic;
+\import real.Analysis[] \as Real;
+\import dedekind_reals.DedekindReal[] \as R;
+\use std.Logic[].Equality[].sym;
+\use std.Logic[].Equality[].congr;
+\use std.Logic[].Equality[].eq_reason_in;
+\definition sectionLower[f: PI.NonnegativeMeasurable] [x: A]: RM.Value := RI.lowerIntegral (\fun (y: B) => f.function (Pair.pair A B x y));
+\structure AEFubini[f: PI.Representatives]: \Set := {
+  exception: Null.NullSet,
+  sections: A -> RI.Representatives,
+  sectionValues: \forall (x: A) -> Logic.Not (ASets.Member exception x) -> \forall (y: B) -> sections x y = f (Pair.pair A B x y),
+  outer: LI.Representatives,
+  outerValues: \forall (x: A) -> outer x = RI.integral (sections x),
+  exchange: PI.integral f = LI.integral outer,
+};
+\module Nonnegative(f: PI.NonnegativeMeasurable);
+\definition tonelli: \forall (f: PI.NonnegativeMeasurable) -> PI.lowerIntegral f.function = E.lowerIntegral (sectionLower f) :=
+  \fun (f: PI.NonnegativeMeasurable) => \block {
+    \takefrom witnesses: \root.Integration[A := A, B := B, mu := mu, nu := nu, left := left, right := right].Nonnegative[f := f].Witnesses
+      \by \root.Integration[A := A, B := B, mu := mu, nu := nu, left := left, right := right].Nonnegative[f := f].witnessesExist \then
+    \return sym!{PM.Value} _ _ (\root.Integration[A := A, B := B, mu := mu, nu := nu, left := left, right := right].Nonnegative[f := f].With[witnesses := witnesses].theorem)
+  };
+
+\definition nonnegative: \forall (f: PI.Representatives) -> (\forall (p: Sigma.Point) -> R.Le Real.zero (f p)) -> \exists AEFubini[f] :=
+  \fun (f: PI.Representatives) (nonnegative: \forall (p: Sigma.Point) -> R.Le Real.zero (f p)) => \block {
+    \let function: PI.NonnegativeMeasurable := PI.NonnegativeMeasurable { function := f, measurable := (PI.integralLaw f).integrable.left, nonnegative := nonnegative } \then
+    \takefrom witnesses: \root.Integration[A := A, B := B, mu := mu, nu := nu, left := left, right := right].Nonnegative[f := function].Witnesses
+      \by \root.Integration[A := A, B := B, mu := mu, nu := nu, left := left, right := right].Nonnegative[f := function].witnessesExist \then
+    \return \idelim \root.Integration[A := A, B := B, mu := mu, nu := nu, left := left, right := right].Nonnegative[f := function].With[witnesses := witnesses].Integrable[integrable := (PI.integralLaw f).integrable].joint = f
+      \with g: PI.Representatives => \exists AEFubini[g] \by {
+        base: \exact(\root.Integration[A := A, B := B, mu := mu, nu := nu, left := left, right := right].Nonnegative[f := function].With[witnesses := witnesses].Integrable[integrable := (PI.integralLaw f).integrable].certificate,
+          AEFubini[\root.Integration[A := A, B := B, mu := mu, nu := nu, left := left, right := right].Nonnegative[f := function].With[witnesses := witnesses].Integrable[integrable := (PI.integralLaw f).integrable].joint]),
+        equality: \axiom:funext(\root.Integration[A := A, B := B, mu := mu, nu := nu, left := left, right := right].Nonnegative[f := function].With[witnesses := witnesses].Integrable[integrable := (PI.integralLaw f).integrable].joint, f,
+          \fun (p: Sigma.Point) => \refl(f p)) }
+  };
+\module RealFunction(f: PI.Representatives,
+  positive: AEFubini[\root.IntegralTools[A := Sigma.Point, mu := Product.measure].Parts[f := f].positive],
+  negative: AEFubini[\root.IntegralTools[A := Sigma.Point, mu := Product.measure].Parts[f := f].negative]);
+\definition fubini: \forall (f: PI.Representatives) -> \exists AEFubini[f] := \fun (f: PI.Representatives) => \block {
+  \takefrom p: AEFubini[Joint.Parts[f := f].positive] \by nonnegative (Joint.Parts[f := f].positive) (PI.positivePartNonnegative f) \then
+  \takefrom n: AEFubini[Joint.Parts[f := f].negative] \by nonnegative (Joint.Parts[f := f].negative) (PI.negativePartNonnegative f) \then
+  \return \exact(\root.Integration[A := A, B := B, mu := mu, nu := nu, left := left, right := right].RealFunction[f := f, positive := p, negative := n].certificate, AEFubini[f])
+};
+\module Complex;
+\module Vector(n: N.Nat^);

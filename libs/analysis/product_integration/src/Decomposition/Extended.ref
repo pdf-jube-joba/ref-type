@@ -1,0 +1,29 @@
+\import I.Convergence[] \as C;
+\import \root.ExtendedIntegral[A := A, mu := mu] \as E;
+\import \root.SeriesValues[A := A, mu := mu] \as Values;
+\import std.Logic[].Proposition[] \as Logic;
+\definition row[k: N.Nat^]: M.Integral[mu := measure k].Convergence[].MeasurableSequence :=
+  \into[N.Nat^ -> A -> real.Analysis[].Real](f, M.Integral[mu := measure k].Convergence[].MeasurableSequence) \by {
+    \fun (n: N.Nat^) => C.sequenceMeasurable f n };
+\definition stage[n: N.Nat^] [nonnegative: \forall (x: A) -> dedekind_reals.DedekindReal[].Le real.Analysis[].zero (f n x)]:
+  I.NonnegativeMeasurable := I.NonnegativeMeasurable {
+    function := f n, measurable := C.sequenceMeasurable f n, nonnegative := nonnegative,
+  };
+\definition theorem: (\forall (n: N.Nat^) (x: A) -> dedekind_reals.DedekindReal[].Le real.Analysis[].zero (f n x)) ->
+  C.FunctionIncreasing f -> E.lowerIntegral (E.sup f) =
+  M.series (\fun (k: N.Nat^) => \root.ExtendedIntegral[A := A, mu := measure k].lowerIntegral (E.sup f)) :=
+  \fun (nonnegative: _) (increasing: C.FunctionIncreasing f) => eq_reason_in!{M.Value _
+    "=" _ "by" { E.monotone f increasing }
+    "=" _ "by" { congr!{{N.Nat^ -> M.Value} M.Value} C.Sup _ _ (\axiom:funext(
+      (\fun (n: N.Nat^) => I.lowerIntegral (f n)),
+      (\fun (n: N.Nat^) => M.series (\fun (k: N.Nat^) => M.Integral[mu := measure k].lowerIntegral (f n))),
+      \fun (n: N.Nat^) => \root.Decomposition[A := A, mu := mu, exhaustion := exhaustion].Integral[f := stage n (nonnegative n)].theorem)) }
+    "=" _ "by" { sym!{M.Value} _ _ (Values.supExchange (\fun (k, n: N.Nat^) => M.Integral[mu := measure k].lowerIntegral (f n))
+      (\fun (k: N.Nat^) (m, n: N.Nat^) (later: std.Data[].Nat[].Basic[].Prop[].Le m n) =>
+        M.Integral[mu := measure k].lowerIntegralMono (f m) (f n)
+          (\fun (x: A) => C.PointwiseSum[].increasingAll f increasing n m later x))) }
+    "=" _ "by" { congr!{{N.Nat^ -> M.Value} M.Value} M.series _ _ (\axiom:funext(
+      (\fun (k: N.Nat^) => C.Sup (\fun (n: N.Nat^) => M.Integral[mu := measure k].lowerIntegral (f n))),
+      (\fun (k: N.Nat^) => \root.ExtendedIntegral[A := A, mu := measure k].lowerIntegral (E.sup f)),
+      \fun (k: N.Nat^) => sym!{M.Value} _ _ (\root.ExtendedIntegral[A := A, mu := measure k].monotone (row k) increasing))) }
+  };

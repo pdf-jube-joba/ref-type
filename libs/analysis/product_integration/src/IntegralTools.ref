@@ -18,6 +18,16 @@
 \use std.Logic[].Equality[].sym;
 \use std.Logic[].Equality[].congr;
 \use std.Logic[].Equality[].eq_reason_in;
+\definition finiteLower: \forall (f: I.NonnegativeMeasurable) (bound: Scaling.NonnegativeScalar) ->
+  (\forall (r: Real.Real) -> M.below (I.lowerIntegral f.function) r -> R.Le r bound) -> I.Integrable f.function :=
+  \fun (f: I.NonnegativeMeasurable) (bound: Scaling.NonnegativeScalar)
+    (upper: \forall (r: Real.Real) -> M.below (I.lowerIntegral f.function) r -> R.Le r bound) =>
+    Logic.And[_, _]::# f.measurable (\idelim f.function = (\fun (x: A) => Product.abs (f.function x))
+      \with g: (A -> Real.Real) => I.Finite g \by {
+        base: Logic.And[_, _]::# f.nonnegative (Logic.existsIntro[Real.Real, { b: Real.Real \where I.IntegralBound[f.function, b] }] bound
+          (I.IntegralBound[f.function, bound] { nonnegative := Scaling.nonnegative bound, bound := upper })),
+        equality: \axiom:funext(f.function, (\fun (x: A) => Product.abs (f.function x)), \fun (x: A) =>
+          sym!{Real.Real} _ _ (Product.absOfNonnegative (f.function x) (f.nonnegative x))) });
 \definition nonnegativeSup: \forall (f: A -> Real.Real) (v: Real.Real) -> (\forall (x: A) -> R.Le Real.zero (f x)) ->
   M.IsMeasurable mu f -> Complete.LeastUpperBound[I.lowerIntegral f, v] -> I.HasIntegral[f, v] :=
   \fun (f: A -> Real.Real) (v: Real.Real) (nonnegative: \forall (x: A) -> R.Le Real.zero (f x)) (measurable: M.IsMeasurable mu f)

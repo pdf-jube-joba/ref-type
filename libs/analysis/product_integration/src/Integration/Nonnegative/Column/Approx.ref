@@ -1,0 +1,18 @@
+\import F.Approximating[f := function, witnesses := witnesses] \as Approximation;
+\definition term[k: N.Nat^]: LI.NonnegativeMeasurable := LI.NonnegativeMeasurable {
+  function := Approximation.approximateOuter k,
+  measurable := (LM.Integral[mu := Left.measure N.Nat^::zero].integralLaw (Approximation.approximateOuter k)).integrable.left,
+  nonnegative := Approximation.outerNonnegative k,
+};
+\definition sequence: LI.Convergence[].MeasurableSequence := \into[N.Nat^ -> A -> Real.Real]
+  ((\fun (k: N.Nat^) => (term k).function), LI.Convergence[].MeasurableSequence) \by { \fun (k: N.Nat^) => (term k).measurable };
+\definition equality: lower = E.sup sequence := F.Tonelli[f := function, witnesses := witnesses].sectionEquality;
+\definition decomposition: E.lowerIntegral lower = LM.series (\fun (i: N.Nat^) =>
+  \root.ExtendedIntegral[A := A, mu := Left.measure i].lowerIntegral lower) := eq_reason_in!{LM.Value _
+  "=" _ "by" { congr!{{A -> LM.Value} LM.Value} E.lowerIntegral _ _ equality }
+  "=" _ "by" { Left.Extended[f := sequence].theorem (\fun (k: N.Nat^) => (term k).nonnegative) Approximation.outerIncreasing }
+  "=" _ "by" { congr!{{N.Nat^ -> LM.Value} LM.Value} LM.series _ _ (\axiom:funext(
+    (\fun (i: N.Nat^) => \root.ExtendedIntegral[A := A, mu := Left.measure i].lowerIntegral (E.sup sequence)),
+    (\fun (i: N.Nat^) => \root.ExtendedIntegral[A := A, mu := Left.measure i].lowerIntegral lower),
+    \fun (i: N.Nat^) => congr!{{A -> LM.Value} LM.Value} (\fun (h: A -> LM.Value) => \root.ExtendedIntegral[A := A, mu := Left.measure i].lowerIntegral h) _ _ (sym!{{A -> LM.Value}} _ _ equality))) }
+};

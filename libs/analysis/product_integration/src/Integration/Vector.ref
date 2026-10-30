@@ -1,0 +1,19 @@
+\import std.Data[].FinSet[] \as Fin;
+\import measure_convergence.On[A := Sigma.Point, mu := Product.measure].Vector[n := n] \as JV;
+\import measure_convergence.On[A := A, mu := mu].Vector[n := n] \as LV;
+\import measure_convergence.On[A := B, mu := nu].Vector[n := n] \as RV;
+\structure Certificate[f: JV.Representatives]: \Set := {
+  exception: Null.NullSet,
+  sections: A -> RV.Representatives,
+  sectionValues: \forall (x: A) -> Logic.Not (ASets.Member exception x) -> \forall (y: B) -> sections x y = f (Pair.pair A B x y),
+  outer: LV.Representatives,
+  outerValues: \forall (x: A) -> outer x = RV.integral (sections x),
+  exchange: JV.integral f = LV.integral outer,
+};
+\module For(f: JV.Representatives, components: \forall (i: Fin.Fin n) -> AEFubini[JV.component f i]);
+\definition fubini: \forall (f: JV.Representatives) -> \exists Certificate[f] := \fun (f: JV.Representatives) => \block {
+  \takefrom components: \forall (i: Fin.Fin n) -> AEFubini[JV.component f i] \by
+    \axiom:classicalIndefiniteChoice(Fin.Fin n, (\fun (i: Fin.Fin n) => AEFubini[JV.component f i]),
+      \fun (i: Fin.Fin n) => \root.Integration[A := A, B := B, mu := mu, nu := nu, left := left, right := right].fubini (JV.component f i)) \then
+  \return \exact(\root.Integration[A := A, B := B, mu := mu, nu := nu, left := left, right := right].Vector[n := n].For[f := f, components := components].certificate, Certificate[f])
+};
