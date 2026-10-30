@@ -1,0 +1,27 @@
+\import std.Logic[].Classical[] \as Classical;
+\definition kernelZero: (\forall (x: A) -> Logic.Not (Sets.Member S x) -> f x = Real.zero) ->
+  (\forall (y: A) -> Logic.Not (Sets.Member T y) -> g y = Real.zero) ->
+  \forall (x: A) -> Logic.Not (Sets.Member (sumSupport S T) x) -> \forall (y: A) -> kernel (Pair.pair A A x y) = Real.zero :=
+  \fun (fZero: _) (gZero: _) (x: A) (outside: Logic.Not (Sets.Member (sumSupport S T) x)) (y: A) =>
+    Logic.orElim _ _ _ (Classical.excludedMiddle (Sets.Member T y))
+      (\fun (inside: Sets.Member T y) => eq_reason_in!{Real.Real _
+        "=" _ "by" { congr!{Real.Real Real.Real} (\fun (a: Real.Real) => Real.mul a (g y)) _ _
+          (fZero ((translations y).function x) (\fun (member: Sets.Member S ((translations y).function x)) =>
+            outside (Logic.existsIntro[A, { y: A \where Logic.And[Sets.Member T y, Sets.Member S ((translations y).function x)] }] y (Logic.And[_, _]::# inside member)))) }
+        "=" _ "by" { Laws.fieldMulZeroLeft (g y) }
+      })
+      (\fun (notIn: Logic.Not (Sets.Member T y)) => eq_reason_in!{Real.Real _
+        "=" _ "by" { congr!{Real.Real Real.Real} (Real.mul (f ((translations y).function x))) _ _ (gZero y notIn) }
+        "=" _ "by" { Laws.fieldMulZeroRight (f ((translations y).function x)) }
+      });
+\definition theorem: (\forall (x: A) -> Logic.Not (Sets.Member S x) -> f x = Real.zero) ->
+  (\forall (y: A) -> Logic.Not (Sets.Member T y) -> g y = Real.zero) ->
+  \forall (x: A) -> Logic.Not (Sets.Member result.exception x) -> Logic.Not (Sets.Member (sumSupport S T) x) -> result.function x = Real.zero :=
+  \fun (fZero: _) (gZero: _) (x: A) (regular: Logic.Not (Sets.Member result.exception x)) (outside: Logic.Not (Sets.Member (sumSupport S T) x)) => eq_reason_in!{Real.Real _
+    "=" _ "by" { result.values x }
+    "=" _ "by" { congr!{I.Representatives Real.Real} I.integral _ _ (\axiom:funext(result.sections x, I.Zero[].representative, \fun (y: A) => eq_reason_in!{Real.Real _
+      "=" _ "by" { result.sectionValues x regular y }
+      "=" _ "by" { kernelZero fZero gZero x outside y }
+    })) }
+    "=" _ "by" { I.Zero[].integralZero }
+  };

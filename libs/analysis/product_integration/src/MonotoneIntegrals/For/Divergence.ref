@@ -1,0 +1,51 @@
+\import Real.Geometric[q := Real.half] \as Dyadic;
+\import Real.Estimates[].Product[] \as Product;
+\import Real.Estimates[] \as Estimates;
+\import Real.Inverse[] \as Inverse;
+\import Real.SquareRoot[] \as Root;
+\import functional_analysis.ScalarLimits[] \as Limits;
+\import N.Basic[].Prop[] \as Nat;
+\definition radius[i: N.Nat^]: Scaling.PositiveScalar := \into[Real.Real](Laws.fieldInv (Dyadic.value i), Scaling.PositiveScalar) \by {
+  Product.invPositive (Dyadic.value i) (Limits.dyadicPositive i)
+};
+\definition union[i: N.Nat^]: \Pow A := M.union (level (radius i));
+\definition divergent: \Pow A := Sigma.intersection union;
+\definition measurable: M.Measurable mu.sigma divergent := Sigma.intersectionCountableMeasurable mu.sigma union
+  (\fun (i: N.Nat^) => (Sigma.laws mu.sigma).countableUnion (level (radius i))
+    (\fun (k: N.Nat^) => (I.integralLaw (data.sequence k)).integrable.left (radius i)));
+\definition nonnegative: M.NonnegativeValue[mu.value divergent] := Finite.laws.nonnegative divergent measurable;
+\definition zero: mu.value divergent = M.zero := \axiom:setext(mu.value divergent, M.zero,
+  \fun (r: Real.Real) (member: M.below (mu.value divergent) r) => Order.byContradiction (R.Lt r Real.zero)
+    (\fun (notNegative: Logic.Not (R.Lt r Real.zero)) => \block {
+      \takefrom t: \Cast[Real.Real] ({ t: Real.Real \where Logic.And[R.Lt r t, M.below (mu.value divergent) t] }) \by nonnegative.rounded r member \then
+      \let law: Logic.And[R.Lt r t, M.below (mu.value divergent) t] := \bysub(Real.Real, { t: Real.Real \where Logic.And[R.Lt r t, M.below (mu.value divergent) t] }, t) \then
+      \let tp: R.Lt Real.zero t := R.leLtTrans Real.zero r t (Order.leOfNotLtReverse Real.zero r notNegative) law.left \then
+      \let b: Real.Real := Real.add data.bound Real.one \then
+      \let bp: R.Lt Real.zero b := R.leLtTrans Real.zero data.bound b (Scaling.nonnegative data.bound) (Root.addPositive data.bound Real.one Product.onePositive) \then
+      \let epsilon: Real.Real := Real.mul (Laws.fieldInv b) t \then
+      \let ep: R.Lt Real.zero epsilon := Product.mulPositive (Laws.fieldInv b) t (Product.invPositive b bp) tp \then
+      \takefrom i: \Cast[N.Nat^] ({ i: N.Nat^ \where \forall (j: N.Nat^) -> Nat.Le i j -> R.Lt (Dyadic.value j) epsilon }) \by Limits.dyadicSmall epsilon ep \then
+      \let small: R.Lt (Dyadic.value i) epsilon := (\bysub(N.Nat^, { i: N.Nat^ \where \forall (j: N.Nat^) -> Nat.Le i j -> R.Lt (Dyadic.value j) epsilon }, i)) i (Nat.leRefl i) \then
+      \let scaledSmall: R.Lt (Real.mul b (Dyadic.value i)) t := R.ltReplaceRight _ (Real.mul b epsilon) t
+        (Values.inverseProduct b t bp) (Product.mulStrict b (Dyadic.value i) epsilon bp small) \then
+      \let cancel: Real.mul (radius i) (Real.mul b (Dyadic.value i)) = b := eq_reason_in!{Real.Real _
+        "=" _ "by" { congr!{Real.Real Real.Real} (Real.mul (radius i)) _ _ (Laws.fieldMulComm b (Dyadic.value i)) }
+        "=" _ "by" { Values.inverseProductLeft (Dyadic.value i) b (Limits.dyadicPositive i) }
+      } \then
+      \let big: R.Lt b (Real.mul (radius i) t) := R.ltReplaceLeft _ b _ cancel
+        (Product.mulStrict (radius i) (Real.mul b (Dyadic.value i)) t (positive (radius i)) scaledSmall) \then
+      \let q: Real.Real := Real.midpoint b (Real.mul (radius i) t) \then
+      \let inUnion: M.below (mu.value (union i)) t := Finite.monotone divergent (union i) measurable
+        ((Sigma.laws mu.sigma).countableUnion (level (radius i)) (\fun (k: N.Nat^) => (I.integralLaw (data.sequence k)).integrable.left (radius i)))
+        (\fun (x: A) (all: Sets.Member divergent x) => all i) t law.right \then
+      \let scaled: M.below (M.scale (radius i) (mu.value (union i))) q :=
+        Logic.existsIntro[Real.Real, { a: Real.Real \where Logic.And[M.below (mu.value (union i)) a, R.Lt q (Real.mul (radius i) a)] }] t
+          (Logic.And[_, _]::# inUnion (Values.midpointStrictRight b (Real.mul (radius i) t) big)) \then
+      \let upper: R.Le q data.bound := \root.MonotoneIntegrals[A := A, mu := mu].For[data := data].LevelUnion[c := radius i].bound q scaled \then
+      \return R.ltNotLeReverse data.bound q
+        (Order.ltTrans data.bound b q (Root.addPositive data.bound Real.one Product.onePositive) (Values.midpointStrictLeft b (Real.mul (radius i) t) big)) upper
+    }),
+  \fun (r: Real.Real) (negative: R.Lt r Real.zero) => nonnegative.negative r negative);
+\definition exception: Null.NullSet := \into[\Pow A](divergent, Null.NullSet) \by {
+  Null.NullSetLaw[divergent] { measurable := measurable, zeroMeasure := zero }
+};

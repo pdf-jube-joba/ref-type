@@ -1,0 +1,60 @@
+\import Algebra.Subspace[V := V, space := space] \as SourceSubspaces;
+\import Algebra.Subspace[V := W, space := target] \as TargetSubspaces;
+\import SourceSubspaces.Kernel[W := W, target := target] \as Kernels;
+\import TargetSubspaces.Image[U := V, source := space] \as Images;
+\definition kernel: SourceSubspaces.Subspace := Kernels.kernel f;
+\definition image: TargetSubspaces.Subspace := Images.image f;
+\import SourceSubspaces.Of[subspace := kernel] \as Kernel;
+\import TargetSubspaces.Of[subspace := image] \as Image;
+\import Algebra.Quotient[V := W, space := target].Of[S := image] \as Quotient;
+\definition KernelSpace: \Set := Kernel.Carrier;
+\definition ImageSpace: \Set := Image.Carrier;
+\definition CokernelSpace: \Set := Quotient.Carrier;
+\import functional_analysis.Metric[Carrier := V] \as SourceSequences;
+\import functional_analysis.Metric[Carrier := W] \as TargetSequences;
+\import SourceNormed.Operators[W := W, target := Target.realSpace, norm := norm.realNorm, targetNorm := targetNorm.realNorm] \as RealOperators;
+\import std.Data[].Nat[] \as N;
+\definition kernelClosed: \forall (s: N.Nat^ -> V)(x: V) ->
+  (\forall (n: N.Nat^) -> SourceSubspaces.Member kernel (s n)) ->
+  SourceSequences.Converges (SourceNormed.metric norm.realNorm) s x -> SourceSubspaces.Member kernel x := \block {
+  \fun (s: N.Nat^ -> V)(x: V)(members: _)(converges: _) \then
+  \let mapped: TargetSequences.Converges (TargetNormed.metric targetNorm.realNorm) (\fun (n: N.Nat^) => f.apply (s n)) (f.apply x) :=
+    RealOperators.mapsConvergent (Bounded.asReal f) s x converges \then
+  \let equal: (\fun (n: N.Nat^) => target.zero) = (\fun (n: N.Nat^) => f.apply (s n)) :=
+    \axiom:funext((\fun (n: N.Nat^) => target.zero), (\fun (n: N.Nat^) => f.apply (s n)), \fun (n: N.Nat^) => sym!{W} _ _ (members n)) \then
+  \let zero: TargetSequences.Converges (TargetNormed.metric targetNorm.realNorm) (\fun (n: N.Nat^) => f.apply (s n)) target.zero :=
+    \idelim (\fun (n: N.Nat^) => target.zero) = (\fun (n: N.Nat^) => f.apply (s n))
+      \with s: (N.Nat^ -> W) => TargetSequences.Converges (TargetNormed.metric targetNorm.realNorm) s target.zero
+      \by { base: TargetSequences.constantConverges (TargetNormed.metric targetNorm.realNorm) target.zero, equality: equal } \then
+  \return TargetSequences.limitUnique (TargetNormed.metric targetNorm.realNorm) (\fun (n: N.Nat^) => f.apply (s n)) (f.apply x) target.zero mapped zero
+};
+\definition ClosedRange: \Prop := \forall (s: N.Nat^ -> W)(x: W) ->
+  (\forall (n: N.Nat^) -> TargetSubspaces.Member image (s n)) ->
+  TargetSequences.Converges (TargetNormed.metric targetNorm.realNorm) s x -> TargetSubspaces.Member image x;
+
+\import \root.Space[V := W, space := target, norm := targetNorm].Operators[W := V, target := space, targetNorm := norm] \as Reverse;
+\import \root.Space[V := V, space := space, norm := norm].Operators[W := V, target := space, targetNorm := norm] \as SourceEnd;
+\import \root.Space[V := W, space := target, norm := targetNorm].Operators[W := W, target := target, targetNorm := targetNorm] \as TargetEnd;
+\import SourceEnd.Ideal[] \as SourceIdeal;
+\import TargetEnd.Ideal[] \as TargetIdeal;
+\import \root.Space[V := V, space := space, norm := norm].Operators[W := W, target := target, targetNorm := targetNorm].After[U := V, codomain := space, codomainNorm := norm] \as ComposeBack;
+\import Reverse.After[U := W, codomain := target, codomainNorm := targetNorm] \as ComposeForward;
+
+\definition leftDefect[s: Reverse.Map]: SourceEnd.Map := SourceEnd.difference SourceIdeal.identity (ComposeBack.compose f s);
+\definition rightDefect[s: Reverse.Map]: TargetEnd.Map := TargetEnd.difference TargetIdeal.identity (ComposeForward.compose s f);
+\definition Parametrix[s: Reverse.Map]: \Prop := Logic.And[SourceEnd.Compact (leftDefect s), TargetEnd.Compact (rightDefect s)];
+\definition HasParametrix: \Prop := \exists ( s: Reverse.Map \where Parametrix s );
+
+\module Perturbation(g: Map);
+
+\import \root.FiniteSpace[V := KernelSpace, space := Kernel.induced] \as KernelDimension;
+\import \root.FiniteSpace[V := CokernelSpace, space := Quotient.vectorSpace] \as CokernelDimension;
+\module Index;
+\module Hilbert(inner: linear_algebra.Complex[].InnerProduct[V := V, space := space].InnerProduct, targetInner: linear_algebra.Complex[].InnerProduct[V := W, space := target].InnerProduct);
+
+\module Composition(U: \Set, codomain: Algebra.VectorSpace U, codomainNorm: complex_hilbert.Space[V := U, space := codomain].Norm,
+  g: complex_hilbert.Space[V := W, space := target].Operators[W := U, target := codomain, norm := targetNorm, targetNorm := codomainNorm].Map);
+
+\module Inverse(s: Algebra.Linear[V := W, W := V, source := target, target := space].Map);
+
+\module FiniteRank(targetInner: linear_algebra.Complex[].InnerProduct[V := W, space := target].InnerProduct);

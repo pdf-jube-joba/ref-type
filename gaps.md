@@ -183,3 +183,119 @@ module 内の import 別名を、その module の利用側から修飾して参
 \import \root.Wrapper[] \as API;
 \definition result: N.Nat^ := API.value;
 ```
+
+
+## 局所的な存在量化の添字を持つ構造体の構成
+
+有限階数の因子分解の証明で、存在量化から取り出した添字 `n` を使い、その場で `Factor[g]` を構成したい。
+次の 44 行の単独例は、PR #59 を含む処理系でも `--no-cache` で `DefinitionLocalContextIsOutsideReferenceScope` を返して worker が panic する。
+`lowering/captures.rs` の `definition_expression_with_parameters` が定義の周囲の局所文脈を参照位置へ下げる段階で失敗し、`kernel_bridge/terms.rs` の弱頭正規化がそのエラーを受け取る。
+
+型導出は、`factor.equation x : out(into x)=f x` と `equal x : f x=g x` の推移性で新しい `equation` を作り、同じ `n` で存在導入するものである。
+存在消去の結論は命題 `Finite g` であり、命題から集合への除去は使わない。
+
+こう書きたい版:
+
+```ref
+\module Space(V: \Set) {
+  \import std.Logic[].Proposition[] \as Logic;
+  \import std.Logic[].Equality[] \as E;
+  \use E.trans;
+  \import std.Data[].Nat[] \as N;
+  \import std.Data[].FinSet[] \as Fin;
+  \definition identity: V -> V := \fun (x: V) => x;
+  \module Through(n: N.Nat^) {
+    \structure Factor[f: V -> V]: \Set := {
+      into: V -> (Fin.Fin n -> V),
+      out: (Fin.Fin n -> V) -> V,
+      equation: \forall (x: V) -> out (into x) = f x,
+    };
+  }
+  \definition Finite[f: V -> V]: \Prop := \exists ( n: N.Nat^ \where \exists \root.Space[V := V].Through[n := n].Factor f );
+  \module Transport(f, g: V -> V, equal: \forall (x: V) -> f x = g x) {
+    \definition finite: Finite f -> Finite g := \block {
+      \fun (finite: Finite f) \then
+      \takefrom n: \Cast[N.Nat^] ({ n: N.Nat^ \where \exists \root.Space[V := V].Through[n := n].Factor f }) \by finite \then
+      \takefrom factor: \parent.Through[n := n].Factor f \by \bysub(N.Nat^, { n: N.Nat^ \where \exists \root.Space[V := V].Through[n := n].Factor f }, n) \then
+      \return Logic.existsIntro[N.Nat^, { n: N.Nat^ \where \exists \root.Space[V := V].Through[n := n].Factor g }] n
+        (\exact(\parent.Through[n := n].Factor[g] {
+          into := factor.into, out := factor.out,
+          equation := \fun (x: V) => trans!{V} _ _ _ (factor.equation x) (equal x)
+        }, \parent.Through[n := n].Factor g))
+    };
+  }
+}
+\module Test {
+  \import std.Data[].Nat[] \as N;
+  \import std.Data[].FinSet[] \as Fin;
+  \import std.Logic[].Proposition[] \as Logic;
+  \inductive Point: \Set := | origin: Point;
+  \import \root.Space[V := Point] \as S;
+  \definition one: N.Nat^ := N.Nat^::succ N.Nat^::zero;
+  \definition factor: S.Through[n := one].Factor S.identity := S.Through[n := one].Factor[S.identity] {
+    into := \fun (x: Point)(i: Fin.Fin one) => x,
+    out := \fun (a: Fin.Fin one -> Point) => a (Fin.zero N.Nat^::zero),
+    equation := \fun (x: Point) => \refl(x)
+  };
+  \definition finite: S.Finite S.identity := Logic.existsIntro[N.Nat^, { n: N.Nat^ \where \exists \root.Space[V := Point].Through[n := n].Factor S.identity }] one
+    (\exact(factor, S.Through[n := one].Factor S.identity));
+  \definition transported: S.Finite S.identity := S.Transport[f := S.identity, g := S.identity, equal := \fun (x: Point) => \refl(x)].finite finite;
+}
+```
+
+現在は構造体の構成を `Transport.At(n, factor).result` へ分けると、同じ仮定・結論で検査できる。
+こちらは `--no-cache` で成功する 47 行の単独例である。
+
+```ref
+\module Space(V: \Set) {
+  \import std.Logic[].Proposition[] \as Logic;
+  \import std.Logic[].Equality[] \as E;
+  \use E.trans;
+  \import std.Data[].Nat[] \as N;
+  \import std.Data[].FinSet[] \as Fin;
+  \definition identity: V -> V := \fun (x: V) => x;
+  \module Through(n: N.Nat^) {
+    \structure Factor[f: V -> V]: \Set := {
+      into: V -> (Fin.Fin n -> V),
+      out: (Fin.Fin n -> V) -> V,
+      equation: \forall (x: V) -> out (into x) = f x,
+    };
+  }
+  \definition Finite[f: V -> V]: \Prop := \exists ( n: N.Nat^ \where \exists \root.Space[V := V].Through[n := n].Factor f );
+  \module Transport(f, g: V -> V, equal: \forall (x: V) -> f x = g x) {
+    \module At(n: N.Nat^, factor: \root.Space[V := V].Through[n := n].Factor f) {
+      \definition result: \root.Space[V := V].Through[n := n].Factor g := \root.Space[V := V].Through[n := n].Factor[g] {
+        into := factor.into, out := factor.out,
+        equation := \fun (x: V) => trans!{V} _ _ _ (factor.equation x) (equal x)
+      };
+    }
+    \definition finite: Finite f -> Finite g := \block {
+      \fun (finite: Finite f) \then
+      \takefrom n: \Cast[N.Nat^] ({ n: N.Nat^ \where \exists \root.Space[V := V].Through[n := n].Factor f }) \by finite \then
+      \takefrom factor: \parent.Through[n := n].Factor f \by \bysub(N.Nat^, { n: N.Nat^ \where \exists \root.Space[V := V].Through[n := n].Factor f }, n) \then
+      \return Logic.existsIntro[N.Nat^, { n: N.Nat^ \where \exists \root.Space[V := V].Through[n := n].Factor g }] n
+        (\exact(At[n := n, factor := factor].result, \parent.Through[n := n].Factor g))
+    };
+  }
+}
+\module Test {
+  \import std.Data[].Nat[] \as N;
+  \import std.Data[].FinSet[] \as Fin;
+  \import std.Logic[].Proposition[] \as Logic;
+  \inductive Point: \Set := | origin: Point;
+  \import \root.Space[V := Point] \as S;
+  \definition one: N.Nat^ := N.Nat^::succ N.Nat^::zero;
+  \definition factor: S.Through[n := one].Factor S.identity := S.Through[n := one].Factor[S.identity] {
+    into := \fun (x: Point)(i: Fin.Fin one) => x,
+    out := \fun (a: Fin.Fin one -> Point) => a (Fin.zero N.Nat^::zero),
+    equation := \fun (x: Point) => \refl(x)
+  };
+  \definition finite: S.Finite S.identity := Logic.existsIntro[N.Nat^, { n: N.Nat^ \where \exists \root.Space[V := Point].Through[n := n].Factor S.identity }] one
+    (\exact(factor, S.Through[n := one].Factor S.identity));
+  \definition transported: S.Finite S.identity := S.Transport[f := S.identity, g := S.identity, equal := \fun (x: Point) => \refl(x)].finite finite;
+}
+```
+
+A11 の具体的な Atkinson 定理の適用は、余核の証明を作用素から独立した `CompactQuotient` 補題に分けて解消した。
+上の単独例は checkpoint を再開せずに再現するため、#59 の checkpoint 再開時の名前空間修正だけでは解消しない。
+両者の内部原因が共通かは確認していない。

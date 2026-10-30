@@ -1,0 +1,62 @@
+\import functional_analysis.Measure[A := A] \as M;
+\import M.Sigma[] \as Sigma;
+\import M.Finite[mu := mu] \as Finite;
+\import topology.Topology[Carrier := A] \as Sets;
+\import std.Data[].Nat[] \as N;
+\import std.Logic[].Proposition[] \as Logic;
+\import \root.Finiteness[A := A, mu := mu] \as F;
+\import \root.MeasureSeries[A := A] \as Series;
+\use std.Logic[].Equality[].congr;
+\use std.Logic[].Equality[].sym;
+\use std.Logic[].Equality[].eq_reason_in;
+\definition piece[k: N.Nat^]: F.FiniteMeasurableSet := \into[\Pow A](Sigma.increments exhaustion.sets k, F.FiniteMeasurableSet) \by {
+  F.subsetFinite (Sigma.increments exhaustion.sets k) (exhaustion.sets k)
+    (Sigma.incrementsMeasurable mu.sigma exhaustion.sets (\fun (k: N.Nat^) => (exhaustion.finite k).measurable) k)
+    (\fun (x: A) (member: Sets.Member (Sigma.increments exhaustion.sets k) x) => member.left) (exhaustion.finite k)
+};
+\definition measure[k: N.Nat^]: \root.FiniteSpaces[A := A].Measure := F.Restriction[S := piece k].finiteMeasure;
+\definition family: Series.Family := Series.Family {
+  sigma := mu.sigma, measures := measure,
+  measurable := \fun (S: \Pow A) (valid: M.Measurable mu.sigma S) (_: N.Nat^) => valid,
+};
+\import Series.Sum[data := family] \as Sum;
+\definition covered: \forall (x: A) -> Sets.Member (M.union piece) x := \fun (x: A) =>
+  \idelim M.union exhaustion.sets = M.union piece \with S: \Pow A => Sets.Member S x \by {
+    base: exhaustion.covers x, equality: sym!{{\Pow A}} _ _ (Sigma.incrementUnion exhaustion.sets) };
+\definition partition[S: \Pow A]: M.union (\fun (k: N.Nat^) => Sets.Intersection S (piece k)) = S :=
+  \axiom:setext(M.union (\fun (k: N.Nat^) => Sets.Intersection S (piece k)), S,
+    \fun (x: A) (member: Sets.Member (M.union (\fun (k: N.Nat^) => Sets.Intersection S (piece k))) x) => \block {
+      \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where Sets.Member (Sets.Intersection S (piece k)) x }) \by member \then
+      \return (\bysub(N.Nat^, { k: N.Nat^ \where Sets.Member (Sets.Intersection S (piece k)) x }, k)).left
+    },
+    \fun (x: A) (member: Sets.Member S x) => \block {
+      \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where Sets.Member (piece k) x }) \by covered x \then
+      \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where Sets.Member (Sets.Intersection S (piece k)) x }] k
+        (Logic.And[_, _]::# member (\bysub(N.Nat^, { k: N.Nat^ \where Sets.Member (piece k) x }, k)))
+    });
+\definition value: \forall (S: \Pow A) -> M.Measurable mu.sigma S -> mu.value S = Sum.measure.value S :=
+  \fun (S: \Pow A) (valid: M.Measurable mu.sigma S) => eq_reason_in!{M.Value _
+    "=" _ "by" { congr!{{\Pow A} M.Value} mu.value _ _ (sym!{{\Pow A}} _ _ (partition S)) }
+    "=" _ "by" { Finite.laws.countableAdditivity (\fun (k: N.Nat^) => Sets.Intersection S (piece k))
+      (\fun (k: N.Nat^) => Sigma.intersectionMeasurable mu.sigma S (piece k) valid (F.finiteLaw (piece k)).measurable)
+      (\fun (i, j: N.Nat^) (different: Logic.Not (i = j)) (x: A)
+        (first: Sets.Member (Sets.Intersection S (piece i)) x) (second: Sets.Member (Sets.Intersection S (piece j)) x) =>
+        Sigma.incrementsDisjoint exhaustion.sets i j different x first.right second.right) }
+  };
+\import \root.MeasureMap[A := A, B := A, source := mu, target := Sum.measure] \as Map;
+\definition identityPreimage[S: \Pow A]: { x: A \where Sets.Member S x } = S :=
+  \axiom:setext({ x: A \where Sets.Member S x }, S,
+    \fun (x: A) (member: Sets.Member S x) => member, \fun (x: A) (member: Sets.Member S x) => member);
+\definition identity: Map.Data := Map.Data {
+  function := \fun (x: A) => x,
+  measurable := \fun (S: \Pow A) (valid: M.Measurable mu.sigma S) =>
+    \idelim S = { x: A \where Sets.Member S x } \with T: \Pow A => M.Measurable mu.sigma T \by {
+      base: valid, equality: sym!{{\Pow A}} _ _ (identityPreimage S) },
+  value := \fun (S: \Pow A) (valid: M.Measurable mu.sigma S) => eq_reason_in!{M.Value _
+    "=" _ "by" { congr!{{\Pow A} M.Value} mu.value _ _ (identityPreimage S) }
+    "=" _ "by" { value S valid }
+  },
+};
+\import M.Integral[mu := mu] \as I;
+\module Integral(f: I.NonnegativeMeasurable);
+\module Extended(f: I.Convergence[].MeasurableSequence);

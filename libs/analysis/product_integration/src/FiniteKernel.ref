@@ -1,0 +1,110 @@
+\import std.Data[].Nat[] \as N;
+\import std.Data[].Pair[] \as Pair;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Classical[] \as Classical;
+\import real.Analysis[] \as Real;
+\import Real.Sequence[] \as Sequence;
+\import Real.Sequence[].Operations[] \as Operations;
+\import Real.Estimates[].Product[] \as Product;
+\import dedekind_reals.DedekindReal[] \as R;
+\import R.Completeness[] \as Complete;
+\import functional_analysis.Measure[A := A] \as L;
+\import functional_analysis.Measure[A := B] \as M;
+\import L.Integral[mu := mu] \as LI;
+\import M.Integral[mu := nu] \as RI;
+\import LI.Linear[] \as Linear;
+\import LI.Negation[] \as Negation;
+\import LI.Scaling[] \as Scaling;
+\import M.Sigma[] \as Sigma;
+\import M.Finite[mu := nu] \as Finite;
+\import M.ValueLaws[].SupAdd[] \as SupAdd;
+\import \root.Finiteness[A := A, mu := mu] \as LF;
+\import \root.Finiteness[A := B, mu := nu] \as RF;
+\import \root.FiniteSpaces[A := A] \as LeftSpace;
+\import \root.FiniteSpaces[A := B] \as RightSpace;
+\import LeftSpace.On[mu := mu] \as Left;
+\import RightSpace.On[mu := nu] \as Right;
+\import \root.ProductSigma[A := A, B := B, left := mu.sigma, right := nu.sigma] \as ProductSigma;
+\definition Point: \Set := ProductSigma.Point;
+\import functional_analysis.Measure[A := Point] \as P;
+\import P.Sigma[] \as PS;
+\import topology.Topology[Carrier := A] \as LS;
+\import topology.Topology[Carrier := B] \as RS;
+\import topology.Topology[Carrier := Point] \as Sets;
+\use std.Logic[].Equality[].sym;
+\use std.Logic[].Equality[].congr;
+\use std.Logic[].Equality[].eq_reason_in;
+\structure Witness[S: \Pow Point]: \Set := {
+  measurable: \forall (x: A) -> M.Measurable nu.sigma (ProductSigma.section S x),
+  function: LI.Representatives,
+  law: \forall (x: A) -> Complete.LeastUpperBound[nu.value (ProductSigma.section S x), function x],
+};
+\definition mass: \forall (S: \Pow Point) (w: Witness[S]) (x: A) ->
+  w.function x = Right.mass (ProductSigma.section S x) (w.measurable x) :=
+  \fun (S: \Pow Point) (w: Witness[S]) (x: A) => Complete.leastUpperBoundUnique
+    (nu.value (ProductSigma.section S x)) (w.function x) (Right.mass (ProductSigma.section S x) (w.measurable x))
+    (w.law x) (Right.massLaw (ProductSigma.section S x) (w.measurable x));
+\definition nonnegative: \forall (S: \Pow Point) (w: Witness[S]) (x: A) -> R.Le Real.zero (w.function x) :=
+  \fun (S: \Pow Point) (w: Witness[S]) (x: A) => R.leReplaceRight Real.zero _ _
+    (sym!{Real.Real} _ _ (mass S w x)) (RF.massNonnegative (Right.finite (ProductSigma.section S x) (w.measurable x)));
+\definition bound: \forall (S: \Pow Point) (w: Witness[S]) (x: A) -> R.Le (Product.abs (w.function x)) (RF.mass (RightSpace.whole nu)) :=
+  \fun (S: \Pow Point) (w: Witness[S]) (x: A) => R.leReplaceLeft (w.function x) (Product.abs (w.function x)) _
+    (sym!{Real.Real} _ _ (Product.absOfNonnegative (w.function x) (nonnegative S w x)))
+    (R.leReplaceLeft _ _ _ (sym!{Real.Real} _ _ (mass S w x)) (Right.massBound (ProductSigma.section S x) (w.measurable x)));
+\definition unique: \forall (S: \Pow Point) (u, v: Witness[S]) -> u.function = v.function :=
+  \fun (S: \Pow Point) (u, v: Witness[S]) => \axiom:funext(u.function, v.function,
+    \fun (x: A) => Complete.leastUpperBoundUnique (nu.value (ProductSigma.section S x)) (u.function x) (v.function x) (u.law x) (v.law x));
+\module Rectangle(U: LF.FiniteMeasurableSet, V: RF.FiniteMeasurableSet);
+\module Difference(S, T: \Pow Point, s: Witness[S], t: Witness[T]);
+\module PairUnion(S, T: \Pow Point, s: Witness[S], t: Witness[T]);
+\import RI.Zero[] \as RightZero;
+\import LI.Zero[] \as LeftZero;
+\definition empty: Witness[Sets.Empty] := Witness[Sets.Empty] {
+  measurable := \fun (_: A) => (Sigma.laws nu.sigma).empty,
+  function := LeftZero.representative,
+  law := \fun (_: A) => \idelim M.zero = nu.value RS.Empty \with v: M.Value => Complete.LeastUpperBound[v, Real.zero] \by {
+    base: RightZero.zeroSup, equality: sym!{M.Value} _ _ Finite.laws.empty },
+};
+\definition wholeSection: \forall (x: A) -> ProductSigma.section Sets.Whole x = RS.Whole :=
+  \fun (x: A) => \axiom:setext(ProductSigma.section Sets.Whole x, RS.Whole,
+    \fun (y: B) (_: Pair.pair A B x y = Pair.pair A B x y) => \refl(y),
+    \fun (y: B) (_: y = y) => \refl(Pair.pair A B x y));
+\definition whole: Witness[Sets.Whole] := Witness[Sets.Whole] {
+  measurable := \fun (x: A) => \idelim RS.Whole = ProductSigma.section Sets.Whole x \with S: \Pow B => M.Measurable nu.sigma S \by {
+    base: Sigma.wholeMeasurable nu.sigma, equality: sym!{\Pow B} _ _ (wholeSection x) },
+  function := Left.constant (RF.mass (RightSpace.whole nu)),
+  law := \fun (x: A) => \idelim RS.Whole = ProductSigma.section Sets.Whole x \with S: \Pow B => Complete.LeastUpperBound[nu.value S, RF.mass (RightSpace.whole nu)] \by {
+    base: RF.massLaw (RightSpace.whole nu), equality: sym!{\Pow B} _ _ (wholeSection x) },
+};
+\structure UnionData: \Set := {
+  sets: N.Nat^ -> \Pow Point,
+  witnesses: \forall (k: N.Nat^) -> Witness[sets k],
+  disjoint: P.Disjoint sets,
+};
+\module Union(data: UnionData);
+\import \root.Generated[A := Point, generators := ProductSigma.generators] \as Generated;
+\import Generated.Pi[] \as Pi;
+\definition good: \Pow (\Pow Point) := { S: \Pow Point \where \exists Witness[S] };
+\definition dynkin: Generated.DynkinLaws[good] := Generated.DynkinLaws[good] {
+  whole := \exact(whole, Witness[Sets.Whole]),
+  difference := \fun (S, T: \Pow Point) (sw: \exists Witness[S]) (tw: \exists Witness[T]) (included: Sets.Subset T S) => \block {
+    \takefrom s: Witness[S] \by sw \then
+    \takefrom t: Witness[T] \by tw \then
+    \return \exact(\root.FiniteKernel[A := A, B := B, mu := mu, nu := nu].Difference[S := S, T := T, s := s, t := t].witness included,
+      Witness[PS.difference S T])
+  },
+  disjointUnion := \fun (sets: N.Nat^ -> \Pow Point) (valid: \forall (k: N.Nat^) -> \exists Witness[sets k]) (disjoint: P.Disjoint sets) => \block {
+    \takefrom witnesses: \forall (k: N.Nat^) -> Witness[sets k] \by \axiom:classicalIndefiniteChoice(N.Nat^, (\fun (k: N.Nat^) => Witness[sets k]), valid) \then
+    \let data: UnionData := UnionData { sets := sets, witnesses := witnesses, disjoint := disjoint } \then
+    \return \exact(\root.FiniteKernel[A := A, B := B, mu := mu, nu := nu].Union[data := data].witness, Witness[P.union sets])
+  },
+};
+\definition exists: \forall (S: \Pow Point) -> P.Measurable ProductSigma.sigma S -> \exists Witness[S] :=
+  Pi.theorem ProductSigma.piSystem good dynkin (\fun (S: \Pow Point) (valid: \exists ProductSigma.Rectangle[S]) => \block {
+    \takefrom rectangle: ProductSigma.Rectangle[S] \by valid \then
+    \return \idelim ProductSigma.rectangle rectangle.leftSet rectangle.rightSet = S \with T: \Pow Point => \exists Witness[T] \by {
+      base: \exact(\root.FiniteKernel[A := A, B := B, mu := mu, nu := nu].Rectangle[
+        U := Left.finite rectangle.leftSet rectangle.leftMeasurable,
+        V := Right.finite rectangle.rightSet rectangle.rightMeasurable].witness, Witness[ProductSigma.rectangle rectangle.leftSet rectangle.rightSet]),
+      equality: sym!{\Pow Point} _ _ rectangle.equality }
+  });

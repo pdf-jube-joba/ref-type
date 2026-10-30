@@ -1,0 +1,44 @@
+\module Space(V: \Set) {
+  \import std.Logic[].Proposition[] \as Logic;
+  \import std.Logic[].Equality[] \as E;
+  \use E.trans;
+  \import std.Data[].Nat[] \as N;
+  \import std.Data[].FinSet[] \as Fin;
+  \definition identity: V -> V := \fun (x: V) => x;
+  \module Through(n: N.Nat^) {
+    \structure Factor[f: V -> V]: \Set := {
+      into: V -> (Fin.Fin n -> V),
+      out: (Fin.Fin n -> V) -> V,
+      equation: \forall (x: V) -> out (into x) = f x,
+    };
+  }
+  \definition Finite[f: V -> V]: \Prop := \exists ( n: N.Nat^ \where \exists \root.Space[V := V].Through[n := n].Factor f );
+  \module Transport(f, g: V -> V, equal: \forall (x: V) -> f x = g x) {
+    \definition finite: Finite f -> Finite g := \block {
+      \fun (finite: Finite f) \then
+      \takefrom n: \Cast[N.Nat^] ({ n: N.Nat^ \where \exists \root.Space[V := V].Through[n := n].Factor f }) \by finite \then
+      \takefrom factor: \parent.Through[n := n].Factor f \by \bysub(N.Nat^, { n: N.Nat^ \where \exists \root.Space[V := V].Through[n := n].Factor f }, n) \then
+      \return Logic.existsIntro[N.Nat^, { n: N.Nat^ \where \exists \root.Space[V := V].Through[n := n].Factor g }] n
+        (\exact(\parent.Through[n := n].Factor[g] {
+          into := factor.into, out := factor.out,
+          equation := \fun (x: V) => trans!{V} _ _ _ (factor.equation x) (equal x)
+        }, \parent.Through[n := n].Factor g))
+    };
+  }
+}
+\module Test {
+  \import std.Data[].Nat[] \as N;
+  \import std.Data[].FinSet[] \as Fin;
+  \import std.Logic[].Proposition[] \as Logic;
+  \inductive Point: \Set := | origin: Point;
+  \import \root.Space[V := Point] \as S;
+  \definition one: N.Nat^ := N.Nat^::succ N.Nat^::zero;
+  \definition factor: S.Through[n := one].Factor S.identity := S.Through[n := one].Factor[S.identity] {
+    into := \fun (x: Point)(i: Fin.Fin one) => x,
+    out := \fun (a: Fin.Fin one -> Point) => a (Fin.zero N.Nat^::zero),
+    equation := \fun (x: Point) => \refl(x)
+  };
+  \definition finite: S.Finite S.identity := Logic.existsIntro[N.Nat^, { n: N.Nat^ \where \exists \root.Space[V := Point].Through[n := n].Factor S.identity }] one
+    (\exact(factor, S.Through[n := one].Factor S.identity));
+  \definition transported: S.Finite S.identity := S.Transport[f := S.identity, g := S.identity, equal := \fun (x: Point) => \refl(x)].finite finite;
+}

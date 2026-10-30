@@ -1,0 +1,18 @@
+\definition measurable: M.Measurable mu.sigma (level c k) := (I.integralLaw (data.sequence k)).integrable.left c;
+\definition stepData: I.StepData := I.StepData {
+  set := level c k, coefficient := c, measurable := measurable, nonnegative := Order.leOfLt Real.zero c (positive c),
+};
+\import I.Step[p := stepData] \as Step;
+\import I.Evaluation[n := Step.size, s := Step.simple] \as Evaluation;
+\definition dominated: \forall (x: A) -> R.Le (Evaluation.value x) (data.sequence k x) :=
+  \fun (x: A) => Logic.orElim _ _ _ (Classical.excludedMiddle (Sets.Member (level c k) x))
+    (\fun (inside: Sets.Member (level c k) x) => R.leReplaceLeft c (Evaluation.value x) (data.sequence k x)
+      (sym!{Real.Real} _ _ (Step.inside x inside)) (Order.leOfLt c (data.sequence k x) inside))
+    (\fun (outside: Logic.Not (Sets.Member (level c k) x)) => R.leReplaceLeft Real.zero (Evaluation.value x) (data.sequence k x)
+      (sym!{Real.Real} _ _ (Step.outside x outside)) (data.nonnegative k x));
+\definition bound: \forall (r: Real.Real) -> M.below (M.scale c (mu.value (level c k))) r -> R.Le r data.bound :=
+  \fun (r: Real.Real) (member: M.below (M.scale c (mu.value (level c k))) r) => R.leTrans r (I.integral (data.sequence k)) data.bound
+    ((Absolute.nonnegativeIntegralSup (data.sequence k) (I.integral (data.sequence k)) (data.nonnegative k) (I.integralLaw (data.sequence k))).upper r
+      (I.lowerIntegralMono Evaluation.value (data.sequence k) dominated r
+        (\idelim M.scale c (mu.value (level c k)) = I.lowerIntegral Evaluation.value \with v: M.Value => M.below v r \by {
+          base: member, equality: sym!{M.Value} _ _ Step.lowerIntegral }))) (data.integralBound k);

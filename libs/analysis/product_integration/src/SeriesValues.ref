@@ -1,0 +1,282 @@
+\import functional_analysis.Measure[A := A] \as M;
+\import M.ValueLaws[] \as V;
+\import M.SeriesLaws[] \as Series;
+\import M.Integral[mu := mu].Convergence[] \as C;
+\import std.Data[].Nat[] \as N;
+\import N.Basic[].Def[] \as NatOp;
+\import N.Basic[].Prop[] \as Nat;
+\import N.Basic[].Prop[] \as NatLaws;
+\import std.Logic[].Proposition[] \as Logic;
+\import real.Analysis[] \as Real;
+\import dedekind_reals.DedekindReal[] \as R;
+\use std.Logic[].Equality[].sym;
+\use std.Logic[].Equality[].congr;
+\use std.Logic[].Equality[].eq_reason_in;
+\definition partialNonnegative: \forall (f: N.Nat^ -> M.Value) ->
+  (\forall (k: N.Nat^) -> M.NonnegativeValue[f k]) -> \forall (k: N.Nat^) -> M.NonnegativeValue[M.partialSum f k] :=
+  \fun (f: N.Nat^ -> M.Value) (nonnegative: \forall (k: N.Nat^) -> M.NonnegativeValue[f k]) =>
+    \induction (k: N.Nat^) \return M.NonnegativeValue[M.partialSum f k] \with {
+      | zero: V.zeroNonnegative
+      | succ: \fun (k: N.Nat^) (previous: _) => V.addNonnegative (M.partialSum f k) (f k) previous (nonnegative k)
+    };
+\definition seriesNonnegative: \forall (f: N.Nat^ -> M.Value) ->
+  (\forall (k: N.Nat^) -> M.NonnegativeValue[f k]) -> M.NonnegativeValue[M.series f] :=
+  \fun (f: N.Nat^ -> M.Value) (nonnegative: \forall (k: N.Nat^) -> M.NonnegativeValue[f k]) => M.NonnegativeValue[M.series f] {
+    negative := \fun (r: Real.Real) (negative: R.Lt r Real.zero) =>
+      Logic.existsIntro[N.Nat^, { k: N.Nat^ \where M.below (M.partialSum f k) r }] N.Nat^::zero negative,
+    downward := \fun (r, s: Real.Real) (less: R.Lt r s) (member: M.below (M.series f) s) => \block {
+      \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where M.below (M.partialSum f k) s }) \by member \then
+      \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where M.below (M.partialSum f k) r }] k
+        ((partialNonnegative f nonnegative k).downward r s less (\bysub(N.Nat^, { k: N.Nat^ \where M.below (M.partialSum f k) s }, k)))
+    },
+    rounded := \fun (r: Real.Real) (member: M.below (M.series f) r) => \block {
+      \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where M.below (M.partialSum f k) r }) \by member \then
+      \takefrom s: \Cast[Real.Real] ({ s: Real.Real \where Logic.And[R.Lt r s, M.below (M.partialSum f k) s] })
+        \by (partialNonnegative f nonnegative k).rounded r (\bysub(N.Nat^, { k: N.Nat^ \where M.below (M.partialSum f k) r }, k)) \then
+      \let law: Logic.And[R.Lt r s, M.below (M.partialSum f k) s] :=
+        \bysub(Real.Real, { s: Real.Real \where Logic.And[R.Lt r s, M.below (M.partialSum f k) s] }, s) \then
+      \return Logic.existsIntro[Real.Real, { s: Real.Real \where Logic.And[R.Lt r s, M.below (M.series f) s] }] s
+        (Logic.And[_, _]::# law.left (Logic.existsIntro[N.Nat^, { k: N.Nat^ \where M.below (M.partialSum f k) s }] k law.right))
+    },
+  };
+\definition partialMonotone: \forall (f, g: N.Nat^ -> M.Value) ->
+  (\forall (k: N.Nat^) -> V.Included (f k) (g k)) ->
+  \forall (k: N.Nat^) -> V.Included (M.partialSum f k) (M.partialSum g k) :=
+  \fun (f, g: N.Nat^ -> M.Value) (bound: \forall (k: N.Nat^) -> V.Included (f k) (g k)) =>
+    \induction (k: N.Nat^) \return V.Included (M.partialSum f k) (M.partialSum g k) \with {
+      | zero: \fun (_: Real.Real) (member: _) => member
+      | succ: \fun (k: N.Nat^) (previous: _) =>
+        V.addMono (M.partialSum f k) (M.partialSum g k) (f k) (g k) previous (bound k)
+    };
+\definition seriesMonotone: \forall (f, g: N.Nat^ -> M.Value) ->
+  (\forall (k: N.Nat^) -> V.Included (f k) (g k)) -> V.Included (M.series f) (M.series g) :=
+  \fun (f, g: N.Nat^ -> M.Value) (bound: \forall (k: N.Nat^) -> V.Included (f k) (g k))
+    (r: Real.Real) (member: M.below (M.series f) r) => \block {
+      \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where M.below (M.partialSum f k) r }) \by member \then
+      \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where M.below (M.partialSum g k) r }] k
+        (partialMonotone f g bound k r (\bysub(N.Nat^, { k: N.Nat^ \where M.below (M.partialSum f k) r }, k)))
+    };
+\definition partialStep: \forall (f: N.Nat^ -> M.Value) ->
+  (\forall (k: N.Nat^) -> M.NonnegativeValue[f k]) ->
+  \forall (k: N.Nat^) -> V.Included (M.partialSum f k) (M.partialSum f (N.Nat^::succ k)) :=
+  \fun (f: N.Nat^ -> M.Value) (nonnegative: \forall (k: N.Nat^) -> M.NonnegativeValue[f k]) (k: N.Nat^) =>
+    Series.pairLeftIncluded (M.partialSum f k) (f k) (partialNonnegative f nonnegative k) (nonnegative k);
+
+\definition partialExtend: \forall (f: N.Nat^ -> M.Value) ->
+  (\forall (k: N.Nat^) -> M.NonnegativeValue[f k]) -> \forall (j, k: N.Nat^) ->
+  V.Included (M.partialSum f j) (M.partialSum f (NatOp.add j k)) :=
+  \fun (f: N.Nat^ -> M.Value) (nonnegative: \forall (k: N.Nat^) -> M.NonnegativeValue[f k]) (j: N.Nat^) =>
+    \induction (k: N.Nat^) \return V.Included (M.partialSum f j) (M.partialSum f (NatOp.add j k)) \with {
+      | zero: \fun (_: Real.Real) (member: _) => member
+      | succ: \fun (k: N.Nat^) (previous: _) (r: Real.Real) (member: _) =>
+        partialStep f nonnegative (NatOp.add j k) r (previous r member)
+    };
+\definition partialAdd: \forall (f, g: N.Nat^ -> M.Value) (k: N.Nat^) ->
+  M.partialSum (\fun (j: N.Nat^) => M.add (f j) (g j)) k =
+    M.add (M.partialSum f k) (M.partialSum g k) :=
+  \fun (f, g: N.Nat^ -> M.Value) => \induction (k: N.Nat^) \return
+    M.partialSum (\fun (j: N.Nat^) => M.add (f j) (g j)) k = M.add (M.partialSum f k) (M.partialSum g k) \with {
+      | zero: sym!{M.Value} _ _ (V.addZero M.zero V.zeroNonnegative)
+      | succ: \fun (k: N.Nat^) (previous: _) => eq_reason_in!{M.Value _
+        "=" _ "by" { congr!{M.Value M.Value} (\fun (v: M.Value) => M.add v (M.add (f k) (g k))) _ _ previous }
+        "=" _ "by" { V.addShuffle (M.partialSum f k) (M.partialSum g k) (f k) (g k) }
+      }
+    };
+\definition partialBelowSeries: \forall (f: N.Nat^ -> M.Value) (j: N.Nat^) ->
+  V.Included (M.partialSum f j) (M.series f) :=
+  \fun (f: N.Nat^ -> M.Value) (j: N.Nat^) (r: Real.Real) (member: M.below (M.partialSum f j) r) =>
+    Logic.existsIntro[N.Nat^, { k: N.Nat^ \where M.below (M.partialSum f k) r }] j member;
+\definition seriesContains: \forall (f: N.Nat^ -> M.Value) -> (\forall (j: N.Nat^) -> M.NonnegativeValue[f j]) ->
+  \forall (j: N.Nat^) -> V.Included (f j) (M.series f) :=
+  \fun (f: N.Nat^ -> M.Value) (nonnegative: \forall (j: N.Nat^) -> M.NonnegativeValue[f j])
+    (j: N.Nat^) (r: Real.Real) (member: M.below (f j) r) =>
+    partialBelowSeries f (N.Nat^::succ j) r
+      (\idelim M.add (f j) (M.partialSum f j) = M.add (M.partialSum f j) (f j) \with v: M.Value => M.below v r
+        \by { base: Series.pairLeftIncluded (f j) (M.partialSum f j) (nonnegative j) (partialNonnegative f nonnegative j) r member,
+          equality: V.addComm (f j) (M.partialSum f j) });
+\definition partialIncreasing: \forall (f: N.Nat^ -> M.Value) -> (\forall (i: N.Nat^) -> M.NonnegativeValue[f i]) ->
+  C.ValueIncreasing (M.partialSum f) :=
+  \fun (f: N.Nat^ -> M.Value) (valid: \forall (i: N.Nat^) -> M.NonnegativeValue[f i]) (i, j: N.Nat^) (later: Nat.Le i j) (r: Real.Real) (member: M.below (M.partialSum f i) r) =>
+    \idelim NatOp.add i (NatOp.sub j i) = j \with k: N.Nat^ => M.below (M.partialSum f k) r \by {
+      base: partialExtend f valid i (NatOp.sub j i) r member, equality: Nat.addSubOfLe i j later };
+\definition partialSup: \forall (f: N.Nat^ -> N.Nat^ -> M.Value) -> (\forall (i: N.Nat^) -> C.ValueIncreasing (f i)) ->
+  \forall (n: N.Nat^) -> M.partialSum (\fun (i: N.Nat^) => C.Sup (f i)) n = C.Sup (\fun (j: N.Nat^) => M.partialSum (\fun (i: N.Nat^) => f i j) n) :=
+  \fun (f: N.Nat^ -> N.Nat^ -> M.Value) (valid: \forall (i: N.Nat^) -> C.ValueIncreasing (f i)) =>
+    \induction (n: N.Nat^) \return M.partialSum (\fun (i: N.Nat^) => C.Sup (f i)) n = C.Sup (\fun (j: N.Nat^) => M.partialSum (\fun (i: N.Nat^) => f i j) n) \with {
+      | zero: sym!{M.Value} _ _ (C.supConstant M.zero)
+      | succ: \fun (n: N.Nat^) (previous: _) => eq_reason_in!{M.Value _
+        "=" _ "by" { congr!{M.Value M.Value} (\fun (v: M.Value) => M.add v (C.Sup (f n))) _ _ previous }
+        "=" _ "by" { C.addSup (\fun (j: N.Nat^) => M.partialSum (\fun (i: N.Nat^) => f i j) n) (f n)
+          (\fun (i, j: N.Nat^) (later: Nat.Le i j) => partialMonotone (\fun (k: N.Nat^) => f k i) (\fun (k: N.Nat^) => f k j)
+            (\fun (k: N.Nat^) => valid k i j later) n) (valid n) }
+      }
+    };
+\definition partialTranspose: \forall (f: N.Nat^ -> N.Nat^ -> M.Value) (n, m: N.Nat^) ->
+  M.partialSum (\fun (i: N.Nat^) => M.partialSum (f i) m) n = M.partialSum (\fun (j: N.Nat^) => M.partialSum (\fun (i: N.Nat^) => f i j) n) m :=
+  \fun (f: N.Nat^ -> N.Nat^ -> M.Value) => \induction (n: N.Nat^) \return \forall (m: N.Nat^) ->
+    M.partialSum (\fun (i: N.Nat^) => M.partialSum (f i) m) n = M.partialSum (\fun (j: N.Nat^) => M.partialSum (\fun (i: N.Nat^) => f i j) n) m \with {
+      | zero: \induction (m: N.Nat^) \return M.zero = M.partialSum (\fun (_: N.Nat^) => M.zero) m \with {
+        | zero: \refl(M.zero)
+        | succ: \fun (m: N.Nat^) (prior: _) => eq_reason_in!{M.Value _
+          "=" _ "by" { sym!{M.Value} _ _ (V.addZero M.zero V.zeroNonnegative) }
+          "=" _ "by" { congr!{M.Value M.Value} (\fun (v: M.Value) => M.add v M.zero) _ _ prior }
+        }
+      }
+      | succ: \fun (n: N.Nat^) (prior: _) (m: N.Nat^) => eq_reason_in!{M.Value _
+        "=" _ "by" { congr!{M.Value M.Value} (\fun (v: M.Value) => M.add v (M.partialSum (f n) m)) _ _ (prior m) }
+        "=" _ "by" { sym!{M.Value} _ _ (partialAdd (\fun (j: N.Nat^) => M.partialSum (\fun (i: N.Nat^) => f i j) n) (f n) m) }
+      }
+    };
+\definition swapIncluded: \forall (f: N.Nat^ -> N.Nat^ -> M.Value) -> (\forall (i, j: N.Nat^) -> M.NonnegativeValue[f i j]) ->
+  V.Included (M.series (\fun (i: N.Nat^) => M.series (f i))) (M.series (\fun (j: N.Nat^) => M.series (\fun (i: N.Nat^) => f i j))) :=
+  \fun (f: N.Nat^ -> N.Nat^ -> M.Value) (valid: \forall (i, j: N.Nat^) -> M.NonnegativeValue[f i j]) (r: Real.Real)
+    (member: M.below (M.series (\fun (i: N.Nat^) => M.series (f i))) r) => \block {
+      \takefrom n: \Cast[N.Nat^] ({ n: N.Nat^ \where M.below (M.partialSum (\fun (i: N.Nat^) => M.series (f i)) n) r }) \by member \then
+      \let inSup: M.below (C.Sup (\fun (j: N.Nat^) => M.partialSum (\fun (i: N.Nat^) => M.partialSum (f i) j) n)) r :=
+        \idelim M.partialSum (\fun (i: N.Nat^) => M.series (f i)) n = C.Sup (\fun (j: N.Nat^) => M.partialSum (\fun (i: N.Nat^) => M.partialSum (f i) j) n)
+          \with v: M.Value => M.below v r \by {
+            base: \bysub(N.Nat^, { n: N.Nat^ \where M.below (M.partialSum (\fun (i: N.Nat^) => M.series (f i)) n) r }, n),
+            equality: partialSup (\fun (i, j: N.Nat^) => M.partialSum (f i) j) (\fun (i: N.Nat^) => partialIncreasing (f i) (valid i)) n } \then
+      \takefrom m: \Cast[N.Nat^] ({ m: N.Nat^ \where M.below (M.partialSum (\fun (i: N.Nat^) => M.partialSum (f i) m) n) r }) \by inSup \then
+      \let transposed: M.below (M.partialSum (\fun (j: N.Nat^) => M.partialSum (\fun (i: N.Nat^) => f i j) n) m) r :=
+        \idelim M.partialSum (\fun (i: N.Nat^) => M.partialSum (f i) m) n = M.partialSum (\fun (j: N.Nat^) => M.partialSum (\fun (i: N.Nat^) => f i j) n) m
+          \with v: M.Value => M.below v r \by {
+            base: \bysub(N.Nat^, { m: N.Nat^ \where M.below (M.partialSum (\fun (i: N.Nat^) => M.partialSum (f i) m) n) r }, m),
+            equality: partialTranspose f n m } \then
+      \return partialBelowSeries (\fun (j: N.Nat^) => M.series (\fun (i: N.Nat^) => f i j)) m r
+        (partialMonotone (\fun (j: N.Nat^) => M.partialSum (\fun (i: N.Nat^) => f i j) n)
+          (\fun (j: N.Nat^) => M.series (\fun (i: N.Nat^) => f i j)) (\fun (j: N.Nat^) => partialBelowSeries (\fun (i: N.Nat^) => f i j) n) m r transposed)
+    };
+\definition swap: \forall (f: N.Nat^ -> N.Nat^ -> M.Value) -> (\forall (i, j: N.Nat^) -> M.NonnegativeValue[f i j]) ->
+  M.series (\fun (i: N.Nat^) => M.series (f i)) = M.series (\fun (j: N.Nat^) => M.series (\fun (i: N.Nat^) => f i j)) :=
+  \fun (f: N.Nat^ -> N.Nat^ -> M.Value) (valid: \forall (i, j: N.Nat^) -> M.NonnegativeValue[f i j]) =>
+    \axiom:setext(M.series (\fun (i: N.Nat^) => M.series (f i)), M.series (\fun (j: N.Nat^) => M.series (\fun (i: N.Nat^) => f i j)),
+      swapIncluded f valid, swapIncluded (\fun (j, i: N.Nat^) => f i j) (\fun (j, i: N.Nat^) => valid i j));
+\definition partialZero: \forall (f: N.Nat^ -> M.Value) (n: N.Nat^) ->
+  (\forall (j: N.Nat^) -> Nat.Lt j n -> f j = M.zero) -> M.partialSum f n = M.zero :=
+  \fun (f: N.Nat^ -> M.Value) => \induction (n: N.Nat^) \return
+    (\forall (j: N.Nat^) -> Nat.Lt j n -> f j = M.zero) -> M.partialSum f n = M.zero \with {
+      | zero: \fun (_: _) => \refl(M.zero)
+      | succ: \fun (n: N.Nat^) (prior: _) (zero: \forall (j: N.Nat^) -> Nat.Lt j (N.Nat^::succ n) -> f j = M.zero) => eq_reason_in!{M.Value _
+        "=" _ "by" { congr!{M.Value M.Value M.Value} M.add _ _ _ _
+          (prior (\fun (j: N.Nat^) (before: Nat.Lt j n) => zero j (Nat.ltLeTrans j n (N.Nat^::succ n) before (Nat.leSelfSucc n))))
+          (zero n (Nat.ltOfSuccLe (N.Nat^::succ n) n (Nat.leRefl (N.Nat^::succ n)))) }
+        "=" _ "by" { V.addZero M.zero V.zeroNonnegative }
+      }
+    };
+\use std.Logic[].Equality[].trans;
+\definition singlePartial: \forall (f: N.Nat^ -> M.Value) (pivot: N.Nat^) ->
+  (\forall (j: N.Nat^) -> M.NonnegativeValue[f j]) ->
+  (\forall (j: N.Nat^) -> Logic.Not (j = pivot) -> f j = M.zero) ->
+  \forall (n: N.Nat^) -> V.Included (M.partialSum f n) (f pivot) :=
+  \fun (f: N.Nat^ -> M.Value) (pivot: N.Nat^) (valid: \forall (j: N.Nat^) -> M.NonnegativeValue[f j])
+    (vanishes: \forall (j: N.Nat^) -> Logic.Not (j = pivot) -> f j = M.zero) =>
+    \induction (n: N.Nat^) \return V.Included (M.partialSum f n) (f pivot) \with {
+      | zero: Series.zeroIncluded (f pivot) (valid pivot)
+      | succ: \fun (n: N.Nat^) (prior: V.Included (M.partialSum f n) (f pivot)) (r: Real.Real) (member: M.below (M.partialSum f (N.Nat^::succ n)) r) =>
+        Logic.orElim _ _ (M.below (f pivot) r) (std.Logic[].Classical[].excludedMiddle (n = pivot))
+          (\fun (same: n = pivot) => \idelim M.add (M.partialSum f n) (f n) = f pivot \with v: M.Value => M.below v r \by {
+            base: member, equality: eq_reason_in!{M.Value _
+              "=" _ "by" { congr!{M.Value M.Value M.Value} M.add _ _ _ _
+                (partialZero f n (\fun (j: N.Nat^) (less: Nat.Lt j n) => vanishes j
+                  (\fun (equal: j = pivot) => Nat.ltNe j n less (trans!{N.Nat^} _ _ _ equal (sym!{N.Nat^} _ _ same)))))
+                (congr!{N.Nat^ M.Value} f _ _ same) }
+              "=" _ "by" { Series.zeroAdd (f pivot) (valid pivot) }
+            } })
+          (\fun (different: Logic.Not (n = pivot)) => prior r
+            (\idelim M.add (M.partialSum f n) (f n) = M.partialSum f n \with v: M.Value => M.below v r \by {
+              base: member, equality: eq_reason_in!{M.Value _
+                "=" _ "by" { congr!{M.Value M.Value} (M.add (M.partialSum f n)) _ _ (vanishes n different) }
+                "=" _ "by" { V.addZero (M.partialSum f n) (partialNonnegative f valid n) }
+              } }))
+    };
+\definition single: \forall (f: N.Nat^ -> M.Value) (pivot: N.Nat^) ->
+  (\forall (j: N.Nat^) -> M.NonnegativeValue[f j]) ->
+  (\forall (j: N.Nat^) -> Logic.Not (j = pivot) -> f j = M.zero) -> M.series f = f pivot :=
+  \fun (f: N.Nat^ -> M.Value) (pivot: N.Nat^) (valid: \forall (j: N.Nat^) -> M.NonnegativeValue[f j])
+    (vanishes: \forall (j: N.Nat^) -> Logic.Not (j = pivot) -> f j = M.zero) => \axiom:setext(M.series f, f pivot,
+      \fun (r: Real.Real) (member: M.below (M.series f) r) => \block {
+        \takefrom n: \Cast[N.Nat^] ({ n: N.Nat^ \where M.below (M.partialSum f n) r }) \by member \then
+        \return singlePartial f pivot valid vanishes n r (\bysub(N.Nat^, { n: N.Nat^ \where M.below (M.partialSum f n) r }, n))
+      },
+      seriesContains f valid pivot);
+\definition scalePartial: \forall (c: Real.Real) (f: N.Nat^ -> M.Value) -> R.Le Real.zero c ->
+  (\forall (i: N.Nat^) -> M.NonnegativeValue[f i]) -> \forall (n: N.Nat^) ->
+  M.scale c (M.partialSum f n) = M.partialSum (\fun (i: N.Nat^) => M.scale c (f i)) n :=
+  \fun (c: Real.Real) (f: N.Nat^ -> M.Value) (positive: R.Le Real.zero c) (valid: \forall (i: N.Nat^) -> M.NonnegativeValue[f i]) =>
+    \induction (n: N.Nat^) \return M.scale c (M.partialSum f n) = M.partialSum (\fun (i: N.Nat^) => M.scale c (f i)) n \with {
+      | zero: V.scaleZeroValue c positive
+      | succ: \fun (n: N.Nat^) (prior: _) => eq_reason_in!{M.Value _
+        "=" _ "by" { V.scaleAdd c (M.partialSum f n) (f n) positive (partialNonnegative f valid n) (valid n) }
+        "=" _ "by" { congr!{M.Value M.Value} (\fun (v: M.Value) => M.add v (M.scale c (f n))) _ _ prior }
+      }
+    };
+\definition scale: \forall (c: Real.Real) (f: N.Nat^ -> M.Value) -> R.Le Real.zero c -> (\forall (i: N.Nat^) -> M.NonnegativeValue[f i]) ->
+  M.scale c (M.series f) = M.series (\fun (i: N.Nat^) => M.scale c (f i)) :=
+  \fun (c: Real.Real) (f: N.Nat^ -> M.Value) (positive: R.Le Real.zero c) (valid: \forall (i: N.Nat^) -> M.NonnegativeValue[f i]) => eq_reason_in!{M.Value _
+    "=" _ "by" { C.scaleSup c (M.partialSum f) }
+    "=" _ "by" { congr!{{N.Nat^ -> M.Value} M.Value} C.Sup _ _ (\axiom:funext(
+      (\fun (n: N.Nat^) => M.scale c (M.partialSum f n)), (\fun (n: N.Nat^) => M.partialSum (\fun (i: N.Nat^) => M.scale c (f i)) n), scalePartial c f positive valid)) }
+  };
+\import std.Data[].FinSet[] \as Fin;
+\definition partialFinite: \forall (n: N.Nat^) (f: Fin.Fin n -> N.Nat^ -> M.Value) ->
+  (\forall (i: Fin.Fin n) (j: N.Nat^) -> M.NonnegativeValue[f i j]) -> \forall (m: N.Nat^) ->
+  M.sum n (\fun (i: Fin.Fin n) => M.partialSum (f i) m) = M.partialSum (\fun (j: N.Nat^) => M.sum n (\fun (i: Fin.Fin n) => f i j)) m :=
+  \fun (n: N.Nat^) (f: Fin.Fin n -> N.Nat^ -> M.Value) (valid: \forall (i: Fin.Fin n) (j: N.Nat^) -> M.NonnegativeValue[f i j]) =>
+    \induction (m: N.Nat^) \return M.sum n (\fun (i: Fin.Fin n) => M.partialSum (f i) m) = M.partialSum (\fun (j: N.Nat^) => M.sum n (\fun (i: Fin.Fin n) => f i j)) m \with {
+      | zero: V.sumZero n
+      | succ: \fun (m: N.Nat^) (prior: _) => eq_reason_in!{M.Value _
+        "=" _ "by" { V.sumAdd n (\fun (i: Fin.Fin n) => M.partialSum (f i) m) (\fun (i: Fin.Fin n) => f i m)
+          (\fun (i: Fin.Fin n) => partialNonnegative (f i) (valid i) m) (\fun (i: Fin.Fin n) => valid i m) }
+        "=" _ "by" { congr!{M.Value M.Value} (\fun (v: M.Value) => M.add v (M.sum n (\fun (i: Fin.Fin n) => f i m))) _ _ prior }
+      }
+    };
+\definition finiteExchange: \forall (n: N.Nat^) (f: Fin.Fin n -> N.Nat^ -> M.Value) ->
+  (\forall (i: Fin.Fin n) (j: N.Nat^) -> M.NonnegativeValue[f i j]) ->
+  M.sum n (\fun (i: Fin.Fin n) => M.series (f i)) = M.series (\fun (j: N.Nat^) => M.sum n (\fun (i: Fin.Fin n) => f i j)) :=
+  \fun (n: N.Nat^) (f: Fin.Fin n -> N.Nat^ -> M.Value) (valid: \forall (i: Fin.Fin n) (j: N.Nat^) -> M.NonnegativeValue[f i j]) => eq_reason_in!{M.Value _
+    "=" _ "by" { C.sumSup n (\fun (j: N.Nat^) (i: Fin.Fin n) => M.partialSum (f i) j) (\fun (i: Fin.Fin n) => partialIncreasing (f i) (valid i)) }
+    "=" _ "by" { congr!{{N.Nat^ -> M.Value} M.Value} C.Sup _ _ (\axiom:funext(
+      (\fun (m: N.Nat^) => M.sum n (\fun (i: Fin.Fin n) => M.partialSum (f i) m)),
+      (\fun (m: N.Nat^) => M.partialSum (\fun (j: N.Nat^) => M.sum n (\fun (i: Fin.Fin n) => f i j)) m), partialFinite n f valid)) }
+  };
+\definition supExchange: \forall (f: N.Nat^ -> N.Nat^ -> M.Value) -> (\forall (i: N.Nat^) -> C.ValueIncreasing (f i)) ->
+  M.series (\fun (i: N.Nat^) => C.Sup (f i)) = C.Sup (\fun (j: N.Nat^) => M.series (\fun (i: N.Nat^) => f i j)) :=
+  \fun (f: N.Nat^ -> N.Nat^ -> M.Value) (increasing: \forall (i: N.Nat^) -> C.ValueIncreasing (f i)) =>
+    \axiom:setext(M.series (\fun (i: N.Nat^) => C.Sup (f i)), C.Sup (\fun (j: N.Nat^) => M.series (\fun (i: N.Nat^) => f i j)),
+      \fun (r: Real.Real) (member: M.below (M.series (\fun (i: N.Nat^) => C.Sup (f i))) r) => \block {
+        \takefrom n: \Cast[N.Nat^] ({ n: N.Nat^ \where M.below (M.partialSum (\fun (i: N.Nat^) => C.Sup (f i)) n) r }) \by member \then
+        \let atSup: M.below (C.Sup (\fun (j: N.Nat^) => M.partialSum (\fun (i: N.Nat^) => f i j) n)) r :=
+          \idelim M.partialSum (\fun (i: N.Nat^) => C.Sup (f i)) n = C.Sup (\fun (j: N.Nat^) => M.partialSum (\fun (i: N.Nat^) => f i j) n)
+            \with v: M.Value => M.below v r \by {
+              base: \bysub(N.Nat^, { n: N.Nat^ \where M.below (M.partialSum (\fun (i: N.Nat^) => C.Sup (f i)) n) r }, n), equality: partialSup f increasing n } \then
+        \takefrom j: \Cast[N.Nat^] ({ j: N.Nat^ \where M.below (M.partialSum (\fun (i: N.Nat^) => f i j) n) r }) \by atSup \then
+        \return C.supUpper (\fun (j: N.Nat^) => M.series (\fun (i: N.Nat^) => f i j)) j r
+          (partialBelowSeries (\fun (i: N.Nat^) => f i j) n r (\bysub(N.Nat^, { j: N.Nat^ \where M.below (M.partialSum (\fun (i: N.Nat^) => f i j) n) r }, j)))
+      },
+      C.supLeast (\fun (j: N.Nat^) => M.series (\fun (i: N.Nat^) => f i j)) (M.series (\fun (i: N.Nat^) => C.Sup (f i)))
+        (\fun (j: N.Nat^) => seriesMonotone (\fun (i: N.Nat^) => f i j) (\fun (i: N.Nat^) => C.Sup (f i)) (\fun (i: N.Nat^) => C.supUpper (f i) j)));
+\import N.Order[].Prop[] \as NatOrder;
+\definition diagonal: \forall (f: N.Nat^ -> N.Nat^ -> M.Value) -> (\forall (i, j: N.Nat^) -> M.NonnegativeValue[f i j]) ->
+  (\forall (i: N.Nat^) -> C.ValueIncreasing (f i)) -> C.Sup (\fun (j: N.Nat^) => M.series (\fun (i: N.Nat^) => f i j)) =
+  C.Sup (\fun (n: N.Nat^) => M.partialSum (\fun (i: N.Nat^) => f i n) n) :=
+  \fun (f: N.Nat^ -> N.Nat^ -> M.Value) (valid: \forall (i, j: N.Nat^) -> M.NonnegativeValue[f i j]) (increasing: \forall (i: N.Nat^) -> C.ValueIncreasing (f i)) =>
+    \axiom:setext(C.Sup (\fun (j: N.Nat^) => M.series (\fun (i: N.Nat^) => f i j)), C.Sup (\fun (n: N.Nat^) => M.partialSum (\fun (i: N.Nat^) => f i n) n),
+      C.supLeast (\fun (j: N.Nat^) => M.series (\fun (i: N.Nat^) => f i j)) (C.Sup (\fun (n: N.Nat^) => M.partialSum (\fun (i: N.Nat^) => f i n) n))
+        (\fun (j: N.Nat^) (r: Real.Real) (member: M.below (M.series (\fun (i: N.Nat^) => f i j)) r) => \block {
+          \takefrom m: \Cast[N.Nat^] ({ m: N.Nat^ \where M.below (M.partialSum (\fun (i: N.Nat^) => f i j) m) r }) \by member \then
+          \let k: N.Nat^ := NatOrder.commonBound j m \then
+          \return C.supUpper (\fun (n: N.Nat^) => M.partialSum (\fun (i: N.Nat^) => f i n) n) k r
+            (partialIncreasing (\fun (i: N.Nat^) => f i k) (\fun (i: N.Nat^) => valid i k) m k (NatOrder.rightLeCommonBound j m) r
+              (partialMonotone (\fun (i: N.Nat^) => f i j) (\fun (i: N.Nat^) => f i k)
+                (\fun (i: N.Nat^) => increasing i j k (NatOrder.leftLeCommonBound j m)) m r
+                (\bysub(N.Nat^, { m: N.Nat^ \where M.below (M.partialSum (\fun (i: N.Nat^) => f i j) m) r }, m))))
+        }),
+      C.supLeast (\fun (n: N.Nat^) => M.partialSum (\fun (i: N.Nat^) => f i n) n) (C.Sup (\fun (j: N.Nat^) => M.series (\fun (i: N.Nat^) => f i j)))
+        (\fun (n: N.Nat^) (r: Real.Real) (member: M.below (M.partialSum (\fun (i: N.Nat^) => f i n) n) r) =>
+          C.supUpper (\fun (j: N.Nat^) => M.series (\fun (i: N.Nat^) => f i j)) n r (partialBelowSeries (\fun (i: N.Nat^) => f i n) n r member)));
+\definition diagonalSeries: \forall (f: N.Nat^ -> N.Nat^ -> M.Value) -> (\forall (i, j: N.Nat^) -> M.NonnegativeValue[f i j]) ->
+  (\forall (i: N.Nat^) -> C.ValueIncreasing (f i)) -> M.series (\fun (i: N.Nat^) => C.Sup (f i)) =
+    C.Sup (\fun (n: N.Nat^) => M.partialSum (\fun (i: N.Nat^) => f i n) n) :=
+  \fun (f: N.Nat^ -> N.Nat^ -> M.Value) (valid: \forall (i, j: N.Nat^) -> M.NonnegativeValue[f i j]) (increasing: \forall (i: N.Nat^) -> C.ValueIncreasing (f i)) =>
+    trans!{M.Value} _ _ _ (supExchange f increasing) (diagonal f valid increasing);

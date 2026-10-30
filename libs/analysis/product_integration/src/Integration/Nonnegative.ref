@@ -1,0 +1,23 @@
+\import \root.MeasureSeries[A := Sigma.Point] \as Sums;
+\definition section[x: A]: RI.NonnegativeMeasurable := RI.NonnegativeMeasurable {
+  function := \fun (y: B) => f.function (Pair.pair A B x y),
+  measurable := \fun (r: Real.Real) => Sigma.sectionMeasurable ({ p: Sigma.Point \where R.Lt r (f.function p) }) (f.measurable r) x,
+  nonnegative := \fun (y: B) => f.nonnegative (Pair.pair A B x y),
+};
+\module Column(j: N.Nat^);
+\definition Witnesses: \Set := \forall (j: N.Nat^) ->
+  \root.Integration[A := A, B := B, mu := mu, nu := nu, left := left, right := right].Nonnegative[f := f].Column[j := j].Witnesses;
+\definition witnessesExist: \exists Witnesses := \axiom:classicalIndefiniteChoice(N.Nat^,
+  (\fun (j: N.Nat^) => \root.Integration[A := A, B := B, mu := mu, nu := nu, left := left, right := right].Nonnegative[f := f].Column[j := j].Witnesses),
+  \fun (j: N.Nat^) => \root.Integration[A := A, B := B, mu := mu, nu := nu, left := left, right := right].Nonnegative[f := f].Column[j := j].witnessesExist);
+\definition summed: PM.Integral[mu := Product.measure].NonnegativeMeasurable := f;
+\module Row(i: N.Nat^);
+\definition jointSum: PI.lowerIntegral f.function = PM.series (\fun (i: N.Nat^) => PM.series (\fun (j: N.Nat^) =>
+  PM.Integral[mu := \root.FiniteProduct[A := A, B := B, mu := Left.measure i, nu := Right.measure j].measure].lowerIntegral f.function)) := eq_reason_in!{PM.Value _
+  "=" _ "by" { Sums.Sum[data := Product.family].Integral[f := f].theorem }
+  "=" _ "by" { congr!{{N.Nat^ -> PM.Value} PM.Value} PM.series _ _ (\axiom:funext(
+    (\fun (i: N.Nat^) => PM.Integral[mu := Product.Row[i := i].measure].lowerIntegral f.function),
+    (\fun (i: N.Nat^) => PM.series (\fun (j: N.Nat^) => PM.Integral[mu := \root.FiniteProduct[A := A, B := B, mu := Left.measure i, nu := Right.measure j].measure].lowerIntegral f.function)),
+    \fun (i: N.Nat^) => \root.Integration[A := A, B := B, mu := mu, nu := nu, left := left, right := right].Nonnegative[f := f].Row[i := i].theorem)) }
+};
+\module With(witnesses: Witnesses);

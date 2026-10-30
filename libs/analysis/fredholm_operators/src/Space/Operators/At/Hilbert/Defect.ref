@@ -1,0 +1,13 @@
+\import linear_algebra.Complex[].Dimension[] \as Counts;
+\import Source.Operators[W := V, target := space, norm := norm, targetNorm := norm].Compact[].FiniteRank[targetInner := inner] \as SourceCompact;
+\import Target.Operators[W := W, target := target, norm := targetNorm, targetNorm := targetNorm].Compact[].FiniteRank[targetInner := targetInner] \as TargetCompact;
+\definition parametrixLaw: \forall (complete: Hilbert.Complete)(targetComplete: TargetHilbert.Complete) -> FiniteParametrix s -> Parametrix s :=
+  \fun (complete: Hilbert.Complete)(targetComplete: TargetHilbert.Complete)(finite: FiniteParametrix s) => Logic.And[_, _]::#
+    (SourceCompact.compact complete (leftDefect s) finite.left) (TargetCompact.compact targetComplete (rightDefect s) finite.right);
+\definition fredholm: \forall (complete: Hilbert.Complete)(targetComplete: TargetHilbert.Complete) -> FiniteParametrix s -> Fredholm :=
+  \fun (complete: Hilbert.Complete)(targetComplete: TargetHilbert.Complete)(finite: FiniteParametrix s) => fredholmOfParametrix complete targetComplete s (parametrixLaw complete targetComplete finite);
+\definition calculate: \forall (complete: Hilbert.Complete)(targetComplete: TargetHilbert.Complete)(finite: FiniteParametrix s)(fredholm: Fredholm)(d: Index.Decomposition) ->
+  defectIndex s finite = C.Def[].sub (Counts.naturalScalar (KernelDimension.dimension d.kernelFrame)) (Counts.naturalScalar (CokernelDimension.dimension d.cokernelFrame)) :=
+  \fun (complete: Hilbert.Complete)(targetComplete: TargetHilbert.Complete)(finite: FiniteParametrix s)(fredholm: Fredholm)(d: Index.Decomposition) => trans!{C.Complex} _ _ _
+    (\parent.Compare[s := s, t := \parent.FromFredholm[complete := complete, targetComplete := targetComplete, fredholm := fredholm].parametrix].independent finite (canonicalFinite complete targetComplete fredholm))
+    (\parent.FromFredholm[complete := complete, targetComplete := targetComplete, fredholm := fredholm].Trace[d := d].difference);

@@ -1,0 +1,95 @@
+\import \root.Finiteness[A := A, mu := mu] \as F;
+\import M.Integral[mu := mu] \as Integral;
+\import Integral.Scaling[] \as Scaling;
+\import F.Indicator[S := whole mu] \as One;
+\import F.Bounded[S := whole mu] \as Bounded;
+\import real.Analysis[] \as Real;
+\import Real.Estimates[].Product[] \as Product;
+\import dedekind_reals.DedekindReal[] \as R;
+\import std.Logic[].Proposition[] \as Logic;
+\import M.Sigma[] \as Sigma;
+\import M.Functions[mu := mu] \as Functions;
+\use std.Logic[].Equality[].sym;
+\use std.Logic[].Equality[].congr;
+\use std.Logic[].Equality[].trans;
+\use std.Logic[].Equality[].eq_reason_in;
+\definition finite[S: \Pow A] [valid: M.Measurable mu.sigma S]: F.FiniteMeasurableSet :=
+  \into[\Pow A](S, F.FiniteMeasurableSet) \by {
+    F.subsetFinite S Sets.Whole valid (\fun (x: A) (_: Sets.Member S x) => \refl(x)) (F.finiteLaw (whole mu))
+  };
+\definition constant[c: Real.Real]: Integral.Representatives :=
+  \into[A -> Real.Real]((\fun (_: A) => c), Integral.Representatives) \by {
+    \idelim (\fun (x: A) => Real.mul c (One.representative x)) = (\fun (_: A) => c)
+      \with f: (A -> Real.Real) => Integral.Integrable f \by {
+        base: Scaling.integrableScalar c One.representative (Integral.integralLaw One.representative).integrable,
+        equality: \axiom:funext((\fun (x: A) => Real.mul c (One.representative x)), (\fun (_: A) => c),
+          \fun (x: A) => eq_reason_in!{Real.Real _
+            "=" _ "by" { congr!{Real.Real Real.Real} (Real.mul c) _ _ (One.inside x (\refl(x))) }
+            "=" _ "by" { Real.Algebra[].mulOneRight c }
+          }) }
+  };
+\definition constantIntegral: \forall (c: Real.Real) -> Integral.integral (constant c) = Real.mul c (F.mass (whole mu)) :=
+  \fun (c: Real.Real) => eq_reason_in!{Real.Real _
+    "=" _ "by" { congr!{Integral.Representatives Real.Real} Integral.integral (constant c) (Scaling.scalarRepresentative c One.representative)
+      (\axiom:funext(constant c, Scaling.scalarRepresentative c One.representative,
+        \fun (x: A) => sym!{Real.Real} _ _ (eq_reason_in!{Real.Real _
+          "=" _ "by" { congr!{Real.Real Real.Real} (Real.mul c) _ _ (One.inside x (\refl(x))) }
+          "=" _ "by" { Real.Algebra[].mulOneRight c }
+        }))) }
+    "=" _ "by" { Scaling.integralScalar c One.representative }
+    "=" _ "by" { congr!{Real.Real Real.Real} (Real.mul c) _ _ One.integral }
+  };
+\definition boundedIntegrable: \forall (c: Scaling.NonnegativeScalar) (f: A -> Real.Real) -> M.IsMeasurable mu f ->
+  (\forall (x: A) -> R.Le (Product.abs (f x)) c) -> Integral.Integrable f :=
+  \fun (c: Scaling.NonnegativeScalar) (f: A -> Real.Real) (valid: M.IsMeasurable mu f)
+    (bound: \forall (x: A) -> R.Le (Product.abs (f x)) c) => Bounded.integrable c f (Bounded.Conditions[f, c] {
+      measurable := valid,
+      bound := \fun (x: A) (_: x = x) => bound x,
+      outside := \fun (x: A) (outside: Logic.Not (x = x)) => Logic.falseElim _ (outside (\refl(x))),
+    });
+\definition bounded[c: Scaling.NonnegativeScalar] [f: A -> Real.Real] [valid: M.IsMeasurable mu f]
+  [bound: \forall (x: A) -> R.Le (Product.abs (f x)) c]: Integral.Representatives :=
+  \into[A -> Real.Real](f, Integral.Representatives) \by { boundedIntegrable c f valid bound };
+\definition constantMeasurable: \forall (c: Real.Real) -> M.IsMeasurable mu (\fun (_: A) => c) :=
+  \fun (c: Real.Real) => (Integral.integralLaw (constant c)).integrable.left;
+\import M.Finite[mu := mu] \as MeasureFinite;
+\import M.Continuity[mu := mu] \as Continuity;
+\import M.ValueLaws[].SupAdd[] \as SupAdd;
+\import R.Completeness[] \as Complete;
+\import R.Arithmetic[].Prop[] \as Laws;
+\import R.Order[] \as Order;
+\import std.Data[].Nat[] \as N;
+\import N.Basic[].Prop[] \as Nat;
+\import Real.Estimates[] \as Estimates;
+\import \root.ScalarSup[] \as ScalarSup;
+\definition mass[S: \Pow A] [valid: M.Measurable mu.sigma S]: Real.Real := F.mass (finite S valid);
+\definition massLaw: \forall (S: \Pow A) (valid: M.Measurable mu.sigma S) -> Complete.LeastUpperBound[mu.value S, mass S valid] :=
+  \fun (S: \Pow A) (valid: M.Measurable mu.sigma S) => F.massLaw (finite S valid);
+\import Integral.Zero[] \as Zero;
+\definition massZero: \forall (S: \Pow A) (valid: M.Measurable mu.sigma S) -> mu.value S = M.zero -> mass S valid = Real.zero :=
+  \fun (S: \Pow A) (valid: M.Measurable mu.sigma S) (null: mu.value S = M.zero) =>
+    Complete.leastUpperBoundUnique (mu.value S) (mass S valid) Real.zero (massLaw S valid)
+      (\idelim M.zero = mu.value S \with v: M.Value => Complete.LeastUpperBound[v, Real.zero] \by {
+        base: Zero.zeroSup, equality: sym!{M.Value} _ _ null });
+\definition massBound: \forall (S: \Pow A) (valid: M.Measurable mu.sigma S) -> R.Le (mass S valid) (F.mass (whole mu)) :=
+  \fun (S: \Pow A) (valid: M.Measurable mu.sigma S) => F.massMono (finite S valid) (whole mu) (\fun (x: A) (_: Sets.Member S x) => \refl(x));
+\definition differenceSup: \forall (S, T: \Pow A) (a, b: Real.Real) ->
+  M.Measurable mu.sigma S -> M.Measurable mu.sigma T -> Sets.Subset T S ->
+  Complete.LeastUpperBound[mu.value S, a] -> Complete.LeastUpperBound[mu.value T, b] ->
+  Complete.LeastUpperBound[mu.value (Sigma.difference S T), Real.sub a b] :=
+  \fun (S, T: \Pow A) (a, b: Real.Real) (s: M.Measurable mu.sigma S) (t: M.Measurable mu.sigma T)
+    (included: Sets.Subset T S) (sa: Complete.LeastUpperBound[mu.value S, a]) (tb: Complete.LeastUpperBound[mu.value T, b]) => \block {
+      \let d: F.FiniteMeasurableSet := finite (Sigma.difference S T) (Sigma.differenceMeasurable mu.sigma S T s t) \then
+      \let split: mu.value S = M.add (mu.value T) (mu.value d) := eq_reason_in!{M.Value _
+        "=" _ "by" { congr!{{\Pow A} M.Value} mu.value _ _ (MeasureFinite.subsetDecomposition T S included) }
+        "=" _ "by" { MeasureFinite.additivity T d t (F.finiteLaw d).measurable (MeasureFinite.subsetDisjoint T S) }
+      } \then
+      \let sumSup: Complete.LeastUpperBound[mu.value S, Real.add b (F.mass d)] :=
+        \idelim M.add (mu.value T) (mu.value d) = mu.value S \with v: M.Value => Complete.LeastUpperBound[v, Real.add b (F.mass d)] \by {
+          base: SupAdd.leastUpper (mu.value T) (mu.value d) b (F.mass d) tb (F.massLaw d), equality: sym!{M.Value} _ _ split } \then
+      \let same: a = Real.add b (F.mass d) := Complete.leastUpperBoundUnique (mu.value S) a (Real.add b (F.mass d)) sa sumSup \then
+      \let subtract: Real.sub a b = F.mass d := Laws.addCancelLeft b (Real.sub a b) (F.mass d)
+        (trans!{Real.Real} _ _ _ (Estimates.addSubCancel a b) same) \then
+      \return \idelim F.mass d = Real.sub a b \with v: Real.Real => Complete.LeastUpperBound[mu.value d, v] \by {
+        base: F.massLaw d, equality: sym!{Real.Real} _ _ subtract }
+    };

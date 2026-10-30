@@ -1,0 +1,51 @@
+\import functional_analysis.Measure[A := A] \as M;
+\import M.Sigma[] \as Sigma;
+\import topology.Topology[Carrier := A] \as Sets;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Data[].Nat[] \as N;
+\definition Contains[sigma: M.SigmaAlgebra]: \Prop :=
+  \forall (S: \Pow A) -> \In[\Pow A] generators S -> M.Measurable sigma S;
+\definition Member[S: \Pow A]: \Prop :=
+  \forall (sigma: M.SigmaAlgebra) -> Contains sigma -> M.Measurable sigma S;
+\definition data: M.SigmaAlgebraData := M.SigmaAlgebraData {
+  measurable := { S: \Pow A \where Member S },
+};
+\definition sigma: M.SigmaAlgebra := \into[M.SigmaAlgebraData](data, M.SigmaAlgebra) \by {
+  M.SigmaAlgebraLaws[data] {
+    empty := \fun (s: M.SigmaAlgebra) (_: Contains s) => (Sigma.laws s).empty,
+    complement := \fun (S: \Pow A) (member: Member S) (s: M.SigmaAlgebra) (contains: Contains s) =>
+      (Sigma.laws s).complement S (member s contains),
+    countableUnion := \fun (f: N.Nat^ -> \Pow A) (member: \forall (k: N.Nat^) -> Member (f k))
+      (s: M.SigmaAlgebra) (contains: Contains s) =>
+      (Sigma.laws s).countableUnion f (\fun (k: N.Nat^) => member k s contains),
+  }
+};
+\definition generator: \forall (S: \Pow A) -> \In[\Pow A] generators S -> M.Measurable sigma S :=
+  \fun (S: \Pow A) (member: \In[\Pow A] generators S) (s: M.SigmaAlgebra) (contains: Contains s) => contains S member;
+\definition least: \forall (s: M.SigmaAlgebra) -> Contains s ->
+  \forall (S: \Pow A) -> M.Measurable sigma S -> M.Measurable s S :=
+  \fun (s: M.SigmaAlgebra) (contains: Contains s) (S: \Pow A) (member: Member S) => member s contains;
+\structure DynkinLaws[C: \Pow (\Pow A)]: \Prop := {
+  whole: \In[\Pow A] C Sets.Whole,
+  difference: \forall (S, T: \Pow A) -> \In[\Pow A] C S -> \In[\Pow A] C T -> Sets.Subset T S ->
+    \In[\Pow A] C (Sigma.difference S T),
+  disjointUnion: \forall (f: N.Nat^ -> \Pow A) -> (\forall (k: N.Nat^) -> \In[\Pow A] C (f k)) ->
+    M.Disjoint f -> \In[\Pow A] C (M.union f),
+};
+\definition PiSystem: \Prop := \forall (S, T: \Pow A) -> \In[\Pow A] generators S -> \In[\Pow A] generators T ->
+  \In[\Pow A] generators (Sets.Intersection S T);
+\definition DynkinMember[S: \Pow A]: \Prop := \forall (C: \Pow (\Pow A)) -> DynkinLaws[C] ->
+  (\forall (T: \Pow A) -> \In[\Pow A] generators T -> \In[\Pow A] C T) -> \In[\Pow A] C S;
+\definition dynkin: \Pow (\Pow A) := { S: \Pow A \where DynkinMember S };
+\definition dynkinLaws: DynkinLaws[dynkin] := DynkinLaws[dynkin] {
+  whole := \fun (C: \Pow (\Pow A)) (laws: DynkinLaws[C]) (_: _) => laws.whole,
+  difference := \fun (S, T: \Pow A) (s: DynkinMember S) (t: DynkinMember T) (subset: Sets.Subset T S)
+    (C: \Pow (\Pow A)) (laws: DynkinLaws[C]) (contains: _) => laws.difference S T (s C laws contains) (t C laws contains) subset,
+  disjointUnion := \fun (f: N.Nat^ -> \Pow A) (member: \forall (k: N.Nat^) -> DynkinMember (f k)) (disjoint: M.Disjoint f)
+    (C: \Pow (\Pow A)) (laws: DynkinLaws[C]) (contains: _) =>
+      laws.disjointUnion f (\fun (k: N.Nat^) => member k C laws contains) disjoint,
+};
+\definition dynkinGenerator: \forall (S: \Pow A) -> \In[\Pow A] generators S -> DynkinMember S :=
+  \fun (S: \Pow A) (member: \In[\Pow A] generators S) (C: \Pow (\Pow A)) (_: DynkinLaws[C]) (contains: _) => contains S member;
+\module Intersect(U: \Pow A);
+\module Pi;

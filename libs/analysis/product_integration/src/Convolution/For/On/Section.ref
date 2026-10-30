@@ -1,0 +1,27 @@
+\import Maps.On[map := translations y].RealFunction[f := f] \as Translate;
+\import Maps.On[map := translations y].RealFunction[f := Absolute.representative f] \as AbsoluteTranslate;
+\definition absolute: I.Representatives := Scaling.scalarRepresentative (Bounds.abs (g y)) AbsoluteTranslate.representative;
+\definition absoluteValue: \forall (x: A) -> absolute x = Bounds.abs (kernel (Pair.pair A A x y)) := \fun (x: A) => eq_reason_in!{Real.Real _
+  "=" _ "by" { Laws.fieldMulComm (Bounds.abs (g y)) (Bounds.abs (f ((translations y).function x))) }
+  "=" _ "by" { sym!{Real.Real} _ _ (Bounds.absProduct (f ((translations y).function x)) (g y)) }
+};
+\definition absoluteIntegral: I.integral absolute = Real.mul (l1 f) (Bounds.abs (g y)) := eq_reason_in!{Real.Real _
+  "=" _ "by" { Scaling.integralScalar (Bounds.abs (g y)) AbsoluteTranslate.representative }
+  "=" _ "by" { congr!{Real.Real Real.Real} (Real.mul (Bounds.abs (g y))) _ _ AbsoluteTranslate.integral }
+  "=" _ "by" { Laws.fieldMulComm (Bounds.abs (g y)) (l1 f) }
+};
+\definition absoluteLower: I.lowerIntegral (\fun (x: A) => Bounds.abs (kernel (Pair.pair A A x y))) = Cuts.cut (Real.mul (l1 f) (Bounds.abs (g y))) := eq_reason_in!{M.Value _
+  "=" _ "by" { congr!{{A -> Real.Real} M.Value} I.lowerIntegral _ _ (\axiom:funext(
+    (\fun (x: A) => Bounds.abs (kernel (Pair.pair A A x y))), absolute, \fun (x: A) => sym!{Real.Real} _ _ (absoluteValue x))) }
+  "=" _ "by" { Cuts.fromSup (I.lowerIntegral absolute) (I.integral absolute) (I.SimpleLaws[].lowerNonnegative absolute)
+    (Absolute.nonnegativeIntegralSup absolute (I.integral absolute)
+      (\fun (x: A) => R.leReplaceRight Real.zero (Bounds.abs (kernel (Pair.pair A A x y))) (absolute x) (sym!{Real.Real} _ _ (absoluteValue x)) (Bounds.absNonnegative (kernel (Pair.pair A A x y)))) (I.integralLaw absolute)) }
+  "=" _ "by" { congr!{Real.Real M.Value} Cuts.cut _ _ absoluteIntegral }
+};
+\definition representative: I.Representatives := Scaling.scalarRepresentative (g y) Translate.representative;
+\definition value: \forall (x: A) -> representative x = kernel (Pair.pair A A x y) := \fun (x: A) => Laws.fieldMulComm (g y) (f ((translations y).function x));
+\definition integral: I.integral representative = Real.mul (I.integral f) (g y) := eq_reason_in!{Real.Real _
+  "=" _ "by" { Scaling.integralScalar (g y) Translate.representative }
+  "=" _ "by" { congr!{Real.Real Real.Real} (Real.mul (g y)) _ _ Translate.integral }
+  "=" _ "by" { Laws.fieldMulComm (g y) (I.integral f) }
+};

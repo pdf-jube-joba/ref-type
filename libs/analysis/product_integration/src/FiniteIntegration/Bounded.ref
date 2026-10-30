@@ -1,0 +1,91 @@
+\import PI.Approximation[f := data.function] \as Approx;
+\import PI.Convergence[] \as PC;
+\import PC.PointwiseSum[] \as Increasing;
+\import PI.Absolute[] \as Absolute;
+\import RI.Absolute[] \as RightAbsolute;
+\import \root.FiniteSpaces[A := Sigma.Point].On[mu := Product.finiteMeasure] \as JointSpace;
+\import \root.FiniteSpaces[A := B].On[mu := nu] \as RightSpace;
+\import \root.FiniteSpaces[A := A].On[mu := mu] \as LeftSpace;
+\import \root.Finiteness[A := B, mu := nu] \as RightFinite;
+\import \root.FiniteSpaces[A := B] \as RightSpaces;
+\import Real.Sequence[] \as Sequence;
+\import Sequence.Operations[] \as Operations;
+\import Real.Estimates[].Product[] \as Bounds;
+\import Real.Estimates[] \as Estimates;
+\import \root.ScalarSup[] \as ScalarSup;
+\definition stage[k: N.Nat^]: SimpleData[(Approx.stages k).size] := SimpleData[(Approx.stages k).size] {
+  simple := (Approx.stages k).simple,
+  witnesses := data.witnesses k,
+};
+\definition approximate[k: N.Nat^]: PI.Representatives :=
+  \root.FiniteIntegration[A := A, B := B, mu := mu, nu := nu].Simple[n := (Approx.stages k).size, data := stage k].product;
+\definition approximateOuter[k: N.Nat^]: LI.Representatives :=
+  \root.FiniteIntegration[A := A, B := B, mu := mu, nu := nu].Simple[n := (Approx.stages k).size, data := stage k].outer;
+\definition approximateSection[k: N.Nat^] [x: A]: RI.Representatives :=
+  \root.FiniteIntegration[A := A, B := B, mu := mu, nu := nu].Simple[n := (Approx.stages k).size, data := stage k].Section[x := x].representative;
+\definition sectionIntegral: \forall (k: N.Nat^) (x: A) -> RI.integral (approximateSection k x) = approximateOuter k x :=
+  \fun (k: N.Nat^) (x: A) => \root.FiniteIntegration[A := A, B := B, mu := mu, nu := nu].Simple[n := (Approx.stages k).size, data := stage k].Section[x := x].integral;
+\definition simpleFubini: \forall (k: N.Nat^) -> PI.integral (approximate k) = LI.integral (approximateOuter k) :=
+  \fun (k: N.Nat^) => \root.FiniteIntegration[A := A, B := B, mu := mu, nu := nu].Simple[n := (Approx.stages k).size, data := stage k].fubini;
+\definition measurableSection: \forall (x: A) -> RM.IsMeasurable nu (\fun (y: B) => data.function.function (Pair.pair A B x y)) :=
+  \fun (x: A) (r: Real.Real) => Sigma.sectionMeasurable ({ p: Sigma.Point \where R.Lt r (data.function.function p) }) (data.function.measurable r) x;
+\definition absoluteBound: \forall (p: Sigma.Point) -> R.Le (Bounds.abs (data.function.function p)) data.bound :=
+  \fun (p: Sigma.Point) => R.leReplaceLeft (data.function.function p) (Bounds.abs (data.function.function p)) data.bound
+    (sym!{Real.Real} _ _ (Bounds.absOfNonnegative (data.function.function p) (data.function.nonnegative p))) (data.bounded p);
+\definition joint: PI.Representatives := JointSpace.bounded data.bound data.function.function data.function.measurable absoluteBound;
+\definition section[x: A]: RI.Representatives := RightSpace.bounded data.bound
+  (\fun (y: B) => data.function.function (Pair.pair A B x y)) (measurableSection x) (\fun (y: B) => absoluteBound (Pair.pair A B x y));
+\definition outerFunction[x: A]: Real.Real := RI.integral (section x);
+\definition pointwiseConverges: \forall (p: Sigma.Point) -> Sequence.Converges (\fun (k: N.Nat^) => Approx.value k p) (data.function.function p) :=
+  \fun (p: Sigma.Point) => ScalarSup.converges (\fun (k: N.Nat^) => Approx.value k p) (data.function.function p)
+    (\fun (i, j: N.Nat^) (later: N.Basic[].Prop[].Le i j) => Increasing.increasingAll Approx.value Approx.increasing j i later p) (Approx.pointwiseSup p);
+\definition approximationBound: \forall (k: N.Nat^) (p: Sigma.Point) -> R.Le (Bounds.abs (Approx.value k p)) data.bound :=
+  \fun (k: N.Nat^) (p: Sigma.Point) => R.leReplaceLeft (Approx.value k p) (Bounds.abs (Approx.value k p)) data.bound
+    (sym!{Real.Real} _ _ (Bounds.absOfNonnegative (Approx.value k p) (Approx.nonnegative k p)))
+    (R.leTrans _ _ _ (Approx.bounded k p) (data.bounded p));
+\module Section(x: A);
+\definition outerNonnegative: \forall (k: N.Nat^) (x: A) -> R.Le Real.zero (approximateOuter k x) :=
+  \fun (k: N.Nat^) (x: A) => R.leReplaceRight Real.zero (RI.integral (approximateSection k x)) (approximateOuter k x) (sectionIntegral k x)
+    (RightAbsolute.integralNonnegative (approximateSection k x) (RI.integral (approximateSection k x))
+      (\fun (y: B) => Approx.nonnegative k (Pair.pair A B x y)) (RI.integralLaw (approximateSection k x)));
+\definition outerBound: \forall (k: N.Nat^) (x: A) -> R.Le (Bounds.abs (approximateOuter k x))
+  (Real.mul data.bound (RightFinite.mass (RightSpaces.whole nu))) :=
+  \fun (k: N.Nat^) (x: A) => R.leReplaceLeft (approximateOuter k x) (Bounds.abs (approximateOuter k x)) _
+    (sym!{Real.Real} _ _ (Bounds.absOfNonnegative (approximateOuter k x) (outerNonnegative k x)))
+    (R.leReplace (RI.integral (approximateSection k x)) (approximateOuter k x) (RI.integral (RightSpace.constant data.bound))
+      (Real.mul data.bound (RightFinite.mass (RightSpaces.whole nu))) (sectionIntegral k x) (RightSpace.constantIntegral data.bound)
+      (RightAbsolute.integralMono (approximateSection k x) (RightSpace.constant data.bound)
+        (\fun (y: B) => R.leTrans _ _ _ (Approx.bounded k (Pair.pair A B x y)) (data.bounded (Pair.pair A B x y)))));
+\definition outerData: LI.DominatedSequence := LI.DominatedSequence {
+  sequence := approximateOuter,
+  limit := outerFunction,
+  bound := LeftSpace.constant (Real.mul data.bound (RightFinite.mass (RightSpaces.whole nu))),
+  dominated := outerBound,
+  converges := \fun (x: A) => Operations.congruent (\fun (k: N.Nat^) => RI.integral (approximateSection k x))
+    (\fun (k: N.Nat^) => approximateOuter k x) (outerFunction x) (\fun (k: N.Nat^) => sectionIntegral k x)
+    (\root.FiniteIntegration[A := A, B := B, mu := mu, nu := nu].Bounded[data := data].Section[x := x].converges),
+};
+\import LI.Dominated[d := outerData] \as Outer;
+\definition jointData: PI.DominatedSequence := PI.DominatedSequence {
+  sequence := approximate,
+  limit := data.function.function,
+  bound := JointSpace.constant data.bound,
+  dominated := approximationBound,
+  converges := pointwiseConverges,
+};
+\import PI.Dominated[d := jointData] \as JointLimit;
+\definition jointIntegral: PI.integral JointLimit.limitRepresentative = PI.integral joint :=
+  congr!{PI.Representatives Real.Real} PI.integral _ _ (\axiom:funext(JointLimit.limitRepresentative, joint, \fun (p: Sigma.Point) => \refl(data.function.function p)));
+\definition exchange: PI.integral joint = LI.integral Outer.limitRepresentative := Sequence.limitUnique
+  (\fun (k: N.Nat^) => PI.integral (approximate k)) (PI.integral joint) (LI.integral Outer.limitRepresentative)
+    (\idelim PI.integral JointLimit.limitRepresentative = PI.integral joint \with v: Real.Real =>
+      Sequence.Converges (\fun (k: N.Nat^) => PI.integral (approximate k)) v \by { base: JointLimit.convergence, equality: jointIntegral })
+    (Operations.congruent (\fun (k: N.Nat^) => LI.integral (approximateOuter k)) (\fun (k: N.Nat^) => PI.integral (approximate k))
+      (LI.integral Outer.limitRepresentative) (\fun (k: N.Nat^) => sym!{Real.Real} _ _ (simpleFubini k)) Outer.convergence);
+\definition certificate: Fubini[joint] := Fubini[joint] {
+  sections := section,
+  sectionValues := \fun (x: A) (y: B) => \refl(data.function.function (Pair.pair A B x y)),
+  outer := Outer.limitRepresentative,
+  outerValues := \fun (x: A) => \refl(outerFunction x),
+  exchange := exchange,
+};

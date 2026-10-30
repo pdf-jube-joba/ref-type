@@ -1,0 +1,63 @@
+\import LI.Convergence[] \as LC;
+\import LI.Absolute[] \as LeftAbsolute;
+\import PI.Absolute[] \as JointAbsolute;
+\import RI.Absolute[] \as RightAbsolute;
+\import RI.SimpleLaws[] \as RightSimple;
+\import \root.Cuts[A := B] \as RightCuts;
+\import R.Completeness[] \as Complete;
+\import \root.MonotoneIntegrals[A := A, mu := mu] \as Monotone;
+\import \root.ScalarSup[] \as ScalarSup;
+\import \root.MeasureSup[A := A, mu := mu] \as MeasureSup;
+\import Real.Sequence[] \as Sequence;
+\definition joint: PI.Representatives := \into[Sigma.Point -> Real.Real](f.function, PI.Representatives) \by { integrable };
+\definition bound: LI.Scaling[].NonnegativeScalar := \into[Real.Real](PI.integral joint, LI.Scaling[].NonnegativeScalar) \by {
+  JointAbsolute.integralNonnegative joint (PI.integral joint) f.nonnegative (PI.integralLaw joint)
+};
+\definition jointSup: Complete.LeastUpperBound[PI.lowerIntegral f.function, PI.integral joint] :=
+  JointAbsolute.nonnegativeIntegralSup joint (PI.integral joint) f.nonnegative (PI.integralLaw joint);
+\definition lowerSup: PI.lowerIntegral f.function = LC.Sup (\fun (k: N.Nat^) => LI.lowerIntegral (Series.diagonal k).function) := eq_reason_in!{PM.Value _
+  "=" _ "by" { sym!{PM.Value} _ _ theorem }
+  "=" _ "by" { congr!{{A -> LM.Value} LM.Value} E.lowerIntegral _ _ sectionEquality }
+  "=" _ "by" { congr!{{A -> LM.Value} LM.Value} E.lowerIntegral _ _ Series.functionEquality }
+  "=" _ "by" { E.monotone Series.diagonalSequence Series.increasing }
+};
+\definition stageBound: \forall (k: N.Nat^) (r: Real.Real) -> LM.below (LI.lowerIntegral (Series.diagonal k).function) r -> R.Le r bound :=
+  \fun (k: N.Nat^) (r: Real.Real) (member: LM.below (LI.lowerIntegral (Series.diagonal k).function) r) => jointSup.upper r
+    (\idelim LC.Sup (\fun (k: N.Nat^) => LI.lowerIntegral (Series.diagonal k).function) = PI.lowerIntegral f.function
+      \with v: PM.Value => PM.below v r \by {
+        base: LC.supUpper (\fun (k: N.Nat^) => LI.lowerIntegral (Series.diagonal k).function) k r member,
+        equality: sym!{PM.Value} _ _ lowerSup });
+\definition approximate[k: N.Nat^]: LI.Representatives := \into[A -> Real.Real]((Series.diagonal k).function, LI.Representatives) \by {
+  LeftTools.finiteLower (Series.diagonal k) bound (stageBound k)
+};
+\definition monotoneData: Monotone.Conditions := Monotone.Conditions {
+  sequence := approximate,
+  nonnegative := \fun (k: N.Nat^) => (Series.diagonal k).nonnegative,
+  increasing := Series.increasing,
+  bound := bound,
+  integralBound := \fun (k: N.Nat^) =>
+    (LeftAbsolute.nonnegativeIntegralSup (approximate k) (LI.integral (approximate k)) (Series.diagonal k).nonnegative (LI.integralLaw (approximate k))).least bound (stageBound k),
+};
+\import Monotone.For[data := monotoneData].Limit[] \as Limit;
+\import Monotone.For[data := monotoneData].Divergence[] \as Divergence;
+\module Section(x: A);
+\definition integralIncreasing: \forall (i, j: N.Nat^) -> N.Basic[].Prop[].Le i j -> R.Le (LI.integral (approximate i)) (LI.integral (approximate j)) :=
+  \fun (i, j: N.Nat^) (later: N.Basic[].Prop[].Le i j) => LeftAbsolute.integralMono (approximate i) (approximate j)
+    (\fun (x: A) => LC.PointwiseSum[].increasingAll Series.diagonalSequence Series.increasing j i later x);
+\definition integralSup: Complete.LeastUpperBound[ScalarSup.values (\fun (k: N.Nat^) => LI.integral (approximate k)), PI.integral joint] :=
+  MeasureSup.valuesSupremum (\fun (k: N.Nat^) => LI.lowerIntegral (Series.diagonal k).function)
+    (\fun (k: N.Nat^) => LI.integral (approximate k)) (PI.integral joint)
+    (\fun (k: N.Nat^) => LeftAbsolute.nonnegativeIntegralSup (approximate k) (LI.integral (approximate k)) (Series.diagonal k).nonnegative (LI.integralLaw (approximate k)))
+    (\idelim PI.lowerIntegral f.function = LC.Sup (\fun (k: N.Nat^) => LI.lowerIntegral (Series.diagonal k).function)
+      \with v: PM.Value => Complete.LeastUpperBound[v, PI.integral joint] \by { base: jointSup, equality: lowerSup });
+\definition exchange: PI.integral joint = LI.integral Limit.representative := Complete.leastUpperBoundUnique
+  (ScalarSup.values (\fun (k: N.Nat^) => LI.integral (approximate k))) (PI.integral joint) (LI.integral Limit.representative)
+  integralSup (ScalarSup.ofConverges (\fun (k: N.Nat^) => LI.integral (approximate k)) (LI.integral Limit.representative) integralIncreasing Limit.convergence);
+\definition certificate: AEFubini[joint] := AEFubini[joint] {
+  exception := Divergence.exception,
+  sections := \fun (x: A) => \root.Integration[A := A, B := B, mu := mu, nu := nu, left := left, right := right].Nonnegative[f := f].With[witnesses := witnesses].Integrable[integrable := integrable].Section[x := x].representative,
+  sectionValues := \fun (x: A) => \root.Integration[A := A, B := B, mu := mu, nu := nu, left := left, right := right].Nonnegative[f := f].With[witnesses := witnesses].Integrable[integrable := integrable].Section[x := x].laws.outside,
+  outer := Limit.representative,
+  outerValues := \fun (x: A) => sym!{Real.Real} _ _ (\root.Integration[A := A, B := B, mu := mu, nu := nu, left := left, right := right].Nonnegative[f := f].With[witnesses := witnesses].Integrable[integrable := integrable].Section[x := x].laws.integral),
+  exchange := exchange,
+};

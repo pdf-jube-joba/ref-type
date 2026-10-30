@@ -1,0 +1,23 @@
+\import PI.Approximation[f := f] \as Approx;
+\import RI.Absolute[] \as RightAbsolute;
+\definition stage[k: N.Nat^]: SimpleData[(Approx.stages k).size] := SimpleData[(Approx.stages k).size] {
+  simple := (Approx.stages k).simple, witnesses := witnesses k,
+};
+\definition approximate[k: N.Nat^]: PI.Representatives :=
+  \root.FiniteIntegration[A := A, B := B, mu := mu, nu := nu].Simple[n := (Approx.stages k).size, data := stage k].product;
+\definition approximateOuter[k: N.Nat^]: LI.Representatives :=
+  \root.FiniteIntegration[A := A, B := B, mu := mu, nu := nu].Simple[n := (Approx.stages k).size, data := stage k].outer;
+\definition approximateSection[k: N.Nat^] [x: A]: RI.Representatives :=
+  \root.FiniteIntegration[A := A, B := B, mu := mu, nu := nu].Simple[n := (Approx.stages k).size, data := stage k].Section[x := x].representative;
+\definition sectionIntegral: \forall (k: N.Nat^) (x: A) -> RI.integral (approximateSection k x) = approximateOuter k x :=
+  \fun (k: N.Nat^) (x: A) => \root.FiniteIntegration[A := A, B := B, mu := mu, nu := nu].Simple[n := (Approx.stages k).size, data := stage k].Section[x := x].integral;
+\definition simpleFubini: \forall (k: N.Nat^) -> PI.integral (approximate k) = LI.integral (approximateOuter k) :=
+  \fun (k: N.Nat^) => \root.FiniteIntegration[A := A, B := B, mu := mu, nu := nu].Simple[n := (Approx.stages k).size, data := stage k].fubini;
+\definition outerNonnegative: \forall (k: N.Nat^) (x: A) -> R.Le Real.zero (approximateOuter k x) :=
+  \fun (k: N.Nat^) (x: A) => R.leReplaceRight Real.zero (RI.integral (approximateSection k x)) (approximateOuter k x) (sectionIntegral k x)
+    (RightAbsolute.integralNonnegative (approximateSection k x) (RI.integral (approximateSection k x))
+      (\fun (y: B) => Approx.nonnegative k (Pair.pair A B x y)) (RI.integralLaw (approximateSection k x)));
+\definition outerIncreasing: \forall (k: N.Nat^) (x: A) -> R.Le (approximateOuter k x) (approximateOuter (N.Nat^::succ k) x) :=
+  \fun (k: N.Nat^) (x: A) => R.leReplace _ _ _ _ (sectionIntegral k x) (sectionIntegral (N.Nat^::succ k) x)
+    (RightAbsolute.integralMono (approximateSection k x) (approximateSection (N.Nat^::succ k) x)
+      (\fun (y: B) => Approx.increasing k (Pair.pair A B x y)));

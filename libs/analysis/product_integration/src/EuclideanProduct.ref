@@ -1,0 +1,72 @@
+\import std.Data[].Nat[] \as N;
+\import N.Basic[].Def[] \as NatOp;
+\import std.Data[].FinSet[] \as Fin;
+\import Fin.Sum[m := m, n := n] \as Index;
+\import Index.Tuples[A := real.Analysis[].Real] \as Tuples;
+\import std.Data[].Pair[] \as Pair;
+\import std.Logic[].Proposition[] \as Logic;
+\import euclidean_measure.Euclidean[n := m] \as L;
+\import euclidean_measure.Euclidean[n := n] \as R;
+\import euclidean_measure.Euclidean[n := Index.total] \as E;
+\import \root.Euclidean[n := m] \as Left;
+\import \root.Euclidean[n := n] \as Right;
+\import \root.Product[A := L.Point, B := R.Point, mu := L.MeasureConstruction[].measure, nu := R.MeasureConstruction[].measure, left := Left.exhaustion, right := Right.exhaustion] \as Product;
+\import \root.ProductSigma[A := L.Point, B := R.Point, left := L.MeasureConstruction[].measure.sigma, right := R.MeasureConstruction[].measure.sigma] \as Sigma;
+\import topology.Topology[Carrier := L.Point] \as LeftSets;
+\import topology.Topology[Carrier := R.Point] \as RightSets;
+\import topology.Topology[Carrier := E.Point] \as Sets;
+\import topology.Topology[Carrier := Sigma.Point] \as PairSets;
+\import functional_analysis.Measure[A := E.Point] \as M;
+\import M.Sigma[] \as MS;
+\import real.Analysis[] \as Real;
+\import dedekind_reals.DedekindReal[] \as Order;
+\import Order.Arithmetic[].Prop[] \as Laws;
+\import std.Data[].Bool[] \as Bool;
+\use std.Logic[].Equality[].congr;
+\use std.Logic[].Equality[].sym;
+\use std.Logic[].Equality[].eq_reason_in;
+\definition join[p: Sigma.Point]: E.Point := Tuples.join (Pair.first L.Point R.Point p) (Pair.second L.Point R.Point p);
+\definition split[x: E.Point]: Sigma.Point := Pair.pair L.Point R.Point (\fun (i: Fin.Fin m) => x (Index.left i)) (\fun (j: Fin.Fin n) => x (Index.right j));
+\definition joinSplit: \forall (x: E.Point) -> join (split x) = x := Tuples.recover;
+\definition splitJoin: \forall (p: Sigma.Point) -> split (join p) = p := \fun (p: Sigma.Point) => Pair.Prop[A := L.Point, B := R.Point].ext _ _
+  (\axiom:funext((\fun (i: Fin.Fin m) => join p (Index.left i)), Pair.first L.Point R.Point p,
+    \fun (i: Fin.Fin m) => Tuples.atLeft (Pair.first L.Point R.Point p) (Pair.second L.Point R.Point p) i))
+  (\axiom:funext((\fun (j: Fin.Fin n) => join p (Index.right j)), Pair.second L.Point R.Point p,
+    \fun (j: Fin.Fin n) => Tuples.atRight (Pair.first L.Point R.Point p) (Pair.second L.Point R.Point p) j));
+\definition leftBox[b: E.Box]: L.Box := L.Box {
+  active := b.active, left := \fun (i: Fin.Fin m) => b.left (Index.left i), right := \fun (i: Fin.Fin m) => b.right (Index.left i), ordered := \fun (i: Fin.Fin m) => b.ordered (Index.left i),
+};
+\definition rightBox[b: E.Box]: R.Box := R.Box {
+  active := b.active, left := \fun (j: Fin.Fin n) => b.left (Index.right j), right := \fun (j: Fin.Fin n) => b.right (Index.right j), ordered := \fun (j: Fin.Fin n) => b.ordered (Index.right j),
+};
+\import euclidean_measure.Pushforward[A := Sigma.Point, B := E.Point, source := Product.measure, map := join] \as Push;
+\definition boxPreimage: \forall (b: E.Box) -> Push.preimage (E.points b) = Sigma.rectangle (L.points (leftBox b)) (R.points (rightBox b)) :=
+  \fun (b: E.Box) => \axiom:setext(Push.preimage (E.points b), Sigma.rectangle (L.points (leftBox b)) (R.points (rightBox b)),
+    \fun (p: Sigma.Point) (member: PairSets.Member (Push.preimage (E.points b)) p) => Logic.And[_, _]::#
+      (Logic.And[_, _]::# member.left (\fun (i: Fin.Fin m) =>
+        \idelim join p (Index.left i) = Pair.first L.Point R.Point p i \with r: Real.Real => Logic.And[Order.Le (b.left (Index.left i)) r, Order.Le r (b.right (Index.left i))]
+          \by { base: member.right (Index.left i), equality: Tuples.atLeft (Pair.first L.Point R.Point p) (Pair.second L.Point R.Point p) i }))
+      (Logic.And[_, _]::# member.left (\fun (j: Fin.Fin n) =>
+        \idelim join p (Index.right j) = Pair.second L.Point R.Point p j \with r: Real.Real => Logic.And[Order.Le (b.left (Index.right j)) r, Order.Le r (b.right (Index.right j))]
+          \by { base: member.right (Index.right j), equality: Tuples.atRight (Pair.first L.Point R.Point p) (Pair.second L.Point R.Point p) j })),
+    \fun (p: Sigma.Point) (member: PairSets.Member (Sigma.rectangle (L.points (leftBox b)) (R.points (rightBox b))) p) => \block {
+      \let point: E.Point := join p \then
+      \let bounds: \forall (i: Fin.Fin Index.total) -> Logic.And[Order.Le (b.left i) (point i), Order.Le (point i) (b.right i)] :=
+        \fun (i: Fin.Fin Index.total) => \idelim Index.inflate (Index.split i) = i \with j: Fin.Fin Index.total => Logic.And[Order.Le (b.left j) (point j), Order.Le (point j) (b.right j)] \by {
+          base: (\induction (index: Index.Index) \return Logic.And[Order.Le (b.left (Index.inflate index)) (point (Index.inflate index)), Order.Le (point (Index.inflate index)) (b.right (Index.inflate index))] \with {
+            | inl: \fun (k: Fin.Fin m) => \idelim Pair.first L.Point R.Point p k = point (Index.left k) \with r: Real.Real => Logic.And[Order.Le (b.left (Index.left k)) r, Order.Le r (b.right (Index.left k))] \by {
+              base: member.left.right k, equality: sym!{Real.Real} _ _ (Tuples.atLeft (Pair.first L.Point R.Point p) (Pair.second L.Point R.Point p) k) }
+            | inr: \fun (k: Fin.Fin n) => \idelim Pair.second L.Point R.Point p k = point (Index.right k) \with r: Real.Real => Logic.And[Order.Le (b.left (Index.right k)) r, Order.Le r (b.right (Index.right k))] \by {
+              base: member.right.right k, equality: sym!{Real.Real} _ _ (Tuples.atRight (Pair.first L.Point R.Point p) (Pair.second L.Point R.Point p) k) }
+          }) (Index.split i), equality: Index.inflateSplit i } \then
+      \return Logic.And[_, _]::# member.left.left bounds
+    });
+\definition boxMeasurable: \forall (b: E.Box) -> M.Measurable Push.sigma (E.points b) := \fun (b: E.Box) =>
+  \idelim Sigma.rectangle (L.points (leftBox b)) (R.points (rightBox b)) = Push.preimage (E.points b)
+    \with S: \Pow Sigma.Point => functional_analysis.Measure[A := Sigma.Point].Measurable Sigma.sigma S \by {
+      base: Sigma.rectangleMeasurable (L.points (leftBox b)) (R.points (rightBox b))
+        (Left.boxFinite (leftBox b)).measurable (Right.boxFinite (rightBox b)).measurable,
+      equality: sym!{{\Pow Sigma.Point}} _ _ (boxPreimage b) };
+\module Volumes;
+\module Borel;
+\module Comparison;

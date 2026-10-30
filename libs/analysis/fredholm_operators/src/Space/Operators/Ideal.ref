@@ -1,0 +1,40 @@
+\import Target.Operators[W := W, target := target, norm := targetNorm, targetNorm := targetNorm] \as EndBounded;
+\import \root.Space[V := W, space := target, norm := targetNorm].Operators[W := W, target := target, targetNorm := targetNorm] \as End;
+\import CompactOperators.After[U := W, codomain := target, codomainNorm := targetNorm] \as Post;
+\import Algebra.Linear[V := W, W := W, source := target, target := target] \as EndLinear;
+\definition identityLinear: EndLinear.Map := EndLinear.Map {
+  apply := \fun (x: W) => x,
+  preservesAdd := \fun (x, y: W) => \refl(target.add x y),
+  preservesScale := \fun (a: C.Complex)(x: W) => \refl(target.smul a x),
+};
+\definition identity: End.Map := \into[EndLinear.Map](identityLinear, End.Map) \by {
+  Logic.existsIntro[R.Real, { c: R.Real \where EndBounded.Bound[identityLinear, c] }] R.one (EndBounded.Bound[identityLinear, R.one] {
+    nonnegative := Laws.oneNonnegative,
+    estimate := \fun (x: W) => Order.leReplaceRight _ (targetNorm.realNorm.norm x) (R.mul R.one (targetNorm.realNorm.norm x))
+      (sym!{R.Real} _ _ (Laws.fieldMulOneLeft _)) (Order.leRefl _),
+  })
+};
+\definition compactNegative: \forall (f: Map) -> Compact f -> Compact (negative f) :=
+  \fun (f: Map)(compact: Compact f) => compactEqual (Post.compose f (End.negative identity)) (negative f)
+    (\fun (x: V) => \refl(target.neg (f.apply x))) (Post.compact f (End.negative identity) compact);
+\definition compactDifference: \forall (f, g: Map) -> Compact f -> Compact g -> Compact (difference f g) :=
+  \fun (f, g: Map)(fc: Compact f)(gc: Compact g) => compactPlus f (negative g) fc (compactNegative g gc);
+\definition Equivalent[f, g: Map]: \Prop := Compact (difference f g);
+\definition reflexive: \forall (f: Map) -> Equivalent[f, f] :=
+  \fun (f: Map) => compactEqual zero (difference f f) (\fun (x: V) => sym!{W} _ _ (TargetNormed.subSelf (f.apply x))) compactZero;
+\definition symmetric: \forall (f, g: Map) -> Equivalent[f, g] -> Equivalent[g, f] :=
+  \fun (f, g: Map)(equivalent: Equivalent[f, g]) => compactEqual (negative (difference f g)) (difference g f)
+    (\fun (x: V) => TargetNormed.negativeSub (f.apply x) (g.apply x)) (compactNegative (difference f g) equivalent);
+\definition transitive: \forall (f, g, h: Map) -> Equivalent[f, g] -> Equivalent[g, h] -> Equivalent[f, h] :=
+  \fun (f, g, h: Map)(fg: Equivalent[f, g])(gh: Equivalent[g, h]) => compactEqual (plus (difference f g) (difference g h)) (difference f h)
+    (\fun (x: V) => TargetNormed.subBridge (f.apply x) (g.apply x) (h.apply x))
+    (compactPlus (difference f g) (difference g h) fg gh);
+
+\definition compactPerturbation: \forall (f, k: Map) -> Compact k -> Equivalent[f, plus f k] :=
+  \fun (f, k: Map)(compact: Compact k) => compactEqual (negative k) (difference f (plus f k))
+    (\fun (x: V) => sym!{W} _ _ (eq_reason_in!{W _
+      "=" _ "by" { congr!{W W} (target.add (f.apply x)) _ _ (TargetNormed.negativeAdd (f.apply x) (k.apply x)) }
+      "=" _ "by" { sym!{W} _ _ (TargetVectors.assoc (f.apply x) (target.neg (f.apply x)) (target.neg (k.apply x))) }
+      "=" _ "by" { congr!{W W} (\fun (y: W) => target.add y (target.neg (k.apply x))) _ _ (TargetNormed.subSelf (f.apply x)) }
+      "=" _ "by" { TargetVectors.zeroLeft (target.neg (k.apply x)) }
+    })) (compactNegative k compact);

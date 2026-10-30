@@ -1,0 +1,16 @@
+\import TargetHilbert.Subspaces[] \as ClosedSubspaces;
+\definition closedImage: ClosedSubspaces.ClosedSubspace := \into[TargetSubspaces.Subspace](image, ClosedSubspaces.ClosedSubspace) \by { closed };
+\import \root.Space[V := W, space := target, norm := targetNorm].Hilbert[inner := targetInner].CompactQuotient[S := closedImage, k := rightDefect s] \as CompactQuotient;
+\import Algebra.Linear[V := W, W := CokernelSpace, source := target, target := Quotient.vectorSpace].Operations[] \as QuotientOperations;
+\import Algebra.Laws[V := CokernelSpace, space := Quotient.vectorSpace] \as QuotientLaws;
+\definition classIdentity: CompactQuotient.ClassIdentity := \fun (y: W) => eq_reason_in!{CokernelSpace _
+  "=" _ "by" { Quotient.projection.preservesAdd y (target.neg (f.apply (s.apply y))) }
+  "=" _ "by" { congr!{CokernelSpace CokernelSpace} (Quotient.vectorSpace.add (Quotient.class y)) _ _ (QuotientOperations.preservesNeg Quotient.projection (f.apply (s.apply y))) }
+  "=" _ "by" { congr!{CokernelSpace CokernelSpace} (\fun (q: CokernelSpace) => Quotient.vectorSpace.add (Quotient.class y) (Quotient.vectorSpace.neg q)) _ _
+    (Quotient.classZero (f.apply (s.apply y)) (Logic.existsIntro[V, { x: V \where f.apply x = f.apply (s.apply y) }] (s.apply y) (\refl(f.apply (s.apply y))))) }
+  "=" _ "by" { congr!{CokernelSpace CokernelSpace} (Quotient.vectorSpace.add (Quotient.class y)) _ _
+    (trans!{CokernelSpace} _ _ _ (sym!{CokernelSpace} _ _ (QuotientLaws.minusOneScale Quotient.vectorSpace.zero)) (QuotientLaws.scaleZero (C.Def[].neg C.Def[].one))) }
+  "=" _ "by" { QuotientLaws.zeroRight (Quotient.class y) }
+};
+\definition finite: \forall (complete: TargetHilbert.Complete) -> TargetEnd.Compact (rightDefect s) -> CokernelDimension.FiniteDimensional :=
+  \fun (complete: TargetHilbert.Complete)(compact: TargetEnd.Compact (rightDefect s)) => CompactQuotient.finite complete compact classIdentity;

@@ -1,0 +1,37 @@
+\import Kernel.Union[data := data] \as Union;
+\import Integral.Convergence[].PointwiseSum[] \as Increasing;
+\definition partial: \forall (k: N.Nat^) ->
+  M.partialSum (\fun (k: N.Nat^) => value (data.sets k)) k = Cuts.cut (Integral.integral (Union.prefix k).function) :=
+  \induction (k: N.Nat^) \return
+    M.partialSum (\fun (k: N.Nat^) => value (data.sets k)) k = Cuts.cut (Integral.integral (Union.prefix k).function) \with {
+      | zero: sym!{M.Value} _ _ (congr!{Real.Real M.Value} Cuts.cut _ _ Zero.integralZero)
+      | succ: \fun (k: N.Nat^) (prior: _) => eq_reason_in!{M.Value _
+        "=" _ "by" { congr!{M.Value M.Value M.Value} M.add _ _ _ _ prior (valueCut (data.sets k) (data.witnesses k)) }
+        "=" _ "by" { Cuts.add (Integral.integral (Union.prefix k).function) (Integral.integral (data.witnesses k).function) }
+        "=" _ "by" { congr!{Real.Real M.Value} Cuts.cut _ _ (sym!{Real.Real} _ _
+          (Kernel.PairUnion[S := MS.prefix data.sets k, T := data.sets k, s := Union.prefix k, t := data.witnesses k].integral)) }
+      }
+    };
+\definition increasing: \forall (i, j: N.Nat^) -> N.Basic[].Prop[].Le i j ->
+  R.Le (Integral.integral (Union.prefix i).function) (Integral.integral (Union.prefix j).function) :=
+  \fun (i, j: N.Nat^) (later: N.Basic[].Prop[].Le i j) => Absolute.integralMono (Union.prefix i).function (Union.prefix j).function
+    (\fun (x: A) => Increasing.increasingAll (\fun (k: N.Nat^) (x: A) => (Union.prefix k).function x) Union.increasing j i later x);
+\definition series: M.series (\fun (k: N.Nat^) => value (data.sets k)) = value (M.union data.sets) := eq_reason_in!{M.Value _
+  "=" _ "by" { \axiom:setext(M.series (\fun (k: N.Nat^) => value (data.sets k)),
+    { r: Real.Real \where \exists ( k: N.Nat^ \where R.Lt r (Integral.integral (Union.prefix k).function) ) },
+    \fun (r: Real.Real) (member: M.below (M.series (\fun (k: N.Nat^) => value (data.sets k))) r) => \block {
+      \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where M.below (M.partialSum (\fun (k: N.Nat^) => value (data.sets k)) k) r }) \by member \then
+      \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where R.Lt r (Integral.integral (Union.prefix k).function) }] k
+        (\idelim M.partialSum (\fun (k: N.Nat^) => value (data.sets k)) k = Cuts.cut (Integral.integral (Union.prefix k).function)
+          \with v: M.Value => M.below v r \by { base: \bysub(N.Nat^, { k: N.Nat^ \where M.below (M.partialSum (\fun (k: N.Nat^) => value (data.sets k)) k) r }, k), equality: partial k })
+    },
+    \fun (r: Real.Real) (member: \exists ( k: N.Nat^ \where R.Lt r (Integral.integral (Union.prefix k).function) )) => \block {
+      \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where R.Lt r (Integral.integral (Union.prefix k).function) }) \by member \then
+      \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where M.below (M.partialSum (\fun (k: N.Nat^) => value (data.sets k)) k) r }] k
+        (\idelim Cuts.cut (Integral.integral (Union.prefix k).function) = M.partialSum (\fun (k: N.Nat^) => value (data.sets k)) k
+          \with v: M.Value => M.below v r \by { base: \bysub(N.Nat^, { k: N.Nat^ \where R.Lt r (Integral.integral (Union.prefix k).function) }, k), equality: sym!{M.Value} _ _ (partial k) })
+    }) }
+  "=" _ "by" { Cuts.sup (\fun (k: N.Nat^) => Integral.integral (Union.prefix k).function) (Integral.integral Union.witness.function)
+    (ScalarSup.ofConverges _ _ increasing Union.integralConverges) }
+  "=" _ "by" { sym!{M.Value} _ _ (valueCut (M.union data.sets) Union.witness) }
+};

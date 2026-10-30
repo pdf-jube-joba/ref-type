@@ -1,0 +1,96 @@
+\import Algebra.Laws[V := V, space := source] \as LeftLaws;
+\import Algebra.Laws[V := W, space := target] \as RightLaws;
+\definition leftLength: \forall (x: V) -> Induced.length (Product.make x target.zero) = norm.realNorm.norm x :=
+  \fun (x: V) => R.SquareRoot[].squaresInjective _ _ (Induced.nonnegative _) (norm.realNorm.nonnegative x) (eq_reason_in!{R.Real _
+    "=" _ "by" { Induced.square (Product.make x target.zero) }
+    "=" _ "by" { congr!{R.Real R.Real} (R.add (C.re (inner.inner x x))) _ _ (congr!{C.Complex R.Real} C.re _ _ (targetInner.zeroRight target.zero)) }
+    "=" _ "by" { L.addZeroRight _ }
+    "=" _ "by" { complete.normSquared x }
+  });
+\definition rightLength: \forall (y: W) -> Induced.length (Product.make source.zero y) = targetNorm.realNorm.norm y :=
+  \fun (y: W) => R.SquareRoot[].squaresInjective _ _ (Induced.nonnegative _) (targetNorm.realNorm.nonnegative y) (eq_reason_in!{R.Real _
+    "=" _ "by" { Induced.square (Product.make source.zero y) }
+    "=" _ "by" { congr!{R.Real R.Real} (\fun (a: R.Real) => R.add a (C.re (targetInner.inner y y))) _ _ (congr!{C.Complex R.Real} C.re _ _ (inner.zeroRight source.zero)) }
+    "=" _ "by" { L.addZeroLeft _ }
+    "=" _ "by" { targetComplete.normSquared y }
+  });
+\definition firstBound: \forall (x: Product.Carrier) -> Order.Le (norm.realNorm.norm (Product.first x)) (Induced.length x) :=
+  \fun (x: Product.Carrier) => Induced.squareCompare _ _ (Induced.nonnegative x)
+    (Order.leReplace _ _ _ _ (complete.normSquared (Product.first x)) (sym!{R.Real} _ _ (Induced.square x))
+      (A.leAddRight (C.re (inner.inner (Product.first x) (Product.first x))) _ (targetInner.nonnegative (Product.second x))));
+\definition secondBound: \forall (x: Product.Carrier) -> Order.Le (targetNorm.realNorm.norm (Product.second x)) (Induced.length x) :=
+  \fun (x: Product.Carrier) => Induced.squareCompare _ _ (Induced.nonnegative x)
+    (Order.leReplace _ _ _ _ (targetComplete.normSquared (Product.second x))
+      (trans!{R.Real} _ _ _ (L.addComm _ _) (sym!{R.Real} _ _ (Induced.square x)))
+      (A.leAddRight (C.re (targetInner.inner (Product.second x) (Product.second x))) _ (inner.nonnegative (Product.first x))));
+\definition split: \forall (x: Product.Carrier) -> Product.plus (Product.make (Product.first x) target.zero) (Product.make source.zero (Product.second x)) = x :=
+  \fun (x: Product.Carrier) => Pairs.ext _ _ (LeftLaws.zeroRight (Product.first x)) (RightLaws.zeroLeft (Product.second x));
+\definition sumBound: \forall (x: Product.Carrier) -> Order.Le (Induced.length x) (R.add (norm.realNorm.norm (Product.first x)) (targetNorm.realNorm.norm (Product.second x))) :=
+  \fun (x: Product.Carrier) => Order.leReplace _ _ _ _ (congr!{Product.Carrier R.Real} Induced.length _ _ (split x))
+    (congr!{R.Real R.Real R.Real} R.add _ _ _ _ (leftLength (Product.first x)) (rightLength (Product.second x)))
+    (Induced.triangle (Product.make (Product.first x) target.zero) (Product.make source.zero (Product.second x)));
+\import Algebra.Linear[V := Product.Carrier, W := V, source := Product.space, target := source] \as FirstLinear;
+\import Algebra.Linear[V := Product.Carrier, W := W, source := Product.space, target := target] \as SecondLinear;
+\definition firstLinear: FirstLinear.Map := FirstLinear.Map { apply := Product.first, preservesAdd := \fun (x, y: Product.Carrier) => \refl(source.add (Product.first x) (Product.first y)), preservesScale := \fun (a: C.Complex)(x: Product.Carrier) => \refl(source.smul a (Product.first x)) };
+\definition secondLinear: SecondLinear.Map := SecondLinear.Map { apply := Product.second, preservesAdd := \fun (x, y: Product.Carrier) => \refl(target.add (Product.second x) (Product.second y)), preservesScale := \fun (a: C.Complex)(x: Product.Carrier) => \refl(target.smul a (Product.second x)) };
+\import Total.Operators[W := V, target := source, norm := productNorm, targetNorm := norm] \as FirstOperators;
+\import Total.Operators[W := W, target := target, norm := productNorm, targetNorm := targetNorm] \as SecondOperators;
+\definition first: FirstOperators.Map := \into[FirstLinear.Map](firstLinear, FirstOperators.Map) \by { Logic.existsIntro[R.Real, { c: R.Real \where FirstOperators.Bound[firstLinear, c] }] R.one (FirstOperators.Bound[firstLinear, R.one] {
+  nonnegative := L.oneNonnegative, estimate := \fun (x: Product.Carrier) => Order.leReplaceRight _ _ _ (sym!{R.Real} _ _ (L.fieldMulOneLeft (Induced.length x))) (firstBound x),
+}) };
+\definition second: SecondOperators.Map := \into[SecondLinear.Map](secondLinear, SecondOperators.Map) \by { Logic.existsIntro[R.Real, { c: R.Real \where SecondOperators.Bound[secondLinear, c] }] R.one (SecondOperators.Bound[secondLinear, R.one] {
+  nonnegative := L.oneNonnegative, estimate := \fun (x: Product.Carrier) => Order.leReplaceRight _ _ _ (sym!{R.Real} _ _ (L.fieldMulOneLeft (Induced.length x))) (secondBound x),
+}) };
+\import Algebra.Linear[V := V, W := Product.Carrier, source := source, target := Product.space] \as LeftLinear;
+\import Algebra.Linear[V := W, W := Product.Carrier, source := target, target := Product.space] \as RightLinear;
+\definition leftLinear: LeftLinear.Map := LeftLinear.Map { apply := \fun (x: V) => Product.make x target.zero,
+  preservesAdd := \fun (x, y: V) => Pairs.ext _ _ (\refl(source.add x y)) (sym!{W} _ _ (RightLaws.zeroLeft target.zero)),
+  preservesScale := \fun (a: C.Complex)(x: V) => Pairs.ext _ _ (\refl(source.smul a x)) (sym!{W} _ _ (RightLaws.scaleZero a)) };
+\definition rightLinear: RightLinear.Map := RightLinear.Map { apply := \fun (y: W) => Product.make source.zero y,
+  preservesAdd := \fun (x, y: W) => Pairs.ext _ _ (sym!{V} _ _ (LeftLaws.zeroLeft source.zero)) (\refl(target.add x y)),
+  preservesScale := \fun (a: C.Complex)(y: W) => Pairs.ext _ _ (sym!{V} _ _ (LeftLaws.scaleZero a)) (\refl(target.smul a y)) };
+\import Left.Operators[W := Product.Carrier, target := Product.space, norm := norm, targetNorm := productNorm] \as LeftOperators;
+\import Right.Operators[W := Product.Carrier, target := Product.space, norm := targetNorm, targetNorm := productNorm] \as RightOperators;
+\definition left: LeftOperators.Map := \into[LeftLinear.Map](leftLinear, LeftOperators.Map) \by { Logic.existsIntro[R.Real, { c: R.Real \where LeftOperators.Bound[leftLinear, c] }] R.one (LeftOperators.Bound[leftLinear, R.one] {
+  nonnegative := L.oneNonnegative, estimate := \fun (x: V) => Order.leReplace _ _ _ _ (sym!{R.Real} _ _ (leftLength x)) (sym!{R.Real} _ _ (L.fieldMulOneLeft (norm.realNorm.norm x))) (Order.leRefl (norm.realNorm.norm x)),
+}) };
+\definition right: RightOperators.Map := \into[RightLinear.Map](rightLinear, RightOperators.Map) \by { Logic.existsIntro[R.Real, { c: R.Real \where RightOperators.Bound[rightLinear, c] }] R.one (RightOperators.Bound[rightLinear, R.one] {
+  nonnegative := L.oneNonnegative, estimate := \fun (y: W) => Order.leReplace _ _ _ _ (sym!{R.Real} _ _ (rightLength y)) (sym!{R.Real} _ _ (L.fieldMulOneLeft (targetNorm.realNorm.norm y))) (Order.leRefl (targetNorm.realNorm.norm y)),
+}) };
+\import functional_analysis.Metric[Carrier := Product.Carrier] \as Sequences;
+\import functional_analysis.Metric[Carrier := V] \as LeftSequences;
+\import functional_analysis.Metric[Carrier := W] \as RightSequences;
+\import TotalNormed.Operators[W := V, target := Left.realSpace, norm := productNorm.realNorm, targetNorm := norm.realNorm] \as RealFirst;
+\import TotalNormed.Operators[W := W, target := Right.realSpace, norm := productNorm.realNorm, targetNorm := targetNorm.realNorm] \as RealSecond;
+\import std.Data[].Nat[] \as N;
+\import N.Basic[].Prop[] \as Nat;
+\import N.Order[].Prop[] \as Bounds;
+\definition converges: \forall (s: N.Nat^ -> Product.Carrier)(x: V)(y: W) ->
+  LeftSequences.Converges (LeftNormed.metric norm.realNorm) (\fun (n: N.Nat^) => Product.first (s n)) x ->
+  RightSequences.Converges (RightNormed.metric targetNorm.realNorm) (\fun (n: N.Nat^) => Product.second (s n)) y ->
+  Sequences.Converges (TotalNormed.metric productNorm.realNorm) s (Product.make x y) := \block {
+  \fun (s: N.Nat^ -> Product.Carrier)(x: V)(y: W)(hl: _)(hr: _)(epsilon: R.Real)(positive: Order.Lt R.zero epsilon) \then
+  \let r: R.Real := R.mul R.half epsilon \then
+  \takefrom i: \Cast[N.Nat^] ({ i: N.Nat^ \where LeftSequences.LimitControl (LeftNormed.metric norm.realNorm) (\fun (n: N.Nat^) => Product.first (s n)) x r i }) \by hl r (Estimates.halfOfPositive epsilon positive) \then
+  \takefrom j: \Cast[N.Nat^] ({ j: N.Nat^ \where RightSequences.LimitControl (RightNormed.metric targetNorm.realNorm) (\fun (n: N.Nat^) => Product.second (s n)) y r j }) \by hr r (Estimates.halfOfPositive epsilon positive) \then
+  \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where Sequences.LimitControl (TotalNormed.metric productNorm.realNorm) s (Product.make x y) epsilon k }] (Bounds.commonBound i j)
+    (\fun (n: N.Nat^)(later: _) => Order.leLtTrans _ _ epsilon (sumBound (TotalNormed.sub (s n) (Product.make x y)))
+      (Order.ltReplaceRight _ (R.add r r) epsilon (Estimates.halfTwice epsilon) (Estimates.addLt _ _ _ _
+        ((\bysub(N.Nat^, { i: N.Nat^ \where LeftSequences.LimitControl (LeftNormed.metric norm.realNorm) (\fun (n: N.Nat^) => Product.first (s n)) x r i }, i)) n (Nat.leTrans i (Bounds.commonBound i j) n (Bounds.leftLeCommonBound i j) later))
+        ((\bysub(N.Nat^, { j: N.Nat^ \where RightSequences.LimitControl (RightNormed.metric targetNorm.realNorm) (\fun (n: N.Nat^) => Product.second (s n)) y r j }, j)) n (Nat.leTrans j (Bounds.commonBound i j) n (Bounds.rightLeCommonBound i j) later)))))
+};
+\definition hilbert: Hilbert.Complete := Hilbert.Complete {
+  normSquared := \fun (x: Product.Carrier) => sym!{R.Real} _ _ (Induced.square x),
+  complete := \block {
+    \fun (s: N.Nat^ -> Product.Carrier)(cauchy: Sequences.Cauchy (TotalNormed.metric productNorm.realNorm) s) \then
+    \takefrom x: \Cast[V] ({ x: V \where LeftSequences.Converges (LeftNormed.metric norm.realNorm) (\fun (n: N.Nat^) => Product.first (s n)) x })
+      \by complete.complete (\fun (n: N.Nat^) => Product.first (s n)) (RealFirst.mapsCauchy (FirstOperators.asReal first) s cauchy) \then
+    \takefrom y: \Cast[W] ({ y: W \where RightSequences.Converges (RightNormed.metric targetNorm.realNorm) (\fun (n: N.Nat^) => Product.second (s n)) y })
+      \by targetComplete.complete (\fun (n: N.Nat^) => Product.second (s n)) (RealSecond.mapsCauchy (SecondOperators.asReal second) s cauchy) \then
+    \return Logic.existsIntro[Product.Carrier, { z: Product.Carrier \where Sequences.Converges (TotalNormed.metric productNorm.realNorm) s z }] (Product.make x y)
+      (converges s x y (\bysub(V, { x: V \where LeftSequences.Converges (LeftNormed.metric norm.realNorm) (\fun (n: N.Nat^) => Product.first (s n)) x }, x))
+        (\bysub(W, { y: W \where RightSequences.Converges (RightNormed.metric targetNorm.realNorm) (\fun (n: N.Nat^) => Product.second (s n)) y }, y)))
+  },
+};
+\module Block(f: Left.Operators[W := V, target := source, norm := norm, targetNorm := norm].Map,
+  g: Right.Operators[W := W, target := target, norm := targetNorm, targetNorm := targetNorm].Map);

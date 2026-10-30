@@ -1,0 +1,76 @@
+\import real.Analysis[] \as Real;
+\import real.Analysis[].Estimates[] \as Estimates;
+\import real.Analysis[].Sequence[] \as Sequence;
+\import dedekind_reals.DedekindReal[] \as R;
+\import R.Order[] \as Order;
+\import std.Data[].Nat[] \as N;
+\import std.Logic[].Proposition[] \as Logic;
+\import functional_analysis.Measure[A := A] \as M;
+\import M.ValueLaws[] \as Values;
+\import \root.ScalarSup[] \as ScalarSup;
+\definition cut[v: Real.Real]: M.Value := { r: Real.Real \where R.Lt r v };
+\definition nonnegative: \forall (v: Real.Real) -> R.Le Real.zero v -> M.NonnegativeValue[cut v] :=
+  \fun (v: Real.Real) (valid: R.Le Real.zero v) => M.NonnegativeValue[cut v] {
+    negative := \fun (r: Real.Real) (less: R.Lt r Real.zero) => R.ltLeTrans r Real.zero v less valid,
+    downward := \fun (r, s: Real.Real) (less: R.Lt r s) (member: R.Lt s v) => Order.ltTrans r s v less member,
+    rounded := \fun (r: Real.Real) (less: R.Lt r v) => Logic.existsIntro[Real.Real, { s: Real.Real \where Logic.And[R.Lt r s, R.Lt s v] }] (Real.midpoint r v)
+      (Logic.And[_, _]::# (Values.midpointStrictLeft r v less) (Values.midpointStrictRight r v less)),
+  };
+\definition add: \forall (a, b: Real.Real) -> M.add (cut a) (cut b) = cut (Real.add a b) :=
+  \fun (a, b: Real.Real) => \axiom:setext(M.add (cut a) (cut b), cut (Real.add a b),
+    \fun (r: Real.Real) (member: M.below (M.add (cut a) (cut b)) r) => \block {
+      \takefrom p: \Cast[Real.Real] ({ p: Real.Real \where Logic.And[R.Lt p a, \exists ( q: Real.Real \where Logic.And[R.Lt q b, R.Lt r (Real.add p q)] )] }) \by member \then
+      \let first: Logic.And[R.Lt p a, \exists ( q: Real.Real \where Logic.And[R.Lt q b, R.Lt r (Real.add p q)] )] :=
+        \bysub(Real.Real, { p: Real.Real \where Logic.And[R.Lt p a, \exists ( q: Real.Real \where Logic.And[R.Lt q b, R.Lt r (Real.add p q)] )] }, p) \then
+      \takefrom q: \Cast[Real.Real] ({ q: Real.Real \where Logic.And[R.Lt q b, R.Lt r (Real.add p q)] }) \by first.right \then
+      \let second: Logic.And[R.Lt q b, R.Lt r (Real.add p q)] := \bysub(Real.Real, { q: Real.Real \where Logic.And[R.Lt q b, R.Lt r (Real.add p q)] }, q) \then
+      \return Order.ltTrans r (Real.add p q) (Real.add a b) second.right (Estimates.addLt p q a b first.left second.left)
+    },
+    \fun (r: Real.Real) (member: R.Lt r (Real.add a b)) => \block {
+      \takefrom p: \Cast[Real.Real] ({ p: Real.Real \where \exists ( q: Real.Real \where Values.SplitBelow[r, a, b, p, q] ) }) \by Values.splitBelow r a b member \then
+      \takefrom q: \Cast[Real.Real] ({ q: Real.Real \where Values.SplitBelow[r, a, b, p, q] })
+        \by (\bysub(Real.Real, { p: Real.Real \where \exists ( q: Real.Real \where Values.SplitBelow[r, a, b, p, q] ) }, p)) \then
+      \let split: Values.SplitBelow[r, a, b, p, q] := \bysub(Real.Real, { q: Real.Real \where Values.SplitBelow[r, a, b, p, q] }, q) \then
+      \return Logic.existsIntro[Real.Real, { p: Real.Real \where Logic.And[R.Lt p a, \exists ( q: Real.Real \where Logic.And[R.Lt q b, R.Lt r (Real.add p q)] )] }] p
+        (Logic.And[_, _]::# split.left (Logic.existsIntro[Real.Real, { q: Real.Real \where Logic.And[R.Lt q b, R.Lt r (Real.add p q)] }] q
+          (Logic.And[_, _]::# split.right split.total)))
+    });
+\definition sup: \forall (s: N.Nat^ -> Real.Real) (v: Real.Real) -> R.Completeness[].LeastUpperBound[ScalarSup.values s, v] ->
+  { r: Real.Real \where \exists ( k: N.Nat^ \where R.Lt r (s k) ) } = cut v :=
+  \fun (s: N.Nat^ -> Real.Real) (v: Real.Real) (law: R.Completeness[].LeastUpperBound[ScalarSup.values s, v]) =>
+    \axiom:setext({ r: Real.Real \where \exists ( k: N.Nat^ \where R.Lt r (s k) ) }, cut v,
+      \fun (r: Real.Real) (member: \exists ( k: N.Nat^ \where R.Lt r (s k) )) => \block {
+        \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where R.Lt r (s k) }) \by member \then
+        \return R.ltLeTrans r (s k) v (\bysub(N.Nat^, { k: N.Nat^ \where R.Lt r (s k) }, k)) (law.upper (s k) (ScalarSup.member s k))
+      },
+      \fun (r: Real.Real) (less: R.Lt r v) => ScalarSup.above s v r law less);
+\import R.Completeness[] \as Complete;
+\use std.Logic[].Equality[].sym;
+\definition supremum[v: Real.Real]: Complete.LeastUpperBound[cut v, v] := Complete.LeastUpperBound[cut v, v] {
+  upper := \fun (r: Real.Real) (less: R.Lt r v) => Order.leOfLt r v less,
+  least := \fun (b: Real.Real) (upper: Complete.UpperBound (cut v) b) => Order.leOfNotLtReverse v b
+    (\fun (less: R.Lt b v) => R.ltNotLeReverse b (Real.midpoint b v) (Values.midpointStrictLeft b v less)
+      (upper (Real.midpoint b v) (Values.midpointStrictRight b v less))),
+};
+\definition injective: \forall (a, b: Real.Real) -> cut a = cut b -> a = b :=
+  \fun (a, b: Real.Real) (same: cut a = cut b) => Complete.leastUpperBoundUnique (cut a) a b (supremum a)
+    (\idelim cut b = cut a \with v: M.Value => Complete.LeastUpperBound[v, b] \by {
+      base: supremum b, equality: sym!{M.Value} _ _ same });
+\import M.ValueLaws[].SupAdd[] \as SupAdd;
+\definition fromSup: \forall (v: M.Value) (p: Real.Real) -> M.NonnegativeValue[v] -> Complete.LeastUpperBound[v, p] -> v = cut p :=
+  \fun (v: M.Value) (p: Real.Real) (valid: M.NonnegativeValue[v]) (law: Complete.LeastUpperBound[v, p]) => \axiom:setext(v, cut p,
+    \fun (r: Real.Real) (member: M.below v r) => \block {
+      \takefrom t: \Cast[Real.Real] ({ t: Real.Real \where Logic.And[R.Lt r t, M.below v t] }) \by valid.rounded r member \then
+      \let above: Logic.And[R.Lt r t, M.below v t] := \bysub(Real.Real, { t: Real.Real \where Logic.And[R.Lt r t, M.below v t] }, t) \then
+      \return R.ltLeTrans r t p above.left (law.upper t above.right)
+    },
+    \fun (r: Real.Real) (less: R.Lt r p) => \block {
+      \takefrom t: \Cast[Real.Real] ({ t: Real.Real \where Logic.And[M.below v t, R.Lt r t] }) \by SupAdd.above v p r law less \then
+      \let above: Logic.And[M.below v t, R.Lt r t] := \bysub(Real.Real, { t: Real.Real \where Logic.And[M.below v t, R.Lt r t] }, t) \then
+      \return valid.downward r t above.right above.left
+    });
+\definition includedLe: \forall (a, b: Real.Real) -> Values.Included (cut a) (cut b) -> R.Le a b :=
+  \fun (a, b: Real.Real) (included: Values.Included (cut a) (cut b)) => (supremum a).least b
+    (\fun (r: Real.Real) (member: R.Lt r a) => Order.leOfLt r b (included r member));
+\definition leIncluded: \forall (a, b: Real.Real) -> R.Le a b -> Values.Included (cut a) (cut b) :=
+  \fun (a, b: Real.Real) (order: R.Le a b) (r: Real.Real) (member: R.Lt r a) => R.ltLeTrans r a b member order;

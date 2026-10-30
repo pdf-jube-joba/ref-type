@@ -1,0 +1,39 @@
+\import functional_analysis.Measure[A := A] \as M;
+\import M.Integral[mu := mu].Null[] \as Null;
+\import M.AlmostEverywhere[mu := mu] \as AE;
+\import M.Sigma[] \as Sigma;
+\import topology.Topology[Carrier := A] \as Sets;
+\import std.Data[].Nat[] \as N;
+\import std.Data[].FinSet[] \as Fin;
+\import std.Data[].Option[] \as Option;
+\import std.Logic[].Proposition[] \as Logic;
+\definition empty: Null.NullSet := \into[\Pow A](Sets.Empty, Null.NullSet) \by {
+  Null.NullSetLaw[Sets.Empty] { measurable := (Sigma.laws mu.sigma).empty, zeroMeasure := M.Finite[mu := mu].laws.empty }
+};
+\definition pair[S, T: Null.NullSet]: Null.NullSet := \into[\Pow A](Sigma.pairUnion S T, Null.NullSet) \by {
+  Null.NullSetLaw[Sigma.pairUnion S T] {
+    measurable := Sigma.pairMeasurable mu.sigma S T (Null.nullSetLaw S).measurable (Null.nullSetLaw T).measurable,
+    zeroMeasure := AE.measurableNullUnion S T (Null.nullSetLaw S).measurable (Null.nullSetLaw T).measurable
+      (Null.nullSetLaw S).zeroMeasure (Null.nullSetLaw T).zeroMeasure,
+  }
+};
+\definition union: \forall (n: N.Nat^) -> (Fin.Fin n -> Null.NullSet) -> Null.NullSet :=
+  \induction (n: N.Nat^) \return (Fin.Fin n -> Null.NullSet) -> Null.NullSet \with {
+    | zero: \fun (_: Fin.Fin N.Nat^::zero -> Null.NullSet) => empty
+    | succ: \fun (n: N.Nat^) (previous: _) (sets: Fin.Fin (N.Nat^::succ n) -> Null.NullSet) =>
+      pair (sets (Fin.zero n)) (previous (\fun (i: Fin.Fin n) => sets (Fin.succ n i)))
+  };
+\definition included: \forall (n: N.Nat^) (sets: Fin.Fin n -> Null.NullSet) (i: Fin.Fin n) -> Sets.Subset (sets i) (union n sets) :=
+  \induction (n: N.Nat^) \return \forall (sets: Fin.Fin n -> Null.NullSet) (i: Fin.Fin n) -> Sets.Subset (sets i) (union n sets) \with {
+    | zero: \fun (sets: Fin.Fin N.Nat^::zero -> Null.NullSet) (i: Fin.Fin N.Nat^::zero) => Logic.falseElim _ (Fin.zeroImpossible i (Fin.bound N.Nat^::zero i))
+    | succ: \fun (n: N.Nat^) (previous: _) (sets: Fin.Fin (N.Nat^::succ n) -> Null.NullSet) (i: Fin.Fin (N.Nat^::succ n)) => \block {
+      \let cases: \forall (o: Option.Option[Fin.Fin n]) -> Sets.Subset (sets (Fin.inflate n o)) (union (N.Nat^::succ n) sets) :=
+        \induction (o: Option.Option[Fin.Fin n]) \return Sets.Subset (sets (Fin.inflate n o)) (union (N.Nat^::succ n) sets) \with {
+          | none: \fun (x: A) (member: Sets.Member (sets (Fin.zero n)) x) => Logic.Or[_, _]::left member
+          | some: \fun (j: Fin.Fin n) (x: A) (member: Sets.Member (sets (Fin.succ n j)) x) =>
+            Logic.Or[_, _]::right (previous (\fun (i: Fin.Fin n) => sets (Fin.succ n i)) j x member)
+        } \then
+      \return \idelim Fin.inflate n (Fin.split n i) = i \with j: Fin.Fin (N.Nat^::succ n) => Sets.Subset (sets j) (union (N.Nat^::succ n) sets)
+        \by { base: cases (Fin.split n i), equality: Fin.inflateSplit n i }
+    }
+  };

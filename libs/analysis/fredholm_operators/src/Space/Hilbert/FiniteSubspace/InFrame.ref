@@ -1,0 +1,21 @@
+\import std.Data[].FinSet[] \as Fin;
+\import Algebra.Finite[V := Points.Carrier, I := Fin.Fin frame.size, space := Points.induced] \as FiniteBasis;
+\import FiniteBasis.Prop[] \as BasisLaws;
+\import Algebra.Linear[V := Points.Carrier, W := V, source := Points.induced, target := space].Composition[U := Algebra.Coordinates[I := Fin.Fin frame.size].Vector, domain := Algebra.Coordinates[I := Fin.Fin frame.size].space] \as Compose;
+\definition spanning: Algebra.Linear[V := Algebra.Coordinates[I := Fin.Fin frame.size].Vector, W := V, source := Algebra.Coordinates[I := Fin.Fin frame.size].space, target := space].Map := Compose.compose Points.inclusion (BasisLaws.synthesis frame.basis);
+\import Hilbert.Geometry[] \as Geometry;
+\import linear_algebra.Hermitian[].Over[K := C.Complex, field := C.Algebra[].field, scalar := linear_algebra.Hermitian[].Complex[].scalar] \as Hermitian;
+\import Hermitian.Inner[V := V, space := space].Of[h := Geometry.form] \as Inner;
+\import Inner.Gram[k := frame.size] \as Gram;
+\definition injective: Gram.Injective spanning :=
+  \fun (x, y: Algebra.Coordinates[I := Fin.Fin frame.size].Vector)(same: spanning.apply x = spanning.apply y) => eq_reason_in!{{Algebra.Coordinates[I := Fin.Fin frame.size].Vector} x
+    "=" _ "by" { sym!{{Algebra.Coordinates[I := Fin.Fin frame.size].Vector}} _ _ (frame.basis.coordinateReconstruction x) }
+    "=" _ "by" { congr!{Points.Carrier {Algebra.Coordinates[I := Fin.Fin frame.size].Vector}} frame.basis.coordinates.apply ((BasisLaws.synthesis frame.basis).apply x) ((BasisLaws.synthesis frame.basis).apply y) same }
+    "=" _ "by" { frame.basis.coordinateReconstruction y }
+  };
+\module Orthonormal(factor: Gram.Factorization[spanning]);
+\definition closed: \forall (complete: Hilbert.Complete) -> Subspaces.Closed S := \block {
+  \fun (complete: Hilbert.Complete) \then
+  \takefrom factor: Gram.Factorization[spanning] \by Inner.Algorithm[].exists frame.size spanning injective Geometry.positive \then
+  \return Orthonormal[factor := factor].closed complete
+};

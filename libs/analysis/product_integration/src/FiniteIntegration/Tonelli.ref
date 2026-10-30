@@ -1,0 +1,58 @@
+\import \root.FiniteIntegration[A := A, B := B, mu := mu, nu := nu].Approximating[f := f, witnesses := witnesses] \as Approximation;
+\import PI.Approximation[f := f] \as Approx;
+\import LI.Convergence[] \as LC;
+\import LI.SimpleLaws[] \as LeftSimple;
+\import LI.Absolute[] \as LeftAbsolute;
+\import RI.Convergence[] \as RC;
+\import RC.Monotone[] \as RightMonotone;
+\import RI.SimpleLaws[] \as RightSimple;
+\import RI.Absolute[] \as RightAbsolute;
+\import PI.Convergence[] \as PC;
+\import PC.Monotone[] \as JointMonotone;
+\import PI.SimpleLaws[] \as JointSimple;
+\import PI.Absolute[] \as JointAbsolute;
+\import \root.Cuts[A := A] \as LeftCuts;
+\import \root.Cuts[A := B] \as RightCuts;
+\definition rightSequence[x: A]: RC.MeasurableSequence := \into[N.Nat^ -> B -> Real.Real]
+  ((\fun (k: N.Nat^) (y: B) => Approximation.approximateSection k x y), RC.MeasurableSequence) \by {
+    \fun (k: N.Nat^) => (RI.integralLaw (Approximation.approximateSection k x)).integrable.left
+  };
+\definition sectionEquality: sectionLower f = Extended.sup (\fun (k: N.Nat^) (x: A) => Approximation.approximateOuter k x) :=
+  \axiom:funext(sectionLower f, Extended.sup (\fun (k: N.Nat^) (x: A) => Approximation.approximateOuter k x), \fun (x: A) => eq_reason_in!{RM.Value _
+    "=" _ "by" { RightMonotone.monotone (rightSequence x) (\fun (y: B) => f.function (Pair.pair A B x y))
+      (\fun (y: B) => Approx.pointwiseSup (Pair.pair A B x y)) (\fun (k: N.Nat^) (y: B) => Approx.increasing k (Pair.pair A B x y)) }
+    "=" _ "by" { congr!{{N.Nat^ -> RM.Value} RM.Value} RC.Sup _ _ (\axiom:funext(
+      (\fun (k: N.Nat^) => RI.lowerIntegral (Approximation.approximateSection k x)),
+      (\fun (k: N.Nat^) => RightCuts.cut (Approximation.approximateOuter k x)),
+      \fun (k: N.Nat^) => eq_reason_in!{RM.Value _
+        "=" _ "by" { RightCuts.fromSup (RI.lowerIntegral (Approximation.approximateSection k x)) (RI.integral (Approximation.approximateSection k x))
+          (RightSimple.lowerNonnegative (Approximation.approximateSection k x))
+          (RightAbsolute.nonnegativeIntegralSup (Approximation.approximateSection k x) (RI.integral (Approximation.approximateSection k x))
+            (\fun (y: B) => Approx.nonnegative k (Pair.pair A B x y)) (RI.integralLaw (Approximation.approximateSection k x))) }
+        "=" _ "by" { congr!{Real.Real RM.Value} RightCuts.cut _ _ (Approximation.sectionIntegral k x) }
+      })) }
+  });
+\definition outerSequence: LC.MeasurableSequence := \into[N.Nat^ -> A -> Real.Real]
+  ((\fun (k: N.Nat^) (x: A) => Approximation.approximateOuter k x), LC.MeasurableSequence) \by {
+    \fun (k: N.Nat^) => (LI.integralLaw (Approximation.approximateOuter k)).integrable.left
+  };
+\definition jointSequence: PC.MeasurableSequence := \into[N.Nat^ -> Sigma.Point -> Real.Real](Approx.value, PC.MeasurableSequence) \by { Approx.measurable };
+\definition stageEquality: \forall (k: N.Nat^) -> LI.lowerIntegral (Approximation.approximateOuter k) = PI.lowerIntegral (Approx.value k) :=
+  \fun (k: N.Nat^) => eq_reason_in!{LM.Value _
+    "=" _ "by" { LeftCuts.fromSup (LI.lowerIntegral (Approximation.approximateOuter k)) (LI.integral (Approximation.approximateOuter k))
+      (LeftSimple.lowerNonnegative (Approximation.approximateOuter k))
+      (LeftAbsolute.nonnegativeIntegralSup (Approximation.approximateOuter k) (LI.integral (Approximation.approximateOuter k))
+        (Approximation.outerNonnegative k) (LI.integralLaw (Approximation.approximateOuter k))) }
+    "=" _ "by" { congr!{Real.Real LM.Value} LeftCuts.cut _ _ (sym!{Real.Real} _ _ (Approximation.simpleFubini k)) }
+    "=" _ "by" { sym!{PM.Value} _ _ (Cuts.fromSup (PI.lowerIntegral (Approx.value k)) (PI.integral (Approximation.approximate k))
+      (JointSimple.lowerNonnegative (Approx.value k))
+      (JointAbsolute.nonnegativeIntegralSup (Approximation.approximate k) (PI.integral (Approximation.approximate k)) (Approx.nonnegative k)
+        (PI.integralLaw (Approximation.approximate k)))) }
+  };
+\definition theorem: Extended.lowerIntegral (sectionLower f) = PI.lowerIntegral f.function := eq_reason_in!{PM.Value _
+  "=" _ "by" { congr!{{A -> LM.Value} LM.Value} Extended.lowerIntegral _ _ sectionEquality }
+  "=" _ "by" { Extended.monotone outerSequence Approximation.outerIncreasing }
+  "=" _ "by" { congr!{{N.Nat^ -> LM.Value} LM.Value} LC.Sup _ _ (\axiom:funext(
+    (\fun (k: N.Nat^) => LI.lowerIntegral (Approximation.approximateOuter k)), (\fun (k: N.Nat^) => PI.lowerIntegral (Approx.value k)), stageEquality)) }
+  "=" _ "by" { sym!{PM.Value} _ _ (JointMonotone.monotone jointSequence f.function Approx.pointwiseSup Approx.increasing) }
+};

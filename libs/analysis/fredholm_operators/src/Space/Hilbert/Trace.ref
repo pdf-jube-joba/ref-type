@@ -1,0 +1,37 @@
+\import Algebra.Linear[V := V, W := V, source := space, target := space] \as End;
+\import complex_hilbert.FiniteRank[V := V, W := V, source := space, target := space] \as Finite;
+\import std.Data[].Nat[] \as N;
+\import std.Data[].FinSet[] \as Fin;
+\import std.Set[].FiniteSubset[A := V] \as Points;
+\import Hilbert.FiniteProjection[] \as Projection;
+\module Factor(n: N.Nat^, f: End.Map, factor: Finite.Through[n := n].Factor f);
+\module Compare(n, m: N.Nat^, f: End.Map, first: Finite.Through[n := n].Factor f, second: Finite.Through[n := m].Factor f);
+\definition Represents[f: End.Map][value: C.Complex]: \Prop := \exists ( n: N.Nat^ \where
+  \exists ( factor: Finite.Through[n := n].Factor f \where \root.Space[V := V, space := space, norm := norm].Hilbert[inner := inner].Trace[].Factor[n := n, f := f, factor := factor].trace = value ) );
+\definition Value[f: End.Map]: \Set := \Cast[C.Complex] ({ value: C.Complex \where Represents f value });
+\module On(f: End.Map);
+
+\definition trace[f: End.Map][finite: Finite.FiniteRank f]: C.Complex := On[f := f].value finite;
+\definition calculate: \forall (f: End.Map)(finite: Finite.FiniteRank f)(n: N.Nat^)(factor: Finite.Through[n := n].Factor f) -> trace f finite = Factor[n := n, f := f, factor := factor].trace :=
+  \fun (f: End.Map) => On[f := f].calculate;
+\module Cyclic(W: \Set, target: Algebra.VectorSpace W, targetNorm: complex_hilbert.Space[V := W, space := target].Norm,
+  targetInner: linear_algebra.Complex[].InnerProduct[V := W, space := target].InnerProduct,
+  f: Algebra.Linear[V := V, W := W, source := space, target := target].Map,
+  g: Algebra.Linear[V := W, W := V, source := target, target := space].Map);
+
+\import End.Operations[] \as Operations;
+\module Addition(f, g: End.Map);
+
+\module Scale(a: C.Complex, f: End.Map);
+\definition equal: \forall (f, g: End.Map)(ff: Finite.FiniteRank f)(gf: Finite.FiniteRank g) ->
+  (\forall (x: V) -> f.apply x = g.apply x) -> trace f ff = trace g gf :=
+  \fun (f, g: End.Map)(ff: Finite.FiniteRank f)(gf: Finite.FiniteRank g)(same: _) =>
+    (\idelim f = g \with h: End.Map => \forall (hf: Finite.FiniteRank h) -> trace f ff = trace h hf
+      \by { base: \fun (hf: Finite.FiniteRank f) => \refl(trace f ff), equality: End.ext f g (\axiom:funext(f.apply, g.apply, same)) }) gf;
+\definition zero: trace Operations.zeroMap Finite.zero = C.Def[].zero := calculate Operations.zeroMap Finite.zero N.Nat^::zero Finite.zeroFactor;
+
+\module Through(W: \Set, target: Algebra.VectorSpace W, frame: \root.FiniteSpace[V := W, space := target].Frame,
+  into: Algebra.Linear[V := V, W := W, source := space, target := target].Map,
+  out: Algebra.Linear[V := W, W := V, source := target, target := space].Map);
+
+\module Difference(f, g: End.Map);

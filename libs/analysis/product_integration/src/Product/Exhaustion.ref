@@ -1,0 +1,34 @@
+\import N.Pair[].Def[] \as Pair;
+\import N.Pair[].Enumeration[] \as Enumeration;
+\import std.Data[].Pair[] \as Cartesian;
+\import \root.Finiteness[A := Sigma.Point, mu := measure] \as F;
+\use std.Logic[].Equality[].sym;
+\definition leftCovers: \forall (x: A) -> \exists ( i: N.Nat^ \where LeftSets.Member (leftSet i) x ) :=
+  \fun (x: A) => \idelim L.union left.sets = L.union (LeftSigma.increments left.sets) \with S: \Pow A => LeftSets.Member S x \by {
+    base: left.covers x, equality: sym!{\Pow A} _ _ (LeftSigma.incrementUnion left.sets) };
+\definition rightCovers: \forall (y: B) -> \exists ( j: N.Nat^ \where RightSets.Member (rightSet j) y ) :=
+  \fun (y: B) => \idelim R.union right.sets = R.union (RightSigma.increments right.sets) \with S: \Pow B => RightSets.Member S y \by {
+    base: right.covers y, equality: sym!{\Pow B} _ _ (RightSigma.incrementUnion right.sets) };
+\definition row[k: N.Nat^]: N.Nat^ := Pair.natPairFirst (Enumeration.enumerate k);
+\definition column[k: N.Nat^]: N.Nat^ := Pair.natPairSecond (Enumeration.enumerate k);
+\definition sets[k: N.Nat^]: \Pow Sigma.Point := Sigma.rectangle (leftSet (row k)) (rightSet (column k));
+\definition finite: \forall (k: N.Nat^) -> F.FiniteSet[sets k] :=
+  \fun (k: N.Nat^) => \root.Product[A := A, B := B, mu := mu, nu := nu, left := left, right := right].Block[i := row k, j := column k].finite;
+\definition covers: \forall (p: Sigma.Point) -> \exists ( k: N.Nat^ \where \In[Sigma.Point] (sets k) p ) :=
+  \fun (p: Sigma.Point) => \block {
+    \let x: A := Cartesian.first A B p \then
+    \let y: B := Cartesian.second A B p \then
+    \takefrom i: \Cast[N.Nat^] ({ i: N.Nat^ \where LeftSets.Member (leftSet i) x }) \by leftCovers x \then
+    \takefrom j: \Cast[N.Nat^] ({ j: N.Nat^ \where RightSets.Member (rightSet j) y }) \by rightCovers y \then
+    \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where Enumeration.enumerate k = Pair.natPair i j }) \by Enumeration.exhaustive i j \then
+    \let found: Enumeration.enumerate k = Pair.natPair i j := \bysub(N.Nat^, { k: N.Nat^ \where Enumeration.enumerate k = Pair.natPair i j }, k) \then
+    \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where \In[Sigma.Point] (sets k) p }] k (Logic.And[_, _]::#
+      (\idelim i = row k \with a: N.Nat^ => LeftSets.Member (leftSet a) x \by {
+        base: \bysub(N.Nat^, { i: N.Nat^ \where LeftSets.Member (leftSet i) x }, i),
+        equality: sym!{N.Nat^} _ _ (congr!{Pair.NatPair N.Nat^} Pair.natPairFirst _ _ found) })
+      (\idelim j = column k \with b: N.Nat^ => RightSets.Member (rightSet b) y \by {
+        base: \bysub(N.Nat^, { j: N.Nat^ \where RightSets.Member (rightSet j) y }, j),
+        equality: sym!{N.Nat^} _ _ (congr!{Pair.NatPair N.Nat^} Pair.natPairSecond _ _ found) }))
+  };
+\definition exhaustion: F.Exhaustion := F.Exhaustion { sets := sets, finite := finite, covers := covers };
+\definition sigmaFinite: F.SigmaFinite := \exact(exhaustion, F.Exhaustion);

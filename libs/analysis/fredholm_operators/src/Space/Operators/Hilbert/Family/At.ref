@@ -1,0 +1,16 @@
+\import \root.Space[V := V, space := space, norm := norm].Operators[W := W, target := target, targetNorm := targetNorm].At[f := family t].Hilbert[inner := inner, targetInner := targetInner] \as Operator;
+\definition OpenAt[U: \Pow T]: \Prop := Logic.And[\In[\Pow T] topology.openSets U, \In[T] U t];
+\definition NormControl[epsilon: R.Real, U: \Pow T]: \Prop := Logic.And[OpenAt U, \forall (u: T) -> \In[T] U u -> Limits.Near[family t, family u, epsilon]];
+\definition NormContinuous: \Prop := \forall (epsilon: R.Real) -> Order.Lt R.zero epsilon -> \exists ( U: \Pow T \where NormControl[epsilon, U] );
+\definition IndexConstant[original: Operator.Fredholm, U: \Pow T]: \Prop := Logic.And[OpenAt U,
+  \forall (u: T) -> \In[T] U u -> Operator.Change[g := family u].PreservesIndex original];
+\definition locallyConstant: \forall (complete: SourceHilbert.Complete)(targetComplete: TargetHilbert.Complete)(original: Operator.Fredholm) ->
+  NormContinuous -> \exists ( U: \Pow T \where IndexConstant[original, U] ) := \block {
+  \fun (complete: SourceHilbert.Complete)(targetComplete: TargetHilbert.Complete)(original: Operator.Fredholm)(continuous: NormContinuous) \then
+  \takefrom radius: \Cast[R.Real] ({ radius: R.Real \where Operator.IndexNeighborhood[original, radius] }) \by Operator.indexLocallyConstant complete targetComplete original \then
+  \let stability: Operator.IndexNeighborhood[original, radius] := \bysub(R.Real, { radius: R.Real \where Operator.IndexNeighborhood[original, radius] }, radius) \then
+  \takefrom U: \Cast[\Pow T] ({ U: \Pow T \where NormControl[radius, U] }) \by continuous radius stability.left \then
+  \let control: NormControl[radius, U] := \bysub(\Pow T, { U: \Pow T \where NormControl[radius, U] }, U) \then
+  \return Logic.existsIntro[\Pow T, { U: \Pow T \where IndexConstant[original, U] }] U (Logic.And[_, _]::# control.left
+    (\fun (u: T)(inside: \In[T] U u) => stability.right (family u) (control.right u inside)))
+};
