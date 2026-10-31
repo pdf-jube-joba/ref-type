@@ -1,0 +1,71 @@
+\definition laws: SliceLaws[slice] := \bysub(SliceData, { data: SliceData \where SliceLaws[data] }, slice);
+\definition product: Open.OpenSet := Split.product slice.parameters slice.values;
+\definition level: RightPoint := constant slice;
+\import Split.FixedRight[U := slice.parameters, V := product, c := level] \as Section;
+\definition included: Section.Included := \fun (p: LeftOpen.Carrier slice.parameters) => Logic.And[_, _]::#
+  (\idelim p = Split.left (Split.join p level) \with q: LeftPoint => \In[LeftPoint] slice.parameters.points q \by {
+    base: \bysub(LeftPoint, slice.parameters.points, p), equality: sym!{LeftPoint} _ _ (Split.leftJoin p level)
+  })
+  (\idelim level = Split.right (Split.join p level) \with q: RightPoint => \In[RightPoint] slice.values.points q \by {
+    base: laws.constantInside, equality: sym!{RightPoint} _ _ (Split.rightJoin p level)
+  });
+\import calculus.Maps[n := n, m := dimension] \as Parameters;
+\import Parameters.Composition[U := slice.parameters, V := product, f := Section.map included].After[l := dimension, W := slice.source.image, g := slice.coordinates.backward] \as ParameterComposition;
+\definition parametrization: Parameters.Map slice.parameters slice.source.image := ParameterComposition.compose;
+\definition domain: \Pow Fiber := Subspace.Trace slice.source.domain;
+\definition Domain: \Set := \Cast[Fiber] domain;
+\import topology.Topology[Carrier := Fiber] \as FiberTopology;
+\import FiberTopology.Subspace[S := domain] \as LocalSubspace;
+\definition domainTopology: topology.Topology[Carrier := Domain].Topology := LocalSubspace.topology topology;
+\definition oldPoint[x: Domain]: Charts.LocalPoint slice.source := \into[M.Point](x, slice.source.domain) \by { \bysub(Fiber, domain, x) };
+\definition oldCoordinate[x: Domain]: Open.Carrier slice.source.image := Charts.coordinate slice.source (oldPoint x);
+\definition coordinateVector[x: Domain]: Open.Carrier product := EuclideanMaps.apply slice.source.image product slice.coordinates.forward (oldCoordinate x);
+\definition forward[x: Domain]: LeftOpen.Carrier slice.parameters := \into[LeftPoint](Split.left (coordinateVector x), slice.parameters.points) \by {
+  (\bysub(Point, product.points, coordinateVector x)).left
+};
+\definition oldParameter[p: LeftOpen.Carrier slice.parameters]: Open.Carrier slice.source.image := Parameters.apply slice.parameters slice.source.image parametrization p;
+\definition pointValue[p: LeftOpen.Carrier slice.parameters]: Charts.LocalPoint slice.source := Charts.point slice.source (oldParameter p);
+\definition pointEquation: \forall (p: LeftOpen.Carrier slice.parameters) -> Maps.apply f (pointValue p) = y := \block {
+  \fun (p: LeftOpen.Carrier slice.parameters) \then
+  \let q: TargetCharts.LocalPoint slice.target := \into[T.Point](Maps.apply f (pointValue p), slice.target.domain) \by { laws.inTarget (oldParameter p) } \then
+  \let same: TargetCharts.coordinate slice.target q = TargetCharts.coordinate slice.target (targetPoint slice.target) := eq_reason_in!{RightPoint _
+    "=" _ "by" { laws.projection (oldParameter p) }
+    "=" _ "by" { congr!{Point RightPoint} Split.right _ _ (slice.coordinates.rightInverse (Section.apply included p)) }
+    "=" _ "by" { Split.rightJoin p level }
+  } \then
+  \return TargetCharts.Of[chart := slice.target].coordinateInjective q (targetPoint slice.target) same
+};
+\definition pointFiber[p: LeftOpen.Carrier slice.parameters]: Fiber := \into[M.Point](pointValue p, points) \by { pointEquation p };
+\definition backward[p: LeftOpen.Carrier slice.parameters]: Domain := \into[Fiber](pointFiber p, domain) \by { \bysub(M.Point, slice.source.domain, pointValue p) };
+\definition rightInverse: \forall (p: LeftOpen.Carrier slice.parameters) -> forward (backward p) = p :=
+  \fun (p: LeftOpen.Carrier slice.parameters) => eq_reason_in!{LeftPoint _
+    "=" _ "by" { congr!{{Open.Carrier slice.source.image} LeftPoint} (\fun (u: Open.Carrier slice.source.image) => Split.left (EuclideanMaps.apply slice.source.image product slice.coordinates.forward u)) _ _ (Charts.Of[chart := slice.source].coordinatePoint (oldParameter p)) }
+    "=" _ "by" { congr!{Point LeftPoint} Split.left _ _ (slice.coordinates.rightInverse (Section.apply included p)) }
+    "=" _ "by" { Split.leftJoin p level }
+  };
+\definition normal: \forall (x: Domain) -> Split.right (coordinateVector x) = level := \block {
+  \fun (x: Domain) \then
+  \let q: TargetCharts.LocalPoint slice.target := \into[T.Point](Maps.apply f (sourcePoint slice (oldCoordinate x)), slice.target.domain) \by { laws.inTarget (oldCoordinate x) } \then
+  \let equal: q = targetPoint slice.target := trans!{T.Point} _ _ _
+    (congr!{{M.Point} {T.Point}} (Maps.apply f) _ _ (Charts.Of[chart := slice.source].pointCoordinate (oldPoint x))) (\bysub(M.Point, points, x)) \then
+  \return trans!{RightPoint} _ _ _ (sym!{RightPoint} _ _ (laws.projection (oldCoordinate x)))
+    (congr!{{TargetCharts.LocalPoint slice.target} RightPoint} (TargetCharts.coordinate slice.target) _ _ equal)
+};
+\definition leftInverse: \forall (x: Domain) -> backward (forward x) = x := \block {
+  \fun (x: Domain) \then
+  \let same: Section.apply included (forward x) = coordinateVector x := trans!{Point} _ _ _
+    (congr!{RightPoint Point} (Split.join (Split.left (coordinateVector x))) _ _ (sym!{RightPoint} _ _ (normal x))) (Split.recover (coordinateVector x)) \then
+  \let inverse: oldParameter (forward x) = oldCoordinate x := trans!{{Open.Carrier slice.source.image}} _ _ _
+    (congr!{{Open.Carrier product} {Open.Carrier slice.source.image}} (EuclideanMaps.apply product slice.source.image slice.coordinates.backward) _ _ same) (slice.coordinates.leftInverse (oldCoordinate x)) \then
+  \return trans!{{M.Point}} _ _ _ (congr!{{Open.Carrier slice.source.image} {M.Point}} (\fun (u: Open.Carrier slice.source.image) => Charts.point slice.source u) _ _ inverse) (Charts.Of[chart := slice.source].pointCoordinate (oldPoint x))
+};
+\module Continuity;
+\import manifolds.Dimension[n := n].Chart[M := Fiber, space := topology] \as FiberCharts;
+\definition chart: FiberCharts.Chart := FiberCharts.Chart {
+  domain := domain, image := slice.parameters,
+  coordinates := topology.Homeomorphism[A := Domain, B := LeftOpen.Carrier slice.parameters].Homeomorphism[domainTopology, LeftOpen.Topology[].Of[U := slice.parameters].topology] {
+    forward := forward, backward := backward, leftInverse := leftInverse, rightInverse := rightInverse,
+    forwardContinuous := Continuity[].forwardContinuous, backwardContinuous := Continuity[].backwardContinuous,
+  },
+  open := Subspace.traceOpen M.space slice.source.domain slice.source.open,
+};

@@ -1,0 +1,69 @@
+\import manifolds.SmoothMap[n := dimension, m := m].Between[M := M, N := T] \as Maps;
+\import manifolds.Dimension[n := dimension].Chart[M := M.Point, space := M.space] \as Charts;
+\import manifolds.Dimension[n := m].Chart[M := T.Point, space := T.space] \as TargetCharts;
+\import manifolds.Dimension[n := dimension].Atlas[M := M.Point, space := M.space] \as Atlas;
+\import calculus.Maps[n := dimension, m := dimension] \as EuclideanMaps;
+\import calculus.Diffeomorphism[n := dimension, m := dimension] \as Diffeomorphisms;
+\import topology.Topology[Carrier := M.Point] \as Ambient;
+\definition points: \Pow M.Point := { x: M.Point \where Maps.apply f x = y };
+\definition Fiber: \Set := \Cast[M.Point] points;
+\import Ambient.Subspace[S := points] \as Subspace;
+\definition topology: topology.Topology[Carrier := Fiber].Topology := Subspace.topology M.space;
+\definition SourceChart: \Set := \Cast[Charts.Chart] M.atlas.charts;
+\definition TargetChart: \Set := \Cast[TargetCharts.Chart] ({ c: TargetCharts.Chart \where Logic.And[\In[TargetCharts.Chart] T.atlas.charts c, TargetCharts.Contains c y] });
+\definition targetPoint[c: TargetChart]: TargetCharts.LocalPoint c := \into[T.Point](y, c.domain) \by {
+  (\bysub(TargetCharts.Chart, TargetChart, c)).right
+};
+\structure SliceData: \Set := {
+  source: SourceChart,
+  target: TargetChart,
+  parameters: LeftOpen.OpenSet,
+  values: RightOpen.OpenSet,
+  coordinates: Diffeomorphisms.Diffeomorphism source.image (Split.product parameters values),
+};
+\definition constant[data: SliceData]: RightPoint := TargetCharts.coordinate data.target (targetPoint data.target);
+\definition sourcePoint[data: SliceData][u: Open.Carrier data.source.image]: M.Point := Charts.point data.source u;
+\structure SliceLaws[data: SliceData]: \Prop := {
+  constantInside: \In[RightPoint] data.values.points (constant data),
+  inTarget: \forall (u: Open.Carrier data.source.image) -> TargetCharts.Contains data.target (Maps.apply f (sourcePoint data u)),
+  projection: \forall (u: Open.Carrier data.source.image) -> TargetCharts.coordinate data.target
+    (\into[T.Point](Maps.apply f (sourcePoint data u), data.target.domain) \by { inTarget u }) =
+    Split.right (EuclideanMaps.apply data.source.image (Split.product data.parameters data.values) data.coordinates.forward u),
+};
+\definition Slice: \Set := \Cast[SliceData] ({ data: SliceData \where SliceLaws[data] });
+\module On(slice: Slice);
+\import manifolds.Tangent[n := dimension].On[M := M] \as SourceTangent;
+\import manifolds.Tangent[n := m].On[M := T] \as TargetTangent;
+\import manifolds.Differential[n := dimension, m := m].Between[M := M, N := T] \as Differential;
+\definition Regular: \Prop := \forall (x: Fiber)(v: TargetTangent.At[x := Maps.apply f x].Vector) ->
+  \exists ( u: SourceTangent.At[x := x].Vector \where Differential.At[f := f, x := x].value.apply u = v );
+\module CoverAt(x: Fiber);
+\definition Cover: \Prop := \forall (x: Fiber) -> \exists ( slice: Slice \where Charts.Contains slice.source x );
+\definition covers: Regular -> Cover := \fun (regular: Regular)(x: Fiber) => CoverAt[x := x].existence regular;
+\import manifolds.Dimension[n := n].Chart[M := Fiber, space := topology] \as FiberCharts;
+\import manifolds.Dimension[n := n].Atlas[M := Fiber, space := topology] \as FiberAtlas;
+\module Pair(left, right: Slice);
+\definition charts: \Pow FiberCharts.Chart := { c: FiberCharts.Chart \where \exists ( slice: Slice \where c = On[slice := slice].chart ) };
+\definition atlasCovers: Regular -> \forall (x: Fiber) -> \exists ( c: FiberCharts.Chart \where Logic.And[\In[FiberCharts.Chart] charts c, FiberCharts.Contains c x] ) := \block {
+  \fun (regular: Regular)(x: Fiber) \then
+  \takefrom slice: \Cast[Slice] ({ slice: Slice \where Charts.Contains slice.source x }) \by covers regular x \then
+  \let c: FiberCharts.Chart := On[slice := slice].chart \then
+  \return Logic.existsIntro[FiberCharts.Chart, { c: FiberCharts.Chart \where Logic.And[\In[FiberCharts.Chart] charts c, FiberCharts.Contains c x] }] c
+    (Logic.And[_, _]::# (Logic.existsIntro[Slice, { s: Slice \where c = On[slice := s].chart }] slice (\refl(c)))
+      (\bysub(Slice, { slice: Slice \where Charts.Contains slice.source x }, slice)))
+};
+\definition compatible: \forall (c, d: FiberCharts.Chart) -> \In[FiberCharts.Chart] charts c -> \In[FiberCharts.Chart] charts d -> FiberAtlas.Compatible c d := \block {
+  \fun (c, d: FiberCharts.Chart)(left: _)(right: _) \then
+  \takefrom s: \Cast[Slice] ({ s: Slice \where c = On[slice := s].chart }) \by left \then
+  \takefrom t: \Cast[Slice] ({ t: Slice \where d = On[slice := t].chart }) \by right \then
+  \return \idelim On[slice := s].chart = c \with u: FiberCharts.Chart => FiberAtlas.Compatible u d \by {
+    base: \idelim On[slice := t].chart = d \with v: FiberCharts.Chart => FiberAtlas.Compatible On[slice := s].chart v \by {
+      base: Pair[left := s, right := t].compatible, equality: sym!{FiberCharts.Chart} _ _ (\bysub(Slice, { t: Slice \where d = On[slice := t].chart }, t))
+    }, equality: sym!{FiberCharts.Chart} _ _ (\bysub(Slice, { s: Slice \where c = On[slice := s].chart }, s))
+  }
+};
+\definition atlas[regular: Regular]: FiberAtlas.Atlas := FiberAtlas.Atlas { charts := charts, covers := atlasCovers regular, compatible := compatible };
+\import manifolds.Dimension[n := n].Smooth[] \as Models;
+\definition manifold[regular: Regular]: Models.Manifold := Models.From[M := Fiber, space := topology, atlas := atlas regular].manifold
+  (Subspace.Properties[].hausdorff M.space M.hausdorff) (Subspace.Properties[].secondCountable M.space M.secondCountable);
+\module Smooth(regular: Regular);

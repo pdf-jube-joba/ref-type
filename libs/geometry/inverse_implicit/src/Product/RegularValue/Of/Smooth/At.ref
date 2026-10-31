@@ -1,0 +1,31 @@
+\import FiberTangent.At[x := x] \as Domain;
+\import SourceTangent.At[x := x] \as AmbientTangent;
+\import TargetTangent.At[x := Maps.apply f x] \as Codomain;
+\import InclusionDifferential.At[f := inclusion, x := x] \as DifferentialInclusion;
+\import Differential.At[f := f, x := x] \as Original;
+\import linear_algebra.Commutative[K := Real, scalarRing := std.Alg[].Field[].fieldAsCommutativeRing Real Algebra.field] \as Spaces;
+\import Spaces.Subspace[V := AmbientTangent.Vector, space := AmbientTangent.space] \as Subspaces;
+\import Spaces.Laws[V := Codomain.Vector, space := Codomain.space] \as TargetLaws;
+\definition kernel: Subspaces.Subspace := Subspaces.Subspace {
+  carrier := { v: AmbientTangent.Vector \where Original.value.apply v = Codomain.space.zero },
+  containsZero := Original.value.preservesZero,
+  closedAdd := \fun (v, w: AmbientTangent.Vector)(hv: _)(hw: _) => trans!{{Codomain.Vector}} _ _ _ (Original.value.preservesAdd v w)
+    (trans!{{Codomain.Vector}} _ _ _ (congr!{{Codomain.Vector} {Codomain.Vector} {Codomain.Vector}} Codomain.space.add _ _ _ _ hv hw) (TargetLaws.zeroLeft Codomain.space.zero)),
+  closedScale := \fun (c: Real)(v: AmbientTangent.Vector)(hv: _) => trans!{{Codomain.Vector}} _ _ _ (Original.value.preservesScale c v)
+    (trans!{{Codomain.Vector}} _ _ _ (congr!{{Codomain.Vector} {Codomain.Vector}} (Codomain.space.smul c) _ _ hv) (TargetLaws.scaleZero c)),
+};
+\definition Kernel: \Set := \Cast[AmbientTangent.Vector] kernel.carrier;
+\definition kernelSpace: Spaces.VectorSpace Kernel := Subspaces.Of[subspace := kernel].induced;
+\import Spaces.Linear[V := Domain.Vector, W := Kernel, source := Domain.space, target := kernelSpace] \as Forward;
+\import Spaces.Linear[V := Kernel, W := Domain.Vector, source := kernelSpace, target := Domain.space] \as Backward;
+\import Spaces.Isomorphism[V := Domain.Vector, W := Kernel, source := Domain.space, target := kernelSpace] \as Isomorphisms;
+\module InSlice(slice: Slice, contains: Charts.Contains slice.source x);
+\definition identificationExists: \exists Isomorphisms.Isomorphism := \block {
+  \takefrom slice: \Cast[Slice] ({ slice: Slice \where Charts.Contains slice.source x }) \by covers regular x \then
+  \return \exact(InSlice[slice := slice, contains := \bysub(Slice, { slice: Slice \where Charts.Contains slice.source x }, slice)].isomorphism, Isomorphisms.Isomorphism)
+};
+\definition injective: \forall (v, w: Domain.Vector) -> DifferentialInclusion.value.apply v = DifferentialInclusion.value.apply w -> v = w := \block {
+  \fun (v, w: Domain.Vector)(same: _) \then
+  \takefrom slice: \Cast[Slice] ({ slice: Slice \where Charts.Contains slice.source x }) \by covers regular x \then
+  \return InSlice[slice := slice, contains := \bysub(Slice, { slice: Slice \where Charts.Contains slice.source x }, slice)].injective v w same
+};
