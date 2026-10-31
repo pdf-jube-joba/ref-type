@@ -1,0 +1,46 @@
+\import \root.Thom[].CWType[].Under[S := S, A := A, B := C, source := source, target := range, from := from, to := final] \as Result;
+\import algebraic_topology.Homotopy[A := A, B := A] \as LeftH;
+\import algebraic_topology.Homotopy[A := C, B := C] \as RightH;
+\import algebraic_topology.Homotopy[A := B, B := B] \as Middle;
+\import algebraic_topology.Cylinder[A := C] \as FinalCylinder;
+\definition forward[x: A]: C := second.forward (first.forward x);
+\definition backward[z: C]: A := first.backward (second.backward z);
+\definition forwardFixed: \forall (s: S) -> forward (from s) = final s := \fun (s: S) =>
+  trans!{C} _ _ _ (congr!{B C} second.forward _ _ (first.forwardFixed s)) (second.forwardFixed s);
+\definition backwardFixed: \forall (s: S) -> backward (final s) = from s := \fun (s: S) =>
+  trans!{A} _ _ _ (congr!{B A} first.backward _ _ (second.backwardFixed s)) (first.backwardFixed s);
+\definition leftPre: algebraic_topology.Homotopy[A := A, B := B].Homotopy[source, target,
+  (\fun (x: A) => second.backward (second.forward (first.forward x))), (\fun (x: A) => first.forward x)] :=
+  Middle.Composition[C := A].precompose source target target (\fun (y: B) => second.backward (second.forward y)) (\fun (y: B) => y) second.left first.forward first.forwardContinuous;
+\definition leftFirst: LeftH.Homotopy[source, source, (\fun (x: A) => backward (forward x)), (\fun (x: A) => first.backward (first.forward x))] :=
+  algebraic_topology.Homotopy[A := A, B := B].Composition[C := A].postcompose source target source
+    (\fun (x: A) => second.backward (second.forward (first.forward x))) (\fun (x: A) => first.forward x) leftPre first.backward first.backwardContinuous;
+\definition leftFirstFixed: \forall (t: I.Carrier)(s: S) -> leftFirst (LeftCylinder.at t (from s)) = from s := \fun (t: I.Carrier)(s: S) => eq_reason_in!{A _
+  "=" _ "by" { congr!{B A} (\fun (y: B) => first.backward (second.left (RightCylinder.at t y))) _ _ (first.forwardFixed s) }
+  "=" _ "by" { congr!{B A} first.backward _ _ (second.leftFixed t s) }
+  "=" _ "by" { first.backwardFixed s }
+};
+\import \root.Thom[].CWType[].FixedPaths[S := S, A := A, B := A, from := from, to := from].Concatenation[
+  source := source, target := source, f := (\fun (x: A) => backward (forward x)), g := (\fun (x: A) => first.backward (first.forward x)), k := (\fun (x: A) => x),
+  first := leftFirst, second := first.left, firstFixed := leftFirstFixed, secondFixed := first.leftFixed] \as LeftJoin;
+\definition rightPre: algebraic_topology.Homotopy[A := C, B := B].Homotopy[range, target,
+  (\fun (z: C) => first.forward (first.backward (second.backward z))), (\fun (z: C) => second.backward z)] :=
+  Middle.Composition[C := C].precompose range target target (\fun (y: B) => first.forward (first.backward y)) (\fun (y: B) => y) first.right second.backward second.backwardContinuous;
+\definition rightFirst: RightH.Homotopy[range, range, (\fun (z: C) => forward (backward z)), (\fun (z: C) => second.forward (second.backward z))] :=
+  algebraic_topology.Homotopy[A := C, B := B].Composition[C := C].postcompose range target range
+    (\fun (z: C) => first.forward (first.backward (second.backward z))) (\fun (z: C) => second.backward z) rightPre second.forward second.forwardContinuous;
+\definition rightFirstFixed: \forall (t: I.Carrier)(s: S) -> rightFirst (FinalCylinder.at t (final s)) = final s := \fun (t: I.Carrier)(s: S) => eq_reason_in!{C _
+  "=" _ "by" { congr!{B C} (\fun (y: B) => second.forward (first.right (RightCylinder.at t y))) _ _ (second.backwardFixed s) }
+  "=" _ "by" { congr!{B C} second.forward _ _ (first.rightFixed t s) }
+  "=" _ "by" { second.forwardFixed s }
+};
+\import \root.Thom[].CWType[].FixedPaths[S := S, A := C, B := C, from := final, to := final].Concatenation[
+  source := range, target := range, f := (\fun (z: C) => forward (backward z)), g := (\fun (z: C) => second.forward (second.backward z)), k := (\fun (z: C) => z),
+  first := rightFirst, second := second.right, firstFixed := rightFirstFixed, secondFixed := second.rightFixed] \as RightJoin;
+\definition result: Result.Data := Result.Data {
+  forward := forward, backward := backward,
+  forwardContinuous := topology.Composition[A := A, B := B, C := C].composeContinuous source target range first.forward second.forward first.forwardContinuous second.forwardContinuous,
+  backwardContinuous := topology.Composition[A := C, B := B, C := A].composeContinuous range target source second.backward first.backward second.backwardContinuous first.backwardContinuous,
+  forwardFixed := forwardFixed, backwardFixed := backwardFixed,
+  left := LeftJoin.result, right := RightJoin.result, leftFixed := LeftJoin.fixed, rightFixed := RightJoin.fixed
+};
