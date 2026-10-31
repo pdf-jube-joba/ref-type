@@ -1,0 +1,67 @@
+\import real.Analysis[] \as R;
+\import dedekind_reals.DedekindReal[] \as D;
+\import D.Arithmetic[].Prop[] \as Laws;
+\import Fin.Sum[m := n, n := m] \as Indices;
+\import Indices.Tuples[A := R.Real] \as Tuples;
+\definition dimension: N.Nat^ := Indices.total;
+\import algebraic_topology.Euclidean[].Dimension[n := n] \as First;
+\import algebraic_topology.Euclidean[].Dimension[n := m] \as Second;
+\import algebraic_topology.Euclidean[].Dimension[n := dimension] \as Total;
+\import \parent.Point[] \as Point;
+\import vector_bundles.Bundles[].Over[K := R.Real, field := R.Algebra[].field, conjugation := linear_algebra.Hermitian[].Real[].scalar, scalar := vector_bundles.Bundles[].Real[].scalar] \as Bundles;
+\import Bundles.Trivial[X := Point.Carrier, n := dimension, baseSpace := Point.topology] \as Bundle;
+\import Bundles.Family[X := Point.Carrier, F := (\fun (x: Point.Carrier) => Total.Coordinate)] \as Family;
+\import \root.Thom[].Quadratic[].Over[X := Point.Carrier, F := (\fun (x: Point.Carrier) => Total.Coordinate), bundle := Bundle.bundle] \as Quadratic;
+\import bundle_operations.Operations[].Over[K := R.Real, field := R.Algebra[].field, conjugation := linear_algebra.Hermitian[].Real[].scalar, scalar := vector_bundles.Bundles[].Real[].scalar].CoordinateSum[n := n, m := m] \as Blocks;
+\import Blocks.Topology[] \as BlockTopology;
+\definition first[v: Total.Coordinate]: First.Coordinate := BlockTopology.first v;
+\definition second[v: Total.Coordinate]: Second.Coordinate := BlockTopology.second v;
+\module Gauges;
+\definition BoxSubset: \Pow Family.Point := { p: Family.Point \where D.Le (Gauges[].squared p) R.one };
+\import topology.Topology[Carrier := Family.Point].Subspace[S := BoxSubset] \as Box;
+\definition BoxCarrier: \Set := Box.CarrierSet;
+\definition boxTopology: topology.Topology[Carrier := BoxCarrier].Topology := Box.topology Bundle.topology;
+\module Coordinates;
+\import \root.Thom[].Levels[A := Total.Coordinate, B := Family.Point, source := Total.topology, target := Bundle.topology,
+  q := Total.normSquared, r := Gauges[].squared, h := Coordinates[].homeomorphism, forwardSquared := Coordinates[].forwardSquared, backwardSquared := Coordinates[].backwardSquared] \as Round;
+\definition roundHomeomorphism: topology.Homeomorphism[A := Total.Disk, B := BoxCarrier].Homeomorphism[Total.diskTopology, boxTopology] := Round.diskHomeomorphism;
+\import topological_constructions.Product[A := First.Disk, B := Second.Disk] \as Product;
+\definition productTopology: topology.Topology[Carrier := Product.CarrierSet].Topology := Product.topology First.diskTopology Second.diskTopology;
+\definition Boundary: \Pow Product.CarrierSet := { p: Product.CarrierSet \where Logic.Or[First.normSquared (Pair.first First.Disk Second.Disk p) = R.one, Second.normSquared (Pair.second First.Disk Second.Disk p) = R.one] };
+\module ProductModel;
+\definition homeomorphism: topology.Homeomorphism[A := Total.Disk, B := Product.CarrierSet].Homeomorphism[Total.diskTopology, productTopology] :=
+  topology.Homeomorphism[A := Total.Disk, B := BoxCarrier].Composition[C := Product.CarrierSet].compose Total.diskTopology boxTopology productTopology roundHomeomorphism ProductModel[].homeomorphism;
+\definition forwardBoundary: \forall (p: Total.Disk) -> Total.normSquared p = R.one -> \In[Product.CarrierSet] Boundary (homeomorphism.forward p) :=
+  \fun (p: Total.Disk)(boundary: _) => ProductModel[].forwardPreserves (roundHomeomorphism.forward p) (Round.preserves p boundary);
+\definition backwardBoundary: \forall (p: Product.CarrierSet) -> \In[Product.CarrierSet] Boundary p -> Total.normSquared (homeomorphism.backward p) = R.one :=
+  \fun (p: Product.CarrierSet)(boundary: _) => Round.reversePreserves (ProductModel[].homeomorphism.backward p) (ProductModel[].backwardPreserves p boundary);
+\definition laws: topology.Homeomorphism[A := Total.Disk, B := Product.CarrierSet].Laws[Total.diskTopology, productTopology, homeomorphism] := topology.Homeomorphism[A := Total.Disk, B := Product.CarrierSet].laws Total.diskTopology productTopology homeomorphism;
+\definition noBoundaryForward: \forall (p: Total.Disk) -> D.Lt (Total.normSquared p) R.one -> Logic.Not (\In[Product.CarrierSet] Boundary (homeomorphism.forward p)) :=
+  \fun (p: Total.Disk)(inside: D.Lt (Total.normSquared p) R.one)(boundary: \In[Product.CarrierSet] Boundary (homeomorphism.forward p)) => D.Order[].ltNotEq (Total.normSquared p) R.one inside
+    (trans!{R.Real} _ _ _ (congr!{Total.Disk R.Real} (\fun (v: Total.Disk) => Total.normSquared v) p (homeomorphism.backward (homeomorphism.forward p)) (sym!{Total.Disk} _ _ (laws.leftInverse p))) (backwardBoundary (homeomorphism.forward p) boundary));
+\definition interiorForward: \forall (p: Total.Disk) -> D.Lt (Total.normSquared p) R.one ->
+  Logic.And[D.Lt (First.normSquared (Pair.first First.Disk Second.Disk (homeomorphism.forward p))) R.one, D.Lt (Second.normSquared (Pair.second First.Disk Second.Disk (homeomorphism.forward p))) R.one] :=
+  \fun (p: Total.Disk)(inside: D.Lt (Total.normSquared p) R.one) => Logic.And[_, _]::#
+    (D.Order[].ltOfLeNotEq _ R.one (\bysub(First.Coordinate, First.ClosedBall, Pair.first First.Disk Second.Disk (homeomorphism.forward p)))
+      (\fun (same: First.normSquared (Pair.first First.Disk Second.Disk (homeomorphism.forward p)) = R.one) => noBoundaryForward p inside (Logic.Or[_, _]::left same)))
+    (D.Order[].ltOfLeNotEq _ R.one (\bysub(Second.Coordinate, Second.ClosedBall, Pair.second First.Disk Second.Disk (homeomorphism.forward p)))
+      (\fun (same: Second.normSquared (Pair.second First.Disk Second.Disk (homeomorphism.forward p)) = R.one) => noBoundaryForward p inside (Logic.Or[_, _]::right same)));
+\definition interiorBackward: \forall (p: Product.CarrierSet) -> D.Lt (First.normSquared (Pair.first First.Disk Second.Disk p)) R.one -> D.Lt (Second.normSquared (Pair.second First.Disk Second.Disk p)) R.one -> D.Lt (Total.normSquared (homeomorphism.backward p)) R.one :=
+  \fun (p: Product.CarrierSet)(first: D.Lt (First.normSquared (Pair.first First.Disk Second.Disk p)) R.one)(second: D.Lt (Second.normSquared (Pair.second First.Disk Second.Disk p)) R.one) =>
+    D.Order[].ltOfLeNotEq _ R.one (\bysub(Total.Coordinate, Total.ClosedBall, homeomorphism.backward p)) (\fun (boundary: Total.normSquared (homeomorphism.backward p) = R.one) => \block {
+      \let member: \In[Product.CarrierSet] Boundary p := \idelim homeomorphism.forward (homeomorphism.backward p) = p \with q: Product.CarrierSet => \In[Product.CarrierSet] Boundary q \by {
+        base: forwardBoundary (homeomorphism.backward p) boundary, equality: laws.rightInverse p
+      } \then
+      \return either!{member {Logic.False} {D.Order[].ltNotEq _ R.one first} {D.Order[].ltNotEq _ R.one second}}
+    });
+\definition firstBoundary[v: First.Sphere]: First.Disk := \into[First.Coordinate](v, First.ClosedBall) \by {
+  D.leReplaceLeft R.one (First.normSquared v) R.one (sym!{R.Real} _ _ (\bysub(First.Coordinate, First.Boundary, v))) (D.leRefl R.one)
+};
+\definition secondBoundary[v: Second.Sphere]: Second.Disk := \into[Second.Coordinate](v, Second.ClosedBall) \by {
+  D.leReplaceLeft R.one (Second.normSquared v) R.one (sym!{R.Real} _ _ (\bysub(Second.Coordinate, Second.Boundary, v))) (D.leRefl R.one)
+};
+\module BoundaryMaps(B: \Set, target: topology.Topology[Carrier := B].Topology,
+  f: Pair.Times^[First.Sphere, Second.Disk] -> B, g: Pair.Times^[First.Disk, Second.Sphere] -> B,
+  fContinuous: topology.Continuity[A := Pair.Times^[First.Sphere, Second.Disk], B := B].Continuous (topological_constructions.Product[A := First.Sphere, B := Second.Disk].topology First.sphereTopology Second.diskTopology) target f,
+  gContinuous: topology.Continuity[A := Pair.Times^[First.Disk, Second.Sphere], B := B].Continuous (topological_constructions.Product[A := First.Disk, B := Second.Sphere].topology First.diskTopology Second.sphereTopology) target g,
+  corner: \forall (x: First.Sphere)(y: Second.Sphere) -> f (Pair.pair First.Sphere Second.Disk x (secondBoundary y)) = g (Pair.pair First.Disk Second.Sphere (firstBoundary x) y));

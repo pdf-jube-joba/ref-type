@@ -1,0 +1,43 @@
+\definition polePair[x: Base.Disk]: Prism.CarrierSet := Pair.pair Base.Disk FiberSphere.Sphere x fiber.pole;
+\definition polePairContinuous: topology.Continuity[A := Base.Disk, B := Prism.CarrierSet].Continuous Base.diskTopology prismTopology polePair :=
+  Prism.Universal[X := Base.Disk].pairContinuous Base.diskTopology Base.diskTopology FiberSphere.sphereTopology (\fun (x: Base.Disk) => x) (\fun (x: Base.Disk) => fiber.pole)
+    (topology.Maps[A := Base.Disk, B := Base.Disk].Identity[].continuous Base.diskTopology) (topology.Maps[A := Base.Disk, B := FiberSphere.Sphere].constantContinuous Base.diskTopology FiberSphere.sphereTopology fiber.pole);
+\definition pole[x: Base.Disk]: Y := data.chart (polePair x);
+\definition poleContinuous: topology.Continuity[A := Base.Disk, B := Y].Continuous Base.diskTopology target pole :=
+  topology.Composition[A := Base.Disk, B := Prism.CarrierSet, C := Y].composeContinuous Base.diskTopology prismTopology target polePair data.chart polePairContinuous data.chartContinuous;
+\definition poleSeam: \forall (x: Base.Sphere) -> data.original (firstAttach x) = pole (baseBoundary x) := \fun (x: Base.Sphere) => data.seam x fiber.pole;
+\import \root.Thom[].CWType[].CellAttachment[A := A, source := source, n := d, attach := firstAttach, continuous := firstRegular].Universal[B := Y, target := target, f := data.original, g := pole, agrees := poleSeam] \as FirstMap;
+\definition first: First.Carrier -> Y := FirstMap.apply;
+\definition firstContinuous: topology.Continuity[A := First.Carrier, B := Y].Continuous First.topology target first := FirstMap.continuous data.originalContinuous poleContinuous;
+\definition firstOriginal: \forall (a: A) -> first (First.inclusion a) = data.original a := FirstMap.onOriginal;
+\definition firstCell: \forall (x: Base.Disk) -> first (First.characteristic x) = pole x := FirstMap.onCell;
+\definition prism[p: Pair.Times^[Base.Disk, FiberDisk.Disk]]: Prism.CarrierSet := Pair.pair Base.Disk FiberSphere.Sphere (Pair.first Base.Disk FiberDisk.Disk p) (fiber.characteristic (Pair.second Base.Disk FiberDisk.Disk p));
+\definition prismContinuous: topology.Continuity[A := Pair.Times^[Base.Disk, FiberDisk.Disk], B := Prism.CarrierSet].Continuous Geometry.productTopology prismTopology prism :=
+  Prism.Universal[X := Pair.Times^[Base.Disk, FiberDisk.Disk]].pairContinuous Geometry.productTopology Base.diskTopology FiberSphere.sphereTopology (Pair.first Base.Disk FiberDisk.Disk)
+    (\fun (p: Pair.Times^[Base.Disk, FiberDisk.Disk]) => fiber.characteristic (Pair.second Base.Disk FiberDisk.Disk p))
+    (topological_constructions.Product[A := Base.Disk, B := FiberDisk.Disk].Maps[].firstContinuous Base.diskTopology FiberDisk.diskTopology)
+    (topology.Composition[A := Pair.Times^[Base.Disk, FiberDisk.Disk], B := FiberDisk.Disk, C := FiberSphere.Sphere].composeContinuous Geometry.productTopology FiberDisk.diskTopology FiberSphere.sphereTopology (Pair.second Base.Disk FiberDisk.Disk) fiber.characteristic
+      (topological_constructions.Product[A := Base.Disk, B := FiberDisk.Disk].Maps[].secondContinuous Base.diskTopology FiberDisk.diskTopology) fiber.continuous);
+\definition cell[x: Total.Disk]: Y := data.chart (prism (Geometry.homeomorphism.forward x));
+\definition cellContinuous: topology.Continuity[A := Total.Disk, B := Y].Continuous Total.diskTopology target cell :=
+  topology.Composition[A := Total.Disk, B := Prism.CarrierSet, C := Y].composeContinuous Total.diskTopology prismTopology target (\fun (x: Total.Disk) => prism (Geometry.homeomorphism.forward x)) data.chart
+    (topology.Composition[A := Total.Disk, B := Pair.Times^[Base.Disk, FiberDisk.Disk], C := Prism.CarrierSet].composeContinuous Total.diskTopology Geometry.productTopology prismTopology Geometry.homeomorphism.forward prism Geometry.laws.forwardContinuous prismContinuous) data.chartContinuous;
+\definition seam: \forall (v: Total.Sphere) -> first (\parent.SecondBoundary[].apply v) = cell (algebraic_topology.CW[A := First.Carrier].Attach[n := Geometry.dimension].boundaryInclusion v) := \fun (v: Total.Sphere) =>
+  either!{{\parent.SecondBoundary[].covered v} {first (\parent.SecondBoundary[].apply v) = cell (algebraic_topology.CW[A := First.Carrier].Attach[n := Geometry.dimension].boundaryInclusion v)}
+    {\fun (boundary: _) => eq_reason_in!{Y _
+      "=" _ "by" { congr!{First.Carrier Y} first _ _ (\parent.SecondBoundary[].onFirst v boundary) }
+      "=" _ "by" { firstOriginal (data.boundary (Pair.pair Base.Sphere FiberSphere.Sphere (\parent.SecondBoundary[].firstSphere v boundary) (fiber.characteristic (\parent.SecondBoundary[].secondPoint v)))) }
+      "=" _ "by" { data.seam (\parent.SecondBoundary[].firstSphere v boundary) (fiber.characteristic (\parent.SecondBoundary[].secondPoint v)) }
+    }}
+    {\fun (boundary: _) => eq_reason_in!{Y _
+      "=" _ "by" { congr!{First.Carrier Y} first _ _ (\parent.SecondBoundary[].onSecond v boundary) }
+      "=" _ "by" { firstCell (\parent.SecondBoundary[].firstPoint v) }
+      "=" _ "by" { congr!{FiberSphere.Sphere Y} (\fun (s: FiberSphere.Sphere) => data.chart (Pair.pair Base.Disk FiberSphere.Sphere (\parent.SecondBoundary[].firstPoint v) s)) fiber.pole (fiber.characteristic (\parent.SecondBoundary[].secondPoint v))
+        (sym!{FiberSphere.Sphere} _ _ (fiber.boundary (\parent.SecondBoundary[].secondPoint v) boundary)) }
+    }}
+  };
+\import \root.Thom[].CWType[].CellAttachment[A := First.Carrier, source := First.topology, n := Geometry.dimension, attach := \parent.SecondBoundary[].apply, continuous := \parent.SecondBoundary[].continuous].Universal[B := Y, target := target, f := first, g := cell, agrees := seam] \as SecondMap;
+\definition apply: Second.Carrier -> Y := SecondMap.apply;
+\definition continuous: topology.Continuity[A := Second.Carrier, B := Y].Continuous Second.topology target apply := SecondMap.continuous firstContinuous cellContinuous;
+\definition onOriginal: \forall (x: First.Carrier) -> apply (Second.inclusion x) = first x := SecondMap.onOriginal;
+\definition onCell: \forall (x: Total.Disk) -> apply (Second.characteristic x) = cell x := SecondMap.onCell;

@@ -1,0 +1,68 @@
+\definition firstBound[p: BoxCarrier]: D.Le (\parent.Gauges[].left p) R.one := D.leTrans _ (\parent.Gauges[].squared p) _ (\parent.Gauges[].leftBound p) (\bysub(Family.Point, BoxSubset, p));
+\definition secondBound[p: BoxCarrier]: D.Le (\parent.Gauges[].right p) R.one := D.leTrans _ (\parent.Gauges[].squared p) _ (\parent.Gauges[].rightBound p) (\bysub(Family.Point, BoxSubset, p));
+\definition firstDisk[p: BoxCarrier]: First.Disk := \into[First.Coordinate](first p.vector, First.ClosedBall) \by { firstBound p };
+\definition secondDisk[p: BoxCarrier]: Second.Disk := \into[Second.Coordinate](second p.vector, Second.ClosedBall) \by { secondBound p };
+\definition forward[p: BoxCarrier]: Product.CarrierSet := Pair.pair First.Disk Second.Disk (firstDisk p) (secondDisk p);
+\definition join[p: Product.CarrierSet]: Total.Coordinate := Tuples.join (Pair.first First.Disk Second.Disk p) (Pair.second First.Disk Second.Disk p);
+\definition firstJoin: \forall (p: Product.CarrierSet) -> first (join p) = Pair.first First.Disk Second.Disk p := \fun (p: Product.CarrierSet) =>
+  \axiom:funext(first (join p), Pair.first First.Disk Second.Disk p, Tuples.atLeft (Pair.first First.Disk Second.Disk p) (Pair.second First.Disk Second.Disk p));
+\definition secondJoin: \forall (p: Product.CarrierSet) -> second (join p) = Pair.second First.Disk Second.Disk p := \fun (p: Product.CarrierSet) =>
+  \axiom:funext(second (join p), Pair.second First.Disk Second.Disk p, Tuples.atRight (Pair.first First.Disk Second.Disk p) (Pair.second First.Disk Second.Disk p));
+\definition joinedSquared: \forall (p: Product.CarrierSet) -> \parent.Gauges[].squared (Family.include Point.point (join p)) = R.Distance[].max (First.normSquared (Pair.first First.Disk Second.Disk p)) (Second.normSquared (Pair.second First.Disk Second.Disk p)) :=
+  \fun (p: Product.CarrierSet) => congr!{R.Real R.Real R.Real} R.Distance[].max _ _ _ _ (congr!{First.Coordinate R.Real} First.normSquared _ _ (firstJoin p)) (congr!{Second.Coordinate R.Real} Second.normSquared _ _ (secondJoin p));
+\definition backward[p: Product.CarrierSet]: BoxCarrier := \into[Family.Point](Family.include Point.point (join p), BoxSubset) \by {
+  D.leReplaceLeft (R.Distance[].max (First.normSquared (Pair.first First.Disk Second.Disk p)) (Second.normSquared (Pair.second First.Disk Second.Disk p))) (\parent.Gauges[].squared (Family.include Point.point (join p))) R.one
+    (sym!{R.Real} _ _ (joinedSquared p))
+    (R.Distance[].maxLeast _ _ R.one (\bysub(First.Coordinate, First.ClosedBall, Pair.first First.Disk Second.Disk p)) (\bysub(Second.Coordinate, Second.ClosedBall, Pair.second First.Disk Second.Disk p)))
+};
+\definition leftInverse: \forall (p: BoxCarrier) -> backward (forward p) = p := \fun (p: BoxCarrier) => eq_reason_in!{Family.Point _
+  "=" _ "by" { congr!{Total.Coordinate Family.Point} (Family.include Point.point) _ _ (Tuples.recover p.vector) }
+  "=" _ "by" { congr!{Point.Carrier Family.Point} (\fun (x: Point.Carrier) => Family.include x p.vector) Point.point p.base (sym!{Point.Carrier} _ _ (Point.unique p.base)) }
+  "=" _ "by" { Family.eta p }
+};
+\definition rightInverse: \forall (p: Product.CarrierSet) -> forward (backward p) = p := \fun (p: Product.CarrierSet) => trans!{Product.CarrierSet} _ _ _
+  (congr!{First.Disk Second.Disk Product.CarrierSet} (Pair.pair First.Disk Second.Disk)
+    (firstDisk (backward p)) (Pair.first First.Disk Second.Disk p) (secondDisk (backward p)) (Pair.second First.Disk Second.Disk p) (firstJoin p) (secondJoin p)) (Pair.Prop[A := First.Disk, B := Second.Disk].eta p);
+\definition firstContinuous: topology.Continuity[A := BoxCarrier, B := First.Disk].Continuous boxTopology First.diskTopology firstDisk :=
+  topology.Continuity[A := BoxCarrier, B := First.Coordinate].Corestriction[S := First.ClosedBall].corestrictContinuous boxTopology First.topology firstDisk
+    (topology.Continuity[A := Family.Point, B := First.Coordinate].Restriction[S := BoxSubset].restrictContinuous Bundle.topology First.topology (\fun (p: Family.Point) => first p.vector)
+      (topology.Composition[A := Family.Point, B := Total.Coordinate, C := First.Coordinate].composeContinuous Bundle.topology Total.topology First.topology (\fun (p: Family.Point) => p.vector) first Bundle.vectorContinuous BlockTopology.firstRegular));
+\definition secondContinuous: topology.Continuity[A := BoxCarrier, B := Second.Disk].Continuous boxTopology Second.diskTopology secondDisk :=
+  topology.Continuity[A := BoxCarrier, B := Second.Coordinate].Corestriction[S := Second.ClosedBall].corestrictContinuous boxTopology Second.topology secondDisk
+    (topology.Continuity[A := Family.Point, B := Second.Coordinate].Restriction[S := BoxSubset].restrictContinuous Bundle.topology Second.topology (\fun (p: Family.Point) => second p.vector)
+      (topology.Composition[A := Family.Point, B := Total.Coordinate, C := Second.Coordinate].composeContinuous Bundle.topology Total.topology Second.topology (\fun (p: Family.Point) => p.vector) second Bundle.vectorContinuous BlockTopology.secondRegular));
+\definition forwardContinuous: topology.Continuity[A := BoxCarrier, B := Product.CarrierSet].Continuous boxTopology productTopology forward :=
+  Product.Universal[X := BoxCarrier].pairContinuous boxTopology First.diskTopology Second.diskTopology firstDisk secondDisk firstContinuous secondContinuous;
+\import topological_constructions.Product[A := First.Coordinate, B := Second.Coordinate] \as CoordinateProduct;
+\definition input[p: Product.CarrierSet]: CoordinateProduct.CarrierSet := Pair.pair First.Coordinate Second.Coordinate (Pair.first First.Disk Second.Disk p) (Pair.second First.Disk Second.Disk p);
+\definition inputContinuous: topology.Continuity[A := Product.CarrierSet, B := CoordinateProduct.CarrierSet].Continuous productTopology (CoordinateProduct.topology First.topology Second.topology) input :=
+  CoordinateProduct.Universal[X := Product.CarrierSet].pairContinuous productTopology First.topology Second.topology (\fun (p: Product.CarrierSet) => Pair.first First.Disk Second.Disk p) (\fun (p: Product.CarrierSet) => Pair.second First.Disk Second.Disk p)
+    (topology.Composition[A := Product.CarrierSet, B := First.Disk, C := First.Coordinate].composeContinuous productTopology First.diskTopology First.topology (Pair.first First.Disk Second.Disk) (\fun (x: First.Disk) => x)
+      (Product.Maps[].firstContinuous First.diskTopology Second.diskTopology) (topology.Continuity[A := First.Disk, B := First.Coordinate].Corestriction[S := First.ClosedBall].inclusionContinuous First.topology))
+    (topology.Composition[A := Product.CarrierSet, B := Second.Disk, C := Second.Coordinate].composeContinuous productTopology Second.diskTopology Second.topology (Pair.second First.Disk Second.Disk) (\fun (x: Second.Disk) => x)
+      (Product.Maps[].secondContinuous First.diskTopology Second.diskTopology) (topology.Continuity[A := Second.Disk, B := Second.Coordinate].Corestriction[S := Second.ClosedBall].inclusionContinuous Second.topology));
+\definition joinContinuous: topology.Continuity[A := Product.CarrierSet, B := Total.Coordinate].Continuous productTopology Total.topology join :=
+  topology.Composition[A := Product.CarrierSet, B := CoordinateProduct.CarrierSet, C := Total.Coordinate].composeContinuous productTopology (CoordinateProduct.topology First.topology Second.topology) Total.topology input Blocks.join inputContinuous BlockTopology.joinRegular;
+\definition backwardContinuous: topology.Continuity[A := Product.CarrierSet, B := BoxCarrier].Continuous productTopology boxTopology backward :=
+  topology.Continuity[A := Product.CarrierSet, B := Family.Point].Corestriction[S := BoxSubset].corestrictContinuous productTopology Bundle.topology backward
+    (topology.Composition[A := Product.CarrierSet, B := Total.Coordinate, C := Family.Point].composeContinuous productTopology Total.topology Bundle.topology join \parent.Coordinates[].include joinContinuous \parent.Coordinates[].includeContinuous);
+\definition homeomorphism: topology.Homeomorphism[A := BoxCarrier, B := Product.CarrierSet].Homeomorphism[boxTopology, productTopology] :=
+  topology.Homeomorphism[A := BoxCarrier, B := Product.CarrierSet].Homeomorphism[boxTopology, productTopology] { forward := forward, backward := backward, forwardContinuous := forwardContinuous, backwardContinuous := backwardContinuous, leftInverse := leftInverse, rightInverse := rightInverse };
+\definition forwardPreserves: \forall (p: BoxCarrier) -> \parent.Gauges[].squared p = R.one -> \In[Product.CarrierSet] Boundary (forward p) := \fun (p: BoxCarrier)(boundary: _) =>
+  either!{{D.Order[].leTotal (\parent.Gauges[].left p) (\parent.Gauges[].right p)} {\In[Product.CarrierSet] Boundary (forward p)}
+    {\fun (ordered: _) => Logic.Or[_, _]::right (trans!{R.Real} _ _ _ (sym!{R.Real} _ _ (R.Distance[].maxOfLe (\parent.Gauges[].left p) (\parent.Gauges[].right p) ordered)) boundary)}
+    {\fun (ordered: _) => Logic.Or[_, _]::left (trans!{R.Real} _ _ _ (sym!{R.Real} _ _ (R.Distance[].maxOfGe (\parent.Gauges[].left p) (\parent.Gauges[].right p) ordered)) boundary)}
+  };
+\definition firstSquared[p: Product.CarrierSet]: R.Real := First.normSquared (Pair.first First.Disk Second.Disk p);
+\definition secondSquared[p: Product.CarrierSet]: R.Real := Second.normSquared (Pair.second First.Disk Second.Disk p);
+\definition backwardPreserves: \forall (p: Product.CarrierSet) -> \In[Product.CarrierSet] Boundary p -> \parent.Gauges[].squared (backward p) = R.one :=
+  \fun (p: Product.CarrierSet)(boundary: Logic.Or[firstSquared p = R.one, secondSquared p = R.one]) =>
+    trans!{R.Real} (\parent.Gauges[].squared (backward p)) (R.Distance[].max (firstSquared p) (secondSquared p)) R.one (joinedSquared p)
+      (either!{boundary {R.Distance[].max (firstSquared p) (secondSquared p) = R.one}
+        {\fun (left: firstSquared p = R.one) => trans!{R.Real} (R.Distance[].max (firstSquared p) (secondSquared p)) (firstSquared p) R.one
+          (R.Distance[].maxOfGe (firstSquared p) (secondSquared p)
+            (D.leReplaceRight (secondSquared p) R.one (firstSquared p) (sym!{R.Real} _ _ left) (\bysub(Second.Coordinate, Second.ClosedBall, Pair.second First.Disk Second.Disk p)))) left}
+        {\fun (right: secondSquared p = R.one) => trans!{R.Real} (R.Distance[].max (firstSquared p) (secondSquared p)) (secondSquared p) R.one
+          (R.Distance[].maxOfLe (firstSquared p) (secondSquared p)
+            (D.leReplaceRight (firstSquared p) R.one (secondSquared p) (sym!{R.Real} _ _ right) (\bysub(First.Coordinate, First.ClosedBall, Pair.first First.Disk Second.Disk p)))) right}
+      });

@@ -1,0 +1,23 @@
+\definition original[a: A]: Second.Carrier := Second.inclusion (First.inclusion a);
+\definition pole[x: First.InteriorPoint]: Second.Carrier := Second.inclusion (First.interior x);
+\definition general[z: Second.InteriorPoint]: Second.Carrier := Second.interior z;
+\definition induction[P: Second.Carrier -> \Prop]: (\forall (a: A) -> P (original a)) -> (\forall (x: First.InteriorPoint) -> P (pole x)) ->
+  (\forall (z: Second.InteriorPoint) -> P (general z)) -> \forall (p: Second.Carrier) -> P p :=
+  \fun (onOriginal: _)(onPole: _)(onGeneral: _) => \induction (p: Second.Carrier) \return P p \with {
+    | inl: \induction (x: First.Carrier) \return P (Second.inclusion x) \with { | inl: onOriginal | inr: onPole }
+    | inr: onGeneral
+  };
+\import \parent.Map[] \as Mapping;
+\definition onOriginal: \forall (a: A) -> Mapping.apply (original a) = data.original a := \fun (a: A) => trans!{Y} _ _ _ (Mapping.onOriginal (First.inclusion a)) (Mapping.firstOriginal a);
+\definition onPole: \forall (x: First.InteriorPoint) -> Mapping.apply (pole x) = data.chart (Pair.pair Base.Disk FiberSphere.Sphere x fiber.pole) := \fun (x: First.InteriorPoint) => eq_reason_in!{Y _
+  "=" _ "by" { Mapping.onOriginal (First.interior x) }
+  "=" _ "by" { congr!{First.Carrier Y} Mapping.first _ _ (sym!{First.Carrier} _ _ (First.onInterior x)) }
+  "=" _ "by" { Mapping.firstCell x }
+};
+\definition onGeneral: \forall (z: Second.InteriorPoint) -> Mapping.apply (general z) = Mapping.cell z := \fun (z: Second.InteriorPoint) => trans!{Y} _ _ _
+  (congr!{Second.Carrier Y} Mapping.apply _ _ (sym!{Second.Carrier} _ _ (Second.onInterior z))) (Mapping.onCell z);
+\definition first[z: Second.InteriorPoint]: Base.Disk := Pair.first Base.Disk FiberDisk.Disk (Geometry.homeomorphism.forward z);
+\definition second[z: Second.InteriorPoint]: FiberDisk.Disk := Pair.second Base.Disk FiberDisk.Disk (Geometry.homeomorphism.forward z);
+\definition firstInside: \forall (z: Second.InteriorPoint) -> D.Lt (Base.normSquared (first z)) R.one := \fun (z: Second.InteriorPoint) => (Geometry.interiorForward z (\bysub(Total.Disk, Second.interiorSubset, z))).left;
+\definition secondInside: \forall (z: Second.InteriorPoint) -> D.Lt (FiberDisk.normSquared (second z)) R.one := \fun (z: Second.InteriorPoint) => (Geometry.interiorForward z (\bysub(Total.Disk, Second.interiorSubset, z))).right;
+\definition nonpole: \forall (z: Second.InteriorPoint) -> Logic.Not (fiber.characteristic (second z) = fiber.pole) := \fun (z: Second.InteriorPoint)(same: _) => D.Order[].ltNotEq (FiberDisk.normSquared (second z)) R.one (secondInside z) (fiber.poleBoundary (second z) same);

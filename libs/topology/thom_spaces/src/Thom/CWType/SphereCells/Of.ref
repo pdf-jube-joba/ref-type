@@ -1,0 +1,22 @@
+\import \root.Thom[].CWType[].Point[] \as Point;
+\import Euclidean.Dimension[n := n] \as SourceDisk;
+\import Euclidean.Dimension[n := N.Nat^::succ n] \as TargetSphere;
+\import topological_constructions.Coproduct[A := Point.Carrier, B := SourceDisk.Disk] \as Input;
+\definition source: topology.Topology[Carrier := Input.Carrier].Topology := Input.topology Point.topology SourceDisk.diskTopology;
+\definition pole[p: Point.Carrier]: TargetSphere.Sphere := model.pole;
+\definition quotient: Input.Carrier -> TargetSphere.Sphere := Input.Universal[C := TargetSphere.Sphere].copair pole model.characteristic;
+\definition continuous: topology.Continuity[A := Input.Carrier, B := TargetSphere.Sphere].Continuous source TargetSphere.sphereTopology quotient :=
+  Input.Universal[C := TargetSphere.Sphere].continuous Point.topology SourceDisk.diskTopology TargetSphere.sphereTopology pole model.characteristic
+    (topology.Maps[A := Point.Carrier, B := TargetSphere.Sphere].constantContinuous Point.topology TargetSphere.sphereTopology model.pole) model.continuous;
+\definition onto: \forall (x: TargetSphere.Sphere) -> \exists (p: Input.Carrier \where quotient p = x) := \fun (x: TargetSphere.Sphere) =>
+  either!{{model.covers x} {\exists (p: Input.Carrier \where quotient p = x)}
+    {\fun (same: x = model.pole) => Logic.existsIntro[Input.Carrier, { p: Input.Carrier \where quotient p = x }] (Input.inl Point.point) (sym!{TargetSphere.Sphere} _ _ same)}
+    {\fun (image: _) => \block {
+      \takefrom p: \Cast[SourceDisk.Disk] ({ p: SourceDisk.Disk \where model.characteristic p = x }) \by image \then
+      \return Logic.existsIntro[Input.Carrier, { p: Input.Carrier \where quotient p = x }] (Input.inr p) (\bysub(SourceDisk.Disk, { p: SourceDisk.Disk \where model.characteristic p = x }, p))
+    }}
+  };
+\definition compact: topology.Topology[Carrier := Input.Carrier].IsCompact source := Input.Properties[left := Point.topology, right := SourceDisk.diskTopology].compact Point.compact SourceDisk.Compactness[].compact;
+\definition quotientMap: topological_constructions.Quotient[A := Input.Carrier, B := TargetSphere.Sphere].IsQuotientMap[source, TargetSphere.sphereTopology, quotient] :=
+  \root.Thom[].CWType[].CompactSurjection[A := Input.Carrier, B := TargetSphere.Sphere, source := source, target := TargetSphere.sphereTopology, compact := compact,
+    hausdorff := TargetSphere.Compactness[].sphereHausdorff, f := quotient, onto := onto, continuous := continuous].quotientMap;
