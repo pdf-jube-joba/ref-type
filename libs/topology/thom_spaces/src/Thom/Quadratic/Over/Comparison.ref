@@ -1,0 +1,53 @@
+\import \parent.With[gauge := left] \as Left;
+\import \parent.With[gauge := right] \as Right;
+\definition coefficient[p: Family.Point]: R.Real := R.mul (Left.norm p) (Laws.fieldInv (Right.norm p));
+\definition apply[p: Family.Point]: Family.Point := scale (coefficient p) p;
+\definition nonzero: \Pow Family.Point := { p: Family.Point \where D.Lt R.zero (Right.norm p) };
+
+\definition nonnegative: \forall (p: Family.Point) -> D.Le R.zero (coefficient p) :=
+  \fun (p: Family.Point) => either!{{Classical.excludedMiddle (Right.norm p = R.zero)} {D.Le R.zero (coefficient p)}
+    {\fun (atZero: _) => D.leReplaceRight R.zero R.zero (coefficient p)
+      (sym!{R.Real} _ _ (trans!{R.Real} _ _ _ (congr!{R.Real R.Real} (\fun (a: R.Real) => R.mul a (Laws.fieldInv (Right.norm p))) _ _ (Left.onZero p (Right.normDefinite p atZero)))
+        (Laws.fieldMulZeroLeft (Laws.fieldInv (Right.norm p))))) (D.leRefl R.zero)}
+    {\fun (notZero: _) => Laws.fieldMulNonnegative (Left.norm p) (Laws.fieldInv (Right.norm p)) (Left.normNonnegative p)
+      (Ord.leOfLt _ _ (R.Estimates[].Product[].invPositive (Right.norm p) (Ord.ltOfLeNotEq R.zero (Right.norm p) (Right.normNonnegative p) (\fun (eq: _) => notZero (sym!{R.Real} _ _ eq)))))}
+  };
+\definition coefficientZero: \forall (p: Family.Point) -> Right.norm p = R.zero -> coefficient p = R.zero :=
+  \fun (p: Family.Point)(atZero: _) => trans!{R.Real} _ _ _
+    (congr!{R.Real R.Real} (\fun (a: R.Real) => R.mul a (Laws.fieldInv (Right.norm p))) _ _ (Left.onZero p (Right.normDefinite p atZero)))
+    (Laws.fieldMulZeroLeft (Laws.fieldInv (Right.norm p)));
+\definition scaleOnZero: \forall (p: Family.Point) -> Right.norm p = R.zero -> \forall (a: R.Real) -> scale a p = zero p :=
+  \fun (p: Family.Point)(atZero: _)(a: R.Real) => congr!{{F p.base} Family.Point} (Family.include p.base) _ _
+    (trans!{{F p.base}} _ _ _ (congr!{{F p.base} {F p.base}} ((bundle.space p.base).smul a) _ _ (Right.normDefinite p atZero))
+      (linear_algebra.Commutative[K := R.Real, scalarRing := Fields.fieldAsCommutativeRing R.Real R.Algebra[].field].Laws[V := F p.base, space := bundle.space p.base].scaleZero a));
+\definition normImage: \forall (p: Family.Point) -> Right.norm (apply p) = Left.norm p :=
+  \fun (p: Family.Point) => either!{{Classical.excludedMiddle (Right.norm p = R.zero)} {Right.norm (apply p) = Left.norm p}
+    {\fun (atZero: _) => eq_reason_in!{R.Real _
+      "=" _ "by" { congr!{Family.Point R.Real} Right.norm _ _ (scaleOnZero p atZero (coefficient p)) }
+      "=" R.zero "by" { Right.zeroNorm p.base }
+      "=" _ "by" { sym!{R.Real} _ _ (Left.onZero p (Right.normDefinite p atZero)) }
+    }}
+    {\fun (notZero: _) => eq_reason_in!{R.Real _
+      "=" _ "by" { Right.normScale (coefficient p) (nonnegative p) p }
+      "=" _ "by" { Laws.fieldMulAssoc (Left.norm p) (Laws.fieldInv (Right.norm p)) (Right.norm p) }
+      "=" _ "by" { congr!{R.Real R.Real} (R.mul (Left.norm p)) _ _ (Laws.fieldInverseNonzero (Right.norm p) notZero) }
+      "=" _ "by" { Algebra.mulOneRight (Left.norm p) }
+    }}
+  };
+\definition squaredImage: \forall (p: Family.Point) -> right.squared (apply p) = left.squared p :=
+  \fun (p: Family.Point) => eq_reason_in!{R.Real _
+    "=" _ "by" { sym!{R.Real} _ _ (Right.normSquared (apply p)) }
+    "=" _ "by" { congr!{R.Real R.Real R.Real} R.mul _ _ _ _ (normImage p) (normImage p) }
+    "=" _ "by" { Left.normSquared p }
+  };
+\module Away;
+\module Ray(a: R.Real, p: \Cast[Family.Point] nonzero, positive: D.Lt R.zero a);
+\module InChart(chart: Bundles.Family[X := X, F := F].With[data := bundle].Chart);
+\import Family.With[data := bundle] \as Charts;
+\definition domain[c: Charts.Chart]: \Pow Family.Point := { p: Family.Point \where \In[X] c.domain p.base };
+\import topology.Continuity[A := Family.Point, B := Family.Point].Covered[I := Charts.Chart, domains := domain] \as Covered;
+\definition continuous: topology.Continuity[A := Family.Point, B := Family.Point].Continuous bundle.totalSpace bundle.totalSpace apply :=
+  Covered.continuous bundle.totalSpace bundle.totalSpace apply
+    (\fun (c: Charts.Chart) => (\bysub(Charts.ChartData, Charts.Chart, c)).totalOpen)
+    (\fun (p: Family.Point) => Family.Of[bundle := bundle].locallyTrivial p.base)
+    (\fun (c: Charts.Chart) => InChart[chart := c].continuous);

@@ -1,0 +1,74 @@
+\import topological_constructions.Product[A := A, B := B] \as Product;
+\import Product.Compactness[] \as Base;
+\import topology.Topology[Carrier := A] \as Left;
+\import topology.Topology[Carrier := B] \as Right;
+\definition CarrierSet: \Set := Product.CarrierSet;
+\import topology.Topology[Carrier := CarrierSet] \as ProductSpace;
+\definition topology: Left.Topology -> Right.Topology -> ProductSpace.Topology := Product.topology;
+\import std.Set[].FiniteSubset[A := \Pow A] \as LeftFinite;
+\import std.Set[].FiniteSubset[A := \Pow B] \as RightFinite;
+\import RightFinite.Selection[B := \Pow A] \as Selection;
+\import Left.Finite[] \as LeftSets;
+\structure Tube[left: Left.Topology, right: Right.Topology, a: A, O: \Pow CarrierSet, S: \Pow B]: \Set := {
+  neighborhood: \Pow A,
+  open: Left.IsOpenIn left neighborhood,
+  contains: Left.Member neighborhood a,
+  rightNeighborhood: \Pow B,
+  rightOpen: Right.IsOpenIn right rightNeighborhood,
+  covers: Right.Subset S rightNeighborhood,
+  within: \forall (x: A) -> Left.Member neighborhood x -> \forall (y: B) -> Right.Member rightNeighborhood y -> ProductSpace.Member O (Pair.pair A B x y)
+};
+\definition tubeLemma: \forall (left: Left.Topology) (right: Right.Topology) (S: \Pow B) -> Right.IsCompactIn right S ->
+  \forall (a: A) (O: \Pow CarrierSet) -> ProductSpace.IsOpenIn (topology left right) O ->
+  (\forall (b: B) -> Right.Member S b -> ProductSpace.Member O (Pair.pair A B a b)) -> \exists Tube[left, right, a, O, S] := \block {
+  \fun (left: Left.Topology) (right: Right.Topology) (S: \Pow B) (compact: Right.IsCompactIn right S)
+    (a: A) (O: \Pow CarrierSet) (open: ProductSpace.IsOpenIn (topology left right) O)
+    (fiber: \forall (b: B) -> Right.Member S b -> ProductSpace.Member O (Pair.pair A B a b)) \then
+  \let family: \Pow (\Pow B) := Base.TubeFamily left right a O \then
+  \let cover: Right.IsOpenCover[right, family, S] := Right.IsOpenCover[right, family, S] {
+    covers := \block {
+      \fun (b: B) (inS: Right.Member S b) \then
+      \takefrom n: Base.Neighborhood[left, right, Pair.pair A B a b, O] \by Base.rectangleNeighborhoods left right O open (Pair.pair A B a b) (fiber b inS) \then
+      \return Right.unionMemberOf family (n.rightSet) b
+        (Base.tubePairExists left right a O (n.rightSet) (n.leftSet) (Base.TubePair[left, right, a, O, n.rightSet, n.leftSet] {
+          leftOpen := n.leftOpen, rightOpen := n.rightOpen, contains := n.leftContains, within := n.within,
+        })) (n.rightContains)
+    },
+    open := \block {
+      \fun (V: \Pow B) (member: Right.FamilyMember family V) \then
+      \takefrom U: \Cast[\Pow A] ({ U: \Pow A \where Base.TubePair[left, right, a, O, V, U] }) \by member \then
+      \return (\bysub(\Pow A, { U: \Pow A \where Base.TubePair[left, right, a, O, V, U] }, U)).rightOpen
+    },
+  } \then
+  \takefrom finite: \Cast[RightFinite.FiniteSubset] ({ finite: RightFinite.FiniteSubset \where Right.FiniteSubcover[family, S, finite] })
+    \by compact family cover \then
+  \let subcover: Right.FiniteSubcover[family, S, finite] := \bysub(RightFinite.FiniteSubset,
+    { finite: RightFinite.FiniteSubset \where Right.FiniteSubcover[family, S, finite] }, finite) \then
+  \let relation: \Pow B -> \Pow A -> \Prop := \fun (V: _) (U: _) => Base.TubePair[left, right, a, O, V, U] \then
+  \takefrom selected: Selection.Selection[relation, finite]
+    \by Selection.existsSelection relation finite (\fun (V: _) (member: _) => subcover.included V member) \then
+  \let leftFinite: LeftFinite.FiniteSubset := selected.finite \then
+  \let partner: \forall (U: \Pow A) -> LeftFinite.Member leftFinite U ->
+      Logic.And[Left.IsOpenIn left U, Left.Member U a] :=
+    \fun (U: \Pow A) (member: LeftFinite.Member leftFinite U) =>
+      Selection.includedElim relation finite selected U (Logic.And[Left.IsOpenIn left U, Left.Member U a])
+        (\fun (V: \Pow B) (_: RightFinite.Member finite V) (pair: Base.TubePair[left, right, a, O, V, U]) =>
+          Logic.And[_, _]::# (pair.leftOpen) (pair.contains)) member \then
+  \return \exact(Tube[left, right, a, O, S] {
+    neighborhood := LeftSets.Meet leftFinite,
+    open := LeftSets.meetOpen left leftFinite (\fun (U: _) (member: _) => (partner U member).left),
+    contains := \fun (U: _) (member: _) => (partner U member).right,
+    rightNeighborhood := Right.Union finite,
+    rightOpen := (Right.topologyLaws right).unionOpen finite (\fun (V: \Pow B)(member: _) => cover.open V (subcover.included V member)),
+    covers := subcover.covers,
+    within := \fun (x: A) (member: Left.Member (LeftSets.Meet leftFinite) x) (y: B) (inV: Right.Member (Right.Union finite) y) =>
+      Right.unionMemberElim finite y (ProductSpace.Member O (Pair.pair A B x y))
+        (\block {
+          \fun (V: \Pow B) (inFinite: RightFinite.Member finite V) (inV: Right.Member V y) \then
+          \takefrom U: Selection.CoveredWitness relation leftFinite V \by selected.covers V inFinite \then
+          \let data: Logic.And[LeftFinite.Member leftFinite U, Base.TubePair[left, right, a, O, V, U]] :=
+            \bysub(\Pow A, { U: \Pow A \where Logic.And[LeftFinite.Member leftFinite U, Base.TubePair[left, right, a, O, V, U]] }, U) \then
+          \return (data.right).within (Pair.pair A B x y) (Logic.And[_, _]::# (member U (data.left)) inV)
+        }) inV,
+  }, Tube[left, right, a, O, S])
+};

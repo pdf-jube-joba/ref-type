@@ -1,0 +1,30 @@
+\import topological_constructions.Coproduct[A := A, B := Unit] \as Adjoined;
+\definition Extended: \Set := Adjoined.Carrier;
+\definition extendedTopology: topology.Topology[Carrier := Extended].Topology := Adjoined.topology source topology.Topology[Carrier := Unit].Discrete;
+\definition onBoundary: Extended -> \Prop := \induction (x: Extended) \return \Prop \with {
+  | inl: \fun (x: A) => \In[A] subset x
+  | inr: \fun (u: Unit) => Logic.True
+};
+\definition Boundary: \Pow Extended := { x: Extended \where onBoundary x };
+\import algebraic_topology.Collapse[A := Extended, subset := Boundary] \as Quotient;
+\definition Carrier: \Set := Quotient.Carrier;
+\definition topology: topology.Topology[Carrier := Carrier].Topology := Quotient.topology extendedTopology;
+\definition point: Carrier := Quotient.class (Adjoined.inr Unit::point);
+\definition pointed: algebraic_topology.Pointed[A := Carrier].Space := algebraic_topology.Pointed[A := Carrier].Space { topology := topology, basepoint := point };
+\definition class[x: A]: Carrier := Quotient.class (Adjoined.inl x);
+\definition collapsed: \forall (x: A) -> \In[A] subset x -> class x = point :=
+  \fun (x: A)(member: _) => Quotient.collapsed (Adjoined.inl x) (Adjoined.inr Unit::point) member Logic.True::intro;
+\definition continuous: topology.Continuity[A := A, B := Carrier].Continuous source topology class :=
+  topology.Composition[A := A, B := Extended, C := Carrier].composeContinuous source extendedTopology topology Adjoined.inl Quotient.class
+    (Adjoined.inlContinuous source topology.Topology[Carrier := Unit].Discrete) (Quotient.projectionContinuous extendedTopology);
+\definition induction[P: Carrier -> \Prop]: P point -> (\forall (x: A) -> P (class x)) -> \forall (q: Carrier) -> P q :=
+  \fun (atPoint: P point)(step: _) => Quotient.induction P
+    (\induction (x: Extended) \return P (Quotient.class x) \with {
+      | inl: step
+      | inr: \fun (u: Unit) => \idelim Unit::point = u \with v: Unit => P (Quotient.class (Adjoined.inr v)) \by { base: atPoint, equality: sym!{Unit} _ _ (unitUnique u) }
+    });
+\module Mapping(B: \Set, target: topology.Topology[Carrier := B].Topology, targetSubset: \Pow B);
+\module Lift(B: \Set, target: topology.Topology[Carrier := B].Topology, basepoint: B, f: A -> B,
+  regular: topology.Continuity[A := A, B := B].Continuous source target f,
+  vanishes: \forall (x: A) -> \In[A] subset x -> f x = basepoint);
+\module Relative;

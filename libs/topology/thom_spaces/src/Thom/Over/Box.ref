@@ -1,0 +1,47 @@
+\import Operations.DirectSum[X := X, F := F, G := G, left := left, right := right] \as Sum;
+\import Bundles.Family[X := X, F := Sum.Fiber] \as Family;
+\definition Fiber[x: X]: \Set := Sum.Fiber x;
+\definition bundle: Family.Bundle := Sum.bundle same;
+\import \root.Thom[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].For[X := X, F := F, bundle := left].With[metric := leftMetric] \as Left;
+\import \root.Thom[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].For[X := X, F := G, bundle := right].With[metric := rightMetric] \as Right;
+\import \root.Thom[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].For[X := X, F := Sum.Fiber, bundle := bundle] \as Original;
+\definition first[p: Family.Point]: R.Real := Left.squared (Sum.first p);
+\definition second[p: Family.Point]: R.Real := Right.squared (Sum.second p);
+\definition squared[p: Family.Point]: R.Real := R.Distance[].max (first p) (second p);
+\definition firstContinuous: metric_spaces.RealFunctions[A := Family.Point].Continuous Sum.topology first :=
+  topology.Composition[A := Family.Point, B := Bundles.Family[X := X, F := F].Point, C := R.Real].composeContinuous Sum.topology left.totalSpace metric_spaces.RealLine[].topology Sum.first Left.squared Sum.firstContinuous Left.squaredContinuous;
+\definition secondContinuous: metric_spaces.RealFunctions[A := Family.Point].Continuous Sum.topology second :=
+  topology.Composition[A := Family.Point, B := Bundles.Family[X := X, F := G].Point, C := R.Real].composeContinuous Sum.topology right.totalSpace metric_spaces.RealLine[].topology Sum.second Right.squared Sum.secondContinuous Right.squaredContinuous;
+\definition continuous: metric_spaces.RealFunctions[A := Family.Point].Continuous Sum.topology squared :=
+  metric_spaces.RealFunctions[A := Family.Point].Lattice[].maximumContinuous Sum.topology first second firstContinuous secondContinuous;
+\definition nonnegative: \forall (p: Family.Point) -> Order.Le R.zero (squared p) := \fun (p: Family.Point) => Order.leTrans R.zero (first p) (squared p) (Left.nonnegative (Sum.first p)) (R.Distance[].maxLeft (first p) (second p));
+\definition zero: \forall (x: X) -> squared (Family.include x (bundle.space x).zero) = R.zero :=
+  \fun (x: X) => trans!{R.Real} _ _ _ (congr!{R.Real R.Real R.Real} R.Distance[].max _ _ _ _ (Left.zeroSquared x) (Right.zeroSquared x)) (R.Distance[].maxSame R.zero);
+\definition firstZero: \forall (p: Family.Point) -> squared p = R.zero -> first p = R.zero :=
+  \fun (p: Family.Point)(atZero: _) => Order.leAntisym (first p) R.zero (Order.leReplaceRight (first p) (squared p) R.zero atZero (R.Distance[].maxLeft (first p) (second p))) (Left.nonnegative (Sum.first p));
+\definition secondZero: \forall (p: Family.Point) -> squared p = R.zero -> second p = R.zero :=
+  \fun (p: Family.Point)(atZero: _) => Order.leAntisym (second p) R.zero (Order.leReplaceRight (second p) (squared p) R.zero atZero (R.Distance[].maxRight (first p) (second p))) (Right.nonnegative (Sum.second p));
+\definition definite: \forall (p: Family.Point) -> squared p = R.zero -> p.vector = (bundle.space p.base).zero :=
+  \fun (p: Family.Point)(atZero: _) => Pair.Prop[A := F p.base, B := G p.base].ext p.vector (bundle.space p.base).zero
+    (Geometry.Inner[V := F p.base, space := left.space p.base].Of[h := leftMetric.form p.base].squaredDefinite (leftMetric.positive p.base) (Sum.first p).vector (firstZero p atZero))
+    (Geometry.Inner[V := G p.base, space := right.space p.base].Of[h := rightMetric.form p.base].squaredDefinite (rightMetric.positive p.base) (Sum.second p).vector (secondZero p atZero));
+\module Maximum;
+\definition homogeneous: \forall (a: R.Real)(p: Family.Point) -> squared (Family.include p.base ((bundle.space p.base).smul (conjugation.embed a) p.vector)) = R.mul (R.mul a a) (squared p) :=
+  \fun (a: R.Real)(p: Family.Point) => trans!{R.Real} _ _ _
+    (congr!{R.Real R.Real R.Real} R.Distance[].max _ _ _ _ (Left.squaredScale a (Sum.first p)) (Right.squaredScale a (Sum.second p)))
+    (Maximum[].multiply (R.mul a a) (R.Algebra[].squareNonnegative a) (first p) (second p));
+\definition gauge: Original.GaugeData := Original.GaugeData { squared := squared, continuous := continuous, nonnegative := nonnegative, zero := zero, definite := definite, homogeneous := homogeneous };
+\definition DiskSubset: \Pow Family.Point := { p: Family.Point \where Order.Le (squared p) R.one };
+\import topology.Topology[Carrier := Family.Point].Subspace[S := DiskSubset] \as Disk;
+\definition diskTopology: topology.Topology[Carrier := Disk.CarrierSet].Topology := Disk.topology Sum.topology;
+\definition FirstBoundary: \Pow Disk.CarrierSet := { p: Disk.CarrierSet \where first p = R.one };
+\definition SecondBoundary: \Pow Disk.CarrierSet := { p: Disk.CarrierSet \where second p = R.one };
+\import \root.Thom[].Iterated[A := Disk.CarrierSet, source := diskTopology, first := FirstBoundary, second := SecondBoundary] \as Iteration;
+\definition IteratedThom: \Set := Iteration.Carrier;
+
+\definition iteratedTopology: topology.Topology[Carrier := IteratedThom].Topology := Iteration.topology;
+\definition Boundary: \Pow Disk.CarrierSet := { p: Disk.CarrierSet \where squared p = R.one };
+\import \root.Thom[].Collapse[A := Disk.CarrierSet, source := diskTopology, subset := Boundary] \as Collapsed;
+\definition BoxThom: \Set := Collapsed.Carrier;
+\definition thomTopology: topology.Topology[Carrier := BoxThom].Topology := Collapsed.topology;
+\module Comparison;

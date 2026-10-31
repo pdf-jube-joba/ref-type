@@ -1,0 +1,28 @@
+\import \parent.Motion[] \as Motion;
+\import algebraic_topology.Interval[] \as I;
+\import algebraic_topology.Cylinder[A := DiskBundle] \as Cylinder;
+\import topology.Topology[Carrier := DiskBundle] \as Space;
+\definition subset: \Pow DiskBundle := { x: DiskBundle \where squared x = Real.one };
+\import Space.Subspace[S := subset] \as Subspace;
+\import topology.Continuity[A := DiskBundle, B := Family.Point].Corestriction[S := ClosedBall] \as Inclusion;
+\definition closed: Space.IsClosedIn diskTopology subset :=
+  topology.Continuity[A := DiskBundle, B := Family.Point].closedPreimage diskTopology bundle.totalSpace (\fun (x: DiskBundle) => x)
+    (Inclusion.inclusionContinuous bundle.totalSpace) UnitSphere sphereClosed;
+\definition bottom: \forall (x: DiskBundle) -> Motion.family (Cylinder.at I.start x) = Cylinder.at I.start x :=
+  \fun (x: DiskBundle) => congr!{I.Carrier DiskBundle Cylinder.Carrier} Cylinder.at _ _ _ _
+    (Motion.At[t := I.start, x := x].startTime (\refl(I.start))) (Motion.At[t := I.start, x := x].startPoint (\refl(I.start)));
+\definition side: \forall (t: I.Carrier)(x: Subspace.CarrierSet) -> Motion.family (Cylinder.at t x) = Cylinder.at t x :=
+  \fun (t: I.Carrier)(x: Subspace.CarrierSet) => congr!{I.Carrier DiskBundle Cylinder.Carrier} Cylinder.at _ _ _ _
+    (Motion.At[t := t, x := x].boundaryTime (\bysub(DiskBundle, subset, x))) (Motion.At[t := t, x := x].boundaryPoint (\bysub(DiskBundle, subset, x)));
+\definition covered: \forall (p: Cylinder.Carrier) -> Logic.Or[Cylinder.time (Motion.family p) = I.start, \In[DiskBundle] subset (Cylinder.point (Motion.family p))] :=
+  \fun (p: Cylinder.Carrier) => Motion.At[t := Cylinder.time p, x := Cylinder.point p].covered;
+\import puppe_sequences.Puppe[].Cofibration[A := DiskBundle, subset := subset].FromCylinder[source := diskTopology, closed := closed,
+  h := Motion.family, continuous := Motion.Continuity[].continuous, covered := covered, bottom := bottom, side := side] \as Construction;
+\import algebraic_topology.Cofibration[A := DiskBundle, subset := subset] \as Native;
+\definition retraction: Native.Retraction[diskTopology] := Construction.result;
+\definition cofibration: Native.IsCofibration diskTopology := Construction.cofibration;
+\module ForTarget(B: \Set) {
+  \import Native.ForTarget[B := B] \as Extension;
+  \definition homotopyExtension: \forall (target: topology.Topology[Carrier := B].Topology) -> Extension.HomotopyExtensionProperty diskTopology target :=
+    \fun (target: topology.Topology[Carrier := B].Topology) => Extension.homotopyExtension diskTopology target cofibration;
+}

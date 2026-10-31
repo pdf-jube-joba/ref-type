@@ -1,0 +1,34 @@
+\import Product.Compactness[] \as Tubes;
+\import Product.Universal[X := Euclidean.Sphere] \as Fiber;
+\definition fiber[v: Euclidean.Sphere]: Parameter := Pair.pair BasePoint Euclidean.Sphere a v;
+\definition fiberContinuous: topology.Continuity[A := Euclidean.Sphere, B := Parameter].Continuous Euclidean.sphereTopology parameterTopology fiber :=
+  Fiber.pairContinuous Euclidean.sphereTopology baseTopology Euclidean.sphereTopology (\fun (v: Euclidean.Sphere) => a) (\fun (v: Euclidean.Sphere) => v)
+    (topology.Maps[A := Euclidean.Sphere, B := BasePoint].constantContinuous Euclidean.sphereTopology baseTopology a)
+    (topology.Maps[A := Euclidean.Sphere, B := Euclidean.Sphere].Identity[].continuous Euclidean.sphereTopology);
+\definition function[v: Euclidean.Sphere]: R.Real := ratio (fiber v);
+\definition continuous: metric_spaces.RealFunctions[A := Euclidean.Sphere].Continuous Euclidean.sphereTopology function :=
+  topology.Composition[A := Euclidean.Sphere, B := Parameter, C := R.Real].composeContinuous Euclidean.sphereTopology parameterTopology Line.topology fiber ratio fiberContinuous ratioContinuous;
+\import topology.Maps[A := Euclidean.Sphere, B := R.Real] \as Image;
+\definition boundExists: \exists Bound[a] := \block {
+  \takefrom b: \Cast[R.Real] ({ b: R.Real \where D.Completeness[].UpperBound (Image.Image function topology.Topology[Carrier := Euclidean.Sphere].Whole) b }) \by
+    Line.CompactExtrema[].compactBounded (Image.Image function topology.Topology[Carrier := Euclidean.Sphere].Whole)
+      (topology.Compactness[A := Euclidean.Sphere, B := R.Real].continuousImage Euclidean.sphereTopology Line.topology function continuous
+        topology.Topology[Carrier := Euclidean.Sphere].Whole Euclidean.Compactness[].sphere) \then
+  \let upper: D.Completeness[].UpperBound (Image.Image function topology.Topology[Carrier := Euclidean.Sphere].Whole) b :=
+    \bysub(R.Real, { b: R.Real \where D.Completeness[].UpperBound (Image.Image function topology.Topology[Carrier := Euclidean.Sphere].Whole) b }, b) \then
+  \let c: R.Real := R.Distance[].max R.one (R.add b R.one) \then
+  \let onePositive: D.Lt R.zero R.one := Ord.ltOfLeNotEq R.zero R.one Laws.oneNonnegative Laws.zeroNeOne \then
+  \let fiberBound: \forall (v: Euclidean.Sphere) -> D.Lt (function v) c := \fun (v: Euclidean.Sphere) => D.ltLeTrans (function v) (R.add b R.one) c
+    (D.leLtTrans (function v) b (R.add b R.one) (upper (function v) (Image.imageMember function topology.Topology[Carrier := Euclidean.Sphere].Whole v (\refl(v))))
+      (Line.CompactIntervals[].addPositive b R.one onePositive)) (R.Distance[].maxRight R.one (R.add b R.one)) \then
+  \takefrom tube: Tubes.Tube[baseTopology, a, { p: Parameter \where D.Lt (ratio p) c }, topology.Topology[Carrier := Euclidean.Sphere].Whole] \by
+    Tubes.tubeLemma baseTopology Euclidean.sphereTopology topology.Topology[Carrier := Euclidean.Sphere].Whole Euclidean.Compactness[].sphere a
+      ({ p: Parameter \where D.Lt (ratio p) c }) (ratioContinuous (Line.Rays[].Below c) (Line.Rays[].belowOpen c))
+      (\fun (v: Euclidean.Sphere)(member: _) => fiberBound v) \then
+  \return \exact(Bound[a] {
+    value := c,
+    positive := D.ltLeTrans R.zero R.one c onePositive (R.Distance[].maxLeft R.one (R.add b R.one)),
+    neighborhood := tube.neighborhood, open := tube.open, contains := tube.contains,
+    bounds := \fun (x: BasePoint)(member: _)(v: Euclidean.Sphere) => tube.within x member v (\refl(v))
+  }, Bound[a])
+};

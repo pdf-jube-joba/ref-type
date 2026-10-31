@@ -1,0 +1,46 @@
+\import algebraic_topology.Interval[] \as I;
+\import algebraic_topology.Cylinder[A := A] \as SourceCylinder;
+\import algebraic_topology.Cylinder[A := B] \as TargetCylinder;
+\import puppe_sequences.Puppe[].Suspension[A := A, source := source] \as Source;
+\import puppe_sequences.Puppe[].Suspension[A := B, source := target] \as Target;
+\import topology.Homeomorphism[A := A, B := B] \as Geometry;
+\definition originalLaws: Geometry.Laws[source.topology, target.topology, h] := Geometry.laws source.topology target.topology h;
+\import algebraic_topology.Pointed[A := A].Maps[B := B] \as ForwardMaps;
+\import algebraic_topology.Pointed[A := B].Maps[B := A] \as BackwardMaps;
+\definition forwardMap: ForwardMaps.Map[source, target] := \into[A -> B](h.forward, ForwardMaps.Map[source, target]) \by {
+  ForwardMaps.Laws[source, target, h.forward] { continuous := originalLaws.forwardContinuous, pointed := pointed }
+};
+\definition backwardPointed: h.backward target.basepoint = source.basepoint :=
+  trans!{A} _ _ _ (congr!{B A} h.backward _ _ (sym!{B} _ _ pointed)) (originalLaws.leftInverse source.basepoint);
+\definition backwardMap: BackwardMaps.Map[target, source] := \into[B -> A](h.backward, BackwardMaps.Map[target, source]) \by {
+  BackwardMaps.Laws[target, source, h.backward] { continuous := originalLaws.backwardContinuous, pointed := backwardPointed }
+};
+\import Source.Mapping[B := B, target := target, f := forwardMap] \as Forward;
+\import Target.Mapping[B := A, target := source, f := backwardMap] \as Backward;
+\import algebraic_topology.Collapse[A := SourceCylinder.Carrier, subset := algebraic_topology.Suspension[A := A].Reduced[basepoint := source.basepoint].Collapsed] \as SourceQuotient;
+\import algebraic_topology.Collapse[A := TargetCylinder.Carrier, subset := algebraic_topology.Suspension[A := B].Reduced[basepoint := target.basepoint].Collapsed] \as TargetQuotient;
+\definition leftInverse: \forall (q: Source.Carrier) -> Backward.apply (Forward.apply q) = q :=
+  SourceQuotient.induction (\fun (q: Source.Carrier) => Backward.apply (Forward.apply q) = q)
+    (\induction (p: SourceCylinder.Carrier) \return Backward.apply (Forward.apply (Source.class p)) = Source.class p \with {
+      | pair: \fun (t: I.Carrier)(x: A) => eq_reason_in!{Source.Carrier _
+        "=" _ "by" { congr!{Target.Carrier Source.Carrier} Backward.apply _ _ (Forward.onClass (SourceCylinder.at t x)) }
+        "=" _ "by" { Backward.onClass (TargetCylinder.at t (h.forward x)) }
+        "=" _ "by" { congr!{A Source.Carrier} (\fun (x: A) => Source.class (SourceCylinder.at t x)) _ _ (originalLaws.leftInverse x) }
+      }
+    });
+\definition rightInverse: \forall (q: Target.Carrier) -> Forward.apply (Backward.apply q) = q :=
+  TargetQuotient.induction (\fun (q: Target.Carrier) => Forward.apply (Backward.apply q) = q)
+    (\induction (p: TargetCylinder.Carrier) \return Forward.apply (Backward.apply (Target.class p)) = Target.class p \with {
+      | pair: \fun (t: I.Carrier)(x: B) => eq_reason_in!{Target.Carrier _
+        "=" _ "by" { congr!{Source.Carrier Target.Carrier} Forward.apply _ _ (Backward.onClass (TargetCylinder.at t x)) }
+        "=" _ "by" { Forward.onClass (SourceCylinder.at t (h.backward x)) }
+        "=" _ "by" { congr!{B Target.Carrier} (\fun (x: B) => Target.class (TargetCylinder.at t x)) _ _ (originalLaws.rightInverse x) }
+      }
+    });
+\definition homeomorphism: topology.Homeomorphism[A := Source.Carrier, B := Target.Carrier].Homeomorphism[Source.topology, Target.topology] :=
+  topology.Homeomorphism[A := Source.Carrier, B := Target.Carrier].Homeomorphism[Source.topology, Target.topology] {
+    forward := Forward.apply, backward := Backward.apply, leftInverse := leftInverse, rightInverse := rightInverse,
+    forwardContinuous := Forward.continuous, backwardContinuous := Backward.continuous
+  };
+\definition preservesPoint: homeomorphism.forward Source.point = Target.point :=
+  (algebraic_topology.Pointed[A := Source.Carrier].Maps[B := Target.Carrier].laws Source.pointed Target.pointed Forward.map).pointed;

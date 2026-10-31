@@ -1,0 +1,24 @@
+\import Bundles.Family[X := X, F := F] \as Family;
+\definition zero[p: Family.Point]: Family.Point := Family.include p.base (bundle.space p.base).zero;
+\definition scale[a: R.Real][p: Family.Point]: Family.Point := Family.include p.base ((bundle.space p.base).smul a p.vector);
+\structure Gauge: \Set := {
+  squared: Family.Point -> R.Real,
+  continuous: metric_spaces.RealFunctions[A := Family.Point].Continuous bundle.totalSpace squared,
+  nonnegative: \forall (p: Family.Point) -> D.Le R.zero (squared p),
+  zero: \forall (x: X) -> squared (Family.include x (bundle.space x).zero) = R.zero,
+  definite: \forall (p: Family.Point) -> squared p = R.zero -> p.vector = (bundle.space p.base).zero,
+  homogeneous: \forall (a: R.Real)(p: Family.Point) -> squared (scale a p) = R.mul (R.mul a a) (squared p)
+};
+\definition scaleOne: \forall (p: Family.Point) -> scale R.one p = p :=
+  \fun (p: Family.Point) => trans!{Family.Point} _ _ _ (congr!{{F p.base} Family.Point} (Family.include p.base) _ _ ((bundle.space p.base).scalarOne p.vector)) (Family.eta p);
+\definition scaleCompose: \forall (a, b: R.Real)(p: Family.Point) -> scale a (scale b p) = scale (R.mul a b) p :=
+  \fun (a, b: R.Real)(p: Family.Point) => congr!{{F p.base} Family.Point} (Family.include p.base) _ _ (sym!{{F p.base}} _ _ ((bundle.space p.base).scalarAssoc a b p.vector));
+\definition scaleVectorZero: \forall (p: Family.Point) -> p.vector = (bundle.space p.base).zero -> \forall (a: R.Real) -> scale a p = p :=
+  \fun (p: Family.Point)(atZero: _)(a: R.Real) => trans!{Family.Point} _ _ _
+    (congr!{{F p.base} Family.Point} (Family.include p.base) _ _
+      (trans!{{F p.base}} _ _ _ (congr!{{F p.base} {F p.base}} ((bundle.space p.base).smul a) _ _ atZero)
+        (trans!{{F p.base}} _ _ _ (linear_algebra.Commutative[K := R.Real, scalarRing := Fields.fieldAsCommutativeRing R.Real R.Algebra[].field].Laws[V := F p.base, space := bundle.space p.base].scaleZero a) (sym!{{F p.base}} _ _ atZero)))) (Family.eta p);
+\module With(gauge: Gauge);
+\module Comparison(left, right: Gauge);
+\module Inverse(left, right: Gauge, p: Family.Point);
+\module Change(left, right: Gauge);

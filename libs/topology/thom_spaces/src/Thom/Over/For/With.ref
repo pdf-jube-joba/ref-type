@@ -1,0 +1,104 @@
+\definition squared[p: Family.Point]: R.Real := conjugation.realPart ((metric.form p.base).dot p.vector p.vector);
+\import Operations.DirectSum[X := X, F := F, G := F, left := bundle, right := bundle] \as PairBundle;
+\import Bundles.Family[X := X, F := PairBundle.Fiber] \as PairFamily;
+\definition diagonal[p: Family.Point]: PairFamily.Point := PairFamily.include p.base (Pair.pair (F p.base) (F p.base) p.vector p.vector);
+\definition reconstructedContinuous: topology.Continuity[A := Family.Point, B := Family.Point].Continuous bundle.totalSpace bundle.totalSpace (\fun (p: Family.Point) => Family.include p.base p.vector) :=
+  \idelim (\fun (p: Family.Point) => p) = (\fun (p: Family.Point) => Family.include p.base p.vector)
+    \with f: (Family.Point -> Family.Point) => topology.Continuity[A := Family.Point, B := Family.Point].Continuous bundle.totalSpace bundle.totalSpace f \by {
+      base: topology.Maps[A := Family.Point, B := Family.Point].Identity[].continuous bundle.totalSpace,
+      equality: \axiom:funext((\fun (p: Family.Point) => p), (\fun (p: Family.Point) => Family.include p.base p.vector), (\fun (p: Family.Point) => sym!{Family.Point} _ _ (Family.eta p)))
+    };
+\definition diagonalContinuous: topology.Continuity[A := Family.Point, B := PairFamily.Point].Continuous bundle.totalSpace PairBundle.topology diagonal :=
+  PairBundle.Universal[Y := Family.Point].continuous bundle.totalSpace diagonal reconstructedContinuous reconstructedContinuous;
+\definition dotContinuous: topology.Continuity[A := Family.Point, B := K].Continuous bundle.totalSpace scalar.topological.space (\fun (p: Family.Point) => (metric.form p.base).dot p.vector p.vector) :=
+  topology.Composition[A := Family.Point, B := PairFamily.Point, C := K].composeContinuous bundle.totalSpace PairBundle.topology scalar.topological.space diagonal (Metrics.evaluation metric.form) diagonalContinuous metric.continuous;
+\definition squaredContinuous: metric_spaces.RealFunctions[A := Family.Point].Continuous bundle.totalSpace squared :=
+  hermitian_frames.Hermitian[].Over[K := K, field := field, scalar := conjugation, topological := scalar.topological].Functions[X := Family.Point].realPart bundle.totalSpace
+    (\fun (p: Family.Point) => (metric.form p.base).dot p.vector p.vector) dotContinuous;
+\definition nonnegative: \forall (p: Family.Point) -> Order.Le R.zero (squared p) :=
+  \fun (p: Family.Point) => (metric.positive p.base).nonnegative p.vector;
+\definition zeroSquared: \forall (x: X) -> squared (Family.include x (bundle.space x).zero) = R.zero :=
+  \fun (x: X) => trans!{R.Real} _ _ _
+    (congr!{K R.Real} conjugation.realPart _ _ ((metric.form x).zeroRight (bundle.space x).zero)) Geometry.reZero;
+\definition zeroSection[x: X]: \Cast[Family.Point] ({ p: Family.Point \where Order.Le (squared p) R.one }) :=
+  \into[Family.Point](Family.include x (bundle.space x).zero, { p: Family.Point \where Order.Le (squared p) R.one }) \by {
+    Order.leReplaceLeft R.zero (squared (Family.include x (bundle.space x).zero)) R.one (sym!{R.Real} _ _ (zeroSquared x))
+      Order.Arithmetic[].Prop[].oneNonnegative
+  };
+\definition ClosedBall: \Pow Family.Point := { p: Family.Point \where Order.Le (squared p) R.one };
+\definition UnitSphere: \Pow Family.Point := { p: Family.Point \where squared p = R.one };
+\import topology.Topology[Carrier := Family.Point].Subspace[S := ClosedBall] \as Disk;
+\import topology.Topology[Carrier := Family.Point].Subspace[S := UnitSphere] \as Sphere;
+\definition DiskBundle: \Set := Disk.CarrierSet;
+\definition SphereBundle: \Set := Sphere.CarrierSet;
+\definition diskTopology: topology.Topology[Carrier := DiskBundle].Topology := Disk.topology bundle.totalSpace;
+\definition sphereTopology: topology.Topology[Carrier := SphereBundle].Topology := Sphere.topology bundle.totalSpace;
+\definition Boundary: \Pow DiskBundle := { p: DiskBundle \where squared p = R.one };
+\definition sphereInclusion[p: SphereBundle]: DiskBundle := \into[Family.Point](p, ClosedBall) \by {
+  Order.leReplaceLeft R.one (squared p) R.one (sym!{R.Real} _ _ (\bysub(Family.Point, UnitSphere, p))) (Order.leRefl R.one)
+};
+\definition sphereInclusionContinuous: topology.Continuity[A := SphereBundle, B := DiskBundle].Continuous sphereTopology diskTopology sphereInclusion :=
+  topology.Continuity[A := SphereBundle, B := Family.Point].Corestriction[S := ClosedBall].corestrictContinuous sphereTopology bundle.totalSpace sphereInclusion
+    (topology.Continuity[A := SphereBundle, B := Family.Point].Corestriction[S := UnitSphere].inclusionContinuous bundle.totalSpace);
+\definition diskProjection[p: DiskBundle]: X := p.base;
+\definition sphereProjection[p: SphereBundle]: X := p.base;
+\definition diskProjectionContinuous: topology.Continuity[A := DiskBundle, B := X].Continuous diskTopology bundle.baseSpace diskProjection :=
+  topology.Composition[A := DiskBundle, B := Family.Point, C := X].composeContinuous diskTopology bundle.totalSpace bundle.baseSpace (\fun (p: DiskBundle) => p) Family.projection
+    (topology.Continuity[A := DiskBundle, B := Family.Point].Corestriction[S := ClosedBall].inclusionContinuous bundle.totalSpace) Family.Of[bundle := bundle].projectionContinuous;
+\definition sphereProjectionContinuous: topology.Continuity[A := SphereBundle, B := X].Continuous sphereTopology bundle.baseSpace sphereProjection :=
+  topology.Composition[A := SphereBundle, B := Family.Point, C := X].composeContinuous sphereTopology bundle.totalSpace bundle.baseSpace (\fun (p: SphereBundle) => p) Family.projection
+    (topology.Continuity[A := SphereBundle, B := Family.Point].Corestriction[S := UnitSphere].inclusionContinuous bundle.totalSpace) Family.Of[bundle := bundle].projectionContinuous;
+\import \root.Thom[].Collapse[A := DiskBundle, source := diskTopology, subset := Boundary] \as Quotient;
+\definition Thom: \Set := Quotient.Carrier;
+\definition thomTopology: topology.Topology[Carrier := Thom].Topology := Quotient.topology;
+\definition point: Thom := Quotient.point;
+\definition pointed: algebraic_topology.Pointed[A := Thom].Space := Quotient.pointed;
+\definition class: DiskBundle -> Thom := Quotient.class;
+\definition collapsed: \forall (p: SphereBundle) -> class (sphereInclusion p) = point :=
+  \fun (p: SphereBundle) => Quotient.collapsed (sphereInclusion p) (\bysub(Family.Point, UnitSphere, p));
+\definition quotientContinuous: topology.Continuity[A := DiskBundle, B := Thom].Continuous diskTopology thomTopology class := Quotient.continuous;
+
+\import R.SquareRoot[] \as Root;
+\definition norm[p: Family.Point]: R.Real := Root.sqrt (squared p);
+\definition normContinuous: metric_spaces.RealFunctions[A := Family.Point].Continuous bundle.totalSpace norm :=
+  metric_spaces.RealFunctions[A := Family.Point].SquareRoot[].continuous bundle.totalSpace squared squaredContinuous;
+\definition normNonnegative: \forall (p: Family.Point) -> Order.Le R.zero (norm p) := \fun (p: Family.Point) => Root.nonnegative (squared p);
+\definition normSquared: \forall (p: Family.Point) -> R.mul (norm p) (norm p) = squared p :=
+  \fun (p: Family.Point) => Root.squareOfNonnegative (squared p) (nonnegative p);
+\definition scale[a: R.Real][p: Family.Point]: Family.Point := Family.include p.base ((bundle.space p.base).smul (conjugation.embed a) p.vector);
+\module Fiber(x: X);
+\definition dotScale: \forall (a: R.Real)(p: Family.Point) ->
+  (metric.form p.base).dot ((bundle.space p.base).smul (conjugation.embed a) p.vector) ((bundle.space p.base).smul (conjugation.embed a) p.vector) = conjugation.embed (R.mul (R.mul a a) (squared p)) :=
+  \fun (a: R.Real)(p: Family.Point) => Fiber[x := p.base].dotScale a p.vector;
+\definition squaredScale: \forall (a: R.Real)(p: Family.Point) -> squared (scale a p) = R.mul (R.mul a a) (squared p) :=
+  \fun (a: R.Real)(p: Family.Point) => trans!{R.Real} _ _ _ (congr!{K R.Real} conjugation.realPart _ _ (dotScale a p)) (conjugation.realEmbed (R.mul (R.mul a a) (squared p)));
+\definition sphereNorm: \forall (p: SphereBundle) -> norm p = R.one :=
+  \fun (p: SphereBundle) => trans!{R.Real} _ _ _ (congr!{R.Real R.Real} Root.sqrt _ _ (\bysub(Family.Point, UnitSphere, p))) Root.sqrtOne;
+\definition zeroSectionContinuous: topology.Continuity[A := X, B := DiskBundle].Continuous bundle.baseSpace diskTopology zeroSection :=
+  topology.Continuity[A := X, B := Family.Point].Corestriction[S := ClosedBall].corestrictContinuous bundle.baseSpace bundle.totalSpace zeroSection
+    (Family.Of[bundle := bundle].Sections[].continuous Family.Of[bundle := bundle].Sections[].zero);
+\definition sectionProjection: \forall (x: X) -> diskProjection (zeroSection x) = x := \fun (x: X) => \refl(x);
+
+\definition diskClosed: topology.Topology[Carrier := Family.Point].IsClosedIn bundle.totalSpace ClosedBall :=
+  topology.Continuity[A := Family.Point, B := R.Real].closedPreimage bundle.totalSpace metric_spaces.RealLine[].topology squared squaredContinuous
+    (metric_spaces.RealLine[].Rays[].AtMost R.one) (metric_spaces.RealLine[].Rays[].atMostClosed R.one);
+\definition sphereClosed: topology.Topology[Carrier := Family.Point].IsClosedIn bundle.totalSpace UnitSphere :=
+  topology.Continuity[A := Family.Point, B := R.Real].closedPreimage bundle.totalSpace metric_spaces.RealLine[].topology squared squaredContinuous
+    (topology.Topology[Carrier := R.Real].Singleton R.one)
+    (metric_spaces.MetricSpace[Carrier := R.Real].Topology[].singletonClosed metric_spaces.RealMetric[].metric R.one);
+\module Radial;
+\module ThomPair;
+\definition scaleOne: \forall (p: Family.Point) -> scale R.one p = p :=
+  \fun (p: Family.Point) => trans!{Family.Point} _ _ _
+    (congr!{{F p.base} Family.Point} (Family.include p.base) _ _
+      (trans!{{F p.base}} _ _ _ (congr!{K {F p.base}} (\fun (a: K) => (bundle.space p.base).smul a p.vector) _ _ conjugation.embedOne) ((bundle.space p.base).scalarOne p.vector))) (Family.eta p);
+\definition scaleCompose: \forall (a, b: R.Real)(p: Family.Point) -> scale a (scale b p) = scale (R.mul a b) p :=
+  \fun (a, b: R.Real)(p: Family.Point) => congr!{{F p.base} Family.Point} (Family.include p.base) _ _
+    (trans!{{F p.base}} _ _ _ (sym!{{F p.base}} _ _ ((bundle.space p.base).scalarAssoc (conjugation.embed a) (conjugation.embed b) p.vector))
+      (congr!{K {F p.base}} (\fun (s: K) => (bundle.space p.base).smul s p.vector) _ _ (sym!{K} _ _ (conjugation.embedMul a b))));
+\definition normScale: \forall (a: R.Real) -> Order.Le R.zero a -> \forall (p: Family.Point) -> norm (scale a p) = R.mul a (norm p) :=
+  \fun (a: R.Real)(nonnegativeA: _)(p: Family.Point) => Root.squaresInjective _ _ (normNonnegative (scale a p))
+    (Order.Arithmetic[].Prop[].fieldMulNonnegative a (norm p) nonnegativeA (normNonnegative p))
+    (trans!{R.Real} _ _ _ (normSquared (scale a p)) (Radial[].scaledSquared a p));
+\module Contraction;
+\module FiniteBase(complex: algebraic_topology.CW[A := X].FiniteComplex[bundle.baseSpace]);

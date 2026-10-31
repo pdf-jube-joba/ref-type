@@ -1,0 +1,31 @@
+\import topology.Topology[Carrier := A] \as Original;
+\import \root.Thom[].Collapse[A := A, source := source, subset := Original.Empty] \as Collapsed;
+\import topological_constructions.Coproduct[A := A, B := Unit] \as Coproduct;
+\definition Carrier: \Set := Coproduct.Carrier;
+\definition topology: topology.Topology[Carrier := Carrier].Topology := Coproduct.topology source topology.Topology[Carrier := Unit].Discrete;
+\definition point: Carrier := Coproduct.inr Unit::point;
+\definition pointed: algebraic_topology.Pointed[A := Carrier].Space := algebraic_topology.Pointed[A := Carrier].Space { topology := topology, basepoint := point };
+\definition vanishes: \forall (x: A) -> \In[A] Original.Empty x -> Coproduct.inl x = point :=
+  \fun (x: A)(empty: Logic.False) => Logic.falseElim (Coproduct.inl x = point) empty;
+\import Collapsed.Lift[B := Carrier, target := topology, basepoint := point, f := Coproduct.inl,
+  regular := Coproduct.inlContinuous source topology.Topology[Carrier := Unit].Discrete, vanishes := vanishes] \as Lift;
+\import algebraic_topology.Collapse[A := Carrier, subset := Collapsed.Boundary] \as Quotient;
+\definition forward: Collapsed.Carrier -> Carrier := Lift.apply;
+\definition backward: Carrier -> Collapsed.Carrier := Quotient.class;
+\definition leftInverse: \forall (q: Collapsed.Carrier) -> backward (forward q) = q :=
+  Collapsed.induction (\fun (q: Collapsed.Carrier) => backward (forward q) = q)
+    (congr!{Carrier Collapsed.Carrier} backward _ _ Lift.onPoint)
+    (\fun (x: A) => congr!{Carrier Collapsed.Carrier} backward _ _ (Lift.onClass x));
+\definition rightInverse: \forall (p: Carrier) -> forward (backward p) = p :=
+  \induction (p: Carrier) \return forward (backward p) = p \with {
+    | inl: Lift.onClass
+    | inr: \fun (u: Unit) => \idelim Unit::point = u \with v: Unit => forward (backward (Coproduct.inr v)) = Coproduct.inr v \by {
+      base: Lift.onPoint, equality: sym!{Unit} _ _ (unitUnique u)
+    }
+  };
+\definition homeomorphism: topology.Homeomorphism[A := Collapsed.Carrier, B := Carrier].Homeomorphism[Collapsed.topology, topology] :=
+  topology.Homeomorphism[A := Collapsed.Carrier, B := Carrier].Homeomorphism[Collapsed.topology, topology] {
+    forward := forward, backward := backward, leftInverse := leftInverse, rightInverse := rightInverse,
+    forwardContinuous := Lift.continuous, backwardContinuous := Quotient.projectionContinuous topology
+  };
+\definition preservesPoint: forward Collapsed.point = point := Lift.onPoint;

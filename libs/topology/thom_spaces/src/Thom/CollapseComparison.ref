@@ -1,0 +1,33 @@
+\import \root.Thom[].Collapse[A := A, source := source, subset := subset] \as Original;
+\import \root.Thom[].Collapse[A := B, source := target, subset := targetSubset] \as Target;
+\import Original.Mapping[B := B, target := target, targetSubset := targetSubset] \as Forward;
+\import Target.Mapping[B := A, target := source, targetSubset := subset] \as Backward;
+\definition forward: Original.Carrier -> Target.Carrier := Forward.apply h.forward forwardPreserves;
+\definition backward: Target.Carrier -> Original.Carrier := Backward.apply h.backward backwardPreserves;
+\import topology.Homeomorphism[A := A, B := B] \as OriginalHomeo;
+\definition originalLaws: OriginalHomeo.Laws[source, target, h] := OriginalHomeo.laws source target h;
+\definition leftInverse: \forall (p: Original.Carrier) -> backward (forward p) = p :=
+  Original.induction (\fun (p: Original.Carrier) => backward (forward p) = p)
+    (trans!{Original.Carrier} _ _ _ (congr!{Target.Carrier Original.Carrier} backward _ _ (Forward.onPoint h.forward forwardPreserves)) (Backward.onPoint h.backward backwardPreserves))
+    (\fun (x: A) => eq_reason_in!{Original.Carrier _
+      "=" _ "by" { congr!{Target.Carrier Original.Carrier} backward _ _ (Forward.onClass h.forward forwardPreserves x) }
+      "=" _ "by" { Backward.onClass h.backward backwardPreserves (h.forward x) }
+      "=" {Original.class x} "by" { congr!{A Original.Carrier} Original.class _ _ (originalLaws.leftInverse x) }
+    });
+\definition rightInverse: \forall (p: Target.Carrier) -> forward (backward p) = p :=
+  Target.induction (\fun (p: Target.Carrier) => forward (backward p) = p)
+    (trans!{Target.Carrier} _ _ _ (congr!{Original.Carrier Target.Carrier} forward _ _ (Backward.onPoint h.backward backwardPreserves)) (Forward.onPoint h.forward forwardPreserves))
+    (\fun (x: B) => eq_reason_in!{Target.Carrier _
+      "=" _ "by" { congr!{Original.Carrier Target.Carrier} forward _ _ (Backward.onClass h.backward backwardPreserves x) }
+      "=" _ "by" { Forward.onClass h.forward forwardPreserves (h.backward x) }
+      "=" {Target.class x} "by" { congr!{B Target.Carrier} Target.class _ _ (originalLaws.rightInverse x) }
+    });
+\definition homeomorphism: topology.Homeomorphism[A := Original.Carrier, B := Target.Carrier].Homeomorphism[Original.topology, Target.topology] :=
+  topology.Homeomorphism[A := Original.Carrier, B := Target.Carrier].Homeomorphism[Original.topology, Target.topology] {
+    forward := forward, backward := backward,
+    leftInverse := leftInverse, rightInverse := rightInverse,
+    forwardContinuous := Forward.continuous h.forward forwardPreserves originalLaws.forwardContinuous,
+    backwardContinuous := Backward.continuous h.backward backwardPreserves originalLaws.backwardContinuous
+  };
+\definition pointed: forward Original.point = Target.point := Forward.onPoint h.forward forwardPreserves;
+\definition onClass: \forall (x: A) -> forward (Original.class x) = Target.class (h.forward x) := Forward.onClass h.forward forwardPreserves;
