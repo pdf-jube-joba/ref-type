@@ -1,0 +1,40 @@
+\import \root.Euclidean[n := two].DiffeomorphismDerivative[U := Graph.domain, V := Graph.domain, f := Graph.equivalence, x := x] \as Shear;
+\import calculus.Vector[n := two, m := two] \as Square;
+\import calculus.Vector[n := two, m := one] \as Rectangular;
+\definition derivative: Square.LinearMap := Maps.Differential[U := Graph.domain, V := Open.whole, f := shear, a := x].value;
+\definition same: derivative = Shear.forward := Corestriction.differential x;
+\definition left: \forall (v: Fin.Fin two -> R.Real) -> Shear.backward.apply (derivative.apply v) = v :=
+  \fun (v: Fin.Fin two -> R.Real) => trans!{{Fin.Fin two -> R.Real}} _ _ _ (congr!{{Square.LinearMap} {Fin.Fin two -> R.Real}} (\fun (L: Square.LinearMap) => Shear.backward.apply (L.apply v)) _ _ same) (Shear.left v);
+\definition right: \forall (v: Fin.Fin two -> R.Real) -> derivative.apply (Shear.backward.apply v) = v :=
+  \fun (v: Fin.Fin two -> R.Real) => trans!{{Fin.Fin two -> R.Real}} _ _ _ (congr!{{Square.LinearMap} {Fin.Fin two -> R.Real}} (\fun (L: Square.LinearMap) => L.apply (Shear.backward.apply v)) _ _ same) (Shear.right v);
+\import matrix_invariants.Ring[K := R.Real, scalars := std.Alg[].Field[].fieldAsCommutativeRing R.Real Algebra.field].At[n := two] \as Matrix;
+\import Matrix.Representation[] \as Representation;
+\import matrix_invariants.Field[K := R.Real, field := Algebra.field].At[n := two] \as Inversion;
+\definition nonzero: Inversion.Nonzero (Representation.entries derivative) := Inversion.nonzeroOfInverse (Representation.entries derivative)
+  (\into[Matrix.Matrix](Representation.entries Shear.backward, Matrix.Operations[].Inverse (Representation.entries derivative)) \by { Representation.inverseCertificate derivative Shear.backward left right });
+\definition inverseExists: \exists \root.Euclidean[n := two].LocalInverse[Graph.domain, shear, x] := \root.Euclidean[n := two].InverseFunction[U := Graph.domain, f := shear, a := x].localExistence nonzero;
+\definition scalarDerivative: Rectangular.LinearMap := Functions.Differential[U := Graph.domain, V := Line.whole, f := parabolaFunction, a := x].value;
+\definition scalarFormula: \forall (v: Fin.Fin two -> R.Real) -> scalarDerivative.apply v = Blocks.left (derivative.apply v) :=
+  \fun (v: Fin.Fin two -> R.Real) => trans!{{Fin.Fin one -> R.Real}} _ _ _
+    (congr!{{Rectangular.LinearMap} {Fin.Fin one -> R.Real}} (\fun (L: Rectangular.LinearMap) => L.apply v) _ _ (ScalarComposition.At[a := x].jacobian))
+    (congr!{{Rectangular.LinearMap} {Fin.Fin one -> R.Real}} (\fun (L: Rectangular.LinearMap) => L.apply (derivative.apply v)) _ _ (LeftProjection.differential (Maps.apply Graph.domain Open.whole shear x)));
+\definition scalarSurjective: \forall (w: Fin.Fin one -> R.Real) -> \exists ( v: Fin.Fin two -> R.Real \where scalarDerivative.apply v = w ) :=
+  \fun (w: Fin.Fin one -> R.Real) => Logic.existsIntro[Fin.Fin two -> R.Real, { v: Fin.Fin two -> R.Real \where scalarDerivative.apply v = w }] (Shear.backward.apply (Plane.horizontal.apply w))
+    (trans!{{Fin.Fin one -> R.Real}} _ _ _ (scalarFormula (Shear.backward.apply (Plane.horizontal.apply w)))
+      (trans!{{Fin.Fin one -> R.Real}} _ _ _ (congr!{{Fin.Fin two -> R.Real} {Fin.Fin one -> R.Real}} Blocks.left _ _ (right (Plane.horizontal.apply w))) (Blocks.leftJoin w Scalars.origin)));
+\import calculus.LinearMap[n := one, m := two].On[U := Line.whole, L := Plane.horizontal] \as Inclusion;
+\import Functions.Composition[U := Graph.domain, V := Line.whole, f := parabolaFunction].After[l := two, W := Open.whole, g := Inclusion.map] \as RankComposition;
+\definition rankMap: Maps.Map Graph.domain Open.whole := RankComposition.compose;
+\definition rankWitness: \root.Rank[n := two, m := two, r := one].Witness[Maps.Differential[U := Graph.domain, V := Open.whole, f := rankMap, a := x].value] :=
+  \root.Rank[n := two, m := two, r := one].Witness[Maps.Differential[U := Graph.domain, V := Open.whole, f := rankMap, a := x].value] {
+    image := Plane.horizontal, coordinate := scalarDerivative,
+    imageInjective := \fun (v, w: Fin.Fin one -> R.Real)(equal: Plane.horizontal.apply v = Plane.horizontal.apply w) => eq_reason_in!{{Fin.Fin one -> R.Real} v
+      "=" _ "by" { sym!{{Fin.Fin one -> R.Real}} _ _ (Blocks.leftJoin v Scalars.origin) }
+      "=" _ "by" { congr!{{Fin.Fin two -> R.Real} {Fin.Fin one -> R.Real}} Blocks.left _ _ equal }
+      "=" w "by" { Blocks.leftJoin w Scalars.origin }
+    },
+    coordinateSurjective := scalarSurjective,
+    formula := \fun (v: Fin.Fin two -> R.Real) => trans!{{Fin.Fin two -> R.Real}} _ _ _
+      (congr!{{Square.LinearMap} {Fin.Fin two -> R.Real}} (\fun (L: Square.LinearMap) => L.apply v) _ _ (RankComposition.At[a := x].jacobian))
+      (congr!{{calculus.Vector[n := one, m := two].LinearMap} {Fin.Fin two -> R.Real}} (\fun (L: calculus.Vector[n := one, m := two].LinearMap) => L.apply (scalarDerivative.apply v)) _ _ (Inclusion.differential (Functions.apply Graph.domain Line.whole parabolaFunction x))),
+  };

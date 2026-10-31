@@ -1,0 +1,52 @@
+\definition data: Functions.Data[Open.whole, Line.whole] := Functions.Data[Open.whole, Line.whole] {
+  apply := \fun (x: Open.Carrier Open.whole) => \into[Fin.Fin one -> R.Real]
+    ((\fun (i: Fin.Fin one) => R.sub (Blocks.right x i) (R.mul (Blocks.left x i) (Blocks.left x i))), Line.whole.points) \by {
+    \refl(\fun (i: Fin.Fin one) => R.sub (Blocks.right x i) (R.mul (Blocks.left x i) (Blocks.left x i)))
+  },
+};
+\definition function: Functions.Map Open.whole Line.whole := \into[Functions.Data[Open.whole, Line.whole]](data,
+  { data: Functions.Data[Open.whole, Line.whole] \where Functions.Laws[Open.whole, Line.whole, data] }) \by {
+  Functions.Laws[Open.whole, Line.whole, data] {
+    smooth := \fun (i: Fin.Fin one) => Open.Smooth[].Operations[].subSmooth Open.whole (\fun (x: Open.Carrier Open.whole) => Blocks.right x i)
+      (\fun (x: Open.Carrier Open.whole) => R.mul (Blocks.left x i) (Blocks.left x i)) (Open.Examples[].projectionSmooth Open.whole (Fin.Sum[m := one, n := one].right i))
+      (Open.Smooth[].Operations[].mulSmooth Open.whole (\fun (x: Open.Carrier Open.whole) => Blocks.left x i) (\fun (x: Open.Carrier Open.whole) => Blocks.left x i)
+        (Open.Examples[].projectionSmooth Open.whole (Fin.Sum[m := one, n := one].left i)) (Open.Examples[].projectionSmooth Open.whole (Fin.Sum[m := one, n := one].left i))),
+  }
+};
+\definition zero: Line.Carrier Line.whole := \into[Fin.Fin one -> R.Real](Scalars.origin, Line.whole.points) \by { \refl(Scalars.origin) };
+\definition point: Open.Carrier Open.whole := \into[Fin.Fin two -> R.Real](Blocks.join zero zero, Open.whole.points) \by { \refl(Blocks.join zero zero) };
+\import Blocks.FixedLeft[U := Line.whole, V := Open.whole, c := zero] \as Section;
+\definition included: Section.Included := \fun (p: Line.Carrier Line.whole) => \refl(Blocks.join zero p);
+\import calculus.Maps[n := one, m := two].Composition[U := Line.whole, V := Open.whole, f := Section.map included].After[l := one, W := Line.whole, g := function] \as Composition;
+\import calculus.Vector[n := one, m := one] \as Vector;
+\definition constant: Fin.Fin one -> R.Real := \fun (i: Fin.Fin one) => R.neg (R.mul (zero i) (zero i));
+\definition affine: Vector.Function Line.whole := Vector.affine Line.whole constant calculus.Identity[n := one].linear;
+\definition composed: Vector.Function Line.whole := \fun (p: Line.Carrier Line.whole) => ScalarMaps.apply Line.whole Line.whole Composition.compose p;
+\definition same: composed = affine :=
+  \axiom:funext(composed, affine, \fun (p: Line.Carrier Line.whole) =>
+    \axiom:funext(composed p, affine p, \fun (i: Fin.Fin one) => trans!{R.Real} _ _ _
+      (congr!{{Fin.Fin one -> R.Real} {Fin.Fin one -> R.Real} R.Real} (\fun (u, v: Fin.Fin one -> R.Real) => R.sub (u i) (R.mul (v i) (v i))) _ _ _ _ (Blocks.rightJoin zero p) (Blocks.leftJoin zero p))
+      (Laws.addComm (p i) (constant i))));
+\definition affineLaw: Vector.HasDifferentialAt Line.whole composed zero calculus.Identity[n := one].linear :=
+  \idelim affine = composed \with g: Vector.Function Line.whole => Vector.HasDifferentialAt Line.whole g zero calculus.Identity[n := one].linear \by {
+    base: Vector.affineDifferential Line.whole constant calculus.Identity[n := one].linear zero,
+    equality: sym!{{Vector.Function Line.whole}} _ _ same
+  };
+\definition derivative: ScalarMaps.Differential[U := Line.whole, V := Line.whole, f := Composition.compose, a := zero].value = calculus.Identity[n := one].linear :=
+  Vector.Differential[U := Line.whole, f := \fun (p: Line.Carrier Line.whole) => ScalarMaps.apply Line.whole Line.whole Composition.compose p, a := zero,
+    d := ScalarMaps.Differential[U := Line.whole, V := Line.whole, f := Composition.compose, a := zero].value].uniqueness calculus.Identity[n := one].linear
+      ScalarMaps.Differential[U := Line.whole, V := Line.whole, f := Composition.compose, a := zero].vectorLaw affineLaw;
+\import Plane.Implicit[U := Open.whole, f := function, a := point] \as Implicit;
+\definition vertical: \forall (v: Fin.Fin one -> R.Real) -> Implicit.verticalDifferential.apply v = v :=
+  \fun (v: Fin.Fin one -> R.Real) => eq_reason_in!{{Fin.Fin one -> R.Real} _
+    "=" _ "by" { sym!{{Fin.Fin one -> R.Real}} _ _ (congr!{{calculus.Vector[n := one, m := two].LinearMap} {Fin.Fin one -> R.Real}} (\fun (L: calculus.Vector[n := one, m := two].LinearMap) => Functions.Differential[U := Open.whole, V := Line.whole, f := function, a := point].value.apply (L.apply v)) _ _ (Plane.FixedLeftDerivative[U := Line.whole, V := Open.whole, c := zero, included := included].jacobian zero)) }
+    "=" _ "by" { sym!{{Fin.Fin one -> R.Real}} _ _ (congr!{{Vector.LinearMap} {Fin.Fin one -> R.Real}} (\fun (L: Vector.LinearMap) => L.apply v) _ _ (Composition.At[a := zero].jacobian)) }
+    "=" v "by" { congr!{{Vector.LinearMap} {Fin.Fin one -> R.Real}} (\fun (L: Vector.LinearMap) => L.apply v) _ _ derivative }
+  };
+\import matrix_invariants.Ring[K := R.Real, scalars := std.Alg[].Field[].fieldAsCommutativeRing R.Real Algebra.field].At[n := one] \as Matrix;
+\import Matrix.Representation[] \as Representation;
+\definition regular: Implicit.Regular := matrix_invariants.Field[K := R.Real, field := Algebra.field].At[n := one].nonzeroOfInverse _
+  (\into[Matrix.Matrix](Representation.entries calculus.Identity[n := one].linear, Matrix.Operations[].Inverse (Representation.entries Implicit.verticalDifferential)) \by {
+    Representation.inverseCertificate Implicit.verticalDifferential calculus.Identity[n := one].linear vertical vertical
+  });
+\definition solutionExists: \exists Implicit.Solution := Implicit.localExistence regular;

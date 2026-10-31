@@ -1,0 +1,50 @@
+\use std.Logic[].Equality[].eq_reason_in;
+\import std.Data[].Nat[] \as N;
+\import std.Data[].FinSet[] \as Fin;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.congr;
+\use Equality.sym;
+\use Equality.trans;
+\import real.Analysis[] \as R;
+\import R.Algebra[] \as Algebra;
+\import dedekind_reals.DedekindReal[].Arithmetic[].Prop[] \as Laws;
+\definition one: N.Nat^ := N.Nat^::succ N.Nat^::zero;
+\import \root.Product[n := one, m := one] \as Plane;
+\import calculus.Blocks[n := one, m := one] \as Blocks;
+\definition two: N.Nat^ := Plane.dimension;
+\import calculus.Real[].Multivariable[n := one].Open[] \as Line;
+\import calculus.Real[].Multivariable[n := two].Open[] \as Open;
+\import calculus.Maps[n := one, m := one] \as ScalarMaps;
+\import calculus.Maps[n := two, m := two] \as Maps;
+\import calculus.Maps[n := two, m := one] \as Functions;
+\import topological_algebra.Euclidean[].Dimension[n := one].Def[] \as Scalars;
+\import topological_algebra.Euclidean[].Dimension[n := two].Def[] \as Coordinates;
+\definition square: ScalarMaps.Map Line.whole Line.whole := \into[ScalarMaps.Data[Line.whole, Line.whole]](ScalarMaps.Data[Line.whole, Line.whole] {
+  apply := \fun (x: Line.Carrier Line.whole) => \into[Fin.Fin one -> R.Real]((\fun (i: Fin.Fin one) => R.mul (x i) (x i)), Line.whole.points) \by { \refl(\fun (i: Fin.Fin one) => R.mul (x i) (x i)) },
+}, { data: ScalarMaps.Data[Line.whole, Line.whole] \where ScalarMaps.Laws[Line.whole, Line.whole, data] }) \by {
+  ScalarMaps.Laws[Line.whole, Line.whole, ScalarMaps.Data[Line.whole, Line.whole]::# (\fun (x: Line.Carrier Line.whole) => \into[Fin.Fin one -> R.Real]((\fun (i: Fin.Fin one) => R.mul (x i) (x i)), Line.whole.points) \by { \refl(\fun (i: Fin.Fin one) => R.mul (x i) (x i)) })] {
+    smooth := \fun (i: Fin.Fin one) => Line.Smooth[].Operations[].mulSmooth Line.whole (\fun (x: Line.Carrier Line.whole) => x i) (\fun (x: Line.Carrier Line.whole) => x i)
+      (Line.Examples[].projectionSmooth Line.whole i) (Line.Examples[].projectionSmooth Line.whole i),
+  }
+};
+\import Plane.GraphChange[U := Line.whole, h := square] \as Graph;
+\definition origin: Open.Carrier Graph.domain := \into[Fin.Fin two -> R.Real](Coordinates.origin, Graph.domain.points) \by {
+  Logic.And[_, _]::# (\refl(Blocks.left Coordinates.origin)) (\refl(Blocks.right Coordinates.origin))
+};
+\import Maps.Corestriction[U := Graph.domain, V := Graph.domain, W := Open.whole, f := Graph.minusMap,
+  inside := \fun (x: Open.Carrier Graph.domain) => \refl(Maps.apply Graph.domain Graph.domain Graph.minusMap x)] \as Corestriction;
+\definition shear: Maps.Map Graph.domain Open.whole := Corestriction.map;
+\import calculus.LinearMap[n := two, m := one].On[U := Open.whole, L := Plane.leftLinear] \as LeftProjection;
+\import Maps.Composition[U := Graph.domain, V := Open.whole, f := shear].After[l := one, W := Line.whole, g := LeftProjection.map] \as ScalarComposition;
+\definition parabolaFunction: Functions.Map Graph.domain Line.whole := ScalarComposition.compose;
+\definition formula: \forall (x: Open.Carrier Graph.domain) -> Functions.apply Graph.domain Line.whole parabolaFunction x =
+  Scalars.subPoint (Blocks.left x) (ScalarMaps.apply Line.whole Line.whole square (Blocks.On[U := Line.whole, V := Line.whole].rightPoint x)) :=
+  \fun (x: Open.Carrier Graph.domain) => Blocks.leftJoin (Scalars.subPoint (Blocks.left x) (Graph.term x)) (Blocks.right x);
+\module At(x: Open.Carrier Graph.domain);
+\module Implicit;
+\module Manifold;
+\module ZeroDimension;
+\definition inverseExists: \exists \root.Euclidean[n := two].LocalInverse[Graph.domain, shear, origin] := At[x := origin].inverseExists;
+\definition rankNormalForm: \exists \root.ConstantRank[k := one, r := one, l := one].On[U := Graph.domain, f := At[x := origin].rankMap, a := origin].NormalForm :=
+  \root.ConstantRank[k := one, r := one, l := one].On[U := Graph.domain, f := At[x := origin].rankMap, a := origin].localExistence (\fun (x: Open.Carrier Graph.domain) => \exact(At[x := x].rankWitness, \root.Rank[n := two, m := two, r := one].Witness[Maps.Differential[U := Graph.domain, V := Open.whole, f := At[x := origin].rankMap, a := x].value]));
