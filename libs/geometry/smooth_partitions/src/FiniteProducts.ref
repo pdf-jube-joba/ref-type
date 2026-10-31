@@ -1,0 +1,50 @@
+\import std.Data[].Nat[] \as N;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\import std.Logic[].Classical[] \as Classical;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\use Equality.eq_reason;
+\use Logic.either;
+\import real.Analysis[] \as Real;
+\import dedekind_reals.DedekindReal[] \as R;
+\import R.Arithmetic[].Prop[] \as Laws;
+\import std.Data[].FinSet[] \as Fin;
+\import Real.Estimates[] \as Estimates;
+\import Real.Algebra[] \as Algebra;
+\definition product: \forall (n: N.Nat^) -> (Fin.Fin n -> Real.Real) -> Real.Real :=
+  \induction (n: N.Nat^) \return (Fin.Fin n -> Real.Real) -> Real.Real \with {
+    | zero: \fun (f: Fin.Fin N.Nat^::zero -> Real.Real) => Real.one
+    | succ: \fun (n: N.Nat^)(previous: _)(f: Fin.Fin (N.Nat^::succ n) -> Real.Real) =>
+      Real.mul (f (Fin.zero n)) (previous (\fun (i: Fin.Fin n) => f (Fin.succ n i)))
+  };
+\definition allOne: \forall (n: N.Nat^)(f: Fin.Fin n -> Real.Real) -> (\forall (i: Fin.Fin n) -> f i = Real.one) -> product n f = Real.one :=
+  \induction (n: N.Nat^) \return \forall (f: Fin.Fin n -> Real.Real) -> (\forall (i: Fin.Fin n) -> f i = Real.one) -> product n f = Real.one \with {
+    | zero: \fun (f: _)(all: _) => \refl(Real.one)
+    | succ: \fun (n: N.Nat^)(previous: _)(f: _)(all: _) => trans!{Real.Real} _ _ _
+      (congr!{Real.Real Real.Real Real.Real} Real.mul _ _ _ _ (all (Fin.zero n))
+        (previous (\fun (i: Fin.Fin n) => f (Fin.succ n i)) (\fun (i: Fin.Fin n) => all (Fin.succ n i)))) (Laws.fieldMulOneLeft Real.one)
+  };
+\definition nonnegative: \forall (n: N.Nat^)(f: Fin.Fin n -> Real.Real) -> (\forall (i: Fin.Fin n) -> R.Le Real.zero (f i)) -> R.Le Real.zero (product n f) :=
+  \induction (n: N.Nat^) \return \forall (f: Fin.Fin n -> Real.Real) -> (\forall (i: Fin.Fin n) -> R.Le Real.zero (f i)) -> R.Le Real.zero (product n f) \with {
+    | zero: \fun (f: _)(all: _) => Laws.oneNonnegative
+    | succ: \fun (n: N.Nat^)(previous: _)(f: _)(all: _) => Laws.fieldMulNonnegative (f (Fin.zero n))
+      (product n (\fun (i: Fin.Fin n) => f (Fin.succ n i))) (all (Fin.zero n))
+      (previous (\fun (i: Fin.Fin n) => f (Fin.succ n i)) (\fun (i: Fin.Fin n) => all (Fin.succ n i)))
+  };
+\module Zero;
+\definition zeroAt: \forall (n: N.Nat^)(f: Fin.Fin n -> Real.Real)(i: Fin.Fin n) -> f i = Real.zero -> product n f = Real.zero := Zero[].law;
+\definition nonzeroAt[n: N.Nat^][f: Fin.Fin n -> Real.Real]: Logic.Not (product n f = Real.zero) ->
+  \forall (i: Fin.Fin n) -> Logic.Not (f i = Real.zero) := \fun (nonzero: _)(i: _)(zero: _) => nonzero (zeroAt n f i zero);
+\definition bounded: \forall (n: N.Nat^)(f: Fin.Fin n -> Real.Real) ->
+  (\forall (i: Fin.Fin n) -> R.Le Real.zero (f i)) -> (\forall (i: Fin.Fin n) -> R.Le (f i) Real.one) -> R.Le (product n f) Real.one :=
+  \induction (n: N.Nat^) \return \forall (f: Fin.Fin n -> Real.Real) ->
+    (\forall (i: Fin.Fin n) -> R.Le Real.zero (f i)) -> (\forall (i: Fin.Fin n) -> R.Le (f i) Real.one) -> R.Le (product n f) Real.one \with {
+    | zero: \fun (f: _)(lower: _)(upper: _) => R.leRefl Real.one
+    | succ: \fun (n: N.Nat^)(previous: _)(f: _)(lower: _)(upper: _) => R.leTrans _ _ _
+      (R.leReplaceRight _ (Real.mul (f (Fin.zero n)) Real.one) (f (Fin.zero n)) (Algebra.mulOneRight (f (Fin.zero n)))
+        (Estimates.mulMonotone (f (Fin.zero n)) _ Real.one (lower (Fin.zero n))
+          (previous (\fun (i: Fin.Fin n) => f (Fin.succ n i)) (\fun (i: Fin.Fin n) => lower (Fin.succ n i)) (\fun (i: Fin.Fin n) => upper (Fin.succ n i)))))
+      (upper (Fin.zero n))
+  };

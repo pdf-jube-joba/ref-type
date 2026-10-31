@@ -1,0 +1,25 @@
+\import Calculus.OneDimension[] \as One;
+\import Calculus.Multivariable[n := One.dimension] \as Model;
+\import Model.Open[] \as Open;
+\import One.Interval[left := Real.zero, right := Real.add t t] \as Interval;
+\import One.On[U := Interval.domain] \as Lift;
+\import Model.Space[].Def[] \as Coordinates;
+\import Model.Partial[].Prop[] \as Partials;
+\import Open.Restriction[] \as Restriction;
+\definition point: Open.Carrier Interval.domain := \into[Model.Point]((\fun (i: One.Index) => t), Interval.points) \by {
+  Logic.And[_, _]::# positive
+    (R.ltReplaceLeft (Real.add t Real.zero) t (Real.add t t) (Laws.addZeroRight t) (Laws.ltAddLeft t Real.zero t positive))
+};
+\definition projected[x: Open.Carrier Interval.domain]: Scalar := x One.index;
+\definition nonzero[x: Open.Carrier Interval.domain]: Logic.Not (projected x = Real.zero) :=
+  Inverse.positiveNonzero (projected x) (Interval.bounds x).left;
+\import Open.Analysis[].Reciprocal[U := Interval.domain, f := projected, nonzero := nonzero] \as Reciprocal;
+\definition partial: Open.Analysis[].HasPartialDerivative Interval.domain projected One.index (\fun (x: Open.Carrier Interval.domain) => Real.one) :=
+  Restriction.partial Interval.domain (Coordinates.projection One.index) (Coordinates.constantFunction Real.one) One.index (Partials.projectionPartial One.index);
+\definition derivative: Derivatives.HasDerivativeAt (\fun (x: Scalar) => Laws.fieldInv x) t (Real.neg (Real.mul (Laws.fieldInv t) (Laws.fieldInv t))) :=
+  Lift.derivativeAt (\fun (x: Scalar) => Laws.fieldInv x) point (Real.neg (Real.mul (Laws.fieldInv t) (Laws.fieldInv t)))
+    (\idelim Real.mul (Real.neg (Real.mul (Laws.fieldInv t) (Laws.fieldInv t))) Real.one = Real.neg (Real.mul (Laws.fieldInv t) (Laws.fieldInv t))
+      \with d: Scalar => Open.Analysis[].HasPartialDerivativeAt Interval.domain (Lift.lift (\fun (x: Scalar) => Laws.fieldInv x)) One.index point d \by {
+        base: Reciprocal.partial One.index (\fun (x: Open.Carrier Interval.domain) => Real.one) partial point,
+        equality: Algebra.mulOneRight (Real.neg (Real.mul (Laws.fieldInv t) (Laws.fieldInv t)))
+      });

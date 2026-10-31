@@ -1,0 +1,26 @@
+\definition zeroDerivative: Derivatives.HasDerivativeAt (function p) Real.zero Real.zero :=
+  LimitLaws.puncturedCongruentLimit (function (Expression::times Expression::variable p)) (Derivatives.slope (function p) Real.zero) Real.zero Real.zero
+    (\fun (t: Scalar)(different: _) => eq_reason!{
+      {function (Expression::times Expression::variable p) t}
+      "=" {Real.mul (Laws.fieldInv t) (function p t)} "by" {Laws.fieldMulAssoc (Laws.fieldInv t) (evaluate p (Laws.fieldInv t)) (BasicRate.value t)}
+      "=" {Real.mul (function p t) (Laws.fieldInv t)} "by" {Laws.fieldMulComm _ _}
+      "=" {Derivatives.slope (function p) Real.zero t} "by" {
+        congr!{Scalar Scalar Scalar} Real.mul _ _ _ _
+          (sym!{Scalar} _ _ (trans!{Scalar} _ _ _ (congr!{Scalar Scalar} (Real.sub (function p t)) _ _ (atZero p)) (Laws.subZeroRight (function p t))))
+          (congr!{Scalar Scalar} Laws.fieldInv _ _ (sym!{Scalar} _ _ (Laws.subZeroRight t))) }
+    }) (rapid (Expression::times Expression::variable p) rate);
+\module Positive(t: Scalar, positive: R.Lt Real.zero t);
+\module Negative(t: Scalar, negative: R.Lt t Real.zero);
+\definition derivative[t: Scalar]: Derivatives.HasDerivativeAt (function p) t (function (next p) t) :=
+  either!{{(Order.ltTrichotomy Real.zero t)} {Derivatives.HasDerivativeAt (function p) t (function (next p) t)}
+    {\fun (positive: _) => Positive[t := t, positive := positive].derivative}
+    {\fun (other: Logic.Or[Real.zero = t, R.Lt t Real.zero]) => either!{other {Derivatives.HasDerivativeAt (function p) t (function (next p) t)}
+      {\fun (same: Real.zero = t) => \idelim Real.zero = t \with x: Scalar => Derivatives.HasDerivativeAt (function p) x (function (next p) x) \by {
+        base: \idelim Real.zero = function (next p) Real.zero \with d: Scalar => Derivatives.HasDerivativeAt (function p) Real.zero d \by {
+          base: zeroDerivative, equality: sym!{Scalar} _ _ (atZero (next p))
+        }, equality: same
+      }}
+      {\fun (negative: _) => Negative[t := t, negative := negative].derivative}
+    }}
+  };
+\definition continuous[t: Scalar]: Limits.ContinuousAt (function p) t := DerivativeOperations.continuousOfDerivative (function p) t (function (next p) t) (derivative t);

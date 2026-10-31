@@ -1,0 +1,31 @@
+\import Charts.Of[chart := c] \as Geometry;
+\import Space.Subspace[S := c.domain] \as Domain;
+\import Domain.Open[] \as OpenDomain;
+\import Open.Topology[].Of[U := c.image].Continuity[] \as Coordinates;
+\import topology.Topology[Carrier := Charts.LocalPoint c] \as Local;
+\import topology.Continuity[A := Charts.LocalPoint c, B := Real.Real] \as Scalar;
+\import topology.Homeomorphism[A := Charts.LocalPoint c, B := Open.Carrier c.image] \as Homeomorphisms;
+\import topology.Composition[A := Charts.LocalPoint c, B := Open.Carrier c.image, C := Real.Real] \as Composition;
+\definition localContinuous: Smooth.SmoothOn c.image (coordinates c f) -> Scalar.Continuous (Charts.domainTopology c.domain) Line.topology (\fun (y: Charts.LocalPoint c) => f y) :=
+  \fun (regular: _) => \idelim (\fun (y: Charts.LocalPoint c) => coordinates c f (Charts.coordinate c y)) = (\fun (y: Charts.LocalPoint c) => f y)
+    \with g: (Charts.LocalPoint c -> Real.Real) => Scalar.Continuous (Charts.domainTopology c.domain) Line.topology g \by {
+      base: Composition.composeContinuous (Charts.domainTopology c.domain) (Charts.imageTopology c.image) Line.topology (Charts.coordinate c) (coordinates c f)
+        (Homeomorphisms.laws (Charts.domainTopology c.domain) (Charts.imageTopology c.image) c.coordinates).forwardContinuous
+        (Coordinates.topological (coordinates c f) (Smooth.Properties[].continuous c.image (coordinates c f) regular)),
+      equality: \axiom:funext((\fun (y: Charts.LocalPoint c) => coordinates c f (Charts.coordinate c y)), (\fun (y: Charts.LocalPoint c) => f y),
+        \fun (y: Charts.LocalPoint c) => congr!{M.Point Real.Real} f _ _ (Geometry.pointCoordinate y))
+    };
+\definition neighborhood[x: M.Point][inChart: Charts.Contains c x][W: \Pow Real.Real][open: topology.Topology[Carrier := Real.Real].IsOpenIn Line.topology W]
+  [member: Space.Member (Maps.Preimage f W) x]: Smooth.SmoothOn c.image (coordinates c f) ->
+  \exists ( U: \Pow M.Point \where Space.OpenNeighborhood[M.space, x, Maps.Preimage f W, U] ) := \block {
+  \fun (regular: _) \then
+  \let preimage: \Pow (Charts.LocalPoint c) := Scalar.Preimage (\fun (y: Charts.LocalPoint c) => f y) W \then
+  \let localPoint: Charts.LocalPoint c := \into[M.Point](x, c.domain) \by { inChart } \then
+  \return Logic.existsIntro[\Pow M.Point, { U: \Pow M.Point \where Space.OpenNeighborhood[M.space, x, Maps.Preimage f W, U] }] (OpenDomain.image preimage)
+    (Space.OpenNeighborhood[M.space, x, Maps.Preimage f W, OpenDomain.image preimage] {
+      open := OpenDomain.imageOpen M.space c.open preimage (localContinuous regular W open),
+      contains := OpenDomain.imageMember preimage localPoint member,
+      within := \fun (y: M.Point)(inside: Space.Member (OpenDomain.image preimage) y) => OpenDomain.imageElim preimage y (Space.Member (Maps.Preimage f W) y)
+        (\fun (z: Charts.LocalPoint c)(inPreimage: Local.Member preimage z)(equal: z = y) => \idelim z = y \with w: M.Point => Space.Member (Maps.Preimage f W) w \by { base: inPreimage, equality: equal }) inside,
+    })
+};

@@ -1,0 +1,23 @@
+\definition complementLower[k: N.Nat^][x: A]: R.Le Real.zero (Real.sub Real.one ((bumps k).value x)) :=
+  R.leReplaceLeft (Real.sub Real.one Real.one) Real.zero (Real.sub Real.one ((bumps k).value x)) (Laws.subSelf Real.one)
+    (Laws.addMonotoneLeft (Real.neg Real.one) (Real.neg ((bumps k).value x)) Real.one (Laws.negAntitone ((bumps k).value x) Real.one ((bumps k).upper x)));
+\definition complementUpper[k: N.Nat^][x: A]: R.Le (Real.sub Real.one ((bumps k).value x)) Real.one :=
+  R.leReplaceRight _ (Real.add Real.one (Real.neg Real.zero)) Real.one
+    (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (Real.add Real.one) _ _ Laws.negZero) (Laws.addZeroRight Real.one))
+    (Laws.addMonotoneLeft (Real.neg ((bumps k).value x)) (Real.neg Real.zero) Real.one (Laws.negAntitone Real.zero ((bumps k).value x) ((bumps k).lower x)));
+\definition residueLower: \forall (k: N.Nat^)(x: A) -> R.Le Real.zero (residue k x) :=
+  \induction (k: N.Nat^) \return \forall (x: A) -> R.Le Real.zero (residue k x) \with {
+    | zero: \fun (x: A) => Laws.oneNonnegative
+    | succ: \fun (k: N.Nat^)(previous: _)(x: A) => Laws.fieldMulNonnegative _ _ (previous x) (complementLower k x)
+  };
+\definition residueUpper: \forall (k: N.Nat^)(x: A) -> R.Le (residue k x) Real.one :=
+  \induction (k: N.Nat^) \return \forall (x: A) -> R.Le (residue k x) Real.one \with {
+    | zero: \fun (x: A) => R.leRefl Real.one
+    | succ: \fun (k: N.Nat^)(previous: _)(x: A) => R.leTrans _ _ _
+      (R.leReplaceRight _ (Real.mul (residue k x) Real.one) (residue k x) (Algebra.mulOneRight (residue k x))
+        (Estimates.mulMonotone (residue k x) _ Real.one (residueLower k x) (complementUpper k x))) (previous x)
+  };
+\definition partLower[k: N.Nat^][x: A]: R.Le Real.zero (part k x) := Laws.fieldMulNonnegative _ _ ((bumps k).lower x) (residueLower k x);
+\definition partUpper[k: N.Nat^][x: A]: R.Le (part k x) Real.one := R.leTrans _ _ _
+  (R.leReplaceRight _ (Real.mul ((bumps k).value x) Real.one) ((bumps k).value x) (Algebra.mulOneRight _)
+    (Estimates.mulMonotone _ _ Real.one ((bumps k).lower x) (residueUpper k x))) ((bumps k).upper x);

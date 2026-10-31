@@ -70,6 +70,7 @@
 
 | 配置 | パッケージ | 内容 |
 | --- | --- | --- |
+| [geometry/smooth_partitions](geometry/smooth_partitions/README.md) | `smooth_partitions` | 平坦関数、コンパクト台付き cutoff、局所有限な滑らかな従属分割、零延長と局所有限和 |
 | [geometry/manifolds](geometry/manifolds/README.md) | `manifolds` | アトラス、滑らかな写像、接空間と微分 |
 | [geometry/vector_bundles](geometry/vector_bundles/README.md) | `vector_bundles` | 一般の実・複素束、局所定数ランク、束写像・切断・引き戻しと普遍性 |
 | [geometry/bundle_operations](geometry/bundle_operations/README.md) | `bundle_operations` | Cocycle の貼り合わせ、直和・テンソル・双対・Hom・外冪、実化・複素化と引き戻し |

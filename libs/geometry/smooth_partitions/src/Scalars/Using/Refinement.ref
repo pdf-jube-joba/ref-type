@@ -1,0 +1,49 @@
+\import metric_spaces.RealLine[] \as Line;
+\import Line.Rays[] \as Rays;
+\import topology.Continuity[A := A, B := Real.Real] \as Maps;
+\definition region[k: N.Nat^]: \Pow A := Maps.Preimage (partition.functions k) (Rays.Above Real.zero);
+\definition open[k: N.Nat^]: Maps.Continuous space Line.topology (partition.functions k) -> Space.IsOpenIn space (region k) :=
+  \fun (continuous: _) => continuous (Rays.Above Real.zero) (Rays.aboveOpen Real.zero);
+\definition supported[k: N.Nat^]: Space.Subset (region k) (support (partition.functions k)) := \fun (x: A)(positive: R.Lt Real.zero (partition.functions k x)) =>
+  Closure.contains space (Nonzero (partition.functions k)) x (\fun (zero: partition.functions k x = Real.zero) => Order.ltNotEq Real.zero (partition.functions k x) positive (sym!{Real.Real} _ _ zero));
+\definition within[k: N.Nat^]: Space.Subset (region k) (partition.targets k) := Space.subsetTrans _ _ _ (supported k) (partition.subordinate k);
+\definition prefixZero: \forall (functions: N.Nat^ -> Smooth)(x: A) -> (\forall (k: N.Nat^) -> functions k x = Real.zero) ->
+  \forall (n: N.Nat^) -> Countable.prefix (FamilyValues functions) x n = Real.zero :=
+  \fun (functions: _)(x: _)(zeros: _) => \induction (n: N.Nat^) \return Countable.prefix (FamilyValues functions) x n = Real.zero \with {
+    | zero: \refl(Real.zero)
+    | succ: \fun (n: N.Nat^)(previous: _) => trans!{Real.Real} _ _ _
+      (congr!{Real.Real Real.Real Real.Real} Real.add _ _ _ _ previous (zeros n)) (Laws.addZeroLeft Real.zero)
+  };
+\definition covers[x: A]: \exists ( k: N.Nat^ \where Space.Member (region k) x ) := Finite.doubleNegElim
+  (\exists ( k: N.Nat^ \where Space.Member (region k) x )) (\block {
+    \fun (absent: Logic.Not (\exists ( k: N.Nat^ \where Space.Member (region k) x ))) \then
+    \let zeros: \forall (k: N.Nat^) -> partition.functions k x = Real.zero := \fun (k: N.Nat^) => R.leAntisym _ _
+      (Order.leOfNotLtReverse (partition.functions k x) Real.zero (\fun (positive: R.Lt Real.zero (partition.functions k x)) => absent (Logic.existsIntro[N.Nat^, { i: N.Nat^ \where Space.Member (region i) x }] k positive)))
+      (partition.lower k x) \then
+    \takefrom n: \Cast[N.Nat^] ({ n: N.Nat^ \where Logic.And[Countable.TailZero (FamilyValues partition.functions) x n, Countable.prefix (FamilyValues partition.functions) x n = Real.one] }) \by partition.normalized x \then
+    \let total: Countable.prefix (FamilyValues partition.functions) x n = Real.one := (\bysub(N.Nat^,
+      { n: N.Nat^ \where Logic.And[Countable.TailZero (FamilyValues partition.functions) x n, Countable.prefix (FamilyValues partition.functions) x n = Real.one] }, n)).right \then
+    \return Laws.zeroNeOne (trans!{Real.Real} _ _ _ (sym!{Real.Real} _ _ (prefixZero partition.functions x zeros n)) total)
+  });
+\definition locallyFinite[x: A]: \exists ( neighborhood: FiniteNeighborhood[partition.functions, x] \where
+  \forall (k: N.Nat^) -> Nat.Le neighborhood.bound k -> Space.Disjoint neighborhood.openSet (region k) ) := \block {
+  \takefrom neighborhood: FiniteNeighborhood[partition.functions, x] \by partition.locallyFinite x \then
+  \return Logic.existsIntro[FiniteNeighborhood[partition.functions, x], { neighborhood: FiniteNeighborhood[partition.functions, x] \where
+    \forall (k: N.Nat^) -> Nat.Le neighborhood.bound k -> Space.Disjoint neighborhood.openSet (region k) }] neighborhood
+    (\fun (k: N.Nat^)(later: _)(y: A)(near: Space.Member neighborhood.openSet y)(member: Space.Member (region k) y) => neighborhood.avoids k later y near (supported k y member))
+};
+\definition target[k: N.Nat^]: (\exists \Cast[A] (region k)) ->
+  \exists ( U: \Pow A \where Logic.And[Space.FamilyMember family U, Space.Subset (region k) U] ) :=
+  \fun (nonempty: _) => either!{{(partition.refines k)} {\exists ( U: \Pow A \where Logic.And[Space.FamilyMember family U, Space.Subset (region k) U] )}
+    {\fun (member: Space.FamilyMember family (partition.targets k)) => Logic.existsIntro[\Pow A,
+      { U: \Pow A \where Logic.And[Space.FamilyMember family U, Space.Subset (region k) U] }] (partition.targets k)
+      (Logic.And[_, _]::# member (within k))}
+    {\block {
+      \fun (empty: partition.targets k = Space.Empty) \then
+      \takefrom x: \Cast[A] (region k) \by nonempty \then
+      \let impossible: Logic.False := \idelim partition.targets k = Space.Empty \with U: \Pow A => Space.Member U x \by {
+        base: within k x (\bysub(A, region k, x)), equality: empty
+      } \then
+      \return Logic.falseElim (\exists ( U: \Pow A \where Logic.And[Space.FamilyMember family U, Space.Subset (region k) U] )) impossible
+    }}
+  };

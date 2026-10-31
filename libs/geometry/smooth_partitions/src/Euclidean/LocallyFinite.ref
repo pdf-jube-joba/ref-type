@@ -1,0 +1,22 @@
+\structure Neighborhood[x: Model.Point]: \Set := {
+  domain: Open.OpenSet,
+  contains: Space.Member domain.points x,
+  bound: N.Nat^,
+  vanishes: \forall (y: Open.Carrier domain)(i: N.Nat^) -> Nat.Le bound i -> f i y = Real.zero,
+};
+\definition IsLocallyFinite: \Prop := \forall (x: Model.Point) -> \exists Neighborhood x;
+\definition pointwiseFinite: IsLocallyFinite -> \forall (x: Model.Point) -> Countable.FiniteAt f x := \block {
+  \fun (local: IsLocallyFinite)(x: Model.Point) \then
+  \takefrom neighborhood: Neighborhood x \by local x \then
+  \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where Countable.TailZero f x k }] neighborhood.bound
+    (neighborhood.vanishes (\into[Model.Point](x, neighborhood.domain.points) \by { neighborhood.contains }))
+};
+\definition prefixSmooth: (\forall (i: N.Nat^) -> IsSmooth (f i)) ->
+  \forall (k: N.Nat^) -> IsSmooth (\fun (x: Model.Point) => Countable.prefix f x k) :=
+  \fun (regular: _) => \induction (k: N.Nat^) \return IsSmooth (\fun (x: Model.Point) => Countable.prefix f x k) \with {
+    | zero: Operations.constantSmooth Open.whole Real.zero
+    | succ: \fun (k: N.Nat^)(previous: _) => Operations.addSmooth Open.whole
+      (Restriction.function Open.whole (\fun (x: Model.Point) => Countable.prefix f x k))
+      (Restriction.function Open.whole (f k)) previous (regular k)
+  };
+\module Sum(local: IsLocallyFinite);

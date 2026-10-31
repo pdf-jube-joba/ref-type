@@ -1,0 +1,26 @@
+\definition q: Positive := \into[Real.Real](Real.mul Real.half (Real.mul Real.half r), { q: Real.Real \where R.Lt Real.zero q }) \by {
+  Estimates.halfOfPositive (Real.mul Real.half r) (Estimates.halfOfPositive r ball.positive)
+};
+\import \parent.\parent.\parent.\parent.LocalBump[a := x, q := q] \as Bump;
+\import Bump.Support[] \as Support;
+\definition radiusEquality: Bump.radius = Real.mul Real.half r := trans!{Real.Real} _ _ _
+  (Laws.fieldMulAdd q Real.one Real.one)
+  (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real Real.Real} Real.add _ _ _ _ (Real.Algebra[].mulOneRight q) (Real.Algebra[].mulOneRight q))
+    (Estimates.halfTwice (Real.mul Real.half r)));
+\definition supportWithin: Space.Subset (support Bump.value) U := \fun (y: Model.Point)(supported: Space.Member (support Bump.value) y) =>
+  ball.included y (R.leLtTrans _ _ _
+    (R.leReplaceLeft (Coordinates.pointDistance x y) (Coordinates.pointDistance y x) Bump.radius (Norm.distanceSymmetric x y) (Support.supportWithin y supported))
+    (R.ltReplaceLeft (Real.mul Real.half r) Bump.radius r (sym!{Real.Real} _ _ radiusEquality) (Estimates.halfStrict r ball.positive)));
+\definition region: \Pow Model.Point := Metrics.Ball Norm.metric x q;
+\definition bump: Functions.Bump[family] := Functions.Bump[family] {
+  value := \into[Function](Bump.value, calculus.smooth) \by { Bump.smooth },
+  openSet := U, inCover := Logic.Or[_, _]::left member,
+  supportWithin := supportWithin, supportCompact := Support.supportCompact,
+  oneRegion := region, regionOpen := MetricTopology.ballOpenIn Norm.metric x q,
+  oneOn := \fun (y: Model.Point)(near: Space.Member region y) => Bump.oneNear y
+    (R.ltReplaceLeft (Coordinates.pointDistance x y) (Coordinates.pointDistance y x) q (Norm.distanceSymmetric x y) near),
+  lower := \fun (y: Model.Point) => (Bump.bounded y).left,
+  upper := \fun (y: Model.Point) => (Bump.bounded y).right,
+};
+\definition existsBump: \exists ( b: Functions.Bump[family] \where Space.Member b.oneRegion x ) :=
+  Logic.existsIntro[Functions.Bump[family], { b: Functions.Bump[family] \where Space.Member b.oneRegion x }] bump (Metrics.ballCenter Norm.metric x q Bump.qPositive);

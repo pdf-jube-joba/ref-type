@@ -1,0 +1,23 @@
+\import Functions.Sequence[family := family, bumps := selected.values] \as Sequence;
+\import Sequence.FiniteCover[S := K] \as Cover;
+\import Sequence.Cutoff[] \as Cutoff;
+\definition individualWithin[k: N.Nat^]: Space.Subset (support (selected.values k).value) U.points :=
+  \fun (x: Model.Point)(supported: _) => either!{{((selected.values k).inCover)} {Space.Member U.points x}
+    {\fun (equal: (selected.values k).openSet = U.points) => \idelim (selected.values k).openSet = U.points \with V: \Pow Model.Point => Space.Member V x \by {
+      base: (selected.values k).supportWithin x supported, equality: equal
+    }}
+    {\fun (empty: (selected.values k).openSet = Space.Empty) => Logic.falseElim (Space.Member U.points x)
+      (\idelim (selected.values k).openSet = Space.Empty \with V: \Pow Model.Point => Space.Member V x \by { base: (selected.values k).supportWithin x supported, equality: empty })}
+  };
+\definition existsCutoff: Space.IsCompactIn Ambient.topology K -> \exists Data := \block {
+  \fun (compact: _) \then
+  \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where Space.Subset K (Cover.region k) }) \by Cover.prefixExists compact selected.covers \then
+  \let covered: Space.Subset K (Cover.region k) := \bysub(N.Nat^, { k: N.Nat^ \where Space.Subset K (Cover.region k) }, k) \then
+  \return \exact(Data {
+    value := Cutoff.value k, neighborhood := Cover.region k, neighborhoodOpen := Cover.regionOpen k, contains := covered,
+    oneOnNeighborhood := Cutoff.oneOn k,
+    oneOn := \fun (x: Model.Point)(member: Space.Member K x) => Cutoff.oneOn k x (covered x member),
+    supportWithin := Cutoff.withinTarget U.points individualWithin k,
+    supportCompact := Cutoff.supportCompact k, lower := Cutoff.lower k, upper := Cutoff.upper k,
+  }, Data)
+};

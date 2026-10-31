@@ -1,0 +1,25 @@
+\import Target.InChart[c := c] \as TargetChart;
+\import Source.InChart[c := c] \as SourceChart;
+\import \parent.\parent.Neighborhood[c := c, U := V, open := openV] \as TargetNeighborhood;
+\import \parent.\parent.Neighborhood[c := c, U := intersection, open := intersectionOpen] \as SourceNeighborhood;
+\definition awaySet: \Pow M.Point := Space.Intersection V (Space.Complement F);
+\definition awayOpen: Space.IsOpenIn M.space awaySet := (Space.topologyLaws M.space).intersectionOpen V (Space.Complement F) openV closed;
+\import \parent.\parent.Neighborhood[c := c, U := awaySet, open := awayOpen] \as Away;
+\definition sourceIncluded: Open.Included SourceChart.domain TargetChart.domain := \fun (u: Model.Point)(member: AmbientSpace.Member SourceChart.domain.points u) => \block {
+  \let v: Open.Carrier SourceChart.domain := \into[Model.Point](u, SourceChart.domain.points) \by { member } \then
+  \return TargetNeighborhood.contains (Open.inclusion SourceChart.domain c.image SourceNeighborhood.included v) (SourceNeighborhood.point v).left
+};
+\definition awayIncluded: Open.Included Away.domain TargetChart.domain := \fun (u: Model.Point)(member: AmbientSpace.Member Away.domain.points u) => \block {
+  \let v: Open.Carrier Away.domain := \into[Model.Point](u, Away.domain.points) \by { member } \then
+  \return TargetNeighborhood.contains (Open.inclusion Away.domain c.image Away.included v) (Away.point v).left
+};
+\import Open.LocalSmooth[U := TargetChart.domain, f := TargetChart.coordinates (Target.restrict f)] \as Local;
+\module Inside(u: Open.Carrier TargetChart.domain, member: Space.Member U (TargetChart.point u));
+\module Outside(u: Open.Carrier TargetChart.domain, outside: Logic.Not (Space.Member U (TargetChart.point u)));
+\definition smooth: Smooth.SmoothOn SourceChart.domain (SourceChart.coordinates (Source.restrict f)) -> ZeroAway ->
+  Smooth.SmoothOn TargetChart.domain (TargetChart.coordinates (Target.restrict f)) :=
+  \fun (regular: _)(zero: _) => Local.smooth (\fun (u: Open.Carrier TargetChart.domain) =>
+    either!{{(Classical.excludedMiddle (Space.Member U (TargetChart.point u)))} {\exists \Cast[Local.Patch] (Local.Patches u)}
+      {\fun (member: _) => Inside[u := u, member := member].existsPatch regular}
+      {\fun (outside: _) => Outside[u := u, outside := outside].existsPatch zero}
+    });

@@ -1,0 +1,69 @@
+\import Calculus.Derivative[].Reciprocal[] \as Reciprocal;
+\import R.Order[] \as Order;
+\definition radius: Scalar := Distance.min left.radius right.radius;
+\definition radiusPositive: R.Lt Real.zero radius := Product.minPositive left.radius right.radius
+  (\bysub(Scalar, { r: Scalar \where R.Lt Real.zero r }, left.radius)) (\bysub(Scalar, { r: Scalar \where R.Lt Real.zero r }, right.radius));
+\definition leftInside[t: Scalar]: Inside radius t -> Inside left.radius t :=
+  \fun (inside: _) => Logic.And[_, _]::#
+    (R.leLtTrans _ _ _ (Laws.negAntitone radius left.radius (Distance.minLeft left.radius right.radius)) inside.left)
+    (R.ltLeTrans _ _ _ inside.right (Distance.minLeft left.radius right.radius));
+\definition rightInside[t: Scalar]: Inside radius t -> Inside right.radius t :=
+  \fun (inside: _) => Logic.And[_, _]::#
+    (R.leLtTrans _ _ _ (Laws.negAntitone radius right.radius (Distance.minRight left.radius right.radius)) inside.left)
+    (R.ltLeTrans _ _ _ inside.right (Distance.minRight left.radius right.radius));
+\definition inverse[t: Scalar]: Scalar := Laws.fieldInv (right.value t);
+\definition quotient[t: Scalar]: Scalar := Real.mul (left.value t) (inverse t);
+\definition nonzero[t: Scalar]: Logic.Not (right.value t = Real.zero) := Inverse.positiveNonzero (right.value t) (right.positive t);
+\definition cancellation[t: Scalar]: Real.mul (inverse t) (right.value t) = Real.one := Laws.fieldInverseNonzero (right.value t) (nonzero t);
+\definition inverseDerivative[t: Scalar]: Inside radius t -> Derivatives.HasDerivativeAt inverse t (Real.neg (inverse t)) :=
+  \fun (inside: _) => \idelim Real.mul (Reciprocal.factor (right.value) t t) (right.value t) = Real.neg (inverse t)
+    \with d: Scalar => Derivatives.HasDerivativeAt inverse t d \by {
+      base: Reciprocal.derivative (right.value) nonzero t (right.value t) (right.derivative t (rightInside t inside)),
+      equality: trans!{Scalar} _ _ _ (Laws.fieldMulNegLeft (Real.mul (inverse t) (inverse t)) (right.value t))
+        (congr!{Scalar Scalar} Real.neg _ _ (trans!{Scalar} _ _ _
+          (Laws.fieldMulAssoc (inverse t) (inverse t) (right.value t))
+          (trans!{Scalar} _ _ _ (congr!{Scalar Scalar} (Real.mul (inverse t)) _ _ (cancellation t)) (Algebra.mulOneRight (inverse t)))))
+    };
+\definition derivative[t: Scalar]: Inside radius t -> Derivatives.HasDerivativeAt quotient t Real.zero :=
+  \fun (inside: _) => \idelim Real.add (quotient t) (Real.mul (left.value t) (Real.neg (inverse t))) = Real.zero
+    \with d: Scalar => Derivatives.HasDerivativeAt quotient t d \by {
+      base: Products.derivative (left.value) inverse t (left.value t) (Real.neg (inverse t))
+        (left.derivative t (leftInside t inside)) (inverseDerivative t inside),
+      equality: trans!{Scalar} _ _ _ (congr!{Scalar Scalar} (Real.add (quotient t)) _ _ (Laws.fieldMulNegRight (left.value t) (inverse t)))
+        (Laws.addNegRight (quotient t))
+    };
+\module Segment(a, b: Scalar);
+\definition zeroInside: Inside radius Real.zero := Logic.And[_, _]::# (Laws.negativeNegOfPositive radius radiusPositive) radiusPositive;
+\definition quotientConstant[t: Scalar]: Inside radius t -> quotient t = quotient Real.zero :=
+  \fun (inside: _) => either!{{(Order.ltTrichotomy Real.zero t)} {quotient t = quotient Real.zero}
+    {\fun (positive: _) => Segment[a := Real.zero, b := t].constant positive zeroInside inside}
+    {\fun (other: Logic.Or[Real.zero = t, R.Lt t Real.zero]) => either!{other {quotient t = quotient Real.zero}
+      {\fun (same: Real.zero = t) => congr!{Scalar Scalar} quotient _ _ (sym!{Scalar} _ _ same)}
+      {\fun (negative: _) => sym!{Scalar} _ _ (Segment[a := t, b := Real.zero].constant negative inside zeroInside)}
+    }}
+  };
+\definition atZero: quotient Real.zero = Real.one := trans!{Scalar} _ _ _
+  (congr!{Scalar Scalar} (\fun (x: Scalar) => Real.mul x (inverse Real.zero)) _ _
+    (trans!{Scalar} _ _ _ left.atZero (sym!{Scalar} _ _ right.atZero)))
+  (trans!{Scalar} _ _ _ (Laws.fieldMulComm (right.value Real.zero) (inverse Real.zero)) (cancellation Real.zero));
+\definition agrees[t: Scalar]: Inside radius t -> left.value t = right.value t :=
+  \fun (inside: _) => eq_reason!{
+    {left.value t} "=" {Real.mul (left.value t) Real.one} "by" {sym!{Scalar} _ _ (Algebra.mulOneRight (left.value t))}
+    "=" {Real.mul (left.value t) (Real.mul (inverse t) (right.value t))} "by" {
+      congr!{Scalar Scalar} (Real.mul (left.value t)) _ _ (sym!{Scalar} _ _ (cancellation t)) }
+    "=" {Real.mul (quotient t) (right.value t)} "by" {sym!{Scalar} _ _ (Laws.fieldMulAssoc (left.value t) (inverse t) (right.value t))}
+    "=" {Real.mul Real.one (right.value t)} "by" {congr!{Scalar Scalar} (\fun (x: Scalar) => Real.mul x (right.value t)) _ _
+      (trans!{Scalar} _ _ _ (quotientConstant t inside) atZero)}
+    "=" {right.value t} "by" {Laws.fieldMulOneLeft (right.value t)}
+  };
+\definition commonInside[t: Scalar]: Inside left.radius t -> Inside right.radius t -> Inside radius t :=
+  \fun (leftBounds: _)(rightBounds: _) => either!{{(Order.leTotal left.radius right.radius)} {Inside radius t}
+    {\fun (ordered: _) => \idelim left.radius = radius \with r: Scalar => Inside r t \by {
+      base: leftBounds, equality: sym!{Scalar} _ _ (Distance.minOfLe left.radius right.radius ordered)
+    }}
+    {\fun (ordered: _) => \idelim right.radius = radius \with r: Scalar => Inside r t \by {
+      base: rightBounds, equality: sym!{Scalar} _ _ (Distance.minOfGe left.radius right.radius ordered)
+    }}
+  };
+\definition agreement[t: Scalar]: Inside left.radius t -> Inside right.radius t -> left.value t = right.value t :=
+  \fun (leftBounds: _)(rightBounds: _) => agrees t (commonInside t leftBounds rightBounds);
