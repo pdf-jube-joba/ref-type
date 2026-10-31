@@ -1,0 +1,23 @@
+\definition bound: R.Le (distance (solution y) a) (Scalars.add (distance y (f a)) (Scalars.mul Scalars.half r)) := \block {
+  \let clippedBound: R.Le (distance (clipped control (solution y)) a) r := Clip.bounded a r (solution y) (Order.leOfLt _ _ control.positive) \then
+  \let residualBound: R.Le (distance (residual (clipped control (solution y))) (residual a)) (Scalars.mul Scalars.half r) :=
+    R.leTrans _ _ _ (control.contraction (clipped control (solution y)) a clippedBound
+      (R.leReplaceLeft Scalars.zero (distance a a) r (sym!{Real} _ _ (Norm.distanceSelf a)) (Order.leOfLt _ _ control.positive)))
+      (Bounds.mulMonotone Scalars.half _ _ Bounds.halfNonnegative clippedBound) \then
+  \return R.leReplaceLeft _ _ _
+    (congr!{Point Point Real} distance _ _ _ _ (fixed y) centerEquation)
+    (R.leTrans _ _ _ (Norm.distanceAdd y (residual (clipped control (solution y))) (f a) (residual a))
+      (Laws.addMonotoneLeft _ _ (distance y (f a)) residualBound))
+};
+\definition near: R.Lt (distance y (f a)) (Scalars.mul Scalars.half r) := ofBall (f a) (Scalars.mul Scalars.half r) y;
+\definition inside: R.Lt (distance (solution y) a) r := R.leLtTrans _ _ _ bound
+    (R.ltReplaceRight _ _ _ (Bounds.halfTwice r) (Laws.ltAddRight _ _ (Scalars.mul Scalars.half r) near));
+\definition point: Open.Carrier U := \into[Point](solution y, U.points) \by { control.inside (solution y) (Order.leOfLt _ _ inside) };
+\definition clippedSolution: clipped control (solution y) = point := Clip.inside a r (solution y) (Order.leOfLt _ _ inside);
+\definition equation: f point = y := \block {
+  \let law: Coordinates.addPoint y (residual point) = solution y :=
+    trans!{Point} _ _ _ (sym!{Point} _ _ (congr!{Point Point} (Coordinates.addPoint y) _ _ (residualAgrees point (Order.leOfLt _ _ inside)))) (fixed y) \then
+  \return \axiom:funext(f point, y, \fun (i: Space.Coordinate) => Laws.addCancelRight _ _ (Scalars.sub (solution y i) (f point i))
+    (trans!{Real} _ _ _ (Bounds.addSubCancel (solution y i) (f point i))
+      (sym!{Real} _ _ (congr!{Point Real} (\fun (z: Point) => z i) _ _ law))))
+};

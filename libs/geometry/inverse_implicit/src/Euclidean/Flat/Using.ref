@@ -1,0 +1,28 @@
+\definition smallest: Real := Sums.Bounds[].minimum n (\fun (i: Space.Coordinate) => controls i);
+\definition smallestPositive: R.Lt Scalars.zero smallest := Sums.Bounds[].positive n (\fun (i: Space.Coordinate) => controls i)
+  (\fun (i: Space.Coordinate) => (\bysub(Real, { delta: Real \where Analysis.ContinuityControl[U, g i, a, theta, delta] }, controls i)).positive);
+\definition delta: Real := Distance.min rho smallest;
+\definition halfDelta: Real := Scalars.mul Scalars.half delta;
+\definition radius: Real := Scalars.mul Scalars.half (Scalars.mul Scalars.half halfDelta);
+\definition halfPositive: Open.BallInside[U.points, a, rho] -> R.Lt Scalars.zero halfDelta :=
+  \fun (ball: _) => Bounds.halfOfPositive delta (Product.minPositive rho smallest ball.positive smallestPositive);
+\definition positive: Open.BallInside[U.points, a, rho] -> R.Lt Scalars.zero radius :=
+  \fun (ball: _) => Bounds.halfOfPositive _ (Bounds.halfOfPositive _ (halfPositive ball));
+\definition radiusSmall: Open.BallInside[U.points, a, rho] -> R.Lt (Scalars.add radius radius) halfDelta :=
+  \fun (ball: _) => R.ltReplaceLeft _ _ _ (sym!{Real} _ _ (Bounds.halfTwice (Scalars.mul Scalars.half halfDelta))) (Bounds.halfStrict halfDelta (halfPositive ball));
+\definition threeSmall: Open.BallInside[U.points, a, rho] -> R.Lt (Scalars.add halfDelta radius) delta :=
+  \fun (ball: _) => R.ltReplaceRight _ _ _ (Bounds.halfTwice delta)
+    (Laws.ltAddLeft halfDelta radius halfDelta (R.leLtTrans _ _ _ (Bounds.halfBelow (Scalars.mul Scalars.half halfDelta)
+      (Laws.fieldMulNonnegative Scalars.half halfDelta Bounds.halfNonnegative (Order.leOfLt _ _ (halfPositive ball)))) (Bounds.halfStrict halfDelta (halfPositive ball))));
+\definition included: Open.BallInside[U.points, a, rho] -> \forall (x: Point) -> R.Le (distance x a) radius -> \In[Point] U.points x :=
+  \fun (ball: _)(x: Point)(near: _) => ball.included x (R.ltLeTrans _ delta rho
+    (R.leLtTrans _ radius delta near (R.leLtTrans _ halfDelta delta
+      (R.leTrans _ _ _ (Bounds.halfBelow (Scalars.mul Scalars.half halfDelta) (Laws.fieldMulNonnegative Scalars.half halfDelta Bounds.halfNonnegative (Order.leOfLt _ _ (halfPositive ball))))
+        (Bounds.halfBelow halfDelta (Order.leOfLt _ _ (halfPositive ball))))
+      (Bounds.halfStrict delta (Product.minPositive rho smallest ball.positive smallestPositive)))) (Distance.minLeft rho smallest));
+\module Pair(x, y: Open.Carrier U);
+\definition neighborhood: DerivativeLaws -> Open.BallInside[U.points, a, rho] -> \exists Neighborhood :=
+  \fun (laws: DerivativeLaws)(ball: _) => \exact(Neighborhood {
+  radius := radius, positive := positive ball, included := included ball,
+  estimate := \fun (x, y: Open.Carrier U) => Pair[x := x, y := y].estimate laws ball,
+}, Neighborhood);

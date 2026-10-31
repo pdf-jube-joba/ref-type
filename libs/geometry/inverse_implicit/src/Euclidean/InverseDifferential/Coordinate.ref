@@ -1,0 +1,35 @@
+\definition row: calculus.Real[].Multivariable[n := n].Differential[].Def[].LinearMap := Vector.row e j;
+\definition coefficient: Real := Linear.positiveCoefficient row;
+\definition coefficientPositive: R.Lt Scalars.zero coefficient := Product.coefficientPositive _ _;
+\definition coefficientBound: R.Le (Linear.coefficient (Linear.coefficients row)) coefficient := Linear.coefficientDominated row;
+\definition remainder[y: Open.Carrier V]: Real := Analysis.remainder V (\fun (z: Open.Carrier V) => g z j) b row y;
+\definition identity: Hypotheses -> \forall (y: Open.Carrier V) -> row.apply (error y) = Scalars.sub (e.apply (Coordinates.subPoint y b) j) (Scalars.sub (g y j) (g b j)) := \block {
+  \fun (hypotheses: Hypotheses)(y: Open.Carrier V) \then
+  \let first: Coordinates.subPoint (f (g y)) (f (g b)) = Coordinates.subPoint y b :=
+    congr!{Point Point Point} Coordinates.subPoint _ _ _ _ (hypotheses.right y) (hypotheses.right b) \then
+  \return eq_reason_in!{Real _
+    "=" _ "by" { Linear.subtract row (Coordinates.subPoint (f (g y)) (f (g b))) (d.apply (Coordinates.subPoint (g y) (g b))) }
+    "=" _ "by" { congr!{Point Point Real} (\fun (v, w: Point) => Scalars.sub (row.apply v) (w j)) _ _ _ _ first (hypotheses.inverse (Coordinates.subPoint (g y) (g b))) }
+  }
+};
+\definition errorMagnitude: Hypotheses -> \forall (y: Open.Carrier V) -> Scalars.distance (remainder y) Scalars.zero = Scalars.distance (row.apply (error y)) Scalars.zero :=
+  \fun (hypotheses: Hypotheses)(y: Open.Carrier V) => eq_reason_in!{Real _
+    "=" _ "by" { Bounds.distanceDifference (Scalars.sub (g y j) (g b j)) (e.apply (Coordinates.subPoint y b) j) }
+    "=" _ "by" { Distance.distanceSymmetric _ _ }
+    "=" _ "by" { sym!{Real} _ _ (Bounds.distanceDifference (e.apply (Coordinates.subPoint y b) j) (Scalars.sub (g y j) (g b j))) }
+    "=" _ "by" { congr!{Real Real} (\fun (x: Real) => Scalars.distance x Scalars.zero) _ _ (sym!{Real} _ _ (identity hypotheses y)) }
+  };
+\definition errorBound: \forall (y: Open.Carrier V) -> R.Le (Scalars.distance (row.apply (error y)) Scalars.zero) (Scalars.mul coefficient (Coordinates.norm (error y))) :=
+  \fun (y: Open.Carrier V) => R.leTrans _ _ _ (Linear.normBound row (error y))
+    (R.leReplace _ _ _ _ (Laws.fieldMulComm (Coordinates.norm (error y)) (Linear.coefficient (Linear.coefficients row))) (Laws.fieldMulComm (Coordinates.norm (error y)) coefficient)
+      (Bounds.mulMonotone (Coordinates.norm (error y)) _ _ (Norm.nonnegative (error y)) coefficientBound));
+\module Control(hypotheses: Hypotheses, epsilon, delta: Real);
+\definition law: Hypotheses -> Analysis.HasDifferentialAt V (\fun (y: Open.Carrier V) => g y j) b row := \block {
+  \fun (hypotheses: Hypotheses)(epsilon: Real)(positive: _) \then
+  \let eta: Real := Product.radius coefficient (Scalars.mul Scalars.half epsilon) \then
+  \let etaPositive: R.Lt Scalars.zero eta := Product.radiusPositive coefficient (Scalars.mul Scalars.half epsilon) coefficientPositive (Bounds.halfOfPositive epsilon positive) \then
+  \takefrom delta: \Cast[Real] ({ r: Real \where Vector.Control[U, f, g b, d, eta, r] })
+    \by Vector.Differential[U := U, f := f, a := g b, d := d].uniform hypotheses.differential eta etaPositive \then
+  \return Control[hypotheses := hypotheses, epsilon := epsilon, delta := delta].existsControl positive
+    (\bysub(Real, { r: Real \where Vector.Control[U, f, g b, d, eta, r] }, delta))
+};

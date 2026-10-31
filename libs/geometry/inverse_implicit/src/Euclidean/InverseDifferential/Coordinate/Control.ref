@@ -1,0 +1,34 @@
+\definition eta: Real := Product.radius coefficient (Scalars.mul Scalars.half epsilon);
+\definition existsControl: R.Lt Scalars.zero epsilon -> Vector.Control[U, f, g b, d, eta, delta] ->
+  \exists ( radius: Real \where Analysis.DifferentialControl[V, (\fun (y: Open.Carrier V) => g y j), b, row, epsilon, radius] ) := \block {
+  \fun (positive: _)(control: _) \then
+  \return Logic.existsIntro[Real, { radius: Real \where Analysis.DifferentialControl[V, (\fun (y: Open.Carrier V) => g y j), b, row, epsilon, radius] }]
+    (Scalars.mul Scalars.half delta) (Analysis.DifferentialControl[V, (\fun (y: Open.Carrier V) => g y j), b, row, epsilon, Scalars.mul Scalars.half delta] {
+      positive := Bounds.halfOfPositive delta control.positive,
+      estimate := \block {
+        \fun (y: Open.Carrier V)(nonzero: _)(near: _) \then
+        \let s: Real := outgoing y \then
+        \let t: Real := incoming y \then
+        \let sPositive: R.Lt Scalars.zero s := outgoingPositive hypotheses y nonzero \then
+        \let sSmall: R.Lt s delta := R.leLtTrans _ _ _ (hypotheses.lipschitz y)
+          (R.ltReplaceRight _ _ _ (Bounds.halfTwice delta) (Bounds.addLt _ _ _ _ near near)) \then
+        \let estimate: R.Lt (Coordinates.norm (error y)) (Scalars.mul eta s) := control.estimate (g y) sPositive sSmall \then
+        \let small: R.Lt (Scalars.mul coefficient eta) (Scalars.mul Scalars.half epsilon) :=
+          Product.radiusSmall coefficient (Scalars.mul Scalars.half epsilon) coefficientPositive (Bounds.halfOfPositive epsilon positive) \then
+        \let productSmall: R.Lt (Scalars.mul (Scalars.mul coefficient eta) s) (Scalars.mul (Scalars.mul Scalars.half epsilon) s) :=
+          R.ltReplaceRight _ _ _ (Laws.fieldMulComm s (Scalars.mul Scalars.half epsilon))
+            (R.ltReplaceLeft _ _ _ (Laws.fieldMulComm s (Scalars.mul coefficient eta)) (Product.mulStrict s _ _ sPositive small)) \then
+        \let final: R.Le (Scalars.mul (Scalars.mul Scalars.half epsilon) s) (Scalars.mul epsilon t) := R.leReplaceRight _ _ _
+          (trans!{Real} _ _ _ (Laws.fieldMulAdd (Scalars.mul Scalars.half epsilon) t t)
+            (trans!{Real} _ _ _ (sym!{Real} _ _ (Algebra.mulAddRight (Scalars.mul Scalars.half epsilon) (Scalars.mul Scalars.half epsilon) t))
+              (congr!{Real Real} (\fun (c: Real) => Scalars.mul c t) _ _ (Bounds.halfTwice epsilon))))
+          (Bounds.mulMonotone (Scalars.mul Scalars.half epsilon) _ _
+            (Laws.fieldMulNonnegative _ _ Bounds.halfNonnegative (Order.leOfLt _ _ positive)) (hypotheses.lipschitz y)) \then
+        \return R.ltReplaceLeft _ _ _ (sym!{Real} _ _ (errorMagnitude hypotheses y))
+          (R.leLtTrans _ _ _ (errorBound y) (R.ltLeTrans _ _ _
+            (Order.ltTrans _ _ _
+              (R.ltReplaceRight _ _ _ (sym!{Real} _ _ (Laws.fieldMulAssoc coefficient eta s))
+                (Product.mulStrict coefficient _ _ coefficientPositive estimate)) productSmall) final))
+      },
+    })
+};
