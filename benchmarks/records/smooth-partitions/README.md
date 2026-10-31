@@ -48,8 +48,3 @@ Raw whole-repository evidence remains at `work/repository-check/20261030T230355.
 A no-cache minimal example of implicit eta expansion of a specialized module function rejects with a type mismatch; the explicit-lambda example succeeds with exit code 0.
 Both examples are recorded in the final section of [gaps.md](../../../gaps.md).
 The library uses a fixed-parameter helper module for this case and retains the same mathematical statements.
-
-## Publication state
-
-Implementation, proofs, documentation, examples, commits and normal checking are complete locally.
-Push, GitHub PR creation, merge and environment republication have not been attempted; they remain pending the parent thread's authorization.
