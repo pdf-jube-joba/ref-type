@@ -24,6 +24,8 @@
 | `On.SimpleApproximation[p].dense` | L1 可積分な実単関数による Lp 近似 |
 | `On.Pullback[p, map]` | 測度保存写像の引き戻し、a.e. 商上の定義・ノルム・距離の保存 |
 | `Euclidean[n].Translation[p].continuous` / `Group.continuousAt` | 有限 p の Lebesgue Lp における平行移動の ε–δ ノルム連続性、合成則と等長性 |
+| `Euclidean[n].BorelRepresentative[p].existsRepresentative` | 各有限 p の Lebesgue Lp 類に対する Borel 可測代表の構成 |
+| `Euclidean[n].Joint.measurableKernel` | Borel 代表に対する `f(x−y)ρ(y)` の積 σ 代数上の共同可測性 |
 | `Euclidean[n].Compact[p]` | コンパクト台付き連続・滑らかな関数の可測性・有界性・Lp 代表元 |
 | `Euclidean[n].Approximation[p].smoothDense` / `continuousDense` | Euclid の Lebesgue 測度、有限実指数 `1 ≤ p < ∞` での C∞ コンパクト台・連続コンパクト台関数の稠密性 |
 | `Examples[A, mu, p]` | 一般の代表元・商・指数を使う検査される利用例 |
@@ -55,6 +57,9 @@ Euclid 上の稠密性は、任意の Lp 関数の箱による切り詰め、単
 この稠密性は有限 p に限定され、L∞ については主張しない。`EuclideanExamples[n, p]` が一般の次元・指数・商の元を使う検査対象の利用例である。
 
 L∞ の完備性は、列の各項と全ての差分の上界に対する可算例外集合をまとめ、その外で点ごとの Cauchy 極限を取り、可測な零集合上で零にした代表を構成して証明する。
+
+Borel 代表は、滑らかな近似列に対する完備性証明の a.e. 極限を再利用し、例外集合を Borel 零集合で覆い、その集合上で零にした代表として構成する。
+共同可測性は、積 σ 代数上の座標関数と座標差の可測性から Borel σ 代数の引き戻しを構成して証明する。
 
 A05 の後続作業は、近似単位・平滑化である。
 

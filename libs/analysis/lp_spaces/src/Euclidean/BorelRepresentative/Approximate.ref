@@ -1,0 +1,18 @@
+\definition sequence[k: N.Nat^]: F.Representatives := Compact.smoothRepresentative (s k);
+\definition cauchy: Completion.Cauchy sequence := \fun (epsilon: Real.Real)(positive: _) => \block {
+  \let h: Real.Real := Real.mul Real.half epsilon \then
+  \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where Metric.LimitControl Norm.metric (\fun (k: N.Nat^) => Approximation.ofSmooth (s k)) x h k }) \by converges h (Estimates.halfOfPositive epsilon positive) \then
+  \let control: Metric.LimitControl Norm.metric (\fun (k: N.Nat^) => Approximation.ofSmooth (s k)) x h k := \bysub(N.Nat^,
+    { k: N.Nat^ \where Metric.LimitControl Norm.metric (\fun (k: N.Nat^) => Approximation.ofSmooth (s k)) x h k }, k) \then
+  \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where Completion.Control[sequence, epsilon, k] }] k
+    (\fun (m, n: N.Nat^)(km: _)(kn: _) => R.ltReplaceLeft _ _ _ (Completion.classDistance (sequence m) (sequence n))
+      (R.leLtTrans _ _ _ (Norm.metric.triangle (Approximation.ofSmooth (s m)) x (Approximation.ofSmooth (s n)))
+        (R.ltReplaceRight _ (Real.add h h) epsilon (Estimates.halfTwice epsilon)
+          (Estimates.addLt _ _ _ _ (control m km) (R.ltReplaceLeft _ _ _ (Norm.metric.symmetric (Approximation.ofSmooth (s n)) x) (control n kn))))))
+};
+\definition cauchySequence: Completion.CauchySequence := \into[N.Nat^ -> F.Representatives](sequence, Completion.CauchySequence) \by { cauchy };
+\module Along(index: N.Nat^ -> N.Nat^, good: Completion.Good[cauchySequence, index]);
+\definition existsRepresentative: \exists Representative[x] := \block {
+  \takefrom index: \Cast[N.Nat^ -> N.Nat^] ({ index: N.Nat^ -> N.Nat^ \where Completion.Good[cauchySequence, index] }) \by L.Completion[p := p].Selection[s := cauchySequence].exists \then
+  \return Along[index := index, good := \bysub(N.Nat^ -> N.Nat^, { index: N.Nat^ -> N.Nat^ \where Completion.Good[cauchySequence, index] }, index)].existsRepresentative
+};
