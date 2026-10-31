@@ -1,0 +1,21 @@
+\definition base[p: StartFamily.Point]: Cylinder.Carrier := at p.base;
+\definition baseContinuous: topology.Continuity[A := StartFamily.Point, B := Cylinder.Carrier].Continuous Start.bundle.totalSpace (Cylinder.topology baseSpace) base :=
+  topology.Composition[A := StartFamily.Point, B := X, C := Cylinder.Carrier].composeContinuous Start.bundle.totalSpace baseSpace (Cylinder.topology baseSpace) StartFamily.projection at
+    (StartFamily.Of[bundle := Start.bundle].projectionContinuous) (Cylinder.atContinuous baseSpace I.end);
+\definition lift[p: StartFamily.Point]: PulledFamily.Point := PulledFamily.include (base p) p.vector;
+\definition normalized[p: StartFamily.Point]: StartFamily.Point := StartFamily.include p.base p.vector;
+\definition normalizedContinuous: topology.Continuity[A := StartFamily.Point, B := StartFamily.Point].Continuous Start.bundle.totalSpace Start.bundle.totalSpace normalized :=
+  \idelim (\fun (p: StartFamily.Point) => p) = normalized \with f: (StartFamily.Point -> StartFamily.Point) => topology.Continuity[A := StartFamily.Point, B := StartFamily.Point].Continuous Start.bundle.totalSpace Start.bundle.totalSpace f \by {
+    base: topology.Maps[A := StartFamily.Point, B := StartFamily.Point].Identity[].continuous Start.bundle.totalSpace,
+    equality: \axiom:funext((\fun (p: StartFamily.Point) => p), normalized, \fun (p: StartFamily.Point) => sym!{StartFamily.Point} _ _ (StartFamily.eta p)) };
+\definition liftContinuous: topology.Continuity[A := StartFamily.Point, B := PulledFamily.Point].Continuous Start.bundle.totalSpace Pull.topology lift :=
+  Pull.Universal[Z := StartFamily.Point].continuous Start.bundle.totalSpace lift baseContinuous normalizedContinuous;
+\import Bundles.Morphisms[X := Cylinder.Carrier, Y := Cylinder.Carrier, F := (\fun (z: Cylinder.Carrier) => Start.Fiber (Cylinder.point z)), G := Image.Fiber, source := PullStart.firstBundle, target := Image.bundle, f := (\fun (z: Cylinder.Carrier) => z)] \as Maps;
+\definition total[p: StartFamily.Point]: ImageFamily.Point := Maps.total isomorphism.forward (lift p);
+\definition totalContinuous: topology.Continuity[A := StartFamily.Point, B := ImageFamily.Point].Continuous Start.bundle.totalSpace Image.bundle.totalSpace total :=
+  topology.Composition[A := StartFamily.Point, B := PulledFamily.Point, C := ImageFamily.Point].composeContinuous Start.bundle.totalSpace Pull.topology Image.bundle.totalSpace lift (Maps.total isomorphism.forward) liftContinuous (Maps.continuous isomorphism.forward);
+\definition vectorContinuous: topology.Continuity[A := StartFamily.Point, B := Theory.Vector n].Continuous Start.bundle.totalSpace (Theory.coordinateTopology n) (\fun (p: StartFamily.Point) => (total p).vector) :=
+  topology.Composition[A := StartFamily.Point, B := ImageFamily.Point, C := Theory.Vector n].composeContinuous Start.bundle.totalSpace Image.bundle.totalSpace (Theory.coordinateTopology n) total (\fun (p: ImageFamily.Point) => p.vector) totalContinuous Image.vectorContinuous;
+\definition continuous: topology.Continuity[A := StartFamily.Point, B := FinishFamily.Point].Continuous Start.bundle.totalSpace Finish.bundle.totalSpace (Forward.total forwardData) :=
+  Complements.Projection[X := X, n := n, baseSpace := baseSpace, P := Finish.projection, regular := Finish.regular].Universal[Y := StartFamily.Point, source := Start.bundle.totalSpace].continuous
+    (Forward.total forwardData) (StartFamily.Of[bundle := Start.bundle].projectionContinuous) vectorContinuous;

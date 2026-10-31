@@ -1,0 +1,41 @@
+\module Between(a, b: Object);
+\definition Homotopic[a, b: Object]: \Prop := \exists Between[a := a, b := b].Homotopy;
+\import \root.Classification[].Oriented[].On[X := X, baseSpace := baseSpace, k := k] \as BundlesAt;
+\definition homotopicIsomorphic: \forall (a, b: Object) -> Homotopic a b -> Isomorphic a b := \fun (a, b: Object)(exists: _) => \block {
+  \takefrom h: Between[a := a, b := b].Homotopy \by exists \then
+  \return Between[a := a, b := b].FromHomotopy[h := h].isomorphismExists
+};
+\definition isomorphicHomotopic: \forall (a, b: Object) -> Isomorphic a b -> Homotopic a b := \fun (a, b: Object)(exists: _) => \block {
+  \takefrom iso: BundlesAt.Between[a := a, b := b].Isomorphism \by exists \then
+  \return \exact(Between[a := a, b := b].FromIsomorphism[iso := iso].homotopy, Between[a := a, b := b].Homotopy)
+};
+\definition criterion: \forall (a, b: Object) -> Logic.PropEquiv[Homotopic a b, Isomorphic a b] := \fun (a, b: Object) => Logic.PropEquiv[_, _] { ltr := homotopicIsomorphic a b, rtl := isomorphicHomotopic a b };
+\import std.Set[].Quotient[A := Object, Equivalent := Homotopic] \as Quotient;
+\definition equivalence: Quotient.EquivalenceLaws := std.Logic[].Relation[].Equivalence[Object, Homotopic] {
+  refl := \fun (a: Object) => isomorphicHomotopic a a (BundlesAt.reflexive a),
+  sym := \fun (a, b: Object)(ab: Homotopic a b) => isomorphicHomotopic b a (BundlesAt.symmetric a b (homotopicIsomorphic a b ab)),
+  trans := \fun (a, b, c: Object)(ab: Homotopic a b)(bc: Homotopic b c) => isomorphicHomotopic a c (BundlesAt.transitive a b c (homotopicIsomorphic a b ab) (homotopicIsomorphic b c bc))
+};
+\definition Classes: \Set := Quotient.Carrier;
+\definition class[a: Object]: Classes := Quotient.class a;
+\definition classComparison: \forall (a: Object) -> Quotient.ClassOf a = IsomorphismQuotient.ClassOf a := \fun (a: Object) =>
+  \axiom:setext(Quotient.ClassOf a, IsomorphismQuotient.ClassOf a, homotopicIsomorphic a, isomorphicHomotopic a);
+\definition bundleClassExists: \forall (C: Classes) -> IsomorphismQuotient.IsClass C := \fun (C: Classes) => \block {
+  \takefrom a: Quotient.Representative C \by Quotient.classProperty C \then
+  \return IsomorphismQuotient.isClassOf C a (trans!{{\Pow Object}} _ _ _ (Quotient.represents C a) (classComparison a))
+};
+\definition homotopyClassExists: \forall (C: BundleClasses) -> Quotient.IsClass C := \fun (C: BundleClasses) => \block {
+  \takefrom a: IsomorphismQuotient.Representative C \by IsomorphismQuotient.classProperty C \then
+  \return Quotient.isClassOf C a (trans!{{\Pow Object}} _ _ _ (IsomorphismQuotient.represents C a) (sym!{{\Pow Object}} _ _ (classComparison a)))
+};
+\definition toBundles[C: Classes]: BundleClasses := \into[\Pow Object](C, IsomorphismQuotient.ClassSet) \by { bundleClassExists C };
+\definition fromBundles[C: BundleClasses]: Classes := \into[\Pow Object](C, Quotient.ClassSet) \by { homotopyClassExists C };
+\definition leftInverse: \forall (C: Classes) -> fromBundles (toBundles C) = C := \fun (C: Classes) => \refl(C);
+\definition rightInverse: \forall (C: BundleClasses) -> toBundles (fromBundles C) = C := \fun (C: BundleClasses) => \refl(C);
+\definition classCriterion: \forall (a, b: Object) -> Logic.PropEquiv[class a = class b, Isomorphic a b] := \fun (a, b: Object) => Logic.PropEquiv[_, _] {
+  ltr := \fun (same: _) => homotopicIsomorphic a b (Quotient.equivalentOfClassEq equivalence a b same),
+  rtl := \fun (related: _) => Quotient.classOfEq equivalence a b (isomorphicHomotopic a b related)
+};
+\module Pullback(Y: \Set, source: topology.Topology[Carrier := Y].Topology, f: Y -> X,
+  continuous: topology.Continuity[A := Y, B := X].Continuous source baseSpace f,
+  sourceCompact: topology.Topology[Carrier := Y].IsCompact source);

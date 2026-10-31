@@ -1,0 +1,15 @@
+\import Bundles.Trivial[X := X, n := n, baseSpace := baseSpace] \as Source;
+\import Bundles.Trivial[X := X, n := m, baseSpace := baseSpace] \as Target;
+\import Bundles.Family[X := X, F := (\fun (_: X) => Vector n)] \as SourceFamily;
+\import Bundles.Family[X := X, F := (\fun (_: X) => Vector m)] \as TargetFamily;
+\import Bundles.Morphisms[X := X, Y := X, F := (\fun (_: X) => Vector n), G := (\fun (_: X) => Vector m), source := Source.bundle, target := Target.bundle, f := (\fun (x: X) => x)] \as Maps;
+\definition section[v: Vector n][x: X]: SourceFamily.Point := SourceFamily.include x v;
+\definition sectionContinuous: \forall (v: Vector n) -> topology.Continuity[A := X, B := SourceFamily.Point].Continuous baseSpace Source.topology (section v) :=
+  \fun (v: Vector n) => Complements.TrivialMaps[X := X, n := n, baseSpace := baseSpace].Into[Y := X, source := baseSpace].continuous
+    (\fun (x: X) => x) (\fun (_: X) => v) (topology.Maps[A := X, B := X].Identity[].continuous baseSpace) (topology.Maps[A := X, B := Vector n].constantContinuous baseSpace (coordinateTopology n) v);
+\definition vectorContinuous: \forall (v: Vector n) -> topology.Continuity[A := X, B := Vector m].Continuous baseSpace (coordinateTopology m) (\fun (x: X) => (map.fiber x).apply v) :=
+  \fun (v: Vector n) => topology.Composition[A := X, B := TargetFamily.Point, C := Vector m].composeContinuous baseSpace Target.topology (coordinateTopology m)
+    (\fun (x: X) => Maps.total map (section v x)) (\fun (p: TargetFamily.Point) => p.vector)
+    (topology.Composition[A := X, B := SourceFamily.Point, C := TargetFamily.Point].composeContinuous baseSpace Source.topology Target.topology (section v) (Maps.total map) (sectionContinuous v) (Maps.continuous map)) Target.vectorContinuous;
+\import \root.Classification[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].VectorFunctions[n := m, Y := X, source := baseSpace] \as Functions;
+\definition regular: Hermitian.At[n := m].Families[X := X].Matrix[m := n].Regular baseSpace (\fun (x: X) => map.fiber x) := \fun (v: Vector n) => Functions.component _ (vectorContinuous v);

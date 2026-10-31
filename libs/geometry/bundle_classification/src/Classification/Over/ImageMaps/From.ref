@@ -1,0 +1,18 @@
+\definition fiber[x: X]: Spaces.Linear[V := Source.Fiber x, W := Target.Fiber x, source := Source.bundle.space x, target := Target.bundle.space x].Map :=
+  Spaces.Linear[V := Source.Fiber x, W := Target.Fiber x, source := Source.bundle.space x, target := Target.bundle.space x].Map {
+    apply := \fun (v: Source.Fiber x) => \into[Vector m]((A x).apply v, Target.Image x) \by { preserves x v (\bysub(Vector n, Source.Image x, v)) },
+    preservesAdd := \fun (v, w: Source.Fiber x) => (A x).preservesAdd v w,
+    preservesScale := \fun (a: K)(v: Source.Fiber x) => (A x).preservesScale a v
+  };
+\definition data: Maps.Data := Maps.Data { fiber := fiber };
+\import Bundles.Family[X := X, F := Source.Fiber] \as SourceFamily;
+\import Bundles.Family[X := X, F := (\fun (_: X) => Vector n)] \as AmbientFamily;
+\import Bundles.Trivial[X := X, n := n, baseSpace := baseSpace] \as Ambient;
+\import Complements.CoordinateFamily[X := X, m := n, n := m, baseSpace := baseSpace, A := A, regular := regular] \as Coordinates;
+\definition value[p: SourceFamily.Point]: Vector m := (A p.base).apply p.vector;
+\definition vectorContinuous: topology.Continuity[A := SourceFamily.Point, B := Vector m].Continuous Source.topology (coordinateTopology m) value :=
+  topology.Composition[A := SourceFamily.Point, B := AmbientFamily.Point, C := Vector m].composeContinuous Source.topology Ambient.topology (coordinateTopology m) Source.embedding
+    (\fun (p: AmbientFamily.Point) => (A p.base).apply p.vector) Source.inclusionContinuous Coordinates.vectorContinuous;
+\definition map: Maps.Map := \into[Maps.Data](data, Maps.Map) \by {
+  Target.Universal[Y := SourceFamily.Point, source := Source.topology].continuous (Maps.total data) Source.projectionContinuous vectorContinuous
+};

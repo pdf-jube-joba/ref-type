@@ -1,0 +1,48 @@
+\import Spaces.FiniteCoordinates[n := rank] \as TotalCoordinates;
+\import Spaces.FiniteCoordinates[n := m] \as RightCoordinates;
+\import Spaces.Coordinates[I := Fin.Fin rank].Kronecker[] \as TotalDelta;
+\import Spaces.Coordinates[I := Fin.Fin n].Kronecker[] \as LeftDelta;
+\import Spaces.Coordinates[I := Fin.Fin m].Kronecker[] \as RightDelta;
+\definition leftDelta: \forall (i, j: Fin.Fin n) -> TotalDelta.delta (Indices.left i) (Indices.left j) = LeftDelta.delta i j :=
+  \fun (i, j: Fin.Fin n) => LeftDelta.uniqueness i j
+    (\into[R.Real](TotalDelta.delta (Indices.left i) (Indices.left j), LeftDelta.Value i j) \by {
+      LeftDelta.ValueLaws[i, j, TotalDelta.delta (Indices.left i) (Indices.left j)] {
+        equal := \fun (same: i = j) => TotalDelta.equal _ _ (congr!{{Fin.Fin n} {Fin.Fin rank}} Indices.left _ _ same),
+        different := \fun (different: Logic.Not (i = j)) => TotalDelta.different _ _ (\fun (same: Indices.left i = Indices.left j) => different (Indices.leftInjective i j same))
+      }
+    }) (LeftDelta.delta i j);
+\definition rightDelta: \forall (i, j: Fin.Fin m) -> TotalDelta.delta (Indices.right i) (Indices.right j) = RightDelta.delta i j :=
+  \fun (i, j: Fin.Fin m) => RightDelta.uniqueness i j
+    (\into[R.Real](TotalDelta.delta (Indices.right i) (Indices.right j), RightDelta.Value i j) \by {
+      RightDelta.ValueLaws[i, j, TotalDelta.delta (Indices.right i) (Indices.right j)] {
+        equal := \fun (same: i = j) => TotalDelta.equal _ _ (congr!{{Fin.Fin m} {Fin.Fin rank}} Indices.right _ _ same),
+        different := \fun (different: Logic.Not (i = j)) => TotalDelta.different _ _ (\fun (same: Indices.right i = Indices.right j) => different (Indices.rightInjective i j same))
+      }
+    }) (RightDelta.delta i j);
+\definition leftLeft: \forall (i: Fin.Fin n) -> leftCoordinate (TotalCoordinates.vectors (Indices.left i)) = Coordinates.vectors i :=
+  \fun (i: Fin.Fin n) => \axiom:funext(leftCoordinate (TotalCoordinates.vectors (Indices.left i)), Coordinates.vectors i, leftDelta i);
+\definition rightLeft: \forall (i: Fin.Fin n) -> rightCoordinate (TotalCoordinates.vectors (Indices.left i)) = (RealBundles.coordinates m).zero :=
+  \fun (i: Fin.Fin n) => \axiom:funext(rightCoordinate (TotalCoordinates.vectors (Indices.left i)), (RealBundles.coordinates m).zero,
+    \fun (j: Fin.Fin m) => TotalDelta.different (Indices.left i) (Indices.right j) (Indices.different i j));
+\definition leftRight: \forall (i: Fin.Fin m) -> leftCoordinate (TotalCoordinates.vectors (Indices.right i)) = (RealBundles.coordinates n).zero :=
+  \fun (i: Fin.Fin m) => \axiom:funext(leftCoordinate (TotalCoordinates.vectors (Indices.right i)), (RealBundles.coordinates n).zero,
+    \fun (j: Fin.Fin n) => TotalDelta.different (Indices.right i) (Indices.left j) (\fun (same: Indices.right i = Indices.left j) => Indices.different j i (sym!{{Fin.Fin rank}} _ _ same)));
+\definition rightRight: \forall (i: Fin.Fin m) -> rightCoordinate (TotalCoordinates.vectors (Indices.right i)) = RightCoordinates.vectors i :=
+  \fun (i: Fin.Fin m) => \axiom:funext(rightCoordinate (TotalCoordinates.vectors (Indices.right i)), RightCoordinates.vectors i, rightDelta i);
+\definition leftArgument: \forall (i: Fin.Fin n) -> TotalTop.arguments (Indices.left i) = inLeft.apply (arguments i) :=
+  \fun (i: Fin.Fin n) => Pair.Prop[A := V, B := W].pairCong _ _ _ _
+    (congr!{{RealBundles.Vector n} V} frame.backward.apply _ _ (leftLeft i))
+    (trans!{W} _ _ _ (congr!{{RealBundles.Vector m} W} other.backward.apply _ _ (rightLeft i)) other.backward.preservesZero);
+\definition rightArgument: \forall (i: Fin.Fin m) -> TotalTop.arguments (Indices.right i) = inRight.apply (RightTop.arguments i) :=
+  \fun (i: Fin.Fin m) => Pair.Prop[A := V, B := W].pairCong _ _ _ _
+    (trans!{V} _ _ _ (congr!{{RealBundles.Vector n} V} frame.backward.apply _ _ (leftRight i)) frame.backward.preservesZero)
+    (congr!{{RealBundles.Vector m} W} other.backward.apply _ _ (rightRight i));
+\definition mixed: Fin.Fin rank -> Sum.Carrier := concatenate arguments RightTop.arguments;
+\definition mixedIsBasis: mixed = TotalTop.arguments := tupleExt mixed TotalTop.arguments
+  (\fun (i: Fin.Fin n) => trans!{Sum.Carrier} _ _ _ (Tuples.atLeft (\fun (j: Fin.Fin n) => inLeft.apply (arguments j)) (\fun (j: Fin.Fin m) => inRight.apply (RightTop.arguments j)) i) (sym!{Sum.Carrier} _ _ (leftArgument i)))
+  (\fun (i: Fin.Fin m) => trans!{Sum.Carrier} _ _ _ (Tuples.atRight (\fun (j: Fin.Fin n) => inLeft.apply (arguments j)) (\fun (j: Fin.Fin m) => inRight.apply (RightTop.arguments j)) i) (sym!{Sum.Carrier} _ _ (rightArgument i)));
+\definition normalized: TotalTop.volume mixed = R.one := trans!{R.Real} _ _ _ (congr!{{Fin.Fin rank -> Sum.Carrier} {R.Real}} TotalTop.volume _ _ mixedIsBasis) TotalTop.normalized;
+\definition ext: \forall (alpha, beta: TotalForms.Form rank) -> alpha mixed = beta mixed -> alpha = beta :=
+  \fun (alpha, beta: TotalForms.Form rank)(same: _) => TotalTop.ext alpha beta
+    (trans!{R.Real} _ _ _ (sym!{R.Real} _ _ (congr!{{Fin.Fin rank -> Sum.Carrier} {R.Real}} alpha _ _ mixedIsBasis))
+      (trans!{R.Real} _ _ _ same (congr!{{Fin.Fin rank -> Sum.Carrier} {R.Real}} beta _ _ mixedIsBasis)));

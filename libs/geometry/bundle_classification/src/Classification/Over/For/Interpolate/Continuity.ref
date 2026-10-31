@@ -1,0 +1,40 @@
+\import topology.Continuity[A := I.Carrier, B := R.Real].Corestriction[S := Line.ClosedInterval R.zero R.one] \as IntervalInclusion;
+\definition embed: I.Carrier -> K := \fun (t: I.Carrier) => conjugation.embed t;
+\definition embedContinuous: topology.Continuity[A := I.Carrier, B := K].Continuous I.topology scalar.topological.space embed :=
+  topology.Composition[A := I.Carrier, B := R.Real, C := K].composeContinuous I.topology Line.topology scalar.topological.space (\fun (t: I.Carrier) => t) conjugation.embed
+    (IntervalInclusion.inclusionContinuous Line.topology) scalar.topological.embed;
+\definition bContinuous: topology.Continuity[A := Cylinder.Carrier, B := K].Continuous baseSpace scalar.topological.space b :=
+  topology.Composition[A := Cylinder.Carrier, B := I.Carrier, C := K].composeContinuous baseSpace I.topology scalar.topological.space Cylinder.time embed (Cylinder.timeContinuous bundle.baseSpace) embedContinuous;
+\definition aContinuous: topology.Continuity[A := Cylinder.Carrier, B := K].Continuous baseSpace scalar.topological.space a :=
+  topology.Composition[A := Cylinder.Carrier, B := I.Carrier, C := K].composeContinuous baseSpace I.topology scalar.topological.space (\fun (p: Cylinder.Carrier) => I.reverse (Cylinder.time p)) embed
+    (topology.Composition[A := Cylinder.Carrier, B := I.Carrier, C := I.Carrier].composeContinuous baseSpace I.topology I.topology Cylinder.time I.reverse (Cylinder.timeContinuous bundle.baseSpace) I.reverseContinuous) embedContinuous;
+\import Original.FromEmbedding[embedding := first].Continuity[] \as First;
+\import Original.FromEmbedding[embedding := second].Continuity[] \as Second;
+\definition firstVector[q: PulledFamily.Point]: Vector n := (first.map.fiber (Cylinder.point q.base)).apply q.vector;
+\definition secondVector[q: PulledFamily.Point]: Vector m := (second.map.fiber (Cylinder.point q.base)).apply q.vector;
+\definition firstContinuous: topology.Continuity[A := PulledFamily.Point, B := Vector n].Continuous Pulled.topology (coordinateTopology n) firstVector :=
+  topology.Composition[A := PulledFamily.Point, B := Source.Point, C := Vector n].composeContinuous Pulled.topology bundle.totalSpace (coordinateTopology n) Pulled.map First.vector Pulled.mapContinuous First.vectorContinuous;
+\definition secondContinuous: topology.Continuity[A := PulledFamily.Point, B := Vector m].Continuous Pulled.topology (coordinateTopology m) secondVector :=
+  topology.Composition[A := PulledFamily.Point, B := Source.Point, C := Vector m].composeContinuous Pulled.topology bundle.totalSpace (coordinateTopology m) Pulled.map Second.vector Pulled.mapContinuous Second.vectorContinuous;
+\definition aTotal[q: PulledFamily.Point]: K := a q.base;
+\definition bTotal[q: PulledFamily.Point]: K := b q.base;
+\definition aTotalContinuous: topology.Continuity[A := PulledFamily.Point, B := K].Continuous Pulled.topology scalar.topological.space aTotal :=
+  topology.Composition[A := PulledFamily.Point, B := Cylinder.Carrier, C := K].composeContinuous Pulled.topology baseSpace scalar.topological.space PulledFamily.projection a Pulled.projectionContinuous aContinuous;
+\definition bTotalContinuous: topology.Continuity[A := PulledFamily.Point, B := K].Continuous Pulled.topology scalar.topological.space bTotal :=
+  topology.Composition[A := PulledFamily.Point, B := Cylinder.Carrier, C := K].composeContinuous Pulled.topology baseSpace scalar.topological.space PulledFamily.projection b Pulled.projectionContinuous bContinuous;
+\definition left[q: PulledFamily.Point]: Vector n := (coordinates n).smul (aTotal q) (firstVector q);
+\definition right[q: PulledFamily.Point]: Vector m := (coordinates m).smul (bTotal q) (secondVector q);
+\import \root.Classification[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].VectorFunctions[n := n, Y := PulledFamily.Point, source := Pulled.topology] \as Left;
+\import \root.Classification[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].VectorFunctions[n := m, Y := PulledFamily.Point, source := Pulled.topology] \as Right;
+\definition leftContinuous: Left.Continuous left := Left.scale aTotal firstVector aTotalContinuous firstContinuous;
+\definition rightContinuous: Right.Continuous right := Right.scale bTotal secondVector bTotalContinuous secondContinuous;
+\import topological_constructions.Product[A := Vector n, B := Vector m] \as Product;
+\definition pair[q: PulledFamily.Point]: Pair.Times^[Vector n, Vector m] := Pair.pair (Vector n) (Vector m) (left q) (right q);
+\definition value[q: PulledFamily.Point]: Vector dimension := Join.join (pair q);
+\definition vectorContinuous: topology.Continuity[A := PulledFamily.Point, B := Vector dimension].Continuous Pulled.topology (coordinateTopology dimension) value :=
+  topology.Composition[A := PulledFamily.Point, B := Pair.Times^[Vector n, Vector m], C := Vector dimension].composeContinuous Pulled.topology
+    (Product.topology (coordinateTopology n) (coordinateTopology m)) (coordinateTopology dimension) pair Join.join
+      (Product.Universal[X := PulledFamily.Point].pairContinuous Pulled.topology (coordinateTopology n) (coordinateTopology m) left right leftContinuous rightContinuous) Join.Topology[].joinRegular;
+\definition regular: topology.Continuity[A := PulledFamily.Point, B := Bundles.Family[X := Cylinder.Carrier, F := (\fun (_: Cylinder.Carrier) => Vector dimension)].Point].Continuous
+  Pulled.topology Trivial.topology (Maps.total data) :=
+    Complements.TrivialMaps[X := Cylinder.Carrier, n := dimension, baseSpace := baseSpace].Into[Y := PulledFamily.Point, source := Pulled.topology].continuous PulledFamily.projection value Pulled.projectionContinuous vectorContinuous;

@@ -1,0 +1,29 @@
+\import \root.Classification[].Oriented[].Trivial[X := X, baseSpace := baseSpace, n := n] \as FirstOrientation;
+\import \root.Classification[].Oriented[].Trivial[X := X, baseSpace := baseSpace, n := m] \as SecondOrientation;
+\import \root.Classification[].Oriented[].WhitneySum[X := X, F := (\fun (_: X) => Theory.Vector n), G := (\fun (_: X) => Theory.Vector m), left := Trivial.bundle, right := RightBundle.bundle,
+  same := \refl(baseSpace), k := n, l := m, leftRank := FirstOrientation.rank, rightRank := SecondOrientation.rank,
+  leftOrientation := FirstOrientation.orientation, rightOrientation := SecondOrientation.orientation] \as Sum;
+\definition volumePositive: \forall (x: X) -> Sum.Positive x (Sum.product x FirstOrientation.volume SecondOrientation.volume) := \fun (x: X) =>
+  \exact(Sum.Witness[x, Sum.product x FirstOrientation.volume SecondOrientation.volume] {
+    first := FirstOrientation.volume, second := SecondOrientation.volume,
+    leftPositive := FirstOrientation.volumePositive x, rightPositive := SecondOrientation.volumePositive x,
+    value := \refl(Sum.product x FirstOrientation.volume SecondOrientation.volume)
+  }, Sum.Witness[x, Sum.product x FirstOrientation.volume SecondOrientation.volume]);
+\import Sum.Classifying[first := classifier, second := Right.classifier] \as Natural;
+\import Theory.For[X := X, F := Sum.Fiber, bundle := Sum.bundle].AtRank[k := Sum.rank] \as SumPlain;
+\import \root.Classification[].Oriented[].On[X := X, baseSpace := baseSpace, k := Sum.rank] \as Classes;
+\definition sumNaturality: \forall (compact: topology.Topology[Carrier := X].IsCompact baseSpace)(hausdorff: topology.Topology[Carrier := X].IsT2 baseSpace) ->
+  \exists ( c: SumPlain.Classifier \where Classes.Compact[compact := compact].class (Natural.WithSum[classifier := c].before) = Classes.Compact[compact := compact].class (Natural.WithSum[classifier := c].object) ) :=
+  \fun (compact: _)(hausdorff: _) => \block {
+    \takefrom c: SumPlain.Classifier \by SumPlain.exists compact hausdorff Sum.sumRank \then
+    \return Logic.existsIntro[SumPlain.Classifier, { c: SumPlain.Classifier \where Classes.Compact[compact := compact].class (Natural.WithSum[classifier := c].before) = Classes.Compact[compact := compact].class (Natural.WithSum[classifier := c].object) }] c (Natural.WithSum[classifier := c].naturality compact)
+  };
+\import \root.Classification[].Oriented[].StandardStabilization[X := X, F := (\fun (_: X) => Theory.Vector n), bundle := Trivial.bundle, k := n, n := m,
+  sourceRank := FirstOrientation.rank, sourceOrientation := FirstOrientation.orientation] \as Stabilized;
+\import Stabilized.Classifying[classifier := classifier] \as StableNatural;
+\definition stabilizationNaturality: \forall (compact: topology.Topology[Carrier := X].IsCompact baseSpace)(hausdorff: topology.Topology[Carrier := X].IsT2 baseSpace) ->
+  \exists ( c: SumPlain.Classifier \where Classes.Compact[compact := compact].class (StableNatural.WithSum[classifier := c].before) = Classes.Compact[compact := compact].class (StableNatural.WithSum[classifier := c].object) ) :=
+  \fun (compact: _)(hausdorff: _) => \block {
+    \takefrom c: SumPlain.Classifier \by SumPlain.exists compact hausdorff Sum.sumRank \then
+    \return Logic.existsIntro[SumPlain.Classifier, { c: SumPlain.Classifier \where Classes.Compact[compact := compact].class (StableNatural.WithSum[classifier := c].before) = Classes.Compact[compact := compact].class (StableNatural.WithSum[classifier := c].object) }] c (StableNatural.WithSum[classifier := c].naturality compact)
+  };

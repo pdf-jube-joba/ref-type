@@ -1,0 +1,53 @@
+\import algebraic_topology.Interval[] \as I;
+\import algebraic_topology.Cylinder[A := X] \as Cylinder;
+\import Bundles.Trivial[X := X, n := k, baseSpace := baseSpace] \as Trivial;
+\import Complements.For[X := X, F := (\fun (_: X) => Vector k), bundle := Trivial.bundle] \as Original;
+\import Complements.CoordinateEmbedding[X := X, m := k, n := p.data.dimension, baseSpace := baseSpace, A := p.data.frame, regular := p.regular, injective := p.injective] \as First;
+\import Complements.CoordinateEmbedding[X := X, m := k, n := q.data.dimension, baseSpace := baseSpace, A := q.data.frame, regular := q.regular, injective := q.injective] \as Second;
+\import \root.Classification[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].For[X := X, F := (\fun (_: X) => Vector k), bundle := Trivial.bundle].Interpolate[first := First.embedding, second := Second.embedding] \as Interpolation;
+\definition dimension: N.Nat^ := Interpolation.dimension;
+\import Spaces.Linear[V := Vector k, W := Vector dimension, source := coordinates k, target := coordinates dimension] \as Linear;
+\definition family[z: Cylinder.Carrier]: Linear.Map := Interpolation.map.fiber z;
+\definition injective: \forall (z: Cylinder.Carrier)(v, w: Vector k) -> (family z).apply v = (family z).apply w -> v = w := \fun (z: Cylinder.Carrier) => Interpolation.At[p := z].injective;
+\module Continuity;
+\definition regular: Hermitian.At[n := dimension].Families[X := Cylinder.Carrier].Matrix[m := k].Regular (Cylinder.topology baseSpace) family := Continuity[].regular;
+\import \root.Classification[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Frames[n := dimension, k := k] \as Space;
+\import Space.Family[X := Cylinder.Carrier, source := Cylinder.topology baseSpace, A := family, regular := regular, injective := injective] \as Curve;
+\definition left[x: X]: Space.Carrier := Curve.map (Cylinder.at I.start x);
+\definition right[x: X]: Space.Carrier := Curve.map (Cylinder.at I.end x);
+\definition homotopy: algebraic_topology.Homotopy[A := X, B := Space.Carrier].Homotopy[baseSpace, Space.topology, left, right] :=
+  \into[Cylinder.Carrier -> Space.Carrier](Curve.map, algebraic_topology.Homotopy[A := X, B := Space.Carrier].Homotopy[baseSpace, Space.topology, left, right]) \by {
+    algebraic_topology.Homotopy[A := X, B := Space.Carrier].Laws[baseSpace, Space.topology, left, right, Curve.map] { continuous := Curve.continuous, start := \fun (x: X) => \refl(left x), end := \fun (x: X) => \refl(right x) }
+  };
+\import \root.Classification[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Padding[n := p.data.dimension, m := q.data.dimension] \as Pad;
+\import Geometry.Finite[n := p.data.dimension].Blocks[m := q.data.dimension] \as Coordinates;
+\definition leftFormula: \forall (x: X)(v: Vector k) -> (left x).apply v = Pad.left.apply ((p.data.frame x).apply v) :=
+  \fun (x: X)(v: Vector k) => congr!{{Vector p.data.dimension} {Vector q.data.dimension} {Vector dimension}} Coordinates.join _ _ _ _
+    (trans!{{Vector p.data.dimension}} _ _ _ (congr!{K {Vector p.data.dimension}} (\fun (a: K) => (coordinates p.data.dimension).smul a ((p.data.frame x).apply v)) _ _
+      (trans!{K} _ _ _ (congr!{{I.Carrier} K} (\fun (t: I.Carrier) => conjugation.embed t) _ _ I.reverseStart) conjugation.embedOne)) ((coordinates p.data.dimension).scalarOne ((p.data.frame x).apply v)))
+    (trans!{{Vector q.data.dimension}} _ _ _ (congr!{K {Vector q.data.dimension}} (\fun (a: K) => (coordinates q.data.dimension).smul a ((q.data.frame x).apply v)) _ _ conjugation.embedZero)
+      (Spaces.Laws[V := Vector q.data.dimension, space := coordinates q.data.dimension].zeroScale ((q.data.frame x).apply v)));
+\definition rightFormula: \forall (x: X)(v: Vector k) -> (right x).apply v = Pad.right.apply ((q.data.frame x).apply v) :=
+  \fun (x: X)(v: Vector k) => congr!{{Vector p.data.dimension} {Vector q.data.dimension} {Vector dimension}} Coordinates.join _ _ _ _
+    (trans!{{Vector p.data.dimension}} _ _ _ (congr!{K {Vector p.data.dimension}} (\fun (a: K) => (coordinates p.data.dimension).smul a ((p.data.frame x).apply v)) _ _
+      (trans!{K} _ _ _ (congr!{{I.Carrier} K} (\fun (t: I.Carrier) => conjugation.embed t) _ _ I.reverseEnd) conjugation.embedZero)) (Spaces.Laws[V := Vector p.data.dimension, space := coordinates p.data.dimension].zeroScale ((p.data.frame x).apply v)))
+    (trans!{{Vector q.data.dimension}} _ _ _ (congr!{K {Vector q.data.dimension}} (\fun (a: K) => (coordinates q.data.dimension).smul a ((q.data.frame x).apply v)) _ _ conjugation.embedOne)
+      ((coordinates q.data.dimension).scalarOne ((q.data.frame x).apply v)));
+\structure ConcordanceData: \Set := { map: Cylinder.Carrier -> Linear.Map };
+\structure ConcordanceLaws[data: ConcordanceData]: \Prop := {
+  regular: Hermitian.At[n := dimension].Families[X := Cylinder.Carrier].Matrix[m := k].Regular (Cylinder.topology baseSpace) data.map,
+  injective: \forall (z: Cylinder.Carrier)(v, w: Vector k) -> (data.map z).apply v = (data.map z).apply w -> v = w,
+  start: \forall (x: X)(v: Vector k) -> (data.map (Cylinder.at I.start x)).apply v = Pad.left.apply ((p.data.frame x).apply v),
+  end: \forall (x: X)(v: Vector k) -> (data.map (Cylinder.at I.end x)).apply v = Pad.right.apply ((q.data.frame x).apply v),
+};
+\definition Concordance: \Set := \Cast[ConcordanceData] ({ d: ConcordanceData \where ConcordanceLaws[d] });
+\definition concordance: Concordance := \into[ConcordanceData](ConcordanceData { map := family }, Concordance) \by { ConcordanceLaws[ConcordanceData { map := family }] { regular := regular, injective := injective, start := leftFormula, end := rightFormula } };
+\import \parent.At[p := p] \as FirstModel;
+\import \parent.At[p := q] \as SecondModel;
+\definition isomorphism: Bundles.Isomorphisms[X := X, F := FirstModel.Fiber, G := SecondModel.Fiber, source := FirstModel.bundle, target := SecondModel.bundle].Isomorphism :=
+  Operations.IsomorphismComposition[X := X, F := FirstModel.Fiber, G := (\fun (_: X) => Vector k), H := SecondModel.Fiber, source := FirstModel.bundle, middle := Trivial.bundle, target := SecondModel.bundle].compose
+    (Bundles.Isomorphisms[X := X, F := (\fun (_: X) => Vector k), G := FirstModel.Fiber, source := Trivial.bundle, target := FirstModel.bundle].inverse FirstModel.framing) SecondModel.framing;
+\definition preservesFrame: \forall (x: X)(v: Vector k) -> (isomorphism.forward.fiber x).apply ((FirstModel.framing.forward.fiber x).apply v) = (SecondModel.framing.forward.fiber x).apply v :=
+  \fun (x: X)(v: Vector k) => congr!{{Vector k} {SecondModel.Fiber x}} (SecondModel.framing.forward.fiber x).apply _ _
+    ((\bysub(Bundles.Isomorphisms[X := X, F := (\fun (_: X) => Vector k), G := FirstModel.Fiber, source := Trivial.bundle, target := FirstModel.bundle].Data,
+      Bundles.Isomorphisms[X := X, F := (\fun (_: X) => Vector k), G := FirstModel.Fiber, source := Trivial.bundle, target := FirstModel.bundle].Isomorphism, FirstModel.framing)).leftInverse x v);

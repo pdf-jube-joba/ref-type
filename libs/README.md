@@ -78,6 +78,7 @@
 | [geometry/bundle_extension](geometry/bundle_extension/README.md) | `bundle_extension` | Tietze、閉部分空間上の束・写像・同型の近傍延長、縮小比較と安定化 |
 | [geometry/grassmannians](geometry/grassmannians/README.md) | `grassmannians` | 有限 Grassmannian、グラフ座標、普遍束と安定化 |
 | [geometry/bundle_homotopy](geometry/bundle_homotopy/README.md) | `bundle_homotopy` | 束のホモトピー比較、cofibration に沿う相対延長、球面の clutching と gauge による同型判定 |
+| [geometry/bundle_classification](geometry/bundle_classification/README.md) | `bundle_classification` | 実・複素束の有限分類写像、安定化ホモトピー分類、向き付き・枠付き束と自然性 |
 | [geometry/tangent_bundles](geometry/tangent_bundles/README.md) | `tangent_bundles` | 接束の全空間、接写像、関手則、滑らかなファイバー演算 |
 | [geometry/normal_bundles](geometry/normal_bundles/README.md) | `normal_bundles` | はめ込みの法束、局所正規直交枠、直和分解、底空間変更と安定化 |
 | [geometry/examples/tangent_normal](geometry/examples/tangent_normal/README.md) | `tangent_normal` | ユークリッド接束、座標包含、放物線、退化次数の利用例 |

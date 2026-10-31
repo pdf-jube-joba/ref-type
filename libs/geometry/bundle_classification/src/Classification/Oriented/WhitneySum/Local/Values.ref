@@ -1,0 +1,62 @@
+\import LeftTop.Section[a := a] \as FirstSection;
+\import RightTop.Section[a := b] \as SecondSection;
+\import Bundles.Family[X := X, F := First.DeterminantFiber] \as FirstFamily;
+\import Bundles.Family[X := X, F := Second.DeterminantFiber] \as SecondFamily;
+\definition firstValue[y: Source]: First.DeterminantFiber y := FirstSection.value (leftPoint y);
+\definition secondValue[y: Source]: Second.DeterminantFiber y := SecondSection.value (rightPoint y);
+\definition firstRegular: topology.Continuity[A := Source, B := FirstFamily.Point].Continuous sourceTopology First.determinantBundle.totalSpace (\fun (y: Source) => FirstFamily.include y (firstValue y)) :=
+  topology.Composition[A := Source, B := \Cast[X] c.domain, C := FirstFamily.Point].composeContinuous sourceTopology (Base.Subspace[S := c.domain].topology left.baseSpace) First.determinantBundle.totalSpace
+    leftPoint (\fun (y: \Cast[X] c.domain) => FirstFamily.include y (FirstSection.value y)) leftPointContinuous FirstSection.regular;
+\definition secondRegular: topology.Continuity[A := Source, B := SecondFamily.Point].Continuous sourceTopology Second.determinantBundle.totalSpace (\fun (y: Source) => SecondFamily.include y (secondValue y)) :=
+  topology.Composition[A := Source, B := \Cast[X] d.domain, C := SecondFamily.Point].composeContinuous sourceTopology (Base.Subspace[S := d.domain].topology right.baseSpace) Second.determinantBundle.totalSpace
+    rightPoint (\fun (y: \Cast[X] d.domain) => SecondFamily.include y (SecondSection.value y)) rightPointContinuous SecondSection.regular;
+\definition firstCoefficient[y: Source]: R.Real := FirstSection.coefficientValue (leftPoint y);
+\definition secondCoefficient[y: Source]: R.Real := SecondSection.coefficientValue (rightPoint y);
+\definition scalarTopology: topology.Topology[Carrier := R.Real].Topology := vector_bundles.Bundles[].Real[].scalar.topological.space;
+\definition firstCoefficientRegular: topology.Continuity[A := Source, B := R.Real].Continuous sourceTopology scalarTopology firstCoefficient :=
+  topology.Composition[A := Source, B := \Cast[X] c.domain, C := R.Real].composeContinuous sourceTopology (Base.Subspace[S := c.domain].topology left.baseSpace) scalarTopology leftPoint FirstSection.coefficientValue leftPointContinuous FirstSection.coefficientRegular;
+\definition secondCoefficientRegular: topology.Continuity[A := Source, B := R.Real].Continuous sourceTopology scalarTopology secondCoefficient :=
+  topology.Composition[A := Source, B := \Cast[X] d.domain, C := R.Real].composeContinuous sourceTopology (Base.Subspace[S := d.domain].topology right.baseSpace) scalarTopology rightPoint SecondSection.coefficientValue rightPointContinuous SecondSection.coefficientRegular;
+\definition firstTotal[p: Point]: FirstFamily.Point := FirstFamily.include p.base (firstValue (center p));
+\definition secondTotal[p: Point]: SecondFamily.Point := SecondFamily.include p.base (secondValue (center p));
+\definition firstTotalContinuous: topology.Continuity[A := Point, B := FirstFamily.Point].Continuous topology First.determinantBundle.totalSpace firstTotal :=
+  topology.Composition[A := Point, B := Source, C := FirstFamily.Point].composeContinuous topology sourceTopology First.determinantBundle.totalSpace center (\fun (y: Source) => FirstFamily.include y (firstValue y)) centerContinuous firstRegular;
+\definition secondTotalContinuous: topology.Continuity[A := Point, B := SecondFamily.Point].Continuous topology Second.determinantBundle.totalSpace secondTotal :=
+  topology.Composition[A := Point, B := Source, C := SecondFamily.Point].composeContinuous topology sourceTopology Second.determinantBundle.totalSpace center (\fun (y: Source) => SecondFamily.include y (secondValue y)) centerContinuous secondRegular;
+\definition firstRead[p: Point]: R.Real := firstCoefficient (center p);
+\definition secondRead[p: Point]: R.Real := secondCoefficient (center p);
+\definition firstReadContinuous: topology.Continuity[A := Point, B := R.Real].Continuous topology scalarTopology firstRead :=
+  topology.Composition[A := Point, B := Source, C := R.Real].composeContinuous topology sourceTopology scalarTopology center firstCoefficient centerContinuous firstCoefficientRegular;
+\definition secondReadContinuous: topology.Continuity[A := Point, B := R.Real].Continuous topology scalarTopology secondRead :=
+  topology.Composition[A := Point, B := Source, C := R.Real].composeContinuous topology sourceTopology scalarTopology center secondCoefficient centerContinuous secondCoefficientRegular;
+\import metric_spaces.RealFunctions[A := Point] \as Functions;
+\definition test[p: Point]: R.Real := R.mul (R.mul (firstRead p) (secondRead p)) (SumTop.coefficient p);
+\definition testContinuous: Functions.Continuous topology test := Functions.Product[].continuous topology (\fun (p: Point) => R.mul (firstRead p) (secondRead p)) SumTop.coefficient
+  (Functions.Product[].continuous topology firstRead secondRead firstReadContinuous secondReadContinuous) SumTop.coefficientContinuous;
+\import topology.Topology[Carrier := Point] \as LocalSpace;
+\definition firstPositive: \Pow Point := { p: Point \where LeftCones.Positive leftOrientation.positive p.base (firstValue (center p)) };
+\definition secondPositive: \Pow Point := { p: Point \where RightCones.Positive rightOrientation.positive p.base (secondValue (center p)) };
+\definition signPositive: \Pow Point := { p: Point \where Order.Lt R.zero (test p) };
+\definition piece: \Pow Point := LocalSpace.Intersection firstPositive (LocalSpace.Intersection secondPositive signPositive);
+\definition pieceOpen: LocalSpace.IsOpenIn topology piece := (LocalSpace.topologyLaws topology).intersectionOpen firstPositive (LocalSpace.Intersection secondPositive signPositive)
+  (firstTotalContinuous leftOrientation.positive (LeftCones.laws leftOrientation).open)
+  ((LocalSpace.topologyLaws topology).intersectionOpen secondPositive signPositive (secondTotalContinuous rightOrientation.positive (RightCones.laws rightOrientation).open)
+    (testContinuous (metric_spaces.RealLine[].Rays[].Above R.zero) (metric_spaces.RealLine[].Rays[].aboveOpen R.zero)));
+\module At(p: Point);
+\import topology.Topology[Carrier := Family.Point] \as TotalSpace;
+\definition totalDomain: \Pow Family.Point := { q: Family.Point \where Base.Member domain q.base };
+\import TotalSpace.Subspace[S := totalDomain] \as Subspace;
+\import Subspace.Open[] \as OpenSubspace;
+\definition domainOpen: Base.IsOpenIn left.baseSpace domain := (Base.topologyLaws left.baseSpace).intersectionOpen c.domain d.domain
+  (\bysub(LeftAtlas.Data[k], LeftAtlas.Local k, c)).baseOpen
+  (\idelim right.baseSpace = left.baseSpace \with t: Base.Topology => Base.IsOpenIn t d.domain \by {
+    base: (\bysub(RightAtlas.Data[l], RightAtlas.Local l, d)).baseOpen, equality: sym!{{Base.Topology}} _ _ same
+  });
+\definition neighborhood: \Pow Family.Point := OpenSubspace.image piece;
+\definition neighborhoodOpen: TotalSpace.IsOpenIn Forms.alternating.totalSpace neighborhood :=
+  OpenSubspace.imageOpen Forms.alternating.totalSpace (Forms.projectionContinuous domain domainOpen) piece pieceOpen;
+\definition contains: \forall (p: Point) -> LocalSpace.Member piece p -> TotalSpace.Member neighborhood p :=
+  \fun (p: Point)(member: _) => OpenSubspace.imageMember piece p member;
+\definition within: TotalSpace.Subset neighborhood positive := \fun (p: Family.Point)(member: _) =>
+  OpenSubspace.imageElim piece p (Positive p.base p.vector) (\fun (q: Point)(inside: LocalSpace.Member piece q)(equal: q = p) =>
+    \idelim q = p \with z: Family.Point => Positive z.base z.vector \by { base: At[p := q].within inside, equality: equal }) member;

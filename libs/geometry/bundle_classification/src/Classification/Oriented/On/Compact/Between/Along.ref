@@ -1,0 +1,44 @@
+\import algebraic_topology.Interval[] \as I;
+\import algebraic_topology.Cylinder[A := X] \as Cylinder;
+\definition dimension: N.Nat^ := Raw.dimension;
+\import Hermitian.At[n := dimension] \as Native;
+\definition startProjection[x: X]: Native.Projection := w.data.projection (Cylinder.at I.start x);
+\definition endProjection[x: X]: Native.Projection := w.data.projection (Cylinder.at I.end x);
+\definition startRegular: Native.Families[X := X].Matrix[m := dimension].Regular baseSpace (\fun (x: X) => (startProjection x).map) :=
+  \fun (v: Theory.Vector dimension)(i: Fin.Fin dimension) => topology.Composition[A := X, B := Cylinder.Carrier, C := R.Real].composeContinuous baseSpace (Cylinder.topology baseSpace) vector_bundles.Bundles[].Real[].scalar.topological.space
+    (Cylinder.at I.start) (\fun (z: Cylinder.Carrier) => (w.data.projection z).map.apply v i) (Cylinder.atContinuous baseSpace I.start) (w.data.regular v i);
+\definition endRegular: Native.Families[X := X].Matrix[m := dimension].Regular baseSpace (\fun (x: X) => (endProjection x).map) :=
+  \fun (v: Theory.Vector dimension)(i: Fin.Fin dimension) => topology.Composition[A := X, B := Cylinder.Carrier, C := R.Real].composeContinuous baseSpace (Cylinder.topology baseSpace) vector_bundles.Bundles[].Real[].scalar.topological.space
+    (Cylinder.at I.end) (\fun (z: Cylinder.Carrier) => (w.data.projection z).map.apply v i) (Cylinder.atContinuous baseSpace I.end) (w.data.regular v i);
+\import bundle_complements.Complements[].Over[K := R.Real, field := R.Algebra[].field, conjugation := hermitian_frames.Hermitian[].Real[].scalar, scalar := vector_bundles.Bundles[].Real[].scalar] \as Complements;
+\import Complements.Projection[X := X, n := dimension, baseSpace := baseSpace, P := startProjection, regular := startRegular] \as Start;
+\import Complements.Projection[X := X, n := dimension, baseSpace := baseSpace, P := endProjection, regular := endRegular] \as Finish;
+\import Complements.Projection[X := Cylinder.Carrier, n := dimension, baseSpace := Cylinder.topology baseSpace, P := w.data.projection, regular := w.data.regular] \as Image;
+\definition StartFiber[x: X]: \Set := Start.Fiber x;
+\definition EndFiber[x: X]: \Set := Finish.Fiber x;
+\definition startBundle: Bundles.Family[X := X, F := StartFiber].Bundle := Start.bundle;
+\definition endBundle: Bundles.Family[X := X, F := EndFiber].Bundle := Finish.bundle;
+\import Raw.With[w := w].Compact[compact := compact] \as Plain;
+\definition leftIsomorphism: Bundles.Isomorphisms[X := X, F := Theory.On[X := X, baseSpace := baseSpace].Fiber a.projection, G := StartFiber,
+  source := Theory.On[X := X, baseSpace := baseSpace].bundle a.projection, target := startBundle].Isomorphism := Plain.Left[].isomorphism;
+\definition rightIsomorphism: Bundles.Isomorphisms[X := X, F := Theory.On[X := X, baseSpace := baseSpace].Fiber b.projection, G := EndFiber,
+  source := Theory.On[X := X, baseSpace := baseSpace].bundle b.projection, target := endBundle].Isomorphism := Plain.Right[].isomorphism;
+\import Operations.Alternating[X := X, F := StartFiber, bundle := startBundle, k := k] \as StartForms;
+\import Operations.Alternating[X := X, F := EndFiber, bundle := endBundle, k := k] \as EndForms;
+\import Operations.Alternating[X := Cylinder.Carrier, F := Image.Fiber, bundle := Image.bundle, k := k] \as ImageForms;
+\definition StartDet[x: X]: \Set := StartForms.Fiber x;
+\definition EndDet[x: X]: \Set := EndForms.Fiber x;
+\import \root.Classification[].Orientations[X := Cylinder.Carrier, F := ImageForms.Fiber, bundle := ImageForms.alternating] \as Cones;
+\definition Cone: \Set := Cones.Orientation;
+\definition Ranked: \Prop := \forall (z: Cylinder.Carrier) -> Native.OnProjection[P := w.data.projection z].Rank[k := k].HasRank;
+\import \root.Classification[].Determinants[X := X, F := Theory.On[X := X, baseSpace := baseSpace].Fiber a.projection, G := StartFiber,
+  source := Theory.On[X := X, baseSpace := baseSpace].bundle a.projection, target := startBundle, same := \refl(baseSpace), k := k, iso := leftIsomorphism] \as LeftForms;
+\import \root.Classification[].Determinants[X := X, F := Theory.On[X := X, baseSpace := baseSpace].Fiber b.projection, G := EndFiber,
+  source := Theory.On[X := X, baseSpace := baseSpace].bundle b.projection, target := endBundle, same := \refl(baseSpace), k := k, iso := rightIsomorphism] \as RightForms;
+\import \root.Classification[].Orientations[X := X, F := DeterminantFiber a.projection, bundle := determinantBundle a.projection] \as FirstCones;
+\import \root.Classification[].Orientations[X := X, F := DeterminantFiber b.projection, bundle := determinantBundle b.projection] \as SecondCones;
+\definition StartCompatible[o: Cone]: \Prop := \forall (x: X)(alpha: StartDet x) ->
+  Logic.PropEquiv[Cones.Positive o.positive (Cylinder.at I.start x) alpha, FirstCones.Positive a.orientation.positive x ((LeftForms.isomorphism.forward.fiber x).apply alpha)];
+\definition EndCompatible[o: Cone]: \Prop := \forall (x: X)(alpha: EndDet x) ->
+  Logic.PropEquiv[Cones.Positive o.positive (Cylinder.at I.end x) alpha, SecondCones.Positive b.orientation.positive x ((RightForms.isomorphism.forward.fiber x).apply alpha)];
+\module With(orientation: Cone, start: StartCompatible orientation, end: EndCompatible orientation);

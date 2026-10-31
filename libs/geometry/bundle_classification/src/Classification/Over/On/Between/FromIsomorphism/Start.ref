@@ -1,0 +1,23 @@
+\import \root.Classification[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].For[X := X, F := Fiber p, bundle := bundle p].Interpolate[first := first, second := second] \as Construction;
+\import Geometry.Finite[n := n].Blocks[m := m] \as Coordinates;
+\definition at: Cylinder.Carrier := Cylinder.at I.start x;
+\import Complements.For[X := Cylinder.Carrier, F := (\fun (z: Cylinder.Carrier) => Fiber p (Cylinder.point z)), bundle := Construction.pulledBundle].FromEmbedding[embedding := Construction.embedding].Image[].At[x := at] \as Point;
+\definition value[v: Fiber p x]: Vector dimension := (Construction.map.fiber at).apply v;
+\definition formula: \forall (v: Fiber p x) -> value v = Pad.left.apply v := \fun (v: Fiber p x) =>
+  congr!{{Vector n} {Vector m} {Vector dimension}} Coordinates.join _ _ _ _
+    (trans!{{Vector n}} _ _ _ (congr!{K {Vector n}} (\fun (a: K) => (coordinates n).smul a v) _ _
+      (trans!{K} _ _ _ (congr!{{I.Carrier} K} (\fun (t: I.Carrier) => conjugation.embed t) _ _ I.reverseStart) conjugation.embedOne)) ((coordinates n).scalarOne v))
+    (trans!{{Vector m}} _ _ _ (congr!{K {Vector m}} (\fun (a: K) => (coordinates m).smul a ((iso.forward.fiber x).apply v)) _ _ conjugation.embedZero)
+      (Spaces.Laws[V := Vector m, space := coordinates m].zeroScale ((iso.forward.fiber x).apply v)));
+\definition fixedPad: \forall (v: Fiber p x) -> (Pad.leftProjection (p.projection x)).map.apply (Pad.left.apply v) = Pad.left.apply v :=
+  \fun (v: Fiber p x) => congr!{{Vector n} {Vector dimension}} Pad.left.apply _ _
+    (trans!{{Vector n}} _ _ _ (congr!{{Vector n} {Vector n}} (p.projection x).map.apply _ _ (Pad.firstLeft v)) (\bysub(Vector n, Source.Image x, v)));
+\definition fixes: \forall (v: Fiber p x) -> (Pad.leftProjection (p.projection x)).map.apply (value v) = value v :=
+  \fun (v: Fiber p x) => trans!{{Vector dimension}} _ _ _ (congr!{{Vector dimension} {Vector dimension}} (Pad.leftProjection (p.projection x)).map.apply _ _ (formula v))
+    (trans!{{Vector dimension}} _ _ _ (fixedPad v) (sym!{{Vector dimension}} _ _ (formula v)));
+\definition preimage[z: Vector dimension]: Fiber p x := Source.At[x := x].project.apply (Pad.first.apply z);
+\definition covers: \forall (z: Vector dimension) -> value (preimage z) = (Pad.leftProjection (p.projection x)).map.apply z :=
+  \fun (z: Vector dimension) => formula (preimage z);
+\import \root.Classification[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].ProjectionIdentity[n := dimension, V := Fiber p x, space := (bundle p).space x,
+  e := Construction.map.fiber at, injective := Construction.At[p := at].injective, Q := Pad.leftProjection (p.projection x), preimage := preimage, fixes := fixes, covers := covers] \as Identity;
+\definition same: (Construction.projection at).map = (Pad.leftProjection (p.projection x)).map := Identity.identify (Construction.projection at) Point.conditions.range;

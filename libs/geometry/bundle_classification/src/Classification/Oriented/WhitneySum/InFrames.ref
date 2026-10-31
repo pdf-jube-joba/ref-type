@@ -1,0 +1,67 @@
+\import \root.Classification[].TopForms[V := F x, space := left.space x, n := k, frame := a].DirectSum[W := G x, right := right.space x, m := l, other := b] \as Direct;
+\import \root.Classification[].TopForms[V := Sum.Fiber x, space := bundle.space x, n := rank, frame := Direct.sumFrame] \as Top;
+\import \root.Classification[].ScalarSigns[] \as Signs;
+\import \parent.At[x := x] \as Point;
+\import \root.Classification[].TopForms[V := F x, space := left.space x, n := k, frame := a] \as LeftTop;
+\import \root.Classification[].TopForms[V := G x, space := right.space x, n := l, frame := b] \as RightTop;
+\import Direct.Basis[] \as Basis;
+\definition sumFrame: Bundles.Dimension[V := Sum.Fiber x, space := bundle.space x].Frame rank := Direct.sumFrame;
+\definition coefficient[gamma: Forms.Fiber x]: R.Real := Top.coefficient gamma;
+\definition leftCoefficient[alpha: First.DeterminantFiber x]: R.Real := LeftTop.coefficient alpha;
+\definition rightCoefficient[beta: Second.DeterminantFiber x]: R.Real := RightTop.coefficient beta;
+\definition coefficientProduct: \forall (alpha: First.DeterminantFiber x)(beta: Second.DeterminantFiber x) ->
+  Top.coefficient (product x alpha beta) = R.mul (LeftTop.coefficient alpha) (RightTop.coefficient beta) :=
+  \fun (alpha: First.DeterminantFiber x)(beta: Second.DeterminantFiber x) => trans!{R.Real} _ _ _
+    (sym!{R.Real} _ _ (congr!{{Fin.Fin rank -> Sum.Fiber x} R.Real} (product x alpha beta) _ _ Basis.mixedIsBasis))
+    (Point.formula alpha beta LeftTop.arguments RightTop.arguments);
+\import Spaces.Laws[V := Forms.Fiber x, space := Forms.fiberSpace x] \as FormLaws;
+\import dedekind_reals.DedekindReal[].Arithmetic[].Prop[] \as Scalars;
+\import dedekind_reals.DedekindReal[].Order[] \as Comparisons;
+\definition coefficientPositive: \forall (gamma, delta: Forms.Fiber x) -> Positive x gamma -> Positive x delta ->
+  Order.Lt R.zero (R.mul (Top.coefficient gamma) (Top.coefficient delta)) :=
+  \fun (gamma, delta: Forms.Fiber x)(pg: _)(pd: _) => \block {
+    \takefrom a: \Cast[R.Real] ({ a: R.Real \where Logic.And[Order.Lt R.zero a, delta = (Forms.fiberSpace x).smul a gamma] }) \by ray x gamma delta pg pd \then
+    \let given: Logic.And[Order.Lt R.zero a, delta = (Forms.fiberSpace x).smul a gamma] := \bysub(R.Real, { a: R.Real \where Logic.And[Order.Lt R.zero a, delta = (Forms.fiberSpace x).smul a gamma] }, a) \then
+    \let same: R.mul (Top.coefficient gamma) (Top.coefficient delta) = R.mul a (R.mul (Top.coefficient gamma) (Top.coefficient gamma)) :=
+      trans!{R.Real} _ _ _ (congr!{R.Real R.Real} (R.mul (Top.coefficient gamma)) _ _ (congr!{{Forms.Fiber x} R.Real} Top.coefficient _ _ given.right))
+        (R.Algebra[].mulSwap (Top.coefficient gamma) a (Top.coefficient gamma)) \then
+    \return Order.ltReplaceRight R.zero (R.mul a (R.mul (Top.coefficient gamma) (Top.coefficient gamma))) (R.mul (Top.coefficient gamma) (Top.coefficient delta))
+      (sym!{R.Real} _ _ same) (Bounds.mulPositive a (R.mul (Top.coefficient gamma) (Top.coefficient gamma)) given.left (Signs.squarePositive (Top.coefficient gamma) (Top.coefficientNonzero gamma (nonzero x gamma pg))))
+  };
+\definition criterion: \forall (gamma, delta: Forms.Fiber x) -> Positive x gamma ->
+  Logic.PropEquiv[Positive x delta, Order.Lt R.zero (R.mul (Top.coefficient gamma) (Top.coefficient delta))] :=
+  \fun (gamma, delta: Forms.Fiber x)(pg: _) => Logic.PropEquiv[_, _] {
+    ltr := coefficientPositive gamma delta pg,
+    rtl := \fun (positive: _) => \block {
+      \takefrom a: \Cast[R.Real] ({ a: R.Real \where Logic.And[Order.Lt R.zero a, delta = (Forms.fiberSpace x).smul a gamma] }) \by Top.positiveMultiple gamma delta (nonzero x gamma pg) positive \then
+      \let given: Logic.And[Order.Lt R.zero a, delta = (Forms.fiberSpace x).smul a gamma] := \bysub(R.Real, { a: R.Real \where Logic.And[Order.Lt R.zero a, delta = (Forms.fiberSpace x).smul a gamma] }, a) \then
+      \return \idelim (Forms.fiberSpace x).smul a gamma = delta \with z: Forms.Fiber x => Positive x z \by {
+        base: scale x a given.left gamma pg, equality: sym!{{Forms.Fiber x}} _ _ given.right
+      }
+    }
+  };
+\definition negativeScale: \forall (a: R.Real)(gamma: Forms.Fiber x) -> (Forms.fiberSpace x).neg ((Forms.fiberSpace x).smul a gamma) = (Forms.fiberSpace x).smul (R.neg a) gamma :=
+  \fun (a: R.Real)(gamma: Forms.Fiber x) => \axiom:funext((Forms.fiberSpace x).neg ((Forms.fiberSpace x).smul a gamma), (Forms.fiberSpace x).smul (R.neg a) gamma,
+    \fun (v: Fin.Fin rank -> Sum.Fiber x) => sym!{R.Real} _ _ (Scalars.fieldMulNegLeft a (gamma v)));
+\definition signs: \forall (delta: Forms.Fiber x) -> Logic.Not (delta = (Forms.fiberSpace x).zero) -> Logic.Or[Positive x delta, Positive x ((Forms.fiberSpace x).neg delta)] :=
+  \fun (delta: Forms.Fiber x)(nd: _) => \block {
+    \takefrom gamma: \Cast[Forms.Fiber x] ({ gamma: Forms.Fiber x \where Positive x gamma }) \by inhabited x \then
+    \let pg: Positive x gamma := \bysub(Forms.Fiber x, { gamma: Forms.Fiber x \where Positive x gamma }, gamma) \then
+    \let equality: delta = (Forms.fiberSpace x).smul (Top.ratio gamma delta) gamma := Top.scaleTo gamma delta (nonzero x gamma pg) \then
+    \let nt: Logic.Not (Top.ratio gamma delta = R.zero) := \fun (zero: _) => nd (trans!{{Forms.Fiber x}} _ _ _ equality
+      (trans!{{Forms.Fiber x}} _ _ _ (congr!{R.Real {Forms.Fiber x}} (\fun (t: R.Real) => (Forms.fiberSpace x).smul t gamma) _ _ zero) (FormLaws.zeroScale gamma))) \then
+    \return Logic.orElim[Order.Lt R.zero (Top.ratio gamma delta), Order.Lt R.zero (R.neg (Top.ratio gamma delta)), Logic.Or[Positive x delta, Positive x ((Forms.fiberSpace x).neg delta)]] (Signs.alternatives (Top.ratio gamma delta) nt)
+      (\fun (positive: _) => Logic.Or[_, _]::left (\idelim (Forms.fiberSpace x).smul (Top.ratio gamma delta) gamma = delta \with z: Forms.Fiber x => Positive x z \by {
+        base: scale x (Top.ratio gamma delta) positive gamma pg, equality: sym!{{Forms.Fiber x}} _ _ equality
+      }))
+      (\fun (positive: _) => Logic.Or[_, _]::right (\idelim (Forms.fiberSpace x).smul (R.neg (Top.ratio gamma delta)) gamma = (Forms.fiberSpace x).neg delta \with z: Forms.Fiber x => Positive x z \by {
+        base: scale x (R.neg (Top.ratio gamma delta)) positive gamma pg,
+        equality: sym!{{Forms.Fiber x}} _ _ (trans!{{Forms.Fiber x}} _ _ _ (congr!{{Forms.Fiber x} {Forms.Fiber x}} (Forms.fiberSpace x).neg _ _ equality) (negativeScale (Top.ratio gamma delta) gamma))
+      }))
+  };
+\definition disjoint: \forall (gamma: Forms.Fiber x) -> Positive x gamma -> Logic.Not (Positive x ((Forms.fiberSpace x).neg gamma)) :=
+  \fun (gamma: Forms.Fiber x)(positive: _)(negative: _) => Order.ltIrrefl R.zero
+    (Comparisons.ltTrans R.zero (R.neg (R.mul (Top.coefficient gamma) (Top.coefficient gamma))) R.zero
+      (Order.ltReplaceRight R.zero (R.mul (Top.coefficient gamma) (R.neg (Top.coefficient gamma))) (R.neg (R.mul (Top.coefficient gamma) (Top.coefficient gamma)))
+        (Scalars.fieldMulNegRight (Top.coefficient gamma) (Top.coefficient gamma)) (coefficientPositive gamma ((Forms.fiberSpace x).neg gamma) positive negative))
+      (Scalars.negativeNegOfPositive (R.mul (Top.coefficient gamma) (Top.coefficient gamma)) (Signs.squarePositive (Top.coefficient gamma) (Top.coefficientNonzero gamma (nonzero x gamma positive)))));

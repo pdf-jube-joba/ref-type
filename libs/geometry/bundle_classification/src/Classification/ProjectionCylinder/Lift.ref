@@ -1,0 +1,18 @@
+\import Complements.Projection[X := X, n := n, baseSpace := baseSpace, P := Start.projection, regular := Start.regular].Pullback[Y := Cylinder.Carrier, source := Cylinder.topology baseSpace, f := Cylinder.point, regularBase := Cylinder.pointContinuous baseSpace] \as PullStart;
+\import Bundles.Family[X := X, F := Start.Fiber] \as StartFamily;
+\import StartFamily.Of[bundle := Start.bundle].Pullback[Y := Cylinder.Carrier, source := Cylinder.topology baseSpace, f := Cylinder.point] \as Pull;
+\import Isotopy.Comparison[iso := lift] \as MotionComparison;
+\definition isomorphism: Bundles.Isomorphisms[X := Cylinder.Carrier, F := (\fun (z: Cylinder.Carrier) => Start.Fiber (Cylinder.point z)), G := Image.Fiber,
+  source := PullStart.firstBundle, target := Image.bundle].Isomorphism :=
+    Operations.IsomorphismComposition[X := Cylinder.Carrier, F := (\fun (z: Cylinder.Carrier) => Start.Fiber (Cylinder.point z)), G := Isotopy.StartFiber, H := Image.Fiber,
+      source := PullStart.firstBundle, middle := Isotopy.startBundle, target := Image.bundle].compose PullStart.isomorphism MotionComparison.value;
+\import Bundles.Isomorphisms[X := Cylinder.Carrier, F := (\fun (z: Cylinder.Carrier) => Start.Fiber (Cylinder.point z)), G := Image.Fiber, source := PullStart.firstBundle, target := Image.bundle] \as Isos;
+\definition laws: Isos.Laws[isomorphism] := \bysub(Isos.Data, Isos.Isomorphism, isomorphism);
+\definition fixedStart: \forall (x: X)(v: Start.Fiber x) -> (isomorphism.forward.fiber (Cylinder.at I.start x)).apply v = v :=
+  \fun (x: X)(v: Start.Fiber x) => MotionComparison.fixed (Cylinder.at I.start x) (Logic.Or[_, _]::left (\refl(I.start))) v;
+\definition fixedBackwardStart: \forall (x: X)(v: Start.Fiber x) -> (isomorphism.backward.fiber (Cylinder.at I.start x)).apply v = v :=
+  \fun (x: X)(v: Start.Fiber x) => trans!{{Start.Fiber x}} _ _ _
+    (congr!{{Image.Fiber (Cylinder.at I.start x)} {Start.Fiber x}} (isomorphism.backward.fiber (Cylinder.at I.start x)).apply _ _ (sym!{{Image.Fiber (Cylinder.at I.start x)}} _ _ (fixedStart x v)))
+    (laws.leftInverse (Cylinder.at I.start x) v);
+\module Endpoint;
+\module Determinant(k: N.Nat^);

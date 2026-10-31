@@ -1,0 +1,58 @@
+\import Geometry.Finite[n := n] \as Left;
+\import Geometry.Finite[n := m] \as Right;
+\import Left.Blocks[m := m] \as Coordinates;
+\import Operations.CoordinateSum[n := n, m := m] \as Join;
+\definition dimension: N.Nat^ := Coordinates.dimension;
+\import Geometry.Finite[n := dimension] \as Total;
+\import Hermitian.At[n := n] \as LeftAt;
+\import Hermitian.At[n := m] \as RightAt;
+\import Hermitian.At[n := dimension] \as TotalAt;
+\import Geometry.Inner[V := Vector n, space := coordinates n].Of[h := Left.form] \as LeftLaws;
+\import Geometry.Inner[V := Vector m, space := coordinates m].Of[h := Right.form] \as RightLaws;
+\definition zeroLeft: LeftAt.Projection := LeftAt.Projection { map := Spaces.Linear[V := Vector n, W := Vector n, source := coordinates n, target := coordinates n].Operations[].zeroMap,
+  selfAdjoint := \fun (v, w: Vector n) => trans!{K} _ _ _ (LeftLaws.zeroLeft w) (sym!{K} _ _ (Left.form.zeroRight v)),
+  idempotent := \fun (v: Vector n) => \refl((coordinates n).zero)
+};
+\definition zeroRight: RightAt.Projection := RightAt.Projection { map := Spaces.Linear[V := Vector m, W := Vector m, source := coordinates m, target := coordinates m].Operations[].zeroMap,
+  selfAdjoint := \fun (v, w: Vector m) => trans!{K} _ _ _ (RightLaws.zeroLeft w) (sym!{K} _ _ (Right.form.zeroRight v)),
+  idempotent := \fun (v: Vector m) => \refl((coordinates m).zero)
+};
+\definition leftProjection[P: LeftAt.Projection]: TotalAt.Projection := LeftAt.Blocks[m := m].projection P zeroRight;
+\definition rightProjection[Q: RightAt.Projection]: TotalAt.Projection := LeftAt.Blocks[m := m].projection zeroLeft Q;
+\definition left: Spaces.Linear[V := Vector n, W := Vector dimension, source := coordinates n, target := coordinates dimension].Map := Coordinates.inclusion;
+\import Spaces.Laws[V := Vector n, space := coordinates n] \as Laws;
+\definition right: Spaces.Linear[V := Vector m, W := Vector dimension, source := coordinates m, target := coordinates dimension].Map :=
+  Spaces.Linear[V := Vector m, W := Vector dimension, source := coordinates m, target := coordinates dimension].Map {
+    apply := \fun (v: Vector m) => Coordinates.join (coordinates n).zero v,
+    preservesAdd := \fun (v, w: Vector m) => trans!{{Vector dimension}} _ _ _
+      (congr!{{Vector n} {Vector dimension}} (\fun (z: Vector n) => Coordinates.join z ((coordinates m).add v w)) _ _ (sym!{{Vector n}} _ _ (Laws.zeroLeft (coordinates n).zero)))
+      (Coordinates.addition (coordinates n).zero (coordinates n).zero v w),
+    preservesScale := \fun (a: K)(v: Vector m) => trans!{{Vector dimension}} _ _ _
+      (congr!{{Vector n} {Vector dimension}} (\fun (z: Vector n) => Coordinates.join z ((coordinates m).smul a v)) _ _ (sym!{{Vector n}} _ _ (Laws.scaleZero a)))
+      (Coordinates.scalar a (coordinates n).zero v)
+  };
+\definition first: Spaces.Linear[V := Vector dimension, W := Vector n, source := coordinates dimension, target := coordinates n].Map := Coordinates.leftMap;
+\definition second: Spaces.Linear[V := Vector dimension, W := Vector m, source := coordinates dimension, target := coordinates m].Map := Coordinates.rightMap;
+\definition firstLeft: \forall (v: Vector n) -> first.apply (left.apply v) = v := \fun (v: Vector n) => Coordinates.leftJoin v (coordinates m).zero;
+\definition secondRight: \forall (v: Vector m) -> second.apply (right.apply v) = v := \fun (v: Vector m) => Coordinates.rightJoin (coordinates n).zero v;
+\import topological_constructions.Product[A := Vector n, B := Vector m] \as Product;
+\definition leftContinuous: topology.Continuity[A := Vector n, B := Vector dimension].Continuous (coordinateTopology n) (coordinateTopology dimension) left.apply :=
+  topology.Composition[A := Vector n, B := Pair.Times^[Vector n, Vector m], C := Vector dimension].composeContinuous (coordinateTopology n)
+    (Product.topology (coordinateTopology n) (coordinateTopology m)) (coordinateTopology dimension)
+      (\fun (v: Vector n) => Pair.pair (Vector n) (Vector m) v (coordinates m).zero) Join.join
+      (Product.Universal[X := Vector n].pairContinuous (coordinateTopology n) (coordinateTopology n) (coordinateTopology m)
+        (\fun (v: Vector n) => v) (\fun (_: Vector n) => (coordinates m).zero)
+        (topology.Maps[A := Vector n, B := Vector n].Identity[].continuous (coordinateTopology n))
+        (topology.Maps[A := Vector n, B := Vector m].constantContinuous (coordinateTopology n) (coordinateTopology m) (coordinates m).zero)) Join.Topology[].joinRegular;
+\definition rightContinuous: topology.Continuity[A := Vector m, B := Vector dimension].Continuous (coordinateTopology m) (coordinateTopology dimension) right.apply :=
+  topology.Composition[A := Vector m, B := Pair.Times^[Vector n, Vector m], C := Vector dimension].composeContinuous (coordinateTopology m)
+    (Product.topology (coordinateTopology n) (coordinateTopology m)) (coordinateTopology dimension)
+      (\fun (v: Vector m) => Pair.pair (Vector n) (Vector m) (coordinates n).zero v) Join.join
+      (Product.Universal[X := Vector m].pairContinuous (coordinateTopology m) (coordinateTopology n) (coordinateTopology m)
+        (\fun (_: Vector m) => (coordinates n).zero) (\fun (v: Vector m) => v)
+        (topology.Maps[A := Vector m, B := Vector n].constantContinuous (coordinateTopology m) (coordinateTopology n) (coordinates n).zero)
+        (topology.Maps[A := Vector m, B := Vector m].Identity[].continuous (coordinateTopology m))) Join.Topology[].joinRegular;
+\module Families(X: \Set, baseSpace: topology.Topology[Carrier := X].Topology,
+  P: X -> LeftAt.Projection, Q: X -> RightAt.Projection,
+  regularP: LeftAt.Families[X := X].Matrix[m := n].Regular baseSpace (\fun (x: X) => (P x).map),
+  regularQ: RightAt.Families[X := X].Matrix[m := m].Regular baseSpace (\fun (x: X) => (Q x).map));

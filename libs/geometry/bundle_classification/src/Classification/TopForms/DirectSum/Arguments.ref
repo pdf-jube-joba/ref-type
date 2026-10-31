@@ -1,0 +1,38 @@
+\import std.Logic[].Classical[] \as Classical;
+\use Logic.either;
+\definition updateLeft: \forall (u: Fin.Fin n -> V)(v: Fin.Fin m -> W)(i: Fin.Fin n)(w: V) ->
+  concatenate (Multilinear.update n u i w) v = TotalML.update rank (concatenate u v) (Indices.left i) (inLeft.apply w) :=
+  \fun (u: Fin.Fin n -> V)(v: Fin.Fin m -> W)(i: Fin.Fin n)(w: V) => tupleExt _ _
+    (\fun (j: Fin.Fin n) => either!{{(Classical.excludedMiddle (i = j))} {concatenate (Multilinear.update n u i w) v (Indices.left j) = TotalML.update rank (concatenate u v) (Indices.left i) (inLeft.apply w) (Indices.left j)}
+      {\fun (equal: i = j) => \idelim i = j \with t: Fin.Fin n => concatenate (Multilinear.update n u i w) v (Indices.left t) = TotalML.update rank (concatenate u v) (Indices.left i) (inLeft.apply w) (Indices.left t) \by { base: trans!{Sum.Carrier} _ _ _ (Tuples.atLeft (\fun (j: Fin.Fin n) => inLeft.apply ((Multilinear.update n u i w) j)) (\fun (j: Fin.Fin m) => inRight.apply (v j)) i)
+      (trans!{Sum.Carrier} _ _ _ (congr!{V Sum.Carrier} inLeft.apply _ _ (LeftUpdates.updateSelf n u i w))
+        (sym!{Sum.Carrier} _ _ (TotalUpdates.updateSelf rank (concatenate u v) (Indices.left i) (inLeft.apply w)))), equality: equal }}
+      {\fun (different: Logic.Not (i = j)) => trans!{Sum.Carrier} _ _ _ (Tuples.atLeft (\fun (j: Fin.Fin n) => inLeft.apply ((Multilinear.update n u i w) j)) (\fun (j: Fin.Fin m) => inRight.apply (v j)) j)
+      (trans!{Sum.Carrier} _ _ _ (congr!{V Sum.Carrier} inLeft.apply _ _ (LeftUpdates.updateOther n u i j w different))
+        (sym!{Sum.Carrier} _ _ (trans!{Sum.Carrier} _ _ _
+          (TotalUpdates.updateOther rank (concatenate u v) (Indices.left i) (Indices.left j) (inLeft.apply w)
+            (\fun (equal: Indices.left i = Indices.left j) => different (Indices.leftInjective i j equal)))
+          (Tuples.atLeft (\fun (t: Fin.Fin n) => inLeft.apply (u t)) (\fun (t: Fin.Fin m) => inRight.apply (v t)) j))))}
+    })
+    (\fun (j: Fin.Fin m) => trans!{Sum.Carrier} _ _ _ (Tuples.atRight (\fun (j: Fin.Fin n) => inLeft.apply ((Multilinear.update n u i w) j)) (\fun (j: Fin.Fin m) => inRight.apply (v j)) j)
+      (sym!{Sum.Carrier} _ _ (trans!{Sum.Carrier} _ _ _
+        (TotalUpdates.updateOther rank (concatenate u v) (Indices.left i) (Indices.right j) (inLeft.apply w) (Indices.different i j))
+        (Tuples.atRight (\fun (t: Fin.Fin n) => inLeft.apply (u t)) (\fun (t: Fin.Fin m) => inRight.apply (v t)) j))));
+\definition updateRight: \forall (u: Fin.Fin n -> V)(v: Fin.Fin m -> W)(i: Fin.Fin m)(w: W) ->
+  concatenate u (RightML.update m v i w) = TotalML.update rank (concatenate u v) (Indices.right i) (inRight.apply w) :=
+  \fun (u: Fin.Fin n -> V)(v: Fin.Fin m -> W)(i: Fin.Fin m)(w: W) => tupleExt _ _
+    (\fun (j: Fin.Fin n) => trans!{Sum.Carrier} _ _ _ (Tuples.atLeft (\fun (j: Fin.Fin n) => inLeft.apply (u j)) (\fun (j: Fin.Fin m) => inRight.apply ((RightML.update m v i w) j)) j)
+      (sym!{Sum.Carrier} _ _ (trans!{Sum.Carrier} _ _ _
+        (TotalUpdates.updateOther rank (concatenate u v) (Indices.right i) (Indices.left j) (inRight.apply w) ((\fun (equal: Indices.right i = Indices.left j) => Indices.different j i (sym!{{Fin.Fin rank}} _ _ equal))))
+        (Tuples.atLeft (\fun (t: Fin.Fin n) => inLeft.apply (u t)) (\fun (t: Fin.Fin m) => inRight.apply (v t)) j))))
+    (\fun (j: Fin.Fin m) => either!{{(Classical.excludedMiddle (i = j))} {concatenate u (RightML.update m v i w) (Indices.right j) = TotalML.update rank (concatenate u v) (Indices.right i) (inRight.apply w) (Indices.right j)}
+      {\fun (equal: i = j) => \idelim i = j \with t: Fin.Fin m => concatenate u (RightML.update m v i w) (Indices.right t) = TotalML.update rank (concatenate u v) (Indices.right i) (inRight.apply w) (Indices.right t) \by { base: trans!{Sum.Carrier} _ _ _ (Tuples.atRight (\fun (j: Fin.Fin n) => inLeft.apply (u j)) (\fun (j: Fin.Fin m) => inRight.apply ((RightML.update m v i w) j)) i)
+      (trans!{Sum.Carrier} _ _ _ (congr!{W Sum.Carrier} inRight.apply _ _ (RightUpdates.updateSelf m v i w))
+        (sym!{Sum.Carrier} _ _ (TotalUpdates.updateSelf rank (concatenate u v) (Indices.right i) (inRight.apply w)))), equality: equal }}
+      {\fun (different: Logic.Not (i = j)) => trans!{Sum.Carrier} _ _ _ (Tuples.atRight (\fun (j: Fin.Fin n) => inLeft.apply (u j)) (\fun (j: Fin.Fin m) => inRight.apply ((RightML.update m v i w) j)) j)
+      (trans!{Sum.Carrier} _ _ _ (congr!{W Sum.Carrier} inRight.apply _ _ (RightUpdates.updateOther m v i j w different))
+        (sym!{Sum.Carrier} _ _ (trans!{Sum.Carrier} _ _ _
+          (TotalUpdates.updateOther rank (concatenate u v) (Indices.right i) (Indices.right j) (inRight.apply w)
+            (\fun (equal: Indices.right i = Indices.right j) => different (Indices.rightInjective i j equal)))
+          (Tuples.atRight (\fun (t: Fin.Fin n) => inLeft.apply (u t)) (\fun (t: Fin.Fin m) => inRight.apply (v t)) j))))}
+    });

@@ -1,0 +1,44 @@
+\definition homotopicIsomorphic: \forall (p, q: Presentation) -> Homotopic p q -> Equivalent p q :=
+  \fun (p, q: Presentation)(exists: _) => \block {
+    \takefrom w: \parent.Between[p := p, q := q].Witness \by exists \then
+    \return \parent.Between[p := p, q := q].With[w := w].Compact[compact := compact].isomorphismExists
+  };
+\definition criterion: \forall (p, q: Presentation) -> Logic.PropEquiv[Homotopic p q, Equivalent p q] :=
+  \fun (p, q: Presentation) => Logic.PropEquiv[Homotopic p q, Equivalent p q] { ltr := homotopicIsomorphic p q, rtl := isomorphicHomotopic p q };
+\definition reflexive: \forall (p: Presentation) -> Homotopic p p := \fun (p: Presentation) => isomorphicHomotopic p p (Representations.reflexive p);
+\definition symmetric: \forall (p, q: Presentation) -> Homotopic p q -> Homotopic q p :=
+  \fun (p, q: Presentation)(related: _) => isomorphicHomotopic q p (Representations.symmetric p q (homotopicIsomorphic p q related));
+\definition transitive: \forall (p, q, r: Presentation) -> Homotopic p q -> Homotopic q r -> Homotopic p r :=
+  \fun (p, q, r: Presentation)(first: _)(second: _) => isomorphicHomotopic p r (Representations.transitive p q r (homotopicIsomorphic p q first) (homotopicIsomorphic q r second));
+\import std.Set[].Quotient[A := Presentation, Equivalent := Homotopic] \as Quotient;
+\import std.Set[].Quotient[A := Presentation, Equivalent := Equivalent] \as BundleQuotient;
+\definition equivalence: Quotient.EquivalenceLaws := std.Logic[].Relation[].Equivalence[Presentation, Homotopic] { refl := reflexive, sym := symmetric, trans := transitive };
+\definition Classes: \Set := Quotient.Carrier;
+\definition class[p: Presentation]: Classes := Quotient.class p;
+\definition classCriterion: \forall (p, q: Presentation) -> Logic.PropEquiv[class p = class q, Equivalent p q] :=
+  \fun (p, q: Presentation) => Logic.PropEquiv[class p = class q, Equivalent p q] {
+    ltr := \fun (same: _) => homotopicIsomorphic p q (Quotient.equivalentOfClassEq equivalence p q same),
+    rtl := \fun (related: _) => Quotient.classOfEq equivalence p q (isomorphicHomotopic p q related)
+  };
+\definition classComparison: \forall (p: Presentation) -> Quotient.ClassOf p = BundleQuotient.ClassOf p :=
+  \fun (p: Presentation) => \axiom:setext(Quotient.ClassOf p, BundleQuotient.ClassOf p, homotopicIsomorphic p, isomorphicHomotopic p);
+\definition bundleClassExists: \forall (C: Classes) -> BundleQuotient.IsClass C := \fun (C: Classes) => \block {
+  \takefrom p: Quotient.Representative C \by Quotient.classProperty C \then
+  \return BundleQuotient.isClassOf C p (trans!{{\Pow Presentation}} _ _ _ (Quotient.represents C p) (classComparison p))
+};
+\definition homotopyClassExists: \forall (C: Representations.Classes) -> Quotient.IsClass C := \fun (C: Representations.Classes) => \block {
+  \takefrom p: BundleQuotient.Representative C \by BundleQuotient.classProperty C \then
+  \return Quotient.isClassOf C p (trans!{{\Pow Presentation}} _ _ _ (BundleQuotient.represents C p) (sym!{{\Pow Presentation}} _ _ (classComparison p)))
+};
+\definition toBundles[C: Classes]: Representations.Classes := \into[\Pow Presentation](C, BundleQuotient.ClassSet) \by { bundleClassExists C };
+\definition fromBundles[C: Representations.Classes]: Classes := \into[\Pow Presentation](C, Quotient.ClassSet) \by { homotopyClassExists C };
+\definition leftInverse: \forall (C: Classes) -> fromBundles (toBundles C) = C := \fun (C: Classes) => \refl(C);
+\definition rightInverse: \forall (C: Representations.Classes) -> toBundles (fromBundles C) = C := \fun (C: Representations.Classes) => \refl(C);
+\definition onClass: \forall (p: Presentation) -> toBundles (class p) = Representations.class p := classComparison;
+\definition fromOnClass: \forall (p: Presentation) -> fromBundles (Representations.class p) = class p :=
+  \fun (p: Presentation) => trans!{Classes} _ _ _ (congr!{Representations.Classes Classes} fromBundles _ _ (sym!{Representations.Classes} _ _ (onClass p))) (leftInverse (class p));
+\module For(F: X -> \Set, original: Bundles.Family[X := X, F := F].Bundle, same: original.baseSpace = baseSpace);
+\module Pullback(Y: \Set, source: topology.Topology[Carrier := Y].Topology, f: Y -> X,
+  continuous: topology.Continuity[A := Y, B := X].Continuous source baseSpace f,
+  sourceCompact: topology.Topology[Carrier := Y].IsCompact source);
+\module Hausdorff(hausdorff: topology.Topology[Carrier := X].IsT2 baseSpace);

@@ -1,0 +1,29 @@
+\import Theory.On[X := X, baseSpace := baseSpace] \as Plain;
+\definition Ranked[p: Plain.Presentation]: \Prop := \forall (x: X) -> Hermitian.At[n := p.dimension].OnProjection[P := p.projection x].Rank[k := k].HasRank;
+\definition Projection: \Set := \Cast[Plain.Presentation] ({ p: Plain.Presentation \where Ranked p });
+\definition DeterminantFiber[p: Projection][x: X]: \Set := Operations.Alternating[X := X, F := Plain.Fiber p, bundle := Plain.bundle p, k := k].Fiber x;
+\definition determinantBundle[p: Projection]: Bundles.Family[X := X, F := DeterminantFiber p].Bundle := Operations.Alternating[X := X, F := Plain.Fiber p, bundle := Plain.bundle p, k := k].alternating;
+\definition Orientation[p: Projection]: \Set := \root.Classification[].Orientations[X := X, F := DeterminantFiber p, bundle := determinantBundle p].Orientation;
+\structure Object: \Set := { projection: Projection, orientation: Orientation projection };
+\module Between(a, b: Object);
+\definition Isomorphic[a, b: Object]: \Prop := \exists Between[a := a, b := b].Isomorphism;
+\module Identity(a: Object);
+\module Reverse(a, b: Object, iso: \root.Classification[].Oriented[].On[X := X, baseSpace := baseSpace, k := k].Between[a := a, b := b].Isomorphism);
+\module Compose(a, b, c: Object, first: \root.Classification[].Oriented[].On[X := X, baseSpace := baseSpace, k := k].Between[a := a, b := b].Isomorphism, second: \root.Classification[].Oriented[].On[X := X, baseSpace := baseSpace, k := k].Between[a := b, b := c].Isomorphism);
+\definition reflexive: \forall (a: Object) -> Isomorphic a a := \fun (a: Object) => \exact(Identity[a := a].value, Between[a := a, b := a].Isomorphism);
+\definition symmetric: \forall (a, b: Object) -> Isomorphic a b -> Isomorphic b a := \fun (a, b: Object)(exists: _) => \block {
+  \takefrom iso: \root.Classification[].Oriented[].On[X := X, baseSpace := baseSpace, k := k].Between[a := a, b := b].Isomorphism \by exists \then
+  \return \exact(Reverse[a := a, b := b, iso := iso].value, Between[a := b, b := a].Isomorphism)
+};
+\definition transitive: \forall (a, b, c: Object) -> Isomorphic a b -> Isomorphic b c -> Isomorphic a c := \fun (a, b, c: Object)(ab: _)(bc: _) => \block {
+  \takefrom first: Between[a := a, b := b].Isomorphism \by ab \then
+  \takefrom second: Between[a := b, b := c].Isomorphism \by bc \then
+  \return \exact(Compose[a := a, b := b, c := c, first := first, second := second].value, Between[a := a, b := c].Isomorphism)
+};
+\import std.Set[].Quotient[A := Object, Equivalent := Isomorphic] \as IsomorphismQuotient;
+\definition isomorphismEquivalence: IsomorphismQuotient.EquivalenceLaws := std.Logic[].Relation[].Equivalence[Object, Isomorphic] { refl := reflexive, sym := symmetric, trans := transitive };
+\definition BundleClasses: \Set := IsomorphismQuotient.Carrier;
+\definition bundleClass[a: Object]: BundleClasses := IsomorphismQuotient.class a;
+\module Pullback(Y: \Set, source: topology.Topology[Carrier := Y].Topology, f: Y -> X,
+  continuous: topology.Continuity[A := Y, B := X].Continuous source baseSpace f);
+\module Compact(compact: topology.Topology[Carrier := X].IsCompact baseSpace);

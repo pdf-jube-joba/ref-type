@@ -1,0 +1,21 @@
+\import Complements.Projection[X := X, n := n, baseSpace := baseSpace, P := p.projection, regular := p.regular] \as Source;
+\import Complements.Projection[X := X, n := m, baseSpace := baseSpace, P := q.projection, regular := q.regular] \as Target;
+\import Complements.For[X := X, F := Fiber p, bundle := bundle p] \as Original;
+\definition first: Original.Embedding := Original.Embedding { dimension := n, map := Source.inclusion, injective := \fun (x: X)(v, w: Fiber p x)(same: _) => same };
+\import Bundles.Morphisms[X := X, Y := X, F := Fiber p, G := Fiber q, source := bundle p, target := bundle q, f := (\fun (x: X) => x)].Composition[Z := X, H := (\fun (_: X) => Vector m), range := Bundles.Trivial[X := X, n := m, baseSpace := baseSpace].bundle, g := (\fun (x: X) => x)] \as Compose;
+\import Bundles.Isomorphisms[X := X, F := Fiber p, G := Fiber q, source := bundle p, target := bundle q] \as Isos;
+\definition laws: Isos.Laws[iso] := \bysub(Isos.Data, Isos.Isomorphism, iso);
+\definition injective: \forall (x: X)(v, w: Fiber p x) -> (iso.forward.fiber x).apply v = (iso.forward.fiber x).apply w -> v = w :=
+  \fun (x: X)(v, w: Fiber p x)(same: _) => trans!{{Fiber p x}} _ _ _ (sym!{{Fiber p x}} _ _ (laws.leftInverse x v))
+    (trans!{{Fiber p x}} _ _ _ (congr!{{Fiber q x} {Fiber p x}} (iso.backward.fiber x).apply _ _ same) (laws.leftInverse x w));
+\definition second: Original.Embedding := Original.Embedding { dimension := m, map := Compose.compose iso.forward Target.inclusion, injective := injective };
+\import \root.Classification[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].For[X := X, F := Fiber p, bundle := bundle p].Interpolate[first := first, second := second] \as Interpolation;
+\module Start(x: X);
+\module Finish(x: X);
+\definition witness: Witness := Witness {
+  data := Data { projection := Interpolation.projection, regular := Interpolation.regular },
+  start := \fun (x: X) => Start[x := x].same,
+  end := \fun (x: X) => Finish[x := x].same
+};
+\definition homotopic: Homotopic := \exact(witness, Witness);
+\module AtRank(k: N.Nat^, rank: \forall (x: X) -> Hermitian.At[n := n].OnProjection[P := p.projection x].Rank[k := k].HasRank);

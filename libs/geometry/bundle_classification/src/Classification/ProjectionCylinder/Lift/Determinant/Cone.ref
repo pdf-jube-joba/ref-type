@@ -1,0 +1,35 @@
+\import \root.Classification[].ConeCylinder[X := X, L := StartForms.Fiber, source := StartForms.alternating, D := ImageForms.Fiber, target := ImageForms.alternating].With[iso := lineIsomorphism, orientation := orientation] \as Path;
+\import \root.Classification[].Orientations[X := Cylinder.Carrier, F := ImageForms.Fiber, bundle := ImageForms.alternating] \as Cones;
+\definition signs: \forall (x: X)(alpha: StartForms.Fiber x) -> Logic.Not (alpha = (StartForms.alternating.space x).zero) ->
+  Logic.PropEquiv[Cones.Positive orientation.positive (Cylinder.at I.start x) alpha,
+    Cones.Positive orientation.positive (Cylinder.at I.end x) ((EndpointForms.isomorphism.backward.fiber x).apply alpha)] :=
+  \fun (x: X)(alpha: StartForms.Fiber x)(nz: _) =>
+    \idelim (lineIsomorphism.forward.fiber (Cylinder.at I.start x)).apply alpha = alpha \with a: StartForms.Fiber x =>
+      Logic.PropEquiv[Cones.Positive orientation.positive (Cylinder.at I.start x) a,
+        Cones.Positive orientation.positive (Cylinder.at I.end x) ((EndpointForms.isomorphism.backward.fiber x).apply alpha)] \by {
+      base: \idelim (lineIsomorphism.forward.fiber (Cylinder.at I.end x)).apply alpha = (EndpointForms.isomorphism.backward.fiber x).apply alpha
+        \with b: EndForms.Fiber x => Logic.PropEquiv[Cones.Positive orientation.positive (Cylinder.at I.start x) ((lineIsomorphism.forward.fiber (Cylinder.at I.start x)).apply alpha), Cones.Positive orientation.positive (Cylinder.at I.end x) b]
+        \by { base: Path.signs x alpha nz, equality: atEnd x alpha }, equality: atStart x alpha
+    };
+\import std.Logic[].Classical[] \as Classical;
+\definition signsAll: \forall (x: X)(alpha: StartForms.Fiber x) ->
+  Logic.PropEquiv[Cones.Positive orientation.positive (Cylinder.at I.start x) alpha,
+    Cones.Positive orientation.positive (Cylinder.at I.end x) ((EndpointForms.isomorphism.backward.fiber x).apply alpha)] :=
+  \fun (x: X)(alpha: StartForms.Fiber x) => Logic.orElim[alpha = (StartForms.alternating.space x).zero, Logic.Not (alpha = (StartForms.alternating.space x).zero),
+    Logic.PropEquiv[Cones.Positive orientation.positive (Cylinder.at I.start x) alpha, Cones.Positive orientation.positive (Cylinder.at I.end x) ((EndpointForms.isomorphism.backward.fiber x).apply alpha)]]
+    (Classical.excludedMiddle (alpha = (StartForms.alternating.space x).zero))
+    (\fun (zero: _) => Logic.PropEquiv[_, _] {
+      ltr := \fun (pos: _) => Logic.falseElim _ ((Cones.laws orientation).nonzero (Cylinder.at I.start x) alpha pos zero),
+      rtl := \fun (pos: _) => Logic.falseElim _ ((Cones.laws orientation).nonzero (Cylinder.at I.end x) ((EndpointForms.isomorphism.backward.fiber x).apply alpha) pos
+        (trans!{{EndForms.Fiber x}} _ _ _ (congr!{{StartForms.Fiber x} {EndForms.Fiber x}} (EndpointForms.isomorphism.backward.fiber x).apply _ _ zero) (EndpointForms.isomorphism.backward.fiber x).preservesZero))
+    }) (signs x alpha);
+\import Bundles.Isomorphisms[X := X, F := EndForms.Fiber, G := StartForms.Fiber, source := EndForms.alternating, target := StartForms.alternating] \as Isos;
+\definition endpointSigns: \forall (x: X)(alpha: EndForms.Fiber x) ->
+  Logic.PropEquiv[Cones.Positive orientation.positive (Cylinder.at I.start x) ((EndpointForms.isomorphism.forward.fiber x).apply alpha),
+    Cones.Positive orientation.positive (Cylinder.at I.end x) alpha] :=
+  \fun (x: X)(alpha: EndForms.Fiber x) =>
+    \idelim (EndpointForms.isomorphism.backward.fiber x).apply ((EndpointForms.isomorphism.forward.fiber x).apply alpha) = alpha
+      \with beta: EndForms.Fiber x => Logic.PropEquiv[Cones.Positive orientation.positive (Cylinder.at I.start x) ((EndpointForms.isomorphism.forward.fiber x).apply alpha), Cones.Positive orientation.positive (Cylinder.at I.end x) beta] \by {
+      base: signsAll x ((EndpointForms.isomorphism.forward.fiber x).apply alpha),
+      equality: (\bysub(Isos.Data, Isos.Isomorphism, EndpointForms.isomorphism)).leftInverse x alpha
+    };

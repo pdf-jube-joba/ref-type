@@ -1,0 +1,26 @@
+\import Native.At[p := a.projection] \as NativeAt;
+\definition rank: Target.Ranked NativeAt.presentation := \fun (y: Y) => (\bysub(Plain.Presentation, Projection, a.projection)) (f y);
+\definition projection: Target.Projection := \into[Theory.On[X := Y, baseSpace := source].Presentation](NativeAt.presentation, Target.Projection) \by { rank };
+\import Operations.Alternating[X := X, F := Plain.Fiber a.projection, bundle := Plain.bundle a.projection, k := k] \as OriginalForms;
+\import Operations.Alternating[X := Y, F := (\fun (y: Y) => Plain.Fiber a.projection (f y)), bundle := NativeAt.pulledBundle, k := k] \as PulledForms;
+\import Operations.Alternating[X := Y, F := Theory.On[X := Y, baseSpace := source].Fiber projection, bundle := Theory.On[X := Y, baseSpace := source].bundle projection, k := k] \as TargetForms;
+\import \root.Classification[].Orientations[X := X, F := OriginalForms.Fiber, bundle := OriginalForms.alternating].Pullback[Y := Y, source := source, f := f, continuous := continuous, orientation := a.orientation] \as PullCone;
+\import OriginalForms.Pullback[Y := Y, source := source, f := f, regular := continuous] \as FormPull;
+\import \root.Classification[].Determinants[X := Y, F := (\fun (y: Y) => Plain.Fiber a.projection (f y)), G := Theory.On[X := Y, baseSpace := source].Fiber projection,
+  source := NativeAt.pulledBundle, target := Theory.On[X := Y, baseSpace := source].bundle projection, same := \refl(source), k := k, iso := NativeAt.isomorphism] \as ImageForms;
+\import Bundles.Isomorphisms[X := Y, F := (\fun (y: Y) => OriginalForms.Fiber (f y)), G := PulledForms.Fiber, source := FormPull.firstBundle, target := PulledForms.alternating] \as FormIsos;
+\definition lineComparison: Bundles.Isomorphisms[X := Y, F := TargetForms.Fiber, G := (\fun (y: Y) => OriginalForms.Fiber (f y)), source := TargetForms.alternating, target := FormPull.firstBundle].Isomorphism :=
+  Operations.IsomorphismComposition[X := Y, F := TargetForms.Fiber, G := PulledForms.Fiber, H := (\fun (y: Y) => OriginalForms.Fiber (f y)), source := TargetForms.alternating, middle := PulledForms.alternating, target := FormPull.firstBundle].compose ImageForms.isomorphism (FormIsos.inverse FormPull.isomorphism);
+\import \root.Classification[].Orientations[X := Y, F := (\fun (y: Y) => OriginalForms.Fiber (f y)), bundle := FormPull.firstBundle].Along[G := TargetForms.Fiber, target := TargetForms.alternating, iso := lineComparison, orientation := PullCone.orientationOnPullback] \as Transport;
+\definition object: Target.Object := Target.Object { projection := projection, orientation := Transport.orientationOnTarget };
+\import \root.Classification[].Orientations[X := Y, F := TargetForms.Fiber, bundle := TargetForms.alternating] \as TargetCones;
+\import \root.Classification[].Orientations[X := X, F := OriginalForms.Fiber, bundle := OriginalForms.alternating] \as OriginalCones;
+\definition identity: \forall (y: Y)(alpha: TargetForms.Fiber y) -> (lineComparison.forward.fiber y).apply alpha = alpha :=
+  \fun (y: Y)(alpha: TargetForms.Fiber y) => \axiom:funext((lineComparison.forward.fiber y).apply alpha, alpha,
+    \fun (v: Fin.Fin k -> Plain.Fiber a.projection (f y)) => congr!{{Fin.Fin k -> Plain.Fiber a.projection (f y)} {R.Real}} alpha _ _
+      (\axiom:funext((\fun (i: Fin.Fin k) => v i), v, \fun (i: Fin.Fin k) => \refl(v i))));
+\definition positiveCriterion: \forall (y: Y)(alpha: TargetForms.Fiber y) -> Logic.PropEquiv[TargetCones.Positive object.orientation.positive y alpha, OriginalCones.Positive a.orientation.positive (f y) alpha] :=
+  \fun (y: Y)(alpha: TargetForms.Fiber y) => Logic.PropEquiv[_, _] {
+    ltr := \fun (positive: _) => \idelim (lineComparison.forward.fiber y).apply alpha = alpha \with beta: OriginalForms.Fiber (f y) => OriginalCones.Positive a.orientation.positive (f y) beta \by { base: positive, equality: identity y alpha },
+    rtl := \fun (positive: _) => \idelim alpha = (lineComparison.forward.fiber y).apply alpha \with beta: OriginalForms.Fiber (f y) => OriginalCones.Positive a.orientation.positive (f y) beta \by { base: positive, equality: sym!{{OriginalForms.Fiber (f y)}} _ _ (identity y alpha) }
+  };

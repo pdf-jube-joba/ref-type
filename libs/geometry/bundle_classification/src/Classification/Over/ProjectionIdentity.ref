@@ -1,0 +1,20 @@
+\import Complements.Finite[n := n].Range[V := V, space := space, f := e, injective := injective] \as Range;
+\definition candidate: Range.Candidate := \into[Spaces.Linear[V := Vector n, W := Vector n, source := coordinates n, target := coordinates n].Map](Q.map, Range.Values) \by {
+  Range.Conditions[Q.map] {
+    selfAdjoint := Q.selfAdjoint, idempotent := Q.idempotent,
+    range := \fun (z: Vector n) => Logic.PropEquiv[Q.map.apply z = z, Range.Image z] {
+      ltr := \fun (fixed: _) => Logic.existsIntro[V, { v: V \where e.apply v = z }] (preimage z) (trans!{{Vector n}} _ _ _ (covers z) fixed),
+      rtl := \fun (exists: Range.Image z) => \block {
+        \takefrom v: \Cast[V] ({ v: V \where e.apply v = z }) \by exists \then
+        \let same: e.apply v = z := \bysub(V, { v: V \where e.apply v = z }, v) \then
+        \return trans!{{Vector n}} _ _ _ (congr!{{Vector n} {Vector n}} Q.map.apply _ _ (sym!{{Vector n}} _ _ same)) (trans!{{Vector n}} _ _ _ (fixes v) same)
+      }
+    }
+  }
+};
+\definition same: \forall (p: Range.Candidate) -> p = Q.map := \fun (p: Range.Candidate) => Range.unique p candidate;
+\definition identify: \forall (P: Hermitian.At[n := n].Projection) ->
+  (\forall (z: Vector n) -> Logic.PropEquiv[P.map.apply z = z, Range.Image z]) -> P.map = Q.map :=
+  \fun (P: Hermitian.At[n := n].Projection)(images: _) => same (\into[Spaces.Linear[V := Vector n, W := Vector n, source := coordinates n, target := coordinates n].Map](P.map, Range.Values) \by {
+    Range.Conditions[P.map] { selfAdjoint := P.selfAdjoint, idempotent := P.idempotent, range := images }
+  });
