@@ -1,0 +1,59 @@
+\import \parent.Seed[] \as Seed;
+\definition patchExists[t: Scalar]: \exists ( patch: Patch \where Inside patch.radius t ) := \block {
+  \takefrom seed: Patch \by Seed.existsPatch \then
+  \return \parent.Growing[seed := seed].containing t
+};
+\definition ValueLaw[t, y: Scalar]: \Prop := \forall (patch: Patch) -> Inside patch.radius t -> y = patch.value t;
+\definition Value[t: Scalar]: \Set := \Cast[Scalar] ({ y: Scalar \where ValueLaw t y });
+\definition existsValue[t: Scalar]: \exists Value t := \block {
+  \takefrom patch: \Cast[Patch] ({ p: Patch \where Inside p.radius t }) \by patchExists t \then
+  \let inside: Inside patch.radius t := \bysub(Patch, { p: Patch \where Inside p.radius t }, patch) \then
+  \return Logic.existsIntro[Scalar, { y: Scalar \where ValueLaw t y }] (patch.value t)
+    (\fun (other: Patch)(member: _) => \parent.Pair[left := patch, right := other].agreement t inside member)
+};
+\definition uniqueValue[t: Scalar][left, right: Value t]: left = right := \block {
+  \takefrom patch: \Cast[Patch] ({ p: Patch \where Inside p.radius t }) \by patchExists t \then
+  \let inside: Inside patch.radius t := \bysub(Patch, { p: Patch \where Inside p.radius t }, patch) \then
+  \return trans!{Scalar} _ _ _ (\bysub(Scalar, { y: Scalar \where ValueLaw t y }, left) patch inside)
+    (sym!{Scalar} _ _ (\bysub(Scalar, { y: Scalar \where ValueLaw t y }, right) patch inside))
+};
+\definition value[t: Scalar]: Scalar := \choice Value t \by { existence: existsValue t, uniqueness: uniqueValue t };
+\definition law[t: Scalar]: ValueLaw t (value t) := \bysub(Scalar, { y: Scalar \where ValueLaw t y },
+  \choice Value t \by { existence: existsValue t, uniqueness: uniqueValue t });
+\definition positive[t: Scalar]: R.Lt Real.zero (value t) := \block {
+  \takefrom patch: \Cast[Patch] ({ p: Patch \where Inside p.radius t }) \by patchExists t \then
+  \return R.ltReplaceRight Real.zero (patch.value t) (value t)
+    (sym!{Scalar} _ _ (law t patch (\bysub(Patch, { p: Patch \where Inside p.radius t }, patch)))) (patch.positive t)
+};
+\definition atZero: value Real.zero = Real.one := \block {
+  \takefrom patch: Patch \by Seed.existsPatch \then
+  \let positive: R.Lt Real.zero patch.radius := \bysub(Scalar, { r: Scalar \where R.Lt Real.zero r }, patch.radius) \then
+  \return trans!{Scalar} _ _ _ (law Real.zero patch (Logic.And[_, _]::# (Laws.negativeNegOfPositive patch.radius positive) positive)) patch.atZero
+};
+\module At(t: Scalar, patch: Patch, inside: Inside patch.radius t);
+\definition derivative[t: Scalar]: Derivatives.HasDerivativeAt value t (value t) := \block {
+  \takefrom patch: \Cast[Patch] ({ p: Patch \where Inside p.radius t }) \by patchExists t \then
+  \return At[t := t, patch := patch, inside := \bysub(Patch, { p: Patch \where Inside p.radius t }, patch)].derivative
+};
+\definition continuous[t: Scalar]: Limits.ContinuousAt value t := DerivativeOperations.continuousOfDerivative value t (value t) (derivative t);
+\module Smooth;
+\module Translated(a: Scalar, radius: Positive);
+\definition addition[a, t: Scalar]: value (Real.add a t) = Real.mul (value a) (value t) := \block {
+  \takefrom patch: \Cast[Patch] ({ p: Patch \where Inside p.radius t }) \by patchExists t \then
+  \let inside: Inside patch.radius t := \bysub(Patch, { p: Patch \where Inside p.radius t }, patch) \then
+  \return Translated[a := a, radius := patch.radius].addition t patch inside (\refl(patch.radius))
+};
+\definition negative[t: Scalar]: value (Real.neg t) = Laws.fieldInv (value t) := Inverse.inverseUnique (value t) (value (Real.neg t))
+  (Inverse.positiveNonzero (value t) (positive t)) (eq_reason!{
+    {Real.mul (value (Real.neg t)) (value t)}
+    "=" {Real.mul (value t) (value (Real.neg t))} "by" {Laws.fieldMulComm _ _}
+    "=" {value (Real.add t (Real.neg t))} "by" {sym!{Scalar} _ _ (addition t (Real.neg t))}
+    "=" {value Real.zero} "by" {congr!{Scalar Scalar} value _ _ (Laws.addNegRight t)}
+    "=" Real.one "by" {atZero}
+  });
+\module MeanValue(a, b: Scalar);
+\definition increasing[a, b: Scalar]: R.Lt a b -> R.Lt (value a) (value b) := MeanValue[a := a, b := b].increasing;
+\definition oneBelow[t: Scalar]: R.Lt Real.zero t -> R.Le Real.one (value t) :=
+  \fun (positive: _) => R.leReplaceLeft (value Real.zero) Real.one (value t) atZero
+    (Order.leOfLt _ _ (increasing Real.zero t positive));
+\definition linearLower[t: Scalar]: R.Lt Real.zero t -> R.Le t (value t) := MeanValue[a := Real.zero, b := t].linearLower (\refl(Real.zero));

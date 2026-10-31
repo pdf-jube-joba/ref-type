@@ -1,0 +1,50 @@
+\import \parent.Seed[] \as Seed;
+\definition positiveRadius: R.Lt Real.zero patch.radius := \bysub(Scalar, { x: Scalar \where R.Lt Real.zero x }, patch.radius);
+\definition radius: Scalar := Real.add patch.radius patch.radius;
+\definition radiusPositive: R.Lt Real.zero radius := Order.ltTrans _ _ _ positiveRadius
+  (R.ltReplaceLeft (Real.add patch.radius Real.zero) patch.radius radius (Laws.addZeroRight patch.radius)
+    (Laws.ltAddLeft patch.radius Real.zero patch.radius positiveRadius));
+\definition halfRadius: Real.mul Real.half radius = patch.radius := trans!{Scalar} _ _ _
+  (Laws.fieldMulAdd Real.half patch.radius patch.radius) (Estimates.halfTwice patch.radius);
+\definition halved[t: Scalar]: Inside radius t -> Inside patch.radius (Real.mul Real.half t) :=
+  \fun (inside: _) => Logic.And[_, _]::#
+    (R.ltReplaceLeft (Real.mul Real.half (Real.neg radius)) (Real.neg patch.radius) (Real.mul Real.half t)
+      (trans!{Scalar} _ _ _ (Laws.fieldMulNegRight Real.half radius) (congr!{Scalar Scalar} Real.neg _ _ halfRadius))
+      (Product.mulStrict Real.half (Real.neg radius) t Seed.halfPositive inside.left))
+    (R.ltReplaceRight (Real.mul Real.half t) (Real.mul Real.half radius) patch.radius halfRadius
+      (Product.mulStrict Real.half t radius Seed.halfPositive inside.right));
+\definition scaledDerivative[t: Scalar]: Derivatives.HasDerivativeAt (\fun (x: Scalar) => Real.mul Real.half x) t Real.half :=
+  \idelim Real.mul Real.half Real.one = Real.half \with d: Scalar => Derivatives.HasDerivativeAt (\fun (x: Scalar) => Real.mul Real.half x) t d \by {
+    base: DerivativeOperations.scaleDerivative Real.half (\fun (x: Scalar) => x) t Real.one (Basic.identityDerivative t),
+    equality: Algebra.mulOneRight Real.half
+  };
+\definition halfValue[t: Scalar]: Scalar := patch.value (Real.mul Real.half t);
+\definition value[t: Scalar]: Scalar := Real.mul (halfValue t) (halfValue t);
+\definition halfDerivative[t: Scalar]: Inside radius t -> Derivatives.HasDerivativeAt halfValue t (Real.mul Real.half (halfValue t)) :=
+  \fun (inside: _) => \idelim Real.mul (halfValue t) Real.half = Real.mul Real.half (halfValue t)
+    \with d: Scalar => Derivatives.HasDerivativeAt halfValue t d \by {
+      base: Chain.derivative (\fun (x: Scalar) => Real.mul Real.half x) (patch.value) t Real.half (halfValue t)
+        (scaledDerivative t) (patch.derivative (Real.mul Real.half t) (halved t inside)),
+      equality: Laws.fieldMulComm (halfValue t) Real.half
+    };
+\definition derivative[t: Scalar]: Inside radius t -> Derivatives.HasDerivativeAt value t (value t) :=
+  \fun (inside: _) => \idelim
+    Real.add (Real.mul (Real.mul Real.half (halfValue t)) (halfValue t)) (Real.mul (halfValue t) (Real.mul Real.half (halfValue t))) = value t
+    \with d: Scalar => Derivatives.HasDerivativeAt value t d \by {
+      base: Products.derivative halfValue halfValue t (Real.mul Real.half (halfValue t)) (Real.mul Real.half (halfValue t))
+        (halfDerivative t inside) (halfDerivative t inside),
+      equality: trans!{Scalar} _ _ _
+        (congr!{Scalar Scalar Scalar} Real.add _ _ _ _
+          (Laws.fieldMulAssoc Real.half (halfValue t) (halfValue t)) (Algebra.mulSwap (halfValue t) Real.half (halfValue t)))
+        (Estimates.halfTwice (value t))
+    };
+\definition double: Patch := Patch {
+  radius := \into[Scalar](radius, { x: Scalar \where R.Lt Real.zero x }) \by { radiusPositive },
+  value := value,
+  positive := \fun (t: Scalar) => Product.mulPositive (halfValue t) (halfValue t)
+    (patch.positive (Real.mul Real.half t)) (patch.positive (Real.mul Real.half t)),
+  atZero := trans!{Scalar} _ _ _
+    (congr!{Scalar Scalar} (\fun (x: Scalar) => Real.mul (patch.value x) (patch.value x)) _ _ (Laws.fieldMulZeroRight Real.half))
+    (trans!{Scalar} _ _ _ (congr!{Scalar Scalar Scalar} Real.mul _ _ _ _ patch.atZero patch.atZero) (Laws.fieldMulOneLeft Real.one)),
+  derivative := derivative,
+};

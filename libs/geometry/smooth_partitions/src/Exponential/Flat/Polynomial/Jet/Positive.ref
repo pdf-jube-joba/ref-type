@@ -1,0 +1,46 @@
+\definition s: Scalar := Laws.fieldInv t;
+\definition square: Scalar := Real.mul s s;
+\definition reciprocalDerivative: Derivatives.HasDerivativeAt (\fun (u: Scalar) => Laws.fieldInv u) t (Real.neg square) :=
+  \parent.\parent.\parent.InverseAt[t := t, positive := positive].derivative;
+\definition polynomialDerivative: Derivatives.HasDerivativeAt (\fun (u: Scalar) => evaluate p (Laws.fieldInv u)) t
+  (Real.mul (evaluate (differentiate p) s) (Real.neg square)) :=
+  Chain.derivative (\fun (u: Scalar) => Laws.fieldInv u) (evaluate p) t (Real.neg square) (evaluate (differentiate p) s)
+    reciprocalDerivative (derivativeLaw p s);
+\definition negativeInverseDerivative: Derivatives.HasDerivativeAt (\fun (u: Scalar) => Real.neg (Laws.fieldInv u)) t square :=
+  \idelim Real.neg (Real.neg square) = square \with d: Scalar => Derivatives.HasDerivativeAt (\fun (u: Scalar) => Real.neg (Laws.fieldInv u)) t d \by {
+    base: DerivativeOperations.negDerivative (\fun (u: Scalar) => Laws.fieldInv u) t (Real.neg square) reciprocalDerivative,
+    equality: Laws.negInvolutive square
+  };
+\definition exponentialDerivative: Derivatives.HasDerivativeAt (\fun (u: Scalar) => Exp.value (Real.neg (Laws.fieldInv u))) t
+  (Real.mul square (Exp.value (Real.neg s))) :=
+  \idelim Real.mul (Exp.value (Real.neg s)) square = Real.mul square (Exp.value (Real.neg s))
+    \with d: Scalar => Derivatives.HasDerivativeAt (\fun (u: Scalar) => Exp.value (Real.neg (Laws.fieldInv u))) t d \by {
+      base: Chain.derivative (\fun (u: Scalar) => Real.neg (Laws.fieldInv u)) (Exp.value) t square (Exp.value (Real.neg s))
+        negativeInverseDerivative (Exp.derivative (Real.neg s)),
+      equality: Laws.fieldMulComm (Exp.value (Real.neg s)) square
+    };
+\definition rawDerivative: Derivatives.HasDerivativeAt (raw p) t (raw (next p) t) :=
+  \idelim Real.add
+    (Real.mul (Real.mul (evaluate (differentiate p) s) (Real.neg square)) (Exp.value (Real.neg s)))
+    (Real.mul (evaluate p s) (Real.mul square (Exp.value (Real.neg s)))) = raw (next p) t
+    \with d: Scalar => Derivatives.HasDerivativeAt (raw p) t d \by {
+      base: Products.derivative (\fun (u: Scalar) => evaluate p (Laws.fieldInv u)) (\fun (u: Scalar) => Exp.value (Real.neg (Laws.fieldInv u))) t
+        (Real.mul (evaluate (differentiate p) s) (Real.neg square)) (Real.mul square (Exp.value (Real.neg s))) polynomialDerivative exponentialDerivative,
+      equality: trans!{Scalar} _ _ _
+        (congr!{Scalar Scalar Scalar} Real.add _ _ _ _
+          (congr!{Scalar Scalar} (\fun (x: Scalar) => Real.mul (Real.mul (evaluate (differentiate p) s) x) (Exp.value (Real.neg s))) _ _
+            (sym!{Scalar} _ _ (DerivativeOperations.negativeScale square)))
+          (sym!{Scalar} _ _ (Laws.fieldMulAssoc (evaluate p s) square (Exp.value (Real.neg s)))))
+        (sym!{Scalar} _ _ (Algebra.mulAddRight
+          (Real.mul (evaluate (differentiate p) s) (Real.mul (Real.neg Real.one) square))
+          (Real.mul (evaluate p s) square) (Exp.value (Real.neg s))))
+    };
+\import \root.Exponential[].Interval[a := Real.zero, b := Real.add t t] \as Interval;
+\definition derivative: Derivatives.HasDerivativeAt (function p) t (function (next p) t) :=
+  \idelim raw (next p) t = function (next p) t \with d: Scalar => Derivatives.HasDerivativeAt (function p) t d \by {
+    base: Interval.localDerivative (raw p) (function p) t (raw (next p) t)
+      (Logic.And[_, _]::# positive
+        (R.ltReplaceLeft (Real.add t Real.zero) t (Real.add t t) (Laws.addZeroRight t) (Laws.ltAddLeft t Real.zero t positive)))
+      (\fun (u: Scalar)(inside: Interval.Contains u) => positiveAgreement p u inside.left) rawDerivative,
+    equality: positiveAgreement (next p) t positive
+  };

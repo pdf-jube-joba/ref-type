@@ -1,0 +1,39 @@
+\definition coefficient: Scalar := Laws.fieldInv (value a);
+\definition coefficientPositive: R.Lt Real.zero coefficient := Product.invPositive (value a) (positive a);
+\definition shifted[t: Scalar]: Scalar := value (Real.add a t);
+\definition normalized[t: Scalar]: Scalar := Real.mul coefficient (shifted t);
+\definition translateDerivative[t: Scalar]: Derivatives.HasDerivativeAt (\fun (x: Scalar) => Real.add a x) t Real.one :=
+  \idelim Real.add Real.zero Real.one = Real.one \with d: Scalar => Derivatives.HasDerivativeAt (\fun (x: Scalar) => Real.add a x) t d \by {
+    base: DerivativeOperations.addDerivative (\fun (x: Scalar) => a) (\fun (x: Scalar) => x) t Real.zero Real.one
+      (Basic.constantDerivative a t) (Basic.identityDerivative t),
+    equality: Laws.addZeroLeft Real.one
+  };
+\definition shiftedDerivative[t: Scalar]: Derivatives.HasDerivativeAt shifted t (shifted t) :=
+  \idelim Real.mul (shifted t) Real.one = shifted t \with d: Scalar => Derivatives.HasDerivativeAt shifted t d \by {
+    base: Chain.derivative (\fun (x: Scalar) => Real.add a x) value t Real.one (shifted t) (translateDerivative t) (derivative (Real.add a t)),
+    equality: Algebra.mulOneRight (shifted t)
+  };
+\definition patch: Patch := Patch {
+  radius := radius, value := normalized,
+  positive := \fun (t: Scalar) => Product.mulPositive coefficient (shifted t) coefficientPositive (positive (Real.add a t)),
+  atZero := trans!{Scalar} _ _ _
+    (congr!{Scalar Scalar} (\fun (x: Scalar) => Real.mul coefficient (value x)) _ _ (Laws.addZeroRight a))
+    (Laws.fieldInverseNonzero (value a) (Inverse.positiveNonzero (value a) (positive a))),
+  derivative := \fun (t: Scalar)(inside: _) => DerivativeOperations.scaleDerivative coefficient shifted t (shifted t) (shiftedDerivative t),
+};
+\definition addition[t: Scalar][other: Patch][inside: Inside other.radius t]: radius = other.radius ->
+  value (Real.add a t) = Real.mul (value a) (value t) := \block {
+  \fun (sameRadius: _) \then
+  \let insideHere: Inside radius t := \idelim other.radius = radius \with r: Scalar => Inside r t \by { base: inside, equality: sym!{Scalar} _ _ sameRadius } \then
+  \let equal: normalized t = value t := trans!{Scalar} _ _ _
+    (\parent.\parent.Pair[left := patch, right := other].agreement t insideHere inside) (sym!{Scalar} _ _ (law t other inside)) \then
+  \return eq_reason!{
+    {value (Real.add a t)} "=" {Real.mul Real.one (shifted t)} "by" {sym!{Scalar} _ _ (Laws.fieldMulOneLeft (shifted t))}
+    "=" {Real.mul (Real.mul (value a) coefficient) (shifted t)} "by" {
+      congr!{Scalar Scalar} (\fun (x: Scalar) => Real.mul x (shifted t)) _ _
+        (sym!{Scalar} _ _ (trans!{Scalar} _ _ _ (Laws.fieldMulComm (value a) coefficient)
+          (Laws.fieldInverseNonzero (value a) (Inverse.positiveNonzero (value a) (positive a))))) }
+    "=" {Real.mul (value a) (normalized t)} "by" {Laws.fieldMulAssoc (value a) coefficient (shifted t)}
+    "=" {Real.mul (value a) (value t)} "by" {congr!{Scalar Scalar} (Real.mul (value a)) _ _ equal}
+  }
+};

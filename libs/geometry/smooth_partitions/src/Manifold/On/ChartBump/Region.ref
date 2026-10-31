@@ -1,0 +1,30 @@
+\import topological_algebra.Euclidean[].Dimension[n := n].Def[] \as Coordinates;
+\import Space.Subspace[S := c.domain] \as Domain;
+\import Domain.Open[] \as OpenDomain;
+\import AmbientSpace.Subspace[S := c.image.points] \as ImageDomain;
+\import topology.Topology[Carrier := Charts.LocalPoint c] \as Local;
+\import topology.Continuity[A := Charts.LocalPoint c, B := Open.Carrier c.image] \as Forward;
+\import topology.Homeomorphism[A := Charts.LocalPoint c, B := Open.Carrier c.image] \as Homeomorphisms;
+\import metric_spaces.MetricSpace[Carrier := Model.Point] \as Metrics;
+\import Metrics.Topology[] \as MetricTopology;
+\import topological_algebra.Euclidean[].Dimension[n := n].Norm[] \as Norm;
+\definition localRegion: \Pow (Charts.LocalPoint c) := Forward.Preimage (Charts.coordinate c) (ImageDomain.Trace (Metrics.Ball Norm.metric a q));
+\definition localOpen: Local.IsOpenIn (Charts.domainTopology c.domain) localRegion :=
+  (Homeomorphisms.laws (Charts.domainTopology c.domain) (Charts.imageTopology c.image) c.coordinates).forwardContinuous
+    (ImageDomain.Trace (Metrics.Ball Norm.metric a q)) (ImageDomain.traceOpen Ambient.topology (Metrics.Ball Norm.metric a q) (MetricTopology.ballOpenIn Norm.metric a q));
+\definition region: \Pow M.Point := OpenDomain.image localRegion;
+\definition open: Space.IsOpenIn M.space region := OpenDomain.imageOpen M.space c.open localRegion localOpen;
+\definition oneOn[x: M.Point]: Space.Member region x -> value x = Real.one := OpenDomain.imageElim localRegion x (value x = Real.one)
+  (\fun (y: Charts.LocalPoint c)(member: Local.Member localRegion y)(equal: y = x) => \idelim y = x \with z: M.Point => value z = Real.one \by {
+    base: trans!{Real.Real} _ _ _ (inside y) (Bump.oneNear (Charts.coordinate c y)
+      (R.ltReplaceLeft (Coordinates.pointDistance a (Charts.coordinate c y)) (Coordinates.pointDistance (Charts.coordinate c y) a) q
+        (Norm.distanceSymmetric a (Charts.coordinate c y)) member)), equality: equal
+  });
+\definition center[u: Open.Carrier c.image]: u = a -> Space.Member region (Charts.point c u) := \block {
+  \fun (equal: u = a) \then
+  \return OpenDomain.imageMember localRegion (Charts.point c u)
+    (\idelim a = Charts.coordinate c (Charts.point c u) \with z: Model.Point => AmbientSpace.Member (Metrics.Ball Norm.metric a q) z \by {
+      base: Metrics.ballCenter Norm.metric a q Bump.qPositive,
+      equality: trans!{Model.Point} a u (Charts.coordinate c (Charts.point c u)) (sym!{Model.Point} u a equal) (sym!{Model.Point} (Charts.coordinate c (Charts.point c u)) u (Geometry.coordinatePoint u))
+    })
+};

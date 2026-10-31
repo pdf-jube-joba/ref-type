@@ -1,0 +1,26 @@
+\definition magnitude: Scalar := Real.distance t Real.zero;
+\definition smaller[k: N.Nat^]: R.Lt (Real.mul magnitude (Halves.value k)) seed.radius -> R.Lt magnitude ((patches k).radius) :=
+  \fun (small: _) => Order.byContradiction (R.Lt magnitude ((patches k).radius)) (\fun (notLess: Logic.Not (R.Lt magnitude ((patches k).radius))) =>
+    R.ltIrrefl seed.radius (R.leLtTrans _ _ _
+      (R.leReplaceLeft (Real.mul (Halves.value k) ((patches k).radius)) seed.radius (Real.mul magnitude (Halves.value k)) (scaleRadius k)
+        (R.leReplaceRight (Real.mul (Halves.value k) ((patches k).radius)) (Real.mul (Halves.value k) magnitude) (Real.mul magnitude (Halves.value k))
+          (Laws.fieldMulComm (Halves.value k) magnitude)
+          (Estimates.mulMonotone (Halves.value k) ((patches k).radius) magnitude (Halves.nonnegative Estimates.halfNonnegative k)
+            (Order.leOfNotLtReverse ((patches k).radius) magnitude notLess)))) small));
+\definition existsPatch: \exists ( patch: Patch \where Inside patch.radius t ) := \block {
+  \let halfBelow: R.Lt Real.half Real.one := R.ltReplaceLeft (Real.mul Real.half Real.one) Real.half Real.one
+    (Algebra.mulOneRight Real.half) (Estimates.halfStrict Real.one Product.onePositive) \then
+  \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where R.Lt (Real.mul magnitude (Halves.value k)) seed.radius })
+    \by Halves.scaledEventual Estimates.halfNonnegative halfBelow magnitude seed.radius (Distance.distanceNonnegative t Real.zero) seedPositive \then
+  \let small: R.Lt magnitude ((patches k).radius) := smaller k
+    (\bysub(N.Nat^, { k: N.Nat^ \where R.Lt (Real.mul magnitude (Halves.value k)) seed.radius }, k)) \then
+  \let bounds: Inside (patches k).radius t := Logic.And[_, _]::#
+    (R.ltReplaceLeft (Real.sub Real.zero (patches k).radius) (Real.neg (patches k).radius) t
+      (Laws.addZeroLeft (Real.neg (patches k).radius))
+      (Distance.distanceLtLower Real.zero t (patches k).radius
+        (R.ltReplaceLeft magnitude (Real.distance Real.zero t) (patches k).radius (Distance.distanceSymmetric t Real.zero) small)))
+    (R.ltReplaceRight t (Real.add Real.zero (patches k).radius) (patches k).radius (Laws.addZeroLeft (patches k).radius)
+      (Distance.distanceLtUpper Real.zero t (patches k).radius
+        (R.ltReplaceLeft magnitude (Real.distance Real.zero t) (patches k).radius (Distance.distanceSymmetric t Real.zero) small))) \then
+  \return Logic.existsIntro[Patch, { patch: Patch \where Inside patch.radius t }] (patches k) bounds
+};

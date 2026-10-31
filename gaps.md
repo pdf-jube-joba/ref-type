@@ -299,3 +299,36 @@ module 内の import 別名を、その module の利用側から修飾して参
 A11 の具体的な Atkinson 定理の適用は、余核の証明を作用素から独立した `CompactQuotient` 補題に分けて解消した。
 上の単独例は checkpoint を再開せずに再現するため、#59 の checkpoint 再開時の名前空間修正だけでは解消しない。
 両者の内部原因が共通かは確認していない。
+
+## module を特殊化した関数の暗黙の eta 展開
+
+宣言引数に依存する module の関数を、そのまま高階関数へ渡したい。
+次の例は `--no-cache` でも `inferred: Set, expected: Nat^` で失敗し、生成された lambda では module 引数 `c` が新しい引数 `t` と同じ束縛位置を参照する。
+
+```ref
+\module With(c: std.Data[].Nat[].Nat^) {
+  \import std.Data[].Nat[] \as N;
+  \definition value[t: N.Nat^]: N.Nat^ := c;
+}
+\module Test {
+  \import std.Data[].Nat[] \as N;
+  \definition higher[f: N.Nat^ -> N.Nat^]: N.Nat^ := f N.Nat^::zero;
+  \definition desired[c: N.Nat^]: N.Nat^ := higher (\parent.With[c := c].value);
+}
+```
+
+現在は lambda を明示すると同じ計算を記述でき、次の例は `--no-cache` で成功する。
+
+```ref
+\module With(c: std.Data[].Nat[].Nat^) {
+  \import std.Data[].Nat[] \as N;
+  \definition value[t: N.Nat^]: N.Nat^ := c;
+}
+\module Test {
+  \import std.Data[].Nat[] \as N;
+  \definition higher[f: N.Nat^ -> N.Nat^]: N.Nat^ := f N.Nat^::zero;
+  \definition working[c: N.Nat^]: N.Nat^ := higher (\fun (t: N.Nat^) => \parent.With[c := c].value t);
+}
+```
+
+`smooth_partitions.Exponential.Flat.Polynomial.LimitRules.At` では係数を固定した補助 module に処理を分けている。

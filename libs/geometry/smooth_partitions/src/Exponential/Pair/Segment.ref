@@ -1,0 +1,22 @@
+\import metric_spaces.RealLine[] \as Line;
+\import Calculus.Limit[].Topology[].Subset[S := Line.ClosedInterval a b] \as Local;
+\import Calculus.MeanValue[].Interval[a := a, b := b] \as MeanValue;
+\definition constant: R.Lt a b -> Inside radius a -> Inside radius b -> quotient b = quotient a := \block {
+  \fun (ordered: _)(leftInside: _)(rightInside: _) \then
+  \let pointInside: \forall (x: Local.Carrier) -> Inside radius x := \fun (x: Local.Carrier) =>
+    Logic.And[_, _]::# (R.ltLeTrans _ _ _ leftInside.left (\bysub(Scalar, Line.ClosedInterval a b, x)).left)
+      (R.leLtTrans _ _ _ (\bysub(Scalar, Line.ClosedInterval a b, x)).right rightInside.right) \then
+  \let continuous: Local.ContinuousOn quotient := \fun (x: Local.Carrier) => MeanValue.Estimate[].continuousAt quotient
+    (\fun (x: Scalar) => Real.zero) x (derivative x (pointInside x)) \then
+  \let differentiable: MeanValue.DifferentiableOn quotient := \fun (x: Scalar)(inside: MeanValue.Interior x) =>
+    Logic.existsIntro[Scalar, { d: Scalar \where Derivatives.HasDerivativeAt quotient x d }] Real.zero
+      (derivative x (Logic.And[_, _]::# (Order.ltTrans _ _ _ leftInside.left inside.left) (Order.ltTrans _ _ _ inside.right rightInside.right))) \then
+  \takefrom c: \Cast[Scalar] ({ c: Scalar \where MeanValue.MeanValueResult[quotient, c] }) \by MeanValue.meanValue quotient ordered continuous differentiable \then
+  \let witness: MeanValue.MeanValueResult[quotient, c] := \bysub(Scalar, { c: Scalar \where MeanValue.MeanValueResult[quotient, c] }, c) \then
+  \let zeroSlope: MeanValue.secant quotient = Real.zero := DerivativeOperations.unique quotient c (MeanValue.secant quotient) Real.zero
+    witness.derivative (derivative c (Logic.And[_, _]::# (Order.ltTrans _ _ _ leftInside.left witness.interior.left) (Order.ltTrans _ _ _ witness.interior.right rightInside.right))) \then
+  \return Distance.subZeroEq (quotient b) (quotient a) (trans!{Scalar} _ _ _
+    (sym!{Scalar} _ _ (DerivativeOperations.slopeIncrement quotient a b (\fun (same: b = a) => Order.ltNotEq a b ordered (sym!{Scalar} _ _ same))))
+    (trans!{Scalar} _ _ _ (congr!{Scalar Scalar} (\fun (x: Scalar) => Real.mul x (Real.sub b a)) _ _ zeroSlope)
+      (Laws.fieldMulZeroLeft (Real.sub b a))))
+};
