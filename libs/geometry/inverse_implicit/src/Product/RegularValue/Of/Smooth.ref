@@ -1,0 +1,41 @@
+\definition S: Models.Manifold := manifold regular;
+\import manifolds.SmoothMap[n := n, m := std.Data[].Nat[].Basic[].Def[].add m n].Between[M := S, N := M] \as Inclusion;
+\import manifolds.SmallAtlasSmoothMap[n := n, m := std.Data[].Nat[].Basic[].Def[].add m n].Between[M := S, N := M] \as Small;
+\definition sourceAtlas: Small.SourceAtlas := \into[FiberAtlas.Atlas](atlas regular, Small.SourceAtlas) \by {
+  \fun (c: FiberCharts.Chart)(member: _) => FiberAtlas.includedInSaturation (atlas regular) c member
+};
+\definition targetAtlas: Small.TargetAtlas := \into[Atlas.Atlas](M.atlas, Small.TargetAtlas) \by {
+  \fun (c: Charts.Chart)(member: _) => member
+};
+\import Small.On[source := sourceAtlas, target := targetAtlas] \as SmallAtlas;
+\definition data: Inclusion.Data := Inclusion.Data { apply := \fun (x: Fiber) => x };
+\definition continuousMap: Inclusion.ContinuousMap := \into[Inclusion.Data](data, { data: Inclusion.Data \where Inclusion.Continuous data }) \by {
+  topology.Continuity[A := Fiber, B := M.Point].Corestriction[S := points].inclusionContinuous M.space
+};
+\module InChart(slice: Slice, right: SourceChart);
+\import SmallAtlas.Of[f := continuousMap] \as Check;
+\definition small: Check.InSmallAtlas := \block {
+  \fun (left: SmallAtlas.SourceChart)(right: SmallAtlas.TargetChart) \then
+  \takefrom slice: \Cast[Slice] ({ slice: Slice \where left = \parent.On[slice := slice].chart })
+    \by \bysub(FiberCharts.Chart, sourceAtlas.charts, left) \then
+  \return \idelim \parent.On[slice := slice].chart = left \with c: FiberCharts.Chart => Inclusion.Coordinates[f := continuousMap, left := c, right := right].Smooth \by {
+    base: InChart[slice := slice, right := right].smooth,
+    equality: sym!{FiberCharts.Chart} _ _ (\bysub(Slice, { slice: Slice \where left = \parent.On[slice := slice].chart }, slice))
+  }
+};
+\definition inclusion: Inclusion.Map := Check.value small;
+\import manifolds.Tangent[n := n].On[M := S] \as FiberTangent;
+\import manifolds.Differential[n := n, m := std.Data[].Nat[].Basic[].Def[].add m n].Between[M := S, N := M] \as InclusionDifferential;
+\module At(x: Fiber);
+\import manifolds.Immersion[n := n, m := std.Data[].Nat[].Basic[].Def[].add m n].Between[M := S, N := M] \as Immersions;
+\definition embeddingLaws: Immersions.EmbeddingLaws[inclusion] := Immersions.EmbeddingLaws[inclusion] {
+  immersion := \fun (x: Fiber) => At[x := x].injective,
+  injective := \fun (x, z: Fiber)(same: x = z) => same,
+  openLift := \fun (W: \Pow Fiber)(open: _) => Subspace.openTraceElim M.space W
+    (\exists ( U: \Pow M.Point \where Logic.And[Ambient.IsOpenIn M.space U, topology.Continuity[A := Fiber, B := M.Point].Preimage (Inclusion.apply inclusion) U = W] ))
+    (\fun (U: \Pow M.Point)(openU: _)(same: W = Subspace.Trace U) => Logic.existsIntro[\Pow M.Point,
+      { U: \Pow M.Point \where Logic.And[Ambient.IsOpenIn M.space U, topology.Continuity[A := Fiber, B := M.Point].Preimage (Inclusion.apply inclusion) U = W] }] U
+        (Logic.And[_, _]::# openU (sym!{\Pow Fiber} _ _ same))) (Subspace.openRepresentation M.space W open),
+};
+\definition embedding: Immersions.Embedding := \into[Inclusion.Map](inclusion, Immersions.Embedding) \by { embeddingLaws };
+\definition isEmbedding: Immersions.IsEmbedding inclusion := Immersions.criterion inclusion embeddingLaws;

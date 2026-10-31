@@ -1,0 +1,48 @@
+\definition residualDistance: \forall (x, y: Point) ->
+  R.Le (distance (residual (clipped control x)) (residual (clipped control y))) (Scalars.mul Scalars.half (distance x y)) :=
+  \fun (x, y: Point) => R.leTrans _ _ _
+    (control.contraction (clipped control x) (clipped control y)
+      (Clip.bounded a r x (Order.leOfLt _ _ control.positive)) (Clip.bounded a r y (Order.leOfLt _ _ control.positive)))
+    (Bounds.mulMonotone Scalars.half _ _ Bounds.halfNonnegative (Clip.nonexpansive a r x y));
+\definition operator[y: Point]: Complete.Contraction := Complete.Contraction {
+  apply := \fun (x: Point) => Coordinates.addPoint y (residual (clipped control x)),
+  bound := \fun (x, z: Point) => R.leReplaceLeft _ _ _
+    (sym!{Real} _ _ (Norm.translated y (residual (clipped control x)) (residual (clipped control z)))) (residualDistance x z),
+};
+\definition solution[y: Point]: Point := Complete.fixedPoint (operator y) a;
+\definition fixed[y: Point]: Coordinates.addPoint y (residual (clipped control (solution y))) = solution y :=
+  \bysub(Point, { x: Point \where (operator y).apply x = x }, Complete.fixedPoint (operator y) a);
+\import std.Set[].Extension[A := Point, B := Point, domain := U.points] \as Extension;
+\definition extended[x: Point]: Point := Extension.extend residual Coordinates.origin x;
+\definition residualAgrees: \forall (x: Open.Carrier U) -> R.Le (distance x a) r -> residual (clipped control x) = residual x :=
+  \fun (x: Open.Carrier U)(within: _) => eq_reason_in!{Point _
+    "=" _ "by" { sym!{Point} _ _ (Extension.inside residual Coordinates.origin (clipped control x)) }
+    "=" _ "by" { congr!{Point Point} extended _ _ (Clip.inside a r x within) }
+    "=" _ "by" { Extension.inside residual Coordinates.origin x }
+  };
+\definition centerResidual: residual (clipped control a) = residual a := residualAgrees a
+  (R.leReplaceLeft Scalars.zero (distance a a) r (sym!{Real} _ _ (Norm.distanceSelf a)) (Order.leOfLt _ _ control.positive));
+\definition centerEquation: Coordinates.addPoint (f a) (residual a) = a :=
+  \axiom:funext(Coordinates.addPoint (f a) (residual a), a, \fun (i: Space.Coordinate) => Bounds.addSubCancel (a i) (f a i));
+\definition center: solution (f a) = a := Complete.fixedUnique (operator (f a))
+  (Complete.fixedPoint (operator (f a)) a)
+  (\into[Point](a, { x: Point \where (operator (f a)).apply x = x }) \by {
+    trans!{Point} _ _ _ (congr!{Point Point} (Coordinates.addPoint (f a)) _ _ centerResidual) centerEquation
+  });
+\definition target: Open.OpenSet := ball (f a) (Scalars.mul Scalars.half r);
+\module At(y: Open.Carrier target);
+
+\definition solutionBound: \forall (y, z: Point) -> R.Le (distance (solution y) (solution z)) (Scalars.add (distance y z) (distance y z)) :=
+  \fun (y, z: Point) => absorbHalf _ _ (R.leReplaceLeft _ _ _ (congr!{Point Point Real} distance _ _ _ _ (fixed y) (fixed z))
+    (R.leTrans _ _ _ (Norm.distanceAdd y (residual (clipped control (solution y))) z (residual (clipped control (solution z))))
+      (Laws.addMonotoneLeft _ _ (distance y z) (residualDistance (solution y) (solution z)))));
+\definition unique: \forall (x: Open.Carrier U)(y: Point) -> R.Le (distance x a) r -> f x = y -> solution y = x := \block {
+  \fun (x: Open.Carrier U)(y: Point)(within: _)(image: _) \then
+  \let equation: Coordinates.addPoint y (residual (clipped control x)) = x := eq_reason_in!{Point _
+    "=" _ "by" { congr!{Point Point} (Coordinates.addPoint y) _ _ (residualAgrees x within) }
+    "=" _ "by" { congr!{Point Point} (\fun (z: Point) => Coordinates.addPoint z (residual x)) _ _ (sym!{Point} _ _ image) }
+    "=" x "by" { \axiom:funext(Coordinates.addPoint (f x) (residual x), x, \fun (i: Space.Coordinate) => Bounds.addSubCancel (x i) (f x i)) }
+  } \then
+  \return Complete.fixedUnique (operator y) (Complete.fixedPoint (operator y) a)
+    (\into[Point](x, { z: Point \where (operator y).apply z = z }) \by { equation })
+};

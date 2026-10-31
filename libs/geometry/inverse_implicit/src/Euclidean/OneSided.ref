@@ -1,0 +1,30 @@
+\import matrix_invariants.Ring[K := Real, scalars := std.Alg[].Field[].fieldAsCommutativeRing Real Algebra.field].At[n := n] \as Matrix;
+\import Matrix.Representation[] \as Representation;
+\import matrix_invariants.Field[K := Real, field := Algebra.field].At[n := n] \as Inversion;
+\import \parent.LinearInverse[d := d] \as Linear;
+\import linear_algebra.Euclidean[n := n] \as Space;
+\import linear_algebra.Commutative[K := Real, scalarRing := std.Alg[].Field[].fieldAsCommutativeRing Real Algebra.field].Linear[V := Point, W := Point, source := Space.space, target := Space.space].Composition[U := Point, domain := Space.space] \as Composition;
+\definition Right: \Prop := \forall (v: Point) -> d.apply (e.apply v) = v;
+\definition product: Right -> Matrix.product (Representation.entries d) (Representation.entries e) = Matrix.identity :=
+  \fun (right: Right) => trans!{Matrix.Matrix} _ _ _ (sym!{Matrix.Matrix} _ _ (Representation.composition d e))
+    (congr!{{Vector.LinearMap} Matrix.Matrix} Representation.entries _ _ (Vector.ext _ _ (\axiom:funext((Composition.compose d e).apply, Linear.identity.apply, right))));
+\definition nonzero: Right -> Inversion.Nonzero (Representation.entries d) := \block {
+  \fun (right: Right)(zero: Matrix.determinant (Representation.entries d) = Scalars.zero) \then
+  \return Laws.zeroNeOne (eq_reason_in!{Real Scalars.zero
+    "=" _ "by" { sym!{Real} _ _ (Laws.fieldMulZeroLeft (Matrix.determinant (Representation.entries e))) }
+    "=" _ "by" { congr!{Real Real} (\fun (c: Real) => Scalars.mul c (Matrix.determinant (Representation.entries e))) _ _ (sym!{Real} _ _ zero) }
+    "=" _ "by" { sym!{Real} _ _ (Matrix.multiplicative (Representation.entries d) (Representation.entries e)) }
+    "=" _ "by" { congr!{Matrix.Matrix Real} Matrix.determinant _ _ (product right) }
+    "=" Scalars.one "by" { Matrix.atIdentity }
+  })
+};
+\definition matrix[right: Right]: Inversion.Nonsingular := \into[Matrix.Matrix](Representation.entries d, Inversion.Nonsingular) \by { nonzero right };
+\definition inverse[right: Right]: Vector.LinearMap := Linear.inverse (Inversion.inverse (matrix right));
+\definition left: \forall (right: Right)(v: Point) -> (inverse right).apply (d.apply v) = v :=
+  \fun (right: Right) => Linear.left (Inversion.inverse (matrix right));
+\definition injective: Right -> \forall (v, w: Point) -> d.apply v = d.apply w -> v = w :=
+  \fun (right: Right)(v, w: Point)(same: _) => eq_reason_in!{Point v
+    "=" _ "by" { sym!{Point} _ _ (left right v) }
+    "=" _ "by" { congr!{Point Point} (inverse right).apply _ _ same }
+    "=" w "by" { left right w }
+  };

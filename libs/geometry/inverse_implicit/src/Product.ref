@@ -1,0 +1,82 @@
+\use std.Logic[].Equality[].eq_reason_in;
+\import std.Data[].Nat[] \as N;
+\import std.Data[].FinSet[] \as Fin;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.congr;
+\use Equality.sym;
+\use Equality.trans;
+\import real.Analysis[] \as Scalars;
+\import dedekind_reals.DedekindReal[] \as R;
+\import R.Arithmetic[].Prop[] \as Laws;
+\import Scalars.Algebra[] \as Algebra;
+\import calculus.Blocks[n := n, m := m] \as Split;
+\import Fin.Sum[m := n, n := m] \as Indices;
+\import Indices.Tuples[A := Scalars.Real] \as Tuples;
+\definition dimension: N.Nat^ := Split.dimension;
+\import \root.Euclidean[n := dimension] \as Euclidean;
+\import calculus.Real[].Multivariable[n := dimension].Open[] \as Open;
+\import topological_algebra.Euclidean[].Dimension[n := dimension].Def[] \as Coordinates;
+\import topological_algebra.Euclidean[].Dimension[n := n].Def[] \as LeftCoordinates;
+\import topological_algebra.Euclidean[].Dimension[n := m].Def[] \as RightCoordinates;
+\import calculus.Real[].Multivariable[n := n].Open[] \as LeftOpen;
+\import calculus.Real[].Multivariable[n := m].Open[] \as RightOpen;
+\definition Point: \Set := Euclidean.Point;
+\definition LeftPoint: \Set := topological_algebra.Euclidean[].Dimension[n := n].Point;
+\definition RightPoint: \Set := topological_algebra.Euclidean[].Dimension[n := m].Point;
+\definition Real: \Set := Scalars.Real;
+\definition joinAdd: \forall (x, y: LeftPoint)(z, w: RightPoint) -> Split.join (LeftCoordinates.addPoint x y) (RightCoordinates.addPoint z w) = Coordinates.addPoint (Split.join x z) (Split.join y w) :=
+  \fun (x, y: LeftPoint)(z, w: RightPoint) => \axiom:funext(Split.join (LeftCoordinates.addPoint x y) (RightCoordinates.addPoint z w), Coordinates.addPoint (Split.join x z) (Split.join y w),
+    \fun (i: Fin.Fin dimension) => (\induction (s: Indices.Index) \return Tuples.evaluate (LeftCoordinates.addPoint x y) (RightCoordinates.addPoint z w) s = Scalars.add (Tuples.evaluate x z s) (Tuples.evaluate y w s) \with {
+      | inl: \fun (j: Fin.Fin n) => \refl(Scalars.add (x j) (y j))
+      | inr: \fun (j: Fin.Fin m) => \refl(Scalars.add (z j) (w j))
+    }) (Indices.split i));
+\definition joinScale: \forall (c: Real)(x: LeftPoint)(y: RightPoint) -> Split.join (LeftCoordinates.scale c x) (RightCoordinates.scale c y) = Coordinates.scale c (Split.join x y) :=
+  \fun (c: Real)(x: LeftPoint)(y: RightPoint) => \axiom:funext(Split.join (LeftCoordinates.scale c x) (RightCoordinates.scale c y), Coordinates.scale c (Split.join x y),
+    \fun (i: Fin.Fin dimension) => (\induction (s: Indices.Index) \return Tuples.evaluate (LeftCoordinates.scale c x) (RightCoordinates.scale c y) s = Scalars.mul c (Tuples.evaluate x y s) \with {
+      | inl: \fun (j: Fin.Fin n) => \refl(Scalars.mul c (x j))
+      | inr: \fun (j: Fin.Fin m) => \refl(Scalars.mul c (y j))
+    }) (Indices.split i));
+\definition leftLinear: calculus.Vector[n := dimension, m := n].LinearMap := calculus.Vector[n := dimension, m := n].LinearMap {
+  apply := Split.left,
+  preservesAdd := \fun (x, y: Point) => \refl(LeftCoordinates.addPoint (Split.left x) (Split.left y)),
+  preservesScale := \fun (c: Real)(x: Point) => \refl(LeftCoordinates.scale c (Split.left x)),
+};
+\definition rightLinear: calculus.Vector[n := dimension, m := m].LinearMap := calculus.Vector[n := dimension, m := m].LinearMap {
+  apply := Split.right,
+  preservesAdd := \fun (x, y: Point) => \refl(RightCoordinates.addPoint (Split.right x) (Split.right y)),
+  preservesScale := \fun (c: Real)(x: Point) => \refl(RightCoordinates.scale c (Split.right x)),
+};
+\module LinearPair(d: N.Nat^, left: calculus.Vector[n := d, m := n].LinearMap, right: calculus.Vector[n := d, m := m].LinearMap);
+\module Pair(d: N.Nat^, U: calculus.Real[].Multivariable[n := d].Open[].OpenSet,
+  f: calculus.Maps[n := d, m := n].Map U LeftOpen.whole, g: calculus.Maps[n := d, m := m].Map U RightOpen.whole);
+\definition horizontal: calculus.Vector[n := n, m := dimension].LinearMap := \root.Product[n := n, m := m].LinearPair[d := n,
+  left := calculus.Identity[n := n].linear, right := linear_algebra.Commutative[K := Real, scalarRing := std.Alg[].Field[].fieldAsCommutativeRing Real Algebra.field].Linear[V := LeftPoint, W := RightPoint,
+    source := linear_algebra.Euclidean[n := n].space, target := linear_algebra.Euclidean[n := m].space].Operations[].zeroMap].map;
+\definition vertical: calculus.Vector[n := m, m := dimension].LinearMap := Split.rightLinear;
+\definition decomposition: \forall (v: Point) -> Coordinates.addPoint (horizontal.apply (Split.left v)) (vertical.apply (Split.right v)) = v :=
+  \fun (v: Point) => trans!{Point} _ _ _
+    (sym!{Point} _ _ (joinAdd (Split.left v) LeftCoordinates.origin RightCoordinates.origin (Split.right v)))
+    (trans!{Point} _ _ _ (congr!{LeftPoint RightPoint Point} Split.join _ _ _ _
+      (\axiom:funext(LeftCoordinates.addPoint (Split.left v) LeftCoordinates.origin, Split.left v, \fun (i: Fin.Fin n) => Laws.addZeroRight (Split.left v i)))
+      (\axiom:funext(RightCoordinates.addPoint RightCoordinates.origin (Split.right v), Split.right v, \fun (i: Fin.Fin m) => Laws.addZeroLeft (Split.right v i)))) (Split.recover v));
+\module Triangular(D: calculus.Vector[n := dimension, m := m].LinearMap, Q: calculus.Vector[n := m, m := m].LinearMap);
+\structure Rectangle[U: Open.OpenSet, a: Open.Carrier U]: \Set := {
+  parameters: LeftOpen.OpenSet,
+  values: RightOpen.OpenSet,
+  containsLeft: \In[LeftPoint] parameters.points (Split.left a),
+  containsRight: \In[RightPoint] values.points (Split.right a),
+  included: Open.Included (Split.product parameters values) U,
+};
+\module Neighborhood(U: Open.OpenSet, a: Open.Carrier U);
+\module Implicit(U: Open.OpenSet, f: calculus.Maps[n := dimension, m := m].Map U RightOpen.whole, a: Open.Carrier U);
+\module Surjection(D: calculus.Vector[n := dimension, m := m].LinearMap);
+\module Submersion(U: Open.OpenSet, f: calculus.Maps[n := dimension, m := m].Map U RightOpen.whole, a: Open.Carrier U);
+\module LocalFiber(U: Open.OpenSet, f: calculus.Maps[n := dimension, m := m].Map U RightOpen.whole, a: Open.Carrier U,
+  local: \root.Product[n := n, m := m].Submersion[U := U, f := f, a := a].LocalForm);
+\module FixedLeftDerivative(U: RightOpen.OpenSet, V: Open.OpenSet, c: LeftPoint, included: calculus.Blocks[n := n, m := m].FixedLeft[U := U, V := V, c := c].Included);
+\module FixedRightDerivative(U: LeftOpen.OpenSet, V: Open.OpenSet, c: RightPoint, included: calculus.Blocks[n := n, m := m].FixedRight[U := U, V := V, c := c].Included);
+\module GraphChange(U: RightOpen.OpenSet, h: calculus.Maps[n := m, m := n].Map U LeftOpen.whole);
+\import manifolds.Dimension[n := std.Data[].Nat[].Basic[].Def[].add m n].Smooth[] \as SourceModels;
+\import manifolds.Dimension[n := m].Smooth[] \as TargetModels;
+\module RegularValue(M: SourceModels.Manifold, T: TargetModels.Manifold);

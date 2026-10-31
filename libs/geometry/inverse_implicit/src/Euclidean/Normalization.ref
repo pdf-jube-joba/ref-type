@@ -1,0 +1,17 @@
+\import \parent.Jacobian[U := U, f := f] \as Original;
+\definition Left: \Prop := \forall (x: Open.Carrier U)(v: Point) -> (B x).apply ((Original.differential x).apply v) = v;
+\definition Right: \Prop := \forall (x: Open.Carrier U)(v: Point) -> (Original.differential x).apply ((B x).apply v) = v;
+\definition center: Vector.LinearMap := Original.differential a;
+\import calculus.LinearMap[n := n, m := n].On[U := Open.whole, L := B a] \as Normalizing;
+\import SmoothMaps.Composition[U := U, V := Open.whole, f := f].After[l := n, W := Open.whole, g := Normalizing.map] \as Composition;
+\definition normalized: SmoothMaps.Map U Open.whole := Composition.compose;
+\import \parent.Jacobian[U := U, f := normalized] \as Normalized;
+\import linear_algebra.Euclidean[n := n] \as E;
+\import linear_algebra.Commutative[K := Real, scalarRing := std.Alg[].Field[].fieldAsCommutativeRing Real Algebra.field].Linear[V := Point, W := Point, source := E.space, target := E.space].Composition[U := Point, domain := E.space] \as LinearComposition;
+\definition inverse[x: Open.Carrier U]: Vector.LinearMap := LinearComposition.compose (B x) center;
+\definition differential: \forall (x: Open.Carrier U)(v: Point) -> (Normalized.differential x).apply v = (B a).apply ((Original.differential x).apply v) :=
+  \fun (x: Open.Carrier U)(v: Point) => eq_reason_in!{Point _
+    "=" _ "by" { congr!{{Vector.LinearMap} Point} (\fun (L: Vector.LinearMap) => L.apply v) _ _ (Composition.At[a := x].jacobian) }
+    "=" _ "by" { congr!{{Vector.LinearMap} Point} (\fun (L: Vector.LinearMap) => L.apply ((Original.differential x).apply v)) _ _ (Normalizing.differential (SmoothMaps.apply U Open.whole f x)) }
+  };
+\module With(left: Left, right: Right);

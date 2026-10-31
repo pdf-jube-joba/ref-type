@@ -1,0 +1,21 @@
+\import \parent.\parent.On[slice := slice] \as Source;
+\import Inclusion.Coordinates[f := continuousMap, left := Source.chart, right := right] \as Coordinates;
+\import Charts.Transition[left := slice.source, right := right] \as AmbientTransition;
+\import calculus.Maps[n := n, m := std.Data[].Nat[].Basic[].Def[].add m n] \as Parameters;
+\definition transitionMap: EuclideanMaps.Map AmbientTransition.domain right.image := Atlas.Pair[left := slice.source, right := right].smoothMap
+  (M.atlas.compatible slice.source right (\bysub(Charts.Chart, M.atlas.charts, slice.source)) (\bysub(Charts.Chart, M.atlas.charts, right)));
+\import Parameters.Preimage[U := slice.parameters, W := slice.source.image, V := AmbientTransition.domain, f := Source.parametrization] \as Preimage;
+\definition included: LeftOpen.Included Coordinates.domain Preimage.domain := \block {
+  \fun (p: LeftPoint)(member: _) \then
+  \let u: LeftOpen.Carrier Coordinates.domain := \into[LeftPoint](p, Coordinates.domain.points) \by { member } \then
+  \return Preimage.intro (Coordinates.leftCoordinate u) (AmbientTransition.intro (Source.oldParameter (Coordinates.leftCoordinate u)) (Coordinates.inRightDomain u))
+};
+\definition restricted: Parameters.Map Coordinates.domain AmbientTransition.domain := Parameters.Restriction[U := Coordinates.domain, V := Preimage.domain, W := AmbientTransition.domain].input included Preimage.map;
+\definition map: Parameters.Map Coordinates.domain right.image := Parameters.Composition[U := Coordinates.domain, V := AmbientTransition.domain, f := restricted].After[l := dimension, W := right.image, g := transitionMap].compose;
+\definition smooth: Coordinates.Smooth := \fun (i: Fin.Fin dimension) =>
+  \idelim (\fun (u: LeftOpen.Carrier Coordinates.domain) => Parameters.apply Coordinates.domain right.image map u i) = (\fun (u: LeftOpen.Carrier Coordinates.domain) => Coordinates.apply u i)
+    \with h: LeftOpen.ScalarFunction Coordinates.domain => LeftOpen.Smooth[].SmoothOn Coordinates.domain h \by {
+    base: map.smooth i,
+    equality: \axiom:funext((\fun (u: LeftOpen.Carrier Coordinates.domain) => Parameters.apply Coordinates.domain right.image map u i), (\fun (u: LeftOpen.Carrier Coordinates.domain) => Coordinates.apply u i),
+      \fun (u: LeftOpen.Carrier Coordinates.domain) => \refl(Coordinates.apply u i))
+  };

@@ -1,0 +1,24 @@
+\import Open.Analysis[] \as Analysis;
+\import Analysis.Operations[] \as Operations;
+\import calculus.Real[].Derivative[].Operations[] \as RealDerivative;
+\definition minusOne: Real := Scalars.neg Scalars.one;
+\definition negative[U: Open.OpenSet][f: Open.ScalarFunction U]: Open.ScalarFunction U := \fun (x: Open.Carrier U) => Scalars.neg (f x);
+\definition scaleNegative: \forall (U: Open.OpenSet)(f: Open.ScalarFunction U) ->
+  (\fun (x: Open.Carrier U) => Scalars.mul minusOne (f x)) = negative U f :=
+  \fun (U: Open.OpenSet)(f: Open.ScalarFunction U) => \axiom:funext((\fun (x: Open.Carrier U) => Scalars.mul minusOne (f x)), negative U f,
+    \fun (x: Open.Carrier U) => RealDerivative.negativeScale (f x));
+\definition negativePartial: \forall (U: Open.OpenSet)(f, g: Open.ScalarFunction U)(i: Space.Coordinate) ->
+  Analysis.HasPartialDerivative U f i g -> Analysis.HasPartialDerivative U (negative U f) i (negative U g) :=
+  \fun (U: Open.OpenSet)(f, g: Open.ScalarFunction U)(i: Space.Coordinate)(law: _) =>
+    \idelim (\fun (x: Open.Carrier U) => Scalars.mul minusOne (f x)) = negative U f \with h: Open.ScalarFunction U =>
+      Analysis.HasPartialDerivative U h i (negative U g) \by {
+      base: \idelim (\fun (x: Open.Carrier U) => Scalars.mul minusOne (g x)) = negative U g \with d: Open.ScalarFunction U =>
+        Analysis.HasPartialDerivative U (\fun (x: Open.Carrier U) => Scalars.mul minusOne (f x)) i d \by {
+        base: Analysis.Scale[U := U, f := f, i := i].partial minusOne g law, equality: scaleNegative U g
+      }, equality: scaleNegative U f
+    };
+\definition subtractPartial: \forall (U: Open.OpenSet)(f, g, df, dg: Open.ScalarFunction U)(i: Space.Coordinate) ->
+  Analysis.HasPartialDerivative U f i df -> Analysis.HasPartialDerivative U g i dg ->
+  Analysis.HasPartialDerivative U (\fun (x: Open.Carrier U) => Scalars.sub (f x) (g x)) i (\fun (x: Open.Carrier U) => Scalars.sub (df x) (dg x)) :=
+  \fun (U: Open.OpenSet)(f, g, df, dg: Open.ScalarFunction U)(i: Space.Coordinate)(left: _)(right: _) =>
+    Operations.addPartial U f (negative U g) df (negative U dg) i left (negativePartial U g dg i right);

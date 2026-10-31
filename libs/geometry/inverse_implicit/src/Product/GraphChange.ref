@@ -1,0 +1,81 @@
+\import calculus.Maps[n := dimension, m := dimension] \as Maps;
+\import calculus.Maps[n := dimension, m := n] \as LeftMaps;
+\import calculus.Maps[n := dimension, m := m] \as RightMaps;
+\import calculus.Maps[n := m, m := n] \as Functions;
+\import calculus.Diffeomorphism[n := dimension, m := dimension] \as Diffeomorphisms;
+\import Split.On[U := LeftOpen.whole, V := U] \as Product;
+\definition domain: Open.OpenSet := Product.domain;
+\import RightMaps.Composition[U := domain, V := U, f := Product.rightMap].After[l := n, W := LeftOpen.whole, g := h] \as Composition;
+\definition lifted: LeftMaps.Map domain LeftOpen.whole := Composition.compose;
+\definition right[x: Open.Carrier domain]: RightOpen.Carrier U := Product.rightPoint x;
+\definition term[x: Open.Carrier domain]: LeftPoint := Functions.apply U LeftOpen.whole h (right x);
+\definition plusLeft: LeftMaps.Map domain LeftOpen.whole := \into[LeftMaps.Data[domain, LeftOpen.whole]](LeftMaps.Data[domain, LeftOpen.whole] {
+  apply := \fun (x: Open.Carrier domain) => \into[LeftPoint](LeftCoordinates.addPoint (Split.left x) (term x), LeftOpen.whole.points) \by { \refl(LeftCoordinates.addPoint (Split.left x) (term x)) },
+}, { data: LeftMaps.Data[domain, LeftOpen.whole] \where LeftMaps.Laws[domain, LeftOpen.whole, data] }) \by {
+  LeftMaps.Laws[domain, LeftOpen.whole, LeftMaps.Data[domain, LeftOpen.whole]::# (\fun (x: Open.Carrier domain) => \into[LeftPoint](LeftCoordinates.addPoint (Split.left x) (term x), LeftOpen.whole.points) \by { \refl(LeftCoordinates.addPoint (Split.left x) (term x)) })] {
+    smooth := \fun (i: Fin.Fin n) => Open.Smooth[].Operations[].addSmooth domain (\fun (x: Open.Carrier domain) => Split.left x i) (\fun (x: Open.Carrier domain) => term x i) (Product.leftMap.smooth i) (lifted.smooth i),
+  }
+};
+\definition minusLeft: LeftMaps.Map domain LeftOpen.whole := \into[LeftMaps.Data[domain, LeftOpen.whole]](LeftMaps.Data[domain, LeftOpen.whole] {
+  apply := \fun (x: Open.Carrier domain) => \into[LeftPoint](LeftCoordinates.subPoint (Split.left x) (term x), LeftOpen.whole.points) \by { \refl(LeftCoordinates.subPoint (Split.left x) (term x)) },
+}, { data: LeftMaps.Data[domain, LeftOpen.whole] \where LeftMaps.Laws[domain, LeftOpen.whole, data] }) \by {
+  LeftMaps.Laws[domain, LeftOpen.whole, LeftMaps.Data[domain, LeftOpen.whole]::# (\fun (x: Open.Carrier domain) => \into[LeftPoint](LeftCoordinates.subPoint (Split.left x) (term x), LeftOpen.whole.points) \by { \refl(LeftCoordinates.subPoint (Split.left x) (term x)) })] {
+    smooth := \fun (i: Fin.Fin n) => Open.Smooth[].Operations[].subSmooth domain (\fun (x: Open.Carrier domain) => Split.left x i) (\fun (x: Open.Carrier domain) => term x i) (Product.leftMap.smooth i) (lifted.smooth i),
+  }
+};
+\definition rightWhole: RightMaps.Map domain RightOpen.whole := RightMaps.Corestriction[U := domain, V := U, W := RightOpen.whole, f := Product.rightMap,
+  inside := \fun (x: Open.Carrier domain) => \refl(Split.right x)].map;
+\import \parent.Pair[d := dimension, U := domain, f := plusLeft, g := rightWhole] \as Plus;
+\import \parent.Pair[d := dimension, U := domain, f := minusLeft, g := rightWhole] \as Minus;
+\definition insidePlus: \forall (x: Open.Carrier domain) -> \In[Point] domain.points (Maps.apply domain Open.whole Plus.map x) :=
+  \fun (x: Open.Carrier domain) => Logic.And[_, _]::# (\refl(Split.left (Maps.apply domain Open.whole Plus.map x)))
+    (\idelim Split.right x = Split.right (Maps.apply domain Open.whole Plus.map x) \with v: RightPoint => \In[RightPoint] U.points v \by {
+      base: \bysub(RightPoint, U.points, right x), equality: sym!{RightPoint} _ _ (Split.rightJoin (LeftCoordinates.addPoint (Split.left x) (term x)) (Split.right x))
+    });
+\definition insideMinus: \forall (x: Open.Carrier domain) -> \In[Point] domain.points (Maps.apply domain Open.whole Minus.map x) :=
+  \fun (x: Open.Carrier domain) => Logic.And[_, _]::# (\refl(Split.left (Maps.apply domain Open.whole Minus.map x)))
+    (\idelim Split.right x = Split.right (Maps.apply domain Open.whole Minus.map x) \with v: RightPoint => \In[RightPoint] U.points v \by {
+      base: \bysub(RightPoint, U.points, right x), equality: sym!{RightPoint} _ _ (Split.rightJoin (LeftCoordinates.subPoint (Split.left x) (term x)) (Split.right x))
+    });
+\definition plusMap: Maps.Map domain domain := Maps.Corestriction[U := domain, V := Open.whole, W := domain, f := Plus.map, inside := insidePlus].map;
+\definition minusMap: Maps.Map domain domain := Maps.Corestriction[U := domain, V := Open.whole, W := domain, f := Minus.map, inside := insideMinus].map;
+\definition plus[x: Open.Carrier domain]: Open.Carrier domain := Maps.apply domain domain plusMap x;
+\definition minus[x: Open.Carrier domain]: Open.Carrier domain := Maps.apply domain domain minusMap x;
+\definition rightPlus: \forall (x: Open.Carrier domain) -> right (plus x) = right x := \fun (x: Open.Carrier domain) => Split.rightJoin (LeftCoordinates.addPoint (Split.left x) (term x)) (Split.right x);
+\definition rightMinus: \forall (x: Open.Carrier domain) -> right (minus x) = right x := \fun (x: Open.Carrier domain) => Split.rightJoin (LeftCoordinates.subPoint (Split.left x) (term x)) (Split.right x);
+\definition plusMinus: \forall (x: Open.Carrier domain) -> plus (minus x) = x :=
+  \fun (x: Open.Carrier domain) => eq_reason_in!{Point _
+    "=" _ "by" { congr!{LeftPoint RightPoint Point} (\fun (v: LeftPoint)(z: RightPoint) => Split.join (LeftCoordinates.addPoint v (term (minus x))) z) _ _ _ _
+      (Split.leftJoin (LeftCoordinates.subPoint (Split.left x) (term x)) (Split.right x)) (rightMinus x) }
+    "=" _ "by" { congr!{LeftPoint Point} (\fun (v: LeftPoint) => Split.join (LeftCoordinates.addPoint (LeftCoordinates.subPoint (Split.left x) (term x)) v) (Split.right x)) _ _
+      (congr!{{RightOpen.Carrier U} LeftPoint} (Functions.apply U LeftOpen.whole h) _ _ (rightMinus x)) }
+    "=" _ "by" { congr!{LeftPoint Point} (\fun (v: LeftPoint) => Split.join v (Split.right x)) _ _
+      (\axiom:funext(LeftCoordinates.addPoint (LeftCoordinates.subPoint (Split.left x) (term x)) (term x), Split.left x, \fun (i: Fin.Fin n) => Scalars.Distance[].subAddCancel (Split.left x i) (term x i))) }
+    "=" x "by" { Split.recover x }
+  };
+\definition minusPlus: \forall (x: Open.Carrier domain) -> minus (plus x) = x :=
+  \fun (x: Open.Carrier domain) => eq_reason_in!{Point _
+    "=" _ "by" { congr!{LeftPoint RightPoint Point} (\fun (v: LeftPoint)(z: RightPoint) => Split.join (LeftCoordinates.subPoint v (term (plus x))) z) _ _ _ _
+      (Split.leftJoin (LeftCoordinates.addPoint (Split.left x) (term x)) (Split.right x)) (rightPlus x) }
+    "=" _ "by" { congr!{LeftPoint Point} (\fun (v: LeftPoint) => Split.join (LeftCoordinates.subPoint (LeftCoordinates.addPoint (Split.left x) (term x)) v) (Split.right x)) _ _
+      (congr!{{RightOpen.Carrier U} LeftPoint} (Functions.apply U LeftOpen.whole h) _ _ (rightPlus x)) }
+    "=" _ "by" { congr!{LeftPoint Point} (\fun (v: LeftPoint) => Split.join v (Split.right x)) _ _
+      (\axiom:funext(LeftCoordinates.subPoint (LeftCoordinates.addPoint (Split.left x) (term x)) (term x), Split.left x, \fun (i: Fin.Fin n) => Laws.addNegCancelRight (term x i) (Split.left x i))) }
+    "=" x "by" { Split.recover x }
+  };
+\definition data: Diffeomorphisms.Data[domain, domain] := Diffeomorphisms.Data[domain, domain] { forward := minusMap, backward := plusMap };
+\definition equivalence: Diffeomorphisms.Diffeomorphism domain domain := \into[Diffeomorphisms.Data[domain, domain]](data,
+  { data: Diffeomorphisms.Data[domain, domain] \where Diffeomorphisms.Laws[domain, domain, data] }) \by {
+    Diffeomorphisms.Laws[domain, domain, data] { leftInverse := plusMinus, rightInverse := minusPlus }
+  };
+\definition graphPoint[z: RightOpen.Carrier U]: Open.Carrier domain := Product.joinPoint (Functions.apply U LeftOpen.whole h z) z;
+\definition graphRight: \forall (z: RightOpen.Carrier U) -> right (graphPoint z) = z := \fun (z: RightOpen.Carrier U) => Split.rightJoin (Functions.apply U LeftOpen.whole h z) z;
+\definition onGraph: \forall (z: RightOpen.Carrier U) -> minus (graphPoint z) = Split.join LeftCoordinates.origin z :=
+  \fun (z: RightOpen.Carrier U) => eq_reason_in!{Point _
+    "=" _ "by" { congr!{LeftPoint RightPoint Point} (\fun (p: LeftPoint)(q: RightPoint) => Split.join (LeftCoordinates.subPoint p (term (graphPoint z))) q) _ _ _ _
+      (Split.leftJoin (Functions.apply U LeftOpen.whole h z) z) (Split.rightJoin (Functions.apply U LeftOpen.whole h z) z) }
+    "=" _ "by" { congr!{LeftPoint Point} (\fun (p: LeftPoint) => Split.join (LeftCoordinates.subPoint (Functions.apply U LeftOpen.whole h z) p) z) _ _
+      (congr!{{RightOpen.Carrier U} LeftPoint} (Functions.apply U LeftOpen.whole h) _ _ (graphRight z)) }
+    "=" _ "by" { congr!{LeftPoint Point} (\fun (p: LeftPoint) => Split.join p z) _ _
+      (\axiom:funext(LeftCoordinates.subPoint (Functions.apply U LeftOpen.whole h z) (Functions.apply U LeftOpen.whole h z), LeftCoordinates.origin, \fun (i: Fin.Fin n) => Laws.subSelf (Functions.apply U LeftOpen.whole h z i))) }
+  };

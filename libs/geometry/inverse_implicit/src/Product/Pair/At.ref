@@ -1,0 +1,17 @@
+\import Left.Differential[U := U, V := LeftOpen.whole, f := f, a := a] \as LeftD;
+\import Right.Differential[U := U, V := RightOpen.whole, f := g, a := a] \as RightD;
+\import Result.Differential[U := U, V := Open.whole, f := map, a := a] \as Differential;
+\definition candidate: Vector.LinearMap := \parent.\parent.LinearPair[d := d, left := LeftD.value, right := RightD.value].map;
+\module LeftCoordinate(j: Fin.Fin n);
+\module RightCoordinate(j: Fin.Fin m);
+\definition componentLaw: \forall (s: Indices.Index) -> Analysis.HasDifferentialAt U (\fun (x: Source.Carrier U) => Result.apply U Open.whole map x (Indices.inflate s)) a (Vector.row candidate (Indices.inflate s)) :=
+  \induction (s: Indices.Index) \return Analysis.HasDifferentialAt U (\fun (x: Source.Carrier U) => Result.apply U Open.whole map x (Indices.inflate s)) a (Vector.row candidate (Indices.inflate s)) \with {
+    | inl: \fun (j: Fin.Fin n) => LeftCoordinate[j := j].law
+    | inr: \fun (j: Fin.Fin m) => RightCoordinate[j := j].law
+  };
+\definition vectorLaw: Vector.HasDifferentialAt U (\fun (x: Source.Carrier U) => Result.apply U Open.whole map x) a candidate :=
+  \fun (i: Fin.Fin dimension) => \idelim Indices.inflate (Indices.split i) = i \with j: Fin.Fin dimension =>
+    Analysis.HasDifferentialAt U (\fun (x: Source.Carrier U) => Result.apply U Open.whole map x j) a (Vector.row candidate j) \by {
+    base: componentLaw (Indices.split i), equality: Indices.inflateSplit i
+  };
+\definition jacobian: Differential.value = candidate := Vector.Differential[U := U, f := \fun (x: Source.Carrier U) => Result.apply U Open.whole map x, a := a, d := Differential.value].uniqueness candidate Differential.vectorLaw vectorLaw;

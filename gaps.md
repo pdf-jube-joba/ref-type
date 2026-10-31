@@ -332,3 +332,60 @@ A11 の具体的な Atkinson 定理の適用は、余核の証明を作用素か
 ```
 
 `smooth_partitions.Exponential.Flat.Polynomial.LimitRules.At` では係数を固定した補助 module に処理を分けている。
+
+## 構造の宣言署名に残る親 module の定義
+
+親 module 内で定義した次元の別名を構造の引数に使い、その構造を別の module の引数へ渡したい。
+次の記述では `Result` の具体化が `incompatible rigid expressions in metavariable constraint` で失敗する。
+`dimension` が親 module の引数で具体化されず、構造の宣言署名に残る。
+
+```ref
+\module Test {
+  \import std.Data[].Nat[] \as N;
+  \module Indexed(n: N.Nat^) {
+    \structure Data := {
+      Point: \Set,
+      value: std.Data[].FinSet[].Fin n -> Point,
+    };
+  }
+  \module Outer(n: N.Nat^) {
+    \definition dimension: N.Nat^ := n;
+    \import \root.Test[].Indexed[n := dimension] \as Model;
+    \module Accept(data: Model.Data) {}
+  }
+  \definition one: N.Nat^ := N.Nat^::succ N.Nat^::zero;
+  \import \root.Test[].Indexed[n := one] \as Model;
+  \definition data: Model.Data := Model.Data {
+    Point := N.Nat^,
+    value := \fun (i: std.Data[].FinSet[].Fin one) => N.Nat^::zero,
+  };
+  \import \root.Test[].Outer[n := one].Accept[data := data] \as Result;
+}
+```
+
+現在は構造の宣言署名に module の引数を直接渡す。
+次の記述は通常検査で終了コード0となる。
+`inverse_implicit.Product.RegularValue` では周囲の次元を `add m n` と明示する。
+
+```ref
+\module Test {
+  \import std.Data[].Nat[] \as N;
+  \module Indexed(n: N.Nat^) {
+    \structure Data := {
+      Point: \Set,
+      value: std.Data[].FinSet[].Fin n -> Point,
+    };
+  }
+  \module Outer(n: N.Nat^) {
+    \import \root.Test[].Indexed[n := n] \as Model;
+    \module Accept(data: Model.Data) {}
+  }
+  \definition one: N.Nat^ := N.Nat^::succ N.Nat^::zero;
+  \import \root.Test[].Indexed[n := one] \as Model;
+  \definition data: Model.Data := Model.Data {
+    Point := N.Nat^,
+    value := \fun (i: std.Data[].FinSet[].Fin one) => N.Nat^::zero,
+  };
+  \import \root.Test[].Outer[n := one].Accept[data := data] \as Result;
+}
+```

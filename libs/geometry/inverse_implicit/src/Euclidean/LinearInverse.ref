@@ -1,0 +1,38 @@
+\import matrix_invariants.Ring[K := Real, scalars := std.Alg[].Field[].fieldAsCommutativeRing Real Algebra.field].At[n := n] \as Matrix;
+\import Matrix.Representation[] \as Representation;
+\import Matrix.Operations[] \as Operations;
+\import linear_algebra.Commutative[K := Real, scalarRing := std.Alg[].Field[].fieldAsCommutativeRing Real Algebra.field] \as ScalarsAlgebra;
+\import linear_algebra.Euclidean[n := n] \as E;
+\import ScalarsAlgebra.Linear[V := Point, W := Point, source := E.space, target := E.space] \as Maps;
+\import Maps.Composition[U := Point, domain := E.space] \as Composition;
+\definition identity: Maps.Map := Maps.Map {
+  apply := \fun (v: Point) => v,
+  preservesAdd := \fun (v, w: Point) => \refl(E.space.add v w),
+  preservesScale := \fun (c: Real)(v: Point) => \refl(E.space.smul c v),
+};
+\definition identityEntries: Representation.entries identity = Matrix.identity := \refl(Matrix.identity);
+\definition injective: \forall (f, g: Maps.Map) -> Representation.entries f = Representation.entries g -> f = g :=
+  \fun (f, g: Maps.Map)(same: _) => eq_reason_in!{{Maps.Map} f
+    "=" _ "by" { sym!{{Maps.Map}} _ _ (Representation.linearEntries f) }
+    "=" _ "by" { congr!{Matrix.Matrix {Maps.Map}} Matrix.linear _ _ same }
+    "=" g "by" { Representation.linearEntries g }
+  };
+\definition inverse[B: Operations.Inverse (Representation.entries d)]: Maps.Map := Matrix.linear B;
+\definition left: \forall (B: Operations.Inverse (Representation.entries d))(v: Point) -> (inverse B).apply (d.apply v) = v := \block {
+  \fun (B: Operations.Inverse (Representation.entries d))(v: Point) \then
+  \let entries: Representation.entries (Composition.compose (inverse B) d) = Matrix.identity := eq_reason_in!{Matrix.Matrix _
+    "=" _ "by" { Representation.composition (inverse B) d }
+    "=" _ "by" { congr!{Matrix.Matrix Matrix.Matrix} (\fun (C: Matrix.Matrix) => Matrix.product C (Representation.entries d)) _ _ (Representation.entriesLinear B) }
+    "=" _ "by" { (Operations.inverseLaws (Representation.entries d) B).left }
+  } \then
+  \return congr!{{Maps.Map} Point} (\fun (L: Maps.Map) => L.apply v) _ _ (injective (Composition.compose (inverse B) d) identity (trans!{Matrix.Matrix} _ _ _ entries (sym!{Matrix.Matrix} _ _ identityEntries)))
+};
+\definition right: \forall (B: Operations.Inverse (Representation.entries d))(v: Point) -> d.apply ((inverse B).apply v) = v := \block {
+  \fun (B: Operations.Inverse (Representation.entries d))(v: Point) \then
+  \let entries: Representation.entries (Composition.compose d (inverse B)) = Matrix.identity := eq_reason_in!{Matrix.Matrix _
+    "=" _ "by" { Representation.composition d (inverse B) }
+    "=" _ "by" { congr!{Matrix.Matrix Matrix.Matrix} (Matrix.product (Representation.entries d)) _ _ (Representation.entriesLinear B) }
+    "=" _ "by" { (Operations.inverseLaws (Representation.entries d) B).right }
+  } \then
+  \return congr!{{Maps.Map} Point} (\fun (L: Maps.Map) => L.apply v) _ _ (injective (Composition.compose d (inverse B)) identity (trans!{Matrix.Matrix} _ _ _ entries (sym!{Matrix.Matrix} _ _ identityEntries)))
+};

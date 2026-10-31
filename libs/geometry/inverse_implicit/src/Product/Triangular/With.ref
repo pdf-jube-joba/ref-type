@@ -1,0 +1,40 @@
+\definition residualAugmented: \forall (v: Point) -> residual.apply (augmented.apply v) = D.apply (vertical.apply (Split.right v)) := \block {
+  \fun (v: Point) \then
+  \let p: LeftPoint := Split.left v \then
+  \let q: RightPoint := Split.right v \then
+  \let formula: D.apply v = RightCoordinates.addPoint (D.apply (horizontal.apply p)) (D.apply (vertical.apply q)) :=
+    trans!{RightPoint} _ _ _ (congr!{Point RightPoint} D.apply _ _ (sym!{Point} _ _ (decomposition v))) (D.preservesAdd (horizontal.apply p) (vertical.apply q)) \then
+  \return eq_reason_in!{RightPoint _
+    "=" _ "by" { congr!{LeftPoint RightPoint RightPoint} (\fun (x: LeftPoint)(y: RightPoint) => RightCoordinates.subPoint y (D.apply (horizontal.apply x))) _ _ _ _
+      (Split.leftJoin p (D.apply v)) (Split.rightJoin p (D.apply v)) }
+    "=" _ "by" { congr!{RightPoint RightPoint} (\fun (y: RightPoint) => RightCoordinates.subPoint y (D.apply (horizontal.apply p))) _ _ formula }
+    "=" _ "by" { \axiom:funext(RightCoordinates.subPoint (RightCoordinates.addPoint (D.apply (horizontal.apply p)) (D.apply (vertical.apply q))) (D.apply (horizontal.apply p)), D.apply (vertical.apply q), \fun (i: Fin.Fin m) => trans!{Real} _ _ _
+      (congr!{Real Real} (\fun (z: Real) => Scalars.sub z (D.apply (horizontal.apply p) i)) _ _ (Laws.addComm (D.apply (horizontal.apply p) i) (D.apply (vertical.apply q) i)))
+      (Laws.addNegCancelRight (D.apply (horizontal.apply p) i) (D.apply (vertical.apply q) i))) }
+  }
+};
+\definition leftInverse: \forall (v: Point) -> inverse.apply (augmented.apply v) = v :=
+  \fun (v: Point) => eq_reason_in!{Point _
+    "=" _ "by" { congr!{LeftPoint RightPoint Point} Split.join _ _ _ _ (Split.leftJoin (Split.left v) (D.apply v))
+      (trans!{RightPoint} _ _ _ (congr!{RightPoint RightPoint} Q.apply _ _ (residualAugmented v)) (left (Split.right v))) }
+    "=" v "by" { Split.recover v }
+  };
+\definition differentialInverse: \forall (v: Point) -> D.apply (inverse.apply v) = Split.right v := \block {
+  \fun (v: Point) \then
+  \let p: LeftPoint := Split.left v \then
+  \let q: RightPoint := Q.apply (residual.apply v) \then
+  \let vector: Coordinates.addPoint (horizontal.apply p) (vertical.apply q) = Split.join p q :=
+    trans!{Point} _ _ _ (sym!{Point} _ _ (joinAdd p LeftCoordinates.origin RightCoordinates.origin q))
+      (congr!{LeftPoint RightPoint Point} Split.join _ _ _ _
+        (\axiom:funext(LeftCoordinates.addPoint p LeftCoordinates.origin, p, \fun (i: Fin.Fin n) => Laws.addZeroRight (p i)))
+        (\axiom:funext(RightCoordinates.addPoint RightCoordinates.origin q, q, \fun (i: Fin.Fin m) => Laws.addZeroLeft (q i)))) \then
+  \return eq_reason_in!{RightPoint _
+    "=" _ "by" { congr!{Point RightPoint} D.apply _ _ (sym!{Point} _ _ vector) }
+    "=" _ "by" { D.preservesAdd (horizontal.apply p) (vertical.apply q) }
+    "=" _ "by" { congr!{RightPoint RightPoint} (RightCoordinates.addPoint (D.apply (horizontal.apply p))) _ _ (right (residual.apply v)) }
+    "=" _ "by" { \axiom:funext(RightCoordinates.addPoint (D.apply (horizontal.apply p)) (residual.apply v), Split.right v, \fun (i: Fin.Fin m) => Scalars.Estimates[].addSubCancel (Split.right v i) (D.apply (horizontal.apply p) i)) }
+  }
+};
+\definition rightInverse: \forall (v: Point) -> augmented.apply (inverse.apply v) = v :=
+  \fun (v: Point) => trans!{Point} _ _ _ (congr!{LeftPoint RightPoint Point} Split.join _ _ _ _
+    (Split.leftJoin (Split.left v) (Q.apply (residual.apply v))) (differentialInverse v)) (Split.recover v);

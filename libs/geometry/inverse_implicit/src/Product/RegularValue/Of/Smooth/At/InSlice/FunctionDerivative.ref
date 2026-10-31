@@ -1,0 +1,25 @@
+\import Original.InCharts[left := ambientChart, right := targetChart] \as Derivative;
+\import Maps.Coordinates[f := f, left := slice.source, right := slice.target] \as Coordinates;
+\import calculus.Maps[n := std.Data[].Nat[].Basic[].Def[].add m n, m := m] \as Calculus;
+\import calculus.Vector[n := std.Data[].Nat[].Basic[].Def[].add m n, m := m] \as Vector;
+\import calculus.LinearMap[n := std.Data[].Nat[].Basic[].Def[].add m n, m := m].On[U := Source.product, L := rightLinear] \as Projection;
+\import EuclideanMaps.Composition[U := slice.source.image, V := Source.product, f := slice.coordinates.forward].After[l := m, W := RightOpen.whole, g := Projection.map] \as Composition;
+\definition normal: Calculus.Map slice.source.image RightOpen.whole := Composition.compose;
+\definition included: Open.Included Coordinates.domain slice.source.image := \fun (p: Point)(member: _) => Coordinates.inLeftImage (\into[Point](p, Coordinates.domain.points) \by { member });
+\import Calculus.Restriction[U := Coordinates.domain, V := slice.source.image, W := RightOpen.whole] \as Restriction;
+\definition restricted: Calculus.Map Coordinates.domain RightOpen.whole := Restriction.input included normal;
+\import Calculus.Corestriction[U := Coordinates.domain, V := slice.target.image, W := RightOpen.whole, f := Derivative.coordinateMap,
+  inside := \fun (p: Open.Carrier Coordinates.domain) => \refl(Calculus.apply Coordinates.domain slice.target.image Derivative.coordinateMap p)] \as Corestriction;
+\definition comparison: Calculus.Differential[U := Coordinates.domain, V := RightOpen.whole, f := Corestriction.map, a := Derivative.point].value = Calculus.Differential[U := Coordinates.domain, V := RightOpen.whole, f := restricted, a := Derivative.point].value :=
+  Calculus.Differential[U := Coordinates.domain, V := RightOpen.whole, f := Corestriction.map, a := Derivative.point].Compare[W := RightOpen.whole, g := restricted].equal
+    (\axiom:funext((\fun (p: Open.Carrier Coordinates.domain) => Calculus.apply Coordinates.domain RightOpen.whole Corestriction.map p),
+      (\fun (p: Open.Carrier Coordinates.domain) => Calculus.apply Coordinates.domain RightOpen.whole restricted p),
+      \fun (p: Open.Carrier Coordinates.domain) => Source.laws.projection (Coordinates.leftCoordinate p)));
+\definition formula: \forall (v: Point) -> Derivative.jacobian.apply v = Split.right (Normal.forward.apply v) :=
+  \fun (v: Point) => eq_reason_in!{RightPoint _
+    "=" _ "by" { sym!{RightPoint} _ _ (congr!{{Vector.LinearMap} RightPoint} (\fun (L: Vector.LinearMap) => L.apply v) _ _ (Corestriction.differential Derivative.point)) }
+    "=" _ "by" { congr!{{Vector.LinearMap} RightPoint} (\fun (L: Vector.LinearMap) => L.apply v) _ _ comparison }
+    "=" _ "by" { congr!{{Vector.LinearMap} RightPoint} (\fun (L: Vector.LinearMap) => L.apply v) _ _ (Restriction.differential included normal Derivative.point) }
+    "=" _ "by" { congr!{{Vector.LinearMap} RightPoint} (\fun (L: Vector.LinearMap) => L.apply v) _ _ (Composition.At[a := coordinate].jacobian) }
+    "=" _ "by" { congr!{{Vector.LinearMap} RightPoint} (\fun (L: Vector.LinearMap) => L.apply (Normal.forward.apply v)) _ _ (Projection.differential Normal.image) }
+  };

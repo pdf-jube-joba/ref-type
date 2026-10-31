@@ -1,0 +1,26 @@
+\definition differential[x: Open.Carrier U]: Differentials.LinearMap := Maps.Differential[U := U, V := TargetOpen.whole, f := f, a := x].value;
+\definition ConstantRank: \Prop := \forall (x: Open.Carrier U) -> Rank.HasRank (differential x);
+\structure NormalForm: \Set := {
+  source: Open.OpenSet,
+  target: TargetOpen.OpenSet,
+  parameters: ParameterOpen.OpenSet,
+  values: ImageOpen.OpenSet,
+  included: Open.Included source U,
+  contains: \In[Point] source.points a,
+  containsImage: \In[TargetPoint] target.points (Maps.apply U TargetOpen.whole f a),
+  sourceCoordinates: calculus.Diffeomorphism[n := sourceDimension, m := sourceDimension].Diffeomorphism source (SourceBlocks.product parameters values),
+  targetCoordinates: calculus.Diffeomorphism[n := targetDimension, m := targetDimension].Diffeomorphism target (TargetBlocks.product TransverseOpen.whole values),
+  imageInside: \forall (x: Open.Carrier source) -> \In[TargetPoint] target.points (Maps.apply U TargetOpen.whole f (Open.inclusion source U included x)),
+  formula: \forall (x: Open.Carrier source) -> calculus.Maps[n := targetDimension, m := targetDimension].apply target (TargetBlocks.product TransverseOpen.whole values) targetCoordinates.forward
+    (\into[TargetPoint](Maps.apply U TargetOpen.whole f (Open.inclusion source U included x), target.points) \by { imageInside x }) =
+    TargetBlocks.join topological_algebra.Euclidean[].Dimension[n := l].Def[].origin
+      (SourceBlocks.right (calculus.Maps[n := sourceDimension, m := sourceDimension].apply source (SourceBlocks.product parameters values) sourceCoordinates.forward x)),
+};
+\module With(rank: ConstantRank, witness: Rank.Witness[differential a], factor: Ambient.Gram[k := r].Factorization[witness.image]);
+
+\definition localExistence: ConstantRank -> \exists NormalForm := \block {
+  \fun (rank: ConstantRank) \then
+  \takefrom witness: Rank.Witness[differential a] \by rank a \then
+  \takefrom factor: Ambient.Gram[k := r].Factorization[witness.image] \by \root.Gram[n := r, m := targetDimension].existence witness.image witness.imageInjective \then
+  \return With[rank := rank, witness := witness, factor := factor].existence
+};

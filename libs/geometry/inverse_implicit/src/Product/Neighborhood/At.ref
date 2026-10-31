@@ -1,0 +1,21 @@
+\import topological_algebra.Euclidean[].Dimension[n := n].Norm[] \as LeftNorm;
+\import topological_algebra.Euclidean[].Dimension[n := m].Norm[] \as RightNorm;
+\definition radius: Real := Scalars.mul Scalars.half rho;
+\definition positive: R.Lt Scalars.zero radius := Bounds.halfOfPositive rho ball.positive;
+\definition parameters: LeftOpen.OpenSet := Left.ball (Split.left a) radius;
+\definition values: RightOpen.OpenSet := Right.ball (Split.right a) radius;
+\definition included: Open.Included (Split.product parameters values) U := \block {
+  \fun (x: Point)(member: Logic.And[\In[LeftPoint] parameters.points (Split.left x), \In[RightPoint] values.points (Split.right x)]) \then
+  \let left: LeftOpen.Carrier parameters := \into[LeftPoint](Split.left x, parameters.points) \by { member.left } \then
+  \let right: RightOpen.Carrier values := \into[RightPoint](Split.right x, values.points) \by { member.right } \then
+  \return ball.included x (R.leLtTrans _ _ _
+    (R.leReplaceLeft _ _ _ (congr!{Point Point Real} Euclidean.distance _ _ _ _ (Split.recover x) (Split.recover a))
+      (Split.joinDistance (Split.left x) (Split.left a) (Split.right x) (Split.right a)))
+    (R.ltReplaceRight _ _ _ (Bounds.halfTwice rho) (Bounds.addLt _ _ _ _ (Left.ofBall (Split.left a) radius left) (Right.ofBall (Split.right a) radius right))))
+};
+\definition rectangle: Rectangle[U, a] := Rectangle[U, a] {
+  parameters := parameters, values := values,
+  containsLeft := Left.inBall _ _ _ (R.ltReplaceLeft Scalars.zero _ _ (sym!{Real} _ _ (LeftNorm.distanceSelf _)) positive),
+  containsRight := Right.inBall _ _ _ (R.ltReplaceLeft Scalars.zero _ _ (sym!{Real} _ _ (RightNorm.distanceSelf _)) positive),
+  included := included,
+};

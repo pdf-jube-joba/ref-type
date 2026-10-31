@@ -1,0 +1,23 @@
+\definition identity: \parent.\parent.Residual[U := U, f := normalized, a := a].IdentityDifferential :=
+  \fun (v: Point) => trans!{Point} _ _ _ (differential a v) (left a v);
+\definition inverseLeft: \forall (x: Open.Carrier U)(v: Point) -> (inverse x).apply ((Normalized.differential x).apply v) = v :=
+  \fun (x: Open.Carrier U)(v: Point) => eq_reason_in!{Point _
+    "=" _ "by" { congr!{Point Point} (inverse x).apply _ _ (differential x v) }
+    "=" _ "by" { congr!{Point Point} (B x).apply _ _ (right a ((Original.differential x).apply v)) }
+    "=" v "by" { left x v }
+  };
+\definition inverseRight: \forall (x: Open.Carrier U)(v: Point) -> (Normalized.differential x).apply ((inverse x).apply v) = v :=
+  \fun (x: Open.Carrier U)(v: Point) => eq_reason_in!{Point _
+    "=" _ "by" { differential x ((inverse x).apply v) }
+    "=" _ "by" { congr!{Point Point} (B a).apply _ _ (right x (center.apply v)) }
+    "=" v "by" { left a v }
+  };
+\module Transfer(local: LocalInverse[U, normalized, a]);
+\definition localExistence: \exists LocalInverse[U, f, a] := \block {
+  \takefrom r: \Cast[Real] ({ r: Real \where \parent.\parent.NearIdentity[U := U, f := SmoothMaps.apply U Open.whole normalized, a := a, r := r].Control })
+    \by \parent.\parent.Residual[U := U, f := normalized, a := a].contractionExists identity \then
+  \let control: \parent.\parent.NearIdentity[U := U, f := SmoothMaps.apply U Open.whole normalized, a := a, r := r].Control :=
+    \bysub(Real, { r: Real \where \parent.\parent.NearIdentity[U := U, f := SmoothMaps.apply U Open.whole normalized, a := a, r := r].Control }, r) \then
+  \let local: LocalInverse[U, normalized, a] := \parent.\parent.NearIdentityLocal[U := U, f := normalized, a := a, r := r, control := control, B := inverse].With[left := inverseLeft, right := inverseRight].local \then
+  \return \exact(Transfer[local := local].localInverse, LocalInverse[U, f, a])
+};
