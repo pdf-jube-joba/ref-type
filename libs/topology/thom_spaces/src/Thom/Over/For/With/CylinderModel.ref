@@ -1,0 +1,57 @@
+\import algebraic_topology.Interval[] \as I;
+\import \parent.Radial[] \as Radius;
+\import \parent.Contraction[] \as DiskContraction;
+\import algebraic_topology.Cylinder[A := SphereBundle] \as Cylinder;
+\import \root.Thom[].CWType[].MappingCylinder[A := SphereBundle, B := X, source := sphereTopology, target := bundle.baseSpace,
+  f := sphereProjection, continuous := sphereProjectionContinuous] \as Model;
+\import topological_constructions.Pushout[A := X, B := Cylinder.Carrier, C := SphereBundle].Of[u := sphereProjection, v := Cylinder.at I.start] \as Pushout;
+\definition source: topology.Topology[Carrier := Cylinder.Carrier].Topology := Cylinder.topology sphereTopology;
+\definition original[p: Cylinder.Carrier]: Family.Point := Cylinder.point p;
+\definition originalContinuous: topology.Continuity[A := Cylinder.Carrier, B := Family.Point].Continuous source bundle.totalSpace original :=
+  topology.Composition[A := Cylinder.Carrier, B := SphereBundle, C := Family.Point].composeContinuous source sphereTopology bundle.totalSpace Cylinder.point (\fun (u: SphereBundle) => u)
+    (Cylinder.pointContinuous sphereTopology) (topology.Continuity[A := SphereBundle, B := Family.Point].Corestriction[S := UnitSphere].inclusionContinuous bundle.totalSpace);
+\definition timeContinuous: metric_spaces.RealFunctions[A := Cylinder.Carrier].Continuous source (\fun (p: Cylinder.Carrier) => Cylinder.time p) :=
+  topology.Composition[A := Cylinder.Carrier, B := I.Carrier, C := R.Real].composeContinuous source I.topology metric_spaces.RealLine[].topology Cylinder.time (\fun (t: I.Carrier) => t)
+    (Cylinder.timeContinuous sphereTopology) I.inclusionContinuous;
+\definition scaled[p: Cylinder.Carrier]: DiskBundle := \into[Family.Point](scale (Cylinder.time p) (Cylinder.point p), ClosedBall) \by {
+  Order.leReplaceLeft (R.mul (Cylinder.time p) (Cylinder.time p)) (squared (scale (Cylinder.time p) (Cylinder.point p))) R.one
+    (sym!{R.Real} _ _ (trans!{R.Real} _ _ _ (squaredScale (Cylinder.time p) (Cylinder.point p))
+      (trans!{R.Real} _ _ _ (congr!{R.Real R.Real} (R.mul (R.mul (Cylinder.time p) (Cylinder.time p))) _ _ (\bysub(Family.Point, UnitSphere, Cylinder.point p)))
+        (R.Algebra[].mulOneRight (R.mul (Cylinder.time p) (Cylinder.time p))))))
+    (DiskContraction.squareBound (Cylinder.time p))
+};
+\import Operations.Along[X := X, F := F, bundle := bundle, Y := Cylinder.Carrier, source := source,
+  base := (\fun (p: Cylinder.Carrier) => (Cylinder.point p).base)] \as Along;
+\definition scaledContinuous: topology.Continuity[A := Cylinder.Carrier, B := DiskBundle].Continuous source diskTopology scaled :=
+  topology.Continuity[A := Cylinder.Carrier, B := Family.Point].Corestriction[S := ClosedBall].corestrictContinuous source bundle.totalSpace scaled
+    (Along.scaling (\fun (p: Cylinder.Carrier) => conjugation.embed (Cylinder.time p)) (\fun (p: Cylinder.Carrier) => (Cylinder.point p).vector)
+      (topology.Composition[A := Cylinder.Carrier, B := Family.Point, C := X].composeContinuous source bundle.totalSpace bundle.baseSpace original Family.projection originalContinuous Family.Of[bundle := bundle].projectionContinuous)
+      (hermitian_frames.Hermitian[].Over[K := K, field := field, scalar := conjugation, topological := scalar.topological].Functions[X := Cylinder.Carrier].embedding source
+        (\fun (p: Cylinder.Carrier) => Cylinder.time p) timeContinuous)
+      (\idelim (\fun (p: Cylinder.Carrier) => original p) = (\fun (p: Cylinder.Carrier) => Family.include (Cylinder.point p).base (Cylinder.point p).vector)
+        \with h: (Cylinder.Carrier -> Family.Point) => topology.Continuity[A := Cylinder.Carrier, B := Family.Point].Continuous source bundle.totalSpace h \by {
+          base: originalContinuous, equality: \axiom:funext((\fun (p: Cylinder.Carrier) => original p), (\fun (p: Cylinder.Carrier) => Family.include (Cylinder.point p).base (Cylinder.point p).vector),
+            \fun (p: Cylinder.Carrier) => sym!{Family.Point} _ _ (Family.eta (Cylinder.point p)))
+        }));
+\import Pushout.Universal[D := DiskBundle] \as Universal;
+\definition compatible: Universal.Compatible zeroSection scaled := \fun (u: SphereBundle) => sym!{Family.Point} _ _ (scaleZero u);
+\definition toDisk: Model.Carrier -> DiskBundle := Universal.apply zeroSection scaled compatible;
+\definition toDiskBase: \forall (x: X) -> toDisk (Model.base x) = zeroSection x := Universal.onLeft zeroSection scaled compatible;
+\definition toDiskCylinder: \forall (p: Cylinder.Carrier) -> toDisk (Model.cylinder p) = scaled p := Universal.onRight zeroSection scaled compatible;
+\definition toDiskTop: \forall (u: SphereBundle) -> toDisk (Model.top u) = sphereInclusion u :=
+  \fun (u: SphereBundle) => trans!{Family.Point} _ _ _ (toDiskCylinder (Cylinder.at I.end u)) (scaleOne u);
+\definition toDiskContinuous: topology.Continuity[A := Model.Carrier, B := DiskBundle].Continuous Model.topology diskTopology toDisk :=
+  Universal.continuous bundle.baseSpace source diskTopology zeroSection scaled compatible zeroSectionContinuous scaledContinuous;
+\definition onto: \forall (p: DiskBundle) -> \exists (q: Model.Carrier \where toDisk q = p) :=
+  \fun (p: DiskBundle) => either!{{Classical.excludedMiddle (norm p = R.zero)} {\exists (q: Model.Carrier \where toDisk q = p)}
+    {\fun (zero: _) => Logic.existsIntro[Model.Carrier, { q: Model.Carrier \where toDisk q = p }] (Model.base p.base)
+      (trans!{Family.Point} _ _ _ (toDiskBase p.base) (sym!{Family.Point} _ _ (normDefinite p zero)))}
+    {\fun (nonzero: _) => \block {
+      \let positive: Order.Lt R.zero (norm p) := Order.Order[].ltOfLeNotEq R.zero (norm p) (normNonnegative p) (\fun (same: _) => nonzero (sym!{R.Real} _ _ same)) \then
+      \let radius: I.Carrier := \into[R.Real](norm p, metric_spaces.RealLine[].ClosedInterval R.zero R.one) \by { Logic.And[_, _]::# (normNonnegative p) (Radius.diskNorm p) } \then
+      \return Logic.existsIntro[Model.Carrier, { q: Model.Carrier \where toDisk q = p }] (Model.cylinder (Cylinder.at radius (normalize p positive)))
+        (trans!{Family.Point} _ _ _ (toDiskCylinder (Cylinder.at radius (normalize p positive))) (recover p positive))
+    }}
+  };
+\module Injectivity;
+\definition injective: \forall (p, q: Model.Carrier) -> toDisk p = toDisk q -> p = q := Injectivity[].injective;

@@ -1,0 +1,18 @@
+\definition FirstZero: \Prop := \forall (i: Fin.Fin (N.Nat^::succ m)) -> a i (Fin.zero n) = R.zero;
+\definition firstNonzero: Logic.Not FirstZero -> \exists (i: Fin.Fin (N.Nat^::succ m) \where Logic.Not (a i (Fin.zero n) = R.zero)) :=
+  \fun (notAll: _) => ClassicalLogic.doubleNegElim (\exists (i: Fin.Fin (N.Nat^::succ m) \where Logic.Not (a i (Fin.zero n) = R.zero)))
+    (\fun (none: _) => notAll (\fun (i: Fin.Fin (N.Nat^::succ m)) => ClassicalLogic.doubleNegElim (a i (Fin.zero n) = R.zero)
+      (\fun (nonzero: _) => none (Logic.existsIntro[Fin.Fin (N.Nat^::succ m), { j: Fin.Fin (N.Nat^::succ m) \where Logic.Not (a j (Fin.zero n) = R.zero) }] i nonzero))));
+\module Pivot(i: Fin.Fin (N.Nat^::succ m), nonzero: Logic.Not (a i (Fin.zero n) = R.zero));
+\definition exists: \exists Witness[N.Nat^::succ m, N.Nat^::succ n, a] :=
+  either!{{Classical.excludedMiddle FirstZero} {\exists Witness[N.Nat^::succ m, N.Nat^::succ n, a]}
+    {\fun (zero: FirstZero) => \exact(Witness[N.Nat^::succ m, N.Nat^::succ n, a] {
+      value := unit n, nonzero := unitNonzero n,
+      kernel := \fun (i: Fin.Fin (N.Nat^::succ m)) => trans!{R.Real} _ _ _ (unitDot n (a i)) (zero i)
+    }, Witness[N.Nat^::succ m, N.Nat^::succ n, a])}
+    {\block {
+      \fun (notAll: _) \then
+      \takefrom i: \Cast[Fin.Fin (N.Nat^::succ m)] ({ i: Fin.Fin (N.Nat^::succ m) \where Logic.Not (a i (Fin.zero n) = R.zero) }) \by firstNonzero notAll \then
+      \return Pivot[i := i, nonzero := \bysub(Fin.Fin (N.Nat^::succ m), { i: Fin.Fin (N.Nat^::succ m) \where Logic.Not (a i (Fin.zero n) = R.zero) }, i)].exists
+    }}
+  };

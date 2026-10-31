@@ -1,0 +1,41 @@
+\import \parent.PiecewiseAffine[m := m] \as Affine;
+\import \parent.FiniteTuples[A := Affine.Affine] \as Tuples;
+\import \parent.Hyperplanes[n := n] \as Planes;
+\import \parent.LinearKernel[] \as Kernel;
+\import algebraic_topology.Euclidean[].Dimension[n := m] \as Source;
+\import algebraic_topology.Euclidean[].Dimension[n := n] \as Target;
+\import std.Set[].FiniteSubset[A := Affine.Affine] \as Branches;
+\import std.Set[].FiniteSubset[A := Tuples.Tuple n] \as Candidates;
+\import Candidates.Selection[B := Planes.Plane] \as Selection;
+\definition value[x: Source.Coordinate][i: Fin.Fin n]: real.Analysis[].Real := Affine.evaluate (expressions i) x;
+\definition candidates: Candidates.FiniteSubset := Tuples.value n (\fun (i: Fin.Fin n) => Affine.branches (expressions i));
+\definition Contains[forms: Tuples.Tuple n][p: Planes.Plane]: \Prop := \forall (x: Source.Coordinate) ->
+  Kernel.dot n p.normal (\fun (i: Fin.Fin n) => Affine.affine (forms i) x) = p.offset;
+\definition selection: \exists Selection.Selection[Contains, candidates] := Selection.existsSelection Contains candidates
+  (\fun (forms: Tuples.Tuple n)(member: _) => \parent.AffineImage[m := m, n := n, larger := larger, forms := forms].exists);
+\structure ChoiceLaws[x: Source.Coordinate, forms: Tuples.Tuple n]: \Prop := {
+  member: Candidates.Member candidates forms,
+  equation: value x = (\fun (i: Fin.Fin n) => Affine.affine (forms i) x)
+};
+\definition choices: \forall (x: Source.Coordinate) -> \exists (forms: Tuples.Tuple n \where ChoiceLaws[x, forms]) := \block {
+  \fun (x: Source.Coordinate) \then
+  \let relation: Fin.Fin n -> Affine.Affine -> \Prop := \fun (i: Fin.Fin n)(a: Affine.Affine) =>
+    Logic.And[Branches.Member (Affine.branches (expressions i)) a, Affine.evaluate (expressions i) x = Affine.affine a x] \then
+  \takefrom forms: \Cast[Tuples.Tuple n] ({ forms: Tuples.Tuple n \where \forall (i: Fin.Fin n) -> relation i (forms i) })
+    \by Fin.Choice[A := Affine.Affine].exists n relation (\fun (i: Fin.Fin n) => Affine.Branches[].exists (expressions i) x) \then
+  \let data: \forall (i: Fin.Fin n) -> relation i (forms i) := \bysub(Tuples.Tuple n, { forms: Tuples.Tuple n \where \forall (i: Fin.Fin n) -> relation i (forms i) }, forms) \then
+  \return Logic.existsIntro[Tuples.Tuple n, { forms: Tuples.Tuple n \where ChoiceLaws[x, forms] }] forms (ChoiceLaws[x, forms] {
+    member := \fun (i: Fin.Fin n) => (data i).left,
+    equation := \axiom:funext(value x, (\fun (i: Fin.Fin n) => Affine.affine (forms i) x), \fun (i: Fin.Fin n) => (data i).right)
+  })
+};
+\structure Exclusion: \Set := {
+  region: \Pow Target.Coordinate,
+  denseOpen: Planes.DenseOpen[region],
+  excludes: \forall (y: Target.Coordinate) -> \In[Target.Coordinate] region y -> \forall (x: Source.Coordinate) -> Logic.Not (value x = y)
+};
+\module Selected(selection: Selection.Selection[Contains, candidates]);
+\definition exclusion: \exists Exclusion := \block {
+  \takefrom selected: Selection.Selection[Contains, candidates] \by selection \then
+  \return \exact(Selected[selection := selected].exclusion, Exclusion)
+};

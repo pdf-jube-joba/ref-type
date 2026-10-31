@@ -1,0 +1,23 @@
+\import std.Set[].FiniteSubset[A := A] \as Finite;
+\import Fin.Tuples[A := A] \as Tuples;
+\definition Tuple[n: N.Nat^]: \Set := Fin.Fin n -> A;
+\definition Allowed[n: N.Nat^][sets: Fin.Fin n -> Finite.FiniteSubset]: \Pow (Tuple n) :=
+  { f: Tuple n \where \forall (i: Fin.Fin n) -> Finite.Member (sets i) (f i) };
+\definition Finiteness[n: N.Nat^]: \Prop := \forall (sets: Fin.Fin n -> Finite.FiniteSubset) -> std.Set[].FiniteSubset[A := Tuple n].Finite (Allowed n sets);
+\import std.Set[].FiniteSubset[A := Tuple N.Nat^::zero] \as Zero;
+\import Fin.Empty[A := A] \as EmptyFunctions;
+\definition zeroSet: \forall (sets: Fin.Fin N.Nat^::zero -> Finite.FiniteSubset) -> Allowed N.Nat^::zero sets = Zero.Singleton EmptyFunctions.function :=
+  \fun (sets: _) => \axiom:setext(Allowed N.Nat^::zero sets, Zero.Singleton EmptyFunctions.function,
+    \fun (f: Tuple N.Nat^::zero)(member: _) => Logic.Or[_, _]::left (EmptyFunctions.unique f EmptyFunctions.function),
+    \fun (f: Tuple N.Nat^::zero)(member: _)(i: Fin.Fin N.Nat^::zero) => Logic.falseElim (Finite.Member (sets i) (f i)) (Fin.zeroImpossible i (Fin.bound N.Nat^::zero i)));
+\definition base: Finiteness N.Nat^::zero := \fun (sets: _) =>
+  \idelim Zero.Singleton EmptyFunctions.function = Allowed N.Nat^::zero sets \with X: \Pow (Tuple N.Nat^::zero) => Zero.Finite X \by {
+    base: Zero.finite (Zero.singleton EmptyFunctions.function), equality: sym!{{\Pow (Tuple N.Nat^::zero)}} _ _ (zeroSet sets)
+  };
+\module Step(n: N.Nat^, previous: Finiteness n, sets: Fin.Fin (N.Nat^::succ n) -> Finite.FiniteSubset);
+\definition finite: \forall (n: N.Nat^) -> Finiteness n := \induction (n: N.Nat^) \return Finiteness n \with {
+  | zero: base
+  | succ: \fun (n: N.Nat^)(previous: Finiteness n)(sets: _) => Step[n := n, previous := previous, sets := sets].law
+};
+\definition value[n: N.Nat^][sets: Fin.Fin n -> Finite.FiniteSubset]: std.Set[].FiniteSubset[A := Tuple n].FiniteSubset :=
+  \into[\Pow (Tuple n)](Allowed n sets, std.Set[].FiniteSubset[A := Tuple n].FiniteSubsetSet) \by { finite n sets };

@@ -1,0 +1,53 @@
+\import real.Analysis[] \as R;
+\import R.FiniteSums[] \as Sums;
+\import Sums.Linear[] \as Linear;
+\import dedekind_reals.DedekindReal[].Arithmetic[].Prop[] \as Laws;
+\import \parent.LinearKernel[] \as Kernel;
+\definition Vector: \Set := Linear.Vector n;
+\definition zero: Linear.Map n := Linear.Data[n] {
+  apply := \fun (x: Vector) => R.zero,
+  additive := \fun (x, y: Vector) => sym!{R.Real} _ _ (Laws.addZeroLeft R.zero),
+  homogeneous := \fun (r: R.Real)(x: Vector) => sym!{R.Real} _ _ (Laws.fieldMulZeroRight r)
+};
+\definition coordinate[i: Fin.Fin n]: Linear.Map n := Linear.Data[n] {
+  apply := \fun (x: Vector) => x i,
+  additive := \fun (x, y: Vector) => \refl(R.add (x i) (y i)),
+  homogeneous := \fun (r: R.Real)(x: Vector) => \refl(R.mul r (x i))
+};
+\definition sum[f, g: Linear.Map n]: Linear.Map n := Linear.Data[n] {
+  apply := \fun (x: Vector) => R.add (f.apply x) (g.apply x),
+  additive := \fun (x, y: Vector) => trans!{R.Real} _ _ _
+    (congr!{R.Real R.Real R.Real} R.add _ _ _ _ (f.additive x y) (g.additive x y))
+    (R.Algebra[].addFour (f.apply x) (f.apply y) (g.apply x) (g.apply y)),
+  homogeneous := \fun (r: R.Real)(x: Vector) => trans!{R.Real} _ _ _
+    (congr!{R.Real R.Real R.Real} R.add _ _ _ _ (f.homogeneous r x) (g.homogeneous r x))
+    (sym!{R.Real} _ _ (Laws.fieldMulAdd r (f.apply x) (g.apply x)))
+};
+\definition scaled[r: R.Real][f: Linear.Map n]: Linear.Map n := Linear.Data[n] {
+  apply := \fun (x: Vector) => R.mul r (f.apply x),
+  additive := \fun (x, y: Vector) => trans!{R.Real} _ _ _
+    (congr!{R.Real R.Real} (R.mul r) _ _ (f.additive x y)) (Laws.fieldMulAdd r (f.apply x) (f.apply y)),
+  homogeneous := \fun (s: R.Real)(x: Vector) => eq_reason_in!{R.Real _
+    "=" _ "by" { congr!{R.Real R.Real} (R.mul r) _ _ (f.homogeneous s x) }
+    "=" _ "by" { sym!{R.Real} _ _ (Laws.fieldMulAssoc r s (f.apply x)) }
+    "=" _ "by" { congr!{R.Real R.Real} (\fun (t: R.Real) => R.mul t (f.apply x)) _ _ (Laws.fieldMulComm r s) }
+    "=" _ "by" { Laws.fieldMulAssoc s r (f.apply x) }
+  }
+};
+\definition coefficients[f: Linear.Map n][i: Fin.Fin n]: R.Real := f.apply (Linear.basis n i);
+\definition expansion: \forall (f: Linear.Map n)(x: Vector) -> f.apply x = Kernel.dot n (coefficients f) x :=
+  \fun (f: Linear.Map n)(x: Vector) => trans!{R.Real} _ _ _ (Linear.expansion n f x)
+    (Sums.congruent n _ _ (\fun (i: Fin.Fin n) => Laws.fieldMulComm (x i) (coefficients f i)));
+\definition dotAddition: \forall (a, x, y: Vector) -> Kernel.dot n a (Linear.plus n x y) = R.add (Kernel.dot n a x) (Kernel.dot n a y) :=
+  \fun (a, x, y: Vector) => trans!{R.Real} _ _ _
+    (Sums.congruent n _ _ (\fun (i: Fin.Fin n) => Laws.fieldMulAdd (a i) (x i) (y i)))
+    (Sums.addition n (\fun (i: Fin.Fin n) => R.mul (a i) (x i)) (\fun (i: Fin.Fin n) => R.mul (a i) (y i)));
+\definition dotScalar: \forall (a: Vector)(r: R.Real)(x: Vector) -> Kernel.dot n a (Linear.scale n r x) = R.mul r (Kernel.dot n a x) :=
+  \fun (a: Vector)(r: R.Real)(x: Vector) => trans!{R.Real} _ _ _
+    (Sums.congruent n _ _ (\fun (i: Fin.Fin n) => eq_reason_in!{R.Real _
+      "=" _ "by" { sym!{R.Real} _ _ (Laws.fieldMulAssoc (a i) r (x i)) }
+      "=" _ "by" { congr!{R.Real R.Real} (\fun (s: R.Real) => R.mul s (x i)) _ _ (Laws.fieldMulComm (a i) r) }
+      "=" _ "by" { Laws.fieldMulAssoc r (a i) (x i) }
+    })) (Sums.scalar n r (\fun (i: Fin.Fin n) => R.mul (a i) (x i)));
+\definition dotSymmetric: \forall (x, y: Vector) -> Kernel.dot n x y = Kernel.dot n y x :=
+  \fun (x, y: Vector) => Sums.congruent n _ _ (\fun (i: Fin.Fin n) => Laws.fieldMulComm (x i) (y i));

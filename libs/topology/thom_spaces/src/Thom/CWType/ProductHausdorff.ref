@@ -1,0 +1,51 @@
+\import topological_constructions.Product[A := A, B := B] \as Product;
+\definition Carrier: \Set := Product.CarrierSet;
+\import topology.Topology[Carrier := Carrier] \as Space;
+\import topology.Topology[Carrier := A] \as Left;
+\import topology.Topology[Carrier := B] \as Right;
+\definition topology: Space.Topology := Product.topology left right;
+\import topology.Maps[A := Carrier, B := A] \as LeftMap;
+\import topology.Maps[A := Carrier, B := B] \as RightMap;
+\definition firstSeparation: \forall (p, q: Carrier) -> Logic.Not (Pair.first A B p = Pair.first A B q) ->
+  \exists (U: \Pow Carrier \where Space.RegularChoice[topology, Space.Singleton q, p, U]) := \block {
+  \fun (p, q: Carrier)(different: _) \then
+  \takefrom U: \Cast[\Pow A] ({ U: \Pow A \where Left.RegularChoice[left, Left.Singleton (Pair.first A B q), Pair.first A B p, U] }) \by first (Pair.first A B p) (Pair.first A B q) different \then
+  \let u: Left.RegularChoice[left, Left.Singleton (Pair.first A B q), Pair.first A B p, U] := \bysub(\Pow A, { U: \Pow A \where Left.RegularChoice[left, Left.Singleton (Pair.first A B q), Pair.first A B p, U] }, U) \then
+  \takefrom V: \Cast[\Pow A] ({ V: \Pow A \where Left.NormalPartner[left, Left.Singleton (Pair.first A B q), U, V] }) \by u.partner \then
+  \let v: Left.NormalPartner[left, Left.Singleton (Pair.first A B q), U, V] := \bysub(\Pow A, { V: \Pow A \where Left.NormalPartner[left, Left.Singleton (Pair.first A B q), U, V] }, V) \then
+  \return Logic.existsIntro[\Pow Carrier, { W: \Pow Carrier \where Space.RegularChoice[topology, Space.Singleton q, p, W] }] (LeftMap.Preimage (Pair.first A B) U)
+    (Space.RegularChoice[topology, Space.Singleton q, p, LeftMap.Preimage (Pair.first A B) U] {
+      open := Product.Maps[].firstContinuous left right U u.open,
+      contains := u.contains,
+      partner := Logic.existsIntro[\Pow Carrier, { W: \Pow Carrier \where Space.NormalPartner[topology, Space.Singleton q, LeftMap.Preimage (Pair.first A B) U, W] }] (LeftMap.Preimage (Pair.first A B) V)
+        (Space.NormalPartner[topology, Space.Singleton q, LeftMap.Preimage (Pair.first A B) U, LeftMap.Preimage (Pair.first A B) V] {
+          open := Product.Maps[].firstContinuous left right V v.open,
+          covers := \fun (r: Carrier)(same: r = q) => v.covers (Pair.first A B r) (congr!{Carrier A} (Pair.first A B) _ _ same),
+          disjoint := \fun (r: Carrier)(inU: _)(inV: _) => v.disjoint (Pair.first A B r) inU inV
+        })
+    })
+};
+\definition secondSeparation: \forall (p, q: Carrier) -> Logic.Not (Pair.second A B p = Pair.second A B q) ->
+  \exists (U: \Pow Carrier \where Space.RegularChoice[topology, Space.Singleton q, p, U]) := \block {
+  \fun (p, q: Carrier)(different: _) \then
+  \takefrom U: \Cast[\Pow B] ({ U: \Pow B \where Right.RegularChoice[right, Right.Singleton (Pair.second A B q), Pair.second A B p, U] }) \by second (Pair.second A B p) (Pair.second A B q) different \then
+  \let u: Right.RegularChoice[right, Right.Singleton (Pair.second A B q), Pair.second A B p, U] := \bysub(\Pow B, { U: \Pow B \where Right.RegularChoice[right, Right.Singleton (Pair.second A B q), Pair.second A B p, U] }, U) \then
+  \takefrom V: \Cast[\Pow B] ({ V: \Pow B \where Right.NormalPartner[right, Right.Singleton (Pair.second A B q), U, V] }) \by u.partner \then
+  \let v: Right.NormalPartner[right, Right.Singleton (Pair.second A B q), U, V] := \bysub(\Pow B, { V: \Pow B \where Right.NormalPartner[right, Right.Singleton (Pair.second A B q), U, V] }, V) \then
+  \return Logic.existsIntro[\Pow Carrier, { W: \Pow Carrier \where Space.RegularChoice[topology, Space.Singleton q, p, W] }] (RightMap.Preimage (Pair.second A B) U)
+    (Space.RegularChoice[topology, Space.Singleton q, p, RightMap.Preimage (Pair.second A B) U] {
+      open := Product.Maps[].secondContinuous left right U u.open,
+      contains := u.contains,
+      partner := Logic.existsIntro[\Pow Carrier, { W: \Pow Carrier \where Space.NormalPartner[topology, Space.Singleton q, RightMap.Preimage (Pair.second A B) U, W] }] (RightMap.Preimage (Pair.second A B) V)
+        (Space.NormalPartner[topology, Space.Singleton q, RightMap.Preimage (Pair.second A B) U, RightMap.Preimage (Pair.second A B) V] {
+          open := Product.Maps[].secondContinuous left right V v.open,
+          covers := \fun (r: Carrier)(same: r = q) => v.covers (Pair.second A B r) (congr!{Carrier B} (Pair.second A B) _ _ same),
+          disjoint := \fun (r: Carrier)(inU: _)(inV: _) => v.disjoint (Pair.second A B r) inU inV
+        })
+    })
+};
+\definition hausdorff: Space.IsT2 topology := \fun (p, q: Carrier)(different: Logic.Not (p = q)) =>
+  either!{{Classical.excludedMiddle (Pair.first A B p = Pair.first A B q)} {\exists (U: \Pow Carrier \where Space.RegularChoice[topology, Space.Singleton q, p, U])}
+    {\fun (same: _) => secondSeparation p q (\fun (also: _) => different (Pair.Prop[A := A, B := B].ext p q same also))}
+    {firstSeparation p q}
+  };

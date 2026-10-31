@@ -1,0 +1,60 @@
+\definition squareNonnegative: D.Le R.zero (Kernel.dot n p.normal p.normal) :=
+  Sums.nonnegative n (\fun (i: Fin.Fin n) => R.mul (p.normal i) (p.normal i)) (\fun (i: Fin.Fin n) => R.Algebra[].squareNonnegative (p.normal i));
+\definition squareNonzero: Logic.Not (Kernel.dot n p.normal p.normal = R.zero) := \fun (zero: _) => p.nonzero
+  (\axiom:funext(p.normal, Linear.origin n, \fun (i: Fin.Fin n) => R.Algebra[].squareZero (p.normal i)
+    (D.leAntisym _ _ (D.leReplaceRight _ _ _ zero
+      (Sums.coordinateUpper n (\fun (j: Fin.Fin n) => R.mul (p.normal j) (p.normal j))
+        (\fun (j: Fin.Fin n) => R.Algebra[].squareNonnegative (p.normal j)) i)) (R.Algebra[].squareNonnegative (p.normal i)))));
+\definition squarePositive: D.Lt R.zero (Kernel.dot n p.normal p.normal) :=
+  Order.ltOfLeNotEq _ _ squareNonnegative (\fun (zero: _) => squareNonzero (sym!{R.Real} _ _ zero));
+\definition line[z: Euclidean.Coordinate][t: R.Real]: Euclidean.Coordinate := Linear.plus n z (Linear.scale n t p.normal);
+\definition lineZero: \forall (z: Euclidean.Coordinate) -> line z R.zero = z :=
+  \fun (z: Euclidean.Coordinate) => \axiom:funext(line z R.zero, z, \fun (i: Fin.Fin n) => trans!{R.Real} _ _ _
+    (congr!{R.Real R.Real} (R.add (z i)) _ _ (Laws.fieldMulZeroLeft (p.normal i))) (Laws.addZeroRight (z i)));
+\definition lineContinuous: \forall (z: Euclidean.Coordinate) -> topology.Continuity[A := R.Real, B := Euclidean.Coordinate].Continuous Line.topology Euclidean.topology (line z) :=
+  \fun (z: Euclidean.Coordinate) => Coordinates.Universal[A := R.Real].continuous Line.topology Line.topology (line z)
+    (\fun (i: Fin.Fin n) => metric_spaces.RealFunctions[A := R.Real].sumContinuous Line.topology (\fun (t: R.Real) => z i) (\fun (t: R.Real) => R.mul t (p.normal i))
+      (metric_spaces.RealFunctions[A := R.Real].constantContinuous Line.topology (z i))
+      (metric_spaces.RealFunctions[A := R.Real].Product[].continuous Line.topology (\fun (t: R.Real) => t) (\fun (t: R.Real) => p.normal i)
+        (\fun (U: \Pow R.Real)(open: topology.Topology[Carrier := R.Real].IsOpenIn Line.topology U) => open)
+        (metric_spaces.RealFunctions[A := R.Real].constantContinuous Line.topology (p.normal i))));
+\definition lineEquation: \forall (z: Euclidean.Coordinate)(t: R.Real) -> Kernel.dot n p.normal (line z t) =
+  R.add (Kernel.dot n p.normal z) (R.mul t (Kernel.dot n p.normal p.normal)) :=
+  \fun (z: Euclidean.Coordinate)(t: R.Real) => trans!{R.Real} _ _ _ (Forms.dotAddition p.normal z (Linear.scale n t p.normal))
+    (congr!{R.Real R.Real} (R.add (Kernel.dot n p.normal z)) _ _ (Forms.dotScalar p.normal t p.normal));
+\definition movedOutside: \forall (z: Euclidean.Coordinate) -> Kernel.dot n p.normal z = p.offset -> \forall (t: R.Real) ->
+  D.Lt R.zero t -> \In[Euclidean.Coordinate] (Outside p) (line z t) :=
+  \fun (z: Euclidean.Coordinate)(on: _)(t: R.Real)(positive: _)(same: _) => Order.ltNotEq p.offset (Kernel.dot n p.normal (line z t))
+    (D.ltReplaceRight p.offset (R.add p.offset (R.mul t (Kernel.dot n p.normal p.normal))) (Kernel.dot n p.normal (line z t))
+      (sym!{R.Real} _ _ (trans!{R.Real} _ _ _ (lineEquation z t) (congr!{R.Real R.Real} (\fun (r: R.Real) => R.add r (R.mul t (Kernel.dot n p.normal p.normal))) _ _ on)))
+      (D.ltReplaceLeft (R.add p.offset R.zero) p.offset _ (Laws.addZeroRight p.offset)
+        (Laws.ltAddLeft p.offset R.zero (R.mul t (Kernel.dot n p.normal p.normal))
+          (R.Estimates[].Product[].mulPositive t (Kernel.dot n p.normal p.normal) positive squarePositive))))
+    (sym!{R.Real} _ _ same);
+\import metric_spaces.MetricSpace[Carrier := R.Real] \as ScalarMetric;
+\definition dense: \forall (V: \Pow Euclidean.Coordinate) -> Space.IsOpenIn Euclidean.topology V -> \forall (z: Euclidean.Coordinate) ->
+  \In[Euclidean.Coordinate] V z -> \exists (y: Euclidean.Coordinate \where Logic.And[\In[Euclidean.Coordinate] V y, \In[Euclidean.Coordinate] (Outside p) y]) :=
+  \fun (V: \Pow Euclidean.Coordinate)(vo: _)(z: Euclidean.Coordinate)(inside: _) =>
+  either!{{Classical.excludedMiddle (Kernel.dot n p.normal z = p.offset)}
+    {\exists (y: Euclidean.Coordinate \where Logic.And[\In[Euclidean.Coordinate] V y, \In[Euclidean.Coordinate] (Outside p) y])}
+    {\block {
+      \fun (on: _) \then
+      \let preimage: \Pow R.Real := { t: R.Real \where \In[Euclidean.Coordinate] V (line z t) } \then
+      \let nearZero: \In[R.Real] preimage R.zero := \idelim z = line z R.zero \with x: Euclidean.Coordinate => \In[Euclidean.Coordinate] V x \by {
+        base: inside, equality: sym!{Euclidean.Coordinate} _ _ (lineZero z)
+      } \then
+      \takefrom radius: \Cast[R.Real] (ScalarMetric.NeighborhoodRadius metric_spaces.RealMetric[].metric preimage R.zero)
+        \by lineContinuous z V vo R.zero nearZero \then
+      \let data: Logic.And[D.Lt R.zero radius, topology.Topology[Carrier := R.Real].Subset
+        (ScalarMetric.Ball metric_spaces.RealMetric[].metric R.zero radius) preimage] :=
+        \bysub(R.Real, ScalarMetric.NeighborhoodRadius metric_spaces.RealMetric[].metric preimage R.zero, radius) \then
+      \let time: R.Real := R.mul R.half radius \then
+      \let positive: D.Lt R.zero time := R.Estimates[].halfOfPositive radius data.left \then
+      \let near: D.Lt (R.Distance[].distance R.zero time) radius := D.ltReplaceLeft time (R.Distance[].distance R.zero time) radius
+        (sym!{R.Real} _ _ (R.Estimates[].Product[].absOfNonnegative time (Order.leOfLt _ _ positive))) (R.Estimates[].halfStrict radius data.left) \then
+      \return Logic.existsIntro[Euclidean.Coordinate, { y: Euclidean.Coordinate \where Logic.And[\In[Euclidean.Coordinate] V y, \In[Euclidean.Coordinate] (Outside p) y] }]
+        (line z time) (Logic.And[_, _]::# (data.right time near) (movedOutside z on time positive))
+    }}
+    {\fun (outside: _) => Logic.existsIntro[Euclidean.Coordinate, { y: Euclidean.Coordinate \where Logic.And[\In[Euclidean.Coordinate] V y, \In[Euclidean.Coordinate] (Outside p) y] }]
+      z (Logic.And[_, _]::# inside outside)}
+  };

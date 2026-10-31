@@ -1,0 +1,46 @@
+\definition emptyOpen: Space.IsOpenIn Euclidean.topology (Avoids Finite.Empty) :=
+  \idelim Space.Whole = Avoids Finite.Empty \with U: \Pow Euclidean.Coordinate => Space.IsOpenIn Euclidean.topology U \by {
+    base: (Space.topologyLaws Euclidean.topology).wholeOpen,
+    equality: \axiom:setext(Space.Whole, Avoids Finite.Empty,
+      \fun (x: Euclidean.Coordinate)(inWhole: _)(p: Plane)(empty: Logic.False) => Logic.falseElim (\In[Euclidean.Coordinate] (Outside p) x) empty,
+      \fun (x: Euclidean.Coordinate)(avoids: _) => \refl(x))
+  };
+\definition base: DenseOpen[Avoids Finite.Empty] := DenseOpen[Avoids Finite.Empty] {
+  open := emptyOpen,
+  dense := \fun (V: \Pow Euclidean.Coordinate)(vo: _)(x: Euclidean.Coordinate)(inside: _) =>
+    Logic.existsIntro[Euclidean.Coordinate, { y: Euclidean.Coordinate \where Logic.And[\In[Euclidean.Coordinate] V y, \In[Euclidean.Coordinate] (Avoids Finite.Empty) y] }]
+      x (Logic.And[_, _]::# inside (\fun (p: Plane)(empty: Logic.False) => Logic.falseElim (\In[Euclidean.Coordinate] (Outside p) x) empty))
+};
+\definition insertOpen: \forall (family: \Pow Plane)(p: Plane) -> DenseOpen[Avoids family] -> Space.IsOpenIn Euclidean.topology (Avoids (Finite.Insert p family)) :=
+  \fun (family: \Pow Plane)(p: Plane)(previous: DenseOpen[Avoids family]) =>
+  \idelim Space.Intersection (Outside p) (Avoids family) = Avoids (Finite.Insert p family)
+    \with U: \Pow Euclidean.Coordinate => Space.IsOpenIn Euclidean.topology U \by {
+      base: (Space.topologyLaws Euclidean.topology).intersectionOpen (Outside p) (Avoids family) (open p) previous.open,
+      equality: \axiom:setext(Space.Intersection (Outside p) (Avoids family), Avoids (Finite.Insert p family),
+        \fun (x: Euclidean.Coordinate)(inside: Logic.And[\In[Euclidean.Coordinate] (Outside p) x, \In[Euclidean.Coordinate] (Avoids family) x])(q: Plane)(member: _) => either!{member {\In[Euclidean.Coordinate] (Outside q) x}
+          {\fun (same: q = p) => \idelim p = q \with r: Plane => \In[Euclidean.Coordinate] (Outside r) x \by { base: inside.left, equality: sym!{Plane} _ _ same }}
+          {\fun (old: _) => inside.right q old}},
+        \fun (x: Euclidean.Coordinate)(avoids: _) => Logic.And[_, _]::# (avoids p (Finite.inInsertNew p family))
+          (\fun (q: Plane)(old: _) => avoids q (Finite.inInsertOld p family q old)))
+    };
+\definition step: \forall (family: \Pow Plane) -> DenseOpen[Avoids family] -> \forall (p: Plane) -> DenseOpen[Avoids (Finite.Insert p family)] :=
+  \fun (family: \Pow Plane)(previous: DenseOpen[Avoids family])(p: Plane) => DenseOpen[Avoids (Finite.Insert p family)] {
+    open := insertOpen family p previous,
+    dense := \block {
+      \fun (V: \Pow Euclidean.Coordinate)(vo: Space.IsOpenIn Euclidean.topology V)(x: Euclidean.Coordinate)(inside: \In[Euclidean.Coordinate] V x) \then
+      \takefrom z: \Cast[Euclidean.Coordinate] ({ z: Euclidean.Coordinate \where Logic.And[\In[Euclidean.Coordinate] V z, \In[Euclidean.Coordinate] (Avoids family) z] })
+        \by previous.dense V vo x inside \then
+      \let region: \Pow Euclidean.Coordinate := Space.Intersection V (Avoids family) \then
+      \let data: \In[Euclidean.Coordinate] region z := \bysub(Euclidean.Coordinate, { z: Euclidean.Coordinate \where Logic.And[\In[Euclidean.Coordinate] V z, \In[Euclidean.Coordinate] (Avoids family) z] }, z) \then
+      \takefrom y: \Cast[Euclidean.Coordinate] ({ y: Euclidean.Coordinate \where Logic.And[\In[Euclidean.Coordinate] region y, \In[Euclidean.Coordinate] (Outside p) y] })
+        \by \parent.Of[p := p].dense region ((Space.topologyLaws Euclidean.topology).intersectionOpen V (Avoids family) vo previous.open) z data \then
+      \let result: Logic.And[\In[Euclidean.Coordinate] region y, \In[Euclidean.Coordinate] (Outside p) y] :=
+        \bysub(Euclidean.Coordinate, { y: Euclidean.Coordinate \where Logic.And[\In[Euclidean.Coordinate] region y, \In[Euclidean.Coordinate] (Outside p) y] }, y) \then
+      \return Logic.existsIntro[Euclidean.Coordinate, { y: Euclidean.Coordinate \where Logic.And[\In[Euclidean.Coordinate] V y, \In[Euclidean.Coordinate] (Avoids (Finite.Insert p family)) y] }] y
+        (Logic.And[_, _]::# result.left.left (\fun (q: Plane)(member: \In[Plane] (Finite.Insert p family) q) => either!{member {\In[Euclidean.Coordinate] (Outside q) y}
+          {\fun (same: q = p) => \idelim p = q \with r: Plane => \In[Euclidean.Coordinate] (Outside r) y \by { base: result.right, equality: sym!{Plane} _ _ same }}
+          {\fun (old: \In[Plane] family q) => result.left.right q old}}))
+    }
+  };
+\definition law: \forall (family: Finite.FiniteSubset) -> DenseOpen[Avoids family] :=
+  Finite.induction ({ family: \Pow Plane \where DenseOpen[Avoids family] }) base step;

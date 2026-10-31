@@ -1,0 +1,107 @@
+\import algebraic_topology.Interval[] \as I;
+\import algebraic_topology.Cylinder[A := A] \as Cylinder;
+\import topological_constructions.Pushout[A := B, B := Cylinder.Carrier, C := A].Of[u := f, v := Cylinder.at I.start] \as Pushout;
+\definition Carrier: \Set := Pushout.Carrier;
+\definition topology: topology.Topology[Carrier := Carrier].Topology := Pushout.topology target (Cylinder.topology source);
+\definition base: B -> Carrier := Pushout.inl;
+\definition cylinder: Cylinder.Carrier -> Carrier := Pushout.inr;
+\definition top[x: A]: Carrier := cylinder (Cylinder.at I.end x);
+\definition bottom: \forall (x: A) -> base (f x) = cylinder (Cylinder.at I.start x) := Pushout.glued;
+\definition baseContinuous: topology.Continuity[A := B, B := Carrier].Continuous target topology base := Pushout.inlContinuous target (Cylinder.topology source);
+\definition cylinderContinuous: topology.Continuity[A := Cylinder.Carrier, B := Carrier].Continuous (Cylinder.topology source) topology cylinder := Pushout.inrContinuous target (Cylinder.topology source);
+\definition topContinuous: topology.Continuity[A := A, B := Carrier].Continuous source topology top :=
+  topology.Composition[A := A, B := Cylinder.Carrier, C := Carrier].composeContinuous source (Cylinder.topology source) topology (Cylinder.at I.end) cylinder (Cylinder.atContinuous source I.end) cylinderContinuous;
+\definition projection[p: Cylinder.Carrier]: B := f (Cylinder.point p);
+\definition projectionContinuous: topology.Continuity[A := Cylinder.Carrier, B := B].Continuous (Cylinder.topology source) target projection :=
+  topology.Composition[A := Cylinder.Carrier, B := A, C := B].composeContinuous (Cylinder.topology source) source target Cylinder.point f (Cylinder.pointContinuous source) continuous;
+\import Pushout.Universal[D := B] \as Projection;
+\definition projectionCompatible: Projection.Compatible (\fun (y: B) => y) projection := \fun (x: A) => \refl(f x);
+\definition retract: Carrier -> B := Projection.apply (\fun (y: B) => y) projection projectionCompatible;
+\definition retractBase: \forall (y: B) -> retract (base y) = y := Projection.onLeft (\fun (y: B) => y) projection projectionCompatible;
+\definition retractCylinder: \forall (p: Cylinder.Carrier) -> retract (cylinder p) = projection p := Projection.onRight (\fun (y: B) => y) projection projectionCompatible;
+\definition retractContinuous: topology.Continuity[A := Carrier, B := B].Continuous topology target retract :=
+  Projection.continuous target (Cylinder.topology source) target (\fun (y: B) => y) projection projectionCompatible (topology.Maps[A := B, B := B].Identity[].continuous target) projectionContinuous;
+\import Pushout.Universal[D := I.Carrier] \as Height;
+\definition heightCompatible: Height.Compatible (\fun (y: B) => I.start) Cylinder.time := \fun (x: A) => \refl(I.start);
+\definition height: Carrier -> I.Carrier := Height.apply (\fun (y: B) => I.start) Cylinder.time heightCompatible;
+\definition heightBase: \forall (y: B) -> height (base y) = I.start := Height.onLeft (\fun (y: B) => I.start) Cylinder.time heightCompatible;
+\definition heightCylinder: \forall (p: Cylinder.Carrier) -> height (cylinder p) = Cylinder.time p := Height.onRight (\fun (y: B) => I.start) Cylinder.time heightCompatible;
+\definition heightContinuous: topology.Continuity[A := Carrier, B := I.Carrier].Continuous topology I.topology height :=
+  Height.continuous target (Cylinder.topology source) I.topology (\fun (y: B) => I.start) Cylinder.time heightCompatible
+    (topology.Maps[A := B, B := I.Carrier].constantContinuous target I.topology I.start) (Cylinder.timeContinuous source);
+\import algebraic_topology.Cylinder[A := B] \as BaseCylinder;
+\import algebraic_topology.Cylinder[A := Cylinder.Carrier] \as DoubleCylinder;
+\import algebraic_topology.Cylinder[A := Carrier] \as TotalCylinder;
+\definition left[p: BaseCylinder.Carrier]: Carrier := base (BaseCylinder.point p);
+\definition rightPoint[p: DoubleCylinder.Carrier]: Cylinder.Carrier := Cylinder.at
+  (I.Convex[].blend (DoubleCylinder.time p) (Cylinder.time (DoubleCylinder.point p)) I.start) (Cylinder.point (DoubleCylinder.point p));
+\definition right[p: DoubleCylinder.Carrier]: Carrier := cylinder (rightPoint p);
+\definition leftContinuous: topology.Continuity[A := BaseCylinder.Carrier, B := Carrier].Continuous (BaseCylinder.topology target) topology left :=
+  topology.Composition[A := BaseCylinder.Carrier, B := B, C := Carrier].composeContinuous (BaseCylinder.topology target) target topology BaseCylinder.point base (BaseCylinder.pointContinuous target) baseContinuous;
+\import I.Convex[].Functions[A := DoubleCylinder.Carrier] \as Convex;
+\definition rightPointContinuous: topology.Continuity[A := DoubleCylinder.Carrier, B := Cylinder.Carrier].Continuous
+  (DoubleCylinder.topology (Cylinder.topology source)) (Cylinder.topology source) rightPoint :=
+  topological_constructions.Product[A := I.Carrier, B := A].Universal[X := DoubleCylinder.Carrier].pairContinuous (DoubleCylinder.topology (Cylinder.topology source)) I.topology source
+    (\fun (p: DoubleCylinder.Carrier) => I.Convex[].blend (DoubleCylinder.time p) (Cylinder.time (DoubleCylinder.point p)) I.start)
+    (\fun (p: DoubleCylinder.Carrier) => Cylinder.point (DoubleCylinder.point p))
+    (Convex.continuous (DoubleCylinder.topology (Cylinder.topology source)) DoubleCylinder.time (\fun (p: DoubleCylinder.Carrier) => Cylinder.time (DoubleCylinder.point p)) (\fun (p: DoubleCylinder.Carrier) => I.start)
+      (DoubleCylinder.timeContinuous (Cylinder.topology source))
+      (topology.Composition[A := DoubleCylinder.Carrier, B := Cylinder.Carrier, C := I.Carrier].composeContinuous
+        (DoubleCylinder.topology (Cylinder.topology source)) (Cylinder.topology source) I.topology DoubleCylinder.point Cylinder.time
+        (DoubleCylinder.pointContinuous (Cylinder.topology source)) (Cylinder.timeContinuous source))
+      (topology.Maps[A := DoubleCylinder.Carrier, B := I.Carrier].constantContinuous (DoubleCylinder.topology (Cylinder.topology source)) I.topology I.start))
+    (topology.Composition[A := DoubleCylinder.Carrier, B := Cylinder.Carrier, C := A].composeContinuous
+      (DoubleCylinder.topology (Cylinder.topology source)) (Cylinder.topology source) source DoubleCylinder.point Cylinder.point
+      (DoubleCylinder.pointContinuous (Cylinder.topology source)) (Cylinder.pointContinuous source));
+\definition rightContinuous: topology.Continuity[A := DoubleCylinder.Carrier, B := Carrier].Continuous (DoubleCylinder.topology (Cylinder.topology source)) topology right :=
+  topology.Composition[A := DoubleCylinder.Carrier, B := Cylinder.Carrier, C := Carrier].composeContinuous
+    (DoubleCylinder.topology (Cylinder.topology source)) (Cylinder.topology source) topology rightPoint cylinder rightPointContinuous cylinderContinuous;
+\import Pushout.Families[X := I.Carrier, D := Carrier, factor := I.topology, left := target, right := Cylinder.topology source, target := topology] \as Family;
+\definition compatible: Family.Compatible left right := \fun (t: I.Carrier)(x: A) =>
+  trans!{Carrier} _ _ _ (bottom x)
+    (congr!{{I.Carrier} Carrier} (\fun (s: I.Carrier) => cylinder (Cylinder.at s x)) I.start (I.Convex[].blend t I.start I.start)
+      (sym!{{I.Carrier}} _ _ (I.Convex[].fixed t I.start)));
+\definition homotopy: TotalCylinder.Carrier -> Carrier := Family.apply left right compatible;
+\definition homotopyContinuous: topology.Continuity[A := TotalCylinder.Carrier, B := Carrier].Continuous (TotalCylinder.topology topology) topology homotopy :=
+  Family.continuous I.compact I.hausdorff left right compatible leftContinuous rightContinuous;
+\definition homotopyBase: \forall (t: I.Carrier)(y: B) -> homotopy (TotalCylinder.at t (base y)) = base y := Family.onLeft left right compatible;
+\definition homotopyCylinder: \forall (t: I.Carrier)(p: Cylinder.Carrier) -> homotopy (TotalCylinder.at t (cylinder p)) = right (DoubleCylinder.at t p) := Family.onRight left right compatible;
+\definition start: \forall (p: Carrier) -> homotopy (TotalCylinder.at I.start p) = p :=
+  Pushout.induction (\fun (p: Carrier) => homotopy (TotalCylinder.at I.start p) = p) (homotopyBase I.start)
+    (\fun (p: Cylinder.Carrier) => eq_reason_in!{Carrier _
+      "=" _ "by" { homotopyCylinder I.start p }
+      "=" _ "by" { congr!{{I.Carrier} Carrier} (\fun (t: I.Carrier) => cylinder (Cylinder.at t (Cylinder.point p))) _ _ (I.Convex[].atStart (Cylinder.time p) I.start) }
+      "=" _ "by" { congr!{Cylinder.Carrier Carrier} cylinder _ _ (Pair.Prop[A := I.Carrier, B := A].eta p) }
+    });
+\definition end: \forall (p: Carrier) -> homotopy (TotalCylinder.at I.end p) = base (retract p) :=
+  Pushout.induction (\fun (p: Carrier) => homotopy (TotalCylinder.at I.end p) = base (retract p))
+    (\fun (y: B) => trans!{Carrier} _ _ _ (homotopyBase I.end y) (congr!{B Carrier} base _ _ (sym!{B} _ _ (retractBase y))))
+    (\fun (p: Cylinder.Carrier) => eq_reason_in!{Carrier _
+      "=" _ "by" { homotopyCylinder I.end p }
+      "=" _ "by" { congr!{{I.Carrier} Carrier} (\fun (t: I.Carrier) => cylinder (Cylinder.at t (Cylinder.point p))) _ _ (I.Convex[].atEnd (Cylinder.time p) I.start) }
+      "=" _ "by" { sym!{Carrier} _ _ (bottom (Cylinder.point p)) }
+      "=" _ "by" { congr!{B Carrier} base _ _ (sym!{B} _ _ (retractCylinder p)) }
+    });
+\import algebraic_topology.Homotopy[A := Carrier, B := Carrier] \as Homotopies;
+\definition contraction: Homotopies.Homotopy[topology, topology, (\fun (p: Carrier) => p), (\fun (p: Carrier) => base (retract p))] :=
+  \into[Homotopies.Family](homotopy, Homotopies.Homotopy[topology, topology, (\fun (p: Carrier) => p), (\fun (p: Carrier) => base (retract p))]) \by {
+    Homotopies.Laws[topology, topology, (\fun (p: Carrier) => p), (\fun (p: Carrier) => base (retract p)), homotopy] {
+      continuous := homotopyContinuous, start := start, end := end
+    }
+  };
+\import algebraic_topology.Homotopy[A := B, B := B] \as BaseHomotopies;
+\definition baseHomotopy: BaseHomotopies.Homotopy[target, target, (\fun (y: B) => retract (base y)), (\fun (y: B) => y)] :=
+  \into[BaseHomotopies.Family](BaseCylinder.point, BaseHomotopies.Homotopy[target, target, (\fun (y: B) => retract (base y)), (\fun (y: B) => y)]) \by {
+    BaseHomotopies.Laws[target, target, (\fun (y: B) => retract (base y)), (\fun (y: B) => y), BaseCylinder.point] {
+      continuous := BaseCylinder.pointContinuous target,
+      start := \fun (y: B) => sym!{B} _ _ (retractBase y),
+      end := \fun (y: B) => \refl(y)
+    }
+  };
+\definition equivalence: algebraic_topology.HomotopyEquivalence[A := Carrier, B := B].Equivalence[topology, target] :=
+  algebraic_topology.HomotopyEquivalence[A := Carrier, B := B].Equivalence[topology, target] {
+    forward := retract, backward := base, forwardContinuous := retractContinuous, backwardContinuous := baseContinuous,
+    leftInverse := \exact(Homotopies.reverse topology topology (\fun (p: Carrier) => p) (\fun (p: Carrier) => base (retract p)) contraction,
+      Homotopies.Homotopy[topology, topology, (\fun (p: Carrier) => base (retract p)), (\fun (p: Carrier) => p)]),
+    rightInverse := \exact(baseHomotopy, BaseHomotopies.Homotopy[target, target, (\fun (y: B) => retract (base y)), (\fun (y: B) => y)])
+  };

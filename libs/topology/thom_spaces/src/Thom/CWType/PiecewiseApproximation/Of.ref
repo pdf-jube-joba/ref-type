@@ -1,0 +1,28 @@
+\import metric_spaces.RealFunctions[A := Source.Disk] \as Functions;
+\definition component[i: Fin.Fin n][x: Source.Disk]: R.Real := f x i;
+\definition componentContinuous: \forall (i: Fin.Fin n) -> Functions.Continuous Source.diskTopology (component i) :=
+  \fun (i: Fin.Fin n) => topology.Composition[A := Source.Disk, B := Target.Coordinate, C := R.Real].composeContinuous
+    Source.diskTopology Target.topology metric_spaces.RealLine[].topology f (\fun (y: Target.Coordinate) => y i)
+      continuous (Coordinates.evaluationContinuous metric_spaces.RealLine[].topology i);
+\definition value[expressions: Fin.Fin n -> Affine.Expression][x: Source.Disk][i: Fin.Fin n]: R.Real := Affine.value (expressions i) x;
+\definition valueContinuous: \forall (expressions: Fin.Fin n -> Affine.Expression) -> topology.Continuity[A := Source.Disk, B := Target.Coordinate].Continuous Source.diskTopology Target.topology (value expressions) :=
+  \fun (expressions: Fin.Fin n -> Affine.Expression) => Coordinates.Universal[A := Source.Disk].continuous
+    Source.diskTopology metric_spaces.RealLine[].topology (value expressions) (\fun (i: Fin.Fin n) => Affine.valueContinuous (expressions i));
+\structure Approximation[epsilon: R.Real]: \Set := {
+  expressions: Fin.Fin n -> Affine.Expression,
+  close: \forall (i: Fin.Fin n)(x: Source.Disk) -> D.Lt (R.Distance[].distance (component i x) (value expressions x i)) epsilon
+};
+\definition exists: \forall (epsilon: R.Real) -> D.Lt R.zero epsilon -> \exists Approximation[epsilon] := \block {
+  \fun (epsilon: R.Real)(positive: _) \then
+  \let relation: Fin.Fin n -> Affine.Expression -> \Prop := \fun (i: Fin.Fin n)(e: Affine.Expression) =>
+    \forall (x: Source.Disk) -> D.Lt (R.Distance[].distance (component i x) (Affine.value e x)) epsilon \then
+  \takefrom expressions: \Cast[Fin.Fin n -> Affine.Expression]
+    ({ expressions: Fin.Fin n -> Affine.Expression \where \forall (i: Fin.Fin n) -> relation i (expressions i) })
+    \by Fin.Choice[A := Affine.Expression].exists n relation
+      (\fun (i: Fin.Fin n) => Affine.Approximate[f := component i, regular := componentContinuous i].exists epsilon positive) \then
+  \return \exact(Approximation[epsilon] {
+    expressions := expressions,
+    close := \bysub(Fin.Fin n -> Affine.Expression, { expressions: Fin.Fin n -> Affine.Expression \where \forall (i: Fin.Fin n) -> relation i (expressions i) }, expressions)
+  }, Approximation[epsilon])
+};
+\module At(epsilon: R.Real, approximation: Approximation[epsilon]);

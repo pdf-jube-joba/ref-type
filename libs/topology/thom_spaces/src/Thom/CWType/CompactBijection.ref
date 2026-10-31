@@ -1,0 +1,29 @@
+\import topology.Topology[Carrier := A] \as Original;
+\import topology.Topology[Carrier := B] \as Final;
+\import topology.Maps[A := A, B := B] \as Maps;
+\definition outside[V: \Pow B]: \Pow A := Original.Complement (Maps.Preimage f V);
+\definition complementImage: \forall (V: \Pow B) -> Final.Complement (Maps.Image f (outside V)) = V :=
+  \fun (V: \Pow B) => \axiom:setext(Final.Complement (Maps.Image f (outside V)), V,
+    \block {
+      \fun (y: B)(avoids: _) \then
+      \takefrom x: \Cast[A] ({ x: A \where f x = y }) \by onto y \then
+      \let same: f x = y := \bysub(A, { x: A \where f x = y }, x) \then
+      \return Final.Finite[].doubleNegElim (\In[B] V y) (\fun (notInV: _) => avoids
+        (\idelim f x = y \with b: B => \In[B] (Maps.Image f (outside V)) b \by {
+          base: Maps.imageMember f (outside V) x (\fun (inside: \In[B] V (f x)) => notInV
+            (\idelim f x = y \with b: B => \In[B] V b \by { base: inside, equality: same })),
+          equality: same
+        }))
+    },
+    \fun (y: B)(member: \In[B] V y)(image: _) => Maps.imageElim f (outside V) y Logic.False
+      (\fun (x: A)(outside: \In[A] (outside V) x)(same: f x = y) => outside
+        (\idelim y = f x \with b: B => \In[B] V b \by { base: member, equality: sym!{B} _ _ same })) image);
+\definition reflectsOpen: \forall (V: \Pow B) -> Original.IsOpenIn source (Maps.Preimage f V) -> Final.IsOpenIn target V :=
+  \fun (V: \Pow B)(open: _) => \idelim Final.Complement (Maps.Image f (outside V)) = V \with U: \Pow B => Final.IsOpenIn target U \by {
+    base: Final.Compactness[].compactClosed target hausdorff (Maps.Image f (outside V))
+      (topology.Compactness[A := A, B := B].continuousImage source target f continuous (outside V)
+        (Original.Compactness[].closedCompact source compact (outside V) (Original.Finite[].openComplementClosed source (Maps.Preimage f V) open))),
+    equality: complementImage V
+  };
+\definition homeomorphism: topology.Homeomorphism[A := A, B := B].Homeomorphism[source, target] :=
+  topology.Homeomorphism[A := A, B := B].OfQuotient[f := f].homeomorphism source target injective onto continuous reflectsOpen;

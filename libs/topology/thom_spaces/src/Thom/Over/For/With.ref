@@ -102,3 +102,34 @@
     (trans!{R.Real} _ _ _ (normSquared (scale a p)) (Radial[].scaledSquared a p));
 \module Contraction;
 \module FiniteBase(complex: algebraic_topology.CW[A := X].FiniteComplex[bundle.baseSpace]);
+\definition scaleZero: \forall (p: Family.Point) -> scale R.zero p = zeroSection p.base :=
+  \fun (p: Family.Point) => congr!{{F p.base} Family.Point} (Family.include p.base) _ _
+    (trans!{{F p.base}} _ _ _ (congr!{K {F p.base}} (\fun (a: K) => (bundle.space p.base).smul a p.vector) _ _ conjugation.embedZero)
+      (Spaces.Laws[V := F p.base, space := bundle.space p.base].zeroScale p.vector));
+\definition zeroNorm: \forall (x: X) -> norm (zeroSection x) = R.zero :=
+  \fun (x: X) => trans!{R.Real} _ _ _ (congr!{R.Real R.Real} Root.sqrt _ _ (zeroSquared x)) Root.sqrtZero;
+\definition normDefinite: \forall (p: Family.Point) -> norm p = R.zero -> p = zeroSection p.base :=
+  \fun (p: Family.Point)(zero: _) => trans!{Family.Point} _ _ _ (sym!{Family.Point} _ _ (Family.eta p))
+    (congr!{{F p.base} Family.Point} (Family.include p.base) _ _
+      (Geometry.Inner[V := F p.base, space := bundle.space p.base].Of[h := metric.form p.base].squaredDefinite (metric.positive p.base) p.vector
+        (eq_reason_in!{R.Real _
+          "=" _ "by" { sym!{R.Real} _ _ (normSquared p) }
+          "=" _ "by" { congr!{R.Real R.Real R.Real} R.mul _ _ _ _ zero zero }
+          "=" _ "by" { Order.Arithmetic[].Prop[].fieldMulZeroLeft R.zero }
+        })));
+\definition normalize[p: Family.Point][positive: Order.Lt R.zero (norm p)]: SphereBundle :=
+  \into[Family.Point](scale (Order.Arithmetic[].Prop[].fieldInv (norm p)) p, UnitSphere) \by {
+    eq_reason_in!{R.Real _
+      "=" _ "by" { Radial[].scaledSquared (Order.Arithmetic[].Prop[].fieldInv (norm p)) p }
+      "=" _ "by" { congr!{R.Real R.Real R.Real} R.mul _ _ _ _
+        (Order.Arithmetic[].Prop[].fieldInverseNonzero (norm p) (Radial[].positiveNonzero (norm p) positive))
+        (Order.Arithmetic[].Prop[].fieldInverseNonzero (norm p) (Radial[].positiveNonzero (norm p) positive)) }
+      "=" _ "by" { R.Algebra[].mulOneRight R.one }
+    }
+  };
+\definition recover[p: Family.Point][positive: Order.Lt R.zero (norm p)]: scale (norm p) (normalize p positive) = p :=
+  trans!{Family.Point} _ _ _ (scaleCompose (norm p) (Order.Arithmetic[].Prop[].fieldInv (norm p)) p)
+    (trans!{Family.Point} _ _ _ (congr!{R.Real Family.Point} (\fun (a: R.Real) => scale a p) _ _
+      (trans!{R.Real} _ _ _ (Order.Arithmetic[].Prop[].fieldMulComm (norm p) (Order.Arithmetic[].Prop[].fieldInv (norm p)))
+        (Order.Arithmetic[].Prop[].fieldInverseNonzero (norm p) (Radial[].positiveNonzero (norm p) positive)))) (scaleOne p));
+\module CylinderModel;

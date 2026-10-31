@@ -1,0 +1,84 @@
+\import Order.Arithmetic[].Prop[] \as Laws;
+\definition baseNorm: \forall (x: X) -> norm (toDisk (Model.base x)) = R.zero :=
+  \fun (x: X) => trans!{R.Real} _ _ _ (congr!{DiskBundle R.Real} (\fun (p: DiskBundle) => norm p) _ _ (toDiskBase x)) (zeroNorm x);
+\definition cylinderNorm: \forall (t: I.Carrier)(u: SphereBundle) -> norm (toDisk (Model.cylinder (Cylinder.at t u))) = t :=
+  \fun (t: I.Carrier)(u: SphereBundle) => eq_reason_in!{R.Real _
+    "=" _ "by" { congr!{DiskBundle R.Real} (\fun (p: DiskBundle) => norm p) _ _ (toDiskCylinder (Cylinder.at t u)) }
+    "=" _ "by" { normScale t (I.bounds t).left u }
+    "=" _ "by" { congr!{R.Real R.Real} (R.mul t) _ _ (sphereNorm u) }
+    "=" _ "by" { R.Algebra[].mulOneRight t }
+  };
+\definition baseBase: \forall (x, y: X) -> toDisk (Model.base x) = toDisk (Model.base y) -> x = y :=
+  \fun (x, y: X)(same: _) => eq_reason_in!{X x
+    "=" _ "by" { sym!{X} _ _ (congr!{DiskBundle X} diskProjection _ _ (toDiskBase x)) }
+    "=" _ "by" { congr!{DiskBundle X} diskProjection _ _ same }
+    "=" _ "by" { congr!{DiskBundle X} diskProjection _ _ (toDiskBase y) }
+  };
+\definition mixedBase: \forall (x: X)(t: I.Carrier)(u: SphereBundle) -> toDisk (Model.base x) = toDisk (Model.cylinder (Cylinder.at t u)) -> x = u.base :=
+  \fun (x: X)(t: I.Carrier)(u: SphereBundle)(same: _) => eq_reason_in!{X x
+    "=" _ "by" { sym!{X} _ _ (congr!{DiskBundle X} diskProjection _ _ (toDiskBase x)) }
+    "=" _ "by" { congr!{DiskBundle X} diskProjection _ _ same }
+    "=" _ "by" { congr!{DiskBundle X} diskProjection _ _ (toDiskCylinder (Cylinder.at t u)) }
+  };
+\definition mixed: \forall (x: X)(t: I.Carrier)(u: SphereBundle) -> toDisk (Model.base x) = toDisk (Model.cylinder (Cylinder.at t u)) -> Model.base x = Model.cylinder (Cylinder.at t u) :=
+  \fun (x: X)(t: I.Carrier)(u: SphereBundle)(same: _) => eq_reason_in!{Model.Carrier _
+    "=" _ "by" { congr!{X Model.Carrier} Model.base _ _ (mixedBase x t u same) }
+    "=" _ "by" { Model.bottom u }
+    "=" _ "by" { congr!{{I.Carrier} Model.Carrier} (\fun (s: I.Carrier) => Model.cylinder (Cylinder.at s u)) I.start t
+      (eq_reason_in!{R.Real R.zero
+        "=" _ "by" { sym!{R.Real} _ _ (baseNorm x) }
+        "=" _ "by" { congr!{DiskBundle R.Real} (\fun (p: DiskBundle) => norm p) _ _ same }
+        "=" _ "by" { cylinderNorm t u }
+      }) }
+  };
+\definition radii: \forall (t, s: I.Carrier)(u, v: SphereBundle) -> toDisk (Model.cylinder (Cylinder.at t u)) = toDisk (Model.cylinder (Cylinder.at s v)) -> t = s :=
+  \fun (t, s: I.Carrier)(u, v: SphereBundle)(same: _) => eq_reason_in!{R.Real _
+    "=" _ "by" { sym!{R.Real} _ _ (cylinderNorm t u) }
+    "=" _ "by" { congr!{DiskBundle R.Real} (\fun (p: DiskBundle) => norm p) _ _ same }
+    "=" _ "by" { cylinderNorm s v }
+  };
+\definition zeroCylinder: \forall (u: SphereBundle) -> toDisk (Model.base u.base) = toDisk (Model.cylinder (Cylinder.at I.start u)) :=
+  \fun (u: SphereBundle) => congr!{Model.Carrier DiskBundle} toDisk _ _ (Model.bottom u);
+\definition undo[t: I.Carrier][positive: Order.Lt R.zero t][u: SphereBundle]:
+  scale (Laws.fieldInv t) (toDisk (Model.cylinder (Cylinder.at t u))) = u :=
+  eq_reason_in!{Family.Point _
+    "=" _ "by" { congr!{DiskBundle Family.Point} (\fun (p: DiskBundle) => scale (Laws.fieldInv t) p) _ _ (toDiskCylinder (Cylinder.at t u)) }
+    "=" _ "by" { scaleCompose (Laws.fieldInv t) t u }
+    "=" _ "by" { congr!{R.Real Family.Point} (\fun (a: R.Real) => scale a u) _ _ (Laws.fieldInverseNonzero t (Radius.positiveNonzero t positive)) }
+    "=" _ "by" { scaleOne u }
+  };
+\definition cylinders: \forall (t, s: I.Carrier)(u, v: SphereBundle) -> toDisk (Model.cylinder (Cylinder.at t u)) = toDisk (Model.cylinder (Cylinder.at s v)) -> Model.cylinder (Cylinder.at t u) = Model.cylinder (Cylinder.at s v) :=
+  \fun (t, s: I.Carrier)(u, v: SphereBundle)(same: _) => either!{{Classical.excludedMiddle (t = I.start)} {Model.cylinder (Cylinder.at t u) = Model.cylinder (Cylinder.at s v)}
+    {\fun (zero: t = I.start) => \block {
+      \let leftEdge: Model.base u.base = Model.cylinder (Cylinder.at t u) := trans!{Model.Carrier} (Model.base u.base) (Model.cylinder (Cylinder.at I.start u)) (Model.cylinder (Cylinder.at t u)) (Model.bottom u)
+        (congr!{{I.Carrier} Model.Carrier} (\fun (a: I.Carrier) => Model.cylinder (Cylinder.at a u)) I.start t (sym!{{I.Carrier}} _ _ zero)) \then
+      \let right: Model.base u.base = Model.cylinder (Cylinder.at s v) := mixed u.base s v
+        (trans!{DiskBundle} _ _ _ (congr!{Model.Carrier DiskBundle} toDisk _ _ leftEdge) same) \then
+      \return trans!{Model.Carrier} _ _ _ (sym!{Model.Carrier} _ _ leftEdge) right
+    }}
+    {\fun (nonzero: Logic.Not (t = I.start)) => \block {
+      \let positive: Order.Lt R.zero t := Order.Order[].ltOfLeNotEq R.zero t (I.bounds t).left (\fun (zero: _) => nonzero (sym!{R.Real} _ _ zero)) \then
+      \let time: t = s := radii t s u v same \then
+      \let vector: u = v := eq_reason_in!{Family.Point u
+        "=" _ "by" { sym!{Family.Point} _ _ (undo t positive u) }
+        "=" _ "by" { congr!{DiskBundle Family.Point} (\fun (p: DiskBundle) => scale (Laws.fieldInv t) p) _ _ same }
+        "=" _ "by" { congr!{{I.Carrier} Family.Point} (\fun (a: I.Carrier) => scale (Laws.fieldInv t) (toDisk (Model.cylinder (Cylinder.at a v)))) s t (sym!{{I.Carrier}} _ _ time) }
+        "=" _ "by" { undo t positive v }
+      } \then
+      \return congr!{{I.Carrier} SphereBundle Model.Carrier} (\fun (a: I.Carrier)(w: SphereBundle) => Model.cylinder (Cylinder.at a w)) t s u v time vector
+    }}
+  };
+\definition injective: \forall (p, q: Model.Carrier) -> toDisk p = toDisk q -> p = q :=
+  Pushout.induction (\fun (p: Model.Carrier) => \forall (q: Model.Carrier) -> toDisk p = toDisk q -> p = q)
+    (\fun (x: X) => Pushout.induction (\fun (q: Model.Carrier) => toDisk (Model.base x) = toDisk q -> Model.base x = q)
+      (\fun (y: X)(same: _) => congr!{X Model.Carrier} Model.base _ _ (baseBase x y same))
+      (\induction (p: Cylinder.Carrier) \return toDisk (Model.base x) = toDisk (Model.cylinder p) -> Model.base x = Model.cylinder p \with {
+        | pair: \fun (t: I.Carrier)(u: SphereBundle) => mixed x t u
+      }))
+    (\induction (p: Cylinder.Carrier) \return \forall (q: Model.Carrier) -> toDisk (Model.cylinder p) = toDisk q -> Model.cylinder p = q \with {
+      | pair: \fun (t: I.Carrier)(u: SphereBundle) => Pushout.induction (\fun (q: Model.Carrier) => toDisk (Model.cylinder (Cylinder.at t u)) = toDisk q -> Model.cylinder (Cylinder.at t u) = q)
+        (\fun (x: X)(same: _) => sym!{Model.Carrier} _ _ (mixed x t u (sym!{DiskBundle} _ _ same)))
+        (\induction (q: Cylinder.Carrier) \return toDisk (Model.cylinder (Cylinder.at t u)) = toDisk (Model.cylinder q) -> Model.cylinder (Cylinder.at t u) = Model.cylinder q \with {
+          | pair: \fun (s: I.Carrier)(v: SphereBundle) => cylinders t s u v
+        })
+    });

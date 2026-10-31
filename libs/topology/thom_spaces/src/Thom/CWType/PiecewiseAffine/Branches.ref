@@ -1,0 +1,43 @@
+\definition Result[e: Expression, x: Euclidean.Coordinate]: \Set := \Cast[Affine] ({ a: Affine \where Logic.And[Finite.Member (branches e) a, evaluate e x = affine a x] });
+\definition first[e, f: Expression][x: Euclidean.Coordinate][a: Result[e, x]]:
+  Logic.And[Finite.Member (Finite.union (branches e) (branches f)) a, evaluate e x = affine a x] :=
+  Logic.And[_, _]::# (Logic.Or[_, _]::left (\bysub(Affine, Result[e, x], a)).left) (\bysub(Affine, Result[e, x], a)).right;
+\definition second[e, f: Expression][x: Euclidean.Coordinate][a: Result[f, x]]:
+  Logic.And[Finite.Member (Finite.union (branches e) (branches f)) a, evaluate f x = affine a x] :=
+  Logic.And[_, _]::# (Logic.Or[_, _]::right (\bysub(Affine, Result[f, x], a)).left) (\bysub(Affine, Result[f, x], a)).right;
+\definition exists: \forall (e: Expression)(x: Euclidean.Coordinate) -> \exists Result[e, x] :=
+  \induction (e: Expression) \return \forall (x: Euclidean.Coordinate) -> \exists Result[e, x] \with {
+    | leaf: \fun (a: Affine)(x: Euclidean.Coordinate) => \exact(\into[Affine](a, Result[Expression::leaf a, x]) \by {
+      Logic.And[_, _]::# (Finite.inSingleton a) (\refl(affine a x))
+    }, Result[Expression::leaf a, x])
+    | supremum: \fun (e: Expression)(left: \forall (x: Euclidean.Coordinate) -> \exists Result[e, x])(f: Expression)(right: \forall (x: Euclidean.Coordinate) -> \exists Result[f, x])(x: Euclidean.Coordinate) =>
+      either!{{Order.leTotal (evaluate e x) (evaluate f x)} {\exists Result[Expression::supremum e f, x]}
+        {\block {
+          \fun (ordered: _) \then \takefrom a: Result[f, x] \by right x \then
+          \return \exact(\into[Affine](a, Result[Expression::supremum e f, x]) \by {
+            Logic.And[_, _]::# (second e f x a).left (trans!{R.Real} _ _ _ (Distance.maxOfLe (evaluate e x) (evaluate f x) ordered) (second e f x a).right)
+          }, Result[Expression::supremum e f, x])
+        }}
+        {\block {
+          \fun (ordered: _) \then \takefrom a: Result[e, x] \by left x \then
+          \return \exact(\into[Affine](a, Result[Expression::supremum e f, x]) \by {
+            Logic.And[_, _]::# (first e f x a).left (trans!{R.Real} _ _ _ (Distance.maxOfGe (evaluate e x) (evaluate f x) ordered) (first e f x a).right)
+          }, Result[Expression::supremum e f, x])
+        }}
+      }
+    | infimum: \fun (e: Expression)(left: \forall (x: Euclidean.Coordinate) -> \exists Result[e, x])(f: Expression)(right: \forall (x: Euclidean.Coordinate) -> \exists Result[f, x])(x: Euclidean.Coordinate) =>
+      either!{{Order.leTotal (evaluate e x) (evaluate f x)} {\exists Result[Expression::infimum e f, x]}
+        {\block {
+          \fun (ordered: _) \then \takefrom a: Result[e, x] \by left x \then
+          \return \exact(\into[Affine](a, Result[Expression::infimum e f, x]) \by {
+            Logic.And[_, _]::# (first e f x a).left (trans!{R.Real} _ _ _ (Distance.minOfLe (evaluate e x) (evaluate f x) ordered) (first e f x a).right)
+          }, Result[Expression::infimum e f, x])
+        }}
+        {\block {
+          \fun (ordered: _) \then \takefrom a: Result[f, x] \by right x \then
+          \return \exact(\into[Affine](a, Result[Expression::infimum e f, x]) \by {
+            Logic.And[_, _]::# (second e f x a).left (trans!{R.Real} _ _ _ (Distance.minOfGe (evaluate e x) (evaluate f x) ordered) (second e f x a).right)
+          }, Result[Expression::infimum e f, x])
+        }}
+      }
+  };

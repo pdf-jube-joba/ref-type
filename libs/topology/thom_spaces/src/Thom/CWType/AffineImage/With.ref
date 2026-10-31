@@ -1,0 +1,42 @@
+\definition normal: Target.Coordinate := witness.value;
+\definition offset: R.Real := Sums.sum n (\fun (i: Fin.Fin n) => R.mul (normal i) (Expansion.data (forms i)).offset);
+\definition plane: Planes.Plane := Planes.Plane { normal := normal, nonzero := witness.nonzero, offset := offset };
+\definition linearPart[x: Source.Coordinate][i: Fin.Fin n]: R.Real := Kernel.dot m (Expansion.coefficient (forms i)) x;
+\definition swapTerm: \forall (x: Source.Coordinate)(i: Fin.Fin n)(j: Fin.Fin m) ->
+  R.mul (normal i) (R.mul (matrix j i) (x j)) = R.mul (x j) (R.mul (matrix j i) (normal i)) :=
+  \fun (x: Source.Coordinate)(i: Fin.Fin n)(j: Fin.Fin m) => eq_reason_in!{R.Real _
+    "=" _ "by" { sym!{R.Real} _ _ (Laws.fieldMulAssoc (normal i) (matrix j i) (x j)) }
+    "=" _ "by" { Laws.fieldMulComm (R.mul (normal i) (matrix j i)) (x j) }
+    "=" _ "by" { congr!{R.Real R.Real} (R.mul (x j)) _ _ (Laws.fieldMulComm (normal i) (matrix j i)) }
+  };
+\definition expanded[x: Source.Coordinate][i: Fin.Fin n][j: Fin.Fin m]: R.Real := R.mul (normal i) (R.mul (matrix j i) (x j));
+\definition expandInner: \forall (x: Source.Coordinate)(i: Fin.Fin n) -> R.mul (normal i) (linearPart x i) = Sums.sum m (expanded x i) :=
+  \fun (x: Source.Coordinate)(i: Fin.Fin n) => sym!{R.Real} _ _
+    (Sums.scalar m (normal i) (\fun (j: Fin.Fin m) => R.mul (matrix j i) (x j)));
+\definition exchange: \forall (x: Source.Coordinate) -> Kernel.dot n normal (linearPart x) = Sums.sum m (\fun (j: Fin.Fin m) => Sums.sum n (\fun (i: Fin.Fin n) => expanded x i j)) :=
+  \fun (x: Source.Coordinate) => trans!{R.Real} _ _ _
+    (Sums.congruent n (\fun (i: Fin.Fin n) => R.mul (normal i) (linearPart x i)) (\fun (i: Fin.Fin n) => Sums.sum m (expanded x i)) (expandInner x))
+    (Sums.exchange n m (expanded x));
+\definition factorInner: \forall (x: Source.Coordinate)(j: Fin.Fin m) -> Sums.sum n (\fun (i: Fin.Fin n) => expanded x i j) = R.mul (x j) (Kernel.dot n (matrix j) normal) :=
+  \fun (x: Source.Coordinate)(j: Fin.Fin m) => trans!{R.Real} _ _ _
+    (Sums.congruent n (\fun (i: Fin.Fin n) => expanded x i j) (\fun (i: Fin.Fin n) => R.mul (x j) (R.mul (matrix j i) (normal i)))
+      (\fun (i: Fin.Fin n) => swapTerm x i j))
+    (Sums.scalar n (x j) (\fun (i: Fin.Fin n) => R.mul (matrix j i) (normal i)));
+\definition killInner: \forall (x: Source.Coordinate)(j: Fin.Fin m) -> Sums.sum n (\fun (i: Fin.Fin n) => expanded x i j) = R.zero :=
+  \fun (x: Source.Coordinate)(j: Fin.Fin m) => trans!{R.Real} _ _ _ (factorInner x j)
+    (trans!{R.Real} _ _ _ (congr!{R.Real R.Real} (R.mul (x j)) _ _ (witness.kernel j)) (Laws.fieldMulZeroRight (x j)));
+\definition annihilates: \forall (x: Source.Coordinate) -> Kernel.dot n normal (linearPart x) = R.zero :=
+  \fun (x: Source.Coordinate) => trans!{R.Real} _ _ _ (exchange x)
+    (trans!{R.Real} _ _ _ (Sums.congruent m (\fun (j: Fin.Fin m) => Sums.sum n (\fun (i: Fin.Fin n) => expanded x i j)) (\fun (j: Fin.Fin m) => R.zero) (killInner x)) (Sums.zeroSum m));
+\definition contained: Contained plane := \fun (x: Source.Coordinate) => eq_reason_in!{R.Real _
+  "=" _ "by" { Sums.congruent n (\fun (i: Fin.Fin n) => R.mul (normal i) (Affine.affine (forms i) x))
+    (\fun (i: Fin.Fin n) => R.mul (normal i) (R.add (Expansion.data (forms i)).offset (linearPart x i)))
+    (\fun (i: Fin.Fin n) => congr!{R.Real R.Real} (R.mul (normal i)) _ _ (Expansion.equation (forms i) x)) }
+  "=" _ "by" { Sums.congruent n (\fun (i: Fin.Fin n) => R.mul (normal i) (R.add (Expansion.data (forms i)).offset (linearPart x i)))
+    (\fun (i: Fin.Fin n) => R.add (R.mul (normal i) (Expansion.data (forms i)).offset) (R.mul (normal i) (linearPart x i)))
+    (\fun (i: Fin.Fin n) => Laws.fieldMulAdd (normal i) (Expansion.data (forms i)).offset (linearPart x i)) }
+  "=" _ "by" { Sums.addition n (\fun (i: Fin.Fin n) => R.mul (normal i) (Expansion.data (forms i)).offset)
+    (\fun (i: Fin.Fin n) => R.mul (normal i) (linearPart x i)) }
+  "=" _ "by" { congr!{R.Real R.Real} (R.add offset) _ _ (annihilates x) }
+  "=" _ "by" { Laws.addZeroRight offset }
+};
