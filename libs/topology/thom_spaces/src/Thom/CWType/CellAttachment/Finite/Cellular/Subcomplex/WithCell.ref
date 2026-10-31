@@ -1,0 +1,36 @@
+\definition withCells: Cells.Cells := Lists.List[Cells.CellData]::cons newCell family;
+\definition chosenMember: \forall (c: Original.CellData) -> Original.CellMember part.cells c -> Cells.CellMember withCells (oldCell c) := \fun (c: Original.CellData)(member: _) => Logic.Or[_, _]::right (CellList.member part.cells c member);
+\definition newMember: Cells.CellMember withCells newCell := Logic.Or[_, _]::left (\refl(newCell));
+\definition newBoundary: \forall (p: Model.Disk) -> Model.normSquared p = R.one -> \exists Cells.BoundaryWitness[withCells, newCell, characteristic p] := \fun (p: Model.Disk)(boundary: _) => \block {
+  \let v: Model.Sphere := \into[Model.Coordinate](p, Model.Boundary) \by { boundary } \then
+  \takefrom w: Chosen.Cellularity[].Witness[n, lift v] \by Chosen.Cellularity[].lower n (lift v) (within v) \then
+  \let oldInterior: \In[A] (Original.InteriorImage w.cell) (attach v) := \idelim Chosen.inclusion (lift v) = attach v \with x: A => \In[A] (Original.InteriorImage w.cell) x \by {
+    base: w.contains, equality: over v
+  } \then
+  \return \exact(Cells.BoundaryWitness[withCells, newCell, characteristic p] {
+    other := oldCell w.cell, member := chosenMember w.cell (Chosen.selectedMember w.cell), lower := w.below,
+    contains := \idelim inclusion (attach v) = characteristic p \with x: Carrier => \In[Carrier] (Cells.InteriorImage (oldCell w.cell)) x \by {
+      base: \parent.\parent.\parent.Interiors[].oldContains w.cell (attach v) oldInterior, equality: sym!{Carrier} _ _ (glued v)
+    }
+  }, Cells.BoundaryWitness[withCells, newCell, characteristic p])
+};
+\definition boundary: \forall (d: Cells.CellData) -> Cells.CellMember withCells d -> \forall (p: algebraic_topology.Euclidean[].Disk d.dimension) ->
+  \In[algebraic_topology.Euclidean[].coordinateCarrier d.dimension] (algebraic_topology.Euclidean[].boundaryAt d.dimension) p -> \exists Cells.BoundaryWitness[withCells, d, d.characteristic p] :=
+  \fun (d: Cells.CellData)(member: _) => either!{member
+    {\forall (p: algebraic_topology.Euclidean[].Disk d.dimension) -> \In[algebraic_topology.Euclidean[].coordinateCarrier d.dimension] (algebraic_topology.Euclidean[].boundaryAt d.dimension) p -> \exists Cells.BoundaryWitness[withCells, d, d.characteristic p]}
+    {\fun (same: d = newCell) => \idelim newCell = d \with c: Cells.CellData => \forall (p: algebraic_topology.Euclidean[].Disk c.dimension) ->
+      \In[algebraic_topology.Euclidean[].coordinateCarrier c.dimension] (algebraic_topology.Euclidean[].boundaryAt c.dimension) p -> \exists Cells.BoundaryWitness[withCells, c, c.characteristic p] \by { base: newBoundary, equality: sym!{Cells.CellData} _ _ same }}
+    {\fun (old: Cells.CellMember family d) => \block {
+      \takefrom w: CellList.Witness[part.cells, d] \by CellList.witness part.cells d old \then
+      \return \idelim oldCell w.cell = d \with c: Cells.CellData => \forall (p: algebraic_topology.Euclidean[].Disk c.dimension) ->
+        \In[algebraic_topology.Euclidean[].coordinateCarrier c.dimension] (algebraic_topology.Euclidean[].boundaryAt c.dimension) p -> \exists Cells.BoundaryWitness[withCells, c, c.characteristic p] \by {
+          base: oldBoundary withCells chosenMember w.cell w.member, equality: sym!{Cells.CellData} _ _ w.same
+        }
+    }}
+  };
+\definition included: \forall (d: Cells.CellData) -> Cells.CellMember withCells d -> Cells.CellMember cells d := \fun (d: Cells.CellData)(member: _) => either!{member {Cells.CellMember cells d}
+  {\fun (same: d = newCell) => \idelim newCell = d \with c: Cells.CellData => Cells.CellMember cells c \by { base: Logic.Or[_, _]::left (\refl(newCell)), equality: sym!{Cells.CellData} _ _ same }}
+  {\fun (old: Cells.CellMember family d) => outsideIncluded d old}
+};
+\definition result: Pair.Subcomplex := Pair.Subcomplex { cells := withCells, included := included, boundary := boundary };
+\module Images;

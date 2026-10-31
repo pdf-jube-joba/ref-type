@@ -1,0 +1,28 @@
+\import \parent.\parent.Images[] \as OldImages;
+\import OriginalPair.Of[subcomplex := part] \as OriginalPart;
+\import Pair.Of[subcomplex := outsidePart] \as OldPart;
+\import Pair.Of[subcomplex := result] \as SelectedPart;
+\import \parent.\parent.\parent.\parent.\parent.Subset[subset := OriginalPart.Subset] \as RoundSubset;
+\import RoundSubset.Images[] \as RoundImages;
+\definition fromOld: \forall (x: Carrier) -> \In[Carrier] OldPart.Subset x -> \In[Carrier] SelectedPart.Subset x := \fun (x: Carrier)(member: _) => \block {
+  \takefrom d: \Cast[Cells.CellData] ({ d: Cells.CellData \where Logic.And[Cells.CellMember family d, \In[Carrier] (Cells.ClosedImage d) x] }) \by member \then
+  \let data: Logic.And[Cells.CellMember family d, \In[Carrier] (Cells.ClosedImage d) x] := \bysub(Cells.CellData, { d: Cells.CellData \where Logic.And[Cells.CellMember family d, \In[Carrier] (Cells.ClosedImage d) x] }, d) \then
+  \return Logic.existsIntro[Cells.CellData, { d: Cells.CellData \where Logic.And[Cells.CellMember withCells d, \In[Carrier] (Cells.ClosedImage d) x] }] d
+    (Logic.And[_, _]::# (Logic.Or[_, _]::right data.left) data.right)
+};
+\definition toImage: \forall (x: Carrier) -> \In[Carrier] SelectedPart.Subset x -> \In[Carrier] RoundImages.fullImage x := \fun (x: Carrier)(member: _) => \block {
+  \takefrom d: \Cast[Cells.CellData] ({ d: Cells.CellData \where Logic.And[Cells.CellMember withCells d, \In[Carrier] (Cells.ClosedImage d) x] }) \by member \then
+  \let data: Logic.And[Cells.CellMember withCells d, \In[Carrier] (Cells.ClosedImage d) x] := \bysub(Cells.CellData, { d: Cells.CellData \where Logic.And[Cells.CellMember withCells d, \In[Carrier] (Cells.ClosedImage d) x] }, d) \then
+  \return either!{{data.left} {\In[Carrier] RoundImages.fullImage x}
+    {\fun (same: d = newCell) => Logic.Or[_, _]::right (\idelim d = newCell \with c: Cells.CellData => \In[Carrier] (Cells.ClosedImage c) x \by { base: data.right, equality: same })}
+    {\fun (old: Cells.CellMember family d) => Logic.Or[_, _]::left (OldImages.toImage x
+      (Logic.existsIntro[Cells.CellData, { d: Cells.CellData \where Logic.And[Cells.CellMember family d, \In[Carrier] (Cells.ClosedImage d) x] }] d (Logic.And[_, _]::# old data.right)))}
+  }
+};
+\definition fromImage: \forall (x: Carrier) -> \In[Carrier] RoundImages.fullImage x -> \In[Carrier] SelectedPart.Subset x := \fun (x: Carrier)(member: _) => either!{member {\In[Carrier] SelectedPart.Subset x}
+  {\fun (old: \In[Carrier] RoundImages.originalImage x) => fromOld x (OldImages.fromImage x old)}
+  {\fun (cell: \In[Carrier] RoundImages.cellImage x) => Logic.existsIntro[Cells.CellData, { d: Cells.CellData \where Logic.And[Cells.CellMember withCells d, \In[Carrier] (Cells.ClosedImage d) x] }] newCell
+    (Logic.And[_, _]::# newMember cell)}
+};
+\definition equation: RoundSubset.fullSubset = SelectedPart.Subset := trans!{{\Pow Carrier}} _ _ _ RoundImages.fullEquation
+  (\axiom:setext(RoundImages.fullImage, SelectedPart.Subset, fromImage, toImage));

@@ -1,0 +1,60 @@
+\import Euclidean.Dimension[n := c.dimension] \as Disk;
+\definition originalLaws: Original.CellLaws[source, c] := (Original.laws source complex).cellLaws c (originalMember c);
+\definition continuous: topology.Continuity[A := Disk.Disk, B := Carrier].Continuous Disk.diskTopology topology (characteristic c) :=
+  topology.Continuity[A := Disk.Disk, B := A].Corestriction[S := Subcomplex.Subset].corestrictContinuous Disk.diskTopology source (characteristic c) originalLaws.continuous;
+\definition injective: \forall (p, q: Disk.Disk) -> \In[Disk.Coordinate] Disk.Interior p -> \In[Disk.Coordinate] Disk.Interior q -> characteristic c p = characteristic c q -> p = q :=
+  \fun (p, q: Disk.Disk)(left: _)(right: _)(same: _) => originalLaws.injectiveInterior p q left right (congr!{Carrier A} inclusion _ _ same);
+
+\import topology.Topology[Carrier := Disk.Disk] \as DiskSpace;
+\import topology.Maps[A := Disk.Disk, B := Carrier] \as Images;
+\definition image: Images.Image (characteristic c) DiskSpace.Whole = Cells.ClosedImage (transform c) :=
+  \axiom:setext(Images.Image (characteristic c) DiskSpace.Whole, Cells.ClosedImage (transform c),
+    \block {
+      \fun (x: Carrier)(inside: _) \then
+      \takefrom p: \Cast[Disk.Disk] ({ p: Disk.Disk \where Logic.And[\In[Disk.Disk] DiskSpace.Whole p, characteristic c p = x] }) \by inside \then
+      \return Logic.existsIntro[Disk.Disk, { p: Disk.Disk \where characteristic c p = x }] p (\bysub(Disk.Disk,
+        { p: Disk.Disk \where Logic.And[\In[Disk.Disk] DiskSpace.Whole p, characteristic c p = x] }, p)).right
+    },
+    \block {
+      \fun (x: Carrier)(inside: _) \then
+      \takefrom p: \Cast[Disk.Disk] ({ p: Disk.Disk \where characteristic c p = x }) \by inside \then
+      \return Logic.existsIntro[Disk.Disk, { p: Disk.Disk \where Logic.And[\In[Disk.Disk] DiskSpace.Whole p, characteristic c p = x] }] p
+        (Logic.And[_, _]::# (\refl(p)) (\bysub(Disk.Disk, { p: Disk.Disk \where characteristic c p = x }, p)))
+    });
+\definition closed: Space.IsClosedIn topology (Cells.ClosedImage (transform c)) :=
+  \idelim Images.Image (characteristic c) DiskSpace.Whole = Cells.ClosedImage (transform c) \with S: \Pow Carrier => Space.IsClosedIn topology S \by {
+    base: Space.Compactness[].compactClosed topology hausdorff (Images.Image (characteristic c) DiskSpace.Whole)
+      (topology.Compactness[A := Disk.Disk, B := Carrier].continuousImage Disk.diskTopology topology (characteristic c) continuous DiskSpace.Whole Disk.Compactness[].compact),
+    equality: image
+  };
+\definition partForward: \forall (U: \Pow Disk.Disk)(x: Carrier) -> \In[Carrier] (Cells.InteriorPart (transform c) U) x -> \In[A] (Original.InteriorPart c U) x := \fun (U: \Pow Disk.Disk)(x: Carrier)(member: _) => \block {
+  \takefrom w: Cells.InteriorPartWitness[transform c, U, x] \by member \then
+  \return \exact(Original.InteriorPartWitness[c, U, x] {
+    point := w.point, member := w.member, interior := w.interior, image := congr!{Carrier A} inclusion _ _ w.image
+  }, Original.InteriorPartWitness[c, U, x])
+};
+\definition partBackward: \forall (U: \Pow Disk.Disk)(x: Carrier) -> \In[A] (Original.InteriorPart c U) x -> \In[Carrier] (Cells.InteriorPart (transform c) U) x := \fun (U: \Pow Disk.Disk)(x: Carrier)(member: _) => \block {
+  \takefrom w: Original.InteriorPartWitness[c, U, x] \by member \then
+  \return \exact(Cells.InteriorPartWitness[transform c, U, x] {
+    point := w.point, member := w.member, interior := w.interior, image := pointExt (characteristic c w.point) x w.image
+  }, Cells.InteriorPartWitness[transform c, U, x])
+};
+\definition interiorForward: \forall (x: Carrier) -> \In[Carrier] (Cells.InteriorImage (transform c)) x -> \In[A] (Original.InteriorImage c) x := \fun (x: Carrier)(member: _) => \block {
+  \takefrom p: \Cast[Disk.Disk] ({ p: Disk.Disk \where Logic.And[\In[Disk.Coordinate] Disk.Interior p, characteristic c p = x] }) \by member \then
+  \let laws: Logic.And[\In[Disk.Coordinate] Disk.Interior p, characteristic c p = x] := \bysub(Disk.Disk, { p: Disk.Disk \where Logic.And[\In[Disk.Coordinate] Disk.Interior p, characteristic c p = x] }, p) \then
+  \return Logic.existsIntro[Disk.Disk, { p: Disk.Disk \where Logic.And[\In[Disk.Coordinate] Disk.Interior p, c.characteristic p = x] }] p
+    (Logic.And[_, _]::# laws.left (congr!{Carrier A} inclusion _ _ laws.right))
+};
+\definition interiorBackward: \forall (x: Carrier) -> \In[A] (Original.InteriorImage c) x -> \In[Carrier] (Cells.InteriorImage (transform c)) x := \fun (x: Carrier)(member: _) => \block {
+  \takefrom p: \Cast[Disk.Disk] ({ p: Disk.Disk \where Logic.And[\In[Disk.Coordinate] Disk.Interior p, c.characteristic p = x] }) \by member \then
+  \let laws: Logic.And[\In[Disk.Coordinate] Disk.Interior p, c.characteristic p = x] := \bysub(Disk.Disk, { p: Disk.Disk \where Logic.And[\In[Disk.Coordinate] Disk.Interior p, c.characteristic p = x] }, p) \then
+  \return Logic.existsIntro[Disk.Disk, { p: Disk.Disk \where Logic.And[\In[Disk.Coordinate] Disk.Interior p, characteristic c p = x] }] p
+    (Logic.And[_, _]::# laws.left (pointExt (characteristic c p) x laws.right))
+};
+\module Inverse(U: \Pow Disk.Disk, open: Cells.DiskOpen c.dimension U);
+\definition inverseContinuous: \forall (U: \Pow Disk.Disk) -> Cells.DiskOpen c.dimension U ->
+  \exists (V: \Pow Carrier \where Logic.And[Space.IsOpenIn topology V, Cells.InteriorPart (transform c) U = Space.Intersection (Cells.InteriorImage (transform c)) V]) :=
+  \fun (U: \Pow Disk.Disk)(open: Cells.DiskOpen c.dimension U) => Inverse[U := U, open := open].exists;
+\definition laws: Cells.CellLaws[topology, transform c] := Cells.CellLaws[topology, transform c] {
+  continuous := continuous, closed := closed, injectiveInterior := injective, inverseContinuous := inverseContinuous
+};

@@ -1,0 +1,27 @@
+\import OriginalPair.Of[subcomplex := part] \as OriginalPart;
+\import Pair.Of[subcomplex := result] \as SelectedPart;
+\import \parent.\parent.\parent.\parent.Subset[subset := OriginalPart.Subset] \as RoundSubset;
+\import RoundSubset.Images[] \as RoundImages;
+\definition toImage: \forall (x: Carrier) -> \In[Carrier] SelectedPart.Subset x -> \In[Carrier] RoundImages.originalImage x := \fun (x: Carrier)(member: _) => \block {
+  \takefrom d: \Cast[Cells.CellData] ({ d: Cells.CellData \where Logic.And[Cells.CellMember family d, \In[Carrier] (Cells.ClosedImage d) x] }) \by member \then
+  \let data: Logic.And[Cells.CellMember family d, \In[Carrier] (Cells.ClosedImage d) x] := \bysub(Cells.CellData, { d: Cells.CellData \where Logic.And[Cells.CellMember family d, \In[Carrier] (Cells.ClosedImage d) x] }, d) \then
+  \takefrom w: CellList.Witness[part.cells, d] \by CellList.witness part.cells d data.left \then
+  \let closed: \In[Carrier] (Cells.ClosedImage (oldCell w.cell)) x := \idelim d = oldCell w.cell \with c: Cells.CellData => \In[Carrier] (Cells.ClosedImage c) x \by { base: data.right, equality: w.same } \then
+  \takefrom p: \Cast[algebraic_topology.Euclidean[].Disk w.cell.dimension] ({ p: algebraic_topology.Euclidean[].Disk w.cell.dimension \where inclusion (w.cell.characteristic p) = x }) \by closed \then
+  \let inPart: \In[A] OriginalPart.Subset (w.cell.characteristic p) := Logic.existsIntro[Original.CellData, { c: Original.CellData \where Logic.And[Original.CellMember part.cells c, \In[A] (Original.ClosedImage c) (w.cell.characteristic p)] }] w.cell
+    (Logic.And[_, _]::# w.member (Logic.existsIntro[algebraic_topology.Euclidean[].Disk w.cell.dimension, { q: algebraic_topology.Euclidean[].Disk w.cell.dimension \where w.cell.characteristic q = w.cell.characteristic p }] p (\refl(w.cell.characteristic p)))) \then
+  \return Logic.existsIntro[A, { a: A \where Logic.And[\In[A] OriginalPart.Subset a, inclusion a = x] }] (w.cell.characteristic p)
+    (Logic.And[_, _]::# inPart (\bysub(algebraic_topology.Euclidean[].Disk w.cell.dimension, { p: algebraic_topology.Euclidean[].Disk w.cell.dimension \where inclusion (w.cell.characteristic p) = x }, p)))
+};
+\definition fromImage: \forall (x: Carrier) -> \In[Carrier] RoundImages.originalImage x -> \In[Carrier] SelectedPart.Subset x := \fun (x: Carrier)(member: _) => \block {
+  \takefrom a: \Cast[A] ({ a: A \where Logic.And[\In[A] OriginalPart.Subset a, inclusion a = x] }) \by member \then
+  \let data: Logic.And[\In[A] OriginalPart.Subset a, inclusion a = x] := \bysub(A, { a: A \where Logic.And[\In[A] OriginalPart.Subset a, inclusion a = x] }, a) \then
+  \takefrom c: \Cast[Original.CellData] ({ c: Original.CellData \where Logic.And[Original.CellMember part.cells c, \In[A] (Original.ClosedImage c) a] }) \by data.left \then
+  \let cellData: Logic.And[Original.CellMember part.cells c, \In[A] (Original.ClosedImage c) a] := \bysub(Original.CellData, { c: Original.CellData \where Logic.And[Original.CellMember part.cells c, \In[A] (Original.ClosedImage c) a] }, c) \then
+  \takefrom p: \Cast[algebraic_topology.Euclidean[].Disk c.dimension] ({ p: algebraic_topology.Euclidean[].Disk c.dimension \where c.characteristic p = a }) \by cellData.right \then
+  \return Logic.existsIntro[Cells.CellData, { d: Cells.CellData \where Logic.And[Cells.CellMember family d, \In[Carrier] (Cells.ClosedImage d) x] }] (oldCell c)
+    (Logic.And[_, _]::# (chosenMember c cellData.left) (Logic.existsIntro[algebraic_topology.Euclidean[].Disk c.dimension, { p: algebraic_topology.Euclidean[].Disk c.dimension \where inclusion (c.characteristic p) = x }] p
+      (trans!{Carrier} _ _ _ (congr!{A Carrier} inclusion _ _ (\bysub(algebraic_topology.Euclidean[].Disk c.dimension, { p: algebraic_topology.Euclidean[].Disk c.dimension \where c.characteristic p = a }, p))) data.right)))
+};
+\definition equation: RoundSubset.originalSubset = SelectedPart.Subset := trans!{{\Pow Carrier}} _ _ _ RoundImages.originalEquation
+  (\axiom:setext(RoundImages.originalImage, SelectedPart.Subset, fromImage, toImage));

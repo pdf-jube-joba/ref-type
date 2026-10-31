@@ -68,11 +68,22 @@ C02 の実装中のパッケージである。
 Thom 商の同相、球面境界の cofibration、実次元1・2の円板 suspension 表示、および既存の懸垂の1回・2回の反復との同相を具体化する。
 [Examples.Edges](src/Thom/Examples/Edges.ref) はランク0の球面束が空であることと、空の底の Thom 商のすべての点が基点に一致することを検査する。
 
+有限 CW 基底について、`FiniteBase.Coordinates.sphereFiniteType` は実際の球面束と有限 CW 複体とのホモトピー同値を構成する。
+`Real.For.FiniteBase` と `Complex.For.FiniteBase` は標準の実座標を選ぶ。
+セル上の球面束を二つの球面セル付着として表示し、付着写像のセル近似と付着空間のホモトピー比較を経由する。
+`FiniteBase.Coordinates.sphereCompact` と `diskCylinderHomeomorphism` は、球面束のコンパクト性と射影の mapping cylinder から実際の円板束への同相を与える。
+同相は mapping cylinder の上端で球面の包含に一致する。
+
+`CWType.NativeSubcomplex.result` は有限 CW 複体の部分複体の誘導位相に有限 CW 構造を構成し、`Cellularity` はその骨格の包含を比較する。
+`PairTools` の比較は、指定部分空間を保つ二つの写像と両側のホモトピーを持つ。
+`CellAttachment.Subset.Homotopic` と `BaseEquivalence` は円板セル付着をこの対の比較に移し、`Inside` は新しいセルも指定部分空間に加える場合を扱う。
+`PairFiniteType` は有限 CW 複体・部分複体・実際の対ホモトピー同値を一緒に保持する。
+
 ## 残る証明
 
 有限 CW 基底から得たセルごとの束自明化を、球面束を含む有限 CW 対のモデルと対のホモトピー同値へ組み上げる証明が必要である。
 `FiniteBase.diskType` は円板束のモデルであり、有限 CW 対のモデルではない。
-一般の有限 CW ホモトピー貼り合わせと必要な cellular approximation の API は、現行の依存パッケージには見つかっていない。
+セル近似、任意のセル付着の比較、および部分複体の有限 CW 構造は `CWType` に構成した。
 これは C02 の未実装範囲であり、処理系や体系による不可能性を主張するものではない。
 
 継続実装の検証は [C02 の最新記録](../../../benchmarks/records/c02-thom-spaces/continuation/README.md)、初回のソースに対する検証は [初回記録](../../../benchmarks/records/c02-thom-spaces/README.md) を参照する。

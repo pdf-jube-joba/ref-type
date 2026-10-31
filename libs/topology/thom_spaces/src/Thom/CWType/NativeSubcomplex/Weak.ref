@@ -1,0 +1,20 @@
+\module At(c: Selected);
+\definition bad[c: Selected]: \Pow Carrier := At[c := c].image;
+\import singular_cellular.FiniteUnion[A := Carrier, C := Selected, source := topology, pieces := bad] \as Union;
+\definition toComplement: \forall (x: Carrier) -> \In[Carrier] (Union.union family) x -> \In[Carrier] (Space.Complement U) x := \fun (x: Carrier) =>
+  Union.eliminate family x (\In[Carrier] (Space.Complement U) x) (\fun (c: Selected)(member: _)(inside: _) => At[c := c].outside x inside);
+\definition fromComplement: \forall (x: Carrier) -> \In[Carrier] (Space.Complement U) x -> \In[Carrier] (Union.union family) x := \fun (x: Carrier)(outside: _) => \block {
+  \takefrom w: ClosedWitness[x] \by closedCover x \then
+  \let badPoint: Logic.Not (\In[Carrier] U (characteristic w.cell w.point)) := \fun (inside: _) => outside
+    (\idelim characteristic w.cell w.point = x \with q: Carrier => \In[Carrier] U q \by { base: inside, equality: w.equality }) \then
+  \return Union.include family w.cell (member w.cell) x
+    (\idelim characteristic w.cell w.point = x \with q: Carrier => \In[Carrier] (bad w.cell) q \by {
+      base: At[c := w.cell].include w.point badPoint, equality: w.equality
+    })
+};
+\definition equation: Union.union family = Space.Complement U := \axiom:setext(Union.union family, Space.Complement U, toComplement, fromComplement);
+\definition closed: Space.IsClosedIn topology (Union.union family) := Union.closed family (\fun (c: Selected)(member: _) => At[c := c].closed);
+\definition open: Space.IsOpenIn topology U := \idelim Space.Complement (Union.union family) = U \with V: \Pow Carrier => Space.IsOpenIn topology V \by {
+  base: closed,
+  equality: trans!{{\Pow Carrier}} _ _ _ (congr!{{\Pow Carrier} {\Pow Carrier}} Space.Complement _ _ equation) (Space.Finite[].doubleComplement U)
+};

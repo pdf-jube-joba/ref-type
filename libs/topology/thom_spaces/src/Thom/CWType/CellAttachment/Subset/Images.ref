@@ -1,0 +1,47 @@
+\import algebraic_topology.Interval[] \as I;
+\import \root.Thom[].CWType[].Cone[A := Model.Sphere, source := Model.sphereTopology] \as SphereCone;
+\import \root.Thom[].CWType[].DiskCone[n := n] \as Coordinates;
+\definition originalImage: \Pow Carrier := { z: Carrier \where \exists (a: A \where Logic.And[\In[A] subset a, inclusion a = z]) };
+\definition cellImage: \Pow Carrier := { z: Carrier \where \exists (p: Model.Disk \where characteristic p = z) };
+\definition fullImage: \Pow Carrier := { z: Carrier \where Logic.Or[\In[Carrier] originalImage z, \In[Carrier] cellImage z] };
+\definition originalForward: \forall (z: Carrier) -> \In[Carrier] originalSubset z -> \In[Carrier] originalImage z := \fun (z: Carrier)(member: _) =>
+  ConeSubset.eliminate (Round.backward z) (\In[Carrier] originalImage z) (\fun (a: A)(inside: _)(same: Attached.inclusion a = Round.backward z) =>
+    Logic.existsIntro[A, { a: A \where Logic.And[\In[A] subset a, inclusion a = z] }] a
+      (Logic.And[_, _]::# inside (trans!{Carrier} _ _ _ (sym!{Carrier} _ _ (Round.onOriginal a))
+        (trans!{Carrier} _ _ _ (congr!{Attached.Carrier Carrier} Round.forward _ _ same) (Round.rightInverse z))))) member;
+\definition originalBackward: \forall (z: Carrier) -> \In[Carrier] originalImage z -> \In[Carrier] originalSubset z := \fun (z: Carrier)(member: _) => \block {
+  \takefrom a: \Cast[A] ({ a: A \where Logic.And[\In[A] subset a, inclusion a = z] }) \by member \then
+  \let laws: Logic.And[\In[A] subset a, inclusion a = z] := \bysub(A, { a: A \where Logic.And[\In[A] subset a, inclusion a = z] }, a) \then
+  \return \idelim Attached.inclusion a = Round.backward z \with q: Attached.Carrier => \In[Attached.Carrier] ConeSubset.originalSubset q \by {
+    base: ConeSubset.original a laws.left,
+    equality: trans!{Attached.Carrier} _ _ _ (sym!{Attached.Carrier} _ _ (Round.backwardOriginal a)) (congr!{Carrier Attached.Carrier} Round.backward _ _ laws.right)
+  }
+};
+\definition originalEquation: originalSubset = originalImage := \axiom:setext(originalSubset, originalImage, originalForward, originalBackward);
+\definition coneForward: \forall (z: Carrier)(c: SphereCone.Carrier) -> Attached.cone c = Round.backward z -> \In[Carrier] cellImage z := \fun (z: Carrier)(c: SphereCone.Carrier)(same: _) =>
+  Logic.existsIntro[Model.Disk, { p: Model.Disk \where characteristic p = z }] (Coordinates.toDisk c)
+    (trans!{Carrier} _ _ _ (sym!{Carrier} _ _ (Round.onCone c))
+      (trans!{Carrier} _ _ _ (congr!{Attached.Carrier Carrier} Round.forward _ _ same) (Round.rightInverse z)));
+\definition fullForward: \forall (z: Carrier) -> \In[Carrier] fullSubset z -> \In[Carrier] fullImage z := \fun (z: Carrier)(member: _) =>
+  ConeInside.eliminate (Round.backward z) (\In[Carrier] fullImage z)
+    (\fun (a: A)(inside: _)(same: Attached.inclusion a = Round.backward z) => Logic.Or[_, _]::left
+      (Logic.existsIntro[A, { a: A \where Logic.And[\In[A] subset a, inclusion a = z] }] a
+        (Logic.And[_, _]::# inside (trans!{Carrier} _ _ _ (sym!{Carrier} _ _ (Round.onOriginal a))
+          (trans!{Carrier} _ _ _ (congr!{Attached.Carrier Carrier} Round.forward _ _ same) (Round.rightInverse z))))))
+    (\fun (same: Attached.apex = Round.backward z) => Logic.Or[_, _]::right (coneForward z SphereCone.apex same))
+    (\fun (t: I.Carrier)(v: Model.Sphere)(same: Attached.at t v = Round.backward z) => Logic.Or[_, _]::right (coneForward z (SphereCone.at t v) same)) member;
+\definition originalFull: \forall (z: Carrier) -> \In[Carrier] originalSubset z -> \In[Carrier] fullSubset z := \fun (z: Carrier)(member: _) => Logic.Or[_, _]::left member;
+\definition cellFull: \forall (p: Model.Disk) -> \In[Carrier] fullSubset (characteristic p) := \fun (p: Model.Disk) =>
+  \idelim Attached.cone (Coordinates.homeomorphism.backward p) = Round.backward (characteristic p) \with q: Attached.Carrier => \In[Attached.Carrier] ConeInside.fullSubset q \by {
+    base: ConeInside.coneMember (Coordinates.homeomorphism.backward p), equality: sym!{Attached.Carrier} _ _ (Round.backwardCell p)
+  };
+\definition fullBackward: \forall (z: Carrier) -> \In[Carrier] fullImage z -> \In[Carrier] fullSubset z := \fun (z: Carrier)(member: _) => either!{member {\In[Carrier] fullSubset z}
+  {\fun (original: _) => originalFull z (originalBackward z original)}
+  {\fun (cell: _) => \block {
+    \takefrom p: \Cast[Model.Disk] ({ p: Model.Disk \where characteristic p = z }) \by cell \then
+    \return \idelim characteristic p = z \with q: Carrier => \In[Carrier] fullSubset q \by {
+      base: cellFull p, equality: \bysub(Model.Disk, { p: Model.Disk \where characteristic p = z }, p)
+    }
+  }}
+};
+\definition fullEquation: fullSubset = fullImage := \axiom:setext(fullSubset, fullImage, fullForward, fullBackward);

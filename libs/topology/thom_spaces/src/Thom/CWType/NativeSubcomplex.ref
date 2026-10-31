@@ -1,0 +1,141 @@
+\import algebraic_topology.CW[A := A] \as Original;
+\import Original.Pair[source := source, complex := complex] \as Pair;
+\import Pair.Of[subcomplex := subcomplex] \as Subcomplex;
+\import topology.Topology[Carrier := A].Subspace[S := Subcomplex.Subset] \as Subspace;
+\definition Carrier: \Set := Subspace.CarrierSet;
+\definition topology: topology.Topology[Carrier := Carrier].Topology := Subspace.topology source;
+\definition inclusion[x: Carrier]: A := x;
+\import algebraic_topology.CW[A := Carrier] \as Cells;
+\import algebraic_topology.Euclidean[] \as Euclidean;
+\import std.Data[].List[] \as Lists;
+\definition selected: \Pow Original.CellData := { c: Original.CellData \where Original.CellMember subcomplex.cells c };
+\definition Selected: \Set := \Cast[Original.CellData] selected;
+\definition forget[c: Selected]: Original.CellData := c;
+\definition selectedMember: \forall (c: Selected) -> Original.CellMember subcomplex.cells c := \fun (c: Selected) => \bysub(Original.CellData, selected, c);
+\definition originalMember: \forall (c: Selected) -> Original.CellMember complex.cells c := \fun (c: Selected) =>
+  (\bysub(Pair.SubcomplexData, { data: Pair.SubcomplexData \where Pair.SubcomplexLaws[data] }, subcomplex)).included c (selectedMember c);
+\definition cellContained: \forall (c: Selected)(p: Euclidean.Disk c.dimension) -> \In[A] Subcomplex.Subset (c.characteristic p) := \fun (c: Selected)(p: Euclidean.Disk c.dimension) =>
+  Logic.existsIntro[Original.CellData, { d: Original.CellData \where Logic.And[Original.CellMember subcomplex.cells d, \In[A] (Original.ClosedImage d) (c.characteristic p)] }] c
+    (Logic.And[_, _]::# (selectedMember c) (Logic.existsIntro[Euclidean.Disk c.dimension, { q: Euclidean.Disk c.dimension \where c.characteristic q = c.characteristic p }] p (\refl(c.characteristic p))));
+\definition characteristic[c: Selected][p: Euclidean.Disk c.dimension]: Carrier := \into[A](c.characteristic p, Subcomplex.Subset) \by { cellContained c p };
+\definition transform[c: Selected]: Cells.CellData := Cells.CellData { dimension := c.dimension, characteristic := characteristic c };
+\import \root.Thom[].CWType[].ListRefinement[A := Original.CellData, subset := selected] \as Refined;
+\definition included: Refined.Included subcomplex.cells := \fun (c: Original.CellData)(member: Original.CellMember subcomplex.cells c) => member;
+\import Refined.Of[family := subcomplex.cells, included := included] \as Lift;
+\definition family: Lists.List[Selected] := Lift.result;
+\import \root.Thom[].CWType[].ListMapping[A := Selected, B := Original.CellData, transform := forget] \as Forget;
+\import \root.Thom[].CWType[].ListMapping[A := Selected, B := Cells.CellData, transform := transform] \as Mapping;
+\definition cells: Cells.Cells := Mapping.map family;
+\definition member: \forall (c: Selected) -> Forget.SourceMember family c := \fun (c: Selected) => \block {
+  \let mapped: Forget.TargetMember (Forget.map family) c := \idelim subcomplex.cells = Forget.map family \with list: Original.Cells => Original.CellMember list c \by {
+    base: selectedMember c, equality: sym!{{Original.Cells}} _ _ Lift.projects
+  } \then
+  \takefrom w: Forget.Witness[family, c] \by Forget.witness family c mapped \then
+  \return \idelim w.cell = c \with d: Selected => Forget.SourceMember family d \by {
+    base: w.member, equality: sym!{Selected} _ _ (Refined.ext c w.cell w.same)
+  }
+};
+\definition mappedMember: \forall (c: Selected) -> Cells.CellMember cells (transform c) := \fun (c: Selected) => Mapping.member family c (member c);
+\definition hausdorff: topology.Topology[Carrier := Carrier].IsT2 topology := Subspace.Properties[].hausdorff source (Original.laws source complex).hausdorff;
+\definition inclusionContinuous: topology.Continuity[A := Carrier, B := A].Continuous topology source inclusion := topology.Continuity[A := Carrier, B := A].Corestriction[S := Subcomplex.Subset].inclusionContinuous source;
+
+\import topology.Topology[Carrier := A] \as Base;
+\import topology.Topology[Carrier := Carrier] \as Space;
+\definition point[x: A][member: \In[A] Subcomplex.Subset x]: Carrier := \into[A](x, Subcomplex.Subset) \by { member };
+\definition pointExt: \forall (x, y: Carrier) -> inclusion x = inclusion y -> x = y := \fun (x, y: Carrier)(same: _) =>
+  (\idelim inclusion x = inclusion y \with value: A => \forall (member: \In[A] Subcomplex.Subset value) -> x = point value member \by {
+    base: \fun (member: _) => \refl(x), equality: same
+  }) (\bysub(A, Subcomplex.Subset, y));
+\module Cell(c: Selected);
+\definition cellLaws: \forall (d: Cells.CellData) -> Cells.CellMember cells d -> Cells.CellLaws[topology, d] := \fun (d: Cells.CellData)(member: _) => \block {
+  \takefrom w: Mapping.Witness[family, d] \by Mapping.witness family d member \then
+  \return \idelim transform w.cell = d \with e: Cells.CellData => Cells.CellLaws[topology, e] \by {
+    base: Cell[c := w.cell].laws, equality: sym!{Cells.CellData} _ _ w.same
+  }
+};
+\definition selectedBoundary: \forall (c: Selected)(p: Euclidean.Disk c.dimension) ->
+  \In[Euclidean.coordinateCarrier c.dimension] (Euclidean.boundaryAt c.dimension) p ->
+  \exists Cells.BoundaryWitness[cells, transform c, characteristic c p] := \fun (c: Selected)(p: Euclidean.Disk c.dimension)(boundary: _) => \block {
+  \takefrom w: Original.BoundaryWitness[subcomplex.cells, c, c.characteristic p] \by
+    (\bysub(Pair.SubcomplexData, { data: Pair.SubcomplexData \where Pair.SubcomplexLaws[data] }, subcomplex)).boundary c (selectedMember c) p boundary \then
+  \let other: Selected := \into[Original.CellData](w.other, selected) \by { w.member } \then
+  \return \exact(Cells.BoundaryWitness[cells, transform c, characteristic c p] {
+    other := transform other, member := mappedMember other, lower := w.lower,
+    contains := Cell[c := other].interiorBackward (characteristic c p) w.contains
+  }, Cells.BoundaryWitness[cells, transform c, characteristic c p])
+};
+\definition boundary: \forall (d: Cells.CellData) -> Cells.CellMember cells d -> \forall (p: Euclidean.Disk d.dimension) ->
+  \In[Euclidean.coordinateCarrier d.dimension] (Euclidean.boundaryAt d.dimension) p -> \exists Cells.BoundaryWitness[cells, d, d.characteristic p] :=
+  \fun (d: Cells.CellData)(member: _) => \block {
+    \takefrom w: Mapping.Witness[family, d] \by Mapping.witness family d member \then
+    \return \idelim transform w.cell = d \with e: Cells.CellData => \forall (p: Euclidean.Disk e.dimension) ->
+      \In[Euclidean.coordinateCarrier e.dimension] (Euclidean.boundaryAt e.dimension) p -> \exists Cells.BoundaryWitness[cells, e, e.characteristic p] \by {
+        base: selectedBoundary w.cell, equality: sym!{Cells.CellData} _ _ w.same
+      }
+  };
+\import dedekind_reals.DedekindReal[] \as R;
+\import R.Order[] \as Order;
+\import real.Analysis[] \as Real;
+\definition pointCover: \forall (c: Selected)(p: Euclidean.Disk c.dimension) -> \exists Cells.CoverWitness[cells, characteristic c p] :=
+  \fun (c: Selected)(p: Euclidean.Disk c.dimension) => either!{{Classical.excludedMiddle (R.Lt (Euclidean.normSquaredAt c.dimension p) Real.one)} {\exists Cells.CoverWitness[cells, characteristic c p]}
+    {\fun (inside: _) => \exact(Cells.CoverWitness[cells, characteristic c p] {
+      cell := transform c, member := mappedMember c,
+      contains := Cell[c := c].interiorBackward (characteristic c p) (Logic.existsIntro[Euclidean.Disk c.dimension, { q: Euclidean.Disk c.dimension \where Logic.And[
+        \In[Euclidean.coordinateCarrier c.dimension] (Euclidean.interiorAt c.dimension) q, c.characteristic q = c.characteristic p] }] p (Logic.And[_, _]::# inside (\refl(c.characteristic p))))
+    }, Cells.CoverWitness[cells, characteristic c p])}
+    {\fun (outside: Logic.Not (R.Lt (Euclidean.normSquaredAt c.dimension p) Real.one)) => \block {
+      \let on: Euclidean.normSquaredAt c.dimension p = Real.one := R.leAntisym _ _
+        (\bysub(Euclidean.coordinateCarrier c.dimension, Euclidean.closedBallAt c.dimension, p))
+        (Order.leOfNotLtReverse Real.one (Euclidean.normSquaredAt c.dimension p) outside) \then
+      \takefrom w: Cells.BoundaryWitness[cells, transform c, characteristic c p] \by selectedBoundary c p on \then
+      \return \exact(Cells.CoverWitness[cells, characteristic c p] { cell := w.other, member := w.member, contains := w.contains }, Cells.CoverWitness[cells, characteristic c p])
+    }}
+  };
+\definition covers: \forall (x: Carrier) -> \exists Cells.CoverWitness[cells, x] := \fun (x: Carrier) => \block {
+  \takefrom c: \Cast[Original.CellData] ({ c: Original.CellData \where Logic.And[Original.CellMember subcomplex.cells c, \In[A] (Original.ClosedImage c) x] }) \by \bysub(A, Subcomplex.Subset, x) \then
+  \let data: Logic.And[Original.CellMember subcomplex.cells c, \In[A] (Original.ClosedImage c) x] := \bysub(Original.CellData, { c: Original.CellData \where Logic.And[Original.CellMember subcomplex.cells c, \In[A] (Original.ClosedImage c) x] }, c) \then
+  \let selectedCell: Selected := \into[Original.CellData](c, selected) \by { data.left } \then
+  \takefrom p: \Cast[Euclidean.Disk c.dimension] ({ p: Euclidean.Disk c.dimension \where c.characteristic p = x }) \by data.right \then
+  \return \idelim characteristic selectedCell p = x \with y: Carrier => \exists Cells.CoverWitness[cells, y] \by {
+    base: pointCover selectedCell p,
+    equality: pointExt (characteristic selectedCell p) x (\bysub(Euclidean.Disk c.dimension, { p: Euclidean.Disk c.dimension \where c.characteristic p = x }, p))
+  }
+};
+\definition selectedDisjoint: \forall (c, d: Selected)(x: Carrier) -> \In[Carrier] (Cells.InteriorImage (transform c)) x ->
+  \In[Carrier] (Cells.InteriorImage (transform d)) x -> transform c = transform d := \fun (c, d: Selected)(x: Carrier)(left: _)(right: _) =>
+  congr!{Selected Cells.CellData} transform c d (Refined.ext c d
+    ((Original.laws source complex).disjoint c d (originalMember c) (originalMember d) x (Cell[c := c].interiorForward x left) (Cell[c := d].interiorForward x right)));
+\definition disjoint: \forall (c, d: Cells.CellData) -> Cells.CellMember cells c -> Cells.CellMember cells d -> \forall (x: Carrier) ->
+  \In[Carrier] (Cells.InteriorImage c) x -> \In[Carrier] (Cells.InteriorImage d) x -> c = d := \fun (c, d: Cells.CellData)(member: _)(other: _)(x: Carrier)(left: _)(right: _) => \block {
+  \takefrom first: Mapping.Witness[family, c] \by Mapping.witness family c member \then
+  \takefrom second: Mapping.Witness[family, d] \by Mapping.witness family d other \then
+  \let firstPart: \In[Carrier] (Cells.InteriorImage (transform first.cell)) x := \idelim c = transform first.cell \with e: Cells.CellData => \In[Carrier] (Cells.InteriorImage e) x \by { base: left, equality: first.same } \then
+  \let secondPart: \In[Carrier] (Cells.InteriorImage (transform second.cell)) x := \idelim d = transform second.cell \with e: Cells.CellData => \In[Carrier] (Cells.InteriorImage e) x \by { base: right, equality: second.same } \then
+  \return trans!{Cells.CellData} _ _ _ first.same (trans!{Cells.CellData} _ _ _ (selectedDisjoint first.cell second.cell x firstPart secondPart) (sym!{Cells.CellData} _ _ second.same))
+};
+\structure ClosedWitness[x: Carrier]: \Set := {
+  cell: Selected,
+  point: Euclidean.Disk cell.dimension,
+  equality: characteristic cell point = x
+};
+\definition closedCover: \forall (x: Carrier) -> \exists ClosedWitness[x] := \fun (x: Carrier) => \block {
+  \takefrom c: \Cast[Original.CellData] ({ c: Original.CellData \where Logic.And[Original.CellMember subcomplex.cells c, \In[A] (Original.ClosedImage c) x] }) \by \bysub(A, Subcomplex.Subset, x) \then
+  \let data: Logic.And[Original.CellMember subcomplex.cells c, \In[A] (Original.ClosedImage c) x] := \bysub(Original.CellData, { c: Original.CellData \where Logic.And[Original.CellMember subcomplex.cells c, \In[A] (Original.ClosedImage c) x] }, c) \then
+  \let chosen: Selected := \into[Original.CellData](c, selected) \by { data.left } \then
+  \takefrom p: \Cast[Euclidean.Disk c.dimension] ({ p: Euclidean.Disk c.dimension \where c.characteristic p = x }) \by data.right \then
+  \return \exact(ClosedWitness[x] { cell := chosen, point := p,
+    equality := pointExt (characteristic chosen p) x (\bysub(Euclidean.Disk c.dimension, { p: Euclidean.Disk c.dimension \where c.characteristic p = x }, p))
+  }, ClosedWitness[x])
+};
+\module Weak(U: \Pow Carrier, local: \forall (d: Cells.CellData) -> Cells.CellMember cells d -> Cells.DiskOpen d.dimension (Cells.Pullback d U));
+\definition weakTopology: \forall (U: \Pow Carrier) -> Logic.PropEquiv[Space.IsOpenIn topology U,
+  \forall (d: Cells.CellData) -> Cells.CellMember cells d -> Cells.DiskOpen d.dimension (Cells.Pullback d U)] := \fun (U: \Pow Carrier) => Logic.PropEquiv[_, _] {
+    ltr := \fun (open: _)(d: Cells.CellData)(member: _) => (cellLaws d member).continuous U open,
+    rtl := \fun (local: _) => Weak[U := U, local := local].open
+  };
+\definition result: Cells.FiniteComplex[topology] := Cells.FiniteComplex[topology] {
+  cells := cells, hausdorff := hausdorff, cellLaws := cellLaws, covers := covers, disjoint := disjoint, boundary := boundary, weakTopology := weakTopology
+};
+
+\definition compact: Space.IsCompact topology := \root.Thom[].CWType[].CompactType[A := Carrier, source := topology].Native[complex := result].compact;
+\module Cellularity;
