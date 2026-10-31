@@ -1,0 +1,17 @@
+\import metric_spaces.MetricSpace[Carrier := Model.Coordinate] \as Metrics;
+\definition interior: \Pow Model.Coordinate := { p: Model.Coordinate \where D.Lt (Model.normSquared p) R.one };
+\definition interiorOpen: CoordinateSpace.IsOpenIn Model.topology interior := Model.Geometry[].normSquaredContinuous
+  (metric_spaces.RealLine[].Rays[].Below R.one) (metric_spaces.RealLine[].Rays[].belowOpen R.one);
+\definition zeroInterior: \In[Model.Coordinate] interior Sup.origin := D.ltReplaceLeft R.zero (Model.normSquared Sup.origin) R.one
+  (sym!{R.Real} _ _ (Model.Contraction[].zeroSum (Fin.elements dimension))) (R.Estimates[].Product[].onePositive);
+\definition exists: \exists Radius := \block {
+  \takefrom r: \Cast[R.Real] (Metrics.NeighborhoodRadius Norm.metric interior Sup.origin)
+    \by MetricTopology.coordinateOpen interior interiorOpen Sup.origin zeroInterior \then
+  \let data: Logic.And[D.Lt R.zero r, CoordinateSpace.Subset (Metrics.Ball Norm.metric Sup.origin r) interior] :=
+    \bysub(R.Real, Metrics.NeighborhoodRadius Norm.metric interior Sup.origin, r) \then
+  \return \exact(\into[R.Real](r, Radius) \by { RadiusLaws[r] {
+    positive := data.left,
+    inside := \fun (p: Model.Coordinate)(near: _) => data.right p
+      (D.ltReplaceLeft (Sup.norm p) (Norm.metric.distance Sup.origin p) r (sym!{R.Real} _ _ (Sup.originDistance p)) near)
+  } }, Radius)
+};

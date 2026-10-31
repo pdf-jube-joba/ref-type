@@ -1,0 +1,75 @@
+\definition cylinderTopology: topology.Topology[Carrier := Cylinder.Carrier].Topology := Cylinder.topology Domain.diskTopology;
+\definition leftCylinder: \Pow Cylinder.Carrier := { p: Cylinder.Carrier \where \In[Domain.Disk] left (Cylinder.point p) };
+\definition rightCylinder: \Pow Cylinder.Carrier := { p: Cylinder.Carrier \where \In[Domain.Disk] right (Cylinder.point p) };
+\import topology.Topology[Carrier := Cylinder.Carrier] \as CylinderSpace;
+\import CylinderSpace.Subspace[S := leftCylinder] \as LeftCylinder;
+\import CylinderSpace.Subspace[S := rightCylinder] \as RightCylinder;
+\definition cylinderCovered: \forall (p: Cylinder.Carrier) -> Logic.Or[\In[Cylinder.Carrier] leftCylinder p, \In[Cylinder.Carrier] rightCylinder p] :=
+  \fun (p: Cylinder.Carrier) => covered (Cylinder.point p);
+\definition leftCylinderClosed: CylinderSpace.IsClosedIn cylinderTopology leftCylinder := Cylinder.pointContinuous Domain.diskTopology (DomainSpace.Complement left) leftClosed;
+\definition rightCylinderClosed: CylinderSpace.IsClosedIn cylinderTopology rightCylinder := Cylinder.pointContinuous Domain.diskTopology (DomainSpace.Complement right) rightClosed;
+\definition leftPoint[p: LeftCylinder.CarrierSet]: Left := \into[Domain.Disk](Cylinder.point p, left) \by { \bysub(Cylinder.Carrier, leftCylinder, p) };
+\definition extends: \forall (x: Left) -> extension.value x = Coordinates.coordinate x :=
+  \fun (x: Left) => \axiom:funext(extension.value x, Coordinates.coordinate x, \fun (i: Fin.Fin cell.dimension) => extension.extends x i);
+\definition raw[p: LeftCylinder.CarrierSet]: Model.Coordinate := perturbation.homotopy p;
+\definition fixedAt[p: Cylinder.Carrier][high: D.Le twice (Sup.norm (extension.value (Cylinder.point p)))]:
+  perturbation.homotopy p = extension.value (Cylinder.point p) := trans!{Model.Coordinate} _ _ _
+    (congr!{Cylinder.Carrier Model.Coordinate} perturbation.homotopy p (Cylinder.at (Cylinder.time p) (Cylinder.point p))
+      (sym!{Cylinder.Carrier} _ _ (Pair.Prop[A := I.Carrier, B := Domain.Disk].eta p)))
+    (perturbation.fixed (Cylinder.time p) (Cylinder.point p) high);
+\definition strictOfNotReverse[a, b: R.Real]: Logic.Not (D.Le b a) -> D.Lt a b :=
+  \fun (outside: _) => Order.byContradiction (D.Lt a b) (\fun (notStrict: _) => outside (Order.leOfNotLtReverse b a notStrict));
+\definition rawSmall[p: LeftCylinder.CarrierSet][small: D.Lt (Sup.norm (Coordinates.coordinate (leftPoint p))) twice]: D.Lt (Sup.norm (raw p)) thrice :=
+  D.leLtTrans (Sup.norm (raw p))
+    (R.add (Norm.metric.distance (raw p) (extension.value (Cylinder.point p))) (Sup.norm (extension.value (Cylinder.point p)))) thrice
+    (Sup.normDifference (raw p) (extension.value (Cylinder.point p)))
+    (R.Estimates[].addLt (Norm.metric.distance (raw p) (extension.value (Cylinder.point p))) (Sup.norm (extension.value (Cylinder.point p))) radius twice
+      (perturbation.close p) (D.ltReplaceLeft (Sup.norm (Coordinates.coordinate (leftPoint p))) (Sup.norm (extension.value (Cylinder.point p))) twice
+        (congr!{Model.Coordinate R.Real} Sup.norm _ _ (sym!{Model.Coordinate} _ _ (extends (leftPoint p)))) small));
+\definition rawInside: \forall (p: LeftCylinder.CarrierSet) -> D.Lt (Model.normSquared (raw p)) R.one :=
+  \fun (p: LeftCylinder.CarrierSet) => either!{{Classical.excludedMiddle (D.Le twice (Sup.norm (Coordinates.coordinate (leftPoint p))))} {D.Lt (Model.normSquared (raw p)) R.one}
+    {\fun (large: D.Le twice (Sup.norm (Coordinates.coordinate (leftPoint p)))) => \block {
+      \let high: D.Le twice (Sup.norm (extension.value (Cylinder.point p))) := D.leReplaceRight twice (Sup.norm (Coordinates.coordinate (leftPoint p))) _
+        (congr!{Model.Coordinate R.Real} Sup.norm _ _ (sym!{Model.Coordinate} _ _ (extends (leftPoint p)))) large \then
+      \let same: raw p = Coordinates.coordinate (leftPoint p) := trans!{Model.Coordinate} _ _ _
+        (fixedAt p high) (extends (leftPoint p)) \then
+      \return \idelim Coordinates.coordinate (leftPoint p) = raw p \with q: Model.Coordinate => D.Lt (Model.normSquared q) R.one \by {
+        base: \bysub(Model.Disk, Chart.interior, Coordinates.coordinate (leftPoint p)), equality: sym!{Model.Coordinate} _ _ same
+      }
+    }}
+    {\fun (small: Logic.Not (D.Le twice (Sup.norm (Coordinates.coordinate (leftPoint p))))) =>
+      boundLaws.inside (raw p) (Order.ltTrans _ thrice _ (rawSmall p (strictOfNotReverse _ _ small)) tripleSmall)}
+  };
+\definition chartRaw[p: LeftCylinder.CarrierSet]: Chart.Carrier := \into[Model.Disk](\into[Model.Coordinate](raw p, Model.ClosedBall) \by { Order.leOfLt _ _ (rawInside p) }, Chart.interior) \by { rawInside p };
+\definition leftMap[p: LeftCylinder.CarrierSet]: Stage.Carrier := C.embed (chartRaw p);
+\definition rightMap[p: RightCylinder.CarrierSet]: Stage.Carrier := f (Cylinder.point p);
+\definition rawContinuous: topology.Continuity[A := LeftCylinder.CarrierSet, B := Model.Coordinate].Continuous (LeftCylinder.topology cylinderTopology) Model.topology raw :=
+  topology.Continuity[A := Cylinder.Carrier, B := Model.Coordinate].Restriction[S := leftCylinder].restrictContinuous cylinderTopology Model.topology perturbation.homotopy
+    (algebraic_topology.Homotopy[A := Domain.Disk, B := Model.Coordinate].laws Domain.diskTopology Model.topology extension.value perturbation.value perturbation.homotopy).continuous;
+\definition chartRawContinuous: topology.Continuity[A := LeftCylinder.CarrierSet, B := Chart.Carrier].Continuous (LeftCylinder.topology cylinderTopology) Chart.topology chartRaw :=
+  topology.Continuity[A := LeftCylinder.CarrierSet, B := Model.Disk].Corestriction[S := Chart.interior].corestrictContinuous (LeftCylinder.topology cylinderTopology) Model.diskTopology chartRaw
+    (topology.Continuity[A := LeftCylinder.CarrierSet, B := Model.Coordinate].Corestriction[S := Model.ClosedBall].corestrictContinuous (LeftCylinder.topology cylinderTopology) Model.topology chartRaw rawContinuous);
+\definition leftMapContinuous: topology.Continuity[A := LeftCylinder.CarrierSet, B := Stage.Carrier].Continuous (LeftCylinder.topology cylinderTopology) Stage.topology leftMap :=
+  topology.Composition[A := LeftCylinder.CarrierSet, B := Chart.Carrier, C := Stage.Carrier].composeContinuous (LeftCylinder.topology cylinderTopology) Chart.topology Stage.topology chartRaw C.embed chartRawContinuous C.embedContinuous;
+\definition rightMapContinuous: topology.Continuity[A := RightCylinder.CarrierSet, B := Stage.Carrier].Continuous (RightCylinder.topology cylinderTopology) Stage.topology rightMap :=
+  topology.Continuity[A := Cylinder.Carrier, B := Stage.Carrier].Restriction[S := rightCylinder].restrictContinuous cylinderTopology Stage.topology (\fun (p: Cylinder.Carrier) => f (Cylinder.point p))
+    (topology.Composition[A := Cylinder.Carrier, B := Domain.Disk, C := Stage.Carrier].composeContinuous cylinderTopology Domain.diskTopology Stage.topology Cylinder.point f (Cylinder.pointContinuous Domain.diskTopology) continuous);
+\import topological_constructions.Gluing[A := Cylinder.Carrier, B := Stage.Carrier].Pasting[F := leftCylinder, G := rightCylinder] \as Pasting;
+\definition compatible: Pasting.Compatible leftMap rightMap := \block {
+  \fun (a: LeftCylinder.CarrierSet)(b: RightCylinder.CarrierSet)(same: a = b) \then
+  \let rightPoint: Right := \into[Domain.Disk](Cylinder.point b, right) \by { \bysub(Cylinder.Carrier, rightCylinder, b) } \then
+  \let pointSame: leftPoint a = rightPoint := congr!{Cylinder.Carrier Domain.Disk} Cylinder.point a b same \then
+  \let high: D.Le twice (Sup.norm (extension.value (Cylinder.point a))) := D.leReplaceRight twice (Sup.norm (Coordinates.coordinate (leftPoint a))) _
+    (congr!{Model.Coordinate R.Real} Sup.norm _ _ (sym!{Model.Coordinate} _ _ (extends (leftPoint a)))) (Coordinates.outsideInner (leftPoint a) rightPoint pointSame) \then
+  \let rawSame: raw a = Coordinates.coordinate (leftPoint a) := trans!{Model.Coordinate} _ _ _
+    (fixedAt a high) (extends (leftPoint a)) \then
+  \return trans!{Stage.Carrier} _ _ _ (congr!{Chart.Carrier Stage.Carrier} C.embed (chartRaw a) (Coordinates.coordinate (leftPoint a)) rawSame)
+    (trans!{Stage.Carrier} _ _ _ (Coordinates.coordinateImage (leftPoint a)) (congr!{Domain.Disk Stage.Carrier} f _ _ pointSame))
+};
+\definition family: Cylinder.Carrier -> Stage.Carrier := Pasting.apply leftMap rightMap cylinderCovered compatible;
+\definition onLeft: \forall (p: LeftCylinder.CarrierSet) -> family p = leftMap p := Pasting.onLeft leftMap rightMap cylinderCovered compatible;
+\definition onRight: \forall (p: RightCylinder.CarrierSet) -> family p = rightMap p := Pasting.onRight leftMap rightMap cylinderCovered compatible;
+\definition familyContinuous: topology.Continuity[A := Cylinder.Carrier, B := Stage.Carrier].Continuous cylinderTopology Stage.topology family :=
+  Pasting.continuous cylinderTopology Stage.topology leftMap rightMap cylinderCovered compatible leftCylinderClosed rightCylinderClosed leftMapContinuous rightMapContinuous;
+\module Result;
+\definition result: Perturbation := Result[].result;

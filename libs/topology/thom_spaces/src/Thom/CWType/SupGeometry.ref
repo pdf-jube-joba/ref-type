@@ -1,0 +1,40 @@
+\import algebraic_topology.Euclidean[].Dimension[n := n] \as Euclidean;
+\import topological_algebra.Euclidean[].Dimension[n := n] \as Sup;
+\import Sup.Def[] \as Def;
+\import Sup.Norm[] \as Norm;
+\import real.Analysis[] \as R;
+\import dedekind_reals.DedekindReal[] \as D;
+\import D.Arithmetic[].Prop[] \as Laws;
+\import D.Order[] \as Order;
+\definition norm: Euclidean.Coordinate -> R.Real := Def.norm;
+\definition origin: Euclidean.Coordinate := Def.origin;
+\definition normContinuous: metric_spaces.RealFunctions[A := Euclidean.Coordinate].Continuous Euclidean.topology norm :=
+  Sup.Topology[].finiteMaxContinuous n (\fun (x: Euclidean.Coordinate) => x)
+    (\fun (i: Fin.Fin n) => topological_algebra.Coordinates[K := R.Real, I := Fin.Fin n].evaluationContinuous metric_spaces.RealLine[].topology i);
+\definition normDistance: \forall (x: Euclidean.Coordinate) -> Norm.metric.distance x origin = norm x :=
+  \fun (x: Euclidean.Coordinate) => congr!{Euclidean.Coordinate R.Real} norm _ _
+    (\axiom:funext(Def.subPoint x origin, x, \fun (i: Fin.Fin n) => Laws.subZeroRight (x i)));
+\definition originDistance: \forall (x: Euclidean.Coordinate) -> Norm.metric.distance origin x = norm x :=
+  \fun (x: Euclidean.Coordinate) => trans!{R.Real} _ _ _ (Norm.metric.symmetric origin x) (normDistance x);
+\definition coordinateClose: \forall (x, y: Euclidean.Coordinate)(epsilon: R.Real) -> D.Lt R.zero epsilon ->
+  (\forall (i: Fin.Fin n) -> D.Lt (R.Distance[].distance (x i) (y i)) epsilon) -> D.Lt (Norm.metric.distance x y) epsilon :=
+  \fun (x, y: Euclidean.Coordinate)(epsilon: R.Real)(positive: _)(close: _) => Norm.finiteStrictUpper n (Def.subPoint x y) epsilon positive
+    (\fun (i: Fin.Fin n) => D.ltReplaceLeft (R.Distance[].distance (x i) (y i)) (R.Distance[].distance (R.sub (x i) (y i)) R.zero) epsilon
+      (sym!{R.Real} _ _ (Norm.distanceDifference (x i) (y i))) (close i));
+\definition normDifference: \forall (x, y: Euclidean.Coordinate) -> D.Le (norm x) (R.add (Norm.metric.distance x y) (norm y)) :=
+  \fun (x, y: Euclidean.Coordinate) => D.leReplace
+    (Norm.metric.distance x origin) (norm x) (R.add (Norm.metric.distance x y) (Norm.metric.distance y origin)) (R.add (Norm.metric.distance x y) (norm y))
+    (normDistance x) (congr!{R.Real R.Real} (R.add (Norm.metric.distance x y)) _ _ (normDistance y)) (Norm.metric.triangle x y origin);
+\definition affineDistance: \forall (x, e: Euclidean.Coordinate)(t: R.Real) ->
+  Norm.metric.distance (Def.addPoint x (Def.scale t e)) x = R.mul (R.Estimates[].Product[].abs t) (norm e) :=
+  \fun (x, e: Euclidean.Coordinate)(t: R.Real) => trans!{R.Real} _ _ _
+    (congr!{Euclidean.Coordinate R.Real} norm _ _ (\axiom:funext(Def.subPoint (Def.addPoint x (Def.scale t e)) x, Def.scale t e,
+      \fun (i: Fin.Fin n) => trans!{R.Real} _ _ _
+        (congr!{R.Real R.Real} (\fun (s: R.Real) => R.sub s (x i)) _ _ (Laws.addComm (x i) (R.mul t (e i))))
+        (Laws.addNegCancelRight (x i) (R.mul t (e i)))))) (Norm.homogeneous t e);
+\definition contraction: \forall (t: R.Real)(e: Euclidean.Coordinate) -> D.Le R.zero t -> D.Le t R.one -> D.Le (R.mul (R.Estimates[].Product[].abs t) (norm e)) (norm e) :=
+  \fun (t: R.Real)(e: Euclidean.Coordinate)(positive: _)(bounded: _) => D.leReplace
+    (R.mul (norm e) t) (R.mul (R.Estimates[].Product[].abs t) (norm e)) (R.mul (norm e) R.one) (norm e)
+    (trans!{R.Real} _ _ _ (Laws.fieldMulComm (norm e) t)
+      (congr!{R.Real R.Real} (\fun (s: R.Real) => R.mul s (norm e)) _ _ (sym!{R.Real} _ _ (R.Estimates[].Product[].absOfNonnegative t positive))))
+    (R.Algebra[].mulOneRight (norm e)) (R.Estimates[].mulMonotone (norm e) t R.one (Norm.nonnegative e) bounded);

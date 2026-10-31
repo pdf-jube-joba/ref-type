@@ -1,0 +1,38 @@
+\import metric_spaces.RealFunctions[A := Source.Disk] \as Functions;
+\definition inner: \Pow Source.Disk := { x: Source.Disk \where D.Le (Sup.norm (f x)) radius };
+\definition outer: \Pow Source.Disk := { x: Source.Disk \where D.Le (R.add radius radius) (Sup.norm (f x)) };
+\definition normContinuous: Functions.Continuous Source.diskTopology (\fun (x: Source.Disk) => Sup.norm (f x)) :=
+  topology.Composition[A := Source.Disk, B := Target.Coordinate, C := R.Real].composeContinuous Source.diskTopology Target.topology metric_spaces.RealLine[].topology f Sup.norm continuous Sup.normContinuous;
+\definition innerClosed: DiskSpace.IsClosedIn Source.diskTopology inner :=
+  normContinuous ({ r: R.Real \where Logic.Not (D.Le r radius) }) (metric_spaces.RealLine[].Rays[].atMostClosed radius);
+\definition outerClosed: DiskSpace.IsClosedIn Source.diskTopology outer :=
+  normContinuous ({ r: R.Real \where Logic.Not (D.Le (R.add radius radius) r) }) (metric_spaces.RealLine[].Rays[].atLeastClosed (R.add radius radius));
+\definition doubleStrict: D.Lt radius (R.add radius radius) := D.ltReplaceLeft (R.add radius R.zero) radius (R.add radius radius) (Laws.addZeroRight radius)
+  (Laws.ltAddLeft radius R.zero radius positive);
+\definition disjoint: DiskSpace.Disjoint outer inner := \fun (x: Source.Disk)(high: _)(low: _) =>
+  D.ltNotLeReverse radius (R.add radius radius) doubleStrict (D.leTrans _ _ _ high low);
+\import DiskSpace.Urysohn[] \as Urysohn;
+\definition Cutoff: \Set := Urysohn.UrysohnFunction[Source.diskTopology, outer, inner];
+\definition cutoff: \exists Cutoff := Urysohn.normalUrysohn Source.diskTopology
+  (DiskSpace.Compactness[].compactHausdorffNormal Source.diskTopology Source.Compactness[].compact
+    (topology.Topology[Carrier := Source.Coordinate].Subspace[S := Source.ClosedBall].Properties[].hausdorff Source.topology Source.Compactness[].hausdorff))
+  outer inner outerClosed innerClosed disjoint;
+\definition epsilon: R.Real := R.mul R.half (R.mul R.half radius);
+\definition epsilonPositive: D.Lt R.zero epsilon := R.Estimates[].halfOfPositive (R.mul R.half radius) (R.Estimates[].halfOfPositive radius positive);
+\definition doubleEpsilon: R.add epsilon epsilon = R.mul R.half radius := R.Estimates[].halfTwice (R.mul R.half radius);
+\definition errorSmall: D.Lt (R.add epsilon epsilon) radius := D.ltReplaceLeft (R.mul R.half radius) (R.add epsilon epsilon) radius
+  (sym!{R.Real} _ _ doubleEpsilon) (R.Estimates[].halfStrict radius positive);
+\import \parent.\parent.PiecewiseApproximation[m := m, n := n, larger := larger].Of[f := f, continuous := continuous] \as Approximation;
+\structure Perturbation: \Set := {
+  value: Source.Disk -> Target.Coordinate,
+  continuous: topology.Continuity[A := Source.Disk, B := Target.Coordinate].Continuous Source.diskTopology Target.topology value,
+  homotopy: Homotopies.Homotopy[Source.diskTopology, Target.topology, f, value],
+  fixed: \forall (t: I.Carrier)(x: Source.Disk) -> \In[Source.Disk] outer x -> homotopy (Cylinder.at t x) = f x,
+  close: \forall (p: Cylinder.Carrier) -> D.Lt (Norm.metric.distance (homotopy p) (f (Cylinder.point p))) radius,
+  nonzero: \forall (x: Source.Disk) -> Logic.Not (value x = Sup.origin)
+};
+\module With(approximation: Approximation.Approximation[epsilon]);
+\definition exists: \exists Perturbation := \block {
+  \takefrom approximation: Approximation.Approximation[epsilon] \by Approximation.exists epsilon epsilonPositive \then
+  \return With[approximation := approximation].exists
+};
