@@ -1,0 +1,22 @@
+\import Domain.Cones[] \as SourceCones;
+\import Codomain.Cones[] \as TargetCones;
+\definition preserves: \forall (v: Domain.Vector) -> SourceCones.Inward v -> TargetCones.Inward (value.apply v) := \block {
+  \fun (v: Domain.Vector)(inward: SourceCones.Inward v)(d: Codomain.Chart) \then
+  \takefrom c: Domain.Chart \by Domain.chartExists \then
+  \takefrom e: Maps.At[function := Maps.apply f, left := c, right := d, x := x, contains := Domain.contains c].Extension \by \parent.InCharts[left := c, right := d].smooth \then
+  \return With[c := c, d := d, e := e].law v (inward c)
+};
+\module With(c: Domain.Chart, d: Codomain.Chart, e: Maps.At[function := Maps.apply f, left := c, right := d, x := x, contains := Domain.contains c].Extension) {
+  \import Maps.At[function := Maps.apply f, left := c, right := d, x := x, contains := Domain.contains c] \as Local;
+  \import Local.Using[e := e] \as Extension;
+  \import \parent.\parent.InCharts[left := c, right := d] \as Charts;
+  \definition law: \forall (v: Domain.Vector) -> SourceCones.InChart c v -> TargetCones.InChart d (value.apply v) :=
+    \fun (v: Domain.Vector)(inward: _) => \idelim Extension.jacobian.apply (Domain.Coordinate[chart := c].decode v) = Codomain.Coordinate[chart := d].decode (value.apply v)
+      \with w: TargetVectors.Vector => \root.Model[n := m].Cone d.constraints (Codomain.coordinate d) w \by {
+        base: Extension.preservesCone (Domain.Coordinate[chart := c].decode v) inward,
+        equality: trans!{{TargetVectors.Vector}} _ _ _
+          (congr!{{calculus.Vector[n := n, m := m].LinearMap} {TargetVectors.Vector}} (\fun (A: calculus.Vector[n := n, m := m].LinearMap) => A.apply (Domain.Coordinate[chart := c].decode v)) _ _
+            (sym!{{calculus.Vector[n := n, m := m].LinearMap}} _ _ (Local.ofExtension Charts.smooth e)))
+          (sym!{{TargetVectors.Vector}} _ _ (coordinates c d v))
+      };
+}

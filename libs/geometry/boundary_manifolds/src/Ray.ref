@@ -1,0 +1,56 @@
+\import std.Data[].FinSet[] \as Fin;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\import real.Analysis[] \as S;
+\import S.Algebra[] \as Algebra;
+\import dedekind_reals.DedekindReal[].Arithmetic[].Prop[] \as Laws;
+\import calculus.Real[].OneDimension[] \as One;
+\import calculus.Real[].Multivariable[n := One.dimension].Open[] \as Line;
+\import calculus.Real[].Multivariable[n := One.dimension].Space[].Def[] \as LineCoordinates;
+\import calculus.Real[].Multivariable[n := n].Open[] \as Open;
+\import calculus.Maps[n := One.dimension, m := n] \as Maps;
+\import calculus.Vector[n := One.dimension, m := n] \as Vector;
+\definition Point: \Set := Fin.Fin n -> S.Real;
+\definition linear: Vector.LinearMap := Vector.LinearMap {
+  apply := \fun (t: One.Index -> S.Real)(i: Fin.Fin n) => S.mul (t One.index) (v i),
+  preservesAdd := \fun (t, u: One.Index -> S.Real) => \axiom:funext((\fun (i: Fin.Fin n) => S.mul (S.add (t One.index) (u One.index)) (v i)),
+    (\fun (i: Fin.Fin n) => S.add (S.mul (t One.index) (v i)) (S.mul (u One.index) (v i))), \fun (i: Fin.Fin n) => Algebra.mulAddRight (t One.index) (u One.index) (v i)),
+  preservesScale := \fun (c: S.Real)(t: One.Index -> S.Real) => \axiom:funext((\fun (i: Fin.Fin n) => S.mul (S.mul c (t One.index)) (v i)),
+    (\fun (i: Fin.Fin n) => S.mul c (S.mul (t One.index) (v i))), \fun (i: Fin.Fin n) => Laws.fieldMulAssoc c (t One.index) (v i)),
+};
+\definition path[t: S.Real][i: Fin.Fin n]: S.Real := S.add (a i) (S.mul t (v i));
+\definition centerValue: path S.zero = a := \axiom:funext(path S.zero, a,
+  \fun (i: Fin.Fin n) => trans!{S.Real} _ _ _ (congr!{S.Real S.Real} (S.add (a i)) _ _ (Laws.fieldMulZeroLeft (v i))) (Laws.addZeroRight (a i)));
+\definition data: Maps.Data[Line.whole, Open.whole] := Maps.Data[Line.whole, Open.whole] {
+  apply := \fun (t: Line.Carrier Line.whole) => \into[Point](path (t One.index), Open.whole.points) \by { \refl(path (t One.index)) },
+};
+\definition map: Maps.Map Line.whole Open.whole := \into[Maps.Data[Line.whole, Open.whole]](data,
+  { f: Maps.Data[Line.whole, Open.whole] \where Maps.Laws[Line.whole, Open.whole, f] }) \by {
+    Maps.Laws[Line.whole, Open.whole, data] {
+      smooth := \fun (i: Fin.Fin n) => Line.Smooth[].Operations[].addSmooth Line.whole
+        (\fun (t: Line.Carrier Line.whole) => a i) (\fun (t: Line.Carrier Line.whole) => S.mul (t One.index) (v i))
+        (Line.Examples[].constantSmooth Line.whole (a i))
+        (Line.Smooth[].Operations[].mulSmooth Line.whole (\fun (t: Line.Carrier Line.whole) => t One.index) (\fun (t: Line.Carrier Line.whole) => v i)
+          (Line.Examples[].projectionSmooth Line.whole One.index) (Line.Examples[].constantSmooth Line.whole (v i))),
+    }
+  };
+\definition differential: \forall (t: Line.Carrier Line.whole) -> Maps.Differential[U := Line.whole, V := Open.whole, f := map, a := t].value = linear :=
+  \fun (t: Line.Carrier Line.whole) => Vector.Differential[U := Line.whole, f := Maps.apply Line.whole Open.whole map, a := t,
+    d := Maps.Differential[U := Line.whole, V := Open.whole, f := map, a := t].value].uniqueness linear
+      (Maps.Differential[U := Line.whole, V := Open.whole, f := map, a := t].vectorLaw) (Vector.affineDifferential Line.whole a linear t);
+\import Maps.Preimage[U := Line.whole, W := Open.whole, V := U, f := map] \as Preimage;
+\definition domain: Line.OpenSet := Preimage.domain;
+\definition zero: Line.Carrier Line.whole := \into[One.Index -> S.Real](LineCoordinates.origin, Line.whole.points) \by { \refl(LineCoordinates.origin) };
+\definition contains: \In[One.Index -> S.Real] domain.points zero := Preimage.intro zero
+  (\idelim (a \of Point) = path S.zero \with p: Point => \In[Point] U.points p \by { base: \bysub(Point, U.points, a), equality: sym!{Point} _ _ centerValue });
+\definition origin: Line.Carrier domain := \into[One.Index -> S.Real](zero, domain.points) \by { contains };
+\definition restricted: Maps.Map domain U := Preimage.map;
+\definition atOrigin: Maps.apply domain U restricted origin = a := \root.Refinement[A := Point].equality U.points (Maps.apply domain U restricted origin) a centerValue;
+\definition restrictedDifferential: Maps.Differential[U := domain, V := U, f := restricted, a := origin].value = linear :=
+  trans!{{Vector.LinearMap}} _ _ _ (Preimage.differential origin) (differential (Preimage.input origin));
+\definition unit: linear.apply (LineCoordinates.basis One.index) = v := \axiom:funext(linear.apply (LineCoordinates.basis One.index), v,
+  \fun (i: Fin.Fin n) => trans!{S.Real} _ _ _ (congr!{S.Real S.Real} (\fun (c: S.Real) => S.mul c (v i)) _ _
+    (calculus.Real[].Multivariable[n := One.dimension].Space[].Prop[].replaceSame LineCoordinates.origin One.index S.one)) (Laws.fieldMulOneLeft (v i)));
+\module Follow(m: std.Data[].Nat[].Nat^, V: calculus.Real[].Multivariable[n := m].Open[].OpenSet, f: calculus.Maps[n := n, m := m].Map U V);

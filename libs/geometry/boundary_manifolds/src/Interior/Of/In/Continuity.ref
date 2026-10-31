@@ -1,0 +1,29 @@
+\definition ambientInclusion: topology.Continuity[A := Domain, B := M.Point].Continuous source M.space (\fun (p: Domain) => p) :=
+  topology.Composition[A := Domain, B := Point, C := M.Point].composeContinuous source topology M.space (\fun (p: Domain) => p) (\fun (p: Point) => p)
+    (topology.Continuity[A := Domain, B := Point].Corestriction[S := domain].inclusionContinuous topology)
+    (topology.Continuity[A := Point, B := M.Point].Corestriction[S := points].inclusionContinuous M.space);
+\definition oldPointContinuous: topology.Continuity[A := Domain, B := OldCharts.LocalPoint c].Continuous source (OldCharts.domainTopology c.domain) oldPoint :=
+  topology.Continuity[A := Domain, B := M.Point].Corestriction[S := c.domain].corestrictContinuous source M.space oldPoint ambientInclusion;
+\import topology.Homeomorphism[A := OldCharts.LocalPoint c, B := Model.Carrier c.constraints c.image] \as Homeomorphism;
+\definition coordinateContinuous: topology.Continuity[A := Domain, B := Model.Carrier c.constraints c.image].Continuous source (Model.regionTopology c.constraints c.image) oldCoordinate :=
+  topology.Composition[A := Domain, B := OldCharts.LocalPoint c, C := Model.Carrier c.constraints c.image].composeContinuous source (OldCharts.domainTopology c.domain) (Model.regionTopology c.constraints c.image)
+    oldPoint (OldCharts.coordinate c) oldPointContinuous (Homeomorphism.laws _ _ c.coordinates).forwardContinuous;
+\import topological_algebra.Euclidean[].Dimension[n := n].Topology[] \as Euclidean;
+\definition coordinateAmbient: topology.Continuity[A := Domain, B := Model.Point].Continuous source Euclidean.topology (\fun (p: Domain) => oldCoordinate p) :=
+  topology.Composition[A := Domain, B := Model.Carrier c.constraints c.image, C := Model.Point].composeContinuous source (Model.regionTopology c.constraints c.image) Euclidean.topology
+    oldCoordinate (\fun (u: Model.Carrier c.constraints c.image) => u) coordinateContinuous (Model.Topology[C := c.constraints, U := c.image].ambient);
+\definition forwardContinuous: topology.Continuity[A := Domain, B := Open.Carrier image].Continuous source (Open.Topology[].Of[U := image].topology) forward :=
+  topology.Continuity[A := Domain, B := Model.Point].Corestriction[S := image.points].corestrictContinuous source Euclidean.topology forward coordinateAmbient;
+\definition intoModel: topology.Continuity[A := Open.Carrier image, B := Model.Carrier c.constraints c.image].Continuous (Open.Topology[].Of[U := image].topology) (Model.regionTopology c.constraints c.image) coordinateInput :=
+  Model.Topology[C := c.constraints, U := c.image].Into[X := Open.Carrier image, source := Open.Topology[].Of[U := image].topology, f := coordinateInput].continuous
+    (topology.Continuity[A := Open.Carrier image, B := Model.Point].Corestriction[S := image.points].inclusionContinuous Euclidean.topology);
+\definition pointLocalContinuous: topology.Continuity[A := Open.Carrier image, B := OldCharts.LocalPoint c].Continuous (Open.Topology[].Of[U := image].topology) (OldCharts.domainTopology c.domain) pointValue :=
+  topology.Composition[A := Open.Carrier image, B := Model.Carrier c.constraints c.image, C := OldCharts.LocalPoint c].composeContinuous (Open.Topology[].Of[U := image].topology)
+    (Model.regionTopology c.constraints c.image) (OldCharts.domainTopology c.domain) coordinateInput (OldCharts.point c) intoModel (Homeomorphism.laws _ _ c.coordinates).backwardContinuous;
+\definition pointAmbientContinuous: topology.Continuity[A := Open.Carrier image, B := M.Point].Continuous (Open.Topology[].Of[U := image].topology) M.space (\fun (u: Open.Carrier image) => pointValue u) :=
+  topology.Composition[A := Open.Carrier image, B := OldCharts.LocalPoint c, C := M.Point].composeContinuous (Open.Topology[].Of[U := image].topology) (OldCharts.domainTopology c.domain) M.space
+    pointValue (\fun (p: OldCharts.LocalPoint c) => p) pointLocalContinuous (topology.Continuity[A := OldCharts.LocalPoint c, B := M.Point].Corestriction[S := c.domain].inclusionContinuous M.space);
+\definition pointInteriorContinuous: topology.Continuity[A := Open.Carrier image, B := Point].Continuous (Open.Topology[].Of[U := image].topology) topology pointInterior :=
+  topology.Continuity[A := Open.Carrier image, B := M.Point].Corestriction[S := points].corestrictContinuous (Open.Topology[].Of[U := image].topology) M.space pointInterior pointAmbientContinuous;
+\definition backwardContinuous: topology.Continuity[A := Open.Carrier image, B := Domain].Continuous (Open.Topology[].Of[U := image].topology) source backward :=
+  topology.Continuity[A := Open.Carrier image, B := Point].Corestriction[S := domain].corestrictContinuous (Open.Topology[].Of[U := image].topology) topology backward pointInteriorContinuous;

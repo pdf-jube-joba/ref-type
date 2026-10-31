@@ -1,0 +1,41 @@
+\import std.Data[].Nat[] \as N;
+\import std.Data[].FinSet[] \as Fin;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\import real.Analysis[] \as S;
+\import S.Algebra[] \as Algebra;
+\import dedekind_reals.DedekindReal[] \as R;
+\import R.Arithmetic[].Prop[] \as Laws;
+\import R.Order[] \as Order;
+\import calculus.Real[].OneDimension[] \as One;
+\import \root.Sublevel[n := n] \as Sublevel;
+\definition dimension: N.Nat^ := Sublevel.dimension;
+\import calculus.Real[].Multivariable[n := dimension].Open[] \as Open;
+\import calculus.Real[].Multivariable[n := One.dimension].Open[] \as Line;
+\import calculus.Maps[n := dimension, m := One.dimension] \as Maps;
+\import \root.Differentiation[n := dimension].On[U := Open.whole] \as Calculus;
+\import Open.Smooth[].Algebra[U := Open.whole] \as F;
+\definition squared: F.Function := Calculus.squared;
+\definition defining: F.Function := F.plus (F.constant S.one) (F.product (F.constant (S.neg S.one)) squared);
+\definition Point: \Set := Fin.Fin dimension -> S.Real;
+\definition function: Maps.Map Open.whole Line.whole := \into[Maps.Data[Open.whole, Line.whole]](Maps.Data[Open.whole, Line.whole] {
+  apply := \fun (x: Open.Carrier Open.whole) => \into[One.Index -> S.Real]((\fun (j: One.Index) => defining x), Line.whole.points) \by { \refl(\fun (j: One.Index) => defining x) },
+}, { data: Maps.Data[Open.whole, Line.whole] \where Maps.Laws[Open.whole, Line.whole, data] }) \by {
+  Maps.Laws[Open.whole, Line.whole, Maps.Data[Open.whole, Line.whole]::# (\fun (x: Open.Carrier Open.whole) => \into[One.Index -> S.Real]((\fun (j: One.Index) => defining x), Line.whole.points) \by { \refl(\fun (j: One.Index) => defining x) })] {
+    smooth := \fun (j: One.Index) => \bysub(Open.ScalarFunction Open.whole, F.Predicate, defining),
+  }
+};
+\import Sublevel.Of[U := Open.whole, f := function] \as Domain;
+\module At(a: Open.Carrier Open.whole);
+\definition regular: Domain.Regular := \fun (a: Open.Carrier Open.whole)(zero: defining a = S.zero) => At[a := a].surjective zero;
+\import \root.Dimension[n := dimension] \as Corners;
+\definition manifold: Corners.Manifold := Domain.Build[regular := regular].manifold;
+\import manifolds.Dimension[n := n].Smooth[] \as BoundaryModel;
+\definition regularBoundary: BoundaryModel.Manifold := Domain.Face[regular := regular].manifold;
+\definition boundary: BoundaryModel.Manifold := Domain.Build[regular := regular].boundary;
+\import tangent_bundles.Dimension[n := n].On[M := boundary] \as Bundle;
+\import manifolds.Dimension[n := Bundle.dimension].Smooth[] \as BundleModel;
+\definition tangentBundle: BundleModel.Manifold := Bundle.manifold;

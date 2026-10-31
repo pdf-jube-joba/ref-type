@@ -1,0 +1,27 @@
+\import \root.Tangent[n := dimension].On[M := manifold].At[x := x] \as Tangent;
+\import Tangent.Cones[] \as Cones;
+\module InPatch(p: Construction.Adapted, contains: Construction.ChartContains p x) {
+  \import \root.Ambient[n := dimension].Over[M := ambient, S := points].On[patch := p] \as Patch;
+  \import Corners.Chart[M := manifold.Point, space := manifold.space] \as Charts;
+  \definition chart: Tangent.Chart := \into[Charts.Chart](Patch.chart, Tangent.Chart) \by {
+    Tangent.ChartLaws[Patch.chart] {
+      member := Logic.existsIntro[Construction.Adapted, { p: Construction.Adapted \where Patch.chart = Construction.On[patch := p].chart }] p (\refl(Patch.chart)),
+      contains := contains,
+    }
+  };
+}
+\module AtBoundary(local: Product.Submersion[U := U, f := f, a := x].LocalForm);
+\definition ofZero: value x = S.zero -> Cones.Boundary := \block {
+  \fun (zero: _) \then
+  \takefrom local: Product.Submersion[U := U, f := f, a := x].LocalForm \by Product.Submersion[U := U, f := f, a := x].localExistence (regular x zero) \then
+  \return AtBoundary[local := local].boundary zero
+};
+\import \root.Sublevel[n := n].Of[U := U, f := f].Interior[] \as Interior;
+\module AtInterior(positive: R.Lt S.zero (value x));
+\definition positiveOfNonzero: Logic.Not (value x = S.zero) -> R.Lt S.zero (value x) :=
+  \fun (nonzero: _) => Order.ltOfLeNotEq S.zero (value x) (\bysub(ambient.Point, points, x))
+    (\fun (same: S.zero = value x) => nonzero (sym!{S.Real} _ _ same));
+\definition toZero: Cones.Boundary -> value x = S.zero := \fun (boundary: _) => Logic.orElim (value x = S.zero) (Logic.Not (value x = S.zero)) (value x = S.zero)
+  (Classical.excludedMiddle (value x = S.zero)) (\fun (zero: _) => zero)
+  (\fun (nonzero: _) => Logic.falseElim _ (AtInterior[positive := positiveOfNonzero nonzero].impossible boundary));
+\definition criterion: Logic.PropEquiv[Cones.Boundary, value x = S.zero] := Logic.PropEquiv[_, _] { ltr := toZero, rtl := ofZero };

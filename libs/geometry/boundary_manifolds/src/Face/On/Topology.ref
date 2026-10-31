@@ -1,0 +1,45 @@
+\import \root.Face[n := n, r := r].On[C := C, U := U] \as Face;
+\import topology.Topology[Carrier := Codomain.Point] \as Space;
+\definition face: \Pow Codomain.Point := { x: Codomain.Point \where Blocks.right x = (\fun (j: Normal.Coordinate) => S.zero) };
+\definition topology: topology.Structures[].Topology[FacePoint] := Space.Subspace[S := face].topology Codomain.topology;
+\definition forward[x: Domain.Point]: FacePoint := \into[Codomain.Point](SmoothMaps.apply inclusion x, face) \by { normalZero x };
+\definition leftInverse: \forall (x: Domain.Point) -> inverse (forward x) = x := \fun (x: Domain.Point) => Source.equality constraints parameters (inverse (forward x)) x (Face.leftInverse x);
+\definition rightInverse: \forall (x: FacePoint) -> forward (inverse x) = x := \fun (x: FacePoint) => \root.Refinement[A := Codomain.Point].equality face (forward (inverse x)) x (Face.rightInverse x);
+\definition forwardContinuous: topology.Continuity[A := Domain.Point, B := FacePoint].Continuous Domain.topology topology forward :=
+  topology.Continuity[A := Domain.Point, B := Codomain.Point].Corestriction[S := face].corestrictContinuous Domain.topology Codomain.topology forward inclusion.continuous;
+\import calculus.Maps[n := dimension, m := n] \as LeftMaps;
+\import calculus.LinearMap[n := dimension, m := n].On[U := U, L := Linear.leftLinear] \as Projection;
+\import topology.Continuity[A := FacePoint, B := Codomain.Point].Corestriction[S := face] \as FaceInclusion;
+\definition inOpen: topology.Continuity[A := FacePoint, B := Output.Carrier U].Continuous topology (Output.Topology[].Of[U := U].topology) (\fun (x: FacePoint) => x) :=
+  topology.Composition[A := FacePoint, B := Codomain.Point, C := Output.Carrier U].composeContinuous topology Codomain.topology (Output.Topology[].Of[U := U].topology)
+    (\fun (x: FacePoint) => x) (\fun (x: Codomain.Point) => x) (FaceInclusion.inclusionContinuous Codomain.topology) (Target.Topology[C := C, U := U].local);
+\definition projectionContinuous: topology.Continuity[A := FacePoint, B := Open.Carrier Open.whole].Continuous topology (Open.Topology[].Of[U := Open.whole].topology) (\fun (x: FacePoint) => Projection.map.apply x) :=
+  topology.Composition[A := FacePoint, B := Output.Carrier U, C := Open.Carrier Open.whole].composeContinuous topology (Output.Topology[].Of[U := U].topology) (Open.Topology[].Of[U := Open.whole].topology)
+    (\fun (x: FacePoint) => x) (LeftMaps.apply U Open.whole Projection.map) inOpen (LeftMaps.Topology[U := U, V := Open.whole].continuous Projection.map);
+\import topological_algebra.Euclidean[].Dimension[n := n].Topology[] \as Euclidean;
+\definition ambientContinuous: topology.Continuity[A := FacePoint, B := Source.Point].Continuous topology Euclidean.topology (\fun (x: FacePoint) => inverse x) :=
+  topology.Composition[A := FacePoint, B := Open.Carrier Open.whole, C := Source.Point].composeContinuous topology (Open.Topology[].Of[U := Open.whole].topology) Euclidean.topology
+    (\fun (x: FacePoint) => Projection.map.apply x) (\fun (u: Open.Carrier Open.whole) => u) projectionContinuous
+      (topology.Continuity[A := Open.Carrier Open.whole, B := Source.Point].Corestriction[S := Open.whole.points].inclusionContinuous Euclidean.topology);
+\definition inverseContinuous: topology.Continuity[A := FacePoint, B := Domain.Point].Continuous topology Domain.topology inverse :=
+  Source.Topology[C := constraints, U := parameters].Into[X := FacePoint, source := topology, f := inverse].continuous ambientContinuous;
+\definition homeomorphism: topology.Homeomorphism[A := Domain.Point, B := FacePoint].Homeomorphism[Domain.topology, topology] :=
+  topology.Homeomorphism[A := Domain.Point, B := FacePoint].Homeomorphism[Domain.topology, topology] {
+    forward := forward, backward := inverse, leftInverse := leftInverse, rightInverse := rightInverse,
+    forwardContinuous := forwardContinuous, backwardContinuous := inverseContinuous,
+  };
+\import \root.Immersion[n := n, m := dimension].Between[M := Domain.manifold, N := Codomain.manifold].IntoImage[f := inclusion] \as Image;
+\definition toImage: Space.Subset face Image.image := \fun (y: Codomain.Point)(zero: Blocks.right y = (\fun (j: Normal.Coordinate) => S.zero)) =>
+  Logic.existsIntro[Domain.Point, { x: Domain.Point \where SmoothMaps.apply inclusion x = y }] (inverse (\into[Codomain.Point](y, face) \by { zero })) (Face.rightInverse (\into[Codomain.Point](y, face) \by { zero }));
+\definition fromImage: Space.Subset Image.image face := \block {
+  \fun (y: Codomain.Point)(exists: Space.Member Image.image y) \then
+  \takefrom x: \Cast[Domain.Point] ({ x: Domain.Point \where SmoothMaps.apply inclusion x = y }) \by exists \then
+  \return \idelim (SmoothMaps.apply inclusion x \of Target.Point) = (y \of Target.Point) \with p: Target.Point => Blocks.right p = (\fun (j: Normal.Coordinate) => S.zero) \by {
+    base: normalZero x, equality: \bysub(Domain.Point, { x: Domain.Point \where SmoothMaps.apply inclusion x = y }, x)
+  }
+};
+\import Space.Subspace[S := face].Equivalent[T := Image.image] \as Equivalent;
+\definition imageHomeomorphism: topology.Homeomorphism[A := Domain.Point, B := Image.Image].Homeomorphism[Domain.topology, Image.topology] :=
+  topology.Homeomorphism[A := Domain.Point, B := FacePoint].Composition[C := Image.Image].compose Domain.topology topology Image.topology homeomorphism
+    (Equivalent.homeomorphism Codomain.topology toImage fromImage);
+\definition witness: Image.Witness := Image.Witness { homeomorphism := imageHomeomorphism, formula := \fun (x: Domain.Point) => \refl(SmoothMaps.apply inclusion x) };

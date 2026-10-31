@@ -1,0 +1,40 @@
+\import topology.Continuity[A := Domain, B := Point] \as First;
+\import topology.Continuity[A := Point, B := M.Point] \as Second;
+\definition inclusion: topology.Continuity[A := Domain, B := M.Point].Continuous domainTopology M.space (\fun (p: Domain) => p) :=
+  topology.Composition[A := Domain, B := Point, C := M.Point].composeContinuous domainTopology topology M.space (\fun (p: Domain) => p) (\fun (p: Point) => p)
+    (First.Corestriction[S := domain].inclusionContinuous topology) (Second.Corestriction[S := S].inclusionContinuous M.space);
+\definition oldPointContinuous: topology.Continuity[A := Domain, B := OldCharts.LocalPoint patch.source].Continuous domainTopology (OldCharts.domainTopology patch.source.domain) oldPoint :=
+  topology.Continuity[A := Domain, B := M.Point].Corestriction[S := patch.source.domain].corestrictContinuous domainTopology M.space oldPoint inclusion;
+\import topology.Homeomorphism[A := OldCharts.LocalPoint patch.source, B := Open.Carrier patch.source.image] \as Old;
+\definition oldCoordinateContinuous: topology.Continuity[A := Domain, B := Open.Carrier patch.source.image].Continuous domainTopology (Open.Topology[].Of[U := patch.source.image].topology) oldCoordinate :=
+  topology.Composition[A := Domain, B := OldCharts.LocalPoint patch.source, C := Open.Carrier patch.source.image].composeContinuous domainTopology (OldCharts.domainTopology patch.source.domain)
+    (Open.Topology[].Of[U := patch.source.image].topology) oldPoint (OldCharts.coordinate patch.source) oldPointContinuous (Old.laws _ _ patch.source.coordinates).forwardContinuous;
+\definition vectorContinuous: topology.Continuity[A := Domain, B := Open.Carrier patch.image].Continuous domainTopology (Open.Topology[].Of[U := patch.image].topology) vector :=
+  topology.Composition[A := Domain, B := Open.Carrier patch.source.image, C := Open.Carrier patch.image].composeContinuous domainTopology
+    (Open.Topology[].Of[U := patch.source.image].topology) (Open.Topology[].Of[U := patch.image].topology)
+    oldCoordinate (Maps.apply patch.source.image patch.image patch.change.forward) oldCoordinateContinuous
+    (Maps.Topology[U := patch.source.image, V := patch.image].continuous patch.change.forward);
+\definition forwardContinuous: topology.Continuity[A := Domain, B := Model.Carrier patch.constraints patch.image].Continuous domainTopology (Model.regionTopology patch.constraints patch.image) forward :=
+  topology.Continuity[A := Domain, B := Open.Carrier patch.image].Corestriction[S := Model.region patch.constraints patch.image].corestrictContinuous domainTopology
+    (Open.Topology[].Of[U := patch.image].topology) forward vectorContinuous;
+\definition parameterContinuous: topology.Continuity[A := Model.Carrier patch.constraints patch.image, B := Open.Carrier patch.source.image].Continuous
+  (Model.regionTopology patch.constraints patch.image) (Open.Topology[].Of[U := patch.source.image].topology) oldParameter :=
+  topology.Continuity[A := Open.Carrier patch.image, B := Open.Carrier patch.source.image].Restriction[S := Model.region patch.constraints patch.image].restrictContinuous
+    (Open.Topology[].Of[U := patch.image].topology) (Open.Topology[].Of[U := patch.source.image].topology)
+    (Maps.apply patch.image patch.source.image patch.change.backward) (Maps.Topology[U := patch.image, V := patch.source.image].continuous patch.change.backward);
+\definition pointLocalContinuous: topology.Continuity[A := Model.Carrier patch.constraints patch.image, B := OldCharts.LocalPoint patch.source].Continuous
+  (Model.regionTopology patch.constraints patch.image) (OldCharts.domainTopology patch.source.domain) pointValue :=
+  topology.Composition[A := Model.Carrier patch.constraints patch.image, B := Open.Carrier patch.source.image, C := OldCharts.LocalPoint patch.source].composeContinuous
+    (Model.regionTopology patch.constraints patch.image) (Open.Topology[].Of[U := patch.source.image].topology) (OldCharts.domainTopology patch.source.domain)
+    oldParameter (OldCharts.point patch.source) parameterContinuous (Old.laws _ _ patch.source.coordinates).backwardContinuous;
+\definition ambientContinuous: topology.Continuity[A := Model.Carrier patch.constraints patch.image, B := M.Point].Continuous (Model.regionTopology patch.constraints patch.image) M.space
+  (\fun (u: Model.Carrier patch.constraints patch.image) => pointValue u) :=
+  topology.Composition[A := Model.Carrier patch.constraints patch.image, B := OldCharts.LocalPoint patch.source, C := M.Point].composeContinuous
+    (Model.regionTopology patch.constraints patch.image) (OldCharts.domainTopology patch.source.domain) M.space pointValue (\fun (p: OldCharts.LocalPoint patch.source) => p)
+    pointLocalContinuous (topology.Continuity[A := OldCharts.LocalPoint patch.source, B := M.Point].Corestriction[S := patch.source.domain].inclusionContinuous M.space);
+\definition regionContinuous: topology.Continuity[A := Model.Carrier patch.constraints patch.image, B := Point].Continuous (Model.regionTopology patch.constraints patch.image) topology pointRegion :=
+  topology.Continuity[A := Model.Carrier patch.constraints patch.image, B := M.Point].Corestriction[S := S].corestrictContinuous
+    (Model.regionTopology patch.constraints patch.image) M.space pointRegion ambientContinuous;
+\definition backwardContinuous: topology.Continuity[A := Model.Carrier patch.constraints patch.image, B := Domain].Continuous (Model.regionTopology patch.constraints patch.image) domainTopology backward :=
+  topology.Continuity[A := Model.Carrier patch.constraints patch.image, B := Point].Corestriction[S := domain].corestrictContinuous
+    (Model.regionTopology patch.constraints patch.image) topology backward regionContinuous;

@@ -1,0 +1,40 @@
+\definition local: SourceCharts.LocalPoint left := \into[M.Point](x, left.domain) \by { contains };
+\definition source: Source.Carrier left.constraints left.image := SourceCharts.coordinate left local;
+\structure Extension: \Set := {
+  neighborhood: Open.OpenSet,
+  included: Open.Included neighborhood left.image,
+  contains: \In[Source.Point] neighborhood.points source,
+  map: Maps.Map neighborhood Output.whole,
+  inside: \forall (u: Source.Carrier left.constraints neighborhood) -> TargetCharts.Contains right (function
+    (SourceCharts.point left (\into[Open.Carrier left.image](Open.inclusion neighborhood left.image included u, Source.region left.constraints left.image) \by {
+      \bysub(Open.Carrier neighborhood, Source.region left.constraints neighborhood, u)
+    }))),
+  agrees: \forall (u: Source.Carrier left.constraints neighborhood) -> Maps.apply neighborhood Output.whole map u =
+    TargetCharts.coordinate right (\into[N.Point](function (SourceCharts.point left (\into[Open.Carrier left.image](Open.inclusion neighborhood left.image included u,
+      Source.region left.constraints left.image) \by { \bysub(Open.Carrier neighborhood, Source.region left.constraints neighborhood, u) })), right.domain) \by { inside u }),
+};
+\module Using(e: Extension);
+\module Compare(p, q: Extension);
+\definition Derivative: \Set := \Cast[calculus.Vector[n := n, m := m].LinearMap] ({ d: calculus.Vector[n := n, m := m].LinearMap \where
+  \exists ( e: Extension \where d = Using[e := e].jacobian ) });
+\definition derivativeExists: \exists Extension -> \exists Derivative := \block {
+  \fun (smooth: \exists Extension) \then
+  \takefrom e: Extension \by smooth \then
+  \return \exact(\into[calculus.Vector[n := n, m := m].LinearMap](Using[e := e].jacobian, Derivative) \by {
+    Logic.existsIntro[Extension, { q: Extension \where Using[e := e].jacobian = Using[e := q].jacobian }] e (\refl(Using[e := e].jacobian))
+  }, Derivative)
+};
+\definition derivativeUnique: \forall (d, e: Derivative) -> d = e := \block {
+  \fun (d, e: Derivative) \then
+  \takefrom p: \Cast[Extension] ({ p: Extension \where d = Using[e := p].jacobian }) \by \bysub(calculus.Vector[n := n, m := m].LinearMap, Derivative, d) \then
+  \takefrom q: \Cast[Extension] ({ q: Extension \where e = Using[e := q].jacobian }) \by \bysub(calculus.Vector[n := n, m := m].LinearMap, Derivative, e) \then
+  \return trans!{{calculus.Vector[n := n, m := m].LinearMap}} _ _ _ (\bysub(Extension, { p: Extension \where d = Using[e := p].jacobian }, p))
+    (trans!{{calculus.Vector[n := n, m := m].LinearMap}} _ _ _ (Compare[p := p, q := q].unique)
+      (sym!{{calculus.Vector[n := n, m := m].LinearMap}} _ _ (\bysub(Extension, { q: Extension \where e = Using[e := q].jacobian }, q))))
+};
+\definition derivative[smooth: \exists Extension]: Derivative := \choice Derivative \by { existence: derivativeExists smooth, uniqueness: derivativeUnique };
+\definition ofExtension: \forall (smooth: \exists Extension)(e: Extension) -> derivative smooth = Using[e := e].jacobian :=
+  \fun (smooth: \exists Extension)(e: Extension) => derivativeUnique (derivative smooth)
+    (\into[calculus.Vector[n := n, m := m].LinearMap](Using[e := e].jacobian, Derivative) \by {
+      Logic.existsIntro[Extension, { q: Extension \where Using[e := e].jacobian = Using[e := q].jacobian }] e (\refl(Using[e := e].jacobian))
+    });

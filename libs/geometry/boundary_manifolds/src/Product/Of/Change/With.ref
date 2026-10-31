@@ -1,0 +1,27 @@
+\import L.Using[extension := p] \as LeftChange;
+\import R.Using[extension := q] \as RightChange;
+\import Blocks.On[U := p.neighborhood, V := q.neighborhood] \as Local;
+\definition domain: Open.OpenSet := Local.domain;
+\import calculus.Maps[n := dimension, m := n] \as LeftMaps;
+\import calculus.Maps[n := dimension, m := m] \as RightMaps;
+\import calculus.Maps[n := dimension, m := dimension] \as Maps;
+\import LeftMaps.Composition[U := domain, V := p.neighborhood, f := Local.leftMap].After[l := n, W := LeftOpen.whole, g := p.map] \as LeftComposition;
+\import RightMaps.Composition[U := domain, V := q.neighborhood, f := Local.rightMap].After[l := m, W := RightOpen.whole, g := q.map] \as RightComposition;
+\import Blocks.Pair[d := dimension].On[U := domain, V := LeftOpen.whole, W := RightOpen.whole, f := LeftComposition.compose, g := RightComposition.compose] \as Joining;
+\import Maps.Corestriction[U := domain, V := Blocks.product LeftOpen.whole RightOpen.whole, W := Open.whole, f := Joining.map,
+  inside := \fun (u: Open.Carrier domain) => \refl(Maps.apply domain (Blocks.product LeftOpen.whole RightOpen.whole) Joining.map u)] \as Final;
+\definition included: Open.Included domain (chart i).image := \fun (u: Model.Point)(member: Logic.And[\In[Left.Point] p.neighborhood.points (Blocks.left u), \In[Right.Point] q.neighborhood.points (Blocks.right u)]) =>
+  Logic.And[_, _]::# (p.included (Blocks.left u) member.left) (q.included (Blocks.right u) member.right);
+\definition leftInput[u: Model.Carrier (chart i).constraints domain]: Left.Carrier c.constraints p.neighborhood := \into[LeftOpen.Carrier p.neighborhood](Local.leftPoint u, Left.region c.constraints p.neighborhood) \by {
+  nonnegativeLeft c.constraints d.constraints u (\bysub(Open.Carrier domain, Model.region (chart i).constraints domain, u))
+};
+\definition rightInput[u: Model.Carrier (chart i).constraints domain]: Right.Carrier d.constraints q.neighborhood := \into[RightOpen.Carrier q.neighborhood](Local.rightPoint u, Right.region d.constraints q.neighborhood) \by {
+  nonnegativeRight c.constraints d.constraints u (\bysub(Open.Carrier domain, Model.region (chart i).constraints domain, u))
+};
+\definition extension: Total.Extension := Total.Extension {
+  neighborhood := domain, included := included,
+  contains := \bysub(Model.Point, domain.points, Local.joinPoint LeftChange.center RightChange.center),
+  map := Final.map,
+  inside := \fun (u: Model.Carrier (chart i).constraints domain) => Logic.And[_, _]::# (p.inside (leftInput u)) (q.inside (rightInput u)),
+  agrees := \fun (u: Model.Carrier (chart i).constraints domain) => congr!{Left.Point Right.Point Model.Point} Blocks.join _ _ _ _ (p.agrees (leftInput u)) (q.agrees (rightInput u)),
+};

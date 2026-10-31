@@ -1,0 +1,42 @@
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\import \root.Model[n := n] \as Model;
+\import \root.Dimension[n := n] \as Corners;
+\import calculus.Real[].Multivariable[n := n].Open[] \as Open;
+\import manifolds.Dimension[n := n].Chart[M := M.Point, space := M.space] \as Charts;
+\import topology.Topology[Carrier := M.Point] \as Space;
+\import \root.Ambient[n := n].Over[M := M, S := Space.Whole] \as Construction;
+\definition OldChart: \Set := \Cast[Charts.Chart] M.atlas.charts;
+\module InChart(c: OldChart) {
+  \definition data: Construction.Data := Construction.Data {
+    source := c, image := c.image, constraints := Model.unconstrained,
+    change := calculus.Diffeomorphism[n := n, m := n].Identity[].value c.image,
+  };
+  \definition patch: Construction.Adapted := \into[Construction.Data](data, { d: Construction.Data \where Construction.Laws[d] }) \by {
+    Construction.Laws[data] {
+      forward := \fun (p: Charts.LocalPoint c)(member: _) => Model.unconstrainedNonnegative (Charts.coordinate c p),
+      backward := \fun (p: Charts.LocalPoint c)(nonnegative: _) => \refl(p),
+    }
+  };
+}
+\definition cover: Construction.Cover := \block {
+  \fun (x: Construction.Point) \then
+  \takefrom c: \Cast[Charts.Chart] ({ c: Charts.Chart \where Logic.And[\In[Charts.Chart] M.atlas.charts c, Charts.Contains c x] }) \by M.atlas.covers x \then
+  \let laws: Logic.And[\In[Charts.Chart] M.atlas.charts c, Charts.Contains c x] := \bysub(Charts.Chart,
+    { c: Charts.Chart \where Logic.And[\In[Charts.Chart] M.atlas.charts c, Charts.Contains c x] }, c) \then
+  \let old: OldChart := \into[Charts.Chart](c, M.atlas.charts) \by { laws.left } \then
+  \return Logic.existsIntro[Construction.Adapted, { p: Construction.Adapted \where Construction.ChartContains p x }] InChart[c := old].patch laws.right
+};
+\definition manifold: Corners.Manifold := Construction.Build[cover := cover].manifold;
+\definition forward[x: M.Point]: manifold.Point := \into[M.Point](x, Space.Whole) \by { \refl(x) };
+\definition backward[x: manifold.Point]: M.Point := x;
+\import topology.Continuity[A := M.Point, B := M.Point].Corestriction[S := Space.Whole] \as Into;
+\import topology.Maps[A := M.Point, B := M.Point].Identity[] \as Identity;
+\definition comparison: topology.Homeomorphism[A := M.Point, B := manifold.Point].Homeomorphism[M.space, manifold.space] :=
+  topology.Homeomorphism[A := M.Point, B := manifold.Point].Homeomorphism[M.space, manifold.space] {
+    forward := forward, backward := backward,
+    leftInverse := \fun (x: M.Point) => \refl(x), rightInverse := \fun (x: manifold.Point) => \refl(x),
+    forwardContinuous := Into.corestrictContinuous M.space M.space forward (Identity.continuous M.space),
+    backwardContinuous := Into.inclusionContinuous M.space,
+  };
+\module At(x: manifold.Point);

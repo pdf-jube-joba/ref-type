@@ -1,0 +1,52 @@
+\import std.Logic[].Classical[] \as Classical;
+\import \parent.Operations[] \as Operations;
+\definition InChart[c: Chart][v: Vector]: \Prop := Core.Cone c.constraints (coordinate c) (\parent.Coordinate[chart := c].decode v);
+\definition Inward[v: Vector]: \Prop := \forall (c: Chart) -> InChart c v;
+\definition Outward[v: Vector]: \Prop := Inward (Operations.negative v);
+\definition Tangential[v: Vector]: \Prop := Logic.And[Inward v, Outward v];
+\module Change(c, d: Chart, v: Vector) {
+  \import Charts.At[x := x, left := c, right := d, inLeft := contains c] \as Change;
+  \import \parent.\parent.Pair[left := c, right := d] \as Pair;
+  \import \parent.\parent.Coordinate[chart := c] \as C;
+  \import \parent.\parent.Coordinate[chart := d] \as D;
+  \definition law: InChart c v -> InChart d v := \block {
+    \fun (cone: _) \then
+    \takefrom e: Change.Extension \by Pair.compatible \then
+    \let image: Core.Cone d.constraints (coordinate d) (Change.Using[extension := e].jacobian.apply (C.decode v)) :=
+      Change.Using[extension := e].preservesCone (C.decode v) cone \then
+    \return \idelim Change.Using[extension := e].jacobian.apply (C.decode v) = D.decode v \with w: Vectors.Vector => Core.Cone d.constraints (coordinate d) w \by {
+      base: image,
+      equality: trans!{{Vectors.Vector}} _ _ _
+        (congr!{{Linear.Map} {Vectors.Vector}} (\fun (L: Linear.Map) => L.apply (C.decode v)) _ _
+          (sym!{{Linear.Map}} _ _ (Change.ofExtension Pair.compatible e)))
+        (sym!{{Vectors.Vector}} _ _ (\parent.\parent.ChartIsomorphism[chart := c].Change[other := d].coordinates v))
+    }
+  };
+}
+\definition criterion: \forall (c: Chart)(v: Vector) -> InChart c v -> Inward v :=
+  \fun (c: Chart)(v: Vector)(cone: _)(d: Chart) => Change[c := c, d := d, v := v].law cone;
+
+\definition Boundary: \Prop := Logic.Not (\forall (v: Vector) -> Inward v);
+\definition boundaryOfCoordinate: \forall (c: Chart) -> Core.boundary c.constraints (coordinate c) -> Boundary := \block {
+  \fun (c: Chart)(boundary: Core.boundary c.constraints (coordinate c))(all: \forall (v: Vector) -> Inward v) \then
+  \takefrom i: \Cast[Core.Coordinate] ({ i: Core.Coordinate \where Core.Active c.constraints (coordinate c) i }) \by boundary \then
+  \let v: Vectors.Vector := \fun (j: Core.Coordinate) => Real.neg Real.one \then
+  \let inside: InChart c (\parent.Coordinate[chart := c].encode v) := all (\parent.Coordinate[chart := c].encode v) c \then
+  \let positive: dedekind_reals.DedekindReal[].Le Real.zero (Real.neg Real.one) :=
+    dedekind_reals.DedekindReal[].leReplaceRight Real.zero _ _
+      (congr!{{Vectors.Vector} Real.Real} (\fun (w: Vectors.Vector) => w i) _ _ (\parent.Coordinate[chart := c].decodeEncode v))
+      (inside i (\bysub(Core.Coordinate, { i: Core.Coordinate \where Core.Active c.constraints (coordinate c) i }, i))) \then
+  \return dedekind_reals.DedekindReal[].ltNotLeReverse (Real.neg Real.one) Real.zero
+    (dedekind_reals.DedekindReal[].ltReplaceRight _ (Real.neg Real.zero) Real.zero (dedekind_reals.DedekindReal[].Arithmetic[].Prop[].negZero)
+      (dedekind_reals.DedekindReal[].Arithmetic[].Prop[].negStrictAntitone Real.zero Real.one Real.Estimates[].Product[].onePositive)) positive
+};
+\definition coordinateOfBoundary: \forall (c: Chart) -> Boundary -> Core.boundary c.constraints (coordinate c) :=
+  \fun (c: Chart)(boundary: Boundary) => Logic.orElim (Core.boundary c.constraints (coordinate c)) (Logic.Not (Core.boundary c.constraints (coordinate c)))
+    (Core.boundary c.constraints (coordinate c)) (Classical.excludedMiddle (Core.boundary c.constraints (coordinate c)))
+    (\fun (exists: Core.boundary c.constraints (coordinate c)) => exists)
+    (\fun (empty: Logic.Not (Core.boundary c.constraints (coordinate c))) => Logic.falseElim _ (boundary
+      (\fun (v: Vector) => criterion c v (\fun (i: Core.Coordinate)(active: _) => Logic.falseElim _
+        (empty (Logic.existsIntro[Core.Coordinate, { j: Core.Coordinate \where Core.Active c.constraints (coordinate c) j }] i active))))));
+\definition boundaryCriterion: \forall (c: Chart) -> Logic.PropEquiv[Core.boundary c.constraints (coordinate c), Boundary] :=
+  \fun (c: Chart) => Logic.PropEquiv[_, _] { ltr := boundaryOfCoordinate c, rtl := coordinateOfBoundary c };
+\module Lineality(c: Chart, v: Vector);

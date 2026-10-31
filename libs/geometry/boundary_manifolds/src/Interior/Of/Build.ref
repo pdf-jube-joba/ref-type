@@ -1,0 +1,23 @@
+\definition covers: \forall (x: Point) -> \exists ( a: Charts.Chart \where Logic.And[\In[Charts.Chart] charts a, Charts.Contains a x] ) := \block {
+  \fun (x: Point) \then
+  \takefrom c: \Cast[OldCharts.Chart] ({ c: OldCharts.Chart \where Logic.And[\In[OldCharts.Chart] M.atlas.charts c, OldCharts.Contains c x] }) \by M.atlas.covers x \then
+  \let laws: Logic.And[\In[OldCharts.Chart] M.atlas.charts c, OldCharts.Contains c x] := \bysub(OldCharts.Chart,
+    { c: OldCharts.Chart \where Logic.And[\In[OldCharts.Chart] M.atlas.charts c, OldCharts.Contains c x] }, c) \then
+  \let old: Chart := \into[OldCharts.Chart](c, M.atlas.charts) \by { laws.left } \then
+  \return Logic.existsIntro[Charts.Chart, { a: Charts.Chart \where Logic.And[\In[Charts.Chart] charts a, Charts.Contains a x] }] (\parent.In[c := old].chart)
+    (Logic.And[_, _]::# (Logic.existsIntro[Chart, { c: Chart \where \parent.In[c := old].chart = \parent.In[c := c].chart }] old (\refl(\parent.In[c := old].chart))) laws.right)
+};
+\definition compatible: \forall (a, b: Charts.Chart) -> \In[Charts.Chart] charts a -> \In[Charts.Chart] charts b -> Atlas.Compatible a b := \block {
+  \fun (a, b: Charts.Chart)(am: _)(bm: _) \then
+  \takefrom c: \Cast[Chart] ({ c: Chart \where a = \parent.In[c := c].chart }) \by am \then
+  \takefrom d: \Cast[Chart] ({ d: Chart \where b = \parent.In[c := d].chart }) \by bm \then
+  \return \idelim \parent.In[c := c].chart = a \with left: Charts.Chart => Atlas.Compatible left b \by {
+    base: \idelim \parent.In[c := d].chart = b \with right: Charts.Chart => Atlas.Compatible \parent.In[c := c].chart right \by {
+      base: \parent.Pair[c := c, d := d].compatible, equality: sym!{{Charts.Chart}} _ _ (\bysub(Chart, { d: Chart \where b = \parent.In[c := d].chart }, d))
+    }, equality: sym!{{Charts.Chart}} _ _ (\bysub(Chart, { c: Chart \where a = \parent.In[c := c].chart }, c))
+  }
+};
+\definition atlas: Atlas.Atlas := Atlas.Atlas { charts := charts, covers := covers, compatible := compatible };
+\import manifolds.Dimension[n := n].Smooth[] \as Smooth;
+\definition manifold: Smooth.Manifold := Smooth.From[M := Point, space := topology, atlas := atlas].manifold
+  (Subspace.Properties[].hausdorff M.space M.hausdorff) (Subspace.Properties[].secondCountable M.space M.secondCountable);

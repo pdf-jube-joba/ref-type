@@ -1,0 +1,28 @@
+\definition image: \Pow N.Point := { y: N.Point \where \exists ( x: M.Point \where Maps.apply f x = y ) };
+\definition Image: \Set := \Cast[N.Point] image;
+\definition point[x: M.Point]: Image := \into[N.Point](Maps.apply f x, image) \by {
+  Logic.existsIntro[M.Point, { y: M.Point \where Maps.apply f y = Maps.apply f x }] x (\refl(Maps.apply f x))
+};
+\definition Values[y: Image]: \Set := \Cast[M.Point] ({ x: M.Point \where Maps.apply f x = y });
+\definition existence: \forall (y: Image) -> \exists Values y := \fun (y: Image) => \bysub(N.Point, image, y);
+\definition uniqueness: \forall (y: Image)(x, z: Values y) -> x = z := \fun (y: Image)(x, z: Values y) =>
+  (embeddingLaws f).injective x z (trans!{{N.Point}} _ _ _
+    (\bysub(M.Point, { x: M.Point \where Maps.apply f x = y }, x))
+    (sym!{{N.Point}} _ _ (\bysub(M.Point, { x: M.Point \where Maps.apply f x = y }, z))));
+\definition inverse[y: Image]: Values y := \choice Values y \by { existence: existence y, uniqueness: uniqueness y };
+\definition rightInverse: \forall (y: Image) -> point (inverse y) = y := \fun (y: Image) => \bysub(M.Point, { x: M.Point \where Maps.apply f x = y }, inverse y);
+\definition leftInverse: \forall (x: M.Point) -> inverse (point x) = x := \fun (x: M.Point) => (embeddingLaws f).injective _ x (rightInverse (point x));
+\import TargetTopology.Subspace[S := image] \as Subspace;
+\definition imageTopology: topology.Structures[].Topology[Image] := Subspace.topology N.space;
+\import Continuous.Corestriction[S := image] \as Corestriction;
+\import topology.Continuity[A := Image, B := M.Point] \as Backward;
+\module Open(S: \Pow M.Point, openS: SourceTopology.IsOpenIn M.space S);
+\definition inverseContinuous: Backward.Continuous imageTopology M.space (\fun (y: Image) => inverse y) :=
+  \fun (S: \Pow M.Point)(openS: _) => Open[S := S, openS := openS].open;
+\import topology.Homeomorphism[A := M.Point, B := Image] \as Homeomorphisms;
+\definition homeomorphism: Homeomorphisms.Homeomorphism[M.space, imageTopology] := Homeomorphisms.Homeomorphism[M.space, imageTopology] {
+  forward := point, backward := \fun (y: Image) => inverse y,
+  leftInverse := leftInverse, rightInverse := rightInverse,
+  forwardContinuous := Corestriction.corestrictContinuous M.space N.space point f.continuous,
+  backwardContinuous := inverseContinuous,
+};
