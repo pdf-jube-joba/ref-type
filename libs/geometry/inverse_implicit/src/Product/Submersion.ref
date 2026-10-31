@@ -1,0 +1,25 @@
+\import calculus.Maps[n := dimension, m := dimension] \as Maps;
+\import calculus.Maps[n := dimension, m := m] \as Functions;
+\import calculus.Vector[n := dimension, m := m] \as Differentials;
+\import calculus.Vector[n := m, m := m] \as End;
+\import calculus.Diffeomorphism[n := dimension, m := dimension] \as Diffeomorphisms;
+\definition differential: Differentials.LinearMap := Functions.Differential[U := U, V := RightOpen.whole, f := f, a := a].value;
+\import \parent.Surjection[D := differential] \as Splittings;
+\definition Surjective: \Prop := Splittings.Surjective;
+\structure LocalForm: \Set := {
+  domain: Open.OpenSet,
+  parameters: LeftOpen.OpenSet,
+  values: RightOpen.OpenSet,
+  included: Open.Included domain U,
+  contains: \In[Point] domain.points a,
+  containsValue: \In[RightPoint] values.points (Functions.apply U RightOpen.whole f a),
+  coordinates: Diffeomorphisms.Diffeomorphism domain (Split.product parameters values),
+  projection: \forall (x: Open.Carrier domain) -> Functions.apply U RightOpen.whole f (Open.inclusion domain U included x) =
+    Split.right (Maps.apply domain (Split.product parameters values) coordinates.forward x),
+};
+\module WithSplitting(splitting: Splittings.Splitting);
+\definition localExistence: Surjective -> \exists LocalForm := \block {
+  \fun (surjective: Surjective) \then
+  \takefrom splitting: Splittings.Splitting \by Splittings.existence surjective \then
+  \return WithSplitting[splitting := splitting].localExistence
+};

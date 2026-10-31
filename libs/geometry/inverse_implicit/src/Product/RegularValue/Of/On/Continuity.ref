@@ -1,0 +1,42 @@
+\import topology.Continuity[A := Domain, B := Fiber] \as FirstInclusion;
+\import topology.Continuity[A := Fiber, B := M.Point] \as SecondInclusion;
+\import topology.Continuity[A := Domain, B := M.Point] \as AmbientInclusion;
+\definition ambientInclusion: AmbientInclusion.Continuous domainTopology M.space (\fun (x: Domain) => x) :=
+  topology.Composition[A := Domain, B := Fiber, C := M.Point].composeContinuous domainTopology topology M.space (\fun (x: Domain) => x) (\fun (x: Fiber) => x)
+    (FirstInclusion.Corestriction[S := domain].inclusionContinuous topology) (SecondInclusion.Corestriction[S := points].inclusionContinuous M.space);
+\import topology.Continuity[A := Domain, B := Charts.LocalPoint slice.source] \as OldPoints;
+\definition oldPointContinuous: OldPoints.Continuous domainTopology (Charts.domainTopology slice.source.domain) oldPoint :=
+  AmbientInclusion.Corestriction[S := slice.source.domain].corestrictContinuous domainTopology M.space oldPoint ambientInclusion;
+\import topology.Homeomorphism[A := Charts.LocalPoint slice.source, B := Open.Carrier slice.source.image] \as OldChart;
+\definition oldCoordinateContinuous: topology.Continuity[A := Domain, B := Open.Carrier slice.source.image].Continuous domainTopology (Open.Topology[].Of[U := slice.source.image].topology) oldCoordinate :=
+  topology.Composition[A := Domain, B := Charts.LocalPoint slice.source, C := Open.Carrier slice.source.image].composeContinuous domainTopology (Charts.domainTopology slice.source.domain)
+    (Open.Topology[].Of[U := slice.source.image].topology) oldPoint (Charts.coordinate slice.source) oldPointContinuous
+      (OldChart.laws _ _ slice.source.coordinates).forwardContinuous;
+\definition vectorContinuous: topology.Continuity[A := Domain, B := Open.Carrier product].Continuous domainTopology (Open.Topology[].Of[U := product].topology) coordinateVector :=
+  topology.Composition[A := Domain, B := Open.Carrier slice.source.image, C := Open.Carrier product].composeContinuous domainTopology (Open.Topology[].Of[U := slice.source.image].topology)
+    (Open.Topology[].Of[U := product].topology) oldCoordinate (EuclideanMaps.apply slice.source.image product slice.coordinates.forward) oldCoordinateContinuous
+      (EuclideanMaps.Topology[U := slice.source.image, V := product].continuous slice.coordinates.forward);
+\definition forwardContinuous: topology.Continuity[A := Domain, B := LeftOpen.Carrier slice.parameters].Continuous domainTopology (LeftOpen.Topology[].Of[U := slice.parameters].topology) forward :=
+  topology.Composition[A := Domain, B := Open.Carrier product, C := LeftOpen.Carrier slice.parameters].composeContinuous domainTopology (Open.Topology[].Of[U := product].topology)
+    (LeftOpen.Topology[].Of[U := slice.parameters].topology) coordinateVector (calculus.Maps[n := std.Data[].Nat[].Basic[].Def[].add m n, m := n].apply product slice.parameters Split.On[U := slice.parameters, V := slice.values].leftMap)
+    vectorContinuous (calculus.Maps[n := std.Data[].Nat[].Basic[].Def[].add m n, m := n].Topology[U := product, V := slice.parameters].continuous Split.On[U := slice.parameters, V := slice.values].leftMap);
+\definition parameterContinuous: topology.Continuity[A := LeftOpen.Carrier slice.parameters, B := Open.Carrier slice.source.image].Continuous
+  (LeftOpen.Topology[].Of[U := slice.parameters].topology) (Open.Topology[].Of[U := slice.source.image].topology) oldParameter := Parameters.Topology[U := slice.parameters, V := slice.source.image].continuous parametrization;
+\definition pointLocalContinuous: topology.Continuity[A := LeftOpen.Carrier slice.parameters, B := Charts.LocalPoint slice.source].Continuous
+  (LeftOpen.Topology[].Of[U := slice.parameters].topology) (Charts.domainTopology slice.source.domain) pointValue :=
+  topology.Composition[A := LeftOpen.Carrier slice.parameters, B := Open.Carrier slice.source.image, C := Charts.LocalPoint slice.source].composeContinuous
+    (LeftOpen.Topology[].Of[U := slice.parameters].topology) (Open.Topology[].Of[U := slice.source.image].topology) (Charts.domainTopology slice.source.domain)
+    oldParameter (Charts.point slice.source) parameterContinuous (OldChart.laws _ _ slice.source.coordinates).backwardContinuous;
+\definition pointAmbientContinuous: topology.Continuity[A := LeftOpen.Carrier slice.parameters, B := M.Point].Continuous
+  (LeftOpen.Topology[].Of[U := slice.parameters].topology) M.space (\fun (p: LeftOpen.Carrier slice.parameters) => pointValue p) :=
+  topology.Composition[A := LeftOpen.Carrier slice.parameters, B := Charts.LocalPoint slice.source, C := M.Point].composeContinuous
+    (LeftOpen.Topology[].Of[U := slice.parameters].topology) (Charts.domainTopology slice.source.domain) M.space pointValue (\fun (x: Charts.LocalPoint slice.source) => x)
+    pointLocalContinuous (topology.Continuity[A := Charts.LocalPoint slice.source, B := M.Point].Corestriction[S := slice.source.domain].inclusionContinuous M.space);
+\definition pointFiberContinuous: topology.Continuity[A := LeftOpen.Carrier slice.parameters, B := Fiber].Continuous
+  (LeftOpen.Topology[].Of[U := slice.parameters].topology) topology pointFiber :=
+  topology.Continuity[A := LeftOpen.Carrier slice.parameters, B := M.Point].Corestriction[S := points].corestrictContinuous
+    (LeftOpen.Topology[].Of[U := slice.parameters].topology) M.space pointFiber pointAmbientContinuous;
+\definition backwardContinuous: topology.Continuity[A := LeftOpen.Carrier slice.parameters, B := Domain].Continuous
+  (LeftOpen.Topology[].Of[U := slice.parameters].topology) domainTopology backward :=
+  topology.Continuity[A := LeftOpen.Carrier slice.parameters, B := Fiber].Corestriction[S := domain].corestrictContinuous
+    (LeftOpen.Topology[].Of[U := slice.parameters].topology) topology backward pointFiberContinuous;

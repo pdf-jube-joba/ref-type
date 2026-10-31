@@ -1,0 +1,27 @@
+\import Open.Analysis[] \as Analysis;
+\import Open.C1[] \as C1;
+\import C1.At[U := U, f := f, g := g, a := a] \as At;
+\import Scalars.FiniteSums[] \as Sums;
+\definition theta: Real := At.tolerance Scalars.half;
+\definition thetaPositive: R.Lt Scalars.zero theta := At.tolerancePositive Scalars.half (Laws.ltOfRat std.Arithmetic[].Rat[].Estimates[].zeroRat std.Arithmetic[].Rat[].Estimates[].halfRat std.Arithmetic[].Rat[].Estimates[].halfPositive);
+\definition thetaNonnegative: R.Le Scalars.zero theta := Order.leOfLt _ _ thetaPositive;
+\structure DerivativeLaws: \Prop := {
+  partials: \forall (i: Space.Coordinate) -> Analysis.HasPartialDerivative U f i (g i),
+  continuous: \forall (i: Space.Coordinate) -> Analysis.ContinuousAt U (g i) a,
+  zero: \forall (i: Space.Coordinate) -> g i a = Scalars.zero,
+};
+\structure Neighborhood: \Set := {
+  radius: Real,
+  positive: R.Lt Scalars.zero radius,
+  included: \forall (x: Point) -> R.Le (distance x a) radius -> \In[Point] U.points x,
+  estimate: \forall (x, y: Open.Carrier U) -> R.Le (distance x a) radius -> R.Le (distance y a) radius ->
+    R.Le (Scalars.distance (f y) (f x)) (Scalars.mul Scalars.half (distance y x)),
+};
+\module Using(controls: At.Controls theta, rho: Real);
+\definition locallyContractive: DerivativeLaws -> \exists Neighborhood := \block {
+  \fun (laws: DerivativeLaws) \then
+  \takefrom controls: At.Controls theta \by At.chooseControls theta thetaPositive laws.continuous \then
+  \takefrom rho: \Cast[Real] ({ r: Real \where Open.BallInside[U.points, a, r] }) \by U.open a (\bysub(Point, U.points, a)) \then
+  \return Using[controls := controls, rho := rho].neighborhood laws
+    (\bysub(Real, { r: Real \where Open.BallInside[U.points, a, r] }, rho))
+};

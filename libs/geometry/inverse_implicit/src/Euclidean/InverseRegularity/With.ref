@@ -1,0 +1,51 @@
+\definition inverseRegular: calculus.MatrixFamily[d := n, p := n, q := n].Regular U B := calculus.InverseFamily[d := n, r := n].regular U
+  Jacobian.differential B hypotheses.left hypotheses.rightLinear Jacobian.matrixRegular;
+\definition entry[j, i: Space.Coordinate]: Partials.Function U := \into[Open.ScalarFunction U]
+  ((\fun (x: Open.Carrier U) => (B x).apply (Coordinates.basis i) j), { h: Open.ScalarFunction U \where Smooth.SmoothOn U h }) \by { inverseRegular j i };
+\definition scalar[j: Space.Coordinate]: Open.ScalarFunction V := \fun (y: Open.Carrier V) => g y j;
+\definition scalarContinuous: \forall (j: Space.Coordinate) -> Analysis.ContinuousOn V (scalar j) := \block {
+  \fun (j: Space.Coordinate)(b: Open.Carrier V)(epsilon: Real)(positive: _) \then
+  \let delta: Real := Scalars.mul Scalars.half (Scalars.mul Scalars.half epsilon) \then
+  \return Logic.existsIntro[Real, { d: Real \where Analysis.ContinuityControl[V, scalar j, b, epsilon, d] }] delta
+    (Analysis.ContinuityControl[V, scalar j, b, epsilon, delta] {
+      positive := Bounds.halfOfPositive _ (Bounds.halfOfPositive epsilon positive),
+      estimate := \fun (y: Open.Carrier V)(near: _) => Order.ltTrans _ _ _
+        (R.leLtTrans _ _ _ (R.leTrans _ _ _ (Norm.coordinateDistance (g y) (g b) j) (hypotheses.lipschitz y b))
+          (R.ltReplaceRight _ _ _ (Bounds.halfTwice (Scalars.mul Scalars.half epsilon)) (Bounds.addLt _ _ _ _ near near))) (Bounds.halfStrict epsilon positive),
+    })
+};
+\import Open.Topology[].Of[U := V] \as SourceTopology;
+\import Open.Topology[].Of[U := U] \as TargetTopology;
+\import topological_algebra.Coordinates[K := Real, I := Space.Coordinate].Universal[A := Open.Carrier V] \as Components;
+\import topology.Continuity[A := Open.Carrier V, B := Point] \as Ambient;
+\import Ambient.Corestriction[S := U.points] \as Corestriction;
+\definition ambientCoordinateContinuous: Ambient.Continuous SourceTopology.topology Space.Topology[].coordinateTopology (\fun (y: Open.Carrier V) => g y) :=
+  Components.continuous SourceTopology.topology metric_spaces.RealLine[].topology (\fun (y: Open.Carrier V) => g y)
+    (\fun (j: Space.Coordinate) => SourceTopology.Continuity[].topological (scalar j) (scalarContinuous j));
+\definition ambientContinuous: Ambient.Continuous SourceTopology.topology Space.Topology[].topology (\fun (y: Open.Carrier V) => g y) :=
+  \fun (W: \Pow Point)(open: _) => ambientCoordinateContinuous W (Space.Topology[].metricOpen W open);
+\definition continuous: topology.Continuity[A := Open.Carrier V, B := Open.Carrier U].Continuous SourceTopology.topology TargetTopology.topology g :=
+  Corestriction.corestrictContinuous SourceTopology.topology Space.Topology[].topology g ambientContinuous;
+\definition p[j, i: Space.Coordinate]: Open.ScalarFunction V := \fun (y: Open.Carrier V) => entry j i (g y);
+\import SmoothMaps.WithPartials[U := V, V := U, f := g, p := p] \as Composition;
+\definition differential: \forall (b: Open.Carrier V) -> Vector.HasDifferentialAt V (\fun (y: Open.Carrier V) => g y) b (B (g b)) :=
+  \fun (b: Open.Carrier V) => \parent.\parent.InverseDifferential[U := U, V := V, f := SmoothMaps.apply U Open.whole f, g := g, b := b,
+    d := Jacobian.differential (g b), e := B (g b)].law
+      (\parent.\parent.InverseDifferential[U := U, V := V, f := SmoothMaps.apply U Open.whole f, g := g, b := b,
+        d := Jacobian.differential (g b), e := B (g b)].Hypotheses {
+        differential := SmoothMaps.Differential[U := U, V := Open.whole, f := f, a := g b].vectorLaw,
+        right := hypotheses.right, inverse := hypotheses.left (g b), lipschitz := \fun (y: Open.Carrier V) => hypotheses.lipschitz y b,
+      });
+\definition partials: Composition.PartialLaws := \fun (j, i: Space.Coordinate)(b: Open.Carrier V) =>
+  Analysis.Differential[U := V, f := scalar j, a := b, d := Vector.row (B (g b)) j].Partial[i := i].law (differential b j);
+\definition partialContinuous: Composition.ContinuousPartials := \fun (j, i: Space.Coordinate) => Composition.continuous (entry j i) continuous;
+\definition contDiff: \forall (k: N.Nat^)(h: Partials.Function U) -> Smooth.ContDiffOn V k (Composition.scalar h) :=
+  \induction (k: N.Nat^) \return \forall (h: Partials.Function U) -> Smooth.ContDiffOn V k (Composition.scalar h) \with {
+    | zero: \fun (h: Partials.Function U) => Properties.zeroOfContinuous V (Composition.scalar h) (Composition.continuous h continuous)
+    | succ: \fun (k: N.Nat^)(previous: \forall (h: Partials.Function U) -> Smooth.ContDiffOn V k (Composition.scalar h))(h: Partials.Function U) =>
+      Composition.contDiffStep k h continuous partials partialContinuous previous (\fun (j, i: Space.Coordinate) => previous (entry j i))
+  };
+\definition map: SmoothMaps.Map V U := \into[SmoothMaps.Data[V, U]](SmoothMaps.Data[V, U] { apply := g },
+  { data: SmoothMaps.Data[V, U] \where SmoothMaps.Laws[V, U, data] }) \by {
+    SmoothMaps.Laws[V, U, SmoothMaps.Data[V, U]::# g] { smooth := \fun (j: Space.Coordinate)(k: N.Nat^) => contDiff k (Open.Projection[U := U].function j) }
+  };

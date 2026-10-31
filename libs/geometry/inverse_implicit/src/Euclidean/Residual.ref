@@ -1,0 +1,27 @@
+\import Open.Smooth[] \as Smooth;
+\import Smooth.Derivative[] \as Partials;
+\import Smooth.Properties[] \as Properties;
+\import Smooth.Operations[] \as Operations;
+\import Open.Projection[U := U] \as Projection;
+\import Open.Analysis[] \as Analysis;
+\import Analysis.Properties[] \as Uniqueness;
+\import \parent.ScalarOperations[] \as ScalarOperations;
+\import SmoothMaps.Differential[U := U, V := Open.whole, f := f, a := a] \as Differential;
+\definition function[x: Open.Carrier U]: Point := Coordinates.subPoint x (SmoothMaps.apply U Open.whole f x);
+\definition component[j: Space.Coordinate]: Open.ScalarFunction U := \fun (x: Open.Carrier U) => function x j;
+\definition gradient[j, i: Space.Coordinate]: Open.ScalarFunction U := \fun (x: Open.Carrier U) =>
+  Scalars.sub (Partials.derivative U (Projection.function j) i x) (Partials.derivative U (SmoothMaps.coordinateFunction U Open.whole f j) i x);
+\definition IdentityDifferential: \Prop := \forall (v: Point) -> Differential.value.apply v = v;
+\definition Neighborhoods: \Set := \forall (j: Space.Coordinate) -> \root.Euclidean[n := n].Flat[U := U, f := component j, g := gradient j, a := a].Neighborhood;
+\module Coordinate(j: Space.Coordinate);
+\definition neighborhoodsExist: IdentityDifferential -> \exists Neighborhoods :=
+  \fun (identity: IdentityDifferential) => \axiom:classicalIndefiniteChoice(Space.Coordinate,
+    (\fun (j: Space.Coordinate) => \root.Euclidean[n := n].Flat[U := U, f := component j, g := gradient j, a := a].Neighborhood),
+    \fun (j: Space.Coordinate) => Coordinate[j := j].neighborhoodExists identity);
+\module Bounds(neighborhoods: Neighborhoods, rho: Real);
+\definition contractionExists: IdentityDifferential -> \exists ( r: Real \where \root.Euclidean[n := n].NearIdentity[U := U, f := SmoothMaps.apply U Open.whole f, a := a, r := r].Control ) := \block {
+  \fun (identity: IdentityDifferential) \then
+  \takefrom neighborhoods: Neighborhoods \by neighborhoodsExist identity \then
+  \takefrom rho: \Cast[Real] ({ r: Real \where Open.BallInside[U.points, a, r] }) \by U.open a (\bysub(Point, U.points, a)) \then
+  \return Bounds[neighborhoods := neighborhoods, rho := rho].existsControl (\bysub(Real, { r: Real \where Open.BallInside[U.points, a, r] }, rho))
+};

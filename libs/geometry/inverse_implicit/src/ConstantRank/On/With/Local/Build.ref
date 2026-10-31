@@ -1,0 +1,70 @@
+\import \root.Euclidean[n := k] \as Parameter;
+\import Scalars.Estimates[] \as Bounds;
+\definition radius: Real := Scalars.mul Scalars.half rho;
+\definition parameters: ParameterOpen.OpenSet := Parameter.ball baseParameter radius;
+\definition parameterIncluded: ParameterOpen.Included parameters local.parameters := \fun (p: Parameter.Point)(member: _) => ball.included p
+  (R.ltLeTrans _ radius rho (Parameter.ofBall baseParameter radius (\into[Parameter.Point](p, parameters.points) \by { member })) (Bounds.halfBelow rho (R.Order[].leOfLt _ _ ball.positive)));
+\definition smallProduct: Open.OpenSet := Blocks.product parameters local.values;
+\definition productIncluded: Open.Included smallProduct product := \fun (y: Point)(member: Logic.And[\In[Parameter.Point] parameters.points (Blocks.left y), \In[ImagePoint] local.values.points (Blocks.right y)]) =>
+  Logic.And[_, _]::# (parameterIncluded (Blocks.left y) member.left) member.right;
+\import \root.Euclidean[n := sourceDimension].RestrictDiffeomorphism[U := local.domain, V := product, f := local.coordinates, W := smallProduct, included := productIncluded] \as Restriction;
+\definition sourceIncluded: Open.Included Restriction.domain U := \fun (p: Point)(member: _) => local.included p (Restriction.input p member);
+\definition sourceCenter: Open.Carrier local.domain := \into[Point](a, local.domain.points) \by { local.contains };
+\definition smallContains: \In[Point] smallProduct.points basePoint := Logic.And[_, _]::#
+  (Parameter.inBall baseParameter baseParameter radius (R.ltReplaceLeft Scalars.zero _ _ (sym!{Real} _ _ (topological_algebra.Euclidean[].Dimension[n := k].Norm[].distanceSelf baseParameter)) (Bounds.halfOfPositive rho ball.positive)))
+  (\bysub(Point, product.points, basePoint)).right;
+\import Blocks.FixedLeft[U := local.values, V := product, c := baseParameter] \as BaseSection;
+\definition baseInside: BaseSection.Included := \fun (z: ImageOpen.Carrier local.values) => Logic.And[_, _]::#
+  (\idelim baseParameter = Blocks.left (Blocks.join baseParameter z) \with p: Parameter.Point => \In[Parameter.Point] local.parameters.points p \by {
+    base: \bysub(Parameter.Point, local.parameters.points, baseParameter), equality: sym!{Parameter.Point} _ _ (Blocks.leftJoin baseParameter z)
+  })
+  (\idelim z = Blocks.right (Blocks.join baseParameter z) \with p: ImagePoint => \In[ImagePoint] local.values.points p \by {
+    base: \bysub(ImagePoint, local.values.points, z), equality: sym!{ImagePoint} _ _ (Blocks.rightJoin baseParameter z)
+  });
+\import calculus.Maps[n := r, m := targetDimension] \as Sections;
+\definition section: Sections.Map local.values TargetOpen.whole := calculus.Maps[n := r, m := sourceDimension].Composition[U := local.values, V := product, f := BaseSection.map baseInside].After[l := targetDimension, W := TargetOpen.whole, g := transformed].compose;
+\definition sectionProjection: \forall (z: ImageOpen.Carrier local.values) -> projection.apply (Sections.apply local.values TargetOpen.whole section z) = z :=
+  \fun (z: ImageOpen.Carrier local.values) => trans!{ImagePoint} _ _ _ (projectionLaw (BaseSection.apply baseInside z)) (Blocks.rightJoin baseParameter z);
+\import calculus.Maps[n := targetDimension, m := targetDimension] \as TargetMaps;
+\import calculus.LinearMap[n := targetDimension, m := targetDimension].On[U := TargetOpen.whole, L := splitting.coordinate] \as TargetLinear;
+\definition targetSection: Sections.Map local.values TargetOpen.whole := Sections.Composition[U := local.values, V := TargetOpen.whole, f := section].After[l := targetDimension, W := TargetOpen.whole, g := TargetLinear.map].compose;
+\import calculus.Maps[n := r, m := l] \as Transverse;
+\definition transverse: Transverse.Map local.values TransverseOpen.whole := Sections.Composition[U := local.values, V := TargetOpen.whole, f := targetSection].After[l := l, W := TransverseOpen.whole,
+  g := calculus.LinearMap[n := targetDimension, m := l].On[U := TargetOpen.whole, L := Target.leftLinear].map].compose;
+\import Target.GraphChange[U := local.values, h := transverse] \as Graph;
+\import \root.Euclidean[n := targetDimension].LinearChange[U := Graph.domain, d := splitting.inverse, e := splitting.coordinate] \as TargetChange;
+\import TargetChange.With[left := splitting.rightInverse, right := splitting.leftInverse] \as Change;
+\import calculus.Diffeomorphism[n := targetDimension, m := targetDimension] \as TargetDiffeomorphisms;
+\definition targetCoordinates: TargetDiffeomorphisms.Diffeomorphism TargetChange.target Graph.domain := TargetDiffeomorphisms.Composition[U := TargetChange.target, V := Graph.domain,
+  f := TargetDiffeomorphisms.Inverse[U := Graph.domain, V := TargetChange.target, f := Change.equivalence].inverse].After[l := targetDimension, W := Graph.domain, g := Graph.equivalence].compose;
+\module Factor(y: Open.Carrier smallProduct);
+\definition imageEquation: \forall (x: Open.Carrier Restriction.domain) -> Maps.apply U TargetOpen.whole f (Open.inclusion Restriction.domain U sourceIncluded x) =
+  Sections.apply local.values TargetOpen.whole section (Blocks.On[U := parameters, V := local.values].rightPoint (Coordinates.apply Restriction.domain smallProduct Restriction.forward x)) :=
+  \fun (x: Open.Carrier Restriction.domain) => trans!{TargetPoint} _ _ _
+    (sym!{TargetPoint} _ _ (congr!{{Open.Carrier local.domain} TargetPoint} (\fun (q: Open.Carrier local.domain) => Maps.apply U TargetOpen.whole f (Open.inclusion local.domain U local.included q)) _ _ (local.coordinates.leftInverse (Open.inclusion Restriction.domain local.domain Restriction.input x))))
+    (Factor[y := Coordinates.apply Restriction.domain smallProduct Restriction.forward x].equation);
+\definition targetIncluded: \forall (z: ImageOpen.Carrier local.values) -> \In[TargetPoint] TargetChange.target.points (Sections.apply local.values TargetOpen.whole section z) := \block {
+  \fun (z: ImageOpen.Carrier local.values) \then
+  \let image: TargetPoint := Sections.apply local.values TargetOpen.whole section z \then
+  \let member: \In[TargetPoint] Graph.domain.points (splitting.coordinate.apply image) := Logic.And[_, _]::# (\refl(TargetBlocks.left (splitting.coordinate.apply image)))
+    (\idelim z = TargetBlocks.right (splitting.coordinate.apply image) \with p: ImagePoint => \In[ImagePoint] local.values.points p \by {
+      base: \bysub(ImagePoint, local.values.points, z), equality: sym!{ImagePoint} _ _ (trans!{ImagePoint} _ _ _ (splitting.projection image) (sectionProjection z))
+    }) \then
+  \return TargetMaps.Preimage[U := TargetOpen.whole, W := TargetOpen.whole, V := Graph.domain,
+    f := calculus.LinearMap[n := targetDimension, m := targetDimension].On[U := TargetOpen.whole, L := splitting.coordinate].map].intro
+      (\into[TargetPoint](image, TargetOpen.whole.points) \by { \refl(image) }) member
+};
+\definition imageInside: \forall (x: Open.Carrier Restriction.domain) -> \In[TargetPoint] TargetChange.target.points (Maps.apply U TargetOpen.whole f (Open.inclusion Restriction.domain U sourceIncluded x)) :=
+  \fun (x: Open.Carrier Restriction.domain) => \idelim Sections.apply local.values TargetOpen.whole section (Blocks.On[U := parameters, V := local.values].rightPoint (Coordinates.apply Restriction.domain smallProduct Restriction.forward x)) = Maps.apply U TargetOpen.whole f (Open.inclusion Restriction.domain U sourceIncluded x)
+    \with p: TargetPoint => \In[TargetPoint] TargetChange.target.points p \by {
+    base: targetIncluded (Blocks.On[U := parameters, V := local.values].rightPoint (Coordinates.apply Restriction.domain smallProduct Restriction.forward x)), equality: sym!{TargetPoint} _ _ (imageEquation x)
+  };
+\module Formula(x: Open.Carrier Restriction.domain);
+\definition sourceContains: \In[Point] Restriction.domain.points a := Restriction.intro sourceCenter smallContains;
+\definition normalForm: NormalForm := NormalForm {
+  source := Restriction.domain, target := TargetChange.target, parameters := parameters, values := local.values,
+  included := sourceIncluded, contains := sourceContains,
+  containsImage := imageInside (\into[Point](a, Restriction.domain.points) \by { sourceContains }),
+  sourceCoordinates := Restriction.equivalence, targetCoordinates := targetCoordinates,
+  imageInside := imageInside, formula := \fun (x: Open.Carrier Restriction.domain) => Formula[x := x].formula,
+};

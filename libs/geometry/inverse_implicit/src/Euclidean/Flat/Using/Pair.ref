@@ -1,0 +1,29 @@
+\import C1.Bounded[U := U, f := f, g := g, a := x, x := y] \as MeanValue;
+\definition distanceSmall: Open.BallInside[U.points, a, rho] -> R.Le (distance x a) radius -> R.Le (distance y a) radius -> R.Lt (distance y x) halfDelta :=
+  \fun (ball: _)(xa: _)(ya: _) => R.leLtTrans _ _ _
+    (R.leTrans _ _ _ (Norm.distanceTriangle y a x)
+      (Bounds.addLe _ _ _ _ ya (R.leReplaceLeft _ _ _ (Norm.distanceSymmetric x a) xa))) (radiusSmall ball);
+\definition triangleSmall[p: Point]: Open.BallInside[U.points, a, rho] -> R.Le (distance x a) radius -> R.Lt (distance p x) halfDelta -> R.Lt (distance p a) delta :=
+  \fun (ball: _)(xa: _)(px: _) => Order.ltTrans _ _ delta
+    (R.leLtTrans _ _ _ (Norm.distanceTriangle p x a)
+      (R.leLtTrans _ _ _ (Laws.addMonotoneLeft _ _ (distance p x) xa) (Laws.ltAddRight _ _ radius px))) (threeSmall ball);
+\definition ballAtX: Open.BallInside[U.points, a, rho] -> R.Le (distance x a) radius -> Open.BallInside[U.points, x, halfDelta] :=
+  \fun (ball: _)(xa: _) => Open.BallInside[U.points, x, halfDelta] {
+    positive := halfPositive ball,
+    included := \fun (p: Point)(near: _) => ball.included p (R.ltLeTrans _ delta rho (triangleSmall p ball xa near) (Distance.minLeft rho smallest)),
+  };
+\definition partialBound: DerivativeLaws -> Open.BallInside[U.points, a, rho] -> R.Le (distance x a) radius -> R.Le (distance y a) radius ->
+  \forall (p: Open.Carrier U)(i: Space.Coordinate) -> R.Le (distance p x) (distance y x) -> R.Le (Scalars.distance (g i p) Scalars.zero) theta := \block {
+  \fun (laws: _)(ball: _)(xa: _)(ya: _)(p: Open.Carrier U)(i: Space.Coordinate)(near: _) \then
+  \let pa: R.Lt (distance p a) delta := triangleSmall p ball xa (R.leLtTrans _ _ _ near (distanceSmall ball xa ya)) \then
+  \let control: Analysis.ContinuityControl[U, g i, a, theta, controls i] := \bysub(Real, { delta: Real \where Analysis.ContinuityControl[U, g i, a, theta, delta] }, controls i) \then
+  \return Order.leOfLt _ _ (R.ltReplaceLeft _ _ _ (congr!{Real Real} (Scalars.distance (g i p)) _ _ (laws.zero i))
+    (control.estimate p (R.ltLeTrans _ smallest (controls i) (R.ltLeTrans _ delta smallest pa (Distance.minRight rho smallest))
+      (Sums.Bounds[].coordinate n (\fun (i: Space.Coordinate) => controls i) i))))
+};
+\definition estimate: DerivativeLaws -> Open.BallInside[U.points, a, rho] -> R.Le (distance x a) radius -> R.Le (distance y a) radius ->
+  R.Le (Scalars.distance (f y) (f x)) (Scalars.mul Scalars.half (distance y x)) :=
+  \fun (laws: _)(ball: _)(xa: _)(ya: _) => R.leTrans _ _ _
+    (MeanValue.estimate halfDelta theta (ballAtX ball xa) (distanceSmall ball xa ya) thetaNonnegative laws.partials (partialBound laws ball xa ya))
+    (R.leReplace _ _ _ _ (Laws.fieldMulComm (distance y x) (Scalars.mul At.count theta)) (Laws.fieldMulComm (distance y x) Scalars.half)
+      (Bounds.mulMonotone (distance y x) _ _ (Norm.metric.nonnegative y x) (Order.leOfLt _ _ (At.budgetSmall Scalars.half (Laws.ltOfRat std.Arithmetic[].Rat[].Estimates[].zeroRat std.Arithmetic[].Rat[].Estimates[].halfRat std.Arithmetic[].Rat[].Estimates[].halfPositive)))));

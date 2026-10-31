@@ -1,0 +1,117 @@
+\import \parent.\parent.\parent.On[slice := slice] \as Source;
+\definition localPoint: Source.Domain := \into[Fiber](x, Source.domain) \by { contains };
+\definition sourceChart: Domain.Chart := \into[FiberCharts.Chart](Source.chart, Domain.Chart) \by {
+  Domain.ChartLaws[Source.chart] {
+    member := FiberAtlas.includedInSaturation (atlas regular) Source.chart (Logic.existsIntro[Slice, { s: Slice \where Source.chart = \parent.\parent.\parent.On[slice := s].chart }] slice (\refl(Source.chart))),
+    contains := contains,
+  }
+};
+\definition ambientChart: AmbientTangent.Chart := \into[Charts.Chart](slice.source, AmbientTangent.Chart) \by {
+  AmbientTangent.ChartLaws[slice.source] { member := \bysub(Charts.Chart, M.atlas.charts, slice.source), contains := contains }
+};
+\import Inclusion.Coordinates[f := inclusion, left := Source.chart, right := slice.source] \as InclusionCoordinates;
+\import DifferentialInclusion.InCharts[left := sourceChart, right := ambientChart] \as InclusionDerivative;
+\import calculus.Maps[n := n, m := std.Data[].Nat[].Basic[].Def[].add m n] \as Parameters;
+\import calculus.Vector[n := n, m := std.Data[].Nat[].Basic[].Def[].add m n] \as Rectangular;
+\import calculus.Vector[n := std.Data[].Nat[].Basic[].Def[].add m n, m := std.Data[].Nat[].Basic[].Def[].add m n] \as Square;
+\definition parameter: LeftOpen.Carrier slice.parameters := Source.forward localPoint;
+\definition coordinate: Open.Carrier slice.source.image := Source.oldCoordinate localPoint;
+\import Euclidean.DiffeomorphismDerivative[U := slice.source.image, V := Source.product, f := slice.coordinates, x := coordinate] \as Normal;
+\import Split.FixedRight[U := slice.parameters, V := Source.product, c := Source.level] \as Section;
+\import Parameters.Composition[U := slice.parameters, V := Source.product, f := Section.map Source.included].After[l := dimension, W := slice.source.image, g := slice.coordinates.backward] \as ParameterComposition;
+\definition normalPoint: Section.apply Source.included parameter = Normal.image := trans!{Point} _ _ _
+  (congr!{RightPoint Point} (Split.join (Split.left (Source.coordinateVector localPoint))) _ _ (sym!{RightPoint} _ _ (Source.normal localPoint)))
+  (Split.recover (Source.coordinateVector localPoint));
+\definition included: LeftOpen.Included InclusionCoordinates.domain slice.parameters :=
+  \fun (p: LeftPoint)(member: _) => InclusionCoordinates.inLeftImage (\into[LeftPoint](p, InclusionCoordinates.domain.points) \by { member });
+\import Parameters.Restriction[U := InclusionCoordinates.domain, V := slice.parameters, W := slice.source.image] \as Restriction;
+\definition restricted: Parameters.Map InclusionCoordinates.domain slice.source.image := Restriction.input included Source.parametrization;
+\definition comparison: Parameters.Differential[U := InclusionCoordinates.domain, V := slice.source.image, f := InclusionDerivative.coordinateMap, a := InclusionDerivative.point].value = Parameters.Differential[U := InclusionCoordinates.domain, V := slice.source.image, f := restricted, a := InclusionDerivative.point].value :=
+  Parameters.Differential[U := InclusionCoordinates.domain, V := slice.source.image, f := InclusionDerivative.coordinateMap, a := InclusionDerivative.point].Compare[W := slice.source.image, g := restricted].equal
+    (\axiom:funext((\fun (p: LeftOpen.Carrier InclusionCoordinates.domain) => Parameters.apply InclusionCoordinates.domain slice.source.image InclusionDerivative.coordinateMap p),
+      (\fun (p: LeftOpen.Carrier InclusionCoordinates.domain) => Parameters.apply InclusionCoordinates.domain slice.source.image restricted p),
+      \fun (p: LeftOpen.Carrier InclusionCoordinates.domain) => Charts.Of[chart := slice.source].coordinatePoint (Source.oldParameter (InclusionCoordinates.leftCoordinate p))));
+\definition analyticDerivative: \forall (v: LeftPoint) -> InclusionDerivative.jacobian.apply v = Normal.backward.apply (horizontal.apply v) :=
+  \fun (v: LeftPoint) => eq_reason_in!{Point _
+    "=" _ "by" { congr!{{Rectangular.LinearMap} Point} (\fun (L: Rectangular.LinearMap) => L.apply v) _ _ comparison }
+    "=" _ "by" { congr!{{Rectangular.LinearMap} Point} (\fun (L: Rectangular.LinearMap) => L.apply v) _ _ (Restriction.differential included Source.parametrization InclusionDerivative.point) }
+    "=" _ "by" { congr!{{Rectangular.LinearMap} Point} (\fun (L: Rectangular.LinearMap) => L.apply v) _ _ (ParameterComposition.At[a := parameter].jacobian) }
+    "=" _ "by" { congr!{{Rectangular.LinearMap} Point} (\fun (L: Rectangular.LinearMap) => EuclideanMaps.Differential[U := Source.product, V := slice.source.image, f := slice.coordinates.backward, a := Section.apply Source.included parameter].value.apply (L.apply v)) _ _
+      (\root.Product[n := n, m := m].FixedRightDerivative[U := slice.parameters, V := Source.product, c := Source.level, included := Source.included].jacobian parameter) }
+    "=" _ "by" { congr!{{Open.Carrier Source.product} Point} (\fun (p: Open.Carrier Source.product) => EuclideanMaps.Differential[U := Source.product, V := slice.source.image, f := slice.coordinates.backward, a := p].value.apply (horizontal.apply v)) _ _ normalPoint }
+  };
+\definition targetChart: Codomain.Chart := \into[TargetCharts.Chart](slice.target, Codomain.Chart) \by {
+  Codomain.ChartLaws[slice.target] {
+    member := (\bysub(TargetCharts.Chart, TargetChart, slice.target)).left,
+    contains := \idelim y = Maps.apply f x \with p: T.Point => TargetCharts.Contains slice.target p \by {
+      base: (\bysub(TargetCharts.Chart, TargetChart, slice.target)).right, equality: sym!{{T.Point}} _ _ (\bysub(M.Point, points, x))
+    },
+  }
+};
+\module FunctionDerivative;
+\import Domain.Coordinate[chart := sourceChart] \as SourceCoordinates;
+\import AmbientTangent.Coordinate[chart := ambientChart] \as AmbientCoordinates;
+\import Codomain.Coordinate[chart := targetChart] \as TargetCoordinates;
+\import Domain.ChartIsomorphism[chart := sourceChart] \as SourceIso;
+\import AmbientTangent.ChartIsomorphism[chart := ambientChart] \as AmbientIso;
+\import Codomain.ChartIsomorphism[chart := targetChart] \as TargetIso;
+\definition inclusionCoordinates: \forall (v: Domain.Vector) -> AmbientCoordinates.decode (DifferentialInclusion.value.apply v) = Normal.backward.apply (horizontal.apply (SourceCoordinates.decode v)) :=
+  \fun (v: Domain.Vector) => trans!{Point} _ _ _ (DifferentialInclusion.coordinates sourceChart ambientChart v) (analyticDerivative (SourceCoordinates.decode v));
+\definition functionCoordinates: \forall (v: AmbientTangent.Vector) -> TargetCoordinates.decode (Original.value.apply v) = Split.right (Normal.forward.apply (AmbientCoordinates.decode v)) :=
+  \fun (v: AmbientTangent.Vector) => trans!{RightPoint} _ _ _ (Original.coordinates ambientChart targetChart v) (FunctionDerivative[].formula (AmbientCoordinates.decode v));
+\import linear_algebra.Euclidean[n := std.Data[].Nat[].Basic[].Def[].add m n] \as AmbientSpace;
+\import linear_algebra.Euclidean[n := n] \as ParameterSpace;
+\import Spaces.Linear[V := Point, W := Point, source := AmbientSpace.space, target := AmbientSpace.space].Composition[U := AmbientTangent.Vector, domain := AmbientTangent.space] \as NormalComposition;
+\definition normalCoordinate: Spaces.Linear[V := AmbientTangent.Vector, W := Point, source := AmbientTangent.space, target := AmbientSpace.space].Map := NormalComposition.compose Normal.forward AmbientIso.forward;
+\import Spaces.Linear[V := Point, W := LeftPoint, source := AmbientSpace.space, target := ParameterSpace.space].Composition[U := AmbientTangent.Vector, domain := AmbientTangent.space] \as LeftComposition;
+\definition leftCoordinate: Spaces.Linear[V := AmbientTangent.Vector, W := LeftPoint, source := AmbientTangent.space, target := ParameterSpace.space].Map := LeftComposition.compose leftLinear normalCoordinate;
+\import Spaces.Linear[V := LeftPoint, W := Domain.Vector, source := ParameterSpace.space, target := Domain.space].Composition[U := AmbientTangent.Vector, domain := AmbientTangent.space] \as DecodeComposition;
+\definition decode: Spaces.Linear[V := AmbientTangent.Vector, W := Domain.Vector, source := AmbientTangent.space, target := Domain.space].Map := DecodeComposition.compose SourceIso.backward leftCoordinate;
+\definition left: \forall (v: Domain.Vector) -> decode.apply (DifferentialInclusion.value.apply v) = v :=
+  \fun (v: Domain.Vector) => eq_reason_in!{{Domain.Vector} _
+    "=" _ "by" { congr!{Point {Domain.Vector}} (\fun (w: Point) => SourceCoordinates.encode (Split.left (Normal.forward.apply w))) _ _ (inclusionCoordinates v) }
+    "=" _ "by" { congr!{Point {Domain.Vector}} (\fun (w: Point) => SourceCoordinates.encode (Split.left w)) _ _ (Normal.right (horizontal.apply (SourceCoordinates.decode v))) }
+    "=" _ "by" { congr!{LeftPoint {Domain.Vector}} SourceCoordinates.encode _ _ (Split.leftJoin (SourceCoordinates.decode v) RightCoordinates.origin) }
+    "=" v "by" { SourceCoordinates.encodeDecode v }
+  };
+\definition inside: \forall (v: Domain.Vector) -> Original.value.apply (DifferentialInclusion.value.apply v) = Codomain.space.zero :=
+  \fun (v: Domain.Vector) => TargetCoordinates.injective _ _ (eq_reason_in!{RightPoint _
+    "=" _ "by" { functionCoordinates (DifferentialInclusion.value.apply v) }
+    "=" _ "by" { congr!{Point RightPoint} (\fun (w: Point) => Split.right (Normal.forward.apply w)) _ _ (inclusionCoordinates v) }
+    "=" _ "by" { congr!{Point RightPoint} Split.right _ _ (Normal.right (horizontal.apply (SourceCoordinates.decode v))) }
+    "=" _ "by" { Split.rightJoin (SourceCoordinates.decode v) RightCoordinates.origin }
+    "=" _ "by" { sym!{RightPoint} _ _ TargetIso.forward.preservesZero }
+  });
+\definition right: \forall (v: Kernel) -> DifferentialInclusion.value.apply (decode.apply v) = v := \block {
+  \fun (v: Kernel) \then
+  \let normal: Split.right (Normal.forward.apply (AmbientCoordinates.decode v)) = RightCoordinates.origin := eq_reason_in!{RightPoint _
+    "=" _ "by" { sym!{RightPoint} _ _ (functionCoordinates v) }
+    "=" _ "by" { congr!{{Codomain.Vector} RightPoint} TargetCoordinates.decode _ _ (\bysub(AmbientTangent.Vector, kernel.carrier, v)) }
+    "=" _ "by" { TargetIso.forward.preservesZero }
+  } \then
+  \let vector: horizontal.apply (Split.left (Normal.forward.apply (AmbientCoordinates.decode v))) = Normal.forward.apply (AmbientCoordinates.decode v) :=
+    trans!{Point} _ _ _ (congr!{RightPoint Point} (Split.join (Split.left (Normal.forward.apply (AmbientCoordinates.decode v)))) _ _ (sym!{RightPoint} _ _ normal)) (Split.recover (Normal.forward.apply (AmbientCoordinates.decode v))) \then
+  \return AmbientCoordinates.injective _ _ (eq_reason_in!{Point _
+    "=" _ "by" { inclusionCoordinates (decode.apply v) }
+    "=" _ "by" { congr!{LeftPoint Point} (\fun (p: LeftPoint) => Normal.backward.apply (horizontal.apply p)) _ _ (SourceCoordinates.decodeEncode (leftCoordinate.apply v)) }
+    "=" _ "by" { congr!{Point Point} Normal.backward.apply _ _ vector }
+    "=" _ "by" { Normal.left (AmbientCoordinates.decode v) }
+  })
+};
+\definition forward: Forward.Map := Forward.Map {
+  apply := \fun (v: Domain.Vector) => \into[AmbientTangent.Vector](DifferentialInclusion.value.apply v, kernel.carrier) \by { inside v },
+  preservesAdd := DifferentialInclusion.value.preservesAdd,
+  preservesScale := DifferentialInclusion.value.preservesScale,
+};
+\definition backward: Backward.Map := Backward.Map {
+  apply := \fun (v: Kernel) => decode.apply v,
+  preservesAdd := \fun (v, w: Kernel) => decode.preservesAdd v w,
+  preservesScale := \fun (c: Real)(v: Kernel) => decode.preservesScale c v,
+};
+\definition isomorphism: Isomorphisms.Isomorphism := Isomorphisms.Isomorphism { forward := forward, backward := backward, leftInverse := left, rightInverse := right };
+\definition injective: \forall (v, w: Domain.Vector) -> DifferentialInclusion.value.apply v = DifferentialInclusion.value.apply w -> v = w :=
+  \fun (v, w: Domain.Vector)(same: _) => eq_reason_in!{{Domain.Vector} v
+    "=" _ "by" { sym!{{Domain.Vector}} _ _ (left v) }
+    "=" _ "by" { congr!{{AmbientTangent.Vector} {Domain.Vector}} decode.apply _ _ same }
+    "=" w "by" { left w }
+  };

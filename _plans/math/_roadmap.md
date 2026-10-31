@@ -90,10 +90,10 @@ flowchart TD
 - [B05 有限 Grassmannian と普遍束](b05-grassmannians.md)
 - [C01 cap 積と相対積](c01-cap-products.md)
 - [G01 滑らかな bump 関数と従属分割](g01-smooth-partitions.md)
-- [G02 逆関数・陰関数と正則値の局所形](g02-inverse-implicit.md)
+- [G02 逆関数・陰関数と正則値の局所形](../../libs/geometry/inverse_implicit/README.md)（実装済み）
 - [L04 対称多項式と特性級数](l04-symmetric-series.md)
 
-L01 の行列式・逆行列、L02 の多項式分解、L03 の Hermitian 行列・局所枠が利用可能になり、G02 に着手できる。
+L01 の行列式・逆行列、L02 の多項式分解、L03 の Hermitian 行列・局所枠が利用可能になり、G02 の [inverse_implicit](../../libs/geometry/inverse_implicit/README.md) は局所逆写像、パラメータ付き陰関数、定階数の局所形、正則値部分多様体と接空間の核を公開する。
 B03 の計量・補束と同型類の集合が利用可能になり、B05 に着手できる。
 B09 の [bundle_extension](../../libs/geometry/bundle_extension/README.md) は実・複素の Tietze、束・写像・同型の近傍延長、縮小比較と安定化を公開し、K03 で再利用できる。
 K06 の連続なスペクトル分離は B04 の束比較の基盤となり、B04 の clutching と合わせて K07 で再利用できる。
@@ -188,7 +188,7 @@ B02 の束演算は B07・C05 でも利用でき、A01 の後は A02 へ進め�
 | タスク | 概算（千行） |
 | --- | ---: |
 | [G01 滑らかな bump 関数と従属分割](g01-smooth-partitions.md) | 5 |
-| [G02 逆関数・陰関数と正則値の局所形](g02-inverse-implicit.md) | 5 |
+| [G02 逆関数・陰関数と正則値の局所形](../../libs/geometry/inverse_implicit/README.md)（実装済み） | 5 |
 | [G03 境界・角付き多様体](g03-boundary-manifolds.md) | 5 |
 | [G04 collar と境界の貼り合わせ](g04-collars-gluing.md) | 5 |
 | [G05 コンパクト多様体の埋め込み](g05-compact-embeddings.md) | 5 |

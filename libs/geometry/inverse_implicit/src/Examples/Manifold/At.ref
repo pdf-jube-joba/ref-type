@@ -1,0 +1,40 @@
+\import SourceTangent.At[x := x] \as DomainTangent;
+\import TargetTangent.At[x := ManifoldMaps.apply function x] \as CodomainTangent;
+\import Differential.At[f := function, x := x] \as Differential;
+\import manifolds.Dimension[n := std.Data[].Nat[].Basic[].Def[].add one one].Chart[M := source.Point, space := source.space] \as SourceCharts;
+\import manifolds.Dimension[n := one].Chart[M := target.Point, space := target.space] \as TargetCharts;
+\import manifolds.Dimension[n := std.Data[].Nat[].Basic[].Def[].add one one].Atlas[M := source.Point, space := source.space] \as SourceAtlas;
+\import manifolds.Dimension[n := one].Atlas[M := target.Point, space := target.space] \as TargetAtlas;
+\definition left: DomainTangent.Chart := \into[SourceCharts.Chart](Domain.standard, DomainTangent.Chart) \by {
+  DomainTangent.ChartLaws[Domain.standard] { member := SourceAtlas.includedInSaturation Domain.atlas Domain.standard (\refl(Domain.standard)), contains := \refl(x) }
+};
+\definition right: CodomainTangent.Chart := \into[TargetCharts.Chart](Codomain.standard, CodomainTangent.Chart) \by {
+  CodomainTangent.ChartLaws[Codomain.standard] { member := TargetAtlas.includedInSaturation Codomain.atlas Codomain.standard (\refl(Codomain.standard)), contains := \refl(ManifoldMaps.apply function x) }
+};
+\import Differential.InCharts[left := left, right := right] \as Derivative;
+\import ManifoldMaps.Coordinates[f := function, left := Domain.standard, right := Codomain.standard] \as Coordinates;
+\definition included: Open.Included Coordinates.domain Graph.domain := \fun (p: Fin.Fin two -> R.Real)(member: _) => Coordinates.inLeftImage
+  (\into[Fin.Fin two -> R.Real](p, Coordinates.domain.points) \by { member });
+\import Functions.Restriction[U := Coordinates.domain, V := Graph.domain, W := Line.whole] \as Restriction;
+\definition restricted: Functions.Map Coordinates.domain Line.whole := Restriction.input included parabolaFunction;
+\import calculus.Vector[n := std.Data[].Nat[].Basic[].Def[].add one one, m := one] \as Vector;
+\definition same: Derivative.jacobian = Functions.Differential[U := Graph.domain, V := Line.whole, f := parabolaFunction, a := x].value :=
+  trans!{{Vector.LinearMap}} _ _ _
+    (Functions.Differential[U := Coordinates.domain, V := Line.whole, f := Derivative.coordinateMap, a := Derivative.point].Compare[W := Line.whole, g := restricted].equal
+      (\axiom:funext((\fun (p: Open.Carrier Coordinates.domain) => Functions.apply Coordinates.domain Line.whole Derivative.coordinateMap p),
+        (\fun (p: Open.Carrier Coordinates.domain) => Functions.apply Coordinates.domain Line.whole restricted p), \fun (p: Open.Carrier Coordinates.domain) => \refl(Functions.apply Coordinates.domain Line.whole restricted p))))
+    (Restriction.differential included parabolaFunction Derivative.point);
+\import DomainTangent.Coordinate[chart := left] \as SourceCoordinates;
+\import CodomainTangent.Coordinate[chart := right] \as TargetCoordinates;
+\definition surjective: \forall (w: CodomainTangent.Vector) -> \exists ( v: DomainTangent.Vector \where Differential.value.apply v = w ) := \block {
+  \fun (w: CodomainTangent.Vector) \then
+  \takefrom v: \Cast[Fin.Fin two -> R.Real] ({ v: Fin.Fin two -> R.Real \where \parent.\parent.At[x := x].scalarDerivative.apply v = TargetCoordinates.decode w })
+    \by \parent.\parent.At[x := x].scalarSurjective (TargetCoordinates.decode w) \then
+  \return Logic.existsIntro[DomainTangent.Vector, { u: DomainTangent.Vector \where Differential.value.apply u = w }] (SourceCoordinates.encode v)
+    (TargetCoordinates.injective _ _ (eq_reason_in!{{Fin.Fin one -> R.Real} _
+      "=" _ "by" { Differential.coordinates left right (SourceCoordinates.encode v) }
+      "=" _ "by" { congr!{{Fin.Fin two -> R.Real} {Fin.Fin one -> R.Real}} Derivative.jacobian.apply _ _ (SourceCoordinates.decodeEncode v) }
+      "=" _ "by" { congr!{{Vector.LinearMap} {Fin.Fin one -> R.Real}} (\fun (L: Vector.LinearMap) => L.apply v) _ _ same }
+      "=" _ "by" { \bysub(Fin.Fin two -> R.Real, { v: Fin.Fin two -> R.Real \where \parent.\parent.At[x := x].scalarDerivative.apply v = TargetCoordinates.decode w }, v) }
+    }))
+};

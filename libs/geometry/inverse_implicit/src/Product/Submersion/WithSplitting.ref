@@ -1,0 +1,37 @@
+\import Euclidean.LinearChange[U := U, d := splitting.coordinate, e := splitting.inverse] \as Change;
+\import Change.With[left := splitting.leftInverse, right := splitting.rightInverse] \as Coordinates;
+\import Maps.Composition[U := Change.target, V := U, f := Change.backward].After[l := m, W := RightOpen.whole, g := f] \as Composition;
+\definition normalized: Functions.Map Change.target RightOpen.whole := Composition.compose;
+\definition point: Open.Carrier Change.target := Maps.apply U Change.target Coordinates.forward a;
+\definition pointInverse: Maps.apply Change.target U Change.backward point = a := Coordinates.equivalence.leftInverse a;
+\definition pointValue: Functions.apply Change.target RightOpen.whole normalized point = Functions.apply U RightOpen.whole f a :=
+  congr!{{Open.Carrier U} RightPoint} (\fun (x: Open.Carrier U) => Functions.apply U RightOpen.whole f x) _ _ pointInverse;
+\import \root.Product[n := n, m := m].Implicit[U := Change.target, f := normalized, a := point] \as Implicit;
+\import Functions.Differential[U := Change.target, V := RightOpen.whole, f := normalized, a := point] \as Differential;
+\definition derivative: \forall (v: Point) -> Differential.value.apply v = differential.apply (splitting.inverse.apply v) :=
+  \fun (v: Point) => eq_reason_in!{RightPoint _
+    "=" _ "by" { congr!{{Differentials.LinearMap} RightPoint} (\fun (L: Differentials.LinearMap) => L.apply v) _ _ (Composition.At[a := point].jacobian) }
+    "=" _ "by" { congr!{{calculus.Vector[n := dimension, m := dimension].LinearMap} RightPoint} (\fun (L: calculus.Vector[n := dimension, m := dimension].LinearMap) => Functions.Differential[U := U, V := RightOpen.whole, f := f, a := Maps.apply Change.target U Change.backward point].value.apply (L.apply v)) _ _ (Change.backwardDifferential point) }
+    "=" _ "by" { congr!{{Open.Carrier U} RightPoint} (\fun (x: Open.Carrier U) => Functions.Differential[U := U, V := RightOpen.whole, f := f, a := x].value.apply (splitting.inverse.apply v)) _ _ pointInverse }
+  };
+\definition projection: \forall (v: Point) -> Differential.value.apply v = Split.right v :=
+  \fun (v: Point) => eq_reason_in!{RightPoint _
+    "=" _ "by" { derivative v }
+    "=" _ "by" { sym!{RightPoint} _ _ (splitting.projection (splitting.inverse.apply v)) }
+    "=" _ "by" { congr!{Point RightPoint} Split.right _ _ (splitting.rightInverse v) }
+  };
+\definition verticalIdentity: \forall (v: RightPoint) -> Implicit.verticalDifferential.apply v = v :=
+  \fun (v: RightPoint) => trans!{RightPoint} _ _ _ (projection (vertical.apply v)) (Split.rightJoin LeftCoordinates.origin v);
+\import matrix_invariants.Ring[K := Real, scalars := std.Alg[].Field[].fieldAsCommutativeRing Real Algebra.field].At[n := m] \as Matrix;
+\import Matrix.Representation[] \as Representation;
+\import Matrix.Operations[] \as Operations;
+\import matrix_invariants.Field[K := Real, field := Algebra.field].At[n := m] \as Inversion;
+\definition regular: Implicit.Regular := Inversion.nonzeroOfInverse (Representation.entries Implicit.verticalDifferential)
+  (\into[Matrix.Matrix](Representation.entries calculus.Identity[n := m].linear, Operations.Inverse (Representation.entries Implicit.verticalDifferential)) \by {
+    Representation.inverseCertificate Implicit.verticalDifferential calculus.Identity[n := m].linear verticalIdentity verticalIdentity
+  });
+\module Transfer(local: Implicit.Solution);
+\definition localExistence: \exists LocalForm := \block {
+  \takefrom local: Implicit.Solution \by Implicit.localExistence regular \then
+  \return \exact(Transfer[local := local].localForm, LocalForm)
+};

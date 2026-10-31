@@ -1,0 +1,32 @@
+\import linear_algebra.Commutative[K := Real, scalarRing := std.Alg[].Field[].fieldAsCommutativeRing Real Algebra.field] \as Spaces;
+\import linear_algebra.Euclidean[n := sourceDimension] \as Domain;
+\import Spaces.Linear[V := TargetPoint, W := ImagePoint, source := Ambient.space, target := Image.space].Composition[U := ImagePoint, domain := Image.space] \as TComposition;
+\definition T: calculus.Vector[n := r, m := r].LinearMap := TComposition.compose projection witness.image;
+\definition inner: calculus.Vector[n := sourceDimension, m := sourceDimension].LinearMap := Coordinates.Differential[U := product, V := U, f := source, a := y].value;
+\import Spaces.Linear[V := Point, W := Point, source := Domain.space, target := Domain.space].Composition[U := ImagePoint, domain := Image.space] \as InnerComposition;
+\definition vertical: calculus.Vector[n := r, m := sourceDimension].LinearMap := InnerComposition.compose inner Source.vertical;
+\import Spaces.Linear[V := Point, W := ImagePoint, source := Domain.space, target := Image.space].Composition[U := ImagePoint, domain := Image.space] \as SComposition;
+\definition S: calculus.Vector[n := r, m := r].LinearMap := SComposition.compose witness.coordinate vertical;
+\definition factorization: \forall (v: Point) -> (transformedDerivative y).apply v = witness.image.apply (witness.coordinate.apply (inner.apply v)) :=
+  \fun (v: Point) => trans!{TargetPoint} _ _ _
+    (congr!{{Differentials.LinearMap} TargetPoint} (\fun (L: Differentials.LinearMap) => L.apply v) _ _ (SourceComposition.At[a := y].jacobian))
+    (witness.formula (inner.apply v));
+\definition rightInverse: \forall (v: ImagePoint) -> T.apply (S.apply v) = v :=
+  \fun (v: ImagePoint) => eq_reason_in!{ImagePoint _
+    "=" _ "by" { congr!{TargetPoint ImagePoint} projection.apply _ _ (sym!{TargetPoint} _ _ (factorization (Source.vertical.apply v))) }
+    "=" _ "by" { projectionDerivative y (Source.vertical.apply v) }
+    "=" v "by" { Blocks.rightJoin topological_algebra.Euclidean[].Dimension[n := k].Def[].origin v }
+  };
+\import \root.Euclidean[n := r].OneSided[d := T, e := S] \as Square;
+\definition horizontal: \forall (v: topological_algebra.Euclidean[].Dimension[n := k].Point) -> (transformedDerivative y).apply (Source.horizontal.apply v) = Ambient.space.zero := \block {
+  \fun (v: topological_algebra.Euclidean[].Dimension[n := k].Point) \then
+  \let q: ImagePoint := witness.coordinate.apply (inner.apply (Source.horizontal.apply v)) \then
+  \let zero: T.apply q = Image.space.zero := eq_reason_in!{ImagePoint _
+    "=" _ "by" { congr!{TargetPoint ImagePoint} projection.apply _ _ (sym!{TargetPoint} _ _ (factorization (Source.horizontal.apply v))) }
+    "=" _ "by" { projectionDerivative y (Source.horizontal.apply v) }
+    "=" _ "by" { Blocks.rightJoin v Image.space.zero }
+  } \then
+  \let qZero: q = Image.space.zero := Square.injective rightInverse q Image.space.zero (trans!{ImagePoint} _ _ _ zero (sym!{ImagePoint} _ _ T.preservesZero)) \then
+  \return trans!{TargetPoint} _ _ _ (factorization (Source.horizontal.apply v))
+    (trans!{TargetPoint} _ _ _ (congr!{ImagePoint TargetPoint} witness.image.apply _ _ qZero) witness.image.preservesZero)
+};

@@ -1,0 +1,31 @@
+\definition original: SourceChart := \into[Charts.Chart](left, M.atlas.charts) \by { Domain.member left };
+\definition included: Open.Included local.domain left.image := \fun (p: Point)(member: _) => Coordinates.inLeftImage
+  (\into[Point](p, Coordinates.domain.points) \by { local.included p member });
+\import manifolds.ChartRestriction[n := std.Data[].Nat[].Basic[].Def[].add m n].On[M := M].At[c := original, U := local.domain, included := included] \as Restriction;
+\definition target: TargetChart := \into[TargetCharts.Chart](right, TargetChart) \by {
+  Logic.And[_, _]::# (Codomain.member right) (\idelim Maps.apply f x = y \with p: T.Point => TargetCharts.Contains right p \by {
+    base: Codomain.contains right, equality: \bysub(M.Point, points, x)
+  })
+};
+\definition data: SliceData := SliceData {
+  source := Restriction.chart, target := target, parameters := local.parameters, values := local.values, coordinates := local.coordinates,
+};
+\definition targetEquality: Codomain.localPoint right = targetPoint target := \bysub(M.Point, points, x);
+\definition valueAtCenter: Calculus.apply Coordinates.domain RightOpen.whole function point = constant data :=
+  trans!{RightPoint} _ _ _ Derivative.coordinateAgreement
+    (congr!{{TargetCharts.LocalPoint right} RightPoint} (TargetCharts.coordinate right) _ _ targetEquality);
+\definition laws: SliceLaws[data] := SliceLaws[data] {
+  constantInside := \idelim Calculus.apply Coordinates.domain RightOpen.whole function point = constant data \with v: RightPoint => \In[RightPoint] local.values.points v \by {
+    base: local.containsValue, equality: valueAtCenter
+  },
+  inTarget := \fun (u: Open.Carrier local.domain) => Coordinates.inRightDomain (Open.inclusion local.domain Coordinates.domain local.included u),
+  projection := \fun (u: Open.Carrier local.domain) => local.projection u,
+};
+\definition slice: Slice := \into[SliceData](data, { data: SliceData \where SliceLaws[data] }) \by { laws };
+\definition center: Open.Carrier local.domain := \into[Point](point, local.domain.points) \by { local.contains };
+\definition contains: Charts.Contains slice.source x :=
+  \idelim Charts.point left (Open.inclusion local.domain left.image included center) = x \with p: M.Point => Charts.Contains Restriction.chart p \by {
+    base: Restriction.pointMember center,
+    equality: Charts.Of[chart := left].pointCoordinate (Domain.localPoint left)
+  };
+\definition existence: \exists ( slice: Slice \where Charts.Contains slice.source x ) := Logic.existsIntro[Slice, { slice: Slice \where Charts.Contains slice.source x }] slice contains;
