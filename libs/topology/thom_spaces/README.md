@@ -29,6 +29,11 @@ C02 の実装中のパッケージである。
 | `Over.For.With.ThomPair.Collar` | 開いた半径近傍の強変形収縮と `goodPair` |
 | `Collar.Homology[z].isomorphism` | 基点を加えた円板・球面対の整数相対ホモロジーから Thom 商の被約ホモロジーへの同型 |
 | `Collar.Cohomology[M, z].isomorphism` | 任意の整数加群係数・整数次数での逆向きのコホモロジー同型 |
+| `Collar.Homology[z].ordinaryIsomorphism` / `Collar.Cohomology[M, z].ordinaryIsomorphism` | 追加した基点を除いた実際の円板・球面対との相対理論比較 |
+| `DiskSuspension.Step.Cylinder.suspensionHomeomorphism` | \(n+1\) 次元の円板モデルと既存の `puppe_sequences.Suspension` による \(n\) 次元モデルの懸垂との基点付き同相 |
+| `ZeroDiskSuspension.homeomorphism` | 0次元の円板モデルと \(X_+\) の同相 |
+| `SuspensionPresentation.comparison` | 各段が既存の懸垂で与えられる列への、任意の自然数次数での基点付き同相 |
+| `FirstSuspensions.once` / `FirstSuspensions.twice` | 既存の懸垂を直接1回・2回適用した空間との同相 |
 | `Over.For.With.Contraction.equivalence` | 円板束と底空間のホモトピー同値 |
 | `Over.For.With.FiniteBase` | 底の有限 CW 複体を円板束のモデルにする `diskType` と、各セルの引き戻し束の自明化 |
 
@@ -46,13 +51,21 @@ C02 の実装中のパッケージである。
 `DiskSuspension[X, space, n]` は
 \(((X\times D^n)\amalg\{*\})/(X\times\partial D^n\amalg\{*\})\)
 という円板 suspension モデルである。
-既存の `puppe_sequences.Suspension` の反復との形式的比較は未実装である。
-相対特異理論の比較の始域は \((D(E)_+,S(E)_+)\) であり、追加した一点を除く \((D(E),S(E))\) との比較も未実装である。
+`Step.Cylinder.suspensionHomeomorphism` は既存の懸垂との基点付き同相を、すべての自然数次元で構成する。
+円板を head・tail の最大値ゲージの模型へ放射状に移し、head の単位区間を \([0,1]\) へ移す。
+一般の空間対の円柱商と懸垂との比較は `SuspendedPair.homeomorphism` であり、区間と商の積の連続性にはコンパクト Hausdorff 因子の `RelationQuotient.Families` を使う。
+`SuspensionPresentation` は0段を \(X_+\)、各次段を既存の懸垂として与えた任意の列に対し、円板モデルからの比較同相を自然数に関する帰納法で構成する。
+列の入力はその反復表示であり、円板モデルとの比較を仮定するものではない。
+`FirstSuspensions` と実・複素の例では、既存の懸垂を直接入れ子にした1段・2段の空間へ比較する。
+
+`Collapse.Relative` は任意の空間対で追加した孤立点を切除し、残る補空間と元の空間との対の同相を構成する。
+この切除同型を collar の比較と合成した `ordinaryIsomorphism` の始域・終域は、付加点のない実際の \((D(E),S(E))\) の相対理論である。
+ランク0や空の基底でも球面に点を仮定しない。
 
 ## 例
 
 [Examples.Real](src/Thom/Examples/Real.ref) と [Examples.Complex](src/Thom/Examples/Complex.ref) は、非コンパクトなスカラー直線を底として、B03 の動く埋め込みから作った計量と標準計量を比較する。
-Thom 商の同相、球面境界の cofibration、実次元1・2の円板 suspension 表示を具体化する。
+Thom 商の同相、球面境界の cofibration、実次元1・2の円板 suspension 表示、および既存の懸垂の1回・2回の反復との同相を具体化する。
 [Examples.Edges](src/Thom/Examples/Edges.ref) はランク0の球面束が空であることと、空の底の Thom 商のすべての点が基点に一致することを検査する。
 
 ## 残る証明

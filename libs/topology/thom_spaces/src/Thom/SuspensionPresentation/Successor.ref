@@ -1,0 +1,20 @@
+\import \root.Thom[].DiskSuspension[X := X, space := source, n := n] \as Disk;
+\import \root.Thom[].DiskSuspension[X := X, space := source, n := N.Nat^::succ n] \as Higher;
+\import Disk.Step[].Cylinder[] \as Round;
+\import puppe_sequences.Puppe[].Suspension[A := Disk.Carrier, source := Disk.pointed] \as SourceSuspension;
+\import puppe_sequences.Puppe[].Suspension[A := T n, source := spaces n] \as TargetSuspension;
+\import \root.Thom[].SuspendHomeomorphism[A := Disk.Carrier, B := T n, source := Disk.pointed, target := spaces n,
+  h := previous.homeomorphism, pointed := previous.pointed] \as Suspend;
+\definition first: topology.Homeomorphism[A := Higher.Carrier, B := TargetSuspension.Carrier].Homeomorphism[Higher.topology, TargetSuspension.topology] :=
+  topology.Homeomorphism[A := Higher.Carrier, B := SourceSuspension.Carrier].Composition[C := TargetSuspension.Carrier].compose Higher.topology SourceSuspension.topology TargetSuspension.topology
+    Round.suspensionHomeomorphism Suspend.homeomorphism;
+\definition homeomorphism: topology.Homeomorphism[A := Higher.Carrier, B := T (N.Nat^::succ n)].Homeomorphism[Higher.topology, (spaces (N.Nat^::succ n)).topology] :=
+  topology.Homeomorphism[A := Higher.Carrier, B := TargetSuspension.Carrier].Composition[C := T (N.Nat^::succ n)].compose Higher.topology TargetSuspension.topology (spaces (N.Nat^::succ n)).topology first (step n);
+\definition comparison: Comparison[N.Nat^::succ n] := Comparison[N.Nat^::succ n] {
+  homeomorphism := homeomorphism,
+  pointed := eq_reason_in!{{T (N.Nat^::succ n)} _
+    "=" _ "by" { congr!{SourceSuspension.Carrier {T (N.Nat^::succ n)}} (\fun (q: SourceSuspension.Carrier) => (step n).forward (Suspend.homeomorphism.forward q)) _ _ Round.suspensionPointed }
+    "=" _ "by" { congr!{TargetSuspension.Carrier {T (N.Nat^::succ n)}} (step n).forward _ _ Suspend.preservesPoint }
+    "=" _ "by" { stepPointed n }
+  }
+};

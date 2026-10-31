@@ -1,0 +1,93 @@
+\import topology.Topology[Carrier := A] \as Original;
+\import topology.Topology[Carrier := Extended] \as Space;
+\import topology.Topology[Carrier := Unit] \as PointSpace;
+\import Adjoined.Properties[left := source, right := PointSpace.Discrete] \as Pieces;
+\definition removed: \Pow Extended := Pieces.Joined Original.Empty PointSpace.Whole;
+\definition removedOpen: Space.IsOpenIn extendedTopology removed :=
+  Pieces.joinedOpen Original.Empty PointSpace.Whole (Original.topologyLaws source).emptyOpen (PointSpace.topologyLaws PointSpace.Discrete).wholeOpen;
+\definition complementOpen: Space.IsOpenIn extendedTopology (Space.Complement removed) :=
+  topology.Maps[A := Extended, B := Extended].openTransport extendedTopology
+    (Pieces.Joined Original.Whole PointSpace.Empty) (Space.Complement removed)
+    (\axiom:setext(Pieces.Joined Original.Whole PointSpace.Empty, Space.Complement removed,
+      \induction (p: Extended) \return \In[Extended] (Pieces.Joined Original.Whole PointSpace.Empty) p -> \In[Extended] (Space.Complement removed) p \with {
+        | inl: \fun (x: A)(member: _)(empty: Logic.False) => empty
+        | inr: \fun (u: Unit)(empty: Logic.False)(member: _) => empty
+      },
+      \induction (p: Extended) \return \In[Extended] (Space.Complement removed) p -> \In[Extended] (Pieces.Joined Original.Whole PointSpace.Empty) p \with {
+        | inl: \fun (x: A)(member: _) => \refl(x)
+        | inr: \fun (u: Unit)(outside: _) => outside (\refl(u))
+      }))
+    (Pieces.joinedOpen Original.Whole PointSpace.Empty (Original.topologyLaws source).wholeOpen (PointSpace.topologyLaws PointSpace.Discrete).emptyOpen);
+\definition removedInBoundary: Space.Subset removed Boundary :=
+  \induction (p: Extended) \return \In[Extended] removed p -> \In[Extended] Boundary p \with {
+    | inl: \fun (x: A)(empty: Logic.False) => Logic.falseElim (\In[A] subset x) empty
+    | inr: \fun (u: Unit)(member: _) => Logic.True::intro
+  };
+\import singular_excision.Excision[A := Extended].Over[source := extendedTopology] \as Excision;
+\definition pair: Excision.Pair := \into[Excision.PairData](Excision.PairData { subset := Boundary, removed := removed }, Excision.Pair) \by {
+  \fun (x: Extended)(member: _) => Space.Interior[].greatest extendedTopology Boundary removed removedOpen removedInBoundary x
+    (Space.Closure[].least extendedTopology removed removed complementOpen (\fun (y: Extended)(member: _) => member) x member)
+};
+\import Space.Subspace[S := Space.Complement removed] \as Remaining;
+\definition Carrier: \Set := Remaining.CarrierSet;
+\definition topology: topology.Topology[Carrier := Carrier].Topology := Remaining.topology extendedTopology;
+\definition boundary: \Pow Carrier := { x: Carrier \where \In[Extended] Boundary x };
+\definition forward[x: A]: Carrier := \into[Extended](Adjoined.inl x, Space.Complement removed) \by { \fun (empty: Logic.False) => empty };
+\definition injective: \forall (x, y: A) -> forward x = forward y -> x = y :=
+  \fun (x, y: A)(same: _) => Pieces.leftInjective x y same;
+\definition rawOnto: \forall (p: Extended)(member: \In[Extended] (Space.Complement removed) p) ->
+  \exists (x: A \where forward x = (\into[Extended](p, Space.Complement removed) \by { member })) :=
+  \induction (p: Extended) \return \forall (member: \In[Extended] (Space.Complement removed) p) ->
+    \exists (x: A \where forward x = (\into[Extended](p, Space.Complement removed) \by { member })) \with {
+      | inl: \fun (x: A)(member: _) => Logic.existsIntro[A, { a: A \where forward a = (\into[Extended](Adjoined.inl x, Space.Complement removed) \by { member }) }] x (\refl(Adjoined.inl x))
+      | inr: \fun (u: Unit)(outside: _) => Logic.falseElim
+        (\exists (x: A \where forward x = (\into[Extended](Adjoined.inr u, Space.Complement removed) \by { outside }))) (outside (\refl(u)))
+    };
+\definition onto: \forall (p: Carrier) -> \exists (x: A \where forward x = p) :=
+  \fun (p: Carrier) => rawOnto p (\bysub(Extended, Space.Complement removed, p));
+\definition continuous: topology.Continuity[A := A, B := Carrier].Continuous source topology forward :=
+  topology.Continuity[A := A, B := Extended].Corestriction[S := Space.Complement removed].corestrictContinuous source extendedTopology forward
+    (Adjoined.inlContinuous source PointSpace.Discrete);
+\import topology.Continuity[A := A, B := Carrier] \as Maps;
+\definition traceEquality: \forall (V: \Pow Carrier) -> V = Remaining.Trace (Pieces.Joined (Maps.Preimage forward V) PointSpace.Empty) :=
+  \fun (V: \Pow Carrier) => \axiom:setext(V, Remaining.Trace (Pieces.Joined (Maps.Preimage forward V) PointSpace.Empty),
+    \block {
+      \fun (p: Carrier)(member: \In[Carrier] V p) \then
+      \takefrom x: \Cast[A] ({ x: A \where forward x = p }) \by onto p \then
+      \let same: forward x = p := \bysub(A, { x: A \where forward x = p }, x) \then
+      \return \idelim forward x = p \with q: Carrier => \In[Carrier] (Remaining.Trace (Pieces.Joined (Maps.Preimage forward V) PointSpace.Empty)) q \by {
+        base: \idelim p = forward x \with q: Carrier => \In[Carrier] V q \by { base: member, equality: sym!{Carrier} _ _ same }, equality: same
+      }
+    },
+    \block {
+      \fun (p: Carrier)(member: \In[Carrier] (Remaining.Trace (Pieces.Joined (Maps.Preimage forward V) PointSpace.Empty)) p) \then
+      \takefrom x: \Cast[A] ({ x: A \where forward x = p }) \by onto p \then
+      \let same: forward x = p := \bysub(A, { x: A \where forward x = p }, x) \then
+      \let atX: \In[Carrier] V (forward x) := \idelim p = forward x \with q: Carrier => \In[Carrier] (Remaining.Trace (Pieces.Joined (Maps.Preimage forward V) PointSpace.Empty)) q \by { base: member, equality: sym!{Carrier} _ _ same } \then
+      \return \idelim forward x = p \with q: Carrier => \In[Carrier] V q \by { base: atX, equality: same }
+    });
+\definition reflectsOpen: \forall (V: \Pow Carrier) -> Original.IsOpenIn source (Maps.Preimage forward V) -> topology.Topology[Carrier := Carrier].IsOpenIn topology V :=
+  \fun (V: \Pow Carrier)(open: _) => \idelim Remaining.Trace (Pieces.Joined (Maps.Preimage forward V) PointSpace.Empty) = V
+    \with U: \Pow Carrier => topology.Topology[Carrier := Carrier].IsOpenIn topology U \by {
+      base: Remaining.traceOpen extendedTopology (Pieces.Joined (Maps.Preimage forward V) PointSpace.Empty)
+        (Pieces.joinedOpen (Maps.Preimage forward V) PointSpace.Empty open (PointSpace.topologyLaws PointSpace.Discrete).emptyOpen),
+      equality: sym!{{\Pow Carrier}} _ _ (traceEquality V)
+    };
+\import topology.Homeomorphism[A := A, B := Carrier] \as Geometry;
+\definition homeomorphism: Geometry.Homeomorphism[source, topology] :=
+  Geometry.OfQuotient[f := forward].homeomorphism source topology injective onto continuous reflectsOpen;
+\import singular_cohomology.Relative[A := A, source := source, subset := subset] \as OriginalPair;
+\import OriginalPair.Homeomorphism[B := Carrier].Over[target := topology, targetSubset := boundary] \as PairComparison;
+\definition comparison: PairComparison.Data := PairComparison.Data {
+  homeomorphism := homeomorphism,
+  forwardPreserves := \fun (x: OriginalPair.SubspaceCarrier) => \bysub(A, subset, x),
+  backwardPreserves := \fun (p: \Cast[Carrier] boundary) =>
+    \idelim p = forward (homeomorphism.backward p) \with q: Carrier => \In[Carrier] boundary q \by {
+      base: \bysub(Carrier, boundary, p), equality: sym!{Carrier} _ _ ((Geometry.laws source topology homeomorphism).rightInverse p)
+    }
+};
+\import std.Arithmetic[].Int[] \as Integers;
+\import std.Arithmetic[].IntAlgebra[].Ring[] \as IntegerRing;
+\import module_theory.Module[].Over[R := Integers.Int^, ring := IntegerRing.ring] \as Modules;
+\module Homology(z: Integers.Int^);
+\module Cohomology(coefficients: Modules.Bundle, z: Integers.Int^);
