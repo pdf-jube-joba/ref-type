@@ -1,0 +1,47 @@
+\import Operations.MapOperations[X := X, F := Fiber p, G := Fiber p, source := bundle p, target := bundle p] \as EvenMaps;
+\import Operations.MapOperations[X := X, F := Fiber q, G := Fiber q, source := bundle q, target := bundle q] \as OddMaps;
+\definition evenOperator: Map p p := EvenMaps.add (Models.compose p q p k.map e) (Models.compose p q p d h.map);
+\definition oddOperator: Map q q := OddMaps.add (Models.compose q p q h.map d) (Models.compose q p q e k.map);
+\import bundle_extension.Extension[].Over[K := C.Complex, field := Algebra.field, conjugation := Hermitian.scalar, scalar := Scalar.scalar]
+  .Endomorphisms[X := X, F := Fiber p, bundle := bundle p, t := evenOperator, embedding := er] \as EvenInverse;
+\import bundle_extension.Extension[].Over[K := C.Complex, field := Algebra.field, conjugation := Hermitian.scalar, scalar := Scalar.scalar]
+  .Endomorphisms[X := X, F := Fiber q, bundle := bundle q, t := oddOperator, embedding := fr] \as OddInverse;
+\definition evenFixed: \forall (v: Fiber p x) -> (evenOperator.fiber x).apply v = v :=
+  \fun (v: Fiber p x) => trans!{{Fiber p x}} _ _ _
+    (congr!{{Fiber q x} {Fiber p x} {Fiber p x}} (\fun (a: Fiber q x)(b: Fiber p x) => ((bundle p).space x).add ((e.fiber x).apply a) b) _ _ _ _
+      (k.equation v) (h.equation ((d.fiber x).apply v))) (c.laws.even v);
+\definition oddFixed: \forall (w: Fiber q x) -> (oddOperator.fiber x).apply w = w :=
+  \fun (w: Fiber q x) => trans!{{Fiber q x}} _ _ _
+    (congr!{{Fiber p x} {Fiber q x} {Fiber q x}} (\fun (a: Fiber p x)(b: Fiber q x) => ((bundle q).space x).add ((d.fiber x).apply a) b) _ _ _ _
+      (h.equation w) (k.equation ((e.fiber x).apply w))) (c.laws.odd w);
+\definition evenContains: \In[X] EvenInverse.domain x := EvenInverse.identityContains (Base.Singleton x)
+  (\fun (y: \Cast[X] (Base.Singleton x))(v: Fiber p y) =>
+    (\idelim x = y \with z: X => \forall (v: Fiber p z) -> (evenOperator.fiber z).apply v = v \by {
+      base: evenFixed, equality: sym!{{X}} _ _ (\bysub(X, Base.Singleton x, y)) }) v) x (\refl(x));
+\definition oddContains: \In[X] OddInverse.domain x := OddInverse.identityContains (Base.Singleton x)
+  (\fun (y: \Cast[X] (Base.Singleton x))(v: Fiber q y) =>
+    (\idelim x = y \with z: X => \forall (v: Fiber q z) -> (oddOperator.fiber z).apply v = v \by {
+      base: oddFixed, equality: sym!{{X}} _ _ (\bysub(X, Base.Singleton x, y)) }) v) x (\refl(x));
+\definition domain: \Pow X := Base.Intersection EvenInverse.domain OddInverse.domain;
+\definition open: Base.IsOpenIn space domain := (Base.topologyLaws space).intersectionOpen EvenInverse.domain OddInverse.domain EvenInverse.open OddInverse.open;
+\import Native.Restriction[U := domain] \as Restricted;
+\definition evenPoint[y: Restricted.Point]: EvenInverse.Near[].Point := \into[X](y, EvenInverse.domain) \by { (\bysub(X, domain, y)).left };
+\definition oddPoint[y: Restricted.Point]: OddInverse.Near[].Point := \into[X](y, OddInverse.domain) \by { (\bysub(X, domain, y)).right };
+\definition evenRegular: topology.Continuity[A := Restricted.Point, B := EvenInverse.Near[].Point].Continuous Restricted.topology EvenInverse.Near[].space evenPoint :=
+  topology.Continuity[A := Restricted.Point, B := X].Corestriction[S := EvenInverse.domain].corestrictContinuous Restricted.topology space evenPoint Restricted.regular;
+\definition oddRegular: topology.Continuity[A := Restricted.Point, B := OddInverse.Near[].Point].Continuous Restricted.topology OddInverse.Near[].space oddPoint :=
+  topology.Continuity[A := Restricted.Point, B := X].Corestriction[S := OddInverse.domain].corestrictContinuous Restricted.topology space oddPoint Restricted.regular;
+\import EvenInverse.Near[].Pullback[Y := Restricted.Point, baseSpace := Restricted.topology, f := evenPoint, regular := evenRegular] \as EvenPull;
+\import OddInverse.Near[].Pullback[Y := Restricted.Point, baseSpace := Restricted.topology, f := oddPoint, regular := oddRegular] \as OddPull;
+\definition inverseEven: Restricted.Map p p := EvenPull.iso.backward;
+\definition inverseOdd: Restricted.Map q q := OddPull.iso.backward;
+\definition correctedH: Restricted.Map q p := Bundles.Morphisms[X := Restricted.Point, Y := Restricted.Point, F := Restricted.Fiber q, G := Restricted.Fiber q,
+  source := Restricted.bundle q, target := Restricted.bundle q, f := (\fun (y: Restricted.Point) => y)].Composition[Z := Restricted.Point,
+    H := Restricted.Fiber p, range := Restricted.bundle p, g := (\fun (y: Restricted.Point) => y)].compose inverseOdd (Restricted.pull q p h.map);
+\definition correctedK: Restricted.Map p q := Bundles.Morphisms[X := Restricted.Point, Y := Restricted.Point, F := Restricted.Fiber p, G := Restricted.Fiber p,
+  source := Restricted.bundle p, target := Restricted.bundle p, f := (\fun (y: Restricted.Point) => y)].Composition[Z := Restricted.Point,
+    H := Restricted.Fiber q, range := Restricted.bundle q, g := (\fun (y: Restricted.Point) => y)].compose inverseEven (Restricted.pull p q k.map);
+\module At(y: Restricted.Point);
+\definition result: Local[x] := Local[x] { domain := domain, open := open, contains := Logic.And[_, _]::# evenContains oddContains,
+  h := correctedH, k := correctedK, laws := \fun (y: Restricted.Point) => At[y := y].laws
+};

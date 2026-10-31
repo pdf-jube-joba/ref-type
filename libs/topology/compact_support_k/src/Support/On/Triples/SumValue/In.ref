@@ -1,0 +1,39 @@
+\import Neighbors.With[w := w] \as Neighbor;
+\definition firstNeighborhood: FirstClass.Neighborhood := FirstClass.Neighborhood {
+  region := Neighbor.openSet, compactSet := Neighbor.compactSet, openRegion := Neighbor.open, compact := Neighbor.compact, enclosed := Neighbor.enclosed,
+  contains := \fun (x: X)(inside: _) => Neighbor.contains x (Logic.Or[_, _]::left (Logic.Or[_, _]::left inside))
+};
+\import FirstClass.Localized[U := Neighbor.openSet, openU := Neighbor.open, L := Neighbor.compactSet, compactL := Neighbor.compact,
+  enclosedU := Neighbor.enclosed, containsK := firstNeighborhood.contains] \as LocalFirst;
+\definition secondNeighborhood: SecondClass.Neighborhood := SecondClass.Neighborhood {
+  region := Neighbor.openSet, compactSet := Neighbor.compactSet, openRegion := Neighbor.open, compact := Neighbor.compact, enclosed := Neighbor.enclosed,
+  contains := \fun (x: X)(inside: _) => Neighbor.contains x (Logic.Or[_, _]::left (Logic.Or[_, _]::right inside))
+};
+\import SecondClass.Localized[U := Neighbor.openSet, openU := Neighbor.open, L := Neighbor.compactSet, compactL := Neighbor.compact,
+  enclosedU := Neighbor.enclosed, containsK := secondNeighborhood.contains] \as LocalSecond;
+\definition thirdNeighborhood: ThirdClass.Neighborhood := ThirdClass.Neighborhood {
+  region := Neighbor.openSet, compactSet := Neighbor.compactSet, openRegion := Neighbor.open, compact := Neighbor.compact, enclosed := Neighbor.enclosed,
+  contains := \fun (x: X)(inside: _) => Neighbor.contains x (Logic.Or[_, _]::right inside)
+};
+\import ThirdClass.Localized[U := Neighbor.openSet, openU := Neighbor.open, L := Neighbor.compactSet, compactL := Neighbor.compact,
+  enclosedU := Neighbor.enclosed, containsK := thirdNeighborhood.contains] \as LocalThird;
+\import \parent.\parent.\parent.Localization[U := Neighbor.openSet, open := Neighbor.open, L := Neighbor.compactSet, compactL := Neighbor.compact, enclosed := Neighbor.enclosed] \as Local;
+\import Relative.Pair[X := Local.Carrier, space := Local.topology, compact := Local.compact, hausdorff := Local.separated,
+  subset := Local.boundary, closed := Local.boundaryClosed] \as Pair;
+\import \parent.\parent.Sum[t := t, u := u, v := v] \as SumWitness;
+\module BundleSquare;
+\import Pair.BundleSum[F := LocalFirst.FirstFiber, G := LocalFirst.SecondFiber, H := LocalSecond.FirstFiber, I := LocalSecond.SecondFiber,
+  J := LocalThird.FirstFiber, L := LocalThird.SecondFiber,
+  firstModel := LocalFirst.firstOnLocal, secondModel := LocalFirst.secondOnLocal, thirdModel := LocalSecond.firstOnLocal, fourthModel := LocalSecond.secondOnLocal,
+  fifthModel := LocalThird.firstOnLocal, sixthModel := LocalThird.secondOnLocal] \as Sum;
+\import Sum.With[alpha := LocalFirst.comparison, beta := LocalSecond.comparison, gamma := LocalThird.comparison, witness := Sum.Witness[LocalFirst.comparison, LocalSecond.comparison, LocalThird.comparison] {
+  positive := BundleSquare[].positive, negative := BundleSquare[].negative, agrees := BundleSquare[].compatible
+}] \as Equality;
+\definition equation: Relative.Reduced[model := model].group.base.op First.value Second.value = Third.value :=
+  trans!{{Relative.Reduced[model := model].Carrier}} _ _ _
+    (congr!{{Relative.Reduced[model := model].Carrier} {Relative.Reduced[model := model].Carrier} {Relative.Reduced[model := model].Carrier}}
+      Relative.Reduced[model := model].group.base.op _ _ _ _ (LocalFirst.Agreement[].equation) (LocalSecond.Agreement[].equation))
+    (trans!{{Relative.Reduced[model := model].Carrier}} _ _ _ (sym!{{Relative.Reduced[model := model].Carrier}} _ _ (Local.extendAdd LocalFirst.localValue LocalSecond.localValue))
+      (trans!{{Relative.Reduced[model := model].Carrier}} _ _ _
+        (congr!{{Pair.Quotient[].Relative} {Relative.Reduced[model := model].Carrier}} Local.extend _ _ Equality.reducedEquation)
+        (sym!{{Relative.Reduced[model := model].Carrier}} _ _ (LocalThird.Agreement[].equation))));

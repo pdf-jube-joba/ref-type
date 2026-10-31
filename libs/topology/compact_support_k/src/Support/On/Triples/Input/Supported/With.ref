@@ -1,0 +1,37 @@
+\structure Result: \Set := {
+  positiveModel: Bundle,
+  negativeModel: Bundle,
+  positive: Bundles.Isomorphisms[X := X, F := F, G := Fiber positiveModel, source := source, target := bundle positiveModel].Isomorphism,
+  negative: Bundles.Isomorphisms[X := X, F := G, G := Fiber negativeModel, source := target, target := bundle negativeModel].Isomorphism,
+  comparison: \parent.\parent.\parent.Between[p := positiveModel, q := negativeModel, K := K].Isomorphism,
+  agrees: \forall (x: A)(v: F x) -> (comparison.forward.fiber x).apply ((positive.forward.fiber x).apply v) = (negative.forward.fiber x).apply ((alpha.forward.fiber x).apply v)
+};
+\definition triple[r: Result]: Triple := Triple { positive := r.positiveModel, negative := r.negativeModel, support := K, compact := compact, comparison := r.comparison };
+\module Using(p, q: Bundle,
+  positive: Bundles.Isomorphisms[X := X, F := F, G := Fiber p, source := source, target := bundle p].Isomorphism,
+  negative: Bundles.Isomorphisms[X := X, F := G, G := Fiber q, source := target, target := bundle q].Isomorphism);
+\definition existence: \exists Result := \block {
+  \takefrom p: SourceModels.Result \by SourceModels.existence (\refl(space)) \then
+  \takefrom q: TargetModels.Result \by TargetModels.existence (\refl(space)) \then
+  \return \exact(Using[p := p.model, q := q.model, positive := p.isomorphism, negative := q.isomorphism].result, Result)
+};
+\module Change(r, s: Result);
+\import \parent.\parent.\parent.Group[] \as Group;
+\definition Values: \Set := \Cast[Group.Carrier] ({ v: Group.Carrier \where \exists (r: Result \where Group.value (triple r) = v) });
+\definition valuesExist: \exists Values := \block {
+  \takefrom r: Result \by existence \then
+  \return Logic.existsIntro[Group.Carrier, { v: Group.Carrier \where \exists (s: Result \where Group.value (triple s) = v) }]
+    (Group.value (triple r)) (Logic.existsIntro[Result, { s: Result \where Group.value (triple s) = Group.value (triple r) }] r (\refl(Group.value (triple r))))
+};
+\definition unique: \forall (a, b: Values) -> a = b := \block {
+  \fun (a, b: Values) \then
+  \takefrom r: \Cast[Result] ({ r: Result \where Group.value (triple r) = a }) \by \bysub(Group.Carrier, Values, a) \then
+  \takefrom s: \Cast[Result] ({ s: Result \where Group.value (triple s) = b }) \by \bysub(Group.Carrier, Values, b) \then
+  \return trans!{{Group.Carrier}} _ _ _ (sym!{{Group.Carrier}} _ _ (\bysub(Result, { r: Result \where Group.value (triple r) = a }, r)))
+    (trans!{{Group.Carrier}} _ _ _ Change[r := r, s := s].equation (\bysub(Result, { s: Result \where Group.value (triple s) = b }, s)))
+};
+\definition value: Values := \choice Values \by { existence: valuesExist, uniqueness: unique };
+\definition agreement: \forall (r: Result) -> value = Group.value (triple r) :=
+  \fun (r: Result) => unique value (\into[Group.Carrier](Group.value (triple r), Values) \by {
+    Logic.existsIntro[Result, { s: Result \where Group.value (triple s) = Group.value (triple r) }] r (\refl(Group.value (triple r)))
+  });

@@ -1,0 +1,30 @@
+\import Source.Of[bundle := source].Restriction[U := U] \as SourceRestriction;
+\import Target.Of[bundle := target].Restriction[U := U] \as TargetRestriction;
+\definition subset: \Pow Source.Point := { p: Source.Point \where \In[X] U p.base };
+\definition A: \Set := \Cast[Source.Point] subset;
+\import Bundles.Family[X := \Cast[X] U, F := (\fun (x: \Cast[X] U) => F x)] \as RestrictedSource;
+\import Bundles.Family[X := \Cast[X] U, F := (\fun (x: \Cast[X] U) => G x)] \as RestrictedTarget;
+\import Bundles.Morphisms[X := \Cast[X] U, Y := \Cast[X] U, F := (\fun (x: \Cast[X] U) => F x), G := (\fun (x: \Cast[X] U) => G x),
+  source := SourceRestriction.restricted, target := TargetRestriction.restricted, f := (\fun (x: \Cast[X] U) => x)] \as LocalMaps;
+\definition value[p: A]: Target.Point := TargetRestriction.totalMap (LocalMaps.total local (SourceRestriction.backward p));
+\definition localRegular: topology.Continuity[A := A, B := Target.Point].Continuous
+  (topology.Topology[Carrier := Source.Point].Subspace[S := subset].topology source.totalSpace) target.totalSpace value :=
+  topology.Composition[A := A, B := RestrictedTarget.Point, C := Target.Point].composeContinuous
+    (topology.Topology[Carrier := Source.Point].Subspace[S := subset].topology source.totalSpace) TargetRestriction.restricted.totalSpace target.totalSpace
+    (\fun (p: A) => LocalMaps.total local (SourceRestriction.backward p)) TargetRestriction.totalMap
+    (topology.Composition[A := A, B := RestrictedSource.Point, C := RestrictedTarget.Point].composeContinuous
+      (topology.Topology[Carrier := Source.Point].Subspace[S := subset].topology source.totalSpace) SourceRestriction.restricted.totalSpace TargetRestriction.restricted.totalSpace
+      SourceRestriction.backward (LocalMaps.total local) SourceRestriction.backwardContinuous (LocalMaps.continuous local)) TargetRestriction.continuous;
+\import std.Logic[].Equality[].Transport[A := X] \as FiberTransport;
+\definition point[p: A]: \Cast[X] U := \into[X](p.base, U) \by { \bysub(Source.Point, subset, p) };
+\definition backwardFormula: \forall (p: A) -> SourceRestriction.backward p = RestrictedSource.include (point p) p.vector :=
+  \fun (p: A) => congr!{{F p.base} RestrictedSource.Point} (RestrictedSource.include (point p)) _ _ (FiberTransport.castRefl F p.base p.vector);
+\definition equation: \forall (p: A) -> value p = Maps.total data p :=
+  \fun (p: A) => trans!{{Target.Point}} _ _ _
+    (congr!{RestrictedSource.Point Target.Point} (\fun (z: RestrictedSource.Point) => TargetRestriction.totalMap (LocalMaps.total local z)) _ _ (backwardFormula p))
+    (congr!{{G p.base} Target.Point} (Target.include p.base) _ _ (sym!{{G p.base}} _ _ (agrees (point p) p.vector)));
+\definition regular: topology.Continuity[A := A, B := Target.Point].Continuous
+  (topology.Topology[Carrier := Source.Point].Subspace[S := subset].topology source.totalSpace) target.totalSpace (\fun (p: A) => Maps.total data p) :=
+  \idelim value = (\fun (p: A) => Maps.total data p) \with f: (A -> Target.Point) => topology.Continuity[A := A, B := Target.Point].Continuous
+    (topology.Topology[Carrier := Source.Point].Subspace[S := subset].topology source.totalSpace) target.totalSpace f
+    \by { base: localRegular, equality: \axiom:funext(value, (\fun (p: A) => Maps.total data p), equation) };

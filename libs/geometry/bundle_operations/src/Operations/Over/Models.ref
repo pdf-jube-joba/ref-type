@@ -1,0 +1,29 @@
+\definition Fiber[ranks: X -> N.Nat^][x: X]: \Set := Vector (ranks x);
+\definition Total[ranks: X -> N.Nat^]: \Set := Bundles.Family[X := X, F := Fiber ranks].Point;
+\structure Data: \Set := {
+  ranks: X -> N.Nat^,
+  totalSpace: topology.Topology[Carrier := Total ranks].Topology
+};
+\definition lifted[d: Data]: Bundles.Family[X := X, F := Fiber d.ranks].Data :=
+  Bundles.Family[X := X, F := Fiber d.ranks].Data { baseSpace := baseSpace, totalSpace := d.totalSpace, space := (\fun (x: X) => coordinates (d.ranks x)) };
+\definition Bundle: \Set := \Cast[Data] ({ d: Data \where Bundles.Family[X := X, F := Fiber d.ranks].With[data := lifted d].LocallyTrivial });
+\definition bundle[d: Bundle]: Bundles.Family[X := X, F := Fiber d.ranks].Bundle :=
+  \into[Bundles.Family[X := X, F := Fiber d.ranks].Data](lifted d, Bundles.Family[X := X, F := Fiber d.ranks].Bundle) \by {
+    \bysub(Data, { d: Data \where Bundles.Family[X := X, F := Fiber d.ranks].With[data := lifted d].LocallyTrivial }, d)
+  };
+\module From(F: X -> \Set, original: Bundles.Family[X := X, F := F].Bundle);
+\module Trivial(n: N.Nat^);
+\definition Map[first, second: Bundle]: \Set := Bundles.Morphisms[X := X, Y := X, F := Fiber first.ranks, G := Fiber second.ranks,
+  source := bundle first, target := bundle second, f := (\fun (x: X) => x)].Map;
+\definition zero[first, second: Bundle]: Map first second :=
+  \parent.ZeroMap[X := X, F := Fiber first.ranks, G := Fiber second.ranks, source := bundle first, target := bundle second, sameBase := (\refl(baseSpace))].map;
+\definition identity[first: Bundle]: Map first first := Bundles.Identity[X := X, F := Fiber first.ranks, bundle := bundle first].map;
+\definition compose[first, middle, last: Bundle][a: Map first middle][b: Map middle last]: Map first last :=
+  Bundles.Morphisms[X := X, Y := X, F := Fiber first.ranks, G := Fiber middle.ranks, source := bundle first, target := bundle middle, f := (\fun (x: X) => x)]
+    .Composition[Z := X, H := Fiber last.ranks, range := bundle last, g := (\fun (x: X) => x)].compose a b;
+\module Sum(first, second: Bundle);
+\module Chains;
+\module Pullback(b: Bundle, Y: \Set, source: topology.Topology[Carrier := Y].Topology, f: Y -> X,
+  regular: topology.Continuity[A := Y, B := X].Continuous source baseSpace f);
+\module PullbackMap(p, q: Bundle, Y: \Set, source: topology.Topology[Carrier := Y].Topology, f: Y -> X,
+  regular: topology.Continuity[A := Y, B := X].Continuous source baseSpace f);

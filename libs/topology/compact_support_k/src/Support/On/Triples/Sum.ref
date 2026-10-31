@@ -1,0 +1,24 @@
+\import Operations.DirectSum[X := X, F := Fiber t.positive, G := Fiber u.positive, left := bundle t.positive, right := bundle u.positive] \as Positive;
+\import Operations.DirectSum[X := X, F := Fiber t.negative, G := Fiber u.negative, left := bundle t.negative, right := bundle u.negative] \as Negative;
+\import Bundles.Isomorphisms[X := X, F := Positive.Fiber, G := Fiber v.positive, source := Positive.bundle (\refl(space)), target := bundle v.positive] \as PositiveMaps;
+\import Bundles.Isomorphisms[X := X, F := Negative.Fiber, G := Fiber v.negative, source := Negative.bundle (\refl(space)), target := bundle v.negative] \as NegativeMaps;
+\definition support: \Pow X := Base.Finite[].Join (Base.Finite[].Join t.support u.support) v.support;
+\definition outside: \Pow X := Base.Complement support;
+\definition atFirst[x: \Cast[X] outside]: \Cast[X] (Base.Complement t.support) := \into[X](x, Base.Complement t.support) \by {
+  \fun (inside: _) => (\bysub(X, outside, x)) (Logic.Or[_, _]::left (Logic.Or[_, _]::left inside))
+};
+\definition atSecond[x: \Cast[X] outside]: \Cast[X] (Base.Complement u.support) := \into[X](x, Base.Complement u.support) \by {
+  \fun (inside: _) => (\bysub(X, outside, x)) (Logic.Or[_, _]::left (Logic.Or[_, _]::right inside))
+};
+\definition atSum[x: \Cast[X] outside]: \Cast[X] (Base.Complement v.support) := \into[X](x, Base.Complement v.support) \by {
+  \fun (inside: _) => (\bysub(X, outside, x)) (Logic.Or[_, _]::right inside)
+};
+\import std.Data[].Pair[] \as Product;
+\structure Witness: \Set := {
+  positive: PositiveMaps.Isomorphism,
+  negative: NegativeMaps.Isomorphism,
+  agrees: \forall (x: \Cast[X] outside)(a: Fiber t.positive x)(b: Fiber u.positive x) ->
+    (v.comparison.forward.fiber (atSum x)).apply ((positive.forward.fiber x).apply (Product.pair (Fiber t.positive x) (Fiber u.positive x) a b)) =
+    (negative.forward.fiber x).apply (Product.pair (Fiber t.negative x) (Fiber u.negative x)
+      ((t.comparison.forward.fiber (atFirst x)).apply a) ((u.comparison.forward.fiber (atSecond x)).apply b))
+};

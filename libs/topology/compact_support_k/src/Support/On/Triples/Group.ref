@@ -1,0 +1,39 @@
+\import std.Arithmetic[].Int[] \as I;
+\import std.Arithmetic[].IntAlgebra[].Ring[] \as Integers;
+\import module_theory.Module[].Over[R := I.Int^, ring := Integers.ring] \as Modules;
+\import Modules.Presentation[Generators := Triple] \as Expressions;
+\definition Expression: \Set := Expressions.Expression;
+\definition symbol[t: Triple]: Expression := Expressions.Expression::generator t;
+\inductive Relation: \forall (a, b: Expression) -> \Prop :=
+  | global: \forall (t: Triple) -> \parent.Global[t := t].Witness -> Relation (symbol t) Expressions.Expression::zero
+  | isomorphic: \forall (t, u: Triple) -> \parent.Isomorphic[t := t, u := u].Witness -> Relation (symbol t) (symbol u)
+  | sum: \forall (t, u, v: Triple) -> \parent.Sum[t := t, u := u, v := v].Witness -> Relation (Expressions.Expression::sum (symbol t) (symbol u)) (symbol v)
+  | compose: \forall (p, q, r: Bundle)(K: \Pow X)(compact: Base.IsCompactIn space K)
+      (first: \parent.Between[p := p, q := q, K := K].Isomorphism)(second: \parent.Between[p := q, q := r, K := K].Isomorphism) ->
+      Relation (Expressions.Expression::sum (symbol (\parent.Compose[p := p, q := q, r := r, K := K, compact := compact, first := first, second := second].left))
+        (symbol (\parent.Compose[p := p, q := q, r := r, K := K, compact := compact, first := first, second := second].right)))
+        (symbol (\parent.Compose[p := p, q := q, r := r, K := K, compact := compact, first := first, second := second].triple))
+  | homotopy: \forall (p, q: Bundle)(K: \Pow X)(compact: Base.IsCompactIn space K)
+      (first, second: \parent.Between[p := p, q := q, K := K].Isomorphism) ->
+      \parent.Homotopy[p := p, q := q, K := K, compact := compact, first := first, second := second].Family ->
+      Relation (symbol (\parent.Homotopy[p := p, q := q, K := K, compact := compact, first := first, second := second].left))
+        (symbol (\parent.Homotopy[p := p, q := q, K := K, compact := compact, first := first, second := second].right));
+\import Expressions.Of[relations := Relation] \as Presented;
+\import algebra.Quotient[A := Expression, relation := Presented.Equivalent] \as Quotient;
+\definition Carrier: \Set := Presented.Carrier;
+\definition value: Triple -> Carrier := Presented.generator;
+\definition zero: Carrier := Presented.zero;
+\definition add: Carrier -> Carrier -> Carrier := Presented.add;
+\definition neg: Carrier -> Carrier := Presented.neg;
+\definition group: std.Alg[].Alg[].CommutativeGroup[Carrier] := Modules.Laws[V := Carrier, space := Presented.space].additive;
+\definition Equivalent: Expression -> Expression -> \Prop := Presented.Equivalent;
+\definition class: Expression -> Carrier := Presented.class;
+\definition relationEquality: \forall (a, b: Expression) -> Relation a b -> class a = class b :=
+  \fun (a, b: Expression)(related: _) => Quotient.classRelated Presented.equivalence a b (Presented.relationIncluded a b related);
+\definition globalZero: \forall (t: Triple) -> \parent.Global[t := t].Witness -> value t = zero :=
+  \fun (t: Triple)(w: _) => relationEquality (symbol t) Expressions.Expression::zero (Relation::global t w);
+\definition isomorphic: \forall (t, u: Triple) -> \parent.Isomorphic[t := t, u := u].Witness -> value t = value u :=
+  \fun (t, u: Triple)(w: _) => relationEquality (symbol t) (symbol u) (Relation::isomorphic t u w);
+\definition sum: \forall (t, u, v: Triple) -> \parent.Sum[t := t, u := u, v := v].Witness -> add (value t) (value u) = value v :=
+  \fun (t, u, v: Triple)(w: _) => trans!{{Carrier}} _ _ _ (Presented.addClass (symbol t) (symbol u))
+    (relationEquality _ _ (Relation::sum t u v w));

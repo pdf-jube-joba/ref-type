@@ -1,0 +1,33 @@
+\import Bundles.Isomorphisms[X := X, F := F, G := Fiber r.positiveModel, source := source, target := bundle r.positiveModel] \as FirstPositive;
+\import Bundles.Isomorphisms[X := X, F := G, G := Fiber r.negativeModel, source := target, target := bundle r.negativeModel] \as FirstNegative;
+\import Operations.IsomorphismComposition[X := X, F := Fiber r.positiveModel, G := F, H := Fiber s.positiveModel,
+  source := bundle r.positiveModel, middle := source, target := bundle s.positiveModel] \as PositiveMaps;
+\import Operations.IsomorphismComposition[X := X, F := Fiber r.negativeModel, G := G, H := Fiber s.negativeModel,
+  source := bundle r.negativeModel, middle := target, target := bundle s.negativeModel] \as NegativeMaps;
+\definition positive: PositiveMaps.Isomorphism := PositiveMaps.compose (FirstPositive.inverse r.positive) s.positive;
+\definition negative: NegativeMaps.Isomorphism := NegativeMaps.compose (FirstNegative.inverse r.negative) s.negative;
+\definition firstPositiveLaws: FirstPositive.Laws[r.positive] := \bysub(FirstPositive.Data, FirstPositive.Isomorphism, r.positive);
+\definition firstNegativeLaws: FirstNegative.Laws[r.negative] := \bysub(FirstNegative.Data, FirstNegative.Isomorphism, r.negative);
+\definition agreement: \forall (x: A)(v: Fiber r.positiveModel x) ->
+  (s.comparison.forward.fiber x).apply ((positive.forward.fiber x).apply v) = (negative.forward.fiber x).apply ((r.comparison.forward.fiber x).apply v) := \block {
+  \fun (x: A)(v: Fiber r.positiveModel x) \then
+  \let original: F x := (r.positive.backward.fiber x).apply v \then
+  \let old: (r.comparison.forward.fiber x).apply v = (r.negative.forward.fiber x).apply ((alpha.forward.fiber x).apply original) :=
+    trans!{{Fiber r.negativeModel x}} _ _ _
+      (sym!{{Fiber r.negativeModel x}} _ _
+        (congr!{{Fiber r.positiveModel x} {Fiber r.negativeModel x}} (r.comparison.forward.fiber x).apply _ _ (firstPositiveLaws.rightInverse x v)))
+      (r.agrees x original) \then
+  \let recovered: (r.negative.backward.fiber x).apply ((r.comparison.forward.fiber x).apply v) = (alpha.forward.fiber x).apply original :=
+    trans!{{G x}} _ _ _ (congr!{{Fiber r.negativeModel x} {G x}} (r.negative.backward.fiber x).apply _ _ old)
+      (firstNegativeLaws.leftInverse x ((alpha.forward.fiber x).apply original)) \then
+  \return trans!{{Fiber s.negativeModel x}} _ _ _ (s.agrees x original)
+    (congr!{{G x} {Fiber s.negativeModel x}} (s.negative.forward.fiber x).apply _ _ (sym!{{G x}} _ _ recovered))
+};
+\import \parent.\parent.\parent.\parent.Isomorphic[t := triple r, u := triple s] \as Compare;
+\definition point[x: \Cast[X] Compare.outside]: A := Compare.first x;
+\definition witness: Compare.Witness := Compare.Witness {
+  positive := positive, negative := negative,
+  commutes := \fun (x: \Cast[X] Compare.outside)(v: Fiber r.positiveModel x) => agreement (point x) v
+};
+\definition equation: \parent.\parent.\parent.\parent.Group[].value (triple r) = \parent.\parent.\parent.\parent.Group[].value (triple s) :=
+  \parent.\parent.\parent.\parent.Group[].isomorphic (triple r) (triple s) witness;

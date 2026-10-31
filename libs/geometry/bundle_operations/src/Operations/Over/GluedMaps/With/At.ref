@@ -1,0 +1,27 @@
+\import Spaces.Linear[V := F x, W := G x, source := source.space x, target := target.space x] \as Linear;
+\definition LinearMap: \Set := Linear.Map;
+\structure Laws[f: Linear.Map]: \Prop := {
+  left: \forall (s: \In[X] S x)(v: F x) -> f.apply v = (first.fiber (\into[X](x, S) \by { s })).apply v,
+  right: \forall (t: \In[X] T x)(v: F x) -> f.apply v = (second.fiber (\into[X](x, T) \by { t })).apply v
+};
+\definition Values: \Set := \Cast[Linear.Map] ({ f: Linear.Map \where Laws[f] });
+\definition existence: \exists Values := either!{{(covers x)} {\exists Values}
+  {\fun (s: \In[X] S x) => \exact(\into[Linear.Map](first.fiber (\into[X](x, S) \by { s }), Values) \by {
+    Laws[first.fiber (\into[X](x, S) \by { s })] {
+      left := \fun (same: \In[X] S x)(v: F x) => \refl((first.fiber (\into[X](x, S) \by { s })).apply v),
+      right := \fun (t: \In[X] T x)(v: F x) => compatible x s t v
+    }
+  }, Values)}
+  {\fun (t: \In[X] T x) => \exact(\into[Linear.Map](second.fiber (\into[X](x, T) \by { t }), Values) \by {
+    Laws[second.fiber (\into[X](x, T) \by { t })] {
+      left := \fun (s: \In[X] S x)(v: F x) => sym!{{G x}} _ _ (compatible x s t v),
+      right := \fun (same: \In[X] T x)(v: F x) => \refl((second.fiber (\into[X](x, T) \by { t })).apply v)
+    }
+  }, Values)}
+};
+\definition unique: \forall (a, b: Values) -> a = b :=
+  \fun (a, b: Values) => Linear.ext a b (\axiom:funext(a.apply, b.apply, \fun (v: F x) => either!{{(covers x)} {a.apply v = b.apply v}
+    {\fun (s: \In[X] S x) => trans!{{G x}} _ _ _ ((\bysub(Linear.Map, Values, a)).left s v) (sym!{{G x}} _ _ ((\bysub(Linear.Map, Values, b)).left s v))}
+    {\fun (t: \In[X] T x) => trans!{{G x}} _ _ _ ((\bysub(Linear.Map, Values, a)).right t v) (sym!{{G x}} _ _ ((\bysub(Linear.Map, Values, b)).right t v))}
+  }));
+\definition value: Values := \choice Values \by { existence: existence, uniqueness: unique };

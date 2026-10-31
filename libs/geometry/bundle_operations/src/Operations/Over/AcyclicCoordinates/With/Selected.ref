@@ -1,0 +1,73 @@
+\import algebra.Group[].Of[Carrier := Vector m, group := Modules.Laws[V := Vector m, space := Odd.space].additive] \as OddGroup;
+\import Modules.Hom[V := Vector n, W := Vector m, source := Even.space, target := Odd.space] \as DMap;
+\import Modules.Hom[V := Vector m, W := Vector n, source := Odd.space, target := Even.space] \as EMap;
+\import Modules.Hom[V := Vector n, W := Vector n, source := Even.space, target := Even.space] \as EvenMaps;
+\import algebra.Group[].Of[Carrier := Vector n, group := Modules.Laws[V := Vector n, space := Even.space].additive] \as EvenGroup;
+\definition ambientS: EMap.Map := S.Composition[U := Vector m, domain := Odd.space].compose sections.s oddRetraction;
+\definition ambientT: DMap.Map := T.Composition[U := Vector n, domain := Even.space].compose sections.t evenRetraction;
+\definition ambientDS[w: OddCycles.Carrier]: d.apply (ambientS.apply w) = w := trans!{{Vector m}} _ _ _
+  (sections.ds (oddRetraction.apply w))
+  ((\bysub(OddCycles.Map, Subspaces.Retraction m oddKernel, oddRetraction)) w);
+\definition ambientET[v: EvenCycles.Carrier]: e.apply (ambientT.apply v) = v := trans!{{Vector n}} _ _ _
+  (sections.et (evenRetraction.apply v))
+  ((\bysub(EvenCycles.Map, Subspaces.Retraction n evenKernel, evenRetraction)) v);
+\definition evenRemainder: EvenMaps.Map := EvenMaps.plus (Modules.End[V := Vector n, space := Even.space].identity)
+  (EvenMaps.negative (EMap.Composition[U := Vector n, domain := Even.space].compose ambientS (Forward.asModuleMap d)));
+\definition evenClosed: \forall (v: Vector n) -> d.apply (evenRemainder.apply v) = (coordinates m).zero :=
+  \fun (v: Vector n) => trans!{{Vector m}} _ _ _ (DMap.differencePreserved (Forward.asModuleMap d) v (ambientS.apply (d.apply v)))
+    (trans!{{Vector m}} _ _ _
+      (congr!{{Vector m} {Vector m}} (OddGroup.difference (d.apply v)) _ _ (ambientDS (differential.apply v)))
+      (OddGroup.inverseRight (d.apply v)));
+\import Modules.Hom[V := Vector n, W := EvenCycles.Carrier, source := Even.space, target := EvenCycles.space] \as EvenR;
+\definition evenR: EvenR.Map := EvenR.Map {
+  apply := \fun (v: Vector n) => \into[Vector n](evenRemainder.apply v, evenKernel.carrier) \by { evenClosed v },
+  addition := evenRemainder.addition, scalar := evenRemainder.scalar
+};
+\definition evenFixed[v: Vector n][cycle: d.apply v = (coordinates m).zero]: evenRemainder.apply v = v :=
+  trans!{{Vector n}} _ _ _
+    (congr!{{Vector n} {Vector n}} (EvenGroup.difference v) _ _
+      (trans!{{Vector n}} _ _ _
+        (congr!{{Vector m} {Vector n}} ambientS.apply _ _ cycle)
+        (EMap.zeroPreserved ambientS)))
+    (trans!{{Vector n}} _ _ _
+      (congr!{{Vector n} {Vector n}} (EvenGroup.add v) _ _ EvenGroup.negZero) (EvenGroup.zeroRight v));
+\import Modules.Hom[V := Vector m, W := Vector m, source := Odd.space, target := Odd.space] \as OddMaps;
+\definition oddRemainder: OddMaps.Map := OddMaps.plus (Modules.End[V := Vector m, space := Odd.space].identity)
+  (OddMaps.negative (DMap.Composition[U := Vector m, domain := Odd.space].compose ambientT (Backward.asModuleMap e)));
+\definition oddClosed: \forall (v: Vector m) -> e.apply (oddRemainder.apply v) = (coordinates n).zero :=
+  \fun (v: Vector m) => trans!{{Vector n}} _ _ _ (EMap.differencePreserved (Backward.asModuleMap e) v (ambientT.apply (e.apply v)))
+    (trans!{{Vector n}} _ _ _
+      (congr!{{Vector n} {Vector n}} (EvenGroup.difference (e.apply v)) _ _ (ambientET (codifferential.apply v)))
+      (EvenGroup.inverseRight (e.apply v)));
+\import Modules.Hom[V := Vector m, W := OddCycles.Carrier, source := Odd.space, target := OddCycles.space] \as OddR;
+\definition oddR: OddR.Map := OddR.Map {
+  apply := \fun (v: Vector m) => \into[Vector m](oddRemainder.apply v, oddKernel.carrier) \by { oddClosed v },
+  addition := oddRemainder.addition, scalar := oddRemainder.scalar
+};
+\definition oddFixed[v: Vector m][cycle: e.apply v = (coordinates n).zero]: oddRemainder.apply v = v :=
+  trans!{{Vector m}} _ _ _
+    (congr!{{Vector m} {Vector m}} (OddGroup.difference v) _ _
+      (trans!{{Vector m}} _ _ _
+        (congr!{{Vector n} {Vector m}} ambientT.apply _ _ cycle)
+        (DMap.zeroPreserved ambientT)))
+    (trans!{{Vector m}} _ _ _
+      (congr!{{Vector m} {Vector m}} (OddGroup.add v) _ _ OddGroup.negZero) (OddGroup.zeroRight v));
+\definition hModule: EMap.Map := EMap.Composition[U := Vector m, domain := Odd.space].compose ambientS oddRemainder;
+\definition kModule: DMap.Map := DMap.Composition[U := Vector n, domain := Even.space].compose ambientT evenRemainder;
+\definition h: Backward.Map := Backward.fromModuleMap hModule;
+\definition k: Forward.Map := Forward.fromModuleMap kModule;
+\import \parent.\parent.\parent.ContractingPair[V := Vector n, W := Vector m, even := coordinates n, odd := coordinates m] \as Contracting;
+\definition data: Contracting.Data := Contracting.Data { d := d, e := e, h := h, k := k };
+\definition laws: Contracting.Laws[data] := Contracting.Laws[data] {
+  squareEven := exact.squareEven, squareOdd := exact.squareOdd,
+  even := \fun (v: Vector n) => trans!{{Vector n}} _ _ _
+    (congr!{{Vector n} {Vector n} {Vector n}} EvenGroup.add _ _ _ _ (ambientET (evenR.apply v))
+      (congr!{{Vector m} {Vector n}} ambientS.apply _ _ (oddFixed (d.apply v) (exact.squareEven v))))
+    (EvenGroup.addDifference v (ambientS.apply (d.apply v))),
+  odd := \fun (w: Vector m) => trans!{{Vector m}} _ _ _
+    (congr!{{Vector m} {Vector m} {Vector m}} OddGroup.add _ _ _ _ (ambientDS (oddR.apply w))
+      (congr!{{Vector n} {Vector m}} ambientT.apply _ _ (evenFixed (e.apply w) (exact.squareOdd w))))
+    (OddGroup.addDifference w (ambientT.apply (e.apply w)))
+};
+\definition contraction: Contracting.Pair := \into[Contracting.Data](data, Contracting.Pair) \by { laws };
+\definition result: Result := Result { h := h, k := k, laws := laws };

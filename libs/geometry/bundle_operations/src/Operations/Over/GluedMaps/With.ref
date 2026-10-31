@@ -1,0 +1,21 @@
+\module At(x: X);
+\definition fiber[x: X]: Spaces.Linear[V := F x, W := G x, source := source.space x, target := target.space x].Map := At[x := x].value;
+\definition onFirst: \forall (x: First.A)(v: F x) -> (fiber x).apply v = (first.fiber x).apply v :=
+  \fun (x: First.A)(v: F x) => (\bysub(At[x := x].LinearMap, At[x := x].Values, At[x := x].value)).left (\bysub(X, S, x)) v;
+\definition onSecond: \forall (x: Second.A)(v: F x) -> (fiber x).apply v = (second.fiber x).apply v :=
+  \fun (x: Second.A)(v: F x) => (\bysub(At[x := x].LinearMap, At[x := x].Values, At[x := x].value)).right (\bysub(X, T, x)) v;
+\definition data: Maps.Data := Maps.Data { fiber := fiber };
+\module Local(U: \Pow X, local: \parent.\parent.Part[U := U].Map,
+  agrees: \forall (x: \Cast[X] U)(v: F x) -> (fiber x).apply v = (local.fiber x).apply v);
+\definition firstPart: \Pow Source.Point := { p: Source.Point \where \In[X] S p.base };
+\definition secondPart: \Pow Source.Point := { p: Source.Point \where \In[X] T p.base };
+\definition firstClosed: topology.Topology[Carrier := Source.Point].IsClosedIn source.totalSpace firstPart :=
+  topology.Continuity[A := Source.Point, B := X].closedPreimage source.totalSpace source.baseSpace Source.projection Source.Of[bundle := source].projectionContinuous S closedS;
+\definition secondClosed: topology.Topology[Carrier := Source.Point].IsClosedIn source.totalSpace secondPart :=
+  topology.Continuity[A := Source.Point, B := X].closedPreimage source.totalSpace source.baseSpace Source.projection Source.Of[bundle := source].projectionContinuous T closedT;
+\definition totalCover: \forall (p: Source.Point) -> Logic.Or[\In[Source.Point] firstPart p, \In[Source.Point] secondPart p] := \fun (p: Source.Point) => covers p.base;
+\definition map: Maps.Map := \into[Maps.Data](data, Maps.Map) \by {
+  topological_constructions.Gluing[A := Source.Point, B := Target.Point].BinaryClosed[F := firstPart, G := secondPart].continuous
+    source.totalSpace target.totalSpace (Maps.total data) firstClosed secondClosed totalCover
+    Local[U := S, local := first, agrees := onFirst].regular Local[U := T, local := second, agrees := onSecond].regular
+};

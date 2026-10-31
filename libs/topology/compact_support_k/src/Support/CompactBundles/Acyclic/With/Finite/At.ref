@@ -1,0 +1,29 @@
+\import Operations.ContractingPair[V := Fiber p x, W := Fiber q x, even := (bundle p).space x, odd := (bundle q).space x] \as Pair;
+\import Pair.Sums[d := d.fiber x, e := e.fiber x] \as Sums;
+\definition candidate[parts: Lists.List[Weighted]]: Sums.Candidate := Sums.Candidate { h := (h parts).fiber x, k := (k parts).fiber x };
+\definition balance: \forall (parts: Lists.List[Weighted]) -> Sums.Balance[candidate parts,Hermitian.scalar.embed (mass parts x)] :=
+  \induction (parts: Lists.List[Weighted]) \return Sums.Balance[candidate parts,Hermitian.scalar.embed (mass parts x)] \with {
+    | nil: \idelim Algebra.field.zero = Hermitian.scalar.embed R.zero \with a: C.Complex => Sums.Balance[Sums.zero,a] \by {
+      base: Sums.zeroBalance, equality: sym!{{C.Complex}} _ _ Hermitian.scalar.embedZero
+    }
+    | cons: \fun (head: Weighted)(tail: Lists.List[Weighted])(previous: Sums.Balance[candidate tail,Hermitian.scalar.embed (mass tail x)]) =>
+      \idelim Algebra.field.add (Hermitian.scalar.embed (head.entry.value x)) (Hermitian.scalar.embed (mass tail x)) = Hermitian.scalar.embed (R.add (head.entry.value x) (mass tail x))
+      \with a: C.Complex => Sums.Balance[candidate (Lists.List[Weighted]::cons head tail),a] \by {
+        base: Sums.plusBalance \parent.Term[w := head].At[x := x].weighted (candidate tail) (Hermitian.scalar.embed (head.entry.value x)) (Hermitian.scalar.embed (mass tail x)) \parent.Term[w := head].At[x := x].balance previous,
+        equality: sym!{{C.Complex}} _ _ (Hermitian.scalar.embedAdd (head.entry.value x) (mass tail x))
+      }
+  };
+\definition laws[parts: Lists.List[Weighted]][total: mass parts x = R.one]: Pair.Laws[Pair.Data { d := d.fiber x, e := e.fiber x, h := (h parts).fiber x, k := (k parts).fiber x }] :=
+  Pair.Laws[Pair.Data { d := d.fiber x, e := e.fiber x, h := (h parts).fiber x, k := (k parts).fiber x }] {
+    squareEven := (exact x).squareEven, squareOdd := (exact x).squareOdd,
+    even := \fun (v: Fiber p x) => trans!{{Fiber p x}} _ _ _ ((balance parts).even v)
+      (trans!{{Fiber p x}} _ _ _
+        (congr!{{C.Complex} {Fiber p x}} (\fun (a: C.Complex) => ((bundle p).space x).smul a v) _ _
+          (trans!{{C.Complex}} _ _ _ (congr!{{R.Real} {C.Complex}} Hermitian.scalar.embed _ _ total) Hermitian.scalar.embedOne))
+        (((bundle p).space x).scalarOne v)),
+    odd := \fun (w: Fiber q x) => trans!{{Fiber q x}} _ _ _ ((balance parts).odd w)
+      (trans!{{Fiber q x}} _ _ _
+        (congr!{{C.Complex} {Fiber q x}} (\fun (a: C.Complex) => ((bundle q).space x).smul a w) _ _
+          (trans!{{C.Complex}} _ _ _ (congr!{{R.Real} {C.Complex}} Hermitian.scalar.embed _ _ total) Hermitian.scalar.embedOne))
+        (((bundle q).space x).scalarOne w))
+  };

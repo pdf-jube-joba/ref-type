@@ -1,0 +1,39 @@
+\import Modules.Hom[V := Vector n, W := OddCycles.Carrier, source := Even.space, target := OddCycles.space] \as D;
+\import Modules.Hom[V := Vector m, W := EvenCycles.Carrier, source := Odd.space, target := EvenCycles.space] \as E;
+\definition differential: D.Map := D.Map {
+  apply := \fun (v: Vector n) => \into[Vector m](d.apply v, oddKernel.carrier) \by { exact.squareEven v },
+  addition := d.preservesAdd, scalar := d.preservesScale
+};
+\definition codifferential: E.Map := E.Map {
+  apply := \fun (w: Vector m) => \into[Vector n](e.apply w, evenKernel.carrier) \by { exact.squareOdd w },
+  addition := e.preservesAdd, scalar := e.preservesScale
+};
+\import Modules.Hom[V := OddCycles.Carrier, W := Vector n, source := OddCycles.space, target := Even.space] \as S;
+\import Modules.Hom[V := EvenCycles.Carrier, W := Vector m, source := EvenCycles.space, target := Odd.space] \as T;
+\structure Sections: \Set := {
+  s: S.Map,
+  t: T.Map,
+  ds: \forall (w: OddCycles.Carrier) -> d.apply (s.apply w) = w,
+  et: \forall (v: EvenCycles.Carrier) -> e.apply (t.apply v) = v
+};
+\definition firstSection: \exists \Cast[S.Map] ({ s: S.Map \where \forall (w: OddCycles.Carrier) -> differential.apply (s.apply w) = w }) :=
+  Subspaces.projective m oddKernel (Vector n) Even.space OddCycles.Carrier OddCycles.space differential exact.odd (Modules.End[V := OddCycles.Carrier, space := OddCycles.space].identity);
+\definition secondSection: \exists \Cast[T.Map] ({ t: T.Map \where \forall (v: EvenCycles.Carrier) -> codifferential.apply (t.apply v) = v }) :=
+  Subspaces.projective n evenKernel (Vector m) Odd.space EvenCycles.Carrier EvenCycles.space codifferential exact.even (Modules.End[V := EvenCycles.Carrier, space := EvenCycles.space].identity);
+\definition sections: \exists Sections := \block {
+  \takefrom s: \Cast[S.Map] ({ s: S.Map \where \forall (w: OddCycles.Carrier) -> differential.apply (s.apply w) = w })
+    \by firstSection \then
+  \takefrom t: \Cast[T.Map] ({ t: T.Map \where \forall (v: EvenCycles.Carrier) -> codifferential.apply (t.apply v) = v })
+    \by secondSection \then
+  \return \exact(Sections { s := s, t := t,
+    ds := \bysub(S.Map, { s: S.Map \where \forall (w: OddCycles.Carrier) -> differential.apply (s.apply w) = w }, s),
+    et := \bysub(T.Map, { t: T.Map \where \forall (v: EvenCycles.Carrier) -> codifferential.apply (t.apply v) = v }, t)
+  }, Sections)
+};
+\module Selected(sections: Sections, evenRetraction: Subspaces.Retraction n evenKernel, oddRetraction: Subspaces.Retraction m oddKernel);
+\definition existence: \exists Result := \block {
+  \takefrom chosen: Sections \by sections \then
+  \takefrom er: Subspaces.Retraction n evenKernel \by Subspaces.existence n evenKernel \then
+  \takefrom rr: Subspaces.Retraction m oddKernel \by Subspaces.existence m oddKernel \then
+  \return \exact(Selected[sections := chosen, evenRetraction := er, oddRetraction := rr].result, Result)
+};

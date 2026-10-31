@@ -1,0 +1,29 @@
+\import Spaces.Linear[V := V, W := V, source := even, target := even] \as EvenMaps;
+\import Spaces.Linear[V := W, W := W, source := odd, target := odd] \as OddMaps;
+\import Spaces.Laws[V := V, space := even] \as Even;
+\import Spaces.Laws[V := W, space := odd] \as Odd;
+\definition evenOperator: EvenMaps.Map := EvenMaps.Operations[].plus
+  (Backward.Composition[U := V, domain := even].compose c.e c.k) (Backward.Composition[U := V, domain := even].compose c.h c.d);
+\definition oddOperator: OddMaps.Map := OddMaps.Operations[].plus
+  (Forward.Composition[U := W, domain := odd].compose c.d c.h) (Forward.Composition[U := W, domain := odd].compose c.k c.e);
+\definition commutesD: \forall (v: V) -> c.d.apply (evenOperator.apply v) = oddOperator.apply (c.d.apply v) :=
+  \fun (v: V) => trans!{{W}} _ _ _ (c.d.preservesAdd (c.e.apply (c.k.apply v)) (c.h.apply (c.d.apply v)))
+    (trans!{{W}} _ _ _
+      (congr!{{W} {W}} (\fun (w: W) => odd.add w (c.d.apply (c.h.apply (c.d.apply v)) )) _ _ (squareOdd (c.k.apply v)))
+      (trans!{{W}} _ _ _ (Odd.zeroLeft _)
+        (sym!{{W}} _ _ (trans!{{W}} _ _ _
+          (congr!{{W} {W}} (odd.add (c.d.apply (c.h.apply (c.d.apply v)))) _ _
+            (trans!{{W}} _ _ _ (congr!{{V} {W}} c.k.apply _ _ (squareEven v)) c.k.preservesZero)) (Odd.zeroRight _)))));
+\definition commutesE: \forall (w: W) -> c.e.apply (oddOperator.apply w) = evenOperator.apply (c.e.apply w) :=
+  \fun (w: W) => trans!{{V}} _ _ _ (c.e.preservesAdd (c.d.apply (c.h.apply w)) (c.k.apply (c.e.apply w)))
+    (trans!{{V}} _ _ _
+      (congr!{{V} {V}} (\fun (v: V) => even.add v (c.e.apply (c.k.apply (c.e.apply w)))) _ _ (squareEven (c.h.apply w)))
+      (trans!{{V}} _ _ _ (Even.zeroLeft _)
+        (sym!{{V}} _ _ (trans!{{V}} _ _ _
+          (congr!{{V} {V}} (even.add (c.e.apply (c.k.apply (c.e.apply w)))) _ _
+            (trans!{{V}} _ _ _ (congr!{{W} {V}} c.h.apply _ _ (squareOdd w)) c.h.preservesZero)) (Even.zeroRight _)))));
+\module With(r: EvenMaps.Map, s: OddMaps.Map,
+  leftEven: \forall (v: V) -> r.apply (evenOperator.apply v) = v,
+  rightEven: \forall (v: V) -> evenOperator.apply (r.apply v) = v,
+  leftOdd: \forall (w: W) -> s.apply (oddOperator.apply w) = w,
+  rightOdd: \forall (w: W) -> oddOperator.apply (s.apply w) = w);

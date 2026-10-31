@@ -1,0 +1,16 @@
+\import \parent.\parent.\parent.\parent.Between[p := p, q := q, K := K] \as Boundary;
+\import Complements.PulledIsomorphism[X := X, Y := A, F := F, G := Fiber p, source := source, target := bundle p,
+  base := subspace, f := inclusion, sourceRegular := regular, targetRegular := regular] \as PositivePull;
+\import Complements.PulledIsomorphism[X := X, Y := A, F := G, G := Fiber q, source := target, target := bundle q,
+  base := subspace, f := inclusion, sourceRegular := regular, targetRegular := regular] \as NegativePull;
+\import Bundles.Isomorphisms[X := A, F := (\fun (x: A) => F x), G := (\fun (x: A) => Fiber p x), source := Positive.restricted, target := Boundary.first] \as Reverse;
+\definition comparison: Boundary.Isomorphism := Operations.IsomorphismComposition[X := A, F := (\fun (x: A) => Fiber p x), G := (\fun (x: A) => G x), H := (\fun (x: A) => Fiber q x),
+  source := Boundary.first, middle := Negative.restricted, target := Boundary.second].compose
+  (Operations.IsomorphismComposition[X := A, F := (\fun (x: A) => Fiber p x), G := (\fun (x: A) => F x), H := (\fun (x: A) => G x),
+    source := Boundary.first, middle := Positive.restricted, target := Negative.restricted].compose (Reverse.inverse (PositivePull.isomorphism positive)) alpha)
+  (NegativePull.isomorphism negative);
+\import Bundles.Isomorphisms[X := X, F := F, G := Fiber p, source := source, target := bundle p] \as GlobalPositive;
+\definition agreement: \forall (x: A)(v: F x) -> (comparison.forward.fiber x).apply ((positive.forward.fiber x).apply v) = (negative.forward.fiber x).apply ((alpha.forward.fiber x).apply v) :=
+  \fun (x: A)(v: F x) => congr!{{F x} {Fiber q x}} (\fun (w: F x) => (negative.forward.fiber x).apply ((alpha.forward.fiber x).apply w)) _ _
+    ((\bysub(GlobalPositive.Data, GlobalPositive.Isomorphism, positive)).leftInverse x v);
+\definition result: Result := Result { positiveModel := p, negativeModel := q, positive := positive, negative := negative, comparison := comparison, agrees := agreement };
