@@ -1,0 +1,14 @@
+\import topological_algebra.Coordinates[K := K, I := Fin.Fin n] \as Left;
+\import topological_algebra.Coordinates[K := K, I := Fin.Fin m] \as Right;
+\import topological_constructions.Product[A := Vector n, B := Vector m] \as Product;
+\import Operations.CoordinateSum[n := n, m := m] \as Join;
+\import \root.Classification[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].VectorFunctions[n := dimension, Y := X, source := baseSpace] \as Vectors;
+\definition vectorContinuous: \forall (v: Vector rank) -> Vectors.Continuous (\fun (x: X) => (matrix x).apply v) :=
+  \fun (v: Vector rank) => topology.Composition[A := X, B := Pair.Times^[Vector n, Vector m], C := Vector dimension].composeContinuous baseSpace
+    (Product.topology (coordinateTopology n) (coordinateTopology m)) (coordinateTopology dimension)
+      (\fun (x: X) => Pair.pair (Vector n) (Vector m) ((p.data.frame x).apply (Domain.left v)) ((q.data.frame x).apply (Domain.right v))) Join.join
+      (Product.Universal[X := X].pairContinuous baseSpace (coordinateTopology n) (coordinateTopology m)
+        (\fun (x: X) => (p.data.frame x).apply (Domain.left v)) (\fun (x: X) => (q.data.frame x).apply (Domain.right v))
+        (Left.Universal[A := X].continuous baseSpace scalar.topological.space (\fun (x: X) => (p.data.frame x).apply (Domain.left v)) (p.regular (Domain.left v)))
+        (Right.Universal[A := X].continuous baseSpace scalar.topological.space (\fun (x: X) => (q.data.frame x).apply (Domain.right v)) (q.regular (Domain.right v)))) Join.Topology[].joinRegular;
+\definition regular: Hermitian.At[n := dimension].Families[X := X].Matrix[m := rank].Regular baseSpace matrix := \fun (v: Vector rank) => Vectors.component _ (vectorContinuous v);

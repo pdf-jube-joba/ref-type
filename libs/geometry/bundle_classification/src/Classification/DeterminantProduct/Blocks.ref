@@ -1,0 +1,20 @@
+\import \root.Classification[].TopForms[V := V, space := left, n := n, frame := a] \as LeftTop;
+\import \root.Classification[].TopForms[V := W, space := right, n := m, frame := b] \as RightTop;
+\import LeftTop.DirectSum[W := W, right := right, m := m, other := b] \as Direct;
+\import Direct.Basis[] \as Basis;
+\import Direct.Factorization[] \as Factorization;
+\import \root.Classification[].TopForms[V := Sum.Carrier, space := Sum.space, n := rank, frame := Direct.sumFrame] \as Top;
+\import \parent.Mapping[A := V, B := W, targetLeft := left, targetRight := right, targetFirst := first, targetSecond := second, f := f, g := g] \as Mapping;
+\definition leftDeterminant: R.Real := LeftTop.volume (\fun (i: Fin.Fin n) => f.apply (LeftTop.arguments i));
+\definition rightDeterminant: R.Real := RightTop.volume (\fun (i: Fin.Fin m) => g.apply (RightTop.arguments i));
+\definition determinant: R.Real := Top.volume (\fun (i: Fin.Fin rank) => Mapping.map.apply (Top.arguments i));
+\definition arguments: (\fun (i: Fin.Fin rank) => Mapping.map.apply (Top.arguments i)) =
+  concatenate (\fun (i: Fin.Fin n) => f.apply (LeftTop.arguments i)) (\fun (i: Fin.Fin m) => g.apply (RightTop.arguments i)) :=
+  trans!{{Fin.Fin rank -> Sum.Carrier}} _ _ _
+    (congr!{{Fin.Fin rank -> Sum.Carrier} {Fin.Fin rank -> Sum.Carrier}} (\fun (u: Fin.Fin rank -> Sum.Carrier)(i: Fin.Fin rank) => Mapping.map.apply (u i)) _ _ (sym!{{Fin.Fin rank -> Sum.Carrier}} _ _ Basis.mixedIsBasis))
+    (Mapping.arguments LeftTop.arguments RightTop.arguments);
+\definition blockDeterminant: determinant = R.mul leftDeterminant rightDeterminant :=
+  trans!{R.Real} _ _ _ (congr!{{Fin.Fin rank -> Sum.Carrier} R.Real} Top.volume _ _ arguments)
+    (trans!{R.Real} _ _ _ (Factorization.formula Top.volume (\fun (i: Fin.Fin n) => f.apply (LeftTop.arguments i)) (\fun (i: Fin.Fin m) => g.apply (RightTop.arguments i)))
+      (trans!{R.Real} _ _ _ (congr!{R.Real R.Real} (\fun (c: R.Real) => R.mul c (R.mul leftDeterminant rightDeterminant)) _ _ Basis.normalized)
+        (Spaces.mulOneLeft (R.mul leftDeterminant rightDeterminant))));

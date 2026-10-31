@@ -1,0 +1,45 @@
+\definition Member[x: M.Point]: \Prop := Space.Member U x;
+\definition point[x: M.Point][member: Member x]: Carrier := \into[M.Point](x, U) \by { member };
+\definition Values[x: M.Point]: \Pow (F x) := { v: F x \where Logic.Or[
+  Logic.And[Member x, \forall (member: Member x) -> v = s.value (point x member)],
+  Logic.And[Logic.Not (Member x), v = zero x]] };
+\definition Value[x: M.Point]: \Set := \Cast[F x] (Values x);
+\definition existsValue[x: M.Point]: \exists Value x := either!{{(Classical.excludedMiddle (Member x))} {\exists Value x}
+  {\fun (member: Member x) => Logic.existsIntro[F x, Values x] (s.value (point x member))
+    (Logic.Or[_, _]::left (Logic.And[_, _]::# member (\fun (other: Member x) => \refl(s.value (point x member)))))}
+  {\fun (outside: Logic.Not (Member x)) => Logic.existsIntro[F x, Values x] (zero x)
+    (Logic.Or[_, _]::right (Logic.And[_, _]::# outside (\refl(zero x))))}
+};
+\definition uniqueValue[x: M.Point][left, right: Value x]: left = right :=
+  either!{{(\bysub(F x, Values x, left))} {left = right}
+    {\fun (lp: Logic.And[Member x, \forall (member: Member x) -> left = s.value (point x member)]) => either!{{(\bysub(F x, Values x, right))} {left = right}
+      {\fun (rp: Logic.And[Member x, \forall (member: Member x) -> right = s.value (point x member)]) => trans!{{F x}} _ _ _ (lp.right lp.left) (sym!{{F x}} _ _ (rp.right lp.left))}
+      {\fun (rn: Logic.And[Logic.Not (Member x), right = zero x]) => Logic.falseElim (left = right) (rn.left lp.left)}
+    }}
+    {\fun (ln: Logic.And[Logic.Not (Member x), left = zero x]) => either!{{(\bysub(F x, Values x, right))} {left = right}
+      {\fun (rp: Logic.And[Member x, \forall (member: Member x) -> right = s.value (point x member)]) => Logic.falseElim (left = right) (ln.left rp.left)}
+      {\fun (rn: Logic.And[Logic.Not (Member x), right = zero x]) => trans!{{F x}} _ _ _ ln.right (sym!{{F x}} _ _ rn.right)}
+    }}
+  };
+\definition value[x: M.Point]: F x := \choice Value x \by { existence: existsValue x, uniqueness: uniqueValue x };
+\definition law[x: M.Point]: \In[F x] (Values x) (value x) := \bysub(F x, Values x, \choice Value x \by { existence: existsValue x, uniqueness: uniqueValue x });
+\definition inside[x: Carrier]: value x = s.value x := either!{{(law x)} {value x = s.value x}
+  {\fun (chosen: Logic.And[Member x, \forall (member: Member x) -> value x = s.value (point x member)]) => chosen.right (\bysub(M.Point, U, x))}
+  {\fun (outside: Logic.And[Logic.Not (Member x), value x = zero x]) => Logic.falseElim (value x = s.value x) (outside.left (\bysub(M.Point, U, x)))}
+};
+\definition outside[x: M.Point]: Logic.Not (Member x) -> value x = zero x := \fun (absent: _) => either!{{(law x)} {value x = zero x}
+  {\fun (chosen: Logic.And[Member x, \forall (member: Member x) -> value x = s.value (point x member)]) => Logic.falseElim (value x = zero x) (absent chosen.left)}
+  {\fun (fallback: Logic.And[Logic.Not (Member x), value x = zero x]) => fallback.right}
+};
+\definition section: Section := Section { value := value };
+\definition Nonzero: \Pow M.Point := { x: M.Point \where Logic.Not (value x = zero x) };
+\definition support: \Pow M.Point := Closure.closure M.space Nonzero;
+\module Closed(F0: \Pow M.Point, closed: Space.IsClosedIn M.space F0, included: Space.Subset F0 U,
+  vanishes: \forall (x: Carrier) -> Logic.Not (Space.Member F0 x) -> s.value x = zero x);
+\definition smooth: IsSmooth s -> Space.Subset support U -> GlobalSmooth section := \block {
+  \fun (regular: _)(included: _) \then
+  \let vanishes: \forall (x: Carrier) -> Logic.Not (Space.Member support x) -> s.value x = zero x :=
+    \fun (x: Carrier)(away: _) => Finite.doubleNegElim (s.value x = zero x) (\fun (nonzero: Logic.Not (s.value x = zero x)) =>
+      away (Closure.contains M.space Nonzero x (\fun (equal: value x = zero x) => nonzero (trans!{{F x}} _ _ _ (sym!{{F x}} _ _ (inside x)) equal)))) \then
+  \return Closed[F0 := support, closed := Closure.closed M.space Nonzero, included := included, vanishes := vanishes].smooth regular
+};

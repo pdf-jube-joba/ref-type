@@ -1,0 +1,24 @@
+\import \parent.At[a := a] \as First;
+\import \parent.At[a := b] \as Second;
+\definition plain: Theory.On[X := Y, baseSpace := source].Isomorphism First.projection Second.projection := Native.Between[p := a.projection, q := b.projection].isomorphism iso.value;
+\import Target.Between[a := object a, b := object b] \as Result;
+\import Result.Along[iso := plain] \as Along;
+\import \root.Classification[].Determinants[X := Y, F := Theory.On[X := Y, baseSpace := source].Fiber First.projection, G := Theory.On[X := Y, baseSpace := source].Fiber Second.projection,
+  source := Theory.On[X := Y, baseSpace := source].bundle First.projection, target := Theory.On[X := Y, baseSpace := source].bundle Second.projection, same := \refl(source), k := k, iso := plain] \as PulledDet;
+\import \root.Classification[].Determinants[X := X, F := Plain.Fiber a.projection, G := Plain.Fiber b.projection, source := Plain.bundle a.projection, target := Plain.bundle b.projection, same := \refl(baseSpace), k := k, iso := iso.value] \as OriginalDet;
+\import \root.Classification[].Orientations[X := X, F := DeterminantFiber a.projection, bundle := determinantBundle a.projection] \as FirstCones;
+\definition same: \forall (y: Y)(alpha: Target.DeterminantFiber Second.projection y) -> (PulledDet.isomorphism.forward.fiber y).apply alpha = (OriginalDet.isomorphism.forward.fiber (f y)).apply alpha :=
+  \fun (y: Y)(alpha: Target.DeterminantFiber Second.projection y) => \axiom:funext((PulledDet.isomorphism.forward.fiber y).apply alpha, (OriginalDet.isomorphism.forward.fiber (f y)).apply alpha,
+    \fun (v: Fin.Fin k -> Plain.Fiber a.projection (f y)) => \refl(alpha (\fun (i: Fin.Fin k) => (iso.value.forward.fiber (f y)).apply (v i))));
+\definition preserves: Along.Preserves := \fun (y: Y)(alpha: Target.DeterminantFiber Second.projection y) => \block {
+  \let first: Logic.PropEquiv[_, _] := First.positiveCriterion y ((PulledDet.isomorphism.forward.fiber y).apply alpha) \then
+  \let second: Logic.PropEquiv[_, _] := Second.positiveCriterion y alpha \then
+  \let original: Logic.PropEquiv[_, _] := iso.preserves (f y) alpha \then
+  \return Logic.PropEquiv[_, _] {
+    ltr := \fun (positive: _) => first.rtl (\idelim (OriginalDet.isomorphism.forward.fiber (f y)).apply alpha = (PulledDet.isomorphism.forward.fiber y).apply alpha
+      \with beta: DeterminantFiber a.projection (f y) => FirstCones.Positive a.orientation.positive (f y) beta \by { base: original.ltr (second.ltr positive), equality: sym!{{DeterminantFiber a.projection (f y)}} _ _ (same y alpha) }),
+    rtl := \fun (positive: _) => second.rtl (original.rtl (\idelim (PulledDet.isomorphism.forward.fiber y).apply alpha = (OriginalDet.isomorphism.forward.fiber (f y)).apply alpha
+      \with beta: DeterminantFiber a.projection (f y) => FirstCones.Positive a.orientation.positive (f y) beta \by { base: first.ltr positive, equality: same y alpha }))
+  }
+};
+\definition value: Result.Isomorphism := Result.Isomorphism { value := plain, preserves := preserves };

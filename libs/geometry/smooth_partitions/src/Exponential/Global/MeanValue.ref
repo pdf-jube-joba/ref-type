@@ -1,0 +1,25 @@
+\import Calculus.MeanValue[].Interval[a := a, b := b] \as Mean;
+\import metric_spaces.RealLine[] \as Line;
+\import Calculus.Limit[].Topology[].Subset[S := Line.ClosedInterval a b] \as Local;
+\definition functionContinuous: Local.ContinuousOn value := Local.continuousOfGlobal value continuous;
+\definition differentiable: Mean.DifferentiableOn value := \fun (x: Scalar)(inside: _) => Logic.existsIntro[Scalar, { d: Scalar \where Derivatives.HasDerivativeAt value x d }] (value x) (derivative x);
+\definition Witness: \Pow Scalar := { c: Scalar \where Mean.MeanValueResult[value, c] };
+\definition witnessExists: R.Lt a b -> \exists \Cast[Scalar] Witness := \fun (ordered: _) => Mean.meanValue value ordered functionContinuous differentiable;
+\definition secantPositive[c: Scalar]: Mean.MeanValueResult[value, c] -> R.Lt Real.zero (Mean.secant value) :=
+  \fun (witness: _) => R.ltReplaceRight Real.zero (value c) (Mean.secant value)
+    (sym!{Scalar} _ _ (DerivativeOperations.unique value c (Mean.secant value) (value c) witness.derivative (derivative c))) (positive c);
+\definition increasing: R.Lt a b -> R.Lt (value a) (value b) := \block {
+  \fun (ordered: _) \then
+  \takefrom c: \Cast[Scalar] Witness \by witnessExists ordered \then
+  \let witness: Mean.MeanValueResult[value, c] := \bysub(Scalar, Witness, c) \then
+  \let positiveDifference: R.Lt Real.zero (Real.sub (value b) (value a)) := R.ltReplaceRight Real.zero
+    (Real.mul (Mean.secant value) (Real.sub b a)) (Real.sub (value b) (value a))
+    (DerivativeOperations.slopeIncrement value a b (\fun (same: b = a) => Order.ltNotEq a b ordered (sym!{Scalar} _ _ same)))
+    (Product.mulPositive (Mean.secant value) (Real.sub b a) (secantPositive c witness) (Product.subPositive b a ordered)) \then
+  \return R.ltReplaceLeft (Real.add (value a) Real.zero) (value a) (value b) (Laws.addZeroRight (value a))
+    (R.ltReplaceRight (Real.add (value a) Real.zero) (Real.add (value a) (Real.sub (value b) (value a))) (value b)
+      (Estimates.addSubCancel (value b) (value a))
+      (Laws.ltAddLeft (value a) Real.zero (Real.sub (value b) (value a)) positiveDifference))
+};
+\module FromZero;
+\definition linearLower: a = Real.zero -> R.Lt Real.zero b -> R.Le b (value b) := \fun (zero: _)(positiveB: _) => FromZero[].lower zero positiveB;

@@ -1,0 +1,26 @@
+\structure Data: \Set := { dimension: N.Nat^, frame: X -> Spaces.Linear[V := Vector k, W := Vector dimension, source := coordinates k, target := coordinates dimension].Map };
+\definition Regular[data: Data]: \Prop := Hermitian.At[n := data.dimension].Families[X := X].Matrix[m := k].Regular baseSpace data.frame;
+\definition Injective[data: Data]: \Prop := \forall (x: X)(v, w: Vector k) -> (data.frame x).apply v = (data.frame x).apply w -> v = w;
+\structure Presentation: \Set := { data: Data, regular: Regular data, injective: Injective data };
+\module At(p: Presentation);
+\module Between(p, q: Presentation);
+\definition Homotopic[p, q: Presentation]: \Prop := \exists Between[p := p, q := q].Concordance;
+\definition allHomotopic: \forall (p, q: Presentation) -> Homotopic p q := \fun (p, q: Presentation) => \exact(Between[p := p, q := q].concordance, Between[p := p, q := q].Concordance);
+\import std.Set[].Quotient[A := Presentation, Equivalent := Homotopic] \as Quotient;
+\definition equivalence: Quotient.EquivalenceLaws := std.Logic[].Relation[].Equivalence[Presentation, Homotopic] {
+  refl := \fun (p: Presentation) => allHomotopic p p,
+  sym := \fun (p, q: Presentation)(_: Homotopic p q) => allHomotopic q p,
+  trans := \fun (p, q, r: Presentation)(_: Homotopic p q)(_: Homotopic q r) => allHomotopic p r
+};
+\definition Classes: \Set := Quotient.Carrier;
+\definition class[p: Presentation]: Classes := Quotient.class p;
+\definition uniqueClass: \forall (C, D: Classes) -> C = D := Quotient.induction2 (\fun (C, D: Classes) => C = D)
+  (\fun (p, q: Presentation) => Quotient.classOfEq equivalence p q (allHomotopic p q));
+\definition standard: Presentation := Presentation { data := Data { dimension := k, frame := (\fun (_: X) => Spaces.Eigen[V := Vector k, space := coordinates k].identity) },
+  regular := Hermitian.At[n := k].Families[X := X].Matrix[m := k].constant baseSpace (Spaces.Eigen[V := Vector k, space := coordinates k].identity), injective := \fun (x: X)(v, w: Vector k)(same: v = w) => same };
+\module For(F: X -> \Set, bundle: Bundles.Family[X := X, F := F].Bundle, same: bundle.baseSpace = baseSpace,
+  framing: Bundles.Isomorphisms[X := X, F := (\fun (_: X) => Vector k), G := F, source := Bundles.Trivial[X := X, n := k, baseSpace := baseSpace].bundle, target := bundle].Isomorphism);
+\module Pullback(Y: \Set, source: topology.Topology[Carrier := Y].Topology, f: Y -> X,
+  continuous: topology.Continuity[A := Y, B := X].Continuous source baseSpace f);
+\module Addition(l: N.Nat^);
+\module Stabilization(n: N.Nat^);

@@ -1,0 +1,24 @@
+\import Complements.Projection[X := X, n := n, baseSpace := bundle.baseSpace, P := Image.projection, regular := Image.regular].At[x := x] \as Projected;
+\import Native.OnProjection[P := Image.projection x].Rank[k := k] \as Rank;
+\import Bundles.Isomorphisms[X := X, F := F, G := Image.ImageFiber, source := bundle, target := Image.imageBundle] \as Isos;
+\definition iso: Isos.Isomorphism := Image.isomorphism;
+\definition laws: Isos.Laws[iso] := \bysub(Isos.Data, Isos.Isomorphism, iso);
+\import Spaces.Linear[V := F x, W := Vector n, source := bundle.space x, target := coordinates n].Composition[U := Vector k, domain := coordinates k] \as Forward;
+\definition value: Spaces.Linear[V := Vector k, W := Vector n, source := coordinates k, target := coordinates n].Map := Forward.compose (embedding.map.fiber x) frame.backward;
+\import Spaces.Linear[V := Image.ImageFiber x, W := F x, source := Image.imageBundle.space x, target := bundle.space x].Composition[U := Vector n, domain := coordinates n] \as Inverse;
+\import Spaces.Linear[V := F x, W := Vector k, source := bundle.space x, target := coordinates k].Composition[U := Vector n, domain := coordinates n] \as Coordinate;
+\definition coordinate: Spaces.Linear[V := Vector n, W := Vector k, source := coordinates n, target := coordinates k].Map := Coordinate.compose frame.forward (Inverse.compose (iso.backward.fiber x) Projected.project);
+\import Original.FromEmbedding[embedding := embedding].Image[].Comparison[].At[x := x] \as Comparison;
+\definition projectForward: \forall (v: F x) -> Projected.project.apply ((embedding.map.fiber x).apply v) = (iso.forward.fiber x).apply v := Comparison.fixed;
+\definition inverseOnImage: \forall (v: F x) -> (iso.backward.fiber x).apply (Projected.project.apply ((embedding.map.fiber x).apply v)) = v :=
+  \fun (v: F x) => trans!{{F x}} _ _ _ (congr!{{Image.ImageFiber x} {F x}} (iso.backward.fiber x).apply _ _ (projectForward v)) (laws.leftInverse x v);
+\definition reconstruction: \forall (v: Vector n) -> value.apply (coordinate.apply v) = (Image.projection x).map.apply v :=
+  \fun (v: Vector n) => trans!{{Vector n}} _ _ _
+    (congr!{{F x} {Vector n}} (embedding.map.fiber x).apply _ _ (frame.leftInverse ((iso.backward.fiber x).apply (Projected.project.apply v))))
+    (laws.rightInverse x (Projected.project.apply v));
+\definition basis: Rank.Basis := Rank.Basis {
+  value := value, coordinate := coordinate,
+  leftInverse := \fun (v: Vector k) => trans!{{Vector k}} _ _ _
+    (congr!{{F x} {Vector k}} frame.forward.apply _ _ (inverseOnImage (frame.backward.apply v))) (frame.rightInverse v),
+  reconstruction := reconstruction
+};

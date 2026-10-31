@@ -1,0 +1,54 @@
+\import \root.Countable[A := A] \as Countable;
+\definition residue: N.Nat^ -> Smooth := \induction (k: N.Nat^) \return Smooth \with {
+  | zero: constant Real.one
+  | succ: \fun (k: N.Nat^)(previous: Smooth) => times previous (complement (bumps k).value)
+};
+\definition part[k: N.Nat^]: Smooth := times (bumps k).value (residue k);
+\definition values[k: N.Nat^][x: A]: Real.Real := part k x;
+\definition split[a, b: Real.Real]: Real.add (Real.mul b a) (Real.mul a (Real.sub Real.one b)) = a := eq_reason!{
+  {Real.add (Real.mul b a) (Real.mul a (Real.sub Real.one b))}
+  "=" {Real.add (Real.mul a b) (Real.mul a (Real.sub Real.one b))} "by" {congr!{Real.Real Real.Real} (\fun (x: Real.Real) => Real.add x (Real.mul a (Real.sub Real.one b))) _ _ (Laws.fieldMulComm b a)}
+  "=" {Real.mul a (Real.add b (Real.sub Real.one b))} "by" {sym!{Real.Real} _ _ (Laws.fieldMulAdd a b (Real.sub Real.one b))}
+  "=" {Real.mul a Real.one} "by" {congr!{Real.Real Real.Real} (Real.mul a) _ _ (Estimates.addSubCancel Real.one b)}
+  "=" a "by" {Algebra.mulOneRight a}
+};
+\definition normalization: \forall (k: N.Nat^)(x: A) -> Real.add (Countable.prefix values x k) (residue k x) = Real.one :=
+  \induction (k: N.Nat^) \return \forall (x: A) -> Real.add (Countable.prefix values x k) (residue k x) = Real.one \with {
+    | zero: \fun (x: A) => Laws.addZeroLeft Real.one
+    | succ: \fun (k: N.Nat^)(previous: _)(x: A) => trans!{Real.Real} _ _ _
+      (Laws.addAssoc (Countable.prefix values x k) (part k x) (residue (N.Nat^::succ k) x))
+      (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (Real.add (Countable.prefix values x k)) _ _ (split (residue k x) ((bumps k).value x))) (previous x))
+  };
+\definition killed[k: N.Nat^][x: A]: (bumps k).value x = Real.one -> residue (N.Nat^::succ k) x = Real.zero :=
+  \fun (one: _) => trans!{Real.Real} _ _ _
+    (congr!{Real.Real Real.Real} (Real.mul (residue k x)) _ _ (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (Real.sub Real.one) _ _ one) (Laws.subSelf Real.one)))
+    (Laws.fieldMulZeroRight (residue k x));
+\definition staysZeroAdded[k: N.Nat^][x: A]: residue k x = Real.zero -> \forall (m: N.Nat^) -> residue (Arithmetic.add k m) x = Real.zero :=
+  \fun (zero: _) => \induction (m: N.Nat^) \return residue (Arithmetic.add k m) x = Real.zero \with {
+    | zero: zero
+    | succ: \fun (m: N.Nat^)(previous: _) => trans!{Real.Real} _ _ _
+      (congr!{Real.Real Real.Real} (\fun (u: Real.Real) => Real.mul u (Real.sub Real.one ((bumps (Arithmetic.add k m)).value x))) _ _ previous)
+      (Laws.fieldMulZeroLeft _)
+  };
+\definition staysZero[k, m: N.Nat^][x: A]: residue k x = Real.zero -> Nat.Le k m -> residue m x = Real.zero :=
+  \fun (zero: _)(later: _) => \idelim Arithmetic.add k (Arithmetic.sub m k) = m \with n: N.Nat^ => residue n x = Real.zero \by {
+    base: staysZeroAdded k x zero (Arithmetic.sub m k), equality: Nat.addSubOfLe k m later
+  };
+\definition tailZero[k: N.Nat^][x: A]: (bumps k).value x = Real.one -> Countable.TailZero values x (N.Nat^::succ k) :=
+  \fun (one: _)(m: N.Nat^)(later: _) => trans!{Real.Real} _ _ _
+    (congr!{Real.Real Real.Real} (Real.mul ((bumps m).value x)) _ _ (staysZero (N.Nat^::succ k) m x (killed k x one) later)) (Laws.fieldMulZeroRight _);
+\definition partSupport[k: N.Nat^]: Space.Subset (support (part k)) (support (bumps k).value) := Closure.monotone space (Nonzero (part k)) (Nonzero (bumps k).value)
+  (\fun (x: A)(nonzero: Logic.Not (part k x = Real.zero))(zero: (bumps k).value x = Real.zero) => nonzero
+    (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (\fun (v: Real.Real) => Real.mul v (residue k x)) _ _ zero) (Laws.fieldMulZeroLeft _)));
+\definition supportAway[k, m: N.Nat^]: Nat.Le (N.Nat^::succ k) m -> Space.Disjoint (bumps k).oneRegion (support (part m)) :=
+  \fun (later: _)(x: A)(member: Space.Member (bumps k).oneRegion x)(supported: Space.Member (support (part m)) x) =>
+    Closure.least space (Nonzero (part m)) (Space.Complement (bumps k).oneRegion)
+      (Finite.openComplementClosed space (bumps k).oneRegion (bumps k).regionOpen)
+      (\fun (y: A)(nonzero: Logic.Not (part m y = Real.zero))(inRegion: Space.Member (bumps k).oneRegion y) =>
+        nonzero (tailZero k y ((bumps k).oneOn y inRegion) m later)) x supported member;
+\module Bounds;
+\module Partition(covering: \forall (x: A) -> \exists ( k: N.Nat^ \where Space.Member (bumps k).oneRegion x ));
+\module FiniteCover(S: \Pow A);
+\module Cutoff;
+\definition PrefixRegion: N.Nat^ -> \Pow A := \parent.Sequence[family := family, bumps := bumps].FiniteCover[S := Space.Whole].region;
+\module Finite(k: N.Nat^, covered: Space.Subset Space.Whole (PrefixRegion k));

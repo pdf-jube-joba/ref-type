@@ -1,0 +1,20 @@
+\import LeftAtlas.Top[c := c, enumeration := leftEnumeration] \as Left;
+\import RightAtlas.Top[c := d, enumeration := rightEnumeration] \as Right;
+\import \parent.\parent.Local[c := c, d := d, leftEnumeration := leftEnumeration, rightEnumeration := rightEnumeration, sumEnumeration := sumEnumeration] \as Chart;
+\definition leftCenter: \Cast[X] c.domain := \into[X](p.base, c.domain) \by { inLeft };
+\definition rightCenter: \Cast[X] d.domain := \into[X](p.base, d.domain) \by { inRight };
+\definition a: Bundles.Vector Left.dimension := (Left.chart.frame leftCenter).forward.apply w.first;
+\definition b: Bundles.Vector Right.dimension := (Right.chart.frame rightCenter).forward.apply w.second;
+\import Chart.Values[a := a, b := b] \as Values;
+\definition point: Chart.Point := \into[Family.Point](p, { q: Family.Point \where Base.Member Chart.domain q.base }) \by { Logic.And[_, _]::# inLeft inRight };
+\definition firstRecovered: Values.firstValue (Chart.center point) = w.first := (Left.chart.frame leftCenter).leftInverse w.first;
+\definition secondRecovered: Values.secondValue (Chart.center point) = w.second := (Right.chart.frame rightCenter).leftInverse w.second;
+\definition firstPositive: LeftCones.Positive leftOrientation.positive p.base (Values.firstValue (Chart.center point)) :=
+  \idelim w.first = Values.firstValue (Chart.center point) \with alpha: First.DeterminantFiber p.base => LeftCones.Positive leftOrientation.positive p.base alpha \by { base: w.leftPositive, equality: sym!{{First.DeterminantFiber p.base}} _ _ firstRecovered };
+\definition secondPositive: RightCones.Positive rightOrientation.positive p.base (Values.secondValue (Chart.center point)) :=
+  \idelim w.second = Values.secondValue (Chart.center point) \with beta: Second.DeterminantFiber p.base => RightCones.Positive rightOrientation.positive p.base beta \by { base: w.rightPositive, equality: sym!{{Second.DeterminantFiber p.base}} _ _ secondRecovered };
+\definition member: topology.Topology[Carrier := Chart.Point].Member Values.piece point := Logic.And[_, _]::# firstPositive
+  (Logic.And[_, _]::# secondPositive (Values.At[p := point].signOfPositive firstPositive secondPositive (\exact(w, Witness[p.base, p.vector]))));
+\definition exists: \exists ( U: \Pow Family.Point \where Total.OpenNeighborhood[Forms.alternating.totalSpace, p, positive, U] ) :=
+  Logic.existsIntro[\Pow Family.Point, { U: \Pow Family.Point \where Total.OpenNeighborhood[Forms.alternating.totalSpace, p, positive, U] }] Values.neighborhood
+    (Total.OpenNeighborhood[Forms.alternating.totalSpace, p, positive, Values.neighborhood] { open := Values.neighborhoodOpen, contains := Values.contains point member, within := Values.within });

@@ -1,0 +1,22 @@
+\import \root.Countable[A := M.Point] \as Countable;
+\import N.Basic[].Prop[] \as Nat;
+\structure Neighborhood[x: M.Point]: \Set := {
+  openSet: \Pow M.Point,
+  open: Space.IsOpenIn M.space openSet,
+  contains: Space.Member openSet x,
+  bound: N.Nat^,
+  vanishes: \forall (y: M.Point) -> Space.Member openSet y -> Countable.TailZero f y bound,
+};
+\definition IsLocallyFinite: \Prop := \forall (x: M.Point) -> \exists Neighborhood x;
+\definition pointwiseFinite: IsLocallyFinite -> \forall (x: M.Point) -> Countable.FiniteAt f x := \block {
+  \fun (local: IsLocallyFinite)(x: M.Point) \then
+  \takefrom neighborhood: Neighborhood x \by local x \then
+  \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where Countable.TailZero f x k }] neighborhood.bound (neighborhood.vanishes x neighborhood.contains)
+};
+\definition prefixSmooth: (\forall (k: N.Nat^) -> IsSmooth (f k)) -> \forall (k: N.Nat^) -> IsSmooth (\fun (x: M.Point) => Countable.prefix f x k) :=
+  \fun (regular: _) => \induction (k: N.Nat^) \return IsSmooth (\fun (x: M.Point) => Countable.prefix f x k) \with {
+    | zero: \fun (c: Chart) => Operations.constantSmooth c.image Real.zero
+    | succ: \fun (k: N.Nat^)(previous: _)(c: Chart) => Operations.addSmooth c.image
+      (\fun (u: Open.Carrier c.image) => Countable.prefix f (Charts.point c u) k) (coordinates c (f k)) (previous c) (regular k c)
+  };
+\module Sum(local: IsLocallyFinite);

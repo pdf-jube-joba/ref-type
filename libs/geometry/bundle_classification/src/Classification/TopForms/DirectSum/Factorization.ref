@@ -1,0 +1,33 @@
+\import \parent.Basis[] \as Basis;
+\module Left(v: Fin.Fin m -> W);
+\module Right(u: Fin.Fin n -> V);
+\definition leftEvaluation: \forall (alpha: TotalTop.Form)(u: Fin.Fin n -> V)(v: Fin.Fin m -> W) ->
+  alpha (concatenate u v) = R.mul (alpha (concatenate arguments v)) (volume u) :=
+  \fun (alpha: TotalTop.Form)(u: Fin.Fin n -> V)(v: Fin.Fin m -> W) =>
+    congr!{Form R.Real} (\fun (f: Form) => f u) _ _ (reconstruction (Left[v := v].form alpha));
+\definition rightEvaluation: \forall (alpha: TotalTop.Form)(u: Fin.Fin n -> V)(v: Fin.Fin m -> W) ->
+  alpha (concatenate u v) = R.mul (alpha (concatenate u RightTop.arguments)) (RightTop.volume v) :=
+  \fun (alpha: TotalTop.Form)(u: Fin.Fin n -> V)(v: Fin.Fin m -> W) =>
+    congr!{RightTop.Form R.Real} (\fun (f: RightTop.Form) => f v) _ _ (RightTop.reconstruction (Right[u := u].form alpha));
+\definition formula: \forall (alpha: TotalTop.Form)(u: Fin.Fin n -> V)(v: Fin.Fin m -> W) ->
+  alpha (concatenate u v) = R.mul (alpha Basis.mixed) (R.mul (volume u) (RightTop.volume v)) :=
+  \fun (alpha: TotalTop.Form)(u: Fin.Fin n -> V)(v: Fin.Fin m -> W) => trans!{R.Real} _ _ _ (leftEvaluation alpha u v)
+    (trans!{R.Real} _ _ _ (congr!{R.Real R.Real} (\fun (a: R.Real) => R.mul a (volume u)) _ _ (rightEvaluation alpha arguments v))
+      (trans!{R.Real} _ _ _ (ScalarLaws.fieldMulAssoc (alpha Basis.mixed) (RightTop.volume v) (volume u))
+        (congr!{R.Real R.Real} (R.mul (alpha Basis.mixed)) _ _ (ScalarLaws.fieldMulComm (RightTop.volume v) (volume u)))));
+\definition product[alpha: Form][beta: RightTop.Form]: TotalTop.Form := TotalTop.formSpace.smul (R.mul (coefficient alpha) (RightTop.coefficient beta)) TotalTop.volume;
+\definition coefficientProduct: \forall (alpha: Form)(beta: RightTop.Form) -> product alpha beta Basis.mixed = R.mul (coefficient alpha) (RightTop.coefficient beta) :=
+  \fun (alpha: Form)(beta: RightTop.Form) => trans!{R.Real} _ _ _
+    (congr!{R.Real R.Real} (R.mul (R.mul (coefficient alpha) (RightTop.coefficient beta))) _ _ Basis.normalized)
+    (R.Algebra[].mulOneRight (R.mul (coefficient alpha) (RightTop.coefficient beta)));
+\definition productFormula: \forall (alpha: Form)(beta: RightTop.Form)(u: Fin.Fin n -> V)(v: Fin.Fin m -> W) ->
+  product alpha beta (concatenate u v) = R.mul (alpha u) (beta v) :=
+  \fun (alpha: Form)(beta: RightTop.Form)(u: Fin.Fin n -> V)(v: Fin.Fin m -> W) => trans!{R.Real} _ _ _ (formula (product alpha beta) u v)
+    (trans!{R.Real} _ _ _ (congr!{R.Real R.Real} (\fun (c: R.Real) => R.mul c (R.mul (volume u) (RightTop.volume v))) _ _ (coefficientProduct alpha beta))
+      (trans!{R.Real} _ _ _ (R.Algebra[].mulFour (coefficient alpha) (RightTop.coefficient beta) (volume u) (RightTop.volume v))
+        (congr!{R.Real R.Real R.Real} R.mul _ _ _ _
+          (sym!{R.Real} _ _ (congr!{Form R.Real} (\fun (f: Form) => f u) _ _ (reconstruction alpha)))
+          (sym!{R.Real} _ _ (congr!{RightTop.Form R.Real} (\fun (f: RightTop.Form) => f v) _ _ (RightTop.reconstruction beta))))));
+\definition unique: \forall (alpha, beta: TotalTop.Form) ->
+  (\forall (u: Fin.Fin n -> V)(v: Fin.Fin m -> W) -> alpha (concatenate u v) = beta (concatenate u v)) -> alpha = beta :=
+  \fun (alpha, beta: TotalTop.Form)(same: _) => Basis.ext alpha beta (same arguments RightTop.arguments);

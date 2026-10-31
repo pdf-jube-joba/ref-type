@@ -1,0 +1,14 @@
+\import std.Set[].Extension[A := Model.Point, B := Real.Real, domain := U.points] \as Extension;
+\import Space.Finite[] \as Finite;
+\definition value: Function := Extension.extend f Real.zero;
+\definition inside: \forall (x: Open.Carrier U) -> value x = f x := Extension.inside f Real.zero;
+\definition outside: \forall (x: Model.Point) -> Logic.Not (Space.Member U.points x) -> value x = Real.zero := Extension.outside f Real.zero;
+\definition SupportCondition: \Prop := Space.Subset (support value) U.points;
+\module Closed(F: \Pow Model.Point);
+\definition smooth: Smooth.SmoothOn U f -> SupportCondition -> IsSmooth value :=
+  \fun (regular: _)(contained: _) => Closed[F := support value].smooth
+    (Closure.closed Ambient.topology (Nonzero value)) contained
+    (\fun (x: Open.Carrier U)(outside: Logic.Not (Space.Member (support value) x)) =>
+      Finite.doubleNegElim (f x = Real.zero) (\fun (nonzero: Logic.Not (f x = Real.zero)) =>
+        outside (Closure.contains Ambient.topology (Nonzero value) x
+          (\fun (zero: value x = Real.zero) => nonzero (trans!{Real.Real} _ _ _ (sym!{Real.Real} _ _ (inside x)) zero))))) regular;

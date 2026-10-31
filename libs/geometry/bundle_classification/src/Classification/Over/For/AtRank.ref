@@ -1,0 +1,22 @@
+\definition HasRank: \Prop := \forall (x: X) -> \exists Family.Frame k x;
+\module WithEmbedding(embedding: Original.Embedding);
+\structure Data: \Set := {
+  dimension: N.Nat^,
+  projection: X -> Hermitian.At[n := dimension].Projection,
+  regular: Hermitian.At[n := dimension].Families[X := X].Matrix[m := dimension].Regular bundle.baseSpace (\fun (x: X) => (projection x).map),
+};
+\definition Ranked[data: Data]: \Prop := \forall (x: X) -> Hermitian.At[n := data.dimension].OnProjection[P := data.projection x].Rank[k := k].HasRank;
+\definition Fiber[data: Data][x: X]: \Set := Complements.Projection[X := X, n := data.dimension, baseSpace := bundle.baseSpace, P := data.projection, regular := data.regular].Fiber x;
+\definition imageBundle[data: Data]: Bundles.Family[X := X, F := Fiber data].Bundle := Complements.Projection[X := X, n := data.dimension, baseSpace := bundle.baseSpace, P := data.projection, regular := data.regular].bundle;
+\definition Comparison[data: Data]: \Set := Bundles.Isomorphisms[X := X, F := F, G := Fiber data, source := bundle, target := imageBundle data].Isomorphism;
+\structure Classifier: \Set := { data: Data, rank: Ranked data, comparison: Comparison data };
+\definition exists: topology.Topology[Carrier := X].IsCompact bundle.baseSpace -> topology.Topology[Carrier := X].IsT2 bundle.baseSpace -> HasRank -> \exists Classifier :=
+  \fun (compact: _)(hausdorff: _)(hasRank: HasRank) => \block {
+    \takefrom embedding: Original.Embedding \by Original.embeddingExists compact hausdorff \then
+    \return \exact(Classifier {
+      data := Data { dimension := embedding.dimension, projection := WithEmbedding[embedding := embedding].projection,
+      regular := WithEmbedding[embedding := embedding].regular },
+      rank := WithEmbedding[embedding := embedding].rank hasRank,
+      comparison := WithEmbedding[embedding := embedding].comparison
+    }, Classifier)
+  };

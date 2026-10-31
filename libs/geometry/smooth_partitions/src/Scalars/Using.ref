@@ -1,0 +1,63 @@
+\definition Smooth: \Set := \Cast[Function] calculus.smooth;
+\definition regular[f: Smooth]: \In[Function] calculus.smooth f := \bysub(Function, calculus.smooth, f);
+\definition constant[c: Real.Real]: Smooth := \into[Function]((\fun (x: A) => c), calculus.smooth) \by { calculus.constant c };
+\definition plus[f, g: Smooth]: Smooth := \into[Function]((\fun (x: A) => Real.add (f x) (g x)), calculus.smooth) \by { calculus.plus f g (regular f) (regular g) };
+\definition times[f, g: Smooth]: Smooth := \into[Function]((\fun (x: A) => Real.mul (f x) (g x)), calculus.smooth) \by { calculus.times f g (regular f) (regular g) };
+\definition complement[f: Smooth]: Smooth := \into[Function]((\fun (x: A) => Real.sub Real.one (f x)), calculus.smooth) \by {
+  \idelim (\fun (x: A) => Real.add Real.one (Real.mul (Real.neg Real.one) (f x))) = (\fun (x: A) => Real.sub Real.one (f x))
+    \with g: Function => \In[Function] calculus.smooth g \by {
+      base: regular (plus (constant Real.one) (times (constant (Real.neg Real.one)) f)),
+      equality: \axiom:funext((\fun (x: A) => Real.add Real.one (Real.mul (Real.neg Real.one) (f x))), (\fun (x: A) => Real.sub Real.one (f x)),
+        \fun (x: A) => congr!{Real.Real Real.Real} (Real.add Real.one) _ _ (Derivatives.negativeScale (f x)))
+    }
+};
+\definition Nonzero[f: Function]: \Pow A := { x: A \where Logic.Not (f x = Real.zero) };
+\definition support[f: Function]: \Pow A := Closure.closure space (Nonzero f);
+\structure Bump[family: \Pow (\Pow A)]: \Set := {
+  value: Smooth,
+  openSet: \Pow A,
+  inCover: Logic.Or[Space.FamilyMember family openSet, openSet = Space.Empty],
+  supportWithin: Space.Subset (support value) openSet,
+  supportCompact: Space.IsCompactIn space (support value),
+  oneRegion: \Pow A,
+  regionOpen: Space.IsOpenIn space oneRegion,
+  oneOn: \forall (x: A) -> Space.Member oneRegion x -> value x = Real.one,
+  lower: \forall (x: A) -> R.Le Real.zero (value x),
+  upper: \forall (x: A) -> R.Le (value x) Real.one,
+};
+\definition LocalBumps[family: \Pow (\Pow A)]: \Prop := \forall (x: A) -> \exists ( b: Bump[family] \where Space.Member b.oneRegion x );
+\definition FamilyValues[functions: N.Nat^ -> Smooth][k: N.Nat^][x: A]: Real.Real := functions k x;
+\import \root.Countable[A := A] \as Countable;
+\structure FiniteNeighborhood[functions: N.Nat^ -> Smooth, x: A]: \Set := {
+  openSet: \Pow A,
+  open: Space.IsOpenIn space openSet,
+  contains: Space.Member openSet x,
+  bound: N.Nat^,
+  avoids: \forall (k: N.Nat^) -> Nat.Le bound k -> Space.Disjoint openSet (support (functions k)),
+};
+\structure SmoothPartition[family: \Pow (\Pow A)]: \Set := {
+  functions: N.Nat^ -> Smooth,
+  targets: N.Nat^ -> \Pow A,
+  refines: \forall (k: N.Nat^) -> Logic.Or[Space.FamilyMember family (targets k), targets k = Space.Empty],
+  subordinate: \forall (k: N.Nat^) -> Space.Subset (support (functions k)) (targets k),
+  compactSupport: \forall (k: N.Nat^) -> Space.IsCompactIn space (support (functions k)),
+  lower: \forall (k: N.Nat^)(x: A) -> R.Le Real.zero (functions k x),
+  upper: \forall (k: N.Nat^)(x: A) -> R.Le (functions k x) Real.one,
+  locallyFinite: \forall (x: A) -> \exists FiniteNeighborhood[functions, x],
+  normalized: \forall (x: A) -> \exists ( k: N.Nat^ \where Logic.And[
+    Countable.TailZero (FamilyValues functions) x k, Countable.prefix (FamilyValues functions) x k = Real.one] ),
+};
+\structure FinitePartition[family: \Pow (\Pow A)]: \Set := {
+  size: N.Nat^,
+  functions: N.Nat^ -> Smooth,
+  targets: N.Nat^ -> \Pow A,
+  refines: \forall (k: N.Nat^) -> Nat.Lt k size -> Logic.Or[Space.FamilyMember family (targets k), targets k = Space.Empty],
+  subordinate: \forall (k: N.Nat^) -> Nat.Lt k size -> Space.Subset (support (functions k)) (targets k),
+  lower: \forall (k: N.Nat^)(x: A) -> R.Le Real.zero (functions k x),
+  upper: \forall (k: N.Nat^)(x: A) -> R.Le (functions k x) Real.one,
+  total: \forall (x: A) -> Countable.prefix (FamilyValues functions) x size = Real.one,
+};
+\module Empty;
+\module Selection(family: \Pow (\Pow A), S: \Pow A);
+\module Sequence(family: \Pow (\Pow A), bumps: N.Nat^ -> Bump[family]);
+\module Refinement(family: \Pow (\Pow A), partition: SmoothPartition[family]);

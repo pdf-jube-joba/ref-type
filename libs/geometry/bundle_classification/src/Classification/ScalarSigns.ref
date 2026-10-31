@@ -1,0 +1,44 @@
+\import real.Analysis[] \as R;
+\import dedekind_reals.DedekindReal[] \as Order;
+\import Order.Order[] \as Comparisons;
+\import Order.Arithmetic[].Prop[] \as Scalars;
+\import R.Estimates[].Product[] \as Bounds;
+\use Equality.eq_reason_in;
+\definition inverseCancel: \forall (a, b: R.Real) -> Logic.Not (a = R.zero) -> R.mul (R.mul b (Scalars.fieldInv a)) a = b :=
+  \fun (a, b: R.Real)(nonzero: _) => trans!{R.Real} _ _ _ (Scalars.fieldMulAssoc b (Scalars.fieldInv a) a)
+    (trans!{R.Real} _ _ _ (congr!{R.Real R.Real} (R.mul b) _ _ (Scalars.fieldInverseNonzero a nonzero)) (R.Algebra[].mulOneRight b));
+\definition zeroProduct: \forall (a, b: R.Real) -> Logic.Not (a = R.zero) -> R.mul a b = R.zero -> b = R.zero :=
+  \fun (a, b: R.Real)(nonzero: _)(zero: _) => eq_reason_in!{R.Real b
+    "=" _ "by" { sym!{R.Real} _ _ (Scalars.fieldMulOneLeft b) }
+    "=" _ "by" { congr!{R.Real R.Real} (\fun (c: R.Real) => R.mul c b) _ _ (sym!{R.Real} _ _ (Scalars.fieldInverseNonzero a nonzero)) }
+    "=" _ "by" { Scalars.fieldMulAssoc (Scalars.fieldInv a) a b }
+    "=" _ "by" { congr!{R.Real R.Real} (R.mul (Scalars.fieldInv a)) _ _ zero }
+    "=" _ "by" { Scalars.fieldMulZeroRight (Scalars.fieldInv a) }
+  };
+\definition nonzeroProduct: \forall (a, b: R.Real) -> Logic.Not (a = R.zero) -> Logic.Not (b = R.zero) -> Logic.Not (R.mul a b = R.zero) :=
+  \fun (a, b: R.Real)(na: _)(nb: _)(zero: _) => nb (zeroProduct a b na zero);
+\definition squarePositive: \forall (a: R.Real) -> Logic.Not (a = R.zero) -> Order.Lt R.zero (R.mul a a) :=
+  \fun (a: R.Real)(nonzero: _) => Comparisons.ltOfLeNotEq R.zero (R.mul a a) (R.Algebra[].squareNonnegative a)
+    (\fun (zero: R.zero = R.mul a a) => nonzero (R.Algebra[].squareZero a (sym!{R.Real} _ _ zero)));
+\definition positiveFactor: \forall (w, t: R.Real) -> Order.Lt R.zero w -> Order.Lt R.zero (R.mul w t) -> Order.Lt R.zero t :=
+  \fun (w, t: R.Real)(wp: _)(positive: _) => Comparisons.ltOfLeNotEq R.zero t
+    (Logic.orElim[Order.Le R.zero t, Order.Lt t R.zero, Order.Le R.zero t] (Scalars.nonnegativeOrNegativeReal t)
+      (\fun (nonnegative: _) => nonnegative)
+      (\fun (negative: _) => Logic.falseElim (Order.Le R.zero t) (Order.ltIrrefl R.zero
+        (Comparisons.ltTrans R.zero (R.mul w t) R.zero positive
+          (Order.ltReplaceRight (R.mul w t) (R.mul w R.zero) R.zero (Scalars.fieldMulZeroRight w) (Bounds.mulStrict w t R.zero wp negative))))))
+    (\fun (zero: R.zero = t) => Comparisons.ltNotEq R.zero (R.mul w t) positive
+      (sym!{R.Real} _ _ (trans!{R.Real} _ _ _ (congr!{R.Real R.Real} (R.mul w) _ _ (sym!{R.Real} _ _ zero)) (Scalars.fieldMulZeroRight w))));
+\definition ratioPositive: \forall (c, d: R.Real) -> Logic.Not (c = R.zero) -> Order.Lt R.zero (R.mul c d) -> Order.Lt R.zero (R.mul d (Scalars.fieldInv c)) :=
+  \fun (c, d: R.Real)(nonzero: _)(positive: _) => \block {
+    \let inverse: R.mul c (Scalars.fieldInv c) = R.one := trans!{R.Real} _ _ _ (Scalars.fieldMulComm c (Scalars.fieldInv c)) (Scalars.fieldInverseNonzero c nonzero) \then
+    \let same: R.mul (R.mul c c) (R.mul d (Scalars.fieldInv c)) = R.mul c d := trans!{R.Real} _ _ _ (R.Algebra[].mulFour c c d (Scalars.fieldInv c))
+      (trans!{R.Real} _ _ _ (congr!{R.Real R.Real} (R.mul (R.mul c d)) _ _ inverse) (R.Algebra[].mulOneRight (R.mul c d))) \then
+    \return positiveFactor (R.mul c c) (R.mul d (Scalars.fieldInv c)) (squarePositive c nonzero)
+      (Order.ltReplaceRight R.zero (R.mul c d) (R.mul (R.mul c c) (R.mul d (Scalars.fieldInv c))) (sym!{R.Real} _ _ same) positive)
+  };
+\definition alternatives: \forall (t: R.Real) -> Logic.Not (t = R.zero) -> Logic.Or[Order.Lt R.zero t, Order.Lt R.zero (R.neg t)] :=
+  \fun (t: R.Real)(nonzero: _) => Logic.orElim[Order.Le R.zero t, Order.Lt t R.zero, Logic.Or[Order.Lt R.zero t, Order.Lt R.zero (R.neg t)]]
+    (Scalars.nonnegativeOrNegativeReal t)
+    (\fun (nonnegative: _) => Logic.Or[_, _]::left (Comparisons.ltOfLeNotEq R.zero t nonnegative (\fun (zero: R.zero = t) => nonzero (sym!{R.Real} _ _ zero))))
+    (\fun (negative: _) => Logic.Or[_, _]::right (Order.ltReplaceLeft (R.neg R.zero) R.zero (R.neg t) Scalars.negZero (Scalars.negStrictAntitone t R.zero negative)));

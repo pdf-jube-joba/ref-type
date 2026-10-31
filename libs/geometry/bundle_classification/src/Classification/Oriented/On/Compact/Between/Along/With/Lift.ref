@@ -1,0 +1,35 @@
+\import CylinderModel.Lift[lift := lift] \as Lifted;
+\import Lifted.Endpoint[] \as Endpoint;
+\import Lifted.Determinant[k := k] \as Forms;
+\import Forms.Cone[orientation := orientation] \as Motion;
+\definition first: Bundles.Isomorphisms[X := X, F := Theory.On[X := X, baseSpace := baseSpace].Fiber a.projection, G := EndFiber,
+  source := Theory.On[X := X, baseSpace := baseSpace].bundle a.projection, target := endBundle].Isomorphism :=
+    Operations.IsomorphismComposition[X := X, F := Theory.On[X := X, baseSpace := baseSpace].Fiber a.projection, G := StartFiber, H := EndFiber,
+      source := Theory.On[X := X, baseSpace := baseSpace].bundle a.projection, middle := startBundle, target := endBundle].compose leftIsomorphism Endpoint.value;
+\definition plain: Bundles.Isomorphisms[X := X, F := Theory.On[X := X, baseSpace := baseSpace].Fiber a.projection, G := Theory.On[X := X, baseSpace := baseSpace].Fiber b.projection,
+  source := Theory.On[X := X, baseSpace := baseSpace].bundle a.projection, target := Theory.On[X := X, baseSpace := baseSpace].bundle b.projection].Isomorphism :=
+  Operations.IsomorphismComposition[X := X, F := Theory.On[X := X, baseSpace := baseSpace].Fiber a.projection, G := EndFiber, H := Theory.On[X := X, baseSpace := baseSpace].Fiber b.projection,
+    source := Theory.On[X := X, baseSpace := baseSpace].bundle a.projection, middle := endBundle, target := Theory.On[X := X, baseSpace := baseSpace].bundle b.projection].compose first
+      (Bundles.Isomorphisms[X := X, F := Theory.On[X := X, baseSpace := baseSpace].Fiber b.projection, G := EndFiber, source := Theory.On[X := X, baseSpace := baseSpace].bundle b.projection, target := endBundle].inverse rightIsomorphism);
+\import Oriented.Along[iso := plain] \as Result;
+\import Bundles.Isomorphisms[X := X, F := EndForms.Fiber, G := DeterminantFiber b.projection, source := EndForms.alternating, target := determinantBundle b.projection] \as RightIsos;
+\import \root.Classification[].Determinants[X := X, F := StartFiber, G := EndFiber, source := startBundle, target := endBundle, same := \refl(baseSpace), k := k, iso := Endpoint.value] \as EndpointForms;
+\import \root.Classification[].Determinants[X := X, F := Theory.On[X := X, baseSpace := baseSpace].Fiber a.projection, G := Theory.On[X := X, baseSpace := baseSpace].Fiber b.projection,
+  source := Theory.On[X := X, baseSpace := baseSpace].bundle a.projection, target := Theory.On[X := X, baseSpace := baseSpace].bundle b.projection, same := \refl(baseSpace), k := k, iso := plain] \as ResultForms;
+\definition preserves: Result.Preserves := \fun (x: X)(alpha: DeterminantFiber b.projection x) => \block {
+  \let beta: EndDet x := (RightForms.isomorphism.backward.fiber x).apply alpha \then
+  \let finish: Logic.PropEquiv[Cones.Positive orientation.positive (Cylinder.at algebraic_topology.Interval[].end x) beta, SecondCones.Positive b.orientation.positive x alpha] :=
+    \idelim (RightForms.isomorphism.forward.fiber x).apply beta = alpha \with v: DeterminantFiber b.projection x =>
+      Logic.PropEquiv[Cones.Positive orientation.positive (Cylinder.at algebraic_topology.Interval[].end x) beta, SecondCones.Positive b.orientation.positive x v] \by {
+        base: end x beta, equality: (\bysub(RightIsos.Data, RightIsos.Isomorphism, RightForms.isomorphism)).rightInverse x alpha
+      } \then
+  \let moving: Logic.PropEquiv[Cones.Positive orientation.positive (Cylinder.at algebraic_topology.Interval[].start x) ((EndpointForms.isomorphism.forward.fiber x).apply beta),
+    Cones.Positive orientation.positive (Cylinder.at algebraic_topology.Interval[].end x) beta] := Motion.endpointSigns x beta \then
+  \let initial: Logic.PropEquiv[Cones.Positive orientation.positive (Cylinder.at algebraic_topology.Interval[].start x) ((EndpointForms.isomorphism.forward.fiber x).apply beta),
+    FirstCones.Positive a.orientation.positive x ((ResultForms.isomorphism.forward.fiber x).apply alpha)] := start x ((EndpointForms.isomorphism.forward.fiber x).apply beta) \then
+  \return Logic.PropEquiv[_, _] {
+    ltr := \fun (positive: _) => initial.ltr (moving.rtl (finish.rtl positive)),
+    rtl := \fun (positive: _) => finish.ltr (moving.ltr (initial.rtl positive))
+  }
+};
+\definition value: Oriented.Isomorphism := Oriented.Isomorphism { value := plain, preserves := preserves };

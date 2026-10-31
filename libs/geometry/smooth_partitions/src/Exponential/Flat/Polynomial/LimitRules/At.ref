@@ -1,0 +1,28 @@
+\import \parent.\parent.\parent.Rate[c := c] \as Rate;
+\import \parent.\parent.\parent.Rate[c := Rate.halfRate] \as Half;
+\definition constant[a: Scalar]: Limits.HasLimitAt (weighted (Expression::constant a) c) Real.zero Real.zero :=
+  \idelim Real.mul a Real.zero = Real.zero \with l: Scalar => Limits.HasLimitAt (weighted (Expression::constant a) c) Real.zero l \by {
+    base: LimitOperations.mulLimit (\fun (t: Scalar) => a) (Rate.value) Real.zero a Real.zero
+      (LimitLaws.constantLimit a Real.zero) (Rate.limit),
+    equality: Laws.fieldMulZeroRight a
+  };
+\definition plus[p, q: Expression][left: Rapid p][right: Rapid q]: Limits.HasLimitAt (weighted (Expression::plus p q) c) Real.zero Real.zero :=
+  LimitLaws.congruentLimit (\fun (t: Scalar) => Real.add (weighted p c t) (weighted q c t)) (weighted (Expression::plus p q) c)
+    (\fun (t: Scalar) => sym!{Scalar} _ _ (Algebra.mulAddRight (evaluate p (Laws.fieldInv t)) (evaluate q (Laws.fieldInv t)) (Rate.value t))) Real.zero Real.zero
+    (\idelim Real.add Real.zero Real.zero = Real.zero \with l: Scalar =>
+      Limits.HasLimitAt (\fun (t: Scalar) => Real.add (weighted p c t) (weighted q c t)) Real.zero l \by {
+        base: LimitOperations.addLimit (weighted p c) (weighted q c) Real.zero Real.zero Real.zero (left c) (right c),
+        equality: Laws.addZeroLeft Real.zero
+      });
+\definition times[p, q: Expression][left: Rapid p][right: Rapid q]: Limits.HasLimitAt (weighted (Expression::times p q) c) Real.zero Real.zero := \block {
+  \let productLimit: Limits.HasLimitAt (\fun (t: Scalar) => Real.mul (weighted p Rate.halfRate t) (weighted q Rate.halfRate t)) Real.zero Real.zero :=
+    \idelim Real.mul Real.zero Real.zero = Real.zero \with l: Scalar =>
+      Limits.HasLimitAt (\fun (t: Scalar) => Real.mul (weighted p Rate.halfRate t) (weighted q Rate.halfRate t)) Real.zero l \by {
+        base: LimitOperations.mulLimit (weighted p Rate.halfRate) (weighted q Rate.halfRate) Real.zero Real.zero Real.zero (left Rate.halfRate) (right Rate.halfRate),
+        equality: Laws.fieldMulZeroLeft Real.zero
+      } \then
+  \return LimitLaws.congruentLimit (\fun (t: Scalar) => Real.mul (weighted p Rate.halfRate t) (weighted q Rate.halfRate t)) (weighted (Expression::times p q) c)
+    (\fun (t: Scalar) => trans!{Scalar} _ _ _ (Algebra.mulFour (evaluate p (Laws.fieldInv t)) (Half.value t) (evaluate q (Laws.fieldInv t)) (Half.value t))
+      (congr!{Scalar Scalar} (Real.mul (Real.mul (evaluate p (Laws.fieldInv t)) (evaluate q (Laws.fieldInv t)))) _ _
+        (sym!{Scalar} _ _ (Rate.split t)))) Real.zero Real.zero productLimit
+};

@@ -1,0 +1,23 @@
+\definition n: N.Nat^ := embedding.dimension;
+\import Bundles.Trivial[X := X, n := k, baseSpace := bundle.baseSpace] \as Trivial;
+\import Bundles.Trivial[X := X, n := n, baseSpace := bundle.baseSpace] \as Ambient;
+\import Bundles.Morphisms[X := X, Y := X, F := (\fun (_: X) => Vector k), G := F, source := Trivial.bundle, target := bundle, f := (\fun (x: X) => x)].Composition[Z := X, H := (\fun (_: X) => Vector n), range := Ambient.bundle, g := (\fun (x: X) => x)] \as Compose;
+\definition map: Bundles.Morphisms[X := X, Y := X, F := (\fun (_: X) => Vector k), G := (\fun (_: X) => Vector n), source := Trivial.bundle, target := Ambient.bundle, f := (\fun (x: X) => x)].Map := Compose.compose originalFraming.forward embedding.map;
+\import \root.Classification[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].TrivialFamily[X := X, baseSpace := bundle.baseSpace, n := k, m := n, map := map] \as Family;
+\definition regular: Hermitian.At[n := n].Families[X := X].Matrix[m := k].Regular baseSpace (\fun (x: X) => map.fiber x) :=
+  \idelim bundle.baseSpace = baseSpace \with t: topology.Topology[Carrier := X].Topology => Hermitian.At[n := n].Families[X := X].Matrix[m := k].Regular t (\fun (x: X) => map.fiber x) \by { base: Family.regular, equality: same };
+\import Bundles.Isomorphisms[X := X, F := (\fun (_: X) => Vector k), G := F, source := Trivial.bundle, target := bundle] \as Isos;
+\definition laws: Isos.Laws[originalFraming] := \bysub(Isos.Data, Isos.Isomorphism, originalFraming);
+\definition injective: \forall (x: X)(v, w: Vector k) -> (map.fiber x).apply v = (map.fiber x).apply w -> v = w :=
+  \fun (x: X)(v, w: Vector k)(equal: _) => trans!{{Vector k}} _ _ _ (sym!{{Vector k}} _ _ (laws.leftInverse x v))
+    (trans!{{Vector k}} _ _ _ (congr!{{F x} {Vector k}} (originalFraming.backward.fiber x).apply _ _ (embedding.injective x _ _ equal)) (laws.leftInverse x w));
+\definition presentation: Presentation := Presentation { data := Data { dimension := n, frame := (\fun (x: X) => map.fiber x) }, regular := regular, injective := injective };
+\import \root.Classification[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Framed[X := X, baseSpace := baseSpace, k := k].At[p := presentation] \as Classified;
+\definition isomorphism: Bundles.Isomorphisms[X := X, F := F, G := Classified.Fiber, source := bundle, target := Classified.bundle].Isomorphism :=
+  Operations.IsomorphismComposition[X := X, F := F, G := (\fun (_: X) => Vector k), H := Classified.Fiber, source := bundle,
+    middle := Bundles.Trivial[X := X, n := k, baseSpace := baseSpace].bundle, target := Classified.bundle].compose
+      (Bundles.Isomorphisms[X := X, F := (\fun (_: X) => Vector k), G := F, source := Bundles.Trivial[X := X, n := k, baseSpace := baseSpace].bundle, target := bundle].inverse framing) Classified.framing;
+\import Bundles.Isomorphisms[X := X, F := (\fun (_: X) => Vector k), G := F, source := Bundles.Trivial[X := X, n := k, baseSpace := baseSpace].bundle, target := bundle] \as Given;
+\definition framingLaws: Given.Laws[framing] := \bysub(Given.Data, Given.Isomorphism, framing);
+\definition preservesFrame: \forall (x: X)(v: Vector k) -> (isomorphism.forward.fiber x).apply ((framing.forward.fiber x).apply v) = (Classified.framing.forward.fiber x).apply v :=
+  \fun (x: X)(v: Vector k) => congr!{{Vector k} {Classified.Fiber x}} (Classified.framing.forward.fiber x).apply _ _ (framingLaws.leftInverse x v);

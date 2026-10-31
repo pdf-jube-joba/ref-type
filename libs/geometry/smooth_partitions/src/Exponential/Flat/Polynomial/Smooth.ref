@@ -1,0 +1,35 @@
+\import Calculus.OneDimension[] \as One;
+\import Calculus.Multivariable[n := One.dimension].Open[] \as Open;
+\import One.On[U := Open.whole] \as Lift;
+\import Open.Smooth[] \as Smooth;
+\definition polynomials: Smooth.Directions -> Expression := \induction (directions: Smooth.Directions) \return Expression \with {
+  | nil: Expression::constant Real.one
+  | cons: \fun (i: One.Index)(tail: Smooth.Directions)(previous: Expression) => next previous
+};
+\definition value: Scalar -> Scalar := function (Expression::constant Real.one);
+\definition family: Smooth.PartialFamily Open.whole := \fun (directions: Smooth.Directions) => Lift.lift (function (polynomials directions));
+\definition laws[k: N.Nat^]: Smooth.ContDiffLaws[Open.whole, Lift.lift value, k, family] :=
+  Smooth.ContDiffLaws[Open.whole, Lift.lift value, k, family] {
+    partials := Smooth.PartialFamilyLaws[Open.whole, Lift.lift value, k, family] {
+      function := \refl(Lift.lift value),
+      derivative := \fun (directions: Smooth.Directions)(bound: _)(i: One.Index)(x: Open.Carrier Open.whole) =>
+        Lift.partialAt (function (polynomials directions)) x (function (next (polynomials directions)) (x One.index))
+          (\parent.Jet[p := polynomials directions].derivative (x One.index)) i,
+    },
+    continuous := \fun (directions: Smooth.Directions)(bound: _)(x: Open.Carrier Open.whole) =>
+      Lift.continuousAt (function (polynomials directions)) x (\parent.Jet[p := polynomials directions].continuous (x One.index)),
+  };
+\definition smooth: Smooth.SmoothOn Open.whole (Lift.lift value) := \fun (k: N.Nat^) =>
+  Logic.existsIntro[Smooth.PartialFamily Open.whole, { jet: Smooth.PartialFamily Open.whole \where Smooth.ContDiffLaws[Open.whole, Lift.lift value, k, jet] }] family (laws k);
+\definition zeroOn[p: Expression][t: Scalar]: Logic.Not (R.Lt Real.zero t) -> function p t = Real.zero :=
+  \fun (nonpositive: _) => trans!{Scalar} _ _ _
+    (congr!{Scalar Scalar} (Real.mul (evaluate p (Laws.fieldInv t))) _ _ (BasicRate.nonpositiveValue t nonpositive))
+    (Laws.fieldMulZeroRight (evaluate p (Laws.fieldInv t)));
+\definition allDerivativesZero[directions: Smooth.Directions][x: Open.Carrier Open.whole]:
+  Logic.Not (R.Lt Real.zero (x One.index)) -> family directions x = Real.zero := zeroOn (polynomials directions) (x One.index);
+\definition positive[t: Scalar]: R.Lt Real.zero t -> R.Lt Real.zero (value t) :=
+  \fun (tp: _) => R.ltReplaceRight Real.zero (Exp.value (Real.neg (Real.mul rate (Laws.fieldInv t)))) (value t)
+    (trans!{Scalar} _ _ _ (sym!{Scalar} _ _ (BasicRate.positiveValue t tp)) (sym!{Scalar} _ _ (Laws.fieldMulOneLeft (BasicRate.value t))))
+    (Exp.positive (Real.neg (Real.mul rate (Laws.fieldInv t))));
+\definition nonnegative[t: Scalar]: R.Le Real.zero (value t) := R.leReplaceRight Real.zero (BasicRate.value t) (value t)
+  (sym!{Scalar} _ _ (Laws.fieldMulOneLeft (BasicRate.value t))) (BasicRate.nonnegative t);

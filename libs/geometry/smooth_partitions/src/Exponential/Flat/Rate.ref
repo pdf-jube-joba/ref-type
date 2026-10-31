@@ -1,0 +1,76 @@
+\definition cPositive: R.Lt Real.zero c := \bysub(Scalar, { x: Scalar \where R.Lt Real.zero x }, c);
+\module At(t: Scalar) {
+  \import Classical.Cases[A := Scalar, P := R.Lt Real.zero t] \as Cases;
+  \definition value: Scalar := Cases.select (Exp.value (Real.neg (Real.mul c (Laws.fieldInv t)))) Real.zero;
+  \definition positiveValue: R.Lt Real.zero t -> value = Exp.value (Real.neg (Real.mul c (Laws.fieldInv t))) := Cases.whenTrue _ _;
+  \definition nonpositiveValue: Logic.Not (R.Lt Real.zero t) -> value = Real.zero := Cases.whenFalse _ _;
+}
+\definition value[t: Scalar]: Scalar := At[t := t].value;
+\definition positiveValue[t: Scalar]: R.Lt Real.zero t -> value t = Exp.value (Real.neg (Real.mul c (Laws.fieldInv t))) := At[t := t].positiveValue;
+\definition nonpositiveValue[t: Scalar]: Logic.Not (R.Lt Real.zero t) -> value t = Real.zero := At[t := t].nonpositiveValue;
+\definition atZero: value Real.zero = Real.zero := nonpositiveValue Real.zero (R.ltIrrefl Real.zero);
+\definition nonnegative[t: Scalar]: R.Le Real.zero (value t) := either!{{(Classical.excludedMiddle (R.Lt Real.zero t))} {R.Le Real.zero (value t)}
+  {\fun (tp: _) => R.leReplaceRight Real.zero (Exp.value (Real.neg (Real.mul c (Laws.fieldInv t)))) (value t)
+    (sym!{Scalar} _ _ (positiveValue t tp)) (Order.leOfLt _ _ (Exp.positive (Real.neg (Real.mul c (Laws.fieldInv t)))))}
+  {\fun (notPositive: _) => R.leReplaceRight Real.zero Real.zero (value t) (sym!{Scalar} _ _ (nonpositiveValue t notPositive)) (R.leRefl Real.zero)}
+};
+\definition inverseCoefficient: Scalar := Laws.fieldInv c;
+\definition inversePositive: R.Lt Real.zero inverseCoefficient := Product.invPositive c cPositive;
+\module PositiveAt(t: Scalar, positive: R.Lt Real.zero t);
+\definition estimate[t: Scalar]: R.Le (Real.distance (value t) Real.zero) (Real.mul inverseCoefficient (Real.distance t Real.zero)) :=
+  either!{{(Classical.excludedMiddle (R.Lt Real.zero t))} {R.Le (Real.distance (value t) Real.zero) (Real.mul inverseCoefficient (Real.distance t Real.zero))}
+    {\fun (positive: _) => PositiveAt[t := t, positive := positive].estimate}
+    {\fun (notPositive: _) => R.leReplaceLeft Real.zero (Real.distance (value t) Real.zero) (Real.mul inverseCoefficient (Real.distance t Real.zero))
+      (sym!{Scalar} _ _ (trans!{Scalar} _ _ _ (congr!{Scalar Scalar} (\fun (x: Scalar) => Real.distance x Real.zero) _ _ (nonpositiveValue t notPositive)) (Distance.distanceSelf Real.zero)))
+      (Laws.fieldMulNonnegative inverseCoefficient (Real.distance t Real.zero) (Order.leOfLt _ _ inversePositive) (Distance.distanceNonnegative t Real.zero))}
+  };
+\definition limit: Limits.HasLimitAt value Real.zero Real.zero := \block {
+  \fun (epsilon: Scalar)(ep: _) \then
+  \let delta: Scalar := Product.radius inverseCoefficient epsilon \then
+  \return Logic.existsIntro[Scalar, { d: Scalar \where Limits.Control[value, Real.zero, Real.zero, epsilon, d] }] delta
+    (Limits.Control[value, Real.zero, Real.zero, epsilon, delta] {
+      positive := Product.radiusPositive inverseCoefficient epsilon inversePositive ep,
+      estimate := \fun (t: Scalar)(different: _)(near: _) => R.leLtTrans _ _ _ (estimate t)
+        (Order.ltTrans _ _ _ (Product.mulStrict inverseCoefficient (Real.distance t Real.zero) delta inversePositive near)
+          (Product.radiusSmall inverseCoefficient epsilon inversePositive ep)),
+    })
+};
+\definition halfRate: Positive := \into[Scalar](Real.mul Real.half c, { x: Scalar \where R.Lt Real.zero x }) \by { Estimates.halfOfPositive c cPositive };
+\import \parent.Rate[c := halfRate] \as Half;
+\definition split[t: Scalar]: value t = Real.mul (Half.value t) (Half.value t) :=
+  either!{{(Classical.excludedMiddle (R.Lt Real.zero t))} {value t = Real.mul (Half.value t) (Half.value t)}
+    {\fun (tp: _) => eq_reason!{
+      {value t} "=" {Exp.value (Real.neg (Real.mul c (Laws.fieldInv t)))} "by" {positiveValue t tp}
+      "=" {Exp.value (Real.add (Real.neg (Real.mul halfRate (Laws.fieldInv t))) (Real.neg (Real.mul halfRate (Laws.fieldInv t))))} "by" {
+        congr!{Scalar Scalar} Exp.value _ _ (sym!{Scalar} _ _ (trans!{Scalar} _ _ _
+          (sym!{Scalar} _ _ (Laws.negAdd (Real.mul halfRate (Laws.fieldInv t)) (Real.mul halfRate (Laws.fieldInv t))))
+          (congr!{Scalar Scalar} Real.neg _ _ (trans!{Scalar} _ _ _
+            (sym!{Scalar} _ _ (Algebra.mulAddRight halfRate halfRate (Laws.fieldInv t)))
+            (congr!{Scalar Scalar} (\fun (x: Scalar) => Real.mul x (Laws.fieldInv t)) _ _ (Estimates.halfTwice c)))))) }
+      "=" {Real.mul (Exp.value (Real.neg (Real.mul halfRate (Laws.fieldInv t)))) (Exp.value (Real.neg (Real.mul halfRate (Laws.fieldInv t))))} "by" {Exp.addition _ _}
+      "=" {Real.mul (Half.value t) (Half.value t)} "by" {congr!{Scalar Scalar Scalar} Real.mul _ _ _ _
+        (sym!{Scalar} _ _ (Half.positiveValue t tp)) (sym!{Scalar} _ _ (Half.positiveValue t tp))}
+    }}
+    {\fun (notPositive: _) => trans!{Scalar} _ _ _ (nonpositiveValue t notPositive)
+      (sym!{Scalar} _ _ (trans!{Scalar} _ _ _ (congr!{Scalar Scalar Scalar} Real.mul _ _ _ _ (Half.nonpositiveValue t notPositive) (Half.nonpositiveValue t notPositive))
+        (Laws.fieldMulZeroLeft Real.zero)))}
+  };
+\definition factor[t: Scalar]: Scalar := Real.mul (Laws.fieldInv t) (Half.value t);
+\definition factorBound[t: Scalar]: R.Le (Real.distance (factor t) Real.zero) Half.inverseCoefficient :=
+  either!{{(Classical.excludedMiddle (R.Lt Real.zero t))} {R.Le (Real.distance (factor t) Real.zero) Half.inverseCoefficient}
+    {\fun (tp: _) => R.leReplaceLeft (factor t) (Real.distance (factor t) Real.zero) Half.inverseCoefficient
+      (sym!{Scalar} _ _ (magnitudeNonnegative (factor t)
+        (Laws.fieldMulNonnegative (Laws.fieldInv t) (Half.value t)
+          (Order.leOfLt _ _ (Product.invPositive t tp)) (Half.nonnegative t))))
+      (\parent.Rate[c := halfRate].PositiveAt[t := t, positive := tp].scaledUpper)}
+    {\fun (notPositive: _) => R.leReplaceLeft Real.zero (Real.distance (factor t) Real.zero) Half.inverseCoefficient
+      (sym!{Scalar} _ _ (trans!{Scalar} _ _ _
+        (congr!{Scalar Scalar} (\fun (x: Scalar) => Real.distance (Real.mul (Laws.fieldInv t) x) Real.zero) _ _ (Half.nonpositiveValue t notPositive))
+        (trans!{Scalar} _ _ _ (congr!{Scalar Scalar} (\fun (x: Scalar) => Real.distance x Real.zero) _ _ (Laws.fieldMulZeroRight (Laws.fieldInv t))) (Distance.distanceSelf Real.zero))))
+      (Order.leOfLt _ _ Half.inversePositive)}
+  };
+\definition variableLimit: Limits.HasLimitAt (\fun (t: Scalar) => Real.mul (Laws.fieldInv t) (value t)) Real.zero Real.zero :=
+  LimitLaws.congruentLimit (\fun (t: Scalar) => Real.mul (factor t) (Half.value t)) (\fun (t: Scalar) => Real.mul (Laws.fieldInv t) (value t))
+    (\fun (t: Scalar) => trans!{Scalar} _ _ _ (Laws.fieldMulAssoc (Laws.fieldInv t) (Half.value t) (Half.value t))
+      (congr!{Scalar Scalar} (Real.mul (Laws.fieldInv t)) _ _ (sym!{Scalar} _ _ (split t)))) Real.zero Real.zero
+    (boundedTimesZero factor (Half.value) Half.inverseCoefficient Half.inversePositive factorBound Half.limit);

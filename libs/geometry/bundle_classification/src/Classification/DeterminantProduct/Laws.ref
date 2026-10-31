@@ -1,0 +1,28 @@
+\import dedekind_reals.DedekindReal[].Arithmetic[].Prop[] \as Scalars;
+\import Left.At[k := n] \as LeftForms;
+\import Right.At[k := m] \as RightForms;
+\definition scaleLeft: \forall (a: R.Real)(alpha: LeftForm)(beta: RightForm) -> product (LeftForms.vectorSpace.smul a alpha) beta = formSpace.smul a (product alpha beta) :=
+  \fun (a: R.Real)(alpha: LeftForm)(beta: RightForm) => ext _ _ (\fun (u: Fin.Fin n -> V)(v: Fin.Fin m -> W) =>
+    trans!{R.Real} _ _ _ (formula (LeftForms.vectorSpace.smul a alpha) beta u v)
+      (trans!{R.Real} _ _ _ (Scalars.fieldMulAssoc a (alpha u) (beta v)) (congr!{R.Real R.Real} (R.mul a) _ _ (sym!{R.Real} _ _ (formula alpha beta u v)))));
+\definition scaleRight: \forall (a: R.Real)(alpha: LeftForm)(beta: RightForm) -> product alpha (RightForms.vectorSpace.smul a beta) = formSpace.smul a (product alpha beta) :=
+  \fun (a: R.Real)(alpha: LeftForm)(beta: RightForm) => ext _ _ (\fun (u: Fin.Fin n -> V)(v: Fin.Fin m -> W) =>
+    trans!{R.Real} _ _ _ (formula alpha (RightForms.vectorSpace.smul a beta) u v)
+      (trans!{R.Real} _ _ _ (R.Algebra[].mulSwap (alpha u) a (beta v)) (congr!{R.Real R.Real} (R.mul a) _ _ (sym!{R.Real} _ _ (formula alpha beta u v)))));
+\definition addLeft: \forall (alpha, other: LeftForm)(beta: RightForm) -> product (LeftForms.vectorSpace.add alpha other) beta = formSpace.add (product alpha beta) (product other beta) :=
+  \fun (alpha, other: LeftForm)(beta: RightForm) => ext _ _ (\fun (u: Fin.Fin n -> V)(v: Fin.Fin m -> W) =>
+    trans!{R.Real} _ _ _ (formula (LeftForms.vectorSpace.add alpha other) beta u v)
+      (trans!{R.Real} _ _ _ (R.Algebra[].mulAddRight (alpha u) (other u) (beta v))
+        (congr!{R.Real R.Real R.Real} R.add _ _ _ _ (sym!{R.Real} _ _ (formula alpha beta u v)) (sym!{R.Real} _ _ (formula other beta u v)))));
+\definition addRight: \forall (alpha: LeftForm)(beta, other: RightForm) -> product alpha (RightForms.vectorSpace.add beta other) = formSpace.add (product alpha beta) (product alpha other) :=
+  \fun (alpha: LeftForm)(beta, other: RightForm) => ext _ _ (\fun (u: Fin.Fin n -> V)(v: Fin.Fin m -> W) =>
+    trans!{R.Real} _ _ _ (formula alpha (RightForms.vectorSpace.add beta other) u v)
+      (trans!{R.Real} _ _ _ (Scalars.fieldMulAdd (alpha u) (beta v) (other v))
+        (congr!{R.Real R.Real R.Real} R.add _ _ _ _ (sym!{R.Real} _ _ (formula alpha beta u v)) (sym!{R.Real} _ _ (formula alpha other u v)))));
+\module InFrames(a: LeftFrames.Frame n, b: RightFrames.Frame m);
+\definition nonzero: \forall (alpha: LeftForm)(beta: RightForm) -> Logic.Not (alpha = LeftForms.vectorSpace.zero) -> Logic.Not (beta = RightForms.vectorSpace.zero) -> Logic.Not (product alpha beta = formSpace.zero) :=
+  \fun (alpha: LeftForm)(beta: RightForm)(na: _)(nb: _) => \block {
+    \takefrom a: LeftFrames.Frame n \by first \then
+    \takefrom b: RightFrames.Frame m \by second \then
+    \return InFrames[a := a, b := b].nonzero alpha beta na nb
+  };

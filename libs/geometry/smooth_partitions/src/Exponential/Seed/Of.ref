@@ -1,0 +1,20 @@
+\import Equation.NearZero[solution := solution] \as Near;
+\definition raw[t: Scalar]: Scalar := solution.value t One.index;
+\definition rawZero: raw Real.zero = Real.one := congr!{ODE.Vector Scalar} (\fun (x: ODE.Vector) => x One.index) _ _ solution.initialValue;
+\definition value[t: Scalar]: Scalar := Distance.max Real.half (raw t);
+\definition valuePositive[t: Scalar]: R.Lt Real.zero (value t) := R.ltLeTrans _ _ _ halfPositive (Distance.maxLeft Real.half (raw t));
+\definition valueZero: value Real.zero = Real.one := trans!{Scalar} _ _ _ (congr!{Scalar Scalar} (Distance.max Real.half) _ _ rawZero)
+  (Distance.maxOfLe Real.half Real.one halfBelow);
+\definition rawDerivative[t: Scalar]: Inside solution.radius t -> Derivatives.HasDerivativeAt raw t (raw t) :=
+  \fun (inside: _) => \idelim Equation.extended (solution.value t) One.index = raw t
+    \with d: Scalar => Derivatives.HasDerivativeAt raw t d \by {
+      base: solution.derivative t inside.left inside.right One.index,
+      equality: congr!{ODE.Vector Scalar} (\fun (x: ODE.Vector) => x One.index) _ _
+        (DomainExtension.inside Equation.function Coordinates.origin
+          (\into[ODE.Vector](solution.value t, Open.whole.points) \by { \refl(solution.value t) }))
+    };
+\module Radius(delta: Scalar, control: Near.Radius[Real.half, delta]);
+\definition existsPatch: \exists Patch := \block {
+  \takefrom delta: \Cast[Scalar] ({ d: Scalar \where Near.Radius[Real.half, d] }) \by Near.existsRadius Real.half halfPositive \then
+  \return \exact(Radius[delta := delta, control := \bysub(Scalar, { d: Scalar \where Near.Radius[Real.half, d] }, delta)].patch, Patch)
+};

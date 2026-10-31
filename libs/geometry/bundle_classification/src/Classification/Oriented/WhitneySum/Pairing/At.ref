@@ -1,0 +1,46 @@
+\import \parent.\parent.Local[c := c.left, d := c.right, leftEnumeration := c.leftEnumeration, rightEnumeration := c.rightEnumeration, sumEnumeration := c.sumEnumeration] \as Chart;
+\import LeftAtlas.Top[c := c.left, enumeration := c.leftEnumeration] \as LeftTop;
+\import RightAtlas.Top[c := c.right, enumeration := c.rightEnumeration] \as RightTop;
+\import SumAtlas.Top[c := Chart.sumLocal, enumeration := c.sumEnumeration] \as SumTop;
+\definition Point: \Set := \Cast[InputFamily.Point] (domain c);
+\definition topology: topology.Topology[Carrier := Point].Topology := InputSpace.Subspace[S := domain c].topology source;
+\definition center[p: Point]: Chart.Source := \into[X](p.base, Chart.domain) \by { \bysub(InputFamily.Point, domain c, p) };
+\import topology.Continuity[A := InputFamily.Point, B := X].Restriction[S := domain c] \as RestrictBase;
+\import topology.Continuity[A := Point, B := X].Corestriction[S := Chart.domain] \as IntoBase;
+\definition centerContinuous: topology.Continuity[A := Point, B := Chart.Source].Continuous topology Chart.sourceTopology center :=
+  IntoBase.corestrictContinuous topology left.baseSpace center (RestrictBase.restrictContinuous source left.baseSpace InputFamily.projection Inputs.projectionContinuous);
+\definition firstPoint[p: Point]: LeftTop.LocalTotal := \into[Bundles.Family[X := X, F := First.DeterminantFiber].Point](Inputs.first p,
+  { q: Bundles.Family[X := X, F := First.DeterminantFiber].Point \where Base.Member c.left.domain q.base }) \by { (\bysub(InputFamily.Point, domain c, p)).left };
+\definition secondPoint[p: Point]: RightTop.LocalTotal := \into[Bundles.Family[X := X, F := Second.DeterminantFiber].Point](Inputs.second p,
+  { q: Bundles.Family[X := X, F := Second.DeterminantFiber].Point \where Base.Member c.right.domain q.base }) \by { (\bysub(InputFamily.Point, domain c, p)).right };
+\import topology.Continuity[A := InputFamily.Point, B := Bundles.Family[X := X, F := First.DeterminantFiber].Point].Restriction[S := domain c] \as RestrictFirst;
+\import topology.Continuity[A := InputFamily.Point, B := Bundles.Family[X := X, F := Second.DeterminantFiber].Point].Restriction[S := domain c] \as RestrictSecond;
+\import topology.Continuity[A := Point, B := Bundles.Family[X := X, F := First.DeterminantFiber].Point].Corestriction[S := { q: Bundles.Family[X := X, F := First.DeterminantFiber].Point \where Base.Member c.left.domain q.base }] \as IntoFirst;
+\import topology.Continuity[A := Point, B := Bundles.Family[X := X, F := Second.DeterminantFiber].Point].Corestriction[S := { q: Bundles.Family[X := X, F := Second.DeterminantFiber].Point \where Base.Member c.right.domain q.base }] \as IntoSecond;
+\definition firstContinuous: topology.Continuity[A := Point, B := LeftTop.LocalTotal].Continuous topology LeftTop.localTopology firstPoint :=
+  IntoFirst.corestrictContinuous topology First.determinantBundle.totalSpace firstPoint (RestrictFirst.restrictContinuous source First.determinantBundle.totalSpace Inputs.first Inputs.firstContinuous);
+\definition secondContinuous: topology.Continuity[A := Point, B := RightTop.LocalTotal].Continuous topology RightTop.localTopology secondPoint :=
+  IntoSecond.corestrictContinuous topology Second.determinantBundle.totalSpace secondPoint (RestrictSecond.restrictContinuous source Second.determinantBundle.totalSpace Inputs.second Inputs.secondContinuous);
+\definition firstRead[p: Point]: R.Real := LeftTop.coefficient (firstPoint p);
+\definition secondRead[p: Point]: R.Real := RightTop.coefficient (secondPoint p);
+\definition scalarTopology: topology.Topology[Carrier := R.Real].Topology := vector_bundles.Bundles[].Real[].scalar.topological.space;
+\definition firstReadContinuous: topology.Continuity[A := Point, B := R.Real].Continuous topology scalarTopology firstRead :=
+  topology.Composition[A := Point, B := LeftTop.LocalTotal, C := R.Real].composeContinuous topology LeftTop.localTopology scalarTopology firstPoint LeftTop.coefficient firstContinuous LeftTop.coefficientContinuous;
+\definition secondReadContinuous: topology.Continuity[A := Point, B := R.Real].Continuous topology scalarTopology secondRead :=
+  topology.Composition[A := Point, B := RightTop.LocalTotal, C := R.Real].composeContinuous topology RightTop.localTopology scalarTopology secondPoint RightTop.coefficient secondContinuous RightTop.coefficientContinuous;
+\definition coefficient[p: Point]: R.Real := R.mul (firstRead p) (secondRead p);
+\definition coefficientContinuous: metric_spaces.RealFunctions[A := Point].Continuous topology coefficient :=
+  metric_spaces.RealFunctions[A := Point].Product[].continuous topology firstRead secondRead firstReadContinuous secondReadContinuous;
+\definition vector[p: Point]: Bundles.Vector SumTop.dimension := \fun (_: Fin.Fin SumTop.dimension) => coefficient p;
+\definition vectorContinuous: topology.Continuity[A := Point, B := Bundles.Vector SumTop.dimension].Continuous topology (Bundles.coordinateTopology SumTop.dimension) vector :=
+  topological_algebra.Coordinates[K := R.Real, I := Fin.Fin SumTop.dimension].Universal[A := Point].continuous topology scalarTopology vector (\fun (_: Fin.Fin SumTop.dimension) => coefficientContinuous);
+\import Operations.Chart[X := X, F := Forms.Fiber, bundle := Forms.alternating, chart := SumTop.chart] \as TargetChart;
+\definition model[p: Point]: Family.Point := TargetChart.Maps[Y := Point, source := topology].point center vector p;
+\definition modelContinuous: topology.Continuity[A := Point, B := Family.Point].Continuous topology Forms.alternating.totalSpace model :=
+  TargetChart.Maps[Y := Point, source := topology].pointContinuous center vector centerContinuous vectorContinuous;
+\module Formula(p: Point);
+\definition formula: \forall (p: Point) -> model p = map p := \fun (p: Point) => Formula[p := p].formula;
+\definition continuous: topology.Continuity[A := Point, B := Family.Point].Continuous topology Forms.alternating.totalSpace (\fun (p: Point) => map p) :=
+  \idelim model = (\fun (p: Point) => map p) \with h: (Point -> Family.Point) => topology.Continuity[A := Point, B := Family.Point].Continuous topology Forms.alternating.totalSpace h \by {
+    base: modelContinuous, equality: \axiom:funext(model, (\fun (p: Point) => map p), formula)
+  };

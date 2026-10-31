@@ -1,0 +1,20 @@
+\import real.Analysis[] \as R;
+\import vector_bundles.Bundles[].Over[K := R.Real, field := R.Algebra[].field, conjugation := hermitian_frames.Hermitian[].Real[].scalar, scalar := vector_bundles.Bundles[].Real[].scalar] \as Bundles;
+\import bundle_operations.Operations[].Over[K := R.Real, field := R.Algebra[].field, conjugation := hermitian_frames.Hermitian[].Real[].scalar, scalar := vector_bundles.Bundles[].Real[].scalar] \as Operations;
+\import Operations.Alternating[X := X, F := F, bundle := source, k := k] \as Source;
+\import Operations.Alternating[X := X, F := G, bundle := target, k := k] \as Target;
+\import Source.Contramap[G := G, target := target, sameBase := same] \as Forward;
+\definition reverseSame: target.baseSpace = source.baseSpace := sym!{{topology.Topology[Carrier := X].Topology}} _ _ same;
+\import Target.Contramap[G := F, target := source, sameBase := reverseSame] \as Backward;
+\import Bundles.Isomorphisms[X := X, F := F, G := G, source := source, target := target] \as Isos;
+\definition laws: Isos.Laws[iso] := \bysub(Isos.Data, Isos.Isomorphism, iso);
+\definition isomorphism: Bundles.Isomorphisms[X := X, F := Target.Fiber, G := Source.Fiber, source := Target.alternating, target := Source.alternating].Isomorphism :=
+  Bundles.Isomorphisms[X := X, F := Target.Fiber, G := Source.Fiber, source := Target.alternating, target := Source.alternating].Isomorphism {
+    forward := Forward.map iso.forward, backward := Backward.map iso.backward,
+    leftInverse := \fun (x: X)(alpha: Target.Fiber x) => \axiom:funext((\fun (v: Fin.Fin k -> G x) => alpha (\fun (i: Fin.Fin k) => (iso.forward.fiber x).apply ((iso.backward.fiber x).apply (v i)))), alpha, \fun (v: Fin.Fin k -> G x) => congr!{{Fin.Fin k -> G x} {R.Real}} alpha _ _
+      (\axiom:funext((\fun (i: Fin.Fin k) => (iso.forward.fiber x).apply ((iso.backward.fiber x).apply (v i))), v, \fun (i: Fin.Fin k) => laws.rightInverse x (v i)))),
+    rightInverse := \fun (x: X)(alpha: Source.Fiber x) => \axiom:funext((\fun (v: Fin.Fin k -> F x) => alpha (\fun (i: Fin.Fin k) => (iso.backward.fiber x).apply ((iso.forward.fiber x).apply (v i)))), alpha, \fun (v: Fin.Fin k -> F x) => congr!{{Fin.Fin k -> F x} {R.Real}} alpha _ _
+      (\axiom:funext((\fun (i: Fin.Fin k) => (iso.backward.fiber x).apply ((iso.forward.fiber x).apply (v i))), v, \fun (i: Fin.Fin k) => laws.leftInverse x (v i))))
+  };
+\definition forwardFormula: \forall (x: X)(alpha: Target.Fiber x)(v: Fin.Fin k -> F x) -> ((isomorphism.forward.fiber x).apply alpha) v = alpha (\fun (i: Fin.Fin k) => (iso.forward.fiber x).apply (v i)) :=
+  \fun (x: X)(alpha: Target.Fiber x)(v: Fin.Fin k -> F x) => \refl(alpha (\fun (i: Fin.Fin k) => (iso.forward.fiber x).apply (v i)));

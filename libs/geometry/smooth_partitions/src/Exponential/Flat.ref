@@ -1,0 +1,41 @@
+\import \parent.Global[] \as Exp;
+\import Calculus.Limit[].Prop[] \as LimitLaws;
+\definition zeroDistance[x: Scalar]: Real.distance x Real.zero = x -> R.Le Real.zero x :=
+  \fun (equal: _) => R.leReplaceRight Real.zero (Real.distance x Real.zero) x equal (Distance.distanceNonnegative x Real.zero);
+\definition magnitudeProduct[x, y: Scalar]: Real.distance (Real.mul x y) Real.zero = Real.mul (Real.distance x Real.zero) (Real.distance y Real.zero) := eq_reason!{
+  {Real.distance (Real.mul x y) Real.zero} "=" {Real.distance Real.zero (Real.mul x y)} "by" {Distance.distanceSymmetric _ _}
+  "=" {Real.mul (Real.distance Real.zero x) (Real.distance Real.zero y)} "by" {Product.absProduct x y}
+  "=" {Real.mul (Real.distance x Real.zero) (Real.distance y Real.zero)} "by" {
+    congr!{Scalar Scalar Scalar} Real.mul _ _ _ _ (Distance.distanceSymmetric Real.zero x) (Distance.distanceSymmetric Real.zero y) }
+};
+\definition magnitudeNonnegative[x: Scalar]: R.Le Real.zero x -> Real.distance x Real.zero = x :=
+  \fun (nonnegative: _) => trans!{Scalar} _ _ _ (Distance.distanceSymmetric x Real.zero) (Product.absOfNonnegative x nonnegative);
+\definition boundedTimesZero: \forall (f, g: Scalar -> Scalar)(bound: Scalar) -> R.Lt Real.zero bound ->
+  (\forall (t: Scalar) -> R.Le (Real.distance (f t) Real.zero) bound) -> Limits.HasLimitAt g Real.zero Real.zero ->
+  Limits.HasLimitAt (\fun (t: Scalar) => Real.mul (f t) (g t)) Real.zero Real.zero := \block {
+  \fun (f, g: _)(bound: _)(bp: _)(bounded: _)(limit: _)(epsilon: Scalar)(ep: _) \then
+  \let rho: Scalar := Product.radius bound epsilon \then
+  \takefrom delta: \Cast[Scalar] ({ d: Scalar \where Limits.Control[g, Real.zero, Real.zero, rho, d] })
+    \by limit rho (Product.radiusPositive bound epsilon bp ep) \then
+  \let control: Limits.Control[g, Real.zero, Real.zero, rho, delta] := \bysub(Scalar, { d: Scalar \where Limits.Control[g, Real.zero, Real.zero, rho, d] }, delta) \then
+  \return Logic.existsIntro[Scalar, { d: Scalar \where Limits.Control[(\fun (t: Scalar) => Real.mul (f t) (g t)), Real.zero, Real.zero, epsilon, d] }] delta
+    (Limits.Control[(\fun (t: Scalar) => Real.mul (f t) (g t)), Real.zero, Real.zero, epsilon, delta] {
+      positive := control.positive,
+      estimate := \fun (t: Scalar)(different: _)(near: _) => R.ltReplaceLeft
+        (Real.mul (Real.distance (f t) Real.zero) (Real.distance (g t) Real.zero)) (Real.distance (Real.mul (f t) (g t)) Real.zero) epsilon
+        (sym!{Scalar} _ _ (magnitudeProduct (f t) (g t)))
+        (R.leLtTrans _ _ _
+          (R.leReplace (Real.mul (Real.distance (g t) Real.zero) (Real.distance (f t) Real.zero))
+            (Real.mul (Real.distance (f t) Real.zero) (Real.distance (g t) Real.zero))
+            (Real.mul (Real.distance (g t) Real.zero) bound) (Real.mul bound (Real.distance (g t) Real.zero))
+            (Laws.fieldMulComm _ _) (Laws.fieldMulComm _ _)
+            (Estimates.mulMonotone (Real.distance (g t) Real.zero) (Real.distance (f t) Real.zero) bound
+              (Distance.distanceNonnegative (g t) Real.zero) (bounded t)))
+          (R.ltLeTrans _ _ epsilon
+            (Product.mulStrict bound (Real.distance (g t) Real.zero) rho bp (control.estimate t different near))
+            (Order.leOfLt _ _ (Product.radiusSmall bound epsilon bp ep)))),
+    })
+};
+\module Rate(c: Positive);
+\module InverseAt(t: Scalar, positive: R.Lt Real.zero t);
+\module Polynomial;

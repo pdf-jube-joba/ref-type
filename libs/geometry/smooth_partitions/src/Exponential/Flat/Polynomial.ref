@@ -1,0 +1,57 @@
+\inductive Expression: \Set :=
+| constant: Scalar -> Expression
+| variable: Expression
+| plus: Expression -> Expression -> Expression
+| times: Expression -> Expression -> Expression
+;
+\definition evaluate: Expression -> Scalar -> Scalar :=
+  \induction (p: Expression) \return Scalar -> Scalar \with {
+    | constant: \fun (a: Scalar)(x: Scalar) => a
+    | variable: \fun (x: Scalar) => x
+    | plus: \fun (p: Expression)(left: Scalar -> Scalar)(q: Expression)(right: Scalar -> Scalar)(x: Scalar) => Real.add (left x) (right x)
+    | times: \fun (p: Expression)(left: Scalar -> Scalar)(q: Expression)(right: Scalar -> Scalar)(x: Scalar) => Real.mul (left x) (right x)
+  };
+\definition differentiate: Expression -> Expression := \induction (p: Expression) \return Expression \with {
+  | constant: \fun (a: Scalar) => Expression::constant Real.zero
+  | variable: Expression::constant Real.one
+  | plus: \fun (p: Expression)(left: Expression)(q: Expression)(right: Expression) => Expression::plus left right
+  | times: \fun (p: Expression)(left: Expression)(q: Expression)(right: Expression) => Expression::plus (Expression::times left q) (Expression::times p right)
+};
+\definition derivativeLaw: \forall (p: Expression)(t: Scalar) -> Derivatives.HasDerivativeAt (evaluate p) t (evaluate (differentiate p) t) :=
+  \induction (p: Expression) \return \forall (t: Scalar) -> Derivatives.HasDerivativeAt (evaluate p) t (evaluate (differentiate p) t) \with {
+    | constant: \fun (a, t: Scalar) => Basic.constantDerivative a t
+    | variable: \fun (t: Scalar) => Basic.identityDerivative t
+    | plus: \fun (p: Expression)(left: _)(q: Expression)(right: _)(t: Scalar) => DerivativeOperations.addDerivative (evaluate p) (evaluate q) t
+      (evaluate (differentiate p) t) (evaluate (differentiate q) t) (left t) (right t)
+    | times: \fun (p: Expression)(left: _)(q: Expression)(right: _)(t: Scalar) => Products.derivative (evaluate p) (evaluate q) t
+      (evaluate (differentiate p) t) (evaluate (differentiate q) t) (left t) (right t)
+  };
+\definition weighted[p: Expression][c: Positive][t: Scalar]: Scalar := Real.mul (evaluate p (Laws.fieldInv t)) (\parent.Rate[c := c].value t);
+\definition Rapid[p: Expression]: \Prop := \forall (c: Positive) -> Limits.HasLimitAt (weighted p c) Real.zero Real.zero;
+\module LimitRules;
+\definition rapid: \forall (p: Expression) -> Rapid p := \induction (p: Expression) \return Rapid p \with {
+  | constant: \fun (a: Scalar)(c: Positive) => LimitRules[].At[c := c].constant a
+  | variable: \fun (c: Positive) => \parent.Rate[c := c].variableLimit
+  | plus: \fun (p: Expression)(left: Rapid p)(q: Expression)(right: Rapid q)(c: Positive) => LimitRules[].At[c := c].plus p q left right
+  | times: \fun (p: Expression)(left: Rapid p)(q: Expression)(right: Rapid q)(c: Positive) => LimitRules[].At[c := c].times p q left right
+};
+\definition negative[p: Expression]: Expression := Expression::times (Expression::constant (Real.neg Real.one)) p;
+\definition difference[p, q: Expression]: Expression := Expression::plus p (negative q);
+\definition next[p: Expression]: Expression := Expression::plus (Expression::times (differentiate p) (negative (Expression::times Expression::variable Expression::variable))) (Expression::times p (Expression::times Expression::variable Expression::variable));
+\definition rate: Positive := \into[Scalar](Real.one, { c: Scalar \where R.Lt Real.zero c }) \by { Product.onePositive };
+\import \parent.Rate[c := rate] \as BasicRate;
+\definition function[p: Expression]: Scalar -> Scalar := weighted p rate;
+\definition atZero[p: Expression]: function p Real.zero = Real.zero := trans!{Scalar} _ _ _
+  (congr!{Scalar Scalar} (Real.mul (evaluate p (Laws.fieldInv Real.zero))) _ _ BasicRate.atZero)
+  (Laws.fieldMulZeroRight (evaluate p (Laws.fieldInv Real.zero)));
+\definition raw[p: Expression][t: Scalar]: Scalar := Real.mul (evaluate p (Laws.fieldInv t)) (Exp.value (Real.neg (Laws.fieldInv t)));
+\definition positiveAgreement[p: Expression][t: Scalar]: R.Lt Real.zero t -> raw p t = function p t :=
+  \fun (tp: _) => congr!{Scalar Scalar} (Real.mul (evaluate p (Laws.fieldInv t))) _ _
+    (sym!{Scalar} _ _ (trans!{Scalar} _ _ _ (BasicRate.positiveValue t tp)
+      (congr!{Scalar Scalar} Exp.value _ _ (congr!{Scalar Scalar} Real.neg _ _ (Laws.fieldMulOneLeft (Laws.fieldInv t))))));
+\definition negativeAgreement[p: Expression][t: Scalar]: R.Lt t Real.zero -> function p t = Real.zero :=
+  \fun (negative: _) => trans!{Scalar} _ _ _
+    (congr!{Scalar Scalar} (Real.mul (evaluate p (Laws.fieldInv t))) _ _ (BasicRate.nonpositiveValue t (Order.ltAsym t Real.zero negative)))
+    (Laws.fieldMulZeroRight (evaluate p (Laws.fieldInv t)));
+\module Jet(p: Expression);
+\module Smooth;

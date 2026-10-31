@@ -1,0 +1,59 @@
+\import Bundles.Trivial[X := X, n := n, baseSpace := baseSpace] \as Trivial;
+\import Operations.Alternating[X := X, F := (\fun (_: X) => Theory.Vector n), bundle := Trivial.bundle, k := n] \as Forms;
+\import Bundles.Family[X := X, F := Forms.Fiber] \as Family;
+\import \root.Classification[].Orientations[X := X, F := Forms.Fiber, bundle := Forms.alternating] \as Cones;
+\import \root.Classification[].TopForms[V := Theory.Vector n, space := Theory.coordinates n, n := n, frame := Trivial.identity] \as Top;
+\definition volume: Top.Form := Top.volume;
+\import \root.Classification[].ScalarSigns[] \as Signs;
+\import dedekind_reals.DedekindReal[] \as Order;
+\import Order.Order[] \as Comparisons;
+\import Order.Arithmetic[].Prop[] \as Scalars;
+\import R.Estimates[].Product[] \as Bounds;
+\import topology.Topology[Carrier := X] \as Base;
+\definition positive: \Pow Family.Point := { p: Family.Point \where Order.Lt R.zero (Top.coefficient p.vector) };
+\definition data: Cones.Data := Cones.Data { positive := positive };
+\definition nonzero: \forall (x: X)(alpha: Forms.Fiber x) -> Order.Lt R.zero (Top.coefficient alpha) -> Logic.Not (alpha = (Forms.fiberSpace x).zero) :=
+  \fun (x: X)(alpha: Forms.Fiber x)(positive: _)(zero: _) => Order.ltIrrefl R.zero
+    (Order.ltReplaceRight R.zero (Top.coefficient alpha) R.zero (congr!{Top.Form R.Real} Top.coefficient _ _ zero) positive);
+\definition volumePositive: \forall (x: X) -> Cones.Positive positive x Top.volume :=
+  \fun (x: X) => Order.ltReplaceRight R.zero R.one (Top.coefficient Top.volume) (sym!{R.Real} _ _ Top.normalized) Bounds.onePositive;
+\definition inhabited: \forall (x: X) -> \exists ( alpha: Forms.Fiber x \where Cones.Positive positive x alpha ) :=
+  \fun (x: X) => Logic.existsIntro[Forms.Fiber x, { alpha: Forms.Fiber x \where Cones.Positive positive x alpha }] Top.volume (volumePositive x);
+\definition signs: \forall (x: X)(alpha: Forms.Fiber x) -> Logic.Not (alpha = (Forms.fiberSpace x).zero) ->
+  Logic.Or[Cones.Positive positive x alpha, Cones.Positive positive x ((Forms.fiberSpace x).neg alpha)] :=
+  \fun (x: X)(alpha: Forms.Fiber x)(nonzero: _) => Signs.alternatives (Top.coefficient alpha) (Top.coefficientNonzero alpha nonzero);
+\definition disjoint: \forall (x: X)(alpha: Forms.Fiber x) -> Cones.Positive positive x alpha -> Logic.Not (Cones.Positive positive x ((Forms.fiberSpace x).neg alpha)) :=
+  \fun (x: X)(alpha: Forms.Fiber x)(positive: _)(negative: _) => Order.ltIrrefl R.zero
+    (Comparisons.ltTrans R.zero (R.neg (Top.coefficient alpha)) R.zero negative (Scalars.negativeNegOfPositive (Top.coefficient alpha) positive));
+\definition scale: \forall (x: X)(a: R.Real) -> Order.Lt R.zero a -> \forall (alpha: Forms.Fiber x) -> Cones.Positive positive x alpha ->
+  Cones.Positive positive x ((Forms.fiberSpace x).smul a alpha) :=
+  \fun (x: X)(a: R.Real)(ap: _)(alpha: Forms.Fiber x)(positive: _) => Bounds.mulPositive a (Top.coefficient alpha) ap positive;
+\definition ray: \forall (x: X)(alpha, beta: Forms.Fiber x) -> Cones.Positive positive x alpha -> Cones.Positive positive x beta ->
+  \exists ( a: R.Real \where Logic.And[Order.Lt R.zero a, beta = (Forms.fiberSpace x).smul a alpha] ) :=
+  \fun (x: X)(alpha, beta: Forms.Fiber x)(pa: _)(pb: _) => Top.positiveMultiple alpha beta (nonzero x alpha pa) (Bounds.mulPositive (Top.coefficient alpha) (Top.coefficient beta) pa pb);
+\import Operations.Chart[X := X, F := (\fun (_: X) => Theory.Vector n), bundle := Trivial.bundle, chart := Trivial.trivialization] \as Original;
+\definition basisTuple: Forms.TupleSection := Forms.TupleSection {
+  domain := Base.Whole, open := (Base.topologyLaws baseSpace).wholeOpen,
+  value := \fun (i: Fin.Fin n)(x: \Cast[X] Base.Whole) => Top.arguments i,
+  regular := \fun (i: Fin.Fin n) => Original.Maps[Y := \Cast[X] Base.Whole, source := Base.Subspace[S := Base.Whole].topology baseSpace].pointContinuous
+    (\fun (x: \Cast[X] Base.Whole) => x) (\fun (_: \Cast[X] Base.Whole) => Top.arguments i)
+    (topology.Maps[A := \Cast[X] Base.Whole, B := \Cast[X] Base.Whole].Identity[].continuous (Base.Subspace[S := Base.Whole].topology baseSpace))
+    (topology.Maps[A := \Cast[X] Base.Whole, B := Theory.Vector n].constantContinuous (Base.Subspace[S := Base.Whole].topology baseSpace) (Theory.coordinateTopology n) (Top.arguments i))
+};
+\import bundle_operations.Operations[].Evaluations[K := R.Real, X := X, E := Family.Point, I := Forms.TupleSection,
+  scalarSpace := vector_bundles.Bundles[].Real[].scalar.topological.space, baseSpace := baseSpace,
+  projection := Family.projection, domains := Forms.domains, open := (\fun (s: Forms.TupleSection) => s.open), evaluate := Forms.evaluate] \as Evaluations;
+\definition local[p: Family.Point]: \Cast[Family.Point] (Forms.Domain basisTuple) := \into[Family.Point](p, Forms.Domain basisTuple) \by { \refl(p.base) };
+\import topology.Continuity[A := Family.Point, B := Family.Point].Corestriction[S := Forms.Domain basisTuple] \as Into;
+\definition localContinuous: topology.Continuity[A := Family.Point, B := \Cast[Family.Point] (Forms.Domain basisTuple)].Continuous Forms.alternating.totalSpace
+  (topology.Topology[Carrier := Family.Point].Subspace[S := Forms.Domain basisTuple].topology Forms.alternating.totalSpace) local :=
+  Into.corestrictContinuous Forms.alternating.totalSpace Forms.alternating.totalSpace local (topology.Maps[A := Family.Point, B := Family.Point].Identity[].continuous Forms.alternating.totalSpace);
+\definition coefficientContinuous: topology.Continuity[A := Family.Point, B := R.Real].Continuous Forms.alternating.totalSpace metric_spaces.RealLine[].topology (\fun (p: Family.Point) => Top.coefficient p.vector) :=
+  topology.Composition[A := Family.Point, B := \Cast[Family.Point] (Forms.Domain basisTuple), C := R.Real].composeContinuous Forms.alternating.totalSpace
+    (topology.Topology[Carrier := Family.Point].Subspace[S := Forms.Domain basisTuple].topology Forms.alternating.totalSpace) metric_spaces.RealLine[].topology local (Forms.evaluate basisTuple) localContinuous (Evaluations.At[i := basisTuple].continuous);
+\definition open: topology.Topology[Carrier := Family.Point].IsOpenIn Forms.alternating.totalSpace positive := coefficientContinuous (metric_spaces.RealLine[].Rays[].Above R.zero) (metric_spaces.RealLine[].Rays[].aboveOpen R.zero);
+\definition orientation: Cones.Orientation := \into[Cones.Data](data, Cones.Orientation) \by {
+  Cones.Laws[data] { open := open, nonzero := nonzero, inhabited := inhabited, signs := signs, disjoint := disjoint, scale := scale, ray := ray }
+};
+\definition rank: Theory.For[X := X, F := (\fun (_: X) => Theory.Vector n), bundle := Trivial.bundle].AtRank[k := n].HasRank :=
+  \fun (x: X) => \exact(Trivial.identity, Bundles.Family[X := X, F := (\fun (_: X) => Theory.Vector n)].Of[bundle := Trivial.bundle].Frame n x);

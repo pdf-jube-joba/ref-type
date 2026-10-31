@@ -1,0 +1,69 @@
+\import \parent.Flat[].Polynomial[].Smooth[] \as Flat;
+\import Calculus.OneDimension[] \as One;
+\import Calculus.Multivariable[n := One.dimension] \as Model;
+\import Model.Open[] \as Open;
+\import Open.Smooth[] \as Smooth;
+\import Smooth.Operations[] \as Operations;
+\import Open.Examples[] \as Examples;
+\import Smooth.Derivative[] \as Partials;
+\import calculus.Maps[n := One.dimension, m := One.dimension] \as Maps;
+\definition reflection: Maps.Map Open.whole Open.whole := Maps.Map[Open.whole, Open.whole] {
+  apply := \fun (x: Open.Carrier Open.whole) => \into[Model.Point]((\fun (i: One.Index) => Real.sub Real.one (x One.index)), Open.whole.points) \by { \refl(\fun (i: One.Index) => Real.sub Real.one (x One.index)) },
+  smooth := \fun (i: One.Index) => Operations.subSmooth Open.whole (\fun (x: Open.Carrier Open.whole) => Real.one)
+    (\fun (x: Open.Carrier Open.whole) => x One.index) (Operations.constantSmooth Open.whole Real.one) (Examples.projectionSmooth Open.whole One.index),
+};
+\import Maps.Composition[U := Open.whole, V := Open.whole, f := reflection] \as Reflection;
+\definition flat: Partials.Function Open.whole := \into[Open.ScalarFunction Open.whole]((\fun (x: Open.Carrier Open.whole) => Flat.value (x One.index)),
+  { f: Open.ScalarFunction Open.whole \where Smooth.SmoothOn Open.whole f }) \by { Flat.smooth };
+\definition denominator[t: Scalar]: Scalar := Real.add (Flat.value t) (Flat.value (Real.sub Real.one t));
+\definition complementPositive[t: Scalar]: Logic.Not (R.Lt Real.zero t) -> R.Lt Real.zero (Real.sub Real.one t) :=
+  \fun (notPositive: _) => R.ltLeTrans _ _ _ Product.onePositive
+    (Algebra.leAddRight Real.one (Real.neg t)
+      (R.leReplaceLeft (Real.neg Real.zero) Real.zero (Real.neg t) Laws.negZero
+        (Laws.negAntitone t Real.zero (Order.leOfNotLtReverse t Real.zero notPositive))));
+\definition denominatorPositive[t: Scalar]: R.Lt Real.zero (denominator t) :=
+  either!{{(Classical.excludedMiddle (R.Lt Real.zero t))} {R.Lt Real.zero (denominator t)}
+    {\fun (positive: _) => R.ltLeTrans _ _ _ (Flat.positive t positive)
+      (Algebra.leAddRight (Flat.value t) (Flat.value (Real.sub Real.one t)) (Flat.nonnegative (Real.sub Real.one t)))}
+    {\fun (notPositive: _) => R.ltLeTrans _ _ _ (Flat.positive (Real.sub Real.one t) (complementPositive t notPositive))
+      (R.leReplaceRight (Flat.value (Real.sub Real.one t)) (Real.add (Flat.value (Real.sub Real.one t)) (Flat.value t)) (denominator t)
+        (Laws.addComm _ _) (Algebra.leAddRight (Flat.value (Real.sub Real.one t)) (Flat.value t) (Flat.nonnegative t)))}
+  };
+\definition denominatorSmooth: Smooth.SmoothOn Open.whole (\fun (x: Open.Carrier Open.whole) => denominator (x One.index)) :=
+  Operations.addSmooth Open.whole flat (Reflection.scalar flat) Flat.smooth (Reflection.smooth flat);
+\definition denominatorFunction: Partials.Function Open.whole := \into[Open.ScalarFunction Open.whole]((\fun (x: Open.Carrier Open.whole) => denominator (x One.index)),
+  { f: Open.ScalarFunction Open.whole \where Smooth.SmoothOn Open.whole f }) \by { denominatorSmooth };
+\definition nonzero[x: Open.Carrier Open.whole]: Logic.Not (denominatorFunction x = Real.zero) := Inverse.positiveNonzero (denominator (x One.index)) (denominatorPositive (x One.index));
+\import Smooth.Reciprocal[U := Open.whole, f := denominatorFunction, nonzero := nonzero] \as Reciprocal;
+\definition value[t: Scalar]: Scalar := Real.mul (Flat.value t) (Laws.fieldInv (denominator t));
+\definition smooth: Smooth.SmoothOn Open.whole (\fun (x: Open.Carrier Open.whole) => value (x One.index)) :=
+  Operations.mulSmooth Open.whole flat Reciprocal.value Flat.smooth Reciprocal.smooth;
+\definition zeroOn[t: Scalar]: R.Le t Real.zero -> value t = Real.zero :=
+  \fun (nonpositive: _) => trans!{Scalar} _ _ _
+    (congr!{Scalar Scalar} (\fun (x: Scalar) => Real.mul x (Laws.fieldInv (denominator t))) _ _
+      (Flat.zeroOn (\parent.Flat[].Polynomial[].Expression::constant Real.one) t (Order.notLtReverseOfLe t Real.zero nonpositive)))
+    (Laws.fieldMulZeroLeft (Laws.fieldInv (denominator t)));
+\definition oneOn[t: Scalar]: R.Le Real.one t -> value t = Real.one := \block {
+  \fun (above: _) \then
+  \let nonpositive: R.Le (Real.sub Real.one t) Real.zero := R.leReplaceRight (Real.sub Real.one t) (Real.add t (Real.neg t)) Real.zero (Laws.addNegRight t)
+    (Laws.addMonotoneRight Real.one t (Real.neg t) above) \then
+  \let zero: Flat.value (Real.sub Real.one t) = Real.zero := Flat.zeroOn (\parent.Flat[].Polynomial[].Expression::constant Real.one) (Real.sub Real.one t)
+    (Order.notLtReverseOfLe (Real.sub Real.one t) Real.zero nonpositive) \then
+  \let equal: denominator t = Flat.value t := trans!{Scalar} _ _ _ (congr!{Scalar Scalar} (Real.add (Flat.value t)) _ _ zero) (Laws.addZeroRight (Flat.value t)) \then
+  \return eq_reason!{
+    {value t} "=" {Real.mul (denominator t) (Laws.fieldInv (denominator t))} "by" {
+      congr!{Scalar Scalar} (\fun (x: Scalar) => Real.mul x (Laws.fieldInv (denominator t))) _ _ (sym!{Scalar} _ _ equal) }
+    "=" {Real.mul (Laws.fieldInv (denominator t)) (denominator t)} "by" {Laws.fieldMulComm _ _}
+    "=" Real.one "by" {Laws.fieldInverseNonzero (denominator t) (Inverse.positiveNonzero (denominator t) (denominatorPositive t))}
+  }
+};
+\definition nonnegative[t: Scalar]: R.Le Real.zero (value t) := Laws.fieldMulNonnegative (Flat.value t) (Laws.fieldInv (denominator t))
+  (Flat.nonnegative t) (Order.leOfLt _ _ (Product.invPositive (denominator t) (denominatorPositive t)));
+\definition atMostOne[t: Scalar]: R.Le (value t) Real.one :=
+  R.leReplace (Real.mul (Laws.fieldInv (denominator t)) (Flat.value t)) (value t)
+    (Real.mul (Laws.fieldInv (denominator t)) (denominator t)) Real.one
+    (Laws.fieldMulComm _ _) (Laws.fieldInverseNonzero (denominator t) (Inverse.positiveNonzero (denominator t) (denominatorPositive t)))
+    (Estimates.mulMonotone (Laws.fieldInv (denominator t)) (Flat.value t) (denominator t)
+      (Order.leOfLt _ _ (Product.invPositive (denominator t) (denominatorPositive t)))
+      (Algebra.leAddRight (Flat.value t) (Flat.value (Real.sub Real.one t)) (Flat.nonnegative (Real.sub Real.one t))));
+\module Affine(a, b: Scalar);

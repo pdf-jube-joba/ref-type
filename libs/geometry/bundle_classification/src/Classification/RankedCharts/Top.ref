@@ -1,0 +1,35 @@
+\import bundle_operations.Operations[].Over[K := R.Real, field := R.Algebra[].field, conjugation := hermitian_frames.Hermitian[].Real[].scalar, scalar := vector_bundles.Bundles[].Real[].scalar] \as Operations;
+\import Operations.Alternating[X := X, F := F, bundle := bundle, k := n] \as Forms;
+\import Forms.In[c := chartOf n c, enumeration := enumeration] \as Chart;
+\import RealBundles.Family[X := X, F := Forms.Fiber] \as FormFamily;
+\import Base.Subspace[S := c.domain] \as Subspace;
+\definition dimension: N.Nat^ := Chart.dimension;
+\definition chart: RealBundles.Family[X := X, F := Forms.Fiber].With[data := Forms.alternating].Chart := Chart.trivialization;
+\import linear_algebra.Commutative[K := R.Real, scalarRing := Fields.fieldAsCommutativeRing R.Real R.Algebra[].field] \as Spaces;
+\import Operations.Chart[X := X, F := F, bundle := bundle, chart := chartOf n c] \as Original;
+\definition basisTuple: Forms.TupleSection := Forms.TupleSection {
+  domain := c.domain, open := (\bysub(Data[n], Local n, c)).baseOpen,
+  value := \fun (i: Fin.Fin n)(x: \Cast[X] c.domain) => (c.frame x).backward.apply (Spaces.FiniteCoordinates[n := n].vectors i),
+  regular := \fun (i: Fin.Fin n) => Original.Maps[Y := \Cast[X] c.domain, source := Subspace.topology bundle.baseSpace].pointContinuous
+    (\fun (x: \Cast[X] c.domain) => x) (\fun (_: \Cast[X] c.domain) => Spaces.FiniteCoordinates[n := n].vectors i)
+    (topology.Maps[A := \Cast[X] c.domain, B := \Cast[X] c.domain].Identity[].continuous (Subspace.topology bundle.baseSpace))
+    (topology.Maps[A := \Cast[X] c.domain, B := RealBundles.Vector n].constantContinuous (Subspace.topology bundle.baseSpace) (RealBundles.coordinateTopology n) (Spaces.FiniteCoordinates[n := n].vectors i))
+};
+\import bundle_operations.Operations[].Evaluations[K := R.Real, X := X, E := FormFamily.Point, I := Forms.TupleSection,
+  scalarSpace := vector_bundles.Bundles[].Real[].scalar.topological.space, baseSpace := bundle.baseSpace,
+  projection := FormFamily.projection, domains := Forms.domains, open := (\fun (s: Forms.TupleSection) => s.open), evaluate := Forms.evaluate] \as Evaluations;
+\definition LocalTotal: \Set := \Cast[FormFamily.Point] (Forms.Domain basisTuple);
+\definition coefficient[p: LocalTotal]: R.Real := Forms.evaluate basisTuple p;
+\definition localTopology: topology.Topology[Carrier := LocalTotal].Topology := topology.Topology[Carrier := FormFamily.Point].Subspace[S := Forms.Domain basisTuple].topology Forms.alternating.totalSpace;
+\definition coefficientContinuous: topology.Continuity[A := LocalTotal, B := R.Real].Continuous localTopology vector_bundles.Bundles[].Real[].scalar.topological.space coefficient := Evaluations.At[i := basisTuple].continuous;
+\import Operations.ExteriorIndices[n := n, k := n] \as Indices;
+\import Operations.FiniteIndex[A := Indices.Tuple, S := Indices.set, enumeration := enumeration] \as Indexing;
+\import Fin.Ordering[].Rigidity[] \as Rigidity;
+\definition basePoint[p: LocalTotal]: \Cast[X] c.domain := \into[X](p.base, c.domain) \by { \bysub(FormFamily.Point, Forms.Domain basisTuple, p) };
+\definition orderedIndex[i: Fin.Fin dimension]: Rigidity.Endomorphism n :=
+  \into[Fin.Fin n -> Fin.Fin n](Indexing.enumerate i, Rigidity.Endomorphism n) \by { (\bysub(Indices.Tuple, Indices.set, Indexing.enumerate i)).right };
+\definition coordinateFormula: \forall (p: LocalTotal)(i: Fin.Fin dimension) -> (chart.frame (basePoint p)).forward.apply p.vector i = coefficient p :=
+  \fun (p: LocalTotal)(i: Fin.Fin dimension) => congr!{{Fin.Fin n -> Fin.Fin n} R.Real}
+    (\fun (u: Fin.Fin n -> Fin.Fin n) => p.vector (\fun (j: Fin.Fin n) => (c.frame (basePoint p)).backward.apply (Spaces.FiniteCoordinates[n := n].vectors (u j))))
+    _ _ (Rigidity.rigid n (orderedIndex i));
+\module Section(a: RealBundles.Vector dimension);

@@ -1,0 +1,29 @@
+\import Space.Finite[] \as Finite;
+\import Open.Analysis[] \as Analysis;
+\import Smooth.Properties[] \as Properties;
+\definition away: Open.OpenSet := Topology.ofOpen (Space.Complement (support f)) (Closure.closed Ambient.topology (Nonzero f));
+\definition included: Open.Included away Open.whole := \fun (x: Model.Point)(member: _) => \refl(x);
+\definition zeroAway[x: Open.Carrier away]: f x = Real.zero := Finite.doubleNegElim (f x = Real.zero)
+  (\fun (nonzero: Logic.Not (f x = Real.zero)) => \bysub(Model.Point, Space.Complement (support f), x) (Closure.contains Ambient.topology (Nonzero f) x nonzero));
+\definition zeroFamily[U: Open.OpenSet]: Smooth.PartialFamily U := \fun (directions: Smooth.Directions)(x: Open.Carrier U) => Real.zero;
+\definition zeroLaws[U: Open.OpenSet][k: N.Nat^]: Smooth.ContDiffLaws[U, (\fun (x: Open.Carrier U) => Real.zero), k, zeroFamily U] :=
+  Smooth.ContDiffLaws[U, (\fun (x: Open.Carrier U) => Real.zero), k, zeroFamily U] {
+    partials := Smooth.PartialFamilyLaws[U, (\fun (x: Open.Carrier U) => Real.zero), k, zeroFamily U] {
+      function := \refl(\fun (x: Open.Carrier U) => Real.zero),
+      derivative := \fun (directions: Smooth.Directions)(bound: _)(i: Model.Coordinate) => Analysis.Operations[].constantPartial U Real.zero i,
+    },
+    continuous := \fun (directions: Smooth.Directions)(bound: _) => Analysis.Operations[].constantContinuous U Real.zero,
+  };
+\definition allOrdersZero[k: N.Nat^][derivatives: Smooth.PartialFamily Open.whole]:
+  Smooth.ContDiffLaws[Open.whole, Restriction.function Open.whole f, k, derivatives] ->
+  \forall (directions: Smooth.Directions) -> Nat.Le (Smooth.order directions) k -> \forall (x: Open.Carrier away) -> derivatives directions (Open.inclusion away Open.whole included x) = Real.zero := \block {
+  \fun (laws: _) \then
+  \let localLaws: Smooth.ContDiffLaws[away, (\fun (x: Open.Carrier away) => Real.zero), k, Restriction.localFamily away Open.whole included derivatives] :=
+    \idelim Open.restrict away Open.whole included (Restriction.function Open.whole f) = (\fun (x: Open.Carrier away) => Real.zero)
+      \with g: Open.ScalarFunction away => Smooth.ContDiffLaws[away, g, k, Restriction.localFamily away Open.whole included derivatives] \by {
+        base: Restriction.localLaws away Open.whole included k (Restriction.function Open.whole f) derivatives laws,
+        equality: \axiom:funext(Open.restrict away Open.whole included (Restriction.function Open.whole f), (\fun (x: Open.Carrier away) => Real.zero), zeroAway)
+      } \then
+  \return Properties.partialFamilyUnique away (\fun (x: Open.Carrier away) => Real.zero) k
+    (Restriction.localFamily away Open.whole included derivatives) (zeroFamily away) (localLaws.partials) (zeroLaws away k).partials
+};

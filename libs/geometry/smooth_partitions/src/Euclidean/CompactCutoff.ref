@@ -1,0 +1,26 @@
+\import \parent.ScalarCalculus[] \as Calculus;
+\import \root.Scalars[A := Model.Point, space := Ambient.topology].Using[calculus := Calculus.calculus] \as Functions;
+\import topological_algebra.Euclidean[].Dimension[n := n].Countability[] \as Countability;
+\definition family: \Pow (\Pow Model.Point) := { V: \Pow Model.Point \where V = U.points };
+\import Calculus.Bumps[family := family] \as Bumps;
+\import Functions.Selection[family := family, S := K] \as Selection;
+\structure Data: \Set := {
+  value: Functions.Smooth,
+  neighborhood: \Pow Model.Point,
+  neighborhoodOpen: Space.IsOpenIn Ambient.topology neighborhood,
+  contains: Space.Subset K neighborhood,
+  oneOnNeighborhood: \forall (x: Model.Point) -> Space.Member neighborhood x -> value x = Real.one,
+  oneOn: \forall (x: Model.Point) -> Space.Member K x -> value x = Real.one,
+  supportWithin: Space.Subset (support value) U.points,
+  supportCompact: Space.IsCompactIn Ambient.topology (support value),
+  lower: \forall (x: Model.Point) -> R.Le Real.zero (value x),
+  upper: \forall (x: Model.Point) -> R.Le (value x) Real.one,
+};
+\definition local: Space.Subset K U.points -> \forall (x: Model.Point) -> Space.Member K x -> \exists ( b: Functions.Bump[family] \where Space.Member b.oneRegion x ) :=
+  \fun (included: _)(x: Model.Point)(member: Space.Member K x) => Bumps.At[x := x, U := U.points, member := \refl(U.points), open := Topology.open U, inside := included x member].existsBump;
+\module Of(selected: Selection.CountableBumps);
+\definition existsCutoff: Space.IsCompactIn Ambient.topology K -> Space.Subset K U.points -> \exists Data := \block {
+  \fun (compact: _)(included: _) \then
+  \takefrom selected: Selection.CountableBumps \by Selection.countable Countability.secondCountable (local included) \then
+  \return Of[selected := selected].existsCutoff compact
+};

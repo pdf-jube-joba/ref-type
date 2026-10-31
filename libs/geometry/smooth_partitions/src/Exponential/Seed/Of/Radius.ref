@@ -1,0 +1,28 @@
+\definition radius: Scalar := Distance.min solution.radius delta;
+\definition radiusPositive: R.Lt Real.zero radius := Product.minPositive solution.radius delta Near.solutionPositive control.positive;
+\definition smaller[t: Scalar]: Inside radius t -> Inside solution.radius t :=
+  \fun (inside: _) => Logic.And[_, _]::#
+    (R.leLtTrans _ _ _ (Laws.negAntitone radius solution.radius (Distance.minLeft solution.radius delta)) inside.left)
+    (R.ltLeTrans _ _ _ inside.right (Distance.minLeft solution.radius delta));
+\definition agrees[t: Scalar]: Inside radius t -> value t = raw t := \block {
+  \fun (inside: _) \then
+  \let close: R.Lt (Real.distance (raw t) Real.one) Real.half := R.leLtTrans _ _ _
+    (Norm.coordinateDistance (solution.value t) initial One.index)
+    (control.estimate t (R.ltLeTrans _ _ _ (ODE.insideDistance t radius inside.left inside.right) (Distance.minRight solution.radius delta))) \then
+  \let lower: R.Le Real.half (raw t) := R.Order[].leOfLt _ _
+    (R.ltReplaceLeft (Real.sub Real.one Real.half) Real.half (raw t) subtractHalf
+      (Distance.distanceLtLower Real.one (raw t) Real.half
+        (R.ltReplaceLeft (Real.distance (raw t) Real.one) (Real.distance Real.one (raw t)) Real.half (Distance.distanceSymmetric (raw t) Real.one) close))) \then
+  \return Distance.maxOfLe Real.half (raw t) lower
+};
+\import \root.Exponential[].Interval[a := Real.neg radius, b := radius] \as Interval;
+\definition patch: Patch := Patch {
+  radius := \into[Scalar](radius, { x: Scalar \where R.Lt Real.zero x }) \by { radiusPositive },
+  value := value, positive := valuePositive, atZero := valueZero,
+  derivative := \fun (t: Scalar)(inside: _) => \idelim raw t = value t
+    \with d: Scalar => Derivatives.HasDerivativeAt value t d \by {
+      base: Interval.localDerivative raw value t (raw t) inside
+        (\fun (x: Scalar)(member: _) => sym!{Scalar} _ _ (agrees x member)) (rawDerivative t (smaller t inside)),
+      equality: sym!{Scalar} _ _ (agrees t inside)
+    },
+};

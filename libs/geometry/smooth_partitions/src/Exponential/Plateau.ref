@@ -1,0 +1,48 @@
+\import \parent.Step[] \as Step;
+\import Calculus.OneDimension[] \as One;
+\import Calculus.Multivariable[n := One.dimension].Open[] \as Open;
+\import Open.Smooth[].Operations[] \as Operations;
+\import \root.Euclidean[n := One.dimension] \as Euclidean;
+\definition two: Scalar := Real.add Real.one Real.one;
+\definition twoPositive: R.Lt Real.zero two := R.ltLeTrans _ _ _ Product.onePositive (Algebra.leAddRight Real.one Real.one Laws.oneNonnegative);
+\definition twoMinusOne: Real.add two (Real.neg Real.one) = Real.one := Laws.addNegCancelRight Real.one Real.one;
+\definition value[t: Scalar]: Scalar := Real.mul (Step.value (Real.add two t)) (Step.value (Real.sub two t));
+\definition leftSmooth: Open.Smooth[].SmoothOn Open.whole (\fun (x: Open.Carrier Open.whole) => Step.value (Real.add two (x One.index))) :=
+  Euclidean.smoothCongruent Open.whole (\fun (x: Open.Carrier Open.whole) => Step.value (Real.add two (Real.mul Real.one (x One.index))))
+    (\fun (x: Open.Carrier Open.whole) => Step.value (Real.add two (x One.index)))
+    (\fun (x: Open.Carrier Open.whole) => congr!{Scalar Scalar} (\fun (s: Scalar) => Step.value (Real.add two s)) _ _ (Laws.fieldMulOneLeft (x One.index)))
+    (Step.Affine[a := two, b := Real.one].smoothPullback);
+\definition rightSmooth: Open.Smooth[].SmoothOn Open.whole (\fun (x: Open.Carrier Open.whole) => Step.value (Real.sub two (x One.index))) :=
+  Euclidean.smoothCongruent Open.whole (\fun (x: Open.Carrier Open.whole) => Step.value (Real.add two (Real.mul (Real.neg Real.one) (x One.index))))
+    (\fun (x: Open.Carrier Open.whole) => Step.value (Real.sub two (x One.index)))
+    (\fun (x: Open.Carrier Open.whole) => congr!{Scalar Scalar} (\fun (s: Scalar) => Step.value (Real.add two s)) _ _ (DerivativeOperations.negativeScale (x One.index)))
+    (Step.Affine[a := two, b := Real.neg Real.one].smoothPullback);
+\definition smooth: Open.Smooth[].SmoothOn Open.whole (\fun (x: Open.Carrier Open.whole) => value (x One.index)) :=
+  Operations.mulSmooth Open.whole (\fun (x: Open.Carrier Open.whole) => Step.value (Real.add two (x One.index)))
+    (\fun (x: Open.Carrier Open.whole) => Step.value (Real.sub two (x One.index))) leftSmooth rightSmooth;
+\definition oneOn[t: Scalar]: R.Le (Real.neg Real.one) t -> R.Le t Real.one -> value t = Real.one :=
+  \fun (lower: _)(upper: _) => trans!{Scalar} _ _ _
+    (congr!{Scalar Scalar Scalar} Real.mul _ _ _ _
+      (Step.oneOn (Real.add two t) (R.leReplaceLeft (Real.add two (Real.neg Real.one)) Real.one (Real.add two t) twoMinusOne
+        (Laws.addMonotoneLeft (Real.neg Real.one) t two lower)))
+      (Step.oneOn (Real.sub two t) (R.leReplaceLeft (Real.add two (Real.neg Real.one)) Real.one (Real.sub two t) twoMinusOne
+        (Laws.addMonotoneLeft (Real.neg Real.one) (Real.neg t) two (Laws.negAntitone t Real.one upper))))) (Laws.fieldMulOneLeft Real.one);
+\definition zeroLeft[t: Scalar]: R.Le t (Real.neg two) -> value t = Real.zero :=
+  \fun (lower: _) => trans!{Scalar} _ _ _
+    (congr!{Scalar Scalar} (\fun (x: Scalar) => Real.mul x (Step.value (Real.sub two t))) _ _
+      (Step.zeroOn (Real.add two t) (R.leReplaceRight (Real.add two t) (Real.add two (Real.neg two)) Real.zero (Laws.addNegRight two)
+        (Laws.addMonotoneLeft t (Real.neg two) two lower)))) (Laws.fieldMulZeroLeft _);
+\definition zeroRight[t: Scalar]: R.Le two t -> value t = Real.zero :=
+  \fun (upper: _) => trans!{Scalar} _ _ _
+    (congr!{Scalar Scalar} (Real.mul (Step.value (Real.add two t))) _ _
+      (Step.zeroOn (Real.sub two t) (R.leReplaceRight (Real.sub two t) (Real.add t (Real.neg t)) Real.zero (Laws.addNegRight t)
+        (Laws.addMonotoneRight two t (Real.neg t) upper)))) (Laws.fieldMulZeroRight _);
+\definition bounded[t: Scalar]: Logic.And[R.Le Real.zero (value t), R.Le (value t) Real.one] := Logic.And[_, _]::#
+  (Laws.fieldMulNonnegative _ _ (Step.nonnegative (Real.add two t)) (Step.nonnegative (Real.sub two t)))
+  (R.leTrans _ _ _
+    (R.leReplaceRight _ (Real.mul (Step.value (Real.add two t)) Real.one) (Step.value (Real.add two t)) (Algebra.mulOneRight _)
+      (Estimates.mulMonotone _ _ Real.one (Step.nonnegative (Real.add two t)) (Step.atMostOne (Real.sub two t)))) (Step.atMostOne (Real.add two t)));
+\definition nonzeroInside[t: Scalar]: Logic.Not (value t = Real.zero) -> Logic.And[R.Lt (Real.neg two) t, R.Lt t two] :=
+  \fun (nonzero: _) => Logic.And[_, _]::#
+    (Order.byContradiction (R.Lt (Real.neg two) t) (\fun (notLess: _) => nonzero (zeroLeft t (Order.leOfNotLtReverse t (Real.neg two) notLess))))
+    (Order.byContradiction (R.Lt t two) (\fun (notLess: _) => nonzero (zeroRight t (Order.leOfNotLtReverse two t notLess))));

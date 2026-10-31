@@ -1,0 +1,57 @@
+\import std.Data[].Nat[] \as N;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\import std.Logic[].Classical[] \as Classical;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\use Equality.eq_reason;
+\use Logic.either;
+\import real.Analysis[] \as Real;
+\import dedekind_reals.DedekindReal[] \as R;
+\import R.Arithmetic[].Prop[] \as Laws;
+\import N.Basic[].Prop[] \as Nat;
+\import N.Basic[].Def[] \as Arithmetic;
+\import N.Order[].Prop[] \as Order;
+\definition Family: \Set := N.Nat^ -> A -> Real.Real;
+\definition prefix[f: Family][x: A]: N.Nat^ -> Real.Real :=
+  \induction (k: N.Nat^) \return Real.Real \with {
+    | zero: Real.zero
+    | succ: \fun (k: N.Nat^)(previous: Real.Real) => Real.add previous (f k x)
+  };
+\definition TailZero[f: Family][x: A][k: N.Nat^]: \Prop := \forall (i: N.Nat^) -> Nat.Le k i -> f i x = Real.zero;
+\definition FiniteAt[f: Family][x: A]: \Prop := \exists ( k: N.Nat^ \where TailZero f x k );
+\definition stableAdded: \forall (f: Family)(x: A)(k: N.Nat^) -> TailZero f x k ->
+  \forall (m: N.Nat^) -> prefix f x (Arithmetic.add k m) = prefix f x k :=
+  \fun (f: Family)(x: A)(k: N.Nat^)(vanishes: _) =>
+    \induction (m: N.Nat^) \return prefix f x (Arithmetic.add k m) = prefix f x k \with {
+      | zero: \refl(prefix f x k)
+      | succ: \fun (m: N.Nat^)(previous: _) => trans!{Real.Real} _ _ _
+        (congr!{Real.Real Real.Real Real.Real} Real.add _ _ _ _ previous
+          (vanishes (Arithmetic.add k m) (Nat.leAddRight k m))) (Laws.addZeroRight (prefix f x k))
+    };
+\definition stable: \forall (f: Family)(x: A)(k, m: N.Nat^) -> TailZero f x k -> Nat.Le k m -> prefix f x m = prefix f x k :=
+  \fun (f: _)(x: _)(k, m: _)(vanishes: _)(later: _) => \idelim Arithmetic.add k (Arithmetic.sub m k) = m
+    \with n: N.Nat^ => prefix f x n = prefix f x k \by {
+      base: stableAdded f x k vanishes (Arithmetic.sub m k), equality: Nat.addSubOfLe k m later
+    };
+\definition SumLaw[f: Family][x: A][value: Real.Real]: \Prop :=
+  \forall (k: N.Nat^) -> TailZero f x k -> value = prefix f x k;
+\definition SumValue[f: Family][x: A]: \Set := \Cast[Real.Real] ({ y: Real.Real \where SumLaw f x y });
+\definition existsSum: \forall (f: Family)(x: A) -> FiniteAt f x -> \exists SumValue f x := \block {
+  \fun (f: _)(x: _)(finite: _) \then
+  \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where TailZero f x k }) \by finite \then
+  \let tail: TailZero f x k := \bysub(N.Nat^, { k: N.Nat^ \where TailZero f x k }, k) \then
+  \return Logic.existsIntro[Real.Real, { y: Real.Real \where SumLaw f x y }] (prefix f x k)
+    (\fun (m: N.Nat^)(tailM: TailZero f x m) => trans!{Real.Real} _ _ _
+      (sym!{Real.Real} _ _ (stable f x k (Order.commonBound k m) tail (Order.leftLeCommonBound k m)))
+      (stable f x m (Order.commonBound k m) tailM (Order.rightLeCommonBound k m)))
+};
+\definition uniqueSum: \forall (f: Family)(x: A) -> FiniteAt f x -> \forall (left, right: SumValue f x) -> left = right := \block {
+  \fun (f: _)(x: _)(finite: _)(left, right: _) \then
+  \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where TailZero f x k }) \by finite \then
+  \let tail: TailZero f x k := \bysub(N.Nat^, { k: N.Nat^ \where TailZero f x k }, k) \then
+  \return trans!{Real.Real} _ _ _ (\bysub(Real.Real, { y: Real.Real \where SumLaw f x y }, left) k tail)
+    (sym!{Real.Real} _ _ (\bysub(Real.Real, { y: Real.Real \where SumLaw f x y }, right) k tail))
+};
+\module Sum(f: Family, finite: \forall (x: A) -> FiniteAt f x);

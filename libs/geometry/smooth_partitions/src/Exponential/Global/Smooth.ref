@@ -1,0 +1,18 @@
+\import Calculus.OneDimension[] \as One;
+\import Calculus.Multivariable[n := One.dimension].Open[] \as Open;
+\import One.On[U := Open.whole] \as Lift;
+\import Open.Smooth[] \as Smooth;
+\import Open.Analysis[] \as Analysis;
+\definition function: Open.ScalarFunction Open.whole := Lift.lift value;
+\definition family: Smooth.PartialFamily Open.whole := \fun (directions: Smooth.Directions) => function;
+\definition contDiff[k: N.Nat^]: Smooth.ContDiffOn Open.whole k function :=
+  Logic.existsIntro[Smooth.PartialFamily Open.whole, { jet: Smooth.PartialFamily Open.whole \where Smooth.ContDiffLaws[Open.whole, function, k, jet] }] family
+    (Smooth.ContDiffLaws[Open.whole, function, k, family] {
+      partials := Smooth.PartialFamilyLaws[Open.whole, function, k, family] {
+        function := \refl(function),
+        derivative := \fun (directions: Smooth.Directions)(bound: _)(i: One.Index)(a: Open.Carrier Open.whole) =>
+          Lift.partialAt value a (value (a One.index)) (derivative (a One.index)) i,
+      },
+      continuous := \fun (directions: Smooth.Directions)(bound: _)(a: Open.Carrier Open.whole) => Lift.continuousAt value a (continuous (a One.index)),
+    });
+\definition smooth: Smooth.SmoothOn Open.whole function := contDiff;

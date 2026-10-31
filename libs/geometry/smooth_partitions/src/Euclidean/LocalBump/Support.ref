@@ -1,0 +1,28 @@
+\import metric_spaces.RealLine[] \as Line;
+\import Line.Rays[] \as Rays;
+\import topology.Continuity[A := Model.Point, B := Real.Real] \as ScalarMaps;
+\import Space.Compactness[] \as Compact;
+\definition envelopeCoordinateClosed: Space.IsClosedIn Ambient.coordinateTopology envelope :=
+  ScalarMaps.closedPreimage Ambient.coordinateTopology Line.topology (Coordinates.pointDistance a) (Ambient.distanceContinuous a)
+    (Rays.AtMost radius) (Rays.atMostClosed radius);
+\definition envelopeClosed: Space.IsClosedIn Ambient.topology envelope := Ambient.coordinateOpen (Space.Complement envelope) envelopeCoordinateClosed;
+\definition supportWithin: Space.Subset (support value) envelope := Closure.least Ambient.topology (Nonzero value) envelope envelopeClosed nonzeroWithin;
+\definition bound: Real.Real := Real.add radius (Coordinates.norm a);
+\import euclidean_measure.CompactCube[n := n, a := Real.neg bound, b := bound] \as Cube;
+\definition coordinateBound[x: Model.Point]: Space.Member envelope x -> \forall (i: Model.Coordinate) -> R.Le (Real.distance (x i) Real.zero) bound :=
+  \fun (member: R.Le (Coordinates.pointDistance a x) radius)(i: Model.Coordinate) => R.leTrans _ _ _ (Distance.distanceTriangle (x i) (a i) Real.zero)
+    (Estimates.addLe _ _ _ _
+      (R.leTrans _ _ _ (Norm.coordinateDistance x a i)
+        (R.leReplaceLeft (Coordinates.pointDistance a x) (Coordinates.pointDistance x a) radius (Norm.distanceSymmetric a x) member))
+      (Norm.coordinate a i));
+\definition cubeContains: Space.Subset envelope Cube.cube := \fun (x: Model.Point)(member: Space.Member envelope x) => Cube.contains x
+  (\fun (i: Model.Coordinate) => \block {
+    \let close: R.Le (Real.distance Real.zero (x i)) bound := R.leReplaceLeft (Real.distance (x i) Real.zero) (Real.distance Real.zero (x i)) bound
+      (Distance.distanceSymmetric (x i) Real.zero) (coordinateBound x member i) \then
+    \return Logic.And[_, _]::#
+      (R.leReplaceLeft (Real.sub Real.zero bound) (Real.neg bound) (x i) (Laws.addZeroLeft (Real.neg bound)) (Estimates.distanceLeLower Real.zero (x i) bound close))
+      (R.leReplaceRight (x i) (Real.add Real.zero bound) bound (Laws.addZeroLeft bound) (Estimates.distanceLeUpper Real.zero (x i) bound close))
+  });
+\definition envelopeCompact: Space.IsCompactIn Ambient.topology envelope := Compact.closedSubset Ambient.topology Cube.cube envelope Cube.compact envelopeClosed cubeContains;
+\definition supportCompact: Space.IsCompactIn Ambient.topology (support value) := Compact.closedSubset Ambient.topology envelope (support value) envelopeCompact
+  (Closure.closed Ambient.topology (Nonzero value)) supportWithin;

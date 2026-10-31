@@ -1,0 +1,14 @@
+\import std.Set[].Extension[A := M.Point, B := Real.Real, domain := U] \as Extension;
+\definition value: M.Point -> Real.Real := Extension.extend f Real.zero;
+\definition inside[x: Carrier]: value x = f x := Extension.inside f Real.zero x;
+\definition SupportCondition: \Prop := Space.Subset (support value) U;
+\module Closed(F: \Pow M.Point, closed: Space.IsClosedIn M.space F, included: Space.Subset F U,
+  vanishes: \forall (x: Carrier) -> Logic.Not (Space.Member F x) -> f x = Real.zero);
+\definition smooth: IsSmooth f -> SupportCondition -> GlobalSmooth value := \block {
+  \fun (regular: _)(contained: _) \then
+  \let vanishes: \forall (x: Carrier) -> Logic.Not (Space.Member (support value) x) -> f x = Real.zero :=
+    \fun (x: Carrier)(outside: Logic.Not (Space.Member (support value) x)) => Finite.doubleNegElim (f x = Real.zero)
+      (\fun (nonzero: Logic.Not (f x = Real.zero)) => outside (Closure.contains M.space (Nonzero value) x
+        (\fun (zero: value x = Real.zero) => nonzero (trans!{Real.Real} _ _ _ (sym!{Real.Real} _ _ (inside x)) zero)))) \then
+  \return Closed[F := support value, closed := Closure.closed M.space (Nonzero value), included := contained, vanishes := vanishes].smooth regular
+};

@@ -1,0 +1,26 @@
+\definition lower: a = Real.zero -> R.Lt Real.zero b -> R.Le b (value b) := \block {
+  \fun (zero: _)(positiveB: _) \then
+  \let ordered: R.Lt a b := R.ltReplaceLeft Real.zero a b (sym!{Scalar} _ _ zero) positiveB \then
+  \takefrom c: \Cast[Scalar] Witness \by witnessExists ordered \then
+  \let witness: Mean.MeanValueResult[value, c] := \bysub(Scalar, Witness, c) \then
+  \let positiveC: R.Lt Real.zero c := R.ltReplaceLeft a Real.zero c zero witness.interior.left \then
+  \let atA: value a = Real.one := trans!{Scalar} _ _ _ (congr!{Scalar Scalar} value _ _ zero) atZero \then
+  \let lowerC: R.Le Real.one (value c) := R.leReplaceLeft (value Real.zero) Real.one (value c) atZero
+    (Order.leOfLt _ _ (\parent.\parent.MeanValue[a := Real.zero, b := c].increasing positiveC)) \then
+  \let slope: Mean.secant value = value c := DerivativeOperations.unique value c (Mean.secant value) (value c) witness.derivative (derivative c) \then
+  \let increment: Real.sub (value b) Real.one = Real.mul (value c) b := eq_reason!{
+    {Real.sub (value b) Real.one} "=" {Real.sub (value b) (value a)} "by" {congr!{Scalar Scalar} (Real.sub (value b)) _ _ (sym!{Scalar} _ _ atA)}
+    "=" {Real.mul (Mean.secant value) (Real.sub b a)} "by" {sym!{Scalar} _ _
+      (DerivativeOperations.slopeIncrement value a b (\fun (same: b = a) => Order.ltNotEq a b ordered (sym!{Scalar} _ _ same)))}
+    "=" {Real.mul (value c) b} "by" {congr!{Scalar Scalar Scalar} Real.mul _ _ _ _ slope
+      (trans!{Scalar} _ _ _ (congr!{Scalar Scalar} (Real.sub b) _ _ zero) (Laws.subZeroRight b))}
+  } \then
+  \let lower: R.Le b (Real.sub (value b) Real.one) := R.leReplace
+    (Real.mul b Real.one) b (Real.mul b (value c)) (Real.sub (value b) Real.one) (Algebra.mulOneRight b)
+    (trans!{Scalar} _ _ _ (Laws.fieldMulComm b (value c)) (sym!{Scalar} _ _ increment))
+    (Estimates.mulMonotone b Real.one (value c) (Order.leOfLt _ _ positiveB) lowerC) \then
+  \return R.leTrans _ _ _ lower
+    (R.leReplaceLeft (Real.add (value b) (Real.neg Real.one)) (Real.sub (value b) Real.one) (value b) (\refl(Real.sub (value b) Real.one))
+      (R.leReplaceRight (Real.sub (value b) Real.one) (Real.add (value b) Real.zero) (value b) (Laws.addZeroRight (value b))
+        (Laws.addMonotoneLeft (Real.neg Real.one) Real.zero (value b) (Product.negNonnegative Real.one Laws.oneNonnegative))))
+};

@@ -1,0 +1,59 @@
+\import real.Analysis[] \as R;
+\import linear_algebra.Commutative[K := R.Real, scalarRing := Fields.fieldAsCommutativeRing R.Real R.Algebra[].field] \as Spaces;
+\import RealBundles.Dimension[V := V, space := left] \as LeftFrames;
+\import RealBundles.Dimension[V := W, space := right] \as RightFrames;
+\import Spaces.DirectSum[V := V, W := W, left := left, right := right] \as Sum;
+\import Fin.Sum[m := n, n := m] \as Indices;
+\import Indices.Tuples[A := Sum.Carrier] \as Tuples;
+\definition rank: N.Nat^ := Indices.total;
+\import Spaces.Multilinear[V := V, space := left].Alternating[] \as Left;
+\import Spaces.Multilinear[V := W, space := right].Alternating[] \as Right;
+\import Spaces.Multilinear[V := Sum.Carrier, space := Sum.space].Alternating[] \as Total;
+\definition LeftForm: \Set := Left.Form n;
+\definition RightForm: \Set := Right.Form m;
+\definition Form: \Set := Total.Form rank;
+\definition formSpace: Spaces.VectorSpace Form := Total.At[k := rank].vectorSpace;
+\definition concatenate[u: Fin.Fin n -> V][v: Fin.Fin m -> W]: Fin.Fin rank -> Sum.Carrier :=
+  Tuples.join (\fun (i: Fin.Fin n) => Sum.make (u i) right.zero) (\fun (j: Fin.Fin m) => Sum.make left.zero (v j));
+\definition Formula[alpha: LeftForm][beta: RightForm][gamma: Form]: \Prop :=
+  \forall (u: Fin.Fin n -> V)(v: Fin.Fin m -> W) -> gamma (concatenate u v) = R.mul (alpha u) (beta v);
+\definition Value[alpha: LeftForm][beta: RightForm]: \Set := \Cast[Form] ({ gamma: Form \where Formula alpha beta gamma });
+\module WithFrames(a: LeftFrames.Frame n, b: RightFrames.Frame m);
+\definition exists: \forall (alpha: LeftForm)(beta: RightForm) -> \exists Value alpha beta :=
+  \fun (alpha: LeftForm)(beta: RightForm) => \block {
+    \takefrom a: LeftFrames.Frame n \by first \then
+    \takefrom b: RightFrames.Frame m \by second \then
+    \return WithFrames[a := a, b := b].exists alpha beta
+  };
+\definition unique: \forall (alpha: LeftForm)(beta: RightForm)(gamma, delta: Value alpha beta) -> gamma = delta :=
+  \fun (alpha: LeftForm)(beta: RightForm)(gamma, delta: Value alpha beta) => \block {
+    \takefrom a: LeftFrames.Frame n \by first \then
+    \takefrom b: RightFrames.Frame m \by second \then
+    \return WithFrames[a := a, b := b].unique gamma delta (\fun (u: Fin.Fin n -> V)(v: Fin.Fin m -> W) =>
+      trans!{R.Real} _ _ _ ((\bysub(Form, Value alpha beta, gamma)) u v) (sym!{R.Real} _ _ ((\bysub(Form, Value alpha beta, delta)) u v)))
+  };
+\definition product[alpha: LeftForm][beta: RightForm]: Value alpha beta := \choice Value alpha beta \by { existence: exists alpha beta, uniqueness: unique alpha beta };
+\definition formula: \forall (alpha: LeftForm)(beta: RightForm) -> Formula alpha beta (product alpha beta) :=
+  \fun (alpha: LeftForm)(beta: RightForm) => \bysub(Form, Value alpha beta, product alpha beta);
+\definition ext: \forall (gamma, delta: Form) ->
+  (\forall (u: Fin.Fin n -> V)(v: Fin.Fin m -> W) -> gamma (concatenate u v) = delta (concatenate u v)) -> gamma = delta :=
+  \fun (gamma, delta: Form)(same: _) => \block {
+    \takefrom a: LeftFrames.Frame n \by first \then
+    \takefrom b: RightFrames.Frame m \by second \then
+    \return WithFrames[a := a, b := b].unique gamma delta same
+  };
+\definition inFrames: \forall (a: LeftFrames.Frame n)(b: RightFrames.Frame m)(alpha: LeftForm)(beta: RightForm) -> product alpha beta = WithFrames[a := a, b := b].product alpha beta :=
+  \fun (a: LeftFrames.Frame n)(b: RightFrames.Frame m)(alpha: LeftForm)(beta: RightForm) => ext _ _ (\fun (u: Fin.Fin n -> V)(v: Fin.Fin m -> W) =>
+    trans!{R.Real} _ _ _ (formula alpha beta u v) (sym!{R.Real} _ _ (WithFrames[a := a, b := b].formula alpha beta u v)));
+\definition independent: \forall (a, c: LeftFrames.Frame n)(b, d: RightFrames.Frame m)(alpha: LeftForm)(beta: RightForm) ->
+  WithFrames[a := a, b := b].product alpha beta = WithFrames[a := c, b := d].product alpha beta :=
+  \fun (a, c: LeftFrames.Frame n)(b, d: RightFrames.Frame m)(alpha: LeftForm)(beta: RightForm) => trans!{Form} _ _ _ (sym!{Form} _ _ (inFrames a b alpha beta)) (inFrames c d alpha beta);
+\module Laws;
+\module Mapping(A, B: \Set, targetLeft: Spaces.VectorSpace A, targetRight: Spaces.VectorSpace B,
+  targetFirst: \exists RealBundles.Dimension[V := A, space := targetLeft].Frame n,
+  targetSecond: \exists RealBundles.Dimension[V := B, space := targetRight].Frame m,
+  f: Spaces.Linear[V := V, W := A, source := left, target := targetLeft].Map,
+  g: Spaces.Linear[V := W, W := B, source := right, target := targetRight].Map);
+\module Blocks(a: LeftFrames.Frame n, b: RightFrames.Frame m,
+  f: Spaces.Linear[V := V, W := V, source := left, target := left].Map,
+  g: Spaces.Linear[V := W, W := W, source := right, target := right].Map);

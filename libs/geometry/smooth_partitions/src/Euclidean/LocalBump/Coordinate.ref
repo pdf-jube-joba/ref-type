@@ -1,0 +1,48 @@
+\definition map: Maps.Map Open.whole LineOpen.whole := Maps.Map[Open.whole, LineOpen.whole] {
+  apply := \fun (x: Open.Carrier Open.whole) => \into[calculus.Real[].Multivariable[n := One.dimension].Point]((\fun (j: One.Index) => normalized i x), LineOpen.whole.points) \by { \refl(\fun (j: One.Index) => normalized i x) },
+  smooth := \fun (j: One.Index) => Operations.scaleSmooth Open.whole coefficient (\fun (x: Open.Carrier Open.whole) => Real.sub (x i) (a i))
+    (Operations.subSmooth Open.whole (\fun (x: Open.Carrier Open.whole) => x i) (\fun (x: Open.Carrier Open.whole) => a i)
+      (Examples.projectionSmooth Open.whole i) (Operations.constantSmooth Open.whole (a i))),
+};
+\import Maps.Composition[U := Open.whole, V := LineOpen.whole, f := map] \as Composition;
+\definition plateau: LinePartials.Function LineOpen.whole := \into[LineOpen.ScalarFunction LineOpen.whole]((\fun (x: LineOpen.Carrier LineOpen.whole) => Plateau.value (x One.index)),
+  { f: LineOpen.ScalarFunction LineOpen.whole \where LineOpen.Smooth[].SmoothOn LineOpen.whole f }) \by { Plateau.smooth };
+\definition smooth: Smooth.SmoothOn Open.whole (\fun (x: Open.Carrier Open.whole) => coordinateValue i x) := Composition.smooth plateau;
+\definition recovery[x: Model.Point]: Real.mul q (normalized i x) = Real.sub (x i) (a i) := trans!{Real.Real} _ _ _
+  (sym!{Real.Real} _ _ (Laws.fieldMulAssoc q coefficient (Real.sub (x i) (a i))))
+  (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (\fun (c: Real.Real) => Real.mul c (Real.sub (x i) (a i))) _ _ reverseInverseLaw)
+    (Laws.fieldMulOneLeft (Real.sub (x i) (a i))));
+\definition distanceScale[x: Model.Point]: Real.distance (x i) (a i) = Real.mul q (Real.distance (normalized i x) Real.zero) := eq_reason!{
+  {Real.distance (x i) (a i)} "=" {Real.distance (Real.sub (x i) (a i)) Real.zero} "by" {sym!{Real.Real} _ _ (Norm.distanceDifference (x i) (a i))}
+  "=" {Real.distance (Real.mul q (normalized i x)) Real.zero} "by" {congr!{Real.Real Real.Real} (\fun (u: Real.Real) => Real.distance u Real.zero) _ _ (sym!{Real.Real} _ _ (recovery x))}
+  "=" {Real.mul (Real.distance q Real.zero) (Real.distance (normalized i x) Real.zero)} "by" {Numeric.magnitudeProduct q (normalized i x)}
+  "=" {Real.mul q (Real.distance (normalized i x) Real.zero)} "by" {congr!{Real.Real Real.Real} (\fun (c: Real.Real) => Real.mul c (Real.distance (normalized i x) Real.zero)) _ _
+    (Numeric.magnitudeNonnegative q (Order.leOfLt _ _ qPositive))}
+};
+\definition inside[x: Model.Point]: Logic.Not (coordinateValue i x = Real.zero) -> R.Lt (Real.distance (x i) (a i)) radius := \block {
+  \fun (nonzero: _) \then
+  \let bounds: Logic.And[R.Lt (Real.neg Plateau.two) (normalized i x), R.Lt (normalized i x) Plateau.two] := Plateau.nonzeroInside (normalized i x) nonzero \then
+  \let small: R.Lt (Real.distance (normalized i x) Real.zero) Plateau.two :=
+    R.ltReplaceLeft (Real.distance Real.zero (normalized i x)) (Real.distance (normalized i x) Real.zero) Plateau.two (Distance.distanceSymmetric Real.zero (normalized i x))
+      (Distance.distanceLtOfInterval Real.zero (normalized i x) Plateau.two
+        (R.ltReplaceLeft (Real.neg Plateau.two) (Real.sub Real.zero Plateau.two) (normalized i x) (sym!{Real.Real} _ _ (Laws.addZeroLeft (Real.neg Plateau.two))) bounds.left)
+        (R.ltReplaceRight (normalized i x) Plateau.two (Real.add Real.zero Plateau.two) (sym!{Real.Real} _ _ (Laws.addZeroLeft Plateau.two)) bounds.right)) \then
+  \return R.ltReplaceLeft (Real.mul q (Real.distance (normalized i x) Real.zero)) (Real.distance (x i) (a i)) radius (sym!{Real.Real} _ _ (distanceScale x))
+    (Bounds.mulStrict q _ Plateau.two qPositive small)
+};
+\definition oneNear[x: Model.Point]: R.Lt (Real.distance (x i) (a i)) q -> coordinateValue i x = Real.one := \block {
+  \fun (near: _) \then
+  \let small: R.Lt (Real.distance (normalized i x) Real.zero) Real.one := Order.byContradiction
+    (R.Lt (Real.distance (normalized i x) Real.zero) Real.one) (\fun (notSmall: _) =>
+      R.ltNotLeReverse (Real.distance (x i) (a i)) q near
+        (R.leReplace (Real.mul q Real.one) q (Real.mul q (Real.distance (normalized i x) Real.zero)) (Real.distance (x i) (a i))
+          (Algebra.mulOneRight q) (sym!{Real.Real} _ _ (distanceScale x))
+          (Estimates.mulMonotone q Real.one (Real.distance (normalized i x) Real.zero) (Order.leOfLt _ _ qPositive)
+            (Order.leOfNotLtReverse Real.one (Real.distance (normalized i x) Real.zero) notSmall)))) \then
+  \let close: R.Lt (Real.distance Real.zero (normalized i x)) Real.one := R.ltReplaceLeft _ _ _ (Distance.distanceSymmetric (normalized i x) Real.zero) small \then
+  \return Plateau.oneOn (normalized i x)
+    (Order.leOfLt _ _ (R.ltReplaceLeft (Real.sub Real.zero Real.one) (Real.neg Real.one) (normalized i x) (Laws.addZeroLeft (Real.neg Real.one))
+      (Distance.distanceLtLower Real.zero (normalized i x) Real.one close)))
+    (Order.leOfLt _ _ (R.ltReplaceRight (normalized i x) (Real.add Real.zero Real.one) Real.one (Laws.addZeroLeft Real.one)
+      (Distance.distanceLtUpper Real.zero (normalized i x) Real.one close)))
+};

@@ -1,0 +1,51 @@
+\import real.Analysis[] \as R;
+\import dedekind_reals.DedekindReal[].Arithmetic[].Prop[] \as ScalarLaws;
+\import linear_algebra.Commutative[K := R.Real, scalarRing := Fields.fieldAsCommutativeRing R.Real R.Algebra[].field] \as Spaces;
+\import Spaces.FiniteCoordinates[n := n] \as Coordinates;
+\import Coordinates.Top[] \as Native;
+\import Spaces.Multilinear[V := V, space := space].Alternating[] \as Alternating;
+\import Alternating.At[k := n] \as Forms;
+\import Alternating.Precomposition[W := RealBundles.Vector n, target := RealBundles.coordinates n] \as Decode;
+\import Spaces.Multilinear[V := RealBundles.Vector n, space := RealBundles.coordinates n].Alternating[].Precomposition[W := V, target := space] \as Encode;
+\definition Form: \Set := Alternating.Form n;
+\definition formSpace: Spaces.VectorSpace Form := Forms.vectorSpace;
+\definition arguments[i: Fin.Fin n]: V := frame.backward.apply (Coordinates.vectors i);
+\definition coefficient[alpha: Form]: R.Real := alpha arguments;
+\definition volume: Form := Decode.precompose n frame.forward Native.volume;
+\definition basisRecovered: (\fun (i: Fin.Fin n) => frame.forward.apply (arguments i)) = Native.basisArguments :=
+  \axiom:funext((\fun (i: Fin.Fin n) => frame.forward.apply (arguments i)), Native.basisArguments,
+    \fun (i: Fin.Fin n) => frame.rightInverse (Coordinates.vectors i));
+\definition normalized: coefficient volume = R.one := trans!{R.Real} _ _ _ (congr!{{Fin.Fin n -> RealBundles.Vector n} {R.Real}} Native.volume _ _ basisRecovered) Native.normalized;
+\definition roundtrip: \forall (alpha: Form) -> Decode.precompose n frame.forward (Encode.precompose n frame.backward alpha) = alpha :=
+  \fun (alpha: Form) => \axiom:funext(Decode.precompose n frame.forward (Encode.precompose n frame.backward alpha), alpha,
+    \fun (v: Fin.Fin n -> V) => congr!{{Fin.Fin n -> V} {R.Real}} alpha _ _
+      (\axiom:funext((\fun (i: Fin.Fin n) => frame.backward.apply (frame.forward.apply (v i))), v, \fun (i: Fin.Fin n) => frame.leftInverse (v i))));
+\definition ext: \forall (alpha, beta: Form) -> coefficient alpha = coefficient beta -> alpha = beta :=
+  \fun (alpha, beta: Form)(same: _) => trans!{Form} _ _ _ (sym!{Form} _ _ (roundtrip alpha))
+    (trans!{Form} _ _ _ (congr!{Native.Form Form} (Decode.precompose n frame.forward) _ _ (Native.ext (Encode.precompose n frame.backward alpha) (Encode.precompose n frame.backward beta) same)) (roundtrip beta));
+\definition reconstruction: \forall (alpha: Form) -> alpha = formSpace.smul (coefficient alpha) volume :=
+  \fun (alpha: Form) => ext alpha _ (sym!{R.Real} _ _ (trans!{R.Real} _ _ _ (congr!{R.Real R.Real} (R.mul (coefficient alpha)) _ _ normalized) (R.Algebra[].mulOneRight (coefficient alpha))));
+\definition coefficientNonzero: \forall (alpha: Form) -> Logic.Not (alpha = formSpace.zero) -> Logic.Not (coefficient alpha = R.zero) :=
+  \fun (alpha: Form)(nonzero: _)(zero: _) => nonzero (ext alpha formSpace.zero zero);
+\import \root.Classification[].ScalarSigns[] \as Signs;
+\definition ratio[alpha, beta: Form]: R.Real := R.mul (coefficient beta) (ScalarLaws.fieldInv (coefficient alpha));
+\definition scaleTo: \forall (alpha, beta: Form) -> Logic.Not (alpha = formSpace.zero) -> beta = formSpace.smul (ratio alpha beta) alpha :=
+  \fun (alpha, beta: Form)(nonzero: _) => ext beta _ (sym!{R.Real} _ _ (Signs.inverseCancel (coefficient alpha) (coefficient beta) (coefficientNonzero alpha nonzero)));
+\definition positiveMultiple: \forall (alpha, beta: Form) -> Logic.Not (alpha = formSpace.zero) -> dedekind_reals.DedekindReal[].Lt R.zero (R.mul (coefficient alpha) (coefficient beta)) ->
+  \exists ( a: R.Real \where Logic.And[dedekind_reals.DedekindReal[].Lt R.zero a, beta = formSpace.smul a alpha] ) :=
+  \fun (alpha, beta: Form)(nonzero: _)(positive: _) => Logic.existsIntro[R.Real, { a: R.Real \where Logic.And[dedekind_reals.DedekindReal[].Lt R.zero a, beta = formSpace.smul a alpha] }]
+    (ratio alpha beta) (Logic.And[_, _]::# (Signs.ratioPositive (coefficient alpha) (coefficient beta) (coefficientNonzero alpha nonzero) positive) (scaleTo alpha beta nonzero));
+\definition evaluation: Spaces.Linear[V := Form, W := R.Real, source := formSpace, target := Spaces.scalarSpace].Map :=
+  Spaces.Linear[V := Form, W := R.Real, source := formSpace, target := Spaces.scalarSpace].Map {
+    apply := coefficient, preservesAdd := \fun (alpha, beta: Form) => \refl(R.add (coefficient alpha) (coefficient beta)),
+    preservesScale := \fun (a: R.Real)(alpha: Form) => \refl(R.mul a (coefficient alpha))
+  };
+\import Spaces.Multilinear[V := V, space := space] \as Multilinear;
+\module Restrict(U: \Set, target: Spaces.VectorSpace U, total: N.Nat^, slot: Fin.Fin n -> Fin.Fin total,
+  injective: \forall (i, j: Fin.Fin n) -> slot i = slot j -> i = j,
+  inclusion: Spaces.Linear[V := V, W := U, source := space, target := target].Map,
+  extend: (Fin.Fin n -> V) -> (Fin.Fin total -> U),
+  at: \forall (v: Fin.Fin n -> V)(i: Fin.Fin n) -> extend v (slot i) = inclusion.apply (v i),
+  update: \forall (v: Fin.Fin n -> V)(i: Fin.Fin n)(w: V) ->
+    extend (Multilinear.update n v i w) = Spaces.Multilinear[V := U, space := target].update total (extend v) (slot i) (inclusion.apply w));
+\module DirectSum(W: \Set, right: Spaces.VectorSpace W, m: N.Nat^, other: RealBundles.Dimension[V := W, space := right].Frame m);

@@ -1,0 +1,33 @@
+\import Operations.DirectSum[X := X, F := First.DeterminantFiber, G := Second.DeterminantFiber, left := First.determinantBundle, right := Second.determinantBundle] \as Inputs;
+\import Bundles.Family[X := X, F := Inputs.Fiber] \as InputFamily;
+\import topology.Topology[Carrier := InputFamily.Point] \as InputSpace;
+\import topology.Topology[Carrier := X] \as Base;
+\definition source: InputSpace.Topology := Inputs.topology;
+\definition map[p: InputFamily.Point]: Family.Point := Family.include p.base
+  (product p.base (Pair.first (First.DeterminantFiber p.base) (Second.DeterminantFiber p.base) p.vector) (Pair.second (First.DeterminantFiber p.base) (Second.DeterminantFiber p.base) p.vector));
+\structure Data: \Set := {
+  left: LeftAtlas.Local k, right: RightAtlas.Local l,
+  leftEnumeration: Operations.ExteriorIndices[n := k, k := k].Enumeration,
+  rightEnumeration: Operations.ExteriorIndices[n := l, k := l].Enumeration,
+  sumEnumeration: Operations.ExteriorIndices[n := rank, k := rank].Enumeration
+};
+\definition domain[c: Data]: \Pow InputFamily.Point := { p: InputFamily.Point \where Base.Member (Base.Intersection c.left.domain c.right.domain) p.base };
+\definition open: \forall (c: Data) -> InputSpace.IsOpenIn source (domain c) := \fun (c: Data) => Inputs.projectionContinuous (Base.Intersection c.left.domain c.right.domain)
+  ((Base.topologyLaws left.baseSpace).intersectionOpen c.left.domain c.right.domain (\bysub(LeftAtlas.Data[k], LeftAtlas.Local k, c.left)).baseOpen
+    (\idelim right.baseSpace = left.baseSpace \with t: Base.Topology => Base.IsOpenIn t c.right.domain \by {
+      base: (\bysub(RightAtlas.Data[l], RightAtlas.Local l, c.right)).baseOpen, equality: sym!{{Base.Topology}} _ _ same
+    }));
+\definition covers: \forall (p: InputFamily.Point) -> \exists ( c: Data \where InputSpace.Member (domain c) p ) := \fun (p: InputFamily.Point) => \block {
+  \takefrom a: \Cast[LeftAtlas.Local k] ({ a: LeftAtlas.Local k \where Base.Member a.domain p.base }) \by LeftAtlas.covers p.base \then
+  \takefrom b: \Cast[RightAtlas.Local l] ({ b: RightAtlas.Local l \where Base.Member b.domain p.base }) \by RightAtlas.covers p.base \then
+  \takefrom ea: Operations.ExteriorIndices[n := k, k := k].Enumeration \by Operations.ExteriorIndices[n := k, k := k].existsEnumeration \then
+  \takefrom eb: Operations.ExteriorIndices[n := l, k := l].Enumeration \by Operations.ExteriorIndices[n := l, k := l].existsEnumeration \then
+  \takefrom es: Operations.ExteriorIndices[n := rank, k := rank].Enumeration \by Operations.ExteriorIndices[n := rank, k := rank].existsEnumeration \then
+  \let c: Data := Data { left := a, right := b, leftEnumeration := ea, rightEnumeration := eb, sumEnumeration := es } \then
+  \return Logic.existsIntro[Data, { c: Data \where InputSpace.Member (domain c) p }] c
+    (Logic.And[_, _]::# (\bysub(LeftAtlas.Local k, { a: LeftAtlas.Local k \where Base.Member a.domain p.base }, a)) (\bysub(RightAtlas.Local l, { b: RightAtlas.Local l \where Base.Member b.domain p.base }, b)))
+};
+\module At(c: Data);
+\import topology.Continuity[A := InputFamily.Point, B := Family.Point].Covered[I := Data, domains := domain] \as Covered;
+\definition continuous: topology.Continuity[A := InputFamily.Point, B := Family.Point].Continuous source Forms.alternating.totalSpace map :=
+  Covered.continuous source Forms.alternating.totalSpace map open covers (\fun (c: Data) => At[c := c].continuous);

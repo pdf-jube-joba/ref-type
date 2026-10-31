@@ -1,0 +1,36 @@
+\import First.With[orientation := leftOrientation].Pullback[Y := Y, source := source, f := f, continuous := continuous] \as FirstPull;
+\definition rightContinuous: topology.Continuity[A := Y, B := X].Continuous source right.baseSpace f :=
+  \idelim left.baseSpace = right.baseSpace \with t: topology.Topology[Carrier := X].Topology => topology.Continuity[A := Y, B := X].Continuous source t f \by { base: continuous, equality: same };
+\import Second.With[orientation := rightOrientation].Pullback[Y := Y, source := source, f := f, continuous := rightContinuous] \as SecondPull;
+\import SumClassifiers.With[orientation := orientation].Pullback[Y := Y, source := source, f := f, continuous := continuous] \as SumPull;
+\import \root.Classification[].Oriented[].WhitneySum[X := Y, F := FirstPull.Fiber, G := SecondPull.Fiber, left := FirstPull.pulledBundle, right := SecondPull.pulledBundle,
+  same := \refl(source), k := k, l := l, leftRank := FirstPull.rank leftRank, rightRank := SecondPull.rank rightRank,
+  leftOrientation := FirstPull.orientationOnPullback, rightOrientation := SecondPull.orientationOnPullback] \as Target;
+\definition productEquality: \forall (y: Y)(alpha: FirstPull.DeterminantFiber y)(beta: SecondPull.DeterminantFiber y) ->
+  Target.product y alpha beta = product (f y) alpha beta :=
+  \fun (y: Y)(alpha: FirstPull.DeterminantFiber y)(beta: SecondPull.DeterminantFiber y) => \refl(product (f y) alpha beta);
+\module Forward(y: Y, gamma: Target.DeterminantFiber y, witness: Target.Witness[y, gamma]);
+\module Backward(y: Y, gamma: Target.DeterminantFiber y, witness: Witness[f y, gamma]);
+\definition criterion: \forall (y: Y)(gamma: Target.DeterminantFiber y) -> Logic.PropEquiv[Target.Positive y gamma, Positive (f y) gamma] :=
+  \fun (y: Y)(gamma: Target.DeterminantFiber y) => Logic.PropEquiv[_, _] {
+    ltr := \fun (positive: _) => \block { \takefrom witness: Target.Witness[y, gamma] \by positive \then \return Forward[y := y, gamma := gamma, witness := witness].positive },
+    rtl := \fun (positive: _) => \block { \takefrom witness: Witness[f y, gamma] \by positive \then \return Backward[y := y, gamma := gamma, witness := witness].positive }
+  };
+\import Sum.Of[same := same].Pullback[Y := Y, source := source, f := f, regular := continuous] \as Native;
+\definition comparison: Bundles.Isomorphisms[X := Y, F := (\fun (y: Y) => Sum.Fiber (f y)), G := Target.Fiber, source := SumPull.pulledBundle, target := Target.bundle].Isomorphism := Native.isomorphism;
+\import \root.Classification[].Determinants[X := Y, F := (\fun (y: Y) => Sum.Fiber (f y)), G := Target.Fiber, source := SumPull.pulledBundle, target := Target.bundle,
+  same := \refl(source), k := rank, iso := comparison] \as SumDet;
+\import \root.Classification[].Orientations[X := Y, F := SumPull.DeterminantFiber, bundle := SumPull.determinantBundle] \as PulledCones;
+\definition identity: \forall (y: Y)(gamma: Target.DeterminantFiber y) -> (SumDet.isomorphism.forward.fiber y).apply gamma = gamma :=
+  \fun (y: Y)(gamma: Target.DeterminantFiber y) => \axiom:funext((SumDet.isomorphism.forward.fiber y).apply gamma, gamma,
+    \fun (u: Fin.Fin rank -> Sum.Fiber (f y)) => congr!{{Fin.Fin rank -> Sum.Fiber (f y)} R.Real} gamma _ _
+      (\axiom:funext((\fun (i: Fin.Fin rank) => u i), u, \fun (i: Fin.Fin rank) => \refl(u i))));
+\definition naturality: \forall (y: Y)(gamma: Target.DeterminantFiber y) -> Logic.PropEquiv[
+  Target.Positive y gamma, PulledCones.Positive SumPull.orientationOnPullback.positive y ((SumDet.isomorphism.forward.fiber y).apply gamma)] :=
+  \fun (y: Y)(gamma: Target.DeterminantFiber y) => Logic.PropEquiv[_, _] {
+    ltr := \fun (positive: _) => \idelim gamma = (SumDet.isomorphism.forward.fiber y).apply gamma \with z: SumPull.DeterminantFiber y => PulledCones.Positive SumPull.orientationOnPullback.positive y z \by {
+      base: (SumPull.criterion y gamma).rtl ((criterion y gamma).ltr positive), equality: sym!{{SumPull.DeterminantFiber y}} _ _ (identity y gamma)
+    },
+    rtl := \fun (positive: _) => (criterion y gamma).rtl ((SumPull.criterion y gamma).ltr
+      (\idelim (SumDet.isomorphism.forward.fiber y).apply gamma = gamma \with z: SumPull.DeterminantFiber y => PulledCones.Positive SumPull.orientationOnPullback.positive y z \by { base: positive, equality: identity y gamma }))
+  };
