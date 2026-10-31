@@ -1,0 +1,20 @@
+\import \parent.Step[first := first, second := second, differential := zero first second, tail := tail] \as Step;
+\import \parent.\parent.Sum[first := first, second := tail.odd] \as Sum;
+\import std.Data[].Pair[] \as Pair;
+\definition forward: \forall (x: X)(v: Fiber Step.value.even.ranks x) ->
+  (Step.value.forward.fiber x).apply v = ((bundle Step.value.odd).space x).zero := \block {
+  \fun (x: X)(v: Fiber Step.value.even.ranks x) \then
+  \let a: Fiber first.ranks x := Pair.first (Fiber first.ranks x) (Fiber tail.odd.ranks x) ((Sum.isomorphism.backward.fiber x).apply v) \then
+  \let b: Fiber tail.odd.ranks x := Pair.second (Fiber first.ranks x) (Fiber tail.odd.ranks x) ((Sum.isomorphism.backward.fiber x).apply v) \then
+  \return trans!{{Fiber tail.even.ranks x}} _ _ _
+    (congr!{{Fiber tail.even.ranks x} {Fiber tail.even.ranks x} {Fiber tail.even.ranks x}} ((bundle tail.even).space x).add _ _ _ _
+      (tail.inclusion.fiber x).preservesZero (vanishes.right x b))
+    (Spaces.Laws[V := Fiber tail.even.ranks x, space := (bundle tail.even).space x].zeroLeft ((bundle tail.even).space x).zero)
+};
+\definition backward: \forall (x: X)(v: Fiber Step.value.odd.ranks x) ->
+  (Step.value.backward.fiber x).apply v = ((bundle Step.value.even).space x).zero :=
+  \fun (x: X)(v: Fiber Step.value.odd.ranks x) => trans!{{Fiber Step.value.even.ranks x}} _ _ _
+    (congr!{{Sum.SourceFiber x} {Fiber Step.value.even.ranks x}} (Sum.isomorphism.forward.fiber x).apply _ _
+      (Pair.Prop[A := Fiber first.ranks x, B := Fiber tail.odd.ranks x].pairCong _ _ _ _ (\refl(((bundle first).space x).zero)) (vanishes.left x v)))
+    (Sum.isomorphism.forward.fiber x).preservesZero;
+\definition vanishing: Zero first Step.value := Logic.And[_, _]::# forward backward;

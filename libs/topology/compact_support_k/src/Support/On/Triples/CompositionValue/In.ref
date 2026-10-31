@@ -1,0 +1,36 @@
+\import Neighbors.With[w := w] \as Neighbor;
+\import LeftClass.Localized[U := Neighbor.openSet, openU := Neighbor.open, L := Neighbor.compactSet, compactL := Neighbor.compact, enclosedU := Neighbor.enclosed, containsK := Neighbor.contains] \as First;
+\import MiddleClass.Localized[U := Neighbor.openSet, openU := Neighbor.open, L := Neighbor.compactSet, compactL := Neighbor.compact, enclosedU := Neighbor.enclosed, containsK := Neighbor.contains] \as Second;
+\import RightClass.Localized[U := Neighbor.openSet, openU := Neighbor.open, L := Neighbor.compactSet, compactL := Neighbor.compact, enclosedU := Neighbor.enclosed, containsK := Neighbor.contains] \as Third;
+\import \root.Support[].On[X := X, space := space, hausdorff := hausdorff, locallyCompact := locallyCompact].Localization[
+  U := Neighbor.openSet, open := Neighbor.open, L := Neighbor.compactSet, compactL := Neighbor.compact, enclosed := Neighbor.enclosed] \as Local;
+\import Relative.Pair[X := Local.Carrier, space := Local.topology, compact := Local.compact, hausdorff := Local.separated,
+  subset := Local.boundary, closed := Local.boundaryClosed] \as Pair;
+\import Pair.BundleComposition[F := First.FirstFiber, G := First.SecondFiber, H := Second.SecondFiber,
+  firstModel := First.firstOnLocal, secondModel := First.secondOnLocal, thirdModel := Second.secondOnLocal].With[alpha := First.comparison, beta := Second.comparison] \as Composition;
+\import Operations.IdentityIsomorphism[X := Local.Carrier, F := First.FirstFiber, bundle := Pair.BundleModel[F := First.FirstFiber].bundle First.firstOnLocal] \as Positive;
+\import Operations.IdentityIsomorphism[X := Local.Carrier, F := Second.SecondFiber, bundle := Pair.BundleModel[F := Second.SecondFiber].bundle Second.secondOnLocal] \as Negative;
+\definition outside[x: Pair.A]: \Cast[X] (Base.Complement K) := \into[X](x, Base.Complement K) \by {
+  \fun (inside: _) => (\bysub(Local.Carrier, Local.boundary, x)) (Neighbor.contains x inside)
+};
+\definition formula: \forall (x: Pair.A)(v: Fiber p x) -> (Composition.comparison.forward.fiber x).apply v =
+  (second.forward.fiber (outside x)).apply ((first.forward.fiber (outside x)).apply v) :=
+  \fun (x: Pair.A)(v: Fiber p x) => trans!{{Fiber r x}} _ _ _ (Second.formula x ((First.comparison.forward.fiber x).apply v))
+    (congr!{{Fiber q x} {Fiber r x}} (second.forward.fiber (outside x)).apply _ _ (First.formula x v));
+\definition commutes: \forall (x: Pair.A)(v: Fiber p x) ->
+  (Third.comparison.forward.fiber x).apply ((Positive.isomorphism.forward.fiber x).apply v) =
+  (Negative.isomorphism.forward.fiber x).apply ((Composition.comparison.forward.fiber x).apply v) :=
+  \fun (x: Pair.A)(v: Fiber p x) => trans!{{Fiber r x}} _ _ _ (Third.formula x v) (sym!{{Fiber r x}} _ _ (formula x v));
+\import Pair.BundleTriples[F := First.FirstFiber, G := Second.SecondFiber, firstModel := First.firstOnLocal, secondModel := Second.secondOnLocal]
+  .To[H := Third.FirstFiber, I := Third.SecondFiber, newFirstModel := Third.firstOnLocal, newSecondModel := Third.secondOnLocal]
+  .With[alpha := Composition.comparison, beta := Third.comparison, positive := Positive.isomorphism, negative := Negative.isomorphism, commutes := commutes] \as Change;
+\definition localEquation: Pair.Quotient[].group.base.op First.localValue Second.localValue = Third.localValue :=
+  trans!{{Pair.Quotient[].Relative}} _ _ _ Composition.reducedEquation Change.reducedEquation;
+\definition equation: Relative.Reduced[model := model].group.base.op Left.value Middle.value = Right.value :=
+  trans!{{Relative.Reduced[model := model].Carrier}} _ _ _
+    (congr!{{Relative.Reduced[model := model].Carrier} {Relative.Reduced[model := model].Carrier} {Relative.Reduced[model := model].Carrier}}
+      Relative.Reduced[model := model].group.base.op _ _ _ _ First.Agreement[].equation Second.Agreement[].equation)
+    (trans!{{Relative.Reduced[model := model].Carrier}} _ _ _ (sym!{{Relative.Reduced[model := model].Carrier}} _ _ (Local.extendAdd First.localValue Second.localValue))
+      (trans!{{Relative.Reduced[model := model].Carrier}} _ _ _
+        (congr!{{Pair.Quotient[].Relative} {Relative.Reduced[model := model].Carrier}} Local.extend _ _ localEquation)
+        (sym!{{Relative.Reduced[model := model].Carrier}} _ _ Third.Agreement[].equation)));

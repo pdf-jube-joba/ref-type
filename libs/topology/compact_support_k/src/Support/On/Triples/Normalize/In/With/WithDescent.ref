@@ -1,0 +1,64 @@
+\import Descended.Construction[extension := extension] \as Construction;
+\import Descended.Neighborhood[extension := extension] \as Near;
+\definition DFiber[z: Quotient.Carrier]: \Set := Descended.Fiber z;
+\definition D: Bundles.Family[X := Quotient.Carrier, F := DFiber].Bundle := Construction.bundleOnQuotient;
+\import std.Data[].Sum[] \as Sum;
+\import Bundles.Family[X := Local.Carrier, F := Positive].With[data := positiveBundle] \as PositiveCharts;
+\definition nearIndex: Construction.Index := Sum.Sum[Quotient.Point, PositiveCharts.Chart]::inl Quotient.distinguished;
+\definition nearChart: Bundles.Family[X := Quotient.Carrier, F := DFiber].With[data := D].Chart := Construction.trivialization nearIndex;
+\definition collapseRegular: topology.Continuity[A := Compactification.Carrier, B := Quotient.Carrier].Continuous Compactification.topology Quotient.topology Local.collapse :=
+  (algebraic_topology.Pointed[A := Compactification.Carrier].Maps[B := Quotient.Carrier].laws (Relative.pointed model) (Relative.pointed Local.quotientModel) Local.collapse).continuous;
+\import Bundles.Family[X := Quotient.Carrier, F := DFiber].Of[bundle := D].Pullback[Y := Compactification.Carrier, source := Compactification.topology, f := Local.collapse] \as Pull;
+\definition PlusFiber[z: Compactification.Carrier]: \Set := DFiber (Local.collapse z);
+\definition plusBundle: Bundles.Family[X := Compactification.Carrier, F := PlusFiber].Bundle := Pull.pulled collapseRegular;
+\definition plusChart: Bundles.Family[X := Compactification.Carrier, F := PlusFiber].With[data := plusBundle].Chart := Pull.In[c := nearChart].trivialization collapseRegular;
+\import topology.Topology[Carrier := Compactification.Carrier] \as Plus;
+\definition closedPart: \Pow Compactification.Carrier := Plus.Complement (Compactification.lift n.region);
+\definition closed: Plus.IsClosedIn Compactification.topology closedPart := Plus.Finite[].openComplementClosed Compactification.topology
+  (Compactification.lift n.region) (Compactification.liftOpen n.region n.openRegion);
+\definition outsideCollapse: \forall (z: Compactification.Carrier) -> \In[Compactification.Carrier] closedPart z -> Local.collapse z = Quotient.point :=
+  \induction (z: Compactification.Carrier) \return \In[Compactification.Carrier] closedPart z -> Local.collapse z = Quotient.point \with {
+    | none: \fun (outside: _) => Local.atInfinity
+    | some: \fun (x: X)(outside: _) => Local.offRegion x outside
+  };
+\definition insideChart: Plus.Subset closedPart plusChart.domain := \fun (z: Compactification.Carrier)(outside: _) =>
+  \idelim Quotient.point = Local.collapse z \with v: Quotient.Carrier => \In[Quotient.Carrier] Near.domain v \by {
+    base: Near.atPoint, equality: sym!{{Quotient.Carrier}} _ _ (outsideCollapse z outside)
+  };
+\import Operations.ChartOnSubset[X := Compactification.Carrier, F := PlusFiber, bundle := plusBundle,
+  chart := plusChart, S := closedPart, inside := insideChart] \as ClosedFrame;
+\definition Coordinate[z: Compactification.Carrier]: \Set := Bundles.Vector q.dimension;
+\import Bundles.Trivial[X := Compactification.Carrier, n := q.dimension, baseSpace := Compactification.topology] \as Trivial;
+\import periodic_k_theory.Periodicity[].PointPair[model := model] \as Point;
+\definition atInfinity: \In[Compactification.Carrier] closedPart Compactification.point := \fun (impossible: Logic.False) => impossible;
+\definition includesPoint: Plus.Subset Point.subset closedPart := \fun (z: Compactification.Carrier)(same: z = Compactification.point) =>
+  \idelim Compactification.point = z \with x: Compactification.Carrier => \In[Compactification.Carrier] closedPart x \by { base: atInfinity, equality: sym!{{Compactification.Carrier}} _ _ same };
+\import Relative.RestrictedIsomorphism[X := Compactification.Carrier, F := PlusFiber, G := Coordinate,
+  first := plusBundle, second := Trivial.bundle, same := (\refl(Compactification.topology)), S := closedPart, T := Point.subset, included := includesPoint]
+  .With[isomorphism := ClosedFrame.isomorphism] \as PointFrame;
+\import bundle_extension.Extension[].ComplexMaps[X := Compactification.Carrier, subset := closedPart, F := PlusFiber, G := Coordinate,
+  source := plusBundle, target := Trivial.bundle, baseSpace := Compactification.topology,
+  sourceSame := (\refl(Compactification.topology)), same := (\refl(Compactification.topology))] \as ForwardExtension;
+\import bundle_extension.Extension[].ComplexMaps[X := Compactification.Carrier, subset := closedPart, F := Coordinate, G := PlusFiber,
+  source := Trivial.bundle, target := plusBundle, baseSpace := Compactification.topology,
+  sourceSame := (\refl(Compactification.topology)), same := (sym!{{Plus.Topology}} plusBundle.baseSpace Trivial.bundle.baseSpace (\refl(Compactification.topology)))] \as BackwardExtension;
+\module WithMaps(forward: ForwardExtension.Result[ClosedFrame.isomorphism.forward], backward: BackwardExtension.Result[ClosedFrame.isomorphism.backward]);
+
+\import Bundles.Family[X := Compactification.Carrier, F := PlusFiber].Of[bundle := plusBundle].Pullback[Y := X, source := space, f := Compactification.inclusion] \as OnX;
+\definition XFiber[x: X]: \Set := PlusFiber (Compactification.inclusion x);
+\definition xBundle: Bundles.Family[X := X, F := XFiber].Bundle := OnX.pulled Compactification.inclusionContinuous;
+\definition xChart: Bundles.Family[X := X, F := XFiber].With[data := xBundle].Chart := OnX.In[c := plusChart].trivialization Compactification.inclusionContinuous;
+\import Bundles.Family[X := Compactification.Carrier, F := Coordinate].Of[bundle := Trivial.bundle].Pullback[Y := X, source := space, f := Compactification.inclusion] \as AuxiliaryPull;
+\definition Auxiliary[x: X]: \Set := Bundles.Vector q.dimension;
+\definition auxiliaryOnX: Bundles.Family[X := X, F := Auxiliary].Bundle := AuxiliaryPull.pulled Compactification.inclusionContinuous;
+\import Operations.DirectSum[X := X, F := (Fiber t.positive), G := Auxiliary, left := bundle t.positive, right := auxiliaryOnX] \as StableSource;
+\import Operations.DirectSum[X := X, F := XFiber, G := (Fiber t.negative), left := xBundle, right := bundle t.negative] \as StableTarget;
+\module LocalD;
+
+\module Gluing(stabilization: Stabilization.Result);
+
+\definition image: \exists (a: Symbols.Carrier \where Group.FromSymbols[].map a = Group.value t) := \block {
+  \takefrom h: ForwardExtension.Result[ClosedFrame.isomorphism.forward] \by ForwardExtension.extend ClosedFrame.isomorphism.forward Compactness.compact Separation.hausdorffCompactification closed \then
+  \takefrom g: BackwardExtension.Result[ClosedFrame.isomorphism.backward] \by BackwardExtension.extend ClosedFrame.isomorphism.backward Compactness.compact Separation.hausdorffCompactification closed \then
+  \return WithMaps[forward := h, backward := g].image
+};

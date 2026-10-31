@@ -1,0 +1,27 @@
+\import Complements.Projection[X := Local.Carrier, n := q.dimension, baseSpace := Local.topology, P := q.projection, regular := q.regular].Complement[] \as Split;
+\definition auxiliary: Pair.Presentation := Pair.Presentation { dimension := q.dimension, projection := Split.Q, regular := Split.qRegular };
+\definition H[x: Local.Carrier]: \Set := Presentations.Fiber auxiliary x;
+\definition auxiliaryBundle: Bundles.Family[X := Local.Carrier, F := H].Bundle := Presentations.bundle auxiliary;
+\import Pair.BundleTriples[F := E, G := F, firstModel := LocalClass.firstOnLocal, secondModel := LocalClass.secondOnLocal]
+  .With[alpha := LocalClass.comparison].Framing[auxiliary := auxiliary, n := q.dimension] \as Framing;
+\import Operations.IdentityIsomorphism[X := Local.Carrier, F := H, bundle := auxiliaryBundle] \as IdentityH;
+\import Operations.DirectSumIsomorphisms[X := Local.Carrier, F := F, G := H, A := Presentations.Fiber q, B := H,
+  first := second, second := auxiliaryBundle, newFirst := Presentations.bundle q, newSecond := auxiliaryBundle,
+  sameSource := (\refl(Local.topology)), sameTarget := (\refl(Local.topology))] \as NormalizeNegative;
+\import Operations.IsomorphismComposition[X := Local.Carrier, F := NormalizeNegative.SourceFiber, G := NormalizeNegative.TargetFiber,
+  H := (\fun (x: Local.Carrier) => Bundles.Vector q.dimension), source := NormalizeNegative.sourceBundle,
+  middle := NormalizeNegative.targetBundle, target := Bundles.Trivial[X := Local.Carrier, n := q.dimension, baseSpace := Local.topology].bundle] \as Trivialize;
+\definition trivialization: Framing.Trivialization := Trivialize.compose (NormalizeNegative.isomorphism negative IdentityH.isomorphism) Split.isomorphism;
+\import Framing.With[h := trivialization] \as Frame;
+\import Frame.Stabilization[] \as Stabilization;
+\definition Positive[x: Local.Carrier]: \Set := Framing.Fiber x;
+\definition positiveBundle: Bundles.Family[X := Local.Carrier, F := Positive].Bundle := Pair.BundleModel[F := Positive].bundle Framing.model;
+\import Relative.Descent[X := Local.Carrier, F := Positive, bundle := positiveBundle, compact := Local.compact, hausdorff := Local.separated,
+  subset := Local.boundary, closed := Local.boundaryClosed, dimension := q.dimension] \as Descent;
+\import Descent.With[comparison := Frame.comparison] \as Descended;
+\module WithDescent(extension: Descended.Result);
+
+\definition image: \exists (a: Symbols.Carrier \where Group.FromSymbols[].map a = Group.value t) := \block {
+  \takefrom extension: Descended.Result \by Descended.existence \then
+  \return WithDescent[extension := extension].image
+};

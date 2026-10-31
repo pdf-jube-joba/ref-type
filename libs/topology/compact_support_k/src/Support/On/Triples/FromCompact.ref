@@ -1,0 +1,39 @@
+\import \root.Support[].On[X := X, space := space, hausdorff := hausdorff, locallyCompact := locallyCompact].Symbols[] \as Symbols;
+\import Symbols.Supported[t := t].Complex[] \as Extension;
+\definition ExtensionData: \Set := Extension.Witness;
+\definition existence: \exists ExtensionData := Extension.existence;
+\module With(w: ExtensionData);
+
+\module Choices(first, second: ExtensionData);
+
+\import \parent.Group[] \as Group;
+\definition Values: \Set := \Cast[Group.Carrier] ({ a: Group.Carrier \where \exists (w: ExtensionData \where With[w := w].value = a) });
+\definition valuesExist: \exists Values := \block {
+  \takefrom w: ExtensionData \by existence \then
+  \return Logic.existsIntro[Group.Carrier, { a: Group.Carrier \where \exists (w: ExtensionData \where With[w := w].value = a) }]
+    With[w := w].value (Logic.existsIntro[ExtensionData, { v: ExtensionData \where With[w := v].value = With[w := w].value }] w (\refl(With[w := w].value)))
+};
+\definition unique: \forall (a, b: Values) -> a = b := \block {
+  \fun (a, b: Values) \then
+  \takefrom w: \Cast[ExtensionData] ({ w: ExtensionData \where With[w := w].value = a }) \by \bysub(Group.Carrier, Values, a) \then
+  \takefrom v: \Cast[ExtensionData] ({ w: ExtensionData \where With[w := w].value = b }) \by \bysub(Group.Carrier, Values, b) \then
+  \return trans!{{Group.Carrier}} _ _ _
+    (sym!{{Group.Carrier}} _ _ (\bysub(ExtensionData, { w: ExtensionData \where With[w := w].value = a }, w)))
+    (trans!{{Group.Carrier}} _ _ _ Choices[first := w, second := v].equation
+      (\bysub(ExtensionData, { w: ExtensionData \where With[w := w].value = b }, v)))
+};
+\definition value: Values := \choice Values \by { existence: valuesExist, uniqueness: unique };
+\definition agreement: \forall (w: ExtensionData) -> value = With[w := w].value :=
+  \fun (w: ExtensionData) => unique value (\into[Group.Carrier](With[w := w].value, Values) \by {
+    Logic.existsIntro[ExtensionData, { v: ExtensionData \where With[w := v].value = With[w := w].value }] w (\refl(With[w := w].value))
+  });
+\definition equation: Group.ToK[].map value = Symbols.forward (Symbols.value t) := \block {
+  \takefrom w: ExtensionData \by existence \then
+  \return trans!{{Relative.Reduced[model := model].Carrier}} _ _ _
+    (congr!{{Group.Carrier} {Relative.Reduced[model := model].Carrier}} Group.ToK[].map _ _ (agreement w)) With[w := w].equation
+};
+
+\import periodic_k_theory.Periodicity[].PointPair[model := model] \as Point;
+\import Relative.Pair[X := Compactification.Carrier, space := Compactification.topology, compact := Compactness.compact,
+  hausdorff := Separation.hausdorffCompactification, subset := Point.subset, closed := Point.closed] \as CompactPair;
+\module Global(witness: CompactPair.Global[t := t].Witness);

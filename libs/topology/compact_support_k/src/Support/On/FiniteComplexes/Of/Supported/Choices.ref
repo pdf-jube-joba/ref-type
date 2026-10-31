@@ -1,0 +1,24 @@
+\import topology.Topology[Carrier := Compactification.Carrier] \as Space;
+\definition common: Neighbors.Witness := Neighbors.Witness {
+  inner := Space.Intersection w.inner v.inner,
+  envelope := Space.Finite[].Join w.envelope v.envelope,
+  innerOpen := (Space.topologyLaws Compactification.topology).intersectionOpen w.inner v.inner w.innerOpen v.innerOpen,
+  envelopeClosed := Space.Finite[].joinClosed Compactification.topology w.envelope v.envelope w.envelopeClosed v.envelopeClosed,
+  contains := \fun (x: Compactification.Carrier)(member: _) => Logic.And[_, _]::# (w.contains x member) (v.contains x member),
+  enclosed := \fun (x: Compactification.Carrier)(member: _) => Logic.Or[_, _]::left (w.enclosed x member.left),
+  within := \fun (x: Compactification.Carrier)(member: _) => Logic.orElim[Space.Member w.envelope x, Space.Member v.envelope x, Space.Member Neighbors.finitePart x]
+    member (w.within x) (v.within x)
+};
+\import Neighbors.With[w := common] \as Common;
+\import Neighbors.With[w := w] \as W;
+\import Neighbors.With[w := v] \as V;
+\definition leftShrinks: Base.Subset Common.openSet W.openSet := \fun (x: X)(inside: _) => inside.left;
+\definition rightShrinks: Base.Subset Common.openSet V.openSet := \fun (x: X)(inside: _) => inside.right;
+\definition leftIncluded: Base.Subset W.compactSet Common.compactSet := \fun (x: X)(inside: _)(outside: _) =>
+  inside (\fun (inW: Space.Member w.envelope (Compactification.inclusion x)) => outside (Logic.Or[_, _]::left inW));
+\definition rightIncluded: Base.Subset V.compactSet Common.compactSet := \fun (x: X)(inside: _)(outside: _) =>
+  inside (\fun (inV: Space.Member v.envelope (Compactification.inclusion x)) => outside (Logic.Or[_, _]::right inV));
+\import \parent.In[w := w].Refinement[other := common, shrinks := leftShrinks, included := leftIncluded] \as Left;
+\import \parent.In[w := v].Refinement[other := common, shrinks := rightShrinks, included := rightIncluded] \as Right;
+\definition equation: \parent.In[w := w].value = \parent.In[w := v].value := trans!{{Relative.Reduced[model := model].Carrier}} _ _ _ Left.equation
+  (sym!{{Relative.Reduced[model := model].Carrier}} _ _ Right.equation);

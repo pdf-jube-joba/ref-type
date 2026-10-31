@@ -1,0 +1,142 @@
+\import bundle_extension.Extension[].Over[K := C.Complex, field := Algebra.field, conjugation := Hermitian.scalar, scalar := Scalar.scalar].Isomorphisms[
+  X := Cylinder.Carrier, subset := boundary, F := Constant.First, G := Constant.Second,
+  source := Constant.firstBundle, target := Constant.secondBundle, same := (\refl(Constant.space))]
+  .Through[a := boundaryIso, h := data.forward, g := data.backward, first := data.positive, second := data.negative] \as Invertible;
+\import \root.Support[].CylinderOpen[X := Compactification.Carrier, space := Compactification.topology, U := Invertible.domain, open := Invertible.open] \as Tube;
+\definition domain: \Pow Compactification.Carrier := Tube.tubes;
+\definition open: topology.Topology[Carrier := Compactification.Carrier].IsOpenIn Compactification.topology domain := Tube.tubesOpen;
+\definition containsInfinity: \In[Compactification.Carrier] domain Compactification.point :=
+  \fun (time: I.Carrier) => Invertible.contains (Cylinder.at time Compactification.point) (\refl(Compactification.point));
+\definition support: \Pow X := Compactification.remainder domain;
+\definition compactSupport: Base.IsCompactIn space support := open.atInfinity containsInfinity;
+\definition Outside: \Set := \Cast[X] (Base.Complement support);
+\definition outsideSpace: topology.Topology[Carrier := Outside].Topology := Base.Subspace[S := Base.Complement support].topology space;
+\import algebraic_topology.Cylinder[A := Outside] \as OutsideCylinder;
+\definition cylinderSpace: topology.Topology[Carrier := OutsideCylinder.Carrier].Topology := OutsideCylinder.topology outsideSpace;
+\definition inDomain[x: Outside]: \In[Compactification.Carrier] domain (Compactification.inclusion x) :=
+  Base.Finite[].doubleNegElim (\In[Compactification.Carrier] domain (Compactification.inclusion x)) (\bysub(X, Base.Complement support, x));
+\definition intoNeighborhood[z: OutsideCylinder.Carrier]: \Cast[Cylinder.Carrier] Invertible.domain :=
+  \into[Cylinder.Carrier](Cylinder.at (OutsideCylinder.time z) (Compactification.inclusion (OutsideCylinder.point z)), Invertible.domain) \by {
+    inDomain (OutsideCylinder.point z) (OutsideCylinder.time z)
+  };
+\definition intoOutside[x: Outside]: X := x;
+\definition outsideRegular: topology.Continuity[A := Outside, B := X].Continuous outsideSpace space intoOutside :=
+  topology.Continuity[A := Outside, B := X].Corestriction[S := Base.Complement support].inclusionContinuous space;
+\definition cylinderMap[z: OutsideCylinder.Carrier]: Cylinder.Carrier := Cylinder.at (OutsideCylinder.time z) (Compactification.inclusion (OutsideCylinder.point z));
+\definition cylinderRegular: topology.Continuity[A := OutsideCylinder.Carrier, B := Cylinder.Carrier].Continuous cylinderSpace Constant.space cylinderMap :=
+  Product.Universal[X := OutsideCylinder.Carrier].pairContinuous cylinderSpace I.topology Compactification.topology OutsideCylinder.time
+    (\fun (z: OutsideCylinder.Carrier) => Compactification.inclusion (OutsideCylinder.point z))
+    (OutsideCylinder.timeContinuous outsideSpace)
+    (topology.Composition[A := OutsideCylinder.Carrier, B := Outside, C := Compactification.Carrier].composeContinuous cylinderSpace outsideSpace Compactification.topology
+      OutsideCylinder.point (\fun (x: Outside) => Compactification.inclusion x) (OutsideCylinder.pointContinuous outsideSpace)
+      (topology.Composition[A := Outside, B := X, C := Compactification.Carrier].composeContinuous outsideSpace space Compactification.topology
+        intoOutside Compactification.inclusion outsideRegular Compactification.inclusionContinuous));
+\definition neighborhoodSpace: topology.Topology[Carrier := \Cast[Cylinder.Carrier] Invertible.domain].Topology :=
+  topology.Topology[Carrier := Cylinder.Carrier].Subspace[S := Invertible.domain].topology Constant.space;
+\definition neighborhoodRegular: topology.Continuity[A := OutsideCylinder.Carrier, B := \Cast[Cylinder.Carrier] Invertible.domain].Continuous cylinderSpace neighborhoodSpace intoNeighborhood :=
+  topology.Continuity[A := OutsideCylinder.Carrier, B := Cylinder.Carrier].Corestriction[S := Invertible.domain].corestrictContinuous cylinderSpace Constant.space intoNeighborhood cylinderRegular;
+\module Geometry(H: Compactification.Carrier -> \Set, original: Bundles.Family[X := Compactification.Carrier, F := H].Bundle,
+  same: original.baseSpace = Compactification.topology);
+
+\import Geometry[H := F, original := Presentations.bundle p, same := (\refl(Compactification.topology))] \as FirstGeometry;
+\import Geometry[H := G, original := Presentations.bundle q, same := (\refl(Compactification.topology))] \as SecondGeometry;
+\import Complements.PulledIsomorphism[X := \Cast[Cylinder.Carrier] Invertible.domain, Y := OutsideCylinder.Carrier,
+  F := (\fun (z: \Cast[Cylinder.Carrier] Invertible.domain) => F (Cylinder.point z)), G := (\fun (z: \Cast[Cylinder.Carrier] Invertible.domain) => G (Cylinder.point z)),
+  source := FirstGeometry.middle, target := SecondGeometry.middle, base := cylinderSpace, f := intoNeighborhood,
+  sourceRegular := neighborhoodRegular, targetRegular := neighborhoodRegular] \as Pull;
+\import Bundles.Isomorphisms[X := OutsideCylinder.Carrier, F := SecondGeometry.Fiber, G := SecondGeometry.Fiber, source := SecondGeometry.ordinary, target := SecondGeometry.extended] \as FamilyReverse;
+\import Operations.IsomorphismComposition[X := OutsideCylinder.Carrier, F := FirstGeometry.Fiber, G := FirstGeometry.Fiber, H := SecondGeometry.Fiber,
+  source := FirstGeometry.ordinary, middle := FirstGeometry.extended, target := SecondGeometry.extended] \as FamilyStart;
+\definition familyStart: FamilyStart.Isomorphism := FamilyStart.compose FirstGeometry.comparison (Pull.isomorphism Invertible.extension.isomorphism);
+\import Operations.IsomorphismComposition[X := OutsideCylinder.Carrier, F := FirstGeometry.Fiber, G := SecondGeometry.Fiber, H := SecondGeometry.Fiber,
+  source := FirstGeometry.ordinary, middle := SecondGeometry.extended, target := SecondGeometry.ordinary] \as FamilyFinish;
+\definition uniform: Bundles.Isomorphisms[X := OutsideCylinder.Carrier, F := FirstGeometry.Fiber, G := SecondGeometry.Fiber,
+  source := FirstGeometry.ordinary, target := SecondGeometry.ordinary].Isomorphism := FamilyFinish.compose familyStart (FamilyReverse.inverse SecondGeometry.comparison);
+\definition formula: \forall (z: OutsideCylinder.Carrier)(v: F (Compactification.inclusion (OutsideCylinder.point z))) ->
+  (uniform.forward.fiber z).apply v = (data.forward.map.fiber (cylinderMap z)).apply v :=
+  \fun (z: OutsideCylinder.Carrier)(v: F (Compactification.inclusion (OutsideCylinder.point z))) => \refl((data.forward.map.fiber (cylinderMap z)).apply v);
+
+
+\import Constant.Mapping[map := data.forward.map] \as Slices;
+\module Maps(time: I.Carrier);
+\import Maps[time := I.start] \as FirstSlice;
+\import Maps[time := I.end] \as SecondSlice;
+\import bundle_extension.Extension[].ComplexMaps[X := Compactification.Carrier, subset := Point.subset, F := F, G := G,
+  source := Presentations.bundle p, target := Presentations.bundle q, baseSpace := Compactification.topology,
+  sourceSame := (\refl(Compactification.topology)), same := (\refl(Compactification.topology))] \as EndpointExtension;
+\definition startPoint[x: Pair.A]: B := \into[Cylinder.Carrier](Cylinder.at I.start x, boundary) \by { \bysub(Compactification.Carrier, Point.subset, x) };
+\definition startAtInfinity: \forall (x: Pair.A)(v: F x) -> (FirstSlice.value.fiber x).apply v = (first.forward.fiber x).apply v :=
+  \fun (x: Pair.A)(v: F x) => trans!{{G x}} _ _ _ (FirstSlice.formula x v)
+    (trans!{{G x}} _ _ _ (data.forward.extends (startPoint x) v)
+      (trans!{{G x}} _ _ _ (boundaryFormula (startPoint x) v) (family.start x v)));
+\definition startExtension: EndpointExtension.Result[first.forward] := EndpointExtension.Result[first.forward] { map := FirstSlice.value, extends := startAtInfinity };
+\definition startData: LeftClass.ExtensionData := LeftClass.ExtensionData { forward := startExtension,
+  backward := left.backward, positive := left.positive, negative := left.negative };
+\definition endPoint[x: Pair.A]: B := \into[Cylinder.Carrier](Cylinder.at I.end x, boundary) \by { \bysub(Compactification.Carrier, Point.subset, x) };
+\definition endAtInfinity: \forall (x: Pair.A)(v: F x) -> (SecondSlice.value.fiber x).apply v = (second.forward.fiber x).apply v :=
+  \fun (x: Pair.A)(v: F x) => trans!{{G x}} _ _ _ (SecondSlice.formula x v)
+    (trans!{{G x}} _ _ _ (data.forward.extends (endPoint x) v)
+      (trans!{{G x}} _ _ _ (boundaryFormula (endPoint x) v) (family.end x v)));
+\definition endExtension: EndpointExtension.Result[second.forward] := EndpointExtension.Result[second.forward] { map := SecondSlice.value, extends := endAtInfinity };
+\definition endData: RightClass.ExtensionData := RightClass.ExtensionData { forward := endExtension,
+  backward := right.backward, positive := right.positive, negative := right.negative };
+\import LeftClass.With[w := startData] \as Left;
+\import RightClass.With[w := endData] \as Right;
+\import \root.Support[].On[X := X, space := space, hausdorff := hausdorff, locallyCompact := locallyCompact].Triples[]
+  .Input[F := Left.F, G := Left.G, firstModel := Left.positiveModel, secondModel := Left.negativeModel] \as Input;
+\import Input.Supported[K := support, compact := compactSupport] \as Supported;
+\import Bundles.Family[X := X, F := Left.F].Of[bundle := Input.source].Restriction[U := Base.Complement support] \as FirstRestriction;
+\import Bundles.Family[X := X, F := Left.G].Of[bundle := Input.target].Restriction[U := Base.Complement support] \as SecondRestriction;
+\import Relative.ConstantCylinder[X := Outside, F := (\fun (x: Outside) => Left.F x), G := (\fun (x: Outside) => Left.G x),
+  first := FirstRestriction.restricted, second := SecondRestriction.restricted, same := (\refl(outsideSpace))].With[isomorphism := uniform] \as EndpointCylinder;
+\module Slice(time: I.Carrier);
+\import Slice[time := I.start] \as StartSlice;
+\import Slice[time := I.end] \as EndSlice;
+\import Supported.Homotopy[alpha := StartSlice.comparison, beta := EndSlice.comparison] \as LocalHomotopy;
+\definition homotopy: LocalHomotopy.Family := LocalHomotopy.Family {
+  isomorphism := uniform,
+  start := \fun (x: Outside)(v: Left.F x) => sym!{{Left.G x}} _ _ (StartSlice.formula x v),
+  end := \fun (x: Outside)(v: Left.F x) => sym!{{Left.G x}} _ _ (EndSlice.formula x v)
+};
+\definition middleEquation: Supported.With[alpha := StartSlice.comparison].value = Supported.With[alpha := EndSlice.comparison].value :=
+  LocalHomotopy.With[family := homotopy].equation;
+
+\import Bundles.Identity[X := X, F := Left.F, bundle := Input.source] \as PositiveIdentity;
+\import Bundles.Identity[X := X, F := Left.G, bundle := Input.target] \as NegativeIdentity;
+\definition positiveIdentity: Bundles.Isomorphisms[X := X, F := Left.F, G := Left.F, source := Input.source, target := Input.source].Isomorphism :=
+  Bundles.Isomorphisms[X := X, F := Left.F, G := Left.F, source := Input.source, target := Input.source].Isomorphism {
+    forward := PositiveIdentity.map, backward := PositiveIdentity.map,
+    leftInverse := \fun (x: X)(v: Left.F x) => \refl(v), rightInverse := \fun (x: X)(v: Left.F x) => \refl(v)
+  };
+\definition negativeIdentity: Bundles.Isomorphisms[X := X, F := Left.G, G := Left.G, source := Input.target, target := Input.target].Isomorphism :=
+  Bundles.Isomorphisms[X := X, F := Left.G, G := Left.G, source := Input.target, target := Input.target].Isomorphism {
+    forward := NegativeIdentity.map, backward := NegativeIdentity.map,
+    leftInverse := \fun (x: X)(v: Left.G x) => \refl(v), rightInverse := \fun (x: X)(v: Left.G x) => \refl(v)
+  };
+\import Input.To[H := Left.F, I := Left.G, newFirstModel := Left.positiveModel, newSecondModel := Left.negativeModel] \as Change;
+\import Change.Supported[K := Left.support, J := support, compactK := Left.compactSupport, compactJ := compactSupport] \as StartChange;
+\definition startAgreement: \forall (x: \Cast[X] StartChange.outside)(v: Left.F x) ->
+  (StartSlice.comparison.forward.fiber (StartChange.inTarget x)).apply v = (Left.comparison.forward.fiber (StartChange.inSource x)).apply v :=
+  \fun (x: \Cast[X] StartChange.outside)(v: Left.F x) => trans!{{Left.G x}} _ _ _ (StartSlice.formula (StartChange.inTarget x) v)
+    (trans!{{Left.G x}} _ _ _ (formula (OutsideCylinder.at I.start (StartChange.inTarget x)) v)
+      (trans!{{Left.G x}} _ _ _ (sym!{{Left.G x}} _ _ (FirstSlice.formula (Compactification.inclusion x) v))
+        (sym!{{Left.G x}} _ _ (Left.formula (StartChange.inSource x) v))));
+\definition startEquation: Left.value = Supported.With[alpha := StartSlice.comparison].value :=
+  StartChange.With[alpha := Left.comparison, beta := StartSlice.comparison, positive := positiveIdentity, negative := negativeIdentity,
+    commutes := startAgreement].equation;
+\import Change.Supported[K := Right.support, J := support, compactK := Right.compactSupport, compactJ := compactSupport] \as EndChange;
+\definition endAgreement: \forall (x: \Cast[X] EndChange.outside)(v: Left.F x) ->
+  (EndSlice.comparison.forward.fiber (EndChange.inTarget x)).apply v = (Right.comparison.forward.fiber (EndChange.inSource x)).apply v :=
+  \fun (x: \Cast[X] EndChange.outside)(v: Left.F x) => trans!{{Left.G x}} _ _ _ (EndSlice.formula (EndChange.inTarget x) v)
+    (trans!{{Left.G x}} _ _ _ (formula (OutsideCylinder.at I.end (EndChange.inTarget x)) v)
+      (trans!{{Left.G x}} _ _ _ (sym!{{Left.G x}} _ _ (SecondSlice.formula (Compactification.inclusion x) v))
+        (sym!{{Left.G x}} _ _ (Right.formula (EndChange.inSource x) v))));
+\definition endEquation: Right.value = Supported.With[alpha := EndSlice.comparison].value :=
+  EndChange.With[alpha := Right.comparison, beta := EndSlice.comparison, positive := positiveIdentity, negative := negativeIdentity,
+    commutes := endAgreement].equation;
+\import \root.Support[].On[X := X, space := space, hausdorff := hausdorff, locallyCompact := locallyCompact].Triples[].Group[] \as Group;
+\definition localEquation: Left.value = Right.value := trans!{{Group.Carrier}} _ _ _ startEquation
+  (trans!{{Group.Carrier}} _ _ _ middleEquation (sym!{{Group.Carrier}} _ _ endEquation));
+
+\definition equation: LeftClass.value = RightClass.value := trans!{{Group.Carrier}} _ _ _ (LeftClass.agreement startData)
+  (trans!{{Group.Carrier}} _ _ _ localEquation (sym!{{Group.Carrier}} _ _ (RightClass.agreement endData)));

@@ -1,0 +1,21 @@
+\import \root.Relative[].Pair[X := X, space := space, compact := compact, hausdorff := hausdorff, subset := subset, closed := closed]
+  .BundleSwitch[F := F, G := G, sourceModel := firstModel, targetModel := secondModel].With[alpha := alpha] \as Switch;
+\import Operations.DirectSum[X := X, F := F, G := (\fun (x: X) => Bundles.Vector n), left := first, right := Trivial.bundle] \as StableSource;
+\import Operations.DirectSum[X := X, F := Positive.Fiber, G := G, left := positiveBundle, right := second] \as StableTarget;
+\definition SourceFiber[x: X]: \Set := StableSource.Fiber x;
+\definition TargetFiber[x: X]: \Set := StableTarget.Fiber x;
+\definition sourceBundle: Bundles.Family[X := X, F := SourceFiber].Bundle := StableSource.bundle (\refl(space));
+\definition targetBundle: Bundles.Family[X := X, F := TargetFiber].Bundle := StableTarget.bundle (\refl(space));
+\import Bundles.Isomorphisms[X := X, F := SourceFiber, G := TargetFiber, source := sourceBundle, target := targetBundle] \as Isomorphisms;
+\module Using(switch: Switch.Result);
+\structure Result: \Set := { isomorphism: Isomorphisms.Isomorphism,
+  boundary: \forall (x: A)(v: F x)(t: Bundles.Vector n) ->
+    Product.pair (Bundles.Vector n) (G x)
+      ((comparison.forward.fiber x).apply (Product.first (Positive.Fiber x) (G x) ((isomorphism.forward.fiber x).apply (Product.pair (F x) (Bundles.Vector n) v t))))
+      (Product.second (Positive.Fiber x) (G x) ((isomorphism.forward.fiber x).apply (Product.pair (F x) (Bundles.Vector n) v t))) =
+    Product.pair (Bundles.Vector n) (G x) t ((alpha.forward.fiber x).apply v)
+};
+\definition existence: \exists Result := \block {
+  \takefrom s: Switch.Result \by Switch.existence \then
+  \return \exact(Result { isomorphism := Using[switch := s].isomorphism, boundary := Using[switch := s].boundary }, Result)
+};

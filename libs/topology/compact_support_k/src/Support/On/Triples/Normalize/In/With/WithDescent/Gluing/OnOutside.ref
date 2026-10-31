@@ -1,0 +1,61 @@
+\import StableSource.Of[same := (\refl(space))].Pullback[Y := Outside, source := outsideSpace, f := outsideInclusion, regular := outsideRegular] \as SourcePull;
+\import StableTarget.Of[same := (\refl(space))].Pullback[Y := Outside, source := outsideSpace, f := outsideInclusion, regular := outsideRegular] \as TargetPull;
+\definition avoidsSupport: Base.Subset outside (Base.Complement t.support) := \fun (x: X)(notU: _)(inside: _) => notU (n.contains x inside);
+\import Relative.RestrictedIsomorphism[X := X, F := Fiber t.positive, G := Fiber t.negative, first := bundle t.positive, second := bundle t.negative,
+  same := (\refl(space)), S := Base.Complement t.support, T := outside, included := avoidsSupport].With[isomorphism := t.comparison] \as OriginalComparison;
+\definition containedInChart: Base.Subset outside xChart.domain := \fun (x: X)(notU: _) => insideChart (Compactification.inclusion x) notU;
+\import Operations.ChartOnSubset[X := X, F := XFiber, bundle := xBundle, chart := xChart, S := outside, inside := containedInChart] \as Frame;
+\import Operations.TrivialPullback[X := X, Y := Outside, n := q.dimension, original := space, base := outsideSpace, f := outsideInclusion, regular := outsideRegular] \as TrivialNormalization;
+\definition TrivialBundle: Bundles.Family[X := Outside, F := (\fun (x: Outside) => Bundles.Vector q.dimension)].Bundle := Bundles.Trivial[X := Outside, n := q.dimension, baseSpace := outsideSpace].bundle;
+\import Operations.IsomorphismComposition[X := Outside, F := (\fun (x: Outside) => XFiber x), G := (\fun (x: Outside) => Bundles.Vector q.dimension), H := (\fun (x: Outside) => Bundles.Vector q.dimension),
+  source := Frame.source, middle := Frame.target, target := TrivialBundle] \as ReadComposition;
+\definition read: ReadComposition.Isomorphism := ReadComposition.compose Frame.isomorphism TrivialNormalization.isomorphism;
+\import Bundles.Family[X := Compactification.Carrier, F := Coordinate].Of[bundle := Trivial.bundle].PullbackComposition[Y := X, Z := Outside,
+  first := space, second := outsideSpace, f := Compactification.inclusion, g := outsideInclusion]
+  .Of[fRegular := Compactification.inclusionContinuous, gRegular := outsideRegular] \as AuxiliaryFlatten;
+\definition toPlus[x: Outside]: Compactification.Carrier := Compactification.inclusion x;
+\definition toPlusRegular: topology.Continuity[A := Outside, B := Compactification.Carrier].Continuous outsideSpace Compactification.topology toPlus :=
+  topology.Composition[A := Outside, B := X, C := Compactification.Carrier].composeContinuous outsideSpace space Compactification.topology outsideInclusion Compactification.inclusion outsideRegular Compactification.inclusionContinuous;
+\import Operations.TrivialPullback[X := Compactification.Carrier, Y := Outside, n := q.dimension, original := Compactification.topology,
+  base := outsideSpace, f := toPlus, regular := toPlusRegular] \as AuxiliaryTrivial;
+\import Bundles.Isomorphisms[X := Outside, F := (\fun (x: Outside) => Bundles.Vector q.dimension), G := (\fun (x: Outside) => Bundles.Vector q.dimension),
+  source := AuxiliaryFlatten.direct, target := AuxiliaryFlatten.nested] \as AuxiliaryReverse;
+\import Operations.IsomorphismComposition[X := Outside, F := (\fun (x: Outside) => Bundles.Vector q.dimension), G := (\fun (x: Outside) => Bundles.Vector q.dimension), H := (\fun (x: Outside) => Bundles.Vector q.dimension),
+  source := AuxiliaryFlatten.nested, middle := AuxiliaryFlatten.direct, target := TrivialBundle] \as AuxiliaryComposition;
+\definition auxiliaryNormalization: AuxiliaryComposition.Isomorphism := AuxiliaryComposition.compose (AuxiliaryReverse.inverse AuxiliaryFlatten.isomorphism) AuxiliaryTrivial.isomorphism;
+\import Bundles.Isomorphisms[X := Outside, F := (\fun (x: Outside) => XFiber x), G := (\fun (x: Outside) => Bundles.Vector q.dimension), source := Frame.source, target := TrivialBundle] \as ReverseRead;
+\import Operations.IsomorphismComposition[X := Outside, F := (\fun (x: Outside) => Bundles.Vector q.dimension), G := (\fun (x: Outside) => Bundles.Vector q.dimension), H := (\fun (x: Outside) => XFiber x),
+  source := AuxiliaryFlatten.nested, middle := TrivialBundle, target := Frame.source] \as AuxiliaryD;
+\definition auxiliaryD: AuxiliaryD.Isomorphism := AuxiliaryD.compose auxiliaryNormalization (ReverseRead.inverse read);
+\import Bundles.Family[X := X, F := Fiber t.positive].Of[bundle := bundle t.positive].Restriction[U := outside] \as ERestriction;
+\import Bundles.Family[X := X, F := Fiber t.negative].Of[bundle := bundle t.negative].Restriction[U := outside] \as FRestriction;
+\import Operations.DirectSumIsomorphisms[X := Outside, F := (\fun (x: Outside) => Fiber t.positive x), G := (\fun (x: Outside) => Bundles.Vector q.dimension),
+  A := (\fun (x: Outside) => Fiber t.negative x), B := (\fun (x: Outside) => XFiber x),
+  first := ERestriction.restricted, second := AuxiliaryFlatten.nested, newFirst := FRestriction.restricted, newSecond := Frame.source,
+  sameSource := (\refl(outsideSpace)), sameTarget := (\refl(outsideSpace))] \as SwapValues;
+\import Operations.DirectSum[X := Outside, F := (\fun (x: Outside) => Fiber t.negative x), G := (\fun (x: Outside) => XFiber x), left := FRestriction.restricted, right := Frame.source]
+  .Of[same := (\refl(outsideSpace))].Symmetry[] \as Symmetry;
+\import Bundles.Isomorphisms[X := Outside, F := (\fun (x: Outside) => StableTarget.Fiber x), G := (\fun (x: Outside) => StableTarget.Fiber x), source := TargetPull.firstBundle, target := TargetPull.secondBundle] \as TargetReverse;
+\definition Source[x: Outside]: \Set := StableSource.Fiber x;
+\import Operations.IsomorphismComposition[X := Outside, F := Source, G := SwapValues.SourceFiber, H := SwapValues.TargetFiber,
+  source := SourcePull.firstBundle, middle := SourcePull.secondBundle, target := SwapValues.targetBundle] \as First;
+\definition one: First.Isomorphism := First.compose SourcePull.isomorphism (SwapValues.isomorphism OriginalComparison.value auxiliaryD);
+\import Operations.IsomorphismComposition[X := Outside, F := Source, G := SwapValues.TargetFiber, H := (\fun (x: Outside) => StableTarget.Fiber x),
+  source := SourcePull.firstBundle, middle := SwapValues.targetBundle, target := TargetPull.secondBundle] \as Second;
+\definition two: Second.Isomorphism := Second.compose one Symmetry.isomorphism;
+\import Operations.IsomorphismComposition[X := Outside, F := Source, G := (\fun (x: Outside) => StableTarget.Fiber x), H := (\fun (x: Outside) => StableTarget.Fiber x),
+  source := SourcePull.firstBundle, middle := TargetPull.secondBundle, target := TargetPull.firstBundle] \as Third;
+\definition isomorphism: Third.Isomorphism := Third.compose two (TargetReverse.inverse TargetPull.isomorphism);
+\import std.Data[].Pair[] \as Product;
+\definition originalSource[x: Outside]: \Cast[X] (Base.Complement t.support) := \into[X](x, Base.Complement t.support) \by { avoidsSupport x (\bysub(X, outside, x)) };
+\definition comparison: Bundles.Isomorphisms[X := Outside, F := (\fun (x: Outside) => Fiber t.positive x), G := (\fun (x: Outside) => Fiber t.negative x),
+  source := ERestriction.restricted, target := FRestriction.restricted].Isomorphism := OriginalComparison.value;
+\definition originalFormula: \forall (x: Outside)(v: Fiber t.positive x) -> (comparison.forward.fiber x).apply v = (t.comparison.forward.fiber (originalSource x)).apply v :=
+  \fun (x: Outside)(v: Fiber t.positive x) => OriginalComparison.formula x v;
+\definition formula: \forall (x: Outside)(v: Fiber t.positive x)(a: Bundles.Vector q.dimension) ->
+  (isomorphism.forward.fiber x).apply (Product.pair (Fiber t.positive x) (Bundles.Vector q.dimension) v a) =
+  Product.pair (XFiber x) (Fiber t.negative x) ((read.backward.fiber x).apply a) ((comparison.forward.fiber x).apply v) :=
+  \fun (x: Outside)(v: Fiber t.positive x)(a: Bundles.Vector q.dimension) => \refl(_);
+\definition readFormula: \forall (x: Outside)(v: XFiber x) -> (read.forward.fiber x).apply v =
+  (nearChart.frame (\into[Quotient.Carrier](Local.collapse (Compactification.inclusion x), Near.domain) \by {
+    containedInChart x (\bysub(X, outside, x)) })).forward.apply v := \fun (x: Outside)(v: XFiber x) => \refl(_);

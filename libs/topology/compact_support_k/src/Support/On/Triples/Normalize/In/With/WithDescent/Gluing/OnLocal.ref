@@ -1,0 +1,44 @@
+\import StableSource.Of[same := (\refl(space))].Pullback[Y := Local.Carrier, source := Local.topology, f := Local.inclusion, regular := Local.regular] \as SourcePull;
+\import StableTarget.Of[same := (\refl(space))].Pullback[Y := Local.Carrier, source := Local.topology, f := Local.inclusion, regular := Local.regular] \as TargetPull;
+\import Bundles.Family[X := Compactification.Carrier, F := Coordinate].Of[bundle := Trivial.bundle].PullbackComposition[Y := X, Z := Local.Carrier,
+  first := space, second := Local.topology, f := Compactification.inclusion, g := Local.inclusion]
+  .Of[fRegular := Compactification.inclusionContinuous, gRegular := Local.regular] \as AuxiliaryFlatten;
+\import Operations.TrivialPullback[X := Compactification.Carrier, Y := Local.Carrier, n := q.dimension, original := Compactification.topology,
+  base := Local.topology, f := LocalD.toPlus, regular := LocalD.toPlusRegular] \as AuxiliaryTrivial;
+\import Bundles.Isomorphisms[X := Local.Carrier, F := (\fun (x: Local.Carrier) => Bundles.Vector q.dimension), G := (\fun (x: Local.Carrier) => Bundles.Vector q.dimension),
+  source := AuxiliaryFlatten.direct, target := AuxiliaryFlatten.nested] \as AuxiliaryReverse;
+\import Operations.IsomorphismComposition[X := Local.Carrier, F := (\fun (x: Local.Carrier) => Bundles.Vector q.dimension), G := (\fun (x: Local.Carrier) => Bundles.Vector q.dimension), H := (\fun (x: Local.Carrier) => Bundles.Vector q.dimension),
+  source := AuxiliaryFlatten.nested, middle := AuxiliaryFlatten.direct, target := Bundles.Trivial[X := Local.Carrier, n := q.dimension, baseSpace := Local.topology].bundle] \as AuxiliaryComposition;
+\definition auxiliaryNormalization: AuxiliaryComposition.Isomorphism := AuxiliaryComposition.compose (AuxiliaryReverse.inverse AuxiliaryFlatten.isomorphism) AuxiliaryTrivial.isomorphism;
+\import Operations.IdentityIsomorphism[X := Local.Carrier, F := E, bundle := first] \as IdentityE;
+\import Operations.IdentityIsomorphism[X := Local.Carrier, F := F, bundle := second] \as IdentityF;
+\import Operations.DirectSumIsomorphisms[X := Local.Carrier, F := E, G := (\fun (x: Local.Carrier) => Bundles.Vector q.dimension), A := E, B := (\fun (x: Local.Carrier) => Bundles.Vector q.dimension),
+  first := first, second := AuxiliaryFlatten.nested, newFirst := first, newSecond := Bundles.Trivial[X := Local.Carrier, n := q.dimension, baseSpace := Local.topology].bundle,
+  sameSource := (\refl(Local.topology)), sameTarget := (\refl(Local.topology))] \as NormalizeSource;
+\import Bundles.Isomorphisms[X := Local.Carrier, F := (\fun (x: Local.Carrier) => XFiber x), G := Positive,
+  source := LocalD.sourceBundle, target := positiveBundle] \as ReverseD;
+\import Operations.DirectSumIsomorphisms[X := Local.Carrier, F := Positive, G := F, A := (\fun (x: Local.Carrier) => XFiber x), B := F,
+  first := positiveBundle, second := second, newFirst := LocalD.sourceBundle, newSecond := second,
+  sameSource := (\refl(Local.topology)), sameTarget := (\refl(Local.topology))] \as NormalizeTarget;
+\import Bundles.Isomorphisms[X := Local.Carrier, F := (\fun (x: Local.Carrier) => StableTarget.Fiber x), G := NormalizeTarget.TargetFiber,
+  source := TargetPull.firstBundle, target := TargetPull.secondBundle] \as TargetReverse;
+\definition Source[x: Local.Carrier]: \Set := StableSource.Fiber x;
+\import Operations.IsomorphismComposition[X := Local.Carrier, F := Source, G := NormalizeSource.SourceFiber, H := NormalizeSource.TargetFiber,
+  source := SourcePull.firstBundle, middle := SourcePull.secondBundle, target := NormalizeSource.targetBundle] \as First;
+\definition one: First.Isomorphism := First.compose SourcePull.isomorphism (NormalizeSource.isomorphism IdentityE.isomorphism auxiliaryNormalization);
+\import Operations.IsomorphismComposition[X := Local.Carrier, F := Source, G := NormalizeSource.TargetFiber, H := NormalizeTarget.SourceFiber,
+  source := SourcePull.firstBundle, middle := NormalizeSource.targetBundle, target := NormalizeTarget.sourceBundle] \as Second;
+\definition two: Second.Isomorphism := Second.compose one stabilization.isomorphism;
+\import Operations.IsomorphismComposition[X := Local.Carrier, F := Source, G := NormalizeTarget.SourceFiber, H := NormalizeTarget.TargetFiber,
+  source := SourcePull.firstBundle, middle := NormalizeTarget.sourceBundle, target := NormalizeTarget.targetBundle] \as Third;
+\definition three: Third.Isomorphism := Third.compose two (NormalizeTarget.isomorphism (ReverseD.inverse LocalD.comparison) IdentityF.isomorphism);
+\import Operations.IsomorphismComposition[X := Local.Carrier, F := Source, G := NormalizeTarget.TargetFiber, H := (\fun (x: Local.Carrier) => StableTarget.Fiber x),
+  source := SourcePull.firstBundle, middle := NormalizeTarget.targetBundle, target := TargetPull.firstBundle] \as Fourth;
+\definition isomorphism: Fourth.Isomorphism := Fourth.compose three (TargetReverse.inverse TargetPull.isomorphism);
+\import std.Data[].Pair[] \as Product;
+\definition formula: \forall (x: Local.Carrier)(v: E x)(a: Bundles.Vector q.dimension) ->
+  (isomorphism.forward.fiber x).apply (Product.pair (E x) (Bundles.Vector q.dimension) v a) =
+  Product.pair (XFiber x) (F x)
+    ((LocalD.comparison.backward.fiber x).apply (Product.first (Positive x) (F x) ((stabilization.isomorphism.forward.fiber x).apply (Product.pair (E x) (Bundles.Vector q.dimension) v a))))
+    (Product.second (Positive x) (F x) ((stabilization.isomorphism.forward.fiber x).apply (Product.pair (E x) (Bundles.Vector q.dimension) v a))) :=
+  \fun (x: Local.Carrier)(v: E x)(a: Bundles.Vector q.dimension) => \refl(_);

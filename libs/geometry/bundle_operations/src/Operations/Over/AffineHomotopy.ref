@@ -1,0 +1,42 @@
+\import algebraic_topology.Interval[] \as I;
+\import algebraic_topology.Cylinder[A := X] \as Cylinder;
+\import real.Analysis[] \as R;
+\import std.Alg[].Ring[] \as Ring;
+\import algebra.Group[].Of[Carrier := K, group := Ring.additiveGroup K Spaces.ring] \as Scalars;
+\import hermitian_frames.Hermitian[].Over[K := K, field := field, scalar := conjugation, topological := scalar.topological].Functions[X := Cylinder.Carrier] \as Functions;
+\definition space: topology.Topology[Carrier := Cylinder.Carrier].Topology := Cylinder.topology source.baseSpace;
+\definition targetRegular: topology.Continuity[A := Cylinder.Carrier, B := X].Continuous space target.baseSpace Cylinder.point :=
+  \idelim source.baseSpace = target.baseSpace \with t: topology.Topology[Carrier := X].Topology => topology.Continuity[A := Cylinder.Carrier, B := X].Continuous space t Cylinder.point \by {
+    base: Cylinder.pointContinuous source.baseSpace, equality: same
+  };
+\definition Input[z: Cylinder.Carrier]: \Set := F (Cylinder.point z);
+\definition Output[z: Cylinder.Carrier]: \Set := G (Cylinder.point z);
+\import Bundles.Family[X := X, F := F].Of[bundle := source].Pullback[Y := Cylinder.Carrier, source := space, f := Cylinder.point] \as Source;
+\import Bundles.Family[X := X, F := G].Of[bundle := target].Pullback[Y := Cylinder.Carrier, source := space, f := Cylinder.point] \as Target;
+\definition firstBundle: Bundles.Family[X := Cylinder.Carrier, F := Input].Bundle := Source.pulled (Cylinder.pointContinuous source.baseSpace);
+\definition secondBundle: Bundles.Family[X := Cylinder.Carrier, F := Output].Bundle := Target.pulled targetRegular;
+\import Bundles.ArrowLaws[X := X, Y := X, F := F, G := G, source := source, target := target, f := (\fun (x: X) => x)].Pullback[
+  Z := Cylinder.Carrier, space := space, g := Cylinder.point] \as Pull;
+\import \parent.MapOperations[X := Cylinder.Carrier, F := Input, G := Output, source := firstBundle, target := secondBundle] \as Maps;
+\definition t[z: Cylinder.Carrier]: K := conjugation.embed (Cylinder.time z);
+\definition s[z: Cylinder.Carrier]: K := field.add field.one (field.neg (t z));
+\definition tRegular: Functions.Continuous space t := Functions.embedding space (\fun (z: Cylinder.Carrier) => Cylinder.time z)
+  (topology.Composition[A := Cylinder.Carrier, B := I.Carrier, C := R.Real].composeContinuous space I.topology metric_spaces.RealLine[].topology
+    Cylinder.time (\fun (i: I.Carrier) => i) (Cylinder.timeContinuous source.baseSpace) I.inclusionContinuous);
+\definition sRegular: Functions.Continuous space s := Functions.addition space (\fun (z: Cylinder.Carrier) => field.one) (\fun (z: Cylinder.Carrier) => field.neg (t z))
+  (Functions.constant space field.one) (Functions.negation space t tRegular);
+\definition map: Maps.Map := Maps.add (Maps.functionScale s Pull.Of[a := first, regular := (Cylinder.pointContinuous source.baseSpace)].map sRegular)
+  (Maps.functionScale t Pull.Of[a := second, regular := (Cylinder.pointContinuous source.baseSpace)].map tRegular);
+\definition total[z: Cylinder.Carrier]: field.add (s z) (t z) = field.one := Scalars.addDifference field.one (t z);
+\module Endpoint(x: X);
+\definition start: \forall (x: X)(v: F x) -> (map.fiber (Cylinder.at I.start x)).apply v = (first.fiber x).apply v := \fun (x: X) => Endpoint[x := x].start;
+\definition end: \forall (x: X)(v: F x) -> (map.fiber (Cylinder.at I.end x)).apply v = (second.fiber x).apply v := \fun (x: X) => Endpoint[x := x].end;
+\definition fixed: \forall (z: Cylinder.Carrier) -> (\forall (v: F (Cylinder.point z)) -> (first.fiber (Cylinder.point z)).apply v = (second.fiber (Cylinder.point z)).apply v) ->
+  \forall (v: F (Cylinder.point z)) -> (map.fiber z).apply v = (first.fiber (Cylinder.point z)).apply v :=
+  \fun (z: Cylinder.Carrier)(agrees: _)(v: F (Cylinder.point z)) => trans!{{G (Cylinder.point z)}} _ _ _
+    (congr!{{G (Cylinder.point z)} {G (Cylinder.point z)}} (\fun (w: G (Cylinder.point z)) => (target.space (Cylinder.point z)).add
+      ((target.space (Cylinder.point z)).smul (s z) ((first.fiber (Cylinder.point z)).apply v)) ((target.space (Cylinder.point z)).smul (t z) w)) _ _ (sym!{{G (Cylinder.point z)}} _ _ (agrees v)))
+    (trans!{{G (Cylinder.point z)}} _ _ _ (sym!{{G (Cylinder.point z)}} _ _ ((target.space (Cylinder.point z)).scalarAdd (s z) (t z) ((first.fiber (Cylinder.point z)).apply v)))
+      (trans!{{G (Cylinder.point z)}} _ _ _
+        (congr!{{K} {G (Cylinder.point z)}} (\fun (a: K) => (target.space (Cylinder.point z)).smul a ((first.fiber (Cylinder.point z)).apply v)) _ _ (total z))
+        ((target.space (Cylinder.point z)).scalarOne ((first.fiber (Cylinder.point z)).apply v))));

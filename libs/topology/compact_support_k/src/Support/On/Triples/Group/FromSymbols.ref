@@ -1,0 +1,28 @@
+\import \root.Support[].On[X := X, space := space, hausdorff := hausdorff, locallyCompact := locallyCompact].Symbols[] \as Symbols;
+\import periodic_k_theory.Periodicity[].PointPair[model := model] \as Point;
+\import Relative.Pair[X := Compactification.Carrier, space := Compactification.topology, compact := Compactness.compact,
+  hausdorff := Separation.hausdorffCompactification, subset := Point.subset, closed := Point.closed] \as Pair;
+\import Pair.Group[] \as Native;
+\import Modules.Presentation[Generators := Pair.Triple] \as SourceExpressions;
+\import SourceExpressions.Of[relations := Native.Relation] \as Source;
+\import module_theory.Module[].IntegerGroup[Carrier := Carrier, group := group] \as Action;
+\import Source.To[W := Carrier, target := Action.space] \as Extension;
+\definition symbolValue[t: Pair.Triple]: Carrier := \parent.\parent.FromCompact[t := t].value;
+\definition respects: Extension.RespectsRelations symbolValue :=
+  \induction (a, b: SourceExpressions.Expression)(related: Native.Relation a b) \return Extension.EvaluationRelation symbolValue a b \with {
+    | global: \fun (t: Pair.Triple)(w: Pair.Global[t := t].Witness) => \parent.\parent.FromCompact[t := t].Global[witness := w].equation
+    | sum: \fun (t, u, v: Pair.Triple)(w: Pair.Sum[t := t, u := u, v := v].Witness) => \parent.\parent.CompactRelations[].Sum[t := t, u := u, v := v, witness := w].equation
+    | compose: \fun (p, q, r: Pair.Presentation)(first: Pair.Between[p := p, q := q].Isomorphism)(second: Pair.Between[p := q, q := r].Isomorphism) =>
+      \parent.\parent.CompactRelations[].Compose[p := p, q := q, r := r, first := first, second := second].equation
+    | homotopy: \fun (p, q: Pair.Presentation)(first, second: Pair.Between[p := p, q := q].Isomorphism)
+        (family: Pair.Homotopy[p := p, q := q, first := first, second := second].Family) =>
+      \parent.\parent.CompactRelations[].Homotopy[p := p, q := q, first := first, second := second, family := family].equation
+  };
+\import Modules.Hom[V := Native.Carrier, W := Carrier, source := Source.space, target := Action.space] \as Linear;
+\definition linear: Linear.Map := Extension.extension symbolValue respects;
+\definition map: Symbols.Carrier -> Carrier := linear.apply;
+\definition onTriple: \forall (t: Pair.Triple) -> map (Symbols.value t) = symbolValue t := Extension.onGenerator symbolValue respects;
+\definition additive: \forall (a, b: Symbols.Carrier) -> map (Symbols.group.base.op a b) = add (map a) (map b) := linear.addition;
+\definition preservesZero: map Symbols.group.base.unit = zero := Linear.zeroPreserved linear;
+\definition preservesNeg: \forall (a: Symbols.Carrier) -> map (Symbols.group.base.inv a) = neg (map a) := Linear.negativePreserved linear;
+\module Compatibility;

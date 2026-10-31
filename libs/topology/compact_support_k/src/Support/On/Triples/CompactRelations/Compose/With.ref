@@ -1,0 +1,78 @@
+\definition F[x: Compactification.Carrier]: \Set := Presentations.Fiber p x;
+\definition G[x: Compactification.Carrier]: \Set := Presentations.Fiber q x;
+\definition H[x: Compactification.Carrier]: \Set := Presentations.Fiber r x;
+\import Bundles.Morphisms[X := Compactification.Carrier, Y := Compactification.Carrier, F := F, G := G,
+  source := Presentations.bundle p, target := Presentations.bundle q, f := (\fun (x: Compactification.Carrier) => x)]
+  .Composition[Z := Compactification.Carrier, H := H, range := Presentations.bundle r, g := (\fun (x: Compactification.Carrier) => x)] \as ForwardComposition;
+\import Bundles.Morphisms[X := Compactification.Carrier, Y := Compactification.Carrier, F := H, G := G,
+  source := Presentations.bundle r, target := Presentations.bundle q, f := (\fun (x: Compactification.Carrier) => x)]
+  .Composition[Z := Compactification.Carrier, H := F, range := Presentations.bundle p, g := (\fun (x: Compactification.Carrier) => x)] \as BackwardComposition;
+\import bundle_extension.Extension[].ComplexMaps[X := Compactification.Carrier, subset := Point.subset, F := F, G := H,
+  source := Presentations.bundle p, target := Presentations.bundle r, baseSpace := Compactification.topology,
+  sourceSame := (\refl(Compactification.topology)), same := (\refl(Compactification.topology))] \as Forward;
+\import bundle_extension.Extension[].ComplexMaps[X := Compactification.Carrier, subset := Point.subset, F := H, G := F,
+  source := Presentations.bundle r, target := Presentations.bundle p, baseSpace := Compactification.topology,
+  sourceSame := (\refl(Compactification.topology)), same := (sym!{{topology.Topology[Carrier := Compactification.Carrier].Topology}}
+    (Presentations.bundle p).baseSpace (Presentations.bundle r).baseSpace (\refl(Compactification.topology)))] \as Backward;
+\definition forward: Forward.Result[Raw.triple.comparison.forward] := Forward.Result[Raw.triple.comparison.forward] {
+  map := ForwardComposition.compose a.forward.map b.forward.map,
+  extends := \fun (x: Pair.A)(v: F x) => trans!{{H x}} _ _ _
+    (congr!{{G x} {H x}} (b.forward.map.fiber x).apply _ _ (a.forward.extends x v))
+    (b.forward.extends x ((first.forward.fiber x).apply v))
+};
+\definition backward: Backward.Result[Raw.triple.comparison.backward] := Backward.Result[Raw.triple.comparison.backward] {
+  map := BackwardComposition.compose b.backward.map a.backward.map,
+  extends := \fun (x: Pair.A)(v: H x) => trans!{{F x}} _ _ _
+    (congr!{{G x} {F x}} (a.backward.map.fiber x).apply _ _ (b.backward.extends x v))
+    (a.backward.extends x ((second.backward.fiber x).apply v))
+};
+\definition data: Right.ExtensionData := Right.ExtensionData { forward := forward, backward := backward, positive := a.positive, negative := b.negative };
+\import Left.With[w := a] \as First;
+\import Middle.With[w := b] \as Second;
+\import Right.With[w := data] \as Third;
+\definition support: \Pow X := Base.Finite[].Join (Base.Finite[].Join First.support Second.support) Third.support;
+\definition compact: Base.IsCompactIn space support := Base.Compactness[].joinCompact space (Base.Finite[].Join First.support Second.support) Third.support
+  (Base.Compactness[].joinCompact space First.support Second.support First.compactSupport Second.compactSupport) Third.compactSupport;
+\definition includesFirst: Base.Subset First.support support := \fun (x: X)(inside: _) => Logic.Or[_, _]::left (Logic.Or[_, _]::left inside);
+\import \root.Support[].On[X := X, space := space, hausdorff := hausdorff, locallyCompact := locallyCompact].Triples[]
+  .Input[F := First.F, G := First.G, firstModel := First.positiveModel, secondModel := First.negativeModel]
+  .Supported[K := First.support, compact := First.compactSupport].With[alpha := First.comparison]
+  .Enlarge[J := support, compactJ := compact, included := includesFirst] \as FirstLarger;
+\definition includesSecond: Base.Subset Second.support support := \fun (x: X)(inside: _) => Logic.Or[_, _]::left (Logic.Or[_, _]::right inside);
+\import \root.Support[].On[X := X, space := space, hausdorff := hausdorff, locallyCompact := locallyCompact].Triples[]
+  .Input[F := Second.F, G := Second.G, firstModel := Second.positiveModel, secondModel := Second.negativeModel]
+  .Supported[K := Second.support, compact := Second.compactSupport].With[alpha := Second.comparison]
+  .Enlarge[J := support, compactJ := compact, included := includesSecond] \as SecondLarger;
+\definition includesThird: Base.Subset Third.support support := \fun (x: X)(inside: _) => Logic.Or[_, _]::right inside;
+\import \root.Support[].On[X := X, space := space, hausdorff := hausdorff, locallyCompact := locallyCompact].Triples[]
+  .Input[F := Third.F, G := Third.G, firstModel := Third.positiveModel, secondModel := Third.negativeModel]
+  .Supported[K := Third.support, compact := Third.compactSupport].With[alpha := Third.comparison]
+  .Enlarge[J := support, compactJ := compact, included := includesThird] \as ThirdLarger;
+\import \root.Support[].On[X := X, space := space, hausdorff := hausdorff, locallyCompact := locallyCompact].Triples[]
+  .InputComposition[F := First.F, G := First.G, H := Second.G, firstModel := First.positiveModel,
+    secondModel := First.negativeModel, thirdModel := Second.negativeModel, K := support, compact := compact]
+  .With[alpha := FirstLarger.comparison, beta := SecondLarger.comparison] \as Composed;
+\definition A: \Set := \Cast[X] (Base.Complement support);
+\definition formula: \forall (x: A)(v: First.F x) -> (Composed.comparison.forward.fiber x).apply v = (ThirdLarger.comparison.forward.fiber x).apply v :=
+  \fun (x: A)(v: First.F x) => trans!{{Third.G x}} _ _ _
+    (congr!{{Second.F x} {Second.G x}} (SecondLarger.comparison.forward.fiber x).apply _ _
+      (trans!{{First.G x}} _ _ _ (FirstLarger.formula x v) (First.formula (FirstLarger.boundary x) v)))
+    (trans!{{Third.G x}} _ _ _
+      (trans!{{Second.G x}} _ _ _ (SecondLarger.formula x ((a.forward.map.fiber (Compactification.inclusion x)).apply v))
+        (Second.formula (SecondLarger.boundary x) ((a.forward.map.fiber (Compactification.inclusion x)).apply v)))
+      (sym!{{Third.G x}} _ _ (trans!{{Third.G x}} _ _ _ (ThirdLarger.formula x v) (Third.formula (ThirdLarger.boundary x) v))));
+\import \root.Support[].On[X := X, space := space, hausdorff := hausdorff, locallyCompact := locallyCompact].Triples[]
+  .Input[F := Third.F, G := Third.G, firstModel := Third.positiveModel, secondModel := Third.negativeModel].Supported[K := support, compact := compact] \as Last;
+\import Bundles.Family[X := X, F := Third.F].Of[bundle := \root.Support[].On[X := X, space := space, hausdorff := hausdorff, locallyCompact := locallyCompact].BundleModel[F := Third.F].bundle Third.positiveModel].Restriction[U := Base.Complement support] \as Positive;
+\import Bundles.Family[X := X, F := Third.G].Of[bundle := \root.Support[].On[X := X, space := space, hausdorff := hausdorff, locallyCompact := locallyCompact].BundleModel[F := Third.G].bundle Third.negativeModel].Restriction[U := Base.Complement support] \as Negative;
+\definition same: Composed.comparison = ThirdLarger.comparison :=
+  Operations.IsomorphismEquality[X := A, F := (\fun (x: A) => Third.F x), G := (\fun (x: A) => Third.G x), source := Positive.restricted, target := Negative.restricted]
+    .ext Composed.comparison ThirdLarger.comparison formula;
+\definition localEquation: Group.add First.value Second.value = Third.value := trans!{{Group.Carrier}} _ _ _
+  (congr!{{Group.Carrier} {Group.Carrier} {Group.Carrier}} Group.add _ _ _ _ FirstLarger.equation SecondLarger.equation)
+  (trans!{{Group.Carrier}} _ _ _ Composed.equation
+    (trans!{{Group.Carrier}} _ _ _ (congr!{{Last.OnOutside} {Group.Carrier}} (\fun (iso: Last.OnOutside) => Last.With[alpha := iso].value) _ _ same)
+      (sym!{{Group.Carrier}} _ _ ThirdLarger.equation)));
+\definition equation: Group.add Left.value Middle.value = Right.value := trans!{{Group.Carrier}} _ _ _
+  (congr!{{Group.Carrier} {Group.Carrier} {Group.Carrier}} Group.add _ _ _ _ (Left.agreement a) (Middle.agreement b))
+  (trans!{{Group.Carrier}} _ _ _ localEquation (sym!{{Group.Carrier}} _ _ (Right.agreement data)));

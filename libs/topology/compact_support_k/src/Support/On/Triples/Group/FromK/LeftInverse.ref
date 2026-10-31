@@ -1,0 +1,24 @@
+\definition P[a: Carrier]: \Prop := map (Forward.map a) = a;
+\definition onImage: \forall (a: Symbols.Carrier) -> P (SymbolsMap.map a) :=
+  \fun (a: Symbols.Carrier) => trans!{{Carrier}} _ _ _
+    (congr!{{Symbols.Carrier} {Carrier}} SymbolsMap.map _ _
+      (congr!{{Reduced.Carrier} {Symbols.Carrier}} Symbols.backward _ _ (SymbolsMap.Compatibility[].equation a)))
+    (congr!{{Symbols.Carrier} {Carrier}} SymbolsMap.map _ _ (Symbols.leftInverse a));
+\definition atZero: P zero := trans!{{Carrier}} _ _ _ (congr!{{Reduced.Carrier} {Carrier}} map _ _ Forward.preservesZero) preservesZero;
+\definition atSymbol: \forall (t: Triple) -> P (value t) := \block {
+  \fun (t: Triple) \then
+  \takefrom a: \Cast[Symbols.Carrier] ({ a: Symbols.Carrier \where SymbolsMap.map a = value t })
+    \by \parent.\parent.\parent.Normalize[t := t].image \then
+  \return \idelim SymbolsMap.map a = value t \with x: Carrier => P x \by {
+    base: onImage a, equality: \bysub(Symbols.Carrier, { a: Symbols.Carrier \where SymbolsMap.map a = value t }, a)
+  }
+};
+\definition underAdd: \forall (a, b: Carrier) -> P a -> P b -> P (add a b) :=
+  \fun (a, b: Carrier)(pa: P a)(pb: P b) => trans!{{Carrier}} _ _ _
+    (congr!{{Reduced.Carrier} {Carrier}} map _ _ (Forward.additive a b))
+    (trans!{{Carrier}} _ _ _ (additive (Forward.map a) (Forward.map b)) (congr!{{Carrier} {Carrier} {Carrier}} add _ _ _ _ pa pb));
+\definition underNeg: \forall (a: Carrier) -> P a -> P (neg a) :=
+  \fun (a: Carrier)(pa: P a) => trans!{{Carrier}} _ _ _
+    (congr!{{Reduced.Carrier} {Carrier}} map _ _ (Forward.preservesNeg a))
+    (trans!{{Carrier}} _ _ _ (preservesNeg (Forward.map a)) (congr!{{Carrier} {Carrier}} neg _ _ pa));
+\definition equation: \forall (a: Carrier) -> P a := \parent.\parent.Induction[P := P, atZero := atZero, atSymbol := atSymbol, underAdd := underAdd, underNeg := underNeg].principle;

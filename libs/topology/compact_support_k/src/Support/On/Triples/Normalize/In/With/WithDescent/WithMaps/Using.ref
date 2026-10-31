@@ -1,0 +1,69 @@
+\import CompactInput.With[alpha := PointFrame.value, forward := forwardAtPoint, backward := backwardAtPoint, positive := positive, negative := negative] \as Raw;
+\import \parent.\parent.Gluing[stabilization := stabilization] \as Gluing;
+\import Gluing.OnOutside[] \as OutsideCalculation;
+\definition support: \Pow X := Base.Finite[].Join n.compactSet Raw.support;
+\definition compactSupport: Base.IsCompactIn space support := Base.Compactness[].joinCompact space n.compactSet Raw.support n.compact Raw.compactSupport;
+\definition containsOriginal: Base.Subset t.support support := \fun (x: X)(inside: _) => Logic.Or[_, _]::left (n.enclosed x (n.contains x inside));
+\definition containsRaw: Base.Subset Raw.support support := \fun (x: X)(inside: _) => Logic.Or[_, _]::right inside;
+\import \root.Support[].On[X := X, space := space, hausdorff := hausdorff, locallyCompact := locallyCompact].Triples[] \as Triples;
+\import Triples.Input[F := Fiber t.positive, G := Fiber t.negative, firstModel := Evaluation.positiveModel, secondModel := Evaluation.negativeModel]
+  .Supported[K := t.support, compact := t.compact].With[alpha := t.comparison] \as Original;
+\import Original.Enlarge[J := support, compactJ := compactSupport, included := containsOriginal] \as OriginalEnlargement;
+\import Triples.Input[F := Raw.First, G := Raw.Second, firstModel := Raw.firstOnX, secondModel := Raw.secondOnX]
+  .Supported[K := Raw.support, compact := Raw.compactSupport].With[alpha := Raw.comparison] \as Normal;
+\import Normal.Enlarge[J := support, compactJ := compactSupport, included := containsRaw] \as NormalEnlargement;
+\import Triples.Input[F := Raw.Second, G := Raw.Second, firstModel := Raw.secondOnX, secondModel := Raw.secondOnX] \as AuxiliaryInput;
+\import AuxiliaryInput.Supported[K := support, compact := compactSupport] \as AuxiliarySupport;
+\import Triples.Input[F := Fiber t.negative, G := Fiber t.negative, firstModel := Evaluation.negativeModel, secondModel := Evaluation.negativeModel] \as NegativeInput;
+\import NegativeInput.Supported[K := support, compact := compactSupport] \as NegativeSupport;
+\import Bundles.Family[X := X, F := Raw.Second].Of[bundle := AuxiliaryInput.source].Restriction[U := Base.Complement support] \as AuxiliaryRestriction;
+\import Bundles.Family[X := X, F := Fiber t.negative].Of[bundle := NegativeInput.source].Restriction[U := Base.Complement support] \as NegativeRestriction;
+\import Operations.IdentityIsomorphism[X := \Cast[X] (Base.Complement support), F := (\fun (x: \Cast[X] (Base.Complement support)) => Raw.Second x), bundle := AuxiliaryRestriction.restricted] \as AuxiliaryIdentity;
+\import Operations.IdentityIsomorphism[X := \Cast[X] (Base.Complement support), F := (\fun (x: \Cast[X] (Base.Complement support)) => Fiber t.negative x), bundle := NegativeRestriction.restricted] \as NegativeIdentity;
+\import Operations.IdentityIsomorphism[X := X, F := Raw.Second, bundle := AuxiliaryInput.source] \as AuxiliaryGlobalIdentity;
+\import Operations.IdentityIsomorphism[X := X, F := Fiber t.negative, bundle := NegativeInput.source] \as NegativeGlobalIdentity;
+\definition auxiliaryZero: AuxiliarySupport.With[alpha := AuxiliaryIdentity.isomorphism].value = Group.zero :=
+  AuxiliarySupport.With[alpha := AuxiliaryIdentity.isomorphism].Global[isomorphism := AuxiliaryGlobalIdentity.isomorphism,
+    agrees := (\fun (x: \Cast[X] (Base.Complement support))(v: Raw.Second x) => \refl(v))].equation;
+\definition negativeZero: NegativeSupport.With[alpha := NegativeIdentity.isomorphism].value = Group.zero :=
+  NegativeSupport.With[alpha := NegativeIdentity.isomorphism].Global[isomorphism := NegativeGlobalIdentity.isomorphism,
+    agrees := (\fun (x: \Cast[X] (Base.Complement support))(v: Fiber t.negative x) => \refl(v))].equation;
+\import Triples.DirectSumInput[F := Fiber t.positive, G := Fiber t.negative, H := Raw.Second, I := Raw.Second,
+  firstModel := Evaluation.positiveModel, secondModel := Evaluation.negativeModel, thirdModel := Raw.secondOnX, fourthModel := Raw.secondOnX, K := support, compact := compactSupport] \as FirstSum;
+\import FirstSum.With[alpha := OriginalEnlargement.comparison, beta := AuxiliaryIdentity.isomorphism] \as Left;
+\import Triples.DirectSumInput[F := Raw.First, G := Raw.Second, H := Fiber t.negative, I := Fiber t.negative,
+  firstModel := Raw.firstOnX, secondModel := Raw.secondOnX, thirdModel := Evaluation.negativeModel, fourthModel := Evaluation.negativeModel, K := support, compact := compactSupport] \as SecondSum;
+\import SecondSum.With[alpha := NormalEnlargement.comparison, beta := NegativeIdentity.isomorphism] \as Right;
+\import Operations.DirectSum[X := X, F := Fiber t.negative, G := Auxiliary, left := bundle t.negative, right := auxiliaryOnX]
+  .Of[same := (\refl(space))].Symmetry[] \as Flip;
+\import Triples.Input[F := FirstSum.PositiveFiber, G := FirstSum.NegativeFiber, firstModel := FirstSum.positiveModel, secondModel := FirstSum.negativeModel]
+  .To[H := SecondSum.PositiveFiber, I := SecondSum.NegativeFiber, newFirstModel := SecondSum.positiveModel, newSecondModel := SecondSum.negativeModel]
+  .Supported[K := support, J := support, compactK := compactSupport, compactJ := compactSupport] \as Change;
+\module At(x: \Cast[X] Change.outside, v: Fiber t.positive x, a: Auxiliary x);
+\definition commutes: \forall (x: \Cast[X] Change.outside)(w: FirstSum.PositiveFiber x) ->
+  (Right.comparison.forward.fiber (Change.inTarget x)).apply ((Gluing.isomorphism.forward.fiber x).apply w) =
+  (Flip.isomorphism.forward.fiber x).apply ((Left.comparison.forward.fiber (Change.inSource x)).apply w) :=
+  \fun (x: \Cast[X] Change.outside) => \induction (w: FirstSum.PositiveFiber x) \return
+    (Right.comparison.forward.fiber (Change.inTarget x)).apply ((Gluing.isomorphism.forward.fiber x).apply w) =
+      (Flip.isomorphism.forward.fiber x).apply ((Left.comparison.forward.fiber (Change.inSource x)).apply w) \with {
+    | pair: \fun (v: Fiber t.positive x)(a: Auxiliary x) => At[x := x, v := v, a := a].equation
+  };
+\definition stableEquation: Left.value = Right.value := Change.With[alpha := Left.comparison, beta := Right.comparison,
+  positive := Gluing.isomorphism, negative := Flip.isomorphism, commutes := commutes].equation;
+\import algebra.Group[].Of[Carrier := Group.Carrier, group := Group.group] \as Laws;
+\definition leftEquation: Left.value = Original.value := trans!{{Group.Carrier}} _ _ _ (sym!{{Group.Carrier}} _ _ Left.equation)
+  (trans!{{Group.Carrier}} _ _ _
+    (congr!{{Group.Carrier} {Group.Carrier} {Group.Carrier}} Group.add _ _ _ _ (sym!{{Group.Carrier}} _ _ OriginalEnlargement.equation) auxiliaryZero)
+    (Laws.zeroRight Original.value));
+\definition rightEquation: Right.value = Raw.value := trans!{{Group.Carrier}} _ _ _ (sym!{{Group.Carrier}} _ _ Right.equation)
+  (trans!{{Group.Carrier}} _ _ _
+    (congr!{{Group.Carrier} {Group.Carrier} {Group.Carrier}} Group.add _ _ _ _ (sym!{{Group.Carrier}} _ _ NormalEnlargement.equation) negativeZero)
+    (Laws.zeroRight Normal.value));
+\definition equation: Group.value t = Raw.value := trans!{{Group.Carrier}} _ _ _ (sym!{{Group.Carrier}} _ _ Triples.RawInput[t := t].equation)
+  (trans!{{Group.Carrier}} _ _ _ (sym!{{Group.Carrier}} _ _ leftEquation)
+    (trans!{{Group.Carrier}} _ _ _ stableEquation rightEquation));
+\import CompactPair.BundleTriples[F := PlusFiber, G := Coordinate, firstModel := PositiveModel.model, secondModel := NegativeModel.model]
+  .With[alpha := PointFrame.value] \as CompactClass;
+\definition image: \exists (a: Symbols.Carrier \where Group.FromSymbols[].map a = Group.value t) :=
+  Logic.existsIntro[Symbols.Carrier, { a: Symbols.Carrier \where Group.FromSymbols[].map a = Group.value t }] CompactClass.value
+    (trans!{{Group.Carrier}} _ _ _ Raw.equation (sym!{{Group.Carrier}} _ _ equation));

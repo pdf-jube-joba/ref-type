@@ -1,0 +1,35 @@
+\import Bundles.Isomorphisms[X := X, F := F, G := Fiber r.positiveModel, source := Original.source, target := bundle r.positiveModel] \as FirstPositive;
+\import Operations.IsomorphismComposition[X := X, F := Fiber r.positiveModel, G := F, H := H,
+  source := bundle r.positiveModel, middle := Original.source, target := Changed.source] \as PositiveStart;
+\definition positiveStart: PositiveStart.Isomorphism := PositiveStart.compose (FirstPositive.inverse r.positive) positive;
+\import Operations.IsomorphismComposition[X := X, F := Fiber r.positiveModel, G := H, H := Fiber s.positiveModel,
+  source := bundle r.positiveModel, middle := Changed.source, target := bundle s.positiveModel] \as PositiveFinish;
+\definition positiveMap: PositiveFinish.Isomorphism := PositiveFinish.compose positiveStart s.positive;
+\import Bundles.Isomorphisms[X := X, F := G, G := Fiber r.negativeModel, source := Original.target, target := bundle r.negativeModel] \as FirstNegative;
+\import Operations.IsomorphismComposition[X := X, F := Fiber r.negativeModel, G := G, H := I,
+  source := bundle r.negativeModel, middle := Original.target, target := Changed.target] \as NegativeStart;
+\definition negativeStart: NegativeStart.Isomorphism := NegativeStart.compose (FirstNegative.inverse r.negative) negative;
+\import Operations.IsomorphismComposition[X := X, F := Fiber r.negativeModel, G := I, H := Fiber s.negativeModel,
+  source := bundle r.negativeModel, middle := Changed.target, target := bundle s.negativeModel] \as NegativeFinish;
+\definition negativeMap: NegativeFinish.Isomorphism := NegativeFinish.compose negativeStart s.negative;
+\import \root.Support[].On[X := X, space := space, hausdorff := hausdorff, locallyCompact := locallyCompact].Triples[].Isomorphic[t := Left.triple r, u := Right.triple s] \as Compare;
+\definition agreement: \forall (x: \Cast[X] Compare.outside)(v: Fiber r.positiveModel x) ->
+  (s.comparison.forward.fiber (Compare.second x)).apply ((positiveMap.forward.fiber x).apply v) =
+  (negativeMap.forward.fiber x).apply ((r.comparison.forward.fiber (Compare.first x)).apply v) := \block {
+  \fun (x: \Cast[X] Compare.outside)(v: Fiber r.positiveModel x) \then
+  \let original: F x := (r.positive.backward.fiber x).apply v \then
+  \let old: (r.comparison.forward.fiber (Compare.first x)).apply v = (r.negative.forward.fiber x).apply ((alpha.forward.fiber (inSource x)).apply original) :=
+    trans!{{Fiber r.negativeModel x}} _ _ _
+      (sym!{{Fiber r.negativeModel x}} _ _ (congr!{{Fiber r.positiveModel x} {Fiber r.negativeModel x}} (r.comparison.forward.fiber (Compare.first x)).apply _ _
+        ((\bysub(FirstPositive.Data, FirstPositive.Isomorphism, r.positive)).rightInverse x v)))
+      (r.agrees (inSource x) original) \then
+  \let recovered: (r.negative.backward.fiber x).apply ((r.comparison.forward.fiber (Compare.first x)).apply v) = (alpha.forward.fiber (inSource x)).apply original :=
+    trans!{{G x}} _ _ _ (congr!{{Fiber r.negativeModel x} {G x}} (r.negative.backward.fiber x).apply _ _ old)
+      ((\bysub(FirstNegative.Data, FirstNegative.Isomorphism, r.negative)).leftInverse x _) \then
+  \return trans!{{Fiber s.negativeModel x}} _ _ _ (s.agrees (inTarget x) ((positive.forward.fiber x).apply original))
+    (trans!{{Fiber s.negativeModel x}} _ _ _
+      (congr!{{I x} {Fiber s.negativeModel x}} (s.negative.forward.fiber x).apply _ _ (commutes x original))
+      (congr!{{G x} {Fiber s.negativeModel x}} (\fun (w: G x) => (s.negative.forward.fiber x).apply ((negative.forward.fiber x).apply w)) _ _ (sym!{{G x}} _ _ recovered)))
+};
+\definition witness: Compare.Witness := Compare.Witness { positive := positiveMap, negative := negativeMap, commutes := agreement };
+\definition equation: Group.value (Left.triple r) = Group.value (Right.triple s) := Group.isomorphic (Left.triple r) (Right.triple s) witness;

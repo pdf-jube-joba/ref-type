@@ -1,0 +1,19 @@
+\import Bundles.Family[X := X, F := F].Of[bundle := first].PullbackComposition[
+  Y := Cylinder.Carrier, Z := X, first := space, second := first.baseSpace, f := Cylinder.point, g := Cylinder.at t]
+  .Of[fRegular := (Cylinder.pointContinuous first.baseSpace), gRegular := (Cylinder.atContinuous first.baseSpace t)] \as Source;
+\import Bundles.Family[X := X, F := G].Of[bundle := second].PullbackComposition[
+  Y := Cylinder.Carrier, Z := X, first := space, second := first.baseSpace, f := Cylinder.point, g := Cylinder.at t]
+  .Of[fRegular := targetRegular, gRegular := (Cylinder.atContinuous first.baseSpace t)] \as Target;
+\import Complements.PulledIsomorphism[X := Cylinder.Carrier, Y := X, F := First, G := Second,
+  source := firstBundle, target := secondBundle, base := first.baseSpace, f := Cylinder.at t,
+  sourceRegular := (Cylinder.atContinuous first.baseSpace t), targetRegular := (Cylinder.atContinuous first.baseSpace t)] \as Pull;
+\definition sourceBundle: Bundles.Family[X := X, F := (\fun (x: X) => F x)].Bundle := Source.direct;
+\definition targetBundle: Bundles.Family[X := X, F := (\fun (x: X) => G x)].Bundle := Target.direct;
+\import Operations.IsomorphismComposition[X := X, F := (\fun (x: X) => F x), G := (\fun (x: X) => F x), H := (\fun (x: X) => G x), source := sourceBundle, middle := Source.nested, target := Target.nested] \as Start;
+\definition start: Start.Isomorphism := Start.compose Source.isomorphism (Pull.isomorphism isomorphism);
+\import Bundles.Isomorphisms[X := X, F := (\fun (x: X) => G x), G := (\fun (x: X) => G x), source := targetBundle, target := Target.nested] \as Reverse;
+\import Operations.IsomorphismComposition[X := X, F := (\fun (x: X) => F x), G := (\fun (x: X) => G x), H := (\fun (x: X) => G x), source := sourceBundle, middle := Target.nested, target := targetBundle] \as Finish;
+\definition value: Bundles.Isomorphisms[X := X, F := (\fun (x: X) => F x), G := (\fun (x: X) => G x), source := sourceBundle, target := targetBundle].Isomorphism :=
+  Finish.compose start (Reverse.inverse Target.isomorphism);
+\definition formula: \forall (x: X)(v: F x) -> (value.forward.fiber x).apply v = (isomorphism.forward.fiber (Cylinder.at t x)).apply v :=
+  \fun (x: X)(v: F x) => \refl((isomorphism.forward.fiber (Cylinder.at t x)).apply v);

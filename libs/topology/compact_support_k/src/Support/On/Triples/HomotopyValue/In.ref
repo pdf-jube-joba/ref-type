@@ -1,0 +1,34 @@
+\import Neighbors.With[w := w] \as Neighbor;
+\import LeftClass.Localized[U := Neighbor.openSet, openU := Neighbor.open, L := Neighbor.compactSet, compactL := Neighbor.compact, enclosedU := Neighbor.enclosed, containsK := Neighbor.contains] \as First;
+\import RightClass.Localized[U := Neighbor.openSet, openU := Neighbor.open, L := Neighbor.compactSet, compactL := Neighbor.compact, enclosedU := Neighbor.enclosed, containsK := Neighbor.contains] \as Second;
+\import \root.Support[].On[X := X, space := space, hausdorff := hausdorff, locallyCompact := locallyCompact].Localization[
+  U := Neighbor.openSet, open := Neighbor.open, L := Neighbor.compactSet, compactL := Neighbor.compact, enclosed := Neighbor.enclosed] \as Local;
+\import Relative.Pair[X := Local.Carrier, space := Local.topology, compact := Local.compact, hausdorff := Local.separated,
+  subset := Local.boundary, closed := Local.boundaryClosed] \as Pair;
+\import algebraic_topology.Interval[] \as I;
+\import algebraic_topology.Cylinder[A := Pair.A] \as Cylinder;
+\import algebraic_topology.Cylinder[A := Outside.A] \as RawCylinder;
+\definition boundary[x: Pair.A]: Outside.A := \into[X](x, Outside.outside) \by {
+  \fun (inside: _) => (\bysub(Local.Carrier, Local.boundary, x)) (Neighbor.contains x inside)
+};
+\definition toLocal[x: Pair.A]: Local.Carrier := x;
+\definition toLocalRegular: topology.Continuity[A := Pair.A, B := Local.Carrier].Continuous Pair.subspace Local.topology toLocal :=
+  topology.Continuity[A := Pair.A, B := Local.Carrier].Corestriction[S := Local.boundary].inclusionContinuous Local.topology;
+\definition boundaryRegular: topology.Continuity[A := Pair.A, B := Outside.A].Continuous Pair.subspace Outside.subspace boundary :=
+  topology.Continuity[A := Pair.A, B := X].Corestriction[S := Outside.outside].corestrictContinuous Pair.subspace space boundary
+    (topology.Composition[A := Pair.A, B := Local.Carrier, C := X].composeContinuous Pair.subspace Local.topology space toLocal Local.inclusion toLocalRegular Local.regular);
+\definition outsideInclusion[x: Outside.A]: X := x;
+\definition outsideRegular: topology.Continuity[A := Outside.A, B := X].Continuous Outside.subspace space outsideInclusion :=
+  topology.Continuity[A := Outside.A, B := X].Corestriction[S := Outside.outside].inclusionContinuous space;
+\definition cylinderMap[z: Cylinder.Carrier]: RawCylinder.Carrier := RawCylinder.at (Cylinder.time z) (boundary (Cylinder.point z));
+\definition cylinderRegular: topology.Continuity[A := Cylinder.Carrier, B := RawCylinder.Carrier].Continuous (Cylinder.topology Pair.subspace) (RawCylinder.topology Outside.subspace) cylinderMap :=
+  topological_constructions.Product[A := I.Carrier, B := Outside.A].Universal[X := Cylinder.Carrier].pairContinuous
+    (Cylinder.topology Pair.subspace) I.topology Outside.subspace Cylinder.time (\fun (z: Cylinder.Carrier) => boundary (Cylinder.point z))
+    (Cylinder.timeContinuous Pair.subspace)
+    (topology.Composition[A := Cylinder.Carrier, B := Pair.A, C := Outside.A].composeContinuous (Cylinder.topology Pair.subspace) Pair.subspace Outside.subspace Cylinder.point boundary (Cylinder.pointContinuous Pair.subspace) boundaryRegular);
+\module Geometry(b: Bundle);
+\module Comparison;
+\definition equation: Left.value = Right.value := trans!{{Relative.Reduced[model := model].Carrier}} _ _ _ First.Agreement[].equation
+  (trans!{{Relative.Reduced[model := model].Carrier}} _ _ _
+    (congr!{{Pair.Quotient[].Relative} {Relative.Reduced[model := model].Carrier}} Local.extend _ _ Comparison[].equation)
+    (sym!{{Relative.Reduced[model := model].Carrier}} _ _ Second.Agreement[].equation));

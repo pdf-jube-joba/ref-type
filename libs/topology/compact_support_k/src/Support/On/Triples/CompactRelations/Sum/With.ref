@@ -1,0 +1,97 @@
+\import std.Data[].Pair[] \as Product;
+\import Operations.DirectSum[X := Compactification.Carrier, F := Presentations.Fiber t.positive, G := Presentations.Fiber u.positive,
+  left := Presentations.bundle t.positive, right := Presentations.bundle u.positive] \as PositiveSum;
+\import Operations.DirectSum[X := Compactification.Carrier, F := Presentations.Fiber t.negative, G := Presentations.Fiber u.negative,
+  left := Presentations.bundle t.negative, right := Presentations.bundle u.negative] \as NegativeSum;
+\import PositiveSum.Of[same := (\refl(Compactification.topology))].Mapping[Y := Compactification.Carrier,
+  A := Presentations.Fiber t.negative, B := Presentations.Fiber u.negative, leftTarget := Presentations.bundle t.negative,
+  rightTarget := Presentations.bundle u.negative, f := (\fun (x: Compactification.Carrier) => x), targetSame := (\refl(Compactification.topology))] \as SumMap;
+\import Bundles.Morphisms[X := Compactification.Carrier, Y := Compactification.Carrier,
+  F := Presentations.Fiber v.positive, G := PositiveSum.Fiber, source := Presentations.bundle v.positive,
+  target := PositiveSum.bundle (\refl(Compactification.topology)), f := (\fun (x: Compactification.Carrier) => x)]
+  .Composition[Z := Compactification.Carrier, H := NegativeSum.Fiber, range := NegativeSum.bundle (\refl(Compactification.topology)), g := (\fun (x: Compactification.Carrier) => x)] \as Start;
+\definition start: Bundles.Morphisms[X := Compactification.Carrier, Y := Compactification.Carrier,
+  F := Presentations.Fiber v.positive, G := NegativeSum.Fiber, source := Presentations.bundle v.positive,
+  target := NegativeSum.bundle (\refl(Compactification.topology)), f := (\fun (x: Compactification.Carrier) => x)].Map :=
+  Start.compose witness.positive.backward (SumMap.map a.forward.map b.forward.map);
+\import Bundles.Morphisms[X := Compactification.Carrier, Y := Compactification.Carrier,
+  F := Presentations.Fiber v.positive, G := NegativeSum.Fiber, source := Presentations.bundle v.positive,
+  target := NegativeSum.bundle (\refl(Compactification.topology)), f := (\fun (x: Compactification.Carrier) => x)]
+  .Composition[Z := Compactification.Carrier, H := Presentations.Fiber v.negative, range := Presentations.bundle v.negative, g := (\fun (x: Compactification.Carrier) => x)] \as Finish;
+\definition map: Bundles.Morphisms[X := Compactification.Carrier, Y := Compactification.Carrier,
+  F := Presentations.Fiber v.positive, G := Presentations.Fiber v.negative, source := Presentations.bundle v.positive,
+  target := Presentations.bundle v.negative, f := (\fun (x: Compactification.Carrier) => x)].Map := Finish.compose start witness.negative.forward;
+\definition forwardAgreement: \forall (x: Pair.A)(z: Presentations.Fiber v.positive x) -> (map.fiber x).apply z = (v.comparison.forward.fiber x).apply z := \block {
+  \fun (x: Pair.A)(z: Presentations.Fiber v.positive x) \then
+  \let preimage: PositiveSum.Fiber x := (witness.positive.backward.fiber x).apply z \then
+  \let first: Presentations.Fiber t.positive x := Product.first (Presentations.Fiber t.positive x) (Presentations.Fiber u.positive x) preimage \then
+  \let second: Presentations.Fiber u.positive x := Product.second (Presentations.Fiber t.positive x) (Presentations.Fiber u.positive x) preimage \then
+  \return trans!{{Presentations.Fiber v.negative x}} _ _ _
+    (congr!{{NegativeSum.Fiber x} {Presentations.Fiber v.negative x}} (witness.negative.forward.fiber x).apply _ _
+      (Product.Prop[A := Presentations.Fiber t.negative x, B := Presentations.Fiber u.negative x].pairCong _ _ _ _
+        (a.forward.extends x first) (b.forward.extends x second)))
+    (trans!{{Presentations.Fiber v.negative x}} _ _ _ (sym!{{Presentations.Fiber v.negative x}} _ _ (witness.agrees x first second))
+      (trans!{{Presentations.Fiber v.negative x}} _ _ _
+        (congr!{{PositiveSum.Fiber x} {Presentations.Fiber v.negative x}}
+          (\fun (p: PositiveSum.Fiber x) => (v.comparison.forward.fiber x).apply ((witness.positive.forward.fiber x).apply p)) _ _
+          (Product.Prop[A := Presentations.Fiber t.positive x, B := Presentations.Fiber u.positive x].eta preimage))
+        (congr!{{Presentations.Fiber v.positive x} {Presentations.Fiber v.negative x}} (v.comparison.forward.fiber x).apply _ _ (witness.positive.rightInverse x z))))
+};
+\import bundle_extension.Extension[].ComplexMaps[X := Compactification.Carrier, subset := Point.subset,
+  F := Presentations.Fiber v.positive, G := Presentations.Fiber v.negative, source := Presentations.bundle v.positive,
+  target := Presentations.bundle v.negative, baseSpace := Compactification.topology,
+  sourceSame := (\refl(Compactification.topology)), same := (\refl(Compactification.topology))] \as Forward;
+\definition forward: Forward.Result[v.comparison.forward] := Forward.Result[v.comparison.forward] { map := map, extends := forwardAgreement };
+\definition data: Right.ExtensionData := Right.ExtensionData { forward := forward, backward := c.backward, positive := c.positive, negative := c.negative };
+\import Left.With[w := a] \as First;
+\import Middle.With[w := b] \as Second;
+\import Right.With[w := data] \as Third;
+\import PositiveSum.Of[same := (\refl(Compactification.topology))].Pullback[Y := X, source := space, f := Compactification.inclusion,
+  regular := Compactification.inclusionContinuous] \as PositivePull;
+\import Complements.PulledIsomorphism[X := Compactification.Carrier, Y := X, F := PositiveSum.Fiber, G := Presentations.Fiber v.positive,
+  source := PositiveSum.bundle (\refl(Compactification.topology)), target := Presentations.bundle v.positive, base := space, f := Compactification.inclusion,
+  sourceRegular := Compactification.inclusionContinuous, targetRegular := Compactification.inclusionContinuous] \as PositiveGlobalPull;
+\import Bundles.Isomorphisms[X := X, F := (\fun (x: X) => PositiveSum.Fiber (Compactification.inclusion x)), G := (\fun (x: X) => PositiveSum.Fiber (Compactification.inclusion x)),
+  source := PositivePull.firstBundle, target := PositivePull.secondBundle] \as PositiveReverse;
+\import Operations.IsomorphismComposition[X := X, F := (\fun (x: X) => PositiveSum.Fiber (Compactification.inclusion x)), G := (\fun (x: X) => PositiveSum.Fiber (Compactification.inclusion x)),
+  H := (\fun (x: X) => Presentations.Fiber v.positive (Compactification.inclusion x)), source := PositivePull.secondBundle, middle := PositivePull.firstBundle,
+  target := \root.Support[].On[X := X, space := space, hausdorff := hausdorff, locallyCompact := locallyCompact].BundleModel[F := Third.F].bundle Third.positiveModel] \as PositiveComposition;
+\definition positive: PositiveComposition.Isomorphism := PositiveComposition.compose (PositiveReverse.inverse PositivePull.isomorphism) (PositiveGlobalPull.isomorphism witness.positive);
+\import NegativeSum.Of[same := (\refl(Compactification.topology))].Pullback[Y := X, source := space, f := Compactification.inclusion,
+  regular := Compactification.inclusionContinuous] \as NegativePull;
+\import Complements.PulledIsomorphism[X := Compactification.Carrier, Y := X, F := NegativeSum.Fiber, G := Presentations.Fiber v.negative,
+  source := NegativeSum.bundle (\refl(Compactification.topology)), target := Presentations.bundle v.negative, base := space, f := Compactification.inclusion,
+  sourceRegular := Compactification.inclusionContinuous, targetRegular := Compactification.inclusionContinuous] \as NegativeGlobalPull;
+\import Bundles.Isomorphisms[X := X, F := (\fun (x: X) => NegativeSum.Fiber (Compactification.inclusion x)), G := (\fun (x: X) => NegativeSum.Fiber (Compactification.inclusion x)),
+  source := NegativePull.firstBundle, target := NegativePull.secondBundle] \as NegativeReverse;
+\import Operations.IsomorphismComposition[X := X, F := (\fun (x: X) => NegativeSum.Fiber (Compactification.inclusion x)), G := (\fun (x: X) => NegativeSum.Fiber (Compactification.inclusion x)),
+  H := (\fun (x: X) => Presentations.Fiber v.negative (Compactification.inclusion x)), source := NegativePull.secondBundle, middle := NegativePull.firstBundle,
+  target := \root.Support[].On[X := X, space := space, hausdorff := hausdorff, locallyCompact := locallyCompact].BundleModel[F := Third.G].bundle Third.negativeModel] \as NegativeComposition;
+\definition negative: NegativeComposition.Isomorphism := NegativeComposition.compose (NegativeReverse.inverse NegativePull.isomorphism) (NegativeGlobalPull.isomorphism witness.negative);
+\import \root.Support[].On[X := X, space := space, hausdorff := hausdorff, locallyCompact := locallyCompact].Triples[].InputSum[
+  F := First.F, G := First.G, H := Second.F, I := Second.G, J := Third.F, L := Third.G,
+  firstModel := First.positiveModel, secondModel := First.negativeModel, thirdModel := Second.positiveModel,
+  fourthModel := Second.negativeModel, fifthModel := Third.positiveModel, sixthModel := Third.negativeModel]
+  .Supported[K1 := First.support, K2 := Second.support, K3 := Third.support,
+    compact1 := First.compactSupport, compact2 := Second.compactSupport, compact3 := Third.compactSupport] \as Sum;
+\definition agrees: \forall (x: \Cast[X] Sum.outside)(p: First.F x)(q: Second.F x) ->
+  (Third.comparison.forward.fiber (Sum.inThird x)).apply ((positive.forward.fiber x).apply (Product.pair (First.F x) (Second.F x) p q)) =
+  (negative.forward.fiber x).apply (Product.pair (First.G x) (Second.G x)
+    ((First.comparison.forward.fiber (Sum.inFirst x)).apply p) ((Second.comparison.forward.fiber (Sum.inSecond x)).apply q)) :=
+  \fun (x: \Cast[X] Sum.outside)(p: First.F x)(q: Second.F x) => trans!{{Third.G x}} _ _ _
+    (Third.formula (Sum.inThird x) ((positive.forward.fiber x).apply (Product.pair (First.F x) (Second.F x) p q)))
+    (trans!{{Third.G x}} _ _ _
+      (congr!{{PositiveSum.Fiber (Compactification.inclusion x)} {Third.G x}}
+        (\fun (w: PositiveSum.Fiber (Compactification.inclusion x)) => (witness.negative.forward.fiber (Compactification.inclusion x)).apply (((SumMap.map a.forward.map b.forward.map).fiber (Compactification.inclusion x)).apply w)) _ _
+        (witness.positive.leftInverse (Compactification.inclusion x) (Product.pair (First.F x) (Second.F x) p q)))
+      (congr!{{NegativeSum.Fiber (Compactification.inclusion x)} {Third.G x}} (negative.forward.fiber x).apply _ _
+        (Product.Prop[A := First.G x, B := Second.G x].pairCong _ _ _ _
+          (sym!{{First.G x}} _ _ (First.formula (Sum.inFirst x) p)) (sym!{{Second.G x}} _ _ (Second.formula (Sum.inSecond x) q)))));
+\definition rawWitness: Sum.Witness[First.comparison,Second.comparison,Third.comparison] := Sum.Witness[First.comparison,Second.comparison,Third.comparison] {
+  positive := positive, negative := negative, agrees := agrees
+};
+\definition localEquation: Group.add First.value Second.value = Third.value := Sum.With[
+  alpha := First.comparison, beta := Second.comparison, gamma := Third.comparison, witness := rawWitness].equation;
+\definition equation: Group.add Left.value Middle.value = Right.value := trans!{{Group.Carrier}} _ _ _
+  (congr!{{Group.Carrier} {Group.Carrier} {Group.Carrier}} Group.add _ _ _ _ (Left.agreement a) (Middle.agreement b))
+  (trans!{{Group.Carrier}} _ _ _ localEquation (sym!{{Group.Carrier}} _ _ (Right.agreement data)));

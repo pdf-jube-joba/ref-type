@@ -1,3 +1,24 @@
 \import topology.Topology[Carrier := X] \as Base;
 \import \root.Support[].On[X := X, space := space, hausdorff := hausdorff, locallyCompact := locallyCompact].Neighborhood[K := K, compact := compactK] \as Neighbors;
 \module In(w: Neighbors.Witness);
+\module Choices(w, v: Neighbors.Witness);
+\definition Values: \Set := \Cast[Relative.Reduced[model := model].Carrier] ({ a: Relative.Reduced[model := model].Carrier \where \exists (w: Neighbors.Witness \where In[w := w].value = a) });
+\definition existence: \exists Values := \block {
+  \takefrom w: Neighbors.Witness \by Neighbors.existence \then
+  \return Logic.existsIntro[Relative.Reduced[model := model].Carrier, { a: Relative.Reduced[model := model].Carrier \where \exists (w: Neighbors.Witness \where In[w := w].value = a) }]
+    In[w := w].value (Logic.existsIntro[Neighbors.Witness, { v: Neighbors.Witness \where In[w := v].value = In[w := w].value }] w (\refl(In[w := w].value)))
+};
+\definition unique: \forall (a, b: Values) -> a = b := \block {
+  \fun (a, b: Values) \then
+  \takefrom w: \Cast[Neighbors.Witness] ({ w: Neighbors.Witness \where In[w := w].value = a }) \by \bysub(Relative.Reduced[model := model].Carrier, Values, a) \then
+  \takefrom v: \Cast[Neighbors.Witness] ({ w: Neighbors.Witness \where In[w := w].value = b }) \by \bysub(Relative.Reduced[model := model].Carrier, Values, b) \then
+  \return trans!{{Relative.Reduced[model := model].Carrier}} _ _ _
+    (sym!{{Relative.Reduced[model := model].Carrier}} _ _ (\bysub(Neighbors.Witness, { w: Neighbors.Witness \where In[w := w].value = a }, w)))
+    (trans!{{Relative.Reduced[model := model].Carrier}} _ _ _ Choices[w := w, v := v].equation
+      (\bysub(Neighbors.Witness, { w: Neighbors.Witness \where In[w := w].value = b }, v)))
+};
+\definition value: Values := \choice Values \by { existence: existence, uniqueness: unique };
+\definition agreement: \forall (w: Neighbors.Witness) -> value = In[w := w].value :=
+  \fun (w: Neighbors.Witness) => unique value (\into[Relative.Reduced[model := model].Carrier](In[w := w].value, Values) \by {
+    Logic.existsIntro[Neighbors.Witness, { v: Neighbors.Witness \where In[w := v].value = In[w := w].value }] w (\refl(In[w := w].value))
+  });

@@ -1,0 +1,28 @@
+\import Bundles.Isomorphisms[X := A, F := (\fun (x: A) => NegativeFiber x), G := (\fun (x: A) => NegativeFiber x), source := NegativePull.firstBundle, target := NegativePull.secondBundle] \as Reverse;
+\import Operations.IsomorphismComposition[X := A, F := (\fun (x: A) => PositiveFiber x), G := (\fun (x: A) => PositiveFiber x), H := (\fun (x: A) => NegativeFiber x),
+  source := PositivePull.firstBundle, middle := PositivePull.secondBundle, target := NegativePull.secondBundle] \as Start;
+\definition start: Start.Isomorphism := Start.compose PositivePull.isomorphism (BoundarySum.isomorphism alpha beta);
+\import Operations.IsomorphismComposition[X := A, F := (\fun (x: A) => PositiveFiber x), G := (\fun (x: A) => NegativeFiber x), H := (\fun (x: A) => NegativeFiber x),
+  source := PositivePull.firstBundle, middle := NegativePull.secondBundle, target := NegativePull.firstBundle] \as Finish;
+\definition comparison: SumInput.OnOutside := Finish.compose start (Reverse.inverse NegativePull.isomorphism);
+\definition formula: \forall (x: A)(v: F x)(w: H x) ->
+  (comparison.forward.fiber x).apply (std.Data[].Pair[].pair (F x) (H x) v w) =
+  std.Data[].Pair[].pair (G x) (I x) ((alpha.forward.fiber x).apply v) ((beta.forward.fiber x).apply w) :=
+  \fun (x: A)(v: F x)(w: H x) => \refl(_);
+\import \root.Support[].On[X := X, space := space, hausdorff := hausdorff, locallyCompact := locallyCompact].Triples[].Group[] \as Group;
+\definition value: Group.Carrier := SumInput.With[alpha := comparison].value;
+\import \root.Support[].On[X := X, space := space, hausdorff := hausdorff, locallyCompact := locallyCompact].Triples[].InputSum[
+  F := F, G := G, H := H, I := I, J := PositiveFiber, L := NegativeFiber,
+  firstModel := firstModel, secondModel := secondModel, thirdModel := thirdModel, fourthModel := fourthModel,
+  fifthModel := positiveModel, sixthModel := negativeModel].Supported[K1 := K, K2 := K, K3 := K, compact1 := compact, compact2 := compact, compact3 := compact] \as Sum;
+\import Operations.IdentityIsomorphism[X := X, F := PositiveFiber, bundle := Positive.bundle (\refl(space))] \as PositiveIdentity;
+\import Operations.IdentityIsomorphism[X := X, F := NegativeFiber, bundle := Negative.bundle (\refl(space))] \as NegativeIdentity;
+\definition witness: Sum.Witness[alpha,beta,comparison] := Sum.Witness[alpha,beta,comparison] {
+  positive := PositiveIdentity.isomorphism, negative := NegativeIdentity.isomorphism,
+  agrees := \fun (x: \Cast[X] Sum.outside)(v: F x)(w: H x) => formula (Sum.inThird x) v w
+};
+\definition equation: Group.add (FirstSupport.With[alpha := alpha].value) (SecondSupport.With[alpha := beta].value) = value :=
+  Sum.With[alpha := alpha, beta := beta, gamma := comparison, witness := witness].equation;
+
+\module Stabilization(global: Bundles.Isomorphisms[X := X, F := H, G := I, source := Second.source, target := Second.target].Isomorphism,
+  agrees: \forall (x: A)(v: H x) -> (global.forward.fiber x).apply v = (beta.forward.fiber x).apply v);

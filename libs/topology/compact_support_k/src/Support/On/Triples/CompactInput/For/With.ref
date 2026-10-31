@@ -1,0 +1,37 @@
+\import bundle_extension.Extension[].Over[K := C.Complex, field := Algebra.field, conjugation := Hermitian.scalar, scalar := Scalar.scalar].Isomorphisms[
+  X := Compactification.Carrier, subset := Point.subset, F := F, G := G, source := source, target := target, same := (\refl(Compactification.topology))]
+  .Through[a := alpha, h := forward, g := backward, first := positive, second := negative] \as Invertible;
+\definition support: \Pow X := Compactification.remainder Invertible.domain;
+\definition compactSupport: Base.IsCompactIn space support := Invertible.open.atInfinity (Invertible.contains Compactification.point (\refl(Compactification.point)));
+\definition First[x: X]: \Set := F (Compactification.inclusion x);
+\definition Second[x: X]: \Set := G (Compactification.inclusion x);
+\import Bundles.Family[X := Compactification.Carrier, F := F].Of[bundle := source].Pullback[Y := X, source := space, f := Compactification.inclusion] \as FirstPull;
+\import Bundles.Family[X := Compactification.Carrier, F := G].Of[bundle := target].Pullback[Y := X, source := space, f := Compactification.inclusion] \as SecondPull;
+\import \root.Support[].On[X := X, space := space, hausdorff := hausdorff, locallyCompact := locallyCompact].BundleModel[F := First]
+  .From[original := FirstPull.pulled Compactification.inclusionContinuous, same := (\refl(space))] \as FirstModel;
+\import \root.Support[].On[X := X, space := space, hausdorff := hausdorff, locallyCompact := locallyCompact].BundleModel[F := Second]
+  .From[original := SecondPull.pulled Compactification.inclusionContinuous, same := (\refl(space))] \as SecondModel;
+\definition firstOnX: \root.Support[].On[X := X, space := space, hausdorff := hausdorff, locallyCompact := locallyCompact].BundleModel[F := First].Bundle := FirstModel.model;
+\definition secondOnX: \root.Support[].On[X := X, space := space, hausdorff := hausdorff, locallyCompact := locallyCompact].BundleModel[F := Second].Bundle := SecondModel.model;
+\import \root.Support[].On[X := X, space := space, hausdorff := hausdorff, locallyCompact := locallyCompact].Triples[]
+  .Input[F := First, G := Second, firstModel := firstOnX, secondModel := secondOnX].Supported[K := support, compact := compactSupport] \as Input;
+\definition preserves: \forall (x: X) -> \In[X] (Base.Complement support) x -> \In[Compactification.Carrier] Invertible.domain (Compactification.inclusion x) :=
+  \fun (x: X)(outside: _) => Base.Finite[].doubleNegElim (\In[Compactification.Carrier] Invertible.domain (Compactification.inclusion x)) outside;
+\import Relative.PairPullback[X := Compactification.Carrier, Y := X, F := F, G := G, first := source, second := target,
+  same := (\refl(Compactification.topology)), source := space, subset := Invertible.domain, sourceSubset := Base.Complement support,
+  f := Compactification.inclusion, regular := Compactification.inclusionContinuous, preserves := preserves].With[alpha := Invertible.extension.isomorphism] \as Boundary;
+\definition comparison: Input.OnOutside := Boundary.comparison;
+\definition value: \root.Support[].On[X := X, space := space, hausdorff := hausdorff, locallyCompact := locallyCompact].Triples[].Group[].Carrier := Input.With[alpha := comparison].value;
+\definition formula: \forall (x: Input.A)(v: First x) -> (comparison.forward.fiber x).apply v = (forward.map.fiber (Compactification.inclusion x)).apply v :=
+  \fun (x: Input.A)(v: First x) => \refl((forward.map.fiber (Compactification.inclusion x)).apply v);
+\import topological_k_theory.KTheory[].On[X := Compactification.Carrier, baseSpace := Compactification.topology, compact := Compactness.compact,
+  hausdorff := Separation.hausdorffCompactification] \as Presentations;
+\import Presentations.Bundle[F := F, original := source, same := (\refl(Compactification.topology))] \as P;
+\import Presentations.Bundle[F := G, original := target, same := (\refl(Compactification.topology))] \as Q;
+\import \root.Support[].On[X := X, space := space, hausdorff := hausdorff, locallyCompact := locallyCompact].Triples[].Group[] \as Group;
+\module Using(p, q: Pair.Presentation, positiveIso: P.Isomorphism p, negativeIso: Q.Isomorphism q);
+\definition equation: Group.FromSymbols[].map (Original.With[alpha := alpha].value) = value := \block {
+  \takefrom p: P.Representative \by P.representativeExists \then
+  \takefrom q: Q.Representative \by Q.representativeExists \then
+  \return Using[p := p.presentation, q := q.presentation, positiveIso := p.isomorphism, negativeIso := q.isomorphism].equation
+};

@@ -1,0 +1,25 @@
+\import Relative.Reduced[model := model] \as Reduced;
+\import module_theory.Module[].IntegerGroup[Carrier := Reduced.Carrier, group := Reduced.group] \as IntegerAction;
+\import Presented.To[W := Reduced.Carrier, target := IntegerAction.space] \as Extension;
+\definition symbolValue[t: Triple]: Reduced.Carrier := \parent.\parent.Evaluation[t := t].value;
+\definition respects: Extension.RespectsRelations symbolValue :=
+  \induction (a, b: Expression)(related: Relation a b) \return Extension.EvaluationRelation symbolValue a b \with {
+    | global: \fun (t: Triple)(w: \parent.\parent.Global[t := t].Witness) => \parent.\parent.GlobalValue[t := t, witness := w].equation
+    | isomorphic: \fun (t, u: Triple)(w: \parent.\parent.Isomorphic[t := t, u := u].Witness) => \parent.\parent.IsomorphicValue[t := t, u := u, witness := w].equation
+    | sum: \fun (t, u, v: Triple)(w: \parent.\parent.Sum[t := t, u := u, v := v].Witness) => \parent.\parent.SumValue[t := t, u := u, v := v, witness := w].equation
+    | compose: \fun (p, q, r: Bundle)(K: \Pow X)(compact: Base.IsCompactIn space K)
+        (first: \parent.\parent.Between[p := p, q := q, K := K].Isomorphism)(second: \parent.\parent.Between[p := q, q := r, K := K].Isomorphism) =>
+      \parent.\parent.CompositionValue[p := p, q := q, r := r, K := K, compact := compact, first := first, second := second].equation
+    | homotopy: \fun (p, q: Bundle)(K: \Pow X)(compact: Base.IsCompactIn space K)(first, second: \parent.\parent.Between[p := p, q := q, K := K].Isomorphism)
+        (family: \parent.\parent.Homotopy[p := p, q := q, K := K, compact := compact, first := first, second := second].Family) =>
+      \parent.\parent.HomotopyValue[p := p, q := q, K := K, compact := compact, first := first, second := second, family := family].equation
+  };
+\import Modules.Hom[V := Carrier, W := Reduced.Carrier, source := Presented.space, target := IntegerAction.space] \as Linear;
+\definition linear: Linear.Map := Extension.extension symbolValue respects;
+\definition map: Carrier -> Reduced.Carrier := linear.apply;
+\definition onTriple: \forall (t: Triple) -> map (value t) = symbolValue t := Extension.onGenerator symbolValue respects;
+\definition additive: \forall (a, b: Carrier) -> map (add a b) = Reduced.group.base.op (map a) (map b) := linear.addition;
+\definition preservesZero: map zero = Reduced.group.base.unit := Linear.zeroPreserved linear;
+\definition preservesNeg: \forall (a: Carrier) -> map (neg a) = Reduced.group.base.inv (map a) := Linear.negativePreserved linear;
+\definition sound: \forall (a, b: Expression) -> Equivalent a b -> map (class a) = map (class b) :=
+  \fun (a, b: Expression)(related: Equivalent a b) => congr!{{Carrier} {Reduced.Carrier}} map _ _ (Quotient.classRelated Presented.equivalence a b related);
