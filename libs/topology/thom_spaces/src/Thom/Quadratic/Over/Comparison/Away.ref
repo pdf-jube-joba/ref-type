@@ -1,0 +1,25 @@
+\import topology.Topology[Carrier := Family.Point].Subspace[S := nonzero] \as Subspace;
+\definition Carrier: \Set := Subspace.CarrierSet;
+\definition topology: topology.Topology[Carrier := Carrier].Topology := Subspace.topology bundle.totalSpace;
+\definition open: topology.Topology[Carrier := Family.Point].IsOpenIn bundle.totalSpace nonzero := Right.continuous (Line.Rays[].Above R.zero) (Line.Rays[].aboveOpen R.zero);
+\definition leftContinuous: metric_spaces.RealFunctions[A := Carrier].Continuous topology (\fun (p: Carrier) => Left.norm p) :=
+  topology.Continuity[A := Family.Point, B := R.Real].Restriction[S := nonzero].restrictContinuous bundle.totalSpace Line.topology Left.norm Left.continuous;
+\definition rightContinuous: metric_spaces.RealFunctions[A := Carrier].Continuous topology (\fun (p: Carrier) => Right.norm p) :=
+  topology.Continuity[A := Family.Point, B := R.Real].Restriction[S := nonzero].restrictContinuous bundle.totalSpace Line.topology Right.norm Right.continuous;
+\definition coefficientContinuous: metric_spaces.RealFunctions[A := Carrier].Continuous topology (\fun (p: Carrier) => coefficient p) :=
+  metric_spaces.RealFunctions[A := Carrier].Product[].continuous topology (\fun (p: Carrier) => Left.norm p) (\fun (p: Carrier) => Laws.fieldInv (Right.norm p)) leftContinuous
+    (metric_spaces.RealFunctions[A := Carrier].Reciprocal[].continuousPositive topology (\fun (p: Carrier) => Right.norm p) rightContinuous (\fun (p: Carrier) => \bysub(Family.Point, nonzero, p)));
+\definition reconstructedContinuous: topology.Continuity[A := Family.Point, B := Family.Point].Continuous bundle.totalSpace bundle.totalSpace (\fun (p: Family.Point) => Family.include p.base p.vector) :=
+  \idelim (\fun (p: Family.Point) => p) = (\fun (p: Family.Point) => Family.include p.base p.vector) \with f: (Family.Point -> Family.Point) => topology.Continuity[A := Family.Point, B := Family.Point].Continuous bundle.totalSpace bundle.totalSpace f \by {
+    base: topology.Maps[A := Family.Point, B := Family.Point].Identity[].continuous bundle.totalSpace,
+    equality: \axiom:funext((\fun (p: Family.Point) => p), (\fun (p: Family.Point) => Family.include p.base p.vector), \fun (p: Family.Point) => sym!{Family.Point} _ _ (Family.eta p))
+  };
+\import Operations.Along[X := X, F := F, bundle := bundle, Y := Carrier, source := topology, base := (\fun (p: Carrier) => p.base)] \as Along;
+\definition inclusionContinuous: topology.Continuity[A := Carrier, B := Family.Point].Continuous topology bundle.totalSpace (\fun (p: Carrier) => p) :=
+  topology.Continuity[A := Carrier, B := Family.Point].Corestriction[S := nonzero].inclusionContinuous bundle.totalSpace;
+\definition vectorContinuous: Along.Continuous (\fun (p: Carrier) => p.vector) :=
+  topology.Composition[A := Carrier, B := Family.Point, C := Family.Point].composeContinuous topology bundle.totalSpace bundle.totalSpace (\fun (p: Carrier) => p) (\fun (p: Family.Point) => Family.include p.base p.vector) inclusionContinuous reconstructedContinuous;
+\definition baseContinuous: Along.BaseContinuous :=
+  topology.Composition[A := Carrier, B := Family.Point, C := X].composeContinuous topology bundle.totalSpace bundle.baseSpace (\fun (p: Carrier) => p) Family.projection inclusionContinuous Family.Of[bundle := bundle].projectionContinuous;
+\definition continuous: topology.Continuity[A := Carrier, B := Family.Point].Continuous topology bundle.totalSpace (\fun (p: Carrier) => apply p) :=
+  Along.scaling (\fun (p: Carrier) => coefficient p) (\fun (p: Carrier) => p.vector) baseContinuous coefficientContinuous vectorContinuous;

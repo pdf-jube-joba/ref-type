@@ -1,0 +1,38 @@
+\import real.Analysis[] \as R;
+\import vector_bundles.Bundles[].Over[K := R.Real, field := R.Algebra[].field, conjugation := linear_algebra.Hermitian[].Real[].scalar, scalar := vector_bundles.Bundles[].Real[].scalar] \as Bundles;
+\import bundle_complements.Complements[].Over[K := R.Real, field := R.Algebra[].field, conjugation := linear_algebra.Hermitian[].Real[].scalar, scalar := vector_bundles.Bundles[].Real[].scalar] \as Complements;
+\definition zero: N.Nat^ := N.Nat^::zero;
+\definition base: topology.Topology[Carrier := R.Real].Topology := metric_spaces.RealLine[].topology;
+\import Bundles.Trivial[X := R.Real, n := zero, baseSpace := base] \as Bundle;
+\import Complements.For[X := R.Real, F := (\fun (x: R.Real) => Bundles.Vector zero), bundle := Bundle.bundle] \as Metrics;
+\definition embedding: Metrics.Embedding := Metrics.Embedding { dimension := zero,
+  map := Bundles.Identity[X := R.Real, F := (\fun (x: R.Real) => Bundles.Vector zero), bundle := Bundle.bundle].map,
+  injective := \fun (x: R.Real)(v, w: Bundles.Vector zero)(same: v = w) => same
+};
+\import \root.Thom[].Over[K := R.Real, field := R.Algebra[].field, conjugation := linear_algebra.Hermitian[].Real[].scalar, scalar := vector_bundles.Bundles[].Real[].scalar].For[
+  X := R.Real, F := (\fun (x: R.Real) => Bundles.Vector zero), bundle := Bundle.bundle].With[metric := Metrics.FromEmbedding[embedding := embedding].metric] \as Zero;
+\import Bundles.Family[X := R.Real, F := (\fun (x: R.Real) => Bundles.Vector zero)] \as Family;
+\definition noSphere: \forall (p: Zero.SphereBundle) -> Logic.False := \fun (p: Zero.SphereBundle) => \block {
+  \let vectorZero: p.vector = (Bundle.bundle.space p.base).zero := \axiom:funext(p.vector, (Bundle.bundle.space p.base).zero,
+    \fun (i: Fin.Fin zero) => Logic.falseElim (p.vector i = R.zero) (Fin.zeroImpossible i (Fin.bound zero i))) \then
+  \return dedekind_reals.DedekindReal[].Arithmetic[].Prop[].zeroNeOne (eq_reason_in!{R.Real R.zero
+    "=" {Zero.squared (Family.include p.base (Bundle.bundle.space p.base).zero)} "by" { sym!{R.Real} _ _ (Zero.zeroSquared p.base) }
+    "=" {Zero.squared (Family.include p.base p.vector)} "by" { congr!{{Bundles.Vector zero} R.Real} (\fun (v: Bundles.Vector zero) => Zero.squared (Family.include p.base v)) _ _ (sym!{{Bundles.Vector zero}} _ _ vectorZero) }
+    "=" {Zero.squared p} "by" { congr!{Family.Point R.Real} Zero.squared _ _ (Family.eta p) }
+    "=" R.one "by" { \bysub(Family.Point, Zero.UnitSphere, p) }
+  })
+};
+\definition Empty: \Set := \Cast[R.Real] ({ x: R.Real \where Logic.False });
+\definition emptyTopology: topology.Topology[Carrier := Empty].Topology := topology.Topology[Carrier := Empty].Discrete;
+\import Bundles.Trivial[X := Empty, n := zero, baseSpace := emptyTopology] \as EmptyBundle;
+\import Complements.For[X := Empty, F := (\fun (x: Empty) => Bundles.Vector zero), bundle := EmptyBundle.bundle] \as EmptyMetrics;
+\definition emptyEmbedding: EmptyMetrics.Embedding := EmptyMetrics.Embedding { dimension := zero,
+  map := Bundles.Identity[X := Empty, F := (\fun (x: Empty) => Bundles.Vector zero), bundle := EmptyBundle.bundle].map,
+  injective := \fun (x: Empty)(v, w: Bundles.Vector zero)(same: v = w) => same
+};
+\import \root.Thom[].Over[K := R.Real, field := R.Algebra[].field, conjugation := linear_algebra.Hermitian[].Real[].scalar, scalar := vector_bundles.Bundles[].Real[].scalar].For[
+  X := Empty, F := (\fun (x: Empty) => Bundles.Vector zero), bundle := EmptyBundle.bundle].With[metric := EmptyMetrics.FromEmbedding[embedding := emptyEmbedding].metric] \as EmptyThom;
+\import \root.Thom[].Collapse[A := EmptyThom.DiskBundle, source := EmptyThom.diskTopology, subset := EmptyThom.Boundary] \as Quotient;
+\definition emptyThomPoint: \forall (q: EmptyThom.Thom) -> q = EmptyThom.point :=
+  Quotient.induction (\fun (q: EmptyThom.Thom) => q = EmptyThom.point) (\refl(EmptyThom.point))
+    (\fun (p: EmptyThom.DiskBundle) => Logic.falseElim (EmptyThom.class p = EmptyThom.point) (\bysub(R.Real, { x: R.Real \where Logic.False }, p.base)));

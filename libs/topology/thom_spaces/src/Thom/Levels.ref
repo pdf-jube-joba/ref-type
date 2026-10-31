@@ -1,0 +1,35 @@
+\import real.Analysis[] \as R;
+\import dedekind_reals.DedekindReal[] \as D;
+\definition DiskSubset: \Pow A := { x: A \where D.Le (q x) R.one };
+\definition TargetDiskSubset: \Pow B := { y: B \where D.Le (r y) R.one };
+\import topology.Topology[Carrier := A].Subspace[S := DiskSubset] \as Disk;
+\import topology.Topology[Carrier := B].Subspace[S := TargetDiskSubset] \as TargetDisk;
+\definition forward[x: Disk.CarrierSet]: TargetDisk.CarrierSet := \into[B](h.forward x, TargetDiskSubset) \by {
+  D.leReplaceLeft (q x) (r (h.forward x)) R.one (sym!{R.Real} _ _ (forwardSquared x)) (\bysub(A, DiskSubset, x))
+};
+\definition backward[y: TargetDisk.CarrierSet]: Disk.CarrierSet := \into[A](h.backward y, DiskSubset) \by {
+  D.leReplaceLeft (r y) (q (h.backward y)) R.one (sym!{R.Real} _ _ (backwardSquared y)) (\bysub(B, TargetDiskSubset, y))
+};
+\import topology.Homeomorphism[A := A, B := B] \as Homeo;
+\definition diskHomeomorphism: topology.Homeomorphism[A := Disk.CarrierSet, B := TargetDisk.CarrierSet].Homeomorphism[Disk.topology source, TargetDisk.topology target] :=
+  topology.Homeomorphism[A := Disk.CarrierSet, B := TargetDisk.CarrierSet].Homeomorphism[Disk.topology source, TargetDisk.topology target] {
+    forward := forward, backward := backward,
+    leftInverse := \fun (x: Disk.CarrierSet) => (Homeo.laws source target h).leftInverse x,
+    rightInverse := \fun (y: TargetDisk.CarrierSet) => (Homeo.laws source target h).rightInverse y,
+    forwardContinuous := topology.Continuity[A := Disk.CarrierSet, B := B].Corestriction[S := TargetDiskSubset].corestrictContinuous (Disk.topology source) target forward
+      (topology.Continuity[A := A, B := B].Restriction[S := DiskSubset].restrictContinuous source target h.forward (Homeo.laws source target h).forwardContinuous),
+    backwardContinuous := topology.Continuity[A := TargetDisk.CarrierSet, B := A].Corestriction[S := DiskSubset].corestrictContinuous (TargetDisk.topology target) source backward
+      (topology.Continuity[A := B, B := A].Restriction[S := TargetDiskSubset].restrictContinuous target source h.backward (Homeo.laws source target h).backwardContinuous)
+  };
+\definition Boundary: \Pow Disk.CarrierSet := { x: Disk.CarrierSet \where q x = R.one };
+\definition TargetBoundary: \Pow TargetDisk.CarrierSet := { y: TargetDisk.CarrierSet \where r y = R.one };
+\definition preserves: \forall (x: Disk.CarrierSet) -> \In[Disk.CarrierSet] Boundary x -> \In[TargetDisk.CarrierSet] TargetBoundary (forward x) :=
+  \fun (x: Disk.CarrierSet)(member: _) => trans!{R.Real} _ _ _ (forwardSquared x) member;
+\definition reversePreserves: \forall (y: TargetDisk.CarrierSet) -> \In[TargetDisk.CarrierSet] TargetBoundary y -> \In[Disk.CarrierSet] Boundary (backward y) :=
+  \fun (y: TargetDisk.CarrierSet)(member: _) => trans!{R.Real} _ _ _ (backwardSquared y) member;
+\import \root.Thom[].CollapseComparison[A := Disk.CarrierSet, B := TargetDisk.CarrierSet, source := Disk.topology source, target := TargetDisk.topology target,
+  subset := Boundary, targetSubset := TargetBoundary, h := diskHomeomorphism, forwardPreserves := preserves, backwardPreserves := reversePreserves] \as QuotientComparison;
+\definition thomHomeomorphism: topology.Homeomorphism[A := \root.Thom[].Collapse[A := Disk.CarrierSet, source := Disk.topology source, subset := Boundary].Carrier,
+    B := \root.Thom[].Collapse[A := TargetDisk.CarrierSet, source := TargetDisk.topology target, subset := TargetBoundary].Carrier].Homeomorphism[
+      \root.Thom[].Collapse[A := Disk.CarrierSet, source := Disk.topology source, subset := Boundary].topology,
+      \root.Thom[].Collapse[A := TargetDisk.CarrierSet, source := TargetDisk.topology target, subset := TargetBoundary].topology] := QuotientComparison.homeomorphism;

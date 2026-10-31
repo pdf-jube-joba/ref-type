@@ -1,0 +1,56 @@
+\import algebraic_topology.Interval[] \as I;
+\import algebraic_topology.Cylinder[A := DiskBundle] \as DiskCylinder;
+\import algebraic_topology.Cylinder[A := Unit] \as UnitCylinder;
+\import topological_constructions.Coproduct[A := DiskBundle, B := Unit] \as Adjoined;
+\definition Extended: \Set := Quotient.Extended;
+\definition source: topology.Topology[Carrier := Extended].Topology := Quotient.extendedTopology;
+\import algebraic_topology.Cylinder[A := Extended] \as Cylinder;
+\definition cylinderTopology: topology.Topology[Carrier := Cylinder.Carrier].Topology := Cylinder.topology source;
+\import \parent.Radial[].Motion[] \as Motion;
+\import \parent.Radial[].Boundary[] \as DiskBoundary;
+\import Motion.Continuity[] \as Regular;
+\definition left[p: DiskCylinder.Carrier]: Cylinder.Carrier := Cylinder.at (Motion.time p) (Adjoined.inl (Motion.point p));
+\definition right[p: UnitCylinder.Carrier]: Cylinder.Carrier := Cylinder.at (UnitCylinder.time p) (Adjoined.inr (UnitCylinder.point p));
+\definition leftContinuous: topology.Continuity[A := DiskCylinder.Carrier, B := Cylinder.Carrier].Continuous (DiskCylinder.topology diskTopology) cylinderTopology left :=
+  topological_constructions.Product[A := I.Carrier, B := Extended].Universal[X := DiskCylinder.Carrier].pairContinuous (DiskCylinder.topology diskTopology) I.topology source Motion.time (\fun (p: DiskCylinder.Carrier) => Adjoined.inl (Motion.point p)) Regular.timeContinuous
+    (topology.Composition[A := DiskCylinder.Carrier, B := DiskBundle, C := Extended].composeContinuous (DiskCylinder.topology diskTopology) diskTopology source Motion.point Adjoined.inl Regular.pointContinuous
+      (Adjoined.inlContinuous diskTopology topology.Topology[Carrier := Unit].Discrete));
+\definition rightContinuous: topology.Continuity[A := UnitCylinder.Carrier, B := Cylinder.Carrier].Continuous (UnitCylinder.topology topology.Topology[Carrier := Unit].Discrete) cylinderTopology right :=
+  topological_constructions.Product[A := I.Carrier, B := Extended].Universal[X := UnitCylinder.Carrier].pairContinuous (UnitCylinder.topology topology.Topology[Carrier := Unit].Discrete) I.topology source UnitCylinder.time (\fun (p: UnitCylinder.Carrier) => Adjoined.inr (UnitCylinder.point p))
+    (UnitCylinder.timeContinuous topology.Topology[Carrier := Unit].Discrete)
+    (topology.Composition[A := UnitCylinder.Carrier, B := Unit, C := Extended].composeContinuous (UnitCylinder.topology topology.Topology[Carrier := Unit].Discrete) topology.Topology[Carrier := Unit].Discrete source UnitCylinder.point Adjoined.inr
+      (UnitCylinder.pointContinuous topology.Topology[Carrier := Unit].Discrete) (Adjoined.inrContinuous diskTopology topology.Topology[Carrier := Unit].Discrete));
+\import Adjoined.ProductUniversal[X := I.Carrier, D := Cylinder.Carrier, factor := I.topology, left := diskTopology, right := topology.Topology[Carrier := Unit].Discrete, target := cylinderTopology] \as Join;
+\definition family: Cylinder.Carrier -> Cylinder.Carrier := Join.apply left right;
+\definition continuous: topology.Continuity[A := Cylinder.Carrier, B := Cylinder.Carrier].Continuous cylinderTopology cylinderTopology family := Join.continuous left right leftContinuous rightContinuous;
+\definition closed: topology.Topology[Carrier := Extended].IsClosedIn source Quotient.Boundary :=
+  Logic.And[_, _]::# DiskBoundary.closed
+    (topology.Topology[Carrier := Unit].discreteOpen ({ u: Unit \where Logic.Not (Quotient.onBoundary (Adjoined.inr u)) }));
+\definition covered: \forall (p: Cylinder.Carrier) -> Logic.Or[Cylinder.time (family p) = I.start, \In[Extended] Quotient.Boundary (Cylinder.point (family p))] :=
+  \induction (p: Cylinder.Carrier) \return Logic.Or[Cylinder.time (family p) = I.start, \In[Extended] Quotient.Boundary (Cylinder.point (family p))] \with {
+    | pair: \fun (t: I.Carrier) => \induction (x: Extended) \return Logic.Or[Cylinder.time (family (Cylinder.at t x)) = I.start, \In[Extended] Quotient.Boundary (Cylinder.point (family (Cylinder.at t x)))] \with {
+      | inl: \fun (x: DiskBundle) => Motion.At[t := t, x := x].covered
+      | inr: \fun (u: Unit) => Logic.Or[_, _]::right Logic.True::intro
+    }
+  };
+\definition bottom: \forall (x: Extended) -> family (Cylinder.at I.start x) = Cylinder.at I.start x :=
+  \induction (x: Extended) \return family (Cylinder.at I.start x) = Cylinder.at I.start x \with {
+    | inl: \fun (x: DiskBundle) => congr!{I.Carrier DiskBundle Cylinder.Carrier} (\fun (t: I.Carrier)(x: DiskBundle) => Cylinder.at t (Adjoined.inl x)) _ _ _ _
+      (Motion.At[t := I.start, x := x].startTime (\refl(I.start))) (Motion.At[t := I.start, x := x].startPoint (\refl(I.start)))
+    | inr: \fun (u: Unit) => \refl(Cylinder.at I.start (Adjoined.inr u))
+  };
+\definition sideAll: \forall (t: I.Carrier)(x: Extended) -> \In[Extended] Quotient.Boundary x -> family (Cylinder.at t x) = Cylinder.at t x :=
+  \fun (t: I.Carrier) => \induction (x: Extended) \return \In[Extended] Quotient.Boundary x -> family (Cylinder.at t x) = Cylinder.at t x \with {
+    | inl: \fun (x: DiskBundle)(boundary: _) => congr!{I.Carrier DiskBundle Cylinder.Carrier} (\fun (t: I.Carrier)(x: DiskBundle) => Cylinder.at t (Adjoined.inl x)) _ _ _ _
+      (Motion.At[t := t, x := x].boundaryTime boundary) (Motion.At[t := t, x := x].boundaryPoint boundary)
+    | inr: \fun (u: Unit)(boundary: _) => \refl(Cylinder.at t (Adjoined.inr u))
+  };
+\import topology.Topology[Carrier := Extended].Subspace[S := Quotient.Boundary] \as BoundarySpace;
+\definition side: \forall (t: I.Carrier)(x: BoundarySpace.CarrierSet) -> family (Cylinder.at t x) = Cylinder.at t x :=
+  \fun (t: I.Carrier)(x: BoundarySpace.CarrierSet) => sideAll t x (\bysub(Extended, Quotient.Boundary, x));
+\import puppe_sequences.Puppe[].Cofibration[A := Extended, subset := Quotient.Boundary].FromCylinder[source := source, closed := closed, h := family, continuous := continuous, covered := covered, bottom := bottom, side := side] \as Construction;
+\definition cofibration: algebraic_topology.Cofibration[A := Extended, subset := Quotient.Boundary].IsCofibration source := Construction.cofibration;
+\definition pointedSource: algebraic_topology.Pointed[A := Extended].Space := algebraic_topology.Pointed[A := Extended].Space { topology := source, basepoint := Adjoined.inr Unit::point };
+\import puppe_sequences.Puppe[].Pair[A := Extended, source := pointedSource, subset := Quotient.Boundary, containsBase := Logic.True::intro] \as Comparison;
+\definition mappingConeComparison: \exists Comparison.ComparisonEquivalence := Comparison.equivalence cofibration;
+\module Collar;

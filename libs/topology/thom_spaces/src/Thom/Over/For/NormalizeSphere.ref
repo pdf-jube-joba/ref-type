@@ -1,0 +1,39 @@
+\import \parent.With[metric := sourceMetric] \as Source;
+\import \parent.With[metric := targetMetric] \as Target;
+\import Order.Order[] \as Ord;
+\import Order.Arithmetic[].Prop[] \as Laws;
+\definition nonzero: \forall (p: Source.SphereBundle) -> Logic.Not (p.vector = (bundle.space p.base).zero) :=
+  \fun (p: Source.SphereBundle)(zero: _) => Laws.zeroNeOne (eq_reason_in!{R.Real R.zero
+    "=" {Source.squared (Family.include p.base (bundle.space p.base).zero)} "by" { sym!{R.Real} _ _ (Source.zeroSquared p.base) }
+    "=" {Source.squared (Family.include p.base p.vector)} "by" { congr!{{F p.base} R.Real} (\fun (v: F p.base) => Source.squared (Family.include p.base v)) _ _ (sym!{{F p.base}} _ _ zero) }
+    "=" {Source.squared p} "by" { congr!{Family.Point R.Real} Source.squared _ _ (Family.eta p) }
+    "=" R.one "by" { \bysub(Family.Point, Source.UnitSphere, p) }
+  });
+\definition positive: \forall (p: Source.SphereBundle) -> Order.Lt R.zero (Target.squared p) :=
+  \fun (p: Source.SphereBundle) => Geometry.Inner[V := F p.base, space := bundle.space p.base].Of[h := targetMetric.form p.base].positiveNorm (targetMetric.positive p.base) p.vector (nonzero p);
+\definition normNonzero: \forall (p: Source.SphereBundle) -> Logic.Not (Target.norm p = R.zero) :=
+  \fun (p: Source.SphereBundle) => Geometry.Inner[V := F p.base, space := bundle.space p.base].Of[h := targetMetric.form p.base].Normalize[v := p.vector, positive := positive p].lengthNonzero;
+\definition normPositive: \forall (p: Source.SphereBundle) -> Order.Lt R.zero (Target.norm p) :=
+  \fun (p: Source.SphereBundle) => Ord.ltOfLeNotEq R.zero (Target.norm p) (Target.normNonnegative p) (\fun (zero: _) => normNonzero p (sym!{R.Real} _ _ zero));
+\definition coefficient[p: Source.SphereBundle]: R.Real := Laws.fieldInv (Target.norm p);
+\definition coefficientPositive: \forall (p: Source.SphereBundle) -> Order.Lt R.zero (coefficient p) :=
+  \fun (p: Source.SphereBundle) => R.Estimates[].Product[].invPositive (Target.norm p) (normPositive p);
+\definition squaredOne: \forall (p: Source.SphereBundle) -> Target.squared (Target.scale (coefficient p) p) = R.one :=
+  \fun (p: Source.SphereBundle) => trans!{R.Real} _ _ _
+    (congr!{K R.Real} conjugation.realPart _ _ Geometry.Inner[V := F p.base, space := bundle.space p.base].Of[h := targetMetric.form p.base].Normalize[v := p.vector, positive := positive p].unitNorm)
+    (trans!{R.Real} _ _ _ (congr!{K R.Real} conjugation.realPart _ _ (sym!{K} _ _ conjugation.embedOne)) (conjugation.realEmbed R.one));
+\definition apply[p: Source.SphereBundle]: Target.SphereBundle := \into[Family.Point](Target.scale (coefficient p) p, Target.UnitSphere) \by { squaredOne p };
+\definition normContinuous: metric_spaces.RealFunctions[A := Source.SphereBundle].Continuous Source.sphereTopology (\fun (p: Source.SphereBundle) => Target.norm p) :=
+  topology.Continuity[A := Family.Point, B := R.Real].Restriction[S := Source.UnitSphere].restrictContinuous bundle.totalSpace metric_spaces.RealLine[].topology Target.norm Target.normContinuous;
+\definition coefficientContinuous: metric_spaces.RealFunctions[A := Source.SphereBundle].Continuous Source.sphereTopology coefficient :=
+  metric_spaces.RealFunctions[A := Source.SphereBundle].Reciprocal[].continuousPositive Source.sphereTopology (\fun (p: Source.SphereBundle) => Target.norm p) normContinuous normPositive;
+\import Operations.Along[X := X, F := F, bundle := bundle, Y := Source.SphereBundle, source := Source.sphereTopology, base := Source.sphereProjection] \as Along;
+\definition vectorsContinuous: Along.Continuous (\fun (p: Source.SphereBundle) => p.vector) :=
+  topology.Composition[A := Source.SphereBundle, B := Family.Point, C := Family.Point].composeContinuous Source.sphereTopology bundle.totalSpace bundle.totalSpace
+    (\fun (p: Source.SphereBundle) => p) (\fun (p: Family.Point) => Family.include p.base p.vector)
+    (topology.Continuity[A := Source.SphereBundle, B := Family.Point].Corestriction[S := Source.UnitSphere].inclusionContinuous bundle.totalSpace) Source.reconstructedContinuous;
+\definition continuous: topology.Continuity[A := Source.SphereBundle, B := Target.SphereBundle].Continuous Source.sphereTopology Target.sphereTopology apply :=
+  topology.Continuity[A := Source.SphereBundle, B := Family.Point].Corestriction[S := Target.UnitSphere].corestrictContinuous Source.sphereTopology bundle.totalSpace apply
+    (Along.scaling (\fun (p: Source.SphereBundle) => conjugation.embed (coefficient p)) (\fun (p: Source.SphereBundle) => p.vector) Source.sphereProjectionContinuous
+      (hermitian_frames.Hermitian[].Over[K := K, field := field, scalar := conjugation, topological := scalar.topological].Functions[X := Source.SphereBundle].embedding Source.sphereTopology coefficient coefficientContinuous) vectorsContinuous);
+\definition overBase: \forall (p: Source.SphereBundle) -> Target.sphereProjection (apply p) = Source.sphereProjection p := \fun (p: Source.SphereBundle) => \refl(p.base);

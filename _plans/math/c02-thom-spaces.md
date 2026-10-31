@@ -12,3 +12,14 @@
 - [束の計量・補束と同型類](../../libs/geometry/bundle_complements/README.md)
 - [K02 CW cofibration と Puppe 列](../../libs/topology/puppe_sequences/README.md)
 - [B04 束のホモトピー不変性と clutching](../../libs/geometry/bundle_homotopy/README.md)
+
+## 実装状況
+
+実装中: [thom_spaces](../../libs/topology/thom_spaces/README.md)。
+円板束・球面束・基点を加えた Thom 商、実・複素の計量変更の同相、直和の反復商比較、cofibration、基点を加えた対の相対特異理論比較を構成した。
+自明束には円板 suspension モデルとの同相がある。
+円板束と底のホモトピー同値、および有限 CW 基底の各セル上の束の自明化も構成した。
+
+有限 CW 対のモデルと対の比較同値は未実装である。
+既存の reduced suspension の反復への比較と、追加した一点を除く相対特異理論の比較も残る。
+C02 全体の完了状態には達していない。

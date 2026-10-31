@@ -9,6 +9,7 @@
 | [metric](metric/README.md) | 距離空間、距離化、実数直線と従属分割 |
 | [constructions](constructions/README.md) | 積、商、直和、貼り合わせ、compact-open 位相 |
 | [algebra](algebra/README.md) | 位相的代数、座標空間と行列位相 |
+| [thom_spaces](thom_spaces/README.md) | 円板束・球面束、Thom 商と計量・直和比較（C02 実装中） |
 | [homotopy](homotopy/README.md) | ホモトピー、基点付き商、mapping cone、CW 対と標準単体 |
 | [singular](singular/README.md) | 特異鎖・余鎖、切除、積、有限モデルとの比較 |
 | [spheres](spheres/README.md) | 球面の向き、反転と円周の整数べき写像の次数 |
