@@ -1,0 +1,35 @@
+\import \root.Euclidean[n := n].Integrability[] \as Integrability;
+\import lp_spaces.Euclidean[n := n].BorelMeasure[] \as BorelMeasure;
+\import euclidean_measure.EuclideanBorel[n := n] \as Borel;
+\import M.Integral[mu := BorelMeasure.borel] \as BI;
+\import M.Functions[mu := BorelMeasure.borel] \as Functions;
+\definition measurable: M.IsMeasurable BorelMeasure.borel (value f) := Compact.continuousBorel (value f) (Compact.smoothContinuous (value f) (regular f));
+\import product_integration.MeasureMap[A := Point, B := Point, source := Lebesgue.measure, target := BorelMeasure.borel] \as Map;
+\definition map: Map.Data := Map.Data {
+  function := \fun (x: Point) => x,
+  measurable := \fun (S: \Pow Point)(valid: _) => Borel.borelMeasurable S valid,
+  value := \fun (S: \Pow Point)(valid: _) => \refl(Lebesgue.measure.value S),
+};
+\definition absolute: BI.NonnegativeMeasurable := BI.NonnegativeMeasurable {
+  function := \fun (x: Point) => Product.abs (value f x),
+  measurable := Functions.absMeasurable (value f) measurable,
+  nonnegative := \fun (x: Point) => Product.absNonnegative (value f x),
+};
+\definition lower: I.lowerIntegral absolute.function = BI.lowerIntegral absolute.function := Map.On[map := map].Nonnegative[f := absolute].lower;
+\definition finite: BI.Finite absolute.function := \block {
+  \takefrom b: \Cast[Real.Real] ({ b: Real.Real \where I.IntegralBound[absolute.function, b] }) \by (integrable f).right.right \then
+  \let bound: I.IntegralBound[absolute.function, b] := \bysub(Real.Real, { b: Real.Real \where I.IntegralBound[absolute.function, b] }, b) \then
+  \return Logic.And[_, _]::# absolute.nonnegative
+    (Logic.existsIntro[Real.Real, { b: Real.Real \where BI.IntegralBound[absolute.function, b] }] b
+      (BI.IntegralBound[absolute.function, b] {
+        nonnegative := bound.nonnegative,
+        bound := \fun (r: Real.Real)(member: M.below (BI.lowerIntegral absolute.function) r) => bound.bound r
+          (\idelim BI.lowerIntegral absolute.function = I.lowerIntegral absolute.function \with v: M.Value => M.below v r \by { base: member, equality: sym!{M.Value} _ _ lower }),
+      }))
+};
+\definition representative: BI.Representatives := \into[Point -> Real.Real](value f, BI.Representatives) \by { Logic.And[_, _]::# measurable finite };
+\import Map.On[map := map].RealFunction[f := representative] \as Pullback;
+\import lp_spaces.On[A := Point, mu := Lebesgue.measure].One[].Norm[] \as Equal;
+\definition integral: BI.integral representative = I.integral (Integrability.representative f) :=
+  trans!{Real.Real} _ _ _ (sym!{Real.Real} _ _ Pullback.integral)
+    (Equal.integralPointwise Pullback.representative (Integrability.representative f) (\fun (x: Point) => \refl(value f x)));

@@ -1,0 +1,33 @@
+\import \parent.\parent.SmoothSum[] \as SmoothSum;
+\import Open.Projection[U := Open.whole] \as Projection;
+\import \parent.\parent.Kernel[].Differentiation[xi := Coordinates.origin] \as Basis;
+\definition square[i: Coordinate]: Function := Functions.product (Projection.function i) (Projection.function i);
+\definition function: Function := SmoothSum.function n square;
+\definition value[x: Point]: Base.value function x = radiusSquared x := SmoothSum.value n square x;
+\definition squareDerivative[j, i: Coordinate][x: Point]:
+  Base.value (Differential.apply i (square j)) x = Real.mul Numeric.two (Real.mul (x j) (Coordinates.basis i j)) := eq_reason_in!{Real.Real _
+    "=" _ "by" { congr!{Function Real.Real} (\fun (h: Function) => Base.value h x) _ _ (Differential.product i (Projection.function j) (Projection.function j)) }
+    "=" _ "by" { congr!{Real.Real Real.Real Real.Real} Real.add _ _ _ _
+      (trans!{Real.Real} _ _ _ (congr!{Function Real.Real} (\fun (h: Function) => Real.mul (Base.value h x) (x j)) _ _ (Projection.partial j i)) (Laws.fieldMulComm _ _))
+      (congr!{Function Real.Real} (\fun (h: Function) => Real.mul (x j) (Base.value h x)) _ _ (Projection.partial j i)) }
+    "=" _ "by" { sym!{Real.Real} _ _ (Numeric.twice (Real.mul (x j) (Coordinates.basis i j))) }
+  };
+\definition derivative[i: Coordinate][x: Point]: Base.value (Differential.apply i function) x = Real.mul Numeric.two (x i) := eq_reason_in!{Real.Real _
+  "=" _ "by" { congr!{Function Real.Real} (\fun (h: Function) => Base.value h x) _ _ (SmoothSum.partial i n square) }
+  "=" _ "by" { SmoothSum.value n (\fun (j: Coordinate) => Differential.apply i (square j)) x }
+  "=" _ "by" { Sum.congruent n _ _ (\fun (j: Coordinate) => squareDerivative j i x) }
+  "=" _ "by" { Sum.scalar n Numeric.two (\fun (j: Coordinate) => Real.mul (x j) (Coordinates.basis i j)) }
+  "=" _ "by" { congr!{Real.Real Real.Real} (Real.mul Numeric.two) _ _ (Basis.pairingBasis x i) }
+};
+\definition argument: Function := Functions.scale (Real.neg Real.half) function;
+\definition argumentValue[x: Point]: Base.value argument x = Real.neg (Real.mul Real.half (radiusSquared x)) :=
+  trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (Real.mul (Real.neg Real.half)) _ _ (value x)) (Laws.fieldMulNegLeft Real.half (radiusSquared x));
+\definition argumentDerivative[i: Coordinate][x: Point]: Base.value (Differential.apply i argument) x = Real.neg (x i) := eq_reason_in!{Real.Real _
+  "=" _ "by" { congr!{Function Real.Real} (\fun (h: Function) => Base.value h x) _ _ (Differential.scalar i (Real.neg Real.half) function) }
+  "=" _ "by" { congr!{Real.Real Real.Real} (Real.mul (Real.neg Real.half)) _ _ (derivative i x) }
+  "=" _ "by" { Laws.fieldMulNegLeft Real.half (Real.mul Numeric.two (x i)) }
+  "=" _ "by" { congr!{Real.Real Real.Real} Real.neg _ _
+    (trans!{Real.Real} _ _ _ (sym!{Real.Real} _ _ (Laws.fieldMulAssoc Real.half Numeric.two (x i)))
+      (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (\fun (r: Real.Real) => Real.mul r (x i)) _ _
+        (trans!{Real.Real} _ _ _ (Laws.fieldMulComm Real.half Numeric.two) Numeric.twoHalf)) (Laws.fieldMulOneLeft (x i)))) }
+};

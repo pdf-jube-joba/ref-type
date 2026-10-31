@@ -1,0 +1,135 @@
+\import \root.Euclidean[n := n] \as Base;
+\import complex.Complex[] \as C;
+\import C.Def[] \as D;
+\import \parent.Operations[] \as Operations;
+\structure Function: \Set := {
+  real: Schwartz,
+  imaginary: Schwartz,
+};
+\definition value[f: Function][x: Point]: C.Complex := C.make (Base.value f.real x) (Base.value f.imaginary x);
+\definition componentSeminorm[f: Function][m: N.Nat^][d: Directions]: Real.Real := Real.add (Base.seminorm f.real m d) (Base.seminorm f.imaginary m d);
+\definition partial[f: Function][i: Coordinate]: Function := Function { real := Operations.partial f.real i, imaginary := Operations.partial f.imaginary i };
+\definition add[f, g: Function]: Function := Function { real := Operations.add f.real g.real, imaginary := Operations.add f.imaginary g.imaginary };
+\definition scale[c: C.Complex][f: Function]: Function := Function {
+  real := Operations.add (Operations.scale (C.re c) f.real) (Operations.scale (Real.neg (C.im c)) f.imaginary),
+  imaginary := Operations.add (Operations.scale (C.re c) f.imaginary) (Operations.scale (C.im c) f.real),
+};
+\definition partialComponentSeminorm[f: Function][i: Coordinate][m: N.Nat^][d: Directions]: componentSeminorm (partial f i) m d = componentSeminorm f m (Operations.shift i d) :=
+  congr!{Real.Real Real.Real Real.Real} Real.add _ _ _ _ (Operations.partialSeminorm f.real i m d) (Operations.partialSeminorm f.imaginary i m d);
+\definition componentTriangle[f, g: Function][m: N.Nat^][d: Directions]: R.Le (componentSeminorm (add f g) m d) (Real.add (componentSeminorm f m d) (componentSeminorm g m d)) :=
+  R.leReplaceRight _ _ _ (Algebra.addFour _ _ _ _)
+    (Estimates.addLe _ _ _ _ (Operations.triangle f.real g.real m d) (Operations.triangle f.imaginary g.imaginary m d));
+\import C.Absolute[] \as Absolute;
+\import \root.Scalars[] \as Scalars;
+\definition jet[f: Function][d: Directions][x: Point]: C.Complex := C.make (Base.value (Base.jet f.real d) x) (Base.value (Base.jet f.imaginary d) x);
+\definition weighted[f: Function][m: N.Nat^][d: Directions][x: Point]: Real.Real := Real.mul (weight m x) (Absolute.abs (jet f d x));
+\definition weightedNonnegative[f: Function][m: N.Nat^][d: Directions][x: Point]: R.Le Real.zero (weighted f m d x) :=
+  Laws.fieldMulNonnegative _ _ (weightNonnegative m x) (Absolute.nonnegative (jet f d x));
+\definition componentBound[f: Function][m: N.Nat^][d: Directions][x: Point]: R.Le (weighted f m d x)
+  (Real.add (Base.weighted f.real m d x) (Base.weighted f.imaginary m d x)) :=
+  R.leReplaceRight _ _ _ (Laws.fieldMulAdd _ _ _) (Estimates.mulMonotone _ _ _ (weightNonnegative m x) (Scalars.absComponents (jet f d x)));
+\definition rapid[f: Function][m: N.Nat^][d: Directions]: \exists ( b: Real.Real \where \forall (x: Point) -> R.Le (weighted f m d x) b ) :=
+  Logic.existsIntro[Real.Real, { b: Real.Real \where \forall (x: Point) -> R.Le (weighted f m d x) b }] (componentSeminorm f m d)
+    (\fun (x: Point) => R.leTrans _ _ _ (componentBound f m d x) (Estimates.addLe _ _ _ _ (Base.pointBound f.real m d x) (Base.pointBound f.imaginary m d x)));
+\definition seminormSet[f: Function][m: N.Nat^][d: Directions]: \Pow Real.Real := { r: Real.Real \where \exists ( x: Point \where r = weighted f m d x ) };
+\module Seminorm(f: Function, m: N.Nat^, d: Directions);
+\definition seminorm[f: Function][m: N.Nat^][d: Directions]: Real.Real := Seminorm[f := f, m := m, d := d].value;
+\definition seminormLaw[f: Function][m: N.Nat^][d: Directions]: Complete.LeastUpperBound[seminormSet f m d, seminorm f m d] := Seminorm[f := f, m := m, d := d].law;
+\definition pointBound[f: Function][m: N.Nat^][d: Directions][x: Point]: R.Le (weighted f m d x) (seminorm f m d) :=
+  (seminormLaw f m d).upper (weighted f m d x) (Logic.existsIntro[Point, { y: Point \where weighted f m d x = weighted f m d y }] x (\refl(weighted f m d x)));
+\definition least[f: Function][m: N.Nat^][d: Directions][b: Real.Real]:
+  (\forall (x: Point) -> R.Le (weighted f m d x) b) -> R.Le (seminorm f m d) b := \block {
+    \fun (bound: _ ) \then
+    \return (seminormLaw f m d).least b (\block {
+      \fun (r: Real.Real)(member: \In[Real.Real] (seminormSet f m d) r) \then
+      \takefrom x: \Cast[Point] ({ x: Point \where r = weighted f m d x }) \by member \then
+      \return R.leReplaceLeft _ r b (sym!{Real.Real} _ _ (\bysub(Point, { x: Point \where r = weighted f m d x }, x))) (bound x)
+    })
+};
+\definition seminormNonnegative[f: Function][m: N.Nat^][d: Directions]: R.Le Real.zero (seminorm f m d) :=
+  R.leTrans _ (weighted f m d Coordinates.origin) _ (weightedNonnegative f m d Coordinates.origin) (pointBound f m d Coordinates.origin);
+\definition jetAdd[f, g: Function][d: Directions][x: Point]: jet (add f g) d x = D.add (jet f d x) (jet g d x) := C.Prop[].ext _ _
+  (congr!{Base.Function Real.Real} (\fun (h: Base.Function) => Base.value h x) _ _ (Operations.jetAdd f.real g.real d))
+  (congr!{Base.Function Real.Real} (\fun (h: Base.Function) => Base.value h x) _ _ (Operations.jetAdd f.imaginary g.imaginary d));
+\definition jetLinear[a, b: Real.Real][f, g: Schwartz][d: Directions][x: Point]:
+  Base.value (Base.jet (Operations.add (Operations.scale a f) (Operations.scale b g)) d) x =
+  Real.add (Real.mul a (Base.value (Base.jet f d) x)) (Real.mul b (Base.value (Base.jet g d) x)) := eq_reason_in!{Real.Real _
+    "=" _ "by" { congr!{Base.Function Real.Real} (\fun (h: Base.Function) => Base.value h x) _ _ (Operations.jetAdd (Operations.scale a f) (Operations.scale b g) d) }
+    "=" _ "by" { congr!{Base.Function Base.Function Real.Real} (\fun (h, k: Base.Function) => Real.add (Base.value h x) (Base.value k x)) _ _ _ _ (Operations.jetScale a f d) (Operations.jetScale b g d) }
+};
+\definition jetScale[c: C.Complex][f: Function][d: Directions][x: Point]: jet (scale c f) d x = D.mul c (jet f d x) := C.Prop[].ext _ _
+  (trans!{Real.Real} _ _ _ (jetLinear (C.re c) (Real.neg (C.im c)) f.real f.imaginary d x)
+    (congr!{Real.Real Real.Real} (Real.add (Real.mul (C.re c) (Base.value (Base.jet f.real d) x))) _ _ (Laws.fieldMulNegLeft (C.im c) (Base.value (Base.jet f.imaginary d) x))))
+  (jetLinear (C.re c) (C.im c) f.imaginary f.real d x);
+\definition weightedAdd[f, g: Function][m: N.Nat^][d: Directions][x: Point]:
+  R.Le (weighted (add f g) m d x) (Real.add (weighted f m d x) (weighted g m d x)) :=
+  R.leReplaceLeft _ _ _ (sym!{Real.Real} _ _ (congr!{C.Complex Real.Real} (\fun (z: C.Complex) => Real.mul (weight m x) (Absolute.abs z)) _ _ (jetAdd f g d x)))
+    (R.leReplaceRight _ _ _ (Laws.fieldMulAdd _ _ _) (Estimates.mulMonotone _ _ _ (weightNonnegative m x) (Absolute.triangle (jet f d x) (jet g d x))));
+\definition triangle[f, g: Function][m: N.Nat^][d: Directions]: R.Le (seminorm (add f g) m d) (Real.add (seminorm f m d) (seminorm g m d)) :=
+  least (add f g) m d _ (\fun (x: Point) => R.leTrans _ _ _ (weightedAdd f g m d x) (Estimates.addLe _ _ _ _ (pointBound f m d x) (pointBound g m d x)));
+\definition weightedScale[c: C.Complex][f: Function][m: N.Nat^][d: Directions][x: Point]:
+  weighted (scale c f) m d x = Real.mul (Absolute.abs c) (weighted f m d x) := eq_reason_in!{Real.Real _
+    "=" _ "by" { congr!{C.Complex Real.Real} (\fun (z: C.Complex) => Real.mul (weight m x) (Absolute.abs z)) _ _ (jetScale c f d x) }
+    "=" _ "by" { congr!{Real.Real Real.Real} (Real.mul (weight m x)) _ _ (Absolute.multiplicative c (jet f d x)) }
+    "=" _ "by" { Algebra.mulSwap _ _ _ }
+};
+\definition scaleUpper[c: C.Complex][f: Function][m: N.Nat^][d: Directions]:
+  R.Le (seminorm (scale c f) m d) (Real.mul (Absolute.abs c) (seminorm f m d)) := least (scale c f) m d _
+    (\fun (x: Point) => R.leReplaceLeft _ _ _ (sym!{Real.Real} _ _ (weightedScale c f m d x))
+      (Estimates.mulMonotone _ _ _ (Absolute.nonnegative c) (pointBound f m d x)));
+\definition homogeneous[c: C.Complex][f: Function][m: N.Nat^][d: Directions]:
+  seminorm (scale c f) m d = Real.mul (Absolute.abs c) (seminorm f m d) := R.leAntisym _ _ (scaleUpper c f m d)
+    (Logic.orElim _ _ _ (std.Logic[].Classical[].excludedMiddle (Absolute.abs c = Real.zero))
+      (\fun (zero: _) => R.leReplaceLeft Real.zero _ _
+        (sym!{Real.Real} _ _ (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (\fun (a: Real.Real) => Real.mul a (seminorm f m d)) _ _ zero) (Laws.fieldMulZeroLeft _)))
+        (seminormNonnegative (scale c f) m d))
+      (\block {
+        \fun (nonzero: Logic.Not (Absolute.abs c = Real.zero)) \then
+        \let a: Real.Real := Absolute.abs c \then
+        \let positive: R.Lt Real.zero a := Order.ltOfLeNotEq Real.zero a (Absolute.nonnegative c) (\fun (same: _) => nonzero (sym!{Real.Real} _ _ same)) \then
+        \let inverseNonnegative: R.Le Real.zero (Laws.fieldInv a) := Order.leOfLt _ _ (Product.invPositive a positive) \then
+        \let bound: R.Le (seminorm f m d) (Real.mul (Laws.fieldInv a) (seminorm (scale c f) m d)) := least f m d _
+          (\fun (x: Point) => R.leReplaceLeft _ _ _
+            (trans!{Real.Real} _ _ _ (sym!{Real.Real} _ _ (Laws.fieldMulAssoc (Laws.fieldInv a) a (weighted f m d x)))
+              (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (\fun (r: Real.Real) => Real.mul r (weighted f m d x)) _ _ (Laws.fieldInverseNonzero a nonzero)) (Laws.fieldMulOneLeft _)))
+            (Estimates.mulMonotone (Laws.fieldInv a) _ _ inverseNonnegative
+              (R.leReplaceLeft _ _ _ (weightedScale c f m d x) (pointBound (scale c f) m d x)))) \then
+        \return R.leReplaceRight _ _ _
+          (trans!{Real.Real} _ _ _ (Algebra.mulSwap a (Laws.fieldInv a) (seminorm (scale c f) m d))
+            (trans!{Real.Real} _ _ _ (sym!{Real.Real} _ _ (Laws.fieldMulAssoc (Laws.fieldInv a) a (seminorm (scale c f) m d)))
+              (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (\fun (r: Real.Real) => Real.mul r (seminorm (scale c f) m d)) _ _ (Laws.fieldInverseNonzero a nonzero)) (Laws.fieldMulOneLeft _))))
+          (Estimates.mulMonotone a _ _ (Absolute.nonnegative c) bound)
+      }));
+\definition jetPartial[f: Function][i: Coordinate][d: Directions][x: Point]: jet (partial f i) d x = jet f (Operations.shift i d) x :=
+  C.Prop[].ext _ _
+    (congr!{Base.Function Real.Real} (\fun (h: Base.Function) => Base.value h x) _ _ (Operations.jetPartial f.real i d))
+    (congr!{Base.Function Real.Real} (\fun (h: Base.Function) => Base.value h x) _ _ (Operations.jetPartial f.imaginary i d));
+\definition partialSeminorm[f: Function][i: Coordinate][m: N.Nat^][d: Directions]: seminorm (partial f i) m d = seminorm f m (Operations.shift i d) :=
+  R.leAntisym _ _
+    (least (partial f i) m d _ (\fun (x: Point) => R.leReplaceLeft _ _ _
+      (sym!{Real.Real} _ _ (congr!{C.Complex Real.Real} (\fun (z: C.Complex) => Real.mul (weight m x) (Absolute.abs z)) _ _ (jetPartial f i d x)))
+      (pointBound f m (Operations.shift i d) x)))
+    (least f m (Operations.shift i d) _ (\fun (x: Point) => R.leReplaceLeft _ _ _
+      (congr!{C.Complex Real.Real} (\fun (z: C.Complex) => Real.mul (weight m x) (Absolute.abs z)) _ _ (jetPartial f i d x))
+      (pointBound (partial f i) m d x)));
+\definition zero: Function := Function { real := Operations.zero, imaginary := Operations.zero };
+\definition zeroJet[d: Directions][x: Point]: jet zero d x = D.zero := C.Prop[].ext _ _
+  (congr!{Base.Function Real.Real} (\fun (h: Base.Function) => Base.value h x) _ _ (Operations.jetZero d))
+  (congr!{Base.Function Real.Real} (\fun (h: Base.Function) => Base.value h x) _ _ (Operations.jetZero d));
+\definition weightedZero[m: N.Nat^][d: Directions][x: Point]: weighted zero m d x = Real.zero := eq_reason_in!{Real.Real _
+  "=" _ "by" { congr!{C.Complex Real.Real} (\fun (z: C.Complex) => Real.mul (weight m x) (Absolute.abs z)) _ _ (zeroJet d x) }
+  "=" _ "by" { congr!{Real.Real Real.Real} (Real.mul (weight m x)) _ _ (trans!{Real.Real} _ _ _ (Scalars.realAxisAbs Real.zero) (Distance.distanceSelf Real.zero)) }
+  "=" _ "by" { Laws.fieldMulZeroRight (weight m x) }
+};
+\definition zeroSeminorm[m: N.Nat^][d: Directions]: seminorm zero m d = Real.zero := R.leAntisym _ _
+  (least zero m d Real.zero (\fun (x: Point) => R.leReplaceLeft Real.zero _ Real.zero (sym!{Real.Real} _ _ (weightedZero m d x)) (R.leRefl Real.zero)))
+  (seminormNonnegative zero m d);
+\import \parent.CoordinateMultiplication[] \as Multiplication;
+\definition coordinate[f: Function][i: Coordinate]: Function := Function { real := Multiplication.multiply f.real i, imaginary := Multiplication.multiply f.imaginary i };
+\definition coordinateValue[f: Function][i: Coordinate][x: Point]: value (coordinate f i) x = D.scale (x i) (value f x) := \refl(value (coordinate f i) x);
+\definition differentiatedInput[f: Function][i: Coordinate]: Function := scale (D.neg D.i) (coordinate f i);
+\definition differentiatedValue[f: Function][i: Coordinate][x: Point]: value (differentiatedInput f i) x = D.scale (Real.neg (x i)) (\root.Phase[].rotate (value f x)) :=
+  trans!{C.Complex} _ _ _ (jetScale (D.neg D.i) (coordinate f i) Directions::nil x)
+    (trans!{C.Complex} _ _ _ (congr!{C.Complex C.Complex} (D.mul (D.neg D.i)) _ _ (coordinateValue f i x)) (Scalars.negativeUnitScale (x i) (value f x)));
+
+\definition realScale[c: Real.Real][f: Function]: Function := Function { real := Operations.scale c f.real, imaginary := Operations.scale c f.imaginary };

@@ -1,0 +1,21 @@
+\import L.Parametric[B := Point, metric := Geometry.metric] \as Parameters;
+\definition family[x: Point]: I.Representatives := section f g x;
+\definition dominator: I.Representatives := Scaling.scalarRepresentative (seminorm g N.Nat^::zero Directions::nil) (Abs.representative (Integrability.representative f));
+\definition pointwise[y: Point]: Smooth.SmoothOn Open.whole (\fun (x: Open.Carrier Open.whole) => family x y) :=
+  Smooth.Operations[].scaleSmooth Open.whole (Base.value f y) (Shift.function (Coordinates.negPoint y) g)
+    (Integrability.regular (Shift.function (Coordinates.negPoint y) g));
+\definition data: Parameters.Data := Parameters.Data {
+  function := family, target := family a, at := a, allowed := Sets.Whole, radius := lp_spaces.Exponential[].one, bound := dominator,
+  dominated := \fun (x: Point)(valid: _)(near: _)(y: Point) => \parent.Section[f := f, g := g, x := x].dominated y,
+  pointwise := \fun (y: Point)(epsilon: Real.Real)(positive: _) => \block {
+    \takefrom delta: \Cast[Real.Real] ({ delta: Real.Real \where Analysis.ContinuityControl[Open.whole, (\fun (x: Open.Carrier Open.whole) => family x y), Whole.point a, epsilon, delta] })
+      \by Smooth.Properties[].continuous Open.whole _ (pointwise y) (Whole.point a) epsilon positive \then
+    \let control: Analysis.ContinuityControl[Open.whole, (\fun (x: Open.Carrier Open.whole) => family x y), Whole.point a, epsilon, delta] :=
+      \bysub(Real.Real, { delta: Real.Real \where Analysis.ContinuityControl[Open.whole, (\fun (x: Open.Carrier Open.whole) => family x y), Whole.point a, epsilon, delta] }, delta) \then
+    \return Logic.existsIntro[Real.Real, { delta: Real.Real \where Parameters.Control[(\fun (x: Point) => family x y), a, Sets.Whole, family a y, epsilon, delta] }] delta
+      (Parameters.Control[(\fun (x: Point) => family x y), a, Sets.Whole, family a y, epsilon, delta] {
+        positive := control.positive, estimate := \fun (x: Point)(valid: _)(near: _) => control.estimate (Whole.point x) near,
+      })
+  },
+};
+\definition law[epsilon: Real.Real]: R.Lt Real.zero epsilon -> \exists ( delta: Real.Real \where Parameters.Control[(\fun (x: Point) => value f g x), a, Sets.Whole, value f g a, epsilon, delta] ) := Parameters.continuous data epsilon;

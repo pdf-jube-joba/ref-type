@@ -1,0 +1,29 @@
+\import \root.Euclidean[n := n] \as Base;
+\import \parent.Integrability[] \as Integrability;
+\import smooth_partitions.Exponential[].Global[] \as Exp;
+\import calculus.Real[].OneDimension[] \as One;
+\import calculus.Real[].Multivariable[n := One.dimension].Open[] \as Output;
+\import Output.Smooth[].Algebra[U := Output.whole] \as OutputFunctions;
+\import Output.Smooth[].Derivative[] \as OutputDerivative;
+\import One.On[U := Output.whole] \as Lift;
+\import calculus.Maps[n := n, m := One.dimension] \as Maps;
+\definition point[x: Open.Carrier Open.whole]: Output.Carrier Output.whole :=
+  \into[calculus.Real[].Multivariable[n := One.dimension].Point]((\fun (i: One.Index) => f x), Output.whole.points) \by { \refl(\fun (i: One.Index) => f x) };
+\definition map: Maps.Map Open.whole Output.whole := \into[Maps.Data[Open.whole, Output.whole]](Maps.Data[Open.whole, Output.whole] { apply := point }, Maps.Map Open.whole Output.whole) \by {
+  Maps.Laws[Open.whole, Output.whole, Maps.Data[Open.whole, Output.whole]::# point] { smooth := \fun (i: One.Index) => Integrability.regular f }
+};
+\import Maps.Composition[U := Open.whole, V := Output.whole, f := map] \as Composition;
+\definition outer: OutputFunctions.Function := \into[Output.ScalarFunction Output.whole](Exp.Smooth[].function, OutputFunctions.Function) \by { Exp.Smooth[].smooth };
+\definition function: Function := Composition.function outer;
+\definition value[x: Point]: Base.value function x = Exp.value (Base.value f x) := \refl(Base.value function x);
+\definition outerPartial[x: Output.Carrier Output.whole]: OutputDerivative.derivative Output.whole outer One.index x = outer x :=
+  Output.Analysis[].Properties[].partialUnique Output.whole outer One.index x _ _
+    (OutputDerivative.partialLaw Output.whole outer One.index x) (Lift.partialAt Exp.value x (outer x) (Exp.derivative (x One.index)) One.index);
+\definition coordinate: Maps.coordinateFunction Open.whole Output.whole map One.index = f :=
+  Functions.ext (Maps.coordinateFunction Open.whole Output.whole map One.index) f (\fun (x: Open.Carrier Open.whole) => \refl(f x));
+\definition derivative[i: Coordinate][x: Point]: Base.value (Differential.apply i function) x = Real.mul (Exp.value (Base.value f x)) (Base.value (Differential.apply i f) x) := eq_reason_in!{Real.Real _
+  "=" _ "by" { Composition.derivative outer i (Whole.point x) }
+  "=" _ "by" { Laws.addZeroRight _ }
+  "=" _ "by" { congr!{Real.Real Real.Real Real.Real} Real.mul _ _ _ _ (outerPartial (point (Whole.point x)))
+    (congr!{Function Real.Real} (\fun (h: Function) => Base.value h x) _ _ (congr!{Function Function} (Differential.apply i) _ _ coordinate)) }
+};

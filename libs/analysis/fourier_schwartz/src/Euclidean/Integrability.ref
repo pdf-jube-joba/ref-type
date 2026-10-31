@@ -1,0 +1,69 @@
+\import \root.Euclidean[n := n] \as Base;
+\import \parent.Decay[] \as Decay;
+\import \parent.Complex[] \as Complex;
+\import \parent.Integral[] \as Fourier;
+\import \root.NaturalPowers[] \as Numeric;
+\import N.Basic[].Def[] \as NatOps;
+\import euclidean_measure.Euclidean[n := n].MeasureConstruction[] \as Lebesgue;
+\import functional_analysis.Measure[A := Point] \as M;
+\import M.Integral[mu := Lebesgue.measure] \as I;
+\import I.Scaling[] \as Scaling;
+\import lp_spaces.Euclidean[n := n].Compact[p := lp_spaces.Powers[].one] \as Compact;
+\import Open.Smooth[].Operations[] \as Operations;
+\import Open.Smooth[].Sums[] \as Sums;
+\import Open.Examples[] \as Examples;
+\import smooth_partitions.Euclidean[n := n] \as SmoothFunctions;
+\import complex.Complex[] \as C;
+\definition regular[f: Function]: SmoothFunctions.IsSmooth (value f) := \block {
+  \let plain: Open.ScalarFunction Open.whole := f \then
+  \return \idelim plain = (\fun (x: Open.Carrier Open.whole) => value f x) \with h: Open.ScalarFunction Open.whole => Smooth.SmoothOn Open.whole h \by {
+    base: \bysub(Open.ScalarFunction Open.whole, { f: Open.ScalarFunction Open.whole \where Smooth.SmoothOn Open.whole f }, f),
+    equality: \axiom:funext(plain, (\fun (x: Open.Carrier Open.whole) => value f x), \fun (x: Open.Carrier Open.whole) => \refl(f x))
+  }
+};
+\definition baseSmooth: Smooth.SmoothOn Open.whole (\fun (x: Open.Carrier Open.whole) => weightBase x) :=
+  Operations.addSmooth Open.whole (\fun (x: Open.Carrier Open.whole) => Real.one) (\fun (x: Open.Carrier Open.whole) => radiusSquared x)
+    (Operations.constantSmooth Open.whole Real.one)
+    (Sums.smooth Open.whole n (\fun (i: Coordinate)(x: Open.Carrier Open.whole) => Real.mul (x i) (x i))
+      (\fun (i: Coordinate) => Operations.mulSmooth Open.whole _ _ (Examples.projectionSmooth Open.whole i) (Examples.projectionSmooth Open.whole i)));
+\definition powerSmooth: \forall (m: N.Nat^) -> Smooth.SmoothOn Open.whole (\fun (x: Open.Carrier Open.whole) => weight m x) :=
+  \induction (m: N.Nat^) \return Smooth.SmoothOn Open.whole (\fun (x: Open.Carrier Open.whole) => weight m x) \with {
+    | zero: Operations.constantSmooth Open.whole Real.one
+    | succ: \fun (m: N.Nat^)(previous: _) => Operations.mulSmooth Open.whole _ _ baseSmooth previous
+  };
+\definition moment[f: Function][m: N.Nat^][d: Directions][x: Point]: Real.Real := Real.mul (weight m x) (value (jet f d) x);
+\definition momentSmooth[f: Function][m: N.Nat^][d: Directions]: SmoothFunctions.IsSmooth (moment f m d) :=
+  Operations.mulSmooth Open.whole _ _ (powerSmooth m) (regular (jet f d));
+\definition momentMeasurable[f: Function][m: N.Nat^][d: Directions]: M.IsMeasurable Lebesgue.measure (moment f m d) :=
+  Compact.continuousMeasurable (moment f m d) (Compact.smoothContinuous (moment f m d) (momentSmooth f m d));
+\definition weightedAbsolute[m: N.Nat^][x: Point][v: Real.Real]: Product.abs (Real.mul (weight m x) v) = Real.mul (weight m x) (Product.abs v) :=
+  trans!{Real.Real} _ _ _ (Product.absProduct (weight m x) v)
+    (congr!{Real.Real Real.Real} (\fun (r: Real.Real) => Real.mul r (Product.abs v)) _ _ (Product.absOfNonnegative (weight m x) (weightNonnegative m x)));
+\definition momentWeighted[f: Function][m: N.Nat^][d: Directions][x: Point]:
+  Real.mul (weight Decay.degree x) (Product.abs (moment f m d x)) = Base.weighted f (NatOps.add Decay.degree m) d x := eq_reason_in!{Real.Real _
+    "=" _ "by" { congr!{Real.Real Real.Real} (Real.mul (weight Decay.degree x)) _ _ (weightedAbsolute m x (value (jet f d) x)) }
+    "=" _ "by" { sym!{Real.Real} _ _ (Laws.fieldMulAssoc (weight Decay.degree x) (weight m x) (Product.abs (value (jet f d) x))) }
+    "=" _ "by" { congr!{Real.Real Real.Real} (\fun (r: Real.Real) => Real.mul r (Product.abs (value (jet f d) x))) _ _
+      (sym!{Real.Real} _ _ (Numeric.addition (weightBase x) Decay.degree m)) }
+  };
+\definition data[f: Schwartz][m: N.Nat^][d: Directions]: Decay.Data := Decay.Data {
+  function := moment f m d,
+  coefficient := \into[Real.Real](seminorm f (NatOps.add Decay.degree m) d, Scaling.NonnegativeScalar) \by { seminormNonnegative f _ d },
+  measurable := momentMeasurable f m d,
+  bound := \fun (x: Point) => R.leReplaceLeft _ _ _ (sym!{Real.Real} _ _ (momentWeighted f m d x)) (pointBound f _ d x),
+};
+\definition momentRepresentative[f: Schwartz][m: N.Nat^][d: Directions]: I.Representatives := Decay.Integrable[data := data f m d].value;
+\definition integrable[f: Schwartz]: I.Integrable (value f) :=
+  \idelim moment f N.Nat^::zero Directions::nil = value f \with h: (Point -> Real.Real) => I.Integrable h \by {
+    base: (I.integralLaw (momentRepresentative f N.Nat^::zero Directions::nil)).integrable,
+    equality: \axiom:funext(moment f N.Nat^::zero Directions::nil, value f, \fun (x: Point) => Laws.fieldMulOneLeft (value f x))
+  };
+\definition representative[f: Schwartz]: I.Representatives := \into[Point -> Real.Real](value f, I.Representatives) \by { integrable f };
+\definition complex[f: Complex.Function]: Fourier.Input := \into[Point -> C.Complex](Complex.value f, Fourier.Input) \by {
+  Logic.And[_, _]::# (integrable f.real) (integrable f.imaginary)
+};
+\definition complexMoment[f: Complex.Function][m: N.Nat^][d: Directions]: Fourier.Input :=
+  \into[Point -> C.Complex]((\fun (x: Point) => C.make (moment f.real m d x) (moment f.imaginary m d x)), Fourier.Input) \by {
+    Logic.And[_, _]::# (I.integralLaw (momentRepresentative f.real m d)).integrable (I.integralLaw (momentRepresentative f.imaginary m d)).integrable
+  };
+\module Borel(f: Schwartz);

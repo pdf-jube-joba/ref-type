@@ -1,0 +1,109 @@
+\import real.Analysis[] \as Real;
+\import Real.Algebra[] \as Algebra;
+\import Real.Distance[] \as Distance;
+\import Real.Estimates[] \as Estimates;
+\import Estimates.Product[] \as Product;
+\import dedekind_reals.DedekindReal[] \as R;
+\import R.Arithmetic[].Prop[] \as Laws;
+\import R.Order[] \as Order;
+\import calculus.Real[].Derivative[].Def[] \as Derivative;
+\import calculus.Real[].Derivative[].Operations[] \as Operations;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.congr;
+\use Equality.trans;
+\use Equality.sym;
+\use Equality.eq_reason_in;
+\definition Function: \Set := Real.Real -> Real.Real;
+\definition absDifference[a, b: Real.Real]: Product.abs (Real.sub a b) = Real.distance a b :=
+  trans!{Real.Real} _ _ _ (Distance.distanceSymmetric Real.zero (Real.sub a b)) (Estimates.distanceDifference a b);
+\module Interval(f, df: Function, a, b: Real.Real);
+\definition increment[f, df: Function][a, t, c: Real.Real]:
+  (\forall (s: Real.Real) -> Derivative.HasDerivativeAt f s (df s)) ->
+  (\forall (s: Real.Real) -> R.Le (Product.abs (df s)) c) -> Logic.Not (t = a) ->
+  R.Le (Product.abs (Real.sub (f t) (f a))) (Real.mul c (Real.distance t a)) :=
+  \fun (derivatives: _)(bounded: _)(different: _) => Logic.orElim _ _ _ (Order.leTotal a t)
+    (\fun (order: _) => Interval[f := f, df := df, a := a, b := t].increment c derivatives bounded
+      (Order.ltOfLeNotEq a t order (\fun (same: _) => different (sym!{Real.Real} _ _ same))))
+    (\fun (order: _) => R.leReplace _ _ _ _
+      (trans!{Real.Real} _ _ _ (absDifference (f a) (f t))
+        (trans!{Real.Real} _ _ _ (Distance.distanceSymmetric (f a) (f t)) (sym!{Real.Real} _ _ (absDifference (f t) (f a)))))
+      (congr!{Real.Real Real.Real} (Real.mul c) _ _ (Distance.distanceSymmetric a t))
+      (Interval[f := f, df := df, a := t, b := a].increment c derivatives bounded (Order.ltOfLeNotEq t a order different)));
+\definition slope[f, df: Function][a, t, c: Real.Real]:
+  (\forall (s: Real.Real) -> Derivative.HasDerivativeAt f s (df s)) ->
+  (\forall (s: Real.Real) -> R.Le (Product.abs (df s)) c) -> Logic.Not (t = a) ->
+  R.Le (Product.abs (Derivative.slope f a t)) c := \block {
+    \fun (derivatives: _)(bounded: _)(different: _) \then
+    \let h: Real.Real := Real.sub t a \then
+    \let nonzero: Logic.Not (h = Real.zero) := \fun (zero: _) => different (Distance.subZeroEq t a zero) \then
+    \let magnitude: Product.abs (Derivative.slope f a t) = Real.mul (Product.abs (Laws.fieldInv h)) (Product.abs (Real.sub (f t) (f a))) :=
+      trans!{Real.Real} _ _ _ (Product.absProduct (Real.sub (f t) (f a)) (Laws.fieldInv h)) (Laws.fieldMulComm _ _) \then
+    \let cancellation: Real.mul (Product.abs (Laws.fieldInv h)) (Real.distance t a) = Real.one :=
+      trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (Real.mul (Product.abs (Laws.fieldInv h))) _ _ (sym!{Real.Real} _ _ (absDifference t a)))
+        (Product.inverseAbsCancellation h nonzero) \then
+    \let right: Real.mul (Product.abs (Laws.fieldInv h)) (Real.mul c (Real.distance t a)) = c := eq_reason_in!{Real.Real _
+      "=" _ "by" { Algebra.mulSwap (Product.abs (Laws.fieldInv h)) c (Real.distance t a) }
+      "=" _ "by" { congr!{Real.Real Real.Real} (Real.mul c) _ _ cancellation }
+      "=" _ "by" { Algebra.mulOneRight c }
+    } \then
+    \return R.leReplace _ _ _ _ (sym!{Real.Real} _ _ magnitude) right
+      (Estimates.mulMonotone _ _ _ (Product.absNonnegative (Laws.fieldInv h)) (increment f df a t c derivatives bounded different))
+};
+
+\definition incrementBetween[f, df: Function][a, t, c: Real.Real]:
+  (\forall (s: Real.Real) -> Derivative.HasDerivativeAt f s (df s)) ->
+  (\forall (s: Real.Real) -> R.Le (Distance.min a t) s -> R.Le s (Distance.max a t) -> R.Le (Product.abs (df s)) c) -> Logic.Not (t = a) ->
+  R.Le (Product.abs (Real.sub (f t) (f a))) (Real.mul c (Real.distance t a)) :=
+  \fun (derivatives: _)(bounded: _)(different: _) => Logic.orElim _ _ _ (Order.leTotal a t)
+    (\fun (order: _) => Interval[f := f, df := df, a := a, b := t].incrementOn c derivatives (\fun (s: Real.Real)(lower: _)(upper: _) => bounded s
+      (R.leReplaceLeft _ _ _ (sym!{Real.Real} _ _ (Distance.minOfLe a t order)) lower)
+      (R.leReplaceRight _ _ _ (sym!{Real.Real} _ _ (Distance.maxOfLe a t order)) upper))
+      (Order.ltOfLeNotEq a t order (\fun (same: _) => different (sym!{Real.Real} _ _ same))))
+    (\fun (order: _) => R.leReplace _ _ _ _
+      (trans!{Real.Real} _ _ _ (absDifference (f a) (f t))
+        (trans!{Real.Real} _ _ _ (Distance.distanceSymmetric (f a) (f t)) (sym!{Real.Real} _ _ (absDifference (f t) (f a)))))
+      (congr!{Real.Real Real.Real} (Real.mul c) _ _ (Distance.distanceSymmetric a t))
+      (Interval[f := f, df := df, a := t, b := a].incrementOn c derivatives (\fun (s: Real.Real)(lower: _)(upper: _) => bounded s
+      (R.leReplaceLeft _ _ _ (sym!{Real.Real} _ _ (Distance.minOfGe a t order)) lower)
+      (R.leReplaceRight _ _ _ (sym!{Real.Real} _ _ (Distance.maxOfGe a t order)) upper)) (Order.ltOfLeNotEq t a order different)));
+
+\definition slopeLocal[f, df: Function][a, t, c, radius: Real.Real]:
+  (\forall (s: Real.Real) -> Derivative.HasDerivativeAt f s (df s)) ->
+  (\forall (s: Real.Real) -> R.Lt (Real.distance s a) radius -> R.Le (Product.abs (df s)) c) -> R.Lt (Real.distance t a) radius -> Logic.Not (t = a) ->
+  R.Le (Product.abs (Derivative.slope f a t)) c := \block {
+    \fun (derivatives: _)(bounded: _)(near: _)(different: _) \then
+    \let h: Real.Real := Real.sub t a \then
+    \let nonzero: Logic.Not (h = Real.zero) := \fun (zero: _) => different (Distance.subZeroEq t a zero) \then
+    \let magnitude: Product.abs (Derivative.slope f a t) = Real.mul (Product.abs (Laws.fieldInv h)) (Product.abs (Real.sub (f t) (f a))) :=
+      trans!{Real.Real} _ _ _ (Product.absProduct (Real.sub (f t) (f a)) (Laws.fieldInv h)) (Laws.fieldMulComm _ _) \then
+    \let cancellation: Real.mul (Product.abs (Laws.fieldInv h)) (Real.distance t a) = Real.one :=
+      trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (Real.mul (Product.abs (Laws.fieldInv h))) _ _ (sym!{Real.Real} _ _ (absDifference t a)))
+        (Product.inverseAbsCancellation h nonzero) \then
+    \let right: Real.mul (Product.abs (Laws.fieldInv h)) (Real.mul c (Real.distance t a)) = c := eq_reason_in!{Real.Real _
+      "=" _ "by" { Algebra.mulSwap (Product.abs (Laws.fieldInv h)) c (Real.distance t a) }
+      "=" _ "by" { congr!{Real.Real Real.Real} (Real.mul c) _ _ cancellation }
+      "=" _ "by" { Algebra.mulOneRight c }
+    } \then
+    \return R.leReplace _ _ _ _ (sym!{Real.Real} _ _ magnitude) right
+      (Estimates.mulMonotone _ _ _ (Product.absNonnegative (Laws.fieldInv h)) (incrementBetween f df a t c derivatives (\fun (s: Real.Real)(lower: _)(upper: _) => bounded s (R.leLtTrans _ _ _ (Estimates.betweenDistance a t s lower upper) near)) different))
+};
+
+\import real.Analysis[].Sequence[] \as Sequence;
+\import real.Analysis[].Geometric[q := Real.half] \as Dyadic;
+\import functional_analysis.ScalarLimits[] \as Limits;
+\import calculus.Real[].Limit[].Def[] \as Limit;
+\import std.Data[].Nat[] \as N;
+\import N.Basic[].Prop[] \as Nat;
+\definition dyadicLimit[f: Function][limit: Real.Real]: Limit.HasLimitAt f Real.zero limit -> Sequence.Converges (\fun (k: N.Nat^) => f (Dyadic.value k)) limit := \block {
+  \fun (given: _)(epsilon: Real.Real)(positive: _) \then
+  \takefrom delta: \Cast[Real.Real] ({ delta: Real.Real \where Limit.Control[f, Real.zero, limit, epsilon, delta] }) \by given epsilon positive \then
+  \let control: Limit.Control[f, Real.zero, limit, epsilon, delta] := \bysub(Real.Real, { delta: Real.Real \where Limit.Control[f, Real.zero, limit, epsilon, delta] }, delta) \then
+  \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where \forall (j: N.Nat^) -> Nat.Le k j -> R.Lt (Dyadic.value j) delta }) \by Limits.dyadicSmall delta control.positive \then
+  \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where Sequence.LimitControl (\fun (j: N.Nat^) => f (Dyadic.value j)) limit epsilon k }] k
+    (\fun (j: N.Nat^)(later: _) => control.estimate (Dyadic.value j)
+      (\fun (zero: Dyadic.value j = Real.zero) => Order.ltNotEq Real.zero (Dyadic.value j) (Limits.dyadicPositive j) (sym!{Real.Real} _ _ zero))
+      (R.ltReplaceLeft _ _ _ (sym!{Real.Real} _ _ (trans!{Real.Real} _ _ _ (Distance.distanceSymmetric (Dyadic.value j) Real.zero)
+        (Product.absOfNonnegative (Dyadic.value j) (Order.leOfLt _ _ (Limits.dyadicPositive j)))))
+        ((\bysub(N.Nat^, { k: N.Nat^ \where \forall (j: N.Nat^) -> Nat.Le k j -> R.Lt (Dyadic.value j) delta }, k)) j later)))
+};

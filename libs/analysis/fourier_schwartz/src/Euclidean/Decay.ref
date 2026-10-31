@@ -1,0 +1,55 @@
+\import euclidean_measure.Euclidean[n := n] \as E;
+\import E.MeasureConstruction[] \as Lebesgue;
+\import euclidean_measure.Exhaustion[n := n] \as Exhaustion;
+\import euclidean_measure.BoxVolume[n := n] \as Volume;
+\import product_integration.Euclidean[n := n] \as Integration;
+\import product_integration.Finiteness[A := Point, mu := Lebesgue.measure] \as Finite;
+\import functional_analysis.Measure[A := Point] \as M;
+\import M.Integral[mu := Lebesgue.measure] \as I;
+\import I.Scaling[] \as Scaling;
+\import I.Linear[] \as Linear;
+\import I.Absolute[] \as Absolute;
+\import I.Convergence[] \as Convergence;
+\import I.Convergence[].Monotone[] \as Monotone;
+\import topological_algebra.Euclidean[].Dimension[n := n].Norm[] \as Geometry;
+\import \root.NaturalPowers[] \as Numeric;
+\import Real.Geometric[q := Real.half] \as Dyadic;
+\import functional_analysis.ScalarLimits[] \as Limits;
+\import Real.Inverse[] \as Inverse;
+\import std.Logic[].Classical[] \as Classical;
+\import topology.Topology[Carrier := Point] \as Sets;
+\definition degree: N.Nat^ := N.Nat^::succ n;
+\definition coefficient[k: N.Nat^]: Real.Real := Powers.power (Dyadic.value k) degree;
+\definition coefficientNonnegative[k: N.Nat^]: R.Le Real.zero (coefficient k) := Numeric.nonnegative _ (Order.leOfLt _ _ (Limits.dyadicPositive k)) degree;
+\definition coefficientBound[k: N.Nat^]: R.Le (coefficient k) (Dyadic.value k) := Numeric.successorBound _
+  (Order.leOfLt _ _ (Limits.dyadicPositive k)) (Limits.dyadicDecreasing k N.Nat^::zero (Nat.zeroLe k)) n;
+\definition boxes[k: N.Nat^]: Finite.FiniteMeasurableSet :=
+  \into[\Pow Point](E.points (Exhaustion.box (N.Nat^::succ k)), Finite.FiniteMeasurableSet) \by { Integration.boxFinite (Exhaustion.box (N.Nat^::succ k)) };
+\module Term(k: N.Nat^);
+\definition term[k: N.Nat^]: I.Representatives := Term[k := k].value;
+\definition partial: N.Nat^ -> I.Representatives := \induction (k: N.Nat^) \return I.Representatives \with {
+  | zero: I.Zero[].representative
+  | succ: \fun (k: N.Nat^)(previous: I.Representatives) => Linear.addRepresentative previous (term k)
+};
+\definition dyadicPartial: N.Nat^ -> Real.Real := \induction (k: N.Nat^) \return Real.Real \with {
+  | zero: Real.zero
+  | succ: \fun (k: N.Nat^)(previous: Real.Real) => Real.add previous (Dyadic.value k)
+};
+\definition dyadicBalance: \forall (k: N.Nat^) -> Real.add (dyadicPartial k) (Real.add (Dyadic.value k) (Dyadic.value k)) = Numeric.two :=
+  \induction (k: N.Nat^) \return Real.add (dyadicPartial k) (Real.add (Dyadic.value k) (Dyadic.value k)) = Numeric.two \with {
+    | zero: Laws.addZeroLeft Numeric.two
+    | succ: \fun (k: N.Nat^)(previous: _) => trans!{Real.Real} _ _ _
+      (congr!{Real.Real Real.Real} (Real.add (dyadicPartial (N.Nat^::succ k))) _ _ (Estimates.halfTwice (Dyadic.value k)))
+      (trans!{Real.Real} _ _ _ (Laws.addAssoc (dyadicPartial k) (Dyadic.value k) (Dyadic.value k)) previous)
+  };
+\definition dyadicPartialBound[k: N.Nat^]: R.Le (dyadicPartial k) Numeric.two := R.leReplaceRight _ _ _ (dyadicBalance k)
+  (Algebra.leAddRight _ _ (Laws.addNonnegative _ _ (Order.leOfLt _ _ (Limits.dyadicPositive k)) (Order.leOfLt _ _ (Limits.dyadicPositive k))));
+\module Envelope;
+\module WeightBounds;
+\structure Data: \Set := {
+  function: Point -> Real.Real,
+  coefficient: Scaling.NonnegativeScalar,
+  measurable: M.IsMeasurable Lebesgue.measure function,
+  bound: \forall (x: Point) -> R.Le (Real.mul (weight degree x) (Product.abs (function x))) coefficient,
+};
+\module Integrable(data: Data);

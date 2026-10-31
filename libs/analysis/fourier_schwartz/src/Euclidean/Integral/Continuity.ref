@@ -1,0 +1,73 @@
+\import topological_algebra.Euclidean[].Dimension[n := n].Norm[] \as Geometry;
+\import L.Parametric[B := Point, metric := Geometry.metric] \as Parameters;
+\import Open.Smooth[].Properties[] \as Properties;
+\import Open.Smooth[].Operations[] \as Operations;
+\import Open.Analysis[] \as Analysis;
+\import lp_spaces.Exponential[] \as Positive;
+\import topology.Topology[Carrier := Point] \as Sets;
+\definition bound: I.Representatives := Linear.addRepresentative (Abs.representative (Complex.realPart f)) (Abs.representative (Complex.imaginaryPart f));
+\definition realDominated[xi, x: Point]: R.Le (Product.abs (C.re (section f xi x))) (bound x) :=
+  R.leTrans _ _ _ (Linear.absTriangle _ _)
+    (Estimates.addLe _ _ _ _ (\parent.BoundedProduct[f := Complex.realPart f, g := realKernel xi].dominated x)
+      (R.leReplaceLeft _ _ _ (sym!{Real.Real} _ _ (Product.absNeg (Real.mul (C.im (f x)) (C.im (Kernel.value x xi)))))
+        (\parent.BoundedProduct[f := Complex.imaginaryPart f, g := imaginaryKernel xi].dominated x)));
+\definition imaginaryDominated[xi, x: Point]: R.Le (Product.abs (C.im (section f xi x))) (bound x) :=
+  R.leTrans _ _ _ (Linear.absTriangle _ _) (Estimates.addLe _ _ _ _
+    (\parent.BoundedProduct[f := Complex.realPart f, g := imaginaryKernel xi].dominated x)
+    (\parent.BoundedProduct[f := Complex.imaginaryPart f, g := realKernel xi].dominated x));
+\definition kernelRealSmooth[x: Point]: Open.Smooth[].SmoothOn Open.whole (\fun (b: Open.Carrier Open.whole) => C.re (Kernel.value x b)) :=
+  \idelim (\fun (b: Open.Carrier Open.whole) => C.re (Kernel.value b x)) = (\fun (b: Open.Carrier Open.whole) => C.re (Kernel.value x b))
+    \with h: Open.ScalarFunction Open.whole => Open.Smooth[].SmoothOn Open.whole h \by {
+      base: Kernel.Smooth[xi := x].real,
+      equality: \axiom:funext((\fun (b: Open.Carrier Open.whole) => C.re (Kernel.value b x)), (\fun (b: Open.Carrier Open.whole) => C.re (Kernel.value x b)),
+        \fun (b: Open.Carrier Open.whole) => congr!{C.Complex Real.Real} C.re _ _ (Kernel.symmetric b x))
+    };
+\definition kernelImaginarySmooth[x: Point]: Open.Smooth[].SmoothOn Open.whole (\fun (b: Open.Carrier Open.whole) => C.im (Kernel.value x b)) :=
+  \idelim (\fun (b: Open.Carrier Open.whole) => C.im (Kernel.value b x)) = (\fun (b: Open.Carrier Open.whole) => C.im (Kernel.value x b))
+    \with h: Open.ScalarFunction Open.whole => Open.Smooth[].SmoothOn Open.whole h \by {
+      base: Kernel.Smooth[xi := x].imaginary,
+      equality: \axiom:funext((\fun (b: Open.Carrier Open.whole) => C.im (Kernel.value b x)), (\fun (b: Open.Carrier Open.whole) => C.im (Kernel.value x b)),
+        \fun (b: Open.Carrier Open.whole) => congr!{C.Complex Real.Real} C.im _ _ (Kernel.symmetric b x))
+    };
+\definition realPointwiseSmooth[x: Point]: Open.Smooth[].SmoothOn Open.whole (\fun (b: Open.Carrier Open.whole) => C.re (section f b x)) :=
+  Operations.subSmooth Open.whole _ _
+    (Operations.scaleSmooth Open.whole (C.re (f x)) _ (kernelRealSmooth x))
+    (Operations.scaleSmooth Open.whole (C.im (f x)) _ (kernelImaginarySmooth x));
+\definition imaginaryPointwiseSmooth[x: Point]: Open.Smooth[].SmoothOn Open.whole (\fun (b: Open.Carrier Open.whole) => C.im (section f b x)) :=
+  Operations.addSmooth Open.whole _ _
+    (Operations.scaleSmooth Open.whole (C.re (f x)) _ (kernelImaginarySmooth x))
+    (Operations.scaleSmooth Open.whole (C.im (f x)) _ (kernelRealSmooth x));
+\definition realData: Parameters.Data := Parameters.Data {
+  function := \fun (b: Point) => Complex.realPart (section f b), target := Complex.realPart (section f at), at := at, allowed := Sets.Whole,
+  radius := Positive.one, bound := bound,
+  dominated := \fun (b: Point)(allowed: _)(near: _)(x: Point) => realDominated b x,
+  pointwise := \fun (x: Point)(epsilon: Real.Real)(positive: _) => \block {
+    \takefrom delta: \Cast[Real.Real] ({ delta: Real.Real \where Analysis.ContinuityControl[Open.whole, (\fun (b: Open.Carrier Open.whole) => C.re (section f b x)), Whole.point at, epsilon, delta] })
+      \by Properties.continuous Open.whole _ (realPointwiseSmooth x) (Whole.point at) epsilon positive \then
+    \let control: Analysis.ContinuityControl[Open.whole, (\fun (b: Open.Carrier Open.whole) => C.re (section f b x)), Whole.point at, epsilon, delta] :=
+      \bysub(Real.Real, { delta: Real.Real \where Analysis.ContinuityControl[Open.whole, (\fun (b: Open.Carrier Open.whole) => C.re (section f b x)), Whole.point at, epsilon, delta] }, delta) \then
+    \return Logic.existsIntro[Real.Real, { delta: Real.Real \where Parameters.Control[(\fun (b: Point) => C.re (section f b x)), at, Sets.Whole, C.re (section f at x), epsilon, delta] }] delta
+      (Parameters.Control[(\fun (b: Point) => C.re (section f b x)), at, Sets.Whole, C.re (section f at x), epsilon, delta] {
+        positive := control.positive, estimate := \fun (b: Point)(allowed: _)(near: _) => control.estimate (Whole.point b) near,
+      })
+  },
+};
+\definition imaginaryData: Parameters.Data := Parameters.Data {
+  function := \fun (b: Point) => Complex.imaginaryPart (section f b), target := Complex.imaginaryPart (section f at), at := at, allowed := Sets.Whole,
+  radius := Positive.one, bound := bound,
+  dominated := \fun (b: Point)(allowed: _)(near: _)(x: Point) => imaginaryDominated b x,
+  pointwise := \fun (x: Point)(epsilon: Real.Real)(positive: _) => \block {
+    \takefrom delta: \Cast[Real.Real] ({ delta: Real.Real \where Analysis.ContinuityControl[Open.whole, (\fun (b: Open.Carrier Open.whole) => C.im (section f b x)), Whole.point at, epsilon, delta] })
+      \by Properties.continuous Open.whole _ (imaginaryPointwiseSmooth x) (Whole.point at) epsilon positive \then
+    \let control: Analysis.ContinuityControl[Open.whole, (\fun (b: Open.Carrier Open.whole) => C.im (section f b x)), Whole.point at, epsilon, delta] :=
+      \bysub(Real.Real, { delta: Real.Real \where Analysis.ContinuityControl[Open.whole, (\fun (b: Open.Carrier Open.whole) => C.im (section f b x)), Whole.point at, epsilon, delta] }, delta) \then
+    \return Logic.existsIntro[Real.Real, { delta: Real.Real \where Parameters.Control[(\fun (b: Point) => C.im (section f b x)), at, Sets.Whole, C.im (section f at x), epsilon, delta] }] delta
+      (Parameters.Control[(\fun (b: Point) => C.im (section f b x)), at, Sets.Whole, C.im (section f at x), epsilon, delta] {
+        positive := control.positive, estimate := \fun (b: Point)(allowed: _)(near: _) => control.estimate (Whole.point b) near,
+      })
+  },
+};
+\definition real[epsilon: Real.Real]: R.Lt Real.zero epsilon -> \exists ( delta: Real.Real \where Parameters.Control[(\fun (b: Point) => C.re (transform f b)), at, Sets.Whole, C.re (transform f at), epsilon, delta] ) :=
+  Parameters.continuous realData epsilon;
+\definition imaginary[epsilon: Real.Real]: R.Lt Real.zero epsilon -> \exists ( delta: Real.Real \where Parameters.Control[(\fun (b: Point) => C.im (transform f b)), at, Sets.Whole, C.im (transform f at), epsilon, delta] ) :=
+  Parameters.continuous imaginaryData epsilon;

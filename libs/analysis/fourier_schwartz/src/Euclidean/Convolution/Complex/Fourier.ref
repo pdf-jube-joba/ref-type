@@ -1,0 +1,27 @@
+\import \root.Euclidean[n := n].Convolution[].Complex[] \as Convolution;
+\import \parent.Joint[f := f, g := g] \as Joint;
+\import \root.Euclidean[n := n].Fubini[] \as Fubini;
+\import \root.Euclidean[n := n].Integral[] \as Integral;
+\import \root.Euclidean[n := n].Kernel[] \as Kernel;
+\import \root.Euclidean[n := n].Transform[] \as Transform;
+\import \root.Euclidean[n := n].Translation[].Complex[] \as Translation;
+\import lp_spaces.Euclidean[n := n].Joint[] \as Measurable;
+\definition phase: Fubini.Phase := Fubini.Phase {
+  function := \fun (p: Fubini.PairPoint) => Kernel.value (Fubini.first p) xi,
+  measurable := Fubini.Measurable[\fun (p: Fubini.PairPoint) => Kernel.value (Fubini.first p) xi] {
+    real := Measurable.leftMeasurable (Integral.realKernel xi).function (Integral.realKernel xi).measurable,
+    imaginary := Measurable.leftMeasurable (Integral.imaginaryKernel xi).function (Integral.imaginaryKernel xi).measurable,
+  },
+  bound := \fun (p: Fubini.PairPoint) => R.leReplaceLeft _ _ _ (sym!{Real.Real} _ _ (Kernel.modulus (Fubini.first p) xi)) (R.leRefl Real.one),
+};
+\import Fubini.PhaseProduct[f := Joint.value, phase := phase] \as Modulated;
+\definition joint: Fubini.complexJoint := Modulated.value;
+\module Forward;
+\module Backward;
+\definition law: Transform.function (Convolution.function f g) xi = D.mul (Transform.function f xi) (Transform.function g xi) := eq_reason_in!{C.Complex _
+  "=" _ "by" { sym!{C.Complex} _ _ (Fubini.exchange joint Forward[].family) }
+  "=" _ "by" { sym!{C.Complex} _ _ (Fubini.Transpose[f := joint].integral) }
+  "=" _ "by" { Fubini.exchange Fubini.Transpose[f := joint].value Backward[].family }
+  "=" _ "by" { CI.integralComplexScalar (Transform.function g xi) (Integral.section (Integrability.complex f) xi) }
+  "=" _ "by" { CL.mulComm _ _ }
+};

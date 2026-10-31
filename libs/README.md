@@ -62,6 +62,7 @@
 | [analysis/product_integration](analysis/product_integration/README.md) | `product_integration` | σ 有限積測度、Tonelli・実複素有限次元 Fubini、Euclid 測度の Borel 比較、畳み込みの積分・台・L1 評価 |
 | [analysis/differential_equations](analysis/differential_equations/README.md) | `differential_equations` | Picard の積分作用素、常微分方程式の局所解の存在・一意性、滑らかなベクトル場の解の滑らかさ |
 | [analysis/functional](analysis/functional/README.md) | `functional_analysis` | 実ノルム空間・Hilbert 空間、Arzelà–Ascoli・Riesz 表現・Hahn–Banach・開写像定理、コンパクト台、\(L^p\)・弱微分・Sobolev 空間の定義 |
+| [analysis/fourier_schwartz](analysis/fourier_schwartz/README.md) | `fourier_schwartz` | Schwartz 空間、Fourier 変換の諸公式・保存、Gaussian 変換、近似単位による反転公式 |
 | [analysis/lp_spaces](analysis/lp_spaces/README.md) | `lp_spaces` | 実 Lp・L∞ の Banach 構造、実・複素 L2、稠密性、平行移動、畳み込み・近似単位 |
 | [analysis/measure_convergence](analysis/measure_convergence/README.md) | `measure_convergence` | 単調収束・Fatou・優収束、a.e. 同値類の積分、実・複素・有限次元の積分と級数交換 |
 | [analysis/complex_hilbert](analysis/complex_hilbert/README.md) | `complex_hilbert` | 作業中：複素 Riesz 表現、有界随伴、閉部分空間への直交射影と有限階数の因子分解 |

@@ -1,0 +1,123 @@
+\import Lists.Prop[A := Coordinate] \as ListLaws;
+\definition jetAdd[f, g: Function]: \forall (d: Directions) -> jet (Functions.plus f g) d = Functions.plus (jet f d) (jet g d) :=
+  \induction (d: Directions) \return jet (Functions.plus f g) d = Functions.plus (jet f d) (jet g d) \with {
+    | nil: \refl(Functions.plus f g)
+    | cons: \fun (i: Coordinate)(tail: Directions)(previous: _) => trans!{Function} _ _ _
+      (congr!{Function Function} (Differential.apply i) _ _ previous) (Differential.addition i (jet f tail) (jet g tail))
+  };
+\definition jetScale[c: Real.Real][f: Function]: \forall (d: Directions) -> jet (Functions.scale c f) d = Functions.scale c (jet f d) :=
+  \induction (d: Directions) \return jet (Functions.scale c f) d = Functions.scale c (jet f d) \with {
+    | nil: \refl(Functions.scale c f)
+    | cons: \fun (i: Coordinate)(tail: Directions)(previous: _) => trans!{Function} _ _ _
+      (congr!{Function Function} (Differential.apply i) _ _ previous) (Differential.scalar i c (jet f tail))
+  };
+\definition shift[i: Coordinate][d: Directions]: Directions := Lists.append Coordinate d (Directions::cons i Directions::nil);
+\definition jetPartial[f: Function][i: Coordinate]: \forall (d: Directions) -> jet (Differential.apply i f) d = jet f (shift i d) :=
+  \induction (d: Directions) \return jet (Differential.apply i f) d = jet f (shift i d) \with {
+    | nil: \refl(Differential.apply i f)
+    | cons: \fun (j: Coordinate)(tail: Directions)(previous: _) => congr!{Function Function} (Differential.apply j) _ _ previous
+  };
+\definition absoluteTriangle[a, b: Real.Real]: R.Le (Product.abs (Real.add a b)) (Real.add (Product.abs a) (Product.abs b)) :=
+  R.leReplaceLeft _ _ _ (congr!{Real.Real Real.Real} (\fun (r: Real.Real) => Real.distance r (Real.add a b)) _ _ (Laws.addZeroLeft Real.zero))
+    (Estimates.distanceAdd Real.zero Real.zero a b);
+\definition weightedAdd[f, g: Function][m: N.Nat^][d: Directions][x: Point]:
+  R.Le (weighted (Functions.plus f g) m d x) (Real.add (weighted f m d x) (weighted g m d x)) :=
+  R.leReplaceLeft (Real.mul (weight m x) (Product.abs (Real.add (value (jet f d) x) (value (jet g d) x)))) _ _
+    (congr!{Function Real.Real} (\fun (h: Function) => Real.mul (weight m x) (Product.abs (value h x))) _ _ (sym!{Function} _ _ (jetAdd f g d)))
+    (R.leReplaceRight _ _ _ (Laws.fieldMulAdd _ _ _)
+      (Estimates.mulMonotone (weight m x) _ _ (weightNonnegative m x) (absoluteTriangle (value (jet f d) x) (value (jet g d) x))));
+\definition add[f, g: Schwartz]: Schwartz := \into[Function](Functions.plus f g, Schwartz) \by {
+  \fun (m: N.Nat^)(d: Directions) => Logic.existsIntro[Real.Real, { b: Real.Real \where \forall (x: Point) -> R.Le (weighted (Functions.plus f g) m d x) b }]
+    (Real.add (seminorm f m d) (seminorm g m d))
+    (\fun (x: Point) => R.leTrans _ _ _ (weightedAdd f g m d x)
+      (Estimates.addLe _ _ _ _ (pointBound f m d x) (pointBound g m d x)))
+};
+\definition weightedScale[c: Real.Real][f: Function][m: N.Nat^][d: Directions][x: Point]:
+  weighted (Functions.scale c f) m d x = Real.mul (Product.abs c) (weighted f m d x) := eq_reason_in!{Real.Real _
+    "=" _ "by" { congr!{Function Real.Real} (\fun (h: Function) => Real.mul (weight m x) (Product.abs (value h x))) _ _ (jetScale c f d) }
+    "=" _ "by" { congr!{Real.Real Real.Real} (Real.mul (weight m x)) _ _ (Product.absProduct c (value (jet f d) x)) }
+    "=" _ "by" { Algebra.mulSwap _ _ _ }
+  };
+\definition scale[c: Real.Real][f: Schwartz]: Schwartz := \into[Function](Functions.scale c f, Schwartz) \by {
+  \fun (m: N.Nat^)(d: Directions) => Logic.existsIntro[Real.Real, { b: Real.Real \where \forall (x: Point) -> R.Le (weighted (Functions.scale c f) m d x) b }]
+    (Real.mul (Product.abs c) (seminorm f m d))
+    (\fun (x: Point) => R.leReplaceLeft _ _ _ (sym!{Real.Real} _ _ (weightedScale c f m d x))
+      (Estimates.mulMonotone _ _ _ (Product.absNonnegative c) (pointBound f m d x)))
+};
+\definition partial[f: Schwartz][i: Coordinate]: Schwartz := \into[Function](Differential.apply i f, Schwartz) \by {
+  \fun (m: N.Nat^)(d: Directions) => Logic.existsIntro[Real.Real, { b: Real.Real \where \forall (x: Point) -> R.Le (weighted (Differential.apply i f) m d x) b }]
+    (seminorm f m (shift i d))
+    (\fun (x: Point) => R.leReplaceLeft _ _ _
+      (congr!{Function Real.Real} (\fun (h: Function) => Real.mul (weight m x) (Product.abs (value h x))) _ _ (sym!{Function} _ _ (jetPartial f i d)))
+      (pointBound f m (shift i d) x))
+};
+\definition least[f: Schwartz][m: N.Nat^][d: Directions][b: Real.Real]:
+  (\forall (x: Point) -> R.Le (weighted f m d x) b) -> R.Le (seminorm f m d) b := \block {
+    \fun (bound: _ ) \then
+    \return (seminormLaw f m d).least b (\block {
+      \fun (r: Real.Real)(member: \In[Real.Real] (seminormSet f m d) r) \then
+      \takefrom x: \Cast[Point] ({ x: Point \where r = weighted f m d x }) \by member \then
+      \return R.leReplaceLeft _ r b (sym!{Real.Real} _ _ (\bysub(Point, { x: Point \where r = weighted f m d x }, x))) (bound x)
+    })
+};
+\definition triangle[f, g: Schwartz][m: N.Nat^][d: Directions]:
+  R.Le (seminorm (add f g) m d) (Real.add (seminorm f m d) (seminorm g m d)) := least (add f g) m d _
+    (\fun (x: Point) => R.leTrans _ _ _ (weightedAdd f g m d x) (Estimates.addLe _ _ _ _ (pointBound f m d x) (pointBound g m d x)));
+\definition partialSeminorm[f: Schwartz][i: Coordinate][m: N.Nat^][d: Directions]: seminorm (partial f i) m d = seminorm f m (shift i d) :=
+  R.leAntisym _ _
+    (least (partial f i) m d _ (\fun (x: Point) => R.leReplaceLeft _ _ _
+      (congr!{Function Real.Real} (\fun (h: Function) => Real.mul (weight m x) (Product.abs (value h x))) _ _ (sym!{Function} _ _ (jetPartial f i d)))
+      (pointBound f m (shift i d) x)))
+    (least f m (shift i d) _ (\fun (x: Point) => R.leReplaceLeft _ _ _
+      (congr!{Function Real.Real} (\fun (h: Function) => Real.mul (weight m x) (Product.abs (value h x))) _ _ (jetPartial f i d))
+      (pointBound (partial f i) m d x)));
+\definition jetZero: \forall (d: Directions) -> jet Functions.origin d = Functions.origin :=
+  \induction (d: Directions) \return jet Functions.origin d = Functions.origin \with {
+    | nil: \refl(Functions.origin)
+    | cons: \fun (i: Coordinate)(tail: Directions)(previous: _) => trans!{Function} _ _ _
+      (congr!{Function Function} (Differential.apply i) _ _ previous) (Differential.constant i Real.zero)
+  };
+\definition weightedZero[m: N.Nat^][d: Directions][x: Point]: weighted Functions.origin m d x = Real.zero := eq_reason_in!{Real.Real _
+  "=" _ "by" { congr!{Function Real.Real} (\fun (h: Function) => Real.mul (weight m x) (Product.abs (value h x))) _ _ (jetZero d) }
+  "=" _ "by" { congr!{Real.Real Real.Real} (Real.mul (weight m x)) _ _ (Distance.distanceSelf Real.zero) }
+  "=" _ "by" { Laws.fieldMulZeroRight (weight m x) }
+};
+\definition zero: Schwartz := \into[Function](Functions.origin, Schwartz) \by {
+  \fun (m: N.Nat^)(d: Directions) => Logic.existsIntro[Real.Real, { b: Real.Real \where \forall (x: Point) -> R.Le (weighted Functions.origin m d x) b }] Real.zero
+    (\fun (x: Point) => R.leReplaceLeft Real.zero _ Real.zero (sym!{Real.Real} _ _ (weightedZero m d x)) (R.leRefl Real.zero))
+};
+\definition zeroSeminorm[m: N.Nat^][d: Directions]: seminorm zero m d = Real.zero := R.leAntisym _ _
+  (least zero m d Real.zero (\fun (x: Point) => R.leReplaceLeft Real.zero _ Real.zero (sym!{Real.Real} _ _ (weightedZero m d x)) (R.leRefl Real.zero)))
+  (seminormNonnegative zero m d);
+\definition scaleUpper[c: Real.Real][f: Schwartz][m: N.Nat^][d: Directions]:
+  R.Le (seminorm (scale c f) m d) (Real.mul (Product.abs c) (seminorm f m d)) := least (scale c f) m d _
+    (\fun (x: Point) => R.leReplaceLeft _ _ _ (sym!{Real.Real} _ _ (weightedScale c f m d x))
+      (Estimates.mulMonotone _ _ _ (Product.absNonnegative c) (pointBound f m d x)));
+\definition homogeneous[c: Real.Real][f: Schwartz][m: N.Nat^][d: Directions]:
+  seminorm (scale c f) m d = Real.mul (Product.abs c) (seminorm f m d) := R.leAntisym _ _ (scaleUpper c f m d)
+    (Logic.orElim _ _ _ (std.Logic[].Classical[].excludedMiddle (Product.abs c = Real.zero))
+      (\fun (zero: _) => R.leReplaceLeft Real.zero _ _
+        (sym!{Real.Real} _ _ (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (\fun (a: Real.Real) => Real.mul a (seminorm f m d)) _ _ zero) (Laws.fieldMulZeroLeft _)))
+        (seminormNonnegative (scale c f) m d))
+      (\block {
+        \fun (nonzero: Logic.Not (Product.abs c = Real.zero)) \then
+        \let a: Real.Real := Product.abs c \then
+        \let positive: R.Lt Real.zero a := Order.ltOfLeNotEq Real.zero a (Product.absNonnegative c) (\fun (same: _) => nonzero (sym!{Real.Real} _ _ same)) \then
+        \let inverseNonnegative: R.Le Real.zero (Laws.fieldInv a) := Order.leOfLt _ _ (Product.invPositive a positive) \then
+        \let bound: R.Le (seminorm f m d) (Real.mul (Laws.fieldInv a) (seminorm (scale c f) m d)) := least f m d _
+          (\fun (x: Point) => R.leReplaceLeft _ _ _
+            (trans!{Real.Real} _ _ _ (sym!{Real.Real} _ _ (Laws.fieldMulAssoc (Laws.fieldInv a) a (weighted f m d x)))
+              (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (\fun (r: Real.Real) => Real.mul r (weighted f m d x)) _ _ (Laws.fieldInverseNonzero a nonzero)) (Laws.fieldMulOneLeft _)))
+            (Estimates.mulMonotone (Laws.fieldInv a) _ _ inverseNonnegative
+              (R.leReplaceLeft _ _ _ (weightedScale c f m d x) (pointBound (scale c f) m d x)))) \then
+        \return R.leReplaceRight _ _ _
+          (trans!{Real.Real} _ _ _ (Algebra.mulSwap a (Laws.fieldInv a) (seminorm (scale c f) m d))
+            (trans!{Real.Real} _ _ _ (sym!{Real.Real} _ _ (Laws.fieldMulAssoc (Laws.fieldInv a) a (seminorm (scale c f) m d)))
+              (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (\fun (r: Real.Real) => Real.mul r (seminorm (scale c f) m d)) _ _ (Laws.fieldInverseNonzero a nonzero)) (Laws.fieldMulOneLeft _))))
+          (Estimates.mulMonotone a _ _ (Product.absNonnegative c) bound)
+      }));
+
+\definition iterated[f: Schwartz]: Directions -> Schwartz := \induction (d: Directions) \return Schwartz \with {
+  | nil: f
+  | cons: \fun (i: Coordinate)(tail: Directions)(previous: Schwartz) => partial previous i
+};

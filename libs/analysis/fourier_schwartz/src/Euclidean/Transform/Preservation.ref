@@ -1,0 +1,74 @@
+\import \root.Euclidean[n := n] \as Base;
+\import \root.Euclidean[n := n].Transform[] \as Transform;
+\import \parent.Identities[] \as Identities;
+\definition sum: \forall (k: N.Nat^) -> (Fin.Fin k -> S.Function) -> S.Function :=
+  \induction (k: N.Nat^) \return (Fin.Fin k -> S.Function) -> S.Function \with {
+    | zero: \fun (f: Fin.Fin N.Nat^::zero -> S.Function) => S.zero
+    | succ: \fun (k: N.Nat^)(previous: (Fin.Fin k -> S.Function) -> S.Function)(f: Fin.Fin (N.Nat^::succ k) -> S.Function) =>
+      S.add (f (Fin.zero k)) (previous (\fun (j: Fin.Fin k) => f (Fin.succ k j)))
+  };
+\definition sumScalar: \forall (k: N.Nat^)(f: Fin.Fin k -> S.Function)(c: Fin.Fin k -> Real.Real)(xi: Point)(z: C.Complex) ->
+  (\forall (j: Fin.Fin k) -> function (f j) xi = D.scale (c j) z) -> function (sum k f) xi = D.scale (Sum.sum k c) z :=
+  \induction (k: N.Nat^) \return \forall (f: Fin.Fin k -> S.Function)(c: Fin.Fin k -> Real.Real)(xi: Point)(z: C.Complex) ->
+    (\forall (j: Fin.Fin k) -> function (f j) xi = D.scale (c j) z) -> function (sum k f) xi = D.scale (Sum.sum k c) z \with {
+      | zero: \fun (f: _)(c: _)(xi: Point)(z: C.Complex)(same: _) => trans!{C.Complex} _ _ _ (Identities.zero xi)
+        (sym!{C.Complex} _ _ (CL.ext _ _ (Laws.fieldMulZeroLeft (C.re z)) (Laws.fieldMulZeroLeft (C.im z))))
+      | succ: \fun (k: N.Nat^)(previous: _)(f: _)(c: _)(xi: Point)(z: C.Complex)(same: _) => trans!{C.Complex} _ _ _
+        (Identities.addition (f (Fin.zero k)) (sum k (\fun (j: Fin.Fin k) => f (Fin.succ k j))) xi)
+        (trans!{C.Complex} _ _ _ (congr!{C.Complex C.Complex C.Complex} D.add _ _ _ _ (same (Fin.zero k))
+          (previous (\fun (j: Fin.Fin k) => f (Fin.succ k j)) (\fun (j: Fin.Fin k) => c (Fin.succ k j)) xi z (\fun (j: Fin.Fin k) => same (Fin.succ k j))))
+          (Scalars.scaleAdd (c (Fin.zero k)) (Sum.sum k (\fun (j: Fin.Fin k) => c (Fin.succ k j))) z))
+    };
+\definition operator[f: S.Function]: S.Function := S.add f (sum n (\fun (i: Coordinate) => S.realScale (Real.neg Real.one) (S.partial (S.partial f i) i)));
+\definition multiplier[f: S.Function][xi: Point]: function (operator f) xi = D.scale (weightBase xi) (function f xi) := eq_reason_in!{C.Complex _
+  "=" _ "by" { Identities.addition f (sum n (\fun (i: Coordinate) => S.realScale (Real.neg Real.one) (S.partial (S.partial f i) i))) xi }
+  "=" _ "by" { congr!{C.Complex C.Complex C.Complex} D.add _ _ _ _ (sym!{C.Complex} _ _ (Scalars.scaleOne (function f xi)))
+    (sumScalar n (\fun (i: Coordinate) => S.realScale (Real.neg Real.one) (S.partial (S.partial f i) i)) (\fun (i: Coordinate) => Real.mul (xi i) (xi i)) xi (function f xi)
+      (\fun (i: Coordinate) => Identities.negativeSecondDerivative f xi i)) }
+  "=" _ "by" { Scalars.scaleAdd Real.one (radiusSquared xi) (function f xi) }
+};
+\definition iterate[f: S.Function]: N.Nat^ -> S.Function := \induction (m: N.Nat^) \return S.Function \with {
+  | zero: f
+  | succ: \fun (m: N.Nat^)(previous: S.Function) => operator previous
+};
+\definition moment[f: S.Function][xi: Point]: \forall (m: N.Nat^) -> function (iterate f m) xi = D.scale (weight m xi) (function f xi) :=
+  \induction (m: N.Nat^) \return function (iterate f m) xi = D.scale (weight m xi) (function f xi) \with {
+    | zero: sym!{C.Complex} _ _ (Scalars.scaleOne (function f xi))
+    | succ: \fun (m: N.Nat^)(previous: _) => trans!{C.Complex} _ _ _ (multiplier (iterate f m) xi)
+      (trans!{C.Complex} _ _ _ (congr!{C.Complex C.Complex} (D.scale (weightBase xi)) _ _ previous)
+        (Scalars.scaleCompose (weightBase xi) (weight m xi) (function f xi)))
+  };
+\definition dominator[f: S.Function]: I.Representatives := I.Linear[].addRepresentative (I.Absolute[].representative (CI.realPart (Integrability.complex f)))
+  (I.Absolute[].representative (CI.imaginaryPart (Integrability.complex f)));
+\definition uniformReal[f: S.Function][xi: Point]: R.Le (Product.abs (C.re (function f xi))) (I.integral (dominator f)) :=
+  (CI.componentBounds (Fourier.section (Integrability.complex f) xi) (dominator f)
+    (\fun (x: Point) => Fourier.Continuity[f := Integrability.complex f, at := xi].realDominated xi x)
+    (\fun (x: Point) => Fourier.Continuity[f := Integrability.complex f, at := xi].imaginaryDominated xi x)).left;
+\definition uniformImaginary[f: S.Function][xi: Point]: R.Le (Product.abs (C.im (function f xi))) (I.integral (dominator f)) :=
+  (CI.componentBounds (Fourier.section (Integrability.complex f) xi) (dominator f)
+    (\fun (x: Point) => Fourier.Continuity[f := Integrability.complex f, at := xi].realDominated xi x)
+    (\fun (x: Point) => Fourier.Continuity[f := Integrability.complex f, at := xi].imaginaryDominated xi x)).right;
+\definition realWeighted[f: S.Function][m: N.Nat^][d: Directions][xi: Point]:
+  Base.weighted (realFunction f) m d xi = Product.abs (C.re (function (iterate (inputs f d) m) xi)) := eq_reason_in!{Real.Real _
+    "=" _ "by" { congr!{Function Real.Real} (\fun (h: Function) => Real.mul (weight m xi) (Product.abs (Base.value h xi))) _ _ (realJet f d) }
+    "=" _ "by" { sym!{Real.Real} _ _ (Product.positiveAbsProduct (weight m xi) (C.re (function (inputs f d) xi)) (weightNonnegative m xi)) }
+    "=" _ "by" { congr!{C.Complex Real.Real} (\fun (z: C.Complex) => Product.abs (C.re z)) _ _ (sym!{C.Complex} _ _ (moment (inputs f d) xi m)) }
+  };
+\definition imaginaryWeighted[f: S.Function][m: N.Nat^][d: Directions][xi: Point]:
+  Base.weighted (imaginaryFunction f) m d xi = Product.abs (C.im (function (iterate (inputs f d) m) xi)) := eq_reason_in!{Real.Real _
+    "=" _ "by" { congr!{Function Real.Real} (\fun (h: Function) => Real.mul (weight m xi) (Product.abs (Base.value h xi))) _ _ (imaginaryJet f d) }
+    "=" _ "by" { sym!{Real.Real} _ _ (Product.positiveAbsProduct (weight m xi) (C.im (function (inputs f d) xi)) (weightNonnegative m xi)) }
+    "=" _ "by" { congr!{C.Complex Real.Real} (\fun (z: C.Complex) => Product.abs (C.im z)) _ _ (sym!{C.Complex} _ _ (moment (inputs f d) xi m)) }
+  };
+\definition realRapid[f: S.Function]: Rapid (realFunction f) := \fun (m: N.Nat^)(d: Directions) =>
+  Logic.existsIntro[Real.Real, { b: Real.Real \where \forall (xi: Point) -> R.Le (Base.weighted (realFunction f) m d xi) b }]
+    (I.integral (dominator (iterate (inputs f d) m)))
+    (\fun (xi: Point) => R.leReplaceLeft _ _ _ (sym!{Real.Real} _ _ (realWeighted f m d xi)) (uniformReal (iterate (inputs f d) m) xi));
+\definition imaginaryRapid[f: S.Function]: Rapid (imaginaryFunction f) := \fun (m: N.Nat^)(d: Directions) =>
+  Logic.existsIntro[Real.Real, { b: Real.Real \where \forall (xi: Point) -> R.Le (Base.weighted (imaginaryFunction f) m d xi) b }]
+    (I.integral (dominator (iterate (inputs f d) m)))
+    (\fun (xi: Point) => R.leReplaceLeft _ _ _ (sym!{Real.Real} _ _ (imaginaryWeighted f m d xi)) (uniformImaginary (iterate (inputs f d) m) xi));
+\definition value[f: S.Function]: S.Function := S.Function {
+  real := \into[Function](realFunction f, Schwartz) \by { realRapid f },
+  imaginary := \into[Function](imaginaryFunction f, Schwartz) \by { imaginaryRapid f },
+};

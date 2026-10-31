@@ -1,0 +1,24 @@
+\definition sections[y: Point]: Integral.Input := CI.complexScalarRepresentative (input y) (Integral.section gaussian (shift y));
+\definition outer: Integral.Input := CI.scalarRepresentative (Real.mul Dilation.coefficient Gaussian.Mass[].value) weighted;
+\definition inner[y: Point]: CI.integral (sections y) = D.scale (Real.mul Dilation.coefficient Gaussian.Mass[].value) (D.scale (gaussianBound.function y) (input y)) := eq_reason_in!{C.Complex _
+  "=" _ "by" { CI.integralComplexScalar (input y) (Integral.section gaussian (shift y)) }
+  "=" _ "by" { congr!{C.Complex C.Complex} (D.mul (input y)) _ _ (Dilation.transform (Integrability.complex Gaussian.Fourier[].input) (shift y)) }
+  "=" _ "by" { congr!{C.Complex C.Complex} (\fun (z: C.Complex) => D.mul (input y) (D.scale Dilation.coefficient z)) _ _ (Gaussian.Fourier[].formula (Coordinates.scale (Laws.fieldInv e) (shift y))) }
+  "=" _ "by" { Scalars.scaleRight Dilation.coefficient (input y) (D.ofReal (Real.mul Gaussian.Mass[].value (gaussianBound.function y))) }
+  "=" _ "by" { congr!{C.Complex C.Complex} (D.scale Dilation.coefficient) _ _
+    (trans!{C.Complex} _ _ _ (CL.mulComm _ _) (Scalars.realProduct (Real.mul Gaussian.Mass[].value (gaussianBound.function y)) (input y))) }
+  "=" _ "by" { Scalars.scaleCompose Dilation.coefficient (Real.mul Gaussian.Mass[].value (gaussianBound.function y)) (input y) }
+  "=" _ "by" { congr!{Real.Real C.Complex} (\fun (a: Real.Real) => D.scale a (input y)) _ _ (sym!{Real.Real} _ _ (Laws.fieldMulAssoc Dilation.coefficient Gaussian.Mass[].value (gaussianBound.function y))) }
+  "=" _ "by" { sym!{C.Complex} _ _ (Scalars.scaleCompose (Real.mul Dilation.coefficient Gaussian.Mass[].value) (gaussianBound.function y) (input y)) }
+};
+\definition family: Fubini.Family[Fubini.Transpose[f := joint].value] := Fubini.Family[Fubini.Transpose[f := joint].value] {
+  sections := sections, outer := outer,
+  sectionValues := \fun (y, xi: Point) => eq_reason_in!{C.Complex _
+    "=" _ "by" { congr!{C.Complex C.Complex} (D.mul (input y)) _ _ (Scalars.realProduct (gaussianReal xi) (Kernel.value xi (shift y))) }
+    "=" _ "by" { Scalars.scaleRight (gaussianReal xi) (input y) (Kernel.value xi (shift y)) }
+    "=" _ "by" { sym!{C.Complex} _ _ (CL.scaleMulLeft (gaussianReal xi) (input y) (Kernel.value xi (shift y))) }
+    "=" _ "by" { congr!{C.Complex C.Complex} (D.mul (D.scale (gaussianReal xi) (input y))) _ _ (Kernel.secondAddition xi (Coordinates.negPoint x) y) }
+  },
+  outerValues := \fun (y: Point) => sym!{C.Complex} _ _ (trans!{C.Complex} _ _ _ (inner y)
+    (congr!{C.Complex C.Complex} (D.scale (Real.mul Dilation.coefficient Gaussian.Mass[].value)) _ _ (sym!{C.Complex} _ _ (Integral.realProductValue input gaussianBound y)))),
+};

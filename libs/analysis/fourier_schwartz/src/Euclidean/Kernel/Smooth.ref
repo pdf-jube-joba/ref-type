@@ -1,0 +1,24 @@
+\import calculus.Real[].OneDimension[] \as One;
+\import calculus.Real[].Multivariable[n := One.dimension].Open[] \as Output;
+\import Output.Smooth[].Derivative[] \as OutputFunctions;
+\import calculus.Maps[n := n, m := One.dimension] \as Maps;
+\import Open.Smooth[].Operations[] \as Operations;
+\import Open.Smooth[].Sums[] \as Sums;
+\import Open.Examples[] \as Examples;
+\import \root.Phase[].Global[].Smooth[] \as PhaseSmooth;
+\definition argument: Open.ScalarFunction Open.whole := \fun (x: Open.Carrier Open.whole) => Real.neg (pairing x xi);
+\definition argumentSmooth: Open.Smooth[].SmoothOn Open.whole argument :=
+  Operations.negSmooth Open.whole (\fun (x: Open.Carrier Open.whole) => pairing x xi)
+    (Sums.smooth Open.whole n (\fun (i: Coordinate)(x: Open.Carrier Open.whole) => Real.mul (x i) (xi i))
+      (\fun (i: Coordinate) => Operations.mulSmooth Open.whole (\fun (x: Open.Carrier Open.whole) => x i) (\fun (x: Open.Carrier Open.whole) => xi i)
+        (Examples.projectionSmooth Open.whole i) (Operations.constantSmooth Open.whole (xi i))));
+\definition function[x: Open.Carrier Open.whole]: Output.Carrier Output.whole :=
+  \into[calculus.Real[].Multivariable[n := One.dimension].Point]((\fun (i: One.Index) => argument x), Output.whole.points) \by { \refl(\fun (i: One.Index) => argument x) };
+\definition map: Maps.Map Open.whole Output.whole := \into[Maps.Data[Open.whole, Output.whole]](Maps.Data[Open.whole, Output.whole] { apply := function }, Maps.Map Open.whole Output.whole) \by {
+  Maps.Laws[Open.whole, Output.whole, Maps.Data[Open.whole, Output.whole]::# function] { smooth := \fun (i: One.Index) => argumentSmooth }
+};
+\import Maps.Composition[U := Open.whole, V := Output.whole, f := map] \as Composition;
+\definition realFunction: OutputFunctions.Function Output.whole := \into[Output.ScalarFunction Output.whole](PhaseSmooth.realFunction, OutputFunctions.Function Output.whole) \by { PhaseSmooth.realSmooth };
+\definition imaginaryFunction: OutputFunctions.Function Output.whole := \into[Output.ScalarFunction Output.whole](PhaseSmooth.imaginaryFunction, OutputFunctions.Function Output.whole) \by { PhaseSmooth.imaginarySmooth };
+\definition real: Open.Smooth[].SmoothOn Open.whole (\fun (x: Open.Carrier Open.whole) => C.re (value x xi)) := Composition.smooth realFunction;
+\definition imaginary: Open.Smooth[].SmoothOn Open.whole (\fun (x: Open.Carrier Open.whole) => C.im (value x xi)) := Composition.smooth imaginaryFunction;

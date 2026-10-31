@@ -1,0 +1,22 @@
+\import Kernel.Differentiation[xi := x].Line[a := a, i := i] \as Line;
+\definition curve[t: Real.Real]: C.Complex := D.mul (S.value f x) (Line.function t);
+\definition agreement[t: Real.Real]: curve t = family t x :=
+  congr!{C.Complex C.Complex} (D.mul (S.value f x)) _ _ (Kernel.symmetric (point t) x);
+\definition coefficient[t: Real.Real]:
+  D.add (D.mul D.zero (Line.function t)) (D.mul (S.value f x) (D.scale (Real.neg (x i)) (\root.Phase[].rotate (Line.function t)))) = derivativeFamily t x := eq_reason_in!{C.Complex _
+    "=" _ "by" { congr!{C.Complex C.Complex} (\fun (z: C.Complex) => D.add z (D.mul (S.value f x) (D.scale (Real.neg (x i)) (\root.Phase[].rotate (Line.function t))))) _ _ (CL.mulZeroLeft (Line.function t)) }
+    "=" _ "by" { CL.addZeroLeft _ }
+    "=" _ "by" { Scalars.differentiatedProduct (x i) (S.value f x) (Line.function t) }
+    "=" _ "by" { congr!{C.Complex C.Complex C.Complex} D.mul _ _ _ _
+      (sym!{C.Complex} _ _ (S.differentiatedValue f i x)) (Kernel.symmetric (point t) x) }
+  };
+\definition derivative[t: Real.Real]: Calculus.HasDerivativeAt (\fun (s: Real.Real) => family s x) t (derivativeFamily t x) :=
+  \idelim curve = (\fun (s: Real.Real) => family s x) \with h: Calculus.Function => Calculus.HasDerivativeAt h t (derivativeFamily t x) \by {
+    base: \idelim
+      D.add (D.mul D.zero (Line.function t)) (D.mul (S.value f x) (D.scale (Real.neg (x i)) (\root.Phase[].rotate (Line.function t)))) = derivativeFamily t x
+      \with d: C.Complex => Calculus.HasDerivativeAt curve t d \by {
+        base: Calculus.product (\fun (s: Real.Real) => S.value f x) Line.function t D.zero _ (Calculus.constant (S.value f x) t) (Line.derivative t),
+        equality: coefficient t
+      },
+    equality: \axiom:funext(curve, (\fun (s: Real.Real) => family s x), agreement)
+  };

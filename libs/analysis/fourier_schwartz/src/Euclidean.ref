@@ -1,0 +1,90 @@
+\import real.Analysis[] \as Real;
+\import Real.Algebra[] \as Algebra;
+\import Real.Estimates[] \as Estimates;
+\import Estimates.Product[] \as Product;
+\import Real.Distance[] \as Distance;
+\import Real.FiniteSums[] \as Sum;
+\import dedekind_reals.DedekindReal[] \as R;
+\import R.Arithmetic[].Prop[] \as Laws;
+\import R.Order[] \as Order;
+\import R.Completeness[] \as Complete;
+\import std.Data[].Nat[] \as N;
+\import N.Basic[].Prop[] \as Nat;
+\import std.Data[].FinSet[] \as Fin;
+\import std.Data[].List[] \as Lists;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.congr;
+\use Equality.trans;
+\use Equality.sym;
+\use Equality.eq_reason_in;
+\import calculus.Real[].Multivariable[n := n] \as Model;
+\import Model.Open[] \as Open;
+\import Open.Smooth[] \as Smooth;
+\import Smooth.Algebra[U := Open.whole] \as Functions;
+\import Smooth.Derivative[] \as Partial;
+\import Partial.Linear[U := Open.whole] \as Differential;
+\import Open.Whole[] \as Whole;
+\import topological_algebra.Euclidean[].Dimension[n := n].Def[] \as Coordinates;
+\import functional_analysis.Powers[] \as Powers;
+\definition Point: \Set := Model.Point;
+\definition origin: Point := Coordinates.origin;
+\definition Coordinate: \Set := Fin.Fin n;
+\definition Directions: \Set := Smooth.Directions;
+\definition Function: \Set := Functions.Function;
+\definition value[f: Function][x: Point]: Real.Real := f (Whole.point x);
+\definition jet[f: Function]: Directions -> Function := \induction (directions: Directions) \return Function \with {
+  | nil: f
+  | cons: \fun (i: Coordinate)(tail: Directions)(previous: Function) => Differential.apply i previous
+};
+\definition radiusSquared[x: Point]: Real.Real := Sum.sum n (\fun (i: Coordinate) => Real.mul (x i) (x i));
+\definition radiusNonnegative[x: Point]: R.Le Real.zero (radiusSquared x) := Sum.nonnegative n _ (\fun (i: Coordinate) => Algebra.squareNonnegative (x i));
+\definition weightBase[x: Point]: Real.Real := Real.add Real.one (radiusSquared x);
+\definition weightBaseNonnegative[x: Point]: R.Le Real.zero (weightBase x) := Laws.addNonnegative _ _ Laws.oneNonnegative (radiusNonnegative x);
+\definition weight[m: N.Nat^][x: Point]: Real.Real := Powers.power (weightBase x) m;
+\definition powerNonnegative[a: Real.Real]: R.Le Real.zero a -> \forall (m: N.Nat^) -> R.Le Real.zero (Powers.power a m) :=
+  \fun (positive: _) => \induction (m: N.Nat^) \return R.Le Real.zero (Powers.power a m) \with {
+    | zero: Laws.oneNonnegative
+    | succ: \fun (m: N.Nat^)(previous: _) => Laws.fieldMulNonnegative a (Powers.power a m) positive previous
+  };
+\definition weightNonnegative[m: N.Nat^][x: Point]: R.Le Real.zero (weight m x) := powerNonnegative (weightBase x) (weightBaseNonnegative x) m;
+\definition weighted[f: Function][m: N.Nat^][d: Directions][x: Point]: Real.Real := Real.mul (weight m x) (Product.abs (value (jet f d) x));
+\definition weightedNonnegative[f: Function][m: N.Nat^][d: Directions][x: Point]: R.Le Real.zero (weighted f m d x) :=
+  Laws.fieldMulNonnegative _ _ (weightNonnegative m x) (Product.absNonnegative _);
+\definition Rapid[f: Function]: \Prop := \forall (m: N.Nat^)(d: Directions) -> \exists ( b: Real.Real \where \forall (x: Point) -> R.Le (weighted f m d x) b );
+\definition Schwartz: \Set := \Cast[Function] ({ f: Function \where Rapid f });
+\definition rapid[f: Schwartz]: Rapid f := \bysub(Function, { f: Function \where Rapid f }, f);
+\definition seminormSet[f: Schwartz][m: N.Nat^][d: Directions]: \Pow Real.Real :=
+  { r: Real.Real \where \exists ( x: Point \where r = weighted f m d x ) };
+\module Seminorm(f: Schwartz, m: N.Nat^, d: Directions);
+\definition seminorm[f: Schwartz][m: N.Nat^][d: Directions]: Real.Real := Seminorm[f := f, m := m, d := d].value;
+\definition seminormLaw[f: Schwartz][m: N.Nat^][d: Directions]: Complete.LeastUpperBound[seminormSet f m d, seminorm f m d] := Seminorm[f := f, m := m, d := d].law;
+\definition pointBound[f: Schwartz][m: N.Nat^][d: Directions][x: Point]: R.Le (weighted f m d x) (seminorm f m d) :=
+  (seminormLaw f m d).upper (weighted f m d x) (Logic.existsIntro[Point, { y: Point \where weighted f m d x = weighted f m d y }] x (\refl(weighted f m d x)));
+\definition seminormNonnegative[f: Schwartz][m: N.Nat^][d: Directions]: R.Le Real.zero (seminorm f m d) :=
+  R.leTrans _ (weighted f m d Coordinates.origin) _ (weightedNonnegative f m d Coordinates.origin) (pointBound f m d Coordinates.origin);
+\module Operations;
+\module Complex;
+\module Kernel;
+\module Integral;
+\module Decay;
+\module Integrability;
+\module CoordinateMultiplication;
+\module Transform;
+\module Weights;
+\module Translation;
+\module Lines(f: Function, a: Point, i: Coordinate);
+\module Modulation;
+\module IntegrationByParts;
+\module Polynomial;
+\module Gaussian;
+\module SmoothSum;
+\module Exponentiate(f: Function);
+\module ConstantGradient;
+\module Dilation(a: Real.Real, positive: R.Lt Real.zero a);
+\module Fubini;
+\module Convolution;
+\module Affine(a: Real.Real, b: Point);
+\module AffineLine(f: Function, b, v: Point);
+\module JointKernel;
+\module Inversion;

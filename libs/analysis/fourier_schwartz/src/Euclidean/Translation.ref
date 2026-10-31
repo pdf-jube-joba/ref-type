@@ -1,0 +1,39 @@
+\import \root.Euclidean[n := n] \as Base;
+\import \parent.Weights[] \as Weights;
+\import \parent.Kernel[].Differentiation[xi := Coordinates.origin] \as Basis;
+\import \root.NaturalPowers[] \as Numeric;
+\import calculus.Translation[n := n] \as Translation;
+\import calculus.Maps[n := n, m := n] \as Maps;
+\import Open.Projection[U := Open.whole] \as Projection;
+\definition point[a, x: Point]: Point := Coordinates.addPoint a x;
+\module At(a: Point);
+\definition function[a: Point][f: Function]: Function := At[a := a].function f;
+\definition partial[a: Point][f: Function][i: Coordinate]: Differential.apply i (function a f) = function a (Differential.apply i f) := At[a := a].partial f i;
+\definition jets[a: Point][f: Function]: \forall (d: Directions) -> jet (function a f) d = function a (jet f d) :=
+  \induction (d: Directions) \return jet (function a f) d = function a (jet f d) \with {
+    | nil: \refl(function a f)
+    | cons: \fun (i: Coordinate)(tail: Directions)(previous: _) => trans!{Function} _ _ _
+      (congr!{Function Function} (Differential.apply i) _ _ previous) (partial a (jet f tail) i)
+  };
+\definition recover[a, x: Point]: Coordinates.addPoint (Coordinates.negPoint a) (point a x) = x :=
+  \axiom:funext(Coordinates.addPoint (Coordinates.negPoint a) (point a x), x, \fun (i: Coordinate) => Laws.addNegCancelLeft (a i) (x i));
+\definition weightBound[a, x: Point][m: N.Nat^]: R.Le (weight m x)
+  (Real.mul (Real.mul (Powers.power Numeric.two m) (weight m (Coordinates.negPoint a))) (weight m (point a x))) :=
+  R.leReplace _ _ _ _ (congr!{Point Real.Real} (weight m) _ _ (recover a x))
+    (sym!{Real.Real} _ _ (Laws.fieldMulAssoc _ _ _)) (Weights.add m (Coordinates.negPoint a) (point a x));
+\definition weightedBound[a: Point][f: Function][m: N.Nat^][d: Directions][x: Point]:
+  R.Le (Base.weighted (function a f) m d x)
+    (Real.mul (Real.mul (Powers.power Numeric.two m) (weight m (Coordinates.negPoint a))) (Base.weighted f m d (point a x))) :=
+  R.leReplaceLeft _ _ _ (sym!{Real.Real} _ _ (congr!{Function Real.Real} (\fun (h: Function) => Real.mul (weight m x) (Product.abs (value h x))) _ _ (jets a f d)))
+    (R.leReplaceRight _ _ _ (Laws.fieldMulAssoc _ _ _)
+      (R.leReplace _ _ _ _ (Laws.fieldMulComm _ _) (Laws.fieldMulComm _ _)
+        (Estimates.mulMonotone _ _ _ (Product.absNonnegative (value (jet f d) (point a x))) (weightBound a x m))));
+\definition translate[a: Point][f: Schwartz]: Schwartz := \into[Function](function a f, Schwartz) \by {
+  \fun (m: N.Nat^)(d: Directions) => Logic.existsIntro[Real.Real, { b: Real.Real \where \forall (x: Point) -> R.Le (Base.weighted (function a f) m d x) b }]
+    (Real.mul (Real.mul (Powers.power Numeric.two m) (weight m (Coordinates.negPoint a))) (seminorm f m d))
+    (\fun (x: Point) => R.leTrans _ _ _ (weightedBound a f m d x)
+      (Estimates.mulMonotone _ _ _ (Laws.fieldMulNonnegative _ _ (Numeric.nonnegative Numeric.two Numeric.twoNonnegative m) (weightNonnegative m (Coordinates.negPoint a)))
+        (pointBound f m d (point a x))))
+};
+\module Uniform(i: Coordinate);
+\module Complex;

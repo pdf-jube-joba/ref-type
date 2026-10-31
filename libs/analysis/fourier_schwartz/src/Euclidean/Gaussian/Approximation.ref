@@ -1,0 +1,77 @@
+\import \root.Euclidean[n := n].Gaussian[] \as Gaussian;
+\import \parent.\parent.Integral[] \as Integral;
+\import \parent.\parent.Convolution[] \as Convolution;
+\import euclidean_measure.Euclidean[n := n].MeasureConstruction[] \as Lebesgue;
+\import functional_analysis.Measure[A := Point].Integral[mu := Lebesgue.measure] \as I;
+\import I.Scaling[] \as Scaling;
+\import lp_spaces.On[A := Point, mu := Lebesgue.measure] \as L;
+\import metric_spaces.RealMetric[] \as RealMetric;
+\import L.Parametric[B := Real.Real, metric := RealMetric.metric] \as Parameters;
+\import topology.Topology[Carrier := Real.Real] \as Sets;
+\import calculus.Real[].Derivative[].Def[] \as Derivative;
+\import calculus.Real[].Derivative[].Operations[] \as Derivatives;
+\import calculus.Real[].Limit[].Def[] \as Limit;
+\import lp_spaces.Euclidean[n := n].Compact[p := lp_spaces.Powers[].one] \as Compact;
+\import Real.Sequence[] \as Sequence;
+\import Real.Sequence[].Operations[] \as SequenceLaws;
+\import Real.Geometric[q := Real.half] \as Dyadic;
+\import functional_analysis.ScalarLimits[] \as Limits;
+\definition point[t: Real.Real][y: Point]: Point := Coordinates.addPoint x (Coordinates.scale (Real.neg t) y);
+\definition bounded[t: Real.Real]: Integral.BoundedBy := Integral.BoundedBy {
+  function := \fun (y: Point) => Base.value f (point t y),
+  measurable := Compact.continuousMeasurable _ (Compact.smoothContinuous _
+    (Integrability.regular (\parent.\parent.Affine[a := Real.neg t, b := x].function f))),
+  coefficient := \into[Real.Real](seminorm f N.Nat^::zero Directions::nil, Scaling.NonnegativeScalar) \by { seminormNonnegative f N.Nat^::zero Directions::nil },
+  bound := \fun (y: Point) => Convolution.bound f (point t y),
+};
+\definition family[t: Real.Real]: I.Representatives := Integral.BoundedMultiply[f := Integrability.representative Gaussian.schwartz, g := bounded t].value;
+\definition value[t: Real.Real]: Real.Real := I.integral (family t);
+\definition dominator: I.Representatives := Scaling.scalarRepresentative (seminorm f N.Nat^::zero Directions::nil) (I.Absolute[].representative (Integrability.representative Gaussian.schwartz));
+\module Pointwise(y: Point);
+\definition data: Parameters.Data := Parameters.Data {
+  function := family, target := family Real.zero, at := Real.zero, allowed := Sets.Whole, radius := lp_spaces.Exponential[].one, bound := dominator,
+  dominated := \fun (t: Real.Real)(valid: _)(near: _)(y: Point) => Integral.BoundedMultiply[f := Integrability.representative Gaussian.schwartz, g := bounded t].dominated y,
+  pointwise := \fun (y: Point)(epsilon: Real.Real)(positive: _) => \block {
+    \takefrom delta: \Cast[Real.Real] ({ delta: Real.Real \where Limit.Control[(\fun (t: Real.Real) => family t y), Real.zero, family Real.zero y, epsilon, delta] })
+      \by Pointwise[y := y].continuous epsilon positive \then
+    \let control: Limit.Control[(\fun (t: Real.Real) => family t y), Real.zero, family Real.zero y, epsilon, delta] :=
+      \bysub(Real.Real, { delta: Real.Real \where Limit.Control[(\fun (t: Real.Real) => family t y), Real.zero, family Real.zero y, epsilon, delta] }, delta) \then
+    \return Logic.existsIntro[Real.Real, { delta: Real.Real \where Parameters.Control[(\fun (t: Real.Real) => family t y), Real.zero, Sets.Whole, family Real.zero y, epsilon, delta] }] delta
+      (Parameters.Control[(\fun (t: Real.Real) => family t y), Real.zero, Sets.Whole, family Real.zero y, epsilon, delta] {
+        positive := control.positive,
+        estimate := \fun (t: Real.Real)(valid: _)(near: _) => calculus.Real[].Limit[].Operations[].continuityEstimate _ Real.zero epsilon delta positive control t near,
+      })
+  },
+};
+\definition atZeroPoint[y: Point]: point Real.zero y = x := \axiom:funext(point Real.zero y, x, \fun (i: Coordinate) =>
+  trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (Real.add (x i)) _ _
+    (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (\fun (r: Real.Real) => Real.mul r (y i)) _ _ Laws.negZero) (Laws.fieldMulZeroLeft (y i)))) (Laws.addZeroRight (x i)));
+\import L.One[].Norm[] \as Equal;
+\definition atZero: value Real.zero = Real.mul Gaussian.Mass[].value (Base.value f x) :=
+  trans!{Real.Real} _ _ _ (Equal.integralPointwise (family Real.zero) (Scaling.scalarRepresentative (Base.value f x) (Integrability.representative Gaussian.schwartz))
+    (\fun (y: Point) => trans!{Real.Real} _ _ _ (congr!{Point Real.Real} (\fun (p: Point) => Real.mul (Gaussian.function y) (Base.value f p)) _ _ (atZeroPoint y)) (Laws.fieldMulComm _ _)))
+    (trans!{Real.Real} _ _ _ (Scaling.integralScalar (Base.value f x) (Integrability.representative Gaussian.schwartz)) (Laws.fieldMulComm _ _));
+\definition converges: Sequence.Converges (\fun (k: N.Nat^) => value (Dyadic.value k)) (Real.mul Gaussian.Mass[].value (Base.value f x)) :=
+  \idelim value Real.zero = Real.mul Gaussian.Mass[].value (Base.value f x) \with limit: Real.Real => Sequence.Converges (\fun (k: N.Nat^) => value (Dyadic.value k)) limit \by {
+    base: \fun (epsilon: Real.Real)(positive: _) => \block {
+      \takefrom delta: \Cast[Real.Real] ({ delta: Real.Real \where Parameters.Control[value, Real.zero, Sets.Whole, value Real.zero, epsilon, delta] }) \by Parameters.continuous data epsilon positive \then
+      \let control: Parameters.Control[value, Real.zero, Sets.Whole, value Real.zero, epsilon, delta] := \bysub(Real.Real, { delta: Real.Real \where Parameters.Control[value, Real.zero, Sets.Whole, value Real.zero, epsilon, delta] }, delta) \then
+      \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where \forall (j: N.Nat^) -> Nat.Le k j -> R.Lt (Dyadic.value j) delta }) \by Limits.dyadicSmall delta control.positive \then
+      \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where Sequence.LimitControl (\fun (j: N.Nat^) => value (Dyadic.value j)) (value Real.zero) epsilon k }] k
+        (\fun (j: N.Nat^)(later: _) => control.estimate (Dyadic.value j) (\refl(Dyadic.value j))
+          (R.ltReplaceLeft _ _ _ (sym!{Real.Real} _ _ (trans!{Real.Real} _ _ _ (Distance.distanceSymmetric (Dyadic.value j) Real.zero)
+            (Product.absOfNonnegative (Dyadic.value j) (Order.leOfLt _ _ (Limits.dyadicPositive j)))))
+            ((\bysub(N.Nat^, { k: N.Nat^ \where \forall (j: N.Nat^) -> Nat.Le k j -> R.Lt (Dyadic.value j) delta }, k)) j later)))
+    },
+    equality: atZero
+  };
+
+\definition normalized[t: Real.Real]: Real.Real := Real.mul (Laws.fieldInv Gaussian.Mass[].value) (value t);
+\definition approximateIdentity: Sequence.Converges (\fun (k: N.Nat^) => normalized (Dyadic.value k)) (Base.value f x) :=
+  \idelim Real.mul (Laws.fieldInv Gaussian.Mass[].value) (Real.mul Gaussian.Mass[].value (Base.value f x)) = Base.value f x
+    \with limit: Real.Real => Sequence.Converges (\fun (k: N.Nat^) => normalized (Dyadic.value k)) limit \by {
+      base: SequenceLaws.scaleConverges (Laws.fieldInv Gaussian.Mass[].value) _ _ converges,
+      equality: trans!{Real.Real} _ _ _ (sym!{Real.Real} _ _ (Laws.fieldMulAssoc (Laws.fieldInv Gaussian.Mass[].value) Gaussian.Mass[].value (Base.value f x)))
+        (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (\fun (a: Real.Real) => Real.mul a (Base.value f x)) _ _
+          (Laws.fieldInverseNonzero Gaussian.Mass[].value (Inverse.positiveNonzero _ Gaussian.Mass[].positive))) (Laws.fieldMulOneLeft _))
+    };

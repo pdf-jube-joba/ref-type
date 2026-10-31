@@ -1,0 +1,72 @@
+\import \root.Euclidean[n := n] \as Base;
+\import \root.Euclidean[n := n].Translation[] \as Shift;
+\import \parent.\parent.Decay[] \as Decay;
+\import \parent.\parent.Integrability[] \as Integrability;
+\import \parent.\parent.Kernel[] \as Kernel;
+\import Real.SquareRoot[] \as Square;
+\import functional_analysis.Measure[A := Point].Integral[mu := euclidean_measure.Euclidean[n := n].MeasureConstruction[].measure].Scaling[] \as Scaling;
+\definition vector[t: Real.Real]: Point := Coordinates.scale t (Coordinates.basis i);
+\definition point[t: Real.Real][x: Point]: Point := Shift.point (vector t) x;
+\definition pairingScale[c: Real.Real][x, y: Point]: Kernel.pairing (Coordinates.scale c x) y = Real.mul c (Kernel.pairing x y) :=
+  trans!{Real.Real} _ _ _ (Sum.congruent n _ _ (\fun (j: Coordinate) => Laws.fieldMulAssoc c (x j) (y j))) (Sum.scalar n c _);
+\definition radius[t: Real.Real]: radiusSquared (vector t) = Real.mul t t := eq_reason_in!{Real.Real _
+  "=" _ "by" { pairingScale t (Coordinates.basis i) (vector t) }
+  "=" _ "by" { congr!{Real.Real Real.Real} (Real.mul t) _ _ (Kernel.pairingSymmetric (Coordinates.basis i) (vector t)) }
+  "=" _ "by" { congr!{Real.Real Real.Real} (Real.mul t) _ _ (pairingScale t (Coordinates.basis i) (Coordinates.basis i)) }
+  "=" _ "by" { congr!{Real.Real Real.Real} (\fun (r: Real.Real) => Real.mul t (Real.mul t r)) _ _ (Basis.pairingBasis (Coordinates.basis i) i) }
+  "=" _ "by" { congr!{Real.Real Real.Real} (\fun (r: Real.Real) => Real.mul t (Real.mul t r)) _ _ (calculus.Real[].Multivariable[n := n].Space[].Prop[].replaceSame Coordinates.origin i Real.one) }
+  "=" _ "by" { congr!{Real.Real Real.Real} (Real.mul t) _ _ (Algebra.mulOneRight t) }
+};
+\definition negativeBase[t: Real.Real]: weightBase (Coordinates.negPoint (vector t)) = Real.add Real.one (Real.mul t t) :=
+  congr!{Real.Real Real.Real} (Real.add Real.one) _ _
+    (trans!{Real.Real} _ _ _ (Sum.congruent n _ _ (\fun (j: Coordinate) => Laws.fieldMulNegBoth (vector t j) (vector t j))) (radius t));
+\definition smallBase[t: Real.Real]: R.Lt (Real.distance t Real.zero) Real.one -> R.Le (weightBase (Coordinates.negPoint (vector t))) Numeric.two :=
+  \fun (near: _) => R.leReplaceLeft _ _ _ (sym!{Real.Real} _ _ (negativeBase t))
+    (Laws.addMonotoneLeft _ _ Real.one
+      (R.leReplace _ _ _ _ (\root.Scalars[].squareAbs t) (Laws.fieldMulOneLeft Real.one)
+        (Square.squareMonotone (Product.abs t) Real.one (Product.absNonnegative t) Laws.oneNonnegative
+          (Order.leOfLt _ _ (R.ltReplaceLeft _ _ _ (Distance.distanceSymmetric t Real.zero) near)))));
+\definition factor[m: N.Nat^]: Real.Real := Real.mul (Powers.power Numeric.two m) (Powers.power Numeric.two m);
+\definition factorNonnegative[m: N.Nat^]: R.Le Real.zero (factor m) := Algebra.squareNonnegative (Powers.power Numeric.two m);
+\definition bound[f: Schwartz][m: N.Nat^][d: Directions][t: Real.Real]: R.Lt (Real.distance t Real.zero) Real.one ->
+  \forall (x: Point) -> R.Le (Real.mul (weight m x) (Product.abs (Base.value (jet f d) (point t x)))) (Real.mul (factor m) (seminorm f m d)) :=
+  \fun (near: _)(x: Point) => R.leTrans _ _ _
+    (R.leReplaceLeft _ _ _ (congr!{Function Real.Real} (\fun (h: Function) => Real.mul (weight m x) (Product.abs (Base.value h x))) _ _ (Shift.jets (vector t) f d))
+      (Shift.weightedBound (vector t) f m d x))
+    (R.leTrans _ (Real.mul (factor m) (Base.weighted f m d (point t x))) _
+      (R.leReplace _ _ _ _ (Laws.fieldMulComm _ _) (Laws.fieldMulComm _ _)
+        (Estimates.mulMonotone _ _ _ (Base.weightedNonnegative f m d (point t x))
+          (Estimates.mulMonotone _ _ _ (Numeric.nonnegative Numeric.two Numeric.twoNonnegative m)
+            (Numeric.monotone _ Numeric.two (weightBaseNonnegative _) (smallBase t near) m))))
+      (Estimates.mulMonotone _ _ _ (factorNonnegative m) (pointBound f m d (point t x))));
+\definition coefficient[f: Schwartz]: Scaling.NonnegativeScalar := \into[Real.Real](Real.mul (factor Decay.degree) (seminorm f Decay.degree Directions::nil), Scaling.NonnegativeScalar) \by {
+  Laws.fieldMulNonnegative _ _ (factorNonnegative Decay.degree) (seminormNonnegative f Decay.degree Directions::nil)
+};
+\definition data[f: Schwartz][t: Real.Real][near: R.Lt (Real.distance t Real.zero) Real.one]: Decay.Data := Decay.Data {
+  function := \fun (x: Point) => Base.value f (point t x), coefficient := coefficient f,
+  measurable := (Integrability.integrable (Shift.translate (vector t) f)).left,
+  bound := bound f Decay.degree Directions::nil t near,
+};
+\definition dominated[f: Schwartz][t: Real.Real]: R.Lt (Real.distance t Real.zero) Real.one -> \forall (x: Point) ->
+  R.Le (Product.abs (Base.value f (point t x))) (Real.mul (coefficient f) (Decay.Envelope[].value x)) :=
+  \fun (near: _)(x: Point) => Decay.Integrable[data := data f t near].dominated x;
+\definition dominator[f: Schwartz]: functional_analysis.Measure[A := Point].Integral[mu := euclidean_measure.Euclidean[n := n].MeasureConstruction[].measure].Representatives := Scaling.scalarRepresentative (coefficient f) Decay.Envelope[].value;
+
+\import calculus.Real[].Multivariable[n := n].Space[].Prop[] \as Space;
+\import std.Logic[].Classical[] \as Classical;
+\definition pointEquation[t: Real.Real][x: Point]: point t x = Coordinates.replace x i (Real.add (x i) t) :=
+  \axiom:funext(point t x, Coordinates.replace x i (Real.add (x i) t), \fun (j: Coordinate) =>
+    Logic.orElim _ _ _ (Classical.excludedMiddle (i = j))
+      (\fun (same: i = j) => \idelim i = j \with k: Coordinate => point t x k = Coordinates.replace x i (Real.add (x i) t) k \by {
+        base: trans!{Real.Real} _ _ _
+          (congr!{Real.Real Real.Real} (\fun (r: Real.Real) => Real.add (Real.mul t r) (x i)) _ _ (Space.replaceSame Coordinates.origin i Real.one))
+          (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (\fun (r: Real.Real) => Real.add r (x i)) _ _ (Algebra.mulOneRight t))
+            (trans!{Real.Real} _ _ _ (Laws.addComm t (x i)) (sym!{Real.Real} _ _ (Space.replaceSame x i (Real.add (x i) t))))),
+        equality: same
+      })
+      (\fun (different: Logic.Not (i = j)) => trans!{Real.Real} _ _ _
+        (congr!{Real.Real Real.Real} (\fun (r: Real.Real) => Real.add (Real.mul t r) (x j)) _ _ (Space.replaceDifferent Coordinates.origin i j Real.one different))
+        (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (\fun (r: Real.Real) => Real.add r (x j)) _ _ (Laws.fieldMulZeroRight t))
+          (trans!{Real.Real} _ _ _ (Laws.addZeroLeft (x j)) (sym!{Real.Real} _ _ (Space.replaceDifferent x i j (Real.add (x i) t) different))))));
+\definition atZero[x: Point]: point Real.zero x = x := \axiom:funext(point Real.zero x, x, \fun (j: Coordinate) =>
+  trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (\fun (r: Real.Real) => Real.add r (x j)) _ _ (Laws.fieldMulZeroLeft (Coordinates.basis i j))) (Laws.addZeroLeft (x j)));

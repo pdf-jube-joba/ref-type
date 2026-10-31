@@ -1,0 +1,88 @@
+\import \root.Euclidean[n := n] \as Base;
+\import euclidean_measure.Euclidean[n := n].MeasureConstruction[] \as Lebesgue;
+\import product_integration.Euclidean[n := n] \as EuclideanMeasure;
+\import lp_spaces.Euclidean[n := n].Joint[] \as Joint;
+\import product_integration.ProductSigma[A := Point, B := Point, left := Lebesgue.measure.sigma, right := Lebesgue.measure.sigma] \as Sigma;
+\import functional_analysis.Measure[A := Point].Integral[mu := Lebesgue.measure] \as I;
+\import functional_analysis.Measure[A := Sigma.Point] \as M;
+\import M.Integral[mu := Joint.jointMeasure] \as J;
+\import M.Functions[mu := Joint.jointMeasure] \as Functions;
+\import lp_spaces.On[A := Sigma.Point, mu := Joint.jointMeasure].Products[] \as Products;
+\import product_integration.MeasureMap[A := Point, B := Point, source := Lebesgue.measure, target := Lebesgue.measure] \as Maps;
+\import product_integration.Convolution[A := Point, mu := Lebesgue.measure, exhaustion := EuclideanMeasure.exhaustion] \as Convolution;
+\import product_integration.Integration[A := Point, B := Point, mu := Lebesgue.measure, nu := Lebesgue.measure, left := EuclideanMeasure.exhaustion, right := EuclideanMeasure.exhaustion] \as Integrate;
+\import complex.Complex[] \as C;
+\import C.Def[] \as D;
+\import C.Prop[] \as CL;
+\import measure_convergence.On[A := Point, mu := Lebesgue.measure].Complex[] \as CI;
+\import measure_convergence.On[A := Sigma.Point, mu := Joint.jointMeasure].Complex[] \as JC;
+\import \parent.Integral[] \as Fourier;
+\import std.Data[].Pair[] \as Pair;
+\definition PairPoint: \Set := Sigma.Point;
+\definition measure: M.Measure := Joint.jointMeasure;
+\definition realJoint: \Set := J.Representatives;
+\definition complexJoint: \Set := JC.Representatives;
+\definition first: PairPoint -> Point := Joint.first;
+\definition second: PairPoint -> Point := Joint.second;
+\definition pair[x, y: Point]: PairPoint := Pair.pair Point Point x y;
+\definition swap[p: PairPoint]: PairPoint := Pair.swap Point Point p;
+\definition identity: Maps.Data := Maps.Data {
+  function := \fun (x: Point) => x,
+  measurable := \fun (S: \Pow Point)(valid: _) => valid,
+  value := \fun (S: \Pow Point)(valid: _) => \refl(Lebesgue.measure.value S),
+};
+\module Product(f, g: I.Representatives) {
+  \import Convolution.For[translations := (\fun (x: Point) => identity), f := f, g := g] \as Product;
+  \definition conditions: Product.Conditions := Product.Conditions {
+    measurable := Products.measurable (Joint.leftFunction f) (Joint.rightFunction g)
+      (Joint.leftMeasurable f (I.integralLaw f).integrable.left) (Joint.rightMeasurable g (I.integralLaw g).integrable.left),
+  };
+  \definition value: J.Representatives := Product.On[conditions := conditions].joint;
+}
+\definition product[f, g: I.Representatives]: realJoint := Product[f := f, g := g].value;
+\structure Family[f: complexJoint]: \Set := {
+  sections: Point -> CI.Representatives,
+  sectionValues: \forall (x, y: Point) -> sections x y = f (pair x y),
+  outer: CI.Representatives,
+  outerValues: \forall (x: Point) -> outer x = CI.integral (sections x),
+};
+\module Exchange(f: complexJoint, data: Family[f]);
+\definition exchange[f: complexJoint][data: Family[f]]: JC.integral f = CI.integral data.outer := Exchange[f := f, data := data].law;
+\import product_integration.Symmetry[A := Point, B := Point, mu := Lebesgue.measure, nu := Lebesgue.measure, left := EuclideanMeasure.exhaustion, right := EuclideanMeasure.exhaustion] \as Symmetry;
+\import product_integration.MeasureMap[A := PairPoint, B := PairPoint, source := measure, target := measure].On[map := Symmetry.map] \as Swap;
+\module Transpose(f: complexJoint) {
+  \import Swap.RealFunction[f := JC.realPart f] \as Re;
+  \import Swap.RealFunction[f := JC.imaginaryPart f] \as Im;
+  \definition value: complexJoint := \into[JC.Function]((\fun (p: PairPoint) => f (swap p)), complexJoint) \by {
+    Logic.And[_, _]::# (J.integralLaw Re.representative).integrable (J.integralLaw Im.representative).integrable
+  };
+  \definition integral: JC.integral value = JC.integral f := CL.ext _ _ Re.integral Im.integral;
+}
+\structure Dominated: \Set := {
+  function: PairPoint -> C.Complex,
+  realMeasurable: M.IsMeasurable measure (\fun (p: PairPoint) => C.re (function p)),
+  imaginaryMeasurable: M.IsMeasurable measure (\fun (p: PairPoint) => C.im (function p)),
+  bound: realJoint,
+  realBound: \forall (p: PairPoint) -> R.Le (Product.abs (C.re (function p))) (bound p),
+  imaginaryBound: \forall (p: PairPoint) -> R.Le (Product.abs (C.im (function p))) (bound p),
+};
+\module Bounded(data: Dominated);
+
+\structure Measurable[h: PairPoint -> C.Complex]: \Prop := {
+  real: M.IsMeasurable measure (\fun (p: PairPoint) => C.re (h p)),
+  imaginary: M.IsMeasurable measure (\fun (p: PairPoint) => C.im (h p)),
+};
+\definition measurable[f: complexJoint]: Measurable[f] := Measurable[f] { real := (J.integralLaw (JC.realPart f)).integrable.left, imaginary := (J.integralLaw (JC.imaginaryPart f)).integrable.left };
+\definition productMeasurable[h, k: PairPoint -> C.Complex]: Measurable[h] -> Measurable[k] -> Measurable[\fun (p: PairPoint) => D.mul (h p) (k p)] :=
+  \fun (left: Measurable[h])(right: Measurable[k]) => Measurable[\fun (p: PairPoint) => D.mul (h p) (k p)] {
+    real := Functions.addMeasurable _ _
+      (Products.measurable _ _ left.real right.real)
+      (Functions.negMeasurable _ (Products.measurable _ _ left.imaginary right.imaginary)),
+    imaginary := Functions.addMeasurable _ _ (Products.measurable _ _ left.real right.imaginary) (Products.measurable _ _ left.imaginary right.real),
+  };
+\structure Phase: \Set := {
+  function: PairPoint -> C.Complex,
+  measurable: Measurable[function],
+  bound: \forall (p: PairPoint) -> R.Le (C.Absolute[].abs (function p)) Real.one,
+};
+\module PhaseProduct(f: complexJoint, phase: Phase);

@@ -1,0 +1,18 @@
+\import \root.Euclidean[n := n] \as Base;
+\definition function: \forall (k: N.Nat^) -> (Fin.Fin k -> Function) -> Function :=
+  \induction (k: N.Nat^) \return (Fin.Fin k -> Function) -> Function \with {
+    | zero: \fun (f: Fin.Fin N.Nat^::zero -> Function) => Functions.origin
+    | succ: \fun (k: N.Nat^)(previous: (Fin.Fin k -> Function) -> Function)(f: Fin.Fin (N.Nat^::succ k) -> Function) =>
+      Functions.plus (f (Fin.zero k)) (previous (\fun (j: Fin.Fin k) => f (Fin.succ k j)))
+  };
+\definition value: \forall (k: N.Nat^)(f: Fin.Fin k -> Function)(x: Point) -> Base.value (function k f) x = Sum.sum k (\fun (j: Fin.Fin k) => Base.value (f j) x) :=
+  \induction (k: N.Nat^) \return \forall (f: Fin.Fin k -> Function)(x: Point) -> Base.value (function k f) x = Sum.sum k (\fun (j: Fin.Fin k) => Base.value (f j) x) \with {
+    | zero: \fun (f: _)(x: Point) => \refl(Real.zero)
+    | succ: \fun (k: N.Nat^)(previous: _)(f: _)(x: Point) => congr!{Real.Real Real.Real} (Real.add (Base.value (f (Fin.zero k)) x)) _ _ (previous (\fun (j: Fin.Fin k) => f (Fin.succ k j)) x)
+  };
+\definition partial[i: Coordinate]: \forall (k: N.Nat^)(f: Fin.Fin k -> Function) -> Differential.apply i (function k f) = function k (\fun (j: Fin.Fin k) => Differential.apply i (f j)) :=
+  \induction (k: N.Nat^) \return \forall (f: Fin.Fin k -> Function) -> Differential.apply i (function k f) = function k (\fun (j: Fin.Fin k) => Differential.apply i (f j)) \with {
+    | zero: \fun (f: _) => Differential.constant i Real.zero
+    | succ: \fun (k: N.Nat^)(previous: _)(f: _) => trans!{Function} _ _ _ (Differential.addition i (f (Fin.zero k)) (function k (\fun (j: Fin.Fin k) => f (Fin.succ k j))))
+      (congr!{Function Function} (Functions.plus (Differential.apply i (f (Fin.zero k)))) _ _ (previous (\fun (j: Fin.Fin k) => f (Fin.succ k j))))
+  };

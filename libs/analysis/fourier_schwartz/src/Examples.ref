@@ -1,0 +1,34 @@
+\import \root.Euclidean[n := n] \as E;
+\import E.Complex[] \as S;
+\import E.Integral[] \as F;
+\import E.Integral[].Identities[] \as Laws;
+\import complex.Complex[] \as C;
+\import C.Def[] \as D;
+\definition seminormScalar[c: C.Complex][f: S.Function][m: std.Data[].Nat[].Nat^][directions: E.Directions]:
+  S.seminorm (S.scale c f) m directions = real.Analysis[].mul (C.Absolute[].abs c) (S.seminorm f m directions) := S.homogeneous c f m directions;
+\definition seminormPartial[f: S.Function][i: E.Coordinate][m: std.Data[].Nat[].Nat^][directions: E.Directions]:
+  S.seminorm (S.partial f i) m directions = S.seminorm f m (E.Operations[].shift i directions) := S.partialSeminorm f i m directions;
+\definition transformScalar[c: C.Complex][f: F.Input][xi: E.Point]:
+  F.transform (F.scaleInput c f) xi = D.mul c (F.transform f xi) := Laws.scalar c f xi;
+\definition transformSum[f, g: F.Input][xi: E.Point]:
+  F.transform (F.addInput f g) xi = D.add (F.transform f xi) (F.transform g xi) := Laws.addition f g xi;
+\definition transformOrigin[f: F.Input]:
+  F.transform f E.origin = F.mass f := Laws.atOrigin f;
+
+\import E.Transform[] \as Transform;
+\definition transformed[f: S.Function]: S.Function := Transform.Preservation[].value f;
+\definition derivative[f: S.Function][xi: E.Point][i: E.Coordinate]:
+  Transform.function (S.partial f i) xi = D.scale (xi i) (\root.Phase[].rotate (Transform.function f xi)) := Transform.Identities[].spatialDerivative f xi i;
+\definition translated[f: S.Function][a, xi: E.Point]:
+  Transform.function (E.Translation[].Complex[].translate a f) xi = D.mul (E.Kernel[].value (topological_algebra.Euclidean[].Dimension[n := n].Def[].negPoint a) xi) (Transform.function f xi) :=
+  Transform.Identities[].translation f a xi;
+
+\definition convolution[f, g: S.Function][xi: E.Point]:
+  Transform.function (E.Convolution[].Complex[].function f g) xi = D.mul (Transform.function f xi) (Transform.function g xi) :=
+  E.Convolution[].Complex[].Fourier[f := f, g := g, xi := xi].law;
+\definition inverse[f: S.Function][x: E.Point]:
+  E.Inversion[].inverse (Transform.Preservation[].value f) x = S.value f x := E.Inversion[].theorem f x;
+\definition inverseSchwartz[f: S.Function][xi: E.Point]:
+  Transform.function (E.Inversion[].inverseSchwartz f) xi = S.value f xi := E.Inversion[].rightInverse f xi;
+\definition gaussian[xi: E.Point]: E.Gaussian[].Fourier[].value xi = D.ofReal (real.Analysis[].mul E.Gaussian[].Mass[].value (E.Gaussian[].function xi)) :=
+  E.Gaussian[].Fourier[].formula xi;
