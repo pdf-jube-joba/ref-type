@@ -1,0 +1,60 @@
+\import topology.Topology[Carrier := A] \as Sets;
+\import Q.Maps[B := Real.Real] \as NormMaps;
+\definition representative[f: Representatives]: Real.Real := I.integral (Absolute.representative (toIntegral f));
+\definition integralPointwise[f, g: I.Representatives]: (\forall (x: A) -> f x = g x) -> I.integral f = I.integral g :=
+  \fun (same: _) => Null.integralAlmost f g (AE.nullSubset ({ x: A \where Logic.Not (f x = g x) }) Sets.Empty
+    (\fun (x: A)(different: _) => different (same x)) AE.nullEmpty);
+\definition respects: NormMaps.Respects representative := \fun (f, g: Representatives)(same: _) =>
+  Null.integralAlmost (Absolute.representative (toIntegral f)) (Absolute.representative (toIntegral g)) (Null.mapAlmost Product.abs f g same);
+\definition value: Space -> Real.Real := NormMaps.value equivalence representative respects;
+\definition onClass[f: Representatives]: value (ofFunction f) = representative f := NormMaps.onClass equivalence representative respects f;
+\definition representativeNonnegative[f: Representatives]: R.Le Real.zero (representative f) := Absolute.absoluteIntegralNonnegative (toIntegral f);
+\definition representativeZero: representative zeroRepresentative = Real.zero :=
+  trans!{Real.Real} _ _ _ (integralPointwise (Absolute.representative (toIntegral zeroRepresentative)) Zero.representative
+    (\fun (x: A) => Distance.distanceSelf Real.zero)) Zero.integralZero;
+\definition representativeTriangle[f, g: Representatives]: R.Le (representative (addRepresentative f g)) (Real.add (representative f) (representative g)) :=
+  R.leReplaceRight _ _ _ (Linear.integralAdd (Absolute.representative (toIntegral f)) (Absolute.representative (toIntegral g)))
+    (Absolute.integralMono (Absolute.representative (toIntegral (addRepresentative f g)))
+      (Linear.addRepresentative (Absolute.representative (toIntegral f)) (Absolute.representative (toIntegral g)))
+      (\fun (x: A) => Linear.absTriangle (f x) (g x)));
+\definition representativeScale[c: Real.Real][f: Representatives]: representative (scaleRepresentative c f) = Real.mul (Product.abs c) (representative f) :=
+  trans!{Real.Real} _ _ _ (integralPointwise (Absolute.representative (toIntegral (scaleRepresentative c f)))
+    (Scaling.scalarRepresentative (Product.abs c) (Absolute.representative (toIntegral f))) (\fun (x: A) => Product.absProduct c (f x)))
+    (Scaling.integralScalar (Product.abs c) (Absolute.representative (toIntegral f)));
+\definition representativeDefinite[f: Representatives]: representative f = Real.zero -> ofFunction f = zero :=
+  \fun (zeroNorm: _) => \block {
+    \let absolute: I.Representatives := Absolute.representative (toIntegral f) \then
+    \let almost: M.AlmostEqual mu absolute Zero.function := \parent.\parent.NullIntegral[f := absolute].almostZero
+      (\fun (x: A) => Product.absNonnegative (f x)) zeroNorm \then
+    \return classEqual f zeroRepresentative (AE.nullSubset ({ x: A \where Logic.Not (f x = Real.zero) })
+      ({ x: A \where Logic.Not (Product.abs (f x) = Real.zero) })
+      (\fun (x: A)(different: _)(absZero: _) => different
+        (sym!{Real.Real} _ _ (Distance.distanceSeparated Real.zero (f x) absZero))) almost)
+  };
+\definition nonnegative: \forall (x: Space) -> R.Le Real.zero (value x) := Q.induction (\fun (x: Space) => R.Le Real.zero (value x))
+  (\fun (f: Representatives) => R.leReplaceRight _ _ _ (sym!{Real.Real} _ _ (onClass f)) (representativeNonnegative f));
+\definition atZero: value zero = Real.zero := trans!{Real.Real} _ _ _ (onClass zeroRepresentative) representativeZero;
+\definition definite: \forall (x: Space) -> value x = Real.zero -> x = zero := Q.induction (\fun (x: Space) => value x = Real.zero -> x = zero)
+  (\fun (f: Representatives)(equal: _) => representativeDefinite f (trans!{Real.Real} _ _ _ (sym!{Real.Real} _ _ (onClass f)) equal));
+\definition triangle: \forall (x, y: Space) -> R.Le (value (add x y)) (Real.add (value x) (value y)) :=
+  Q.induction2 (\fun (x, y: Space) => R.Le (value (add x y)) (Real.add (value x) (value y)))
+    (\fun (f, g: Representatives) => R.leReplace _ _ _ _
+      (sym!{Real.Real} _ _ (trans!{Real.Real} _ _ _ (congr!{Space Real.Real} value _ _ (addClass f g)) (onClass (addRepresentative f g))))
+      (congr!{Real.Real Real.Real Real.Real} Real.add _ _ _ _ (sym!{Real.Real} _ _ (onClass f)) (sym!{Real.Real} _ _ (onClass g)))
+      (representativeTriangle f g));
+\definition homogeneous: \forall (c: Real.Real)(x: Space) -> value (scale c x) = Real.mul (Product.abs c) (value x) :=
+  \fun (c: Real.Real) => Q.induction (\fun (x: Space) => value (scale c x) = Real.mul (Product.abs c) (value x))
+    (\fun (f: Representatives) => eq_reason_in!{Real.Real _
+      "=" _ "by" { congr!{Space Real.Real} value _ _ (scaleClass c f) }
+      "=" _ "by" { onClass (scaleRepresentative c f) }
+      "=" _ "by" { representativeScale c f }
+      "=" _ "by" { congr!{Real.Real Real.Real} (Real.mul (Product.abs c)) _ _ (sym!{Real.Real} _ _ (onClass f)) }
+    });
+\import \parent.Vector[] \as Vector;
+\import functional_analysis.Normed[V := Space, space := Vector.space] \as Normed;
+\definition data: Normed.NormData := Normed.NormData { norm := value };
+\definition laws: Normed.NormLaws[data] := Normed.NormLaws[data] {
+  nonnegative := nonnegative, zero := atZero, definite := definite, triangle := triangle, homogeneous := homogeneous,
+};
+\definition norm: Normed.Norm := \into[Normed.NormData](data, Normed.Norm) \by { laws };
+\definition metric: metric_spaces.MetricSpace[Carrier := Space].Metric := Normed.metric norm;

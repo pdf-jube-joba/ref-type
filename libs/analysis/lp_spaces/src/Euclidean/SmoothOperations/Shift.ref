@@ -1,0 +1,63 @@
+\import calculus.Real[].Multivariable[n := n].Space[].Prop[] \as Space;
+\import calculus.Real[].Derivative[].Def[] \as Derivative;
+\import calculus.Real[].Derivative[].Operations[] \as Derivatives;
+\import calculus.Real[].Derivative[].Chain[] \as Chain;
+\import calculus.Real[].Limit[].Operations[] \as Limits;
+\import Open.Whole[] \as Whole;
+\import Open.Analysis[] \as Analysis;
+\import \root.Euclidean[n := n].SmoothOperations[].Partial[f := f, i := i] \as Partial;
+\definition base: Point := E.subPoint a y;
+\definition point[t: Real.Real]: Point := E.subPoint (Coordinates.replace a i t) y;
+\definition replaced[t: Real.Real]: point t = Coordinates.replace base i (Real.sub t (y i)) := \axiom:funext(point t, Coordinates.replace base i (Real.sub t (y i)),
+  \fun (j: Fin.Fin n) => Logic.orElim (i = j) (Logic.Not (i = j)) _ (Classical.excludedMiddle (i = j))
+    (\fun (equal: _) => \idelim i = j \with k: Fin.Fin n => point t k = Coordinates.replace base i (Real.sub t (y i)) k \by {
+      base: trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (\fun (r: Real.Real) => Real.sub r (y i)) _ _ (Space.replaceSame a i t))
+        (sym!{Real.Real} _ _ (Space.replaceSame base i (Real.sub t (y i)))), equality: equal })
+    (\fun (different: _) => trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (\fun (r: Real.Real) => Real.sub r (y j)) _ _ (Space.replaceDifferent a i j t different))
+      (sym!{Real.Real} _ _ (Space.replaceDifferent base i j (Real.sub t (y i)) different))));
+\definition curve[t: Real.Real]: Real.Real := f (point t);
+\definition coefficient[t: Real.Real]: Real.Real := Partial.function (point t);
+\import Analysis.Section[U := Open.whole, f := Restriction.function Open.whole f, a := Whole.point base, i := i] \as Section;
+\definition agreement[t: Real.Real]: Section.value (Real.sub t (y i)) = curve t := Section.agreement (Real.sub t (y i)) (Whole.point (point t)) (replaced t);
+\definition derivative[t: Real.Real]: Derivative.HasDerivativeAt curve t (coefficient t) := \block {
+  \let shifted: Real.Real -> Real.Real := \fun (s: Real.Real) => Real.sub s (y i) \then
+  \let composed: Real.Real -> Real.Real := \fun (s: Real.Real) => Section.value (shifted s) \then
+  \let law: Derivative.HasDerivativeAt composed t (Real.mul (coefficient t) Real.one) := Chain.derivative shifted Section.value t Real.one (coefficient t)
+    (Derivatives.translatedIdentity (y i) t)
+    (Section.derivativeAt (shifted t) (Whole.point (point t)) (coefficient t) (replaced t) (Partial.law (Whole.point (point t)))) \then
+  \let simplified: Derivative.HasDerivativeAt composed t (coefficient t) := \idelim Real.mul (coefficient t) Real.one = coefficient t \with d: Real.Real => Derivative.HasDerivativeAt composed t d \by {
+    base: law, equality: Algebra.mulOneRight (coefficient t) } \then
+  \return \idelim composed = curve \with h: (Real.Real -> Real.Real) => Derivative.HasDerivativeAt h t (coefficient t) \by {
+    base: simplified, equality: \axiom:funext(composed, curve, agreement) }
+};
+\definition center: curve (a i) = f base := congr!{Point Real.Real} f _ _ (congr!{Point Point} (\fun (x: Point) => E.subPoint x y) _ _ (Space.replaceOriginal a i));
+\module Interval(left, right: Real.Real);
+\definition increment[c: Nonnegative]: (\forall (x: Point) -> R.Le (Product.abs (Partial.function x)) c) -> \forall (t: Real.Real) -> Logic.Not (t = a i) ->
+  R.Le (Product.abs (Real.sub (curve t) (curve (a i)))) (Real.mul c (Real.distance t (a i))) := \fun (bounded: _)(t: Real.Real)(different: _) =>
+    Logic.orElim (R.Le (a i) t) (R.Le t (a i)) _ (Order.leTotal (a i) t)
+      (\fun (ordered: _) => Interval[left := a i, right := t].increment c bounded (Order.ltOfLeNotEq (a i) t ordered (\fun (equal: _) => different (sym!{Real.Real} _ _ equal))))
+      (\fun (ordered: _) => R.leReplace _ _ _ _
+        (trans!{Real.Real} _ _ _ (\root.Powers[].Cuts[].absDifference (curve (a i)) (curve t))
+          (trans!{Real.Real} _ _ _ (Distance.distanceSymmetric _ _) (sym!{Real.Real} _ _ (\root.Powers[].Cuts[].absDifference (curve t) (curve (a i))))))
+        (congr!{Real.Real Real.Real} (Real.mul c) _ _ (Distance.distanceSymmetric (a i) t))
+        (Interval[left := t, right := a i].increment c bounded (Order.ltOfLeNotEq t (a i) ordered different)));
+\definition slopeBound[c: Nonnegative]: (\forall (x: Point) -> R.Le (Product.abs (Partial.function x)) c) -> \forall (t: Real.Real) -> Logic.Not (t = a i) ->
+  R.Le (Product.abs (Derivative.slope curve (a i) t)) c := \fun (bounded: _)(t: Real.Real)(different: _) => \block {
+  \let h: Real.Real := Real.sub t (a i) \then
+  \let nonzero: Logic.Not (h = Real.zero) := \fun (zero: _) => different (trans!{Real.Real} _ _ _ (sym!{Real.Real} _ _ (Estimates.addSubCancel t (a i)))
+    (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (Real.add (a i)) _ _ zero) (Laws.addZeroRight (a i)))) \then
+  \let magnitude: Product.abs (Derivative.slope curve (a i) t) = Real.mul (Product.abs (Laws.fieldInv h)) (Product.abs (Real.sub (curve t) (curve (a i)))) :=
+    trans!{Real.Real} _ _ _ (Product.absProduct (Real.sub (curve t) (curve (a i))) (Laws.fieldInv h)) (Laws.fieldMulComm _ _) \then
+  \let cancellation: Real.mul (Product.abs (Laws.fieldInv h)) (Real.distance t (a i)) = Real.one :=
+    trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (Real.mul (Product.abs (Laws.fieldInv h))) _ _ (sym!{Real.Real} _ _ (\root.Powers[].Cuts[].absDifference t (a i))))
+      (Product.inverseAbsCancellation h nonzero) \then
+  \let right: Real.mul (Product.abs (Laws.fieldInv h)) (Real.mul c (Real.distance t (a i))) = c := eq_reason_in!{Real.Real _
+    "=" _ "by" { sym!{Real.Real} _ _ (Laws.fieldMulAssoc (Product.abs (Laws.fieldInv h)) c (Real.distance t (a i))) }
+    "=" _ "by" { congr!{Real.Real Real.Real} (\fun (r: Real.Real) => Real.mul r (Real.distance t (a i))) _ _ (Laws.fieldMulComm (Product.abs (Laws.fieldInv h)) c) }
+    "=" _ "by" { Laws.fieldMulAssoc c (Product.abs (Laws.fieldInv h)) (Real.distance t (a i)) }
+    "=" _ "by" { congr!{Real.Real Real.Real} (Real.mul c) _ _ cancellation }
+    "=" _ "by" { Algebra.mulOneRight c }
+  } \then
+  \return R.leReplace _ _ _ _ (sym!{Real.Real} _ _ magnitude) right
+    (Estimates.mulMonotone (Product.abs (Laws.fieldInv h)) _ _ (Product.absNonnegative _) (increment c bounded t different))
+};

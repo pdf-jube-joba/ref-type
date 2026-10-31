@@ -1,0 +1,21 @@
+\import \root.Euclidean[n := n].Translation[p := p] \as Translation;
+\import euclidean_measure.BoxCompact[n := n] \as Boxes;
+\import I.Zero[] \as Zero;
+\definition radiusSum: Nonnegative := PA.sum radius rho.radius;
+\definition box: E.Box := Bounds.box radiusSum;
+\definition within[x, y: Point]: Logic.Not (f (E.subPoint x y) = Real.zero) -> Logic.Not (rho.function y = Real.zero) -> Sets.Member (E.points box) x := \fun (fn: _)(rn: _) =>
+  Bounds.coordinateBound x radiusSum (R.leTrans _ _ _ (Geometry.metric.triangle Coordinates.origin (E.subPoint x y) x)
+    (Estimates.addLe _ _ _ _ (radiusBound (E.subPoint x y) (Support.nonzeroInSupport Ambient.topology f (E.subPoint x y) fn))
+      (R.leTrans _ _ _ (Translation.shiftDistance x y)
+        (R.leReplaceLeft _ _ _ (Geometry.metric.symmetric Coordinates.origin y) (rho.radiusBound y (Support.nonzeroInSupport Ambient.topology rho.function y rn))))));
+\definition integrandZero[x, y: Point]: Logic.Not (Sets.Member (E.points box) x) -> standard input rho x y = Real.zero := \fun (outside: _) => Logic.orElim _ _ _ (Classical.excludedMiddle (rho.function y = Real.zero))
+  (\fun (zero: _) => trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (Real.mul (f (E.subPoint x y))) _ _ zero) (Laws.fieldMulZeroRight _))
+  (\fun (rn: _) => \block {
+    \let zero: f (E.subPoint x y) = Real.zero := Sigma.doubleNegative _ (\fun (fn: _) => outside (within x y fn rn)) \then
+    \return trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (\fun (r: Real.Real) => Real.mul r (rho.function y)) _ _ zero) (Laws.fieldMulZeroLeft _)
+  });
+\definition outside[x: Point]: Logic.Not (Sets.Member (E.points box) x) -> function x = Real.zero := \fun (outside: _) => trans!{Real.Real} _ _ _ (sym!{Real.Real} _ _ (standardIntegral input rho x))
+  (trans!{Real.Real} _ _ _ (Null.integralAlmost (standard input rho x) Zero.representative (AE.nullSubset _ Sets.Empty
+    (\fun (y: Point)(different: _) => different (integrandZero x y outside)) AE.nullEmpty)) Zero.integralZero);
+\definition compact: Sets.IsCompactIn Ambient.topology (Smooth.support function) := Support.compactSupportWithin Ambient.topology function (E.points box) (Boxes.compact box)
+  (Support.supportWithinClosed Ambient.topology function (E.points box) (Boxes.pointsClosed box) outside);

@@ -1,0 +1,18 @@
+\import smooth_partitions.Exponential[].Global[].MeanValue[a := Real.zero, b := t] \as Mean;
+\import calculus.Real[].MeanValue[].Interval[a := Real.zero, b := t] \as Interval;
+\definition lower: R.Lt Real.zero t -> R.Le (Real.add Real.one t) (Exp.value t) := \fun (positive: _) => \block {
+  \takefrom c: \Cast[Real.Real] Mean.Witness \by Mean.witnessExists positive \then
+  \let witness: Interval.MeanValueResult[Exp.value, c] := \bysub(Real.Real, Mean.Witness, c) \then
+  \let slope: Interval.secant Exp.value = Exp.value c := Derivatives.unique Exp.value c _ _ witness.derivative (Exp.derivative c) \then
+  \let increment: Real.sub (Exp.value t) Real.one = Real.mul (Exp.value c) t := eq_reason_in!{Real.Real _
+    "=" _ "by" { congr!{Real.Real Real.Real} (Real.sub (Exp.value t)) _ _ (sym!{Real.Real} _ _ Exp.atZero) }
+    "=" _ "by" { sym!{Real.Real} _ _ (Derivatives.slopeIncrement Exp.value Real.zero t
+      (\fun (zero: t = Real.zero) => Order.ltNotEq _ _ positive (sym!{Real.Real} _ _ zero))) }
+    "=" _ "by" { congr!{Real.Real Real.Real Real.Real} Real.mul _ _ _ _ slope (Laws.subZeroRight t) }
+  } \then
+  \let first: R.Le t (Real.sub (Exp.value t) Real.one) := R.leReplace _ _ _ _ (Algebra.mulOneRight t)
+    (trans!{Real.Real} _ _ _ (Laws.fieldMulComm t (Exp.value c)) (sym!{Real.Real} _ _ increment))
+    (E.mulMonotone t Real.one (Exp.value c) (Order.leOfLt _ _ positive) (Exp.oneBelow c witness.interior.left)) \then
+  \return R.leReplaceRight _ _ _ (E.addSubCancel (Exp.value t) Real.one)
+    (E.addLe Real.one t Real.one (Real.sub (Exp.value t) Real.one) (R.leRefl Real.one) first)
+};

@@ -1,0 +1,42 @@
+\definition terms[k: N.Nat^]: F.Representatives := F.absoluteRepresentative (difference (s (index k)) (s (index (N.Nat^::succ k))));
+\definition partial: N.Nat^ -> F.Representatives := \induction (k: N.Nat^) \return F.Representatives \with {
+  | zero: F.zeroRepresentative
+  | succ: \fun (k: N.Nat^)(previous: F.Representatives) => F.addRepresentative previous (terms k)
+};
+\definition partialNonnegative: \forall (k: N.Nat^)(x: A) -> R.Le Real.zero (partial k x) :=
+  \induction (k: N.Nat^) \return \forall (x: A) -> R.Le Real.zero (partial k x) \with {
+    | zero: \fun (x: A) => R.leRefl Real.zero
+    | succ: \fun (k: N.Nat^)(previous: _)(x: A) => Laws.addNonnegative _ _ (previous x) (Product.absNonnegative _)
+  };
+\definition partialIncreasing[k: N.Nat^][x: A]: R.Le (partial k x) (partial (N.Nat^::succ k) x) := Algebra.leAddRight _ _ (Product.absNonnegative _);
+\definition partialNormBound: \forall (k: N.Nat^) -> R.Le (F.normRepresentative (partial k)) (Real.sub Real.one (Dyadic.value k)) :=
+  \induction (k: N.Nat^) \return R.Le (F.normRepresentative (partial k)) (Real.sub Real.one (Dyadic.value k)) \with {
+    | zero: R.leReplace _ _ _ _ (sym!{Real.Real} _ _ F.representativeNormZero) (sym!{Real.Real} _ _ (Laws.subSelf Real.one)) (R.leRefl Real.zero)
+    | succ: \fun (k: N.Nat^)(previous: _) => R.leTrans _ _ _ (Norm.representativeTriangle (partial k) (terms k))
+      (R.leReplaceRight _ _ _
+        (trans!{Real.Real} _ _ _
+          (congr!{Real.Real Real.Real} (Real.add (Real.sub Real.one (Dyadic.value k))) _ _
+            (sym!{Real.Real} _ _ (Real.Inverse[].halfComplement (Dyadic.value k))))
+          (Distance.subTriangle Real.one (Dyadic.value k) (Dyadic.value (N.Nat^::succ k))))
+        (E.addLe _ _ _ _ previous (R.leReplaceLeft _ _ _ (sym!{Real.Real} _ _ (F.normAbsolute (difference (s (index k)) (s (index (N.Nat^::succ k)))))) (good.increments k))))
+  };
+\definition momentIncreasing[k: N.Nat^][x: A]: R.Le (F.moment (partial k) x) (F.moment (partial (N.Nat^::succ k)) x) :=
+  PA.monotone (F.absolute (partial k) x) (F.absolute (partial (N.Nat^::succ k)) x) (Powers.exponent p)
+    (R.leReplace _ _ _ _ (sym!{Real.Real} _ _ (Product.absOfNonnegative _ (partialNonnegative k x)))
+      (sym!{Real.Real} _ _ (Product.absOfNonnegative _ (partialNonnegative (N.Nat^::succ k) x))) (partialIncreasing k x));
+\definition momentBound[k: N.Nat^]: R.Le (I.integral (F.momentRepresentative (partial k))) Real.one :=
+  R.leReplace _ _ _ _ (F.normPower (partial k)) (PA.oneValue (Powers.exponent p))
+    (PA.monotone (\into[Real.Real](F.normRepresentative (partial k), Powers.Nonnegative) \by { F.normNonnegative (partial k) }) PA.oneBase (Powers.exponent p)
+      (R.leTrans _ _ _ (partialNormBound k) (Absolute.subLeLeft Real.one (Dyadic.value k) (Order.leOfLt _ _ (Limits.dyadicPositive k)))));
+\import product_integration.MonotoneIntegrals[A := A, mu := mu] \as Monotone;
+\definition sumData: Monotone.Conditions := Monotone.Conditions {
+  sequence := \fun (k: N.Nat^) => F.momentRepresentative (partial k),
+  nonnegative := \fun (k: N.Nat^) => F.momentNonnegative (partial k), increasing := momentIncreasing,
+  bound := \into[Real.Real](Real.one, Scaling.NonnegativeScalar) \by { Laws.oneNonnegative }, integralBound := momentBound,
+};
+\import Monotone.For[data := sumData].Divergence[] \as Divergence;
+\import Monotone.For[data := sumData].Limit[] \as MomentSum;
+\module Sum;
+\module Pointwise(x: A);
+\module Limit;
+\definition exception: Null.NullSet := Divergence.exception;

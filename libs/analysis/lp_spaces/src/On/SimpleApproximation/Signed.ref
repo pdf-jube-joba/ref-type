@@ -1,0 +1,65 @@
+\definition plusRepresentative: F.Representatives := \into[A -> Real.Real](I.positivePart f, F.Representatives) \by {
+  F.hasMoment (I.positivePart f)
+    (Functions.maxMeasurable Zero.function f Zero.measurable (F.properties f).measurable)
+    (I.finiteMono (F.moment (I.positivePart f)) (F.moment f) (F.momentNonnegative (I.positivePart f))
+      (\fun (x: A) => PA.monotone (F.absolute (I.positivePart f) x) (F.absolute f x) (Powers.exponent p)
+        (R.leReplaceLeft _ _ _ (sym!{Real.Real} _ _ (Product.absOfNonnegative _ (I.positivePartNonnegative f x))) (I.positivePartBound f x))) (F.finiteMoment f))
+};
+\definition minusRepresentative: F.Representatives := \into[A -> Real.Real](I.negativePart f, F.Representatives) \by {
+  F.hasMoment (I.negativePart f)
+    (Functions.maxMeasurable Zero.function (\fun (x: A) => Real.neg (f x)) Zero.measurable (Functions.negMeasurable f (F.properties f).measurable))
+    (I.finiteMono (F.moment (I.negativePart f)) (F.moment f) (F.momentNonnegative (I.negativePart f))
+      (\fun (x: A) => PA.monotone (F.absolute (I.negativePart f) x) (F.absolute f x) (Powers.exponent p)
+        (R.leReplaceLeft _ _ _ (sym!{Real.Real} _ _ (Product.absOfNonnegative _ (I.negativePartNonnegative f x))) (I.negativePartBound f x))) (F.finiteMoment f))
+};
+\definition plus: Nonnegative := \into[F.Representatives](plusRepresentative, Nonnegative) \by { I.positivePartNonnegative f };
+\definition minus: Nonnegative := \into[F.Representatives](minusRepresentative, Nonnegative) \by { I.negativePartNonnegative f };
+\import \parent.Positive[f := plus] \as Plus;
+\import \parent.Positive[f := minus] \as Minus;
+\import I.Approximation[f := Plus.data] \as PlusStages;
+\import I.Approximation[f := Minus.data] \as MinusStages;
+\definition sequence[k: N.Nat^]: F.Representatives := F.addRepresentative (Plus.lpRepresentative k) (F.negRepresentative (Minus.lpRepresentative k));
+\definition integral[k: N.Nat^]: I.Integrable (sequence k) :=
+  (I.integralLaw (Linear.addRepresentative (Plus.representative k) (Negation.representative (Minus.representative k)))).integrable;
+\definition presentation[k: N.Nat^]: Presentation := Presentation {
+  positiveSize := (PlusStages.stages k).size, negativeSize := (MinusStages.stages k).size,
+  positive := (PlusStages.stages k).simple, negative := (MinusStages.stages k).simple,
+};
+\definition simple[k: N.Nat^]: Simple (sequence k) := Logic.existsIntro[Presentation, { data: Presentation \where \forall (x: A) -> sequence k x = evaluate data x }]
+  (presentation k) (\fun (x: A) => \refl(sequence k x));
+\definition pointwise[x: A]: Sequence.Converges (\fun (k: N.Nat^) => sequence k x) (f x) :=
+  \idelim Real.sub (I.positivePart f x) (I.negativePart f x) = f x \with r: Real.Real => Sequence.Converges (\fun (k: N.Nat^) => sequence k x) r \by {
+    base: Operations.subConverges (\fun (k: N.Nat^) => PlusStages.value k x) (\fun (k: N.Nat^) => MinusStages.value k x)
+      (I.positivePart f x) (I.negativePart f x) (Plus.pointwise x) (Minus.pointwise x),
+    equality: I.Convergence[].PointwiseLimit[].recover f x
+  };
+\definition bound: F.Representatives := F.scaleRepresentative PA.two (F.absoluteRepresentative f);
+\definition dominated[k: N.Nat^][x: A]: R.Le (Product.abs (sequence k x)) (bound x) :=
+  R.leTrans _ _ _ (Linear.absTriangle (PlusStages.value k x) (Real.neg (MinusStages.value k x)))
+    (R.leReplaceRight _ _ _ (sym!{Real.Real} _ _ (trans!{Real.Real} _ _ _ (Algebra.mulAddRight Real.one Real.one (Product.abs (f x)))
+      (congr!{Real.Real Real.Real Real.Real} Real.add _ _ _ _ (Laws.fieldMulOneLeft _) (Laws.fieldMulOneLeft _))))
+      (E.addLe _ _ _ _
+        (R.leReplaceLeft _ _ _ (sym!{Real.Real} _ _ (Product.absOfNonnegative _ (PlusStages.nonnegative k x)))
+          (R.leTrans _ _ _ (PlusStages.bounded k x) (I.positivePartBound f x)))
+        (R.leReplaceLeft _ _ _ (sym!{Real.Real} _ _ (trans!{Real.Real} _ _ _ (Product.absNeg (MinusStages.value k x))
+          (Product.absOfNonnegative _ (MinusStages.nonnegative k x))))
+          (R.leTrans _ _ _ (MinusStages.bounded k x) (I.negativePartBound f x)))));
+\definition data: Norm.DominatedData := Norm.DominatedData {
+  sequence := sequence, target := f, bound := bound, exception := product_integration.FiniteNull[A := A, mu := mu].empty,
+  dominated := \fun (k: N.Nat^)(x: A)(outside: _) => dominated k x,
+  converges := \fun (x: A)(outside: _) => pointwise x,
+};
+\definition converges: Sequence.Converges (\fun (k: N.Nat^) => Complete.distance (sequence k) f) Real.zero := Norm.Dominated[d := data].theorem;
+\definition approximate: \forall (epsilon: Real.Real) -> R.Lt Real.zero epsilon -> \exists ( s: F.Representatives \where Logic.And[
+  Simple s, Logic.And[I.Integrable s, R.Lt (Norm.metric.distance (F.ofFunction s) (F.ofFunction f)) epsilon]] ) :=
+  \fun (epsilon: Real.Real)(positive: _) => \block {
+    \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where Sequence.LimitControl (\fun (j: N.Nat^) => Complete.distance (sequence j) f) Real.zero epsilon k }) \by converges epsilon positive \then
+    \let bound: R.Lt (Real.distance (Complete.distance (sequence k) f) Real.zero) epsilon :=
+      (\bysub(N.Nat^, { k: N.Nat^ \where Sequence.LimitControl (\fun (j: N.Nat^) => Complete.distance (sequence j) f) Real.zero epsilon k }, k)) k (N.Basic[].Prop[].leRefl k) \then
+    \return Logic.existsIntro[F.Representatives, { s: F.Representatives \where Logic.And[Simple s, Logic.And[I.Integrable s,
+      R.Lt (Norm.metric.distance (F.ofFunction s) (F.ofFunction f)) epsilon]] }] (sequence k)
+      (Logic.And[_, _]::# (simple k) (Logic.And[_, _]::# (integral k)
+        (R.ltReplaceLeft _ _ _ (trans!{Real.Real} _ _ _ (Distance.distanceSymmetric _ _)
+          (trans!{Real.Real} _ _ _ (Product.absOfNonnegative _ (F.normNonnegative (Complete.difference (sequence k) f)))
+            (sym!{Real.Real} _ _ (Complete.classDistance (sequence k) f)))) bound)))
+  };

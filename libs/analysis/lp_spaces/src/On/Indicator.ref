@@ -1,0 +1,24 @@
+\import \parent.Finite[p := p] \as F;
+\import \root.Powers[].Algebra[] \as PA;
+\import product_integration.Finiteness[A := A, mu := mu] \as Finite;
+\import Finite.Indicator[S := S] \as Indicator;
+\import topology.Topology[Carrier := A] \as Sets;
+\definition function: A -> Real.Real := Indicator.function;
+\definition momentLaw[x: A]: F.moment function x = function x := Logic.orElim _ _ _ (Classical.excludedMiddle (Sets.Member S x))
+  (\fun (member: _) => \block {
+    \let equal: F.absolute function x = PA.oneBase := trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} Product.abs _ _ (Indicator.inside x member)) (Product.absOfNonnegative Real.one Laws.oneNonnegative) \then
+    \return trans!{Real.Real} _ _ _ (congr!{Powers.Nonnegative Real.Real} (\fun (a: Powers.Nonnegative) => Powers.value a (Powers.exponent p)) _ _ equal)
+      (trans!{Real.Real} _ _ _ (PA.oneValue (Powers.exponent p)) (sym!{Real.Real} _ _ (Indicator.inside x member)))
+  })
+  (\fun (outside: _) => \block {
+    \let equal: Product.abs (function x) = Real.zero := trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} Product.abs _ _ (Indicator.outside x outside)) (Distance.distanceSelf Real.zero) \then
+    \return trans!{Real.Real} _ _ _ ((Powers.law (F.absolute function x) (Powers.exponent p)).atZero equal) (sym!{Real.Real} _ _ (Indicator.outside x outside))
+  });
+\definition finiteMoment: I.Finite (F.moment function) := \idelim function = F.moment function \with f: (A -> Real.Real) => I.Finite f \by {
+  base: Indicator.finite,
+  equality: \axiom:funext(function, F.moment function, \fun (x: A) => sym!{Real.Real} _ _ (momentLaw x))
+};
+\definition representative: F.Representatives := \into[A -> Real.Real](function, F.Representatives) \by { F.hasMoment function Indicator.integrable.left finiteMoment };
+\definition inside: \forall (x: A) -> Sets.Member S x -> representative x = Real.one := Indicator.inside;
+\definition outside: \forall (x: A) -> Logic.Not (Sets.Member S x) -> representative x = Real.zero := Indicator.outside;
+\definition nonnegative: \forall (x: A) -> R.Le Real.zero (representative x) := Indicator.finite.left;

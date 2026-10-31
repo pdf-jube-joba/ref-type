@@ -1,0 +1,48 @@
+\import topology.Compactness[A := Point, B := Real.Real] \as Images;
+\import Line.CompactExtrema[] \as Extrema;
+\definition scalarBound: \forall (K: \Pow Point)(f: Function) -> Sets.IsCompactIn Ambient.topology K -> Functions.Continuous Ambient.topology f ->
+  \exists ( b: Real.Real \where \forall (x: Point) -> Sets.Member K x -> R.Le (f x) b ) := \fun (K: \Pow Point)(f: Function)(compact: _)(continuous: _) => \block {
+  \takefrom b: \Cast[Real.Real] ({ b: Real.Real \where Complete.UpperBound (Maps.Image f K) b }) \by Extrema.compactBounded (Maps.Image f K)
+    (Images.continuousImage Ambient.topology Line.topology f continuous K compact) \then
+  \return Logic.existsIntro[Real.Real, { b: Real.Real \where \forall (x: Point) -> Sets.Member K x -> R.Le (f x) b }] b
+    (\fun (x: Point)(member: _) => (\bysub(Real.Real, { b: Real.Real \where Complete.UpperBound (Maps.Image f K) b }, b)) (f x) (Maps.imageMember f K x member))
+};
+\definition box[r: Nonnegative]: E.Box := E.Box {
+  active := Bool.Bool^::true, left := \fun (_: Fin.Fin n) => Real.neg r, right := \fun (_: Fin.Fin n) => r,
+  ordered := \fun (_: Fin.Fin n) => R.leTrans _ _ _ (Product.negNonnegative r (\root.Powers[].baseNonnegative r)) (\root.Powers[].baseNonnegative r),
+};
+\definition coordinateBound[x: Point][r: Nonnegative]: R.Le (Coordinates.pointDistance Coordinates.origin x) r -> Sets.Member (E.points (box r)) x := \fun (bound: _) =>
+  Logic.And[_, _]::# (\refl(Bool.Bool^::true)) (\fun (i: Fin.Fin n) => \block {
+    \let distance: R.Le (Real.distance Real.zero (x i)) r := R.leReplaceLeft _ _ _ (Distance.distanceSymmetric (x i) Real.zero)
+      (R.leTrans _ _ _ (Geometry.coordinateDistance x Coordinates.origin i) (R.leReplaceLeft _ _ _ (Geometry.distanceSymmetric Coordinates.origin x) bound)) \then
+    \return Logic.And[_, _]::#
+      (R.leReplaceLeft _ _ _ (Laws.addZeroLeft (Real.neg r)) (Estimates.distanceLeLower Real.zero (x i) r distance))
+      (R.leReplaceRight _ _ _ (Laws.addZeroLeft r) (Estimates.distanceLeUpper Real.zero (x i) r distance))
+  });
+\definition bounded: \forall (K: \Pow Point) -> Sets.IsCompactIn Ambient.topology K -> \exists ( r: Nonnegative \where Sets.Subset K (E.points (box r)) ) :=
+  \fun (K: \Pow Point)(compact: _) => \block {
+    \let continuous: Functions.Continuous Ambient.topology (Coordinates.pointDistance Coordinates.origin) :=
+      \fun (V: \Pow Real.Real)(open: _) => Ambient.coordinateOpen ({ x: Point \where \In[Real.Real] V (Coordinates.pointDistance Coordinates.origin x) })
+        (Ambient.distanceContinuous Coordinates.origin V open) \then
+    \takefrom b: \Cast[Real.Real] ({ b: Real.Real \where \forall (x: Point) -> Sets.Member K x -> R.Le (Coordinates.pointDistance Coordinates.origin x) b })
+      \by scalarBound K (Coordinates.pointDistance Coordinates.origin) compact continuous \then
+    \let r: Nonnegative := \into[Real.Real](Distance.max Real.zero b, Nonnegative) \by { Distance.maxLeft Real.zero b } \then
+    \return Logic.existsIntro[Nonnegative, { r: Nonnegative \where Sets.Subset K (E.points (box r)) }] r
+      (\fun (x: Point)(member: _) => coordinateBound x r (R.leTrans _ _ _
+        ((\bysub(Real.Real, { b: Real.Real \where \forall (x: Point) -> Sets.Member K x -> R.Le (Coordinates.pointDistance Coordinates.origin x) b }, b)) x member) (Distance.maxRight Real.zero b)))
+  };
+\definition finite: \forall (K: \Pow Point) -> Sets.IsCompactIn Ambient.topology K -> Finite.FiniteSet[K] := \fun (K: \Pow Point)(compact: _) => \block {
+  \takefrom r: \Cast[Nonnegative] ({ r: Nonnegative \where Sets.Subset K (E.points (box r)) }) \by bounded K compact \then
+  \return Finite.subsetFinite K (E.points (box r)) (euclidean_measure.InnerRegular[n := n].compactMeasurable K compact)
+    (\bysub(Nonnegative, { r: Nonnegative \where Sets.Subset K (E.points (box r)) }, r)) (Integration.boxFinite (box r))
+};
+\definition radiusBound: \forall (K: \Pow Point) -> Sets.IsCompactIn Ambient.topology K ->
+  \exists ( r: Nonnegative \where \forall (x: Point) -> Sets.Member K x -> R.Le (Coordinates.pointDistance Coordinates.origin x) r ) :=
+  \fun (K: \Pow Point)(compact: _) => \block {
+    \let continuous: Functions.Continuous Ambient.topology (Coordinates.pointDistance Coordinates.origin) :=
+      \fun (V: \Pow Real.Real)(open: _) => Ambient.coordinateOpen ({ x: Point \where \In[Real.Real] V (Coordinates.pointDistance Coordinates.origin x) }) (Ambient.distanceContinuous Coordinates.origin V open) \then
+    \takefrom b: \Cast[Real.Real] ({ b: Real.Real \where \forall (x: Point) -> Sets.Member K x -> R.Le (Coordinates.pointDistance Coordinates.origin x) b }) \by scalarBound K (Coordinates.pointDistance Coordinates.origin) compact continuous \then
+    \let r: Nonnegative := \into[Real.Real](Distance.max Real.zero b, Nonnegative) \by { Distance.maxLeft Real.zero b } \then
+    \return Logic.existsIntro[Nonnegative, { r: Nonnegative \where \forall (x: Point) -> Sets.Member K x -> R.Le (Coordinates.pointDistance Coordinates.origin x) r }] r
+      (\fun (x: Point)(member: _) => R.leTrans _ _ _ ((\bysub(Real.Real, { b: Real.Real \where \forall (x: Point) -> Sets.Member K x -> R.Le (Coordinates.pointDistance Coordinates.origin x) b }, b)) x member) (Distance.maxRight Real.zero b))
+  };

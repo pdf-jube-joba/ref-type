@@ -1,0 +1,39 @@
+\import Real.FiniteSums[] \as Scalar;
+\definition representative: \forall (m: N.Nat^) -> (Fin.Fin m -> F.Representatives) -> F.Representatives :=
+  \induction (m: N.Nat^) \return (Fin.Fin m -> F.Representatives) -> F.Representatives \with {
+    | zero: \fun (f: Fin.Fin N.Nat^::zero -> F.Representatives) => F.zeroRepresentative
+    | succ: \fun (m: N.Nat^)(previous: (Fin.Fin m -> F.Representatives) -> F.Representatives)(f: Fin.Fin (N.Nat^::succ m) -> F.Representatives) =>
+      F.addRepresentative (f (Fin.zero m)) (previous (\fun (i: Fin.Fin m) => f (Fin.succ m i)))
+  };
+\definition class: \forall (m: N.Nat^)(f: Fin.Fin m -> F.Representatives) -> F.ofFunction (representative m f) = sum m (\fun (i: Fin.Fin m) => F.ofFunction (f i)) :=
+  \induction (m: N.Nat^) \return \forall (f: Fin.Fin m -> F.Representatives) -> F.ofFunction (representative m f) = sum m (\fun (i: Fin.Fin m) => F.ofFunction (f i)) \with {
+    | zero: \fun (f: Fin.Fin N.Nat^::zero -> F.Representatives) => \refl(F.zero)
+    | succ: \fun (m: N.Nat^)(previous: _)(f: Fin.Fin (N.Nat^::succ m) -> F.Representatives) => trans!{F.Space} _ _ _
+      (sym!{F.Space} _ _ (F.addClass (f (Fin.zero m)) (representative m (\fun (i: Fin.Fin m) => f (Fin.succ m i)))))
+      (congr!{F.Space F.Space} (F.add (F.ofFunction (f (Fin.zero m)))) _ _ (previous (\fun (i: Fin.Fin m) => f (Fin.succ m i))))
+  };
+\definition value: \forall (m: N.Nat^)(f: Fin.Fin m -> F.Representatives)(x: Point) -> representative m f x = Scalar.sum m (\fun (i: Fin.Fin m) => f i x) :=
+  \induction (m: N.Nat^) \return \forall (f: Fin.Fin m -> F.Representatives)(x: Point) -> representative m f x = Scalar.sum m (\fun (i: Fin.Fin m) => f i x) \with {
+    | zero: \fun (f: Fin.Fin N.Nat^::zero -> F.Representatives)(x: Point) => \refl(Real.zero)
+    | succ: \fun (m: N.Nat^)(previous: _)(f: Fin.Fin (N.Nat^::succ m) -> F.Representatives)(x: Point) => congr!{Real.Real Real.Real} (Real.add (f (Fin.zero m) x)) _ _
+      (previous (\fun (i: Fin.Fin m) => f (Fin.succ m i)) x)
+  };
+\definition scalarSingle: \forall (m: N.Nat^)(f: Fin.Fin m -> Real.Real)(i: Fin.Fin m) ->
+  (\forall (j: Fin.Fin m) -> Logic.Not (j = i) -> f j = Real.zero) -> Scalar.sum m f = f i :=
+  \induction (m: N.Nat^) \return \forall (f: Fin.Fin m -> Real.Real)(i: Fin.Fin m) ->
+    (\forall (j: Fin.Fin m) -> Logic.Not (j = i) -> f j = Real.zero) -> Scalar.sum m f = f i \with {
+      | zero: \fun (f: Fin.Fin N.Nat^::zero -> Real.Real)(i: Fin.Fin N.Nat^::zero)(vanishes: _) => Logic.falseElim _ (Fin.zeroImpossible i (Fin.bound N.Nat^::zero i))
+      | succ: \fun (m: N.Nat^)(previous: _)(f: Fin.Fin (N.Nat^::succ m) -> Real.Real) => Fin.cases m
+        (\fun (i: Fin.Fin (N.Nat^::succ m)) => (\forall (j: Fin.Fin (N.Nat^::succ m)) -> Logic.Not (j = i) -> f j = Real.zero) -> Scalar.sum (N.Nat^::succ m) f = f i)
+        (\fun (vanishes: _) => trans!{Real.Real} _ _ _
+          (congr!{Real.Real Real.Real} (Real.add (f (Fin.zero m))) _ _ (trans!{Real.Real} _ _ _
+            (Scalar.congruent m (\fun (j: Fin.Fin m) => f (Fin.succ m j)) (\fun (j: Fin.Fin m) => Real.zero)
+              (\fun (j: Fin.Fin m) => vanishes (Fin.succ m j) (\fun (equal: Fin.succ m j = Fin.zero m) => Nat.succNeZero j equal))) (Scalar.zeroSum m)))
+          (Laws.addZeroRight (f (Fin.zero m))))
+        (\fun (i: Fin.Fin m)(vanishes: _) => trans!{Real.Real} _ _ _
+          (congr!{Real.Real Real.Real Real.Real} Real.add _ _ _ _
+            (vanishes (Fin.zero m) (\fun (equal: Fin.zero m = Fin.succ m i) => Nat.zeroNeSucc i equal))
+            (previous (\fun (j: Fin.Fin m) => f (Fin.succ m j)) i
+              (\fun (j: Fin.Fin m)(different: _) => vanishes (Fin.succ m j) (\fun (equal: Fin.succ m j = Fin.succ m i) => different (Nat.succInjective j i equal)))))
+          (Laws.addZeroLeft (f (Fin.succ m i))))
+    };

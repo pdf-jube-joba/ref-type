@@ -1,0 +1,20 @@
+\import \parent.Finite[p := p] \as F;
+\import \root.Powers[].Algebra[] \as PA;
+\import I.Mask[exception := exception, f := f] \as Mask;
+\import topology.Topology[Carrier := A] \as Sets;
+\definition function: A -> Real.Real := Mask.value;
+\definition laws: \forall (x: A) -> Logic.And[Sets.Member exception x -> function x = Real.zero, Logic.Not (Sets.Member exception x) -> function x = f x] := Mask.laws;
+\definition absoluteBound[x: A]: R.Le (Product.abs (function x)) (Product.abs (f x)) := Logic.orElim _ _ _ (Classical.excludedMiddle (Sets.Member exception x))
+  (\fun (inside: _) => R.leReplaceLeft Real.zero _ _ (sym!{Real.Real} _ _ (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} Product.abs _ _ ((laws x).left inside)) (Distance.distanceSelf Real.zero))) (Product.absNonnegative (f x)))
+  (\fun (outside: _) => R.leReplaceLeft _ _ _ (sym!{Real.Real} _ _ (congr!{Real.Real Real.Real} Product.abs _ _ ((laws x).right outside))) (R.leRefl (Product.abs (f x))));
+\definition representative: F.Representatives := \into[A -> Real.Real](function, F.Representatives) \by {
+  F.hasMoment function (Mask.measurable (F.properties f).measurable) (I.finiteMono (F.moment function) (F.moment f) (F.momentNonnegative function)
+    (\fun (x: A) => PA.monotone (F.absolute function x) (F.absolute f x) (Powers.exponent p) (absoluteBound x)) (F.finiteMoment f))
+};
+\definition almost: M.AlmostEqual mu representative f := Logic.existsIntro[\Pow A, { N: \Pow A \where M.NullCover[mu, { x: A \where Logic.Not (representative x = f x) }, N] }] exception
+  (M.NullCover[mu, { x: A \where Logic.Not (representative x = f x) }, exception] {
+    measurable := (Null.nullSetLaw exception).measurable, measure := (Null.nullSetLaw exception).zeroMeasure,
+    included := \fun (x: A)(different: _) => M.Sigma[].doubleNegative (Sets.Member exception x) (\fun (outside: _) => different ((laws x).right outside)),
+  });
+\import std.Set[].Quotient[A := F.Representatives, Equivalent := \fun (f, g: F.Representatives) => M.AlmostEqual mu f g] \as Q;
+\definition class: F.ofFunction representative = F.ofFunction f := Q.classOfEq F.equivalence representative f almost;

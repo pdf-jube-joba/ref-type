@@ -1,0 +1,47 @@
+\import \parent.Finite[p := p] \as F;
+\import \parent.Norm[p := p] \as Norm;
+\import F.Vector[] \as Vector;
+\import \root.Powers[].Algebra[] \as PA;
+\import \root.Exponential[] \as Exp;
+\import Real.Sequence[] \as Sequence;
+\import Sequence.Operations[] \as Operations;
+\import Real.Geometric[q := Real.half] \as Dyadic;
+\import functional_analysis.ScalarLimits[] \as Limits;
+\import N.Order[].Prop[] \as NatOrder;
+\import N.Induction[] \as Induction;
+\import topology.Topology[Carrier := A] \as Sets;
+\import I.Convergence[] \as Convergence;
+\definition classDistance[f, g: F.Representatives]: Norm.metric.distance (F.ofFunction f) (F.ofFunction g) = F.normRepresentative (F.addRepresentative f (F.negRepresentative g)) :=
+  eq_reason_in!{Real.Real _
+    "=" _ "by" { congr!{F.Space Real.Real} (\fun (y: F.Space) => F.norm (F.add (F.ofFunction f) y)) _ _ (F.negClass g) }
+    "=" _ "by" { congr!{F.Space Real.Real} F.norm _ _ (F.addClass f (F.negRepresentative g)) }
+    "=" _ "by" { F.normOfFunction (F.addRepresentative f (F.negRepresentative g)) }
+  };
+\definition distanceTriangle[f, g, h: F.Representatives]: R.Le
+  (F.normRepresentative (F.addRepresentative f (F.negRepresentative h)))
+  (Real.add (F.normRepresentative (F.addRepresentative f (F.negRepresentative g))) (F.normRepresentative (F.addRepresentative g (F.negRepresentative h)))) :=
+  R.leReplace _ _ _ _ (classDistance f h)
+    (congr!{Real.Real Real.Real Real.Real} Real.add _ _ _ _ (classDistance f g) (classDistance g h))
+    (Norm.metric.triangle (F.ofFunction f) (F.ofFunction g) (F.ofFunction h));
+\definition difference[f, g: F.Representatives]: F.Representatives := F.addRepresentative f (F.negRepresentative g);
+\definition distance[f, g: F.Representatives]: Real.Real := F.normRepresentative (difference f g);
+\definition Control[s: N.Nat^ -> F.Representatives, epsilon: Real.Real, k: N.Nat^]: \Prop :=
+  \forall (m, n: N.Nat^) -> Nat.Le k m -> Nat.Le k n -> R.Lt (distance (s m) (s n)) epsilon;
+\definition Cauchy[s: N.Nat^ -> F.Representatives]: \Prop := \forall (epsilon: Real.Real) -> R.Lt Real.zero epsilon ->
+  \exists ( k: N.Nat^ \where Control[s, epsilon, k] );
+\definition CauchySequence: \Set := \Cast[N.Nat^ -> F.Representatives] ({ s: N.Nat^ -> F.Representatives \where Cauchy s });
+\structure Good[s: CauchySequence, index: N.Nat^ -> N.Nat^]: \Prop := {
+  cofinal: \forall (k: N.Nat^) -> Nat.Le k (index k),
+  increments: \forall (k: N.Nat^) -> R.Le (distance (s (index k)) (s (index (N.Nat^::succ k)))) (Dyadic.value (N.Nat^::succ k)),
+};
+\module Selection(s: CauchySequence);
+\module Along(s: CauchySequence, index: N.Nat^ -> N.Nat^, good: Good[s, index]);
+\import std.Set[].Quotient[A := F.Representatives, Equivalent := \fun (f, g: F.Representatives) => M.AlmostEqual mu f g] \as Q;
+\import functional_analysis.Metric[Carrier := F.Space] \as Metric;
+\import functional_analysis.Normed[V := F.Space, space := Vector.space] \as Normed;
+\module Lift(s: N.Nat^ -> F.Space, representatives: \forall (k: N.Nat^) -> Q.Representative (s k));
+\definition complete: Normed.IsBanach Norm.norm := \fun (s: N.Nat^ -> F.Space)(cauchy: Metric.Cauchy Norm.metric s) => \block {
+  \takefrom representatives: \forall (k: N.Nat^) -> Q.Representative (s k)
+    \by \axiom:classicalIndefiniteChoice(N.Nat^, (\fun (k: N.Nat^) => Q.Representative (s k)), (\fun (k: N.Nat^) => Q.classProperty (s k))) \then
+  \return Lift[s := s, representatives := representatives].complete cauchy
+};

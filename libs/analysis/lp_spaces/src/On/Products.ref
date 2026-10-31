@@ -1,0 +1,32 @@
+\import \root.Powers[].Algebra[] \as PA;
+\import \parent.Finite[p := PA.two] \as Two;
+\definition absSquare[t: Real.Real]: Real.mul (Product.abs t) (Product.abs t) = Real.mul t t :=
+  trans!{Real.Real} _ _ _ (sym!{Real.Real} _ _ (Product.absProduct t t)) (Product.absOfNonnegative (Real.mul t t) (Algebra.squareNonnegative t));
+\definition squareMeasurable: \forall (f: A -> Real.Real) -> M.IsMeasurable mu f -> M.IsMeasurable mu (\fun (x: A) => Real.mul (f x) (f x)) :=
+  \fun (f: A -> Real.Real)(measurable: _) => \idelim Two.moment f = (\fun (x: A) => Real.mul (f x) (f x)) \with h: (A -> Real.Real) => M.IsMeasurable mu h \by {
+    base: \parent.Power[p := Two.positiveExponent].measurable (Two.absolute f) (Functions.absMeasurable f measurable),
+    equality: \axiom:funext(Two.moment f, (\fun (x: A) => Real.mul (f x) (f x)), \fun (x: A) => trans!{Real.Real} _ _ _ (PA.square (Two.absolute f x)) (absSquare (f x)))
+  };
+\definition polarization[a, b: Real.Real]:
+  Real.mul Real.half (Real.sub (Real.mul (Real.add a b) (Real.add a b)) (Real.add (Real.mul a a) (Real.mul b b))) = Real.mul a b :=
+  eq_reason_in!{Real.Real _
+    "=" _ "by" { congr!{Real.Real Real.Real} (\fun (r: Real.Real) => Real.mul Real.half (Real.sub r (Real.add (Real.mul a a) (Real.mul b b)))) _ _ (Algebra.squareAdd a b) }
+    "=" _ "by" { congr!{Real.Real Real.Real} (Real.mul Real.half) _ _
+      (trans!{Real.Real} _ _ _ (Laws.addComm (Real.add (Real.add (Real.mul a a) (Real.mul b b)) (Real.add (Real.mul a b) (Real.mul a b))) (Real.neg (Real.add (Real.mul a a) (Real.mul b b))))
+        (Laws.addNegCancelLeft (Real.add (Real.mul a a) (Real.mul b b)) (Real.add (Real.mul a b) (Real.mul a b)))) }
+    "=" _ "by" { trans!{Real.Real} _ _ _ (Laws.fieldMulAdd Real.half (Real.mul a b) (Real.mul a b)) (E.halfTwice (Real.mul a b)) }
+  };
+\definition measurable: \forall (f, g: A -> Real.Real) -> M.IsMeasurable mu f -> M.IsMeasurable mu g -> M.IsMeasurable mu (\fun (x: A) => Real.mul (f x) (g x)) :=
+  \fun (f, g: A -> Real.Real)(mf: _)(mg: _) => \block {
+    \let sum: A -> Real.Real := \fun (x: A) => Real.add (f x) (g x) \then
+    \let squareSum: A -> Real.Real := \fun (x: A) => Real.mul (sum x) (sum x) \then
+    \let sumSquares: A -> Real.Real := \fun (x: A) => Real.add (Real.mul (f x) (f x)) (Real.mul (g x) (g x)) \then
+    \let difference: A -> Real.Real := \fun (x: A) => Real.sub (squareSum x) (sumSquares x) \then
+    \let valid: M.IsMeasurable mu difference := Functions.addMeasurable squareSum (\fun (x: A) => Real.neg (sumSquares x))
+      (squareMeasurable sum (Functions.addMeasurable f g mf mg))
+      (Functions.negMeasurable sumSquares (Functions.addMeasurable (\fun (x: A) => Real.mul (f x) (f x)) (\fun (x: A) => Real.mul (g x) (g x)) (squareMeasurable f mf) (squareMeasurable g mg))) \then
+    \return \idelim (\fun (x: A) => Real.mul Real.half (difference x)) = (\fun (x: A) => Real.mul (f x) (g x)) \with h: (A -> Real.Real) => M.IsMeasurable mu h \by {
+      base: scalarMeasurable Real.half difference valid,
+      equality: \axiom:funext((\fun (x: A) => Real.mul Real.half (difference x)), (\fun (x: A) => Real.mul (f x) (g x)), \fun (x: A) => polarization (f x) (g x))
+    }
+  };

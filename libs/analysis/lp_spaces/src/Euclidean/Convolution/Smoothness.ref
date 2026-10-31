@@ -1,0 +1,19 @@
+\import Open.Smooth[] \as Regular;
+\import Regular.Properties[] \as Properties;
+\import N.Induction[] \as Induction;
+\import \root.Euclidean[n := n].Convolution[p := p] \as Convolution;
+\definition continuous[rho: Kernel]: Analysis.ContinuousOn Open.whole (Restriction.function Open.whole (function f rho)) :=
+  \fun (a: Open.Carrier Open.whole) => Convolution.Continuity[f := f, rho := rho, a := a].continuous;
+\definition Choice[rho: Kernel][i: Fin.Fin n]: \Set := \Cast[Kernel] ({ k: Kernel \where k.function = SmoothOperations.partial rho.function i });
+\module Successor(k: N.Nat^, induction: \forall (rho: Kernel) -> Regular.ContDiffOn Open.whole k (Restriction.function Open.whole (function f rho)), rho: Kernel, choice: \forall (i: Fin.Fin n) -> Choice rho i);
+\definition step[k: N.Nat^]: (\forall (rho: Kernel) -> Regular.ContDiffOn Open.whole k (Restriction.function Open.whole (function f rho))) ->
+  \forall (rho: Kernel) -> Regular.ContDiffOn Open.whole (N.Nat^::succ k) (Restriction.function Open.whole (function f rho)) := \fun (induction: _)(rho: Kernel) => \block {
+    \takefrom choice: \forall (i: Fin.Fin n) -> Choice rho i \by \axiom:classicalIndefiniteChoice(Fin.Fin n, Choice rho, \fun (i: Fin.Fin n) => kernelExists (SmoothOperations.partial rho.function i)) \then
+    \return Successor[k := k, induction := induction, rho := rho, choice := choice].smooth
+  };
+\definition allOrders: \forall (k: N.Nat^)(rho: Kernel) -> Regular.ContDiffOn Open.whole k (Restriction.function Open.whole (function f rho)) :=
+  \induction (k: N.Nat^) \return \forall (rho: Kernel) -> Regular.ContDiffOn Open.whole k (Restriction.function Open.whole (function f rho)) \with {
+    | zero: \fun (rho: Kernel) => Properties.zeroOfContinuous Open.whole (Restriction.function Open.whole (function f rho)) (continuous rho)
+    | succ: \fun (k: N.Nat^)(previous: _) => step k previous
+  };
+\definition smooth[rho: Kernel]: Smooth.IsSmooth (function f rho) := \fun (k: N.Nat^) => allOrders k rho;

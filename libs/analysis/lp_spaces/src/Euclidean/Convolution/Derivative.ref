@@ -1,0 +1,24 @@
+\import calculus.Real[].Derivative[].Def[] \as D;
+\import calculus.Real[].Derivative[].Operations[] \as DO;
+\import calculus.Real[].Multivariable[n := n].Space[].Prop[] \as Space;
+\import SmoothOperations.Partial[f := rho.function, i := i] \as Partial;
+\import L.Differentiation[] \as Integral;
+\import \root.Euclidean[n := n].Convolution[p := p].Local[f := f, rho := rho, a := a] \as Local;
+\definition partialBound[x: Point]: R.Le (Product.abs (Partial.function x)) derivativeKernel.coefficient := R.leReplaceLeft _ _ _
+  (congr!{SmoothCompact Real.Real} (\fun (h: SmoothCompact) => Product.abs (h x)) _ _ matching) (derivativeKernel.absoluteBound x);
+\definition bound: I.Representatives := I.Scaling[].scalarRepresentative derivativeKernel.coefficient Local.absolute;
+\definition curve[t: Real.Real]: I.Representatives := section f rho (Coordinates.replace a i t);
+\definition target: I.Representatives := section f derivativeKernel a;
+\definition scalar[y: Point][t: Real.Real]: Real.Real := rho.function (E.subPoint (Coordinates.replace a i t) y);
+\definition coefficient[y: Point]: Real.Real := Partial.function (E.subPoint a y);
+\module At(y: Point);
+\definition data: Integral.Data := Integral.Data { function := curve, derivative := target, at := a i,
+  radius := \into[Real.Real](Real.one, Positive) \by { Product.onePositive }, bound := bound,
+  dominated := \fun (t: Real.Real)(different: _)(near: _)(y: Point) => At[y := y].dominated t different near,
+  pointwise := \fun (y: Point) => At[y := y].derivative };
+\definition derivative: Analysis.HasPartialDerivativeAt Open.whole (Restriction.function Open.whole (function f rho)) i (Whole.point a) (function f derivativeKernel a) :=
+  Analysis.Operations[].sectionPartial Open.whole (Restriction.function Open.whole (function f rho)) (Whole.point a) i
+    (\fun (t: Real.Real) => I.integral (curve t)) (function f derivativeKernel a)
+    (congr!{Point Real.Real} (function f rho) _ _ (Space.replaceOriginal a i))
+    (\fun (t: Real.Real)(x: Open.Carrier Open.whole)(replaced: _) => congr!{Point Real.Real} (function f rho) _ _ (sym!{Point} _ _ replaced))
+    (Integral.derivative data);

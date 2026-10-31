@@ -1,0 +1,111 @@
+\import \parent.Sum[] \as Sum;
+\definition sequence[k: N.Nat^] [x: A]: Real.Real := s (index k) x;
+\definition Candidate[x: A]: \Set := \Cast[Real.Real] ({ y: Real.Real \where Logic.And[
+  Sets.Member Divergence.exception x -> y = Real.zero,
+  Logic.Not (Sets.Member Divergence.exception x) -> Sequence.Converges (\fun (k: N.Nat^) => sequence k x) y] });
+\definition exists: \forall (x: A) -> \exists Candidate x := \fun (x: A) =>
+  Logic.orElim _ _ _ (Classical.excludedMiddle (Sets.Member Divergence.exception x))
+    (\fun (inside: Sets.Member Divergence.exception x) => Logic.existsIntro[Real.Real, { y: Real.Real \where Logic.And[
+      Sets.Member Divergence.exception x -> y = Real.zero, Logic.Not (Sets.Member Divergence.exception x) -> Sequence.Converges (\fun (k: N.Nat^) => sequence k x) y] }] Real.zero
+      (Logic.And[_, _]::# (\fun (_: Sets.Member Divergence.exception x) => \refl(Real.zero)) (\fun (outside: Logic.Not (Sets.Member Divergence.exception x)) => Logic.falseElim _ (outside inside))))
+    (\fun (outside: Logic.Not (Sets.Member Divergence.exception x)) => \block {
+      \let seq: Sequence.CauchySequence := \into[N.Nat^ -> Real.Real]((\fun (k: N.Nat^) => sequence k x), { q: N.Nat^ -> Real.Real \where Sequence.Cauchy q }) \by {
+        \parent.Pointwise[x := x].cauchy outside } \then
+      \return Logic.existsIntro[Real.Real, { y: Real.Real \where Logic.And[Sets.Member Divergence.exception x -> y = Real.zero,
+        Logic.Not (Sets.Member Divergence.exception x) -> Sequence.Converges (\fun (k: N.Nat^) => sequence k x) y] }] (Sequence.limit seq)
+        (Logic.And[_, _]::# (\fun (inside: Sets.Member Divergence.exception x) => Logic.falseElim _ (outside inside))
+          (\fun (_: Logic.Not (Sets.Member Divergence.exception x)) => Sequence.limitLaw seq))
+    });
+\definition unique: \forall (x: A) (u, v: Candidate x) -> u = v := \fun (x: A) (u, v: Candidate x) => \block {
+  \let a: Logic.And[Sets.Member Divergence.exception x -> u = Real.zero, Logic.Not (Sets.Member Divergence.exception x) -> Sequence.Converges (\fun (k: N.Nat^) => sequence k x) u] :=
+    \bysub(Real.Real, { y: Real.Real \where Logic.And[Sets.Member Divergence.exception x -> y = Real.zero, Logic.Not (Sets.Member Divergence.exception x) -> Sequence.Converges (\fun (k: N.Nat^) => sequence k x) y] }, u) \then
+  \let b: Logic.And[Sets.Member Divergence.exception x -> v = Real.zero, Logic.Not (Sets.Member Divergence.exception x) -> Sequence.Converges (\fun (k: N.Nat^) => sequence k x) v] :=
+    \bysub(Real.Real, { y: Real.Real \where Logic.And[Sets.Member Divergence.exception x -> y = Real.zero, Logic.Not (Sets.Member Divergence.exception x) -> Sequence.Converges (\fun (k: N.Nat^) => sequence k x) y] }, v) \then
+  \return Logic.orElim _ _ _ (Classical.excludedMiddle (Sets.Member Divergence.exception x))
+    (\fun (inside: Sets.Member Divergence.exception x) => trans!{Real.Real} u Real.zero v (a.left inside) (sym!{Real.Real} _ _ (b.left inside)))
+    (\fun (outside: Logic.Not (Sets.Member Divergence.exception x)) => Sequence.limitUnique (\fun (k: N.Nat^) => sequence k x) u v (a.right outside) (b.right outside))
+};
+\definition limit[x: A]: Real.Real := \choice Candidate x \by { existence: exists x, uniqueness: unique x };
+\definition limitLaw: \forall (x: A) -> Logic.And[Sets.Member Divergence.exception x -> limit x = Real.zero,
+  Logic.Not (Sets.Member Divergence.exception x) -> Sequence.Converges (\fun (k: N.Nat^) => sequence k x) (limit x)] :=
+  \fun (x: A) => \bysub(Real.Real, { y: Real.Real \where Logic.And[Sets.Member Divergence.exception x -> y = Real.zero,
+    Logic.Not (Sets.Member Divergence.exception x) -> Sequence.Converges (\fun (k: N.Nat^) => sequence k x) y] },
+    \choice Candidate x \by { existence: exists x, uniqueness: unique x });
+
+\definition bound: F.Representatives := F.addRepresentative (F.absoluteRepresentative (s (index N.Nat^::zero))) Sum.representative;
+\definition dominated: \forall (k: N.Nat^) (x: A) -> Logic.Not (Sets.Member Divergence.exception x) -> R.Le (Product.abs (sequence k x)) (bound x) :=
+  \fun (k: N.Nat^) (x: A) (outside: Logic.Not (Sets.Member Divergence.exception x)) => \block {
+    \let tail: R.Le (Real.distance (sequence N.Nat^::zero x) (sequence k x)) (partial k x) :=
+      R.leReplaceRight _ (Real.sub (partial k x) (partial N.Nat^::zero x)) (partial k x)
+        (Laws.subZeroRight (partial k x))
+        (\parent.Pointwise[x := x].tail k N.Nat^::zero (Nat.zeroLe k)) \then
+    \let partBound: R.Le (partial k x) (Sum.value x) :=
+      R.leReplaceLeft (Sum.sequence k x) (partial k x) (Sum.value x)
+        ((\parent.Sum[].At[k := k].law x).right outside)
+        (Convergence.pointwiseUpper Sum.sequence Sum.value Sum.supremum k x) \then
+    \return R.leTrans _ (Real.add (Product.abs (sequence N.Nat^::zero x)) (Real.distance (sequence N.Nat^::zero x) (sequence k x))) _
+      (Distance.distanceTriangle Real.zero (sequence N.Nat^::zero x) (sequence k x))
+      (Laws.addMonotoneLeft _ _ (Product.abs (sequence N.Nat^::zero x)) (R.leTrans _ _ _ tail partBound))
+  };
+\module Masked(k: N.Nat^) {
+  \import I.Mask[exception := Divergence.exception, f := s (index k)] \as Mask;
+  \definition value: A -> Real.Real := Mask.value;
+  \definition law: \forall (x: A) -> Logic.And[Sets.Member Divergence.exception x -> value x = Real.zero,
+    Logic.Not (Sets.Member Divergence.exception x) -> value x = s (index k) x] := Mask.laws;
+  \definition measurable: M.IsMeasurable mu value := Mask.measurable (F.properties (s (index k))).measurable;
+}
+\definition masked[k: N.Nat^][x: A]: Real.Real := \root.On[A := A, mu := mu].Completion[p := p].Along[s := s, index := index, good := good].Limit[].Masked[k := k].value x;
+\definition maskedConverges[x: A]: Sequence.Converges (\fun (k: N.Nat^) => masked k x) (limit x) :=
+  Logic.orElim _ _ _ (Classical.excludedMiddle (Sets.Member Divergence.exception x))
+    (\fun (inside: _) => \idelim Real.zero = limit x \with r: Real.Real => Sequence.Converges (\fun (k: N.Nat^) => masked k x) r \by {
+      base: Operations.congruent (\fun (_: N.Nat^) => Real.zero) (\fun (k: N.Nat^) => masked k x) Real.zero
+        (\fun (k: N.Nat^) => sym!{Real.Real} _ _ ((\root.On[A := A, mu := mu].Completion[p := p].Along[s := s, index := index, good := good].Limit[].Masked[k := k].law x).left inside)) (Sequence.constantConverges Real.zero),
+      equality: sym!{Real.Real} _ _ ((limitLaw x).left inside)
+    })
+    (\fun (outside: _) => Operations.congruent (\fun (k: N.Nat^) => sequence k x) (\fun (k: N.Nat^) => masked k x) (limit x)
+      (\fun (k: N.Nat^) => sym!{Real.Real} _ _ ((\root.On[A := A, mu := mu].Completion[p := p].Along[s := s, index := index, good := good].Limit[].Masked[k := k].law x).right outside))
+      ((limitLaw x).right outside));
+\definition measurableSequence: Convergence.MeasurableSequence := \into[N.Nat^ -> A -> Real.Real](masked, Convergence.MeasurableSequence) \by {
+  \fun (k: N.Nat^) => \root.On[A := A, mu := mu].Completion[p := p].Along[s := s, index := index, good := good].Limit[].Masked[k := k].measurable
+};
+\definition measurable: M.IsMeasurable mu limit := Convergence.PointwiseLimit[].measurableLimit measurableSequence limit maskedConverges;
+\definition boundNonnegative[x: A]: R.Le Real.zero (bound x) := Laws.addNonnegative _ _ (Product.absNonnegative _) (Sum.nonnegative x);
+\definition limitBound[x: A]: R.Le (Product.abs (limit x)) (bound x) := Logic.orElim _ _ _ (Classical.excludedMiddle (Sets.Member Divergence.exception x))
+  (\fun (inside: _) => R.leReplaceLeft Real.zero (Product.abs (limit x)) (bound x)
+    (sym!{Real.Real} _ _ (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} Product.abs _ _ ((limitLaw x).left inside)) (Distance.distanceSelf Real.zero))) (boundNonnegative x))
+  (\fun (outside: _) => Operations.distanceBoundLimit (\fun (_: N.Nat^) => Real.zero) (\fun (k: N.Nat^) => sequence k x)
+    Real.zero (limit x) (bound x) N.Nat^::zero (Sequence.constantConverges Real.zero) ((limitLaw x).right outside)
+    (\fun (k: N.Nat^)(later: _) => dominated k x outside));
+\definition finite: I.Finite (F.moment limit) := I.finiteMono (F.moment limit) (F.moment bound) (F.momentNonnegative limit)
+  (\fun (x: A) => PA.monotone (F.absolute limit x) (F.absolute bound x) (Powers.exponent p)
+    (R.leReplaceRight _ _ _ (sym!{Real.Real} _ _ (Product.absOfNonnegative _ (boundNonnegative x))) (limitBound x))) (F.finiteMoment bound);
+\definition representative: F.Representatives := \into[A -> Real.Real](limit, F.Representatives) \by { F.hasMoment limit measurable finite };
+\definition data: Norm.DominatedData := Norm.DominatedData {
+  sequence := \fun (k: N.Nat^) => s (index k), target := representative, bound := bound, exception := Divergence.exception,
+  dominated := dominated, converges := \fun (x: A)(outside: _) => (limitLaw x).right outside,
+};
+\definition subsequenceConverges: Sequence.Converges (\fun (k: N.Nat^) => distance (s (index k)) representative) Real.zero := Norm.Dominated[d := data].theorem;
+\definition converges: Sequence.Converges (\fun (k: N.Nat^) => distance (s k) representative) Real.zero :=
+  \fun (epsilon: Real.Real)(positive: _) => \block {
+    \let half: Real.Real := Real.mul Real.half epsilon \then
+    \let hp: R.Lt Real.zero half := E.halfOfPositive epsilon positive \then
+    \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where Control[s, half, k] })
+      \by (\bysub(N.Nat^ -> F.Representatives, { s: N.Nat^ -> F.Representatives \where Cauchy s }, s)) half hp \then
+    \takefrom j: \Cast[N.Nat^] ({ j: N.Nat^ \where Sequence.LimitControl (\fun (n: N.Nat^) => distance (s (index n)) representative) Real.zero half j })
+      \by subsequenceConverges half hp \then
+    \let q: N.Nat^ := NatOrder.commonBound k j \then
+    \let atQ: R.Lt (distance (s (index q)) representative) half :=
+      R.ltReplaceLeft (Real.distance (distance (s (index q)) representative) Real.zero) (distance (s (index q)) representative) half
+        (trans!{Real.Real} _ _ _ (Distance.distanceSymmetric _ _) (Product.absOfNonnegative _
+          (F.normNonnegative (difference (s (index q)) representative))))
+        ((\bysub(N.Nat^, { j: N.Nat^ \where Sequence.LimitControl (\fun (n: N.Nat^) => distance (s (index n)) representative) Real.zero half j }, j)) q (NatOrder.rightLeCommonBound k j)) \then
+    \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where Sequence.LimitControl (\fun (n: N.Nat^) => distance (s n) representative) Real.zero epsilon k }] k
+      (\fun (n: N.Nat^)(later: _) => R.ltReplaceLeft (distance (s n) representative) (Real.distance (distance (s n) representative) Real.zero) epsilon
+        (sym!{Real.Real} _ _ (trans!{Real.Real} _ _ _ (Distance.distanceSymmetric _ _) (Product.absOfNonnegative _
+          (F.normNonnegative (difference (s n) representative)))))
+        (R.leLtTrans _ _ _ (distanceTriangle (s n) (s (index q)) representative)
+          (R.ltReplaceRight _ (Real.add half half) epsilon (E.halfTwice epsilon)
+            (E.addLt _ _ _ _
+              ((\bysub(N.Nat^, { k: N.Nat^ \where Control[s, half, k] }, k)) n (index q) later
+                (Nat.leTrans k q (index q) (NatOrder.leftLeCommonBound k j) (good.cofinal q))) atQ))))
+  };

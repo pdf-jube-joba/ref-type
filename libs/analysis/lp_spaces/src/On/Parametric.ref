@@ -1,0 +1,23 @@
+\import topology.Topology[Carrier := B] \as Sets;
+\import real.Analysis[].Sequence[] \as Sequence;
+\import Real.Geometric[q := Real.half] \as Dyadic;
+\import functional_analysis.ScalarLimits[] \as Limits;
+\import \root.Exponential[] \as Exp;
+\import M.Sigma[] \as Sigma;
+\structure Control[f: B -> Real.Real, at: B, allowed: \Pow B, target, epsilon, delta: Real.Real]: \Prop := {
+  positive: R.Lt Real.zero delta,
+  estimate: \forall (b: B) -> Sets.Member allowed b -> R.Lt (metric.distance b at) delta -> R.Lt (Real.distance (f b) target) epsilon,
+};
+\structure Data: \Set := {
+  function: B -> I.Representatives,
+  target: I.Representatives,
+  at: B,
+  allowed: \Pow B,
+  radius: Exp.Positive,
+  bound: I.Representatives,
+  dominated: \forall (b: B) -> Sets.Member allowed b -> R.Lt (metric.distance b at) radius -> \forall (x: A) -> R.Le (Product.abs (function b x)) (bound x),
+  pointwise: \forall (x: A)(epsilon: Real.Real) -> R.Lt Real.zero epsilon -> \exists ( delta: Real.Real \where Control[(\fun (b: B) => function b x), at, allowed, target x, epsilon, delta] ),
+};
+\module At(d: Data, epsilon: Exp.Positive);
+\definition continuous[d: Data][epsilon: Real.Real]: R.Lt Real.zero epsilon -> \exists ( delta: Real.Real \where Control[(\fun (b: B) => I.integral (d.function b)), d.at, d.allowed, I.integral d.target, epsilon, delta] ) :=
+  \fun (positive: _) => At[d := d, epsilon := \into[Real.Real](epsilon, Exp.Positive) \by { positive }].existsRadius;

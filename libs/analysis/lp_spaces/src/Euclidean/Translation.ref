@@ -1,0 +1,90 @@
+\import \parent.Compact[p := p] \as Compact;
+\import \parent.CompactBounds[] \as Bounds;
+\import \parent.Approximation[p := p] \as Approximation;
+\import L.Finite[p := p] \as F;
+\import L.Norm[p := p] \as Norm;
+\import L.Completion[p := p] \as Completion;
+\import functional_analysis.Metric[Carrier := Point] \as PointMetric;
+\import functional_analysis.Metric[Carrier := F.Space] \as Metric;
+\import metric_spaces.MetricSpace[Carrier := Point] \as Points;
+\import Points.Topology[] \as PointTopology;
+\import \root.Powers[] \as Powers;
+\import Powers.Algebra[] \as PA;
+\module At(a: Point) {
+  \import L.Pullback[p := p, map := Integration.translation a] \as Pullback;
+  \definition representative: F.Representatives -> F.Representatives := Pullback.representative;
+  \definition value: F.Space -> F.Space := Pullback.value;
+  \definition onClass[f: F.Representatives]: value (F.ofFunction f) = F.ofFunction (representative f) := Pullback.onClass f;
+  \definition isometry: \forall (x, y: F.Space) -> Norm.metric.distance (value x) (value y) = Norm.metric.distance x y := Pullback.distance;
+  \definition norm: \forall (x: F.Space) -> F.norm (value x) = F.norm x := Pullback.norm;
+}
+\definition representative[a: Point][f: F.Representatives]: F.Representatives := At[a := a].representative f;
+\definition value[a: Point][x: F.Space]: F.Space := At[a := a].value x;
+\definition onClass[a: Point][f: F.Representatives]: value a (F.ofFunction f) = F.ofFunction (representative a f) := At[a := a].onClass f;
+\definition isometry[a: Point]: \forall (x, y: F.Space) -> Norm.metric.distance (value a x) (value a y) = Norm.metric.distance x y := At[a := a].isometry;
+\definition norm[a: Point]: \forall (x: F.Space) -> F.norm (value a x) = F.norm x := At[a := a].norm;
+\definition subOrigin[x: Point]: E.subPoint x Coordinates.origin = x := \axiom:funext(E.subPoint x Coordinates.origin, x, \fun (i: Fin.Fin n) => Laws.subZeroRight (x i));
+\definition shiftDistance[x, a: Point]: R.Le (Geometry.metric.distance (E.subPoint x a) x) (Geometry.metric.distance a Coordinates.origin) :=
+  R.leReplace _ _ _ _ (congr!{Point Real.Real} (Geometry.metric.distance (E.subPoint x a)) _ _ (subOrigin x))
+    (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (\fun (r: Real.Real) => Real.add r (Geometry.metric.distance a Coordinates.origin)) _ _ (Geometry.metric.self x)) (Laws.addZeroLeft _))
+    (Geometry.distanceSub x a x Coordinates.origin);
+\structure Control[x: F.Space, epsilon, delta: Real.Real]: \Prop := {
+  positive: R.Lt Real.zero delta,
+  estimate: \forall (a: Point) -> R.Lt (Geometry.metric.distance a Coordinates.origin) delta -> R.Lt (Norm.metric.distance (value a x) x) epsilon,
+};
+\module CompactSequence(f: ContinuousCompact, s: N.Nat^ -> Point,
+  small: \forall (k: N.Nat^) -> R.Le (Geometry.metric.distance (s k) Coordinates.origin) Real.one,
+  converges: PointMetric.Converges Geometry.metric s Coordinates.origin,
+  radius: Nonnegative, radiusBound: \forall (x: Point) -> Sets.Member (Smooth.support f) x -> R.Le (Geometry.metric.distance Coordinates.origin x) radius,
+  coefficient: Nonnegative, absoluteBound: \forall (x: Point) -> R.Le (Product.abs (f x)) coefficient);
+\definition compactSequence[f: ContinuousCompact][s: N.Nat^ -> Point]: (\forall (k: N.Nat^) -> R.Le (Geometry.metric.distance (s k) Coordinates.origin) Real.one) ->
+  PointMetric.Converges Geometry.metric s Coordinates.origin -> Metric.Converges Norm.metric (\fun (k: N.Nat^) => value (s k) (F.ofFunction (Compact.representative f))) (F.ofFunction (Compact.representative f)) :=
+  \fun (small: _)(converges: _) => \block {
+    \takefrom r: \Cast[Nonnegative] ({ r: Nonnegative \where \forall (x: Point) -> Sets.Member (Smooth.support f) x -> R.Le (Geometry.metric.distance Coordinates.origin x) r })
+      \by Bounds.radiusBound (Smooth.support f) (Compact.continuousLaws f).support \then
+    \takefrom c: \Cast[Nonnegative] ({ c: Nonnegative \where \forall (x: Point) -> R.Le (Product.abs (f x)) c }) \by Compact.absoluteBound f (Compact.continuousLaws f).continuous (Compact.continuousLaws f).support \then
+    \return CompactSequence[f := f, s := s, small := small, converges := converges, radius := r,
+      radiusBound := \bysub(Nonnegative, { r: Nonnegative \where \forall (x: Point) -> Sets.Member (Smooth.support f) x -> R.Le (Geometry.metric.distance Coordinates.origin x) r }, r), coefficient := c,
+      absoluteBound := \bysub(Nonnegative, { c: Nonnegative \where \forall (x: Point) -> R.Le (Product.abs (f x)) c }, c)].convergence
+  };
+\module CompactContinuity(f: ContinuousCompact, epsilon: Positive);
+\definition compactContinuous[f: ContinuousCompact][epsilon: Real.Real]: R.Lt Real.zero epsilon -> \exists ( delta: Real.Real \where Control[F.ofFunction (Compact.representative f), epsilon, delta] ) :=
+  \fun (positive: _) => \block {
+    \let e: Positive := \into[Real.Real](epsilon, Positive) \by { positive } \then
+    \return CompactContinuity[f := f, epsilon := e].existsRadius
+  };
+\definition split[epsilon: Real.Real]: Real.add (Real.mul Real.half (Real.mul Real.half epsilon))
+  (Real.add (Real.mul Real.half epsilon) (Real.mul Real.half (Real.mul Real.half epsilon))) = epsilon := eq_reason_in!{Real.Real _
+    "=" _ "by" { congr!{Real.Real Real.Real} (Real.add (Real.mul Real.half (Real.mul Real.half epsilon))) _ _ (Laws.addComm (Real.mul Real.half epsilon) (Real.mul Real.half (Real.mul Real.half epsilon))) }
+    "=" _ "by" { sym!{Real.Real} _ _ (Laws.addAssoc (Real.mul Real.half (Real.mul Real.half epsilon)) (Real.mul Real.half (Real.mul Real.half epsilon)) (Real.mul Real.half epsilon)) }
+    "=" _ "by" { congr!{Real.Real Real.Real} (\fun (r: Real.Real) => Real.add r (Real.mul Real.half epsilon)) _ _ (Estimates.halfTwice (Real.mul Real.half epsilon)) }
+    "=" _ "by" { Estimates.halfTwice epsilon }
+  };
+\definition continuous[x: F.Space][epsilon: Real.Real]: R.Lt Real.zero epsilon -> \exists ( delta: Real.Real \where Control[x, epsilon, delta] ) := \fun (positive: _) => \block {
+  \let h: Real.Real := Real.mul Real.half epsilon \then
+  \let d: Real.Real := Real.mul Real.half h \then
+  \let hp: R.Lt Real.zero h := Estimates.halfOfPositive epsilon positive \then
+  \takefrom f: \Cast[SmoothCompact] ({ f: SmoothCompact \where R.Lt (Norm.metric.distance (Approximation.ofSmooth f) x) d }) \by Approximation.smoothDense x d (Estimates.halfOfPositive h hp) \then
+  \let g: ContinuousCompact := Compact.smoothAsContinuous f \then
+  \let y: F.Space := F.ofFunction (Compact.representative g) \then
+  \let equal: y = Approximation.ofSmooth f := F.classPointwise (Compact.representative g) (Compact.smoothRepresentative f) (\fun (z: Point) => \refl(f z)) \then
+  \let near: R.Lt (Norm.metric.distance y x) d := R.ltReplaceLeft _ _ _ (congr!{F.Space Real.Real} (\fun (z: F.Space) => Norm.metric.distance z x) _ _ (sym!{F.Space} _ _ equal))
+    (\bysub(SmoothCompact, { f: SmoothCompact \where R.Lt (Norm.metric.distance (Approximation.ofSmooth f) x) d }, f)) \then
+  \takefrom delta: \Cast[Real.Real] ({ delta: Real.Real \where Control[y, h, delta] }) \by compactContinuous g h hp \then
+  \let control: Control[y, h, delta] := \bysub(Real.Real, { delta: Real.Real \where Control[y, h, delta] }, delta) \then
+  \return Logic.existsIntro[Real.Real, { delta: Real.Real \where Control[x, epsilon, delta] }] delta (Control[x, epsilon, delta] {
+    positive := control.positive,
+    estimate := \fun (a: Point)(close: _) => \block {
+      \let upper: R.Le (Norm.metric.distance (value a x) x)
+        (Real.add (Norm.metric.distance y x) (Real.add (Norm.metric.distance (value a y) y) (Norm.metric.distance y x))) :=
+        R.leReplaceRight _ _ _
+          (congr!{Real.Real Real.Real} (\fun (r: Real.Real) => Real.add r (Real.add (Norm.metric.distance (value a y) y) (Norm.metric.distance y x))) _ _
+            (trans!{Real.Real} _ _ _ (isometry a x y) (Norm.metric.symmetric x y)))
+          (R.leTrans _ _ _ (Norm.metric.triangle (value a x) (value a y) x)
+            (Estimates.addLe _ _ _ _ (R.leRefl (Norm.metric.distance (value a x) (value a y))) (Norm.metric.triangle (value a y) y x))) \then
+      \return R.leLtTrans _ _ _ upper (R.ltReplaceRight _ (Real.add d (Real.add h d)) epsilon (split epsilon)
+        (Estimates.addLt _ _ _ _ near (Estimates.addLt _ _ _ _ (control.estimate a close) near)))
+    },
+  })
+};
+\module Group;

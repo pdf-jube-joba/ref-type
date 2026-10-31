@@ -1,0 +1,20 @@
+\import functional_analysis.Measure[A := A] \as Source;
+\import Source.Sigma[] \as SS;
+\import Source.Functions[mu := source] \as SF;
+\definition preimage[S: \Pow Point]: \Pow A := { x: A \where Sets.Member S (map x) };
+\definition data: M.SigmaAlgebraData := M.SigmaAlgebraData { measurable := { S: \Pow Point \where Source.Measurable source.sigma (preimage S) } };
+\definition laws: M.SigmaAlgebraLaws[data] := M.SigmaAlgebraLaws[data] {
+  empty := (SS.laws source.sigma).empty,
+  complement := \fun (S: \Pow Point)(valid: _) => (SS.laws source.sigma).complement (preimage S) valid,
+  countableUnion := \fun (sets: N.Nat^ -> \Pow Point)(valid: _) => (SS.laws source.sigma).countableUnion (\fun (k: N.Nat^) => preimage (sets k)) valid,
+};
+\definition sigma: M.SigmaAlgebra := \into[M.SigmaAlgebraData](data, M.SigmaAlgebra) \by { laws };
+\import product_integration.CoordinateBorel[n := n, sigma := sigma] \as Coordinates;
+\definition coordinateData: Coordinates.Conditions := Coordinates.Conditions {
+  above := \fun (i: Fin.Fin n)(r: Real.Real) => coordinates i r,
+  below := \fun (i: Fin.Fin n)(r: Real.Real) => SF.belowMeasurable (\fun (x: A) => map x i) (coordinates i) r,
+};
+\definition measurable: \forall (S: \Pow Point) -> M.Measurable BorelSigma.sigma S -> Source.Measurable source.sigma (preimage S) := Coordinates.For[data := coordinateData].borelMeasurable;
+\import \root.Euclidean[n := n].BorelMeasure[] \as BorelMeasure;
+\definition scalar[f: Function]: M.IsMeasurable BorelMeasure.borel f -> Source.IsMeasurable source (\fun (x: A) => f (map x)) :=
+  \fun (valid: _)(r: Real.Real) => measurable ({ y: Point \where R.Lt r (f y) }) (valid r);

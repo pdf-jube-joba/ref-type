@@ -1,0 +1,14 @@
+\import Convolution.Approximation[f := representative.representative, borel := representative.borel, identity := identity] \as Approximation;
+\definition values[k: N.Nat^]: F.ofFunction (Approximation.sequence k) = value k x := trans!{F.Space} _ _ _
+  (sym!{F.Space} _ _ (Convolution.Operator[rho := identity.sequence k, law := identity.normalized k].onClass representative.representative))
+  (congr!{F.Space F.Space} (value k) _ _ representative.represents);
+\definition convergence: Metric.Converges Norm.metric (\fun (k: N.Nat^) => value k x) x := \fun (epsilon: Real.Real)(positive: _) => \block {
+  \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where Metric.LimitControl Norm.metric (\fun (j: N.Nat^) => F.ofFunction (Approximation.sequence j)) (F.ofFunction representative.representative) epsilon k })
+    \by Dense.normConvergence Approximation.sequence representative.representative Approximation.convergence epsilon positive \then
+  \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where Metric.LimitControl Norm.metric (\fun (j: N.Nat^) => value j x) x epsilon k }] k
+    (\fun (j: N.Nat^)(later: _) => R.ltReplaceLeft _ _ _ (congr!{F.Space F.Space Real.Real} Norm.metric.distance _ _ _ _ (values j) representative.represents)
+      ((\bysub(N.Nat^, { k: N.Nat^ \where Metric.LimitControl Norm.metric (\fun (j: N.Nat^) => F.ofFunction (Approximation.sequence j)) (F.ofFunction representative.representative) epsilon k }, k)) j later))
+};
+\definition smoothRepresentative[k: N.Nat^]: \exists ( f: F.Representatives \where Logic.And[Smooth.IsSmooth f, F.ofFunction f = value k x] ) :=
+  Logic.existsIntro[F.Representatives, { f: F.Representatives \where Logic.And[Smooth.IsSmooth f, F.ofFunction f = value k x] }] (Approximation.sequence k)
+    (Logic.And[_, _]::# (Approximation.smooth k) (values k));

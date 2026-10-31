@@ -1,0 +1,27 @@
+\import \parent.Finite[p := p] \as F;
+\import \parent.Norm[p := p] \as Norm;
+\import \parent.Completion[p := p] \as Complete;
+\import \root.Powers[].Algebra[] \as PA;
+\import \root.Exponential[] \as Exp;
+\import Real.Sequence[] \as Sequence;
+\import Sequence.Operations[] \as Operations;
+\import std.Data[].Nat[] \as Nat;
+\import topology.Topology[Carrier := A] \as Sets;
+\definition Nonnegative: \Set := \Cast[F.Representatives] ({ f: F.Representatives \where \forall (x: A) -> R.Le Real.zero (f x) });
+\module Positive(f: Nonnegative);
+\structure Presentation: \Set := {
+  positiveSize: N.Nat^,
+  negativeSize: N.Nat^,
+  positive: I.CompleteSimple[positiveSize],
+  negative: I.CompleteSimple[negativeSize],
+};
+\definition evaluate[data: Presentation]: A -> Real.Real := \fun (x: A) => Real.sub
+  (I.Evaluation[n := data.positiveSize, s := data.positive].value x) (I.Evaluation[n := data.negativeSize, s := data.negative].value x);
+\definition Simple[f: A -> Real.Real]: \Prop := \exists ( data: Presentation \where \forall (x: A) -> f x = evaluate data x );
+\module Signed(f: F.Representatives);
+\import std.Set[].Quotient[A := F.Representatives, Equivalent := \fun (f, g: F.Representatives) => M.AlmostEqual mu f g] \as Q;
+\definition dense: \forall (x: F.Space)(epsilon: Real.Real) -> R.Lt Real.zero epsilon -> \exists ( s: F.Representatives \where Logic.And[
+  Simple s, Logic.And[I.Integrable s, R.Lt (Norm.metric.distance (F.ofFunction s) x) epsilon]] ) :=
+  Q.induction (\fun (x: F.Space) => \forall (epsilon: Real.Real) -> R.Lt Real.zero epsilon -> \exists ( s: F.Representatives \where Logic.And[
+    Simple s, Logic.And[I.Integrable s, R.Lt (Norm.metric.distance (F.ofFunction s) x) epsilon]] ))
+    (\fun (f: F.Representatives) => Signed[f := f].approximate);

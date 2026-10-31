@@ -1,0 +1,33 @@
+\import \parent.BorelMeasure[] \as BorelMeasure;
+\import \parent.Compact[p := p] \as Compact;
+\import \parent.Approximation[p := p] \as Approximation;
+\import L.Finite[p := p] \as F;
+\import L.Completion[p := p] \as Completion;
+\import L.Norm[p := p] \as Norm;
+\import functional_analysis.Metric[Carrier := F.Space] \as Metric;
+\import Real.Geometric[q := Real.half] \as Dyadic;
+\import functional_analysis.ScalarLimits[] \as Limits;
+\import I.Null[] \as Null;
+\import M.Integral[mu := BorelMeasure.borel] \as BI;
+\import BI.Null[] \as BNull;
+\import euclidean_measure.GdeltaHull[n := n] \as Hull;
+\structure Representative[x: F.Space]: \Set := {
+  representative: F.Representatives,
+  borel: M.IsMeasurable BorelMeasure.borel representative,
+  represents: F.ofFunction representative = x,
+};
+\definition Choice[x: F.Space][k: N.Nat^]: \Set := \Cast[SmoothCompact] ({ f: SmoothCompact \where R.Lt (Norm.metric.distance (Approximation.ofSmooth f) x) (Dyadic.value k) });
+\module Approximate(x: F.Space, s: N.Nat^ -> SmoothCompact, converges: Metric.Converges Norm.metric (\fun (k: N.Nat^) => Approximation.ofSmooth (s k)) x);
+\definition existsRepresentative: \forall (x: F.Space) -> \exists Representative[x] := \fun (x: F.Space) => \block {
+  \takefrom chosen: \forall (k: N.Nat^) -> Choice x k \by \axiom:classicalIndefiniteChoice(N.Nat^, Choice x,
+    \fun (k: N.Nat^) => Approximation.smoothDense x (Dyadic.value k) (Limits.dyadicPositive k)) \then
+  \let s: N.Nat^ -> SmoothCompact := \fun (k: N.Nat^) => chosen k \then
+  \let property: \forall (k: N.Nat^) -> R.Lt (Norm.metric.distance (Approximation.ofSmooth (s k)) x) (Dyadic.value k) := \fun (k: N.Nat^) =>
+    \bysub(SmoothCompact, { f: SmoothCompact \where R.Lt (Norm.metric.distance (Approximation.ofSmooth f) x) (Dyadic.value k) }, chosen k) \then
+  \let converges: Metric.Converges Norm.metric (\fun (k: N.Nat^) => Approximation.ofSmooth (s k)) x := \fun (epsilon: Real.Real)(positive: _) => \block {
+    \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where \forall (j: N.Nat^) -> Nat.Le k j -> R.Lt (Dyadic.value j) epsilon }) \by Limits.dyadicSmall epsilon positive \then
+    \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where Metric.LimitControl Norm.metric (\fun (k: N.Nat^) => Approximation.ofSmooth (s k)) x epsilon k }] k
+      (\fun (j: N.Nat^)(later: _) => Order.ltTrans _ _ _ (property j) ((\bysub(N.Nat^, { k: N.Nat^ \where \forall (j: N.Nat^) -> Nat.Le k j -> R.Lt (Dyadic.value j) epsilon }, k)) j later))
+  } \then
+  \return Approximate[x := x, s := s, converges := converges].existsRepresentative
+};

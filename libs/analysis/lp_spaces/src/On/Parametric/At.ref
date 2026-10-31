@@ -1,0 +1,18 @@
+\definition curve: B -> Real.Real := \fun (b: B) => I.integral (d.function b);
+\definition radius[k: N.Nat^]: Real.Real := Distance.min d.radius (Dyadic.value k);
+\definition Bad[k: N.Nat^, b: B]: \Prop := Logic.And[Sets.Member d.allowed b, Logic.And[R.Lt (metric.distance b d.at) (radius k), Logic.Not (R.Lt (Real.distance (curve b) (I.integral d.target)) epsilon)]];
+\definition Candidate[k: N.Nat^]: \Set := \Cast[B] ({ b: B \where Bad[k, b] });
+\definition badExists: Logic.Not (\exists ( delta: Real.Real \where Control[curve, d.at, d.allowed, I.integral d.target, epsilon, delta] )) -> \forall (k: N.Nat^) -> \exists Candidate k :=
+  \fun (none: _)(k: N.Nat^) => Sigma.doubleNegative (\exists Candidate k) (\fun (missing: _) => none
+    (Logic.existsIntro[Real.Real, { delta: Real.Real \where Control[curve, d.at, d.allowed, I.integral d.target, epsilon, delta] }] (radius k)
+      (Control[curve, d.at, d.allowed, I.integral d.target, epsilon, radius k] {
+        positive := Product.minPositive d.radius (Dyadic.value k) (Exp.positive d.radius) (Limits.dyadicPositive k),
+        estimate := \fun (b: B)(allowed: _)(near: _) => Sigma.doubleNegative (R.Lt (Real.distance (curve b) (I.integral d.target)) epsilon)
+          (\fun (notNear: _) => missing (Logic.existsIntro[B, { b: B \where Bad[k, b] }] b (Logic.And[_, _]::# allowed (Logic.And[_, _]::# near notNear)))),
+      })));
+\module ForSequence(chosen: \forall (k: N.Nat^) -> Candidate k);
+\definition existsRadius: \exists ( delta: Real.Real \where Control[curve, d.at, d.allowed, I.integral d.target, epsilon, delta] ) := Sigma.doubleNegative
+  (\exists ( delta: Real.Real \where Control[curve, d.at, d.allowed, I.integral d.target, epsilon, delta] )) (\fun (none: _) => \block {
+    \takefrom chosen: \forall (k: N.Nat^) -> Candidate k \by \axiom:classicalIndefiniteChoice(N.Nat^, Candidate, badExists none) \then
+    \return ForSequence[chosen := chosen].contradiction
+  });

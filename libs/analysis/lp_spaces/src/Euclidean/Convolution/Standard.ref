@@ -1,0 +1,12 @@
+\import \root.Euclidean[n := n].ReflectedTranslation[a := a] \as Reflected;
+\import product_integration.MeasureMap[A := Point, B := Point, source := measure, target := measure].On[map := Reflected.map].RealFunction[f := section f rho a] \as Transport;
+\definition function: Function := \fun (y: Point) => Real.mul (f (E.subPoint a y)) (rho.function y);
+\definition involution[y: Point]: E.subPoint a (E.subPoint a y) = y := \axiom:funext(E.subPoint a (E.subPoint a y), y, \fun (i: Fin.Fin n) => Algebra.subSub (a i) (y i));
+\definition values[y: Point]: Transport.representative y = function y := trans!{Real.Real} _ _ _
+  (congr!{Point Real.Real} (\fun (z: Point) => Real.mul (f z) (rho.function (E.subPoint a z))) _ _ (Reflected.pointwise y))
+  (congr!{Point Real.Real} (\fun (z: Point) => Real.mul (f (E.subPoint a y)) (rho.function z)) _ _ (involution y));
+\definition integrable: I.Integrable function := \idelim (\fun (y: Point) => Transport.representative y) = function \with h: Function => I.Integrable h \by {
+  base: (I.integralLaw Transport.representative).integrable, equality: \axiom:funext((\fun (y: Point) => Transport.representative y), function, values) };
+\definition representative: I.Representatives := \into[Function](function, I.Representatives) \by { integrable };
+\definition integral: I.integral representative = I.integral (section f rho a) := trans!{Real.Real} _ _ _
+  (Null.integralAlmost representative Transport.representative (AE.nullSubset _ Sets.Empty (\fun (y: Point)(different: _) => different (sym!{Real.Real} _ _ (values y))) AE.nullEmpty)) Transport.integral;

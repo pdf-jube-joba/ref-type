@@ -1,0 +1,48 @@
+\import I.Step[p := Approx.datum k] \as Step;
+\import I.Evaluation[n := Step.size, s := Step.simple] \as Eval;
+\definition stepNonnegative: \forall (x: A) -> R.Le Real.zero (Eval.value x) := Eval.nonnegative;
+\definition integrable: I.Integrable Eval.value := Logic.orElim _ _ _ (Laws.nonnegativeOrNegativeReal (Functions.rational k))
+  (\fun (nonnegativeQ: R.Le Real.zero (Functions.rational k)) => Logic.orElim _ _ _ (Classical.excludedMiddle (Functions.rational k = Real.zero))
+    (\fun (zero: Functions.rational k = Real.zero) => \idelim Zero.function = Eval.value \with h: (A -> Real.Real) => I.Integrable h \by {
+      base: Zero.integrable,
+      equality: \axiom:funext(Zero.function, Eval.value, \fun (x: A) => sym!{Real.Real} _ _
+        (Logic.orElim _ _ _ (Classical.excludedMiddle (Sets.Member (Approx.datum k).set x))
+          (\fun (inside: Sets.Member (Approx.datum k).set x) => trans!{Real.Real} _ _ _ (Step.inside x inside)
+            (trans!{Real.Real} _ _ _ (Distance.maxOfLe Real.zero (Functions.rational k) nonnegativeQ) zero))
+          (\fun (outside: Logic.Not (Sets.Member (Approx.datum k).set x)) => Step.outside x outside)))
+    })
+    (\fun (nonzero: Logic.Not (Functions.rational k = Real.zero)) => \block {
+      \let positive: R.Lt Real.zero (Functions.rational k) := Order.ltOfLeNotEq Real.zero (Functions.rational k) nonnegativeQ (\fun (zero: Real.zero = Functions.rational k) => nonzero (sym!{Real.Real} _ _ zero)) \then
+      \let q: Exp.Positive := \into[Real.Real](Functions.rational k, Exp.Positive) \by { positive } \then
+      \let power: Real.Real := Powers.value (Powers.positiveBase q) (Powers.exponent p) \then
+      \let powerPositive: R.Lt Real.zero power := PA.positiveValue q (Powers.exponent p) \then
+      \let coefficient: Real.Real := Real.mul q (Laws.fieldInv power) \then
+      \let coefficientNonnegative: R.Le Real.zero coefficient := Laws.fieldMulNonnegative q (Laws.fieldInv power) nonnegativeQ (Order.leOfLt _ _ (Product.invPositive power powerPositive)) \then
+      \let bound: I.Representatives := Scaling.scalarRepresentative coefficient (F.momentRepresentative f) \then
+      \return Logic.And[_, _]::# Eval.measurable (I.finiteMono (Absolute.abs Eval.value) (Absolute.abs bound) (\fun (x: A) => Product.absNonnegative _)
+        (\fun (x: A) => \block {
+          \let boundNonnegative: R.Le Real.zero (bound x) := Laws.fieldMulNonnegative coefficient (F.moment f x) coefficientNonnegative (F.momentNonnegative f x) \then
+          \let compare: R.Le (Eval.value x) (bound x) := Logic.orElim _ _ _ (Classical.excludedMiddle (Sets.Member (Approx.datum k).set x))
+            (\fun (inside: Sets.Member (Approx.datum k).set x) => \block {
+              \let momentBound: R.Le power (F.moment f x) := PA.monotone (Powers.positiveBase q) (F.absolute f x) (Powers.exponent p)
+                (R.leTrans (Functions.rational k) (f x) (Product.abs (f x)) (Order.leOfLt (Functions.rational k) (f x) inside)
+                  (R.leReplaceRight (f x) (f x) (Product.abs (f x)) (sym!{Real.Real} _ _ (Product.absOfNonnegative (f x) (nonnegative x))) (R.leRefl (f x)))) \then
+              \let cancel: Real.mul coefficient power = q := trans!{Real.Real} _ _ _ (Laws.fieldMulAssoc q (Laws.fieldInv power) power)
+                (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (Real.mul q) _ _ (Laws.fieldInverseNonzero power (Real.Inverse[].positiveNonzero power powerPositive))) (Algebra.mulOneRight q)) \then
+              \return R.leReplaceLeft _ _ _ (trans!{Real.Real} _ _ _ cancel
+                (sym!{Real.Real} _ _ (trans!{Real.Real} _ _ _ (Step.inside x inside) (Distance.maxOfLe Real.zero q nonnegativeQ))))
+                (E.mulMonotone coefficient power (F.moment f x) coefficientNonnegative momentBound)
+            })
+            (\fun (outside: Logic.Not (Sets.Member (Approx.datum k).set x)) => R.leReplaceLeft Real.zero _ _ (sym!{Real.Real} _ _ (Step.outside x outside)) boundNonnegative) \then
+          \return R.leReplace _ _ _ _ (sym!{Real.Real} _ _ (Product.absOfNonnegative _ (Eval.nonnegative x)))
+            (sym!{Real.Real} _ _ (Product.absOfNonnegative _ boundNonnegative)) compare
+        }) (I.integralLaw bound).integrable.right)
+    }))
+  (\fun (negative: R.Lt (Functions.rational k) Real.zero) => \idelim Zero.function = Eval.value \with h: (A -> Real.Real) => I.Integrable h \by {
+    base: Zero.integrable,
+    equality: \axiom:funext(Zero.function, Eval.value, \fun (x: A) => sym!{Real.Real} _ _
+      (Logic.orElim _ _ _ (Classical.excludedMiddle (Sets.Member (Approx.datum k).set x))
+        (\fun (inside: Sets.Member (Approx.datum k).set x) => trans!{Real.Real} _ _ _ (Step.inside x inside) (Distance.maxOfGe Real.zero (Functions.rational k) (Order.leOfLt _ _ negative)))
+        (\fun (outside: Logic.Not (Sets.Member (Approx.datum k).set x)) => Step.outside x outside)))
+  });
+\definition representative: I.Representatives := \into[A -> Real.Real](Eval.value, I.Representatives) \by { integrable };

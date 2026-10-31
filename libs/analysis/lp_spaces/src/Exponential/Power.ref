@@ -1,0 +1,50 @@
+\import functional_analysis.Powers[] \as P;
+\definition value: Real.Real := Exp.value (Real.mul p (logarithm a));
+\definition positiveValue: R.Lt Real.zero value := Exp.positive _;
+\definition basePower[n: N.Nat^]: P.power a n = Exp.value (Real.mul (P.natural n) (logarithm a)) :=
+  trans!{Real.Real} _ _ _ (sym!{Real.Real} _ _ (congr!{Real.Real Real.Real} (\fun (x: Real.Real) => P.power x n) _ _ (exponentialLogarithm a)))
+    (naturalExponential (logarithm a) n);
+\definition valuePower[n: N.Nat^]: P.power value n = Exp.value (Real.mul (Real.mul p (P.natural n)) (logarithm a)) :=
+  trans!{Real.Real} _ _ _ (naturalExponential (Real.mul p (logarithm a)) n)
+    (congr!{Real.Real Real.Real} Exp.value _ _
+      (trans!{Real.Real} _ _ _ (Algebra.mulSwap (P.natural n) p (logarithm a))
+        (sym!{Real.Real} _ _ (Laws.fieldMulAssoc p (P.natural n) (logarithm a)))));
+\definition logNonnegative: R.Le Real.one a -> R.Le Real.zero (logarithm a) :=
+  \fun (above: _) => R.leReplaceLeft _ _ _ logarithmOne (logarithmMonotone one a above);
+\definition logNonpositive: R.Le a Real.one -> R.Le (logarithm a) Real.zero :=
+  \fun (below: _) => R.leReplaceRight _ _ _ logarithmOne (logarithmMonotone a one below);
+\definition multiplyOrder[x, y: Real.Real]: R.Le Real.zero (logarithm a) -> R.Le x y ->
+  R.Le (Real.mul x (logarithm a)) (Real.mul y (logarithm a)) :=
+  \fun (nonnegative: _)(order: _) => R.leReplace _ _ _ _ (Laws.fieldMulComm _ _) (Laws.fieldMulComm _ _)
+    (E.mulMonotone (logarithm a) x y nonnegative order);
+\definition negativeProduct[x: Real.Real]: Real.neg (Real.mul (Real.neg (logarithm a)) x) = Real.mul x (logarithm a) :=
+  eq_reason_in!{Real.Real _
+    "=" _ "by" { congr!{Real.Real Real.Real} Real.neg _ _ (Laws.fieldMulComm _ _) }
+    "=" _ "by" { congr!{Real.Real Real.Real} Real.neg _ _ (Laws.fieldMulNegRight _ _) }
+    "=" _ "by" { Laws.negInvolutive _ }
+  };
+\definition multiplyReverse[x, y: Real.Real]: R.Le (logarithm a) Real.zero -> R.Le x y ->
+  R.Le (Real.mul y (logarithm a)) (Real.mul x (logarithm a)) :=
+  \fun (nonpositive: _)(order: _) => R.leReplace _ _ _ _ (negativeProduct y) (negativeProduct x)
+    (Laws.negAntitone _ _ (E.mulMonotone (Real.neg (logarithm a)) x y
+      (R.leReplaceLeft (Real.neg Real.zero) Real.zero _ Laws.negZero (Laws.negAntitone _ _ nonpositive)) order));
+\definition law: P.PositivePower[a, p, value] := P.PositivePower[a, p, value] {
+  nonnegative := Order.leOfLt _ _ positiveValue,
+  atZero := \fun (zero: a = Real.zero) => Logic.falseElim _ (Order.ltNotEq _ _ (positive a) (sym!{Real.Real} _ _ zero)),
+  increasing := \fun (strict: _)(above: _) => P.Increasing[a, p, value] {
+    lower := \fun (m, n: N.Nat^)(order: _) => R.leReplace _ _ _ _
+      (sym!{Real.Real} _ _ (basePower m)) (sym!{Real.Real} _ _ (valuePower (N.Nat^::succ n)))
+      (monotone _ _ (multiplyOrder _ _ (logNonnegative above) order)),
+    upper := \fun (m, n: N.Nat^)(order: _) => R.leReplace _ _ _ _
+      (sym!{Real.Real} _ _ (valuePower (N.Nat^::succ n))) (sym!{Real.Real} _ _ (basePower m))
+      (monotone _ _ (multiplyOrder _ _ (logNonnegative above) order)),
+  },
+  decreasing := \fun (strict: _)(below: _) => P.Decreasing[a, p, value] {
+    lower := \fun (m, n: N.Nat^)(order: _) => R.leReplace _ _ _ _
+      (sym!{Real.Real} _ _ (valuePower (N.Nat^::succ n))) (sym!{Real.Real} _ _ (basePower m))
+      (monotone _ _ (multiplyReverse _ _ (logNonpositive below) order)),
+    upper := \fun (m, n: N.Nat^)(order: _) => R.leReplace _ _ _ _
+      (sym!{Real.Real} _ _ (basePower m)) (sym!{Real.Real} _ _ (valuePower (N.Nat^::succ n)))
+      (monotone _ _ (multiplyReverse _ _ (logNonpositive below) order)),
+  },
+};

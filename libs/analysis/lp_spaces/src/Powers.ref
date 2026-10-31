@@ -1,0 +1,202 @@
+\import real.Analysis[] \as Real;
+\import dedekind_reals.DedekindReal[] \as R;
+\import R.Arithmetic[].Prop[] \as Laws;
+\import R.Order[] \as Order;
+\import Real.Algebra[] \as Algebra;
+\import Real.Estimates[] \as E;
+\import E.Product[] \as Product;
+\import Real.Distance[] \as Distance;
+\import std.Data[].Nat[] \as N;
+\import N.Basic[].Prop[] \as Nat;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Classical[] \as Classical;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\use Equality.eq_reason_in;
+\use Logic.either;
+\import functional_analysis.Powers[] \as P;
+\import N.Induction[] \as Induction;
+\definition naturalNonnegative: \forall (n: N.Nat^) -> R.Le Real.zero (P.natural n) :=
+  \induction (n: N.Nat^) \return R.Le Real.zero (P.natural n) \with {
+    | zero: R.leRefl Real.zero
+    | succ: \fun (n: N.Nat^)(previous: _) => Laws.addNonnegative _ _ previous Laws.oneNonnegative
+  };
+\definition naturalStep[n: N.Nat^]: R.Lt (P.natural n) (P.natural (N.Nat^::succ n)) :=
+  R.ltReplaceLeft (Real.add (P.natural n) Real.zero) (P.natural n) _ (Laws.addZeroRight _)
+    (Laws.ltAddLeft (P.natural n) Real.zero Real.one Product.onePositive);
+\definition naturalStrict: \forall (m, n: N.Nat^) -> Nat.Lt m n -> R.Lt (P.natural m) (P.natural n) :=
+  \fun (m, n: N.Nat^) => (\induction (n: N.Nat^) \return \forall (m: N.Nat^) -> Nat.Lt m n -> R.Lt (P.natural m) (P.natural n) \with {
+    | zero: \fun (m: N.Nat^)(less: _) => Logic.falseElim _ (N.Order[].Prop[].ltZero m less)
+    | succ: \fun (n: N.Nat^)(previous: _)(m: N.Nat^)(less: _) =>
+      Logic.orElim _ _ _ (Induction.leCases m n (Induction.belowSuccessor m n less))
+        (\fun (strict: _) => Order.ltTrans _ _ _ (previous m strict) (naturalStep n))
+        (\fun (same: m = n) => R.ltReplaceLeft _ _ _ (congr!{N.Nat^ Real.Real} P.natural _ _ (sym!{N.Nat^} _ _ same)) (naturalStep n))
+  }) n m;
+\definition naturalReflect: \forall (m, n: N.Nat^) -> R.Le (P.natural m) (P.natural n) -> Nat.Le m n :=
+  \fun (m, n: N.Nat^) => (\induction (m: N.Nat^) \return \forall (n: N.Nat^) -> R.Le (P.natural m) (P.natural n) -> Nat.Le m n \with {
+    | zero: \fun (n: N.Nat^)(order: _) => Nat.zeroLe n
+    | succ: \fun (m: N.Nat^)(previous: _) => \induction (n: N.Nat^) \return R.Le (P.natural (N.Nat^::succ m)) (P.natural n) -> Nat.Le (N.Nat^::succ m) n \with {
+        | zero: \fun (order: _) => Logic.falseElim _ (R.ltNotLeReverse _ _
+            (R.leLtTrans _ _ _ (naturalNonnegative m) (naturalStep m)) order)
+        | succ: \fun (n: N.Nat^)(unused: _)(order: _) => previous n (Laws.leAddCancelRight _ _ Real.one order)
+      }
+  }) m n;
+\definition nonnegative[a: Real.Real]: R.Le Real.zero a -> \forall (n: N.Nat^) -> R.Le Real.zero (P.power a n) :=
+  \fun (nonnegative: _) => \induction (n: N.Nat^) \return R.Le Real.zero (P.power a n) \with {
+    | zero: Laws.oneNonnegative
+    | succ: \fun (n: N.Nat^)(previous: _) => Laws.fieldMulNonnegative a _ nonnegative previous
+  };
+\definition growing[a: Real.Real]: R.Le Real.one a -> \forall (n: N.Nat^) -> R.Le (P.power a n) (P.power a (N.Nat^::succ n)) :=
+  \fun (above: _)(n: N.Nat^) => R.leReplaceLeft (Real.mul Real.one (P.power a n)) (P.power a n) _ (Laws.fieldMulOneLeft _)
+    (R.leReplace (Real.mul (P.power a n) Real.one) (Real.mul Real.one (P.power a n))
+      (Real.mul (P.power a n) a) (Real.mul a (P.power a n)) (Laws.fieldMulComm _ _) (Laws.fieldMulComm _ _)
+      (E.mulMonotone _ _ _ (nonnegative a (R.leTrans _ _ _ Laws.oneNonnegative above) n) above));
+\definition monotone[a: Real.Real]: R.Le Real.one a -> \forall (m, n: N.Nat^) -> Nat.Le m n -> R.Le (P.power a m) (P.power a n) :=
+  \fun (above: _)(m, n: N.Nat^) => (\induction (n: N.Nat^) \return \forall (m: N.Nat^) -> Nat.Le m n -> R.Le (P.power a m) (P.power a n) \with {
+    | zero: \fun (m: N.Nat^)(order: _) => R.leReplaceLeft _ _ _
+      (congr!{N.Nat^ Real.Real} (P.power a) _ _ (sym!{N.Nat^} _ _ (Nat.leZeroEq m order))) (R.leRefl Real.one)
+    | succ: \fun (n: N.Nat^)(previous: _)(m: N.Nat^)(order: _) => Logic.orElim _ _ _ (Induction.leCases m (N.Nat^::succ n) order)
+      (\fun (less: _) => R.leTrans _ _ _ (previous m (Induction.belowSuccessor m n less)) (growing a above n))
+      (\fun (same: _) => R.leReplaceLeft _ _ _ (congr!{N.Nat^ Real.Real} (P.power a) _ _ (sym!{N.Nat^} _ _ same)) (R.leRefl _))
+  }) n m;
+\definition antitone[a: Real.Real]: R.Le Real.zero a -> R.Le a Real.one ->
+  \forall (m, n: N.Nat^) -> Nat.Le m n -> R.Le (P.power a n) (P.power a m) :=
+  \fun (positive: _)(below: _)(m, n: N.Nat^) => (\induction (n: N.Nat^) \return \forall (m: N.Nat^) -> Nat.Le m n -> R.Le (P.power a n) (P.power a m) \with {
+    | zero: \fun (m: N.Nat^)(order: _) => R.leReplaceRight _ _ _
+      (congr!{N.Nat^ Real.Real} (P.power a) _ _ (sym!{N.Nat^} _ _ (Nat.leZeroEq m order))) (R.leRefl Real.one)
+    | succ: \fun (n: N.Nat^)(previous: _)(m: N.Nat^)(order: _) => Logic.orElim _ _ _ (Induction.leCases m (N.Nat^::succ n) order)
+      (\fun (less: _) => R.leTrans _ _ _
+        (R.leReplaceRight _ (Real.mul Real.one (P.power a n)) (P.power a n) (Laws.fieldMulOneLeft _)
+          (R.leReplace (Real.mul (P.power a n) a) (Real.mul a (P.power a n))
+            (Real.mul (P.power a n) Real.one) (Real.mul Real.one (P.power a n)) (Laws.fieldMulComm _ _) (Laws.fieldMulComm _ _)
+            (E.mulMonotone _ _ _ (nonnegative a positive n) below)))
+        (previous m (Induction.belowSuccessor m n less)))
+      (\fun (same: _) => R.leReplaceRight _ _ _ (congr!{N.Nat^ Real.Real} (P.power a) _ _ (sym!{N.Nat^} _ _ same)) (R.leRefl _))
+  }) n m;
+\definition one: P.Exponent := \into[Real.Real](Real.one, { p: Real.Real \where R.Le Real.one p }) \by { R.leRefl Real.one };
+\definition first[a: Real.Real]: P.power a (N.Nat^::succ N.Nat^::zero) = a := Algebra.mulOneRight a;
+\definition identity[a: Real.Real]: R.Le Real.zero a -> P.PositivePower[a, Real.one, a] :=
+  \fun (positive: _) => P.PositivePower[a, Real.one, a] {
+    nonnegative := positive,
+    atZero := \fun (zero: a = Real.zero) => zero,
+    increasing := \fun (strict: _)(above: _) => P.Increasing[a, Real.one, a] {
+      lower := \fun (m, n: N.Nat^)(order: _) => monotone a above m (N.Nat^::succ n)
+        (naturalReflect m (N.Nat^::succ n) (R.leReplaceRight _ _ _ (Laws.fieldMulOneLeft _) order)),
+      upper := \fun (m, n: N.Nat^)(order: _) => monotone a above (N.Nat^::succ n) m
+        (naturalReflect (N.Nat^::succ n) m (R.leReplaceLeft _ _ _ (Laws.fieldMulOneLeft _) order)),
+    },
+    decreasing := \fun (strict: _)(below: _) => P.Decreasing[a, Real.one, a] {
+      lower := \fun (m, n: N.Nat^)(order: _) => antitone a positive below m (N.Nat^::succ n)
+        (naturalReflect m (N.Nat^::succ n) (R.leReplaceRight _ _ _ (Laws.fieldMulOneLeft _) order)),
+      upper := \fun (m, n: N.Nat^)(order: _) => antitone a positive below (N.Nat^::succ n) m
+        (naturalReflect (N.Nat^::succ n) m (R.leReplaceLeft _ _ _ (Laws.fieldMulOneLeft _) order)),
+    },
+  };
+\definition identityUnique[a, y: Real.Real]: R.Le Real.zero a -> P.PositivePower[a, Real.one, y] -> y = a :=
+  \fun (nonnegative: _)(power: _) => Logic.orElim _ _ _ (Classical.excludedMiddle (a = Real.zero))
+    (\fun (zero: _) => trans!{Real.Real} _ _ _ (power.atZero zero) (sym!{Real.Real} _ _ zero))
+    (\fun (nonzero: _) => \block {
+      \let positive: R.Lt Real.zero a := Order.ltOfLeNotEq _ _ nonnegative (\fun (zero: Real.zero = a) => nonzero (sym!{Real.Real} _ _ zero)) \then
+      \let index: N.Nat^ := N.Nat^::succ N.Nat^::zero \then
+      \let comparison: R.Le (P.natural index) (Real.mul Real.one (P.natural index)) :=
+        R.leReplaceRight _ _ _ (sym!{Real.Real} _ _ (Laws.fieldMulOneLeft _)) (R.leRefl _) \then
+      \let reverse: R.Le (Real.mul Real.one (P.natural index)) (P.natural index) :=
+        R.leReplaceLeft _ _ _ (sym!{Real.Real} _ _ (Laws.fieldMulOneLeft _)) (R.leRefl _) \then
+      \let equalPowers: P.power y index = P.power a index := Logic.orElim _ _ _ (Order.leTotal Real.one a)
+        (\fun (above: _) => R.leAntisym _ _ ((power.increasing positive above).upper index N.Nat^::zero reverse)
+          ((power.increasing positive above).lower index N.Nat^::zero comparison))
+        (\fun (below: _) => R.leAntisym _ _ ((power.decreasing positive below).lower index N.Nat^::zero comparison)
+          ((power.decreasing positive below).upper index N.Nat^::zero reverse)) \then
+      \return trans!{Real.Real} _ _ _ (sym!{Real.Real} _ _ (first y)) (trans!{Real.Real} _ _ _ equalPowers (first a))
+    });
+\import R.Completeness[] \as Complete;
+\definition Naturals: \Pow Real.Real := { x: Real.Real \where \exists ( n: N.Nat^ \where x = P.natural n ) };
+\definition naturalMember[n: N.Nat^]: Complete.Member Naturals (P.natural n) :=
+  Logic.existsIntro[N.Nat^, { k: N.Nat^ \where P.natural n = P.natural k }] n (\refl(P.natural n));
+\definition naturalAbove[r: Real.Real]: \exists ( n: N.Nat^ \where R.Lt r (P.natural n) ) :=
+  Order.byContradiction _ (\fun (none: Logic.Not (\exists ( n: N.Nat^ \where R.Lt r (P.natural n) ))) => \block {
+    \let bounds: \forall (n: N.Nat^) -> R.Le (P.natural n) r := \fun (n: N.Nat^) =>
+      Order.leOfNotLtReverse _ _ (\fun (greater: _) => none (Logic.existsIntro[N.Nat^, { n: N.Nat^ \where R.Lt r (P.natural n) }] n greater)) \then
+    \let bounded: Complete.Bounded Naturals := Logic.existsIntro[Real.Real, { b: Real.Real \where Complete.UpperBound Naturals b }] r
+      (\fun (x: Real.Real)(member: _) => \block {
+        \takefrom n: \Cast[N.Nat^] ({ n: N.Nat^ \where x = P.natural n }) \by member \then
+        \return R.leReplaceLeft _ _ _ (sym!{Real.Real} _ _ (\bysub(N.Nat^, { n: N.Nat^ \where x = P.natural n }, n))) (bounds n)
+      }) \then
+    \takefrom s: \Cast[Real.Real] ({ s: Real.Real \where Complete.LeastUpperBound[Naturals, s] })
+      \by Complete.complete Naturals (Logic.existsIntro[Real.Real, Naturals] Real.zero (naturalMember N.Nat^::zero)) bounded \then
+    \let sup: Complete.LeastUpperBound[Naturals, s] := \bysub(Real.Real, { s: Real.Real \where Complete.LeastUpperBound[Naturals, s] }, s) \then
+    \let smallerBound: Complete.UpperBound Naturals (Real.sub s Real.one) := \fun (x: Real.Real)(member: _) => \block {
+      \takefrom n: \Cast[N.Nat^] ({ n: N.Nat^ \where x = P.natural n }) \by member \then
+      \return R.leReplaceLeft _ _ _ (sym!{Real.Real} _ _ (\bysub(N.Nat^, { n: N.Nat^ \where x = P.natural n }, n)))
+        (Laws.leAddCancelRight (P.natural n) (Real.sub s Real.one) Real.one
+          (R.leReplaceRight _ s (Real.add (Real.sub s Real.one) Real.one) (sym!{Real.Real} _ _ (Distance.subAddCancel s Real.one))
+            (sup.upper (P.natural (N.Nat^::succ n)) (naturalMember (N.Nat^::succ n)))))
+    } \then
+    \return R.ltNotLeReverse _ _ (Real.SquareRoot[].subBelow s Real.one Product.onePositive) (sup.least _ smallerBound)
+  });
+\structure Floor[r: Real.Real, n: N.Nat^]: \Prop := {
+  lower: R.Le (P.natural n) r,
+  upper: R.Lt r (P.natural (N.Nat^::succ n)),
+};
+\definition floorExists[r: Real.Real]: R.Le Real.zero r -> \exists ( n: N.Nat^ \where Floor[r, n] ) :=
+  \fun (nonnegative: _) => \block {
+    \takefrom n: Induction.LeastValue (\fun (n: N.Nat^) => R.Lt r (P.natural n))
+      \by Induction.leastExists (\fun (n: N.Nat^) => R.Lt r (P.natural n)) (naturalAbove r) \then
+    \let law: Induction.LeastLaws[\fun (n: N.Nat^) => R.Lt r (P.natural n), n] :=
+      \bysub(N.Nat^, { n: N.Nat^ \where Induction.LeastLaws[\fun (n: N.Nat^) => R.Lt r (P.natural n), n] }, n) \then
+    \return (\induction (k: N.Nat^) \return Induction.LeastLaws[\fun (n: N.Nat^) => R.Lt r (P.natural n), k] ->
+      \exists ( j: N.Nat^ \where Floor[r, j] ) \with {
+      | zero: \fun (atZero: Induction.LeastLaws[\fun (n: N.Nat^) => R.Lt r (P.natural n), N.Nat^::zero]) => Logic.falseElim _ (R.ltNotLeReverse _ _ atZero.member nonnegative)
+      | succ: \fun (k: N.Nat^)(unused: _)(atSucc: Induction.LeastLaws[\fun (n: N.Nat^) => R.Lt r (P.natural n), N.Nat^::succ k]) => Logic.existsIntro[N.Nat^, { j: N.Nat^ \where Floor[r, j] }] k (Floor[r, k] {
+          lower := Order.leOfNotLtReverse _ _ (\fun (less: _) => Nat.ltIrrefl k
+            (Nat.ltOfSuccLe k k (atSucc.least k less))),
+          upper := atSucc.member,
+        })
+    }) n law
+  };
+\definition zero[p: Real.Real]: P.PositivePower[Real.zero, p, Real.zero] := P.PositivePower[Real.zero, p, Real.zero] {
+  nonnegative := R.leRefl Real.zero,
+  atZero := \fun (same: _) => \refl(Real.zero),
+  increasing := \fun (positive: _)(above: _) => Logic.falseElim _ (Order.ltNotEq Real.zero Real.zero positive (\refl(Real.zero))),
+  decreasing := \fun (positive: _)(below: _) => Logic.falseElim _ (Order.ltNotEq Real.zero Real.zero positive (\refl(Real.zero))),
+};
+\definition exists: \forall (a, p: Real.Real) -> R.Le Real.zero a -> \exists ( y: Real.Real \where P.PositivePower[a, p, y] ) :=
+  \fun (a, p: Real.Real)(nonnegative: _) => Logic.orElim _ _ _ (Classical.excludedMiddle (a = Real.zero))
+    (\fun (same: _) => Logic.existsIntro[Real.Real, { y: Real.Real \where P.PositivePower[a, p, y] }] Real.zero
+      (\idelim Real.zero = a \with x: Real.Real => P.PositivePower[x, p, Real.zero] \by { base: zero p, equality: sym!{Real.Real} _ _ same }))
+    (\fun (nonzero: _) => \block {
+      \let positive: R.Lt Real.zero a := Order.ltOfLeNotEq _ _ nonnegative (\fun (same: Real.zero = a) => nonzero (sym!{Real.Real} _ _ same)) \then
+      \let base: \root.Exponential[].Positive := \into[Real.Real](a, { x: Real.Real \where R.Lt Real.zero x }) \by { positive } \then
+      \return Logic.existsIntro[Real.Real, { y: Real.Real \where P.PositivePower[a, p, y] }]
+        (\root.Exponential[].Power[a := base, p := p].value) (\root.Exponential[].Power[a := base, p := p].law)
+    });
+\definition Nonnegative: \Set := \Cast[Real.Real] ({ a: Real.Real \where R.Le Real.zero a });
+\module Cuts;
+\module Unique;
+\definition baseNonnegative[a: Nonnegative]: R.Le Real.zero a := \bysub(Real.Real, { a: Real.Real \where R.Le Real.zero a }, a);
+\definition exponent[p: P.Exponent]: Nonnegative := \into[Real.Real](p, Nonnegative) \by {
+  R.leTrans _ _ _ Laws.oneNonnegative (\bysub(Real.Real, { p: Real.Real \where R.Le Real.one p }, p))
+};
+\definition Value[a, p: Nonnegative]: \Set := \Cast[Real.Real] ({ y: Real.Real \where P.PositivePower[a, p, y] });
+\definition valueExists[a, p: Nonnegative]: \exists Value a p := exists a p (baseNonnegative a);
+\definition valueUnique[a, p: Nonnegative][y, z: Value a p]: y = z := Unique[].unique a p y z (baseNonnegative a)
+  (\bysub(Real.Real, { y: Real.Real \where P.PositivePower[a, p, y] }, y))
+  (\bysub(Real.Real, { y: Real.Real \where P.PositivePower[a, p, y] }, z));
+\definition value[a, p: Nonnegative]: Real.Real := \choice Value a p \by { existence: valueExists a p, uniqueness: valueUnique a p };
+\definition law[a, p: Nonnegative]: P.PositivePower[a, p, value a p] := \bysub(Real.Real, { y: Real.Real \where P.PositivePower[a, p, y] },
+  \choice Value a p \by { existence: valueExists a p, uniqueness: valueUnique a p });
+\definition nonnegativeValue[a, p: Nonnegative]: R.Le Real.zero (value a p) := (law a p).nonnegative;
+\definition zeroBase: Nonnegative := \into[Real.Real](Real.zero, Nonnegative) \by { R.leRefl Real.zero };
+\definition zeroValue[p: Nonnegative]: value zeroBase p = Real.zero := (law zeroBase p).atZero (\refl(Real.zero));
+\definition positiveBase[a: \root.Exponential[].Positive]: Nonnegative := \into[Real.Real](a, Nonnegative) \by { Order.leOfLt _ _ (\root.Exponential[].positive a) };
+\definition exponentialValue[a: \root.Exponential[].Positive][p: Nonnegative]: value (positiveBase a) p = \root.Exponential[].Power[a := a, p := p].value :=
+  Unique[].unique a p _ _ (baseNonnegative (positiveBase a)) (law (positiveBase a) p) (\root.Exponential[].Power[a := a, p := p].law);
+\definition identityValue[a: Nonnegative]: value a (exponent one) = a := identityUnique a _ (baseNonnegative a) (law a (exponent one));
+\definition underlying[a: Nonnegative]: Real.Real := a;
+\module Algebra;
+\module Young;
+\definition StrictExponent: \Set := \Cast[P.Exponent] ({ p: P.Exponent \where R.Lt Real.one p });
+\module Conjugate(p: StrictExponent);
+\module Convergence(p: \root.Exponential[].Positive);

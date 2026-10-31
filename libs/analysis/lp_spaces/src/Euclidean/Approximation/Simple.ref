@@ -1,0 +1,15 @@
+\import I.Evaluation[n := m, s := s] \as Evaluation;
+\import \parent.Sums[] \as Sums;
+\module Cell(i: Fin.Fin m);
+\definition term[i: Fin.Fin m]: F.Representatives := Cell[i := i].representative;
+\definition pointwise[x: Point]: Sums.representative m term x = f x := \block {
+  \takefrom i: \Cast[Fin.Fin m] ({ i: Fin.Fin m \where Sets.Member (s.cells i) x }) \by Evaluation.covers x \then
+  \let member: Sets.Member (s.cells i) x := \bysub(Fin.Fin m, { i: Fin.Fin m \where Sets.Member (s.cells i) x }, i) \then
+  \return trans!{Real.Real} _ _ _ (Sums.value m term x) (trans!{Real.Real} _ _ _
+    (Sums.scalarSingle m (\fun (j: Fin.Fin m) => term j x) i
+      (\fun (j: Fin.Fin m)(different: _) => Cell[i := j].outside x (\fun (inOther: _) => s.disjoint j i different x inOther member)))
+    (trans!{Real.Real} _ _ _ (Cell[i := i].inside x member) (trans!{Real.Real} _ _ _ (sym!{Real.Real} _ _ (Evaluation.atCell i x member)) (agrees x))))
+};
+\definition dense: Approximable (F.ofFunction f) := replace (sum m (\fun (i: Fin.Fin m) => F.ofFunction (term i))) (F.ofFunction f)
+  (trans!{F.Space} _ _ _ (sym!{F.Space} _ _ (Sums.class m term)) (F.classPointwise (Sums.representative m term) f pointwise))
+  (finiteSum m (\fun (i: Fin.Fin m) => F.ofFunction (term i)) (\fun (i: Fin.Fin m) => Cell[i := i].dense));

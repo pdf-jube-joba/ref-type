@@ -1,0 +1,22 @@
+\definition point[k: N.Nat^]: B := chosen k;
+\definition property[k: N.Nat^]: Bad[k, point k] := \bysub(B, { b: B \where Bad[k, b] }, chosen k);
+\definition dominated[k: N.Nat^][x: A]: R.Le (Product.abs (d.function (point k) x)) (d.bound x) := d.dominated (point k) (property k).left
+  (R.ltLeTrans _ _ _ (property k).right.left (Distance.minLeft d.radius (Dyadic.value k))) x;
+\definition pointwise[x: A]: Sequence.Converges (\fun (k: N.Nat^) => d.function (point k) x) (d.target x) := \fun (epsilon: Real.Real)(positive: _) => \block {
+  \takefrom delta: \Cast[Real.Real] ({ delta: Real.Real \where Control[(\fun (b: B) => d.function b x), d.at, d.allowed, d.target x, epsilon, delta] }) \by d.pointwise x epsilon positive \then
+  \let control: Control[(\fun (b: B) => d.function b x), d.at, d.allowed, d.target x, epsilon, delta] := \bysub(Real.Real, { delta: Real.Real \where Control[(\fun (b: B) => d.function b x), d.at, d.allowed, d.target x, epsilon, delta] }, delta) \then
+  \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where \forall (j: N.Nat^) -> Nat.Le k j -> R.Lt (Dyadic.value j) delta }) \by Limits.dyadicSmall delta control.positive \then
+  \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where Sequence.LimitControl (\fun (j: N.Nat^) => d.function (point j) x) (d.target x) epsilon k }] k
+    (\fun (j: N.Nat^)(later: _) => control.estimate (point j) (property j).left
+      (Order.ltTrans _ _ _ (R.ltLeTrans _ _ _ (property j).right.left (Distance.minRight d.radius (Dyadic.value j)))
+        ((\bysub(N.Nat^, { k: N.Nat^ \where \forall (j: N.Nat^) -> Nat.Le k j -> R.Lt (Dyadic.value j) delta }, k)) j later)))
+};
+\definition data: I.DominatedSequence := I.DominatedSequence { sequence := \fun (k: N.Nat^) => d.function (point k), limit := d.target, bound := d.bound, dominated := dominated, converges := pointwise };
+\import I.Dominated[d := data] \as Proof;
+\definition integral: I.integral Proof.limitRepresentative = I.integral d.target := Null.integralAlmost Proof.limitRepresentative d.target (AE.reflexive d.target);
+\definition converges: Sequence.Converges (\fun (k: N.Nat^) => curve (point k)) (I.integral d.target) :=
+  \idelim I.integral Proof.limitRepresentative = I.integral d.target \with r: Real.Real => Sequence.Converges (\fun (k: N.Nat^) => curve (point k)) r \by { base: Proof.convergence, equality: integral };
+\definition contradiction: Logic.False := \block {
+  \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where Sequence.LimitControl (\fun (j: N.Nat^) => curve (point j)) (I.integral d.target) epsilon k }) \by converges epsilon (Exp.positive epsilon) \then
+  \return (property k).right.right ((\bysub(N.Nat^, { k: N.Nat^ \where Sequence.LimitControl (\fun (j: N.Nat^) => curve (point j)) (I.integral d.target) epsilon k }, k)) k (Nat.leRefl k))
+};

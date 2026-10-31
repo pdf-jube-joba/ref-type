@@ -1,0 +1,55 @@
+\import \parent.Vector[] \as Vector;
+\import complex_hilbert.Space[V := Space, space := Vector.space] \as CS;
+\import functional_analysis.Normed[V := Space, space := CS.realSpace] \as RealNormed;
+\definition realPointwise[f, g: F.Representatives]: (\forall (x: A) -> f x = g x) -> F.normRepresentative f = F.normRepresentative g :=
+  \fun (same: _) => F.normRespects f g (AE.nullSubset _ Sets.Empty (\fun (x: A)(different: _) => different (same x)) AE.nullEmpty);
+\definition nonnegative: \forall (x: Space) -> R.Le Real.zero (normValue x) := Q.induction (\fun (x: Space) => R.Le Real.zero (normValue x))
+  (\fun (f: Representatives) => R.leReplaceRight _ _ _ (sym!{Real.Real} _ _ (normOfFunction f)) (F.normNonnegative (modulusRepresentative f)));
+\definition zeroNorm: normRepresentative zeroRepresentative = Real.zero := trans!{Real.Real} _ _ _
+  (realPointwise (modulusRepresentative zeroRepresentative) F.zeroRepresentative (\fun (x: A) => trans!{Real.Real} _ _ _ (CI.realAxisAbs Real.zero) (Distance.distanceSelf Real.zero))) F.representativeNormZero;
+\definition normZero: normValue zero = Real.zero := trans!{Real.Real} _ _ _ (normOfFunction zeroRepresentative) zeroNorm;
+\import std.Set[].Quotient[A := F.Representatives, Equivalent := \fun (f, g: F.Representatives) => M.AlmostEqual mu f g] \as RQ;
+\definition representativeDefinite[f: Representatives]: normRepresentative f = Real.zero -> ofFunction f = zero := \fun (isZero: _) => \block {
+  \let almost: M.AlmostEqual mu (modulusRepresentative f) F.zeroRepresentative := RQ.equivalentOfClassEq F.equivalence _ _ (F.representativeDefinite _ isZero) \then
+  \return Q.classOfEq equivalence f zeroRepresentative (Logic.And[_, _]::#
+    (AE.nullSubset _ ({ x: A \where Logic.Not (CA.abs (f x) = Real.zero) })
+      (\fun (x: A)(different: _)(same: _) => different (congr!{C.Complex Real.Real} C.re _ _ (CA.zeroOfAbsZero (f x) same))) almost)
+    (AE.nullSubset _ ({ x: A \where Logic.Not (CA.abs (f x) = Real.zero) })
+      (\fun (x: A)(different: _)(same: _) => different (congr!{C.Complex Real.Real} C.im _ _ (CA.zeroOfAbsZero (f x) same))) almost))
+};
+\definition definite: \forall (x: Space) -> normValue x = Real.zero -> x = zero := Q.induction (\fun (x: Space) => normValue x = Real.zero -> x = zero)
+  (\fun (f: Representatives)(isZero: _) => representativeDefinite f (trans!{Real.Real} _ _ _ (sym!{Real.Real} _ _ (normOfFunction f)) isZero));
+\definition representativeTriangle[f, g: Representatives]: R.Le (normRepresentative (addRepresentative f g)) (Real.add (normRepresentative f) (normRepresentative g)) :=
+  R.leTrans _ (F.normRepresentative (F.addRepresentative (modulusRepresentative f) (modulusRepresentative g))) _
+    (Norm.monotone (modulusRepresentative (addRepresentative f g)) (F.addRepresentative (modulusRepresentative f) (modulusRepresentative g)) (\fun (x: A) => R.leReplaceLeft _ _ _ (sym!{Real.Real} _ _ (Product.absOfNonnegative (CA.abs (D.add (f x) (g x))) (CA.nonnegative _)))
+      (R.leTrans _ _ _ (CA.triangle (f x) (g x)) (R.leReplaceRight _ _ _ (sym!{Real.Real} _ _ (Product.absExpression _)) (Distance.maxRight _ _)))))
+    (Norm.representativeTriangle (modulusRepresentative f) (modulusRepresentative g));
+\definition triangle: \forall (x, y: Space) -> R.Le (normValue (add x y)) (Real.add (normValue x) (normValue y)) := Q.induction2
+  (\fun (x, y: Space) => R.Le (normValue (add x y)) (Real.add (normValue x) (normValue y)))
+  (\fun (f, g: Representatives) => R.leReplace _ _ _ _
+    (sym!{Real.Real} _ _ (trans!{Real.Real} _ _ _ (congr!{Space Real.Real} normValue _ _ (addClass f g)) (normOfFunction (addRepresentative f g))))
+    (congr!{Real.Real Real.Real Real.Real} Real.add _ _ _ _ (sym!{Real.Real} _ _ (normOfFunction f)) (sym!{Real.Real} _ _ (normOfFunction g))) (representativeTriangle f g));
+\definition representativeHomogeneous[c: C.Complex][f: Representatives]: normRepresentative (scaleRepresentative c f) = Real.mul (CA.abs c) (normRepresentative f) := eq_reason_in!{Real.Real _
+  "=" _ "by" { realPointwise (modulusRepresentative (scaleRepresentative c f)) (F.scaleRepresentative (CA.abs c) (modulusRepresentative f)) (\fun (x: A) => CA.multiplicative c (f x)) }
+  "=" _ "by" { F.normScalar (CA.abs c) (modulusRepresentative f) }
+  "=" _ "by" { congr!{Real.Real Real.Real} (\fun (r: Real.Real) => Real.mul r (normRepresentative f)) _ _ (Product.absOfNonnegative (CA.abs c) (CA.nonnegative c)) }
+};
+\definition homogeneous[c: C.Complex]: \forall (x: Space) -> normValue (scale c x) = Real.mul (CA.abs c) (normValue x) := Q.induction
+  (\fun (x: Space) => normValue (scale c x) = Real.mul (CA.abs c) (normValue x))
+  (\fun (f: Representatives) => eq_reason_in!{Real.Real _
+    "=" _ "by" { congr!{Space Real.Real} normValue _ _ (scaleClass c f) }
+    "=" _ "by" { normOfFunction (scaleRepresentative c f) }
+    "=" _ "by" { representativeHomogeneous c f }
+    "=" _ "by" { congr!{Real.Real Real.Real} (Real.mul (CA.abs c)) _ _ (sym!{Real.Real} _ _ (normOfFunction f)) }
+  });
+\definition realData: RealNormed.NormData := RealNormed.NormData { norm := normValue };
+\definition realLaws: RealNormed.NormLaws[realData] := RealNormed.NormLaws[realData] {
+  nonnegative := nonnegative, zero := normZero, definite := definite, triangle := triangle,
+  homogeneous := \fun (c: Real.Real)(x: Space) => trans!{Real.Real} _ _ _ (homogeneous (D.ofReal c) x)
+    (congr!{Real.Real Real.Real} (\fun (r: Real.Real) => Real.mul r (normValue x)) _ _ (CI.realAxisAbs c)),
+};
+\definition norm: CS.Norm := CS.Norm {
+  realNorm := \into[RealNormed.NormData](realData, RealNormed.Norm) \by { realLaws },
+  homogeneous := homogeneous,
+};
+\definition metric: metric_spaces.MetricSpace[Carrier := Space].Metric := RealNormed.metric norm.realNorm;

@@ -1,0 +1,33 @@
+\import L.Norm[p := p] \as Norm;
+\import L.Completion[p := p] \as Completion;
+\import \root.Euclidean[n := n].Convolution[p := p] \as Convolution;
+\import \root.Euclidean[n := n].Translation[p := p] \as Translation;
+\import Open.Smooth[].Properties[] \as Properties;
+\definition input: F.Representatives := Compact.smoothRepresentative f;
+\definition borel: M.IsMeasurable BorelMeasure.borel input := Compact.continuousBorel f (Compact.smoothContinuous f (smoothCompactLaws f).smooth);
+\module At(k: N.Nat^) {
+  \definition rho: Kernel := identity.sequence k;
+  \definition law: NormalizedLaw[rho] := identity.normalized k;
+  \import Convolution.Normalized[f := input, rho := rho, borel := borel, nonnegative := law.nonnegative, mass := law.mass] \as Average;
+  \definition representative: F.Representatives := Average.representative;
+  \import Convolution.Probability[rho := rho, law := law] \as Probability;
+  \definition absoluteBound[x: Point]: R.Le (Product.abs (representative x)) coefficient := Probability.bounded input coefficient absoluteBound x;
+}
+\definition sequence[k: N.Nat^]: F.Representatives := At[k := k].representative;
+\definition enlarged: Nonnegative := PA.sum radius PA.oneBase;
+\definition box: Finite.FiniteMeasurableSet := \into[\Pow Point](E.points (Bounds.box enlarged), Finite.FiniteMeasurableSet) \by { Integration.boxFinite (Bounds.box enlarged) };
+\import L.Indicator[p := p, S := box] \as Indicator;
+\definition bound: F.Representatives := F.scaleRepresentative coefficient Indicator.representative;
+\module SupportAt(k: N.Nat^, x: Point);
+\definition dominated[k: N.Nat^][x: Point]: R.Le (Product.abs (sequence k x)) (bound x) := Logic.orElim _ _ _ (Classical.excludedMiddle (Sets.Member box x))
+  (\fun (member: _) => R.leReplaceRight _ _ _ (sym!{Real.Real} _ _ (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (Real.mul coefficient) _ _ (Indicator.inside x member)) (Algebra.mulOneRight coefficient))) (At[k := k].absoluteBound x))
+  (\fun (outside: _) => R.leReplace _ _ _ _
+    (sym!{Real.Real} _ _ (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} Product.abs _ _ (SupportAt[k := k, x := x].outside outside)) (Distance.distanceSelf Real.zero)))
+    (sym!{Real.Real} _ _ (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (Real.mul coefficient) _ _ (Indicator.outside x outside)) (Laws.fieldMulZeroRight coefficient))) (R.leRefl Real.zero));
+\module Pointwise(x: Point, epsilon: Positive);
+\definition pointwise[x: Point]: Sequence.Converges (\fun (k: N.Nat^) => sequence k x) (input x) := \fun (epsilon: Real.Real)(positive: _) =>
+  Pointwise[x := x, epsilon := \into[Real.Real](epsilon, Positive) \by { positive }].convergence;
+\definition data: Norm.DominatedData := Norm.DominatedData { sequence := sequence, target := input, bound := bound, exception := FiniteNull.empty,
+  dominated := \fun (k: N.Nat^)(x: Point)(outside: _) => dominated k x,
+  converges := \fun (x: Point)(outside: _) => pointwise x };
+\definition convergence: Sequence.Converges (\fun (k: N.Nat^) => Completion.distance (sequence k) input) Real.zero := Norm.Dominated[d := data].theorem;

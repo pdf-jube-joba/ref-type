@@ -1,0 +1,70 @@
+\import \root.Powers[].Algebra[] \as PA;
+\import \parent.Finite[p := PA.two] \as F;
+\import \parent.Norm[p := PA.two] \as N2;
+\import \parent.Completion[p := PA.two] \as Complete;
+\import \parent.Products[] \as Products;
+\import F.Vector[] \as Vector;
+\definition inverseTwo: Laws.fieldInv PA.two = Real.half := sym!{Real.Real} _ _
+  (Real.Inverse[].inverseUnique PA.two Real.half (Real.Inverse[].positiveNonzero PA.two (\root.Exponential[].positive F.positiveExponent))
+    (trans!{Real.Real} _ _ _ (Laws.fieldMulAdd Real.half Real.one Real.one) (E.halfTwice Real.one)));
+\definition exponents: ConjugateExponents := ConjugateExponents { left := PA.two, right := PA.two,
+  identity := trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real Real.Real} Real.add _ _ _ _ inverseTwo inverseTwo)
+    (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real Real.Real} Real.add _ _ _ _ (sym!{Real.Real} _ _ (Algebra.mulOneRight Real.half)) (sym!{Real.Real} _ _ (Algebra.mulOneRight Real.half))) (E.halfTwice Real.one)),
+};
+\import \parent.Holder[exponents := exponents] \as H;
+\definition representative[f, g: F.Representatives]: Real.Real := I.integral (H.representative f g);
+\import std.Set[].Quotient[A := F.Representatives, Equivalent := \fun (f, g: F.Representatives) => M.AlmostEqual mu f g] \as Q;
+\import Q.Binary[C := F.Representatives, B := Real.Real, OtherEquivalent := \fun (f, g: F.Representatives) => M.AlmostEqual mu f g] \as Binary;
+\definition respects: Binary.Respects representative := \fun (f, f2, g, g2: F.Representatives)(ff: _)(gg: _) =>
+  Null.integralAlmost (H.representative f g) (H.representative f2 g2) (binaryAlmost Real.mul f f2 g g2 ff gg);
+\definition value: F.Space -> F.Space -> Real.Real := Binary.value F.equivalence F.equivalence representative respects;
+\definition onClass[f, g: F.Representatives]: value (F.ofFunction f) (F.ofFunction g) = representative f g := Binary.onClass F.equivalence F.equivalence representative respects f g;
+\definition symmetric: \forall (x, y: F.Space) -> value x y = value y x := Q.induction2 (\fun (x, y: F.Space) => value x y = value y x)
+  (\fun (f, g: F.Representatives) => eq_reason_in!{Real.Real _
+    "=" _ "by" { onClass f g }
+    "=" _ "by" { H.integralPointwise (H.representative f g) (H.representative g f) (\fun (x: A) => Laws.fieldMulComm (f x) (g x)) }
+    "=" _ "by" { sym!{Real.Real} _ _ (onClass g f) }
+  });
+\definition zeroRight: \forall (x: F.Space) -> value x F.zero = Real.zero := Q.induction (\fun (x: F.Space) => value x F.zero = Real.zero)
+  (\fun (f: F.Representatives) => trans!{Real.Real} _ _ _ (onClass f F.zeroRepresentative)
+    (trans!{Real.Real} _ _ _ (H.integralPointwise (H.representative f F.zeroRepresentative) Zero.representative (\fun (x: A) => Laws.fieldMulZeroRight (f x))) Zero.integralZero));
+\definition addRight: \forall (x, y, z: F.Space) -> value x (F.add y z) = Real.add (value x y) (value x z) :=
+  Q.induction (\fun (x: F.Space) => \forall (y, z: F.Space) -> value x (F.add y z) = Real.add (value x y) (value x z))
+    (\fun (f: F.Representatives) => Q.induction2 (\fun (y, z: F.Space) => value (F.ofFunction f) (F.add y z) = Real.add (value (F.ofFunction f) y) (value (F.ofFunction f) z))
+      (\fun (g, h: F.Representatives) => eq_reason_in!{Real.Real _
+        "=" _ "by" { congr!{F.Space Real.Real} (value (F.ofFunction f)) _ _ (F.addClass g h) }
+        "=" _ "by" { onClass f (F.addRepresentative g h) }
+        "=" _ "by" { H.integralPointwise (H.representative f (F.addRepresentative g h)) (Linear.addRepresentative (H.representative f g) (H.representative f h))
+          (\fun (x: A) => Laws.fieldMulAdd (f x) (g x) (h x)) }
+        "=" _ "by" { Linear.integralAdd (H.representative f g) (H.representative f h) }
+        "=" _ "by" { congr!{Real.Real Real.Real Real.Real} Real.add _ _ _ _ (sym!{Real.Real} _ _ (onClass f g)) (sym!{Real.Real} _ _ (onClass f h)) }
+      }));
+\definition scaleRight: \forall (c: Real.Real)(x, y: F.Space) -> value x (F.scale c y) = Real.mul c (value x y) :=
+  \fun (c: Real.Real) => Q.induction2 (\fun (x, y: F.Space) => value x (F.scale c y) = Real.mul c (value x y))
+    (\fun (f, g: F.Representatives) => eq_reason_in!{Real.Real _
+      "=" _ "by" { congr!{F.Space Real.Real} (value (F.ofFunction f)) _ _ (F.scaleClass c g) }
+      "=" _ "by" { onClass f (F.scaleRepresentative c g) }
+      "=" _ "by" { H.integralPointwise (H.representative f (F.scaleRepresentative c g)) (Scaling.scalarRepresentative c (H.representative f g))
+        (\fun (x: A) => Algebra.mulSwap (f x) c (g x)) }
+      "=" _ "by" { Scaling.integralScalar c (H.representative f g) }
+      "=" _ "by" { congr!{Real.Real Real.Real} (Real.mul c) _ _ (sym!{Real.Real} _ _ (onClass f g)) }
+    });
+\definition normSquared: \forall (x: F.Space) -> value x x = Real.mul (F.norm x) (F.norm x) := Q.induction (\fun (x: F.Space) => value x x = Real.mul (F.norm x) (F.norm x))
+  (\fun (f: F.Representatives) => eq_reason_in!{Real.Real _
+    "=" _ "by" { onClass f f }
+    "=" _ "by" { H.integralPointwise (H.representative f f) (F.momentRepresentative f)
+      (\fun (x: A) => sym!{Real.Real} _ _ (trans!{Real.Real} _ _ _ (PA.square (F.absolute f x)) (Products.absSquare (f x)))) }
+    "=" _ "by" { sym!{Real.Real} _ _ (F.normPower f) }
+    "=" _ "by" { PA.square (\into[Real.Real](F.normRepresentative f, Powers.Nonnegative) \by { F.normNonnegative f }) }
+    "=" _ "by" { congr!{Real.Real Real.Real Real.Real} Real.mul _ _ _ _ (sym!{Real.Real} _ _ (F.normOfFunction f)) (sym!{Real.Real} _ _ (F.normOfFunction f)) }
+  });
+\import linear_algebra.Real[].InnerProduct[V := F.Space, space := Vector.space] \as Inner;
+\definition innerData: Inner.InnerProductData := Inner.InnerProductData { inner := value };
+\definition innerLaws: Inner.InnerProductLaws[innerData] := Inner.InnerProductLaws[innerData] {
+  symmetric := symmetric, zeroRight := zeroRight, addRight := addRight, scaleRight := scaleRight,
+  nonnegative := \fun (x: F.Space) => R.leReplaceRight _ _ _ (sym!{Real.Real} _ _ (normSquared x)) (Algebra.squareNonnegative (F.norm x)),
+  definite := \fun (x: F.Space)(zero: _) => F.definite x (Algebra.squareZero (F.norm x) (trans!{Real.Real} _ _ _ (sym!{Real.Real} _ _ (normSquared x)) zero)),
+};
+\definition inner: Inner.InnerProduct := \into[Inner.InnerProductData](innerData, Inner.InnerProduct) \by { innerLaws };
+\import functional_analysis.Normed[V := F.Space, space := Vector.space].Hilbert[norm := N2.norm] \as Hilbert;
+\definition hilbert: Hilbert.Hilbert[inner] := Hilbert.Hilbert[inner] { normSquared := normSquared, complete := Complete.complete };

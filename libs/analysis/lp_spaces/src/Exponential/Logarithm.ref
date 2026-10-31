@@ -1,0 +1,69 @@
+\definition lower: Real.Real := Real.neg (Laws.fieldInv a);
+\definition upper: Real.Real := Real.add a Real.one;
+\definition upperPositive: R.Lt Real.zero upper := R.ltLeTrans Real.zero a upper (positive a)
+  (R.leReplaceLeft (Real.add a Real.zero) a upper (Laws.addZeroRight a) (E.addLe a Real.zero a Real.one (R.leRefl a) Laws.oneNonnegative));
+\definition above: R.Lt a (Exp.value upper) := R.ltLeTrans a upper (Exp.value upper)
+  (R.ltReplaceLeft (Real.add a Real.zero) a upper (Laws.addZeroRight a) (Laws.ltAddLeft a Real.zero Real.one Product.onePositive))
+  (Exp.linearLower upper upperPositive);
+\definition below: R.Le (Exp.value lower) a := R.leReplaceLeft (Laws.fieldInv (Exp.value (Laws.fieldInv a))) (Exp.value lower) a
+  (sym!{Real.Real} _ _ (Exp.negative (Laws.fieldInv a)))
+  (R.leReplaceRight _ (Laws.fieldInv (Laws.fieldInv a)) a
+    (sym!{Real.Real} _ _ (Inverse.inverseUnique (Laws.fieldInv a) a
+      (Inverse.positiveNonzero _ (Product.invPositive a (positive a)))
+      (trans!{Real.Real} _ _ _ (Laws.fieldMulComm a (Laws.fieldInv a)) (Laws.fieldInverseNonzero a (Inverse.positiveNonzero a (positive a))))))
+    (Inverse.invAntitone (Laws.fieldInv a) (Exp.value (Laws.fieldInv a))
+      (Product.invPositive a (positive a)) (Exp.positive (Laws.fieldInv a)) (Exp.linearLower (Laws.fieldInv a) (Product.invPositive a (positive a)))));
+\definition Sublevel: \Pow Real.Real := { t: Real.Real \where R.Le (Exp.value t) a };
+\definition nonempty: Complete.Nonempty Sublevel := Logic.existsIntro[Real.Real, Sublevel] lower below;
+\definition bounded: Complete.Bounded Sublevel := Logic.existsIntro[Real.Real, { b: Real.Real \where Complete.UpperBound Sublevel b }] upper
+  (\fun (t: Real.Real)(member: _) => Order.leOfNotLtReverse t upper
+    (\fun (less: R.Lt upper t) => R.ltNotLeReverse a (Exp.value t) (Order.ltTrans _ _ _ above (Exp.increasing upper t less)) member));
+\definition family: Complete.Family := \into[\Pow Real.Real](Sublevel, Complete.FamilySet) \by { Logic.And[_, _]::# nonempty bounded };
+\definition value: Real.Real := Complete.supremum family;
+\definition supremum: Complete.LeastUpperBound[Sublevel, value] := Complete.supremumLaw family;
+\import calculus.Real[].Limit[].Operations[] \as Continuity;
+\import Real.SquareRoot[] \as Root;
+\definition leftPoint[d: Real.Real]: Real.Real := Real.sub value (Real.mul Real.half d);
+\definition leftBelow[d: Real.Real]: R.Lt Real.zero d -> R.Lt (leftPoint d) value :=
+  \fun (dp: _) => Root.subBelow value (Real.mul Real.half d) (E.halfOfPositive d dp);
+\definition leftNear[d: Real.Real]: R.Lt Real.zero d -> R.Lt (Real.distance (leftPoint d) value) d :=
+  \fun (dp: _) => R.ltReplaceLeft (Real.distance value (leftPoint d)) _ d (Distance.distanceSymmetric value (leftPoint d))
+    (Distance.distanceLtOfInterval value (leftPoint d) d
+      (Laws.ltAddLeft value (Real.neg d) (Real.neg (Real.mul Real.half d)) (Laws.negStrictAntitone _ _ (E.halfStrict d dp)))
+      (Order.ltTrans _ value _ (leftBelow d dp)
+        (R.ltReplaceLeft (Real.add value Real.zero) value _ (Laws.addZeroRight value) (Laws.ltAddLeft value Real.zero d dp))));
+\definition valueBelow: R.Le (Exp.value value) a := Order.leOfNotLtReverse _ _ (\fun (greater: R.Lt a (Exp.value value)) => \block {
+  \let epsilon: Real.Real := Real.sub (Exp.value value) a \then
+  \let ep: R.Lt Real.zero epsilon := Root.subPositive _ _ greater \then
+  \takefrom d: \Cast[Real.Real] ({ d: Real.Real \where Limits.Control[Exp.value, value, Exp.value value, epsilon, d] })
+    \by Exp.continuous value epsilon ep \then
+  \let control: Limits.Control[Exp.value, value, Exp.value value, epsilon, d] :=
+    \bysub(Real.Real, { d: Real.Real \where Limits.Control[Exp.value, value, Exp.value value, epsilon, d] }, d) \then
+  \let near: R.Lt (Real.distance (Exp.value (leftPoint d)) (Exp.value value)) epsilon :=
+    Continuity.continuityEstimate Exp.value value epsilon d ep control (leftPoint d) (leftNear d control.positive) \then
+  \let strict: R.Lt a (Exp.value (leftPoint d)) := R.ltReplaceLeft (Real.sub (Exp.value value) epsilon) a _
+    (Algebra.subSub (Exp.value value) a)
+    (Distance.distanceLtLower _ _ epsilon (R.ltReplaceLeft _ _ _ (Distance.distanceSymmetric _ _) near)) \then
+  \let bound: Complete.UpperBound Sublevel (leftPoint d) := \fun (t: Real.Real)(member: _) =>
+    Order.leOfNotLtReverse t (leftPoint d) (\fun (less: _) => R.ltNotLeReverse a (Exp.value t)
+      (Order.ltTrans _ _ _ strict (Exp.increasing (leftPoint d) t less)) member) \then
+  \return R.ltNotLeReverse _ _ (leftBelow d control.positive) (supremum.least (leftPoint d) bound)
+});
+\definition valueAbove: R.Le a (Exp.value value) := Order.leOfNotLtReverse _ _ (\fun (less: R.Lt (Exp.value value) a) => \block {
+  \let epsilon: Real.Real := Real.sub a (Exp.value value) \then
+  \let ep: R.Lt Real.zero epsilon := Root.subPositive _ _ less \then
+  \takefrom d: \Cast[Real.Real] ({ d: Real.Real \where Limits.Control[Exp.value, value, Exp.value value, epsilon, d] })
+    \by Exp.continuous value epsilon ep \then
+  \let control: Limits.Control[Exp.value, value, Exp.value value, epsilon, d] :=
+    \bysub(Real.Real, { d: Real.Real \where Limits.Control[Exp.value, value, Exp.value value, epsilon, d] }, d) \then
+  \let t: Real.Real := Continuity.nearby value d \then
+  \let near: R.Lt (Real.distance (Exp.value t) (Exp.value value)) epsilon :=
+    Continuity.continuityEstimate Exp.value value epsilon d ep control t (Continuity.nearbyClose value d control.positive) \then
+  \let member: R.Le (Exp.value t) a := Order.leOfLt _ _
+    (R.ltReplaceRight _ (Real.add (Exp.value value) epsilon) a (E.addSubCancel a (Exp.value value))
+      (Distance.distanceLtUpper _ _ epsilon (R.ltReplaceLeft _ _ _ (Distance.distanceSymmetric _ _) near))) \then
+  \let strict: R.Lt value t := R.ltReplaceLeft (Real.add value Real.zero) value t (Laws.addZeroRight value)
+    (Laws.ltAddLeft value Real.zero (Real.mul Real.half d) (E.halfOfPositive d control.positive)) \then
+  \return R.ltNotLeReverse _ _ strict (supremum.upper t member)
+});
+\definition equation: Exp.value value = a := R.leAntisym _ _ valueBelow valueAbove;

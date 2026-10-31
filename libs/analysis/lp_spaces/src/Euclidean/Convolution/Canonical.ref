@@ -1,0 +1,17 @@
+\definition size[k: N.Nat^]: Positive := \into[Real.Real](Dyadic.value (N.Nat^::succ k), Positive) \by { Limits.dyadicPositive (N.Nat^::succ k) };
+\definition sequence[k: N.Nat^]: Kernel := \root.Euclidean[n := n].Convolution[p := p].Bump[q := size k].value;
+\definition radius[k: N.Nat^]: (sequence k).radius = Dyadic.value k := trans!{Real.Real} _ _ _
+  (Laws.fieldMulAdd (Real.mul Real.half (Dyadic.value k)) Real.one Real.one)
+  (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real Real.Real} Real.add _ _ _ _ (Algebra.mulOneRight _) (Algebra.mulOneRight _)) (Estimates.halfTwice _));
+\definition normalized[k: N.Nat^]: NormalizedLaw[sequence k] := NormalizedLaw[sequence k] {
+  nonnegative := \root.Euclidean[n := n].Convolution[p := p].Bump[q := size k].nonnegative,
+  mass := \root.Euclidean[n := n].Convolution[p := p].Bump[q := size k].normalized,
+};
+\definition value: ApproximateIdentity := ApproximateIdentity { sequence := sequence, normalized := normalized,
+  bounded := \fun (k: N.Nat^) => R.leReplaceLeft _ _ _ (sym!{Real.Real} _ _ (radius k)) (Limits.dyadicDecreasing k N.Nat^::zero (Nat.zeroLe k)),
+  shrinking := \fun (epsilon: Real.Real)(positive: R.Lt Real.zero epsilon) => \block {
+    \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where \forall (j: N.Nat^) -> Nat.Le k j -> R.Lt (Dyadic.value j) epsilon }) \by Limits.dyadicSmall epsilon positive \then
+    \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where \forall (j: N.Nat^) -> Nat.Le k j -> R.Lt (sequence j).radius epsilon }] k
+      (\fun (j: N.Nat^)(later: Nat.Le k j) => R.ltReplaceLeft _ _ _ (sym!{Real.Real} _ _ (radius j))
+        ((\bysub(N.Nat^, { k: N.Nat^ \where \forall (j: N.Nat^) -> Nat.Le k j -> R.Lt (Dyadic.value j) epsilon }, k)) j later))
+  } };

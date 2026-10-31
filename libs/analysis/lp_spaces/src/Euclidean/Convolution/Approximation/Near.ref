@@ -1,0 +1,28 @@
+\definition input: F.Representatives := Compact.smoothRepresentative g;
+\definition borelG: M.IsMeasurable BorelMeasure.borel input := Compact.continuousBorel g (Compact.smoothContinuous g (smoothCompactLaws g).smooth);
+\definition other[k: N.Nat^]: F.Representatives := Convolution.Normalized[f := input, rho := identity.sequence k, borel := borelG,
+  nonnegative := (identity.normalized k).nonnegative, mass := (identity.normalized k).mass].representative;
+\definition quarter: Real.Real := Real.mul Real.half (Real.mul Real.half epsilon);
+\definition half: Real.Real := Real.mul Real.half epsilon;
+\definition closeGF: R.Lt (Completion.distance input f) quarter := R.ltReplaceLeft _ _ _ (Completion.classDistance input f) close;
+\definition closeFG: R.Lt (Completion.distance f input) quarter := R.ltReplaceLeft _ _ _
+  (trans!{Real.Real} _ _ _ (sym!{Real.Real} _ _ (Completion.classDistance input f))
+    (trans!{Real.Real} _ _ _ (Norm.metric.symmetric (F.ofFunction input) (F.ofFunction f)) (Completion.classDistance f input))) closeGF;
+\definition bound[k: N.Nat^]: R.Le (Completion.distance (sequence k) (other k)) (Completion.distance f input) := Convolution.Stability[f := f, g := input, borelF := borel, borelG := borelG, rho := identity.sequence k, law := identity.normalized k].bound;
+\definition control: \exists ( k: N.Nat^ \where Sequence.LimitControl (\fun (j: N.Nat^) => Completion.distance (sequence j) f) Real.zero epsilon k ) := \block {
+  \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where Sequence.LimitControl (\fun (j: N.Nat^) => Completion.distance (other j) input) Real.zero half k }) \by compactConvergence g identity half (Estimates.halfOfPositive epsilon (\root.Exponential[].positive epsilon)) \then
+  \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where Sequence.LimitControl (\fun (j: N.Nat^) => Completion.distance (sequence j) f) Real.zero epsilon k }] k
+    (\fun (j: N.Nat^)(later: _) => \block {
+      \let nonnegative: R.Le Real.zero (Completion.distance (other j) input) := F.normNonnegative (Completion.difference (other j) input) \then
+      \let middle: R.Lt (Completion.distance (other j) input) half := R.ltReplaceLeft _ _ _
+        (trans!{Real.Real} _ _ _ (Distance.distanceSymmetric (Completion.distance (other j) input) Real.zero) (Product.absOfNonnegative (Completion.distance (other j) input) nonnegative))
+        ((\bysub(N.Nat^, { k: N.Nat^ \where Sequence.LimitControl (\fun (j: N.Nat^) => Completion.distance (other j) input) Real.zero half k }, k)) j later) \then
+      \let upper: R.Le (Completion.distance (sequence j) f) (Real.add (Completion.distance f input) (Real.add (Completion.distance (other j) input) (Completion.distance input f))) :=
+        R.leTrans _ _ _ (Completion.distanceTriangle (sequence j) (other j) f)
+          (Estimates.addLe _ _ _ _ (bound j) (Completion.distanceTriangle (other j) input f)) \then
+      \let near: R.Lt (Completion.distance (sequence j) f) epsilon := R.leLtTrans _ _ _ upper
+        (R.ltReplaceRight _ _ _ (Translation.split epsilon) (Estimates.addLt _ _ _ _ closeFG (Estimates.addLt _ _ _ _ middle closeGF))) \then
+      \return R.ltReplaceLeft _ _ _ (sym!{Real.Real} _ _ (trans!{Real.Real} _ _ _ (Distance.distanceSymmetric (Completion.distance (sequence j) f) Real.zero)
+        (Product.absOfNonnegative (Completion.distance (sequence j) f) (F.normNonnegative (Completion.difference (sequence j) f))))) near
+    })
+};

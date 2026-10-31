@@ -1,0 +1,27 @@
+\import complex_hilbert.Scalars[] \as Scalar;
+\definition Measurable[f: Function]: \Prop := Logic.And[M.IsMeasurable mu (\fun (x: A) => C.re (f x)), M.IsMeasurable mu (\fun (x: A) => C.im (f x))];
+\definition AbsoluteMoment[f: Function]: \Prop := Logic.And[Measurable f, Lp.HasFiniteMoment[modulus f, PA.two]];
+\definition forward[f: Function]: HasMoment f -> AbsoluteMoment f := \fun (moment: _) => \block {
+  \let representative: Representatives := \into[Function](f, Representatives) \by { moment } \then
+  \return Logic.And[_, _]::# (Logic.And[_, _]::# moment.left.measurable moment.right.measurable) (F.properties (modulusRepresentative representative))
+};
+\definition imaginaryBound[z: C.Complex]: R.Le (Product.abs (C.im z)) (CA.abs z) := R.leReplaceRight _ _ _
+  (congr!{Real.Real Real.Real} Root.sqrt _ _ (Laws.addComm (Real.mul (C.im z) (C.im z)) (Real.mul (C.re z) (C.re z))))
+  (Scalar.realAbsolute (C.make (C.im z) (C.re z)));
+\definition reverse[f: Function]: AbsoluteMoment f -> HasMoment f := \fun (data: _) => \block {
+  \let absolute: F.Representatives := \into[A -> Real.Real](modulus f, F.Representatives) \by { data.right } \then
+  \return Logic.And[_, _]::#
+    (F.hasMoment (\fun (x: A) => C.re (f x)) data.left.left
+      (I.finiteMono (F.moment (\fun (x: A) => C.re (f x))) (F.moment absolute)
+        (F.momentNonnegative (\fun (x: A) => C.re (f x)))
+        (\fun (x: A) => PA.monotone (F.absolute (\fun (x: A) => C.re (f x)) x) (F.absolute absolute x) (Powers.exponent PA.two)
+          (R.leReplaceRight _ _ _ (sym!{Real.Real} _ _ (Product.absOfNonnegative (CA.abs (f x)) (CA.nonnegative (f x)))) (Scalar.realAbsolute (f x))))
+        (F.finiteMoment absolute)))
+    (F.hasMoment (\fun (x: A) => C.im (f x)) data.left.right
+      (I.finiteMono (F.moment (\fun (x: A) => C.im (f x))) (F.moment absolute)
+        (F.momentNonnegative (\fun (x: A) => C.im (f x)))
+        (\fun (x: A) => PA.monotone (F.absolute (\fun (x: A) => C.im (f x)) x) (F.absolute absolute x) (Powers.exponent PA.two)
+          (R.leReplaceRight _ _ _ (sym!{Real.Real} _ _ (Product.absOfNonnegative (CA.abs (f x)) (CA.nonnegative (f x)))) (imaginaryBound (f x))))
+        (F.finiteMoment absolute)))
+};
+\definition equivalence[f: Function]: Logic.And[HasMoment f -> AbsoluteMoment f, AbsoluteMoment f -> HasMoment f] := Logic.And[_, _]::# (forward f) (reverse f);

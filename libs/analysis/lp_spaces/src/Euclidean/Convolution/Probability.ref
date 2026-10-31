@@ -1,0 +1,20 @@
+\import \root.Euclidean[n := n].Compact[p := Powers.one] \as CompactOne;
+\import L.One[] \as One;
+\import I.Scaling[] \as Scaling;
+\import I.Linear[] \as Linear;
+\import I.Negation[] \as Negation;
+\definition weight: I.Representatives := One.toIntegral (CompactOne.smoothRepresentative rho.function);
+\definition constant[c: Real.Real]: I.Representatives := Scaling.scalarRepresentative c weight;
+\definition constantIntegral[c: Real.Real]: I.integral (constant c) = c := trans!{Real.Real} _ _ _ (Scaling.integralScalar c weight)
+  (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (Real.mul c) _ _ law.mass) (Algebra.mulOneRight c));
+\definition integralPointwise[f, g: I.Representatives]: (\forall (x: Point) -> f x = g x) -> I.integral f = I.integral g := \fun (same: _) =>
+  Null.integralAlmost f g (AE.nullSubset _ Sets.Empty (\fun (x: Point)(different: _) => different (same x)) AE.nullEmpty);
+\definition bounded[f: F.Representatives][c: Nonnegative]: (\forall (x: Point) -> R.Le (Product.abs (f x)) c) -> \forall (x: Point) -> R.Le (Product.abs (function f rho x)) c := \fun (bound: _)(x: Point) =>
+  R.leReplace _ _ _ _ (congr!{Real.Real Real.Real} Product.abs _ _ (standardIntegral f rho x)) (constantIntegral c)
+    (R.leTrans _ _ _ (Absolute.integralAbsBound (standard f rho x)) (Absolute.integralMono (Absolute.representative (standard f rho x)) (constant c)
+      (\fun (y: Point) => R.leReplace _ _ _ _
+        (sym!{Real.Real} _ _ (trans!{Real.Real} _ _ _ (Product.absProduct (f (E.subPoint x y)) (rho.function y))
+          (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (Real.mul (Product.abs (f (E.subPoint x y)))) _ _ (Product.absOfNonnegative (rho.function y) (law.nonnegative y)))
+            (Laws.fieldMulComm (Product.abs (f (E.subPoint x y))) (rho.function y)))))
+        (Laws.fieldMulComm (rho.function y) c) (Estimates.mulMonotone (rho.function y) _ _ (law.nonnegative y) (bound (E.subPoint x y))))));
+\module Error(f: F.Representatives, x: Point);

@@ -1,0 +1,31 @@
+\import Real.Geometric[q := Real.half] \as Dyadic;
+\import functional_analysis.ScalarLimits[] \as Limits;
+\definition x: F.Space := F.ofFunction (Compact.representative f);
+\definition positive: R.Lt Real.zero epsilon := \root.Exponential[].positive epsilon;
+\definition radius[k: N.Nat^]: Real.Real := Dyadic.value (N.Nat^::succ k);
+\definition Bad[k: N.Nat^, a: Point]: \Prop := Logic.And[R.Lt (Geometry.metric.distance a Coordinates.origin) (radius k), Logic.Not (R.Lt (Norm.metric.distance (value a x) x) epsilon)];
+\definition Candidate[k: N.Nat^]: \Set := \Cast[Point] ({ a: Point \where Bad[k, a] });
+\definition badExists: Logic.Not (\exists ( delta: Real.Real \where Control[x, epsilon, delta] )) -> \forall (k: N.Nat^) -> \exists Candidate k :=
+  \fun (none: _)(k: N.Nat^) => Sigma.doubleNegative (\exists Candidate k) (\fun (missing: _) => none
+    (Logic.existsIntro[Real.Real, { d: Real.Real \where Control[x, epsilon, d] }] (radius k) (Control[x, epsilon, radius k] {
+      positive := Limits.dyadicPositive (N.Nat^::succ k),
+      estimate := \fun (a: Point)(near: R.Lt (Geometry.metric.distance a Coordinates.origin) (radius k)) => Sigma.doubleNegative (R.Lt (Norm.metric.distance (value a x) x) epsilon)
+        (\fun (notNear: _) => missing (Logic.existsIntro[Point, { a: Point \where Bad[k, a] }] a (Logic.And[_, _]::# near notNear))),
+    })));
+\definition existsRadius: \exists ( delta: Real.Real \where Control[x, epsilon, delta] ) := Sigma.doubleNegative
+  (\exists ( delta: Real.Real \where Control[x, epsilon, delta] )) (\fun (none: _) => \block {
+    \takefrom chosen: \forall (k: N.Nat^) -> Candidate k \by \axiom:classicalIndefiniteChoice(N.Nat^, Candidate, badExists none) \then
+    \let s: N.Nat^ -> Point := \fun (k: N.Nat^) => chosen k \then
+    \let property: \forall (k: N.Nat^) -> Bad[k, s k] := \fun (k: N.Nat^) => \bysub(Point, { a: Point \where Bad[k, a] }, chosen k) \then
+    \let small: \forall (k: N.Nat^) -> R.Le (Geometry.metric.distance (s k) Coordinates.origin) Real.one := \fun (k: N.Nat^) =>
+      R.leTrans _ _ _ (Order.leOfLt _ _ (property k).left) (Limits.dyadicDecreasing (N.Nat^::succ k) N.Nat^::zero (Nat.zeroLe (N.Nat^::succ k))) \then
+    \let converges: PointMetric.Converges Geometry.metric s Coordinates.origin := \fun (t: Real.Real)(tp: _) => \block {
+      \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where \forall (j: N.Nat^) -> Nat.Le k j -> R.Lt (Dyadic.value j) t }) \by Limits.dyadicSmall t tp \then
+      \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where PointMetric.LimitControl Geometry.metric s Coordinates.origin t k }] k
+        (\fun (j: N.Nat^)(later: _) => Order.ltTrans _ _ _ (property j).left
+          ((\bysub(N.Nat^, { k: N.Nat^ \where \forall (j: N.Nat^) -> Nat.Le k j -> R.Lt (Dyadic.value j) t }, k)) (N.Nat^::succ j) (Nat.leTrans _ _ _ later (Nat.leSelfSucc j))))
+    } \then
+    \let lpConverges: Metric.Converges Norm.metric (\fun (k: N.Nat^) => value (s k) x) x := compactSequence f s small converges \then
+    \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where Metric.LimitControl Norm.metric (\fun (k: N.Nat^) => value (s k) x) x epsilon k }) \by lpConverges epsilon positive \then
+    \return (property k).right ((\bysub(N.Nat^, { k: N.Nat^ \where Metric.LimitControl Norm.metric (\fun (k: N.Nat^) => value (s k) x) x epsilon k }, k)) k (Nat.leRefl k))
+  });

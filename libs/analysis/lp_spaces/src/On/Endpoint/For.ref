@@ -1,0 +1,19 @@
+\definition masked: A -> Real.Real := \fun (x: A) => Real.mul (f x) (clipped.function x);
+\definition bound: I.Representatives := Scaling.scalarRepresentative (G.normRepresentative g) (Absolute.representative (One.toIntegral f));
+\definition dominated[x: A]: R.Le (Product.abs (masked x)) (bound x) := R.leReplace _ _ _ _ (sym!{Real.Real} _ _ (Product.absProduct (f x) (clipped.function x)))
+  (Laws.fieldMulComm (Product.abs (f x)) (G.normRepresentative g)) (E.mulMonotone (Product.abs (f x)) _ _ (Product.absNonnegative (f x)) (clipped.bound x));
+\definition maskedIntegrable: I.Integrable masked := Logic.And[_, _]::# (Products.measurable f clipped.function (F.properties f).measurable clipped.measurable)
+  (I.finiteMono (Absolute.abs masked) (Absolute.abs bound) (\fun (x: A) => Product.absNonnegative (masked x))
+    (\fun (x: A) => R.leTrans _ _ _ (dominated x) (R.leReplaceRight _ _ _ (sym!{Real.Real} _ _ (Product.absExpression (bound x))) (Distance.maxRight _ _))) (I.integralLaw bound).integrable.right);
+\definition almost: M.AlmostEqual mu masked (function f g) := binaryAlmost Real.mul f f clipped.function g (AE.reflexive f) clipped.almost;
+\definition integrable: I.Integrable (function f g) := Null.integrableAlmost masked (function f g) almost maskedIntegrable (Products.measurable f g (F.properties f).measurable (G.properties g).measurable);
+\definition actual: I.Representatives := \into[A -> Real.Real](function f g, I.Representatives) \by { integrable };
+\definition maskedRepresentative: I.Representatives := \into[A -> Real.Real](masked, I.Representatives) \by { maskedIntegrable };
+\definition boundIntegral: I.integral bound = Real.mul (F.normRepresentative f) (G.normRepresentative g) := trans!{Real.Real} _ _ _
+  (Scaling.integralScalar (G.normRepresentative g) (Absolute.representative (One.toIntegral f)))
+  (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (Real.mul (G.normRepresentative g)) _ _ (sym!{Real.Real} _ _ (Bridge.agreement f)))
+    (Laws.fieldMulComm (G.normRepresentative g) (F.normRepresentative f)));
+\definition inequality: R.Le (I.integral (Absolute.representative actual)) (Real.mul (F.normRepresentative f) (G.normRepresentative g)) := R.leReplace _ _ _ _
+  (sym!{Real.Real} _ _ (Null.integralAlmost (Absolute.representative actual) (Absolute.representative maskedRepresentative)
+    (Null.mapAlmost Product.abs (function f g) masked (AE.symmetric masked (function f g) almost)))) boundIntegral
+  (Absolute.integralMono (Absolute.representative maskedRepresentative) bound dominated);

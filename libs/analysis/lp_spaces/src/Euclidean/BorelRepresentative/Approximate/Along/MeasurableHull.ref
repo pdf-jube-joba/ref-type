@@ -1,0 +1,32 @@
+\definition G: \Pow Point := Sigma.intersection opens;
+\definition borelSet: M.Measurable BorelSigma.sigma G := Sigma.intersectionCountableMeasurable BorelSigma.sigma opens (\fun (k: N.Nat^) => BorelSigma.open (opens k) (hull.left k));
+\definition zero: E.outer G = M.zero := trans!{M.Value} _ _ _ hull.right.right (Null.nullSetLaw Construction.exception).zeroMeasure;
+\definition borelException: BNull.NullSet := \into[\Pow Point](G, BNull.NullSet) \by { BNull.NullSetLaw[G] { measurable := borelSet, zeroMeasure := zero } };
+\definition lebesgueException: Null.NullSet := \into[\Pow Point](G, Null.NullSet) \by { Null.NullSetLaw[G] { measurable := Borel.borelMeasurable G borelSet, zeroMeasure := zero } };
+\import L.Masked[p := p, f := Target.representative, exception := lebesgueException] \as Limit;
+\module Term(k: N.Nat^) {
+  \import BI.Mask[exception := borelException, f := s (index k)] \as Mask;
+  \definition function: Function := Mask.value;
+  \definition laws: \forall (x: Point) -> Logic.And[Sets.Member G x -> function x = Real.zero, Logic.Not (Sets.Member G x) -> function x = s (index k) x] := Mask.laws;
+  \definition measurable: M.IsMeasurable BorelMeasure.borel function := Mask.measurable (Compact.continuousBorel (s (index k)) (Compact.smoothContinuous (s (index k)) (smoothCompactLaws (s (index k))).smooth));
+}
+\definition term[k: N.Nat^][x: Point]: Real.Real := Term[k := k].function x;
+\definition maskedConverges[x: Point]: Sequence.Converges (\fun (k: N.Nat^) => term k x) (Limit.representative x) := Logic.orElim _ _ _ (Classical.excludedMiddle (Sets.Member G x))
+  (\fun (inside: Sets.Member G x) => \idelim Real.zero = Limit.representative x \with r: Real.Real => Sequence.Converges (\fun (k: N.Nat^) => term k x) r \by {
+    base: Operations.congruent (\fun (k: N.Nat^) => Real.zero) (\fun (k: N.Nat^) => term k x) Real.zero
+      (\fun (k: N.Nat^) => sym!{Real.Real} _ _ ((Term[k := k].laws x).left inside)) (Sequence.constantConverges Real.zero),
+    equality: sym!{Real.Real} _ _ ((Limit.laws x).left inside)
+  })
+  (\fun (outside: Logic.Not (Sets.Member G x)) => \block {
+    \let outsideOld: Logic.Not (Sets.Member Construction.exception x) := \fun (member: _) => outside (hull.right.left x member) \then
+    \let converges: Sequence.Converges (\fun (k: N.Nat^) => term k x) (Target.representative x) := Operations.congruent
+      (\fun (k: N.Nat^) => s (index k) x) (\fun (k: N.Nat^) => term k x) (Target.representative x)
+      (\fun (k: N.Nat^) => sym!{Real.Real} _ _ ((Term[k := k].laws x).right outside)) ((Target.limitLaw x).right outsideOld) \then
+    \return \idelim Target.representative x = Limit.representative x \with r: Real.Real => Sequence.Converges (\fun (k: N.Nat^) => term k x) r \by {
+      base: converges, equality: sym!{Real.Real} _ _ ((Limit.laws x).right outside)
+    }
+  });
+\import BI.Convergence[] \as Convergence;
+\definition measurableSequence: Convergence.MeasurableSequence := \into[N.Nat^ -> Point -> Real.Real](term, Convergence.MeasurableSequence) \by { \fun (k: N.Nat^) => Term[k := k].measurable };
+\definition borel: M.IsMeasurable BorelMeasure.borel Limit.representative := Convergence.PointwiseLimit[].measurableLimit measurableSequence Limit.representative maskedConverges;
+\definition representative: Representative[x] := Representative[x] { representative := Limit.representative, borel := borel, represents := trans!{F.Space} _ _ _ Limit.class targetClass };
