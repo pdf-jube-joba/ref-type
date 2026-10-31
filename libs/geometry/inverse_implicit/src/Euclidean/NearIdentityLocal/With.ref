@@ -1,0 +1,22 @@
+\import \parent.\parent.InverseRegularity[U := U, V := Inverse.target, f := f, g := inverse, B := B] \as Regularity;
+\definition hypotheses: Regularity.Hypotheses := Regularity.Hypotheses {
+  right := \fun (y: Open.Carrier Inverse.target) => Inverse.At[y := y].equation,
+  lipschitz := \fun (y, z: Open.Carrier Inverse.target) => Inverse.solutionBound y z,
+  left := left, rightLinear := right,
+};
+\definition inverseMap: SmoothMaps.Map Inverse.target U := Regularity.With[hypotheses := hypotheses].map;
+\definition backward: SmoothMaps.Map Inverse.target domain := SmoothMaps.Corestriction[U := Inverse.target, V := U, W := domain, f := inverseMap, inside := inverseInside].map;
+\definition data: Diffeomorphisms.Data[domain, Inverse.target] := Diffeomorphisms.Data[domain, Inverse.target] { forward := forward, backward := backward };
+\definition equivalence: Diffeomorphisms.Diffeomorphism domain Inverse.target := \into[Diffeomorphisms.Data[domain, Inverse.target]](data,
+  { data: Diffeomorphisms.Data[domain, Inverse.target] \where Diffeomorphisms.Laws[domain, Inverse.target, data] }) \by {
+  Diffeomorphisms.Laws[domain, Inverse.target, data] {
+  leftInverse := \fun (x: Open.Carrier domain) => Inverse.unique (source x) (SmoothMaps.apply domain Inverse.target forward x) (sourceBound x)
+    (\refl(SmoothMaps.apply U Open.whole f (source x))),
+  rightInverse := \fun (y: Open.Carrier Inverse.target) => Inverse.At[y := y].equation,
+  }
+};
+\definition local: LocalInverse[U, f, a] := LocalInverse[U, f, a] {
+  domain := domain, target := Inverse.target, included := included,
+  contains := contains, containsImage := containsImage, equivalence := equivalence,
+  forward := \fun (x: Open.Carrier domain) => \refl(SmoothMaps.apply U Open.whole f (source x)),
+};

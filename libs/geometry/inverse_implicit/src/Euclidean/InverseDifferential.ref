@@ -1,0 +1,35 @@
+\import Open.Analysis[] \as Analysis;
+\import calculus.Real[].Multivariable[n := n].Space[].Linear[] \as Linear;
+\import std.Set[].Extension[A := Point, B := Point, domain := U.points] \as Extension;
+\definition extended: Point -> Point := Extension.extend f Coordinates.origin;
+\structure Hypotheses: \Prop := {
+  differential: Vector.HasDifferentialAt U f (g b) d,
+  right: \forall (y: Open.Carrier V) -> f (g y) = y,
+  inverse: \forall (v: Point) -> e.apply (d.apply v) = v,
+  lipschitz: \forall (y: Open.Carrier V) -> R.Le (distance (g y) (g b)) (Scalars.add (distance y b) (distance y b)),
+};
+\definition error[y: Open.Carrier V]: Point := Vector.remainder U f (g b) d (g y);
+\definition incoming[y: Open.Carrier V]: Real := distance y b;
+\definition outgoing[y: Open.Carrier V]: Real := distance (g y) (g b);
+\definition outgoingPositive: Hypotheses -> \forall (y: Open.Carrier V) -> R.Lt Scalars.zero (incoming y) -> R.Lt Scalars.zero (outgoing y) := \block {
+  \fun (hypotheses: Hypotheses)(y: Open.Carrier V)(positive: _) \then
+  \return Order.ltOfLeNotEq Scalars.zero (outgoing y) (Norm.metric.nonnegative (g y) (g b)) (\block {
+    \fun (zero: Scalars.zero = outgoing y) \then
+    \let same: g y = g b := Norm.distanceSeparated _ _ (sym!{Real} _ _ zero) \then
+    \let images: f (g y) = f (g b) := eq_reason_in!{Point _
+      "=" _ "by" { sym!{Point} _ _ (Extension.inside f Coordinates.origin (g y)) }
+      "=" _ "by" { congr!{Point Point} extended _ _ same }
+      "=" _ "by" { Extension.inside f Coordinates.origin (g b) }
+    } \then
+    \let equal: y = b := eq_reason_in!{Point y
+      "=" _ "by" { sym!{Point} _ _ (hypotheses.right y) }
+      "=" _ "by" { images }
+      "=" b "by" { hypotheses.right b }
+    } \then
+    \return R.ltNotLeReverse _ _ positive (R.leReplaceLeft Scalars.zero (incoming y) Scalars.zero
+      (sym!{Real} _ _ (trans!{Real} _ _ _ (congr!{Point Real} (\fun (x: Point) => distance x b) _ _ equal) (Norm.distanceSelf b))) (R.leRefl Scalars.zero))
+  })
+};
+\module Coordinate(j: Space.Coordinate);
+\definition law: Hypotheses -> Vector.HasDifferentialAt V (\fun (y: Open.Carrier V) => g y) b e :=
+  \fun (hypotheses: Hypotheses)(j: Space.Coordinate) => Coordinate[j := j].law hypotheses;

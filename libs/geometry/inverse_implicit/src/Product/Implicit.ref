@@ -1,0 +1,39 @@
+\import calculus.Maps[n := dimension, m := dimension] \as Maps;
+\import calculus.Maps[n := dimension, m := m] \as Functions;
+\import calculus.Vector[n := dimension, m := m] \as Differentials;
+\import calculus.Vector[n := m, m := m] \as End;
+\import calculus.Vector[n := dimension, m := dimension] \as Square;
+\import linear_algebra.Commutative[K := Real, scalarRing := std.Alg[].Field[].fieldAsCommutativeRing Real Algebra.field].Linear[V := RightPoint, W := RightPoint,
+  source := linear_algebra.Euclidean[n := m].space, target := linear_algebra.Euclidean[n := m].space].Composition[U := Point, domain := linear_algebra.Euclidean[n := dimension].space] \as Unused;
+\import linear_algebra.Commutative[K := Real, scalarRing := std.Alg[].Field[].fieldAsCommutativeRing Real Algebra.field].Linear[V := Point, W := RightPoint,
+  source := linear_algebra.Euclidean[n := dimension].space, target := linear_algebra.Euclidean[n := m].space].Composition[U := RightPoint, domain := linear_algebra.Euclidean[n := m].space] \as Composition;
+\import calculus.LinearMap[n := dimension, m := n].On[U := U, L := leftLinear] \as Parameters;
+\import \parent.Pair[d := dimension, U := U, f := Parameters.map, g := f] \as Augmented;
+\definition augmented: Maps.Map U Open.whole := Augmented.map;
+\definition differential: Differentials.LinearMap := Functions.Differential[U := U, V := RightOpen.whole, f := f, a := a].value;
+\definition verticalDifferential: End.LinearMap := Composition.compose differential vertical;
+\import matrix_invariants.Ring[K := Real, scalars := std.Alg[].Field[].fieldAsCommutativeRing Real Algebra.field].At[n := m] \as VerticalMatrix;
+\import VerticalMatrix.Representation[] \as VerticalRepresentation;
+\import matrix_invariants.Field[K := Real, field := Algebra.field].At[n := m] \as VerticalInverse;
+\definition Regular: \Prop := VerticalInverse.Nonzero (VerticalRepresentation.entries verticalDifferential);
+\structure Solution: \Set := {
+  parameters: LeftOpen.OpenSet,
+  values: RightOpen.OpenSet,
+  containsParameters: \In[LeftPoint] parameters.points (Split.left a),
+  containsValues: \In[RightPoint] values.points (Functions.apply U RightOpen.whole f a),
+  neighborhood: Open.OpenSet,
+  included: Open.Included neighborhood U,
+  contains: \In[Point] neighborhood.points a,
+  coordinates: calculus.Diffeomorphism[n := dimension, m := dimension].Diffeomorphism neighborhood (Split.product parameters values),
+  coordinateFormula: \forall (x: Open.Carrier neighborhood) -> Maps.apply neighborhood (Split.product parameters values) coordinates.forward x = Split.join (Split.left x) (Functions.apply U RightOpen.whole f (Open.inclusion neighborhood U included x)),
+  graph: Maps.Map (Split.product parameters values) U,
+  graphInside: \forall (y: Open.Carrier (Split.product parameters values)) -> \In[Point] neighborhood.points (Maps.apply (Split.product parameters values) U graph y),
+  solution: Functions.Map (Split.product parameters values) RightOpen.whole,
+  graphFormula: \forall (y: Open.Carrier (Split.product parameters values)) -> Maps.apply (Split.product parameters values) U graph y =
+    Split.join (Split.left y) (Functions.apply (Split.product parameters values) RightOpen.whole solution y),
+  equation: \forall (y: Open.Carrier (Split.product parameters values)) -> Functions.apply U RightOpen.whole f (Maps.apply (Split.product parameters values) U graph y) = Split.right y,
+  unique: \forall (x: Open.Carrier neighborhood)(y: Open.Carrier (Split.product parameters values)) -> Split.left x = Split.left y ->
+    Functions.apply U RightOpen.whole f (Open.inclusion neighborhood U included x) = Split.right y -> x = Maps.apply (Split.product parameters values) U graph y,
+};
+\module With(regular: Regular);
+\definition localExistence: Regular -> \exists Solution := \fun (regular: Regular) => With[regular := regular].localExistence;

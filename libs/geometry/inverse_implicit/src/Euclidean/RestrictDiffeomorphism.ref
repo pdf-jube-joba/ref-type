@@ -1,0 +1,20 @@
+\import SmoothMaps.Preimage[U := U, W := V, V := W, f := f.forward] \as Preimage;
+\definition domain: Open.OpenSet := Preimage.domain;
+\definition input: Open.Included domain U := Preimage.included;
+\definition forward: SmoothMaps.Map domain W := Preimage.map;
+\definition inverseRestriction: SmoothMaps.Map W U := SmoothMaps.Restriction[U := W, V := V, W := U].input included f.backward;
+\definition inside: \forall (y: Open.Carrier W) -> \In[Point] domain.points (SmoothMaps.apply W U inverseRestriction y) :=
+  \fun (y: Open.Carrier W) => Preimage.intro (SmoothMaps.apply W U inverseRestriction y)
+    (\idelim y = SmoothMaps.apply U V f.forward (SmoothMaps.apply W U inverseRestriction y) \with p: Point => \In[Point] W.points p \by {
+      base: \bysub(Point, W.points, y), equality: sym!{Point} _ _ (f.rightInverse (Open.inclusion W V included y))
+    });
+\definition backward: SmoothMaps.Map W domain := SmoothMaps.Corestriction[U := W, V := U, W := domain, f := inverseRestriction, inside := inside].map;
+\definition data: Diffeomorphisms.Data[domain, W] := Diffeomorphisms.Data[domain, W] { forward := forward, backward := backward };
+\definition equivalence: Diffeomorphisms.Diffeomorphism domain W := \into[Diffeomorphisms.Data[domain, W]](data,
+  { data: Diffeomorphisms.Data[domain, W] \where Diffeomorphisms.Laws[domain, W, data] }) \by {
+  Diffeomorphisms.Laws[domain, W, data] {
+    leftInverse := \fun (x: Open.Carrier domain) => f.leftInverse (Preimage.input x),
+    rightInverse := \fun (y: Open.Carrier W) => f.rightInverse (Open.inclusion W V included y),
+  }
+};
+\definition intro[x: Open.Carrier U]: \In[Point] W.points (SmoothMaps.apply U V f.forward x) -> \In[Point] domain.points x := Preimage.intro x;

@@ -1,0 +1,69 @@
+\use std.Logic[].Equality[].eq_reason_in;
+\import std.Data[].Nat[] \as N;
+\import std.Data[].FinSet[] \as Fin;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.congr;
+\use Equality.sym;
+\use Equality.trans;
+\import real.Analysis[] \as Scalars;
+\import dedekind_reals.DedekindReal[] \as R;
+\import R.Arithmetic[].Prop[] \as Laws;
+\import Scalars.Algebra[] \as Algebra;
+\import Scalars.Distance[] \as Distance;
+\import Scalars.Estimates[] \as Bounds;
+\import Bounds.Product[] \as Product;
+\import R.Order[] \as Order;
+\import topological_algebra.Euclidean[].Dimension[n := n] \as Space;
+\import Space.Def[] \as Coordinates;
+\import Space.Norm[] \as Norm;
+\import Space.Clipping[] \as Clip;
+\import calculus.Real[].Multivariable[n := n].Open[] \as Open;
+\definition Real: \Set := Scalars.Real;
+\definition Point: \Set := Space.Point;
+\definition distance[x, y: Point]: Real := Coordinates.pointDistance x y;
+\definition ball[a: Point][r: Real]: Open.OpenSet := Open.Topology[].ofOpen
+  (metric_spaces.MetricSpace[Carrier := Point].Ball Norm.metric a r)
+  (metric_spaces.MetricSpace[Carrier := Point].Topology[].ballOpenIn Norm.metric a r);
+\definition inBall: \forall (a, x: Point)(r: Real) -> R.Lt (distance x a) r -> \In[Point] (ball a r).points x :=
+  \fun (a, x: Point)(r: Real)(near: _) => R.ltReplaceLeft (distance x a) (distance a x) r (Norm.distanceSymmetric x a) near;
+\definition ofBall: \forall (a: Point)(r: Real)(x: Open.Carrier (ball a r)) -> R.Lt (distance x a) r :=
+  \fun (a: Point)(r: Real)(x: Open.Carrier (ball a r)) => R.ltReplaceLeft (distance a x) (distance x a) r (Norm.distanceSymmetric a x)
+    (\bysub(Point, (ball a r).points, x));
+\module NearIdentity(U: Open.OpenSet, f: Open.Carrier U -> Point, a: Open.Carrier U, r: Real);
+\module Flat(U: Open.OpenSet, f: Open.ScalarFunction U, g: Space.Coordinate -> Open.ScalarFunction U, a: Open.Carrier U);
+
+\definition absorbHalf: \forall (x, y: Real) -> R.Le x (Scalars.add y (Scalars.mul Scalars.half x)) -> R.Le x (Scalars.add y y) := \block {
+  \fun (x, y: Real)(bound: _) \then
+  \let small: R.Le (Scalars.mul Scalars.half x) y := Laws.leAddCancelRight _ _ (Scalars.mul Scalars.half x)
+    (R.leReplaceLeft x (Scalars.add (Scalars.mul Scalars.half x) (Scalars.mul Scalars.half x)) _ (sym!{Real} _ _ (Bounds.halfTwice x)) bound) \then
+  \return R.leReplaceLeft _ x _ (Bounds.halfTwice x) (Bounds.addLe _ _ _ _ small small)
+};
+\module ScalarOperations;
+\import calculus.Maps[n := n, m := n] \as SmoothMaps;
+\import calculus.Vector[n := n, m := n] \as Vector;
+\module Residual(U: Open.OpenSet, f: SmoothMaps.Map U Open.whole, a: Open.Carrier U);
+\module InverseDifferential(U, V: Open.OpenSet, f: Open.Carrier U -> Point, g: Open.Carrier V -> Open.Carrier U,
+  b: Open.Carrier V, d, e: Vector.LinearMap);
+\module LinearInverse(d: Vector.LinearMap);
+\module Jacobian(U: Open.OpenSet, f: SmoothMaps.Map U Open.whole);
+\module InverseRegularity(U, V: Open.OpenSet, f: SmoothMaps.Map U Open.whole, g: Open.Carrier V -> Open.Carrier U,
+  B: Open.Carrier U -> Vector.LinearMap);
+\import calculus.Diffeomorphism[n := n, m := n] \as Diffeomorphisms;
+\structure LocalInverse[U: Open.OpenSet, f: SmoothMaps.Map U Open.whole, a: Open.Carrier U]: \Set := {
+  domain: Open.OpenSet,
+  target: Open.OpenSet,
+  included: Open.Included domain U,
+  contains: \In[Point] domain.points a,
+  containsImage: \In[Point] target.points (SmoothMaps.apply U Open.whole f a),
+  equivalence: Diffeomorphisms.Diffeomorphism domain target,
+  forward: \forall (x: Open.Carrier domain) -> SmoothMaps.apply domain target equivalence.forward x = SmoothMaps.apply U Open.whole f (Open.inclusion domain U included x),
+};
+\module NearIdentityLocal(U: Open.OpenSet, f: SmoothMaps.Map U Open.whole, a: Open.Carrier U, r: Real,
+  control: \root.Euclidean[n := n].NearIdentity[U := U, f := SmoothMaps.apply U Open.whole f, a := a, r := r].Control, B: Open.Carrier U -> Vector.LinearMap);
+\module LinearChange(U: Open.OpenSet, d, e: Vector.LinearMap);
+\module Normalization(U: Open.OpenSet, f: SmoothMaps.Map U Open.whole, a: Open.Carrier U, B: Open.Carrier U -> Vector.LinearMap);
+\module InverseFunction(U: Open.OpenSet, f: SmoothMaps.Map U Open.whole, a: Open.Carrier U);
+\module DiffeomorphismDerivative(U, V: Open.OpenSet, f: Diffeomorphisms.Diffeomorphism U V, x: Open.Carrier U);
+\module OneSided(d, e: Vector.LinearMap);
+\module RestrictDiffeomorphism(U, V: Open.OpenSet, f: Diffeomorphisms.Diffeomorphism U V, W: Open.OpenSet, included: Open.Included W V);

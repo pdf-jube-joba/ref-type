@@ -1,0 +1,27 @@
+\import \parent.NearIdentity[U := U, f := SmoothMaps.apply U Open.whole f, a := a, r := r].For[control := control] \as Inverse;
+\definition inverse[y: Open.Carrier Inverse.target]: Open.Carrier U := Inverse.At[y := y].point;
+\import \parent.Jacobian[U := U, f := f] \as Jacobian;
+\definition Left: \Prop := \forall (x: Open.Carrier U)(v: Point) -> (B x).apply ((Jacobian.differential x).apply v) = v;
+\definition Right: \Prop := \forall (x: Open.Carrier U)(v: Point) -> (Jacobian.differential x).apply ((B x).apply v) = v;
+\import SmoothMaps.Preimage[U := U, W := Open.whole, V := Inverse.target, f := f] \as Preimage;
+\definition domain: Open.OpenSet := Open.intersection Preimage.domain (ball a r);
+\definition inPreimage: Open.Included domain Preimage.domain := Open.intersectionLeft Preimage.domain (ball a r);
+\definition ballIncluded: Open.Included domain (ball a r) := Open.intersectionRight Preimage.domain (ball a r);
+\definition included: Open.Included domain U := \fun (x: Point)(member: _) => Preimage.included x (inPreimage x member);
+\definition source[x: Open.Carrier domain]: Open.Carrier U := Open.inclusion domain U included x;
+\definition sourceBound: \forall (x: Open.Carrier domain) -> R.Le (distance (source x) a) r :=
+  \fun (x: Open.Carrier domain) => Order.leOfLt _ _ (ofBall a r (Open.inclusion domain (ball a r) ballIncluded x));
+\definition inverseInside: \forall (y: Open.Carrier Inverse.target) -> \In[Point] domain.points (inverse y) :=
+  \fun (y: Open.Carrier Inverse.target) => Logic.And[_, _]::#
+    (Preimage.intro (inverse y) (\idelim y = SmoothMaps.apply U Open.whole f (inverse y) \with z: Point => \In[Point] Inverse.target.points z \by {
+      base: \bysub(Point, Inverse.target.points, y), equality: sym!{Point} _ _ (Inverse.At[y := y].equation)
+    }))
+    (inBall a (inverse y) r (Inverse.At[y := y].inside));
+\definition contains: \In[Point] domain.points a := Logic.And[_, _]::#
+  (Preimage.intro a (inBall (SmoothMaps.apply U Open.whole f a) (SmoothMaps.apply U Open.whole f a) (Scalars.mul Scalars.half r)
+    (R.ltReplaceLeft Scalars.zero _ _ (sym!{Real} _ _ (Norm.distanceSelf _)) (Bounds.halfOfPositive r control.positive))))
+  (inBall a a r (R.ltReplaceLeft Scalars.zero _ _ (sym!{Real} _ _ (Norm.distanceSelf a)) control.positive));
+\definition containsImage: \In[Point] Inverse.target.points (SmoothMaps.apply U Open.whole f a) :=
+  inBall _ _ _ (R.ltReplaceLeft Scalars.zero _ _ (sym!{Real} _ _ (Norm.distanceSelf _)) (Bounds.halfOfPositive r control.positive));
+\definition forward: SmoothMaps.Map domain Inverse.target := SmoothMaps.Restriction[U := domain, V := Preimage.domain, W := Inverse.target].input inPreimage Preimage.map;
+\module With(left: Left, right: Right);

@@ -1,0 +1,19 @@
+\import Split.FixedRight[U := U, V := V, c := c] \as Section;
+\import calculus.Vector[n := n, m := dimension] \as Vector;
+\import calculus.Maps[n := n, m := dimension] \as Maps;
+\definition affine: \forall (p: LeftPoint) -> Split.join p c = Coordinates.addPoint (Split.join LeftCoordinates.origin c) (horizontal.apply p) :=
+  \fun (p: LeftPoint) => sym!{Point} _ _ (trans!{Point} _ _ _
+    (sym!{Point} _ _ (joinAdd LeftCoordinates.origin p c RightCoordinates.origin))
+    (congr!{LeftPoint RightPoint Point} Split.join _ _ _ _
+      (\axiom:funext(LeftCoordinates.addPoint LeftCoordinates.origin p, p, \fun (i: Fin.Fin n) => Laws.addZeroLeft (p i)))
+      (\axiom:funext(RightCoordinates.addPoint c RightCoordinates.origin, c, \fun (i: Fin.Fin m) => Laws.addZeroRight (c i)))));
+\definition function: Vector.Function U := \fun (p: LeftOpen.Carrier U) => Maps.apply U V (Section.map included) p;
+\definition same: Vector.affine U (Split.join LeftCoordinates.origin c) horizontal = function :=
+  \axiom:funext(Vector.affine U (Split.join LeftCoordinates.origin c) horizontal, function, \fun (p: LeftOpen.Carrier U) => sym!{Point} _ _ (affine p));
+\definition vectorLaw: \forall (a: LeftOpen.Carrier U) -> Vector.HasDifferentialAt U function a horizontal :=
+  \fun (a: LeftOpen.Carrier U) => \idelim Vector.affine U (Split.join LeftCoordinates.origin c) horizontal = function \with f: Vector.Function U => Vector.HasDifferentialAt U f a horizontal \by {
+    base: Vector.affineDifferential U (Split.join LeftCoordinates.origin c) horizontal a, equality: same
+  };
+\definition jacobian: \forall (a: LeftOpen.Carrier U) -> Maps.Differential[U := U, V := V, f := Section.map included, a := a].value = horizontal :=
+  \fun (a: LeftOpen.Carrier U) => Vector.Differential[U := U, f := function, a := a, d := Maps.Differential[U := U, V := V, f := Section.map included, a := a].value].uniqueness
+    horizontal Maps.Differential[U := U, V := V, f := Section.map included, a := a].vectorLaw (vectorLaw a);

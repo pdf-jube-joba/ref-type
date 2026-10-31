@@ -1,0 +1,19 @@
+\import Scalars.FiniteSums[].Bounds[] \as FiniteBounds;
+\definition radius: Real := Distance.min (Scalars.mul Scalars.half rho) (FiniteBounds.minimum n (\fun (j: Space.Coordinate) => (neighborhoods j).radius));
+\definition positive: Open.BallInside[U.points, a, rho] -> R.Lt Scalars.zero radius := \fun (ball: _) => Product.minPositive _ _ (Scalars.Estimates[].halfOfPositive rho ball.positive)
+  (FiniteBounds.positive n (\fun (j: Space.Coordinate) => (neighborhoods j).radius) (\fun (j: Space.Coordinate) => (neighborhoods j).positive));
+\definition coordinateBound: \forall (j: Space.Coordinate) -> R.Le radius (neighborhoods j).radius :=
+  \fun (j: Space.Coordinate) => R.leTrans _ _ _ (Distance.minRight _ _) (FiniteBounds.coordinate n (\fun (j: Space.Coordinate) => (neighborhoods j).radius) j);
+\definition included: Open.BallInside[U.points, a, rho] -> \forall (x: Point) -> R.Le (distance x a) radius -> \In[Point] U.points x :=
+  \fun (ball: _)(x: Point)(near: _) => ball.included x (R.leLtTrans _ _ _ (R.leTrans _ _ _ near (Distance.minLeft _ _)) (Scalars.Estimates[].halfStrict rho ball.positive));
+\definition control[ball: Open.BallInside[U.points, a, rho]]: \root.Euclidean[n := n].NearIdentity[U := U, f := SmoothMaps.apply U Open.whole f, a := a, r := radius].Control :=
+  \root.Euclidean[n := n].NearIdentity[U := U, f := SmoothMaps.apply U Open.whole f, a := a, r := radius].Control {
+    positive := positive ball,
+    inside := included ball,
+    contraction := \fun (x, y: Open.Carrier U)(xn: _)(yn: _) => Norm.finiteUpper n (Coordinates.subPoint (function x) (function y))
+      (Scalars.mul Scalars.half (distance x y)) (Laws.fieldMulNonnegative _ _ Scalars.Estimates[].halfNonnegative (Norm.metric.nonnegative x y))
+      (\fun (j: Space.Coordinate) => R.leReplaceLeft _ _ _ (sym!{Real} _ _ (Scalars.Estimates[].distanceDifference (function x j) (function y j)))
+        ((neighborhoods j).estimate y x (R.leTrans _ _ _ yn (coordinateBound j)) (R.leTrans _ _ _ xn (coordinateBound j)))),
+  };
+\definition existsControl: Open.BallInside[U.points, a, rho] -> \exists ( r: Real \where \root.Euclidean[n := n].NearIdentity[U := U, f := SmoothMaps.apply U Open.whole f, a := a, r := r].Control ) :=
+  \fun (ball: _) => Logic.existsIntro[Real, { r: Real \where \root.Euclidean[n := n].NearIdentity[U := U, f := SmoothMaps.apply U Open.whole f, a := a, r := r].Control }] radius (control ball);

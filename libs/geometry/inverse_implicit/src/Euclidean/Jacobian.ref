@@ -1,0 +1,52 @@
+\import matrix_invariants.Ring[K := Real, scalars := std.Alg[].Field[].fieldAsCommutativeRing Real Algebra.field].At[n := n] \as Matrix;
+\import Matrix.Representation[] \as Representation;
+\import Matrix.Operations[] \as Operations;
+\import matrix_invariants.Field[K := Real, field := Algebra.field].At[n := n] \as Inversion;
+\import matrix_invariants.Real[].At[n := n] \as Topological;
+\import matrix_invariants.Topological[K := Real, ring := topological_algebra.Real[].topologicalRing].At[n := n].Families[X := Open.Carrier U] \as Families;
+\import Topological.Smooth[d := n] \as Comparison;
+\import Open.Smooth[] \as Smooth;
+\import Smooth.Derivative[] \as Partials;
+\import Smooth.Properties[] \as Properties;
+\import Open.Analysis[] \as Analysis;
+\import Analysis.Properties[] \as Uniqueness;
+\import Open.Topology[].Of[U := U] \as Topology;
+\import Topology.Continuity[] \as Continuity;
+\definition differential[x: Open.Carrier U]: Vector.LinearMap := SmoothMaps.Differential[U := U, V := Open.whole, f := f, a := x].value;
+\definition entries[x: Open.Carrier U]: Matrix.Matrix := Representation.entries (differential x);
+\module Coordinate(j, i: Space.Coordinate);
+\definition matrixRegular: calculus.MatrixFamily[d := n, p := n, q := n].Regular U differential := \fun (j, i: Space.Coordinate) => Coordinate[j := j, i := i].smooth;
+\definition regular: Families.Regular Topology.topology entries := \fun (j, i: Space.Coordinate) => Coordinate[j := j, i := i].continuous;
+\definition determinantContinuous: Families.Continuous Topology.topology (\fun (x: Open.Carrier U) => Matrix.determinant (entries x)) := Families.determinantContinuous Topology.topology entries regular;
+\import topology.Topology[Carrier := Point] \as Ambient;
+\import Ambient.Subspace[S := U.points] \as Subspace;
+\import Subspace.Open[] \as OpenSubspace;
+\import topology.Topology[Carrier := Open.Carrier U] \as Local;
+\import topology.Topology[Carrier := Real] \as ScalarTopology;
+\definition preimage: \Pow (Open.Carrier U) := { x: Open.Carrier U \where Inversion.Nonzero (entries x) };
+\definition preimageOpen: Local.IsOpenIn Topology.topology preimage := determinantContinuous
+  (ScalarTopology.Complement (ScalarTopology.Singleton Scalars.zero))
+  (metric_spaces.MetricSpace[Carrier := Real].Topology[].singletonClosed metric_spaces.RealMetric[].metric Scalars.zero);
+\definition points: \Pow Point := OpenSubspace.image preimage;
+\definition domain: Open.OpenSet := Open.Topology[].ofOpen points
+  (OpenSubspace.imageOpen Space.Topology[].topology (Open.Topology[].open U) preimage preimageOpen);
+\definition included: Open.Included domain U := OpenSubspace.imageIncluded preimage;
+\definition input[x: Open.Carrier domain]: Open.Carrier U := Open.inclusion domain U included x;
+\definition nonzero: \forall (x: Open.Carrier domain) -> Inversion.Nonzero (entries (input x)) :=
+  \fun (x: Open.Carrier domain) => OpenSubspace.imageElim preimage x (Inversion.Nonzero (entries (input x)))
+    (\fun (y: Open.Carrier U)(member: Inversion.Nonzero (entries y))(same: y = x) =>
+      \idelim y = input x \with z: Open.Carrier U => Inversion.Nonzero (entries z) \by { base: member, equality: same }) (\bysub(Point, points, x));
+\definition intro[x: Open.Carrier U]: Inversion.Nonzero (entries x) -> \In[Point] domain.points x := OpenSubspace.imageMember preimage x;
+\definition matrix[x: Open.Carrier domain]: Inversion.Nonsingular := \into[Matrix.Matrix](entries (input x), Inversion.Nonsingular) \by { nonzero x };
+\definition inverse[x: Open.Carrier domain]: Vector.LinearMap := \parent.LinearInverse[d := differential (input x)].inverse (Inversion.inverse (matrix x));
+\definition left: \forall (x: Open.Carrier domain)(v: Point) -> (inverse x).apply ((differential (input x)).apply v) = v :=
+  \fun (x: Open.Carrier domain) => \parent.LinearInverse[d := differential (input x)].left (Inversion.inverse (matrix x));
+\definition right: \forall (x: Open.Carrier domain)(v: Point) -> (differential (input x)).apply ((inverse x).apply v) = v :=
+  \fun (x: Open.Carrier domain) => \parent.LinearInverse[d := differential (input x)].right (Inversion.inverse (matrix x));
+\definition restricted: SmoothMaps.Map domain Open.whole := SmoothMaps.Restriction[U := domain, V := U, W := Open.whole].input included f;
+\definition restrictionDifferential: \forall (x: Open.Carrier domain) -> SmoothMaps.Differential[U := domain, V := Open.whole, f := restricted, a := x].value = differential (input x) :=
+  SmoothMaps.Restriction[U := domain, V := U, W := Open.whole].differential included f;
+\definition inverseRegular: calculus.MatrixFamily[d := n, p := n, q := n].Regular domain inverse := calculus.InverseFamily[d := n, r := n].regular domain
+  (\fun (x: Open.Carrier domain) => differential (input x)) inverse left right
+  (\fun (j, i: Space.Coordinate) => Open.Restriction[].localSmooth domain U included (\fun (x: Open.Carrier U) => (differential x).apply (linear_algebra.Euclidean[n := n].basis i) j)
+    (Coordinate[j := j, i := i].smooth));

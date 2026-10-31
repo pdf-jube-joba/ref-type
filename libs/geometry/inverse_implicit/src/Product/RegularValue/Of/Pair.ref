@@ -1,0 +1,27 @@
+\import \parent.On[slice := left] \as Left;
+\import \parent.On[slice := right] \as Right;
+\import FiberCharts.Transition[left := Left.chart, right := Right.chart] \as Transition;
+\import Charts.Transition[left := left.source, right := right.source] \as AmbientTransition;
+\import calculus.Maps[n := n, m := std.Data[].Nat[].Basic[].Def[].add m n] \as Parameters;
+\import calculus.Maps[n := n, m := n] \as Result;
+\import calculus.Maps[n := std.Data[].Nat[].Basic[].Def[].add m n, m := n] \as Projections;
+\definition transitionMap: EuclideanMaps.Map AmbientTransition.domain right.source.image := Atlas.Pair[left := left.source, right := right.source].smoothMap
+  (M.atlas.compatible left.source right.source (\bysub(Charts.Chart, M.atlas.charts, left.source)) (\bysub(Charts.Chart, M.atlas.charts, right.source)));
+\import Parameters.Preimage[U := left.parameters, W := left.source.image, V := AmbientTransition.domain, f := Left.parametrization] \as Preimage;
+\definition included: LeftOpen.Included Transition.domain Preimage.domain := \block {
+  \fun (p: LeftPoint)(member: _) \then
+  \let u: LeftOpen.Carrier Transition.domain := \into[LeftPoint](p, Transition.domain.points) \by { member } \then
+  \return Preimage.intro (Transition.leftCoordinate u) (AmbientTransition.intro (Left.oldParameter (Transition.leftCoordinate u)) (Transition.inRightDomain u))
+};
+\definition restricted: Parameters.Map Transition.domain AmbientTransition.domain := Parameters.Restriction[U := Transition.domain, V := Preimage.domain, W := AmbientTransition.domain].input included Preimage.map;
+\definition changed: Parameters.Map Transition.domain right.source.image := Parameters.Composition[U := Transition.domain, V := AmbientTransition.domain, f := restricted].After[l := dimension, W := right.source.image, g := transitionMap].compose;
+\definition normalized: Parameters.Map Transition.domain Right.product := Parameters.Composition[U := Transition.domain, V := right.source.image, f := changed].After[l := dimension, W := Right.product, g := right.coordinates.forward].compose;
+\definition projection: Projections.Map Right.product right.parameters := Split.On[U := right.parameters, V := right.values].leftMap;
+\definition map: Result.Map Transition.domain right.parameters := Parameters.Composition[U := Transition.domain, V := Right.product, f := normalized].After[l := n, W := right.parameters, g := projection].compose;
+\definition compatible: FiberAtlas.Compatible Left.chart Right.chart := \fun (i: Fin.Fin n) =>
+  \idelim (\fun (u: LeftOpen.Carrier Transition.domain) => Result.apply Transition.domain right.parameters map u i) = (\fun (u: LeftOpen.Carrier Transition.domain) => Transition.vector u i)
+    \with h: LeftOpen.ScalarFunction Transition.domain => LeftOpen.Smooth[].SmoothOn Transition.domain h \by {
+    base: map.smooth i,
+    equality: \axiom:funext((\fun (u: LeftOpen.Carrier Transition.domain) => Result.apply Transition.domain right.parameters map u i), (\fun (u: LeftOpen.Carrier Transition.domain) => Transition.vector u i),
+      \fun (u: LeftOpen.Carrier Transition.domain) => \refl(Transition.vector u i))
+  };

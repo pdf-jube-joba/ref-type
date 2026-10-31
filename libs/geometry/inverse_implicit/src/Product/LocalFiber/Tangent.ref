@@ -1,0 +1,49 @@
+\import Euclidean.DiffeomorphismDerivative[U := local.domain, V := target, f := local.coordinates, x := x] \as Coordinates;
+\import calculus.Vector[n := dimension, m := m] \as Vector;
+\import calculus.Vector[n := dimension, m := dimension] \as Square;
+\import calculus.Vector[n := n, m := dimension] \as Forward;
+\import calculus.Vector[n := dimension, m := n] \as Backward;
+\definition differential: Vector.LinearMap := Functions.Differential[U := U, V := RightOpen.whole, f := f, a := source x].value;
+\import calculus.LinearMap[n := dimension, m := m].On[U := target, L := rightLinear] \as Projection;
+\import Maps.Composition[U := local.domain, V := target, f := local.coordinates.forward].After[l := m, W := RightOpen.whole, g := Projection.map] \as Composition;
+\import Functions.Restriction[U := local.domain, V := U, W := RightOpen.whole] \as Restriction;
+\definition restricted: Functions.Map local.domain RightOpen.whole := Restriction.input local.included f;
+\definition comparison: Functions.Differential[U := local.domain, V := RightOpen.whole, f := restricted, a := x].value = Functions.Differential[U := local.domain, V := RightOpen.whole, f := Composition.compose, a := x].value :=
+  Functions.Differential[U := local.domain, V := RightOpen.whole, f := restricted, a := x].Compare[W := RightOpen.whole, g := Composition.compose].equal
+    (\axiom:funext((\fun (p: Open.Carrier local.domain) => Functions.apply local.domain RightOpen.whole restricted p),
+      (\fun (p: Open.Carrier local.domain) => Functions.apply local.domain RightOpen.whole Composition.compose p), local.projection));
+\definition projection: \forall (v: Point) -> differential.apply v = Split.right (Coordinates.forward.apply v) :=
+  \fun (v: Point) => eq_reason_in!{RightPoint _
+    "=" _ "by" { sym!{RightPoint} _ _ (congr!{{Vector.LinearMap} RightPoint} (\fun (L: Vector.LinearMap) => L.apply v) _ _ (Restriction.differential local.included f x)) }
+    "=" _ "by" { congr!{{Vector.LinearMap} RightPoint} (\fun (L: Vector.LinearMap) => L.apply v) _ _ comparison }
+    "=" _ "by" { congr!{{Vector.LinearMap} RightPoint} (\fun (L: Vector.LinearMap) => L.apply v) _ _ (Composition.At[a := x].jacobian) }
+    "=" _ "by" { congr!{{Vector.LinearMap} RightPoint} (\fun (L: Vector.LinearMap) => L.apply (Coordinates.forward.apply v)) _ _ (Projection.differential Coordinates.image) }
+  };
+\import linear_algebra.Commutative[K := Real, scalarRing := std.Alg[].Field[].fieldAsCommutativeRing Real Algebra.field] \as Spaces;
+\import linear_algebra.Euclidean[n := dimension] \as Ambient;
+\import linear_algebra.Euclidean[n := n] \as Parameter;
+\definition Kernel: \Set := \Cast[Point] ({ v: Point \where differential.apply v = RightCoordinates.origin });
+\import Spaces.Linear[V := Point, W := Point, source := Ambient.space, target := Ambient.space].Composition[U := LeftPoint, domain := Parameter.space] \as ForwardComposition;
+\definition forward: Forward.LinearMap := ForwardComposition.compose Coordinates.backward horizontal;
+\import Spaces.Linear[V := Point, W := LeftPoint, source := Ambient.space, target := Parameter.space].Composition[U := Point, domain := Ambient.space] \as BackwardComposition;
+\definition backward: Backward.LinearMap := BackwardComposition.compose leftLinear Coordinates.forward;
+\definition inside: \forall (v: LeftPoint) -> differential.apply (forward.apply v) = RightCoordinates.origin :=
+  \fun (v: LeftPoint) => eq_reason_in!{RightPoint _
+    "=" _ "by" { projection (forward.apply v) }
+    "=" _ "by" { congr!{Point RightPoint} Split.right _ _ (Coordinates.right (horizontal.apply v)) }
+    "=" _ "by" { Split.rightJoin v RightCoordinates.origin }
+  };
+\definition left: \forall (v: LeftPoint) -> backward.apply (forward.apply v) = v :=
+  \fun (v: LeftPoint) => trans!{LeftPoint} _ _ _ (congr!{Point LeftPoint} Split.left _ _ (Coordinates.right (horizontal.apply v))) (Split.leftJoin v RightCoordinates.origin);
+\definition right: \forall (v: Kernel) -> forward.apply (backward.apply v) = v := \block {
+  \fun (v: Kernel) \then
+  \let normal: Split.right (Coordinates.forward.apply v) = RightCoordinates.origin := trans!{RightPoint} _ _ _
+    (sym!{RightPoint} _ _ (projection v)) (\bysub(Point, { v: Point \where differential.apply v = RightCoordinates.origin }, v)) \then
+  \let same: horizontal.apply (backward.apply v) = Coordinates.forward.apply v := trans!{Point} _ _ _
+    (congr!{RightPoint Point} (Split.join (backward.apply v)) _ _ (sym!{RightPoint} _ _ normal)) (Split.recover (Coordinates.forward.apply v)) \then
+  \return trans!{Point} _ _ _ (congr!{Point Point} Coordinates.backward.apply _ _ same) (Coordinates.left v)
+};
+\definition encode[v: LeftPoint]: Kernel := \into[Point](forward.apply v, { v: Point \where differential.apply v = RightCoordinates.origin }) \by { inside v };
+\definition decode[v: Kernel]: LeftPoint := backward.apply v;
+\definition encodeDecode: \forall (v: Kernel) -> encode (decode v) = v := right;
+\definition decodeEncode: \forall (v: LeftPoint) -> decode (encode v) = v := left;

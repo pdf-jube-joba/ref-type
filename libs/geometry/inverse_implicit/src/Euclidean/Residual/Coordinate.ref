@@ -1,0 +1,28 @@
+\definition partial: \forall (i: Space.Coordinate) -> Analysis.HasPartialDerivative U (component j) i (gradient j i) :=
+  \fun (i: Space.Coordinate) => ScalarOperations.subtractPartial U (Projection.function j) (SmoothMaps.coordinateFunction U Open.whole f j)
+    (Partials.derivative U (Projection.function j) i) (Partials.derivative U (SmoothMaps.coordinateFunction U Open.whole f j) i) i
+    (Partials.partialLaw U (Projection.function j) i) (Partials.partialLaw U (SmoothMaps.coordinateFunction U Open.whole f j) i);
+\definition gradientSmooth: \forall (i: Space.Coordinate) -> Smooth.SmoothOn U (gradient j i) :=
+  \fun (i: Space.Coordinate) => Operations.subSmooth U (Partials.derivative U (Projection.function j) i) (Partials.derivative U (SmoothMaps.coordinateFunction U Open.whole f j) i)
+    (Partials.partialSmooth U (Projection.function j) i) (Partials.partialSmooth U (SmoothMaps.coordinateFunction U Open.whole f j) i);
+\definition gradientZero: IdentityDifferential -> \forall (i: Space.Coordinate) -> gradient j i a = Scalars.zero := \block {
+  \fun (identity: IdentityDifferential)(i: Space.Coordinate) \then
+  \let df: calculus.Real[].Multivariable[n := n].Differential[].Def[].LinearMap := Differential.row j \then
+  \let functional: Analysis.HasPartialDerivativeAt U (SmoothMaps.coordinateFunction U Open.whole f j) i a (df.apply (Coordinates.basis i)) :=
+    Analysis.Differential[U := U, f := SmoothMaps.coordinateFunction U Open.whole f j, a := a, d := df].Partial[i := i].law (Differential.componentLaw j) \then
+  \let partialValue: Partials.derivative U (SmoothMaps.coordinateFunction U Open.whole f j) i a = Coordinates.basis i j :=
+    trans!{Real} _ _ _ (Uniqueness.partialUnique U (SmoothMaps.coordinateFunction U Open.whole f j) i a _ _
+      (Partials.partialLaw U (SmoothMaps.coordinateFunction U Open.whole f j) i a) functional)
+      (congr!{Point Real} (\fun (v: Point) => v j) _ _ (identity (Coordinates.basis i))) \then
+  \let projectionValue: Partials.derivative U (Projection.function j) i a = Coordinates.basis i j :=
+    Uniqueness.partialUnique U (Projection.function j) i a _ _ (Partials.partialLaw U (Projection.function j) i a)
+      (Analysis.Differential[U := U, f := Projection.function j, a := a, d := Projection.linear j].Partial[i := i].law (Analysis.Linear[U := U, d := Projection.linear j].law a)) \then
+  \return trans!{Real} _ _ _ (congr!{Real Real Real} Scalars.sub _ _ _ _ projectionValue partialValue) (Laws.subSelf (Coordinates.basis i j))
+};
+\definition neighborhoodExists: IdentityDifferential -> \exists \root.Euclidean[n := n].Flat[U := U, f := component j, g := gradient j, a := a].Neighborhood :=
+  \fun (identity: IdentityDifferential) => \root.Euclidean[n := n].Flat[U := U, f := component j, g := gradient j, a := a].locallyContractive
+    (\root.Euclidean[n := n].Flat[U := U, f := component j, g := gradient j, a := a].DerivativeLaws {
+      partials := partial,
+      continuous := \fun (i: Space.Coordinate) => Properties.continuous U (gradient j i) (gradientSmooth i) a,
+      zero := gradientZero identity,
+    });

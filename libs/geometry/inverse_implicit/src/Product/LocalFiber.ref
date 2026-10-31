@@ -1,0 +1,38 @@
+\import calculus.Maps[n := dimension, m := dimension] \as Maps;
+\import calculus.Maps[n := dimension, m := m] \as Functions;
+\import calculus.Maps[n := n, m := dimension] \as Parameters;
+\import calculus.Diffeomorphism[n := dimension, m := dimension] \as Diffeomorphisms;
+\definition target: Open.OpenSet := Split.product local.parameters local.values;
+\definition value: RightPoint := Functions.apply U RightOpen.whole f a;
+\import Split.FixedRight[U := local.parameters, V := target, c := value] \as Slice;
+\definition sliceInside: Slice.Included := \fun (p: LeftOpen.Carrier local.parameters) => Logic.And[_, _]::#
+  (\idelim p = Split.left (Split.join p value) \with q: LeftPoint => \In[LeftPoint] local.parameters.points q \by {
+    base: \bysub(LeftPoint, local.parameters.points, p), equality: sym!{LeftPoint} _ _ (Split.leftJoin p value)
+  })
+  (\idelim value = Split.right (Split.join p value) \with q: RightPoint => \In[RightPoint] local.values.points q \by {
+    base: local.containsValue, equality: sym!{RightPoint} _ _ (Split.rightJoin p value)
+  });
+\definition parametrization: Parameters.Map local.parameters local.domain := Parameters.Composition[U := local.parameters, V := target, f := Slice.map sliceInside].After[l := dimension, W := local.domain, g := local.coordinates.backward].compose;
+\definition source[x: Open.Carrier local.domain]: Open.Carrier U := Open.inclusion local.domain U local.included x;
+\definition equation: \forall (p: LeftOpen.Carrier local.parameters) -> Functions.apply U RightOpen.whole f (source (Parameters.apply local.parameters local.domain parametrization p)) = value :=
+  \fun (p: LeftOpen.Carrier local.parameters) => eq_reason_in!{RightPoint _
+    "=" _ "by" { local.projection (Parameters.apply local.parameters local.domain parametrization p) }
+    "=" _ "by" { congr!{Point RightPoint} Split.right _ _ (local.coordinates.rightInverse (Slice.apply sliceInside p)) }
+    "=" value "by" { Split.rightJoin p value }
+  };
+\definition parameter[x: Open.Carrier local.domain]: LeftPoint := Split.left (Maps.apply local.domain target local.coordinates.forward x);
+\definition parameterInside: \forall (x: Open.Carrier local.domain) -> \In[LeftPoint] local.parameters.points (parameter x) :=
+  \fun (x: Open.Carrier local.domain) => (\bysub(Point, target.points, Maps.apply local.domain target local.coordinates.forward x)).left;
+\definition coordinate[x: Open.Carrier local.domain]: LeftOpen.Carrier local.parameters := \into[LeftPoint](parameter x, local.parameters.points) \by { parameterInside x };
+\definition coordinatePoint: \forall (p: LeftOpen.Carrier local.parameters) -> coordinate (Parameters.apply local.parameters local.domain parametrization p) = p :=
+  \fun (p: LeftOpen.Carrier local.parameters) => trans!{LeftPoint} _ _ _ (congr!{Point LeftPoint} Split.left _ _ (local.coordinates.rightInverse (Slice.apply sliceInside p))) (Split.leftJoin p value);
+\definition pointCoordinate: \forall (x: Open.Carrier local.domain) -> Functions.apply U RightOpen.whole f (source x) = value -> Parameters.apply local.parameters local.domain parametrization (coordinate x) = x := \block {
+  \fun (x: Open.Carrier local.domain)(level: _) \then
+  \let u: Open.Carrier target := Maps.apply local.domain target local.coordinates.forward x \then
+  \let normal: Split.right u = value := trans!{RightPoint} _ _ _ (sym!{RightPoint} _ _ (local.projection x)) level \then
+  \let identity: Slice.apply sliceInside (coordinate x) = u := trans!{Point} _ _ _
+    (congr!{RightPoint Point} (Split.join (parameter x)) _ _ (sym!{RightPoint} _ _ normal)) (Split.recover u) \then
+  \return trans!{{Open.Carrier local.domain}} _ _ _
+    (congr!{{Open.Carrier target} {Open.Carrier local.domain}} (Maps.apply target local.domain local.coordinates.backward) _ _ identity) (local.coordinates.leftInverse x)
+};
+\module Tangent(x: Open.Carrier local.domain);

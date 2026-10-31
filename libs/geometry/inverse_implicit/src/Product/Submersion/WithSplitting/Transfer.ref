@@ -1,0 +1,36 @@
+\import Maps.Preimage[U := U, W := Change.target, V := local.neighborhood, f := Coordinates.forward] \as Preimage;
+\definition domain: Open.OpenSet := Preimage.domain;
+\definition restrict: Maps.Map local.neighborhood U := Maps.Restriction[U := local.neighborhood, V := Change.target, W := U].input local.included Change.backward;
+\definition inside: \forall (x: Open.Carrier local.neighborhood) -> \In[Point] domain.points (Maps.apply local.neighborhood U restrict x) :=
+  \fun (x: Open.Carrier local.neighborhood) => Preimage.intro (Maps.apply local.neighborhood U restrict x)
+    (\idelim x = Maps.apply U Change.target Coordinates.forward (Maps.apply local.neighborhood U restrict x) \with p: Point => \In[Point] local.neighborhood.points p \by {
+      base: \bysub(Point, local.neighborhood.points, x), equality: sym!{Point} _ _ (Coordinates.equivalence.rightInverse (Open.inclusion local.neighborhood Change.target local.included x))
+    });
+\definition backward: Maps.Map local.neighborhood domain := Maps.Corestriction[U := local.neighborhood, V := U, W := domain, f := restrict, inside := inside].map;
+\definition data: Diffeomorphisms.Data[domain, local.neighborhood] := Diffeomorphisms.Data[domain, local.neighborhood] { forward := Preimage.map, backward := backward };
+\definition sourceChange: Diffeomorphisms.Diffeomorphism domain local.neighborhood := \into[Diffeomorphisms.Data[domain, local.neighborhood]](data,
+  { data: Diffeomorphisms.Data[domain, local.neighborhood] \where Diffeomorphisms.Laws[domain, local.neighborhood, data] }) \by {
+  Diffeomorphisms.Laws[domain, local.neighborhood, data] {
+    leftInverse := \fun (x: Open.Carrier domain) => Coordinates.equivalence.leftInverse (Preimage.input x),
+    rightInverse := \fun (x: Open.Carrier local.neighborhood) => Coordinates.equivalence.rightInverse (Open.inclusion local.neighborhood Change.target local.included x),
+  }
+};
+\definition target: Open.OpenSet := Split.product local.parameters local.values;
+\definition equivalence: Diffeomorphisms.Diffeomorphism domain target := Diffeomorphisms.Composition[U := domain, V := local.neighborhood, f := sourceChange].After[l := dimension, W := target, g := local.coordinates].compose;
+\definition projectionLaw: \forall (x: Open.Carrier domain) -> Functions.apply U RightOpen.whole f (Preimage.input x) = Split.right (Maps.apply domain target equivalence.forward x) := \block {
+  \fun (x: Open.Carrier domain) \then
+  \let y: Open.Carrier local.neighborhood := Maps.apply domain local.neighborhood Preimage.map x \then
+  \return eq_reason_in!{RightPoint _
+    "=" _ "by" { sym!{RightPoint} _ _ (congr!{{Open.Carrier U} RightPoint} (\fun (p: Open.Carrier U) => Functions.apply U RightOpen.whole f p) _ _ (Coordinates.equivalence.leftInverse (Preimage.input x))) }
+    "=" _ "by" { sym!{RightPoint} _ _ (Split.rightJoin (Split.left y) (Functions.apply Change.target RightOpen.whole normalized (Open.inclusion local.neighborhood Change.target local.included y))) }
+    "=" _ "by" { congr!{Point RightPoint} Split.right _ _ (sym!{Point} _ _ (local.coordinateFormula y)) }
+  }
+};
+\definition localForm: LocalForm := LocalForm {
+  domain := domain, parameters := local.parameters, values := local.values,
+  included := Preimage.included, contains := Preimage.intro a local.contains,
+  containsValue := \idelim Functions.apply Change.target RightOpen.whole normalized point = Functions.apply U RightOpen.whole f a \with v: RightPoint => \In[RightPoint] local.values.points v \by {
+    base: local.containsValues, equality: pointValue
+  },
+  coordinates := equivalence, projection := projectionLaw,
+};

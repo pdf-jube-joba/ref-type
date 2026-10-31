@@ -1,0 +1,49 @@
+\import Gram.Of[A := transpose, factor := factor] \as Gram;
+\definition rightInverse: calculus.Vector[n := m, m := dimension].LinearMap := Matrix.transpose Gram.inverse;
+\definition rightInverseAdjoint: \forall (v: RightPoint)(w: Point) -> Source.dot (rightInverse.apply v) w = Target.dot v (Gram.inverse.apply w) :=
+  \fun (v: RightPoint)(w: Point) => eq_reason_in!{Real _
+    "=" _ "by" { Source.symmetric (rightInverse.apply v) w }
+    "=" _ "by" { sym!{Real} _ _ (Matrix.adjoint Gram.inverse w v) }
+    "=" _ "by" { Target.symmetric (Gram.inverse.apply w) v }
+  };
+\definition tangentLaw: \forall (w: Point) -> rightInverse.apply (D.apply w) = Gram.tangent.map.apply w :=
+  \fun (w: Point) => \axiom:funext(rightInverse.apply (D.apply w), Gram.tangent.map.apply w, \fun (i: Fin.Fin dimension) => eq_reason_in!{Real _
+    "=" _ "by" { sym!{Real} _ _ (Source.dotBasis i (rightInverse.apply (D.apply w))) }
+    "=" _ "by" { Source.symmetric (Source.basis i) (rightInverse.apply (D.apply w)) }
+    "=" _ "by" { rightInverseAdjoint (D.apply w) (Source.basis i) }
+    "=" _ "by" { Matrix.adjoint D w (Gram.inverse.apply (Source.basis i)) }
+    "=" _ "by" { congr!{Point Real} (Source.dot w) _ _ (Gram.imageInverse (Source.basis i)) }
+    "=" _ "by" { sym!{Real} _ _ (Gram.tangent.symmetric w (Source.basis i)) }
+    "=" _ "by" { Source.symmetric (Gram.tangent.map.apply w) (Source.basis i) }
+    "=" _ "by" { Source.dotBasis i (Gram.tangent.map.apply w) }
+  });
+\definition section: \forall (v: RightPoint) -> D.apply (rightInverse.apply v) = v :=
+  \fun (v: RightPoint) => \axiom:funext(D.apply (rightInverse.apply v), v, \fun (i: Fin.Fin m) => eq_reason_in!{Real _
+    "=" _ "by" { sym!{Real} _ _ (Target.dotBasis i (D.apply (rightInverse.apply v))) }
+    "=" _ "by" { Target.symmetric (Target.basis i) (D.apply (rightInverse.apply v)) }
+    "=" _ "by" { Matrix.adjoint D (rightInverse.apply v) (Target.basis i) }
+    "=" _ "by" { rightInverseAdjoint v (transpose.apply (Target.basis i)) }
+    "=" _ "by" { congr!{RightPoint Real} (Target.dot v) _ _ (Gram.leftInverse (Target.basis i)) }
+    "=" _ "by" { Target.symmetric v (Target.basis i) }
+    "=" _ "by" { Target.dotBasis i v }
+  });
+\definition normalKernel: \forall (w: Point) -> D.apply (Gram.normal.map.apply w) = Target.space.zero := \block {
+  \fun (w: Point) \then
+  \let v: RightPoint := D.apply (Gram.normal.map.apply w) \then
+  \return Target.separated v (trans!{Real} _ _ _ (Matrix.adjoint D (Gram.normal.map.apply w) v) (Gram.normalOrthogonal w v))
+};
+\definition kernelNormal: \forall (w: Point) -> D.apply w = Target.space.zero -> Gram.normal.map.apply w = w :=
+  \fun (w: Point)(zero: _) => Gram.orthogonalFixed w (\fun (v: RightPoint) => eq_reason_in!{Real _
+    "=" _ "by" { sym!{Real} _ _ (Matrix.adjoint D w v) }
+    "=" _ "by" { congr!{RightPoint Real} (\fun (z: RightPoint) => Target.dot z v) _ _ zero }
+    "=" _ "by" { Target.form.zeroLeft v }
+  });
+\definition normalTrace: Source.trace Gram.normal = Source.naturalCount n := eq_reason_in!{Real _
+  "=" _ "by" { Gram.normalTrace }
+  "=" _ "by" { linear_algebra.Real[].Dimension[].difference m n }
+};
+\module Frame(frame: Source.Resolution[].Frame n Gram.normal);
+\definition existence: \exists Splitting := \block {
+  \takefrom frame: Source.Resolution[].Frame n Gram.normal \by Source.Resolution[].exists n Gram.normal normalTrace \then
+  \return \exact(Frame[frame := frame].splitting, Splitting)
+};
