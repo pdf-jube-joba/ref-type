@@ -45,3 +45,24 @@
   }}
 };
 \definition fullEquation: fullSubset = fullImage := \axiom:setext(fullSubset, fullImage, fullForward, fullBackward);
+\definition mapFull[D: \Set][targetSubset: \Pow D][map: Carrier -> D]:
+  (\forall (a: A) -> \In[A] subset a -> \In[D] targetSubset (map (inclusion a))) ->
+  (\forall (p: Model.Disk) -> \In[D] targetSubset (map (characteristic p))) ->
+  \forall (z: \Cast[Carrier] fullSubset) -> \In[D] targetSubset (map z) := \fun (old: _)(cell: _)(z: \Cast[Carrier] fullSubset) =>
+  either!{{fullForward z (\bysub(Carrier, fullSubset, z))} {\In[D] targetSubset (map z)}
+    {\fun (original: _) => \block {
+      \takefrom a: \Cast[A] ({ a: A \where Logic.And[\In[A] subset a, inclusion a = z] }) \by original \then
+      \let laws: Logic.And[\In[A] subset a, inclusion a = z] := \bysub(A, { a: A \where Logic.And[\In[A] subset a, inclusion a = z] }, a) \then
+      \return \idelim map (inclusion a) = map z \with q: D => \In[D] targetSubset q \by {
+        base: old a laws.left, equality: congr!{Carrier D} map _ _ laws.right
+      }
+    }}
+    {\fun (new: _) => \block {
+      \takefrom p: \Cast[Model.Disk] ({ p: Model.Disk \where characteristic p = z }) \by new \then
+      \return \idelim map (characteristic p) = map z \with q: D => \In[D] targetSubset q \by {
+        base: cell p, equality: congr!{Carrier D} map _ _ (\bysub(Model.Disk, { p: Model.Disk \where characteristic p = z }, p))
+      }
+    }}
+  };
+\definition oldFull: \forall (a: A) -> \In[A] subset a -> \In[Carrier] fullSubset (inclusion a) := \fun (a: A)(member: _) =>
+  originalFull (inclusion a) (originalBackward (inclusion a) (Logic.existsIntro[A, { x: A \where Logic.And[\In[A] subset x, inclusion x = inclusion a] }] a (Logic.And[_, _]::# member (\refl(inclusion a)))));

@@ -1,0 +1,22 @@
+\import Attached.Subset[subset := subset] \as Subsets;
+\import Subsets.Images[] \as Images;
+\definition forwardContained: \forall (p: \Cast[Attached.Carrier] Subsets.originalSubset) -> \In[Y] targetSubset (apply p) := \fun (p: \Cast[Attached.Carrier] Subsets.originalSubset) => \block {
+  \takefrom a: \Cast[A] ({ a: A \where Logic.And[\In[A] subset a, Attached.inclusion a = p] }) \by Images.originalForward p (\bysub(Attached.Carrier, Subsets.originalSubset, p)) \then
+  \let laws: Logic.And[\In[A] subset a, Attached.inclusion a = p] := \bysub(A, { a: A \where Logic.And[\In[A] subset a, Attached.inclusion a = p] }, a) \then
+  \return \idelim data.original a = apply p \with y: Y => \In[Y] targetSubset y \by {
+    base: originalContained (\into[A](a, subset) \by { laws.left }),
+    equality: trans!{Y} _ _ _ (sym!{Y} _ _ (onOriginal a)) (congr!{Attached.Carrier Y} apply _ _ laws.right)
+  }
+};
+\definition reflects: \forall (p: Attached.Carrier) -> \In[Y] targetSubset (apply p) -> \In[Attached.Carrier] Subsets.originalSubset p :=
+  \induction (p: Attached.Carrier) \return \In[Y] targetSubset (apply p) -> \In[Attached.Carrier] Subsets.originalSubset p \with {
+    | inl: \fun (a: A)(member: _) => Images.originalBackward (Attached.inclusion a) (Logic.existsIntro[A, { x: A \where Logic.And[\In[A] subset x, Attached.inclusion x = Attached.inclusion a] }] a
+      (Logic.And[_, _]::# (originalReflects a (\idelim apply (Attached.inclusion a) = data.original a \with y: Y => \In[Y] targetSubset y \by { base: member, equality: onOriginal a })) (\refl(Attached.inclusion a))))
+    | inr: \fun (p: Attached.InteriorPoint)(member: _) => Logic.falseElim _ (interiorAvoids p (\idelim apply (Attached.interior p) = data.characteristic p \with y: Y => \In[Y] targetSubset y \by { base: member, equality: onInterior p }))
+  };
+\definition laws: topology.Homeomorphism[A := Attached.Carrier, B := Y].Laws[Attached.topology, target, homeomorphism] := topology.Homeomorphism[A := Attached.Carrier, B := Y].laws Attached.topology target homeomorphism;
+\definition backwardContained: \forall (y: \Cast[Y] targetSubset) -> \In[Attached.Carrier] Subsets.originalSubset (homeomorphism.backward y) := \fun (y: \Cast[Y] targetSubset) =>
+  reflects (homeomorphism.backward y) (\idelim y = apply (homeomorphism.backward y) \with q: Y => \In[Y] targetSubset q \by { base: \bysub(Y, targetSubset, y), equality: sym!{Y} _ _ (laws.rightInverse y) });
+\import \root.Thom[].CWType[].PairTools[A := Attached.Carrier, B := Y, source := Attached.topology, target := target, subset := Subsets.originalSubset, targetSubset := targetSubset] \as Pairs;
+\definition equivalence: Pairs.Data := Pairs.Homeomorphic[h := homeomorphism, forwardContained := forwardContained, backwardContained := backwardContained].result;
+\module Type(model: \root.Thom[].CWType[].PairFiniteType[A := A, source := source, subset := subset].Data);

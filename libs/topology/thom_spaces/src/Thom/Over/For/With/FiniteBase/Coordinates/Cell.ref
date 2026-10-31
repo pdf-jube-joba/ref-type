@@ -14,8 +14,36 @@
   covers: \forall (x: BaseDisk.Disk)(p: SphereBundle) -> p.base = cell.characteristic x -> \exists (u: algebraic_topology.Euclidean[].Dimension[n := n].Sphere \where map (Pair.pair BaseDisk.Disk algebraic_topology.Euclidean[].Dimension[n := n].Sphere x u) = p)
 };
 \structure Result: \Set := { dimension: N.Nat^, chart: Chart[dimension] };
+
+\definition diskBoundary[n: N.Nat^][v: algebraic_topology.Euclidean[].Dimension[n := n].Sphere]: algebraic_topology.Euclidean[].Dimension[n := n].Disk :=
+  \into[algebraic_topology.Euclidean[].Dimension[n := n].Coordinate](v, algebraic_topology.Euclidean[].Dimension[n := n].ClosedBall) \by {
+    dedekind_reals.DedekindReal[].leReplaceLeft R.one (algebraic_topology.Euclidean[].Dimension[n := n].normSquared v) R.one
+      (sym!{R.Real} _ _ (\bysub(algebraic_topology.Euclidean[].Dimension[n := n].Coordinate, algebraic_topology.Euclidean[].Dimension[n := n].Boundary, v))) (dedekind_reals.DedekindReal[].leRefl R.one)
+  };
+\structure DiskChart[n: N.Nat^]: \Set := {
+  map: Pair.Times^[BaseDisk.Disk, algebraic_topology.Euclidean[].Dimension[n := n].Disk] -> DiskBundle,
+  continuous: topology.Continuity[A := Pair.Times^[BaseDisk.Disk, algebraic_topology.Euclidean[].Dimension[n := n].Disk], B := DiskBundle].Continuous
+    (topological_constructions.Product[A := BaseDisk.Disk, B := algebraic_topology.Euclidean[].Dimension[n := n].Disk].topology BaseDisk.diskTopology algebraic_topology.Euclidean[].Dimension[n := n].diskTopology) diskTopology map,
+  base: \forall (p: Pair.Times^[BaseDisk.Disk, algebraic_topology.Euclidean[].Dimension[n := n].Disk]) -> (map p).base = cell.characteristic (Pair.first BaseDisk.Disk algebraic_topology.Euclidean[].Dimension[n := n].Disk p),
+  injective: \forall (p, q: Pair.Times^[BaseDisk.Disk, algebraic_topology.Euclidean[].Dimension[n := n].Disk]) ->
+    Pair.first BaseDisk.Disk algebraic_topology.Euclidean[].Dimension[n := n].Disk p = Pair.first BaseDisk.Disk algebraic_topology.Euclidean[].Dimension[n := n].Disk q -> map p = map q -> p = q,
+  covers: \forall (x: BaseDisk.Disk)(p: DiskBundle) -> p.base = cell.characteristic x -> \exists (u: algebraic_topology.Euclidean[].Dimension[n := n].Disk \where map (Pair.pair BaseDisk.Disk algebraic_topology.Euclidean[].Dimension[n := n].Disk x u) = p),
+  squared: \forall (p: Pair.Times^[BaseDisk.Disk, algebraic_topology.Euclidean[].Dimension[n := n].Disk]) -> squared (map p) = algebraic_topology.Euclidean[].Dimension[n := n].normSquared (Pair.second BaseDisk.Disk algebraic_topology.Euclidean[].Dimension[n := n].Disk p)
+};
+\structure PairResult: \Set := {
+  dimension: N.Nat^,
+  sphere: Chart[dimension],
+  disk: DiskChart[dimension],
+  coherence: \forall (x: BaseDisk.Disk)(v: algebraic_topology.Euclidean[].Dimension[n := dimension].Sphere) ->
+    disk.map (Pair.pair BaseDisk.Disk algebraic_topology.Euclidean[].Dimension[n := dimension].Disk x (diskBoundary dimension v)) = sphereInclusion (sphere.map (Pair.pair BaseDisk.Disk algebraic_topology.Euclidean[].Dimension[n := dimension].Sphere x v))
+};
 \module With(trivialization: Triviality.Result);
 \definition exists: \exists Result := \block {
   \takefrom trivialization: Triviality.Result \by OriginalCell.triviality \then
   \return \exact(With[trivialization := trivialization].result, Result)
+};
+
+\definition pairExists: \exists PairResult := \block {
+  \takefrom trivialization: Triviality.Result \by OriginalCell.triviality \then
+  \return \exact(With[trivialization := trivialization].pairResult, PairResult)
 };

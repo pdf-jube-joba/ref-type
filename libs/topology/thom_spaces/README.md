@@ -70,7 +70,7 @@ Thom 商の同相、球面境界の cofibration、実次元1・2の円板 suspen
 
 有限 CW 基底について、`FiniteBase.Coordinates.sphereFiniteType` は実際の球面束と有限 CW 複体とのホモトピー同値を構成する。
 `Real.For.FiniteBase` と `Complex.For.FiniteBase` は標準の実座標を選ぶ。
-セル上の球面束を二つの球面セル付着として表示し、付着写像のセル近似と付着空間のホモトピー比較を経由する。
+セル上の球面束を二つの円板セル付着として表示し、付着写像のセル近似と付着空間のホモトピー比較を経由する。
 `FiniteBase.Coordinates.sphereCompact` と `diskCylinderHomeomorphism` は、球面束のコンパクト性と射影の mapping cylinder から実際の円板束への同相を与える。
 同相は mapping cylinder の上端で球面の包含に一致する。
 
@@ -78,6 +78,9 @@ Thom 商の同相、球面境界の cofibration、実次元1・2の円板 suspen
 `PairTools` の比較は、指定部分空間を保つ二つの写像と両側のホモトピーを持つ。
 `CellAttachment.Subset.Homotopic` と `BaseEquivalence` は円板セル付着をこの対の比較に移し、`Inside` は新しいセルも指定部分空間に加える場合を扱う。
 `PairFiniteType` は有限 CW 複体・部分複体・実際の対ホモトピー同値を一緒に保持する。
+`PairFiniteCellTypes` と `CellAttachment.Subset.Type` は、指定部分空間の内外に任意の円板セルを付けても、この対型が保たれることを証明する。
+`SphericalAttachment.Of.Subsets` と `CellPresentation.Of.Comparison.Subsets` は、実際の付着空間をこの対型へ比較する。
+`FiniteBase.Coordinates.Cell.pairExists` は同じ自明化から円板・球面のセル座標を作り、境界上の一致と二乗ノルムの公式を保持する。
 
 ## 残る証明
 

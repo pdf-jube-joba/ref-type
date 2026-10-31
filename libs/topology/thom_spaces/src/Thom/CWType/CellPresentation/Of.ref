@@ -1,0 +1,40 @@
+\import \root.Thom[].CWType[].CellAttachment[A := A, source := source, n := n, attach := data.boundary, continuous := data.boundaryContinuous] \as Attached;
+\import Attached.Universal[B := Y, target := target, f := data.original, g := data.characteristic, agrees := data.seam] \as Universal;
+\definition apply: Attached.Carrier -> Y := Universal.apply;
+\definition continuous: topology.Continuity[A := Attached.Carrier, B := Y].Continuous Attached.topology target apply := Universal.continuous data.originalContinuous data.characteristicContinuous;
+\definition onOriginal: \forall (a: A) -> apply (Attached.inclusion a) = data.original a := Universal.onOriginal;
+\definition onCell: \forall (p: Model.Disk) -> apply (Attached.characteristic p) = data.characteristic p := Universal.onCell;
+\definition onInterior: \forall (p: Attached.InteriorPoint) -> apply (Attached.interior p) = data.characteristic p := \fun (p: Attached.InteriorPoint) =>
+  trans!{Y} _ _ _ (congr!{Attached.Carrier Y} apply _ _ (sym!{Attached.Carrier} _ _ (Attached.onInterior p))) (onCell p);
+\definition originalInterior: \forall (a: A)(p: Attached.InteriorPoint) -> apply (Attached.inclusion a) = apply (Attached.interior p) -> data.original a = data.characteristic p :=
+  \fun (a: A)(p: Attached.InteriorPoint)(same: _) => trans!{Y} _ _ _ (sym!{Y} _ _ (onOriginal a)) (trans!{Y} _ _ _ same (onInterior p));
+\import \root.Thom[].CWType[].ListRefinement[A := Model.Disk, subset := Attached.interiorSubset] \as Refined;
+\definition injective: \forall (x, y: Attached.Carrier) -> apply x = apply y -> x = y :=
+  \induction (x: Attached.Carrier) \return \forall (y: Attached.Carrier) -> apply x = apply y -> x = y \with {
+    | inl: \fun (a: A) => \induction (y: Attached.Carrier) \return apply (Attached.inclusion a) = apply y -> Attached.inclusion a = y \with {
+      | inl: \fun (b: A)(same: _) => congr!{A Attached.Carrier} Attached.inclusion _ _ (data.originalInjective a b
+        (trans!{Y} _ _ _ (sym!{Y} _ _ (onOriginal a)) (trans!{Y} _ _ _ same (onOriginal b))))
+      | inr: \fun (p: Attached.InteriorPoint)(same: _) => Logic.falseElim _ (data.separated a p (\bysub(Model.Disk, Attached.interiorSubset, p)) (originalInterior a p same))
+    }
+    | inr: \fun (p: Attached.InteriorPoint) => \induction (y: Attached.Carrier) \return apply (Attached.interior p) = apply y -> Attached.interior p = y \with {
+      | inl: \fun (a: A)(same: _) => Logic.falseElim _ (data.separated a p (\bysub(Model.Disk, Attached.interiorSubset, p)) (originalInterior a p (sym!{Y} _ _ same)))
+      | inr: \fun (q: Attached.InteriorPoint)(same: _) => congr!{Attached.InteriorPoint Attached.Carrier} Attached.interior p q (Refined.ext p q
+        (data.interiorInjective p q (\bysub(Model.Disk, Attached.interiorSubset, p)) (\bysub(Model.Disk, Attached.interiorSubset, q))
+          (trans!{Y} _ _ _ (sym!{Y} _ _ (onInterior p)) (trans!{Y} _ _ _ same (onInterior q)))))
+    }
+  };
+\definition onto: \forall (y: Y) -> \exists (p: Attached.Carrier \where apply p = y) := \fun (y: Y) => either!{{data.covers y} {\exists (p: Attached.Carrier \where apply p = y)}
+  {\fun (old: _) => \block {
+    \takefrom a: \Cast[A] ({ a: A \where data.original a = y }) \by old \then
+    \return Logic.existsIntro[Attached.Carrier, { p: Attached.Carrier \where apply p = y }] (Attached.inclusion a)
+      (trans!{Y} _ _ _ (onOriginal a) (\bysub(A, { a: A \where data.original a = y }, a)))
+  }}
+  {\fun (cell: _) => \block {
+    \takefrom p: \Cast[Model.Disk] ({ p: Model.Disk \where data.characteristic p = y }) \by cell \then
+    \return Logic.existsIntro[Attached.Carrier, { q: Attached.Carrier \where apply q = y }] (Attached.characteristic p)
+      (trans!{Y} _ _ _ (onCell p) (\bysub(Model.Disk, { p: Model.Disk \where data.characteristic p = y }, p)))
+  }}
+};
+\definition compact: topology.Topology[Carrier := A].IsCompact source -> topology.Topology[Carrier := Y].IsCompact target := \fun (compact: _) =>
+  topology.Compactness[A := Attached.Carrier, B := Y].surjectiveImage Attached.topology target apply continuous onto (Attached.compact compact);
+\module Comparison(compact: topology.Topology[Carrier := A].IsCompact source, hausdorff: topology.Topology[Carrier := Y].IsT2 target);

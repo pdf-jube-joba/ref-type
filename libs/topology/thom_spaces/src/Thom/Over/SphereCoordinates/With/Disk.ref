@@ -1,0 +1,20 @@
+\import \root.Thom[].CWType[].TrivialDisk[X := X, source := bundle.baseSpace, n := d] \as ProductModel;
+\import algebraic_topology.Euclidean[].Dimension[n := d] \as Coordinates;
+\definition ClosedSubset: \Pow Family.Point := { p: Family.Point \where dedekind_reals.DedekindReal[].Le (data.squared p) R.one };
+\import topology.Topology[Carrier := Family.Point].Subspace[S := ClosedSubset] \as Closed;
+\definition ClosedCarrier: \Set := Closed.CarrierSet;
+\definition closedTopology: topology.Topology[Carrier := ClosedCarrier].Topology := Closed.topology bundle.totalSpace;
+\definition homeomorphism: topology.Homeomorphism[A := ProductModel.Carrier, B := ClosedCarrier].Homeomorphism[ProductModel.topology, closedTopology] :=
+  topology.Homeomorphism[A := ProductModel.Carrier, B := ProductModel.ClosedCarrier].Composition[C := ClosedCarrier].compose ProductModel.topology ProductModel.closedTopology closedTopology ProductModel.homeomorphism Levels.diskHomeomorphism;
+\definition squared: \forall (p: ProductModel.Carrier) -> data.squared (homeomorphism.forward p) = Coordinates.normSquared (Pair.second X Coordinates.Disk p) := \fun (p: ProductModel.Carrier) => forwardSquared (ProductModel.homeomorphism.forward p);
+\definition forwardBase: \forall (p: ProductModel.Carrier) -> (homeomorphism.forward p).base = Pair.first X Coordinates.Disk p := \fun (p: ProductModel.Carrier) => trans!{X} _ _ _
+  (overBase (Radial.homeomorphism.forward (ProductModel.homeomorphism.forward p))) (Radial.overBase (ProductModel.homeomorphism.forward p));
+\definition laws: topology.Homeomorphism[A := ProductModel.Carrier, B := ClosedCarrier].Laws[ProductModel.topology, closedTopology, homeomorphism] := topology.Homeomorphism[A := ProductModel.Carrier, B := ClosedCarrier].laws ProductModel.topology closedTopology homeomorphism;
+\definition backwardBase: \forall (p: ClosedCarrier) -> Pair.first X Coordinates.Disk (homeomorphism.backward p) = p.base := \fun (p: ClosedCarrier) => trans!{X} _ _ _
+  (sym!{X} _ _ (forwardBase (homeomorphism.backward p))) (congr!{ClosedCarrier X} (\fun (q: ClosedCarrier) => q.base) _ _ (laws.rightInverse p));
+\definition sphereInclusion[v: Coordinates.Sphere]: Coordinates.Disk := \into[Coordinates.Coordinate](v, Coordinates.ClosedBall) \by {
+  dedekind_reals.DedekindReal[].leReplaceLeft R.one (Coordinates.normSquared v) R.one (sym!{R.Real} _ _ (\bysub(Coordinates.Coordinate, Coordinates.Boundary, v))) (dedekind_reals.DedekindReal[].leRefl R.one)
+};
+\definition point[p: ProductModel.Carrier]: Family.Point := homeomorphism.forward p;
+\definition sphereAgreement: \forall (x: X)(v: Coordinates.Sphere) -> point (Pair.pair X Coordinates.Disk x (sphereInclusion v)) = spherePoint (Pair.pair X Coordinates.Sphere x v) :=
+  \fun (x: X)(v: Coordinates.Sphere) => \refl(point (Pair.pair X Coordinates.Disk x (sphereInclusion v)));
