@@ -1,0 +1,28 @@
+\definition value[x: Domain.Disk]: Upper.Carrier := back (p.value x);
+\definition valueContinuous: topology.Continuity[A := Domain.Disk, B := Upper.Carrier].Continuous Domain.diskTopology Upper.topology value :=
+  topology.Composition[A := Domain.Disk, B := Target.Carrier, C := Upper.Carrier].composeContinuous Domain.diskTopology Target.topology Upper.topology p.value back p.continuous backContinuous;
+\definition family[q: Cylinder.Carrier]: Upper.Carrier := back (p.homotopy q);
+\definition familyContinuous: topology.Continuity[A := Cylinder.Carrier, B := Upper.Carrier].Continuous (Cylinder.topology Domain.diskTopology) Upper.topology family :=
+  topology.Composition[A := Cylinder.Carrier, B := Target.Carrier, C := Upper.Carrier].composeContinuous (Cylinder.topology Domain.diskTopology) Target.topology Upper.topology p.homotopy back
+    (algebraic_topology.Homotopy[A := Domain.Disk, B := Target.Carrier].laws Domain.diskTopology Target.topology map p.value p.homotopy).continuous backContinuous;
+\definition homotopy: Homotopies.Homotopy[Domain.diskTopology, Upper.topology, f, value] :=
+  \into[Homotopies.Family](family, Homotopies.Homotopy[Domain.diskTopology, Upper.topology, f, value]) \by {
+    Homotopies.Laws[Domain.diskTopology, Upper.topology, f, value, family] {
+      continuous := familyContinuous,
+      start := \fun (x: Domain.Disk) => congr!{Target.Carrier Upper.Carrier} back (p.homotopy (Cylinder.at I.start x)) (map x)
+        ((algebraic_topology.Homotopy[A := Domain.Disk, B := Target.Carrier].laws Domain.diskTopology Target.topology map p.value p.homotopy).start x),
+      end := \fun (x: Domain.Disk) => congr!{Target.Carrier Upper.Carrier} back _ _
+        ((algebraic_topology.Homotopy[A := Domain.Disk, B := Target.Carrier].laws Domain.diskTopology Target.topology map p.value p.homotopy).end x)
+    }
+  };
+\definition fixed: \forall (t: I.Carrier)(x: Domain.Disk) -> Logic.Not (\In[A] (Cells.InteriorImage c) (f x)) -> family (Cylinder.at t x) = f x :=
+  \fun (t: I.Carrier)(x: Domain.Disk)(outside: _) => congr!{Target.Carrier Upper.Carrier} back _ _ (p.fixed t x outside);
+\definition supported: \forall (q: Cylinder.Carrier) -> Logic.Or[family q = f (Cylinder.point q), \In[A] (Cells.InteriorImage c) (family q)] :=
+  \fun (q: Cylinder.Carrier) => either!{{p.supported q} {Logic.Or[family q = f (Cylinder.point q), \In[A] (Cells.InteriorImage c) (family q)]}
+    {\fun (same: _) => Logic.Or[_, _]::left (congr!{Target.Carrier Upper.Carrier} back _ _ same)}
+    {Logic.Or[_, _]::right}
+  };
+\definition adjustment: Adjustment[c] := Adjustment[c] {
+  value := value, continuous := valueContinuous, homotopy := homotopy, fixed := fixed, supported := supported,
+  noncentre := \fun (x: Domain.Disk)(same: _) => p.noncentre x same
+};

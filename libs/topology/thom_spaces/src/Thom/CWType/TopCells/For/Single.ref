@@ -1,0 +1,25 @@
+\import Filtration.Stage[limit := N.Nat^::succ c.dimension] \as Target;
+\definition into[x: Upper.Carrier]: Target.Carrier := \into[A](x, Filtration.subset (N.Nat^::succ c.dimension)) \by {
+  \idelim k = c.dimension \with d: N.Nat^ => \In[A] (Filtration.subset (N.Nat^::succ d)) x \by {
+    base: \bysub(A, Filtration.subset (N.Nat^::succ k), x), equality: sym!{N.Nat^} _ _ dimension
+  }
+};
+\definition back[x: Target.Carrier]: Upper.Carrier := \into[A](x, Filtration.subset (N.Nat^::succ k)) \by {
+  \idelim c.dimension = k \with d: N.Nat^ => \In[A] (Filtration.subset (N.Nat^::succ d)) x \by {
+    base: \bysub(A, Filtration.subset (N.Nat^::succ c.dimension), x), equality: dimension
+  }
+};
+\definition intoContinuous: topology.Continuity[A := Upper.Carrier, B := Target.Carrier].Continuous Upper.topology Target.topology into :=
+  topology.Continuity[A := Upper.Carrier, B := A].Corestriction[S := Filtration.subset (N.Nat^::succ c.dimension)].corestrictContinuous Upper.topology source into Upper.continuous;
+\definition backContinuous: topology.Continuity[A := Target.Carrier, B := Upper.Carrier].Continuous Target.topology Upper.topology back :=
+  topology.Continuity[A := Target.Carrier, B := A].Corestriction[S := Filtration.subset (N.Nat^::succ k)].corestrictContinuous Target.topology source back Target.continuous;
+\definition map[x: Domain.Disk]: Target.Carrier := into (f x);
+\definition mapContinuous: topology.Continuity[A := Domain.Disk, B := Target.Carrier].Continuous Domain.diskTopology Target.topology map :=
+  topology.Composition[A := Domain.Disk, B := Upper.Carrier, C := Target.Carrier].composeContinuous Domain.diskTopology Upper.topology Target.topology f into continuous intoContinuous;
+\definition above: N.Basic[].Prop[].Lt m c.dimension := \idelim k = c.dimension \with d: N.Nat^ => N.Basic[].Prop[].Lt m d \by { base: larger, equality: sym!{N.Nat^} _ _ dimension };
+\import \root.Thom[].CWType[].CellAvoidance[m := m, A := A, source := source, complex := complex, cell := c, member := present, larger := above].For[f := map, continuous := mapContinuous] \as Avoid;
+\module Using(p: Avoid.Perturbation);
+\definition exists: \exists Adjustment[c] := \block {
+  \takefrom p: Avoid.Perturbation \by Avoid.exists \then
+  \return \exact(Using[p := p].adjustment, Adjustment[c])
+};

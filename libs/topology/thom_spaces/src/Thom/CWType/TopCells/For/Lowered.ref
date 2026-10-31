@@ -1,0 +1,50 @@
+\import Filtration.Punctures[n := k] \as Punctures;
+\import Punctures.Motion[] \as Motion;
+\import Punctures.Deformation[] \as Deformation;
+\import singular_cellular.FiniteUnion[A := A, C := Cells.CellData, source := source, pieces := Punctures.piece] \as Centres;
+\definition punctured[x: Domain.Disk]: Punctures.Carrier := \into[Upper.Carrier](data.value x, Punctures.region) \by {
+  \fun (bad: _) => Centres.eliminate complex.cells (data.value x) Logic.False
+    (\fun (c: Cells.CellData)(member: _)(atCentre: Punctures.CentreLaws[c, data.value x]) =>
+      data.avoids c member atCentre.member atCentre.dimension x atCentre.same) bad
+};
+\definition puncturedContinuous: topology.Continuity[A := Domain.Disk, B := Punctures.Carrier].Continuous Domain.diskTopology Punctures.topology punctured :=
+  topology.Continuity[A := Domain.Disk, B := Upper.Carrier].Corestriction[S := Punctures.region].corestrictContinuous Domain.diskTopology Upper.topology punctured data.continuous;
+\definition endUpper[x: Domain.Disk]: Upper.Carrier := Motion.value I.end (punctured x);
+\definition value[x: Domain.Disk]: Lower.Carrier := \into[A](endUpper x, Filtration.subset k) \by { Motion.endLower (punctured x) };
+\definition inclusion: Punctures.Carrier -> Upper.Carrier := \fun (x: Punctures.Carrier) => x;
+\definition inclusionContinuous: topology.Continuity[A := Punctures.Carrier, B := Upper.Carrier].Continuous Punctures.topology Upper.topology inclusion :=
+  topology.Continuity[A := Punctures.Carrier, B := Upper.Carrier].Corestriction[S := Punctures.region].inclusionContinuous Upper.topology;
+\import algebraic_topology.Homotopy[A := Punctures.Carrier, B := Punctures.Carrier] \as PuncturedHomotopies;
+\definition precomposed: algebraic_topology.Homotopy[A := Domain.Disk, B := Punctures.Carrier].Homotopy[
+  Domain.diskTopology, Punctures.topology, punctured, (\fun (x: Domain.Disk) => Deformation.endpoint (punctured x))] :=
+  PuncturedHomotopies.Composition[C := Domain.Disk].precompose Domain.diskTopology Punctures.topology Punctures.topology
+    (\fun (x: Punctures.Carrier) => x) Deformation.endpoint Deformation.homotopy punctured puncturedContinuous;
+\definition rawMotion: Homotopies.Homotopy[Domain.diskTopology, Upper.topology, (\fun (x: Domain.Disk) => data.value x), endUpper] :=
+  algebraic_topology.Homotopy[A := Domain.Disk, B := Punctures.Carrier].Composition[C := Upper.Carrier].postcompose Domain.diskTopology Punctures.topology Upper.topology
+    punctured (\fun (x: Domain.Disk) => Deformation.endpoint (punctured x)) precomposed inclusion inclusionContinuous;
+\definition motion: Homotopies.Homotopy[Domain.diskTopology, Upper.topology, data.value, endUpper] :=
+  \into[Homotopies.Family](rawMotion, Homotopies.Homotopy[Domain.diskTopology, Upper.topology, data.value, endUpper]) \by {
+    Homotopies.Laws[Domain.diskTopology, Upper.topology, data.value, endUpper, rawMotion] {
+      continuous := (Homotopies.laws Domain.diskTopology Upper.topology (\fun (x: Domain.Disk) => data.value x) endUpper rawMotion).continuous,
+      start := \fun (x: Domain.Disk) => (Homotopies.laws Domain.diskTopology Upper.topology (\fun (x: Domain.Disk) => data.value x) endUpper rawMotion).start x,
+      end := \fun (x: Domain.Disk) => (Homotopies.laws Domain.diskTopology Upper.topology (\fun (x: Domain.Disk) => data.value x) endUpper rawMotion).end x
+    }
+  };
+\definition valueContinuous: topology.Continuity[A := Domain.Disk, B := Lower.Carrier].Continuous Domain.diskTopology Lower.topology value :=
+  topology.Continuity[A := Domain.Disk, B := A].Corestriction[S := Filtration.subset k].corestrictContinuous Domain.diskTopology source value
+    (topology.Composition[A := Domain.Disk, B := Upper.Carrier, C := A].composeContinuous Domain.diskTopology Upper.topology source endUpper Upper.inclusion
+      (Homotopies.endContinuous Domain.diskTopology Upper.topology data.value endUpper motion) Upper.continuous);
+\definition relativeMotion: Homotopies.RelativeHomotopy[Domain.diskTopology, Upper.topology, fixedSubset, data.value, endUpper] :=
+  \into[Homotopies.Family](motion, Homotopies.RelativeHomotopy[Domain.diskTopology, Upper.topology, fixedSubset, data.value, endUpper]) \by {
+    Homotopies.RelativeLaws[Domain.diskTopology, Upper.topology, fixedSubset, data.value, endUpper, motion] {
+      homotopy := Homotopies.laws Domain.diskTopology Upper.topology data.value endUpper motion,
+      fixed := \fun (t: I.Carrier)(x: Domain.Disk)(inside: _) => congr!{Punctures.Carrier Upper.Carrier} inclusion _ _
+        (Motion.fixesLower t (punctured x)
+          (\idelim f x = data.value x \with y: Upper.Carrier => \In[A] (Filtration.subset k) y \by {
+            base: inside, equality: Homotopies.relativeEndpoints Domain.diskTopology Upper.topology fixedSubset f data.value data.homotopy x inside
+          }))
+    }
+  };
+\definition combined: Homotopies.RelativeHomotopy[Domain.diskTopology, Upper.topology, fixedSubset, f, endUpper] :=
+  Homotopies.RelativeConcatenation[].concatenate Domain.diskTopology Upper.topology fixedSubset f data.value endUpper data.homotopy relativeMotion;
+\definition result: Lowering := Lowering { value := value, continuous := valueContinuous, homotopy := combined };
