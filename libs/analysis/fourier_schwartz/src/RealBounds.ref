@@ -88,3 +88,22 @@
     \return R.leReplace _ _ _ _ (sym!{Real.Real} _ _ magnitude) right
       (Estimates.mulMonotone _ _ _ (Product.absNonnegative (Laws.fieldInv h)) (incrementBetween f df a t c derivatives (\fun (s: Real.Real)(lower: _)(upper: _) => bounded s (R.leLtTrans _ _ _ (Estimates.betweenDistance a t s lower upper) near)) different))
 };
+
+\import real.Analysis[].Sequence[] \as Sequence;
+\import real.Analysis[].Geometric[q := Real.half] \as Dyadic;
+\import functional_analysis.ScalarLimits[] \as Limits;
+\import calculus.Real[].Limit[].Def[] \as Limit;
+\import std.Data[].Nat[] \as N;
+\import N.Basic[].Prop[] \as Nat;
+\definition dyadicLimit[f: Function][limit: Real.Real]: Limit.HasLimitAt f Real.zero limit -> Sequence.Converges (\fun (k: N.Nat^) => f (Dyadic.value k)) limit := \block {
+  \fun (given: _)(epsilon: Real.Real)(positive: _) \then
+  \takefrom delta: \Cast[Real.Real] ({ delta: Real.Real \where Limit.Control[f, Real.zero, limit, epsilon, delta] }) \by given epsilon positive \then
+  \let control: Limit.Control[f, Real.zero, limit, epsilon, delta] := \bysub(Real.Real, { delta: Real.Real \where Limit.Control[f, Real.zero, limit, epsilon, delta] }, delta) \then
+  \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where \forall (j: N.Nat^) -> Nat.Le k j -> R.Lt (Dyadic.value j) delta }) \by Limits.dyadicSmall delta control.positive \then
+  \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where Sequence.LimitControl (\fun (j: N.Nat^) => f (Dyadic.value j)) limit epsilon k }] k
+    (\fun (j: N.Nat^)(later: _) => control.estimate (Dyadic.value j)
+      (\fun (zero: Dyadic.value j = Real.zero) => Order.ltNotEq Real.zero (Dyadic.value j) (Limits.dyadicPositive j) (sym!{Real.Real} _ _ zero))
+      (R.ltReplaceLeft _ _ _ (sym!{Real.Real} _ _ (trans!{Real.Real} _ _ _ (Distance.distanceSymmetric (Dyadic.value j) Real.zero)
+        (Product.absOfNonnegative (Dyadic.value j) (Order.leOfLt _ _ (Limits.dyadicPositive j)))))
+        ((\bysub(N.Nat^, { k: N.Nat^ \where \forall (j: N.Nat^) -> Nat.Le k j -> R.Lt (Dyadic.value j) delta }, k)) j later)))
+};

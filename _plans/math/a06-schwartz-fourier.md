@@ -14,9 +14,7 @@
 
 ## 実装状況
 
-未完了。
-`libs/analysis/fourier_schwartz` に複素指数 Fourier 核、実・複素 Schwartz 半ノルム、全ての重み付き偏微分の L1 可積分性、Fourier 変換の滑らかさと Schwartz 保存を構成した。
-座標乗算と平行移動の Schwartz 保存、積分下微分による周波数微分公式、平行移動不変性からの部分積分、入力微分公式と平行移動公式を証明した。
-Gaussian 自体の Schwartz 性を指数減衰評価と具体的な Hermite 多項式から証明した。
-畳み込みとの交換、Gaussian の変換、近似単位による反転公式が残っている。
-体系や処理系による不可能性は確認されておらず、残りは数学的実装・証明の作業である。
+全要件の構成と証明を `libs/analysis/fourier_schwartz` に実装した。
+複素指数 Fourier 核、実・複素 Schwartz 半ノルム、全ての重み付き偏微分の L1 可積分性、微分・座標乗算・平行移動・畳み込み公式、Schwartz 保存、Gaussian の Fourier 公式、Gaussian 近似単位による反転公式を含む。
+正規化は Gaussian 積分で構成した定数を用いる \((2\pi)^{-n}\) であり、Schwartz 値の逆写像の左右の逆恒等式も証明した。
+最終ソースに対する対象検査・依存回帰・通常全体検査の記録は `benchmarks/records/a06-fourier-schwartz` に保存する。

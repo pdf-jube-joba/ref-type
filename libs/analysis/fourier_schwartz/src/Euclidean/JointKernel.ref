@@ -1,0 +1,41 @@
+\import \root.Euclidean[n := n] \as Base;
+\import \parent.Kernel[] \as Kernel;
+\import \parent.Fubini[] \as Fubini;
+\import lp_spaces.Euclidean[n := n].Joint[] \as Joint;
+\import euclidean_measure.EuclideanBorel[n := n] \as Borel;
+\import functional_analysis.Measure[A := Fubini.PairPoint] \as M;
+\import M.Functions[mu := Fubini.measure] \as Functions;
+\import M.Integral[mu := Fubini.measure] \as I;
+\import lp_spaces.On[A := Fubini.PairPoint, mu := Fubini.measure].Products[] \as Products;
+\import calculus.Real[].OneDimension[] \as One;
+\import \root.Euclidean[n := One.dimension] \as Line;
+\import lp_spaces.Euclidean[n := One.dimension].Compact[p := lp_spaces.Powers[].one] \as Compact;
+\import complex.Complex[] \as C;
+\import C.Def[] \as D;
+\import \root.Phase[].Global[] \as Phase;
+\import Phase.Smooth[] \as PhaseSmooth;
+\definition coordinate[i: Coordinate]: M.IsMeasurable Fubini.measure (\fun (p: Fubini.PairPoint) => Real.mul (Fubini.first p i) (Fubini.second p i)) :=
+  Products.measurable _ _ (Joint.leftMeasurable (\fun (x: Point) => x i) (\fun (r: Real.Real) => Borel.aboveMeasurable i r))
+    (Joint.rightMeasurable (\fun (x: Point) => x i) (\fun (r: Real.Real) => Borel.aboveMeasurable i r));
+\definition sumMeasurable: \forall (k: N.Nat^)(f: Fin.Fin k -> Fubini.PairPoint -> Real.Real) ->
+  (\forall (i: Fin.Fin k) -> M.IsMeasurable Fubini.measure (f i)) -> M.IsMeasurable Fubini.measure (\fun (p: Fubini.PairPoint) => Sum.sum k (\fun (i: Fin.Fin k) => f i p)) :=
+  \induction (k: N.Nat^) \return \forall (f: Fin.Fin k -> Fubini.PairPoint -> Real.Real) ->
+    (\forall (i: Fin.Fin k) -> M.IsMeasurable Fubini.measure (f i)) -> M.IsMeasurable Fubini.measure (\fun (p: Fubini.PairPoint) => Sum.sum k (\fun (i: Fin.Fin k) => f i p)) \with {
+      | zero: \fun (f: _)(valid: _) => (I.integralLaw I.Zero[].representative).integrable.left
+      | succ: \fun (k: N.Nat^)(previous: _)(f: _)(valid: _) => Functions.addMeasurable _ _ (valid (Fin.zero k))
+        (previous (\fun (i: Fin.Fin k) => f (Fin.succ k i)) (\fun (i: Fin.Fin k) => valid (Fin.succ k i)))
+    };
+\definition argument[p: Fubini.PairPoint]: Line.Point := \fun (i: One.Index) => Real.neg (Kernel.pairing (Fubini.first p) (Fubini.second p));
+\definition argumentMeasurable[i: One.Index]: M.IsMeasurable Fubini.measure (\fun (p: Fubini.PairPoint) => argument p i) :=
+  Functions.negMeasurable _ (sumMeasurable n (\fun (i: Coordinate)(p: Fubini.PairPoint) => Real.mul (Fubini.first p i) (Fubini.second p i)) coordinate);
+\import lp_spaces.Euclidean[n := One.dimension].MeasurableMap[A := Fubini.PairPoint, source := Fubini.measure, map := argument, coordinates := argumentMeasurable] \as Map;
+\definition function[p: Fubini.PairPoint]: C.Complex := Kernel.value (Fubini.first p) (Fubini.second p);
+\definition measurable: Fubini.Measurable[function] := Fubini.Measurable[function] {
+  real := Map.scalar (\fun (x: Line.Point) => C.re (Phase.value (x One.index)))
+    (Compact.continuousBorel _ (Compact.smoothContinuous _ PhaseSmooth.realSmooth)),
+  imaginary := Map.scalar (\fun (x: Line.Point) => C.im (Phase.value (x One.index)))
+    (Compact.continuousBorel _ (Compact.smoothContinuous _ PhaseSmooth.imaginarySmooth)),
+};
+\definition phase: Fubini.Phase := Fubini.Phase { function := function, measurable := measurable,
+  bound := \fun (p: Fubini.PairPoint) => R.leReplaceLeft _ _ _ (sym!{Real.Real} _ _ (Kernel.modulus (Fubini.first p) (Fubini.second p))) (R.leRefl Real.one),
+};

@@ -45,3 +45,17 @@
 \module Continuity(f: Complex.Representatives, at: Point);
 \module Identities;
 \module Translate(a: Point, f: Input);
+
+\structure BoundedBy: \Set := {
+  function: Point -> Real.Real,
+  measurable: M.IsMeasurable Lebesgue.measure function,
+  coefficient: I.Scaling[].NonnegativeScalar,
+  bound: \forall (x: Point) -> R.Le (Product.abs (function x)) coefficient,
+};
+\module BoundedMultiply(f: I.Representatives, g: BoundedBy);
+
+\definition realProduct[f: Input][g: BoundedBy]: Input := \into[Complex.Function]((\fun (x: Point) => C.make (Real.mul (C.re (f x)) (g.function x)) (Real.mul (C.im (f x)) (g.function x))), Input) \by {
+  Logic.And[_, _]::# (I.integralLaw BoundedMultiply[f := Complex.realPart f, g := g].value).integrable (I.integralLaw BoundedMultiply[f := Complex.imaginaryPart f, g := g].value).integrable
+};
+\definition realProductValue[f: Input][g: BoundedBy][x: Point]: realProduct f g x = D.scale (g.function x) (f x) := C.Prop[].ext _ _ (Laws.fieldMulComm _ _) (Laws.fieldMulComm _ _);
+\module Reflected(a: Point, f: Input);

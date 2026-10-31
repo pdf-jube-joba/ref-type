@@ -1,0 +1,56 @@
+\import \root.Euclidean[n := n].Gaussian[] \as Gaussian;
+\import calculus.Real[].OneDimension[] \as One;
+\import \root.Euclidean[n := One.dimension] \as Left;
+\import \root.Euclidean[n := N.Nat^::succ n] \as Higher;
+\import Left.Gaussian[] \as LG;
+\import Higher.Gaussian[] \as HG;
+\import Higher.Integrability[].Borel[f := HG.schwartz] \as BorelGaussian;
+\import lp_spaces.Euclidean[n := N.Nat^::succ n].BorelMeasure[] \as BorelMeasure;
+\import product_integration.EuclideanProduct[m := One.dimension, n := n] \as Product;
+\import product_integration.Euclidean[n := One.dimension] \as LeftMeasure;
+\import product_integration.Euclidean[n := n] \as RightMeasure;
+\import euclidean_measure.Euclidean[n := One.dimension].MeasureConstruction[] \as LM;
+\import euclidean_measure.Euclidean[n := n].MeasureConstruction[] \as RM;
+\import product_integration.ProductSigma[A := Left.Point, B := Point, left := LM.measure.sigma, right := RM.measure.sigma] \as Sigma;
+\import product_integration.Product[A := Left.Point, B := Point, mu := LM.measure, nu := RM.measure, left := LeftMeasure.exhaustion, right := RightMeasure.exhaustion] \as JointMeasure;
+\import functional_analysis.Measure[A := Sigma.Point] \as JM;
+\import JM.Integral[mu := JointMeasure.measure] \as JI;
+\import functional_analysis.Measure[A := Left.Point].Integral[mu := LM.measure] \as LI;
+\import functional_analysis.Measure[A := Point].Integral[mu := RM.measure] \as RI;
+\import product_integration.Integration[A := Left.Point, B := Point, mu := LM.measure, nu := RM.measure, left := LeftMeasure.exhaustion, right := RightMeasure.exhaustion] \as Fubini;
+\import product_integration.MeasureMap[A := Sigma.Point, B := Higher.Point, source := JointMeasure.measure, target := BorelMeasure.borel] \as Map;
+\import std.Data[].Pair[] \as Pair;
+\import Fin.Sum[m := One.dimension, n := n] \as Index;
+\import Index.Tuples[A := Real.Real] \as Tuples;
+\definition first[p: Sigma.Point]: Left.Point := Pair.first Left.Point Point p;
+\definition second[p: Sigma.Point]: Point := Pair.second Left.Point Point p;
+\definition radius[p: Sigma.Point]: Higher.radiusSquared (Product.join p) = Real.add (Left.radiusSquared (first p)) (radiusSquared (second p)) :=
+  trans!{Real.Real} _ _ _ (Sum.blocks One.dimension n (\fun (i: Fin.Fin (N.Nat^::succ n)) => Real.mul (Product.join p i) (Product.join p i)))
+    (congr!{Real.Real Real.Real Real.Real} Real.add _ _ _ _
+      (Sum.congruent One.dimension _ _ (\fun (i: One.Index) => congr!{Real.Real Real.Real Real.Real} Real.mul _ _ _ _ (Tuples.atLeft (first p) (second p) i) (Tuples.atLeft (first p) (second p) i)))
+      (Sum.congruent n _ _ (\fun (j: Coordinate) => congr!{Real.Real Real.Real Real.Real} Real.mul _ _ _ _ (Tuples.atRight (first p) (second p) j) (Tuples.atRight (first p) (second p) j))));
+\definition gaussian[p: Sigma.Point]: HG.function (Product.join p) = Real.mul (LG.function (first p)) (Gaussian.function (second p)) := eq_reason_in!{Real.Real _
+  "=" _ "by" { congr!{Real.Real Real.Real} (\fun (r: Real.Real) => Exp.value (Real.neg (Real.mul Real.half r))) _ _ (radius p) }
+  "=" _ "by" { congr!{Real.Real Real.Real} Exp.value _ _
+    (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} Real.neg _ _ (Laws.fieldMulAdd Real.half _ _)) (Laws.negAdd _ _)) }
+  "=" _ "by" { Exp.addition _ _ }
+};
+\definition map: Map.Data := Map.Data {
+  function := Product.join,
+  measurable := Product.Borel[].measurable,
+  value := Product.Comparison[].theorem,
+};
+\import Map.On[map := map].RealFunction[f := BorelGaussian.representative] \as Pullback;
+\definition joint: JI.Representatives := Pullback.representative;
+\definition jointIntegral: JI.integral joint = HG.Mass[].value := trans!{Real.Real} _ _ _ Pullback.integral BorelGaussian.integral;
+\definition section[x: Left.Point]: RI.Representatives := RI.Scaling[].scalarRepresentative (LG.function x) (Integrability.representative Gaussian.schwartz);
+\definition outer: LI.Representatives := LI.Scaling[].scalarRepresentative Gaussian.Mass[].value (Left.Integrability[].representative LG.schwartz);
+\import lp_spaces.On[A := Point, mu := RM.measure].One[].Norm[] \as REqual;
+\import functional_analysis.Measure[A := Left.Point].Integral[mu := LM.measure].Null[] \as Null;
+\import topology.Topology[Carrier := Left.Point] \as Sets;
+\import functional_analysis.Measure[A := Left.Point].AlmostEverywhere[mu := LM.measure] \as AE;
+\module With(certificate: Fubini.AEFubini[joint]);
+\definition law: HG.Mass[].value = Real.mul LG.Mass[].value Gaussian.Mass[].value := \block {
+  \takefrom certificate: Fubini.AEFubini[joint] \by Fubini.fubini joint \then
+  \return With[certificate := certificate].law
+};

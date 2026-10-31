@@ -1,0 +1,18 @@
+\definition coefficient: Real.Real := Real.mul (Powers.power Numeric.two m) (seminorm g m Directions::nil);
+\definition coefficientNonnegative: R.Le Real.zero coefficient := Laws.fieldMulNonnegative _ _ (Numeric.nonnegative Numeric.two Numeric.twoNonnegative m) (seminormNonnegative g m Directions::nil);
+\definition moment: I.Representatives := Abs.representative (Integrability.momentRepresentative f m Directions::nil);
+\definition dominator: I.Representatives := Scaling.scalarRepresentative coefficient moment;
+\definition bound: Real.Real := Real.mul coefficient (I.integral moment);
+\definition recover[x, y: Point]: Coordinates.addPoint y (difference x y) = x := \axiom:funext(Coordinates.addPoint y (difference x y), x,
+  \fun (i: Coordinate) => trans!{Real.Real} _ _ _ (sym!{Real.Real} _ _ (Laws.addAssoc (y i) (Real.neg (y i)) (x i)))
+    (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (\fun (r: Real.Real) => Real.add r (x i)) _ _ (Laws.addNegRight (y i))) (Laws.addZeroLeft (x i))));
+\definition weightBound[x, y: Point]: R.Le (weight m x) (Real.mul (Powers.power Numeric.two m) (Real.mul (weight m y) (weight m (difference x y)))) :=
+  R.leReplaceLeft _ _ _ (congr!{Point Real.Real} (weight m) _ _ (recover x y)) (Weights.add m y (difference x y));
+\module Pointwise(x, y: Point);
+\definition weightedSection[x: Point]: I.Representatives := Scaling.scalarRepresentative (weight m x) (Abs.representative (section f g x));
+\definition estimate[x: Point]: R.Le (Real.mul (weight m x) (Product.abs (value f g x))) bound :=
+  R.leTrans _ (I.integral (weightedSection x)) _
+    (R.leReplaceRight _ _ _ (sym!{Real.Real} _ _ (Scaling.integralScalar (weight m x) (Abs.representative (section f g x))))
+      (Estimates.mulMonotone _ _ _ (weightNonnegative m x) (Abs.integralAbsBound (section f g x))))
+    (R.leReplaceRight _ _ _ (Scaling.integralScalar coefficient moment)
+      (Abs.integralMono (weightedSection x) dominator (\fun (y: Point) => Pointwise[x := x, y := y].bound)));

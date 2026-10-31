@@ -1,0 +1,37 @@
+\import \root.Euclidean[n := n].Gaussian[] \as Gaussian;
+\import \parent.\parent.Integral[] \as Integral;
+\import \root.RealBounds[] \as RealBounds;
+\import lp_spaces.Euclidean[n := n].Compact[p := lp_spaces.Powers[].one] \as Compact;
+\import functional_analysis.Measure[A := Point] \as M;
+\import euclidean_measure.Euclidean[n := n].MeasureConstruction[] \as Lebesgue;
+\import Real.Sequence[] \as Sequence;
+\import Real.Sequence[].Operations[] \as Sequences;
+\import Real.Geometric[q := Real.half] \as Dyadic;
+\definition point[t: Real.Real][x: Point]: Coordinates.addPoint Coordinates.origin (Coordinates.scale t x) = Coordinates.scale t x := \axiom:funext(Coordinates.addPoint Coordinates.origin (Coordinates.scale t x), Coordinates.scale t x,
+  \fun (i: Coordinate) => Laws.addZeroLeft (Real.mul t (x i)));
+\definition function[t: Real.Real][x: Point]: Real.Real := Gaussian.function (Coordinates.scale t x);
+\definition measurable[t: Real.Real]: M.IsMeasurable Lebesgue.measure (function t) :=
+  \idelim (\fun (x: Point) => Gaussian.function (Coordinates.addPoint Coordinates.origin (Coordinates.scale t x))) = function t
+    \with h: (Point -> Real.Real) => M.IsMeasurable Lebesgue.measure h \by {
+      base: Compact.continuousMeasurable _ (Compact.smoothContinuous _ (Integrability.regular (\parent.\parent.Affine[a := t, b := Coordinates.origin].function Gaussian.schwartz))),
+      equality: \axiom:funext((\fun (x: Point) => Gaussian.function (Coordinates.addPoint Coordinates.origin (Coordinates.scale t x))), function t,
+        \fun (x: Point) => congr!{Point Real.Real} Gaussian.function _ _ (point t x))
+    };
+\definition bounded[t: Real.Real]: Integral.BoundedBy := Integral.BoundedBy {
+  function := function t, measurable := measurable t,
+  coefficient := \into[Real.Real](Real.one, functional_analysis.Measure[A := Point].Integral[mu := Lebesgue.measure].Scaling[].NonnegativeScalar) \by { Laws.oneNonnegative },
+  bound := \fun (x: Point) => R.leReplaceLeft _ _ _ (sym!{Real.Real} _ _ (Gaussian.absolute (Coordinates.scale t x))) (Gaussian.atMostOne (Coordinates.scale t x)),
+};
+\module At(x: Point) {
+  \import \root.Euclidean[n := n].AffineLine[f := Gaussian.schwartz, b := Coordinates.origin, v := x] \as Line;
+  \definition origin: Line.function Real.zero = Real.one := trans!{Real.Real} _ _ _
+    (congr!{Point Real.Real} Gaussian.function _ _ (\axiom:funext(Line.point Real.zero, Coordinates.origin,
+      \fun (i: Coordinate) => trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (Real.add Real.zero) _ _ (Laws.fieldMulZeroLeft (x i))) (Laws.addZeroLeft Real.zero)))) Gaussian.originValue;
+  \definition law: Sequence.Converges (\fun (k: N.Nat^) => function (Dyadic.value k) x) Real.one :=
+    Sequences.congruent (\fun (k: N.Nat^) => Line.function (Dyadic.value k)) (\fun (k: N.Nat^) => function (Dyadic.value k) x) Real.one
+      (\fun (k: N.Nat^) => congr!{Point Real.Real} Gaussian.function _ _ (point (Dyadic.value k) x))
+      (\idelim Line.function Real.zero = Real.one \with limit: Real.Real => Sequence.Converges (\fun (k: N.Nat^) => Line.function (Dyadic.value k)) limit \by {
+        base: RealBounds.dyadicLimit Line.function (Line.function Real.zero) (Line.continuous Real.zero), equality: origin
+      });
+}
+\definition converges[x: Point]: Sequence.Converges (\fun (k: N.Nat^) => function (Dyadic.value k) x) Real.one := At[x := x].law;

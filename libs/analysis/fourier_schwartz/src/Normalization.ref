@@ -1,0 +1,42 @@
+\import real.Analysis[] \as Real;
+\import Real.Algebra[] \as Algebra;
+\import Real.Estimates[] \as Estimates;
+\import Real.Estimates[].Product[] \as Product;
+\import dedekind_reals.DedekindReal[] \as R;
+\import R.Arithmetic[].Prop[] \as Laws;
+\import R.Order[] \as Order;
+\import functional_analysis.Powers[] \as Powers;
+\import std.Data[].Nat[] \as N;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.congr;
+\use Equality.trans;
+\use Equality.sym;
+\use Equality.eq_reason_in;
+\import \root.NaturalPowers[] \as Numeric;
+\import calculus.Real[].OneDimension[] \as One;
+\definition gaussianMass[n: N.Nat^]: Real.Real := \root.Euclidean[n := n].Gaussian[].Mass[].value;
+\definition c: Real.Real := gaussianMass One.dimension;
+\definition cPositive: R.Lt Real.zero c := \root.Euclidean[n := One.dimension].Gaussian[].Mass[].positive;
+\module Zero;
+\definition dimension: \forall (n: N.Nat^) -> gaussianMass n = Powers.power c n :=
+  \induction (n: N.Nat^) \return gaussianMass n = Powers.power c n \with {
+    | zero: Zero[].law
+    | succ: \fun (n: N.Nat^)(previous: _) => trans!{Real.Real} _ _ _ (\root.Euclidean[n := n].Gaussian[].Factorization[].law)
+      (congr!{Real.Real Real.Real} (Real.mul c) _ _ previous)
+  };
+/* The Gaussian characterization constructs the circle constant. */
+\definition pi: Real.Real := Real.mul Real.half (Real.mul c c);
+\definition piPositive: R.Lt Real.zero pi := Product.mulPositive _ _ Numeric.halfPositive (Product.mulPositive c c cPositive cPositive);
+\definition twoPi: Real.mul Numeric.two pi = Real.mul c c := trans!{Real.Real} _ _ _ (sym!{Real.Real} _ _ (Laws.fieldMulAssoc Numeric.two Real.half (Real.mul c c)))
+  (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (\fun (a: Real.Real) => Real.mul a (Real.mul c c)) _ _ Numeric.twoHalf) (Laws.fieldMulOneLeft _));
+\definition inverse[n: N.Nat^]: Real.Real := Powers.power (Laws.fieldInv (Real.mul Numeric.two pi)) n;
+\definition inversePositive[n: N.Nat^]: R.Lt Real.zero (inverse n) := Numeric.positive _ (Product.invPositive _
+  (R.ltReplaceRight _ _ _ (sym!{Real.Real} _ _ twoPi) (Product.mulPositive c c cPositive cPositive))) n;
+\definition cancellation[n: N.Nat^]: Real.mul (inverse n) (Real.mul (gaussianMass n) (gaussianMass n)) = Real.one :=
+  trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real Real.Real} Real.mul _ _ _ _
+    (congr!{Real.Real Real.Real} (\fun (a: Real.Real) => Powers.power (Laws.fieldInv a) n) _ _ twoPi)
+    (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real Real.Real} Real.mul _ _ _ _ (dimension n) (dimension n)) (sym!{Real.Real} _ _ (Numeric.product c c n))))
+    (Numeric.cancellation _ _ (Laws.fieldInverseNonzero (Real.mul c c) (Real.Inverse[].positiveNonzero _ (Product.mulPositive c c cPositive cPositive))) n);
+
+\definition squareRoot: Real.SquareRoot[].sqrt (Real.mul Numeric.two pi) = c :=
+  trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} Real.SquareRoot[].sqrt _ _ twoPi) (Real.SquareRoot[].sqrtSquared c (Order.leOfLt _ _ cPositive));

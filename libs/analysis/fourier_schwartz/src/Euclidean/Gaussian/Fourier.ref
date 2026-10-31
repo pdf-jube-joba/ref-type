@@ -1,0 +1,90 @@
+\import \root.Euclidean[n := n].Gaussian[] \as Gaussian;
+\import \parent.Smooth[] \as Regularity;
+\import \parent.Quadratic[] \as Quadratic;
+\import \parent.\parent.Complex[] \as S;
+\import \parent.\parent.Operations[] \as Operations;
+\import \parent.\parent.Transform[] \as Transform;
+\import Transform.Identities[] \as Identities;
+\import \parent.\parent.ConstantGradient[] \as Gradient;
+\import complex.Complex[] \as C;
+\import C.Def[] \as D;
+\import C.Prop[] \as CL;
+\import \root.Scalars[] \as Scalars;
+\definition input: S.Function := S.Function { real := Gaussian.schwartz, imaginary := Operations.zero };
+\definition value[xi: Point]: C.Complex := Transform.function input xi;
+\definition partialValue[i: Coordinate][x: Point]: S.value (S.partial input i) x = C.make (Real.mul (Real.neg (x i)) (Gaussian.function x)) Real.zero :=
+  CL.ext _ _ (Regularity.partialValue i x)
+    (congr!{Function Real.Real} (\fun (h: Function) => Base.value h x) _ _ (Operations.jetZero (Directions::cons i Directions::nil)));
+\definition rotatedPartial[i: Coordinate][x: Point]: \root.Phase[].rotate (S.value (S.partial input i) x) = C.make Real.zero (Real.mul (Real.neg (x i)) (Gaussian.function x)) :=
+  CL.ext _ _
+    (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} Real.neg _ _ (congr!{C.Complex Real.Real} C.im _ _ (partialValue i x))) Laws.negZero)
+    (congr!{C.Complex Real.Real} C.re _ _ (partialValue i x));
+\definition inputEquation[i: Coordinate][x: Point]: S.value (S.differentiatedInput input i) x = S.value (S.scale D.i (S.partial input i)) x := eq_reason_in!{C.Complex _
+  "=" _ "by" { S.differentiatedValue input i x }
+  "=" { C.make Real.zero (Real.mul (Real.neg (x i)) (Gaussian.function x)) } "by" { CL.ext _ _
+    (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (Real.mul (Real.neg (x i))) _ _ Laws.negZero) (Laws.fieldMulZeroRight _)) (\refl(Real.mul (Real.neg (x i)) (Gaussian.function x))) }
+  "=" _ "by" { sym!{C.Complex} _ _ (rotatedPartial i x) }
+  "=" _ "by" { sym!{C.Complex} _ _ (\root.Phase[].rotateAsProduct (S.value (S.partial input i) x)) }
+  "=" _ "by" { sym!{C.Complex} _ _ (S.jetScale D.i (S.partial input i) Directions::nil x) }
+};
+\definition derivativeEquation[i: Coordinate][xi: Point]: Transform.function (S.differentiatedInput input i) xi = D.scale (Real.neg (xi i)) (value xi) := eq_reason_in!{C.Complex _
+  "=" _ "by" { Identities.pointwise (S.differentiatedInput input i) (S.scale D.i (S.partial input i)) (inputEquation i) xi }
+  "=" _ "by" { Identities.scalar D.i (S.partial input i) xi }
+  "=" _ "by" { congr!{C.Complex C.Complex} (D.mul D.i) _ _ (Identities.spatialDerivative input xi i) }
+  "=" _ "by" { Scalars.scaleRight (xi i) D.i (\root.Phase[].rotate (value xi)) }
+  "=" _ "by" { congr!{C.Complex C.Complex} (D.scale (xi i)) _ _ (\root.Phase[].rotateAsProduct (\root.Phase[].rotate (value xi))) }
+  "=" _ "by" { congr!{C.Complex C.Complex} (D.scale (xi i)) _ _ (Scalars.rotateTwice (value xi)) }
+  "=" _ "by" { Scalars.scaleNegative (xi i) (value xi) }
+};
+\definition realDerivative[i: Coordinate][xi: Point]: Base.value (Differential.apply i (Transform.realFunction input)) xi = Real.mul (Real.neg (xi i)) (C.re (value xi)) :=
+  trans!{Real.Real} _ _ _ (congr!{Function Real.Real} (\fun (h: Function) => Base.value h xi) _ _ (Transform.realJet input (Directions::cons i Directions::nil)))
+    (congr!{C.Complex Real.Real} C.re _ _ (derivativeEquation i xi));
+\definition imaginaryDerivative[i: Coordinate][xi: Point]: Base.value (Differential.apply i (Transform.imaginaryFunction input)) xi = Real.mul (Real.neg (xi i)) (C.im (value xi)) :=
+  trans!{Real.Real} _ _ _ (congr!{Function Real.Real} (\fun (h: Function) => Base.value h xi) _ _ (Transform.imaginaryJet input (Directions::cons i Directions::nil)))
+    (congr!{C.Complex Real.Real} C.im _ _ (derivativeEquation i xi));
+\definition inverseArgument: Function := Functions.scale (Real.neg Real.one) Quadratic.argument;
+\import \parent.\parent.Exponentiate[f := inverseArgument] \as InverseGaussian;
+\definition inverseValue[x: Point]: Base.value inverseArgument x = Real.neg (Base.value Quadratic.argument x) :=
+  trans!{Real.Real} _ _ _ (Laws.fieldMulNegLeft Real.one _) (congr!{Real.Real Real.Real} Real.neg _ _ (Laws.fieldMulOneLeft _));
+\definition inverseDerivative[i: Coordinate][x: Point]: Base.value (Differential.apply i InverseGaussian.function) x = Real.mul (x i) (Base.value InverseGaussian.function x) := eq_reason_in!{Real.Real _
+  "=" _ "by" { InverseGaussian.derivative i x }
+  "=" _ "by" { congr!{Function Real.Real} (\fun (h: Function) => Real.mul (Base.value InverseGaussian.function x) (Base.value h x)) _ _ (Differential.scalar i (Real.neg Real.one) Quadratic.argument) }
+  "=" _ "by" { congr!{Real.Real Real.Real} (\fun (r: Real.Real) => Real.mul (Base.value InverseGaussian.function x) (Real.mul (Real.neg Real.one) r)) _ _ (Quadratic.argumentDerivative i x) }
+  "=" _ "by" { congr!{Real.Real Real.Real} (Real.mul (Base.value InverseGaussian.function x)) _ _
+    (trans!{Real.Real} _ _ _ (Laws.fieldMulNegBoth Real.one (x i)) (Laws.fieldMulOneLeft (x i))) }
+  "=" _ "by" { Laws.fieldMulComm _ _ }
+};
+\definition cancellation[x: Point]: Real.mul (Base.value InverseGaussian.function x) (Gaussian.function x) = Real.one := eq_reason_in!{Real.Real _
+  "=" _ "by" { congr!{Real.Real Real.Real Real.Real} Real.mul _ _ _ _
+    (trans!{Real.Real} _ _ _ (InverseGaussian.value x) (congr!{Real.Real Real.Real} Exp.value _ _ (inverseValue x)))
+    (sym!{Real.Real} _ _ (congr!{Real.Real Real.Real} Exp.value _ _ (Quadratic.argumentValue x))) }
+  "=" _ "by" { sym!{Real.Real} _ _ (Exp.addition _ _) }
+  "=" _ "by" { congr!{Real.Real Real.Real} Exp.value _ _ (Laws.addNegLeft (Base.value Quadratic.argument x)) }
+  "=" _ "by" { Exp.atZero }
+};
+\definition originArgument: Base.value Quadratic.argument Coordinates.origin = Real.zero := trans!{Real.Real} _ _ _ (Quadratic.argumentValue Coordinates.origin)
+  (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (\fun (r: Real.Real) => Real.neg (Real.mul Real.half r)) _ _
+    (trans!{Real.Real} _ _ _ (Sum.congruent n _ (\fun (i: Coordinate) => Real.zero) (\fun (i: Coordinate) => Laws.fieldMulZeroLeft Real.zero)) (Sum.zeroSum n)))
+    (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} Real.neg _ _ (Laws.fieldMulZeroRight Real.half)) Laws.negZero));
+\definition inverseOrigin: Base.value InverseGaussian.function Coordinates.origin = Real.one := eq_reason_in!{Real.Real _
+  "=" _ "by" { InverseGaussian.value Coordinates.origin }
+  "=" _ "by" { congr!{Real.Real Real.Real} Exp.value _ _ (inverseValue Coordinates.origin) }
+  "=" _ "by" { congr!{Real.Real Real.Real} (\fun (t: Real.Real) => Exp.value (Real.neg t)) _ _ originArgument }
+  "=" _ "by" { congr!{Real.Real Real.Real} Exp.value _ _ Laws.negZero }
+  "=" _ "by" { Exp.atZero }
+};
+\module Ratio(f: Function, derivative: \forall (i: Coordinate)(x: Point) -> Base.value (Differential.apply i f) x = Real.mul (Real.neg (x i)) (Base.value f x));
+\definition theorem[xi: Point]: value xi = D.scale (Gaussian.function xi) (value Coordinates.origin) := CL.ext _ _
+  (Ratio[f := Transform.realFunction input, derivative := realDerivative].law xi)
+  (Ratio[f := Transform.imaginaryFunction input, derivative := imaginaryDerivative].law xi);
+
+\import functional_analysis.Measure[A := Point].Integral[mu := euclidean_measure.Euclidean[n := n].MeasureConstruction[].measure] \as I;
+\import measure_convergence.On[A := Point, mu := euclidean_measure.Euclidean[n := n].MeasureConstruction[].measure].Complex[] \as CI;
+\import lp_spaces.On[A := Point, mu := euclidean_measure.Euclidean[n := n].MeasureConstruction[].measure].One[].Norm[] \as Equal;
+\definition atOrigin: value Coordinates.origin = D.ofReal Gaussian.Mass[].value := trans!{C.Complex} _ _ _
+  (\parent.\parent.Integral[].Identities[].atOrigin (Integrability.complex input))
+  (CL.ext _ _ (\refl(Gaussian.Mass[].value))
+    (trans!{Real.Real} _ _ _ (Equal.integralPointwise (CI.imaginaryPart (Integrability.complex input)) I.Zero[].representative (\fun (x: Point) => \refl(Real.zero))) I.Zero[].integralZero));
+\definition formula[xi: Point]: value xi = D.ofReal (Real.mul Gaussian.Mass[].value (Gaussian.function xi)) := trans!{C.Complex} _ _ _ (theorem xi)
+  (trans!{C.Complex} _ _ _ (congr!{C.Complex C.Complex} (D.scale (Gaussian.function xi)) _ _ atOrigin)
+    (CL.ext _ _ (Laws.fieldMulComm _ _) (Laws.fieldMulZeroRight _)));

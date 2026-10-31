@@ -1,0 +1,36 @@
+\definition hat: S.Function := Transform.Preservation[].value f;
+\definition input: Integral.Input := Integrability.complex f;
+\definition transformed: Integral.Input := Integrability.complex hat;
+\definition target: Integral.Input := Integral.section transformed (Coordinates.negPoint x);
+\definition regulated[t: Real.Real]: Integral.Input := Integral.section (Integral.realProduct transformed (Gaussian.Scaled[].bounded t)) (Coordinates.negPoint x);
+\definition left[t: Real.Real]: C.Complex := CI.integral (regulated t);
+\definition pointwise[t: Real.Real][xi: Point]: regulated t xi = D.scale (Gaussian.Scaled[].function t xi) (target xi) :=
+  trans!{C.Complex} _ _ _
+    (congr!{C.Complex C.Complex} (\fun (z: C.Complex) => D.mul z (Kernel.value xi (Coordinates.negPoint x))) _ _ (Integral.realProductValue transformed (Gaussian.Scaled[].bounded t) xi))
+    (CL.scaleMulLeft (Gaussian.Scaled[].function t xi) (transformed xi) (Kernel.value xi (Coordinates.negPoint x)));
+\module Convergence;
+
+\definition approximation[t: Real.Real]: C.Complex := C.make (Gaussian.Approximation[f := f.real, x := x].value t) (Gaussian.Approximation[f := f.imaginary, x := x].value t);
+\module Bridge(e: Real.Real, positive: R.Lt Real.zero e);
+
+\definition mass: Real.Real := Gaussian.Mass[].value;
+\definition factor: Real.Real := Real.mul mass mass;
+\definition realLimit: Sequence.Converges (\fun (k: N.Nat^) => C.re (left (Dyadic.value k))) (Real.mul factor (Base.value f.real x)) :=
+  Sequences.congruent (\fun (k: N.Nat^) => Real.mul mass (Gaussian.Approximation[f := f.real, x := x].value (Dyadic.value k))) (\fun (k: N.Nat^) => C.re (left (Dyadic.value k))) _
+    (\fun (k: N.Nat^) => sym!{Real.Real} _ _ (congr!{C.Complex Real.Real} C.re _ _ Bridge[e := Dyadic.value k, positive := Limits.dyadicPositive k].law))
+    (\idelim Real.mul mass (Real.mul mass (Base.value f.real x)) = Real.mul factor (Base.value f.real x)
+      \with limit: Real.Real => Sequence.Converges (\fun (k: N.Nat^) => Real.mul mass (Gaussian.Approximation[f := f.real, x := x].value (Dyadic.value k))) limit \by {
+        base: Sequences.scaleConverges mass _ _ Gaussian.Approximation[f := f.real, x := x].converges,
+        equality: sym!{Real.Real} _ _ (Laws.fieldMulAssoc mass mass (Base.value f.real x))
+      });
+\definition imaginaryLimit: Sequence.Converges (\fun (k: N.Nat^) => C.im (left (Dyadic.value k))) (Real.mul factor (Base.value f.imaginary x)) :=
+  Sequences.congruent (\fun (k: N.Nat^) => Real.mul mass (Gaussian.Approximation[f := f.imaginary, x := x].value (Dyadic.value k))) (\fun (k: N.Nat^) => C.im (left (Dyadic.value k))) _
+    (\fun (k: N.Nat^) => sym!{Real.Real} _ _ (congr!{C.Complex Real.Real} C.im _ _ Bridge[e := Dyadic.value k, positive := Limits.dyadicPositive k].law))
+    (\idelim Real.mul mass (Real.mul mass (Base.value f.imaginary x)) = Real.mul factor (Base.value f.imaginary x)
+      \with limit: Real.Real => Sequence.Converges (\fun (k: N.Nat^) => Real.mul mass (Gaussian.Approximation[f := f.imaginary, x := x].value (Dyadic.value k))) limit \by {
+        base: Sequences.scaleConverges mass _ _ Gaussian.Approximation[f := f.imaginary, x := x].converges,
+        equality: sym!{Real.Real} _ _ (Laws.fieldMulAssoc mass mass (Base.value f.imaginary x))
+      });
+\definition law: CI.integral target = D.scale factor (S.value f x) := CL.ext _ _
+  (Sequence.limitUnique (\fun (k: N.Nat^) => C.re (left (Dyadic.value k))) _ _ Convergence[].real realLimit)
+  (Sequence.limitUnique (\fun (k: N.Nat^) => C.im (left (Dyadic.value k))) _ _ Convergence[].imaginary imaginaryLimit);

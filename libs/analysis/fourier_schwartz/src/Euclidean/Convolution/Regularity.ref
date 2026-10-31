@@ -1,0 +1,22 @@
+\import L.Parametric[B := Point, metric := Geometry.metric] \as Parameters;
+\definition continuous[h: Schwartz]: Analysis.ContinuousOn Open.whole (\fun (x: Open.Carrier Open.whole) => value f h x) :=
+  \fun (a: Open.Carrier Open.whole)(epsilon: Real.Real)(positive: _) => \block {
+    \takefrom delta: \Cast[Real.Real] ({ delta: Real.Real \where Parameters.Control[(\fun (x: Point) => value f h x), a, Sets.Whole, value f h a, epsilon, delta] })
+      \by \parent.Continuity[f := f, g := h, a := a].law epsilon positive \then
+    \let control: Parameters.Control[(\fun (x: Point) => value f h x), a, Sets.Whole, value f h a, epsilon, delta] :=
+      \bysub(Real.Real, { delta: Real.Real \where Parameters.Control[(\fun (x: Point) => value f h x), a, Sets.Whole, value f h a, epsilon, delta] }, delta) \then
+    \return Logic.existsIntro[Real.Real, { delta: Real.Real \where Analysis.ContinuityControl[Open.whole, (\fun (x: Open.Carrier Open.whole) => value f h x), a, epsilon, delta] }] delta
+      (Analysis.ContinuityControl[Open.whole, (\fun (x: Open.Carrier Open.whole) => value f h x), a, epsilon, delta] {
+        positive := control.positive, estimate := \fun (x: Open.Carrier Open.whole)(near: _) => control.estimate x (\refl(x)) near,
+      })
+  };
+\definition family[d: Directions]: Open.ScalarFunction Open.whole := \fun (x: Open.Carrier Open.whole) => value f (Operations.iterated g d) x;
+\definition contDiff[k: N.Nat^]: Smooth.ContDiffOn Open.whole k (family Directions::nil) :=
+  Logic.existsIntro[Smooth.PartialFamily Open.whole, { derivatives: Smooth.PartialFamily Open.whole \where Smooth.ContDiffLaws[Open.whole, family Directions::nil, k, derivatives] }] family
+    (Smooth.ContDiffLaws[Open.whole, family Directions::nil, k, family] {
+      partials := Smooth.PartialFamilyLaws[Open.whole, family Directions::nil, k, family] {
+        function := \refl(family Directions::nil), derivative := \fun (d: Directions)(bound: _)(i: Coordinate) => partial f (Operations.iterated g d) i,
+      },
+      continuous := \fun (d: Directions)(bound: _) => continuous (Operations.iterated g d),
+    });
+\definition smooth: Smooth.SmoothOn Open.whole (family Directions::nil) := contDiff;

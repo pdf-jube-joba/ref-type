@@ -1,0 +1,36 @@
+\import \root.Euclidean[n := n] \as Base;
+\import \root.Euclidean[n := n].Convolution[] \as Convolution;
+\import \parent.\parent.Complex[] \as S;
+\import complex.Complex[] \as C;
+\import C.Def[] \as D;
+\import C.Prop[] \as CL;
+\import measure_convergence.On[A := Point, mu := Lebesgue.measure].Complex[] \as CI;
+\import I.Linear[] \as Linear;
+\import I.Negation[] \as Negative;
+\import lp_spaces.On[A := Point, mu := Lebesgue.measure].One[].Norm[] \as Equal;
+\definition function[f, g: S.Function]: S.Function := S.Function {
+  real := Operations.add (Convolution.convolve f.real g.real) (Operations.scale (Real.neg Real.one) (Convolution.convolve f.imaginary g.imaginary)),
+  imaginary := Operations.add (Convolution.convolve f.real g.imaginary) (Convolution.convolve f.imaginary g.real),
+};
+\definition realSection[f, g: S.Function][x: Point]: I.Representatives := Linear.addRepresentative (Convolution.section f.real g.real x) (Negative.representative (Convolution.section f.imaginary g.imaginary x));
+\definition imaginarySection[f, g: S.Function][x: Point]: I.Representatives := Linear.addRepresentative (Convolution.section f.real g.imaginary x) (Convolution.section f.imaginary g.real x);
+\definition section[f, g: S.Function][x: Point]: CI.Representatives := \into[CI.Function]((\fun (y: Point) => D.mul (S.value f y) (S.value g (difference x y))), CI.Representatives) \by {
+  Logic.And[_, _]::# (I.integralLaw (realSection f g x)).integrable (I.integralLaw (imaginarySection f g x)).integrable
+};
+\definition integral[f, g: S.Function][x: Point]: CI.integral (section f g x) = S.value (function f g) x := CL.ext _ _
+  (trans!{Real.Real} _ _ _ (Linear.integralAdd (Convolution.section f.real g.real x) (Negative.representative (Convolution.section f.imaginary g.imaginary x)))
+    (congr!{Real.Real Real.Real} (Real.add (Convolution.value f.real g.real x)) _ _
+      (trans!{Real.Real} _ _ _ (Negative.integralNeg (Convolution.section f.imaginary g.imaginary x))
+        (sym!{Real.Real} _ _ (trans!{Real.Real} _ _ _ (Laws.fieldMulNegLeft Real.one (Convolution.value f.imaginary g.imaginary x))
+          (congr!{Real.Real Real.Real} Real.neg _ _ (Laws.fieldMulOneLeft (Convolution.value f.imaginary g.imaginary x))))))))
+  (Linear.integralAdd (Convolution.section f.real g.imaginary x) (Convolution.section f.imaginary g.real x));
+\module Joint(f, g: S.Function);
+\module Fourier(f, g: S.Function, xi: Point);
+
+\module Differentiation(f, g: S.Function, i: Coordinate);
+\definition partial[f, g: S.Function][i: Coordinate][x: Point]: S.value (S.partial (function f g) i) x = S.value (function f (S.partial g i)) x :=
+  CL.ext _ _
+    (congr!{Base.Function Real.Real} (\fun (h: Base.Function) => Base.value h x) _ _ Differentiation[f := f, g := g, i := i].real)
+    (congr!{Base.Function Real.Real} (\fun (h: Base.Function) => Base.value h x) _ _ Differentiation[f := f, g := g, i := i].imaginary);
+\module Symmetry(f, g: S.Function, x: Point);
+\definition commutative[f, g: S.Function][x: Point]: S.value (function f g) x = S.value (function g f) x := Symmetry[f := f, g := g, x := x].law;
