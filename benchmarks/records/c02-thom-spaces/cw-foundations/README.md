@@ -1,11 +1,11 @@
 # C02 CW 基盤の途中検査
 
 `preliminary.json` に通常のソース付きキャッシュ検証の計数を保存する。
-最新の検査は `native-pairs-focused` であり、対応する数学ソースの commit を JSON に記録した。
-実行コマンドは `target/release/cli libs/topology/thom_spaces --module thom_spaces --memory-mib 12288 --cache-budget-mib 12288 --cache-stats --diagnostics compact --report-json work/c02/cw/native-pairs-focused.json`。
+最新の検査は `pair-attachment-models-focused` であり、対応する数学ソースの commit を JSON に記録した。
+実行コマンドは `target/release/cli libs/topology/thom_spaces --module thom_spaces --memory-mib 12288 --cache-budget-mib 12288 --cache-stats --diagnostics compact --report-json work/c02/cw/pair-attachment-models-focused.json`。
 ソースの編集はこの検査が終了してから再開した。
-この検査は終了コード0で、336 module を検査し、1596 module を再利用した。
-ソース段階は4214、キャッシュ保存失敗・破損・復旧・再実行・失われた段階は0である。
+この検査は終了コード0で、356 module を検査し、1596 module を再利用した。
+ソース段階は4449、キャッシュ保存失敗・破損・復旧・再実行・失われた段階は0である。
 
 これは有限 CW 対の構成中の検査であり、C02 の完成後の全体検査を置き換えない。
 旧ソースの通常全体検査は `../continuation/` に残している。
