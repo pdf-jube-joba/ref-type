@@ -1,0 +1,25 @@
+\import \root.Euclidean[n := n].Gaussian[] \as Gaussian;
+\import \root.Euclidean[n := n].Gaussian[].Smooth[] \as Regularity;
+\import \root.Euclidean[n := n].Lines[f := Quadratic.argument, a := a, i := i] \as Line;
+\definition point[t: Real.Real]: Point := Coordinates.replace a i t;
+\definition section[t: Real.Real]: Real.Real := Exp.value (Line.function t);
+\definition agreement[t: Real.Real]: section t = Gaussian.function (point t) := congr!{Real.Real Real.Real} Exp.value _ _ (Quadratic.argumentValue (point t));
+\definition derivative: Derivative.HasDerivativeAt (\fun (t: Real.Real) => Gaussian.function (point t)) (a i)
+  (Real.mul (Real.neg (a i)) (Gaussian.function a)) :=
+  \idelim section = (\fun (t: Real.Real) => Gaussian.function (point t))
+    \with h: (Real.Real -> Real.Real) => Derivative.HasDerivativeAt h (a i) (Real.mul (Real.neg (a i)) (Gaussian.function a)) \by {
+      base: \idelim Real.mul (Exp.value (Line.function (a i))) (Differential.apply i Quadratic.argument (Whole.point (point (a i)))) = Real.mul (Real.neg (a i)) (Gaussian.function a)
+        \with d: Real.Real => Derivative.HasDerivativeAt section (a i) d \by {
+          base: Chain.derivative Line.function Exp.value (a i) _ _ (Line.derivative (a i)) (Exp.derivative (Line.function (a i))),
+          equality: trans!{Real.Real} _ _ _
+            (congr!{Real.Real Real.Real Real.Real} Real.mul _ _ _ _ (agreement (a i)) (Quadratic.argumentDerivative i (point (a i))))
+            (trans!{Real.Real} _ _ _
+              (congr!{Point Real.Real} (\fun (x: Point) => Real.mul (Gaussian.function x) (Real.neg (x i))) _ _ (Space.replaceOriginal a i))
+              (Laws.fieldMulComm (Gaussian.function a) (Real.neg (a i))))
+        },
+      equality: \axiom:funext(section, (\fun (t: Real.Real) => Gaussian.function (point t)), agreement)
+    };
+\definition partial: Analysis.HasPartialDerivativeAt Open.whole Regularity.function i (Whole.point a) (Real.mul (Real.neg (a i)) (Gaussian.function a)) :=
+  Analysis.Operations[].sectionPartial Open.whole Regularity.function (Whole.point a) i (\fun (t: Real.Real) => Gaussian.function (point t)) _
+    (congr!{Point Real.Real} Gaussian.function _ _ (Space.replaceOriginal a i))
+    (\fun (t: Real.Real)(x: Open.Carrier Open.whole)(same: _) => congr!{Point Real.Real} Gaussian.function _ _ (sym!{Point} _ _ same)) derivative;

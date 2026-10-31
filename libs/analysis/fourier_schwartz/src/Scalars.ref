@@ -58,3 +58,56 @@
 \definition imaginaryAbsolute[z: C.Complex]: R.Le (Product.abs (C.im z)) (Absolute.abs z) :=
   R.leReplaceRight _ _ _ (congr!{Real.Real Real.Real} Root.sqrt _ _ (Laws.addComm (Real.mul (C.im z) (C.im z)) (Real.mul (C.re z) (C.re z))))
     (realAbsolute (C.make (C.im z) (C.re z)));
+\import \root.Phase[] \as Phase;
+\definition scaleCompose[a, b: Real.Real][z: C.Complex]: D.scale a (D.scale b z) = D.scale (Real.mul a b) z := CL.ext _ _
+  (sym!{Real.Real} _ _ (Laws.fieldMulAssoc a b (C.re z))) (sym!{Real.Real} _ _ (Laws.fieldMulAssoc a b (C.im z)));
+\definition scaleRight[a: Real.Real][z, w: C.Complex]: D.mul z (D.scale a w) = D.scale a (D.mul z w) :=
+  trans!{C.Complex} _ _ _ (CL.mulComm z (D.scale a w))
+    (trans!{C.Complex} _ _ _ (CL.scaleMulLeft a w z) (congr!{C.Complex C.Complex} (D.scale a) _ _ (CL.mulComm w z)));
+\definition negativeAsScale[z: C.Complex]: D.neg z = D.scale (Real.neg Real.one) z := CL.ext _ _
+  (sym!{Real.Real} _ _ (trans!{Real.Real} _ _ _ (Laws.fieldMulNegLeft Real.one (C.re z)) (congr!{Real.Real Real.Real} Real.neg _ _ (Laws.fieldMulOneLeft (C.re z)))))
+  (sym!{Real.Real} _ _ (trans!{Real.Real} _ _ _ (Laws.fieldMulNegLeft Real.one (C.im z)) (congr!{Real.Real Real.Real} Real.neg _ _ (Laws.fieldMulOneLeft (C.im z)))));
+\definition negativeUnitScale[a: Real.Real][z: C.Complex]: D.mul (D.neg D.i) (D.scale a z) = D.scale (Real.neg a) (Phase.rotate z) := eq_reason_in!{C.Complex _
+  "=" _ "by" { congr!{C.Complex C.Complex} (\fun (w: C.Complex) => D.mul w (D.scale a z)) _ _ (negativeAsScale D.i) }
+  "=" _ "by" { CL.scaleMulLeft (Real.neg Real.one) D.i (D.scale a z) }
+  "=" _ "by" { congr!{C.Complex C.Complex} (D.scale (Real.neg Real.one)) _ _ (scaleRight a D.i z) }
+  "=" _ "by" { scaleCompose (Real.neg Real.one) a (D.mul D.i z) }
+  "=" _ "by" { congr!{Real.Real C.Complex C.Complex} D.scale _ _ _ _
+    (trans!{Real.Real} _ _ _ (Laws.fieldMulNegLeft Real.one a) (congr!{Real.Real Real.Real} Real.neg _ _ (Laws.fieldMulOneLeft a))) (Phase.rotateAsProduct z) }
+};
+\definition rotateProduct[z, w: C.Complex]: D.mul (Phase.rotate z) w = Phase.rotate (D.mul z w) := eq_reason_in!{C.Complex _
+  "=" _ "by" { congr!{C.Complex C.Complex} (\fun (a: C.Complex) => D.mul a w) _ _ (sym!{C.Complex} _ _ (Phase.rotateAsProduct z)) }
+  "=" _ "by" { CL.mulAssoc D.i z w }
+  "=" _ "by" { Phase.rotateAsProduct (D.mul z w) }
+};
+\definition differentiatedProduct[a: Real.Real][z, w: C.Complex]: D.mul z (D.scale (Real.neg a) (Phase.rotate w)) = D.mul (D.scale (Real.neg a) (Phase.rotate z)) w := eq_reason_in!{C.Complex _
+  "=" _ "by" { scaleRight (Real.neg a) z (Phase.rotate w) }
+  "=" _ "by" { congr!{C.Complex C.Complex} (D.scale (Real.neg a)) _ _ (Phase.Global[].rotateRight z w) }
+  "=" _ "by" { congr!{C.Complex C.Complex} (D.scale (Real.neg a)) _ _ (sym!{C.Complex} _ _ (rotateProduct z w)) }
+  "=" _ "by" { sym!{C.Complex} _ _ (CL.scaleMulLeft (Real.neg a) (Phase.rotate z) w) }
+};
+
+\definition addCancelRight[a, b, c: C.Complex]: D.add a c = D.add b c -> a = b :=
+  \fun (same: _) => CL.ext _ _ (Laws.addCancelRight _ _ (C.re c) (congr!{C.Complex Real.Real} C.re _ _ same))
+    (Laws.addCancelRight _ _ (C.im c) (congr!{C.Complex Real.Real} C.im _ _ same));
+\definition sumZero[a, b: C.Complex]: D.add a b = D.zero -> a = D.neg b :=
+  \fun (same: _) => addCancelRight a (D.neg b) b (trans!{C.Complex} _ _ _ same (sym!{C.Complex} _ _ (CL.addNegLeft b)));
+\definition negateScale[a: Real.Real][z: C.Complex]: D.neg (D.scale (Real.neg a) z) = D.scale a z := CL.ext _ _
+  (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} Real.neg _ _ (Laws.fieldMulNegLeft a (C.re z))) (Laws.negInvolutive _))
+  (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} Real.neg _ _ (Laws.fieldMulNegLeft a (C.im z))) (Laws.negInvolutive _));
+
+\definition scaleOne[z: C.Complex]: D.scale Real.one z = z := CL.ext _ _ (Laws.fieldMulOneLeft (C.re z)) (Laws.fieldMulOneLeft (C.im z));
+\definition scaleAdd[a, b: Real.Real][z: C.Complex]: D.add (D.scale a z) (D.scale b z) = D.scale (Real.add a b) z := CL.ext _ _
+  (sym!{Real.Real} _ _ (Algebra.mulAddRight a b (C.re z))) (sym!{Real.Real} _ _ (Algebra.mulAddRight a b (C.im z)));
+\definition rotateScale[a: Real.Real][z: C.Complex]: Phase.rotate (D.scale a z) = D.scale a (Phase.rotate z) := CL.ext _ _
+  (sym!{Real.Real} _ _ (Laws.fieldMulNegRight a (C.im z))) (\refl(Real.mul a (C.re z)));
+\definition rotateTwice[z: C.Complex]: Phase.rotate (Phase.rotate z) = D.neg z := \refl(Phase.rotate (Phase.rotate z));
+\definition scaleNegative[a: Real.Real][z: C.Complex]: D.scale a (D.neg z) = D.scale (Real.neg a) z := CL.ext _ _
+  (trans!{Real.Real} _ _ _ (Laws.fieldMulNegRight a (C.re z)) (sym!{Real.Real} _ _ (Laws.fieldMulNegLeft a (C.re z))))
+  (trans!{Real.Real} _ _ _ (Laws.fieldMulNegRight a (C.im z)) (sym!{Real.Real} _ _ (Laws.fieldMulNegLeft a (C.im z))));
+\definition doubleRotation[a: Real.Real][z: C.Complex]: D.scale a (Phase.rotate (D.scale a (Phase.rotate z))) = D.scale (Real.neg (Real.mul a a)) z := eq_reason_in!{C.Complex _
+  "=" _ "by" { congr!{C.Complex C.Complex} (D.scale a) _ _ (rotateScale a (Phase.rotate z)) }
+  "=" _ "by" { scaleCompose a a (Phase.rotate (Phase.rotate z)) }
+  "=" _ "by" { congr!{C.Complex C.Complex} (D.scale (Real.mul a a)) _ _ (rotateTwice z) }
+  "=" _ "by" { scaleNegative (Real.mul a a) z }
+};

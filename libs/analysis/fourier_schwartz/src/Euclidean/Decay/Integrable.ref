@@ -1,0 +1,34 @@
+\import \parent.Envelope[] \as Envelope;
+\import \parent.WeightBounds[] \as Bounds;
+\import N.Induction[] \as Induction;
+\definition predicate[x: Point][k: N.Nat^]: \Prop := Sets.Member (E.points (Exhaustion.box k)) x;
+\definition dominateAt[x: Point]: \forall (k: N.Nat^) -> Induction.LeastLaws[(predicate x), k] -> R.Le (Product.abs (data.function x)) (Real.mul data.coefficient (Envelope.value x)) :=
+  \induction (k: N.Nat^) \return Induction.LeastLaws[(predicate x), k] -> R.Le (Product.abs (data.function x)) (Real.mul data.coefficient (Envelope.value x)) \with {
+    | zero: \fun (minimal: Induction.LeastLaws[(predicate x), N.Nat^::zero]) => \block {
+      \let inside: Sets.Member (boxes N.Nat^::zero) x := Exhaustion.boxGrowing N.Nat^::zero (N.Nat^::succ N.Nat^::zero) (Nat.zeroLe _) x minimal.member \then
+      \let below: R.Le Real.one (Envelope.value x) := R.leReplaceLeft _ _ _
+        (trans!{Real.Real} _ _ _ (\parent.Term[k := N.Nat^::zero].inside x inside) (Numeric.one degree)) (Envelope.termBelow N.Nat^::zero x) \then
+      \return R.leTrans _ data.coefficient _ (Bounds.headBound data.function data.coefficient x data.bound)
+        (R.leReplaceLeft _ _ _ (Algebra.mulOneRight data.coefficient)
+          (Estimates.mulMonotone _ _ _ (Scaling.nonnegative data.coefficient) below))
+    }
+    | succ: \fun (k: N.Nat^)(previous: _)(minimal: Induction.LeastLaws[(predicate x), N.Nat^::succ k]) => \block {
+      \let outside: Logic.Not (predicate x k) := \fun (member: _) => Nat.ltIrrefl k (Nat.ltOfSuccLe k k (minimal.least k member)) \then
+      \let below: R.Le (coefficient k) (Envelope.value x) := R.leReplaceLeft _ _ _ (\parent.Term[k := k].inside x minimal.member) (Envelope.termBelow k x) \then
+      \return R.leTrans _ _ _ (Bounds.tailBound data.function data.coefficient k x data.bound outside)
+        (R.leReplaceLeft _ _ _ (Laws.fieldMulComm data.coefficient (coefficient k))
+          (Estimates.mulMonotone _ _ _ (Scaling.nonnegative data.coefficient) below))
+    }
+  };
+\definition dominated[x: Point]: R.Le (Product.abs (data.function x)) (Real.mul data.coefficient (Envelope.value x)) := \block {
+  \takefrom k: Induction.LeastValue (predicate x) \by Induction.leastExists (predicate x) (Exhaustion.covers x) \then
+  \return dominateAt x k (\bysub(N.Nat^, { k: N.Nat^ \where Induction.LeastLaws[(predicate x), k] }, k))
+};
+\definition dominator: I.Representatives := Scaling.scalarRepresentative data.coefficient Envelope.value;
+\definition integrable: I.Integrable data.function := Logic.And[_, _]::# data.measurable
+  (I.finiteMono (\fun (x: Point) => Product.abs (data.function x)) (\fun (x: Point) => Product.abs (dominator x))
+    (\fun (x: Point) => Product.absNonnegative (data.function x))
+    (\fun (x: Point) => R.leReplaceRight _ _ _
+      (sym!{Real.Real} _ _ (Product.absOfNonnegative (dominator x) (Laws.fieldMulNonnegative _ _ (Scaling.nonnegative data.coefficient) (Envelope.nonnegative x)))) (dominated x))
+    (I.integralLaw dominator).integrable.right);
+\definition value: I.Representatives := \into[Point -> Real.Real](data.function, I.Representatives) \by { integrable };

@@ -1,0 +1,45 @@
+\import \root.Euclidean[n := n].Kernel[] \as Kernel;
+\import \parent.Smooth[xi := xi] \as Regularity;
+\import \root.ComplexCalculus[] \as Calculus;
+\import \root.Phase[] \as Rotation;
+\import calculus.Real[].Multivariable[n := n].Space[].Prop[] \as Space;
+\import calculus.Real[].Multivariable[n := n].Space[].Linear[] \as Linear;
+\import Real.FiniteSums[].Linear[] \as Finite;
+\import Open.Analysis[] \as Analysis;
+\import Analysis.Operations[] \as Operations;
+\import std.Logic[].Classical[] \as Classical;
+\definition basisSymmetry[i, j: Coordinate]: Coordinates.basis i j = Coordinates.basis j i :=
+  Logic.orElim _ _ _ (Classical.excludedMiddle (i = j))
+    (\fun (same: i = j) => \idelim i = j \with k: Coordinate => Coordinates.basis i k = Coordinates.basis k i \by { base: \refl(Coordinates.basis i i), equality: same })
+    (\fun (different: Logic.Not (i = j)) => trans!{Real.Real} _ _ _
+      (Space.replaceDifferent Coordinates.origin i j Real.one different)
+      (sym!{Real.Real} _ _ (Space.replaceDifferent Coordinates.origin j i Real.one (\fun (same: j = i) => different (sym!{Coordinate} _ _ same)))));
+\definition projection[i: Coordinate]: Finite.Map n := Finite.Data[n] {
+  apply := \fun (x: Point) => x i,
+  additive := \fun (x, y: Point) => \refl(Real.add (x i) (y i)),
+  homogeneous := \fun (a: Real.Real)(x: Point) => \refl(Real.mul a (x i)),
+};
+\definition pairingBasis[x: Point][i: Coordinate]: Kernel.pairing x (Coordinates.basis i) = x i :=
+  trans!{Real.Real} _ _ _ (Sum.congruent n _ _ (\fun (j: Coordinate) => congr!{Real.Real Real.Real} (Real.mul (x j)) _ _ (basisSymmetry i j)))
+    (sym!{Real.Real} _ _ (Finite.expansion n (projection i) x));
+\definition linear: Model.Differential[].Def[].LinearMap := Linear.functional (Coordinates.negPoint xi);
+\definition argument: Open.ScalarFunction Open.whole := Regularity.argument;
+\definition linearFunction: Open.ScalarFunction Open.whole := \fun (x: Open.Carrier Open.whole) => linear.apply x;
+\definition argumentEquation[x: Open.Carrier Open.whole]: linearFunction x = argument x :=
+  trans!{Real.Real} _ _ _ (Kernel.pairingNegative xi x)
+    (congr!{Real.Real Real.Real} Real.neg _ _ (Kernel.pairingSymmetric xi x));
+\definition argumentPartial[i: Coordinate][a: Open.Carrier Open.whole]: Analysis.HasPartialDerivativeAt Open.whole argument i a (Real.neg (xi i)) :=
+  \idelim linearFunction = argument \with h: Open.ScalarFunction Open.whole => Analysis.HasPartialDerivativeAt Open.whole h i a (Real.neg (xi i)) \by {
+    base: \idelim linear.apply (Coordinates.basis i) = Real.neg (xi i) \with d: Real.Real => Analysis.HasPartialDerivativeAt Open.whole linearFunction i a d \by {
+      base: Analysis.Differential[U := Open.whole, f := linearFunction, a := a, d := linear].Partial[i := i].law (Analysis.Linear[U := Open.whole, d := linear].law a),
+      equality: pairingBasis (Coordinates.negPoint xi) i
+    },
+    equality: \axiom:funext(linearFunction, argument, argumentEquation)
+  };
+\definition coefficient[x: Point][i: Coordinate]: C.Complex := D.scale (Real.neg (xi i)) (Rotation.rotate (Kernel.value x xi));
+\module At(a: Open.Carrier Open.whole, i: Coordinate);
+\definition realPartial[i: Coordinate]: Analysis.HasPartialDerivative Open.whole (\fun (x: Open.Carrier Open.whole) => C.re (Kernel.value x xi)) i
+  (\fun (x: Open.Carrier Open.whole) => C.re (coefficient x i)) := \fun (a: Open.Carrier Open.whole) => At[a := a, i := i].real;
+\definition imaginaryPartial[i: Coordinate]: Analysis.HasPartialDerivative Open.whole (\fun (x: Open.Carrier Open.whole) => C.im (Kernel.value x xi)) i
+  (\fun (x: Open.Carrier Open.whole) => C.im (coefficient x i)) := \fun (a: Open.Carrier Open.whole) => At[a := a, i := i].imaginary;
+\module Line(a: Point, i: Coordinate);

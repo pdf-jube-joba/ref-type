@@ -1,0 +1,36 @@
+\import \root.Euclidean[n := n].Gaussian[] \as Gaussian;
+\import \parent.Smooth[] \as Regularity;
+\import \parent.\parent.CoordinateMultiplication[] \as Multiplication;
+\definition expression: Directions -> Polynomial.Expression := \induction (d: Directions) \return Polynomial.Expression \with {
+  | nil: Polynomial.Expression::constant Real.one
+  | cons: \fun (i: Coordinate)(tail: Directions)(previous: Polynomial.Expression) => Polynomial.Expression::add (Polynomial.partial i previous)
+    (Polynomial.Expression::scale (Real.neg Real.one) (Polynomial.Expression::coordinate i previous))
+};
+\definition coefficient[p: Polynomial.Expression][i: Coordinate][x: Point]:
+  Base.value (Polynomial.function (Polynomial.Expression::scale (Real.neg Real.one) (Polynomial.Expression::coordinate i p))) x =
+  Real.mul (Real.neg (x i)) (Base.value (Polynomial.function p) x) := eq_reason_in!{Real.Real _
+    "=" _ "by" { Laws.fieldMulNegLeft Real.one (Real.mul (x i) (Base.value (Polynomial.function p) x)) }
+    "=" _ "by" { congr!{Real.Real Real.Real} Real.neg _ _ (Laws.fieldMulOneLeft _) }
+    "=" _ "by" { sym!{Real.Real} _ _ (Laws.fieldMulNegLeft (x i) (Base.value (Polynomial.function p) x)) }
+  };
+\definition productDerivative[p: Polynomial.Expression][i: Coordinate]:
+  Differential.apply i (Functions.product (Polynomial.function p) Regularity.function) =
+    Functions.product (Polynomial.function (Polynomial.Expression::add (Polynomial.partial i p) (Polynomial.Expression::scale (Real.neg Real.one) (Polynomial.Expression::coordinate i p)))) Regularity.function :=
+  trans!{Function} _ _ _ (Differential.product i (Polynomial.function p) Regularity.function)
+    (Functions.ext _ _ (\fun (x: Open.Carrier Open.whole) => eq_reason_in!{Real.Real _
+      "=" _ "by" { congr!{Real.Real Real.Real Real.Real} Real.add _ _ _ _
+        (congr!{Function Real.Real} (\fun (h: Function) => Real.mul (h x) (Gaussian.function x)) _ _ (Polynomial.derivative i p))
+        (congr!{Real.Real Real.Real} (Real.mul (Polynomial.function p x)) _ _ (Regularity.partialValue i x)) }
+      "=" _ "by" { congr!{Real.Real Real.Real} (Real.add (Real.mul (Polynomial.function (Polynomial.partial i p) x) (Gaussian.function x))) _ _
+        (trans!{Real.Real} _ _ _ (Algebra.mulSwap (Polynomial.function p x) (Real.neg (x i)) (Gaussian.function x))
+          (sym!{Real.Real} _ _ (Laws.fieldMulAssoc (Real.neg (x i)) (Polynomial.function p x) (Gaussian.function x)))) }
+      "=" _ "by" { congr!{Real.Real Real.Real} (Real.add (Real.mul (Polynomial.function (Polynomial.partial i p) x) (Gaussian.function x))) _ _
+        (congr!{Real.Real Real.Real} (\fun (r: Real.Real) => Real.mul r (Gaussian.function x)) _ _ (sym!{Real.Real} _ _ (coefficient p i x))) }
+      "=" _ "by" { sym!{Real.Real} _ _ (Algebra.mulAddRight _ _ (Gaussian.function x)) }
+    }));
+\definition jets: \forall (d: Directions) -> jet Regularity.function d = Functions.product (Polynomial.function (expression d)) Regularity.function :=
+  \induction (d: Directions) \return jet Regularity.function d = Functions.product (Polynomial.function (expression d)) Regularity.function \with {
+    | nil: sym!{Function} _ _ (Functions.oneLeft Regularity.function)
+    | cons: \fun (i: Coordinate)(tail: Directions)(previous: _) => trans!{Function} _ _ _ (congr!{Function Function} (Differential.apply i) _ _ previous)
+      (productDerivative (expression tail) i)
+  };

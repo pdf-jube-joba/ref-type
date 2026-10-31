@@ -1,0 +1,31 @@
+\import \root.Euclidean[n := n].Gaussian[] \as Gaussian;
+\import \parent.Quadratic[] \as Quadratic;
+\import calculus.Real[].OneDimension[] \as One;
+\import calculus.Real[].Multivariable[n := One.dimension].Open[] \as Output;
+\import Output.Smooth[].Algebra[U := Output.whole] \as OutputFunctions;
+\import calculus.Maps[n := n, m := One.dimension] \as Maps;
+\import Open.Analysis[] \as Analysis;
+\import calculus.Real[].Multivariable[n := n].Space[].Prop[] \as Space;
+\import calculus.Real[].Derivative[].Def[] \as Derivative;
+\import calculus.Real[].Derivative[].Chain[] \as Chain;
+\definition point[x: Open.Carrier Open.whole]: Output.Carrier Output.whole :=
+  \into[calculus.Real[].Multivariable[n := One.dimension].Point]((\fun (i: One.Index) => Quadratic.argument x), Output.whole.points) \by { \refl(\fun (i: One.Index) => Quadratic.argument x) };
+\definition map: Maps.Map Open.whole Output.whole := \into[Maps.Data[Open.whole, Output.whole]](Maps.Data[Open.whole, Output.whole] { apply := point }, Maps.Map Open.whole Output.whole) \by {
+  Maps.Laws[Open.whole, Output.whole, Maps.Data[Open.whole, Output.whole]::# point] { smooth := \fun (i: One.Index) => Integrability.regular Quadratic.argument }
+};
+\import Maps.Composition[U := Open.whole, V := Output.whole, f := map] \as Composition;
+\definition outer: OutputFunctions.Function := \into[Output.ScalarFunction Output.whole](Exp.Smooth[].function, OutputFunctions.Function) \by { Exp.Smooth[].smooth };
+\definition composed: Function := Composition.function outer;
+\definition equation[x: Open.Carrier Open.whole]: composed x = Gaussian.function x := congr!{Real.Real Real.Real} Exp.value _ _ (Quadratic.argumentValue x);
+\definition regular: Smooth.SmoothOn Open.whole (\fun (x: Open.Carrier Open.whole) => Gaussian.function x) := \block {
+  \let plain: Open.ScalarFunction Open.whole := composed \then
+  \return \idelim plain = (\fun (x: Open.Carrier Open.whole) => Gaussian.function x)
+    \with h: Open.ScalarFunction Open.whole => Smooth.SmoothOn Open.whole h \by {
+      base: Integrability.regular composed,
+      equality: \axiom:funext(plain, (\fun (x: Open.Carrier Open.whole) => Gaussian.function x), equation)
+    }
+};
+\definition function: Function := \into[Open.ScalarFunction Open.whole]((\fun (x: Open.Carrier Open.whole) => Gaussian.function x), Function) \by { regular };
+\module At(a: Point, i: Coordinate);
+\definition partialValue[i: Coordinate][x: Point]: Base.value (Differential.apply i function) x = Real.mul (Real.neg (x i)) (Gaussian.function x) :=
+  Analysis.Properties[].partialUnique Open.whole function i (Whole.point x) _ _ (Partial.partialLaw Open.whole function i (Whole.point x)) At[a := x, i := i].partial;

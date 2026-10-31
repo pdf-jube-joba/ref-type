@@ -1,0 +1,19 @@
+\import Maps.Composition[U := Open.whole, V := Open.whole, f := Translation.map Open.whole a] \as Composition;
+\definition function[f: Function]: Function := Composition.function f;
+\definition coordinate[j: Coordinate]: Maps.coordinateFunction Open.whole Open.whole (Translation.map Open.whole a) j =
+  Functions.plus (Functions.constant (a j)) (Projection.function j) := Functions.ext _ _ (\fun (x: Open.Carrier Open.whole) => \refl(Real.add (a j) (x j)));
+\definition inner[j, i: Coordinate]: Composition.innerPartial j i = Functions.constant (Projection.kronecker j i) :=
+  trans!{Function} _ _ _ (congr!{Function Function} (Differential.apply i) _ _ (coordinate j))
+    (trans!{Function} _ _ _ (Differential.addition i (Functions.constant (a j)) (Projection.function j))
+      (Functions.ext _ _ (\fun (x: Open.Carrier Open.whole) => trans!{Real.Real} _ _ _
+        (congr!{Real.Real Real.Real Real.Real} Real.add _ _ _ _
+          (congr!{Function Real.Real} (\fun (h: Function) => h x) _ _ (Differential.constant i (a j)))
+          (congr!{Function Real.Real} (\fun (h: Function) => h x) _ _ (Projection.partial j i))) (Laws.addZeroLeft _))));
+\definition gradient[f: Function][i: Coordinate][x: Open.Carrier Open.whole]: Composition.gradient f i x = function (Differential.apply i f) x :=
+  trans!{Real.Real} _ _ _ (Sum.congruent n _ _ (\fun (j: Coordinate) =>
+    congr!{Real.Real Real.Real} (Real.mul (Composition.scalar (Differential.apply j f) x)) _ _
+      (congr!{Function Real.Real} (\fun (h: Function) => h x) _ _ (inner j i))))
+    (Basis.pairingBasis (\fun (j: Coordinate) => function (Differential.apply j f) x) i);
+\definition partial[f: Function][i: Coordinate]: Differential.apply i (function f) = function (Differential.apply i f) :=
+  Functions.ext (Differential.apply i (function f)) (function (Differential.apply i f))
+    (\fun (x: Open.Carrier Open.whole) => trans!{Real.Real} _ _ _ (Composition.derivative f i x) (gradient f i x));

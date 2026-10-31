@@ -1,0 +1,66 @@
+\definition partialNonnegative: \forall (j: N.Nat^)(x: Point) -> R.Le Real.zero (partial j x) :=
+  \induction (j: N.Nat^) \return \forall (x: Point) -> R.Le Real.zero (partial j x) \with {
+    | zero: \fun (x: Point) => R.leRefl Real.zero
+    | succ: \fun (j: N.Nat^)(previous: _)(x: Point) => Laws.addNonnegative _ _ (previous x) (\parent.Term[k := j].nonnegative x)
+  };
+\definition partialBound: \forall (j: N.Nat^)(x: Point) -> R.Le (partial j x) (dyadicPartial j) :=
+  \induction (j: N.Nat^) \return \forall (x: Point) -> R.Le (partial j x) (dyadicPartial j) \with {
+    | zero: \fun (x: Point) => R.leRefl Real.zero
+    | succ: \fun (j: N.Nat^)(previous: _)(x: Point) => Estimates.addLe _ _ _ _ (previous x)
+      (R.leTrans _ _ _ (\parent.Term[k := j].bounded x) (coefficientBound j))
+  };
+\definition sequence: Convergence.MeasurableSequence := \into[N.Nat^ -> Point -> Real.Real]((\fun (j: N.Nat^)(x: Point) => partial j x), Convergence.MeasurableSequence) \by {
+  \fun (j: N.Nat^) => (I.integralLaw (partial j)).integrable.left
+};
+\definition increasing: Convergence.FunctionIncreasing sequence := \fun (j: N.Nat^)(x: Point) => Algebra.leAddRight _ _ (\parent.Term[k := j].nonnegative x);
+\definition values[x: Point]: \Pow Real.Real := Convergence.PointValues sequence x;
+\definition nonempty[x: Point]: Complete.Nonempty (values x) := Logic.existsIntro[Real.Real, values x] Real.zero (Convergence.pointValueMember sequence x N.Nat^::zero);
+\definition family[x: Point]: Complete.Family := \into[\Pow Real.Real](values x, Complete.Family) \by {
+  Logic.And[_, _]::# (nonempty x)
+    (Logic.existsIntro[Real.Real, { b: Real.Real \where Complete.UpperBound (values x) b }] Numeric.two (\block {
+      \fun (r: Real.Real)(member: \In[Real.Real] (values x) r) \then
+      \takefrom j: \Cast[N.Nat^] ({ j: N.Nat^ \where r = partial j x }) \by member \then
+      \return R.leReplaceLeft _ r Numeric.two (sym!{Real.Real} _ _ (\bysub(N.Nat^, { j: N.Nat^ \where r = partial j x }, j)))
+        (R.leTrans _ _ _ (partialBound j x) (dyadicPartialBound j))
+    }))
+};
+\definition function[x: Point]: Real.Real := Complete.supremum (family x);
+\definition law[x: Point]: Complete.LeastUpperBound[values x, function x] := Complete.supremumLaw (family x);
+\definition partialBelow[j: N.Nat^][x: Point]: R.Le (partial j x) (function x) := (law x).upper _ (Convergence.pointValueMember sequence x j);
+\definition nonnegative[x: Point]: R.Le Real.zero (function x) := partialBelow N.Nat^::zero x;
+\definition termBelow[j: N.Nat^][x: Point]: R.Le (term j x) (function x) := R.leTrans _ _ _
+  (R.leReplaceRight _ _ _ (Laws.addComm (term j x) (partial j x)) (Algebra.leAddRight _ _ (partialNonnegative j x))) (partialBelow (N.Nat^::succ j) x);
+\definition supremum: Convergence.PointwiseSup sequence function := law;
+\definition measurable: M.IsMeasurable Lebesgue.measure function := Convergence.pointwiseSupMeasurable sequence function supremum (Convergence.sequenceMeasurable sequence);
+\definition factor: Real.Real := Powers.power Numeric.four n;
+\definition factorNonnegative: R.Le Real.zero factor := Numeric.nonnegative _ Numeric.fourNonnegative n;
+\definition partialIntegral: \forall (j: N.Nat^) -> I.integral (partial j) = Real.mul factor (dyadicPartial j) :=
+  \induction (j: N.Nat^) \return I.integral (partial j) = Real.mul factor (dyadicPartial j) \with {
+    | zero: trans!{Real.Real} _ _ _ I.Zero[].integralZero (sym!{Real.Real} _ _ (Laws.fieldMulZeroRight factor))
+    | succ: \fun (j: N.Nat^)(previous: _) => trans!{Real.Real} _ _ _ (Linear.integralAdd (partial j) (term j))
+      (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real Real.Real} Real.add _ _ _ _ previous (\parent.Term[k := j].integral))
+        (sym!{Real.Real} _ _ (Laws.fieldMulAdd factor (dyadicPartial j) (Dyadic.value j))))
+  };
+\definition integralBound[j: N.Nat^]: R.Le (I.integral (partial j)) (Real.mul factor Numeric.two) :=
+  R.leReplaceLeft _ _ _ (sym!{Real.Real} _ _ (partialIntegral j)) (Estimates.mulMonotone factor _ _ factorNonnegative (dyadicPartialBound j));
+\definition finite: I.Finite function := Logic.And[_, _]::# nonnegative
+  (Logic.existsIntro[Real.Real, { b: Real.Real \where I.IntegralBound[function, b] }] (Real.mul factor Numeric.two)
+    (I.IntegralBound[function, Real.mul factor Numeric.two] {
+      nonnegative := Laws.fieldMulNonnegative _ _ factorNonnegative Numeric.twoNonnegative,
+      bound := \block {
+        \fun (r: Real.Real)(member: M.below (I.lowerIntegral function) r) \then
+        \let inSup: M.below (Convergence.Sup (\fun (j: N.Nat^) => I.lowerIntegral (partial j))) r :=
+          \idelim I.lowerIntegral function = Convergence.Sup (\fun (j: N.Nat^) => I.lowerIntegral (partial j)) \with v: M.Value => M.below v r \by {
+            base: member, equality: Monotone.monotone sequence function supremum increasing
+          } \then
+        \takefrom j: \Cast[N.Nat^] ({ j: N.Nat^ \where M.below (I.lowerIntegral (partial j)) r }) \by inSup \then
+        \return R.leTrans r (I.integral (partial j)) (Real.mul factor Numeric.two)
+          ((Absolute.nonnegativeIntegralSup (partial j) (I.integral (partial j)) (partialNonnegative j) (I.integralLaw (partial j))).upper r
+            (\bysub(N.Nat^, { j: N.Nat^ \where M.below (I.lowerIntegral (partial j)) r }, j))) (integralBound j)
+      },
+    }));
+\definition integrable: I.Integrable function := Logic.And[_, _]::# measurable
+  (\idelim function = (\fun (x: Point) => Product.abs (function x)) \with h: (Point -> Real.Real) => I.Finite h \by {
+    base: finite, equality: \axiom:funext(function, (\fun (x: Point) => Product.abs (function x)), \fun (x: Point) => sym!{Real.Real} _ _ (Product.absOfNonnegative (function x) (nonnegative x)))
+  });
+\definition value: I.Representatives := \into[Point -> Real.Real](function, I.Representatives) \by { integrable };

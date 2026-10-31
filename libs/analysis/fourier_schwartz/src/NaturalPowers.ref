@@ -1,0 +1,75 @@
+\import real.Analysis[] \as Real;
+\import Real.Algebra[] \as Algebra;
+\import Real.Estimates[] \as Estimates;
+\import Real.Estimates[].Product[] \as Product;
+\import dedekind_reals.DedekindReal[] \as R;
+\import R.Arithmetic[].Prop[] \as Laws;
+\import R.Order[] \as Order;
+\import functional_analysis.Powers[] \as P;
+\import std.Data[].Nat[] \as N;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.congr;
+\use Equality.trans;
+\use Equality.sym;
+\use Equality.eq_reason_in;
+\definition one: \forall (k: N.Nat^) -> P.power Real.one k = Real.one :=
+  \induction (k: N.Nat^) \return P.power Real.one k = Real.one \with {
+    | zero: \refl(Real.one)
+    | succ: \fun (k: N.Nat^)(previous: _) => trans!{Real.Real} _ _ _ (Laws.fieldMulOneLeft (P.power Real.one k)) previous
+  };
+\definition product[a, b: Real.Real]: \forall (k: N.Nat^) -> P.power (Real.mul a b) k = Real.mul (P.power a k) (P.power b k) :=
+  \induction (k: N.Nat^) \return P.power (Real.mul a b) k = Real.mul (P.power a k) (P.power b k) \with {
+    | zero: sym!{Real.Real} _ _ (Laws.fieldMulOneLeft Real.one)
+    | succ: \fun (k: N.Nat^)(previous: _) => trans!{Real.Real} _ _ _
+      (congr!{Real.Real Real.Real} (Real.mul (Real.mul a b)) _ _ previous) (Algebra.mulFour a b (P.power a k) (P.power b k))
+  };
+\definition nonnegative[a: Real.Real]: R.Le Real.zero a -> \forall (k: N.Nat^) -> R.Le Real.zero (P.power a k) :=
+  \fun (positive: _) => \induction (k: N.Nat^) \return R.Le Real.zero (P.power a k) \with {
+    | zero: Laws.oneNonnegative
+    | succ: \fun (k: N.Nat^)(previous: _) => Laws.fieldMulNonnegative _ _ positive previous
+  };
+\definition monotone[a, b: Real.Real]: R.Le Real.zero a -> R.Le a b -> \forall (k: N.Nat^) -> R.Le (P.power a k) (P.power b k) :=
+  \fun (positive: _)(order: _) => \induction (k: N.Nat^) \return R.Le (P.power a k) (P.power b k) \with {
+    | zero: R.leRefl Real.one
+    | succ: \fun (k: N.Nat^)(previous: _) => R.leTrans _ (Real.mul a (P.power b k)) _
+      (Estimates.mulMonotone a _ _ positive previous)
+      (R.leReplace _ _ _ _ (Laws.fieldMulComm (P.power b k) a) (Laws.fieldMulComm (P.power b k) b)
+        (Estimates.mulMonotone _ _ _ (nonnegative b (R.leTrans Real.zero a b positive order) k) order))
+  };
+\definition bounded[a: Real.Real]: R.Le Real.zero a -> R.Le a Real.one -> \forall (k: N.Nat^) -> R.Le (P.power a k) Real.one :=
+  \fun (positive: _)(below: _)(k: N.Nat^) => R.leReplaceRight _ _ _ (one k) (monotone a Real.one positive below k);
+\definition successorBound[a: Real.Real]: R.Le Real.zero a -> R.Le a Real.one -> \forall (k: N.Nat^) -> R.Le (P.power a (N.Nat^::succ k)) a :=
+  \fun (positive: _)(below: _)(k: N.Nat^) => R.leReplaceRight _ _ _ (Algebra.mulOneRight a)
+    (Estimates.mulMonotone a _ _ positive (bounded a positive below k));
+\definition cancellation[a, b: Real.Real]: Real.mul a b = Real.one -> \forall (k: N.Nat^) -> Real.mul (P.power a k) (P.power b k) = Real.one :=
+  \fun (cancel: _)(k: N.Nat^) => trans!{Real.Real} _ _ _ (sym!{Real.Real} _ _ (product a b k))
+    (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (\fun (x: Real.Real) => P.power x k) _ _ cancel) (one k));
+\import N.Basic[].Def[] \as Nat;
+\import Real.Inverse[] \as Inverse;
+\definition addition[a: Real.Real][m: N.Nat^]: \forall (k: N.Nat^) -> P.power a (Nat.add m k) = Real.mul (P.power a m) (P.power a k) :=
+  \induction (k: N.Nat^) \return P.power a (Nat.add m k) = Real.mul (P.power a m) (P.power a k) \with {
+    | zero: sym!{Real.Real} _ _ (Algebra.mulOneRight (P.power a m))
+    | succ: \fun (k: N.Nat^)(previous: _) => trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (Real.mul a) _ _ previous)
+      (Algebra.mulSwap a (P.power a m) (P.power a k))
+  };
+\definition two: Real.Real := Real.add Real.one Real.one;
+\definition four: Real.Real := Real.add two two;
+\definition twoNonnegative: R.Le Real.zero two := Laws.addNonnegative _ _ Laws.oneNonnegative Laws.oneNonnegative;
+\definition fourNonnegative: R.Le Real.zero four := Laws.addNonnegative _ _ twoNonnegative twoNonnegative;
+\definition twice[a: Real.Real]: Real.mul two a = Real.add a a := trans!{Real.Real} _ _ _ (Algebra.mulAddRight Real.one Real.one a)
+  (congr!{Real.Real Real.Real Real.Real} Real.add _ _ _ _ (Laws.fieldMulOneLeft a) (Laws.fieldMulOneLeft a));
+\definition halfPositive: R.Lt Real.zero Real.half := R.ltReplaceRight _ _ _ (Algebra.mulOneRight Real.half)
+  (Estimates.halfOfPositive Real.one Product.onePositive);
+\definition twoHalf: Real.mul two Real.half = Real.one := trans!{Real.Real} _ _ _ (twice Real.half)
+  (trans!{Real.Real} _ _ _
+    (congr!{Real.Real Real.Real Real.Real} Real.add _ _ _ _ (sym!{Real.Real} _ _ (Algebra.mulOneRight Real.half)) (sym!{Real.Real} _ _ (Algebra.mulOneRight Real.half)))
+    (Estimates.halfTwice Real.one));
+\definition inverseHalf: Laws.fieldInv Real.half = two := sym!{Real.Real} _ _
+  (Inverse.inverseUnique Real.half two (Inverse.positiveNonzero Real.half halfPositive) twoHalf);
+\definition inverseProduct[a, b: Real.Real]: R.Lt Real.zero a -> R.Lt Real.zero b ->
+  Laws.fieldInv (Real.mul a b) = Real.mul (Laws.fieldInv a) (Laws.fieldInv b) :=
+  \fun (ap: _)(bp: _) => sym!{Real.Real} _ _
+    (Inverse.inverseUnique (Real.mul a b) (Real.mul (Laws.fieldInv a) (Laws.fieldInv b)) (Inverse.positiveNonzero _ (Product.mulPositive a b ap bp))
+      (trans!{Real.Real} _ _ _ (Algebra.mulFour (Laws.fieldInv a) (Laws.fieldInv b) a b)
+        (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real Real.Real} Real.mul _ _ _ _
+          (Laws.fieldInverseNonzero a (Inverse.positiveNonzero a ap)) (Laws.fieldInverseNonzero b (Inverse.positiveNonzero b bp))) (Laws.fieldMulOneLeft Real.one))));

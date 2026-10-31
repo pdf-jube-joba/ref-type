@@ -1,0 +1,34 @@
+\import Shift.Uniform[i := i] \as Uniform;
+\definition input[t: Real.Real]: I.Representatives := Integrability.representative (Shift.translate (Uniform.vector t) f);
+\module Change(t: Real.Real) {
+  \import MeasureMap.On[map := Integration.translation (Coordinates.negPoint (Uniform.vector t))].RealFunction[f := Integrability.representative f] \as Pullback;
+  \definition equation[x: Point]: Pullback.representative x = input t x := congr!{Point Real.Real} (Base.value f) _ _
+    (\axiom:funext(Coordinates.subPoint x (Coordinates.negPoint (Uniform.vector t)), Uniform.point t x, \fun (j: Coordinate) =>
+      trans!{Real.Real} _ _ _ (Algebra.subNeg (x j) (Uniform.vector t j)) (Laws.addComm (x j) (Uniform.vector t j))));
+  \import lp_spaces.On[A := Point, mu := Lebesgue.measure].One[].Norm[] \as Equality;
+  \definition integral: I.integral (input t) = I.integral (Integrability.representative f) := trans!{Real.Real} _ _ _
+    (Equality.integralPointwise (input t) Pullback.representative (\fun (x: Point) => sym!{Real.Real} _ _ (equation x))) Pullback.integral;
+}
+\definition constant[t: Real.Real]: I.integral (input t) = I.integral (Integrability.representative f) := Change[t := t].integral;
+\module Pointwise(x: Point);
+\definition target: I.Representatives := Integrability.representative (Operations.partial f i);
+\definition data: Differentiation.Data := Differentiation.Data {
+  function := input, derivative := target, at := Real.zero, radius := lp_spaces.Exponential[].one,
+  bound := Uniform.dominator (Operations.partial f i),
+  dominated := \fun (t: Real.Real)(different: _)(near: _)(x: Point) => Bounds.slopeLocal
+    (\fun (s: Real.Real) => input s x) (\fun (s: Real.Real) => Base.value (Operations.partial f i) (Uniform.point s x)) Real.zero t _ Real.one
+    (\fun (s: Real.Real) => Pointwise[x := x].derivative s)
+    (\fun (s: Real.Real)(small: _) => Uniform.dominated (Operations.partial f i) s small x) near different,
+  pointwise := \fun (x: Point) => \idelim Base.value (Operations.partial f i) (Uniform.point Real.zero x) = target x
+    \with d: Real.Real => Derivative.HasDerivativeAt (\fun (t: Real.Real) => input t x) Real.zero d \by {
+      base: Pointwise[x := x].derivative Real.zero,
+      equality: congr!{Point Real.Real} (Base.value (Operations.partial f i)) _ _ (Uniform.atZero x)
+    },
+};
+\definition derivative: Derivative.HasDerivativeAt (\fun (t: Real.Real) => I.integral (input t)) Real.zero (I.integral target) := Differentiation.derivative data;
+\definition zero: I.integral target = Real.zero := RealDerivatives.unique (\fun (t: Real.Real) => I.integral (input t)) Real.zero (I.integral target) Real.zero derivative
+  (\idelim (\fun (t: Real.Real) => I.integral (Integrability.representative f)) = (\fun (t: Real.Real) => I.integral (input t))
+    \with h: (Real.Real -> Real.Real) => Derivative.HasDerivativeAt h Real.zero Real.zero \by {
+      base: Basic.constantDerivative (I.integral (Integrability.representative f)) Real.zero,
+      equality: \axiom:funext((\fun (t: Real.Real) => I.integral (Integrability.representative f)), (\fun (t: Real.Real) => I.integral (input t)), \fun (t: Real.Real) => sym!{Real.Real} _ _ (constant t))
+    });

@@ -1,0 +1,44 @@
+\import \root.Euclidean[n := n].Modulation[] \as Modulation;
+\import \parent.\parent.Lines[f := f.real, a := a, i := i] \as RealLine;
+\import \parent.\parent.Lines[f := f.imaginary, a := a, i := i] \as ImaginaryLine;
+\import Kernel.Differentiation[xi := xi].Line[a := a, i := i] \as KernelLine;
+\definition point[t: Real.Real]: Point := Coordinates.replace a i t;
+\definition curve[t: Real.Real]: C.Complex := S.value f (point t);
+\definition derivative[t: Real.Real]: Calculus.HasDerivativeAt curve t (S.value (S.partial f i) (point t)) :=
+  Calculus.DerivativeLaws[curve, t, S.value (S.partial f i) (point t)] {
+    real := RealLine.derivative t, imaginary := ImaginaryLine.derivative t,
+  };
+\definition coefficient[t: Real.Real]:
+  D.add (D.mul (S.value (S.partial f i) (point t)) (KernelLine.function t))
+    (D.mul (curve t) (D.scale (Real.neg (xi i)) (\root.Phase[].rotate (KernelLine.function t)))) = Modulation.value (input f xi i) xi (point t) :=
+  trans!{C.Complex} _ _ _
+    (congr!{C.Complex C.Complex} (D.add (D.mul (S.value (S.partial f i) (point t)) (KernelLine.function t))) _ _
+      (Scalars.differentiatedProduct (xi i) (curve t) (KernelLine.function t)))
+    (trans!{C.Complex} _ _ _
+      (sym!{C.Complex} _ _ (CL.mulAddRight (S.value (S.partial f i) (point t)) (D.scale (Real.neg (xi i)) (\root.Phase[].rotate (curve t))) (KernelLine.function t)))
+      (congr!{C.Complex C.Complex} (\fun (z: C.Complex) => D.mul z (KernelLine.function t)) _ _ (sym!{C.Complex} _ _ (inputValue f xi i (point t)))));
+\definition productDerivative[t: Real.Real]: Calculus.HasDerivativeAt (\fun (s: Real.Real) => Modulation.value f xi (point s)) t (Modulation.value (input f xi i) xi (point t)) :=
+  \idelim _ = _ \with d: C.Complex => Calculus.HasDerivativeAt (\fun (s: Real.Real) => Modulation.value f xi (point s)) t d \by {
+    base: Calculus.product curve KernelLine.function t _ _ (derivative t) (KernelLine.derivative t),
+    equality: coefficient t
+  };
+\definition real: Analysis.HasPartialDerivativeAt Open.whole (realFunction f xi) i (Whole.point a) (C.re (Modulation.value (input f xi i) xi a)) :=
+  Analysis.Operations[].sectionPartial Open.whole (realFunction f xi) (Whole.point a) i (\fun (t: Real.Real) => C.re (Modulation.value f xi (point t)))
+    (C.re (Modulation.value (input f xi i) xi a))
+    (congr!{Point Real.Real} (\fun (x: Point) => C.re (Modulation.value f xi x)) _ _ (Space.replaceOriginal a i))
+    (\fun (t: Real.Real)(x: Open.Carrier Open.whole)(same: _) => congr!{Point Real.Real} (\fun (x: Point) => C.re (Modulation.value f xi x)) _ _ (sym!{Point} _ _ same))
+    (\idelim C.re (Modulation.value (input f xi i) xi (point (a i))) = C.re (Modulation.value (input f xi i) xi a)
+      \with d: Real.Real => calculus.Real[].Derivative[].Def[].HasDerivativeAt (\fun (t: Real.Real) => C.re (Modulation.value f xi (point t))) (a i) d \by {
+        base: (productDerivative (a i)).real,
+        equality: congr!{Point Real.Real} (\fun (x: Point) => C.re (Modulation.value (input f xi i) xi x)) _ _ (Space.replaceOriginal a i)
+      });
+\definition imaginary: Analysis.HasPartialDerivativeAt Open.whole (imaginaryFunction f xi) i (Whole.point a) (C.im (Modulation.value (input f xi i) xi a)) :=
+  Analysis.Operations[].sectionPartial Open.whole (imaginaryFunction f xi) (Whole.point a) i (\fun (t: Real.Real) => C.im (Modulation.value f xi (point t)))
+    (C.im (Modulation.value (input f xi i) xi a))
+    (congr!{Point Real.Real} (\fun (x: Point) => C.im (Modulation.value f xi x)) _ _ (Space.replaceOriginal a i))
+    (\fun (t: Real.Real)(x: Open.Carrier Open.whole)(same: _) => congr!{Point Real.Real} (\fun (x: Point) => C.im (Modulation.value f xi x)) _ _ (sym!{Point} _ _ same))
+    (\idelim C.im (Modulation.value (input f xi i) xi (point (a i))) = C.im (Modulation.value (input f xi i) xi a)
+      \with d: Real.Real => calculus.Real[].Derivative[].Def[].HasDerivativeAt (\fun (t: Real.Real) => C.im (Modulation.value f xi (point t))) (a i) d \by {
+        base: (productDerivative (a i)).imaginary,
+        equality: congr!{Point Real.Real} (\fun (x: Point) => C.im (Modulation.value (input f xi i) xi x)) _ _ (Space.replaceOriginal a i)
+      });

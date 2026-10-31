@@ -1,0 +1,59 @@
+\import \root.Euclidean[n := n] \as Base;
+\import \parent.Operations[] \as Operations;
+\import \parent.Decay[].WeightBounds[] \as Bounds;
+\import Open.Projection[U := Open.whole] \as Projection;
+\import Smooth.Mixed[] \as Mixed;
+\import topological_algebra.Euclidean[].Dimension[n := n].Norm[] \as Geometry;
+\definition product[f: Function][i: Coordinate]: Function := Functions.product (Projection.function i) f;
+\definition partialProduct[f: Function][i, j: Coordinate]: Differential.apply j (product f i) =
+  Functions.plus (Functions.scale (Projection.kronecker i j) f) (product (Differential.apply j f) i) :=
+  trans!{Function} _ _ _ (Differential.product j (Projection.function i) f)
+    (congr!{Function Function} (\fun (h: Function) => Functions.plus (Functions.product h f) (product (Differential.apply j f) i)) _ _ (Projection.partial i j));
+\definition commuteJet[f: Function][i: Coordinate]: \forall (d: Directions) -> jet f (Directions::cons i d) = jet (Differential.apply i f) d :=
+  \induction (d: Directions) \return jet f (Directions::cons i d) = jet (Differential.apply i f) d \with {
+    | nil: \refl(Differential.apply i f)
+    | cons: \fun (j: Coordinate)(tail: Directions)(previous: _) => trans!{Function} _ _ _ (Mixed.commute Open.whole (jet f tail) j i)
+      (congr!{Function Function} (Differential.apply j) _ _ previous)
+  };
+\definition coordinateBound[x: Point][i: Coordinate]: R.Le (Product.abs (x i)) (weightBase x) := R.leTrans _ (Coordinates.norm x) _
+  (R.leReplaceLeft _ _ _ (Distance.distanceSymmetric (x i) Real.zero) (Geometry.coordinate x i)) (Bounds.normBase x);
+\definition weightedProduct[f: Function][i: Coordinate][m: N.Nat^][x: Point]:
+  R.Le (Base.weighted (product f i) m Directions::nil x) (Base.weighted f (N.Nat^::succ m) Directions::nil x) :=
+  R.leReplaceLeft _ _ _ (sym!{Real.Real} _ _ (congr!{Real.Real Real.Real} (Real.mul (weight m x)) _ _ (Product.absProduct (x i) (value f x))))
+    (R.leReplaceRight _ _ _
+      (trans!{Real.Real} _ _ _ (Algebra.mulSwap (weight m x) (weightBase x) (Product.abs (value f x)))
+        (sym!{Real.Real} _ _ (Laws.fieldMulAssoc (weightBase x) (weight m x) (Product.abs (value f x)))))
+      (Estimates.mulMonotone (weight m x) _ _ (weightNonnegative m x)
+        (R.leReplace _ _ _ _ (Laws.fieldMulComm (Product.abs (value f x)) (Product.abs (x i))) (Laws.fieldMulComm (Product.abs (value f x)) (weightBase x))
+          (Estimates.mulMonotone _ _ _ (Product.absNonnegative (value f x)) (coordinateBound x i)))));
+\definition successorWeighted[f: Function][i, j: Coordinate][m: N.Nat^][d: Directions][x: Point]:
+  R.Le (Base.weighted (product f i) m (Directions::cons j d) x)
+    (Real.add (Real.mul (Product.abs (Projection.kronecker i j)) (Base.weighted f m d x))
+      (Base.weighted (product (Differential.apply j f) i) m d x)) :=
+  R.leReplaceLeft _ _ _
+    (sym!{Real.Real} _ _ (congr!{Function Real.Real} (\fun (h: Function) => Real.mul (weight m x) (Product.abs (value h x))) _ _
+      (trans!{Function} _ _ _ (commuteJet (product f i) j d)
+        (congr!{Function Function} (\fun (h: Function) => jet h d) _ _ (partialProduct f i j)))))
+    (R.leReplaceRight _ _ _
+      (congr!{Real.Real Real.Real} (\fun (r: Real.Real) => Real.add r (Base.weighted (product (Differential.apply j f) i) m d x)) _ _
+        (Operations.weightedScale (Projection.kronecker i j) f m d x))
+      (Operations.weightedAdd (Functions.scale (Projection.kronecker i j) f) (product (Differential.apply j f) i) m d x));
+\definition bounded[i: Coordinate]: \forall (d: Directions)(f: Schwartz)(m: N.Nat^) ->
+  \exists ( b: Real.Real \where \forall (x: Point) -> R.Le (Base.weighted (product f i) m d x) b ) :=
+  \induction (d: Directions) \return \forall (f: Schwartz)(m: N.Nat^) ->
+    \exists ( b: Real.Real \where \forall (x: Point) -> R.Le (Base.weighted (product f i) m d x) b ) \with {
+      | nil: \fun (f: Schwartz)(m: N.Nat^) => Logic.existsIntro[Real.Real, { b: Real.Real \where \forall (x: Point) -> R.Le (Base.weighted (product f i) m Directions::nil x) b }]
+        (seminorm f (N.Nat^::succ m) Directions::nil) (\fun (x: Point) => R.leTrans _ _ _ (weightedProduct f i m x) (pointBound f (N.Nat^::succ m) Directions::nil x))
+      | cons: \block {
+        \fun (j: Coordinate)(tail: Directions)(previous: \forall (f: Schwartz)(m: N.Nat^) -> \exists ( b: Real.Real \where \forall (x: Point) -> R.Le (Base.weighted (product f i) m tail x) b ))(f: Schwartz)(m: N.Nat^) \then
+        \takefrom b: \Cast[Real.Real] ({ b: Real.Real \where \forall (x: Point) -> R.Le (Base.weighted (product (Operations.partial f j) i) m tail x) b }) \by previous (Operations.partial f j) m \then
+        \return Logic.existsIntro[Real.Real, { b: Real.Real \where \forall (x: Point) -> R.Le (Base.weighted (product f i) m (Directions::cons j tail) x) b }]
+          (Real.add (Real.mul (Product.abs (Projection.kronecker i j)) (seminorm f m tail)) b)
+          (\fun (x: Point) => R.leTrans _ _ _ (successorWeighted f i j m tail x) (Estimates.addLe _ _ _ _
+            (Estimates.mulMonotone _ _ _ (Product.absNonnegative (Projection.kronecker i j)) (pointBound f m tail x))
+            ((\bysub(Real.Real, { b: Real.Real \where \forall (x: Point) -> R.Le (Base.weighted (product (Operations.partial f j) i) m tail x) b }, b)) x)))
+      }
+    };
+\definition multiply[f: Schwartz][i: Coordinate]: Schwartz := \into[Function](product f i, Schwartz) \by {
+  \fun (m: N.Nat^)(d: Directions) => bounded i d f m
+};

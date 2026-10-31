@@ -1,0 +1,39 @@
+\definition source: CI.Representatives := Integrability.complex f;
+\definition differentiated: CI.Representatives := Integrability.complex (S.differentiatedInput f i);
+\definition point[t: Real.Real]: Point := Coordinates.replace a i t;
+\definition family[t: Real.Real]: CI.Representatives := Fourier.section source (point t);
+\definition derivativeFamily[t: Real.Real]: CI.Representatives := Fourier.section differentiated (point t);
+\definition target: CI.Representatives := Fourier.section differentiated a;
+\import Fourier.Continuity[f := differentiated, at := a] \as Bounds;
+\definition bound: I.Representatives := Bounds.bound;
+\module Pointwise(x: Point);
+\definition center[x: Point]: derivativeFamily (a i) x = target x :=
+  congr!{Point C.Complex} (\fun (p: Point) => Fourier.section differentiated p x) _ _ (Space.replaceOriginal a i);
+\definition realData: L.Differentiation[].Data := L.Differentiation[].Data {
+  function := \fun (t: Real.Real) => CI.realPart (family t), derivative := CI.realPart target,
+  at := a i, radius := lp_spaces.Exponential[].one, bound := bound,
+  dominated := \fun (t: Real.Real)(different: _)(near: _)(x: Point) => RealBounds.slope
+    (\fun (s: Real.Real) => C.re (family s x)) (\fun (s: Real.Real) => C.re (derivativeFamily s x)) (a i) t (bound x)
+    (\fun (s: Real.Real) => (Pointwise[x := x].derivative s).real) (\fun (s: Real.Real) => Bounds.realDominated (point s) x) different,
+  pointwise := \fun (x: Point) => \idelim C.re (derivativeFamily (a i) x) = C.re (target x)
+    \with d: Real.Real => Derivative.HasDerivativeAt (\fun (t: Real.Real) => C.re (family t x)) (a i) d \by {
+      base: (Pointwise[x := x].derivative (a i)).real,
+      equality: congr!{C.Complex Real.Real} C.re _ _ (center x)
+    },
+};
+\definition imaginaryData: L.Differentiation[].Data := L.Differentiation[].Data {
+  function := \fun (t: Real.Real) => CI.imaginaryPart (family t), derivative := CI.imaginaryPart target,
+  at := a i, radius := lp_spaces.Exponential[].one, bound := bound,
+  dominated := \fun (t: Real.Real)(different: _)(near: _)(x: Point) => RealBounds.slope
+    (\fun (s: Real.Real) => C.im (family s x)) (\fun (s: Real.Real) => C.im (derivativeFamily s x)) (a i) t (bound x)
+    (\fun (s: Real.Real) => (Pointwise[x := x].derivative s).imaginary) (\fun (s: Real.Real) => Bounds.imaginaryDominated (point s) x) different,
+  pointwise := \fun (x: Point) => \idelim C.im (derivativeFamily (a i) x) = C.im (target x)
+    \with d: Real.Real => Derivative.HasDerivativeAt (\fun (t: Real.Real) => C.im (family t x)) (a i) d \by {
+      base: (Pointwise[x := x].derivative (a i)).imaginary,
+      equality: congr!{C.Complex Real.Real} C.im _ _ (center x)
+    },
+};
+\definition real: Derivative.HasDerivativeAt (\fun (t: Real.Real) => C.re (function f (point t))) (a i) (C.re (function (S.differentiatedInput f i) a)) :=
+  L.Differentiation[].derivative realData;
+\definition imaginary: Derivative.HasDerivativeAt (\fun (t: Real.Real) => C.im (function f (point t))) (a i) (C.im (function (S.differentiatedInput f i) a)) :=
+  L.Differentiation[].derivative imaginaryData;

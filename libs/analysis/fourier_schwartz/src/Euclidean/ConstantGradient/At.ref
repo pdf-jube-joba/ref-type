@@ -1,0 +1,33 @@
+\definition point[s: Source.Carrier Source.whole]: Open.Carrier Open.whole := Whole.point (Coordinates.scale (s One.index) x);
+\definition map: Maps.Map Source.whole Open.whole := \into[Maps.Data[Source.whole, Open.whole]](Maps.Data[Source.whole, Open.whole] { apply := point }, Maps.Map Source.whole Open.whole) \by {
+  Maps.Laws[Source.whole, Open.whole, Maps.Data[Source.whole, Open.whole]::# point] {
+    smooth := \fun (j: Coordinate) => SourceOperations.mulSmooth Source.whole (\fun (s: Source.Carrier Source.whole) => s One.index) (\fun (s: Source.Carrier Source.whole) => x j)
+      (SourceExamples.projectionSmooth Source.whole One.index) (SourceOperations.constantSmooth Source.whole (x j)),
+  }
+};
+\import Maps.Composition[U := Source.whole, V := Open.whole, f := map] \as Composition;
+\definition function[t: Real.Real]: Real.Real := Base.value f (Coordinates.scale t x);
+\definition source[t: Real.Real]: Source.Carrier Source.whole := \into[calculus.Real[].Multivariable[n := One.dimension].Point]((\fun (j: One.Index) => t), Source.whole.points) \by { \refl(\fun (j: One.Index) => t) };
+\definition gradient[t: Real.Real]: Composition.gradient f One.index (source t) = Real.zero := trans!{Real.Real} _ _ _
+  (Sum.congruent n _ (\fun (j: Coordinate) => Real.zero) (\fun (j: Coordinate) => trans!{Real.Real} _ _ _
+    (congr!{Real.Real Real.Real} (\fun (r: Real.Real) => Real.mul r (Composition.innerPartial j One.index (source t))) _ _ (vanishes j (Coordinates.scale t x)))
+    (Laws.fieldMulZeroLeft _))) (Sum.zeroSum n);
+\definition derivative[t: Real.Real]: Derivative.HasDerivativeAt function t Real.zero := Lift.derivativeAt function (source t) Real.zero
+  (\idelim Composition.gradient f One.index (source t) = Real.zero \with d: Real.Real =>
+    Source.Analysis[].HasPartialDerivativeAt Source.whole (Lift.lift function) One.index (source t) d \by {
+      base: Composition.partials f One.index (source t), equality: gradient t
+    });
+\definition equality: function Real.one = function Real.zero := Distance.distanceSeparated _ _
+  (R.leAntisym _ _
+    (R.leReplace _ _ _ _ (Bounds.absDifference (function Real.one) (function Real.zero)) (Laws.fieldMulZeroLeft (Real.distance Real.one Real.zero))
+      (Bounds.increment function (\fun (t: Real.Real) => Real.zero) Real.zero Real.one Real.zero derivative
+        (\fun (t: Real.Real) => R.leReplaceLeft Real.zero (Product.abs Real.zero) Real.zero (sym!{Real.Real} _ _ (Distance.distanceSelf Real.zero)) (R.leRefl Real.zero))
+        (\fun (same: Real.one = Real.zero) => Laws.zeroNeOne (sym!{Real.Real} _ _ same))))
+    (Distance.distanceNonnegative (function Real.one) (function Real.zero)));
+\definition atOne: Coordinates.scale Real.one x = x := \axiom:funext(Coordinates.scale Real.one x, x, \fun (j: Coordinate) => Laws.fieldMulOneLeft (x j));
+\definition atZero: Coordinates.scale Real.zero x = Coordinates.origin := \axiom:funext(Coordinates.scale Real.zero x, Coordinates.origin, \fun (j: Coordinate) => Laws.fieldMulZeroLeft (x j));
+\definition law: Base.value f x = Base.value f Coordinates.origin := eq_reason_in!{Real.Real _
+  "=" _ "by" { congr!{Point Real.Real} (Base.value f) _ _ (sym!{Point} _ _ atOne) }
+  "=" _ "by" equality
+  "=" _ "by" { congr!{Point Real.Real} (Base.value f) _ _ atZero }
+};

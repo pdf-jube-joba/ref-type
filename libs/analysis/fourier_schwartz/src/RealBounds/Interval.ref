@@ -1,0 +1,17 @@
+\import calculus.Real[].MeanValue[].Interval[a := a, b := b] \as Mean;
+\import metric_spaces.RealLine[] \as Line;
+\definition incrementOn[c: Real.Real]: (\forall (s: Real.Real) -> Derivative.HasDerivativeAt f s (df s)) ->
+  (\forall (s: Real.Real) -> R.Le a s -> R.Le s b -> R.Le (Product.abs (df s)) c) -> R.Lt a b ->
+  R.Le (Product.abs (Real.sub (f b) (f a))) (Real.mul c (Real.distance b a)) :=
+  \fun (derivatives: _)(bounded: _)(order: _) => R.leReplaceLeft _ _ _
+    (trans!{Real.Real} _ _ _
+      (congr!{Real.Real Real.Real} (\fun (r: Real.Real) => Real.distance r Real.zero) _ _
+        (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (Real.sub (Real.sub (f b) (f a))) _ _ (Laws.fieldMulZeroLeft (Real.sub b a))) (Laws.subZeroRight _)))
+      (Distance.distanceSymmetric _ _))
+    (Mean.Estimate[].increment f df Real.zero c order (\fun (x: \Cast[Real.Real] (Line.ClosedInterval a b)) => derivatives x)
+      (\fun (s: Real.Real)(inside: Mean.Interior s) => R.leReplaceLeft _ _ _ (Distance.distanceSymmetric Real.zero (df s)) (bounded s (Order.leOfLt _ _ inside.left) (Order.leOfLt _ _ inside.right))));
+
+\definition increment[c: Real.Real]: (\forall (s: Real.Real) -> Derivative.HasDerivativeAt f s (df s)) ->
+  (\forall (s: Real.Real) -> R.Le (Product.abs (df s)) c) -> R.Lt a b ->
+  R.Le (Product.abs (Real.sub (f b) (f a))) (Real.mul c (Real.distance b a)) :=
+  \fun (derivatives: _)(bounded: _)(order: _) => incrementOn c derivatives (\fun (s: Real.Real)(lower: _)(upper: _) => bounded s) order;

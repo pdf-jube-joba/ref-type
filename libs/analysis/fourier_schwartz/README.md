@@ -1,8 +1,10 @@
 # Fourier 核と Schwartz 半ノルム
 
 A06 の実装途中である。
-現在は複素指数関数、Schwartz 関数の半ノルム、複素 L1 上の積分 Fourier 変換とその連続性・線形性を提供する。
-Schwartz 関数の可積分性、座標乗算・平行移動・畳み込みとの交換、Fourier 変換による Schwartz 空間の保存、Gaussian の変換、近似単位による反転公式は未実装である。
+複素指数関数、Schwartz 半ノルム、Schwartz 関数と重み付き全偏微分の L1 可積分性、Fourier 変換の滑らかさと Schwartz 保存を提供する。
+微分・座標乗算・平行移動の公式と、平行移動不変性・積分下微分から導く部分積分を証明した。
+畳み込み公式、Gaussian の変換、近似単位による反転公式は未実装である。
+Gaussian 自体の滑らかさ・全ての多項式重みに対する減衰・Hermite 多項式による反復微分・Schwartz 性は構成済みである。
 
 核と変換の規約は
 \[
@@ -25,6 +27,12 @@ K(x,\xi)=e^{-i\sum_j x_j\xi_j},\qquad
 | `Euclidean[n].Integral.transform` | Lebesgue 測度上の任意の複素 L1 代表元の Fourier 変換 |
 | `Euclidean[n].Integral.Continuity` | 共通可積分支配関数から証明した変換の連続性 |
 | `Euclidean[n].Integral.Identities` | 原点での積分との一致、加法・複素スカラー倍との交換 |
+| `Euclidean[n].Decay` / `Integrability` | dyadic box envelope の単調収束から構成した重み付き全偏微分の L1 可積分性 |
+| `Euclidean[n].CoordinateMultiplication` / `Translation` | 座標乗算・平行移動による Schwartz 保存、移動幅に一様な可積分上界 |
+| `Euclidean[n].IntegrationByParts` | Schwartz 偏微分の積分が 0 になる定理 |
+| `Euclidean[n].Modulation` | Fourier 核との積の Schwartz 保存 |
+| `Euclidean[n].Transform` / `Identities` | 滑らかさ、微分・線形性・平行移動の公式 |
+| `Euclidean[n].Transform.Preservation.value` | Fourier 変換を Schwartz 空間の自己写像として構成 |
 | `Examples[n]` | 任意の次元・関数・周波数を使う検査対象の利用例 |
 
 `Directions` は座標の有限リストであり、`jet f d` はその順序で反復した偏微分である。
@@ -39,7 +47,7 @@ p_{m,d}(f)=\sup_x(1+\sum_jx_j^2)^m|D^df(x)|
 `Integral.section` は実部・虚部それぞれの積の可積分性を構成する。
 `Integral.Continuity` は核の両成分の絶対値が 1 以下であることを使い、\(|\operatorname{Re} f|+|\operatorname{Im} f|\) を共通支配関数として `lp_spaces.On.Parametric.continuous` を適用する。
 入力関数の可積分性は既存の `measure_convergence.On.Complex.Representatives` によって表す。
-現時点でこの型を `Schwartz` から自動的に構成する API は含まない。
+`Integrability.complex` は Schwartz 関数からこの型を構成する。
 
 ```ref
 \import fourier_schwartz.Euclidean[n := n] \as E;

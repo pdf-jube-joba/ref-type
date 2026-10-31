@@ -1,0 +1,61 @@
+\import \parent.Complex[] \as S;
+\import \parent.Integral[] \as Fourier;
+\import \parent.Integrability[] \as Integrability;
+\import \parent.Kernel[] \as Kernel;
+\import complex.Complex[] \as C;
+\import C.Def[] \as D;
+\import C.Prop[] \as CL;
+\import \root.Scalars[] \as Scalars;
+\import \root.ComplexCalculus[] \as Calculus;
+\import \root.RealBounds[] \as RealBounds;
+\import calculus.Real[].Derivative[].Def[] \as Derivative;
+\import calculus.Real[].Multivariable[n := n].Space[].Prop[] \as Space;
+\import Open.Analysis[] \as Analysis;
+\import Analysis.Operations[] \as Operations;
+\import euclidean_measure.Euclidean[n := n].MeasureConstruction[] \as Lebesgue;
+\import functional_analysis.Measure[A := Point].Integral[mu := Lebesgue.measure] \as I;
+\import measure_convergence.On[A := Point, mu := Lebesgue.measure].Complex[] \as CI;
+\import lp_spaces.On[A := Point, mu := Lebesgue.measure] \as L;
+\definition function[f: S.Function][xi: Point]: C.Complex := Fourier.transform (Integrability.complex f) xi;
+\module Differentiation(f: S.Function, a: Point, i: Coordinate);
+\definition realPartial[f: S.Function][i: Coordinate]: Analysis.HasPartialDerivative Open.whole (\fun (x: Open.Carrier Open.whole) => C.re (function f x)) i
+  (\fun (x: Open.Carrier Open.whole) => C.re (function (S.differentiatedInput f i) x)) :=
+  \fun (a: Open.Carrier Open.whole) => Operations.sectionPartial Open.whole (\fun (x: Open.Carrier Open.whole) => C.re (function f x)) a i (\fun (t: Real.Real) => C.re (function f (Coordinates.replace a i t)))
+    (C.re (function (S.differentiatedInput f i) a))
+    (congr!{Point Real.Real} (\fun (x: Point) => C.re (function f x)) _ _ (Space.replaceOriginal a i))
+    (\fun (t: Real.Real)(x: Open.Carrier Open.whole)(same: _) => congr!{Point Real.Real} (\fun (p: Point) => C.re (function f p)) _ _ (sym!{Point} _ _ same))
+    (Differentiation[f := f, a := a, i := i].real);
+\definition imaginaryPartial[f: S.Function][i: Coordinate]: Analysis.HasPartialDerivative Open.whole (\fun (x: Open.Carrier Open.whole) => C.im (function f x)) i
+  (\fun (x: Open.Carrier Open.whole) => C.im (function (S.differentiatedInput f i) x)) :=
+  \fun (a: Open.Carrier Open.whole) => Operations.sectionPartial Open.whole (\fun (x: Open.Carrier Open.whole) => C.im (function f x)) a i (\fun (t: Real.Real) => C.im (function f (Coordinates.replace a i t)))
+    (C.im (function (S.differentiatedInput f i) a))
+    (congr!{Point Real.Real} (\fun (x: Point) => C.im (function f x)) _ _ (Space.replaceOriginal a i))
+    (\fun (t: Real.Real)(x: Open.Carrier Open.whole)(same: _) => congr!{Point Real.Real} (\fun (p: Point) => C.im (function f p)) _ _ (sym!{Point} _ _ same))
+    (Differentiation[f := f, a := a, i := i].imaginary);
+\definition inputs[f: S.Function]: Directions -> S.Function := \induction (d: Directions) \return S.Function \with {
+  | nil: f
+  | cons: \fun (i: Coordinate)(tail: Directions)(previous: S.Function) => S.differentiatedInput previous i
+};
+\module Regularity(f: S.Function);
+\definition realSmooth[f: S.Function]: Smooth.SmoothOn Open.whole (\fun (x: Open.Carrier Open.whole) => C.re (function f x)) := Regularity[f := f].real;
+\definition imaginarySmooth[f: S.Function]: Smooth.SmoothOn Open.whole (\fun (x: Open.Carrier Open.whole) => C.im (function f x)) := Regularity[f := f].imaginary;
+\definition realFunction[f: S.Function]: Function := \into[Open.ScalarFunction Open.whole]((\fun (x: Open.Carrier Open.whole) => C.re (function f x)), Function) \by { realSmooth f };
+\definition imaginaryFunction[f: S.Function]: Function := \into[Open.ScalarFunction Open.whole]((\fun (x: Open.Carrier Open.whole) => C.im (function f x)), Function) \by { imaginarySmooth f };
+\definition realJet[f: S.Function]: \forall (d: Directions) -> jet (realFunction f) d = realFunction (inputs f d) :=
+  \induction (d: Directions) \return jet (realFunction f) d = realFunction (inputs f d) \with {
+    | nil: \refl(realFunction f)
+    | cons: \fun (i: Coordinate)(tail: Directions)(previous: _) => trans!{Function} _ _ _
+      (congr!{Function Function} (Differential.apply i) _ _ previous)
+      (Functions.ext (Differential.apply i (realFunction (inputs f tail))) (realFunction (S.differentiatedInput (inputs f tail) i)) (\fun (a: Open.Carrier Open.whole) => Analysis.Properties[].partialUnique Open.whole (realFunction (inputs f tail)) i a _ _
+        (Partial.partialLaw Open.whole (realFunction (inputs f tail)) i a) (realPartial (inputs f tail) i a)))
+  };
+\definition imaginaryJet[f: S.Function]: \forall (d: Directions) -> jet (imaginaryFunction f) d = imaginaryFunction (inputs f d) :=
+  \induction (d: Directions) \return jet (imaginaryFunction f) d = imaginaryFunction (inputs f d) \with {
+    | nil: \refl(imaginaryFunction f)
+    | cons: \fun (i: Coordinate)(tail: Directions)(previous: _) => trans!{Function} _ _ _
+      (congr!{Function Function} (Differential.apply i) _ _ previous)
+      (Functions.ext (Differential.apply i (imaginaryFunction (inputs f tail))) (imaginaryFunction (S.differentiatedInput (inputs f tail) i)) (\fun (a: Open.Carrier Open.whole) => Analysis.Properties[].partialUnique Open.whole (imaginaryFunction (inputs f tail)) i a _ _
+        (Partial.partialLaw Open.whole (imaginaryFunction (inputs f tail)) i a) (imaginaryPartial (inputs f tail) i a)))
+  };
+\module Identities;
+\module Preservation;
