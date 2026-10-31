@@ -1,0 +1,28 @@
+\import Spaces.Multilinear[V := U, space := target] \as Total;
+\import Total.Alternating[] \as AlternatingTotal;
+\definition value[alpha: AlternatingTotal.Form total][v: Fin.Fin n -> V]: R.Real := alpha (extend v);
+\definition addition: \forall (alpha: AlternatingTotal.Form total)(v: Fin.Fin n -> V)(i: Fin.Fin n)(x, y: V) ->
+  value alpha (Multilinear.update n v i (space.add x y)) = R.add (value alpha (Multilinear.update n v i x)) (value alpha (Multilinear.update n v i y)) :=
+  \fun (alpha: AlternatingTotal.Form total)(v: Fin.Fin n -> V)(i: Fin.Fin n)(x, y: V) =>
+    trans!{R.Real} _ _ _ (congr!{{Fin.Fin total -> U} {R.Real}} alpha _ _ (update v i (space.add x y)))
+      (trans!{R.Real} _ _ _ (congr!{U R.Real} (\fun (z: U) => alpha (Total.update total (extend v) (slot i) z)) _ _ (inclusion.preservesAdd x y))
+        (trans!{R.Real} _ _ _ ((\bysub(Total.Function total, AlternatingTotal.Form total, alpha)).linear.addition (extend v) (slot i) (inclusion.apply x) (inclusion.apply y))
+          (congr!{R.Real R.Real R.Real} R.add _ _ _ _
+            (sym!{R.Real} _ _ (congr!{{Fin.Fin total -> U} {R.Real}} alpha _ _ (update v i x)))
+            (sym!{R.Real} _ _ (congr!{{Fin.Fin total -> U} {R.Real}} alpha _ _ (update v i y))))));
+\definition scalar: \forall (alpha: AlternatingTotal.Form total)(v: Fin.Fin n -> V)(i: Fin.Fin n)(a: R.Real)(x: V) ->
+  value alpha (Multilinear.update n v i (space.smul a x)) = R.mul a (value alpha (Multilinear.update n v i x)) :=
+  \fun (alpha: AlternatingTotal.Form total)(v: Fin.Fin n -> V)(i: Fin.Fin n)(a: R.Real)(x: V) =>
+    trans!{R.Real} _ _ _ (congr!{{Fin.Fin total -> U} {R.Real}} alpha _ _ (update v i (space.smul a x)))
+      (trans!{R.Real} _ _ _ (congr!{U R.Real} (\fun (z: U) => alpha (Total.update total (extend v) (slot i) z)) _ _ (inclusion.preservesScale a x))
+        (trans!{R.Real} _ _ _ ((\bysub(Total.Function total, AlternatingTotal.Form total, alpha)).linear.scalar (extend v) (slot i) a (inclusion.apply x))
+          (congr!{R.Real R.Real} (R.mul a) _ _ (sym!{R.Real} _ _ (congr!{{Fin.Fin total -> U} {R.Real}} alpha _ _ (update v i x))))));
+\definition form[alpha: AlternatingTotal.Form total]: Form := \into[Multilinear.Function n](value alpha, Form) \by {
+  Alternating.AlternatingLaws[n, value alpha] {
+    linear := Multilinear.Laws[n, value alpha] { addition := addition alpha, scalar := scalar alpha },
+    alternating := \fun (v: Fin.Fin n -> V)(i, j: Fin.Fin n)(different: Logic.Not (i = j))(same: v i = v j) =>
+      (\bysub(Total.Function total, AlternatingTotal.Form total, alpha)).alternating (extend v) (slot i) (slot j)
+        (\fun (equal: slot i = slot j) => different (injective i j equal))
+        (trans!{U} _ _ _ (at v i) (trans!{U} _ _ _ (congr!{V U} inclusion.apply _ _ same) (sym!{U} _ _ (at v j))))
+  }
+};

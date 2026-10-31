@@ -1,0 +1,61 @@
+\import \root.Classification[].TopForms[V := W, space := right, n := m, frame := other] \as RightTop;
+\import \root.Classification[].TopForms[V := V, space := space, n := n, frame := frame] \as LeftTop;
+\import Spaces.DirectSum[V := V, W := W, left := space, right := right] \as Sum;
+\import Fin.Sum[m := n, n := m] \as Indices;
+\import Indices.Tuples[A := Sum.Carrier] \as Tuples;
+\definition rank: N.Nat^ := Indices.total;
+\import Spaces.Multilinear[V := Sum.Carrier, space := Sum.space] \as TotalML;
+\import Spaces.Multilinear[V := W, space := right] \as RightML;
+\import TotalML.Alternating[] \as TotalForms;
+\import TotalML.Properties[] \as TotalUpdates;
+\import Multilinear.Properties[] \as LeftUpdates;
+\import RightML.Properties[] \as RightUpdates;
+\import Spaces.Laws[V := V, space := space] \as LeftLaws;
+\import Spaces.Laws[V := W, space := right] \as RightLaws;
+\definition inLeft: Spaces.Linear[V := V, W := Sum.Carrier, source := space, target := Sum.space].Map :=
+  Spaces.Linear[V := V, W := Sum.Carrier, source := space, target := Sum.space].Map {
+    apply := \fun (v: V) => Sum.make v right.zero,
+    preservesAdd := \fun (v, w: V) => Pair.Prop[A := V, B := W].pairCong _ _ _ _ (\refl(space.add v w)) (sym!{W} _ _ (RightLaws.zeroLeft right.zero)),
+    preservesScale := \fun (a: R.Real)(v: V) => Pair.Prop[A := V, B := W].pairCong _ _ _ _ (\refl(space.smul a v)) (sym!{W} _ _ (RightLaws.scaleZero a))
+  };
+\definition inRight: Spaces.Linear[V := W, W := Sum.Carrier, source := right, target := Sum.space].Map :=
+  Spaces.Linear[V := W, W := Sum.Carrier, source := right, target := Sum.space].Map {
+    apply := \fun (w: W) => Sum.make space.zero w,
+    preservesAdd := \fun (v, w: W) => Pair.Prop[A := V, B := W].pairCong _ _ _ _ (sym!{V} _ _ (LeftLaws.zeroLeft space.zero)) (\refl(right.add v w)),
+    preservesScale := \fun (a: R.Real)(w: W) => Pair.Prop[A := V, B := W].pairCong _ _ _ _ (sym!{V} _ _ (LeftLaws.scaleZero a)) (\refl(right.smul a w))
+  };
+\definition concatenate[u: Fin.Fin n -> V][v: Fin.Fin m -> W]: Fin.Fin rank -> Sum.Carrier := Tuples.join (\fun (i: Fin.Fin n) => inLeft.apply (u i)) (\fun (j: Fin.Fin m) => inRight.apply (v j));
+\definition tupleExt: \forall (f, g: Fin.Fin rank -> Sum.Carrier) ->
+  (\forall (i: Fin.Fin n) -> f (Indices.left i) = g (Indices.left i)) ->
+  (\forall (j: Fin.Fin m) -> f (Indices.right j) = g (Indices.right j)) -> f = g :=
+  \fun (f, g: Fin.Fin rank -> Sum.Carrier)(left: _)(right: _) => trans!{{Fin.Fin rank -> Sum.Carrier}} _ _ _ (sym!{{Fin.Fin rank -> Sum.Carrier}} _ _ (Tuples.recover f))
+    (trans!{{Fin.Fin rank -> Sum.Carrier}} _ _ _
+      (congr!{{Fin.Fin n -> Sum.Carrier} {Fin.Fin m -> Sum.Carrier} {Fin.Fin rank -> Sum.Carrier}} Tuples.join _ _ _ _
+        (\axiom:funext((\fun (i: Fin.Fin n) => f (Indices.left i)), (\fun (i: Fin.Fin n) => g (Indices.left i)), left))
+        (\axiom:funext((\fun (j: Fin.Fin m) => f (Indices.right j)), (\fun (j: Fin.Fin m) => g (Indices.right j)), right))) (Tuples.recover g));
+\module Arguments;
+\import bundle_operations.Operations[].Over[K := R.Real, field := R.Algebra[].field, conjugation := hermitian_frames.Hermitian[].Real[].scalar, scalar := vector_bundles.Bundles[].Real[].scalar] \as Operations;
+\import Operations.CoordinateSum[n := n, m := m] \as CoordinatesSum;
+\import Spaces.DirectSum[V := RealBundles.Vector n, W := RealBundles.Vector m, left := RealBundles.coordinates n, right := RealBundles.coordinates m] \as CoordinatePair;
+\definition paired: Spaces.Isomorphism[V := Sum.Carrier, W := CoordinatePair.Carrier, source := Sum.space, target := CoordinatePair.space].Isomorphism :=
+  Spaces.Isomorphism[V := Sum.Carrier, W := CoordinatePair.Carrier, source := Sum.space, target := CoordinatePair.space].Isomorphism {
+    forward := Spaces.Linear[V := Sum.Carrier, W := CoordinatePair.Carrier, source := Sum.space, target := CoordinatePair.space].Map {
+      apply := \fun (v: Sum.Carrier) => CoordinatePair.make (frame.forward.apply (Sum.first v)) (other.forward.apply (Sum.second v)),
+      preservesAdd := \fun (v, w: Sum.Carrier) => Pair.Prop[A := RealBundles.Vector n, B := RealBundles.Vector m].pairCong _ _ _ _ (frame.forward.preservesAdd (Sum.first v) (Sum.first w)) (other.forward.preservesAdd (Sum.second v) (Sum.second w)),
+      preservesScale := \fun (a: R.Real)(v: Sum.Carrier) => Pair.Prop[A := RealBundles.Vector n, B := RealBundles.Vector m].pairCong _ _ _ _ (frame.forward.preservesScale a (Sum.first v)) (other.forward.preservesScale a (Sum.second v))
+    },
+    backward := Spaces.Linear[V := CoordinatePair.Carrier, W := Sum.Carrier, source := CoordinatePair.space, target := Sum.space].Map {
+      apply := \fun (v: CoordinatePair.Carrier) => Sum.make (frame.backward.apply (CoordinatePair.first v)) (other.backward.apply (CoordinatePair.second v)),
+      preservesAdd := \fun (v, w: CoordinatePair.Carrier) => Pair.Prop[A := V, B := W].pairCong _ _ _ _ (frame.backward.preservesAdd (CoordinatePair.first v) (CoordinatePair.first w)) (other.backward.preservesAdd (CoordinatePair.second v) (CoordinatePair.second w)),
+      preservesScale := \fun (a: R.Real)(v: CoordinatePair.Carrier) => Pair.Prop[A := V, B := W].pairCong _ _ _ _ (frame.backward.preservesScale a (CoordinatePair.first v)) (other.backward.preservesScale a (CoordinatePair.second v))
+    },
+    leftInverse := \fun (v: Sum.Carrier) => Pair.Prop[A := V, B := W].ext _ _ (frame.leftInverse (Sum.first v)) (other.leftInverse (Sum.second v)),
+    rightInverse := \fun (v: CoordinatePair.Carrier) => Pair.Prop[A := RealBundles.Vector n, B := RealBundles.Vector m].ext _ _ (frame.rightInverse (CoordinatePair.first v)) (other.rightInverse (CoordinatePair.second v))
+  };
+\definition sumFrame: RealBundles.Dimension[V := Sum.Carrier, space := Sum.space].Frame rank :=
+  Spaces.Isomorphism[V := CoordinatePair.Carrier, W := RealBundles.Vector rank, source := CoordinatePair.space, target := RealBundles.coordinates rank].Composition[U := Sum.Carrier, domain := Sum.space].compose CoordinatesSum.isomorphism paired;
+\import \root.Classification[].TopForms[V := Sum.Carrier, space := Sum.space, n := rank, frame := sumFrame] \as TotalTop;
+\definition leftCoordinate[v: RealBundles.Vector rank]: RealBundles.Vector n := CoordinatePair.first (CoordinatesSum.split v);
+\definition rightCoordinate[v: RealBundles.Vector rank]: RealBundles.Vector m := CoordinatePair.second (CoordinatesSum.split v);
+\module Basis;
+\module Factorization;

@@ -1,0 +1,31 @@
+\import real.Analysis[] \as R;
+\import RealBundles.Family[X := X, F := F] \as Family;
+\import Family.With[data := bundle] \as Charts;
+\import topology.Topology[Carrier := X] \as Base;
+\structure Data[r: N.Nat^]: \Set := {
+  domain: \Pow X,
+  frame: \forall (x: \Cast[X] domain) -> RealBundles.Dimension[V := F x, space := bundle.space x].Frame r
+};
+\definition chart[r: N.Nat^][c: Data[r]]: Charts.ChartData := Charts.ChartData { domain := c.domain, dimension := r, frame := c.frame };
+\definition Regular[r: N.Nat^][c: Data[r]]: \Prop := Charts.In[c := chart r c].Laws;
+\definition Local[r: N.Nat^]: \Set := \Cast[Data[r]] ({ c: Data[r] \where Regular r c });
+\definition chartOf[r: N.Nat^][c: Local r]: Charts.Chart := \into[Charts.ChartData](chart r c, Charts.Chart) \by { \bysub(Data[r], Local r, c) };
+\definition HasLocal[r: N.Nat^][x: X]: \Prop := \exists ( c: Local r \where Base.Member c.domain x );
+\definition chartEta: \forall (c: Charts.ChartData) -> Charts.ChartData { domain := c.domain, dimension := c.dimension, frame := c.frame } = c :=
+  \induction (c: Charts.ChartData) \return Charts.ChartData { domain := c.domain, dimension := c.dimension, frame := c.frame } = c \with {
+    | # : \fun (domain: \Pow X)(dimension: N.Nat^)(frame: \forall (x: \Cast[X] domain) -> Charts.Frame dimension x) => \refl(Charts.ChartData { domain := domain, dimension := dimension, frame := frame })
+  };
+\definition nativeLaws[c: Charts.Chart]: Regular c.dimension (Data[c.dimension] { domain := c.domain, frame := c.frame }) :=
+  \idelim c = Charts.ChartData { domain := c.domain, dimension := c.dimension, frame := c.frame }
+    \with d: Charts.ChartData => Charts.In[c := d].Laws \by { base: \bysub(Charts.ChartData, Charts.Chart, c), equality: sym!{{Charts.ChartData}} _ _ (chartEta c) };
+\definition native[c: Charts.Chart]: Local c.dimension := \into[Data[c.dimension]](Data[c.dimension] { domain := c.domain, frame := c.frame }, Local c.dimension) \by { nativeLaws c };
+\definition nativeExists: \forall (c: Charts.Chart)(x: X) -> Base.Member c.domain x -> HasLocal c.dimension x :=
+  \fun (c: Charts.Chart)(x: X)(inside: _) => Logic.existsIntro[Local c.dimension, { d: Local c.dimension \where Base.Member d.domain x }] (native c) inside;
+\definition covers: \forall (x: X) -> HasLocal n x := \fun (x: X) => \block {
+  \takefrom c: \Cast[Charts.Chart] ({ c: Charts.Chart \where Base.Member c.domain x }) \by Family.Of[bundle := bundle].locallyTrivial x \then
+  \takefrom frame: Family.Of[bundle := bundle].Frame n x \by rank x \then
+  \let at: \Cast[X] c.domain := \into[X](x, c.domain) \by { \bysub(Charts.Chart, { c: Charts.Chart \where Base.Member c.domain x }, c) } \then
+  \let same: c.dimension = n := RealBundles.Dimension[V := F x, space := bundle.space x].At[n := c.dimension].Comparison[m := n].unique (c.frame at) frame \then
+  \return \idelim c.dimension = n \with r: N.Nat^ => HasLocal r x \by { base: nativeExists c x (\bysub(Charts.Chart, { c: Charts.Chart \where Base.Member c.domain x }, c)), equality: same }
+};
+\module Top(c: Local n, enumeration: bundle_operations.Operations[].Over[K := R.Real, field := R.Algebra[].field, conjugation := hermitian_frames.Hermitian[].Real[].scalar, scalar := vector_bundles.Bundles[].Real[].scalar].ExteriorIndices[n := n, k := n].Enumeration);
