@@ -1,0 +1,26 @@
+\import \parent.Stage[k := k, family := complex.cells] \as Selected;
+\import \parent.Lower[k := N.Nat^::succ k] \as Upper;
+\definition selectedToUpper: \forall (p: SphereBundle)(w: Witness[k, complex.cells, p.base]) -> \In[X] (Filtration.subset (N.Nat^::succ k)) p.base := \fun (p: SphereBundle)(w: _) =>
+  Filtration.include complex.cells (N.Nat^::succ k) w.cell w.member
+    (\idelim k = w.cell.dimension \with d: N.Nat^ => Nat.Lt d (N.Nat^::succ k) \by {
+      base: Nat.ltOfSuccLe (N.Nat^::succ k) k (Nat.leRefl (N.Nat^::succ k)), equality: sym!{N.Nat^} _ _ w.dimension
+    }) p.base (Filtration.Exhaustion[].interiorClosed w.cell p.base w.contains);
+\definition toUpper: \forall (p: SphereBundle) -> \In[SphereBundle] (Subset k complex.cells) p -> \In[SphereBundle] (LowerSubset (N.Nat^::succ k)) p := \fun (p: SphereBundle)(present: _) =>
+  either!{present {\In[SphereBundle] (LowerSubset (N.Nat^::succ k)) p}
+    {\fun (lower: _) => Filtration.monotone k (N.Nat^::succ k) (Nat.leSelfSucc k) p.base lower}
+    {\fun (selected: _) => \block { \takefrom w: Witness[k, complex.cells, p.base] \by selected \then \return selectedToUpper p w }}
+  };
+\definition fromWitness: \forall (p: SphereBundle)(w: Filtration.Interiors[].Witness[N.Nat^::succ k, p.base]) -> \In[X] (BaseSubset k complex.cells) p.base := \fun (p: SphereBundle)(w: _) =>
+  either!{{Classical.excludedMiddle (w.cell.dimension = k)} {\In[X] (BaseSubset k complex.cells) p.base}
+    {\fun (dimension: w.cell.dimension = k) => Logic.Or[_, _]::right (\exact(Witness[k, complex.cells, p.base] { cell := w.cell, member := w.member, dimension := dimension, contains := w.contains }, Witness[k, complex.cells, p.base]))}
+    {\fun (different: Logic.Not (w.cell.dimension = k)) => Logic.Or[_, _]::left (Filtration.include complex.cells k w.cell w.member
+      (Nat.ltOfLeDifferent w.cell.dimension k (Nat.leOfSuccSucc w.cell.dimension k (Nat.succLeOfLt (N.Nat^::succ k) w.cell.dimension w.below)) different)
+      p.base (Filtration.Exhaustion[].interiorClosed w.cell p.base w.contains))}
+  };
+\definition fromUpper: \forall (p: SphereBundle) -> \In[SphereBundle] (LowerSubset (N.Nat^::succ k)) p -> \In[SphereBundle] (Subset k complex.cells) p := \fun (p: SphereBundle)(present: _) => \block {
+  \takefrom w: Filtration.Interiors[].Witness[N.Nat^::succ k, p.base] \by Filtration.Interiors[].cover (N.Nat^::succ k) p.base present \then
+  \return fromWitness p w
+};
+\definition homeomorphism: topology.Homeomorphism[A := Upper.Carrier, B := Selected.Carrier].Homeomorphism[Upper.topology, Selected.topology] :=
+  topology.Topology[Carrier := SphereBundle].Subspace[S := LowerSubset (N.Nat^::succ k)].Equivalent[T := Subset k complex.cells].homeomorphism sphereTopology fromUpper toUpper;
+\definition property: Selected.Property -> Upper.Property := \root.Thom[].CWType[].CompactType[A := Upper.Carrier, source := Upper.topology].Homeomorphic[B := Selected.Carrier, target := Selected.topology, h := homeomorphism].fromTarget;

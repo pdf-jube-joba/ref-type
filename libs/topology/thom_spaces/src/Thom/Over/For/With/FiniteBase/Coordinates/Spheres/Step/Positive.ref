@@ -1,0 +1,81 @@
+\import algebraic_topology.Euclidean[].Dimension[n := N.Nat^::succ r] \as Fiber;
+\import topological_constructions.Product[A := Disk.Disk, B := Fiber.Sphere] \as Prism;
+\import topological_constructions.Product[A := Disk.Sphere, B := Fiber.Sphere] \as BoundaryProduct;
+\definition prismTopology: topology.Topology[Carrier := Prism.CarrierSet].Topology := Prism.topology Disk.diskTopology Fiber.sphereTopology;
+\definition boundaryTopology: topology.Topology[Carrier := BoundaryProduct.CarrierSet].Topology := BoundaryProduct.topology Disk.sphereTopology Fiber.sphereTopology;
+\definition original[p: Previous.Carrier]: Next.Carrier := \into[SphereBundle](p, Subset k (Lists.List[CW.CellData]::cons cell family)) \by { includePrevious p (\bysub(SphereBundle, Subset k family, p)) };
+\definition originalContinuous: topology.Continuity[A := Previous.Carrier, B := Next.Carrier].Continuous Previous.topology Next.topology original :=
+  topology.Continuity[A := Previous.Carrier, B := SphereBundle].Corestriction[S := Subset k (Lists.List[CW.CellData]::cons cell family)].corestrictContinuous Previous.topology sphereTopology original Previous.continuous;
+\definition image[p: Prism.CarrierSet]: Next.Carrier := \into[SphereBundle](chart.map p, Subset k (Lists.List[CW.CellData]::cons cell family)) \by {
+  \idelim cell.characteristic (Pair.first Disk.Disk Fiber.Sphere p) = (chart.map p).base \with x: X => \In[X] (BaseSubset k (Lists.List[CW.CellData]::cons cell family)) x \by {
+    base: nextContains (Pair.first Disk.Disk Fiber.Sphere p), equality: sym!{X} _ _ (chart.base p)
+  }
+};
+\definition imageContinuous: topology.Continuity[A := Prism.CarrierSet, B := Next.Carrier].Continuous prismTopology Next.topology image :=
+  topology.Continuity[A := Prism.CarrierSet, B := SphereBundle].Corestriction[S := Subset k (Lists.List[CW.CellData]::cons cell family)].corestrictContinuous prismTopology sphereTopology image chart.continuous;
+\definition boundaryPair[p: BoundaryProduct.CarrierSet]: Prism.CarrierSet := Pair.pair Disk.Disk Fiber.Sphere (Characteristic.boundaryInclusion (Pair.first Disk.Sphere Fiber.Sphere p)) (Pair.second Disk.Sphere Fiber.Sphere p);
+\definition boundaryPairContinuous: topology.Continuity[A := BoundaryProduct.CarrierSet, B := Prism.CarrierSet].Continuous boundaryTopology prismTopology boundaryPair :=
+  Prism.Universal[X := BoundaryProduct.CarrierSet].pairContinuous boundaryTopology Disk.diskTopology Fiber.sphereTopology
+    (\fun (p: BoundaryProduct.CarrierSet) => Characteristic.boundaryInclusion (Pair.first Disk.Sphere Fiber.Sphere p)) (Pair.second Disk.Sphere Fiber.Sphere)
+    (topology.Composition[A := BoundaryProduct.CarrierSet, B := Disk.Sphere, C := Disk.Disk].composeContinuous boundaryTopology Disk.sphereTopology Disk.diskTopology (Pair.first Disk.Sphere Fiber.Sphere) Characteristic.boundaryInclusion (BoundaryProduct.Maps[].firstContinuous Disk.sphereTopology Fiber.sphereTopology) Characteristic.boundaryContinuous)
+    (BoundaryProduct.Maps[].secondContinuous Disk.sphereTopology Fiber.sphereTopology);
+\definition attaching[p: BoundaryProduct.CarrierSet]: Previous.Carrier := \into[SphereBundle](chart.map (boundaryPair p), Subset k family) \by {
+  Logic.Or[_, _]::left (\idelim cell.characteristic (Characteristic.boundaryInclusion (Pair.first Disk.Sphere Fiber.Sphere p)) = (chart.map (boundaryPair p)).base \with x: X => \In[X] (Filtration.subset k) x \by {
+    base: boundaryLower (Pair.first Disk.Sphere Fiber.Sphere p), equality: sym!{X} _ _ (chart.base (boundaryPair p))
+  })
+};
+\definition attachingContinuous: topology.Continuity[A := BoundaryProduct.CarrierSet, B := Previous.Carrier].Continuous boundaryTopology Previous.topology attaching :=
+  topology.Continuity[A := BoundaryProduct.CarrierSet, B := SphereBundle].Corestriction[S := Subset k family].corestrictContinuous boundaryTopology sphereTopology attaching
+    (topology.Composition[A := BoundaryProduct.CarrierSet, B := Prism.CarrierSet, C := SphereBundle].composeContinuous boundaryTopology prismTopology sphereTopology boundaryPair chart.map boundaryPairContinuous chart.continuous);
+\definition imageInjective: \forall (x, y: Disk.Disk)(s, t: Fiber.Sphere) -> Order.Lt (Disk.normSquared x) R.one -> Order.Lt (Disk.normSquared y) R.one -> image (Pair.pair Disk.Disk Fiber.Sphere x s) = image (Pair.pair Disk.Disk Fiber.Sphere y t) -> Logic.And[x = y, s = t] :=
+  \fun (x, y: Disk.Disk)(s, t: Fiber.Sphere)(insideX: _)(insideY: _)(same: _) => \block {
+    \let base: cell.characteristic x = cell.characteristic y := eq_reason_in!{X _
+      "=" _ "by" { sym!{X} _ _ (chart.base (Pair.pair Disk.Disk Fiber.Sphere x s)) }
+      "=" _ "by" { congr!{SphereBundle X} sphereProjection (image (Pair.pair Disk.Disk Fiber.Sphere x s)) (image (Pair.pair Disk.Disk Fiber.Sphere y t)) same }
+      "=" _ "by" { chart.base (Pair.pair Disk.Disk Fiber.Sphere y t) }
+    } \then
+    \let equal: x = y := ((CW.laws bundle.baseSpace complex).cellLaws cell member).injectiveInterior x y insideX insideY base \then
+    \let pair: Pair.pair Disk.Disk Fiber.Sphere x s = Pair.pair Disk.Disk Fiber.Sphere y t := chart.injective (Pair.pair Disk.Disk Fiber.Sphere x s) (Pair.pair Disk.Disk Fiber.Sphere y t) equal same \then
+    \return Logic.And[_, _]::# equal (congr!{Prism.CarrierSet Fiber.Sphere} (Pair.second Disk.Disk Fiber.Sphere) _ _ pair)
+  };
+\definition separated: \forall (p: Previous.Carrier)(x: Disk.Disk)(s: Fiber.Sphere) -> Order.Lt (Disk.normSquared x) R.one -> Logic.Not (original p = image (Pair.pair Disk.Disk Fiber.Sphere x s)) :=
+  \fun (p: Previous.Carrier)(x: Disk.Disk)(s: Fiber.Sphere)(inside: _)(same: _) => outside x inside (\idelim p.base = cell.characteristic x \with b: X => \In[X] (BaseSubset k family) b \by {
+    base: \bysub(SphereBundle, Subset k family, p),
+    equality: trans!{X} _ _ _ (congr!{SphereBundle X} sphereProjection (original p) (image (Pair.pair Disk.Disk Fiber.Sphere x s)) same) (chart.base (Pair.pair Disk.Disk Fiber.Sphere x s))
+  });
+\definition OldImage[p: Next.Carrier]: \Prop := \exists (q: Previous.Carrier \where original q = p);
+\definition CellImage[p: Next.Carrier]: \Prop := \exists (q: Prism.CarrierSet \where image q = p);
+\definition Cover[p: Next.Carrier]: \Prop := Logic.Or[OldImage p, CellImage p];
+\definition fromPrevious: \forall (p: Next.Carrier) -> \In[SphereBundle] (Subset k family) p -> Cover p := \fun (p: Next.Carrier)(present: _) => Logic.Or[OldImage p, CellImage p]::left
+  (Logic.existsIntro[Previous.Carrier, { q: Previous.Carrier \where original q = p }] (\into[SphereBundle](p, Subset k family) \by { present }) (\refl(p)));
+\definition fromCell: \forall (p: Next.Carrier) -> \In[X] (CW.InteriorImage cell) p.base -> Cover p := \fun (p: Next.Carrier)(contains: _) => \block {
+  \takefrom x: \Cast[Disk.Disk] ({ x: Disk.Disk \where Logic.And[Order.Lt (Disk.normSquared x) R.one, cell.characteristic x = p.base] }) \by contains \then
+  \let base: p.base = cell.characteristic x := sym!{X} _ _ (\bysub(Disk.Disk, { x: Disk.Disk \where Logic.And[Order.Lt (Disk.normSquared x) R.one, cell.characteristic x = p.base] }, x)).right \then
+  \takefrom s: \Cast[Fiber.Sphere] ({ s: Fiber.Sphere \where chart.map (Pair.pair Disk.Disk Fiber.Sphere x s) = p }) \by chart.covers x p base \then
+  \return Logic.Or[OldImage p, CellImage p]::right (Logic.existsIntro[Prism.CarrierSet, { q: Prism.CarrierSet \where image q = p }] (Pair.pair Disk.Disk Fiber.Sphere x s)
+    (\bysub(Fiber.Sphere, { s: Fiber.Sphere \where chart.map (Pair.pair Disk.Disk Fiber.Sphere x s) = p }, s)))
+};
+\definition covers: \forall (p: Next.Carrier) -> Cover p := \fun (p: Next.Carrier) => either!{{\bysub(SphereBundle, Subset k (Lists.List[CW.CellData]::cons cell family), p)} {Cover p}
+  {\fun (lower: _) => fromPrevious p (Logic.Or[_, _]::left lower)}
+  {\fun (selected: _) => \block {
+    \takefrom other: Witness[k, Lists.List[CW.CellData]::cons cell family, p.base] \by selected \then
+    \return either!{{other.member} {Cover p}
+      {\fun (same: other.cell = cell) => fromCell p (\idelim other.cell = cell \with c: CW.CellData => \In[X] (CW.InteriorImage c) p.base \by { base: other.contains, equality: same })}
+      {\fun (member: CW.CellMember family other.cell) => fromPrevious p (Logic.Or[_, _]::right (\exact(Witness[k, family, p.base] { cell := other.cell, member := member, dimension := other.dimension, contains := other.contains }, Witness[k, family, p.base])))}
+    }
+  }}
+};
+\import \root.Thom[].CWType[].SphericalAttachment[A := Previous.Carrier, Y := Next.Carrier, source := Previous.topology, target := Next.topology, d := cell.dimension, r := r, fiber := \root.Thom[].CWType[].SphereCells[].data r] \as Attachment;
+\definition attachmentData: Attachment.Data := Attachment.Data {
+  original := original, chart := image, boundary := attaching, originalContinuous := originalContinuous, chartContinuous := imageContinuous, boundaryContinuous := attachingContinuous,
+  originalInjective := \fun (p, q: Previous.Carrier)(same: original p = original q) => same,
+  chartInjective := imageInjective, separated := separated,
+  seam := \fun (x: Disk.Sphere)(s: Fiber.Sphere) => \refl(chart.map (Pair.pair Disk.Disk Fiber.Sphere (Characteristic.boundaryInclusion x) s)),
+  covers := covers
+};
+\definition property: Previous.Property -> Next.Property := \fun (previous: Previous.Property) => Logic.And[_, _]::#
+  (Attachment.Of[data := attachmentData].compact previous.left)
+  (\block {
+    \takefrom model: \root.Thom[].CWType[].FiniteType[A := Previous.Carrier, source := Previous.topology].Data \by previous.right \then
+    \return Attachment.Of[data := attachmentData].Comparison[compact := previous.left, hausdorff := Next.hausdorff].Type[model := model].exists
+  });

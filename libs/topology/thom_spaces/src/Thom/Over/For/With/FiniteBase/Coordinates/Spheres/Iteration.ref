@@ -1,0 +1,21 @@
+\import \parent.Lower[k := k] \as Lower;
+\definition Theorem[family: CW.Cells]: \Prop := Included family -> Lower.Property -> \parent.Stage[k := k, family := family].Property;
+\import \parent.Stage[k := k, family := Lists.List[CW.CellData]::nil] \as Empty;
+\definition toLower: \forall (p: SphereBundle) -> \In[SphereBundle] (Subset k (Lists.List[CW.CellData]::nil)) p -> \In[SphereBundle] (LowerSubset k) p := \fun (p: SphereBundle)(present: _) =>
+  either!{present {\In[SphereBundle] (LowerSubset k) p}
+    {\fun (lower: _) => lower}
+    {\fun (selected: _) => \block {
+      \takefrom other: Witness[k, Lists.List[CW.CellData]::nil, p.base] \by selected \then
+      \return Logic.falseElim (\In[SphereBundle] (LowerSubset k) p) other.member
+    }}
+  };
+\definition fromLower: \forall (p: SphereBundle) -> \In[SphereBundle] (LowerSubset k) p -> \In[SphereBundle] (Subset k (Lists.List[CW.CellData]::nil)) p := \fun (p: SphereBundle)(present: _) => Logic.Or[_, _]::left present;
+\definition emptyHomeomorphism: topology.Homeomorphism[A := Empty.Carrier, B := Lower.Carrier].Homeomorphism[Empty.topology, Lower.topology] :=
+  topology.Topology[Carrier := SphereBundle].Subspace[S := Subset k (Lists.List[CW.CellData]::nil)].Equivalent[T := LowerSubset k].homeomorphism sphereTopology toLower fromLower;
+\definition base: Theorem (Lists.List[CW.CellData]::nil) := \fun (included: _) => \root.Thom[].CWType[].CompactType[A := Empty.Carrier, source := Empty.topology].Homeomorphic[B := Lower.Carrier, target := Lower.topology, h := emptyHomeomorphism].fromTarget;
+\module Cons(cell: CW.CellData, family: CW.Cells, previous: Theorem family, included: Included (Lists.List[CW.CellData]::cons cell family));
+\definition theorem: \forall (family: CW.Cells) -> Theorem family := \induction (family: CW.Cells) \return Theorem family \with {
+  | nil: base
+  | cons: \fun (cell: CW.CellData)(family: CW.Cells)(previous: Theorem family)(included: _) => Cons[cell := cell, family := family, previous := previous, included := included].property
+};
+\definition full: Lower.Property -> \parent.Stage[k := k, family := complex.cells].Property := theorem complex.cells (\fun (c: CW.CellData)(member: _) => member);

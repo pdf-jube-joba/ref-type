@@ -105,3 +105,14 @@
       Homotopies.Homotopy[topology, topology, (\fun (p: Carrier) => base (retract p)), (\fun (p: Carrier) => p)]),
     rightInverse := \exact(baseHomotopy, BaseHomotopies.Homotopy[target, target, (\fun (y: B) => retract (base y)), (\fun (y: B) => y)])
   };
+
+\import topological_constructions.Coproduct[A := B, B := Cylinder.Carrier] \as Sum;
+\definition onto: \forall (p: Carrier) -> \exists (q: Sum.Carrier \where Pushout.class q = p) := Pushout.induction
+  (\fun (p: Carrier) => \exists (q: Sum.Carrier \where Pushout.class q = p))
+  (\fun (p: B) => Logic.existsIntro[Sum.Carrier, { q: Sum.Carrier \where Pushout.class q = base p }] (Sum.inl p) (\refl(base p)))
+  (\fun (p: Cylinder.Carrier) => Logic.existsIntro[Sum.Carrier, { q: Sum.Carrier \where Pushout.class q = cylinder p }] (Sum.inr p) (\refl(cylinder p)));
+\definition compact: topology.Topology[Carrier := A].IsCompact source -> topology.Topology[Carrier := B].IsCompact target -> topology.Topology[Carrier := Carrier].IsCompact topology :=
+  \fun (sourceCompact: _)(targetCompact: _) => topology.Compactness[A := Sum.Carrier, B := Carrier].surjectiveImage (Sum.topology target (Cylinder.topology source)) topology Pushout.class
+    (topological_constructions.Quotient[A := Sum.Carrier, B := Carrier].projectionContinuous (Sum.topology target (Cylinder.topology source)) Pushout.class) onto
+    (Sum.Properties[left := target, right := Cylinder.topology source].compact targetCompact
+      (topological_constructions.Product[A := I.Carrier, B := A].Compactness[].productCompact I.topology source I.compact sourceCompact));

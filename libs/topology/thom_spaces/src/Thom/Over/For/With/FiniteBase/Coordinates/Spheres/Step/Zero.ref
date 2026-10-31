@@ -1,0 +1,24 @@
+\import algebraic_topology.Euclidean[].Dimension[n := N.Nat^::zero] \as EmptySphere;
+\definition emptyOver: \forall (x: Disk.Disk)(p: SphereBundle) -> p.base = cell.characteristic x -> Logic.False := \fun (x: Disk.Disk)(p: SphereBundle)(same: _) => \block {
+  \takefrom u: \Cast[EmptySphere.Sphere] ({ u: EmptySphere.Sphere \where chart.map (Pair.pair Disk.Disk EmptySphere.Sphere x u) = p }) \by chart.covers x p same \then
+  \return Order.Arithmetic[].Prop[].zeroNeOne (\bysub(EmptySphere.Coordinate, EmptySphere.Boundary, u))
+};
+\definition absent: \forall (p: SphereBundle) -> \In[X] (CW.InteriorImage cell) p.base -> Logic.False := \fun (p: SphereBundle)(contains: _) => \block {
+  \takefrom x: \Cast[Disk.Disk] ({ x: Disk.Disk \where Logic.And[Order.Lt (Disk.normSquared x) R.one, cell.characteristic x = p.base] }) \by contains \then
+  \return emptyOver x p (sym!{X} _ _ (\bysub(Disk.Disk, { x: Disk.Disk \where Logic.And[Order.Lt (Disk.normSquared x) R.one, cell.characteristic x = p.base] }, x)).right)
+};
+\definition toPrevious: \forall (p: SphereBundle) -> \In[SphereBundle] (Subset k (Lists.List[CW.CellData]::cons cell family)) p -> \In[SphereBundle] (Subset k family) p :=
+  \fun (p: SphereBundle)(present: Logic.Or[\In[X] (Filtration.subset k) p.base, \exists Witness[k, Lists.List[CW.CellData]::cons cell family, p.base]]) => either!{present {\In[SphereBundle] (Subset k family) p}
+    {\fun (lower: _) => Logic.Or[_, _]::left lower}
+    {\fun (selected: _) => \block {
+      \takefrom other: Witness[k, Lists.List[CW.CellData]::cons cell family, p.base] \by selected \then
+      \return either!{{other.member} {\In[SphereBundle] (Subset k family) p}
+        {\fun (same: other.cell = cell) => Logic.falseElim (\In[SphereBundle] (Subset k family) p) (absent p (\idelim other.cell = cell \with c: CW.CellData => \In[X] (CW.InteriorImage c) p.base \by { base: other.contains, equality: same }))}
+        {\fun (member: CW.CellMember family other.cell) => Logic.Or[_, _]::right (\exact(Witness[k, family, p.base] { cell := other.cell, member := member, dimension := other.dimension, contains := other.contains }, Witness[k, family, p.base]))}
+      }
+    }}
+  };
+\definition homeomorphism: topology.Homeomorphism[A := Next.Carrier, B := Previous.Carrier].Homeomorphism[Next.topology, Previous.topology] :=
+  topology.Topology[Carrier := SphereBundle].Subspace[S := Subset k (Lists.List[CW.CellData]::cons cell family)].Equivalent[T := Subset k family].homeomorphism sphereTopology toPrevious includePrevious;
+\definition property: Previous.Property -> Next.Property :=
+  \root.Thom[].CWType[].CompactType[A := Next.Carrier, source := Next.topology].Homeomorphic[B := Previous.Carrier, target := Previous.topology, h := homeomorphism].fromTarget;
