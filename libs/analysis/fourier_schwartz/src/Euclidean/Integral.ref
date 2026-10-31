@@ -1,0 +1,46 @@
+\import euclidean_measure.Euclidean[n := n].MeasureConstruction[] \as Lebesgue;
+\import functional_analysis.Measure[A := Point] \as M;
+\import M.Integral[mu := Lebesgue.measure] \as I;
+\import I.Absolute[] \as Abs;
+\import I.Linear[] \as Linear;
+\import I.Negation[] \as Negation;
+\import M.Functions[mu := Lebesgue.measure] \as Measurable;
+\import measure_convergence.On[A := Point, mu := Lebesgue.measure].Complex[] \as Complex;
+\import complex.Complex[] \as C;
+\import C.Def[] \as D;
+\import \root.Scalars[] \as Scalars;
+\import \parent.Kernel[] \as Kernel;
+\import lp_spaces.Euclidean[n := n].Compact[p := lp_spaces.Powers[].one] \as Compact;
+\import lp_spaces.On[A := Point, mu := Lebesgue.measure] \as L;
+\definition Input: \Set := Complex.Representatives;
+\definition addInput[f, g: Input]: Input := Complex.addRepresentative f g;
+\definition scaleInput[c: C.Complex][f: Input]: Input := Complex.complexScalarRepresentative c f;
+\definition mass[f: Input]: C.Complex := Complex.integral f;
+\structure Bounded: \Set := {
+  function: Point -> Real.Real,
+  measurable: M.IsMeasurable Lebesgue.measure function,
+  bound: \forall (x: Point) -> R.Le (Product.abs (function x)) Real.one,
+};
+\module BoundedProduct(f: I.Representatives, g: Bounded);
+\definition realKernel[xi: Point]: Bounded := Bounded {
+  function := \fun (x: Point) => C.re (Kernel.value x xi),
+  measurable := Compact.continuousMeasurable (\fun (x: Point) => C.re (Kernel.value x xi))
+    (Compact.smoothContinuous (\fun (x: Point) => C.re (Kernel.value x xi)) Kernel.Smooth[xi := xi].real),
+  bound := \fun (x: Point) => R.leReplaceRight _ _ _ (Kernel.modulus x xi) (Scalars.realAbsolute (Kernel.value x xi)),
+};
+\definition imaginaryKernel[xi: Point]: Bounded := Bounded {
+  function := \fun (x: Point) => C.im (Kernel.value x xi),
+  measurable := Compact.continuousMeasurable (\fun (x: Point) => C.im (Kernel.value x xi))
+    (Compact.smoothContinuous (\fun (x: Point) => C.im (Kernel.value x xi)) Kernel.Smooth[xi := xi].imaginary),
+  bound := \fun (x: Point) => R.leReplaceRight _ _ _ (Kernel.modulus x xi) (Scalars.imaginaryAbsolute (Kernel.value x xi)),
+};
+\definition product[f: I.Representatives][g: Bounded]: I.Representatives := BoundedProduct[f := f, g := g].value;
+\definition section[f: Complex.Representatives][xi: Point]: Complex.Representatives :=
+  \into[Complex.Function]((\fun (x: Point) => D.mul (f x) (Kernel.value x xi)), Complex.Representatives) \by {
+    Logic.And[_, _]::#
+      (I.integralLaw (Linear.addRepresentative (product (Complex.realPart f) (realKernel xi)) (Negation.representative (product (Complex.imaginaryPart f) (imaginaryKernel xi))))).integrable
+      (I.integralLaw (Linear.addRepresentative (product (Complex.realPart f) (imaginaryKernel xi)) (product (Complex.imaginaryPart f) (realKernel xi)))).integrable
+  };
+\definition transform[f: Complex.Representatives][xi: Point]: C.Complex := Complex.integral (section f xi);
+\module Continuity(f: Complex.Representatives, at: Point);
+\module Identities;

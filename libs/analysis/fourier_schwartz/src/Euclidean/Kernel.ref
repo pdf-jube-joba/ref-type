@@ -1,0 +1,40 @@
+\import complex.Complex[] \as C;
+\import C.Def[] \as D;
+\import C.Prop[] \as CL;
+\import C.Absolute[] \as Absolute;
+\import \root.Phase[].Global[] \as Phase;
+\import \root.Exponential[] \as Exponential;
+\definition pairing[x, xi: Point]: Real.Real := Sum.sum n (\fun (i: Coordinate) => Real.mul (x i) (xi i));
+\definition value[x, xi: Point]: C.Complex := Phase.value (Real.neg (pairing x xi));
+\definition exponent[x, xi: Point]: C.Complex := C.make Real.zero (Real.neg (pairing x xi));
+\definition exponential[x, xi: Point]: Exponential.value (exponent x xi) = value x xi := Exponential.imaginaryAxis (Real.neg (pairing x xi));
+\definition modulus[x, xi: Point]: Absolute.abs (value x xi) = Real.one := Phase.modulus (Real.neg (pairing x xi));
+\definition pairingOrigin[x: Point]: pairing x Coordinates.origin = Real.zero := trans!{Real.Real} _ _ _
+  (Sum.congruent n _ (\fun (i: Coordinate) => Real.zero) (\fun (i: Coordinate) => Laws.fieldMulZeroRight (x i))) (Sum.zeroSum n);
+\definition pairingSymmetric[x, xi: Point]: pairing x xi = pairing xi x := Sum.congruent n _ _ (\fun (i: Coordinate) => Laws.fieldMulComm (x i) (xi i));
+\definition atOrigin[x: Point]: value x Coordinates.origin = D.one :=
+  trans!{C.Complex} _ _ _ (congr!{Real.Real C.Complex} (\fun (r: Real.Real) => Phase.value (Real.neg r)) _ _ (pairingOrigin x))
+    (trans!{C.Complex} _ _ _ (congr!{Real.Real C.Complex} Phase.value _ _ Laws.negZero) Phase.atZero);
+\definition pairingAdd[x, y, xi: Point]: pairing (Coordinates.addPoint x y) xi = Real.add (pairing x xi) (pairing y xi) :=
+  trans!{Real.Real} _ _ _ (Sum.congruent n _ _ (\fun (i: Coordinate) => Algebra.mulAddRight (x i) (y i) (xi i))) (Sum.addition n _ _);
+\definition addition[x, y, xi: Point]: value (Coordinates.addPoint x y) xi = D.mul (value x xi) (value y xi) := eq_reason_in!{C.Complex _
+  "=" _ "by" { congr!{Real.Real C.Complex} (\fun (r: Real.Real) => Phase.value (Real.neg r)) _ _ (pairingAdd x y xi) }
+  "=" _ "by" { congr!{Real.Real C.Complex} Phase.value _ _ (Laws.negAdd _ _) }
+  "=" _ "by" { Phase.addition _ _ }
+};
+\definition sumNegative: \forall (k: N.Nat^)(f: Fin.Fin k -> Real.Real) -> Sum.sum k (\fun (i: Fin.Fin k) => Real.neg (f i)) = Real.neg (Sum.sum k f) :=
+  \induction (k: N.Nat^) \return \forall (f: Fin.Fin k -> Real.Real) -> Sum.sum k (\fun (i: Fin.Fin k) => Real.neg (f i)) = Real.neg (Sum.sum k f) \with {
+    | zero: \fun (f: _) => sym!{Real.Real} _ _ Laws.negZero
+    | succ: \fun (k: N.Nat^)(previous: _)(f: Fin.Fin (N.Nat^::succ k) -> Real.Real) =>
+      trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (Real.add (Real.neg (f (Fin.zero k)))) _ _ (previous (\fun (i: Fin.Fin k) => f (Fin.succ k i))))
+        (sym!{Real.Real} _ _ (Laws.negAdd _ _))
+  };
+\definition pairingNegative[x, xi: Point]: pairing (Coordinates.negPoint x) xi = Real.neg (pairing x xi) :=
+  trans!{Real.Real} _ _ _ (Sum.congruent n _ _ (\fun (i: Coordinate) => Laws.fieldMulNegLeft (x i) (xi i)))
+    (sumNegative n (\fun (i: Coordinate) => Real.mul (x i) (xi i)));
+\definition negative[x, xi: Point]: value (Coordinates.negPoint x) xi = D.conj (value x xi) :=
+  trans!{C.Complex} _ _ _ (congr!{Real.Real C.Complex} (\fun (r: Real.Real) => Phase.value (Real.neg r)) _ _ (pairingNegative x xi))
+    (Phase.negative (Real.neg (pairing x xi)));
+\module Smooth(xi: Point);
+\definition symmetric[x, xi: Point]: value x xi = value xi x :=
+  congr!{Real.Real C.Complex} (\fun (r: Real.Real) => Phase.value (Real.neg r)) _ _ (pairingSymmetric x xi);

@@ -11,3 +11,10 @@
 
 - [A05 Lp 空間のノルムと完備性](a05-lp-completeness.md)
 - [G01 滑らかな bump 関数と従属分割](g01-smooth-partitions.md)
+
+## 実装状況
+
+未完了。
+`libs/analysis/fourier_schwartz` に複素指数 Fourier 核、実・複素 Schwartz 半ノルム、偏微分による添字移動、複素 L1 代表元の積分 Fourier 変換とその連続性・線形性を構成した。
+Schwartz 関数の可積分性、微分・座標乗算・平行移動・畳み込みとの交換、Schwartz 空間の保存、Gaussian の変換と近似単位による反転公式が残っている。
+体系や処理系による不可能性は確認されておらず、残りは数学的実装・証明の作業である。

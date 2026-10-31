@@ -1,0 +1,60 @@
+\import complex.Complex[] \as C;
+\import C.Def[] \as D;
+\import C.Prop[] \as CL;
+\import C.Absolute[] \as Absolute;
+\import real.Analysis[] \as Real;
+\import Real.Algebra[] \as Algebra;
+\import Real.SquareRoot[] \as Root;
+\import Real.Estimates[].Product[] \as Product;
+\import dedekind_reals.DedekindReal[] \as R;
+\import R.Arithmetic[].Prop[] \as Laws;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.congr;
+\use Equality.trans;
+\use Equality.sym;
+\use Equality.eq_reason_in;
+\definition squareAbs: \forall (x: Real.Real) -> Real.mul (Product.abs x) (Product.abs x) = Real.mul x x :=
+  \fun (x: Real.Real) => eq_reason_in!{Real.Real _
+    "=" _ "by" { sym!{Real.Real} _ _ (Product.absProduct x x) }
+    "=" _ "by" { Product.absOfNonnegative (Real.mul x x) (Algebra.squareNonnegative x) }
+  };
+\definition rootSquare: \forall (x: Real.Real) -> Root.sqrt (Real.mul x x) = Product.abs x :=
+  \fun (x: Real.Real) => eq_reason_in!{Real.Real _
+    "=" _ "by" { congr!{Real.Real Real.Real} Root.sqrt _ _ (sym!{Real.Real} _ _ (squareAbs x)) }
+    "=" _ "by" { Root.sqrtSquared (Product.abs x) (Product.absNonnegative x) }
+  };
+\definition realAxisAbs: \forall (x: Real.Real) -> Absolute.abs (C.make x Real.zero) = Product.abs x :=
+  \fun (x: Real.Real) => eq_reason_in!{Real.Real _
+    "=" _ "by" { congr!{Real.Real Real.Real} Root.sqrt _ _
+      (congr!{Real.Real Real.Real} (Real.add (Real.mul x x)) _ _ (Laws.fieldMulZeroLeft Real.zero)) }
+    "=" _ "by" { congr!{Real.Real Real.Real} Root.sqrt _ _ (Laws.addZeroRight (Real.mul x x)) }
+    "=" _ "by" { rootSquare x }
+  };
+\definition imaginaryAxisAbs: \forall (x: Real.Real) -> Absolute.abs (C.make Real.zero x) = Product.abs x :=
+  \fun (x: Real.Real) => eq_reason_in!{Real.Real _
+    "=" _ "by" { congr!{Real.Real Real.Real} Root.sqrt _ _
+      (congr!{Real.Real Real.Real} (\fun (y: Real.Real) => Real.add y (Real.mul x x)) _ _ (Laws.fieldMulZeroLeft Real.zero)) }
+    "=" _ "by" { congr!{Real.Real Real.Real} Root.sqrt _ _ (Laws.addZeroLeft (Real.mul x x)) }
+    "=" _ "by" { rootSquare x }
+  };
+\definition absComponents: \forall (z: C.Complex) -> R.Le (Absolute.abs z) (Real.add (Product.abs (C.re z)) (Product.abs (C.im z))) :=
+  \fun (z: C.Complex) => R.leReplace
+    (Absolute.abs (D.add (C.make (C.re z) Real.zero) (C.make Real.zero (C.im z)))) (Absolute.abs z)
+    (Real.add (Absolute.abs (C.make (C.re z) Real.zero)) (Absolute.abs (C.make Real.zero (C.im z))))
+    (Real.add (Product.abs (C.re z)) (Product.abs (C.im z)))
+    (congr!{C.Complex Real.Real} Absolute.abs _ _ (CL.ext _ _ (Laws.addZeroRight (C.re z)) (Laws.addZeroLeft (C.im z))))
+    (congr!{Real.Real Real.Real Real.Real} Real.add _ _ _ _ (realAxisAbs (C.re z)) (imaginaryAxisAbs (C.im z)))
+    (Absolute.triangle (C.make (C.re z) Real.zero) (C.make Real.zero (C.im z)));
+\definition squareNegative[a: Real.Real]: Real.mul (Real.neg a) (Real.neg a) = Real.mul a a := Laws.fieldMulNegBoth a a;
+\definition realAbsolute: \forall (z: C.Complex) -> R.Le (Real.Estimates[].Product[].abs (C.re z)) (Absolute.abs z) :=
+  \fun (z: C.Complex) => R.leReplaceLeft (Real.Distance[].max (Real.neg (C.re z)) (C.re z)) (Real.Estimates[].Product[].abs (C.re z)) (Absolute.abs z)
+    (sym!{Real.Real} _ _ (Real.Estimates[].Product[].absExpression (C.re z))) (Real.Distance[].maxLeast (Real.neg (C.re z)) (C.re z) (Absolute.abs z)
+    (R.leReplaceLeft (C.re (D.neg z)) (Real.neg (C.re z)) (Absolute.abs z) (\refl(Real.neg (C.re z)))
+      (R.leReplaceRight _ (Absolute.abs (D.neg z)) (Absolute.abs z)
+        (congr!{Real.Real Real.Real} Real.SquareRoot[].sqrt _ _
+          (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real Real.Real} Real.add _ _ _ _ (squareNegative (C.re z)) (squareNegative (C.im z))) (\refl(D.normSq z))))
+        (Absolute.realPartBound (D.neg z))))
+    (Absolute.realPartBound z));
+\definition imaginaryAbsolute[z: C.Complex]: R.Le (Product.abs (C.im z)) (Absolute.abs z) :=
+  R.leReplaceRight _ _ _ (congr!{Real.Real Real.Real} Root.sqrt _ _ (Laws.addComm (Real.mul (C.im z) (C.im z)) (Real.mul (C.re z) (C.re z))))
+    (realAbsolute (C.make (C.im z) (C.re z)));
