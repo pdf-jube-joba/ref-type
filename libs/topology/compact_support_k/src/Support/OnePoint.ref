@@ -1,0 +1,95 @@
+\import topology.Topology[Carrier := X] \as Base;
+\import Base.Compactness[] \as Compact;
+\import Base.Finite[] \as Finite;
+\definition Carrier: \Set := Option.Option[X];
+\definition point: Carrier := Option.Option[X]::none;
+\definition inclusion: X -> Carrier := Option.Option[X]::some;
+\import topology.Topology[Carrier := Carrier] \as Space;
+\import topology.Maps[A := X, B := Carrier] \as Maps;
+\definition trace[U: \Pow Carrier]: \Pow X := Maps.Preimage inclusion U;
+\definition remainder[U: \Pow Carrier]: \Pow X := Base.Complement (trace U);
+\structure Open[U: \Pow Carrier]: \Prop := {
+  traceOpen: Base.IsOpenIn space (trace U),
+  atInfinity: Space.Member U point -> Base.IsCompactIn space (remainder U)
+};
+\definition raw: Space.TopologyData := Space.TopologyData { openSets := { U: \Pow Carrier \where Open[U] } };
+\definition emptyTrace: trace Space.Empty = Base.Empty := Maps.preimageEmptyEq inclusion;
+\definition wholeTrace: trace Space.Whole = Base.Whole := Maps.preimageWholeEq inclusion;
+\definition wholeRemainder: remainder Space.Whole = Base.Empty :=
+  \axiom:setext(remainder Space.Whole, Base.Empty,
+    \fun (x: X)(outside: Base.Member (remainder Space.Whole) x) => outside (\refl(inclusion x)),
+    \fun (x: X)(impossible: Logic.False) => Logic.falseElim (Base.Member (remainder Space.Whole) x) impossible);
+\definition traceUnionOpen: \forall (family: \Pow (\Pow Carrier)) ->
+  (\forall (U: \Pow Carrier) -> Space.FamilyMember family U -> Open[U]) -> Base.IsOpenIn space (trace (Space.Union family)) :=
+  \fun (family: _)(open: _) => Maps.openTransport space (Base.Union (Maps.PullbackFamily inclusion family)) (trace (Space.Union family))
+    (sym!{\Pow X} _ _ (Maps.preimageUnionEq inclusion family))
+    ((Base.topologyLaws space).unionOpen (Maps.PullbackFamily inclusion family)
+      (\fun (U: _)(member: _) => Maps.pullbackElim inclusion family U (Base.IsOpenIn space U)
+        (\fun (V: _)(inFamily: _)(same: _) => Maps.openTransport space (trace V) U (sym!{\Pow X} _ _ same)
+          (open V inFamily).traceOpen) member));
+\definition laws: Space.TopologyLaws[raw] := Space.TopologyLaws[raw] {
+  emptyOpen := Open[Space.Empty] {
+    traceOpen := Maps.openTransport space Base.Empty (trace Space.Empty) (sym!{\Pow X} _ _ emptyTrace) (Base.topologyLaws space).emptyOpen,
+    atInfinity := \fun (impossible: Logic.False) => Logic.falseElim (Base.IsCompactIn space (remainder Space.Empty)) impossible
+  },
+  wholeOpen := Open[Space.Whole] {
+    traceOpen := Maps.openTransport space Base.Whole (trace Space.Whole) (sym!{\Pow X} _ _ wholeTrace) (Base.topologyLaws space).wholeOpen,
+    atInfinity := \fun (_: _) => \idelim Base.Empty = remainder Space.Whole \with K: \Pow X => Base.IsCompactIn space K
+      \by { base: Compact.emptyCompact space, equality: sym!{\Pow X} _ _ wholeRemainder }
+  },
+  unionOpen := \fun (family: _)(open: _) => Open[Space.Union family] {
+    traceOpen := traceUnionOpen family open,
+    atInfinity := \fun (member: _) => Space.unionMemberElim family point (Base.IsCompactIn space (remainder (Space.Union family)))
+      (\fun (U: _)(inFamily: _)(inU: _) => Compact.closedSubset space (remainder U) (remainder (Space.Union family))
+        ((open U inFamily).atInfinity inU) (Finite.openComplementClosed space _ (traceUnionOpen family open))
+        (\fun (x: X)(outside: _)(inU: _) => outside (Space.unionMemberOf family U (inclusion x) inFamily inU))) member
+  },
+  intersectionOpen := \fun (U, V: _)(uo: Open[U])(vo: Open[V]) => Open[Space.Intersection U V] {
+    traceOpen := Maps.openTransport space (Base.Intersection (trace U) (trace V)) (trace (Space.Intersection U V))
+      (sym!{\Pow X} _ _ (Maps.preimageIntersectionEq inclusion U V))
+      ((Base.topologyLaws space).intersectionOpen _ _ uo.traceOpen vo.traceOpen),
+    atInfinity := \fun (both: _) => \idelim Finite.Join (remainder U) (remainder V) = remainder (Space.Intersection U V)
+      \with K: \Pow X => Base.IsCompactIn space K \by {
+        base: Compact.joinCompact space _ _ (uo.atInfinity both.left) (vo.atInfinity both.right),
+        equality: \axiom:setext(Finite.Join (remainder U) (remainder V), remainder (Space.Intersection U V),
+          \fun (x: X)(outside: Base.Member (Finite.Join (remainder U) (remainder V)) x)(inside: Logic.And[Space.Member U (inclusion x), Space.Member V (inclusion x)]) => either!{outside {Logic.False} {\fun (h: _) => h inside.left} {\fun (h: _) => h inside.right}},
+          \fun (x: X)(outside: _) => either!{{(Classical.excludedMiddle (Base.Member (trace U) x))} {Base.Member (Finite.Join (remainder U) (remainder V)) x}
+            {\fun (inU: _) => Logic.Or[_, _]::right (\fun (inV: _) => outside (Logic.And[_, _]::# inU inV))}
+            {Logic.Or[_, _]::left}})
+      }
+  }
+};
+\definition topology: Space.Topology := \into[Space.TopologyData](raw, Space.Topology) \by { laws };
+\definition inclusionContinuous: topology.Continuity[A := X, B := Carrier].Continuous space topology inclusion :=
+  \fun (U: _)(open: Open[U]) => open.traceOpen;
+\definition lift[U: \Pow X]: \Pow Carrier := { p: Carrier \where
+  (\induction (p: Carrier) \return \Prop \with { | none: Logic.False | some: \fun (x: X) => Base.Member U x }) p };
+\definition liftTrace[U: \Pow X]: trace (lift U) = U :=
+  \axiom:setext(trace (lift U), U, \fun (x: X)(h: _) => h, \fun (x: X)(h: _) => h);
+\definition liftOpen: \forall (U: \Pow X) -> Base.IsOpenIn space U -> Space.IsOpenIn topology (lift U) :=
+  \fun (U: _)(open: _) => Open[lift U] {
+    traceOpen := Maps.openTransport space U (trace (lift U)) (sym!{\Pow X} _ _ (liftTrace U)) open,
+    atInfinity := \fun (impossible: Logic.False) => Logic.falseElim (Base.IsCompactIn space (remainder (lift U))) impossible
+  };
+\definition neighborhood[K: \Pow X]: \Pow Carrier := { p: Carrier \where
+  (\induction (p: Carrier) \return \Prop \with { | none: point = point | some: \fun (x: X) => Logic.Not (Base.Member K x) }) p };
+\definition neighborhoodTrace[K: \Pow X]: trace (neighborhood K) = Base.Complement K :=
+  \axiom:setext(trace (neighborhood K), Base.Complement K, \fun (x: X)(h: _) => h, \fun (x: X)(h: _) => h);
+\definition neighborhoodRemainder[K: \Pow X]: remainder (neighborhood K) = K :=
+  trans!{\Pow X} _ _ _ (congr!{{\Pow X} {\Pow X}} Base.Complement _ _ (neighborhoodTrace K)) (Finite.doubleComplement K);
+\definition neighborhoodOpen: \forall (K: \Pow X) -> Base.IsClosedIn space K -> Base.IsCompactIn space K -> Space.IsOpenIn topology (neighborhood K) :=
+  \fun (K: _)(closed: _)(compact: _) => Open[neighborhood K] {
+    traceOpen := Maps.openTransport space (Base.Complement K) (trace (neighborhood K)) (sym!{\Pow X} _ _ (neighborhoodTrace K)) closed,
+    atInfinity := \fun (_: _) => \idelim K = remainder (neighborhood K) \with V: \Pow X => Base.IsCompactIn space V
+      \by { base: compact, equality: sym!{\Pow X} _ _ (neighborhoodRemainder K) }
+  };
+\definition recover[default: X]: Carrier -> X :=
+  \induction (p: Carrier) \return X \with { | none: default | some: \fun (x: X) => x };
+\definition injective: \forall (x, y: X) -> inclusion x = inclusion y -> x = y :=
+  \fun (x, y: X)(same: _) => congr!{Carrier X} (recover x) _ _ same;
+\definition finitePoint[p: Carrier]: \Prop := Space.Member (lift Base.Whole) p;
+\definition different: \forall (x: X) -> Logic.Not (inclusion x = point) :=
+  \fun (x: X)(same: _) => \idelim inclusion x = point \with p: Carrier => finitePoint p \by { base: \refl(x), equality: same };
+\module Compactness;
+\module Separation(hausdorff: Base.IsT2 space, locallyCompact: topology.LocallyCompact[A := X].IsLocallyCompact space);
+\module Outside;

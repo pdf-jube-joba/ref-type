@@ -1,0 +1,21 @@
+\import Complements.PulledIsomorphism[X := A, Y := B, F := (\fun (x: A) => F x), G := (\fun (x: A) => G x),
+  source := FirstRestriction.restricted, target := SecondRestriction.restricted, base := Positive.domainSpace, f := boundary,
+  sourceRegular := Positive.boundaryRegular, targetRegular := Negative.boundaryRegular] \as BoundaryPull;
+\import Operations.IsomorphismComposition[X := B, F := (\fun (y: B) => F (f y)), G := (\fun (y: B) => F (f y)), H := (\fun (y: B) => G (f y)),
+  source := firstBoundary, middle := Positive.second, target := Negative.second] \as First;
+\import Bundles.Isomorphisms[X := B, F := (\fun (y: B) => G (f y)), G := (\fun (y: B) => G (f y)), source := Negative.first, target := Negative.second] \as Reverse;
+\definition comparison: Bundles.Isomorphisms[X := B, F := (\fun (y: B) => F (f y)), G := (\fun (y: B) => G (f y)),
+  source := firstBoundary, target := secondBoundary].Isomorphism :=
+  Operations.IsomorphismComposition[X := B, F := (\fun (y: B) => F (f y)), G := (\fun (y: B) => G (f y)), H := (\fun (y: B) => G (f y)),
+    source := firstBoundary, middle := Negative.second, target := secondBoundary].compose
+    (First.compose Positive.isomorphism (BoundaryPull.isomorphism alpha)) (Reverse.inverse Negative.isomorphism);
+\definition formula: \forall (y: B)(v: F (f y)) -> (comparison.forward.fiber y).apply v = (alpha.forward.fiber (boundary y)).apply v :=
+  \fun (y: B)(v: F (f y)) => \refl((alpha.forward.fiber (boundary y)).apply v);
+\definition backwardFormula: \forall (y: B)(v: G (f y)) -> (comparison.backward.fiber y).apply v = (alpha.backward.fiber (boundary y)).apply v :=
+  \fun (y: B)(v: G (f y)) => trans!{{F (f y)}} _ _ _
+    (congr!{{G (f y)} {F (f y)}} (comparison.backward.fiber y).apply _ _
+      (sym!{{G (f y)}} _ _ (alpha.rightInverse (boundary y) v)))
+    (trans!{{F (f y)}} _ _ _
+      (congr!{{G (f y)} {F (f y)}} (comparison.backward.fiber y).apply _ _
+        (sym!{{G (f y)}} _ _ (formula y ((alpha.backward.fiber (boundary y)).apply v))))
+      (comparison.leftInverse y ((alpha.backward.fiber (boundary y)).apply v)));

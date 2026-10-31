@@ -1,0 +1,23 @@
+\import \parent.Evaluation[] \as Evaluation;
+\import \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].DirectSum[X := X, F := Fiber, G := F, left := hom, right := left] \as Sum;
+\import Bundles.Family[X := X, F := Sum.Fiber] \as SumFamily;
+\import Bundles.Family[X := X, F := G] \as Target;
+\definition paired[p: Source.Point]: SumFamily.Point := SumFamily.include p.base (Pair.pair (Fiber p.base) (F p.base) (value p.base) p.vector);
+\definition pairedContinuous: topology.Continuity[A := Source.Point, B := SumFamily.Point].Continuous left.totalSpace Sum.topology paired :=
+  Sum.Universal[Y := Source.Point].continuous left.totalSpace paired
+    (topology.Composition[A := Source.Point, B := X, C := Family.Point].composeContinuous left.totalSpace left.baseSpace hom.totalSpace
+      Source.projection (\fun (x: X) => Family.include x (value x)) Source.Of[bundle := left].projectionContinuous regular)
+    (\idelim (\fun (p: Source.Point) => p) = (\fun (p: Source.Point) => Source.include p.base p.vector)
+      \with f: (Source.Point -> Source.Point) => topology.Continuity[A := Source.Point, B := Source.Point].Continuous left.totalSpace left.totalSpace f \by {
+        base: topology.Maps[A := Source.Point, B := Source.Point].Identity[].continuous left.totalSpace,
+        equality: \axiom:funext((\fun (p: Source.Point) => p), (\fun (p: Source.Point) => Source.include p.base p.vector),
+          (\fun (p: Source.Point) => sym!{{Source.Point}} _ _ (Source.eta p)))
+      });
+\import Bundles.Morphisms[X := X, Y := X, F := F, G := G, source := left, target := right, f := (\fun (x: X) => x)] \as Maps;
+\definition data: Maps.Data := Maps.Data {
+  fiber := \fun (x: X) => Spaces.Linear[V := F x, W := G x, source := left.space x, target := right.space x].fromModuleMap (value x)
+};
+\definition map: Maps.Map := \into[Maps.Data](data, Maps.Map) \by {
+  topology.Composition[A := Source.Point, B := SumFamily.Point, C := Target.Point].composeContinuous left.totalSpace Sum.topology right.totalSpace
+    paired Evaluation.value pairedContinuous Evaluation.continuous
+};

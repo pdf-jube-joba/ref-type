@@ -1,0 +1,25 @@
+\import \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar] \as Operations;
+\import Operations.DirectSum[X := X, F := Fiber first.ranks, G := Fiber second.ranks, left := bundle first, right := bundle second] \as Sum;
+\definition ranks[x: X]: N.Nat^ := Fin.Sum[m := first.ranks x, n := second.ranks x].total;
+\definition frame[x: X]: Spaces.Isomorphism[V := Sum.Fiber x, W := Vector (ranks x), source := Sum.fiberSpace x, target := coordinates (ranks x)].Isomorphism :=
+  Operations.CoordinateSum[n := first.ranks x, m := second.ranks x].isomorphism;
+\import Operations.Transport[X := X, F := Sum.Fiber, G := Fiber ranks, source := Sum.bundle (\refl(baseSpace)),
+  space := (\fun (x: X) => coordinates (ranks x)), isomorphism := frame] \as Transport;
+\definition data: Data := Data { ranks := ranks, totalSpace := Transport.topology };
+\definition value: Bundle := \into[Data](data, Bundle) \by {
+  Bundles.Family[X := X, F := Fiber ranks].Of[bundle := Transport.bundle].locallyTrivial
+};
+\definition source: Bundles.Family[X := X, F := Sum.Fiber].Bundle := Sum.bundle (\refl(baseSpace));
+\definition isomorphism: Bundles.Isomorphisms[X := X, F := Sum.Fiber, G := Fiber value.ranks, source := source, target := bundle value].Isomorphism := Transport.Comparison[].comparison;
+\definition SourceFiber[x: X]: \Set := Sum.Fiber x;
+\module To(target: Bundle);
+\module From(domain: Bundle);
+\import Sum.Of[same := (\refl(baseSpace))] \as Original;
+\definition firstProjection: Map value first :=
+  Bundles.Morphisms[X := X, Y := X, F := Fiber value.ranks, G := Sum.Fiber, source := bundle value, target := source, f := (\fun (x: X) => x)]
+    .Composition[Z := X, H := Fiber first.ranks, range := bundle first, g := (\fun (x: X) => x)].compose isomorphism.backward Original.firstMap;
+\definition secondProjection: Map value second :=
+  Bundles.Morphisms[X := X, Y := X, F := Fiber value.ranks, G := Sum.Fiber, source := bundle value, target := source, f := (\fun (x: X) => x)]
+    .Composition[Z := X, H := Fiber second.ranks, range := bundle second, g := (\fun (x: X) => x)].compose isomorphism.backward Original.secondMap;
+\definition firstInclusion: Map first value := From[domain := first].pair (identity first) (zero first second);
+\definition secondInclusion: Map second value := From[domain := second].pair (zero second first) (identity second);

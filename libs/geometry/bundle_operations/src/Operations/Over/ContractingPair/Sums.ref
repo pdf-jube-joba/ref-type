@@ -1,0 +1,61 @@
+\import Spaces.Laws[V := V, space := even] \as Even;
+\import Spaces.Laws[V := W, space := odd] \as Odd;
+\structure Candidate: \Set := { h: Backward.Map, k: Forward.Map };
+\structure Balance[c: Candidate][a: K]: \Prop := {
+  even: \forall (v: V) -> even.add (e.apply (c.k.apply v)) (c.h.apply (d.apply v)) = even.smul a v,
+  odd: \forall (w: W) -> odd.add (d.apply (c.h.apply w)) (c.k.apply (e.apply w)) = odd.smul a w
+};
+\definition zero: Candidate := Candidate { h := Backward.Operations[].zeroMap, k := Forward.Operations[].zeroMap };
+\definition plus[a, b: Candidate]: Candidate := Candidate {
+  h := Backward.Operations[].plus a.h b.h, k := Forward.Operations[].plus a.k b.k
+};
+\definition scale[a: K][c: Candidate]: Candidate := Candidate {
+  h := Backward.Operations[].scale a c.h, k := Forward.Operations[].scale a c.k
+};
+\definition scaleZero: \forall (c: Candidate) -> scale field.zero c = zero := \fun (c: Candidate) =>
+  congr!{{Backward.Map} {Forward.Map} {Candidate}} (\fun (h: Backward.Map)(k: Forward.Map) => Candidate { h := h, k := k }) _ _ _ _
+    (Backward.ext _ _ (\axiom:funext((scale field.zero c).h.apply, zero.h.apply, (\fun (w: W) => Even.zeroScale (c.h.apply w)))))
+    (Forward.ext _ _ (\axiom:funext((scale field.zero c).k.apply, zero.k.apply, (\fun (v: V) => Odd.zeroScale (c.k.apply v)))));
+\definition zeroBalance: Balance[zero,field.zero] := Balance[zero,field.zero] {
+  even := \fun (v: V) => trans!{{V}} _ _ _
+    (congr!{{V} {V}} (\fun (z: V) => even.add z even.zero) _ _ e.preservesZero)
+    (trans!{{V}} _ _ _ (Even.zeroLeft even.zero) (sym!{{V}} _ _ (Even.zeroScale v))),
+  odd := \fun (w: W) => trans!{{W}} _ _ _
+    (congr!{{W} {W}} (\fun (z: W) => odd.add z odd.zero) _ _ d.preservesZero)
+    (trans!{{W}} _ _ _ (Odd.zeroLeft odd.zero) (sym!{{W}} _ _ (Odd.zeroScale w)))
+};
+\definition zeroScaleBalance[c: Candidate]: Balance[scale field.zero c,field.zero] :=
+  \idelim zero = scale field.zero c \with z: Candidate => Balance[z,field.zero] \by {
+    base: zeroBalance, equality: sym!{{Candidate}} _ _ (scaleZero c)
+  };
+\definition scaleContraction: \forall (a: K)(c: Candidate) -> Laws[Data { d := d, e := e, h := c.h, k := c.k }] -> Balance[scale a c,a] :=
+  \fun (a: K)(c: Candidate)(contracting: Laws[Data { d := d, e := e, h := c.h, k := c.k }]) => Balance[scale a c,a] {
+    even := \fun (v: V) => trans!{{V}} _ _ _
+      (congr!{{V} {V}} (\fun (z: V) => even.add z (even.smul a (c.h.apply (d.apply v)))) _ _ (e.preservesScale a (c.k.apply v)))
+      (trans!{{V}} _ _ _ (sym!{{V}} _ _ (even.vectorAdd a _ _)) (congr!{{V} {V}} (even.smul a) _ _ (contracting.even v))),
+    odd := \fun (w: W) => trans!{{W}} _ _ _
+      (congr!{{W} {W}} (\fun (z: W) => odd.add z (odd.smul a (c.k.apply (e.apply w)))) _ _ (d.preservesScale a (c.h.apply w)))
+      (trans!{{W}} _ _ _ (sym!{{W}} _ _ (odd.vectorAdd a _ _)) (congr!{{W} {W}} (odd.smul a) _ _ (contracting.odd w)))
+  };
+\definition plusBalance: \forall (a, b: Candidate)(s, t: K) -> Balance[a,s] -> Balance[b,t] -> Balance[plus a b,field.add s t] :=
+  \fun (a, b: Candidate)(s, t: K)(first: Balance[a,s])(second: Balance[b,t]) => Balance[plus a b,field.add s t] {
+    even := \fun (v: V) => trans!{{V}} _ _ _
+      (congr!{{V} {V}} (\fun (z: V) => even.add z (even.add (a.h.apply (d.apply v)) (b.h.apply (d.apply v)))) _ _ (e.preservesAdd (a.k.apply v) (b.k.apply v)))
+      (trans!{{V}} _ _ _ (Even.shuffle _ _ _ _)
+        (trans!{{V}} _ _ _ (congr!{{V} {V} {V}} even.add _ _ _ _ (first.even v) (second.even v)) (sym!{{V}} _ _ (even.scalarAdd s t v)))),
+    odd := \fun (w: W) => trans!{{W}} _ _ _
+      (congr!{{W} {W}} (\fun (z: W) => odd.add z (odd.add (a.k.apply (e.apply w)) (b.k.apply (e.apply w)))) _ _ (d.preservesAdd (a.h.apply w) (b.h.apply w)))
+      (trans!{{W}} _ _ _ (Odd.shuffle _ _ _ _)
+        (trans!{{W}} _ _ _ (congr!{{W} {W} {W}} odd.add _ _ _ _ (first.odd w) (second.odd w)) (sym!{{W}} _ _ (odd.scalarAdd s t w))))
+  };
+\definition scaleBalance: \forall (a: K)(c: Candidate)(s: K) -> Balance[c,s] -> Balance[scale a c,field.mul a s] :=
+  \fun (a: K)(c: Candidate)(s: K)(balanced: Balance[c,s]) => Balance[scale a c,field.mul a s] {
+    even := \fun (v: V) => trans!{{V}} _ _ _
+      (congr!{{V} {V}} (\fun (z: V) => even.add z (even.smul a (c.h.apply (d.apply v)))) _ _ (e.preservesScale a (c.k.apply v)))
+      (trans!{{V}} _ _ _ (sym!{{V}} _ _ (even.vectorAdd a _ _))
+        (trans!{{V}} _ _ _ (congr!{{V} {V}} (even.smul a) _ _ (balanced.even v)) (sym!{{V}} _ _ (even.scalarAssoc a s v)))),
+    odd := \fun (w: W) => trans!{{W}} _ _ _
+      (congr!{{W} {W}} (\fun (z: W) => odd.add z (odd.smul a (c.k.apply (e.apply w)))) _ _ (d.preservesScale a (c.h.apply w)))
+      (trans!{{W}} _ _ _ (sym!{{W}} _ _ (odd.vectorAdd a _ _))
+        (trans!{{W}} _ _ _ (congr!{{W} {W}} (odd.smul a) _ _ (balanced.odd w)) (sym!{{W}} _ _ (odd.scalarAssoc a s w))))
+  };

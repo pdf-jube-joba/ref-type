@@ -1,0 +1,44 @@
+\import Operations.IdentityIsomorphism[X := X, F := F, bundle := first] \as IdentityF;
+\import Operations.IdentityIsomorphism[X := X, F := H, bundle := auxiliaryBundle] \as IdentityH;
+\import Bundles.Isomorphisms[X := X, F := Negative.Fiber, G := (\fun (x: X) => Bundles.Vector n), source := negativeBundle, target := Trivial.bundle] \as InvertFrame;
+\import Operations.DirectSumIsomorphisms[X := X, F := F, G := (\fun (x: X) => Bundles.Vector n), A := F, B := Negative.Fiber,
+  first := first, second := Trivial.bundle, newFirst := first, newSecond := negativeBundle,
+  sameSource := (\refl(space)), sameTarget := (\refl(space))] \as Step1;
+\definition one: Bundles.Isomorphisms[X := X, F := Step1.SourceFiber, G := Step1.TargetFiber, source := Step1.sourceBundle, target := Step1.targetBundle].Isomorphism := Step1.isomorphism IdentityF.isomorphism (InvertFrame.inverse h);
+\import Operations.DirectSumAssociator[X := X, F := F, G := G, H := H, left := first, middle := second, right := auxiliaryBundle,
+  sameMiddle := (\refl(space)), sameRight := (\refl(space))] \as Associate;
+\import Operations.DirectSum[X := X, F := F, G := G, left := first, right := second] \as FG;
+\import Operations.DirectSumIsomorphisms[X := X, F := FG.Fiber, G := H, A := FG.Fiber, B := H,
+  first := FG.bundle (\refl(space)), second := auxiliaryBundle, newFirst := FG.bundle (\refl(space)), newSecond := auxiliaryBundle,
+  sameSource := (\refl(space)), sameTarget := (\refl(space))] \as Exchange;
+\import Negative.Of[same := (\refl(space))].Symmetry[] \as Symmetry;
+\import Operations.DirectSum[X := X, F := H, G := G, left := auxiliaryBundle, right := second] \as HG;
+\import Operations.DirectSumIsomorphisms[X := X, F := F, G := Negative.Fiber, A := F, B := HG.Fiber,
+  first := first, second := negativeBundle, newFirst := first, newSecond := HG.bundle (\refl(space)),
+  sameSource := (\refl(space)), sameTarget := (\refl(space))] \as Swap;
+\import Operations.DirectSumAssociator[X := X, F := F, G := H, H := G, left := first, middle := auxiliaryBundle, right := second,
+  sameMiddle := (\refl(space)), sameRight := (\refl(space))] \as FinishAssociate;
+\import Bundles.Isomorphisms[X := X, F := Associate.SourceFiber, G := Associate.TargetFiber, source := Associate.sourceBundle, target := Associate.targetBundle] \as ReverseAssociate;
+\import Bundles.Isomorphisms[X := X, F := FinishAssociate.SourceFiber, G := FinishAssociate.TargetFiber, source := FinishAssociate.sourceBundle, target := FinishAssociate.targetBundle] \as ReverseFinish;
+\import Operations.IsomorphismComposition[X := X, F := SourceFiber, G := Step1.TargetFiber, H := Associate.SourceFiber,
+  source := sourceBundle, middle := Step1.targetBundle, target := Associate.sourceBundle] \as TwoComposition;
+\definition two: TwoComposition.Isomorphism := TwoComposition.compose one (ReverseAssociate.inverse Associate.isomorphism);
+\import Operations.IsomorphismComposition[X := X, F := SourceFiber, G := Associate.SourceFiber, H := Associate.SourceFiber,
+  source := sourceBundle, middle := Associate.sourceBundle, target := Associate.sourceBundle] \as ThreeComposition;
+\definition three: ThreeComposition.Isomorphism := ThreeComposition.compose two (Exchange.isomorphism switch.exchange IdentityH.isomorphism);
+\import Operations.IsomorphismComposition[X := X, F := SourceFiber, G := Associate.SourceFiber, H := Associate.TargetFiber,
+  source := sourceBundle, middle := Associate.sourceBundle, target := Associate.targetBundle] \as FourComposition;
+\definition four: FourComposition.Isomorphism := FourComposition.compose three Associate.isomorphism;
+\import Operations.IsomorphismComposition[X := X, F := SourceFiber, G := Associate.TargetFiber, H := FinishAssociate.TargetFiber,
+  source := sourceBundle, middle := Associate.targetBundle, target := FinishAssociate.targetBundle] \as FiveComposition;
+\definition five: FiveComposition.Isomorphism := FiveComposition.compose four (Swap.isomorphism IdentityF.isomorphism Symmetry.isomorphism);
+\import Operations.IsomorphismComposition[X := X, F := SourceFiber, G := FinishAssociate.TargetFiber, H := TargetFiber,
+  source := sourceBundle, middle := FinishAssociate.targetBundle, target := targetBundle] \as IsomorphismComposition;
+\definition isomorphism: IsomorphismComposition.Isomorphism := IsomorphismComposition.compose five (ReverseFinish.inverse FinishAssociate.isomorphism);
+\module At(x: A, v: F x, t: Bundles.Vector n);
+\definition boundary: \forall (x: A)(v: F x)(t: Bundles.Vector n) ->
+  Product.pair (Bundles.Vector n) (G x)
+    ((comparison.forward.fiber x).apply (Product.first (Positive.Fiber x) (G x) ((isomorphism.forward.fiber x).apply (Product.pair (F x) (Bundles.Vector n) v t))))
+    (Product.second (Positive.Fiber x) (G x) ((isomorphism.forward.fiber x).apply (Product.pair (F x) (Bundles.Vector n) v t))) =
+  Product.pair (Bundles.Vector n) (G x) t ((alpha.forward.fiber x).apply v) :=
+  \fun (x: A)(v: F x)(t: Bundles.Vector n) => At[x := x, v := v, t := t].equation;

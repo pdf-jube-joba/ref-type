@@ -1,0 +1,57 @@
+\import Complements.Representations[X := X, baseSpace := space].Pullback[Y := Y, source := source, f := f, regularBase := regular] \as Presentations;
+\definition sourceAuxiliary: DomainPair.Presentation := Presentations.presentation auxiliary;
+\import Presentations.At[p := auxiliary] \as Aux;
+\import SourceClass.Framing[auxiliary := sourceAuxiliary, n := n] \as Local;
+\import Bundles.Isomorphisms[X := Y, F := (\fun (y: Y) => Frame.H (f y)), G := Local.H, source := Aux.pulledBundle, target := Local.auxiliaryBundle] \as AuxInverse;
+\import Operations.IdentityIsomorphism[X := Y, F := SecondFiber, bundle := secondBundle] \as Identity;
+\import Operations.DirectSumIsomorphisms[X := Y, F := SecondFiber, G := Local.H, A := SecondFiber, B := (\fun (y: Y) => Frame.H (f y)),
+  first := secondBundle, second := Local.auxiliaryBundle, newFirst := secondBundle, newSecond := Aux.pulledBundle, sameSource := (\refl(source)), sameTarget := (\refl(source))] \as Sum;
+\import Operations.DirectSum[X := X, F := G, G := Frame.H, left := second, right := Frame.auxiliaryBundle] \as NegativeOriginal;
+\import NegativeOriginal.Of[same := (\refl(space))].Pullback[Y := Y, source := source, f := f, regular := regular] \as NegativeSum;
+\import Bundles.Isomorphisms[X := Y, F := (\fun (y: Y) => NegativeOriginal.Fiber (f y)), G := (\fun (y: Y) => NegativeOriginal.Fiber (f y)), source := NegativeSum.firstBundle, target := NegativeSum.secondBundle] \as NegativeInverse;
+\import Bundles.Trivial[X := X, n := n, baseSpace := space] \as Trivial;
+\import Bundles.Trivial[X := Y, n := n, baseSpace := source] \as LocalTrivial;
+\import Complements.PulledIsomorphism[X := X, Y := Y, F := NegativeOriginal.Fiber, G := (\fun (x: X) => Bundles.Vector n), source := Frame.negativeBundle, target := Trivial.bundle,
+  base := source, f := f, sourceRegular := regular, targetRegular := regular] \as Pulled;
+\import Operations.TrivialPullback[X := X, Y := Y, n := n, original := space, base := source, f := f, regular := regular] \as Triviality;
+\definition negativeComparison: Bundles.Isomorphisms[X := Y, F := Sum.SourceFiber, G := (\fun (y: Y) => NegativeOriginal.Fiber (f y)), source := Sum.sourceBundle, target := NegativeSum.firstBundle].Isomorphism :=
+  Operations.IsomorphismComposition[X := Y, F := Sum.SourceFiber, G := Sum.TargetFiber, H := (\fun (y: Y) => NegativeOriginal.Fiber (f y)), source := Sum.sourceBundle, middle := Sum.targetBundle, target := NegativeSum.firstBundle].compose
+    (Sum.isomorphism Identity.isomorphism (AuxInverse.inverse Aux.isomorphism)) (NegativeInverse.inverse NegativeSum.isomorphism);
+\definition localTrivialization: Local.Trivialization :=
+  Operations.IsomorphismComposition[X := Y, F := Sum.SourceFiber, G := (\fun (y: Y) => Bundles.Vector n), H := (\fun (y: Y) => Bundles.Vector n),
+    source := Sum.sourceBundle, middle := Triviality.pulled, target := LocalTrivial.bundle].compose
+    (Operations.IsomorphismComposition[X := Y, F := Sum.SourceFiber, G := (\fun (y: Y) => NegativeOriginal.Fiber (f y)), H := (\fun (y: Y) => Bundles.Vector n),
+      source := Sum.sourceBundle, middle := NegativeSum.firstBundle, target := Triviality.pulled].compose negativeComparison (Pulled.isomorphism trivialization)) Triviality.isomorphism;
+\import Local.With[h := localTrivialization] \as LocalFrame;
+\import Operations.IdentityIsomorphism[X := Y, F := FirstFiber, bundle := firstBundle] \as PositiveIdentity;
+\import Operations.DirectSumIsomorphisms[X := Y, F := FirstFiber, G := Local.H, A := FirstFiber, B := (\fun (y: Y) => Frame.H (f y)),
+  first := firstBundle, second := Local.auxiliaryBundle, newFirst := firstBundle, newSecond := Aux.pulledBundle, sameSource := (\refl(source)), sameTarget := (\refl(source))] \as PositiveMaps;
+\import Operations.DirectSum[X := X, F := F, G := Frame.H, left := first, right := Frame.auxiliaryBundle] \as PositiveOriginal;
+\import PositiveOriginal.Of[same := (\refl(space))].Pullback[Y := Y, source := source, f := f, regular := regular] \as PositiveSum;
+\import Bundles.Isomorphisms[X := Y, F := (\fun (y: Y) => PositiveOriginal.Fiber (f y)), G := (\fun (y: Y) => PositiveOriginal.Fiber (f y)), source := PositiveSum.firstBundle, target := PositiveSum.secondBundle] \as PositiveInverse;
+\definition positiveComparison: Bundles.Isomorphisms[X := Y, F := PositiveMaps.SourceFiber, G := (\fun (y: Y) => PositiveOriginal.Fiber (f y)), source := PositiveMaps.sourceBundle, target := PositiveSum.firstBundle].Isomorphism :=
+  Operations.IsomorphismComposition[X := Y, F := PositiveMaps.SourceFiber, G := PositiveMaps.TargetFiber, H := (\fun (y: Y) => PositiveOriginal.Fiber (f y)), source := PositiveMaps.sourceBundle, middle := PositiveMaps.targetBundle, target := PositiveSum.firstBundle].compose
+    (PositiveMaps.isomorphism PositiveIdentity.isomorphism (AuxInverse.inverse Aux.isomorphism)) (PositiveInverse.inverse PositiveSum.isomorphism);
+\import std.Data[].Pair[] \as Product;
+\definition atPair: \forall (y: DomainPair.A)(v: FirstFiber y)(w: Local.H y) ->
+  (PulledFrame.comparison.forward.fiber y).apply ((positiveComparison.forward.fiber y).apply (Product.pair (FirstFiber y) (Local.H y) v w)) =
+  (LocalFrame.comparison.forward.fiber y).apply (Product.pair (FirstFiber y) (Local.H y) v w) :=
+  \fun (y: DomainPair.A)(v: FirstFiber y)(w: Local.H y) => trans!{{Bundles.Vector n}} _ _ _
+    (PulledFrame.formula y _)
+    (trans!{{Bundles.Vector n}} _ _ _ (TargetFrame.formula (Boundary.boundary y) v ((Aux.isomorphism.backward.fiber y).apply w))
+      (trans!{{Bundles.Vector n}} _ _ _
+        (congr!{{SecondFiber y} {Bundles.Vector n}} (\fun (z: SecondFiber y) => (trivialization.forward.fiber (f y)).apply (Product.pair (SecondFiber y) (Frame.H (f y)) z ((Aux.isomorphism.backward.fiber y).apply w))) _ _ (sym!{{SecondFiber y}} _ _ (Pull.formula y v)))
+        (sym!{{Bundles.Vector n}} _ _ (LocalFrame.formula y v w))));
+\definition compatible: \forall (y: DomainPair.A)(v: PositiveMaps.SourceFiber y) ->
+  (PulledFrame.comparison.forward.fiber y).apply ((positiveComparison.forward.fiber y).apply v) = (LocalFrame.comparison.forward.fiber y).apply v :=
+  \fun (y: DomainPair.A)(v: PositiveMaps.SourceFiber y) =>
+    \idelim Product.pair (FirstFiber y) (Local.H y) (Product.first (FirstFiber y) (Local.H y) v) (Product.second (FirstFiber y) (Local.H y) v) = v
+    \with z: PositiveMaps.SourceFiber y => (PulledFrame.comparison.forward.fiber y).apply ((positiveComparison.forward.fiber y).apply z) = (LocalFrame.comparison.forward.fiber y).apply z
+    \by { base: atPair y (Product.first (FirstFiber y) (Local.H y) v) (Product.second (FirstFiber y) (Local.H y) v), equality: Product.Prop[A := FirstFiber y, B := Local.H y].eta v };
+\import DomainPair.FramedClass[F := PositiveMaps.SourceFiber, sourceModel := Local.model, n := n].To[G := (\fun (y: Y) => Frame.Fiber (f y)), targetModel := PullBase.model, m := n].With[
+  alpha := LocalFrame.comparison, beta := PulledFrame.comparison, h := positiveComparison,
+  c := DomainPair.FramedClass[F := PositiveMaps.SourceFiber, sourceModel := Local.model, n := n].coordinateIdentity, compatible := compatible] \as Compare;
+\definition equation: SourceClass.reduced = relative TargetClass.reduced := trans!{{Domain.Relative}} _ _ _ LocalFrame.equation
+  (trans!{{Domain.Relative}} _ _ _ Compare.equation
+    (trans!{{Domain.Relative}} _ _ _ PulledFrame.naturality
+      (congr!{{Range.Relative} {Domain.Relative}} relative _ _ (sym!{{Range.Relative}} _ _ TargetFrame.equation))));

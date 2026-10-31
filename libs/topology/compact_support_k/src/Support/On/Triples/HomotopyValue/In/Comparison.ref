@@ -1,0 +1,19 @@
+\import \parent.Geometry[b := p] \as P;
+\import \parent.Geometry[b := q] \as Q;
+\import Complements.PulledIsomorphism[X := RawCylinder.Carrier, Y := Cylinder.Carrier,
+  F := P.RawFiber, G := Q.RawFiber, source := P.middle, target := Q.middle,
+  base := Cylinder.topology Pair.subspace, f := cylinderMap, sourceRegular := cylinderRegular, targetRegular := cylinderRegular] \as Pull;
+\import Operations.IsomorphismComposition[X := Cylinder.Carrier, F := P.LocalFiber, G := P.LocalFiber, H := Q.LocalFiber,
+  source := P.local, middle := P.raw, target := Q.raw] \as Start;
+\definition start: Start.Isomorphism := Start.compose P.comparison (Pull.isomorphism family.isomorphism);
+\import Bundles.Isomorphisms[X := Cylinder.Carrier, F := Q.LocalFiber, G := Q.LocalFiber, source := Q.local, target := Q.raw] \as Reverse;
+\import Operations.IsomorphismComposition[X := Cylinder.Carrier, F := P.LocalFiber, G := Q.LocalFiber, H := Q.LocalFiber,
+  source := P.local, middle := Q.raw, target := Q.local] \as Finish;
+\import Pair.BundleTriples[F := First.FirstFiber, G := First.SecondFiber, firstModel := First.firstOnLocal, secondModel := First.secondOnLocal]
+  .Homotopy[alpha := First.comparison, beta := Second.comparison] \as Homotopy;
+\definition homotopy: Homotopy.Family := Homotopy.Family {
+  isomorphism := Finish.compose start (Reverse.inverse Q.comparison),
+  start := \fun (x: Pair.A)(v: Fiber p x) => trans!{{Fiber q x}} _ _ _ (family.start (boundary x) v) (sym!{{Fiber q x}} _ _ (First.formula x v)),
+  end := \fun (x: Pair.A)(v: Fiber p x) => trans!{{Fiber q x}} _ _ _ (family.end (boundary x) v) (sym!{{Fiber q x}} _ _ (Second.formula x v))
+};
+\definition equation: First.localValue = Second.localValue := Homotopy.With[family := homotopy].reducedEquation;

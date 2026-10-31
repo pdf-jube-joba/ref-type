@@ -1,0 +1,48 @@
+\import \root.Relative[].Pair[X := X, space := space, compact := compact, hausdorff := hausdorff, subset := subset, closed := closed] \as Pair;
+\import Operations.IdentityIsomorphism[X := X, F := H, bundle := auxiliaryBundle] \as AuxiliaryIdentity;
+\import Operations.DirectSumIsomorphisms[X := X, F := F, G := H, A := Absolute.Fiber r.value.positive, B := H,
+  first := first, second := auxiliaryBundle, newFirst := Absolute.bundle r.value.positive, newSecond := auxiliaryBundle,
+  sameSource := (\refl(space)), sameTarget := (\refl(space))] \as PositiveMaps;
+\import Operations.DirectSumIsomorphisms[X := X, F := G, G := H, A := Absolute.Fiber r.value.negative, B := H,
+  first := second, second := auxiliaryBundle, newFirst := Absolute.bundle r.value.negative, newSecond := auxiliaryBundle,
+  sameSource := (\refl(space)), sameTarget := (\refl(space))] \as NegativeMaps;
+\definition positive: Bundles.Isomorphisms[X := X, F := PositiveMaps.SourceFiber, G := PositiveMaps.TargetFiber,
+  source := PositiveMaps.sourceBundle, target := PositiveMaps.targetBundle].Isomorphism := PositiveMaps.isomorphism r.positive AuxiliaryIdentity.isomorphism;
+\definition negative: Bundles.Isomorphisms[X := X, F := NegativeMaps.SourceFiber, G := NegativeMaps.TargetFiber,
+  source := NegativeMaps.sourceBundle, target := NegativeMaps.targetBundle].Isomorphism := NegativeMaps.isomorphism r.negative AuxiliaryIdentity.isomorphism;
+\import Pair.TripleFraming[t := r.value, auxiliary := auxiliary, n := n] \as Framing;
+\import Bundles.Isomorphisms[X := X, F := NegativeMaps.SourceFiber, G := NegativeMaps.TargetFiber, source := NegativeMaps.sourceBundle, target := NegativeMaps.targetBundle] \as NegativeInverse;
+\definition trivialization: Framing.Trivialization := Operations.IsomorphismComposition[X := X, F := NegativeMaps.TargetFiber, G := NegativeMaps.SourceFiber,
+  H := (\fun (x: X) => Bundles.Vector n), source := NegativeMaps.targetBundle, middle := NegativeMaps.sourceBundle, target := Trivial.bundle].compose
+  (NegativeInverse.inverse negative) h;
+\import Framing.With[trivialization := trivialization] \as Normal;
+\import Bundles.Isomorphisms[X := X, F := G, G := Absolute.Fiber r.value.negative, source := second, target := Absolute.bundle r.value.negative] \as NegativeOriginal;
+\definition negativeLaws: NegativeOriginal.Laws[r.negative] := \bysub(NegativeOriginal.Data, NegativeOriginal.Isomorphism, r.negative);
+\definition recovered: \forall (x: A)(v: F x) -> (r.negative.backward.fiber x).apply ((r.value.comparison.forward.fiber x).apply ((r.positive.forward.fiber x).apply v)) = (alpha.forward.fiber x).apply v :=
+  \fun (x: A)(v: F x) => trans!{{G x}} _ _ _
+    (congr!{{Absolute.Fiber r.value.negative x} {G x}} (r.negative.backward.fiber x).apply _ _ (r.agrees x v))
+    (negativeLaws.leftInverse x ((alpha.forward.fiber x).apply v));
+\definition atPair: \forall (x: A)(v: F x)(w: H x) ->
+  (Normal.comparison.forward.fiber x).apply ((positive.forward.fiber x).apply (Product.pair (F x) (H x) v w)) =
+  (comparison.forward.fiber x).apply (Product.pair (F x) (H x) v w) :=
+  \fun (x: A)(v: F x)(w: H x) => trans!{{Bundles.Vector n}} _ _ _
+    (Normal.formula x ((r.positive.forward.fiber x).apply v) w)
+    (trans!{{Bundles.Vector n}} _ _ _
+      (congr!{{G x} {Bundles.Vector n}} (\fun (z: G x) => (h.forward.fiber x).apply (Product.pair (G x) (H x) z w)) _ _ (recovered x v))
+      (sym!{{Bundles.Vector n}} _ _ (formula x v w)));
+\definition compatible: \forall (x: A)(v: Positive.Fiber x) ->
+  (Normal.comparison.forward.fiber x).apply ((positive.forward.fiber x).apply v) = (comparison.forward.fiber x).apply v :=
+  \fun (x: A)(v: Positive.Fiber x) => \idelim Product.pair (F x) (H x) (Product.first (F x) (H x) v) (Product.second (F x) (H x) v) = v
+    \with z: Positive.Fiber x => (Normal.comparison.forward.fiber x).apply ((positive.forward.fiber x).apply z) = (comparison.forward.fiber x).apply z
+    \by { base: atPair x (Product.first (F x) (H x) v) (Product.second (F x) (H x) v), equality: Product.Prop[A := F x, B := H x].eta v };
+\import Pair.FramedClass[F := Positive.Fiber, sourceModel := model, n := n].To[G := Framing.SourceFiber, targetModel := Framing.sourceModel, m := n].With[
+  alpha := comparison, beta := Normal.comparison, h := positive,
+  c := Pair.FramedClass[F := Positive.Fiber, sourceModel := model, n := n].coordinateIdentity, compatible := compatible] \as Compare;
+\import Pair.TripleClass[t := r.value] \as Canonical;
+\import Complements.Projection[X := X, n := r.value.negative.dimension, baseSpace := space, P := r.value.negative.projection, regular := r.value.negative.regular].Complement[] \as CanonicalSplit;
+\import Pair.ComplementChoice[t := r.value, first := Canonical.complement, second := auxiliary, n := r.value.negative.dimension, m := n].With[
+  h := CanonicalSplit.isomorphism, k := trivialization] \as Choices;
+\definition equation: Group.ToReduced[].map (Group.value r.value) = framed := trans!{{Quotient.Relative}} _ _ _
+  (Group.ToReduced[].onTriple r.value)
+  (trans!{{Quotient.Relative}} _ _ _ Canonical.canonicalEquality
+    (trans!{{Quotient.Relative}} _ _ _ Choices.equation (sym!{{Quotient.Relative}} _ _ Compare.equation)));

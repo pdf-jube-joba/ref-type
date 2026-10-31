@@ -1,0 +1,50 @@
+\definition boundary[x: Pair.A]: Local.Carrier := x;
+\definition boundaryRegular: topology.Continuity[A := Pair.A, B := Local.Carrier].Continuous Pair.subspace Local.topology boundary := Core.boundaryLocalRegular;
+\import \root.Support[].CompactBundles[X := Pair.A, space := Pair.subspace, compact := Core.boundaryCompact, hausdorff := Core.boundaryHausdorff] \as Boundary;
+\import Models.PullbackMap[p := even, q := odd, Y := Pair.A, source := Pair.subspace, f := Core.boundaryInclusion, regular := Core.boundaryRegular] \as D;
+\import Models.PullbackMap[p := odd, q := even, Y := Pair.A, source := Pair.subspace, f := Core.boundaryInclusion, regular := Core.boundaryRegular] \as E;
+\import Boundary.Acyclic[p := Core.boundaryEvenModel, q := Core.boundaryOddModel, d := D.map d, e := E.map e] \as Acyclic;
+\import Bundles.Family[X := X, F := Even].Of[bundle := Models.bundle even].PullbackComposition[
+  Y := Local.Carrier, Z := Pair.A, first := Local.topology, second := Pair.subspace, f := Local.inclusion, g := boundary]
+  .Of[fRegular := Local.regular, gRegular := boundaryRegular] \as P;
+\import Bundles.Family[X := X, F := Odd].Of[bundle := Models.bundle odd].PullbackComposition[
+  Y := Local.Carrier, Z := Pair.A, first := Local.topology, second := Pair.subspace, f := Local.inclusion, g := boundary]
+  .Of[fRegular := Local.regular, gRegular := boundaryRegular] \as Q;
+\import Operations.Models[X := Local.Carrier, baseSpace := Local.topology] \as LocalModels;
+\import Bundles.ArrowLaws[X := Local.Carrier, Y := Local.Carrier,
+  F := (\fun (x: Local.Carrier) => Even x), G := (\fun (x: Local.Carrier) => Odd x),
+  source := LocalModels.bundle LocalEven.value, target := LocalModels.bundle LocalOdd.value,
+  f := (\fun (x: Local.Carrier) => x)].Pullback[Z := Pair.A, space := Pair.subspace, g := boundary].Of[a := c.k, regular := boundaryRegular] \as KPull;
+\import Bundles.ArrowLaws[X := Local.Carrier, Y := Local.Carrier,
+  F := (\fun (x: Local.Carrier) => Odd x), G := (\fun (x: Local.Carrier) => Even x),
+  source := LocalModels.bundle LocalOdd.value, target := LocalModels.bundle LocalEven.value,
+  f := (\fun (x: Local.Carrier) => x)].Pullback[Z := Pair.A, space := Pair.subspace, g := boundary].Of[a := c.h, regular := boundaryRegular] \as HPull;
+\import Bundles.Morphisms[X := Pair.A, Y := Pair.A, F := (\fun (x: Pair.A) => Odd x), G := (\fun (x: Pair.A) => Odd x),
+  source := Q.direct, target := Q.nested, f := (\fun (x: Pair.A) => x)]
+  .Composition[Z := Pair.A, H := (\fun (x: Pair.A) => Even x), range := P.nested, g := (\fun (x: Pair.A) => x)] \as HStart;
+\definition hStart: Bundles.Morphisms[X := Pair.A, Y := Pair.A, F := (\fun (x: Pair.A) => Odd x), G := (\fun (x: Pair.A) => Even x),
+  source := Q.direct, target := P.nested, f := (\fun (x: Pair.A) => x)].Map := HStart.compose Q.isomorphism.forward HPull.map;
+\import Bundles.Morphisms[X := Pair.A, Y := Pair.A, F := (\fun (x: Pair.A) => Odd x), G := (\fun (x: Pair.A) => Even x),
+  source := Q.direct, target := P.nested, f := (\fun (x: Pair.A) => x)]
+  .Composition[Z := Pair.A, H := (\fun (x: Pair.A) => Even x), range := P.direct, g := (\fun (x: Pair.A) => x)] \as HFinish;
+\definition h: Boundary.Map Core.boundaryOddModel Core.boundaryEvenModel := HFinish.compose hStart P.isomorphism.backward;
+\import Bundles.Morphisms[X := Pair.A, Y := Pair.A, F := (\fun (x: Pair.A) => Even x), G := (\fun (x: Pair.A) => Even x),
+  source := P.direct, target := P.nested, f := (\fun (x: Pair.A) => x)]
+  .Composition[Z := Pair.A, H := (\fun (x: Pair.A) => Odd x), range := Q.nested, g := (\fun (x: Pair.A) => x)] \as KStart;
+\definition kStart: Bundles.Morphisms[X := Pair.A, Y := Pair.A, F := (\fun (x: Pair.A) => Even x), G := (\fun (x: Pair.A) => Odd x),
+  source := P.direct, target := Q.nested, f := (\fun (x: Pair.A) => x)].Map := KStart.compose P.isomorphism.forward KPull.map;
+\import Bundles.Morphisms[X := Pair.A, Y := Pair.A, F := (\fun (x: Pair.A) => Even x), G := (\fun (x: Pair.A) => Odd x),
+  source := P.direct, target := Q.nested, f := (\fun (x: Pair.A) => x)]
+  .Composition[Z := Pair.A, H := (\fun (x: Pair.A) => Odd x), range := Q.direct, g := (\fun (x: Pair.A) => x)] \as KFinish;
+\definition k: Boundary.Map Core.boundaryEvenModel Core.boundaryOddModel := KFinish.compose kStart Q.isomorphism.backward;
+\module At(x: Pair.A);
+\definition contraction: Acyclic.Contraction := Acyclic.Contraction { h := h, k := k, laws := \fun (x: Pair.A) => At[x := x].laws };
+\import Core.With[contraction := contraction] \as Reduced;
+\import LocalAcyclic.Normalized[c := c] \as Global;
+\definition agrees: \forall (x: Pair.A)(v: Even x) -> (Global.isomorphism.forward.fiber x).apply v = (Reduced.comparison.forward.fiber x).apply v :=
+  \fun (x: Pair.A)(v: Even x) => sym!{{Odd x}} _ _ (Reduced.formula x v);
+\import Pair.BundleTriples[F := Core.FirstFiber, G := Core.SecondFiber, firstModel := Core.firstOnLocal, secondModel := Core.secondOnLocal]
+  .With[alpha := Reduced.comparison].Global[isomorphism := Global.isomorphism, agrees := agrees] \as Triviality;
+\definition localEquation: Reduced.localValue = Pair.Quotient[].group.base.unit := Triviality.reducedZero;
+\definition equation: Core.value = Relative.Reduced[model := model].group.base.unit := trans!{{Relative.Reduced[model := model].Carrier}} _ _ _ (Core.agreement contraction)
+  (trans!{{Relative.Reduced[model := model].Carrier}} _ _ _ (congr!{{Pair.Quotient[].Relative} {Relative.Reduced[model := model].Carrier}} Local.extend _ _ localEquation) Local.extendZero);

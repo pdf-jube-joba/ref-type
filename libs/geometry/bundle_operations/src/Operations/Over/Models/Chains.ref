@@ -1,0 +1,33 @@
+/* An arbitrary finite string E0 -> E1 -> ... -> En -> 0. */
+\definition empty: Bundle := \parent.Trivial[n := N.Nat^::zero].value;
+\inductive Data: \forall (head: Bundle) -> \Set :=
+  | nil: Data empty
+  | cons: \forall (first, second: Bundle) -> Map first second -> Data second -> Data first;
+\structure Parity[head: Bundle]: \Set := {
+  even: Bundle,
+  odd: Bundle,
+  inclusion: Map head even,
+  forward: Map even odd,
+  backward: Map odd even
+};
+\module Step(first, second: Bundle, differential: Map first second, tail: Parity[second]);
+\definition fold: \forall (head: Bundle) -> Data head -> Parity[head] :=
+  \induction (head: Bundle)(data: Data head) \return Parity[head] \with {
+    | nil: Parity[empty] { even := empty, odd := empty, inclusion := identity empty, forward := zero empty empty, backward := zero empty empty }
+    | cons: \fun (first, second: Bundle)(differential: Map first second)(tail: Data second)(folded: Parity[second]) =>
+      Step[first := first, second := second, differential := differential, tail := folded].value
+  };
+\structure Diagram: \Set := { head: Bundle, data: Data head };
+\definition SquareZero[c: Diagram]: \Prop := Logic.And[
+  \forall (x: X)(v: Fiber (fold c.head c.data).even.ranks x) ->
+    ((fold c.head c.data).backward.fiber x).apply (((fold c.head c.data).forward.fiber x).apply v) = ((bundle (fold c.head c.data).even).space x).zero,
+  \forall (x: X)(v: Fiber (fold c.head c.data).odd.ranks x) ->
+    ((fold c.head c.data).forward.fiber x).apply (((fold c.head c.data).backward.fiber x).apply v) = ((bundle (fold c.head c.data).odd).space x).zero];
+\definition Complex: \Set := \Cast[Diagram] ({ c: Diagram \where SquareZero c });
+\module Of(complex: Complex);
+
+\definition Zero[head: Bundle][p: Parity[head]]: \Prop := Logic.And[
+  \forall (x: X)(v: Fiber p.even.ranks x) -> (p.forward.fiber x).apply v = ((bundle p.odd).space x).zero,
+  \forall (x: X)(v: Fiber p.odd.ranks x) -> (p.backward.fiber x).apply v = ((bundle p.even).space x).zero];
+\module ZeroStep(first, second: Bundle, tail: Parity[second], vanishes: Zero second tail);
+\module ZeroStrings;

@@ -1,0 +1,65 @@
+\import std.Data[].Pair[] \as Product;
+\import \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].ContractingPair[V := U, W := T, even := secondEven, odd := secondOdd] \as Other;
+\import Spaces.DirectSum[V := V, W := U, left := even, right := secondEven] \as Even;
+\import Spaces.DirectSum[V := W, W := T, left := odd, right := secondOdd] \as Odd;
+\import \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar]
+  .ContractingPair[V := Even.Carrier, W := Odd.Carrier, even := Even.space, odd := Odd.space] \as Target;
+\definition firstLaws: Laws[first] := \bysub(Data, Pair, first);
+\definition secondLaws: Other.Laws[second] := \bysub(Other.Data, Other.Pair, second);
+\definition d: Spaces.Linear[V := Even.Carrier, W := Odd.Carrier, source := Even.space, target := Odd.space].Map :=
+  Spaces.Linear[V := Even.Carrier, W := Odd.Carrier, source := Even.space, target := Odd.space].Map {
+    apply := \fun (v: Even.Carrier) => Product.pair W T (first.d.apply (Product.first V U v)) (second.d.apply (Product.second V U v)),
+    preservesAdd := \fun (v, w: Even.Carrier) => Product.Prop[A := W, B := T].pairCong _ _ _ _
+      (first.d.preservesAdd (Product.first V U v) (Product.first V U w))
+      (second.d.preservesAdd (Product.second V U v) (Product.second V U w)),
+    preservesScale := \fun (a: K)(v: Even.Carrier) => Product.Prop[A := W, B := T].pairCong _ _ _ _
+      (first.d.preservesScale a (Product.first V U v)) (second.d.preservesScale a (Product.second V U v))
+  };
+\definition e: Spaces.Linear[V := Odd.Carrier, W := Even.Carrier, source := Odd.space, target := Even.space].Map :=
+  Spaces.Linear[V := Odd.Carrier, W := Even.Carrier, source := Odd.space, target := Even.space].Map {
+    apply := \fun (v: Odd.Carrier) => Product.pair V U (first.e.apply (Product.first W T v)) (second.e.apply (Product.second W T v)),
+    preservesAdd := \fun (v, w: Odd.Carrier) => Product.Prop[A := V, B := U].pairCong _ _ _ _
+      (first.e.preservesAdd (Product.first W T v) (Product.first W T w))
+      (second.e.preservesAdd (Product.second W T v) (Product.second W T w)),
+    preservesScale := \fun (a: K)(v: Odd.Carrier) => Product.Prop[A := V, B := U].pairCong _ _ _ _
+      (first.e.preservesScale a (Product.first W T v)) (second.e.preservesScale a (Product.second W T v))
+  };
+\definition h: Spaces.Linear[V := Odd.Carrier, W := Even.Carrier, source := Odd.space, target := Even.space].Map :=
+  Spaces.Linear[V := Odd.Carrier, W := Even.Carrier, source := Odd.space, target := Even.space].Map {
+    apply := \fun (v: Odd.Carrier) => Product.pair V U (first.h.apply (Product.first W T v)) (second.h.apply (Product.second W T v)),
+    preservesAdd := \fun (v, w: Odd.Carrier) => Product.Prop[A := V, B := U].pairCong _ _ _ _
+      (first.h.preservesAdd (Product.first W T v) (Product.first W T w))
+      (second.h.preservesAdd (Product.second W T v) (Product.second W T w)),
+    preservesScale := \fun (a: K)(v: Odd.Carrier) => Product.Prop[A := V, B := U].pairCong _ _ _ _
+      (first.h.preservesScale a (Product.first W T v)) (second.h.preservesScale a (Product.second W T v))
+  };
+\definition k: Spaces.Linear[V := Even.Carrier, W := Odd.Carrier, source := Even.space, target := Odd.space].Map :=
+  Spaces.Linear[V := Even.Carrier, W := Odd.Carrier, source := Even.space, target := Odd.space].Map {
+    apply := \fun (v: Even.Carrier) => Product.pair W T (first.k.apply (Product.first V U v)) (second.k.apply (Product.second V U v)),
+    preservesAdd := \fun (v, w: Even.Carrier) => Product.Prop[A := W, B := T].pairCong _ _ _ _
+      (first.k.preservesAdd (Product.first V U v) (Product.first V U w))
+      (second.k.preservesAdd (Product.second V U v) (Product.second V U w)),
+    preservesScale := \fun (a: K)(v: Even.Carrier) => Product.Prop[A := W, B := T].pairCong _ _ _ _
+      (first.k.preservesScale a (Product.first V U v)) (second.k.preservesScale a (Product.second V U v))
+  };
+\definition data: Target.Data := Target.Data { d := d, e := e, h := h, k := k };
+\definition laws: Target.Laws[data] := Target.Laws[data] {
+  squareEven := \fun (v: Even.Carrier) => Product.Prop[A := V, B := U].pairCong _ _ _ _
+    (firstLaws.squareEven (Product.first V U v)) (secondLaws.squareEven (Product.second V U v)),
+  squareOdd := \fun (v: Odd.Carrier) => Product.Prop[A := W, B := T].pairCong _ _ _ _
+    (firstLaws.squareOdd (Product.first W T v)) (secondLaws.squareOdd (Product.second W T v)),
+  even := \fun (v: Even.Carrier) => trans!{{Even.Carrier}} _ _ _
+    (Product.Prop[A := V, B := U].pairCong _ _ _ _ (firstLaws.even (Product.first V U v)) (secondLaws.even (Product.second V U v)))
+    (Product.Prop[A := V, B := U].eta v),
+  odd := \fun (v: Odd.Carrier) => trans!{{Odd.Carrier}} _ _ _
+    (Product.Prop[A := W, B := T].pairCong _ _ _ _ (firstLaws.odd (Product.first W T v)) (secondLaws.odd (Product.second W T v)))
+    (Product.Prop[A := W, B := T].eta v)
+};
+\definition pair: Target.Pair := \into[Target.Data](data, Target.Pair) \by { laws };
+\import \parent.With[c := first] \as First;
+\import Other.With[c := second] \as Second;
+\import Target.With[c := pair] \as Normal;
+\definition forwardFormula: \forall (v: Even.Carrier) -> Normal.forward.apply v =
+  Product.pair W T (First.forward.apply (Product.first V U v)) (Second.forward.apply (Product.second V U v)) := \fun (v: Even.Carrier) => \refl(_);
+\definition backwardFormula: \forall (v: Odd.Carrier) -> Normal.backward.apply v =
+  Product.pair V U (First.backward.apply (Product.first W T v)) (Second.backward.apply (Product.second W T v)) := \fun (v: Odd.Carrier) => \refl(_);

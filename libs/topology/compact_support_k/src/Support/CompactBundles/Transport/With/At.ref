@@ -1,0 +1,40 @@
+\import Operations.ContractingPair[V := Fiber p x, W := Fiber q x, even := (bundle p).space x, odd := (bundle q).space x] \as OriginalPair;
+\definition originalData: OriginalPair.Data := OriginalPair.Data { d := d0.fiber x, e := e0.fiber x, h := c.h.fiber x, k := c.k.fiber x };
+\definition original: OriginalPair.Pair := \into[OriginalPair.Data](originalData, OriginalPair.Pair) \by { c.laws x };
+\definition positiveFiber: Spaces.Isomorphism[V := Fiber p x, W := Fiber r x, source := (bundle p).space x, target := (bundle r).space x].Isomorphism :=
+  Spaces.Isomorphism[V := Fiber p x, W := Fiber r x, source := (bundle p).space x, target := (bundle r).space x].Isomorphism {
+    forward := positive.forward.fiber x, backward := positive.backward.fiber x,
+    leftInverse := positive.leftInverse x, rightInverse := positive.rightInverse x
+  };
+\definition negativeFiber: Spaces.Isomorphism[V := Fiber q x, W := Fiber s x, source := (bundle q).space x, target := (bundle s).space x].Isomorphism :=
+  Spaces.Isomorphism[V := Fiber q x, W := Fiber s x, source := (bundle q).space x, target := (bundle s).space x].Isomorphism {
+    forward := negative.forward.fiber x, backward := negative.backward.fiber x,
+    leftInverse := negative.leftInverse x, rightInverse := negative.rightInverse x
+  };
+\import OriginalPair.Transport[U := Fiber r x, T := Fiber s x, newEven := (bundle r).space x, newOdd := (bundle s).space x,
+  c := original, positive := positiveFiber, negative := negativeFiber] \as Transport;
+\import Operations.ContractingPair[V := Fiber r x, W := Fiber s x, even := (bundle r).space x, odd := (bundle s).space x] \as Pair;
+\definition current: Pair.Data := Pair.Data { d := d1.fiber x, e := e1.fiber x, h := h.fiber x, k := k.fiber x };
+\definition dFormula: \forall (v: Fiber r x) -> Transport.data.d.apply v = (d1.fiber x).apply v :=
+  \fun (v: Fiber r x) => trans!{{Fiber s x}} _ _ _ (sym!{{Fiber s x}} _ _ (commutesD x ((positive.backward.fiber x).apply v)))
+    (congr!{{Fiber r x} {Fiber s x}} (d1.fiber x).apply _ _ (positive.rightInverse x v));
+\definition eFormula: \forall (v: Fiber s x) -> Transport.data.e.apply v = (e1.fiber x).apply v :=
+  \fun (v: Fiber s x) => trans!{{Fiber r x}} _ _ _ (sym!{{Fiber r x}} _ _ (commutesE x ((negative.backward.fiber x).apply v)))
+    (congr!{{Fiber s x} {Fiber r x}} (e1.fiber x).apply _ _ (negative.rightInverse x v));
+\import Spaces.Linear[V := Fiber r x, W := Fiber s x, source := (bundle r).space x, target := (bundle s).space x] \as D;
+\definition dSame: Transport.data.d = current.d := D.ext _ _ (\axiom:funext(Transport.data.d.apply, current.d.apply, dFormula));
+\import Spaces.Linear[V := Fiber s x, W := Fiber r x, source := (bundle s).space x, target := (bundle r).space x] \as E;
+\definition eSame: Transport.data.e = current.e := E.ext _ _ (\axiom:funext(Transport.data.e.apply, current.e.apply, eFormula));
+\import Spaces.Linear[V := Fiber s x, W := Fiber r x, source := (bundle s).space x, target := (bundle r).space x] \as H;
+\definition hSame: Transport.data.h = current.h := H.ext _ _ (\axiom:funext(Transport.data.h.apply, current.h.apply, (\fun (v: Fiber s x) => \refl(_))));
+\import Spaces.Linear[V := Fiber r x, W := Fiber s x, source := (bundle r).space x, target := (bundle s).space x] \as K;
+\definition kSame: Transport.data.k = current.k := K.ext _ _ (\axiom:funext(Transport.data.k.apply, current.k.apply, (\fun (v: Fiber r x) => \refl(_))));
+\definition same: Transport.data = current := congr!{{D.Map} {E.Map} {H.Map} {K.Map} {Pair.Data}}
+  (\fun (a: D.Map)(b: E.Map)(c: H.Map)(z: K.Map) => Pair.Data { d := a, e := b, h := c, k := z }) _ _ _ _ _ _ _ _ dSame eSame hSame kSame;
+\definition laws: Pair.Laws[current] := \idelim Transport.data = current \with c: Pair.Data => Pair.Laws[c] \by { base: Transport.laws, equality: same };
+\definition polynomial[c: Pair.Data][v: Fiber r x]: Fiber s x := ((bundle s).space x).add (c.d.apply v) (c.k.apply (c.e.apply (c.k.apply v)));
+\definition forwardFormula: \forall (v: Fiber p x) -> polynomial current ((positive.forward.fiber x).apply v) =
+  (negative.forward.fiber x).apply (OriginalPair.With[c := original].forward.apply v) :=
+  \fun (v: Fiber p x) => trans!{{Fiber s x}} _ _ _
+    (congr!{{Pair.Data} {Fiber s x}} (\fun (c: Pair.Data) => polynomial c ((positive.forward.fiber x).apply v)) _ _ (sym!{{Pair.Data}} _ _ same))
+    (Transport.forwardFormula v);

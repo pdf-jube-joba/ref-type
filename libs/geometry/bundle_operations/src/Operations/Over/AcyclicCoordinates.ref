@@ -1,0 +1,26 @@
+\import std.Alg[].Ring[] \as Ring;
+\import finitely_generated_modules.FieldSubspaces[].Over[K := K, field := field] \as Subspaces;
+\import module_theory.Module[].Over[R := K, ring := Ring.commutativeRingAsRing K (Fields.fieldAsCommutativeRing K field)] \as Modules;
+\import Spaces.Linear[V := Vector n, W := Vector m, source := coordinates n, target := coordinates m] \as Forward;
+\import Spaces.Linear[V := Vector m, W := Vector n, source := coordinates m, target := coordinates n] \as Backward;
+\import Modules.FiniteCoordinates[n := n] \as Even;
+\import Modules.FiniteCoordinates[n := m] \as Odd;
+\import Modules.Of[V := Vector n, space := Even.space].Submodule[].Kernel[W := Vector m, target := Odd.space] \as EvenKernel;
+\import Modules.Of[V := Vector m, space := Odd.space].Submodule[].Kernel[W := Vector n, target := Even.space] \as OddKernel;
+\definition evenKernel: Subspaces.Submodule n := EvenKernel.kernel (Forward.asModuleMap d);
+\definition oddKernel: Subspaces.Submodule m := OddKernel.kernel (Backward.asModuleMap e);
+\import Subspaces.Dimension[n := n].Of[S := evenKernel] \as EvenCycles;
+\import Subspaces.Dimension[n := m].Of[S := oddKernel] \as OddCycles;
+\structure Exact: \Prop := {
+  squareEven: \forall (v: Vector n) -> e.apply (d.apply v) = (coordinates n).zero,
+  squareOdd: \forall (w: Vector m) -> d.apply (e.apply w) = (coordinates m).zero,
+  even: \forall (v: EvenCycles.Carrier) -> \exists (w: Vector m \where e.apply w = v),
+  odd: \forall (w: OddCycles.Carrier) -> \exists (v: Vector n \where d.apply v = w)
+};
+\structure Result: \Set := {
+  h: Backward.Map,
+  k: Forward.Map,
+  laws: \parent.ContractingPair[V := Vector n, W := Vector m, even := coordinates n, odd := coordinates m].Laws[
+    \parent.ContractingPair[V := Vector n, W := Vector m, even := coordinates n, odd := coordinates m].Data { d := d, e := e, h := h, k := k }]
+};
+\module With(exact: Exact);

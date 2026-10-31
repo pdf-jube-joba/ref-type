@@ -1,0 +1,22 @@
+\import First.Supported[K := K1, compact := compact1] \as FirstSupport;
+\import Second.Supported[K := K2, compact := compact2] \as SecondSupport;
+\import Third.Supported[K := K3, compact := compact3] \as ThirdSupport;
+\definition outside: \Pow X := Base.Complement (Base.Finite[].Join (Base.Finite[].Join K1 K2) K3);
+\definition inFirst[x: \Cast[X] outside]: FirstSupport.A := \into[X](x, Base.Complement K1) \by {
+  \fun (inside: _) => (\bysub(X, outside, x)) (Logic.Or[_, _]::left (Logic.Or[_, _]::left inside))
+};
+\definition inSecond[x: \Cast[X] outside]: SecondSupport.A := \into[X](x, Base.Complement K2) \by {
+  \fun (inside: _) => (\bysub(X, outside, x)) (Logic.Or[_, _]::left (Logic.Or[_, _]::right inside))
+};
+\definition inThird[x: \Cast[X] outside]: ThirdSupport.A := \into[X](x, Base.Complement K3) \by {
+  \fun (inside: _) => (\bysub(X, outside, x)) (Logic.Or[_, _]::right inside)
+};
+\import std.Data[].Pair[] \as Product;
+\structure Witness[alpha: FirstSupport.OnOutside][beta: SecondSupport.OnOutside][gamma: ThirdSupport.OnOutside]: \Set := {
+  positive: PositiveMaps.Isomorphism,
+  negative: NegativeMaps.Isomorphism,
+  agrees: \forall (x: \Cast[X] outside)(a: F x)(b: H x) ->
+    (gamma.forward.fiber (inThird x)).apply ((positive.forward.fiber x).apply (Product.pair (F x) (H x) a b)) =
+    (negative.forward.fiber x).apply (Product.pair (G x) (I x) ((alpha.forward.fiber (inFirst x)).apply a) ((beta.forward.fiber (inSecond x)).apply b))
+};
+\module With(alpha: FirstSupport.OnOutside, beta: SecondSupport.OnOutside, gamma: ThirdSupport.OnOutside, witness: Witness[alpha,beta,gamma]);

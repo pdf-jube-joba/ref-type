@@ -1,0 +1,24 @@
+\import \parent.Sum[first := p, second := r] \as Positive;
+\import \parent.Sum[first := q, second := s] \as Negative;
+\definition positive: Bundle := Positive.value;
+\definition negative: Bundle := Negative.value;
+\import \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar]
+  .DirectSum[X := X, F := Fiber p.ranks, G := Fiber r.ranks, left := bundle p, right := bundle r]
+  .Of[same := (\refl(baseSpace))].Mapping[Y := X, A := Fiber q.ranks, B := Fiber s.ranks,
+    leftTarget := bundle q, rightTarget := bundle s, f := (\fun (x: X) => x), targetSame := (\refl(baseSpace))] \as Raw;
+\import Bundles.Morphisms[X := X, Y := X, F := Fiber positive.ranks, G := Positive.SourceFiber,
+  source := bundle positive, target := Positive.source, f := (\fun (x: X) => x)]
+  .Composition[Z := X, H := Negative.SourceFiber, range := Negative.source, g := (\fun (x: X) => x)] \as Start;
+\definition start[a: Map p q][b: Map r s]: Bundles.Morphisms[X := X, Y := X, F := Fiber positive.ranks, G := Negative.SourceFiber,
+  source := bundle positive, target := Negative.source, f := (\fun (x: X) => x)].Map := Start.compose Positive.isomorphism.backward (Raw.map a b);
+\import Bundles.Morphisms[X := X, Y := X, F := Fiber positive.ranks, G := Negative.SourceFiber,
+  source := bundle positive, target := Negative.source, f := (\fun (x: X) => x)]
+  .Composition[Z := X, H := Fiber negative.ranks, range := bundle negative, g := (\fun (x: X) => x)] \as Finish;
+\definition map[a: Map p q][b: Map r s]: Map positive negative := Finish.compose (start a b) Negative.isomorphism.forward;
+\definition formula: \forall (a: Map p q)(b: Map r s)(x: X)(v: Fiber p.ranks x)(w: Fiber r.ranks x) ->
+  ((map a b).fiber x).apply ((Positive.isomorphism.forward.fiber x).apply (std.Data[].Pair[].pair (Fiber p.ranks x) (Fiber r.ranks x) v w)) =
+  (Negative.isomorphism.forward.fiber x).apply (std.Data[].Pair[].pair (Fiber q.ranks x) (Fiber s.ranks x) ((a.fiber x).apply v) ((b.fiber x).apply w)) :=
+  \fun (a: Map p q)(b: Map r s)(x: X)(v: Fiber p.ranks x)(w: Fiber r.ranks x) =>
+    congr!{{Positive.SourceFiber x} {Fiber negative.ranks x}}
+      (\fun (z: Positive.SourceFiber x) => (Negative.isomorphism.forward.fiber x).apply (((Raw.map a b).fiber x).apply z)) _ _
+      (Positive.isomorphism.leftInverse x (std.Data[].Pair[].pair (Fiber p.ranks x) (Fiber r.ranks x) v w));

@@ -1,0 +1,55 @@
+\import Relative.PointPair[model := model] \as Point;
+\import Relative.Pair[X := Compactification.Carrier, space := Compactification.topology, compact := Compactness.compact,
+  hausdorff := Separation.hausdorffCompactification, subset := Point.subset, closed := Point.closed] \as Pair;
+\import Pair.Group[] \as Native;
+\import Pair.Comparison[] \as Comparison;
+\import Relative.Equivalence[source := model, target := Pair.Quotient[].model].With[e := Point.equivalence].Groups[] \as Groups;
+\import Relative.Reduced[model := model] \as Reduced;
+\definition Triple: \Set := Pair.Triple;
+\definition Carrier: \Set := Native.Carrier;
+\definition group: std.Alg[].Alg[].CommutativeGroup[Carrier] := Native.group;
+\definition value: Triple -> Carrier := Native.value;
+\definition forward[a: Carrier]: Reduced.Carrier := Groups.forward (Comparison.isomorphism.forward a);
+\definition backward[a: Reduced.Carrier]: Carrier := Comparison.isomorphism.backward (Groups.backward a);
+\definition forwardAdd: \forall (a, b: Carrier) -> forward (group.base.op a b) = Reduced.group.base.op (forward a) (forward b) :=
+  \fun (a, b: Carrier) => trans!{{Reduced.Carrier}} _ _ _
+    (congr!{{Pair.Quotient[].Relative} {Reduced.Carrier}} Groups.forward _ _ (Comparison.isomorphism.forwardAdd a b))
+    (Groups.forwardAdd (Comparison.isomorphism.forward a) (Comparison.isomorphism.forward b));
+\definition backwardAdd: \forall (a, b: Reduced.Carrier) -> backward (Reduced.group.base.op a b) = group.base.op (backward a) (backward b) :=
+  \fun (a, b: Reduced.Carrier) => trans!{Carrier} _ _ _
+    (congr!{{Pair.Quotient[].Relative} Carrier} Comparison.isomorphism.backward _ _ (Groups.backwardAdd a b))
+    (Comparison.isomorphism.backwardAdd (Groups.backward a) (Groups.backward b));
+\definition leftInverse: \forall (a: Carrier) -> backward (forward a) = a :=
+  \fun (a: Carrier) => trans!{Carrier} _ _ _
+    (congr!{{Pair.Quotient[].Relative} Carrier} Comparison.isomorphism.backward _ _ (Groups.rightInverse (Comparison.isomorphism.forward a)))
+    (Comparison.isomorphism.leftInverse a);
+\definition rightInverse: \forall (a: Reduced.Carrier) -> forward (backward a) = a :=
+  \fun (a: Reduced.Carrier) => trans!{{Reduced.Carrier}} _ _ _
+    (congr!{{Pair.Quotient[].Relative} {Reduced.Carrier}} Groups.forward _ _ (Comparison.isomorphism.rightInverse (Groups.backward a)))
+    (Groups.leftInverse a);
+\definition represents: \forall (a: Reduced.Carrier) -> \exists (t: Triple \where forward (value t) = a) := \block {
+  \fun (a: Reduced.Carrier) \then
+  \takefrom t: \Cast[Triple] ({ t: Triple \where value t = backward a }) \by Native.NormalForm[].existence (backward a) \then
+  \return Logic.existsIntro[Triple, { t: Triple \where forward (value t) = a }] t
+    (trans!{{Reduced.Carrier}} _ _ _ (congr!{Carrier {Reduced.Carrier}} forward _ _ (\bysub(Triple, { t: Triple \where value t = backward a }, t))) (rightInverse a))
+};
+\definition detectsEquality: \forall (a, b: Carrier) -> forward a = forward b -> a = b :=
+  \fun (a, b: Carrier)(same: _) => trans!{Carrier} _ _ _ (sym!{Carrier} _ _ (leftInverse a))
+    (trans!{Carrier} _ _ _ (congr!{{Reduced.Carrier} Carrier} backward _ _ same) (leftInverse b));
+\module Supported(t: Triple);
+\module Relations;
+\module EqualityCriterion;
+\module Stabilize(t: Triple, p: Pair.Presentation);
+\module Complexes;
+\module RawRepresentatives(a: Reduced.Carrier);
+
+\import algebra.Group[].Of[Carrier := Carrier, group := group] \as SourceGroup;
+\import algebra.Group[].Of[Carrier := Reduced.Carrier, group := Reduced.group] \as TargetGroup;
+\definition forwardZero: forward SourceGroup.zero = TargetGroup.zero := TargetGroup.cancelLeft (forward SourceGroup.zero) (forward SourceGroup.zero) TargetGroup.zero
+  (trans!{{Reduced.Carrier}} _ _ _ (sym!{{Reduced.Carrier}} _ _ (forwardAdd SourceGroup.zero SourceGroup.zero))
+    (trans!{{Reduced.Carrier}} _ _ _ (congr!{{Carrier} {Reduced.Carrier}} forward _ _ (SourceGroup.zeroLeft SourceGroup.zero))
+      (sym!{{Reduced.Carrier}} _ _ (TargetGroup.zeroRight (forward SourceGroup.zero)))));
+\definition forwardNeg: \forall (a: Carrier) -> forward (SourceGroup.neg a) = TargetGroup.neg (forward a) :=
+  \fun (a: Carrier) => TargetGroup.inverseUnique (forward a) (forward (SourceGroup.neg a))
+    (trans!{{Reduced.Carrier}} _ _ _ (sym!{{Reduced.Carrier}} _ _ (forwardAdd (SourceGroup.neg a) a))
+      (trans!{{Reduced.Carrier}} _ _ _ (congr!{{Carrier} {Reduced.Carrier}} forward _ _ (SourceGroup.inverseLeft a)) forwardZero));

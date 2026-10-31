@@ -1,0 +1,60 @@
+\import std.Data[].List[] \as Lists;
+\import real.Analysis[] \as R;
+\import metric_spaces.PartitionOfUnity[A := X] \as Partitions;
+\import metric_spaces.RealFunctions[A := X].Bounded[] \as Bounded;
+\import hermitian_frames.Hermitian[].Over[K := C.Complex, field := Algebra.field, scalar := Hermitian.scalar, topological := Scalar.scalar.topological].Functions[X := X] \as Functions;
+\definition domains: \Pow (\Pow X) := { U: \Pow X \where \exists (c: Patch \where c.domain = U) };
+\definition cover: Base.IsOpenCover[space,domains,Base.Whole] := Base.IsOpenCover[space,domains,Base.Whole] {
+  open := \fun (U: \Pow X)(member: _) => \block {
+    \takefrom c: \Cast[Patch] ({ c: Patch \where c.domain = U }) \by member \then
+    \return \idelim c.domain = U \with V: \Pow X => Base.IsOpenIn space V \by {
+      base: c.open, equality: \bysub(Patch, { c: Patch \where c.domain = U }, c)
+    }
+  },
+  covers := \fun (x: X)(whole: _) => \block {
+    \takefrom c: PatchAt x \by patches x \then
+    \return Base.unionMemberOf domains c.domain x (Logic.existsIntro[Patch, { a: Patch \where a.domain = c.domain }] c (\refl(c.domain)))
+      (\bysub(Patch, PatchAt x, c))
+  }
+};
+\import Partitions.Of[source := space, family := domains] \as Partition;
+\structure Weighted: \Set := { entry: Partition.Entry, patch: Patch, same: patch.domain = entry.openSet };
+\definition mass: Lists.List[Weighted] -> X -> R.Real := \induction (parts: Lists.List[Weighted]) \return X -> R.Real \with {
+  | nil: \fun (x: X) => R.zero
+  | cons: \fun (head: Weighted)(tail: Lists.List[Weighted])(rest: X -> R.Real)(x: X) => R.add (head.entry.value x) (rest x)
+};
+\module Term(w: Weighted);
+\import Operations.MapOperations[X := X, F := Fiber q, G := Fiber p, source := bundle q, target := bundle p] \as HMaps;
+\import Operations.MapOperations[X := X, F := Fiber p, G := Fiber q, source := bundle p, target := bundle q] \as KMaps;
+\definition h: Lists.List[Weighted] -> Map q p := \induction (parts: Lists.List[Weighted]) \return Map q p \with {
+  | nil: Models.zero q p
+  | cons: \fun (head: Weighted)(tail: Lists.List[Weighted])(rest: Map q p) => HMaps.add Term[w := head].h rest
+};
+\definition k: Lists.List[Weighted] -> Map p q := \induction (parts: Lists.List[Weighted]) \return Map p q \with {
+  | nil: Models.zero p q
+  | cons: \fun (head: Weighted)(tail: Lists.List[Weighted])(rest: Map p q) => KMaps.add Term[w := head].k rest
+};
+\structure Lift[parts: Lists.List[Partition.Entry]]: \Set := {
+  weighted: Lists.List[Weighted],
+  agrees: \forall (x: X) -> mass weighted x = Partition.sum parts x
+};
+\definition liftsExist: \forall (parts: Lists.List[Partition.Entry]) -> \exists Lift[parts] :=
+  \induction (parts: Lists.List[Partition.Entry]) \return \exists Lift[parts] \with {
+    | nil: \exact(Lift[Lists.List[Partition.Entry]::nil] { weighted := Lists.List[Weighted]::nil, agrees := \fun (x: X) => \refl(R.zero) }, Lift[Lists.List[Partition.Entry]::nil])
+    | cons: \fun (head: Partition.Entry)(tail: Lists.List[Partition.Entry])(ih: \exists Lift[tail]) => \block {
+      \takefrom previous: Lift[tail] \by ih \then
+      \takefrom patch: \Cast[Patch] ({ c: Patch \where c.domain = head.openSet }) \by head.inCover \then
+      \let weighted: Weighted := Weighted { entry := head, patch := patch, same := \bysub(Patch, { c: Patch \where c.domain = head.openSet }, patch) } \then
+      \return \exact(Lift[Lists.List[Partition.Entry]::cons head tail] {
+        weighted := Lists.List[Weighted]::cons weighted previous.weighted,
+        agrees := \fun (x: X) => congr!{{R.Real} {R.Real}} (R.add (head.value x)) _ _ (previous.agrees x)
+      }, Lift[Lists.List[Partition.Entry]::cons head tail])
+    }
+  };
+\module At(x: X);
+\module Using(partition: Partition.Partition, lift: Lift[partition.parts]);
+\definition existence: \exists Contraction := \block {
+  \takefrom partition: Partition.Partition \by Partition.Construction[].existsPartition compact hausdorff cover \then
+  \takefrom lift: Lift[partition.parts] \by liftsExist partition.parts \then
+  \return \exact(Using[partition := partition, lift := lift].contraction, Contraction)
+};

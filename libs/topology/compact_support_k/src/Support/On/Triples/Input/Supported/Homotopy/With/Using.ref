@@ -1,0 +1,42 @@
+\import Left.Using[p := r.positiveModel, q := r.negativeModel, positive := r.positive, negative := r.negative] \as FirstTriple;
+\import Right.Using[p := r.positiveModel, q := r.negativeModel, positive := r.positive, negative := r.negative] \as SecondTriple;
+\import \root.Support[].On[X := X, space := space, hausdorff := hausdorff, locallyCompact := locallyCompact].Triples[]
+  .Between[p := r.positiveModel, q := r.negativeModel, K := K] \as Boundary;
+\import \root.Support[].On[X := X, space := space, hausdorff := hausdorff, locallyCompact := locallyCompact].Triples[]
+  .Homotopy[p := r.positiveModel, q := r.negativeModel, K := K, compact := compact, first := FirstTriple.comparison, second := SecondTriple.comparison] \as Normal;
+\import Complements.PulledIsomorphism[X := X, Y := A, F := F, G := Fiber r.positiveModel, source := source, target := bundle r.positiveModel,
+  base := subspace, f := inclusion, sourceRegular := regular, targetRegular := regular] \as PBoundary;
+\import Complements.PulledIsomorphism[X := A, Y := Cylinder.Carrier, F := (\fun (x: A) => F x), G := (\fun (x: A) => Fiber r.positiveModel x),
+  source := Positive.restricted, target := Boundary.first, base := Cylinder.topology subspace, f := Cylinder.point,
+  sourceRegular := (Cylinder.pointContinuous subspace), targetRegular := (Cylinder.pointContinuous subspace)] \as PPull;
+\import Bundles.Family[X := A, F := (\fun (x: A) => Fiber r.positiveModel x)].Of[bundle := Boundary.first].Pullback[
+  Y := Cylinder.Carrier, source := Cylinder.topology subspace, f := Cylinder.point] \as PBundle;
+\definition positiveBundle: Bundles.Family[X := Cylinder.Carrier, F := (\fun (z: Cylinder.Carrier) => Fiber r.positiveModel (Cylinder.point z))].Bundle := PBundle.pulled (Cylinder.pointContinuous subspace);
+\import Complements.PulledIsomorphism[X := X, Y := A, F := G, G := Fiber r.negativeModel, source := target, target := bundle r.negativeModel,
+  base := subspace, f := inclusion, sourceRegular := regular, targetRegular := regular] \as QBoundary;
+\import Complements.PulledIsomorphism[X := A, Y := Cylinder.Carrier, F := (\fun (x: A) => G x), G := (\fun (x: A) => Fiber r.negativeModel x),
+  source := Negative.restricted, target := Boundary.second, base := Cylinder.topology subspace, f := Cylinder.point,
+  sourceRegular := (Cylinder.pointContinuous subspace), targetRegular := (Cylinder.pointContinuous subspace)] \as QPull;
+\import Bundles.Family[X := A, F := (\fun (x: A) => Fiber r.negativeModel x)].Of[bundle := Boundary.second].Pullback[
+  Y := Cylinder.Carrier, source := Cylinder.topology subspace, f := Cylinder.point] \as QBundle;
+\definition negativeBundle: Bundles.Family[X := Cylinder.Carrier, F := (\fun (z: Cylinder.Carrier) => Fiber r.negativeModel (Cylinder.point z))].Bundle := QBundle.pulled (Cylinder.pointContinuous subspace);
+\definition firstBundle: Bundles.Family[X := Cylinder.Carrier, F := (\fun (z: Cylinder.Carrier) => F (Cylinder.point z))].Bundle := First.pulled (Cylinder.pointContinuous subspace);
+\definition secondBundle: Bundles.Family[X := Cylinder.Carrier, F := (\fun (z: Cylinder.Carrier) => G (Cylinder.point z))].Bundle := Second.pulled (Cylinder.pointContinuous subspace);
+\import Bundles.Isomorphisms[X := Cylinder.Carrier, F := (\fun (z: Cylinder.Carrier) => F (Cylinder.point z)), G := (\fun (z: Cylinder.Carrier) => Fiber r.positiveModel (Cylinder.point z)), source := firstBundle, target := positiveBundle] \as Reverse;
+\import Operations.IsomorphismComposition[X := Cylinder.Carrier,
+  F := (\fun (z: Cylinder.Carrier) => Fiber r.positiveModel (Cylinder.point z)), G := (\fun (z: Cylinder.Carrier) => F (Cylinder.point z)), H := (\fun (z: Cylinder.Carrier) => G (Cylinder.point z)),
+  source := positiveBundle, middle := firstBundle, target := secondBundle] \as Start;
+\definition start: Start.Isomorphism := Start.compose (Reverse.inverse (PPull.isomorphism (PBoundary.isomorphism r.positive))) family.isomorphism;
+\import Operations.IsomorphismComposition[X := Cylinder.Carrier,
+  F := (\fun (z: Cylinder.Carrier) => Fiber r.positiveModel (Cylinder.point z)), G := (\fun (z: Cylinder.Carrier) => G (Cylinder.point z)), H := (\fun (z: Cylinder.Carrier) => Fiber r.negativeModel (Cylinder.point z)),
+  source := positiveBundle, middle := secondBundle, target := negativeBundle] \as Finish;
+\definition homotopy: Normal.Family := Normal.Family {
+  isomorphism := Finish.compose start (QPull.isomorphism (QBoundary.isomorphism r.negative)),
+  start := \fun (x: A)(v: Fiber r.positiveModel x) => congr!{{G x} {Fiber r.negativeModel x}} (r.negative.forward.fiber x).apply _ _ (family.start x ((r.positive.backward.fiber x).apply v)),
+  end := \fun (x: A)(v: Fiber r.positiveModel x) => congr!{{G x} {Fiber r.negativeModel x}} (r.negative.forward.fiber x).apply _ _ (family.end x ((r.positive.backward.fiber x).apply v))
+};
+\definition equation: Left.value = Right.value := trans!{{Group.Carrier}} _ _ _ (Left.agreement FirstTriple.result)
+  (trans!{{Group.Carrier}} _ _ _
+    (Group.relationEquality (Group.symbol Normal.left) (Group.symbol Normal.right)
+      (Group.Relation::homotopy r.positiveModel r.negativeModel K compact FirstTriple.comparison SecondTriple.comparison homotopy))
+    (sym!{{Group.Carrier}} _ _ (Right.agreement SecondTriple.result)));

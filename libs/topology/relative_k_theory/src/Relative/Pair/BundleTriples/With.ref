@@ -1,0 +1,26 @@
+\definition Values: \Set := \Cast[Group.Carrier] ({ v: Group.Carrier \where \exists (r: Represent.Result[alpha] \where Group.value r.value = v) });
+\definition existence: \exists Values := \block {
+  \takefrom r: Represent.Result[alpha] \by Represent.existence alpha \then
+  \return Logic.existsIntro[Group.Carrier, { v: Group.Carrier \where \exists (r: Represent.Result[alpha] \where Group.value r.value = v) }]
+    (Group.value r.value) (Logic.existsIntro[Represent.Result[alpha], { s: Represent.Result[alpha] \where Group.value s.value = Group.value r.value }] r (\refl(Group.value r.value)))
+};
+\definition unique: \forall (a, b: Values) -> a = b := \block {
+  \fun (a, b: Values) \then
+  \takefrom r: \Cast[Represent.Result[alpha]] ({ r: Represent.Result[alpha] \where Group.value r.value = a })
+    \by \bysub(Group.Carrier, Values, a) \then
+  \takefrom s: \Cast[Represent.Result[alpha]] ({ s: Represent.Result[alpha] \where Group.value s.value = b })
+    \by \bysub(Group.Carrier, Values, b) \then
+  \return trans!{{Group.Carrier}} _ _ _ (sym!{{Group.Carrier}} _ _ (\bysub(Represent.Result[alpha], { r: Represent.Result[alpha] \where Group.value r.value = a }, r)))
+    (trans!{{Group.Carrier}} _ _ _
+      (\parent.\parent.PresentationChange[F := F, G := G, source := first, target := second, sourceSame := (\refl(space)), targetSame := (\refl(space))].On[alpha := alpha, first := r, second := s].equation)
+      (\bysub(Represent.Result[alpha], { s: Represent.Result[alpha] \where Group.value s.value = b }, s)))
+};
+\definition value: Values := \choice Values \by { existence: existence, uniqueness: unique };
+\definition agreement: \forall (r: Represent.Result[alpha]) -> value = Group.value r.value :=
+  \fun (r: Represent.Result[alpha]) => unique value (\into[Group.Carrier](Group.value r.value, Values) \by {
+    Logic.existsIntro[Represent.Result[alpha], { s: Represent.Result[alpha] \where Group.value s.value = Group.value r.value }] r (\refl(Group.value r.value))
+  });
+\definition reduced: Quotient.Relative := Group.ToReduced[].map value;
+\module Framing(auxiliary: Presentation, n: N.Nat^);
+\module Global(isomorphism: Bundles.Isomorphisms[X := X, F := F, G := G, source := first, target := second].Isomorphism,
+  agrees: \forall (x: A)(v: F x) -> (isomorphism.forward.fiber x).apply v = (alpha.forward.fiber x).apply v);

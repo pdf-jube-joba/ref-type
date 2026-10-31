@@ -1,0 +1,40 @@
+\import RangePair.FramedClass[F := F, sourceModel := sourceModel, n := n].With[alpha := alpha] \as Class;
+\import Bundles.Trivial[X := X, n := n, baseSpace := space] \as Trivial;
+\import Bundles.Trivial[X := Y, n := n, baseSpace := source] \as SourceTrivial;
+\import \root.Relative[].RestrictedPullback[X := X, Y := Y, F := F, bundle := original, source := source,
+  subset := subset, sourceSubset := sourceSubset, f := f, regular := regular, preserves := preserves] \as Positive;
+\import \root.Relative[].RestrictedPullback[X := X, Y := Y, F := (\fun (x: X) => Bundles.Vector n), bundle := Trivial.bundle, source := source,
+  subset := subset, sourceSubset := sourceSubset, f := f, regular := regular, preserves := preserves] \as Negative;
+\definition B: \Set := DomainPair.A;
+\definition boundary[y: B]: RangePair.A := Positive.boundary y;
+\definition boundaryRegular: topology.Continuity[A := B, B := RangePair.A].Continuous DomainPair.subspace RangePair.subspace boundary := Positive.boundaryRegular;
+\import Bundles.Family[X := X, F := F].Of[bundle := original].Restriction[U := subset] \as OriginalPositive;
+\import Bundles.Family[X := X, F := (\fun (x: X) => Bundles.Vector n)].Of[bundle := Trivial.bundle].Restriction[U := subset] \as OriginalNegative;
+\import Complements.PulledIsomorphism[X := RangePair.A, Y := B, F := (\fun (x: RangePair.A) => F x), G := (\fun (x: RangePair.A) => Bundles.Vector n),
+  source := OriginalPositive.restricted, target := OriginalNegative.restricted, base := DomainPair.subspace, f := boundary,
+  sourceRegular := boundaryRegular, targetRegular := boundaryRegular] \as BoundaryPull;
+\import Bundles.Isomorphisms[X := B, F := (\fun (y: B) => Bundles.Vector n), G := (\fun (y: B) => Bundles.Vector n), source := Negative.first, target := Negative.second] \as NegativeInverse;
+\import Operations.IsomorphismComposition[X := B, F := (\fun (y: B) => Fiber y), G := (\fun (y: B) => F (boundary y)), H := (\fun (y: B) => Bundles.Vector n),
+  source := Positive.first, middle := Positive.second, target := Negative.second] \as First;
+\import Operations.IsomorphismComposition[X := B, F := (\fun (y: B) => Fiber y), G := (\fun (y: B) => Bundles.Vector n), H := (\fun (y: B) => Bundles.Vector n),
+  source := Positive.first, middle := Negative.second, target := Negative.first] \as Second;
+\definition initial: Second.Isomorphism := Second.compose (First.compose Positive.isomorphism (BoundaryPull.isomorphism alpha)) (NegativeInverse.inverse Negative.isomorphism);
+\import Bundles.Family[X := X, F := (\fun (x: X) => Bundles.Vector n)].Of[bundle := Trivial.bundle].Pullback[Y := Y, source := source, f := f] \as PullTrivial;
+\import Operations.TrivialPullback[X := X, Y := Y, n := n, original := space, base := source, f := f, regular := regular] \as Triviality;
+\import Complements.PulledIsomorphism[X := Y, Y := B, F := (\fun (y: Y) => Bundles.Vector n), G := (\fun (y: Y) => Bundles.Vector n),
+  source := PullTrivial.pulled regular, target := SourceTrivial.bundle, base := DomainPair.subspace, f := (\fun (y: B) => y),
+  sourceRegular := Positive.domainRegular, targetRegular := Positive.domainRegular] \as RestrictedTriviality;
+\import Bundles.Family[X := Y, F := (\fun (y: Y) => Bundles.Vector n)].Of[bundle := SourceTrivial.bundle].Restriction[U := sourceSubset] \as BoundaryTrivial;
+\definition comparison: Bundles.Isomorphisms[X := B, F := (\fun (y: B) => Fiber y), G := (\fun (y: B) => Bundles.Vector n),
+  source := Positive.first, target := BoundaryTrivial.restricted].Isomorphism :=
+  Operations.IsomorphismComposition[X := B, F := (\fun (y: B) => Fiber y), G := (\fun (y: B) => Bundles.Vector n), H := (\fun (y: B) => Bundles.Vector n),
+    source := Positive.first, middle := Negative.first, target := BoundaryTrivial.restricted].compose initial (RestrictedTriviality.isomorphism Triviality.isomorphism);
+\definition formula: \forall (y: B)(v: Fiber y) -> (comparison.forward.fiber y).apply v = (alpha.forward.fiber (boundary y)).apply v :=
+  \fun (y: B)(v: Fiber y) => \refl((alpha.forward.fiber (boundary y)).apply v);
+\import DomainPair.FramedClass[F := Fiber, sourceModel := model, n := n].With[alpha := comparison] \as SourceClass;
+\definition value: Domain.Relative := SourceClass.value;
+\module Naturality(e: Original.With[comparison := alpha].Result);
+\definition naturality: value = relative Class.value := \block {
+  \takefrom w: Original.Witness[alpha] \by Original.descend alpha \then
+  \return Naturality[e := w.extension].equation
+};

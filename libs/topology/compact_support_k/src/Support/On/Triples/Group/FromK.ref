@@ -1,0 +1,25 @@
+\import \parent.FromSymbols[] \as SymbolsMap;
+\import \parent.ToK[] \as Forward;
+\import \root.Support[].On[X := X, space := space, hausdorff := hausdorff, locallyCompact := locallyCompact].Symbols[] \as Symbols;
+\import Relative.Reduced[model := model] \as Reduced;
+\definition map[a: Reduced.Carrier]: Carrier := SymbolsMap.map (Symbols.backward a);
+\definition additive: \forall (a, b: Reduced.Carrier) -> map (Reduced.group.base.op a b) = add (map a) (map b) :=
+  \fun (a, b: Reduced.Carrier) => trans!{{Carrier}} _ _ _
+    (congr!{{Symbols.Carrier} {Carrier}} SymbolsMap.map _ _ (Symbols.backwardAdd a b))
+    (SymbolsMap.additive (Symbols.backward a) (Symbols.backward b));
+\definition rightInverse: \forall (a: Reduced.Carrier) -> Forward.map (map a) = a :=
+  \fun (a: Reduced.Carrier) => trans!{{Reduced.Carrier}} _ _ _
+    (SymbolsMap.Compatibility[].equation (Symbols.backward a)) (Symbols.rightInverse a);
+
+\import algebra.Group[].Of[Carrier := Carrier, group := group] \as SourceGroup;
+\import algebra.Group[].Of[Carrier := Reduced.Carrier, group := Reduced.group] \as TargetGroup;
+\definition preservesZero: map TargetGroup.zero = zero := trans!{{Carrier}} _ _ _
+  (congr!{{Symbols.Carrier} {Carrier}} SymbolsMap.map _ _
+    (Symbols.detectsEquality (Symbols.backward TargetGroup.zero) Symbols.group.base.unit
+      (trans!{{Reduced.Carrier}} _ _ _ (Symbols.rightInverse TargetGroup.zero) (sym!{{Reduced.Carrier}} _ _ Symbols.forwardZero))))
+  SymbolsMap.preservesZero;
+\definition preservesNeg: \forall (a: Reduced.Carrier) -> map (TargetGroup.neg a) = neg (map a) :=
+  \fun (a: Reduced.Carrier) => SourceGroup.inverseUnique (map a) (map (TargetGroup.neg a))
+    (trans!{{Carrier}} _ _ _ (sym!{{Carrier}} _ _ (additive (TargetGroup.neg a) a))
+      (trans!{{Carrier}} _ _ _ (congr!{{Reduced.Carrier} {Carrier}} map _ _ (TargetGroup.inverseLeft a)) preservesZero));
+\module LeftInverse;

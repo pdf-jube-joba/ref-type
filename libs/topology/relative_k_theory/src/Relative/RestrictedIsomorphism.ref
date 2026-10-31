@@ -1,0 +1,29 @@
+\import topology.Topology[Carrier := X] \as Base;
+\definition A: \Set := \Cast[X] S;
+\definition B: \Set := \Cast[X] T;
+\definition firstSpace: topology.Topology[Carrier := A].Topology := Base.Subspace[S := S].topology first.baseSpace;
+\definition secondSpace: topology.Topology[Carrier := B].Topology := Base.Subspace[S := T].topology first.baseSpace;
+\definition inclusion[x: A]: X := x;
+\definition regular: topology.Continuity[A := A, B := X].Continuous firstSpace first.baseSpace inclusion := topology.Continuity[A := A, B := X].Corestriction[S := S].inclusionContinuous first.baseSpace;
+\definition into[x: B]: A := \into[X](x, S) \by { included x (\bysub(X, T, x)) };
+\definition targetRegular: topology.Continuity[A := B, B := X].Continuous secondSpace first.baseSpace (\fun (x: B) => x) := topology.Continuity[A := B, B := X].Corestriction[S := T].inclusionContinuous first.baseSpace;
+\definition intoRegular: topology.Continuity[A := B, B := A].Continuous secondSpace firstSpace into := topology.Continuity[A := B, B := X].Corestriction[S := S].corestrictContinuous secondSpace first.baseSpace into targetRegular;
+\definition secondRegular: topology.Continuity[A := A, B := X].Continuous firstSpace second.baseSpace inclusion :=
+  \idelim first.baseSpace = second.baseSpace \with t: Base.Topology => topology.Continuity[A := A, B := X].Continuous firstSpace t inclusion \by { base: regular, equality: same };
+\definition targetFirstSpace: topology.Topology[Carrier := A].Topology := Base.Subspace[S := S].topology second.baseSpace;
+\definition targetIntoRegular: topology.Continuity[A := B, B := A].Continuous secondSpace targetFirstSpace into :=
+  \idelim first.baseSpace = second.baseSpace \with t: Base.Topology => topology.Continuity[A := B, B := A].Continuous secondSpace (Base.Subspace[S := S].topology t) into \by {
+    base: intoRegular, equality: same
+  };
+\definition nativeSecondRegular: topology.Continuity[A := A, B := X].Continuous targetFirstSpace second.baseSpace inclusion :=
+  topology.Continuity[A := A, B := X].Corestriction[S := S].inclusionContinuous second.baseSpace;
+\import Bundles.Family[X := X, F := F].Of[bundle := first].Restriction[U := S] \as FirstRestriction;
+\import Bundles.Family[X := X, F := G].Of[bundle := second].Restriction[U := S] \as SecondRestriction;
+\import Bundles.Isomorphisms[X := A, F := (\fun (x: A) => F x), G := (\fun (x: A) => G x), source := FirstRestriction.restricted, target := SecondRestriction.restricted] \as Original;
+\import Bundles.Family[X := X, F := F].Of[bundle := first].PullbackComposition[Y := A, Z := B, first := firstSpace, second := secondSpace, f := inclusion, g := into]
+  .Of[fRegular := regular, gRegular := intoRegular] \as Positive;
+\import Bundles.Family[X := X, F := G].Of[bundle := second].PullbackComposition[Y := A, Z := B, first := targetFirstSpace, second := secondSpace, f := inclusion, g := into]
+  .Of[fRegular := nativeSecondRegular, gRegular := targetIntoRegular] \as Negative;
+\definition firstBundle: Bundles.Family[X := B, F := (\fun (x: B) => F x)].Bundle := Positive.direct;
+\definition secondBundle: Bundles.Family[X := B, F := (\fun (x: B) => G x)].Bundle := Negative.direct;
+\module With(isomorphism: Original.Isomorphism);

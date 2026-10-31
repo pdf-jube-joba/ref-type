@@ -1,0 +1,26 @@
+\import Bundles.Family[X := X, F := F].Of[bundle := bundle].Pullback[Y := Y, source := source, f := g] \as First;
+\import Bundles.Family[X := X, F := F].Of[bundle := bundle].Pullback[Y := Y, source := source, f := h] \as Second;
+\import Bundles.Isomorphisms[X := Y, F := (\fun (y: Y) => F (g y)), G := (\fun (y: Y) => F (h y)),
+  source := First.pulled gRegular, target := Second.pulled hRegular] \as Isomorphisms;
+\import \root.Relative[].FiberTransport[Y := X, F := F, bundle := bundle] \as Transport;
+\module At(k: Y -> X, regular: topology.Continuity[A := Y, B := X].Continuous source bundle.baseSpace k, same: g = k);
+\definition existence: \exists At[k := h, regular := hRegular, same := equal].Values :=
+  (\idelim g = h \with k: (Y -> X) => \forall (regular: topology.Continuity[A := Y, B := X].Continuous source bundle.baseSpace k)(e: g = k) ->
+    \exists At[k := k, regular := regular, same := e].Values
+    \by {
+      base: \fun (regular: topology.Continuity[A := Y, B := X].Continuous source bundle.baseSpace g)(e: g = g) =>
+        Logic.existsIntro[Bundles.Isomorphisms[X := Y, F := (\fun (y: Y) => F (g y)), G := (\fun (y: Y) => F (g y)),
+          source := First.pulled gRegular, target := First.pulled regular].Isomorphism,
+          { iso: Bundles.Isomorphisms[X := Y, F := (\fun (y: Y) => F (g y)), G := (\fun (y: Y) => F (g y)),
+            source := First.pulled gRegular, target := First.pulled regular].Isomorphism \where At[k := g, regular := regular, same := e].Matches iso }]
+          (Operations.IdentityIsomorphism[X := Y, F := (\fun (y: Y) => F (g y)), bundle := First.pulled gRegular].isomorphism)
+          (\fun (y: Y)(v: F (g y)) => sym!{{F (g y)}} _ _ (Equality.Transport[A := X].castRefl F (g y) v)),
+      equality: equal
+    }) hRegular equal;
+\definition chosen: At[k := h, regular := hRegular, same := equal].Values := \choice At[k := h, regular := hRegular, same := equal].Values \by {
+  existence: existence, uniqueness: At[k := h, regular := hRegular, same := equal].unique
+};
+\definition isomorphism: Isomorphisms.Isomorphism := chosen;
+\definition at[y: Y]: g y = h y := congr!{{Y -> X} X} (\fun (k: Y -> X) => k y) _ _ equal;
+\definition formula: \forall (y: Y)(v: F (g y)) -> (isomorphism.forward.fiber y).apply v = Transport.cast (g y) (h y) (at y) v :=
+  \bysub(Isomorphisms.Isomorphism, At[k := h, regular := hRegular, same := equal].Values, chosen);

@@ -1,0 +1,40 @@
+\import Represent.With[alpha := alpha, p := p, q := q, positive := positiveIso, negative := negativeIso] \as Represented;
+\import \root.Support[].On[X := X, space := space, hausdorff := hausdorff, locallyCompact := locallyCompact].Triples[].FromCompact[t := Represented.triple] \as Symbol;
+\import Bundles.Morphisms[X := Compactification.Carrier, Y := Compactification.Carrier, F := Presentations.Fiber p, G := F, source := Presentations.bundle p, target := source, f := (\fun (x: Compactification.Carrier) => x)]
+  .Composition[Z := Compactification.Carrier, H := G, range := target, g := (\fun (x: Compactification.Carrier) => x)] \as ForwardStart;
+\definition forwardStart: Bundles.Morphisms[X := Compactification.Carrier, Y := Compactification.Carrier, F := Presentations.Fiber p, G := G, source := Presentations.bundle p, target := target, f := (\fun (x: Compactification.Carrier) => x)].Map :=
+  ForwardStart.compose positiveIso.backward forward.map;
+\import Bundles.Morphisms[X := Compactification.Carrier, Y := Compactification.Carrier, F := Presentations.Fiber p, G := G, source := Presentations.bundle p, target := target, f := (\fun (x: Compactification.Carrier) => x)]
+  .Composition[Z := Compactification.Carrier, H := Presentations.Fiber q, range := Presentations.bundle q, g := (\fun (x: Compactification.Carrier) => x)] \as ForwardFinish;
+\definition forwardMap: Bundles.Morphisms[X := Compactification.Carrier, Y := Compactification.Carrier, F := Presentations.Fiber p, G := Presentations.Fiber q, source := Presentations.bundle p, target := Presentations.bundle q, f := (\fun (x: Compactification.Carrier) => x)].Map :=
+  ForwardFinish.compose forwardStart negativeIso.forward;
+\import Bundles.Morphisms[X := Compactification.Carrier, Y := Compactification.Carrier, F := Presentations.Fiber q, G := G, source := Presentations.bundle q, target := target, f := (\fun (x: Compactification.Carrier) => x)]
+  .Composition[Z := Compactification.Carrier, H := F, range := source, g := (\fun (x: Compactification.Carrier) => x)] \as BackwardStart;
+\definition backwardStart: Bundles.Morphisms[X := Compactification.Carrier, Y := Compactification.Carrier, F := Presentations.Fiber q, G := F, source := Presentations.bundle q, target := source, f := (\fun (x: Compactification.Carrier) => x)].Map :=
+  BackwardStart.compose negativeIso.backward backward.map;
+\import Bundles.Morphisms[X := Compactification.Carrier, Y := Compactification.Carrier, F := Presentations.Fiber q, G := F, source := Presentations.bundle q, target := source, f := (\fun (x: Compactification.Carrier) => x)]
+  .Composition[Z := Compactification.Carrier, H := Presentations.Fiber p, range := Presentations.bundle p, g := (\fun (x: Compactification.Carrier) => x)] \as BackwardFinish;
+\definition backwardMap: Bundles.Morphisms[X := Compactification.Carrier, Y := Compactification.Carrier, F := Presentations.Fiber q, G := Presentations.Fiber p, source := Presentations.bundle q, target := Presentations.bundle p, f := (\fun (x: Compactification.Carrier) => x)].Map :=
+  BackwardFinish.compose backwardStart positiveIso.forward;
+\import bundle_extension.Extension[].ComplexMaps[X := Compactification.Carrier, subset := Point.subset,
+  F := Presentations.Fiber p, G := Presentations.Fiber q, source := Presentations.bundle p, target := Presentations.bundle q,
+  baseSpace := Compactification.topology, sourceSame := (\refl(Compactification.topology)), same := (\refl(Compactification.topology))] \as SymbolForward;
+\import bundle_extension.Extension[].ComplexMaps[X := Compactification.Carrier, subset := Point.subset,
+  F := Presentations.Fiber q, G := Presentations.Fiber p, source := Presentations.bundle q, target := Presentations.bundle p,
+  baseSpace := Compactification.topology, sourceSame := (\refl(Compactification.topology)), same := (sym!{{topology.Topology[Carrier := Compactification.Carrier].Topology}}
+    (Presentations.bundle p).baseSpace (Presentations.bundle q).baseSpace (\refl(Compactification.topology)))] \as SymbolBackward;
+\definition symbolForward: SymbolForward.Result[Represented.triple.comparison.forward] := SymbolForward.Result[Represented.triple.comparison.forward] {
+  map := forwardMap,
+  extends := \fun (x: Pair.A)(v: Presentations.Fiber p x) => congr!{{G x} {Presentations.Fiber q x}} (negativeIso.forward.fiber x).apply _ _
+    (forward.extends x ((positiveIso.backward.fiber x).apply v))
+};
+\definition symbolBackward: SymbolBackward.Result[Represented.triple.comparison.backward] := SymbolBackward.Result[Represented.triple.comparison.backward] {
+  map := backwardMap,
+  extends := \fun (x: Pair.A)(v: Presentations.Fiber q x) => congr!{{F x} {Presentations.Fiber p x}} (positiveIso.forward.fiber x).apply _ _
+    (backward.extends x ((negativeIso.backward.fiber x).apply v))
+};
+\module With(w: Symbol.ExtensionData);
+\definition equation: Group.FromSymbols[].map (Original.With[alpha := alpha].value) = value := \block {
+  \takefrom w: Symbol.ExtensionData \by Symbol.existence \then
+  \return With[w := w].equation
+};

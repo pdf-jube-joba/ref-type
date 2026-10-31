@@ -1,0 +1,23 @@
+\import \root.Support[].OnePoint[X := A, space := source] \as Domain;
+\import \root.Support[].OnePoint[X := B, space := target] \as Range;
+\import \root.Support[].Proper[A := A, B := B, source := source, target := target].With[f := h.forward, continuous := laws.forwardContinuous, proper := proper] \as Direct;
+\definition reverse: topology.Homeomorphism[A := B, B := A].Homeomorphism[target, source] := topology.Homeomorphism[A := B, B := A].Homeomorphism[target, source] {
+  forward := h.backward, backward := h.forward, leftInverse := laws.rightInverse, rightInverse := laws.leftInverse,
+  forwardContinuous := laws.backwardContinuous, backwardContinuous := laws.forwardContinuous
+};
+\import \root.Support[].Homeomorphic[A := B, B := A, source := target, target := source, h := reverse] \as Inverse;
+\import \root.Support[].Proper[A := B, B := A, source := target, target := source].With[f := h.backward, continuous := laws.backwardContinuous, proper := Inverse.proper] \as Back;
+\definition leftInverse: \forall (p: Domain.Carrier) -> Back.extension (Direct.extension p) = p :=
+  \induction (p: Domain.Carrier) \return Back.extension (Direct.extension p) = p \with {
+    | none: \refl(Domain.point) | some: \fun (x: A) => congr!{A {Domain.Carrier}} Domain.inclusion _ _ (laws.leftInverse x)
+  };
+\definition rightInverse: \forall (p: Range.Carrier) -> Direct.extension (Back.extension p) = p :=
+  \induction (p: Range.Carrier) \return Direct.extension (Back.extension p) = p \with {
+    | none: \refl(Range.point) | some: \fun (y: B) => congr!{B {Range.Carrier}} Range.inclusion _ _ (laws.rightInverse y)
+  };
+\definition homeomorphism: topology.Homeomorphism[A := Domain.Carrier, B := Range.Carrier].Homeomorphism[Domain.topology, Range.topology] :=
+  topology.Homeomorphism[A := Domain.Carrier, B := Range.Carrier].Homeomorphism[Domain.topology, Range.topology] {
+    forward := Direct.extension, backward := Back.extension,
+    leftInverse := leftInverse, rightInverse := rightInverse,
+    forwardContinuous := Direct.extensionContinuous, backwardContinuous := Back.extensionContinuous
+  };

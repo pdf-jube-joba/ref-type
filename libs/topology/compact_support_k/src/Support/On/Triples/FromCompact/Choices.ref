@@ -1,0 +1,69 @@
+\import algebraic_topology.Interval[] \as I;
+\import algebraic_topology.Cylinder[A := Compactification.Carrier] \as Cylinder;
+\import topology.Topology[Carrier := Compactification.Carrier] \as Plus;
+\import relative_k_theory.Relative[].PointPair[model := model] \as Point;
+\import topological_k_theory.KTheory[].On[X := Compactification.Carrier, baseSpace := Compactification.topology,
+  compact := Compactness.compact, hausdorff := Separation.hausdorffCompactification] \as Presentations;
+\definition F[x: Compactification.Carrier]: \Set := Presentations.Fiber t.positive x;
+\definition G[x: Compactification.Carrier]: \Set := Presentations.Fiber t.negative x;
+\import Operations.AffineHomotopy[X := Compactification.Carrier, F := F, G := G,
+  source := Presentations.bundle t.positive, target := Presentations.bundle t.negative, same := (\refl(Compactification.topology)),
+  first := first.forward.map, second := second.forward.map] \as Forward;
+\import Operations.AffineHomotopy[X := Compactification.Carrier, F := G, G := F,
+  source := Presentations.bundle t.negative, target := Presentations.bundle t.positive, same := (\refl(Compactification.topology)),
+  first := first.backward.map, second := second.backward.map] \as Backward;
+\definition boundary: \Pow Cylinder.Carrier := { z: Cylinder.Carrier \where \In[Compactification.Carrier] Point.subset (Cylinder.point z) };
+\definition preserves: \forall (z: Cylinder.Carrier) -> \In[Cylinder.Carrier] boundary z -> \In[Compactification.Carrier] Point.subset (Cylinder.point z) :=
+  \fun (z: Cylinder.Carrier)(member: _) => member;
+\import Relative.PairPullback[X := Compactification.Carrier, Y := Cylinder.Carrier, F := F, G := G,
+  first := Presentations.bundle t.positive, second := Presentations.bundle t.negative, same := (\refl(Compactification.topology)),
+  source := Forward.space, subset := Point.subset, sourceSubset := boundary, f := Cylinder.point,
+  regular := (Cylinder.pointContinuous Compactification.topology), preserves := preserves].With[alpha := t.comparison] \as Boundary;
+\import bundle_extension.Extension[].Over[K := C.Complex, field := Algebra.field, conjugation := Hermitian.scalar, scalar := Scalar.scalar].Isomorphisms[
+  X := Cylinder.Carrier, subset := boundary, F := Forward.Input, G := Forward.Output,
+  source := Forward.firstBundle, target := Forward.secondBundle, same := (\refl(Forward.space))] \as Extensions;
+\import bundle_extension.Extension[].Over[K := C.Complex, field := Algebra.field, conjugation := Hermitian.scalar, scalar := Scalar.scalar].Morphisms[
+  X := Cylinder.Carrier, subset := boundary, F := Forward.Input, G := Forward.Output,
+  source := Forward.firstBundle, target := Forward.secondBundle, baseSpace := Forward.space,
+  sourceSame := (\refl(Forward.space)), same := (\refl(Forward.space))] \as ForwardExtension;
+\import bundle_extension.Extension[].Over[K := C.Complex, field := Algebra.field, conjugation := Hermitian.scalar, scalar := Scalar.scalar].Morphisms[
+  X := Cylinder.Carrier, subset := boundary, F := Forward.Output, G := Forward.Input,
+  source := Forward.secondBundle, target := Forward.firstBundle, baseSpace := Forward.space,
+  sourceSame := (\refl(Forward.space)), same := (sym!{{topology.Topology[Carrier := Cylinder.Carrier].Topology}} Forward.firstBundle.baseSpace Forward.secondBundle.baseSpace (\refl(Forward.space)))] \as BackwardExtension;
+\definition forward: ForwardExtension.Extension[Boundary.comparison.forward] := ForwardExtension.Extension[Boundary.comparison.forward] {
+  map := Forward.map,
+  extends := \fun (z: \Cast[Cylinder.Carrier] boundary)(v: F (Cylinder.point z)) => trans!{{G (Cylinder.point z)}} _ _ _
+    (Forward.fixed z (\fun (v: F (Cylinder.point z)) => trans!{{G (Cylinder.point z)}} _ _ _
+      (first.forward.extends (\into[Compactification.Carrier](Cylinder.point z, Point.subset) \by { \bysub(Cylinder.Carrier, boundary, z) }) v)
+      (sym!{{G (Cylinder.point z)}} _ _ (second.forward.extends (\into[Compactification.Carrier](Cylinder.point z, Point.subset) \by { \bysub(Cylinder.Carrier, boundary, z) }) v))) v)
+    (trans!{{G (Cylinder.point z)}} _ _ _
+      (first.forward.extends (\into[Compactification.Carrier](Cylinder.point z, Point.subset) \by { \bysub(Cylinder.Carrier, boundary, z) }) v)
+      (sym!{{G (Cylinder.point z)}} _ _ (Boundary.formula z v)))
+};
+\definition backward: BackwardExtension.Extension[Boundary.comparison.backward] := BackwardExtension.Extension[Boundary.comparison.backward] {
+  map := Backward.map,
+  extends := \fun (z: \Cast[Cylinder.Carrier] boundary)(v: G (Cylinder.point z)) => trans!{{F (Cylinder.point z)}} _ _ _
+    (Backward.fixed z (\fun (v: G (Cylinder.point z)) => trans!{{F (Cylinder.point z)}} _ _ _
+      (first.backward.extends (\into[Compactification.Carrier](Cylinder.point z, Point.subset) \by { \bysub(Cylinder.Carrier, boundary, z) }) v)
+      (sym!{{F (Cylinder.point z)}} _ _ (second.backward.extends (\into[Compactification.Carrier](Cylinder.point z, Point.subset) \by { \bysub(Cylinder.Carrier, boundary, z) }) v))) v)
+    (trans!{{F (Cylinder.point z)}} _ _ _
+      (first.backward.extends (\into[Compactification.Carrier](Cylinder.point z, Point.subset) \by { \bysub(Cylinder.Carrier, boundary, z) }) v)
+      (sym!{{F (Cylinder.point z)}} _ _ (Boundary.backwardFormula z v)))
+};
+\import topological_constructions.Product[A := I.Carrier, B := Compactification.Carrier] \as Product;
+\definition compact: topology.Topology[Carrier := Cylinder.Carrier].IsCompact Forward.space :=
+  Product.Compactness[].productCompact I.topology Compactification.topology I.compact Compactness.compact;
+\definition separated: topology.Topology[Carrier := Cylinder.Carrier].IsT2 Forward.space :=
+  topological_constructions.Separation[].Product[A := I.Carrier, B := Compactification.Carrier].On[
+    left := I.topology, right := Compactification.topology, leftHausdorff := I.hausdorff, rightHausdorff := Separation.hausdorffCompactification].hausdorff;
+\import Complements.For[X := Cylinder.Carrier, F := Forward.Input, bundle := Forward.firstBundle] \as FirstEmbeddings;
+\import Complements.For[X := Cylinder.Carrier, F := Forward.Output, bundle := Forward.secondBundle] \as SecondEmbeddings;
+\module With(positive: FirstEmbeddings.Embedding, negative: SecondEmbeddings.Embedding);
+
+\import \parent.With[w := first] \as Left;
+\import \parent.With[w := second] \as Right;
+\definition equation: Left.value = Right.value := \block {
+  \takefrom p: FirstEmbeddings.Embedding \by FirstEmbeddings.embeddingExists compact separated \then
+  \takefrom q: SecondEmbeddings.Embedding \by SecondEmbeddings.embeddingExists compact separated \then
+  \return With[positive := p, negative := q].equation
+};

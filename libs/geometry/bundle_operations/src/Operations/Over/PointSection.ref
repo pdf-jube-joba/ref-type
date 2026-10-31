@@ -1,0 +1,23 @@
+\import topology.Topology[Carrier := X] \as Base;
+\definition Point: \Set := \Cast[X] (Base.Singleton center);
+\import Bundles.Family[X := X, F := F] \as Family;
+\import std.Logic[].Equality[].Transport[A := X] \as Transport;
+\definition equality[x: Point]: center = x := sym!{{X}} _ _ (\bysub(X, Base.Singleton center, x));
+\definition value[x: Point]: F x := Transport.cast F center x (equality x) vector;
+\definition formula: \forall (x: X)(same: center = x) -> Family.include x (Transport.cast F center x same vector) = Family.include center vector :=
+  \fun (x: X)(same: center = x) => (\idelim center = x \with y: X => \forall (eq: center = y) ->
+    Family.include y (Transport.cast F center y eq vector) = Family.include center vector \by {
+      base: \fun (eq: center = center) => congr!{{F center} {Family.Point}} (Family.include center) _ _ (Transport.castRefl F center vector),
+      equality: same
+    }) same;
+\definition continuous: topology.Continuity[A := Point, B := Family.Point].Continuous
+  (Base.Subspace[S := Base.Singleton center].topology bundle.baseSpace) bundle.totalSpace (\fun (x: Point) => Family.include x (value x)) :=
+  \idelim (\fun (x: Point) => Family.include center vector) = (\fun (x: Point) => Family.include x (value x))
+    \with f: (Point -> Family.Point) => topology.Continuity[A := Point, B := Family.Point].Continuous
+      (Base.Subspace[S := Base.Singleton center].topology bundle.baseSpace) bundle.totalSpace f \by {
+      base: topology.Maps[A := Point, B := Family.Point].constantContinuous
+        (Base.Subspace[S := Base.Singleton center].topology bundle.baseSpace) bundle.totalSpace (Family.include center vector),
+      equality: \axiom:funext((\fun (x: Point) => Family.include center vector), (\fun (x: Point) => Family.include x (value x)),
+        (\fun (x: Point) => sym!{{Family.Point}} _ _ (formula x (equality x))))
+    };
+\definition atCenter: value (\into[X](center, Base.Singleton center) \by { \refl(center) }) = vector := Transport.castRefl F center vector;

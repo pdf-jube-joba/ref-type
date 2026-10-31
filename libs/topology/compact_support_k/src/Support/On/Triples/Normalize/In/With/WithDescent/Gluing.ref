@@ -1,0 +1,39 @@
+\import \parent.LocalD[] \as LocalD;
+\definition outside: \Pow X := Base.Complement n.region;
+\definition Outside: \Set := \Cast[X] outside;
+\definition outsideSpace: topology.Topology[Carrier := Outside].Topology := Base.Subspace[S := outside].topology space;
+\definition outsideInclusion[x: Outside]: X := x;
+\definition outsideRegular: topology.Continuity[A := Outside, B := X].Continuous outsideSpace space outsideInclusion := topology.Continuity[A := Outside, B := X].Corestriction[S := outside].inclusionContinuous space;
+\definition closedLocal: Base.IsClosedIn space n.compactSet := Base.Compactness[].compactClosed space hausdorff n.compactSet n.compact;
+\definition closedOutside: Base.IsClosedIn space outside := Base.Finite[].openComplementClosed space n.region n.openRegion;
+\use Logic.either;
+\definition covers: \forall (x: X) -> Logic.Or[\In[X] n.compactSet x, \In[X] outside x] := \fun (x: X) =>
+  either!{{(std.Logic[].Classical[].excludedMiddle (\In[X] n.region x))} {Logic.Or[\In[X] n.compactSet x, \In[X] outside x]}
+    {\fun (inside: _) => Logic.Or[_, _]::left (n.enclosed x inside)} {\fun (notInside: _) => Logic.Or[_, _]::right notInside}};
+\import Operations.GluedIsomorphisms[X := X, F := StableSource.Fiber, G := StableTarget.Fiber,
+  source := StableSource.bundle (\refl(space)), target := StableTarget.bundle (\refl(space)), same := (\refl(space)),
+  S := n.compactSet, T := outside, closedS := closedLocal, closedT := closedOutside, covers := covers] \as Glue;
+\module OnLocal;
+\import OnLocal[] \as OnLocal;
+\module OnOutside;
+\import OnOutside[] \as OnOutside;
+\module At(x: X, inLocal: \In[X] n.compactSet x, inOutside: \In[X] outside x, v: Fiber t.positive x, a: Auxiliary x);
+\definition compatible: \forall (x: X)(s: \In[X] n.compactSet x)(t0: \In[X] outside x)(w: StableSource.Fiber x) ->
+  (OnLocal.isomorphism.forward.fiber (\into[X](x, n.compactSet) \by { s })).apply w =
+  (OnOutside.isomorphism.forward.fiber (\into[X](x, outside) \by { t0 })).apply w := \block {
+  \fun (x: X)(s: _)(t0: _)(w: StableSource.Fiber x) \then
+  \let parts: std.Data[].Pair[].pair (Fiber t.positive x) (Auxiliary x)
+    (std.Data[].Pair[].first (Fiber t.positive x) (Auxiliary x) w) (std.Data[].Pair[].second (Fiber t.positive x) (Auxiliary x) w) = w :=
+    std.Data[].Pair[].Prop[A := Fiber t.positive x, B := Auxiliary x].eta w \then
+  \return \idelim std.Data[].Pair[].pair (Fiber t.positive x) (Auxiliary x)
+    (std.Data[].Pair[].first (Fiber t.positive x) (Auxiliary x) w) (std.Data[].Pair[].second (Fiber t.positive x) (Auxiliary x) w) = w
+    \with z: StableSource.Fiber x => (OnLocal.isomorphism.forward.fiber (\into[X](x, n.compactSet) \by { s })).apply z =
+      (OnOutside.isomorphism.forward.fiber (\into[X](x, outside) \by { t0 })).apply z \by {
+      base: At[x := x, inLocal := s, inOutside := t0, v := std.Data[].Pair[].first (Fiber t.positive x) (Auxiliary x) w, a := std.Data[].Pair[].second (Fiber t.positive x) (Auxiliary x) w].equation,
+      equality: parts
+    }
+};
+\import Glue.With[first := OnLocal.isomorphism, second := OnOutside.isomorphism, compatible := compatible] \as Glued;
+\definition isomorphism: Bundles.Isomorphisms[X := X, F := StableSource.Fiber, G := StableTarget.Fiber,
+  source := StableSource.bundle (\refl(space)), target := StableTarget.bundle (\refl(space))].Isomorphism := Glued.isomorphism;
+\definition onOutside: \forall (x: Outside)(v: StableSource.Fiber x) -> (isomorphism.forward.fiber x).apply v = (OnOutside.isomorphism.forward.fiber x).apply v := Glued.onSecond;

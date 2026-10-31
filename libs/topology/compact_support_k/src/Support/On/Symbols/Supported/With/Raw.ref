@@ -1,0 +1,31 @@
+\import \root.Support[].On[X := X, space := space, hausdorff := hausdorff, locallyCompact := locallyCompact] \as Theory;
+\import Theory.Symbols[] \as Symbols;
+\import vector_bundles.Bundles[].Over[K := C.Complex, field := C.Algebra[].field, conjugation := Hermitian.scalar, scalar := Scalar.scalar] \as VectorBundles;
+\definition F[x: X]: \Set := Bundles.Fiber t.positive (Compactification.inclusion x);
+\definition G[x: X]: \Set := Bundles.Fiber t.negative (Compactification.inclusion x);
+\import VectorBundles.Family[X := Compactification.Carrier, F := (Bundles.Fiber t.positive)].Of[bundle := (Bundles.bundle t.positive)].Pullback[Y := X, source := space, f := Compactification.inclusion] \as First;
+\import VectorBundles.Family[X := Compactification.Carrier, F := (Bundles.Fiber t.negative)].Of[bundle := (Bundles.bundle t.negative)].Pullback[Y := X, source := space, f := Compactification.inclusion] \as Second;
+\import Theory.BundleModel[F := F].From[original := First.pulled Compactification.inclusionContinuous, same := (\refl(space))] \as FirstModel;
+\import Theory.BundleModel[F := G].From[original := Second.pulled Compactification.inclusionContinuous, same := (\refl(space))] \as SecondModel;
+\definition positiveModel: Theory.BundleModel[F := F].Bundle := FirstModel.model;
+\definition negativeModel: Theory.BundleModel[F := G].Bundle := SecondModel.model;
+\import Theory.BundleTriples[F := F, G := G, firstModel := positiveModel, secondModel := negativeModel].Supported[K := support, compactK := compactSupport] \as Supported;
+\definition preserves: \forall (x: X) -> \In[X] Supported.outside x -> \In[Compactification.Carrier] e.domain (Compactification.inclusion x) := inDomain;
+\import Relative.PairPullback[X := Compactification.Carrier, Y := X, F := (Bundles.Fiber t.positive), G := (Bundles.Fiber t.negative),
+  first := (Bundles.bundle t.positive), second := (Bundles.bundle t.negative), same := (\refl(Compactification.topology)), source := space,
+  subset := e.domain, sourceSubset := Supported.outside, f := Compactification.inclusion, regular := Compactification.inclusionContinuous, preserves := preserves] \as Boundary;
+\definition comparison: Supported.OnOutside := Boundary.With[alpha := e.isomorphism].comparison;
+\import Supported.With[alpha := comparison] \as Class;
+\definition value: Relative.Reduced[model := model].Carrier := Class.value;
+\definition Neighborhood: \Set := topology.Topology[Carrier := Compactification.Carrier].Urysohn[].ShrinkData[Compactification.topology, Point.subset, e.domain];
+\definition neighborhoods: \exists Neighborhood := topology.Topology[Carrier := Compactification.Carrier].Urysohn[].shrink Compactification.topology
+  (topology.Topology[Carrier := Compactification.Carrier].Compactness[].compactHausdorffNormal Compactification.topology Compactness.compact Separation.hausdorffCompactification)
+  Point.subset e.domain Point.closed e.open e.contains;
+\module Normalize(w: Neighborhood);
+\definition equation: value = Symbols.forward (Symbols.value t) := \block {
+  \takefrom w: Neighborhood \by neighborhoods \then
+  \return Normalize[w := w].equation
+};
+\definition symbol: Symbols.Carrier := Symbols.backward value;
+\definition symbolEquation: symbol = Symbols.value t := trans!{{Symbols.Carrier}} _ _ _
+  (congr!{{Relative.Reduced[model := model].Carrier} {Symbols.Carrier}} Symbols.backward _ _ equation) (Symbols.leftInverse (Symbols.value t));

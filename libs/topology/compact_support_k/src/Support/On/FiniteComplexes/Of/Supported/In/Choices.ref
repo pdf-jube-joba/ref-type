@@ -1,0 +1,46 @@
+\import \parent.With[contraction := first] \as Left;
+\import \parent.With[contraction := second] \as Right;
+\import Acyclic.Between[first := first, second := second] \as Between;
+\import algebraic_topology.Interval[] \as I;
+\import algebraic_topology.Cylinder[A := Pair.A] \as Cylinder;
+\import Pair.BundleTriples[F := FirstFiber, G := SecondFiber, firstModel := firstOnLocal, secondModel := secondOnLocal]
+  .Homotopy[alpha := Left.comparison, beta := Right.comparison] \as Homotopy;
+\import Bundles.Family[X := X, F := Even].Of[bundle := Models.bundle even].PullbackComposition[
+  Y := Local.Carrier, Z := Pair.A, first := Local.topology, second := Pair.subspace, f := Local.inclusion, g := boundaryLocal]
+  .Of[fRegular := Local.regular, gRegular := boundaryLocalRegular] \as Positive;
+\import Complements.PulledIsomorphism[X := Pair.A, Y := Cylinder.Carrier, F := (\fun (x: Pair.A) => Even x), G := (\fun (x: Pair.A) => Even x),
+  source := Positive.direct, target := Positive.nested, base := Cylinder.topology Pair.subspace, f := Cylinder.point,
+  sourceRegular := (Cylinder.pointContinuous Pair.subspace), targetRegular := (Cylinder.pointContinuous Pair.subspace)] \as PositivePull;
+\import Bundles.Family[X := Pair.A, F := (\fun (x: Pair.A) => Even x)].Of[bundle := Positive.direct].Pullback[
+  Y := Cylinder.Carrier, source := Cylinder.topology Pair.subspace, f := Cylinder.point] \as PositiveDirect;
+\import Bundles.Family[X := Pair.A, F := (\fun (x: Pair.A) => Even x)].Of[bundle := Positive.nested].Pullback[
+  Y := Cylinder.Carrier, source := Cylinder.topology Pair.subspace, f := Cylinder.point] \as PositiveNested;
+\definition positiveDirect: Bundles.Family[X := Cylinder.Carrier, F := (\fun (z: Cylinder.Carrier) => Even (Cylinder.point z))].Bundle := PositiveDirect.pulled (Cylinder.pointContinuous Pair.subspace);
+\definition positiveNested: Bundles.Family[X := Cylinder.Carrier, F := (\fun (z: Cylinder.Carrier) => Even (Cylinder.point z))].Bundle := PositiveNested.pulled (Cylinder.pointContinuous Pair.subspace);
+\import Bundles.Family[X := X, F := Odd].Of[bundle := Models.bundle odd].PullbackComposition[
+  Y := Local.Carrier, Z := Pair.A, first := Local.topology, second := Pair.subspace, f := Local.inclusion, g := boundaryLocal]
+  .Of[fRegular := Local.regular, gRegular := boundaryLocalRegular] \as Negative;
+\import Complements.PulledIsomorphism[X := Pair.A, Y := Cylinder.Carrier, F := (\fun (x: Pair.A) => Odd x), G := (\fun (x: Pair.A) => Odd x),
+  source := Negative.direct, target := Negative.nested, base := Cylinder.topology Pair.subspace, f := Cylinder.point,
+  sourceRegular := (Cylinder.pointContinuous Pair.subspace), targetRegular := (Cylinder.pointContinuous Pair.subspace)] \as NegativePull;
+\import Bundles.Family[X := Pair.A, F := (\fun (x: Pair.A) => Odd x)].Of[bundle := Negative.direct].Pullback[
+  Y := Cylinder.Carrier, source := Cylinder.topology Pair.subspace, f := Cylinder.point] \as NegativeDirect;
+\import Bundles.Family[X := Pair.A, F := (\fun (x: Pair.A) => Odd x)].Of[bundle := Negative.nested].Pullback[
+  Y := Cylinder.Carrier, source := Cylinder.topology Pair.subspace, f := Cylinder.point] \as NegativeNested;
+\definition negativeDirect: Bundles.Family[X := Cylinder.Carrier, F := (\fun (z: Cylinder.Carrier) => Odd (Cylinder.point z))].Bundle := NegativeDirect.pulled (Cylinder.pointContinuous Pair.subspace);
+\definition negativeNested: Bundles.Family[X := Cylinder.Carrier, F := (\fun (z: Cylinder.Carrier) => Odd (Cylinder.point z))].Bundle := NegativeNested.pulled (Cylinder.pointContinuous Pair.subspace);
+\import Bundles.Isomorphisms[X := Cylinder.Carrier, F := (\fun (z: Cylinder.Carrier) => Even (Cylinder.point z)), G := (\fun (z: Cylinder.Carrier) => Even (Cylinder.point z)), source := positiveDirect, target := positiveNested] \as Reverse;
+\import Operations.IsomorphismComposition[X := Cylinder.Carrier, F := (\fun (z: Cylinder.Carrier) => Even (Cylinder.point z)),
+  G := (\fun (z: Cylinder.Carrier) => Even (Cylinder.point z)), H := (\fun (z: Cylinder.Carrier) => Odd (Cylinder.point z)),
+  source := positiveNested, middle := positiveDirect, target := negativeDirect] \as Start;
+\definition start: Start.Isomorphism := Start.compose (Reverse.inverse (PositivePull.isomorphism Positive.isomorphism)) Between.isomorphism;
+\import Operations.IsomorphismComposition[X := Cylinder.Carrier, F := (\fun (z: Cylinder.Carrier) => Even (Cylinder.point z)),
+  G := (\fun (z: Cylinder.Carrier) => Odd (Cylinder.point z)), H := (\fun (z: Cylinder.Carrier) => Odd (Cylinder.point z)),
+  source := positiveNested, middle := negativeDirect, target := negativeNested] \as Finish;
+\definition family: Homotopy.Family := Homotopy.Family {
+  isomorphism := Finish.compose start (NegativePull.isomorphism Negative.isomorphism),
+  start := \fun (x: Pair.A)(v: Even x) => trans!{{Odd x}} _ _ _ (Between.start x v) (sym!{{Odd x}} _ _ (Left.formula x v)),
+  end := \fun (x: Pair.A)(v: Even x) => trans!{{Odd x}} _ _ _ (Between.end x v) (sym!{{Odd x}} _ _ (Right.formula x v))
+};
+\definition localEquation: Left.localValue = Right.localValue := Homotopy.With[family := family].reducedEquation;
+\definition equation: Left.value = Right.value := congr!{{Pair.Quotient[].Relative} {Relative.Reduced[model := model].Carrier}} Local.extend _ _ localEquation;

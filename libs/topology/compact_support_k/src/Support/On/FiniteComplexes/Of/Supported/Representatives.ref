@@ -1,0 +1,24 @@
+\import \root.Support[].On[X := X, space := space, hausdorff := hausdorff, locallyCompact := locallyCompact].Triples[].Group[] \as Source;
+\import Source.Comparison[] \as Comparison;
+\import Source.EqualityCriterion[] \as Equality;
+\import std.Set[].Quotient[A := Source.Expression, Equivalent := Source.Equivalent] \as Classes;
+\definition sourceClass: Source.Carrier := Comparison.backward value;
+\definition comparison: Comparison.forward sourceClass = value := Comparison.rightInverse value;
+\definition Represents[e: Source.Expression]: \Prop := Comparison.forward (Source.class e) = value;
+\definition existence: \exists (e: Source.Expression \where Represents e) := \block {
+  \takefrom e: \Cast[Source.Expression] ({ e: Source.Expression \where Source.class e = sourceClass }) \by
+    Classes.induction (\fun (c: Source.Carrier) => \exists (e: Source.Expression \where Source.class e = c))
+      (\fun (e: Source.Expression) => Logic.existsIntro[Source.Expression, { f: Source.Expression \where Source.class f = Source.class e }] e (\refl(Source.class e))) sourceClass \then
+  \return Logic.existsIntro[Source.Expression, { e: Source.Expression \where Represents e }] e
+    (trans!{{Relative.Reduced[model := model].Carrier}} _ _ _
+      (congr!{{Source.Carrier} {Relative.Reduced[model := model].Carrier}} Comparison.forward _ _ (\bysub(Source.Expression, { e: Source.Expression \where Source.class e = sourceClass }, e))) comparison)
+};
+\definition criterion: \forall (other: Relative.Reduced[model := model].Carrier)(a, b: Source.Expression) -> Represents a -> Comparison.forward (Source.class b) = other ->
+  Logic.PropEquiv[value = other, Source.Equivalent a b] :=
+  \fun (other: Relative.Reduced[model := model].Carrier)(a, b: Source.Expression)(first: Represents a)(second: Comparison.forward (Source.class b) = other) =>
+  Logic.PropEquiv[value = other, Source.Equivalent a b] {
+    ltr := \fun (same: value = other) => (Equality.criterion a b).ltr
+      (trans!{{Relative.Reduced[model := model].Carrier}} _ _ _ first (trans!{{Relative.Reduced[model := model].Carrier}} _ _ _ same (sym!{{Relative.Reduced[model := model].Carrier}} _ _ second))),
+    rtl := \fun (related: Source.Equivalent a b) => trans!{{Relative.Reduced[model := model].Carrier}} _ _ _ (sym!{{Relative.Reduced[model := model].Carrier}} _ _ first)
+      (trans!{{Relative.Reduced[model := model].Carrier}} _ _ _ ((Equality.criterion a b).rtl related) second)
+  };

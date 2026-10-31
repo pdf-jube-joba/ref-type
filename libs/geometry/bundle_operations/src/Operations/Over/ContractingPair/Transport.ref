@@ -1,0 +1,63 @@
+\import \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].ContractingPair[V := U, W := T, even := newEven, odd := newOdd] \as Target;
+\import Spaces.Isomorphism[V := V, W := U, source := even, target := newEven] \as Positive;
+\import Spaces.Isomorphism[V := W, W := T, source := odd, target := newOdd] \as Negative;
+\definition positiveLaws: Positive.Laws[positive] := \bysub(Positive.Data, Positive.Isomorphism, positive);
+\definition negativeLaws: Negative.Laws[negative] := \bysub(Negative.Data, Negative.Isomorphism, negative);
+\definition originalLaws: Laws[c] := \bysub(Data, Pair, c);
+\definition dStart: Spaces.Linear[V := U, W := W, source := newEven, target := odd].Map :=
+  Spaces.Linear[V := V, W := W, source := even, target := odd].Composition[U := U, domain := newEven].compose c.d positive.backward;
+\definition d: Spaces.Linear[V := U, W := T, source := newEven, target := newOdd].Map :=
+  Spaces.Linear[V := W, W := T, source := odd, target := newOdd].Composition[U := U, domain := newEven].compose negative.forward dStart;
+\definition dFormula: \forall (v: V) -> d.apply (positive.forward.apply v) = negative.forward.apply (c.d.apply v) :=
+  \fun (v: V) => congr!{{V} {T}} (\fun (w: V) => negative.forward.apply (c.d.apply w)) _ _ (positiveLaws.leftInverse v);
+\definition eStart: Spaces.Linear[V := T, W := V, source := newOdd, target := even].Map :=
+  Spaces.Linear[V := W, W := V, source := odd, target := even].Composition[U := T, domain := newOdd].compose c.e negative.backward;
+\definition e: Spaces.Linear[V := T, W := U, source := newOdd, target := newEven].Map :=
+  Spaces.Linear[V := V, W := U, source := even, target := newEven].Composition[U := T, domain := newOdd].compose positive.forward eStart;
+\definition eFormula: \forall (v: W) -> e.apply (negative.forward.apply v) = positive.forward.apply (c.e.apply v) :=
+  \fun (v: W) => congr!{{W} {U}} (\fun (w: W) => positive.forward.apply (c.e.apply w)) _ _ (negativeLaws.leftInverse v);
+\definition hStart: Spaces.Linear[V := T, W := V, source := newOdd, target := even].Map :=
+  Spaces.Linear[V := W, W := V, source := odd, target := even].Composition[U := T, domain := newOdd].compose c.h negative.backward;
+\definition h: Spaces.Linear[V := T, W := U, source := newOdd, target := newEven].Map :=
+  Spaces.Linear[V := V, W := U, source := even, target := newEven].Composition[U := T, domain := newOdd].compose positive.forward hStart;
+\definition hFormula: \forall (v: W) -> h.apply (negative.forward.apply v) = positive.forward.apply (c.h.apply v) :=
+  \fun (v: W) => congr!{{W} {U}} (\fun (w: W) => positive.forward.apply (c.h.apply w)) _ _ (negativeLaws.leftInverse v);
+\definition kStart: Spaces.Linear[V := U, W := W, source := newEven, target := odd].Map :=
+  Spaces.Linear[V := V, W := W, source := even, target := odd].Composition[U := U, domain := newEven].compose c.k positive.backward;
+\definition k: Spaces.Linear[V := U, W := T, source := newEven, target := newOdd].Map :=
+  Spaces.Linear[V := W, W := T, source := odd, target := newOdd].Composition[U := U, domain := newEven].compose negative.forward kStart;
+\definition kFormula: \forall (v: V) -> k.apply (positive.forward.apply v) = negative.forward.apply (c.k.apply v) :=
+  \fun (v: V) => congr!{{V} {T}} (\fun (w: V) => negative.forward.apply (c.k.apply w)) _ _ (positiveLaws.leftInverse v);
+\definition data: Target.Data := Target.Data { d := d, e := e, h := h, k := k };
+\definition squareEven: \forall (v: U) -> e.apply (d.apply v) = newEven.zero :=
+  \fun (v: U) => trans!{{U}} _ _ _ (eFormula (c.d.apply (positive.backward.apply v)))
+    (trans!{{U}} _ _ _ (congr!{{V} {U}} positive.forward.apply _ _ (originalLaws.squareEven (positive.backward.apply v))) positive.forward.preservesZero);
+\definition squareOdd: \forall (v: T) -> d.apply (e.apply v) = newOdd.zero :=
+  \fun (v: T) => trans!{{T}} _ _ _ (dFormula (c.e.apply (negative.backward.apply v)))
+    (trans!{{T}} _ _ _ (congr!{{W} {T}} negative.forward.apply _ _ (originalLaws.squareOdd (negative.backward.apply v))) negative.forward.preservesZero);
+\definition evenLaw: \forall (v: U) -> newEven.add (e.apply (k.apply v)) (h.apply (d.apply v)) = v :=
+  \fun (v: U) => trans!{{U}} _ _ _
+    (congr!{{U} {U} {U}} newEven.add _ _ _ _ (eFormula (c.k.apply (positive.backward.apply v))) (hFormula (c.d.apply (positive.backward.apply v))))
+    (trans!{{U}} _ _ _ (sym!{{U}} _ _ (positive.forward.preservesAdd (c.e.apply (c.k.apply (positive.backward.apply v))) (c.h.apply (c.d.apply (positive.backward.apply v)))))
+      (trans!{{U}} _ _ _ (congr!{{V} {U}} positive.forward.apply _ _ (originalLaws.even (positive.backward.apply v))) (positiveLaws.rightInverse v)));
+\definition oddLaw: \forall (v: T) -> newOdd.add (d.apply (h.apply v)) (k.apply (e.apply v)) = v :=
+  \fun (v: T) => trans!{{T}} _ _ _
+    (congr!{{T} {T} {T}} newOdd.add _ _ _ _ (dFormula (c.h.apply (negative.backward.apply v))) (kFormula (c.e.apply (negative.backward.apply v))))
+    (trans!{{T}} _ _ _ (sym!{{T}} _ _ (negative.forward.preservesAdd (c.d.apply (c.h.apply (negative.backward.apply v))) (c.k.apply (c.e.apply (negative.backward.apply v)))))
+      (trans!{{T}} _ _ _ (congr!{{W} {T}} negative.forward.apply _ _ (originalLaws.odd (negative.backward.apply v))) (negativeLaws.rightInverse v)));
+\definition laws: Target.Laws[data] := Target.Laws[data] { squareEven := squareEven, squareOdd := squareOdd, even := evenLaw, odd := oddLaw };
+\definition pair: Target.Pair := \into[Target.Data](data, Target.Pair) \by { laws };
+\import \parent.With[c := c] \as Original;
+\import Target.With[c := pair] \as Normal;
+\definition normalizedK: \forall (v: V) -> k.apply (e.apply (k.apply (positive.forward.apply v))) = negative.forward.apply (c.k.apply (c.e.apply (c.k.apply v))) :=
+  \fun (v: V) => trans!{{T}} _ _ _ (congr!{{T} {T}} (\fun (w: T) => k.apply (e.apply w)) _ _ (kFormula v))
+    (trans!{{T}} _ _ _ (congr!{{U} {T}} k.apply _ _ (eFormula (c.k.apply v))) (kFormula (c.e.apply (c.k.apply v))));
+\definition normalizedH: \forall (v: W) -> h.apply (d.apply (h.apply (negative.forward.apply v))) = positive.forward.apply (c.h.apply (c.d.apply (c.h.apply v))) :=
+  \fun (v: W) => trans!{{U}} _ _ _ (congr!{{U} {U}} (\fun (w: U) => h.apply (d.apply w)) _ _ (hFormula v))
+    (trans!{{U}} _ _ _ (congr!{{T} {U}} h.apply _ _ (dFormula (c.h.apply v))) (hFormula (c.d.apply (c.h.apply v))));
+\definition forwardFormula: \forall (v: V) -> Normal.forward.apply (positive.forward.apply v) = negative.forward.apply (Original.forward.apply v) :=
+  \fun (v: V) => trans!{{T}} _ _ _ (congr!{{T} {T} {T}} newOdd.add _ _ _ _ (dFormula v) (normalizedK v))
+    (sym!{{T}} _ _ (negative.forward.preservesAdd (c.d.apply v) (c.k.apply (c.e.apply (c.k.apply v)))));
+\definition backwardFormula: \forall (v: W) -> Normal.backward.apply (negative.forward.apply v) = positive.forward.apply (Original.backward.apply v) :=
+  \fun (v: W) => trans!{{U}} _ _ _ (congr!{{U} {U} {U}} newEven.add _ _ _ _ (eFormula v) (normalizedH v))
+    (sym!{{U}} _ _ (positive.forward.preservesAdd (c.e.apply v) (c.h.apply (c.d.apply (c.h.apply v)))));

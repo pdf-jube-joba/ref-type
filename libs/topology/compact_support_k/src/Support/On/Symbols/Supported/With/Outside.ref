@@ -1,0 +1,27 @@
+\import topology.Topology[Carrier := X] \as Base;
+\import Base.Subspace[S := Base.Complement K] \as Part;
+\definition Point: \Set := Part.CarrierSet;
+\definition topology: topology.Topology[Carrier := Point].Topology := Part.topology space;
+\definition domainPoint[x: Point]: \Cast[Compactification.Carrier] e.domain :=
+  \into[Compactification.Carrier](Compactification.inclusion x, e.domain) \by {
+    inDomain x (\fun (member: _) => (\bysub(X, Base.Complement K, x)) (contains x member))
+  };
+\definition continuous: topology.Continuity[A := Point, B := \Cast[Compactification.Carrier] e.domain].Continuous topology
+  (topology.Topology[Carrier := Compactification.Carrier].Subspace[S := e.domain].topology Compactification.topology) domainPoint :=
+  topology.Continuity[A := Point, B := Compactification.Carrier].Corestriction[S := e.domain].corestrictContinuous topology Compactification.topology domainPoint
+    (topology.Composition[A := Point, B := X, C := Compactification.Carrier].composeContinuous topology space Compactification.topology
+      (\fun (x: Point) => x) Compactification.inclusion
+      (topology.Continuity[A := Point, B := X].Corestriction[S := Base.Complement K].inclusionContinuous space) Compactification.inclusionContinuous);
+\import complex.Complex[] \as C;
+\import linear_algebra.Hermitian[].Complex[] \as Hermitian;
+\import vector_bundles.Bundles[].Complex[] \as Scalar;
+\import vector_bundles.Bundles[].Over[K := C.Complex, field := C.Algebra[].field, conjugation := Hermitian.scalar, scalar := Scalar.scalar] \as VectorBundles;
+\import bundle_extension.Extension[].Over[K := C.Complex, field := C.Algebra[].field, conjugation := Hermitian.scalar, scalar := Scalar.scalar].Isomorphisms[
+  X := Compactification.Carrier, subset := topology.Topology[Carrier := Compactification.Carrier].Singleton Compactification.point, F := Bundles.Fiber t.positive, G := Bundles.Fiber t.negative,
+  source := Bundles.bundle t.positive, target := Bundles.bundle t.negative, same := (\refl(Compactification.topology))].With[a := t.comparison, e := e].Pullback[
+  Y := Point, space := topology, f := domainPoint, regular := continuous] \as Pull;
+\definition Positive[x: Point]: \Set := Bundles.Fiber t.positive (Compactification.inclusion x);
+\definition Negative[x: Point]: \Set := Bundles.Fiber t.negative (Compactification.inclusion x);
+\definition positive: VectorBundles.Family[X := Point, F := Positive].Bundle := Pull.first;
+\definition negative: VectorBundles.Family[X := Point, F := Negative].Bundle := Pull.second;
+\definition isomorphism: VectorBundles.Isomorphisms[X := Point, F := Positive, G := Negative, source := positive, target := negative].Isomorphism := Pull.isomorphism;

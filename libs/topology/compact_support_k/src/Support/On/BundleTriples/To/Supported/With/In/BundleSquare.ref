@@ -1,0 +1,24 @@
+\import Complements.PulledIsomorphism[X := X, Y := Local.Carrier, F := F, G := H, source := Original.first, target := Changed.first,
+  base := Local.topology, f := Local.inclusion, sourceRegular := Local.regular, targetRegular := Local.regular] \as RestrictedPositive;
+\import Complements.PulledIsomorphism[X := X, Y := Local.Carrier, F := G, G := I, source := Original.second, target := Changed.second,
+  base := Local.topology, f := Local.inclusion, sourceRegular := Local.regular, targetRegular := Local.regular] \as RestrictedNegative;
+\import Bundles.Family[X := X, F := H].Of[bundle := Changed.first].PullbackComposition[Y := OtherLocal.Carrier, Z := Local.Carrier, first := OtherLocal.topology, second := Local.topology,
+  f := OtherLocal.inclusion, g := Geometry.map].Of[fRegular := OtherLocal.regular, gRegular := Geometry.continuous] \as PositiveComposition;
+\import Bundles.Family[X := X, F := I].Of[bundle := Changed.second].PullbackComposition[Y := OtherLocal.Carrier, Z := Local.Carrier, first := OtherLocal.topology, second := Local.topology,
+  f := OtherLocal.inclusion, g := Geometry.map].Of[fRegular := OtherLocal.regular, gRegular := Geometry.continuous] \as NegativeComposition;
+\definition positiveMap: Bundles.Isomorphisms[X := Local.Carrier, F := First.FirstFiber, G := Pull.FirstFiber,
+  source := Pair.BundleModel[F := First.FirstFiber].bundle First.firstOnLocal, target := Pull.firstBundle].Isomorphism :=
+  Operations.IsomorphismComposition[X := Local.Carrier, F := First.FirstFiber, G := (\fun (x: Local.Carrier) => H x), H := Pull.FirstFiber,
+    source := Pair.BundleModel[F := First.FirstFiber].bundle First.firstOnLocal, middle := PositiveComposition.direct, target := Pull.firstBundle].compose
+    (RestrictedPositive.isomorphism positive) PositiveComposition.isomorphism;
+\definition negativeMap: Bundles.Isomorphisms[X := Local.Carrier, F := First.SecondFiber, G := Pull.SecondFiber,
+  source := Pair.BundleModel[F := First.SecondFiber].bundle First.secondOnLocal, target := Pull.secondBundle].Isomorphism :=
+  Operations.IsomorphismComposition[X := Local.Carrier, F := First.SecondFiber, G := (\fun (x: Local.Carrier) => I x), H := Pull.SecondFiber,
+    source := Pair.BundleModel[F := First.SecondFiber].bundle First.secondOnLocal, middle := NegativeComposition.direct, target := Pull.secondBundle].compose
+    (RestrictedNegative.isomorphism negative) NegativeComposition.isomorphism;
+\definition outside[x: Pair.A]: \Cast[X] outsideJoint := \into[X](x, outsideJoint) \by {
+  \fun (inside: _) => (\bysub(Local.Carrier, Local.boundary, x)) (Neighbor.contains x inside)
+};
+\definition commutes: \forall (x: Pair.A)(v: First.FirstFiber x) ->
+  (Pulled.comparison.forward.fiber x).apply ((positiveMap.forward.fiber x).apply v) = (negativeMap.forward.fiber x).apply ((First.comparison.forward.fiber x).apply v) :=
+  \fun (x: Pair.A)(v: First.FirstFiber x) => compatible (outside x) v;

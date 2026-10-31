@@ -10,3 +10,37 @@
 ## 依存するタスク
 
 - [K09 Bott 周期性と整数次数](k09-bott-periodicity.md)
+
+## 実装状況
+
+完了。
+一般三つ組の `On.Triples.Group` を、元の空間上の座標模型の三つ組を生成元とする自由可換群の関係表示として公開した。
+大域同型、束同型、直和、合成、ホモトピーの幾何学的関係から `ToK` を構成し、任意の元の束を座標模型へ移す `Input` の選択独立性、関係保存、加法性を検査した。
+`FromCompact` の延長選択独立性、コンパクト化上の四つの生成関係の保存、`Group.FromSymbols` と `ToK` の両立性も対象検査を通過した。
+`Normalize` の安定化・降下・貼り合わせ、`Group.FromK.LeftInverse`、`Group.Comparison` と一般三つ組側の `Group.EqualityCriterion` を検査した。
+`On.Pullback.Group` と `GroupNaturality` により、一般三つ組の群の proper 引き戻しと実際の束の引き戻しの自然性も検査した。
+
+`On.FiniteComplexes` は任意の有限長の束の列を受け取り、偶奇和とコンパクトな境界上の縮約から K 類を構成する。
+縮約とコンパクト近傍の選択独立性、および三項の零微分複体の利用例を対象検査した。
+境界上の連続な完全微分の族からのホモトピー不変性、定数族による偶奇和の束同型の不変性、台拡大、直和を対象検査した。
+全体で完全な複体を加える安定化と、`Of.Supported.Representatives` による形式代表の存在・生成関係による等式判定も対象検査した。
+最終ソースの通常全体検査は 10,999 対象すべてを受理した。
+新規 281、再利用 10,718、保存失敗 0、破損キャッシュ読み取り 0、終了コード 0。
+検査したソースのコミットは `caf1837dd3fbb05f29b90ffb95e53af87f3d8583`。
+[最終検査記録](../../benchmarks/records/k10-compact-support-k/README.md) に、対象検査と通常全体検査のソース・バイナリの一致および再開の経緯を記録する。
+`compact_support_k` は一点コンパクト化、整数次数群、proper 引き戻し、開部分空間の零延長、閉対の補空間表示、円板・球面束の比較、外積と切除を公開する。
+コンパクト化上のシンボル群には二項束複体、ホモトピー・安定化・直和の関係式と等式判定がある。
+
+`On.BundleTriples.Supported.With` は元の空間上の任意の束とコンパクト集合の外での同型を受け取る。
+個々の束の一点コンパクト化への延長は要求しない。
+コンパクト近傍への制限で相対三つ組を作り、`On.Localization` によって零延長する。
+`Choices.equation` は近傍の選択独立性を証明し、`relative_k_theory.Relative.Pair.BundleTriples` は有限射影表示と負の束の補助束の選択独立性を証明する。
+`On.BundleTriples.To.Supported.With` は台の拡大と束同型による表示変更を比較する。
+`On.Pullback.BundleTriples.Supported.With.naturality` は proper 引き戻しの自然性を与える。
+
+`With.symbol` と `comparison` は一般の三つ組を既存の小さいシンボル群と一点コンパクト化の K 群へ接続する。
+`On.Symbols.Supported.With.Raw.equation` は従来のシンボルを元の空間へ制限して再構成した値が元の類に一致することを示す。
+`On.Symbols.RawRepresentatives.existence` は全ての類の一般の束三つ組による代表を与える。
+`Examples.Raw` は異なるコンパクト近傍で値が一致する最小利用例である。
+
+一般の有限複体の偶奇和への還元・選択独立性と、元の空間上の一般の束三つ組の生成関係による群表示・加法性・等式判定は、それぞれ実際の束写像と関係表示から証明している。

@@ -1,0 +1,46 @@
+\structure Neighborhood: \Set := {
+  region: \Pow X,
+  compactSet: \Pow X,
+  openRegion: Base.IsOpenIn space region,
+  compact: Base.IsCompactIn space compactSet,
+  contains: Base.Subset K region,
+  enclosed: Base.Subset region compactSet
+};
+\import \parent.\parent.\parent.Neighborhood[K := K, compact := compactK] \as CompactNeighborhood;
+\definition neighborhoods: \exists Neighborhood := \block {
+  \takefrom w: CompactNeighborhood.Witness \by CompactNeighborhood.existence \then
+  \return \exact(Neighborhood {
+    region := CompactNeighborhood.With[w := w].openSet, compactSet := CompactNeighborhood.With[w := w].compactSet,
+    openRegion := CompactNeighborhood.With[w := w].open, compact := CompactNeighborhood.With[w := w].compact,
+    contains := CompactNeighborhood.With[w := w].contains, enclosed := CompactNeighborhood.With[w := w].enclosed
+  }, Neighborhood)
+};
+\module In(n: Neighborhood);
+\module Choices(n, m: Neighborhood);
+\definition Values: \Set := \Cast[Relative.Reduced[model := model].Carrier] ({ v: Relative.Reduced[model := model].Carrier \where \exists (n: Neighborhood \where In[n := n].value = v) });
+\definition existence: \exists Values := \block {
+  \takefrom n: Neighborhood \by neighborhoods \then
+  \return Logic.existsIntro[Relative.Reduced[model := model].Carrier, { v: Relative.Reduced[model := model].Carrier \where \exists (m: Neighborhood \where In[n := m].value = v) }]
+    (In[n := n].value) (Logic.existsIntro[Neighborhood, { m: Neighborhood \where In[n := m].value = In[n := n].value }] n (\refl(In[n := n].value)))
+};
+\definition unique: \forall (a, b: Values) -> a = b := \block {
+  \fun (a, b: Values) \then
+  \takefrom n: \Cast[Neighborhood] ({ n: Neighborhood \where In[n := n].value = a }) \by \bysub(Relative.Reduced[model := model].Carrier, Values, a) \then
+  \takefrom m: \Cast[Neighborhood] ({ m: Neighborhood \where In[n := m].value = b }) \by \bysub(Relative.Reduced[model := model].Carrier, Values, b) \then
+  \return trans!{{Relative.Reduced[model := model].Carrier}} _ _ _ (sym!{{Relative.Reduced[model := model].Carrier}} _ _ (\bysub(Neighborhood, { n: Neighborhood \where In[n := n].value = a }, n)))
+    (trans!{{Relative.Reduced[model := model].Carrier}} _ _ _ (Choices[n := n, m := m].equation)
+      (\bysub(Neighborhood, { m: Neighborhood \where In[n := m].value = b }, m)))
+};
+\definition value: Values := \choice Values \by { existence: existence, uniqueness: unique };
+\definition agreement: \forall (n: Neighborhood) -> value = In[n := n].value :=
+  \fun (n: Neighborhood) => unique value (\into[Relative.Reduced[model := model].Carrier](In[n := n].value, Values) \by {
+    Logic.existsIntro[Neighborhood, { m: Neighborhood \where In[n := m].value = In[n := n].value }] n (\refl(In[n := n].value))
+  });
+\import \root.Support[].On[X := X, space := space, hausdorff := hausdorff, locallyCompact := locallyCompact].Symbols[] \as Symbols;
+\definition symbol: Symbols.Carrier := Symbols.backward value;
+\definition comparison: Symbols.forward symbol = value := Symbols.rightInverse value;
+\definition finiteRepresentation: \exists (t: Symbols.Triple \where Symbols.forward (Symbols.value t) = value) := Symbols.represents value;
+\module Enlarge(H: \Pow X, compactH: Base.IsCompactIn space H, included: Base.Subset K H);
+
+\module Localized(U: \Pow X, openU: Base.IsOpenIn space U, L: \Pow X, compactL: Base.IsCompactIn space L,
+  enclosedU: Base.Subset U L, containsK: Base.Subset K U);

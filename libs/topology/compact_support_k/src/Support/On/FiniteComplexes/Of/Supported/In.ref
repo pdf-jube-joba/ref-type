@@ -1,0 +1,68 @@
+\import Neighbors.With[w := w] \as Neighbor;
+\import \root.Support[].On[X := X, space := space, hausdorff := hausdorff, locallyCompact := locallyCompact].Localization[
+  U := Neighbor.openSet, open := Neighbor.open, L := Neighbor.compactSet, compactL := Neighbor.compact, enclosed := Neighbor.enclosed] \as Local;
+\import Relative.Pair[X := Local.Carrier, space := Local.topology, compact := Local.compact, hausdorff := Local.separated,
+  subset := Local.boundary, closed := Local.boundaryClosed] \as Pair;
+\import Bundles.Family[X := X, F := Even].Of[bundle := Models.bundle even].Restriction[U := Neighbor.compactSet] \as First;
+\import Bundles.Family[X := X, F := Odd].Of[bundle := Models.bundle odd].Restriction[U := Neighbor.compactSet] \as Second;
+\definition FirstFiber[x: Local.Carrier]: \Set := Even x;
+\definition SecondFiber[x: Local.Carrier]: \Set := Odd x;
+\definition firstOnLocal: Pair.BundleModel[F := FirstFiber].Bundle := Pair.BundleModel[F := FirstFiber].From[original := First.restricted, same := (\refl(Local.topology))].model;
+\definition secondOnLocal: Pair.BundleModel[F := SecondFiber].Bundle := Pair.BundleModel[F := SecondFiber].From[original := Second.restricted, same := (\refl(Local.topology))].model;
+\definition boundaryInclusion[x: Pair.A]: X := x;
+\definition boundaryLocal[x: Pair.A]: Local.Carrier := x;
+\definition boundaryLocalRegular: topology.Continuity[A := Pair.A, B := Local.Carrier].Continuous Pair.subspace Local.topology boundaryLocal :=
+  topology.Continuity[A := Pair.A, B := Local.Carrier].Corestriction[S := Local.boundary].inclusionContinuous Local.topology;
+\definition boundaryRegular: topology.Continuity[A := Pair.A, B := X].Continuous Pair.subspace space boundaryInclusion :=
+  topology.Composition[A := Pair.A, B := Local.Carrier, C := X].composeContinuous Pair.subspace Local.topology space boundaryLocal Local.inclusion boundaryLocalRegular Local.regular;
+\import topology.Topology[Carrier := Local.Carrier] \as LocalBase;
+\definition boundaryCompact: topology.Topology[Carrier := Pair.A].IsCompact Pair.subspace := LocalBase.Subspace[S := Local.boundary].Properties[].compact Local.topology
+  (LocalBase.Compactness[].closedCompact Local.topology Local.compact Local.boundary Local.boundaryClosed);
+\definition boundaryHausdorff: topology.Topology[Carrier := Pair.A].IsT2 Pair.subspace := LocalBase.Subspace[S := Local.boundary].Properties[].hausdorff Local.topology Local.separated;
+\import Models.Pullback[b := even, Y := Pair.A, source := Pair.subspace, f := boundaryInclusion, regular := boundaryRegular] \as BoundaryEven;
+\import Models.Pullback[b := odd, Y := Pair.A, source := Pair.subspace, f := boundaryInclusion, regular := boundaryRegular] \as BoundaryOdd;
+\import Models.PullbackMap[p := even, q := odd, Y := Pair.A, source := Pair.subspace, f := boundaryInclusion, regular := boundaryRegular] \as D;
+\import Models.PullbackMap[p := odd, q := even, Y := Pair.A, source := Pair.subspace, f := boundaryInclusion, regular := boundaryRegular] \as E;
+\import \root.Support[].CompactBundles[X := Pair.A, space := Pair.subspace, compact := boundaryCompact, hausdorff := boundaryHausdorff] \as Boundary;
+\import Boundary.Acyclic[p := BoundaryEven.value, q := BoundaryOdd.value, d := D.map d, e := E.map e] \as Acyclic;
+\definition boundaryEvenModel: Operations.Models[X := Pair.A, baseSpace := Pair.subspace].Bundle := BoundaryEven.value;
+\definition boundaryOddModel: Operations.Models[X := Pair.A, baseSpace := Pair.subspace].Bundle := BoundaryOdd.value;
+\definition Contraction: \Set := Acyclic.Contraction;
+\definition outside[x: Pair.A]: \Cast[X] (Base.Complement K) := \into[X](x, Base.Complement K) \by {
+  \fun (inside: \In[X] K x) => (\bysub(Local.Carrier, Local.boundary, x)) (Neighbor.contains x inside)
+};
+\definition exact: Acyclic.Exact := \fun (x: Pair.A) => Operations.AcyclicCoordinates[n := even.ranks x, m := odd.ranks x, d := d.fiber x, e := e.fiber x].Exact {
+  squareEven := (Chain.squareZero).left x,
+  squareOdd := (Chain.squareZero).right x,
+  even := \fun (v: _) => (exactOutside (outside x)).left v (\bysub(Even x, { v: Even x \where (d.fiber x).apply v = ((Models.bundle odd).space x).zero }, v)),
+  odd := \fun (v: _) => (exactOutside (outside x)).right v (\bysub(Odd x, { v: Odd x \where (e.fiber x).apply v = ((Models.bundle even).space x).zero }, v))
+};
+\definition contractions: \exists Acyclic.Contraction := Acyclic.With[exact := exact].existence;
+\module With(contraction: Acyclic.Contraction);
+\module Choices(first, second: Acyclic.Contraction);
+\definition Values: \Set := \Cast[Relative.Reduced[model := model].Carrier] ({ v: Relative.Reduced[model := model].Carrier \where \exists (c: Acyclic.Contraction \where With[contraction := c].value = v) });
+\definition existence: \exists Values := \block {
+  \takefrom c: Acyclic.Contraction \by contractions \then
+  \return Logic.existsIntro[Relative.Reduced[model := model].Carrier, { v: Relative.Reduced[model := model].Carrier \where \exists (c: Acyclic.Contraction \where With[contraction := c].value = v) }]
+    With[contraction := c].value (Logic.existsIntro[Acyclic.Contraction, { a: Acyclic.Contraction \where With[contraction := a].value = With[contraction := c].value }] c (\refl(With[contraction := c].value)))
+};
+\definition unique: \forall (a, b: Values) -> a = b := \block {
+  \fun (a, b: Values) \then
+  \takefrom c: \Cast[Acyclic.Contraction] ({ c: Acyclic.Contraction \where With[contraction := c].value = a }) \by \bysub(Relative.Reduced[model := model].Carrier, Values, a) \then
+  \takefrom t: \Cast[Acyclic.Contraction] ({ c: Acyclic.Contraction \where With[contraction := c].value = b }) \by \bysub(Relative.Reduced[model := model].Carrier, Values, b) \then
+  \return trans!{{Relative.Reduced[model := model].Carrier}} _ _ _
+    (sym!{{Relative.Reduced[model := model].Carrier}} _ _ (\bysub(Acyclic.Contraction, { c: Acyclic.Contraction \where With[contraction := c].value = a }, c)))
+    (trans!{{Relative.Reduced[model := model].Carrier}} _ _ _ Choices[first := c, second := t].equation
+      (\bysub(Acyclic.Contraction, { c: Acyclic.Contraction \where With[contraction := c].value = b }, t)))
+};
+\definition value: Values := \choice Values \by { existence: existence, uniqueness: unique };
+\definition agreement: \forall (c: Acyclic.Contraction) -> value = With[contraction := c].value :=
+  \fun (c: Acyclic.Contraction) => unique value (\into[Relative.Reduced[model := model].Carrier](With[contraction := c].value, Values) \by {
+    Logic.existsIntro[Acyclic.Contraction, { a: Acyclic.Contraction \where With[contraction := a].value = With[contraction := c].value }] c (\refl(With[contraction := c].value))
+  });
+\module Refinement(other: Neighbors.Witness,
+  shrinks: Base.Subset Neighbors.With[w := other].openSet Neighbor.openSet,
+  included: Base.Subset Neighbor.compactSet Neighbors.With[w := other].compactSet);
+
+\module Reduction(isomorphism: Bundles.Isomorphisms[X := Pair.A, F := (\fun (x: Pair.A) => Even x), G := (\fun (x: Pair.A) => Odd x),
+  source := Boundary.bundle boundaryEvenModel, target := Boundary.bundle boundaryOddModel].Isomorphism);

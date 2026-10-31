@@ -1,0 +1,19 @@
+\import \parent.Square[] \as Square;
+\import \root.Relative[].FiberTransport[Y := Range.Carrier, F := Descent.Fiber, bundle := Descended.bundleOnQuotient] \as Transport;
+\definition nearLeft[y: B]: topology.Topology[Carrier := Range.Carrier].Member rangeChart.domain (Square.left y) := Boundary.containsAll y;
+\definition nearRight[y: B]: topology.Topology[Carrier := Range.Carrier].Member rangeChart.domain (Square.right y) :=
+  Descent.Neighborhood[extension := e].fromOriginal (\into[X](f y, e.domain) \by { e.contains (f y) (preserves y (\bysub(Y, sourceSubset, y))) });
+\definition compatible: \forall (y: B)(v: Raw.Fiber y) ->
+  (comparison.forward.fiber y).apply ((Square.isomorphism.forward.fiber y).apply v) = (Boundary.comparison.forward.fiber y).apply v :=
+  \fun (y: B)(v: Raw.Fiber y) => trans!{{Bundles.Vector n}} _ _ _
+    (formula y ((Square.isomorphism.forward.fiber y).apply v))
+    (trans!{{Bundles.Vector n}} _ _ _
+      (congr!{{Fiber y} {Bundles.Vector n}} (alpha.forward.fiber (boundary y)).apply _ _ (Square.formula y v))
+      (trans!{{Bundles.Vector n}} _ _ _
+        (Descended.Boundary[x := boundary y].alignment (Transport.cast (Square.left y) (Square.right y) (Square.same y) v))
+        (trans!{{Bundles.Vector n}} _ _ _ (Transport.frame rangeChart (Square.left y) (Square.right y) (Square.same y) (nearLeft y) (nearRight y) v)
+          (sym!{{Bundles.Vector n}} _ _ (Boundary.formula y v)))));
+\import DomainPair.FramedClass[F := Raw.Fiber, sourceModel := RawModel.model, n := n].To[G := Fiber, targetModel := model, m := n].With[
+  alpha := Boundary.comparison, beta := comparison, h := Square.isomorphism,
+  c := DomainPair.FramedClass[F := Raw.Fiber, sourceModel := RawModel.model, n := n].coordinateIdentity, compatible := compatible] \as Compare;
+\definition equation: RawClass.value = value := Compare.equation;

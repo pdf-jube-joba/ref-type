@@ -1,0 +1,29 @@
+\import topology.Topology[Carrier := X].Subspace[S := subset] \as Range;
+\import topology.Topology[Carrier := Y].Subspace[S := sourceSubset] \as Domain;
+\definition A: \Set := Range.CarrierSet;
+\definition B: \Set := Domain.CarrierSet;
+\definition rangeSpace: topology.Topology[Carrier := A].Topology := Range.topology bundle.baseSpace;
+\definition domainSpace: topology.Topology[Carrier := B].Topology := Domain.topology source;
+\definition rangeInclusion[x: A]: X := x;
+\definition domainInclusion[y: B]: Y := y;
+\definition boundary[y: B]: A := \into[X](f y, subset) \by { preserves y (\bysub(Y, sourceSubset, y)) };
+\definition rangeRegular: topology.Continuity[A := A, B := X].Continuous rangeSpace bundle.baseSpace rangeInclusion :=
+  topology.Continuity[A := A, B := X].Corestriction[S := subset].inclusionContinuous bundle.baseSpace;
+\definition domainRegular: topology.Continuity[A := B, B := Y].Continuous domainSpace source domainInclusion :=
+  topology.Continuity[A := B, B := Y].Corestriction[S := sourceSubset].inclusionContinuous source;
+\definition boundaryRegular: topology.Continuity[A := B, B := A].Continuous domainSpace rangeSpace boundary :=
+  topology.Continuity[A := B, B := X].Corestriction[S := subset].corestrictContinuous domainSpace bundle.baseSpace boundary
+    (topology.Composition[A := B, B := Y, C := X].composeContinuous domainSpace source bundle.baseSpace domainInclusion f domainRegular regular);
+\import Bundles.Family[X := X, F := F].Of[bundle := bundle].PullbackComposition[Y := Y, Z := B, first := source, second := domainSpace,
+  f := f, g := domainInclusion].Of[fRegular := regular, gRegular := domainRegular] \as First;
+\import Bundles.Family[X := X, F := F].Of[bundle := bundle].PullbackComposition[Y := A, Z := B, first := rangeSpace, second := domainSpace,
+  f := rangeInclusion, g := boundary].Of[fRegular := rangeRegular, gRegular := boundaryRegular] \as Second;
+\definition Fiber[y: B]: \Set := F (f y);
+\definition first: Bundles.Family[X := B, F := Fiber].Bundle := First.nested;
+\definition second: Bundles.Family[X := B, F := Fiber].Bundle := Second.nested;
+\import Bundles.Isomorphisms[X := B, F := Fiber, G := Fiber, source := First.direct, target := First.nested] \as Inverse;
+\definition isomorphism: Bundles.Isomorphisms[X := B, F := Fiber, G := Fiber, source := first, target := second].Isomorphism :=
+  Operations.IsomorphismComposition[X := B, F := Fiber, G := Fiber, H := Fiber, source := first, middle := First.direct, target := second].compose
+    (Inverse.inverse First.isomorphism) Second.isomorphism;
+\definition formula: \forall (y: B)(v: Fiber y) -> (isomorphism.forward.fiber y).apply v = v :=
+  \fun (y: B)(v: Fiber y) => \refl(v);

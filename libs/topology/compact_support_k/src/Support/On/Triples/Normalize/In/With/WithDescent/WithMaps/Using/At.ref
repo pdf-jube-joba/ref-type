@@ -1,0 +1,27 @@
+\import std.Data[].Pair[] \as Product;
+\definition outsideLocal: Logic.Not (\In[X] n.compactSet x) := \fun (inside: _) => (\bysub(X, Change.outside, x)) (Logic.Or[_, _]::left (Logic.Or[_, _]::left inside));
+\definition outsidePoint: Gluing.Outside := \into[X](x, Gluing.outside) \by { \fun (inside: _) => outsideLocal (n.enclosed x inside) };
+\definition closedPoint: \Cast[Compactification.Carrier] closedPart := \into[Compactification.Carrier](Compactification.inclusion x, closedPart) \by { \bysub(X, Gluing.outside, outsidePoint) };
+\definition normalReading: \forall (w: XFiber x) -> (NormalEnlargement.comparison.forward.fiber (Change.inTarget x)).apply w =
+  (OutsideCalculation.read.forward.fiber outsidePoint).apply w :=
+  \fun (w: XFiber x) => trans!{{Auxiliary x}} _ _ _ (NormalEnlargement.formula (Change.inTarget x) w)
+    (trans!{{Auxiliary x}} _ _ _ (Raw.formula (NormalEnlargement.boundary (Change.inTarget x)) w)
+      (trans!{{Auxiliary x}} _ _ _ (forward.extends closedPoint w)
+        (trans!{{Auxiliary x}} _ _ _ (ClosedFrame.formula closedPoint w) (sym!{{Auxiliary x}} _ _ (OutsideCalculation.readFormula outsidePoint w)))));
+\definition originalAgreement: (OutsideCalculation.comparison.forward.fiber outsidePoint).apply v = (OriginalEnlargement.comparison.forward.fiber (Change.inSource x)).apply v :=
+  trans!{{Fiber t.negative x}} _ _ _ (OutsideCalculation.originalFormula outsidePoint v)
+    (sym!{{Fiber t.negative x}} _ _ (OriginalEnlargement.formula (Change.inSource x) v));
+\definition glueFormula: (Gluing.isomorphism.forward.fiber x).apply (Product.pair (Fiber t.positive x) (Auxiliary x) v a) =
+  Product.pair (XFiber x) (Fiber t.negative x) ((OutsideCalculation.read.backward.fiber outsidePoint).apply a) ((OutsideCalculation.comparison.forward.fiber outsidePoint).apply v) :=
+  trans!{{StableTarget.Fiber x}} _ _ _ (Gluing.onOutside outsidePoint (Product.pair (Fiber t.positive x) (Auxiliary x) v a)) (OutsideCalculation.formula outsidePoint v a);
+\definition equation:
+  (Right.comparison.forward.fiber (Change.inTarget x)).apply ((Gluing.isomorphism.forward.fiber x).apply (Product.pair (Fiber t.positive x) (Auxiliary x) v a)) =
+  (Flip.isomorphism.forward.fiber x).apply ((Left.comparison.forward.fiber (Change.inSource x)).apply (Product.pair (Fiber t.positive x) (Auxiliary x) v a)) :=
+  trans!{{SecondSum.NegativeFiber x}} _ _ _
+    (congr!{{StableTarget.Fiber x} {SecondSum.NegativeFiber x}} (Right.comparison.forward.fiber (Change.inTarget x)).apply _ _ glueFormula)
+    (trans!{{SecondSum.NegativeFiber x}} _ _ _
+      (Right.formula (Change.inTarget x) ((OutsideCalculation.read.backward.fiber outsidePoint).apply a) ((OutsideCalculation.comparison.forward.fiber outsidePoint).apply v))
+      (trans!{{SecondSum.NegativeFiber x}} _ _ _
+        (Product.Prop[A := Auxiliary x, B := Fiber t.negative x].pairCong _ _ _ _
+          (trans!{{Auxiliary x}} _ _ _ (normalReading ((OutsideCalculation.read.backward.fiber outsidePoint).apply a)) (OutsideCalculation.read.rightInverse outsidePoint a)) originalAgreement)
+        (sym!{{SecondSum.NegativeFiber x}} _ _ (congr!{{FirstSum.NegativeFiber x} {SecondSum.NegativeFiber x}} (Flip.isomorphism.forward.fiber x).apply _ _ (Left.formula (Change.inSource x) v a)))));

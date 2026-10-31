@@ -1,0 +1,57 @@
+\import std.Data[].Pair[] \as Pair;
+\import \root.Support[].OnePoint[X := Y, space := otherSpace] \as Right;
+\import Compactification.Outside[] \as LeftOutside;
+\import Right.Outside[] \as RightOutside;
+\import topological_constructions.Product[A := X, B := Y] \as Original;
+\import topological_constructions.Product[A := Compactification.Carrier, B := Right.Carrier] \as Augmented;
+\definition first[z: Carrier]: LeftOutside.Point := \into[Compactification.Carrier](Smash.first z, LeftOutside.subset) \by {
+  \fun (equal: _) => (\bysub(Smash.model.Carrier, topology.Topology[Carrier := Smash.model.Carrier].Complement Smash.wedge, z)) (Logic.Or[_, _]::left equal)
+};
+\definition second[z: Carrier]: RightOutside.Point := \into[Right.Carrier](Smash.second z, RightOutside.subset) \by {
+  \fun (equal: _) => (\bysub(Smash.model.Carrier, topology.Topology[Carrier := Smash.model.Carrier].Complement Smash.wedge, z)) (Logic.Or[_, _]::right equal)
+};
+\definition forward[z: Original.CarrierSet]: Carrier := \into[Smash.model.Carrier](Pair.pair Compactification.Carrier Right.Carrier
+  (Compactification.inclusion (Pair.first X Y z)) (Right.inclusion (Pair.second X Y z)), topology.Topology[Carrier := Smash.model.Carrier].Complement Smash.wedge) \by {
+    \fun (member: _) => either!{member {Logic.False} {Compactification.different (Pair.first X Y z)} {Right.different (Pair.second X Y z)}}
+};
+\definition backward[z: Carrier]: Original.CarrierSet := Pair.pair X Y (LeftOutside.backward (first z)) (RightOutside.backward (second z));
+\definition leftInverse: \forall (z: Original.CarrierSet) -> backward (forward z) = z :=
+  \fun (z: Original.CarrierSet) => Pair.Prop[A := X, B := Y].ext (backward (forward z)) z
+    (LeftOutside.leftInverse (Pair.first X Y z)) (RightOutside.leftInverse (Pair.second X Y z));
+\definition rightInverse: \forall (z: Carrier) -> forward (backward z) = z :=
+  \fun (z: Carrier) => Pair.Prop[A := Compactification.Carrier, B := Right.Carrier].ext (forward (backward z)) z
+    (LeftOutside.rightInverse (first z)) (RightOutside.rightInverse (second z));
+\definition forwardContinuous: topology.Continuity[A := Original.CarrierSet, B := Carrier].Continuous (Original.topology space otherSpace) topology forward :=
+  topology.Continuity[A := Original.CarrierSet, B := Smash.model.Carrier].Corestriction[S := topology.Topology[Carrier := Smash.model.Carrier].Complement Smash.wedge].corestrictContinuous
+    (Original.topology space otherSpace) Smash.topology forward
+    (Augmented.Universal[X := Original.CarrierSet].pairContinuous (Original.topology space otherSpace) Compactification.topology Right.topology
+      (\fun (z: Original.CarrierSet) => Compactification.inclusion (Pair.first X Y z))
+      (\fun (z: Original.CarrierSet) => Right.inclusion (Pair.second X Y z))
+      (topology.Composition[A := Original.CarrierSet, B := X, C := Compactification.Carrier].composeContinuous
+        (Original.topology space otherSpace) space Compactification.topology (Pair.first X Y) Compactification.inclusion
+        (Original.Maps[].firstContinuous space otherSpace) Compactification.inclusionContinuous)
+      (topology.Composition[A := Original.CarrierSet, B := Y, C := Right.Carrier].composeContinuous
+        (Original.topology space otherSpace) otherSpace Right.topology (Pair.second X Y) Right.inclusion
+        (Original.Maps[].secondContinuous space otherSpace) Right.inclusionContinuous));
+\definition firstContinuous: topology.Continuity[A := Carrier, B := LeftOutside.Point].Continuous topology LeftOutside.subspace first :=
+  topology.Continuity[A := Carrier, B := Compactification.Carrier].Corestriction[S := LeftOutside.subset].corestrictContinuous topology Compactification.topology first
+    (topology.Composition[A := Carrier, B := Smash.model.Carrier, C := Compactification.Carrier].composeContinuous topology Smash.topology Compactification.topology
+      (\fun (z: Carrier) => z) Smash.first
+      (topology.Continuity[A := Carrier, B := Smash.model.Carrier].Corestriction[S := topology.Topology[Carrier := Smash.model.Carrier].Complement Smash.wedge].inclusionContinuous Smash.topology)
+      (Augmented.Maps[].firstContinuous Compactification.topology Right.topology));
+\definition secondContinuous: topology.Continuity[A := Carrier, B := RightOutside.Point].Continuous topology RightOutside.subspace second :=
+  topology.Continuity[A := Carrier, B := Right.Carrier].Corestriction[S := RightOutside.subset].corestrictContinuous topology Right.topology second
+    (topology.Composition[A := Carrier, B := Smash.model.Carrier, C := Right.Carrier].composeContinuous topology Smash.topology Right.topology
+      (\fun (z: Carrier) => z) Smash.second
+      (topology.Continuity[A := Carrier, B := Smash.model.Carrier].Corestriction[S := topology.Topology[Carrier := Smash.model.Carrier].Complement Smash.wedge].inclusionContinuous Smash.topology)
+      (Augmented.Maps[].secondContinuous Compactification.topology Right.topology));
+\definition backwardContinuous: topology.Continuity[A := Carrier, B := Original.CarrierSet].Continuous topology (Original.topology space otherSpace) backward :=
+  Original.Universal[X := Carrier].pairContinuous topology space otherSpace
+    (\fun (z: Carrier) => LeftOutside.backward (first z)) (\fun (z: Carrier) => RightOutside.backward (second z))
+    (topology.Composition[A := Carrier, B := LeftOutside.Point, C := X].composeContinuous topology LeftOutside.subspace space first LeftOutside.backward firstContinuous LeftOutside.backwardContinuous)
+    (topology.Composition[A := Carrier, B := RightOutside.Point, C := Y].composeContinuous topology RightOutside.subspace otherSpace second RightOutside.backward secondContinuous RightOutside.backwardContinuous);
+\definition homeomorphism: topology.Homeomorphism[A := Original.CarrierSet, B := Carrier].Homeomorphism[Original.topology space otherSpace, topology] :=
+  topology.Homeomorphism[A := Original.CarrierSet, B := Carrier].Homeomorphism[Original.topology space otherSpace, topology] {
+    forward := forward, backward := backward, leftInverse := leftInverse, rightInverse := rightInverse,
+    forwardContinuous := forwardContinuous, backwardContinuous := backwardContinuous
+  };

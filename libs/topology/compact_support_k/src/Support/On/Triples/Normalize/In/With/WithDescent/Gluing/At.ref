@@ -1,0 +1,30 @@
+\import std.Data[].Pair[] \as Product;
+\definition localPoint: Local.Carrier := \into[X](x, n.compactSet) \by { inLocal };
+\definition outsidePoint: Outside := \into[X](x, outside) \by { inOutside };
+\definition boundaryPoint: Pair.A := \into[Local.Carrier](localPoint, Local.boundary) \by { inOutside };
+\definition stableValue: Stabilization.TargetFiber localPoint := (stabilization.isomorphism.forward.fiber localPoint).apply (Product.pair (E localPoint) (Bundles.Vector q.dimension) v a);
+\definition stablePositive: Positive localPoint := Product.first (Positive localPoint) (F localPoint) stableValue;
+\definition stableNegative: F localPoint := Product.second (Positive localPoint) (F localPoint) stableValue;
+\definition positiveEquation: (Frame.comparison.forward.fiber boundaryPoint).apply stablePositive = a :=
+  congr!{{Product.Times^[Bundles.Vector q.dimension, F localPoint]} {Bundles.Vector q.dimension}}
+    (Product.first (Bundles.Vector q.dimension) (F localPoint)) _ _ (stabilization.boundary boundaryPoint v a);
+\definition negativeEquation: stableNegative = (OnOutside.comparison.forward.fiber outsidePoint).apply v :=
+  trans!{{F localPoint}} _ _ _
+    (congr!{{Product.Times^[Bundles.Vector q.dimension, F localPoint]} {F localPoint}} (Product.second (Bundles.Vector q.dimension) (F localPoint)) _ _ (stabilization.boundary boundaryPoint v a))
+    (trans!{{F localPoint}} _ _ _ (LocalClass.formula boundaryPoint v) (sym!{{F localPoint}} _ _ (OnOutside.originalFormula outsidePoint v)));
+\definition descended: XFiber x := (LocalD.comparison.backward.fiber localPoint).apply stablePositive;
+\definition reading: (OnOutside.read.forward.fiber outsidePoint).apply descended = a :=
+  trans!{{Bundles.Vector q.dimension}} _ _ _ (OnOutside.readFormula outsidePoint descended)
+    (trans!{{Bundles.Vector q.dimension}} _ _ _ (sym!{{Bundles.Vector q.dimension}} _ _ (LocalD.Boundary[x := boundaryPoint].reading descended))
+      (trans!{{Bundles.Vector q.dimension}} _ _ _
+        (congr!{{Positive localPoint} {Bundles.Vector q.dimension}} (Frame.comparison.forward.fiber boundaryPoint).apply _ _ (LocalD.comparison.rightInverse localPoint stablePositive))
+        positiveEquation));
+\definition descendedEquation: descended = (OnOutside.read.backward.fiber outsidePoint).apply a :=
+  trans!{{XFiber x}} _ _ _ (sym!{{XFiber x}} _ _ (OnOutside.read.leftInverse outsidePoint descended))
+    (congr!{{Bundles.Vector q.dimension} {XFiber x}} (OnOutside.read.backward.fiber outsidePoint).apply _ _ reading);
+\definition equation:
+  (OnLocal.isomorphism.forward.fiber localPoint).apply (Product.pair (Fiber t.positive x) (Auxiliary x) v a) =
+  (OnOutside.isomorphism.forward.fiber outsidePoint).apply (Product.pair (Fiber t.positive x) (Auxiliary x) v a) :=
+  trans!{{StableTarget.Fiber x}} _ _ _ (OnLocal.formula localPoint v a)
+    (trans!{{StableTarget.Fiber x}} _ _ _ (Product.Prop[A := XFiber x, B := F localPoint].pairCong _ _ _ _ descendedEquation negativeEquation)
+      (sym!{{StableTarget.Fiber x}} _ _ (OnOutside.formula outsidePoint v a)));

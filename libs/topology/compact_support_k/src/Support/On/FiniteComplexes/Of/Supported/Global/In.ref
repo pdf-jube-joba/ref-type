@@ -1,0 +1,22 @@
+\import \parent.\parent.In[w := w] \as Core;
+\import Neighbors.With[w := w] \as Neighbor;
+\import \root.Support[].On[X := X, space := space, hausdorff := hausdorff, locallyCompact := locallyCompact].Localization[
+  U := Neighbor.openSet, open := Neighbor.open, L := Neighbor.compactSet, compactL := Neighbor.compact, enclosed := Neighbor.enclosed] \as Local;
+\import Relative.Pair[X := Local.Carrier, space := Local.topology, compact := Local.compact, hausdorff := Local.separated,
+  subset := Local.boundary, closed := Local.boundaryClosed] \as Pair;
+\import Models.Pullback[b := even, Y := Local.Carrier, source := Local.topology, f := Local.inclusion, regular := Local.regular] \as LocalEven;
+\import Models.Pullback[b := odd, Y := Local.Carrier, source := Local.topology, f := Local.inclusion, regular := Local.regular] \as LocalOdd;
+\import Models.PullbackMap[p := even, q := odd, Y := Local.Carrier, source := Local.topology, f := Local.inclusion, regular := Local.regular] \as LocalD;
+\import Models.PullbackMap[p := odd, q := even, Y := Local.Carrier, source := Local.topology, f := Local.inclusion, regular := Local.regular] \as LocalE;
+\import \root.Support[].CompactBundles[X := Local.Carrier, space := Local.topology, compact := Local.compact, hausdorff := Local.separated] \as OnLocal;
+\import OnLocal.Acyclic[p := LocalEven.value, q := LocalOdd.value, d := LocalD.map d, e := LocalE.map e] \as LocalAcyclic;
+\definition localExact: LocalAcyclic.Exact := \fun (x: Local.Carrier) => Operations.AcyclicCoordinates[n := even.ranks x, m := odd.ranks x, d := d.fiber x, e := e.fiber x].Exact {
+  squareEven := (Chain.squareZero).left x, squareOdd := (Chain.squareZero).right x,
+  even := \fun (v: _) => (exact x).left v (\bysub(Even x, { v: Even x \where (d.fiber x).apply v = ((Models.bundle odd).space x).zero }, v)),
+  odd := \fun (v: _) => (exact x).right v (\bysub(Odd x, { v: Odd x \where (e.fiber x).apply v = ((Models.bundle even).space x).zero }, v))
+};
+\module Using(c: LocalAcyclic.Contraction);
+\definition equation: Core.value = Relative.Reduced[model := model].group.base.unit := \block {
+  \takefrom c: LocalAcyclic.Contraction \by LocalAcyclic.With[exact := localExact].existence \then
+  \return Using[c := c].equation
+};

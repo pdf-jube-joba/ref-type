@@ -1,0 +1,21 @@
+\import Acyclic.Normalized[c := contraction] \as Normal;
+\import Bundles.Family[X := X, F := Even].Of[bundle := Models.bundle even].PullbackComposition[
+  Y := Local.Carrier, Z := Pair.A, first := Local.topology, second := Pair.subspace, f := Local.inclusion, g := boundaryLocal]
+  .Of[fRegular := Local.regular, gRegular := boundaryLocalRegular] \as Positive;
+\import Bundles.Family[X := X, F := Odd].Of[bundle := Models.bundle odd].PullbackComposition[
+  Y := Local.Carrier, Z := Pair.A, first := Local.topology, second := Pair.subspace, f := Local.inclusion, g := boundaryLocal]
+  .Of[fRegular := Local.regular, gRegular := boundaryLocalRegular] \as Negative;
+\import Bundles.Isomorphisms[X := Pair.A, F := (\fun (x: Pair.A) => Even x), G := (\fun (x: Pair.A) => Even x), source := Positive.direct, target := Positive.nested] \as Reverse;
+\import Operations.IsomorphismComposition[X := Pair.A, F := (\fun (x: Pair.A) => Even x), G := (\fun (x: Pair.A) => Even x), H := (\fun (x: Pair.A) => Odd x),
+  source := Positive.nested, middle := Positive.direct, target := Negative.direct] \as Start;
+\definition start: Start.Isomorphism := Start.compose (Reverse.inverse Positive.isomorphism) Normal.isomorphism;
+\import Operations.IsomorphismComposition[X := Pair.A, F := (\fun (x: Pair.A) => Even x), G := (\fun (x: Pair.A) => Odd x), H := (\fun (x: Pair.A) => Odd x),
+  source := Positive.nested, middle := Negative.direct, target := Negative.nested] \as Finish;
+\definition comparison: Pair.BundleTriples[F := FirstFiber, G := SecondFiber, firstModel := firstOnLocal, secondModel := secondOnLocal].OnSubset := Finish.compose start Negative.isomorphism;
+\import Pair.BundleTriples[F := FirstFiber, G := SecondFiber, firstModel := firstOnLocal, secondModel := secondOnLocal].With[alpha := comparison] \as Class;
+\definition localValue: Pair.Quotient[].Relative := Class.reduced;
+\definition value: Relative.Reduced[model := model].Carrier := Local.extend localValue;
+\definition formula: \forall (x: Pair.A)(v: Even x) -> (comparison.forward.fiber x).apply v = (Normal.forward.fiber x).apply v :=
+  \fun (x: Pair.A)(v: Even x) => \refl((Normal.forward.fiber x).apply v);
+
+\definition reductionAgreement: value = \parent.Reduction[isomorphism := Normal.isomorphism].value := \refl(value);

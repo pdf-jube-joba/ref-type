@@ -1,0 +1,34 @@
+\import Operations.DirectSum[X := X, F := Fiber t.positive, G := Fiber u.positive, left := bundle t.positive, right := bundle u.positive] \as PositiveSum;
+\import PositiveSum.Of[same := (\refl(space))].Pullback[Y := Local.Carrier, source := Local.topology, f := Local.inclusion, regular := Local.regular] \as PositiveSumPull;
+\import Complements.PulledIsomorphism[X := X, Y := Local.Carrier, F := PositiveSum.Fiber, G := Fiber v.positive,
+  source := PositiveSum.bundle (\refl(space)), target := bundle v.positive, base := Local.topology, f := Local.inclusion, sourceRegular := Local.regular, targetRegular := Local.regular] \as PositivePull;
+\import Bundles.Isomorphisms[X := Local.Carrier, F := (\fun (x: Local.Carrier) => PositiveSum.Fiber x), G := (\fun (x: Local.Carrier) => PositiveSum.Fiber x),
+  source := PositiveSumPull.firstBundle, target := PositiveSumPull.secondBundle] \as PositiveReverse;
+\import Operations.IsomorphismComposition[X := Local.Carrier,
+  F := (\fun (x: Local.Carrier) => PositiveSum.Fiber x), G := (\fun (x: Local.Carrier) => PositiveSum.Fiber x), H := LocalThird.FirstFiber,
+  source := PositiveSumPull.secondBundle, middle := PositiveSumPull.firstBundle, target := Pair.BundleModel[F := LocalThird.FirstFiber].bundle LocalThird.firstOnLocal] \as PositiveComposition;
+\definition positive: PositiveComposition.Isomorphism := PositiveComposition.compose (PositiveReverse.inverse PositiveSumPull.isomorphism) (PositivePull.isomorphism witness.positive);
+\import Operations.DirectSum[X := X, F := Fiber t.negative, G := Fiber u.negative, left := bundle t.negative, right := bundle u.negative] \as NegativeSum;
+\import NegativeSum.Of[same := (\refl(space))].Pullback[Y := Local.Carrier, source := Local.topology, f := Local.inclusion, regular := Local.regular] \as NegativeSumPull;
+\import Complements.PulledIsomorphism[X := X, Y := Local.Carrier, F := NegativeSum.Fiber, G := Fiber v.negative,
+  source := NegativeSum.bundle (\refl(space)), target := bundle v.negative, base := Local.topology, f := Local.inclusion, sourceRegular := Local.regular, targetRegular := Local.regular] \as NegativePull;
+\import Bundles.Isomorphisms[X := Local.Carrier, F := (\fun (x: Local.Carrier) => NegativeSum.Fiber x), G := (\fun (x: Local.Carrier) => NegativeSum.Fiber x),
+  source := NegativeSumPull.firstBundle, target := NegativeSumPull.secondBundle] \as NegativeReverse;
+\import Operations.IsomorphismComposition[X := Local.Carrier,
+  F := (\fun (x: Local.Carrier) => NegativeSum.Fiber x), G := (\fun (x: Local.Carrier) => NegativeSum.Fiber x), H := LocalThird.SecondFiber,
+  source := NegativeSumPull.secondBundle, middle := NegativeSumPull.firstBundle, target := Pair.BundleModel[F := LocalThird.SecondFiber].bundle LocalThird.secondOnLocal] \as NegativeComposition;
+\definition negative: NegativeComposition.Isomorphism := NegativeComposition.compose (NegativeReverse.inverse NegativeSumPull.isomorphism) (NegativePull.isomorphism witness.negative);
+\import std.Data[].Pair[] \as Product;
+\definition outside[x: Pair.A]: \Cast[X] SumWitness.outside := \into[X](x, SumWitness.outside) \by {
+  \fun (inside: _) => (\bysub(Local.Carrier, Local.boundary, x)) (Neighbor.contains x inside)
+};
+\definition compatible: \forall (x: Pair.A)(a: LocalFirst.FirstFiber x)(b: LocalSecond.FirstFiber x) ->
+  (LocalThird.comparison.forward.fiber x).apply ((positive.forward.fiber x).apply (Product.pair (LocalFirst.FirstFiber x) (LocalSecond.FirstFiber x) a b)) =
+  (negative.forward.fiber x).apply (Product.pair (LocalFirst.SecondFiber x) (LocalSecond.SecondFiber x)
+    ((LocalFirst.comparison.forward.fiber x).apply a) ((LocalSecond.comparison.forward.fiber x).apply b)) :=
+  \fun (x: Pair.A)(a: LocalFirst.FirstFiber x)(b: LocalSecond.FirstFiber x) =>
+    trans!{{LocalThird.SecondFiber x}} _ _ _ (LocalThird.formula x _)
+      (trans!{{LocalThird.SecondFiber x}} _ _ _ (witness.agrees (outside x) a b)
+        (congr!{{LocalFirst.SecondFiber x} {LocalSecond.SecondFiber x} {LocalThird.SecondFiber x}}
+          (\fun (c: LocalFirst.SecondFiber x)(d: LocalSecond.SecondFiber x) => (witness.negative.forward.fiber x).apply (Product.pair (LocalFirst.SecondFiber x) (LocalSecond.SecondFiber x) c d)) _ _ _ _
+          (sym!{{LocalFirst.SecondFiber x}} _ _ (LocalFirst.formula x a)) (sym!{{LocalSecond.SecondFiber x}} _ _ (LocalSecond.formula x b))));

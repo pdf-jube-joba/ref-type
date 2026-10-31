@@ -1,0 +1,20 @@
+\import \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].Models[X := X, baseSpace := baseSpace].Chains[] \as Chains;
+\inductive Data: \Set := | nil: Data | cons: Bundle -> Data -> Data;
+\definition diagram: Data -> Diagram := \induction (data: Data) \return Diagram \with {
+  | nil: Diagram { head := empty, data := Chains.Data::nil }
+  | cons: \fun (b: Bundle)(data: Data)(previous: Diagram) => Diagram {
+      head := b, data := Chains.Data::cons b previous.head (zero b previous.head) previous.data }
+};
+\definition vanishing: \forall (data: Data) -> Zero (diagram data).head (fold (diagram data).head (diagram data).data) :=
+  \induction (data: Data) \return Zero (diagram data).head (fold (diagram data).head (diagram data).data) \with {
+    | nil: Logic.And[_, _]::# (\fun (x: X)(v: Fiber empty.ranks x) => \refl(((bundle empty).space x).zero))
+      (\fun (x: X)(v: Fiber empty.ranks x) => \refl(((bundle empty).space x).zero))
+    | cons: \fun (b: Bundle)(data: Data)(previous: Zero (diagram data).head (fold (diagram data).head (diagram data).data)) =>
+      \parent.ZeroStep[first := b, second := (diagram data).head, tail := (fold (diagram data).head (diagram data).data), vanishes := previous].vanishing
+  };
+\definition squareZero[data: Data]: SquareZero (diagram data) := Logic.And[_, _]::#
+  (\fun (x: X)(v: Fiber (fold (diagram data).head (diagram data).data).even.ranks x) =>
+    (vanishing data).right x (((fold (diagram data).head (diagram data).data).forward.fiber x).apply v))
+  (\fun (x: X)(v: Fiber (fold (diagram data).head (diagram data).data).odd.ranks x) =>
+    (vanishing data).left x (((fold (diagram data).head (diagram data).data).backward.fiber x).apply v));
+\definition complex[data: Data]: Complex := \into[Diagram](diagram data, Complex) \by { squareZero data };

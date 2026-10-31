@@ -1,0 +1,82 @@
+\import relative_k_theory.Relative[] \as Relative;
+\import topology.Topology[Carrier := M] \as Ambient;
+\import \root.Support[].OpenPart[M := M, space := space, compact := compact, hausdorff := hausdorff, U := Ambient.Complement subset, open := closed] \as Part;
+\definition Interior: \Set := Part.Carrier;
+\definition interiorTopology: topology.Topology[Carrier := Interior].Topology := Part.topology;
+\definition interiorHausdorff: topology.Topology[Carrier := Interior].IsT2 interiorTopology := Part.separated;
+\definition interiorLocallyCompact: topology.LocallyCompact[A := Interior].IsLocallyCompact interiorTopology := Part.locallyCompact;
+\import \root.Support[].OnePoint[X := Interior, space := interiorTopology] \as Plus;
+\import Plus.Compactness[] \as PlusCompact;
+\import Plus.Separation[hausdorff := interiorHausdorff, locallyCompact := interiorLocallyCompact] \as PlusSeparated;
+\definition model: Relative.CompactPointed := Relative.pack Plus.Carrier (Relative.PointedDetails[Plus.Carrier] {
+  topology := Plus.topology, compact := PlusCompact.compact, hausdorff := PlusSeparated.hausdorffCompactification, point := Plus.point
+});
+\import Relative.Pair[X := M, space := space, compact := compact, hausdorff := hausdorff, subset := subset, closed := closed] \as Pair;
+\import Pair.Quotient[] \as Quotient;
+\import topological_constructions.Coproduct[A := M, B := Quotient.Point] \as Sum;
+\import Part.Collapse[] \as Collapse;
+\import algebraic_topology.Collapse[A := Quotient.Augmented, subset := Quotient.collapsedPart] \as Native;
+\definition raw: Quotient.Augmented -> Plus.Carrier := Sum.Universal[C := Plus.Carrier].copair Collapse.map (\fun (p: Quotient.Point) => Plus.point);
+\definition collapsed: \forall (p: Quotient.Augmented) -> \In[Quotient.Augmented] Quotient.collapsedPart p -> raw p = Plus.point :=
+  \induction (p: Quotient.Augmented) \return \In[Quotient.Augmented] Quotient.collapsedPart p -> raw p = Plus.point \with {
+    | inl: \fun (x: M)(member: _) => Collapse.offPart x (\fun (outside: _) => outside member)
+    | inr: \fun (p: Quotient.Point)(_: _) => \refl(Plus.point)
+  };
+\definition respects: Native.Descent[B := Plus.Carrier].Respects raw :=
+  \fun (p, q: Quotient.Augmented)(related: Native.Related p q) => either!{related {raw p = raw q}
+    {congr!{{Quotient.Augmented} {Plus.Carrier}} raw p q}
+    {\fun (both: Logic.And[\In[Quotient.Augmented] Quotient.collapsedPart p, \In[Quotient.Augmented] Quotient.collapsedPart q]) =>
+      trans!{{Plus.Carrier}} _ _ _ (collapsed p both.left) (sym!{{Plus.Carrier}} _ _ (collapsed q both.right))}
+  };
+\definition forward: Quotient.Carrier -> Plus.Carrier := Native.Descent[B := Plus.Carrier].apply raw respects;
+\definition onClass: \forall (p: Quotient.Augmented) -> forward (Native.class p) = raw p := Native.Descent[B := Plus.Carrier].onClass raw respects;
+\definition forwardContinuous: topology.Continuity[A := Quotient.Carrier, B := Plus.Carrier].Continuous Quotient.topology Plus.topology forward :=
+  Native.Descent[B := Plus.Carrier].continuous Quotient.augmentedSpace Plus.topology raw respects
+    (Sum.Universal[C := Plus.Carrier].continuous space (topology.Topology[Carrier := Quotient.Point].Discrete) Plus.topology
+      Collapse.map (\fun (p: Quotient.Point) => Plus.point) Collapse.continuous
+      (topology.Maps[A := Quotient.Point, B := Plus.Carrier].constantContinuous (topology.Topology[Carrier := Quotient.Point].Discrete) Plus.topology Plus.point));
+\definition backward: Plus.Carrier -> Quotient.Carrier :=
+  \induction (p: Plus.Carrier) \return Quotient.Carrier \with {
+    | none: Quotient.point | some: \fun (x: Interior) => Quotient.projection x
+  };
+\definition leftOnOriginal: \forall (x: M) -> backward (Collapse.map x) = Quotient.projection x :=
+  \fun (x: M) => either!{{(Classical.excludedMiddle (Ambient.Member subset x))} {backward (Collapse.map x) = Quotient.projection x}
+    {\fun (inside: _) => trans!{{Quotient.Carrier}} _ _ _
+      (congr!{{Plus.Carrier} {Quotient.Carrier}} backward _ _ (Collapse.offPart x (\fun (outside: _) => outside inside)))
+      (sym!{{Quotient.Carrier}} _ _ (Quotient.onSubset (\into[M](x, subset) \by { inside })))}
+    {\fun (outside: _) => congr!{{Plus.Carrier} {Quotient.Carrier}} backward _ _
+      (Collapse.onPart (\into[M](x, Ambient.Complement subset) \by { outside }))}
+  };
+\definition leftInverse: \forall (q: Quotient.Carrier) -> backward (forward q) = q :=
+  Native.induction (\fun (q: Quotient.Carrier) => backward (forward q) = q)
+    (\induction (p: Quotient.Augmented) \return backward (forward (Native.class p)) = Native.class p \with {
+      | inl: \fun (x: M) => trans!{{Quotient.Carrier}} _ _ _ (congr!{{Plus.Carrier} {Quotient.Carrier}} backward _ _ (onClass (Sum.inl x))) (leftOnOriginal x)
+      | inr: \fun (p: Quotient.Point) => trans!{{Quotient.Carrier}} _ _ _ (congr!{{Plus.Carrier} {Quotient.Carrier}} backward _ _ (onClass (Sum.inr p)))
+        (Native.collapsed (Sum.inr Quotient.distinguished) (Sum.inr p) (\refl(Quotient.distinguished)) (\refl(p)))
+    });
+\definition rightInverse: \forall (p: Plus.Carrier) -> forward (backward p) = p :=
+  \induction (p: Plus.Carrier) \return forward (backward p) = p \with {
+    | none: onClass (Sum.inr Quotient.distinguished)
+    | some: \fun (x: Interior) => trans!{{Plus.Carrier}} _ _ _ (onClass (Sum.inl x)) (Collapse.onPart x)
+  };
+\definition injective: \forall (q, r: Quotient.Carrier) -> forward q = forward r -> q = r :=
+  \fun (q, r: Quotient.Carrier)(same: _) => trans!{{Quotient.Carrier}} _ _ _ (sym!{{Quotient.Carrier}} _ _ (leftInverse q))
+    (trans!{{Quotient.Carrier}} _ _ _ (congr!{{Plus.Carrier} {Quotient.Carrier}} backward _ _ same) (leftInverse r));
+\definition onto: \forall (p: Plus.Carrier) -> \exists (q: Quotient.Carrier \where forward q = p) :=
+  \fun (p: Plus.Carrier) => Logic.existsIntro[Quotient.Carrier, { q: Quotient.Carrier \where forward q = p }] (backward p) (rightInverse p);
+\definition pointed: Relative.Map Quotient.model model := \into[Quotient.Carrier -> Plus.Carrier](forward, Relative.Map Quotient.model model) \by {
+  algebraic_topology.Pointed[A := Quotient.Carrier].Maps[B := Plus.Carrier].Laws[Relative.pointed Quotient.model, Relative.pointed model, forward] {
+    continuous := forwardContinuous, pointed := rightInverse Plus.point
+  }
+};
+\definition equivalence: Relative.Equivalence[source := Quotient.model, target := model].Data :=
+  Relative.Equivalence[source := Quotient.model, target := model].FromMap[f := pointed, injective := injective, onto := onto].equivalence;
+\module At(degree: std.Arithmetic[].Int[].Int^);
+\module Triples;
+\module Excision(U: \Pow M, open: Ambient.IsOpenIn space U, included: Ambient.Subset U subset);
+\definition onInterior: \forall (x: Interior) -> forward (Quotient.projection x) = Plus.inclusion x :=
+  \fun (x: Interior) => trans!{{Plus.Carrier}} _ _ _ (onClass (Sum.inl x)) (Collapse.onPart x);
+\definition backwardOnInterior: \forall (x: Interior) -> equivalence.backward (Plus.inclusion x) = Quotient.projection x :=
+  \fun (x: Interior) => trans!{{Quotient.Carrier}} _ _ _
+    (congr!{{Plus.Carrier} {Quotient.Carrier}} equivalence.backward _ _ (sym!{{Plus.Carrier}} _ _ (onInterior x)))
+    (equivalence.leftInverse (Quotient.projection x));

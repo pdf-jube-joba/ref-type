@@ -1,0 +1,22 @@
+\import algebraic_topology.Interval[] \as I;
+\import algebraic_topology.Cylinder[A := X] \as Cylinder;
+\import topology.Topology[Carrier := X] \as Base;
+\import topology.Topology[Carrier := I.Carrier] \as Time;
+\import topological_constructions.Product[A := X, B := I.Carrier] \as Product;
+\import topological_constructions.Product[A := I.Carrier, B := X] \as Original;
+\import std.Data[].Pair[] \as Pair;
+\definition swap[p: Product.CarrierSet]: Cylinder.Carrier := Cylinder.at (Pair.second X I.Carrier p) (Pair.first X I.Carrier p);
+\definition swapRegular: topology.Continuity[A := Product.CarrierSet, B := Cylinder.Carrier].Continuous (Product.topology space I.topology) (Cylinder.topology space) swap :=
+  Original.Universal[X := Product.CarrierSet].pairContinuous (Product.topology space I.topology) I.topology space
+    (Pair.second X I.Carrier) (Pair.first X I.Carrier) (Product.Maps[].secondContinuous space I.topology) (Product.Maps[].firstContinuous space I.topology);
+\definition tubes: \Pow X := { x: X \where \forall (t: I.Carrier) -> \In[Cylinder.Carrier] U (Cylinder.at t x) };
+\definition swapped: \Pow Product.CarrierSet := { p: Product.CarrierSet \where \In[Cylinder.Carrier] U (swap p) };
+\definition swappedOpen: topology.Topology[Carrier := Product.CarrierSet].IsOpenIn (Product.topology space I.topology) swapped := swapRegular U open;
+\definition tubesOpen: Base.IsOpenIn space tubes := Base.openOfNeighborhoods space tubes (\block {
+  \fun (x: X)(member: \In[X] tubes x) \then
+  \takefrom tube: Product.Compactness[].Tube[space,x,swapped,Time.Whole] \by
+    Product.Compactness[].tubeLemma space I.topology Time.Whole I.compact x swapped swappedOpen (\fun (t: I.Carrier)(whole: _) => member t) \then
+  \return Logic.existsIntro[\Pow X, { V: \Pow X \where Base.OpenNeighborhood[space,x,tubes,V] }] tube.neighborhood
+    (Base.OpenNeighborhood[space,x,tubes,tube.neighborhood] { open := tube.open, contains := tube.contains,
+      within := \fun (y: X)(near: _) (t: I.Carrier) => tube.within y near t (\refl(t)) })
+});

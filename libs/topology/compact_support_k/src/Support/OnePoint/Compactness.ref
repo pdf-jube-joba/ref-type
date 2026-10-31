@@ -1,0 +1,41 @@
+\import std.Set[].FiniteSubset[A := \Pow Carrier] \as Families;
+\import topology.Compactness[A := X, B := Carrier] \as Images;
+\import Space.Compactness[] \as CompactSpace;
+\definition imageCompact: \forall (K: \Pow X) -> Base.IsCompactIn space K -> Space.IsCompactIn topology (Maps.Image inclusion K) :=
+  \fun (K: _)(compact: _) => Images.continuousImage space topology inclusion inclusionContinuous K compact;
+\definition compact: Space.IsCompact topology := \block {
+  \fun (family: _)(cover: Space.IsOpenCover[topology, family, Space.Whole]) \then
+  \return Space.unionMemberElim family point
+    (\exists (finite: Families.FiniteSubset \where Space.FiniteSubcover[family, Space.Whole, finite]))
+    (\block {
+      \fun (U: _)(inFamily: _)(atInfinity: _) \then
+      \let K: \Pow X := remainder U \then
+      \let compactK: Base.IsCompactIn space K := (cover.open U inFamily).atInfinity atInfinity \then
+      \takefrom finite: \Cast[Families.FiniteSubset]
+        ({ finite: Families.FiniteSubset \where Space.FiniteSubcover[family, Maps.Image inclusion K, finite] })
+        \by imageCompact K compactK family (Space.IsOpenCover[topology, family, Maps.Image inclusion K] {
+          open := cover.open, covers := \fun (p: _)(_: _) => cover.covers p (\refl(p))
+        }) \then
+      \let data: Space.FiniteSubcover[family, Maps.Image inclusion K, finite] := \bysub(Families.FiniteSubset,
+        { finite: Families.FiniteSubset \where Space.FiniteSubcover[family, Maps.Image inclusion K, finite] }, finite) \then
+      \return CompactSpace.subcoverExists family Space.Whole (Families.insert U finite)
+        (Space.FiniteSubcover[family, Space.Whole, Families.insert U finite] {
+          included := \fun (V: _)(member: _) => either!{member {Space.FamilyMember family V}
+            {\fun (same: _) => \idelim U = V \with W: \Pow Carrier => Space.FamilyMember family W
+              \by { base: inFamily, equality: sym!{\Pow Carrier} _ _ same }}
+            {data.included V}},
+          covers := \induction (p: Carrier) \return Space.Member Space.Whole p -> Space.Member (Space.Union (Families.insert U finite)) p \with {
+            | none: \fun (_: _) => Space.unionMemberOf (Families.insert U finite) U point (Families.inInsertNew U finite) atInfinity
+            | some: \fun (x: X)(_: _) => either!{{(Classical.excludedMiddle (Space.Member U (inclusion x)))}
+              {Space.Member (Space.Union (Families.insert U finite)) (inclusion x)}
+              {Space.unionMemberOf (Families.insert U finite) U (inclusion x) (Families.inInsertNew U finite)}
+              {\fun (outside: _) => Space.unionMemberElim finite (inclusion x)
+                (Space.Member (Space.Union (Families.insert U finite)) (inclusion x))
+                (\fun (V: _)(member: _)(inside: _) => Space.unionMemberOf (Families.insert U finite) V (inclusion x)
+                  (Families.inInsertOld U finite V member) inside)
+                (data.covers (inclusion x) (Maps.imageMember inclusion K x outside))}
+              }
+          }
+        })
+    }) (cover.covers point (\refl(point)))
+};

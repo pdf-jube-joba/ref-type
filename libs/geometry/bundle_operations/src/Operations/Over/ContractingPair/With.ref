@@ -1,0 +1,40 @@
+\import Spaces.Laws[V := V, space := even] \as Even;
+\import Spaces.Laws[V := W, space := odd] \as Odd;
+\definition laws: Laws[c] := \bysub(Data, Pair, c);
+\definition eKe: \forall (w: W) -> c.e.apply (c.k.apply (c.e.apply w)) = c.e.apply w :=
+  \fun (w: W) => trans!{{V}} _ _ _ (sym!{{V}} _ _ (Even.zeroRight (c.e.apply (c.k.apply (c.e.apply w)))))
+    (trans!{{V}} _ _ _
+      (congr!{{V} {V}} (even.add (c.e.apply (c.k.apply (c.e.apply w)))) _ _
+        (sym!{{V}} _ _ (trans!{{V}} _ _ _ (congr!{{W} {V}} c.h.apply _ _ (laws.squareOdd w)) c.h.preservesZero)))
+      (laws.even (c.e.apply w)));
+\definition dHd: \forall (v: V) -> c.d.apply (c.h.apply (c.d.apply v)) = c.d.apply v :=
+  \fun (v: V) => trans!{{W}} _ _ _ (sym!{{W}} _ _ (Odd.zeroRight (c.d.apply (c.h.apply (c.d.apply v)))))
+    (trans!{{W}} _ _ _
+      (congr!{{W} {W}} (odd.add (c.d.apply (c.h.apply (c.d.apply v)))) _ _
+        (sym!{{W}} _ _ (trans!{{W}} _ _ _ (congr!{{V} {W}} c.k.apply _ _ (laws.squareEven v)) c.k.preservesZero)))
+      (laws.odd (c.d.apply v)));
+\definition pEven: Spaces.Linear[V := V, W := V, source := even, target := even].Map := Backward.Composition[U := V, domain := even].compose c.e c.k;
+\definition qEven: Spaces.Linear[V := V, W := V, source := even, target := even].Map := Backward.Composition[U := V, domain := even].compose c.h c.d;
+\definition pOdd: Spaces.Linear[V := W, W := W, source := odd, target := odd].Map := Forward.Composition[U := W, domain := odd].compose c.d c.h;
+\definition qOdd: Spaces.Linear[V := W, W := W, source := odd, target := odd].Map := Forward.Composition[U := W, domain := odd].compose c.k c.e;
+\definition evenIdempotent: \forall (v: V) -> pEven.apply (pEven.apply v) = pEven.apply v := \fun (v: V) => eKe (c.k.apply v);
+\definition oddIdempotent: \forall (w: W) -> pOdd.apply (pOdd.apply w) = pOdd.apply w := \fun (w: W) => dHd (c.h.apply w);
+\import \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].ProjectionCross[V := V, space := even, p := pEven, q := qEven, idempotent := evenIdempotent, total := laws.even] \as EvenCross;
+\import \root.Operations[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].ProjectionCross[V := W, space := odd, p := pOdd, q := qOdd, idempotent := oddIdempotent, total := laws.odd] \as OddCross;
+\definition h: Backward.Map := Backward.Composition[U := W, domain := odd].compose c.h (Forward.Composition[U := W, domain := odd].compose c.d c.h);
+\definition k: Forward.Map := Forward.Composition[U := V, domain := even].compose c.k (Backward.Composition[U := V, domain := even].compose c.e c.k);
+\definition squareEven: \forall (v: V) -> h.apply (k.apply v) = even.zero :=
+  \fun (v: V) => trans!{{V}} _ _ _ (congr!{{W} {V}} c.h.apply _ _ (OddCross.cross (c.k.apply v))) c.h.preservesZero;
+\definition squareOdd: \forall (w: W) -> k.apply (h.apply w) = odd.zero :=
+  \fun (w: W) => trans!{{W}} _ _ _ (congr!{{V} {W}} c.k.apply _ _ (EvenCross.cross (c.h.apply w))) c.k.preservesZero;
+\definition eK: \forall (v: V) -> c.e.apply (k.apply v) = c.e.apply (c.k.apply v) := \fun (v: V) => eKe (c.k.apply v);
+\definition hD: \forall (v: V) -> h.apply (c.d.apply v) = c.h.apply (c.d.apply v) := \fun (v: V) => congr!{{W} {V}} c.h.apply _ _ (dHd v);
+\definition dH: \forall (w: W) -> c.d.apply (h.apply w) = c.d.apply (c.h.apply w) := \fun (w: W) => dHd (c.h.apply w);
+\definition kE: \forall (w: W) -> k.apply (c.e.apply w) = c.k.apply (c.e.apply w) := \fun (w: W) => congr!{{V} {W}} c.k.apply _ _ (eKe w);
+\definition forward: Forward.Map := Forward.Operations[].plus c.d k;
+\definition backward: Backward.Map := Backward.Operations[].plus c.e h;
+\module Inverse;
+\definition isomorphism: Spaces.Isomorphism[V := V, W := W, source := even, target := odd].Isomorphism :=
+  Spaces.Isomorphism[V := V, W := W, source := even, target := odd].Isomorphism {
+    forward := forward, backward := backward, leftInverse := Inverse[].left, rightInverse := Inverse[].right
+  };

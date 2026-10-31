@@ -1,0 +1,30 @@
+\import Bundles.Family[X := Range.Carrier, F := Descent.Fiber].Of[bundle := Descended.bundleOnQuotient].PullbackComposition[
+  Y := Domain.Carrier, Z := Y, first := Domain.topology, second := source, f := quotient, g := Domain.projection].Of[
+  fRegular := quotientContinuous, gRegular := Domain.continuous] \as Left;
+\import Bundles.Family[X := Range.Carrier, F := Descent.Fiber].Of[bundle := Descended.bundleOnQuotient].PullbackComposition[
+  Y := X, Z := Y, first := space, second := source, f := Range.projection, g := f].Of[
+  fRegular := Range.continuous, gRegular := regular] \as Right;
+\definition left[y: Y]: Range.Carrier := quotient (Domain.projection y);
+\definition right[y: Y]: Range.Carrier := Range.projection (f y);
+\definition equal: left = right := \axiom:funext(left, right, onProjection);
+\import \root.Relative[].PullbackCongruence[X := Range.Carrier, Y := Y, F := Descent.Fiber, bundle := Descended.bundleOnQuotient,
+  source := source, g := left, h := right, gRegular := Left.compositeRegular, hRegular := Right.compositeRegular, equal := equal] \as Change;
+\definition LeftFiber[y: Y]: \Set := Descent.Fiber (left y);
+\definition RightFiber[y: Y]: \Set := Descent.Fiber (right y);
+\import Bundles.Isomorphisms[X := Y, F := LeftFiber, G := LeftFiber, source := Left.direct, target := Left.nested] \as LeftInverse;
+\import Operations.IsomorphismComposition[X := Y, F := LeftFiber, G := LeftFiber, H := RightFiber,
+  source := Raw.pulled, middle := Left.direct, target := Right.direct] \as First;
+\import Operations.IsomorphismComposition[X := Y, F := LeftFiber, G := RightFiber, H := RightFiber,
+  source := Raw.pulled, middle := Right.direct, target := Right.nested] \as Second;
+\import Complements.PulledIsomorphism[X := X, Y := Y, F := (\fun (x: X) => Descent.Fiber (Range.projection x)), G := F,
+  source := Evaluation.pulled, target := original, base := source, f := f, sourceRegular := regular, targetRegular := regular] \as OriginalPull;
+\definition isomorphism: Bundles.Isomorphisms[X := Y, F := Raw.Fiber, G := Fiber, source := Raw.pulled, target := pulled].Isomorphism :=
+  Operations.IsomorphismComposition[X := Y, F := LeftFiber, G := RightFiber, H := Fiber,
+    source := Raw.pulled, middle := Right.nested, target := pulled].compose
+    (Second.compose (First.compose (LeftInverse.inverse Left.isomorphism) Change.isomorphism) Right.isomorphism)
+    (OriginalPull.isomorphism Evaluation.isomorphism);
+\import \root.Relative[].FiberTransport[Y := Range.Carrier, F := Descent.Fiber, bundle := Descended.bundleOnQuotient] \as Transport;
+\definition same[y: Y]: left y = right y := Change.at y;
+\definition formula: \forall (y: Y)(v: Raw.Fiber y) -> (isomorphism.forward.fiber y).apply v =
+  (Evaluation.isomorphism.forward.fiber (f y)).apply (Transport.cast (left y) (right y) (same y) v) :=
+  \fun (y: Y)(v: Raw.Fiber y) => congr!{{RightFiber y} {Fiber y}} (Evaluation.isomorphism.forward.fiber (f y)).apply _ _ (Change.formula y v);

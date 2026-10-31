@@ -1,0 +1,82 @@
+\import Pair.Homotopy[p := p, q := q, first := first, second := second] \as Raw;
+\import \parent.\parent.FromCompact[t := Raw.left] \as LeftClass;
+\import \parent.\parent.FromCompact[t := Raw.right] \as RightClass;
+\import \parent.\parent.Group[] \as Group;
+\import algebraic_topology.Interval[] \as I;
+\import algebraic_topology.Cylinder[A := Compactification.Carrier] \as Cylinder;
+\import algebraic_topology.Cylinder[A := Pair.A] \as BoundaryCylinder;
+\definition F[x: Compactification.Carrier]: \Set := Presentations.Fiber p x;
+\definition G[x: Compactification.Carrier]: \Set := Presentations.Fiber q x;
+\import Relative.ConstantCylinder[X := Compactification.Carrier, F := F, G := G,
+  first := Presentations.bundle p, second := Presentations.bundle q, same := (\refl(Compactification.topology))] \as Constant;
+\definition boundary: \Pow Cylinder.Carrier := { z: Cylinder.Carrier \where \In[Compactification.Carrier] Point.subset (Cylinder.point z) };
+\definition B: \Set := \Cast[Cylinder.Carrier] boundary;
+\definition boundarySpace: topology.Topology[Carrier := B].Topology := topology.Topology[Carrier := Cylinder.Carrier].Subspace[S := boundary].topology Constant.space;
+\definition boundaryInclusion[z: B]: Cylinder.Carrier := z;
+\definition inclusionRegular: topology.Continuity[A := B, B := Cylinder.Carrier].Continuous boundarySpace Constant.space boundaryInclusion :=
+  topology.Continuity[A := B, B := Cylinder.Carrier].Corestriction[S := boundary].inclusionContinuous Constant.space;
+\definition toBoundary[z: B]: Pair.A := \into[Compactification.Carrier](Cylinder.point z, Point.subset) \by { \bysub(Cylinder.Carrier, boundary, z) };
+\definition toBoundaryRegular: topology.Continuity[A := B, B := Pair.A].Continuous boundarySpace Pair.subspace toBoundary :=
+  topology.Continuity[A := B, B := Compactification.Carrier].Corestriction[S := Point.subset].corestrictContinuous boundarySpace Compactification.topology toBoundary
+    (topology.Composition[A := B, B := Cylinder.Carrier, C := Compactification.Carrier].composeContinuous boundarySpace Constant.space Compactification.topology boundaryInclusion Cylinder.point
+      inclusionRegular (Cylinder.pointContinuous Compactification.topology));
+\definition boundaryMap[z: B]: BoundaryCylinder.Carrier := BoundaryCylinder.at (Cylinder.time z) (toBoundary z);
+\definition boundaryRegular: topology.Continuity[A := B, B := BoundaryCylinder.Carrier].Continuous boundarySpace (BoundaryCylinder.topology Pair.subspace) boundaryMap :=
+  topological_constructions.Product[A := I.Carrier, B := Pair.A].Universal[X := B].pairContinuous boundarySpace I.topology Pair.subspace
+    (\fun (z: B) => Cylinder.time z) toBoundary
+    (topology.Composition[A := B, B := Cylinder.Carrier, C := I.Carrier].composeContinuous boundarySpace Constant.space I.topology boundaryInclusion Cylinder.time inclusionRegular (Cylinder.timeContinuous Compactification.topology))
+    toBoundaryRegular;
+\definition pointInclusion[x: Pair.A]: Compactification.Carrier := x;
+\definition pointRegular: topology.Continuity[A := Pair.A, B := Compactification.Carrier].Continuous Pair.subspace Compactification.topology pointInclusion :=
+  topology.Continuity[A := Pair.A, B := Compactification.Carrier].Corestriction[S := Point.subset].inclusionContinuous Compactification.topology;
+\module Geometry(H: Compactification.Carrier -> \Set, original: Bundles.Family[X := Compactification.Carrier, F := H].Bundle,
+  same: original.baseSpace = Compactification.topology);
+\import Geometry[H := F, original := Presentations.bundle p, same := (\refl(Compactification.topology))] \as Positive;
+\import Geometry[H := G, original := Presentations.bundle q, same := (\refl(Compactification.topology))] \as Negative;
+\import Complements.PulledIsomorphism[X := BoundaryCylinder.Carrier, Y := B,
+  F := (\fun (z: BoundaryCylinder.Carrier) => F (BoundaryCylinder.point z)), G := (\fun (z: BoundaryCylinder.Carrier) => G (BoundaryCylinder.point z)),
+  source := Positive.middle, target := Negative.middle, base := boundarySpace, f := boundaryMap,
+  sourceRegular := boundaryRegular, targetRegular := boundaryRegular] \as BoundaryPull;
+\import Bundles.Isomorphisms[X := B, F := Negative.Fiber, G := Negative.Fiber, source := Negative.ambient, target := Negative.local] \as Reverse;
+\import Operations.IsomorphismComposition[X := B, F := Positive.Fiber, G := Positive.Fiber, H := Negative.Fiber,
+  source := Positive.ambient, middle := Positive.local, target := Negative.local] \as Start;
+\definition start: Start.Isomorphism := Start.compose Positive.comparison (BoundaryPull.isomorphism family.isomorphism);
+\import Operations.IsomorphismComposition[X := B, F := Positive.Fiber, G := Negative.Fiber, H := Negative.Fiber,
+  source := Positive.ambient, middle := Negative.local, target := Negative.ambient] \as Finish;
+\definition boundaryIso: Bundles.Isomorphisms[X := B, F := Positive.Fiber, G := Negative.Fiber, source := Positive.ambient, target := Negative.ambient].Isomorphism :=
+  Finish.compose start (Reverse.inverse Negative.comparison);
+\definition boundaryFormula: \forall (z: B)(v: F (Cylinder.point z)) -> (boundaryIso.forward.fiber z).apply v = (family.isomorphism.forward.fiber (boundaryMap z)).apply v :=
+  \fun (z: B)(v: F (Cylinder.point z)) => \refl((family.isomorphism.forward.fiber (boundaryMap z)).apply v);
+\import topological_constructions.Product[A := I.Carrier, B := Compactification.Carrier] \as Product;
+\definition cylinderCompact: topology.Topology[Carrier := Cylinder.Carrier].IsCompact Constant.space :=
+  Product.Compactness[].productCompact I.topology Compactification.topology I.compact Compactness.compact;
+\definition separated: topology.Topology[Carrier := Cylinder.Carrier].IsT2 Constant.space :=
+  topological_constructions.Separation[].Product[A := I.Carrier, B := Compactification.Carrier].On[
+    left := I.topology, right := Compactification.topology, leftHausdorff := I.hausdorff, rightHausdorff := Separation.hausdorffCompactification].hausdorff;
+\definition boundaryClosed: topology.Topology[Carrier := Cylinder.Carrier].IsClosedIn Constant.space boundary :=
+  topology.Continuity[A := Cylinder.Carrier, B := Compactification.Carrier].closedPreimage Constant.space Compactification.topology Cylinder.point
+    (Cylinder.pointContinuous Compactification.topology) Point.subset Point.closed;
+\import bundle_extension.Extension[].ComplexMaps[X := Cylinder.Carrier, subset := boundary, F := Constant.First, G := Constant.Second,
+  source := Constant.firstBundle, target := Constant.secondBundle, baseSpace := Constant.space,
+  sourceSame := (\refl(Constant.space)), same := (\refl(Constant.space))] \as Forward;
+\import bundle_extension.Extension[].ComplexMaps[X := Cylinder.Carrier, subset := boundary, F := Constant.Second, G := Constant.First,
+  source := Constant.secondBundle, target := Constant.firstBundle, baseSpace := Constant.space,
+  sourceSame := (\refl(Constant.space)), same := (sym!{{topology.Topology[Carrier := Cylinder.Carrier].Topology}} Constant.firstBundle.baseSpace Constant.secondBundle.baseSpace (\refl(Constant.space)))] \as Backward;
+\import Complements.For[X := Cylinder.Carrier, F := Constant.First, bundle := Constant.firstBundle] \as FirstEmbeddings;
+\import Complements.For[X := Cylinder.Carrier, F := Constant.Second, bundle := Constant.secondBundle] \as SecondEmbeddings;
+\structure ExtensionData: \Set := { forward: Forward.Result[boundaryIso.forward], backward: Backward.Result[boundaryIso.backward],
+  positive: FirstEmbeddings.Embedding, negative: SecondEmbeddings.Embedding };
+\definition existence: \exists ExtensionData := \block {
+  \takefrom h: Forward.Result[boundaryIso.forward] \by Forward.extend boundaryIso.forward cylinderCompact separated boundaryClosed \then
+  \takefrom g: Backward.Result[boundaryIso.backward] \by Backward.extend boundaryIso.backward cylinderCompact separated boundaryClosed \then
+  \takefrom p: FirstEmbeddings.Embedding \by FirstEmbeddings.embeddingExists cylinderCompact separated \then
+  \takefrom q: SecondEmbeddings.Embedding \by SecondEmbeddings.embeddingExists cylinderCompact separated \then
+  \return \exact(ExtensionData { forward := h, backward := g, positive := p, negative := q }, ExtensionData)
+};
+\module With(data: ExtensionData, left: LeftClass.ExtensionData, right: RightClass.ExtensionData);
+\definition equation: LeftClass.value = RightClass.value := \block {
+  \takefrom data: ExtensionData \by existence \then
+  \takefrom left: LeftClass.ExtensionData \by LeftClass.existence \then
+  \takefrom right: RightClass.ExtensionData \by RightClass.existence \then
+  \return With[data := data, left := left, right := right].equation
+};

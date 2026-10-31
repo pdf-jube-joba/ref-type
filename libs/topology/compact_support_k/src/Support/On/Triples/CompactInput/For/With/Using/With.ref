@@ -1,0 +1,27 @@
+\definition data: Symbol.ExtensionData := Symbol.ExtensionData { forward := symbolForward, backward := symbolBackward, positive := w.positive, negative := w.negative };
+\import Symbol.With[w := data] \as Projection;
+\import Complements.PulledIsomorphism[X := Compactification.Carrier, Y := X, F := F, G := Presentations.Fiber p,
+  source := source, target := Presentations.bundle p, base := space, f := Compactification.inclusion,
+  sourceRegular := Compactification.inclusionContinuous, targetRegular := Compactification.inclusionContinuous] \as PositivePull;
+\import Complements.PulledIsomorphism[X := Compactification.Carrier, Y := X, F := G, G := Presentations.Fiber q,
+  source := target, target := Presentations.bundle q, base := space, f := Compactification.inclusion,
+  sourceRegular := Compactification.inclusionContinuous, targetRegular := Compactification.inclusionContinuous] \as NegativePull;
+\import \root.Support[].On[X := X, space := space, hausdorff := hausdorff, locallyCompact := locallyCompact].Triples[]
+  .Input[F := First, G := Second, firstModel := firstOnX, secondModel := secondOnX]
+  .To[H := Projection.F, I := Projection.G, newFirstModel := Projection.positiveModel, newSecondModel := Projection.negativeModel]
+  .Supported[K := support, J := Projection.support, compactK := compactSupport, compactJ := Projection.compactSupport] \as Change;
+\definition commutes: \forall (x: \Cast[X] Change.outside)(v: First x) ->
+  (Projection.comparison.forward.fiber (Change.inTarget x)).apply (((PositivePull.isomorphism positiveIso).forward.fiber x).apply v) =
+  ((NegativePull.isomorphism negativeIso).forward.fiber x).apply ((comparison.forward.fiber (Change.inSource x)).apply v) :=
+  \fun (x: \Cast[X] Change.outside)(v: First x) => trans!{{Projection.G x}} _ _ _
+    (Projection.formula (Change.inTarget x) (((PositivePull.isomorphism positiveIso).forward.fiber x).apply v))
+    (trans!{{Projection.G x}} _ _ _
+      (congr!{{First x} {Projection.G x}} (\fun (z: First x) => (negativeIso.forward.fiber (Compactification.inclusion x)).apply ((forward.map.fiber (Compactification.inclusion x)).apply z)) _ _
+        (positiveIso.leftInverse (Compactification.inclusion x) v))
+      (congr!{{Second x} {Projection.G x}} (negativeIso.forward.fiber (Compactification.inclusion x)).apply _ _ (sym!{{Second x}} _ _ (formula (Change.inSource x) v))));
+\definition rawEquation: value = Projection.value := Change.With[alpha := comparison, beta := Projection.comparison,
+  positive := (PositivePull.isomorphism positiveIso), negative := (NegativePull.isomorphism negativeIso), commutes := commutes].equation;
+\definition equation: Group.FromSymbols[].map (Original.With[alpha := alpha].value) = value := trans!{{Group.Carrier}} _ _ _
+  (congr!{{Pair.Group[].Carrier} {Group.Carrier}} Group.FromSymbols[].map _ _ (Original.With[alpha := alpha].agreement Represented.result))
+  (trans!{{Group.Carrier}} _ _ _ (Group.FromSymbols[].onTriple Represented.triple)
+    (trans!{{Group.Carrier}} _ _ _ (Symbol.agreement data) (sym!{{Group.Carrier}} _ _ rawEquation)));

@@ -1,0 +1,31 @@
+\import Relative.Pair[X := Compactification.Carrier, space := Compactification.topology, compact := Compactness.compact,
+  hausdorff := Separation.hausdorffCompactification, subset := Point.subset, closed := Point.closed] \as CompactPair;
+\import CompactPair.BundleModel[F := PlusFiber].From[original := plusBundle, same := (\refl(Compactification.topology))] \as PositiveModel;
+\import CompactPair.BundleModel[F := Coordinate].From[original := Trivial.bundle, same := (\refl(Compactification.topology))] \as NegativeModel;
+\import \root.Support[].On[X := X, space := space, hausdorff := hausdorff, locallyCompact := locallyCompact].Triples[].CompactInput[]
+  .For[F := PlusFiber, G := Coordinate, firstModel := PositiveModel.model, secondModel := NegativeModel.model] \as CompactInput;
+\import bundle_extension.Extension[].ComplexMaps[X := Compactification.Carrier, subset := Point.subset, F := PlusFiber, G := Coordinate,
+  source := plusBundle, target := Trivial.bundle, baseSpace := Compactification.topology,
+  sourceSame := (\refl(Compactification.topology)), same := (\refl(Compactification.topology))] \as PointForward;
+\import bundle_extension.Extension[].ComplexMaps[X := Compactification.Carrier, subset := Point.subset, F := Coordinate, G := PlusFiber,
+  source := Trivial.bundle, target := plusBundle, baseSpace := Compactification.topology,
+  sourceSame := (\refl(Compactification.topology)), same := (sym!{{Plus.Topology}} plusBundle.baseSpace Trivial.bundle.baseSpace (\refl(Compactification.topology)))] \as PointBackward;
+\definition forwardAtPoint: PointForward.Result[PointFrame.value.forward] := PointForward.Result[PointFrame.value.forward] {
+  map := forward.map, extends := \fun (z: \Cast[Compactification.Carrier] Point.subset)(v: PlusFiber z) => trans!{{Coordinate z}} _ _ _
+    (forward.extends (PointFrame.sourcePoint z) v) (sym!{{Coordinate z}} _ _ (PointFrame.formula z v))
+};
+\definition backwardAtPoint: PointBackward.Result[PointFrame.value.backward] := PointBackward.Result[PointFrame.value.backward] {
+  map := backward.map, extends := \fun (z: \Cast[Compactification.Carrier] Point.subset)(v: Coordinate z) => trans!{{PlusFiber z}} _ _ _
+    (backward.extends (PointFrame.sourcePoint z) v) (sym!{{PlusFiber z}} _ _ (PointFrame.backwardFormula z v))
+};
+
+\import Complements.For[X := Compactification.Carrier, F := PlusFiber, bundle := plusBundle] \as PositiveEmbeddings;
+\import Complements.For[X := Compactification.Carrier, F := Coordinate, bundle := Trivial.bundle] \as NegativeEmbeddings;
+\module Using(positive: PositiveEmbeddings.Embedding, negative: NegativeEmbeddings.Embedding, stabilization: Stabilization.Result);
+
+\definition image: \exists (a: Symbols.Carrier \where Group.FromSymbols[].map a = Group.value t) := \block {
+  \takefrom p: PositiveEmbeddings.Embedding \by PositiveEmbeddings.embeddingExists Compactness.compact Separation.hausdorffCompactification \then
+  \takefrom q: NegativeEmbeddings.Embedding \by NegativeEmbeddings.embeddingExists Compactness.compact Separation.hausdorffCompactification \then
+  \takefrom s: Stabilization.Result \by Stabilization.existence \then
+  \return Using[positive := p, negative := q, stabilization := s].image
+};

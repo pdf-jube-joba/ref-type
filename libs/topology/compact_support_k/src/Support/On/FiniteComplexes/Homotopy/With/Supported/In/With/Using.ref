@@ -1,0 +1,36 @@
+\import Lift.Using[c := c] \as Path;
+\import Boundary.Acyclic[p := Source.boundaryEvenModel, q := Source.boundaryOddModel, d := D.map First.d, e := E.map First.e] \as Acyclic;
+\import Boundary.Acyclic[p := Source.boundaryEvenModel, q := Source.boundaryOddModel, d := D.map endD, e := E.map endE] \as EndAcyclic;
+\import Source.With[contraction := Path.first] \as Start;
+\import Acyclic.Normalized[c := Path.first] \as StartNormal;
+\import EndAcyclic.Normalized[c := Path.second] \as EndNormal;
+\import Source.Reduction[isomorphism := StartNormal.isomorphism].Homotopy[other := EndNormal.isomorphism] \as ReductionHomotopy;
+\definition homotopy: ReductionHomotopy.Family := ReductionHomotopy.Family { isomorphism := Path.isomorphism, start := Path.start, end := Path.end };
+\import Source.Reduction[isomorphism := EndNormal.isomorphism] \as End;
+\definition reductionEquation: Start.value = End.value := trans!{{Relative.Reduced[model := model].Carrier}} _ _ _ Start.reductionAgreement
+  ReductionHomotopy.With[provided := homotopy].equation;
+\import \parent.\parent.\parent.\parent.Geometry[Y := Pair.A, source := Pair.subspace, f := Source.boundaryInclusion, regular := Source.boundaryRegular] \as OnBoundary;
+\definition commutesD: \forall (x: Pair.A)(v: First.Even x) -> ((D1.map Second.d).fiber x).apply ((OnBoundary.positive.forward.fiber x).apply v) =
+  (OnBoundary.negative.forward.fiber x).apply (((D.map endD).fiber x).apply v) :=
+  \fun (x: Pair.A)(v: First.Even x) => sym!{{Second.Odd x}} _ _ (negative.rightInverse x ((Second.d.fiber x).apply ((positive.forward.fiber x).apply v)));
+\definition commutesE: \forall (x: Pair.A)(v: First.Odd x) -> ((E1.map Second.e).fiber x).apply ((OnBoundary.negative.forward.fiber x).apply v) =
+  (OnBoundary.positive.forward.fiber x).apply (((E.map endE).fiber x).apply v) :=
+  \fun (x: Pair.A)(v: First.Odd x) => sym!{{Second.Even x}} _ _ (positive.rightInverse x ((Second.e.fiber x).apply ((negative.forward.fiber x).apply v)));
+\import Boundary.Transport[p := Source.boundaryEvenModel, q := Source.boundaryOddModel, r := Target.boundaryEvenModel, s := Target.boundaryOddModel,
+  d0 := D.map endD, e0 := E.map endE, d1 := D1.map Second.d, e1 := E1.map Second.e,
+  positive := OnBoundary.positive, negative := OnBoundary.negative, commutesD := commutesD, commutesE := commutesE].With[c := Path.second] \as Transport;
+\definition contraction: Target.Contraction := Transport.contraction;
+\import Target.With[contraction := contraction] \as Finish;
+\import \parent.\parent.\parent.\parent.Geometry[Y := Local.Carrier, source := Local.topology, f := Local.inclusion, regular := Local.regular] \as OnLocal;
+\definition commutes: \forall (x: Pair.A)(v: First.Even x) ->
+  (Finish.comparison.forward.fiber x).apply ((OnLocal.positive.forward.fiber x).apply v) =
+  (OnLocal.negative.forward.fiber x).apply ((End.comparison.forward.fiber x).apply v) :=
+  \fun (x: Pair.A)(v: First.Even x) => trans!{{Second.Odd x}} _ _ _
+    (Finish.formula x ((positive.forward.fiber x).apply v))
+    (trans!{{Second.Odd x}} _ _ _ (Transport.forwardFormula x v)
+      (sym!{{Second.Odd x}} _ _ (congr!{{First.Odd x} {Second.Odd x}} (negative.forward.fiber x).apply _ _ (End.formula x v))));
+\import Pair.BundleTriples[F := Source.FirstFiber, G := Source.SecondFiber, firstModel := Source.firstOnLocal, secondModel := Source.secondOnLocal].To[
+  H := Target.FirstFiber, I := Target.SecondFiber, newFirstModel := Target.firstOnLocal, newSecondModel := Target.secondOnLocal].With[
+  alpha := End.comparison, beta := Finish.comparison, positive := OnLocal.positive, negative := OnLocal.negative, commutes := commutes] \as Change;
+\definition equation: Start.value = Finish.value := trans!{{Relative.Reduced[model := model].Carrier}} _ _ _ reductionEquation
+  (congr!{{Pair.Quotient[].Relative} {Relative.Reduced[model := model].Carrier}} Local.extend _ _ Change.reducedEquation);

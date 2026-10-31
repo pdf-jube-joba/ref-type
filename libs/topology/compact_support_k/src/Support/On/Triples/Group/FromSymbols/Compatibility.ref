@@ -1,0 +1,22 @@
+\import \parent.\parent.ToK[] \as Forward;
+\import Relative.Reduced[model := model] \as Reduced;
+\definition P[a: Symbols.Carrier]: \Prop := Forward.map (map a) = Symbols.forward a;
+\definition atZero: P Symbols.group.base.unit := trans!{{Reduced.Carrier}} _ _ _
+  (congr!{{Carrier} {Reduced.Carrier}} Forward.map _ _ preservesZero)
+  (trans!{{Reduced.Carrier}} _ _ _ Forward.preservesZero (sym!{{Reduced.Carrier}} _ _ Symbols.forwardZero));
+\definition atSymbol: \forall (t: Pair.Triple) -> P (Symbols.value t) :=
+  \fun (t: Pair.Triple) => trans!{{Reduced.Carrier}} _ _ _
+    (congr!{{Carrier} {Reduced.Carrier}} Forward.map _ _ (onTriple t)) \parent.\parent.\parent.FromCompact[t := t].equation;
+\definition underAdd: \forall (a, b: Symbols.Carrier) -> P a -> P b -> P (Symbols.group.base.op a b) :=
+  \fun (a, b: Symbols.Carrier)(pa: P a)(pb: P b) => trans!{{Reduced.Carrier}} _ _ _
+    (congr!{{Carrier} {Reduced.Carrier}} Forward.map _ _ (additive a b))
+    (trans!{{Reduced.Carrier}} _ _ _ (Forward.additive (map a) (map b))
+      (trans!{{Reduced.Carrier}} _ _ _ (congr!{{Reduced.Carrier} {Reduced.Carrier} {Reduced.Carrier}} Reduced.group.base.op _ _ _ _ pa pb)
+        (sym!{{Reduced.Carrier}} _ _ (Symbols.forwardAdd a b))));
+\definition underNeg: \forall (a: Symbols.Carrier) -> P a -> P (Symbols.group.base.inv a) :=
+  \fun (a: Symbols.Carrier)(pa: P a) => trans!{{Reduced.Carrier}} _ _ _
+    (congr!{{Carrier} {Reduced.Carrier}} Forward.map _ _ (preservesNeg a))
+    (trans!{{Reduced.Carrier}} _ _ _ (Forward.preservesNeg (map a))
+      (trans!{{Reduced.Carrier}} _ _ _ (congr!{{Reduced.Carrier} {Reduced.Carrier}} Reduced.group.base.inv _ _ pa)
+        (sym!{{Reduced.Carrier}} _ _ (Symbols.forwardNeg a))));
+\definition equation: \forall (a: Symbols.Carrier) -> P a := Native.Induction[P := P, atZero := atZero, atSymbol := atSymbol, underAdd := underAdd, underNeg := underNeg].principle;

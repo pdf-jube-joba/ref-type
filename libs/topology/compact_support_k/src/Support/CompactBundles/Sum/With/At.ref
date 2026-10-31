@@ -1,0 +1,34 @@
+\import Operations.ContractingPair[V := Fiber p x, W := Fiber q x, even := (bundle p).space x, odd := (bundle q).space x] \as FirstPair;
+\import Operations.ContractingPair[V := Fiber r x, W := Fiber s x, even := (bundle r).space x, odd := (bundle s).space x] \as SecondPair;
+\definition firstData: FirstPair.Data := FirstPair.Data { d := d0.fiber x, e := e0.fiber x, h := first.h.fiber x, k := first.k.fiber x };
+\definition secondData: SecondPair.Data := SecondPair.Data { d := d1.fiber x, e := e1.fiber x, h := second.h.fiber x, k := second.k.fiber x };
+\definition firstPair: FirstPair.Pair := \into[FirstPair.Data](firstData, FirstPair.Pair) \by { first.laws x };
+\definition secondPair: SecondPair.Pair := \into[SecondPair.Data](secondData, SecondPair.Pair) \by { second.laws x };
+\import FirstPair.DirectSum[U := Fiber r x, T := Fiber s x, secondEven := (bundle r).space x, secondOdd := (bundle s).space x,
+  first := firstPair, second := secondPair] \as Sum;
+\import Operations.ContractingPair[V := Even.SourceFiber x, W := Odd.SourceFiber x,
+  even := Even.source.space x, odd := Odd.source.space x] \as SumPair;
+\import SumPair.Transport[U := Fiber even x, T := Fiber odd x, newEven := (bundle even).space x, newOdd := (bundle odd).space x,
+  c := Sum.pair, positive := Even.frame x, negative := Odd.frame x] \as Transport;
+\import Operations.ContractingPair[V := Fiber even x, W := Fiber odd x, even := (bundle even).space x, odd := (bundle odd).space x] \as Pair;
+\definition current: Pair.Data := Pair.Data { d := d.fiber x, e := e.fiber x, h := h.fiber x, k := k.fiber x };
+\import Spaces.Linear[V := Fiber even x, W := Fiber odd x, source := (bundle even).space x, target := (bundle odd).space x] \as D;
+\definition dSame: Transport.data.d = current.d := D.ext _ _ (\axiom:funext(Transport.data.d.apply, current.d.apply, \fun (v: Fiber even x) => \refl(_)));
+\import Spaces.Linear[V := Fiber odd x, W := Fiber even x, source := (bundle odd).space x, target := (bundle even).space x] \as E;
+\definition eSame: Transport.data.e = current.e := E.ext _ _ (\axiom:funext(Transport.data.e.apply, current.e.apply, \fun (v: Fiber odd x) => \refl(_)));
+\import Spaces.Linear[V := Fiber odd x, W := Fiber even x, source := (bundle odd).space x, target := (bundle even).space x] \as H;
+\definition hSame: Transport.data.h = current.h := H.ext _ _ (\axiom:funext(Transport.data.h.apply, current.h.apply, \fun (v: Fiber odd x) => \refl(_)));
+\import Spaces.Linear[V := Fiber even x, W := Fiber odd x, source := (bundle even).space x, target := (bundle odd).space x] \as K;
+\definition kSame: Transport.data.k = current.k := K.ext _ _ (\axiom:funext(Transport.data.k.apply, current.k.apply, \fun (v: Fiber even x) => \refl(_)));
+\definition same: Transport.data = current := congr!{{D.Map} {E.Map} {H.Map} {K.Map} {Pair.Data}}
+  (\fun (a: D.Map)(b: E.Map)(c: H.Map)(z: K.Map) => Pair.Data { d := a, e := b, h := c, k := z }) _ _ _ _ _ _ _ _ dSame eSame hSame kSame;
+\definition laws: Pair.Laws[current] := \idelim Transport.data = current \with c: Pair.Data => Pair.Laws[c] \by { base: Transport.laws, equality: same };
+\definition polynomial[c: Pair.Data][v: Fiber even x]: Fiber odd x := ((bundle odd).space x).add (c.d.apply v) (c.k.apply (c.e.apply (c.k.apply v)));
+\definition forwardFormula: \forall (v: Fiber p x)(w: Fiber r x) ->
+  polynomial current ((Even.isomorphism.forward.fiber x).apply (std.Data[].Pair[].pair (Fiber p x) (Fiber r x) v w)) =
+  (Odd.isomorphism.forward.fiber x).apply (std.Data[].Pair[].pair (Fiber q x) (Fiber s x)
+    (FirstPair.With[c := firstPair].forward.apply v) (SecondPair.With[c := secondPair].forward.apply w)) :=
+  \fun (v: Fiber p x)(w: Fiber r x) => trans!{{Fiber odd x}} _ _ _
+    (congr!{{Pair.Data} {Fiber odd x}} (\fun (c: Pair.Data) => polynomial c ((Even.isomorphism.forward.fiber x).apply (std.Data[].Pair[].pair (Fiber p x) (Fiber r x) v w))) _ _ (sym!{{Pair.Data}} _ _ same))
+    (trans!{{Fiber odd x}} _ _ _ (Transport.forwardFormula (std.Data[].Pair[].pair (Fiber p x) (Fiber r x) v w))
+      (congr!{{Odd.SourceFiber x} {Fiber odd x}} (Odd.isomorphism.forward.fiber x).apply _ _ (Sum.forwardFormula (std.Data[].Pair[].pair (Fiber p x) (Fiber r x) v w))));

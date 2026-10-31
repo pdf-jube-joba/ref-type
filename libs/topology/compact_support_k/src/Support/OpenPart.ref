@@ -1,0 +1,33 @@
+\import topology.Topology[Carrier := M] \as Ambient;
+\import Ambient.Subspace[S := U] \as Part;
+\definition Carrier: \Set := Part.CarrierSet;
+\definition topology: topology.Topology[Carrier := Carrier].Topology := Part.topology space;
+\definition separated: topology.Topology[Carrier := Carrier].IsT2 topology := Part.Properties[].hausdorff space hausdorff;
+\definition inclusion[x: Carrier]: M := x;
+\definition inclusionContinuous: topology.Continuity[A := Carrier, B := M].Continuous topology space inclusion :=
+  topology.Continuity[A := Carrier, B := M].Corestriction[S := U].inclusionContinuous space;
+\import topology.LocallyCompact[A := Carrier] \as Local;
+\definition locallyCompact: Local.IsLocallyCompact topology := \block {
+  \fun (x: Carrier) \then
+  \takefrom V: \Cast[\Pow M] ({ V: \Pow M \where Ambient.RegularChoice[space, Ambient.Complement U, x, V] })
+    \by Ambient.Compactness[].compactHausdorffRegular space compact hausdorff (Ambient.Complement U)
+      (Ambient.Finite[].openComplementClosed space U open) x
+      (\fun (outside: _) => outside (\bysub(M, U, x))) \then
+  \let v: Ambient.RegularChoice[space, Ambient.Complement U, x, V] := \bysub(\Pow M,
+    { V: \Pow M \where Ambient.RegularChoice[space, Ambient.Complement U, x, V] }, V) \then
+  \takefrom W: \Cast[\Pow M] ({ W: \Pow M \where Ambient.NormalPartner[space, Ambient.Complement U, V, W] }) \by v.partner \then
+  \let w: Ambient.NormalPartner[space, Ambient.Complement U, V, W] := \bysub(\Pow M,
+    { W: \Pow M \where Ambient.NormalPartner[space, Ambient.Complement U, V, W] }, W) \then
+  \let K: \Pow M := Ambient.Complement W \then
+  \let compactK: Ambient.IsCompactIn space K := Ambient.Compactness[].closedCompact space compact K
+    (Ambient.Finite[].openComplementClosed space W w.open) \then
+  \let included: Ambient.Subset K U := \fun (y: M)(inK: _)
+    => Ambient.Finite[].doubleNegElim (Ambient.Member U y) (\fun (outside: _) => inK (w.covers y outside)) \then
+  \return \exact(Local.CompactNeighborhood[topology, x] {
+    openSet := Part.Trace V, compactSet := Part.Trace K,
+    open := Part.traceOpen space V v.open, contains := v.contains,
+    enclosed := \fun (y: Carrier)(inV: _)(inW: _) => w.disjoint y inV inW,
+    compact := \root.Support[].CompactInSubspace[M := M, space := space, S := U, K := K, compact := compactK, included := included].compactTrace
+  }, Local.CompactNeighborhood[topology, x])
+};
+\module Collapse;

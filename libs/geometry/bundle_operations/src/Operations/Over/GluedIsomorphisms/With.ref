@@ -1,0 +1,38 @@
+\definition firstLaws: FirstMaps.Laws[first] := \bysub(FirstMaps.Data, FirstMaps.Isomorphism, first);
+\definition secondLaws: SecondMaps.Laws[second] := \bysub(SecondMaps.Data, SecondMaps.Isomorphism, second);
+\definition inverseCompatible: \forall (x: X)(s: \In[X] S x)(t: \In[X] T x)(w: G x) ->
+  (first.backward.fiber (\into[X](x, S) \by { s })).apply w = (second.backward.fiber (\into[X](x, T) \by { t })).apply w :=
+  \fun (x: X)(s: \In[X] S x)(t: \In[X] T x)(w: G x) => \block {
+    \let a: F x := (first.backward.fiber (\into[X](x, S) \by { s })).apply w \then
+    \return trans!{{F x}} _ _ _ (sym!{{F x}} _ _ (secondLaws.leftInverse (\into[X](x, T) \by { t }) a))
+      (trans!{{F x}} _ _ _
+        (congr!{{G x} {F x}} (second.backward.fiber (\into[X](x, T) \by { t })).apply _ _ (sym!{{G x}} _ _ (compatible x s t a)))
+        (congr!{{G x} {F x}} (second.backward.fiber (\into[X](x, T) \by { t })).apply _ _ (firstLaws.rightInverse (\into[X](x, S) \by { s }) w)))
+  };
+\import Forward.With[first := first.forward, second := second.forward, compatible := compatible] \as ForwardMap;
+\import Backward.With[first := first.backward, second := second.backward, compatible := inverseCompatible] \as BackwardMap;
+\use Logic.either;
+\definition leftInverse: \forall (x: X)(v: F x) -> (BackwardMap.map.fiber x).apply ((ForwardMap.map.fiber x).apply v) = v :=
+  \fun (x: X)(v: F x) => either!{{(covers x)} {(BackwardMap.map.fiber x).apply ((ForwardMap.map.fiber x).apply v) = v}
+    {\fun (s: \In[X] S x) => trans!{{F x}} _ _ _
+      (congr!{{G x} {F x}} (BackwardMap.map.fiber x).apply _ _ (ForwardMap.onFirst (\into[X](x, S) \by { s }) v))
+      (trans!{{F x}} _ _ _ (BackwardMap.onFirst (\into[X](x, S) \by { s }) ((first.forward.fiber (\into[X](x, S) \by { s })).apply v)) (firstLaws.leftInverse (\into[X](x, S) \by { s }) v))}
+    {\fun (t: \In[X] T x) => trans!{{F x}} _ _ _
+      (congr!{{G x} {F x}} (BackwardMap.map.fiber x).apply _ _ (ForwardMap.onSecond (\into[X](x, T) \by { t }) v))
+      (trans!{{F x}} _ _ _ (BackwardMap.onSecond (\into[X](x, T) \by { t }) ((second.forward.fiber (\into[X](x, T) \by { t })).apply v)) (secondLaws.leftInverse (\into[X](x, T) \by { t }) v))}
+  };
+\definition rightInverse: \forall (x: X)(w: G x) -> (ForwardMap.map.fiber x).apply ((BackwardMap.map.fiber x).apply w) = w :=
+  \fun (x: X)(w: G x) => either!{{(covers x)} {(ForwardMap.map.fiber x).apply ((BackwardMap.map.fiber x).apply w) = w}
+    {\fun (s: \In[X] S x) => trans!{{G x}} _ _ _
+      (congr!{{F x} {G x}} (ForwardMap.map.fiber x).apply _ _ (BackwardMap.onFirst (\into[X](x, S) \by { s }) w))
+      (trans!{{G x}} _ _ _ (ForwardMap.onFirst (\into[X](x, S) \by { s }) ((first.backward.fiber (\into[X](x, S) \by { s })).apply w)) (firstLaws.rightInverse (\into[X](x, S) \by { s }) w))}
+    {\fun (t: \In[X] T x) => trans!{{G x}} _ _ _
+      (congr!{{F x} {G x}} (ForwardMap.map.fiber x).apply _ _ (BackwardMap.onSecond (\into[X](x, T) \by { t }) w))
+      (trans!{{G x}} _ _ _ (ForwardMap.onSecond (\into[X](x, T) \by { t }) ((second.backward.fiber (\into[X](x, T) \by { t })).apply w)) (secondLaws.rightInverse (\into[X](x, T) \by { t }) w))}
+  };
+\definition isomorphism: Bundles.Isomorphisms[X := X, F := F, G := G, source := source, target := target].Isomorphism :=
+  Bundles.Isomorphisms[X := X, F := F, G := G, source := source, target := target].Isomorphism {
+    forward := ForwardMap.map, backward := BackwardMap.map, leftInverse := leftInverse, rightInverse := rightInverse
+  };
+\definition onFirst: \forall (x: First.A)(v: F x) -> (isomorphism.forward.fiber x).apply v = (first.forward.fiber x).apply v := ForwardMap.onFirst;
+\definition onSecond: \forall (x: Second.A)(v: F x) -> (isomorphism.forward.fiber x).apply v = (second.forward.fiber x).apply v := ForwardMap.onSecond;
