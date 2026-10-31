@@ -1,0 +1,22 @@
+\import Homotopies.Concatenation[] \as Composition;
+\import algebraic_topology.TimeSubdivision[A := A] \as Division;
+\import topological_constructions.Gluing[A := Cylinder.Carrier, B := B].Pasting[F := Division.LeftSet, G := Division.RightSet] \as Pasting;
+\definition left: Homotopies.Homotopy[source, target, f, k] := Composition.concatenate source target f g k h j;
+\definition right: Homotopies.Homotopy[source, target, p, r] := Composition.concatenate source target p q r u v;
+\definition law: \forall (t: I.Carrier)(x: A) -> \In[A] subset x -> left (Cylinder.at t x) = right (Cylinder.at t x) :=
+  \fun (t: I.Carrier)(x: A)(inside: _) => either!{{Division.covered (Cylinder.at t x)} {left (Cylinder.at t x) = right (Cylinder.at t x)}
+    {\fun (inLeft: _) => \block {
+      \let a: Division.Left := \into[Cylinder.Carrier](Cylinder.at t x, Division.LeftSet) \by { inLeft } \then
+      \return trans!{B} _ _ _
+        (Pasting.onLeft (\fun (z: Division.Left) => h (Division.leftMap z)) (\fun (z: Division.Right) => j (Division.rightMap z)) Division.covered (Composition.compatible source target f g k h j) a)
+        (trans!{B} _ _ _ (first (Division.leftTime a) x inside)
+          (sym!{B} _ _ (Pasting.onLeft (\fun (z: Division.Left) => u (Division.leftMap z)) (\fun (z: Division.Right) => v (Division.rightMap z)) Division.covered (Composition.compatible source target p q r u v) a)))
+    }}
+    {\fun (inRight: _) => \block {
+      \let a: Division.Right := \into[Cylinder.Carrier](Cylinder.at t x, Division.RightSet) \by { inRight } \then
+      \return trans!{B} _ _ _
+        (Pasting.onRight (\fun (z: Division.Left) => h (Division.leftMap z)) (\fun (z: Division.Right) => j (Division.rightMap z)) Division.covered (Composition.compatible source target f g k h j) a)
+        (trans!{B} _ _ _ (second (Division.rightTime a) x inside)
+          (sym!{B} _ _ (Pasting.onRight (\fun (z: Division.Left) => u (Division.leftMap z)) (\fun (z: Division.Right) => v (Division.rightMap z)) Division.covered (Composition.compatible source target p q r u v) a)))
+    }}
+  };

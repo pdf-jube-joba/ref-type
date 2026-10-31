@@ -1,0 +1,36 @@
+\definition northEnd[x: Disk.Disk]: A := Target.inclusion (n.value x);
+\definition northHomotopy: DiskHomotopies.Homotopy[Disk.diskTopology, source, north, northEnd] := DiskHomotopies.forgetRelative Disk.diskTopology source empty north northEnd n.homotopy;
+\definition northEndContinuous: topology.Continuity[A := Disk.Disk, B := A].Continuous Disk.diskTopology source northEnd :=
+  topology.Composition[A := Disk.Disk, B := Target.Carrier, C := A].composeContinuous Disk.diskTopology Target.topology source n.value Target.inclusion n.continuous Target.continuous;
+\import puppe_sequences.Puppe[].Disk[n := d].Boundary[] \as Boundary;
+\import topology.Topology[Carrier := Disk.Disk].Subspace[S := Boundary.subset] \as Subspace;
+\import algebraic_topology.Cylinder[A := Subspace.CarrierSet] \as BoundaryCylinder;
+\definition boundarySphere[x: Subspace.CarrierSet]: Disk.Sphere := \into[Disk.Coordinate](x, Disk.Boundary) \by { \bysub(Disk.Disk, Boundary.subset, x) };
+\definition equator: \forall (x: Subspace.CarrierSet) -> north x = south x := \fun (x: Subspace.CarrierSet) => congr!{Sphere.Sphere A} f (Halves.positive x) (Halves.negative x)
+  (trans!{Sphere.Sphere} _ _ _ (Halves.positiveBoundary (boundarySphere x)) (sym!{Sphere.Sphere} _ _ (Halves.negativeBoundary (boundarySphere x))));
+\definition boundaryMap[p: BoundaryCylinder.Carrier]: DiskCylinder.Carrier := DiskCylinder.at (BoundaryCylinder.time p) (BoundaryCylinder.point p);
+\definition boundaryMapContinuous: topology.Continuity[A := BoundaryCylinder.Carrier, B := DiskCylinder.Carrier].Continuous
+  (BoundaryCylinder.topology (Subspace.topology Disk.diskTopology)) (DiskCylinder.topology Disk.diskTopology) boundaryMap :=
+  topological_constructions.Product[A := I.Carrier, B := Disk.Disk].Universal[X := BoundaryCylinder.Carrier].pairContinuous
+    (BoundaryCylinder.topology (Subspace.topology Disk.diskTopology)) I.topology Disk.diskTopology BoundaryCylinder.time (\fun (p: BoundaryCylinder.Carrier) => BoundaryCylinder.point p)
+      (BoundaryCylinder.timeContinuous (Subspace.topology Disk.diskTopology))
+      (topology.Composition[A := BoundaryCylinder.Carrier, B := Subspace.CarrierSet, C := Disk.Disk].composeContinuous
+        (BoundaryCylinder.topology (Subspace.topology Disk.diskTopology)) (Subspace.topology Disk.diskTopology) Disk.diskTopology BoundaryCylinder.point (\fun (x: Subspace.CarrierSet) => x)
+          (BoundaryCylinder.pointContinuous (Subspace.topology Disk.diskTopology))
+          (topology.Continuity[A := Subspace.CarrierSet, B := Disk.Disk].Corestriction[S := Boundary.subset].inclusionContinuous Disk.diskTopology));
+\definition boundaryFamily[p: BoundaryCylinder.Carrier]: A := northHomotopy (boundaryMap p);
+\definition boundaryContinuous: topology.Continuity[A := BoundaryCylinder.Carrier, B := A].Continuous
+  (BoundaryCylinder.topology (Subspace.topology Disk.diskTopology)) source boundaryFamily :=
+  topology.Composition[A := BoundaryCylinder.Carrier, B := DiskCylinder.Carrier, C := A].composeContinuous
+    (BoundaryCylinder.topology (Subspace.topology Disk.diskTopology)) (DiskCylinder.topology Disk.diskTopology) source boundaryMap northHomotopy boundaryMapContinuous
+      (DiskHomotopies.laws Disk.diskTopology source north northEnd northHomotopy).continuous;
+\import algebraic_topology.Cofibration[A := Disk.Disk, subset := Boundary.subset].ForTarget[B := A] \as HEP;
+\definition problem: HEP.Problem[Disk.diskTopology, source] := HEP.Problem[Disk.diskTopology, source] {
+  initial := south, family := boundaryFamily, initialContinuous := southContinuous, familyContinuous := boundaryContinuous,
+  agrees := \fun (x: Subspace.CarrierSet) => trans!{A} _ _ _ ((DiskHomotopies.laws Disk.diskTopology source north northEnd northHomotopy).start x) (equator x)
+};
+\module Extended(extension: HEP.Extension[Disk.diskTopology, source, problem]);
+\definition exists: \exists Result[f] := \block {
+  \takefrom extension: HEP.Extension[Disk.diskTopology, source, problem] \by Boundary.ForTarget[B := A].homotopyExtension source problem \then
+  \return Extended[extension := extension].exists
+};
