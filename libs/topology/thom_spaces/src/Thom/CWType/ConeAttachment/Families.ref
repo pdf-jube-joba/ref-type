@@ -1,0 +1,18 @@
+\import algebraic_topology.Cylinder[A := B] \as OriginalCylinder;
+\import algebraic_topology.Cylinder[A := Cone.Carrier] \as ConeCylinder;
+\import algebraic_topology.Cylinder[A := Carrier] \as TotalCylinder;
+\import \root.Thom[].CWType[].Cone[A := A, source := source].Families[B := D, target := range, point := (\fun (u: I.Carrier) => point), family := filling, zero := zero,
+  pointContinuous := topology.Maps[A := I.Carrier, B := D].constantContinuous I.topology range point, familyContinuous := fillingContinuous] \as ConeFamily;
+\import Pushout.Families[X := I.Carrier, D := D, factor := I.topology, left := target, right := Cone.topology, target := range] \as Gluing;
+\definition left[z: OriginalCylinder.Carrier]: D := original (OriginalCylinder.point z);
+\definition compatible: Gluing.Compatible left ConeFamily.apply := \fun (u: I.Carrier)(x: A) => sym!{D} _ _
+  (trans!{D} _ _ _ (ConeFamily.onCylinder u I.end x) (one u x));
+\definition apply: TotalCylinder.Carrier -> D := Gluing.apply left ConeFamily.apply compatible;
+\definition onOriginal: \forall (u: I.Carrier)(y: B) -> apply (TotalCylinder.at u (inclusion y)) = original y := Gluing.onLeft left ConeFamily.apply compatible;
+\definition onApex: \forall (u: I.Carrier) -> apply (TotalCylinder.at u apex) = point := \fun (u: I.Carrier) => trans!{D} _ _ _
+  (Gluing.onRight left ConeFamily.apply compatible u Cone.apex) (ConeFamily.onApex u);
+\definition onCylinder: \forall (u, t: I.Carrier)(x: A) -> apply (TotalCylinder.at u (at t x)) = filling (algebraic_topology.Cylinder[A := Cylinder.Carrier].at u (Cylinder.at t x)) :=
+  \fun (u, t: I.Carrier)(x: A) => trans!{D} _ _ _ (Gluing.onRight left ConeFamily.apply compatible u (Cone.at t x)) (ConeFamily.onCylinder u t x);
+\definition continuous: topology.Continuity[A := TotalCylinder.Carrier, B := D].Continuous (TotalCylinder.topology topology) range apply :=
+  Gluing.continuous I.compact I.hausdorff left ConeFamily.apply compatible
+    (topology.Composition[A := OriginalCylinder.Carrier, B := B, C := D].composeContinuous (OriginalCylinder.topology target) target range OriginalCylinder.point original (OriginalCylinder.pointContinuous target) originalContinuous) ConeFamily.continuous;

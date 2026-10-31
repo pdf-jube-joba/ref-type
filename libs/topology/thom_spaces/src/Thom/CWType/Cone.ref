@@ -1,0 +1,30 @@
+\import \parent.Point[] \as Vertex;
+\import algebraic_topology.Interval[] \as I;
+\import algebraic_topology.Cylinder[A := A] \as Cylinder;
+\definition constant: A -> Vertex.Carrier := \fun (x: A) => Vertex.point;
+\definition constantContinuous: topology.Continuity[A := A, B := Vertex.Carrier].Continuous source Vertex.topology constant := topology.Maps[A := A, B := Vertex.Carrier].constantContinuous source Vertex.topology Vertex.point;
+\import \parent.MappingCylinder[A := A, B := Vertex.Carrier, source := source, target := Vertex.topology, f := constant, continuous := constantContinuous] \as Model;
+\import topological_constructions.Pushout[A := Vertex.Carrier, B := Cylinder.Carrier, C := A].Of[u := constant, v := Cylinder.at I.start] \as Pushout;
+\definition Carrier: \Set := Model.Carrier;
+\definition topology: topology.Topology[Carrier := Carrier].Topology := Model.topology;
+\definition apex: Carrier := Model.base Vertex.point;
+\definition base: A -> Carrier := Model.top;
+\definition cylinder: Cylinder.Carrier -> Carrier := Model.cylinder;
+\definition at[t: I.Carrier][x: A]: Carrier := Model.cylinder (Cylinder.at t x);
+\definition zero: \forall (x: A) -> at I.start x = apex := \fun (x: A) => sym!{Carrier} _ _ (Model.bottom x);
+\definition one: \forall (x: A) -> at I.end x = base x := \fun (x: A) => \refl(base x);
+\definition baseContinuous: topology.Continuity[A := A, B := Carrier].Continuous source topology base := Model.topContinuous;
+\definition atContinuous: topology.Continuity[A := Cylinder.Carrier, B := Carrier].Continuous (Cylinder.topology source) topology Model.cylinder := Model.cylinderContinuous;
+\definition induction[P: Carrier -> \Prop]: P apex -> (\forall (t: I.Carrier)(x: A) -> P (at t x)) -> \forall (p: Carrier) -> P p :=
+  \fun (onApex: _)(onCylinder: _) => Pushout.induction P
+    (\fun (p: Vertex.Carrier) => \idelim Vertex.point = p \with q: Vertex.Carrier => P (Model.base q) \by { base: onApex, equality: sym!{Vertex.Carrier} _ _ (Vertex.unique p) })
+    (\induction (p: Cylinder.Carrier) \return P (Model.cylinder p) \with { | pair: onCylinder });
+\module Universal(B: \Set, target: topology.Topology[Carrier := B].Topology, point: B, family: Cylinder.Carrier -> B,
+  zero: \forall (x: A) -> family (Cylinder.at I.start x) = point,
+  continuous: topology.Continuity[A := Cylinder.Carrier, B := B].Continuous (Cylinder.topology source) target family);
+\module Families(B: \Set, target: topology.Topology[Carrier := B].Topology,
+  point: I.Carrier -> B, family: algebraic_topology.Cylinder[A := Cylinder.Carrier].Carrier -> B,
+  zero: \forall (t: I.Carrier)(x: A) -> family (algebraic_topology.Cylinder[A := Cylinder.Carrier].at t (Cylinder.at I.start x)) = point t,
+  pointContinuous: topology.Continuity[A := I.Carrier, B := B].Continuous I.topology target point,
+  familyContinuous: topology.Continuity[A := algebraic_topology.Cylinder[A := Cylinder.Carrier].Carrier, B := B].Continuous
+    (algebraic_topology.Cylinder[A := Cylinder.Carrier].topology (Cylinder.topology source)) target family);

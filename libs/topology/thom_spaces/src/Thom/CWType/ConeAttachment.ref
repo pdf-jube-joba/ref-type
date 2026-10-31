@@ -1,0 +1,45 @@
+\import algebraic_topology.Interval[] \as I;
+\import algebraic_topology.Cylinder[A := A] \as Cylinder;
+\import \parent.Cone[A := A, source := source] \as Cone;
+\import topological_constructions.Pushout[A := B, B := Cone.Carrier, C := A].Of[u := f, v := Cone.base] \as Pushout;
+\definition Carrier: \Set := Pushout.Carrier;
+\definition topology: topology.Topology[Carrier := Carrier].Topology := Pushout.topology target Cone.topology;
+\definition inclusion: B -> Carrier := Pushout.inl;
+\definition cone: Cone.Carrier -> Carrier := Pushout.inr;
+\definition apex: Carrier := cone Cone.apex;
+\definition at[t: I.Carrier][x: A]: Carrier := cone (Cone.at t x);
+\definition attached: \forall (x: A) -> inclusion (f x) = at I.end x := Pushout.glued;
+\definition zero: \forall (x: A) -> at I.start x = apex := \fun (x: A) => congr!{Cone.Carrier Carrier} cone _ _ (Cone.zero x);
+\definition inclusionContinuous: topology.Continuity[A := B, B := Carrier].Continuous target topology inclusion := Pushout.inlContinuous target Cone.topology;
+\definition coneContinuous: topology.Continuity[A := Cone.Carrier, B := Carrier].Continuous Cone.topology topology cone := Pushout.inrContinuous target Cone.topology;
+\definition family[p: Cylinder.Carrier]: Carrier := cone (Cone.cylinder p);
+\definition familyContinuous: topology.Continuity[A := Cylinder.Carrier, B := Carrier].Continuous (Cylinder.topology source) topology family :=
+  topology.Composition[A := Cylinder.Carrier, B := Cone.Carrier, C := Carrier].composeContinuous (Cylinder.topology source) Cone.topology topology Cone.cylinder cone Cone.atContinuous coneContinuous;
+\import algebraic_topology.Homotopy[A := A, B := Carrier] \as Homotopies;
+\definition null: Homotopies.Homotopy[source, topology, (\fun (x: A) => apex), (\fun (x: A) => inclusion (f x))] :=
+  \into[Homotopies.Family](family, Homotopies.Homotopy[source, topology, (\fun (x: A) => apex), (\fun (x: A) => inclusion (f x))]) \by {
+    Homotopies.Laws[source, topology, (\fun (x: A) => apex), (\fun (x: A) => inclusion (f x)), family] {
+      continuous := familyContinuous, start := zero, end := \fun (x: A) => sym!{Carrier} _ _ (attached x)
+    }
+  };
+\definition induction[P: Carrier -> \Prop]: (\forall (y: B) -> P (inclusion y)) -> P apex -> (\forall (t: I.Carrier)(x: A) -> P (at t x)) -> \forall (p: Carrier) -> P p :=
+  \fun (onOriginal: _)(onApex: _)(onCone: _) => Pushout.induction P onOriginal (Cone.induction (\fun (c: Cone.Carrier) => P (cone c)) onApex onCone);
+\module Universal(D: \Set, range: topology.Topology[Carrier := D].Topology, original: B -> D, point: D,
+  homotopy: algebraic_topology.Homotopy[A := A, B := D].Homotopy[source, range, (\fun (x: A) => point), (\fun (x: A) => original (f x))],
+  originalContinuous: topology.Continuity[A := B, B := D].Continuous target range original);
+\module Families(D: \Set, range: topology.Topology[Carrier := D].Topology, original: B -> D, point: D,
+  filling: algebraic_topology.Cylinder[A := Cylinder.Carrier].Carrier -> D,
+  zero: \forall (u: I.Carrier)(x: A) -> filling (algebraic_topology.Cylinder[A := Cylinder.Carrier].at u (Cylinder.at I.start x)) = point,
+  one: \forall (u: I.Carrier)(x: A) -> filling (algebraic_topology.Cylinder[A := Cylinder.Carrier].at u (Cylinder.at I.end x)) = original (f x),
+  fillingContinuous: topology.Continuity[A := algebraic_topology.Cylinder[A := Cylinder.Carrier].Carrier, B := D].Continuous
+    (algebraic_topology.Cylinder[A := Cylinder.Carrier].topology (Cylinder.topology source)) range filling,
+  originalContinuous: topology.Continuity[A := B, B := D].Continuous target range original);
+\module Homotopic(g: A -> B, regular: topology.Continuity[A := A, B := B].Continuous source target g,
+  h: algebraic_topology.Homotopy[A := A, B := B].Homotopy[source, target, f, g]);
+\module NullFilling(map: Carrier -> Carrier, original: \forall (y: B) -> map (inclusion y) = inclusion y,
+  mapApex: map apex = apex,
+  path: Homotopies.Homotopy[source, topology, (\fun (x: A) => apex), (\fun (x: A) => inclusion (f x))],
+  mapCylinder: \forall (t: I.Carrier)(x: A) -> map (at t x) = path (Cylinder.at t x),
+  filling: algebraic_topology.Homotopy[A := Cylinder.Carrier, B := Carrier].Homotopy[Cylinder.topology source, topology, path, null],
+  zero: \forall (u: I.Carrier)(x: A) -> filling (algebraic_topology.Cylinder[A := Cylinder.Carrier].at u (Cylinder.at I.start x)) = apex,
+  one: \forall (u: I.Carrier)(x: A) -> filling (algebraic_topology.Cylinder[A := Cylinder.Carrier].at u (Cylinder.at I.end x)) = inclusion (f x));

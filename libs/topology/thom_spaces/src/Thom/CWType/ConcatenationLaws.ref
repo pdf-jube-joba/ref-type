@@ -1,0 +1,25 @@
+\import algebraic_topology.Interval[] \as I;
+\import algebraic_topology.Cylinder[A := A] \as Cylinder;
+\import algebraic_topology.TimeSubdivision[A := A] \as Division;
+\import algebraic_topology.Homotopy[A := A, B := B].Concatenation[] \as Join;
+\import topological_constructions.Gluing[A := Cylinder.Carrier, B := B].Pasting[F := Division.LeftSet, G := Division.RightSet] \as Pasting;
+\definition concatenate: algebraic_topology.Homotopy[A := A, B := B].Homotopy[source, target, f, k] := Join.concatenate source target f g k h j;
+\definition onLeft: \forall (p: Division.Left) -> concatenate p = h (Division.leftMap p) := Pasting.onLeft
+  (\fun (p: Division.Left) => h (Division.leftMap p)) (\fun (p: Division.Right) => j (Division.rightMap p)) Division.covered (Join.compatible source target f g k h j);
+\definition onRight: \forall (p: Division.Right) -> concatenate p = j (Division.rightMap p) := Pasting.onRight
+  (\fun (p: Division.Left) => h (Division.leftMap p)) (\fun (p: Division.Right) => j (Division.rightMap p)) Division.covered (Join.compatible source target f g k h j);
+\definition equality[L: Cylinder.Carrier -> B]:
+  (\forall (p: Division.Left) -> L p = h (Division.leftMap p)) ->
+  (\forall (p: Division.Right) -> L p = j (Division.rightMap p)) -> \forall (p: Cylinder.Carrier) -> L p = concatenate p :=
+  \fun (left: _)(right: _)(p: Cylinder.Carrier) => either!{{Division.covered p} {L p = concatenate p}
+    {\fun (member: _) => trans!{B} _ _ _ (left (\into[Cylinder.Carrier](p, Division.LeftSet) \by { member }))
+      (sym!{B} _ _ (onLeft (\into[Cylinder.Carrier](p, Division.LeftSet) \by { member })))}
+    {\fun (member: _) => trans!{B} _ _ _ (right (\into[Cylinder.Carrier](p, Division.RightSet) \by { member }))
+      (sym!{B} _ _ (onRight (\into[Cylinder.Carrier](p, Division.RightSet) \by { member })))}
+  };
+\module Compare(C, D: \Set, domain: topology.Topology[Carrier := C].Topology, range: topology.Topology[Carrier := D].Topology,
+  before: C -> A, after: C -> B -> D, a, b, c: C -> D,
+  first: algebraic_topology.Homotopy[A := C, B := D].Homotopy[domain, range, a, b],
+  second: algebraic_topology.Homotopy[A := C, B := D].Homotopy[domain, range, b, c],
+  firstAgrees: \forall (t: I.Carrier)(x: C) -> first (algebraic_topology.Cylinder[A := C].at t x) = after x (h (Cylinder.at t (before x))),
+  secondAgrees: \forall (t: I.Carrier)(x: C) -> second (algebraic_topology.Cylinder[A := C].at t x) = after x (j (Cylinder.at t (before x))));

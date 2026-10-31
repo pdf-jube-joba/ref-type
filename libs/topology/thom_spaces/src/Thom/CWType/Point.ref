@@ -1,0 +1,53 @@
+\inductive Carrier: \Set := | point: Carrier;
+\import topology.Topology[Carrier := Carrier] \as Space;
+\import real.Analysis[] \as R;
+\definition point: Carrier := Carrier::point;
+\definition topology: Space.Topology := Space.Discrete;
+\definition unique: \forall (x: Carrier) -> x = point := \induction (x: Carrier) \return x = point \with { | point: \refl(point) };
+\definition hausdorff: Space.IsT2 topology := \fun (x, y: Carrier)(different: _) => Logic.falseElim _ (different (trans!{Carrier} _ _ _ (unique x) (sym!{Carrier} _ _ (unique y))));
+\definition compact: Space.IsCompact topology := \idelim Space.Singleton point = Space.Whole \with S: \Pow Carrier => Space.IsCompactIn topology S \by {
+  base: Space.Compactness[].singletonCompact topology point,
+  equality: \axiom:setext(Space.Singleton point, Space.Whole, \fun (x: Carrier)(same: _) => \refl(x), \fun (x: Carrier)(member: _) => unique x)
+};
+\import algebraic_topology.Euclidean[].Dimension[n := N.Nat^::zero] \as Disk;
+\import algebraic_topology.CW[A := Carrier] \as Cells;
+\import std.Data[].List[] \as Lists;
+\definition cell: Cells.CellData := Cells.CellData { dimension := N.Nat^::zero, characteristic := \fun (p: Disk.Disk) => point };
+\definition cells: Cells.Cells := Lists.List[Cells.CellData]::cons cell (Lists.List[Cells.CellData]::nil);
+\definition memberEq: \forall (c: Cells.CellData) -> Cells.CellMember cells c -> c = cell := \fun (c: Cells.CellData)(member: _) => either!{member {c = cell} {\fun (same: _) => same} {Logic.falseElim _}};
+\definition contains: \forall (x: Carrier) -> \In[Carrier] (Cells.InteriorImage cell) x :=
+  \fun (x: Carrier) => Logic.existsIntro[Disk.Disk, { p: Disk.Disk \where Logic.And[dedekind_reals.DedekindReal[].Lt (Disk.normSquared p) R.one, cell.characteristic p = x] }] Disk.Contraction[].origin
+    (Logic.And[_, _]::# R.Estimates[].Product[].onePositive (sym!{Carrier} _ _ (unique x)));
+\definition continuous: topology.Continuity[A := Disk.Disk, B := Carrier].Continuous Disk.diskTopology topology cell.characteristic := topology.Maps[A := Disk.Disk, B := Carrier].constantContinuous Disk.diskTopology topology point;
+\definition closed: Space.IsClosedIn topology (Cells.ClosedImage cell) := \idelim Space.Singleton point = Cells.ClosedImage cell \with S: \Pow Carrier => Space.IsClosedIn topology S \by {
+  base: Space.Compactness[].hausdorffT1 topology hausdorff point,
+  equality: \axiom:setext(Space.Singleton point, Cells.ClosedImage cell,
+    \fun (x: Carrier)(same: _) => Logic.existsIntro[Disk.Disk, { p: Disk.Disk \where cell.characteristic p = x }] Disk.Contraction[].origin (sym!{Carrier} _ _ (unique x)),
+    \fun (x: Carrier)(inside: _) => unique x)
+};
+\definition diskUnique: \forall (p, q: Disk.Disk) -> p = q := \fun (p, q: Disk.Disk) => \axiom:funext(p, q,
+  \fun (i: Fin.Fin N.Nat^::zero) => Logic.falseElim (p i = q i) (Fin.zeroImpossible i (Fin.bound N.Nat^::zero i)));
+\definition cellLaws: Cells.CellLaws[topology, cell] := Cells.CellLaws[topology, cell] {
+  continuous := continuous, closed := closed,
+  injectiveInterior := \fun (p, q: Disk.Disk)(first: _)(second: _)(same: _) => diskUnique p q,
+  inverseContinuous := \fun (U: \Pow Disk.Disk)(open: _) => Logic.existsIntro[\Pow Carrier,
+    { V: \Pow Carrier \where Logic.And[Space.IsOpenIn topology V, Cells.InteriorPart cell U = Space.Intersection (Cells.InteriorImage cell) V] }]
+      (Cells.InteriorPart cell U) (Logic.And[_, _]::# (Space.discreteOpen (Cells.InteriorPart cell U))
+        (\axiom:setext(Cells.InteriorPart cell U, Space.Intersection (Cells.InteriorImage cell) (Cells.InteriorPart cell U),
+          \fun (x: Carrier)(inside: _) => Logic.And[_, _]::# (contains x) inside,
+          \fun (x: Carrier)(inside: Logic.And[\In[Carrier] (Cells.InteriorImage cell) x, \In[Carrier] (Cells.InteriorPart cell U) x]) => inside.right)))
+};
+\definition complex: Cells.FiniteComplex[topology] := Cells.FiniteComplex[topology] {
+  cells := cells, hausdorff := hausdorff,
+  cellLaws := \fun (c: Cells.CellData)(member: _) => \idelim cell = c \with d: Cells.CellData => Cells.CellLaws[topology, d] \by { base: cellLaws, equality: sym!{Cells.CellData} _ _ (memberEq c member) },
+  covers := \fun (x: Carrier) => \exact(Cells.CoverWitness[cells, x] { cell := cell, member := Logic.Or[_, _]::left (\refl(cell)), contains := contains x }, Cells.CoverWitness[cells, x]),
+  disjoint := \fun (c, d: Cells.CellData)(first: _)(second: _)(x: Carrier)(left: _)(right: _) => trans!{Cells.CellData} _ _ _ (memberEq c first) (sym!{Cells.CellData} _ _ (memberEq d second)),
+  boundary := \fun (c: Cells.CellData)(member: _) => \idelim cell = c \with d: Cells.CellData => \forall (p: algebraic_topology.Euclidean[].Disk d.dimension) ->
+    \In[algebraic_topology.Euclidean[].coordinateCarrier d.dimension] (algebraic_topology.Euclidean[].boundaryAt d.dimension) p -> \exists Cells.BoundaryWitness[cells, d, d.characteristic p] \by {
+      base: \fun (p: Disk.Disk)(boundary: R.zero = R.one) => Logic.falseElim _ (dedekind_reals.DedekindReal[].Arithmetic[].Prop[].zeroNeOne boundary), equality: sym!{Cells.CellData} _ _ (memberEq c member)
+    },
+  weakTopology := \fun (U: \Pow Carrier) => Logic.PropEquiv[_, _] {
+    ltr := \fun (open: _)(c: Cells.CellData)(member: _) => (\idelim cell = c \with d: Cells.CellData => Cells.CellLaws[topology, d] \by { base: cellLaws, equality: sym!{Cells.CellData} _ _ (memberEq c member) }).continuous U open,
+    rtl := \fun (local: _) => Space.discreteOpen U
+  }
+};
