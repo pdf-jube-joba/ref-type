@@ -1,7 +1,7 @@
 # 有限指数の Lp 空間
 
 `lp_spaces.On[A, mu]` は任意の測度空間で、既存の `functional_analysis.Measure.Lp.Finite` の商を使う。
-有限指数 \(1\le p<\infty\) の実線形・ノルム構造、Hölder・Minkowski、完備性、実 \(L^2\) の Hilbert 構造と可積分単関数の稠密性を提供する。
+有限指数 \(1\le p<\infty\) の実線形・ノルム構造、Hölder・Minkowski、完備性、実・複素 \(L^2\) の Hilbert 構造と可積分単関数の稠密性を提供する。
 これらに測度の有限性・σ 有限性・完備性は要求しない。
 
 | API | 内容 |
@@ -16,6 +16,8 @@
 | `On.Norm[p].Dominated[d].theorem` | 共通の Lp 支配関数の下でのノルム収束 |
 | `On.Completion[p].complete` | 任意の Cauchy 列に対する商内の極限の存在 |
 | `On.Hilbert.inner` / `hilbert` | 積の積分による実 L2 内積と Hilbert 構造 |
+| `On.Complex.Geometry.norm` / `On.Complex.Inner.inner` / `On.Complex.Complete.hilbert` | 任意の測度上の複素 L2 のノルム・内積・完備性 |
+| `On.Complex.Characterization.equivalence` | 実部・虚部の L2 条件と、複素可測かつ絶対値の L2 条件の同値 |
 | `On.SimpleApproximation[p].dense` | L1 可積分な実単関数による Lp 近似 |
 | `Examples[A, mu, p]` | 一般の代表元・商・指数を使う検査される利用例 |
 
@@ -39,7 +41,10 @@ a.e. 極限を例外零集合上で零にした可測代表を構成するため
 \definition complete: Normed.IsBanach N.norm := L.Completion[p := p].complete;
 ```
 
-A05 の後続作業は、複素 L2、コンパクト台付き連続関数の稠密性、Euclid 空間での平行移動連続性、近似単位・平滑化とコンパクト台付き滑らかな関数の稠密性である。
+複素 L2 の内積は第二変数について線形で、点ごとの `conj(f) * g` の積分である。
+実部・虚部の Cauchy 列の実 L2 極限から複素 L2 の極限を構成する。
+
+A05 の後続作業は、コンパクト台付き連続関数の稠密性、Euclid 空間での平行移動連続性、近似単位・平滑化とコンパクト台付き滑らかな関数の稠密性である。
 
 通常検査はリポジトリのルートから実行する。
 

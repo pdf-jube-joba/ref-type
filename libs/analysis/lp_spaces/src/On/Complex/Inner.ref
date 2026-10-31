@@ -1,0 +1,108 @@
+\import \parent.Geometry[] \as Geometry;
+\import \parent.Vector[] \as Vector;
+\import \root.On[A := A, mu := mu].Holder[exponents := RealHilbert.exponents] \as H;
+\definition integralFunction[f: I.Representatives]: A -> Real.Real := f;
+\structure Components: \Set := {
+  function: Function, real: I.Representatives, imaginary: I.Representatives,
+  realLaw: \forall (x: A) -> C.re (function x) = real x,
+  imaginaryLaw: \forall (x: A) -> C.im (function x) = imaginary x,
+};
+\definition fromComponents[data: Components]: CI.Representatives := \into[Function](data.function, CI.Representatives) \by { Logic.And[_, _]::#
+  (\idelim integralFunction data.real = (\fun (x: A) => C.re (data.function x)) \with f: (A -> Real.Real) => I.Integrable f \by {
+    base: (I.integralLaw data.real).integrable,
+    equality: \axiom:funext(integralFunction data.real, (\fun (x: A) => C.re (data.function x)), \fun (x: A) => sym!{Real.Real} _ _ (data.realLaw x)) })
+  (\idelim integralFunction data.imaginary = (\fun (x: A) => C.im (data.function x)) \with f: (A -> Real.Real) => I.Integrable f \by {
+    base: (I.integralLaw data.imaginary).integrable,
+    equality: \axiom:funext(integralFunction data.imaginary, (\fun (x: A) => C.im (data.function x)), \fun (x: A) => sym!{Real.Real} _ _ (data.imaginaryLaw x)) }) };
+\definition pointwise[f, g: CI.Representatives]: (\forall (x: A) -> f x = g x) -> CI.integral f = CI.integral g := \fun (same: _) => CI.integralAlmost f g
+  (AE.nullSubset _ Sets.Empty (\fun (x: A)(different: _) => different (same x)) AE.nullEmpty);
+\definition conjugate[f: CI.Representatives]: CI.Representatives := fromComponents (Components {
+  function := \fun (x: A) => D.conj (f x), real := CI.realPart f, imaginary := Negation.representative (CI.imaginaryPart f),
+  realLaw := \fun (x: A) => \refl(C.re (f x)), imaginaryLaw := \fun (x: A) => \refl(Real.neg (C.im (f x))),
+});
+\definition integralConjugate[f: CI.Representatives]: CI.integral (conjugate f) = D.conj (CI.integral f) := CL.ext _ _
+  (H.integralPointwise (CI.realPart (conjugate f)) (CI.realPart f) (\fun (x: A) => \refl(C.re (f x))))
+  (trans!{Real.Real} _ _ _ (H.integralPointwise (CI.imaginaryPart (conjugate f)) (Negation.representative (CI.imaginaryPart f)) (\fun (x: A) => \refl(Real.neg (C.im (f x)))))
+    (Negation.integralNeg (CI.imaginaryPart f)));
+\definition product[f, g: Representatives]: CI.Representatives := fromComponents (Components {
+  function := \fun (x: A) => D.mul (D.conj (f x)) (g x),
+  real := Linear.addRepresentative (H.representative (realPart f) (realPart g)) (H.representative (imaginaryPart f) (imaginaryPart g)),
+  imaginary := Linear.addRepresentative (H.representative (realPart f) (imaginaryPart g)) (Negation.representative (H.representative (imaginaryPart f) (realPart g))),
+  realLaw := \fun (x: A) => trans!{Real.Real} _ _ _
+    (congr!{Real.Real Real.Real} (Real.sub (Real.mul (C.re (f x)) (C.re (g x)))) _ _ (Laws.fieldMulNegLeft (C.im (f x)) (C.im (g x)))) (Algebra.subNeg _ _),
+  imaginaryLaw := \fun (x: A) => congr!{Real.Real Real.Real} (Real.add (Real.mul (C.re (f x)) (C.im (g x)))) _ _ (Laws.fieldMulNegLeft (C.im (f x)) (C.re (g x))),
+});
+\definition representative[f, g: Representatives]: C.Complex := CI.integral (product f g);
+\definition productAlmost[f, f2, g, g2: Representatives]: Equivalent f f2 -> Equivalent g g2 -> CI.almostEqual (product f g) (product f2 g2) :=
+  \fun (ff: _)(gg: _) => AE.nullSubset _
+    (M.Sigma[].pairUnion ({ x: A \where Logic.Not (f x = f2 x) }) ({ x: A \where Logic.Not (g x = g2 x) }))
+    (\fun (x: A)(different: _) => Logic.orElim _ _ _ (Classical.excludedMiddle (f x = f2 x))
+      (\fun (same: _) => Logic.Or[Logic.Not (f x = f2 x), Logic.Not (g x = g2 x)]::right (\fun (other: g x = g2 x) => different (congr!{C.Complex C.Complex C.Complex} (\fun (a, b: C.Complex) => D.mul (D.conj a) b) _ _ _ _ same other)))
+      (\fun (differentF: _) => Logic.Or[Logic.Not (f x = f2 x), Logic.Not (g x = g2 x)]::left differentF))
+    (AE.nullUnion _ _ (almost f f2 ff) (almost g g2 gg));
+\import Q.Binary[C := Representatives, B := C.Complex, OtherEquivalent := Equivalent] \as Binary;
+\definition respects: Binary.Respects representative := \fun (f, f2, g, g2: Representatives)(ff: _)(gg: _) => CI.integralAlmost _ _ (productAlmost _ _ _ _ ff gg);
+\definition value: Space -> Space -> C.Complex := Binary.value equivalence equivalence representative respects;
+\definition onClass[f, g: Representatives]: value (ofFunction f) (ofFunction g) = representative f g := Binary.onClass equivalence equivalence representative respects f g;
+\definition symmetric: \forall (x, y: Space) -> value x y = D.conj (value y x) := Q.induction2 (\fun (x, y: Space) => value x y = D.conj (value y x))
+  (\fun (f, g: Representatives) => eq_reason_in!{C.Complex _
+    "=" _ "by" { onClass f g }
+    "=" _ "by" { pointwise (product f g) (conjugate (product g f)) (\fun (x: A) => sym!{C.Complex} _ _ (eq_reason_in!{C.Complex _
+      "=" _ "by" { CL.conjMul (D.conj (g x)) (f x) }
+      "=" _ "by" { congr!{C.Complex C.Complex} (\fun (z: C.Complex) => D.mul z (D.conj (f x))) _ _ (CL.conjConj (g x)) }
+      "=" _ "by" { CL.mulComm (g x) (D.conj (f x)) }
+    })) }
+    "=" _ "by" { integralConjugate (product g f) }
+    "=" _ "by" { congr!{C.Complex C.Complex} D.conj _ _ (sym!{C.Complex} _ _ (onClass g f)) }
+  });
+\definition zeroIntegral: CI.Representatives := fromComponents (Components { function := \fun (x: A) => D.zero, real := Zero.representative, imaginary := Zero.representative, realLaw := \fun (x: A) => \refl(Real.zero), imaginaryLaw := \fun (x: A) => \refl(Real.zero) });
+\definition zeroRight: \forall (x: Space) -> value x zero = D.zero := Q.induction (\fun (x: Space) => value x zero = D.zero)
+  (\fun (f: Representatives) => eq_reason_in!{C.Complex _
+    "=" _ "by" { onClass f zeroRepresentative }
+    "=" _ "by" { pointwise (product f zeroRepresentative) zeroIntegral (\fun (x: A) => CL.mulZeroRight (D.conj (f x))) }
+    "=" _ "by" { congr!{Real.Real Real.Real C.Complex} C.make _ _ _ _
+      (trans!{Real.Real} _ _ _ (H.integralPointwise (CI.realPart zeroIntegral) Zero.representative (\fun (x: A) => \refl(Real.zero))) Zero.integralZero)
+      (trans!{Real.Real} _ _ _ (H.integralPointwise (CI.imaginaryPart zeroIntegral) Zero.representative (\fun (x: A) => \refl(Real.zero))) Zero.integralZero) }
+  });
+\definition addRight: \forall (x, y, z: Space) -> value x (add y z) = D.add (value x y) (value x z) := Q.induction
+  (\fun (x: Space) => \forall (y, z: Space) -> value x (add y z) = D.add (value x y) (value x z))
+  (\fun (f: Representatives) => Q.induction2 (\fun (y, z: Space) => value (ofFunction f) (add y z) = D.add (value (ofFunction f) y) (value (ofFunction f) z))
+    (\fun (g, h: Representatives) => eq_reason_in!{C.Complex _
+      "=" _ "by" { congr!{Space C.Complex} (value (ofFunction f)) _ _ (addClass g h) }
+      "=" _ "by" { onClass f (addRepresentative g h) }
+      "=" _ "by" { pointwise (product f (addRepresentative g h)) (CI.addRepresentative (product f g) (product f h)) (\fun (x: A) => CL.mulAddLeft (D.conj (f x)) (g x) (h x)) }
+      "=" _ "by" { CI.integralAdd (product f g) (product f h) }
+      "=" _ "by" { congr!{C.Complex C.Complex C.Complex} D.add _ _ _ _ (sym!{C.Complex} _ _ (onClass f g)) (sym!{C.Complex} _ _ (onClass f h)) }
+    }));
+\definition scaleRight: \forall (c: C.Complex)(x, y: Space) -> value x (scale c y) = D.mul c (value x y) := \fun (c: C.Complex) => Q.induction2
+  (\fun (x, y: Space) => value x (scale c y) = D.mul c (value x y))
+  (\fun (f, g: Representatives) => eq_reason_in!{C.Complex _
+    "=" _ "by" { congr!{Space C.Complex} (value (ofFunction f)) _ _ (scaleClass c g) }
+    "=" _ "by" { onClass f (scaleRepresentative c g) }
+    "=" _ "by" { pointwise (product f (scaleRepresentative c g)) (CI.complexScalarRepresentative c (product f g)) (\fun (x: A) => eq_reason_in!{C.Complex _
+      "=" _ "by" { sym!{C.Complex} _ _ (CL.mulAssoc (D.conj (f x)) c (g x)) }
+      "=" _ "by" { congr!{C.Complex C.Complex} (\fun (z: C.Complex) => D.mul z (g x)) _ _ (CL.mulComm (D.conj (f x)) c) }
+      "=" _ "by" { CL.mulAssoc c (D.conj (f x)) (g x) }
+    }) }
+    "=" _ "by" { CI.integralComplexScalar c (product f g) }
+    "=" _ "by" { congr!{C.Complex C.Complex} (D.mul c) _ _ (sym!{C.Complex} _ _ (onClass f g)) }
+  });
+\definition normSquared: \forall (x: Space) -> C.re (value x x) = Real.mul (normValue x) (normValue x) := Q.induction
+  (\fun (x: Space) => C.re (value x x) = Real.mul (normValue x) (normValue x))
+  (\fun (f: Representatives) => eq_reason_in!{Real.Real _
+    "=" _ "by" { congr!{C.Complex Real.Real} C.re _ _ (onClass f f) }
+    "=" _ "by" { H.integralPointwise (CI.realPart (product f f)) (F.momentRepresentative (modulusRepresentative f)) (\fun (x: A) => trans!{Real.Real} _ _ _
+      (congr!{C.Complex Real.Real} C.re _ _ (CL.conjMulSelf (f x))) (sym!{Real.Real} _ _ (modulusMoment f x))) }
+    "=" _ "by" { sym!{Real.Real} _ _ (F.normPower (modulusRepresentative f)) }
+    "=" _ "by" { PA.square (\into[Real.Real](normRepresentative f, Powers.Nonnegative) \by { F.normNonnegative (modulusRepresentative f) }) }
+    "=" _ "by" { congr!{Real.Real Real.Real Real.Real} Real.mul _ _ _ _ (sym!{Real.Real} _ _ (normOfFunction f)) (sym!{Real.Real} _ _ (normOfFunction f)) }
+  });
+\import linear_algebra.Complex[].InnerProduct[V := Space, space := Vector.space] \as Inner;
+\definition innerData: Inner.InnerProductData := Inner.InnerProductData { inner := value };
+\definition innerLaws: Inner.InnerProductLaws[innerData] := Inner.InnerProductLaws[innerData] {
+  conjugateSymmetric := symmetric, zeroRight := zeroRight, addRight := addRight, scaleRight := scaleRight,
+  nonnegative := \fun (x: Space) => R.leReplaceRight _ _ _ (sym!{Real.Real} _ _ (normSquared x)) (Algebra.squareNonnegative (normValue x)),
+  definite := \fun (x: Space)(zero: _) => Geometry.definite x (Algebra.squareZero (normValue x)
+    (trans!{Real.Real} _ _ _ (sym!{Real.Real} _ _ (normSquared x)) (congr!{C.Complex Real.Real} C.re _ _ zero))),
+};
+\definition inner: Inner.InnerProduct := \into[Inner.InnerProductData](innerData, Inner.InnerProduct) \by { innerLaws };

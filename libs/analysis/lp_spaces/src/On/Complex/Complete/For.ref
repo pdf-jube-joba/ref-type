@@ -1,0 +1,22 @@
+\import N.Order[].Prop[] \as NatOrder;
+\definition representative: Representatives := join reRepresentative imRepresentative;
+\definition target: Space := ofFunction representative;
+\definition realTarget: realClass target = re := trans!{F.Space} _ _ _ (realOnClass representative) (trans!{F.Space} _ _ _ (F.classPointwise (realPart representative) reRepresentative (\fun (x: A) => \refl(reRepresentative x))) (sym!{{\Pow F.Representatives}} _ _ (RQ.represents re reRepresentative)));
+\definition imaginaryTarget: imaginaryClass target = im := trans!{F.Space} _ _ _ (imaginaryOnClass representative) (trans!{F.Space} _ _ _ (F.classPointwise (imaginaryPart representative) imRepresentative (\fun (x: A) => \refl(imRepresentative x))) (sym!{{\Pow F.Representatives}} _ _ (RQ.represents im imRepresentative)));
+\definition converges: Metric.Converges Geometry.metric s target := \fun (epsilon: Real.Real)(positive: _) => \block {
+  \let h: Real.Real := Real.mul Real.half epsilon \then
+  \let hp: R.Lt Real.zero h := E.halfOfPositive epsilon positive \then
+  \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where RealMetric.LimitControl Norm.metric (\fun (k: N.Nat^) => realClass (s k)) re h k }) \by reLimit h hp \then
+  \takefrom l: \Cast[N.Nat^] ({ l: N.Nat^ \where RealMetric.LimitControl Norm.metric (\fun (k: N.Nat^) => imaginaryClass (s k)) im h l }) \by imLimit h hp \then
+  \return Logic.existsIntro[N.Nat^, { m: N.Nat^ \where Metric.LimitControl Geometry.metric s target epsilon m }] (NatOrder.commonBound k l)
+    (\fun (n: N.Nat^)(later: _) => R.leLtTrans _ _ _ (distanceComponents (s n) target)
+      (R.ltReplaceRight _ (Real.add h h) epsilon (E.halfTwice epsilon)
+        (E.addLt _ _ _ _
+          (R.ltReplaceLeft _ _ _ (congr!{F.Space Real.Real} (Norm.metric.distance (realClass (s n))) _ _ (sym!{F.Space} _ _ realTarget))
+            ((\bysub(N.Nat^, { k: N.Nat^ \where RealMetric.LimitControl Norm.metric (\fun (k: N.Nat^) => realClass (s k)) re h k }, k)) n
+              (Nat.leTrans _ _ _ (NatOrder.leftLeCommonBound k l) later)))
+          (R.ltReplaceLeft _ _ _ (congr!{F.Space Real.Real} (Norm.metric.distance (imaginaryClass (s n))) _ _ (sym!{F.Space} _ _ imaginaryTarget))
+            ((\bysub(N.Nat^, { l: N.Nat^ \where RealMetric.LimitControl Norm.metric (\fun (k: N.Nat^) => imaginaryClass (s k)) im h l }, l)) n
+              (Nat.leTrans _ _ _ (NatOrder.rightLeCommonBound k l) later))))))
+};
+\definition exists: \exists ( x: Space \where Metric.Converges Geometry.metric s x ) := Logic.existsIntro[Space, { x: Space \where Metric.Converges Geometry.metric s x }] target converges;
