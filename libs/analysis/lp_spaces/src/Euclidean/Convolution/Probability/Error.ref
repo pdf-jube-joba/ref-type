@@ -1,0 +1,21 @@
+\definition representative: I.Representatives := Linear.addRepresentative (standard f rho x) (Negation.representative (constant (f x)));
+\definition values[y: Point]: representative y = Real.mul (Real.sub (f (E.subPoint x y)) (f x)) (rho.function y) := sym!{Real.Real} _ _ (Algebra.subMul (f (E.subPoint x y)) (f x) (rho.function y));
+\definition integral: I.integral representative = Real.sub (function f rho x) (f x) := trans!{Real.Real} _ _ _
+  (Linear.integralAdd (standard f rho x) (Negation.representative (constant (f x))))
+  (congr!{Real.Real Real.Real Real.Real} Real.add _ _ _ _ (standardIntegral f rho x)
+    (trans!{Real.Real} _ _ _ (Negation.integralNeg (constant (f x))) (congr!{Real.Real Real.Real} Real.neg _ _ (constantIntegral (f x)))));
+\definition estimate[epsilon: Nonnegative]: (\forall (y: Point) -> Logic.Not (rho.function y = Real.zero) -> R.Le (Real.distance (f (E.subPoint x y)) (f x)) epsilon) ->
+  R.Le (Real.distance (function f rho x) (f x)) epsilon := \fun (control: _) => R.leReplace _ _ _ _
+    (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} Product.abs _ _ integral) (Powers.Cuts[].absDifference (function f rho x) (f x))) (constantIntegral epsilon)
+    (R.leTrans _ _ _ (Absolute.integralAbsBound representative) (Absolute.integralMono (Absolute.representative representative) (constant epsilon)
+      (\fun (y: Point) => Logic.orElim _ _ _ (Classical.excludedMiddle (rho.function y = Real.zero))
+        (\fun (zero: _) => R.leReplace _ _ _ _
+          (sym!{Real.Real} _ _ (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} Product.abs _ _ (trans!{Real.Real} _ _ _ (values y)
+            (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (Real.mul (Real.sub (f (E.subPoint x y)) (f x))) _ _ zero) (Laws.fieldMulZeroRight _)))) (Distance.distanceSelf Real.zero)))
+          (sym!{Real.Real} _ _ (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (Real.mul epsilon) _ _ zero) (Laws.fieldMulZeroRight epsilon))) (R.leRefl Real.zero))
+        (\fun (nonzero: _) => R.leReplaceLeft _ _ _
+          (sym!{Real.Real} _ _ (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} Product.abs _ _ (values y))
+            (trans!{Real.Real} _ _ _ (Product.absProduct (Real.sub (f (E.subPoint x y)) (f x)) (rho.function y))
+              (congr!{Real.Real Real.Real Real.Real} Real.mul _ _ _ _ (Powers.Cuts[].absDifference (f (E.subPoint x y)) (f x)) (Product.absOfNonnegative (rho.function y) (law.nonnegative y))))))
+          (R.leReplace _ _ _ _ (Laws.fieldMulComm (rho.function y) (Real.distance (f (E.subPoint x y)) (f x))) (Laws.fieldMulComm (rho.function y) epsilon)
+            (Estimates.mulMonotone (rho.function y) _ _ (law.nonnegative y) (control y nonzero)))))));

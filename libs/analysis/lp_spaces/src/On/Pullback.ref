@@ -1,0 +1,54 @@
+\import \parent.Finite[p := p] \as F;
+\import \parent.Norm[p := p] \as Norm;
+\import \parent.Completion[p := p] \as Completion;
+\import \root.Powers[].Algebra[] \as PA;
+\import product_integration.MeasureMap[A := A, B := A, source := mu, target := mu].On[map := map] \as Map;
+\import topology.Topology[Carrier := A] \as Sets;
+\definition function[f: F.Representatives]: A -> Real.Real := \fun (x: A) => f (map.function x);
+\definition finite[f: F.Representatives]: I.Finite (F.moment (function f)) := I.finiteMono (F.moment (function f)) (Absolute.abs (F.moment (function f))) (F.momentNonnegative (function f))
+  (\fun (x: A) => R.leReplaceRight _ _ _ (sym!{Real.Real} _ _ (Product.absExpression (F.moment (function f) x))) (Distance.maxRight _ _))
+  (product_integration.MeasureMap[A := A, B := A, source := mu, target := mu].On[map := map].RealFunction[f := F.momentRepresentative f].integrable).right;
+\definition representative[f: F.Representatives]: F.Representatives := \into[A -> Real.Real](function f, F.Representatives) \by {
+  F.hasMoment (function f) (Map.measurable f (F.properties f).measurable) (finite f)
+};
+\definition integralMoment[f: F.Representatives]: F.integralMoment (representative f) = F.integralMoment f := trans!{Real.Real} _ _ _
+  (Null.integralAlmost (F.momentRepresentative (representative f))
+    (product_integration.MeasureMap[A := A, B := A, source := mu, target := mu].On[map := map].RealFunction[f := F.momentRepresentative f].representative)
+    (AE.nullSubset _ Sets.Empty (\fun (x: A)(different: _) => different (\refl(F.moment f (map.function x)))) AE.nullEmpty))
+  (product_integration.MeasureMap[A := A, B := A, source := mu, target := mu].On[map := map].RealFunction[f := F.momentRepresentative f].integral);
+\definition representativeNorm[f: F.Representatives]: F.normRepresentative (representative f) = F.normRepresentative f :=
+  congr!{Powers.Nonnegative Real.Real} (\fun (v: Powers.Nonnegative) => Powers.value v (PA.inverseExponent F.positiveExponent)) _ _ (integralMoment f);
+\definition nullPreimage[S: \Pow A]: M.Null mu S -> M.Null mu (Map.preimage S) := \fun (null: _) => \block {
+  \takefrom N: \Cast[\Pow A] ({ N: \Pow A \where M.NullCover[mu, S, N] }) \by null \then
+  \let cover: M.NullCover[mu, S, N] := \bysub(\Pow A, { N: \Pow A \where M.NullCover[mu, S, N] }, N) \then
+  \return Logic.existsIntro[\Pow A, { T: \Pow A \where M.NullCover[mu, Map.preimage S, T] }] (Map.preimage N)
+    (M.NullCover[mu, Map.preimage S, Map.preimage N] {
+      measurable := map.measurable N cover.measurable,
+      measure := trans!{M.Value} _ _ _ (map.value N cover.measurable) cover.measure,
+      included := \fun (x: A)(member: _) => cover.included (map.function x) member,
+    })
+};
+\import std.Set[].Quotient[A := F.Representatives, Equivalent := \fun (f, g: F.Representatives) => M.AlmostEqual mu f g] \as Q;
+\import Q.Maps[B := F.Space] \as Maps;
+\definition classRepresentative[f: F.Representatives]: F.Space := F.ofFunction (representative f);
+\definition respects: Maps.Respects classRepresentative := \fun (f, g: F.Representatives)(same: _) => Q.classOfEq F.equivalence (representative f) (representative g)
+  (nullPreimage ({ x: A \where Logic.Not (f x = g x) }) same);
+\definition value: F.Space -> F.Space := Maps.value F.equivalence classRepresentative respects;
+\definition onClass[f: F.Representatives]: value (F.ofFunction f) = F.ofFunction (representative f) := Maps.onClass F.equivalence classRepresentative respects f;
+\definition norm: \forall (x: F.Space) -> F.norm (value x) = F.norm x := Q.induction (\fun (x: F.Space) => F.norm (value x) = F.norm x)
+  (\fun (f: F.Representatives) => eq_reason_in!{Real.Real _
+    "=" _ "by" { congr!{F.Space Real.Real} F.norm _ _ (onClass f) }
+    "=" _ "by" { F.normOfFunction (representative f) }
+    "=" _ "by" { representativeNorm f }
+    "=" _ "by" { sym!{Real.Real} _ _ (F.normOfFunction f) }
+  });
+\definition distance: \forall (x, y: F.Space) -> Norm.metric.distance (value x) (value y) = Norm.metric.distance x y := Q.induction2
+  (\fun (x, y: F.Space) => Norm.metric.distance (value x) (value y) = Norm.metric.distance x y)
+  (\fun (f, g: F.Representatives) => eq_reason_in!{Real.Real _
+    "=" _ "by" { congr!{F.Space F.Space Real.Real} Norm.metric.distance _ _ _ _ (onClass f) (onClass g) }
+    "=" _ "by" { Completion.classDistance (representative f) (representative g) }
+    "=" _ "by" { F.normRespects (Completion.difference (representative f) (representative g)) (representative (Completion.difference f g))
+      (AE.nullSubset _ Sets.Empty (\fun (x: A)(different: _) => different (\refl(Real.sub (f (map.function x)) (g (map.function x))))) AE.nullEmpty) }
+    "=" _ "by" { representativeNorm (Completion.difference f g) }
+    "=" _ "by" { sym!{Real.Real} _ _ (Completion.classDistance f g) }
+  });

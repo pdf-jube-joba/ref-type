@@ -1,0 +1,30 @@
+\definition difference[t: Real.Real]: I.Representatives := Linear.addRepresentative (d.function t) (Negation.representative (d.function d.at));
+\definition slope[t: Real.Real]: I.Representatives := Scaling.scalarRepresentative (Laws.fieldInv (Real.sub t d.at)) (difference t);
+\definition value[t: Real.Real][x: A]: slope t x = Derivative.slope (\fun (s: Real.Real) => d.function s x) d.at t := Laws.fieldMulComm (Laws.fieldInv (Real.sub t d.at)) (Real.sub (d.function t x) (d.function d.at x));
+\definition integral[t: Real.Real]: I.integral (slope t) = Derivative.slope (\fun (s: Real.Real) => I.integral (d.function s)) d.at t := eq_reason_in!{Real.Real _
+  "=" _ "by" { Scaling.integralScalar (Laws.fieldInv (Real.sub t d.at)) (difference t) }
+  "=" _ "by" { congr!{Real.Real Real.Real} (Real.mul (Laws.fieldInv (Real.sub t d.at))) _ _ (Linear.integralAdd (d.function t) (Negation.representative (d.function d.at))) }
+  "=" _ "by" { congr!{Real.Real Real.Real} (\fun (r: Real.Real) => Real.mul (Laws.fieldInv (Real.sub t d.at)) (Real.add (I.integral (d.function t)) r)) _ _ (Negation.integralNeg (d.function d.at)) }
+  "=" _ "by" { Laws.fieldMulComm (Laws.fieldInv (Real.sub t d.at)) (Real.sub (I.integral (d.function t)) (I.integral (d.function d.at))) }
+};
+\definition pointwise[x: A][epsilon: Real.Real]: R.Lt Real.zero epsilon -> \exists ( delta: Real.Real \where Parameters.Control[(\fun (t: Real.Real) => slope t x), d.at, { t: Real.Real \where Logic.Not (t = d.at) }, d.derivative x, epsilon, delta] ) := \fun (positive: _) => \block {
+  \takefrom delta: \Cast[Real.Real] ({ delta: Real.Real \where Limit.Control[Derivative.slope (\fun (s: Real.Real) => d.function s x) d.at, d.at, d.derivative x, epsilon, delta] }) \by d.pointwise x epsilon positive \then
+  \let control: Limit.Control[Derivative.slope (\fun (s: Real.Real) => d.function s x) d.at, d.at, d.derivative x, epsilon, delta] := \bysub(Real.Real,
+    { delta: Real.Real \where Limit.Control[Derivative.slope (\fun (s: Real.Real) => d.function s x) d.at, d.at, d.derivative x, epsilon, delta] }, delta) \then
+  \return Logic.existsIntro[Real.Real, { delta: Real.Real \where Parameters.Control[(\fun (t: Real.Real) => slope t x), d.at, { t: Real.Real \where Logic.Not (t = d.at) }, d.derivative x, epsilon, delta] }] delta
+    (Parameters.Control[(\fun (t: Real.Real) => slope t x), d.at, { t: Real.Real \where Logic.Not (t = d.at) }, d.derivative x, epsilon, delta] {
+      positive := control.positive, estimate := \fun (t: Real.Real)(different: _)(near: _) => R.ltReplaceLeft _ _ _
+        (sym!{Real.Real} _ _ (congr!{Real.Real Real.Real} (\fun (r: Real.Real) => Real.distance r (d.derivative x)) _ _ (value t x))) (control.estimate t different near) })
+};
+\definition data: Parameters.Data := Parameters.Data { function := slope, target := d.derivative, at := d.at, allowed := { t: Real.Real \where Logic.Not (t = d.at) }, radius := d.radius, bound := d.bound,
+  dominated := \fun (t: Real.Real)(different: _)(near: _)(x: A) => R.leReplaceLeft _ _ _
+    (sym!{Real.Real} _ _ (congr!{Real.Real Real.Real} Product.abs _ _ (value t x))) (d.dominated t different near x), pointwise := pointwise };
+\definition derivative: Derivative.HasDerivativeAt (\fun (t: Real.Real) => I.integral (d.function t)) d.at (I.integral d.derivative) := \fun (epsilon: Real.Real)(positive: _) => \block {
+  \takefrom delta: \Cast[Real.Real] ({ delta: Real.Real \where Parameters.Control[(\fun (t: Real.Real) => I.integral (slope t)), d.at, { t: Real.Real \where Logic.Not (t = d.at) }, I.integral d.derivative, epsilon, delta] }) \by Parameters.continuous data epsilon positive \then
+  \let control: Parameters.Control[(\fun (t: Real.Real) => I.integral (slope t)), d.at, { t: Real.Real \where Logic.Not (t = d.at) }, I.integral d.derivative, epsilon, delta] := \bysub(Real.Real,
+    { delta: Real.Real \where Parameters.Control[(\fun (t: Real.Real) => I.integral (slope t)), d.at, { t: Real.Real \where Logic.Not (t = d.at) }, I.integral d.derivative, epsilon, delta] }, delta) \then
+  \return Logic.existsIntro[Real.Real, { delta: Real.Real \where Limit.Control[Derivative.slope (\fun (t: Real.Real) => I.integral (d.function t)) d.at, d.at, I.integral d.derivative, epsilon, delta] }] delta
+    (Limit.Control[Derivative.slope (\fun (t: Real.Real) => I.integral (d.function t)) d.at, d.at, I.integral d.derivative, epsilon, delta] {
+      positive := control.positive, estimate := \fun (t: Real.Real)(different: _)(near: _) => R.ltReplaceLeft _ _ _
+        (congr!{Real.Real Real.Real} (\fun (r: Real.Real) => Real.distance r (I.integral d.derivative)) _ _ (integral t)) (control.estimate t different near) })
+};

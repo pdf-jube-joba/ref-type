@@ -1,0 +1,16 @@
+\import \root.Euclidean[n := n].BorelRepresentative[p := p] \as Representatives;
+\import std.Set[].Quotient[A := F.Representatives, Equivalent := \fun (f, g: F.Representatives) => M.AlmostEqual measure f g] \as Q;
+\import \root.Euclidean[n := n].Convolution[p := p] \as Convolution;
+\module For(representative: Representatives.Representative[F.ofFunction f]);
+\definition hasMoment: M.Lp[mu := measure].HasFiniteMoment[function f rho, p] := \block {
+  \takefrom representative: Representatives.Representative[F.ofFunction f] \by Representatives.existsRepresentative (F.ofFunction f) \then
+  \return For[representative := representative].hasMoment
+};
+\definition representative: F.Representatives := \into[Function](function f rho, F.Representatives) \by { hasMoment };
+\definition norm: R.Le (F.normRepresentative representative) (F.normRepresentative f) := \block {
+  \takefrom chosen: Representatives.Representative[F.ofFunction f] \by Representatives.existsRepresentative (F.ofFunction f) \then
+  \let other: F.Representatives := For[representative := chosen].average \then
+  \let same: F.normRepresentative representative = F.normRepresentative other := F.normRespects representative other
+    (AE.nullSubset _ Sets.Empty (\fun (x: Point)(different: _) => different (For[representative := chosen].values x)) AE.nullEmpty) \then
+  \return R.leReplaceLeft _ _ _ (sym!{Real.Real} _ _ same) (For[representative := chosen].norm)
+};

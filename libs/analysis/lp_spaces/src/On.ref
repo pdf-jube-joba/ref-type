@@ -1,0 +1,79 @@
+\import real.Analysis[] \as Real;
+\import dedekind_reals.DedekindReal[] \as R;
+\import R.Arithmetic[].Prop[] \as Laws;
+\import R.Order[] \as Order;
+\import Real.Algebra[] \as Algebra;
+\import Real.Estimates[] \as E;
+\import E.Product[] \as Product;
+\import Real.Distance[] \as Distance;
+\import std.Data[].Nat[] \as N;
+\import N.Basic[].Prop[] \as Nat;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Classical[] \as Classical;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\use Equality.eq_reason_in;
+\use Logic.either;
+\import functional_analysis.Measure[A := A] \as M;
+\import M.Integral[mu := mu] \as I;
+\import M.Lp[mu := mu] \as Lp;
+\import M.AlmostEverywhere[mu := mu] \as AE;
+\import M.Functions[mu := mu] \as Functions;
+\import I.Zero[] \as Zero;
+\import I.Absolute[] \as Absolute;
+\import I.Linear[] \as Linear;
+\import I.Scaling[] \as Scaling;
+\import I.Negation[] \as Negation;
+\import I.Null[] \as Null;
+\import \root.Powers[] \as Powers;
+\import functional_analysis.Powers[] \as P;
+\module One;
+\module NullIntegral(f: I.Representatives);
+\definition scalarMeasurable: \forall (c: Real.Real)(f: A -> Real.Real) -> M.IsMeasurable mu f -> M.IsMeasurable mu (\fun (x: A) => Real.mul c (f x)) :=
+  \fun (c: Real.Real)(f: A -> Real.Real)(measurable: _) => Logic.orElim _ _ _ (Laws.nonnegativeOrNegativeReal c)
+    (\fun (nonnegative: _) => Functions.scaleMeasurable c nonnegative f measurable)
+    (\fun (negative: _) => \idelim (\fun (x: A) => Real.neg (Real.mul (Real.neg c) (f x))) = (\fun (x: A) => Real.mul c (f x))
+      \with h: (A -> Real.Real) => M.IsMeasurable mu h \by {
+        base: Functions.negMeasurable (\fun (x: A) => Real.mul (Real.neg c) (f x))
+          (Functions.scaleMeasurable (Real.neg c) (Laws.nonnegativeNegOfNegative c negative) f measurable),
+        equality: \axiom:funext((\fun (x: A) => Real.neg (Real.mul (Real.neg c) (f x))), (\fun (x: A) => Real.mul c (f x)),
+          \fun (x: A) => trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} Real.neg _ _ (Laws.fieldMulNegLeft c (f x))) (Laws.negInvolutive _))
+      });
+\definition binaryAlmost[h: Real.Real -> Real.Real -> Real.Real]: \forall (f, f2, g, g2: A -> Real.Real) -> M.AlmostEqual mu f f2 -> M.AlmostEqual mu g g2 ->
+  M.AlmostEqual mu (\fun (x: A) => h (f x) (g x)) (\fun (x: A) => h (f2 x) (g2 x)) :=
+  \fun (f, f2, g, g2: A -> Real.Real)(ff: _)(gg: _) => AE.nullSubset
+    ({ x: A \where Logic.Not (h (f x) (g x) = h (f2 x) (g2 x)) })
+    (M.Sigma[].pairUnion ({ x: A \where Logic.Not (f x = f2 x) }) ({ x: A \where Logic.Not (g x = g2 x) }))
+    (\fun (x: A)(different: _) => Logic.orElim (f x = f2 x) (Logic.Not (f x = f2 x)) (Logic.Or[Logic.Not (f x = f2 x), Logic.Not (g x = g2 x)]) (Classical.excludedMiddle (f x = f2 x))
+      (\fun (same: f x = f2 x) => Logic.Or[Logic.Not (f x = f2 x), Logic.Not (g x = g2 x)]::right
+        (\fun (other: g x = g2 x) => different (congr!{Real.Real Real.Real Real.Real} h _ _ _ _ same other)))
+      (\fun (notSame: Logic.Not (f x = f2 x)) => Logic.Or[Logic.Not (f x = f2 x), Logic.Not (g x = g2 x)]::left notSame))
+    (AE.nullUnion ({ x: A \where Logic.Not (f x = f2 x) }) ({ x: A \where Logic.Not (g x = g2 x) }) ff gg);
+\module Power(p: \root.Exponential[].Positive);
+\module Finite(p: P.Exponent);
+\module Products;
+\structure ConjugateExponents: \Set := {
+  left: P.Exponent,
+  right: P.Exponent,
+  identity: Real.add (Laws.fieldInv left) (Laws.fieldInv right) = Real.one,
+};
+\module Holder(exponents: ConjugateExponents);
+\module StrictMinkowski(p: Powers.StrictExponent);
+\module OneBridge;
+\module Norm(p: P.Exponent);
+\module Completion(p: P.Exponent);
+\module Hilbert;
+\module SimpleApproximation(p: P.Exponent);
+\module Complex;
+\module Indicator(p: P.Exponent, S: product_integration.Finiteness[A := A, mu := mu].FiniteMeasurableSet);
+\module Bounded(p: P.Exponent, S: product_integration.Finiteness[A := A, mu := mu].FiniteMeasurableSet);
+\module Restriction(p: P.Exponent, S: product_integration.Finiteness[A := A, mu := mu].FiniteMeasurableSet);
+\module Pullback(p: P.Exponent, map: product_integration.MeasureMap[A := A, B := A, source := mu, target := mu].Data);
+\module Infinity;
+\module Endpoint;
+\module Masked(p: P.Exponent, f: \root.On[A := A, mu := mu].Finite[p := p].Representatives, exception: Null.NullSet);
+\module Parametric(B: \Set, metric: metric_spaces.MetricSpace[Carrier := B].Metric);
+\module Differentiation;
+\module Jensen(p: P.Exponent);

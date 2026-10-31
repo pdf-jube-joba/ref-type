@@ -1,0 +1,25 @@
+\import L.SimpleApproximation[p := p] \as Simple;
+\import Simple.Signed[f := f] \as Signed;
+\import Simple.Positive[f := Signed.plus] \as Plus;
+\import Simple.Positive[f := Signed.minus] \as Minus;
+\import I.Approximation[f := Plus.data] \as PlusStages;
+\import I.Approximation[f := Minus.data] \as MinusStages;
+\definition plusZero[x: Point]: Logic.Not (Sets.Member (E.points box) x) -> I.positivePart f x = Real.zero := \fun (outside: _) =>
+  trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (Distance.max Real.zero) _ _ (supported x outside)) (Distance.maxSame Real.zero);
+\definition minusZero[x: Point]: Logic.Not (Sets.Member (E.points box) x) -> I.negativePart f x = Real.zero := \fun (outside: _) =>
+  trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (Distance.max Real.zero) _ _ (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} Real.neg _ _ (supported x outside)) Laws.negZero)) (Distance.maxSame Real.zero);
+\definition plusSupported[k: N.Nat^][x: Point]: Logic.Not (Sets.Member (E.points box) x) -> Plus.lpRepresentative k x = Real.zero := \fun (outside: _) =>
+  R.leAntisym _ _ (R.leReplaceRight _ _ _ (plusZero x outside) (PlusStages.bounded k x)) (PlusStages.nonnegative k x);
+\definition minusSupported[k: N.Nat^][x: Point]: Logic.Not (Sets.Member (E.points box) x) -> Minus.lpRepresentative k x = Real.zero := \fun (outside: _) =>
+  R.leAntisym _ _ (R.leReplaceRight _ _ _ (minusZero x outside) (MinusStages.bounded k x)) (MinusStages.nonnegative k x);
+\definition plusDense[k: N.Nat^]: Approximable (F.ofFunction (Plus.lpRepresentative k)) := \root.Euclidean[n := n].Approximation[p := p].Simple[
+  m := (PlusStages.stages k).size, s := (PlusStages.stages k).simple, f := Plus.lpRepresentative k, agrees := \fun (x: Point) => \refl(Plus.lpRepresentative k x), box := box, supported := plusSupported k].dense;
+\definition minusDense[k: N.Nat^]: Approximable (F.ofFunction (Minus.lpRepresentative k)) := \root.Euclidean[n := n].Approximation[p := p].Simple[
+  m := (MinusStages.stages k).size, s := (MinusStages.stages k).simple, f := Minus.lpRepresentative k, agrees := \fun (x: Point) => \refl(Minus.lpRepresentative k x), box := box, supported := minusSupported k].dense;
+\definition classSequence[k: N.Nat^]: F.ofFunction (Signed.sequence k) = F.add (F.ofFunction (Plus.lpRepresentative k)) (F.neg (F.ofFunction (Minus.lpRepresentative k))) := trans!{F.Space} _ _ _
+  (sym!{F.Space} _ _ (F.addClass (Plus.lpRepresentative k) (F.negRepresentative (Minus.lpRepresentative k))))
+  (congr!{F.Space F.Space} (F.add (F.ofFunction (Plus.lpRepresentative k))) _ _ (sym!{F.Space} _ _ (F.negClass (Minus.lpRepresentative k))));
+\definition sequenceDense[k: N.Nat^]: Approximable (F.ofFunction (Signed.sequence k)) := replace _ _ (sym!{F.Space} _ _ (classSequence k))
+  (add _ _ (plusDense k) (negative _ (minusDense k)));
+\definition dense: Approximable (F.ofFunction f) := sequentiallyClosed (\fun (k: N.Nat^) => F.ofFunction (Signed.sequence k)) (F.ofFunction f) sequenceDense
+  (normConvergence Signed.sequence f Signed.converges);

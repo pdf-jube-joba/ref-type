@@ -1,0 +1,30 @@
+\definition centerRadius: Nonnegative := \into[Real.Real](Geometry.metric.distance Coordinates.origin a, Nonnegative) \by { Geometry.metric.nonnegative Coordinates.origin a };
+\definition radius: Nonnegative := PA.sum rho.radius (PA.sum centerRadius PA.oneBase);
+\definition box: Finite.FiniteMeasurableSet := \into[\Pow Point](E.points (Bounds.box radius), Finite.FiniteMeasurableSet) \by { Integration.boxFinite (Bounds.box radius) };
+\import L.Restriction[p := p, S := box] \as Restricted;
+\definition restricted: I.Representatives := \into[Function](Restricted.function f, I.Representatives) \by { Restricted.integrable f };
+\definition absolute: I.Representatives := Absolute.representative restricted;
+\definition within[x, y: Point]: R.Lt (Geometry.metric.distance x a) Real.one -> Logic.Not (rho.function (E.subPoint x y) = Real.zero) -> Sets.Member box y := \fun (near: _)(nonzero: _) => Bounds.coordinateBound y radius
+  (R.leReplaceRight _ _ _ (trans!{Real.Real} _ _ _
+    (congr!{Real.Real Real.Real} (Real.add (Real.add centerRadius Real.one)) _ _ (\refl(rho.radius)))
+    (Laws.addComm (Real.add centerRadius Real.one) rho.radius))
+    (R.leTrans _ _ _ (Geometry.metric.triangle Coordinates.origin x y)
+      (Estimates.addLe _ _ _ _
+        (R.leTrans _ _ _ (Geometry.metric.triangle Coordinates.origin a x)
+          (Estimates.addLe _ _ _ _ (R.leRefl centerRadius) (Order.leOfLt _ _ (R.ltReplaceLeft _ _ _ (Geometry.metric.symmetric x a) near))))
+        (R.leReplaceLeft _ _ _ (trans!{Real.Real} _ _ _ (Geometry.metric.symmetric Coordinates.origin (E.subPoint x y)) (Geometry.difference x y))
+          (rho.radiusBound (E.subPoint x y) (Support.nonzeroInSupport Ambient.topology rho.function (E.subPoint x y) nonzero))))));
+\definition bound: I.Representatives := I.Scaling[].scalarRepresentative rho.coefficient absolute;
+\definition dominated[x, y: Point]: R.Lt (Geometry.metric.distance x a) Real.one -> R.Le (Product.abs (section f rho x y)) (bound y) := \fun (near: _) => Logic.orElim _ _ _ (Classical.excludedMiddle (Sets.Member box y))
+  (\fun (member: _) => R.leReplace _ _ _ _ (sym!{Real.Real} _ _ (Product.absProduct (f y) (rho.function (E.subPoint x y))))
+    (trans!{Real.Real} _ _ _ (Laws.fieldMulComm (Product.abs (f y)) rho.coefficient)
+      (congr!{Real.Real Real.Real} (Real.mul rho.coefficient) _ _ (sym!{Real.Real} _ _ (congr!{Real.Real Real.Real} Product.abs _ _ (Restricted.inside f y member)))))
+    (Estimates.mulMonotone (Product.abs (f y)) _ _ (Product.absNonnegative (f y)) (rho.absoluteBound (E.subPoint x y))))
+  (\fun (outside: _) => \block {
+    \let zero: rho.function (E.subPoint x y) = Real.zero := Sigma.doubleNegative _ (\fun (nonzero: _) => outside (within x y near nonzero)) \then
+    \return R.leReplace _ _ _ _
+      (sym!{Real.Real} _ _ (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} Product.abs _ _
+        (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (Real.mul (f y)) _ _ zero) (Laws.fieldMulZeroRight (f y)))) (Distance.distanceSelf Real.zero)))
+      (sym!{Real.Real} _ _ (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (Real.mul rho.coefficient) _ _
+        (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} Product.abs _ _ (Restricted.outside f y outside)) (Distance.distanceSelf Real.zero))) (Laws.fieldMulZeroRight rho.coefficient))) (R.leRefl Real.zero)
+  });

@@ -1,0 +1,13 @@
+\definition pairBad[m, n: N.Nat^]: \Pow A := bad (difference (s m) (s n));
+\definition individualBad[k: N.Nat^]: \Pow A := bad (s k);
+\definition allBad: \Pow A := M.Sigma[].pairUnion (M.union individualBad) (M.union (\fun (m: N.Nat^) => M.union (pairBad m)));
+\definition allNull: M.Null mu allBad := AE.nullUnion _ _
+  (Continuity.nullUnion individualBad (\fun (k: N.Nat^) => (representativeBound (s k)).exception))
+  (Continuity.nullUnion (\fun (m: N.Nat^) => M.union (pairBad m)) (\fun (m: N.Nat^) => Continuity.nullUnion (pairBad m) (\fun (n: N.Nat^) => (representativeBound (difference (s m) (s n))).exception)));
+\module Outside(exception: Null.NullSet, contains: Sets.Subset allBad exception);
+\definition complete: \exists ( x: Space \where Metric.Converges Norm.metric (\fun (k: N.Nat^) => ofFunction (s k)) x ) := \block {
+  \takefrom N: \Cast[\Pow A] ({ N: \Pow A \where M.NullCover[mu, allBad, N] }) \by allNull \then
+  \let cover: M.NullCover[mu, allBad, N] := \bysub(\Pow A, { N: \Pow A \where M.NullCover[mu, allBad, N] }, N) \then
+  \let exception: Null.NullSet := \into[\Pow A](N, Null.NullSet) \by { Null.NullSetLaw[N] { measurable := cover.measurable, zeroMeasure := cover.measure } } \then
+  \return Outside[exception := exception, contains := cover.included].exists
+};

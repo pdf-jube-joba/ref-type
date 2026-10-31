@@ -1,0 +1,36 @@
+\import std.Data[].Pair[] \as Pair;
+\import product_integration.Product[A := Point, B := Point, mu := measure, nu := measure, left := Integration.exhaustion, right := Integration.exhaustion] \as Product;
+\import product_integration.ProductSigma[A := Point, B := Point, left := measure.sigma, right := measure.sigma] \as Sigma;
+\import functional_analysis.Measure[A := Sigma.Point] \as J;
+\import J.Functions[mu := Product.measure] \as Functions;
+\import \root.On[A := Sigma.Point, mu := Product.measure].Products[] \as Products;
+\import \root.Euclidean[n := n].BorelMeasure[] \as BorelMeasure;
+\import topology.Topology[Carrier := Sigma.Point] \as PairSets;
+\definition first[p: Sigma.Point]: Point := Pair.first Point Point p;
+\definition second[p: Sigma.Point]: Point := Pair.second Point Point p;
+\definition leftFunction[f: Function]: Sigma.Point -> Real.Real := \fun (p: Sigma.Point) => f (first p);
+\definition rightFunction[f: Function]: Sigma.Point -> Real.Real := \fun (p: Sigma.Point) => f (second p);
+\definition leftMeasurable[f: Function]: M.IsMeasurable measure f -> J.IsMeasurable Product.measure (leftFunction f) := \fun (valid: _)(r: Real.Real) =>
+  \idelim Sigma.rectangle ({ x: Point \where R.Lt r (f x) }) Sets.Whole = { p: Sigma.Point \where R.Lt r (leftFunction f p) } \with S: \Pow Sigma.Point => J.Measurable Product.measure.sigma S \by {
+    base: Sigma.rectangleMeasurable ({ x: Point \where R.Lt r (f x) }) Sets.Whole (valid r) (M.Sigma[].wholeMeasurable measure.sigma),
+    equality: \axiom:setext(Sigma.rectangle ({ x: Point \where R.Lt r (f x) }) Sets.Whole, { p: Sigma.Point \where R.Lt r (leftFunction f p) },
+      \fun (p: Sigma.Point)(member: PairSets.Member (Sigma.rectangle ({ x: Point \where R.Lt r (f x) }) Sets.Whole) p) => member.left, \fun (p: Sigma.Point)(member: R.Lt r (leftFunction f p)) => Logic.And[_, _]::# member (\refl(second p)))
+  };
+\definition rightMeasurable[f: Function]: M.IsMeasurable measure f -> J.IsMeasurable Product.measure (rightFunction f) := \fun (valid: _)(r: Real.Real) =>
+  \idelim Sigma.rectangle Sets.Whole ({ x: Point \where R.Lt r (f x) }) = { p: Sigma.Point \where R.Lt r (rightFunction f p) } \with S: \Pow Sigma.Point => J.Measurable Product.measure.sigma S \by {
+    base: Sigma.rectangleMeasurable Sets.Whole ({ x: Point \where R.Lt r (f x) }) (M.Sigma[].wholeMeasurable measure.sigma) (valid r),
+    equality: \axiom:setext(Sigma.rectangle Sets.Whole ({ x: Point \where R.Lt r (f x) }), { p: Sigma.Point \where R.Lt r (rightFunction f p) },
+      \fun (p: Sigma.Point)(member: PairSets.Member (Sigma.rectangle Sets.Whole ({ x: Point \where R.Lt r (f x) })) p) => member.right, \fun (p: Sigma.Point)(member: R.Lt r (rightFunction f p)) => Logic.And[_, _]::# (\refl(first p)) member)
+  };
+\definition difference[p: Sigma.Point]: Point := E.subPoint (first p) (second p);
+\definition coordinateMeasurable[i: Fin.Fin n]: J.IsMeasurable Product.measure (\fun (p: Sigma.Point) => difference p i) :=
+  Functions.addMeasurable (leftFunction (\fun (x: Point) => x i)) (\fun (p: Sigma.Point) => Real.neg (rightFunction (\fun (x: Point) => x i) p))
+    (leftMeasurable (\fun (x: Point) => x i) (\fun (r: Real.Real) => Borel.aboveMeasurable i r))
+    (Functions.negMeasurable (rightFunction (\fun (x: Point) => x i)) (rightMeasurable (\fun (x: Point) => x i) (\fun (r: Real.Real) => Borel.aboveMeasurable i r)));
+\import \root.Euclidean[n := n].MeasurableMap[A := Sigma.Point, source := Product.measure, map := difference, coordinates := coordinateMeasurable] \as Difference;
+\definition differenceMeasurable[f: Function]: M.IsMeasurable BorelMeasure.borel f -> J.IsMeasurable Product.measure (\fun (p: Sigma.Point) => f (difference p)) := Difference.scalar f;
+\definition kernel[f, rho: Function]: Sigma.Point -> Real.Real := \fun (p: Sigma.Point) => Real.mul (f (difference p)) (rho (second p));
+\definition measurableKernel[f, rho: Function]: M.IsMeasurable BorelMeasure.borel f -> M.IsMeasurable measure rho -> J.IsMeasurable Product.measure (kernel f rho) :=
+  \fun (borel: _)(measurable: _) => Products.measurable (\fun (p: Sigma.Point) => f (difference p)) (rightFunction rho) (differenceMeasurable f borel) (rightMeasurable rho measurable);
+\definition PairPoint: \Set := Sigma.Point;
+\definition jointMeasure: J.Measure := Product.measure;

@@ -1,0 +1,30 @@
+\import Open.Smooth[] \as LocalSmooth;
+\import LocalSmooth.Derivative[] \as D;
+\import Open.Analysis[] \as Analysis;
+\import Analysis.Properties[] \as Uniqueness;
+\import Open.Whole[] \as Whole;
+\import Smooth.Jets[f := f] \as Jets;
+\import N.Order[].Prop[] \as NatOrder;
+\definition localFunction: D.Function Open.whole := \into[Open.ScalarFunction Open.whole](Restriction.function Open.whole f, D.Function Open.whole) \by { (smoothCompactLaws f).smooth };
+\definition localPartial: Open.ScalarFunction Open.whole := D.partial Open.whole localFunction i;
+\definition function: Function := Whole.function localPartial;
+\definition smooth: Smooth.IsSmooth function := Smooth.smoothCongruent Open.whole localPartial (Restriction.function Open.whole function)
+  (\fun (x: Open.Carrier Open.whole) => \refl(localPartial x)) (D.partialSmooth Open.whole localFunction i);
+\definition law: Analysis.HasPartialDerivative Open.whole (Restriction.function Open.whole f) i (Restriction.function Open.whole function) := D.partialLaw Open.whole localFunction i;
+\definition outside[x: Point]: Logic.Not (Sets.Member (Smooth.support f) x) -> function x = Real.zero := \fun (notIn: _) => \block {
+  \let one: N.Nat^ := N.Nat^::succ N.Nat^::zero \then
+  \takefrom derivatives: \Cast[LocalSmooth.PartialFamily Open.whole] ({ derivatives: LocalSmooth.PartialFamily Open.whole \where LocalSmooth.ContDiffLaws[Open.whole, Restriction.function Open.whole f, one, derivatives] }) \by (smoothCompactLaws f).smooth one \then
+  \let laws: LocalSmooth.ContDiffLaws[Open.whole, Restriction.function Open.whole f, one, derivatives] := \bysub(LocalSmooth.PartialFamily Open.whole,
+    { derivatives: LocalSmooth.PartialFamily Open.whole \where LocalSmooth.ContDiffLaws[Open.whole, Restriction.function Open.whole f, one, derivatives] }, derivatives) \then
+  \let list: LocalSmooth.Directions := LocalSmooth.Directions::cons i LocalSmooth.Directions::nil \then
+  \let derivative: Analysis.HasPartialDerivative Open.whole (Restriction.function Open.whole f) i (derivatives list) :=
+    \idelim derivatives LocalSmooth.Directions::nil = Restriction.function Open.whole f \with h: Open.ScalarFunction Open.whole => Analysis.HasPartialDerivative Open.whole h i (derivatives list) \by {
+      base: (laws.partials).derivative LocalSmooth.Directions::nil (NatOrder.zeroLtSucc N.Nat^::zero) i, equality: (laws.partials).function } \then
+  \let away: Open.Carrier Jets.away := \into[Point](x, Jets.away.points) \by { notIn } \then
+  \return trans!{Real.Real} _ _ _
+    (Uniqueness.partialUnique Open.whole (Restriction.function Open.whole f) i (Whole.point x) (function x) (derivatives list (Whole.point x)) (law (Whole.point x)) (derivative (Whole.point x)))
+    (Jets.allOrdersZero one derivatives laws list (Nat.leRefl one) away)
+};
+\definition compact: Sets.IsCompactIn Ambient.topology (Smooth.support function) := Support.compactSupportWithin Ambient.topology function (Smooth.support f) (smoothCompactLaws f).compact
+  (Support.supportWithinClosed Ambient.topology function (Smooth.support f) (Support.supportClosed Ambient.topology f) outside);
+\definition value: SmoothCompact := \into[Function](function, SmoothCompact) \by { SmoothCompactLaws[function] { smooth := smooth, compact := compact } };

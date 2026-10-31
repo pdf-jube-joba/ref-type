@@ -1,0 +1,76 @@
+\definition h: F.Representatives := F.addRepresentative f g;
+\definition weightFunction: A -> Real.Real := \fun (x: A) => Powers.value (F.absolute h x) C.difference;
+\definition weightNonnegative[x: A]: R.Le Real.zero (weightFunction x) := Powers.nonnegativeValue _ _;
+\definition weightMoment[x: A]: G.moment weightFunction x = F.moment h x := \block {
+  \let equal: G.absolute weightFunction x = PA.powered (F.absolute h x) C.difference := Product.absOfNonnegative _ (weightNonnegative x) \then
+  \let exponents: PA.product C.difference (Powers.exponent C.exponent) = Powers.exponent p := C.gapProduct \then
+  \return eq_reason_in!{Real.Real _
+    "=" _ "by" { congr!{Powers.Nonnegative Real.Real} (\fun (a: Powers.Nonnegative) => Powers.value a (Powers.exponent C.exponent)) _ _ equal }
+    "=" _ "by" { PA.iterate (F.absolute h x) C.difference (Powers.exponent C.exponent) }
+    "=" _ "by" { congr!{Powers.Nonnegative Real.Real} (Powers.value (F.absolute h x)) _ _ exponents }
+  }
+};
+\definition weightFinite: I.Finite (G.moment weightFunction) := \idelim F.moment h = G.moment weightFunction
+  \with q: (A -> Real.Real) => I.Finite q \by {
+    base: F.finiteMoment h,
+    equality: \axiom:funext(F.moment h, G.moment weightFunction, \fun (x: A) => sym!{Real.Real} _ _ (weightMoment x))
+  };
+\definition weight: G.Representatives := \into[A -> Real.Real](weightFunction, G.Representatives) \by {
+  G.hasMoment weightFunction
+    (\parent.\parent.Power[p := differenceExponent].measurable (F.absolute h) (Functions.absMeasurable h (F.properties h).measurable)) weightFinite
+};
+\definition normBase: Powers.Nonnegative := \into[Real.Real](F.normRepresentative h, Powers.Nonnegative) \by { F.normNonnegative h };
+\definition weightNorm: G.normRepresentative weight = Powers.value normBase C.difference := \block {
+  \let integrals: G.integralMoment weight = F.integralMoment h := H.integralPointwise (G.momentRepresentative weight) (F.momentRepresentative h) weightMoment \then
+  \let normIntegral: PA.powered normBase (Powers.exponent p) = F.integralMoment h := F.normPower h \then
+  \let exponents: PA.product (Powers.exponent p) (PA.inverseExponent C.positiveExponent) = C.difference := C.powerProduct \then
+  \return eq_reason_in!{Real.Real _
+    "=" _ "by" { congr!{Powers.Nonnegative Real.Real} (\fun (a: Powers.Nonnegative) => Powers.value a (PA.inverseExponent C.positiveExponent)) _ _ integrals }
+    "=" _ "by" { congr!{Powers.Nonnegative Real.Real} (\fun (a: Powers.Nonnegative) => Powers.value a (PA.inverseExponent C.positiveExponent)) _ _ (sym!{Powers.Nonnegative} _ _ normIntegral) }
+    "=" _ "by" { PA.iterate normBase (Powers.exponent p) (PA.inverseExponent C.positiveExponent) }
+    "=" _ "by" { congr!{Powers.Nonnegative Real.Real} (Powers.value normBase) _ _ exponents }
+  }
+};
+\definition factor[a: Powers.Nonnegative]: Powers.value a (Powers.exponent p) = Real.mul a (Powers.value a C.difference) := \block {
+  \let exponents: PA.sum PA.oneBase C.difference = Powers.exponent p := E.addSubCancel p Real.one \then
+  \return eq_reason_in!{Real.Real _
+    "=" _ "by" { congr!{Powers.Nonnegative Real.Real} (Powers.value a) _ _ (sym!{Powers.Nonnegative} _ _ exponents) }
+    "=" _ "by" { PA.addExponents a PA.oneBase C.difference }
+    "=" _ "by" { congr!{Real.Real Real.Real} (\fun (r: Real.Real) => Real.mul r (Powers.value a C.difference)) _ _ (Powers.identityValue a) }
+  }
+};
+\definition leftAbsolute[x: A]: Product.abs (Real.mul (f x) (weight x)) = Real.mul (Product.abs (f x)) (weight x) :=
+  trans!{Real.Real} _ _ _ (Product.absProduct (f x) (weight x))
+    (congr!{Real.Real Real.Real} (Real.mul (Product.abs (f x))) _ _ (Product.absOfNonnegative _ (weightNonnegative x)));
+\definition rightAbsolute[x: A]: Product.abs (Real.mul (g x) (weight x)) = Real.mul (Product.abs (g x)) (weight x) :=
+  trans!{Real.Real} _ _ _ (Product.absProduct (g x) (weight x))
+    (congr!{Real.Real Real.Real} (Real.mul (Product.abs (g x))) _ _ (Product.absOfNonnegative _ (weightNonnegative x)));
+\definition pointwise[x: A]: R.Le (F.moment h x) (Real.add (Product.abs (Real.mul (f x) (weight x))) (Product.abs (Real.mul (g x) (weight x)))) :=
+  R.leReplace _ _ _ _ (sym!{Real.Real} _ _ (factor (F.absolute h x)))
+    (trans!{Real.Real} _ _ _ (Algebra.mulAddRight (Product.abs (f x)) (Product.abs (g x)) (weight x))
+      (congr!{Real.Real Real.Real Real.Real} Real.add _ _ _ _ (sym!{Real.Real} _ _ (leftAbsolute x)) (sym!{Real.Real} _ _ (rightAbsolute x))))
+    (R.leReplace _ _ _ _ (Laws.fieldMulComm (weight x) (Product.abs (h x))) (Laws.fieldMulComm (weight x) (Real.add (Product.abs (f x)) (Product.abs (g x))))
+      (E.mulMonotone (weight x) _ _ (weightNonnegative x) (Linear.absTriangle (f x) (g x))));
+\definition momentBound: R.Le (I.integral (F.momentRepresentative h)) (Real.mul (Real.add (F.normRepresentative f) (F.normRepresentative g)) (G.normRepresentative weight)) :=
+  R.leTrans _ _ _
+    (R.leReplaceRight _ _ _ (Linear.integralAdd (Absolute.representative (H.representative f weight)) (Absolute.representative (H.representative g weight)))
+      (Absolute.integralMono (F.momentRepresentative h)
+        (Linear.addRepresentative (Absolute.representative (H.representative f weight)) (Absolute.representative (H.representative g weight))) pointwise))
+    (R.leReplaceRight _ _ _ (sym!{Real.Real} _ _ (Algebra.mulAddRight (F.normRepresentative f) (F.normRepresentative g) (G.normRepresentative weight)))
+      (E.addLe _ _ _ _ (H.inequality f weight) (H.inequality g weight)));
+\definition triangle: R.Le (F.normRepresentative h) (Real.add (F.normRepresentative f) (F.normRepresentative g)) :=
+  Logic.orElim _ _ _ (Classical.excludedMiddle (F.normRepresentative h = Real.zero))
+    (\fun (zero: _) => R.leReplaceLeft Real.zero _ _ (sym!{Real.Real} _ _ zero) (Laws.addNonnegative _ _ (F.normNonnegative f) (F.normNonnegative g)))
+    (\fun (nonzero: _) => \block {
+      \let positive: R.Lt Real.zero (F.normRepresentative h) := Order.ltOfLeNotEq _ _ (F.normNonnegative h) (\fun (same: Real.zero = F.normRepresentative h) => nonzero (sym!{Real.Real} _ _ same)) \then
+      \let normPositive: Exp.Positive := \into[Real.Real](F.normRepresentative h, Exp.Positive) \by { positive } \then
+      \let wp: R.Lt Real.zero (Powers.value normBase C.difference) := PA.positiveValue normPositive C.difference \then
+      \let bound: R.Le (Real.mul (F.normRepresentative h) (Powers.value normBase C.difference))
+        (Real.mul (Real.add (F.normRepresentative f) (F.normRepresentative g)) (Powers.value normBase C.difference)) :=
+        R.leReplace _ _ _ _ (trans!{Real.Real} _ _ _ (sym!{Real.Real} _ _ (F.normPower h)) (factor normBase))
+          (congr!{Real.Real Real.Real} (Real.mul (Real.add (F.normRepresentative f) (F.normRepresentative g))) _ _ weightNorm) momentBound \then
+      \return Order.leOfNotLtReverse _ _ (\fun (less: _) => R.ltNotLeReverse _ _
+        (R.ltReplaceRight _ _ _ (Laws.fieldMulComm (Powers.value normBase C.difference) (F.normRepresentative h))
+          (R.ltReplaceLeft _ _ _ (Laws.fieldMulComm (Powers.value normBase C.difference) (Real.add (F.normRepresentative f) (F.normRepresentative g)))
+            (Product.mulStrict (Powers.value normBase C.difference) _ _ wp less))) bound)
+    });

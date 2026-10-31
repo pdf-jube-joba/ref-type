@@ -1,0 +1,49 @@
+\definition inner[k: N.Nat^]: \Pow Point := Sigma.prefix parts (N.Nat^::succ k);
+\definition innerCompact[k: N.Nat^]: Sets.IsCompactIn Ambient.topology (inner k) := Regular.prefixCompact parts core.left (N.Nat^::succ k);
+\definition innerWithin[k: N.Nat^]: Sets.Subset (inner k) S := \fun (x: Point)(member: _) => core.right.left x (Sigma.prefixContainedInUnion parts (N.Nat^::succ k) x member);
+\definition outer: N.Nat^ -> \Pow Point := \induction (k: N.Nat^) \return \Pow Point \with {
+  | zero: U
+  | succ: \fun (k: N.Nat^)(previous: \Pow Point) => Sets.Intersection previous (opens k)
+};
+\definition outerOpen: \forall (k: N.Nat^) -> Sets.IsOpenIn Ambient.topology (outer k) := \induction (k: N.Nat^) \return Sets.IsOpenIn Ambient.topology (outer k) \with {
+  | zero: opened
+  | succ: \fun (k: N.Nat^)(previous: _) => (Sets.topologyLaws Ambient.topology).intersectionOpen (outer k) (opens k) previous (hull.left k)
+};
+\definition outerWithin: \forall (k: N.Nat^) -> Sets.Subset (outer k) U := \induction (k: N.Nat^) \return Sets.Subset (outer k) U \with {
+  | zero: \fun (x: Point)(member: _) => member
+  | succ: \fun (k: N.Nat^)(previous: _)(x: Point)(member: Sets.Member (outer (N.Nat^::succ k)) x) => previous x member.left
+};
+\definition outerContains: \forall (k: N.Nat^) -> Sets.Subset S (outer k) := \induction (k: N.Nat^) \return Sets.Subset S (outer k) \with {
+  | zero: contains
+  | succ: \fun (k: N.Nat^)(previous: _)(x: Point)(member: _) => Logic.And[_, _]::# (previous x member) (hull.right.left x member k)
+};
+\definition outerEarlier: \forall (k, i: N.Nat^) -> Nat.Lt i k -> Sets.Subset (outer k) (opens i) := \induction (k: N.Nat^) \return
+  \forall (i: N.Nat^) -> Nat.Lt i k -> Sets.Subset (outer k) (opens i) \with {
+    | zero: \fun (i: N.Nat^)(less: _)(x: Point)(member: _) => Logic.falseElim _ (NatOrder.ltZero i less)
+    | succ: \fun (k: N.Nat^)(previous: _)(i: N.Nat^)(less: Nat.Lt i (N.Nat^::succ k))(x: Point)(member: Sets.Member (outer (N.Nat^::succ k)) x) => Logic.orElim _ _ _ (Classical.excludedMiddle (i = k))
+      (\fun (equal: _) => \idelim k = i \with j: N.Nat^ => Sets.Member (opens j) x \by { base: member.right, equality: sym!{N.Nat^} _ _ equal })
+      (\fun (different: _) => previous i (Nat.ltOfLeDifferent i k (Nat.leOfSuccSucc i k (Nat.succLeOfLt (N.Nat^::succ k) i less)) different) x member.left)
+  };
+\definition region[k: N.Nat^]: Open.OpenSet := OpenTopology.ofOpen (outer k) (outerOpen k);
+\definition Choice[k: N.Nat^]: \Set := Smooth.CompactCutoff[K := inner k, U := region k].Data;
+\definition choiceExists[k: N.Nat^]: \exists Choice k := Smooth.CompactCutoff[K := inner k, U := region k].existsCutoff (innerCompact k)
+  (\fun (x: Point)(member: _) => outerContains k x (innerWithin k x member));
+\definition coreException: INull.NullSet := \into[\Pow Point](Sigma.difference S (M.union parts), INull.NullSet) \by {
+  INull.NullSetLaw[Sigma.difference S (M.union parts)] {
+    measurable := Sigma.differenceMeasurable measure.sigma S (M.union parts) (Finite.finiteLaw S).measurable
+      ((Sigma.laws measure.sigma).countableUnion parts (\fun (k: N.Nat^) => Regular.compactMeasurable (parts k) (core.left k))),
+    zeroMeasure := core.right.right,
+  }
+};
+\definition hullException: INull.NullSet := \into[\Pow Point](Sigma.difference (Sigma.intersection opens) S, INull.NullSet) \by {
+  INull.NullSetLaw[Sigma.difference (Sigma.intersection opens) S] {
+    measurable := Sigma.differenceMeasurable measure.sigma (Sigma.intersection opens) S (Hull.hullMeasurable opens hull.left) (Finite.finiteLaw S).measurable,
+    zeroMeasure := Hull.nullDifference S opens (Finite.mass S) (Finite.finiteLaw S).measurable hull outsideMass,
+  }
+};
+\definition exception: INull.NullSet := Null.pair coreException hullException;
+\module Selected(chosen: \forall (k: N.Nat^) -> Choice k);
+\definition existsApproximation: \exists Approximation := \block {
+  \takefrom chosen: \forall (k: N.Nat^) -> Choice k \by \axiom:classicalIndefiniteChoice(N.Nat^, Choice, choiceExists) \then
+  \return \exact(Selected[chosen := chosen].approximation, Approximation)
+};

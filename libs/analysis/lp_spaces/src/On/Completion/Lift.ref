@@ -1,0 +1,33 @@
+\definition sequence[k: N.Nat^]: F.Representatives := representatives k;
+\definition classSequence[k: N.Nat^]: F.ofFunction (sequence k) = s k := sym!{{\Pow F.Representatives}} _ _ (Q.represents (s k) (representatives k));
+\definition pointDistance[k: N.Nat^][f: F.Representatives]: Norm.metric.distance (s k) (F.ofFunction f) = distance (sequence k) f :=
+  trans!{Real.Real} _ _ _ (congr!{F.Space Real.Real} (\fun (x: F.Space) => Norm.metric.distance x (F.ofFunction f)) _ _ (sym!{F.Space} _ _ (classSequence k)))
+    (classDistance (sequence k) f);
+\definition sequenceCauchy: Metric.Cauchy Norm.metric s -> Cauchy sequence := \fun (cauchy: _)(epsilon: Real.Real)(positive: _) => \block {
+  \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where Metric.CauchyControl Norm.metric s epsilon k }) \by cauchy epsilon positive \then
+  \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where Control[sequence, epsilon, k] }] k
+    (\fun (m, n: N.Nat^)(km: _)(kn: _) => R.ltReplaceLeft (Norm.metric.distance (s m) (s n)) (distance (sequence m) (sequence n)) epsilon
+      (trans!{Real.Real} _ _ _
+        (congr!{F.Space Real.Real} (Norm.metric.distance (s m)) _ _ (sym!{F.Space} _ _ (classSequence n))) (pointDistance m (sequence n)))
+      ((\bysub(N.Nat^, { k: N.Nat^ \where Metric.CauchyControl Norm.metric s epsilon k }, k)) m n km kn))
+};
+\definition complete: Metric.Cauchy Norm.metric s -> \exists ( x: F.Space \where Metric.Converges Norm.metric s x ) :=
+  \fun (cauchy: _) => \block {
+    \let seq: CauchySequence := \into[N.Nat^ -> F.Representatives](sequence, { s: N.Nat^ -> F.Representatives \where Cauchy s }) \by { sequenceCauchy cauchy } \then
+    \takefrom index: \Cast[N.Nat^ -> N.Nat^] ({ index: N.Nat^ -> N.Nat^ \where Good[seq, index] }) \by \parent.Selection[s := seq].exists \then
+    \let good: Good[seq, index] := \bysub(N.Nat^ -> N.Nat^, { index: N.Nat^ -> N.Nat^ \where Good[seq, index] }, index) \then
+    \let limit: F.Representatives := \parent.Along[s := seq, index := index, good := good].Limit[].representative \then
+    \let scalarConverges: Sequence.Converges (\fun (k: N.Nat^) => distance (sequence k) limit) Real.zero := \parent.Along[s := seq, index := index, good := good].Limit[].converges \then
+    \return Logic.existsIntro[F.Space, { x: F.Space \where Metric.Converges Norm.metric s x }] (F.ofFunction limit)
+      (\fun (epsilon: Real.Real)(positive: _) => \block {
+        \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where Sequence.LimitControl (\fun (n: N.Nat^) => distance (sequence n) limit) Real.zero epsilon k })
+          \by scalarConverges epsilon positive \then
+        \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where Metric.LimitControl Norm.metric s (F.ofFunction limit) epsilon k }] k
+          (\fun (n: N.Nat^)(later: _) => R.ltReplaceLeft (Real.distance (distance (sequence n) limit) Real.zero) (Norm.metric.distance (s n) (F.ofFunction limit)) epsilon
+            (trans!{Real.Real} _ _ _
+              (trans!{Real.Real} _ _ _ (Distance.distanceSymmetric _ _) (Product.absOfNonnegative _
+                (F.normNonnegative (difference (sequence n) limit))) )
+              (sym!{Real.Real} _ _ (pointDistance n limit)))
+            ((\bysub(N.Nat^, { k: N.Nat^ \where Sequence.LimitControl (\fun (n: N.Nat^) => distance (sequence n) limit) Real.zero epsilon k }, k)) n later))
+      })
+  };

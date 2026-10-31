@@ -1,0 +1,14 @@
+\import \root.Euclidean[n := n].Convolution[p := p] \as Convolution;
+\import std.Set[].Quotient[A := F.Representatives, Equivalent := \fun (f, g: F.Representatives) => M.AlmostEqual measure f g] \as Q;
+\import Q.Maps[B := F.Space] \as Maps;
+\definition representative[f: F.Representatives]: F.Representatives := Convolution.Arbitrary[f := f, rho := rho, law := law].representative;
+\definition class[f: F.Representatives]: F.Space := F.ofFunction (representative f);
+\definition respects: Maps.Respects class := \fun (f, g: F.Representatives)(same: _) => F.classPointwise (representative f) (representative g)
+  (\fun (x: Point) => Convolution.Respects[f := f, g := g, rho := rho, a := x].equality same);
+\definition value: F.Space -> F.Space := Maps.value F.equivalence class respects;
+\definition onClass[f: F.Representatives]: value (F.ofFunction f) = class f := Maps.onClass F.equivalence class respects f;
+\definition norm[x: F.Space]: R.Le (F.norm (value x)) (F.norm x) := Q.induction (\fun (x: F.Space) => R.Le (F.norm (value x)) (F.norm x))
+  (\fun (f: F.Representatives) => R.leReplace _ _ _ _
+    (sym!{Real.Real} _ _ (trans!{Real.Real} _ _ _ (congr!{F.Space Real.Real} F.norm _ _ (onClass f)) (F.normOfFunction (representative f))))
+    (sym!{Real.Real} _ _ (F.normOfFunction f)) (Convolution.Arbitrary[f := f, rho := rho, law := law].norm)) x;
+\definition smooth[f: F.Representatives]: Smooth.IsSmooth (representative f) := Convolution.smooth f rho;

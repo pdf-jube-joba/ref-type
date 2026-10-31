@@ -1,0 +1,70 @@
+\definition valueBase[x: A]: Powers.Nonnegative := \into[Real.Real](MomentSum.value x, Powers.Nonnegative) \by { MomentSum.nonnegative x };
+\definition root[x: A]: Real.Real := Powers.value (valueBase x) (PA.inverseExponent F.positiveExponent);
+\definition rootNonnegative[x: A]: R.Le Real.zero (root x) := Powers.nonnegativeValue _ _;
+\definition rootExponent: Exp.Positive := \into[Real.Real](Laws.fieldInv p, Exp.Positive) \by { Product.invPositive p (Exp.positive F.positiveExponent) };
+\definition rootMeasurable: M.IsMeasurable mu root := \parent.\parent.\parent.Power[p := rootExponent].measurable valueBase MomentSum.measurable;
+\definition rootMoment[x: A]: F.moment root x = MomentSum.value x := \block {
+  \let equal: F.absolute root x = PA.powered (valueBase x) (PA.inverseExponent F.positiveExponent) := Product.absOfNonnegative _ (rootNonnegative x) \then
+  \return trans!{Real.Real} _ _ _ (congr!{Powers.Nonnegative Real.Real} (\fun (a: Powers.Nonnegative) => Powers.value a (Powers.exponent p)) _ _ equal)
+    (PA.powerRoot (valueBase x) F.positiveExponent)
+};
+\definition rootFinite: I.Finite (F.moment root) := I.finiteMono (F.moment root) (Absolute.abs MomentSum.representative) (F.momentNonnegative root)
+  (\fun (x: A) => R.leReplaceLeft _ _ _ (sym!{Real.Real} _ _ (rootMoment x))
+    (R.leReplaceRight _ _ _ (sym!{Real.Real} _ _ (Product.absOfNonnegative _ (MomentSum.nonnegative x))) (R.leRefl (MomentSum.value x))))
+  (I.integralLaw MomentSum.representative).integrable.right;
+\definition rootRepresentative: F.Representatives := \into[A -> Real.Real](root, F.Representatives) \by { F.hasMoment root rootMeasurable rootFinite };
+\definition partialBound[k: N.Nat^][x: A]: Logic.Not (Sets.Member Divergence.exception x) -> R.Le (partial k x) (root x) :=
+  \fun (outside: _) => \block {
+    \let momentBound: R.Le (F.moment (partial k) x) (MomentSum.value x) := (MomentSum.outsideSup x outside).upper
+      (F.moment (partial k) x) (Convergence.pointValueMember (\fun (j: N.Nat^)(x: A) => F.moment (partial j) x) x k) \then
+    \return R.leReplaceLeft _ _ _ (trans!{Real.Real} _ _ _ (PA.rootPower (F.absolute (partial k) x) F.positiveExponent)
+      (Product.absOfNonnegative _ (partialNonnegative k x)))
+      (PA.monotone (PA.powered (F.absolute (partial k) x) (Powers.exponent p)) (valueBase x) (PA.inverseExponent F.positiveExponent) momentBound)
+  };
+\module At(k: N.Nat^) {
+  \import I.Mask[exception := Divergence.exception, f := partial k] \as Mask;
+  \definition value: A -> Real.Real := Mask.value;
+  \definition law: \forall (x: A) -> Logic.And[Sets.Member Divergence.exception x -> value x = Real.zero,
+    Logic.Not (Sets.Member Divergence.exception x) -> value x = partial k x] := Mask.laws;
+  \definition measurable: M.IsMeasurable mu value := Mask.measurable (F.properties (partial k)).measurable;
+}
+\definition sequence[k: N.Nat^][x: A]: Real.Real := \root.On[A := A, mu := mu].Completion[p := p].Along[s := s, index := index, good := good].Sum[].At[k := k].value x;
+\definition sequenceBound[k: N.Nat^][x: A]: R.Le (sequence k x) (root x) := Logic.orElim _ _ _ (Classical.excludedMiddle (Sets.Member Divergence.exception x))
+  (\fun (inside: _) => R.leReplaceLeft Real.zero _ _ (sym!{Real.Real} _ _ ((\root.On[A := A, mu := mu].Completion[p := p].Along[s := s, index := index, good := good].Sum[].At[k := k].law x).left inside)) (rootNonnegative x))
+  (\fun (outside: _) => R.leReplaceLeft _ _ _ (sym!{Real.Real} _ _ ((\root.On[A := A, mu := mu].Completion[p := p].Along[s := s, index := index, good := good].Sum[].At[k := k].law x).right outside)) (partialBound k x outside));
+\import R.Completeness[] \as Complete;
+\definition family[x: A]: Complete.Family := \into[\Pow Real.Real](Convergence.PointValues sequence x, Complete.FamilySet) \by {
+  Logic.And[_, _]::#
+    (Logic.existsIntro[Real.Real, Convergence.PointValues sequence x] (sequence N.Nat^::zero x) (Convergence.pointValueMember sequence x N.Nat^::zero))
+    (Logic.existsIntro[Real.Real, { b: Real.Real \where Complete.UpperBound (Convergence.PointValues sequence x) b }] (root x)
+      (\fun (r: Real.Real)(member: _) => \block {
+        \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where r = sequence k x }) \by member \then
+        \return R.leReplaceLeft _ _ _ (sym!{Real.Real} _ _ (\bysub(N.Nat^, { k: N.Nat^ \where r = sequence k x }, k))) (sequenceBound k x)
+      }))
+};
+\definition value[x: A]: Real.Real := Complete.supremum (family x);
+\definition supremum: Convergence.PointwiseSup sequence value := \fun (x: A) => Complete.supremumLaw (family x);
+\definition nonnegative[x: A]: R.Le Real.zero (value x) := R.leTrans _ _ _
+  (R.leReplaceRight Real.zero Real.zero (sequence N.Nat^::zero x)
+    (sym!{Real.Real} _ _ (Logic.orElim _ _ _ (Classical.excludedMiddle (Sets.Member Divergence.exception x))
+      (\fun (inside: _) => (\root.On[A := A, mu := mu].Completion[p := p].Along[s := s, index := index, good := good].Sum[].At[k := N.Nat^::zero].law x).left inside)
+      (\fun (outside: _) => (\root.On[A := A, mu := mu].Completion[p := p].Along[s := s, index := index, good := good].Sum[].At[k := N.Nat^::zero].law x).right outside))) (R.leRefl Real.zero))
+  (Convergence.pointwiseUpper sequence value supremum N.Nat^::zero x);
+\definition increasing[k: N.Nat^][x: A]: R.Le (sequence k x) (sequence (N.Nat^::succ k) x) := Logic.orElim _ _ _ (Classical.excludedMiddle (Sets.Member Divergence.exception x))
+  (\fun (inside: _) => R.leReplace _ _ _ _
+    (sym!{Real.Real} _ _ ((\root.On[A := A, mu := mu].Completion[p := p].Along[s := s, index := index, good := good].Sum[].At[k := k].law x).left inside))
+    (sym!{Real.Real} _ _ ((\root.On[A := A, mu := mu].Completion[p := p].Along[s := s, index := index, good := good].Sum[].At[k := N.Nat^::succ k].law x).left inside)) (R.leRefl Real.zero))
+  (\fun (outside: _) => R.leReplace _ _ _ _
+    (sym!{Real.Real} _ _ ((\root.On[A := A, mu := mu].Completion[p := p].Along[s := s, index := index, good := good].Sum[].At[k := k].law x).right outside))
+    (sym!{Real.Real} _ _ ((\root.On[A := A, mu := mu].Completion[p := p].Along[s := s, index := index, good := good].Sum[].At[k := N.Nat^::succ k].law x).right outside)) (partialIncreasing k x));
+\definition measurable: M.IsMeasurable mu value := Convergence.pointwiseSupMeasurable sequence value supremum
+  (\fun (k: N.Nat^) => \root.On[A := A, mu := mu].Completion[p := p].Along[s := s, index := index, good := good].Sum[].At[k := k].measurable);
+\definition upper[x: A]: R.Le (value x) (root x) := (supremum x).least (root x) (\fun (r: Real.Real)(member: _) => \block {
+  \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where r = sequence k x }) \by member \then
+  \return R.leReplaceLeft _ _ _ (sym!{Real.Real} _ _ (\bysub(N.Nat^, { k: N.Nat^ \where r = sequence k x }, k))) (sequenceBound k x)
+});
+\definition finite: I.Finite (F.moment value) := I.finiteMono (F.moment value) (F.moment root) (F.momentNonnegative value)
+  (\fun (x: A) => PA.monotone (F.absolute value x) (F.absolute root x) (Powers.exponent p)
+    (R.leReplace _ _ _ _ (sym!{Real.Real} _ _ (Product.absOfNonnegative _ (nonnegative x)))
+      (sym!{Real.Real} _ _ (Product.absOfNonnegative _ (rootNonnegative x))) (upper x))) rootFinite;
+\definition representative: F.Representatives := \into[A -> Real.Real](value, F.Representatives) \by { F.hasMoment value measurable finite };

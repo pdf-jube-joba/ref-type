@@ -1,0 +1,20 @@
+\definition index: N.Nat^ -> N.Nat^ := \induction (k: N.Nat^) \return N.Nat^ \with {
+  | zero: choice N.Nat^::zero
+  | succ: \fun (k: N.Nat^)(previous: N.Nat^) => NatOrder.commonBound (N.Nat^::succ previous) (choice (N.Nat^::succ k))
+};
+\definition growth[k: N.Nat^]: Nat.Le (N.Nat^::succ (index k)) (index (N.Nat^::succ k)) := NatOrder.leftLeCommonBound _ _;
+\definition cofinal: \forall (k: N.Nat^) -> Nat.Le k (index k) := \induction (k: N.Nat^) \return Nat.Le k (index k) \with {
+  | zero: Nat.zeroLe _
+  | succ: \fun (k: N.Nat^)(previous: _) => Nat.leTrans _ _ _ (Nat.leSuccSucc _ _ previous) (growth k)
+};
+\definition aboveChoice: \forall (k: N.Nat^) -> Nat.Le (choice k) (index k) := \induction (k: N.Nat^) \return Nat.Le (choice k) (index k) \with {
+  | zero: Nat.leRefl _
+  | succ: \fun (k: N.Nat^)(previous: _) => NatOrder.rightLeCommonBound _ _
+};
+\definition good: Good[s, index] := Good[s, index] {
+  cofinal := cofinal,
+  increments := \fun (k: N.Nat^) => Order.leOfLt _ _
+    ((\bysub(N.Nat^, { n: N.Nat^ \where Control[s, Dyadic.value (N.Nat^::succ k), n] }, choice k))
+      (index k) (index (N.Nat^::succ k)) (aboveChoice k)
+      (Nat.leTrans _ _ _ (aboveChoice k) (Nat.leTrans _ _ _ (Nat.leSelfSucc _) (growth k)))),
+};

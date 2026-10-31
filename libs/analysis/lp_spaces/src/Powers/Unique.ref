@@ -1,0 +1,35 @@
+\import \root.Exponential[] \as Exp;
+\import smooth_partitions.Exponential[].Global[] \as EF;
+\import \parent.Cuts[] \as Cuts;
+\definition exponentNonnegative[p: Nonnegative]: R.Le Real.zero p := \bysub(Real.Real, { p: Real.Real \where R.Le Real.zero p }, p);
+\definition positive[a: Exp.Positive][p: Nonnegative][y: Real.Real]: P.PositivePower[a, p, y] -> R.Lt Real.zero y :=
+  \fun (power: P.PositivePower[a, p, y]) => Logic.orElim _ _ _ (Order.leTotal Real.one a)
+    (\fun (above: _) => R.ltLeTrans Real.zero Real.one y Product.onePositive
+      (R.leReplaceRight _ _ _ (first y)
+        ((power.increasing (Exp.positive a) above).lower N.Nat^::zero N.Nat^::zero
+          (Laws.fieldMulNonnegative p (P.natural (N.Nat^::succ N.Nat^::zero)) (exponentNonnegative p) (naturalNonnegative _)))))
+    (\fun (below: _) => \block {
+      \takefrom m: \Cast[N.Nat^] ({ m: N.Nat^ \where R.Lt (Real.mul p (P.natural (N.Nat^::succ N.Nat^::zero))) (P.natural m) })
+        \by naturalAbove (Real.mul p (P.natural (N.Nat^::succ N.Nat^::zero))) \then
+      \let less: R.Le (P.power a m) y := R.leReplaceRight _ _ _ (first y)
+        ((power.decreasing (Exp.positive a) below).upper m N.Nat^::zero
+          (Order.leOfLt _ _ (\bysub(N.Nat^, { m: N.Nat^ \where R.Lt (Real.mul p (P.natural (N.Nat^::succ N.Nat^::zero))) (P.natural m) }, m)))) \then
+      \let basePositive: R.Lt Real.zero (P.power a m) := R.ltReplaceRight _ _ _
+        (sym!{Real.Real} _ _ (Exp.Power[a := a, p := p].basePower m)) (EF.positive _) \then
+      \return R.ltLeTrans _ _ _ basePositive less
+    });
+\module Positive(a: Exp.Positive, p: Nonnegative, y: Exp.Positive);
+\definition unique[a: Real.Real][p: Nonnegative][y, z: Real.Real]: R.Le Real.zero a -> P.PositivePower[a, p, y] -> P.PositivePower[a, p, z] -> y = z :=
+  \fun (nonnegative: _)(left: P.PositivePower[a, p, y])(right: P.PositivePower[a, p, z]) => Logic.orElim _ _ _ (Classical.excludedMiddle (a = Real.zero))
+    (\fun (zero: _) => trans!{Real.Real} _ _ _ (left.atZero zero) (sym!{Real.Real} _ _ (right.atZero zero)))
+    (\fun (nonzero: _) => \block {
+      \let base: Exp.Positive := \into[Real.Real](a, Exp.Positive) \by { Order.ltOfLeNotEq _ _ nonnegative (\fun (same: Real.zero = a) => nonzero (sym!{Real.Real} _ _ same)) } \then
+      \let u: Exp.Positive := \into[Real.Real](y, Exp.Positive) \by { positive base p y left } \then
+      \let v: Exp.Positive := \into[Real.Real](z, Exp.Positive) \by { positive base p z right } \then
+      \return eq_reason_in!{Real.Real y
+        "=" _ "by" { sym!{Real.Real} _ _ (Exp.exponentialLogarithm u) }
+        "=" _ "by" { congr!{Real.Real Real.Real} EF.value _ _ (Positive[a := base, p := p, y := u].logarithm left) }
+        "=" _ "by" { congr!{Real.Real Real.Real} EF.value _ _ (sym!{Real.Real} _ _ (Positive[a := base, p := p, y := v].logarithm right)) }
+        "=" z "by" { Exp.exponentialLogarithm v }
+      }
+    });

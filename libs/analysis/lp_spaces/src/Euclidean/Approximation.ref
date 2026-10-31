@@ -1,0 +1,107 @@
+\import \parent.Compact[p := p] \as Compact;
+\import \parent.SmoothOperations[] \as SmoothOps;
+\import L.Finite[p := p] \as F;
+\import F.Vector[] \as Vector;
+\import L.Norm[p := p] \as Norm;
+\import L.Completion[p := p] \as Completion;
+\import functional_analysis.Normed[V := F.Space, space := Vector.space] \as Normed;
+\import functional_analysis.Metric[Carrier := F.Space] \as Metric;
+\definition ofSmooth[f: SmoothCompact]: F.Space := F.ofFunction (Compact.smoothRepresentative f);
+\definition Approximable[x: F.Space]: \Prop := \forall (epsilon: Real.Real) -> R.Lt Real.zero epsilon -> \exists ( f: SmoothCompact \where R.Lt (Norm.metric.distance (ofSmooth f) x) epsilon );
+\definition replace[x, y: F.Space]: x = y -> Approximable x -> Approximable y := \fun (equal: _)(approximate: _) => \idelim x = y \with z: F.Space => Approximable z \by { base: approximate, equality: equal };
+\definition zeroClass: ofSmooth SmoothOps.zero = F.zero := F.classPointwise (Compact.smoothRepresentative SmoothOps.zero) F.zeroRepresentative (\fun (x: Point) => \refl(Real.zero));
+\definition zero: Approximable F.zero := \fun (epsilon: Real.Real)(positive: _) => Logic.existsIntro[SmoothCompact, { f: SmoothCompact \where R.Lt (Norm.metric.distance (ofSmooth f) F.zero) epsilon }] SmoothOps.zero
+  (R.ltReplaceLeft Real.zero _ epsilon (sym!{Real.Real} _ _ (trans!{Real.Real} _ _ _
+    (congr!{F.Space Real.Real} (\fun (x: F.Space) => Norm.metric.distance x F.zero) _ _ zeroClass) (Norm.metric.self F.zero))) positive);
+\definition addClass[f, g: SmoothCompact]: ofSmooth (SmoothOps.add f g) = F.add (ofSmooth f) (ofSmooth g) := trans!{F.Space} _ _ _
+  (F.classPointwise (Compact.smoothRepresentative (SmoothOps.add f g)) (F.addRepresentative (Compact.smoothRepresentative f) (Compact.smoothRepresentative g)) (\fun (x: Point) => \refl(Real.add (f x) (g x))))
+  (sym!{F.Space} _ _ (F.addClass (Compact.smoothRepresentative f) (Compact.smoothRepresentative g)));
+\definition scaleClass[c: Real.Real][f: SmoothCompact]: ofSmooth (SmoothOps.scale c f) = F.scale c (ofSmooth f) := trans!{F.Space} _ _ _
+  (F.classPointwise (Compact.smoothRepresentative (SmoothOps.scale c f)) (F.scaleRepresentative c (Compact.smoothRepresentative f)) (\fun (x: Point) => \refl(Real.mul c (f x))))
+  (sym!{F.Space} _ _ (F.scaleClass c (Compact.smoothRepresentative f)));
+\definition addDistance[a, b, x, y: F.Space]: R.Le (Norm.metric.distance (F.add a b) (F.add x y)) (Real.add (Norm.metric.distance a x) (Norm.metric.distance b y)) :=
+  R.leReplaceLeft _ _ _ (sym!{Real.Real} _ _ (congr!{F.Space Real.Real} F.norm _ _ (Normed.addSub a b x y))) (Norm.triangle (Normed.sub a x) (Normed.sub b y));
+\definition add[x, y: F.Space]: Approximable x -> Approximable y -> Approximable (F.add x y) := \fun (left: _)(right: _)(epsilon: Real.Real)(positive: _) => \block {
+  \let h: Real.Real := Real.mul Real.half epsilon \then
+  \let hp: R.Lt Real.zero h := Estimates.halfOfPositive epsilon positive \then
+  \takefrom f: \Cast[SmoothCompact] ({ f: SmoothCompact \where R.Lt (Norm.metric.distance (ofSmooth f) x) h }) \by left h hp \then
+  \takefrom g: \Cast[SmoothCompact] ({ g: SmoothCompact \where R.Lt (Norm.metric.distance (ofSmooth g) y) h }) \by right h hp \then
+  \return Logic.existsIntro[SmoothCompact, { u: SmoothCompact \where R.Lt (Norm.metric.distance (ofSmooth u) (F.add x y)) epsilon }] (SmoothOps.add f g)
+    (R.ltReplaceLeft _ _ _ (congr!{F.Space Real.Real} (\fun (z: F.Space) => Norm.metric.distance z (F.add x y)) _ _ (sym!{F.Space} _ _ (addClass f g)))
+      (R.leLtTrans _ _ _ (addDistance (ofSmooth f) (ofSmooth g) x y)
+        (R.ltReplaceRight _ (Real.add h h) epsilon (Estimates.halfTwice epsilon)
+          (Estimates.addLt _ _ _ _
+            (\bysub(SmoothCompact, { f: SmoothCompact \where R.Lt (Norm.metric.distance (ofSmooth f) x) h }, f))
+            (\bysub(SmoothCompact, { g: SmoothCompact \where R.Lt (Norm.metric.distance (ofSmooth g) y) h }, g))))))
+};
+\definition scalarDistance[c: Real.Real][x, y: F.Space]: Norm.metric.distance (F.scale c x) (F.scale c y) = Real.mul (Product.abs c) (Norm.metric.distance x y) :=
+  trans!{Real.Real} _ _ _ (congr!{F.Space Real.Real} F.norm _ _ (sym!{F.Space} _ _ (Normed.scaleSub c x y))) (F.homogeneous c (Normed.sub x y));
+\definition scale[c: Real.Real][x: F.Space]: Approximable x -> Approximable (F.scale c x) := \fun (approximate: _)(epsilon: Real.Real)(positive: _) => \block {
+  \let q: Real.Real := Product.coefficient c Real.zero \then
+  \let qp: R.Lt Real.zero q := Product.coefficientPositive c Real.zero \then
+  \let delta: Real.Real := Product.radius q epsilon \then
+  \takefrom f: \Cast[SmoothCompact] ({ f: SmoothCompact \where R.Lt (Norm.metric.distance (ofSmooth f) x) delta }) \by approximate delta (Product.radiusPositive q epsilon qp positive) \then
+  \let d: Real.Real := Norm.metric.distance (ofSmooth f) x \then
+  \let small: R.Lt d delta := \bysub(SmoothCompact, { f: SmoothCompact \where R.Lt (Norm.metric.distance (ofSmooth f) x) delta }, f) \then
+  \let below: R.Le (Real.mul (Product.abs c) d) (Real.mul q d) := R.leReplace _ _ _ _ (Laws.fieldMulComm d (Product.abs c)) (Laws.fieldMulComm d q)
+    (Estimates.mulMonotone d (Product.abs c) q (Norm.metric.nonnegative (ofSmooth f) x) (Product.coefficientFirst c Real.zero)) \then
+  \return Logic.existsIntro[SmoothCompact, { u: SmoothCompact \where R.Lt (Norm.metric.distance (ofSmooth u) (F.scale c x)) epsilon }] (SmoothOps.scale c f)
+    (R.ltReplaceLeft _ _ _ (sym!{Real.Real} _ _ (trans!{Real.Real} _ _ _
+      (congr!{F.Space Real.Real} (\fun (z: F.Space) => Norm.metric.distance z (F.scale c x)) _ _ (scaleClass c f)) (scalarDistance c (ofSmooth f) x)))
+      (R.leLtTrans _ _ _ below (Order.ltTrans _ _ _ (Product.mulStrict q d delta qp small) (Product.radiusSmall q epsilon qp positive))))
+};
+\definition sequentiallyClosed[s: N.Nat^ -> F.Space][x: F.Space]: (\forall (k: N.Nat^) -> Approximable (s k)) -> Metric.Converges Norm.metric s x -> Approximable x :=
+  \fun (approximate: _)(converges: _)(epsilon: Real.Real)(positive: _) => \block {
+    \let h: Real.Real := Real.mul Real.half epsilon \then
+    \let hp: R.Lt Real.zero h := Estimates.halfOfPositive epsilon positive \then
+    \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where Metric.LimitControl Norm.metric s x h k }) \by converges h hp \then
+    \let near: R.Lt (Norm.metric.distance (s k) x) h := (\bysub(N.Nat^, { k: N.Nat^ \where Metric.LimitControl Norm.metric s x h k }, k)) k (Nat.leRefl k) \then
+    \takefrom f: \Cast[SmoothCompact] ({ f: SmoothCompact \where R.Lt (Norm.metric.distance (ofSmooth f) (s k)) h }) \by approximate k h hp \then
+    \return Logic.existsIntro[SmoothCompact, { f: SmoothCompact \where R.Lt (Norm.metric.distance (ofSmooth f) x) epsilon }] f
+      (R.leLtTrans _ _ _ (Norm.metric.triangle (ofSmooth f) (s k) x)
+        (R.ltReplaceRight _ (Real.add h h) epsilon (Estimates.halfTwice epsilon)
+          (Estimates.addLt _ _ _ _ (\bysub(SmoothCompact, { f: SmoothCompact \where R.Lt (Norm.metric.distance (ofSmooth f) (s k)) h }, f)) near)))
+  };
+\definition normConvergence[s: N.Nat^ -> F.Representatives][f: F.Representatives]: Sequence.Converges (\fun (k: N.Nat^) => Completion.distance (s k) f) Real.zero ->
+  Metric.Converges Norm.metric (\fun (k: N.Nat^) => F.ofFunction (s k)) (F.ofFunction f) := \fun (converges: _)(epsilon: Real.Real)(positive: _) => \block {
+    \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where Sequence.LimitControl (\fun (k: N.Nat^) => Completion.distance (s k) f) Real.zero epsilon k }) \by converges epsilon positive \then
+    \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where Metric.LimitControl Norm.metric (\fun (k: N.Nat^) => F.ofFunction (s k)) (F.ofFunction f) epsilon k }] k
+      (\fun (j: N.Nat^)(later: _) => R.ltReplaceLeft _ _ _ (trans!{Real.Real} _ _ _
+        (trans!{Real.Real} _ _ _ (Distance.distanceSymmetric _ _) (Product.absOfNonnegative _ (F.normNonnegative (Completion.difference (s j) f))))
+        (sym!{Real.Real} _ _ (Completion.classDistance (s j) f)))
+        ((\bysub(N.Nat^, { k: N.Nat^ \where Sequence.LimitControl (\fun (k: N.Nat^) => Completion.distance (s k) f) Real.zero epsilon k }, k)) j later))
+  };
+\definition sum: \forall (m: N.Nat^) -> (Fin.Fin m -> F.Space) -> F.Space := \induction (m: N.Nat^) \return (Fin.Fin m -> F.Space) -> F.Space \with {
+  | zero: \fun (f: Fin.Fin N.Nat^::zero -> F.Space) => F.zero
+  | succ: \fun (m: N.Nat^)(previous: (Fin.Fin m -> F.Space) -> F.Space)(f: Fin.Fin (N.Nat^::succ m) -> F.Space) => F.add (f (Fin.zero m)) (previous (\fun (i: Fin.Fin m) => f (Fin.succ m i)))
+};
+\definition finiteSum: \forall (m: N.Nat^)(f: Fin.Fin m -> F.Space) -> (\forall (i: Fin.Fin m) -> Approximable (f i)) -> Approximable (sum m f) :=
+  \induction (m: N.Nat^) \return \forall (f: Fin.Fin m -> F.Space) -> (\forall (i: Fin.Fin m) -> Approximable (f i)) -> Approximable (sum m f) \with {
+    | zero: \fun (f: Fin.Fin N.Nat^::zero -> F.Space)(approximate: _) => zero
+    | succ: \fun (m: N.Nat^)(previous: _)(f: Fin.Fin (N.Nat^::succ m) -> F.Space)(approximate: _) => add (f (Fin.zero m)) (sum m (\fun (i: Fin.Fin m) => f (Fin.succ m i)))
+      (approximate (Fin.zero m)) (previous (\fun (i: Fin.Fin m) => f (Fin.succ m i)) (\fun (i: Fin.Fin m) => approximate (Fin.succ m i)))
+  };
+\module Indicator(S: Finite.FiniteMeasurableSet, box: E.Box, bounded: Sets.Subset S (E.points box));
+\module Sums;
+\module Simple(m: N.Nat^, s: I.CompleteSimple[m], f: F.Representatives,
+  agrees: \forall (x: Point) -> I.Evaluation[n := m, s := s].value x = f x,
+  box: E.Box, supported: \forall (x: Point) -> Logic.Not (Sets.Member (E.points box) x) -> f x = Real.zero);
+\import linear_algebra.Commutative[K := Real.Real, scalarRing := std.Alg[].Field[].fieldAsCommutativeRing Real.Real (Real.Algebra[].field)].Laws[V := F.Space, space := Vector.space] \as VectorLaws;
+\definition negative[x: F.Space]: Approximable x -> Approximable (F.neg x) := \fun (approximate: _) => replace (F.scale (Real.neg Real.one) x) (F.neg x) (VectorLaws.minusOneScale x) (scale (Real.neg Real.one) x approximate);
+\definition eventuallyConstant[s: N.Nat^ -> Real.Real][value: Real.Real][threshold: N.Nat^]: (\forall (k: N.Nat^) -> Nat.Le threshold k -> s k = value) -> Sequence.Converges s value :=
+  \fun (stable: _)(epsilon: Real.Real)(positive: _) => Logic.existsIntro[N.Nat^, { k: N.Nat^ \where Sequence.LimitControl s value epsilon k }] threshold
+    (\fun (k: N.Nat^)(later: _) => R.ltReplaceLeft Real.zero (Real.distance (s k) value) epsilon
+      (sym!{Real.Real} _ _ (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (\fun (r: Real.Real) => Real.distance r value) _ _ (stable k later)) (Distance.distanceSelf value))) positive);
+\module Bounded(f: F.Representatives, box: E.Box, supported: \forall (x: Point) -> Logic.Not (Sets.Member (E.points box) x) -> f x = Real.zero);
+\module General(f: F.Representatives);
+\import std.Set[].Quotient[A := F.Representatives, Equivalent := \fun (f, g: F.Representatives) => M.AlmostEqual measure f g] \as Q;
+\definition smoothDense: \forall (x: F.Space) -> Approximable x := Q.induction (\fun (x: F.Space) => Approximable x)
+  (\fun (f: F.Representatives) => \root.Euclidean[n := n].Approximation[p := p].General[f := f].dense);
+\definition continuousDense: \forall (x: F.Space)(epsilon: Real.Real) -> R.Lt Real.zero epsilon -> \exists ( f: ContinuousCompact \where R.Lt (Norm.metric.distance (F.ofFunction (Compact.representative f)) x) epsilon ) :=
+  \fun (x: F.Space)(epsilon: Real.Real)(positive: _) => \block {
+    \takefrom f: \Cast[SmoothCompact] ({ f: SmoothCompact \where R.Lt (Norm.metric.distance (ofSmooth f) x) epsilon }) \by smoothDense x epsilon positive \then
+    \let equal: F.ofFunction (Compact.representative (Compact.smoothAsContinuous f)) = ofSmooth f := F.classPointwise (Compact.representative (Compact.smoothAsContinuous f)) (Compact.smoothRepresentative f) (\fun (x: Point) => \refl(f x)) \then
+    \return Logic.existsIntro[ContinuousCompact, { f: ContinuousCompact \where R.Lt (Norm.metric.distance (F.ofFunction (Compact.representative f)) x) epsilon }] (Compact.smoothAsContinuous f)
+      (R.ltReplaceLeft _ _ _ (congr!{F.Space Real.Real} (\fun (z: F.Space) => Norm.metric.distance z x) _ _ (sym!{F.Space} _ _ equal))
+        (\bysub(SmoothCompact, { f: SmoothCompact \where R.Lt (Norm.metric.distance (ofSmooth f) x) epsilon }, f)))
+  };

@@ -1,0 +1,24 @@
+\import \root.Euclidean[n := n].Convolution[p := Powers.one] \as OneConvolution;
+\import \root.Euclidean[n := n].Compact[p := Powers.one] \as OneCompact;
+\import L.One[] \as One;
+\import \root.Euclidean[n := n].Joint[] \as Joint;
+\import \root.On[A := Point, mu := BorelMeasure.borel] \as BL;
+\import M.Functions[mu := BorelMeasure.borel] \as BF;
+\definition input: One.Representatives := One.fromIntegral (F.momentRepresentative f);
+\definition kernel: OneConvolution.Kernel := OneConvolution.Kernel { function := rho.function, radius := rho.radius, radiusBound := rho.radiusBound, coefficient := rho.coefficient, absoluteBound := rho.absoluteBound };
+\definition function: Function := OneConvolution.function input kernel;
+\definition smooth: Smooth.IsSmooth function := OneConvolution.smooth input kernel;
+\definition measurable: M.IsMeasurable measure function := Compact.continuousMeasurable function (Compact.smoothContinuous function smooth);
+\definition momentBorel: M.IsMeasurable BorelMeasure.borel (F.moment f) := BL.Power[p := F.positiveExponent].measurable (F.absolute f) (BF.absMeasurable f borel);
+\definition weight: I.Representatives := One.toIntegral (OneCompact.smoothRepresentative rho.function);
+\import product_integration.Convolution[A := Point, mu := measure, exhaustion := Integration.exhaustion].For[translations := Integration.translation, f := F.momentRepresentative f, g := weight] \as Convolution;
+\module For(result: Convolution.Result);
+\definition integrable: I.Integrable function := \block {
+  \takefrom result: Convolution.Result \by Convolution.exists (Joint.measurableKernel (F.moment f) weight momentBorel (I.integralLaw weight).integrable.left) \then
+  \return For[result := result].integrable
+};
+\definition representative: I.Representatives := \into[Function](function, I.Representatives) \by { integrable };
+\definition exchange: I.integral representative = Real.mul (I.integral (F.momentRepresentative f)) (I.integral weight) := \block {
+  \takefrom result: Convolution.Result \by Convolution.exists (Joint.measurableKernel (F.moment f) weight momentBorel (I.integralLaw weight).integrable.left) \then
+  \return trans!{Real.Real} _ _ _ (Null.integralAlmost representative result.function (AE.symmetric result.function representative (For[result := result].almost))) result.exchange
+};

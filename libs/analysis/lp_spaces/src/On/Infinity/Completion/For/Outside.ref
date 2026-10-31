@@ -1,0 +1,88 @@
+\definition null: M.Null mu exception := Logic.existsIntro[\Pow A, { N: \Pow A \where M.NullCover[mu, exception, N] }] exception
+  (M.NullCover[mu, exception, exception] { measurable := (Null.nullSetLaw exception).measurable, measure := (Null.nullSetLaw exception).zeroMeasure, included := \fun (x: A)(member: _) => member });
+\definition individualBound[k: N.Nat^][x: A]: Logic.Not (Sets.Member exception x) -> R.Le (Product.abs (s k x)) (normRepresentative (s k)) := \fun (outside: _) =>
+  outsideBound (s k) _ (representativeBound (s k)) x (\fun (member: _) => outside (contains x (Logic.Or[Sets.Member (M.union individualBad) x, Sets.Member (M.union (\fun (m: N.Nat^) => M.union (pairBad m))) x]::left
+    (Logic.existsIntro[N.Nat^, { k: N.Nat^ \where Sets.Member (individualBad k) x }] k member))));
+\definition differenceBound[m, n: N.Nat^][x: A]: Logic.Not (Sets.Member exception x) -> R.Le (Real.distance (s m x) (s n x)) (distance (s m) (s n)) := \fun (outside: _) =>
+  R.leReplaceLeft _ _ _ (Powers.Cuts[].absDifference (s m x) (s n x))
+    (outsideBound (difference (s m) (s n)) _ (representativeBound (difference (s m) (s n))) x
+      (\fun (member: _) => outside (contains x (Logic.Or[Sets.Member (M.union individualBad) x, Sets.Member (M.union (\fun (m: N.Nat^) => M.union (pairBad m))) x]::right
+        (Logic.existsIntro[N.Nat^, { m: N.Nat^ \where Sets.Member (M.union (pairBad m)) x }] m
+          (Logic.existsIntro[N.Nat^, { n: N.Nat^ \where Sets.Member (pairBad m n) x }] n member))))));
+\definition pointwiseCauchy[x: A]: Logic.Not (Sets.Member exception x) -> Sequence.Cauchy (\fun (k: N.Nat^) => s k x) := \fun (outside: _)(epsilon: Real.Real)(positive: _) => \block {
+  \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where Control[s, epsilon, k] }) \by cauchy epsilon positive \then
+  \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where Sequence.Control (\fun (k: N.Nat^) => s k x) epsilon k }] k
+    (\fun (m, n: N.Nat^)(km: _)(kn: _) => R.leLtTrans _ _ _ (differenceBound m n x outside) ((\bysub(N.Nat^, { k: N.Nat^ \where Control[s, epsilon, k] }, k)) m n km kn))
+};
+\definition Candidate[x: A]: \Set := \Cast[Real.Real] ({ y: Real.Real \where Logic.And[
+  Sets.Member exception x -> y = Real.zero,
+  Logic.Not (Sets.Member exception x) -> Sequence.Converges (\fun (k: N.Nat^) => s k x) y] });
+\definition existsLimit: \forall (x: A) -> \exists Candidate x := \fun (x: A) => Logic.orElim _ _ _ (Classical.excludedMiddle (Sets.Member exception x))
+  (\fun (inside: Sets.Member exception x) => Logic.existsIntro[Real.Real, { y: Real.Real \where Logic.And[Sets.Member exception x -> y = Real.zero, Logic.Not (Sets.Member exception x) -> Sequence.Converges (\fun (k: N.Nat^) => s k x) y] }] Real.zero
+    (Logic.And[_, _]::# (\fun (member: _) => \refl(Real.zero)) (\fun (outside: _) => Logic.falseElim _ (outside inside))))
+  (\fun (outside: Logic.Not (Sets.Member exception x)) => \block {
+    \let sequence: Sequence.CauchySequence := \into[N.Nat^ -> Real.Real]((\fun (k: N.Nat^) => s k x), Sequence.CauchySequence) \by { pointwiseCauchy x outside } \then
+    \return Logic.existsIntro[Real.Real, { y: Real.Real \where Logic.And[Sets.Member exception x -> y = Real.zero, Logic.Not (Sets.Member exception x) -> Sequence.Converges (\fun (k: N.Nat^) => s k x) y] }] (Sequence.limit sequence)
+      (Logic.And[_, _]::# (\fun (inside: _) => Logic.falseElim _ (outside inside)) (\fun (member: _) => Sequence.limitLaw sequence))
+  });
+\definition uniqueLimit[x: A][u, v: Candidate x]: u = v := \block {
+  \let a: Logic.And[Sets.Member exception x -> u = Real.zero, Logic.Not (Sets.Member exception x) -> Sequence.Converges (\fun (k: N.Nat^) => s k x) u] := \bysub(Real.Real,
+    { y: Real.Real \where Logic.And[Sets.Member exception x -> y = Real.zero, Logic.Not (Sets.Member exception x) -> Sequence.Converges (\fun (k: N.Nat^) => s k x) y] }, u) \then
+  \let b: Logic.And[Sets.Member exception x -> v = Real.zero, Logic.Not (Sets.Member exception x) -> Sequence.Converges (\fun (k: N.Nat^) => s k x) v] := \bysub(Real.Real,
+    { y: Real.Real \where Logic.And[Sets.Member exception x -> y = Real.zero, Logic.Not (Sets.Member exception x) -> Sequence.Converges (\fun (k: N.Nat^) => s k x) y] }, v) \then
+  \return Logic.orElim _ _ _ (Classical.excludedMiddle (Sets.Member exception x))
+    (\fun (inside: _) => trans!{Real.Real} _ _ _ (a.left inside) (sym!{Real.Real} _ _ (b.left inside)))
+    (\fun (outside: _) => Sequence.limitUnique (\fun (k: N.Nat^) => s k x) u v (a.right outside) (b.right outside))
+};
+\definition limit[x: A]: Real.Real := \choice Candidate x \by { existence: existsLimit x, uniqueness: uniqueLimit x };
+\definition limitLaw[x: A]: Logic.And[Sets.Member exception x -> limit x = Real.zero, Logic.Not (Sets.Member exception x) -> Sequence.Converges (\fun (k: N.Nat^) => s k x) (limit x)] :=
+  \bysub(Real.Real, { y: Real.Real \where Logic.And[Sets.Member exception x -> y = Real.zero, Logic.Not (Sets.Member exception x) -> Sequence.Converges (\fun (k: N.Nat^) => s k x) y] },
+    \choice Candidate x \by { existence: existsLimit x, uniqueness: uniqueLimit x });
+\module Masked(k: N.Nat^) {
+  \import I.Mask[exception := exception, f := s k] \as Mask;
+  \definition value: A -> Real.Real := Mask.value;
+  \definition law: \forall (x: A) -> Logic.And[Sets.Member exception x -> value x = Real.zero, Logic.Not (Sets.Member exception x) -> value x = s k x] := Mask.laws;
+  \definition measurable: M.IsMeasurable mu value := Mask.measurable (properties (s k)).measurable;
+}
+\definition masked[k: N.Nat^][x: A]: Real.Real := \root.On[A := A, mu := mu].Infinity[].Completion[].For[s := s, cauchy := cauchy].Outside[exception := exception, contains := contains].Masked[k := k].value x;
+\definition maskedConverges[x: A]: Sequence.Converges (\fun (k: N.Nat^) => masked k x) (limit x) := Logic.orElim _ _ _ (Classical.excludedMiddle (Sets.Member exception x))
+  (\fun (inside: _) => \idelim Real.zero = limit x \with r: Real.Real => Sequence.Converges (\fun (k: N.Nat^) => masked k x) r \by {
+    base: Operations.congruent (\fun (k: N.Nat^) => Real.zero) (\fun (k: N.Nat^) => masked k x) Real.zero
+      (\fun (k: N.Nat^) => sym!{Real.Real} _ _ ((\root.On[A := A, mu := mu].Infinity[].Completion[].For[s := s, cauchy := cauchy].Outside[exception := exception, contains := contains].Masked[k := k].law x).left inside)) (Sequence.constantConverges Real.zero),
+    equality: sym!{Real.Real} _ _ ((limitLaw x).left inside)
+  })
+  (\fun (outside: _) => Operations.congruent (\fun (k: N.Nat^) => s k x) (\fun (k: N.Nat^) => masked k x) (limit x)
+    (\fun (k: N.Nat^) => sym!{Real.Real} _ _ ((\root.On[A := A, mu := mu].Infinity[].Completion[].For[s := s, cauchy := cauchy].Outside[exception := exception, contains := contains].Masked[k := k].law x).right outside)) ((limitLaw x).right outside));
+\definition measurableSequence: Convergence.MeasurableSequence := \into[N.Nat^ -> A -> Real.Real](masked, Convergence.MeasurableSequence) \by {
+  \fun (k: N.Nat^) => \root.On[A := A, mu := mu].Infinity[].Completion[].For[s := s, cauchy := cauchy].Outside[exception := exception, contains := contains].Masked[k := k].measurable
+};
+\definition measurable: M.IsMeasurable mu limit := Convergence.PointwiseLimit[].measurableLimit measurableSequence limit maskedConverges;
+\definition bounded: Lp.EssentiallyBounded[limit] := \block {
+  \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where Control[s, Real.one, k] }) \by cauchy Real.one Product.onePositive \then
+  \let bound: Real.Real := Real.add (normRepresentative (s k)) Real.one \then
+  \let nonnegative: R.Le Real.zero bound := Laws.addNonnegative _ _ (normNonnegative (s k)) Laws.oneNonnegative \then
+  \let estimate: \forall (x: A) -> Logic.Not (Sets.Member exception x) -> R.Le (Product.abs (limit x)) bound := \fun (x: A)(outside: _) =>
+    Operations.distanceBoundLimit (\fun (n: N.Nat^) => Real.zero) (\fun (n: N.Nat^) => s n x) Real.zero (limit x) bound k (Sequence.constantConverges Real.zero) ((limitLaw x).right outside)
+      (\fun (n: N.Nat^)(later: _) => R.leTrans _ _ _ (Distance.distanceTriangle Real.zero (s k x) (s n x))
+        (E.addLe _ _ _ _ (individualBound k x outside) (R.leTrans _ _ _ (differenceBound k n x outside)
+          (Order.leOfLt _ _ ((\bysub(N.Nat^, { k: N.Nat^ \where Control[s, Real.one, k] }, k)) k n (Nat.leRefl k) later))))) \then
+  \return Lp.EssentiallyBounded[limit] { measurable := measurable,
+    bound := Logic.existsIntro[Real.Real, { b: Real.Real \where Lp.EssentialBound[limit, b] }] bound (boundOutside limit bound exception nonnegative null estimate),
+  }
+};
+\definition representative: Representatives := \into[A -> Real.Real](limit, Representatives) \by { bounded };
+\definition convergence: Metric.Converges Norm.metric (\fun (k: N.Nat^) => ofFunction (s k)) (ofFunction representative) := \fun (epsilon: Real.Real)(positive: _) => \block {
+  \let delta: Real.Real := Real.mul Real.half epsilon \then
+  \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where Control[s, delta, k] }) \by cauchy delta (E.halfOfPositive epsilon positive) \then
+  \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where Metric.LimitControl Norm.metric (\fun (k: N.Nat^) => ofFunction (s k)) (ofFunction representative) epsilon k }] k
+    (\fun (n: N.Nat^)(later: _) => \block {
+      \let bound: Lp.EssentialBound[difference (s n) representative, delta] := boundOutside (difference (s n) representative) delta exception (Order.leOfLt _ _ (E.halfOfPositive epsilon positive)) null
+        (\fun (x: A)(outside: _) => R.leReplaceLeft _ _ _ (sym!{Real.Real} _ _ (Powers.Cuts[].absDifference (s n x) (limit x)))
+          (Operations.distanceBoundLimit (\fun (m: N.Nat^) => s n x) (\fun (m: N.Nat^) => s m x) (s n x) (limit x) delta k (Sequence.constantConverges (s n x)) ((limitLaw x).right outside)
+            (\fun (m: N.Nat^)(laterM: _) => R.leTrans _ _ _ (differenceBound n m x outside) (Order.leOfLt _ _
+              ((\bysub(N.Nat^, { k: N.Nat^ \where Control[s, delta, k] }, k)) n m later laterM))))) \then
+      \return R.ltReplaceLeft _ _ _ (sym!{Real.Real} _ _ (classDistance (s n) representative)) (R.leLtTrans _ _ _ (normLower (difference (s n) representative) delta bound) (E.halfStrict epsilon positive))
+    })
+};
+\definition exists: \exists ( x: Space \where Metric.Converges Norm.metric (\fun (k: N.Nat^) => ofFunction (s k)) x ) := Logic.existsIntro[Space,
+  { x: Space \where Metric.Converges Norm.metric (\fun (k: N.Nat^) => ofFunction (s k)) x }] (ofFunction representative) convergence;

@@ -1,0 +1,115 @@
+\import \parent.Finite[p := \root.Powers[].Algebra[].two] \as F;
+\import \parent.Norm[p := \root.Powers[].Algebra[].two] \as Norm;
+\import \parent.Hilbert[] \as RealHilbert;
+\import \root.Powers[].Algebra[] \as PA;
+\import complex.Complex[] \as C;
+\import C.Def[] \as D;
+\import C.Prop[] \as CL;
+\import C.Absolute[] \as CA;
+\import real.Analysis[].SquareRoot[] \as Root;
+\import measure_convergence.On[A := A, mu := mu].Complex[] \as CI;
+\import topology.Topology[Carrier := A] \as Sets;
+\definition Function: \Set := A -> C.Complex;
+\definition HasMoment[f: Function]: \Prop := Logic.And[Lp.HasFiniteMoment[\fun (x: A) => C.re (f x), PA.two], Lp.HasFiniteMoment[\fun (x: A) => C.im (f x), PA.two]];
+\definition Representatives: \Set := \Cast[Function] ({ f: Function \where HasMoment f });
+\definition properties[f: Representatives]: HasMoment f := \bysub(Function, { f: Function \where HasMoment f }, f);
+\definition realPart[f: Representatives]: F.Representatives := \into[A -> Real.Real](\fun (x: A) => C.re (f x), F.Representatives) \by { (properties f).left };
+\definition imaginaryPart[f: Representatives]: F.Representatives := \into[A -> Real.Real](\fun (x: A) => C.im (f x), F.Representatives) \by { (properties f).right };
+\definition realCongruent[f: F.Representatives][g: A -> Real.Real]: (\forall (x: A) -> f x = g x) -> Lp.HasFiniteMoment[g, PA.two] := \fun (same: _) => \block {
+  \let function: A -> Real.Real := f \then
+  \return \idelim function = g \with h: (A -> Real.Real) => Lp.HasFiniteMoment[h, PA.two] \by {
+    base: F.properties f, equality: \axiom:funext(function, g, same)
+  }
+};
+\definition join[f, g: F.Representatives]: Representatives := \into[Function](\fun (x: A) => C.make (f x) (g x), Representatives) \by { Logic.And[_, _]::# (realCongruent f (\fun (x: A) => f x) (\fun (x: A) => \refl(f x))) (realCongruent g (\fun (x: A) => g x) (\fun (x: A) => \refl(g x))) };
+\definition squareMoment[f: F.Representatives][x: A]: F.moment f x = Real.mul (f x) (f x) := trans!{Real.Real} _ _ _ (PA.square (F.absolute f x)) (\parent.Products[].absSquare (f x));
+\definition squareSum[f: Representatives]: I.Representatives := Linear.addRepresentative (F.momentRepresentative (realPart f)) (F.momentRepresentative (imaginaryPart f));
+\definition squareFunction[f: Representatives]: A -> Real.Real := squareSum f;
+\definition squareSumLaw[f: Representatives][x: A]: squareSum f x = D.normSq (f x) := congr!{Real.Real Real.Real Real.Real} Real.add _ _ _ _ (squareMoment (realPart f) x) (squareMoment (imaginaryPart f) x);
+\definition rootPower[a: Powers.Nonnegative]: Powers.value a (PA.inverseExponent F.positiveExponent) = Root.sqrt a := Root.unique a _ (Powers.nonnegativeValue _ _)
+  (trans!{Real.Real} _ _ _ (sym!{Real.Real} _ _ (PA.square (PA.powered a (PA.inverseExponent F.positiveExponent))))
+    (trans!{Real.Real} _ _ _ (PA.powerRoot a F.positiveExponent) (sym!{Real.Real} _ _ (Distance.maxOfLe Real.zero a (Powers.baseNonnegative a)))));
+\definition modulus[f: Function]: A -> Real.Real := \fun (x: A) => CA.abs (f x);
+\definition modulusMoment[f: Function][x: A]: F.moment (modulus f) x = D.normSq (f x) := trans!{Real.Real} _ _ _
+  (trans!{Real.Real} _ _ _ (PA.square (F.absolute (modulus f) x)) (\parent.Products[].absSquare (modulus f x))) (CA.square (f x));
+\definition inverse: \root.Exponential[].Positive := \into[Real.Real](Laws.fieldInv PA.two, \root.Exponential[].Positive) \by { Product.invPositive PA.two (\root.Exponential[].positive F.positiveExponent) };
+\definition modulusMeasurable[f: Representatives]: M.IsMeasurable mu (modulus f) := \block {
+  \let s: A -> Powers.Nonnegative := \fun (x: A) => \into[Real.Real](squareSum f x, Powers.Nonnegative) \by {
+    R.leReplaceRight Real.zero (D.normSq (f x)) (squareSum f x) (sym!{Real.Real} _ _ (squareSumLaw f x)) (CL.normSqNonnegative (f x)) } \then
+  \return \idelim (\fun (x: A) => Powers.value (s x) (PA.positiveExponent inverse)) = modulus f \with h: (A -> Real.Real) => M.IsMeasurable mu h \by {
+    base: \parent.Power[p := inverse].measurable s (I.integralLaw (squareSum f)).integrable.left,
+    equality: \axiom:funext((\fun (x: A) => Powers.value (s x) (PA.positiveExponent inverse)), modulus f, \fun (x: A) => trans!{Real.Real} _ _ _
+      (rootPower (s x)) (congr!{Real.Real Real.Real} Root.sqrt _ _ (squareSumLaw f x)))
+  }
+};
+\definition modulusRepresentative[f: Representatives]: F.Representatives := \into[A -> Real.Real](modulus f, F.Representatives) \by {
+  F.hasMoment (modulus f) (modulusMeasurable f)
+    (\idelim squareFunction f = F.moment (modulus f) \with h: (A -> Real.Real) => I.Finite h \by {
+      base: \idelim Absolute.abs (squareSum f) = (squareSum f) \with h: (A -> Real.Real) => I.Finite h \by {
+        base: (I.integralLaw (squareSum f)).integrable.right,
+        equality: \axiom:funext(Absolute.abs (squareSum f), (squareSum f), \fun (x: A) => Product.absOfNonnegative _
+          (R.leReplaceRight Real.zero (D.normSq (f x)) (squareSum f x) (sym!{Real.Real} _ _ (squareSumLaw f x)) (CL.normSqNonnegative (f x))))
+      },
+      equality: \axiom:funext(squareFunction f, F.moment (modulus f), \fun (x: A) => trans!{Real.Real} _ _ _ (squareSumLaw f x) (sym!{Real.Real} _ _ (modulusMoment f x)))
+    })
+};
+\definition Equivalent[f, g: Representatives]: \Prop := Logic.And[M.AlmostEqual mu (realPart f) (realPart g), M.AlmostEqual mu (imaginaryPart f) (imaginaryPart g)];
+\import std.Set[].Quotient[A := Representatives, Equivalent := Equivalent] \as Q;
+\definition equivalence: Q.EquivalenceLaws := Q.EquivalenceLaws {
+  refl := \fun (f: Representatives) => Logic.And[_, _]::# (AE.reflexive (realPart f)) (AE.reflexive (imaginaryPart f)),
+  sym := \fun (f, g: Representatives)(same: _) => Logic.And[_, _]::# (AE.symmetric _ _ same.left) (AE.symmetric _ _ same.right),
+  trans := \fun (f, g, h: Representatives)(fg: _)(gh: _) => Logic.And[_, _]::# (AE.transitive _ _ _ fg.left gh.left) (AE.transitive _ _ _ fg.right gh.right),
+};
+\definition Space: \Set := Q.Carrier;
+\definition ofFunction[f: Representatives]: Space := Q.class f;
+\definition almost[f, g: Representatives]: Equivalent f g -> M.Null mu ({ x: A \where Logic.Not (f x = g x) }) := \fun (same: _) =>
+  AE.nullSubset ({ x: A \where Logic.Not (f x = g x) })
+    (M.Sigma[].pairUnion ({ x: A \where Logic.Not (C.re (f x) = C.re (g x)) }) ({ x: A \where Logic.Not (C.im (f x) = C.im (g x)) }))
+    (\fun (x: A)(different: _) => Logic.orElim _ _ _ (Classical.excludedMiddle (C.re (f x) = C.re (g x)))
+      (\fun (re: _) => Logic.Or[Logic.Not (C.re (f x) = C.re (g x)), Logic.Not (C.im (f x) = C.im (g x))]::right (\fun (im: C.im (f x) = C.im (g x)) => different (CL.ext _ _ re im)))
+      (\fun (re: _) => Logic.Or[Logic.Not (C.re (f x) = C.re (g x)), Logic.Not (C.im (f x) = C.im (g x))]::left re))
+    (AE.nullUnion _ _ same.left same.right);
+\definition componentAlmost[h: C.Complex -> Real.Real][f, g: Representatives]: Equivalent f g -> M.AlmostEqual mu (\fun (x: A) => h (f x)) (\fun (x: A) => h (g x)) :=
+  \fun (same: _) => AE.nullSubset ({ x: A \where Logic.Not (h (f x) = h (g x)) }) ({ x: A \where Logic.Not (f x = g x) })
+    (\fun (x: A)(different: _)(equal: _) => different (congr!{C.Complex Real.Real} h _ _ equal)) (almost f g same);
+\definition normRepresentative[f: Representatives]: Real.Real := F.normRepresentative (modulusRepresentative f);
+\definition normRespects[f, g: Representatives]: Equivalent f g -> normRepresentative f = normRepresentative g := \fun (same: _) => F.normRespects (modulusRepresentative f) (modulusRepresentative g) (componentAlmost CA.abs f g same);
+\import Q.Maps[B := Real.Real] \as NormMaps;
+\definition normValue: Space -> Real.Real := NormMaps.value equivalence normRepresentative normRespects;
+\definition normOfFunction[f: Representatives]: normValue (ofFunction f) = normRepresentative f := NormMaps.onClass equivalence normRepresentative normRespects f;
+\definition addRepresentative[f, g: Representatives]: Representatives := \into[Function](\fun (x: A) => D.add (f x) (g x), Representatives) \by {
+  Logic.And[_, _]::# (F.properties (F.addRepresentative (realPart f) (realPart g))) (F.properties (F.addRepresentative (imaginaryPart f) (imaginaryPart g))) };
+\definition negRepresentative[f: Representatives]: Representatives := \into[Function](\fun (x: A) => D.neg (f x), Representatives) \by {
+  Logic.And[_, _]::# (F.properties (F.negRepresentative (realPart f))) (F.properties (F.negRepresentative (imaginaryPart f))) };
+\definition scaleRepresentative[c: C.Complex][f: Representatives]: Representatives := \into[Function](\fun (x: A) => D.mul c (f x), Representatives) \by {
+  Logic.And[_, _]::#
+    (F.properties (F.addRepresentative (F.scaleRepresentative (C.re c) (realPart f)) (F.negRepresentative (F.scaleRepresentative (C.im c) (imaginaryPart f)))))
+    (F.properties (F.addRepresentative (F.scaleRepresentative (C.re c) (imaginaryPart f)) (F.scaleRepresentative (C.im c) (realPart f)))) };
+\definition zeroRepresentative: Representatives := join F.zeroRepresentative F.zeroRepresentative;
+\definition zero: Space := ofFunction zeroRepresentative;
+\definition classPointwise[f, g: Representatives]: (\forall (x: A) -> f x = g x) -> ofFunction f = ofFunction g := \fun (same: _) => Q.classOfEq equivalence f g
+  (Logic.And[_, _]::#
+    (AE.nullSubset _ Sets.Empty (\fun (x: A)(different: _) => different (congr!{C.Complex Real.Real} C.re _ _ (same x))) AE.nullEmpty)
+    (AE.nullSubset _ Sets.Empty (\fun (x: A)(different: _) => different (congr!{C.Complex Real.Real} C.im _ _ (same x))) AE.nullEmpty));
+\import Q.Binary[C := Representatives, B := Space, OtherEquivalent := Equivalent] \as Binary;
+\definition classAdd[f, g: Representatives]: Space := ofFunction (addRepresentative f g);
+\definition addRespects: Binary.Respects classAdd := \fun (f, f2, g, g2: Representatives)(ff: _)(gg: _) => Q.classOfEq equivalence _ _
+  (Logic.And[_, _]::# (binaryAlmost Real.add _ _ _ _ ff.left gg.left) (binaryAlmost Real.add _ _ _ _ ff.right gg.right));
+\definition add: Space -> Space -> Space := Binary.value equivalence equivalence classAdd addRespects;
+\definition addClass: \forall (f, g: Representatives) -> add (ofFunction f) (ofFunction g) = ofFunction (addRepresentative f g) := Binary.onClass equivalence equivalence classAdd addRespects;
+\import Q.Maps[B := Space] \as Maps;
+\definition classNeg[f: Representatives]: Space := ofFunction (negRepresentative f);
+\definition negRespects: Maps.Respects classNeg := \fun (f, g: Representatives)(same: _) => Q.classOfEq equivalence _ _
+  (Logic.And[_, _]::# (Null.mapAlmost Real.neg _ _ same.left) (Null.mapAlmost Real.neg _ _ same.right));
+\definition neg: Space -> Space := Maps.value equivalence classNeg negRespects;
+\definition negClass[f: Representatives]: neg (ofFunction f) = ofFunction (negRepresentative f) := Maps.onClass equivalence classNeg negRespects f;
+\definition classScalar[c: C.Complex][f: Representatives]: Space := ofFunction (scaleRepresentative c f);
+\definition scalarRespects[c: C.Complex]: Maps.Respects (classScalar c) := \fun (f, g: Representatives)(same: _) => Q.classOfEq equivalence _ _
+  (Logic.And[_, _]::# (componentAlmost (\fun (z: C.Complex) => C.re (D.mul c z)) f g same) (componentAlmost (\fun (z: C.Complex) => C.im (D.mul c z)) f g same));
+\definition scale[c: C.Complex]: Space -> Space := Maps.value equivalence (classScalar c) (scalarRespects c);
+\definition scaleClass[c: C.Complex][f: Representatives]: scale c (ofFunction f) = ofFunction (scaleRepresentative c f) := Maps.onClass equivalence (classScalar c) (scalarRespects c) f;
+\module Vector;
+\module Geometry;
+\module Inner;
+\module Complete;
+\module Characterization;

@@ -1,0 +1,16 @@
+\import E.Reflection[] \as Reflection;
+\import product_integration.MeasureMap[A := Point, B := Point, source := measure, target := measure] \as Maps;
+\definition function[x: Point]: Point := Reflection.point (E.subPoint x a);
+\definition pointwise[x: Point]: function x = E.subPoint a x := \axiom:funext(function x, E.subPoint a x, \fun (i: Fin.Fin n) => Algebra.negSub (x i) (a i));
+\definition map: Maps.Data := Maps.Data {
+  function := function,
+  measurable := \fun (S: \Pow Point)(valid: _) => (Integration.translation a).measurable (Reflection.reflected S) (Reflection.measureMeasurable S valid),
+  value := \fun (S: \Pow Point)(valid: _) => trans!{M.Value} _ _ _
+    ((Integration.translation a).value (Reflection.reflected S) (Reflection.measureMeasurable S valid)) (Reflection.measureInvariant S),
+};
+\import Maps.On[map := map] \as Transport;
+\definition measurable[f: Function]: M.IsMeasurable measure f -> M.IsMeasurable measure (\fun (y: Point) => f (E.subPoint a y)) := \fun (valid: _) =>
+  \idelim (\fun (y: Point) => f (function y)) = (\fun (y: Point) => f (E.subPoint a y)) \with g: Function => M.IsMeasurable measure g \by {
+    base: Transport.measurable f valid,
+    equality: \axiom:funext((\fun (y: Point) => f (function y)), (\fun (y: Point) => f (E.subPoint a y)), \fun (y: Point) => congr!{Point Real.Real} f _ _ (pointwise y))
+  };

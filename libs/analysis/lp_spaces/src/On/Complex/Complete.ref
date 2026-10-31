@@ -1,0 +1,79 @@
+\import \parent.Geometry[] \as Geometry;
+\import \parent.Vector[] \as Vector;
+\import \root.On[A := A, mu := mu].Completion[p := PA.two] \as RealComplete;
+\import \parent.Inner[] \as Inner;
+\import functional_analysis.Metric[Carrier := Space] \as Metric;
+\import functional_analysis.Metric[Carrier := F.Space] \as RealMetric;
+\import complex_hilbert.Scalars[] \as Scalar;
+\import std.Set[].Quotient[A := F.Representatives, Equivalent := \fun (f, g: F.Representatives) => M.AlmostEqual mu f g] \as RQ;
+\import Q.Maps[B := F.Space] \as Maps;
+\definition realMap[f: Representatives]: F.Space := F.ofFunction (realPart f);
+\definition imaginaryMap[f: Representatives]: F.Space := F.ofFunction (imaginaryPart f);
+\definition realRespects: Maps.Respects realMap := \fun (f, g: Representatives)(same: _) => RQ.classOfEq F.equivalence _ _ same.left;
+\definition imaginaryRespects: Maps.Respects imaginaryMap := \fun (f, g: Representatives)(same: _) => RQ.classOfEq F.equivalence _ _ same.right;
+\definition realClass: Space -> F.Space := Maps.value equivalence realMap realRespects;
+\definition imaginaryClass: Space -> F.Space := Maps.value equivalence imaginaryMap imaginaryRespects;
+\definition realOnClass[f: Representatives]: realClass (ofFunction f) = F.ofFunction (realPart f) := Maps.onClass equivalence realMap realRespects f;
+\definition imaginaryOnClass[f: Representatives]: imaginaryClass (ofFunction f) = F.ofFunction (imaginaryPart f) := Maps.onClass equivalence imaginaryMap imaginaryRespects f;
+\definition imaginaryBound[z: C.Complex]: R.Le (Product.abs (C.im z)) (CA.abs z) := R.leReplaceRight _ _ _
+  (congr!{Real.Real Real.Real} Root.sqrt _ _ (Laws.addComm (Real.mul (C.im z) (C.im z)) (Real.mul (C.re z) (C.re z))))
+  (Scalar.realAbsolute (C.make (C.im z) (C.re z)));
+\definition realNormBound[f: Representatives]: R.Le (F.normRepresentative (realPart f)) (normRepresentative f) := Norm.monotone (realPart f) (modulusRepresentative f)
+  (\fun (x: A) => R.leReplaceRight _ _ _ (sym!{Real.Real} _ _ (Product.absOfNonnegative (CA.abs (f x)) (CA.nonnegative (f x)))) (Scalar.realAbsolute (f x)));
+\definition imaginaryNormBound[f: Representatives]: R.Le (F.normRepresentative (imaginaryPart f)) (normRepresentative f) := Norm.monotone (imaginaryPart f) (modulusRepresentative f)
+  (\fun (x: A) => R.leReplaceRight _ _ _ (sym!{Real.Real} _ _ (Product.absOfNonnegative (CA.abs (f x)) (CA.nonnegative (f x)))) (imaginaryBound (f x)));
+\definition normComponents[f: Representatives]: R.Le (normRepresentative f) (Real.add (F.normRepresentative (realPart f)) (F.normRepresentative (imaginaryPart f))) :=
+  R.leReplaceRight _ _ _ (congr!{Real.Real Real.Real Real.Real} Real.add _ _ _ _ (F.normAbsolute (realPart f)) (F.normAbsolute (imaginaryPart f)))
+    (R.leTrans _ _ _ (Norm.monotone (modulusRepresentative f) (F.addRepresentative (F.absoluteRepresentative (realPart f)) (F.absoluteRepresentative (imaginaryPart f)))
+      (\fun (x: A) => R.leReplaceLeft _ _ _ (sym!{Real.Real} _ _ (Product.absOfNonnegative (CA.abs (f x)) (CA.nonnegative (f x))))
+        (R.leTrans _ _ _ (CI.absComponents (f x)) (R.leReplaceRight _ _ _ (sym!{Real.Real} _ _ (Product.absExpression _)) (Distance.maxRight _ _)))))
+      (Norm.representativeTriangle (F.absoluteRepresentative (realPart f)) (F.absoluteRepresentative (imaginaryPart f))));
+\definition difference[f, g: Representatives]: Representatives := addRepresentative f (negRepresentative g);
+\definition classDistance[f, g: Representatives]: Geometry.metric.distance (ofFunction f) (ofFunction g) = normRepresentative (difference f g) := eq_reason_in!{Real.Real _
+  "=" _ "by" { congr!{Space Real.Real} (\fun (y: Space) => normValue (add (ofFunction f) y)) _ _ (negClass g) }
+  "=" _ "by" { congr!{Space Real.Real} normValue _ _ (addClass f (negRepresentative g)) }
+  "=" _ "by" { normOfFunction (difference f g) }
+};
+\definition realDistance[f, g: Representatives]: Norm.metric.distance (realClass (ofFunction f)) (realClass (ofFunction g)) = F.normRepresentative (realPart (difference f g)) :=
+  trans!{Real.Real} _ _ _ (congr!{F.Space F.Space Real.Real} Norm.metric.distance _ _ _ _ (realOnClass f) (realOnClass g)) (RealComplete.classDistance (realPart f) (realPart g));
+\definition imaginaryDistance[f, g: Representatives]: Norm.metric.distance (imaginaryClass (ofFunction f)) (imaginaryClass (ofFunction g)) = F.normRepresentative (imaginaryPart (difference f g)) :=
+  trans!{Real.Real} _ _ _ (congr!{F.Space F.Space Real.Real} Norm.metric.distance _ _ _ _ (imaginaryOnClass f) (imaginaryOnClass g)) (RealComplete.classDistance (imaginaryPart f) (imaginaryPart g));
+\definition realDistanceBound: \forall (x, y: Space) -> R.Le (Norm.metric.distance (realClass x) (realClass y)) (Geometry.metric.distance x y) := Q.induction2
+  (\fun (x, y: Space) => R.Le (Norm.metric.distance (realClass x) (realClass y)) (Geometry.metric.distance x y))
+  (\fun (f, g: Representatives) => R.leReplace _ _ _ _ (sym!{Real.Real} _ _ (realDistance f g)) (sym!{Real.Real} _ _ (classDistance f g)) (realNormBound (difference f g)));
+\definition imaginaryDistanceBound: \forall (x, y: Space) -> R.Le (Norm.metric.distance (imaginaryClass x) (imaginaryClass y)) (Geometry.metric.distance x y) := Q.induction2
+  (\fun (x, y: Space) => R.Le (Norm.metric.distance (imaginaryClass x) (imaginaryClass y)) (Geometry.metric.distance x y))
+  (\fun (f, g: Representatives) => R.leReplace _ _ _ _ (sym!{Real.Real} _ _ (imaginaryDistance f g)) (sym!{Real.Real} _ _ (classDistance f g)) (imaginaryNormBound (difference f g)));
+\definition distanceComponents: \forall (x, y: Space) -> R.Le (Geometry.metric.distance x y)
+  (Real.add (Norm.metric.distance (realClass x) (realClass y)) (Norm.metric.distance (imaginaryClass x) (imaginaryClass y))) := Q.induction2
+    (\fun (x, y: Space) => R.Le (Geometry.metric.distance x y) (Real.add (Norm.metric.distance (realClass x) (realClass y)) (Norm.metric.distance (imaginaryClass x) (imaginaryClass y))))
+    (\fun (f, g: Representatives) => R.leReplace _ _ _ _ (sym!{Real.Real} _ _ (classDistance f g))
+      (congr!{Real.Real Real.Real Real.Real} Real.add _ _ _ _ (sym!{Real.Real} _ _ (realDistance f g)) (sym!{Real.Real} _ _ (imaginaryDistance f g))) (normComponents (difference f g)));
+\definition realCauchy[s: N.Nat^ -> Space]: Metric.Cauchy Geometry.metric s -> RealMetric.Cauchy Norm.metric (\fun (k: N.Nat^) => realClass (s k)) :=
+  \fun (cauchy: _)(epsilon: Real.Real)(positive: _) => \block {
+    \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where Metric.CauchyControl Geometry.metric s epsilon k }) \by cauchy epsilon positive \then
+    \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where RealMetric.CauchyControl Norm.metric (\fun (k: N.Nat^) => realClass (s k)) epsilon k }] k
+      (\fun (m, n: N.Nat^)(km: _)(kn: _) => R.leLtTrans _ _ _ (realDistanceBound (s m) (s n))
+        ((\bysub(N.Nat^, { k: N.Nat^ \where Metric.CauchyControl Geometry.metric s epsilon k }, k)) m n km kn))
+  };
+\definition imaginaryCauchy[s: N.Nat^ -> Space]: Metric.Cauchy Geometry.metric s -> RealMetric.Cauchy Norm.metric (\fun (k: N.Nat^) => imaginaryClass (s k)) :=
+  \fun (cauchy: _)(epsilon: Real.Real)(positive: _) => \block {
+    \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where Metric.CauchyControl Geometry.metric s epsilon k }) \by cauchy epsilon positive \then
+    \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where RealMetric.CauchyControl Norm.metric (\fun (k: N.Nat^) => imaginaryClass (s k)) epsilon k }] k
+      (\fun (m, n: N.Nat^)(km: _)(kn: _) => R.leLtTrans _ _ _ (imaginaryDistanceBound (s m) (s n))
+        ((\bysub(N.Nat^, { k: N.Nat^ \where Metric.CauchyControl Geometry.metric s epsilon k }, k)) m n km kn))
+  };
+\module For(s: N.Nat^ -> Space, re, im: F.Space, reLimit: RealMetric.Converges Norm.metric (\fun (k: N.Nat^) => realClass (s k)) re, imLimit: RealMetric.Converges Norm.metric (\fun (k: N.Nat^) => imaginaryClass (s k)) im, reRepresentative: RQ.Representative re, imRepresentative: RQ.Representative im);
+\import complex_hilbert.Space[V := Space, space := Vector.space].Hilbert[norm := Geometry.norm, inner := Inner.inner] \as Hilbert;
+\import complex_hilbert.Space[V := Space, space := Vector.space] \as CS;
+\import functional_analysis.Normed[V := Space, space := CS.realSpace] \as RealNormed;
+\definition complete: RealNormed.IsBanach Geometry.norm.realNorm := \fun (s: N.Nat^ -> Space)(cauchy: _) => \block {
+  \takefrom re: \Cast[F.Space] ({ x: F.Space \where RealMetric.Converges Norm.metric (\fun (k: N.Nat^) => realClass (s k)) x }) \by RealComplete.complete _ (realCauchy s cauchy) \then
+  \takefrom im: \Cast[F.Space] ({ x: F.Space \where RealMetric.Converges Norm.metric (\fun (k: N.Nat^) => imaginaryClass (s k)) x }) \by RealComplete.complete _ (imaginaryCauchy s cauchy) \then
+  \takefrom reRep: RQ.Representative re \by RQ.classProperty re \then
+  \takefrom imRep: RQ.Representative im \by RQ.classProperty im \then
+  \return For[s := s, re := re, im := im,
+    reLimit := \bysub(F.Space, { x: F.Space \where RealMetric.Converges Norm.metric (\fun (k: N.Nat^) => realClass (s k)) x }, re),
+    imLimit := \bysub(F.Space, { x: F.Space \where RealMetric.Converges Norm.metric (\fun (k: N.Nat^) => imaginaryClass (s k)) x }, im), reRepresentative := reRep, imRepresentative := imRep].exists
+};
+\definition hilbert: Hilbert.Complete := Hilbert.Complete { normSquared := Inner.normSquared, complete := complete };

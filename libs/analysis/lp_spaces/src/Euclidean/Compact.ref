@@ -1,0 +1,63 @@
+\import \parent.CompactBounds[] \as Bounds;
+\import L.Finite[p := p] \as F;
+\import M.Lp[mu := measure] \as Lp;
+\import \root.Powers[] \as Powers;
+\import calculus.Real[].Multivariable[n := n].Open[] \as Open;
+\import Open.Smooth[].Properties[] \as Properties;
+\import Open.Analysis[] \as Analysis;
+\import Open.Restriction[] \as Restriction;
+\import Open.Whole[] \as Whole;
+\import metric_spaces.MetricSpace[Carrier := Point] \as Metric;
+\import Metric.Topology[] \as Topology;
+\import Functions.Lattice[] \as Lattice;
+\import Line.Rays[] \as Rays;
+\definition continuousMeasurable[f: Function]: Functions.Continuous Ambient.topology f -> M.IsMeasurable measure f := \fun (continuous: _)(r: Real.Real) =>
+  Borel.openMeasurable ({ x: Point \where R.Lt r (f x) }) (continuous (Rays.Above r) (Rays.aboveOpen r));
+\definition continuousBorel[f: Function]: Functions.Continuous Ambient.topology f -> \forall (r: Real.Real) -> M.Measurable BorelSigma.sigma ({ x: Point \where R.Lt r (f x) }) :=
+  \fun (continuous: _)(r: Real.Real) => BorelSigma.open ({ x: Point \where R.Lt r (f x) }) (continuous (Rays.Above r) (Rays.aboveOpen r));
+\definition smoothContinuous[f: Function]: Smooth.IsSmooth f -> Functions.Continuous Ambient.topology f := \fun (smooth: _) => Functions.continuousOfLocal Ambient.topology f
+  (\fun (a: Point)(epsilon: Real.Real)(positive: _) => \block {
+    \takefrom delta: \Cast[Real.Real] ({ d: Real.Real \where Analysis.ContinuityControl[Open.whole, Restriction.function Open.whole f, Whole.point a, epsilon, d] })
+      \by Properties.continuous Open.whole (Restriction.function Open.whole f) smooth (Whole.point a) epsilon positive \then
+    \let control: Analysis.ContinuityControl[Open.whole, Restriction.function Open.whole f, Whole.point a, epsilon, delta] :=
+      \bysub(Real.Real, { d: Real.Real \where Analysis.ContinuityControl[Open.whole, Restriction.function Open.whole f, Whole.point a, epsilon, d] }, delta) \then
+    \return Logic.existsIntro[\Pow Point, { U: \Pow Point \where Sets.OpenNeighborhood[Ambient.topology, a, Functions.Small f a epsilon, U] }] (Metric.Ball Geometry.metric a delta)
+      (Sets.OpenNeighborhood[Ambient.topology, a, Functions.Small f a epsilon, Metric.Ball Geometry.metric a delta] {
+        open := Topology.ballOpenIn Geometry.metric a delta, contains := Metric.ballCenter Geometry.metric a delta control.positive,
+        within := \fun (x: Point)(near: _) => R.ltReplaceLeft _ _ _ (Distance.distanceSymmetric (f x) (f a))
+          (control.estimate (Whole.point x) (R.ltReplaceLeft _ _ _ (Geometry.distanceSymmetric a x) near)),
+      })
+  });
+\definition absoluteBound[f: Function]: Functions.Continuous Ambient.topology f -> Sets.IsCompactIn Ambient.topology (Smooth.support f) ->
+  \exists ( c: Nonnegative \where \forall (x: Point) -> R.Le (Product.abs (f x)) c ) := \fun (continuous: _)(compact: _) => \block {
+    \takefrom b: \Cast[Real.Real] ({ b: Real.Real \where \forall (x: Point) -> Sets.Member (Smooth.support f) x -> R.Le (Product.abs (f x)) b })
+      \by Bounds.scalarBound (Smooth.support f) (\fun (x: Point) => Product.abs (f x)) compact (Lattice.absoluteContinuous Ambient.topology f continuous) \then
+    \let c: Nonnegative := \into[Real.Real](Distance.max Real.zero b, Nonnegative) \by { Distance.maxLeft Real.zero b } \then
+    \return Logic.existsIntro[Nonnegative, { c: Nonnegative \where \forall (x: Point) -> R.Le (Product.abs (f x)) c }] c
+      (\fun (x: Point) => Logic.orElim _ _ _ (Classical.excludedMiddle (Sets.Member (Smooth.support f) x))
+        (\fun (member: _) => R.leTrans _ _ _ ((\bysub(Real.Real, { b: Real.Real \where \forall (x: Point) -> Sets.Member (Smooth.support f) x -> R.Le (Product.abs (f x)) b }, b)) x member) (Distance.maxRight Real.zero b))
+        (\fun (outside: _) => R.leReplaceLeft Real.zero _ _ (sym!{Real.Real} _ _ (trans!{Real.Real} _ _ _
+          (congr!{Real.Real Real.Real} Product.abs _ _ (Support.zeroOutsideSupport Ambient.topology f x outside)) (Distance.distanceSelf Real.zero))) (Powers.baseNonnegative c)))
+  };
+\definition hasMoment[f: Function]: Functions.Continuous Ambient.topology f -> Sets.IsCompactIn Ambient.topology (Smooth.support f) -> Lp.HasFiniteMoment[f, p] :=
+  \fun (continuous: _)(compact: _) => \block {
+    \takefrom c: \Cast[Nonnegative] ({ c: Nonnegative \where \forall (x: Point) -> R.Le (Product.abs (f x)) c }) \by absoluteBound f continuous compact \then
+    \let S: Finite.FiniteMeasurableSet := \into[\Pow Point](Smooth.support f, Finite.FiniteMeasurableSet) \by { Bounds.finite (Smooth.support f) compact } \then
+    \let valid: product_integration.Finiteness[A := Point, mu := measure].Bounded[S := S].Conditions[f, c] :=
+      product_integration.Finiteness[A := Point, mu := measure].Bounded[S := S].Conditions[f, c] {
+        measurable := continuousMeasurable f continuous,
+        bound := \fun (x: Point)(member: _) => (\bysub(Nonnegative, { c: Nonnegative \where \forall (x: Point) -> R.Le (Product.abs (f x)) c }, c)) x,
+        outside := Support.zeroOutsideSupport Ambient.topology f,
+      } \then
+    \return F.hasMoment f (continuousMeasurable f continuous) (L.Bounded[p := p, S := S].finite c f valid)
+  };
+\definition continuousLaws[f: ContinuousCompact]: Continuous.CompactSupportLaws[f] := \bysub(Function, { f: Function \where Continuous.CompactSupportLaws[f] }, f);
+\definition representative[f: ContinuousCompact]: F.Representatives := \into[Function](f, F.Representatives) \by {
+  hasMoment f (continuousLaws f).continuous (continuousLaws f).support
+};
+\definition smoothRepresentative[f: SmoothCompact]: F.Representatives := \into[Function](f, F.Representatives) \by {
+  hasMoment f (smoothContinuous f (smoothCompactLaws f).smooth) (smoothCompactLaws f).compact
+};
+\definition smoothAsContinuous[f: SmoothCompact]: ContinuousCompact := \into[Function](f, ContinuousCompact) \by {
+  Continuous.CompactSupportLaws[f] { continuous := smoothContinuous f (smoothCompactLaws f).smooth, support := (smoothCompactLaws f).compact }
+};

@@ -1,0 +1,43 @@
+\definition sequence[k: N.Nat^]: F.Representatives := representative (s k) (Compact.representative f);
+\definition enlarged: Nonnegative := PA.sum radius (Powers.exponent Powers.one);
+\definition box: Finite.FiniteMeasurableSet := \into[\Pow Point](E.points (Bounds.box enlarged), Finite.FiniteMeasurableSet) \by { Integration.boxFinite (Bounds.box enlarged) };
+\import L.Indicator[p := p, S := box] \as Indicator;
+\definition bound: F.Representatives := F.scaleRepresentative coefficient Indicator.representative;
+\definition within[k: N.Nat^][x: Point]: Logic.Not (sequence k x = Real.zero) -> Sets.Member box x := \fun (nonzero: _) => Bounds.coordinateBound x enlarged
+  (R.leTrans _ _ _ (Geometry.metric.triangle Coordinates.origin (E.subPoint x (s k)) x)
+    (Estimates.addLe _ _ _ _ (radiusBound (E.subPoint x (s k)) (Support.nonzeroInSupport Ambient.topology f (E.subPoint x (s k)) nonzero))
+      (R.leTrans _ _ _ (shiftDistance x (s k)) (small k))));
+\definition outside[k: N.Nat^][x: Point]: Logic.Not (Sets.Member box x) -> sequence k x = Real.zero := \fun (notIn: _) => Sigma.doubleNegative _ (\fun (nonzero: _) => notIn (within k x nonzero));
+\definition dominated[k: N.Nat^][x: Point]: R.Le (Product.abs (sequence k x)) (bound x) := Logic.orElim _ _ _ (Classical.excludedMiddle (Sets.Member box x))
+  (\fun (member: _) => R.leReplaceRight _ _ _ (sym!{Real.Real} _ _ (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (Real.mul coefficient) _ _ (Indicator.inside x member)) (Algebra.mulOneRight coefficient)))
+    (absoluteBound (E.subPoint x (s k))))
+  (\fun (notIn: _) => R.leReplace _ _ _ _
+    (sym!{Real.Real} _ _ (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} Product.abs _ _ (outside k x notIn)) (Distance.distanceSelf Real.zero)))
+    (sym!{Real.Real} _ _ (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (Real.mul coefficient) _ _ (Indicator.outside x notIn)) (Laws.fieldMulZeroRight coefficient))) (R.leRefl Real.zero));
+\definition pointwise[x: Point]: Sequence.Converges (\fun (k: N.Nat^) => sequence k x) (f x) := \fun (epsilon: Real.Real)(positive: _) => \block {
+  \takefrom U: \Cast[\Pow Point] ({ U: \Pow Point \where Sets.OpenNeighborhood[Ambient.topology, x, Functions.Small f x epsilon, U] })
+    \by Functions.localOfContinuous Ambient.topology f (Compact.continuousLaws f).continuous x epsilon positive \then
+  \let neighborhood: Sets.OpenNeighborhood[Ambient.topology, x, Functions.Small f x epsilon, U] := \bysub(\Pow Point, { U: \Pow Point \where Sets.OpenNeighborhood[Ambient.topology, x, Functions.Small f x epsilon, U] }, U) \then
+  \takefrom delta: \Cast[Real.Real] (Points.NeighborhoodRadius Geometry.metric U x) \by neighborhood.open x neighborhood.contains \then
+  \let radius: Logic.And[R.Lt Real.zero delta, Sets.Subset (Points.Ball Geometry.metric x delta) U] := \bysub(Real.Real, Points.NeighborhoodRadius Geometry.metric U x, delta) \then
+  \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where PointMetric.LimitControl Geometry.metric s Coordinates.origin delta k }) \by converges delta radius.left \then
+  \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where Sequence.LimitControl (\fun (k: N.Nat^) => sequence k x) (f x) epsilon k }] k
+    (\fun (j: N.Nat^)(later: _) => R.ltReplaceLeft _ _ _ (Distance.distanceSymmetric (f x) (sequence j x))
+      (neighborhood.within (E.subPoint x (s j)) (radius.right (E.subPoint x (s j))
+        (R.leLtTrans _ _ _ (R.leReplaceLeft _ _ _ (Geometry.metric.symmetric (E.subPoint x (s j)) x) (shiftDistance x (s j)))
+          ((\bysub(N.Nat^, { k: N.Nat^ \where PointMetric.LimitControl Geometry.metric s Coordinates.origin delta k }, k)) j later)))))
+};
+\definition data: Norm.DominatedData := Norm.DominatedData {
+  sequence := sequence, target := Compact.representative f, bound := bound, exception := product_integration.FiniteNull[A := Point, mu := measure].empty,
+  dominated := \fun (k: N.Nat^)(x: Point)(outside: _) => dominated k x,
+  converges := \fun (x: Point)(outside: _) => pointwise x,
+};
+\definition scalarConvergence: Sequence.Converges (\fun (k: N.Nat^) => Completion.distance (sequence k) (Compact.representative f)) Real.zero := L.Norm[p := p].Dominated[d := data].theorem;
+\definition convergence: Metric.Converges Norm.metric (\fun (k: N.Nat^) => value (s k) (F.ofFunction (Compact.representative f))) (F.ofFunction (Compact.representative f)) :=
+  \fun (epsilon: Real.Real)(positive: _) => \block {
+    \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where Metric.LimitControl Norm.metric (\fun (k: N.Nat^) => F.ofFunction (sequence k)) (F.ofFunction (Compact.representative f)) epsilon k })
+      \by Approximation.normConvergence sequence (Compact.representative f) scalarConvergence epsilon positive \then
+    \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where Metric.LimitControl Norm.metric (\fun (k: N.Nat^) => value (s k) (F.ofFunction (Compact.representative f))) (F.ofFunction (Compact.representative f)) epsilon k }] k
+      (\fun (j: N.Nat^)(later: _) => R.ltReplaceLeft _ _ _ (congr!{F.Space Real.Real} (\fun (z: F.Space) => Norm.metric.distance z (F.ofFunction (Compact.representative f))) _ _ (sym!{F.Space} _ _ (onClass (s j) (Compact.representative f))))
+        ((\bysub(N.Nat^, { k: N.Nat^ \where Metric.LimitControl Norm.metric (\fun (k: N.Nat^) => F.ofFunction (sequence k)) (F.ofFunction (Compact.representative f)) epsilon k }, k)) j later))
+  };

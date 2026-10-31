@@ -1,0 +1,27 @@
+\import \parent.Finite[p := p] \as F;
+\import \parent.Products[] \as Products;
+\import \root.Powers[].Algebra[] \as PA;
+\import \root.Exponential[] \as Exp;
+\import topology.Topology[Carrier := A] \as Sets;
+\structure Data: \Set := {
+  function: A -> Real.Real,
+  measurable: M.IsMeasurable mu function,
+  weight: I.Representatives,
+  nonnegative: \forall (x: A) -> R.Le Real.zero (weight x),
+  mass: I.integral weight = Real.one,
+  product: I.Representatives,
+  productValue: \forall (x: A) -> product x = Real.mul (function x) (weight x),
+  moment: I.Representatives,
+  momentValue: \forall (x: A) -> moment x = Real.mul (F.moment function x) (weight x),
+};
+\definition base[d: Data][x: A]: Powers.Nonnegative := \into[Real.Real](d.weight x, Powers.Nonnegative) \by { d.nonnegative x };
+\definition productAlmost[d: Data]: M.AlmostEqual mu d.product (\fun (x: A) => Real.mul (d.function x) (d.weight x)) := AE.nullSubset _ Sets.Empty
+  (\fun (x: A)(different: _) => different (d.productValue x)) AE.nullEmpty;
+\module Strict(d: Data, strict: R.Lt Real.one p);
+\module Unit(d: Data, equal: p = Powers.one);
+\definition strict[different: Logic.Not (p = Powers.one)]: R.Lt Real.one p := Order.ltOfLeNotEq Real.one p (\bysub(Real.Real, { p: Real.Real \where R.Le Real.one p }, p))
+  (\fun (equal: Real.one = p) => different (sym!{Real.Real} Real.one p equal));
+\definition inequality[d: Data]: R.Le (Powers.value (\into[Real.Real](Product.abs (I.integral d.product), Powers.Nonnegative) \by { Product.absNonnegative _ }) (Powers.exponent p)) (I.integral d.moment) :=
+  Logic.orElim (p = Powers.one) (Logic.Not (p = Powers.one)) _ (Classical.excludedMiddle (p = Powers.one))
+    (\fun (equal: _) => Unit[d := d, equal := equal].inequality)
+    (\fun (different: _) => Strict[d := d, strict := strict different].inequality);

@@ -1,0 +1,50 @@
+\definition a: Real.Real := F.normRepresentative f;
+\definition b: Real.Real := G.normRepresentative g;
+\definition left: F.Representatives := F.scaleRepresentative (Laws.fieldInv a) f;
+\definition right: G.Representatives := G.scaleRepresentative (Laws.fieldInv b) g;
+\definition leftNorm: R.Lt Real.zero a -> F.normRepresentative left = Real.one := \fun (positive: _) =>
+  trans!{Real.Real} _ _ _ (F.normScalar (Laws.fieldInv a) f)
+    (trans!{Real.Real} _ _ _
+      (congr!{Real.Real Real.Real} (\fun (r: Real.Real) => Real.mul r a) _ _ (Product.absOfNonnegative _ (Order.leOfLt _ _ (Product.invPositive a positive))))
+      (Laws.fieldInverseNonzero a (Real.Inverse[].positiveNonzero a positive)));
+\definition rightNorm: R.Lt Real.zero b -> G.normRepresentative right = Real.one := \fun (positive: _) =>
+  trans!{Real.Real} _ _ _ (G.normScalar (Laws.fieldInv b) g)
+    (trans!{Real.Real} _ _ _
+      (congr!{Real.Real Real.Real} (\fun (r: Real.Real) => Real.mul r b) _ _ (Product.absOfNonnegative _ (Order.leOfLt _ _ (Product.invPositive b positive))))
+      (Laws.fieldInverseNonzero b (Real.Inverse[].positiveNonzero b positive)));
+\definition leftIntegral: R.Lt Real.zero a -> I.integral (F.momentRepresentative left) = Real.one := \fun (positive: _) => \block {
+  \let equal: (\into[Real.Real](F.normRepresentative left, Powers.Nonnegative) \by { F.normNonnegative left }) = PA.oneBase := leftNorm positive \then
+  \return trans!{Real.Real} _ _ _ (sym!{Real.Real} _ _ (F.normPower left))
+    (trans!{Real.Real} _ _ _ (congr!{Powers.Nonnegative Real.Real} (\fun (r: Powers.Nonnegative) => Powers.value r (Powers.exponent exponents.left)) _ _ equal)
+      (PA.oneValue (Powers.exponent exponents.left)))
+};
+\definition rightIntegral: R.Lt Real.zero b -> I.integral (G.momentRepresentative right) = Real.one := \fun (positive: _) => \block {
+  \let equal: (\into[Real.Real](G.normRepresentative right, Powers.Nonnegative) \by { G.normNonnegative right }) = PA.oneBase := rightNorm positive \then
+  \return trans!{Real.Real} _ _ _ (sym!{Real.Real} _ _ (G.normPower right))
+    (trans!{Real.Real} _ _ _ (congr!{Powers.Nonnegative Real.Real} (\fun (r: Powers.Nonnegative) => Powers.value r (Powers.exponent exponents.right)) _ _ equal)
+      (PA.oneValue (Powers.exponent exponents.right)))
+};
+\definition normalizedBound: R.Lt Real.zero a -> R.Lt Real.zero b -> R.Le (absoluteIntegral left right) Real.one :=
+  \fun (ap: _)(bp: _) => R.leReplaceRight _ _ _ (trans!{Real.Real} _ _ _
+    (congr!{Real.Real Real.Real Real.Real} Real.add _ _ _ _
+      (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (Real.mul (Laws.fieldInv exponents.left)) _ _ (leftIntegral ap)) (Algebra.mulOneRight _))
+      (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (Real.mul (Laws.fieldInv exponents.right)) _ _ (rightIntegral bp)) (Algebra.mulOneRight _))) exponents.identity)
+    (youngIntegral left right);
+\definition rescale[t, x: Real.Real]: R.Lt Real.zero t -> Real.mul t (Real.mul (Laws.fieldInv t) x) = x :=
+  \fun (positive: _) => trans!{Real.Real} _ _ _ (Algebra.mulSwap t (Laws.fieldInv t) x)
+    (trans!{Real.Real} _ _ _ (sym!{Real.Real} _ _ (Laws.fieldMulAssoc (Laws.fieldInv t) t x))
+      (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (\fun (r: Real.Real) => Real.mul r x) _ _ (Laws.fieldInverseNonzero t (Real.Inverse[].positiveNonzero t positive))) (Laws.fieldMulOneLeft x)));
+\definition inequality: R.Lt Real.zero a -> R.Lt Real.zero b -> R.Le (absoluteIntegral f g) (Real.mul a b) :=
+  \fun (ap: _)(bp: _) => \block {
+    \let equal: absoluteIntegral f g = absoluteIntegral (F.scaleRepresentative a left) (G.scaleRepresentative b right) :=
+      integralPointwise (Absolute.representative (representative f g)) (Absolute.representative (representative (F.scaleRepresentative a left) (G.scaleRepresentative b right)))
+        (\fun (x: A) => sym!{Real.Real} _ _ (congr!{Real.Real Real.Real} Product.abs _ _
+          (congr!{Real.Real Real.Real Real.Real} Real.mul _ _ _ _ (rescale a (f x) ap) (rescale b (g x) bp)))) \then
+    \let formula: absoluteIntegral f g = Real.mul (Real.mul a b) (absoluteIntegral left right) := trans!{Real.Real} _ _ _ equal
+      (trans!{Real.Real} _ _ _ (absoluteScalar a b left right)
+        (congr!{Real.Real Real.Real} (\fun (r: Real.Real) => Real.mul r (absoluteIntegral left right)) _ _
+          (congr!{Real.Real Real.Real Real.Real} Real.mul _ _ _ _
+            (Product.absOfNonnegative a (Order.leOfLt _ _ ap)) (Product.absOfNonnegative b (Order.leOfLt _ _ bp))))) \then
+    \return R.leReplace _ _ _ _ (sym!{Real.Real} _ _ formula) (Algebra.mulOneRight (Real.mul a b))
+      (E.mulMonotone (Real.mul a b) _ _ (Laws.fieldMulNonnegative a b (Order.leOfLt _ _ ap) (Order.leOfLt _ _ bp)) (normalizedBound ap bp))
+  };

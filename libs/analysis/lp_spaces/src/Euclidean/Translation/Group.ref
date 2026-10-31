@@ -1,0 +1,40 @@
+\import std.Set[].Quotient[A := F.Representatives, Equivalent := \fun (f, g: F.Representatives) => M.AlmostEqual measure f g] \as Q;
+\definition zero: \forall (x: F.Space) -> value Coordinates.origin x = x := Q.induction (\fun (x: F.Space) => value Coordinates.origin x = x)
+  (\fun (f: F.Representatives) => trans!{F.Space} _ _ _ (onClass Coordinates.origin f)
+    (F.classPointwise (representative Coordinates.origin f) f (\fun (x: Point) => congr!{Point Real.Real} f _ _ (subOrigin x))));
+\definition subtractTwice[x, a, b: Point]: E.subPoint (E.subPoint x a) b = E.subPoint x (Coordinates.addPoint a b) :=
+  \axiom:funext(E.subPoint (E.subPoint x a) b, E.subPoint x (Coordinates.addPoint a b), \fun (i: Fin.Fin n) => trans!{Real.Real} _ _ _
+    (Laws.addAssoc (x i) (Real.neg (a i)) (Real.neg (b i)))
+    (congr!{Real.Real Real.Real} (Real.add (x i)) _ _ (sym!{Real.Real} _ _ (Laws.negAdd (a i) (b i)))));
+\definition add[a, b: Point]: \forall (x: F.Space) -> value a (value b x) = value (Coordinates.addPoint a b) x := Q.induction
+  (\fun (x: F.Space) => value a (value b x) = value (Coordinates.addPoint a b) x)
+  (\fun (f: F.Representatives) => eq_reason_in!{F.Space _
+    "=" _ "by" { congr!{F.Space F.Space} (value a) _ _ (onClass b f) }
+    "=" _ "by" { onClass a (representative b f) }
+    "=" _ "by" { F.classPointwise (representative a (representative b f)) (representative (Coordinates.addPoint a b) f)
+      (\fun (x: Point) => congr!{Point Real.Real} f _ _ (subtractTwice x a b)) }
+    "=" _ "by" { sym!{F.Space} _ _ (onClass (Coordinates.addPoint a b) f) }
+  });
+\definition differencePoint[a, b: Point]: Coordinates.addPoint (Coordinates.negPoint b) a = E.subPoint a b := \axiom:funext(
+  Coordinates.addPoint (Coordinates.negPoint b) a, E.subPoint a b, \fun (i: Fin.Fin n) => Laws.addComm (Real.neg (b i)) (a i));
+\definition inversePoint[b: Point]: Coordinates.addPoint (Coordinates.negPoint b) b = Coordinates.origin := \axiom:funext(
+  Coordinates.addPoint (Coordinates.negPoint b) b, Coordinates.origin, \fun (i: Fin.Fin n) => Laws.addNegLeft (b i));
+\definition distanceDifference[a, b: Point][x: F.Space]: Norm.metric.distance (value a x) (value b x) = Norm.metric.distance (value (E.subPoint a b) x) x := eq_reason_in!{Real.Real _
+  "=" _ "by" { sym!{Real.Real} _ _ (isometry (Coordinates.negPoint b) (value a x) (value b x)) }
+  "=" _ "by" { congr!{F.Space F.Space Real.Real} Norm.metric.distance _ _ _ _
+    (trans!{F.Space} _ _ _ (add (Coordinates.negPoint b) a x) (congr!{Point F.Space} (\fun (v: Point) => value v x) _ _ (differencePoint a b)))
+    (trans!{F.Space} _ _ _ (add (Coordinates.negPoint b) b x) (trans!{F.Space} _ _ _ (congr!{Point F.Space} (\fun (v: Point) => value v x) _ _ (inversePoint b)) (zero x))) }
+};
+\structure AtControl[x: F.Space, b: Point, epsilon, delta: Real.Real]: \Prop := {
+  positive: R.Lt Real.zero delta,
+  estimate: \forall (a: Point) -> R.Lt (Geometry.metric.distance a b) delta -> R.Lt (Norm.metric.distance (value a x) (value b x)) epsilon,
+};
+\definition continuousAt[x: F.Space][b: Point][epsilon: Real.Real]: R.Lt Real.zero epsilon -> \exists ( delta: Real.Real \where AtControl[x, b, epsilon, delta] ) := \fun (positive: _) => \block {
+  \takefrom delta: \Cast[Real.Real] ({ delta: Real.Real \where Control[x, epsilon, delta] }) \by continuous x epsilon positive \then
+  \let control: Control[x, epsilon, delta] := \bysub(Real.Real, { delta: Real.Real \where Control[x, epsilon, delta] }, delta) \then
+  \return Logic.existsIntro[Real.Real, { delta: Real.Real \where AtControl[x, b, epsilon, delta] }] delta (AtControl[x, b, epsilon, delta] {
+    positive := control.positive,
+    estimate := \fun (a: Point)(near: _) => R.ltReplaceLeft _ _ _ (sym!{Real.Real} _ _ (distanceDifference a b x))
+      (control.estimate (E.subPoint a b) (R.ltReplaceLeft _ _ _ (sym!{Real.Real} _ _ (Geometry.difference a b)) near)),
+  })
+};

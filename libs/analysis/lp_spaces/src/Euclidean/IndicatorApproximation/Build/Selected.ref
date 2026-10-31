@@ -1,0 +1,53 @@
+\definition smooth[k: N.Nat^]: Smooth.IsSmooth (chosen k).value := \bysub(Function, { f: Function \where Smooth.IsSmooth f }, (chosen k).value);
+\definition sequence[k: N.Nat^]: SmoothCompact := \into[Function]((chosen k).value, SmoothCompact) \by {
+  SmoothCompactLaws[(chosen k).value] { smooth := smooth k, compact := (chosen k).supportCompact }
+};
+\definition zeroOutside[k: N.Nat^][x: Point]: Logic.Not (Sets.Member U x) -> sequence k x = Real.zero := \fun (outside: _) => Sigma.doubleNegative (sequence k x = Real.zero)
+  (\fun (nonzero: _) => outside (outerWithin k x ((chosen k).supportWithin x (Support.nonzeroInSupport Ambient.topology (chosen k).value x nonzero))));
+\import L.Indicator[p := p, S := U] \as Bound;
+\definition dominated[k: N.Nat^][x: Point]: R.Le (Product.abs (sequence k x)) (Bound.representative x) := Logic.orElim _ _ _ (Classical.excludedMiddle (Sets.Member U x))
+  (\fun (member: _) => R.leReplace _ _ _ _
+    (sym!{Real.Real} _ _ (Product.absOfNonnegative (sequence k x) ((chosen k).lower x)))
+    (sym!{Real.Real} _ _ (Bound.inside x member)) ((chosen k).upper x))
+  (\fun (outside: _) => R.leReplace _ _ _ _
+    (sym!{Real.Real} _ _ (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} Product.abs _ _ (zeroOutside k x outside)) (Distance.distanceSelf Real.zero)))
+    (sym!{Real.Real} _ _ (Bound.outside x outside)) (R.leRefl Real.zero));
+\definition eventuallyConstant[s: N.Nat^ -> Real.Real][value: Real.Real][threshold: N.Nat^]: (\forall (k: N.Nat^) -> Nat.Le threshold k -> s k = value) -> Sequence.Converges s value :=
+  \fun (stable: _)(epsilon: Real.Real)(positive: _) => Logic.existsIntro[N.Nat^, { k: N.Nat^ \where Sequence.LimitControl s value epsilon k }] threshold
+    (\fun (k: N.Nat^)(later: _) => R.ltReplaceLeft Real.zero (Real.distance (s k) value) epsilon
+      (sym!{Real.Real} _ _ (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (\fun (r: Real.Real) => Real.distance r value) _ _ (stable k later)) (Distance.distanceSelf value))) positive);
+\definition insideConverges[x: Point]: Sets.Member S x -> Logic.Not (Sets.Member exception x) -> Sequence.Converges (\fun (k: N.Nat^) => sequence k x) (Indicator.representative x) :=
+  \fun (member: _)(outside: _) => \block {
+    \let inCore: Sets.Member (M.union parts) x := Sigma.doubleNegative (Sets.Member (M.union parts) x)
+      (\fun (notCore: _) => outside (Logic.Or[Sets.Member coreException x, Sets.Member hullException x]::left (Logic.And[_, _]::# member notCore))) \then
+    \takefrom i: \Cast[N.Nat^] ({ i: N.Nat^ \where Sets.Member (parts i) x }) \by inCore \then
+    \let inPart: Sets.Member (parts i) x := \bysub(N.Nat^, { i: N.Nat^ \where Sets.Member (parts i) x }, i) \then
+    \return eventuallyConstant (\fun (k: N.Nat^) => sequence k x) (Indicator.representative x) i
+      (\fun (k: N.Nat^)(later: _) => trans!{Real.Real} _ _ _
+        ((chosen k).oneOn x (Sigma.prefixContainsEarlier parts (N.Nat^::succ k) i (Nat.ltOfSuccLe (N.Nat^::succ k) i (Nat.leSuccSucc i k later)) x inPart))
+        (sym!{Real.Real} _ _ (Indicator.inside x member)))
+  };
+\definition outsideConverges[x: Point]: Logic.Not (Sets.Member S x) -> Logic.Not (Sets.Member exception x) -> Sequence.Converges (\fun (k: N.Nat^) => sequence k x) (Indicator.representative x) :=
+  \fun (notInS: _)(outside: _) => \block {
+    \let notInG: Logic.Not (Sets.Member (Sigma.intersection opens) x) := \fun (member: _) => outside
+      (Logic.Or[Sets.Member coreException x, Sets.Member hullException x]::right (Logic.And[_, _]::# member notInS)) \then
+    \let exists: \exists ( i: N.Nat^ \where Logic.Not (Sets.Member (opens i) x) ) := Sigma.doubleNegative
+      (\exists ( i: N.Nat^ \where Logic.Not (Sets.Member (opens i) x) ))
+      (\fun (none: _) => notInG (\fun (i: N.Nat^) => Sigma.doubleNegative (Sets.Member (opens i) x)
+        (\fun (notIn: _) => none (Logic.existsIntro[N.Nat^, { i: N.Nat^ \where Logic.Not (Sets.Member (opens i) x) }] i notIn)))) \then
+    \takefrom i: \Cast[N.Nat^] ({ i: N.Nat^ \where Logic.Not (Sets.Member (opens i) x) }) \by exists \then
+    \let notIn: Logic.Not (Sets.Member (opens i) x) := \bysub(N.Nat^, { i: N.Nat^ \where Logic.Not (Sets.Member (opens i) x) }, i) \then
+    \return eventuallyConstant (\fun (k: N.Nat^) => sequence k x) (Indicator.representative x) (N.Nat^::succ i)
+      (\fun (k: N.Nat^)(later: _) => trans!{Real.Real} _ _ _
+        (Sigma.doubleNegative (sequence k x = Real.zero) (\fun (nonzero: _) => notIn
+          (outerEarlier k i (Nat.ltOfSuccLe k i later) x ((chosen k).supportWithin x (Support.nonzeroInSupport Ambient.topology (chosen k).value x nonzero)))))
+        (sym!{Real.Real} _ _ (Indicator.outside x notInS)))
+  };
+\definition pointwise[x: Point]: Logic.Not (Sets.Member exception x) -> Sequence.Converges (\fun (k: N.Nat^) => sequence k x) (Indicator.representative x) :=
+  \fun (outside: _) => Logic.orElim _ _ _ (Classical.excludedMiddle (Sets.Member S x)) (\fun (member: _) => insideConverges x member outside) (\fun (notIn: _) => outsideConverges x notIn outside);
+\definition data: Norm.DominatedData := Norm.DominatedData {
+  sequence := \fun (k: N.Nat^) => Compact.smoothRepresentative (sequence k), target := Indicator.representative, bound := Bound.representative, exception := exception,
+  dominated := \fun (k: N.Nat^)(x: Point)(outside: _) => dominated k x,
+  converges := pointwise,
+};
+\definition approximation: Approximation := Approximation { sequence := sequence, converges := L.Norm[p := p].Dominated[d := data].theorem };

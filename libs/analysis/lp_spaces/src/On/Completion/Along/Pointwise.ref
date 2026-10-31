@@ -1,0 +1,80 @@
+\import \parent.Sum[] \as Sum;
+\definition value[k: N.Nat^]: Real.Real := s (index k) x;
+\definition step: \forall (k: N.Nat^) -> Real.distance (value k) (value (N.Nat^::succ k)) = terms k x :=
+  \fun (k: N.Nat^) => eq_reason_in!{Real.Real _
+    "=" _ "by" { sym!{Real.Real} _ _ (E.distanceDifference (value k) (value (N.Nat^::succ k))) }
+    "=" _ "by" { Distance.distanceSymmetric (Real.sub (value k) (value (N.Nat^::succ k))) Real.zero }
+  };
+\definition tail: \forall (n, m: N.Nat^) -> Nat.Le m n -> R.Le (Real.distance (value m) (value n))
+  (Real.sub (partial n x) (partial m x)) :=
+  \induction (n: N.Nat^) \return \forall (m: N.Nat^) -> Nat.Le m n -> R.Le (Real.distance (value m) (value n))
+    (Real.sub (partial n x) (partial m x)) \with {
+    | zero: \fun (m: N.Nat^) (bound: Nat.Le m N.Nat^::zero) =>
+      \idelim N.Nat^::zero = m \with q: N.Nat^ => R.Le (Real.distance (value q) (value N.Nat^::zero))
+        (Real.sub (partial N.Nat^::zero x) (partial q x)) \by {
+        base: R.leReplace (Real.zero) (Real.distance (value N.Nat^::zero) (value N.Nat^::zero)) Real.zero
+          (Real.sub (partial N.Nat^::zero x) (partial N.Nat^::zero x))
+          (sym!{Real.Real} _ _ (Distance.distanceSelf (value N.Nat^::zero)))
+          (sym!{Real.Real} _ _ (Laws.subSelf (partial N.Nat^::zero x))) (R.leRefl Real.zero),
+        equality: sym!{N.Nat^} _ _ (Nat.leZeroEq m bound) }
+    | succ: \fun (n: N.Nat^) (previous: _) (m: N.Nat^) (bound: Nat.Le m (N.Nat^::succ n)) =>
+      Logic.orElim _ _ _ (Induction.leCases m (N.Nat^::succ n) bound)
+        (\fun (less: Nat.Lt m (N.Nat^::succ n)) => R.leReplaceRight (Real.distance (value m) (value (N.Nat^::succ n)))
+          (Real.add (Real.sub (partial n x) (partial m x)) (terms n x))
+          (Real.sub (partial (N.Nat^::succ n) x) (partial m x))
+          (eq_reason_in!{Real.Real _
+            "=" _ "by" { Laws.addAssoc (partial n x) (Real.neg (partial m x)) (terms n x) }
+            "=" _ "by" { congr!{Real.Real Real.Real} (Real.add (partial n x)) _ _ (Laws.addComm (Real.neg (partial m x)) (terms n x)) }
+            "=" _ "by" { sym!{Real.Real} _ _ (Laws.addAssoc (partial n x) (terms n x) (Real.neg (partial m x))) }
+          })
+          (R.leTrans _ _ _ (Distance.distanceTriangle (value m) (value n) (value (N.Nat^::succ n)))
+            (E.addLe _ _ _ _ (previous m (Induction.belowSuccessor m n less))
+              (R.leReplaceRight (Real.distance (value n) (value (N.Nat^::succ n))) (Real.distance (value n) (value (N.Nat^::succ n)))
+                (terms n x) (step n) (R.leRefl _)))))
+        (\fun (same: m = N.Nat^::succ n) => \idelim N.Nat^::succ n = m \with q: N.Nat^ =>
+          R.Le (Real.distance (value q) (value (N.Nat^::succ n))) (Real.sub (partial (N.Nat^::succ n) x) (partial q x)) \by {
+            base: R.leReplace Real.zero (Real.distance (value (N.Nat^::succ n)) (value (N.Nat^::succ n))) Real.zero
+              (Real.sub (partial (N.Nat^::succ n) x) (partial (N.Nat^::succ n) x))
+              (sym!{Real.Real} _ _ (Distance.distanceSelf _)) (sym!{Real.Real} _ _ (Laws.subSelf _)) (R.leRefl Real.zero),
+            equality: sym!{N.Nat^} _ _ same })
+  };
+
+\import Convergence.PointwiseSum[] \as PointwiseSum;
+\import Real.Sequence[] \as Sequence;
+\import Real.SquareRoot[] \as Root;
+\import R.Order[] \as Order;
+\import N.Order[].Prop[] \as NatOrder;
+
+\definition cauchy: Logic.Not (Sets.Member Divergence.exception x) -> Sequence.Cauchy value :=
+  \fun (outside: Logic.Not (Sets.Member Divergence.exception x)) (epsilon: Real.Real) (positive: R.Lt Real.zero epsilon) => \block {
+    \let half: Real.Real := Real.mul Real.half epsilon \then
+    \let hp: R.Lt Real.zero half := E.halfOfPositive epsilon positive \then
+    \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where R.Lt (Real.sub (Sum.value x) half) (Sum.sequence k x) }) \by
+      Convergence.abovePointwiseSup Sum.sequence Sum.value Sum.supremum x (Real.sub (Sum.value x) half) (Root.subBelow (Sum.value x) half hp) \then
+    \let atK: R.Lt (Real.sub (Sum.value x) half) (Sum.sequence k x) :=
+      \bysub(N.Nat^, { k: N.Nat^ \where R.Lt (Real.sub (Sum.value x) half) (Sum.sequence k x) }, k) \then
+    \let close: \forall (m, n: N.Nat^) -> Nat.Le k m -> Nat.Le m n -> R.Lt (Real.distance (value m) (value n)) half :=
+      \fun (m, n: N.Nat^) (later: Nat.Le k m) (ordered: Nat.Le m n) => \block {
+        \let low: R.Lt (Real.sub (Sum.value x) half) (partial m x) :=
+          R.ltReplaceRight _ (Sum.sequence m x) (partial m x)
+            ((\parent.Sum[].At[k := m].law x).right outside)
+            (R.ltLeTrans _ (Sum.sequence k x) (Sum.sequence m x) atK (PointwiseSum.increasingAll Sum.sequence Sum.increasing m k later x)) \then
+        \let upper: R.Le (partial n x) (Sum.value x) := R.leReplaceLeft (Sum.sequence n x) (partial n x) (Sum.value x)
+          ((\parent.Sum[].At[k := n].law x).right outside)
+          (Convergence.pointwiseUpper Sum.sequence Sum.value Sum.supremum n x) \then
+        \return R.leLtTrans _ (Real.sub (Sum.value x) (partial m x)) half
+          (R.leTrans _ (Real.sub (partial n x) (partial m x)) _ (tail n m ordered)
+            (Laws.addMonotoneRight (partial n x) (Sum.value x) (Real.neg (partial m x)) upper))
+          (Distance.subLtOfLower (Sum.value x) (partial m x) half low)
+      } \then
+    \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where Sequence.Control value epsilon k }] k
+      (\fun (m, n: N.Nat^) (ml: Nat.Le k m) (nl: Nat.Le k n) => \block {
+        \let q: N.Nat^ := NatOrder.commonBound m n \then
+        \return R.leLtTrans _ (Real.add (Real.distance (value m) (value q)) (Real.distance (value q) (value n))) epsilon
+          (Distance.distanceTriangle (value m) (value q) (value n))
+          (R.ltReplaceRight _ (Real.add half half) epsilon (E.halfTwice epsilon)
+            (E.addLt _ _ _ _ (close m q ml (NatOrder.leftLeCommonBound m n))
+              (R.ltReplaceLeft (Real.distance (value n) (value q)) (Real.distance (value q) (value n)) half
+                (Distance.distanceSymmetric (value n) (value q)) (close n q nl (NatOrder.rightLeCommonBound m n)))))
+      })
+  };

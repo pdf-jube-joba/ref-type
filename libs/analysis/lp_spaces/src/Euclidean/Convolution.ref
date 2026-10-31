@@ -1,0 +1,86 @@
+\import L.Finite[p := p] \as F;
+\import \parent.Compact[p := p] \as Compact;
+\import \parent.CompactBounds[] \as Bounds;
+\import \root.Powers[] \as Powers;
+\import Powers.Algebra[] \as PA;
+\import L.Infinity[] \as Infinity;
+\import I.Absolute[] \as Absolute;
+\import M.AlmostEverywhere[mu := measure] \as AE;
+\import I.Null[] \as Null;
+\import product_integration.FiniteNull[A := Point, mu := measure] \as FiniteNull;
+\structure Kernel: \Set := {
+  function: SmoothCompact,
+  radius: Nonnegative,
+  radiusBound: \forall (x: Point) -> Sets.Member (Smooth.support function) x -> R.Le (Geometry.metric.distance Coordinates.origin x) radius,
+  coefficient: Nonnegative,
+  absoluteBound: \forall (x: Point) -> R.Le (Product.abs (function x)) coefficient,
+};
+\definition kernelExists[rho: SmoothCompact]: \exists ( k: Kernel \where k.function = rho ) := \block {
+  \takefrom r: \Cast[Nonnegative] ({ r: Nonnegative \where \forall (x: Point) -> Sets.Member (Smooth.support rho) x -> R.Le (Geometry.metric.distance Coordinates.origin x) r })
+    \by Bounds.radiusBound (Smooth.support rho) (smoothCompactLaws rho).compact \then
+  \takefrom c: \Cast[Nonnegative] ({ c: Nonnegative \where \forall (x: Point) -> R.Le (Product.abs (rho x)) c })
+    \by Compact.absoluteBound rho (Compact.smoothContinuous rho (smoothCompactLaws rho).smooth) (smoothCompactLaws rho).compact \then
+  \return Logic.existsIntro[Kernel, { k: Kernel \where k.function = rho }] (Kernel { function := rho, radius := r, coefficient := c,
+    radiusBound := \bysub(Nonnegative, { r: Nonnegative \where \forall (x: Point) -> Sets.Member (Smooth.support rho) x -> R.Le (Geometry.metric.distance Coordinates.origin x) r }, r),
+    absoluteBound := \bysub(Nonnegative, { c: Nonnegative \where \forall (x: Point) -> R.Le (Product.abs (rho x)) c }, c),
+  }) (\refl(rho))
+};
+\module Section(f: F.Representatives, rho: Kernel, a: Point);
+\definition section[f: F.Representatives][rho: Kernel][a: Point]: I.Representatives := Section[f := f, rho := rho, a := a].representative;
+\definition function[f: F.Representatives][rho: Kernel]: Function := \fun (a: Point) => I.integral (section f rho a);
+\module Local(f: F.Representatives, rho: Kernel, a: Point);
+\module Continuity(f: F.Representatives, rho: Kernel, a: Point);
+\import \parent.SmoothOperations[] \as SmoothOperations;
+\import calculus.Real[].Multivariable[n := n].Open[] \as Open;
+\import Open.Analysis[] \as Analysis;
+\import Open.Restriction[] \as Restriction;
+\import Open.Whole[] \as Whole;
+\module Derivative(f: F.Representatives, rho, derivativeKernel: Kernel, i: Fin.Fin n, matching: derivativeKernel.function = SmoothOperations.partial rho.function i, a: Point);
+\module Smoothness(f: F.Representatives);
+\definition smooth[f: F.Representatives][rho: Kernel]: Smooth.IsSmooth (function f rho) := Smoothness[f := f].smooth rho;
+\module Standard(f: F.Representatives, rho: Kernel, a: Point);
+\definition standard[f: F.Representatives][rho: Kernel][a: Point]: I.Representatives := Standard[f := f, rho := rho, a := a].representative;
+\definition standardIntegral[f: F.Representatives][rho: Kernel][a: Point]: I.integral (standard f rho a) = function f rho a := Standard[f := f, rho := rho, a := a].integral;
+\import \parent.BorelMeasure[] \as BorelMeasure;
+\module Moment(f: F.Representatives, rho: Kernel, borel: M.IsMeasurable BorelMeasure.borel f);
+\module Normalized(f: F.Representatives, rho: Kernel, borel: M.IsMeasurable BorelMeasure.borel f,
+  nonnegative: \forall (x: Point) -> R.Le Real.zero (rho.function x), mass: I.integral (L.One[].toIntegral (\root.Euclidean[n := n].Compact[p := Powers.one].smoothRepresentative rho.function)) = Real.one);
+\module Bump(q: Positive);
+\import Real.Geometric[q := Real.half] \as Dyadic;
+\import functional_analysis.ScalarLimits[] \as Limits;
+\structure NormalizedLaw[rho: Kernel]: \Prop := {
+  nonnegative: \forall (x: Point) -> R.Le Real.zero (rho.function x),
+  mass: I.integral (L.One[].toIntegral (\root.Euclidean[n := n].Compact[p := Powers.one].smoothRepresentative rho.function)) = Real.one,
+};
+\structure ApproximateIdentity: \Set := {
+  sequence: N.Nat^ -> Kernel,
+  normalized: \forall (k: N.Nat^) -> NormalizedLaw[sequence k],
+  bounded: \forall (k: N.Nat^) -> R.Le (sequence k).radius Real.one,
+  shrinking: \forall (epsilon: Real.Real) -> R.Lt Real.zero epsilon -> \exists ( k: N.Nat^ \where \forall (j: N.Nat^) -> Nat.Le k j -> R.Lt (sequence j).radius epsilon ),
+};
+\module Canonical;
+\definition approximateIdentity: ApproximateIdentity := Canonical[].value;
+\module Probability(rho: Kernel, law: NormalizedLaw[rho]);
+\module CompactApproximation(f: SmoothCompact, identity: ApproximateIdentity, radius: Nonnegative,
+  radiusBound: \forall (x: Point) -> Sets.Member (Smooth.support f) x -> R.Le (Geometry.metric.distance Coordinates.origin x) radius,
+  coefficient: Nonnegative, absoluteBound: \forall (x: Point) -> R.Le (Product.abs (f x)) coefficient);
+\module Difference(f, g: F.Representatives, rho: Kernel);
+\module Stability(f, g: F.Representatives, borelF: M.IsMeasurable BorelMeasure.borel f, borelG: M.IsMeasurable BorelMeasure.borel g, rho: Kernel, law: NormalizedLaw[rho]);
+\import L.Completion[p := p] \as Completion;
+\definition compactConvergence[f: SmoothCompact][identity: ApproximateIdentity]: Sequence.Converges
+  (\fun (k: N.Nat^) => Completion.distance (Normalized[f := Compact.smoothRepresentative f, rho := identity.sequence k,
+    borel := Compact.continuousBorel f (Compact.smoothContinuous f (smoothCompactLaws f).smooth), nonnegative := (identity.normalized k).nonnegative, mass := (identity.normalized k).mass].representative) (Compact.smoothRepresentative f)) Real.zero := \block {
+  \takefrom r: \Cast[Nonnegative] ({ r: Nonnegative \where \forall (x: Point) -> Sets.Member (Smooth.support f) x -> R.Le (Geometry.metric.distance Coordinates.origin x) r })
+    \by Bounds.radiusBound (Smooth.support f) (smoothCompactLaws f).compact \then
+  \takefrom c: \Cast[Nonnegative] ({ c: Nonnegative \where \forall (x: Point) -> R.Le (Product.abs (f x)) c })
+    \by Compact.absoluteBound f (Compact.smoothContinuous f (smoothCompactLaws f).smooth) (smoothCompactLaws f).compact \then
+  \return CompactApproximation[f := f, identity := identity, radius := r,
+    radiusBound := \bysub(Nonnegative, { r: Nonnegative \where \forall (x: Point) -> Sets.Member (Smooth.support f) x -> R.Le (Geometry.metric.distance Coordinates.origin x) r }, r),
+    coefficient := c, absoluteBound := \bysub(Nonnegative, { c: Nonnegative \where \forall (x: Point) -> R.Le (Product.abs (f x)) c }, c)].convergence
+};
+\module Approximation(f: F.Representatives, borel: M.IsMeasurable BorelMeasure.borel f, identity: ApproximateIdentity);
+\module Respects(f, g: F.Representatives, rho: Kernel, a: Point);
+\module Arbitrary(f: F.Representatives, rho: Kernel, law: NormalizedLaw[rho]);
+\module Operator(rho: Kernel, law: NormalizedLaw[rho]);
+\module Smoothing(identity: ApproximateIdentity);
+\module CompactSupport(f: ContinuousCompact, rho: Kernel);

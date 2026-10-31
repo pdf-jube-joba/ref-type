@@ -1,0 +1,39 @@
+\definition x: Real.Real := logarithm a;
+\definition y: Real.Real := logarithm b;
+\definition z: Real.Real := Real.add (Real.mul r x) (Real.mul s y);
+\definition differences: Real.add (Real.mul r (Real.sub x z)) (Real.mul s (Real.sub y z)) = Real.sub z (Real.mul (Real.add r s) z) :=
+  eq_reason_in!{Real.Real _
+    "=" _ "by" { congr!{Real.Real Real.Real Real.Real} Real.add _ _ _ _ (Algebra.mulSub r x z) (Algebra.mulSub s y z) }
+    "=" _ "by" { sym!{Real.Real} _ _ (Algebra.subAdd (Real.mul r x) (Real.mul s y) (Real.mul r z) (Real.mul s z)) }
+    "=" _ "by" { congr!{Real.Real Real.Real} (Real.sub z) _ _ (sym!{Real.Real} _ _ (Algebra.mulAddRight r s z)) }
+  };
+\definition affine: Real.add r s = Real.one -> Real.add (Real.mul r (Real.add Real.one (Real.sub x z))) (Real.mul s (Real.add Real.one (Real.sub y z))) = Real.one :=
+  \fun (sum: Real.add r s = Real.one) => \block {
+    \let vanish: Real.add (Real.mul r (Real.sub x z)) (Real.mul s (Real.sub y z)) = Real.zero := eq_reason_in!{Real.Real _
+      "=" _ "by" { differences }
+      "=" _ "by" { congr!{Real.Real Real.Real} (\fun (u: Real.Real) => Real.sub z (Real.mul u z)) _ _ sum }
+      "=" _ "by" { congr!{Real.Real Real.Real} (Real.sub z) _ _ (Laws.fieldMulOneLeft z) }
+      "=" _ "by" { Laws.subSelf z }
+    } \then
+    \return eq_reason_in!{Real.Real _
+      "=" _ "by" { congr!{Real.Real Real.Real Real.Real} Real.add _ _ _ _ (Laws.fieldMulAdd r Real.one (Real.sub x z)) (Laws.fieldMulAdd s Real.one (Real.sub y z)) }
+      "=" _ "by" { Algebra.addFour (Real.mul r Real.one) (Real.mul r (Real.sub x z)) (Real.mul s Real.one) (Real.mul s (Real.sub y z)) }
+      "=" _ "by" { congr!{Real.Real Real.Real Real.Real} Real.add _ _ _ _
+        (congr!{Real.Real Real.Real Real.Real} Real.add _ _ _ _ (Algebra.mulOneRight r) (Algebra.mulOneRight s)) vanish }
+      "=" _ "by" { Laws.addZeroRight (Real.add r s) }
+      "=" _ "by" { sum }
+    }
+  };
+\definition factor[u, v: Real.Real]: Real.add (Real.mul r (Real.mul (Exp.value z) u)) (Real.mul s (Real.mul (Exp.value z) v)) =
+  Real.mul (Exp.value z) (Real.add (Real.mul r u) (Real.mul s v)) :=
+  trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real Real.Real} Real.add _ _ _ _ (Algebra.mulSwap r (Exp.value z) u) (Algebra.mulSwap s (Exp.value z) v))
+    (sym!{Real.Real} _ _ (Laws.fieldMulAdd (Exp.value z) (Real.mul r u) (Real.mul s v)));
+\definition inequality: R.Le Real.zero r -> R.Le Real.zero s -> Real.add r s = Real.one -> R.Le (Exp.value z) (Real.add (Real.mul r a) (Real.mul s b)) :=
+  \fun (rn: _)(sn: _)(sum: _) => \block {
+    \let first: R.Le (Real.mul (Exp.value z) (Real.add Real.one (Real.sub x z))) a := R.leReplaceRight _ _ _ (exponentialLogarithm a) (tangentAt x z) \then
+    \let second: R.Le (Real.mul (Exp.value z) (Real.add Real.one (Real.sub y z))) b := R.leReplaceRight _ _ _ (exponentialLogarithm b) (tangentAt y z) \then
+    \return R.leReplaceLeft _ _ _
+      (trans!{Real.Real} _ _ _ (factor (Real.add Real.one (Real.sub x z)) (Real.add Real.one (Real.sub y z)))
+        (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (Real.mul (Exp.value z)) _ _ (affine sum)) (Algebra.mulOneRight (Exp.value z))))
+      (E.addLe _ _ _ _ (E.mulMonotone r _ _ rn first) (E.mulMonotone s _ _ sn second))
+  };

@@ -1,0 +1,59 @@
+\import M.ValueLaws[] \as V;
+\import M.Sigma[] \as Sigma;
+\import M.Continuity[mu := mu] \as Continuity;
+\import topology.Topology[Carrier := A] \as Sets;
+\import product_integration.MonotoneIntegrals[A := A, mu := mu] \as Monotone;
+\import Real.Geometric[q := Real.half] \as Dyadic;
+\import functional_analysis.ScalarLimits[] \as Limits;
+\definition zeroOfUpper[v: M.Value]: M.NonnegativeValue[v] ->
+  (\forall (r: Real.Real) -> M.below v r -> R.Le r Real.zero) -> v = M.zero :=
+  \fun (nonnegative: M.NonnegativeValue[v])(upper: _) => \axiom:setext(v, M.zero,
+    \fun (r: Real.Real)(member: _) => \block {
+      \takefrom s: \Cast[Real.Real] ({ s: Real.Real \where Logic.And[R.Lt r s, M.below v s] }) \by nonnegative.rounded r member \then
+      \let law: Logic.And[R.Lt r s, M.below v s] := \bysub(Real.Real, { s: Real.Real \where Logic.And[R.Lt r s, M.below v s] }, s) \then
+      \return R.ltLeTrans r s Real.zero law.left (upper s law.right)
+    }, nonnegative.negative);
+\definition level[c: Real.Real]: \Pow A := { x: A \where R.Lt c (f x) };
+\definition levelZero[c: Scaling.PositiveScalar]: (\forall (x: A) -> R.Le Real.zero (f x)) -> I.integral f = Real.zero -> mu.value (level c) = M.zero :=
+  \fun (nonnegative: _)(zero: _) => \block {
+    \let cp: R.Lt Real.zero c := \bysub(Real.Real, { c: Real.Real \where R.Lt Real.zero c }, c) \then
+    \let d: Monotone.Conditions := Monotone.Conditions {
+      sequence := \fun (_: N.Nat^) => f,
+      nonnegative := \fun (_: N.Nat^) => nonnegative,
+      increasing := \fun (_: N.Nat^)(x: A) => R.leRefl (f x),
+      bound := \into[Real.Real](Real.zero, Scaling.NonnegativeScalar) \by { R.leRefl Real.zero },
+      integralBound := \fun (_: N.Nat^) => R.leReplaceLeft _ _ _ (sym!{Real.Real} _ _ zero) (R.leRefl Real.zero),
+    } \then
+    \let nn: M.NonnegativeValue[mu.value (level c)] := AE.laws.nonnegative (level c) ((I.integralLaw f).integrable.left c) \then
+    \let scaledZero: M.scale c (mu.value (level c)) = M.zero := zeroOfUpper _
+      (V.scaleNonnegative c _ (Order.leOfLt _ _ cp) nn)
+      (Monotone.For[data := d].Level[c := c, k := N.Nat^::zero].bound) \then
+    \return eq_reason_in!{M.Value _
+      "=" _ "by" { sym!{M.Value} _ _ (V.oneScale _ nn) }
+      "=" _ "by" { congr!{Real.Real M.Value} (\fun (x: Real.Real) => M.scale x (mu.value (level c))) _ _
+        (sym!{Real.Real} _ _ (Laws.fieldInverseNonzero c (Real.Inverse[].positiveNonzero c cp))) }
+      "=" _ "by" { sym!{M.Value} _ _ (V.positiveScaleCompose (Laws.fieldInv c) c _ (Product.invPositive c cp)) }
+      "=" _ "by" { congr!{M.Value M.Value} (M.scale (Laws.fieldInv c)) _ _ scaledZero }
+      "=" _ "by" { V.positiveScaleZero (Laws.fieldInv c) (Product.invPositive c cp) }
+    }
+  };
+\definition almostZero: (\forall (x: A) -> R.Le Real.zero (f x)) -> I.integral f = Real.zero -> M.AlmostEqual mu f Zero.function :=
+  \fun (nonnegative: _)(zero: _) => \block {
+    \let levels: N.Nat^ -> \Pow A := \fun (k: N.Nat^) => level (Dyadic.value k) \then
+    \let null: M.Null mu (M.union levels) := Continuity.nullUnion levels (\fun (k: N.Nat^) =>
+      Logic.existsIntro[\Pow A, { S: \Pow A \where M.NullCover[mu, levels k, S] }] (levels k)
+        (M.NullCover[mu, levels k, levels k] {
+          measurable := (I.integralLaw f).integrable.left (Dyadic.value k),
+          measure := levelZero (\into[Real.Real](Dyadic.value k, Scaling.PositiveScalar) \by { Limits.dyadicPositive k }) nonnegative zero,
+          included := \fun (x: A)(member: _) => member,
+        })) \then
+    \return AE.nullSubset ({ x: A \where Logic.Not (f x = Real.zero) }) (M.union levels)
+      (\fun (x: A)(different: _) => \block {
+        \let positive: R.Lt Real.zero (f x) := Order.ltOfLeNotEq _ _ (nonnegative x)
+          (\fun (same: Real.zero = f x) => different (sym!{Real.Real} _ _ same)) \then
+        \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where \forall (j: N.Nat^) -> Nat.Le k j -> R.Lt (Dyadic.value j) (f x) })
+          \by Limits.dyadicSmall (f x) positive \then
+        \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where Sets.Member (levels k) x }] k
+          ((\bysub(N.Nat^, { k: N.Nat^ \where \forall (j: N.Nat^) -> Nat.Le k j -> R.Lt (Dyadic.value j) (f x) }, k)) k (Nat.leRefl k))
+      }) null
+  };

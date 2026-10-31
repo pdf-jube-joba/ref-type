@@ -1,0 +1,42 @@
+\import calculus.Real[].Multivariable[n := n].Open[] \as Open;
+\import Open.Smooth[].Operations[] \as Operations;
+\import Open.Restriction[] \as Restriction;
+\import Sets.Compactness[] \as Compact;
+\import Sets.Finite[] \as FiniteSets;
+\definition zeroFunction: Function := \fun (x: Point) => Real.zero;
+\definition zeroCompact: Sets.IsCompactIn Ambient.topology (Smooth.support zeroFunction) := Support.compactSupportWithin Ambient.topology zeroFunction Sets.Empty
+  (Compact.emptyCompact Ambient.topology)
+  (Support.supportWithinClosed Ambient.topology zeroFunction Sets.Empty
+    (Compact.compactClosed Ambient.topology Ambient.hausdorff Sets.Empty (Compact.emptyCompact Ambient.topology)) (\fun (x: Point)(outside: _) => \refl(Real.zero)));
+\definition zero: SmoothCompact := \into[Function](zeroFunction, SmoothCompact) \by { SmoothCompactLaws[zeroFunction] {
+  smooth := Operations.constantSmooth Open.whole Real.zero, compact := zeroCompact,
+} };
+\definition sum[f, g: Function]: Function := \fun (x: Point) => Real.add (f x) (g x);
+\definition sumCompact[f, g: SmoothCompact]: Sets.IsCompactIn Ambient.topology (Smooth.support (sum f g)) := \block {
+  \let K: \Pow Point := FiniteSets.Join (Smooth.support f) (Smooth.support g) \then
+  \let compact: Sets.IsCompactIn Ambient.topology K := Compact.joinCompact Ambient.topology (Smooth.support f) (Smooth.support g)
+    (smoothCompactLaws f).compact (smoothCompactLaws g).compact \then
+  \return Support.compactSupportWithin Ambient.topology (sum f g) K compact
+    (Support.supportWithinClosed Ambient.topology (sum f g) K (Compact.compactClosed Ambient.topology Ambient.hausdorff K compact)
+      (\fun (x: Point)(outside: _) => trans!{Real.Real} _ _ _
+        (congr!{Real.Real Real.Real Real.Real} Real.add _ _ _ _
+          (Support.zeroOutsideSupport Ambient.topology f x (\fun (member: _) => outside (Logic.Or[Sets.Member (Smooth.support f) x, Sets.Member (Smooth.support g) x]::left member)))
+          (Support.zeroOutsideSupport Ambient.topology g x (\fun (member: _) => outside (Logic.Or[Sets.Member (Smooth.support f) x, Sets.Member (Smooth.support g) x]::right member))))
+        (Laws.addZeroLeft Real.zero)))
+};
+\definition add[f, g: SmoothCompact]: SmoothCompact := \into[Function](sum f g, SmoothCompact) \by { SmoothCompactLaws[sum f g] {
+  smooth := Operations.addSmooth Open.whole (Restriction.function Open.whole f) (Restriction.function Open.whole g) (smoothCompactLaws f).smooth (smoothCompactLaws g).smooth,
+  compact := sumCompact f g,
+} };
+\definition product[c: Real.Real][f: Function]: Function := \fun (x: Point) => Real.mul c (f x);
+\definition productCompact[c: Real.Real][f: SmoothCompact]: Sets.IsCompactIn Ambient.topology (Smooth.support (product c f)) := Support.compactSupportWithin Ambient.topology (product c f) (Smooth.support f)
+  (smoothCompactLaws f).compact
+  (Support.supportWithinClosed Ambient.topology (product c f) (Smooth.support f) (Support.supportClosed Ambient.topology f)
+    (\fun (x: Point)(outside: _) => trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (Real.mul c) _ _ (Support.zeroOutsideSupport Ambient.topology f x outside)) (Laws.fieldMulZeroRight c)));
+\definition scale[c: Real.Real][f: SmoothCompact]: SmoothCompact := \into[Function](product c f, SmoothCompact) \by { SmoothCompactLaws[product c f] {
+  smooth := Operations.mulSmooth Open.whole (\fun (x: Open.Carrier Open.whole) => c) (Restriction.function Open.whole f) (Operations.constantSmooth Open.whole c) (smoothCompactLaws f).smooth,
+  compact := productCompact c f,
+} };
+\module Partial(f: SmoothCompact, i: Fin.Fin n);
+\definition partial[f: SmoothCompact][i: Fin.Fin n]: SmoothCompact := Partial[f := f, i := i].value;
+\module Shift(f: SmoothCompact, a, y: Point, i: Fin.Fin n);

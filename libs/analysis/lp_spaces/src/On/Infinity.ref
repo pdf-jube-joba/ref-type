@@ -1,0 +1,181 @@
+\import R.Completeness[] \as Complete;
+\import M.Continuity[mu := mu] \as Continuity;
+\import Real.Geometric[q := Real.half] \as Dyadic;
+\import functional_analysis.ScalarLimits[] \as Limits;
+\import topology.Topology[Carrier := A] \as Sets;
+\definition Representatives: \Set := Lp.BoundedRepresentatives;
+\definition Space: \Set := Lp.LInfinity;
+\definition properties[f: Representatives]: Lp.EssentiallyBounded[f] := \bysub(A -> Real.Real, { f: A -> Real.Real \where Lp.EssentiallyBounded[f] }, f);
+\definition bounds[f: Representatives]: \Pow Real.Real := { b: Real.Real \where Lp.EssentialBound[f, b] };
+\definition family[f: Representatives]: Complete.InfimumDomain := \into[\Pow Real.Real](bounds f, Complete.InfimumDomain) \by { Logic.And[_, _]::#
+  (properties f).bound (Logic.existsIntro[Real.Real, { b: Real.Real \where Complete.LowerBound (bounds f) b }] Real.zero (\fun (b: Real.Real)(bound: Lp.EssentialBound[f, b]) => bound.nonnegative)) };
+\definition normRepresentative[f: Representatives]: Real.Real := Complete.infimum (family f);
+\definition normNonnegative[f: Representatives]: R.Le Real.zero (normRepresentative f) := Complete.infimumGreatest (family f) Real.zero
+  (\fun (b: Real.Real)(bound: Lp.EssentialBound[f, b]) => bound.nonnegative);
+\definition normLower[f: Representatives][b: Real.Real]: Lp.EssentialBound[f, b] -> R.Le (normRepresentative f) b := Complete.infimumLower (family f) b;
+\definition approach[f: Representatives][epsilon: Real.Real]: R.Lt Real.zero epsilon -> \exists ( b: Real.Real \where Logic.And[Lp.EssentialBound[f, b], R.Lt b (Real.add (normRepresentative f) epsilon)] ) :=
+  \fun (positive: _) => Order.byContradiction (\exists ( b: Real.Real \where Logic.And[Lp.EssentialBound[f, b], R.Lt b (Real.add (normRepresentative f) epsilon)] ))
+    (\fun (none: _) => R.ltNotLeReverse (normRepresentative f) (Real.add (normRepresentative f) epsilon)
+      (Real.SquareRoot[].addPositive (normRepresentative f) epsilon positive)
+      (Complete.infimumGreatest (family f) (Real.add (normRepresentative f) epsilon)
+        (\fun (b: Real.Real)(bound: Lp.EssentialBound[f, b]) => Order.leOfNotLtReverse (Real.add (normRepresentative f) epsilon) b
+          (\fun (less: _) => none (Logic.existsIntro[Real.Real, { b: Real.Real \where Logic.And[Lp.EssentialBound[f, b], R.Lt b (Real.add (normRepresentative f) epsilon)] }] b (Logic.And[_, _]::# bound less))))));
+\definition level[f: Representatives][k: N.Nat^]: \Pow A := { x: A \where R.Lt (Real.add (normRepresentative f) (Dyadic.value k)) (Product.abs (f x)) };
+\definition levelNull[f: Representatives][k: N.Nat^]: M.Null mu (level f k) := \block {
+  \takefrom b: \Cast[Real.Real] ({ b: Real.Real \where Logic.And[Lp.EssentialBound[f, b], R.Lt b (Real.add (normRepresentative f) (Dyadic.value k))] }) \by approach f (Dyadic.value k) (Limits.dyadicPositive k) \then
+  \let bound: Logic.And[Lp.EssentialBound[f, b], R.Lt b (Real.add (normRepresentative f) (Dyadic.value k))] := \bysub(Real.Real,
+    { b: Real.Real \where Logic.And[Lp.EssentialBound[f, b], R.Lt b (Real.add (normRepresentative f) (Dyadic.value k))] }, b) \then
+  \return AE.nullSubset (level f k) ({ x: A \where R.Lt b (Product.abs (f x)) }) (\fun (x: A)(member: _) => Order.ltTrans _ _ _ bound.right member) bound.left.exception
+};
+\definition representativeBound[f: Representatives]: Lp.EssentialBound[f, normRepresentative f] := Lp.EssentialBound[f, normRepresentative f] {
+  nonnegative := normNonnegative f,
+  exception := AE.nullSubset ({ x: A \where R.Lt (normRepresentative f) (Product.abs (f x)) }) (M.union (level f))
+    (\fun (x: A)(greater: R.Lt (normRepresentative f) (Product.abs (f x))) => \block {
+      \let gap: Real.Real := Real.sub (Product.abs (f x)) (normRepresentative f) \then
+      \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where \forall (j: N.Nat^) -> Nat.Le k j -> R.Lt (Dyadic.value j) gap }) \by Limits.dyadicSmall gap (Real.SquareRoot[].subPositive (Product.abs (f x)) (normRepresentative f) greater) \then
+      \let small: R.Lt (Dyadic.value k) gap := (\bysub(N.Nat^, { k: N.Nat^ \where \forall (j: N.Nat^) -> Nat.Le k j -> R.Lt (Dyadic.value j) gap }, k)) k (Nat.leRefl k) \then
+      \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where Sets.Member (level f k) x }] k
+        (R.ltReplaceRight _ (Real.add (normRepresentative f) gap) (Product.abs (f x)) (E.addSubCancel (Product.abs (f x)) (normRepresentative f)) (Laws.ltAddLeft (normRepresentative f) (Dyadic.value k) gap small))
+    }) (Continuity.nullUnion (level f) (levelNull f)),
+};
+\definition transportBound[f, g: A -> Real.Real][b: Real.Real]: M.AlmostEqual mu f g -> Lp.EssentialBound[f, b] -> Lp.EssentialBound[g, b] :=
+  \fun (same: _)(bound: _) => Lp.EssentialBound[g, b] {
+    nonnegative := bound.nonnegative,
+    exception := AE.nullSubset ({ x: A \where R.Lt b (Product.abs (g x)) })
+      (M.Sigma[].pairUnion ({ x: A \where Logic.Not (f x = g x) }) ({ x: A \where R.Lt b (Product.abs (f x)) }))
+      (\fun (x: A)(member: _) => Logic.orElim _ _ _ (Classical.excludedMiddle (f x = g x))
+        (\fun (equal: _) => Logic.Or[Logic.Not (f x = g x), R.Lt b (Product.abs (f x))]::right
+          (R.ltReplaceRight b _ _ (congr!{Real.Real Real.Real} Product.abs _ _ (sym!{Real.Real} _ _ equal)) member))
+        (\fun (different: _) => Logic.Or[Logic.Not (f x = g x), R.Lt b (Product.abs (f x))]::left different))
+      (AE.nullUnion _ _ same bound.exception),
+  };
+\definition normRespects[f, g: Representatives]: M.AlmostEqual mu f g -> normRepresentative f = normRepresentative g := \fun (same: _) => R.leAntisym _ _
+  (normLower f (normRepresentative g) (transportBound g f _ (AE.symmetric f g same) (representativeBound g)))
+  (normLower g (normRepresentative f) (transportBound f g _ same (representativeBound f)));
+\import std.Set[].Quotient[A := Representatives, Equivalent := \fun (f, g: Representatives) => M.AlmostEqual mu f g] \as Q;
+\definition equivalence: Q.EquivalenceLaws := Q.EquivalenceLaws {
+  refl := \fun (f: Representatives) => AE.reflexive f,
+  sym := \fun (f, g: Representatives) => AE.symmetric f g,
+  trans := \fun (f, g, h: Representatives) => AE.transitive f g h,
+};
+\definition ofFunction[f: Representatives]: Space := Q.class f;
+\import Q.Maps[B := Real.Real] \as NormMaps;
+\definition norm: Space -> Real.Real := NormMaps.value equivalence normRepresentative normRespects;
+\definition normOfFunction[f: Representatives]: norm (ofFunction f) = normRepresentative f := NormMaps.onClass equivalence normRepresentative normRespects f;
+\definition nonnegative: \forall (x: Space) -> R.Le Real.zero (norm x) := Q.induction (\fun (x: Space) => R.Le Real.zero (norm x))
+  (\fun (f: Representatives) => R.leReplaceRight _ _ _ (sym!{Real.Real} _ _ (normOfFunction f)) (normNonnegative f));
+\definition boundOutside[f: A -> Real.Real][b: Real.Real][S: \Pow A]: R.Le Real.zero b -> M.Null mu S -> (\forall (x: A) -> Logic.Not (Sets.Member S x) -> R.Le (Product.abs (f x)) b) -> Lp.EssentialBound[f, b] :=
+  \fun (nonnegative: _)(null: _)(bound: _) => Lp.EssentialBound[f, b] { nonnegative := nonnegative,
+    exception := AE.nullSubset ({ x: A \where R.Lt b (Product.abs (f x)) }) S
+      (\fun (x: A)(member: _) => M.Sigma[].doubleNegative (Sets.Member S x) (\fun (outside: _) => R.ltNotLeReverse b (Product.abs (f x)) member (bound x outside))) null,
+  };
+\definition outsideBound[f: A -> Real.Real][b: Real.Real]: Lp.EssentialBound[f, b] -> \forall (x: A) -> Logic.Not (R.Lt b (Product.abs (f x))) -> R.Le (Product.abs (f x)) b :=
+  \fun (bound: _)(x: A)(outside: _) => Order.leOfNotLtReverse _ _ outside;
+\definition bad[f: Representatives]: \Pow A := { x: A \where R.Lt (normRepresentative f) (Product.abs (f x)) };
+\definition zeroBound: Lp.EssentialBound[Zero.function, Real.zero] := boundOutside Zero.function Real.zero Sets.Empty (R.leRefl Real.zero) AE.nullEmpty
+  (\fun (x: A)(outside: _) => R.leReplaceLeft Real.zero _ Real.zero (sym!{Real.Real} _ _ (Distance.distanceSelf Real.zero)) (R.leRefl Real.zero));
+\definition zeroRepresentative: Representatives := \into[A -> Real.Real](Zero.function, Representatives) \by { Lp.EssentiallyBounded[Zero.function] {
+  measurable := Zero.measurable, bound := Logic.existsIntro[Real.Real, { b: Real.Real \where Lp.EssentialBound[Zero.function, b] }] Real.zero zeroBound,
+} };
+\definition zero: Space := ofFunction zeroRepresentative;
+\definition representativeNormZero: normRepresentative zeroRepresentative = Real.zero := R.leAntisym _ _ (normLower zeroRepresentative Real.zero zeroBound) (normNonnegative zeroRepresentative);
+\definition normZero: norm zero = Real.zero := trans!{Real.Real} _ _ _ (normOfFunction zeroRepresentative) representativeNormZero;
+\definition classPointwise[f, g: Representatives]: (\forall (x: A) -> f x = g x) -> ofFunction f = ofFunction g := \fun (same: _) => Q.classOfEq equivalence f g
+  (AE.nullSubset ({ x: A \where Logic.Not (f x = g x) }) Sets.Empty (\fun (x: A)(different: _) => different (same x)) AE.nullEmpty);
+\definition representativeDefinite[f: Representatives]: normRepresentative f = Real.zero -> ofFunction f = zero := \fun (isZero: _) => \block {
+  \let bounded: Lp.EssentialBound[f, Real.zero] := \idelim normRepresentative f = Real.zero \with b: Real.Real => Lp.EssentialBound[f, b] \by { base: representativeBound f, equality: isZero } \then
+  \return Q.classOfEq equivalence f zeroRepresentative (AE.nullSubset ({ x: A \where Logic.Not (f x = Real.zero) }) ({ x: A \where R.Lt Real.zero (Product.abs (f x)) })
+    (\fun (x: A)(different: _) => Order.ltOfLeNotEq Real.zero (Product.abs (f x)) (Product.absNonnegative (f x))
+      (\fun (equal: _) => different (sym!{Real.Real} _ _ (Distance.distanceSeparated Real.zero (f x) (sym!{Real.Real} _ _ equal))))) bounded.exception)
+};
+\definition definite: \forall (x: Space) -> norm x = Real.zero -> x = zero := Q.induction (\fun (x: Space) => norm x = Real.zero -> x = zero)
+  (\fun (f: Representatives)(isZero: _) => representativeDefinite f (trans!{Real.Real} _ _ _ (sym!{Real.Real} _ _ (normOfFunction f)) isZero));
+\definition sumFunction[f, g: A -> Real.Real]: A -> Real.Real := \fun (x: A) => Real.add (f x) (g x);
+\definition additionBound[f, g: Representatives]: Lp.EssentialBound[sumFunction f g, Real.add (normRepresentative f) (normRepresentative g)] := boundOutside (sumFunction f g) _ (M.Sigma[].pairUnion (bad f) (bad g))
+  (Laws.addNonnegative _ _ (normNonnegative f) (normNonnegative g)) (AE.nullUnion _ _ (representativeBound f).exception (representativeBound g).exception)
+  (\fun (x: A)(outside: _) => R.leTrans _ _ _ (Linear.absTriangle (f x) (g x)) (E.addLe _ _ _ _
+    (outsideBound f (normRepresentative f) (representativeBound f) x (\fun (member: _) => outside (Logic.Or[Sets.Member (bad f) x, Sets.Member (bad g) x]::left member)))
+    (outsideBound g (normRepresentative g) (representativeBound g) x (\fun (member: _) => outside (Logic.Or[Sets.Member (bad f) x, Sets.Member (bad g) x]::right member)))));
+\definition addRepresentative[f, g: Representatives]: Representatives := \into[A -> Real.Real](sumFunction f g, Representatives) \by { Lp.EssentiallyBounded[sumFunction f g] {
+  measurable := Functions.addMeasurable f g (properties f).measurable (properties g).measurable,
+  bound := Logic.existsIntro[Real.Real, { b: Real.Real \where Lp.EssentialBound[sumFunction f g, b] }] (Real.add (normRepresentative f) (normRepresentative g)) (additionBound f g),
+} };
+\definition negFunction[f: A -> Real.Real]: A -> Real.Real := \fun (x: A) => Real.neg (f x);
+\definition negationBound[f: Representatives]: Lp.EssentialBound[negFunction f, normRepresentative f] := boundOutside (negFunction f) _ (bad f) (normNonnegative f) (representativeBound f).exception
+  (\fun (x: A)(outside: _) => R.leReplaceLeft _ _ _ (sym!{Real.Real} _ _ (Product.absNeg (f x))) (outsideBound f _ (representativeBound f) x outside));
+\definition negRepresentative[f: Representatives]: Representatives := \into[A -> Real.Real](negFunction f, Representatives) \by { Lp.EssentiallyBounded[negFunction f] {
+  measurable := Functions.negMeasurable f (properties f).measurable,
+  bound := Logic.existsIntro[Real.Real, { b: Real.Real \where Lp.EssentialBound[negFunction f, b] }] (normRepresentative f) (negationBound f),
+} };
+\definition scalarFunction[c: Real.Real][f: A -> Real.Real]: A -> Real.Real := \fun (x: A) => Real.mul c (f x);
+\definition scalingBound[c: Real.Real][f: Representatives]: Lp.EssentialBound[scalarFunction c f, Real.mul (Product.abs c) (normRepresentative f)] := boundOutside (scalarFunction c f) _ (bad f)
+  (Laws.fieldMulNonnegative _ _ (Product.absNonnegative c) (normNonnegative f)) (representativeBound f).exception
+  (\fun (x: A)(outside: _) => R.leReplaceLeft _ _ _ (sym!{Real.Real} _ _ (Product.absProduct c (f x)))
+    (E.mulMonotone (Product.abs c) _ _ (Product.absNonnegative c) (outsideBound f _ (representativeBound f) x outside)));
+\definition scaleRepresentative[c: Real.Real][f: Representatives]: Representatives := \into[A -> Real.Real](scalarFunction c f, Representatives) \by { Lp.EssentiallyBounded[scalarFunction c f] {
+  measurable := scalarMeasurable c f (properties f).measurable,
+  bound := Logic.existsIntro[Real.Real, { b: Real.Real \where Lp.EssentialBound[scalarFunction c f, b] }] (Real.mul (Product.abs c) (normRepresentative f)) (scalingBound c f),
+} };
+\definition representativeTriangle[f, g: Representatives]: R.Le (normRepresentative (addRepresentative f g)) (Real.add (normRepresentative f) (normRepresentative g)) := normLower (addRepresentative f g) (Real.add (normRepresentative f) (normRepresentative g)) (additionBound f g);
+\definition scalarUpper[c: Real.Real][f: Representatives]: R.Le (normRepresentative (scaleRepresentative c f)) (Real.mul (Product.abs c) (normRepresentative f)) := normLower (scaleRepresentative c f) (Real.mul (Product.abs c) (normRepresentative f)) (scalingBound c f);
+\definition inverseCancel[a, t: Real.Real]: R.Lt Real.zero a -> Real.mul a (Real.mul (Laws.fieldInv a) t) = t := \fun (positive: _) => trans!{Real.Real} _ _ _
+  (sym!{Real.Real} _ _ (Laws.fieldMulAssoc a (Laws.fieldInv a) t)) (trans!{Real.Real} _ _ _
+    (congr!{Real.Real Real.Real} (\fun (u: Real.Real) => Real.mul u t) _ _ (trans!{Real.Real} _ _ _ (Laws.fieldMulComm a (Laws.fieldInv a)) (Laws.fieldInverseNonzero a (Real.Inverse[].positiveNonzero a positive)))) (Laws.fieldMulOneLeft t));
+\definition inverseCancelLeft[a, t: Real.Real]: R.Lt Real.zero a -> Real.mul (Laws.fieldInv a) (Real.mul a t) = t := \fun (positive: _) => trans!{Real.Real} _ _ _
+  (sym!{Real.Real} _ _ (Laws.fieldMulAssoc (Laws.fieldInv a) a t)) (trans!{Real.Real} _ _ _
+    (congr!{Real.Real Real.Real} (\fun (u: Real.Real) => Real.mul u t) _ _ (Laws.fieldInverseNonzero a (Real.Inverse[].positiveNonzero a positive))) (Laws.fieldMulOneLeft t));
+\definition scalarLower[c: Real.Real][f: Representatives]: R.Le (Real.mul (Product.abs c) (normRepresentative f)) (normRepresentative (scaleRepresentative c f)) := Logic.orElim _ _ _ (Classical.excludedMiddle (c = Real.zero))
+  (\fun (isZero: c = Real.zero) => R.leReplaceLeft Real.zero _ _ (sym!{Real.Real} _ _ (trans!{Real.Real} _ _ _
+    (congr!{Real.Real Real.Real} (\fun (a: Real.Real) => Real.mul a (normRepresentative f)) _ _ (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} Product.abs _ _ isZero) (Distance.distanceSelf Real.zero)))
+    (Laws.fieldMulZeroLeft (normRepresentative f)))) (normNonnegative (scaleRepresentative c f)))
+  (\fun (nonzero: Logic.Not (c = Real.zero)) => \block {
+    \let a: Real.Real := Product.abs c \then
+    \let positive: R.Lt Real.zero a := Order.ltOfLeNotEq Real.zero a (Product.absNonnegative c)
+      (\fun (equal: Real.zero = a) => nonzero (sym!{Real.Real} _ _ (Distance.distanceSeparated Real.zero c (sym!{Real.Real} _ _ equal)))) \then
+    \let v: Real.Real := normRepresentative (scaleRepresentative c f) \then
+    \let bound: Lp.EssentialBound[f, Real.mul (Laws.fieldInv a) v] := boundOutside f (Real.mul (Laws.fieldInv a) v) (bad (scaleRepresentative c f))
+      (Laws.fieldMulNonnegative _ _ (Order.leOfLt _ _ (Product.invPositive a positive)) (normNonnegative (scaleRepresentative c f))) (representativeBound (scaleRepresentative c f)).exception
+      (\fun (x: A)(outside: _) => R.leReplaceLeft _ _ _ (inverseCancelLeft a (Product.abs (f x)) positive)
+        (E.mulMonotone (Laws.fieldInv a) _ _ (Order.leOfLt _ _ (Product.invPositive a positive))
+          (R.leReplaceLeft _ _ _ (Product.absProduct c (f x)) (outsideBound (scaleRepresentative c f) v (representativeBound (scaleRepresentative c f)) x outside)))) \then
+    \return R.leReplaceRight _ _ _ (inverseCancel a v positive) (E.mulMonotone a _ _ (Product.absNonnegative c) (normLower f _ bound))
+  });
+\definition normScalar[c: Real.Real][f: Representatives]: normRepresentative (scaleRepresentative c f) = Real.mul (Product.abs c) (normRepresentative f) := R.leAntisym _ _ (scalarUpper c f) (scalarLower c f);
+\import Q.Binary[C := Representatives, B := Space, OtherEquivalent := \fun (f, g: Representatives) => M.AlmostEqual mu f g] \as Binary;
+\definition classAdd[f, g: Representatives]: Space := ofFunction (addRepresentative f g);
+\definition addRespects: Binary.Respects classAdd := \fun (f, f2, g, g2: Representatives)(ff: _)(gg: _) => Q.classOfEq equivalence (addRepresentative f g) (addRepresentative f2 g2) (binaryAlmost Real.add f f2 g g2 ff gg);
+\definition add: Space -> Space -> Space := Binary.value equivalence equivalence classAdd addRespects;
+\definition addClass: \forall (f, g: Representatives) -> add (ofFunction f) (ofFunction g) = ofFunction (addRepresentative f g) := Binary.onClass equivalence equivalence classAdd addRespects;
+\import Q.Maps[B := Space] \as Maps;
+\definition classNeg[f: Representatives]: Space := ofFunction (negRepresentative f);
+\definition negRespects: Maps.Respects classNeg := \fun (f, g: Representatives)(same: _) => Q.classOfEq equivalence (negRepresentative f) (negRepresentative g) (Null.mapAlmost Real.neg f g same);
+\definition neg: Space -> Space := Maps.value equivalence classNeg negRespects;
+\definition negClass[f: Representatives]: neg (ofFunction f) = ofFunction (negRepresentative f) := Maps.onClass equivalence classNeg negRespects f;
+\definition classScalar[c: Real.Real][f: Representatives]: Space := ofFunction (scaleRepresentative c f);
+\definition scalarRespects[c: Real.Real]: Maps.Respects (classScalar c) := \fun (f, g: Representatives)(same: _) => Q.classOfEq equivalence (scaleRepresentative c f) (scaleRepresentative c g) (Null.mapAlmost (Real.mul c) f g same);
+\definition scale[c: Real.Real]: Space -> Space := Maps.value equivalence (classScalar c) (scalarRespects c);
+\definition scaleClass[c: Real.Real][f: Representatives]: scale c (ofFunction f) = ofFunction (scaleRepresentative c f) := Maps.onClass equivalence (classScalar c) (scalarRespects c) f;
+\definition homogeneous[c: Real.Real]: \forall (x: Space) -> norm (scale c x) = Real.mul (Product.abs c) (norm x) := Q.induction
+  (\fun (x: Space) => norm (scale c x) = Real.mul (Product.abs c) (norm x))
+  (\fun (f: Representatives) => eq_reason_in!{Real.Real _
+    "=" _ "by" { congr!{Space Real.Real} norm _ _ (scaleClass c f) }
+    "=" _ "by" { normOfFunction (scaleRepresentative c f) }
+    "=" _ "by" { normScalar c f }
+    "=" _ "by" { congr!{Real.Real Real.Real} (Real.mul (Product.abs c)) _ _ (sym!{Real.Real} _ _ (normOfFunction f)) }
+  });
+\module Vector;
+\module Norm;
+\module Completion;
+\structure BoundedVersion[f: Representatives]: \Set := {
+  function: A -> Real.Real,
+  measurable: M.IsMeasurable mu function,
+  bound: \forall (x: A) -> R.Le (Product.abs (function x)) (normRepresentative f),
+  almost: M.AlmostEqual mu function f,
+};
+\module Clip(f: Representatives, exception: Null.NullSet, covered: Sets.Subset (bad f) exception);
+\definition boundedVersion: \forall (f: Representatives) -> \exists BoundedVersion[f] := \fun (f: Representatives) => \block {
+  \takefrom N: \Cast[\Pow A] ({ N: \Pow A \where M.NullCover[mu, bad f, N] }) \by (representativeBound f).exception \then
+  \let cover: M.NullCover[mu, bad f, N] := \bysub(\Pow A, { N: \Pow A \where M.NullCover[mu, bad f, N] }, N) \then
+  \let exception: Null.NullSet := \into[\Pow A](N, Null.NullSet) \by { Null.NullSetLaw[N] { measurable := cover.measurable, zeroMeasure := cover.measure } } \then
+  \return \exact(Clip[f := f, exception := exception, covered := cover.included].version, BoundedVersion[f])
+};

@@ -1,0 +1,43 @@
+\import \root.Exponential[] \as Exp;
+\import \parent.Algebra[] \as PA;
+\import Real.Inverse[] \as Inverse;
+\definition strict: R.Lt Real.one p := \bysub(P.Exponent, { p: P.Exponent \where R.Lt Real.one p }, p);
+\definition positive: R.Lt Real.zero p := Order.ltTrans _ _ _ Product.onePositive strict;
+\definition gap: Real.Real := Real.sub p Real.one;
+\definition gapPositive: R.Lt Real.zero gap := Real.SquareRoot[].subPositive p Real.one strict;
+\definition difference: Nonnegative := \into[Real.Real](gap, Nonnegative) \by { Order.leOfLt _ _ gapPositive };
+\definition value: Real.Real := Real.mul p (Laws.fieldInv gap);
+\definition valuePositive: R.Lt Real.zero value := Product.mulPositive p (Laws.fieldInv gap) positive (Product.invPositive gap gapPositive);
+\definition valueAboveOne: R.Le Real.one value := R.leReplace _ _ _ _
+  (Laws.fieldInverseNonzero gap (Inverse.positiveNonzero gap gapPositive)) (Laws.fieldMulComm (Laws.fieldInv gap) p)
+  (E.mulMonotone (Laws.fieldInv gap) gap p (Order.leOfLt _ _ (Product.invPositive gap gapPositive)) (R.leReplaceRight gap (Real.add p Real.zero) p (Laws.addZeroRight p) (E.addLe p (Real.neg Real.one) p Real.zero (R.leRefl p) (Product.negNonnegative Real.one Laws.oneNonnegative))));
+\definition exponent: P.Exponent := \into[Real.Real](value, { q: Real.Real \where R.Le Real.one q }) \by { valueAboveOne };
+\definition positiveExponent: Exp.Positive := \into[Real.Real](value, Exp.Positive) \by { valuePositive };
+\definition gapProduct: Real.mul gap value = p := trans!{Real.Real} _ _ _ (Algebra.mulSwap gap p (Laws.fieldInv gap))
+  (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (Real.mul p) _ _
+    (trans!{Real.Real} _ _ _ (Laws.fieldMulComm gap (Laws.fieldInv gap)) (Laws.fieldInverseNonzero gap (Inverse.positiveNonzero gap gapPositive)))) (Algebra.mulOneRight p));
+\definition inverse: Laws.fieldInv value = Real.mul gap (Laws.fieldInv p) := sym!{Real.Real} _ _
+  (Inverse.inverseUnique value (Real.mul gap (Laws.fieldInv p)) (Inverse.positiveNonzero value valuePositive)
+    (eq_reason_in!{Real.Real _
+      "=" _ "by" { congr!{Real.Real Real.Real} (\fun (r: Real.Real) => Real.mul r value) _ _ (Laws.fieldMulComm gap (Laws.fieldInv p)) }
+      "=" _ "by" { Algebra.mulFour (Laws.fieldInv p) gap p (Laws.fieldInv gap) }
+      "=" _ "by" { congr!{Real.Real Real.Real Real.Real} Real.mul _ _ _ _
+        (Laws.fieldInverseNonzero p (Inverse.positiveNonzero p positive))
+        (trans!{Real.Real} _ _ _ (Laws.fieldMulComm gap (Laws.fieldInv gap)) (Laws.fieldInverseNonzero gap (Inverse.positiveNonzero gap gapPositive))) }
+      "=" Real.one "by" { Laws.fieldMulOneLeft Real.one }
+    }));
+\definition identity: Real.add (Laws.fieldInv p) (Laws.fieldInv value) = Real.one := eq_reason_in!{Real.Real _
+  "=" _ "by" { congr!{Real.Real Real.Real} (Real.add (Laws.fieldInv p)) _ _ inverse }
+  "=" _ "by" { congr!{Real.Real Real.Real} (\fun (r: Real.Real) => Real.add r (Real.mul gap (Laws.fieldInv p))) _ _ (sym!{Real.Real} _ _ (Laws.fieldMulOneLeft (Laws.fieldInv p))) }
+  "=" _ "by" { sym!{Real.Real} _ _ (Algebra.mulAddRight Real.one gap (Laws.fieldInv p)) }
+  "=" _ "by" { congr!{Real.Real Real.Real} (\fun (r: Real.Real) => Real.mul r (Laws.fieldInv p)) _ _ (E.addSubCancel p Real.one) }
+  "=" _ "by" { Laws.fieldMulComm p (Laws.fieldInv p) }
+  "=" Real.one "by" { Laws.fieldInverseNonzero p (Inverse.positiveNonzero p positive) }
+};
+\definition powerProduct: Real.mul p (Laws.fieldInv value) = gap := eq_reason_in!{Real.Real _
+  "=" _ "by" { congr!{Real.Real Real.Real} (Real.mul p) _ _ inverse }
+  "=" _ "by" { Algebra.mulSwap p gap (Laws.fieldInv p) }
+  "=" _ "by" { congr!{Real.Real Real.Real} (Real.mul gap) _ _
+    (trans!{Real.Real} _ _ _ (Laws.fieldMulComm p (Laws.fieldInv p)) (Laws.fieldInverseNonzero p (Inverse.positiveNonzero p positive))) }
+  "=" gap "by" { Algebra.mulOneRight gap }
+};

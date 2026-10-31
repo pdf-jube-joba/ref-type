@@ -1,0 +1,42 @@
+\import \root.Powers[] \as Powers;
+\import Powers.Algebra[] \as PA;
+\definition datum: I.StepData := I.StepData { set := s.cells i, coefficient := s.coefficients i, measurable := s.measurable i, nonnegative := s.nonnegative i };
+\import I.Step[p := datum] \as Step;
+\import I.Evaluation[n := Step.size, s := Step.simple] \as Value;
+\definition function: Function := Value.value;
+\definition absoluteBound[x: Point]: R.Le (Product.abs (function x)) (Product.abs (f x)) := Logic.orElim _ _ _ (Classical.excludedMiddle (Sets.Member (s.cells i) x))
+  (\fun (member: _) => R.leReplaceLeft _ _ _ (sym!{Real.Real} _ _ (congr!{Real.Real Real.Real} Product.abs _ _
+    (trans!{Real.Real} _ _ _ (Step.inside x member) (trans!{Real.Real} _ _ _ (sym!{Real.Real} _ _ (Evaluation.atCell i x member)) (agrees x))))) (R.leRefl (Product.abs (f x))))
+  (\fun (outside: _) => R.leReplaceLeft Real.zero _ _ (sym!{Real.Real} _ _ (trans!{Real.Real} _ _ _
+    (congr!{Real.Real Real.Real} Product.abs _ _ (Step.outside x outside)) (Distance.distanceSelf Real.zero))) (Product.absNonnegative (f x)));
+\definition representative: F.Representatives := \into[Function](function, F.Representatives) \by {
+  F.hasMoment function Value.measurable (I.finiteMono (F.moment function) (F.moment f) (F.momentNonnegative function)
+    (\fun (x: Point) => PA.monotone (F.absolute function x) (F.absolute f x) (Powers.exponent p) (absoluteBound x)) (F.finiteMoment f))
+};
+\definition inside: \forall (x: Point) -> Sets.Member (s.cells i) x -> representative x = s.coefficients i := Step.inside;
+\definition outside: \forall (x: Point) -> Logic.Not (Sets.Member (s.cells i) x) -> representative x = Real.zero := Step.outside;
+\definition cellBounded: Logic.Not (s.coefficients i = Real.zero) -> Sets.Subset (s.cells i) (E.points box) := \fun (nonzero: _)(x: Point)(member: _) =>
+  Sigma.doubleNegative (Sets.Member (E.points box) x) (\fun (outside: _) => nonzero (trans!{Real.Real} _ _ _
+    (sym!{Real.Real} _ _ (Evaluation.atCell i x member)) (trans!{Real.Real} _ _ _ (agrees x) (supported x outside))));
+\definition dense: Approximable (F.ofFunction representative) := Logic.orElim _ _ _ (Classical.excludedMiddle (s.coefficients i = Real.zero))
+  (\fun (zeroCoefficient: s.coefficients i = Real.zero) => \block {
+    \let equal: F.ofFunction representative = F.zero := F.classPointwise representative F.zeroRepresentative
+      (\fun (x: Point) => Logic.orElim (Sets.Member (s.cells i) x) (Logic.Not (Sets.Member (s.cells i) x)) (representative x = Real.zero) (Classical.excludedMiddle (Sets.Member (s.cells i) x))
+        (\fun (member: _) => trans!{Real.Real} _ _ _ (inside x member) zeroCoefficient) (\fun (notIn: _) => outside x notIn)) \then
+    \return replace F.zero (F.ofFunction representative) (sym!{F.Space} _ _ equal) zero
+  })
+  (\fun (nonzero: Logic.Not (s.coefficients i = Real.zero)) => \block {
+    \let S: Finite.FiniteMeasurableSet := \into[\Pow Point](s.cells i, Finite.FiniteMeasurableSet) \by {
+      Finite.subsetFinite (s.cells i) (E.points box) (s.measurable i) (cellBounded nonzero) (Integration.boxFinite box) } \then
+    \let indicator: F.Representatives := L.Indicator[p := p, S := S].representative \then
+    \let scaled: Approximable (F.scale (s.coefficients i) (F.ofFunction indicator)) := scale (s.coefficients i) (F.ofFunction indicator)
+      (\root.Euclidean[n := n].Approximation[p := p].Indicator[S := S, box := box, bounded := cellBounded nonzero].dense) \then
+    \let equal: F.ofFunction representative = F.scale (s.coefficients i) (F.ofFunction indicator) := trans!{F.Space} _ _ _
+      (F.classPointwise representative (F.scaleRepresentative (s.coefficients i) indicator) (\fun (x: Point) => Logic.orElim _ _ _ (Classical.excludedMiddle (Sets.Member S x))
+        (\fun (member: _) => trans!{Real.Real} _ _ _ (inside x member) (sym!{Real.Real} _ _ (trans!{Real.Real} _ _ _
+          (congr!{Real.Real Real.Real} (Real.mul (s.coefficients i)) _ _ (L.Indicator[p := p, S := S].inside x member)) (Algebra.mulOneRight (s.coefficients i)))))
+        (\fun (notIn: _) => trans!{Real.Real} _ _ _ (outside x notIn) (sym!{Real.Real} _ _ (trans!{Real.Real} _ _ _
+          (congr!{Real.Real Real.Real} (Real.mul (s.coefficients i)) _ _ (L.Indicator[p := p, S := S].outside x notIn)) (Laws.fieldMulZeroRight (s.coefficients i)))))))
+      (sym!{F.Space} _ _ (F.scaleClass (s.coefficients i) indicator)) \then
+    \return replace (F.scale (s.coefficients i) (F.ofFunction indicator)) (F.ofFunction representative) (sym!{F.Space} _ _ equal) scaled
+  });

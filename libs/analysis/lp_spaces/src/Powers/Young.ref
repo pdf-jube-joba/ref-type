@@ -1,0 +1,28 @@
+\import \parent.Algebra[] \as PA;
+\import \root.Exponential[] \as Exp;
+\import smooth_partitions.Exponential[].Global[] \as EF;
+\definition positive[a, b: Exp.Positive][r, s: Nonnegative]: Real.add r s = Real.one ->
+  R.Le (Real.mul (value (positiveBase a) r) (value (positiveBase b) s)) (Real.add (Real.mul r a) (Real.mul s b)) :=
+  \fun (sum: _) => R.leReplaceLeft _ _ _
+    (trans!{Real.Real} _ _ _ (EF.addition (Real.mul r (Exp.logarithm a)) (Real.mul s (Exp.logarithm b)))
+      (congr!{Real.Real Real.Real Real.Real} Real.mul _ _ _ _ (sym!{Real.Real} _ _ (exponentialValue a r)) (sym!{Real.Real} _ _ (exponentialValue b s))))
+    (Exp.Convex[a := a, b := b, r := r, s := s].inequality (baseNonnegative r) (baseNonnegative s) sum);
+\definition weighted[a, b, r, s: Nonnegative]: Real.add r s = Real.one ->
+  R.Le (Real.mul (value a r) (value b s)) (Real.add (Real.mul r a) (Real.mul s b)) :=
+  \fun (sum: _) => Logic.orElim _ _ _ (Classical.excludedMiddle (underlying a = Real.zero))
+    (\fun (zero: _) => R.leReplaceLeft Real.zero _ _
+      (sym!{Real.Real} _ _ (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (\fun (x: Real.Real) => Real.mul x (value b s)) _ _ ((law a r).atZero zero)) (Laws.fieldMulZeroLeft _)))
+      (Laws.addNonnegative _ _ (Laws.fieldMulNonnegative _ _ (baseNonnegative r) (baseNonnegative a)) (Laws.fieldMulNonnegative _ _ (baseNonnegative s) (baseNonnegative b))))
+    (\fun (nonzeroA: _) => Logic.orElim _ _ _ (Classical.excludedMiddle (underlying b = Real.zero))
+      (\fun (zero: _) => R.leReplaceLeft Real.zero _ _
+        (sym!{Real.Real} _ _ (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (Real.mul (value a r)) _ _ ((law b s).atZero zero)) (Laws.fieldMulZeroRight _)))
+        (Laws.addNonnegative _ _ (Laws.fieldMulNonnegative _ _ (baseNonnegative r) (baseNonnegative a)) (Laws.fieldMulNonnegative _ _ (baseNonnegative s) (baseNonnegative b))))
+      (\fun (nonzeroB: _) => positive
+        (\into[Real.Real](a, Exp.Positive) \by { Order.ltOfLeNotEq _ _ (baseNonnegative a) (\fun (zero: Real.zero = a) => nonzeroA (sym!{Real.Real} _ _ zero)) })
+        (\into[Real.Real](b, Exp.Positive) \by { Order.ltOfLeNotEq _ _ (baseNonnegative b) (\fun (zero: Real.zero = b) => nonzeroB (sym!{Real.Real} _ _ zero)) }) r s sum));
+\definition inequality[x, y: Nonnegative][p, q: Exp.Positive]: Real.add (Laws.fieldInv p) (Laws.fieldInv q) = Real.one ->
+  R.Le (Real.mul x y)
+    (Real.add (Real.mul (Laws.fieldInv p) (value x (positiveBase p))) (Real.mul (Laws.fieldInv q) (value y (positiveBase q)))) :=
+  \fun (conjugate: _) => R.leReplaceLeft _ _ _
+    (congr!{Real.Real Real.Real Real.Real} Real.mul _ _ _ _ (PA.rootPower x p) (PA.rootPower y q))
+    (weighted (PA.powered x (positiveBase p)) (PA.powered y (positiveBase q)) (PA.inverseExponent p) (PA.inverseExponent q) conjugate);
