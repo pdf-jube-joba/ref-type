@@ -16,3 +16,17 @@
     (I.finiteMono (F.moment (function f)) (F.moment f) (F.momentNonnegative (function f))
       (\fun (x: A) => PA.monotone (F.absolute (function f) x) (F.absolute f x) (Powers.exponent p) (absoluteBound f x)) (F.finiteMoment f))
 };
+\module Strict(strict: R.Lt Real.one p);
+\import \parent.One[] \as One;
+\definition integrable[f: F.Representatives]: I.Integrable (function f) := Logic.orElim (p = Powers.one) (Logic.Not (p = Powers.one)) (I.Integrable (function f)) (Classical.excludedMiddle (p = Powers.one))
+  (\fun (equal: p = Powers.one) => \block {
+    \let moment: Lp.HasFiniteMoment[function f, Powers.one] := \idelim p = Powers.one \with q: P.Exponent => Lp.HasFiniteMoment[function f, q] \by {
+      base: F.properties (representative f), equality: equal } \then
+    \let one: One.Representatives := \into[A -> Real.Real](function f, One.Representatives) \by { moment } \then
+    \return One.integrable one
+  })
+  (\fun (different: Logic.Not (p = Powers.one)) => \block {
+    \let strict: R.Lt Real.one p := Order.ltOfLeNotEq Real.one p (\bysub(Real.Real, { p: Real.Real \where R.Le Real.one p }, p))
+      (\fun (equal: Real.one = p) => different (sym!{Real.Real} _ _ equal)) \then
+    \return Strict[strict := strict].integrable f
+  });
