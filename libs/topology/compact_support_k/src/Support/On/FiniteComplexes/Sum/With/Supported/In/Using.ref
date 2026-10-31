@@ -1,0 +1,94 @@
+\import Models.PullbackMap[p := OriginalFirst.even, q := OriginalFirst.odd, Y := Pair.A, source := Pair.subspace,
+  f := First.boundaryInclusion, regular := First.boundaryRegular] \as D0;
+\import Models.PullbackMap[p := OriginalFirst.odd, q := OriginalFirst.even, Y := Pair.A, source := Pair.subspace,
+  f := First.boundaryInclusion, regular := First.boundaryRegular] \as E0;
+\import Models.PullbackMap[p := OriginalSecond.even, q := OriginalSecond.odd, Y := Pair.A, source := Pair.subspace,
+  f := First.boundaryInclusion, regular := First.boundaryRegular] \as D1;
+\import Models.PullbackMap[p := OriginalSecond.odd, q := OriginalSecond.even, Y := Pair.A, source := Pair.subspace,
+  f := First.boundaryInclusion, regular := First.boundaryRegular] \as E1;
+\import Models.PullbackMap[p := OriginalThird.even, q := OriginalThird.odd, Y := Pair.A, source := Pair.subspace,
+  f := First.boundaryInclusion, regular := First.boundaryRegular] \as D2;
+\import Models.PullbackMap[p := OriginalThird.odd, q := OriginalThird.even, Y := Pair.A, source := Pair.subspace,
+  f := First.boundaryInclusion, regular := First.boundaryRegular] \as E2;
+\import Boundary.Sum[p := First.boundaryEvenModel, q := First.boundaryOddModel, r := Second.boundaryEvenModel, s := Second.boundaryOddModel,
+  d0 := D0.map OriginalFirst.d, e0 := E0.map OriginalFirst.e, d1 := D1.map OriginalSecond.d, e1 := E1.map OriginalSecond.e] \as Sum;
+\import Sum.With[first := c0, second := c1] \as Added;
+\import Operations.Models[X := Pair.A, baseSpace := Pair.subspace] \as BoundaryModels;
+\import BoundaryModels.Sum[first := First.boundaryEvenModel, second := Second.boundaryEvenModel] \as Even;
+\import BoundaryModels.Sum[first := First.boundaryOddModel, second := Second.boundaryOddModel] \as Odd;
+\import BoundaryModels.SumMap[p := First.boundaryEvenModel, q := First.boundaryOddModel, r := Second.boundaryEvenModel, s := Second.boundaryOddModel] \as DSum;
+\import BoundaryModels.SumMap[p := First.boundaryOddModel, q := First.boundaryEvenModel, r := Second.boundaryOddModel, s := Second.boundaryEvenModel] \as ESum;
+\import \parent.\parent.\parent.Geometry[Y := Pair.A, source := Pair.subspace, f := First.boundaryInclusion, regular := First.boundaryRegular] \as BoundaryGeometry;
+\import Bundles.Isomorphisms[X := Pair.A, F := Even.SourceFiber, G := Boundary.Fiber Sum.even, source := Even.source, target := Boundary.bundle Sum.even] \as EvenReverse;
+\import Operations.IsomorphismComposition[X := Pair.A, F := Boundary.Fiber Sum.even, G := Even.SourceFiber, H := (\fun (x: Pair.A) => OriginalThird.Even x),
+  source := Boundary.bundle Sum.even, middle := Even.source, target := BoundaryGeometry.targetEven] \as EvenCompose;
+\definition positive: EvenCompose.Isomorphism := EvenCompose.compose (EvenReverse.inverse Even.isomorphism) BoundaryGeometry.positive;
+\definition positiveFormula: \forall (x: Pair.A)(v: OriginalFirst.Even x)(w: OriginalSecond.Even x) ->
+  (positive.forward.fiber x).apply ((Even.isomorphism.forward.fiber x).apply (Product.pair (OriginalFirst.Even x) (OriginalSecond.Even x) v w)) =
+  (witness.positive.forward.fiber x).apply (Product.pair (OriginalFirst.Even x) (OriginalSecond.Even x) v w) :=
+  \fun (x: Pair.A)(v: OriginalFirst.Even x)(w: OriginalSecond.Even x) => trans!{{OriginalThird.Even x}} _ _ _
+    (congr!{{Even.SourceFiber x} {OriginalThird.Even x}} (BoundaryGeometry.positive.forward.fiber x).apply _ _
+      (Even.isomorphism.leftInverse x (Product.pair (OriginalFirst.Even x) (OriginalSecond.Even x) v w)))
+    (BoundaryGeometry.positiveFormula x v w);
+\import Bundles.Isomorphisms[X := Pair.A, F := Odd.SourceFiber, G := Boundary.Fiber Sum.odd, source := Odd.source, target := Boundary.bundle Sum.odd] \as OddReverse;
+\import Operations.IsomorphismComposition[X := Pair.A, F := Boundary.Fiber Sum.odd, G := Odd.SourceFiber, H := (\fun (x: Pair.A) => OriginalThird.Odd x),
+  source := Boundary.bundle Sum.odd, middle := Odd.source, target := BoundaryGeometry.targetOdd] \as OddCompose;
+\definition negative: OddCompose.Isomorphism := OddCompose.compose (OddReverse.inverse Odd.isomorphism) BoundaryGeometry.negative;
+\definition negativeFormula: \forall (x: Pair.A)(v: OriginalFirst.Odd x)(w: OriginalSecond.Odd x) ->
+  (negative.forward.fiber x).apply ((Odd.isomorphism.forward.fiber x).apply (Product.pair (OriginalFirst.Odd x) (OriginalSecond.Odd x) v w)) =
+  (witness.negative.forward.fiber x).apply (Product.pair (OriginalFirst.Odd x) (OriginalSecond.Odd x) v w) :=
+  \fun (x: Pair.A)(v: OriginalFirst.Odd x)(w: OriginalSecond.Odd x) => trans!{{OriginalThird.Odd x}} _ _ _
+    (congr!{{Odd.SourceFiber x} {OriginalThird.Odd x}} (BoundaryGeometry.negative.forward.fiber x).apply _ _
+      (Odd.isomorphism.leftInverse x (Product.pair (OriginalFirst.Odd x) (OriginalSecond.Odd x) v w)))
+    (BoundaryGeometry.negativeFormula x v w);
+\module Differential(x: Pair.A, v: Boundary.Fiber Sum.even x);
+\module Reverse(x: Pair.A, v: Boundary.Fiber Sum.odd x);
+\definition commutesD: \forall (x: Pair.A)(v: Boundary.Fiber Sum.even x) -> ((D2.map OriginalThird.d).fiber x).apply ((positive.forward.fiber x).apply v) =
+  (negative.forward.fiber x).apply ((Sum.d.fiber x).apply v) := \fun (x: Pair.A)(v: Boundary.Fiber Sum.even x) => Differential[x := x, v := v].equation;
+\definition commutesE: \forall (x: Pair.A)(v: Boundary.Fiber Sum.odd x) -> ((E2.map OriginalThird.e).fiber x).apply ((negative.forward.fiber x).apply v) =
+  (positive.forward.fiber x).apply ((Sum.e.fiber x).apply v) := \fun (x: Pair.A)(v: Boundary.Fiber Sum.odd x) => Reverse[x := x, v := v].equation;
+\import Boundary.Transport[p := Sum.even, q := Sum.odd, r := Third.boundaryEvenModel, s := Third.boundaryOddModel,
+  d0 := Sum.d, e0 := Sum.e, d1 := D2.map OriginalThird.d, e1 := E2.map OriginalThird.e,
+  positive := positive, negative := negative, commutesD := commutesD, commutesE := commutesE].With[c := Added.contraction] \as Transported;
+\import First.With[contraction := c0] \as Left;
+\import Second.With[contraction := c1] \as Middle;
+\import Third.With[contraction := Transported.contraction] \as Right;
+
+\import Boundary.Acyclic[p := First.boundaryEvenModel, q := First.boundaryOddModel, d := D0.map OriginalFirst.d, e := E0.map OriginalFirst.e].Normalized[c := c0] \as FirstNormal;
+\import Boundary.Acyclic[p := Second.boundaryEvenModel, q := Second.boundaryOddModel, d := D1.map OriginalSecond.d, e := E1.map OriginalSecond.e].Normalized[c := c1] \as SecondNormal;
+\definition normalizedSum: \forall (x: Pair.A)(v: OriginalFirst.Even x)(w: OriginalSecond.Even x) ->
+  (Transported.isomorphism.forward.fiber x).apply ((witness.positive.forward.fiber x).apply (Product.pair (OriginalFirst.Even x) (OriginalSecond.Even x) v w)) =
+  (witness.negative.forward.fiber x).apply (Product.pair (OriginalFirst.Odd x) (OriginalSecond.Odd x)
+    ((FirstNormal.isomorphism.forward.fiber x).apply v) ((SecondNormal.isomorphism.forward.fiber x).apply w)) :=
+  \fun (x: Pair.A)(v: OriginalFirst.Even x)(w: OriginalSecond.Even x) => trans!{{OriginalThird.Odd x}} _ _ _
+    (congr!{{OriginalThird.Even x} {OriginalThird.Odd x}} (Transported.isomorphism.forward.fiber x).apply _ _ (sym!{{OriginalThird.Even x}} _ _ (positiveFormula x v w)))
+    (trans!{{OriginalThird.Odd x}} _ _ _ (Transported.forwardFormula x ((Even.isomorphism.forward.fiber x).apply (Product.pair (OriginalFirst.Even x) (OriginalSecond.Even x) v w)))
+      (trans!{{OriginalThird.Odd x}} _ _ _
+        (congr!{{Boundary.Fiber Sum.odd x} {OriginalThird.Odd x}} (negative.forward.fiber x).apply _ _ (Added.forwardFormula x v w))
+        (negativeFormula x ((FirstNormal.isomorphism.forward.fiber x).apply v) ((SecondNormal.isomorphism.forward.fiber x).apply w))));
+\import \parent.\parent.\parent.Geometry[Y := Local.Carrier, source := Local.topology, f := Local.inclusion, regular := Local.regular] \as LocalGeometry;
+\import Pair.BundleSum[F := First.FirstFiber, G := First.SecondFiber, H := Second.FirstFiber, I := Second.SecondFiber, J := Third.FirstFiber, L := Third.SecondFiber,
+  firstModel := First.firstOnLocal, secondModel := First.secondOnLocal, thirdModel := Second.firstOnLocal, fourthModel := Second.secondOnLocal,
+  fifthModel := Third.firstOnLocal, sixthModel := Third.secondOnLocal] \as Addition;
+\definition agrees: \forall (x: Pair.A)(v: OriginalFirst.Even x)(w: OriginalSecond.Even x) ->
+  (Right.comparison.forward.fiber x).apply ((LocalGeometry.positive.forward.fiber x).apply (Product.pair (OriginalFirst.Even x) (OriginalSecond.Even x) v w)) =
+  (LocalGeometry.negative.forward.fiber x).apply (Product.pair (OriginalFirst.Odd x) (OriginalSecond.Odd x) ((Left.comparison.forward.fiber x).apply v) ((Middle.comparison.forward.fiber x).apply w)) :=
+  \fun (x: Pair.A)(v: OriginalFirst.Even x)(w: OriginalSecond.Even x) => trans!{{OriginalThird.Odd x}} _ _ _
+    (Right.formula x ((LocalGeometry.positive.forward.fiber x).apply (Product.pair (OriginalFirst.Even x) (OriginalSecond.Even x) v w)))
+    (trans!{{OriginalThird.Odd x}} _ _ _ (normalizedSum x v w)
+      (congr!{{Product.Times^[OriginalFirst.Odd x, OriginalSecond.Odd x]} {OriginalThird.Odd x}} (LocalGeometry.negative.forward.fiber x).apply _ _
+        (Product.Prop[A := OriginalFirst.Odd x, B := OriginalSecond.Odd x].pairCong _ _ _ _
+          (sym!{{OriginalFirst.Odd x}} _ _ (Left.formula x v)) (sym!{{OriginalSecond.Odd x}} _ _ (Middle.formula x w)))));
+\definition addition: Addition.Witness[Left.comparison,Middle.comparison,Right.comparison] := Addition.Witness[Left.comparison,Middle.comparison,Right.comparison] {
+  positive := LocalGeometry.positive, negative := LocalGeometry.negative, agrees := agrees
+};
+\definition localEquation: Pair.Quotient[].group.base.op Left.localValue Middle.localValue = Right.localValue :=
+  Addition.With[alpha := Left.comparison, beta := Middle.comparison, gamma := Right.comparison, witness := addition].reducedEquation;
+\definition reducedEquation: Relative.Reduced[model := model].group.base.op Left.value Middle.value = Right.value :=
+  trans!{{Relative.Reduced[model := model].Carrier}} _ _ _ (sym!{{Relative.Reduced[model := model].Carrier}} _ _ (Local.extendAdd Left.localValue Middle.localValue))
+    (congr!{{Pair.Quotient[].Relative} {Relative.Reduced[model := model].Carrier}} Local.extend _ _ localEquation);
+\definition equation: Relative.Reduced[model := model].group.base.op First.value Second.value = Third.value :=
+  trans!{{Relative.Reduced[model := model].Carrier}} _ _ _
+    (congr!{{Relative.Reduced[model := model].Carrier} {Relative.Reduced[model := model].Carrier} {Relative.Reduced[model := model].Carrier}}
+      Relative.Reduced[model := model].group.base.op _ _ _ _ (First.agreement c0) (Second.agreement c1))
+    (trans!{{Relative.Reduced[model := model].Carrier}} _ _ _ reducedEquation (sym!{{Relative.Reduced[model := model].Carrier}} _ _ (Third.agreement Transported.contraction)));

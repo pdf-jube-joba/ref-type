@@ -1,0 +1,45 @@
+\import topology.Maps[A := X, B := Compactification.Carrier] \as Maps;
+\import topology.Topology[Carrier := Compactification.Carrier] \as Space;
+\definition includesImage: Space.Subset Neighbors.image LargerNeighbors.image := \fun (p: Compactification.Carrier)(member: _) =>
+  Maps.imageElim Compactification.inclusion K p (\In[Compactification.Carrier] LargerNeighbors.image p)
+    (\fun (x: X)(inside: _)(same: Compactification.inclusion x = p) => \idelim Compactification.inclusion x = p
+      \with z: Compactification.Carrier => \In[Compactification.Carrier] LargerNeighbors.image z \by {
+        base: Maps.imageMember Compactification.inclusion H x (included x inside), equality: same
+      }) member;
+\definition small: Neighbors.Witness := Neighbors.Witness {
+  inner := w.inner, envelope := w.envelope, innerOpen := w.innerOpen, envelopeClosed := w.envelopeClosed,
+  contains := \fun (p: Compactification.Carrier)(inside: _) => w.contains p (includesImage p inside),
+  enclosed := w.enclosed, within := w.within
+};
+\import \parent.\parent.In[w := small] \as Old;
+\import Larger.In[w := w] \as New;
+\import Neighbors.With[w := small] \as Neighbor;
+\import LargerNeighbors.With[w := w] \as OtherNeighbor;
+\import \root.Support[].On[X := X, space := space, hausdorff := hausdorff, locallyCompact := locallyCompact].Localization[
+  U := Neighbor.openSet, open := Neighbor.open, L := Neighbor.compactSet, compactL := Neighbor.compact, enclosed := Neighbor.enclosed] \as Local;
+\import \root.Support[].On[X := X, space := space, hausdorff := hausdorff, locallyCompact := locallyCompact].Localization[
+  U := OtherNeighbor.openSet, open := OtherNeighbor.open, L := OtherNeighbor.compactSet, compactL := OtherNeighbor.compact, enclosed := OtherNeighbor.enclosed] \as OtherLocal;
+\import Relative.Pair[X := Local.Carrier, space := Local.topology, compact := Local.compact, hausdorff := Local.separated,
+  subset := Local.boundary, closed := Local.boundaryClosed] \as Pair;
+\import Relative.Pair[X := OtherLocal.Carrier, space := OtherLocal.topology, compact := OtherLocal.compact, hausdorff := OtherLocal.separated,
+  subset := OtherLocal.boundary, closed := OtherLocal.boundaryClosed] \as OtherPair;
+\definition shrinks: Base.Subset OtherNeighbor.openSet Neighbor.openSet := \fun (x: X)(inside: _) => inside;
+\definition includedLocal: Base.Subset Neighbor.compactSet OtherNeighbor.compactSet := \fun (x: X)(inside: _) => inside;
+\import Local.Refinement[V := OtherNeighbor.openSet, openV := OtherNeighbor.open, shrinks := shrinks, M := OtherNeighbor.compactSet,
+  compactM := OtherNeighbor.compact, enclosedV := OtherNeighbor.enclosed, included := includedLocal] \as Geometry;
+\definition boundary[x: Pair.A]: OtherPair.A := \into[OtherLocal.Carrier](Geometry.map x, OtherLocal.boundary) \by {
+  Geometry.preserves x (\bysub(Local.Carrier, Local.boundary, x))
+};
+\definition boundaryRegular: topology.Continuity[A := Pair.A, B := OtherPair.A].Continuous Pair.subspace OtherPair.subspace boundary :=
+  topology.Continuity[A := Pair.A, B := OtherLocal.Carrier].Corestriction[S := OtherLocal.boundary].corestrictContinuous Pair.subspace OtherLocal.topology boundary
+    (topology.Composition[A := Pair.A, B := Local.Carrier, C := OtherLocal.Carrier].composeContinuous Pair.subspace Local.topology OtherLocal.topology
+      Old.boundaryLocal Geometry.map Old.boundaryLocalRegular Geometry.continuous);
+\module Using(c: New.Contraction);
+\definition equation: value = Larger.value := \block {
+  \takefrom c: New.Contraction \by New.contractions \then
+  \return trans!{{Relative.Reduced[model := model].Carrier}} _ _ _ (agreement small)
+    (trans!{{Relative.Reduced[model := model].Carrier}} _ _ _ (Old.agreement Using[c := c].contraction)
+      (trans!{{Relative.Reduced[model := model].Carrier}} _ _ _ Using[c := c].equation
+        (trans!{{Relative.Reduced[model := model].Carrier}} _ _ _ (sym!{{Relative.Reduced[model := model].Carrier}} _ _ (New.agreement c))
+          (sym!{{Relative.Reduced[model := model].Carrier}} _ _ (Larger.agreement w)))))
+};

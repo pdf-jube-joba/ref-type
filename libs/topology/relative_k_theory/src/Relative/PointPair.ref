@@ -1,0 +1,34 @@
+\import \root.Relative[] \as Relative;
+\definition X: \Set := model.Carrier;
+\import topology.Topology[Carrier := X] \as Base;
+\definition subset: \Pow X := Base.Singleton (Relative.details model).point;
+\definition closed: Base.IsClosedIn (Relative.details model).topology subset :=
+  Base.Compactness[].hausdorffT1 (Relative.details model).topology (Relative.details model).hausdorff (Relative.details model).point;
+\import Relative.Pair[X := X, space := (Relative.details model).topology, compact := (Relative.details model).compact,
+  hausdorff := (Relative.details model).hausdorff, subset := subset, closed := closed].Quotient[] \as Quotient;
+\import topological_constructions.Coproduct[A := X, B := Quotient.Point] \as Sum;
+\import algebraic_topology.Collapse[A := Quotient.Augmented, subset := Quotient.collapsedPart] \as Collapse;
+\definition injective: \forall (x, y: X) -> Quotient.projection x = Quotient.projection y -> x = y :=
+  \fun (x, y: X)(same: _) => Logic.orElim[x = y, Logic.And[\In[X] subset x, \In[X] subset y], x = y]
+    (Quotient.separates x y same) (\fun (equal: x = y) => equal)
+    (\fun (both: Logic.And[\In[X] subset x, \In[X] subset y]) => trans!{X} _ _ _ both.left (sym!{X} _ _ both.right));
+\definition onPoint: Quotient.projection (Relative.details model).point = Quotient.point :=
+  Quotient.onSubset (\into[X]((Relative.details model).point, subset) \by { \refl((Relative.details model).point) });
+\definition onto: \forall (q: Quotient.Carrier) -> \exists (x: X \where Quotient.projection x = q) :=
+  Collapse.induction (\fun (q: Quotient.Carrier) => \exists (x: X \where Quotient.projection x = q))
+    (\induction (z: Quotient.Augmented) \return \exists (x: X \where Quotient.projection x = Collapse.class z) \with {
+      | inl: \fun (x: X) => Logic.existsIntro[X, { y: X \where Quotient.projection y = Quotient.projection x }] x (\refl(Quotient.projection x))
+      | inr: \fun (p: Quotient.Point) => Logic.existsIntro[X, { x: X \where Quotient.projection x = Collapse.class (Sum.inr p) }]
+        (Relative.details model).point
+        (trans!{{Quotient.Carrier}} _ _ _ onPoint
+          (sym!{{Quotient.Carrier}} _ _ (Collapse.collapsed (Sum.inr p) (Sum.inr Quotient.distinguished) (\refl(p)) (\refl(Quotient.distinguished)))))
+    });
+\import algebraic_topology.Pointed[A := X].Maps[B := Quotient.Carrier] \as Maps;
+\definition map: Relative.Map model Quotient.model := \into[X -> Quotient.Carrier](Quotient.projection, Relative.Map model Quotient.model) \by {
+  Maps.Laws[Relative.pointed model, Relative.pointed Quotient.model, Quotient.projection] {
+    continuous := Quotient.continuous, pointed := onPoint
+  }
+};
+\definition equivalence: Relative.Equivalence[source := model, target := Quotient.model].Data :=
+  Relative.Equivalence[source := model, target := Quotient.model].FromMap[f := map, injective := injective, onto := onto].equivalence;
+\import Relative.Equivalence[source := model, target := Quotient.model].With[e := equivalence].Groups[] \as Groups;

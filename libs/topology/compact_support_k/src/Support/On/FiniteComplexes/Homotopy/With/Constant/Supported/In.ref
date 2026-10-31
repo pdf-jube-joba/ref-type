@@ -1,0 +1,34 @@
+\import FirstClass.In[w := w] \as Core;
+\import Classes.In[w := w] \as Homotopy;
+\import Neighbors.With[w := w] \as Neighbor;
+\import \root.Support[].On[X := X, space := space, hausdorff := hausdorff, locallyCompact := locallyCompact].Localization[
+  U := Neighbor.openSet, open := Neighbor.open, L := Neighbor.compactSet, compactL := Neighbor.compact, enclosed := Neighbor.enclosed] \as Local;
+\import Relative.Pair[X := Local.Carrier, space := Local.topology, compact := Local.compact, hausdorff := Local.separated, subset := Local.boundary, closed := Local.boundaryClosed] \as Pair;
+\import algebraic_topology.Interval[] \as Time;
+\import algebraic_topology.Cylinder[A := Pair.A] \as Cylinder;
+\import Operations.Models[X := Pair.A, baseSpace := Pair.subspace] \as BoundaryModels;
+\import BoundaryModels.PullbackMap[p := Core.boundaryEvenModel, q := Core.boundaryOddModel, Y := Cylinder.Carrier, source := (Cylinder.topology Pair.subspace),
+  f := Cylinder.point, regular := (Cylinder.pointContinuous Pair.subspace)] \as DPull;
+\import BoundaryModels.PullbackMap[p := Core.boundaryOddModel, q := Core.boundaryEvenModel, Y := Cylinder.Carrier, source := (Cylinder.topology Pair.subspace),
+  f := Cylinder.point, regular := (Cylinder.pointContinuous Pair.subspace)] \as EPull;
+\import Models.PullbackMap[p := First.even, q := First.odd, Y := Pair.A, source := Pair.subspace, f := Core.boundaryInclusion, regular := Core.boundaryRegular] \as D;
+\import Models.PullbackMap[p := First.odd, q := First.even, Y := Pair.A, source := Pair.subspace, f := Core.boundaryInclusion, regular := Core.boundaryRegular] \as E;
+\import Chains.Of[complex := first] \as FirstChain;
+\definition family: Homotopy.Family := Homotopy.Family {
+  d := DPull.map (D.map First.d), e := EPull.map (E.map First.e),
+  exact := \fun (z: Cylinder.Carrier) => Operations.AcyclicCoordinates[n := First.even.ranks (Cylinder.point z), m := First.odd.ranks (Cylinder.point z),
+    d := (DPull.map (D.map First.d)).fiber z, e := (EPull.map (E.map First.e)).fiber z].Exact {
+      squareEven := FirstChain.squareZero.left (Cylinder.point z), squareOdd := FirstChain.squareZero.right (Cylinder.point z),
+      even := \fun (v: _) => (firstExact (Core.outside (Cylinder.point z))).left v
+        (\bysub(First.Even (Cylinder.point z), { v: First.Even (Cylinder.point z) \where (First.d.fiber (Cylinder.point z)).apply v = ((Models.bundle First.odd).space (Cylinder.point z)).zero }, v)),
+      odd := \fun (v: _) => (firstExact (Core.outside (Cylinder.point z))).right v
+        (\bysub(First.Odd (Cylinder.point z), { v: First.Odd (Cylinder.point z) \where (First.e.fiber (Cylinder.point z)).apply v = ((Models.bundle First.even).space (Cylinder.point z)).zero }, v))
+    },
+  startD := \fun (x: Pair.A)(v: First.Even x) => \refl((First.d.fiber x).apply v),
+  startE := \fun (x: Pair.A)(v: First.Odd x) => \refl((First.e.fiber x).apply v),
+  endD := \fun (x: Pair.A)(v: First.Even x) => trans!{{First.Odd x}} _ _ _ (sym!{{First.Odd x}} _ _ (negative.leftInverse x ((First.d.fiber x).apply v)))
+    (congr!{{Second.Odd x} {First.Odd x}} (negative.backward.fiber x).apply _ _ (sym!{{Second.Odd x}} _ _ (commutesD x v))),
+  endE := \fun (x: Pair.A)(v: First.Odd x) => trans!{{First.Even x}} _ _ _ (sym!{{First.Even x}} _ _ (positive.leftInverse x ((First.e.fiber x).apply v)))
+    (congr!{{Second.Even x} {First.Even x}} (positive.backward.fiber x).apply _ _ (sym!{{Second.Even x}} _ _ (commutesE x v)))
+};
+\definition equation: FirstClass.value = SecondClass.value := Homotopy.With[family := family].equation;
