@@ -1,0 +1,23 @@
+\import Right.Composition[C := B] \as OnTarget;
+\import Right.Composition[C := A] \as PullTarget;
+\import Left.Composition[C := B] \as PullSource;
+\import algebraic_topology.Homotopy[A := B, B := A] \as Middle;
+\import Middle.Composition[C := B] \as PostSource;
+\definition reversed: Right.Homotopy[target, target, (\fun (y: B) => y), (\fun (y: B) => f (right y))] := Right.reverse target target (\fun (y: B) => f (right y)) (\fun (y: B) => y) rightInverse;
+\definition preFirst: Middle.Homotopy[target, source, (\fun (y: B) => left y), (\fun (y: B) => left (f (right y)))] :=
+  Right.Composition[C := A].postcompose target target source (\fun (y: B) => y) (\fun (y: B) => f (right y)) reversed left leftContinuous;
+\definition first: Right.Homotopy[target, target, (\fun (y: B) => f (left y)), (\fun (y: B) => f (left (f (right y))))] :=
+  PostSource.postcompose target source target (\fun (y: B) => left y) (\fun (y: B) => left (f (right y))) preFirst f continuous;
+\definition preSecond: Middle.Homotopy[target, source, (\fun (y: B) => left (f (right y))), (\fun (y: B) => right y)] :=
+  PullSource.precompose target source source (\fun (x: A) => left (f x)) (\fun (x: A) => x) leftInverse right rightContinuous;
+\definition second: Right.Homotopy[target, target, (\fun (y: B) => f (left (f (right y)))), (\fun (y: B) => f (right y))] :=
+  PostSource.postcompose target source target (\fun (y: B) => left (f (right y))) (\fun (y: B) => right y) preSecond f continuous;
+\definition tail: Right.Homotopy[target, target, (\fun (y: B) => f (left (f (right y)))), (\fun (y: B) => y)] :=
+  Right.Concatenation[].concatenate target target (\fun (y: B) => f (left (f (right y)))) (\fun (y: B) => f (right y)) (\fun (y: B) => y) second rightInverse;
+\definition rightHomotopy: Right.Homotopy[target, target, (\fun (y: B) => f (left y)), (\fun (y: B) => y)] :=
+  Right.Concatenation[].concatenate target target (\fun (y: B) => f (left y)) (\fun (y: B) => f (left (f (right y)))) (\fun (y: B) => y) first tail;
+\definition result: Equivalences.Equivalence[source, target] := Equivalences.Equivalence[source, target] {
+  forward := f, backward := left, forwardContinuous := continuous, backwardContinuous := leftContinuous,
+  leftInverse := \exact(leftInverse, Left.Homotopy[source, source, (\fun (x: A) => left (f x)), (\fun (x: A) => x)]),
+  rightInverse := \exact(rightHomotopy, Right.Homotopy[target, target, (\fun (y: B) => f (left y)), (\fun (y: B) => y)])
+};

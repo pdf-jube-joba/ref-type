@@ -1,0 +1,18 @@
+\import algebraic_topology.Spheres[].Zero[] \as ZeroSphere;
+\import Euclidean.Dimension[n := N.Nat^::zero] \as SourceDisk;
+\definition characteristic[p: SourceDisk.Disk]: Sphere N.Nat^::zero := ZeroSphere.south;
+\definition diskUnique: \forall (p, q: SourceDisk.Disk) -> p = q := \fun (p, q: SourceDisk.Disk) => \axiom:funext(p, q,
+  \fun (i: Fin.Fin N.Nat^::zero) => Logic.falseElim _ (Fin.zeroImpossible i (Fin.bound N.Nat^::zero i)));
+\definition covers: \forall (x: Sphere N.Nat^::zero) -> Logic.Or[x = ZeroSphere.north, \exists (p: SourceDisk.Disk \where characteristic p = x)] :=
+  \fun (x: Sphere N.Nat^::zero) => either!{{ZeroSphere.cases x} {Logic.Or[x = ZeroSphere.north, \exists (p: SourceDisk.Disk \where characteristic p = x)]}
+    {\fun (same: _) => Logic.Or[_, _]::left same}
+    {\fun (same: _) => Logic.Or[_, _]::right (Logic.existsIntro[SourceDisk.Disk, { p: SourceDisk.Disk \where characteristic p = x }] SourceDisk.Contraction[].origin (sym!{{Sphere N.Nat^::zero}} _ _ same))}
+  };
+\definition data: Data[N.Nat^::zero] := Data[N.Nat^::zero] {
+  pole := ZeroSphere.north, characteristic := characteristic,
+  continuous := topology.Maps[A := SourceDisk.Disk, B := Sphere N.Nat^::zero].constantContinuous SourceDisk.diskTopology Euclidean.Dimension[n := N.Nat^::succ N.Nat^::zero].sphereTopology ZeroSphere.south,
+  boundary := \fun (p: SourceDisk.Disk)(boundary: R.zero = R.one) => Logic.falseElim _ (dedekind_reals.DedekindReal[].Arithmetic[].Prop[].zeroNeOne boundary),
+  interiorInjective := \fun (p, q: SourceDisk.Disk)(inside: _)(same: _) => diskUnique p q,
+  poleBoundary := \fun (p: SourceDisk.Disk)(same: ZeroSphere.south = ZeroSphere.north) => Logic.falseElim _ (ZeroSphere.distinct (sym!{{Sphere N.Nat^::zero}} _ _ same)),
+  covers := covers
+};

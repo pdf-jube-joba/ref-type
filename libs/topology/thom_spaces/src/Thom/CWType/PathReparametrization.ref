@@ -1,0 +1,36 @@
+\import algebraic_topology.Interval[] \as I;
+\import algebraic_topology.Cylinder[A := A] \as Cylinder;
+\import algebraic_topology.Cylinder[A := Cylinder.Carrier] \as Double;
+\import algebraic_topology.Homotopy[A := A, B := B] \as Paths;
+\import algebraic_topology.Homotopy[A := A, B := I.Carrier] \as Times;
+\definition zero[x: A]: I.Carrier := I.start;
+\definition one[x: A]: I.Carrier := I.end;
+\definition doubleTopology: topology.Topology[Carrier := Double.Carrier].Topology := Double.topology (Cylinder.topology source);
+\definition map[z: Double.Carrier]: Cylinder.Carrier := Cylinder.at
+  (I.Convex[].blend (Double.time z) (clock (Double.point z)) (Cylinder.time (Double.point z))) (Cylinder.point (Double.point z));
+\definition mapContinuous: topology.Continuity[A := Double.Carrier, B := Cylinder.Carrier].Continuous doubleTopology (Cylinder.topology source) map :=
+  topological_constructions.Product[A := I.Carrier, B := A].Universal[X := Double.Carrier].pairContinuous doubleTopology I.topology source
+    (\fun (z: Double.Carrier) => I.Convex[].blend (Double.time z) (clock (Double.point z)) (Cylinder.time (Double.point z)))
+    (\fun (z: Double.Carrier) => Cylinder.point (Double.point z))
+    (I.Convex[].Functions[A := Double.Carrier].continuous doubleTopology Double.time (\fun (z: Double.Carrier) => clock (Double.point z)) (\fun (z: Double.Carrier) => Cylinder.time (Double.point z))
+      (Double.timeContinuous (Cylinder.topology source))
+      (topology.Composition[A := Double.Carrier, B := Cylinder.Carrier, C := I.Carrier].composeContinuous doubleTopology (Cylinder.topology source) I.topology Double.point clock (Double.pointContinuous (Cylinder.topology source)) (Times.laws source I.topology zero one clock).continuous)
+      (topology.Composition[A := Double.Carrier, B := Cylinder.Carrier, C := I.Carrier].composeContinuous doubleTopology (Cylinder.topology source) I.topology Double.point Cylinder.time (Double.pointContinuous (Cylinder.topology source)) (Cylinder.timeContinuous source)))
+    (topology.Composition[A := Double.Carrier, B := Cylinder.Carrier, C := A].composeContinuous doubleTopology (Cylinder.topology source) source Double.point Cylinder.point (Double.pointContinuous (Cylinder.topology source)) (Cylinder.pointContinuous source));
+\definition apply[z: Double.Carrier]: B := p (map z);
+\definition continuous: topology.Continuity[A := Double.Carrier, B := B].Continuous doubleTopology target apply :=
+  topology.Composition[A := Double.Carrier, B := Cylinder.Carrier, C := B].composeContinuous doubleTopology (Cylinder.topology source) target map p mapContinuous (Paths.laws source target f g p).continuous;
+\definition start: \forall (t: I.Carrier)(x: A) -> apply (Double.at I.start (Cylinder.at t x)) = q (Cylinder.at t x) := \fun (t: I.Carrier)(x: A) => trans!{B} _ _ _
+  (congr!{{I.Carrier} B} (\fun (v: I.Carrier) => p (Cylinder.at v x)) _ _ (I.Convex[].atStart (clock (Cylinder.at t x)) t)) (sym!{B} _ _ (formula t x));
+\definition end: \forall (t: I.Carrier)(x: A) -> apply (Double.at I.end (Cylinder.at t x)) = p (Cylinder.at t x) := \fun (t: I.Carrier)(x: A) =>
+  congr!{{I.Carrier} B} (\fun (v: I.Carrier) => p (Cylinder.at v x)) _ _ (I.Convex[].atEnd (clock (Cylinder.at t x)) t);
+\definition atZero: \forall (u: I.Carrier)(x: A) -> apply (Double.at u (Cylinder.at I.start x)) = f x := \fun (u: I.Carrier)(x: A) => eq_reason_in!{B _
+  "=" _ "by" { congr!{{I.Carrier} B} (\fun (v: I.Carrier) => p (Cylinder.at v x)) _ _ (congr!{{I.Carrier} {I.Carrier}} (\fun (v: I.Carrier) => I.Convex[].blend u v I.start) _ _ ((Times.laws source I.topology zero one clock).start x)) }
+  "=" _ "by" { congr!{{I.Carrier} B} (\fun (v: I.Carrier) => p (Cylinder.at v x)) _ _ (I.Convex[].fixed u I.start) }
+  "=" _ "by" { (Paths.laws source target f g p).start x }
+};
+\definition atOne: \forall (u: I.Carrier)(x: A) -> apply (Double.at u (Cylinder.at I.end x)) = g x := \fun (u: I.Carrier)(x: A) => eq_reason_in!{B _
+  "=" _ "by" { congr!{{I.Carrier} B} (\fun (v: I.Carrier) => p (Cylinder.at v x)) _ _ (congr!{{I.Carrier} {I.Carrier}} (\fun (v: I.Carrier) => I.Convex[].blend u v I.end) _ _ ((Times.laws source I.topology zero one clock).end x)) }
+  "=" _ "by" { congr!{{I.Carrier} B} (\fun (v: I.Carrier) => p (Cylinder.at v x)) _ _ (I.Convex[].fixed u I.end) }
+  "=" _ "by" { (Paths.laws source target f g p).end x }
+};

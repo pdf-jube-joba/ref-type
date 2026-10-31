@@ -1,0 +1,45 @@
+\import algebraic_topology.Homotopy[A := B, B := D] \as Original;
+\import algebraic_topology.Homotopy[A := A, B := D] \as Boundaries;
+\import algebraic_topology.Cylinder[A := B] \as OriginalCylinder;
+\import algebraic_topology.Cylinder[A := Cylinder.Carrier] \as Double;
+\import algebraic_topology.Cylinder[A := Carrier] \as Total;
+\definition pull: Boundaries.Homotopy[source, range, (\fun (x: A) => u (f x)), (\fun (x: A) => v (f x))] :=
+  Original.Composition[C := A].precompose source target range u v homotopy f continuous;
+\definition boundary: Boundaries.Homotopy[source, range, first, second] := \into[Boundaries.Family](pull, Boundaries.Homotopy[source, range, first, second]) \by {
+  Boundaries.Laws[source, range, first, second, pull] {
+    continuous := (Boundaries.laws source range (\fun (x: A) => u (f x)) (\fun (x: A) => v (f x)) pull).continuous,
+    start := \fun (x: A) => trans!{D} _ _ _ ((Boundaries.laws source range (\fun (x: A) => u (f x)) (\fun (x: A) => v (f x)) pull).start x) (firstCommutes x),
+    end := \fun (x: A) => trans!{D} _ _ _ ((Boundaries.laws source range (\fun (x: A) => u (f x)) (\fun (x: A) => v (f x)) pull).end x) (secondCommutes x)
+  }
+};
+\import \root.Thom[].CWType[].ConeAttachment[A := A, B := D, source := source, target := range, f := first, continuous := firstContinuous] \as First;
+\import \root.Thom[].CWType[].ConeAttachment[A := A, B := D, source := source, target := range, f := second, continuous := secondContinuous] \as Second;
+\import \parent.Mapping[D := D, range := range, next := first, nextContinuous := firstContinuous, map := u, mapContinuous := uContinuous, commutes := firstCommutes] \as FirstMap;
+\import \parent.Mapping[D := D, range := range, next := second, nextContinuous := secondContinuous, map := v, mapContinuous := vContinuous, commutes := secondCommutes] \as SecondMap;
+\import \root.Thom[].CWType[].ConeAttachment[A := A, B := D, source := source, target := range, f := first, continuous := firstContinuous].Homotopic[g := second, regular := secondContinuous, h := boundary] \as Change;
+\import algebraic_topology.Homotopy[A := A, B := Second.Carrier] \as Paths;
+\definition projected: Paths.Homotopy[source, Second.topology, (\fun (x: A) => Second.inclusion (first x)), (\fun (x: A) => Second.inclusion (second x))] :=
+  Boundaries.Composition[C := Second.Carrier].postcompose source range Second.topology first second boundary Second.inclusion Second.inclusionContinuous;
+\import \root.Thom[].CWType[].PathTransport[A := A, B := Second.Carrier, source := source, target := Second.topology,
+  f := (\fun (x: A) => Second.apex), g := (\fun (x: A) => Second.inclusion (second x)), k := (\fun (x: A) => Second.inclusion (first x)), p := Second.null, h := projected] \as Transport;
+\definition original[z: OriginalCylinder.Carrier]: Second.Carrier := Second.inclusion (homotopy z);
+\definition originalContinuous: topology.Continuity[A := OriginalCylinder.Carrier, B := Second.Carrier].Continuous (OriginalCylinder.topology target) Second.topology original :=
+  topology.Composition[A := OriginalCylinder.Carrier, B := D, C := Second.Carrier].composeContinuous (OriginalCylinder.topology target) range Second.topology homotopy Second.inclusion (Original.laws target range u v homotopy).continuous Second.inclusionContinuous;
+\import \parent.Parametrized[D := Second.Carrier, range := Second.topology, original := original, point := (\fun (t: I.Carrier) => Second.apex), filling := Transport.apply,
+  zero := Transport.atZero, one := Transport.atOne, fillingContinuous := Transport.continuous, originalContinuous := originalContinuous,
+  pointContinuous := topology.Maps[A := I.Carrier, B := Second.Carrier].constantContinuous I.topology Second.topology Second.apex] \as Sliding;
+\definition initial[x: Carrier]: Second.Carrier := Change.forward (FirstMap.apply x);
+\definition middle[x: Carrier]: Second.Carrier := Sliding.apply (Total.at I.end x);
+\module FirstHomotopy;
+\definition finalOriginal[y: B]: Second.Carrier := Second.inclusion (v y);
+\definition finalOriginalContinuous: topology.Continuity[A := B, B := Second.Carrier].Continuous target Second.topology finalOriginal :=
+  topology.Composition[A := B, B := D, C := Second.Carrier].composeContinuous target range Second.topology v Second.inclusion vContinuous Second.inclusionContinuous;
+\definition finalOne: \forall (t: I.Carrier)(x: A) -> Transport.singleApply (Double.at t (Cylinder.at I.end x)) = finalOriginal (f x) :=
+  \fun (t: I.Carrier)(x: A) => trans!{Second.Carrier} _ _ _ (Transport.singleAtOne t x)
+    (congr!{D Second.Carrier} Second.inclusion _ _ (sym!{D} _ _ (secondCommutes x)));
+\import \parent.Families[D := Second.Carrier, range := Second.topology, original := finalOriginal, point := Second.apex, filling := Transport.singleApply,
+  zero := Transport.singleAtZero, one := finalOne, fillingContinuous := Transport.singleContinuous, originalContinuous := finalOriginalContinuous] \as Finishing;
+\module SecondHomotopy;
+\import algebraic_topology.Homotopy[A := Carrier, B := Second.Carrier] \as Native;
+\definition result: Native.Homotopy[topology, Second.topology, initial, SecondMap.apply] :=
+  Native.Concatenation[].concatenate topology Second.topology initial middle SecondMap.apply FirstHomotopy[].result SecondHomotopy[].result;

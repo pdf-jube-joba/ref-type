@@ -1,0 +1,20 @@
+\import algebraic_topology.Euclidean[] \as Euclidean;
+\import real.Analysis[] \as R;
+\import dedekind_reals.DedekindReal[] \as Order;
+\definition Disk[n: N.Nat^]: \Set := Euclidean.Disk n;
+\definition Sphere[n: N.Nat^]: \Set := Euclidean.Dimension[n := N.Nat^::succ n].Sphere;
+\structure Data[n: N.Nat^]: \Set := {
+  pole: Sphere n,
+  characteristic: Disk n -> Sphere n,
+  continuous: topology.Continuity[A := Disk n, B := Sphere n].Continuous Euclidean.Dimension[n := n].diskTopology Euclidean.Dimension[n := N.Nat^::succ n].sphereTopology characteristic,
+  boundary: \forall (p: Disk n) -> Euclidean.normSquaredAt n p = R.one -> characteristic p = pole,
+  interiorInjective: \forall (p, q: Disk n) -> Order.Lt (Euclidean.normSquaredAt n p) R.one -> characteristic p = characteristic q -> p = q,
+  poleBoundary: \forall (p: Disk n) -> characteristic p = pole -> Euclidean.normSquaredAt n p = R.one,
+  covers: \forall (x: Sphere n) -> Logic.Or[x = pole, \exists (p: Disk n \where characteristic p = x)]
+};
+\module Zero;
+\module Successor(n: N.Nat^);
+\definition data: \forall (n: N.Nat^) -> Data[n] := \induction (n: N.Nat^) \return Data[n] \with {
+  | zero: Zero[].data
+  | succ: \fun (n: N.Nat^)(previous: Data[n]) => Successor[n := n].data
+};

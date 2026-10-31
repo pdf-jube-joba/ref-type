@@ -1,0 +1,24 @@
+\import algebraic_topology.Homotopy[A := Carrier, B := Second.Carrier] \as Native;
+\definition initialOriginal: \forall (y: B) -> initial (inclusion y) = Second.inclusion (u y) := \fun (y: B) => trans!{Second.Carrier} _ _ _
+  (congr!{First.Carrier Second.Carrier} Change.forward _ _ (FirstMap.onOriginal y)) (Change.forwardOriginal (u y));
+\definition initialApex: initial apex = Second.apex := trans!{Second.Carrier} _ _ _ (congr!{First.Carrier Second.Carrier} Change.forward _ _ FirstMap.onApex) Change.forwardApex;
+\definition initialCylinder: \forall (t: I.Carrier)(x: A) -> initial (at t x) = Transport.initial (Cylinder.at t x) := \fun (t: I.Carrier)(x: A) => trans!{Second.Carrier} _ _ _
+  (congr!{First.Carrier Second.Carrier} Change.forward _ _ (FirstMap.onCylinder t x)) (Change.forwardCylinder t x);
+\definition start: \forall (x: Carrier) -> Sliding.apply (Total.at I.start x) = initial x := induction (\fun (x: Carrier) => Sliding.apply (Total.at I.start x) = initial x)
+  (\fun (y: B) => eq_reason_in!{Second.Carrier _
+    "=" _ "by" { Sliding.onOriginal I.start y }
+    "=" _ "by" { congr!{D Second.Carrier} Second.inclusion _ _ ((Original.laws target range u v homotopy).start y) }
+    "=" _ "by" { sym!{Second.Carrier} _ _ (initialOriginal y) }
+  })
+  (trans!{Second.Carrier} _ _ _ (Sliding.onApex I.start) (sym!{Second.Carrier} _ _ initialApex))
+  (\fun (t: I.Carrier)(x: A) => eq_reason_in!{Second.Carrier _
+    "=" _ "by" { Sliding.onCylinder I.start t x }
+    "=" _ "by" { Transport.initialPoint t x }
+    "=" _ "by" { sym!{Second.Carrier} _ _ (initialCylinder t x) }
+  });
+\definition result: Native.Homotopy[topology, Second.topology, initial, middle] :=
+  \into[Native.Family](Sliding.apply, Native.Homotopy[topology, Second.topology, initial, middle]) \by {
+    Native.Laws[topology, Second.topology, initial, middle, Sliding.apply] {
+      continuous := Sliding.continuous, start := start, end := \fun (x: Carrier) => \refl(middle x)
+    }
+  };

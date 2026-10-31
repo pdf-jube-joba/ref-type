@@ -1,0 +1,29 @@
+\import algebraic_topology.Interval[] \as I;
+\import algebraic_topology.Cylinder[A := Next.Carrier] \as Cylinder;
+\import algebraic_topology.Homotopy[A := NewCone.Carrier, B := NewCone.Carrier] \as Middle;
+\import Middle.Composition[C := Next.Carrier] \as Pull;
+\import algebraic_topology.Homotopy[A := Next.Carrier, B := NewCone.Carrier].Composition[C := Next.Carrier] \as Post;
+\import algebraic_topology.Homotopy[A := Next.Carrier, B := NewCone.Carrier] \as Intermediate;
+\import algebraic_topology.Homotopy[A := Next.Carrier, B := Next.Carrier] \as Native;
+\definition pre: Intermediate.Homotopy[Next.topology, NewCone.topology, (\fun (x: Next.Carrier) => (\fun (c: NewCone.Carrier) => Change.forward (Change.backward c)) (Second.backward x)), Second.backward] :=
+  Pull.precompose Next.topology NewCone.topology NewCone.topology (\fun (c: NewCone.Carrier) => Change.forward (Change.backward c)) (\fun (c: NewCone.Carrier) => c) Change.Right[].result Second.backward Second.backwardContinuous;
+\definition post: Native.Homotopy[Next.topology, Next.topology, (\fun (x: Next.Carrier) => Second.forward ((\fun (c: NewCone.Carrier) => Change.forward (Change.backward c)) (Second.backward x))), (\fun (x: Next.Carrier) => Second.forward (Second.backward x))] :=
+  Post.postcompose Next.topology NewCone.topology Next.topology (\fun (x: Next.Carrier) => (\fun (c: NewCone.Carrier) => Change.forward (Change.backward c)) (Second.backward x)) Second.backward pre Second.forward Second.forwardContinuous;
+\definition start: \forall (x: Next.Carrier) -> post (Cylinder.at I.start x) = (\fun (y: Next.Carrier) => forward (backward y)) x := \fun (x: Next.Carrier) => trans!{Next.Carrier} _ _ _
+  ((Native.laws Next.topology Next.topology (\fun (x: Next.Carrier) => Second.forward ((\fun (c: NewCone.Carrier) => Change.forward (Change.backward c)) (Second.backward x))) (\fun (x: Next.Carrier) => Second.forward (Second.backward x)) post).start x)
+  (congr!{OldCone.Carrier Next.Carrier} (\fun (z: OldCone.Carrier) => Second.forward (Change.forward z)) (Change.backward (Second.backward x)) (First.backward (First.forward (Change.backward (Second.backward x))))
+    (sym!{OldCone.Carrier} _ _ (First.leftInverse (Change.backward (Second.backward x)))));
+\definition end: \forall (x: Next.Carrier) -> post (Cylinder.at I.end x) = x := \fun (x: Next.Carrier) => trans!{Next.Carrier} _ _ _
+  ((Native.laws Next.topology Next.topology (\fun (x: Next.Carrier) => Second.forward ((\fun (c: NewCone.Carrier) => Change.forward (Change.backward c)) (Second.backward x))) (\fun (x: Next.Carrier) => Second.forward (Second.backward x)) post).end x) (Second.rightInverse x);
+\definition result: Native.Homotopy[Next.topology, Next.topology, (\fun (y: Next.Carrier) => forward (backward y)), (\fun (x: Next.Carrier) => x)] :=
+  \into[Native.Family](post, Native.Homotopy[Next.topology, Next.topology, (\fun (y: Next.Carrier) => forward (backward y)), (\fun (x: Next.Carrier) => x)]) \by {
+    Native.Laws[Next.topology, Next.topology, (\fun (y: Next.Carrier) => forward (backward y)), (\fun (x: Next.Carrier) => x), post] {
+      continuous := (Native.laws Next.topology Next.topology (\fun (x: Next.Carrier) => Second.forward ((\fun (c: NewCone.Carrier) => Change.forward (Change.backward c)) (Second.backward x))) (\fun (x: Next.Carrier) => Second.forward (Second.backward x)) post).continuous,
+      start := start, end := end
+    }
+  };
+\definition fixed: \forall (u: I.Carrier)(a: A) -> result (Cylinder.at u (Next.inclusion a)) = Next.inclusion a := \fun (u: I.Carrier)(a: A) => eq_reason_in!{Next.Carrier _
+  "=" _ "by" { congr!{NewCone.Carrier Next.Carrier} (\fun (c: NewCone.Carrier) => Second.forward (Change.Right[].result (algebraic_topology.Cylinder[A := NewCone.Carrier].at u c))) _ _ (Second.backwardOriginal a) }
+  "=" _ "by" { congr!{NewCone.Carrier Next.Carrier} Second.forward _ _ (Change.Right[].fixed u a) }
+  "=" _ "by" { Second.onOriginal a }
+};
