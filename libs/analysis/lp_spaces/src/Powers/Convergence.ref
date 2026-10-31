@@ -1,0 +1,56 @@
+\import \parent.Algebra[] \as PA;
+\import \root.Exponential[] \as Exp;
+\import Real.Sequence[] \as Sequence;
+\import N.Order[].Prop[] \as NatOrder;
+\import Real.SquareRoot[] \as Root;
+\definition inverse: Exp.Positive := \into[Real.Real](Laws.fieldInv p, Exp.Positive) \by { Product.invPositive p (Exp.positive p) };
+\definition Upper[s: N.Nat^ -> Nonnegative, b: Nonnegative, epsilon: Real.Real, k: N.Nat^]: \Prop :=
+  \forall (n: N.Nat^) -> Nat.Le k n -> R.Lt (value (s n) (positiveBase p)) (Real.add (value b (positiveBase p)) epsilon);
+\definition Lower[s: N.Nat^ -> Nonnegative, b: Nonnegative, epsilon: Real.Real, k: N.Nat^]: \Prop :=
+  \forall (n: N.Nat^) -> Nat.Le k n -> R.Lt (Real.sub (value b (positiveBase p)) epsilon) (value (s n) (positiveBase p));
+\definition upper[s: N.Nat^ -> Nonnegative][b: Nonnegative][epsilon: Real.Real]: Sequence.Converges (\fun (n: N.Nat^) => s n) b -> R.Lt Real.zero epsilon -> \exists ( k: N.Nat^ \where Upper[s, b, epsilon, k] ) :=
+  \fun (converges: _)(positive: _) => \block {
+    \let upper: Nonnegative := \into[Real.Real](Real.add (value b (positiveBase p)) epsilon, Nonnegative) \by {
+      Laws.addNonnegative _ _ (nonnegativeValue b (positiveBase p)) (Order.leOfLt _ _ positive) } \then
+    \let root: Real.Real := value upper (PA.inverseExponent p) \then
+    \let gap: R.Lt b root := R.ltReplaceLeft _ _ _ (PA.rootPower b p)
+      (PA.strict (PA.powered b (positiveBase p)) upper inverse (Root.addPositive (value b (positiveBase p)) epsilon positive)) \then
+    \let delta: Real.Real := Real.sub root b \then
+    \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where Sequence.LimitControl (\fun (n: N.Nat^) => s n) b delta k }) \by converges delta (Root.subPositive root b gap) \then
+    \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where Upper[s, b, epsilon, k] }] k
+      (\fun (n: N.Nat^)(later: _) => R.ltReplaceRight _ _ _ (PA.powerRoot upper p)
+        (PA.strict (s n) (PA.powered upper (PA.inverseExponent p)) p
+          (R.ltReplaceRight _ _ _ (E.addSubCancel root b)
+            (Distance.distanceLtUpper b (s n) delta
+              (R.ltReplaceLeft _ _ _ (Distance.distanceSymmetric (s n) b)
+                ((\bysub(N.Nat^, { k: N.Nat^ \where Sequence.LimitControl (\fun (n: N.Nat^) => s n) b delta k }, k)) n later))))))
+  };
+\definition lower[s: N.Nat^ -> Nonnegative][b: Nonnegative][epsilon: Real.Real]: Sequence.Converges (\fun (n: N.Nat^) => s n) b -> R.Lt Real.zero epsilon -> \exists ( k: N.Nat^ \where Lower[s, b, epsilon, k] ) :=
+  \fun (converges: _)(positive: _) => Logic.orElim _ _ _ (Laws.nonnegativeOrNegativeReal (Real.sub (value b (positiveBase p)) epsilon))
+    (\fun (nonnegative: _) => \block {
+      \let lower: Nonnegative := \into[Real.Real](Real.sub (value b (positiveBase p)) epsilon, Nonnegative) \by { nonnegative } \then
+      \let root: Real.Real := value lower (PA.inverseExponent p) \then
+      \let gap: R.Lt root b := PA.rootComparison b lower p (Root.subBelow (value b (positiveBase p)) epsilon positive) \then
+      \let delta: Real.Real := Real.sub b root \then
+      \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where Sequence.LimitControl (\fun (n: N.Nat^) => s n) b delta k }) \by converges delta (Root.subPositive b root gap) \then
+      \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where Lower[s, b, epsilon, k] }] k
+        (\fun (n: N.Nat^)(later: _) => R.ltReplaceLeft _ _ _ (PA.powerRoot lower p)
+          (PA.strict (PA.powered lower (PA.inverseExponent p)) (s n) p
+            (R.ltReplaceLeft _ _ _ (Algebra.subSub b root)
+              (Distance.distanceLtLower b (s n) delta
+                (R.ltReplaceLeft _ _ _ (Distance.distanceSymmetric (s n) b)
+                  ((\bysub(N.Nat^, { k: N.Nat^ \where Sequence.LimitControl (\fun (n: N.Nat^) => s n) b delta k }, k)) n later))))))
+    })
+    (\fun (negative: _) => Logic.existsIntro[N.Nat^, { k: N.Nat^ \where Lower[s, b, epsilon, k] }] N.Nat^::zero
+      (\fun (n: N.Nat^)(later: _) => R.ltLeTrans _ _ _ negative (nonnegativeValue (s n) (positiveBase p))));
+\definition theorem[s: N.Nat^ -> Nonnegative][b: Nonnegative]: Sequence.Converges (\fun (n: N.Nat^) => s n) b ->
+  Sequence.Converges (\fun (n: N.Nat^) => value (s n) (positiveBase p)) (value b (positiveBase p)) :=
+  \fun (converges: _)(epsilon: Real.Real)(positive: _) => \block {
+    \takefrom i: \Cast[N.Nat^] ({ i: N.Nat^ \where Upper[s, b, epsilon, i] }) \by upper s b epsilon converges positive \then
+    \takefrom j: \Cast[N.Nat^] ({ j: N.Nat^ \where Lower[s, b, epsilon, j] }) \by lower s b epsilon converges positive \then
+    \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where Sequence.LimitControl (\fun (n: N.Nat^) => value (s n) (positiveBase p)) (value b (positiveBase p)) epsilon k }]
+      (NatOrder.commonBound i j) (\fun (n: N.Nat^)(later: _) => R.ltReplaceLeft _ _ _ (Distance.distanceSymmetric _ _)
+        (Distance.distanceLtOfInterval (value b (positiveBase p)) (value (s n) (positiveBase p)) epsilon
+          ((\bysub(N.Nat^, { j: N.Nat^ \where Lower[s, b, epsilon, j] }, j)) n (Nat.leTrans _ _ _ (NatOrder.rightLeCommonBound i j) later))
+          ((\bysub(N.Nat^, { i: N.Nat^ \where Upper[s, b, epsilon, i] }, i)) n (Nat.leTrans _ _ _ (NatOrder.leftLeCommonBound i j) later))))
+  };

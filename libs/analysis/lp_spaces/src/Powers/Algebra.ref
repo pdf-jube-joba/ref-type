@@ -1,0 +1,134 @@
+\import \root.Exponential[] \as Exp;
+\import smooth_partitions.Exponential[].Global[] \as EF;
+\definition oneBase: Nonnegative := exponent one;
+\definition oneValue[p: Nonnegative]: value oneBase p = Real.one :=
+  trans!{Real.Real} _ _ _ (exponentialValue Exp.one p)
+    (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} EF.value _ _
+      (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (Real.mul p) _ _ Exp.logarithmOne) (Laws.fieldMulZeroRight p))) EF.atZero);
+\definition positiveValue[a: Exp.Positive][p: Nonnegative]: R.Lt Real.zero (value (positiveBase a) p) :=
+  R.ltReplaceRight _ _ _ (sym!{Real.Real} _ _ (exponentialValue a p)) (Exp.Power[a := a, p := p].positiveValue);
+\definition product[a, b: Nonnegative]: Nonnegative := \into[Real.Real](Real.mul a b, Nonnegative) \by { Laws.fieldMulNonnegative a b (baseNonnegative a) (baseNonnegative b) };
+\definition sum[a, b: Nonnegative]: Nonnegative := \into[Real.Real](Real.add a b, Nonnegative) \by { Laws.addNonnegative a b (baseNonnegative a) (baseNonnegative b) };
+\definition powered[a, p: Nonnegative]: Nonnegative := \into[Real.Real](value a p, Nonnegative) \by { nonnegativeValue a p };
+\definition positiveProduct[a, b: Exp.Positive]: Exp.Positive := \into[Real.Real](Real.mul a b, Exp.Positive) \by { Product.mulPositive a b (Exp.positive a) (Exp.positive b) };
+\definition multiplyPositive[a, b: Exp.Positive][p: Nonnegative]: value (product (positiveBase a) (positiveBase b)) p = Real.mul (value (positiveBase a) p) (value (positiveBase b) p) :=
+  eq_reason_in!{Real.Real _
+    "=" _ "by" { exponentialValue (positiveProduct a b) p }
+    "=" _ "by" { congr!{Real.Real Real.Real} EF.value _ _ (congr!{Real.Real Real.Real} (Real.mul p) _ _ (Exp.logarithmAdd a b)) }
+    "=" _ "by" { congr!{Real.Real Real.Real} EF.value _ _ (Laws.fieldMulAdd p (Exp.logarithm a) (Exp.logarithm b)) }
+    "=" _ "by" { EF.addition _ _ }
+    "=" _ "by" { congr!{Real.Real Real.Real Real.Real} Real.mul _ _ _ _ (sym!{Real.Real} _ _ (exponentialValue a p)) (sym!{Real.Real} _ _ (exponentialValue b p)) }
+  };
+\definition multiply[a, b, p: Nonnegative]: value (product a b) p = Real.mul (value a p) (value b p) :=
+  Logic.orElim _ _ _ (Classical.excludedMiddle (underlying a = Real.zero))
+    (\fun (zero: _) => eq_reason_in!{Real.Real _
+      "=" Real.zero "by" { (law (product a b) p).atZero (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (\fun (x: Real.Real) => Real.mul x b) _ _ zero) (Laws.fieldMulZeroLeft b)) }
+      "=" _ "by" { sym!{Real.Real} _ _ (Laws.fieldMulZeroLeft (value b p)) }
+      "=" _ "by" { congr!{Real.Real Real.Real} (\fun (x: Real.Real) => Real.mul x (value b p)) _ _ (sym!{Real.Real} _ _ ((law a p).atZero zero)) }
+    })
+    (\fun (nonzeroA: _) => Logic.orElim _ _ _ (Classical.excludedMiddle (underlying b = Real.zero))
+      (\fun (zero: _) => eq_reason_in!{Real.Real _
+        "=" Real.zero "by" { (law (product a b) p).atZero (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (Real.mul a) _ _ zero) (Laws.fieldMulZeroRight a)) }
+        "=" _ "by" { sym!{Real.Real} _ _ (Laws.fieldMulZeroRight (value a p)) }
+        "=" _ "by" { congr!{Real.Real Real.Real} (Real.mul (value a p)) _ _ (sym!{Real.Real} _ _ ((law b p).atZero zero)) }
+      })
+      (\fun (nonzeroB: _) => \block {
+        \let ap: Exp.Positive := \into[Real.Real](a, Exp.Positive) \by { Order.ltOfLeNotEq _ _ (baseNonnegative a) (\fun (zero: Real.zero = a) => nonzeroA (sym!{Real.Real} _ _ zero)) } \then
+        \let bp: Exp.Positive := \into[Real.Real](b, Exp.Positive) \by { Order.ltOfLeNotEq _ _ (baseNonnegative b) (\fun (zero: Real.zero = b) => nonzeroB (sym!{Real.Real} _ _ zero)) } \then
+        \return multiplyPositive ap bp p
+      }));
+\definition iteratePositive[a: Exp.Positive][p, q: Nonnegative]: value (powered (positiveBase a) p) q = value (positiveBase a) (product p q) :=
+  \block {
+    \let power: Exp.Positive := \into[Real.Real](value (positiveBase a) p, Exp.Positive) \by { positiveValue a p } \then
+    \let logPower: Exp.logarithm power = Real.mul p (Exp.logarithm a) :=
+      Exp.injective _ _ (trans!{Real.Real} _ _ _ (Exp.exponentialLogarithm power) (exponentialValue a p)) \then
+    \return eq_reason_in!{Real.Real _
+      "=" _ "by" { exponentialValue power q }
+      "=" _ "by" { congr!{Real.Real Real.Real} EF.value _ _ (congr!{Real.Real Real.Real} (Real.mul q) _ _ logPower) }
+      "=" _ "by" { congr!{Real.Real Real.Real} EF.value _ _ (trans!{Real.Real} _ _ _ (Algebra.mulSwap q p (Exp.logarithm a)) (sym!{Real.Real} _ _ (Laws.fieldMulAssoc p q (Exp.logarithm a)))) }
+      "=" _ "by" { sym!{Real.Real} _ _ (exponentialValue a (product p q)) }
+    }
+  };
+\definition iterate[a, p, q: Nonnegative]: value (powered a p) q = value a (product p q) :=
+  Logic.orElim _ _ _ (Classical.excludedMiddle (underlying a = Real.zero))
+    (\fun (zero: _) => trans!{Real.Real} _ _ _ ((law (powered a p) q).atZero ((law a p).atZero zero))
+      (sym!{Real.Real} _ _ ((law a (product p q)).atZero zero)))
+    (\fun (nonzero: _) => iteratePositive (\into[Real.Real](a, Exp.Positive) \by {
+      Order.ltOfLeNotEq _ _ (baseNonnegative a) (\fun (zero: Real.zero = a) => nonzero (sym!{Real.Real} _ _ zero)) }) p q);
+\definition positiveExponent[p: Exp.Positive]: Nonnegative := positiveBase p;
+\definition inverseExponent[p: Exp.Positive]: Nonnegative := \into[Real.Real](Laws.fieldInv p, Nonnegative) \by { Order.leOfLt _ _ (Product.invPositive p (Exp.positive p)) };
+\definition inverseProduct[p: Exp.Positive]: product (positiveExponent p) (inverseExponent p) = oneBase :=
+  trans!{Real.Real} _ _ _ (Laws.fieldMulComm p (Laws.fieldInv p)) (Laws.fieldInverseNonzero p (Real.Inverse[].positiveNonzero p (Exp.positive p)));
+\definition rootPower[a: Nonnegative][p: Exp.Positive]: value (powered a (positiveExponent p)) (inverseExponent p) = a :=
+  trans!{Real.Real} _ _ _ (iterate a (positiveExponent p) (inverseExponent p))
+    (trans!{Real.Real} _ _ _
+      (congr!{Nonnegative Real.Real} (value a) _ _ (inverseProduct p)) (identityValue a));
+\definition inverseProductReverse[p: Exp.Positive]: product (inverseExponent p) (positiveExponent p) = oneBase :=
+  Laws.fieldInverseNonzero p (Real.Inverse[].positiveNonzero p (Exp.positive p));
+\definition powerRoot[a: Nonnegative][p: Exp.Positive]: value (powered a (inverseExponent p)) (positiveExponent p) = a :=
+  trans!{Real.Real} _ _ _ (iterate a (inverseExponent p) (positiveExponent p))
+    (trans!{Real.Real} _ _ _ (congr!{Nonnegative Real.Real} (value a) _ _
+      (inverseProductReverse p)) (identityValue a));
+\definition logarithmStrict[a, b: Exp.Positive]: R.Lt a b -> R.Lt (Exp.logarithm a) (Exp.logarithm b) :=
+  \fun (less: _) => Order.ltOfLeNotEq _ _ (Exp.logarithmMonotone a b (Order.leOfLt _ _ less))
+    (\fun (same: _) => Order.ltNotEq a b less (trans!{Real.Real} _ _ _
+      (sym!{Real.Real} _ _ (Exp.exponentialLogarithm a))
+      (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} EF.value _ _ same) (Exp.exponentialLogarithm b))));
+\definition strict[a, b: Nonnegative][p: Exp.Positive]: R.Lt a b -> R.Lt (value a (positiveExponent p)) (value b (positiveExponent p)) :=
+  \fun (less: _) => \block {
+    \let bp: Exp.Positive := \into[Real.Real](b, Exp.Positive) \by { R.leLtTrans _ _ _ (baseNonnegative a) less } \then
+    \return Logic.orElim _ _ _ (Classical.excludedMiddle (underlying a = Real.zero))
+      (\fun (zero: _) => R.ltReplaceLeft Real.zero _ _ (sym!{Real.Real} _ _ ((law a (positiveExponent p)).atZero zero)) (positiveValue bp (positiveExponent p)))
+      (\fun (nonzero: _) => \block {
+        \let ap: Exp.Positive := \into[Real.Real](a, Exp.Positive) \by { Order.ltOfLeNotEq _ _ (baseNonnegative a) (\fun (zero: Real.zero = a) => nonzero (sym!{Real.Real} _ _ zero)) } \then
+        \return R.ltReplaceRight _ _ _ (sym!{Real.Real} _ _ (exponentialValue bp (positiveExponent p)))
+          (R.ltReplaceLeft _ _ _ (sym!{Real.Real} _ _ (exponentialValue ap (positiveExponent p)))
+            (EF.increasing _ _ (Product.mulStrict p (Exp.logarithm ap) (Exp.logarithm bp) (Exp.positive p) (logarithmStrict ap bp less))))
+      })
+  };
+\definition monotone[a, b, p: Nonnegative]: R.Le a b -> R.Le (value a p) (value b p) :=
+  \fun (order: _) => Logic.orElim _ _ _ (Classical.excludedMiddle (underlying a = Real.zero))
+    (\fun (zero: _) => R.leReplaceLeft Real.zero _ _ (sym!{Real.Real} _ _ ((law a p).atZero zero)) (nonnegativeValue b p))
+    (\fun (nonzero: _) => \block {
+      \let ap: Exp.Positive := \into[Real.Real](a, Exp.Positive) \by { Order.ltOfLeNotEq _ _ (baseNonnegative a) (\fun (zero: Real.zero = a) => nonzero (sym!{Real.Real} _ _ zero)) } \then
+      \let bp: Exp.Positive := \into[Real.Real](b, Exp.Positive) \by { R.ltLeTrans _ _ _ (Exp.positive ap) order } \then
+      \return R.leReplace _ _ _ _ (sym!{Real.Real} _ _ (exponentialValue ap p)) (sym!{Real.Real} _ _ (exponentialValue bp p))
+        (Exp.monotone _ _ (E.mulMonotone p _ _ (baseNonnegative p) (Exp.logarithmMonotone ap bp order)))
+    });
+\definition rootComparison[a, r: Nonnegative][p: Exp.Positive]:
+  R.Lt r (value a (positiveExponent p)) -> R.Lt (value r (inverseExponent p)) a :=
+  \fun (less: _) => \block {
+    \let inverse: Exp.Positive := \into[Real.Real](Laws.fieldInv p, Exp.Positive) \by { Product.invPositive p (Exp.positive p) } \then
+    \return R.ltReplaceRight _ _ _ (rootPower a p) (strict r (powered a (positiveExponent p)) inverse less)
+  };
+\definition comparisonRoot[a, r: Nonnegative][p: Exp.Positive]:
+  R.Lt (value r (inverseExponent p)) a -> R.Lt r (value a (positiveExponent p)) :=
+  \fun (less: _) => R.ltReplaceLeft _ _ _ (powerRoot r p) (strict (powered r (inverseExponent p)) a p less);
+\definition two: P.Exponent := \into[Real.Real](Real.add Real.one Real.one, { p: Real.Real \where R.Le Real.one p }) \by { Algebra.leAddRight Real.one Real.one Laws.oneNonnegative };
+\definition squarePositive[a: Exp.Positive]: value (positiveBase a) (exponent two) = Real.mul a a := eq_reason_in!{Real.Real _
+  "=" _ "by" { exponentialValue a (exponent two) }
+  "=" _ "by" { congr!{Real.Real Real.Real} EF.value _ _
+    (trans!{Real.Real} _ _ _ (Algebra.mulAddRight Real.one Real.one (Exp.logarithm a))
+      (congr!{Real.Real Real.Real Real.Real} Real.add _ _ _ _ (Laws.fieldMulOneLeft (Exp.logarithm a)) (Laws.fieldMulOneLeft (Exp.logarithm a)))) }
+  "=" _ "by" { EF.addition (Exp.logarithm a) (Exp.logarithm a) }
+  "=" _ "by" { congr!{Real.Real Real.Real Real.Real} Real.mul _ _ _ _ (Exp.exponentialLogarithm a) (Exp.exponentialLogarithm a) }
+};
+\definition square[a: Nonnegative]: value a (exponent two) = Real.mul a a :=
+  Logic.orElim _ _ _ (Classical.excludedMiddle (underlying a = Real.zero))
+    (\fun (zero: _) => trans!{Real.Real} _ _ _ ((law a (exponent two)).atZero zero)
+      (sym!{Real.Real} _ _ (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (\fun (x: Real.Real) => Real.mul x a) _ _ zero) (Laws.fieldMulZeroLeft a))))
+    (\fun (nonzero: _) => squarePositive (\into[Real.Real](a, Exp.Positive) \by {
+      Order.ltOfLeNotEq _ _ (baseNonnegative a) (\fun (zero: Real.zero = a) => nonzero (sym!{Real.Real} _ _ zero)) }));
+\definition addExponentsPositive[a: Exp.Positive][p, q: Nonnegative]: value (positiveBase a) (sum p q) = Real.mul (value (positiveBase a) p) (value (positiveBase a) q) :=
+  eq_reason_in!{Real.Real _
+    "=" _ "by" { exponentialValue a (sum p q) }
+    "=" _ "by" { congr!{Real.Real Real.Real} EF.value _ _ (Algebra.mulAddRight p q (Exp.logarithm a)) }
+    "=" _ "by" { EF.addition _ _ }
+    "=" _ "by" { congr!{Real.Real Real.Real Real.Real} Real.mul _ _ _ _ (sym!{Real.Real} _ _ (exponentialValue a p)) (sym!{Real.Real} _ _ (exponentialValue a q)) }
+  };
+\definition addExponents[a, p, q: Nonnegative]: value a (sum p q) = Real.mul (value a p) (value a q) :=
+  Logic.orElim _ _ _ (Classical.excludedMiddle (underlying a = Real.zero))
+    (\fun (zero: _) => trans!{Real.Real} _ _ _ ((law a (sum p q)).atZero zero)
+      (sym!{Real.Real} _ _ (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (\fun (r: Real.Real) => Real.mul r (value a q)) _ _ ((law a p).atZero zero)) (Laws.fieldMulZeroLeft _))))
+    (\fun (nonzero: _) => addExponentsPositive (\into[Real.Real](a, Exp.Positive) \by {
+      Order.ltOfLeNotEq _ _ (baseNonnegative a) (\fun (zero: Real.zero = a) => nonzero (sym!{Real.Real} _ _ zero)) }) p q);

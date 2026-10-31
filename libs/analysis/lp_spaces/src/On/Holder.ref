@@ -1,0 +1,86 @@
+\import \parent.Finite[p := exponents.left] \as F;
+\import \parent.Finite[p := exponents.right] \as G;
+\import \parent.Products[] \as Products;
+\import \root.Powers[].Algebra[] \as PA;
+\import \root.Powers[].Young[] \as Young;
+\import topology.Topology[Carrier := A] \as Sets;
+\definition function[f: F.Representatives][g: G.Representatives]: A -> Real.Real := \fun (x: A) => Real.mul (f x) (g x);
+\definition bound[f: F.Representatives][g: G.Representatives]: I.Representatives := Linear.addRepresentative
+  (Scaling.scalarRepresentative (Laws.fieldInv exponents.left) (F.momentRepresentative f))
+  (Scaling.scalarRepresentative (Laws.fieldInv exponents.right) (G.momentRepresentative g));
+\definition boundNonnegative[f: F.Representatives][g: G.Representatives][x: A]: R.Le Real.zero (bound f g x) :=
+  Laws.addNonnegative _ _
+    (Laws.fieldMulNonnegative _ _ (Order.leOfLt _ _ (Product.invPositive exponents.left (\root.Exponential[].positive F.positiveExponent))) (F.momentNonnegative f x))
+    (Laws.fieldMulNonnegative _ _ (Order.leOfLt _ _ (Product.invPositive exponents.right (\root.Exponential[].positive G.positiveExponent))) (G.momentNonnegative g x));
+\definition pointwise[f: F.Representatives][g: G.Representatives][x: A]: R.Le (Product.abs (function f g x)) (bound f g x) :=
+  R.leReplaceLeft _ _ _ (sym!{Real.Real} _ _ (Product.absProduct (f x) (g x)))
+    (Young.inequality (F.absolute f x) (G.absolute g x) F.positiveExponent G.positiveExponent exponents.identity);
+\definition integrable[f: F.Representatives][g: G.Representatives]: I.Integrable (function f g) :=
+  Logic.And[_, _]::# (Products.measurable f g (F.properties f).measurable (G.properties g).measurable)
+    (I.finiteMono (Absolute.abs (function f g)) (Absolute.abs (bound f g))
+      (\fun (x: A) => Product.absNonnegative (function f g x))
+      (\fun (x: A) => R.leTrans _ _ _ (pointwise f g x) (R.leReplaceRight (bound f g x) _ _
+        (sym!{Real.Real} _ _ (Product.absExpression (bound f g x))) (Distance.maxRight (Real.neg (bound f g x)) (bound f g x))))
+      (I.integralLaw (bound f g)).integrable.right);
+\definition representative[f: F.Representatives][g: G.Representatives]: I.Representatives := \into[A -> Real.Real](function f g, I.Representatives) \by { integrable f g };
+\definition absoluteIntegral[f: F.Representatives][g: G.Representatives]: Real.Real := I.integral (Absolute.representative (representative f g));
+\definition youngIntegral[f: F.Representatives][g: G.Representatives]: R.Le (absoluteIntegral f g)
+  (Real.add (Real.mul (Laws.fieldInv exponents.left) (I.integral (F.momentRepresentative f)))
+    (Real.mul (Laws.fieldInv exponents.right) (I.integral (G.momentRepresentative g)))) :=
+  R.leReplaceRight _ _ _ (trans!{Real.Real} _ _ _ (Linear.integralAdd
+    (Scaling.scalarRepresentative (Laws.fieldInv exponents.left) (F.momentRepresentative f))
+    (Scaling.scalarRepresentative (Laws.fieldInv exponents.right) (G.momentRepresentative g)))
+    (congr!{Real.Real Real.Real Real.Real} Real.add _ _ _ _
+      (Scaling.integralScalar (Laws.fieldInv exponents.left) (F.momentRepresentative f))
+      (Scaling.integralScalar (Laws.fieldInv exponents.right) (G.momentRepresentative g))))
+    (Absolute.integralMono (Absolute.representative (representative f g)) (bound f g) (pointwise f g));
+\definition integralPointwise[f, g: I.Representatives]: (\forall (x: A) -> f x = g x) -> I.integral f = I.integral g :=
+  \fun (same: _) => Null.integralAlmost f g (AE.nullSubset ({ x: A \where Logic.Not (f x = g x) }) Sets.Empty
+    (\fun (x: A)(different: _) => different (same x)) AE.nullEmpty);
+\definition absoluteScalar[c, d: Real.Real][f: F.Representatives][g: G.Representatives]:
+  absoluteIntegral (F.scaleRepresentative c f) (G.scaleRepresentative d g) =
+    Real.mul (Real.mul (Product.abs c) (Product.abs d)) (absoluteIntegral f g) :=
+  trans!{Real.Real} _ _ _
+    (integralPointwise (Absolute.representative (representative (F.scaleRepresentative c f) (G.scaleRepresentative d g)))
+      (Scaling.scalarRepresentative (Real.mul (Product.abs c) (Product.abs d)) (Absolute.representative (representative f g)))
+      (\fun (x: A) => eq_reason_in!{Real.Real _
+        "=" _ "by" { congr!{Real.Real Real.Real} Product.abs _ _ (Algebra.mulFour c (f x) d (g x)) }
+        "=" _ "by" { Product.absProduct (Real.mul c d) (Real.mul (f x) (g x)) }
+        "=" _ "by" { congr!{Real.Real Real.Real} (\fun (r: Real.Real) => Real.mul r (Product.abs (Real.mul (f x) (g x)))) _ _ (Product.absProduct c d) }
+      }))
+    (Scaling.integralScalar (Real.mul (Product.abs c) (Product.abs d)) (Absolute.representative (representative f g)));
+\import std.Set[].Quotient[A := F.Representatives, Equivalent := \fun (f, g: F.Representatives) => M.AlmostEqual mu f g] \as QF;
+\import std.Set[].Quotient[A := G.Representatives, Equivalent := \fun (f, g: G.Representatives) => M.AlmostEqual mu f g] \as QG;
+\definition zeroLeft[f: F.Representatives][g: G.Representatives]: F.normRepresentative f = Real.zero -> absoluteIntegral f g = Real.zero :=
+  \fun (zero: _) => \block {
+    \let almost: M.AlmostEqual mu f Zero.function := QF.equivalentOfClassEq F.equivalence f F.zeroRepresentative (F.representativeDefinite f zero) \then
+    \let productAlmost: M.AlmostEqual mu (representative f g) Zero.function := AE.nullSubset
+      ({ x: A \where Logic.Not (Real.mul (f x) (g x) = Real.zero) }) ({ x: A \where Logic.Not (f x = Real.zero) })
+      (\fun (x: A)(different: _)(same: _) => different (trans!{Real.Real} _ _ _
+        (congr!{Real.Real Real.Real} (\fun (r: Real.Real) => Real.mul r (g x)) _ _ same) (Laws.fieldMulZeroLeft (g x)))) almost \then
+    \return trans!{Real.Real} _ _ _
+      (Null.integralAlmost (Absolute.representative (representative f g)) (Absolute.representative Zero.representative) (Null.mapAlmost Product.abs _ _ productAlmost))
+      (trans!{Real.Real} _ _ _ (integralPointwise (Absolute.representative Zero.representative) Zero.representative (\fun (x: A) => Distance.distanceSelf Real.zero)) Zero.integralZero)
+  };
+\definition zeroRight[f: F.Representatives][g: G.Representatives]: G.normRepresentative g = Real.zero -> absoluteIntegral f g = Real.zero :=
+  \fun (zero: _) => \block {
+    \let almost: M.AlmostEqual mu g Zero.function := QG.equivalentOfClassEq G.equivalence g G.zeroRepresentative (G.representativeDefinite g zero) \then
+    \let productAlmost: M.AlmostEqual mu (representative f g) Zero.function := AE.nullSubset
+      ({ x: A \where Logic.Not (Real.mul (f x) (g x) = Real.zero) }) ({ x: A \where Logic.Not (g x = Real.zero) })
+      (\fun (x: A)(different: _)(same: _) => different (trans!{Real.Real} _ _ _
+        (congr!{Real.Real Real.Real} (Real.mul (f x)) _ _ same) (Laws.fieldMulZeroRight (f x)))) almost \then
+    \return trans!{Real.Real} _ _ _
+      (Null.integralAlmost (Absolute.representative (representative f g)) (Absolute.representative Zero.representative) (Null.mapAlmost Product.abs _ _ productAlmost))
+      (trans!{Real.Real} _ _ _ (integralPointwise (Absolute.representative Zero.representative) Zero.representative (\fun (x: A) => Distance.distanceSelf Real.zero)) Zero.integralZero)
+  };
+\module Normalize(f: F.Representatives, g: G.Representatives);
+\definition inequality: \forall (f: F.Representatives)(g: G.Representatives) -> R.Le (absoluteIntegral f g) (Real.mul (F.normRepresentative f) (G.normRepresentative g)) :=
+  \fun (f: F.Representatives)(g: G.Representatives) => Logic.orElim _ _ _ (Classical.excludedMiddle (F.normRepresentative f = Real.zero))
+    (\fun (zero: _) => R.leReplaceLeft Real.zero _ _ (sym!{Real.Real} _ _ (zeroLeft f g zero))
+      (Laws.fieldMulNonnegative _ _ (F.normNonnegative f) (G.normNonnegative g)))
+    (\fun (nonzeroF: _) => Logic.orElim _ _ _ (Classical.excludedMiddle (G.normRepresentative g = Real.zero))
+      (\fun (zero: _) => R.leReplaceLeft Real.zero _ _ (sym!{Real.Real} _ _ (zeroRight f g zero))
+        (Laws.fieldMulNonnegative _ _ (F.normNonnegative f) (G.normNonnegative g)))
+      (\fun (nonzeroG: _) => Normalize[f := f, g := g].inequality
+        (Order.ltOfLeNotEq _ _ (F.normNonnegative f) (\fun (same: Real.zero = F.normRepresentative f) => nonzeroF (sym!{Real.Real} _ _ same)))
+        (Order.ltOfLeNotEq _ _ (G.normNonnegative g) (\fun (same: Real.zero = G.normRepresentative g) => nonzeroG (sym!{Real.Real} _ _ same)))));

@@ -1,0 +1,61 @@
+\import \root.Powers[].Algebra[] \as PA;
+\import \root.Exponential[] \as Exp;
+\definition error[k: N.Nat^]: F.Representatives := F.addRepresentative (d.sequence k) (F.negRepresentative d.target);
+\definition absoluteConverges[s: N.Nat^ -> Real.Real][target: Real.Real]: Sequence.Converges s target -> Sequence.Converges (\fun (k: N.Nat^) => Product.abs (s k)) (Product.abs target) :=
+  \fun (converges: _)(epsilon: Real.Real)(positive: _) => \block {
+    \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where Sequence.LimitControl s target epsilon k }) \by converges epsilon positive \then
+    \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where Sequence.LimitControl (\fun (k: N.Nat^) => Product.abs (s k)) (Product.abs target) epsilon k }] k
+      (\fun (n: N.Nat^)(later: _) => R.leLtTrans _ _ _ (E.distanceFromPoint Real.zero (s n) target)
+        ((\bysub(N.Nat^, { k: N.Nat^ \where Sequence.LimitControl s target epsilon k }, k)) n later))
+  };
+\definition targetBound[x: A]: Logic.Not (Sets.Member d.exception x) -> R.Le (Product.abs (d.target x)) (d.bound x) :=
+  \fun (outside: _) => Operations.upperBoundLimit (\fun (k: N.Nat^) => Product.abs (d.sequence k x)) (Product.abs (d.target x)) (d.bound x) N.Nat^::zero
+    (absoluteConverges _ _ (d.converges x outside)) (\fun (k: N.Nat^)(later: _) => d.dominated k x outside);
+\definition errorBound[k: N.Nat^][x: A]: Logic.Not (Sets.Member d.exception x) -> R.Le (Product.abs (error k x)) (Product.abs (F.scaleRepresentative PA.two d.bound x)) :=
+  \fun (outside: _) => R.leTrans _ _ _
+    (R.leTrans _ _ _ (Linear.absTriangle (d.sequence k x) (Real.neg (d.target x)))
+      (E.addLe _ _ _ _ (d.dominated k x outside)
+        (R.leReplaceLeft _ _ _ (sym!{Real.Real} _ _ (Product.absNeg (d.target x))) (targetBound x outside))))
+    (R.leReplaceLeft _ _ _ (trans!{Real.Real} _ _ _ (Algebra.mulAddRight Real.one Real.one (d.bound x))
+      (congr!{Real.Real Real.Real Real.Real} Real.add _ _ _ _ (Laws.fieldMulOneLeft _) (Laws.fieldMulOneLeft _)))
+      (R.leReplaceRight _ _ _ (sym!{Real.Real} _ _ (Product.absExpression (F.scaleRepresentative PA.two d.bound x)))
+        (Distance.maxRight _ _)));
+\definition absoluteErrorConverges[x: A]: Logic.Not (Sets.Member d.exception x) -> Sequence.Converges (\fun (k: N.Nat^) => Product.abs (error k x)) Real.zero :=
+  \fun (outside: _)(epsilon: Real.Real)(positive: _) => \block {
+    \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where Sequence.LimitControl (\fun (k: N.Nat^) => d.sequence k x) (d.target x) epsilon k }) \by d.converges x outside epsilon positive \then
+    \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where Sequence.LimitControl (\fun (k: N.Nat^) => Product.abs (error k x)) Real.zero epsilon k }] k
+      (\fun (n: N.Nat^)(later: _) => R.ltReplaceLeft (Real.distance (d.sequence n x) (d.target x)) (Real.distance (Product.abs (error n x)) Real.zero) epsilon
+        (eq_reason_in!{Real.Real _
+          "=" _ "by" { sym!{Real.Real} _ _ (Powers.Cuts[].absDifference (d.sequence n x) (d.target x)) }
+          "=" _ "by" { sym!{Real.Real} _ _ (Product.absOfNonnegative (Product.abs (error n x)) (Product.absNonnegative _)) }
+          "=" _ "by" { Distance.distanceSymmetric _ _ }
+        })
+        ((\bysub(N.Nat^, { k: N.Nat^ \where Sequence.LimitControl (\fun (k: N.Nat^) => d.sequence k x) (d.target x) epsilon k }, k)) n later))
+  };
+\definition momentErrorConverges[x: A]: Logic.Not (Sets.Member d.exception x) -> Sequence.Converges (\fun (k: N.Nat^) => F.moment (error k) x) Real.zero :=
+  \fun (outside: _) => \idelim Powers.value Powers.zeroBase (Powers.exponent p) = Real.zero \with r: Real.Real =>
+    Sequence.Converges (\fun (k: N.Nat^) => F.moment (error k) x) r \by {
+      base: Powers.Convergence[p := F.positiveExponent].theorem (\fun (k: N.Nat^) => F.absolute (error k) x) Powers.zeroBase (absoluteErrorConverges x outside),
+      equality: Powers.zeroValue (Powers.exponent p)
+    };
+\definition data: I.AEDominatedSequence := I.AEDominatedSequence {
+  sequence := \fun (k: N.Nat^) => F.momentRepresentative (error k),
+  limit := Zero.function, bound := F.momentRepresentative (F.scaleRepresentative PA.two d.bound), exception := d.exception,
+  dominated := \fun (k: N.Nat^)(x: A)(outside: _) => R.leReplaceLeft _ _ _ (sym!{Real.Real} _ _ (Product.absOfNonnegative _ (F.momentNonnegative (error k) x)))
+    (PA.monotone (F.absolute (error k) x) (F.absolute (F.scaleRepresentative PA.two d.bound) x) (Powers.exponent p) (errorBound k x outside)),
+  converges := momentErrorConverges,
+};
+\import I.AEDominated[d := data] \as Proof;
+\definition integralZero: I.integral Proof.representative = Real.zero := trans!{Real.Real} _ _ _
+  (Null.integralAlmost Proof.representative Zero.representative Proof.almostLimit) Zero.integralZero;
+\definition integralConverges: Sequence.Converges (\fun (k: N.Nat^) => F.integralMoment (error k)) Real.zero :=
+  \idelim I.integral Proof.representative = Real.zero \with r: Real.Real => Sequence.Converges (\fun (k: N.Nat^) => F.integralMoment (error k)) r \by {
+    base: Proof.convergence, equality: integralZero
+  };
+\definition inverse: Exp.Positive := \into[Real.Real](Laws.fieldInv p, Exp.Positive) \by { Product.invPositive p (Exp.positive F.positiveExponent) };
+\definition theorem: Sequence.Converges (\fun (k: N.Nat^) => F.normRepresentative (error k)) Real.zero :=
+  \idelim Powers.value Powers.zeroBase (PA.inverseExponent F.positiveExponent) = Real.zero \with r: Real.Real =>
+    Sequence.Converges (\fun (k: N.Nat^) => F.normRepresentative (error k)) r \by {
+      base: Powers.Convergence[p := inverse].theorem (\fun (k: N.Nat^) => F.integralMoment (error k)) Powers.zeroBase integralConverges,
+      equality: Powers.zeroValue (PA.inverseExponent F.positiveExponent)
+    };

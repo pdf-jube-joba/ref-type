@@ -1,0 +1,76 @@
+\definition zeroLeft: \forall (x: Space) -> add zero x = x := Q.induction (\fun (x: Space) => add zero x = x)
+  (\fun (f: Representatives) => trans!{Space} _ _ _ (addClass zeroRepresentative f)
+    (classPointwise (addRepresentative zeroRepresentative f) (f) (\fun (x: A) => Laws.addZeroLeft (f x))));
+\definition zeroRight: \forall (x: Space) -> add x zero = x := Q.induction (\fun (x: Space) => add x zero = x)
+  (\fun (f: Representatives) => trans!{Space} _ _ _ (addClass f zeroRepresentative)
+    (classPointwise (addRepresentative f zeroRepresentative) (f) (\fun (x: A) => Laws.addZeroRight (f x))));
+\definition commutative: \forall (x, y: Space) -> add x y = add y x := Q.induction2 (\fun (x, y: Space) => add x y = add y x)
+  (\fun (f, g: Representatives) => eq_reason_in!{Space _
+    "=" _ "by" { addClass f g }
+    "=" _ "by" { classPointwise (addRepresentative f g) (addRepresentative g f) (\fun (x: A) => Laws.addComm (f x) (g x)) }
+    "=" _ "by" { sym!{Space} _ _ (addClass g f) }
+  });
+\definition associative: \forall (x, y, z: Space) -> add (add x y) z = add x (add y z) :=
+  Q.induction (\fun (x: Space) => \forall (y, z: Space) -> add (add x y) z = add x (add y z))
+    (\fun (f: Representatives) => Q.induction2 (\fun (y, z: Space) => add (add (ofFunction f) y) z = add (ofFunction f) (add y z))
+      (\fun (g, h: Representatives) => eq_reason_in!{Space _
+        "=" _ "by" { congr!{Space Space} (\fun (x: Space) => add x (ofFunction h)) _ _ (addClass f g) }
+        "=" _ "by" { addClass (addRepresentative f g) h }
+        "=" _ "by" { classPointwise (addRepresentative (addRepresentative f g) h) (addRepresentative f (addRepresentative g h)) (\fun (x: A) => Laws.addAssoc (f x) (g x) (h x)) }
+        "=" _ "by" { sym!{Space} _ _ (addClass f (addRepresentative g h)) }
+        "=" _ "by" { congr!{Space Space} (add (ofFunction f)) _ _ (sym!{Space} _ _ (addClass g h)) }
+      }));
+\definition inverseLeft: \forall (x: Space) -> add (neg x) x = zero := Q.induction (\fun (x: Space) => add (neg x) x = zero)
+  (\fun (f: Representatives) => eq_reason_in!{Space _
+    "=" _ "by" { congr!{Space Space} (\fun (x: Space) => add x (ofFunction f)) _ _ (negClass f) }
+    "=" _ "by" { addClass (negRepresentative f) f }
+    "=" _ "by" { classPointwise (addRepresentative (negRepresentative f) f) (zeroRepresentative) (\fun (x: A) => Laws.addNegLeft (f x)) }
+  });
+\definition inverseRight: \forall (x: Space) -> add x (neg x) = zero := \fun (x: Space) =>
+  trans!{Space} _ _ _ (commutative x (neg x)) (inverseLeft x);
+\definition scalarOne: \forall (x: Space) -> scale Real.one x = x := Q.induction (\fun (x: Space) => scale Real.one x = x)
+  (\fun (f: Representatives) => trans!{Space} _ _ _ (scaleClass Real.one f)
+    (classPointwise (scaleRepresentative Real.one f) (f) (\fun (x: A) => Laws.fieldMulOneLeft (f x))));
+\definition scalarAssoc: \forall (a, b: Real.Real)(x: Space) -> scale (Real.mul a b) x = scale a (scale b x) :=
+  \fun (a, b: Real.Real) => Q.induction (\fun (x: Space) => scale (Real.mul a b) x = scale a (scale b x))
+    (\fun (f: Representatives) => eq_reason_in!{Space _
+      "=" _ "by" { scaleClass (Real.mul a b) f }
+      "=" _ "by" { classPointwise (scaleRepresentative (Real.mul a b) f) (scaleRepresentative a (scaleRepresentative b f)) (\fun (x: A) => Laws.fieldMulAssoc a b (f x)) }
+      "=" _ "by" { sym!{Space} _ _ (scaleClass a (scaleRepresentative b f)) }
+      "=" _ "by" { congr!{Space Space} (scale a) _ _ (sym!{Space} _ _ (scaleClass b f)) }
+    });
+\definition scalarAdd: \forall (a, b: Real.Real)(x: Space) -> scale (Real.add a b) x = add (scale a x) (scale b x) :=
+  \fun (a, b: Real.Real) => Q.induction (\fun (x: Space) => scale (Real.add a b) x = add (scale a x) (scale b x))
+    (\fun (f: Representatives) => eq_reason_in!{Space _
+      "=" _ "by" { scaleClass (Real.add a b) f }
+      "=" _ "by" { classPointwise (scaleRepresentative (Real.add a b) f) (addRepresentative (scaleRepresentative a f) (scaleRepresentative b f)) (\fun (x: A) => Algebra.mulAddRight a b (f x)) }
+      "=" _ "by" { sym!{Space} _ _ (addClass (scaleRepresentative a f) (scaleRepresentative b f)) }
+      "=" _ "by" { congr!{Space Space Space} add _ _ _ _ (sym!{Space} _ _ (scaleClass a f)) (sym!{Space} _ _ (scaleClass b f)) }
+    });
+\definition vectorAdd: \forall (a: Real.Real)(x, y: Space) -> scale a (add x y) = add (scale a x) (scale a y) :=
+  \fun (a: Real.Real) => Q.induction2 (\fun (x, y: Space) => scale a (add x y) = add (scale a x) (scale a y))
+    (\fun (f, g: Representatives) => eq_reason_in!{Space _
+      "=" _ "by" { congr!{Space Space} (scale a) _ _ (addClass f g) }
+      "=" _ "by" { scaleClass a (addRepresentative f g) }
+      "=" _ "by" { classPointwise (scaleRepresentative a (addRepresentative f g)) (addRepresentative (scaleRepresentative a f) (scaleRepresentative a g)) (\fun (x: A) => Laws.fieldMulAdd a (f x) (g x)) }
+      "=" _ "by" { sym!{Space} _ _ (addClass (scaleRepresentative a f) (scaleRepresentative a g)) }
+      "=" _ "by" { congr!{Space Space Space} add _ _ _ _ (sym!{Space} _ _ (scaleClass a f)) (sym!{Space} _ _ (scaleClass a g)) }
+    });
+\import std.Alg[].Alg[] \as Groups;
+\import std.Alg[].Monoid[] \as Monoids;
+\import std.Alg[].Ring[] \as Rings;
+\import linear_algebra.Real[] \as Scalars;
+\import linear_algebra.Commutative[K := Real.Real, scalarRing := std.Alg[].Field[].fieldAsCommutativeRing Real.Real (Real.Algebra[].field)] \as Vectors;
+\definition space: Vectors.VectorSpace Space := Rings.RingModule[Real.Real, Space, Vectors.ring] {
+  zero := zero, add := add, neg := neg, smul := scale,
+  additive := Groups.CommutativeGroupLaws[Space, Groups.CommutativeGroupData[Space]::# (Groups.GroupData[Space]::# zero add neg)] {
+    group := Groups.GroupLaws[Space, Groups.GroupData[Space]::# zero add neg] {
+      monoid := Monoids.MonoidLaws[Space, Monoids.MonoidData[Space]::# zero add] {
+        leftIdentity := zeroLeft, rightIdentity := zeroRight, associative := associative,
+      },
+      leftInverse := inverseLeft, rightInverse := inverseRight,
+    },
+    commutative := commutative,
+  },
+  scalarOne := scalarOne, scalarAssoc := scalarAssoc, scalarAdd := scalarAdd, vectorAdd := vectorAdd,
+};

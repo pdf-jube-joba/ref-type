@@ -1,0 +1,47 @@
+\definition nonnegative: \forall (x: A) -> R.Le Real.zero (f x) := \bysub(F.Representatives, { f: F.Representatives \where \forall (x: A) -> R.Le Real.zero (f x) }, f);
+\definition data: I.NonnegativeMeasurable := I.NonnegativeMeasurable {
+  function := f, measurable := (F.properties f).measurable, nonnegative := nonnegative,
+};
+\import I.Approximation[f := data] \as Approx;
+\module Step(k: N.Nat^);
+\definition integral: \forall (k: N.Nat^) -> I.Integrable (Approx.value k) := \induction (k: N.Nat^) \return I.Integrable (Approx.value k) \with {
+  | zero: \idelim Zero.function = Approx.value N.Nat^::zero \with h: (A -> Real.Real) => I.Integrable h \by {
+      base: Zero.integrable, equality: \axiom:funext(Zero.function, Approx.value N.Nat^::zero, \fun (x: A) => sym!{Real.Real} _ _ (Approx.zeroValue x)) }
+  | succ: \fun (k: N.Nat^)(previous: I.Integrable (Approx.value k)) => \block {
+      \let left: I.Representatives := \into[A -> Real.Real](Approx.value k, I.Representatives) \by { previous } \then
+      \let right: I.Representatives := Step[k := k].representative \then
+      \let bound: I.Representatives := Linear.addRepresentative left right \then
+      \return Logic.And[_, _]::# (Approx.measurable (N.Nat^::succ k))
+        (I.finiteMono (Absolute.abs (Approx.value (N.Nat^::succ k))) (Absolute.abs bound)
+          (\fun (x: A) => Product.absNonnegative _) (\fun (x: A) => \block {
+            \let nonnegativeRight: R.Le Real.zero (right x) := Step[k := k].stepNonnegative x \then
+            \let boundNonnegative: R.Le Real.zero (bound x) := Laws.addNonnegative _ _ (Approx.nonnegative k x) nonnegativeRight \then
+            \return R.leReplace _ _ _ _ (sym!{Real.Real} _ _ (Product.absOfNonnegative _ (Approx.nonnegative (N.Nat^::succ k) x)))
+              (sym!{Real.Real} _ _ (Product.absOfNonnegative _ boundNonnegative))
+              (R.leReplaceLeft _ _ _ (sym!{Real.Real} _ _ (Approx.nextValue k x))
+                (Distance.maxLeast (left x) (right x) (bound x)
+                  (Algebra.leAddRight _ _ nonnegativeRight)
+                  (R.leReplaceRight _ _ _ (Laws.addComm (right x) (left x)) (Algebra.leAddRight _ _ (Approx.nonnegative k x)))))
+          }) (I.integralLaw bound).integrable.right)
+    }
+};
+\definition representative[k: N.Nat^]: I.Representatives := \into[A -> Real.Real](Approx.value k, I.Representatives) \by { integral k };
+\definition lpRepresentative[k: N.Nat^]: F.Representatives := \into[A -> Real.Real](Approx.value k, F.Representatives) \by {
+  F.hasMoment (Approx.value k) (Approx.measurable k)
+    (I.finiteMono (F.moment (Approx.value k)) (F.moment f) (F.momentNonnegative (Approx.value k))
+      (\fun (x: A) => PA.monotone (F.absolute (Approx.value k) x) (F.absolute f x) (Powers.exponent p)
+        (R.leReplace _ _ _ _ (sym!{Real.Real} _ _ (Product.absOfNonnegative _ (Approx.nonnegative k x)))
+          (sym!{Real.Real} _ _ (Product.absOfNonnegative _ (nonnegative x))) (Approx.bounded k x))) (F.finiteMoment f))
+};
+\import product_integration.ScalarSup[] \as ScalarSup;
+\import I.Convergence[].PointwiseSum[] \as Increasing;
+\definition pointwise[x: A]: Sequence.Converges (\fun (k: N.Nat^) => Approx.value k x) (f x) :=
+  ScalarSup.converges (\fun (k: N.Nat^) => Approx.value k x) (f x)
+    (\fun (i, j: N.Nat^)(later: _) => Increasing.increasingAll Approx.value Approx.increasing j i later x) (Approx.pointwiseSup x);
+\definition dominatedData: Norm.DominatedData := Norm.DominatedData {
+  sequence := lpRepresentative, target := f, bound := f,
+  exception := product_integration.FiniteNull[A := A, mu := mu].empty,
+  dominated := \fun (k: N.Nat^)(x: A)(outside: _) => R.leReplaceLeft _ _ _ (sym!{Real.Real} _ _ (Product.absOfNonnegative _ (Approx.nonnegative k x))) (Approx.bounded k x),
+  converges := \fun (x: A)(outside: _) => pointwise x,
+};
+\definition converges: Sequence.Converges (\fun (k: N.Nat^) => F.normRepresentative (F.addRepresentative (lpRepresentative k) (F.negRepresentative f))) Real.zero := Norm.Dominated[d := dominatedData].theorem;

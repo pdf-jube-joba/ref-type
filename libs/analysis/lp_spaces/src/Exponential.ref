@@ -1,0 +1,76 @@
+\import real.Analysis[] \as Real;
+\import dedekind_reals.DedekindReal[] \as R;
+\import R.Arithmetic[].Prop[] \as Laws;
+\import R.Order[] \as Order;
+\import Real.Algebra[] \as Algebra;
+\import Real.Estimates[] \as E;
+\import E.Product[] \as Product;
+\import Real.Distance[] \as Distance;
+\import std.Data[].Nat[] \as N;
+\import N.Basic[].Prop[] \as Nat;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Classical[] \as Classical;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\use Equality.eq_reason_in;
+\use Logic.either;
+\import smooth_partitions.Exponential[].Global[] \as Exp;
+\import R.Completeness[] \as Complete;
+\import Real.Inverse[] \as Inverse;
+\import calculus.Real[].Limit[].Def[] \as Limits;
+\definition Positive: \Set := \Cast[Real.Real] ({ a: Real.Real \where R.Lt Real.zero a });
+\definition positive[a: Positive]: R.Lt Real.zero a := \bysub(Real.Real, { a: Real.Real \where R.Lt Real.zero a }, a);
+\definition injective[a, b: Real.Real]: Exp.value a = Exp.value b -> a = b :=
+  \fun (same: _) => R.leAntisym a b
+    (Order.leOfNotLtReverse a b (\fun (less: R.Lt b a) => Order.ltNotEq _ _ (Exp.increasing b a less) (sym!{Real.Real} _ _ same)))
+    (Order.leOfNotLtReverse b a (\fun (less: R.Lt a b) => Order.ltNotEq _ _ (Exp.increasing a b less) same));
+\definition monotone[a, b: Real.Real]: R.Le a b -> R.Le (Exp.value a) (Exp.value b) :=
+  \fun (order: _) => Order.leOfNotLtReverse _ _ (\fun (less: R.Lt (Exp.value b) (Exp.value a)) =>
+    R.ltNotLeReverse b a (Order.ltOfLeNotEq b a
+      (Order.leOfNotLtReverse b a (\fun (ab: R.Lt a b) => Order.ltAsym _ _ less (Exp.increasing a b ab)))
+      (\fun (same: b = a) => Order.ltNotEq _ _ less (congr!{Real.Real Real.Real} Exp.value _ _ same))) order);
+\module Logarithm(a: Positive);
+\definition logarithm[a: Positive]: Real.Real := Logarithm[a := a].value;
+\definition exponentialLogarithm[a: Positive]: Exp.value (logarithm a) = a := Logarithm[a := a].equation;
+\definition logarithmExponential[t: Real.Real]: logarithm (\into[Real.Real](Exp.value t, { a: Real.Real \where R.Lt Real.zero a }) \by { Exp.positive t }) = t :=
+  injective _ _ (exponentialLogarithm (\into[Real.Real](Exp.value t, { a: Real.Real \where R.Lt Real.zero a }) \by { Exp.positive t }));
+\definition one: Positive := \into[Real.Real](Real.one, { a: Real.Real \where R.Lt Real.zero a }) \by { Product.onePositive };
+\definition logarithmOne: logarithm one = Real.zero := injective _ _ (trans!{Real.Real} _ _ _ (exponentialLogarithm one) (sym!{Real.Real} _ _ Exp.atZero));
+\definition logarithmMonotone[a, b: Positive]: R.Le a b -> R.Le (logarithm a) (logarithm b) :=
+  \fun (order: _) => Order.leOfNotLtReverse _ _ (\fun (less: R.Lt (logarithm b) (logarithm a)) =>
+    R.ltNotLeReverse b a (R.ltReplaceRight b (Exp.value (logarithm a)) a (exponentialLogarithm a)
+      (R.ltReplaceLeft (Exp.value (logarithm b)) b _ (exponentialLogarithm b) (Exp.increasing _ _ less))) order);
+\definition logarithmAdd[a, b: Positive]:
+  logarithm (\into[Real.Real](Real.mul a b, { t: Real.Real \where R.Lt Real.zero t }) \by { Product.mulPositive a b (positive a) (positive b) }) =
+    Real.add (logarithm a) (logarithm b) := injective _ _ (eq_reason_in!{Real.Real _
+    "=" _ "by" { exponentialLogarithm (\into[Real.Real](Real.mul a b, { t: Real.Real \where R.Lt Real.zero t }) \by { Product.mulPositive a b (positive a) (positive b) }) }
+    "=" _ "by" { congr!{Real.Real Real.Real Real.Real} Real.mul _ _ _ _
+      (sym!{Real.Real} _ _ (exponentialLogarithm a)) (sym!{Real.Real} _ _ (exponentialLogarithm b)) }
+    "=" _ "by" { sym!{Real.Real} _ _ (Exp.addition _ _) }
+  });
+\definition naturalExponential[t: Real.Real]: \forall (n: N.Nat^) ->
+  functional_analysis.Powers[].power (Exp.value t) n = Exp.value (Real.mul (functional_analysis.Powers[].natural n) t) :=
+  \induction (n: N.Nat^) \return functional_analysis.Powers[].power (Exp.value t) n =
+    Exp.value (Real.mul (functional_analysis.Powers[].natural n) t) \with {
+    | zero: trans!{Real.Real} _ _ _ (sym!{Real.Real} _ _ Exp.atZero)
+      (congr!{Real.Real Real.Real} Exp.value _ _ (sym!{Real.Real} _ _ (Laws.fieldMulZeroLeft t)))
+    | succ: \fun (n: N.Nat^)(previous: _) => eq_reason_in!{Real.Real _
+        "=" _ "by" { congr!{Real.Real Real.Real} (Real.mul (Exp.value t)) _ _ previous }
+        "=" _ "by" { sym!{Real.Real} _ _ (Exp.addition t _) }
+        "=" _ "by" { congr!{Real.Real Real.Real} Exp.value _ _
+          (trans!{Real.Real} _ _ _ (Laws.addComm t _)
+            (sym!{Real.Real} _ _ (trans!{Real.Real} _ _ _ (Algebra.mulAddRight _ _ t)
+              (congr!{Real.Real Real.Real} (Real.add _) _ _ (Laws.fieldMulOneLeft t))))) }
+      }
+  };
+\module Power(a: Positive, p: Real.Real);
+\definition reflect[a, b: Real.Real]: R.Le (Exp.value a) (Exp.value b) -> R.Le a b :=
+  \fun (order: _) => Order.leOfNotLtReverse a b (\fun (less: R.Lt b a) => R.ltNotLeReverse _ _ (Exp.increasing b a less) order);
+\module Tangent(t: Real.Real);
+\definition tangentAt[x, z: Real.Real]: R.Le (Real.mul (Exp.value z) (Real.add Real.one (Real.sub x z))) (Exp.value x) :=
+  R.leReplaceRight _ _ _ (trans!{Real.Real} _ _ _ (sym!{Real.Real} _ _ (Exp.addition z (Real.sub x z)))
+    (congr!{Real.Real Real.Real} Exp.value _ _ (E.addSubCancel x z)))
+    (E.mulMonotone (Exp.value z) _ _ (Order.leOfLt _ _ (Exp.positive z)) (Tangent[t := Real.sub x z].lower));
+\module Convex(a, b: Positive, r, s: Real.Real);

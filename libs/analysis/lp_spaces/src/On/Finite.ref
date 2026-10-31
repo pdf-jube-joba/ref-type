@@ -1,0 +1,211 @@
+\import topology.Topology[Carrier := A] \as Sets;
+\import \root.Exponential[] \as Exp;
+\import \root.Powers[].Algebra[] \as PA;
+\import \root.Powers[].Unique[] \as Unique;
+\import Lp.Finite[p := p] \as Existing;
+\definition positiveExponent: Exp.Positive := \into[Real.Real](p, Exp.Positive) \by {
+  R.ltLeTrans _ _ _ Product.onePositive (\bysub(Real.Real, { p: Real.Real \where R.Le Real.one p }, p))
+};
+\definition Representatives: \Set := Lp.Representatives p;
+\definition Space: \Set := Existing.Space;
+\definition absolute[f: A -> Real.Real][x: A]: Powers.Nonnegative := \into[Real.Real](Product.abs (f x), Powers.Nonnegative) \by { Product.absNonnegative (f x) };
+\definition moment[f: A -> Real.Real]: A -> Real.Real := \fun (x: A) => Powers.value (absolute f x) (Powers.exponent p);
+\definition momentNonnegative[f: A -> Real.Real][x: A]: R.Le Real.zero (moment f x) := Powers.nonnegativeValue _ _;
+\definition properties[f: Representatives]: Lp.HasFiniteMoment[f, p] := \bysub(A -> Real.Real, { f: A -> Real.Real \where Lp.HasFiniteMoment[f, p] }, f);
+\definition finiteMoment[f: Representatives]: I.Finite (moment f) := \block {
+  \takefrom g: \Cast[A -> Real.Real] ({ g: A -> Real.Real \where Lp.Moment[f, p, g] }) \by (properties f).moment \then
+  \let law: Lp.Moment[f, p, g] := \bysub(A -> Real.Real, { g: A -> Real.Real \where Lp.Moment[f, p, g] }, g) \then
+  \let function: A -> Real.Real := g \then
+  \let same: function = moment f := \axiom:funext(function, moment f, \fun (x: A) => Unique.unique _ (Powers.exponent p) _ _
+    (Product.absNonnegative (f x)) (law.power x) (Powers.law (absolute f x) (Powers.exponent p))) \then
+  \return \idelim function = moment f \with h: (A -> Real.Real) => I.Finite h \by { base: law.integrable, equality: same }
+};
+\definition momentMeasurable[f: Representatives]: M.IsMeasurable mu (moment f) :=
+  \parent.Power[p := positiveExponent].measurable (absolute f) (Functions.absMeasurable f (properties f).measurable);
+\definition momentIntegrable[f: Representatives]: I.Integrable (moment f) := Logic.And[_, _]::# (momentMeasurable f)
+  (\idelim moment f = Absolute.abs (moment f) \with h: (A -> Real.Real) => I.Finite h \by {
+    base: finiteMoment f,
+    equality: \axiom:funext(moment f, Absolute.abs (moment f), \fun (x: A) => sym!{Real.Real} _ _ (Product.absOfNonnegative _ (momentNonnegative f x)))
+  });
+\definition momentRepresentative[f: Representatives]: I.Representatives := \into[A -> Real.Real](moment f, I.Representatives) \by { momentIntegrable f };
+\definition integralMoment[f: Representatives]: Powers.Nonnegative := \into[Real.Real](I.integral (momentRepresentative f), Powers.Nonnegative) \by {
+  Absolute.integralNonnegative _ _ (momentNonnegative f) (I.integralLaw (momentRepresentative f))
+};
+\definition normRepresentative[f: Representatives]: Real.Real := Powers.value (integralMoment f) (PA.inverseExponent positiveExponent);
+\definition normNonnegative[f: Representatives]: R.Le Real.zero (normRepresentative f) := Powers.nonnegativeValue _ _;
+\import std.Set[].Quotient[A := Representatives, Equivalent := \fun (f, g: Representatives) => M.AlmostEqual mu f g] \as Q;
+\definition equivalence: Q.EquivalenceLaws := Q.EquivalenceLaws {
+  refl := \fun (f: Representatives) => AE.reflexive f,
+  sym := \fun (f, g: Representatives) => AE.symmetric f g,
+  trans := \fun (f, g, h: Representatives) => AE.transitive f g h,
+};
+\definition ofFunction[f: Representatives]: Space := Existing.ofFunction f;
+\definition momentAlmost[f, g: Representatives]: M.AlmostEqual mu f g -> M.AlmostEqual mu (momentRepresentative f) (momentRepresentative g) :=
+  Null.mapAlmost (\fun (t: Real.Real) => Powers.value (\into[Real.Real](Product.abs t, Powers.Nonnegative) \by { Product.absNonnegative t }) (Powers.exponent p)) f g;
+\definition normRespects[f, g: Representatives]: M.AlmostEqual mu f g -> normRepresentative f = normRepresentative g := \fun (same: _) => \block {
+  \let equal: integralMoment f = integralMoment g := Null.integralAlmost (momentRepresentative f) (momentRepresentative g) (momentAlmost f g same) \then
+  \return congr!{Powers.Nonnegative Real.Real} (\fun (x: Powers.Nonnegative) => Powers.value x (PA.inverseExponent positiveExponent)) _ _ equal
+};
+\import Q.Maps[B := Real.Real] \as NormMaps;
+\definition norm: Space -> Real.Real := NormMaps.value equivalence normRepresentative normRespects;
+\definition normOfFunction[f: Representatives]: norm (ofFunction f) = normRepresentative f := NormMaps.onClass equivalence normRepresentative normRespects f;
+\definition normPower[f: Representatives]: Powers.value (\into[Real.Real](normRepresentative f, Powers.Nonnegative) \by { normNonnegative f }) (Powers.exponent p) = I.integral (momentRepresentative f) :=
+  PA.powerRoot (integralMoment f) positiveExponent;
+\definition hasMoment: \forall (f: A -> Real.Real) -> M.IsMeasurable mu f -> I.Finite (moment f) -> Lp.HasFiniteMoment[f, p] :=
+  \fun (f: A -> Real.Real)(measurable: _)(finite: _) => Lp.HasFiniteMoment[f, p] {
+    measurable := measurable,
+    moment := Logic.existsIntro[A -> Real.Real, { g: A -> Real.Real \where Lp.Moment[f, p, g] }] (moment f)
+      (Lp.Moment[f, p, moment f] { power := \fun (x: A) => Powers.law (absolute f x) (Powers.exponent p), integrable := finite }),
+  };
+\definition momentZero: moment Zero.function = Zero.function := \axiom:funext(moment Zero.function, Zero.function,
+  \fun (x: A) => (Powers.law (absolute Zero.function x) (Powers.exponent p)).atZero (Distance.distanceSelf Real.zero));
+\definition zeroRepresentative: Representatives := \into[A -> Real.Real](Zero.function, Representatives) \by {
+  hasMoment Zero.function Zero.measurable (\idelim Zero.function = moment Zero.function \with f: (A -> Real.Real) => I.Finite f \by {
+    base: Zero.finite, equality: sym!{{A -> Real.Real}} _ _ momentZero })
+};
+\definition zero: Space := ofFunction zeroRepresentative;
+\definition representativeNormZero: normRepresentative zeroRepresentative = Real.zero := \block {
+  \let almost: M.AlmostEqual mu (momentRepresentative zeroRepresentative) Zero.representative := AE.nullSubset
+    ({ x: A \where Logic.Not (moment zeroRepresentative x = Real.zero) }) Sets.Empty
+    (\fun (x: A)(different: _) => different ((Powers.law (absolute Zero.function x) (Powers.exponent p)).atZero (Distance.distanceSelf Real.zero))) AE.nullEmpty \then
+  \let equal: integralMoment zeroRepresentative = Powers.zeroBase := trans!{Real.Real} _ _ _
+    (Null.integralAlmost (momentRepresentative zeroRepresentative) Zero.representative almost) Zero.integralZero \then
+  \return trans!{Real.Real} _ _ _ (congr!{Powers.Nonnegative Real.Real} (\fun (x: Powers.Nonnegative) => Powers.value x (PA.inverseExponent positiveExponent)) _ _ equal)
+    (Powers.zeroValue (PA.inverseExponent positiveExponent))
+};
+\definition absoluteOfMomentZero[f: Representatives][x: A]: moment f x = Real.zero -> Product.abs (f x) = Real.zero :=
+  \fun (zero: _) => trans!{Real.Real} _ _ _ (sym!{Real.Real} _ _ (PA.rootPower (absolute f x) positiveExponent))
+    ((Powers.law (PA.powered (absolute f x) (Powers.exponent p)) (PA.inverseExponent positiveExponent)).atZero zero);
+\definition representativeDefinite[f: Representatives]: normRepresentative f = Real.zero -> ofFunction f = zero := \fun (zeroNorm: _) => \block {
+  \let integralZero: I.integral (momentRepresentative f) = Real.zero := trans!{Real.Real} _ _ _ (sym!{Real.Real} _ _ (normPower f))
+    ((Powers.law (\into[Real.Real](normRepresentative f, Powers.Nonnegative) \by { normNonnegative f }) (Powers.exponent p)).atZero zeroNorm) \then
+  \let almost: M.AlmostEqual mu (momentRepresentative f) Zero.function := \parent.NullIntegral[f := momentRepresentative f].almostZero (momentNonnegative f) integralZero \then
+  \return Q.classOfEq equivalence f zeroRepresentative (AE.nullSubset ({ x: A \where Logic.Not (f x = Real.zero) })
+    ({ x: A \where Logic.Not (moment f x = Real.zero) })
+    (\fun (x: A)(different: _)(momentZero: _) => different (sym!{Real.Real} _ _ (Distance.distanceSeparated Real.zero (f x) (absoluteOfMomentZero f x momentZero)))) almost)
+};
+\definition nonnegative: \forall (x: Space) -> R.Le Real.zero (norm x) := Q.induction (\fun (x: Space) => R.Le Real.zero (norm x))
+  (\fun (f: Representatives) => R.leReplaceRight _ _ _ (sym!{Real.Real} _ _ (normOfFunction f)) (normNonnegative f));
+\definition normZero: norm zero = Real.zero := trans!{Real.Real} _ _ _ (normOfFunction zeroRepresentative) representativeNormZero;
+\definition definite: \forall (x: Space) -> norm x = Real.zero -> x = zero := Q.induction (\fun (x: Space) => norm x = Real.zero -> x = zero)
+  (\fun (f: Representatives)(zeroNorm: _) => representativeDefinite f (trans!{Real.Real} _ _ _ (sym!{Real.Real} _ _ (normOfFunction f)) zeroNorm));
+\definition absoluteScalar[c: Real.Real]: Powers.Nonnegative := \into[Real.Real](Product.abs c, Powers.Nonnegative) \by { Product.absNonnegative c };
+\definition scalarFunction[c: Real.Real][f: A -> Real.Real]: A -> Real.Real := \fun (x: A) => Real.mul c (f x);
+\definition momentScalar[c: Real.Real][f: A -> Real.Real][x: A]: moment (scalarFunction c f) x = Real.mul (Powers.value (absoluteScalar c) (Powers.exponent p)) (moment f x) := \block {
+  \let same: absolute (scalarFunction c f) x = PA.product (absoluteScalar c) (absolute f x) := Product.absProduct c (f x) \then
+  \return trans!{Real.Real} _ _ _ (congr!{Powers.Nonnegative Real.Real} (\fun (a: Powers.Nonnegative) => Powers.value a (Powers.exponent p)) _ _ same)
+    (PA.multiply (absoluteScalar c) (absolute f x) (Powers.exponent p))
+};
+\definition finiteScalar[c: Real.Real][f: Representatives]: I.Finite (moment (scalarFunction c f)) :=
+  \idelim (\fun (x: A) => Real.mul (Powers.value (absoluteScalar c) (Powers.exponent p)) (moment f x)) = moment (scalarFunction c f)
+    \with h: (A -> Real.Real) => I.Finite h \by {
+      base: Scaling.finiteScale (\into[Real.Real](Powers.value (absoluteScalar c) (Powers.exponent p), Scaling.NonnegativeScalar) \by { Powers.nonnegativeValue _ _ }) (moment f) (finiteMoment f),
+      equality: \axiom:funext((\fun (x: A) => Real.mul (Powers.value (absoluteScalar c) (Powers.exponent p)) (moment f x)), moment (scalarFunction c f), \fun (x: A) => sym!{Real.Real} _ _ (momentScalar c f x))
+    };
+\definition scaleRepresentative[c: Real.Real][f: Representatives]: Representatives := \into[A -> Real.Real](scalarFunction c f, Representatives) \by {
+  hasMoment (scalarFunction c f) (scalarMeasurable c f (properties f).measurable) (finiteScalar c f)
+};
+\definition integralScalar[c: Real.Real][f: Representatives]: I.integral (momentRepresentative (scaleRepresentative c f)) = Real.mul (Powers.value (absoluteScalar c) (Powers.exponent p)) (I.integral (momentRepresentative f)) :=
+  trans!{Real.Real} _ _ _
+    (Null.integralAlmost (momentRepresentative (scaleRepresentative c f))
+      (Scaling.scalarRepresentative (Powers.value (absoluteScalar c) (Powers.exponent p)) (momentRepresentative f))
+      (AE.nullSubset ({ x: A \where Logic.Not (moment (scaleRepresentative c f) x = Real.mul (Powers.value (absoluteScalar c) (Powers.exponent p)) (moment f x)) }) Sets.Empty
+        (\fun (x: A)(different: _) => different (momentScalar c f x)) AE.nullEmpty))
+    (Scaling.integralScalar (Powers.value (absoluteScalar c) (Powers.exponent p)) (momentRepresentative f));
+\definition normScalar[c: Real.Real][f: Representatives]: normRepresentative (scaleRepresentative c f) = Real.mul (Product.abs c) (normRepresentative f) := \block {
+  \let same: integralMoment (scaleRepresentative c f) = PA.product (PA.powered (absoluteScalar c) (Powers.exponent p)) (integralMoment f) := integralScalar c f \then
+  \return eq_reason_in!{Real.Real _
+    "=" _ "by" { congr!{Powers.Nonnegative Real.Real} (\fun (a: Powers.Nonnegative) => Powers.value a (PA.inverseExponent positiveExponent)) _ _ same }
+    "=" _ "by" { PA.multiply (PA.powered (absoluteScalar c) (Powers.exponent p)) (integralMoment f) (PA.inverseExponent positiveExponent) }
+    "=" _ "by" { congr!{Real.Real Real.Real} (\fun (r: Real.Real) => Real.mul r (normRepresentative f)) _ _ (PA.rootPower (absoluteScalar c) positiveExponent) }
+  }
+};
+\import Q.Maps[B := Space] \as ClassMaps;
+\definition classScalar[c: Real.Real][f: Representatives]: Space := ofFunction (scaleRepresentative c f);
+\definition scalarRespects[c: Real.Real]: ClassMaps.Respects (classScalar c) := \fun (f, g: Representatives)(same: _) =>
+  Q.classOfEq equivalence (scaleRepresentative c f) (scaleRepresentative c g) (Null.mapAlmost (Real.mul c) f g same);
+\definition scale[c: Real.Real]: Space -> Space := ClassMaps.value equivalence (classScalar c) (scalarRespects c);
+\definition scaleClass[c: Real.Real][f: Representatives]: scale c (ofFunction f) = ofFunction (scaleRepresentative c f) := ClassMaps.onClass equivalence (classScalar c) (scalarRespects c) f;
+\definition homogeneous[c: Real.Real]: \forall (x: Space) -> norm (scale c x) = Real.mul (Product.abs c) (norm x) :=
+  Q.induction (\fun (x: Space) => norm (scale c x) = Real.mul (Product.abs c) (norm x))
+    (\fun (f: Representatives) => eq_reason_in!{Real.Real _
+      "=" _ "by" { congr!{Space Real.Real} norm _ _ (scaleClass c f) }
+      "=" _ "by" { normOfFunction (scaleRepresentative c f) }
+      "=" _ "by" { normScalar c f }
+      "=" _ "by" { congr!{Real.Real Real.Real} (Real.mul (Product.abs c)) _ _ (sym!{Real.Real} _ _ (normOfFunction f)) }
+    });
+\definition sumFunction[f, g: A -> Real.Real]: A -> Real.Real := \fun (x: A) => Real.add (f x) (g x);
+\definition maximum[f, g: A -> Real.Real][x: A]: Powers.Nonnegative := \into[Real.Real](Distance.max (Product.abs (f x)) (Product.abs (g x)), Powers.Nonnegative) \by {
+  R.leTrans _ _ _ (Product.absNonnegative (f x)) (Distance.maxLeft _ _)
+};
+\definition sumAbsoluteBound[f, g: A -> Real.Real][x: A]: R.Le (Product.abs (sumFunction f g x)) (Real.mul PA.two (maximum f g x)) :=
+  R.leReplaceRight _ _ _ (sym!{Real.Real} _ _ (trans!{Real.Real} _ _ _ (Algebra.mulAddRight Real.one Real.one (maximum f g x))
+      (congr!{Real.Real Real.Real Real.Real} Real.add _ _ _ _ (Laws.fieldMulOneLeft _) (Laws.fieldMulOneLeft _))))
+    (R.leTrans _ _ _ (Linear.absTriangle (f x) (g x)) (E.addLe _ _ _ _ (Distance.maxLeft _ _) (Distance.maxRight _ _)));
+\definition maximumMomentBound[f, g: A -> Real.Real][x: A]: R.Le (Powers.value (maximum f g x) (Powers.exponent p)) (Real.add (moment f x) (moment g x)) :=
+  Logic.orElim _ _ _ (Order.leTotal (Product.abs (f x)) (Product.abs (g x)))
+    (\fun (order: _) => \block {
+      \let equal: maximum f g x = absolute g x := Distance.maxOfLe (Product.abs (f x)) (Product.abs (g x)) order \then
+      \return R.leReplaceLeft _ _ _ (sym!{Real.Real} _ _ (congr!{Powers.Nonnegative Real.Real} (\fun (a: Powers.Nonnegative) => Powers.value a (Powers.exponent p)) _ _ equal))
+        (R.leReplaceRight _ _ _ (Laws.addComm (moment g x) (moment f x)) (Algebra.leAddRight _ _ (momentNonnegative f x)))
+    })
+    (\fun (order: _) => \block {
+      \let equal: maximum f g x = absolute f x := Distance.maxOfGe (Product.abs (f x)) (Product.abs (g x)) order \then
+      \return R.leReplaceLeft _ _ _ (sym!{Real.Real} _ _ (congr!{Powers.Nonnegative Real.Real} (\fun (a: Powers.Nonnegative) => Powers.value a (Powers.exponent p)) _ _ equal))
+        (Algebra.leAddRight _ _ (momentNonnegative g x))
+    });
+\definition additionBound[f, g: Representatives]: I.Representatives := Scaling.scalarRepresentative (Powers.value (Powers.exponent PA.two) (Powers.exponent p))
+  (Linear.addRepresentative (momentRepresentative f) (momentRepresentative g));
+\definition momentAdditionBound[f, g: Representatives][x: A]: R.Le (moment (sumFunction f g) x) (additionBound f g x) :=
+  R.leTrans _ _ _
+    (R.leReplaceRight _ _ _ (PA.multiply (Powers.exponent PA.two) (maximum f g x) (Powers.exponent p))
+      (PA.monotone (absolute (sumFunction f g) x) (PA.product (Powers.exponent PA.two) (maximum f g x)) (Powers.exponent p) (sumAbsoluteBound f g x)))
+    (E.mulMonotone (Powers.value (Powers.exponent PA.two) (Powers.exponent p)) _ _ (Powers.nonnegativeValue _ _) (maximumMomentBound f g x));
+\definition finiteAddition[f, g: Representatives]: I.Finite (moment (sumFunction f g)) :=
+  I.finiteMono (moment (sumFunction f g)) (Absolute.abs (additionBound f g)) (momentNonnegative (sumFunction f g))
+    (\fun (x: A) => R.leTrans _ _ _ (momentAdditionBound f g x)
+      (R.leReplaceRight _ _ _ (sym!{Real.Real} _ _ (Product.absExpression _)) (Distance.maxRight _ _)))
+    (I.integralLaw (additionBound f g)).integrable.right;
+\definition addRepresentative[f, g: Representatives]: Representatives := \into[A -> Real.Real](sumFunction f g, Representatives) \by {
+  hasMoment (sumFunction f g) (Functions.addMeasurable f g (properties f).measurable (properties g).measurable) (finiteAddition f g)
+};
+\definition negFunction[f: A -> Real.Real]: A -> Real.Real := \fun (x: A) => Real.neg (f x);
+\definition negRepresentative[f: Representatives]: Representatives := \into[A -> Real.Real](negFunction f, Representatives) \by {
+  \idelim scalarFunction (Real.neg Real.one) f = negFunction f \with h: (A -> Real.Real) => Lp.HasFiniteMoment[h, p] \by {
+    base: properties (scaleRepresentative (Real.neg Real.one) f),
+    equality: \axiom:funext(scalarFunction (Real.neg Real.one) f, negFunction f, \fun (x: A) => trans!{Real.Real} _ _ _
+      (Laws.fieldMulNegLeft Real.one (f x)) (congr!{Real.Real Real.Real} Real.neg _ _ (Laws.fieldMulOneLeft (f x))))
+  }
+};
+\definition classPointwise[f, g: Representatives]: (\forall (x: A) -> f x = g x) -> ofFunction f = ofFunction g :=
+  \fun (same: _) => Q.classOfEq equivalence f g (AE.nullSubset ({ x: A \where Logic.Not (f x = g x) }) Sets.Empty
+    (\fun (x: A)(different: _) => different (same x)) AE.nullEmpty);
+\import Q.Binary[C := Representatives, B := Space, OtherEquivalent := \fun (f, g: Representatives) => M.AlmostEqual mu f g] \as Binary;
+\definition classAdd[f, g: Representatives]: Space := ofFunction (addRepresentative f g);
+\definition addRespects: Binary.Respects classAdd := \fun (f, f2, g, g2: Representatives)(ff: _)(gg: _) =>
+  Q.classOfEq equivalence (addRepresentative f g) (addRepresentative f2 g2) (binaryAlmost Real.add f f2 g g2 ff gg);
+\definition add: Space -> Space -> Space := Binary.value equivalence equivalence classAdd addRespects;
+\definition addClass: \forall (f, g: Representatives) -> add (ofFunction f) (ofFunction g) = ofFunction (addRepresentative f g) :=
+  Binary.onClass equivalence equivalence classAdd addRespects;
+\definition negClassMap[f: Representatives]: Space := ofFunction (negRepresentative f);
+\definition negRespects: ClassMaps.Respects negClassMap := \fun (f, g: Representatives)(same: _) =>
+  Q.classOfEq equivalence (negRepresentative f) (negRepresentative g) (Null.mapAlmost Real.neg f g same);
+\definition neg: Space -> Space := ClassMaps.value equivalence negClassMap negRespects;
+\definition negClass[f: Representatives]: neg (ofFunction f) = ofFunction (negRepresentative f) := ClassMaps.onClass equivalence negClassMap negRespects f;
+\module Vector;
+\definition absoluteFunction[f: A -> Real.Real]: A -> Real.Real := \fun (x: A) => Product.abs (f x);
+\definition momentAbsolute[f: A -> Real.Real]: moment (absoluteFunction f) = moment f := \axiom:funext(moment (absoluteFunction f), moment f, \fun (x: A) => \block {
+  \let equal: absolute (absoluteFunction f) x = absolute f x := Product.absOfNonnegative (Product.abs (f x)) (Product.absNonnegative (f x)) \then
+  \return congr!{Powers.Nonnegative Real.Real} (\fun (a: Powers.Nonnegative) => Powers.value a (Powers.exponent p)) _ _ equal
+});
+\definition absoluteRepresentative[f: Representatives]: Representatives := \into[A -> Real.Real](absoluteFunction f, Representatives) \by {
+  hasMoment (absoluteFunction f) (Functions.absMeasurable f (properties f).measurable)
+    (\idelim moment f = moment (absoluteFunction f) \with h: (A -> Real.Real) => I.Finite h \by {
+      base: finiteMoment f, equality: sym!{{A -> Real.Real}} _ _ (momentAbsolute f) })
+};
+\definition normAbsolute[f: Representatives]: normRepresentative (absoluteRepresentative f) = normRepresentative f := \block {
+  \let equal: integralMoment (absoluteRepresentative f) = integralMoment f := Null.integralAlmost (momentRepresentative (absoluteRepresentative f)) (momentRepresentative f)
+    (AE.nullSubset ({ x: A \where Logic.Not (moment (absoluteRepresentative f) x = moment f x) }) Sets.Empty
+      (\fun (x: A)(different: _) => different (congr!{{A -> Real.Real} Real.Real} (\fun (h: A -> Real.Real) => h x) _ _ (momentAbsolute f))) AE.nullEmpty) \then
+  \return congr!{Powers.Nonnegative Real.Real} (\fun (a: Powers.Nonnegative) => Powers.value a (PA.inverseExponent positiveExponent)) _ _ equal
+};

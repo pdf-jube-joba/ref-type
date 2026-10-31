@@ -1,0 +1,27 @@
+\definition basePower[n: N.Nat^]: P.power a n = EF.value (Real.mul (P.natural n) (Exp.logarithm a)) := Exp.Power[a := a, p := p].basePower n;
+\definition valuePower[n: N.Nat^]: P.power y n = EF.value (Real.mul (P.natural n) (Exp.logarithm y)) := Exp.Power[a := y, p := p].basePower n;
+\definition compare[m, n: N.Nat^]: R.Le (P.power a m) (P.power y n) -> R.Le (Real.mul (P.natural m) (Exp.logarithm a)) (Real.mul (P.natural n) (Exp.logarithm y)) :=
+  \fun (order: _) => Exp.reflect _ _ (R.leReplace _ _ _ _ (basePower m) (valuePower n) order);
+\definition reverseCompare[m, n: N.Nat^]: R.Le (P.power y n) (P.power a m) -> R.Le (Real.mul (P.natural n) (Exp.logarithm y)) (Real.mul (P.natural m) (Exp.logarithm a)) :=
+  \fun (order: _) => Exp.reflect _ _ (R.leReplace _ _ _ _ (valuePower n) (basePower m) order);
+\definition logarithm: P.PositivePower[a, p, y] -> Exp.logarithm y = Real.mul p (Exp.logarithm a) :=
+  \fun (power: P.PositivePower[a, p, y]) => Logic.orElim _ _ _ (Order.leTotal Real.one a)
+    (\fun (above: _) => Cuts.unique p (Exp.logarithm a) (Exp.logarithm y) (exponentNonnegative p)
+      (Exp.Power[a := a, p := p].logNonnegative above)
+      (Cuts.Increasing[p, Exp.logarithm a, Exp.logarithm y] {
+        lower := \fun (m, n: N.Nat^)(order: _) => compare m (N.Nat^::succ n) ((power.increasing (Exp.positive a) above).lower m n order),
+        upper := \fun (m, n: N.Nat^)(order: _) => reverseCompare m (N.Nat^::succ n) ((power.increasing (Exp.positive a) above).upper m n order),
+      }))
+    (\fun (below: _) => Laws.negInjective _ _ (trans!{Real.Real} _ _ _
+      (Cuts.unique p (Real.neg (Exp.logarithm a)) (Real.neg (Exp.logarithm y)) (exponentNonnegative p)
+        (R.leReplaceLeft (Real.neg Real.zero) Real.zero _ Laws.negZero (Laws.negAntitone _ _ (Exp.Power[a := a, p := p].logNonpositive below)))
+        (Cuts.Increasing[p, Real.neg (Exp.logarithm a), Real.neg (Exp.logarithm y)] {
+          lower := \fun (m, n: N.Nat^)(order: _) => R.leReplace _ _ _ _
+            (sym!{Real.Real} _ _ (Laws.fieldMulNegRight (P.natural m) (Exp.logarithm a)))
+            (sym!{Real.Real} _ _ (Laws.fieldMulNegRight (P.natural (N.Nat^::succ n)) (Exp.logarithm y)))
+            (Laws.negAntitone _ _ (reverseCompare m (N.Nat^::succ n) ((power.decreasing (Exp.positive a) below).lower m n order))),
+          upper := \fun (m, n: N.Nat^)(order: _) => R.leReplace _ _ _ _
+            (sym!{Real.Real} _ _ (Laws.fieldMulNegRight (P.natural (N.Nat^::succ n)) (Exp.logarithm y)))
+            (sym!{Real.Real} _ _ (Laws.fieldMulNegRight (P.natural m) (Exp.logarithm a)))
+            (Laws.negAntitone _ _ (compare m (N.Nat^::succ n) ((power.decreasing (Exp.positive a) below).upper m n order))),
+        })) (Laws.fieldMulNegRight p (Exp.logarithm a))));

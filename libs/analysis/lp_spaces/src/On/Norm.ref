@@ -1,0 +1,42 @@
+\import topology.Topology[Carrier := A] \as Sets;
+\import \parent.Finite[p := p] \as F;
+\import F.Vector[] \as Vector;
+\import functional_analysis.Normed[V := F.Space, space := Vector.space] \as Normed;
+\definition representativeTriangle: \forall (f, g: F.Representatives) -> R.Le (F.normRepresentative (F.addRepresentative f g)) (Real.add (F.normRepresentative f) (F.normRepresentative g)) :=
+  Logic.orElim _ _ _ (Classical.excludedMiddle (p = Powers.one))
+    (\fun (equal: _) => \idelim Powers.one = p \with q: P.Exponent =>
+      \forall (f, g: \parent.Finite[p := q].Representatives) -> R.Le (\parent.Finite[p := q].normRepresentative (\parent.Finite[p := q].addRepresentative f g))
+        (Real.add (\parent.Finite[p := q].normRepresentative f) (\parent.Finite[p := q].normRepresentative g)) \by {
+          base: \parent.OneBridge[].triangle, equality: sym!{P.Exponent} _ _ equal
+        })
+    (\fun (different: _) => \block {
+      \let greater: Powers.StrictExponent := \into[P.Exponent](p, { q: P.Exponent \where R.Lt Real.one q }) \by {
+        Order.ltOfLeNotEq _ _ (\bysub(Real.Real, { p: Real.Real \where R.Le Real.one p }, p))
+          (\fun (equal: Real.one = p) => different (sym!{Real.Real} _ _ equal))
+      } \then
+      \return \fun (f, g: F.Representatives) => \parent.StrictMinkowski[p := greater].For[f := f, g := g].triangle
+    });
+\import std.Set[].Quotient[A := F.Representatives, Equivalent := \fun (f, g: F.Representatives) => M.AlmostEqual mu f g] \as Q;
+\definition triangle: \forall (x, y: F.Space) -> R.Le (F.norm (F.add x y)) (Real.add (F.norm x) (F.norm y)) :=
+  Q.induction2 (\fun (x, y: F.Space) => R.Le (F.norm (F.add x y)) (Real.add (F.norm x) (F.norm y)))
+    (\fun (f, g: F.Representatives) => R.leReplace _ _ _ _
+      (sym!{Real.Real} _ _ (trans!{Real.Real} _ _ _ (congr!{F.Space Real.Real} F.norm _ _ (F.addClass f g)) (F.normOfFunction (F.addRepresentative f g))))
+      (congr!{Real.Real Real.Real Real.Real} Real.add _ _ _ _ (sym!{Real.Real} _ _ (F.normOfFunction f)) (sym!{Real.Real} _ _ (F.normOfFunction g)))
+      (representativeTriangle f g));
+\definition data: Normed.NormData := Normed.NormData { norm := F.norm };
+\definition laws: Normed.NormLaws[data] := Normed.NormLaws[data] {
+  nonnegative := F.nonnegative, zero := F.normZero, definite := F.definite, triangle := triangle, homogeneous := F.homogeneous,
+};
+\definition norm: Normed.Norm := \into[Normed.NormData](data, Normed.Norm) \by { laws };
+\definition metric: metric_spaces.MetricSpace[Carrier := F.Space].Metric := Normed.metric norm;
+\import Real.Sequence[] \as Sequence;
+\import Sequence.Operations[] \as Operations;
+\structure DominatedData: \Set := {
+  sequence: N.Nat^ -> F.Representatives,
+  target: F.Representatives,
+  bound: F.Representatives,
+  exception: Null.NullSet,
+  dominated: \forall (k: N.Nat^)(x: A) -> Logic.Not (Sets.Member exception x) -> R.Le (Product.abs (sequence k x)) (bound x),
+  converges: \forall (x: A) -> Logic.Not (Sets.Member exception x) -> Sequence.Converges (\fun (k: N.Nat^) => sequence k x) (target x),
+};
+\module Dominated(d: DominatedData);

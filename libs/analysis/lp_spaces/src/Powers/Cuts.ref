@@ -1,0 +1,65 @@
+\definition absDifference[x, y: Real.Real]: Product.abs (Real.sub x y) = Real.distance x y :=
+  trans!{Real.Real} _ _ _ (Distance.distanceSymmetric Real.zero (Real.sub x y)) (E.distanceDifference x y);
+\definition distanceScale[c, x, y: Real.Real]: R.Le Real.zero c -> Real.distance (Real.mul c x) (Real.mul c y) = Real.mul c (Real.distance x y) :=
+  \fun (nonnegative: _) => eq_reason_in!{Real.Real _
+    "=" _ "by" { sym!{Real.Real} _ _ (absDifference (Real.mul c x) (Real.mul c y)) }
+    "=" _ "by" { congr!{Real.Real Real.Real} Product.abs _ _ (sym!{Real.Real} _ _ (Algebra.mulSub c x y)) }
+    "=" _ "by" { Product.absProduct c (Real.sub x y) }
+    "=" _ "by" { congr!{Real.Real Real.Real Real.Real} Real.mul _ _ _ _ (Product.absOfNonnegative c nonnegative) (absDifference x y) }
+  };
+\definition scaledSeparate[a, b, c: Real.Real]:
+  (\forall (n: N.Nat^) -> R.Le (Real.distance (Real.mul (P.natural (N.Nat^::succ n)) b) (Real.mul (P.natural (N.Nat^::succ n)) c)) a) -> b = c :=
+  \fun (bound: _) => Order.byContradiction _ (\fun (different: Logic.Not (b = c)) => \block {
+    \let delta: Real.Real := Real.distance b c \then
+    \let dp: R.Lt Real.zero delta := Order.ltOfLeNotEq _ _ (Distance.distanceNonnegative b c)
+      (\fun (zero: Real.zero = delta) => different (Distance.distanceSeparated b c (sym!{Real.Real} _ _ zero))) \then
+    \takefrom n: \Cast[N.Nat^] ({ n: N.Nat^ \where R.Lt (Real.mul a (Laws.fieldInv delta)) (P.natural n) }) \by naturalAbove (Real.mul a (Laws.fieldInv delta)) \then
+    \let above: R.Lt (Real.mul a (Laws.fieldInv delta)) (P.natural (N.Nat^::succ n)) := Order.ltTrans _ _ _
+      (\bysub(N.Nat^, { n: N.Nat^ \where R.Lt (Real.mul a (Laws.fieldInv delta)) (P.natural n) }, n)) (naturalStep n) \then
+    \let cancel: Real.mul delta (Real.mul a (Laws.fieldInv delta)) = a :=
+      trans!{Real.Real} _ _ _ (Algebra.mulSwap delta a (Laws.fieldInv delta))
+        (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (Real.mul a) _ _
+          (trans!{Real.Real} _ _ _ (Laws.fieldMulComm delta (Laws.fieldInv delta)) (Laws.fieldInverseNonzero delta (Real.Inverse[].positiveNonzero delta dp)))) (Algebra.mulOneRight a)) \then
+    \let big: R.Lt a (Real.mul (P.natural (N.Nat^::succ n)) delta) :=
+      R.ltReplaceRight a _ _ (Laws.fieldMulComm delta (P.natural (N.Nat^::succ n)))
+        (R.ltReplaceLeft _ a _ cancel (Product.mulStrict delta _ _ dp above)) \then
+    \return R.ltNotLeReverse _ _ big (R.leReplaceLeft _ _ _ (distanceScale _ b c (naturalNonnegative _)) (bound n))
+  });
+\definition intervalDistance[l, u, x, y: Real.Real]: R.Le l x -> R.Le x u -> R.Le l y -> R.Le y u ->
+  R.Le (Real.distance x y) (Real.add (Real.distance u l) (Real.distance u l)) :=
+  \fun (lx: _)(xu: _)(ly: _)(yu: _) => R.leTrans _ _ _ (Distance.distanceTriangle x l y)
+    (E.addLe _ _ _ _
+      (E.betweenDistance l u x (R.leTrans _ _ _ (Distance.minLeft l u) lx) (R.leTrans _ _ _ xu (Distance.maxRight l u)))
+      (R.leReplaceLeft _ _ _ (Distance.distanceSymmetric y l)
+        (E.betweenDistance l u y (R.leTrans _ _ _ (Distance.minLeft l u) ly) (R.leTrans _ _ _ yu (Distance.maxRight l u)))));
+\structure Increasing[p, a, b: Real.Real]: \Prop := {
+  lower: \forall (m, n: N.Nat^) -> R.Le (P.natural m) (Real.mul p (P.natural (N.Nat^::succ n))) ->
+    R.Le (Real.mul (P.natural m) a) (Real.mul (P.natural (N.Nat^::succ n)) b),
+  upper: \forall (m, n: N.Nat^) -> R.Le (Real.mul p (P.natural (N.Nat^::succ n))) (P.natural m) ->
+    R.Le (Real.mul (P.natural (N.Nat^::succ n)) b) (Real.mul (P.natural m) a),
+};
+\definition multiply[c, x, y: Real.Real]: R.Le Real.zero c -> R.Le x y -> R.Le (Real.mul x c) (Real.mul y c) :=
+  \fun (nonnegative: _)(order: _) => R.leReplace _ _ _ _ (Laws.fieldMulComm c x) (Laws.fieldMulComm c y) (E.mulMonotone c x y nonnegative order);
+\definition naturalDifference[m: N.Nat^][a: Real.Real]:
+  Real.sub (Real.mul (P.natural (N.Nat^::succ m)) a) (Real.mul (P.natural m) a) = a :=
+  eq_reason_in!{Real.Real _
+    "=" _ "by" { congr!{Real.Real Real.Real} (\fun (r: Real.Real) => Real.sub r (Real.mul (P.natural m) a)) _ _ (Algebra.mulAddRight (P.natural m) Real.one a) }
+    "=" _ "by" { congr!{Real.Real Real.Real} (\fun (r: Real.Real) => Real.sub (Real.add (Real.mul (P.natural m) a) r) (Real.mul (P.natural m) a)) _ _ (Laws.fieldMulOneLeft a) }
+    "=" _ "by" { trans!{Real.Real} _ _ _ (Laws.addComm (Real.add (Real.mul (P.natural m) a) a) (Real.neg (Real.mul (P.natural m) a))) (Laws.addNegCancelLeft (Real.mul (P.natural m) a) a) }
+  };
+\definition unique[p, a, b: Real.Real]: R.Le Real.zero p -> R.Le Real.zero a -> Increasing[p, a, b] -> b = Real.mul p a :=
+  \fun (pn: _)(an: _)(cut: Increasing[p, a, b]) => scaledSeparate (Real.add a a) b (Real.mul p a) (\fun (n: N.Nat^) => \block {
+    \let t: Real.Real := P.natural (N.Nat^::succ n) \then
+    \takefrom m: \Cast[N.Nat^] ({ m: N.Nat^ \where Floor[Real.mul p t, m] }) \by floorExists (Real.mul p t) (Laws.fieldMulNonnegative p t pn (naturalNonnegative (N.Nat^::succ n))) \then
+    \let floor: Floor[Real.mul p t, m] := \bysub(N.Nat^, { m: N.Nat^ \where Floor[Real.mul p t, m] }, m) \then
+    \let lower: Real.Real := Real.mul (P.natural m) a \then
+    \let upper: Real.Real := Real.mul (P.natural (N.Nat^::succ m)) a \then
+    \let commute: Real.mul (Real.mul p t) a = Real.mul t (Real.mul p a) := trans!{Real.Real} _ _ _ (Laws.fieldMulAssoc p t a) (Algebra.mulSwap p t a) \then
+    \let lowerY: R.Le lower (Real.mul t (Real.mul p a)) := R.leReplaceRight _ _ _ commute (multiply a _ _ an floor.lower) \then
+    \let upperY: R.Le (Real.mul t (Real.mul p a)) upper := R.leReplaceLeft _ _ _ commute (multiply a _ _ an (Order.leOfLt _ _ floor.upper)) \then
+    \let length: Real.distance upper lower = a := trans!{Real.Real} _ _ _ (sym!{Real.Real} _ _ (absDifference upper lower))
+      (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} Product.abs _ _ (naturalDifference m a)) (Product.absOfNonnegative a an)) \then
+    \return R.leReplaceRight _ _ _ (congr!{Real.Real Real.Real Real.Real} Real.add _ _ _ _ length length)
+      (intervalDistance lower upper (Real.mul t b) (Real.mul t (Real.mul p a))
+        (cut.lower m n floor.lower) (cut.upper (N.Nat^::succ m) n (Order.leOfLt _ _ floor.upper)) lowerY upperY)
+  });

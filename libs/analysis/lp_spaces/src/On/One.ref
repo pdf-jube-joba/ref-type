@@ -1,0 +1,63 @@
+\import Lp.Finite[p := Powers.one] \as Existing;
+\definition Representatives: \Set := Lp.Representatives Powers.one;
+\definition Space: \Set := Existing.Space;
+\definition integrable[f: Representatives]: I.Integrable f := \block {
+  \let law: Lp.HasFiniteMoment[f, Powers.one] := \bysub(A -> Real.Real, { f: A -> Real.Real \where Lp.HasFiniteMoment[f, Powers.one] }, f) \then
+  \takefrom g: \Cast[A -> Real.Real] ({ g: A -> Real.Real \where Lp.Moment[f, Powers.one, g] }) \by law.moment \then
+  \let moment: Lp.Moment[f, Powers.one, g] := \bysub(A -> Real.Real, { g: A -> Real.Real \where Lp.Moment[f, Powers.one, g] }, g) \then
+  \let function: A -> Real.Real := g \then
+  \let same: function = Absolute.abs f := \axiom:funext(function, Absolute.abs f, \fun (x: A) => Powers.identityUnique _ _ (Product.absNonnegative (f x)) (moment.power x)) \then
+  \return Logic.And[_, _]::# law.measurable (\idelim function = Absolute.abs f \with h: (A -> Real.Real) => I.Finite h \by { base: moment.integrable, equality: same })
+};
+\definition fromIntegral[f: I.Representatives]: Representatives := \into[A -> Real.Real](f, { g: A -> Real.Real \where Lp.HasFiniteMoment[g, Powers.one] }) \by {
+  Lp.HasFiniteMoment[f, Powers.one] {
+    measurable := (\bysub(A -> Real.Real, { f: A -> Real.Real \where I.Integrable f }, f)).left,
+    moment := Logic.existsIntro[A -> Real.Real, { g: A -> Real.Real \where Lp.Moment[f, Powers.one, g] }] (Absolute.abs f)
+      (Lp.Moment[f, Powers.one, Absolute.abs f] {
+        power := \fun (x: A) => Powers.identity _ (Product.absNonnegative (f x)),
+        integrable := (\bysub(A -> Real.Real, { f: A -> Real.Real \where I.Integrable f }, f)).right,
+      }),
+  }
+};
+\definition toIntegral[f: Representatives]: I.Representatives := \into[A -> Real.Real](f, { f: A -> Real.Real \where I.Integrable f }) \by { integrable f };
+\definition zeroRepresentative: Representatives := fromIntegral Zero.representative;
+\definition addRepresentative[f, g: Representatives]: Representatives := fromIntegral (Linear.addRepresentative (toIntegral f) (toIntegral g));
+\definition scaleRepresentative[c: Real.Real][f: Representatives]: Representatives := fromIntegral (Scaling.scalarRepresentative c (toIntegral f));
+\definition negRepresentative[f: Representatives]: Representatives := fromIntegral (Negation.representative (toIntegral f));
+\import std.Set[].Quotient[A := Representatives, Equivalent := \fun (f, g: Representatives) => M.AlmostEqual mu f g] \as Q;
+\definition equivalence: Q.EquivalenceLaws := Q.EquivalenceLaws {
+  refl := \fun (f: Representatives) => AE.reflexive f,
+  sym := \fun (f, g: Representatives) => AE.symmetric f g,
+  trans := \fun (f, g, h: Representatives) => AE.transitive f g h,
+};
+\definition ofFunction[f: Representatives]: Space := Existing.ofFunction f;
+\definition ofIntegral[f: I.Representatives]: Space := ofFunction (fromIntegral f);
+\definition classEqual[f, g: Representatives]: M.AlmostEqual mu f g -> ofFunction f = ofFunction g := Q.classOfEq equivalence f g;
+\definition classPointwise[f, g: Representatives]: (\forall (x: A) -> f x = g x) -> ofFunction f = ofFunction g :=
+  \fun (same: _) => \block {
+    \let left: A -> Real.Real := f \then
+    \let right: A -> Real.Real := g \then
+    \return classEqual f g (\idelim left = right \with h: (A -> Real.Real) => M.AlmostEqual mu f h \by {
+      base: AE.reflexive f, equality: \axiom:funext(left, right, same) })
+  };
+\import Q.Binary[C := Representatives, B := Space, OtherEquivalent := \fun (f, g: Representatives) => M.AlmostEqual mu f g] \as Binary;
+\definition classAdd[f, g: Representatives]: Space := ofFunction (addRepresentative f g);
+\definition addRespects: Binary.Respects classAdd := \fun (f, f2, g, g2: Representatives)(ff: _)(gg: _) =>
+  classEqual (addRepresentative f g) (addRepresentative f2 g2) (I.QuotientLinear[].addAlmost (toIntegral f) (toIntegral f2) (toIntegral g) (toIntegral g2) ff gg);
+\definition add: Space -> Space -> Space := Binary.value equivalence equivalence classAdd addRespects;
+\definition addClass: \forall (f, g: Representatives) -> add (ofFunction f) (ofFunction g) = ofFunction (addRepresentative f g) :=
+  Binary.onClass equivalence equivalence classAdd addRespects;
+\import Q.Maps[B := Space] \as Maps;
+\definition scaleClassMap[c: Real.Real][f: Representatives]: Space := ofFunction (scaleRepresentative c f);
+\definition scaleRespects[c: Real.Real]: Maps.Respects (scaleClassMap c) := \fun (f, g: Representatives)(same: _) =>
+  classEqual (scaleRepresentative c f) (scaleRepresentative c g) (Null.mapAlmost (Real.mul c) f g same);
+\definition scale[c: Real.Real]: Space -> Space := Maps.value equivalence (scaleClassMap c) (scaleRespects c);
+\definition scaleClass[c: Real.Real][f: Representatives]: scale c (ofFunction f) = ofFunction (scaleRepresentative c f) :=
+  Maps.onClass equivalence (scaleClassMap c) (scaleRespects c) f;
+\definition negClassMap[f: Representatives]: Space := ofFunction (negRepresentative f);
+\definition negRespects: Maps.Respects negClassMap := \fun (f, g: Representatives)(same: _) => classEqual (negRepresentative f) (negRepresentative g) (Null.mapAlmost Real.neg f g same);
+\definition neg: Space -> Space := Maps.value equivalence negClassMap negRespects;
+\definition negClass[f: Representatives]: neg (ofFunction f) = ofFunction (negRepresentative f) := Maps.onClass equivalence negClassMap negRespects f;
+\definition zero: Space := ofFunction zeroRepresentative;
+\module Vector;
+\module Norm;

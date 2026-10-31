@@ -1,0 +1,22 @@
+\import \root.Powers[].Algebra[] \as PA;
+\import M.Sigma[] \as Sigma;
+\import topology.Topology[Carrier := A] \as Sets;
+\definition function[f: A -> Powers.Nonnegative]: A -> Real.Real := \fun (x: A) => Powers.value (f x) (PA.positiveExponent p);
+\definition measurable: \forall (f: A -> Powers.Nonnegative) -> M.IsMeasurable mu (\fun (x: A) => f x) -> M.IsMeasurable mu (function f) :=
+  \fun (f: A -> Powers.Nonnegative)(measurable: _)(r: Real.Real) => Logic.orElim _ _ _ (Laws.nonnegativeOrNegativeReal r)
+    (\fun (nonnegative: _) => \block {
+      \let level: Powers.Nonnegative := \into[Real.Real](r, Powers.Nonnegative) \by { nonnegative } \then
+      \let root: Real.Real := Powers.value level (PA.inverseExponent p) \then
+      \return \idelim { x: A \where R.Lt root (f x) } = { x: A \where R.Lt r (function f x) } \with S: \Pow A => M.Measurable mu.sigma S \by {
+        base: measurable root,
+        equality: \axiom:setext({ x: A \where R.Lt root (f x) }, { x: A \where R.Lt r (function f x) },
+          \fun (x: A)(less: _) => PA.comparisonRoot (f x) level p less,
+          \fun (x: A)(less: _) => PA.rootComparison (f x) level p less)
+      }
+    })
+    (\fun (negative: _) => \idelim Sets.Whole = { x: A \where R.Lt r (function f x) } \with S: \Pow A => M.Measurable mu.sigma S \by {
+      base: Sigma.wholeMeasurable mu.sigma,
+      equality: \axiom:setext(Sets.Whole, { x: A \where R.Lt r (function f x) },
+        \fun (x: A)(member: _) => R.ltLeTrans _ _ _ negative (Powers.nonnegativeValue (f x) (PA.positiveExponent p)),
+        \fun (x: A)(member: _) => \refl(x))
+    });

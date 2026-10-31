@@ -1,0 +1,18 @@
+\import calculus.Real[].Derivative[].Operations[] \as Derivatives;
+\module Right;
+\module Left;
+\definition lowerAtZero: t = Real.zero -> R.Le (Real.add Real.one t) (Exp.value t) :=
+  \fun (zero: t = Real.zero) => \idelim Real.zero = t \with u: Real.Real => R.Le (Real.add Real.one u) (Exp.value u) \by {
+    base: R.leReplace Real.one (Real.add Real.one Real.zero) Real.one (Exp.value Real.zero)
+      (sym!{Real.Real} _ _ (Laws.addZeroRight Real.one)) (sym!{Real.Real} _ _ Exp.atZero) (R.leRefl Real.one),
+    equality: sym!{Real.Real} _ _ zero
+  };
+\definition lowerNonnegative: R.Le Real.zero t -> R.Le (Real.add Real.one t) (Exp.value t) :=
+  \fun (nonnegative: R.Le Real.zero t) =>
+    Logic.orElim (t = Real.zero) (Logic.Not (t = Real.zero)) (R.Le (Real.add Real.one t) (Exp.value t))
+      (Classical.excludedMiddle (t = Real.zero)) lowerAtZero
+      (\fun (nonzero: Logic.Not (t = Real.zero)) => Right[].lower
+        (Order.ltOfLeNotEq Real.zero t nonnegative (\fun (zero: Real.zero = t) => nonzero (sym!{Real.Real} Real.zero t zero))));
+\definition lower: R.Le (Real.add Real.one t) (Exp.value t) :=
+  Logic.orElim (R.Le Real.zero t) (R.Lt t Real.zero) (R.Le (Real.add Real.one t) (Exp.value t))
+    (Laws.nonnegativeOrNegativeReal t) lowerNonnegative (Left[].lower);
