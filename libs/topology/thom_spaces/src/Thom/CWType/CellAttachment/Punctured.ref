@@ -1,0 +1,20 @@
+\definition subset: \Pow Model.Disk := { p: Model.Disk \where Logic.Not (Model.normSquared p = R.zero) };
+\import DiskSpace.Subspace[S := subset] \as Subspace;
+\definition Carrier: \Set := Subspace.CarrierSet;
+\definition topology: topology.Topology[Carrier := Carrier].Topology := Subspace.topology Model.diskTopology;
+\definition squaredContinuous: metric_spaces.RealFunctions[A := Model.Disk].Continuous Model.diskTopology (\fun (p: Model.Disk) => Model.normSquared p) :=
+  topology.Continuity[A := Model.Coordinate, B := R.Real].Restriction[S := Model.ClosedBall].restrictContinuous Model.topology metric_spaces.RealLine[].topology Model.normSquared Model.Geometry[].normSquaredContinuous;
+\definition open: DiskSpace.IsOpenIn Model.diskTopology subset := squaredContinuous ({ r: R.Real \where Logic.Not (r = R.zero) })
+  (metric_spaces.MetricSpace[Carrier := R.Real].Topology[].singletonClosed metric_spaces.RealMetric[].metric R.zero);
+\definition vector[p: Carrier]: Model.Normalization[].Nonzero := \into[Model.Coordinate](p, Model.Normalization[].Nonzero) \by { \bysub(Model.Disk, subset, p) };
+\definition normal[p: Carrier]: Model.Sphere := Model.Normalization[].normalize (vector p);
+\definition vectorContinuous: topology.Continuity[A := Carrier, B := Model.Coordinate].Continuous topology Model.topology (\fun (p: Carrier) => vector p) :=
+  topology.Composition[A := Carrier, B := Model.Disk, C := Model.Coordinate].composeContinuous topology Model.diskTopology Model.topology (\fun (p: Carrier) => p) (\fun (p: Model.Disk) => p)
+    (topology.Continuity[A := Carrier, B := Model.Disk].Corestriction[S := subset].inclusionContinuous Model.diskTopology)
+    (topology.Continuity[A := Model.Disk, B := Model.Coordinate].Corestriction[S := Model.ClosedBall].inclusionContinuous Model.topology);
+\definition normalContinuous: topology.Continuity[A := Carrier, B := Model.Sphere].Continuous topology Model.sphereTopology normal := Model.Normalization[].Continuity[A := Carrier].continuous topology vector vectorContinuous;
+\definition unit[v: Model.Sphere]: Carrier := \into[Model.Disk](boundaryInclusion v, subset) \by {
+  \fun (zero: Model.normSquared v = R.zero) => dedekind_reals.DedekindReal[].Arithmetic[].Prop[].zeroNeOne
+    (trans!{R.Real} _ _ _ (sym!{R.Real} _ _ zero) (\bysub(Model.Coordinate, Model.Boundary, v)))
+};
+\definition normalUnit: \forall (v: Model.Sphere) -> normal (unit v) = v := Model.Normalization[].normalizesUnit;

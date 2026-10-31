@@ -1,0 +1,29 @@
+\definition apply: Carrier -> B := Sum.Universal[C := B].copair f (\fun (p: InteriorPoint) => g p);
+\definition onOriginal: \forall (a: A) -> apply (inclusion a) = f a := \fun (a: A) => \refl(f a);
+\definition onCell: \forall (p: Model.Disk) -> apply (characteristic p) = g p :=
+  \fun (p: Model.Disk) => either!{{Classical.excludedMiddle (Model.normSquared p = R.one)} {apply (characteristic p) = g p}
+    {\fun (boundary: Model.normSquared p = R.one) => trans!{B} _ _ _
+      (congr!{Carrier B} apply _ _ ((cellLaws p).boundary boundary))
+      (agrees (\into[Model.Coordinate](p, Model.Boundary) \by { boundary }))}
+    {\fun (outside: _) => \block {
+      \let inside: D.Lt (Model.normSquared p) R.one := Order.ltOfLeNotEq _ _ (\bysub(Model.Coordinate, Model.ClosedBall, p)) outside \then
+      \return congr!{Carrier B} apply _ _ ((cellLaws p).inside inside)
+    }}
+  };
+\definition continuous: topology.Continuity[A := A, B := B].Continuous source target f ->
+  topology.Continuity[A := Model.Disk, B := B].Continuous Model.diskTopology target g ->
+  topology.Continuity[A := Carrier, B := B].Continuous topology target apply :=
+  \fun (first: _)(second: _)(U: \Pow B)(open: _) => (openCriterion ({ x: Carrier \where \In[B] U (apply x) })).rtl
+    (Logic.And[_, _]::# (first U open)
+      (\idelim ({ p: Model.Disk \where \In[B] U (g p) }) = ({ p: Model.Disk \where \In[B] U (apply (characteristic p)) })
+        \with V: \Pow Model.Disk => topology.Topology[Carrier := Model.Disk].IsOpenIn Model.diskTopology V \by {
+          base: second U open,
+          equality: \axiom:setext(({ p: Model.Disk \where \In[B] U (g p) }), ({ p: Model.Disk \where \In[B] U (apply (characteristic p)) }),
+            \fun (p: Model.Disk)(inside: _) => \idelim g p = apply (characteristic p) \with y: B => \In[B] U y \by { base: inside, equality: sym!{B} _ _ (onCell p) },
+            \fun (p: Model.Disk)(inside: _) => \idelim apply (characteristic p) = g p \with y: B => \In[B] U y \by { base: inside, equality: onCell p })
+        }));
+\definition unique: \forall (h: Carrier -> B) -> (\forall (a: A) -> h (inclusion a) = f a) -> (\forall (p: Model.Disk) -> h (characteristic p) = g p) -> h = apply :=
+  \fun (h: Carrier -> B)(onOriginal: _)(onDisk: _) => \axiom:funext(h, apply, \induction (x: Carrier) \return h x = apply x \with {
+    | inl: onOriginal
+    | inr: \fun (p: InteriorPoint) => trans!{B} _ _ _ (congr!{Carrier B} h _ _ (sym!{Carrier} _ _ (onInterior p))) (onDisk p)
+  });
