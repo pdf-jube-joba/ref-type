@@ -1,0 +1,46 @@
+\import calculus.Blocks[n := k, m := r] \as Blocks;
+\import calculus.Real[].Multivariable[n := k].Open[] \as ParameterOpen;
+\import calculus.Maps[n := sourceDimension, m := sourceDimension] \as Coordinates;
+\definition product: Open.OpenSet := Blocks.product local.parameters local.values;
+\definition inside: \forall (y: Open.Carrier product) -> \In[Point] U.points (Coordinates.apply product local.domain local.coordinates.backward y) :=
+  \fun (y: Open.Carrier product) => local.included (Coordinates.apply product local.domain local.coordinates.backward y)
+    (\bysub(Point, local.domain.points, Coordinates.apply product local.domain local.coordinates.backward y));
+\definition source: Coordinates.Map product U := Coordinates.Corestriction[U := product, V := local.domain, W := U, f := local.coordinates.backward, inside := inside].map;
+\import Coordinates.Composition[U := product, V := U, f := source].After[l := targetDimension, W := TargetOpen.whole, g := f] \as SourceComposition;
+\definition transformed: Maps.Map product TargetOpen.whole := SourceComposition.compose;
+\definition projectionLaw: \forall (y: Open.Carrier product) -> projection.apply (Maps.apply product TargetOpen.whole transformed y) = Blocks.right y :=
+  \fun (y: Open.Carrier product) => trans!{ImagePoint} _ _ _ (local.projection (Coordinates.apply product local.domain local.coordinates.backward y))
+    (congr!{Point ImagePoint} Blocks.right _ _ (local.coordinates.rightInverse y));
+\import calculus.LinearMap[n := sourceDimension, m := r].On[U := product, L := Source.rightLinear] \as RightProjection;
+\import Maps.Composition[U := product, V := TargetOpen.whole, f := transformed].After[l := r, W := ImageOpen.whole, g := Projection.map] \as ProjectionComposition;
+\definition transformedDerivative[y: Open.Carrier product]: Differentials.LinearMap := Maps.Differential[U := product, V := TargetOpen.whole, f := transformed, a := y].value;
+\definition projectionDerivative: \forall (y: Open.Carrier product)(v: Point) -> projection.apply ((transformedDerivative y).apply v) = Blocks.right v := \block {
+  \fun (y: Open.Carrier product)(v: Point) \then
+  \let same: Submersions.Differential[U := product, V := ImageOpen.whole, f := ProjectionComposition.compose, a := y].value = Submersions.Differential[U := product, V := ImageOpen.whole, f := RightProjection.map, a := y].value :=
+    Submersions.Differential[U := product, V := ImageOpen.whole, f := ProjectionComposition.compose, a := y].Compare[W := ImageOpen.whole, g := RightProjection.map].equal
+      (\axiom:funext((\fun (z: Open.Carrier product) => Submersions.apply product ImageOpen.whole ProjectionComposition.compose z), (\fun (z: Open.Carrier product) => Submersions.apply product ImageOpen.whole RightProjection.map z), projectionLaw)) \then
+  \return eq_reason_in!{ImagePoint _
+    "=" _ "by" { sym!{ImagePoint} _ _ (congr!{{Projections.LinearMap} ImagePoint} (\fun (L: Projections.LinearMap) => L.apply ((transformedDerivative y).apply v)) _ _ (Projection.differential (Maps.apply product TargetOpen.whole transformed y))) }
+    "=" _ "by" { sym!{ImagePoint} _ _ (congr!{{calculus.Vector[n := sourceDimension, m := r].LinearMap} ImagePoint} (\fun (L: calculus.Vector[n := sourceDimension, m := r].LinearMap) => L.apply v) _ _ (ProjectionComposition.At[a := y].jacobian)) }
+    "=" _ "by" { congr!{{calculus.Vector[n := sourceDimension, m := r].LinearMap} ImagePoint} (\fun (L: calculus.Vector[n := sourceDimension, m := r].LinearMap) => L.apply v) _ _ same }
+    "=" _ "by" { congr!{{calculus.Vector[n := sourceDimension, m := r].LinearMap} ImagePoint} (\fun (L: calculus.Vector[n := sourceDimension, m := r].LinearMap) => L.apply v) _ _ (RightProjection.differential y) }
+  }
+};
+\module At(y: Open.Carrier product, witness: Rank.Witness[differential (Coordinates.apply product U source y)]);
+\definition horizontalDerivative: \forall (y: Open.Carrier product)(v: topological_algebra.Euclidean[].Dimension[n := k].Point) -> (transformedDerivative y).apply (Source.horizontal.apply v) = Ambient.space.zero := \block {
+  \fun (y: Open.Carrier product)(v: topological_algebra.Euclidean[].Dimension[n := k].Point) \then
+  \takefrom witness: Rank.Witness[differential (Coordinates.apply product U source y)] \by rank (Coordinates.apply product U source y) \then
+  \return At[y := y, witness := witness].horizontal v
+};
+\definition basePoint: Open.Carrier product := Coordinates.apply local.domain product local.coordinates.forward (\into[Point](a, local.domain.points) \by { local.contains });
+\definition baseParameter: ParameterOpen.Carrier local.parameters := Blocks.On[U := local.parameters, V := local.values].leftPoint basePoint;
+\module Section(z: ImageOpen.Carrier local.values);
+\import Target.Surjection[D := projection] \as TargetSplitting;
+\definition projectionSurjective: TargetSplitting.Surjective := \fun (z: ImagePoint) => Logic.existsIntro[TargetPoint, { v: TargetPoint \where projection.apply v = z }] (witness.image.apply z) (Gram.leftInverse z);
+\module Build(rho: Real, ball: ParameterOpen.BallInside[local.parameters.points, baseParameter, rho], splitting: TargetSplitting.Splitting);
+\definition existence: \exists NormalForm := \block {
+  \takefrom rho: \Cast[Real] ({ rho: Real \where ParameterOpen.BallInside[local.parameters.points, baseParameter, rho] })
+    \by local.parameters.open baseParameter (\bysub(topological_algebra.Euclidean[].Dimension[n := k].Point, local.parameters.points, baseParameter)) \then
+  \takefrom splitting: TargetSplitting.Splitting \by TargetSplitting.existence projectionSurjective \then
+  \return \exact(Build[rho := rho, ball := \bysub(Real, { rho: Real \where ParameterOpen.BallInside[local.parameters.points, baseParameter, rho] }, rho), splitting := splitting].normalForm, NormalForm)
+};

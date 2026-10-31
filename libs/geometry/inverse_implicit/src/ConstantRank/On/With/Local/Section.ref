@@ -1,0 +1,33 @@
+\import Blocks.FixedRight[U := local.parameters, V := product, c := z] \as Section;
+\definition included: Section.Included := \fun (p: ParameterOpen.Carrier local.parameters) => Logic.And[_, _]::#
+  (\idelim p = Blocks.left (Blocks.join p z) \with q: topological_algebra.Euclidean[].Dimension[n := k].Point => \In[topological_algebra.Euclidean[].Dimension[n := k].Point] local.parameters.points q \by {
+    base: \bysub(topological_algebra.Euclidean[].Dimension[n := k].Point, local.parameters.points, p), equality: sym!{topological_algebra.Euclidean[].Dimension[n := k].Point} _ _ (Blocks.leftJoin p z)
+  })
+  (\idelim z = Blocks.right (Blocks.join p z) \with q: ImagePoint => \In[ImagePoint] local.values.points q \by {
+    base: \bysub(ImagePoint, local.values.points, z), equality: sym!{ImagePoint} _ _ (Blocks.rightJoin p z)
+  });
+\import calculus.Maps[n := k, m := targetDimension] \as Parameters;
+\import calculus.Maps[n := k, m := sourceDimension].Composition[U := local.parameters, V := product, f := Section.map included].After[l := targetDimension, W := TargetOpen.whole, g := transformed] \as Composition;
+\definition function: Parameters.Map local.parameters TargetOpen.whole := Composition.compose;
+\import ParameterOpen.Smooth[].Derivative[] \as Partials;
+\import ParameterOpen.Analysis[] \as Analysis;
+\import calculus.Vector[n := k, m := targetDimension] \as Vector;
+\definition sectionDerivative: \forall (p: ParameterOpen.Carrier local.parameters)(v: topological_algebra.Euclidean[].Dimension[n := k].Point) -> Parameters.Differential[U := local.parameters, V := TargetOpen.whole, f := function, a := p].value.apply v = Ambient.space.zero :=
+  \fun (p: ParameterOpen.Carrier local.parameters)(v: topological_algebra.Euclidean[].Dimension[n := k].Point) => eq_reason_in!{TargetPoint _
+    "=" _ "by" { congr!{{Vector.LinearMap} TargetPoint} (\fun (L: Vector.LinearMap) => L.apply v) _ _ (Composition.At[a := p].jacobian) }
+    "=" _ "by" { congr!{{calculus.Vector[n := k, m := sourceDimension].LinearMap} TargetPoint} (\fun (L: calculus.Vector[n := k, m := sourceDimension].LinearMap) => (transformedDerivative (Section.apply included p)).apply (L.apply v)) _ _ (Source.FixedRightDerivative[U := local.parameters, V := product, c := z, included := included].jacobian p) }
+    "=" _ "by" { horizontalDerivative (Section.apply included p) v }
+  };
+\definition component[j: Fin.Fin targetDimension]: Partials.Function local.parameters := Parameters.coordinateFunction local.parameters TargetOpen.whole function j;
+\definition gradient[j: Fin.Fin targetDimension][i: Fin.Fin k]: ParameterOpen.ScalarFunction local.parameters := Partials.derivative local.parameters (component j) i;
+\definition gradientZero: \forall (p: ParameterOpen.Carrier local.parameters)(j: Fin.Fin targetDimension)(i: Fin.Fin k) -> gradient j i p = Scalars.zero :=
+  \fun (p: ParameterOpen.Carrier local.parameters)(j: Fin.Fin targetDimension)(i: Fin.Fin k) => trans!{Real} _ _ _
+    (ParameterOpen.Analysis[].Properties[].partialUnique local.parameters (component j) i p _ _ (Partials.partialLaw local.parameters (component j) i p)
+      (Analysis.Differential[U := local.parameters, f := component j, a := p, d := Vector.row Parameters.Differential[U := local.parameters, V := TargetOpen.whole, f := function, a := p].value j].Partial[i := i].law
+        (Parameters.Differential[U := local.parameters, V := TargetOpen.whole, f := function, a := p].vectorLaw j)))
+    (congr!{TargetPoint Real} (\fun (v: TargetPoint) => v j) _ _ (sectionDerivative p (topological_algebra.Euclidean[].Dimension[n := k].Def[].basis i)));
+\module Coordinate(j: Fin.Fin targetDimension, p: ParameterOpen.Carrier local.parameters, rho: Real);
+\definition constant: \forall (rho: Real) -> ParameterOpen.BallInside[local.parameters.points, baseParameter, rho] ->
+  \forall (p: ParameterOpen.Carrier local.parameters) -> R.Lt (topological_algebra.Euclidean[].Dimension[n := k].Def[].pointDistance p baseParameter) rho ->
+  Parameters.apply local.parameters TargetOpen.whole function p = Parameters.apply local.parameters TargetOpen.whole function baseParameter :=
+  \fun (rho: Real)(ball: _)(p: ParameterOpen.Carrier local.parameters)(near: _) => \axiom:funext(Parameters.apply local.parameters TargetOpen.whole function p, Parameters.apply local.parameters TargetOpen.whole function baseParameter, \fun (j: Fin.Fin targetDimension) => Coordinate[j := j, p := p, rho := rho].constant ball near);

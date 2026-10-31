@@ -1,0 +1,25 @@
+\import Ambient.Gram[k := r].Of[A := witness.image, factor := factor] \as Gram;
+\definition projection: Projections.LinearMap := Gram.inverse;
+\import calculus.LinearMap[n := targetDimension, m := r].On[U := TargetOpen.whole, L := projection] \as Projection;
+\import Maps.Composition[U := U, V := TargetOpen.whole, f := f].After[l := r, W := ImageOpen.whole, g := Projection.map] \as Composition;
+\definition submersion: Submersions.Map U ImageOpen.whole := Composition.compose;
+\import Source.Submersion[U := U, f := submersion, a := a] \as Submersion;
+\definition derivative: \forall (v: Point) -> Submersion.differential.apply v = witness.coordinate.apply v :=
+  \fun (v: Point) => eq_reason_in!{ImagePoint _
+    "=" _ "by" { congr!{{calculus.Vector[n := sourceDimension, m := r].LinearMap} ImagePoint} (\fun (L: calculus.Vector[n := sourceDimension, m := r].LinearMap) => L.apply v) _ _ (Composition.At[a := a].jacobian) }
+    "=" _ "by" { congr!{{Projections.LinearMap} ImagePoint} (\fun (L: Projections.LinearMap) => L.apply ((differential a).apply v)) _ _ (Projection.differential (Maps.apply U TargetOpen.whole f a)) }
+    "=" _ "by" { congr!{TargetPoint ImagePoint} projection.apply _ _ (witness.formula v) }
+    "=" _ "by" { Gram.leftInverse (witness.coordinate.apply v) }
+  };
+\definition surjective: Submersion.Surjective := \block {
+  \fun (w: ImagePoint) \then
+  \takefrom v: \Cast[Point] ({ v: Point \where witness.coordinate.apply v = w }) \by witness.coordinateSurjective w \then
+  \return Logic.existsIntro[Point, { v: Point \where Submersion.differential.apply v = w }] v
+    (trans!{ImagePoint} _ _ _ (derivative v) (\bysub(Point, { v: Point \where witness.coordinate.apply v = w }, v)))
+};
+\module Local(local: Submersion.LocalForm);
+
+\definition existence: \exists NormalForm := \block {
+  \takefrom local: Submersion.LocalForm \by Submersion.localExistence surjective \then
+  \return Local[local := local].existence
+};
