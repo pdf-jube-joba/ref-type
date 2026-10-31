@@ -1,0 +1,18 @@
+\definition rho: Kernel := identity.sequence k;
+\definition law: NormalizedLaw[rho] := identity.normalized k;
+\import Convolution.Probability[rho := rho, law := law] \as Probability;
+\import I.Zero[] \as Zero;
+\definition within[y: Point]: Logic.Not (f (E.subPoint x y) = Real.zero) -> Logic.Not (rho.function y = Real.zero) -> Sets.Member box x := \fun (fn: _)(rn: _) =>
+  Bounds.coordinateBound x enlarged (R.leTrans _ _ _ (Geometry.metric.triangle Coordinates.origin (E.subPoint x y) x)
+    (Estimates.addLe _ _ _ _ (radiusBound (E.subPoint x y) (Support.nonzeroInSupport Ambient.topology f (E.subPoint x y) fn))
+      (R.leTrans _ _ _ (Translation.shiftDistance x y)
+        (R.leReplaceLeft _ _ _ (Geometry.metric.symmetric Coordinates.origin y)
+          (R.leTrans _ _ _ (rho.radiusBound y (Support.nonzeroInSupport Ambient.topology rho.function y rn)) (identity.bounded k))))));
+\definition integrandZero[y: Point]: Logic.Not (Sets.Member box x) -> standard input rho x y = Real.zero := \fun (outside: _) => Logic.orElim _ _ _ (Classical.excludedMiddle (rho.function y = Real.zero))
+  (\fun (zero: _) => trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (Real.mul (f (E.subPoint x y))) _ _ zero) (Laws.fieldMulZeroRight _))
+  (\fun (rn: _) => \block {
+    \let zero: f (E.subPoint x y) = Real.zero := Sigma.doubleNegative _ (\fun (fn: _) => outside (within y fn rn)) \then
+    \return trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (\fun (r: Real.Real) => Real.mul r (rho.function y)) _ _ zero) (Laws.fieldMulZeroLeft _)
+  });
+\definition outside: Logic.Not (Sets.Member box x) -> sequence k x = Real.zero := \fun (outside: _) => trans!{Real.Real} _ _ _ (sym!{Real.Real} _ _ (standardIntegral input rho x))
+  (trans!{Real.Real} _ _ _ (Probability.integralPointwise (standard input rho x) Zero.representative (\fun (y: Point) => integrandZero y outside)) Zero.integralZero);

@@ -1,0 +1,12 @@
+\import \root.Euclidean[n := n].Convolution[p := p].Moment[f := f, rho := rho, borel := borel] \as Moment;
+\import L.Jensen[p := p] \as Jensen;
+\module Pointwise(x: Point);
+\definition momentBound[x: Point]: R.Le (F.moment (function f rho) x) (Moment.function x) := Pointwise[x := x].bound;
+\definition measurable: M.IsMeasurable measure (function f rho) := Compact.continuousMeasurable (function f rho) (Compact.smoothContinuous (function f rho) (smooth f rho));
+\definition finite: I.Finite (F.moment (function f rho)) := I.finiteMono (F.moment (function f rho)) (\fun (x: Point) => Product.abs (Moment.representative x)) (F.momentNonnegative (function f rho))
+  (\fun (x: Point) => R.leTrans _ _ _ (momentBound x) (R.leReplaceRight _ _ _ (sym!{Real.Real} _ _ (Product.absExpression (Moment.representative x))) (Distance.maxRight _ _))) (I.integralLaw Moment.representative).integrable.right;
+\definition representative: F.Representatives := \into[Function](function f rho, F.Representatives) \by { F.hasMoment (function f rho) measurable finite };
+\definition momentInequality: R.Le (I.integral (F.momentRepresentative representative)) (I.integral (F.momentRepresentative f)) := R.leReplaceRight _ _ _
+  (trans!{Real.Real} _ _ _ Moment.exchange (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (Real.mul (I.integral (F.momentRepresentative f))) _ _ mass) (Algebra.mulOneRight _)))
+  (Absolute.integralMono (F.momentRepresentative representative) Moment.representative momentBound);
+\definition norm: R.Le (F.normRepresentative representative) (F.normRepresentative f) := PA.monotone (F.integralMoment representative) (F.integralMoment f) (PA.inverseExponent F.positiveExponent) momentInequality;

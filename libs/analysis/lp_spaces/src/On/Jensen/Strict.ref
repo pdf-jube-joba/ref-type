@@ -1,0 +1,57 @@
+\definition exponent: Powers.StrictExponent := \into[P.Exponent](p, Powers.StrictExponent) \by { strict };
+\import Powers.Conjugate[p := exponent] \as Conjugate;
+\definition exponents: ConjugateExponents := ConjugateExponents { left := p, right := Conjugate.exponent, identity := Conjugate.identity };
+\import \root.On[A := A, mu := mu].Holder[exponents := exponents] \as Holder;
+\import \root.On[A := A, mu := mu].Finite[p := Conjugate.exponent] \as G;
+\definition inverse[p: Exp.Positive]: Exp.Positive := \into[Real.Real](Laws.fieldInv p, Exp.Positive) \by { Product.invPositive p (Exp.positive p) };
+\definition root[p: Exp.Positive][x: A]: Powers.Nonnegative := PA.powered (base d x) (PA.inverseExponent p);
+\definition rootMeasurable[p: Exp.Positive]: M.IsMeasurable mu (\fun (x: A) => root p x) := \root.On[A := A, mu := mu].Power[p := inverse p].measurable (base d) (I.integralLaw d.weight).integrable.left;
+\definition leftFunction[x: A]: Real.Real := Real.mul (d.function x) (root F.positiveExponent x);
+\definition rightFunction[x: A]: Real.Real := root G.positiveExponent x;
+\definition leftAbsolute[x: A]: F.absolute leftFunction x = PA.product (F.absolute d.function x) (root F.positiveExponent x) := trans!{Real.Real} _ _ _
+  (Product.absProduct (d.function x) (root F.positiveExponent x))
+  (congr!{Real.Real Real.Real} (Real.mul (Product.abs (d.function x))) _ _ (Product.absOfNonnegative (root F.positiveExponent x) (Powers.baseNonnegative (root F.positiveExponent x))));
+\definition rightAbsolute[x: A]: G.absolute rightFunction x = root G.positiveExponent x := Product.absOfNonnegative (root G.positiveExponent x) (Powers.baseNonnegative (root G.positiveExponent x));
+\definition leftMoment[x: A]: F.moment leftFunction x = d.moment x := eq_reason_in!{Real.Real _
+  "=" _ "by" { congr!{Powers.Nonnegative Real.Real} (\fun (a: Powers.Nonnegative) => Powers.value a (Powers.exponent p)) _ _ (leftAbsolute x) }
+  "=" _ "by" { PA.multiply (F.absolute d.function x) (root F.positiveExponent x) (Powers.exponent p) }
+  "=" _ "by" { congr!{Real.Real Real.Real} (Real.mul (F.moment d.function x)) _ _ (PA.powerRoot (base d x) F.positiveExponent) }
+  "=" _ "by" { sym!{Real.Real} _ _ (d.momentValue x) }
+};
+\definition rightMoment[x: A]: G.moment rightFunction x = d.weight x := trans!{Real.Real} _ _ _
+  (congr!{Powers.Nonnegative Real.Real} (\fun (a: Powers.Nonnegative) => Powers.value a (Powers.exponent Conjugate.exponent)) _ _ (rightAbsolute x))
+  (PA.powerRoot (base d x) G.positiveExponent);
+\definition left: F.Representatives := \into[A -> Real.Real](leftFunction, F.Representatives) \by {
+  F.hasMoment leftFunction (Products.measurable d.function (\fun (x: A) => root F.positiveExponent x) d.measurable (rootMeasurable F.positiveExponent))
+    (I.finiteMono (F.moment leftFunction) (\fun (x: A) => Product.abs (d.moment x)) (F.momentNonnegative leftFunction)
+      (\fun (x: A) => R.leReplaceLeft _ _ _ (sym!{Real.Real} _ _ (leftMoment x))
+        (R.leReplaceRight _ _ _ (sym!{Real.Real} _ _ (Product.absExpression (d.moment x))) (Distance.maxRight _ _))) (I.integralLaw d.moment).integrable.right)
+};
+\definition right: G.Representatives := \into[A -> Real.Real](rightFunction, G.Representatives) \by {
+  G.hasMoment rightFunction (rootMeasurable G.positiveExponent)
+    (I.finiteMono (G.moment rightFunction) (\fun (x: A) => Product.abs (d.weight x)) (G.momentNonnegative rightFunction)
+      (\fun (x: A) => R.leReplaceLeft _ _ _ (sym!{Real.Real} _ _ (rightMoment x))
+        (R.leReplaceRight _ _ _ (sym!{Real.Real} _ _ (Product.absExpression (d.weight x))) (Distance.maxRight _ _))) (I.integralLaw d.weight).integrable.right)
+};
+\definition rightIntegral: I.integral (G.momentRepresentative right) = Real.one := trans!{Real.Real} _ _ _ (Holder.integralPointwise (G.momentRepresentative right) d.weight rightMoment) d.mass;
+\definition rightIntegralBase: G.integralMoment right = PA.oneBase := rightIntegral;
+\definition rightNorm: G.normRepresentative right = Real.one := trans!{Real.Real} _ _ _
+  (congr!{Powers.Nonnegative Real.Real} (\fun (a: Powers.Nonnegative) => Powers.value a (PA.inverseExponent G.positiveExponent)) _ _ rightIntegralBase) (PA.oneValue (PA.inverseExponent G.positiveExponent));
+\definition exponentSum: PA.sum (PA.inverseExponent F.positiveExponent) (PA.inverseExponent G.positiveExponent) = PA.oneBase := Conjugate.identity;
+\definition roots[x: A]: Real.mul (root F.positiveExponent x) (root G.positiveExponent x) = d.weight x := eq_reason_in!{Real.Real _
+  "=" _ "by" { sym!{Real.Real} _ _ (PA.addExponents (base d x) (PA.inverseExponent F.positiveExponent) (PA.inverseExponent G.positiveExponent)) }
+  "=" _ "by" { congr!{Powers.Nonnegative Real.Real} (Powers.value (base d x)) _ _ exponentSum }
+  "=" _ "by" { Powers.identityValue (base d x) }
+};
+\definition productValue[x: A]: Holder.representative left right x = d.product x := trans!{Real.Real} _ _ _
+  (trans!{Real.Real} _ _ _ (Laws.fieldMulAssoc (d.function x) (root F.positiveExponent x) (root G.positiveExponent x)) (congr!{Real.Real Real.Real} (Real.mul (d.function x)) _ _ (roots x)))
+  (sym!{Real.Real} _ _ (d.productValue x));
+\definition bound: R.Le (Product.abs (I.integral d.product)) (F.normRepresentative left) := R.leReplaceRight _ _ _
+  (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (Real.mul (F.normRepresentative left)) _ _ rightNorm) (Algebra.mulOneRight _))
+  (R.leTrans _ _ _ (Absolute.integralAbsBound d.product)
+    (R.leReplaceLeft _ _ _ (Holder.integralPointwise (Absolute.representative (Holder.representative left right)) (Absolute.representative d.product)
+      (\fun (x: A) => congr!{Real.Real Real.Real} Product.abs _ _ (productValue x))) (Holder.inequality left right)));
+\definition inequality: R.Le (Powers.value (\into[Real.Real](Product.abs (I.integral d.product), Powers.Nonnegative) \by { Product.absNonnegative _ }) (Powers.exponent p)) (I.integral d.moment) :=
+  R.leReplaceRight _ _ _ (trans!{Real.Real} _ _ _ (F.normPower left) (Holder.integralPointwise (F.momentRepresentative left) d.moment leftMoment))
+    (PA.monotone (\into[Real.Real](Product.abs (I.integral d.product), Powers.Nonnegative) \by { Product.absNonnegative _ })
+      (\into[Real.Real](F.normRepresentative left, Powers.Nonnegative) \by { F.normNonnegative left }) (Powers.exponent p) bound);

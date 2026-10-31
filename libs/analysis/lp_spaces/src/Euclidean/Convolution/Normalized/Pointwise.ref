@@ -1,0 +1,24 @@
+\import product_integration.MeasureMap[A := Point, B := Point, source := measure, target := measure].On[map := \root.Euclidean[n := n].ReflectedTranslation[a := x].map] \as Transport;
+\import Transport.RealFunction[f := F.momentRepresentative f] \as MomentInput;
+\import L.Endpoint[] \as Endpoint;
+\import L.One[] \as One;
+\import \root.Euclidean[n := n].Convolution[p := p].Section[f := f, rho := rho, a := x] \as Section;
+\definition bounded: L.Infinity[].Representatives := \into[Function](rho.function, L.Infinity[].Representatives) \by {
+  M.Lp[mu := measure].EssentiallyBounded[rho.function] {
+    measurable := (I.integralLaw Moment.weight).integrable.left,
+    bound := Logic.existsIntro[Real.Real, { b: Real.Real \where M.Lp[mu := measure].EssentialBound[rho.function, b] }] rho.coefficient
+      (Infinity.boundOutside rho.function rho.coefficient Sets.Empty (Powers.baseNonnegative rho.coefficient) AE.nullEmpty (\fun (y: Point)(outside: _) => rho.absoluteBound y)) }
+};
+\definition moment: I.Representatives := Endpoint.representative (One.fromIntegral MomentInput.representative) bounded;
+\definition momentValue[y: Point]: moment y = Real.mul (F.moment f (E.subPoint x y)) (rho.function y) := congr!{Point Real.Real} (\fun (z: Point) => Real.mul (F.moment f z) (rho.function y)) _ _ (\root.Euclidean[n := n].ReflectedTranslation[a := x].pointwise y);
+\definition data: Jensen.Data := Jensen.Data {
+  function := \fun (y: Point) => f (E.subPoint x y), measurable := \root.Euclidean[n := n].ReflectedTranslation[a := x].measurable f (F.properties f).measurable,
+  weight := Moment.weight, nonnegative := nonnegative, mass := mass, product := standard f rho x, productValue := \fun (y: Point) => \refl(Real.mul (f (E.subPoint x y)) (rho.function y)),
+  moment := moment, momentValue := momentValue };
+\definition integralMoment: I.integral moment = Moment.function x := trans!{Real.Real} _ _ _
+  (Null.integralAlmost moment (\root.Euclidean[n := n].Convolution[p := Powers.one].standard Moment.input Moment.kernel x) (AE.nullSubset _ Sets.Empty
+    (\fun (y: Point)(different: _) => different (momentValue y)) AE.nullEmpty))
+  (\root.Euclidean[n := n].Convolution[p := Powers.one].standardIntegral Moment.input Moment.kernel x);
+\definition bound: R.Le (F.moment (function f rho) x) (Moment.function x) := R.leReplace _ _ _ _
+  (congr!{Real.Real Real.Real} (\fun (r: Real.Real) => Powers.value (\into[Real.Real](Product.abs r, Nonnegative) \by { Product.absNonnegative r }) (Powers.exponent p)) _ _ (standardIntegral f rho x))
+  integralMoment (Jensen.inequality data);

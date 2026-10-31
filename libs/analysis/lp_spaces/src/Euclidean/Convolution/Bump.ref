@@ -1,0 +1,47 @@
+\import Smooth.LocalBump[a := Coordinates.origin, q := q] \as Bump;
+\import Bump.Support[] \as SupportBound;
+\import \root.Euclidean[n := n].Compact[p := Powers.one] \as CompactOne;
+\import L.One[] \as One;
+\import I.Scaling[] \as Scaling;
+\import E.Scaling[] \as VolumeProducts;
+\import euclidean_measure.BoxVolume[n := n] \as Volume;
+\definition bump: SmoothCompact := \into[Function](Bump.value, SmoothCompact) \by { SmoothCompactLaws[Bump.value] { smooth := Bump.smooth, compact := SupportBound.supportCompact } };
+\definition integralRepresentative: I.Representatives := One.toIntegral (CompactOne.smoothRepresentative bump);
+\definition mass: Real.Real := I.integral integralRepresentative;
+\definition half: Nonnegative := \into[Real.Real](Real.mul Real.half q, Nonnegative) \by { Order.leOfLt _ _ (Estimates.halfOfPositive q Bump.qPositive) };
+\definition box: E.Box := Bounds.box half;
+\definition finite: Finite.FiniteMeasurableSet := \into[\Pow Point](E.points box, Finite.FiniteMeasurableSet) \by { Integration.boxFinite box };
+\import product_integration.Finiteness[A := Point, mu := measure].Indicator[S := finite] \as Indicator;
+\definition boxBound[x: Point]: Sets.Member finite x -> R.Le (Geometry.metric.distance x Coordinates.origin) half := \fun (member: _) => Geometry.finiteUpper n (Coordinates.subPoint x Coordinates.origin) half (Powers.baseNonnegative half)
+  (\fun (i: Fin.Fin n) => R.leReplaceLeft _ _ _ (sym!{Real.Real} _ _ (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (\fun (t: Real.Real) => Real.distance t Real.zero) _ _ (Laws.subZeroRight (x i))) (Distance.distanceSymmetric (x i) Real.zero)))
+    (Estimates.distanceLeOfInterval Real.zero (x i) half
+      (R.leReplaceLeft _ _ _ (sym!{Real.Real} _ _ (Laws.addZeroLeft (Real.neg half))) (member.right i).left)
+      (R.leReplaceRight _ _ _ (sym!{Real.Real} _ _ (Laws.addZeroLeft half)) (member.right i).right)));
+\definition indicatorBound[x: Point]: R.Le (Indicator.representative x) (integralRepresentative x) := Logic.orElim _ _ _ (Classical.excludedMiddle (Sets.Member finite x))
+  (\fun (member: _) => R.leReplace _ _ _ _ (sym!{Real.Real} _ _ (Indicator.inside x member))
+    (sym!{Real.Real} _ _ (Bump.oneNear x (R.leLtTrans _ _ _ (boxBound x member) (Estimates.halfStrict q Bump.qPositive)))) (R.leRefl Real.one))
+  (\fun (outside: _) => R.leReplaceLeft _ _ _ (sym!{Real.Real} _ _ (Indicator.outside x outside)) (Bump.bounded x).left);
+\definition boxMass: I.integral Indicator.representative = E.volume box := trans!{Real.Real} _ _ _ Indicator.integral
+  (Complete.leastUpperBoundUnique (measure.value finite) (Finite.mass finite) (E.volume box) (Finite.massLaw finite)
+    (\idelim E.volumeValue box = measure.value finite \with v: M.Value => Complete.LeastUpperBound[v, E.volume box] \by {
+      base: Volume.volumeSup box, equality: sym!{M.Value} _ _ (Volume.boxVolume box) }));
+\definition widthPositive: R.Lt Real.zero (Real.sub half (Real.neg half)) := R.ltReplaceRight _ _ _
+  (sym!{Real.Real} _ _ (congr!{Real.Real Real.Real} (Real.add half) _ _ (Laws.negInvolutive half)))
+  (R.leLtTrans Real.zero half (Real.add half half) (Powers.baseNonnegative half) (Real.SquareRoot[].addPositive half half (Estimates.halfOfPositive q Bump.qPositive)));
+\definition volumePositive: R.Lt Real.zero (E.volume box) := VolumeProducts.productPositive n (\fun (i: Fin.Fin n) => Real.sub half (Real.neg half)) (\fun (i: Fin.Fin n) => widthPositive);
+\definition positive: R.Lt Real.zero mass := R.ltLeTrans _ _ _ (R.ltReplaceRight _ _ _ (sym!{Real.Real} _ _ boxMass) volumePositive)
+  (Absolute.integralMono Indicator.representative integralRepresentative indicatorBound);
+\definition function: SmoothCompact := SmoothOperations.scale (Laws.fieldInv mass) bump;
+\definition representative: I.Representatives := One.toIntegral (CompactOne.smoothRepresentative function);
+\definition nonnegative[x: Point]: R.Le Real.zero (function x) := Laws.fieldMulNonnegative (Laws.fieldInv mass) (bump x) (Order.leOfLt _ _ (Product.invPositive mass positive)) (Bump.bounded x).left;
+\definition normalized: I.integral representative = Real.one := trans!{Real.Real} _ _ _
+  (Null.integralAlmost representative (Scaling.scalarRepresentative (Laws.fieldInv mass) integralRepresentative) (AE.reflexive function))
+  (trans!{Real.Real} _ _ _ (Scaling.integralScalar (Laws.fieldInv mass) integralRepresentative) (Laws.fieldInverseNonzero mass (Real.Inverse[].positiveNonzero mass positive)));
+\definition radius: Nonnegative := \into[Real.Real](Bump.radius, Nonnegative) \by { Order.leOfLt _ _ Bump.radiusPositive };
+\definition coefficient: Nonnegative := \into[Real.Real](Laws.fieldInv mass, Nonnegative) \by { Order.leOfLt _ _ (Product.invPositive mass positive) };
+\definition withinBump: Sets.Subset (Smooth.support function) (Smooth.support bump) := Support.supportWithinClosed Ambient.topology function (Smooth.support bump) (Support.supportClosed Ambient.topology bump)
+  (\fun (x: Point)(outside: _) => trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (Real.mul (Laws.fieldInv mass)) _ _ (Support.zeroOutsideSupport Ambient.topology bump x outside)) (Laws.fieldMulZeroRight _));
+\definition value: Kernel := Kernel { function := function, radius := radius, coefficient := coefficient,
+  radiusBound := \fun (x: Point)(member: _) => SupportBound.supportWithin x (withinBump x member),
+  absoluteBound := \fun (x: Point) => R.leReplaceLeft _ _ _ (sym!{Real.Real} _ _ (Product.absOfNonnegative (function x) (nonnegative x)))
+    (R.leReplaceRight _ _ _ (Algebra.mulOneRight coefficient) (Estimates.mulMonotone coefficient _ _ (Powers.baseNonnegative coefficient) (Bump.bounded x).right)) };

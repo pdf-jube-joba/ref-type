@@ -1,0 +1,16 @@
+\import L.Norm[p := p] \as Norm;
+\import \root.Euclidean[n := n].Approximation[p := p] \as Dense;
+\import \root.Euclidean[n := n].Translation[p := p] \as Translation;
+\import \root.Euclidean[n := n].Convolution[p := p] \as Convolution;
+\definition sequence[k: N.Nat^]: F.Representatives := Convolution.Normalized[f := f, rho := identity.sequence k, borel := borel,
+  nonnegative := (identity.normalized k).nonnegative, mass := (identity.normalized k).mass].representative;
+\definition smooth[k: N.Nat^]: Smooth.IsSmooth (sequence k) := Convolution.smooth f (identity.sequence k);
+\module Near(epsilon: Positive, g: SmoothCompact,
+  close: R.Lt (Norm.metric.distance (Dense.ofSmooth g) (F.ofFunction f)) (Real.mul Real.half (Real.mul Real.half epsilon)));
+\definition convergence: Sequence.Converges (\fun (k: N.Nat^) => Completion.distance (sequence k) f) Real.zero := \fun (epsilon: Real.Real)(positive: _) => \block {
+  \let ep: Positive := \into[Real.Real](epsilon, Positive) \by { positive } \then
+  \let quarter: Real.Real := Real.mul Real.half (Real.mul Real.half epsilon) \then
+  \takefrom g: \Cast[SmoothCompact] ({ g: SmoothCompact \where R.Lt (Norm.metric.distance (Dense.ofSmooth g) (F.ofFunction f)) quarter })
+    \by Dense.smoothDense (F.ofFunction f) quarter (Estimates.halfOfPositive (Real.mul Real.half epsilon) (Estimates.halfOfPositive epsilon positive)) \then
+  \return Near[epsilon := ep, g := g, close := \bysub(SmoothCompact, { g: SmoothCompact \where R.Lt (Norm.metric.distance (Dense.ofSmooth g) (F.ofFunction f)) quarter }, g)].control
+};
