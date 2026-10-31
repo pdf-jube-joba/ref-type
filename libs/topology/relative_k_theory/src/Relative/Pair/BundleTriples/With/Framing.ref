@@ -1,0 +1,31 @@
+\definition H[x: X]: \Set := Absolute.Fiber auxiliary x;
+\definition auxiliaryBundle: Bundles.Family[X := X, F := H].Bundle := Absolute.bundle auxiliary;
+\import Operations.DirectSum[X := X, F := F, G := H, left := first, right := auxiliaryBundle] \as Positive;
+\import Operations.DirectSum[X := X, F := G, G := H, left := second, right := auxiliaryBundle] \as Negative;
+\definition positiveBundle: Bundles.Family[X := X, F := Positive.Fiber].Bundle := Positive.bundle (\refl(space));
+\definition negativeBundle: Bundles.Family[X := X, F := Negative.Fiber].Bundle := Negative.bundle (\refl(space));
+\import Bundles.Trivial[X := X, n := n, baseSpace := space] \as Trivial;
+\definition Trivialization: \Set := Bundles.Isomorphisms[X := X, F := Negative.Fiber, G := (\fun (x: X) => Bundles.Vector n), source := negativeBundle, target := Trivial.bundle].Isomorphism;
+\definition inclusion[x: A]: X := x;
+\definition regular: topology.Continuity[A := A, B := X].Continuous subspace space inclusion :=
+  topology.Continuity[A := A, B := X].Corestriction[S := subset].inclusionContinuous space;
+\import Bundles.Family[X := X, F := Positive.Fiber].Of[bundle := positiveBundle].Restriction[U := subset] \as PositiveRestriction;
+\import Bundles.Family[X := X, F := Negative.Fiber].Of[bundle := negativeBundle].Restriction[U := subset] \as NegativeRestriction;
+\import Bundles.Family[X := X, F := H].Of[bundle := auxiliaryBundle].Restriction[U := subset] \as AuxiliaryRestriction;
+\import Operations.IdentityIsomorphism[X := A, F := (\fun (x: A) => H x), bundle := AuxiliaryRestriction.restricted] \as Identity;
+\import Positive.Of[same := (\refl(space))].Pullback[Y := A, source := subspace, f := inclusion, regular := regular] \as PositivePull;
+\import Negative.Of[same := (\refl(space))].Pullback[Y := A, source := subspace, f := inclusion, regular := regular] \as NegativePull;
+\import Operations.DirectSumIsomorphisms[X := A, F := (\fun (x: A) => F x), G := (\fun (x: A) => H x), A := (\fun (x: A) => G x), B := (\fun (x: A) => H x),
+  first := Represent.restrictedSource, second := AuxiliaryRestriction.restricted, newFirst := Represent.restrictedTarget, newSecond := AuxiliaryRestriction.restricted,
+  sameSource := (\refl(subspace)), sameTarget := (\refl(subspace))] \as BoundarySum;
+\import Operations.IsomorphismComposition[X := A, F := (\fun (x: A) => Positive.Fiber x), G := (\fun (x: A) => Positive.Fiber x), H := (\fun (x: A) => Negative.Fiber x),
+  source := PositiveRestriction.restricted, middle := BoundarySum.sourceBundle, target := BoundarySum.targetBundle] \as Start;
+\import Bundles.Isomorphisms[X := A, F := (\fun (x: A) => Negative.Fiber x), G := (\fun (x: A) => Negative.Fiber x), source := NegativeRestriction.restricted, target := BoundarySum.targetBundle] \as Inverse;
+\definition sum: Bundles.Isomorphisms[X := A, F := (\fun (x: A) => Positive.Fiber x), G := (\fun (x: A) => Negative.Fiber x), source := PositiveRestriction.restricted, target := NegativeRestriction.restricted].Isomorphism :=
+  Operations.IsomorphismComposition[X := A, F := (\fun (x: A) => Positive.Fiber x), G := (\fun (x: A) => Negative.Fiber x), H := (\fun (x: A) => Negative.Fiber x),
+    source := PositiveRestriction.restricted, middle := BoundarySum.targetBundle, target := NegativeRestriction.restricted].compose
+    (Start.compose PositivePull.isomorphism (BoundarySum.isomorphism alpha Identity.isomorphism)) (Inverse.inverse NegativePull.isomorphism);
+\import \parent.\parent.\parent.BundleModel[F := Positive.Fiber].From[original := positiveBundle, same := (\refl(space))] \as Based;
+\definition model: \parent.\parent.\parent.BundleModel[F := Positive.Fiber].Bundle := Based.model;
+\module With(h: Trivialization);
+\definition Fiber[x: X]: \Set := Positive.Fiber x;

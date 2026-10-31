@@ -80,6 +80,19 @@ K^{-(n+1)}(X)\longrightarrow K^{-(n+1)}(A)\longrightarrow K^{-n}(X,A)
 `Zero.Disk`・`Line.Disk` は円板、`Zero.Relative`・`Line.Relative` は対応する相対群。
 `Examples.zeroBoundaryEmpty` はランク0の球面境界が空であることを示す。
 
+## 一般の束の三つ組と引き戻し
+
+`Pair.BundleTriples[F, G, firstModel, secondModel].With[alpha]` は、閉集合上で同型となる二つの任意の束から三つ組群の `value` と相対群の `reduced` を構成する。
+`agreement` は有限射影表示との一致を示す。
+`Framing.With.equation` は、負の束を自明化する任意の補助束を使った構成が同じ相対類を与えることを示す。
+`To.With` は可換な束同型による変更を比較する。
+
+`Pair.Mapping.BundleTriples.With.naturality` と `reducedNaturality` は群と相対群のそれぞれで引き戻しとの可換性を与える。
+`Pair.Mapping.Framed.With.naturality` は枠付き束についての同じ主張である。
+これらの証明は、商空間への束の降下、引き戻しの合成、座標枠の整合性を使う。
+`PullbackCongruence`、`RestrictedPullback`、`PairPullback` はそのための束同型とファイバー上の公式を公開する。
+これらは `compact_support_k` の任意の束三つ組の局所化と自然性にも使う。
+
 ## 検証
 
 共有キャッシュ `libs/refcache` を使用する。

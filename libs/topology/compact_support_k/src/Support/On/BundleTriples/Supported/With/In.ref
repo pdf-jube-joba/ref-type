@@ -1,0 +1,21 @@
+\import \root.Support[].On[X := X, space := space, hausdorff := hausdorff, locallyCompact := locallyCompact].Localization[
+  U := n.region, open := n.openRegion, L := n.compactSet, compactL := n.compact, enclosed := n.enclosed] \as Local;
+\import Relative.Pair[X := Local.Carrier, space := Local.topology, compact := Local.compact, hausdorff := Local.separated, subset := Local.boundary, closed := Local.boundaryClosed] \as Pair;
+\definition FirstFiber[x: Local.Carrier]: \Set := F x;
+\definition SecondFiber[x: Local.Carrier]: \Set := G x;
+\import Bundles.Family[X := X, F := F].Of[bundle := first].Restriction[U := n.compactSet] \as First;
+\import Bundles.Family[X := X, F := G].Of[bundle := second].Restriction[U := n.compactSet] \as Second;
+\import Pair.BundleModel[F := FirstFiber].From[original := First.restricted, same := (\refl(Local.topology))] \as FirstModel;
+\import Pair.BundleModel[F := SecondFiber].From[original := Second.restricted, same := (\refl(Local.topology))] \as SecondModel;
+\definition firstOnLocal: Pair.BundleModel[F := FirstFiber].Bundle := FirstModel.model;
+\definition secondOnLocal: Pair.BundleModel[F := SecondFiber].Bundle := SecondModel.model;
+\definition preserves: \forall (x: Local.Carrier) -> \In[Local.Carrier] Local.boundary x -> \In[X] outside (Local.inclusion x) :=
+  \fun (x: Local.Carrier)(outsideRegion: _)(inK: _) => outsideRegion (n.contains x inK);
+\import Relative.PairPullback[X := X, Y := Local.Carrier, F := F, G := G, first := first, second := second, same := (\refl(space)), source := Local.topology,
+  subset := outside, sourceSubset := Local.boundary, f := Local.inclusion, regular := Local.regular, preserves := preserves] \as Boundary;
+\definition comparison: Pair.BundleTriples[F := FirstFiber, G := SecondFiber, firstModel := firstOnLocal, secondModel := secondOnLocal].OnSubset := Boundary.With[alpha := alpha].comparison;
+\import Pair.BundleTriples[F := FirstFiber, G := SecondFiber, firstModel := firstOnLocal, secondModel := secondOnLocal].With[alpha := comparison] \as Class;
+\definition localValue: Pair.Quotient[].Relative := Class.reduced;
+\definition value: Relative.Reduced[model := model].Carrier := Local.extend localValue;
+\definition formula: \forall (x: Pair.A)(v: FirstFiber x) -> (comparison.forward.fiber x).apply v = (alpha.forward.fiber (Boundary.boundary x)).apply v := Boundary.With[alpha := alpha].formula;
+\module Refinement(m: Neighborhood, shrinks: Base.Subset m.region n.region, included: Base.Subset n.compactSet m.compactSet);

@@ -1,0 +1,32 @@
+\import Neighbors.With[w := w] \as Neighbor;
+\definition n: SourceClass.Neighborhood := SourceClass.Neighborhood {
+  region := Neighbor.openSet, compactSet := Neighbor.compactSet, openRegion := Neighbor.open, compact := Neighbor.compact, enclosed := Neighbor.enclosed,
+  contains := \fun (x: X)(inside: _) => Neighbor.contains x (Logic.Or[_, _]::left inside)
+};
+\definition m: TargetClass.Neighborhood := TargetClass.Neighborhood {
+  region := Neighbor.openSet, compactSet := Neighbor.compactSet, openRegion := Neighbor.open, compact := Neighbor.compact, enclosed := Neighbor.enclosed,
+  contains := \fun (x: X)(inside: _) => Neighbor.contains x (Logic.Or[_, _]::right inside)
+};
+\import SourceClass.In[n := n] \as First;
+\import TargetClass.In[n := m] \as Second;
+\import \root.Support[].On[X := X, space := space, hausdorff := hausdorff, locallyCompact := locallyCompact].Localization[
+  U := n.region, open := n.openRegion, L := n.compactSet, compactL := n.compact, enclosed := n.enclosed] \as Local;
+\import \root.Support[].On[X := X, space := space, hausdorff := hausdorff, locallyCompact := locallyCompact].Localization[
+  U := m.region, open := m.openRegion, L := m.compactSet, compactL := m.compact, enclosed := m.enclosed] \as OtherLocal;
+\definition shrinks: Base.Subset m.region n.region := \fun (x: X)(inside: _) => inside;
+\definition included: Base.Subset n.compactSet m.compactSet := \fun (x: X)(inside: _) => inside;
+\import Local.Refinement[V := m.region, openV := m.openRegion, shrinks := shrinks, M := m.compactSet, compactM := m.compact, enclosedV := m.enclosed, included := included] \as Geometry;
+\import Relative.Pair[X := Local.Carrier, space := Local.topology, compact := Local.compact, hausdorff := Local.separated, subset := Local.boundary, closed := Local.boundaryClosed] \as Pair;
+\import Relative.Pair[X := OtherLocal.Carrier, space := OtherLocal.topology, compact := OtherLocal.compact, hausdorff := OtherLocal.separated, subset := OtherLocal.boundary, closed := OtherLocal.boundaryClosed] \as OtherPair;
+\import OtherPair.Mapping[Y := Local.Carrier, source := Local.topology, sourceCompact := Local.compact, sourceHausdorff := Local.separated, sourceSubset := Local.boundary, sourceClosed := Local.boundaryClosed,
+  f := Geometry.map, regular := Geometry.continuous, preserves := Geometry.preserves] \as Mapping;
+\import Mapping.BundleTriples[F := Second.FirstFiber, G := Second.SecondFiber, firstModel := Second.firstOnLocal, secondModel := Second.secondOnLocal] \as Pull;
+\import Pull.With[alpha := Second.comparison] \as Pulled;
+\module BundleSquare;
+\import Pair.BundleTriples[F := First.FirstFiber, G := First.SecondFiber, firstModel := First.firstOnLocal, secondModel := First.secondOnLocal].To[
+  H := Pull.FirstFiber, I := Pull.SecondFiber, newFirstModel := Pull.firstModelOnSource, newSecondModel := Pull.secondModelOnSource].With[
+    alpha := First.comparison, beta := Pulled.comparison, positive := BundleSquare[].positiveMap, negative := BundleSquare[].negativeMap, commutes := BundleSquare[].commutes] \as Change;
+\definition localEquation: First.localValue = Mapping.relative Second.localValue := trans!{{Pair.Quotient[].Relative}} _ _ _ Change.reducedEquation Pulled.reducedNaturality;
+\definition equation: SourceClass.value = TargetClass.value := trans!{{Relative.Reduced[model := model].Carrier}} _ _ _ (SourceClass.agreement n)
+  (trans!{{Relative.Reduced[model := model].Carrier}} _ _ _ (congr!{{Pair.Quotient[].Relative} {Relative.Reduced[model := model].Carrier}} Local.extend _ _ localEquation)
+    (trans!{{Relative.Reduced[model := model].Carrier}} _ _ _ (Geometry.equation Second.localValue) (sym!{{Relative.Reduced[model := model].Carrier}} _ _ (TargetClass.agreement m))));

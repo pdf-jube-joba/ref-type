@@ -1,0 +1,46 @@
+\import \root.Support[].On[X := X, space := space, hausdorff := hausdorff, locallyCompact := locallyCompact].Localization[
+  U := V, open := openV, L := M, compactL := compactM, enclosed := enclosedV] \as Other;
+\import Relative.Pair[X := Other.Carrier, space := Other.topology, compact := Other.compact, hausdorff := Other.separated,
+  subset := Other.boundary, closed := Other.boundaryClosed] \as OtherPair;
+\import OtherPair.Quotient[] \as OtherQuotient;
+\definition map[x: Carrier]: Other.Carrier := \into[X](x, M) \by { included x (\bysub(X, L, x)) };
+\definition continuous: topology.Continuity[A := Carrier, B := Other.Carrier].Continuous topology Other.topology map :=
+  topology.Continuity[A := Carrier, B := X].Corestriction[S := M].corestrictContinuous topology space map regular;
+\definition preserves: \forall (x: Carrier) -> \In[Carrier] boundary x -> \In[Other.Carrier] Other.boundary (map x) :=
+  \fun (x: Carrier)(outside: _)(inside: _) => outside (shrinks x inside);
+\import OtherPair.Mapping[Y := Carrier, source := topology, sourceCompact := compact, sourceHausdorff := separated,
+  sourceSubset := boundary, sourceClosed := boundaryClosed, f := map, regular := continuous, preserves := preserves] \as Induced;
+\definition pointEquation: Induced.quotient Quotient.point = OtherQuotient.point :=
+  (algebraic_topology.Pointed[A := Quotient.Carrier].Maps[B := OtherQuotient.Carrier].laws Quotient.pointed OtherQuotient.pointed Induced.quotientMap).pointed;
+\definition regionEquation: \forall (x: \Cast[X] U) -> Induced.quotient (collapse (Compactification.inclusion x)) = Other.collapse (Compactification.inclusion x) :=
+  \fun (x: \Cast[X] U) => trans!{{OtherQuotient.Carrier}} _ _ _
+    (congr!{{Quotient.Carrier} {OtherQuotient.Carrier}} Induced.quotient _ _ (onRegion x))
+    (trans!{{OtherQuotient.Carrier}} _ _ _ (Induced.onProjection (intoLocal x))
+      (either!{{(Classical.excludedMiddle (\In[X] V x))} {OtherQuotient.projection (map (intoLocal x)) = Other.collapse (Compactification.inclusion x)}
+        {\fun (inside: _) => sym!{{OtherQuotient.Carrier}} _ _ (Other.onRegion (\into[X](x, V) \by { inside }))}
+        {\fun (outside: _) => trans!{{OtherQuotient.Carrier}} _ _ _
+          (OtherQuotient.onSubset (\into[Other.Carrier](map (intoLocal x), Other.boundary) \by { outside }))
+          (sym!{{OtherQuotient.Carrier}} _ _ (Other.offRegion x outside))}
+      }));
+\definition commutes: \forall (p: Compactification.Carrier) -> Induced.quotient (collapse p) = Other.collapse p :=
+  \induction (p: Compactification.Carrier) \return Induced.quotient (collapse p) = Other.collapse p \with {
+    | none: trans!{{OtherQuotient.Carrier}} _ _ _ (congr!{{Quotient.Carrier} {OtherQuotient.Carrier}} Induced.quotient _ _ atInfinity)
+      (trans!{{OtherQuotient.Carrier}} _ _ _ pointEquation (sym!{{OtherQuotient.Carrier}} _ _ Other.atInfinity))
+    | some: \fun (x: X) => either!{{(Classical.excludedMiddle (\In[X] U x))}
+      {Induced.quotient (collapse (Compactification.inclusion x)) = Other.collapse (Compactification.inclusion x)}
+      {\fun (inside: _) => regionEquation (\into[X](x, U) \by { inside })}
+      {\fun (outside: _) => trans!{{OtherQuotient.Carrier}} _ _ _
+        (congr!{{Quotient.Carrier} {OtherQuotient.Carrier}} Induced.quotient _ _ (offRegion x outside))
+        (trans!{{OtherQuotient.Carrier}} _ _ _ pointEquation
+          (sym!{{OtherQuotient.Carrier}} _ _ (Other.offRegion x (\fun (inside: _) => outside (shrinks x inside)))))}
+    }
+  };
+\import Relative.Composition[source := model, middle := Quotient.model, target := OtherQuotient.model,
+  first := collapse, second := Induced.quotientMap] \as Composite;
+\definition equal: Composite.map = Other.collapse := \axiom:funext(Composite.map, Other.collapse, commutes);
+\definition equation: \forall (v: OtherQuotient.Relative) -> extend (Induced.relative v) = Other.extend v :=
+  \fun (v: OtherQuotient.Relative) => trans!{{Relative.Reduced[model := model].Carrier}} _ _ _
+    (sym!{{Relative.Reduced[model := model].Carrier}} _ _ (Relative.PullbackComposition[source := model, middle := Quotient.model,
+      target := OtherQuotient.model, first := collapse, second := Induced.quotientMap].equation v))
+    (congr!{{Relative.Map model OtherQuotient.model} {Relative.Reduced[model := model].Carrier}}
+      (\fun (m: Relative.Map model OtherQuotient.model) => Relative.Pullback[source := model, target := OtherQuotient.model, f := m].map v) _ _ equal);

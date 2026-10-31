@@ -1,0 +1,40 @@
+\definition preserves: \forall (p: Compactification.Carrier) -> \In[Compactification.Carrier] Point.subset p -> \In[Compactification.Carrier] closedPart p :=
+  \fun (p: Compactification.Carrier)(same: _) => \idelim Compactification.point = p \with q: Compactification.Carrier => \In[Compactification.Carrier] closedPart q
+    \by { base: pointInside, equality: sym!{{Compactification.Carrier}} _ _ same };
+\import Global.Mapping[Y := Compactification.Carrier, source := Compactification.topology, sourceCompact := Compactness.compact, sourceHausdorff := Separation.hausdorffCompactification,
+  sourceSubset := Point.subset, sourceClosed := Point.closed, f := (\fun (p: Compactification.Carrier) => p),
+  regular := topology.Maps[A := Compactification.Carrier, B := Compactification.Carrier].Identity[].continuous Compactification.topology, preserves := preserves] \as Forget;
+\import Forget.BundleTriples[F := (Bundles.Fiber t.positive), G := (Bundles.Fiber t.negative), firstModel := positiveOnGlobal, secondModel := negativeOnGlobal] \as PointPull;
+\import PointPull.With[alpha := globalComparison] \as PointClass;
+\import Pair.BundleModel[F := (Bundles.Fiber t.positive)].From[original := (Bundles.bundle t.positive), same := (\refl(Compactification.topology))] \as PointFirst;
+\import Pair.BundleModel[F := (Bundles.Fiber t.negative)].From[original := (Bundles.bundle t.negative), same := (\refl(Compactification.topology))] \as PointSecond;
+\import Pair.BundleTriples[F := (Bundles.Fiber t.positive), G := (Bundles.Fiber t.negative), firstModel := PointFirst.model, secondModel := PointSecond.model].With[alpha := t.comparison] \as Original;
+\import VectorBundles.Family[X := Compactification.Carrier, F := (Bundles.Fiber t.positive)].Of[bundle := (Bundles.bundle t.positive)].PullbackIdentity[] \as PositiveIdentity;
+\import VectorBundles.Family[X := Compactification.Carrier, F := (Bundles.Fiber t.negative)].Of[bundle := (Bundles.bundle t.negative)].PullbackIdentity[] \as NegativeIdentity;
+\definition commutes: \forall (x: Pair.A)(v: Bundles.Fiber t.positive x) ->
+  (PointClass.comparison.forward.fiber x).apply ((PositiveIdentity.isomorphism.forward.fiber x).apply v) =
+  (NegativeIdentity.isomorphism.forward.fiber x).apply ((t.comparison.forward.fiber x).apply v) :=
+  \fun (x: Pair.A)(v: Bundles.Fiber t.positive x) => e.extends x v;
+\import Pair.BundleTriples[F := (Bundles.Fiber t.positive), G := (Bundles.Fiber t.negative), firstModel := PointFirst.model, secondModel := PointSecond.model].To[
+  H := PointPull.FirstFiber, I := PointPull.SecondFiber, newFirstModel := PointPull.firstModelOnSource, newSecondModel := PointPull.secondModelOnSource].With[
+  alpha := t.comparison, beta := PointClass.comparison, positive := PositiveIdentity.isomorphism, negative := NegativeIdentity.isomorphism, commutes := commutes] \as Change;
+\import Pair.FromBundles[F := (Bundles.Fiber t.positive), G := (Bundles.Fiber t.negative), source := (Bundles.bundle t.positive), target := (Bundles.bundle t.negative), sourceSame := (\refl(Compactification.topology)), targetSame := (\refl(Compactification.topology))] \as Present;
+\import Operations.IdentityIsomorphism[X := Compactification.Carrier, F := (Bundles.Fiber t.positive), bundle := (Bundles.bundle t.positive)] \as Positive;
+\import Operations.IdentityIsomorphism[X := Compactification.Carrier, F := (Bundles.Fiber t.negative), bundle := (Bundles.bundle t.negative)] \as Negative;
+\definition represented: Present.Result[t.comparison] := Present.Result[t.comparison] {
+  value := t, positive := Positive.isomorphism, negative := Negative.isomorphism,
+  agrees := \fun (x: Pair.A)(v: Bundles.Fiber t.positive x) => \refl((t.comparison.forward.fiber x).apply v)
+};
+\definition originalEquation: Original.reduced = Comparison.isomorphism.forward (Native.value t) :=
+  congr!{{Native.Carrier} {Pair.Quotient[].Relative}} Comparison.isomorphism.forward _ _ (Original.agreement represented);
+\definition forgetEquation: Forget.relative GlobalClass.reduced = Comparison.isomorphism.forward (Native.value t) :=
+  trans!{{Pair.Quotient[].Relative}} _ _ _ (sym!{{Pair.Quotient[].Relative}} _ _ PointClass.reducedNaturality)
+    (trans!{{Pair.Quotient[].Relative}} _ _ _ (sym!{{Pair.Quotient[].Relative}} _ _ Change.reducedEquation) originalEquation);
+\import Relative.Composition[source := model, middle := Pair.Quotient[].model, target := Global.Quotient[].model, first := Point.equivalence.forward, second := Forget.quotientMap] \as Composite;
+\definition equal: Composite.map = globalPointMap := \axiom:funext(Composite.map, globalPointMap, Forget.onProjection);
+\definition equation: Relative.Pullback[source := model, target := Global.Quotient[].model, f := globalPointMap].map GlobalClass.reduced = Symbols.forward (Native.value t) :=
+  trans!{{Relative.Reduced[model := model].Carrier}} _ _ _
+    (congr!{{Relative.Map model Global.Quotient[].model} {Relative.Reduced[model := model].Carrier}} (\fun (m: Relative.Map model Global.Quotient[].model) => Relative.Pullback[source := model, target := Global.Quotient[].model, f := m].map GlobalClass.reduced) _ _ (sym!{{Relative.Map model Global.Quotient[].model}} _ _ equal))
+    (trans!{{Relative.Reduced[model := model].Carrier}} _ _ _
+      (Relative.PullbackComposition[source := model, middle := Pair.Quotient[].model, target := Global.Quotient[].model, first := Point.equivalence.forward, second := Forget.quotientMap].equation GlobalClass.reduced)
+      (congr!{{Pair.Quotient[].Relative} {Relative.Reduced[model := model].Carrier}} Groups.forward _ _ forgetEquation));

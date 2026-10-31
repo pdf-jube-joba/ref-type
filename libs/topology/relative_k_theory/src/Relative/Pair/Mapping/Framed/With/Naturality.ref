@@ -1,0 +1,33 @@
+\import Original.With[comparison := alpha] \as Descent;
+\import Descent.Construction[extension := e] \as Descended;
+\import Descended.Compare[] \as Evaluation;
+\import KTheory.On[X := Range.Carrier, baseSpace := Range.topology, compact := Range.quotientCompact, hausdorff := Range.quotientHausdorff] \as RangeTheory;
+\import KTheory.On[X := Domain.Carrier, baseSpace := Domain.topology, compact := Domain.quotientCompact, hausdorff := Domain.quotientHausdorff] \as DomainTheory;
+\import RangeTheory.Pullback[Y := Domain.Carrier, space := Domain.topology, sourceCompact := Domain.quotientCompact, sourceHausdorff := Domain.quotientHausdorff,
+  f := quotient, regular := quotientContinuous] \as PullQuotient;
+\import Bundles.Family[X := Range.Carrier, F := Descent.Fiber].Of[bundle := Descended.bundleOnQuotient].Pullback[Y := Domain.Carrier,
+  source := Domain.topology, f := quotient] \as QuotientBundle;
+\definition QuotientFiber[q: Domain.Carrier]: \Set := Descent.Fiber (quotient q);
+\definition quotientBundle: Bundles.Family[X := Domain.Carrier, F := QuotientFiber].Bundle := QuotientBundle.pulled quotientContinuous;
+\definition index: Descended.Index := std.Data[].Sum[].Sum[Range.Point, Bundles.Family[X := X, F := F].With[data := original].Chart]::inl Range.distinguished;
+\definition rangeChart: Bundles.Family[X := Range.Carrier, F := Descent.Fiber].With[data := Descended.bundleOnQuotient].Chart := Descended.trivialization index;
+\definition sourceChart: Bundles.Family[X := Domain.Carrier, F := QuotientFiber].With[data := quotientBundle].Chart :=
+  QuotientBundle.In[c := rangeChart].trivialization quotientContinuous;
+\definition sourceContains: topology.Topology[Carrier := Domain.Carrier].Member sourceChart.domain Domain.point :=
+  \idelim Range.point = quotient Domain.point \with q: Range.Carrier => topology.Topology[Carrier := Range.Carrier].Member rangeChart.domain q
+    \by { base: Descent.Neighborhood[extension := e].atPoint,
+      equality: sym!{{Range.Carrier}} _ _ (algebraic_topology.Pointed[A := Domain.Carrier].Maps[B := Range.Carrier].laws Domain.pointed Range.pointed quotientMap).pointed };
+\import DomainPair.FromQuotient[F := QuotientFiber, bundle := quotientBundle, same := (\refl(Domain.topology))] \as Raw;
+\import Raw.In[c := sourceChart, contains := sourceContains] \as Boundary;
+\import DomainPair.BundleModel[F := Raw.Fiber].From[original := Raw.pulled, same := (\refl(source))] \as RawModel;
+\import DomainPair.FramedClass[F := Raw.Fiber, sourceModel := RawModel.model, n := n].With[alpha := Boundary.comparison] \as RawClass;
+\import DomainPair.FramedFromQuotient[F := QuotientFiber, bundle := quotientBundle, same := (\refl(Domain.topology)),
+  c := sourceChart, contains := sourceContains] \as Reconstruct;
+\module Square;
+\module Alignment;
+\module Difference;
+\definition equation: value = relative Class.value := trans!{{DomainTheory.K0[].Carrier}} _ _ _
+  (sym!{{DomainTheory.K0[].Carrier}} _ _ Alignment[].equation)
+  (trans!{{DomainTheory.K0[].Carrier}} _ _ _ Reconstruct.formula
+    (trans!{{DomainTheory.K0[].Carrier}} _ _ _ (sym!{{DomainTheory.K0[].Carrier}} _ _ Difference[].equation)
+      (congr!{{Range.Relative} {Domain.Relative}} relative _ _ (sym!{{Range.Relative}} _ _ (Class.agreement e)))));

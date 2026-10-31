@@ -1,0 +1,34 @@
+\import \root.Support[].On[X := X, space := space, hausdorff := hausdorff, locallyCompact := locallyCompact] \as Theory;
+\import Theory.BundleTriples[F := F, G := G, firstModel := firstModel, secondModel := secondModel] \as Original;
+\import Original.Supported[K := H, compactK := compactH] \as Larger;
+\definition A: \Set := \Cast[X] outside;
+\definition B: \Set := \Cast[X] Larger.outside;
+\definition sourceSpace: topology.Topology[Carrier := A].Topology := Base.Subspace[S := outside].topology space;
+\definition targetSpace: topology.Topology[Carrier := B].Topology := Base.Subspace[S := Larger.outside].topology space;
+\definition inclusion[x: A]: X := x;
+\definition boundary[x: B]: A := \into[X](x, outside) \by { \fun (inside: _) => (\bysub(X, Larger.outside, x)) (included x inside) };
+\definition sourceRegular: topology.Continuity[A := A, B := X].Continuous sourceSpace space inclusion := topology.Continuity[A := A, B := X].Corestriction[S := outside].inclusionContinuous space;
+\definition targetRegular: topology.Continuity[A := B, B := X].Continuous targetSpace space (\fun (x: B) => x) := topology.Continuity[A := B, B := X].Corestriction[S := Larger.outside].inclusionContinuous space;
+\definition boundaryRegular: topology.Continuity[A := B, B := A].Continuous targetSpace sourceSpace boundary :=
+  topology.Continuity[A := B, B := X].Corestriction[S := outside].corestrictContinuous targetSpace space boundary targetRegular;
+\import Bundles.Family[X := X, F := F].Of[bundle := first].PullbackComposition[Y := A, Z := B, first := sourceSpace, second := targetSpace,
+  f := inclusion, g := boundary].Of[fRegular := sourceRegular, gRegular := boundaryRegular] \as First;
+\import Bundles.Family[X := X, F := G].Of[bundle := second].PullbackComposition[Y := A, Z := B, first := sourceSpace, second := targetSpace,
+  f := inclusion, g := boundary].Of[fRegular := sourceRegular, gRegular := boundaryRegular] \as Second;
+\import Complements.PulledIsomorphism[X := A, Y := B, F := (\fun (x: A) => F x), G := (\fun (x: A) => G x), source := Positive.restricted, target := Negative.restricted,
+  base := targetSpace, f := boundary, sourceRegular := boundaryRegular, targetRegular := boundaryRegular] \as Pull;
+\import Bundles.Isomorphisms[X := B, F := (\fun (x: B) => G x), G := (\fun (x: B) => G x), source := Second.direct, target := Second.nested] \as Reverse;
+\definition comparison: Larger.OnOutside := Operations.IsomorphismComposition[X := B, F := (\fun (x: B) => F x), G := (\fun (x: B) => G x), H := (\fun (x: B) => G x),
+  source := First.direct, middle := Second.nested, target := Second.direct].compose
+  (Operations.IsomorphismComposition[X := B, F := (\fun (x: B) => F x), G := (\fun (x: B) => F x), H := (\fun (x: B) => G x),
+    source := First.direct, middle := First.nested, target := Second.nested].compose First.isomorphism (Pull.isomorphism alpha)) (Reverse.inverse Second.isomorphism);
+\import Larger.With[alpha := comparison] \as LargerClass;
+\import Operations.IdentityIsomorphism[X := X, F := F, bundle := first] \as PositiveIdentity;
+\import Operations.IdentityIsomorphism[X := X, F := G, bundle := second] \as NegativeIdentity;
+\import Original.To[H := F, I := G, newFirstModel := firstModel, newSecondModel := secondModel].Supported[K := K, J := H, compactK := compactK, compactJ := compactH] \as Compare;
+\definition compatible: \forall (x: \Cast[X] Compare.outsideJoint)(v: F x) ->
+  (comparison.forward.fiber (Compare.inTarget x)).apply ((PositiveIdentity.isomorphism.forward.fiber x).apply v) =
+  (NegativeIdentity.isomorphism.forward.fiber x).apply ((alpha.forward.fiber (Compare.inSource x)).apply v) :=
+  \fun (x: \Cast[X] Compare.outsideJoint)(v: F x) => \refl((alpha.forward.fiber (Compare.inSource x)).apply v);
+\definition equation: value = LargerClass.value := Compare.With[alpha := alpha, beta := comparison, positive := PositiveIdentity.isomorphism, negative := NegativeIdentity.isomorphism, compatible := compatible].equation;
+\definition symbolEquation: symbol = LargerClass.symbol := Compare.With[alpha := alpha, beta := comparison, positive := PositiveIdentity.isomorphism, negative := NegativeIdentity.isomorphism, compatible := compatible].symbolEquation;

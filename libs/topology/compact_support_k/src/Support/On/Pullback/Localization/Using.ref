@@ -1,0 +1,47 @@
+\import Other.Localization[U := U, open := open, L := L, compactL := compactL, enclosed := enclosed] \as RangeLocal;
+\import \parent.\parent.\parent.Localization[U := region, open := openProof, L := compactSet, compactL := compactProof, enclosed := enclosedProof] \as DomainLocal;
+\import Relative.Pair[X := RangeLocal.Carrier, space := RangeLocal.topology, compact := RangeLocal.compact, hausdorff := RangeLocal.separated,
+  subset := RangeLocal.boundary, closed := RangeLocal.boundaryClosed] \as RangePair;
+\import Relative.Pair[X := DomainLocal.Carrier, space := DomainLocal.topology, compact := DomainLocal.compact, hausdorff := DomainLocal.separated,
+  subset := DomainLocal.boundary, closed := DomainLocal.boundaryClosed] \as DomainPair;
+\definition base[x: DomainLocal.Carrier]: RangeLocal.Carrier := \into[Y](f x, L) \by { \bysub(X, compactSet, x) };
+\definition regular: topology.Continuity[A := DomainLocal.Carrier, B := RangeLocal.Carrier].Continuous DomainLocal.topology RangeLocal.topology base :=
+  topology.Continuity[A := DomainLocal.Carrier, B := Y].Corestriction[S := L].corestrictContinuous DomainLocal.topology target base
+    (topology.Composition[A := DomainLocal.Carrier, B := X, C := Y].composeContinuous DomainLocal.topology space target DomainLocal.inclusion f DomainLocal.regular continuous);
+\definition preserves: \forall (x: DomainLocal.Carrier) -> \In[DomainLocal.Carrier] DomainLocal.boundary x -> \In[RangeLocal.Carrier] RangeLocal.boundary (base x) :=
+  \fun (x: DomainLocal.Carrier)(outside: _)(inside: _) => outside inside;
+\import RangePair.Mapping[Y := DomainLocal.Carrier, source := DomainLocal.topology, sourceCompact := DomainLocal.compact, sourceHausdorff := DomainLocal.separated,
+  sourceSubset := DomainLocal.boundary, sourceClosed := DomainLocal.boundaryClosed, f := base, regular := regular, preserves := preserves] \as Induced;
+\definition quotientMap: Relative.Map DomainPair.Quotient[].model RangePair.Quotient[].model := Induced.quotientMap;
+\definition relative: RangePair.Quotient[].Relative -> DomainPair.Quotient[].Relative := Induced.relative;
+\definition onFinite: \forall (x: X) -> Induced.quotient (DomainLocal.collapse (Compactification.inclusion x)) = RangeLocal.collapse (Range.inclusion (f x)) :=
+  \fun (x: X) => either!{{(Classical.excludedMiddle (\In[X] region x))}
+    {Induced.quotient (DomainLocal.collapse (Compactification.inclusion x)) = RangeLocal.collapse (Range.inclusion (f x))}
+    {\fun (inside: _) => trans!{{RangePair.Quotient[].Carrier}} _ _ _
+      (congr!{{DomainPair.Quotient[].Carrier} {RangePair.Quotient[].Carrier}} Induced.quotient _ _ (DomainLocal.onRegion (\into[X](x, region) \by { inside })))
+      (trans!{{RangePair.Quotient[].Carrier}} _ _ _ (Induced.onProjection (DomainLocal.intoLocal (\into[X](x, region) \by { inside })))
+        (sym!{{RangePair.Quotient[].Carrier}} _ _ (RangeLocal.onRegion (\into[Y](f x, U) \by { inside }))))}
+    {\fun (outside: _) => trans!{{RangePair.Quotient[].Carrier}} _ _ _
+      (congr!{{DomainPair.Quotient[].Carrier} {RangePair.Quotient[].Carrier}} Induced.quotient _ _ (DomainLocal.offRegion x outside))
+      (trans!{{RangePair.Quotient[].Carrier}} _ _ _
+        (algebraic_topology.Pointed[A := DomainPair.Quotient[].Carrier].Maps[B := RangePair.Quotient[].Carrier].laws DomainPair.Quotient[].pointed RangePair.Quotient[].pointed Induced.quotientMap).pointed
+        (sym!{{RangePair.Quotient[].Carrier}} _ _ (RangeLocal.offRegion (f x) outside)))}
+    };
+\definition commutes: \forall (p: Compactification.Carrier) -> Induced.quotient (DomainLocal.collapse p) = RangeLocal.collapse (mapping p) :=
+  \induction (p: Compactification.Carrier) \return Induced.quotient (DomainLocal.collapse p) = RangeLocal.collapse (mapping p) \with {
+    | none: trans!{{RangePair.Quotient[].Carrier}} _ _ _
+      (congr!{{DomainPair.Quotient[].Carrier} {RangePair.Quotient[].Carrier}} Induced.quotient _ _ DomainLocal.atInfinity)
+      (trans!{{RangePair.Quotient[].Carrier}} _ _ _
+        (algebraic_topology.Pointed[A := DomainPair.Quotient[].Carrier].Maps[B := RangePair.Quotient[].Carrier].laws DomainPair.Quotient[].pointed RangePair.Quotient[].pointed Induced.quotientMap).pointed
+        (sym!{{RangePair.Quotient[].Carrier}} _ _ RangeLocal.atInfinity))
+    | some: onFinite
+  };
+\import Relative.Composition[source := model, middle := DomainPair.Quotient[].model, target := RangePair.Quotient[].model, first := DomainLocal.collapse, second := Induced.quotientMap] \as First;
+\import Relative.Composition[source := model, middle := Other.model, target := RangePair.Quotient[].model, first := mapping, second := RangeLocal.collapse] \as Second;
+\definition equal: First.map = Second.map := \axiom:funext(First.map, Second.map, commutes);
+\definition equation: \forall (v: RangePair.Quotient[].Relative) -> DomainLocal.extend (Induced.relative v) = Relative.Pullback[source := model, target := Other.model, f := mapping].map (RangeLocal.extend v) :=
+  \fun (v: RangePair.Quotient[].Relative) => trans!{{Relative.Reduced[model := model].Carrier}} _ _ _
+    (sym!{{Relative.Reduced[model := model].Carrier}} _ _ (Relative.PullbackComposition[source := model, middle := DomainPair.Quotient[].model, target := RangePair.Quotient[].model, first := DomainLocal.collapse, second := Induced.quotientMap].equation v))
+    (trans!{{Relative.Reduced[model := model].Carrier}} _ _ _
+      (congr!{{Relative.Map model RangePair.Quotient[].model} {Relative.Reduced[model := model].Carrier}} (\fun (m: Relative.Map model RangePair.Quotient[].model) => Relative.Pullback[source := model, target := RangePair.Quotient[].model, f := m].map v) _ _ equal)
+      (Relative.PullbackComposition[source := model, middle := Other.model, target := RangePair.Quotient[].model, first := mapping, second := RangeLocal.collapse].equation v));

@@ -1,0 +1,27 @@
+\definition atPoint: Inclusion.quotient LocalPair.Quotient[].point = Global.Quotient[].point :=
+  (algebraic_topology.Pointed[A := LocalPair.Quotient[].Carrier].Maps[B := Global.Quotient[].Carrier].laws LocalPair.Quotient[].pointed Global.Quotient[].pointed Inclusion.quotientMap).pointed;
+\definition onFinite: \forall (x: X) -> Inclusion.quotient (Local.collapse (Compactification.inclusion x)) = Global.Quotient[].projection (Compactification.inclusion x) :=
+  \fun (x: X) => either!{{(Classical.excludedMiddle (\In[X] n.region x))}
+    {Inclusion.quotient (Local.collapse (Compactification.inclusion x)) = Global.Quotient[].projection (Compactification.inclusion x)}
+    {\fun (inside: _) => trans!{{Global.Quotient[].Carrier}} _ _ _
+      (congr!{{LocalPair.Quotient[].Carrier} {Global.Quotient[].Carrier}} Inclusion.quotient _ _ (Local.onRegion (\into[X](x, n.region) \by { inside })))
+      (Inclusion.onProjection (Local.intoLocal (\into[X](x, n.region) \by { inside })))}
+    {\fun (outside: _) => trans!{{Global.Quotient[].Carrier}} _ _ _
+      (congr!{{LocalPair.Quotient[].Carrier} {Global.Quotient[].Carrier}} Inclusion.quotient _ _ (Local.offRegion x outside))
+      (trans!{{Global.Quotient[].Carrier}} _ _ _ atPoint (sym!{{Global.Quotient[].Carrier}} _ _
+        (Global.Quotient[].onSubset (\into[Compactification.Carrier](Compactification.inclusion x, closedPart) \by { Base.Finite[].doubleNegElim (\In[Compactification.Carrier] closedPart (Compactification.inclusion x)) outside }))))}
+  };
+\definition commutes: \forall (p: Compactification.Carrier) -> Inclusion.quotient (Local.collapse p) = globalPointMap p :=
+  \induction (p: Compactification.Carrier) \return Inclusion.quotient (Local.collapse p) = globalPointMap p \with {
+    | none: trans!{{Global.Quotient[].Carrier}} _ _ _ (congr!{{LocalPair.Quotient[].Carrier} {Global.Quotient[].Carrier}} Inclusion.quotient _ _ Local.atInfinity)
+      (trans!{{Global.Quotient[].Carrier}} _ _ _ atPoint (sym!{{Global.Quotient[].Carrier}} _ _ (Global.Quotient[].onSubset (\into[Compactification.Carrier](Compactification.point, closedPart) \by { pointInside }))))
+    | some: onFinite
+  };
+\import Relative.Composition[source := model, middle := LocalPair.Quotient[].model, target := Global.Quotient[].model, first := Local.collapse, second := Inclusion.quotientMap] \as Composite;
+\definition equal: Composite.map = globalPointMap := \axiom:funext(Composite.map, globalPointMap, commutes);
+\definition equation: LocalClass.value = Relative.Pullback[source := model, target := Global.Quotient[].model, f := globalPointMap].map GlobalClass.reduced :=
+  trans!{{Relative.Reduced[model := model].Carrier}} _ _ _
+    (congr!{{LocalPair.Quotient[].Relative} {Relative.Reduced[model := model].Carrier}} Local.extend _ _ \parent.BundlesSquare[].equation)
+    (trans!{{Relative.Reduced[model := model].Carrier}} _ _ _
+      (sym!{{Relative.Reduced[model := model].Carrier}} _ _ (Relative.PullbackComposition[source := model, middle := LocalPair.Quotient[].model, target := Global.Quotient[].model, first := Local.collapse, second := Inclusion.quotientMap].equation GlobalClass.reduced))
+      (congr!{{Relative.Map model Global.Quotient[].model} {Relative.Reduced[model := model].Carrier}} (\fun (m: Relative.Map model Global.Quotient[].model) => Relative.Pullback[source := model, target := Global.Quotient[].model, f := m].map GlobalClass.reduced) _ _ equal));

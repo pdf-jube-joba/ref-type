@@ -1,0 +1,18 @@
+\import Complements.PulledIsomorphism[X := X, Y := A, F := Negative.Fiber, G := (\fun (x: X) => Bundles.Vector n), source := negativeBundle, target := Trivial.bundle,
+  base := subspace, f := inclusion, sourceRegular := regular, targetRegular := regular] \as PullTrivialization;
+\import Bundles.Family[X := X, F := (\fun (x: X) => Bundles.Vector n)].Of[bundle := Trivial.bundle].Restriction[U := subset] \as BoundaryTrivial;
+\definition comparison: Bundles.Isomorphisms[X := A, F := (\fun (x: A) => Positive.Fiber x), G := (\fun (x: A) => Bundles.Vector n),
+  source := PositiveRestriction.restricted, target := BoundaryTrivial.restricted].Isomorphism :=
+  Operations.IsomorphismComposition[X := A, F := (\fun (x: A) => Positive.Fiber x), G := (\fun (x: A) => Negative.Fiber x), H := (\fun (x: A) => Bundles.Vector n),
+    source := PositiveRestriction.restricted, middle := NegativeRestriction.restricted, target := BoundaryTrivial.restricted].compose sum (PullTrivialization.isomorphism h);
+\import \parent.\parent.\parent.\parent.FramedClass[F := Positive.Fiber, sourceModel := model, n := n].With[alpha := comparison] \as Class;
+\definition framed: Quotient.Relative := Class.value;
+\import std.Data[].Pair[] \as Product;
+\definition formula: \forall (x: A)(v: F x)(w: H x) ->
+  (comparison.forward.fiber x).apply (Product.pair (F x) (H x) v w) = (h.forward.fiber x).apply (Product.pair (G x) (H x) ((alpha.forward.fiber x).apply v) w) :=
+  \fun (x: A)(v: F x)(w: H x) => \refl((h.forward.fiber x).apply (Product.pair (G x) (H x) ((alpha.forward.fiber x).apply v) w));
+\module Using(r: Represent.Result[alpha]);
+\definition equation: reduced = framed := \block {
+  \takefrom r: Represent.Result[alpha] \by Represent.existence alpha \then
+  \return trans!{{Quotient.Relative}} _ _ _ (congr!{{Group.Carrier} {Quotient.Relative}} Group.ToReduced[].map _ _ (agreement r)) (Using[r := r].equation)
+};

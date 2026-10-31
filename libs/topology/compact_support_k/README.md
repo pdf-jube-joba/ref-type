@@ -53,13 +53,28 @@ B09 の同型延長によって近傍上の同型を得て、その近傍の補�
 \definition zeroDisk: \Set := Zero.Interior;
 ```
 
-## 未完了の比較
+## 元の空間上の一般の束三つ組
 
-一点コンパクト化上へ個々の束が延長されることを要求せず、元の空間上の任意の束とコンパクト集合の外での同型を出発点とする三つ組の群との比較は、まだ実装していない。
-上記の三つ組群との比較だけでは、この追加の比較の完了とはしない。
-必要なコンパクト近傍の存在は `On.Neighborhood` にある。
-その近傍への束の制限、相対三つ組の構成、零延長、近傍の選択独立性を接続する作業が残る。
-このため K10 全体は実装途中である。
+`On.BundleModel.From` は、底空間の位相が指定の位相と一致する任意の局所自明複素束を受け取る。
+`On.BundleTriples[F, G, firstModel, secondModel].Supported[K, compactK].With[alpha]` は、元の空間上の二つの束と、コンパクト集合 \(K\) の外での束同型を入力とする。
+個々の束を一点コンパクト化へ延長するデータは要求しない。
+
+`With.In[n]` は、\(K\subset U\subset L\) を満たす開集合 \(U\) とコンパクト集合 \(L\) を選び、束を \(L\) へ制限して対 \((L,L\setminus U)\) の相対三つ組を作る。
+`On.Localization.collapse` による引き戻しで、この相対類を \(X^+\) 上へ零延長する。
+`With.Choices.equation` は二つの近傍の開部分の共通部分とコンパクト部分の和集合を使って選択独立性を示す。
+有限射影表示および負の束の補助束の選択独立性は `relative_k_theory.Relative.Pair.BundleTriples` が保証する。
+
+`With.value` は近傍に依存しないコンパクト台付き K 類、`With.symbol` は既存の小さいシンボル群の元である。
+`With.comparison` と `finiteRepresentation` が一点コンパクト化の群との一致と有限表示を与える。
+`On.Symbols.Supported.With.Raw.equation` は、従来のシンボルを元の空間上の三つ組へ制限してこの構成に入力すると元の類が回収されることを示す。
+`On.Symbols.RawRepresentatives.existence` は全ての類にそのような元の空間上の代表が存在することを示す。
+等式はこの正規化後のシンボルに `EqualityCriterion` を適用して判定できる。
+
+`On.BundleTriples.To.Supported.With.equation` は、台の和の外で可換な束同型による表示変更を許す。
+`With.Enlarge.comparison` は拡大後の台の外への同型の制限を構成し、`equation` と `symbolEquation` は元の類とシンボルに一致することを示す。
+`On.Pullback.BundleTriples.Supported.With.naturality` は、この一般の三つ組の構成と proper 引き戻しが可換であることを示す。
+
+`Examples.Raw` は、有限一点空間上の自明束を入力し、空の近傍と空間全体を近傍に選んだ値の一致を実体化する。
 
 通常検査はリポジトリルートで実行する。
 

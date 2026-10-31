@@ -1,0 +1,75 @@
+\import topology.Topology[Carrier := X] \as Base;
+\import Base.Subspace[S := L] \as Local;
+\definition Carrier: \Set := Local.CarrierSet;
+\definition topology: topology.Topology[Carrier := Carrier].Topology := Local.topology space;
+\definition compact: topology.Topology[Carrier := Carrier].IsCompact topology := Local.Properties[].compact space compactL;
+\definition separated: topology.Topology[Carrier := Carrier].IsT2 topology := Local.Properties[].hausdorff space hausdorff;
+\definition boundary: \Pow Carrier := { x: Carrier \where Logic.Not (\In[X] U x) };
+\definition inclusion[x: Carrier]: X := x;
+\definition regular: topology.Continuity[A := Carrier, B := X].Continuous topology space inclusion :=
+  topology.Continuity[A := Carrier, B := X].Corestriction[S := L].inclusionContinuous space;
+\definition boundaryClosed: topology.Topology[Carrier := Carrier].IsClosedIn topology boundary :=
+  topology.Topology[Carrier := Carrier].Finite[].openComplementClosed topology (Local.Trace U) (regular U open);
+\import Relative.Pair[X := Carrier, space := topology, compact := compact, hausdorff := separated, subset := boundary, closed := boundaryClosed] \as Pair;
+\import Pair.Quotient[] \as Quotient;
+\definition quotientModel: Relative.CompactPointed := Quotient.model;
+\import \root.Support[].ClosedPair[M := Carrier, space := topology, compact := compact, hausdorff := separated, subset := boundary, closed := boundaryClosed] \as Complement;
+\import Base.Subspace[S := U] \as RegionSpace;
+\definition Region: \Set := RegionSpace.CarrierSet;
+\definition regionTopology: topology.Topology[Carrier := Region].Topology := RegionSpace.topology space;
+\definition intoLocal[x: Region]: Carrier := \into[X](x, L) \by { enclosed x (\bysub(X, U, x)) };
+\definition forward[x: Region]: Complement.Interior := \into[Carrier](intoLocal x, topology.Topology[Carrier := Carrier].Complement boundary) \by {
+  \fun (outside: _) => outside (\bysub(X, U, x))
+};
+\definition backward[x: Complement.Interior]: Region := \into[X](x, U) \by {
+  Base.Finite[].doubleNegElim (\In[X] U x) (\bysub(Carrier, topology.Topology[Carrier := Carrier].Complement boundary, x))
+};
+\definition leftInverse: \forall (x: Region) -> backward (forward x) = x := \fun (x: Region) => \refl(x);
+\definition rightInverse: \forall (x: Complement.Interior) -> forward (backward x) = x := \fun (x: Complement.Interior) => \refl(x);
+\definition forwardContinuous: topology.Continuity[A := Region, B := Complement.Interior].Continuous regionTopology Complement.interiorTopology forward :=
+  topology.Continuity[A := Region, B := Carrier].Corestriction[S := topology.Topology[Carrier := Carrier].Complement boundary].corestrictContinuous regionTopology topology forward
+    (topology.Continuity[A := Region, B := X].Corestriction[S := L].corestrictContinuous regionTopology space intoLocal
+      (topology.Continuity[A := Region, B := X].Corestriction[S := U].inclusionContinuous space));
+\definition backwardContinuous: topology.Continuity[A := Complement.Interior, B := Region].Continuous Complement.interiorTopology regionTopology backward :=
+  topology.Continuity[A := Complement.Interior, B := X].Corestriction[S := U].corestrictContinuous Complement.interiorTopology space backward
+    (topology.Composition[A := Complement.Interior, B := Carrier, C := X].composeContinuous Complement.interiorTopology topology space
+      (\fun (x: Complement.Interior) => x) inclusion
+      (topology.Continuity[A := Complement.Interior, B := Carrier].Corestriction[S := topology.Topology[Carrier := Carrier].Complement boundary].inclusionContinuous topology) regular);
+\definition homeomorphism: topology.Homeomorphism[A := Region, B := Complement.Interior].Homeomorphism[regionTopology, Complement.interiorTopology] :=
+  topology.Homeomorphism[A := Region, B := Complement.Interior].Homeomorphism[regionTopology, Complement.interiorTopology] {
+    forward := forward, backward := backward, leftInverse := leftInverse, rightInverse := rightInverse,
+    forwardContinuous := forwardContinuous, backwardContinuous := backwardContinuous
+  };
+\import \parent.Open[U := U, open := open] \as Open;
+\import Open.Coordinates[] \as Coordinates;
+\definition regionHausdorff: topology.Topology[Carrier := Region].IsT2 regionTopology := RegionSpace.Properties[].hausdorff space hausdorff;
+\import \root.Support[].On[X := Region, space := regionTopology, hausdorff := regionHausdorff, locallyCompact := Coordinates.originalLocallyCompact] \as RegionTheory;
+\import \root.Support[].OnePoint[X := Region, space := regionTopology] \as RegionPlus;
+\import \root.Support[].OnePoint[X := Complement.Interior, space := Complement.interiorTopology] \as LocalPlus;
+\import \root.Support[].Homeomorphic[A := Region, B := Complement.Interior, source := regionTopology,
+  target := Complement.interiorTopology, h := homeomorphism].Extension[] \as Extension;
+\definition regionMap: Relative.Map RegionTheory.model Complement.model := \into[RegionPlus.Carrier -> LocalPlus.Carrier](Extension.homeomorphism.forward, Relative.Map RegionTheory.model Complement.model) \by {
+  algebraic_topology.Pointed[A := RegionPlus.Carrier].Maps[B := LocalPlus.Carrier].Laws[Relative.pointed RegionTheory.model, Relative.pointed Complement.model, Extension.homeomorphism.forward] {
+    continuous := (topology.Homeomorphism[A := RegionPlus.Carrier, B := LocalPlus.Carrier].laws RegionPlus.topology LocalPlus.topology Extension.homeomorphism).forwardContinuous,
+    pointed := \refl(LocalPlus.point)
+  }
+};
+\import Relative.Composition[source := model, middle := RegionTheory.model, target := Complement.model, first := Open.originalMapping, second := regionMap] \as First;
+\import Relative.Composition[source := model, middle := Complement.model, target := Quotient.model, first := First.map, second := Complement.equivalence.backward] \as Second;
+\definition collapse: Relative.Map model Quotient.model := Second.map;
+\definition onRegion: \forall (x: Region) -> collapse (Compactification.inclusion x) = Quotient.projection (intoLocal x) :=
+  \fun (x: Region) => trans!{{Quotient.Carrier}} _ _ _
+    (congr!{{RegionPlus.Carrier} {Quotient.Carrier}} (\fun (q: RegionPlus.Carrier) => Complement.equivalence.backward (regionMap q)) _ _ (Open.onFinite x))
+    (Complement.backwardOnInterior (forward x));
+\definition atInfinity: collapse Compactification.point = Quotient.point :=
+  (algebraic_topology.Pointed[A := Compactification.Carrier].Maps[B := Quotient.Carrier].laws (Relative.pointed model) (Relative.pointed Quotient.model) collapse).pointed;
+\definition offRegion: \forall (x: X) -> Logic.Not (\In[X] U x) -> collapse (Compactification.inclusion x) = Quotient.point :=
+  \fun (x: X)(outside: _) => trans!{{Quotient.Carrier}} _ _ _
+    (congr!{{RegionPlus.Carrier} {Quotient.Carrier}} (\fun (q: RegionPlus.Carrier) => Complement.equivalence.backward (regionMap q)) _ _ (Open.offFinite x outside))
+    (algebraic_topology.Pointed[A := LocalPlus.Carrier].Maps[B := Quotient.Carrier].laws (Relative.pointed Complement.model) (Relative.pointed Quotient.model) Complement.equivalence.backward).pointed;
+\import Relative.Pullback[source := model, target := Quotient.model, f := collapse] \as Pull;
+\definition extend: Quotient.Relative -> Relative.Reduced[model := model].Carrier := Pull.map;
+\definition extendAdd: \forall (a, b: Quotient.Relative) -> extend (Quotient.group.base.op a b) = Relative.Reduced[model := model].group.base.op (extend a) (extend b) := Pull.additive;
+
+\module Refinement(V: \Pow X, openV: Base.IsOpenIn space V, shrinks: Base.Subset V U,
+  M: \Pow X, compactM: Base.IsCompactIn space M, enclosedV: Base.Subset V M, included: Base.Subset L M);

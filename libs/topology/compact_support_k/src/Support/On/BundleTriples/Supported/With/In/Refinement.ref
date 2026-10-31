@@ -1,0 +1,29 @@
+\import \parent.\parent.In[n := m] \as Other;
+\import \root.Support[].On[X := X, space := space, hausdorff := hausdorff, locallyCompact := locallyCompact].Localization[
+  U := m.region, open := m.openRegion, L := m.compactSet, compactL := m.compact, enclosed := m.enclosed] \as OtherLocal;
+\import Relative.Pair[X := OtherLocal.Carrier, space := OtherLocal.topology, compact := OtherLocal.compact, hausdorff := OtherLocal.separated,
+  subset := OtherLocal.boundary, closed := OtherLocal.boundaryClosed] \as OtherPair;
+\import Local.Refinement[V := m.region, openV := m.openRegion, shrinks := shrinks, M := m.compactSet, compactM := m.compact, enclosedV := m.enclosed, included := included] \as Refine;
+\import OtherPair.Mapping[Y := Local.Carrier, source := Local.topology, sourceCompact := Local.compact, sourceHausdorff := Local.separated,
+  sourceSubset := Local.boundary, sourceClosed := Local.boundaryClosed, f := Refine.map, regular := Refine.continuous, preserves := Refine.preserves] \as Mapping;
+\import Mapping.BundleTriples[F := Other.FirstFiber, G := Other.SecondFiber, firstModel := Other.firstOnLocal, secondModel := Other.secondOnLocal] \as Pull;
+\import Pull.With[alpha := Other.comparison] \as Pulled;
+\import Bundles.Family[X := X, F := F].Of[bundle := first].PullbackComposition[Y := OtherLocal.Carrier, Z := Local.Carrier, first := OtherLocal.topology, second := Local.topology,
+  f := OtherLocal.inclusion, g := Refine.map].Of[fRegular := OtherLocal.regular, gRegular := Refine.continuous] \as PositiveComposition;
+\import Bundles.Family[X := X, F := G].Of[bundle := second].PullbackComposition[Y := OtherLocal.Carrier, Z := Local.Carrier, first := OtherLocal.topology, second := Local.topology,
+  f := OtherLocal.inclusion, g := Refine.map].Of[fRegular := OtherLocal.regular, gRegular := Refine.continuous] \as NegativeComposition;
+\import Relative.PairPullback[X := OtherLocal.Carrier, Y := Local.Carrier, F := Other.FirstFiber, G := Other.SecondFiber,
+  first := OtherPair.BundleModel[F := Other.FirstFiber].bundle Other.firstOnLocal, second := OtherPair.BundleModel[F := Other.SecondFiber].bundle Other.secondOnLocal,
+  same := (\refl(OtherLocal.topology)), source := Local.topology, subset := OtherLocal.boundary, sourceSubset := Local.boundary,
+  f := Refine.map, regular := Refine.continuous, preserves := Refine.preserves] \as PullBoundary;
+\definition commutes: \forall (x: Pair.A)(v: FirstFiber x) ->
+  (Pulled.comparison.forward.fiber x).apply ((PositiveComposition.isomorphism.forward.fiber x).apply v) =
+  (NegativeComposition.isomorphism.forward.fiber x).apply ((comparison.forward.fiber x).apply v) :=
+  \fun (x: Pair.A)(v: FirstFiber x) => trans!{{G x}} _ _ _ (PullBoundary.With[alpha := Other.comparison].formula x v)
+    (trans!{{G x}} _ _ _ (Other.formula (PullBoundary.boundary x) v) (sym!{{G x}} _ _ (formula x v)));
+\import Pair.BundleTriples[F := FirstFiber, G := SecondFiber, firstModel := firstOnLocal, secondModel := secondOnLocal].To[
+  H := Pull.FirstFiber, I := Pull.SecondFiber, newFirstModel := Pull.firstModelOnSource, newSecondModel := Pull.secondModelOnSource].With[
+    alpha := comparison, beta := Pulled.comparison, positive := PositiveComposition.isomorphism, negative := NegativeComposition.isomorphism, commutes := commutes] \as Change;
+\definition localEquation: localValue = Mapping.relative Other.localValue := trans!{{Pair.Quotient[].Relative}} _ _ _ Change.reducedEquation Pulled.reducedNaturality;
+\definition equation: value = Other.value := trans!{{Relative.Reduced[model := model].Carrier}} _ _ _
+  (congr!{{Pair.Quotient[].Relative} {Relative.Reduced[model := model].Carrier}} Local.extend _ _ localEquation) (Refine.equation Other.localValue);

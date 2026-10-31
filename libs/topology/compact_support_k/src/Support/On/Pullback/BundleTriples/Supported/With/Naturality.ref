@@ -1,0 +1,39 @@
+\import \root.Support[].On[X := X, space := space, hausdorff := hausdorff, locallyCompact := locallyCompact].Pullback[
+  Y := Y, target := target, targetHausdorff := targetHausdorff, targetLocallyCompact := targetLocallyCompact, f := f, continuous := continuous, proper := proper].Localization[
+  U := n.region, open := n.openRegion, L := n.compactSet, compactL := n.compact, enclosed := n.enclosed] \as Geometry;
+\definition sourceNeighborhood: SourceClass.Neighborhood := SourceClass.Neighborhood {
+  region := Geometry.region, compactSet := Geometry.compactSet, openRegion := Geometry.openRegion, compact := Geometry.compact,
+  contains := \fun (x: X)(inside: _) => n.contains (f x) inside, enclosed := Geometry.contained
+};
+\import Geometry.Using[openProof := sourceNeighborhood.openRegion, compactProof := sourceNeighborhood.compact, enclosedProof := sourceNeighborhood.enclosed] \as SquareGeometry;
+\import TargetClass.In[n := n] \as TargetLocal;
+\import SourceClass.In[n := sourceNeighborhood] \as SourceLocal;
+\import Other.Localization[U := n.region, open := n.openRegion, L := n.compactSet, compactL := n.compact, enclosed := n.enclosed] \as RangeLocal;
+\import \root.Support[].On[X := X, space := space, hausdorff := hausdorff, locallyCompact := locallyCompact].Localization[
+  U := sourceNeighborhood.region, open := sourceNeighborhood.openRegion, L := sourceNeighborhood.compactSet, compactL := sourceNeighborhood.compact, enclosed := sourceNeighborhood.enclosed] \as DomainLocal;
+\import Relative.Pair[X := RangeLocal.Carrier, space := RangeLocal.topology, compact := RangeLocal.compact, hausdorff := RangeLocal.separated, subset := RangeLocal.boundary, closed := RangeLocal.boundaryClosed] \as RangePair;
+\import Relative.Pair[X := DomainLocal.Carrier, space := DomainLocal.topology, compact := DomainLocal.compact, hausdorff := DomainLocal.separated, subset := DomainLocal.boundary, closed := DomainLocal.boundaryClosed] \as DomainPair;
+\import RangePair.Mapping[Y := DomainLocal.Carrier, source := DomainLocal.topology, sourceCompact := DomainLocal.compact, sourceHausdorff := DomainLocal.separated,
+  sourceSubset := DomainLocal.boundary, sourceClosed := DomainLocal.boundaryClosed, f := SquareGeometry.base, regular := SquareGeometry.regular, preserves := SquareGeometry.preserves] \as Mapping;
+\import Mapping.BundleTriples[F := TargetLocal.FirstFiber, G := TargetLocal.SecondFiber, firstModel := TargetLocal.firstOnLocal, secondModel := TargetLocal.secondOnLocal] \as LocalPull;
+\import LocalPull.With[alpha := TargetLocal.comparison] \as LocalClass;
+\definition preservesCompact: \forall (x: X) -> \In[X] Geometry.compactSet x -> \In[Y] n.compactSet (f x) := \fun (x: X)(inside: _) => inside;
+\import Relative.RestrictedPullback[X := Y, Y := X, F := F, bundle := originalFirst, source := space, subset := n.compactSet, sourceSubset := Geometry.compactSet,
+  f := f, regular := continuous, preserves := preservesCompact] \as Positive;
+\import Relative.RestrictedPullback[X := Y, Y := X, F := G, bundle := originalSecond, source := space, subset := n.compactSet, sourceSubset := Geometry.compactSet,
+  f := f, regular := continuous, preserves := preservesCompact] \as Negative;
+\import Relative.PairPullback[X := RangeLocal.Carrier, Y := DomainLocal.Carrier, F := TargetLocal.FirstFiber, G := TargetLocal.SecondFiber,
+  first := RangePair.BundleModel[F := TargetLocal.FirstFiber].bundle TargetLocal.firstOnLocal, second := RangePair.BundleModel[F := TargetLocal.SecondFiber].bundle TargetLocal.secondOnLocal,
+  same := (\refl(RangeLocal.topology)), source := DomainLocal.topology, subset := RangeLocal.boundary, sourceSubset := DomainLocal.boundary,
+  f := SquareGeometry.base, regular := SquareGeometry.regular, preserves := SquareGeometry.preserves] \as LocalBoundary;
+\module Square;
+\import DomainPair.BundleTriples[F := SourceLocal.FirstFiber, G := SourceLocal.SecondFiber, firstModel := SourceLocal.firstOnLocal, secondModel := SourceLocal.secondOnLocal].To[
+  H := LocalPull.FirstFiber, I := LocalPull.SecondFiber, newFirstModel := LocalPull.firstModelOnSource, newSecondModel := LocalPull.secondModelOnSource].With[
+    alpha := SourceLocal.comparison, beta := LocalClass.comparison, positive := Positive.isomorphism, negative := Negative.isomorphism, commutes := Square[].equation] \as Change;
+\definition localEquation: SourceLocal.localValue = SquareGeometry.relative TargetLocal.localValue := trans!{{DomainPair.Quotient[].Relative}} _ _ _ Change.reducedEquation LocalClass.reducedNaturality;
+\definition equation: SourceClass.value = Relative.Pullback[source := model, target := Other.model, f := mapping].map TargetClass.value :=
+  trans!{{Relative.Reduced[model := model].Carrier}} _ _ _ (SourceClass.agreement sourceNeighborhood)
+    (trans!{{Relative.Reduced[model := model].Carrier}} _ _ _
+      (congr!{{DomainPair.Quotient[].Relative} {Relative.Reduced[model := model].Carrier}} DomainLocal.extend _ _ localEquation)
+      (trans!{{Relative.Reduced[model := model].Carrier}} _ _ _ (SquareGeometry.equation TargetLocal.localValue)
+        (congr!{{Relative.Reduced[model := Other.model].Carrier} {Relative.Reduced[model := model].Carrier}} Relative.Pullback[source := model, target := Other.model, f := mapping].map _ _ (sym!{{Relative.Reduced[model := Other.model].Carrier}} _ _ (TargetClass.agreement n)))));

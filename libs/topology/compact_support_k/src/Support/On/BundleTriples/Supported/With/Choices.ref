@@ -1,0 +1,18 @@
+\import Base.Finite[] \as Finite;
+\definition common: Neighborhood := Neighborhood {
+  region := Base.Intersection n.region m.region,
+  compactSet := Finite.Join n.compactSet m.compactSet,
+  openRegion := (Base.topologyLaws space).intersectionOpen n.region m.region n.openRegion m.openRegion,
+  compact := Base.Compactness[].joinCompact space n.compactSet m.compactSet n.compact m.compact,
+  contains := \fun (x: X)(inside: _) => Logic.And[_, _]::# (n.contains x inside) (m.contains x inside),
+  enclosed := \fun (x: X)(inside: _) => Logic.Or[_, _]::left (n.enclosed x inside.left)
+};
+\import \parent.In[n := n] \as First;
+\import \parent.In[n := m] \as Second;
+\definition leftShrinks: Base.Subset common.region n.region := \fun (x: X)(inside: _) => inside.left;
+\definition rightShrinks: Base.Subset common.region m.region := \fun (x: X)(inside: _) => inside.right;
+\definition leftIncluded: Base.Subset n.compactSet common.compactSet := \fun (x: X)(inside: _) => Logic.Or[_, _]::left inside;
+\definition rightIncluded: Base.Subset m.compactSet common.compactSet := \fun (x: X)(inside: _) => Logic.Or[_, _]::right inside;
+\import First.Refinement[m := common, shrinks := leftShrinks, included := leftIncluded] \as Left;
+\import Second.Refinement[m := common, shrinks := rightShrinks, included := rightIncluded] \as Right;
+\definition equation: First.value = Second.value := trans!{{Relative.Reduced[model := model].Carrier}} _ _ _ Left.equation (sym!{{Relative.Reduced[model := model].Carrier}} _ _ Right.equation);

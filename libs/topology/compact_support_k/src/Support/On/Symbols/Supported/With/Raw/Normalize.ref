@@ -1,0 +1,54 @@
+\import topology.Topology[Carrier := Compactification.Carrier] \as Plus;
+\import topology.Topology[Carrier := X] \as Base;
+\definition closedPart: \Pow Compactification.Carrier := w.envelope;
+\definition pointInside: \In[Compactification.Carrier] closedPart Compactification.point := w.enclosed Compactification.point (w.contains Compactification.point (\refl(Compactification.point)));
+\definition region: \Pow X := Base.Complement (Compactification.trace closedPart);
+\definition localCompact: \Pow X := Compactification.remainder w.inner;
+\definition openRegion: Base.IsOpenIn space region := Compactification.inclusionContinuous (Plus.Complement closedPart) w.envelopeClosed;
+\definition compactLocal: Base.IsCompactIn space localCompact := w.innerOpen.atInfinity (w.contains Compactification.point (\refl(Compactification.point)));
+\definition n: Class.Neighborhood := Class.Neighborhood {
+  region := region, compactSet := localCompact, openRegion := openRegion, compact := compactLocal,
+  contains := \fun (x: X)(outsideDomain: _)(inClosed: _) => outsideDomain (w.within (Compactification.inclusion x) inClosed),
+  enclosed := \fun (x: X)(outsideClosed: _)(inInner: _) => outsideClosed (w.enclosed (Compactification.inclusion x) inInner)
+};
+\import Theory.Localization[U := n.region, open := n.openRegion, L := n.compactSet, compactL := n.compact, enclosed := n.enclosed] \as Local;
+\import Class.In[n := n] \as LocalClass;
+\import Relative.Pair[X := Local.Carrier, space := Local.topology, compact := Local.compact, hausdorff := Local.separated, subset := Local.boundary, closed := Local.boundaryClosed] \as LocalPair;
+\import Relative.Pair[X := Compactification.Carrier, space := Compactification.topology, compact := Compactness.compact, hausdorff := Separation.hausdorffCompactification,
+  subset := closedPart, closed := w.envelopeClosed] \as Global;
+\import Global.BundleModel[F := (Bundles.Fiber t.positive)].From[original := (Bundles.bundle t.positive), same := (\refl(Compactification.topology))] \as GlobalFirst;
+\import Global.BundleModel[F := (Bundles.Fiber t.negative)].From[original := (Bundles.bundle t.negative), same := (\refl(Compactification.topology))] \as GlobalSecond;
+\definition positiveOnGlobal: Global.BundleModel[F := (Bundles.Fiber t.positive)].Bundle := GlobalFirst.model;
+\definition negativeOnGlobal: Global.BundleModel[F := (Bundles.Fiber t.negative)].Bundle := GlobalSecond.model;
+\definition intoDomain[x: Global.A]: \Cast[Compactification.Carrier] e.domain := \into[Compactification.Carrier](x, e.domain) \by { w.within x (\bysub(Compactification.Carrier, closedPart, x)) };
+\definition intoDomainRegular: topology.Continuity[A := Global.A, B := \Cast[Compactification.Carrier] e.domain].Continuous Global.subspace
+  (Plus.Subspace[S := e.domain].topology Compactification.topology) intoDomain :=
+  topology.Continuity[A := Global.A, B := Compactification.Carrier].Corestriction[S := e.domain].corestrictContinuous Global.subspace Compactification.topology intoDomain
+    (topology.Continuity[A := Global.A, B := Compactification.Carrier].Corestriction[S := closedPart].inclusionContinuous Compactification.topology);
+\import bundle_extension.Extension[].Over[K := C.Complex, field := C.Algebra[].field, conjugation := Hermitian.scalar, scalar := Scalar.scalar].Isomorphisms[
+  X := Compactification.Carrier, subset := Point.subset, F := (Bundles.Fiber t.positive), G := (Bundles.Fiber t.negative),
+  source := (Bundles.bundle t.positive), target := (Bundles.bundle t.negative), same := (\refl(Compactification.topology))].With[a := t.comparison, e := e] \as Extended;
+\import Extended.Pullback[Y := Global.A, space := Global.subspace, f := intoDomain, regular := intoDomainRegular] \as Restricted;
+\definition globalComparison: Global.BundleTriples[F := (Bundles.Fiber t.positive), G := (Bundles.Fiber t.negative), firstModel := positiveOnGlobal, secondModel := negativeOnGlobal].OnSubset := Restricted.isomorphism;
+\import Global.BundleTriples[F := (Bundles.Fiber t.positive), G := (Bundles.Fiber t.negative), firstModel := positiveOnGlobal, secondModel := negativeOnGlobal].With[alpha := globalComparison] \as GlobalClass;
+\definition toGlobal[x: Local.Carrier]: Compactification.Carrier := Compactification.inclusion x;
+\definition toGlobalRegular: topology.Continuity[A := Local.Carrier, B := Compactification.Carrier].Continuous Local.topology Compactification.topology toGlobal :=
+  topology.Composition[A := Local.Carrier, B := X, C := Compactification.Carrier].composeContinuous Local.topology space Compactification.topology Local.inclusion Compactification.inclusion Local.regular Compactification.inclusionContinuous;
+\definition preservesBoundary: \forall (x: Local.Carrier) -> \In[Local.Carrier] Local.boundary x -> \In[Compactification.Carrier] closedPart (toGlobal x) :=
+  \fun (x: Local.Carrier)(outsideRegion: _) => Base.Finite[].doubleNegElim (\In[Compactification.Carrier] closedPart (toGlobal x)) outsideRegion;
+\import Global.Mapping[Y := Local.Carrier, source := Local.topology, sourceCompact := Local.compact, sourceHausdorff := Local.separated,
+  sourceSubset := Local.boundary, sourceClosed := Local.boundaryClosed, f := toGlobal, regular := toGlobalRegular, preserves := preservesBoundary] \as Inclusion;
+\import Inclusion.BundleTriples[F := (Bundles.Fiber t.positive), G := (Bundles.Fiber t.negative), firstModel := positiveOnGlobal, secondModel := negativeOnGlobal] \as Pull;
+\import Pull.With[alpha := globalComparison] \as PulledClass;
+\definition globalPointMap: Relative.Map model Global.Quotient[].model := \into[Compactification.Carrier -> Global.Quotient[].Carrier](Global.Quotient[].projection, Relative.Map model Global.Quotient[].model) \by {
+  algebraic_topology.Pointed[A := Compactification.Carrier].Maps[B := Global.Quotient[].Carrier].Laws[Relative.pointed model, Global.Quotient[].pointed, Global.Quotient[].projection] {
+    continuous := Global.Quotient[].continuous,
+    pointed := Global.Quotient[].onSubset (\into[Compactification.Carrier](Compactification.point, closedPart) \by { pointInside })
+  }
+};
+\module BundlesSquare;
+\module CollapseSquare;
+\module PointComparison;
+\definition equation: value = Symbols.forward (Symbols.value t) :=
+  trans!{{Relative.Reduced[model := model].Carrier}} _ _ _ (Class.agreement n)
+    (trans!{{Relative.Reduced[model := model].Carrier}} _ _ _ CollapseSquare[].equation PointComparison[].equation);
