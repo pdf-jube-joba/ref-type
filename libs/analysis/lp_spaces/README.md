@@ -19,6 +19,8 @@
 | `On.Complex.Geometry.norm` / `On.Complex.Inner.inner` / `On.Complex.Complete.hilbert` | 任意の測度上の複素 L2 のノルム・内積・完備性 |
 | `On.Complex.Characterization.equivalence` | 実部・虚部の L2 条件と、複素可測かつ絶対値の L2 条件の同値 |
 | `On.SimpleApproximation[p].dense` | L1 可積分な実単関数による Lp 近似 |
+| `On.Pullback[p, map]` | 測度保存写像の引き戻し、a.e. 商上の定義・ノルム・距離の保存 |
+| `Euclidean[n].Translation[p].continuous` / `Group.continuousAt` | 有限 p の Lebesgue Lp における平行移動の ε–δ ノルム連続性、合成則と等長性 |
 | `Euclidean[n].Compact[p]` | コンパクト台付き連続・滑らかな関数の可測性・有界性・Lp 代表元 |
 | `Euclidean[n].Approximation[p].smoothDense` / `continuousDense` | Euclid の Lebesgue 測度、有限実指数 `1 ≤ p < ∞` での C∞ コンパクト台・連続コンパクト台関数の稠密性 |
 | `Examples[A, mu, p]` | 一般の代表元・商・指数を使う検査される利用例 |
@@ -49,7 +51,7 @@ a.e. 極限を例外零集合上で零にした可測代表を構成するため
 Euclid 上の稠密性は、任意の Lp 関数の箱による切り詰め、単関数の有限セル分解、測度の正則性、G01 の滑らかな cutoff と Lp の優収束から証明する。
 この稠密性は有限 p に限定され、L∞ については主張しない。`EuclideanExamples[n, p]` が一般の次元・指数・商の元を使う検査対象の利用例である。
 
-A05 の後続作業は、L∞ の構造と Hölder の端点、Euclid 空間での平行移動連続性、近似単位・平滑化である。
+A05 の後続作業は、L∞ の構造と Hölder の端点、近似単位・平滑化である。
 
 通常検査はリポジトリのルートから実行する。
 
