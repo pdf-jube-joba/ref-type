@@ -28,3 +28,8 @@ A05 `lp_spaces` と G01 `smooth_partitions` の通常回帰検査も終了コー
 cargo build -p cli --release --locked
 python3 scripts/check_all.py --initial-memory-mib 12288 --memory-mib 12288 --state-dir work/a06-final --min-free-mib 512
 ```
+
+K10 `compact_support_k` の worker では 285,212,688 バイトのメモリ確保が失敗し、checkpoint 35640 から自動再開した。
+同スコープの最終結果は受理であり、worker 数 2、復旧 1、`lost_steps` 3202、`duplicate_source_steps` 0、`replayed_source_steps` 0 を報告した。
+最大 RSS は 10,407,420 KiB、最大仮想メモリは 12,424,532 KiB。
+復旧に使った公開済み checkpoint と検証済みキャッシュを保持している。
