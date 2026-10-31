@@ -1,0 +1,44 @@
+\import calculus.Real[].Multivariable[n := n].Open[] \as Open;
+\import Open.Analysis[] \as Analysis;
+\import Open.Restriction[] \as Restriction;
+\import Open.Whole[] \as Whole;
+\import Open.Smooth[].Properties[] \as SmoothProperties;
+\import L.Parametric[B := Point, metric := Geometry.metric] \as Parametric;
+\import \root.Euclidean[n := n].Convolution[p := p].Local[f := f, rho := rho, a := a] \as Local;
+\definition pointwise[y: Point][epsilon: Real.Real]: R.Lt Real.zero epsilon -> \exists ( delta: Real.Real \where Parametric.Control[(\fun (x: Point) => section f rho x y), a, Sets.Whole, section f rho a y, epsilon, delta] ) := \fun (positive: _) => \block {
+  \let c: Real.Real := Real.add (Product.abs (f y)) Real.one \then
+  \let cp: R.Lt Real.zero c := R.leLtTrans Real.zero (Product.abs (f y)) c (Product.absNonnegative (f y)) (Real.SquareRoot[].addPositive (Product.abs (f y)) Real.one Product.onePositive) \then
+  \let r: Real.Real := Product.radius c epsilon \then
+  \takefrom delta: \Cast[Real.Real] ({ delta: Real.Real \where Analysis.ContinuityControl[Open.whole, Restriction.function Open.whole rho.function, Whole.point (E.subPoint a y), r, delta] })
+    \by SmoothProperties.continuous Open.whole (Restriction.function Open.whole rho.function) (smoothCompactLaws rho.function).smooth (Whole.point (E.subPoint a y)) r (Product.radiusPositive c epsilon cp positive) \then
+  \let control: Analysis.ContinuityControl[Open.whole, Restriction.function Open.whole rho.function, Whole.point (E.subPoint a y), r, delta] := \bysub(Real.Real,
+    { delta: Real.Real \where Analysis.ContinuityControl[Open.whole, Restriction.function Open.whole rho.function, Whole.point (E.subPoint a y), r, delta] }, delta) \then
+  \return Logic.existsIntro[Real.Real, { delta: Real.Real \where Parametric.Control[(\fun (x: Point) => section f rho x y), a, Sets.Whole, section f rho a y, epsilon, delta] }] delta
+    (Parametric.Control[(\fun (x: Point) => section f rho x y), a, Sets.Whole, section f rho a y, epsilon, delta] {
+      positive := control.positive,
+      estimate := \fun (x: Point)(allowed: _)(near: _) => \block {
+        \let shifted: R.Le (Geometry.metric.distance (E.subPoint x y) (E.subPoint a y)) (Geometry.metric.distance x a) := R.leReplaceRight _ _ _
+          (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (Real.add (Geometry.metric.distance x a)) _ _ (Geometry.metric.self y)) (Laws.addZeroRight _)) (Geometry.distanceSub x y a y) \then
+        \let distance: R.Lt (Real.distance (rho.function (E.subPoint x y)) (rho.function (E.subPoint a y))) r := control.estimate (Whole.point (E.subPoint x y)) (R.leLtTrans _ _ _ shifted near) \then
+        \let coefficient: R.Le (Product.abs (f y)) c := R.leReplaceLeft _ _ _ (Laws.addZeroRight (Product.abs (f y)))
+          (Estimates.addLe _ _ _ _ (R.leRefl (Product.abs (f y))) Laws.oneNonnegative) \then
+        \return R.leLtTrans _ _ _
+          (R.leTrans _ _ _ (Product.scalarDistance (f y) (rho.function (E.subPoint x y)) (rho.function (E.subPoint a y)))
+            (R.leTrans _ _ _ (Estimates.mulMonotone (Product.abs (f y)) _ _ (Product.absNonnegative (f y)) (Order.leOfLt _ _ distance))
+              (R.leReplace _ _ _ _ (Laws.fieldMulComm r (Product.abs (f y))) (Laws.fieldMulComm r c)
+                (Estimates.mulMonotone r _ _ (Order.leOfLt _ _ (Product.radiusPositive c epsilon cp positive)) coefficient))))
+          (Product.radiusSmall c epsilon cp positive)
+      },
+    })
+};
+\definition data: Parametric.Data := Parametric.Data { function := \fun (x: Point) => section f rho x, target := section f rho a, at := a, allowed := Sets.Whole,
+  radius := \into[Real.Real](Real.one, Positive) \by { Product.onePositive }, bound := Local.bound,
+  dominated := \fun (x: Point)(allowed: _)(near: _)(y: Point) => Local.dominated x y near, pointwise := pointwise };
+\definition continuous: Analysis.ContinuousAt Open.whole (Restriction.function Open.whole (function f rho)) (Whole.point a) := \fun (epsilon: Real.Real)(positive: _) => \block {
+  \takefrom delta: \Cast[Real.Real] ({ delta: Real.Real \where Parametric.Control[(\fun (x: Point) => I.integral (section f rho x)), a, Sets.Whole, I.integral (section f rho a), epsilon, delta] }) \by Parametric.continuous data epsilon positive \then
+  \let control: Parametric.Control[(\fun (x: Point) => I.integral (section f rho x)), a, Sets.Whole, I.integral (section f rho a), epsilon, delta] := \bysub(Real.Real,
+    { delta: Real.Real \where Parametric.Control[(\fun (x: Point) => I.integral (section f rho x)), a, Sets.Whole, I.integral (section f rho a), epsilon, delta] }, delta) \then
+  \return Logic.existsIntro[Real.Real, { delta: Real.Real \where Analysis.ContinuityControl[Open.whole, Restriction.function Open.whole (function f rho), Whole.point a, epsilon, delta] }] delta
+    (Analysis.ContinuityControl[Open.whole, Restriction.function Open.whole (function f rho), Whole.point a, epsilon, delta] {
+      positive := control.positive, estimate := \fun (x: Open.Carrier Open.whole)(near: _) => control.estimate x (\refl(x)) near })
+};

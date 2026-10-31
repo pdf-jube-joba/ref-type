@@ -1,0 +1,35 @@
+\import \root.Euclidean[n := n].ReflectedTranslation[a := a] \as Map;
+\import L.Endpoint[] \as Endpoint;
+\import L.One[] \as One;
+\definition kernelFunction: Function := \fun (y: Point) => rho.function (E.subPoint a y);
+\definition measurable: M.IsMeasurable measure kernelFunction := Map.measurable rho.function (Compact.continuousMeasurable rho.function (Compact.smoothContinuous rho.function (smoothCompactLaws rho.function).smooth));
+\definition bounded: Infinity.Representatives := \into[Function](kernelFunction, Infinity.Representatives) \by {
+  M.Lp[mu := measure].EssentiallyBounded[kernelFunction] { measurable := measurable,
+    bound := Logic.existsIntro[Real.Real, { b: Real.Real \where M.Lp[mu := measure].EssentialBound[kernelFunction, b] }] rho.coefficient
+      (Infinity.boundOutside kernelFunction rho.coefficient Sets.Empty (Powers.baseNonnegative rho.coefficient) AE.nullEmpty (\fun (y: Point)(outside: _) => rho.absoluteBound (E.subPoint a y))) }
+};
+\definition radius: Nonnegative := PA.sum rho.radius (\into[Real.Real](Geometry.metric.distance Coordinates.origin a, Nonnegative) \by { Geometry.metric.nonnegative Coordinates.origin a });
+\definition box: Finite.FiniteMeasurableSet := \into[\Pow Point](E.points (Bounds.box radius), Finite.FiniteMeasurableSet) \by { Integration.boxFinite (Bounds.box radius) };
+\import L.Restriction[p := p, S := box] \as Restricted;
+\definition within[y: Point]: Logic.Not (kernelFunction y = Real.zero) -> Sets.Member box y := \fun (nonzero: _) => Bounds.coordinateBound y radius
+  (R.leReplaceRight _ _ _ (Laws.addComm (Geometry.metric.distance Coordinates.origin a) rho.radius)
+    (R.leTrans _ _ _ (Geometry.metric.triangle Coordinates.origin a y)
+      (Estimates.addLe _ _ _ _ (R.leRefl (Geometry.metric.distance Coordinates.origin a))
+        (R.leReplaceLeft _ _ _ (trans!{Real.Real} _ _ _ (Geometry.metric.symmetric Coordinates.origin (E.subPoint a y)) (Geometry.difference a y))
+          (rho.radiusBound (E.subPoint a y) (Support.nonzeroInSupport Ambient.topology rho.function (E.subPoint a y) nonzero))))));
+\definition local: I.Representatives := \into[Function](Restricted.function f, I.Representatives) \by { Restricted.integrable f };
+\definition one: One.Representatives := One.fromIntegral local;
+\definition product: I.Representatives := Endpoint.representative one bounded;
+\definition actual: Function := \fun (y: Point) => Real.mul (f y) (kernelFunction y);
+\definition equality[y: Point]: product y = actual y := Logic.orElim _ _ _ (Classical.excludedMiddle (Sets.Member box y))
+  (\fun (member: _) => congr!{Real.Real Real.Real} (\fun (r: Real.Real) => Real.mul r (kernelFunction y)) _ _ (Restricted.inside f y member))
+  (\fun (outside: _) => \block {
+    \let zero: kernelFunction y = Real.zero := Sigma.doubleNegative _ (\fun (nonzero: _) => outside (within y nonzero)) \then
+    \return trans!{Real.Real} _ _ _ (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (Real.mul (one y)) _ _ zero) (Laws.fieldMulZeroRight (one y)))
+      (sym!{Real.Real} _ _ (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (Real.mul (f y)) _ _ zero) (Laws.fieldMulZeroRight (f y))))
+  });
+\definition integrable: I.Integrable actual := \idelim (\fun (y: Point) => product y) = actual \with h: Function => I.Integrable h \by {
+  base: (I.integralLaw product).integrable,
+  equality: \axiom:funext((\fun (y: Point) => product y), actual, equality)
+};
+\definition representative: I.Representatives := \into[Function](actual, I.Representatives) \by { integrable };

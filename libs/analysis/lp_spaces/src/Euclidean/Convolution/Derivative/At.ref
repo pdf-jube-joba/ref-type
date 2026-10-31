@@ -1,0 +1,40 @@
+\import SmoothOperations.Shift[f := rho.function, a := a, y := y, i := i] \as Shift;
+\import L.Restriction[p := p, S := Local.box] \as Restricted;
+\definition scalarCenter: scalar y (a i) = rho.function (E.subPoint a y) := Shift.center;
+\definition targetValue: target y = Real.mul (f y) (coefficient y) := congr!{Real.Real Real.Real} (Real.mul (f y)) _ _
+  (congr!{SmoothCompact Real.Real} (\fun (h: SmoothCompact) => h (E.subPoint a y)) _ _ matching);
+\definition derivative: D.HasDerivativeAt (\fun (t: Real.Real) => curve t y) (a i) (target y) := \idelim Real.mul (f y) (coefficient y) = target y \with d: Real.Real =>
+  D.HasDerivativeAt (\fun (t: Real.Real) => curve t y) (a i) d \by {
+    base: \idelim Real.mul (f y) (Shift.coefficient (a i)) = Real.mul (f y) (coefficient y) \with d: Real.Real =>
+      D.HasDerivativeAt (\fun (t: Real.Real) => curve t y) (a i) d \by {
+        base: DO.scaleDerivative (f y) Shift.curve (a i) (Shift.coefficient (a i)) (Shift.derivative (a i)),
+        equality: congr!{Point Real.Real} (\fun (x: Point) => Real.mul (f y) (Partial.function (E.subPoint x y))) _ _ (Space.replaceOriginal a i)
+      }, equality: sym!{Real.Real} _ _ targetValue };
+\definition slopeValue[t: Real.Real]: D.slope (\fun (s: Real.Real) => curve s y) (a i) t = Real.mul (f y) (D.slope Shift.curve (a i) t) :=
+  trans!{Real.Real} _ _ _
+    (congr!{Real.Real Real.Real} (\fun (r: Real.Real) => Real.mul r (Laws.fieldInv (Real.sub t (a i)))) _ _ (sym!{Real.Real} _ _ (Algebra.mulSub (f y) (Shift.curve t) (Shift.curve (a i)))))
+    (Laws.fieldMulAssoc (f y) (Real.sub (Shift.curve t) (Shift.curve (a i))) (Laws.fieldInv (Real.sub t (a i))));
+\definition dominated[t: Real.Real]: Logic.Not (t = a i) -> R.Lt (Real.distance t (a i)) Real.one -> R.Le (Product.abs (D.slope (\fun (s: Real.Real) => curve s y) (a i) t)) (bound y) :=
+  \fun (different: _)(near: _) => Logic.orElim _ _ _ (Classical.excludedMiddle (Sets.Member Local.box y))
+    (\fun (member: _) => R.leReplace _ _ _ _
+      (sym!{Real.Real} _ _ (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} Product.abs _ _ (slopeValue t)) (Product.absProduct (f y) (D.slope Shift.curve (a i) t))))
+      (trans!{Real.Real} _ _ _ (Laws.fieldMulComm (Product.abs (f y)) derivativeKernel.coefficient)
+        (congr!{Real.Real Real.Real} (Real.mul derivativeKernel.coefficient) _ _ (sym!{Real.Real} _ _ (congr!{Real.Real Real.Real} Product.abs _ _ (Restricted.inside f y member)))))
+      (Estimates.mulMonotone (Product.abs (f y)) _ _ (Product.absNonnegative (f y)) (Shift.slopeBound derivativeKernel.coefficient partialBound t different)))
+    (\fun (outside: _) => \block {
+      \let zeroAt: Shift.curve (a i) = Real.zero := Sigma.doubleNegative _ (\fun (nonzero: _) => outside (Local.within a y
+        (R.ltReplaceLeft _ _ _ (sym!{Real.Real} _ _ (Geometry.metric.self a)) Product.onePositive)
+        (\fun (zero: _) => nonzero (trans!{Real.Real} _ _ _ scalarCenter zero)))) \then
+      \let zeroNext: Shift.curve t = Real.zero := Sigma.doubleNegative _ (\fun (nonzero: _) => outside (Local.within (Coordinates.replace a i t) y
+        (R.ltReplaceLeft _ _ _ (sym!{Real.Real} _ _ (Space.replaceDistance a i t)) near) nonzero)) \then
+      \let slopeZero: D.slope Shift.curve (a i) t = Real.zero := trans!{Real.Real} _ _ _
+        (congr!{Real.Real Real.Real} (\fun (r: Real.Real) => Real.mul r (Laws.fieldInv (Real.sub t (a i)))) _ _
+          (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real Real.Real} Real.sub _ _ _ _ zeroNext zeroAt) (Laws.subSelf Real.zero)))
+        (Laws.fieldMulZeroLeft _) \then
+      \let leftZero: Product.abs (D.slope (\fun (s: Real.Real) => curve s y) (a i) t) = Real.zero := trans!{Real.Real} _ _ _
+        (congr!{Real.Real Real.Real} Product.abs _ _ (trans!{Real.Real} _ _ _ (slopeValue t)
+          (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (Real.mul (f y)) _ _ slopeZero) (Laws.fieldMulZeroRight (f y))))) (Distance.distanceSelf Real.zero) \then
+      \let rightZero: bound y = Real.zero := trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (Real.mul derivativeKernel.coefficient) _ _
+        (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} Product.abs _ _ (Restricted.outside f y outside)) (Distance.distanceSelf Real.zero))) (Laws.fieldMulZeroRight _) \then
+      \return R.leReplace _ _ _ _ (sym!{Real.Real} _ _ leftZero) (sym!{Real.Real} _ _ rightZero) (R.leRefl Real.zero)
+    });

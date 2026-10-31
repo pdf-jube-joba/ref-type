@@ -1,0 +1,40 @@
+\import L.Finite[p := p] \as F;
+\import \parent.Compact[p := p] \as Compact;
+\import \parent.CompactBounds[] \as Bounds;
+\import \root.Powers[] \as Powers;
+\import Powers.Algebra[] \as PA;
+\import L.Infinity[] \as Infinity;
+\import I.Absolute[] \as Absolute;
+\import M.AlmostEverywhere[mu := measure] \as AE;
+\import I.Null[] \as Null;
+\import product_integration.FiniteNull[A := Point, mu := measure] \as FiniteNull;
+\structure Kernel: \Set := {
+  function: SmoothCompact,
+  radius: Nonnegative,
+  radiusBound: \forall (x: Point) -> Sets.Member (Smooth.support function) x -> R.Le (Geometry.metric.distance Coordinates.origin x) radius,
+  coefficient: Nonnegative,
+  absoluteBound: \forall (x: Point) -> R.Le (Product.abs (function x)) coefficient,
+};
+\definition kernelExists[rho: SmoothCompact]: \exists ( k: Kernel \where k.function = rho ) := \block {
+  \takefrom r: \Cast[Nonnegative] ({ r: Nonnegative \where \forall (x: Point) -> Sets.Member (Smooth.support rho) x -> R.Le (Geometry.metric.distance Coordinates.origin x) r })
+    \by Bounds.radiusBound (Smooth.support rho) (smoothCompactLaws rho).compact \then
+  \takefrom c: \Cast[Nonnegative] ({ c: Nonnegative \where \forall (x: Point) -> R.Le (Product.abs (rho x)) c })
+    \by Compact.absoluteBound rho (Compact.smoothContinuous rho (smoothCompactLaws rho).smooth) (smoothCompactLaws rho).compact \then
+  \return Logic.existsIntro[Kernel, { k: Kernel \where k.function = rho }] (Kernel { function := rho, radius := r, coefficient := c,
+    radiusBound := \bysub(Nonnegative, { r: Nonnegative \where \forall (x: Point) -> Sets.Member (Smooth.support rho) x -> R.Le (Geometry.metric.distance Coordinates.origin x) r }, r),
+    absoluteBound := \bysub(Nonnegative, { c: Nonnegative \where \forall (x: Point) -> R.Le (Product.abs (rho x)) c }, c),
+  }) (\refl(rho))
+};
+\module Section(f: F.Representatives, rho: Kernel, a: Point);
+\definition section[f: F.Representatives][rho: Kernel][a: Point]: I.Representatives := Section[f := f, rho := rho, a := a].representative;
+\definition function[f: F.Representatives][rho: Kernel]: Function := \fun (a: Point) => I.integral (section f rho a);
+\module Local(f: F.Representatives, rho: Kernel, a: Point);
+\module Continuity(f: F.Representatives, rho: Kernel, a: Point);
+\import \parent.SmoothOperations[] \as SmoothOperations;
+\import calculus.Real[].Multivariable[n := n].Open[] \as Open;
+\import Open.Analysis[] \as Analysis;
+\import Open.Restriction[] \as Restriction;
+\import Open.Whole[] \as Whole;
+\module Derivative(f: F.Representatives, rho, derivativeKernel: Kernel, i: Fin.Fin n, matching: derivativeKernel.function = SmoothOperations.partial rho.function i, a: Point);
+\module Smoothness(f: F.Representatives);
+\definition smooth[f: F.Representatives][rho: Kernel]: Smooth.IsSmooth (function f rho) := Smoothness[f := f].smooth rho;
