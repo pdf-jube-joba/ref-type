@@ -1,7 +1,7 @@
 # B06 束の分類写像と安定化の通常検査
 
 基準 main は `5d213f86a635f17f309f058d929002e2840f393b`、実装ブランチは `feat/b06-bundle-classification`。
-実装は `libs/geometry/bundle_classification` の111 source module と package 登録、利用例、文書に限定する。
+初回の実装は `libs/geometry/bundle_classification` の111 source module と package 登録、利用例、文書に限定する。
 既存数学ライブラリと Rust 処理系のソース変更はない。
 
 2026-10-30 のクラウド環境で、コンテナのメモリ上限16 GiBを確認した。
@@ -56,3 +56,36 @@ checkpoint 32514、32529を保存して再開したが、進行が小さかっ�
 - 成功した最終全体: `work/b06-whole/20261030T234625.221490Z/report.json`
 
 大きな source snapshot と package ごとの生レポートはローカルに保持し、Git には小さな集計と実行条件を記録する。
+
+## G01 統合後の検査
+
+2026-10-31 に G01 が入った main `78964e77017c7ed60d301540c94bcb74604edf39` を、マージコミット `189529e003defb213ee77fe79d94c1de4e176bfd` で統合した。
+`libs/ref.toml` と `libs/README.md` は競合なく自動マージされ、G01・B06 の登録が一意であることを確認した。
+G01 の実装・計画・検査記録・`gaps.md` は main と同一で、B06 の処理系・検査 driver への変更もない。
+
+追加の自然性 API と利用例を含む最終ソースは `29aeab7f1c5a0e1e57d49d8aa7c0945739739faf` で、B06 の source module は122となった。
+枠付き分類の商上の直和・安定化・引き戻しと分類 API を接続した。
+向き付き直和・安定化については、元の直和束に与えた向きの輸送と分類との可換性を追加した。
+この比較は因子の向きから標準の積向きを生成する行列式テンソル積同型を含まない。
+正確な API と入力は package README に記載する。
+
+release build、追加 API の参照検査、対象 package と通常全体検査はいずれも終了コード0で成功した。
+機械可読の集計は [integration.json](integration.json) にある。
+通常検査は上記と同じ state directory・検証済みキャッシュを使い、初期・最大仮想メモリ12288 MiBで実行した。
+
+| 最終ソースの実行 | 対象数 | 新規検査 | 再利用 | 保存失敗 | 破損読み込み | 秒 |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 対象 package と依存 | 5039 | 0 | 5039 | 0 | 0 | 50.943 |
+| G01・B06 を含む通常全体 | 10355 | 186 | 10169 | 0 | 0 | 170.062 |
+
+追加 API は先行する参照検査で型検査され、通常 package 検査は照合された結果を再利用した。
+両通常実行とも worker 復旧0、checkpoint再開0で、全 CLI attempt の終了コードは0だった。
+通常全体の最大 RSS は1234984 KiB、最大仮想メモリは2118020 KiBだった。
+対象 package の全4277ファイル、通常全体の全9168ファイルを実装コミットの Git blob と比較し、差異0を確認した。
+両実行の終了時に source・対象一覧・処理系の一致検査も通過した。
+処理系の SHA-256 は初回検査と同じである。
+通常全体の source SHA-256 は `705b1fefc1b013c3f4ae9cb3d7c4a78ac3b78f74cf561428b521bf48e14e64b6`。
+検査後の記録コミットは本 README と `integration.json` のみを更新し、検査済みソースを変えない。
+
+- 対象 package: `work/b06-package/20261031T030049.831651Z/report.json`
+- 通常全体: `work/b06-whole/20261031T030201.849003Z/report.json`
