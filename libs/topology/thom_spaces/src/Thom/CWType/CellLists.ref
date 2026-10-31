@@ -1,0 +1,33 @@
+\import algebraic_topology.CW[A := A] \as Source;
+\import algebraic_topology.CW[A := B] \as Target;
+\import std.Data[].List[] \as Lists;
+\definition map[family: Source.Cells]: Target.Cells := Lists.map Source.CellData Target.CellData transform family;
+\structure Witness[family: Source.Cells, c: Target.CellData]: \Set := {
+  cell: Source.CellData,
+  member: Source.CellMember family cell,
+  same: c = transform cell
+};
+\definition member: \forall (family: Source.Cells)(c: Source.CellData) -> Source.CellMember family c -> Target.CellMember (map family) (transform c) :=
+  \induction (family: Source.Cells) \return \forall (c: Source.CellData) -> Source.CellMember family c -> Target.CellMember (map family) (transform c) \with {
+    | nil: \fun (c: Source.CellData)(empty: Logic.False) => Logic.falseElim _ empty
+    | cons: \fun (first: Source.CellData)(tail: Source.Cells)(previous: _)(c: Source.CellData)(included: _) => either!{included {Target.CellMember (map (Lists.List[Source.CellData]::cons first tail)) (transform c)}
+      {\fun (same: c = first) => Logic.Or[_, _]::left (congr!{Source.CellData Target.CellData} transform c first same)}
+      {\fun (old: _) => Logic.Or[_, _]::right (previous c old)}
+    }
+  };
+\definition witness: \forall (family: Source.Cells)(c: Target.CellData) -> Target.CellMember (map family) c -> \exists Witness[family, c] :=
+  \induction (family: Source.Cells) \return \forall (c: Target.CellData) -> Target.CellMember (map family) c -> \exists Witness[family, c] \with {
+    | nil: \fun (c: Target.CellData)(empty: Logic.False) => Logic.falseElim _ empty
+    | cons: \fun (first: Source.CellData)(tail: Source.Cells)(previous: _)(c: Target.CellData)(included: _) => either!{included {\exists Witness[Lists.List[Source.CellData]::cons first tail, c]}
+      {\fun (same: c = transform first) => \exact(Witness[Lists.List[Source.CellData]::cons first tail, c] {
+        cell := first, member := Logic.Or[_, _]::left (\refl(first)), same := same
+      }, Witness[Lists.List[Source.CellData]::cons first tail, c])}
+      {\block {
+        \fun (old: _) \then
+        \takefrom w: Witness[tail, c] \by previous c old \then
+        \return \exact(Witness[Lists.List[Source.CellData]::cons first tail, c] {
+          cell := w.cell, member := Logic.Or[_, _]::right w.member, same := w.same
+        }, Witness[Lists.List[Source.CellData]::cons first tail, c])
+      }}
+    }
+  };

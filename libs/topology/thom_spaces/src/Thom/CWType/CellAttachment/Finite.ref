@@ -1,0 +1,38 @@
+\import algebraic_topology.CW[A := A] \as Original;
+\import algebraic_topology.CW[A := Carrier] \as Cells;
+\import singular_cellular.On[A := A, source := source, complex := complex] \as Native;
+\import topology.Topology[Carrier := A] \as Base;
+\import std.Data[].List[] \as Lists;
+\import N.Basic[].Prop[] \as Nat;
+\definition sourceComplex: Original.FiniteComplex[source] := complex;
+\definition oldCell[c: Original.CellData]: Cells.CellData := Cells.CellData {
+  dimension := c.dimension, characteristic := \fun (p: algebraic_topology.Euclidean[].Disk c.dimension) => inclusion (c.characteristic p)
+};
+\definition newCell: Cells.CellData := Cells.CellData { dimension := n, characteristic := characteristic };
+\import \root.Thom[].CWType[].CellLists[A := A, B := Carrier, transform := oldCell] \as CellList;
+\definition cells: Cells.Cells := Lists.List[Cells.CellData]::cons newCell (CellList.map complex.cells);
+\definition oldMember: \forall (c: Original.CellData) -> Original.CellMember complex.cells c -> Cells.CellMember cells (oldCell c) :=
+  \fun (c: Original.CellData)(member: _) => Logic.Or[_, _]::right (CellList.member complex.cells c member);
+\definition newMember: Cells.CellMember cells newCell := Logic.Or[_, _]::left (\refl(newCell));
+\definition induction: \forall (P: \Pow Cells.CellData) -> \In[Cells.CellData] P newCell ->
+  (\forall (c: Original.CellData) -> Original.CellMember complex.cells c -> \In[Cells.CellData] P (oldCell c)) ->
+  \forall (c: Cells.CellData) -> Cells.CellMember cells c -> \In[Cells.CellData] P c :=
+  \fun (P: \Pow Cells.CellData)(onNew: _)(onOld: _)(c: Cells.CellData)(member: _) => either!{member {\In[Cells.CellData] P c}
+    {\fun (same: c = newCell) => \idelim newCell = c \with d: Cells.CellData => \In[Cells.CellData] P d \by { base: onNew, equality: sym!{Cells.CellData} _ _ same }}
+    {\block {
+      \fun (old: _) \then
+      \takefrom w: CellList.Witness[complex.cells, c] \by CellList.witness complex.cells c old \then
+      \return \idelim oldCell w.cell = c \with d: Cells.CellData => \In[Cells.CellData] P d \by { base: onOld w.cell w.member, equality: sym!{Cells.CellData} _ _ w.same }
+    }}
+  };
+\definition hausdorff: Space.IsT2 topology := \parent.Hausdorff[hausdorff := (Original.laws source complex).hausdorff].law;
+\module ClosedCell(c: Cells.CellData, continuous: topology.Continuity[A := algebraic_topology.Euclidean[].Disk c.dimension, B := Carrier].Continuous
+  (algebraic_topology.Euclidean[].Dimension[n := c.dimension].diskTopology) topology c.characteristic);
+\definition half: R.Real := R.mul R.half R.one;
+\definition halfBelow: D.Lt half R.one := R.Estimates[].halfStrict R.one R.Estimates[].Product[].onePositive;
+\module Old(c: Original.CellData, member: Original.CellMember complex.cells c);
+\module New;
+\definition cellLaws: \forall (c: Cells.CellData) -> Cells.CellMember cells c -> Cells.CellLaws[topology, c] :=
+  induction ({ c: Cells.CellData \where Cells.CellLaws[topology, c] }) New[].laws (\fun (c: Original.CellData)(member: _) => Old[c := c, member := member].laws);
+\module Interiors;
+\module Cellular(lands: \forall (v: Model.Sphere) -> \In[A] (Native.Filtration[].subset n) (attach v));
