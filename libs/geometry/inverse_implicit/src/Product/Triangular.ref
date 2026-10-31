@@ -1,0 +1,23 @@
+\import calculus.Vector[n := dimension, m := m] \as Rectangular;
+\import calculus.Vector[n := dimension, m := dimension] \as Square;
+\definition augmented: Square.LinearMap := \parent.LinearPair[d := dimension, left := leftLinear, right := D].map;
+\definition residualValue[v: Point]: RightPoint := RightCoordinates.subPoint (Split.right v) (D.apply (horizontal.apply (Split.left v)));
+\definition residual: Rectangular.LinearMap := Rectangular.LinearMap {
+  apply := residualValue,
+  preservesAdd := \fun (v, w: Point) => \axiom:funext(residualValue (Coordinates.addPoint v w), RightCoordinates.addPoint (residualValue v) (residualValue w), \fun (i: Fin.Fin m) => eq_reason_in!{Real _
+    "=" _ "by" { congr!{RightPoint Real} (\fun (z: RightPoint) => Scalars.sub (Scalars.add (Split.right v i) (Split.right w i)) (z i)) _ _
+      (trans!{RightPoint} _ _ _ (congr!{Point RightPoint} D.apply _ _ (horizontal.preservesAdd (Split.left v) (Split.left w))) (D.preservesAdd (horizontal.apply (Split.left v)) (horizontal.apply (Split.left w)))) }
+    "=" _ "by" { Algebra.subAdd (Split.right v i) (Split.right w i) (D.apply (horizontal.apply (Split.left v)) i) (D.apply (horizontal.apply (Split.left w)) i) }
+  }),
+  preservesScale := \fun (c: Real)(v: Point) => \axiom:funext(residualValue (Coordinates.scale c v), RightCoordinates.scale c (residualValue v), \fun (i: Fin.Fin m) => eq_reason_in!{Real _
+    "=" _ "by" { congr!{RightPoint Real} (\fun (z: RightPoint) => Scalars.sub (Scalars.mul c (Split.right v i)) (z i)) _ _
+      (trans!{RightPoint} _ _ _ (congr!{Point RightPoint} D.apply _ _ (horizontal.preservesScale c (Split.left v))) (D.preservesScale c (horizontal.apply (Split.left v)))) }
+    "=" _ "by" { sym!{Real} _ _ (Algebra.mulSub c (Split.right v i) (D.apply (horizontal.apply (Split.left v)) i)) }
+  }),
+};
+\import linear_algebra.Commutative[K := Real, scalarRing := std.Alg[].Field[].fieldAsCommutativeRing Real Algebra.field].Linear[V := RightPoint, W := RightPoint,
+  source := linear_algebra.Euclidean[n := m].space, target := linear_algebra.Euclidean[n := m].space].Composition[U := Point, domain := linear_algebra.Euclidean[n := dimension].space] \as Compose;
+\definition inverse: Square.LinearMap := \parent.LinearPair[d := dimension, left := leftLinear, right := Compose.compose Q residual].map;
+\definition Left: \Prop := \forall (v: RightPoint) -> Q.apply (D.apply (vertical.apply v)) = v;
+\definition Right: \Prop := \forall (v: RightPoint) -> D.apply (vertical.apply (Q.apply v)) = v;
+\module With(left: Left, right: Right);

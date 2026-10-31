@@ -1,0 +1,72 @@
+\definition target: Open.OpenSet := Split.product rectangle.parameters rectangle.values;
+\definition targetInput[y: Open.Carrier target]: Open.Carrier local.target := Open.inclusion target local.target rectangle.included y;
+\definition inverse: Maps.Map target local.domain := Maps.Restriction[U := target, V := local.target, W := local.domain].input rectangle.included local.equivalence.backward;
+\definition inside: \forall (y: Open.Carrier target) -> \In[Point] U.points (Maps.apply target local.domain inverse y) :=
+  \fun (y: Open.Carrier target) => local.included (Maps.apply target local.domain inverse y) (\bysub(Point, local.domain.points, Maps.apply target local.domain inverse y));
+\definition graph: Maps.Map target U := Maps.Corestriction[U := target, V := local.domain, W := U, f := inverse, inside := inside].map;
+\definition rightProjection: Functions.Map U RightOpen.whole := calculus.LinearMap[n := dimension, m := m].On[U := U, L := rightLinear].map;
+\definition function: Functions.Map target RightOpen.whole := Maps.Composition[U := target, V := U, f := graph].After[l := m, W := RightOpen.whole, g := rightProjection].compose;
+\definition inverseEquation: \forall (y: Open.Carrier target) -> Maps.apply U Open.whole augmented (Maps.apply target U graph y) = y :=
+  \fun (y: Open.Carrier target) => trans!{Point} _ _ _ (sym!{Point} _ _ (local.forward (Maps.apply target local.domain inverse y))) (local.equivalence.rightInverse (targetInput y));
+\definition leftCoordinate: \forall (y: Open.Carrier target) -> Split.left (Maps.apply target U graph y) = Split.left y :=
+  \fun (y: Open.Carrier target) => trans!{LeftPoint} _ _ _
+    (sym!{LeftPoint} _ _ (Split.leftJoin (Split.left (Maps.apply target U graph y)) (Functions.apply U RightOpen.whole f (Maps.apply target U graph y))))
+    (congr!{Point LeftPoint} Split.left _ _ (inverseEquation y));
+\definition equation: \forall (y: Open.Carrier target) -> Functions.apply U RightOpen.whole f (Maps.apply target U graph y) = Split.right y :=
+  \fun (y: Open.Carrier target) => trans!{RightPoint} _ _ _
+    (sym!{RightPoint} _ _ (Split.rightJoin (Split.left (Maps.apply target U graph y)) (Functions.apply U RightOpen.whole f (Maps.apply target U graph y))))
+    (congr!{Point RightPoint} Split.right _ _ (inverseEquation y));
+\definition graphFormula: \forall (y: Open.Carrier target) -> Maps.apply target U graph y = Split.join (Split.left y) (Functions.apply target RightOpen.whole function y) :=
+  \fun (y: Open.Carrier target) => trans!{Point} _ _ _ (sym!{Point} _ _ (Split.recover (Maps.apply target U graph y)))
+    (congr!{LeftPoint Point} (\fun (p: LeftPoint) => Split.join p (Split.right (Maps.apply target U graph y))) _ _ (leftCoordinate y));
+\definition unique: \forall (x: Open.Carrier local.domain)(y: Open.Carrier target) -> Split.left x = Split.left y ->
+  Functions.apply U RightOpen.whole f (Open.inclusion local.domain U local.included x) = Split.right y -> x = Maps.apply target U graph y := \block {
+  \fun (x: Open.Carrier local.domain)(y: Open.Carrier target)(parameters: _)(value: _) \then
+  \let image: Maps.apply local.domain local.target local.equivalence.forward x = targetInput y := eq_reason_in!{Point _
+    "=" _ "by" { local.forward x }
+    "=" _ "by" { congr!{LeftPoint RightPoint Point} Split.join _ _ _ _ parameters value }
+    "=" _ "by" { Split.recover y }
+  } \then
+  \return trans!{{Open.Carrier local.domain}} _ _ _ (sym!{{Open.Carrier local.domain}} _ _ (local.equivalence.leftInverse x))
+    (congr!{{Open.Carrier local.target} {Open.Carrier local.domain}} (Maps.apply local.target local.domain local.equivalence.backward) _ _ image)
+};
+
+\import Maps.Preimage[U := local.domain, W := local.target, V := target, f := local.equivalence.forward] \as Preimage;
+\definition included: Open.Included Preimage.domain U := \fun (x: Point)(member: _) => local.included x (Preimage.included x member);
+\definition inverseInside: \forall (y: Open.Carrier target) -> \In[Point] Preimage.domain.points (Maps.apply target local.domain inverse y) :=
+  \fun (y: Open.Carrier target) => Preimage.intro (Maps.apply target local.domain inverse y)
+    (\idelim y = Maps.apply local.domain local.target local.equivalence.forward (Maps.apply target local.domain inverse y) \with z: Point => \In[Point] target.points z \by {
+      base: \bysub(Point, target.points, y), equality: sym!{Point} _ _ (local.equivalence.rightInverse (targetInput y))
+    });
+\definition backward: Maps.Map target Preimage.domain := Maps.Corestriction[U := target, V := local.domain, W := Preimage.domain, f := inverse, inside := inverseInside].map;
+\import calculus.Diffeomorphism[n := dimension, m := dimension] \as Diffeomorphisms;
+\definition data: Diffeomorphisms.Data[Preimage.domain, target] := Diffeomorphisms.Data[Preimage.domain, target] {
+  forward := Preimage.map, backward := backward,
+};
+\definition equivalence: Diffeomorphisms.Diffeomorphism Preimage.domain target := \into[Diffeomorphisms.Data[Preimage.domain, target]](data,
+  { data: Diffeomorphisms.Data[Preimage.domain, target] \where Diffeomorphisms.Laws[Preimage.domain, target, data] }) \by {
+  Diffeomorphisms.Laws[Preimage.domain, target, data] {
+    leftInverse := \fun (x: Open.Carrier Preimage.domain) => local.equivalence.leftInverse (Preimage.input x),
+    rightInverse := \fun (y: Open.Carrier target) => local.equivalence.rightInverse (targetInput y),
+  }
+};
+\definition sourceCenter: Open.Carrier local.domain := \into[Point](a, local.domain.points) \by { local.contains };
+\definition contains: \In[Point] Preimage.domain.points a := Preimage.intro sourceCenter
+  (\idelim Maps.apply U Open.whole augmented a = Maps.apply local.domain local.target local.equivalence.forward sourceCenter \with p: Point => \In[Point] target.points p \by {
+    base: Logic.And[_, _]::# rectangle.containsLeft rectangle.containsRight,
+    equality: sym!{Point} _ _ (local.forward sourceCenter)
+  });
+\definition solution: Solution := Solution {
+  parameters := rectangle.parameters, values := rectangle.values,
+  containsParameters := \idelim Split.left center = Split.left a \with p: LeftPoint => \In[LeftPoint] rectangle.parameters.points p \by {
+    base: rectangle.containsLeft, equality: Split.leftJoin (Split.left a) (Functions.apply U RightOpen.whole f a)
+  },
+  containsValues := \idelim Split.right center = Functions.apply U RightOpen.whole f a \with p: RightPoint => \In[RightPoint] rectangle.values.points p \by {
+    base: rectangle.containsRight, equality: Split.rightJoin (Split.left a) (Functions.apply U RightOpen.whole f a)
+  },
+  neighborhood := Preimage.domain, included := included, contains := contains,
+  coordinates := equivalence,
+  coordinateFormula := \fun (x: Open.Carrier Preimage.domain) => local.forward (Preimage.input x),
+  graph := graph, graphInside := inverseInside, solution := function, graphFormula := graphFormula, equation := equation,
+  unique := \fun (x: Open.Carrier Preimage.domain)(y: Open.Carrier target) => unique (Preimage.input x) y,
+};

@@ -1,0 +1,25 @@
+\definition matrix: VerticalInverse.Nonsingular := \into[VerticalMatrix.Matrix](VerticalRepresentation.entries verticalDifferential, VerticalInverse.Nonsingular) \by { regular };
+\import \root.Euclidean[n := m].LinearInverse[d := verticalDifferential] \as LinearInverse;
+\definition Q: End.LinearMap := LinearInverse.inverse (VerticalInverse.inverse matrix);
+\import \parent.\parent.Triangular[D := differential, Q := Q] \as Triangular;
+\import Triangular.With[left := LinearInverse.left (VerticalInverse.inverse matrix), right := LinearInverse.right (VerticalInverse.inverse matrix)] \as Inverse;
+\import Maps.Differential[U := U, V := Open.whole, f := augmented, a := a] \as Differential;
+\definition derivative: Differential.value = Triangular.augmented := trans!{{Square.LinearMap}} _ _ _ Augmented.At[a := a].jacobian
+  (Square.ext _ _ (\axiom:funext((Augmented.At[a := a].candidate).apply, Triangular.augmented.apply, \fun (v: Point) =>
+    congr!{LeftPoint Point} (\fun (p: LeftPoint) => Split.join p (differential.apply v)) _ _
+      (congr!{{calculus.Vector[n := dimension, m := n].LinearMap} LeftPoint} (\fun (L: calculus.Vector[n := dimension, m := n].LinearMap) => L.apply v) _ _ (Parameters.differential a)))));
+\import matrix_invariants.Ring[K := Real, scalars := std.Alg[].Field[].fieldAsCommutativeRing Real Algebra.field].At[n := dimension] \as Matrix;
+\import Matrix.Representation[] \as Representation;
+\import Matrix.Operations[] \as Operations;
+\import matrix_invariants.Field[K := Real, field := Algebra.field].At[n := dimension] \as Inversion;
+\definition left: \forall (v: Point) -> Triangular.inverse.apply (Differential.value.apply v) = v :=
+  \fun (v: Point) => trans!{Point} _ _ _ (congr!{Point Point} Triangular.inverse.apply _ _ (congr!{{Square.LinearMap} Point} (\fun (L: Square.LinearMap) => L.apply v) _ _ derivative)) (Inverse.leftInverse v);
+\definition right: \forall (v: Point) -> Differential.value.apply (Triangular.inverse.apply v) = v :=
+  \fun (v: Point) => trans!{Point} _ _ _ (congr!{{Square.LinearMap} Point} (\fun (L: Square.LinearMap) => L.apply (Triangular.inverse.apply v)) _ _ derivative) (Inverse.rightInverse v);
+\definition nonzero: Inversion.Nonzero (Representation.entries Differential.value) := Inversion.nonzeroOfInverse _
+  (\into[Matrix.Matrix](Representation.entries Triangular.inverse, Operations.Inverse (Representation.entries Differential.value)) \by { Representation.inverseCertificate Differential.value Triangular.inverse left right });
+\module FromInverse(local: Euclidean.LocalInverse[U, augmented, a]);
+\definition localExistence: \exists Solution := \block {
+  \takefrom local: Euclidean.LocalInverse[U, augmented, a] \by Euclidean.InverseFunction[U := U, f := augmented, a := a].localExistence nonzero \then
+  \return FromInverse[local := local].localExistence
+};

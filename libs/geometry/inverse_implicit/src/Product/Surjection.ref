@@ -1,0 +1,35 @@
+\import linear_algebra.Euclidean[n := dimension] \as Source;
+\import linear_algebra.Euclidean[n := m] \as Target;
+\import Source.Matrix[m := m] \as Matrix;
+\import Target.Matrix[m := dimension] \as ReverseMatrix;
+\import Source.Gram[k := m] \as Gram;
+\definition transpose: calculus.Vector[n := m, m := dimension].LinearMap := Matrix.transpose D;
+\definition Surjective: \Prop := \forall (v: RightPoint) -> \exists ( x: Point \where D.apply x = v );
+\definition transposeInjective: Surjective -> Gram.Injective transpose := \block {
+  \fun (surjective: Surjective) \then
+  \return linear_algebra.Commutative[K := Real, scalarRing := std.Alg[].Field[].fieldAsCommutativeRing Real Algebra.field].Linear[V := RightPoint, W := Point, source := Target.space, target := Source.space].injectiveOfZeroKernel transpose (\block {
+    \fun (v: RightPoint)(zero: transpose.apply v = Source.space.zero) \then
+    \takefrom x: \Cast[Point] ({ x: Point \where D.apply x = v }) \by surjective v \then
+    \let image: D.apply x = v := \bysub(Point, { x: Point \where D.apply x = v }, x) \then
+    \let length: Target.squared v = Scalars.zero := eq_reason_in!{Real _
+      "=" _ "by" { congr!{RightPoint Real} (\fun (y: RightPoint) => Target.dot y v) _ _ (sym!{RightPoint} _ _ image) }
+      "=" _ "by" { Matrix.adjoint D x v }
+      "=" _ "by" { congr!{Point Real} (Source.dot x) _ _ zero }
+      "=" _ "by" { Source.form.zeroRight x }
+    } \then
+    \return Target.separated v length
+  })
+};
+\structure Splitting: \Set := {
+  coordinate: calculus.Vector[n := dimension, m := dimension].LinearMap,
+  inverse: calculus.Vector[n := dimension, m := dimension].LinearMap,
+  leftInverse: \forall (v: Point) -> inverse.apply (coordinate.apply v) = v,
+  rightInverse: \forall (v: Point) -> coordinate.apply (inverse.apply v) = v,
+  projection: \forall (v: Point) -> Split.right (coordinate.apply v) = D.apply v,
+};
+\module Factor(factor: Gram.Factorization[transpose]);
+\definition existence: Surjective -> \exists Splitting := \block {
+  \fun (surjective: Surjective) \then
+  \takefrom factor: Gram.Factorization[transpose] \by \root.Gram[n := m, m := dimension].existence transpose (transposeInjective surjective) \then
+  \return Factor[factor := factor].existence
+};

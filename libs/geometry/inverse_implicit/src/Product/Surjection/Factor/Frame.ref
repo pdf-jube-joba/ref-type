@@ -1,0 +1,57 @@
+\import linear_algebra.Euclidean[n := n] \as Kernel;
+\import Source.OnProjection[P := Gram.normal].Rank[k := n] \as Frame;
+\definition normalSection: \forall (v: RightPoint) -> Gram.normal.map.apply (rightInverse.apply v) = Source.space.zero := \block {
+  \fun (v: RightPoint) \then
+  \let fixed: Gram.tangent.map.apply (rightInverse.apply v) = rightInverse.apply v :=
+    trans!{Point} _ _ _ (sym!{Point} _ _ (tangentLaw (rightInverse.apply v))) (congr!{RightPoint Point} rightInverse.apply _ _ (section v)) \then
+  \return trans!{Point} _ _ _ (congr!{Point Point} (Source.difference (rightInverse.apply v)) _ _ fixed) (Source.differenceSelf (rightInverse.apply v))
+};
+\definition coordinateSection: \forall (v: RightPoint) -> frame.coordinate.apply (rightInverse.apply v) = Kernel.space.zero :=
+  \fun (v: RightPoint) => eq_reason_in!{LeftPoint _
+    "=" _ "by" { sym!{LeftPoint} _ _ (frame.leftInverse (frame.coordinate.apply (rightInverse.apply v))) }
+    "=" _ "by" { congr!{Point LeftPoint} frame.coordinate.apply _ _ (frame.reconstruction (rightInverse.apply v)) }
+    "=" _ "by" { congr!{Point LeftPoint} frame.coordinate.apply _ _ (normalSection v) }
+    "=" _ "by" { frame.coordinate.preservesZero }
+  };
+\definition kernel: \forall (v: LeftPoint) -> D.apply (frame.value.apply v) = Target.space.zero :=
+  \fun (v: LeftPoint) => trans!{RightPoint} _ _ _ (congr!{Point RightPoint} D.apply _ _ (sym!{Point} _ _ (Frame.fixed frame v))) (normalKernel (frame.value.apply v));
+\definition reconstruct: \forall (v: Point) -> Coordinates.addPoint (frame.value.apply (frame.coordinate.apply v)) (rightInverse.apply (D.apply v)) = v :=
+  \fun (v: Point) => eq_reason_in!{Point _
+    "=" _ "by" { congr!{Point Point Point} Coordinates.addPoint _ _ _ _ (frame.reconstruction v) (tangentLaw v) }
+    "=" _ "by" { \axiom:funext(Coordinates.addPoint (Gram.normal.map.apply v) (Gram.tangent.map.apply v), Coordinates.addPoint (Gram.tangent.map.apply v) (Gram.normal.map.apply v), \fun (i: Fin.Fin dimension) => Laws.addComm (Gram.normal.map.apply v i) (Gram.tangent.map.apply v i)) }
+    "=" _ "by" { congr!{Point Point} (\fun (w: Point) => Coordinates.addPoint w (Gram.normal.map.apply v)) _ _ (sym!{Point} _ _ (Gram.imageInverse v)) }
+    "=" v "by" { Gram.splitting v }
+  };
+\definition coordinate: calculus.Vector[n := dimension, m := dimension].LinearMap := \root.Product[n := n, m := m].LinearPair[d := dimension, left := frame.coordinate, right := D].map;
+\definition value[v: Point]: Point := Coordinates.addPoint (frame.value.apply (Split.left v)) (rightInverse.apply (Split.right v));
+\import linear_algebra.Commutative[K := Real, scalarRing := std.Alg[].Field[].fieldAsCommutativeRing Real Algebra.field].Laws[V := Point, space := Source.space] \as VectorLaws;
+\definition inverse: calculus.Vector[n := dimension, m := dimension].LinearMap := calculus.Vector[n := dimension, m := dimension].LinearMap {
+  apply := value,
+  preservesAdd := \fun (v, w: Point) => trans!{Point} _ _ _
+    (congr!{Point Point Point} Coordinates.addPoint _ _ _ _ (frame.value.preservesAdd (Split.left v) (Split.left w)) (rightInverse.preservesAdd (Split.right v) (Split.right w)))
+    (VectorLaws.shuffle (frame.value.apply (Split.left v)) (frame.value.apply (Split.left w)) (rightInverse.apply (Split.right v)) (rightInverse.apply (Split.right w))),
+  preservesScale := \fun (c: Real)(v: Point) => trans!{Point} _ _ _
+    (congr!{Point Point Point} Coordinates.addPoint _ _ _ _ (frame.value.preservesScale c (Split.left v)) (rightInverse.preservesScale c (Split.right v)))
+    (sym!{Point} _ _ (Source.space.vectorAdd c (frame.value.apply (Split.left v)) (rightInverse.apply (Split.right v)))),
+};
+\definition left: \forall (v: Point) -> inverse.apply (coordinate.apply v) = v :=
+  \fun (v: Point) => trans!{Point} _ _ _ (congr!{LeftPoint RightPoint Point} (\fun (p: LeftPoint)(q: RightPoint) => Coordinates.addPoint (frame.value.apply p) (rightInverse.apply q)) _ _ _ _
+    (Split.leftJoin (frame.coordinate.apply v) (D.apply v)) (Split.rightJoin (frame.coordinate.apply v) (D.apply v))) (reconstruct v);
+\definition right: \forall (v: Point) -> coordinate.apply (inverse.apply v) = v := \block {
+  \fun (v: Point) \then
+  \let first: frame.coordinate.apply (value v) = Split.left v := eq_reason_in!{LeftPoint _
+    "=" _ "by" { frame.coordinate.preservesAdd (frame.value.apply (Split.left v)) (rightInverse.apply (Split.right v)) }
+    "=" _ "by" { congr!{LeftPoint LeftPoint LeftPoint} LeftCoordinates.addPoint _ _ _ _ (frame.leftInverse (Split.left v)) (coordinateSection (Split.right v)) }
+    "=" _ "by" { \axiom:funext(LeftCoordinates.addPoint (Split.left v) LeftCoordinates.origin, Split.left v, \fun (i: Fin.Fin n) => Laws.addZeroRight (Split.left v i)) }
+  } \then
+  \let second: D.apply (value v) = Split.right v := eq_reason_in!{RightPoint _
+    "=" _ "by" { D.preservesAdd (frame.value.apply (Split.left v)) (rightInverse.apply (Split.right v)) }
+    "=" _ "by" { congr!{RightPoint RightPoint RightPoint} RightCoordinates.addPoint _ _ _ _ (kernel (Split.left v)) (section (Split.right v)) }
+    "=" _ "by" { \axiom:funext(RightCoordinates.addPoint RightCoordinates.origin (Split.right v), Split.right v, \fun (i: Fin.Fin m) => Laws.addZeroLeft (Split.right v i)) }
+  } \then
+  \return trans!{Point} _ _ _ (congr!{LeftPoint RightPoint Point} Split.join _ _ _ _ first second) (Split.recover v)
+};
+\definition splitting: Splitting := Splitting {
+  coordinate := coordinate, inverse := inverse, leftInverse := left, rightInverse := right,
+  projection := \fun (v: Point) => Split.rightJoin (frame.coordinate.apply v) (D.apply v),
+};
