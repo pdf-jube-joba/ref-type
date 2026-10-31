@@ -1,0 +1,16 @@
+\import \parent.Stage[k := k, family := family] \as Previous;
+\import \parent.Stage[k := k, family := Lists.List[CW.CellData]::cons cell family] \as Next;
+\definition extendWitness[x: X][other: Witness[k, family, x]]: Witness[k, Lists.List[CW.CellData]::cons cell family, x] := BaseStages.Witness[k, Lists.List[CW.CellData]::cons cell family, x] {
+  cell := other.cell, member := Logic.Or[_, _]::right other.member, dimension := other.dimension, contains := other.contains
+};
+\definition includeSelected: \forall (x: X) -> \exists Witness[k, family, x] -> \exists Witness[k, Lists.List[CW.CellData]::cons cell family, x] := \fun (x: X)(selected: _) => \block {
+  \takefrom other: Witness[k, family, x] \by selected \then
+  \return \exact(extendWitness x other, Witness[k, Lists.List[CW.CellData]::cons cell family, x])
+};
+\definition includePrevious: \forall (p: DiskBundle) -> \In[DiskBundle] (Subset k family) p -> \In[DiskBundle] (Subset k (Lists.List[CW.CellData]::cons cell family)) p :=
+  \fun (p: DiskBundle)(present: Logic.Or[\In[X] (Filtration.subset k) p.base, \exists Witness[k, family, p.base]]) => either!{present
+    {Logic.Or[\In[X] (Filtration.subset k) p.base, \exists Witness[k, Lists.List[CW.CellData]::cons cell family, p.base]]}
+    {\fun (lower: _) => Logic.Or[_, _]::left lower}
+    {\fun (selected: _) => Logic.Or[_, _]::right (includeSelected p.base selected)}
+  };
+\module Skip(reason: Logic.Or[Logic.Not (cell.dimension = k), CW.CellMember family cell]);

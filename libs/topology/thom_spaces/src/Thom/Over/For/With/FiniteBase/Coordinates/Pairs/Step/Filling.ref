@@ -1,0 +1,44 @@
+\import \parent.Middle[] \as Mid;
+\import algebraic_topology.Euclidean[].Dimension[n := n] \as Fiber;
+\import \root.Thom[].CWType[].DiskProduct[n := cell.dimension, m := n] \as Geometry;
+\import algebraic_topology.Euclidean[].Dimension[n := Geometry.dimension] \as Total;
+\import topological_constructions.Product[A := Disk.Disk, B := Fiber.Disk] \as Prism;
+\definition prismTopology: topology.Topology[Carrier := Prism.CarrierSet].Topology := Geometry.productTopology;
+\definition prismChart[p: Prism.CarrierSet]: Next.Carrier := \into[DiskBundle](chart.map p, Subset k (Lists.List[CW.CellData]::cons cell family)) \by {
+  \idelim cell.characteristic (Pair.first Disk.Disk Fiber.Disk p) = (chart.map p).base \with x: X => \In[X] (BaseSubset k (Lists.List[CW.CellData]::cons cell family)) x \by {
+    base: BaseStep.nextContains (Pair.first Disk.Disk Fiber.Disk p), equality: sym!{X} _ _ (chart.base p)
+  }
+};
+\definition prismContinuous: topology.Continuity[A := Prism.CarrierSet, B := Next.Carrier].Continuous prismTopology Next.topology prismChart :=
+  topology.Continuity[A := Prism.CarrierSet, B := DiskBundle].Corestriction[S := Subset k (Lists.List[CW.CellData]::cons cell family)].corestrictContinuous prismTopology diskTopology prismChart chart.continuous;
+\definition characteristic[p: Total.Disk]: Next.Carrier := prismChart (Geometry.homeomorphism.forward p);
+\definition characteristicContinuous: topology.Continuity[A := Total.Disk, B := Next.Carrier].Continuous Total.diskTopology Next.topology characteristic :=
+  topology.Composition[A := Total.Disk, B := Prism.CarrierSet, C := Next.Carrier].composeContinuous Total.diskTopology prismTopology Next.topology Geometry.homeomorphism.forward prismChart Geometry.laws.forwardContinuous prismContinuous;
+\definition first[p: Total.Disk]: Disk.Disk := Pair.first Disk.Disk Fiber.Disk (Geometry.homeomorphism.forward p);
+\definition second[p: Total.Disk]: Fiber.Disk := Pair.second Disk.Disk Fiber.Disk (Geometry.homeomorphism.forward p);
+\definition base: \forall (p: Total.Disk) -> (characteristic p).base = cell.characteristic (first p) := \fun (p: Total.Disk) => chart.base (Geometry.homeomorphism.forward p);
+\definition squaredFormula: \forall (p: Total.Disk) -> squared (characteristic p) = Fiber.normSquared (second p) := \fun (p: Total.Disk) => chart.squared (Geometry.homeomorphism.forward p);
+\module Attaching;
+\module Injectivity;
+\module Cover;
+\import \root.Thom[].CWType[].CellPresentation[A := Mid.Carrier, Y := Next.Carrier, source := Mid.topology, target := Next.topology, n := Geometry.dimension] \as Presentation;
+\definition attachmentData: Presentation.Data := Presentation.Data {
+  original := Mid.toNext, characteristic := characteristic, boundary := Attaching[].apply,
+  originalContinuous := Mid.toNextContinuous, characteristicContinuous := characteristicContinuous, boundaryContinuous := Attaching[].continuous,
+  originalInjective := \fun (p, q: Mid.Carrier)(same: Mid.toNext p = Mid.toNext q) => same,
+  interiorInjective := Injectivity[].injective, separated := Injectivity[].separated,
+  seam := Attaching[].seam, covers := Cover[].covers
+};
+\import \root.Thom[].CWType[].CellAttachment[A := Mid.Carrier, source := Mid.topology, n := Geometry.dimension, attach := Attaching[].apply, continuous := Attaching[].continuous] \as ModelAttachment;
+\definition originalContained: \forall (p: \Cast[Mid.Carrier] Mid.UnitSubset) -> \In[Next.Carrier] Next.UnitSubset (Mid.toNext p) := \fun (p: \Cast[Mid.Carrier] Mid.UnitSubset) => \bysub(Mid.Carrier, Mid.UnitSubset, p);
+\definition originalReflects: \forall (p: Mid.Carrier) -> \In[Next.Carrier] Next.UnitSubset (Mid.toNext p) -> \In[Mid.Carrier] Mid.UnitSubset p := \fun (p: Mid.Carrier)(unit: _) => unit;
+\definition interiorAvoids: \forall (p: ModelAttachment.InteriorPoint) -> Logic.Not (\In[Next.Carrier] Next.UnitSubset (characteristic p)) := \fun (p: ModelAttachment.InteriorPoint)(unit: _) =>
+  Order.Order[].ltNotEq (Fiber.normSquared (second p)) R.one (Geometry.interiorForward p (\bysub(Total.Disk, ModelAttachment.interiorSubset, p))).right
+    (trans!{R.Real} _ _ _ (sym!{R.Real} _ _ (squaredFormula p)) unit);
+\definition property: Mid.Property -> Next.Property := \fun (previous: Mid.Property) => Logic.And[_, _]::#
+  (Presentation.Of[data := attachmentData].compact previous.left)
+  (\block {
+    \takefrom model: \root.Thom[].CWType[].PairFiniteType[A := Mid.Carrier, source := Mid.topology, subset := Mid.UnitSubset].Data \by previous.right \then
+    \return Presentation.Of[data := attachmentData].Comparison[compact := previous.left, hausdorff := Next.hausdorff].Subsets[
+      subset := Mid.UnitSubset, targetSubset := Next.UnitSubset, originalContained := originalContained, originalReflects := originalReflects, interiorAvoids := interiorAvoids].Type[model := model].exists
+  });

@@ -1,0 +1,24 @@
+\import \parent.Lower[k := k] \as Lower;
+\definition Theorem[family: CW.Cells]: \Prop := Included family -> Lower.Property -> \parent.Stage[k := k, family := family].Property;
+\import \parent.Stage[k := k, family := Lists.List[CW.CellData]::nil] \as Empty;
+\definition toLower: \forall (p: DiskBundle) -> \In[DiskBundle] (Subset k (Lists.List[CW.CellData]::nil)) p -> \In[DiskBundle] (LowerSubset k) p := \fun (p: DiskBundle)(present: _) =>
+  either!{present {\In[DiskBundle] (LowerSubset k) p}
+    {\fun (lower: _) => lower}
+    {\fun (selected: _) => \block {
+      \takefrom other: Witness[k, Lists.List[CW.CellData]::nil, p.base] \by selected \then
+      \return Logic.falseElim (\In[DiskBundle] (LowerSubset k) p) other.member
+    }}
+  };
+\definition fromLower: \forall (p: DiskBundle) -> \In[DiskBundle] (LowerSubset k) p -> \In[DiskBundle] (Subset k (Lists.List[CW.CellData]::nil)) p := \fun (p: DiskBundle)(present: _) => Logic.Or[_, _]::left present;
+\definition emptyHomeomorphism: topology.Homeomorphism[A := Empty.Carrier, B := Lower.Carrier].Homeomorphism[Empty.topology, Lower.topology] :=
+  topology.Topology[Carrier := DiskBundle].Subspace[S := Subset k (Lists.List[CW.CellData]::nil)].Equivalent[T := LowerSubset k].homeomorphism diskTopology toLower fromLower;
+\definition forwardContained: \forall (p: \Cast[Empty.Carrier] Empty.UnitSubset) -> \In[Lower.Carrier] Lower.UnitSubset (emptyHomeomorphism.forward p) := \fun (p: \Cast[Empty.Carrier] Empty.UnitSubset) => \bysub(Empty.Carrier, Empty.UnitSubset, p);
+\definition backwardContained: \forall (p: \Cast[Lower.Carrier] Lower.UnitSubset) -> \In[Empty.Carrier] Empty.UnitSubset (emptyHomeomorphism.backward p) := \fun (p: \Cast[Lower.Carrier] Lower.UnitSubset) => \bysub(Lower.Carrier, Lower.UnitSubset, p);
+\definition base: Theorem (Lists.List[CW.CellData]::nil) := \fun (included: _) => \root.Thom[].CWType[].CompactPairType[A := Empty.Carrier, source := Empty.topology, subset := Empty.UnitSubset].Homeomorphic[
+  B := Lower.Carrier, target := Lower.topology, targetSubset := Lower.UnitSubset, h := emptyHomeomorphism, forwardContained := forwardContained, backwardContained := backwardContained].fromTarget;
+\module Cons(cell: CW.CellData, family: CW.Cells, previous: Theorem family, included: Included (Lists.List[CW.CellData]::cons cell family));
+\definition theorem: \forall (family: CW.Cells) -> Theorem family := \induction (family: CW.Cells) \return Theorem family \with {
+  | nil: base
+  | cons: \fun (cell: CW.CellData)(family: CW.Cells)(previous: Theorem family)(included: _) => Cons[cell := cell, family := family, previous := previous, included := included].property
+};
+\definition full: Lower.Property -> \parent.Stage[k := k, family := complex.cells].Property := theorem complex.cells (\fun (c: CW.CellData)(member: _) => member);

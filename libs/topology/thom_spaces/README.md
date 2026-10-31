@@ -1,8 +1,7 @@
 # 円板束・球面束と Thom 商
 
-C02 の実装中のパッケージである。
-実・複素の計量束、計量変更の同相、直和の反復商、cofibration と特異理論の比較を構成している。
-球面束を含む有限 CW 対のモデルの構成は未完了である。
+C02 の円板束・球面束と Thom 空間を実装する。
+実・複素の連続計量束について、計量によらない比較、自明束の懸垂表示、直和の反復 Thom 商、有限 CW 対型、cofibration と相対特異理論の比較を構成する。
 
 ## 円板束と基点
 
@@ -35,7 +34,10 @@ C02 の実装中のパッケージである。
 | `SuspensionPresentation.comparison` | 各段が既存の懸垂で与えられる列への、任意の自然数次数での基点付き同相 |
 | `FirstSuspensions.once` / `FirstSuspensions.twice` | 既存の懸垂を直接1回・2回適用した空間との同相 |
 | `Over.For.With.Contraction.equivalence` | 円板束と底空間のホモトピー同値 |
-| `Over.For.With.FiniteBase` | 底の有限 CW 複体を円板束のモデルにする `diskType` と、各セルの引き戻し束の自明化 |
+| `Real.For.FiniteBase.pairFiniteType` / `Complex.For.FiniteBase.pairFiniteType` | 実際の円板・球面対に対する有限 CW 複体・部分複体と対ホモトピー同値の存在 |
+| `FiniteBase.PairModel[model]` | モデルの `data.space`・`data.complex`・`data.part` と `comparison`・`relativeEquivalence` |
+| `PairModel.Homology[z].isomorphism` / `PairModel.Cohomology[M, z].isomorphism` | 有限 CW 対モデルとの整数ホモロジー・任意の整数加群係数コホモロジーの比較 |
+| `Over.For.With.FiniteBase.Coordinates.Cell.pairExists` | 各セル上の、境界で一致する円板・球面座標 |
 
 計量変更の全空間写像は、零ベクトルを零へ、それ以外のベクトルを
 \(v\mapsto \lVert v\rVert_h\lVert v\rVert_k^{-1}v\) へ送る。
@@ -62,11 +64,7 @@ C02 の実装中のパッケージである。
 この切除同型を collar の比較と合成した `ordinaryIsomorphism` の始域・終域は、付加点のない実際の \((D(E),S(E))\) の相対理論である。
 ランク0や空の基底でも球面に点を仮定しない。
 
-## 例
-
-[Examples.Real](src/Thom/Examples/Real.ref) と [Examples.Complex](src/Thom/Examples/Complex.ref) は、非コンパクトなスカラー直線を底として、B03 の動く埋め込みから作った計量と標準計量を比較する。
-Thom 商の同相、球面境界の cofibration、実次元1・2の円板 suspension 表示、および既存の懸垂の1回・2回の反復との同相を具体化する。
-[Examples.Edges](src/Thom/Examples/Edges.ref) はランク0の球面束が空であることと、空の底の Thom 商のすべての点が基点に一致することを検査する。
+## 有限 CW 対
 
 有限 CW 基底について、`FiniteBase.Coordinates.sphereFiniteType` は実際の球面束と有限 CW 複体とのホモトピー同値を構成する。
 `Real.For.FiniteBase` と `Complex.For.FiniteBase` は標準の実座標を選ぶ。
@@ -82,11 +80,19 @@ Thom 商の同相、球面境界の cofibration、実次元1・2の円板 suspen
 `SphericalAttachment.Of.Subsets` と `CellPresentation.Of.Comparison.Subsets` は、実際の付着空間をこの対型へ比較する。
 `FiniteBase.Coordinates.Cell.pairExists` は同じ自明化から円板・球面のセル座標を作り、境界上の一致と二乗ノルムの公式を保持する。
 
-## 残る証明
+`FiniteBase.Coordinates.pairFiniteType` は基底の骨格と有限セル列に関する帰納で、実際の \(D(E),S(E)\) と有限 CW 複体・部分複体との対ホモトピー同値を構成する。
+各基底セルでは球面部分を二つのセル付着で加え、その後に円板の積を一つの円板セルとして付ける。
+部分空間の内外に付けるセルごとに適切な骨格へ付着写像を近似し、指定部分空間を保つ写像とホモトピーを合成する。
+`PairModel` の比較はこの二つの写像と両側のホモトピーを保持し、`singular_cohomology.Relative.Equivalence` に渡す。
 
-有限 CW 基底から得たセルごとの束自明化を、球面束を含む有限 CW 対のモデルと対のホモトピー同値へ組み上げる証明が必要である。
-`FiniteBase.diskType` は円板束のモデルであり、有限 CW 対のモデルではない。
-セル近似、任意のセル付着の比較、および部分複体の有限 CW 構造は `CWType` に構成した。
-これは C02 の未実装範囲であり、処理系や体系による不可能性を主張するものではない。
+## 例
 
-継続実装の検証は [C02 の最新記録](../../../benchmarks/records/c02-thom-spaces/continuation/README.md)、初回のソースに対する検証は [初回記録](../../../benchmarks/records/c02-thom-spaces/README.md) を参照する。
+[Examples.Real](src/Thom/Examples/Real.ref) と [Examples.Complex](src/Thom/Examples/Complex.ref) は、非コンパクトなスカラー直線を底として、B03 の動く埋め込みから作った計量と標準計量を比較する。
+Thom 商の同相、球面境界の cofibration、実次元1・2の円板 suspension 表示、および既存の懸垂の1回・2回の反復との同相を具体化する。
+[Examples.Edges](src/Thom/Examples/Edges.ref) はランク0の球面束が空であることと、空の底の Thom 商のすべての点が基点に一致することを検査する。
+
+[Examples.Finite](src/Thom/Examples/Finite.ref) は一点上の実・複素の任意ランクの自明束で `pairFiniteType` を使う。
+ランク0、実・複素の直線、空の基底の例も公開する。
+
+最終検査のソース・対象・バイナリとキャッシュ計数は [完了時の検証記録](../../../benchmarks/records/c02-thom-spaces/completed/README.md) を参照する。
+途中の CW 基盤の検査は [CW 基盤の記録](../../../benchmarks/records/c02-thom-spaces/cw-foundations/README.md)、以前のソースの検査は [継続時の記録](../../../benchmarks/records/c02-thom-spaces/continuation/README.md) に残している。

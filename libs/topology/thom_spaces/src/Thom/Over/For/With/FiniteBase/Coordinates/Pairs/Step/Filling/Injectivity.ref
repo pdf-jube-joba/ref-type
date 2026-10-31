@@ -1,0 +1,23 @@
+\definition injective: \forall (p, q: Total.Disk) -> Order.Lt (Total.normSquared p) R.one -> Order.Lt (Total.normSquared q) R.one -> characteristic p = characteristic q -> p = q :=
+  \fun (p, q: Total.Disk)(insideP: _)(insideQ: _)(same: _) => \block {
+    \let equalBase: cell.characteristic (first p) = cell.characteristic (first q) := trans!{X} _ _ _ (sym!{X} _ _ (base p))
+      (trans!{X} _ _ _ (congr!{Next.Carrier X} (\fun (x: Next.Carrier) => x.base) _ _ same) (base q)) \then
+    \let firstSame: first p = first q := ((CW.laws bundle.baseSpace complex).cellLaws cell member).injectiveInterior (first p) (first q) (Geometry.interiorForward p insideP).left (Geometry.interiorForward q insideQ).left equalBase \then
+    \let productSame: Geometry.homeomorphism.forward p = Geometry.homeomorphism.forward q := chart.injective (Geometry.homeomorphism.forward p) (Geometry.homeomorphism.forward q) firstSame same \then
+    \return trans!{Total.Disk} _ _ _ (sym!{Total.Disk} _ _ (Geometry.laws.leftInverse p))
+      (trans!{Total.Disk} _ _ _ (congr!{Prism.CarrierSet Total.Disk} Geometry.homeomorphism.backward _ _ productSame) (Geometry.laws.leftInverse q))
+  };
+\definition baseDifferent: \forall (a: Mid.Carrier)(p: Total.Disk) -> Order.Lt (Total.normSquared p) R.one -> \In[DiskBundle] (Subset k family) a -> Mid.toNext a = characteristic p -> Logic.False :=
+  \fun (a: Mid.Carrier)(p: Total.Disk)(inside: _)(old: _)(same: _) => BaseStep.outside (first p) (Geometry.interiorForward p inside).left
+    (\idelim a.base = cell.characteristic (first p) \with x: X => \In[X] (BaseSubset k family) x \by {
+      base: old, equality: trans!{X} _ _ _ (congr!{Next.Carrier X} (\fun (x: Next.Carrier) => x.base) _ _ same) (base p)
+    });
+\definition unitDifferent: \forall (a: Mid.Carrier)(p: Total.Disk) -> Order.Lt (Total.normSquared p) R.one -> squared a = R.one -> Mid.toNext a = characteristic p -> Logic.False :=
+  \fun (a: Mid.Carrier)(p: Total.Disk)(inside: _)(unit: _)(same: _) => Order.Order[].ltNotEq (Fiber.normSquared (second p)) R.one (Geometry.interiorForward p inside).right
+    (trans!{R.Real} _ _ _ (sym!{R.Real} _ _ (squaredFormula p))
+      (trans!{R.Real} _ _ _ (congr!{Next.Carrier R.Real} (\fun (q: Next.Carrier) => squared q) _ _ (sym!{Next.Carrier} _ _ same)) unit));
+\definition separated: \forall (a: Mid.Carrier)(p: Total.Disk) -> Order.Lt (Total.normSquared p) R.one -> Logic.Not (Mid.toNext a = characteristic p) :=
+  \fun (a: Mid.Carrier)(p: Total.Disk)(inside: _)(same: _) => either!{{\bysub(DiskBundle, Mid.MidSubset, a)} {Logic.False}
+    {\fun (old: _) => baseDifferent a p inside old same}
+    {\fun (new: Logic.And[\In[DiskBundle] (Subset k (Lists.List[CW.CellData]::cons cell family)) a, squared a = R.one]) => unitDifferent a p inside new.right same}
+  };
