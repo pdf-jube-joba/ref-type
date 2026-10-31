@@ -1,0 +1,31 @@
+\import \parent.ConeModel[] \as Round;
+\import \root.Thom[].CWType[].ConeAttachment[A := Model.Sphere, B := A, source := Model.sphereTopology, target := source, f := attach, continuous := continuous] \as Attached;
+\import Attached.Subset[subset := subset] \as ConeSubset;
+\import ConeSubset.Inside[] \as ConeInside;
+\definition originalSubset: \Pow Carrier := { z: Carrier \where \In[Attached.Carrier] ConeSubset.originalSubset (Round.backward z) };
+\definition fullSubset: \Pow Carrier := { z: Carrier \where \In[Attached.Carrier] ConeInside.fullSubset (Round.backward z) };
+\definition forwardOriginalContained: \forall (z: \Cast[Attached.Carrier] ConeSubset.originalSubset) -> \In[Carrier] originalSubset (Round.forward z) := \fun (z: \Cast[Attached.Carrier] ConeSubset.originalSubset) =>
+  \idelim z = Round.backward (Round.forward z) \with q: Attached.Carrier => \In[Attached.Carrier] ConeSubset.originalSubset q \by {
+    base: \bysub(Attached.Carrier, ConeSubset.originalSubset, z), equality: sym!{Attached.Carrier} _ _ (Round.leftInverse z)
+  };
+\definition backwardOriginalContained: \forall (z: \Cast[Carrier] originalSubset) -> \In[Attached.Carrier] ConeSubset.originalSubset (Round.backward z) := \fun (z: \Cast[Carrier] originalSubset) => \bysub(Carrier, originalSubset, z);
+\definition forwardFullContained: \forall (z: \Cast[Attached.Carrier] ConeInside.fullSubset) -> \In[Carrier] fullSubset (Round.forward z) := \fun (z: \Cast[Attached.Carrier] ConeInside.fullSubset) =>
+  \idelim z = Round.backward (Round.forward z) \with q: Attached.Carrier => \In[Attached.Carrier] ConeInside.fullSubset q \by {
+    base: \bysub(Attached.Carrier, ConeInside.fullSubset, z), equality: sym!{Attached.Carrier} _ _ (Round.leftInverse z)
+  };
+\definition backwardFullContained: \forall (z: \Cast[Carrier] fullSubset) -> \In[Attached.Carrier] ConeInside.fullSubset (Round.backward z) := \fun (z: \Cast[Carrier] fullSubset) => \bysub(Carrier, fullSubset, z);
+\definition originalEquivalence: \root.Thom[].CWType[].PairTools[A := Attached.Carrier, B := Carrier, source := Attached.topology, target := topology,
+  subset := ConeSubset.originalSubset, targetSubset := originalSubset].Data :=
+  \root.Thom[].CWType[].PairTools[A := Attached.Carrier, B := Carrier, source := Attached.topology, target := topology,
+    subset := ConeSubset.originalSubset, targetSubset := originalSubset].Homeomorphic[h := Round.homeomorphism, forwardContained := forwardOriginalContained, backwardContained := backwardOriginalContained].result;
+\definition fullEquivalence: \root.Thom[].CWType[].PairTools[A := Attached.Carrier, B := Carrier, source := Attached.topology, target := topology,
+  subset := ConeInside.fullSubset, targetSubset := fullSubset].Data :=
+  \root.Thom[].CWType[].PairTools[A := Attached.Carrier, B := Carrier, source := Attached.topology, target := topology,
+    subset := ConeInside.fullSubset, targetSubset := fullSubset].Homeomorphic[h := Round.homeomorphism, forwardContained := forwardFullContained, backwardContained := backwardFullContained].result;
+\module Homotopic(next: Model.Sphere -> A, regular: topology.Continuity[A := Model.Sphere, B := A].Continuous Model.sphereTopology source next,
+  homotopy: algebraic_topology.Homotopy[A := Model.Sphere, B := A].Homotopy[Model.sphereTopology, source, attach, next]);
+
+\module BaseEquivalence(B: \Set, target: topology.Topology[Carrier := B].Topology, targetSubset: \Pow B,
+  e: \root.Thom[].CWType[].PairTools[A := A, B := B, source := source, target := target, subset := subset, targetSubset := targetSubset].Data,
+  next: Model.Sphere -> B, regular: topology.Continuity[A := Model.Sphere, B := B].Continuous Model.sphereTopology target next,
+  commutes: \forall (v: Model.Sphere) -> e.forward (attach v) = next v);

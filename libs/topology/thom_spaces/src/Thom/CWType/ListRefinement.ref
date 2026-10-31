@@ -1,0 +1,63 @@
+\import std.Data[].List[] \as Lists;
+\definition members[family: Lists.List[A]]: \Pow A := Lists.foldr A (\Pow A)
+  (\fun (x: A)(rest: \Pow A) => { y: A \where Logic.Or[y = x, \In[A] rest y] }) ({ x: A \where Logic.False }) family;
+\definition Member[family: Lists.List[A]][x: A]: \Prop := \In[A] (members family) x;
+\definition Carrier: \Set := \Cast[A] subset;
+\definition forget[x: Carrier]: A := x;
+\definition into[x: A][member: \In[A] subset x]: Carrier := \into[A](x, subset) \by { member };
+\definition ext: \forall (x, y: Carrier) -> forget x = forget y -> x = y := \fun (x, y: Carrier)(same: _) =>
+  (\idelim forget x = forget y \with value: A => \forall (member: \In[A] subset value) -> x = into value member \by {
+    base: \fun (member: _) => \refl(x), equality: same
+  }) (\bysub(A, subset, y));
+\definition project[family: Lists.List[Carrier]]: Lists.List[A] := Lists.map Carrier A forget family;
+\definition head[default: A][family: Lists.List[A]]: A := (\induction (xs: Lists.List[A]) \return A \with {
+  | nil: default
+  | cons: \fun (x: A)(xs: Lists.List[A])(unused: A) => x
+}) family;
+\definition tail[family: Lists.List[A]]: Lists.List[A] := (\induction (xs: Lists.List[A]) \return Lists.List[A] \with {
+  | nil: Lists.List[A]::nil
+  | cons: \fun (x: A)(xs: Lists.List[A])(unused: Lists.List[A]) => xs
+}) family;
+\definition IsEmpty[family: Lists.List[A]]: \Prop := (\induction (xs: Lists.List[A]) \return \Prop \with {
+  | nil: Logic.True
+  | cons: \fun (x: A)(xs: Lists.List[A])(unused: \Prop) => Logic.False
+}) family;
+\definition nilNotCons: \forall (x: A)(xs: Lists.List[A]) -> Logic.Not (Lists.List[A]::nil = Lists.List[A]::cons x xs) :=
+  \fun (x: A)(xs: Lists.List[A])(same: _) => \idelim Lists.List[A]::nil = Lists.List[A]::cons x xs \with list: Lists.List[A] => IsEmpty list \by {
+    base: Logic.True::intro, equality: same
+  };
+\definition projectInjective: \forall (xs, ys: Lists.List[Carrier]) -> project xs = project ys -> xs = ys :=
+  \induction (xs: Lists.List[Carrier]) \return \forall (ys: Lists.List[Carrier]) -> project xs = project ys -> xs = ys \with {
+    | nil: \induction (ys: Lists.List[Carrier]) \return project (Lists.List[Carrier]::nil) = project ys -> Lists.List[Carrier]::nil = ys \with {
+      | nil: \fun (same: _) => \refl(Lists.List[Carrier]::nil)
+      | cons: \fun (y: Carrier)(ys: Lists.List[Carrier])(unused: _)(same: _) => Logic.falseElim _ (nilNotCons y (project ys) same)
+    }
+    | cons: \fun (x: Carrier)(xs: Lists.List[Carrier])(previous: _) => \induction (ys: Lists.List[Carrier]) \return project (Lists.List[Carrier]::cons x xs) = project ys -> Lists.List[Carrier]::cons x xs = ys \with {
+      | nil: \fun (same: _) => Logic.falseElim _ (nilNotCons x (project xs) (sym!{{Lists.List[A]}} _ _ same))
+      | cons: \fun (y: Carrier)(ys: Lists.List[Carrier])(unused: _)(same: _) => congr!{Carrier {Lists.List[Carrier]} {Lists.List[Carrier]}}
+        (Lists.List[Carrier]::cons) x y xs ys
+        (ext x y (congr!{{Lists.List[A]} A} (head x) _ _ same))
+        (previous ys (congr!{{Lists.List[A]} {Lists.List[A]}} tail _ _ same))
+    }
+  };
+\definition Lift[family: Lists.List[A]]: \Set := \Cast[Lists.List[Carrier]] ({ xs: Lists.List[Carrier] \where project xs = family });
+\definition Included[family: Lists.List[A]]: \Prop := \forall (x: A) -> Member family x -> \In[A] subset x;
+\definition existence: \forall (family: Lists.List[A]) -> Included family -> \exists Lift family :=
+  \induction (family: Lists.List[A]) \return Included family -> \exists Lift family \with {
+    | nil: \fun (included: Included (Lists.List[A]::nil)) => \exact(\into[Lists.List[Carrier]](Lists.List[Carrier]::nil, { xs: Lists.List[Carrier] \where project xs = Lists.List[A]::nil }) \by { \refl(Lists.List[A]::nil) }, Lift (Lists.List[A]::nil))
+    | cons: \fun (x: A)(xs: Lists.List[A])(previous: _)(included: Included (Lists.List[A]::cons x xs)) => \block {
+      \takefrom rest: Lift xs \by previous (\fun (a: A)(member: Member xs a) => included a (Logic.Or[_, _]::right member)) \then
+      \let first: Carrier := into x (included x (Logic.Or[_, _]::left (\refl(x)))) \then
+      \return \exact(\into[Lists.List[Carrier]](Lists.List[Carrier]::cons first rest, { ys: Lists.List[Carrier] \where project ys = Lists.List[A]::cons x xs }) \by {
+        congr!{{Lists.List[A]} {Lists.List[A]}} (Lists.List[A]::cons x) _ _ (\bysub(Lists.List[Carrier], { ys: Lists.List[Carrier] \where project ys = xs }, rest))
+      }, Lift (Lists.List[A]::cons x xs))
+    }
+  };
+\definition uniqueness: \forall (family: Lists.List[A])(x, y: Lift family) -> x = y := \fun (family: Lists.List[A])(x, y: Lift family) =>
+  projectInjective x y (trans!{{Lists.List[A]}} _ _ _
+    (\bysub(Lists.List[Carrier], { xs: Lists.List[Carrier] \where project xs = family }, x))
+    (sym!{{Lists.List[A]}} _ _ (\bysub(Lists.List[Carrier], { xs: Lists.List[Carrier] \where project xs = family }, y))));
+\module Of(family: Lists.List[A], included: Included family) {
+  \definition result: Lists.List[Carrier] := \choice Lift family \by { existence: existence family included, uniqueness: uniqueness family };
+  \definition projects: project result = family := \bysub(Lists.List[Carrier], { xs: Lists.List[Carrier] \where project xs = family }, \choice Lift family \by { existence: existence family included, uniqueness: uniqueness family });
+}

@@ -1,0 +1,52 @@
+\import \root.Thom[].CWType[].PairTools[A := B, B := D, source := target, target := range, subset := subset, targetSubset := targetSubset] \as Original;
+\definition native: algebraic_topology.HomotopyEquivalence[A := B, B := D].Equivalence[target, range] := Original.forget e;
+\import \parent.\parent.BaseEquivalence[D := D, range := range, equivalence := native, next := next, regular := regular, commutes := commutes].With[left := e.left, right := e.right] \as Ordinary;
+\import \root.Thom[].CWType[].ConeAttachment[A := A, B := D, source := source, target := range, f := next, continuous := regular] \as Next;
+\import Next.Subset[subset := targetSubset] \as NextSubset;
+\definition backwardAttach[x: A]: B := e.backward (next x);
+\definition backwardRegular: topology.Continuity[A := A, B := B].Continuous source target backwardAttach :=
+  topology.Composition[A := A, B := D, C := B].composeContinuous source range target next e.backward regular e.backwardContinuous;
+\definition backwardCommutes: \forall (x: A) -> e.backward (next x) = backwardAttach x := \fun (x: A) => \refl(backwardAttach x);
+\import \root.Thom[].CWType[].ConeAttachment[A := A, B := B, source := source, target := target, f := backwardAttach, continuous := backwardRegular] \as Third;
+\import Third.Subset[subset := subset] \as ThirdSubset;
+\definition finalAttach[x: A]: D := e.forward (backwardAttach x);
+\definition finalRegular: topology.Continuity[A := A, B := D].Continuous source range finalAttach :=
+  topology.Composition[A := A, B := B, C := D].composeContinuous source target range backwardAttach e.forward backwardRegular e.forwardContinuous;
+\definition finalCommutes: \forall (x: A) -> e.forward (backwardAttach x) = finalAttach x := \fun (x: A) => \refl(finalAttach x);
+\import \root.Thom[].CWType[].ConeAttachment[A := A, B := D, source := source, target := range, f := finalAttach, continuous := finalRegular] \as Fourth;
+\import Fourth.Subset[subset := targetSubset] \as FourthSubset;
+\import \parent.\parent.Mapping[D := D, range := range, next := next, nextContinuous := regular, map := e.forward, mapContinuous := e.forwardContinuous, commutes := commutes] \as FirstMap;
+\import Next.Mapping[D := B, range := target, next := backwardAttach, nextContinuous := backwardRegular, map := e.backward, mapContinuous := e.backwardContinuous, commutes := backwardCommutes] \as SecondMap;
+\import Third.Mapping[D := D, range := range, next := finalAttach, nextContinuous := finalRegular, map := e.forward, mapContinuous := e.forwardContinuous, commutes := finalCommutes] \as ThirdMap;
+\import FirstMap.Subsets[subset := subset, targetSubset := targetSubset, mapContained := e.forwardContained] \as FirstSubsetMap;
+\import SecondMap.Subsets[subset := targetSubset, targetSubset := subset, mapContained := e.backwardContained] \as SecondSubsetMap;
+\import ThirdMap.Subsets[subset := subset, targetSubset := targetSubset, mapContained := e.forwardContained] \as ThirdSubsetMap;
+\definition firstComposite[y: B]: B := e.backward (e.forward y);
+\definition secondComposite[z: D]: D := e.forward (e.backward z);
+\definition firstContinuous: topology.Continuity[A := B, B := B].Continuous target target firstComposite :=
+  topology.Composition[A := B, B := D, C := B].composeContinuous target range target e.forward e.backward e.forwardContinuous e.backwardContinuous;
+\definition secondContinuous: topology.Continuity[A := D, B := D].Continuous range range secondComposite :=
+  topology.Composition[A := D, B := B, C := D].composeContinuous range target range e.backward e.forward e.backwardContinuous e.forwardContinuous;
+\definition firstCommutes: \forall (x: A) -> firstComposite (f x) = backwardAttach x := \fun (x: A) => congr!{D B} e.backward _ _ (commutes x);
+\definition secondCommutes: \forall (x: A) -> secondComposite (next x) = finalAttach x := \fun (x: A) => \refl(finalAttach x);
+\definition firstContained: \forall (y: \Cast[B] subset) -> \In[B] subset (firstComposite y) := \fun (y: \Cast[B] subset) =>
+  e.backwardContained (\into[D](e.forward y, targetSubset) \by { e.forwardContained y });
+\definition secondContained: \forall (z: \Cast[D] targetSubset) -> \In[D] targetSubset (secondComposite z) := \fun (z: \Cast[D] targetSubset) =>
+  e.forwardContained (\into[B](e.backward z, subset) \by { e.backwardContained z });
+\definition firstHomotopyContained: \forall (t: I.Carrier)(y: \Cast[B] subset) -> \In[B] subset (Ordinary.firstHomotopy (algebraic_topology.Cylinder[A := B].at t y)) :=
+  \fun (t: I.Carrier)(y: \Cast[B] subset) => e.leftPreserves (I.reverse t) y;
+\definition secondHomotopyContained: \forall (t: I.Carrier)(z: \Cast[D] targetSubset) -> \In[D] targetSubset (Ordinary.secondHomotopy (algebraic_topology.Cylinder[A := D].at t z)) :=
+  \fun (t: I.Carrier)(z: \Cast[D] targetSubset) => e.rightPreserves (I.reverse t) z;
+\import \parent.\parent.HomotopicIdentity[next := backwardAttach, regular := backwardRegular, map := firstComposite, mapContinuous := firstContinuous, commutes := firstCommutes, homotopy := Ordinary.firstHomotopy].Subsets[
+  subset := subset, mapContained := firstContained, homotopyContained := firstHomotopyContained] \as FirstIdentity;
+\import Next.HomotopicIdentity[next := finalAttach, regular := finalRegular, map := secondComposite, mapContinuous := secondContinuous, commutes := secondCommutes, homotopy := Ordinary.secondHomotopy].Subsets[
+  subset := targetSubset, mapContained := secondContained, homotopyContained := secondHomotopyContained] \as SecondIdentity;
+\import \root.Thom[].CWType[].PairCancellation[A := Carrier, B := Next.Carrier, C := Third.Carrier, D := Fourth.Carrier,
+  firstSpace := topology, secondSpace := Next.topology, thirdSpace := Third.topology, fourthSpace := Fourth.topology,
+  firstSubset := originalSubset, secondSubset := NextSubset.originalSubset, thirdSubset := ThirdSubset.originalSubset, fourthSubset := FourthSubset.originalSubset,
+  f := FirstMap.apply, g := SecondMap.apply, h := ThirdMap.apply, fContinuous := FirstMap.continuous, gContinuous := SecondMap.continuous, hContinuous := ThirdMap.continuous,
+  fContained := FirstSubsetMap.contained, gContained := SecondSubsetMap.contained, hContained := ThirdSubsetMap.contained,
+  first := FirstIdentity.equivalence, second := SecondIdentity.equivalence, firstForward := Ordinary.firstForward, secondForward := Ordinary.secondForward] \as Cancellation;
+\definition equivalence: \root.Thom[].CWType[].PairTools[A := Carrier, B := Next.Carrier, source := topology, target := Next.topology,
+  subset := originalSubset, targetSubset := NextSubset.originalSubset].Data := Cancellation.result;
+\module Inside(attachesInside: \forall (x: A) -> \In[B] subset (f x));
