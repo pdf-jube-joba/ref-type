@@ -1,0 +1,37 @@
+\import algebraic_topology.CW[A := A] \as Cells;
+\import singular_cellular.On[A := A, source := source, complex := complex] \as Native;
+\import Native.Filtration[] \as Filtration;
+\import algebraic_topology.Euclidean[].Dimension[n := m] \as Domain;
+\import algebraic_topology.Interval[] \as I;
+\import algebraic_topology.Cylinder[A := Domain.Disk] \as Cylinder;
+\import algebraic_topology.Homotopy[A := Domain.Disk, B := A] \as Homotopies;
+\import N.Basic[].Prop[] \as Nat;
+\import N.Order[].Prop[] \as NatOrder;
+\import std.Logic[].Order[] \as Ordering;
+\import topology.Topology[Carrier := A] \as Space;
+\definition targetLimit: N.Nat^ := N.Nat^::succ m;
+\import Filtration.Stage[limit := targetLimit] \as Target;
+\definition Lands[f: Domain.Disk -> A]: \Prop := \forall (x: Domain.Disk) -> \In[Domain.Disk] fixed x -> \In[A] (Filtration.subset targetLimit) (f x);
+\structure Result[f: Domain.Disk -> A]: \Set := {
+  value: Domain.Disk -> Target.Carrier,
+  continuous: topology.Continuity[A := Domain.Disk, B := Target.Carrier].Continuous Domain.diskTopology Target.topology value,
+  homotopy: Homotopies.RelativeHomotopy[Domain.diskTopology, source, fixed, f, (\fun (x: Domain.Disk) => Target.inclusion (value x))]
+};
+\definition StageTheorem[limit: N.Nat^]: \Prop := \forall (f: Domain.Disk -> Filtration.Stage[limit := limit].Carrier) ->
+  topology.Continuity[A := Domain.Disk, B := Filtration.Stage[limit := limit].Carrier].Continuous Domain.diskTopology (Filtration.Stage[limit := limit].topology) f ->
+  Lands (\fun (x: Domain.Disk) => Filtration.Stage[limit := limit].inclusion (f x)) ->
+  \exists Result[(\fun (x: Domain.Disk) => Filtration.Stage[limit := limit].inclusion (f x))];
+\definition base: StageTheorem N.Nat^::zero := \fun (f: _)(continuous: _)(lands: _) => Logic.falseElim _
+  (\idelim Filtration.subset N.Nat^::zero = Space.Empty \with S: \Pow A => \In[A] S (f Domain.Contraction[].origin) \by {
+    base: \bysub(A, Filtration.subset N.Nat^::zero, f Domain.Contraction[].origin), equality: Filtration.empty
+  });
+\module Below(limit: N.Nat^, bound: Nat.Le limit targetLimit, f: Domain.Disk -> Filtration.Stage[limit := limit].Carrier,
+  continuous: topology.Continuity[A := Domain.Disk, B := Filtration.Stage[limit := limit].Carrier].Continuous Domain.diskTopology (Filtration.Stage[limit := limit].topology) f);
+\module Step(k: N.Nat^, previous: StageTheorem k, f: Domain.Disk -> Filtration.Stage[limit := N.Nat^::succ k].Carrier,
+  continuous: topology.Continuity[A := Domain.Disk, B := Filtration.Stage[limit := N.Nat^::succ k].Carrier].Continuous Domain.diskTopology (Filtration.Stage[limit := N.Nat^::succ k].topology) f,
+  lands: Lands (\fun (x: Domain.Disk) => Filtration.Stage[limit := N.Nat^::succ k].inclusion (f x)));
+\definition theorem: \forall (limit: N.Nat^) -> StageTheorem limit := \induction (limit: N.Nat^) \return StageTheorem limit \with {
+  | zero: base
+  | succ: \fun (k: N.Nat^)(previous: StageTheorem k)(f: _)(continuous: _)(lands: _) => Step[k := k, previous := previous, f := f, continuous := continuous, lands := lands].exists
+};
+\module For(f: Domain.Disk -> A, continuous: topology.Continuity[A := Domain.Disk, B := A].Continuous Domain.diskTopology source f, lands: Lands f);

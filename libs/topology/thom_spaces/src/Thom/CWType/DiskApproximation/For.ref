@@ -1,0 +1,17 @@
+\definition height: N.Nat^ := Filtration.Exhaustion[].height complex.cells;
+\import Filtration.Stage[limit := height] \as Stage;
+\definition full: topology.Homeomorphism[A := Stage.Carrier, B := A].Homeomorphism[Stage.topology, source] := Filtration.Full[limit := height].homeomorphism (Nat.leRefl height);
+\definition fullLaws: topology.Homeomorphism[A := Stage.Carrier, B := A].Laws[Stage.topology, source, full] := topology.Homeomorphism[A := Stage.Carrier, B := A].laws Stage.topology source full;
+\definition lift[x: Domain.Disk]: Stage.Carrier := full.backward (f x);
+\definition lifted[x: Domain.Disk]: A := Stage.inclusion (lift x);
+\definition liftContinuous: topology.Continuity[A := Domain.Disk, B := Stage.Carrier].Continuous Domain.diskTopology Stage.topology lift :=
+  topology.Composition[A := Domain.Disk, B := A, C := Stage.Carrier].composeContinuous Domain.diskTopology source Stage.topology f full.backward continuous fullLaws.backwardContinuous;
+\definition liftEquals: \forall (x: Domain.Disk) -> lifted x = f x := \fun (x: Domain.Disk) => fullLaws.rightInverse (f x);
+\definition liftLands: Lands lifted := \fun (x: Domain.Disk)(inside: _) => \idelim f x = lifted x \with y: A => \In[A] (Filtration.subset targetLimit) y \by {
+  base: lands x inside, equality: sym!{A} _ _ (liftEquals x)
+};
+\module Using(result: Result[lifted]);
+\definition exists: \exists Result[f] := \block {
+  \takefrom result: Result[lifted] \by theorem height lift liftContinuous liftLands \then
+  \return \exact(Using[result := result].result, Result[f])
+};
