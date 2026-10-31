@@ -66,8 +66,24 @@
 - 枠付き分類では `Framed.Pullback`、`FrameSum`、`FrameStabilization` が枠行列の合成、ブロック直和、恒等枠の付加を構成する。
 - Grassmannian の直和・周囲次元安定化・階数安定化の連続写像と普遍束比較は B05 の `Model.DirectSum` と `Model.Stabilization` もそのまま使える。
 
+`Framed.For.class` は枠付き束の分類クラスを公開し、`classification` と `independent` は埋め込みから得た有限表示が同じクラスを定めることを示す。
+有限表示との比較同型と枠の保存は従来どおり `For.FromEmbedding.isomorphism` と `preservesFrame` にある。
+`Framed.Addition.add` は `FrameSum.presentation` を商に降ろした直和で、`onClasses` は有限行列による表示との一致を証明する。
+`Framed.Addition.For.naturality`、`Framed.Stabilization.For.naturality`、`Framed.For.Pullback.naturality` は束の分類クラスからこれらの有限表示への可換性を与える。
+枠付き束の分類クラスは一つなので、これらの商写像の well-definedness には既証明の `uniqueClass` を用いる。
+
+`Oriented.Sum.With` は、二つの通常の有限分類データ、元の直和束に与えた行列式の向き、およびその直和束の分類データを受け取る。
+因子の分類束の直和への比較同型 `Sum.comparison` を構成し、`targetOrientation` は与えた向きをこの同型に沿って輸送する。
+`determinantNaturality`、`isomorphism`、`naturality` は、向きの輸送と分類との可換性を、行列式の等式、向きを保つ同型、分類クラスの等式として公開する。
+向きを保つことを入力の仮定には要求しない。
+`With.Changing.independent` は因子の分類データを変更しても分類クラスが一致することを証明する。
+`Oriented.Stabilization.With.naturality` は自明束を付加する場合の同じ比較である。
+これらの API の向きの入力は直和束全体の向きである。
+二つの因子の向きから標準の積向きを生成する行列式テンソル積同型は、この package の構成には含まれていない。
+
 [最小利用例](src/Classification/Examples/BoolLine.ref) は二点離散空間上の実線束を分類する。
 [自明束の例](src/Classification/Examples/Trivial.ref) は任意の底空間と次元で、有限分類写像、普遍束との同型、枠族の安定化ホモトピーを検査する。
+同じ例の `Naturality.sumNaturality` と `stabilizationNaturality` は、枠付きの分類 API に対する直和・安定化の自然性の利用例である。
 
 ```ref
 \import bundle_classification.Classification[].Examples[].BoolLine[] \as Example;

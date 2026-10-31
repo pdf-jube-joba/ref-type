@@ -1,0 +1,54 @@
+\import Theory.For[X := X, F := Source.Fiber, bundle := sourceBundle].AtRank[k := rank] \as OriginalPlain;
+\import Theory.For[X := X, F := TargetFiber, bundle := targetBundle].AtRank[k := rank] \as TargetPlain;
+\import \root.Classification[].Orientations[X := X, F := Original.DeterminantFiber, bundle := Original.determinantBundle] \as SourceCones;
+\import Original.With[orientation := orientation] \as SourceOriented;
+\import SourceOriented.From[classifier := classifier] \as Before;
+\import \root.Classification[].Oriented[].For[X := X, F := TargetFiber, bundle := targetBundle, k := rank] \as Result;
+\import Bundles.Isomorphisms[X := X, F := Source.Fiber, G := TargetFiber, source := sourceBundle, target := targetBundle] \as Isos;
+\definition laws: Isos.Laws[comparison] := \bysub(Isos.Data, Isos.Isomorphism, comparison);
+\definition targetComparison: TargetPlain.Comparison (TargetPlain.Data { dimension := classifier.data.dimension, projection := classifier.data.projection, regular := classifier.data.regular }) :=
+  Operations.IsomorphismComposition[X := X, F := TargetFiber, G := Source.Fiber, H := OriginalPlain.Fiber classifier.data,
+    source := targetBundle, middle := sourceBundle, target := OriginalPlain.imageBundle classifier.data].compose (Isos.inverse comparison) classifier.comparison;
+\definition targetClassifier: TargetPlain.Classifier := TargetPlain.Classifier {
+  data := TargetPlain.Data { dimension := classifier.data.dimension, projection := classifier.data.projection, regular := classifier.data.regular },
+  rank := classifier.rank, comparison := targetComparison
+};
+\import \root.Classification[].Determinants[X := X, F := Source.Fiber, G := TargetFiber, source := sourceBundle, target := targetBundle,
+  same := \refl(left.baseSpace), k := rank, iso := comparison] \as SumDet;
+\import SourceCones.Along[G := Result.DeterminantFiber, target := Result.determinantBundle, iso := SumDet.isomorphism, orientation := orientation] \as Transport;
+\definition targetOrientation: Result.Orientation := Transport.orientationOnTarget;
+\import Result.With[orientation := targetOrientation].From[classifier := targetClassifier] \as After;
+\import Theory.On[X := X, baseSpace := left.baseSpace] \as Plain;
+\import \root.Classification[].Oriented[].On[X := X, baseSpace := left.baseSpace, k := rank] \as Oriented;
+\import \root.Classification[].Determinants[X := X, F := Source.Fiber, G := Plain.Fiber Before.projection, source := sourceBundle,
+  target := Plain.bundle Before.projection, same := \refl(left.baseSpace), k := rank, iso := classifier.comparison] \as BeforeDet;
+\import \root.Classification[].Determinants[X := X, F := TargetFiber, G := Plain.Fiber After.projection, source := targetBundle,
+  target := Plain.bundle After.projection, same := \refl(left.baseSpace), k := rank, iso := targetComparison] \as AfterDet;
+\definition determinantNaturality: \forall (x: X)(alpha: Oriented.DeterminantFiber After.projection x) ->
+  (SumDet.isomorphism.forward.fiber x).apply ((AfterDet.isomorphism.forward.fiber x).apply alpha) = (BeforeDet.isomorphism.forward.fiber x).apply alpha :=
+  \fun (x: X)(alpha: Oriented.DeterminantFiber After.projection x) => \axiom:funext(
+    (SumDet.isomorphism.forward.fiber x).apply ((AfterDet.isomorphism.forward.fiber x).apply alpha), (BeforeDet.isomorphism.forward.fiber x).apply alpha,
+    \fun (v: Fin.Fin rank -> Source.Fiber x) => congr!{{Fin.Fin rank -> Plain.Fiber After.projection x} {R.Real}} alpha _ _
+      (\axiom:funext((\fun (i: Fin.Fin rank) => (classifier.comparison.forward.fiber x).apply ((comparison.backward.fiber x).apply ((comparison.forward.fiber x).apply (v i)))),
+        (\fun (i: Fin.Fin rank) => (classifier.comparison.forward.fiber x).apply (v i)),
+        \fun (i: Fin.Fin rank) => congr!{{Source.Fiber x} {Plain.Fiber After.projection x}} (classifier.comparison.forward.fiber x).apply _ _ (laws.leftInverse x (v i)))));
+\import Bundles.Identity[X := X, F := Plain.Fiber Before.projection, bundle := Plain.bundle Before.projection] \as Identity;
+\definition imageIsomorphism: Plain.Isomorphism Before.presentation After.presentation :=
+  Bundles.Isomorphisms[X := X, F := Plain.Fiber Before.projection, G := Plain.Fiber After.projection, source := Plain.bundle Before.projection, target := Plain.bundle After.projection].Isomorphism {
+    forward := Identity.map, backward := Identity.map, leftInverse := \fun (x: X)(v: Plain.Fiber Before.projection x) => \refl(v), rightInverse := \fun (x: X)(v: Plain.Fiber After.projection x) => \refl(v)
+  };
+\import Oriented.Between[a := Before.object, b := After.object] \as ObjectIsos;
+\import ObjectIsos.Along[iso := imageIsomorphism] \as Along;
+\definition preserves: Along.Preserves := \fun (x: X)(alpha: Oriented.DeterminantFiber After.projection x) => Logic.PropEquiv[_, _] {
+  ltr := \fun (positive: _) => \idelim (SumDet.isomorphism.forward.fiber x).apply ((AfterDet.isomorphism.forward.fiber x).apply alpha) = (BeforeDet.isomorphism.forward.fiber x).apply alpha
+    \with beta: Original.DeterminantFiber x => SourceCones.Positive orientation.positive x beta \by { base: positive, equality: determinantNaturality x alpha },
+  rtl := \fun (positive: _) => \idelim (BeforeDet.isomorphism.forward.fiber x).apply alpha = (SumDet.isomorphism.forward.fiber x).apply ((AfterDet.isomorphism.forward.fiber x).apply alpha)
+    \with beta: Original.DeterminantFiber x => SourceCones.Positive orientation.positive x beta \by { base: positive, equality: sym!{{Original.DeterminantFiber x}} _ _ (determinantNaturality x alpha) }
+};
+\definition isomorphism: ObjectIsos.Isomorphism := ObjectIsos.Isomorphism { value := imageIsomorphism, preserves := preserves };
+\definition naturality: \forall (compact: topology.Topology[Carrier := X].IsCompact left.baseSpace) ->
+  Oriented.Compact[compact := compact].class Before.object = Oriented.Compact[compact := compact].class After.object :=
+  \fun (compact: _) => (Oriented.Compact[compact := compact].classCriterion Before.object After.object).rtl (\exact(isomorphism, ObjectIsos.Isomorphism));
+\definition before: Oriented.Object := Before.object;
+\definition after: Oriented.Object := After.object;
+\module Changing(newFirst: First.Classifier, newSecond: Second.Classifier);
