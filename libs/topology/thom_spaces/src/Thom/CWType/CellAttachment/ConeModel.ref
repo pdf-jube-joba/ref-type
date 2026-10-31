@@ -1,0 +1,52 @@
+\import \root.Thom[].CWType[].DiskCone[n := n] \as DiskCone;
+\import \root.Thom[].CWType[].Cone[A := Model.Sphere, source := Model.sphereTopology] \as Cone;
+\import \root.Thom[].CWType[].ConeAttachment[A := Model.Sphere, B := A, source := Model.sphereTopology, target := source, f := attach, continuous := continuous] \as Attached;
+\import topological_constructions.Pushout[A := A, B := Cone.Carrier, C := Model.Sphere].Of[u := attach, v := Cone.base] \as Pushout;
+\definition diskLaws: topology.Homeomorphism[A := Cone.Carrier, B := Model.Disk].Laws[Cone.topology, Model.diskTopology, DiskCone.homeomorphism] :=
+  topology.Homeomorphism[A := Cone.Carrier, B := Model.Disk].laws Cone.topology Model.diskTopology DiskCone.homeomorphism;
+\definition coneMap[c: Cone.Carrier]: Carrier := characteristic (DiskCone.toDisk c);
+\import Pushout.Universal[D := Carrier] \as Gluing;
+\definition compatible: Gluing.Compatible inclusion coneMap := \fun (v: Model.Sphere) => trans!{Carrier} _ _ _ (sym!{Carrier} _ _ (glued v))
+  (congr!{Model.Disk Carrier} characteristic _ _ (sym!{Model.Disk} _ _ (DiskCone.onBase v)));
+\definition forward: Attached.Carrier -> Carrier := Gluing.apply inclusion coneMap compatible;
+\definition onOriginal: \forall (a: A) -> forward (Attached.inclusion a) = inclusion a := Gluing.onLeft inclusion coneMap compatible;
+\definition onCone: \forall (c: Cone.Carrier) -> forward (Attached.cone c) = characteristic (DiskCone.toDisk c) := Gluing.onRight inclusion coneMap compatible;
+\definition forwardContinuous: topology.Continuity[A := Attached.Carrier, B := Carrier].Continuous Attached.topology topology forward :=
+  Gluing.continuous source Cone.topology topology inclusion coneMap compatible inclusionContinuous
+    (topology.Composition[A := Cone.Carrier, B := Model.Disk, C := Carrier].composeContinuous Cone.topology Model.diskTopology topology DiskCone.toDisk characteristic DiskCone.continuous characteristicContinuous);
+\definition inverseBoundary: \forall (v: Model.Sphere) -> DiskCone.homeomorphism.backward (boundaryInclusion v) = Cone.base v := \fun (v: Model.Sphere) => trans!{Cone.Carrier} _ _ _
+  (congr!{Model.Disk Cone.Carrier} DiskCone.homeomorphism.backward _ _ (sym!{Model.Disk} _ _ (DiskCone.onBase v))) (diskLaws.leftInverse (Cone.base v));
+\definition diskMap[p: Model.Disk]: Attached.Carrier := Attached.cone (DiskCone.homeomorphism.backward p);
+\definition agrees: \forall (v: Model.Sphere) -> Attached.inclusion (attach v) = diskMap (boundaryInclusion v) := \fun (v: Model.Sphere) => trans!{Attached.Carrier} _ _ _ (Attached.attached v)
+  (congr!{Cone.Carrier Attached.Carrier} Attached.cone _ _ (sym!{Cone.Carrier} _ _ (inverseBoundary v)));
+\import \parent.Universal[B := Attached.Carrier, target := Attached.topology, f := Attached.inclusion, g := diskMap, agrees := agrees] \as Reverse;
+\definition backward: Carrier -> Attached.Carrier := Reverse.apply;
+\definition backwardOriginal: \forall (a: A) -> backward (inclusion a) = Attached.inclusion a := Reverse.onOriginal;
+\definition backwardCell: \forall (p: Model.Disk) -> backward (characteristic p) = diskMap p := Reverse.onCell;
+\definition backwardContinuous: topology.Continuity[A := Carrier, B := Attached.Carrier].Continuous topology Attached.topology backward :=
+  Reverse.continuous Attached.inclusionContinuous
+    (topology.Composition[A := Model.Disk, B := Cone.Carrier, C := Attached.Carrier].composeContinuous Model.diskTopology Cone.topology Attached.topology DiskCone.homeomorphism.backward Attached.cone diskLaws.backwardContinuous Attached.coneContinuous);
+\definition leftInverse: \forall (z: Attached.Carrier) -> backward (forward z) = z := Pushout.induction (\fun (z: Attached.Carrier) => backward (forward z) = z)
+  (\fun (a: A) => trans!{Attached.Carrier} _ _ _ (congr!{Carrier Attached.Carrier} backward _ _ (onOriginal a)) (backwardOriginal a))
+  (\fun (c: Cone.Carrier) => eq_reason_in!{Attached.Carrier _
+    "=" _ "by" { congr!{Carrier Attached.Carrier} backward _ _ (onCone c) }
+    "=" _ "by" { backwardCell (DiskCone.toDisk c) }
+    "=" _ "by" { congr!{Cone.Carrier Attached.Carrier} Attached.cone _ _ (diskLaws.leftInverse c) }
+  });
+\definition cellInverse: \forall (p: Model.Disk) -> forward (backward (characteristic p)) = characteristic p := \fun (p: Model.Disk) => eq_reason_in!{Carrier _
+  "=" _ "by" { congr!{Attached.Carrier Carrier} forward _ _ (backwardCell p) }
+  "=" _ "by" { onCone (DiskCone.homeomorphism.backward p) }
+  "=" _ "by" { congr!{Model.Disk Carrier} characteristic _ _ (diskLaws.rightInverse p) }
+};
+\definition rightInverse: \forall (z: Carrier) -> forward (backward z) = z := \induction (z: Carrier) \return forward (backward z) = z \with {
+  | inl: \fun (a: A) => trans!{Carrier} _ _ _ (congr!{Attached.Carrier Carrier} forward _ _ (backwardOriginal a)) (onOriginal a)
+  | inr: \fun (p: InteriorPoint) => eq_reason_in!{Carrier _
+    "=" _ "by" { congr!{Carrier Carrier} (\fun (z: Carrier) => forward (backward z)) _ _ (sym!{Carrier} _ _ (onInterior p)) }
+    "=" _ "by" { cellInverse p }
+    "=" _ "by" { onInterior p }
+  }
+};
+\definition homeomorphism: topology.Homeomorphism[A := Attached.Carrier, B := Carrier].Homeomorphism[Attached.topology, topology] :=
+  topology.Homeomorphism[A := Attached.Carrier, B := Carrier].Homeomorphism[Attached.topology, topology] {
+    forward := forward, backward := backward, forwardContinuous := forwardContinuous, backwardContinuous := backwardContinuous, leftInverse := leftInverse, rightInverse := rightInverse
+  };

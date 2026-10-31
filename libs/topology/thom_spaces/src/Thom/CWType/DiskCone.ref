@@ -1,0 +1,55 @@
+\import real.Analysis[] \as R;
+\import dedekind_reals.DedekindReal[] \as Order;
+\import Order.Arithmetic[].Prop[] \as Laws;
+\import algebraic_topology.Interval[] \as I;
+\import algebraic_topology.Euclidean[].Dimension[n := n] \as Disk;
+\import Disk.Contraction[] \as Scaling;
+\import Disk.Geometry[] \as Geometry;
+\import Disk.Normalization[] \as Normal;
+\import \parent.Cone[A := Disk.Sphere, source := Disk.sphereTopology] \as Cone;
+\import algebraic_topology.Cylinder[A := Disk.Sphere] \as Cylinder;
+\definition source: topology.Topology[Carrier := Cylinder.Carrier].Topology := Cylinder.topology Disk.sphereTopology;
+\definition squared: \forall (t: I.Carrier)(u: Disk.Sphere) -> Disk.normSquared (Scaling.scale t u) = R.mul t t := \fun (t: I.Carrier)(u: Disk.Sphere) => eq_reason_in!{R.Real _
+  "=" _ "by" { Scaling.normScale t u }
+  "=" _ "by" { congr!{R.Real R.Real} (R.mul (R.mul t t)) _ _ (\bysub(Disk.Coordinate, Disk.Boundary, u)) }
+  "=" _ "by" { R.Algebra[].mulOneRight (R.mul t t) }
+};
+\definition scaled[t: I.Carrier][u: Disk.Sphere]: Disk.Disk := \into[Disk.Coordinate](Scaling.scale t u, Disk.ClosedBall) \by {
+  Order.leReplaceLeft (R.mul t t) (Disk.normSquared (Scaling.scale t u)) R.one (sym!{R.Real} _ _ (squared t u)) (Scaling.squareBound t)
+};
+\definition family[p: Cylinder.Carrier]: Disk.Disk := scaled (Cylinder.time p) (Cylinder.point p);
+\import metric_spaces.RealFunctions[A := Cylinder.Carrier] \as Functions;
+\definition timeContinuous: Functions.Continuous source (\fun (p: Cylinder.Carrier) => Cylinder.time p) :=
+  topology.Composition[A := Cylinder.Carrier, B := I.Carrier, C := R.Real].composeContinuous source I.topology metric_spaces.RealLine[].topology Cylinder.time (\fun (t: I.Carrier) => t) (Cylinder.timeContinuous Disk.sphereTopology) I.inclusionContinuous;
+\definition coordinateContinuous: \forall (i: Disk.Index) -> Functions.Continuous source (\fun (p: Cylinder.Carrier) => Cylinder.point p i) := \fun (i: Disk.Index) =>
+  topology.Composition[A := Cylinder.Carrier, B := Disk.Coordinate, C := R.Real].composeContinuous source Disk.topology metric_spaces.RealLine[].topology
+    (\fun (p: Cylinder.Carrier) => Cylinder.point p) (\fun (u: Disk.Coordinate) => u i)
+    (topology.Composition[A := Cylinder.Carrier, B := Disk.Sphere, C := Disk.Coordinate].composeContinuous source Disk.sphereTopology Disk.topology Cylinder.point (\fun (u: Disk.Sphere) => u)
+      (Cylinder.pointContinuous Disk.sphereTopology) (topology.Continuity[A := Disk.Sphere, B := Disk.Coordinate].Corestriction[S := Disk.Boundary].inclusionContinuous Disk.topology))
+    (topological_algebra.Coordinates[K := R.Real, I := Disk.Index].evaluationContinuous metric_spaces.RealLine[].topology i);
+\definition familyContinuous: topology.Continuity[A := Cylinder.Carrier, B := Disk.Disk].Continuous source Disk.diskTopology family :=
+  topology.Continuity[A := Cylinder.Carrier, B := Disk.Coordinate].Corestriction[S := Disk.ClosedBall].corestrictContinuous source Disk.topology family
+    (topological_algebra.Coordinates[K := R.Real, I := Disk.Index].Universal[A := Cylinder.Carrier].continuous source metric_spaces.RealLine[].topology family
+      (\fun (i: Disk.Index) => Functions.Product[].continuous source (\fun (p: Cylinder.Carrier) => Cylinder.time p) (\fun (p: Cylinder.Carrier) => Cylinder.point p i) timeContinuous (coordinateContinuous i)));
+\definition zero: \forall (u: Disk.Sphere) -> family (Cylinder.at I.start u) = Scaling.origin := \fun (u: Disk.Sphere) =>
+  \axiom:funext(family (Cylinder.at I.start u), Scaling.origin, \fun (i: Disk.Index) => Laws.fieldMulZeroLeft (u i));
+\import \parent.Cone[A := Disk.Sphere, source := Disk.sphereTopology].Universal[B := Disk.Disk, target := Disk.diskTopology, point := Scaling.origin, family := family, zero := zero, continuous := familyContinuous] \as Gluing;
+\definition toDisk: Cone.Carrier -> Disk.Disk := Gluing.apply;
+\definition onApex: toDisk Cone.apex = Scaling.origin := Gluing.onApex;
+\definition onCylinder: \forall (t: I.Carrier)(u: Disk.Sphere) -> toDisk (Cone.at t u) = scaled t u := Gluing.onCylinder;
+\definition boundary[u: Disk.Sphere]: Disk.Disk := \into[Disk.Coordinate](u, Disk.ClosedBall) \by { Order.leReplaceLeft R.one (Disk.normSquared u) R.one (sym!{R.Real} _ _ (\bysub(Disk.Coordinate, Disk.Boundary, u))) (Order.leRefl R.one) };
+\definition onBase: \forall (u: Disk.Sphere) -> toDisk (Cone.base u) = boundary u := \fun (u: Disk.Sphere) => trans!{Disk.Disk} _ _ _ (onCylinder I.end u)
+  (\axiom:funext(scaled I.end u, boundary u, \fun (i: Disk.Index) => Laws.fieldMulOneLeft (u i)));
+\definition continuous: topology.Continuity[A := Cone.Carrier, B := Disk.Disk].Continuous Cone.topology Disk.diskTopology toDisk := Gluing.regular;
+\definition normApex: Geometry.norm (toDisk Cone.apex) = R.zero := trans!{R.Real} _ _ _ (congr!{Disk.Disk R.Real} (\fun (p: Disk.Disk) => Geometry.norm p) _ _ onApex)
+  (trans!{R.Real} _ _ _ (congr!{R.Real R.Real} R.SquareRoot[].sqrt _ _ (Scaling.zeroSum (std.Data[].FinSet[].elements n))) R.SquareRoot[].sqrtZero);
+\definition normCylinder: \forall (t: I.Carrier)(u: Disk.Sphere) -> Geometry.norm (toDisk (Cone.at t u)) = t := \fun (t: I.Carrier)(u: Disk.Sphere) => eq_reason_in!{R.Real _
+  "=" _ "by" { congr!{Disk.Disk R.Real} (\fun (p: Disk.Disk) => Geometry.norm p) _ _ (onCylinder t u) }
+  "=" _ "by" { congr!{R.Real R.Real} R.SquareRoot[].sqrt _ _ (squared t u) }
+  "=" _ "by" { R.SquareRoot[].sqrtSquared t (I.bounds t).left }
+};
+\module Bijection;
+\definition homeomorphism: topology.Homeomorphism[A := Cone.Carrier, B := Disk.Disk].Homeomorphism[Cone.topology, Disk.diskTopology] :=
+  \parent.CompactBijection[A := Cone.Carrier, B := Disk.Disk, source := Cone.topology, target := Disk.diskTopology, compact := Cone.compact Disk.Compactness[].sphere,
+    hausdorff := topology.Topology[Carrier := Disk.Coordinate].Subspace[S := Disk.ClosedBall].Properties[].hausdorff Disk.topology Disk.Compactness[].hausdorff,
+    f := toDisk, injective := Bijection[].injective, onto := Bijection[].onto, continuous := continuous].homeomorphism;

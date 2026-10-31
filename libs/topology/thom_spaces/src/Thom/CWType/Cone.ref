@@ -19,6 +19,16 @@
   \fun (onApex: _)(onCylinder: _) => Pushout.induction P
     (\fun (p: Vertex.Carrier) => \idelim Vertex.point = p \with q: Vertex.Carrier => P (Model.base q) \by { base: onApex, equality: sym!{Vertex.Carrier} _ _ (Vertex.unique p) })
     (\induction (p: Cylinder.Carrier) \return P (Model.cylinder p) \with { | pair: onCylinder });
+\import topological_constructions.Coproduct[A := Vertex.Carrier, B := Cylinder.Carrier] \as Sum;
+\definition onto: \forall (p: Carrier) -> \exists (q: Sum.Carrier \where Pushout.class q = p) := Pushout.induction
+  (\fun (p: Carrier) => \exists (q: Sum.Carrier \where Pushout.class q = p))
+  (\fun (p: Vertex.Carrier) => Logic.existsIntro[Sum.Carrier, { q: Sum.Carrier \where Pushout.class q = Model.base p }] (Sum.inl p) (\refl(Model.base p)))
+  (\fun (p: Cylinder.Carrier) => Logic.existsIntro[Sum.Carrier, { q: Sum.Carrier \where Pushout.class q = Model.cylinder p }] (Sum.inr p) (\refl(Model.cylinder p)));
+\definition compact: topology.Topology[Carrier := A].IsCompact source -> topology.Topology[Carrier := Carrier].IsCompact topology :=
+  \fun (compact: _) => topology.Compactness[A := Sum.Carrier, B := Carrier].surjectiveImage (Sum.topology Vertex.topology (Cylinder.topology source)) topology Pushout.class
+    (topological_constructions.Quotient[A := Sum.Carrier, B := Carrier].projectionContinuous (Sum.topology Vertex.topology (Cylinder.topology source)) Pushout.class) onto
+    (Sum.Properties[left := Vertex.topology, right := Cylinder.topology source].compact Vertex.compact
+      (topological_constructions.Product[A := I.Carrier, B := A].Compactness[].productCompact I.topology source I.compact compact));
 \module Universal(B: \Set, target: topology.Topology[Carrier := B].Topology, point: B, family: Cylinder.Carrier -> B,
   zero: \forall (x: A) -> family (Cylinder.at I.start x) = point,
   continuous: topology.Continuity[A := Cylinder.Carrier, B := B].Continuous (Cylinder.topology source) target family);

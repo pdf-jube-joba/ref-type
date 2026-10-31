@@ -1,0 +1,65 @@
+\definition recover: \forall (x: Normal.Nonzero) -> Scaling.scale (Geometry.norm x) (Normal.normalize x) = x := \fun (x: Normal.Nonzero) =>
+  \axiom:funext(Scaling.scale (Geometry.norm x) (Normal.normalize x), x, \fun (i: Disk.Index) => eq_reason_in!{R.Real _
+    "=" _ "by" { sym!{R.Real} _ _ (Laws.fieldMulAssoc (Geometry.norm x) (Laws.fieldInv (Geometry.norm x)) (x i)) }
+    "=" _ "by" { congr!{R.Real R.Real} (\fun (a: R.Real) => R.mul a (x i)) _ _
+      (trans!{R.Real} _ _ _ (Laws.fieldMulComm (Geometry.norm x) (Laws.fieldInv (Geometry.norm x))) (Laws.fieldInverseNonzero (Geometry.norm x) (Normal.normNonzero x))) }
+    "=" _ "by" { Laws.fieldMulOneLeft (x i) }
+  });
+\definition diskRadius: \forall (p: Disk.Disk) -> Order.Le (Geometry.norm p) R.one := \fun (p: Disk.Disk) => Geometry.upperUnitBound (Geometry.norm p)
+  (Order.leReplaceLeft (Disk.normSquared p) (R.mul (Geometry.norm p) (Geometry.norm p)) R.one (sym!{R.Real} _ _ (Geometry.normSquaredOfNorm p)) (\bysub(Disk.Coordinate, Disk.ClosedBall, p)));
+\definition onto: \forall (p: Disk.Disk) -> \exists (q: Cone.Carrier \where toDisk q = p) := \fun (p: Disk.Disk) =>
+  either!{{Classical.excludedMiddle (Disk.normSquared p = R.zero)} {\exists (q: Cone.Carrier \where toDisk q = p)}
+    {\fun (zero: _) => Logic.existsIntro[Cone.Carrier, { q: Cone.Carrier \where toDisk q = p }] Cone.apex
+      (trans!{Disk.Coordinate} _ _ _ onApex (sym!{Disk.Coordinate} _ _ (Geometry.normSquaredZero p zero)))}
+    {\fun (nonzero: _) => \block {
+      \let x: Normal.Nonzero := \into[Disk.Coordinate](p, Normal.Nonzero) \by { nonzero } \then
+      \let t: I.Carrier := \into[R.Real](Geometry.norm p, metric_spaces.RealLine[].ClosedInterval R.zero R.one) \by {
+        Logic.And[_, _]::# (R.SquareRoot[].nonnegative (Disk.normSquared p)) (diskRadius p)
+      } \then
+      \return Logic.existsIntro[Cone.Carrier, { q: Cone.Carrier \where toDisk q = p }] (Cone.at t (Normal.normalize x))
+        (trans!{Disk.Coordinate} _ _ _ (onCylinder t (Normal.normalize x)) (recover x))
+    }}
+  };
+\definition mixed: \forall (t: I.Carrier)(u: Disk.Sphere) -> toDisk Cone.apex = toDisk (Cone.at t u) -> Cone.apex = Cone.at t u := \fun (t: I.Carrier)(u: Disk.Sphere)(same: _) => eq_reason_in!{Cone.Carrier _
+  "=" _ "by" { sym!{Cone.Carrier} _ _ (Cone.zero u) }
+  "=" _ "by" { congr!{{I.Carrier} Cone.Carrier} (\fun (s: I.Carrier) => Cone.at s u) I.start t (eq_reason_in!{R.Real R.zero
+    "=" _ "by" { sym!{R.Real} _ _ normApex }
+    "=" _ "by" { congr!{Disk.Disk R.Real} (\fun (p: Disk.Disk) => Geometry.norm p) _ _ same }
+    "=" _ "by" { normCylinder t u }
+  }) }
+};
+\definition undo: \forall (t: I.Carrier)(u: Disk.Sphere) -> Logic.Not (t = I.start) -> Scaling.scale (Laws.fieldInv t) (toDisk (Cone.at t u)) = u := \fun (t: I.Carrier)(u: Disk.Sphere)(nonzero: _) =>
+  \axiom:funext(Scaling.scale (Laws.fieldInv t) (toDisk (Cone.at t u)), u, \fun (i: Disk.Index) => eq_reason_in!{R.Real _
+    "=" _ "by" { congr!{Disk.Coordinate R.Real} (\fun (p: Disk.Coordinate) => R.mul (Laws.fieldInv t) (p i)) _ _ (onCylinder t u) }
+    "=" _ "by" { sym!{R.Real} _ _ (Laws.fieldMulAssoc (Laws.fieldInv t) t (u i)) }
+    "=" _ "by" { congr!{R.Real R.Real} (\fun (a: R.Real) => R.mul a (u i)) _ _ (Laws.fieldInverseNonzero t nonzero) }
+    "=" _ "by" { Laws.fieldMulOneLeft (u i) }
+  });
+\definition cylinders: \forall (t, s: I.Carrier)(u, v: Disk.Sphere) -> toDisk (Cone.at t u) = toDisk (Cone.at s v) -> Cone.at t u = Cone.at s v :=
+  \fun (t, s: I.Carrier)(u, v: Disk.Sphere)(same: _) => either!{{Classical.excludedMiddle (t = I.start)} {Cone.at t u = Cone.at s v}
+    {\fun (zero: t = I.start) => \block {
+      \let edge: Cone.apex = Cone.at t u := trans!{Cone.Carrier} Cone.apex (Cone.at I.start u) (Cone.at t u) (sym!{Cone.Carrier} _ _ (Cone.zero u)) (congr!{{I.Carrier} Cone.Carrier} (\fun (r: I.Carrier) => Cone.at r u) I.start t (sym!{{I.Carrier}} _ _ zero)) \then
+      \return trans!{Cone.Carrier} _ _ _ (sym!{Cone.Carrier} _ _ edge) (mixed s v (trans!{Disk.Disk} _ _ _ (congr!{Cone.Carrier Disk.Disk} toDisk _ _ edge) same))
+    }}
+    {\fun (nonzero: Logic.Not (t = I.start)) => \block {
+      \let radius: t = s := eq_reason_in!{R.Real _
+        "=" _ "by" { sym!{R.Real} _ _ (normCylinder t u) }
+        "=" _ "by" { congr!{Disk.Disk R.Real} (\fun (p: Disk.Disk) => Geometry.norm p) _ _ same }
+        "=" _ "by" { normCylinder s v }
+      } \then
+      \let sameRadius: toDisk (Cone.at t u) = toDisk (Cone.at t v) := trans!{Disk.Disk} _ _ _ same
+        (congr!{{I.Carrier} Disk.Disk} (\fun (r: I.Carrier) => toDisk (Cone.at r v)) s t (sym!{{I.Carrier}} _ _ radius)) \then
+      \let direction: u = v := eq_reason_in!{Disk.Coordinate _
+        "=" _ "by" { sym!{Disk.Coordinate} _ _ (undo t u nonzero) }
+        "=" _ "by" { congr!{Disk.Disk Disk.Coordinate} (\fun (p: Disk.Disk) => Scaling.scale (Laws.fieldInv t) p) _ _ sameRadius }
+        "=" _ "by" { undo t v nonzero }
+      } \then
+      \return congr!{{I.Carrier} Disk.Sphere Cone.Carrier} (\fun (r: I.Carrier)(w: Disk.Sphere) => Cone.at r w) t s u v radius direction
+    }}
+  };
+\definition injective: \forall (p, q: Cone.Carrier) -> toDisk p = toDisk q -> p = q :=
+  Cone.induction (\fun (p: Cone.Carrier) => \forall (q: Cone.Carrier) -> toDisk p = toDisk q -> p = q)
+    (Cone.induction (\fun (q: Cone.Carrier) => toDisk Cone.apex = toDisk q -> Cone.apex = q) (\fun (same: _) => \refl(Cone.apex)) mixed)
+    (\fun (t: I.Carrier)(u: Disk.Sphere) => Cone.induction (\fun (q: Cone.Carrier) => toDisk (Cone.at t u) = toDisk q -> Cone.at t u = q)
+      (\fun (same: _) => sym!{Cone.Carrier} _ _ (mixed t u (sym!{Disk.Disk} _ _ same)))
+      (\fun (s: I.Carrier)(v: Disk.Sphere) => cylinders t s u v));
