@@ -1,0 +1,25 @@
+\import algebraic_topology.Interval[] \as I;
+\import algebraic_topology.Cylinder[A := A] \as Cylinder;
+\definition Preserves[h: Cylinder.Carrier -> B]: \Prop := \forall (t: I.Carrier)(x: \Cast[A] subset) -> \In[B] targetSubset (h (Cylinder.at t x));
+\module Concatenation(source: topology.Topology[Carrier := A].Topology, target: topology.Topology[Carrier := B].Topology,
+  f, g, k: A -> B,
+  first: algebraic_topology.Homotopy[A := A, B := B].Homotopy[source, target, f, g],
+  second: algebraic_topology.Homotopy[A := A, B := B].Homotopy[source, target, g, k], firstPreserves: Preserves first, secondPreserves: Preserves second) {
+  \import \root.Thom[].CWType[].ConcatenationLaws[A := A, B := B, source := source, target := target, f := f, g := g, k := k, h := first, j := second] \as Join;
+  \import algebraic_topology.TimeSubdivision[A := A] \as Division;
+  \definition result: algebraic_topology.Homotopy[A := A, B := B].Homotopy[source, target, f, k] := Join.concatenate;
+  \definition preserves: Preserves result := \fun (t: I.Carrier)(x: \Cast[A] subset) => either!{{Division.covered (Cylinder.at t x)} {\In[B] targetSubset (result (Cylinder.at t x))}
+    {\fun (member: _) => \block {
+      \let p: Division.Left := \into[Cylinder.Carrier](Cylinder.at t x, Division.LeftSet) \by { member } \then
+      \return \idelim first (Division.leftMap p) = result p \with b: B => \In[B] targetSubset b \by {
+        base: firstPreserves (Division.leftTime p) x, equality: sym!{B} _ _ (Join.onLeft p)
+      }
+    }}
+    {\fun (member: _) => \block {
+      \let p: Division.Right := \into[Cylinder.Carrier](Cylinder.at t x, Division.RightSet) \by { member } \then
+      \return \idelim second (Division.rightMap p) = result p \with b: B => \In[B] targetSubset b \by {
+        base: secondPreserves (Division.rightTime p) x, equality: sym!{B} _ _ (Join.onRight p)
+      }
+    }}
+  };
+}

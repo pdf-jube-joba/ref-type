@@ -1,0 +1,26 @@
+\import algebraic_topology.Interval[] \as I;
+\import algebraic_topology.Cylinder[A := A] \as FirstCylinder;
+\import algebraic_topology.Cylinder[A := B] \as SecondCylinder;
+\import \root.Thom[].CWType[].PairTools[A := A, B := C, source := firstSpace, target := thirdSpace, subset := firstSubset, targetSubset := thirdSubset] \as First;
+\import \root.Thom[].CWType[].PairTools[A := B, B := D, source := secondSpace, target := fourthSpace, subset := secondSubset, targetSubset := fourthSubset] \as Second;
+\import \root.Thom[].CWType[].TwoOutOfSix[A := A, B := B, C := C, D := D,
+  firstSpace := firstSpace, secondSpace := secondSpace, thirdSpace := thirdSpace, fourthSpace := fourthSpace,
+  f := f, g := g, h := h, fContinuous := fContinuous, gContinuous := gContinuous, hContinuous := hContinuous,
+  firstEquivalence := First.forget first, secondEquivalence := Second.forget second, firstForward := firstForward, secondForward := secondForward].With[left := second.left, right := first.right] \as Ordinary;
+\definition leftContained: \forall (z: \Cast[C] thirdSubset) -> \In[B] secondSubset (Ordinary.leftMap z) := \fun (z: \Cast[C] thirdSubset) =>
+  second.backwardContained (\into[D](h z, fourthSubset) \by { hContained z });
+\definition rightContained: \forall (z: \Cast[C] thirdSubset) -> \In[B] secondSubset (Ordinary.rightMap z) := \fun (z: \Cast[C] thirdSubset) =>
+  fContained (\into[A](first.backward z, firstSubset) \by { first.backwardContained z });
+\import \root.Thom[].CWType[].PairTools[A := B, B := C, source := secondSpace, target := thirdSpace, subset := secondSubset, targetSubset := thirdSubset] \as Middle;
+\definition middle: Middle.Data := Middle.TwoSided[
+  f := g, leftMap := Ordinary.leftMap, rightMap := Ordinary.rightMap,
+  continuous := gContinuous, leftContinuous := Ordinary.leftContinuous, rightContinuous := Ordinary.rightContinuous,
+  forwardContained := gContained, leftContained := leftContained, rightContained := rightContained,
+  leftInverse := Ordinary.leftHomotopy, rightInverse := Ordinary.rightHomotopy,
+  leftInversePreserves := second.leftPreserves, rightInversePreserves := first.rightPreserves].result;
+\import \root.Thom[].CWType[].PairTools[A := A, B := B, source := firstSpace, target := secondSpace, subset := firstSubset, targetSubset := secondSubset] \as Result;
+\definition composite: Result.Data := First.Composition[C := B, range := secondSpace, finalSubset := secondSubset, first := first, second := Middle.Inverse[e := middle].result].result;
+\definition homotopy: algebraic_topology.Homotopy[A := A, B := B].Homotopy[firstSpace, secondSpace, composite.forward, f] := Ordinary.homotopy;
+\definition preserves: \forall (t: I.Carrier)(x: \Cast[A] firstSubset) -> \In[B] secondSubset (homotopy (FirstCylinder.at t x)) := \fun (t: I.Carrier)(x: \Cast[A] firstSubset) =>
+  second.leftPreserves t (\into[B](f x, secondSubset) \by { fContained x });
+\definition result: Result.Data := Result.Replace[e := composite, next := f, homotopy := homotopy, preserves := preserves].result;

@@ -1,0 +1,26 @@
+\import algebraic_topology.Homotopy[A := A, B := B] \as Geometry;
+\definition reversed: Geometry.Homotopy[source, target, next, e.forward] := Geometry.reverse source target e.forward next homotopy;
+\definition nextContained: \forall (x: SourceSubset) -> \In[B] targetSubset (next x) := \fun (x: SourceSubset) =>
+  \idelim homotopy (LeftCylinder.at I.end x) = next x \with b: B => \In[B] targetSubset b \by {
+    base: preserves I.end x, equality: (Geometry.laws source target e.forward next homotopy).end x
+  };
+\definition first: Left.Homotopy[source, source, (\fun (x: A) => e.backward (next x)), (\fun (x: A) => e.backward (e.forward x))] :=
+  Geometry.Composition[C := A].postcompose source target source next e.forward reversed e.backward e.backwardContinuous;
+\definition firstPreserves: \forall (t: I.Carrier)(x: SourceSubset) -> \In[A] subset (first (LeftCylinder.at t x)) := \fun (t: I.Carrier)(x: SourceSubset) =>
+  e.backwardContained (\into[B](homotopy (LeftCylinder.at (I.reverse t) x), targetSubset) \by { preserves (I.reverse t) x });
+\definition second: Right.Homotopy[target, target, (\fun (y: B) => next (e.backward y)), (\fun (y: B) => e.forward (e.backward y))] :=
+  Geometry.Composition[C := B].precompose target source target next e.forward reversed e.backward e.backwardContinuous;
+\definition secondPreserves: \forall (t: I.Carrier)(y: TargetSubset) -> \In[B] targetSubset (second (RightCylinder.at t y)) := \fun (t: I.Carrier)(y: TargetSubset) =>
+  preserves (I.reverse t) (\into[A](e.backward y, subset) \by { e.backwardContained y });
+\import \root.Thom[].CWType[].PreservedPaths[A := A, B := A, subset := subset, targetSubset := subset].Concatenation[
+  source := source, target := source, f := (\fun (x: A) => e.backward (next x)), g := (\fun (x: A) => e.backward (e.forward x)), k := (\fun (x: A) => x),
+  first := first, second := e.left, firstPreserves := firstPreserves, secondPreserves := e.leftPreserves] \as LeftJoin;
+\import \root.Thom[].CWType[].PreservedPaths[A := B, B := B, subset := targetSubset, targetSubset := targetSubset].Concatenation[
+  source := target, target := target, f := (\fun (y: B) => next (e.backward y)), g := (\fun (y: B) => e.forward (e.backward y)), k := (\fun (y: B) => y),
+  first := second, second := e.right, firstPreserves := secondPreserves, secondPreserves := e.rightPreserves] \as RightJoin;
+\definition result: Data := Data {
+  forward := next, backward := e.backward,
+  forwardContinuous := Geometry.endContinuous source target e.forward next homotopy,
+  backwardContinuous := e.backwardContinuous, forwardContained := nextContained, backwardContained := e.backwardContained,
+  left := LeftJoin.result, right := RightJoin.result, leftPreserves := LeftJoin.preserves, rightPreserves := RightJoin.preserves
+};

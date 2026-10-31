@@ -1,0 +1,29 @@
+\import \parent.Variation[] \as V;
+\import \parent.Compression[] \as C;
+\definition CylinderSubset: \Pow Cylinder.Carrier := { z: Cylinder.Carrier \where \In[A] subset (Cylinder.point z) };
+\definition firstPreserves: \forall (t: I.Carrier)(z: \Cast[Cylinder.Carrier] CylinderSubset) -> \In[B] targetSubset (V.first (Double.at t z)) :=
+  \fun (t: I.Carrier)(z: \Cast[Cylinder.Carrier] CylinderSubset) => pPreserves t (\into[A](Cylinder.point z, subset) \by { \bysub(Cylinder.Carrier, CylinderSubset, z) });
+\definition secondPreserves: \forall (t: I.Carrier)(z: \Cast[Cylinder.Carrier] CylinderSubset) -> \In[B] targetSubset (V.second (Double.at t z)) :=
+  \fun (t: I.Carrier)(z: \Cast[Cylinder.Carrier] CylinderSubset) => hPreserves (V.time (Double.at t z)) (\into[A](Cylinder.point z, subset) \by { \bysub(Cylinder.Carrier, CylinderSubset, z) });
+\definition reversePreserves: \forall (t: I.Carrier)(z: \Cast[Cylinder.Carrier] CylinderSubset) -> \In[B] targetSubset (V.reversed (Double.at t z)) :=
+  \fun (t: I.Carrier)(z: \Cast[Cylinder.Carrier] CylinderSubset) => secondPreserves (I.reverse t) z;
+\import \root.Thom[].CWType[].PreservedPaths[A := Cylinder.Carrier, B := B, subset := CylinderSubset, targetSubset := targetSubset].Concatenation[
+  source := Cylinder.topology source, target := target, f := V.start, g := V.middle, k := V.endpoint,
+  first := V.first, second := V.second, firstPreserves := firstPreserves, secondPreserves := secondPreserves] \as Prefix;
+\import \root.Thom[].CWType[].PreservedPaths[A := Cylinder.Carrier, B := B, subset := CylinderSubset, targetSubset := targetSubset].Concatenation[
+  source := Cylinder.topology source, target := target, f := V.start, g := V.endpoint, k := V.middle,
+  first := Prefix.result, second := V.reversed, firstPreserves := Prefix.preserves, secondPreserves := reversePreserves] \as Total;
+\definition variationPreserves: \forall (u: I.Carrier)(z: \Cast[Cylinder.Carrier] CylinderSubset) -> \In[B] targetSubset (variation (Double.at u z)) :=
+  \fun (u: I.Carrier)(z: \Cast[Cylinder.Carrier] CylinderSubset) => Total.preserves (Cylinder.time z)
+    (\into[Cylinder.Carrier](Cylinder.at u (Cylinder.point z), CylinderSubset) \by { \bysub(Cylinder.Carrier, CylinderSubset, z) });
+\definition compressionPreserves: \forall (u: I.Carrier)(z: \Cast[Cylinder.Carrier] CylinderSubset) -> \In[B] targetSubset (compression (Double.at u z)) :=
+  \fun (u: I.Carrier)(z: \Cast[Cylinder.Carrier] CylinderSubset) => pPreserves
+    (I.Convex[].blend u (C.rho z) (Cylinder.time z))
+    (\into[A](Cylinder.point z, subset) \by { \bysub(Cylinder.Carrier, CylinderSubset, z) });
+\definition first: Fillings.Homotopy[Cylinder.topology source, target, detour, compressed] := Fillings.forgetRelative (Cylinder.topology source) target Ends detour compressed variation;
+\definition second: Fillings.Homotopy[Cylinder.topology source, target, compressed, p] := Fillings.forgetRelative (Cylinder.topology source) target Ends compressed p compression;
+\import \root.Thom[].CWType[].PreservedPaths[A := Cylinder.Carrier, B := B, subset := CylinderSubset, targetSubset := targetSubset].Concatenation[
+  source := Cylinder.topology source, target := target, f := detour, g := compressed, k := p,
+  first := first, second := second, firstPreserves := variationPreserves, secondPreserves := compressionPreserves] \as Joined;
+\definition preserves: \forall (u, t: I.Carrier)(x: \Cast[A] subset) -> \In[B] targetSubset (result (Double.at u (Cylinder.at t x))) :=
+  \fun (u, t: I.Carrier)(x: \Cast[A] subset) => Joined.preserves u (\into[Cylinder.Carrier](Cylinder.at t x, CylinderSubset) \by { \bysub(A, subset, x) });
