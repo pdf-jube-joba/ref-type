@@ -1,0 +1,57 @@
+\import std.Data[].Nat[] \as N;
+\import std.Data[].FinSet[] \as Fin;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\import std.Logic[].Classical[] \as Classical;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\import real.Analysis[] \as Scalars;
+\import dedekind_reals.DedekindReal[] \as R;
+\import R.Arithmetic[].Prop[] \as Laws;
+\import R.Order[] \as Order;
+\import Scalars.Estimates[] \as Bounds;
+\import Bounds.Product[] \as Product;
+\import Scalars.Distance[] \as Metric;
+\import calculus.Real[].Multivariable[n := n].Open[] \as Open;
+\import Open.Analysis[] \as Analysis;
+\import calculus.Real[].Multivariable[n := n].Space[].Def[] \as Coordinates;
+\import calculus.Real[].Multivariable[n := n].Space[].Prop[] \as CoordinateLaws;
+\definition Real: \Set := Scalars.Real;
+\definition Point: \Set := calculus.Real[].Multivariable[n := n].Point;
+\definition Coordinate: \Set := Fin.Fin n;
+\definition Constraints: \Set := \Pow Coordinate;
+\definition Nonnegative[C: Constraints][x: Point]: \Prop := \forall (i: Coordinate) -> \In[Coordinate] C i -> R.Le Scalars.zero (x i);
+\definition quadrant[C: Constraints]: \Pow Point := { x: Point \where Nonnegative C x };
+\definition Carrier[C: Constraints][U: Open.OpenSet]: \Set := \Cast[Open.Carrier U] ({ x: Open.Carrier U \where Nonnegative C x });
+\definition face[C: Constraints][i: Coordinate]: \Pow (\Cast[Point] (quadrant C)) := { x: \Cast[Point] (quadrant C) \where x i = Scalars.zero };
+\definition Active[C: Constraints][a: Point][i: Coordinate]: \Prop := Logic.And[\In[Coordinate] C i, a i = Scalars.zero];
+\definition Cone[C: Constraints][a, v: Point]: \Prop := \forall (i: Coordinate) -> Active C a i -> R.Le Scalars.zero (v i);
+\definition Tangential[C: Constraints][a, v: Point]: \Prop := \forall (i: Coordinate) -> Active C a i -> v i = Scalars.zero;
+\definition halfSpace[i: Coordinate]: Constraints := { j: Coordinate \where j = i };
+\definition unconstrained: Constraints := { i: Coordinate \where Logic.False };
+\definition boundary[C: Constraints][a: Point]: \Prop := \exists ( i: Coordinate \where Active C a i );
+\definition interior[C: Constraints][a: Point]: \Prop := \forall (i: Coordinate) -> \In[Coordinate] C i -> R.Lt Scalars.zero (a i);
+\definition increase: \forall (C: Constraints)(a: Point)(i: Coordinate)(t: Real) -> Nonnegative C a -> R.Le (a i) t -> Nonnegative C (Coordinates.replace a i t) :=
+  \fun (C: Constraints)(a: Point)(i: Coordinate)(t: Real)(member: Nonnegative C a)(larger: R.Le (a i) t)(j: Coordinate)(selected: \In[Coordinate] C j) =>
+    Logic.orElim (i = j) (Logic.Not (i = j)) (R.Le Scalars.zero (Coordinates.replace a i t j)) (Classical.excludedMiddle (i = j))
+      (\fun (same: i = j) => R.leReplaceRight Scalars.zero t (Coordinates.replace a i t j)
+        (sym!{Real} _ _ (trans!{Real} _ _ _ (congr!{Coordinate Real} (Coordinates.replace a i t) _ _ (sym!{Coordinate} _ _ same)) (CoordinateLaws.replaceSame a i t)))
+        (R.leTrans Scalars.zero (a i) t (member i (\idelim j = i \with k: Coordinate => \In[Coordinate] C k \by { base: selected, equality: sym!{Coordinate} _ _ same })) larger))
+      (\fun (different: Logic.Not (i = j)) => R.leReplaceRight Scalars.zero (a j) (Coordinates.replace a i t j)
+        (sym!{Real} _ _ (CoordinateLaws.replaceDifferent a i j t different)) (member j selected));
+\module Extension(C: Constraints, U: Open.OpenSet, f, g: Open.ScalarFunction U, a: Carrier C U);
+
+\definition region[C: Constraints][U: Open.OpenSet]: \Pow (Open.Carrier U) := { x: Open.Carrier U \where Nonnegative C x };
+\definition regionTopology[C: Constraints][U: Open.OpenSet]: topology.Structures[].Topology[Carrier C U] :=
+  topology.Topology[Carrier := Open.Carrier U].Subspace[S := region C U].topology (Open.Topology[].Of[U := U].topology);
+\module RayControl(C: Constraints, a, v: Point);
+
+\definition halfSpaceNonnegative: \forall (i: Coordinate)(a: Point) -> R.Le Scalars.zero (a i) -> Nonnegative (halfSpace i) a :=
+  \fun (i: Coordinate)(a: Point)(nonnegative: _)(j: Coordinate)(same: j = i) => R.leReplaceRight Scalars.zero (a i) (a j)
+    (congr!{Coordinate Real} a _ _ (sym!{Coordinate} _ _ same)) nonnegative;
+\definition unconstrainedNonnegative: \forall (a: Point) -> Nonnegative unconstrained a := \fun (a: Point)(i: Coordinate)(member: Logic.False) => Logic.falseElim _ member;
+\definition equality[C: Constraints][U: Open.OpenSet][a, b: Carrier C U]: (a \of Point) = (b \of Point) -> a = b :=
+  \fun (same: (a \of Point) = (b \of Point)) => \root.Refinement[A := Open.Carrier U].equality (region C U) a b (\root.Refinement[A := Point].equality U.points a b same);
+\module Topology(C: Constraints, U: Open.OpenSet);
+\module Interior(C: Constraints);

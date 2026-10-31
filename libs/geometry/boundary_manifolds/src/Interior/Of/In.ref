@@ -1,0 +1,45 @@
+\import Model.Interior[C := c.constraints] \as Interior;
+\definition image: Open.OpenSet := Open.intersection c.image Interior.domain;
+\definition domain: \Pow Point := Subspace.Trace c.domain;
+\definition Domain: \Set := Charts.Domain domain;
+\definition source: topology.Structures[].Topology[Domain] := Charts.domainTopology domain;
+\definition oldPoint[p: Domain]: OldCharts.LocalPoint c := \into[M.Point](p, c.domain) \by { \bysub(Point, domain, p) };
+\definition oldCoordinate[p: Domain]: Model.Carrier c.constraints c.image := OldCharts.coordinate c (oldPoint p);
+\module At(p: Domain) {
+  \import Tangent.At[x := p] \as T;
+  \definition chart: T.Chart := \into[OldCharts.Chart](c, T.Chart) \by { T.ChartLaws[c] { member := \bysub(OldCharts.Chart, M.atlas.charts, c), contains := \bysub(Point, domain, p) } };
+  \definition inside: Model.interior c.constraints (oldCoordinate p) := Interior.ofNotBoundary (oldCoordinate p)
+    (\bysub(Open.Carrier c.image, Model.region c.constraints c.image, oldCoordinate p))
+    (\fun (boundary: _) => (\bysub(M.Point, points, p)) (T.Cones[].boundaryOfCoordinate chart boundary));
+}
+\definition forward[p: Domain]: Open.Carrier image := \into[Model.Point](oldCoordinate p, image.points) \by {
+  Logic.And[_, _]::# (\bysub(Model.Point, c.image.points, oldCoordinate p)) (At[p := p].inside)
+};
+\definition coordinateInput[u: Open.Carrier image]: Model.Carrier c.constraints c.image := \into[Open.Carrier c.image](
+  Open.inclusion image c.image (Open.intersectionLeft c.image Interior.domain) u, Model.region c.constraints c.image) \by {
+    Interior.nonnegative (Open.inclusion image Interior.domain (Open.intersectionRight c.image Interior.domain) u)
+  };
+\definition pointValue[u: Open.Carrier image]: OldCharts.LocalPoint c := OldCharts.point c (coordinateInput u);
+\module Backward(u: Open.Carrier image) {
+  \import Tangent.At[x := pointValue u] \as T;
+  \definition chart: T.Chart := \into[OldCharts.Chart](c, T.Chart) \by { T.ChartLaws[c] { member := \bysub(OldCharts.Chart, M.atlas.charts, c), contains := \bysub(M.Point, c.domain, pointValue u) } };
+  \definition inInterior: Model.interior c.constraints (T.coordinate chart) := \idelim (u \of Model.Point) = (T.coordinate chart \of Model.Point)
+    \with v: Model.Point => Model.interior c.constraints v \by {
+      base: (\bysub(Model.Point, image.points, u)).right, equality: sym!{Model.Point} _ _ (OldCharts.coordinatePoint c (coordinateInput u))
+    };
+  \definition interior: \In[M.Point] points (pointValue u) := \fun (boundary: T.Cones[].Boundary) =>
+    Interior.notBoundary (T.coordinate chart) inInterior (T.Cones[].coordinateOfBoundary chart boundary);
+}
+\definition pointInterior[u: Open.Carrier image]: Point := \into[M.Point](pointValue u, points) \by { Backward[u := u].interior };
+\definition backward[u: Open.Carrier image]: Domain := \into[Point](pointInterior u, domain) \by { \bysub(M.Point, c.domain, pointValue u) };
+\definition leftInverse: \forall (p: Domain) -> backward (forward p) = p := \fun (p: Domain) => OldCharts.pointCoordinate c (oldPoint p);
+\definition rightInverse: \forall (u: Open.Carrier image) -> forward (backward u) = u := \fun (u: Open.Carrier image) => OldCharts.coordinatePoint c (coordinateInput u);
+\module Continuity;
+\definition chart: Charts.Chart := Charts.Chart {
+  domain := domain, image := image,
+  coordinates := topology.Homeomorphism[A := Domain, B := Open.Carrier image].Homeomorphism[source, Open.Topology[].Of[U := image].topology] {
+    forward := forward, backward := backward, leftInverse := leftInverse, rightInverse := rightInverse,
+    forwardContinuous := Continuity[].forwardContinuous, backwardContinuous := Continuity[].backwardContinuous,
+  },
+  open := Subspace.traceOpen M.space c.domain c.open,
+};

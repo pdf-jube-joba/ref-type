@@ -1,0 +1,22 @@
+\import \root.Tangent[n := n].On[M := M].At[x := x].Cones[] \as Cones;
+\import dedekind_reals.DedekindReal[] \as R;
+\import R.Arithmetic[].Prop[] \as Laws;
+\import \parent.\parent.Coordinate[chart := c] \as C;
+\import \parent.\parent.CoordinateOperations[chart := c] \as OperationsInChart;
+\definition coordinateNegative: \forall (i: Core.Coordinate) -> C.decode (Operations.negative v) i = Real.neg (C.decode v i) :=
+  \fun (i: Core.Coordinate) => congr!{{Vectors.Vector} Real.Real} (\fun (w: Vectors.Vector) => w i) _ _ (OperationsInChart.negative v);
+\definition fromIntrinsic: Tangential v -> Core.Tangential c.constraints (coordinate c) (C.decode v) := \block {
+  \fun (tangent: Tangential v)(i: Core.Coordinate)(active: _) \then
+  \let lower: R.Le Real.zero (C.decode v i) := tangent.left c i active \then
+  \let negative: R.Le Real.zero (Real.neg (C.decode v i)) := R.leReplaceRight Real.zero _ _ (coordinateNegative i) (tangent.right c i active) \then
+  \let upper: R.Le (C.decode v i) Real.zero := R.leReplace _ _ _ _ (Laws.negInvolutive (C.decode v i)) Laws.negZero
+    (Laws.negAntitone Real.zero (Real.neg (C.decode v i)) negative) \then
+  \return R.leAntisym _ _ upper lower
+};
+\definition toIntrinsic: Core.Tangential c.constraints (coordinate c) (C.decode v) -> Tangential v :=
+  \fun (zero: _) => Logic.And[_, _]::#
+    (Cones.criterion c v (\fun (i: Core.Coordinate)(active: _) => R.leReplaceRight Real.zero Real.zero (C.decode v i) (sym!{Real.Real} _ _ (zero i active)) (R.leRefl Real.zero)))
+    (Cones.criterion c (Operations.negative v) (\fun (i: Core.Coordinate)(active: _) => R.leReplaceRight Real.zero Real.zero (C.decode (Operations.negative v) i)
+      (sym!{Real.Real} _ _ (trans!{Real.Real} _ _ _ (coordinateNegative i) (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} Real.neg _ _ (zero i active)) Laws.negZero))) (R.leRefl Real.zero)));
+\definition criterion: Logic.PropEquiv[Core.Tangential c.constraints (coordinate c) (C.decode v), Tangential v] :=
+  Logic.PropEquiv[_, _] { ltr := toIntrinsic, rtl := fromIntrinsic };

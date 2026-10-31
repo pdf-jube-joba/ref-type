@@ -1,0 +1,71 @@
+\definition source: topology.Structures[].Topology[Domain] := Charts.domainTopology domain;
+\definition target: topology.Structures[].Topology[Model.Carrier C image] := Model.regionTopology C image;
+\import topology.Continuity[A := Point, B := M.Point].Restriction[S := domain] \as FirstRestriction;
+\import topology.Continuity[A := Point, B := N.Point].Restriction[S := domain] \as SecondRestriction;
+\definition firstContinuous: topology.Continuity[A := Domain, B := M.Point].Continuous source M.space (\fun (p: Domain) => first p) :=
+  FirstRestriction.restrictContinuous topology M.space first (Product.Maps[].firstContinuous M.space N.space);
+\definition secondContinuous: topology.Continuity[A := Domain, B := N.Point].Continuous source N.space (\fun (p: Domain) => second p) :=
+  SecondRestriction.restrictContinuous topology N.space second (Product.Maps[].secondContinuous M.space N.space);
+\definition leftPointContinuous: topology.Continuity[A := Domain, B := LeftCharts.LocalPoint c].Continuous source (LeftCharts.domainTopology c.domain) leftPoint :=
+  topology.Continuity[A := Domain, B := M.Point].Corestriction[S := c.domain].corestrictContinuous source M.space leftPoint firstContinuous;
+\definition rightPointContinuous: topology.Continuity[A := Domain, B := RightCharts.LocalPoint d].Continuous source (RightCharts.domainTopology d.domain) rightPoint :=
+  topology.Continuity[A := Domain, B := N.Point].Corestriction[S := d.domain].corestrictContinuous source N.space rightPoint secondContinuous;
+\import topology.Homeomorphism[A := LeftCharts.LocalPoint c, B := Left.Carrier c.constraints c.image] \as LeftHomeomorphism;
+\import topology.Homeomorphism[A := RightCharts.LocalPoint d, B := Right.Carrier d.constraints d.image] \as RightHomeomorphism;
+\definition leftCoordinateContinuous: topology.Continuity[A := Domain, B := Left.Carrier c.constraints c.image].Continuous source (Left.regionTopology c.constraints c.image)
+  (\fun (p: Domain) => LeftCharts.coordinate c (leftPoint p)) :=
+  topology.Composition[A := Domain, B := LeftCharts.LocalPoint c, C := Left.Carrier c.constraints c.image].composeContinuous source (LeftCharts.domainTopology c.domain) (Left.regionTopology c.constraints c.image)
+    leftPoint (LeftCharts.coordinate c) leftPointContinuous (LeftHomeomorphism.laws _ _ c.coordinates).forwardContinuous;
+\definition rightCoordinateContinuous: topology.Continuity[A := Domain, B := Right.Carrier d.constraints d.image].Continuous source (Right.regionTopology d.constraints d.image)
+  (\fun (p: Domain) => RightCharts.coordinate d (rightPoint p)) :=
+  topology.Composition[A := Domain, B := RightCharts.LocalPoint d, C := Right.Carrier d.constraints d.image].composeContinuous source (RightCharts.domainTopology d.domain) (Right.regionTopology d.constraints d.image)
+    rightPoint (RightCharts.coordinate d) rightPointContinuous (RightHomeomorphism.laws _ _ d.coordinates).forwardContinuous;
+\import topological_algebra.Euclidean[].Dimension[n := n].Topology[] \as LeftEuclidean;
+\import topological_algebra.Euclidean[].Dimension[n := m].Topology[] \as RightEuclidean;
+\import topological_algebra.Euclidean[].Dimension[n := dimension].Topology[] \as Euclidean;
+\definition leftAmbient: topology.Continuity[A := Domain, B := Left.Point].Continuous source LeftEuclidean.topology (\fun (p: Domain) => LeftCharts.coordinate c (leftPoint p)) :=
+  topology.Composition[A := Domain, B := Left.Carrier c.constraints c.image, C := Left.Point].composeContinuous source (Left.regionTopology c.constraints c.image) LeftEuclidean.topology
+    (\fun (p: Domain) => LeftCharts.coordinate c (leftPoint p)) (\fun (u: Left.Carrier c.constraints c.image) => u) leftCoordinateContinuous (Left.Topology[C := c.constraints, U := c.image].ambient);
+\definition rightAmbient: topology.Continuity[A := Domain, B := Right.Point].Continuous source RightEuclidean.topology (\fun (p: Domain) => RightCharts.coordinate d (rightPoint p)) :=
+  topology.Composition[A := Domain, B := Right.Carrier d.constraints d.image, C := Right.Point].composeContinuous source (Right.regionTopology d.constraints d.image) RightEuclidean.topology
+    (\fun (p: Domain) => RightCharts.coordinate d (rightPoint p)) (\fun (u: Right.Carrier d.constraints d.image) => u) rightCoordinateContinuous (Right.Topology[C := d.constraints, U := d.image].ambient);
+\definition forwardContinuous: topology.Continuity[A := Domain, B := Model.Carrier C image].Continuous source target coordinate :=
+  Model.Topology[C := C, U := image].Into[X := Domain, source := source, f := coordinate].continuous
+    (topological_algebra.Euclidean[].Blocks[n := n, m := m].Joining[X := Domain].continuous source
+      (\fun (p: Domain) => LeftCharts.coordinate c (leftPoint p)) (\fun (p: Domain) => RightCharts.coordinate d (rightPoint p)) leftAmbient rightAmbient);
+\definition leftOpenContinuous: topology.Continuity[A := Model.Carrier C image, B := LeftOpen.Carrier c.image].Continuous target (LeftOpen.Topology[].Of[U := c.image].topology) (\fun (u: Model.Carrier C image) => Block.leftPoint u) :=
+  topology.Composition[A := Model.Carrier C image, B := Open.Carrier image, C := LeftOpen.Carrier c.image].composeContinuous target
+    (Open.Topology[].Of[U := image].topology) (LeftOpen.Topology[].Of[U := c.image].topology)
+    (\fun (u: Model.Carrier C image) => u) Block.leftPoint (Model.Topology[C := C, U := image].local)
+      (calculus.Maps[n := dimension, m := n].Topology[U := image, V := c.image].continuous Block.leftMap);
+\definition rightOpenContinuous: topology.Continuity[A := Model.Carrier C image, B := RightOpen.Carrier d.image].Continuous target (RightOpen.Topology[].Of[U := d.image].topology) (\fun (u: Model.Carrier C image) => Block.rightPoint u) :=
+  topology.Composition[A := Model.Carrier C image, B := Open.Carrier image, C := RightOpen.Carrier d.image].composeContinuous target
+    (Open.Topology[].Of[U := image].topology) (RightOpen.Topology[].Of[U := d.image].topology)
+    (\fun (u: Model.Carrier C image) => u) Block.rightPoint (Model.Topology[C := C, U := image].local)
+      (calculus.Maps[n := dimension, m := m].Topology[U := image, V := d.image].continuous Block.rightMap);
+\definition leftRegionContinuous: topology.Continuity[A := Model.Carrier C image, B := Left.Carrier c.constraints c.image].Continuous target (Left.regionTopology c.constraints c.image) leftCoordinate :=
+  topology.Continuity[A := Model.Carrier C image, B := LeftOpen.Carrier c.image].Corestriction[S := Left.region c.constraints c.image].corestrictContinuous target
+    (LeftOpen.Topology[].Of[U := c.image].topology) leftCoordinate leftOpenContinuous;
+\definition rightRegionContinuous: topology.Continuity[A := Model.Carrier C image, B := Right.Carrier d.constraints d.image].Continuous target (Right.regionTopology d.constraints d.image) rightCoordinate :=
+  topology.Continuity[A := Model.Carrier C image, B := RightOpen.Carrier d.image].Corestriction[S := Right.region d.constraints d.image].corestrictContinuous target
+    (RightOpen.Topology[].Of[U := d.image].topology) rightCoordinate rightOpenContinuous;
+\definition leftBackLocal: topology.Continuity[A := Model.Carrier C image, B := LeftCharts.LocalPoint c].Continuous target (LeftCharts.domainTopology c.domain)
+  (\fun (u: Model.Carrier C image) => LeftCharts.point c (leftCoordinate u)) :=
+  topology.Composition[A := Model.Carrier C image, B := Left.Carrier c.constraints c.image, C := LeftCharts.LocalPoint c].composeContinuous target (Left.regionTopology c.constraints c.image)
+    (LeftCharts.domainTopology c.domain) leftCoordinate (LeftCharts.point c) leftRegionContinuous (LeftHomeomorphism.laws _ _ c.coordinates).backwardContinuous;
+\definition rightBackLocal: topology.Continuity[A := Model.Carrier C image, B := RightCharts.LocalPoint d].Continuous target (RightCharts.domainTopology d.domain)
+  (\fun (u: Model.Carrier C image) => RightCharts.point d (rightCoordinate u)) :=
+  topology.Composition[A := Model.Carrier C image, B := Right.Carrier d.constraints d.image, C := RightCharts.LocalPoint d].composeContinuous target (Right.regionTopology d.constraints d.image)
+    (RightCharts.domainTopology d.domain) rightCoordinate (RightCharts.point d) rightRegionContinuous (RightHomeomorphism.laws _ _ d.coordinates).backwardContinuous;
+\definition leftBack: topology.Continuity[A := Model.Carrier C image, B := M.Point].Continuous target M.space (\fun (u: Model.Carrier C image) => LeftCharts.point c (leftCoordinate u)) :=
+  topology.Composition[A := Model.Carrier C image, B := LeftCharts.LocalPoint c, C := M.Point].composeContinuous target (LeftCharts.domainTopology c.domain) M.space
+    (\fun (u: Model.Carrier C image) => LeftCharts.point c (leftCoordinate u)) (\fun (p: LeftCharts.LocalPoint c) => p) leftBackLocal
+      (topology.Continuity[A := LeftCharts.LocalPoint c, B := M.Point].Corestriction[S := c.domain].inclusionContinuous M.space);
+\definition rightBack: topology.Continuity[A := Model.Carrier C image, B := N.Point].Continuous target N.space (\fun (u: Model.Carrier C image) => RightCharts.point d (rightCoordinate u)) :=
+  topology.Composition[A := Model.Carrier C image, B := RightCharts.LocalPoint d, C := N.Point].composeContinuous target (RightCharts.domainTopology d.domain) N.space
+    (\fun (u: Model.Carrier C image) => RightCharts.point d (rightCoordinate u)) (\fun (p: RightCharts.LocalPoint d) => p) rightBackLocal
+      (topology.Continuity[A := RightCharts.LocalPoint d, B := N.Point].Corestriction[S := d.domain].inclusionContinuous N.space);
+\definition backwardContinuous: topology.Continuity[A := Model.Carrier C image, B := Domain].Continuous target source point :=
+  topology.Continuity[A := Model.Carrier C image, B := Point].Corestriction[S := domain].corestrictContinuous target topology point
+    (Product.Universal[X := Model.Carrier C image].pairContinuous target M.space N.space
+      (\fun (u: Model.Carrier C image) => LeftCharts.point c (leftCoordinate u)) (\fun (u: Model.Carrier C image) => RightCharts.point d (rightCoordinate u)) leftBack rightBack);

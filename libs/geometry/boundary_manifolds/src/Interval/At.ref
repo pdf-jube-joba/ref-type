@@ -1,0 +1,30 @@
+\import \root.Sublevel[n := N.Nat^::zero].Of[U := Open.whole, f := Disk.function].Build[regular := Disk.regular].At[x := x] \as Geometry;
+\import \root.Tangent[n := Disk.dimension].On[M := manifold].At[x := x].Cones[] \as Cones;
+\definition scalarSquared: Disk.squared x = S.mul (x One.index) (x One.index) := Laws.addZeroRight (S.mul (x One.index) (x One.index));
+\definition absoluteOne: Disk.defining x = S.zero -> Abs.abs (x One.index) = S.one :=
+  \fun (zero: _) => S.SquareRoot[].squaresInjective (Abs.abs (x One.index)) S.one (Abs.absNonnegative (x One.index)) (Order.leOfLt _ _ Abs.onePositive)
+    (trans!{S.Real} _ _ _ (absSquared (x One.index)) (trans!{S.Real} _ _ _ (sym!{S.Real} _ _ scalarSquared)
+      (trans!{S.Real} _ _ _ (Disk.At[a := x].squaredOne zero) (sym!{S.Real} _ _ (Laws.fieldMulOneLeft S.one)))));
+\definition nonnegativeEndpoint: Disk.defining x = S.zero -> R.Le S.zero (x One.index) -> x = right :=
+  \fun (zero: _)(nonnegative: _) => equalCoordinate x right (trans!{S.Real} _ _ _ (sym!{S.Real} _ _ (Abs.absOfNonnegative (x One.index) nonnegative)) (absoluteOne zero));
+\definition negativeEndpoint: Disk.defining x = S.zero -> R.Lt (x One.index) S.zero -> x = left :=
+  \fun (zero: _)(negative: _) => equalCoordinate x left
+    (trans!{S.Real} _ _ _ (sym!{S.Real} _ _ (Laws.negInvolutive (x One.index)))
+      (congr!{S.Real S.Real} S.neg _ _ (trans!{S.Real} _ _ _ (sym!{S.Real} _ _ (Abs.absOfNegative (x One.index) negative)) (absoluteOne zero))));
+\definition endpoints: Disk.defining x = S.zero -> Logic.Or[x = left, x = right] :=
+  \fun (zero: _) => Logic.orElim (R.Le S.zero (x One.index)) (Logic.Not (R.Le S.zero (x One.index))) (Logic.Or[x = left, x = right])
+    (std.Logic[].Classical[].excludedMiddle (R.Le S.zero (x One.index)))
+    (\fun (nonnegative: _) => Logic.Or[_, _]::right (nonnegativeEndpoint zero nonnegative))
+    (\fun (negative: _) => Logic.Or[_, _]::left (negativeEndpoint zero (Order.byContradiction (R.Lt (x One.index) S.zero)
+      (\fun (notLess: _) => negative (Order.leOfNotLtReverse S.zero (x One.index) notLess)))));
+\definition leftZero: Disk.defining left = S.zero := trans!{S.Real} _ _ _ (value (S.neg S.one))
+  (trans!{S.Real} _ _ _ (congr!{S.Real S.Real} (S.sub S.one) _ _ (trans!{S.Real} _ _ _ (Laws.fieldMulNegBoth S.one S.one) (Laws.fieldMulOneLeft S.one))) (Laws.subSelf S.one));
+\definition rightZero: Disk.defining right = S.zero := trans!{S.Real} _ _ _ (value S.one)
+  (trans!{S.Real} _ _ _ (congr!{S.Real S.Real} (S.sub S.one) _ _ (Laws.fieldMulOneLeft S.one)) (Laws.subSelf S.one));
+\definition ofEndpoints: Logic.Or[x = left, x = right] -> Cones.Boundary := \fun (endpoints: _) => Geometry.ofZero
+  (Logic.orElim _ _ _ endpoints
+    (\fun (same: x = left) => trans!{S.Real} _ _ _ (congr!{{Open.Carrier Open.whole} S.Real} Disk.defining _ _ same) leftZero)
+    (\fun (same: x = right) => trans!{S.Real} _ _ _ (congr!{{Open.Carrier Open.whole} S.Real} Disk.defining _ _ same) rightZero));
+\definition criterion: Logic.PropEquiv[Cones.Boundary, Logic.Or[x = left, x = right]] := Logic.PropEquiv[_, _] {
+  ltr := \fun (boundary: _) => endpoints (Geometry.toZero boundary), rtl := ofEndpoints,
+};

@@ -1,0 +1,20 @@
+\import \root.Sublevel[n := n].Of[U := U, f := f].Build[regular := regular].At[x := x] \as Geometry;
+\definition zero: value x = S.zero := Geometry.toZero (\bysub(manifold.Point, BoundaryAtlas.points, x));
+\module With(local: Product.Submersion[U := U, f := f, a := x].LocalForm) {
+  \import \root.Sublevel[n := n].Of[U := U, f := f].Boundary[a := x, local := local] \as Boundary;
+  \import Construction.On[patch := Boundary.patch] \as Patch;
+  \import Restriction.At[c := standard, U := local.domain, included := local.included] \as Restricted;
+  \import Corners.Chart[M := manifold.Point, space := manifold.space] \as Charts;
+  \definition chart: BoundaryAtlas.Chart := \into[Charts.Chart](Patch.chart, BoundaryAtlas.Chart) \by {
+    BoundaryAtlas.HalfChartLaws[Patch.chart] {
+      member := Logic.existsIntro[Construction.Adapted, { p: Construction.Adapted \where Patch.chart = Construction.On[patch := p].chart }] Boundary.patch (\refl(Patch.chart)),
+      constraints := \refl(Model.halfSpace normalIndex),
+    }
+  };
+  \definition cover: \exists ( c: BoundaryAtlas.Chart \where Charts.Contains c x ) := Logic.existsIntro[BoundaryAtlas.Chart, { c: BoundaryAtlas.Chart \where Charts.Contains c x }] chart
+    (Restricted.pointMember (\into[Model.Point](x, local.domain.points) \by { local.contains }));
+}
+\definition cover: \exists ( c: BoundaryAtlas.Chart \where Corners.Chart[M := manifold.Point, space := manifold.space].Contains c x ) := \block {
+  \takefrom local: Product.Submersion[U := U, f := f, a := x].LocalForm \by Product.Submersion[U := U, f := f, a := x].localExistence (regular x zero) \then
+  \return With[local := local].cover
+};

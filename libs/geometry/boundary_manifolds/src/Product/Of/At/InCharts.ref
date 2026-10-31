@@ -1,0 +1,19 @@
+\definition left: LeftChart := \into[LeftCharts.Chart](c, M.atlas.charts) \by { LeftTangent.member c };
+\definition right: RightChart := \into[RightCharts.Chart](d, N.atlas.charts) \by { RightTangent.member d };
+\definition index: Index := Pair.pair LeftChart RightChart left right;
+\definition total: Tangent.Chart := \into[Charts.Chart](chart index, Tangent.Chart) \by {
+  Tangent.ChartLaws[chart index] {
+    member := Logic.existsIntro[Index, { i: Index \where chart index = chart i }] index (\refl(chart index)),
+    contains := Logic.And[_, _]::# (LeftTangent.contains c) (RightTangent.contains d),
+  }
+};
+\import \root.Product[n := n, m := m].Boundary[C := c.constraints, D := d.constraints, a := LeftTangent.coordinate c, b := RightTangent.coordinate d] \as Boundary;
+\definition forward: Cones.Boundary -> Logic.Or[LeftCones.Boundary, RightCones.Boundary] :=
+  \fun (boundary: _) => Logic.orElim (Left.boundary c.constraints (LeftTangent.coordinate c)) (Right.boundary d.constraints (RightTangent.coordinate d)) (Logic.Or[LeftCones.Boundary, RightCones.Boundary]) (Boundary.split (Cones.coordinateOfBoundary total boundary))
+    (\fun (left: _) => Logic.Or[_, _]::left (LeftCones.boundaryOfCoordinate c left))
+    (\fun (right: _) => Logic.Or[_, _]::right (RightCones.boundaryOfCoordinate d right));
+\definition backward: Logic.Or[LeftCones.Boundary, RightCones.Boundary] -> Cones.Boundary :=
+  \fun (boundary: _) => Cones.boundaryOfCoordinate total (Boundary.join (Logic.orElim LeftCones.Boundary RightCones.Boundary (Logic.Or[Left.boundary c.constraints (LeftTangent.coordinate c), Right.boundary d.constraints (RightTangent.coordinate d)]) boundary
+    (\fun (left: _) => Logic.Or[_, _]::left (LeftCones.coordinateOfBoundary c left))
+    (\fun (right: _) => Logic.Or[_, _]::right (RightCones.coordinateOfBoundary d right))));
+\definition criterion: Logic.PropEquiv[Cones.Boundary, Logic.Or[LeftCones.Boundary, RightCones.Boundary]] := Logic.PropEquiv[_, _] { ltr := forward, rtl := backward };

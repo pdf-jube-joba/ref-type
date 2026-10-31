@@ -1,0 +1,17 @@
+\import \parent.Pair[left := chart, right := chart] \as Pair;
+\import Charts.At[x := x, left := chart, right := chart, inLeft := contains chart] \as Change;
+\import Maps.Corestriction[U := chart.image, V := chart.image, W := Open.whole, f := Identity.map chart.image,
+  inside := \fun (u: Open.Carrier chart.image) => \refl(u)] \as Corestriction;
+\definition extension: Change.Extension := Change.Extension {
+  neighborhood := chart.image,
+  included := \fun (u: Coordinates.Point)(member: _) => member,
+  contains := \bysub(Coordinates.Point, chart.image.points, coordinate chart),
+  map := Corestriction.map,
+  inside := \fun (u: Core.Carrier chart.constraints chart.image) => \bysub(M.Point, chart.domain, Charts.point chart u),
+  agrees := \fun (u: Core.Carrier chart.constraints chart.image) => sym!{{Coordinates.Point}} _ _ (Charts.coordinatePoint chart u),
+};
+\definition derivativeIdentity: jacobian chart chart = Identity.linear := trans!{{Linear.Map}} _ _ _
+  (Change.ofExtension Pair.compatible extension)
+  (trans!{{Linear.Map}} _ _ _ (Corestriction.differential (coordinate chart)) (Identity.At[U := chart.image, a := coordinate chart].differential));
+\definition apply: \forall (v: Vectors.Vector) -> transform chart chart v = v :=
+  \fun (v: Vectors.Vector) => congr!{{Linear.Map} {Vectors.Vector}} (\fun (d: Linear.Map) => d.apply v) _ _ derivativeIdentity;

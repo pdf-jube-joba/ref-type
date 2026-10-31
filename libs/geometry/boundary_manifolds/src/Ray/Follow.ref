@@ -1,0 +1,22 @@
+\import calculus.Maps[n := n, m := m] \as Functions;
+\import calculus.Maps[n := One.dimension, m := m] \as Curves;
+\import Maps.Composition[U := domain, V := U, f := restricted].After[l := m, W := V, g := f] \as Composite;
+\definition map: Curves.Map domain V := Composite.compose;
+\definition derivative: \forall (j: Fin.Fin m) -> Line.Analysis[].HasPartialDerivativeAt domain
+  (\fun (t: Line.Carrier domain) => Curves.apply domain V map t j) One.index origin
+  (Functions.Differential[U := U, V := V, f := f, a := a].value.apply v j) := \block {
+  \fun (j: Fin.Fin m) \then
+  \let d: calculus.Vector[n := One.dimension, m := m].LinearMap := Curves.Differential[U := domain, V := V, f := map, a := origin].value \then
+  \let coefficient: d.apply (LineCoordinates.basis One.index) j = Functions.Differential[U := U, V := V, f := f, a := a].value.apply v j :=
+    trans!{S.Real} _ _ _
+      (congr!{{calculus.Vector[n := One.dimension, m := m].LinearMap} S.Real} (\fun (e: calculus.Vector[n := One.dimension, m := m].LinearMap) => e.apply (LineCoordinates.basis One.index) j) _ _ (Composite.At[a := origin].jacobian))
+      (congr!{{Open.Carrier U} Point S.Real} (\fun (p: Open.Carrier U)(w: Point) => Functions.Differential[U := U, V := V, f := f, a := p].value.apply w j)
+        _ _ _ _ atOrigin (trans!{Point} _ _ _
+          (congr!{{Vector.LinearMap} Point} (\fun (e: Vector.LinearMap) => e.apply (LineCoordinates.basis One.index)) _ _ restrictedDifferential) unit)) \then
+  \return \idelim d.apply (LineCoordinates.basis One.index) j = Functions.Differential[U := U, V := V, f := f, a := a].value.apply v j
+    \with c: S.Real => Line.Analysis[].HasPartialDerivativeAt domain (\fun (t: Line.Carrier domain) => Curves.apply domain V map t j) One.index origin c \by {
+      base: Line.Analysis[].Differential[U := domain, f := (\fun (t: Line.Carrier domain) => Curves.apply domain V map t j), a := origin,
+        d := calculus.Vector[n := One.dimension, m := m].row d j].Partial[i := One.index].law
+          (Curves.Differential[U := domain, V := V, f := map, a := origin].vectorLaw j), equality: coefficient
+    }
+};

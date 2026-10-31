@@ -1,0 +1,39 @@
+\import Open.Smooth[].Algebra[U := U] \as F;
+\import Open.Smooth[].Differential[] \as D;
+\import D.Operations[U := U] \as Rules;
+\import Open.Smooth[].Derivative[].Linear[U := U] \as Partials;
+\definition Point: \Set := Fin.Fin n -> S.Real;
+\definition value[f: F.Function][a: Open.Carrier U][v: Point]: S.Real := (D.value U f a).apply v;
+\definition constant: \forall (c: S.Real)(a: Open.Carrier U)(v: Point) -> value (F.constant c) a v = S.zero :=
+  \fun (c: S.Real)(a: Open.Carrier U)(v: Point) => trans!{S.Real} _ _ _
+    (Sum.congruent n _ (\fun (i: Fin.Fin n) => S.zero) (\fun (i: Fin.Fin n) => trans!{S.Real} _ _ _
+      (congr!{S.Real S.Real} (\fun (r: S.Real) => S.mul r (v i)) _ _
+        (congr!{{F.Function} S.Real} (\fun (f: F.Function) => f a) _ _ (Partials.constant i c))) (Laws.fieldMulZeroLeft (v i))))
+    (Sum.zeroSum n);
+\definition sum[m: N.Nat^][functions: Fin.Fin m -> F.Function]: F.Function :=
+  \into[Open.ScalarFunction U](Open.Smooth[].Sums[].sum U m functions, F.Predicate) \by {
+    Open.Smooth[].Sums[].smooth U m functions (\fun (i: Fin.Fin m) => \bysub(Open.ScalarFunction U, F.Predicate, functions i))
+  };
+\definition sumDerivative: \forall (m: N.Nat^)(functions: Fin.Fin m -> F.Function)(a: Open.Carrier U)(v: Point) ->
+  value (sum m functions) a v = Sum.sum m (\fun (i: Fin.Fin m) => value (functions i) a v) :=
+  \induction (m: N.Nat^) \return \forall (functions: Fin.Fin m -> F.Function)(a: Open.Carrier U)(v: Point) ->
+    value (sum m functions) a v = Sum.sum m (\fun (i: Fin.Fin m) => value (functions i) a v) \with {
+      | zero: \fun (functions: _)(a: _)(v: _) => constant S.zero a v
+      | succ: \fun (m: N.Nat^)(previous: _)(functions: _)(a: _)(v: _) => trans!{S.Real} _ _ _
+        (Rules.addition (functions (Fin.zero m)) (sum m (\fun (i: Fin.Fin m) => functions (Fin.succ m i))) a v)
+        (congr!{S.Real S.Real} (S.add (value (functions (Fin.zero m)) a v)) _ _ (previous (\fun (i: Fin.Fin m) => functions (Fin.succ m i)) a v))
+    };
+\definition projection[i: Fin.Fin n]: F.Function := Open.Projection[U := U].function i;
+\definition projectionDerivative: \forall (i: Fin.Fin n)(a: Open.Carrier U)(v: Point) -> value (projection i) a v = v i :=
+  \fun (i: Fin.Fin n)(a: Open.Carrier U)(v: Point) => congr!{{calculus.Real[].Multivariable[n := n].Differential[].Def[].LinearMap} S.Real}
+    (\fun (L: calculus.Real[].Multivariable[n := n].Differential[].Def[].LinearMap) => L.apply v) _ _ (Open.Projection[U := U].differential i a);
+\definition squared: F.Function := sum n (\fun (i: Fin.Fin n) => F.product (projection i) (projection i));
+\definition radialSquared: \forall (a: Open.Carrier U) -> value squared a a = S.add (squared a) (squared a) :=
+  \fun (a: Open.Carrier U) => trans!{S.Real} _ _ _ (sumDerivative n (\fun (i: Fin.Fin n) => F.product (projection i) (projection i)) a a)
+    (trans!{S.Real} _ _ _
+      (Sum.congruent n _ (\fun (i: Fin.Fin n) => S.add (S.mul (a i) (a i)) (S.mul (a i) (a i)))
+        (\fun (i: Fin.Fin n) => trans!{S.Real} _ _ _ (Rules.product (projection i) (projection i) a a)
+          (congr!{S.Real S.Real S.Real} S.add _ _ _ _
+            (congr!{S.Real S.Real} (S.mul (a i)) _ _ (projectionDerivative i a a))
+            (congr!{S.Real S.Real} (S.mul (a i)) _ _ (projectionDerivative i a a)))))
+      (Sum.addition n (\fun (i: Fin.Fin n) => S.mul (a i) (a i)) (\fun (i: Fin.Fin n) => S.mul (a i) (a i))));

@@ -1,0 +1,40 @@
+\definition ambientInclusion: topology.Continuity[A := Domain, B := M.Point].Continuous source M.space (\fun (p: Domain) => p) :=
+  topology.Composition[A := Domain, B := Point, C := M.Point].composeContinuous source topology M.space (\fun (p: Domain) => p) (\fun (p: Point) => p)
+    (topology.Continuity[A := Domain, B := Point].Corestriction[S := domain].inclusionContinuous topology)
+    (topology.Continuity[A := Point, B := M.Point].Corestriction[S := points].inclusionContinuous M.space);
+\definition oldPointContinuous: topology.Continuity[A := Domain, B := OldCharts.LocalPoint c].Continuous source (OldCharts.domainTopology c.domain) oldPoint :=
+  topology.Continuity[A := Domain, B := M.Point].Corestriction[S := c.domain].corestrictContinuous source M.space oldPoint ambientInclusion;
+\import topology.Homeomorphism[A := OldCharts.LocalPoint c, B := Model.Carrier c.constraints c.image] \as Homeomorphism;
+\definition coordinateContinuous: topology.Continuity[A := Domain, B := Model.Carrier c.constraints c.image].Continuous source (Model.regionTopology c.constraints c.image) oldCoordinate :=
+  topology.Composition[A := Domain, B := OldCharts.LocalPoint c, C := Model.Carrier c.constraints c.image].composeContinuous source (OldCharts.domainTopology c.domain) (Model.regionTopology c.constraints c.image)
+    oldPoint (OldCharts.coordinate c) oldPointContinuous (Homeomorphism.laws _ _ c.coordinates).forwardContinuous;
+\definition faceContinuous: topology.Continuity[A := Domain, B := Face.FacePoint].Continuous source Face.Topology[].topology facePoint :=
+  topology.Continuity[A := Domain, B := Model.Carrier c.constraints c.image].Corestriction[S := Face.Topology[].face].corestrictContinuous source
+    (Model.regionTopology c.constraints c.image) facePoint coordinateContinuous;
+\definition forwardContinuous: topology.Continuity[A := Domain, B := ParameterOpen.Carrier image].Continuous source (ParameterOpen.Topology[].Of[U := image].topology) forward :=
+  topology.Composition[A := Domain, B := Face.FacePoint, C := ParameterOpen.Carrier image].composeContinuous source Face.Topology[].topology (ParameterOpen.Topology[].Of[U := image].topology)
+    facePoint (\fun (p: Face.FacePoint) => Face.inverse p) faceContinuous
+      (topology.Composition[A := Face.FacePoint, B := \root.Model[n := n].Carrier Face.constraints image, C := ParameterOpen.Carrier image].composeContinuous Face.Topology[].topology
+        (Parameters.regionTopology Face.constraints image) (ParameterOpen.Topology[].Of[U := image].topology) Face.inverse
+        (\fun (p: Parameters.Carrier Face.constraints image) => p) Face.Topology[].inverseContinuous (Parameters.Topology[C := Face.constraints, U := image].local));
+\definition parameterContinuous: topology.Continuity[A := ParameterOpen.Carrier image, B := Parameters.Carrier Face.constraints image].Continuous
+  (ParameterOpen.Topology[].Of[U := image].topology) (Parameters.regionTopology Face.constraints image) parameter :=
+  topology.Continuity[A := ParameterOpen.Carrier image, B := ParameterOpen.Carrier image].Corestriction[S := Parameters.region Face.constraints image].corestrictContinuous
+    (ParameterOpen.Topology[].Of[U := image].topology) (ParameterOpen.Topology[].Of[U := image].topology) parameter
+      (topology.Maps[A := ParameterOpen.Carrier image, B := ParameterOpen.Carrier image].Identity[].continuous (ParameterOpen.Topology[].Of[U := image].topology));
+\definition inputContinuous: topology.Continuity[A := ParameterOpen.Carrier image, B := Model.Carrier c.constraints c.image].Continuous
+  (ParameterOpen.Topology[].Of[U := image].topology) (Model.regionTopology c.constraints c.image) coordinateInput :=
+  topology.Composition[A := ParameterOpen.Carrier image, B := Parameters.Carrier Face.constraints image, C := Model.Carrier c.constraints c.image].composeContinuous
+    (ParameterOpen.Topology[].Of[U := image].topology) (Parameters.regionTopology Face.constraints image) (Model.regionTopology c.constraints c.image)
+    parameter Face.inclusion.apply parameterContinuous Face.inclusion.continuous;
+\definition pointLocalContinuous: topology.Continuity[A := ParameterOpen.Carrier image, B := OldCharts.LocalPoint c].Continuous
+  (ParameterOpen.Topology[].Of[U := image].topology) (OldCharts.domainTopology c.domain) pointValue :=
+  topology.Composition[A := ParameterOpen.Carrier image, B := Model.Carrier c.constraints c.image, C := OldCharts.LocalPoint c].composeContinuous (ParameterOpen.Topology[].Of[U := image].topology)
+    (Model.regionTopology c.constraints c.image) (OldCharts.domainTopology c.domain) coordinateInput (OldCharts.point c) inputContinuous (Homeomorphism.laws _ _ c.coordinates).backwardContinuous;
+\definition pointAmbientContinuous: topology.Continuity[A := ParameterOpen.Carrier image, B := M.Point].Continuous (ParameterOpen.Topology[].Of[U := image].topology) M.space (\fun (p: ParameterOpen.Carrier image) => pointValue p) :=
+  topology.Composition[A := ParameterOpen.Carrier image, B := OldCharts.LocalPoint c, C := M.Point].composeContinuous (ParameterOpen.Topology[].Of[U := image].topology) (OldCharts.domainTopology c.domain) M.space
+    pointValue (\fun (p: OldCharts.LocalPoint c) => p) pointLocalContinuous (topology.Continuity[A := OldCharts.LocalPoint c, B := M.Point].Corestriction[S := c.domain].inclusionContinuous M.space);
+\definition pointBoundaryContinuous: topology.Continuity[A := ParameterOpen.Carrier image, B := Point].Continuous (ParameterOpen.Topology[].Of[U := image].topology) topology pointBoundary :=
+  topology.Continuity[A := ParameterOpen.Carrier image, B := M.Point].Corestriction[S := points].corestrictContinuous (ParameterOpen.Topology[].Of[U := image].topology) M.space pointBoundary pointAmbientContinuous;
+\definition backwardContinuous: topology.Continuity[A := ParameterOpen.Carrier image, B := Domain].Continuous (ParameterOpen.Topology[].Of[U := image].topology) source backward :=
+  topology.Continuity[A := ParameterOpen.Carrier image, B := Point].Corestriction[S := domain].corestrictContinuous (ParameterOpen.Topology[].Of[U := image].topology) topology backward pointBoundaryContinuous;

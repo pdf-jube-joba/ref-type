@@ -1,0 +1,21 @@
+\import \root.SmoothMap[n := n, m := dimension].Between[M := F, N := M] \as Maps;
+\import \root.Immersion[n := n, m := dimension].Between[M := F, N := M] \as Embeddings;
+\import FaceModels.Chart[M := F.Point, space := F.space] \as SourceCharts;
+\import AmbientModels.Chart[M := M.Point, space := M.space] \as TargetCharts;
+\structure LocalForm[f: Embeddings.Embedding, x: F.Point]: \Set := {
+  source: SourceCharts.Chart,
+  target: TargetCharts.Chart,
+  sourceMember: \In[SourceCharts.Chart] F.atlas.charts source,
+  targetMember: \In[TargetCharts.Chart] M.atlas.charts target,
+  contains: SourceCharts.Contains source x,
+  containsImage: TargetCharts.Contains target (Maps.apply f x),
+  constraints: source.constraints = ({ i: Source.Coordinate \where \In[Target.Coordinate] target.constraints (Indices.left i) }),
+  normalSelected: \forall (j: Normal.Coordinate) -> \In[Target.Coordinate] target.constraints (Indices.right j),
+  inside: \forall (p: SourceCharts.LocalPoint source) -> TargetCharts.Contains target (Maps.apply f p),
+  formula: \forall (p: SourceCharts.LocalPoint source) -> TargetCharts.coordinate target (\into[M.Point](Maps.apply f p, target.domain) \by { inside p }) =
+    Blocks.join (SourceCharts.coordinate source p) (\fun (j: Normal.Coordinate) => S.zero),
+  image: \forall (q: TargetCharts.LocalPoint target) -> Blocks.right (TargetCharts.coordinate target q) = (\fun (j: Normal.Coordinate) => S.zero) ->
+    \exists ( p: SourceCharts.LocalPoint source \where Maps.apply f p = q ),
+};
+\definition IsFace[f: Embeddings.Embedding]: \Prop := \forall (x: F.Point) -> \exists LocalForm[f, x];
+\definition Face: \Set := \Cast[Embeddings.Embedding] ({ f: Embeddings.Embedding \where IsFace f });

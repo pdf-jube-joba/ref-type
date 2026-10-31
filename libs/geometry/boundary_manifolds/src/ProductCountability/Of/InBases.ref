@@ -1,0 +1,27 @@
+\definition rectangle[p: Pair.NatPair]: \Pow Product.CarrierSet := Product.Rectangle (l (Pair.natPairFirst p)) (r (Pair.natPairSecond p));
+\definition basis[k: N.Nat^]: \Pow Product.CarrierSet := rectangle (Enumeration.enumerate k);
+\definition open: \forall (k: N.Nat^) -> Space.IsOpenIn (Product.topology left right) (basis k) :=
+  \fun (k: N.Nat^) => Space.generatedBasisOpen (Product.Basis left right) (basis k)
+    (Product.Universal[X := Product.CarrierSet].rectangleBasisMember left right (l (Pair.natPairFirst (Enumeration.enumerate k))) (r (Pair.natPairSecond (Enumeration.enumerate k)))
+      (ll.open (Pair.natPairFirst (Enumeration.enumerate k))) (rr.open (Pair.natPairSecond (Enumeration.enumerate k))));
+\definition refines: \forall (U: \Pow Product.CarrierSet) -> Space.IsOpenIn (Product.topology left right) U -> \forall (x: Product.CarrierSet) -> Space.Member U x ->
+  \exists ( k: N.Nat^ \where Logic.And[Space.Member (basis k) x, Space.Subset (basis k) U] ) := \block {
+  \fun (U: \Pow Product.CarrierSet)(open: _)(x: Product.CarrierSet)(member: _) \then
+  \takefrom patch: Product.Compactness[].Neighborhood[left, right, x, U] \by Product.Compactness[].rectangleNeighborhoods left right U open x member \then
+  \takefrom i: \Cast[N.Nat^] ({ i: N.Nat^ \where Logic.And[Left.Member (l i) (std.Data[].Pair[].first A B x), Left.Subset (l i) patch.leftSet] }) \by ll.refines patch.leftSet patch.leftOpen _ patch.leftContains \then
+  \takefrom j: \Cast[N.Nat^] ({ j: N.Nat^ \where Logic.And[Right.Member (r j) (std.Data[].Pair[].second A B x), Right.Subset (r j) patch.rightSet] }) \by rr.refines patch.rightSet patch.rightOpen _ patch.rightContains \then
+  \let li: Logic.And[Left.Member (l i) (std.Data[].Pair[].first A B x), Left.Subset (l i) patch.leftSet] := \bysub(N.Nat^,
+    { i: N.Nat^ \where Logic.And[Left.Member (l i) (std.Data[].Pair[].first A B x), Left.Subset (l i) patch.leftSet] }, i) \then
+  \let rj: Logic.And[Right.Member (r j) (std.Data[].Pair[].second A B x), Right.Subset (r j) patch.rightSet] := \bysub(N.Nat^,
+    { j: N.Nat^ \where Logic.And[Right.Member (r j) (std.Data[].Pair[].second A B x), Right.Subset (r j) patch.rightSet] }, j) \then
+  \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where Enumeration.enumerate k = Pair.natPair i j }) \by Enumeration.exhaustive i j \then
+  \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where Logic.And[Space.Member (basis k) x, Space.Subset (basis k) U] }] k
+    (\idelim Pair.natPair i j = Enumeration.enumerate k \with p: Pair.NatPair => Logic.And[Space.Member (rectangle p) x, Space.Subset (rectangle p) U] \by {
+      base: Logic.And[_, _]::# (Logic.And[_, _]::# li.left rj.left)
+        (\fun (y: Product.CarrierSet)(inside: Space.Member (Product.Rectangle (l i) (r j)) y) => patch.within y (Logic.And[_, _]::# (li.right _ inside.left) (rj.right _ inside.right))),
+      equality: sym!{Pair.NatPair} _ _ (\bysub(N.Nat^, { k: N.Nat^ \where Enumeration.enumerate k = Pair.natPair i j }, k))
+    })
+};
+\definition secondCountable: Space.IsSecondCountable (Product.topology left right) :=
+  Logic.existsIntro[N.Nat^ -> \Pow Product.CarrierSet, { b: N.Nat^ -> \Pow Product.CarrierSet \where Space.IsCountableBasis[Product.topology left right, b] }] basis
+    (Space.IsCountableBasis[Product.topology left right, basis] { open := open, refines := refines });

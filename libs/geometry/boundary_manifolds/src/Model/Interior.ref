@@ -1,0 +1,30 @@
+\import topological_algebra.Euclidean[].Dimension[n := n].Topology[] \as Euclidean;
+\import topology.Topology[Carrier := Point] \as Space;
+\import metric_spaces.RealLine[].Rays[] \as Rays;
+\definition coordinateCondition[i: Coordinate]: \Pow Point := { x: Point \where \In[Coordinate] C i -> R.Lt Scalars.zero (x i) };
+\definition coordinateOpen: \forall (i: Coordinate) -> Space.IsOpenIn Euclidean.topology (coordinateCondition i) :=
+  \fun (i: Coordinate) => Logic.orElim (\In[Coordinate] C i) (Logic.Not (\In[Coordinate] C i)) (Space.IsOpenIn Euclidean.topology (coordinateCondition i)) (Classical.excludedMiddle (\In[Coordinate] C i))
+    (\fun (selected: _) => \idelim ({ x: Point \where R.Lt Scalars.zero (x i) }) = coordinateCondition i \with U: \Pow Point => Space.IsOpenIn Euclidean.topology U \by {
+      base: Euclidean.coordinateContinuous i (Rays.Above Scalars.zero) (Rays.aboveOpen Scalars.zero),
+      equality: \axiom:setext({ x: Point \where R.Lt Scalars.zero (x i) }, coordinateCondition i,
+        \fun (x: Point)(positive: _)(member: _) => positive, \fun (x: Point)(condition: _) => condition selected)
+    })
+    (\fun (unselected: _) => \idelim Space.Whole = coordinateCondition i \with U: \Pow Point => Space.IsOpenIn Euclidean.topology U \by {
+      base: (Space.topologyLaws Euclidean.topology).wholeOpen,
+      equality: \axiom:setext(Space.Whole, coordinateCondition i,
+        \fun (x: Point)(member: _)(selected: _) => Logic.falseElim _ (unselected selected), \fun (x: Point)(member: _) => \refl(x))
+    });
+\definition points: \Pow Point := { x: Point \where interior C x };
+\definition open: Space.IsOpenIn Euclidean.topology points := Space.IndexedIntersections[].open Euclidean.topology n coordinateCondition coordinateOpen;
+\definition domain: Open.OpenSet := Open.Topology[].ofOpen points open;
+\definition nonnegative: \forall (x: Open.Carrier domain) -> Nonnegative C x :=
+  \fun (x: Open.Carrier domain)(i: Coordinate)(selected: _) => Order.leOfLt _ _ ((\bysub(Point, points, x)) i selected);
+\definition notBoundary: \forall (x: Point) -> interior C x -> Logic.Not (boundary C x) := \block {
+  \fun (x: Point)(inside: interior C x)(boundary: boundary C x) \then
+  \takefrom i: \Cast[Coordinate] ({ i: Coordinate \where Active C x i }) \by boundary \then
+  \let active: Active C x i := \bysub(Coordinate, { i: Coordinate \where Active C x i }, i) \then
+  \return Order.ltNotEq Scalars.zero (x i) (inside i active.left) (sym!{Real} _ _ active.right)
+};
+\definition ofNotBoundary: \forall (x: Point) -> Nonnegative C x -> Logic.Not (boundary C x) -> interior C x :=
+  \fun (x: Point)(member: Nonnegative C x)(noBoundary: Logic.Not (boundary C x))(i: Coordinate)(selected: _) => Order.ltOfLeNotEq Scalars.zero (x i) (member i selected)
+    (\fun (zero: Scalars.zero = x i) => noBoundary (Logic.existsIntro[Coordinate, { i: Coordinate \where Active C x i }] i (Logic.And[_, _]::# selected (sym!{Real} _ _ zero))));

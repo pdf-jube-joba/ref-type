@@ -1,0 +1,28 @@
+\import manifolds.Dimension[n := dimension].Examples[].Euclidean[].Subspace[U := U] \as Euclidean;
+\import manifolds.Dimension[n := dimension].Smooth[] \as Models;
+\definition ambient: Models.Manifold := Euclidean.smoothManifold;
+\definition value[x: Open.Carrier U]: S.Real := Functions.apply U Line.whole f x One.index;
+\definition points: \Pow ambient.Point := { x: ambient.Point \where R.Le S.zero (value x) };
+\import \root.Ambient[n := dimension].Over[M := ambient, S := points] \as Construction;
+\import manifolds.Dimension[n := dimension].Chart[M := ambient.Point, space := ambient.space] \as Charts;
+\import manifolds.Dimension[n := dimension].Atlas[M := ambient.Point, space := ambient.space] \as Atlas;
+\import manifolds.ChartRestriction[n := dimension].On[M := ambient] \as Restriction;
+\definition standard: Restriction.Chart := \into[Charts.Chart](Euclidean.standard, ambient.atlas.charts) \by {
+  Atlas.includedInSaturation Euclidean.atlas Euclidean.standard (\refl(Euclidean.standard))
+};
+\definition normalIndex: Model.Coordinate := Fin.Sum[m := n, n := One.dimension].right One.index;
+\definition Regular: \Prop := \forall (x: Open.Carrier U) -> value x = S.zero -> Product.Submersion[U := U, f := f, a := x].Surjective;
+\import \root.Positive[n := dimension].On[U := U, h := Functions.coordinateFunction U Line.whole f One.index] \as Positive;
+\module Interior;
+\module Boundary(a: Open.Carrier U, local: Product.Submersion[U := U, f := f, a := a].LocalForm);
+\definition cover: Regular -> Construction.Cover := \block {
+  \fun (regular: Regular)(x: Construction.Point) \then
+  \return Logic.orElim (value x = S.zero) (Logic.Not (value x = S.zero)) (\exists ( p: Construction.Adapted \where Construction.ChartContains p x ))
+    (Classical.excludedMiddle (value x = S.zero))
+    (\fun (zero: _) => BoundaryAt[x := x].cover (regular x zero))
+    (\fun (nonzero: _) => Interior[].cover x (Order.ltOfLeNotEq S.zero (value x) (\bysub(ambient.Point, points, x))
+      (\fun (same: S.zero = value x) => nonzero (sym!{S.Real} _ _ same))))
+};
+\module BoundaryAt(x: Construction.Point);
+\module Build(regular: Regular);
+\module Face(regular: Regular);

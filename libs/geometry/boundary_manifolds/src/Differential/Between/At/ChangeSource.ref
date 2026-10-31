@@ -1,0 +1,51 @@
+\import \parent.InCharts[left := before, right := right] \as Before;
+\import \parent.InCharts[left := after, right := right] \as After;
+\import SourceCharts.At[x := x, left := after, right := before, inLeft := Domain.contains after] \as Change;
+\import Domain.Pair[left := after, right := before] \as Pair;
+\import Maps.At[function := Maps.apply f, left := before, right := right, x := x, contains := Domain.contains before] \as BeforeLocal;
+\import Maps.At[function := Maps.apply f, left := after, right := right, x := x, contains := Domain.contains after] \as AfterLocal;
+\import Spaces.Linear[V := SourceVectors.Vector, W := TargetVectors.Vector, source := SourceVectors.space, target := TargetVectors.space] \as Jacobians;
+\import Jacobians.Composition[U := SourceVectors.Vector, domain := SourceVectors.space] \as Compose;
+\module With(p: Change.Extension, q: BeforeLocal.Extension) {
+  \import \root.MapIdentity[n := n].On[M := M] \as Identity;
+  \import \root.SmoothMap[n := n, m := n].Between[M := M, N := M].At[function := \fun (x: M.Point) => x,
+    left := after, right := before, x := x, contains := Domain.contains after] \as IdentityLocal;
+  \definition identityExtension: IdentityLocal.Extension := IdentityLocal.Extension {
+    neighborhood := p.neighborhood, included := p.included, contains := p.contains, map := p.map, inside := p.inside, agrees := p.agrees,
+  };
+  \import \root.MapComposition[n := n, m := n, l := m].Between[M := M, N := M, P := N].Of[f := Identity.map, g := f].Local[
+    left := after, right := right, middle := before, x := x, contains := Domain.contains after, inMiddle := Domain.contains before, p := identityExtension, q := q] \as Chain;
+  \definition extension: AfterLocal.Extension := AfterLocal.Extension {
+    neighborhood := Chain.extension.neighborhood, included := Chain.extension.included, contains := Chain.extension.contains, map := Chain.extension.map,
+    inside := Chain.extension.inside, agrees := Chain.extension.agrees,
+  };
+  \definition law: After.jacobian = Compose.compose Before.jacobian (Domain.jacobian after before) :=
+    trans!{{Jacobians.Map}} _ _ _ (AfterLocal.ofExtension After.smooth extension)
+      (trans!{{Jacobians.Map}} _ _ _ Chain.jacobian
+        (congr!{{Jacobians.Map} {calculus.Vector[n := n, m := n].LinearMap} {Jacobians.Map}} Compose.compose _ _ _ _
+          (sym!{{Jacobians.Map}} _ _ (BeforeLocal.ofExtension Before.smooth q))
+          (sym!{{calculus.Vector[n := n, m := n].LinearMap}} _ _ (Change.ofExtension Pair.compatible p))));
+}
+\definition jacobian: After.jacobian = Compose.compose Before.jacobian (Domain.jacobian after before) := \block {
+  \takefrom p: Change.Extension \by Pair.compatible \then
+  \takefrom q: BeforeLocal.Extension \by Before.smooth \then
+  \return With[p := p, q := q].law
+};
+\import Domain.ChartIsomorphism[chart := after].Change[other := before] \as Changes;
+\import Domain.Coordinate[chart := before] \as BeforeCoordinates;
+\import Domain.Coordinate[chart := after] \as AfterCoordinates;
+\import Codomain.Coordinate[chart := right] \as Coordinates;
+\definition coordinateEquality: \forall (v: Domain.Vector) -> Coordinates.decode (After.value.apply v) = Coordinates.decode (Before.value.apply v) :=
+  \fun (v: Domain.Vector) => eq_reason!{
+    {Coordinates.decode (After.value.apply v)} "=" {After.jacobian.apply (AfterCoordinates.decode v)} "by" {After.coordinateLaw v}
+    "=" {Before.jacobian.apply (Domain.transform after before (AfterCoordinates.decode v))} "by" {
+      congr!{{Jacobians.Map} {TargetVectors.Vector}} (\fun (d: Jacobians.Map) => d.apply (AfterCoordinates.decode v)) _ _ jacobian}
+    "=" {Before.jacobian.apply (BeforeCoordinates.decode v)} "by" {
+      congr!{{SourceVectors.Vector} {TargetVectors.Vector}} (Before.jacobian.apply) _ _
+        (sym!{{SourceVectors.Vector}} _ _ (Changes.coordinates v))}
+    "=" {Coordinates.decode (Before.value.apply v)} "by" {
+      sym!{{TargetVectors.Vector}} _ _ (Before.coordinateLaw v)}
+  };
+\definition law: After.value = Before.value := Linear.ext After.value Before.value
+  (\axiom:funext((After.value.apply), (Before.value.apply),
+    \fun (v: Domain.Vector) => Coordinates.injective (After.value.apply v) (Before.value.apply v) (coordinateEquality v)));

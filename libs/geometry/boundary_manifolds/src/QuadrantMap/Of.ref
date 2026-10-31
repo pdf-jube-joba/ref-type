@@ -1,0 +1,24 @@
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\import \root.Dimension[n := n].Quadrant[C := C, U := U] \as Domain;
+\import \root.Dimension[n := m].Quadrant[C := D, U := V] \as Codomain;
+\import \root.SmoothMap[n := n, m := m].Between[M := Domain.manifold, N := Codomain.manifold] \as Maps;
+\import \root.Dimension[n := n].Chart[M := Domain.Point, space := Domain.topology] \as SourceCharts;
+\import \root.Dimension[n := m].Chart[M := Codomain.Point, space := Codomain.topology] \as TargetCharts;
+\definition apply[x: Domain.Point]: Codomain.Point := \into[Output.Carrier V](Calculus.apply U V f x, Target.region D V) \by { preserves x };
+\definition data: Maps.Data := Maps.Data { apply := apply };
+\definition continuous: topology.Continuity[A := Domain.Point, B := Codomain.Point].Continuous Domain.topology Codomain.topology apply :=
+  topology.Continuity[A := Domain.Point, B := Output.Carrier V].Corestriction[S := Target.region D V].corestrictContinuous Domain.topology
+    (Output.Topology[].Of[U := V].topology) apply
+    (topology.Continuity[A := Open.Carrier U, B := Output.Carrier V].Restriction[S := Source.region C U].restrictContinuous
+      (Open.Topology[].Of[U := U].topology) (Output.Topology[].Of[U := V].topology) (Calculus.apply U V f) (Calculus.Topology[U := U, V := V].continuous f));
+\module At(x: Domain.Point, contains: SourceCharts.Contains Domain.chart x);
+\module InCharts(left: SourceCharts.Chart, right: TargetCharts.Chart, x: Domain.Point, contains: SourceCharts.Contains left x);
+\definition map: Maps.Map := \into[Maps.Data](data, { data: Maps.Data \where Maps.Laws[data] }) \by {
+  Maps.Laws[data] {
+    continuous := continuous,
+    smooth := \fun (left: SourceCharts.Chart)(right: TargetCharts.Chart)(x: Domain.Point)(contains: _)(lm: _)(rm: _)(inRight: _) =>
+      InCharts[left := left, right := right, x := x, contains := contains].existence lm rm,
+  }
+};
