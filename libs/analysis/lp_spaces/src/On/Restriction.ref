@@ -1,0 +1,18 @@
+\import \parent.Finite[p := p] \as F;
+\import \parent.Indicator[p := p, S := S] \as Indicator;
+\import \parent.Products[] \as Products;
+\import \root.Powers[].Algebra[] \as PA;
+\import topology.Topology[Carrier := A] \as Sets;
+\definition function[f: F.Representatives]: A -> Real.Real := \fun (x: A) => Real.mul (f x) (Indicator.representative x);
+\definition inside[f: F.Representatives][x: A]: Sets.Member S x -> function f x = f x := \fun (member: _) => trans!{Real.Real} _ _ _
+  (congr!{Real.Real Real.Real} (Real.mul (f x)) _ _ (Indicator.inside x member)) (Algebra.mulOneRight (f x));
+\definition outside[f: F.Representatives][x: A]: Logic.Not (Sets.Member S x) -> function f x = Real.zero := \fun (notIn: _) => trans!{Real.Real} _ _ _
+  (congr!{Real.Real Real.Real} (Real.mul (f x)) _ _ (Indicator.outside x notIn)) (Laws.fieldMulZeroRight (f x));
+\definition absoluteBound[f: F.Representatives][x: A]: R.Le (Product.abs (function f x)) (Product.abs (f x)) := Logic.orElim _ _ _ (Classical.excludedMiddle (Sets.Member S x))
+  (\fun (member: _) => R.leReplaceLeft _ _ _ (sym!{Real.Real} _ _ (congr!{Real.Real Real.Real} Product.abs _ _ (inside f x member))) (R.leRefl (Product.abs (f x))))
+  (\fun (notIn: _) => R.leReplaceLeft Real.zero _ _ (sym!{Real.Real} _ _ (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} Product.abs _ _ (outside f x notIn)) (Distance.distanceSelf Real.zero))) (Product.absNonnegative (f x)));
+\definition representative[f: F.Representatives]: F.Representatives := \into[A -> Real.Real](function f, F.Representatives) \by {
+  F.hasMoment (function f) (Products.measurable f Indicator.representative (F.properties f).measurable (F.properties Indicator.representative).measurable)
+    (I.finiteMono (F.moment (function f)) (F.moment f) (F.momentNonnegative (function f))
+      (\fun (x: A) => PA.monotone (F.absolute (function f) x) (F.absolute f x) (Powers.exponent p) (absoluteBound f x)) (F.finiteMoment f))
+};

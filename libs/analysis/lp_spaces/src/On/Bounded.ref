@@ -1,0 +1,19 @@
+\import \parent.Finite[p := p] \as F;
+\import \root.Powers[].Algebra[] \as PA;
+\import product_integration.Finiteness[A := A, mu := mu].Bounded[S := S] \as Bound;
+\definition momentMeasurable[f: A -> Real.Real]: M.IsMeasurable mu f -> M.IsMeasurable mu (F.moment f) := \fun (valid: _) =>
+  \parent.Power[p := F.positiveExponent].measurable (F.absolute f) (Functions.absMeasurable f valid);
+\definition coefficient[c: Powers.Nonnegative]: Scaling.NonnegativeScalar := \into[Real.Real](Powers.value c (Powers.exponent p), Scaling.NonnegativeScalar) \by { Powers.nonnegativeValue _ _ };
+\definition momentConditions[c: Powers.Nonnegative][f: A -> Real.Real]: Bound.Conditions[f, c] -> Bound.Conditions[F.moment f, coefficient c] := \fun (valid: _) => Bound.Conditions[F.moment f, coefficient c] {
+  measurable := momentMeasurable f valid.measurable,
+  bound := \fun (x: A)(inside: _) => R.leReplaceLeft _ _ _ (sym!{Real.Real} _ _ (Product.absOfNonnegative (F.moment f x) (F.momentNonnegative f x)))
+    (PA.monotone (F.absolute f x) c (Powers.exponent p) (valid.bound x inside)),
+  outside := \fun (x: A)(outside: _) => (Powers.law (F.absolute f x) (Powers.exponent p)).atZero
+    (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} Product.abs _ _ (valid.outside x outside)) (Distance.distanceSelf Real.zero)),
+};
+\definition finite[c: Powers.Nonnegative][f: A -> Real.Real]: Bound.Conditions[f, c] -> I.Finite (F.moment f) := \fun (valid: _) =>
+  I.finiteMono (F.moment f) (Absolute.abs (F.moment f)) (F.momentNonnegative f)
+    (\fun (x: A) => R.leReplaceRight _ _ _ (sym!{Real.Real} _ _ (Product.absExpression (F.moment f x))) (Distance.maxRight _ _))
+    (Bound.integrable (coefficient c) (F.moment f) (momentConditions c f valid)).right;
+\definition representative[c: Powers.Nonnegative][f: A -> Real.Real][valid: Bound.Conditions[f, c]]: F.Representatives :=
+  \into[A -> Real.Real](f, F.Representatives) \by { F.hasMoment f valid.measurable (finite c f valid) };

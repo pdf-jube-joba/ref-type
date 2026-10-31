@@ -1,0 +1,38 @@
+\import \parent.Compact[p := p] \as Compact;
+\import L.Finite[p := p] \as F;
+\import L.Norm[p := p] \as Norm;
+\import L.Completion[p := p] \as Completion;
+\import L.Indicator[p := p, S := S] \as Indicator;
+\import euclidean_measure.CompactCore[n := n] \as Core;
+\import euclidean_measure.GdeltaHull[n := n] \as Hull;
+\import euclidean_measure.CoverExpansion[n := n] \as Envelopes;
+\import euclidean_measure.InnerRegular[n := n] \as Regular;
+\import calculus.Real[].Multivariable[n := n].Open[] \as Open;
+\import Open.Topology[] \as OpenTopology;
+\import product_integration.FiniteNull[A := Point, mu := measure] \as Null;
+\import I.Null[] \as INull;
+\import N.Order[].Prop[] \as NatOrder;
+\structure Approximation: \Set := {
+  sequence: N.Nat^ -> SmoothCompact,
+  converges: Sequence.Converges (\fun (k: N.Nat^) => Completion.distance (Compact.smoothRepresentative (sequence k)) Indicator.representative) Real.zero,
+};
+\definition outsideMass: Logic.Not (M.below (E.outer S) (Finite.mass S)) := \fun (member: _) => R.ltIrrefl (Finite.mass S)
+  (\idelim measure.value S = { r: Real.Real \where R.Lt r (Finite.mass S) } \with v: M.Value => M.below v (Finite.mass S) \by {
+    base: member, equality: Finite.massCut S });
+\module Build(parts: N.Nat^ -> \Pow Point, core: Core.Core S parts, opens: N.Nat^ -> \Pow Point, hull: Hull.Hull S opens,
+  U: Finite.FiniteMeasurableSet, opened: Sets.IsOpenIn Ambient.topology U, contains: Sets.Subset S U);
+\definition existsApproximation: \exists Approximation := \block {
+  \takefrom parts: \Cast[N.Nat^ -> \Pow Point] ({ parts: N.Nat^ -> \Pow Point \where Core.Core S parts })
+    \by Core.boundedCore S box (Finite.finiteLaw S).measurable bounded \then
+  \takefrom opens: \Cast[N.Nat^ -> \Pow Point] ({ opens: N.Nat^ -> \Pow Point \where Hull.Hull S opens }) \by Hull.finiteHull S (Finite.mass S) outsideMass \then
+  \takefrom U: \Cast[\Pow Point] ({ U: \Pow Point \where Envelopes.Envelope S (Real.add (Finite.mass S) Real.one) U })
+    \by Envelopes.outerApproximation S (Finite.mass S) Real.one outsideMass Product.onePositive \then
+  \let valid: Envelopes.Envelope S (Real.add (Finite.mass S) Real.one) U :=
+    \bysub(\Pow Point, { U: \Pow Point \where Envelopes.Envelope S (Real.add (Finite.mass S) Real.one) U }, U) \then
+  \let finite: Finite.FiniteMeasurableSet := \into[\Pow Point](U, Finite.FiniteMeasurableSet) \by { Finite.FiniteSet[U] {
+    measurable := Borel.openMeasurable U valid.left,
+    bounded := Logic.existsIntro[Real.Real, { b: Real.Real \where Complete.UpperBound (measure.value U) b }] (Real.add (Finite.mass S) Real.one) valid.right.right,
+  } } \then
+  \return Build[parts := parts, core := \bysub(N.Nat^ -> \Pow Point, { parts: N.Nat^ -> \Pow Point \where Core.Core S parts }, parts),
+    opens := opens, hull := \bysub(N.Nat^ -> \Pow Point, { opens: N.Nat^ -> \Pow Point \where Hull.Hull S opens }, opens), U := finite, opened := valid.left, contains := valid.right.left].existsApproximation
+};

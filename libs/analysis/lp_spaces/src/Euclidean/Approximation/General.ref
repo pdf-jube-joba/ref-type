@@ -1,0 +1,19 @@
+\import euclidean_measure.Exhaustion[n := n] \as Exhaustion;
+\definition box[k: N.Nat^]: Finite.FiniteMeasurableSet := \into[\Pow Point](E.points (Exhaustion.box k), Finite.FiniteMeasurableSet) \by { Integration.boxFinite (Exhaustion.box k) };
+\definition sequence[k: N.Nat^]: F.Representatives := L.Restriction[p := p, S := box k].representative f;
+\definition pointwise[x: Point]: Sequence.Converges (\fun (k: N.Nat^) => sequence k x) (f x) := \block {
+  \takefrom i: \Cast[N.Nat^] ({ i: N.Nat^ \where Sets.Member (E.points (Exhaustion.box i)) x }) \by Exhaustion.covers x \then
+  \return eventuallyConstant (\fun (k: N.Nat^) => sequence k x) (f x) i
+    (\fun (k: N.Nat^)(later: _) => L.Restriction[p := p, S := box k].inside f x
+      (Exhaustion.boxGrowing i k later x (\bysub(N.Nat^, { i: N.Nat^ \where Sets.Member (E.points (Exhaustion.box i)) x }, i))))
+};
+\definition data: Norm.DominatedData := Norm.DominatedData {
+  sequence := sequence, target := f, bound := F.absoluteRepresentative f, exception := product_integration.FiniteNull[A := Point, mu := measure].empty,
+  dominated := \fun (k: N.Nat^)(x: Point)(outside: _) => L.Restriction[p := p, S := box k].absoluteBound f x,
+  converges := \fun (x: Point)(outside: _) => pointwise x,
+};
+\definition supported[k: N.Nat^][x: Point]: Logic.Not (Sets.Member (E.points (Exhaustion.box k)) x) -> sequence k x = Real.zero := L.Restriction[p := p, S := box k].outside f x;
+\definition sequenceDense[k: N.Nat^]: Approximable (F.ofFunction (sequence k)) := \root.Euclidean[n := n].Approximation[p := p].Bounded[f := sequence k, box := Exhaustion.box k,
+  supported := supported k].dense;
+\definition dense: Approximable (F.ofFunction f) := sequentiallyClosed (\fun (k: N.Nat^) => F.ofFunction (sequence k)) (F.ofFunction f) sequenceDense
+  (normConvergence sequence f (L.Norm[p := p].Dominated[d := data].theorem));
