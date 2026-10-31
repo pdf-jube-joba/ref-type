@@ -1,0 +1,23 @@
+\import \root.Classification[].Oriented[].WhitneySum[X := X, F := F, G := G, left := left, right := right, same := same, k := k, l := l,
+  leftRank := leftRank, rightRank := rightRank, leftOrientation := leftOrientation, rightOrientation := rightOrientation].InFrames[
+    x := p.base, a := c.frame (leftPoint (center p)), b := d.frame (rightPoint (center p))] \as Frames;
+\definition delta: Forms.Fiber p.base := product p.base (firstValue (center p)) (secondValue (center p));
+\definition positiveDelta: LeftCones.Positive leftOrientation.positive p.base (firstValue (center p)) ->
+  RightCones.Positive rightOrientation.positive p.base (secondValue (center p)) -> Positive p.base delta :=
+  \fun (firstPositive: _)(secondPositive: _) => \exact(Witness[p.base, delta] {
+    first := firstValue (center p), second := secondValue (center p), leftPositive := firstPositive, rightPositive := secondPositive, value := \refl(delta)
+  }, Witness[p.base, delta]);
+\definition firstCoefficientEquality: Frames.leftCoefficient (firstValue (center p)) = firstRead p := \refl(firstRead p);
+\definition secondCoefficientEquality: Frames.rightCoefficient (secondValue (center p)) = secondRead p := \refl(secondRead p);
+\definition coefficientEquality: Frames.coefficient p.vector = SumTop.coefficient p := \refl(SumTop.coefficient p);
+\definition testEquality: R.mul (Frames.coefficient delta) (Frames.coefficient p.vector) = test p :=
+  congr!{R.Real R.Real R.Real} R.mul _ _ _ _
+    (trans!{R.Real} _ _ _ (Frames.coefficientProduct (firstValue (center p)) (secondValue (center p)))
+      (congr!{R.Real R.Real R.Real} R.mul _ _ _ _ firstCoefficientEquality secondCoefficientEquality)) coefficientEquality;
+\definition within: LocalSpace.Member piece p -> Positive p.base p.vector := \fun (member: _) =>
+  (Frames.criterion delta p.vector (positiveDelta member.left member.right.left)).rtl
+    (Order.ltReplaceRight R.zero (test p) (R.mul (Frames.coefficient delta) (Frames.coefficient p.vector)) (sym!{R.Real} _ _ testEquality) member.right.right);
+\definition signOfPositive: LeftCones.Positive leftOrientation.positive p.base (firstValue (center p)) ->
+  RightCones.Positive rightOrientation.positive p.base (secondValue (center p)) -> Positive p.base p.vector -> Order.Lt R.zero (test p) :=
+  \fun (firstPositive: _)(secondPositive: _)(positive: _) => Order.ltReplaceRight R.zero (R.mul (Frames.coefficient delta) (Frames.coefficient p.vector)) (test p) testEquality
+    ((Frames.criterion delta p.vector (positiveDelta firstPositive secondPositive)).ltr positive);

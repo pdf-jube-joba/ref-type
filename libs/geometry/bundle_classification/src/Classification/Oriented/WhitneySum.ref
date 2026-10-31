@@ -1,0 +1,104 @@
+\import linear_algebra.Commutative[K := R.Real, scalarRing := Fields.fieldAsCommutativeRing R.Real R.Algebra[].field] \as Spaces;
+\import \root.Classification[].Oriented[].For[X := X, F := F, bundle := left, k := k] \as First;
+\import \root.Classification[].Oriented[].For[X := X, F := G, bundle := right, k := l] \as Second;
+\import \root.Classification[].Orientations[X := X, F := First.DeterminantFiber, bundle := First.determinantBundle] \as LeftCones;
+\import \root.Classification[].Orientations[X := X, F := Second.DeterminantFiber, bundle := Second.determinantBundle] \as RightCones;
+\import Operations.DirectSum[X := X, F := F, G := G, left := left, right := right] \as Sum;
+\definition bundle: Bundles.Family[X := X, F := Sum.Fiber].Bundle := Sum.bundle same;
+\definition Fiber[x: X]: \Set := Sum.Fiber x;
+\import Fin.Sum[m := k, n := l] \as Indices;
+\definition rank: N.Nat^ := Indices.total;
+\import Operations.Alternating[X := X, F := Sum.Fiber, bundle := bundle, k := rank] \as Forms;
+\definition DeterminantFiber[x: X]: \Set := Forms.Fiber x;
+\definition determinantBundle: Bundles.Family[X := X, F := DeterminantFiber].Bundle := Forms.alternating;
+\import \root.Classification[].Orientations[X := X, F := Forms.Fiber, bundle := Forms.alternating] \as Cones;
+\import Bundles.Family[X := X, F := Forms.Fiber] \as Family;
+\import dedekind_reals.DedekindReal[] \as Order;
+\import R.Estimates[].Product[] \as Bounds;
+\module At(x: X);
+\definition product[x: X][alpha: First.DeterminantFiber x][beta: Second.DeterminantFiber x]: Forms.Fiber x := At[x := x].product alpha beta;
+\structure Witness[x: X, gamma: Forms.Fiber x]: \Set := {
+  first: First.DeterminantFiber x, second: Second.DeterminantFiber x,
+  leftPositive: LeftCones.Positive leftOrientation.positive x first,
+  rightPositive: RightCones.Positive rightOrientation.positive x second,
+  value: gamma = product x first second
+};
+\definition Positive[x: X][gamma: Forms.Fiber x]: \Prop := \exists Witness[x, gamma];
+\definition positive: \Pow Family.Point := { p: Family.Point \where Positive p.base p.vector };
+\definition data: Cones.Data := Cones.Data { positive := positive };
+\definition nonzero: \forall (x: X)(gamma: Forms.Fiber x) -> Positive x gamma -> Logic.Not (gamma = (Forms.fiberSpace x).zero) :=
+  \fun (x: X)(gamma: Forms.Fiber x)(given: _)(zero: _) => \block {
+    \takefrom w: Witness[x, gamma] \by given \then
+    \return At[x := x].nonzero w.first w.second ((LeftCones.laws leftOrientation).nonzero x w.first w.leftPositive)
+      ((RightCones.laws rightOrientation).nonzero x w.second w.rightPositive)
+      (trans!{{Forms.Fiber x}} _ _ _ (sym!{{Forms.Fiber x}} _ _ w.value) zero)
+  };
+\definition inhabited: \forall (x: X) -> \exists ( gamma: Forms.Fiber x \where Positive x gamma ) := \fun (x: X) => \block {
+  \takefrom alpha: \Cast[First.DeterminantFiber x] ({ alpha: First.DeterminantFiber x \where LeftCones.Positive leftOrientation.positive x alpha }) \by (LeftCones.laws leftOrientation).inhabited x \then
+  \takefrom beta: \Cast[Second.DeterminantFiber x] ({ beta: Second.DeterminantFiber x \where RightCones.Positive rightOrientation.positive x beta }) \by (RightCones.laws rightOrientation).inhabited x \then
+  \return Logic.existsIntro[Forms.Fiber x, { gamma: Forms.Fiber x \where Positive x gamma }] (product x alpha beta)
+    (\exact(Witness[x, product x alpha beta] { first := alpha, second := beta,
+      leftPositive := \bysub(First.DeterminantFiber x, { alpha: First.DeterminantFiber x \where LeftCones.Positive leftOrientation.positive x alpha }, alpha),
+      rightPositive := \bysub(Second.DeterminantFiber x, { beta: Second.DeterminantFiber x \where RightCones.Positive rightOrientation.positive x beta }, beta), value := \refl(product x alpha beta) }, Witness[x, product x alpha beta]))
+};
+\definition scale: \forall (x: X)(a: R.Real) -> Order.Lt R.zero a -> \forall (gamma: Forms.Fiber x) -> Positive x gamma -> Positive x ((Forms.fiberSpace x).smul a gamma) :=
+  \fun (x: X)(a: R.Real)(ap: _)(gamma: Forms.Fiber x)(given: _) => \block {
+    \takefrom w: Witness[x, gamma] \by given \then
+    \return \exact(Witness[x, (Forms.fiberSpace x).smul a gamma] {
+      first := (First.determinantBundle.space x).smul a w.first, second := w.second,
+      leftPositive := (LeftCones.laws leftOrientation).scale x a ap w.first w.leftPositive, rightPositive := w.rightPositive,
+      value := trans!{{Forms.Fiber x}} _ _ _ (congr!{{Forms.Fiber x} {Forms.Fiber x}} ((Forms.fiberSpace x).smul a) _ _ w.value) (sym!{{Forms.Fiber x}} _ _ (At[x := x].scaleLeft a w.first w.second))
+    }, Witness[x, (Forms.fiberSpace x).smul a gamma])
+  };
+\module Rays(x: X, gamma, delta: Forms.Fiber x, first: Witness[x, gamma], second: Witness[x, delta]);
+\definition ray: \forall (x: X)(gamma, delta: Forms.Fiber x) -> Positive x gamma -> Positive x delta ->
+  \exists ( a: R.Real \where Logic.And[Order.Lt R.zero a, delta = (Forms.fiberSpace x).smul a gamma] ) :=
+  \fun (x: X)(gamma, delta: Forms.Fiber x)(pg: _)(pd: _) => \block {
+    \takefrom a: Witness[x, gamma] \by pg \then
+    \takefrom b: Witness[x, delta] \by pd \then
+    \return Rays[x := x, gamma := gamma, delta := delta, first := a, second := b].exists
+  };
+\module InFrames(x: X, a: Bundles.Dimension[V := F x, space := left.space x].Frame k, b: Bundles.Dimension[V := G x, space := right.space x].Frame l);
+\definition signs: \forall (x: X)(gamma: Forms.Fiber x) -> Logic.Not (gamma = (Forms.fiberSpace x).zero) -> Logic.Or[Positive x gamma, Positive x ((Forms.fiberSpace x).neg gamma)] :=
+  \fun (x: X)(gamma: Forms.Fiber x)(nonzero: _) => \block {
+    \takefrom a: Bundles.Dimension[V := F x, space := left.space x].Frame k \by leftRank x \then
+    \takefrom b: Bundles.Dimension[V := G x, space := right.space x].Frame l \by rightRank x \then
+    \return InFrames[x := x, a := a, b := b].signs gamma nonzero
+  };
+\definition disjoint: \forall (x: X)(gamma: Forms.Fiber x) -> Positive x gamma -> Logic.Not (Positive x ((Forms.fiberSpace x).neg gamma)) :=
+  \fun (x: X)(gamma: Forms.Fiber x)(positive: _)(negative: _) => \block {
+    \takefrom a: Bundles.Dimension[V := F x, space := left.space x].Frame k \by leftRank x \then
+    \takefrom b: Bundles.Dimension[V := G x, space := right.space x].Frame l \by rightRank x \then
+    \return InFrames[x := x, a := a, b := b].disjoint gamma positive negative
+  };
+\definition sumRank: Theory.For[X := X, F := Sum.Fiber, bundle := bundle].AtRank[k := rank].HasRank := \fun (x: X) => \block {
+  \takefrom a: Bundles.Dimension[V := F x, space := left.space x].Frame k \by leftRank x \then
+  \takefrom b: Bundles.Dimension[V := G x, space := right.space x].Frame l \by rightRank x \then
+  \return \exact(InFrames[x := x, a := a, b := b].sumFrame, Bundles.Family[X := X, F := Sum.Fiber].Of[bundle := bundle].Frame rank x)
+};
+\import \root.Classification[].RankedCharts[X := X, F := F, bundle := left, n := k, rank := leftRank] \as LeftAtlas;
+\import \root.Classification[].RankedCharts[X := X, F := G, bundle := right, n := l, rank := rightRank] \as RightAtlas;
+\import \root.Classification[].RankedCharts[X := X, F := Sum.Fiber, bundle := bundle, n := rank, rank := sumRank] \as SumAtlas;
+\module Local(c: LeftAtlas.Local k, d: RightAtlas.Local l,
+  leftEnumeration: Operations.ExteriorIndices[n := k, k := k].Enumeration,
+  rightEnumeration: Operations.ExteriorIndices[n := l, k := l].Enumeration,
+  sumEnumeration: Operations.ExteriorIndices[n := rank, k := rank].Enumeration);
+\module Open;
+\definition orientation: Cones.Orientation := \into[Cones.Data](data, Cones.Orientation) \by {
+  Cones.Laws[data] { open := Open[].open, nonzero := nonzero, inhabited := inhabited, signs := signs, disjoint := disjoint, scale := scale, ray := ray }
+};
+\module Mapping(A, B: X -> \Set, newLeft: Bundles.Family[X := X, F := A].Bundle, newRight: Bundles.Family[X := X, F := B].Bundle,
+  leftSame: left.baseSpace = newLeft.baseSpace, rightSame: right.baseSpace = newRight.baseSpace,
+  newLeftRank: Theory.For[X := X, F := A, bundle := newLeft].AtRank[k := k].HasRank,
+  newRightRank: Theory.For[X := X, F := B, bundle := newRight].AtRank[k := l].HasRank,
+  newLeftOrientation: \root.Classification[].Oriented[].For[X := X, F := A, bundle := newLeft, k := k].Orientation,
+  newRightOrientation: \root.Classification[].Oriented[].For[X := X, F := B, bundle := newRight, k := l].Orientation,
+  f: Bundles.Isomorphisms[X := X, F := F, G := A, source := left, target := newLeft].Isomorphism,
+  g: Bundles.Isomorphisms[X := X, F := G, G := B, source := right, target := newRight].Isomorphism);
+\import \root.Classification[].Oriented[].For[X := X, F := Sum.Fiber, bundle := bundle, k := rank] \as SumClassifiers;
+\definition classificationExists: topology.Topology[Carrier := X].IsCompact left.baseSpace -> topology.Topology[Carrier := X].IsT2 left.baseSpace ->
+  \exists SumClassifiers.With[orientation := orientation].Representative := \fun (compact: _)(hausdorff: _) => SumClassifiers.With[orientation := orientation].exists compact hausdorff sumRank;
+\module Classifying(first: First.Classifier, second: Second.Classifier);
+\module Pullback(Y: \Set, source: topology.Topology[Carrier := Y].Topology, f: Y -> X,
+  continuous: topology.Continuity[A := Y, B := X].Continuous source left.baseSpace f);
+\module Pairing;

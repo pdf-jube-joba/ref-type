@@ -1,0 +1,32 @@
+\import topology.Topology[Carrier := X] \as Base;
+\import LeftAtlas.Top[c := c, enumeration := leftEnumeration] \as LeftTop;
+\import RightAtlas.Top[c := d, enumeration := rightEnumeration] \as RightTop;
+\definition domain: \Pow X := Base.Intersection c.domain d.domain;
+\definition Source: \Set := \Cast[X] domain;
+\definition sourceTopology: topology.Topology[Carrier := Source].Topology := Base.Subspace[S := domain].topology left.baseSpace;
+\definition leftPoint[y: Source]: \Cast[X] c.domain := \into[X](y, c.domain) \by { (\bysub(X, domain, y)).left };
+\definition rightPoint[y: Source]: \Cast[X] d.domain := \into[X](y, d.domain) \by { (\bysub(X, domain, y)).right };
+\definition inclusion: Source -> X := \fun (y: Source) => y;
+\definition inclusionContinuous: topology.Continuity[A := Source, B := X].Continuous sourceTopology left.baseSpace inclusion :=
+  \fun (U: \Pow X)(open: _) => Base.Subspace[S := domain].traceOpen left.baseSpace U open;
+\import topology.Continuity[A := Source, B := X].Corestriction[S := c.domain] \as IntoLeft;
+\import topology.Continuity[A := Source, B := X].Corestriction[S := d.domain] \as IntoRight;
+\definition leftPointContinuous: topology.Continuity[A := Source, B := \Cast[X] c.domain].Continuous sourceTopology (Base.Subspace[S := c.domain].topology left.baseSpace) leftPoint :=
+  IntoLeft.corestrictContinuous sourceTopology left.baseSpace leftPoint inclusionContinuous;
+\definition rightPointContinuous: topology.Continuity[A := Source, B := \Cast[X] d.domain].Continuous sourceTopology (Base.Subspace[S := d.domain].topology right.baseSpace) rightPoint :=
+  IntoRight.corestrictContinuous sourceTopology right.baseSpace rightPoint
+    (\idelim left.baseSpace = right.baseSpace \with t: Base.Topology => topology.Continuity[A := Source, B := X].Continuous sourceTopology t inclusion \by { base: inclusionContinuous, equality: same });
+\import Sum.In[c := LeftAtlas.chartOf k c, d := RightAtlas.chartOf l d] \as DirectChart;
+\definition sumChart: Bundles.Family[X := X, F := Sum.Fiber].With[data := bundle].Chart := DirectChart.trivialization same;
+\definition sumLocal: SumAtlas.Local rank := SumAtlas.native sumChart;
+\import SumAtlas.Top[c := sumLocal, enumeration := sumEnumeration] \as SumTop;
+\definition Point: \Set := SumTop.LocalTotal;
+\definition topology: topology.Topology[Carrier := Point].Topology := SumTop.localTopology;
+\definition center[p: Point]: Source := \into[X](p.base, domain) \by { \bysub(Family.Point, { q: Family.Point \where Base.Member domain q.base }, p) };
+\import topology.Continuity[A := Family.Point, B := X].Restriction[S := { q: Family.Point \where Base.Member domain q.base }] \as RestrictBase;
+\import topology.Continuity[A := Point, B := X].Corestriction[S := domain] \as IntoDomain;
+\definition centerContinuous: topology.Continuity[A := Point, B := Source].Continuous topology sourceTopology center :=
+  IntoDomain.corestrictContinuous topology left.baseSpace center (RestrictBase.restrictContinuous Forms.alternating.totalSpace left.baseSpace Family.projection Forms.projectionContinuous);
+\definition leftDimension: N.Nat^ := LeftTop.dimension;
+\definition rightDimension: N.Nat^ := RightTop.dimension;
+\module Values(a: Bundles.Vector leftDimension, b: Bundles.Vector rightDimension);

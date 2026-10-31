@@ -1,0 +1,27 @@
+\import \root.Classification[].DeterminantProduct[V := A, W := B, left := targetLeft, right := targetRight, n := n, m := m, first := targetFirst, second := targetSecond] \as Target;
+\import Spaces.DirectSum[V := A, W := B, left := targetLeft, right := targetRight] \as Range;
+\import Indices.Tuples[A := Range.Carrier] \as RangeTuples;
+\definition map: Spaces.Linear[V := Sum.Carrier, W := Range.Carrier, source := Sum.space, target := Range.space].Map :=
+  Spaces.Linear[V := Sum.Carrier, W := Range.Carrier, source := Sum.space, target := Range.space].Map {
+    apply := \fun (v: Sum.Carrier) => Range.make (f.apply (Sum.first v)) (g.apply (Sum.second v)),
+    preservesAdd := \fun (v, w: Sum.Carrier) => Pair.Prop[A := A, B := B].pairCong _ _ _ _ (f.preservesAdd (Sum.first v) (Sum.first w)) (g.preservesAdd (Sum.second v) (Sum.second w)),
+    preservesScale := \fun (a: R.Real)(v: Sum.Carrier) => Pair.Prop[A := A, B := B].pairCong _ _ _ _ (f.preservesScale a (Sum.first v)) (g.preservesScale a (Sum.second v))
+  };
+\definition arguments: \forall (u: Fin.Fin n -> V)(v: Fin.Fin m -> W) ->
+  (\fun (i: Fin.Fin rank) => map.apply (concatenate u v i)) = Target.concatenate (\fun (i: Fin.Fin n) => f.apply (u i)) (\fun (j: Fin.Fin m) => g.apply (v j)) :=
+  \fun (u: Fin.Fin n -> V)(v: Fin.Fin m -> W) => \axiom:funext(
+    (\fun (i: Fin.Fin rank) => map.apply (concatenate u v i)), Target.concatenate (\fun (i: Fin.Fin n) => f.apply (u i)) (\fun (j: Fin.Fin m) => g.apply (v j)),
+    \fun (i: Fin.Fin rank) => (\induction (s: Indices.Index) \return
+      map.apply (Tuples.evaluate (\fun (i: Fin.Fin n) => Sum.make (u i) right.zero) (\fun (j: Fin.Fin m) => Sum.make left.zero (v j)) s) =
+        RangeTuples.evaluate (\fun (i: Fin.Fin n) => Range.make (f.apply (u i)) targetRight.zero) (\fun (j: Fin.Fin m) => Range.make targetLeft.zero (g.apply (v j))) s \with {
+      | inl: \fun (j: Fin.Fin n) => Pair.Prop[A := A, B := B].pairCong _ _ _ _ (\refl(f.apply (u j))) g.preservesZero
+      | inr: \fun (j: Fin.Fin m) => Pair.Prop[A := A, B := B].pairCong _ _ _ _ f.preservesZero (\refl(g.apply (v j)))
+    }) (Indices.split i));
+\definition pullLeft[alpha: Target.LeftForm]: LeftForm := Left.Precomposition[W := A, target := targetLeft].precompose n f alpha;
+\definition pullRight[beta: Target.RightForm]: RightForm := Right.Precomposition[W := B, target := targetRight].precompose m g beta;
+\definition pull[gamma: Target.Form]: Form := Total.Precomposition[W := Range.Carrier, target := Range.space].precompose rank map gamma;
+\definition naturality: \forall (alpha: Target.LeftForm)(beta: Target.RightForm) -> product (pullLeft alpha) (pullRight beta) = pull (Target.product alpha beta) :=
+  \fun (alpha: Target.LeftForm)(beta: Target.RightForm) => ext _ _ (\fun (u: Fin.Fin n -> V)(v: Fin.Fin m -> W) =>
+    trans!{R.Real} _ _ _ (formula (pullLeft alpha) (pullRight beta) u v)
+      (sym!{R.Real} _ _ (trans!{R.Real} _ _ _ (congr!{{Fin.Fin rank -> Range.Carrier} R.Real} (Target.product alpha beta) _ _ (arguments u v))
+        (Target.formula alpha beta (\fun (i: Fin.Fin n) => f.apply (u i)) (\fun (j: Fin.Fin m) => g.apply (v j))))));

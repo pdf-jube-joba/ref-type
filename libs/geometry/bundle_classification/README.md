@@ -72,6 +72,38 @@
 `Framed.Addition.For.naturality`、`Framed.Stabilization.For.naturality`、`Framed.For.Pullback.naturality` は束の分類クラスからこれらの有限表示への可換性を与える。
 枠付き束の分類クラスは一つなので、これらの商写像の well-definedness には既証明の `uniqueClass` を用いる。
 
+`Oriented.WhitneySum` は階数 \(k,l\) の二つの実束の向きから、直和束の標準の積向き `orientation` を構成する。
+向きの入力は二つの因子の向きであり、直和全体の向きは構成の結果である。
+この構成に底空間のコンパクト性や大域枠は必要ない。
+`Oriented.Trivial.orientation` は座標の正規化された最高次形式で定める標準の向きで、`Oriented.StandardStabilization.orientation` はこの自明束を付加する積向きである。
+階数0も同じ定義と証明で扱う。
+
+有限次元の比較 `DeterminantProduct.product` は、\(\alpha\in\Lambda^k E^*\)、\(\beta\in\Lambda^l F^*\) から、左右の引数に対して
+\[
+ (\alpha\mathbin{\boxtimes}\beta)((u_1,0),\ldots,(u_k,0),(0,v_1),\ldots,(0,v_l))
+ =\alpha(u_1,\ldots,u_k)\,\beta(v_1,\ldots,v_l)
+\]
+を満たす唯一の最高次形式を構成する。
+既存の `FiniteCoordinates.Top` の正規化・一次元性と、引数の制限の補題から存在と一意性を示す。
+`independent` は基底の選択独立性、`Laws` は双線形性と非零性、`Mapping.naturality` は線形写像に沿う引き戻しとの可換性を与える。
+`Blocks.blockDeterminant` は、正規化された最高次形式で定めるブロック対角写像の行列式が二つの因子の行列式の積になることを証明する。
+
+直和の正の半直線は、正の因子形式二つの積の集合として定義する。
+`WhitneySum.Open.open` は、階数に合う局所自明化の上で正の局所形式を延長し、連続な係数の積による正の開半直線を貼り合わせて開性を証明する。
+非零性、各ファイバーでの存在、正負の分離、正のスカラー倍、同一半直線の条件も証明して `Orientations.Orientation` を構成する。
+`WhitneySum.Pairing.continuous` は二つの行列式束のファイバー積上で、この双線形な積そのものが連続であることを証明する。
+局所自明化で最高次形式の全座標が基底での評価に等しいことを示し、積の座標を二つの連続な係数の積として構成する。
+
+| API | 標準の積向きに対する整合性 |
+| --- | --- |
+| `WhitneySum.Mapping.With.preserves` | 因子の向きを保つ二つの束同型の直和が、構成した積向きを保つ |
+| `WhitneySum.Pullback.naturality` | 引き戻した二つの向きの積と、積向きの引き戻しが標準の束比較で一致する |
+| `WhitneySum.Classifying.WithSum.naturality` / `homotopy` | 因子の有限分類を行ってから直和する構成と、元の向き付き直和の分類のクラスが一致し、実際の向き付きホモトピーで結ばれる |
+| `Classifying.WithSum.Changing.independent` / `ChangingSource.independent` | 因子と直和束の有限分類データの選択によらない |
+| `StandardStabilization.Classifying.WithSum.naturality` / `homotopy` | 標準の向き付き自明束の付加と分類の可換性 |
+
+`WhitneySum.classificationExists` と `StandardStabilization.classificationExists` は、コンパクト Hausdorff 底空間で必要な有限分類データが存在することも公開する。
+
 `Oriented.Sum.With` は、二つの通常の有限分類データ、元の直和束に与えた行列式の向き、およびその直和束の分類データを受け取る。
 因子の分類束の直和への比較同型 `Sum.comparison` を構成し、`targetOrientation` は与えた向きをこの同型に沿って輸送する。
 `determinantNaturality`、`isomorphism`、`naturality` は、向きの輸送と分類との可換性を、行列式の等式、向きを保つ同型、分類クラスの等式として公開する。
@@ -79,11 +111,12 @@
 `With.Changing.independent` は因子の分類データを変更しても分類クラスが一致することを証明する。
 `Oriented.Stabilization.With.naturality` は自明束を付加する場合の同じ比較である。
 これらの API の向きの入力は直和束全体の向きである。
-二つの因子の向きから標準の積向きを生成する行列式テンソル積同型は、この package の構成には含まれていない。
+標準の積向きを構成する場合は上記の `WhitneySum` と `StandardStabilization` を使う。
 
 [最小利用例](src/Classification/Examples/BoolLine.ref) は二点離散空間上の実線束を分類する。
 [自明束の例](src/Classification/Examples/Trivial.ref) は任意の底空間と次元で、有限分類写像、普遍束との同型、枠族の安定化ホモトピーを検査する。
 同じ例の `Naturality.sumNaturality` と `stabilizationNaturality` は、枠付きの分類 API に対する直和・安定化の自然性の利用例である。
+`Naturality.Oriented.volumePositive`、`sumNaturality`、`stabilizationNaturality` は、標準の向き付き自明束を用いた同じ整合性の利用例である。
 
 ```ref
 \import bundle_classification.Classification[].Examples[].BoolLine[] \as Example;

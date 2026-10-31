@@ -1,0 +1,22 @@
+\import Bundles.Isomorphisms[X := X, F := TargetFirst.DeterminantFiber, G := First.DeterminantFiber, source := TargetFirst.determinantBundle, target := First.determinantBundle] \as FirstIsos;
+\import Bundles.Isomorphisms[X := X, F := TargetSecond.DeterminantFiber, G := Second.DeterminantFiber, source := TargetSecond.determinantBundle, target := Second.determinantBundle] \as SecondIsos;
+\import Bundles.Isomorphisms[X := X, F := Target.DeterminantFiber, G := Forms.Fiber, source := Target.determinantBundle, target := Forms.alternating] \as SumIsos;
+\definition firstLaws: FirstIsos.Laws[FirstDet.isomorphism] := \bysub(FirstIsos.Data, FirstIsos.Isomorphism, FirstDet.isomorphism);
+\definition secondLaws: SecondIsos.Laws[SecondDet.isomorphism] := \bysub(SecondIsos.Data, SecondIsos.Isomorphism, SecondDet.isomorphism);
+\definition sumLaws: SumIsos.Laws[SumDet.isomorphism] := \bysub(SumIsos.Data, SumIsos.Isomorphism, SumDet.isomorphism);
+\definition forward: \forall (x: X)(gamma: Target.DeterminantFiber x) -> Target.Positive x gamma -> Positive x ((SumDet.isomorphism.forward.fiber x).apply gamma) :=
+  \fun (x: X)(gamma: Target.DeterminantFiber x)(positive: _) => \block {
+    \takefrom w: Target.Witness[x, gamma] \by positive \then
+    \return \exact(Witness[x, (SumDet.isomorphism.forward.fiber x).apply gamma] {
+      first := (FirstDet.isomorphism.forward.fiber x).apply w.first, second := (SecondDet.isomorphism.forward.fiber x).apply w.second,
+      leftPositive := (first x w.first).ltr w.leftPositive, rightPositive := (second x w.second).ltr w.rightPositive,
+      value := trans!{{Forms.Fiber x}} _ _ _ (congr!{{Target.DeterminantFiber x} {Forms.Fiber x}} (SumDet.isomorphism.forward.fiber x).apply _ _ w.value) (sym!{{Forms.Fiber x}} _ _ (productNaturality x w.first w.second))
+    }, Witness[x, (SumDet.isomorphism.forward.fiber x).apply gamma])
+  };
+\module Backward(x: X, gamma: Target.DeterminantFiber x, w: Witness[x, (SumDet.isomorphism.forward.fiber x).apply gamma]);
+\definition backward: \forall (x: X)(gamma: Target.DeterminantFiber x) -> Positive x ((SumDet.isomorphism.forward.fiber x).apply gamma) -> Target.Positive x gamma :=
+  \fun (x: X)(gamma: Target.DeterminantFiber x)(positive: _) => \block {
+    \takefrom w: Witness[x, (SumDet.isomorphism.forward.fiber x).apply gamma] \by positive \then
+    \return Backward[x := x, gamma := gamma, w := w].positive
+  };
+\definition preserves: Preserves := \fun (x: X)(gamma: Target.DeterminantFiber x) => Logic.PropEquiv[_, _] { ltr := forward x gamma, rtl := backward x gamma };

@@ -1,0 +1,26 @@
+\import \root.Classification[].Oriented[].Sum[X := X, F := F, G := G, left := left, right := right, same := same, k := k, l := l,
+  first := first, second := second].With[orientation := orientation, classifier := classifier] \as Raw;
+\import \root.Classification[].Oriented[].For[X := X, F := Target.Fiber, bundle := Target.bundle, k := rank].With[orientation := Target.orientation].From[classifier := Raw.targetClassifier] \as After;
+\import \root.Classification[].Oriented[].On[X := X, baseSpace := left.baseSpace, k := rank] \as Oriented;
+\definition before: Oriented.Object := Raw.before;
+\definition object: Oriented.Object := After.object;
+\import \root.Classification[].Determinants[X := X, F := Target.Fiber, G := Theory.On[X := X, baseSpace := left.baseSpace].Fiber object.projection,
+  source := Target.bundle, target := Theory.On[X := X, baseSpace := left.baseSpace].bundle object.projection, same := \refl(left.baseSpace), k := rank, iso := Raw.targetComparison] \as AfterDet;
+\import \root.Classification[].Orientations[X := X, F := Oriented.DeterminantFiber object.projection, bundle := Oriented.determinantBundle object.projection] \as ImageCones;
+\definition bridge: \forall (x: X)(alpha: Oriented.DeterminantFiber object.projection x) -> Logic.PropEquiv[
+  ImageCones.Positive object.orientation.positive x alpha, ImageCones.Positive Raw.after.orientation.positive x alpha] :=
+  \fun (x: X)(alpha: Oriented.DeterminantFiber object.projection x) => preserves x ((AfterDet.isomorphism.forward.fiber x).apply alpha);
+\import Oriented.Between[a := before, b := object] \as Isos;
+\import Isos.Along[iso := Raw.imageIsomorphism] \as Along;
+\definition orientationPreserved: Along.Preserves := \fun (x: X)(alpha: Oriented.DeterminantFiber object.projection x) => Logic.PropEquiv[_, _] {
+  ltr := \fun (positive: _) => (Raw.preserves x alpha).ltr ((bridge x alpha).ltr positive),
+  rtl := \fun (positive: _) => (bridge x alpha).rtl ((Raw.preserves x alpha).rtl positive)
+};
+\definition isomorphism: Isos.Isomorphism := Isos.Isomorphism { value := Raw.imageIsomorphism, preserves := orientationPreserved };
+\definition naturality: \forall (compact: topology.Topology[Carrier := X].IsCompact left.baseSpace) ->
+  Oriented.Compact[compact := compact].class before = Oriented.Compact[compact := compact].class object :=
+  \fun (compact: _) => (Oriented.Compact[compact := compact].classCriterion before object).rtl (\exact(isomorphism, Isos.Isomorphism));
+\definition homotopy: \forall (compact: topology.Topology[Carrier := X].IsCompact left.baseSpace) -> Oriented.Compact[compact := compact].Homotopic before object :=
+  \fun (compact: _) => Oriented.Compact[compact := compact].isomorphicHomotopic before object (\exact(isomorphism, Isos.Isomorphism));
+\module Changing(newFirst: First.Classifier, newSecond: Second.Classifier);
+\module ChangingSource(other: SumClassifiers.Classifier);

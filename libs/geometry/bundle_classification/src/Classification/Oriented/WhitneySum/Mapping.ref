@@ -1,0 +1,25 @@
+\import topology.Topology[Carrier := X] \as Base;
+\definition targetSame: newLeft.baseSpace = newRight.baseSpace := trans!{{Base.Topology}} _ _ _ (sym!{{Base.Topology}} _ _ leftSame) (trans!{{Base.Topology}} _ _ _ same rightSame);
+\import \root.Classification[].Oriented[].WhitneySum[X := X, F := A, G := B, left := newLeft, right := newRight, same := targetSame, k := k, l := l,
+  leftRank := newLeftRank, rightRank := newRightRank, leftOrientation := newLeftOrientation, rightOrientation := newRightOrientation] \as Target;
+\import \root.Classification[].Oriented[].For[X := X, F := A, bundle := newLeft, k := k] \as TargetFirst;
+\import \root.Classification[].Oriented[].For[X := X, F := B, bundle := newRight, k := l] \as TargetSecond;
+\import \root.Classification[].Orientations[X := X, F := TargetFirst.DeterminantFiber, bundle := TargetFirst.determinantBundle] \as FirstCones;
+\import \root.Classification[].Orientations[X := X, F := TargetSecond.DeterminantFiber, bundle := TargetSecond.determinantBundle] \as SecondCones;
+\import \root.Classification[].Determinants[X := X, F := F, G := A, source := left, target := newLeft, same := leftSame, k := k, iso := f] \as FirstDet;
+\import \root.Classification[].Determinants[X := X, F := G, G := B, source := right, target := newRight, same := rightSame, k := l, iso := g] \as SecondDet;
+\definition FirstPreserves: \Prop := \forall (x: X)(alpha: TargetFirst.DeterminantFiber x) ->
+  Logic.PropEquiv[FirstCones.Positive newLeftOrientation.positive x alpha, LeftCones.Positive leftOrientation.positive x ((FirstDet.isomorphism.forward.fiber x).apply alpha)];
+\definition SecondPreserves: \Prop := \forall (x: X)(beta: TargetSecond.DeterminantFiber x) ->
+  Logic.PropEquiv[SecondCones.Positive newRightOrientation.positive x beta, RightCones.Positive rightOrientation.positive x ((SecondDet.isomorphism.forward.fiber x).apply beta)];
+\import Operations.DirectSumIsomorphisms[X := X, F := F, G := G, A := A, B := B, first := left, second := right, newFirst := newLeft, newSecond := newRight,
+  sameSource := same, sameTarget := targetSame] \as Sums;
+\definition comparison: Bundles.Isomorphisms[X := X, F := Sum.Fiber, G := Target.Fiber, source := bundle, target := Target.bundle].Isomorphism := Sums.isomorphism f g;
+\import \root.Classification[].Determinants[X := X, F := Sum.Fiber, G := Target.Fiber, source := bundle, target := Target.bundle, same := leftSame, k := rank, iso := comparison] \as SumDet;
+\module At(x: X);
+\definition productNaturality: \forall (x: X)(alpha: TargetFirst.DeterminantFiber x)(beta: TargetSecond.DeterminantFiber x) ->
+  product x ((FirstDet.isomorphism.forward.fiber x).apply alpha) ((SecondDet.isomorphism.forward.fiber x).apply beta) =
+    (SumDet.isomorphism.forward.fiber x).apply (Target.product x alpha beta) := \fun (x: X) => At[x := x].naturality;
+\definition Preserves: \Prop := \forall (x: X)(gamma: Target.DeterminantFiber x) ->
+  Logic.PropEquiv[Target.Positive x gamma, Positive x ((SumDet.isomorphism.forward.fiber x).apply gamma)];
+\module With(first: FirstPreserves, second: SecondPreserves);
