@@ -17,6 +17,9 @@
 | `On.Symbols.Complexes` | 全ての零次数類の二項束複体による表示 |
 | `On.Symbols.EqualityCriterion` | 直和・合成・全体の同型・ホモトピーの関係から生成される同値関係と等式との同値 |
 | `On.Symbols.Stabilize` | 対角三つ組との直和による安定化 |
+| `On.Triples.Input` / `Group.Comparison` | 元の空間上の一般三つ組の関係表示、加法的な両側逆の比較 |
+| `On.Triples.Group.EqualityCriterion` | 一般三つ組の幾何学的な生成関係による等式判定 |
+| `On.FiniteComplexes` | 任意の有限長の束複体の偶奇和への還元と K 類 |
 | `OpenPart.Collapse` / `On.Open.At` | 開部分空間の外を無限遠点へ送る連続写像と零延長 |
 | `ClosedPair` | コンパクト閉対の商と補空間の一点コンパクト化との同相 |
 | `ClosedPair.At` / `Triples` | 相対群と補空間のコンパクト台付き群との比較 |
@@ -88,7 +91,8 @@ B09 の同型延長によって近傍上の同型を得て、その近傍の補�
 `Group.ToK` はコンパクト近傍への制限と零延長による加法写像である。
 逆比較では、コンパクトな局所模型の負の束に補助束を足し、境界上の枠を使って商空間へ降下させる。
 `Triples.Normalize` は、この降下束の引き戻しと元の束を、局所の安定同型と台の外の同型の貼り合わせで比較する。
-`Group.Comparison` と `Group.EqualityCriterion` の最終検査は進行中である。
+`Group.Comparison` は加法的な両側逆を、`Group.EqualityCriterion` は K 類の等式とこの幾何学的な生成同値関係との同値を与える。
+`On.Pullback.Group` はこの群の proper 引き戻しを構成し、`On.Pullback.BundleTriples.Supported.With.GroupNaturality.equation` は実際の束三つ組の引き戻しとの一致を示す。
 
 ## 一般の有限複体
 
@@ -96,6 +100,7 @@ B09 の同型延長によって近傍上の同型を得て、その近傍の補�
 基盤の `bundle_operations.Operations.Over.Models.Chains.Data` は長さに上限を置かず、`fold` が偶奇和と二つの微分を構成する。
 各束は局所自明性を保持した座標模型であり、階数は点ごとに変わってよい。
 `Models.From.existence` が任意の局所自明束と座標模型との大域同型を与える。
+全空間の位相を元の束から移送するため、束の大域的自明性は必要ない。
 
 `FiniteComplexes.Of.Supported` は、コンパクト集合の外での完全性を入力とする。
 `In[w]` はコンパクトな境界上で連続な縮約を構成し、正規化した偶奇和の同型から相対三つ組と零延長した K 類を作る。
@@ -109,9 +114,10 @@ B09 の同型延長によって近傍上の同型を得て、その近傍の補�
 族は各時刻で完全であり、端点の微分は二つの有限複体の偶奇和の微分に一致する。
 端点の偶奇和の束は、指定した大域同型で同一視する。
 `equation` はコンパクトな円柱上の縮約から端点の正規化同型のホモトピーを作り、二つの K 類の一致を証明する。
+`Homotopy.With.Constant.Supported.equation` は微分と可換な偶奇和の大域同型から定数族を作り、座標表示の変更による不変性を与える。
 
 `Of.Supported.Representatives` は有限複体の類の元の空間上の三つ組による形式表示と、生成された幾何学的関係による等式判定を接続する。
-この接続の最終検査は進行中である。
+`existence` は形式代表の存在を、`criterion` は二つの代表の生成同値関係と K 類の等式との同値を与える。
 三つの非零の項を持つ零微分複体の最小利用例は `Examples.ThreeTerm` にある。
 
 通常検査はリポジトリルートで実行する。

@@ -120,3 +120,6 @@ MIMALLOC_ARENA_RESERVE=64M REF_TYPE_GRAPH_RESIDENT_MIB=256 target/debug/cli libs
 ```
 
 固定入力の保存と検査方法は [検査とキャッシュ](../../../src/USAGE.md#検査とキャッシュ) を参照。
+
+`Relative.PointPair` はコンパクトな基点付き空間と、その基点を潰す商空間との基点付き同値を公開する。
+次数0の三つ組の比較は、この補題を Bott 周期性から独立に利用できる。
