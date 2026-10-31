@@ -1,0 +1,23 @@
+\definition sequence[k: N.Nat^]: Representatives := representatives k;
+\definition classSequence[k: N.Nat^]: ofFunction (sequence k) = s k := sym!{{\Pow Representatives}} _ _ (Q.represents (s k) (representatives k));
+\definition pointDistance[k: N.Nat^][f: Representatives]: Norm.metric.distance (s k) (ofFunction f) = distance (sequence k) f :=
+  trans!{Real.Real} _ _ _ (congr!{Space Real.Real} (\fun (x: Space) => Norm.metric.distance x (ofFunction f)) _ _ (sym!{Space} _ _ (classSequence k))) (classDistance (sequence k) f);
+\definition sequenceCauchy: Metric.Cauchy Norm.metric s -> Cauchy sequence := \fun (cauchy: _)(epsilon: Real.Real)(positive: _) => \block {
+  \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where Metric.CauchyControl Norm.metric s epsilon k }) \by cauchy epsilon positive \then
+  \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where Control[sequence, epsilon, k] }] k
+    (\fun (m, n: N.Nat^)(km: _)(kn: _) => R.ltReplaceLeft (Norm.metric.distance (s m) (s n)) (distance (sequence m) (sequence n)) epsilon
+      (trans!{Real.Real} _ _ _ (congr!{Space Real.Real} (Norm.metric.distance (s m)) _ _ (sym!{Space} _ _ (classSequence n))) (pointDistance m (sequence n)))
+      ((\bysub(N.Nat^, { k: N.Nat^ \where Metric.CauchyControl Norm.metric s epsilon k }, k)) m n km kn))
+};
+\definition complete: Metric.Cauchy Norm.metric s -> \exists ( x: Space \where Metric.Converges Norm.metric s x ) := \fun (cauchy: _) => \block {
+  \takefrom x: \Cast[Space] ({ x: Space \where Metric.Converges Norm.metric (\fun (k: N.Nat^) => ofFunction (sequence k)) x })
+    \by \root.On[A := A, mu := mu].Infinity[].Completion[].For[s := sequence, cauchy := sequenceCauchy cauchy].complete \then
+  \let converges: Metric.Converges Norm.metric (\fun (k: N.Nat^) => ofFunction (sequence k)) x := \bysub(Space,
+    { x: Space \where Metric.Converges Norm.metric (\fun (k: N.Nat^) => ofFunction (sequence k)) x }, x) \then
+  \return Logic.existsIntro[Space, { x: Space \where Metric.Converges Norm.metric s x }] x (\fun (epsilon: Real.Real)(positive: _) => \block {
+    \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where Metric.LimitControl Norm.metric (\fun (k: N.Nat^) => ofFunction (sequence k)) x epsilon k }) \by converges epsilon positive \then
+    \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where Metric.LimitControl Norm.metric s x epsilon k }] k
+      (\fun (n: N.Nat^)(later: _) => R.ltReplaceLeft _ _ _ (congr!{Space Real.Real} (\fun (y: Space) => Norm.metric.distance y x) _ _ (classSequence n))
+        ((\bysub(N.Nat^, { k: N.Nat^ \where Metric.LimitControl Norm.metric (\fun (k: N.Nat^) => ofFunction (sequence k)) x epsilon k }, k)) n later))
+  })
+};

@@ -1,7 +1,8 @@
-# 有限指数の Lp 空間
+# Lp 空間
 
 `lp_spaces.On[A, mu]` は任意の測度空間で、既存の `functional_analysis.Measure.Lp.Finite` の商を使う。
 有限指数 \(1\le p<\infty\) の実線形・ノルム構造、Hölder・Minkowski、完備性、実・複素 \(L^2\) の Hilbert 構造と可積分単関数の稠密性を提供する。
+既存の `LInfinity` 商についても essential supremum ノルムと実 Banach 空間構造を与える。
 これらに測度の有限性・σ 有限性・完備性は要求しない。
 
 | API | 内容 |
@@ -10,6 +11,8 @@
 | `Powers.Algebra` / `Powers.Convergence` | 冪の積・反復・順序・根と数列極限 |
 | `Powers.Young.inequality` | 共役な有限正指数の Young 不等式 |
 | `On.Finite[p]` | 既存商、加法・逆元・スカラー倍、代表元の標準モーメントとノルム値 |
+| `On.Infinity.Vector.space` / `Norm.structure` / `Completion.complete` | 既存 L∞ 商の実ベクトル・ノルム・Banach 構造 |
+| `On.Endpoint.inequality` / `rightInequality` | L1–L∞ と L∞–L1 の積の可積分性と Hölder の評価 |
 | `On.Finite[p].Vector.space` | 既存商の実ベクトル空間構造 |
 | `On.Norm[p].norm` / `metric` | Minkowski を含むノルム空間と誘導距離 |
 | `On.Holder[exponents]` | 共役指数の積の可積分性と Hölder の評価 |
@@ -51,7 +54,9 @@ a.e. 極限を例外零集合上で零にした可測代表を構成するため
 Euclid 上の稠密性は、任意の Lp 関数の箱による切り詰め、単関数の有限セル分解、測度の正則性、G01 の滑らかな cutoff と Lp の優収束から証明する。
 この稠密性は有限 p に限定され、L∞ については主張しない。`EuclideanExamples[n, p]` が一般の次元・指数・商の元を使う検査対象の利用例である。
 
-A05 の後続作業は、L∞ の構造と Hölder の端点、近似単位・平滑化である。
+L∞ の完備性は、列の各項と全ての差分の上界に対する可算例外集合をまとめ、その外で点ごとの Cauchy 極限を取り、可測な零集合上で零にした代表を構成して証明する。
+
+A05 の後続作業は、近似単位・平滑化である。
 
 通常検査はリポジトリのルートから実行する。
 

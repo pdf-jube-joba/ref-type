@@ -1,0 +1,31 @@
+\import \parent.Finite[p := Powers.one] \as F;
+\import \parent.Infinity[] \as G;
+\import \parent.One[] \as One;
+\import \parent.One[].Norm[] \as OneNorm;
+\import \parent.OneBridge[] \as Bridge;
+\import \parent.Products[] \as Products;
+\definition function[f: F.Representatives][g: G.Representatives]: A -> Real.Real := \fun (x: A) => Real.mul (f x) (g x);
+\module For(f: F.Representatives, g: G.Representatives, clipped: G.BoundedVersion[g]);
+\definition integrable: \forall (f: F.Representatives)(g: G.Representatives) -> I.Integrable (function f g) := \fun (f: F.Representatives)(g: G.Representatives) => \block {
+  \takefrom clipped: G.BoundedVersion[g] \by G.boundedVersion g \then
+  \return For[f := f, g := g, clipped := clipped].integrable
+};
+\definition representative[f: F.Representatives][g: G.Representatives]: I.Representatives := \into[A -> Real.Real](function f g, I.Representatives) \by { integrable f g };
+\definition absoluteIntegral[f: F.Representatives][g: G.Representatives]: Real.Real := I.integral (Absolute.representative (representative f g));
+\definition inequality: \forall (f: F.Representatives)(g: G.Representatives) -> R.Le (absoluteIntegral f g) (Real.mul (F.normRepresentative f) (G.normRepresentative g)) := \fun (f: F.Representatives)(g: G.Representatives) => \block {
+  \takefrom clipped: G.BoundedVersion[g] \by G.boundedVersion g \then
+  \let other: I.Representatives := For[f := f, g := g, clipped := clipped].actual \then
+  \let result: R.Le (I.integral (Absolute.representative other)) (Real.mul (F.normRepresentative f) (G.normRepresentative g)) := For[f := f, g := g, clipped := clipped].inequality \then
+  \let same: absoluteIntegral f g = I.integral (Absolute.representative other) := Null.integralAlmost (Absolute.representative (representative f g)) (Absolute.representative other)
+    (AE.reflexive (Absolute.abs (function f g))) \then
+  \return R.leReplaceLeft (I.integral (Absolute.representative other)) (absoluteIntegral f g) (Real.mul (F.normRepresentative f) (G.normRepresentative g)) (sym!{Real.Real} _ _ same) result
+};
+\definition rightFunction[f: G.Representatives][g: F.Representatives]: A -> Real.Real := \fun (x: A) => Real.mul (f x) (g x);
+\definition rightIntegrable[f: G.Representatives][g: F.Representatives]: I.Integrable (rightFunction f g) := \idelim function g f = rightFunction f g \with h: (A -> Real.Real) => I.Integrable h \by {
+  base: integrable g f, equality: \axiom:funext(function g f, rightFunction f g, \fun (x: A) => Laws.fieldMulComm (g x) (f x))
+};
+\definition rightRepresentative[f: G.Representatives][g: F.Representatives]: I.Representatives := \into[A -> Real.Real](rightFunction f g, I.Representatives) \by { rightIntegrable f g };
+\definition rightInequality[f: G.Representatives][g: F.Representatives]: R.Le (I.integral (Absolute.representative (rightRepresentative f g))) (Real.mul (G.normRepresentative f) (F.normRepresentative g)) :=
+  R.leReplace _ _ _ _ (sym!{Real.Real} _ _ (Null.integralAlmost (Absolute.representative (rightRepresentative f g)) (Absolute.representative (representative g f))
+    (AE.nullSubset _ topology.Topology[Carrier := A].Empty (\fun (x: A)(different: _) => different (congr!{Real.Real Real.Real} Product.abs _ _ (Laws.fieldMulComm (f x) (g x)))) AE.nullEmpty)))
+    (Laws.fieldMulComm (F.normRepresentative g) (G.normRepresentative f)) (inequality g f);

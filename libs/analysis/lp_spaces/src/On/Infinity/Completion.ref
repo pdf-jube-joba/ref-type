@@ -1,0 +1,22 @@
+\import \parent.Norm[] \as Norm;
+\import \parent.Vector[] \as Vector;
+\import functional_analysis.Normed[V := Space, space := Vector.space] \as Normed;
+\import functional_analysis.Metric[Carrier := Space] \as Metric;
+\import Real.Sequence[] \as Sequence;
+\import Sequence.Operations[] \as Operations;
+\import I.Convergence[] \as Convergence;
+\definition difference[f, g: Representatives]: Representatives := addRepresentative f (negRepresentative g);
+\definition distance[f, g: Representatives]: Real.Real := normRepresentative (difference f g);
+\definition classDistance[f, g: Representatives]: Norm.metric.distance (ofFunction f) (ofFunction g) = distance f g := eq_reason_in!{Real.Real _
+  "=" _ "by" { congr!{Space Real.Real} (\fun (y: Space) => norm (add (ofFunction f) y)) _ _ (negClass g) }
+  "=" _ "by" { congr!{Space Real.Real} norm _ _ (addClass f (negRepresentative g)) }
+  "=" _ "by" { normOfFunction (difference f g) }
+};
+\definition Control[s: N.Nat^ -> Representatives, epsilon: Real.Real, k: N.Nat^]: \Prop := \forall (m, n: N.Nat^) -> Nat.Le k m -> Nat.Le k n -> R.Lt (distance (s m) (s n)) epsilon;
+\definition Cauchy[s: N.Nat^ -> Representatives]: \Prop := \forall (epsilon: Real.Real) -> R.Lt Real.zero epsilon -> \exists ( k: N.Nat^ \where Control[s, epsilon, k] );
+\module For(s: N.Nat^ -> Representatives, cauchy: Cauchy s);
+\module Lift(s: N.Nat^ -> Space, representatives: \forall (k: N.Nat^) -> Q.Representative (s k));
+\definition complete: Normed.IsBanach Norm.structure := \fun (s: N.Nat^ -> Space)(cauchy: Metric.Cauchy Norm.metric s) => \block {
+  \takefrom representatives: \forall (k: N.Nat^) -> Q.Representative (s k) \by \axiom:classicalIndefiniteChoice(N.Nat^, (\fun (k: N.Nat^) => Q.Representative (s k)), (\fun (k: N.Nat^) => Q.classProperty (s k))) \then
+  \return Lift[s := s, representatives := representatives].complete cauchy
+};

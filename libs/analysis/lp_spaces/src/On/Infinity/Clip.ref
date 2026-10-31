@@ -1,0 +1,11 @@
+\import I.Mask[exception := exception, f := f] \as Mask;
+\definition null: M.Null mu exception := Logic.existsIntro[\Pow A, { N: \Pow A \where M.NullCover[mu, exception, N] }] exception
+  (M.NullCover[mu, exception, exception] { measurable := (Null.nullSetLaw exception).measurable, measure := (Null.nullSetLaw exception).zeroMeasure, included := \fun (x: A)(member: _) => member });
+\definition bound[x: A]: R.Le (Product.abs (Mask.value x)) (normRepresentative f) := Logic.orElim _ _ _ (Classical.excludedMiddle (Sets.Member exception x))
+  (\fun (inside: _) => R.leReplaceLeft Real.zero _ _ (sym!{Real.Real} _ _ (trans!{Real.Real} _ _ _
+    (congr!{Real.Real Real.Real} Product.abs _ _ ((Mask.laws x).left inside)) (Distance.distanceSelf Real.zero))) (normNonnegative f))
+  (\fun (outside: _) => R.leReplaceLeft _ _ _ (sym!{Real.Real} _ _ (congr!{Real.Real Real.Real} Product.abs _ _ ((Mask.laws x).right outside)))
+    (outsideBound f _ (representativeBound f) x (\fun (member: _) => outside (covered x member))));
+\definition almost: M.AlmostEqual mu Mask.value f := AE.nullSubset ({ x: A \where Logic.Not (Mask.value x = f x) }) exception
+  (\fun (x: A)(different: _) => M.Sigma[].doubleNegative (Sets.Member exception x) (\fun (outside: _) => different ((Mask.laws x).right outside))) null;
+\definition version: BoundedVersion[f] := BoundedVersion[f] { function := Mask.value, measurable := Mask.measurable (properties f).measurable, bound := bound, almost := almost };
