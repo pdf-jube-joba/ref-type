@@ -66,7 +66,8 @@ G01 の実装・計画・検査記録・`gaps.md` は main と同一で、B06 �
 追加の自然性 API と利用例を含む最終ソースは `29aeab7f1c5a0e1e57d49d8aa7c0945739739faf` で、B06 の source module は122となった。
 枠付き分類の商上の直和・安定化・引き戻しと分類 API を接続した。
 向き付き直和・安定化については、元の直和束に与えた向きの輸送と分類との可換性を追加した。
-この比較は因子の向きから標準の積向きを生成する行列式テンソル積同型を含まない。
+当該コミットの比較は因子の向きから標準の積向きを生成する構成を含まない。
+その後の標準の積向きの実装と検査は次節に記録する。
 正確な API と入力は package README に記載する。
 
 release build、追加 API の参照検査、対象 package と通常全体検査はいずれも終了コード0で成功した。
@@ -89,3 +90,47 @@ release build、追加 API の参照検査、対象 package と通常全体検�
 
 - 対象 package: `work/b06-package/20261031T030049.831651Z/report.json`
 - 通常全体: `work/b06-whole/20261031T030201.849003Z/report.json`
+
+## 標準の向き付き直和と安定化の完成後の検査
+
+有限次元の行列式積の証明を `ac4e480684aff0a8118323ab2646d9d9fb634ece` に、標準の積向きと自然性・連続性・利用例を `bdc5c32d9639d5764aa286b8f1fdfebf96d83425` に実装した。
+後者が今回の最終検査ソースで、B06 は171 source module となった。
+機械可読の最終集計は [standard.json](standard.json) に保持する。
+以前の `integration.json` の未実装表示は旧検査コミット `29aeab7f1c5a0e1e57d49d8aa7c0945739739faf` に対する履歴である。
+
+`Classification.DeterminantProduct` は左右に分離した引数上の評価で特徴付けた最高次形式の存在・一意性を証明し、基底の選択に依存しない双線形な行列式積を構成する。
+`Laws` は非零性、`Mapping.naturality` は線形写像との整合性、`Blocks.blockDeterminant` はブロック対角写像の行列式の積公式を与える。
+`Oriented.WhitneySum.orientation` は因子の向きと階数から直和の標準の向きを構成する。
+`Open.open` と `Pairing.continuous` は局所自明化での係数の積から開性と行列式束の積の連続性を証明する。
+`Mapping.With.preserves`、`Pullback.naturality` は向きを保つ因子同型と底空間写像への自然性を、`Classifying.WithSum.naturality` / `homotopy` と二つの `Changing` API は分類・選択独立性を公開する。
+`Oriented.Trivial.orientation` と `Oriented.StandardStabilization` は標準の向き付き自明束の付加を扱う。
+直和束全体の向きを前提とせず、階数0も含む。
+利用例は `Classification.Examples.Trivial.Naturality.Oriented` にある。
+
+release build と、最終ソースに対する通常対象・全体検査はいずれも終了コード0で成功した。
+初期・最大仮想メモリとキャッシュ予算は12288 MiB、空き容量目安は256 MiBで、同じ state directory の検証済みキャッシュを再利用した。
+
+```sh
+source /workspace/ref-type-env.sh && cargo build -p cli --release --locked
+python3 scripts/check_all.py libs/geometry/bundle_classification --state-dir work/b06-package --initial-memory-mib 12288 --memory-mib 12288 --cache-budget-mib 12288 --min-free-mib 256
+python3 scripts/check_all.py --state-dir work/b06-whole --initial-memory-mib 12288 --memory-mib 12288 --cache-budget-mib 12288 --min-free-mib 256
+```
+
+| 最終ソースの実行 | 対象数 | 新規検査 | 再利用 | 保存失敗 | 破損読み込み | 秒 |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 対象 package と依存 | 5088 | 173 | 4915 | 0 | 0 | 71.039 |
+| G01・B06 を含む通常全体 | 10404 | 0 | 10404 | 0 | 0 | 170.443 |
+
+全 CLI attempt は終了コード0で、worker 復旧・checkpoint 再開は両実行とも0だった。
+対象 package の最大 RSS は2125892 KiB、最大仮想メモリは2383828 KiB、通常全体はそれぞれ1241112 KiB、2118012 KiBだった。
+新規 API の参照検査と通常対象検査で検証された結果が、最終全体検査で健全に再利用された。
+キャッシュの削除や型検査の迂回は行っていない。
+対象入力4326ファイルと全体入力9217ファイルを最終ソースコミットの Git blob と照合し、差異0を確認した。
+両実行は終了時の source・対象一覧・処理系の一致検査を通過した。
+処理系 SHA-256 は初回検査と同一、通常全体の source SHA-256 は `83e29833c2bcff8fb754d099c3e72452aee538c20351ad4ac9620ce5ebcc677d` である。
+G01 の実装・計画・検査文書と `gaps.md` は統合 main と同一で、既存数学ライブラリ・Rust 処理系・検査 driver の変更はない。
+検査後の記録コミットは本 README と `standard.json` のみを更新し、検査済みソースを変えない。
+
+- 対象 package: `work/b06-package/20261031T040244.053085Z/report.json`
+- 通常全体: `work/b06-whole/20261031T040532.284730Z/report.json`
+- Git blob 照合: `work/b06-standard-source-commit-match.json`
