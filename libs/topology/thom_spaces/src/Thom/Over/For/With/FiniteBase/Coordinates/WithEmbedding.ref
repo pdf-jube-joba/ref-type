@@ -1,0 +1,43 @@
+\definition n: N.Nat^ := embedding.dimension;
+\definition d: N.Nat^ := coordinateSystem.dimension n;
+\import algebraic_topology.Euclidean[].Dimension[n := d] \as Euclidean;
+\import Bundles.Trivial[X := X, n := n, baseSpace := bundle.baseSpace] \as Trivial;
+\import Bundles.Family[X := X, F := (\fun (x: X) => Bundles.Vector n)] \as TargetFamily;
+\import Bundles.Morphisms[X := X, Y := X, F := F, G := (\fun (x: X) => Bundles.Vector n), source := bundle, target := Trivial.bundle, f := (\fun (x: X) => x)] \as Embedding;
+\definition vectors[p: Family.Point]: Bundles.Vector n := (embedding.map.fiber p.base).apply p.vector;
+\definition vectorContinuous: topology.Continuity[A := Family.Point, B := Bundles.Vector n].Continuous bundle.totalSpace (Bundles.coordinateTopology n) vectors :=
+  topology.Composition[A := Family.Point, B := TargetFamily.Point, C := Bundles.Vector n].composeContinuous bundle.totalSpace Trivial.topology (Bundles.coordinateTopology n) (Embedding.total embedding.map) (\fun (p: TargetFamily.Point) => p.vector)
+    (Embedding.continuous embedding.map) Trivial.vectorContinuous;
+\definition coordinate[p: Family.Point]: Euclidean.Coordinate := (coordinateSystem.frame n).forward.apply (vectors p);
+\definition coordinateContinuous: topology.Continuity[A := Family.Point, B := Euclidean.Coordinate].Continuous bundle.totalSpace Euclidean.topology coordinate :=
+  topology.Composition[A := Family.Point, B := Bundles.Vector n, C := Euclidean.Coordinate].composeContinuous bundle.totalSpace (Bundles.coordinateTopology n) Euclidean.topology vectors (coordinateSystem.frame n).forward.apply vectorContinuous (coordinateSystem.forwardContinuous n);
+\import topological_constructions.Product[A := X, B := Euclidean.Coordinate] \as Product;
+\definition target: topology.Topology[Carrier := Product.CarrierSet].Topology := Product.topology bundle.baseSpace Euclidean.topology;
+\definition apply[p: Family.Point]: Product.CarrierSet := Pair.pair X Euclidean.Coordinate p.base (coordinate p);
+\definition continuous: topology.Continuity[A := Family.Point, B := Product.CarrierSet].Continuous bundle.totalSpace target apply :=
+  Product.Universal[X := Family.Point].pairContinuous bundle.totalSpace bundle.baseSpace Euclidean.topology Family.projection coordinate Family.Of[bundle := bundle].projectionContinuous coordinateContinuous;
+\import linear_algebra.Commutative[K := R.Real, scalarRing := Fields.fieldAsCommutativeRing R.Real R.Algebra[].field] \as Real;
+\import vector_bundles.Bundles[].Over[K := R.Real, field := R.Algebra[].field, conjugation := linear_algebra.Hermitian[].Real[].scalar, scalar := vector_bundles.Bundles[].Real[].scalar] \as RealBundles;
+\definition frameLaws: Real.Isomorphism[V := Bundles.Vector n, W := Euclidean.Coordinate, source := Operations.RealScalars[V := Bundles.Vector n, space := Bundles.coordinates n].realSpace, target := RealBundles.coordinates d].Laws[coordinateSystem.frame n] :=
+  Real.Isomorphism[V := Bundles.Vector n, W := Euclidean.Coordinate, source := Operations.RealScalars[V := Bundles.Vector n, space := Bundles.coordinates n].realSpace, target := RealBundles.coordinates d].laws (coordinateSystem.frame n);
+\definition frameInjective: \forall (v, w: Bundles.Vector n) -> (coordinateSystem.frame n).forward.apply v = (coordinateSystem.frame n).forward.apply w -> v = w := \fun (v, w: Bundles.Vector n)(same: _) => eq_reason_in!{{Bundles.Vector n} v
+  "=" _ "by" { sym!{{Bundles.Vector n}} _ _ (frameLaws.leftInverse v) }
+  "=" _ "by" { congr!{Euclidean.Coordinate {Bundles.Vector n}} (coordinateSystem.frame n).backward.apply _ _ same }
+  "=" _ "by" { frameLaws.leftInverse w }
+};
+\definition fiberInjective: \forall (x: X)(v, w: F x) -> coordinate (Family.include x v) = coordinate (Family.include x w) -> Family.include x v = Family.include x w :=
+  \fun (x: X)(v, w: F x)(same: _) => congr!{{F x} Family.Point} (Family.include x) v w (embedding.injective x v w (frameInjective ((embedding.map.fiber x).apply v) ((embedding.map.fiber x).apply w) same));
+\definition injective: \forall (p, q: Family.Point) -> apply p = apply q -> p = q :=
+  \induction (p: Family.Point) \return \forall (q: Family.Point) -> apply p = apply q -> p = q \with {
+    | # : \fun (x: X)(v: F x) => \induction (q: Family.Point) \return apply (Family.include x v) = apply q -> Family.include x v = q \with {
+      | # : \fun (y: X)(w: F y)(same: apply (Family.include x v) = apply (Family.include y w)) => \block {
+        \let base: x = y := congr!{Product.CarrierSet X} (Pair.first X Euclidean.Coordinate) (apply (Family.include x v)) (apply (Family.include y w)) same \then
+        \return (\idelim x = y \with z: X => \forall (w: F z) -> apply (Family.include x v) = apply (Family.include z w) -> Family.include x v = Family.include z w \by {
+          base: \fun (w: F x)(same: apply (Family.include x v) = apply (Family.include x w)) => fiberInjective x v w (congr!{Product.CarrierSet Euclidean.Coordinate} (Pair.second X Euclidean.Coordinate) _ _ same), equality: base
+        }) w same
+      }
+    }
+  };
+\definition hausdorff: topology.Topology[Carrier := Family.Point].IsT2 bundle.totalSpace :=
+  \root.Thom[].CWType[].InjectionHausdorff[A := Family.Point, B := Product.CarrierSet, source := bundle.totalSpace, target := target, f := apply, continuous := continuous, injective := injective,
+    hausdorff := \root.Thom[].CWType[].ProductHausdorff[A := X, B := Euclidean.Coordinate, left := bundle.baseSpace, right := Euclidean.topology, first := baseHausdorff, second := Euclidean.Compactness[].hausdorff].hausdorff].law;

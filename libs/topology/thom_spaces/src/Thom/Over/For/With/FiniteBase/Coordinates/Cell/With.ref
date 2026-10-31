@@ -1,0 +1,70 @@
+\definition n: N.Nat^ := trivialization.dimension;
+\definition d: N.Nat^ := coordinateSystem.dimension n;
+\import algebraic_topology.Euclidean[].Dimension[n := d] \as Euclidean;
+\import Bundles.Trivial[X := BaseDisk.Disk, n := n, baseSpace := BaseDisk.diskTopology] \as Trivial;
+\import Bundles.Family[X := BaseDisk.Disk, F := (\fun (x: BaseDisk.Disk) => Bundles.Vector n)] \as TrivialFamily;
+\import Bundles.Isomorphisms[X := BaseDisk.Disk, F := (\fun (x: BaseDisk.Disk) => F (cell.characteristic x)), G := (\fun (x: BaseDisk.Disk) => Bundles.Vector n), source := OriginalCell.pullback, target := Trivial.bundle] \as Isomorphisms;
+\definition isomorphism: Isomorphisms.Isomorphism := trivialization.isomorphism;
+\definition trivialHomeomorphism: topology.Homeomorphism[A := PulledFamily.Point, B := TrivialFamily.Point].Homeomorphism[Pullback.topology, Trivial.topology] := Isomorphisms.homeomorphism isomorphism;
+\import \root.Thom[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].TrivialModel[X := BaseDisk.Disk, n := n, d := d, baseSpace := BaseDisk.diskTopology,
+  frame := coordinateSystem.frame n, forwardRegular := coordinateSystem.forwardContinuous n, backwardRegular := coordinateSystem.backwardContinuous n] \as Coordinates;
+\import vector_bundles.Bundles[].Over[K := R.Real, field := R.Algebra[].field, conjugation := linear_algebra.Hermitian[].Real[].scalar, scalar := vector_bundles.Bundles[].Real[].scalar] \as RealBundles;
+\import RealBundles.Trivial[X := BaseDisk.Disk, n := d, baseSpace := BaseDisk.diskTopology] \as RealBundle;
+\import RealBundles.Family[X := BaseDisk.Disk, F := (\fun (x: BaseDisk.Disk) => Euclidean.Coordinate)] \as RealFamily;
+\import topological_constructions.Product[A := BaseDisk.Disk, B := Euclidean.Coordinate] \as Product;
+\definition toTrivial: topology.Homeomorphism[A := RealFamily.Point, B := TrivialFamily.Point].Homeomorphism[RealBundle.topology, Trivial.topology] :=
+  topology.Homeomorphism[A := RealFamily.Point, B := Product.CarrierSet].Composition[C := TrivialFamily.Point].compose RealBundle.topology (Product.topology BaseDisk.diskTopology Euclidean.topology) Trivial.topology RealBundle.homeomorphism
+    (topology.Homeomorphism[A := TrivialFamily.Point, B := Product.CarrierSet].Inverse[].inverse Trivial.topology (Product.topology BaseDisk.diskTopology Euclidean.topology) Coordinates.homeomorphism);
+\definition homeomorphism: topology.Homeomorphism[A := RealFamily.Point, B := PulledFamily.Point].Homeomorphism[RealBundle.topology, Pullback.topology] :=
+  topology.Homeomorphism[A := RealFamily.Point, B := TrivialFamily.Point].Composition[C := PulledFamily.Point].compose RealBundle.topology Trivial.topology Pullback.topology toTrivial
+    (topology.Homeomorphism[A := PulledFamily.Point, B := TrivialFamily.Point].Inverse[].inverse Pullback.topology Trivial.topology trivialHomeomorphism);
+\import \root.Thom[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].SphereCoordinates[X := BaseDisk.Disk, F := (\fun (x: BaseDisk.Disk) => F (cell.characteristic x)), bundle := OriginalCell.pullback, d := d] \as SphereCoordinates;
+\definition overBase: \forall (p: RealFamily.Point) -> (homeomorphism.forward p).base = p.base := \fun (p: RealFamily.Point) => \refl(p.base);
+\definition zero: \forall (x: BaseDisk.Disk) -> homeomorphism.forward (SphereCoordinates.sourceZero x) = SphereCoordinates.targetZero x := \fun (x: BaseDisk.Disk) =>
+  congr!{{F (cell.characteristic x)} PulledFamily.Point} (PulledFamily.include x) _ _
+    (trans!{{F (cell.characteristic x)}} _ _ _
+      (congr!{{Bundles.Vector n} {F (cell.characteristic x)}} (isomorphism.backward.fiber x).apply _ _ (coordinateSystem.frame n).backward.preservesZero)
+      (isomorphism.backward.fiber x).preservesZero);
+\definition scale: \forall (a: R.Real)(p: RealFamily.Point) -> homeomorphism.forward (SphereCoordinates.sourceScale a p) = SphereCoordinates.targetScale a (homeomorphism.forward p) := \fun (a: R.Real)(p: RealFamily.Point) =>
+  congr!{{F (cell.characteristic p.base)} PulledFamily.Point} (PulledFamily.include p.base) _ _
+    (trans!{{F (cell.characteristic p.base)}} _ _ _
+      (congr!{{Bundles.Vector n} {F (cell.characteristic p.base)}} (isomorphism.backward.fiber p.base).apply _ _ ((coordinateSystem.frame n).backward.preservesScale a p.vector))
+      ((isomorphism.backward.fiber p.base).preservesScale (conjugation.embed a) ((coordinateSystem.frame n).backward.apply p.vector)));
+\import \root.Thom[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].For[X := BaseDisk.Disk, F := (\fun (x: BaseDisk.Disk) => F (cell.characteristic x)), bundle := OriginalCell.pullback] \as PullTheory;
+\import \root.Thom[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].For[X := X, F := F, bundle := bundle].MetricGauge[metric := metric] \as Actual;
+\definition gauge: PullTheory.GaugeData := PullTheory.GaugeData {
+  squared := \fun (p: PulledFamily.Point) => squared (Pullback.map p),
+  continuous := topology.Composition[A := PulledFamily.Point, B := Family.Point, C := R.Real].composeContinuous Pullback.topology bundle.totalSpace metric_spaces.RealLine[].topology Pullback.map squared Pullback.mapContinuous squaredContinuous,
+  nonnegative := \fun (p: PulledFamily.Point) => Actual.data.nonnegative (Pullback.map p),
+  zero := \fun (x: BaseDisk.Disk) => Actual.data.zero (cell.characteristic x),
+  definite := \fun (p: PulledFamily.Point) => Actual.data.definite (Pullback.map p),
+  homogeneous := \fun (a: R.Real)(p: PulledFamily.Point) => squaredScale a (Pullback.map p)
+};
+\import \root.Thom[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].SphereCoordinates[X := BaseDisk.Disk, F := (\fun (x: BaseDisk.Disk) => F (cell.characteristic x)), bundle := OriginalCell.pullback, d := d].With[
+  data := gauge, h := homeomorphism, overBase := overBase, zero := zero, scale := scale] \as Normalized;
+\import topological_constructions.Product[A := BaseDisk.Disk, B := Euclidean.Sphere] \as SphereProduct;
+\definition source: topology.Topology[Carrier := SphereProduct.CarrierSet].Topology := SphereProduct.topology BaseDisk.diskTopology Euclidean.sphereTopology;
+\definition chart[p: SphereProduct.CarrierSet]: SphereBundle := \into[Family.Point](Pullback.map (Normalized.homeomorphism.forward p), UnitSphere) \by {
+  \bysub(PulledFamily.Point, Normalized.UnitSubset, Normalized.homeomorphism.forward p)
+};
+\definition normalizedLaws: topology.Homeomorphism[A := SphereProduct.CarrierSet, B := Normalized.UnitCarrier].Laws[source, Normalized.unitTopology, Normalized.homeomorphism] :=
+  topology.Homeomorphism[A := SphereProduct.CarrierSet, B := Normalized.UnitCarrier].laws source Normalized.unitTopology Normalized.homeomorphism;
+\definition chartContinuous: topology.Continuity[A := SphereProduct.CarrierSet, B := SphereBundle].Continuous source sphereTopology chart :=
+  topology.Continuity[A := SphereProduct.CarrierSet, B := Family.Point].Corestriction[S := UnitSphere].corestrictContinuous source bundle.totalSpace chart
+    (topology.Composition[A := SphereProduct.CarrierSet, B := PulledFamily.Point, C := Family.Point].composeContinuous source Pullback.topology bundle.totalSpace (\fun (p: SphereProduct.CarrierSet) => Normalized.homeomorphism.forward p) Pullback.map
+      (topology.Composition[A := SphereProduct.CarrierSet, B := Normalized.UnitCarrier, C := PulledFamily.Point].composeContinuous source Normalized.unitTopology Pullback.topology Normalized.homeomorphism.forward (\fun (p: Normalized.UnitCarrier) => p) normalizedLaws.forwardContinuous
+        (topology.Continuity[A := Normalized.UnitCarrier, B := PulledFamily.Point].Corestriction[S := Normalized.UnitSubset].inclusionContinuous Pullback.topology)) Pullback.mapContinuous);
+\definition chartBase: \forall (p: SphereProduct.CarrierSet) -> (chart p).base = cell.characteristic (Pair.first BaseDisk.Disk Euclidean.Sphere p) := \fun (p: SphereProduct.CarrierSet) => congr!{BaseDisk.Disk X} cell.characteristic _ _ (Normalized.forwardBase p);
+\definition chartInjective: \forall (p, q: SphereProduct.CarrierSet) -> Pair.first BaseDisk.Disk Euclidean.Sphere p = Pair.first BaseDisk.Disk Euclidean.Sphere q -> chart p = chart q -> p = q := \fun (p, q: SphereProduct.CarrierSet)(base: _)(same: _) => \block {
+  \let equalBase: (Normalized.homeomorphism.forward p).base = (Normalized.homeomorphism.forward q).base := trans!{BaseDisk.Disk} _ _ _ (Normalized.forwardBase p) (trans!{BaseDisk.Disk} _ _ _ base (sym!{BaseDisk.Disk} _ _ (Normalized.forwardBase q))) \then
+  \let equal: Normalized.homeomorphism.forward p = Normalized.homeomorphism.forward q := Pullback.jointInjective (Normalized.homeomorphism.forward p) (Normalized.homeomorphism.forward q) equalBase same \then
+  \return eq_reason_in!{SphereProduct.CarrierSet p
+    "=" _ "by" { sym!{SphereProduct.CarrierSet} _ _ (normalizedLaws.leftInverse p) }
+    "=" _ "by" { congr!{Normalized.UnitCarrier SphereProduct.CarrierSet} Normalized.homeomorphism.backward (Normalized.homeomorphism.forward p) (Normalized.homeomorphism.forward q) equal }
+    "=" _ "by" { normalizedLaws.leftInverse q }
+  }
+};
+\module Cover(x: BaseDisk.Disk, p: SphereBundle, same: p.base = cell.characteristic x);
+\definition chartCovers: \forall (x: BaseDisk.Disk)(p: SphereBundle) -> p.base = cell.characteristic x -> \exists (u: Euclidean.Sphere \where chart (Pair.pair BaseDisk.Disk Euclidean.Sphere x u) = p) :=
+  \fun (x: BaseDisk.Disk)(p: SphereBundle)(same: _) => Cover[x := x, p := p, same := same].exists;
+\definition result: Result := Result { dimension := d, chart := Chart[d] { map := chart, continuous := chartContinuous, base := chartBase, injective := chartInjective, covers := chartCovers } };

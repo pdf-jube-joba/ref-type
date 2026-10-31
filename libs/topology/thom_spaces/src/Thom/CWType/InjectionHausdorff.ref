@@ -1,0 +1,20 @@
+\import topology.Topology[Carrier := A] \as Source;
+\import topology.Topology[Carrier := B] \as Target;
+\import topology.Maps[A := A, B := B] \as Maps;
+\definition law: Source.IsT2 source := \block {
+  \fun (x, y: A)(different: Logic.Not (x = y)) \then
+  \takefrom U: \Cast[\Pow B] ({ U: \Pow B \where Target.RegularChoice[target, Target.Singleton (f y), f x, U] }) \by hausdorff (f x) (f y) (\fun (same: f x = f y) => different (injective x y same)) \then
+  \let first: Target.RegularChoice[target, Target.Singleton (f y), f x, U] := \bysub(\Pow B, { U: \Pow B \where Target.RegularChoice[target, Target.Singleton (f y), f x, U] }, U) \then
+  \takefrom V: \Cast[\Pow B] ({ V: \Pow B \where Target.NormalPartner[target, Target.Singleton (f y), U, V] }) \by first.partner \then
+  \let second: Target.NormalPartner[target, Target.Singleton (f y), U, V] := \bysub(\Pow B, { V: \Pow B \where Target.NormalPartner[target, Target.Singleton (f y), U, V] }, V) \then
+  \return Logic.existsIntro[\Pow A, { W: \Pow A \where Source.RegularChoice[source, Source.Singleton y, x, W] }] (Maps.Preimage f U)
+    (Source.RegularChoice[source, Source.Singleton y, x, Maps.Preimage f U] {
+      open := continuous U first.open, contains := first.contains,
+      partner := Logic.existsIntro[\Pow A, { W: \Pow A \where Source.NormalPartner[source, Source.Singleton y, Maps.Preimage f U, W] }] (Maps.Preimage f V)
+        (Source.NormalPartner[source, Source.Singleton y, Maps.Preimage f U, Maps.Preimage f V] {
+          open := continuous V second.open,
+          covers := \fun (z: A)(same: z = y) => second.covers (f z) (congr!{A B} f z y same),
+          disjoint := \fun (z: A) => second.disjoint (f z)
+        })
+    })
+};

@@ -1,0 +1,47 @@
+\import real.Analysis[] \as R;
+\import algebraic_topology.Euclidean[].Dimension[n := n] \as Euclidean;
+\import vector_bundles.Bundles[].Over[K := R.Real, field := R.Algebra[].field, conjugation := linear_algebra.Hermitian[].Real[].scalar, scalar := vector_bundles.Bundles[].Real[].scalar] \as Bundles;
+\import Bundles.Trivial[X := X, n := n, baseSpace := source] \as Bundle;
+\import Bundles.Family[X := X, F := (\fun (x: X) => Euclidean.Coordinate)] \as Family;
+\import \root.Thom[].Quadratic[].Over[X := X, F := (\fun (x: X) => Euclidean.Coordinate), bundle := Bundle.bundle] \as Quadratic;
+\definition standard: Quadratic.Gauge := Quadratic.Gauge {
+  squared := \fun (p: Family.Point) => Euclidean.normSquared p.vector,
+  continuous := topology.Composition[A := Family.Point, B := Euclidean.Coordinate, C := R.Real].composeContinuous Bundle.topology Euclidean.topology metric_spaces.RealLine[].topology (\fun (p: Family.Point) => p.vector) Euclidean.normSquared Bundle.vectorContinuous Euclidean.Geometry[].normSquaredContinuous,
+  nonnegative := \fun (p: Family.Point) => Euclidean.Geometry[].normSquaredNonnegative p.vector,
+  zero := \fun (x: X) => Euclidean.Contraction[].zeroSum (Fin.elements n),
+  definite := \fun (p: Family.Point)(zero: _) => Euclidean.Geometry[].normSquaredZero p.vector zero,
+  homogeneous := \fun (a: R.Real)(p: Family.Point) => Euclidean.Contraction[].normScale a p.vector
+};
+\definition UnitSubset: \Pow Family.Point := { p: Family.Point \where Euclidean.normSquared p.vector = R.one };
+\import topology.Topology[Carrier := Family.Point].Subspace[S := UnitSubset] \as UnitSubspace;
+\definition UnitCarrier: \Set := UnitSubspace.CarrierSet;
+\definition unitTopology: topology.Topology[Carrier := UnitCarrier].Topology := UnitSubspace.topology Bundle.topology;
+\import topological_constructions.Product[A := X, B := Euclidean.Sphere] \as Product;
+\import topological_constructions.Product[A := X, B := Euclidean.Coordinate] \as Ambient;
+\definition Carrier: \Set := Product.CarrierSet;
+\definition topology: topology.Topology[Carrier := Carrier].Topology := Product.topology source Euclidean.sphereTopology;
+\definition forward[p: Carrier]: UnitCarrier := \into[Family.Point](Family.include (Pair.first X Euclidean.Sphere p) (Pair.second X Euclidean.Sphere p), UnitSubset) \by {
+  \bysub(Euclidean.Coordinate, Euclidean.Boundary, Pair.second X Euclidean.Sphere p)
+};
+\definition vector[p: UnitCarrier]: Euclidean.Sphere := \into[Euclidean.Coordinate](p.vector, Euclidean.Boundary) \by { \bysub(Family.Point, UnitSubset, p) };
+\definition backward[p: UnitCarrier]: Carrier := Pair.pair X Euclidean.Sphere p.base (vector p);
+\definition ambient[p: Carrier]: Ambient.CarrierSet := Pair.pair X Euclidean.Coordinate (Pair.first X Euclidean.Sphere p) (Pair.second X Euclidean.Sphere p);
+\definition ambientContinuous: topology.Continuity[A := Carrier, B := Ambient.CarrierSet].Continuous topology (Ambient.topology source Euclidean.topology) ambient :=
+  Ambient.Universal[X := Carrier].pairContinuous topology source Euclidean.topology (Pair.first X Euclidean.Sphere) (\fun (p: Carrier) => Pair.second X Euclidean.Sphere p)
+    (Product.Maps[].firstContinuous source Euclidean.sphereTopology)
+    (topology.Composition[A := Carrier, B := Euclidean.Sphere, C := Euclidean.Coordinate].composeContinuous topology Euclidean.sphereTopology Euclidean.topology (Pair.second X Euclidean.Sphere) (\fun (v: Euclidean.Sphere) => v)
+      (Product.Maps[].secondContinuous source Euclidean.sphereTopology) (topology.Continuity[A := Euclidean.Sphere, B := Euclidean.Coordinate].Corestriction[S := Euclidean.Boundary].inclusionContinuous Euclidean.topology));
+\definition forwardContinuous: topology.Continuity[A := Carrier, B := UnitCarrier].Continuous topology unitTopology forward :=
+  topology.Continuity[A := Carrier, B := Family.Point].Corestriction[S := UnitSubset].corestrictContinuous topology Bundle.topology forward
+    (topology.Composition[A := Carrier, B := Ambient.CarrierSet, C := Family.Point].composeContinuous topology (Ambient.topology source Euclidean.topology) Bundle.topology ambient Bundle.backward ambientContinuous Bundle.backwardContinuous);
+\definition vectorContinuous: topology.Continuity[A := UnitCarrier, B := Euclidean.Sphere].Continuous unitTopology Euclidean.sphereTopology vector :=
+  topology.Continuity[A := UnitCarrier, B := Euclidean.Coordinate].Corestriction[S := Euclidean.Boundary].corestrictContinuous unitTopology Euclidean.topology vector
+    (topology.Continuity[A := Family.Point, B := Euclidean.Coordinate].Restriction[S := UnitSubset].restrictContinuous Bundle.topology Euclidean.topology (\fun (p: Family.Point) => p.vector) Bundle.vectorContinuous);
+\definition backwardContinuous: topology.Continuity[A := UnitCarrier, B := Carrier].Continuous unitTopology topology backward :=
+  Product.Universal[X := UnitCarrier].pairContinuous unitTopology source Euclidean.sphereTopology (\fun (p: UnitCarrier) => p.base) vector
+    (topology.Continuity[A := Family.Point, B := X].Restriction[S := UnitSubset].restrictContinuous Bundle.topology source Family.projection Bundle.projectionContinuous) vectorContinuous;
+\definition homeomorphism: topology.Homeomorphism[A := Carrier, B := UnitCarrier].Homeomorphism[topology, unitTopology] := topology.Homeomorphism[A := Carrier, B := UnitCarrier].Homeomorphism[topology, unitTopology] {
+  forward := forward, backward := backward, forwardContinuous := forwardContinuous, backwardContinuous := backwardContinuous,
+  leftInverse := Pair.Prop[A := X, B := Euclidean.Sphere].eta,
+  rightInverse := \fun (p: UnitCarrier) => Family.eta p
+};

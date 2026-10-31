@@ -27,6 +27,26 @@
   \fun (x: Disk.CarrierSet)(member: _) => trans!{R.Real} _ _ _ (forwardSquared x) member;
 \definition reversePreserves: \forall (y: TargetDisk.CarrierSet) -> \In[TargetDisk.CarrierSet] TargetBoundary y -> \In[Disk.CarrierSet] Boundary (backward y) :=
   \fun (y: TargetDisk.CarrierSet)(member: _) => trans!{R.Real} _ _ _ (backwardSquared y) member;
+\definition UnitSubset: \Pow A := { x: A \where q x = R.one };
+\definition TargetUnitSubset: \Pow B := { y: B \where r y = R.one };
+\import topology.Topology[Carrier := A].Subspace[S := UnitSubset] \as UnitSphere;
+\import topology.Topology[Carrier := B].Subspace[S := TargetUnitSubset] \as TargetSphere;
+\definition sphereForward[x: UnitSphere.CarrierSet]: TargetSphere.CarrierSet := \into[B](h.forward x, TargetUnitSubset) \by {
+  trans!{R.Real} _ _ _ (forwardSquared x) (\bysub(A, UnitSubset, x))
+};
+\definition sphereBackward[y: TargetSphere.CarrierSet]: UnitSphere.CarrierSet := \into[A](h.backward y, UnitSubset) \by {
+  trans!{R.Real} _ _ _ (backwardSquared y) (\bysub(B, TargetUnitSubset, y))
+};
+\definition sphereHomeomorphism: topology.Homeomorphism[A := UnitSphere.CarrierSet, B := TargetSphere.CarrierSet].Homeomorphism[UnitSphere.topology source, TargetSphere.topology target] :=
+  topology.Homeomorphism[A := UnitSphere.CarrierSet, B := TargetSphere.CarrierSet].Homeomorphism[UnitSphere.topology source, TargetSphere.topology target] {
+    forward := sphereForward, backward := sphereBackward,
+    leftInverse := \fun (x: UnitSphere.CarrierSet) => (Homeo.laws source target h).leftInverse x,
+    rightInverse := \fun (y: TargetSphere.CarrierSet) => (Homeo.laws source target h).rightInverse y,
+    forwardContinuous := topology.Continuity[A := UnitSphere.CarrierSet, B := B].Corestriction[S := TargetUnitSubset].corestrictContinuous (UnitSphere.topology source) target sphereForward
+      (topology.Continuity[A := A, B := B].Restriction[S := UnitSubset].restrictContinuous source target h.forward (Homeo.laws source target h).forwardContinuous),
+    backwardContinuous := topology.Continuity[A := TargetSphere.CarrierSet, B := A].Corestriction[S := UnitSubset].corestrictContinuous (TargetSphere.topology target) source sphereBackward
+      (topology.Continuity[A := B, B := A].Restriction[S := TargetUnitSubset].restrictContinuous target source h.backward (Homeo.laws source target h).backwardContinuous)
+  };
 \import \root.Thom[].CollapseComparison[A := Disk.CarrierSet, B := TargetDisk.CarrierSet, source := Disk.topology source, target := TargetDisk.topology target,
   subset := Boundary, targetSubset := TargetBoundary, h := diskHomeomorphism, forwardPreserves := preserves, backwardPreserves := reversePreserves] \as QuotientComparison;
 \definition thomHomeomorphism: topology.Homeomorphism[A := \root.Thom[].Collapse[A := Disk.CarrierSet, source := Disk.topology source, subset := Boundary].Carrier,
