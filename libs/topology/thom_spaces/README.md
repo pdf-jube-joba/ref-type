@@ -75,4 +75,4 @@ Thom 商の同相、球面境界の cofibration、実次元1・2の円板 suspen
 一般の有限 CW ホモトピー貼り合わせと必要な cellular approximation の API は、現行の依存パッケージには見つかっていない。
 これは C02 の未実装範囲であり、処理系や体系による不可能性を主張するものではない。
 
-検証記録は [C02 の記録](../../../benchmarks/records/c02-thom-spaces/README.md) を参照する。
+継続実装の検証は [C02 の最新記録](../../../benchmarks/records/c02-thom-spaces/continuation/README.md)、初回のソースに対する検証は [初回記録](../../../benchmarks/records/c02-thom-spaces/README.md) を参照する。
