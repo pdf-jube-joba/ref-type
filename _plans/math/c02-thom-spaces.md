@@ -26,3 +26,5 @@
 ランク0と空の基底を含む実・複素の例を検査する。
 
 最終ソースと検査結果は [完了時の検証記録](../../benchmarks/records/c02-thom-spaces/completed/README.md) に保存する。
+
+G03 を含む main との統合後の最終検査は [統合検査記録](../../benchmarks/records/c02-thom-spaces/integration-g03/README.md) に保存する。
