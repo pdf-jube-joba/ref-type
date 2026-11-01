@@ -1,0 +1,72 @@
+\import calculus.Maps[n := n, m := n] \as Maps;
+\import \parent.At[x := x, left := left, right := middle, inLeft := inLeft] \as First;
+\import \parent.At[x := x, left := middle, right := right, inLeft := inMiddle] \as Second;
+\import \parent.At[x := x, left := left, right := right, inLeft := inLeft] \as Direct;
+\import First.Using[extension := first] \as F;
+\import Second.Using[extension := second] \as G;
+\import Maps.Preimage[U := first.neighborhood, W := Open.whole, V := second.neighborhood, f := first.map] \as Preimage;
+\definition domain: Open.OpenSet := Preimage.domain;
+\definition included: Open.Included domain left.image := \fun (u: Point)(member: _) => first.included u (Preimage.included u member);
+\definition contains: \In[Point] domain.points First.source := Preimage.intro F.center
+  (\idelim Second.source = Maps.apply first.neighborhood Open.whole first.map F.center
+    \with y: Point => \In[Point] second.neighborhood.points y \by {
+      base: second.contains, equality: sym!{Point} _ _ F.centerValue
+    });
+\definition firstPoint[u: Carrier left.constraints domain]: Carrier left.constraints first.neighborhood :=
+  \into[Open.Carrier first.neighborhood](Preimage.input u, region left.constraints first.neighborhood) \by {
+    \bysub(Open.Carrier domain, region left.constraints domain, u)
+  };
+\definition leftCoordinate[u: Carrier left.constraints domain]: Carrier left.constraints left.image :=
+  \into[Open.Carrier left.image](Open.inclusion domain left.image included u, region left.constraints left.image) \by {
+    \bysub(Open.Carrier domain, region left.constraints domain, u)
+  };
+\definition middlePoint[u: Carrier left.constraints domain]: LocalPoint middle :=
+  \into[M](point left (leftCoordinate u), middle.domain) \by { first.inside (firstPoint u) };
+\definition secondPoint[u: Carrier left.constraints domain]: Carrier middle.constraints second.neighborhood :=
+  \into[Open.Carrier second.neighborhood](Preimage.output u, region middle.constraints second.neighborhood) \by {
+    \idelim coordinate middle (middlePoint u) = Maps.apply first.neighborhood Open.whole first.map (firstPoint u)
+      \with v: Point => Nonnegative middle.constraints v \by {
+        base: \bysub(Open.Carrier middle.image, region middle.constraints middle.image, coordinate middle (middlePoint u)),
+        equality: sym!{Point} _ _ (first.agrees (firstPoint u))
+      }
+  };
+\definition middleCoordinate[u: Carrier left.constraints domain]: Carrier middle.constraints middle.image :=
+  \into[Open.Carrier middle.image](Open.inclusion second.neighborhood middle.image second.included (secondPoint u), region middle.constraints middle.image) \by {
+    \bysub(Open.Carrier second.neighborhood, region middle.constraints second.neighborhood, secondPoint u)
+  };
+\import \parent.Total[c := middle] \as Middle;
+\import \parent.Total[c := right] \as Right;
+\definition returnsMiddle: \forall (u: Carrier left.constraints domain) -> point middle (middleCoordinate u) = point left (leftCoordinate u) :=
+  \fun (u: Carrier left.constraints domain) => trans!{M} _ _ _
+    (sym!{M} _ _ (Middle.pointInside x (middleCoordinate u)))
+    (trans!{M} _ _ _
+      (congr!{Point M} (Middle.point x) _ _ (first.agrees (firstPoint u)))
+      (trans!{M} _ _ _ (Middle.pointInside x (coordinate middle (middlePoint u))) (pointCoordinate middle (middlePoint u))));
+\definition inRight: \forall (u: Carrier left.constraints domain) -> Contains right (point left (leftCoordinate u)) :=
+  \fun (u: Carrier left.constraints domain) => \idelim point middle (middleCoordinate u) = point left (leftCoordinate u)
+    \with p: M => Contains right p \by {
+      base: second.inside (secondPoint u), equality: returnsMiddle u
+    };
+\import Maps.Composition[U := domain, V := second.neighborhood, f := Preimage.map].After[l := n, W := Open.whole, g := second.map] \as Composite;
+\definition extension: Direct.Extension := Direct.Extension {
+  neighborhood := domain, included := included, contains := contains, map := Composite.compose,
+  inside := inRight,
+  agrees := \fun (u: Carrier left.constraints domain) => trans!{Point} _ _ _ (second.agrees (secondPoint u))
+    (trans!{Point} _ _ _
+      (sym!{Point} _ _ (Right.coordinateInside (\into[M](point middle (middleCoordinate u), right.domain) \by { second.inside (secondPoint u) })))
+      (trans!{Point} _ _ _ (congr!{M Point} Right.coordinate _ _ (returnsMiddle u))
+        (Right.coordinateInside (\into[M](point left (leftCoordinate u), right.domain) \by { inRight u })))),
+};
+\import calculus.Vector[n := n, m := n] \as Vector;
+\import real.Analysis[].Algebra[] \as Algebra;
+\import linear_algebra.Commutative[K := Real, scalarRing := std.Alg[].Field[].fieldAsCommutativeRing Real Algebra.field] \as Spaces;
+\import Spaces.Coordinates[I := Coordinate] \as Vectors;
+\import Spaces.Linear[V := Point, W := Point, source := Vectors.space, target := Vectors.space].Composition[U := Point, domain := Vectors.space] \as Composition;
+\definition center: Carrier left.constraints domain := Direct.Using[extension := extension].center;
+\definition image: Maps.apply domain second.neighborhood Preimage.map center = G.center := F.centerValue;
+\definition jacobian: Direct.Using[extension := extension].jacobian = Composition.compose G.jacobian F.jacobian :=
+  trans!{{Vector.LinearMap}} _ _ _ (Composite.At[a := center].jacobian)
+    (congr!{{Vector.LinearMap} {Vector.LinearMap} {Vector.LinearMap}} Composition.compose _ _ _ _
+      (congr!{{Open.Carrier second.neighborhood} {Vector.LinearMap}}
+        (\fun (u: Open.Carrier second.neighborhood) => Maps.Differential[U := second.neighborhood, V := Open.whole, f := second.map, a := u].value) _ _ image)
+      (Preimage.differential center));

@@ -1,0 +1,49 @@
+\import topological_constructions.Product[A := M.Point, B := N.Point] \as Product;
+\definition Point: \Set := Product.CarrierSet;
+\definition topology: topology.Structures[].Topology[Point] := Product.topology M.space N.space;
+\import topology.Topology[Carrier := Point] \as Space;
+\import Models.Chart[M := Point, space := topology] \as Charts;
+\import LeftModels.Chart[M := M.Point, space := M.space] \as LeftCharts;
+\import RightModels.Chart[M := N.Point, space := N.space] \as RightCharts;
+\definition first[p: Point]: M.Point := Pair.first M.Point N.Point p;
+\definition second[p: Point]: N.Point := Pair.second M.Point N.Point p;
+\definition LeftChart: \Set := \Cast[LeftCharts.Chart] M.atlas.charts;
+\definition RightChart: \Set := \Cast[RightCharts.Chart] N.atlas.charts;
+\module In(c: LeftChart, d: RightChart);
+\definition Index: \Set := Pair.Times^[LeftChart, RightChart];
+\definition chart[i: Index]: Charts.Chart := In[c := Pair.first LeftChart RightChart i, d := Pair.second LeftChart RightChart i].chart;
+\import Models.Family[A := Point, space := topology, I := Index, chart := chart] \as Family;
+\module Change(i, j: Index, x: Point, contains: Charts.Contains (chart i) x, otherContains: Charts.Contains (chart j) x);
+\definition cover: Family.Cover := \block {
+  \fun (x: Point) \then
+  \takefrom c: \Cast[LeftCharts.Chart] ({ c: LeftCharts.Chart \where Logic.And[\In[LeftCharts.Chart] M.atlas.charts c, LeftCharts.Contains c (first x)] }) \by M.atlas.covers (first x) \then
+  \takefrom d: \Cast[RightCharts.Chart] ({ d: RightCharts.Chart \where Logic.And[\In[RightCharts.Chart] N.atlas.charts d, RightCharts.Contains d (second x)] }) \by N.atlas.covers (second x) \then
+  \let lc: Logic.And[\In[LeftCharts.Chart] M.atlas.charts c, LeftCharts.Contains c (first x)] := \bysub(LeftCharts.Chart,
+    { c: LeftCharts.Chart \where Logic.And[\In[LeftCharts.Chart] M.atlas.charts c, LeftCharts.Contains c (first x)] }, c) \then
+  \let rd: Logic.And[\In[RightCharts.Chart] N.atlas.charts d, RightCharts.Contains d (second x)] := \bysub(RightCharts.Chart,
+    { d: RightCharts.Chart \where Logic.And[\In[RightCharts.Chart] N.atlas.charts d, RightCharts.Contains d (second x)] }, d) \then
+  \let left: LeftChart := \into[LeftCharts.Chart](c, M.atlas.charts) \by { lc.left } \then
+  \let right: RightChart := \into[RightCharts.Chart](d, N.atlas.charts) \by { rd.left } \then
+  \return Logic.existsIntro[Index, { i: Index \where Charts.Contains (chart i) x }] (Pair.pair LeftChart RightChart left right) (Logic.And[_, _]::# lc.right rd.right)
+};
+\definition compatible: Family.Compatible := \fun (i, j: Index)(x: Point)(contains: _)(otherContains: _) =>
+  Change[i := i, j := j, x := x, contains := contains, otherContains := otherContains].existence;
+\import topological_constructions.Separation[].Product[A := M.Point, B := N.Point].On[left := M.space, right := N.space,
+  leftHausdorff := M.hausdorff, rightHausdorff := N.hausdorff] \as Separation;
+\definition manifold: Models.Manifold := Models.Manifold {
+  Point := Point, space := topology, atlas := Family.Using[cover := cover, compatible := compatible].atlas,
+  hausdorff := Separation.hausdorff,
+  secondCountable := \root.ProductCountability[A := M.Point, B := N.Point].Of[left := M.space, right := N.space].secondCountable M.secondCountable N.secondCountable,
+};
+\module At(x: Point);
+\import \root.Tangent[n := n].On[M := M] \as LeftTangent;
+\import \root.Tangent[n := m].On[M := N] \as RightTangent;
+\import \root.Tangent[n := dimension].On[M := manifold] \as ProductTangent;
+\definition leftFace: \Pow Point := { x: Point \where LeftTangent.At[x := first x].Cones[].Boundary };
+\definition rightFace: \Pow Point := { x: Point \where RightTangent.At[x := second x].Cones[].Boundary };
+\definition intersection: \Pow Point := { x: Point \where Logic.And[\In[Point] leftFace x, \In[Point] rightFace x] };
+\definition boundary: \Pow Point := { x: Point \where ProductTangent.At[x := x].Cones[].Boundary };
+\definition faces: \Pow Point := { x: Point \where Logic.Or[\In[Point] leftFace x, \In[Point] rightFace x] };
+\definition boundaryFaces: boundary = faces := \axiom:setext(boundary, faces,
+  \fun (x: Point)(member: \In[Point] boundary x) => At[x := x].boundaryCriterion.ltr member,
+  \fun (x: Point)(member: \In[Point] faces x) => At[x := x].boundaryCriterion.rtl member);

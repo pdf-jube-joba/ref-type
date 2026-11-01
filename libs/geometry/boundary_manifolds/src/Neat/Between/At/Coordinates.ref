@@ -1,0 +1,39 @@
+\import \root.Neat[n := n, m := m].Between[M := M, N := N].At[f := f, x := x] \as Intrinsic;
+\import Domain.Coordinate[chart := c] \as C;
+\import Codomain.Coordinate[chart := d] \as E;
+\import Codomain.CoordinateOperations[chart := d] \as Linear;
+\import \root.Model[n := n] \as Left;
+\import \root.Model[n := m] \as Right;
+\definition matrix: calculus.Vector[n := n, m := m].LinearMap := D.InCharts[left := c, right := d].jacobian;
+\definition NormalOnto: \Prop := \forall (w: Right.Point) -> \exists ( v: Left.Point \where
+  \forall (i: Right.Coordinate) -> Right.Active d.constraints (Codomain.coordinate d) i -> matrix.apply v i = w i );
+\definition coordinates: \forall (v: Domain.Vector)(w: Codomain.Vector)(i: Right.Coordinate) -> E.decode (difference v w) i = S.sub (matrix.apply (C.decode v) i) (E.decode w i) :=
+  \fun (v: Domain.Vector)(w: Codomain.Vector)(i: Right.Coordinate) => trans!{S.Real} _ _ _
+    (congr!{Right.Point S.Real} (\fun (p: Right.Point) => p i) _ _ (Linear.addition (D.value.apply v) (Operations.negative w)))
+    (congr!{S.Real S.Real S.Real} S.add _ _ _ _
+      (congr!{Right.Point S.Real} (\fun (p: Right.Point) => p i) _ _ (D.coordinates c d v))
+      (congr!{Right.Point S.Real} (\fun (p: Right.Point) => p i) _ _ (Linear.negative w)));
+\definition forward: Intrinsic.NormalOnto -> NormalOnto := \block {
+  \fun (normal: Intrinsic.NormalOnto)(w: Right.Point) \then
+  \takefrom v: \Cast[Domain.Vector] ({ v: Domain.Vector \where Cones.Tangential (difference v (E.encode w)) }) \by normal (E.encode w) \then
+  \let tangent: Cones.Tangential (difference v (E.encode w)) := \bysub(Domain.Vector, { v: Domain.Vector \where Cones.Tangential (difference v (E.encode w)) }, v) \then
+  \return Logic.existsIntro[Left.Point, { v: Left.Point \where \forall (i: Right.Coordinate) -> Right.Active d.constraints (Codomain.coordinate d) i -> matrix.apply v i = w i }] (C.decode v)
+    (\fun (i: Right.Coordinate)(active: _) => Metric.subZeroEq _ _
+      (trans!{S.Real} _ _ _
+        (sym!{S.Real} _ _ (trans!{S.Real} _ _ _ (coordinates v (E.encode w) i)
+          (congr!{S.Real S.Real} (S.sub (matrix.apply (C.decode v) i)) _ _ (congr!{Right.Point S.Real} (\fun (p: Right.Point) => p i) _ _ (E.decodeEncode w)))))
+        (Cones.Lineality[c := d, v := difference v (E.encode w)].fromIntrinsic tangent i active)))
+};
+\definition backward: NormalOnto -> Intrinsic.NormalOnto := \block {
+  \fun (normal: NormalOnto)(w: Codomain.Vector) \then
+  \takefrom v: \Cast[Left.Point] ({ v: Left.Point \where \forall (i: Right.Coordinate) -> Right.Active d.constraints (Codomain.coordinate d) i -> matrix.apply v i = E.decode w i }) \by normal (E.decode w) \then
+  \let matches: \forall (i: Right.Coordinate) -> Right.Active d.constraints (Codomain.coordinate d) i -> matrix.apply v i = E.decode w i := \bysub(Left.Point,
+    { v: Left.Point \where \forall (i: Right.Coordinate) -> Right.Active d.constraints (Codomain.coordinate d) i -> matrix.apply v i = E.decode w i }, v) \then
+  \return Logic.existsIntro[Domain.Vector, { v: Domain.Vector \where Cones.Tangential (difference v w) }] (C.encode v)
+    (Cones.Lineality[c := d, v := difference (C.encode v) w].toIntrinsic (\fun (i: Right.Coordinate)(active: _) => trans!{S.Real} _ _ _ (coordinates (C.encode v) w i)
+      (trans!{S.Real} _ _ _
+        (congr!{S.Real S.Real} (\fun (r: S.Real) => S.sub r (E.decode w i)) _ _
+          (trans!{S.Real} _ _ _ (congr!{Left.Point S.Real} (\fun (u: Left.Point) => matrix.apply u i) _ _ (C.decodeEncode v)) (matches i active)))
+        (Arithmetic.subSelf (E.decode w i)))))
+};
+\definition criterion: Logic.PropEquiv[Intrinsic.NormalOnto, NormalOnto] := Logic.PropEquiv[_, _] { ltr := forward, rtl := backward };

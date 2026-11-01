@@ -1,0 +1,23 @@
+\import calculus.Real[].Limit[].Def[] \as Limits;
+\import calculus.Real[].Limit[].Prop[] \as LimitLaws;
+\import calculus.Real[].Limit[].Operations[] \as LimitOperations;
+\definition path[t: Real][i: Coordinate]: Real := Scalars.add (a i) (Scalars.mul t (v i));
+\definition center: path Scalars.zero = a := \axiom:funext(path Scalars.zero, a,
+  \fun (i: Coordinate) => trans!{Real} _ _ _ (congr!{Real Real} (Scalars.add (a i)) _ _ (Laws.fieldMulZeroLeft (v i))) (Laws.addZeroRight (a i)));
+\definition continuous: \forall (i: Coordinate) -> Limits.ContinuousAt (\fun (t: Real) => path t i) Scalars.zero :=
+  \fun (i: Coordinate) => LimitOperations.addContinuous (calculus.Real[].constant (a i)) (\fun (t: Real) => Scalars.mul t (v i)) Scalars.zero
+    (LimitLaws.constantLimit (a i) Scalars.zero)
+    (LimitOperations.mulContinuous calculus.Real[].identity (calculus.Real[].constant (v i)) Scalars.zero
+      (LimitLaws.identityLimit Scalars.zero) (LimitLaws.constantLimit (v i) Scalars.zero));
+\structure Control[i: Coordinate, radius: Real]: \Prop := {
+  positive: R.Lt Scalars.zero radius,
+  bound: \forall (t: Real) -> R.Lt Scalars.zero t -> R.Lt (Scalars.distance t Scalars.zero) radius -> \In[Coordinate] C i -> R.Le Scalars.zero (path t i),
+};
+\module At(i: Coordinate);
+\definition existsControl: Nonnegative C a -> Cone C a v -> \forall (i: Coordinate) -> \exists ( radius: Real \where Control[i, radius] ) :=
+  \fun (member: _)(cone: _)(i: Coordinate) => At[i := i].existence member cone;
+\definition Controls: \Set := \forall (i: Coordinate) -> \Cast[Real] ({ r: Real \where Control[i, r] });
+\definition existsControls: Nonnegative C a -> Cone C a v -> \exists Controls :=
+  \fun (member: _)(cone: _) => \axiom:classicalIndefiniteChoice(Coordinate,
+    (\fun (i: Coordinate) => \Cast[Real] ({ r: Real \where Control[i, r] })), existsControl member cone);
+\module With(controls: Controls);

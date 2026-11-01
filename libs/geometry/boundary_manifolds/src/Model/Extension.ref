@@ -1,0 +1,60 @@
+\import calculus.Real[].Limit[].Operations[] \as Limits;
+\definition distance[x, y: Real]: Real := Scalars.distance x y;
+\definition partialUnique: \forall (i: Coordinate)(d, e: Real) ->
+  (\forall (x: Carrier C U) -> f x = g x) -> Analysis.HasPartialDerivativeAt U f i a d -> Analysis.HasPartialDerivativeAt U g i a e -> d = e := \block {
+  \fun (i: _)(d, e: _)(agrees: _)(left: _)(right: _) \then
+  \takefrom rho: \Cast[Real] ({ r: Real \where Open.BallInside[U.points, a, r] }) \by U.open a (\bysub(Point, U.points, a)) \then
+  \let ball: Open.BallInside[U.points, a, rho] := \bysub(Real, { r: Real \where Open.BallInside[U.points, a, r] }, rho) \then
+  \return Bounds.separatedBySmall d e (\block {
+    \fun (epsilon: Real)(positive: _) \then
+    \let half: Real := Scalars.mul Scalars.half epsilon \then
+    \let hp: R.Lt Scalars.zero half := Bounds.halfOfPositive epsilon positive \then
+    \takefrom dl: \Cast[Real] ({ r: Real \where Analysis.PartialControl[U, f, a, i, d, half, r] }) \by left half hp \then
+    \takefrom dr: \Cast[Real] ({ r: Real \where Analysis.PartialControl[U, g, a, i, e, half, r] }) \by right half hp \then
+    \let cl: Analysis.PartialControl[U, f, a, i, d, half, dl] := \bysub(Real, { r: Real \where Analysis.PartialControl[U, f, a, i, d, half, r] }, dl) \then
+    \let cr: Analysis.PartialControl[U, g, a, i, e, half, dr] := \bysub(Real, { r: Real \where Analysis.PartialControl[U, g, a, i, e, half, r] }, dr) \then
+    \let r: Real := Metric.min rho (Metric.min dl dr) \then
+    \let rp: R.Lt Scalars.zero r := Product.minPositive rho (Metric.min dl dr) (ball.positive)
+      (Product.minPositive dl dr (cl.positive) (cr.positive)) \then
+    \let t: Real := Limits.nearby (a i) r \then
+    \let near: R.Lt (distance t (a i)) r := Limits.nearbyClose (a i) r rp \then
+    \let different: Logic.Not (t = a i) := Limits.nearbyDifferent (a i) r rp \then
+    \let x: Open.Carrier U := \into[Point](Coordinates.replace a i t, U.points) \by {
+      ball.included (Coordinates.replace a i t)
+        (R.ltReplaceLeft (distance t (a i)) (Coordinates.pointDistance (Coordinates.replace a i t) a) rho
+          (sym!{Real} _ _ (CoordinateLaws.replaceDistance a i t)) (R.ltLeTrans _ _ _ near (Metric.minLeft rho (Metric.min dl dr))))
+    } \then
+    \let positiveStep: R.Le (a i) t := Order.leOfLt _ _
+      (metric_spaces.RealLine[].CompactIntervals[].addPositive (a i) (Scalars.mul Scalars.half r) (Bounds.halfOfPositive r rp)) \then
+    \let q: Carrier C U := \into[Open.Carrier U](x, { x: Open.Carrier U \where Nonnegative C x }) \by {
+      increase C a i t (\bysub(Open.Carrier U, { x: Open.Carrier U \where Nonnegative C x }, a)) positiveStep
+    } \then
+    \let slope: Real := Scalars.mul (Scalars.sub (f x) (f a)) (Laws.fieldInv (Scalars.sub t (a i))) \then
+    \let first: R.Lt (distance d slope) half := R.ltReplaceLeft (distance slope d) (distance d slope) half (Metric.distanceSymmetric slope d)
+      (cl.estimate t x (\refl(Coordinates.replace a i t)) different
+        (R.ltLeTrans _ _ _ near (R.leTrans r (Metric.min dl dr) dl (Metric.minRight rho (Metric.min dl dr)) (Metric.minLeft dl dr)))) \then
+    \let slopes: Scalars.mul (Scalars.sub (g x) (g a)) (Laws.fieldInv (Scalars.sub t (a i))) = slope :=
+      congr!{Real Real} (\fun (z: Real) => Scalars.mul z (Laws.fieldInv (Scalars.sub t (a i)))) _ _
+        (congr!{Real Real Real} Scalars.sub _ _ _ _ (sym!{Real} _ _ (agrees q)) (sym!{Real} _ _ (agrees a))) \then
+    \let second: R.Lt (distance slope e) half := R.ltReplaceLeft _ _ _
+      (congr!{Real Real} (\fun (z: Real) => distance z e) _ _ slopes) (cr.estimate t x (\refl(Coordinates.replace a i t)) different
+      (R.ltLeTrans _ _ _ near (R.leTrans r (Metric.min dl dr) dr (Metric.minRight rho (Metric.min dl dr)) (Metric.minRight dl dr)))) \then
+    \return Order.leOfLt _ _ (R.ltReplaceRight (distance d e) (Scalars.add half half) epsilon (Bounds.halfTwice epsilon)
+      (R.leLtTrans _ _ _ (Metric.distanceTriangle d slope e) (Bounds.addLt _ _ _ _ first second)))
+  })
+};
+
+\import calculus.Real[].Multivariable[n := n].Differential[].Def[] \as Linear;
+\import calculus.Real[].Multivariable[n := n].Space[].Linear[] \as LinearLaws;
+\definition differentialUnique: \forall (d, e: Linear.LinearMap) ->
+  (\forall (x: Carrier C U) -> f x = g x) -> Analysis.HasDifferentialAt U f a d -> Analysis.HasDifferentialAt U g a e -> d = e := \block {
+  \fun (d, e: Linear.LinearMap)(agrees: _)(left: _)(right: _) \then
+  \let coefficients: LinearLaws.coefficients d = LinearLaws.coefficients e := \axiom:funext(LinearLaws.coefficients d, LinearLaws.coefficients e,
+    \fun (i: Coordinate) => partialUnique i (d.apply (Coordinates.basis i)) (e.apply (Coordinates.basis i)) agrees
+      (Analysis.Differential[U := U, f := f, a := a, d := d].Partial[i := i].law left)
+      (Analysis.Differential[U := U, f := g, a := a, d := e].Partial[i := i].law right)) \then
+  \return LinearLaws.ext d e (\axiom:funext(d.apply, e.apply, \fun (v: Point) => trans!{Real} _ _ _
+    (LinearLaws.representation d v) (trans!{Real} _ _ _
+      (congr!{Point Real} (\fun (c: Point) => LinearLaws.pairing c v) _ _ coefficients)
+      (sym!{Real} _ _ (LinearLaws.representation e v)))))
+};

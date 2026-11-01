@@ -1,0 +1,30 @@
+\import \parent.Coordinate[chart := chart] \as Coordinates;
+\import \parent.Operations[] \as Operations;
+\import \parent.Representatives[] \as Representatives;
+\import Spaces.Laws[V := Vectors.Vector, space := Vectors.space] \as VectorLaws;
+\definition origin: Coordinates.decode Operations.origin = Vectors.origin :=
+  trans!{{Vectors.Vector}} (Coordinates.decode Operations.origin) (Coordinates.decode (Coordinates.encode Vectors.origin)) Vectors.origin
+    (congr!{Vector {Vectors.Vector}} Coordinates.decode Operations.origin (Coordinates.encode Vectors.origin) (Operations.zeroClass chart)) (Coordinates.decodeEncode Vectors.origin);
+\definition addition: \forall (u, v: Vector) -> Coordinates.decode (Operations.plus u v) = Vectors.plus (Coordinates.decode u) (Coordinates.decode v) :=
+  Quotient.induction2 (\fun (u, v: Vector) => Coordinates.decode (Operations.plus u v) = Vectors.plus (Coordinates.decode u) (Coordinates.decode v))
+    (\fun (u, v: Representative) => eq_reason!{
+      {Coordinates.decode (Operations.plus (Quotient.class u) (Quotient.class v))}
+      "=" {Coordinates.decode (Quotient.class (Representatives.add u v))} "by" {congr!{Vector {Vectors.Vector}} Coordinates.decode _ _ (Operations.plusClass u v)}
+      "=" {transform u.chart chart (Vectors.plus u.vector (transform v.chart u.chart v.vector))} "by" {Coordinates.decodeClass (Representatives.add u v)}
+      "=" {Vectors.plus (transform u.chart chart u.vector) (transform u.chart chart (transform v.chart u.chart v.vector))} "by" {(jacobian u.chart chart).preservesAdd u.vector (transform v.chart u.chart v.vector)}
+      "=" {Vectors.plus (Coordinates.ofRepresentative u) (Coordinates.ofRepresentative v)} "by" {congr!{{Vectors.Vector} {Vectors.Vector}} (Vectors.plus (Coordinates.ofRepresentative u)) _ _
+        (sym!{{Vectors.Vector}} _ _ (composition v.chart u.chart chart v.vector))}
+      "=" {Vectors.plus (Coordinates.decode (Quotient.class u)) (Coordinates.decode (Quotient.class v))} "by" {congr!{{Vectors.Vector} {Vectors.Vector} {Vectors.Vector}} Vectors.plus _ _ _ _
+        (sym!{{Vectors.Vector}} _ _ (Coordinates.decodeClass u)) (sym!{{Vectors.Vector}} _ _ (Coordinates.decodeClass v))}
+    });
+\definition scalar: \forall (c: Real.Real)(v: Vector) -> Coordinates.decode (Operations.scale c v) = Vectors.scale c (Coordinates.decode v) :=
+  \fun (c: Real.Real) => Quotient.induction (\fun (v: Vector) => Coordinates.decode (Operations.scale c v) = Vectors.scale c (Coordinates.decode v))
+    (\fun (v: Representative) => eq_reason!{
+      {Coordinates.decode (Operations.scale c (Quotient.class v))}
+      "=" {Coordinates.decode (Quotient.class (Representatives.scale c v))} "by" {congr!{Vector {Vectors.Vector}} Coordinates.decode _ _ (Operations.scaleClass c v)}
+      "=" {transform v.chart chart (Vectors.scale c v.vector)} "by" {Coordinates.decodeClass (Representatives.scale c v)}
+      "=" {Vectors.scale c (Coordinates.ofRepresentative v)} "by" {(jacobian v.chart chart).preservesScale c v.vector}
+      "=" {Vectors.scale c (Coordinates.decode (Quotient.class v))} "by" {congr!{{Vectors.Vector} {Vectors.Vector}} (Vectors.scale c) _ _ (sym!{{Vectors.Vector}} _ _ (Coordinates.decodeClass v))}
+    });
+\definition negative: \forall (v: Vector) -> Coordinates.decode (Operations.negative v) = Vectors.negative (Coordinates.decode v) :=
+  \fun (v: Vector) => trans!{{Vectors.Vector}} _ _ _ (scalar (Real.neg Real.one) v) (VectorLaws.minusOneScale (Coordinates.decode v));

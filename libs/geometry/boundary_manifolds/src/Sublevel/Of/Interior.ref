@@ -1,0 +1,15 @@
+\import Restriction.At[c := standard, U := Positive.domain, included := Positive.included] \as Restricted;
+\definition data: Construction.Data := Construction.Data {
+  source := Restricted.chart, image := Positive.domain, constraints := Model.unconstrained,
+  change := calculus.Diffeomorphism[n := dimension, m := dimension].Identity[].value Positive.domain,
+};
+\definition patch: Construction.Adapted := \into[Construction.Data](data, { d: Construction.Data \where Construction.Laws[d] }) \by {
+  Construction.Laws[data] {
+    forward := \fun (p: Charts.LocalPoint Restricted.chart)(inside: _) => Model.unconstrainedNonnegative p,
+    backward := \fun (p: Charts.LocalPoint Restricted.chart)(nonnegative: _) => Order.leOfLt _ _
+      (Positive.positive (\into[Model.Point](p, Positive.domain.points) \by { Restricted.coordinateMember p })),
+  }
+};
+\definition cover: \forall (x: Construction.Point) -> R.Lt S.zero (value x) -> \exists ( p: Construction.Adapted \where Construction.ChartContains p x ) :=
+  \fun (x: Construction.Point)(positive: _) => Logic.existsIntro[Construction.Adapted, { p: Construction.Adapted \where Construction.ChartContains p x }] patch
+    (Restricted.pointMember (\into[Model.Point](x, Positive.domain.points) \by { Positive.intro x positive }));

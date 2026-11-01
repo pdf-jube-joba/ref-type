@@ -1,0 +1,16 @@
+\import Restriction.At[c := standard, U := local.domain, included := local.included] \as Restricted;
+\definition data: Construction.Data := Construction.Data {
+  source := Restricted.chart, image := Split.product local.parameters local.values,
+  constraints := Model.halfSpace normalIndex, change := local.coordinates,
+};
+\definition normal: \forall (p: Charts.LocalPoint Restricted.chart) -> value p = Construction.coordinate data p normalIndex :=
+  \fun (p: Charts.LocalPoint Restricted.chart) => congr!{{One.Index -> S.Real} S.Real} (\fun (v: One.Index -> S.Real) => v One.index) _ _
+    (local.projection (\into[Model.Point](p, local.domain.points) \by { Restricted.coordinateMember p }));
+\definition patch: Construction.Adapted := \into[Construction.Data](data, { d: Construction.Data \where Construction.Laws[d] }) \by {
+  Construction.Laws[data] {
+    forward := \fun (p: Charts.LocalPoint Restricted.chart)(nonnegative: R.Le S.zero (value p)) => Model.halfSpaceNonnegative normalIndex (Construction.coordinate data p)
+      (R.leReplaceRight S.zero (value p) (Construction.coordinate data p normalIndex) (normal p) nonnegative),
+    backward := \fun (p: Charts.LocalPoint Restricted.chart)(nonnegative: Model.Nonnegative (Model.halfSpace normalIndex) (Construction.coordinate data p)) =>
+      R.leReplaceRight S.zero (Construction.coordinate data p normalIndex) (value p) (sym!{S.Real} _ _ (normal p)) (nonnegative normalIndex (\refl(normalIndex))),
+  }
+};

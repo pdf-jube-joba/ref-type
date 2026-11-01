@@ -1,0 +1,29 @@
+\import Source.RayControl[C := C, a := a, v := v] \as Control;
+\import Control.With[controls := controls] \as Radius;
+\import \root.Ray[n := n, U := U, a := a, v := v] \as Ray;
+\import Ray.Follow[m := m, V := V, f := f] \as Follow;
+\import calculus.Real[].OneDimension[] \as One;
+\import calculus.Real[].Multivariable[n := One.dimension].Open[] \as Line;
+\import calculus.Maps[n := One.dimension, m := m] \as Curves;
+\definition pathPoint[t: Line.Carrier Ray.domain]: Open.Carrier U := calculus.Maps[n := One.dimension, m := n].apply Ray.domain U Ray.restricted t;
+\definition inside: \forall (t: Line.Carrier Ray.domain) -> R.Le S.zero (t One.index) -> R.Lt (S.distance (t One.index) S.zero) Radius.radius -> Source.Nonnegative C (pathPoint t) :=
+  \fun (t: Line.Carrier Ray.domain)(nonnegative: _)(near: _) => Logic.orElim (t One.index = S.zero) (Logic.Not (t One.index = S.zero)) (Source.Nonnegative C (pathPoint t))
+    (Classical.excludedMiddle (t One.index = S.zero))
+    (\fun (zero: _) => \idelim (a \of Source.Point) = Ray.path (t One.index) \with p: Source.Point => Source.Nonnegative C p \by {
+      base: \bysub(Open.Carrier U, Source.region C U, a),
+      equality: sym!{Source.Point} _ _ (trans!{Source.Point} _ _ _ (congr!{S.Real Source.Point} Ray.path _ _ zero) Ray.centerValue)
+    })
+    (\fun (nonzero: _) => Radius.included (t One.index) (Order.ltOfLeNotEq S.zero (t One.index) nonnegative
+      (\fun (same: S.zero = t One.index) => nonzero (sym!{S.Real} _ _ same))) near);
+\definition input[t: Line.Carrier Ray.domain][nonnegative: R.Le S.zero (t One.index)][near: R.Lt (S.distance (t One.index) S.zero) Radius.radius]: Source.Carrier C U :=
+  \into[Open.Carrier U](pathPoint t, Source.region C U) \by { inside t nonnegative near };
+\definition law: Preserves -> Target.Cone D image (derivative.apply v) := \block {
+  \fun (preserves: Preserves)(j: Target.Coordinate)(active: Target.Active D image j) \then
+  \let h: Line.ScalarFunction Ray.domain := \fun (t: Line.Carrier Ray.domain) => Curves.apply Ray.domain V Follow.map t j \then
+  \let atZero: h Ray.origin = S.zero := trans!{S.Real} _ _ _
+    (congr!{{Open.Carrier U} S.Real} (\fun (p: Open.Carrier U) => Maps.apply U V f p j) _ _ Ray.atOrigin) active.right \then
+  \return \root.OneSided[].On[U := Ray.domain, f := h, a := Ray.origin].nonnegative
+    (derivative.apply v j) Radius.radius Radius.positive (Follow.derivative j)
+    (\fun (t: Line.Carrier Ray.domain)(nonnegative: _)(near: _) => R.leReplaceLeft S.zero (h Ray.origin) (h t) (sym!{S.Real} _ _ atZero)
+      (preserves (input t nonnegative near) j active.left))
+};

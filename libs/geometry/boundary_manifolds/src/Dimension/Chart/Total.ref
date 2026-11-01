@@ -1,0 +1,18 @@
+\import \root.Dimension[n := n].Chart[M := M, space := space] \as Charts;
+\import std.Set[].Extension[A := M, B := Point, domain := c.domain] \as Forward;
+\definition coordinateFunction[p: LocalPoint c]: Point := Charts.coordinate c p;
+\definition coordinate[p: M]: Point := Forward.extend coordinateFunction Coordinates.origin p;
+\definition coordinateInside: \forall (p: LocalPoint c) -> coordinate p = Charts.coordinate c p := Forward.inside coordinateFunction Coordinates.origin;
+\definition image: \Pow Point := { u: Point \where Logic.And[\In[Point] c.image.points u, Nonnegative c.constraints u] };
+\definition model[u: \Cast[Point] image]: Carrier c.constraints c.image := \into[Open.Carrier c.image](
+  \into[Point](u, c.image.points) \by { (\bysub(Point, image, u)).left }, region c.constraints c.image) \by {
+    (\bysub(Point, image, u)).right
+  };
+\definition lift[u: Carrier c.constraints c.image]: \Cast[Point] image := \into[Point](u, image) \by {
+  Logic.And[_, _]::# (\bysub(Point, c.image.points, u)) (\bysub(Open.Carrier c.image, region c.constraints c.image, u))
+};
+\import std.Set[].Extension[A := Point, B := M, domain := image] \as Backward;
+\definition pointFunction[u: \Cast[Point] image]: M := Charts.point c (model u);
+\definition point[default: M][u: Point]: M := Backward.extend pointFunction default u;
+\definition pointInside: \forall (default: M)(u: Carrier c.constraints c.image) -> point default u = Charts.point c u :=
+  \fun (default: M)(u: Carrier c.constraints c.image) => Backward.inside pointFunction default (lift u);

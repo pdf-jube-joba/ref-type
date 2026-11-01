@@ -1,0 +1,57 @@
+\import \root.Face[n := n, r := One.dimension].On[C := c.constraints, U := c.image] \as Face;
+\definition image: ParameterOpen.OpenSet := Face.parameters;
+\definition domain: \Pow Point := Subspace.Trace c.domain;
+\definition Domain: \Set := Charts.Domain domain;
+\definition source: topology.Structures[].Topology[Domain] := Charts.domainTopology domain;
+\definition oldPoint[p: Domain]: OldCharts.LocalPoint c := \into[M.Point](p, c.domain) \by { \bysub(Point, domain, p) };
+\definition oldCoordinate[p: Domain]: Model.Carrier c.constraints c.image := OldCharts.coordinate c (oldPoint p);
+\module At(p: Domain) {
+  \import Tangent.At[x := p] \as T;
+  \definition chart: T.Chart := \into[OldCharts.Chart](c, T.Chart) \by { T.ChartLaws[c] { member := member c, contains := \bysub(Point, domain, p) } };
+  \definition zero: oldCoordinate p normal = S.zero := \block {
+    \takefrom i: \Cast[Model.Coordinate] ({ i: Model.Coordinate \where Model.Active c.constraints (oldCoordinate p) i }) \by T.Cones[].coordinateOfBoundary chart (\bysub(M.Point, points, p)) \then
+    \let active: Model.Active c.constraints (oldCoordinate p) i := \bysub(Model.Coordinate, { i: Model.Coordinate \where Model.Active c.constraints (oldCoordinate p) i }, i) \then
+    \let same: i = normal := \idelim c.constraints = Model.halfSpace normal \with C: Model.Constraints => \In[Model.Coordinate] C i \by { base: active.left, equality: constraints c } \then
+    \return trans!{S.Real} _ _ _ (congr!{Model.Coordinate S.Real} (oldCoordinate p) _ _ (sym!{Model.Coordinate} _ _ same)) active.right
+  };
+  \definition normalZero: Blocks.right (oldCoordinate p) = (\fun (j: One.Index) => S.zero) :=
+    \axiom:funext(Blocks.right (oldCoordinate p), (\fun (j: One.Index) => S.zero), \fun (j: One.Index) => trans!{S.Real} _ _ _
+      (congr!{One.Index S.Real} (Blocks.right (oldCoordinate p)) _ _ (Fin.singletonValue j)) zero);
+}
+\definition facePoint[p: Domain]: Face.FacePoint := \into[Model.Carrier c.constraints c.image](oldCoordinate p, Face.FacePoint) \by { At[p := p].normalZero };
+\definition forward[p: Domain]: ParameterOpen.Carrier image := Face.inverse (facePoint p);
+\definition parameter[p: ParameterOpen.Carrier image]: \root.Model[n := n].Carrier Face.constraints image :=
+  \into[ParameterOpen.Carrier image](p, Parameters.region Face.constraints image) \by {
+    \fun (i: Parameters.Coordinate)(selected: _) => Logic.falseElim _ (Indices.different i One.index
+      (\idelim c.constraints = Model.halfSpace normal \with C: Model.Constraints => \In[Model.Coordinate] C (Indices.left i) \by { base: selected, equality: constraints c }))
+  };
+\definition coordinateInput[p: ParameterOpen.Carrier image]: Model.Carrier c.constraints c.image := Face.inclusion.apply (parameter p);
+\definition pointValue[p: ParameterOpen.Carrier image]: OldCharts.LocalPoint c := OldCharts.point c (coordinateInput p);
+\module Backward(p: ParameterOpen.Carrier image) {
+  \import Tangent.At[x := pointValue p] \as T;
+  \definition chart: T.Chart := \into[OldCharts.Chart](c, T.Chart) \by { T.ChartLaws[c] { member := member c, contains := \bysub(M.Point, c.domain, pointValue p) } };
+  \definition selected: \In[Model.Coordinate] c.constraints normal := \idelim Model.halfSpace normal = c.constraints \with C: Model.Constraints => \In[Model.Coordinate] C normal \by {
+    base: \refl(normal), equality: sym!{Model.Constraints} _ _ (constraints c)
+  };
+  \definition zero: T.coordinate chart normal = S.zero := trans!{S.Real} _ _ _
+    (congr!{Model.Point S.Real} (\fun (u: Model.Point) => u normal) _ _ (OldCharts.coordinatePoint c (coordinateInput p)))
+    (congr!{{One.Index -> S.Real} S.Real} (\fun (v: One.Index -> S.Real) => v One.index) _ _ (Face.normalZero (parameter p)));
+  \definition boundary: \In[M.Point] points (pointValue p) := T.Cones[].boundaryOfCoordinate chart
+    (Logic.existsIntro[Model.Coordinate, { i: Model.Coordinate \where Model.Active c.constraints (T.coordinate chart) i }] normal (Logic.And[_, _]::# selected zero));
+}
+\definition pointBoundary[p: ParameterOpen.Carrier image]: Point := \into[M.Point](pointValue p, points) \by { Backward[p := p].boundary };
+\definition backward[p: ParameterOpen.Carrier image]: Domain := \into[Point](pointBoundary p, domain) \by { \bysub(M.Point, c.domain, pointValue p) };
+\definition leftInverse: \forall (p: Domain) -> backward (forward p) = p := \fun (p: Domain) => trans!{M.Point} _ _ _
+  (congr!{{Model.Carrier c.constraints c.image} M.Point} (\fun (u: Model.Carrier c.constraints c.image) => OldCharts.point c u) _ _ (Face.rightInverse (facePoint p)))
+  (OldCharts.pointCoordinate c (oldPoint p));
+\definition rightInverse: \forall (p: ParameterOpen.Carrier image) -> forward (backward p) = p := \fun (p: ParameterOpen.Carrier image) => \root.Refinement[A := Parameters.Point].equality image.points (forward (backward p)) p
+  (trans!{Parameters.Point} _ _ _ (congr!{Model.Point Parameters.Point} Blocks.left _ _ (OldCharts.coordinatePoint c (coordinateInput p))) (Face.leftInverse (parameter p)));
+\module Continuity;
+\definition chart: Charts.Chart := Charts.Chart {
+  domain := domain, image := image,
+  coordinates := topology.Homeomorphism[A := Domain, B := ParameterOpen.Carrier image].Homeomorphism[source, ParameterOpen.Topology[].Of[U := image].topology] {
+    forward := forward, backward := backward, leftInverse := leftInverse, rightInverse := rightInverse,
+    forwardContinuous := Continuity[].forwardContinuous, backwardContinuous := Continuity[].backwardContinuous,
+  },
+  open := Subspace.traceOpen M.space c.domain c.open,
+};

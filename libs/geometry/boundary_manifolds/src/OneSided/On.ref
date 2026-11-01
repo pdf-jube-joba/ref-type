@@ -1,0 +1,37 @@
+\import Open.Analysis[].Section[U := U, f := f, a := a, i := One.index] \as Section;
+\definition nonnegative: \forall (d, localRadius: S.Real) -> R.Lt S.zero localRadius ->
+  Open.Analysis[].HasPartialDerivativeAt U f One.index a d ->
+  (\forall (x: Open.Carrier U) -> R.Le (a One.index) (x One.index) -> R.Lt (S.distance (x One.index) (a One.index)) localRadius -> R.Le (f a) (f x)) -> R.Le S.zero d := \block {
+  \fun (d, localRadius: S.Real)(localPositive: _)(derivative: _)(minimum: _) \then
+  \takefrom rho: \Cast[S.Real] ({ r: S.Real \where Open.BallInside[U.points, a, r] }) \by U.open a (\bysub(One.Index -> S.Real, U.points, a)) \then
+  \let ball: Open.BallInside[U.points, a, rho] := \bysub(S.Real, { r: S.Real \where Open.BallInside[U.points, a, r] }, rho) \then
+  \return LimitOrder.lower (Derivatives.slope Section.value (a One.index)) (a One.index) d S.zero (Section.derivative d derivative) (\block {
+    \fun (radius: S.Real)(positive: _) \then
+    \let r: S.Real := Metric.min rho (Metric.min radius localRadius) \then
+    \let rp: R.Lt S.zero r := Bounds.Product[].minPositive rho (Metric.min radius localRadius) ball.positive (Bounds.Product[].minPositive radius localRadius positive localPositive) \then
+    \let t: S.Real := Limits.nearby (a One.index) r \then
+    \let near: R.Lt (S.distance t (a One.index)) r := Limits.nearbyClose (a One.index) r rp \then
+    \let greater: R.Lt (a One.index) t := metric_spaces.RealLine[].CompactIntervals[].addPositive (a One.index)
+      (S.mul S.half r) (Bounds.halfOfPositive r rp) \then
+    \let x: Open.Carrier U := \into[One.Index -> S.Real](Coordinates.replace a One.index t, U.points) \by {
+      ball.included (Coordinates.replace a One.index t) (R.ltReplaceLeft _ _ _
+        (sym!{S.Real} _ _ (CoordinateLaws.replaceDistance a One.index t)) (R.ltLeTrans _ _ _ near (Metric.minLeft rho (Metric.min radius localRadius))))
+    } \then
+    \let coordinateSame: x One.index = t := CoordinateLaws.replaceSame a One.index t \then
+    \let coordinateGreater: R.Le (a One.index) (x One.index) := R.leReplaceRight _ t _ (sym!{S.Real} _ _ coordinateSame) (Order.leOfLt _ _ greater) \then
+    \let coordinateNear: R.Lt (S.distance (x One.index) (a One.index)) localRadius := R.ltReplaceLeft _ _ _
+      (sym!{S.Real} _ _ (congr!{S.Real S.Real} (\fun (z: S.Real) => S.distance z (a One.index)) _ _ coordinateSame))
+      (R.ltLeTrans _ _ _ near (R.leTrans _ _ _ (Metric.minRight rho (Metric.min radius localRadius)) (Metric.minRight radius localRadius))) \then
+    \let lower: R.Le S.zero (S.sub (f x) (f a)) := R.leReplaceLeft (S.sub (f a) (f a)) S.zero _ (Laws.subSelf (f a))
+      (Laws.addMonotoneRight (f a) (f x) (S.neg (f a)) (minimum x coordinateGreater coordinateNear)) \then
+    \let slopePositive: R.Le S.zero (Derivatives.slope Section.value (a One.index) t) := R.leReplaceRight _ _ _
+      (sym!{S.Real} _ _ (Section.slopeAgreement t x (\refl(Coordinates.replace a One.index t))))
+      (Laws.fieldMulNonnegative (S.sub (f x) (f a)) (Laws.fieldInv (S.sub t (a One.index))) lower
+        (Order.leOfLt _ _ (Bounds.Product[].invPositive _ (metric_spaces.RealLine[].Rays[].subPositive t (a One.index) greater)))) \then
+    \return Logic.existsIntro[S.Real, { t: S.Real \where LimitOrder.LowerSample[Derivatives.slope Section.value (a One.index), a One.index, S.zero, radius, t] }] t
+      (LimitOrder.LowerSample[_, _, _, _, _] {
+        different := Limits.nearbyDifferent (a One.index) r rp,
+        near := R.ltLeTrans _ _ _ near (R.leTrans _ _ _ (Metric.minRight rho (Metric.min radius localRadius)) (Metric.minLeft radius localRadius)), lower := slopePositive,
+      })
+  })
+};

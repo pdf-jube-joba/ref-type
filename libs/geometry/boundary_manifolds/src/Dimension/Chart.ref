@@ -1,0 +1,26 @@
+\import topology.Topology[Carrier := M] \as Source;
+\definition Domain[S: \Pow M]: \Set := \Cast[M] S;
+\definition domainTopology[S: \Pow M]: topology.Structures[].Topology[Domain S] := Source.Subspace[S := S].topology space;
+\structure Data: \Set := {
+  domain: \Pow M,
+  image: Open.OpenSet,
+  constraints: Constraints,
+  coordinates: topology.Homeomorphism[A := Domain domain, B := Carrier constraints image].Homeomorphism[domainTopology domain, regionTopology constraints image],
+};
+\structure Laws[data: Data]: \Prop := { open: Source.IsOpenIn space data.domain, };
+\definition Chart: \Set := \Cast[Data] ({ data: Data \where Laws[data] });
+\definition Contains[c: Chart][x: M]: \Prop := \In[M] c.domain x;
+\definition LocalPoint[c: Chart]: \Set := Domain c.domain;
+\definition coordinate[c: Chart][x: LocalPoint c]: Carrier c.constraints c.image := c.coordinates.forward x;
+\definition point[c: Chart][u: Carrier c.constraints c.image]: LocalPoint c := c.coordinates.backward u;
+\definition pointCoordinate: \forall (c: Chart)(x: LocalPoint c) -> point c (coordinate c x) = x :=
+  \fun (c: Chart) => (topology.Homeomorphism[A := LocalPoint c, B := Carrier c.constraints c.image].laws (domainTopology c.domain) (regionTopology c.constraints c.image) c.coordinates).leftInverse;
+\definition coordinatePoint: \forall (c: Chart)(u: Carrier c.constraints c.image) -> coordinate c (point c u) = u :=
+  \fun (c: Chart) => (topology.Homeomorphism[A := LocalPoint c, B := Carrier c.constraints c.image].laws (domainTopology c.domain) (regionTopology c.constraints c.image) c.coordinates).rightInverse;
+\module At(x: M, left, right: Chart, inLeft: Contains left x);
+
+\module Total(c: Chart);
+\module Compose(x: M, left, middle, right: Chart, inLeft: Contains left x, inMiddle: Contains middle x, inRight: Contains right x,
+  first: \root.Dimension[n := n].Chart[M := M, space := space].At[x := x, left := left, right := middle, inLeft := inLeft].Extension,
+  second: \root.Dimension[n := n].Chart[M := M, space := space].At[x := x, left := middle, right := right, inLeft := inMiddle].Extension);
+\module Identity(c: Chart, x: M, member: Contains c x);
