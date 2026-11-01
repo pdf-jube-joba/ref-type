@@ -1,0 +1,26 @@
+\import Filtration.Stage[limit := k] \as Lower;
+\import algebraic_topology.Homotopy[A := Domain.Disk, B := Upper.Carrier] \as UpperHomotopies;
+\definition lowered[x: Domain.Disk]: A := lowering.value x;
+\definition included: Domain.Disk -> Upper.Carrier := \fun (x: Domain.Disk) => Filtration.Inclusion[m := k, n := N.Nat^::succ k].apply (Nat.leSelfSucc k) (lowering.value x);
+\definition ordinary: UpperHomotopies.Homotopy[Domain.diskTopology, Upper.topology, f, included] :=
+  UpperHomotopies.forgetRelative Domain.diskTopology Upper.topology Lowering.fixedSubset f included lowering.homotopy;
+\definition global: Homotopies.Homotopy[Domain.diskTopology, source, ambient, lowered] :=
+  UpperHomotopies.Composition[C := A].postcompose Domain.diskTopology Upper.topology source f included ordinary Upper.inclusion Upper.continuous;
+\definition onFixed: \forall (x: Domain.Disk) -> \In[Domain.Disk] fixed x -> \In[Domain.Disk] Lowering.fixedSubset x :=
+  \fun (x: Domain.Disk)(inside: _) => Filtration.monotone targetLimit k (Nat.succLeOfLt k m above) (f x) (lands x inside);
+\definition relative: Homotopies.RelativeHomotopy[Domain.diskTopology, source, fixed, ambient, lowered] :=
+  \into[Homotopies.Family](global, Homotopies.RelativeHomotopy[Domain.diskTopology, source, fixed, ambient, lowered]) \by {
+    Homotopies.RelativeLaws[Domain.diskTopology, source, fixed, ambient, lowered, global] {
+      homotopy := Homotopies.laws Domain.diskTopology source ambient lowered global,
+      fixed := \fun (t: I.Carrier)(x: Domain.Disk)(inside: _) => congr!{Upper.Carrier A} Upper.inclusion _ _
+        ((UpperHomotopies.relativeLaws Domain.diskTopology Upper.topology Lowering.fixedSubset f included lowering.homotopy).fixed t x (onFixed x inside))
+    }
+  };
+\definition lowerLands: Lands lowered := \fun (x: Domain.Disk)(inside: _) => \idelim ambient x = lowered x \with y: A => \In[A] (Filtration.subset targetLimit) y \by {
+  base: lands x inside, equality: Homotopies.relativeEndpoints Domain.diskTopology source fixed ambient lowered relative x inside
+};
+\module Next(next: Result[lowered]);
+\definition exists: \exists Result[ambient] := \block {
+  \takefrom next: Result[lowered] \by previous lowering.value lowering.continuous lowerLands \then
+  \return \exact(Next[next := next].result, Result[ambient])
+};

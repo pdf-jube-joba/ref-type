@@ -1,0 +1,22 @@
+\import \root.Thom[].CWType[].EquivalenceTools[A := A, B := B, source := source, target := target].TwoSided[
+  f := f, left := leftMap, right := rightMap, continuous := continuous, leftContinuous := leftContinuous, rightContinuous := rightContinuous,
+  leftInverse := leftInverse, rightInverse := rightInverse] \as Ordinary;
+\definition firstPreserves: \forall (t: I.Carrier)(y: TargetSubset) -> \In[B] targetSubset (Ordinary.first (RightCylinder.at t y)) := \fun (t: I.Carrier)(y: TargetSubset) =>
+  forwardContained (\into[A](leftMap (rightInverse (RightCylinder.at (I.reverse t) y)), subset) \by {
+    leftContained (\into[B](rightInverse (RightCylinder.at (I.reverse t) y), targetSubset) \by { rightInversePreserves (I.reverse t) y })
+  });
+\definition secondPreserves: \forall (t: I.Carrier)(y: TargetSubset) -> \In[B] targetSubset (Ordinary.second (RightCylinder.at t y)) := \fun (t: I.Carrier)(y: TargetSubset) =>
+  forwardContained (\into[A](leftInverse (LeftCylinder.at t (rightMap y)), subset) \by {
+    leftInversePreserves t (\into[A](rightMap y, subset) \by { rightContained y })
+  });
+\import \root.Thom[].CWType[].PreservedPaths[A := B, B := B, subset := targetSubset, targetSubset := targetSubset].Concatenation[
+  source := target, target := target, f := (\fun (y: B) => f (leftMap (f (rightMap y)))), g := (\fun (y: B) => f (rightMap y)), k := (\fun (y: B) => y),
+  first := Ordinary.second, second := rightInverse, firstPreserves := secondPreserves, secondPreserves := rightInversePreserves] \as Tail;
+\import \root.Thom[].CWType[].PreservedPaths[A := B, B := B, subset := targetSubset, targetSubset := targetSubset].Concatenation[
+  source := target, target := target, f := (\fun (y: B) => f (leftMap y)), g := (\fun (y: B) => f (leftMap (f (rightMap y)))), k := (\fun (y: B) => y),
+  first := Ordinary.first, second := Tail.result, firstPreserves := firstPreserves, secondPreserves := Tail.preserves] \as Joined;
+\definition result: Data := Data {
+  forward := f, backward := leftMap, forwardContinuous := continuous, backwardContinuous := leftContinuous,
+  forwardContained := forwardContained, backwardContained := leftContained,
+  left := leftInverse, right := Joined.result, leftPreserves := leftInversePreserves, rightPreserves := Joined.preserves
+};

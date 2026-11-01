@@ -1,0 +1,15 @@
+\import \parent.\parent.Cell[c := c] \as OriginalCell;
+\import Euclidean.Dimension[n := c.dimension] \as Disk;
+\import topology.Topology[Carrier := Disk.Disk] \as DiskSpace;
+\import topology.Maps[A := Disk.Disk, B := Carrier] \as Images;
+\definition badDisk: \Pow Disk.Disk := DiskSpace.Complement (Images.Preimage (characteristic c) U);
+\definition image: \Pow Carrier := Images.Image (characteristic c) badDisk;
+\definition diskClosed: DiskSpace.IsClosedIn Disk.diskTopology badDisk := DiskSpace.Finite[].openComplementClosed Disk.diskTopology
+  (Images.Preimage (characteristic c) U) (local (transform c) (mappedMember c));
+\definition compact: Space.IsCompactIn topology image := topology.Compactness[A := Disk.Disk, B := Carrier].continuousImage Disk.diskTopology topology
+  (characteristic c) OriginalCell.continuous badDisk (DiskSpace.Compactness[].closedCompact Disk.diskTopology Disk.Compactness[].compact badDisk diskClosed);
+\definition closed: Space.IsClosedIn topology image := Space.Compactness[].compactClosed topology hausdorff image compact;
+\definition include: \forall (p: Disk.Disk) -> Logic.Not (\In[Carrier] U (characteristic c p)) -> \In[Carrier] image (characteristic c p) := \fun (p: Disk.Disk)(outside: _) => Images.imageMember (characteristic c) badDisk p outside;
+\definition outside: \forall (x: Carrier) -> \In[Carrier] image x -> Logic.Not (\In[Carrier] U x) := \fun (x: Carrier) =>
+  Images.imageElim (characteristic c) badDisk x (Logic.Not (\In[Carrier] U x)) (\fun (p: Disk.Disk)(outside: \In[Disk.Disk] badDisk p)(same: characteristic c p = x)(inside: \In[Carrier] U x) => outside
+    (\idelim x = characteristic c p \with q: Carrier => \In[Carrier] U q \by { base: inside, equality: sym!{Carrier} _ _ same }));

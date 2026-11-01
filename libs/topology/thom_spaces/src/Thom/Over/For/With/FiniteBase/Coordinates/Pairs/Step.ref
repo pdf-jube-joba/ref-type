@@ -1,0 +1,38 @@
+\import \parent.Stage[k := k, family := family] \as Previous;
+\import \parent.Stage[k := k, family := Lists.List[CW.CellData]::cons cell family] \as Next;
+\import BaseStages.Step[k := k, family := family, cell := cell, member := member, dimension := dimension, included := included, unselected := unselected] \as BaseStep;
+\import \parent.\parent.Cell[cell := cell, member := member] \as Charts;
+\import algebraic_topology.Euclidean[].Dimension[n := cell.dimension] \as Disk;
+\import Filtration.Characteristic[cell := cell, member := member] \as Characteristic;
+\definition includePrevious: \forall (p: DiskBundle) -> \In[DiskBundle] (Subset k family) p -> \In[DiskBundle] (Subset k (Lists.List[CW.CellData]::cons cell family)) p := \fun (p: DiskBundle)(present: _) => either!{present {\In[DiskBundle] (Subset k (Lists.List[CW.CellData]::cons cell family)) p}
+  {\fun (lower: _) => Logic.Or[_, _]::left lower}
+  {\fun (selected: _) => Logic.Or[_, _]::right (BaseStep.includeSelected p.base selected)}
+};
+\structure CellWitness[x: X]: \Set := { point: Disk.Disk, inside: Order.Lt (Disk.normSquared point) R.one, equality: cell.characteristic point = x };
+\definition fromInterior: \forall (x: X) -> \In[X] (CW.InteriorImage cell) x -> \exists CellWitness[x] := \fun (x: X)(contains: _) => \block {
+  \takefrom p: \Cast[Disk.Disk] ({ p: Disk.Disk \where Logic.And[Order.Lt (Disk.normSquared p) R.one, cell.characteristic p = x] }) \by contains \then
+  \let laws: Logic.And[Order.Lt (Disk.normSquared p) R.one, cell.characteristic p = x] := \bysub(Disk.Disk, { p: Disk.Disk \where Logic.And[Order.Lt (Disk.normSquared p) R.one, cell.characteristic p = x] }, p) \then
+  \return \exact(CellWitness[x] { point := p, inside := laws.left, equality := laws.right }, CellWitness[x])
+};
+\definition splitWitness: \forall (x: X)(w: Witness[k, Lists.List[CW.CellData]::cons cell family, x]) -> Logic.Or[\In[X] (BaseSubset k family) x, \exists CellWitness[x]] := \fun (x: X)(w: _) => either!{{w.member} {Logic.Or[\In[X] (BaseSubset k family) x, \exists CellWitness[x]]}
+  {\fun (same: w.cell = cell) => \block {
+    \let contains: \In[X] (CW.InteriorImage cell) x := \idelim w.cell = cell \with c: CW.CellData => \In[X] (CW.InteriorImage c) x \by { base: w.contains, equality: same } \then
+    \return Logic.Or[_, _]::right (fromInterior x contains)
+  }}
+  {\fun (old: CW.CellMember family w.cell) => Logic.Or[_, _]::left (Logic.Or[_, _]::right
+    (\exact(BaseStages.Witness[k, family, x] { cell := w.cell, member := old, dimension := w.dimension, contains := w.contains }, BaseStages.Witness[k, family, x])))}
+};
+\definition splitBase: \forall (x: X) -> \In[X] (BaseSubset k (Lists.List[CW.CellData]::cons cell family)) x -> Logic.Or[\In[X] (BaseSubset k family) x, \exists CellWitness[x]] := \fun (x: X)(present: _) => either!{present {Logic.Or[\In[X] (BaseSubset k family) x, \exists CellWitness[x]]}
+  {\fun (lower: _) => Logic.Or[_, _]::left (Logic.Or[_, _]::left lower)}
+  {\fun (selected: _) => \block {
+    \takefrom w: Witness[k, Lists.List[CW.CellData]::cons cell family, x] \by selected \then
+    \return splitWitness x w
+  }}
+};
+\module Middle;
+
+\module Filling(n: N.Nat^, chart: Charts.DiskChart[n]);
+\definition property: Previous.Property -> Next.Property := \fun (previous: Previous.Property) => \block {
+  \takefrom charts: Charts.PairResult \by Charts.pairExists \then
+  \return Filling[n := charts.dimension, chart := charts.disk].property (Middle[].theorem charts.dimension charts.sphere previous)
+};

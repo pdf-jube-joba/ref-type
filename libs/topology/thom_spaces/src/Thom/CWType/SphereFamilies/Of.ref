@@ -1,0 +1,51 @@
+\import topology.Topology[Carrier := Cylinder.Carrier] \as Space;
+\definition topology: Space.Topology := Cylinder.topology Sphere.sphereTopology;
+\definition positive: \Pow Cylinder.Carrier := { p: Cylinder.Carrier \where \In[Sphere.Sphere] Cover.PositiveHalf (Cylinder.point p) };
+\definition negative: \Pow Cylinder.Carrier := { p: Cylinder.Carrier \where \In[Sphere.Sphere] Cover.NegativeHalf (Cylinder.point p) };
+\import Space.Subspace[S := positive] \as Positive;
+\import Space.Subspace[S := negative] \as Negative;
+\definition covered: \forall (p: Cylinder.Carrier) -> Logic.Or[\In[Cylinder.Carrier] positive p, \In[Cylinder.Carrier] negative p] :=
+  \fun (p: Cylinder.Carrier) => Cover.halvesCover (Cylinder.point p);
+\definition positiveClosed: Space.IsClosedIn topology positive := Cylinder.pointContinuous Sphere.sphereTopology
+  (topology.Topology[Carrier := Sphere.Sphere].Complement Cover.PositiveHalf) Cover.positiveClosed;
+\definition negativeClosed: Space.IsClosedIn topology negative := Cylinder.pointContinuous Sphere.sphereTopology
+  (topology.Topology[Carrier := Sphere.Sphere].Complement Cover.NegativeHalf) Cover.negativeClosed;
+\definition project[p: Cylinder.Carrier]: DiskCylinder.Carrier := DiskCylinder.at (Cylinder.time p) (Cover.tailDisk (Cylinder.point p));
+\definition projectContinuous: topology.Continuity[A := Cylinder.Carrier, B := DiskCylinder.Carrier].Continuous topology source project :=
+  topological_constructions.Product[A := I.Carrier, B := Disk.Disk].Universal[X := Cylinder.Carrier].pairContinuous topology I.topology Disk.diskTopology Cylinder.time
+    (\fun (p: Cylinder.Carrier) => Cover.tailDisk (Cylinder.point p)) (Cylinder.timeContinuous Sphere.sphereTopology)
+    (topology.Composition[A := Cylinder.Carrier, B := Sphere.Sphere, C := Disk.Disk].composeContinuous topology Sphere.sphereTopology Disk.diskTopology Cylinder.point Cover.tailDisk
+      (Cylinder.pointContinuous Sphere.sphereTopology) Cover.tailDiskContinuous);
+\definition left[p: Positive.CarrierSet]: B := first (project p);
+\definition right[p: Negative.CarrierSet]: B := second (project p);
+\definition leftContinuous: topology.Continuity[A := Positive.CarrierSet, B := B].Continuous (Positive.topology topology) target left :=
+  topology.Continuity[A := Cylinder.Carrier, B := B].Restriction[S := positive].restrictContinuous topology target (\fun (p: Cylinder.Carrier) => first (project p))
+    (topology.Composition[A := Cylinder.Carrier, B := DiskCylinder.Carrier, C := B].composeContinuous topology source target project first projectContinuous firstContinuous);
+\definition rightContinuous: topology.Continuity[A := Negative.CarrierSet, B := B].Continuous (Negative.topology topology) target right :=
+  topology.Continuity[A := Cylinder.Carrier, B := B].Restriction[S := negative].restrictContinuous topology target (\fun (p: Cylinder.Carrier) => second (project p))
+    (topology.Composition[A := Cylinder.Carrier, B := DiskCylinder.Carrier, C := B].composeContinuous topology source target project second projectContinuous secondContinuous);
+\import topological_constructions.Gluing[A := Cylinder.Carrier, B := B].Pasting[F := positive, G := negative] \as Pasting;
+\definition agrees: Pasting.Compatible left right := \block {
+  \fun (a: Positive.CarrierSet)(b: Negative.CarrierSet)(same: a = b) \then
+  \let inPositive: \In[Sphere.Sphere] Cover.PositiveHalf (Cylinder.point a) := \bysub(Cylinder.Carrier, positive, a) \then
+  \let inNegative: \In[Sphere.Sphere] Cover.NegativeHalf (Cylinder.point a) := \idelim Cylinder.point b = Cylinder.point a \with x: Sphere.Sphere => \In[Sphere.Sphere] Cover.NegativeHalf x \by {
+    base: \bysub(Cylinder.Carrier, negative, b), equality: congr!{Cylinder.Carrier Sphere.Sphere} Cylinder.point b a (sym!{Cylinder.Carrier} _ _ same)
+  } \then
+  \return trans!{B} _ _ _ (compatible (Cylinder.time a) (Cover.intersectionBoundary (Cylinder.point a) inPositive inNegative))
+    (congr!{DiskCylinder.Carrier B} second (project a) (project b) (congr!{Cylinder.Carrier DiskCylinder.Carrier} project a b same))
+};
+\definition family: Cylinder.Carrier -> B := Pasting.apply left right covered agrees;
+\definition continuous: topology.Continuity[A := Cylinder.Carrier, B := B].Continuous topology target family :=
+  Pasting.continuous topology target left right covered agrees positiveClosed negativeClosed leftContinuous rightContinuous;
+\definition onPositive: \forall (t: I.Carrier)(v: Disk.Disk) -> family (Cylinder.at t (Halves.positive v)) = first (DiskCylinder.at t v) :=
+  \fun (t: I.Carrier)(v: Disk.Disk) => trans!{B} _ _ _
+    (Pasting.onLeft left right covered agrees (\into[Cylinder.Carrier](Cylinder.at t (Halves.positive v), positive) \by {
+      \bysub(Sphere.Sphere, Cover.PositiveHalf, Cover.positivePoint v)
+    }))
+    (congr!{DiskCylinder.Carrier B} first _ _ (congr!{Disk.Disk DiskCylinder.Carrier} (DiskCylinder.at t) (Cover.tailDisk (Halves.positive v)) v (Disk.Splitting[].tailJoin (Halves.height v) v)));
+\definition onNegative: \forall (t: I.Carrier)(v: Disk.Disk) -> family (Cylinder.at t (Halves.negative v)) = second (DiskCylinder.at t v) :=
+  \fun (t: I.Carrier)(v: Disk.Disk) => trans!{B} _ _ _
+    (Pasting.onRight left right covered agrees (\into[Cylinder.Carrier](Cylinder.at t (Halves.negative v), negative) \by {
+      \bysub(Sphere.Sphere, Cover.NegativeHalf, Cover.negativePoint v)
+    }))
+    (congr!{DiskCylinder.Carrier B} second _ _ (congr!{Disk.Disk DiskCylinder.Carrier} (DiskCylinder.at t) (Cover.tailDisk (Halves.negative v)) v (Disk.Splitting[].tailJoin (R.neg (Halves.height v)) v)));

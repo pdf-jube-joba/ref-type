@@ -1,0 +1,23 @@
+\definition region: \Pow Carrier := Cases.Joined (topology.Topology[Carrier := A].Empty) U;
+\definition preimage: ({ p: Model.Disk \where \In[Carrier] region (characteristic p) }) = InteriorSpace.Open[].image U :=
+  \axiom:setext(({ p: Model.Disk \where \In[Carrier] region (characteristic p) }), InteriorSpace.Open[].image U,
+    \fun (p: Model.Disk)(inside: _) => either!{{Classical.excludedMiddle (Model.normSquared p = R.one)} {\In[Model.Disk] (InteriorSpace.Open[].image U) p}
+      {\fun (boundary: Model.normSquared p = R.one) => Logic.falseElim _ (\idelim characteristic p = inclusion (attach (\into[Model.Coordinate](p, Model.Boundary) \by { boundary }))
+        \with x: Carrier => \In[Carrier] region x \by { base: inside, equality: (cellLaws p).boundary boundary })}
+      {\fun (outside: _) => \block {
+        \let strict: D.Lt (Model.normSquared p) R.one := Order.ltOfLeNotEq _ _ (\bysub(Model.Coordinate, Model.ClosedBall, p)) outside \then
+        \let point: InteriorPoint := \into[Model.Disk](p, Interior) \by { strict } \then
+        \let inU: \In[InteriorPoint] U point := \idelim characteristic p = interior point \with x: Carrier => \In[Carrier] region x \by { base: inside, equality: (cellLaws p).inside strict } \then
+        \return InteriorSpace.Open[].imageMember U point inU
+      }}
+    },
+    \fun (p: Model.Disk)(inside: _) => InteriorSpace.Open[].imageElim U p (\In[Carrier] region (characteristic p))
+      (\fun (q: InteriorPoint)(inU: _)(same: q = p) => \idelim q = p \with a: Model.Disk => \In[Carrier] region (characteristic a) \by {
+        base: \idelim interior q = characteristic q \with x: Carrier => \In[Carrier] region x \by { base: inU, equality: sym!{Carrier} _ _ (onInterior q) }, equality: same
+      }) inside);
+\definition regionOpen: Space.IsOpenIn topology region := (openCriterion region).rtl (Logic.And[_, _]::#
+  (topology.Topology[Carrier := A].topologyLaws source).emptyOpen
+  (\idelim InteriorSpace.Open[].image U = ({ p: Model.Disk \where \In[Carrier] region (characteristic p) })
+    \with V: \Pow Model.Disk => DiskSpace.IsOpenIn Model.diskTopology V \by {
+      base: InteriorSpace.Open[].imageOpen Model.diskTopology interiorOpen U open, equality: sym!{\Pow Model.Disk} _ _ preimage
+    }));

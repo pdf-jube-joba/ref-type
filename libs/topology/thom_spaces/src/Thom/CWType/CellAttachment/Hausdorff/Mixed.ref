@@ -1,0 +1,26 @@
+\import D.Arithmetic[].Prop[] \as Laws;
+\definition gap: R.Real := R.sub R.one (Model.normSquared p);
+\definition gapPositive: D.Lt R.zero gap := metric_spaces.RealLine[].Rays[].subPositive R.one (Model.normSquared p) (\bysub(Model.Disk, interiorSubset, p));
+\definition threshold: R.Real := R.midpoint (Model.normSquared p) R.one;
+\definition pointSmall: D.Lt (Model.normSquared p) threshold := D.ltReplaceLeft (R.add (Model.normSquared p) R.zero) (Model.normSquared p) threshold
+  (Laws.addZeroRight (Model.normSquared p)) (Laws.ltAddLeft (Model.normSquared p) R.zero (R.mul R.half gap) (Estimates.halfOfPositive gap gapPositive));
+\definition thresholdBelow: D.Lt threshold R.one := D.ltReplaceRight threshold (R.add (Model.normSquared p) gap) R.one (Estimates.addSubCancel R.one (Model.normSquared p))
+  (Laws.ltAddLeft (Model.normSquared p) (R.mul R.half gap) gap (Estimates.halfStrict gap gapPositive));
+\definition small: \Pow InteriorPoint := { q: InteriorPoint \where D.Lt (Model.normSquared q) threshold };
+\definition smallOpen: topology.Topology[Carrier := InteriorPoint].IsOpenIn interiorTopology small :=
+  topology.Continuity[A := Model.Disk, B := R.Real].Restriction[S := interiorSubset].restrictContinuous Model.diskTopology metric_spaces.RealLine[].topology
+    (\fun (q: Model.Disk) => Model.normSquared q) (\parent.\parent.Punctured[].squaredContinuous)
+      (metric_spaces.RealLine[].Rays[].Below threshold) (metric_spaces.RealLine[].Rays[].belowOpen threshold);
+\definition wholeOpen: Base.IsOpenIn source Base.Whole := (Base.topologyLaws source).wholeOpen;
+\import \parent.\parent.Collar[r := threshold, below := thresholdBelow, U := Base.Whole, open := wholeOpen] \as Outer;
+\import \parent.\parent.InteriorRegion[U := small, open := smallOpen] \as Inner;
+\definition data: Separation[inclusion a, interior p] := Separation[inclusion a, interior p] {
+  first := Outer.region, second := Inner.region,
+  firstOpen := Outer.regionOpen, secondOpen := Inner.regionOpen,
+  containsFirst := \refl(a), containsSecond := pointSmall,
+  disjoint := Cases.joinedDisjoint Base.Whole Base.Empty Outer.rightRegion small
+    (\fun (x: A)(member: _)(empty: Logic.False) => empty)
+    (\fun (q: InteriorPoint)(outside: \In[InteriorPoint] Outer.rightRegion q)(inside: \In[InteriorPoint] small q) =>
+      D.ltIrrefl threshold (Order.ltTrans threshold (Model.normSquared q) threshold (Outer.rightBound q outside) inside))
+};
+\definition exists: \exists Separation[inclusion a, interior p] := \exact(data, Separation[inclusion a, interior p]);

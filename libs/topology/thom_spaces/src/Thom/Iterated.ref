@@ -1,0 +1,67 @@
+\definition union: \Pow A := { x: A \where Logic.Or[\In[A] first x, \In[A] second x] };
+\import \root.Thom[].Collapse[A := A, source := source, subset := first] \as First;
+\import \root.Thom[].Collapse[A := A, source := source, subset := union] \as Single;
+\definition secondImage: \Pow First.Carrier := { q: First.Carrier \where Logic.Or[q = First.point, \exists ( x: A \where Logic.And[\In[A] second x, First.class x = q] )] };
+\import algebraic_topology.Collapse[A := First.Carrier, subset := secondImage] \as Second;
+\definition Carrier: \Set := Second.Carrier;
+\definition topology: topology.Topology[Carrier := Second.Carrier].Topology := Second.topology First.topology;
+\definition point: Second.Carrier := Second.class First.point;
+\definition firstPreserves: \forall (x: A) -> \In[A] first x -> \In[A] union x := \fun (x: A)(member: _) => Logic.Or[_, _]::left member;
+\import First.Mapping[B := A, target := source, targetSubset := union] \as Include;
+\definition initial: First.Carrier -> Single.Carrier := Include.apply (\fun (x: A) => x) firstPreserves;
+\definition initialContinuous: topology.Continuity[A := First.Carrier, B := Single.Carrier].Continuous First.topology Single.topology initial :=
+  Include.continuous (\fun (x: A) => x) firstPreserves (topology.Maps[A := A, B := A].Identity[].continuous source);
+\definition initialClass: \forall (x: A) -> initial (First.class x) = Single.class x := Include.onClass (\fun (x: A) => x) firstPreserves;
+\definition initialPoint: initial First.point = Single.point := Include.onPoint (\fun (x: A) => x) firstPreserves;
+\definition vanishes: \forall (q: First.Carrier) -> \In[First.Carrier] secondImage q -> initial q = Single.point :=
+  \fun (q: First.Carrier)(member: _) => either!{member {initial q = Single.point}
+    {\fun (same: q = First.point) => trans!{Single.Carrier} _ _ _ (congr!{First.Carrier Single.Carrier} initial _ _ same) initialPoint}
+    {\block {
+      \fun (exists: _) \then
+      \takefrom x: \Cast[A] ({ x: A \where Logic.And[\In[A] second x, First.class x = q] }) \by exists \then
+      \let data: Logic.And[\In[A] second x, First.class x = q] := \bysub(A, { x: A \where Logic.And[\In[A] second x, First.class x = q] }, x) \then
+      \return trans!{Single.Carrier} _ _ _ (congr!{First.Carrier Single.Carrier} initial _ _ (sym!{First.Carrier} _ _ data.right))
+        (trans!{Single.Carrier} _ _ _ (initialClass x) (Single.collapsed x (Logic.Or[_, _]::right data.left)))
+    }}
+  };
+\import Second.Descent[B := Single.Carrier] \as Forward;
+\definition respects: Forward.Respects initial := \fun (x, y: First.Carrier)(related: Second.Related x y) =>
+  either!{related {initial x = initial y}
+    {\fun (same: x = y) => congr!{First.Carrier Single.Carrier} initial _ _ same}
+    {\fun (both: Logic.And[\In[First.Carrier] secondImage x, \In[First.Carrier] secondImage y]) => trans!{Single.Carrier} _ _ _ (vanishes x both.left) (sym!{Single.Carrier} _ _ (vanishes y both.right))}
+  };
+\definition forward: Second.Carrier -> Single.Carrier := Forward.apply initial respects;
+\definition forwardClass: \forall (x: First.Carrier) -> forward (Second.class x) = initial x := Forward.onClass initial respects;
+\definition forwardContinuous: topology.Continuity[A := Second.Carrier, B := Single.Carrier].Continuous topology Single.topology forward := Forward.continuous First.topology Single.topology initial respects initialContinuous;
+\definition original[x: A]: Second.Carrier := Second.class (First.class x);
+\definition originalContinuous: topology.Continuity[A := A, B := Second.Carrier].Continuous source topology original :=
+  topology.Composition[A := A, B := First.Carrier, C := Second.Carrier].composeContinuous source First.topology topology First.class Second.class First.continuous (Second.projectionContinuous First.topology);
+\definition firstPointMember: \In[First.Carrier] secondImage First.point := Logic.Or[_, _]::left (\refl(First.point));
+\definition secondCollapsed: \forall (x: A) -> \In[A] second x -> original x = point :=
+  \fun (x: A)(member: _) => Second.collapsed (First.class x) First.point
+    (Logic.Or[_, _]::right (Logic.existsIntro[A, { y: A \where Logic.And[\In[A] second y, First.class y = First.class x] }] x (Logic.And[_, _]::# member (\refl(First.class x))))) firstPointMember;
+\definition originalVanishes: \forall (x: A) -> \In[A] union x -> original x = point :=
+  \fun (x: A)(member: _) => either!{member {original x = point}
+    {\fun (first: _) => congr!{First.Carrier Second.Carrier} Second.class _ _ (First.collapsed x first)}
+    {secondCollapsed x}
+  };
+\import Single.Lift[B := Second.Carrier, target := topology, basepoint := point, f := original, regular := originalContinuous, vanishes := originalVanishes] \as Backward;
+\definition backward: Single.Carrier -> Second.Carrier := Backward.apply;
+\definition leftInverse: \forall (q: Second.Carrier) -> backward (forward q) = q :=
+  Second.induction (\fun (q: Second.Carrier) => backward (forward q) = q)
+    (First.induction (\fun (p: First.Carrier) => backward (forward (Second.class p)) = Second.class p)
+      (trans!{Second.Carrier} _ _ _ (congr!{Single.Carrier Second.Carrier} backward _ _
+        (trans!{Single.Carrier} _ _ _ (forwardClass First.point) initialPoint)) Backward.onPoint)
+      (\fun (x: A) => trans!{Second.Carrier} _ _ _ (congr!{Single.Carrier Second.Carrier} backward _ _
+        (trans!{Single.Carrier} _ _ _ (forwardClass (First.class x)) (initialClass x))) (Backward.onClass x)));
+\definition rightInverse: \forall (q: Single.Carrier) -> forward (backward q) = q :=
+  Single.induction (\fun (q: Single.Carrier) => forward (backward q) = q)
+    (trans!{Single.Carrier} _ _ _ (congr!{Second.Carrier Single.Carrier} forward _ _ Backward.onPoint)
+      (trans!{Single.Carrier} _ _ _ (forwardClass First.point) initialPoint))
+    (\fun (x: A) => trans!{Single.Carrier} _ _ _ (congr!{Second.Carrier Single.Carrier} forward _ _ (Backward.onClass x))
+      (trans!{Single.Carrier} _ _ _ (forwardClass (First.class x)) (initialClass x)));
+\definition homeomorphism: topology.Homeomorphism[A := Second.Carrier, B := Single.Carrier].Homeomorphism[topology, Single.topology] :=
+  topology.Homeomorphism[A := Second.Carrier, B := Single.Carrier].Homeomorphism[topology, Single.topology] {
+    forward := forward, backward := backward, leftInverse := leftInverse, rightInverse := rightInverse,
+    forwardContinuous := forwardContinuous, backwardContinuous := Backward.continuous
+  };

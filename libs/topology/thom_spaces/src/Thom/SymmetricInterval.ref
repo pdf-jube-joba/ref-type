@@ -1,0 +1,97 @@
+\import real.Analysis[] \as R;
+\import dedekind_reals.DedekindReal[] \as D;
+\import D.Arithmetic[].Prop[] \as Laws;
+\import D.Order[] \as Order;
+\import R.Algebra[] \as Algebra;
+\import R.Estimates[] \as Estimates;
+\import R.Distance[] \as Distance;
+\import R.SquareRoot[] \as Root;
+\import algebraic_topology.Interval[] \as I;
+\definition unit: \Pow R.Real := { r: R.Real \where D.Le (R.mul r r) R.one };
+\import topology.Topology[Carrier := R.Real].Subspace[S := unit] \as Subspace;
+\definition Carrier: \Set := Subspace.CarrierSet;
+\definition topology: topology.Topology[Carrier := Carrier].Topology := Subspace.topology metric_spaces.RealLine[].topology;
+\definition bounds[r: Carrier]: Logic.And[D.Le (R.neg R.one) r, D.Le r R.one] :=
+  algebraic_topology.Euclidean[].Dimension[n := N.Nat^::zero].Geometry[].unitBounds r (\bysub(R.Real, unit, r));
+\definition halfNegOne: R.mul R.half (R.neg R.one) = R.neg R.half :=
+  trans!{R.Real} _ _ _ (Laws.fieldMulNegRight R.half R.one) (congr!{R.Real R.Real} R.neg _ _ (Algebra.mulOneRight R.half));
+\definition forward[r: Carrier]: I.Carrier := \into[R.Real](R.add R.half (R.mul R.half r), metric_spaces.RealLine[].ClosedInterval R.zero R.one) \by {
+  Logic.And[_, _]::#
+    (D.leReplaceLeft (R.add R.half (R.mul R.half (R.neg R.one))) R.zero (R.add R.half (R.mul R.half r))
+      (trans!{R.Real} _ _ _ (congr!{R.Real R.Real} (R.add R.half) _ _ halfNegOne) (Laws.addNegRight R.half))
+      (Laws.addMonotoneLeft _ _ R.half (Estimates.mulMonotone R.half (R.neg R.one) r Estimates.halfNonnegative (bounds r).left)))
+    (D.leReplaceRight (R.add R.half (R.mul R.half r)) (R.add R.half (R.mul R.half R.one)) R.one
+      (trans!{R.Real} _ _ _ (congr!{R.Real R.Real} (R.add R.half) _ _ (Algebra.mulOneRight R.half)) Estimates.halfDouble)
+      (Laws.addMonotoneLeft _ _ R.half (Estimates.mulMonotone R.half r R.one Estimates.halfNonnegative (bounds r).right)))
+};
+\definition scalar[t: I.Carrier]: R.Real := R.sub (R.add t t) R.one;
+\definition scalarLower: \forall (t: I.Carrier) -> D.Le (R.neg R.one) (scalar t) :=
+  \fun (t: I.Carrier) => D.leReplaceLeft (R.add R.zero (R.neg R.one)) (R.neg R.one) (scalar t) (Laws.addZeroLeft (R.neg R.one))
+    (Laws.addMonotoneRight _ _ (R.neg R.one) (Laws.addNonnegative t t (I.bounds t).left (I.bounds t).left));
+\definition scalarUpper: \forall (t: I.Carrier) -> D.Le (scalar t) R.one :=
+  \fun (t: I.Carrier) => D.leReplaceRight (scalar t) (R.sub (R.add R.one R.one) R.one) R.one (Laws.addNegCancelRight R.one R.one)
+    (Laws.addMonotoneRight _ _ (R.neg R.one) (Estimates.addLe t t R.one R.one (I.bounds t).right (I.bounds t).right));
+\definition squareBound: \forall (r: R.Real) -> D.Le (R.neg R.one) r -> D.Le r R.one -> D.Le (R.mul r r) R.one :=
+  \fun (r: R.Real)(lower: _)(upper: _) => either!{{Laws.nonnegativeOrNegativeReal r} {D.Le (R.mul r r) R.one}
+    {\fun (positive: _) => D.leReplaceRight (R.mul r r) (R.mul R.one R.one) R.one (Algebra.mulOneRight R.one)
+      (Root.squareMonotone r R.one positive Laws.oneNonnegative upper)}
+    {\fun (negative: _) => D.leReplace (R.mul (R.neg r) (R.neg r)) (R.mul r r) (R.mul R.one R.one) R.one
+      (Laws.fieldMulNegBoth r r) (Algebra.mulOneRight R.one)
+      (Root.squareMonotone (R.neg r) R.one (Laws.nonnegativeNegOfNegative r negative) Laws.oneNonnegative
+        (D.leReplaceRight (R.neg r) (R.neg (R.neg R.one)) R.one (Laws.negInvolutive R.one) (Laws.negAntitone (R.neg R.one) r lower)))}
+  };
+\definition backward[t: I.Carrier]: Carrier := \into[R.Real](scalar t, unit) \by { squareBound (scalar t) (scalarLower t) (scalarUpper t) };
+\definition leftInverse: \forall (r: Carrier) -> backward (forward r) = r :=
+  \fun (r: Carrier) => eq_reason_in!{R.Real _
+    "=" _ "by" { congr!{R.Real R.Real} (\fun (s: R.Real) => R.sub s R.one) _ _ (Algebra.addFour R.half (R.mul R.half r) R.half (R.mul R.half r)) }
+    "=" _ "by" { congr!{R.Real R.Real R.Real} (\fun (a, b: R.Real) => R.sub (R.add a b) R.one) _ _ _ _ Estimates.halfDouble (Estimates.halfTwice r) }
+    "=" _ "by" { congr!{R.Real R.Real} (\fun (s: R.Real) => R.sub s R.one) _ _ (Laws.addComm R.one r) }
+    "=" _ "by" { Laws.addNegCancelRight R.one r }
+  };
+\definition rightInverse: \forall (t: I.Carrier) -> forward (backward t) = t :=
+  \fun (t: I.Carrier) => eq_reason_in!{R.Real _
+    "=" _ "by" { congr!{R.Real R.Real} (R.add R.half) _ _ (Algebra.mulSub R.half (R.add t t) R.one) }
+    "=" _ "by" { congr!{R.Real R.Real R.Real} (\fun (a, b: R.Real) => R.add R.half (R.sub a b)) _ _ _ _
+      (trans!{R.Real} _ _ _ (Laws.fieldMulAdd R.half t t) (Estimates.halfTwice t)) (Algebra.mulOneRight R.half) }
+    "=" _ "by" { Estimates.addSubCancel t R.half }
+  };
+\import metric_spaces.RealFunctions[A := Carrier] \as Functions;
+\definition forwardContinuous: topology.Continuity[A := Carrier, B := I.Carrier].Continuous topology I.topology forward :=
+  topology.Continuity[A := Carrier, B := R.Real].Corestriction[S := metric_spaces.RealLine[].ClosedInterval R.zero R.one].corestrictContinuous topology metric_spaces.RealLine[].topology forward
+    (Functions.sumContinuous topology (\fun (r: Carrier) => R.half) (\fun (r: Carrier) => R.mul R.half r)
+      (Functions.constantContinuous topology R.half)
+      (Functions.Product[].continuous topology (\fun (r: Carrier) => R.half) (\fun (r: Carrier) => r)
+        (Functions.constantContinuous topology R.half) (topology.Continuity[A := Carrier, B := R.Real].Corestriction[S := unit].inclusionContinuous metric_spaces.RealLine[].topology)));
+\import metric_spaces.RealFunctions[A := I.Carrier] \as IntervalFunctions;
+\definition backwardContinuous: topology.Continuity[A := I.Carrier, B := Carrier].Continuous I.topology topology backward :=
+  topology.Continuity[A := I.Carrier, B := R.Real].Corestriction[S := unit].corestrictContinuous I.topology metric_spaces.RealLine[].topology backward
+    (IntervalFunctions.subContinuous I.topology (\fun (t: I.Carrier) => R.add t t) (\fun (t: I.Carrier) => R.one)
+      (IntervalFunctions.sumContinuous I.topology (\fun (t: I.Carrier) => t) (\fun (t: I.Carrier) => t) I.inclusionContinuous I.inclusionContinuous)
+      (IntervalFunctions.constantContinuous I.topology R.one));
+\definition homeomorphism: topology.Homeomorphism[A := Carrier, B := I.Carrier].Homeomorphism[topology, I.topology] :=
+  topology.Homeomorphism[A := Carrier, B := I.Carrier].Homeomorphism[topology, I.topology] {
+    forward := forward, backward := backward, leftInverse := leftInverse, rightInverse := rightInverse,
+    forwardContinuous := forwardContinuous, backwardContinuous := backwardContinuous
+  };
+\definition backwardStart: backward I.start = R.neg R.one :=
+  trans!{R.Real} _ _ _ (congr!{R.Real R.Real} (\fun (s: R.Real) => R.sub s R.one) _ _ (Laws.addZeroLeft R.zero)) (Laws.addZeroLeft (R.neg R.one));
+\definition backwardEnd: backward I.end = R.one := Laws.addNegCancelRight R.one R.one;
+\definition startSquare: R.mul (backward I.start) (backward I.start) = R.one :=
+  trans!{R.Real} _ _ _ (congr!{R.Real R.Real R.Real} R.mul _ _ _ _ backwardStart backwardStart)
+    (trans!{R.Real} _ _ _ (Laws.fieldMulNegBoth R.one R.one) (Algebra.mulOneRight R.one));
+\definition endSquare: R.mul (backward I.end) (backward I.end) = R.one :=
+  trans!{R.Real} _ _ _ (congr!{R.Real R.Real R.Real} R.mul _ _ _ _ backwardEnd backwardEnd) (Algebra.mulOneRight R.one);
+\definition endpoint: \forall (r: Carrier) -> R.mul r r = R.one -> Logic.Or[forward r = I.start, forward r = I.end] :=
+  \fun (r: Carrier)(boundary: _) => either!{{Laws.nonnegativeOrNegativeReal r} {Logic.Or[forward r = I.start, forward r = I.end]}
+    {\fun (positive: _) => Logic.Or[_, _]::right (trans!{{I.Carrier}} _ _ _
+      (congr!{Carrier {I.Carrier}} forward r (backward I.end)
+        (trans!{R.Real} _ _ _ (Root.squaresInjective r R.one positive Laws.oneNonnegative
+          (trans!{R.Real} _ _ _ boundary (sym!{R.Real} _ _ (Algebra.mulOneRight R.one)))) (sym!{R.Real} _ _ backwardEnd))) (rightInverse I.end))}
+    {\fun (negative: _) => Logic.Or[_, _]::left (trans!{{I.Carrier}} _ _ _
+      (congr!{Carrier {I.Carrier}} forward r (backward I.start)
+        (trans!{R.Real} _ _ _ (sym!{R.Real} _ _ (Laws.negInvolutive r))
+          (trans!{R.Real} _ _ _ (congr!{R.Real R.Real} R.neg _ _
+            (Root.squaresInjective (R.neg r) R.one (Laws.nonnegativeNegOfNegative r negative) Laws.oneNonnegative
+              (trans!{R.Real} _ _ _ (Laws.fieldMulNegBoth r r) (trans!{R.Real} _ _ _ boundary (sym!{R.Real} _ _ (Algebra.mulOneRight R.one))))))
+            (sym!{R.Real} _ _ backwardStart)))) (rightInverse I.start))}
+  };

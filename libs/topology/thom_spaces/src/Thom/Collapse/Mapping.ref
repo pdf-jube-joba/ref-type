@@ -1,0 +1,23 @@
+\import \root.Thom[].Collapse[A := B, source := target, subset := targetSubset] \as Target;
+\import topological_constructions.Coproduct[A := B, B := Unit] \as TargetAdjoined;
+\import Adjoined.Universal[C := Target.Extended] \as Copair;
+\definition extend[f: A -> B]: Extended -> Target.Extended := Copair.copair (\fun (x: A) => TargetAdjoined.inl (f x)) TargetAdjoined.inr;
+\definition Preserves[f: A -> B]: \Prop := \forall (x: A) -> \In[A] subset x -> \In[B] targetSubset (f x);
+\definition preserves: \forall (f: A -> B) -> Preserves f -> \forall (x: Extended) -> \In[Extended] Boundary x -> \In[Target.Extended] Target.Boundary (extend f x) :=
+  \fun (f: A -> B)(preserves: Preserves f) => \induction (x: Extended) \return \In[Extended] Boundary x -> \In[Target.Extended] Target.Boundary (extend f x) \with {
+    | inl: preserves
+    | inr: \fun (u: Unit)(member: _) => member
+  };
+\import Quotient.Mapping[B := Target.Extended, targetSubset := Target.Boundary] \as Map;
+\definition apply[f: A -> B][boundary: Preserves f]: Carrier -> Target.Carrier := Map.apply (extend f) (preserves f boundary);
+\definition onClass: \forall (f: A -> B)(boundary: Preserves f)(x: A) -> apply f boundary (class x) = Target.class (f x) :=
+  \fun (f: _)(boundary: _)(x: A) => Map.onClass (extend f) (preserves f boundary) (Adjoined.inl x);
+\definition onPoint: \forall (f: A -> B)(boundary: Preserves f) -> apply f boundary point = Target.point :=
+  \fun (f: _)(boundary: _) => Map.onClass (extend f) (preserves f boundary) (Adjoined.inr Unit::point);
+\definition continuous: \forall (f: A -> B)(boundary: Preserves f) -> topology.Continuity[A := A, B := B].Continuous source target f -> topology.Continuity[A := Carrier, B := Target.Carrier].Continuous topology Target.topology (apply f boundary) :=
+  \fun (f: _)(boundary: _)(regular: _) => Map.continuous extendedTopology Target.extendedTopology (extend f) (preserves f boundary)
+    (Copair.continuous source topology.Topology[Carrier := Unit].Discrete Target.extendedTopology
+      (\fun (x: A) => TargetAdjoined.inl (f x)) TargetAdjoined.inr
+      (topology.Composition[A := A, B := B, C := Target.Extended].composeContinuous source target Target.extendedTopology f TargetAdjoined.inl regular
+        (TargetAdjoined.inlContinuous target topology.Topology[Carrier := Unit].Discrete))
+      (TargetAdjoined.inrContinuous target topology.Topology[Carrier := Unit].Discrete));

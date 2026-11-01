@@ -1,0 +1,104 @@
+\import R.Algebra[] \as Algebra;
+\import R.Distance[] \as Distance;
+\import Order.Arithmetic[].Prop[] \as Laws;
+\import Order.Order[] \as Ord;
+\import \parent.\parent.Radial[] \as Radial;
+\import Adjoined.Universal[C := R.Real] \as Radius;
+\definition radius: Extended -> R.Real := Radius.copair (\fun (p: DiskBundle) => norm p) (\fun (u: Unit) => R.one);
+\definition radiusContinuous: metric_spaces.RealFunctions[A := Extended].Continuous source radius :=
+  Radius.continuous diskTopology topology.Topology[Carrier := Unit].Discrete metric_spaces.RealLine[].topology (\fun (p: DiskBundle) => norm p) (\fun (u: Unit) => R.one)
+    (topology.Composition[A := DiskBundle, B := Family.Point, C := R.Real].composeContinuous diskTopology bundle.totalSpace metric_spaces.RealLine[].topology
+      (\fun (p: DiskBundle) => p) norm (topology.Continuity[A := DiskBundle, B := Family.Point].Corestriction[S := ClosedBall].inclusionContinuous bundle.totalSpace) normContinuous)
+    (topology.Maps[A := Unit, B := R.Real].constantContinuous topology.Topology[Carrier := Unit].Discrete metric_spaces.RealLine[].topology R.one);
+\definition region: \Pow Extended := { x: Extended \where Order.Lt R.half (radius x) };
+\definition open: topology.Topology[Carrier := Extended].IsOpenIn source region := radiusContinuous (metric_spaces.RealLine[].Rays[].Above R.half) (metric_spaces.RealLine[].Rays[].aboveOpen R.half);
+\definition halfBelowOne: Order.Lt R.half R.one := Order.ltReplaceLeft (R.mul R.half R.one) R.half R.one (Algebra.mulOneRight R.half)
+  (R.Estimates[].halfStrict R.one (Ord.ltOfLeNotEq R.zero R.one Laws.oneNonnegative Laws.zeroNeOne));
+\definition boundaryRadius: \forall (x: Extended) -> \In[Extended] Quotient.Boundary x -> radius x = R.one :=
+  \induction (x: Extended) \return \In[Extended] Quotient.Boundary x -> radius x = R.one \with {
+    | inl: \fun (x: DiskBundle)(member: _) => trans!{R.Real} _ _ _ (congr!{R.Real R.Real} R.SquareRoot[].sqrt _ _ member) R.SquareRoot[].sqrtOne
+    | inr: \fun (u: Unit)(member: _) => \refl(R.one)
+  };
+\definition contains: \forall (x: Extended) -> \In[Extended] Quotient.Boundary x -> \In[Extended] region x :=
+  \fun (x: Extended)(member: _) => Order.ltReplaceRight R.half R.one (radius x) (sym!{R.Real} _ _ (boundaryRadius x member)) halfBelowOne;
+\import algebraic_topology.Collapse[A := Extended, subset := Quotient.Boundary].Open[source := source] \as Neighborhoods;
+\definition neighborhood: Neighborhoods.Neighborhood := Neighborhoods.Neighborhood { region := region, open := open, contains := contains };
+\import topology.Topology[Carrier := Extended].Subspace[S := region] \as Domain;
+\definition Carrier: \Set := Domain.CarrierSet;
+\definition topology: topology.Topology[Carrier := Carrier].Topology := Domain.topology source;
+\definition collapsedPart: \Pow Carrier := { x: Carrier \where \In[Extended] Quotient.Boundary x };
+\definition diskNormScale: \forall (t: I.Carrier)(x: DiskBundle) -> norm (Motion.point (DiskCylinder.at t x)) = R.mul puppe_sequences.Puppe[].Radial[t := t, r := Motion.radius x].coefficient (norm x) :=
+  \fun (t: I.Carrier)(x: DiskBundle) => R.SquareRoot[].squaresInjective _ _ (normNonnegative (Motion.point (DiskCylinder.at t x)))
+    (Laws.fieldMulNonnegative puppe_sequences.Puppe[].Radial[t := t, r := Motion.radius x].coefficient (norm x)
+      (Ord.leOfLt _ _ puppe_sequences.Puppe[].Radial[t := t, r := Motion.radius x].coefficientPositive) (normNonnegative x))
+    (trans!{R.Real} _ _ _ (normSquared (Motion.point (DiskCylinder.at t x)))
+      (Radial.scaledSquared puppe_sequences.Puppe[].Radial[t := t, r := Motion.radius x].coefficient x));
+\definition increasing: \forall (t: I.Carrier)(x: Extended) -> Order.Le (radius x) (radius (Cylinder.point (family (Cylinder.at t x)))) :=
+  \fun (t: I.Carrier) => \induction (x: Extended) \return Order.Le (radius x) (radius (Cylinder.point (family (Cylinder.at t x)))) \with {
+    | inl: \fun (x: DiskBundle) => Order.leReplace (R.mul (norm x) R.one) (norm x) (R.mul (norm x) puppe_sequences.Puppe[].Radial[t := t, r := Motion.radius x].coefficient)
+      (norm (Motion.point (DiskCylinder.at t x))) (Algebra.mulOneRight (norm x))
+      (trans!{R.Real} _ _ _ (Laws.fieldMulComm (norm x) puppe_sequences.Puppe[].Radial[t := t, r := Motion.radius x].coefficient) (sym!{R.Real} _ _ (diskNormScale t x)))
+      (R.Estimates[].mulMonotone (norm x) R.one puppe_sequences.Puppe[].Radial[t := t, r := Motion.radius x].coefficient (normNonnegative x)
+        puppe_sequences.Puppe[].Radial[t := t, r := Motion.radius x].coefficientLower)
+    | inr: \fun (u: Unit) => Order.leRefl R.one
+  };
+\definition endLower[r: I.Carrier]: puppe_sequences.Puppe[].Radial[t := I.end, r := r].lower = R.half :=
+  trans!{R.Real} _ _ _ (congr!{R.Real R.Real} (R.sub R.one) _ _ (Algebra.mulOneRight R.half)) puppe_sequences.Puppe[].Radial[t := I.end, r := r].halfComplement;
+\definition endsInBoundary: \forall (x: Extended) -> \In[Extended] region x -> \In[Extended] Quotient.Boundary (Cylinder.point (family (Cylinder.at I.end x))) :=
+  \induction (x: Extended) \return \In[Extended] region x -> \In[Extended] Quotient.Boundary (Cylinder.point (family (Cylinder.at I.end x))) \with {
+    | inl: \fun (x: DiskBundle)(member: _) => Motion.At[t := I.end, x := x].side
+      (Distance.maxOfLe puppe_sequences.Puppe[].Radial[t := I.end, r := Motion.radius x].lower (Motion.radius x) (Order.leReplaceLeft R.half puppe_sequences.Puppe[].Radial[t := I.end, r := Motion.radius x].lower (Motion.radius x)
+        (sym!{R.Real} _ _ (endLower (Motion.radius x))) (Ord.leOfLt R.half (Motion.radius x) member)))
+    | inr: \fun (u: Unit)(member: _) => Logic.True::intro
+  };
+\import algebraic_topology.Cylinder[A := Carrier] \as CollarCylinder;
+\definition intoCylinder[p: CollarCylinder.Carrier]: Cylinder.Carrier := Cylinder.at (CollarCylinder.time p) (CollarCylinder.point p);
+\definition intoCylinderContinuous: topology.Continuity[A := CollarCylinder.Carrier, B := Cylinder.Carrier].Continuous (CollarCylinder.topology topology) cylinderTopology intoCylinder :=
+  topological_constructions.Product[A := I.Carrier, B := Extended].Universal[X := CollarCylinder.Carrier].pairContinuous (CollarCylinder.topology topology) I.topology source
+    CollarCylinder.time (\fun (p: CollarCylinder.Carrier) => CollarCylinder.point p) (CollarCylinder.timeContinuous topology)
+    (topology.Composition[A := CollarCylinder.Carrier, B := Carrier, C := Extended].composeContinuous (CollarCylinder.topology topology) topology source CollarCylinder.point (\fun (x: Carrier) => x)
+      (CollarCylinder.pointContinuous topology) (topology.Continuity[A := Carrier, B := Extended].Corestriction[S := region].inclusionContinuous source));
+\definition homotopy[p: CollarCylinder.Carrier]: Carrier := \into[Extended](Cylinder.point (family (intoCylinder p)), region) \by {
+  Order.ltLeTrans R.half (radius (CollarCylinder.point p)) (radius (Cylinder.point (family (intoCylinder p))))
+    (\bysub(Extended, region, CollarCylinder.point p)) (increasing (CollarCylinder.time p) (CollarCylinder.point p))
+};
+\definition homotopyContinuous: topology.Continuity[A := CollarCylinder.Carrier, B := Carrier].Continuous (CollarCylinder.topology topology) topology homotopy :=
+  topology.Continuity[A := CollarCylinder.Carrier, B := Extended].Corestriction[S := region].corestrictContinuous (CollarCylinder.topology topology) source homotopy
+    (topology.Composition[A := CollarCylinder.Carrier, B := Cylinder.Carrier, C := Extended].composeContinuous (CollarCylinder.topology topology) cylinderTopology source intoCylinder
+      (\fun (p: Cylinder.Carrier) => Cylinder.point (family p)) intoCylinderContinuous
+      (topology.Composition[A := Cylinder.Carrier, B := Cylinder.Carrier, C := Extended].composeContinuous cylinderTopology cylinderTopology source family Cylinder.point continuous (Cylinder.pointContinuous source)));
+\definition retraction[x: Carrier]: \Cast[Carrier] collapsedPart := \into[Carrier](homotopy (CollarCylinder.at I.end x), collapsedPart) \by {
+  endsInBoundary x (\bysub(Extended, region, x))
+};
+\import algebraic_topology.Homotopy[A := Carrier, B := Carrier] \as Homotopies;
+\import algebraic_topology.DeformationRetract[A := Carrier, source := topology, subset := collapsedPart] \as Retract;
+\definition deformation: Retract.Data := Retract.Data {
+  retraction := retraction,
+  continuous := topology.Continuity[A := Carrier, B := Carrier].Corestriction[S := collapsedPart].corestrictContinuous topology topology retraction
+    (topology.Composition[A := Carrier, B := CollarCylinder.Carrier, C := Carrier].composeContinuous topology (CollarCylinder.topology topology) topology (CollarCylinder.at I.end) homotopy
+      (CollarCylinder.atContinuous topology I.end) homotopyContinuous),
+  retracts := \fun (x: \Cast[Carrier] collapsedPart) => congr!{Cylinder.Carrier Extended} Cylinder.point _ _ (sideAll I.end x (\bysub(Carrier, collapsedPart, x))),
+  homotopy := \into[Homotopies.Family](homotopy, Homotopies.RelativeHomotopy[topology, topology, collapsedPart, (\fun (x: Carrier) => x), (\fun (x: Carrier) => retraction x)]) \by {
+    Homotopies.RelativeLaws[topology, topology, collapsedPart, (\fun (x: Carrier) => x), (\fun (x: Carrier) => retraction x), homotopy] {
+    homotopy := algebraic_topology.Homotopy[A := Carrier, B := Carrier].Laws[topology, topology, (\fun (x: Carrier) => x), (\fun (x: Carrier) => retraction x), homotopy] {
+      continuous := homotopyContinuous,
+      start := \fun (x: Carrier) => congr!{Cylinder.Carrier Extended} Cylinder.point _ _ (bottom x),
+      end := \fun (x: Carrier) => \refl(homotopy (CollarCylinder.at I.end x))
+    },
+    fixed := \fun (t: I.Carrier)(x: Carrier)(member: _) => congr!{Cylinder.Carrier Extended} Cylinder.point _ _ (sideAll t x member)
+    }
+  }
+};
+\definition goodPair: algebraic_topology.NeighborhoodRetract[A := Extended, source := source, subset := Quotient.Boundary].Data :=
+  algebraic_topology.NeighborhoodRetract[A := Extended, source := source, subset := Quotient.Boundary].Data {
+    point := \into[Extended](Adjoined.inr Unit::point, Quotient.Boundary) \by { Logic.True::intro },
+    closed := closed,
+    neighborhood := neighborhood,
+    deformation := deformation
+  };
+
+\import std.Arithmetic[].Int[] \as Integers;
+\import std.Arithmetic[].IntAlgebra[].Ring[] \as IntegerRing;
+\import module_theory.Module[].Over[R := Integers.Int^, ring := IntegerRing.ring] \as Modules;
+\module Homology(z: Integers.Int^);
+\module Cohomology(coefficients: Modules.Bundle, z: Integers.Int^);

@@ -1,0 +1,25 @@
+\definition originalSubset: \Pow Carrier := { z: Carrier \where \exists (y: B \where Logic.And[\In[B] subset y, inclusion y = z]) };
+\definition original: \forall (y: B) -> \In[B] subset y -> \In[Carrier] originalSubset (inclusion y) := \fun (y: B)(member: _) =>
+  Logic.existsIntro[B, { x: B \where Logic.And[\In[B] subset x, inclusion x = inclusion y] }] y (Logic.And[_, _]::# member (\refl(inclusion y)));
+\definition eliminate: \forall (z: Carrier)(P: \Prop) -> (\forall (y: B) -> \In[B] subset y -> inclusion y = z -> P) -> \In[Carrier] originalSubset z -> P := \block {
+  \fun (z: Carrier)(P: \Prop)(step: _)(member: _) \then
+  \takefrom y: \Cast[B] ({ y: B \where Logic.And[\In[B] subset y, inclusion y = z] }) \by member \then
+  \let laws: Logic.And[\In[B] subset y, inclusion y = z] := \bysub(B, { y: B \where Logic.And[\In[B] subset y, inclusion y = z] }, y) \then
+  \return step y laws.left laws.right
+};
+\module Homotopic(g: A -> B, regular: topology.Continuity[A := A, B := B].Continuous source target g,
+  h: algebraic_topology.Homotopy[A := A, B := B].Homotopy[source, target, f, g]);
+\definition originalEliminate: _ := eliminate;
+\module Inside;
+\definition mapPreserves[D: \Set][targetSubset: \Pow D][map: Carrier -> D]:
+  (\forall (y: B) -> \In[B] subset y -> \In[D] targetSubset (map (inclusion y))) ->
+  \forall (z: \Cast[Carrier] originalSubset) -> \In[D] targetSubset (map z) :=
+  \fun (onOriginal: _)(z: \Cast[Carrier] originalSubset) => eliminate z (\In[D] targetSubset (map z))
+    (\fun (y: B)(member: _)(same: inclusion y = z) => \idelim map (inclusion y) = map z \with d: D => \In[D] targetSubset d \by {
+      base: onOriginal y member, equality: congr!{Carrier D} map _ _ same
+    }) (\bysub(Carrier, originalSubset, z));
+
+\module BaseEquivalence(D: \Set, range: topology.Topology[Carrier := D].Topology, targetSubset: \Pow D,
+  e: \root.Thom[].CWType[].PairTools[A := B, B := D, source := target, target := range, subset := subset, targetSubset := targetSubset].Data,
+  next: A -> D, regular: topology.Continuity[A := A, B := D].Continuous source range next,
+  commutes: \forall (x: A) -> e.forward (f x) = next x);

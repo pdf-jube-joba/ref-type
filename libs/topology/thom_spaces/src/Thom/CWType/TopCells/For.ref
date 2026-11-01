@@ -1,0 +1,40 @@
+\structure Adjustment[c: Cells.CellData]: \Set := {
+  value: Domain.Disk -> Upper.Carrier,
+  continuous: topology.Continuity[A := Domain.Disk, B := Upper.Carrier].Continuous Domain.diskTopology Upper.topology value,
+  homotopy: Homotopies.Homotopy[Domain.diskTopology, Upper.topology, f, value],
+  fixed: \forall (t: I.Carrier)(x: Domain.Disk) -> Logic.Not (\In[A] (Cells.InteriorImage c) (f x)) -> homotopy (Cylinder.at t x) = f x,
+  supported: \forall (p: Cylinder.Carrier) -> Logic.Or[homotopy p = f (Cylinder.point p), \In[A] (Cells.InteriorImage c) (homotopy p)],
+  noncentre: \forall (x: Domain.Disk) -> Logic.Not ((\fun (y: Upper.Carrier) => y) (value x) = centre c)
+};
+\module Single(c: Cells.CellData, present: Cells.CellMember complex.cells c, dimension: c.dimension = k);
+\definition fixedSubset: \Pow Domain.Disk := { x: Domain.Disk \where \In[A] (Filtration.subset k) (f x) };
+\structure Data[family: Cells.Cells]: \Set := {
+  value: Domain.Disk -> Upper.Carrier,
+  continuous: topology.Continuity[A := Domain.Disk, B := Upper.Carrier].Continuous Domain.diskTopology Upper.topology value,
+  homotopy: Homotopies.RelativeHomotopy[Domain.diskTopology, Upper.topology, fixedSubset, f, value],
+  avoids: \forall (c: Cells.CellData) -> Cells.CellMember family c -> Cells.CellMember complex.cells c -> c.dimension = k ->
+    \forall (x: Domain.Disk) -> Logic.Not ((\fun (y: Upper.Carrier) => y) (value x) = centre c)
+};
+\definition base: Data[Lists.List[Cells.CellData]::nil] := Data[Lists.List[Cells.CellData]::nil] {
+  value := f, continuous := continuous, homotopy := Homotopies.constantRelative Domain.diskTopology Upper.topology fixedSubset f continuous,
+  avoids := \fun (c: Cells.CellData)(empty: Logic.False)(present: _)(dimension: _)(x: Domain.Disk) => Logic.falseElim _ empty
+};
+\module Step(tail: Cells.Cells, previous: Data[tail], c: Cells.CellData);
+\definition finite: \forall (family: Cells.Cells) -> \exists Data[family] := \induction (family: Cells.Cells) \return \exists Data[family] \with {
+  | nil: \exact(base, Data[Lists.List[Cells.CellData]::nil])
+  | cons: \fun (c: Cells.CellData)(tail: Cells.Cells)(exists: \exists Data[tail]) => \block {
+    \takefrom previous: Data[tail] \by exists \then
+    \return Step[tail := tail, previous := previous, c := c].exists
+  }
+};
+\definition exists: \exists Data[complex.cells] := finite complex.cells;
+\structure Lowering: \Set := {
+  value: Domain.Disk -> Lower.Carrier,
+  continuous: topology.Continuity[A := Domain.Disk, B := Lower.Carrier].Continuous Domain.diskTopology Lower.topology value,
+  homotopy: Homotopies.RelativeHomotopy[Domain.diskTopology, Upper.topology, fixedSubset, f, (\fun (x: Domain.Disk) => lowerInclusion (value x))]
+};
+\module Lowered(data: Data[complex.cells]);
+\definition lowering: \exists Lowering := \block {
+  \takefrom data: Data[complex.cells] \by exists \then
+  \return \exact(Lowered[data := data].result, Lowering)
+};

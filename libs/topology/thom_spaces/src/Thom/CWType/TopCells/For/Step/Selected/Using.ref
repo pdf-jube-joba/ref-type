@@ -1,0 +1,44 @@
+\definition previousOnFixed: \forall (x: Domain.Disk) -> \In[Domain.Disk] fixedSubset x -> previous.value x = f x :=
+  \fun (x: Domain.Disk)(inside: _) => sym!{Upper.Carrier} _ _
+    (Homotopies.relativeEndpoints Domain.diskTopology Upper.topology fixedSubset f previous.value previous.homotopy x inside);
+\definition relative: Homotopies.RelativeHomotopy[Domain.diskTopology, Upper.topology, fixedSubset, previous.value, adjustment.value] :=
+  \into[Homotopies.Family](adjustment.homotopy, Homotopies.RelativeHomotopy[Domain.diskTopology, Upper.topology, fixedSubset, previous.value, adjustment.value]) \by {
+    Homotopies.RelativeLaws[Domain.diskTopology, Upper.topology, fixedSubset, previous.value, adjustment.value, adjustment.homotopy] {
+      homotopy := Homotopies.laws Domain.diskTopology Upper.topology previous.value adjustment.value adjustment.homotopy,
+      fixed := \fun (t: I.Carrier)(x: Domain.Disk)(inside: _) => adjustment.fixed t x
+        (lowerOutside c present dimension (previous.value x) (\idelim f x = previous.value x \with y: Upper.Carrier => \In[A] (Filtration.subset k) y \by {
+          base: inside, equality: sym!{Upper.Carrier} _ _ (previousOnFixed x inside)
+        }))
+    }
+  };
+\definition combined: Homotopies.RelativeHomotopy[Domain.diskTopology, Upper.topology, fixedSubset, f, adjustment.value] :=
+  Homotopies.RelativeConcatenation[].concatenate Domain.diskTopology Upper.topology fixedSubset f previous.value adjustment.value previous.homotopy relative;
+\definition endpointSupported: \forall (x: Domain.Disk) -> Logic.Or[adjustment.value x = previous.value x, \In[A] (Cells.InteriorImage c) (adjustment.value x)] :=
+  \fun (x: Domain.Disk) => \idelim adjustment.homotopy (Cylinder.at I.end x) = adjustment.value x \with y: Upper.Carrier =>
+    Logic.Or[y = previous.value x, \In[A] (Cells.InteriorImage c) y] \by {
+      base: adjustment.supported (Cylinder.at I.end x), equality: (Homotopies.laws Domain.diskTopology Upper.topology previous.value adjustment.value adjustment.homotopy).end x
+    };
+\definition preserves: \forall (d: Cells.CellData) -> Cells.CellMember tail d -> Cells.CellMember complex.cells d -> d.dimension = k ->
+  \forall (x: Domain.Disk) -> Logic.Not ((\fun (y: Upper.Carrier) => y) (adjustment.value x) = centre d) :=
+  \fun (d: Cells.CellData)(included: _)(member: _)(dim: _)(x: Domain.Disk)(same: _) =>
+    either!{{Classical.excludedMiddle (d = c)} Logic.False
+      {\fun (equal: d = c) => adjustment.noncentre x (trans!{A} _ _ _ same (congr!{Cells.CellData A} centre d c equal))}
+      {\fun (different: Logic.Not (d = c)) => either!{{endpointSupported x} Logic.False
+        {\fun (unchanged: adjustment.value x = previous.value x) => previous.avoids d included member dim x
+          (trans!{A} _ _ _ (sym!{A} _ _ (congr!{Upper.Carrier A} (\fun (y: Upper.Carrier) => y) _ _ unchanged)) same)}
+        {\fun (inside: \In[A] (Cells.InteriorImage c) (adjustment.value x)) => different (sym!{Cells.CellData} _ _
+          ((Cells.laws source complex).disjoint c d present member (centre d)
+            (\idelim (\fun (y: Upper.Carrier) => y) (adjustment.value x) = centre d \with y: A => \In[A] (Cells.InteriorImage c) y \by { base: inside, equality: same })
+            (centreInterior d)))}
+      }}
+    };
+\definition result: Data[Lists.List[Cells.CellData]::cons c tail] := Data[Lists.List[Cells.CellData]::cons c tail] {
+  value := adjustment.value, continuous := adjustment.continuous, homotopy := combined,
+  avoids := \fun (d: Cells.CellData)(included: _)(member: _)(dim: _)(x: Domain.Disk) =>
+    either!{included {Logic.Not ((\fun (y: Upper.Carrier) => y) (adjustment.value x) = centre d)}
+      {\fun (equal: d = c) => \idelim c = d \with e: Cells.CellData => Logic.Not ((\fun (y: Upper.Carrier) => y) (adjustment.value x) = centre e) \by {
+        base: adjustment.noncentre x, equality: sym!{Cells.CellData} _ _ equal
+      }}
+      {\fun (old: _) => preserves d old member dim x}
+    }
+};

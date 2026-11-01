@@ -1,0 +1,26 @@
+\import singular_cellular.On[A := A, source := source, complex := complex].Filtration[] \as Whole;
+\import singular_cellular.On[A := Carrier, source := topology, complex := result].Filtration[] \as Small;
+\import N.Basic[].Prop[] \as Nat;
+\structure Witness[n: N.Nat^, x: Carrier]: \Set := {
+  cell: Selected,
+  below: Nat.Lt cell.dimension n,
+  contains: \In[A] (Original.InteriorImage cell) x
+};
+\definition fromWitness: \forall (n: N.Nat^)(x: Carrier)(w: Small.Interiors[].Witness[n, x]) -> \exists Witness[n, x] := \fun (n: N.Nat^)(x: Carrier)(w: _) => \block {
+  \takefrom selectedCell: Mapping.Witness[family, w.cell] \by Mapping.witness family w.cell w.member \then
+  \let below: Nat.Lt selectedCell.cell.dimension n := \idelim w.cell = transform selectedCell.cell \with c: Cells.CellData => Nat.Lt c.dimension n \by {
+    base: w.below, equality: selectedCell.same
+  } \then
+  \let contains: \In[Carrier] (Cells.InteriorImage (transform selectedCell.cell)) x := \idelim w.cell = transform selectedCell.cell \with c: Cells.CellData => \In[Carrier] (Cells.InteriorImage c) x \by {
+    base: w.contains, equality: selectedCell.same
+  } \then
+  \return \exact(Witness[n, x] { cell := selectedCell.cell, below := below, contains := \parent.Cell[c := selectedCell.cell].interiorForward x contains }, Witness[n, x])
+};
+\definition lower: \forall (n: N.Nat^)(x: Carrier) -> \In[Carrier] (Small.subset n) x -> \exists Witness[n, x] := \fun (n: N.Nat^)(x: Carrier)(member: _) => \block {
+  \takefrom w: Small.Interiors[].Witness[n, x] \by Small.Interiors[].cover n x member \then
+  \return fromWitness n x w
+};
+\definition preserves: \forall (n: N.Nat^)(x: Carrier) -> \In[Carrier] (Small.subset n) x -> \In[A] (Whole.subset n) x := \fun (n: N.Nat^)(x: Carrier)(member: _) => \block {
+  \takefrom w: Witness[n, x] \by lower n x member \then
+  \return Whole.include complex.cells n w.cell (originalMember w.cell) w.below x (Whole.Exhaustion[].interiorClosed w.cell x w.contains)
+};

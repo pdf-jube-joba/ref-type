@@ -1,0 +1,20 @@
+\definition extensionLaws: HEP.ExtensionLaws[Disk.diskTopology, source, problem, extension] := \bysub(DiskHomotopies.Family, HEP.Extension[Disk.diskTopology, source, problem], extension);
+\definition southEnd[x: Disk.Disk]: A := extension (DiskCylinder.at I.end x);
+\definition extensionHomotopy: DiskHomotopies.Homotopy[Disk.diskTopology, source, south, southEnd] :=
+  \into[DiskHomotopies.Family](extension, DiskHomotopies.Homotopy[Disk.diskTopology, source, south, southEnd]) \by {
+    DiskHomotopies.Laws[Disk.diskTopology, source, south, southEnd, extension] {
+      continuous := extensionLaws.continuous, start := extensionLaws.initial, end := \fun (x: Disk.Disk) => \refl(southEnd x)
+    }
+  };
+\definition southEndContinuous: topology.Continuity[A := Disk.Disk, B := A].Continuous Disk.diskTopology source southEnd := DiskHomotopies.endContinuous Disk.diskTopology source south southEnd extensionHomotopy;
+\definition boundaryEnd: \forall (x: Subspace.CarrierSet) -> southEnd x = northEnd x :=
+  \fun (x: Subspace.CarrierSet) => trans!{A} _ _ _ (extensionLaws.extends I.end x) ((DiskHomotopies.laws Disk.diskTopology source north northEnd northHomotopy).end x);
+\import \root.Thom[].CWType[].DiskApproximation[m := d, A := A, source := source, complex := complex, fixed := Boundary.subset] \as South;
+\definition southLands: South.Lands southEnd := \fun (x: Disk.Disk)(boundary: _) => \idelim northEnd x = southEnd x \with y: A => \In[A] (Filtration.subset (N.Nat^::succ d)) y \by {
+  base: \bysub(A, Filtration.subset (N.Nat^::succ d), n.value x), equality: sym!{A} _ _ (boundaryEnd (\into[Disk.Disk](x, Boundary.subset) \by { boundary }))
+};
+\module Final(s: South.Result[southEnd]);
+\definition exists: \exists Result[f] := \block {
+  \takefrom s: South.Result[southEnd] \by South.For[f := southEnd, continuous := southEndContinuous, lands := southLands].exists \then
+  \return \exact(Final[s := s].result, Result[f])
+};

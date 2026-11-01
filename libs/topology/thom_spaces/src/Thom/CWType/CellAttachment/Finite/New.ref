@@ -1,0 +1,15 @@
+\definition injective: \forall (p, q: Model.Disk) -> D.Lt (Model.normSquared p) R.one -> D.Lt (Model.normSquared q) R.one -> characteristic p = characteristic q -> p = q :=
+  \fun (p, q: Model.Disk)(first: _)(second: _)(same: _) => \block {
+    \let a: InteriorPoint := \into[Model.Disk](p, interiorSubset) \by { first } \then
+    \let b: InteriorPoint := \into[Model.Disk](q, interiorSubset) \by { second } \then
+    \return Cases.rightInjective a b (trans!{Carrier} _ _ _ (sym!{Carrier} _ _ (onInterior a)) (trans!{Carrier} _ _ _ same (onInterior b)))
+  };
+\module Inverse(U: \Pow Model.Disk, open: DiskSpace.IsOpenIn Model.diskTopology U);
+\definition inverseContinuous: \forall (U: \Pow Model.Disk) -> DiskSpace.IsOpenIn Model.diskTopology U ->
+  \exists (V: \Pow Carrier \where Logic.And[Space.IsOpenIn topology V, Cells.InteriorPart newCell U = Space.Intersection (Cells.InteriorImage newCell) V]) :=
+  \fun (U: \Pow Model.Disk)(open: _) => Inverse[U := U, open := open].exists;
+\definition laws: Cells.CellLaws[topology, newCell] := Cells.CellLaws[topology, newCell] {
+  continuous := characteristicContinuous,
+  closed := \parent.ClosedCell[c := newCell, continuous := characteristicContinuous].closed,
+  injectiveInterior := injective, inverseContinuous := inverseContinuous
+};

@@ -1,0 +1,20 @@
+\import topology.Topology[Carrier := InteriorPoint] \as InteriorSpace;
+\definition interiorHausdorff: InteriorSpace.IsT2 interiorTopology := DiskSpace.Subspace[S := interiorSubset].Properties[].hausdorff Model.diskTopology
+  (topology.Topology[Carrier := Model.Coordinate].Subspace[S := Model.ClosedBall].Properties[].hausdorff Model.topology Model.Compactness[].hausdorff);
+\definition exists: \exists Separation[interior p, interior q] := \block {
+  \takefrom U: \Cast[\Pow InteriorPoint] ({ U: \Pow InteriorPoint \where InteriorSpace.RegularChoice[interiorTopology, InteriorSpace.Singleton q, p, U] })
+    \by interiorHausdorff p q (\fun (same: p = q) => different (congr!{InteriorPoint Carrier} interior p q same)) \then
+  \let u: InteriorSpace.RegularChoice[interiorTopology, InteriorSpace.Singleton q, p, U] := \bysub(\Pow InteriorPoint,
+    { U: \Pow InteriorPoint \where InteriorSpace.RegularChoice[interiorTopology, InteriorSpace.Singleton q, p, U] }, U) \then
+  \takefrom V: \Cast[\Pow InteriorPoint] ({ V: \Pow InteriorPoint \where InteriorSpace.NormalPartner[interiorTopology, InteriorSpace.Singleton q, U, V] }) \by u.partner \then
+  \let v: InteriorSpace.NormalPartner[interiorTopology, InteriorSpace.Singleton q, U, V] := \bysub(\Pow InteriorPoint,
+    { V: \Pow InteriorPoint \where InteriorSpace.NormalPartner[interiorTopology, InteriorSpace.Singleton q, U, V] }, V) \then
+  \return \exact(Separation[interior p, interior q] {
+    first := \parent.\parent.InteriorRegion[U := U, open := u.open].region,
+    second := \parent.\parent.InteriorRegion[U := V, open := v.open].region,
+    firstOpen := \parent.\parent.InteriorRegion[U := U, open := u.open].regionOpen,
+    secondOpen := \parent.\parent.InteriorRegion[U := V, open := v.open].regionOpen,
+    containsFirst := u.contains, containsSecond := v.covers q (\refl(q)),
+    disjoint := Cases.joinedDisjoint Base.Empty Base.Empty U V (\fun (x: A)(empty: Logic.False)(other: _) => empty) v.disjoint
+  }, Separation[interior p, interior q])
+};

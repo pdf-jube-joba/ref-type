@@ -1,0 +1,33 @@
+\import R.FiniteSums[].Linear[] \as Linear;
+\import \parent.\parent.LinearForms[n := m] \as Forms;
+\structure Data[a: Affine]: \Set := {
+  offset: R.Real,
+  linear: Linear.Map m,
+  equation: \forall (x: Euclidean.Coordinate) -> affine a x = R.add offset (linear.apply x)
+};
+\definition data: \forall (a: Affine) -> Data[a] := \induction (a: Affine) \return Data[a] \with {
+  | constant: \fun (r: R.Real) => Data[Affine::constant r] {
+    offset := r, linear := Forms.zero,
+    equation := \fun (x: Euclidean.Coordinate) => sym!{R.Real} _ _ (Laws.addZeroRight r)
+  }
+  | coordinate: \fun (i: Fin.Fin m) => Data[Affine::coordinate i] {
+    offset := R.zero, linear := Forms.coordinate i,
+    equation := \fun (x: Euclidean.Coordinate) => sym!{R.Real} _ _ (Laws.addZeroLeft (x i))
+  }
+  | sum: \fun (a: Affine)(first: Data[a])(b: Affine)(second: Data[b]) => Data[Affine::sum a b] {
+    offset := R.add first.offset second.offset, linear := Forms.sum first.linear second.linear,
+    equation := \fun (x: Euclidean.Coordinate) => trans!{R.Real} _ _ _
+      (congr!{R.Real R.Real R.Real} R.add _ _ _ _ (first.equation x) (second.equation x))
+      (R.Algebra[].addFour first.offset (first.linear.apply x) second.offset (second.linear.apply x))
+  }
+  | scale: \fun (r: R.Real)(a: Affine)(first: Data[a]) => Data[Affine::scale r a] {
+    offset := R.mul r first.offset, linear := Forms.scaled r first.linear,
+    equation := \fun (x: Euclidean.Coordinate) => trans!{R.Real} _ _ _
+      (congr!{R.Real R.Real} (R.mul r) _ _ (first.equation x)) (Laws.fieldMulAdd r first.offset (first.linear.apply x))
+  }
+};
+\definition coefficient[a: Affine]: Euclidean.Coordinate := Forms.coefficients (data a).linear;
+\definition equation: \forall (a: Affine)(x: Euclidean.Coordinate) ->
+  affine a x = R.add (data a).offset (\parent.\parent.LinearKernel[].dot m (coefficient a) x) :=
+  \fun (a: Affine)(x: Euclidean.Coordinate) => trans!{R.Real} _ _ _ ((data a).equation x)
+    (congr!{R.Real R.Real} (R.add (data a).offset) _ _ (Forms.expansion (data a).linear x));

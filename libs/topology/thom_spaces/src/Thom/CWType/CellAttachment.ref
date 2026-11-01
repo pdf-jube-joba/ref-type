@@ -1,0 +1,124 @@
+\import algebraic_topology.Euclidean[].Dimension[n := n] \as Model;
+\import real.Analysis[] \as R;
+\import dedekind_reals.DedekindReal[] \as D;
+\import D.Order[] \as Order;
+\definition Interior: \Pow Model.Disk := { p: Model.Disk \where D.Lt (Model.normSquared p) R.one };
+\definition interiorSubset: \Pow Model.Disk := Interior;
+\definition InteriorPoint: \Set := \Cast[Model.Disk] Interior;
+\import topological_constructions.Coproduct[A := A, B := InteriorPoint] \as Sum;
+\definition Carrier: \Set := Sum.Carrier;
+\definition inclusion: A -> Carrier := Sum.inl;
+\definition interior: InteriorPoint -> Carrier := Sum.inr;
+\structure ValueLaws[p: Model.Disk, value: Carrier]: \Prop := {
+  boundary: \forall (on: Model.normSquared p = R.one) -> value = inclusion (attach (\into[Model.Coordinate](p, Model.Boundary) \by { on })),
+  inside: \forall (on: D.Lt (Model.normSquared p) R.one) -> value = interior (\into[Model.Disk](p, Interior) \by { on })
+};
+\definition Values[p: Model.Disk]: \Pow Carrier := { value: Carrier \where ValueLaws[p, value] };
+\definition Value[p: Model.Disk]: \Set := \Cast[Carrier] (Values p);
+\definition existence: \forall (p: Model.Disk) -> \exists Value p :=
+  \fun (p: Model.Disk) => either!{{Classical.excludedMiddle (Model.normSquared p = R.one)} {\exists Value p}
+    {\fun (on: Model.normSquared p = R.one) => \exact(\into[Carrier](inclusion (attach (\into[Model.Coordinate](p, Model.Boundary) \by { on })), Values p) \by {
+      ValueLaws[p, inclusion (attach (\into[Model.Coordinate](p, Model.Boundary) \by { on }))] {
+        boundary := \fun (other: _) => \refl(inclusion (attach (\into[Model.Coordinate](p, Model.Boundary) \by { on }))),
+        inside := \fun (strict: _) => Logic.falseElim _ (Order.ltNotEq (Model.normSquared p) R.one strict on)
+      }
+    }, Value p)}
+    {\fun (outside: Logic.Not (Model.normSquared p = R.one)) => \block {
+      \let on: D.Lt (Model.normSquared p) R.one := Order.ltOfLeNotEq _ _ (\bysub(Model.Coordinate, Model.ClosedBall, p)) outside \then
+      \return \exact(\into[Carrier](interior (\into[Model.Disk](p, Interior) \by { on }), Values p) \by {
+        ValueLaws[p, interior (\into[Model.Disk](p, Interior) \by { on })] {
+          boundary := \fun (boundary: _) => Logic.falseElim _ (outside boundary),
+          inside := \fun (other: _) => \refl(interior (\into[Model.Disk](p, Interior) \by { on }))
+        }
+      }, Value p)
+    }}
+  };
+\definition uniqueness: \forall (p: Model.Disk)(a, b: Value p) -> a = b :=
+  \fun (p: Model.Disk)(a, b: Value p) => either!{{Classical.excludedMiddle (Model.normSquared p = R.one)} {a = b}
+    {\fun (on: Model.normSquared p = R.one) => trans!{Carrier} _ _ _ ((\bysub(Carrier, Values p, a)).boundary on) (sym!{Carrier} _ _ ((\bysub(Carrier, Values p, b)).boundary on))}
+    {\fun (outside: Logic.Not (Model.normSquared p = R.one)) => \block {
+      \let on: D.Lt (Model.normSquared p) R.one := Order.ltOfLeNotEq _ _ (\bysub(Model.Coordinate, Model.ClosedBall, p)) outside \then
+      \return trans!{Carrier} _ _ _ ((\bysub(Carrier, Values p, a)).inside on) (sym!{Carrier} _ _ ((\bysub(Carrier, Values p, b)).inside on))
+    }}
+  };
+\definition characteristic[p: Model.Disk]: Carrier := \choice Value p \by { existence: existence p, uniqueness: uniqueness p };
+\definition cellLaws[p: Model.Disk]: ValueLaws[p, characteristic p] := \bysub(Carrier, Values p, \choice Value p \by { existence: existence p, uniqueness: uniqueness p });
+\definition onInterior: \forall (p: InteriorPoint) -> characteristic p = interior p := \fun (p: InteriorPoint) => (cellLaws p).inside (\bysub(Model.Disk, Interior, p));
+\definition boundaryInclusion[v: Model.Sphere]: Model.Disk := \into[Model.Coordinate](v, Model.ClosedBall) \by {
+  D.leReplaceLeft R.one (Model.normSquared v) R.one (sym!{R.Real} _ _ (\bysub(Model.Coordinate, Model.Boundary, v))) (D.leRefl R.one)
+};
+\definition glued: \forall (v: Model.Sphere) -> characteristic (boundaryInclusion v) = inclusion (attach v) :=
+  \fun (v: Model.Sphere) => (cellLaws (boundaryInclusion v)).boundary (\bysub(Model.Coordinate, Model.Boundary, v));
+\import topological_constructions.Coproduct[A := A, B := Model.Disk] \as Input;
+\import Input.Universal[C := Carrier] \as InputMaps;
+\definition projection: Input.Carrier -> Carrier := InputMaps.copair inclusion characteristic;
+\definition onto: \forall (p: Carrier) -> \exists (q: Input.Carrier \where projection q = p) := \induction (p: Carrier) \return \exists (q: Input.Carrier \where projection q = p) \with {
+  | inl: \fun (a: A) => Logic.existsIntro[Input.Carrier, { q: Input.Carrier \where projection q = inclusion a }] (Input.inl a) (\refl(inclusion a))
+  | inr: \fun (p: InteriorPoint) => Logic.existsIntro[Input.Carrier, { q: Input.Carrier \where projection q = interior p }] (Input.inr p) (onInterior p)
+};
+\definition inputTopology: topology.Topology[Carrier := Input.Carrier].Topology := Input.topology source Model.diskTopology;
+\import topological_constructions.Quotient[A := Input.Carrier, B := Carrier] \as Quotient;
+\import topology.Topology[Carrier := Carrier] \as Space;
+\definition topology: Space.Topology := Quotient.topology inputTopology projection;
+\definition compact: topology.Topology[Carrier := A].IsCompact source -> Space.IsCompact topology := \fun (compact: _) =>
+  topology.Compactness[A := Input.Carrier, B := Carrier].surjectiveImage inputTopology topology projection (Quotient.projectionContinuous inputTopology projection) onto
+    (Input.Properties[left := source, right := Model.diskTopology].compact compact Model.Compactness[].compact);
+\definition quotientMap: Quotient.IsQuotientMap[inputTopology, topology, projection] := Quotient.quotientMap inputTopology projection onto;
+\definition inclusionContinuous: topology.Continuity[A := A, B := Carrier].Continuous source topology inclusion :=
+  topology.Composition[A := A, B := Input.Carrier, C := Carrier].composeContinuous source inputTopology topology Input.inl projection
+    (Input.inlContinuous source Model.diskTopology) (Quotient.projectionContinuous inputTopology projection);
+\definition characteristicContinuous: topology.Continuity[A := Model.Disk, B := Carrier].Continuous Model.diskTopology topology characteristic :=
+  topology.Composition[A := Model.Disk, B := Input.Carrier, C := Carrier].composeContinuous Model.diskTopology inputTopology topology Input.inr projection
+    (Input.inrContinuous source Model.diskTopology) (Quotient.projectionContinuous inputTopology projection);
+\definition openCriterion[U: \Pow Carrier]: Logic.PropEquiv[Space.IsOpenIn topology U,
+  Logic.And[topology.Topology[Carrier := A].IsOpenIn source ({ a: A \where \In[Carrier] U (inclusion a) }),
+    topology.Topology[Carrier := Model.Disk].IsOpenIn Model.diskTopology ({ p: Model.Disk \where \In[Carrier] U (characteristic p) })]] :=
+  Logic.PropEquiv[_, _] { ltr := \fun (open: _) => open, rtl := \fun (open: _) => open };
+\module Universal(B: \Set, target: topology.Topology[Carrier := B].Topology, f: A -> B, g: Model.Disk -> B,
+  agrees: \forall (v: Model.Sphere) -> f (attach v) = g (boundaryInclusion v));
+\import topology.Topology[Carrier := Model.Disk] \as DiskSpace;
+\import DiskSpace.Subspace[S := Interior] \as InteriorSpace;
+\definition interiorTopology: topology.Topology[Carrier := InteriorPoint].Topology := InteriorSpace.topology Model.diskTopology;
+\definition interiorOpen: DiskSpace.IsOpenIn Model.diskTopology Interior :=
+  topology.Continuity[A := Model.Coordinate, B := R.Real].Restriction[S := Model.ClosedBall].restrictContinuous Model.topology metric_spaces.RealLine[].topology Model.normSquared Model.Geometry[].normSquaredContinuous
+    (metric_spaces.RealLine[].Rays[].Below R.one) (metric_spaces.RealLine[].Rays[].belowOpen R.one);
+\import Sum.Properties[left := source, right := interiorTopology] \as Cases;
+\module InteriorRegion(U: \Pow InteriorPoint, open: topology.Topology[Carrier := InteriorPoint].IsOpenIn interiorTopology U);
+\module Punctured;
+\module Collar(r: R.Real, below: D.Lt r R.one, U: \Pow A, open: topology.Topology[Carrier := A].IsOpenIn source U);
+\module CollarDisjoint(r: R.Real, below: D.Lt r R.one, U, V: \Pow A,
+  first: topology.Topology[Carrier := A].IsOpenIn source U, second: topology.Topology[Carrier := A].IsOpenIn source V,
+  disjoint: topology.Topology[Carrier := A].Disjoint U V);
+\structure Separation[x, y: Carrier]: \Set := {
+  first: \Pow Carrier, second: \Pow Carrier,
+  firstOpen: Space.IsOpenIn topology first, secondOpen: Space.IsOpenIn topology second,
+  containsFirst: \In[Carrier] first x, containsSecond: \In[Carrier] second y,
+  disjoint: Space.Disjoint first second
+};
+\definition reverseSeparation[x, y: Carrier][s: Separation[x, y]]: Separation[y, x] := Separation[y, x] {
+  first := s.second, second := s.first, firstOpen := s.secondOpen, secondOpen := s.firstOpen,
+  containsFirst := s.containsSecond, containsSecond := s.containsFirst,
+  disjoint := \fun (p: Carrier)(left: _)(right: _) => s.disjoint p right left
+};
+\definition separationWitness[x, y: Carrier][s: Separation[x, y]]: \exists (U: \Pow Carrier \where Space.RegularChoice[topology, Space.Singleton y, x, U]) :=
+  Logic.existsIntro[\Pow Carrier, { U: \Pow Carrier \where Space.RegularChoice[topology, Space.Singleton y, x, U] }] s.first
+    (Space.RegularChoice[topology, Space.Singleton y, x, s.first] {
+      open := s.firstOpen, contains := s.containsFirst,
+      partner := Logic.existsIntro[\Pow Carrier, { V: \Pow Carrier \where Space.NormalPartner[topology, Space.Singleton y, s.first, V] }] s.second
+        (Space.NormalPartner[topology, Space.Singleton y, s.first, s.second] {
+          open := s.secondOpen,
+          covers := \fun (p: Carrier)(same: p = y) => \idelim y = p \with q: Carrier => \In[Carrier] s.second q \by { base: s.containsSecond, equality: sym!{Carrier} _ _ same },
+          disjoint := s.disjoint
+        })
+    });
+\module Hausdorff(hausdorff: topology.Topology[Carrier := A].IsT2 source);
+\module ConeModel;
+\module Homotopic(next: Model.Sphere -> A, regular: topology.Continuity[A := Model.Sphere, B := A].Continuous Model.sphereTopology source next,
+  homotopy: algebraic_topology.Homotopy[A := Model.Sphere, B := A].Homotopy[Model.sphereTopology, source, attach, next]);
+\module BaseEquivalence(B: \Set, target: topology.Topology[Carrier := B].Topology,
+  equivalence: algebraic_topology.HomotopyEquivalence[A := A, B := B].Equivalence[source, target],
+  next: Model.Sphere -> B, regular: topology.Continuity[A := Model.Sphere, B := B].Continuous Model.sphereTopology target next,
+  commutes: \forall (v: Model.Sphere) -> equivalence.forward (attach v) = next v);
+\module Type(model: \root.Thom[].CWType[].FiniteType[A := A, source := source].Data);
+\module Finite(complex: algebraic_topology.CW[A := A].FiniteComplex[source]);
+\module Subset(subset: \Pow A);

@@ -1,0 +1,16 @@
+\import \parent.\parent.\parent.PiecewiseImage[m := m, n := n, larger := larger, expressions := approximation.expressions] \as Image;
+\import metric_spaces.MetricSpace[Carrier := Target.Coordinate] \as Metric;
+\definition ball: \Pow Target.Coordinate := Metric.Ball Norm.metric Sup.origin epsilon;
+\definition ballOpen: topology.Topology[Carrier := Target.Coordinate].IsOpenIn Target.topology ball := topological_algebra.Euclidean[].Dimension[n := n].Topology[].ballCoordinateOpen Sup.origin epsilon;
+\definition originInBall: \In[Target.Coordinate] ball Sup.origin := Metric.ballCenter Norm.metric Sup.origin epsilon epsilonPositive;
+\module Selected(excluded: Image.Exclusion, point: Target.Coordinate,
+  small: \In[Target.Coordinate] ball point, outside: \In[Target.Coordinate] excluded.region point, cutoff: Cutoff);
+\definition exists: \exists Perturbation := \block {
+  \takefrom excluded: Image.Exclusion \by Image.exclusion \then
+  \takefrom point: \Cast[Target.Coordinate] ({ point: Target.Coordinate \where Logic.And[\In[Target.Coordinate] ball point, \In[Target.Coordinate] excluded.region point] })
+    \by excluded.denseOpen.dense ball ballOpen Sup.origin originInBall \then
+  \let data: Logic.And[\In[Target.Coordinate] ball point, \In[Target.Coordinate] excluded.region point] :=
+    \bysub(Target.Coordinate, { point: Target.Coordinate \where Logic.And[\In[Target.Coordinate] ball point, \In[Target.Coordinate] excluded.region point] }, point) \then
+  \takefrom chosenCutoff: Cutoff \by cutoff \then
+  \return \exact(Selected[excluded := excluded, point := point, small := data.left, outside := data.right, cutoff := chosenCutoff].perturbation, Perturbation)
+};

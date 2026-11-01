@@ -1,0 +1,47 @@
+\import real.Analysis[] \as R;
+\import R.FiniteSums[] \as Sums;
+\import dedekind_reals.DedekindReal[].Arithmetic[].Prop[] \as Laws;
+\import N.Basic[].Prop[] \as Nat;
+\import topology.Topology[Carrier := R.Real].Finite[] \as ClassicalLogic;
+\import Fin.Tuples[A := R.Real] \as Tuples;
+\definition Matrix[m, n: N.Nat^]: \Set := Fin.Fin m -> Fin.Fin n -> R.Real;
+\definition dot[n: N.Nat^][a, v: Fin.Fin n -> R.Real]: R.Real := Sums.sum n (\fun (j: Fin.Fin n) => R.mul (a j) (v j));
+\structure Witness[m, n: N.Nat^, a: Matrix m n]: \Set := {
+  value: Fin.Fin n -> R.Real,
+  nonzero: Logic.Not (value = (\fun (j: Fin.Fin n) => R.zero)),
+  kernel: \forall (i: Fin.Fin m) -> dot n (a i) value = R.zero
+};
+\definition unit[n: N.Nat^]: Fin.Fin (N.Nat^::succ n) -> R.Real := Tuples.extend n R.one (\fun (j: Fin.Fin n) => R.zero);
+\definition unitNonzero: \forall (n: N.Nat^) -> Logic.Not (unit n = (\fun (j: Fin.Fin (N.Nat^::succ n)) => R.zero)) :=
+  \fun (n: N.Nat^)(same: _) => Laws.zeroNeOne (trans!{R.Real} _ _ _
+    (sym!{R.Real} _ _ (congr!{{Fin.Fin (N.Nat^::succ n) -> R.Real} R.Real} (\fun (v: Fin.Fin (N.Nat^::succ n) -> R.Real) => v (Fin.zero n)) _ _ same))
+    (Tuples.atZero n R.one (\fun (j: Fin.Fin n) => R.zero)));
+\definition splitDot[n: N.Nat^][a: Fin.Fin (N.Nat^::succ n) -> R.Real][head: R.Real][tail: Fin.Fin n -> R.Real]:
+  dot _ a (Tuples.extend n head tail) = R.add (R.mul (a (Fin.zero n)) head) (dot _ (\fun (j: Fin.Fin n) => a (Fin.succ n j)) tail) :=
+  congr!{R.Real R.Real R.Real} R.add _ _ _ _ (congr!{R.Real R.Real} (R.mul (a (Fin.zero n))) _ _ (Tuples.atZero n head tail))
+    (Sums.congruent n _ _ (\fun (j: Fin.Fin n) => congr!{R.Real R.Real} (R.mul (a (Fin.succ n j))) _ _ (Tuples.atSuccessor n head tail j)));
+\definition unitDot: \forall (n: N.Nat^)(a: Fin.Fin (N.Nat^::succ n) -> R.Real) -> dot _ a (unit n) = a (Fin.zero n) :=
+  \fun (n: N.Nat^)(a: Fin.Fin (N.Nat^::succ n) -> R.Real) => eq_reason_in!{R.Real _
+    "=" _ "by" { splitDot _ a R.one (\fun (j: Fin.Fin n) => R.zero) }
+    "=" _ "by" { congr!{R.Real R.Real R.Real} R.add _ _ _ _ (R.Algebra[].mulOneRight (a (Fin.zero n)))
+      (trans!{R.Real} _ _ _ (Sums.congruent n _ _ (\fun (j: Fin.Fin n) => Laws.fieldMulZeroRight (a (Fin.succ n j)))) (Sums.zeroSum n)) }
+    "=" _ "by" { Laws.addZeroRight (a (Fin.zero n)) }
+  };
+\definition Existence[m: N.Nat^]: \Prop := \forall (n: N.Nat^) -> Nat.Lt m n -> \forall (a: Matrix m n) -> \exists Witness[m, n, a];
+\definition base: Existence N.Nat^::zero := \induction (n: N.Nat^) \return Nat.Lt N.Nat^::zero n -> \forall (a: Matrix N.Nat^::zero n) -> \exists Witness[N.Nat^::zero, n, a] \with {
+  | zero: \fun (larger: _)(a: _) => Logic.falseElim (\exists Witness[N.Nat^::zero, N.Nat^::zero, a]) (Fin.zeroImpossible N.Nat^::zero larger)
+  | succ: \fun (n: N.Nat^)(previous: _)(larger: _)(a: _) => \exact(Witness[N.Nat^::zero, N.Nat^::succ n, a] {
+    value := unit n, nonzero := unitNonzero n,
+    kernel := \fun (i: Fin.Fin N.Nat^::zero) => Logic.falseElim (dot _ (a i) (unit n) = R.zero) (Fin.zeroImpossible i (Fin.bound N.Nat^::zero i))
+  }, Witness[N.Nat^::zero, N.Nat^::succ n, a])
+};
+\module Step(m, n: N.Nat^, previous: Existence m, larger: Nat.Lt (N.Nat^::succ m) (N.Nat^::succ n), a: Matrix (N.Nat^::succ m) (N.Nat^::succ n));
+\definition successor: \forall (m: N.Nat^) -> Existence m -> Existence (N.Nat^::succ m) :=
+  \fun (m: N.Nat^)(previous: Existence m) => \induction (n: N.Nat^) \return Nat.Lt (N.Nat^::succ m) n -> \forall (a: Matrix (N.Nat^::succ m) n) -> \exists Witness[N.Nat^::succ m, n, a] \with {
+    | zero: \fun (larger: _)(a: _) => Logic.falseElim (\exists Witness[N.Nat^::succ m, N.Nat^::zero, a]) (Fin.zeroImpossible (N.Nat^::succ m) larger)
+    | succ: \fun (n: N.Nat^)(unused: _)(larger: _)(a: _) => Step[m := m, n := n, previous := previous, larger := larger, a := a].exists
+  };
+\definition exists: \forall (m: N.Nat^) -> Existence m := \induction (m: N.Nat^) \return Existence m \with {
+  | zero: base
+  | succ: successor
+};

@@ -1,0 +1,12 @@
+\definition member: CW.CellMember complex.cells cell := included cell (Logic.Or[_, _]::left (\refl(cell)));
+\definition tailIncluded: Included family := \fun (c: CW.CellData)(member: _) => included c (Logic.Or[_, _]::right member);
+\definition property: Lower.Property -> \parent.\parent.Stage[k := k, family := Lists.List[CW.CellData]::cons cell family].Property := \fun (base: Lower.Property) => \block {
+  \let old: \parent.\parent.Stage[k := k, family := family].Property := previous tailIncluded base \then
+  \return either!{{Classical.excludedMiddle (cell.dimension = k)} {\parent.\parent.Stage[k := k, family := Lists.List[CW.CellData]::cons cell family].Property}
+    {\fun (dimension: cell.dimension = k) => either!{{Classical.excludedMiddle (CW.CellMember family cell)} {\parent.\parent.Stage[k := k, family := Lists.List[CW.CellData]::cons cell family].Property}
+      {\fun (repeated: CW.CellMember family cell) => \parent.\parent.Cons[k := k, family := family, cell := cell].Skip[reason := Logic.Or[Logic.Not (cell.dimension = k), CW.CellMember family cell]::right repeated].property old}
+      {\fun (unselected: Logic.Not (CW.CellMember family cell)) => \parent.\parent.Step[k := k, family := family, cell := cell, member := member, dimension := dimension, included := tailIncluded, unselected := unselected].property old}
+    }}
+    {\fun (inactive: Logic.Not (cell.dimension = k)) => \parent.\parent.Cons[k := k, family := family, cell := cell].Skip[reason := Logic.Or[Logic.Not (cell.dimension = k), CW.CellMember family cell]::left inactive].property old}
+  }
+};

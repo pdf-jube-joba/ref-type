@@ -1,0 +1,51 @@
+\import \parent.Stage[k := k, family := family] \as Previous;
+\import \parent.Stage[k := k, family := Lists.List[CW.CellData]::cons cell family] \as Next;
+\import \parent.\parent.Cell[cell := cell, member := member] \as Charts;
+\import algebraic_topology.Euclidean[].Dimension[n := cell.dimension] \as Disk;
+\import Filtration.Characteristic[cell := cell, member := member] \as Characteristic;
+\definition boundaryLower: \forall (v: Disk.Sphere) -> \In[X] (Filtration.subset k) (cell.characteristic (Characteristic.boundaryInclusion v)) := \fun (v: Disk.Sphere) =>
+  \idelim cell.dimension = k \with n: N.Nat^ => \In[X] (Filtration.subset n) (cell.characteristic (Characteristic.boundaryInclusion v)) \by { base: Characteristic.boundaryImage v, equality: dimension };
+\definition interiorMember: \forall (x: Disk.Disk) -> Order.Lt (Disk.normSquared x) R.one -> \In[X] (CW.InteriorImage cell) (cell.characteristic x) :=
+  \fun (x: Disk.Disk)(inside: _) => Logic.existsIntro[Disk.Disk, { y: Disk.Disk \where Logic.And[Order.Lt (Disk.normSquared y) R.one, cell.characteristic y = cell.characteristic x] }] x (Logic.And[_, _]::# inside (\refl(cell.characteristic x)));
+\definition outside: \forall (x: Disk.Disk) -> Order.Lt (Disk.normSquared x) R.one -> Logic.Not (\In[X] (BaseSubset k family) (cell.characteristic x)) := \fun (x: Disk.Disk)(inside: _) (present: _) =>
+  either!{present {Logic.False}
+    {\fun (lower: _) => Order.Order[].ltNotEq (Disk.normSquared x) R.one inside (Filtration.Interiors[].topBoundary k cell member dimension x lower)}
+    {\fun (selected: _) => \block {
+      \takefrom other: Witness[k, family, cell.characteristic x] \by selected \then
+      \let same: cell = other.cell := (CW.laws bundle.baseSpace complex).disjoint cell other.cell member (included other.cell other.member) (cell.characteristic x) (interiorMember x inside) other.contains \then
+      \return unselected (\idelim other.cell = cell \with c: CW.CellData => CW.CellMember family c \by { base: other.member, equality: sym!{CW.CellData} _ _ same })
+    }}
+  };
+\definition nextContains: \forall (x: Disk.Disk) -> \In[X] (BaseSubset k (Lists.List[CW.CellData]::cons cell family)) (cell.characteristic x) := \fun (x: Disk.Disk) =>
+  either!{{Classical.excludedMiddle (Disk.normSquared x = R.one)} {\In[X] (BaseSubset k (Lists.List[CW.CellData]::cons cell family)) (cell.characteristic x)}
+    {\fun (boundary: _) => Logic.Or[_, _]::left (boundaryLower (\into[Disk.Coordinate](x, Disk.Boundary) \by { boundary }))}
+    {\fun (notBoundary: _) => Logic.Or[_, _]::right (\exact(Witness[k, Lists.List[CW.CellData]::cons cell family, cell.characteristic x] {
+      cell := cell, member := Logic.Or[_, _]::left (\refl(cell)), dimension := dimension,
+      contains := interiorMember x (Order.Order[].ltOfLeNotEq (Disk.normSquared x) R.one (\bysub(Disk.Coordinate, Disk.ClosedBall, x)) notBoundary)
+    }, Witness[k, Lists.List[CW.CellData]::cons cell family, cell.characteristic x]))}
+  };
+\definition extendWitness[x: X][other: Witness[k, family, x]]: Witness[k, Lists.List[CW.CellData]::cons cell family, x] :=
+  Witness[k, Lists.List[CW.CellData]::cons cell family, x] {
+    cell := other.cell, member := Logic.Or[_, _]::right other.member, dimension := other.dimension, contains := other.contains
+  };
+\definition includeSelected: \forall (x: X) -> \exists Witness[k, family, x] -> \exists Witness[k, Lists.List[CW.CellData]::cons cell family, x] := \fun (x: X)(selected: _) => \block {
+  \takefrom other: Witness[k, family, x] \by selected \then
+  \return \exact(extendWitness x other, Witness[k, Lists.List[CW.CellData]::cons cell family, x])
+};
+\definition includePrevious: \forall (p: SphereBundle) -> \In[SphereBundle] (Subset k family) p -> \In[SphereBundle] (Subset k (Lists.List[CW.CellData]::cons cell family)) p :=
+  \fun (p: SphereBundle)(present: Logic.Or[\In[X] (Filtration.subset k) p.base, \exists Witness[k, family, p.base]]) =>
+    either!{present {Logic.Or[\In[X] (Filtration.subset k) p.base, \exists Witness[k, Lists.List[CW.CellData]::cons cell family, p.base]]}
+      {\fun (lower: \In[X] (Filtration.subset k) p.base) => Logic.Or[_, _]::left lower}
+      {\fun (selected: \exists Witness[k, family, p.base]) => Logic.Or[_, _]::right (includeSelected p.base selected)}
+    };
+\module Zero(chart: Charts.Chart[N.Nat^::zero]);
+\module Positive(r: N.Nat^, chart: Charts.Chart[N.Nat^::succ r]);
+\definition DimensionTheorem[n: N.Nat^]: \Prop := \forall (chart: Charts.Chart[n]) -> Previous.Property -> Next.Property;
+\definition dimensionTheorem: \forall (n: N.Nat^) -> DimensionTheorem n := \induction (n: N.Nat^) \return DimensionTheorem n \with {
+  | zero: \fun (chart: _) => Zero[chart := chart].property
+  | succ: \fun (r: N.Nat^)(previous: DimensionTheorem r)(chart: _) => Positive[r := r, chart := chart].property
+};
+\definition property: Previous.Property -> Next.Property := \fun (previous: Previous.Property) => \block {
+  \takefrom result: Charts.Result \by Charts.exists \then
+  \return dimensionTheorem result.dimension result.chart previous
+};

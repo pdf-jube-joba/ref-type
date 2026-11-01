@@ -1,0 +1,40 @@
+\import \parent.Spheres[] \as BaseStages;
+\import std.Data[].List[] \as Lists;
+\import N.Basic[].Prop[] \as Nat;
+\definition BaseSubset[k: N.Nat^][family: CW.Cells]: \Pow X := BaseStages.BaseSubset k family;
+\definition Witness[k: N.Nat^][family: CW.Cells][x: X]: \Set := BaseStages.Witness[k, family, x];
+\definition Included[family: CW.Cells]: \Prop := BaseStages.Included family;
+\definition Subset[k: N.Nat^][family: CW.Cells]: \Pow DiskBundle := { p: DiskBundle \where \In[X] (BaseSubset k family) p.base };
+\definition LowerSubset[k: N.Nat^]: \Pow DiskBundle := { p: DiskBundle \where \In[X] (Filtration.subset k) p.base };
+\module Stage(k: N.Nat^, family: CW.Cells);
+\module Lower(k: N.Nat^);
+\module Step(k: N.Nat^, family: CW.Cells, cell: CW.CellData, member: CW.CellMember complex.cells cell,
+  dimension: cell.dimension = k, included: Included family, unselected: Logic.Not (CW.CellMember family cell));
+
+\module Cons(k: N.Nat^, family: CW.Cells, cell: CW.CellData);
+\module Iteration(k: N.Nat^);
+\module StageComparison(k: N.Nat^);
+\import Lower[k := N.Nat^::zero] \as Zero;
+\definition zeroEmpty: \forall (p: Zero.Carrier) -> Logic.False := \fun (p: Zero.Carrier) =>
+  \idelim Filtration.subset N.Nat^::zero = Base.Empty \with S: \Pow X => \In[X] S p.base \by {
+    base: \bysub(DiskBundle, LowerSubset N.Nat^::zero, p), equality: Filtration.empty
+  };
+\definition zeroProperty: Zero.Property := \root.Thom[].CWType[].CompactPairType[A := Zero.Carrier, source := Zero.topology, subset := Zero.UnitSubset].Empty[empty := zeroEmpty].property;
+\definition theorem: \forall (k: N.Nat^) -> Lower[k := k].Property := \induction (k: N.Nat^) \return Lower[k := k].Property \with {
+  | zero: zeroProperty
+  | succ: \fun (k: N.Nat^)(previous: Lower[k := k].Property) => StageComparison[k := k].property (Iteration[k := k].full previous)
+};
+\import Lower[k := height] \as Full;
+\definition intoFull[p: DiskBundle]: Full.Carrier := \into[DiskBundle](p, LowerSubset height) \by { Filtration.Exhaustion[].covers p.base };
+\definition homeomorphism: topology.Homeomorphism[A := DiskBundle, B := Full.Carrier].Homeomorphism[diskTopology, Full.topology] := topology.Homeomorphism[A := DiskBundle, B := Full.Carrier].Homeomorphism[diskTopology, Full.topology] {
+  forward := intoFull, backward := \fun (p: Full.Carrier) => p,
+  leftInverse := \fun (p: DiskBundle) => \refl(p), rightInverse := \fun (p: Full.Carrier) => \refl(p),
+  forwardContinuous := topology.Continuity[A := DiskBundle, B := DiskBundle].Corestriction[S := LowerSubset height].corestrictContinuous diskTopology diskTopology intoFull (topology.Maps[A := DiskBundle, B := DiskBundle].Identity[].continuous diskTopology),
+  backwardContinuous := topology.Continuity[A := Full.Carrier, B := DiskBundle].Corestriction[S := LowerSubset height].inclusionContinuous diskTopology
+};
+\definition forwardContained: \forall (p: \Cast[DiskBundle] Boundary) -> \In[Full.Carrier] Full.UnitSubset (homeomorphism.forward p) := \fun (p: \Cast[DiskBundle] Boundary) => \bysub(DiskBundle, Boundary, p);
+\definition backwardContained: \forall (p: \Cast[Full.Carrier] Full.UnitSubset) -> \In[DiskBundle] Boundary (homeomorphism.backward p) := \fun (p: \Cast[Full.Carrier] Full.UnitSubset) => \bysub(Full.Carrier, Full.UnitSubset, p);
+\definition property: \root.Thom[].CWType[].CompactPairType[A := DiskBundle, source := diskTopology, subset := Boundary].Property :=
+  \root.Thom[].CWType[].CompactPairType[A := DiskBundle, source := diskTopology, subset := Boundary].Homeomorphic[
+    B := Full.Carrier, target := Full.topology, targetSubset := Full.UnitSubset, h := homeomorphism,
+    forwardContained := forwardContained, backwardContained := backwardContained].fromTarget (theorem height);

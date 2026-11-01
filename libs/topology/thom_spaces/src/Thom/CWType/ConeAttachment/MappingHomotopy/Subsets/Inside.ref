@@ -1,0 +1,44 @@
+\import OriginalSubset.Inside[] \as OriginalInside;
+\import FinalSubset.Inside[] \as FinalInside;
+\import topology.Topology[Carrier := A] \as Input;
+\definition nullContained: \forall (t: I.Carrier)(x: \Cast[A] Input.Whole) -> \In[Second.Carrier] FinalInside.fullSubset (Second.null (Cylinder.at t x)) := \fun (t: I.Carrier)(x: \Cast[A] Input.Whole) => FinalInside.cylinderMember t x;
+\definition boundaryContained: \forall (t: I.Carrier)(x: \Cast[A] Input.Whole) -> \In[Second.Carrier] FinalInside.fullSubset (projected (Cylinder.at t x)) :=
+  \fun (t: I.Carrier)(x: \Cast[A] Input.Whole) => FinalInside.originalMember (homotopy (OriginalCylinder.at t (f x)))
+    (homotopyContained t (\into[B](f x, subset) \by { attachesInside x }));
+\import \root.Thom[].CWType[].PathTransport[A := A, B := Second.Carrier, source := source, target := Second.topology,
+  f := (\fun (x: A) => Second.apex), g := (\fun (x: A) => Second.inclusion (second x)), k := (\fun (x: A) => Second.inclusion (first x)), p := Second.null, h := projected].Preservation[
+  subset := Input.Whole, targetSubset := FinalInside.fullSubset, pPreserves := nullContained, hPreserves := boundaryContained] \as Filling;
+\definition firstOriginal: \forall (t: I.Carrier)(y: B) -> \In[B] subset y -> \In[Second.Carrier] FinalInside.fullSubset (FirstMotion.result (Total.at t (inclusion y))) :=
+  \fun (t: I.Carrier)(y: B)(member: _) => \idelim Second.inclusion (homotopy (OriginalCylinder.at t y)) = FirstMotion.result (Total.at t (inclusion y)) \with q: Second.Carrier => \In[Second.Carrier] FinalInside.fullSubset q \by {
+    base: FinalInside.originalMember (homotopy (OriginalCylinder.at t y)) (homotopyContained t (\into[B](y, subset) \by { member })),
+    equality: sym!{Second.Carrier} _ _ (FirstMotion.originalFormula t y)
+  };
+\definition firstApex: \forall (t: I.Carrier) -> \In[Second.Carrier] FinalInside.fullSubset (FirstMotion.result (Total.at t apex)) := \fun (t: I.Carrier) =>
+  \idelim Second.apex = FirstMotion.result (Total.at t apex) \with q: Second.Carrier => \In[Second.Carrier] FinalInside.fullSubset q \by {
+    base: FinalInside.apexMember, equality: sym!{Second.Carrier} _ _ (FirstMotion.apexFormula t)
+  };
+\definition firstCylinder: \forall (u, t: I.Carrier)(x: A) -> \In[Second.Carrier] FinalInside.fullSubset (FirstMotion.result (Total.at u (at t x))) := \fun (u, t: I.Carrier)(x: A) =>
+  \idelim Transport.apply (Double.at u (Cylinder.at t x)) = FirstMotion.result (Total.at u (at t x)) \with q: Second.Carrier => \In[Second.Carrier] FinalInside.fullSubset q \by {
+    base: Filling.preserves u t (\into[A](x, Input.Whole) \by { \refl(x) }), equality: sym!{Second.Carrier} _ _ (FirstMotion.cylinderFormula u t x)
+  };
+\definition firstPreserves: \forall (t: I.Carrier)(z: \Cast[Carrier] OriginalInside.fullSubset) -> \In[Second.Carrier] FinalInside.fullSubset (FirstMotion.result (Total.at t z)) :=
+  \fun (t: I.Carrier) => OriginalInside.mapPreserves Second.Carrier FinalInside.fullSubset (\fun (z: Carrier) => FirstMotion.result (Total.at t z)) (firstOriginal t) (firstApex t) (firstCylinder t);
+\definition secondOriginal: \forall (t: I.Carrier)(y: B) -> \In[B] subset y -> \In[Second.Carrier] FinalInside.fullSubset (SecondMotion.result (Total.at t (inclusion y))) :=
+  \fun (t: I.Carrier)(y: B)(member: _) => \idelim Second.inclusion (v y) = SecondMotion.result (Total.at t (inclusion y)) \with q: Second.Carrier => \In[Second.Carrier] FinalInside.fullSubset q \by {
+    base: FinalInside.originalMember (v y) (vContained (\into[B](y, subset) \by { member })),
+    equality: sym!{Second.Carrier} _ _ (SecondMotion.originalFormula t y)
+  };
+\definition secondApex: \forall (t: I.Carrier) -> \In[Second.Carrier] FinalInside.fullSubset (SecondMotion.result (Total.at t apex)) := \fun (t: I.Carrier) =>
+  \idelim Second.apex = SecondMotion.result (Total.at t apex) \with q: Second.Carrier => \In[Second.Carrier] FinalInside.fullSubset q \by {
+    base: FinalInside.apexMember, equality: sym!{Second.Carrier} _ _ (SecondMotion.apexFormula t)
+  };
+\definition secondCylinder: \forall (u, t: I.Carrier)(x: A) -> \In[Second.Carrier] FinalInside.fullSubset (SecondMotion.result (Total.at u (at t x))) := \fun (u, t: I.Carrier)(x: A) =>
+  \idelim Transport.singleApply (Double.at u (Cylinder.at t x)) = SecondMotion.result (Total.at u (at t x)) \with q: Second.Carrier => \In[Second.Carrier] FinalInside.fullSubset q \by {
+    base: Filling.singlePreserves u t (\into[A](x, Input.Whole) \by { \refl(x) }), equality: sym!{Second.Carrier} _ _ (SecondMotion.cylinderFormula u t x)
+  };
+\definition secondPreserves: \forall (t: I.Carrier)(z: \Cast[Carrier] OriginalInside.fullSubset) -> \In[Second.Carrier] FinalInside.fullSubset (SecondMotion.result (Total.at t z)) :=
+  \fun (t: I.Carrier) => OriginalInside.mapPreserves Second.Carrier FinalInside.fullSubset (\fun (z: Carrier) => SecondMotion.result (Total.at t z)) (secondOriginal t) (secondApex t) (secondCylinder t);
+\import \root.Thom[].CWType[].PreservedPaths[A := Carrier, B := Second.Carrier, subset := OriginalInside.fullSubset, targetSubset := FinalInside.fullSubset].Concatenation[
+  source := topology, target := Second.topology, f := initial, g := middle, k := SecondMap.apply,
+  first := FirstMotion.result, second := SecondMotion.result, firstPreserves := firstPreserves, secondPreserves := secondPreserves] \as Joined;
+\definition preserves: \forall (t: I.Carrier)(z: \Cast[Carrier] OriginalInside.fullSubset) -> \In[Second.Carrier] FinalInside.fullSubset (result (Total.at t z)) := Joined.preserves;

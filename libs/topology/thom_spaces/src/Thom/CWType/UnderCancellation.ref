@@ -1,0 +1,27 @@
+\import algebraic_topology.Interval[] \as I;
+\import algebraic_topology.Cylinder[A := A] \as FirstCylinder;
+\import algebraic_topology.Cylinder[A := B] \as SecondCylinder;
+\import algebraic_topology.Cylinder[A := C] \as ThirdCylinder;
+\import \root.Thom[].CWType[].Under[S := S, A := A, B := C, source := firstSpace, target := thirdSpace, from := firstIn, to := thirdIn] \as First;
+\import \root.Thom[].CWType[].Under[S := S, A := B, B := D, source := secondSpace, target := fourthSpace, from := secondIn, to := fourthIn] \as Second;
+\import \root.Thom[].CWType[].TwoOutOfSix[A := A, B := B, C := C, D := D,
+  firstSpace := firstSpace, secondSpace := secondSpace, thirdSpace := thirdSpace, fourthSpace := fourthSpace,
+  f := f, g := g, h := h, fContinuous := fContinuous, gContinuous := gContinuous, hContinuous := hContinuous,
+  firstEquivalence := First.forget first, secondEquivalence := Second.forget second, firstForward := firstForward, secondForward := secondForward].With[left := second.left, right := first.right] \as Ordinary;
+\definition leftFixed: \forall (s: S) -> Ordinary.leftMap (thirdIn s) = secondIn s := \fun (s: S) =>
+  trans!{B} _ _ _ (congr!{D B} second.backward _ _ (hFixed s)) (second.backwardFixed s);
+\definition rightFixed: \forall (s: S) -> Ordinary.rightMap (thirdIn s) = secondIn s := \fun (s: S) =>
+  trans!{B} _ _ _ (congr!{A B} f _ _ (first.backwardFixed s)) (fFixed s);
+\import \root.Thom[].CWType[].Under[S := S, A := B, B := C, source := secondSpace, target := thirdSpace, from := secondIn, to := thirdIn] \as Middle;
+\definition middle: Middle.Data := Middle.TwoSided[
+  f := g, leftMap := Ordinary.leftMap, rightMap := Ordinary.rightMap,
+  continuous := gContinuous, leftContinuous := Ordinary.leftContinuous, rightContinuous := Ordinary.rightContinuous,
+  forwardFixed := gFixed, leftFixed := leftFixed, rightFixed := rightFixed,
+  leftInverse := Ordinary.leftHomotopy, rightInverse := Ordinary.rightHomotopy,
+  leftInverseFixed := second.leftFixed, rightInverseFixed := first.rightFixed].result;
+\import \root.Thom[].CWType[].Under[S := S, A := A, B := B, source := firstSpace, target := secondSpace, from := firstIn, to := secondIn] \as Result;
+\definition composite: Result.Data := First.Composition[C := B, range := secondSpace, final := secondIn, first := first, second := Middle.Inverse[e := middle].result].result;
+\definition homotopy: algebraic_topology.Homotopy[A := A, B := B].Homotopy[firstSpace, secondSpace, composite.forward, f] := Ordinary.homotopy;
+\definition fixed: \forall (t: I.Carrier)(s: S) -> homotopy (FirstCylinder.at t (firstIn s)) = secondIn s := \fun (t: I.Carrier)(s: S) =>
+  trans!{B} _ _ _ (congr!{B B} (\fun (y: B) => second.left (SecondCylinder.at t y)) _ _ (fFixed s)) (second.leftFixed t s);
+\definition result: Result.Data := Result.Replace[e := composite, next := f, homotopy := homotopy, fixed := fixed].result;

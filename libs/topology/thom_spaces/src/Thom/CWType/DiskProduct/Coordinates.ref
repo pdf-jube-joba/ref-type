@@ -1,0 +1,24 @@
+\definition include[v: Total.Coordinate]: Family.Point := Family.include Point.point v;
+\definition pair[v: Total.Coordinate]: Pair.Times^[Point.Carrier, Total.Coordinate] := Pair.pair Point.Carrier Total.Coordinate Point.point v;
+\definition pairContinuous: topology.Continuity[A := Total.Coordinate, B := Pair.Times^[Point.Carrier, Total.Coordinate]].Continuous Total.topology
+  (topological_constructions.Product[A := Point.Carrier, B := Total.Coordinate].topology Point.topology Total.topology) pair :=
+  topological_constructions.Product[A := Point.Carrier, B := Total.Coordinate].Universal[X := Total.Coordinate].pairContinuous Total.topology Point.topology Total.topology
+    (\fun (v: Total.Coordinate) => Point.point) (\fun (v: Total.Coordinate) => v)
+    (topology.Maps[A := Total.Coordinate, B := Point.Carrier].constantContinuous Total.topology Point.topology Point.point)
+    (topology.Maps[A := Total.Coordinate, B := Total.Coordinate].Identity[].continuous Total.topology);
+\definition includeContinuous: topology.Continuity[A := Total.Coordinate, B := Family.Point].Continuous Total.topology Bundle.topology include :=
+  topology.Composition[A := Total.Coordinate, B := Pair.Times^[Point.Carrier, Total.Coordinate], C := Family.Point].composeContinuous Total.topology
+    (topological_constructions.Product[A := Point.Carrier, B := Total.Coordinate].topology Point.topology Total.topology) Bundle.topology pair Bundle.backward pairContinuous Bundle.backwardContinuous;
+\definition coordinateHomeomorphism: topology.Homeomorphism[A := Total.Coordinate, B := Family.Point].Homeomorphism[Total.topology, Bundle.topology] :=
+  topology.Homeomorphism[A := Total.Coordinate, B := Family.Point].Homeomorphism[Total.topology, Bundle.topology] {
+    forward := include, backward := \fun (p: Family.Point) => p.vector,
+    forwardContinuous := includeContinuous, backwardContinuous := Bundle.vectorContinuous,
+    leftInverse := \fun (v: Total.Coordinate) => \refl(v),
+    rightInverse := \fun (p: Family.Point) => trans!{Family.Point} _ _ _
+      (congr!{Point.Carrier Family.Point} (\fun (x: Point.Carrier) => Family.include x p.vector) Point.point p.base (sym!{Point.Carrier} _ _ (Point.unique p.base))) (Family.eta p)
+  };
+\import Quadratic.Change[left := \parent.Gauges[].standard, right := \parent.Gauges[].box] \as Radial;
+\definition homeomorphism: topology.Homeomorphism[A := Total.Coordinate, B := Family.Point].Homeomorphism[Total.topology, Bundle.topology] :=
+  topology.Homeomorphism[A := Total.Coordinate, B := Family.Point].Composition[C := Family.Point].compose Total.topology Bundle.topology Bundle.topology coordinateHomeomorphism Radial.homeomorphism;
+\definition forwardSquared: \forall (v: Total.Coordinate) -> \parent.Gauges[].squared (homeomorphism.forward v) = Total.normSquared v := \fun (v: Total.Coordinate) => Radial.forwardSquared (include v);
+\definition backwardSquared: \forall (p: Family.Point) -> Total.normSquared (homeomorphism.backward p) = \parent.Gauges[].squared p := Radial.backwardSquared;

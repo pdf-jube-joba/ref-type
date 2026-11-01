@@ -1,0 +1,13 @@
+\import std.Set[].FiniteSubset[A := Planes.Plane] \as FinitePlanes;
+\definition region: \Pow Target.Coordinate := Planes.Avoids selection.finite;
+\definition excludes: \forall (y: Target.Coordinate) -> \In[Target.Coordinate] region y -> \forall (x: Source.Coordinate) -> Logic.Not (value x = y) := \block {
+  \fun (y: Target.Coordinate)(avoids: _)(x: Source.Coordinate)(same: _) \then
+  \takefrom forms: \Cast[Tuples.Tuple n] ({ forms: Tuples.Tuple n \where ChoiceLaws[x, forms] }) \by choices x \then
+  \let chosen: ChoiceLaws[x, forms] := \bysub(Tuples.Tuple n, { forms: Tuples.Tuple n \where ChoiceLaws[x, forms] }, forms) \then
+  \takefrom p: Selection.CoveredWitness Contains selection.finite forms \by selection.covers forms chosen.member \then
+  \let data: Logic.And[FinitePlanes.Member selection.finite p, Contains forms p] := \bysub(Planes.Plane, Selection.CoveredWitness Contains selection.finite forms, p) \then
+  \return avoids p data.left (trans!{real.Analysis[].Real} _ _ _
+    (congr!{Target.Coordinate real.Analysis[].Real} (Kernel.dot n p.normal) y (\fun (i: Fin.Fin n) => Affine.affine (forms i) x)
+      (trans!{Target.Coordinate} _ _ _ (sym!{Target.Coordinate} _ _ same) chosen.equation)) (data.right x))
+};
+\definition exclusion: Exclusion := Exclusion { region := region, denseOpen := Planes.finiteAvoidance selection.finite, excludes := excludes };

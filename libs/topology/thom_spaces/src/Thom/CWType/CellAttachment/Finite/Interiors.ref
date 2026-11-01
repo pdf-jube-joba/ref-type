@@ -1,0 +1,36 @@
+\definition oldContains: \forall (c: Original.CellData)(x: A) -> \In[A] (Original.InteriorImage c) x -> \In[Carrier] (Cells.InteriorImage (oldCell c)) (inclusion x) := \block {
+  \fun (c: Original.CellData)(x: A)(inside: _) \then
+  \takefrom p: \Cast[algebraic_topology.Euclidean[].Disk c.dimension]
+    ({ p: algebraic_topology.Euclidean[].Disk c.dimension \where Logic.And[\In[algebraic_topology.Euclidean[].coordinateCarrier c.dimension] (algebraic_topology.Euclidean[].interiorAt c.dimension) p, c.characteristic p = x] }) \by inside \then
+  \let data: Logic.And[\In[algebraic_topology.Euclidean[].coordinateCarrier c.dimension] (algebraic_topology.Euclidean[].interiorAt c.dimension) p, c.characteristic p = x] :=
+    \bysub(algebraic_topology.Euclidean[].Disk c.dimension, { p: algebraic_topology.Euclidean[].Disk c.dimension \where Logic.And[\In[algebraic_topology.Euclidean[].coordinateCarrier c.dimension] (algebraic_topology.Euclidean[].interiorAt c.dimension) p, c.characteristic p = x] }, p) \then
+  \return Logic.existsIntro[algebraic_topology.Euclidean[].Disk c.dimension,
+    { p: algebraic_topology.Euclidean[].Disk c.dimension \where Logic.And[\In[algebraic_topology.Euclidean[].coordinateCarrier c.dimension] (algebraic_topology.Euclidean[].interiorAt c.dimension) p, (oldCell c).characteristic p = inclusion x] }] p
+      (Logic.And[_, _]::# data.left (congr!{A Carrier} inclusion _ _ data.right))
+};
+\definition newContains: \forall (p: InteriorPoint) -> \In[Carrier] (Cells.InteriorImage newCell) (interior p) :=
+  \fun (p: InteriorPoint) => Logic.existsIntro[Model.Disk, { q: Model.Disk \where Logic.And[D.Lt (Model.normSquared q) R.one, characteristic q = interior p] }] p
+    (Logic.And[_, _]::# (\bysub(Model.Disk, interiorSubset, p)) (onInterior p));
+\definition covers: \forall (x: Carrier) -> \exists Cells.CoverWitness[cells, x] := \induction (x: Carrier) \return \exists Cells.CoverWitness[cells, x] \with {
+  | inl: \block {
+    \fun (a: A) \then
+    \takefrom w: Original.CoverWitness[complex.cells, a] \by (Original.laws source complex).covers a \then
+    \return \exact(Cells.CoverWitness[cells, inclusion a] { cell := oldCell w.cell, member := oldMember w.cell w.member, contains := oldContains w.cell a w.contains }, Cells.CoverWitness[cells, inclusion a])
+  }
+  | inr: \fun (p: InteriorPoint) => \exact(Cells.CoverWitness[cells, interior p] { cell := newCell, member := newMember, contains := newContains p }, Cells.CoverWitness[cells, interior p])
+};
+\module Old(c: Original.CellData);
+\module Both(c, d: Original.CellData, first: Original.CellMember complex.cells c, second: Original.CellMember complex.cells d);
+\definition disjointAux: \forall (c: Cells.CellData) -> Cells.CellMember cells c -> \forall (d: Cells.CellData) -> Cells.CellMember cells d -> \forall (x: Carrier) ->
+  \In[Carrier] (Cells.InteriorImage c) x -> \In[Carrier] (Cells.InteriorImage d) x -> c = d :=
+  induction ({ c: Cells.CellData \where \forall (d: Cells.CellData) -> Cells.CellMember cells d -> \forall (x: Carrier) -> \In[Carrier] (Cells.InteriorImage c) x -> \In[Carrier] (Cells.InteriorImage d) x -> c = d })
+    (induction ({ d: Cells.CellData \where \forall (x: Carrier) -> \In[Carrier] (Cells.InteriorImage newCell) x -> \In[Carrier] (Cells.InteriorImage d) x -> newCell = d })
+      (\fun (x: Carrier)(first: _)(second: _) => \refl(newCell))
+      (\fun (d: Original.CellData)(member: _)(x: Carrier)(first: _)(second: _) => Logic.falseElim _ (Old[c := d].different x second first)))
+    (\fun (c: Original.CellData)(member: _) => induction
+      ({ d: Cells.CellData \where \forall (x: Carrier) -> \In[Carrier] (Cells.InteriorImage (oldCell c)) x -> \In[Carrier] (Cells.InteriorImage d) x -> oldCell c = d })
+      (\fun (x: Carrier)(first: _)(second: _) => Logic.falseElim _ (Old[c := c].different x first second))
+      (\fun (d: Original.CellData)(other: _) => Both[c := c, d := d, first := member, second := other].same));
+\definition disjoint: \forall (c, d: Cells.CellData) -> Cells.CellMember cells c -> Cells.CellMember cells d -> \forall (x: Carrier) ->
+  \In[Carrier] (Cells.InteriorImage c) x -> \In[Carrier] (Cells.InteriorImage d) x -> c = d :=
+  \fun (c, d: Cells.CellData)(first: _)(second: _) => disjointAux c first d second;

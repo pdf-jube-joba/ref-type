@@ -1,0 +1,91 @@
+\import algebraic_topology.Euclidean[].Dimension[n := m] \as Euclidean;
+\import real.Analysis[] \as R;
+\import dedekind_reals.DedekindReal[] \as D;
+\import R.Distance[] \as Distance;
+\import D.Arithmetic[].Prop[] \as Laws;
+\import D.Order[] \as Order;
+\import metric_spaces.RealFunctions[A := Euclidean.Coordinate] \as Functions;
+\inductive Affine: \Set :=
+  | constant: R.Real -> Affine
+  | coordinate: Fin.Fin m -> Affine
+  | sum: Affine -> Affine -> Affine
+  | scale: R.Real -> Affine -> Affine;
+\definition affine: Affine -> Euclidean.Coordinate -> R.Real := \induction (a: Affine) \return Euclidean.Coordinate -> R.Real \with {
+  | constant: \fun (r: R.Real)(x: Euclidean.Coordinate) => r
+  | coordinate: \fun (i: Fin.Fin m)(x: Euclidean.Coordinate) => x i
+  | sum: \fun (a: Affine)(f: Euclidean.Coordinate -> R.Real)(b: Affine)(g: Euclidean.Coordinate -> R.Real)(x: Euclidean.Coordinate) => R.add (f x) (g x)
+  | scale: \fun (r: R.Real)(a: Affine)(f: Euclidean.Coordinate -> R.Real)(x: Euclidean.Coordinate) => R.mul r (f x)
+};
+\definition affineContinuous: \forall (a: Affine) -> Functions.Continuous Euclidean.topology (affine a) :=
+  \induction (a: Affine) \return Functions.Continuous Euclidean.topology (affine a) \with {
+    | constant: Functions.constantContinuous Euclidean.topology
+    | coordinate: \fun (i: Fin.Fin m) => topological_algebra.Coordinates[K := R.Real, I := Fin.Fin m].evaluationContinuous metric_spaces.RealLine[].topology i
+    | sum: \fun (a: Affine)(first: _)(b: Affine)(second: _) => Functions.sumContinuous Euclidean.topology (affine a) (affine b) first second
+    | scale: \fun (r: R.Real)(a: Affine)(regular: _) => Functions.Product[].continuous Euclidean.topology (\fun (x: Euclidean.Coordinate) => r) (affine a)
+      (Functions.constantContinuous Euclidean.topology r) regular
+  };
+\inductive Expression: \Set :=
+  | leaf: Affine -> Expression
+  | supremum: Expression -> Expression -> Expression
+  | infimum: Expression -> Expression -> Expression;
+\definition evaluate: Expression -> Euclidean.Coordinate -> R.Real := \induction (e: Expression) \return Euclidean.Coordinate -> R.Real \with {
+  | leaf: affine
+  | supremum: \fun (a: Expression)(f: Euclidean.Coordinate -> R.Real)(b: Expression)(g: Euclidean.Coordinate -> R.Real)(x: Euclidean.Coordinate) => Distance.max (f x) (g x)
+  | infimum: \fun (a: Expression)(f: Euclidean.Coordinate -> R.Real)(b: Expression)(g: Euclidean.Coordinate -> R.Real)(x: Euclidean.Coordinate) => Distance.min (f x) (g x)
+};
+\definition continuous: \forall (e: Expression) -> Functions.Continuous Euclidean.topology (evaluate e) :=
+  \induction (e: Expression) \return Functions.Continuous Euclidean.topology (evaluate e) \with {
+    | leaf: affineContinuous
+    | supremum: \fun (a: Expression)(first: _)(b: Expression)(second: _) => Functions.Lattice[].maximumContinuous Euclidean.topology (evaluate a) (evaluate b) first second
+    | infimum: \fun (a: Expression)(first: _)(b: Expression)(second: _) => Functions.Lattice[].minimumContinuous Euclidean.topology (evaluate a) (evaluate b) first second
+  };
+\import std.Set[].FiniteSubset[A := Affine] \as Finite;
+\definition branches: Expression -> Finite.FiniteSubset := \induction (e: Expression) \return Finite.FiniteSubset \with {
+  | leaf: Finite.singleton
+  | supremum: \fun (a: Expression)(first: Finite.FiniteSubset)(b: Expression)(second: Finite.FiniteSubset) => Finite.union first second
+  | infimum: \fun (a: Expression)(first: Finite.FiniteSubset)(b: Expression)(second: Finite.FiniteSubset) => Finite.union first second
+};
+\module Branches;
+\module Linearization;
+\import uniform_approximation.Approximation[].On[X := Euclidean.Disk, space := Euclidean.diskTopology] \as Approximation;
+\definition value[e: Expression][x: Euclidean.Disk]: R.Real := evaluate e x;
+\definition valueContinuous: \forall (e: Expression) -> Approximation.Continuous (value e) :=
+  \fun (e: Expression) => topology.Continuity[A := Euclidean.Coordinate, B := R.Real].Restriction[S := Euclidean.ClosedBall].restrictContinuous
+    Euclidean.topology metric_spaces.RealLine[].topology (evaluate e) (continuous e);
+\definition Functions: \Pow Approximation.Function := { f: Approximation.Function \where \exists (e: Expression \where value e = f) };
+\definition member[e: Expression]: \In[Approximation.Function] Functions (value e) :=
+  Logic.existsIntro[Expression, { a: Expression \where value a = value e }] e (\refl(value e));
+\definition regular: \forall (f: Approximation.Function) -> \In[Approximation.Function] Functions f -> Approximation.Continuous f := \block {
+  \fun (f: Approximation.Function)(member: _) \then
+  \takefrom e: \Cast[Expression] ({ e: Expression \where value e = f }) \by member \then
+  \return \idelim value e = f \with g: Approximation.Function => Approximation.Continuous g \by {
+    base: valueContinuous e, equality: \bysub(Expression, { e: Expression \where value e = f }, e)
+  }
+};
+\definition supMember: \forall (f, g: Approximation.Function) -> \In[Approximation.Function] Functions f -> \In[Approximation.Function] Functions g -> \In[Approximation.Function] Functions (Approximation.maximum f g) := \block {
+  \fun (f, g: Approximation.Function)(first: _)(second: _) \then
+  \takefrom a: \Cast[Expression] ({ e: Expression \where value e = f }) \by first \then
+  \takefrom b: \Cast[Expression] ({ e: Expression \where value e = g }) \by second \then
+  \return \idelim Approximation.maximum (value a) (value b) = Approximation.maximum f g
+    \with h: Approximation.Function => \In[Approximation.Function] Functions h \by {
+      base: member (Expression::supremum a b), equality: congr!{Approximation.Function Approximation.Function Approximation.Function} Approximation.maximum _ _ _ _
+        (\bysub(Expression, { e: Expression \where value e = f }, a)) (\bysub(Expression, { e: Expression \where value e = g }, b))
+    }
+};
+\definition infMember: \forall (f, g: Approximation.Function) -> \In[Approximation.Function] Functions f -> \In[Approximation.Function] Functions g -> \In[Approximation.Function] Functions (Approximation.minimum f g) := \block {
+  \fun (f, g: Approximation.Function)(first: _)(second: _) \then
+  \takefrom a: \Cast[Expression] ({ e: Expression \where value e = f }) \by first \then
+  \takefrom b: \Cast[Expression] ({ e: Expression \where value e = g }) \by second \then
+  \return \idelim Approximation.minimum (value a) (value b) = Approximation.minimum f g
+    \with h: Approximation.Function => \In[Approximation.Function] Functions h \by {
+      base: member (Expression::infimum a b), equality: congr!{Approximation.Function Approximation.Function Approximation.Function} Approximation.minimum _ _ _ _
+        (\bysub(Expression, { e: Expression \where value e = f }, a)) (\bysub(Expression, { e: Expression \where value e = g }, b))
+    }
+};
+\definition lattice: Approximation.LatticeLaws[Functions] := Approximation.LatticeLaws[Functions] {
+  continuous := regular,
+  constants := \fun (r: R.Real) => member (Expression::leaf (Affine::constant r)),
+  supremum := supMember, infimum := infMember
+};
+\module Interpolation(f: Approximation.Function, x, y: Euclidean.Disk);
+\module Approximate(f: Approximation.Function, regular: Approximation.Continuous f);

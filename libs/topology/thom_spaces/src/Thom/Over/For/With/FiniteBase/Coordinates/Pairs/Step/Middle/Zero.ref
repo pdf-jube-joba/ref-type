@@ -1,0 +1,27 @@
+\import algebraic_topology.Euclidean[].Dimension[n := N.Nat^::zero] \as Fiber;
+\definition noNewUnit: \forall (p: Carrier) -> squared p = R.one -> CellWitness[p.base] -> Logic.False := \fun (p: Carrier)(unit: _)(w: _) => \block {
+  \takefrom u: \Cast[Fiber.Sphere] ({ u: Fiber.Sphere \where chart.map (Pair.pair Disk.Disk Fiber.Sphere w.point u) = asSphere p unit }) \by
+    chart.covers w.point (asSphere p unit) (sym!{X} _ _ w.equality) \then
+  \return dedekind_reals.DedekindReal[].Arithmetic[].Prop[].zeroNeOne (\bysub(Fiber.Coordinate, Fiber.Boundary, u))
+};
+\definition oldMember: \forall (p: Carrier) -> \In[DiskBundle] (Subset k family) p := \fun (p: Carrier) => either!{{\bysub(DiskBundle, MidSubset, p)} {\In[DiskBundle] (Subset k family) p}
+  {\fun (old: _) => old}
+  {\fun (new: Logic.And[\In[DiskBundle] (Subset k (Lists.List[CW.CellData]::cons cell family)) p, squared p = R.one]) => either!{{splitBase p.base new.left} {\In[DiskBundle] (Subset k family) p}
+    {\fun (old: _) => old}
+    {\fun (cell: _) => \block {
+      \takefrom w: CellWitness[p.base] \by cell \then
+      \return Logic.falseElim (\In[DiskBundle] (Subset k family) p) (noNewUnit p new.right w)
+    }}
+  }}
+};
+\definition backward[p: Carrier]: Previous.Carrier := \into[DiskBundle](p, Subset k family) \by { oldMember p };
+\definition backwardContinuous: topology.Continuity[A := Carrier, B := Previous.Carrier].Continuous topology Previous.topology backward := topology.Continuity[A := Carrier, B := DiskBundle].Corestriction[S := Subset k family].corestrictContinuous topology diskTopology backward continuous;
+\definition homeomorphism: topology.Homeomorphism[A := Carrier, B := Previous.Carrier].Homeomorphism[topology, Previous.topology] := topology.Homeomorphism[A := Carrier, B := Previous.Carrier].Homeomorphism[topology, Previous.topology] {
+  forward := backward, backward := original, forwardContinuous := backwardContinuous, backwardContinuous := originalContinuous,
+  leftInverse := \fun (p: Carrier) => \refl(p), rightInverse := \fun (p: Previous.Carrier) => \refl(p)
+};
+\definition forwardContained: \forall (p: \Cast[Carrier] UnitSubset) -> \In[Previous.Carrier] Previous.UnitSubset (backward p) := \fun (p: \Cast[Carrier] UnitSubset) => \bysub(Carrier, UnitSubset, p);
+\definition backwardContained: \forall (p: \Cast[Previous.Carrier] Previous.UnitSubset) -> \In[Carrier] UnitSubset (original p) := \fun (p: \Cast[Previous.Carrier] Previous.UnitSubset) => \bysub(Previous.Carrier, Previous.UnitSubset, p);
+\definition property: Previous.Property -> Property := \root.Thom[].CWType[].CompactPairType[A := Carrier, source := topology, subset := UnitSubset].Homeomorphic[
+  B := Previous.Carrier, target := Previous.topology, targetSubset := Previous.UnitSubset, h := homeomorphism,
+  forwardContained := forwardContained, backwardContained := backwardContained].fromTarget;

@@ -1,0 +1,20 @@
+\import topology.Topology[Carrier := R.Real].Finite[] \as RealLogic;
+\definition coordinateExists: Logic.Not (x = y) -> \exists (i: Fin.Fin m \where Logic.Not (x i = y i)) :=
+  \fun (different: _) => RealLogic.doubleNegElim (\exists (i: Fin.Fin m \where Logic.Not (x i = y i)))
+    (\fun (noCoordinate: _) => different (\axiom:funext(x, y, \fun (i: Fin.Fin m) => RealLogic.doubleNegElim (x i = y i)
+      (\fun (unequal: Logic.Not (x i = y i)) => noCoordinate (Logic.existsIntro[Fin.Fin m, { j: Fin.Fin m \where Logic.Not (x j = y j) }] i unequal)))));
+\module At(i: Fin.Fin m, different: Logic.Not (x i = y i));
+\definition exists: \exists Approximation.Interpolation[Functions, f, x, y] :=
+  either!{{Classical.excludedMiddle (x = y)} {\exists Approximation.Interpolation[Functions, f, x, y]}
+    {\fun (same: _) => \exact(Approximation.Interpolation[Functions, f, x, y] {
+      value := value (Expression::leaf (Affine::constant (f x))),
+      member := member (Expression::leaf (Affine::constant (f x))),
+      atFirst := \refl(f x), atSecond := congr!{Euclidean.Disk R.Real} f x y same
+    }, Approximation.Interpolation[Functions, f, x, y])}
+    {\block {
+      \fun (different: _) \then
+      \takefrom i: \Cast[Fin.Fin m] ({ i: Fin.Fin m \where Logic.Not (x i = y i) }) \by coordinateExists different \then
+      \return \exact(At[i := i, different := \bysub(Fin.Fin m, { i: Fin.Fin m \where Logic.Not (x i = y i) }, i)].result,
+        Approximation.Interpolation[Functions, f, x, y])
+    }}
+  };

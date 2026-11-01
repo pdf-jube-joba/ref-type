@@ -1,0 +1,37 @@
+\import std.Data[].List[] \as Lists;
+\definition sourceMembers[family: Lists.List[A]]: \Pow A := Lists.foldr A (\Pow A)
+  (\fun (x: A)(rest: \Pow A) => { y: A \where Logic.Or[y = x, \In[A] rest y] }) ({ x: A \where Logic.False }) family;
+\definition targetMembers[family: Lists.List[B]]: \Pow B := Lists.foldr B (\Pow B)
+  (\fun (x: B)(rest: \Pow B) => { y: B \where Logic.Or[y = x, \In[B] rest y] }) ({ x: B \where Logic.False }) family;
+\definition SourceMember[family: Lists.List[A]][x: A]: \Prop := \In[A] (sourceMembers family) x;
+\definition TargetMember[family: Lists.List[B]][x: B]: \Prop := \In[B] (targetMembers family) x;
+\definition map[family: Lists.List[A]]: Lists.List[B] := Lists.map A B transform family;
+\structure Witness[family: Lists.List[A], c: B]: \Set := {
+  cell: A,
+  member: SourceMember family cell,
+  same: c = transform cell
+};
+\definition member: \forall (family: Lists.List[A])(c: A) -> SourceMember family c -> TargetMember (map family) (transform c) :=
+  \induction (family: Lists.List[A]) \return \forall (c: A) -> SourceMember family c -> TargetMember (map family) (transform c) \with {
+    | nil: \fun (c: A)(empty: Logic.False) => Logic.falseElim _ empty
+    | cons: \fun (first: A)(tail: Lists.List[A])(previous: _)(c: A)(included: _) => either!{included {TargetMember (map (Lists.List[A]::cons first tail)) (transform c)}
+      {\fun (same: c = first) => Logic.Or[_, _]::left (congr!{A B} transform c first same)}
+      {\fun (old: _) => Logic.Or[_, _]::right (previous c old)}
+    }
+  };
+\definition witness: \forall (family: Lists.List[A])(c: B) -> TargetMember (map family) c -> \exists Witness[family, c] :=
+  \induction (family: Lists.List[A]) \return \forall (c: B) -> TargetMember (map family) c -> \exists Witness[family, c] \with {
+    | nil: \fun (c: B)(empty: Logic.False) => Logic.falseElim _ empty
+    | cons: \fun (first: A)(tail: Lists.List[A])(previous: _)(c: B)(included: _) => either!{included {\exists Witness[Lists.List[A]::cons first tail, c]}
+      {\fun (same: c = transform first) => \exact(Witness[Lists.List[A]::cons first tail, c] {
+        cell := first, member := Logic.Or[_, _]::left (\refl(first)), same := same
+      }, Witness[Lists.List[A]::cons first tail, c])}
+      {\block {
+        \fun (old: _) \then
+        \takefrom w: Witness[tail, c] \by previous c old \then
+        \return \exact(Witness[Lists.List[A]::cons first tail, c] {
+          cell := w.cell, member := Logic.Or[_, _]::right w.member, same := w.same
+        }, Witness[Lists.List[A]::cons first tail, c])
+      }}
+    }
+  };

@@ -1,0 +1,46 @@
+\import Bundles.Trivial[X := X, n := n, baseSpace := baseSpace] \as Trivial;
+\import Bundles.Family[X := X, F := (\fun (x: X) => Bundles.Vector n)] \as Family;
+\import \root.Thom[].Over[K := K, field := field, conjugation := conjugation, scalar := scalar].For[X := X, F := (\fun (x: X) => Bundles.Vector n), bundle := Trivial.bundle] \as Original;
+\import algebraic_topology.Euclidean[].Dimension[n := d] \as Euclidean;
+\import \root.Thom[].DiskSuspension[X := X, space := baseSpace, n := d] \as Suspension;
+\import linear_algebra.Commutative[K := R.Real, scalarRing := Fields.fieldAsCommutativeRing R.Real R.Algebra[].field] \as RealSpaces;
+\import vector_bundles.Bundles[].Over[K := R.Real, field := R.Algebra[].field, conjugation := linear_algebra.Hermitian[].Real[].scalar, scalar := vector_bundles.Bundles[].Real[].scalar] \as RealBundles;
+\definition frameLaws: RealSpaces.Isomorphism[V := Bundles.Vector n, W := RealBundles.Vector d, source := Operations.RealScalars[V := Bundles.Vector n, space := Bundles.coordinates n].realSpace, target := RealBundles.coordinates d].Laws[frame] :=
+  RealSpaces.Isomorphism[V := Bundles.Vector n, W := RealBundles.Vector d, source := Operations.RealScalars[V := Bundles.Vector n, space := Bundles.coordinates n].realSpace, target := RealBundles.coordinates d].laws frame;
+\definition coordinate[p: Family.Point]: Euclidean.Coordinate := frame.forward.apply p.vector;
+\definition coordinateContinuous: topology.Continuity[A := Family.Point, B := Euclidean.Coordinate].Continuous Trivial.topology Euclidean.topology coordinate :=
+  topology.Composition[A := Family.Point, B := Bundles.Vector n, C := Euclidean.Coordinate].composeContinuous Trivial.topology (Bundles.coordinateTopology n) Euclidean.topology
+    (\fun (p: Family.Point) => p.vector) frame.forward.apply Trivial.vectorContinuous forwardRegular;
+\definition squared[p: Family.Point]: R.Real := Euclidean.normSquared (coordinate p);
+\definition gauge: Original.GaugeData := Original.GaugeData {
+  squared := squared,
+  continuous := topology.Composition[A := Family.Point, B := Euclidean.Coordinate, C := R.Real].composeContinuous Trivial.topology Euclidean.topology metric_spaces.RealLine[].topology coordinate Euclidean.normSquared coordinateContinuous Euclidean.Geometry[].normSquaredContinuous,
+  nonnegative := \fun (p: Family.Point) => Euclidean.Geometry[].normSquaredNonnegative (coordinate p),
+  zero := \fun (x: X) => trans!{R.Real} _ _ _ (congr!{Euclidean.Coordinate R.Real} Euclidean.normSquared _ _ frame.forward.preservesZero) (Euclidean.Contraction[].zeroSum (Fin.elements d)),
+  definite := \fun (p: Family.Point)(atZero: _) => trans!{{Bundles.Vector n}} _ _ _ (sym!{{Bundles.Vector n}} _ _ (frameLaws.leftInverse p.vector))
+    (trans!{{Bundles.Vector n}} _ _ _ (congr!{Euclidean.Coordinate {Bundles.Vector n}} frame.backward.apply _ _ (Euclidean.Geometry[].normSquaredZero (coordinate p) atZero)) frame.backward.preservesZero),
+  homogeneous := \fun (a: R.Real)(p: Family.Point) => trans!{R.Real} _ _ _
+    (congr!{Euclidean.Coordinate R.Real} Euclidean.normSquared _ _ (frame.forward.preservesScale a p.vector)) (Euclidean.Contraction[].normScale a (coordinate p))
+};
+\definition forward[p: Family.Point]: Suspension.Point := Pair.pair X Euclidean.Coordinate p.base (coordinate p);
+\definition backward[p: Suspension.Point]: Family.Point := Family.include (Pair.first X Euclidean.Coordinate p) (frame.backward.apply (Pair.second X Euclidean.Coordinate p));
+\definition forwardContinuous: topology.Continuity[A := Family.Point, B := Suspension.Point].Continuous Trivial.topology Suspension.totalTopology forward :=
+  topological_constructions.Product[A := X, B := Euclidean.Coordinate].Universal[X := Family.Point].pairContinuous Trivial.topology baseSpace Euclidean.topology Family.projection coordinate Trivial.projectionContinuous coordinateContinuous;
+\import topological_constructions.Product[A := X, B := Bundles.Vector n] \as OriginalProduct;
+\definition backwardPair[p: Suspension.Point]: OriginalProduct.CarrierSet := Pair.pair X (Bundles.Vector n) (Pair.first X Euclidean.Coordinate p) (frame.backward.apply (Pair.second X Euclidean.Coordinate p));
+\definition backwardContinuous: topology.Continuity[A := Suspension.Point, B := Family.Point].Continuous Suspension.totalTopology Trivial.topology backward :=
+  topology.Composition[A := Suspension.Point, B := OriginalProduct.CarrierSet, C := Family.Point].composeContinuous Suspension.totalTopology (OriginalProduct.topology baseSpace (Bundles.coordinateTopology n)) Trivial.topology backwardPair Trivial.backward
+    (OriginalProduct.Universal[X := Suspension.Point].pairContinuous Suspension.totalTopology baseSpace (Bundles.coordinateTopology n) (Pair.first X Euclidean.Coordinate) (\fun (p: Suspension.Point) => frame.backward.apply (Pair.second X Euclidean.Coordinate p))
+      (topological_constructions.Product[A := X, B := Euclidean.Coordinate].Maps[].firstContinuous baseSpace Euclidean.topology)
+      (topology.Composition[A := Suspension.Point, B := Euclidean.Coordinate, C := Bundles.Vector n].composeContinuous Suspension.totalTopology Euclidean.topology (Bundles.coordinateTopology n)
+        (Pair.second X Euclidean.Coordinate) frame.backward.apply (topological_constructions.Product[A := X, B := Euclidean.Coordinate].Maps[].secondContinuous baseSpace Euclidean.topology) backwardRegular)) Trivial.backwardContinuous;
+\definition homeomorphism: topology.Homeomorphism[A := Family.Point, B := Suspension.Point].Homeomorphism[Trivial.topology, Suspension.totalTopology] :=
+  topology.Homeomorphism[A := Family.Point, B := Suspension.Point].Homeomorphism[Trivial.topology, Suspension.totalTopology] {
+    forward := forward, backward := backward,
+    leftInverse := \fun (p: Family.Point) => trans!{Family.Point} _ _ _ (congr!{{Bundles.Vector n} Family.Point} (Family.include p.base) _ _ (frameLaws.leftInverse p.vector)) (Family.eta p),
+    rightInverse := \fun (p: Suspension.Point) => trans!{Suspension.Point} _ _ _ (congr!{Euclidean.Coordinate Suspension.Point} (Pair.pair X Euclidean.Coordinate (Pair.first X Euclidean.Coordinate p)) _ _ (frameLaws.rightInverse (Pair.second X Euclidean.Coordinate p))) (Pair.Prop[A := X, B := Euclidean.Coordinate].eta p),
+    forwardContinuous := forwardContinuous, backwardContinuous := backwardContinuous
+  };
+\definition forwardSquared: \forall (p: Family.Point) -> Suspension.squared (homeomorphism.forward p) = squared p := \fun (p: Family.Point) => \refl(squared p);
+\definition backwardSquared: \forall (p: Suspension.Point) -> squared (homeomorphism.backward p) = Suspension.squared p :=
+  \fun (p: Suspension.Point) => congr!{Euclidean.Coordinate R.Real} Euclidean.normSquared _ _ (frameLaws.rightInverse (Pair.second X Euclidean.Coordinate p));

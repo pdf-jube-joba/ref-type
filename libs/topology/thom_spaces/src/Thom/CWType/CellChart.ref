@@ -1,0 +1,53 @@
+\import algebraic_topology.CW[A := A] \as Cells;
+\import singular_cellular.On[A := A, source := source, complex := complex] \as Native;
+\definition dimension: N.Nat^ := cell.dimension;
+\import algebraic_topology.Euclidean[].Dimension[n := dimension] \as Model;
+\import \parent.SupGeometry[n := dimension] \as Sup;
+\import topological_algebra.Euclidean[].Dimension[n := dimension] \as SupMetric;
+\import SupMetric.Norm[] \as Norm;
+\import SupMetric.Topology[] \as MetricTopology;
+\import Native.Filtration[] \as Filtration;
+\import Filtration.Stage[limit := N.Nat^::succ dimension] \as Stage;
+\import Filtration.CellInteriors[n := dimension] \as Interiors;
+\import Interiors.Cell[cell := cell, member := member, dimension := \refl(dimension)] \as Cell;
+\import Native.CellProperties[cell := cell, member := member].Interior[] \as Chart;
+\import topology.Topology[Carrier := Stage.Carrier] \as Space;
+\import topology.Topology[Carrier := Model.Disk] \as DiskSpace;
+\import topology.Topology[Carrier := Model.Coordinate] \as CoordinateSpace;
+\import real.Analysis[] \as R;
+\import dedekind_reals.DedekindReal[] \as D;
+\import D.Arithmetic[].Prop[] \as Laws;
+\import D.Order[] \as Order;
+\import N.Basic[].Prop[] \as Nat;
+\definition below: Nat.Lt dimension (N.Nat^::succ dimension) := Nat.ltOfSuccLe (N.Nat^::succ dimension) dimension (Nat.leRefl (N.Nat^::succ dimension));
+\definition characteristic: Model.Disk -> Stage.Carrier := Stage.Open[].lift cell member below;
+\definition characteristicContinuous: topology.Continuity[A := Model.Disk, B := Stage.Carrier].Continuous Model.diskTopology Stage.topology characteristic := Stage.Open[].liftContinuous cell member below;
+\definition stageHausdorff: Space.IsT2 Stage.topology := topology.Topology[Carrier := A].Subspace[S := Filtration.subset (N.Nat^::succ dimension)].Properties[].hausdorff source (Cells.laws source complex).hausdorff;
+\definition centre: Stage.Carrier := characteristic Model.Contraction[].origin;
+\definition embed[p: Chart.Carrier]: Stage.Carrier := Cell.embed p;
+\definition remaining: \Pow Stage.Carrier := Space.Complement Interiors.lower;
+\import Space.Subspace[S := remaining] \as Remaining;
+\definition remainingOpen: Space.IsOpenIn Stage.topology remaining := Stage.continuous
+  (topology.Topology[Carrier := A].Complement (Filtration.subset dimension)) (Filtration.Closed[].closed dimension);
+\definition embedContinuous: topology.Continuity[A := Chart.Carrier, B := Stage.Carrier].Continuous Chart.topology Stage.topology embed :=
+  topology.Composition[A := Chart.Carrier, B := Interiors.Carrier, C := Stage.Carrier].composeContinuous Chart.topology Interiors.topology Stage.topology Cell.embed (\fun (x: Interiors.Carrier) => x)
+    Cell.embedContinuous (topology.Continuity[A := Interiors.Carrier, B := Stage.Carrier].Corestriction[S := remaining].inclusionContinuous Stage.topology);
+\definition embedInjective: \forall (p, q: Chart.Carrier) -> embed p = embed q -> p = q :=
+  \fun (p, q: Chart.Carrier)(same: _) => Cell.embedInjective p q same;
+\module OpenImage;
+\import topology.Maps[A := Model.Disk, B := Stage.Carrier] \as Images;
+\definition ClosedDomain[r: R.Real]: \Pow Model.Disk := { p: Model.Disk \where D.Le (Sup.norm p) r };
+\definition closedDomain: \forall (r: R.Real) -> DiskSpace.IsClosedIn Model.diskTopology (ClosedDomain r) :=
+  \fun (r: R.Real) => topology.Continuity[A := Model.Coordinate, B := R.Real].Restriction[S := Model.ClosedBall].restrictContinuous Model.topology metric_spaces.RealLine[].topology Sup.norm Sup.normContinuous
+    ({ t: R.Real \where Logic.Not (D.Le t r) }) (metric_spaces.RealLine[].Rays[].atMostClosed r);
+\definition ClosedRegion[r: R.Real]: \Pow Stage.Carrier := Images.Image characteristic (ClosedDomain r);
+\definition closedRegion: \forall (r: R.Real) -> Space.IsClosedIn Stage.topology (ClosedRegion r) :=
+  \fun (r: R.Real) => topological_constructions.CompactQuotient[A := Model.Disk, B := Stage.Carrier, source := Model.diskTopology, target := Stage.topology, q := characteristic].closedMap
+    Model.Compactness[].compact stageHausdorff characteristicContinuous (ClosedDomain r) (closedDomain r);
+\structure RadiusLaws[r: R.Real]: \Prop := {
+  positive: D.Lt R.zero r,
+  inside: \forall (p: Model.Coordinate) -> D.Lt (Sup.norm p) r -> D.Lt (Model.normSquared p) R.one
+};
+\definition Radius: \Set := \Cast[R.Real] ({ r: R.Real \where RadiusLaws[r] });
+\module SmallRadius;
+\definition radius: \exists Radius := SmallRadius[].exists;

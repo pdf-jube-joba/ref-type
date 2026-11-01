@@ -1,0 +1,66 @@
+\import \parent.Punctured[] \as Nonzero;
+\import DiskSpace.Subspace[S := Nonzero.subset] \as PuncturedSpace;
+\import topology.Topology[Carrier := Nonzero.Carrier] \as NonzeroSpace;
+\definition zone: \Pow Nonzero.Carrier := { p: Nonzero.Carrier \where Logic.And[D.Lt r (Model.normSquared p), \In[A] U (attach (Nonzero.normal p))] };
+\definition squaredContinuous: metric_spaces.RealFunctions[A := Nonzero.Carrier].Continuous Nonzero.topology (\fun (p: Nonzero.Carrier) => Model.normSquared p) :=
+  topology.Continuity[A := Model.Disk, B := R.Real].Restriction[S := Nonzero.subset].restrictContinuous Model.diskTopology metric_spaces.RealLine[].topology (\fun (p: Model.Disk) => Model.normSquared p) Nonzero.squaredContinuous;
+\definition attachedContinuous: topology.Continuity[A := Nonzero.Carrier, B := A].Continuous Nonzero.topology source (\fun (p: Nonzero.Carrier) => attach (Nonzero.normal p)) :=
+  topology.Composition[A := Nonzero.Carrier, B := Model.Sphere, C := A].composeContinuous Nonzero.topology Model.sphereTopology source Nonzero.normal attach Nonzero.normalContinuous continuous;
+\definition zoneOpen: NonzeroSpace.IsOpenIn Nonzero.topology zone := (NonzeroSpace.topologyLaws Nonzero.topology).intersectionOpen
+  ({ p: Nonzero.Carrier \where D.Lt r (Model.normSquared p) }) ({ p: Nonzero.Carrier \where \In[A] U (attach (Nonzero.normal p)) })
+    (squaredContinuous (metric_spaces.RealLine[].Rays[].Above r) (metric_spaces.RealLine[].Rays[].aboveOpen r)) (attachedContinuous U open);
+\definition diskRegion: \Pow Model.Disk := PuncturedSpace.Open[].image zone;
+\definition diskOpen: DiskSpace.IsOpenIn Model.diskTopology diskRegion := PuncturedSpace.Open[].imageOpen Model.diskTopology Nonzero.open zone zoneOpen;
+\definition rightRegion: \Pow InteriorPoint := InteriorSpace.Trace diskRegion;
+\definition region: \Pow Carrier := Cases.Joined U rightRegion;
+\definition boundaryMember: \forall (v: Model.Sphere) -> Logic.PropEquiv[\In[Model.Disk] diskRegion (boundaryInclusion v), \In[A] U (attach v)] :=
+  \fun (v: Model.Sphere) => Logic.PropEquiv[_, _] {
+    ltr := \fun (inside: _) => PuncturedSpace.Open[].imageElim zone (boundaryInclusion v) (\In[A] U (attach v))
+      (\fun (p: Nonzero.Carrier)(member: Logic.And[D.Lt r (Model.normSquared p), \In[A] U (attach (Nonzero.normal p))])(same: p = boundaryInclusion v) =>
+        \idelim attach (Nonzero.normal p) = attach v \with a: A => \In[A] U a \by {
+          base: member.right,
+          equality: congr!{Model.Sphere A} attach (Nonzero.normal p) v
+            (trans!{Model.Sphere} _ _ _ (congr!{Nonzero.Carrier Model.Sphere} Nonzero.normal p (Nonzero.unit v) same) (Nonzero.normalUnit v))
+        }) inside,
+    rtl := \fun (inside: _) => PuncturedSpace.Open[].imageMember zone (Nonzero.unit v) (Logic.And[_, _]::#
+      (D.ltReplaceRight r R.one (Model.normSquared v) (sym!{R.Real} _ _ (\bysub(Model.Coordinate, Model.Boundary, v))) below)
+      (\idelim attach v = attach (Nonzero.normal (Nonzero.unit v)) \with a: A => \In[A] U a \by {
+        base: inside, equality: congr!{Model.Sphere A} attach v (Nonzero.normal (Nonzero.unit v)) (sym!{Model.Sphere} _ _ (Nonzero.normalUnit v))
+      }))
+  };
+\definition preimage: ({ p: Model.Disk \where \In[Carrier] region (characteristic p) }) = diskRegion :=
+  \axiom:setext(({ p: Model.Disk \where \In[Carrier] region (characteristic p) }), diskRegion,
+    \fun (p: Model.Disk)(inside: _) => either!{{Classical.excludedMiddle (Model.normSquared p = R.one)} {\In[Model.Disk] diskRegion p}
+      {\fun (boundary: Model.normSquared p = R.one) => (boundaryMember (\into[Model.Coordinate](p, Model.Boundary) \by { boundary })).rtl
+        (\idelim characteristic p = inclusion (attach (\into[Model.Coordinate](p, Model.Boundary) \by { boundary }))
+          \with x: Carrier => \In[Carrier] region x \by { base: inside, equality: (cellLaws p).boundary boundary })}
+      {\fun (outside: _) => \block {
+        \let strict: D.Lt (Model.normSquared p) R.one := Order.ltOfLeNotEq _ _ (\bysub(Model.Coordinate, Model.ClosedBall, p)) outside \then
+        \let point: InteriorPoint := \into[Model.Disk](p, Interior) \by { strict } \then
+        \return \idelim characteristic p = interior point \with x: Carrier => \In[Carrier] region x \by { base: inside, equality: (cellLaws p).inside strict }
+      }}
+    },
+    \fun (p: Model.Disk)(inside: _) => either!{{Classical.excludedMiddle (Model.normSquared p = R.one)} {\In[Carrier] region (characteristic p)}
+      {\fun (boundary: Model.normSquared p = R.one) => \idelim inclusion (attach (\into[Model.Coordinate](p, Model.Boundary) \by { boundary })) = characteristic p
+        \with x: Carrier => \In[Carrier] region x \by {
+          base: (boundaryMember (\into[Model.Coordinate](p, Model.Boundary) \by { boundary })).ltr inside,
+          equality: sym!{Carrier} _ _ ((cellLaws p).boundary boundary)
+        }}
+      {\fun (outside: _) => \block {
+        \let strict: D.Lt (Model.normSquared p) R.one := Order.ltOfLeNotEq _ _ (\bysub(Model.Coordinate, Model.ClosedBall, p)) outside \then
+        \let point: InteriorPoint := \into[Model.Disk](p, Interior) \by { strict } \then
+        \return \idelim interior point = characteristic p \with x: Carrier => \In[Carrier] region x \by { base: inside, equality: sym!{Carrier} _ _ ((cellLaws p).inside strict) }
+      }}
+    });
+\definition originalOpen: topology.Topology[Carrier := A].IsOpenIn source ({ a: A \where \In[Carrier] region (inclusion a) }) :=
+  \idelim U = ({ a: A \where \In[Carrier] region (inclusion a) }) \with V: \Pow A => topology.Topology[Carrier := A].IsOpenIn source V \by {
+    base: open, equality: Cases.leftTrace U rightRegion
+  };
+\definition regionOpen: Space.IsOpenIn topology region := (openCriterion region).rtl (Logic.And[_, _]::# originalOpen
+  (\idelim diskRegion = ({ p: Model.Disk \where \In[Carrier] region (characteristic p) }) \with V: \Pow Model.Disk => DiskSpace.IsOpenIn Model.diskTopology V \by {
+    base: diskOpen, equality: sym!{\Pow Model.Disk} _ _ preimage
+  }));
+\definition rightBound: \forall (p: InteriorPoint) -> \In[Carrier] region (interior p) -> D.Lt r (Model.normSquared p) :=
+  \fun (p: InteriorPoint)(inside: _) => PuncturedSpace.Open[].imageElim zone p (D.Lt r (Model.normSquared p))
+    (\fun (q: Nonzero.Carrier)(data: Logic.And[D.Lt r (Model.normSquared q), \In[A] U (attach (Nonzero.normal q))])(same: q = p) =>
+      D.ltReplaceRight r (Model.normSquared q) (Model.normSquared p) (congr!{Model.Disk R.Real} (\fun (v: Model.Disk) => Model.normSquared v) q p same) data.left) inside;

@@ -1,0 +1,47 @@
+\definition standard: Quadratic.Gauge := Quadratic.Gauge {
+  squared := \fun (p: Family.Point) => Total.normSquared p.vector,
+  continuous := topology.Composition[A := Family.Point, B := Total.Coordinate, C := R.Real].composeContinuous Bundle.topology Total.topology metric_spaces.RealLine[].topology (\fun (p: Family.Point) => p.vector) Total.normSquared Bundle.vectorContinuous Total.Geometry[].normSquaredContinuous,
+  nonnegative := \fun (p: Family.Point) => Total.Geometry[].normSquaredNonnegative p.vector,
+  zero := \fun (x: Point.Carrier) => Total.Contraction[].zeroSum (Fin.elements dimension),
+  definite := \fun (p: Family.Point)(zero: _) => Total.Geometry[].normSquaredZero p.vector zero,
+  homogeneous := \fun (a: R.Real)(p: Family.Point) => Total.Contraction[].normScale a p.vector
+};
+\definition left[p: Family.Point]: R.Real := First.normSquared (first p.vector);
+\definition right[p: Family.Point]: R.Real := Second.normSquared (second p.vector);
+\definition squared[p: Family.Point]: R.Real := R.Distance[].max (left p) (right p);
+\definition leftContinuous: metric_spaces.RealFunctions[A := Family.Point].Continuous Bundle.topology left :=
+  topology.Composition[A := Family.Point, B := First.Coordinate, C := R.Real].composeContinuous Bundle.topology First.topology metric_spaces.RealLine[].topology (\fun (p: Family.Point) => first p.vector) First.normSquared
+    (topology.Composition[A := Family.Point, B := Total.Coordinate, C := First.Coordinate].composeContinuous Bundle.topology Total.topology First.topology (\fun (p: Family.Point) => p.vector) first Bundle.vectorContinuous BlockTopology.firstRegular) First.Geometry[].normSquaredContinuous;
+\definition rightContinuous: metric_spaces.RealFunctions[A := Family.Point].Continuous Bundle.topology right :=
+  topology.Composition[A := Family.Point, B := Second.Coordinate, C := R.Real].composeContinuous Bundle.topology Second.topology metric_spaces.RealLine[].topology (\fun (p: Family.Point) => second p.vector) Second.normSquared
+    (topology.Composition[A := Family.Point, B := Total.Coordinate, C := Second.Coordinate].composeContinuous Bundle.topology Total.topology Second.topology (\fun (p: Family.Point) => p.vector) second Bundle.vectorContinuous BlockTopology.secondRegular) Second.Geometry[].normSquaredContinuous;
+\definition leftBound: \forall (p: Family.Point) -> D.Le (left p) (squared p) := \fun (p: Family.Point) => R.Distance[].maxLeft (left p) (right p);
+\definition rightBound: \forall (p: Family.Point) -> D.Le (right p) (squared p) := \fun (p: Family.Point) => R.Distance[].maxRight (left p) (right p);
+\definition boxZero: \forall (x: Point.Carrier) -> squared (Family.include x (Bundle.bundle.space x).zero) = R.zero := \fun (x: Point.Carrier) => trans!{R.Real} _ _ _
+  (congr!{R.Real R.Real R.Real} R.Distance[].max _ _ _ _ (First.Contraction[].zeroSum (Fin.elements n)) (Second.Contraction[].zeroSum (Fin.elements m))) (R.Distance[].maxSame R.zero);
+\definition firstZero: \forall (p: Family.Point) -> squared p = R.zero -> first p.vector = First.Contraction[].zero := \fun (p: Family.Point)(zero: _) => First.Geometry[].normSquaredZero (first p.vector)
+  (D.leAntisym (left p) R.zero (D.leReplaceRight (left p) (squared p) R.zero zero (leftBound p)) (First.Geometry[].normSquaredNonnegative (first p.vector)));
+\definition secondZero: \forall (p: Family.Point) -> squared p = R.zero -> second p.vector = Second.Contraction[].zero := \fun (p: Family.Point)(zero: _) => Second.Geometry[].normSquaredZero (second p.vector)
+  (D.leAntisym (right p) R.zero (D.leReplaceRight (right p) (squared p) R.zero zero (rightBound p)) (Second.Geometry[].normSquaredNonnegative (second p.vector)));
+\definition joinZero: Tuples.join First.Contraction[].zero Second.Contraction[].zero = Total.Contraction[].zero :=
+  \axiom:funext(Tuples.join First.Contraction[].zero Second.Contraction[].zero, Total.Contraction[].zero, \fun (i: Total.Index) =>
+    (\induction (j: Indices.Index) \return Tuples.evaluate First.Contraction[].zero Second.Contraction[].zero j = R.zero \with {
+      | inl: \fun (a: First.Index) => \refl(R.zero)
+      | inr: \fun (b: Second.Index) => \refl(R.zero)
+    }) (Indices.split i));
+\definition definite: \forall (p: Family.Point) -> squared p = R.zero -> p.vector = (Bundle.bundle.space p.base).zero := \fun (p: Family.Point)(zero: _) => eq_reason_in!{Total.Coordinate _
+  "=" _ "by" { sym!{Total.Coordinate} _ _ (Tuples.recover p.vector) }
+  "=" _ "by" { congr!{First.Coordinate Second.Coordinate Total.Coordinate} Tuples.join _ _ _ _ (firstZero p zero) (secondZero p zero) }
+  "=" _ "by" { joinZero }
+};
+\definition leftHomogeneous: \forall (a: R.Real)(p: Family.Point) -> left (Quadratic.scale a p) = R.mul (R.mul a a) (left p) := \fun (a: R.Real)(p: Family.Point) => First.Contraction[].normScale a (first p.vector);
+\definition rightHomogeneous: \forall (a: R.Real)(p: Family.Point) -> right (Quadratic.scale a p) = R.mul (R.mul a a) (right p) := \fun (a: R.Real)(p: Family.Point) => Second.Contraction[].normScale a (second p.vector);
+\definition homogeneous: \forall (a: R.Real)(p: Family.Point) -> squared (Quadratic.scale a p) = R.mul (R.mul a a) (squared p) := \fun (a: R.Real)(p: Family.Point) => trans!{R.Real} _ _ _
+  (congr!{R.Real R.Real R.Real} R.Distance[].max _ _ _ _ (leftHomogeneous a p) (rightHomogeneous a p))
+  (sym!{R.Real} _ _ (R.Estimates[].Product[].mulMax (R.mul a a) (left p) (right p) (R.Algebra[].squareNonnegative a)));
+\definition box: Quadratic.Gauge := Quadratic.Gauge {
+  squared := squared,
+  continuous := metric_spaces.RealFunctions[A := Family.Point].Lattice[].maximumContinuous Bundle.topology left right leftContinuous rightContinuous,
+  nonnegative := \fun (p: Family.Point) => D.leTrans R.zero (left p) (squared p) (First.Geometry[].normSquaredNonnegative (first p.vector)) (leftBound p),
+  zero := boxZero, definite := definite, homogeneous := homogeneous
+};

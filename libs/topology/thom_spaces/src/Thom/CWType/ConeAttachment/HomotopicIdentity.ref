@@ -1,0 +1,27 @@
+\definition identityContinuous: topology.Continuity[A := B, B := B].Continuous target target (\fun (y: B) => y) := topology.Maps[A := B, B := B].Identity[].continuous target;
+\definition identityCommutes: \forall (x: A) -> (\fun (y: B) => y) (f x) = f x := \fun (x: A) => \refl(f x);
+\import \parent.MappingHomotopy[D := B, range := target, first := f, second := next, firstContinuous := continuous, secondContinuous := regular,
+  u := (\fun (y: B) => y), v := map, uContinuous := identityContinuous, vContinuous := mapContinuous, firstCommutes := identityCommutes, secondCommutes := commutes, homotopy := homotopy] \as Motion;
+\import \parent.Mapping[D := B, range := target, next := f, nextContinuous := continuous, map := (\fun (y: B) => y), mapContinuous := identityContinuous, commutes := identityCommutes] \as Identity;
+\import \parent.Mapping[D := B, range := target, next := next, nextContinuous := regular, map := map, mapContinuous := mapContinuous, commutes := commutes] \as Map;
+\import \root.Thom[].CWType[].ConeAttachment[A := A, B := B, source := source, target := target, f := next, continuous := regular] \as Next;
+\definition identity: \forall (x: Carrier) -> Identity.apply x = x := induction (\fun (x: Carrier) => Identity.apply x = x)
+  Identity.onOriginal Identity.onApex Identity.onCylinder;
+\import \parent.Homotopic[g := next, regular := regular, h := Motion.boundary] \as Change;
+\definition initial: \forall (x: Carrier) -> Motion.initial x = Change.forward x := \fun (x: Carrier) => congr!{Carrier Next.Carrier} Change.forward _ _ (identity x);
+\import algebraic_topology.Cylinder[A := Carrier] \as Total;
+\import algebraic_topology.Homotopy[A := Carrier, B := Next.Carrier] \as Native;
+\definition comparison: Native.Homotopy[topology, Next.topology, Change.forward, Map.apply] :=
+  \into[Native.Family](Motion.result, Native.Homotopy[topology, Next.topology, Change.forward, Map.apply]) \by {
+    Native.Laws[topology, Next.topology, Change.forward, Map.apply, Motion.result] {
+      continuous := (Native.laws topology Next.topology Motion.initial Map.apply Motion.result).continuous,
+      start := \fun (x: Carrier) => trans!{Next.Carrier} _ _ _ ((Native.laws topology Next.topology Motion.initial Map.apply Motion.result).start x) (initial x),
+      end := (Native.laws topology Next.topology Motion.initial Map.apply Motion.result).end
+    }
+  };
+\definition result: algebraic_topology.HomotopyEquivalence[A := Carrier, B := Next.Carrier].Equivalence[topology, Next.topology] :=
+  \root.Thom[].CWType[].EquivalenceTools[A := Carrier, B := Next.Carrier, source := topology, target := Next.topology].Replace[e := Change.equivalence, next := Map.apply, homotopy := comparison].result;
+
+\module Subsets(subset: \Pow B,
+  mapContained: \forall (y: \Cast[B] subset) -> \In[B] subset (map y),
+  homotopyContained: \forall (t: I.Carrier)(y: \Cast[B] subset) -> \In[B] subset (homotopy (algebraic_topology.Cylinder[A := B].at t y)));

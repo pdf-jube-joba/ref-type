@@ -1,0 +1,17 @@
+\definition Cover[p: Next.Carrier]: \Prop := Logic.Or[\exists (a: Mid.Carrier \where Mid.toNext a = p), \exists (q: Total.Disk \where characteristic q = p)];
+\definition fromPrevious: \forall (p: Next.Carrier) -> \In[DiskBundle] (Subset k family) p -> Cover p := \fun (p: Next.Carrier)(old: _) => Logic.Or[_, _]::left
+  (Logic.existsIntro[Mid.Carrier, { a: Mid.Carrier \where Mid.toNext a = p }] (\into[DiskBundle](p, Mid.MidSubset) \by { Logic.Or[_, _]::left old }) (\refl(p)));
+\definition fromCellImage: \forall (p: Next.Carrier)(w: CellWitness[p.base]) -> \exists (q: Total.Disk \where characteristic q = p) := \fun (p: Next.Carrier)(w: _) => \block {
+  \takefrom u: \Cast[Fiber.Disk] ({ u: Fiber.Disk \where chart.map (Pair.pair Disk.Disk Fiber.Disk w.point u) = p }) \by chart.covers w.point p (sym!{X} _ _ w.equality) \then
+  \let product: Prism.CarrierSet := Pair.pair Disk.Disk Fiber.Disk w.point u \then
+  \let z: Total.Disk := Geometry.homeomorphism.backward product \then
+  \return Logic.existsIntro[Total.Disk, { q: Total.Disk \where characteristic q = p }] z (eq_reason_in!{DiskBundle _
+    "=" _ "by" { congr!{Prism.CarrierSet DiskBundle} chart.map _ _ (Geometry.laws.rightInverse product) }
+    "=" _ "by" { \bysub(Fiber.Disk, { u: Fiber.Disk \where chart.map (Pair.pair Disk.Disk Fiber.Disk w.point u) = p }, u) }
+  })
+};
+\definition fromCell: \forall (p: Next.Carrier)(w: CellWitness[p.base]) -> Cover p := \fun (p: Next.Carrier)(w: _) => Logic.Or[_, _]::right (fromCellImage p w);
+\definition covers: \forall (p: Next.Carrier) -> Cover p := \fun (p: Next.Carrier) => either!{{splitBase p.base (\bysub(DiskBundle, Subset k (Lists.List[CW.CellData]::cons cell family), p))} {Cover p}
+  {\fun (old: _) => fromPrevious p old}
+  {\fun (cell: _) => \block { \takefrom w: CellWitness[p.base] \by cell \then \return fromCell p w }}
+};

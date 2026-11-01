@@ -1,0 +1,30 @@
+\import topology.Topology[Carrier := Interiors.Carrier] \as RemainingSpace;
+\import RemainingSpace.Subspace[S := Interiors.piece cell] \as Component;
+\definition index: Interiors.Index := \into[Cells.CellData](cell, Interiors.Selected) \by { Logic.And[_, _]::# member (\refl(dimension)) };
+\definition componentOpen: RemainingSpace.IsOpenIn Interiors.topology (Interiors.piece cell) := Interiors.componentOpen index;
+\import topology.Maps[A := Chart.Carrier, B := Stage.Carrier] \as Maps;
+\definition InverseImage[U: \Pow Chart.Carrier]: \Pow Component.CarrierSet :=
+  { x: Component.CarrierSet \where \In[Chart.Carrier] U (Cell.homeomorphism.backward x) };
+\definition region[U: \Pow Chart.Carrier]: \Pow Stage.Carrier := Remaining.Open[].image (Component.Open[].image (InverseImage U));
+\definition open: \forall (U: \Pow Chart.Carrier) -> topology.Topology[Carrier := Chart.Carrier].IsOpenIn Chart.topology U -> Space.IsOpenIn Stage.topology (region U) :=
+  \fun (U: \Pow Chart.Carrier)(regular: _) => Remaining.Open[].imageOpen Stage.topology remainingOpen (Component.Open[].image (InverseImage U))
+    (Component.Open[].imageOpen Interiors.topology componentOpen (InverseImage U) (Cell.homeomorphismLaws.backwardContinuous U regular));
+\definition same: \forall (U: \Pow Chart.Carrier) -> region U = Maps.Image embed U :=
+  \fun (U: \Pow Chart.Carrier) => \axiom:setext(region U, Maps.Image embed U,
+    \fun (x: Stage.Carrier)(inside: _) => Remaining.Open[].imageElim (Component.Open[].image (InverseImage U)) x (\In[Stage.Carrier] (Maps.Image embed U) x)
+      (\fun (y: Remaining.CarrierSet)(inY: _)(ye: y = x) => Component.Open[].imageElim (InverseImage U) y (\In[Stage.Carrier] (Maps.Image embed U) x)
+        (\fun (z: Component.CarrierSet)(inZ: _)(ze: z = y) => Logic.existsIntro[Chart.Carrier, { p: Chart.Carrier \where Logic.And[\In[Chart.Carrier] U p, embed p = x] }]
+          (Cell.homeomorphism.backward z) (Logic.And[_, _]::# inZ
+            (trans!{Stage.Carrier} _ _ _
+              (congr!{Component.CarrierSet Stage.Carrier} (\fun (w: Component.CarrierSet) => w) _ _ (Cell.homeomorphismLaws.rightInverse z))
+              (trans!{Stage.Carrier} _ _ _ (congr!{Remaining.CarrierSet Stage.Carrier} (\fun (w: Remaining.CarrierSet) => w) _ _ ze) ye)))) inY) inside,
+    \fun (x: Stage.Carrier)(inside: _) => Maps.imageElim embed U x (\In[Stage.Carrier] (region U) x)
+      (\fun (p: Chart.Carrier)(inU: _)(same: embed p = x) => \idelim embed p = x \with y: Stage.Carrier => \In[Stage.Carrier] (region U) y \by {
+        base: Remaining.Open[].imageMember (Component.Open[].image (InverseImage U)) (Cell.embed p)
+          (Component.Open[].imageMember (InverseImage U) (Cell.homeomorphism.forward p)
+            (\idelim p = Cell.homeomorphism.backward (Cell.homeomorphism.forward p) \with q: Chart.Carrier => \In[Chart.Carrier] U q \by {
+              base: inU, equality: sym!{Chart.Carrier} _ _ (Cell.homeomorphismLaws.leftInverse p)
+            })), equality: same
+      }) inside);
+\definition imageOpen: \forall (U: \Pow Chart.Carrier) -> topology.Topology[Carrier := Chart.Carrier].IsOpenIn Chart.topology U -> Space.IsOpenIn Stage.topology (Maps.Image embed U) :=
+  \fun (U: \Pow Chart.Carrier)(regular: _) => \idelim region U = Maps.Image embed U \with V: \Pow Stage.Carrier => Space.IsOpenIn Stage.topology V \by { base: open U regular, equality: same U };

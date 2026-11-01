@@ -1,0 +1,58 @@
+\import topology.Topology[Carrier := A].Subspace[S := Cells.InteriorImage cell] \as Image;
+\definition image[x: Left]: Image.CarrierSet := \into[A](f x, Cells.InteriorImage cell) \by { \block {
+  \takefrom p: \Cast[Model.Disk] ({ p: Model.Disk \where Logic.And[\In[Model.Disk] (C.ClosedDomain thrice) p, C.characteristic p = f x] })
+    \by \bysub(Domain.Disk, left, x) \then
+  \let data: Logic.And[\In[Model.Disk] (C.ClosedDomain thrice) p, C.characteristic p = f x] :=
+    \bysub(Model.Disk, { p: Model.Disk \where Logic.And[\In[Model.Disk] (C.ClosedDomain thrice) p, C.characteristic p = f x] }, p) \then
+  \return Logic.existsIntro[Model.Disk, { p: Model.Disk \where Logic.And[D.Lt (Model.normSquared p) R.one, cell.characteristic p = f x] }] p
+    (Logic.And[_, _]::# (inChart p data.left) data.right)
+} };
+\definition coordinate[x: Left]: Chart.Carrier := Chart.homeomorphism.backward (image x);
+\import topology.Homeomorphism[A := Chart.Carrier, B := Image.CarrierSet] \as Homeomorphisms;
+\definition chartLaws: Homeomorphisms.Laws[Chart.topology, Image.topology source, Chart.homeomorphism] := Homeomorphisms.laws Chart.topology (Image.topology source) Chart.homeomorphism;
+\definition coordinateImage: \forall (x: Left) -> C.embed (coordinate x) = f x :=
+  \fun (x: Left) => congr!{Image.CarrierSet Stage.Carrier} (\fun (y: Image.CarrierSet) => \into[A](y, Native.Filtration[].subset (N.Nat^::succ cell.dimension)) \by {
+    Native.Filtration[].CellInteriors[n := cell.dimension].Cell[cell := cell, member := member, dimension := \refl(cell.dimension)].inStage y
+  }) _ _ (chartLaws.rightInverse (image x));
+\definition coordinateBound: \forall (x: Left) -> D.Le (Sup.norm (coordinate x)) thrice := \block {
+  \fun (x: Left) \then
+  \takefrom p: \Cast[Model.Disk] ({ p: Model.Disk \where Logic.And[\In[Model.Disk] (C.ClosedDomain thrice) p, C.characteristic p = f x] })
+    \by \bysub(Domain.Disk, left, x) \then
+  \let data: Logic.And[\In[Model.Disk] (C.ClosedDomain thrice) p, C.characteristic p = f x] :=
+    \bysub(Model.Disk, { p: Model.Disk \where Logic.And[\In[Model.Disk] (C.ClosedDomain thrice) p, C.characteristic p = f x] }, p) \then
+  \let same: coordinate x = p := ((Cells.laws source complex).cellLaws cell member).injectiveInterior (coordinate x) p
+    (\bysub(Model.Disk, Chart.interior, coordinate x)) (inChart p data.left)
+    (trans!{A} _ _ _ (congr!{Stage.Carrier A} (\fun (y: Stage.Carrier) => y) _ _ (coordinateImage x))
+      (sym!{A} _ _ (congr!{Stage.Carrier A} (\fun (y: Stage.Carrier) => y) _ _ data.right))) \then
+  \return D.leReplaceLeft (Sup.norm p) (Sup.norm (coordinate x)) thrice
+    (congr!{Model.Coordinate R.Real} Sup.norm p (coordinate x) (sym!{Model.Coordinate} _ _ same)) data.left
+};
+\definition leftAmbientContinuous: topology.Continuity[A := Left, B := A].Continuous leftTopology source (\fun (x: Left) => f x) :=
+  topology.Composition[A := Left, B := Stage.Carrier, C := A].composeContinuous leftTopology Stage.topology source (\fun (x: Left) => f x) Stage.inclusion
+    (topology.Continuity[A := Domain.Disk, B := Stage.Carrier].Restriction[S := left].restrictContinuous Domain.diskTopology Stage.topology f continuous) Stage.continuous;
+\definition imageContinuous: topology.Continuity[A := Left, B := Image.CarrierSet].Continuous leftTopology (Image.topology source) image :=
+  topology.Continuity[A := Left, B := A].Corestriction[S := Cells.InteriorImage cell].corestrictContinuous leftTopology source image leftAmbientContinuous;
+\definition coordinateContinuous: topology.Continuity[A := Left, B := Chart.Carrier].Continuous leftTopology Chart.topology coordinate :=
+  topology.Composition[A := Left, B := Image.CarrierSet, C := Chart.Carrier].composeContinuous leftTopology (Image.topology source) Chart.topology image Chart.homeomorphism.backward imageContinuous chartLaws.backwardContinuous;
+\definition vectorContinuous: topology.Continuity[A := Left, B := Model.Coordinate].Continuous leftTopology Model.topology (\fun (x: Left) => coordinate x) :=
+  topology.Composition[A := Left, B := Chart.Carrier, C := Model.Coordinate].composeContinuous leftTopology Chart.topology Model.topology coordinate (\fun (p: Chart.Carrier) => p) coordinateContinuous
+    (topology.Composition[A := Chart.Carrier, B := Model.Disk, C := Model.Coordinate].composeContinuous Chart.topology Model.diskTopology Model.topology (\fun (p: Chart.Carrier) => p) (\fun (p: Model.Disk) => p)
+      (topology.Continuity[A := Chart.Carrier, B := Model.Disk].Corestriction[S := Chart.interior].inclusionContinuous Model.diskTopology)
+      (topology.Continuity[A := Model.Disk, B := Model.Coordinate].Corestriction[S := Model.ClosedBall].inclusionContinuous Model.topology));
+\import bundle_extension.Extension[].Real[A := Domain.Disk, source := Domain.diskTopology, subset := left].Components[I := Fin.Fin cell.dimension] \as Tietze;
+\definition function: Tietze.Function := Tietze.Function {
+  value := \fun (x: Left) => coordinate x,
+  continuous := \fun (i: Fin.Fin cell.dimension) => topology.Composition[A := Left, B := Model.Coordinate, C := R.Real].composeContinuous leftTopology Model.topology metric_spaces.RealLine[].topology
+    (\fun (x: Left) => coordinate x) (\fun (p: Model.Coordinate) => p i) vectorContinuous
+    (topological_algebra.Coordinates[K := R.Real, I := Fin.Fin cell.dimension].evaluationContinuous metric_spaces.RealLine[].topology i)
+};
+\definition Extension: \Set := Tietze.Extension[function];
+\definition extension: \exists Extension := Tietze.tietze function Domain.Compactness[].compact
+  (topology.Topology[Carrier := Domain.Coordinate].Subspace[S := Domain.ClosedBall].Properties[].hausdorff Domain.topology Domain.Compactness[].hausdorff) leftClosed;
+\definition outsideInner: \forall (a: Left)(b: Right) -> a = b -> D.Le twice (Sup.norm (coordinate a)) :=
+  \fun (a: Left)(b: Right)(same: _) => Order.leOfNotLtReverse twice (Sup.norm (coordinate a)) (\fun (small: _) =>
+    (\bysub(Domain.Disk, right, b)) (\idelim f a = f b \with y: Stage.Carrier => \In[Stage.Carrier] openRegion y \by {
+      base: \idelim C.embed (coordinate a) = f a \with y: Stage.Carrier => \In[Stage.Carrier] openRegion y \by {
+        base: ChartImages.imageMember C.embed openChartDomain (coordinate a) small, equality: coordinateImage a
+      }, equality: congr!{Domain.Disk Stage.Carrier} f a b same
+    }));

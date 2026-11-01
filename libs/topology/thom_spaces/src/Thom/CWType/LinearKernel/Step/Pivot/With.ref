@@ -1,0 +1,50 @@
+\definition total: R.Real := dot _ coefficient solution.value;
+\definition head: R.Real := R.neg (R.mul inverse total);
+\definition vector: Fin.Fin (N.Nat^::succ n) -> R.Real := Tuples.extend n head solution.value;
+\definition nonzeroVector: Logic.Not (vector = (\fun (j: Fin.Fin (N.Nat^::succ n)) => R.zero)) := \fun (zero: _) => solution.nonzero
+  (\axiom:funext(solution.value, (\fun (j: Fin.Fin n) => R.zero), \fun (j: Fin.Fin n) => trans!{R.Real} _ _ _
+    (sym!{R.Real} _ _ (Tuples.atSuccessor n head solution.value j))
+    (congr!{{Fin.Fin (N.Nat^::succ n) -> R.Real} R.Real} (\fun (v: Fin.Fin (N.Nat^::succ n) -> R.Real) => v (Fin.succ n j)) _ _ zero)));
+\definition cancels: R.mul pivot inverse = R.one := trans!{R.Real} _ _ _ (Laws.fieldMulComm pivot inverse) (Laws.fieldInverseNonzero pivot pivotNonzero);
+\definition headEquation: R.mul pivot head = R.neg total := eq_reason_in!{R.Real _
+  "=" _ "by" { Laws.fieldMulNegRight pivot (R.mul inverse total) }
+  "=" _ "by" { congr!{R.Real R.Real} R.neg _ _ (sym!{R.Real} _ _ (Laws.fieldMulAssoc pivot inverse total)) }
+  "=" _ "by" { congr!{R.Real R.Real} (\fun (r: R.Real) => R.neg (R.mul r total)) _ _ cancels }
+  "=" _ "by" { congr!{R.Real R.Real} R.neg _ _ (Laws.fieldMulOneLeft total) }
+};
+\definition firstEquation: dot _ (row (Fin.zero m)) vector = R.zero := eq_reason_in!{R.Real _
+  "=" _ "by" { splitDot _ (row (Fin.zero m)) head solution.value }
+  "=" _ "by" { congr!{R.Real R.Real} (\fun (r: R.Real) => R.add r total) _ _ headEquation }
+  "=" _ "by" { Laws.addNegLeft total }
+};
+\definition reducedExpansion: \forall (k: Fin.Fin m) -> dot _ (reduced k) solution.value =
+  R.sub (dot _ (\fun (j: Fin.Fin n) => row (Fin.succ m k) (Fin.succ n j)) solution.value)
+    (R.mul (R.mul (row (Fin.succ m k) (Fin.zero n)) inverse) total) :=
+  \fun (k: Fin.Fin m) => eq_reason_in!{R.Real _
+    "=" _ "by" { Sums.congruent n _ _ (\fun (j: Fin.Fin n) => R.Algebra[].subMul
+      (row (Fin.succ m k) (Fin.succ n j)) (R.mul (R.mul (row (Fin.succ m k) (Fin.zero n)) inverse) (coefficient j)) (solution.value j)) }
+    "=" _ "by" { Sums.difference n
+      (\fun (j: Fin.Fin n) => R.mul (row (Fin.succ m k) (Fin.succ n j)) (solution.value j))
+      (\fun (j: Fin.Fin n) => R.mul (R.mul (R.mul (row (Fin.succ m k) (Fin.zero n)) inverse) (coefficient j)) (solution.value j)) }
+    "=" _ "by" { congr!{R.Real R.Real} (R.sub (dot _ (\fun (j: Fin.Fin n) => row (Fin.succ m k) (Fin.succ n j)) solution.value)) _ _
+      (trans!{R.Real} _ _ _ (Sums.congruent n _ _ (\fun (j: Fin.Fin n) => Laws.fieldMulAssoc (R.mul (row (Fin.succ m k) (Fin.zero n)) inverse) (coefficient j) (solution.value j)))
+        (Sums.scalar n (R.mul (row (Fin.succ m k) (Fin.zero n)) inverse) (\fun (j: Fin.Fin n) => R.mul (coefficient j) (solution.value j)))) }
+  };
+\definition otherEquation: \forall (k: Fin.Fin m) -> dot _ (row (Fin.succ m k)) vector = R.zero :=
+  \fun (k: Fin.Fin m) => eq_reason_in!{R.Real _
+    "=" _ "by" { splitDot _ (row (Fin.succ m k)) head solution.value }
+    "=" _ "by" { Laws.addComm (R.mul (row (Fin.succ m k) (Fin.zero n)) head) (dot _ (\fun (j: Fin.Fin n) => row (Fin.succ m k) (Fin.succ n j)) solution.value) }
+    "=" _ "by" { congr!{R.Real R.Real} (R.add (dot _ (\fun (j: Fin.Fin n) => row (Fin.succ m k) (Fin.succ n j)) solution.value)) _ _
+      (trans!{R.Real} _ _ _ (Laws.fieldMulNegRight (row (Fin.succ m k) (Fin.zero n)) (R.mul inverse total))
+        (congr!{R.Real R.Real} R.neg _ _ (sym!{R.Real} _ _ (Laws.fieldMulAssoc (row (Fin.succ m k) (Fin.zero n)) inverse total)))) }
+    "=" _ "by" { sym!{R.Real} _ _ (reducedExpansion k) }
+    "=" _ "by" { solution.kernel k }
+  };
+\definition permutedEquations: \forall (j: Fin.Fin (N.Nat^::succ m)) -> dot _ (row j) vector = R.zero :=
+  Fin.cases m (\fun (j: Fin.Fin (N.Nat^::succ m)) => dot _ (row j) vector = R.zero) firstEquation otherEquation;
+\definition witness: Witness[N.Nat^::succ m, N.Nat^::succ n, a] := Witness[N.Nat^::succ m, N.Nat^::succ n, a] {
+  value := vector, nonzero := nonzeroVector,
+  kernel := \fun (j: Fin.Fin (N.Nat^::succ m)) => trans!{R.Real} _ _ _
+    (congr!{{Fin.Fin (N.Nat^::succ m)} R.Real} (\fun (k: Fin.Fin (N.Nat^::succ m)) => dot _ (a k) vector) j (Swap.apply (Swap.apply j))
+      (sym!{{Fin.Fin (N.Nat^::succ m)}} _ _ (Swap.involution j))) (permutedEquations (Swap.apply j))
+};

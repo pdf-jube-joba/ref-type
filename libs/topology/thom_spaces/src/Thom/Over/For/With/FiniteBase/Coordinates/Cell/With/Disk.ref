@@ -1,0 +1,29 @@
+\import Normalized.Disk[] \as NormalDisk;
+\import topological_constructions.Product[A := BaseDisk.Disk, B := Euclidean.Disk] \as DiskProduct;
+\definition source: topology.Topology[Carrier := DiskProduct.CarrierSet].Topology := DiskProduct.topology BaseDisk.diskTopology Euclidean.diskTopology;
+\definition map[p: DiskProduct.CarrierSet]: DiskBundle := \into[Family.Point](Pullback.map (NormalDisk.homeomorphism.forward p), ClosedBall) \by {
+  \bysub(PulledFamily.Point, NormalDisk.ClosedSubset, NormalDisk.homeomorphism.forward p)
+};
+\definition normalizedLaws: topology.Homeomorphism[A := DiskProduct.CarrierSet, B := NormalDisk.ClosedCarrier].Laws[source, NormalDisk.closedTopology, NormalDisk.homeomorphism] := topology.Homeomorphism[A := DiskProduct.CarrierSet, B := NormalDisk.ClosedCarrier].laws source NormalDisk.closedTopology NormalDisk.homeomorphism;
+\definition continuous: topology.Continuity[A := DiskProduct.CarrierSet, B := DiskBundle].Continuous source diskTopology map :=
+  topology.Continuity[A := DiskProduct.CarrierSet, B := Family.Point].Corestriction[S := ClosedBall].corestrictContinuous source bundle.totalSpace map
+    (topology.Composition[A := DiskProduct.CarrierSet, B := PulledFamily.Point, C := Family.Point].composeContinuous source Pullback.topology bundle.totalSpace (\fun (p: DiskProduct.CarrierSet) => NormalDisk.homeomorphism.forward p) Pullback.map
+      (topology.Composition[A := DiskProduct.CarrierSet, B := NormalDisk.ClosedCarrier, C := PulledFamily.Point].composeContinuous source NormalDisk.closedTopology Pullback.topology NormalDisk.homeomorphism.forward (\fun (p: NormalDisk.ClosedCarrier) => p) normalizedLaws.forwardContinuous
+        (topology.Continuity[A := NormalDisk.ClosedCarrier, B := PulledFamily.Point].Corestriction[S := NormalDisk.ClosedSubset].inclusionContinuous Pullback.topology)) Pullback.mapContinuous);
+\definition base: \forall (p: DiskProduct.CarrierSet) -> (map p).base = cell.characteristic (Pair.first BaseDisk.Disk Euclidean.Disk p) := \fun (p: DiskProduct.CarrierSet) => congr!{BaseDisk.Disk X} cell.characteristic _ _ (NormalDisk.forwardBase p);
+\definition injective: \forall (p, q: DiskProduct.CarrierSet) -> Pair.first BaseDisk.Disk Euclidean.Disk p = Pair.first BaseDisk.Disk Euclidean.Disk q -> map p = map q -> p = q := \fun (p, q: DiskProduct.CarrierSet)(sameBase: _)(same: _) => \block {
+  \let equalBase: (NormalDisk.homeomorphism.forward p).base = (NormalDisk.homeomorphism.forward q).base := trans!{BaseDisk.Disk} _ _ _ (NormalDisk.forwardBase p) (trans!{BaseDisk.Disk} _ _ _ sameBase (sym!{BaseDisk.Disk} _ _ (NormalDisk.forwardBase q))) \then
+  \let equal: NormalDisk.homeomorphism.forward p = NormalDisk.homeomorphism.forward q := Pullback.jointInjective (NormalDisk.homeomorphism.forward p) (NormalDisk.homeomorphism.forward q) equalBase same \then
+  \return eq_reason_in!{DiskProduct.CarrierSet p
+    "=" _ "by" { sym!{DiskProduct.CarrierSet} _ _ (normalizedLaws.leftInverse p) }
+    "=" _ "by" { congr!{NormalDisk.ClosedCarrier DiskProduct.CarrierSet} NormalDisk.homeomorphism.backward (NormalDisk.homeomorphism.forward p) (NormalDisk.homeomorphism.forward q) equal }
+    "=" _ "by" { normalizedLaws.leftInverse q }
+  }
+};
+\definition squaredFormula: \forall (p: DiskProduct.CarrierSet) -> squared (map p) = Euclidean.normSquared (Pair.second BaseDisk.Disk Euclidean.Disk p) := NormalDisk.squared;
+\module Cover(x: BaseDisk.Disk, p: DiskBundle, same: p.base = cell.characteristic x);
+\definition covers: \forall (x: BaseDisk.Disk)(p: DiskBundle) -> p.base = cell.characteristic x -> \exists (u: Euclidean.Disk \where map (Pair.pair BaseDisk.Disk Euclidean.Disk x u) = p) :=
+  \fun (x: BaseDisk.Disk)(p: DiskBundle)(same: _) => Cover[x := x, p := p, same := same].exists;
+\definition agreement: \forall (x: BaseDisk.Disk)(v: Euclidean.Sphere) -> map (Pair.pair BaseDisk.Disk Euclidean.Disk x (diskBoundary d v)) = sphereInclusion (chart (Pair.pair BaseDisk.Disk Euclidean.Sphere x v)) :=
+  \fun (x: BaseDisk.Disk)(v: Euclidean.Sphere) => congr!{PulledFamily.Point Family.Point} Pullback.map _ _ (NormalDisk.sphereAgreement x v);
+\definition result: DiskChart[d] := DiskChart[d] { map := map, continuous := continuous, base := base, injective := injective, covers := covers, squared := squaredFormula };

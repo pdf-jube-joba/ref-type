@@ -1,0 +1,19 @@
+\import topology.Topology[Carrier := A] \as Original;
+\import topology.Topology[Carrier := B] \as Final;
+\import topology.Maps[A := A, B := B] \as Maps;
+\definition Equalizer: \Pow A := { x: A \where f x = g x };
+\definition closed: Original.IsClosedIn source Equalizer := Original.openOfNeighborhoods source (Original.Complement Equalizer) (\block {
+  \fun (x: A)(different: Logic.Not (f x = g x)) \then
+  \takefrom U: \Cast[\Pow B] ({ U: \Pow B \where Final.RegularChoice[target, Final.Singleton (g x), f x, U] }) \by hausdorff (f x) (g x) different \then
+  \let u: Final.RegularChoice[target, Final.Singleton (g x), f x, U] := \bysub(\Pow B, { U: \Pow B \where Final.RegularChoice[target, Final.Singleton (g x), f x, U] }, U) \then
+  \takefrom V: \Cast[\Pow B] ({ V: \Pow B \where Final.NormalPartner[target, Final.Singleton (g x), U, V] }) \by u.partner \then
+  \let v: Final.NormalPartner[target, Final.Singleton (g x), U, V] := \bysub(\Pow B, { V: \Pow B \where Final.NormalPartner[target, Final.Singleton (g x), U, V] }, V) \then
+  \let region: \Pow A := Original.Intersection (Maps.Preimage f U) (Maps.Preimage g V) \then
+  \return Logic.existsIntro[\Pow A, { W: \Pow A \where Original.OpenNeighborhood[source, x, Original.Complement Equalizer, W] }] region
+    (Original.OpenNeighborhood[source, x, Original.Complement Equalizer, region] {
+      open := (Original.topologyLaws source).intersectionOpen (Maps.Preimage f U) (Maps.Preimage g V) (first U u.open) (second V v.open),
+      contains := Logic.And[_, _]::# u.contains (v.covers (g x) (\refl(g x))),
+      within := \fun (y: A)(member: \In[A] region y)(same: f y = g y) => v.disjoint (f y) member.left
+        (\idelim g y = f y \with z: B => \In[B] V z \by { base: member.right, equality: sym!{B} _ _ same })
+    })
+});

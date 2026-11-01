@@ -1,0 +1,57 @@
+\import \parent.Map[] \as Mapping;
+\import \parent.Representation[] \as Cases;
+\import \parent.SecondBoundary[] \as BoundaryMap;
+\import First.Subset[subset := subset] \as FirstSubset;
+\import FirstSubset.Images[] \as FirstImages;
+\import Second.Subset[subset := FirstSubset.fullSubset] \as SecondSubset;
+\import SecondSubset.Images[] \as SecondImages;
+\definition boundaryContained: \forall (x: Base.Sphere)(s: FiberSphere.Sphere) -> \In[A] subset (data.boundary (Pair.pair Base.Sphere FiberSphere.Sphere x s)) :=
+  \fun (x: Base.Sphere)(s: FiberSphere.Sphere) => originalReflects (data.boundary (Pair.pair Base.Sphere FiberSphere.Sphere x s))
+    (\idelim data.chart (Pair.pair Base.Disk FiberSphere.Sphere (baseBoundary x) s) = data.original (data.boundary (Pair.pair Base.Sphere FiberSphere.Sphere x s)) \with y: Y => \In[Y] targetSubset y \by {
+      base: chartContained (Pair.pair Base.Disk FiberSphere.Sphere (baseBoundary x) s), equality: sym!{Y} _ _ (data.seam x s)
+    });
+\definition firstContained: \forall (v: Base.Sphere) -> \In[A] subset (firstAttach v) := \fun (v: Base.Sphere) => boundaryContained v fiber.pole;
+\definition secondContained: \forall (v: Total.Sphere) -> \In[First.Carrier] FirstSubset.fullSubset (BoundaryMap.apply v) := \fun (v: Total.Sphere) =>
+  either!{{BoundaryMap.covered v} {\In[First.Carrier] FirstSubset.fullSubset (BoundaryMap.apply v)}
+    {\fun (boundary: _) => \idelim First.inclusion (data.boundary (Pair.pair Base.Sphere FiberSphere.Sphere (BoundaryMap.firstSphere v boundary) (fiber.characteristic (BoundaryMap.secondPoint v)))) = BoundaryMap.apply v \with p: First.Carrier => \In[First.Carrier] FirstSubset.fullSubset p \by {
+      base: FirstImages.oldFull (data.boundary (Pair.pair Base.Sphere FiberSphere.Sphere (BoundaryMap.firstSphere v boundary) (fiber.characteristic (BoundaryMap.secondPoint v)))) (boundaryContained (BoundaryMap.firstSphere v boundary) (fiber.characteristic (BoundaryMap.secondPoint v))),
+      equality: sym!{First.Carrier} _ _ (BoundaryMap.onFirst v boundary)
+    }}
+    {\fun (boundary: _) => \idelim First.characteristic (BoundaryMap.firstPoint v) = BoundaryMap.apply v \with p: First.Carrier => \In[First.Carrier] FirstSubset.fullSubset p \by {
+      base: FirstImages.cellFull (BoundaryMap.firstPoint v), equality: sym!{First.Carrier} _ _ (BoundaryMap.onSecond v boundary)
+    }}
+  };
+\definition firstOriginal: \forall (a: A) -> \In[A] subset a -> \In[Y] targetSubset (Mapping.first (First.inclusion a)) := \fun (a: A)(member: _) =>
+  \idelim data.original a = Mapping.first (First.inclusion a) \with y: Y => \In[Y] targetSubset y \by {
+    base: originalContained (\into[A](a, subset) \by { member }), equality: sym!{Y} _ _ (Mapping.firstOriginal a)
+  };
+\definition firstCell: \forall (p: Base.Disk) -> \In[Y] targetSubset (Mapping.first (First.characteristic p)) := \fun (p: Base.Disk) =>
+  \idelim Mapping.pole p = Mapping.first (First.characteristic p) \with y: Y => \In[Y] targetSubset y \by {
+    base: chartContained (Mapping.polePair p), equality: sym!{Y} _ _ (Mapping.firstCell p)
+  };
+\definition firstPreserves: \forall (p: \Cast[First.Carrier] FirstSubset.fullSubset) -> \In[Y] targetSubset (Mapping.first p) := FirstImages.mapFull Y targetSubset Mapping.first firstOriginal firstCell;
+\definition secondOriginal: \forall (p: First.Carrier) -> \In[First.Carrier] FirstSubset.fullSubset p -> \In[Y] targetSubset (Mapping.apply (Second.inclusion p)) := \fun (p: First.Carrier)(member: _) =>
+  \idelim Mapping.first p = Mapping.apply (Second.inclusion p) \with y: Y => \In[Y] targetSubset y \by {
+    base: firstPreserves (\into[First.Carrier](p, FirstSubset.fullSubset) \by { member }), equality: sym!{Y} _ _ (Mapping.onOriginal p)
+  };
+\definition secondCell: \forall (p: Total.Disk) -> \In[Y] targetSubset (Mapping.apply (Second.characteristic p)) := \fun (p: Total.Disk) =>
+  \idelim Mapping.cell p = Mapping.apply (Second.characteristic p) \with y: Y => \In[Y] targetSubset y \by {
+    base: chartContained (Mapping.prism (Geometry.homeomorphism.forward p)), equality: sym!{Y} _ _ (Mapping.onCell p)
+  };
+\definition preserves: \forall (p: \Cast[Second.Carrier] SecondSubset.fullSubset) -> \In[Y] targetSubset (Mapping.apply p) := SecondImages.mapFull Y targetSubset Mapping.apply secondOriginal secondCell;
+\definition originalMember: \forall (a: A) -> \In[A] subset a -> \In[Second.Carrier] SecondSubset.fullSubset (Cases.original a) := \fun (a: A)(member: _) => SecondImages.oldFull (First.inclusion a) (FirstImages.oldFull a member);
+\definition poleMember: \forall (x: First.InteriorPoint) -> \In[Second.Carrier] SecondSubset.fullSubset (Cases.pole x) := \fun (x: First.InteriorPoint) =>
+  SecondImages.oldFull (First.interior x) (\idelim First.characteristic x = First.interior x \with p: First.Carrier => \In[First.Carrier] FirstSubset.fullSubset p \by {
+    base: FirstImages.cellFull x, equality: First.onInterior x
+  });
+\definition generalMember: \forall (x: Second.InteriorPoint) -> \In[Second.Carrier] SecondSubset.fullSubset (Cases.general x) := \fun (x: Second.InteriorPoint) =>
+  \idelim Second.characteristic x = Second.interior x \with p: Second.Carrier => \In[Second.Carrier] SecondSubset.fullSubset p \by {
+    base: SecondImages.cellFull x, equality: Second.onInterior x
+  };
+\definition reflects: \forall (p: Second.Carrier) -> \In[Y] targetSubset (Mapping.apply p) -> \In[Second.Carrier] SecondSubset.fullSubset p :=
+  Cases.induction (\fun (p: Second.Carrier) => \In[Y] targetSubset (Mapping.apply p) -> \In[Second.Carrier] SecondSubset.fullSubset p)
+    (\fun (a: A)(member: _) => originalMember a (originalReflects a
+      (\idelim Mapping.apply (Cases.original a) = data.original a \with y: Y => \In[Y] targetSubset y \by { base: member, equality: Cases.onOriginal a })))
+    (\fun (x: First.InteriorPoint)(member: _) => poleMember x)
+    (\fun (x: Second.InteriorPoint)(member: _) => generalMember x);
+\module Comparison(compact: topology.Topology[Carrier := A].IsCompact source, hausdorff: topology.Topology[Carrier := Y].IsT2 target);

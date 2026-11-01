@@ -1,0 +1,23 @@
+\import linear_algebra.Commutative[K := R.Real, scalarRing := Fields.fieldAsCommutativeRing R.Real R.Algebra[].field] \as Spaces;
+\definition basepoint: BasePoint := Coordinates.base p;
+\definition coordinate: Euclidean.Coordinate := (chart.frame basepoint).forward.apply p.vector;
+\definition frameLeft: (chart.frame basepoint).backward.apply coordinate = p.vector :=
+  (Spaces.Isomorphism[V := F p.base, W := Euclidean.Coordinate, source := bundle.space p.base, target := Bundles.coordinates chart.dimension].laws (chart.frame basepoint)).leftInverse p.vector;
+\definition notZero: Logic.Not (Euclidean.normSquared coordinate = R.zero) := \fun (zero: _) =>
+  Ord.ltNotEq R.zero (Right.norm p) member (sym!{R.Real} _ _ (Right.onZero p
+    (trans!{{F p.base}} _ _ _ (sym!{{F p.base}} _ _ frameLeft)
+      (trans!{{F p.base}} _ _ _ (congr!{Euclidean.Coordinate {F p.base}} (chart.frame basepoint).backward.apply _ _ (Geometry.normSquaredZero coordinate zero)) (chart.frame basepoint).backward.preservesZero))));
+\definition nonzeroCoordinate: Normalization.Nonzero := \into[Euclidean.Coordinate](coordinate, Normalization.Nonzero) \by { notZero };
+\definition unit: Euclidean.Sphere := Normalization.normalize nonzeroCoordinate;
+\definition inversePositive: D.Lt R.zero (Laws.fieldInv (Geometry.norm coordinate)) :=
+  R.Estimates[].Product[].invPositive (Geometry.norm coordinate)
+    (Ord.ltOfLeNotEq R.zero (Geometry.norm coordinate) (Root.nonnegative (Euclidean.normSquared coordinate))
+      (\fun (zero: _) => Normalization.normNonzero nonzeroCoordinate (sym!{R.Real} _ _ zero)));
+\definition reconstruction: decode (Pair.pair BasePoint Euclidean.Sphere basepoint unit) = scale (Laws.fieldInv (Geometry.norm coordinate)) p :=
+  congr!{{F p.base} Family.Point} (Family.include p.base) _ _
+    (trans!{{F p.base}} _ _ _ ((chart.frame basepoint).backward.preservesScale (Laws.fieldInv (Geometry.norm coordinate)) coordinate)
+      (congr!{{F p.base} {F p.base}} ((bundle.space p.base).smul (Laws.fieldInv (Geometry.norm coordinate))) _ _
+        frameLeft));
+\definition formula: ratio (Pair.pair BasePoint Euclidean.Sphere basepoint unit) = coefficient p :=
+  trans!{R.Real} _ _ _ (congr!{Family.Point R.Real} coefficient _ _ reconstruction)
+    \parent.\parent.Ray[a := Laws.fieldInv (Geometry.norm coordinate), p := (\into[Family.Point](p, nonzero) \by { member }), positive := inversePositive].constant;

@@ -1,0 +1,24 @@
+\import algebraic_topology.Homotopy[A := A, B := B] \as Geometry;
+\definition reversed: Geometry.Homotopy[source, target, next, e.forward] := Geometry.reverse source target e.forward next homotopy;
+\definition nextFixed: \forall (s: S) -> next (from s) = to s := \fun (s: S) => trans!{B} _ _ _
+  (sym!{B} _ _ ((Geometry.laws source target e.forward next homotopy).end (from s))) (fixed I.end s);
+\definition first: Left.Homotopy[source, source, (\fun (x: A) => e.backward (next x)), (\fun (x: A) => e.backward (e.forward x))] :=
+  Geometry.Composition[C := A].postcompose source target source next e.forward reversed e.backward e.backwardContinuous;
+\definition firstFixed: \forall (t: I.Carrier)(s: S) -> first (LeftCylinder.at t (from s)) = from s := \fun (t: I.Carrier)(s: S) =>
+  trans!{A} _ _ _ (congr!{B A} e.backward _ _ (fixed (I.reverse t) s)) (e.backwardFixed s);
+\definition second: Right.Homotopy[target, target, (\fun (y: B) => next (e.backward y)), (\fun (y: B) => e.forward (e.backward y))] :=
+  Geometry.Composition[C := B].precompose target source target next e.forward reversed e.backward e.backwardContinuous;
+\definition secondFixed: \forall (t: I.Carrier)(s: S) -> second (RightCylinder.at t (to s)) = to s := \fun (t: I.Carrier)(s: S) =>
+  trans!{B} _ _ _ (congr!{A B} (\fun (x: A) => homotopy (LeftCylinder.at (I.reverse t) x)) _ _ (e.backwardFixed s)) (fixed (I.reverse t) s);
+\import \root.Thom[].CWType[].FixedPaths[S := S, A := A, B := A, from := from, to := from].Concatenation[
+  source := source, target := source, f := (\fun (x: A) => e.backward (next x)), g := (\fun (x: A) => e.backward (e.forward x)), k := (\fun (x: A) => x),
+  first := first, second := e.left, firstFixed := firstFixed, secondFixed := e.leftFixed] \as LeftJoin;
+\import \root.Thom[].CWType[].FixedPaths[S := S, A := B, B := B, from := to, to := to].Concatenation[
+  source := target, target := target, f := (\fun (y: B) => next (e.backward y)), g := (\fun (y: B) => e.forward (e.backward y)), k := (\fun (y: B) => y),
+  first := second, second := e.right, firstFixed := secondFixed, secondFixed := e.rightFixed] \as RightJoin;
+\definition result: Data := Data {
+  forward := next, backward := e.backward,
+  forwardContinuous := Geometry.endContinuous source target e.forward next homotopy,
+  backwardContinuous := e.backwardContinuous, forwardFixed := nextFixed, backwardFixed := e.backwardFixed,
+  left := LeftJoin.result, right := RightJoin.result, leftFixed := LeftJoin.fixed, rightFixed := RightJoin.fixed
+};

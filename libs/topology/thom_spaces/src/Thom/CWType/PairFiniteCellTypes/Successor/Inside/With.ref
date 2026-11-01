@@ -1,0 +1,36 @@
+\import singular_cellular.On[A := NativePart.Carrier, source := NativePart.topology, complex := NativePart.result].Filtration[] \as PartFiltration;
+\import PartFiltration.Stage[limit := N.Nat^::succ d] \as Target;
+\definition lift[v: Disk.Sphere]: NativePart.Carrier := Target.inclusion (approximation.value v);
+\definition liftContinuous: topology.Continuity[A := Disk.Sphere, B := NativePart.Carrier].Continuous Disk.sphereTopology NativePart.topology lift :=
+  topology.Composition[A := Disk.Sphere, B := Target.Carrier, C := NativePart.Carrier].composeContinuous Disk.sphereTopology Target.topology NativePart.topology approximation.value Target.inclusion approximation.continuous Target.continuous;
+\definition attachNext[v: Disk.Sphere]: A := NativePart.inclusion (lift v);
+\definition regular: topology.Continuity[A := Disk.Sphere, B := A].Continuous Disk.sphereTopology source attachNext :=
+  topology.Composition[A := Disk.Sphere, B := NativePart.Carrier, C := A].composeContinuous Disk.sphereTopology NativePart.topology source lift NativePart.inclusion liftContinuous NativePart.inclusionContinuous;
+\definition within: \forall (v: Disk.Sphere) -> \In[NativePart.Carrier] (PartFiltration.subset (N.Nat^::succ d)) (lift v) := \fun (v: Disk.Sphere) => \bysub(NativePart.Carrier, PartFiltration.subset (N.Nat^::succ d), approximation.value v);
+\import singular_cellular.On[A := A, source := source, complex := complex].Filtration[] \as Filtration;
+\definition lands: \forall (v: Disk.Sphere) -> \In[A] (Filtration.subset (N.Nat^::succ d)) (attachNext v) := \fun (v: Disk.Sphere) => NativePart.Cellularity[].preserves (N.Nat^::succ d) (lift v) (within v);
+\import algebraic_topology.Homotopy[A := Disk.Sphere, B := NativePart.Carrier] \as Paths;
+\import algebraic_topology.Homotopy[A := Disk.Sphere, B := A] \as WholePaths;
+\import algebraic_topology.Cylinder[A := Disk.Sphere] \as Cylinder;
+\definition post: WholePaths.Homotopy[Disk.sphereTopology, source, (\fun (v: Disk.Sphere) => NativePart.inclusion (restricted v)), (\fun (v: Disk.Sphere) => NativePart.inclusion (lift v))] :=
+  Paths.Composition[C := A].postcompose Disk.sphereTopology NativePart.topology source restricted (\fun (v: Disk.Sphere) => lift v) approximation.homotopy NativePart.inclusion NativePart.inclusionContinuous;
+\definition postLaws: WholePaths.Laws[Disk.sphereTopology, source, (\fun (v: Disk.Sphere) => NativePart.inclusion (restricted v)), (\fun (v: Disk.Sphere) => NativePart.inclusion (lift v)), post] :=
+  WholePaths.laws Disk.sphereTopology source (\fun (v: Disk.Sphere) => NativePart.inclusion (restricted v)) (\fun (v: Disk.Sphere) => NativePart.inclusion (lift v)) post;
+\definition homotopy: WholePaths.Homotopy[Disk.sphereTopology, source, attach, attachNext] := \into[WholePaths.Family](post, WholePaths.Homotopy[Disk.sphereTopology, source, attach, attachNext]) \by {
+  WholePaths.Laws[Disk.sphereTopology, source, attach, attachNext, post] {
+    continuous := postLaws.continuous, start := postLaws.start, end := postLaws.end
+  }
+};
+\definition hContained: \forall (t: algebraic_topology.Interval[].Carrier)(v: Disk.Sphere) -> \In[A] Part.Subset (homotopy (Cylinder.at t v)) :=
+  \fun (t: algebraic_topology.Interval[].Carrier)(v: Disk.Sphere) => \bysub(A, Part.Subset, approximation.homotopy (Cylinder.at t v));
+\import \root.Thom[].CWType[].CellAttachment[A := A, source := source, n := N.Nat^::succ d, attach := attachNext, continuous := regular] \as Next;
+\import Next.Subset[subset := Part.Subset] \as NextSubsets;
+\import Next.Finite[complex := complex].Cellular[lands := lands] \as CW;
+\import CW.Subcomplex[part := part] \as ChosenPart;
+\definition over: \forall (v: Disk.Sphere) -> NativePart.inclusion (lift v) = attachNext v := \fun (v: Disk.Sphere) => \refl(attachNext v);
+\import ChosenPart.WithCell[lift := lift, over := over, within := within] \as WithCell;
+\import \root.Thom[].CWType[].PairFiniteType[A := Next.Carrier, source := Next.topology, subset := NextSubsets.fullSubset] \as NextType;
+\definition model: NextType.Data := NextType.Native[complex := CW.complex, part := WithCell.result, agrees := WithCell.Images[].equation].result;
+\import Subsets.Homotopic[next := attachNext, regular := regular, homotopy := homotopy].Inside[hContained := hContained] \as Change;
+\definition result: Type.Data := Type.Along[B := Next.Carrier, target := Next.topology, targetSubset := NextSubsets.fullSubset, e := Change.equivalence, model := model].result;
+\definition exists: \exists Type.Data := \exact(result, Type.Data);

@@ -1,0 +1,15 @@
+\import Fin.Transposition[n := N.Nat^::succ m, a := Fin.zero m, b := i] \as Swap;
+\definition row[j: Fin.Fin (N.Nat^::succ m)]: Fin.Fin (N.Nat^::succ n) -> R.Real := a (Swap.apply j);
+\definition pivot: R.Real := row (Fin.zero m) (Fin.zero n);
+\definition pivotNonzero: Logic.Not (pivot = R.zero) := \fun (zero: _) => nonzero
+  (trans!{R.Real} _ _ _ (congr!{{Fin.Fin (N.Nat^::succ m)} R.Real} (\fun (j: Fin.Fin (N.Nat^::succ m)) => a j (Fin.zero n)) i (Swap.apply (Fin.zero m))
+    (sym!{{Fin.Fin (N.Nat^::succ m)}} _ _ Swap.onFirst)) zero);
+\definition inverse: R.Real := Laws.fieldInv pivot;
+\definition coefficient[j: Fin.Fin n]: R.Real := row (Fin.zero m) (Fin.succ n j);
+\definition reduced[k: Fin.Fin m][j: Fin.Fin n]: R.Real :=
+  R.sub (row (Fin.succ m k) (Fin.succ n j)) (R.mul (R.mul (row (Fin.succ m k) (Fin.zero n)) inverse) (coefficient j));
+\module With(solution: Witness[m, n, reduced]);
+\definition exists: \exists Witness[N.Nat^::succ m, N.Nat^::succ n, a] := \block {
+  \takefrom solution: Witness[m, n, reduced] \by previous n larger reduced \then
+  \return \exact(With[solution := solution].witness, Witness[N.Nat^::succ m, N.Nat^::succ n, a])
+};

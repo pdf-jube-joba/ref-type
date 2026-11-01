@@ -1,0 +1,42 @@
+\import topology.Topology[Carrier := A] \as Source;
+\import topology.Topology[Carrier := B] \as Target;
+\import topology.Topology[Carrier := T] \as Parameter;
+\import topological_constructions.Product[A := A, B := T] \as Product;
+\import Product.Compactness[] \as Tubes;
+\definition off: \Pow A := Source.Complement zero;
+\import Source.Subspace[S := off] \as Off;
+\import Off.Open[] \as OffOpen;
+\definition continuous: Parameter.IsCompact parameter ->
+  topology.Continuity[A := Product.CarrierSet, B := B].Continuous (Product.topology source parameter) target action ->
+  (\forall (x: A) -> f x = action (Pair.pair A T x (choose x))) ->
+  Source.IsOpenIn source off ->
+  topology.Continuity[A := Off.CarrierSet, B := B].Continuous (Off.topology source) target (\fun (x: Off.CarrierSet) => f x) ->
+  (\forall (x: A) -> Source.Member zero x -> \forall (t: T) -> action (Pair.pair A T x t) = f x) ->
+  topology.Continuity[A := A, B := B].Continuous source target f :=
+  \fun (compact: _)(regular: _)(formula: _)(offOpen: _)(offRegular: _)(atZero: _)(U: \Pow B)(openU: _) =>
+  Source.openOfNeighborhoods source ({ x: A \where Target.Member U (f x) }) (\block {
+    \fun (x: A)(member: _) \then
+    \return either!{{Classical.excludedMiddle (Source.Member zero x)} {\exists ( V: \Pow A \where Source.OpenNeighborhood[source, x, { y: A \where Target.Member U (f y) }, V] )}
+      {\block {
+        \fun (inZero: _) \then
+        \takefrom tube: Tubes.Tube[source, x, { p: Product.CarrierSet \where Target.Member U (action p) }, Parameter.Whole] \by
+          Tubes.tubeLemma source parameter Parameter.Whole compact x ({ p: Product.CarrierSet \where Target.Member U (action p) }) (regular U openU)
+            (\fun (t: T)(inWhole: _) => \idelim f x = action (Pair.pair A T x t) \with b: B => Target.Member U b \by { base: member, equality: sym!{B} _ _ (atZero x inZero t) }) \then
+        \return Logic.existsIntro[\Pow A, { V: \Pow A \where Source.OpenNeighborhood[source, x, { y: A \where Target.Member U (f y) }, V] }] tube.neighborhood
+          (Source.OpenNeighborhood[source, x, { y: A \where Target.Member U (f y) }, tube.neighborhood] {
+            open := tube.open, contains := tube.contains,
+            within := \fun (y: A)(inV: _) => \idelim action (Pair.pair A T y (choose y)) = f y \with b: B => Target.Member U b \by {
+              base: tube.within y inV (choose y) (\refl(choose y)), equality: sym!{B} _ _ (formula y)
+            }
+          })
+      }}
+      {\fun (outside: _) => Logic.existsIntro[\Pow A, { V: \Pow A \where Source.OpenNeighborhood[source, x, { y: A \where Target.Member U (f y) }, V] }]
+        (OffOpen.image ({ y: Off.CarrierSet \where Target.Member U (f y) }))
+        (Source.OpenNeighborhood[source, x, { y: A \where Target.Member U (f y) }, OffOpen.image ({ y: Off.CarrierSet \where Target.Member U (f y) })] {
+          open := OffOpen.imageOpen source offOpen ({ y: Off.CarrierSet \where Target.Member U (f y) }) (offRegular U openU),
+          contains := OffOpen.imageMember ({ y: Off.CarrierSet \where Target.Member U (f y) }) (\into[A](x, off) \by { outside }) member,
+          within := \fun (y: A)(inV: _) => OffOpen.imageElim ({ y: Off.CarrierSet \where Target.Member U (f y) }) y (Target.Member U (f y))
+            (\fun (z: Off.CarrierSet)(inU: _)(same: z = y) => \idelim z = y \with w: A => Target.Member U (f w) \by { base: inU, equality: same }) inV
+        })}
+    }
+  });

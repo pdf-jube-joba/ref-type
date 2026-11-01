@@ -1,0 +1,115 @@
+\import topology.Topology[Carrier := A] \as Original;
+\import topological_constructions.Product[A := A, B := A] \as Product;
+\import topology.Topology[Carrier := Product.CarrierSet] \as ProductSpace;
+\import topology.Maps[A := Product.CarrierSet, B := A] \as Projection;
+\import topological_constructions.RelationQuotient[A := A, relation := relation] \as Quotient;
+\definition Carrier: \Set := Quotient.Carrier;
+\import topology.Topology[Carrier := Carrier] \as Space;
+\definition topology: Space.Topology := Quotient.topology source;
+\definition compactQuotient: Space.IsCompact topology := topology.Compactness[A := A, B := Carrier].surjectiveImage source topology Quotient.class
+  (Quotient.projectionContinuous source) Quotient.surjective compact;
+\definition Saturation[F: \Pow A]: \Pow A := { x: A \where \exists (y: A \where Logic.And[\In[A] F y, relation x y]) };
+\definition saturates: \forall (F: \Pow A)(x, y: A) -> \In[A] F y -> relation x y -> \In[A] (Saturation F) x :=
+  \fun (F: \Pow A)(x, y: A)(member: _)(related: _) => Logic.existsIntro[A, { y: A \where Logic.And[\In[A] F y, relation x y] }] y (Logic.And[_, _]::# member related);
+\definition RelationSet: \Pow Product.CarrierSet := { p: Product.CarrierSet \where relation (Pair.first A A p) (Pair.second A A p) };
+\definition restricted[F: \Pow A]: \Pow Product.CarrierSet := ProductSpace.Intersection RelationSet (Projection.Preimage (Pair.second A A) F);
+\definition saturationImage: \forall (F: \Pow A) -> Saturation F = Projection.Image (Pair.first A A) (restricted F) :=
+  \fun (F: \Pow A) => \axiom:setext(Saturation F, Projection.Image (Pair.first A A) (restricted F),
+    \block {
+      \fun (x: A)(member: _) \then
+      \takefrom y: \Cast[A] ({ y: A \where Logic.And[\In[A] F y, relation x y] }) \by member \then
+      \let data: Logic.And[\In[A] F y, relation x y] := \bysub(A, { y: A \where Logic.And[\In[A] F y, relation x y] }, y) \then
+      \return Projection.imageMember (Pair.first A A) (restricted F) (Pair.pair A A x y) (Logic.And[_, _]::# data.right data.left)
+    },
+    \fun (x: A)(member: _) => Projection.imageElim (Pair.first A A) (restricted F) x (\In[A] (Saturation F) x)
+      (\fun (p: Product.CarrierSet)(inside: \In[Product.CarrierSet] (restricted F) p)(same: Pair.first A A p = x) =>
+        saturates F x (Pair.second A A p) inside.right
+          (\idelim Pair.first A A p = x \with y: A => relation y (Pair.second A A p) \by { base: inside.left, equality: same })) member);
+\definition saturationClosed: \forall (F: \Pow A) -> Original.IsClosedIn source F -> Original.IsClosedIn source (Saturation F) :=
+  \fun (F: \Pow A)(isClosed: _) => \idelim Projection.Image (Pair.first A A) (restricted F) = Saturation F
+    \with S: \Pow A => Original.IsClosedIn source S \by {
+      base: Original.Compactness[].compactClosed source hausdorff (Projection.Image (Pair.first A A) (restricted F))
+        (topology.Compactness[A := Product.CarrierSet, B := A].continuousImage (Product.topology source source) source (Pair.first A A)
+          (Product.Maps[].firstContinuous source source) (restricted F)
+          (ProductSpace.Compactness[].closedCompact (Product.topology source source) (Product.Compactness[].productCompact source source compact compact) (restricted F)
+            (ProductSpace.Finite[].intersectionClosed (Product.topology source source) RelationSet (Projection.Preimage (Pair.second A A) F) closed
+              (topology.Continuity[A := Product.CarrierSet, B := A].closedPreimage (Product.topology source source) source (Pair.second A A)
+                (Product.Maps[].secondContinuous source source) F isClosed)))),
+      equality: sym!{{\Pow A}} _ _ (saturationImage F)
+    };
+\definition Fiber[x: A]: \Pow A := { y: A \where relation x y };
+\definition fiberClosed: \forall (x: A) -> Original.IsClosedIn source (Fiber x) :=
+  \fun (x: A) => topology.Continuity[A := A, B := Product.CarrierSet].closedPreimage source (Product.topology source source) (Pair.pair A A x)
+    (Product.Universal[X := A].pairContinuous source source source (\fun (y: A) => x) (\fun (y: A) => y)
+      (topology.Maps[A := A, B := A].constantContinuous source source x) (topology.Maps[A := A, B := A].Identity[].continuous source)) RelationSet closed;
+\definition Saturated[U: \Pow A]: \Prop := \forall (x, y: A) -> \In[A] U x -> relation x y -> \In[A] U y;
+\definition inner[U: \Pow A]: \Pow A := Original.Complement (Saturation (Original.Complement U));
+\definition innerOpen: \forall (U: \Pow A) -> Original.IsOpenIn source U -> Original.IsOpenIn source (inner U) :=
+  \fun (U: \Pow A)(open: _) => saturationClosed (Original.Complement U) (Original.Finite[].openComplementClosed source U open);
+\definition innerWithin: \forall (U: \Pow A) -> Original.Subset (inner U) U :=
+  \fun (U: \Pow A)(x: A)(inside: _) => Original.Finite[].doubleNegElim (\In[A] U x)
+    (\fun (outside: Logic.Not (\In[A] U x)) => inside (saturates (Original.Complement U) x x outside (laws.refl x)));
+\definition innerContains: \forall (U: \Pow A)(x: A) -> Original.Subset (Fiber x) U -> \In[A] (inner U) x := \block {
+  \fun (U: \Pow A)(x: A)(included: _)(bad: _) \then
+  \takefrom y: \Cast[A] ({ y: A \where Logic.And[\In[A] (Original.Complement U) y, relation x y] }) \by bad \then
+  \let data: Logic.And[\In[A] (Original.Complement U) y, relation x y] := \bysub(A, { y: A \where Logic.And[\In[A] (Original.Complement U) y, relation x y] }, y) \then
+  \return data.left (included y data.right)
+};
+\definition innerSaturated: \forall (U: \Pow A) -> Saturated (inner U) := \block {
+  \fun (U: \Pow A)(x, y: A)(inside: _)(related: relation x y)(bad: _) \then
+  \takefrom z: \Cast[A] ({ z: A \where Logic.And[\In[A] (Original.Complement U) z, relation y z] }) \by bad \then
+  \let data: Logic.And[\In[A] (Original.Complement U) z, relation y z] := \bysub(A, { z: A \where Logic.And[\In[A] (Original.Complement U) z, relation y z] }, z) \then
+  \return inside (saturates (Original.Complement U) x z data.left (laws.trans x y z related data.right))
+};
+\import topology.Maps[A := A, B := Carrier] \as Classes;
+\definition image[U: \Pow A]: \Pow Carrier := Classes.Image Quotient.class U;
+\definition preimageImage: \forall (U: \Pow A) -> Saturated U -> Classes.Preimage Quotient.class (image U) = U :=
+  \fun (U: \Pow A)(saturated: _) => \axiom:setext(Classes.Preimage Quotient.class (image U), U,
+    \block {
+      \fun (x: A)(member: _) \then
+      \takefrom y: \Cast[A] ({ y: A \where Logic.And[\In[A] U y, Quotient.class y = Quotient.class x] }) \by member \then
+      \let data: Logic.And[\In[A] U y, Quotient.class y = Quotient.class x] := \bysub(A, { y: A \where Logic.And[\In[A] U y, Quotient.class y = Quotient.class x] }, y) \then
+      \return saturated y x data.left (Quotient.equalRelated laws y x data.right)
+    },
+    \fun (x: A)(member: _) => Classes.imageMember Quotient.class U x member);
+\definition imageOpen: \forall (U: \Pow A) -> Original.IsOpenIn source U -> Saturated U -> Space.IsOpenIn topology (image U) :=
+  \fun (U: \Pow A)(open: _)(saturated: _) => (Quotient.quotientMap source).reflectsOpen (image U)
+    (\idelim U = Classes.Preimage Quotient.class (image U) \with V: \Pow A => Original.IsOpenIn source V \by {
+      base: open, equality: sym!{{\Pow A}} _ _ (preimageImage U saturated)
+    });
+\definition imageDisjoint: \forall (U, V: \Pow A) -> Saturated U -> Original.Disjoint U V -> Space.Disjoint (image U) (image V) := \block {
+  \fun (U, V: \Pow A)(saturated: _)(disjoint: _)(q: Carrier)(inU: _)(inV: _) \then
+  \takefrom x: \Cast[A] ({ x: A \where Logic.And[\In[A] U x, Quotient.class x = q] }) \by inU \then
+  \takefrom y: \Cast[A] ({ y: A \where Logic.And[\In[A] V y, Quotient.class y = q] }) \by inV \then
+  \let first: Logic.And[\In[A] U x, Quotient.class x = q] := \bysub(A, { x: A \where Logic.And[\In[A] U x, Quotient.class x = q] }, x) \then
+  \let second: Logic.And[\In[A] V y, Quotient.class y = q] := \bysub(A, { y: A \where Logic.And[\In[A] V y, Quotient.class y = q] }, y) \then
+  \return disjoint y (saturated x y first.left (Quotient.equalRelated laws x y (trans!{Carrier} _ _ _ first.right (sym!{Carrier} _ _ second.right)))) second.left
+};
+\definition separation: \forall (x, y: A) -> Logic.Not (Quotient.class x = Quotient.class y) ->
+  \exists (U: \Pow Carrier \where Space.RegularChoice[topology, Space.Singleton (Quotient.class y), Quotient.class x, U]) := \block {
+  \fun (x, y: A)(different: _) \then
+  \let disjoint: Original.Disjoint (Fiber x) (Fiber y) := \fun (z: A)(xz: relation x z)(yz: relation y z) => different
+    (Quotient.relatedEqual laws x y (laws.trans x z y xz (laws.sym y z yz))) \then
+  \takefrom U: \Cast[\Pow A] ({ U: \Pow A \where Original.NormalChoice[source, Fiber x, Fiber y, U] }) \by
+    Original.Compactness[].compactHausdorffNormal source compact hausdorff (Fiber x) (Fiber y) (fiberClosed x) (fiberClosed y) disjoint \then
+  \let first: Original.NormalChoice[source, Fiber x, Fiber y, U] := \bysub(\Pow A, { U: \Pow A \where Original.NormalChoice[source, Fiber x, Fiber y, U] }, U) \then
+  \takefrom V: \Cast[\Pow A] ({ V: \Pow A \where Original.NormalPartner[source, Fiber y, U, V] }) \by first.partner \then
+  \let second: Original.NormalPartner[source, Fiber y, U, V] := \bysub(\Pow A, { V: \Pow A \where Original.NormalPartner[source, Fiber y, U, V] }, V) \then
+  \return Logic.existsIntro[\Pow Carrier, { W: \Pow Carrier \where Space.RegularChoice[topology, Space.Singleton (Quotient.class y), Quotient.class x, W] }]
+    (image (inner U)) (Space.RegularChoice[topology, Space.Singleton (Quotient.class y), Quotient.class x, image (inner U)] {
+      open := imageOpen (inner U) (innerOpen U first.open) (innerSaturated U),
+      contains := Classes.imageMember Quotient.class (inner U) x (innerContains U x first.covers),
+      partner := Logic.existsIntro[\Pow Carrier, { W: \Pow Carrier \where Space.NormalPartner[topology, Space.Singleton (Quotient.class y), image (inner U), W] }]
+        (image (inner V)) (Space.NormalPartner[topology, Space.Singleton (Quotient.class y), image (inner U), image (inner V)] {
+          open := imageOpen (inner V) (innerOpen V second.open) (innerSaturated V),
+          covers := \fun (q: Carrier)(same: q = Quotient.class y) => \idelim Quotient.class y = q \with r: Carrier => \In[Carrier] (image (inner V)) r \by {
+            base: Classes.imageMember Quotient.class (inner V) y (innerContains V y second.covers), equality: sym!{Carrier} _ _ same
+          },
+          disjoint := imageDisjoint (inner U) (inner V) (innerSaturated U)
+            (\fun (z: A)(inU: _)(inV: _) => second.disjoint z (innerWithin U z inU) (innerWithin V z inV))
+        })
+    })
+};
+\definition hausdorffQuotient: Space.IsT2 topology :=
+  Quotient.induction (\fun (q: Carrier) => \forall (r: Carrier) -> Logic.Not (q = r) -> \exists (U: \Pow Carrier \where Space.RegularChoice[topology, Space.Singleton r, q, U]))
+    (\fun (x: A) => Quotient.induction (\fun (r: Carrier) => Logic.Not (Quotient.class x = r) -> \exists (U: \Pow Carrier \where Space.RegularChoice[topology, Space.Singleton r, Quotient.class x, U])) (separation x));

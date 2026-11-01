@@ -1,0 +1,22 @@
+\definition norm[p: Family.Point]: R.Real := Root.sqrt (gauge.squared p);
+\definition normNonnegative: \forall (p: Family.Point) -> D.Le R.zero (norm p) := \fun (p: Family.Point) => Root.nonnegative (gauge.squared p);
+\definition normSquared: \forall (p: Family.Point) -> R.mul (norm p) (norm p) = gauge.squared p := \fun (p: Family.Point) => Root.squareOfNonnegative (gauge.squared p) (gauge.nonnegative p);
+\definition continuous: metric_spaces.RealFunctions[A := Family.Point].Continuous bundle.totalSpace norm := metric_spaces.RealFunctions[A := Family.Point].SquareRoot[].continuous bundle.totalSpace gauge.squared gauge.continuous;
+\definition normScale: \forall (a: R.Real) -> D.Le R.zero a -> \forall (p: Family.Point) -> norm (scale a p) = R.mul a (norm p) :=
+  \fun (a: R.Real)(positive: _)(p: Family.Point) => Root.squaresInjective _ _ (normNonnegative (scale a p)) (Laws.fieldMulNonnegative a (norm p) positive (normNonnegative p))
+    (trans!{R.Real} _ _ _ (normSquared (scale a p))
+      (trans!{R.Real} _ _ _ (gauge.homogeneous a p)
+        (trans!{R.Real} _ _ _ (congr!{R.Real R.Real} (R.mul (R.mul a a)) _ _ (sym!{R.Real} _ _ (normSquared p))) (Algebra.mulFour a a (norm p) (norm p)))));
+\definition zeroNorm: \forall (x: X) -> norm (Family.include x (bundle.space x).zero) = R.zero :=
+  \fun (x: X) => trans!{R.Real} _ _ _ (congr!{R.Real R.Real} Root.sqrt _ _ (gauge.zero x)) Root.sqrtZero;
+\definition normDefinite: \forall (p: Family.Point) -> norm p = R.zero -> p.vector = (bundle.space p.base).zero :=
+  \fun (p: Family.Point)(zero: _) => gauge.definite p (trans!{R.Real} _ _ _ (sym!{R.Real} _ _ (normSquared p))
+    (trans!{R.Real} _ _ _ (congr!{R.Real R.Real} (\fun (s: R.Real) => R.mul s (norm p)) _ _ zero) (Laws.fieldMulZeroLeft (norm p))));
+\definition positive: \forall (p: Family.Point) -> Logic.Not (p.vector = (bundle.space p.base).zero) -> D.Lt R.zero (norm p) :=
+  \fun (p: Family.Point)(nonzero: _) => Ord.ltOfLeNotEq R.zero (norm p) (normNonnegative p) (\fun (zero: _) => nonzero (normDefinite p (sym!{R.Real} _ _ zero)));
+\definition onZero: \forall (p: Family.Point) -> p.vector = (bundle.space p.base).zero -> norm p = R.zero :=
+  \fun (p: Family.Point)(atZero: _) => eq_reason_in!{R.Real {norm p}
+    "=" {norm (Family.include p.base p.vector)} "by" { congr!{Family.Point R.Real} norm _ _ (sym!{Family.Point} _ _ (Family.eta p)) }
+    "=" _ "by" { congr!{{F p.base} R.Real} (\fun (v: F p.base) => norm (Family.include p.base v)) _ _ atZero }
+    "=" R.zero "by" { zeroNorm p.base }
+  };

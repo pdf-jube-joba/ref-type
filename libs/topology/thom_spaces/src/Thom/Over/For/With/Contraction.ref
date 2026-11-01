@@ -1,0 +1,44 @@
+\import algebraic_topology.Interval[] \as I;
+\import algebraic_topology.Cylinder[A := DiskBundle] \as Cylinder;
+\import \parent.Radial[].Motion[].Continuity[] \as Regular;
+\import Order.Arithmetic[].Prop[] \as Laws;
+\import metric_spaces.RealFunctions[A := Cylinder.Carrier] \as Functions;
+\definition source: topology.Topology[Carrier := Cylinder.Carrier].Topology := Cylinder.topology diskTopology;
+\definition factor[p: Cylinder.Carrier]: R.Real := I.reverse (Cylinder.time p);
+\definition factorContinuous: Functions.Continuous source factor := Functions.subContinuous source (\fun (p: Cylinder.Carrier) => R.one) (\fun (p: Cylinder.Carrier) => Cylinder.time p)
+  (Functions.constantContinuous source R.one) Regular.originalTime;
+\definition squareBound: \forall (t: I.Carrier) -> Order.Le (R.mul t t) R.one :=
+  \fun (t: I.Carrier) => Order.leReplaceRight (R.mul t t) (R.mul R.one R.one) R.one (R.Algebra[].mulOneRight R.one)
+    (Root.squareMonotone t R.one (I.bounds t).left Laws.oneNonnegative (I.bounds t).right);
+\definition family[p: Cylinder.Carrier]: DiskBundle := \into[Family.Point](scale (factor p) (Cylinder.point p), ClosedBall) \by {
+  Order.leReplaceLeft (R.mul (R.mul (factor p) (factor p)) (squared (Cylinder.point p))) (squared (scale (factor p) (Cylinder.point p))) R.one
+    (sym!{R.Real} _ _ (squaredScale (factor p) (Cylinder.point p)))
+    (Order.leTrans _ (R.mul (factor p) (factor p)) R.one
+      (Order.leReplaceRight _ (R.mul (R.mul (factor p) (factor p)) R.one) (R.mul (factor p) (factor p)) (R.Algebra[].mulOneRight (R.mul (factor p) (factor p)))
+        (R.Estimates[].mulMonotone (R.mul (factor p) (factor p)) (squared (Cylinder.point p)) R.one (R.Algebra[].squareNonnegative (factor p))
+          (\bysub(Family.Point, ClosedBall, Cylinder.point p)))) (squareBound (I.reverse (Cylinder.time p))))
+};
+\import Operations.Along[X := X, F := F, bundle := bundle, Y := Cylinder.Carrier, source := source, base := (\fun (p: Cylinder.Carrier) => (Cylinder.point p).base)] \as Along;
+\definition continuous: topology.Continuity[A := Cylinder.Carrier, B := DiskBundle].Continuous source diskTopology family :=
+  topology.Continuity[A := Cylinder.Carrier, B := Family.Point].Corestriction[S := ClosedBall].corestrictContinuous source bundle.totalSpace family
+    (Along.scaling (\fun (p: Cylinder.Carrier) => conjugation.embed (factor p)) (\fun (p: Cylinder.Carrier) => (Cylinder.point p).vector) Regular.originalBaseContinuous
+      (hermitian_frames.Hermitian[].Over[K := K, field := field, scalar := conjugation, topological := scalar.topological].Functions[X := Cylinder.Carrier].embedding source factor factorContinuous) Regular.originalVectorContinuous);
+\definition start: \forall (p: DiskBundle) -> family (Cylinder.at I.start p) = p := \fun (p: DiskBundle) =>
+  trans!{Family.Point} _ _ _ (congr!{R.Real Family.Point} (\fun (a: R.Real) => scale a p) _ _ I.reverseStart) (scaleOne p);
+\definition end: \forall (p: DiskBundle) -> family (Cylinder.at I.end p) = zeroSection (diskProjection p) := \fun (p: DiskBundle) =>
+  trans!{Family.Point} _ _ _ (congr!{R.Real Family.Point} (\fun (a: R.Real) => scale a p) _ _ I.reverseEnd)
+    (congr!{{F p.base} Family.Point} (Family.include p.base) _ _
+      (trans!{{F p.base}} _ _ _ (congr!{K {F p.base}} (\fun (a: K) => (bundle.space p.base).smul a p.vector) _ _ conjugation.embedZero) (Spaces.Laws[V := F p.base, space := bundle.space p.base].zeroScale p.vector)));
+\import algebraic_topology.Homotopy[A := DiskBundle, B := DiskBundle] \as Homotopies;
+\definition homotopy: Homotopies.Homotopy[diskTopology, diskTopology, (\fun (p: DiskBundle) => p), (\fun (p: DiskBundle) => zeroSection (diskProjection p))] :=
+  \into[Homotopies.Family](family, Homotopies.Homotopy[diskTopology, diskTopology, (\fun (p: DiskBundle) => p), (\fun (p: DiskBundle) => zeroSection (diskProjection p))]) \by {
+    Homotopies.Laws[diskTopology, diskTopology, (\fun (p: DiskBundle) => p), (\fun (p: DiskBundle) => zeroSection (diskProjection p)), family] { continuous := continuous, start := start, end := end }
+  };
+\definition equivalence: algebraic_topology.HomotopyEquivalence[A := DiskBundle, B := X].Equivalence[diskTopology, bundle.baseSpace] :=
+  algebraic_topology.HomotopyEquivalence[A := DiskBundle, B := X].Equivalence[diskTopology, bundle.baseSpace] {
+    forward := diskProjection, backward := zeroSection,
+    forwardContinuous := diskProjectionContinuous, backwardContinuous := zeroSectionContinuous,
+    leftInverse := \exact(Homotopies.reverse diskTopology diskTopology (\fun (p: DiskBundle) => p) (\fun (p: DiskBundle) => zeroSection (diskProjection p)) homotopy,
+      Homotopies.Homotopy[diskTopology, diskTopology, (\fun (p: DiskBundle) => zeroSection (diskProjection p)), (\fun (p: DiskBundle) => p)]),
+    rightInverse := algebraic_topology.Homotopy[A := X, B := X].reflexive bundle.baseSpace bundle.baseSpace (\fun (x: X) => x) (topology.Maps[A := X, B := X].Identity[].continuous bundle.baseSpace)
+  };

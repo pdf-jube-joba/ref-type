@@ -1,0 +1,54 @@
+\import linear_algebra.Commutative[K := R.Real, scalarRing := Fields.fieldAsCommutativeRing R.Real R.Algebra[].field] \as Spaces;
+\import \parent.Away[] \as Away;
+\import Family.With[data := bundle].In[c := chart] \as Coordinates;
+\import Operations.Chart[X := X, F := F, bundle := bundle, chart := chart] \as Chart;
+\import topology.Topology[Carrier := X].Subspace[S := chart.domain] \as Base;
+\definition BasePoint: \Set := Coordinates.BasePoint;
+\definition baseTopology: topology.Topology[Carrier := BasePoint].Topology := Base.topology bundle.baseSpace;
+\import algebraic_topology.Euclidean[].Dimension[n := chart.dimension] \as Euclidean;
+\import Euclidean.Geometry[] \as Geometry;
+\import Euclidean.Contraction[] \as Scaling;
+\import Euclidean.Normalization[] \as Normalization;
+\import topological_constructions.Product[A := BasePoint, B := Euclidean.Sphere] \as Product;
+\definition Parameter: \Set := Product.CarrierSet;
+\definition parameterTopology: topology.Topology[Carrier := Parameter].Topology := Product.topology baseTopology Euclidean.sphereTopology;
+\definition base[p: Parameter]: BasePoint := Pair.first BasePoint Euclidean.Sphere p;
+\definition vector[p: Parameter]: Euclidean.Coordinate := Pair.second BasePoint Euclidean.Sphere p;
+\definition decode[p: Parameter]: Family.Point := Family.include (base p) ((chart.frame (base p)).backward.apply (vector p));
+\definition decodeContinuous: topology.Continuity[A := Parameter, B := Family.Point].Continuous parameterTopology bundle.totalSpace decode :=
+  Chart.Maps[Y := Parameter, source := parameterTopology].pointContinuous base vector (Product.Maps[].firstContinuous baseTopology Euclidean.sphereTopology)
+    (topology.Composition[A := Parameter, B := Euclidean.Sphere, C := Euclidean.Coordinate].composeContinuous parameterTopology Euclidean.sphereTopology Euclidean.topology
+      (Pair.second BasePoint Euclidean.Sphere) (\fun (v: Euclidean.Sphere) => v) (Product.Maps[].secondContinuous baseTopology Euclidean.sphereTopology)
+      (topology.Continuity[A := Euclidean.Sphere, B := Euclidean.Coordinate].Corestriction[S := Euclidean.Boundary].inclusionContinuous Euclidean.topology));
+\definition frameRight[p: Parameter]: (chart.frame (base p)).forward.apply ((chart.frame (base p)).backward.apply (vector p)) = vector p :=
+  (Spaces.Isomorphism[V := F (base p), W := Euclidean.Coordinate, source := bundle.space (base p), target := Bundles.coordinates chart.dimension].laws (chart.frame (base p))).rightInverse (vector p);
+\definition decodeNonzero: \forall (p: Parameter) -> Logic.Not ((decode p).vector = (bundle.space (decode p).base).zero) :=
+  \fun (p: Parameter)(zero: _) => Laws.zeroNeOne (eq_reason_in!{R.Real R.zero
+    "=" {Euclidean.normSquared Scaling.zero} "by" { sym!{R.Real} _ _ (Scaling.zeroSum (Fin.elements chart.dimension)) }
+    "=" {Euclidean.normSquared (vector p)} "by" { congr!{Euclidean.Coordinate R.Real} Euclidean.normSquared _ _ (sym!{Euclidean.Coordinate} _ _
+      (trans!{Euclidean.Coordinate} _ _ _ (sym!{Euclidean.Coordinate} _ _ (frameRight p))
+        (trans!{Euclidean.Coordinate} _ _ _ (congr!{{F (base p)} Euclidean.Coordinate} (chart.frame (base p)).forward.apply _ _ zero) (chart.frame (base p)).forward.preservesZero))) }
+    "=" R.one "by" { \bysub(Euclidean.Coordinate, Euclidean.Boundary, Pair.second BasePoint Euclidean.Sphere p) }
+  });
+\definition point[p: Parameter]: Away.Carrier := \into[Family.Point](decode p, nonzero) \by { Right.positive (decode p) (decodeNonzero p) };
+\definition pointContinuous: topology.Continuity[A := Parameter, B := Away.Carrier].Continuous parameterTopology Away.topology point :=
+  topology.Continuity[A := Parameter, B := Family.Point].Corestriction[S := nonzero].corestrictContinuous parameterTopology bundle.totalSpace point decodeContinuous;
+\definition ratio[p: Parameter]: R.Real := coefficient (decode p);
+\definition ratioContinuous: metric_spaces.RealFunctions[A := Parameter].Continuous parameterTopology ratio :=
+  topology.Composition[A := Parameter, B := Away.Carrier, C := R.Real].composeContinuous parameterTopology Away.topology Line.topology point (\fun (p: Away.Carrier) => coefficient p) pointContinuous Away.coefficientContinuous;
+\structure Bound[a: BasePoint]: \Set := {
+  value: R.Real,
+  positive: D.Lt R.zero value,
+  neighborhood: \Pow BasePoint,
+  open: topology.Topology[Carrier := BasePoint].IsOpenIn baseTopology neighborhood,
+  contains: \In[BasePoint] neighborhood a,
+  bounds: \forall (x: BasePoint) -> \In[BasePoint] neighborhood x -> \forall (v: Euclidean.Sphere) -> D.Lt (ratio (Pair.pair BasePoint Euclidean.Sphere x v)) value
+};
+\module At(a: BasePoint);
+\module Direction(p: Coordinates.TotalPoint, member: \In[Family.Point] nonzero p);
+\module Bounded(a: BasePoint, bound: Bound[a]);
+\module AtPoint(p: Coordinates.TotalPoint);
+\definition continuous: topology.Continuity[A := Coordinates.TotalPoint, B := Family.Point].Continuous Coordinates.localTopology bundle.totalSpace (\fun (p: Coordinates.TotalPoint) => apply p) :=
+  \fun (U: \Pow Family.Point)(open: _) => topology.Topology[Carrier := Coordinates.TotalPoint].openOfNeighborhoods Coordinates.localTopology
+    ({ p: Coordinates.TotalPoint \where \In[Family.Point] U (apply p) })
+    (\fun (p: Coordinates.TotalPoint)(member: _) => AtPoint[p := p].neighborhood U open member);

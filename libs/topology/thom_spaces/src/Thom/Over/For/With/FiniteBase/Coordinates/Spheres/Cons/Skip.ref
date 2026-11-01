@@ -1,0 +1,26 @@
+\definition convertWitness: \forall (x: X)(other: Witness[k, Lists.List[CW.CellData]::cons cell family, x]) -> \exists Witness[k, family, x] := \fun (x: X)(other: _) =>
+  either!{{other.member} {\exists Witness[k, family, x]}
+    {\fun (same: other.cell = cell) => either!{reason {\exists Witness[k, family, x]}
+      {\fun (inactive: Logic.Not (cell.dimension = k)) => Logic.falseElim (\exists Witness[k, family, x]) (inactive
+        (trans!{N.Nat^} _ _ _ (congr!{CW.CellData N.Nat^} (\fun (c: CW.CellData) => c.dimension) cell other.cell (sym!{CW.CellData} _ _ same)) other.dimension))}
+      {\fun (repeated: CW.CellMember family cell) => \exact(Witness[k, family, x] {
+        cell := other.cell,
+        member := \idelim cell = other.cell \with c: CW.CellData => CW.CellMember family c \by { base: repeated, equality: sym!{CW.CellData} _ _ same },
+        dimension := other.dimension, contains := other.contains
+      }, Witness[k, family, x])}
+    }}
+    {\fun (member: CW.CellMember family other.cell) => \exact(Witness[k, family, x] { cell := other.cell, member := member, dimension := other.dimension, contains := other.contains }, Witness[k, family, x])}
+  };
+\definition convert: \forall (x: X) -> \exists Witness[k, Lists.List[CW.CellData]::cons cell family, x] -> \exists Witness[k, family, x] := \fun (x: X)(selected: _) => \block {
+  \takefrom other: Witness[k, Lists.List[CW.CellData]::cons cell family, x] \by selected \then
+  \return convertWitness x other
+};
+\definition toPrevious: \forall (p: SphereBundle) -> \In[SphereBundle] (Subset k (Lists.List[CW.CellData]::cons cell family)) p -> \In[SphereBundle] (Subset k family) p :=
+  \fun (p: SphereBundle)(present: Logic.Or[\In[X] (Filtration.subset k) p.base, \exists Witness[k, Lists.List[CW.CellData]::cons cell family, p.base]]) => either!{present
+    {Logic.Or[\In[X] (Filtration.subset k) p.base, \exists Witness[k, family, p.base]]}
+    {\fun (lower: _) => Logic.Or[_, _]::left lower}
+    {\fun (selected: _) => Logic.Or[_, _]::right (convert p.base selected)}
+  };
+\definition homeomorphism: topology.Homeomorphism[A := Next.Carrier, B := Previous.Carrier].Homeomorphism[Next.topology, Previous.topology] :=
+  topology.Topology[Carrier := SphereBundle].Subspace[S := Subset k (Lists.List[CW.CellData]::cons cell family)].Equivalent[T := Subset k family].homeomorphism sphereTopology toPrevious includePrevious;
+\definition property: Previous.Property -> Next.Property := \root.Thom[].CWType[].CompactType[A := Next.Carrier, source := Next.topology].Homeomorphic[B := Previous.Carrier, target := Previous.topology, h := homeomorphism].fromTarget;

@@ -1,0 +1,100 @@
+\import metric_spaces.RealFunctions[A := Cylinder.Carrier] \as CylinderFunctions;
+\import topological_algebra.Coordinates[K := R.Real, I := Fin.Fin n] \as Coordinates;
+\definition source: topology.Topology[Carrier := Cylinder.Carrier].Topology := Cylinder.topology Source.diskTopology;
+\definition approximate[x: Source.Disk]: Target.Coordinate := Approximation.value approximation.expressions x;
+\definition error[x: Source.Disk]: Target.Coordinate := Vectors.subPoint (Vectors.subPoint (approximate x) point) (f x);
+\definition weight[p: Cylinder.Carrier]: R.Real := R.mul (Cylinder.time p) (cutoff.value (Cylinder.point p));
+\definition family[p: Cylinder.Carrier]: Target.Coordinate := Vectors.addPoint (f (Cylinder.point p)) (Vectors.scale (weight p) (error (Cylinder.point p)));
+\definition pointContinuous: topology.Continuity[A := Cylinder.Carrier, B := Source.Disk].Continuous source Source.diskTopology Cylinder.point := Cylinder.pointContinuous Source.diskTopology;
+\definition originalContinuous: topology.Continuity[A := Cylinder.Carrier, B := Target.Coordinate].Continuous source Target.topology (\fun (p: Cylinder.Carrier) => f (Cylinder.point p)) :=
+  topology.Composition[A := Cylinder.Carrier, B := Source.Disk, C := Target.Coordinate].composeContinuous source Source.diskTopology Target.topology Cylinder.point f pointContinuous continuous;
+\definition originalComponent: \forall (i: Fin.Fin n) -> CylinderFunctions.Continuous source (\fun (p: Cylinder.Carrier) => f (Cylinder.point p) i) :=
+  \fun (i: Fin.Fin n) => topology.Composition[A := Cylinder.Carrier, B := Target.Coordinate, C := R.Real].composeContinuous source Target.topology metric_spaces.RealLine[].topology
+    (\fun (p: Cylinder.Carrier) => f (Cylinder.point p)) (\fun (v: Target.Coordinate) => v i) originalContinuous (Coordinates.evaluationContinuous metric_spaces.RealLine[].topology i);
+\definition approximateComponent: \forall (i: Fin.Fin n) -> CylinderFunctions.Continuous source (\fun (p: Cylinder.Carrier) => approximate (Cylinder.point p) i) :=
+  \fun (i: Fin.Fin n) => topology.Composition[A := Cylinder.Carrier, B := Source.Disk, C := R.Real].composeContinuous source Source.diskTopology metric_spaces.RealLine[].topology
+    Cylinder.point (\fun (x: Source.Disk) => approximate x i) pointContinuous
+      (\root.Thom[].CWType[].PiecewiseAffine[m := m].valueContinuous (approximation.expressions i));
+\definition errorComponent: \forall (i: Fin.Fin n) -> CylinderFunctions.Continuous source (\fun (p: Cylinder.Carrier) => error (Cylinder.point p) i) :=
+  \fun (i: Fin.Fin n) => CylinderFunctions.subContinuous source
+    (\fun (p: Cylinder.Carrier) => R.sub (approximate (Cylinder.point p) i) (point i)) (\fun (p: Cylinder.Carrier) => f (Cylinder.point p) i)
+    (CylinderFunctions.subContinuous source (\fun (p: Cylinder.Carrier) => approximate (Cylinder.point p) i) (\fun (p: Cylinder.Carrier) => point i)
+      (approximateComponent i) (CylinderFunctions.constantContinuous source (point i))) (originalComponent i);
+\definition cutoffContinuous: Functions.Continuous Source.diskTopology cutoff.value := Functions.Urysohn[].continuous Source.diskTopology outer inner cutoff;
+\definition weightContinuous: CylinderFunctions.Continuous source weight := CylinderFunctions.Product[].continuous source
+  (\fun (p: Cylinder.Carrier) => Cylinder.time p) (\fun (p: Cylinder.Carrier) => cutoff.value (Cylinder.point p))
+  (topology.Composition[A := Cylinder.Carrier, B := I.Carrier, C := R.Real].composeContinuous source I.topology metric_spaces.RealLine[].topology
+    Cylinder.time (\fun (t: I.Carrier) => t) (Cylinder.timeContinuous Source.diskTopology) I.inclusionContinuous)
+  (topology.Composition[A := Cylinder.Carrier, B := Source.Disk, C := R.Real].composeContinuous source Source.diskTopology metric_spaces.RealLine[].topology Cylinder.point cutoff.value pointContinuous cutoffContinuous);
+\definition familyContinuous: topology.Continuity[A := Cylinder.Carrier, B := Target.Coordinate].Continuous source Target.topology family :=
+  Coordinates.Universal[A := Cylinder.Carrier].continuous source metric_spaces.RealLine[].topology family
+    (\fun (i: Fin.Fin n) => CylinderFunctions.sumContinuous source (\fun (p: Cylinder.Carrier) => f (Cylinder.point p) i)
+      (\fun (p: Cylinder.Carrier) => R.mul (weight p) (error (Cylinder.point p) i)) (originalComponent i)
+      (CylinderFunctions.Product[].continuous source weight (\fun (p: Cylinder.Carrier) => error (Cylinder.point p) i) weightContinuous (errorComponent i)));
+\definition start: \forall (x: Source.Disk) -> family (Cylinder.at I.start x) = f x :=
+  \fun (x: Source.Disk) => \axiom:funext(family (Cylinder.at I.start x), f x, \fun (i: Fin.Fin n) => eq_reason_in!{R.Real _
+    "=" _ "by" { congr!{R.Real R.Real} (\fun (s: R.Real) => R.add (f x i) (R.mul s (error x i))) _ _ (Laws.fieldMulZeroLeft (cutoff.value x)) }
+    "=" _ "by" { congr!{R.Real R.Real} (R.add (f x i)) _ _ (Laws.fieldMulZeroLeft (error x i)) }
+    "=" _ "by" { Laws.addZeroRight (f x i) }
+  });
+\definition value[x: Source.Disk]: Target.Coordinate := family (Cylinder.at I.end x);
+\definition valueContinuous: topology.Continuity[A := Source.Disk, B := Target.Coordinate].Continuous Source.diskTopology Target.topology value :=
+  topology.Composition[A := Source.Disk, B := Cylinder.Carrier, C := Target.Coordinate].composeContinuous Source.diskTopology source Target.topology (Cylinder.at I.end) family (Cylinder.atContinuous Source.diskTopology I.end) familyContinuous;
+\definition homotopy: Homotopies.Homotopy[Source.diskTopology, Target.topology, f, value] :=
+  \into[Homotopies.Family](family, Homotopies.Homotopy[Source.diskTopology, Target.topology, f, value]) \by {
+    Homotopies.Laws[Source.diskTopology, Target.topology, f, value, family] { continuous := familyContinuous, start := start, end := \fun (x: Source.Disk) => \refl(value x) }
+  };
+\definition fixed: \forall (t: I.Carrier)(x: Source.Disk) -> \In[Source.Disk] outer x -> family (Cylinder.at t x) = f x :=
+  \fun (t: I.Carrier)(x: Source.Disk)(high: _) => \axiom:funext(family (Cylinder.at t x), f x, \fun (i: Fin.Fin n) => eq_reason_in!{R.Real _
+    "=" _ "by" { congr!{R.Real R.Real} (\fun (s: R.Real) => R.add (f x i) (R.mul (R.mul t s) (error x i))) _ _ (cutoff.zeroOn x high) }
+    "=" _ "by" { congr!{R.Real R.Real} (\fun (s: R.Real) => R.add (f x i) (R.mul s (error x i))) _ _ (Laws.fieldMulZeroRight t) }
+    "=" _ "by" { congr!{R.Real R.Real} (R.add (f x i)) _ _ (Laws.fieldMulZeroLeft (error x i)) }
+    "=" _ "by" { Laws.addZeroRight (f x i) }
+  });
+\definition approximateClose: \forall (x: Source.Disk) -> D.Lt (Norm.metric.distance (approximate x) (f x)) epsilon :=
+  \fun (x: Source.Disk) => Sup.coordinateClose (approximate x) (f x) epsilon epsilonPositive
+    (\fun (i: Fin.Fin n) => D.ltReplaceLeft (R.Distance[].distance (f x i) (approximate x i)) (R.Distance[].distance (approximate x i) (f x i)) epsilon
+      (R.Distance[].distanceSymmetric (f x i) (approximate x i)) (approximation.close i x));
+\definition pointSmall: D.Lt (Norm.metric.distance point Sup.origin) epsilon := D.ltReplaceLeft (Norm.metric.distance Sup.origin point) (Norm.metric.distance point Sup.origin) epsilon (Norm.metric.symmetric Sup.origin point) small;
+\definition errorBound: \forall (x: Source.Disk) -> D.Lt (Sup.norm (error x)) (R.add epsilon epsilon) :=
+  \fun (x: Source.Disk) => D.leLtTrans _ _ _
+    (D.leReplaceLeft (Norm.metric.distance (Vectors.subPoint (approximate x) point) (Vectors.subPoint (f x) Sup.origin))
+      (Sup.norm (error x)) (R.add (Norm.metric.distance (approximate x) (f x)) (Norm.metric.distance point Sup.origin))
+      (congr!{Target.Coordinate R.Real} (\fun (z: Target.Coordinate) => Norm.metric.distance (Vectors.subPoint (approximate x) point) z)
+        (Vectors.subPoint (f x) Sup.origin) (f x) (\axiom:funext(Vectors.subPoint (f x) Sup.origin, f x, \fun (i: Fin.Fin n) => Laws.subZeroRight (f x i))))
+      (Norm.distanceSub (approximate x) point (f x) Sup.origin))
+    (R.Estimates[].addLt _ _ _ _ (approximateClose x) pointSmall);
+\definition weightNonnegative: \forall (p: Cylinder.Carrier) -> D.Le R.zero (weight p) :=
+  \fun (p: Cylinder.Carrier) => Laws.fieldMulNonnegative (Cylinder.time p) (cutoff.value (Cylinder.point p)) (I.bounds (Cylinder.time p)).left (cutoff.nonnegative (Cylinder.point p));
+\definition weightBounded: \forall (p: Cylinder.Carrier) -> D.Le (weight p) R.one :=
+  \fun (p: Cylinder.Carrier) => D.leTrans _ (Cylinder.time p) _
+    (D.leReplaceRight _ (R.mul (Cylinder.time p) R.one) (Cylinder.time p) (R.Algebra[].mulOneRight (Cylinder.time p))
+      (R.Estimates[].mulMonotone (Cylinder.time p) (cutoff.value (Cylinder.point p)) R.one (I.bounds (Cylinder.time p)).left (cutoff.bounded (Cylinder.point p))))
+    (I.bounds (Cylinder.time p)).right;
+\definition close: \forall (p: Cylinder.Carrier) -> D.Lt (Norm.metric.distance (family p) (f (Cylinder.point p))) radius :=
+  \fun (p: Cylinder.Carrier) => D.leLtTrans _ (Sup.norm (error (Cylinder.point p))) _
+    (D.leReplaceLeft (R.mul (R.Estimates[].Product[].abs (weight p)) (Sup.norm (error (Cylinder.point p)))) (Norm.metric.distance (family p) (f (Cylinder.point p))) _
+      (sym!{R.Real} _ _ (Sup.affineDistance (f (Cylinder.point p)) (error (Cylinder.point p)) (weight p)))
+      (Sup.contraction (weight p) (error (Cylinder.point p)) (weightNonnegative p) (weightBounded p)))
+    (Order.ltTrans _ _ _ (errorBound (Cylinder.point p)) errorSmall);
+\definition innerEndpoint: \forall (x: Source.Disk) -> \In[Source.Disk] inner x -> value x = Vectors.subPoint (approximate x) point :=
+  \fun (x: Source.Disk)(low: _) => \axiom:funext(value x, Vectors.subPoint (approximate x) point, \fun (i: Fin.Fin n) => eq_reason_in!{R.Real _
+    "=" _ "by" { congr!{R.Real R.Real} (\fun (s: R.Real) => R.add (f x i) (R.mul (R.mul R.one s) (error x i))) _ _ (cutoff.oneOn x low) }
+    "=" _ "by" { congr!{R.Real R.Real} (\fun (s: R.Real) => R.add (f x i) (R.mul s (error x i))) _ _ (Laws.fieldMulOneLeft R.one) }
+    "=" _ "by" { congr!{R.Real R.Real} (R.add (f x i)) _ _ (Laws.fieldMulOneLeft (error x i)) }
+    "=" _ "by" { R.Estimates[].addSubCancel (R.sub (approximate x i) (point i)) (f x i) }
+  });
+\definition nonzero: \forall (x: Source.Disk) -> Logic.Not (value x = Sup.origin) := \block {
+  \fun (x: Source.Disk)(zero: _) \then
+  \let nearOrigin: D.Lt (Sup.norm (f x)) radius := D.ltReplaceLeft (Norm.metric.distance (value x) (f x)) (Sup.norm (f x)) radius
+    (trans!{R.Real} _ _ _ (congr!{Target.Coordinate R.Real} (\fun (y: Target.Coordinate) => Norm.metric.distance y (f x)) _ _ zero) (Sup.originDistance (f x)))
+    (close (Cylinder.at I.end x)) \then
+  \let low: \In[Source.Disk] inner x := Order.leOfLt _ _ nearOrigin \then
+  \let differenceZero: Vectors.subPoint (approximate x) point = Sup.origin := trans!{Target.Coordinate} _ _ _ (sym!{Target.Coordinate} _ _ (innerEndpoint x low)) zero \then
+  \let same: approximate x = point := \axiom:funext(approximate x, point, \fun (i: Fin.Fin n) => R.Distance[].subZeroEq (approximate x i) (point i)
+    (congr!{Target.Coordinate R.Real} (\fun (v: Target.Coordinate) => v i) _ _ differenceZero)) \then
+  \return excluded.excludes point outside x same
+};
+\definition perturbation: Perturbation := Perturbation {
+  value := value, continuous := valueContinuous, homotopy := homotopy, fixed := fixed, close := close, nonzero := nonzero
+};

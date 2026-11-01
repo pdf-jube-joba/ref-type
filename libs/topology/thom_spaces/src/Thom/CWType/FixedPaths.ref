@@ -1,0 +1,21 @@
+\import algebraic_topology.Interval[] \as I;
+\import algebraic_topology.Cylinder[A := A] \as Cylinder;
+\definition Fixed[h: Cylinder.Carrier -> B]: \Prop := \forall (t: I.Carrier)(s: S) -> h (Cylinder.at t (from s)) = to s;
+\module Concatenation(source: topology.Topology[Carrier := A].Topology, target: topology.Topology[Carrier := B].Topology,
+  f, g, k: A -> B,
+  first: algebraic_topology.Homotopy[A := A, B := B].Homotopy[source, target, f, g],
+  second: algebraic_topology.Homotopy[A := A, B := B].Homotopy[source, target, g, k], firstFixed: Fixed first, secondFixed: Fixed second) {
+  \import \root.Thom[].CWType[].ConcatenationLaws[A := A, B := B, source := source, target := target, f := f, g := g, k := k, h := first, j := second] \as Join;
+  \import algebraic_topology.TimeSubdivision[A := A] \as Division;
+  \definition result: algebraic_topology.Homotopy[A := A, B := B].Homotopy[source, target, f, k] := Join.concatenate;
+  \definition fixed: Fixed result := \fun (t: I.Carrier)(s: S) => either!{{Division.covered (Cylinder.at t (from s))} {result (Cylinder.at t (from s)) = to s}
+    {\fun (member: _) => \block {
+      \let p: Division.Left := \into[Cylinder.Carrier](Cylinder.at t (from s), Division.LeftSet) \by { member } \then
+      \return trans!{B} _ _ _ (Join.onLeft p) (firstFixed (Division.leftTime p) s)
+    }}
+    {\fun (member: _) => \block {
+      \let p: Division.Right := \into[Cylinder.Carrier](Cylinder.at t (from s), Division.RightSet) \by { member } \then
+      \return trans!{B} _ _ _ (Join.onRight p) (secondFixed (Division.rightTime p) s)
+    }}
+  };
+}

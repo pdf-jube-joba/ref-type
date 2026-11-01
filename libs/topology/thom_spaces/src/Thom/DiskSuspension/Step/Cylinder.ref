@@ -1,0 +1,133 @@
+\import algebraic_topology.Interval[] \as I;
+\import algebraic_topology.Cylinder[A := DiskCarrier] \as Cylinder;
+\import \root.Thom[].SymmetricInterval[] \as Symmetric;
+\import \root.Thom[].SuspendedPair[A := DiskCarrier, source := diskTopology, subset := boundary] \as Suspension;
+\definition cylinderTopology: topology.Topology[Carrier := Cylinder.Carrier].Topology := Cylinder.topology diskTopology;
+\definition symmetricHead[p: BoxCarrier]: Symmetric.Carrier := \into[R.Real](head p, Symmetric.unit) \by { firstUnit p };
+\definition point[p: BoxCarrier]: DiskCarrier := \into[Point](Pair.pair X Euclidean.Coordinate p.base (tail p), disk) \by { secondUnit p };
+\definition forward[p: BoxCarrier]: Cylinder.Carrier := Cylinder.at (Symmetric.forward (symmetricHead p)) (point p);
+\definition backward[p: Cylinder.Carrier]: BoxCarrier :=
+  \into[Family.Point](Family.include (Pair.first X Euclidean.Coordinate (Cylinder.point p))
+    (Split.join (Symmetric.backward (Cylinder.time p)) (Pair.second X Euclidean.Coordinate (Cylinder.point p))), BoxSubset) \by {
+      Distance.maxLeast _ _ R.one
+        (D.leReplaceLeft (R.mul (Symmetric.backward (Cylinder.time p)) (Symmetric.backward (Cylinder.time p))) _ R.one
+          (sym!{R.Real} _ _ (congr!{R.Real R.Real R.Real} R.mul _ _ _ _
+            (Split.headJoin (Symmetric.backward (Cylinder.time p)) (Pair.second X Euclidean.Coordinate (Cylinder.point p)))
+            (Split.headJoin (Symmetric.backward (Cylinder.time p)) (Pair.second X Euclidean.Coordinate (Cylinder.point p)))))
+          (\bysub(R.Real, Symmetric.unit, Symmetric.backward (Cylinder.time p))))
+        (D.leReplaceLeft (Euclidean.normSquared (Pair.second X Euclidean.Coordinate (Cylinder.point p))) _ R.one
+          (sym!{R.Real} _ _ (congr!{Euclidean.Coordinate R.Real} Euclidean.normSquared _ _ (Split.tailJoin (Symmetric.backward (Cylinder.time p)) (Pair.second X Euclidean.Coordinate (Cylinder.point p)))))
+          (\bysub(Point, disk, Cylinder.point p)))
+  };
+\definition headBackward: \forall (p: Cylinder.Carrier) -> head (backward p) = Symmetric.backward (Cylinder.time p) :=
+  \fun (p: Cylinder.Carrier) => Split.headJoin (Symmetric.backward (Cylinder.time p)) (Pair.second X Euclidean.Coordinate (Cylinder.point p));
+\definition tailBackward: \forall (p: Cylinder.Carrier) -> tail (backward p) = Pair.second X Euclidean.Coordinate (Cylinder.point p) :=
+  \fun (p: Cylinder.Carrier) => Split.tailJoin (Symmetric.backward (Cylinder.time p)) (Pair.second X Euclidean.Coordinate (Cylinder.point p));
+\definition leftInverse: \forall (p: BoxCarrier) -> backward (forward p) = p :=
+  \fun (p: BoxCarrier) => trans!{Family.Point} _ _ _
+    (congr!{Higher.Coordinate Family.Point} (Family.include p.base) _ _
+      (trans!{Higher.Coordinate} _ _ _ (congr!{R.Real Higher.Coordinate} (\fun (a: R.Real) => Split.join a (tail p)) _ _ (Symmetric.leftInverse (symmetricHead p))) (Split.recover p.vector))) (Family.eta p);
+\definition rightInverse: \forall (p: Cylinder.Carrier) -> forward (backward p) = p :=
+  \fun (p: Cylinder.Carrier) => trans!{Cylinder.Carrier} _ _ _
+    (congr!{{I.Carrier} DiskCarrier Cylinder.Carrier} Cylinder.at
+      (Symmetric.forward (symmetricHead (backward p))) (Cylinder.time p) (point (backward p)) (Cylinder.point p)
+      (trans!{{I.Carrier}} _ _ _ (congr!{Symmetric.Carrier {I.Carrier}} Symmetric.forward (symmetricHead (backward p)) (Symmetric.backward (Cylinder.time p)) (headBackward p)) (Symmetric.rightInverse (Cylinder.time p)))
+      (trans!{Point} _ _ _ (congr!{Euclidean.Coordinate Point} (Pair.pair X Euclidean.Coordinate (Pair.first X Euclidean.Coordinate (Cylinder.point p))) _ _ (tailBackward p)) (Pair.Prop[A := X, B := Euclidean.Coordinate].eta (Cylinder.point p))))
+    (Pair.Prop[A := I.Carrier, B := DiskCarrier].eta p);
+\definition restrictedHeadContinuous: metric_spaces.RealFunctions[A := BoxCarrier].Continuous boxTopology (\fun (p: BoxCarrier) => head p) :=
+  topology.Continuity[A := Family.Point, B := R.Real].Restriction[S := BoxSubset].restrictContinuous Bundle.topology metric_spaces.RealLine[].topology head headContinuous;
+\definition timeContinuous: topology.Continuity[A := BoxCarrier, B := I.Carrier].Continuous boxTopology I.topology (\fun (p: BoxCarrier) => Symmetric.forward (symmetricHead p)) :=
+  topology.Composition[A := BoxCarrier, B := Symmetric.Carrier, C := I.Carrier].composeContinuous boxTopology Symmetric.topology I.topology symmetricHead Symmetric.forward
+    (topology.Continuity[A := BoxCarrier, B := R.Real].Corestriction[S := Symmetric.unit].corestrictContinuous boxTopology metric_spaces.RealLine[].topology symmetricHead restrictedHeadContinuous) Symmetric.forwardContinuous;
+\definition pointContinuous: topology.Continuity[A := BoxCarrier, B := DiskCarrier].Continuous boxTopology diskTopology point :=
+  topology.Continuity[A := BoxCarrier, B := Point].Corestriction[S := disk].corestrictContinuous boxTopology totalTopology point
+    (topological_constructions.Product[A := X, B := Euclidean.Coordinate].Universal[X := BoxCarrier].pairContinuous boxTopology space Euclidean.topology
+      (\fun (p: BoxCarrier) => p.base) (\fun (p: BoxCarrier) => tail p)
+      (topology.Continuity[A := Family.Point, B := X].Restriction[S := BoxSubset].restrictContinuous Bundle.topology space Family.projection Bundle.projectionContinuous)
+      (topology.Continuity[A := Family.Point, B := Euclidean.Coordinate].Restriction[S := BoxSubset].restrictContinuous Bundle.topology Euclidean.topology tail tailContinuous));
+\definition forwardContinuous: topology.Continuity[A := BoxCarrier, B := Cylinder.Carrier].Continuous boxTopology cylinderTopology forward :=
+  topological_constructions.Product[A := I.Carrier, B := DiskCarrier].Universal[X := BoxCarrier].pairContinuous boxTopology I.topology diskTopology
+    (\fun (p: BoxCarrier) => Symmetric.forward (symmetricHead p)) point timeContinuous pointContinuous;
+\definition coordinate[p: Cylinder.Carrier]: Euclidean.Coordinate := Pair.second X Euclidean.Coordinate (Cylinder.point p);
+\definition coordinateContinuous: topology.Continuity[A := Cylinder.Carrier, B := Euclidean.Coordinate].Continuous cylinderTopology Euclidean.topology coordinate :=
+  topology.Composition[A := Cylinder.Carrier, B := DiskCarrier, C := Euclidean.Coordinate].composeContinuous cylinderTopology diskTopology Euclidean.topology Cylinder.point
+    (\fun (p: DiskCarrier) => Pair.second X Euclidean.Coordinate p) (Cylinder.pointContinuous diskTopology)
+    (topology.Continuity[A := Point, B := Euclidean.Coordinate].Restriction[S := disk].restrictContinuous totalTopology Euclidean.topology (Pair.second X Euclidean.Coordinate)
+      (Product.Maps[].secondContinuous space Euclidean.topology));
+\definition scalarContinuous: metric_spaces.RealFunctions[A := Cylinder.Carrier].Continuous cylinderTopology (\fun (p: Cylinder.Carrier) => Symmetric.backward (Cylinder.time p)) :=
+  topology.Composition[A := Cylinder.Carrier, B := I.Carrier, C := R.Real].composeContinuous cylinderTopology I.topology metric_spaces.RealLine[].topology Cylinder.time
+    (\fun (t: I.Carrier) => Symmetric.backward t) (Cylinder.timeContinuous diskTopology)
+    (topology.Composition[A := I.Carrier, B := Symmetric.Carrier, C := R.Real].composeContinuous I.topology Symmetric.topology metric_spaces.RealLine[].topology Symmetric.backward
+      (\fun (r: Symmetric.Carrier) => r) Symmetric.backwardContinuous (topology.Continuity[A := Symmetric.Carrier, B := R.Real].Corestriction[S := Symmetric.unit].inclusionContinuous metric_spaces.RealLine[].topology));
+\definition vector[p: Cylinder.Carrier]: Higher.Coordinate := Split.join (Symmetric.backward (Cylinder.time p)) (coordinate p);
+\definition vectorContinuous: topology.Continuity[A := Cylinder.Carrier, B := Higher.Coordinate].Continuous cylinderTopology Higher.topology vector :=
+  Split.Continuity[A := Cylinder.Carrier].joinContinuous cylinderTopology (\fun (p: Cylinder.Carrier) => Symmetric.backward (Cylinder.time p)) coordinate scalarContinuous
+    (\fun (i: Euclidean.Index) => topology.Composition[A := Cylinder.Carrier, B := Euclidean.Coordinate, C := R.Real].composeContinuous cylinderTopology Euclidean.topology metric_spaces.RealLine[].topology coordinate
+      (\fun (v: Euclidean.Coordinate) => v i) coordinateContinuous (topological_algebra.Coordinates[K := R.Real, I := Euclidean.Index].evaluationContinuous metric_spaces.RealLine[].topology i));
+\definition base[p: Cylinder.Carrier]: X := Pair.first X Euclidean.Coordinate (Cylinder.point p);
+\definition baseContinuous: topology.Continuity[A := Cylinder.Carrier, B := X].Continuous cylinderTopology space base :=
+  topology.Composition[A := Cylinder.Carrier, B := DiskCarrier, C := X].composeContinuous cylinderTopology diskTopology space Cylinder.point (\fun (p: DiskCarrier) => Pair.first X Euclidean.Coordinate p)
+    (Cylinder.pointContinuous diskTopology)
+    (topology.Continuity[A := Point, B := X].Restriction[S := disk].restrictContinuous totalTopology space (Pair.first X Euclidean.Coordinate) (Product.Maps[].firstContinuous space Euclidean.topology));
+\definition backwardContinuous: topology.Continuity[A := Cylinder.Carrier, B := BoxCarrier].Continuous cylinderTopology boxTopology backward :=
+  topology.Continuity[A := Cylinder.Carrier, B := Family.Point].Corestriction[S := BoxSubset].corestrictContinuous cylinderTopology Bundle.topology backward
+    (topology.Composition[A := Cylinder.Carrier, B := HigherThom.Point, C := Family.Point].composeContinuous cylinderTopology HigherThom.totalTopology Bundle.topology
+      (\fun (p: Cylinder.Carrier) => Pair.pair X Higher.Coordinate (base p) (vector p)) Bundle.backward
+      (topological_constructions.Product[A := X, B := Higher.Coordinate].Universal[X := Cylinder.Carrier].pairContinuous cylinderTopology space Higher.topology base vector baseContinuous vectorContinuous) Bundle.backwardContinuous);
+\definition homeomorphism: topology.Homeomorphism[A := BoxCarrier, B := Cylinder.Carrier].Homeomorphism[boxTopology, cylinderTopology] :=
+  topology.Homeomorphism[A := BoxCarrier, B := Cylinder.Carrier].Homeomorphism[boxTopology, cylinderTopology] {
+    forward := forward, backward := backward, leftInverse := leftInverse, rightInverse := rightInverse,
+    forwardContinuous := forwardContinuous, backwardContinuous := backwardContinuous
+  };
+\definition forwardPreserves: \forall (p: BoxCarrier) -> \In[BoxCarrier] BoxBoundary p -> \In[Cylinder.Carrier] Suspension.boundary (forward p) :=
+  \fun (p: BoxCarrier)(member: _) => either!{{Order.leTotal (first p) (second p)} {\In[Cylinder.Carrier] Suspension.boundary (forward p)}
+    {\fun (ordered: _) => Logic.Or[_, _]::right (Logic.Or[_, _]::right
+      (trans!{R.Real} _ _ _ (sym!{R.Real} _ _ (Distance.maxOfLe (first p) (second p) ordered)) member))}
+    {\fun (ordered: _) => either!{{Symmetric.endpoint (symmetricHead p)
+      (trans!{R.Real} _ _ _ (sym!{R.Real} _ _ (Distance.maxOfGe (first p) (second p) ordered)) member)} {\In[Cylinder.Carrier] Suspension.boundary (forward p)}
+      {\fun (bottom: _) => Logic.Or[_, _]::left bottom}
+      {\fun (top: _) => Logic.Or[_, _]::right (Logic.Or[_, _]::left top)}
+    }}
+  };
+\definition onFirst: \forall (p: BoxCarrier) -> first p = R.one -> squared p = R.one :=
+  \fun (p: BoxCarrier)(member: _) => trans!{R.Real} _ _ _
+    (Distance.maxOfGe (first p) (second p) (D.leReplaceRight (second p) R.one (first p) (sym!{R.Real} _ _ member) (secondUnit p))) member;
+\definition onSecond: \forall (p: BoxCarrier) -> second p = R.one -> squared p = R.one :=
+  \fun (p: BoxCarrier)(member: _) => trans!{R.Real} _ _ _
+    (Distance.maxOfLe (first p) (second p) (D.leReplaceRight (first p) R.one (second p) (sym!{R.Real} _ _ member) (firstUnit p))) member;
+\definition firstBackward: \forall (p: Cylinder.Carrier) -> first (backward p) = R.mul (Symmetric.backward (Cylinder.time p)) (Symmetric.backward (Cylinder.time p)) :=
+  \fun (p: Cylinder.Carrier) => congr!{R.Real R.Real R.Real} R.mul _ _ _ _ (headBackward p) (headBackward p);
+\definition backwardPreserves: \forall (p: Cylinder.Carrier) -> \In[Cylinder.Carrier] Suspension.boundary p -> \In[BoxCarrier] BoxBoundary (backward p) :=
+  \fun (p: Cylinder.Carrier)(member: _) => either!{member {\In[BoxCarrier] BoxBoundary (backward p)}
+    {\fun (bottom: _) => onFirst (backward p) (eq_reason_in!{R.Real _
+      "=" _ "by" { firstBackward p }
+      "=" _ "by" { congr!{{I.Carrier} R.Real} (\fun (t: I.Carrier) => R.mul (Symmetric.backward t) (Symmetric.backward t)) _ _ bottom }
+      "=" _ "by" Symmetric.startSquare
+    })}
+    {\fun (other: _) => either!{other {\In[BoxCarrier] BoxBoundary (backward p)}
+      {\fun (top: _) => onFirst (backward p) (eq_reason_in!{R.Real _
+        "=" _ "by" { firstBackward p }
+        "=" _ "by" { congr!{{I.Carrier} R.Real} (\fun (t: I.Carrier) => R.mul (Symmetric.backward t) (Symmetric.backward t)) _ _ top }
+        "=" _ "by" Symmetric.endSquare
+      })}
+      {\fun (side: _) => onSecond (backward p)
+        (trans!{R.Real} _ _ _ (congr!{Euclidean.Coordinate R.Real} Euclidean.normSquared _ _ (tailBackward p)) side)}
+    }}
+  };
+\import \root.Thom[].Collapse[A := BoxCarrier, source := boxTopology, subset := BoxBoundary] \as BoxThom;
+\import \root.Thom[].Collapse[A := Cylinder.Carrier, source := cylinderTopology, subset := Suspension.boundary] \as CylinderThom;
+\import \root.Thom[].CollapseComparison[A := BoxCarrier, B := Cylinder.Carrier, source := boxTopology, target := cylinderTopology,
+  subset := BoxBoundary, targetSubset := Suspension.boundary, h := homeomorphism, forwardPreserves := forwardPreserves, backwardPreserves := backwardPreserves] \as Comparison;
+\import puppe_sequences.Puppe[].Suspension[A := Carrier, source := pointed] \as Native;
+\definition roundHomeomorphism: topology.Homeomorphism[A := HigherThom.Carrier, B := CylinderThom.Carrier].Homeomorphism[HigherThom.topology, CylinderThom.topology] :=
+  topology.Homeomorphism[A := HigherThom.Carrier, B := BoxThom.Carrier].Composition[C := CylinderThom.Carrier].compose HigherThom.topology BoxThom.topology CylinderThom.topology
+    Levels.thomHomeomorphism Comparison.homeomorphism;
+\definition suspensionHomeomorphism: topology.Homeomorphism[A := HigherThom.Carrier, B := Native.Carrier].Homeomorphism[HigherThom.topology, Native.topology] :=
+  topology.Homeomorphism[A := HigherThom.Carrier, B := CylinderThom.Carrier].Composition[C := Native.Carrier].compose HigherThom.topology CylinderThom.topology Native.topology
+    roundHomeomorphism Suspension.homeomorphism;
+\definition suspensionPointed: suspensionHomeomorphism.forward HigherThom.pointed.basepoint = Native.point :=
+  eq_reason_in!{Native.Carrier _
+    "=" _ "by" { congr!{BoxThom.Carrier Native.Carrier} (\fun (q: BoxThom.Carrier) => Suspension.forward (Comparison.forward q)) _ _ Levels.thomPointed }
+    "=" _ "by" { congr!{CylinderThom.Carrier Native.Carrier} Suspension.forward _ _ Comparison.pointed }
+    "=" _ "by" Suspension.pointed
+  };

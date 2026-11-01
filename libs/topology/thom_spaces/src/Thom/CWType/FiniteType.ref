@@ -1,0 +1,26 @@
+\structure Details[Y: \Set]: \Set := {
+  space: topology.Topology[Carrier := Y].Topology,
+  complex: algebraic_topology.CW[A := Y].FiniteComplex[space],
+  equivalence: algebraic_topology.HomotopyEquivalence[A := A, B := Y].Equivalence[source, space]
+};
+\structure Data: \Set(1) := {
+  Carrier: \Set,
+  dataLift: \forall (Z: \Set) -> (Details[Carrier] -> Z) -> Z
+};
+\definition details[model: Data]: Details[model.Carrier] := model.dataLift Details[model.Carrier] (\fun (d: Details[model.Carrier]) => d);
+\definition pack[Y: \Set][data: Details[Y]]: Data := Data {
+  Carrier := Y, dataLift := \fun (Z: \Set)(f: Details[Y] -> Z) => f data
+};
+\module Along(B: \Set, target: topology.Topology[Carrier := B].Topology,
+  equivalence: algebraic_topology.HomotopyEquivalence[A := A, B := B].Equivalence[source, target],
+  model: \root.Thom[].CWType[].FiniteType[A := B, source := target].Data);
+\definition identity: topology.Homeomorphism[A := A, B := A].Homeomorphism[source, source] := topology.Homeomorphism[A := A, B := A].Homeomorphism[source, source] {
+  forward := \fun (x: A) => x, backward := \fun (x: A) => x,
+  forwardContinuous := topology.Maps[A := A, B := A].Identity[].continuous source,
+  backwardContinuous := topology.Maps[A := A, B := A].Identity[].continuous source,
+  leftInverse := \fun (x: A) => \refl(x), rightInverse := \fun (x: A) => \refl(x)
+};
+\definition native[complex: algebraic_topology.CW[A := A].FiniteComplex[source]]: Data := pack A (Details[A] {
+  space := source, complex := complex,
+  equivalence := algebraic_topology.HomotopyEquivalence[A := A, B := A].fromHomeomorphism source source identity
+});

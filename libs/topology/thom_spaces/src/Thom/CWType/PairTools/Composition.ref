@@ -1,0 +1,44 @@
+\import \root.Thom[].CWType[].PairTools[A := A, B := C, source := source, target := range, subset := subset, targetSubset := finalSubset] \as Result;
+\import algebraic_topology.Homotopy[A := A, B := A] \as LeftH;
+\import algebraic_topology.Homotopy[A := C, B := C] \as RightH;
+\import algebraic_topology.Homotopy[A := B, B := B] \as Middle;
+\import algebraic_topology.Cylinder[A := C] \as FinalCylinder;
+\definition forward[x: A]: C := second.forward (first.forward x);
+\definition backward[z: C]: A := first.backward (second.backward z);
+\definition forwardContained: \forall (x: SourceSubset) -> \In[C] finalSubset (forward x) := \fun (x: SourceSubset) =>
+  second.forwardContained (\into[B](first.forward x, targetSubset) \by { first.forwardContained x });
+\definition backwardContained: \forall (z: \Cast[C] finalSubset) -> \In[A] subset (backward z) := \fun (z: \Cast[C] finalSubset) =>
+  first.backwardContained (\into[B](second.backward z, targetSubset) \by { second.backwardContained z });
+\definition leftPre: algebraic_topology.Homotopy[A := A, B := B].Homotopy[source, target,
+  (\fun (x: A) => second.backward (second.forward (first.forward x))), (\fun (x: A) => first.forward x)] :=
+  Middle.Composition[C := A].precompose source target target (\fun (y: B) => second.backward (second.forward y)) (\fun (y: B) => y) second.left first.forward first.forwardContinuous;
+\definition leftFirst: LeftH.Homotopy[source, source, (\fun (x: A) => backward (forward x)), (\fun (x: A) => first.backward (first.forward x))] :=
+  algebraic_topology.Homotopy[A := A, B := B].Composition[C := A].postcompose source target source
+    (\fun (x: A) => second.backward (second.forward (first.forward x))) (\fun (x: A) => first.forward x) leftPre first.backward first.backwardContinuous;
+\definition leftFirstPreserves: \forall (t: I.Carrier)(x: SourceSubset) -> \In[A] subset (leftFirst (LeftCylinder.at t x)) := \fun (t: I.Carrier)(x: SourceSubset) =>
+  first.backwardContained (\into[B](second.left (RightCylinder.at t (first.forward x)), targetSubset) \by {
+    second.leftPreserves t (\into[B](first.forward x, targetSubset) \by { first.forwardContained x })
+  });
+\import \root.Thom[].CWType[].PreservedPaths[A := A, B := A, subset := subset, targetSubset := subset].Concatenation[
+  source := source, target := source, f := (\fun (x: A) => backward (forward x)), g := (\fun (x: A) => first.backward (first.forward x)), k := (\fun (x: A) => x),
+  first := leftFirst, second := first.left, firstPreserves := leftFirstPreserves, secondPreserves := first.leftPreserves] \as LeftJoin;
+\definition rightPre: algebraic_topology.Homotopy[A := C, B := B].Homotopy[range, target,
+  (\fun (z: C) => first.forward (first.backward (second.backward z))), (\fun (z: C) => second.backward z)] :=
+  Middle.Composition[C := C].precompose range target target (\fun (y: B) => first.forward (first.backward y)) (\fun (y: B) => y) first.right second.backward second.backwardContinuous;
+\definition rightFirst: RightH.Homotopy[range, range, (\fun (z: C) => forward (backward z)), (\fun (z: C) => second.forward (second.backward z))] :=
+  algebraic_topology.Homotopy[A := C, B := B].Composition[C := C].postcompose range target range
+    (\fun (z: C) => first.forward (first.backward (second.backward z))) (\fun (z: C) => second.backward z) rightPre second.forward second.forwardContinuous;
+\definition rightFirstPreserves: \forall (t: I.Carrier)(z: \Cast[C] finalSubset) -> \In[C] finalSubset (rightFirst (FinalCylinder.at t z)) := \fun (t: I.Carrier)(z: \Cast[C] finalSubset) =>
+  second.forwardContained (\into[B](first.right (RightCylinder.at t (second.backward z)), targetSubset) \by {
+    first.rightPreserves t (\into[B](second.backward z, targetSubset) \by { second.backwardContained z })
+  });
+\import \root.Thom[].CWType[].PreservedPaths[A := C, B := C, subset := finalSubset, targetSubset := finalSubset].Concatenation[
+  source := range, target := range, f := (\fun (z: C) => forward (backward z)), g := (\fun (z: C) => second.forward (second.backward z)), k := (\fun (z: C) => z),
+  first := rightFirst, second := second.right, firstPreserves := rightFirstPreserves, secondPreserves := second.rightPreserves] \as RightJoin;
+\definition result: Result.Data := Result.Data {
+  forward := forward, backward := backward,
+  forwardContinuous := topology.Composition[A := A, B := B, C := C].composeContinuous source target range first.forward second.forward first.forwardContinuous second.forwardContinuous,
+  backwardContinuous := topology.Composition[A := C, B := B, C := A].composeContinuous range target source second.backward first.backward second.backwardContinuous first.backwardContinuous,
+  forwardContained := forwardContained, backwardContained := backwardContained,
+  left := LeftJoin.result, right := RightJoin.result, leftPreserves := LeftJoin.preserves, rightPreserves := RightJoin.preserves
+};

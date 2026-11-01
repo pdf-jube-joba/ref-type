@@ -1,0 +1,124 @@
+\import algebraic_topology.Interval[] \as I;
+\import algebraic_topology.Cylinder[A := A] \as Cylinder;
+\definition boundary: \Pow Cylinder.Carrier := { p: Cylinder.Carrier \where
+  Logic.Or[Cylinder.time p = I.start, Logic.Or[Cylinder.time p = I.end, \In[A] subset (Cylinder.point p)]] };
+\import \root.Thom[].Collapse[A := A, source := source, subset := subset] \as Base;
+\import \root.Thom[].Collapse[A := Cylinder.Carrier, source := Cylinder.topology source, subset := boundary] \as Total;
+\import puppe_sequences.Puppe[].Suspension[A := Base.Carrier, source := Base.pointed] \as Suspension;
+\import algebraic_topology.Cylinder[A := Base.Carrier] \as TargetCylinder;
+\import algebraic_topology.Suspension[A := Base.Carrier].Reduced[basepoint := Base.point] \as Native;
+\import algebraic_topology.Collapse[A := TargetCylinder.Carrier, subset := Native.Collapsed] \as TargetQuotient;
+\import algebraic_topology.Collapse[A := Base.Extended, subset := Base.Boundary] \as BaseQuotient;
+\import topological_constructions.Coproduct[A := A, B := Unit] \as BaseAdjoined;
+\import algebraic_topology.Cylinder[A := Base.Extended] \as ExtendedCylinder;
+\import algebraic_topology.Cylinder[A := Unit] \as PointCylinder;
+\definition raw[p: Cylinder.Carrier]: TargetCylinder.Carrier := TargetCylinder.at (Cylinder.time p) (Base.class (Cylinder.point p));
+\definition rawContinuous: topology.Continuity[A := Cylinder.Carrier, B := TargetCylinder.Carrier].Continuous
+  (Cylinder.topology source) (TargetCylinder.topology Base.topology) raw :=
+  topological_constructions.Product[A := I.Carrier, B := Base.Carrier].Universal[X := Cylinder.Carrier].pairContinuous
+    (Cylinder.topology source) I.topology Base.topology Cylinder.time (\fun (p: Cylinder.Carrier) => Base.class (Cylinder.point p))
+    (Cylinder.timeContinuous source)
+    (topology.Composition[A := Cylinder.Carrier, B := A, C := Base.Carrier].composeContinuous
+      (Cylinder.topology source) source Base.topology Cylinder.point Base.class (Cylinder.pointContinuous source) Base.continuous);
+\definition original[p: Cylinder.Carrier]: Suspension.Carrier := Suspension.class (raw p);
+\definition originalContinuous: topology.Continuity[A := Cylinder.Carrier, B := Suspension.Carrier].Continuous
+  (Cylinder.topology source) Suspension.topology original :=
+  topology.Composition[A := Cylinder.Carrier, B := TargetCylinder.Carrier, C := Suspension.Carrier].composeContinuous
+    (Cylinder.topology source) (TargetCylinder.topology Base.topology) Suspension.topology raw Suspension.class rawContinuous
+    (TargetQuotient.projectionContinuous (TargetCylinder.topology Base.topology));
+\definition originalVanishes: \forall (p: Cylinder.Carrier) -> \In[Cylinder.Carrier] boundary p -> original p = Suspension.point :=
+  \fun (p: Cylinder.Carrier)(member: _) => either!{member {original p = Suspension.point}
+    {\fun (bottom: _) => Suspension.collapsed (raw p) (Logic.Or[_, _]::left bottom)}
+    {\fun (other: _) => either!{other {original p = Suspension.point}
+      {\fun (top: _) => Suspension.collapsed (raw p) (Logic.Or[_, _]::right (Logic.Or[_, _]::left top))}
+      {\fun (side: _) => Suspension.collapsed (raw p) (Logic.Or[_, _]::right (Logic.Or[_, _]::right (Base.collapsed (Cylinder.point p) side)))}
+    }}
+  };
+\import Total.Lift[B := Suspension.Carrier, target := Suspension.topology, basepoint := Suspension.point,
+  f := original, regular := originalContinuous, vanishes := originalVanishes] \as Forward;
+\definition forward: Total.Carrier -> Suspension.Carrier := Forward.apply;
+\import BaseAdjoined.ProductUniversal[X := I.Carrier, D := Total.Carrier, factor := I.topology,
+  left := source, right := topology.Topology[Carrier := Unit].Discrete, target := Total.topology] \as Copair;
+\definition extended: ExtendedCylinder.Carrier -> Total.Carrier := Copair.apply Total.class (\fun (p: PointCylinder.Carrier) => Total.point);
+\definition extendedContinuous: topology.Continuity[A := ExtendedCylinder.Carrier, B := Total.Carrier].Continuous
+  (ExtendedCylinder.topology Base.extendedTopology) Total.topology extended :=
+  Copair.continuous Total.class (\fun (p: PointCylinder.Carrier) => Total.point) Total.continuous
+    (topology.Maps[A := PointCylinder.Carrier, B := Total.Carrier].constantContinuous
+      (PointCylinder.topology topology.Topology[Carrier := Unit].Discrete) Total.topology Total.point);
+\definition extendedBoundary: \forall (t: I.Carrier)(x: Base.Extended) -> \In[Base.Extended] Base.Boundary x -> extended (ExtendedCylinder.at t x) = Total.point :=
+  \fun (t: I.Carrier) => \induction (x: Base.Extended) \return \In[Base.Extended] Base.Boundary x -> extended (ExtendedCylinder.at t x) = Total.point \with {
+    | inl: \fun (x: A)(member: _) => Total.collapsed (Cylinder.at t x) (Logic.Or[_, _]::right (Logic.Or[_, _]::right member))
+    | inr: \fun (u: Unit)(member: _) => \refl(Total.point)
+  };
+\import topological_constructions.RelationQuotient[A := Base.Extended, relation := BaseQuotient.Related].Families[X := I.Carrier, C := Total.Carrier, factor := I.topology,
+  source := Base.extendedTopology, target := Total.topology, laws := BaseQuotient.equivalence] \as Family;
+\definition respects: Family.Respects extended := \fun (t: I.Carrier)(x, y: Base.Extended)(related: BaseQuotient.Related x y) =>
+  either!{related {extended (ExtendedCylinder.at t x) = extended (ExtendedCylinder.at t y)}
+    {\fun (same: _) => congr!{Base.Extended Total.Carrier} (\fun (x: Base.Extended) => extended (ExtendedCylinder.at t x)) _ _ same}
+    {\fun (both: Logic.And[\In[Base.Extended] Base.Boundary x, \In[Base.Extended] Base.Boundary y]) => trans!{Total.Carrier} _ _ _ (extendedBoundary t x both.left) (sym!{Total.Carrier} _ _ (extendedBoundary t y both.right))}
+  };
+\definition family: TargetCylinder.Carrier -> Total.Carrier := Family.apply extended respects;
+\definition familyContinuous: topology.Continuity[A := TargetCylinder.Carrier, B := Total.Carrier].Continuous
+  (TargetCylinder.topology Base.topology) Total.topology family := Family.continuous I.compact I.hausdorff extended respects extendedContinuous;
+\definition familyClass: \forall (t: I.Carrier)(x: A) -> family (TargetCylinder.at t (Base.class x)) = Total.class (Cylinder.at t x) :=
+  \fun (t: I.Carrier)(x: A) => Family.onClass extended respects t (BaseAdjoined.inl x);
+\definition familyPoint: \forall (t: I.Carrier) -> family (TargetCylinder.at t Base.point) = Total.point :=
+  \fun (t: I.Carrier) => Family.onClass extended respects t (BaseAdjoined.inr Unit::point);
+\definition familyStart: \forall (q: Base.Carrier) -> family (TargetCylinder.at I.start q) = Total.point :=
+  Base.induction (\fun (q: Base.Carrier) => family (TargetCylinder.at I.start q) = Total.point) (familyPoint I.start)
+    (\fun (x: A) => trans!{Total.Carrier} _ _ _ (familyClass I.start x)
+      (Total.collapsed (Cylinder.at I.start x) (Logic.Or[_, _]::left (\refl(I.start)))));
+\definition familyEnd: \forall (q: Base.Carrier) -> family (TargetCylinder.at I.end q) = Total.point :=
+  Base.induction (\fun (q: Base.Carrier) => family (TargetCylinder.at I.end q) = Total.point) (familyPoint I.end)
+    (\fun (x: A) => trans!{Total.Carrier} _ _ _ (familyClass I.end x)
+      (Total.collapsed (Cylinder.at I.end x) (Logic.Or[_, _]::right (Logic.Or[_, _]::left (\refl(I.end))))));
+\definition familyVanishes: \forall (p: TargetCylinder.Carrier) -> \In[TargetCylinder.Carrier] Native.Collapsed p -> family p = Total.point :=
+  \induction (p: TargetCylinder.Carrier) \return \In[TargetCylinder.Carrier] Native.Collapsed p -> family p = Total.point \with {
+    | pair: \fun (t: I.Carrier)(q: Base.Carrier)(member: _) => either!{member {family (TargetCylinder.at t q) = Total.point}
+      {\fun (bottom: _) => \idelim I.start = t \with s: I.Carrier => family (TargetCylinder.at s q) = Total.point \by { base: familyStart q, equality: sym!{{I.Carrier}} _ _ bottom }}
+      {\fun (other: _) => either!{other {family (TargetCylinder.at t q) = Total.point}
+        {\fun (top: _) => \idelim I.end = t \with s: I.Carrier => family (TargetCylinder.at s q) = Total.point \by { base: familyEnd q, equality: sym!{{I.Carrier}} _ _ top }}
+        {\fun (side: _) => \idelim Base.point = q \with x: Base.Carrier => family (TargetCylinder.at t x) = Total.point \by { base: familyPoint t, equality: sym!{Base.Carrier} _ _ side }}
+      }}
+    }
+  };
+\import TargetQuotient.Descent[B := Total.Carrier] \as Backward;
+\definition backwardRespects: Backward.Respects family := \fun (p, q: TargetCylinder.Carrier)(related: TargetQuotient.Related p q) => either!{related {family p = family q}
+  {\fun (same: _) => congr!{TargetCylinder.Carrier Total.Carrier} family _ _ same}
+  {\fun (both: Logic.And[\In[TargetCylinder.Carrier] Native.Collapsed p, \In[TargetCylinder.Carrier] Native.Collapsed q]) => trans!{Total.Carrier} _ _ _ (familyVanishes p both.left) (sym!{Total.Carrier} _ _ (familyVanishes q both.right))}
+};
+\definition backward: Suspension.Carrier -> Total.Carrier := Backward.apply family backwardRespects;
+\definition backwardClass: \forall (p: TargetCylinder.Carrier) -> backward (Suspension.class p) = family p := Backward.onClass family backwardRespects;
+\definition backwardPoint: backward Suspension.point = Total.point :=
+  trans!{Total.Carrier} _ _ _ (backwardClass (TargetCylinder.at I.start Base.point)) (familyPoint I.start);
+\definition leftInverse: \forall (q: Total.Carrier) -> backward (forward q) = q :=
+  Total.induction (\fun (q: Total.Carrier) => backward (forward q) = q)
+    (trans!{Total.Carrier} _ _ _ (congr!{Suspension.Carrier Total.Carrier} backward _ _ Forward.onPoint) backwardPoint)
+    (\induction (p: Cylinder.Carrier) \return backward (forward (Total.class p)) = Total.class p \with {
+      | pair: \fun (t: I.Carrier)(x: A) => eq_reason_in!{Total.Carrier _
+        "=" _ "by" { congr!{Suspension.Carrier Total.Carrier} backward _ _ (Forward.onClass (Cylinder.at t x)) }
+        "=" _ "by" { backwardClass (TargetCylinder.at t (Base.class x)) }
+        "=" _ "by" { familyClass t x }
+      }
+    });
+\definition rightInverse: \forall (q: Suspension.Carrier) -> forward (backward q) = q :=
+  TargetQuotient.induction (\fun (q: Suspension.Carrier) => forward (backward q) = q)
+    (\induction (p: TargetCylinder.Carrier) \return forward (backward (Suspension.class p)) = Suspension.class p \with {
+      | pair: \fun (t: I.Carrier) => Base.induction (\fun (q: Base.Carrier) => forward (backward (Suspension.class (TargetCylinder.at t q))) = Suspension.class (TargetCylinder.at t q))
+        (eq_reason_in!{Suspension.Carrier _
+          "=" _ "by" { congr!{Total.Carrier Suspension.Carrier} forward _ _ (trans!{Total.Carrier} _ _ _ (backwardClass (TargetCylinder.at t Base.point)) (familyPoint t)) }
+          "=" _ "by" Forward.onPoint
+          "=" _ "by" { sym!{Suspension.Carrier} _ _ (Suspension.line t) }
+        })
+        (\fun (x: A) => eq_reason_in!{Suspension.Carrier _
+          "=" _ "by" { congr!{Total.Carrier Suspension.Carrier} forward _ _ (trans!{Total.Carrier} _ _ _ (backwardClass (TargetCylinder.at t (Base.class x))) (familyClass t x)) }
+          "=" _ "by" { Forward.onClass (Cylinder.at t x) }
+        })
+    });
+\definition homeomorphism: topology.Homeomorphism[A := Total.Carrier, B := Suspension.Carrier].Homeomorphism[Total.topology, Suspension.topology] :=
+  topology.Homeomorphism[A := Total.Carrier, B := Suspension.Carrier].Homeomorphism[Total.topology, Suspension.topology] {
+    forward := forward, backward := backward, leftInverse := leftInverse, rightInverse := rightInverse,
+    forwardContinuous := Forward.continuous,
+    backwardContinuous := Backward.continuous (TargetCylinder.topology Base.topology) Total.topology family backwardRespects familyContinuous
+  };
+\definition pointed: forward Total.point = Suspension.point := Forward.onPoint;

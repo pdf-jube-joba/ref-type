@@ -1,0 +1,28 @@
+\import real.Analysis[] \as R;
+\import dedekind_reals.DedekindReal[] \as D;
+\import algebraic_topology.Euclidean[].Dimension[n := d] \as Base;
+\import algebraic_topology.Euclidean[].Dimension[n := r] \as FiberDisk;
+\import algebraic_topology.Euclidean[].Dimension[n := N.Nat^::succ r] \as FiberSphere;
+\import \parent.DiskProduct[n := d, m := r] \as Geometry;
+\import algebraic_topology.Euclidean[].Dimension[n := Geometry.dimension] \as Total;
+\import topological_constructions.Product[A := Base.Disk, B := FiberSphere.Sphere] \as Prism;
+\import topological_constructions.Product[A := Base.Sphere, B := FiberSphere.Sphere] \as Boundary;
+\definition prismTopology: topology.Topology[Carrier := Prism.CarrierSet].Topology := Prism.topology Base.diskTopology FiberSphere.sphereTopology;
+\definition boundaryTopology: topology.Topology[Carrier := Boundary.CarrierSet].Topology := Boundary.topology Base.sphereTopology FiberSphere.sphereTopology;
+\definition baseBoundary[v: Base.Sphere]: Base.Disk := Geometry.firstBoundary v;
+\structure Data: \Set := {
+  original: A -> Y,
+  chart: Prism.CarrierSet -> Y,
+  boundary: Boundary.CarrierSet -> A,
+  originalContinuous: topology.Continuity[A := A, B := Y].Continuous source target original,
+  chartContinuous: topology.Continuity[A := Prism.CarrierSet, B := Y].Continuous prismTopology target chart,
+  boundaryContinuous: topology.Continuity[A := Boundary.CarrierSet, B := A].Continuous boundaryTopology source boundary,
+  originalInjective: \forall (a, b: A) -> original a = original b -> a = b,
+  chartInjective: \forall (x, y: Base.Disk)(s, t: FiberSphere.Sphere) -> D.Lt (Base.normSquared x) R.one -> D.Lt (Base.normSquared y) R.one ->
+    chart (Pair.pair Base.Disk FiberSphere.Sphere x s) = chart (Pair.pair Base.Disk FiberSphere.Sphere y t) -> Logic.And[x = y, s = t],
+  separated: \forall (a: A)(x: Base.Disk)(s: FiberSphere.Sphere) -> D.Lt (Base.normSquared x) R.one ->
+    Logic.Not (original a = chart (Pair.pair Base.Disk FiberSphere.Sphere x s)),
+  seam: \forall (x: Base.Sphere)(s: FiberSphere.Sphere) -> original (boundary (Pair.pair Base.Sphere FiberSphere.Sphere x s)) = chart (Pair.pair Base.Disk FiberSphere.Sphere (baseBoundary x) s),
+  covers: \forall (y: Y) -> Logic.Or[\exists (a: A \where original a = y), \exists (p: Prism.CarrierSet \where chart p = y)]
+};
+\module Of(data: Data);

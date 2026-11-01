@@ -1,0 +1,20 @@
+\import singular_cohomology.Relative[A := A, source := source, subset := subset] \as SourcePair;
+\import singular_cohomology.Relative[A := B, source := target, subset := targetSubset] \as TargetPair;
+\import SourcePair.Maps[B := B].Over[target := target, targetSubset := targetSubset] \as Forward;
+\import TargetPair.Maps[B := A].Over[target := source, targetSubset := subset] \as Backward;
+\definition forward: Forward.Map := \into[A -> B](e.forward, Forward.Map) \by {
+  Forward.Laws[e.forward] { continuous := e.forwardContinuous, contained := e.forwardContained }
+};
+\definition backward: Backward.Map := \into[B -> A](e.backward, Backward.Map) \by {
+  Backward.Laws[e.backward] { continuous := e.backwardContinuous, contained := e.backwardContained }
+};
+\import Forward.Composition[C := A].Over[final := source, finalSubset := subset] \as LeftComposition;
+\import Backward.Composition[C := B].Over[final := target, finalSubset := targetSubset] \as RightComposition;
+\import SourcePair.Maps[B := A].Over[target := source, targetSubset := subset].Homotopy[f := LeftComposition.compose forward backward, g := SourcePair.Identity[].map] \as LeftPair;
+\import TargetPair.Maps[B := B].Over[target := target, targetSubset := targetSubset].Homotopy[f := RightComposition.compose backward forward, g := TargetPair.Identity[].map] \as RightPair;
+\definition left: LeftPair.Homotopy := \into[LeftPair.Family](e.left, LeftPair.Homotopy) \by { e.leftPreserves };
+\definition right: RightPair.Homotopy := \into[RightPair.Family](e.right, RightPair.Homotopy) \by { e.rightPreserves };
+\definition equivalence: SourcePair.Equivalence[B := B].Over[target := target, targetSubset := targetSubset].Equivalence :=
+  SourcePair.Equivalence[B := B].Over[target := target, targetSubset := targetSubset].Equivalence {
+    forward := forward, backward := backward, left := left, right := right
+  };

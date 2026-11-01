@@ -1,0 +1,28 @@
+\definition partOpen: topology.Topology[Carrier := InteriorPoint].IsOpenIn interiorTopology (InteriorSpace.Trace U) := InteriorSpace.traceOpen Model.diskTopology U open;
+\import \parent.\parent.\parent.InteriorRegion[U := InteriorSpace.Trace U, open := partOpen] \as Neighborhood;
+\definition equality: Cells.InteriorPart newCell U = Space.Intersection (Cells.InteriorImage newCell) Neighborhood.region :=
+  \axiom:setext(Cells.InteriorPart newCell U, Space.Intersection (Cells.InteriorImage newCell) Neighborhood.region,
+    \block {
+      \fun (x: Carrier)(inside: _) \then
+      \takefrom w: Cells.InteriorPartWitness[newCell, U, x] \by inside \then
+      \let p: InteriorPoint := \into[Model.Disk](w.point, interiorSubset) \by { w.interior } \then
+      \return Logic.And[_, _]::#
+        (Logic.existsIntro[Model.Disk, { p: Model.Disk \where Logic.And[D.Lt (Model.normSquared p) R.one, characteristic p = x] }] w.point (Logic.And[_, _]::# w.interior w.image))
+        (\idelim interior p = x \with y: Carrier => \In[Carrier] Neighborhood.region y \by {
+          base: w.member, equality: trans!{Carrier} _ _ _ (sym!{Carrier} _ _ (onInterior p)) w.image
+        })
+    },
+    \block {
+      \fun (x: Carrier)(inside: Logic.And[\In[Carrier] (Cells.InteriorImage newCell) x, \In[Carrier] Neighborhood.region x]) \then
+      \takefrom p: \Cast[Model.Disk] ({ p: Model.Disk \where Logic.And[D.Lt (Model.normSquared p) R.one, characteristic p = x] }) \by inside.left \then
+      \let data: Logic.And[D.Lt (Model.normSquared p) R.one, characteristic p = x] :=
+        \bysub(Model.Disk, { p: Model.Disk \where Logic.And[D.Lt (Model.normSquared p) R.one, characteristic p = x] }, p) \then
+      \let point: InteriorPoint := \into[Model.Disk](p, interiorSubset) \by { data.left } \then
+      \let inU: \In[Model.Disk] U p := \idelim x = interior point \with y: Carrier => \In[Carrier] Neighborhood.region y \by {
+        base: inside.right, equality: trans!{Carrier} _ _ _ (sym!{Carrier} _ _ data.right) (onInterior point)
+      } \then
+      \return \exact(Cells.InteriorPartWitness[newCell, U, x] { point := p, member := inU, interior := data.left, image := data.right }, Cells.InteriorPartWitness[newCell, U, x])
+    });
+\definition exists: \exists (V: \Pow Carrier \where Logic.And[Space.IsOpenIn topology V, Cells.InteriorPart newCell U = Space.Intersection (Cells.InteriorImage newCell) V]) :=
+  Logic.existsIntro[\Pow Carrier, { V: \Pow Carrier \where Logic.And[Space.IsOpenIn topology V, Cells.InteriorPart newCell U = Space.Intersection (Cells.InteriorImage newCell) V] }]
+    Neighborhood.region (Logic.And[_, _]::# Neighborhood.regionOpen equality);

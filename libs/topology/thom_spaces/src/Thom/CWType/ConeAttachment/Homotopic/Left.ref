@@ -1,0 +1,23 @@
+\import \root.Thom[].CWType[].PathCancellation[A := A, B := Carrier, source := source, target := topology,
+  f := (\fun (x: A) => apex), g := (\fun (x: A) => inclusion (f x)), k := (\fun (x: A) => inclusion (g x)), p := null, h := firstPath] \as Cancel;
+\definition firstAgrees: \forall (t: I.Carrier)(x: A) -> backwardPath (Cylinder.at t x) = backward (Next.null (Cylinder.at t x)) := \fun (t: I.Carrier)(x: A) => sym!{Carrier} _ _ (backwardCylinder t x);
+\definition secondAgrees: \forall (t: I.Carrier)(x: A) -> Cancel.reverse (Cylinder.at t x) = backward (reversePath (Cylinder.at t x)) :=
+  \fun (t: I.Carrier)(x: A) => sym!{Carrier} _ _ (backwardOriginal (h (Cylinder.at (I.reverse t) x)));
+\import \root.Thom[].CWType[].ConcatenationLaws[A := A, B := Next.Carrier, source := source, target := Next.topology,
+  f := (\fun (x: A) => Next.apex), g := (\fun (x: A) => Next.inclusion (g x)), k := (\fun (x: A) => Next.inclusion (f x)), h := Next.null, j := reversePath] \as Joined;
+\import Joined.Compare[C := A, D := Carrier, domain := source, range := topology, before := (\fun (x: A) => x), after := (\fun (x: A)(y: Next.Carrier) => backward y),
+  a := (\fun (x: A) => apex), b := (\fun (x: A) => inclusion (g x)), c := (\fun (x: A) => inclusion (f x)), first := backwardPath, second := Cancel.reverse,
+  firstAgrees := firstAgrees, secondAgrees := secondAgrees] \as Formula;
+\definition composite[z: Carrier]: Carrier := backward (forward z);
+\definition onOriginal: \forall (y: B) -> composite (inclusion y) = inclusion y := \fun (y: B) => trans!{Carrier} _ _ _ (congr!{Next.Carrier Carrier} backward _ _ (forwardOriginal y)) (backwardOriginal y);
+\definition onApex: composite apex = apex := trans!{Carrier} _ _ _ (congr!{Next.Carrier Carrier} backward _ _ forwardApex) backwardApex;
+\definition onCylinder: \forall (t: I.Carrier)(x: A) -> composite (at t x) = Cancel.detour (Cylinder.at t x) := \fun (t: I.Carrier)(x: A) => trans!{Carrier} _ _ _
+  (congr!{Next.Carrier Carrier} backward _ _ (forwardCylinder t x)) (sym!{Carrier} _ _ (Formula.result t x));
+\definition filling: algebraic_topology.Homotopy[A := Cylinder.Carrier, B := Carrier].Homotopy[Cylinder.topology source, topology, Cancel.detour, null] :=
+  algebraic_topology.Homotopy[A := Cylinder.Carrier, B := Carrier].forgetRelative (Cylinder.topology source) topology Cancel.Ends Cancel.detour null Cancel.result;
+\import \parent.\parent.NullFilling[map := composite, original := onOriginal, mapApex := onApex, path := Cancel.detour, mapCylinder := onCylinder, filling := filling, zero := Cancel.resultAtZero, one := Cancel.resultAtOne] \as Retraction;
+\definition result: algebraic_topology.Homotopy[A := Carrier, B := Carrier].Homotopy[topology, topology, composite, (\fun (z: Carrier) => z)] := Retraction.result;
+\definition fixed: \forall (u: I.Carrier)(y: B) -> result (algebraic_topology.Cylinder[A := Carrier].at u (inclusion y)) = inclusion y := Retraction.fixed;
+
+\definition apexFixed: \forall (u: I.Carrier) -> result (algebraic_topology.Cylinder[A := Carrier].at u apex) = apex := Retraction.apexFixed;
+\definition cylinderFormula: \forall (u, t: I.Carrier)(x: A) -> result (algebraic_topology.Cylinder[A := Carrier].at u (at t x)) = filling (algebraic_topology.Cylinder[A := Cylinder.Carrier].at u (Cylinder.at t x)) := Retraction.cylinderFormula;

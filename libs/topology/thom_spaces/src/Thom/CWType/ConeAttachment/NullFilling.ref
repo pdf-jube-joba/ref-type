@@ -1,0 +1,25 @@
+\import algebraic_topology.Homotopy[A := Cylinder.Carrier, B := Carrier] \as Fillings;
+\definition fillingLaws: Fillings.Laws[Cylinder.topology source, topology, path, null, filling] := Fillings.laws (Cylinder.topology source) topology path null filling;
+\import \parent.Families[D := Carrier, range := topology, original := inclusion, point := apex, filling := filling, zero := zero, one := one,
+  fillingContinuous := fillingLaws.continuous, originalContinuous := inclusionContinuous] \as Family;
+\import algebraic_topology.Cylinder[A := Carrier] \as Total;
+\definition start: \forall (z: Carrier) -> Family.apply (Total.at I.start z) = map z := induction (\fun (z: Carrier) => Family.apply (Total.at I.start z) = map z)
+  (\fun (y: B) => trans!{Carrier} _ _ _ (Family.onOriginal I.start y) (sym!{Carrier} _ _ (original y)))
+  (trans!{Carrier} _ _ _ (Family.onApex I.start) (sym!{Carrier} _ _ mapApex))
+  (\fun (t: I.Carrier)(x: A) => eq_reason_in!{Carrier _
+    "=" _ "by" { Family.onCylinder I.start t x }
+    "=" _ "by" { fillingLaws.start (Cylinder.at t x) }
+    "=" _ "by" { sym!{Carrier} _ _ (mapCylinder t x) }
+  });
+\definition end: \forall (z: Carrier) -> Family.apply (Total.at I.end z) = z := induction (\fun (z: Carrier) => Family.apply (Total.at I.end z) = z)
+  (Family.onOriginal I.end) (Family.onApex I.end)
+  (\fun (t: I.Carrier)(x: A) => trans!{Carrier} _ _ _ (Family.onCylinder I.end t x) (fillingLaws.end (Cylinder.at t x)));
+\import algebraic_topology.Homotopy[A := Carrier, B := Carrier] \as Native;
+\definition result: Native.Homotopy[topology, topology, map, (\fun (z: Carrier) => z)] :=
+  \into[Native.Family](Family.apply, Native.Homotopy[topology, topology, map, (\fun (z: Carrier) => z)]) \by {
+    Native.Laws[topology, topology, map, (\fun (z: Carrier) => z), Family.apply] { continuous := Family.continuous, start := start, end := end }
+  };
+\definition fixed: \forall (u: I.Carrier)(y: B) -> result (Total.at u (inclusion y)) = inclusion y := Family.onOriginal;
+
+\definition apexFixed: \forall (u: I.Carrier) -> result (Total.at u apex) = apex := Family.onApex;
+\definition cylinderFormula: \forall (u, t: I.Carrier)(x: A) -> result (Total.at u (at t x)) = filling (algebraic_topology.Cylinder[A := Cylinder.Carrier].at u (Cylinder.at t x)) := Family.onCylinder;

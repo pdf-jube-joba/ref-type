@@ -1,0 +1,32 @@
+\import topological_constructions.Product[A := Base.Sphere, B := FiberDisk.Disk] \as Left;
+\import topological_constructions.Product[A := Base.Disk, B := FiberDisk.Sphere] \as Right;
+\definition leftTopology: topology.Topology[Carrier := Left.CarrierSet].Topology := Left.topology Base.sphereTopology FiberDisk.diskTopology;
+\definition rightTopology: topology.Topology[Carrier := Right.CarrierSet].Topology := Right.topology Base.diskTopology FiberDisk.sphereTopology;
+\definition boundaryPair[p: Left.CarrierSet]: Boundary.CarrierSet := Pair.pair Base.Sphere FiberSphere.Sphere (Pair.first Base.Sphere FiberDisk.Disk p) (fiber.characteristic (Pair.second Base.Sphere FiberDisk.Disk p));
+\definition boundaryPairContinuous: topology.Continuity[A := Left.CarrierSet, B := Boundary.CarrierSet].Continuous leftTopology boundaryTopology boundaryPair :=
+  Boundary.Universal[X := Left.CarrierSet].pairContinuous leftTopology Base.sphereTopology FiberSphere.sphereTopology (Pair.first Base.Sphere FiberDisk.Disk) (\fun (p: Left.CarrierSet) => fiber.characteristic (Pair.second Base.Sphere FiberDisk.Disk p))
+    (Left.Maps[].firstContinuous Base.sphereTopology FiberDisk.diskTopology)
+    (topology.Composition[A := Left.CarrierSet, B := FiberDisk.Disk, C := FiberSphere.Sphere].composeContinuous leftTopology FiberDisk.diskTopology FiberSphere.sphereTopology (Pair.second Base.Sphere FiberDisk.Disk) fiber.characteristic (Left.Maps[].secondContinuous Base.sphereTopology FiberDisk.diskTopology) fiber.continuous);
+\definition left[p: Left.CarrierSet]: First.Carrier := First.inclusion (data.boundary (boundaryPair p));
+\definition right[p: Right.CarrierSet]: First.Carrier := First.characteristic (Pair.first Base.Disk FiberDisk.Sphere p);
+\definition leftContinuous: topology.Continuity[A := Left.CarrierSet, B := First.Carrier].Continuous leftTopology First.topology left :=
+  topology.Composition[A := Left.CarrierSet, B := A, C := First.Carrier].composeContinuous leftTopology source First.topology (\fun (p: Left.CarrierSet) => data.boundary (boundaryPair p)) First.inclusion
+    (topology.Composition[A := Left.CarrierSet, B := Boundary.CarrierSet, C := A].composeContinuous leftTopology boundaryTopology source boundaryPair data.boundary boundaryPairContinuous data.boundaryContinuous) First.inclusionContinuous;
+\definition rightContinuous: topology.Continuity[A := Right.CarrierSet, B := First.Carrier].Continuous rightTopology First.topology right :=
+  topology.Composition[A := Right.CarrierSet, B := Base.Disk, C := First.Carrier].composeContinuous rightTopology Base.diskTopology First.topology (Pair.first Base.Disk FiberDisk.Sphere) First.characteristic (Right.Maps[].firstContinuous Base.diskTopology FiberDisk.sphereTopology) First.characteristicContinuous;
+\definition corner: \forall (x: Base.Sphere)(y: FiberDisk.Sphere) -> left (Pair.pair Base.Sphere FiberDisk.Disk x (Geometry.secondBoundary y)) = right (Pair.pair Base.Disk FiberDisk.Sphere (baseBoundary x) y) :=
+  \fun (x: Base.Sphere)(y: FiberDisk.Sphere) => trans!{First.Carrier} _ _ _
+    (congr!{FiberSphere.Sphere First.Carrier} (\fun (s: FiberSphere.Sphere) => First.inclusion (data.boundary (Pair.pair Base.Sphere FiberSphere.Sphere x s))) _ _
+      (fiber.boundary (Geometry.secondBoundary y) (\bysub(FiberDisk.Coordinate, FiberDisk.Boundary, y)))) (sym!{First.Carrier} _ _ (First.glued x));
+\import \root.Thom[].CWType[].DiskProduct[n := d, m := r].BoundaryMaps[B := First.Carrier, target := First.topology, f := left, g := right, fContinuous := leftContinuous, gContinuous := rightContinuous, corner := corner] \as Pasting;
+\definition apply: Total.Sphere -> First.Carrier := Pasting.apply;
+\definition continuous: topology.Continuity[A := Total.Sphere, B := First.Carrier].Continuous Total.sphereTopology First.topology apply := Pasting.continuous;
+\definition point[v: Total.Sphere]: Pair.Times^[Base.Disk, FiberDisk.Disk] := Pasting.point v;
+\definition firstPoint[v: Total.Sphere]: Base.Disk := Pasting.leftPoint v;
+\definition secondPoint[v: Total.Sphere]: FiberDisk.Disk := Pasting.rightPoint v;
+\definition covered: \forall (v: Total.Sphere) -> Logic.Or[Base.normSquared (firstPoint v) = R.one, FiberDisk.normSquared (secondPoint v) = R.one] := Pasting.covered;
+\definition firstSphere[v: Total.Sphere][boundary: Base.normSquared (firstPoint v) = R.one]: Base.Sphere := \into[Base.Coordinate](firstPoint v, Base.Boundary) \by { boundary };
+\definition onFirst: \forall (v: Total.Sphere)(boundary: Base.normSquared (firstPoint v) = R.one) -> apply v = First.inclusion (data.boundary (Pair.pair Base.Sphere FiberSphere.Sphere (firstSphere v boundary) (fiber.characteristic (secondPoint v)))) :=
+  \fun (v: Total.Sphere)(boundary: _) => Pasting.onFirst (\into[Total.Sphere](v, Pasting.F) \by { boundary });
+\definition onSecond: \forall (v: Total.Sphere)(boundary: FiberDisk.normSquared (secondPoint v) = R.one) -> apply v = First.characteristic (firstPoint v) :=
+  \fun (v: Total.Sphere)(boundary: _) => Pasting.onSecond (\into[Total.Sphere](v, Pasting.G) \by { boundary });

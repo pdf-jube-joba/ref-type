@@ -1,0 +1,20 @@
+\import Adjoined.Universal[C := B] \as Copair;
+\definition extended: Extended -> B := Copair.copair f (\fun (u: Unit) => basepoint);
+\definition onBoundary: \forall (x: Extended) -> \In[Extended] Boundary x -> extended x = basepoint :=
+  \induction (x: Extended) \return \In[Extended] Boundary x -> extended x = basepoint \with {
+    | inl: vanishes
+    | inr: \fun (u: Unit)(member: _) => \refl(basepoint)
+  };
+\import Quotient.Descent[B := B] \as Descent;
+\definition respects: Descent.Respects extended := \fun (x, y: Extended)(related: Quotient.Related x y) =>
+  either!{related {extended x = extended y}
+    {\fun (same: x = y) => congr!{Extended B} extended _ _ same}
+    {\fun (both: Logic.And[\In[Extended] Boundary x, \In[Extended] Boundary y]) => trans!{B} _ _ _ (onBoundary x both.left) (sym!{B} _ _ (onBoundary y both.right))}
+  };
+\definition apply: Carrier -> B := Descent.apply extended respects;
+\definition onClass: \forall (x: A) -> apply (class x) = f x := \fun (x: A) => Descent.onClass extended respects (Adjoined.inl x);
+\definition onPoint: apply point = basepoint := Descent.onClass extended respects (Adjoined.inr Unit::point);
+\definition continuous: topology.Continuity[A := Carrier, B := B].Continuous topology target apply :=
+  Descent.continuous extendedTopology target extended respects
+    (Copair.continuous source topology.Topology[Carrier := Unit].Discrete target f (\fun (u: Unit) => basepoint) regular
+      (topology.Maps[A := Unit, B := B].constantContinuous topology.Topology[Carrier := Unit].Discrete target basepoint));

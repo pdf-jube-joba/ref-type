@@ -1,0 +1,28 @@
+\import \parent.Comparison[left := left, right := right] \as Forward;
+\import \parent.Comparison[left := right, right := left] \as Backward;
+\import \parent.With[gauge := left] \as Source;
+\definition a: R.Real := Backward.coefficient (Forward.apply p);
+\definition b: R.Real := Forward.coefficient p;
+\definition c: R.Real := R.mul a b;
+\definition cNonnegative: D.Le R.zero c := Laws.fieldMulNonnegative a b (Backward.nonnegative (Forward.apply p)) (Forward.nonnegative p);
+\definition composite: Family.Point := Backward.apply (Forward.apply p);
+\definition formula: composite = scale c p := scaleCompose a b p;
+\definition norm: Source.norm composite = Source.norm p := trans!{R.Real} _ _ _ (Backward.normImage (Forward.apply p)) (Forward.normImage p);
+\definition multiplied: R.mul c (Source.norm p) = Source.norm p := trans!{R.Real} _ _ _ (sym!{R.Real} _ _ (Source.normScale c cNonnegative p))
+  (trans!{R.Real} _ _ _ (congr!{Family.Point R.Real} Source.norm _ _ (sym!{Family.Point} _ _ formula)) norm);
+\definition inverse: composite = p := either!{{Classical.excludedMiddle (Source.norm p = R.zero)} {composite = p}
+  {\fun (atZero: _) => trans!{Family.Point} _ _ _ formula (scaleVectorZero p (Source.normDefinite p atZero) c)}
+  {\block {
+    \fun (notZero: _) \then
+    \let reciprocal: R.mul (Source.norm p) (Laws.fieldInv (Source.norm p)) = R.one := trans!{R.Real} _ _ _ (Laws.fieldMulComm (Source.norm p) (Laws.fieldInv (Source.norm p))) (Laws.fieldInverseNonzero (Source.norm p) notZero) \then
+    \let unit: c = R.one := eq_reason_in!{R.Real c
+      "=" _ "by" { sym!{R.Real} _ _ (Algebra.mulOneRight c) }
+      "=" _ "by" { congr!{R.Real R.Real} (R.mul c) _ _ (sym!{R.Real} _ _ reciprocal) }
+      "=" _ "by" { sym!{R.Real} _ _ (Laws.fieldMulAssoc c (Source.norm p) (Laws.fieldInv (Source.norm p))) }
+      "=" _ "by" { congr!{R.Real R.Real} (\fun (r: R.Real) => R.mul r (Laws.fieldInv (Source.norm p))) _ _ multiplied }
+      "=" R.one "by" reciprocal
+    } \then
+    \return trans!{Family.Point} _ _ _ formula
+      (trans!{Family.Point} _ _ _ (congr!{R.Real Family.Point} (\fun (r: R.Real) => scale r p) _ _ unit) (scaleOne p))
+  }}
+};

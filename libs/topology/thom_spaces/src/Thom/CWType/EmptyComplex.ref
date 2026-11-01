@@ -1,0 +1,21 @@
+\import topology.Topology[Carrier := A] \as Space;
+\import algebraic_topology.CW[A := A] \as Cells;
+\import std.Data[].List[] \as Lists;
+\definition cells: Cells.Cells := Lists.List[Cells.CellData]::nil;
+\definition allOpen: \forall (U: \Pow A) -> Space.IsOpenIn source U := \fun (U: \Pow A) => \idelim Space.Whole = U \with S: \Pow A => Space.IsOpenIn source S \by {
+  base: (Space.topologyLaws source).wholeOpen,
+  equality: \axiom:setext(Space.Whole, U, \fun (x: A)(member: _) => Logic.falseElim (\In[A] U x) (empty x), \fun (x: A)(member: _) => \refl(x))
+};
+\definition complex: Cells.FiniteComplex[source] := Cells.FiniteComplex[source] {
+  cells := cells,
+  hausdorff := \fun (x, y: A)(different: Logic.Not (x = y)) => Logic.falseElim (\exists (U: \Pow A \where Space.RegularChoice[source, Space.Singleton y, x, U])) (empty x),
+  cellLaws := \fun (c: Cells.CellData)(member: Logic.False) => Logic.falseElim Cells.CellLaws[source, c] member,
+  covers := \fun (x: A) => Logic.falseElim (\exists Cells.CoverWitness[cells, x]) (empty x),
+  disjoint := \fun (c, d: Cells.CellData)(member: Logic.False)(other: Cells.CellMember cells d)(x: A)(left: \In[A] (Cells.InteriorImage c) x)(right: \In[A] (Cells.InteriorImage d) x) => Logic.falseElim (c = d) member,
+  boundary := \fun (c: Cells.CellData)(member: Logic.False)(p: algebraic_topology.Euclidean[].Disk c.dimension)(boundary: \In[algebraic_topology.Euclidean[].coordinateCarrier c.dimension] (algebraic_topology.Euclidean[].boundaryAt c.dimension) p) => Logic.falseElim (\exists Cells.BoundaryWitness[cells, c, c.characteristic p]) member,
+  weakTopology := \fun (U: \Pow A) => Logic.PropEquiv[Space.IsOpenIn source U, (\forall (c: Cells.CellData) -> Cells.CellMember cells c -> Cells.DiskOpen c.dimension (Cells.Pullback c U))] {
+    ltr := \fun (open: Space.IsOpenIn source U)(c: Cells.CellData)(member: Logic.False) => Logic.falseElim (Cells.DiskOpen c.dimension (Cells.Pullback c U)) member,
+    rtl := \fun (local: _) => allOpen U
+  }
+};
+\definition property: \root.Thom[].CWType[].CompactType[A := A, source := source].Property := \root.Thom[].CWType[].CompactType[A := A, source := source].Native[complex := complex].property;

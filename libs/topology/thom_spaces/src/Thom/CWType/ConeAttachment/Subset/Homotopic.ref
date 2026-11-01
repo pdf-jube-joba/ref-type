@@ -1,0 +1,35 @@
+\import \parent.\parent.Homotopic[g := g, regular := regular, h := h] \as Change;
+\import \root.Thom[].CWType[].ConeAttachment[A := A, B := B, source := source, target := target, f := g, continuous := regular] \as Next;
+\import \root.Thom[].CWType[].ConeAttachment[A := A, B := B, source := source, target := target, f := g, continuous := regular].Subset[subset := subset] \as NextSubset;
+\import algebraic_topology.Cylinder[A := Carrier] \as Total;
+\import algebraic_topology.Cylinder[A := Next.Carrier] \as NextTotal;
+\definition forwardContained: \forall (z: \Cast[Carrier] originalSubset) -> \In[Next.Carrier] NextSubset.originalSubset (Change.forward z) := \fun (z: \Cast[Carrier] originalSubset) =>
+  eliminate z (\In[Next.Carrier] NextSubset.originalSubset (Change.forward z)) (\fun (y: B)(member: _)(same: inclusion y = z) =>
+    \idelim Next.inclusion y = Change.forward z \with q: Next.Carrier => \In[Next.Carrier] NextSubset.originalSubset q \by {
+      base: NextSubset.original y member,
+      equality: trans!{Next.Carrier} _ _ _ (sym!{Next.Carrier} _ _ (Change.forwardOriginal y)) (congr!{Carrier Next.Carrier} Change.forward _ _ same)
+    }) (\bysub(Carrier, originalSubset, z));
+\definition backwardContained: \forall (z: \Cast[Next.Carrier] NextSubset.originalSubset) -> \In[Carrier] originalSubset (Change.backward z) := \fun (z: \Cast[Next.Carrier] NextSubset.originalSubset) =>
+  NextSubset.eliminate z (\In[Carrier] originalSubset (Change.backward z)) (\fun (y: B)(member: _)(same: Next.inclusion y = z) =>
+    \idelim inclusion y = Change.backward z \with q: Carrier => \In[Carrier] originalSubset q \by {
+      base: original y member,
+      equality: trans!{Carrier} _ _ _ (sym!{Carrier} _ _ (Change.backwardOriginal y)) (congr!{Next.Carrier Carrier} Change.backward _ _ same)
+    }) (\bysub(Next.Carrier, NextSubset.originalSubset, z));
+\definition leftPreserves: \forall (t: I.Carrier)(z: \Cast[Carrier] originalSubset) -> \In[Carrier] originalSubset (Change.Left[].result (Total.at t z)) := \fun (t: I.Carrier)(z: \Cast[Carrier] originalSubset) =>
+  eliminate z (\In[Carrier] originalSubset (Change.Left[].result (Total.at t z))) (\fun (y: B)(member: _)(same: inclusion y = z) =>
+    \idelim inclusion y = Change.Left[].result (Total.at t z) \with q: Carrier => \In[Carrier] originalSubset q \by {
+      base: original y member,
+      equality: trans!{Carrier} _ _ _ (sym!{Carrier} _ _ (Change.Left[].fixed t y)) (congr!{Carrier Carrier} (\fun (q: Carrier) => Change.Left[].result (Total.at t q)) _ _ same)
+    }) (\bysub(Carrier, originalSubset, z));
+\definition rightPreserves: \forall (t: I.Carrier)(z: \Cast[Next.Carrier] NextSubset.originalSubset) -> \In[Next.Carrier] NextSubset.originalSubset (Change.Right[].result (NextTotal.at t z)) := \fun (t: I.Carrier)(z: \Cast[Next.Carrier] NextSubset.originalSubset) =>
+  NextSubset.eliminate z (\In[Next.Carrier] NextSubset.originalSubset (Change.Right[].result (NextTotal.at t z))) (\fun (y: B)(member: _)(same: Next.inclusion y = z) =>
+    \idelim Next.inclusion y = Change.Right[].result (NextTotal.at t z) \with q: Next.Carrier => \In[Next.Carrier] NextSubset.originalSubset q \by {
+      base: NextSubset.original y member,
+      equality: trans!{Next.Carrier} _ _ _ (sym!{Next.Carrier} _ _ (Change.Right[].fixed t y)) (congr!{Next.Carrier Next.Carrier} (\fun (q: Next.Carrier) => Change.Right[].result (NextTotal.at t q)) _ _ same)
+    }) (\bysub(Next.Carrier, NextSubset.originalSubset, z));
+\definition equivalence: \root.Thom[].CWType[].PairTools[A := Carrier, B := Next.Carrier, source := topology, target := Next.topology, subset := originalSubset, targetSubset := NextSubset.originalSubset].Data :=
+  \root.Thom[].CWType[].PairTools[A := Carrier, B := Next.Carrier, source := topology, target := Next.topology, subset := originalSubset, targetSubset := NextSubset.originalSubset].Data {
+    forward := Change.forward, backward := Change.backward, forwardContinuous := Change.forwardContinuous, backwardContinuous := Change.backwardContinuous,
+    forwardContained := forwardContained, backwardContained := backwardContained,
+    left := Change.Left[].result, right := Change.Right[].result, leftPreserves := leftPreserves, rightPreserves := rightPreserves
+  };

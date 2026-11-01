@@ -1,0 +1,59 @@
+\definition leftAt[t: I.Carrier][x: Left]: LeftCylinder.CarrierSet := \into[Cylinder.Carrier](Cylinder.at t x, leftCylinder) \by { \bysub(Domain.Disk, left, x) };
+\definition rightAt[t: I.Carrier][x: Right]: RightCylinder.CarrierSet := \into[Cylinder.Carrier](Cylinder.at t x, rightCylinder) \by { \bysub(Domain.Disk, right, x) };
+\definition start: \forall (x: Domain.Disk) -> family (Cylinder.at I.start x) = f x := \fun (x: Domain.Disk) => either!{{covered x} {family (Cylinder.at I.start x) = f x}
+  {\fun (inside: _) => \block {
+    \let point: Left := \into[Domain.Disk](x, left) \by { inside } \then
+    \let same: raw (leftAt I.start point) = Coordinates.coordinate point := trans!{Model.Coordinate}
+      (raw (leftAt I.start point)) (extension.value x) (Coordinates.coordinate point)
+      ((algebraic_topology.Homotopy[A := Domain.Disk, B := Model.Coordinate].laws Domain.diskTopology Model.topology extension.value perturbation.value perturbation.homotopy).start x) (extends point) \then
+    \return trans!{Stage.Carrier} _ _ _ (onLeft (leftAt I.start point))
+      (trans!{Stage.Carrier} _ _ _ (congr!{Chart.Carrier Stage.Carrier} C.embed (chartRaw (leftAt I.start point)) (Coordinates.coordinate point) same) (Coordinates.coordinateImage point))
+  }}
+  {\fun (inside: _) => onRight (rightAt I.start (\into[Domain.Disk](x, right) \by { inside }))}
+};
+\definition value[x: Domain.Disk]: Stage.Carrier := family (Cylinder.at I.end x);
+\definition valueContinuous: topology.Continuity[A := Domain.Disk, B := Stage.Carrier].Continuous Domain.diskTopology Stage.topology value :=
+  topology.Composition[A := Domain.Disk, B := Cylinder.Carrier, C := Stage.Carrier].composeContinuous Domain.diskTopology cylinderTopology Stage.topology (Cylinder.at I.end) family (Cylinder.atContinuous Domain.diskTopology I.end) familyContinuous;
+\definition homotopy: Homotopies.Homotopy[Domain.diskTopology, Stage.topology, f, value] :=
+  \into[Homotopies.Family](family, Homotopies.Homotopy[Domain.diskTopology, Stage.topology, f, value]) \by {
+    Homotopies.Laws[Domain.diskTopology, Stage.topology, f, value, family] { continuous := familyContinuous, start := start, end := \fun (x: Domain.Disk) => \refl(value x) }
+  };
+\definition rightOfOutside: \forall (x: Domain.Disk) -> Logic.Not (\In[A] (Cells.InteriorImage cell) (f x)) -> \In[Domain.Disk] right x :=
+  \fun (x: Domain.Disk)(outside: _)(inside: _) => ChartImages.imageElim C.embed openChartDomain (f x) Logic.False
+    (\fun (p: Chart.Carrier)(small: _)(same: _) => outside (\idelim C.embed p = f x \with y: Stage.Carrier => \In[A] (Cells.InteriorImage cell) y \by {
+      base: Logic.existsIntro[Model.Disk, { q: Model.Disk \where Logic.And[D.Lt (Model.normSquared q) R.one, cell.characteristic q = C.embed p] }] p
+        (Logic.And[_, _]::# (\bysub(Model.Disk, Chart.interior, p)) (\refl(cell.characteristic p))), equality: same
+    })) inside;
+\definition fixed: \forall (t: I.Carrier)(x: Domain.Disk) -> Logic.Not (\In[A] (Cells.InteriorImage cell) (f x)) -> family (Cylinder.at t x) = f x :=
+  \fun (t: I.Carrier)(x: Domain.Disk)(outside: _) => onRight (rightAt t (\into[Domain.Disk](x, right) \by { rightOfOutside x outside }));
+\definition supported: \forall (p: Cylinder.Carrier) -> Logic.Or[family p = f (Cylinder.point p), \In[A] (Cells.InteriorImage cell) (family p)] :=
+  \fun (p: Cylinder.Carrier) => either!{{cylinderCovered p} {Logic.Or[family p = f (Cylinder.point p), \In[A] (Cells.InteriorImage cell) (family p)]}
+    {\fun (inside: _) => \block {
+      \let q: LeftCylinder.CarrierSet := \into[Cylinder.Carrier](p, leftCylinder) \by { inside } \then
+      \return Logic.Or[_, _]::right (\idelim leftMap q = family p \with y: Stage.Carrier => \In[A] (Cells.InteriorImage cell) y \by {
+        base: Logic.existsIntro[Model.Disk, { a: Model.Disk \where Logic.And[D.Lt (Model.normSquared a) R.one, cell.characteristic a = leftMap q] }] (chartRaw q)
+          (Logic.And[_, _]::# (rawInside q) (\refl(cell.characteristic (chartRaw q)))), equality: sym!{Stage.Carrier} _ _ (onLeft q)
+      })
+    }}
+    {\fun (inside: _) => Logic.Or[_, _]::left (onRight (\into[Cylinder.Carrier](p, rightCylinder) \by { inside }))}
+  };
+\definition originInterior: D.Lt (Model.normSquared Model.Contraction[].origin) R.one := D.ltReplaceLeft R.zero _ R.one
+  (sym!{R.Real} _ _ (Model.Contraction[].zeroSum (Fin.elements cell.dimension))) R.Estimates[].Product[].onePositive;
+\definition origin: Chart.Carrier := \into[Model.Disk](Model.Contraction[].origin, Chart.interior) \by { originInterior };
+\definition twicePositive: D.Lt R.zero twice := D.ltLeTrans R.zero radius twice positive (R.Distance[].leAddOfNonnegative radius radius (Order.leOfLt _ _ positive));
+\definition centreInside: \In[Stage.Carrier] openRegion C.centre := ChartImages.imageMember C.embed openChartDomain origin
+  (D.ltReplaceLeft R.zero (Sup.norm origin) twice (sym!{R.Real} _ _ Norm.normZero) twicePositive);
+\definition noncentre: \forall (x: Domain.Disk) -> Logic.Not (value x = C.centre) := \fun (x: Domain.Disk)(same: _) => either!{{covered x} Logic.False
+  {\fun (inside: _) => \block {
+    \let point: Left := \into[Domain.Disk](x, left) \by { inside } \then
+    \let p: LeftCylinder.CarrierSet := leftAt I.end point \then
+    \let image: C.embed (chartRaw p) = C.embed origin := trans!{Stage.Carrier} _ _ _ (sym!{Stage.Carrier} _ _ (onLeft p)) same \then
+    \let zero: raw p = Sup.origin := C.embedInjective (chartRaw p) origin image \then
+    \return perturbation.nonzero x (trans!{Model.Coordinate} _ _ _
+      (sym!{Model.Coordinate} _ _ ((algebraic_topology.Homotopy[A := Domain.Disk, B := Model.Coordinate].laws Domain.diskTopology Model.topology extension.value perturbation.value perturbation.homotopy).end x)) zero)
+  }}
+  {\fun (inside: _) => inside (\idelim C.centre = f x \with y: Stage.Carrier => \In[Stage.Carrier] openRegion y \by {
+    base: centreInside, equality: trans!{Stage.Carrier} _ _ _ (sym!{Stage.Carrier} _ _ same) (onRight (rightAt I.end (\into[Domain.Disk](x, right) \by { inside })))
+  })}
+};
+\definition result: Perturbation := Perturbation { value := value, continuous := valueContinuous, homotopy := homotopy, fixed := fixed, supported := supported, noncentre := noncentre };

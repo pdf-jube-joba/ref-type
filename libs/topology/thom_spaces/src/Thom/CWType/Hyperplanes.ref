@@ -1,0 +1,39 @@
+\import algebraic_topology.Euclidean[].Dimension[n := n] \as Euclidean;
+\import real.Analysis[] \as R;
+\import dedekind_reals.DedekindReal[] \as D;
+\import D.Arithmetic[].Prop[] \as Laws;
+\import D.Order[] \as Order;
+\import R.FiniteSums[] \as Sums;
+\import Sums.Linear[] \as Linear;
+\import \parent.LinearKernel[] \as Kernel;
+\import \parent.LinearForms[n := n] \as Forms;
+\import metric_spaces.RealFunctions[A := Euclidean.Coordinate] \as Functions;
+\import metric_spaces.RealLine[] \as Line;
+\import topological_algebra.Coordinates[K := R.Real, I := Fin.Fin n] \as Coordinates;
+\import topology.Topology[Carrier := Euclidean.Coordinate] \as Space;
+\structure Plane: \Set := {
+  normal: Euclidean.Coordinate,
+  nonzero: Logic.Not (normal = Linear.origin n),
+  offset: R.Real
+};
+\definition Outside[p: Plane]: \Pow Euclidean.Coordinate := { x: Euclidean.Coordinate \where Logic.Not (Kernel.dot n p.normal x = p.offset) };
+\definition dotContinuous: \forall (a: Euclidean.Coordinate) -> Functions.Continuous Euclidean.topology (Kernel.dot n a) :=
+  \fun (a: Euclidean.Coordinate) => Functions.FiniteSums[].continuous Euclidean.topology n
+    (\fun (i: Fin.Fin n)(x: Euclidean.Coordinate) => R.mul (a i) (x i))
+    (\fun (i: Fin.Fin n) => Functions.Product[].continuous Euclidean.topology (\fun (x: Euclidean.Coordinate) => a i) (\fun (x: Euclidean.Coordinate) => x i)
+      (Functions.constantContinuous Euclidean.topology (a i)) (Coordinates.evaluationContinuous Line.topology i));
+\definition open: \forall (p: Plane) -> Space.IsOpenIn Euclidean.topology (Outside p) :=
+  \fun (p: Plane) => dotContinuous p.normal
+    ({ r: R.Real \where Logic.Not (r = p.offset) })
+    (metric_spaces.MetricSpace[Carrier := R.Real].Topology[].singletonClosed metric_spaces.RealMetric[].metric p.offset);
+\module Of(p: Plane);
+\import std.Set[].FiniteSubset[A := Plane] \as Finite;
+\definition Avoids[family: \Pow Plane]: \Pow Euclidean.Coordinate :=
+  { x: Euclidean.Coordinate \where \forall (p: Plane) -> \In[Plane] family p -> \In[Euclidean.Coordinate] (Outside p) x };
+\structure DenseOpen[U: \Pow Euclidean.Coordinate]: \Prop := {
+  open: Space.IsOpenIn Euclidean.topology U,
+  dense: \forall (V: \Pow Euclidean.Coordinate) -> Space.IsOpenIn Euclidean.topology V -> \forall (x: Euclidean.Coordinate) ->
+    \In[Euclidean.Coordinate] V x -> \exists (y: Euclidean.Coordinate \where Logic.And[\In[Euclidean.Coordinate] V y, \In[Euclidean.Coordinate] U y])
+};
+\module FiniteAvoidance;
+\definition finiteAvoidance: \forall (family: Finite.FiniteSubset) -> DenseOpen[Avoids family] := FiniteAvoidance[].law;

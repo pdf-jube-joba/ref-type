@@ -1,0 +1,24 @@
+\definition identity: topology.Homeomorphism[A := Disk.CarrierSet, B := Disk.CarrierSet].Homeomorphism[diskTopology, diskTopology] :=
+  topology.Homeomorphism[A := Disk.CarrierSet, B := Disk.CarrierSet].Homeomorphism[diskTopology, diskTopology] {
+    forward := \fun (p: Disk.CarrierSet) => p, backward := \fun (p: Disk.CarrierSet) => p,
+    leftInverse := \fun (p: Disk.CarrierSet) => \refl(p), rightInverse := \fun (p: Disk.CarrierSet) => \refl(p),
+    forwardContinuous := topology.Maps[A := Disk.CarrierSet, B := Disk.CarrierSet].Identity[].continuous diskTopology,
+    backwardContinuous := topology.Maps[A := Disk.CarrierSet, B := Disk.CarrierSet].Identity[].continuous diskTopology
+  };
+\definition unionToBoundary: \forall (p: Disk.CarrierSet) -> \In[Disk.CarrierSet] Iteration.union p -> \In[Disk.CarrierSet] Boundary p :=
+  \fun (p: Disk.CarrierSet)(member: _) => either!{member {squared p = R.one}
+    {\fun (one: first p = R.one) => trans!{R.Real} _ _ _ (congr!{R.Real R.Real} (\fun (a: R.Real) => R.Distance[].max a (second p)) _ _ one)
+      (R.Distance[].maxOfGe R.one (second p) (Order.leTrans (second p) (squared p) R.one (R.Distance[].maxRight (first p) (second p)) (\bysub(Family.Point, DiskSubset, p))))}
+    {\fun (one: second p = R.one) => trans!{R.Real} _ _ _ (congr!{R.Real R.Real} (R.Distance[].max (first p)) _ _ one)
+      (R.Distance[].maxOfLe (first p) R.one (Order.leTrans (first p) (squared p) R.one (R.Distance[].maxLeft (first p) (second p)) (\bysub(Family.Point, DiskSubset, p))))}
+  };
+\definition boundaryToUnion: \forall (p: Disk.CarrierSet) -> \In[Disk.CarrierSet] Boundary p -> \In[Disk.CarrierSet] Iteration.union p :=
+  \fun (p: Disk.CarrierSet)(one: _) => either!{{Order.Order[].leTotal (first p) (second p)} {\In[Disk.CarrierSet] Iteration.union p}
+    {\fun (le: _) => Logic.Or[_, _]::right (trans!{R.Real} _ _ _ (sym!{R.Real} _ _ (R.Distance[].maxOfLe (first p) (second p) le)) one)}
+    {\fun (le: _) => Logic.Or[_, _]::left (trans!{R.Real} _ _ _ (sym!{R.Real} _ _ (R.Distance[].maxOfGe (first p) (second p) le)) one)}
+  };
+\import \root.Thom[].CollapseComparison[A := Disk.CarrierSet, B := Disk.CarrierSet, source := diskTopology, target := diskTopology, subset := Iteration.union, targetSubset := Boundary,
+  h := identity, forwardPreserves := unionToBoundary, backwardPreserves := boundaryToUnion] \as Union;
+\import topology.Homeomorphism[A := IteratedThom, B := \root.Thom[].Collapse[A := Disk.CarrierSet, source := diskTopology, subset := Iteration.union].Carrier].Composition[C := BoxThom] \as Compose;
+\definition homeomorphism: topology.Homeomorphism[A := IteratedThom, B := BoxThom].Homeomorphism[iteratedTopology, thomTopology] :=
+  Compose.compose iteratedTopology \root.Thom[].Collapse[A := Disk.CarrierSet, source := diskTopology, subset := Iteration.union].topology thomTopology Iteration.homeomorphism Union.homeomorphism;

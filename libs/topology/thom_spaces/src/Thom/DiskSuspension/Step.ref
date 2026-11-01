@@ -1,0 +1,87 @@
+\import \root.Thom[].Real[] \as RealTheory;
+\import vector_bundles.Bundles[].Over[K := R.Real, field := R.Algebra[].field, conjugation := linear_algebra.Hermitian[].Real[].scalar, scalar := vector_bundles.Bundles[].Real[].scalar] \as Bundles;
+\import Bundles.Trivial[X := X, n := N.Nat^::succ n, baseSpace := space] \as Bundle;
+\import Bundles.Family[X := X, F := (\fun (x: X) => Bundles.Vector (N.Nat^::succ n))] \as Family;
+\import \root.Thom[].Quadratic[].Over[X := X, F := (\fun (x: X) => Bundles.Vector (N.Nat^::succ n)), bundle := Bundle.bundle] \as Gauges;
+\import algebraic_topology.Euclidean[].Dimension[n := N.Nat^::succ n] \as Higher;
+\import Euclidean.Splitting[] \as Split;
+\import D.Arithmetic[].Prop[] \as Laws;
+\import D.Order[] \as Order;
+\import R.Algebra[] \as Algebra;
+\import R.Distance[] \as Distance;
+\import metric_spaces.RealFunctions[A := Family.Point] \as Functions;
+\import \root.Thom[].DiskSuspension[X := X, space := space, n := N.Nat^::succ n] \as HigherThom;
+\definition standard: Gauges.Gauge := Gauges.Gauge {
+  squared := \fun (p: Family.Point) => Higher.normSquared p.vector,
+  continuous := topology.Composition[A := Family.Point, B := Higher.Coordinate, C := R.Real].composeContinuous
+    Bundle.topology Higher.topology metric_spaces.RealLine[].topology (\fun (p: Family.Point) => p.vector) Higher.normSquared Bundle.vectorContinuous Higher.Geometry[].normSquaredContinuous,
+  nonnegative := \fun (p: Family.Point) => Higher.Geometry[].normSquaredNonnegative p.vector,
+  zero := \fun (x: X) => Higher.Contraction[].zeroSum (Fin.elements (N.Nat^::succ n)),
+  definite := \fun (p: Family.Point)(zero: _) => Higher.Geometry[].normSquaredZero p.vector zero,
+  homogeneous := \fun (a: R.Real)(p: Family.Point) => Higher.Contraction[].normScale a p.vector
+};
+\definition head[p: Family.Point]: R.Real := Split.head p.vector;
+\definition tail[p: Family.Point]: Euclidean.Coordinate := Split.tail p.vector;
+\definition headContinuous: Functions.Continuous Bundle.topology head :=
+  topology.Composition[A := Family.Point, B := Higher.Coordinate, C := R.Real].composeContinuous Bundle.topology Higher.topology metric_spaces.RealLine[].topology
+    (\fun (p: Family.Point) => p.vector) (\fun (v: Higher.Coordinate) => v (Fin.zero n)) Bundle.vectorContinuous
+    (topological_algebra.Coordinates[K := R.Real, I := Higher.Index].evaluationContinuous metric_spaces.RealLine[].topology (Fin.zero n));
+\definition tailContinuous: topology.Continuity[A := Family.Point, B := Euclidean.Coordinate].Continuous Bundle.topology Euclidean.topology tail :=
+  topological_algebra.Coordinates[K := R.Real, I := Euclidean.Index].Universal[A := Family.Point].continuous Bundle.topology metric_spaces.RealLine[].topology tail
+    (\fun (i: Euclidean.Index) => topology.Composition[A := Family.Point, B := Higher.Coordinate, C := R.Real].composeContinuous Bundle.topology Higher.topology metric_spaces.RealLine[].topology
+      (\fun (p: Family.Point) => p.vector) (\fun (v: Higher.Coordinate) => v (Fin.succ n i)) Bundle.vectorContinuous
+      (topological_algebra.Coordinates[K := R.Real, I := Higher.Index].evaluationContinuous metric_spaces.RealLine[].topology (Fin.succ n i)));
+\definition first[p: Family.Point]: R.Real := R.mul (head p) (head p);
+\definition second[p: Family.Point]: R.Real := Euclidean.normSquared (tail p);
+\definition squared[p: Family.Point]: R.Real := Distance.max (first p) (second p);
+\definition secondContinuous: Functions.Continuous Bundle.topology second :=
+  topology.Composition[A := Family.Point, B := Euclidean.Coordinate, C := R.Real].composeContinuous Bundle.topology Euclidean.topology metric_spaces.RealLine[].topology
+    tail Euclidean.normSquared tailContinuous Euclidean.Geometry[].normSquaredContinuous;
+\definition continuous: Functions.Continuous Bundle.topology squared :=
+  Functions.Lattice[].maximumContinuous Bundle.topology first second
+    (Functions.Product[].continuous Bundle.topology head head headContinuous headContinuous) secondContinuous;
+\definition firstBound: \forall (p: Family.Point) -> D.Le (first p) (squared p) := \fun (p: Family.Point) => Distance.maxLeft (first p) (second p);
+\definition secondBound: \forall (p: Family.Point) -> D.Le (second p) (squared p) := \fun (p: Family.Point) => Distance.maxRight (first p) (second p);
+\definition nonnegative: \forall (p: Family.Point) -> D.Le R.zero (squared p) :=
+  \fun (p: Family.Point) => D.leTrans R.zero (first p) (squared p) (Algebra.squareNonnegative (head p)) (firstBound p);
+\definition boxZero: \forall (x: X) -> squared (Family.include x (Bundle.bundle.space x).zero) = R.zero :=
+  \fun (x: X) => eq_reason_in!{R.Real _
+    "=" _ "by" { congr!{R.Real R.Real R.Real} Distance.max _ _ _ _ (Laws.fieldMulZeroLeft R.zero) (Euclidean.Contraction[].zeroSum (Fin.elements n)) }
+    "=" _ "by" { Distance.maxSame R.zero }
+  };
+\definition firstZero: \forall (p: Family.Point) -> squared p = R.zero -> first p = R.zero :=
+  \fun (p: Family.Point)(zero: _) => D.leAntisym (first p) R.zero (D.leReplaceRight (first p) (squared p) R.zero zero (firstBound p)) (Algebra.squareNonnegative (head p));
+\definition secondZero: \forall (p: Family.Point) -> squared p = R.zero -> second p = R.zero :=
+  \fun (p: Family.Point)(zero: _) => D.leAntisym (second p) R.zero (D.leReplaceRight (second p) (squared p) R.zero zero (secondBound p)) (Euclidean.Geometry[].normSquaredNonnegative (tail p));
+\definition definite: \forall (p: Family.Point) -> squared p = R.zero -> p.vector = (Bundle.bundle.space p.base).zero :=
+  \fun (p: Family.Point)(zero: _) => standard.definite p (eq_reason_in!{R.Real _
+    "=" _ "by" { Split.normSplit p.vector }
+    "=" _ "by" { congr!{R.Real R.Real R.Real} R.add _ _ _ _ (firstZero p zero) (secondZero p zero) }
+    "=" _ "by" { Laws.addZeroLeft R.zero }
+  });
+\definition homogeneous: \forall (a: R.Real)(p: Family.Point) -> squared (Gauges.scale a p) = R.mul (R.mul a a) (squared p) :=
+  \fun (a: R.Real)(p: Family.Point) => trans!{R.Real} _ _ _
+    (congr!{R.Real R.Real R.Real} Distance.max _ _ _ _ (Algebra.mulFour a (head p) a (head p)) (Euclidean.Contraction[].normScale a (tail p)))
+    (sym!{R.Real} _ _ (R.Estimates[].Product[].mulMax (R.mul a a) (first p) (second p) (Algebra.squareNonnegative a)));
+\definition box: Gauges.Gauge := Gauges.Gauge {
+  squared := squared, continuous := continuous, nonnegative := nonnegative, zero := boxZero, definite := definite, homogeneous := homogeneous
+};
+\import Gauges.Change[left := standard, right := box] \as Radial;
+\definition totalHomeomorphism: topology.Homeomorphism[A := HigherThom.Point, B := Family.Point].Homeomorphism[HigherThom.totalTopology, Bundle.topology] :=
+  topology.Homeomorphism[A := HigherThom.Point, B := Family.Point].Composition[C := Family.Point].compose HigherThom.totalTopology Bundle.topology Bundle.topology
+    (topology.Homeomorphism[A := Family.Point, B := HigherThom.Point].Inverse[].inverse Bundle.topology HigherThom.totalTopology Bundle.homeomorphism) Radial.homeomorphism;
+\definition forwardSquared: \forall (p: HigherThom.Point) -> squared (totalHomeomorphism.forward p) = HigherThom.squared p :=
+  \fun (p: HigherThom.Point) => Radial.forwardSquared (Bundle.backward p);
+\definition backwardSquared: \forall (p: Family.Point) -> HigherThom.squared (totalHomeomorphism.backward p) = squared p := Radial.backwardSquared;
+\import \root.Thom[].Levels[A := HigherThom.Point, B := Family.Point, source := HigherThom.totalTopology, target := Bundle.topology,
+  q := HigherThom.squared, r := squared, h := totalHomeomorphism, forwardSquared := forwardSquared, backwardSquared := backwardSquared] \as Levels;
+\definition BoxSubset: \Pow Family.Point := { p: Family.Point \where D.Le (squared p) R.one };
+\import topology.Topology[Carrier := Family.Point].Subspace[S := BoxSubset] \as Box;
+\definition BoxCarrier: \Set := Box.CarrierSet;
+\definition boxTopology: topology.Topology[Carrier := BoxCarrier].Topology := Box.topology Bundle.topology;
+\definition BoxBoundary: \Pow BoxCarrier := { p: BoxCarrier \where squared p = R.one };
+\definition firstUnit: \forall (p: BoxCarrier) -> D.Le (first p) R.one :=
+  \fun (p: BoxCarrier) => D.leTrans (first p) (squared p) R.one (firstBound p) (\bysub(Family.Point, BoxSubset, p));
+\definition secondUnit: \forall (p: BoxCarrier) -> D.Le (second p) R.one :=
+  \fun (p: BoxCarrier) => D.leTrans (second p) (squared p) R.one (secondBound p) (\bysub(Family.Point, BoxSubset, p));
+\module Cylinder;

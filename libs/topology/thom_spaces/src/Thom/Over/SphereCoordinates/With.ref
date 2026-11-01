@@ -1,0 +1,43 @@
+\definition laws: topology.Homeomorphism[A := RealFamily.Point, B := Family.Point].Laws[RealBundle.topology, bundle.totalSpace, h] := topology.Homeomorphism[A := RealFamily.Point, B := Family.Point].laws RealBundle.topology bundle.totalSpace h;
+\definition squared[p: RealFamily.Point]: R.Real := data.squared (h.forward p);
+\definition definite: \forall (p: RealFamily.Point) -> squared p = R.zero -> p.vector = (RealBundles.coordinates d).zero := \fun (p: RealFamily.Point)(vanishes: _) => \block {
+  \let point: h.forward p = targetZero (h.forward p).base := trans!{Family.Point} _ _ _ (sym!{Family.Point} _ _ (Family.eta (h.forward p)))
+    (congr!{{F (h.forward p).base} Family.Point} (Family.include (h.forward p).base) _ _ (data.definite (h.forward p) vanishes)) \then
+  \let total: p = sourceZero (h.forward p).base := eq_reason_in!{RealFamily.Point p
+    "=" _ "by" { sym!{RealFamily.Point} _ _ (laws.leftInverse p) }
+    "=" _ "by" { congr!{Family.Point RealFamily.Point} h.backward _ _ point }
+    "=" _ "by" { congr!{Family.Point RealFamily.Point} h.backward _ _ (sym!{Family.Point} _ _ (zero (h.forward p).base)) }
+    "=" _ "by" { laws.leftInverse (sourceZero (h.forward p).base) }
+  } \then
+  \return congr!{RealFamily.Point {RealBundles.Vector d}} (\fun (q: RealFamily.Point) => q.vector) p (sourceZero (h.forward p).base) total
+};
+\definition gauge: Quadratic.Gauge := Quadratic.Gauge {
+  squared := squared,
+  continuous := topology.Composition[A := RealFamily.Point, B := Family.Point, C := R.Real].composeContinuous RealBundle.topology bundle.totalSpace metric_spaces.RealLine[].topology h.forward data.squared laws.forwardContinuous data.continuous,
+  nonnegative := \fun (p: RealFamily.Point) => data.nonnegative (h.forward p),
+  zero := \fun (x: X) => trans!{R.Real} _ _ _ (congr!{Family.Point R.Real} data.squared _ _ (zero x)) (data.zero x),
+  definite := definite,
+  homogeneous := \fun (a: R.Real)(p: RealFamily.Point) => trans!{R.Real} _ _ _ (congr!{Family.Point R.Real} data.squared _ _ (scale a p)) (data.homogeneous a (h.forward p))
+};
+\import Quadratic.Change[left := TrivialSphere.standard, right := gauge] \as Radial;
+\definition totalHomeomorphism: topology.Homeomorphism[A := RealFamily.Point, B := Family.Point].Homeomorphism[RealBundle.topology, bundle.totalSpace] :=
+  topology.Homeomorphism[A := RealFamily.Point, B := RealFamily.Point].Composition[C := Family.Point].compose RealBundle.topology RealBundle.topology bundle.totalSpace Radial.homeomorphism h;
+\definition forwardSquared: \forall (p: RealFamily.Point) -> data.squared (totalHomeomorphism.forward p) = TrivialSphere.standard.squared p := Radial.forwardSquared;
+\definition backwardSquared: \forall (p: Family.Point) -> TrivialSphere.standard.squared (totalHomeomorphism.backward p) = data.squared p := \fun (p: Family.Point) => trans!{R.Real} _ _ _
+  (Radial.backwardSquared (h.backward p)) (congr!{Family.Point R.Real} data.squared _ _ (laws.rightInverse p));
+\import \root.Thom[].Levels[A := RealFamily.Point, B := Family.Point, source := RealBundle.topology, target := bundle.totalSpace, q := TrivialSphere.standard.squared, r := data.squared,
+  h := totalHomeomorphism, forwardSquared := forwardSquared, backwardSquared := backwardSquared] \as Levels;
+\definition UnitSubset: \Pow Family.Point := { p: Family.Point \where data.squared p = R.one };
+\import topology.Topology[Carrier := Family.Point].Subspace[S := UnitSubset] \as UnitSubspace;
+\definition UnitCarrier: \Set := UnitSubspace.CarrierSet;
+\definition unitTopology: topology.Topology[Carrier := UnitCarrier].Topology := UnitSubspace.topology bundle.totalSpace;
+\definition homeomorphism: topology.Homeomorphism[A := TrivialSphere.Carrier, B := UnitCarrier].Homeomorphism[TrivialSphere.topology, unitTopology] :=
+  topology.Homeomorphism[A := TrivialSphere.Carrier, B := TrivialSphere.UnitCarrier].Composition[C := UnitCarrier].compose TrivialSphere.topology TrivialSphere.unitTopology unitTopology TrivialSphere.homeomorphism Levels.sphereHomeomorphism;
+\definition forwardBase: \forall (p: TrivialSphere.Carrier) -> (homeomorphism.forward p).base = Pair.first X algebraic_topology.Euclidean[].Dimension[n := d].Sphere p := \fun (p: TrivialSphere.Carrier) => trans!{X} _ _ _
+  (overBase (Radial.homeomorphism.forward (TrivialSphere.homeomorphism.forward p))) (Radial.overBase (TrivialSphere.homeomorphism.forward p));
+\definition backwardBase: \forall (p: UnitCarrier) -> Pair.first X algebraic_topology.Euclidean[].Dimension[n := d].Sphere (homeomorphism.backward p) = p.base := \fun (p: UnitCarrier) => trans!{X} _ _ _
+  (sym!{X} _ _ (forwardBase (homeomorphism.backward p)))
+  (congr!{UnitCarrier X} (\fun (q: UnitCarrier) => q.base) _ _ ((topology.Homeomorphism[A := TrivialSphere.Carrier, B := UnitCarrier].laws TrivialSphere.topology unitTopology homeomorphism).rightInverse p));
+
+\definition spherePoint[p: TrivialSphere.Carrier]: Family.Point := homeomorphism.forward p;
+\module Disk;

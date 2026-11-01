@@ -1,0 +1,44 @@
+\import std.Set[].FiniteSubset[A := Tuple n] \as Source;
+\import std.Set[].FiniteSubset[A := Tuple (N.Nat^::succ n)] \as Target;
+\import Source.Image[B := Tuple (N.Nat^::succ n)] \as Images;
+\import Target.Family[] \as Families;
+\import Finite.Image[B := Target.FiniteSubset] \as HeadImages;
+\import std.Set[].FiniteSubset[A := Target.FiniteSubset] \as FamilySets;
+\definition tailSets[i: Fin.Fin n]: Finite.FiniteSubset := sets (Fin.succ n i);
+\definition tails: Source.FiniteSubset := \into[\Pow (Tuple n)](Allowed n tailSets, Source.FiniteSubsetSet) \by { previous tailSets };
+\definition withHead[head: A]: Target.FiniteSubset := Images.value (Tuples.extend n head) tails;
+\definition family: FamilySets.FiniteSubset := HeadImages.value withHead (sets (Fin.zero n));
+\definition combined: Target.FiniteSubset := Families.unions family;
+\definition covers: \forall (f: Tuple (N.Nat^::succ n)) -> \In[Tuple (N.Nat^::succ n)] (Allowed (N.Nat^::succ n) sets) f -> Target.Member combined f :=
+  \fun (f: Tuple (N.Nat^::succ n))(member: _) =>
+  \idelim Tuples.extend n (f (Fin.zero n)) (\fun (i: Fin.Fin n) => f (Fin.succ n i)) = f
+    \with g: Tuple (N.Nat^::succ n) => Target.Member combined g \by {
+      base: Families.memberOf family (withHead (f (Fin.zero n))) (Tuples.extend n (f (Fin.zero n)) (\fun (i: Fin.Fin n) => f (Fin.succ n i)))
+        (HeadImages.member withHead (sets (Fin.zero n)) (f (Fin.zero n)) (member (Fin.zero n)))
+        (Images.member (Tuples.extend n (f (Fin.zero n))) tails (\fun (i: Fin.Fin n) => f (Fin.succ n i)) (\fun (i: Fin.Fin n) => member (Fin.succ n i))),
+      equality: Tuples.recover n f
+    };
+\definition included: \forall (f: Tuple (N.Nat^::succ n)) -> Target.Member combined f -> \In[Tuple (N.Nat^::succ n)] (Allowed (N.Nat^::succ n) sets) f :=
+  \fun (f: Tuple (N.Nat^::succ n))(member: _) => Families.memberElim family f _ (\block {
+    \fun (part: Target.FiniteSubset)(inFamily: _)(inPart: _) \then
+    \takefrom head: HeadImages.Witness withHead (sets (Fin.zero n)) part \by inFamily \then
+    \let data: Logic.And[Finite.Member (sets (Fin.zero n)) head, withHead head = part] := \bysub(A, HeadImages.Witness withHead (sets (Fin.zero n)) part, head) \then
+    \let belongs: Target.Member (withHead head) f := \idelim part = withHead head \with Y: Target.FiniteSubset => Target.Member Y f \by {
+      base: inPart, equality: sym!{Target.FiniteSubset} _ _ data.right
+    } \then
+    \takefrom tail: Images.Witness (Tuples.extend n head) tails f \by belongs \then
+    \let tailData: Logic.And[Source.Member tails tail, Tuples.extend n head tail = f] := \bysub(Tuple n, Images.Witness (Tuples.extend n head) tails f, tail) \then
+    \return \idelim Tuples.extend n head tail = f \with g: Tuple (N.Nat^::succ n) => \In[Tuple (N.Nat^::succ n)] (Allowed (N.Nat^::succ n) sets) g \by {
+      base: Fin.cases n (\fun (i: Fin.Fin (N.Nat^::succ n)) => Finite.Member (sets i) (Tuples.extend n head tail i))
+        (\idelim head = Tuples.extend n head tail (Fin.zero n) \with a: A => Finite.Member (sets (Fin.zero n)) a \by {
+          base: data.left, equality: sym!{A} _ _ (Tuples.atZero n head tail)
+        })
+        (\fun (i: Fin.Fin n) => \idelim tail i = Tuples.extend n head tail (Fin.succ n i) \with a: A => Finite.Member (sets (Fin.succ n i)) a \by {
+          base: tailData.left i, equality: sym!{A} _ _ (Tuples.atSuccessor n head tail i)
+        }), equality: tailData.right
+    }
+  }) member;
+\definition law: Target.Finite (Allowed (N.Nat^::succ n) sets) :=
+  \idelim Target.underlying combined = Allowed (N.Nat^::succ n) sets \with X: \Pow (Tuple (N.Nat^::succ n)) => Target.Finite X \by {
+    base: Target.finite combined, equality: \axiom:setext(Target.underlying combined, Allowed (N.Nat^::succ n) sets, included, covers)
+  };

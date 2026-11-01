@@ -1,0 +1,38 @@
+\import \parent.\parent.\parent.\parent.Collar[r := half, below := halfBelow, U := O, open := regular] \as Neighborhood;
+\definition equality: Cells.InteriorPart (oldCell c) U = Space.Intersection (Cells.InteriorImage (oldCell c)) Neighborhood.region :=
+  \axiom:setext(Cells.InteriorPart (oldCell c) U, Space.Intersection (Cells.InteriorImage (oldCell c)) Neighborhood.region,
+    \block {
+      \fun (x: Carrier)(inside: _) \then
+      \takefrom w: Cells.InteriorPartWitness[oldCell c, U, x] \by inside \then
+      \let originalPart: \In[A] (Original.InteriorPart c U) (c.characteristic w.point) := \exact(Original.InteriorPartWitness[c, U, c.characteristic w.point] {
+        point := w.point, member := w.member, interior := w.interior, image := \refl(c.characteristic w.point)
+      }, Original.InteriorPartWitness[c, U, c.characteristic w.point]) \then
+      \let inO: \In[A] O (c.characteristic w.point) := (\idelim Original.InteriorPart c U = Base.Intersection (Original.InteriorImage c) O
+        \with S: \Pow A => \In[A] S (c.characteristic w.point) \by { base: originalPart, equality: same }).right \then
+      \return Logic.And[_, _]::#
+        (Logic.existsIntro[Disk.Disk, { p: Disk.Disk \where Logic.And[D.Lt (Disk.normSquared p) R.one, (oldCell c).characteristic p = x] }] w.point (Logic.And[_, _]::# w.interior w.image))
+        (\idelim inclusion (c.characteristic w.point) = x \with y: Carrier => \In[Carrier] Neighborhood.region y \by { base: inO, equality: w.image })
+    },
+    \block {
+      \fun (x: Carrier)(inside: Logic.And[\In[Carrier] (Cells.InteriorImage (oldCell c)) x, \In[Carrier] Neighborhood.region x]) \then
+      \takefrom p: \Cast[Disk.Disk] ({ p: Disk.Disk \where Logic.And[D.Lt (Disk.normSquared p) R.one, inclusion (c.characteristic p) = x] }) \by inside.left \then
+      \let data: Logic.And[D.Lt (Disk.normSquared p) R.one, inclusion (c.characteristic p) = x] :=
+        \bysub(Disk.Disk, { p: Disk.Disk \where Logic.And[D.Lt (Disk.normSquared p) R.one, inclusion (c.characteristic p) = x] }, p) \then
+      \let inO: \In[A] O (c.characteristic p) := \idelim x = inclusion (c.characteristic p) \with y: Carrier => \In[Carrier] Neighborhood.region y \by {
+        base: inside.right, equality: sym!{Carrier} _ _ data.right
+      } \then
+      \let part: \In[A] (Original.InteriorPart c U) (c.characteristic p) :=
+        \idelim Base.Intersection (Original.InteriorImage c) O = Original.InteriorPart c U \with S: \Pow A => \In[A] S (c.characteristic p) \by {
+          base: Logic.And[_, _]::#
+            (Logic.existsIntro[Disk.Disk, { q: Disk.Disk \where Logic.And[D.Lt (Disk.normSquared q) R.one, c.characteristic q = c.characteristic p] }] p (Logic.And[_, _]::# data.left (\refl(c.characteristic p)))) inO,
+          equality: sym!{\Pow A} _ _ same
+        } \then
+      \takefrom w: Original.InteriorPartWitness[c, U, c.characteristic p] \by part \then
+      \return \exact(Cells.InteriorPartWitness[oldCell c, U, x] {
+        point := w.point, member := w.member, interior := w.interior,
+        image := trans!{Carrier} _ _ _ (congr!{A Carrier} inclusion _ _ w.image) data.right
+      }, Cells.InteriorPartWitness[oldCell c, U, x])
+    });
+\definition exists: \exists (V: \Pow Carrier \where Logic.And[Space.IsOpenIn topology V, Cells.InteriorPart (oldCell c) U = Space.Intersection (Cells.InteriorImage (oldCell c)) V]) :=
+  Logic.existsIntro[\Pow Carrier, { V: \Pow Carrier \where Logic.And[Space.IsOpenIn topology V, Cells.InteriorPart (oldCell c) U = Space.Intersection (Cells.InteriorImage (oldCell c)) V] }]
+    Neighborhood.region (Logic.And[_, _]::# Neighborhood.regionOpen equality);

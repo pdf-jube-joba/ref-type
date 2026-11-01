@@ -1,0 +1,35 @@
+\import algebraic_topology.Homotopy[A := A, B := B] \as Original;
+\import \root.Thom[].CWType[].ConeAttachment[A := A, B := B, source := source, target := target, f := g, continuous := regular] \as Next;
+\import Original.Composition[C := Carrier] \as InFirst;
+\import Original.Composition[C := Next.Carrier] \as InSecond;
+\definition firstPath: Homotopies.Homotopy[source, topology, (\fun (x: A) => inclusion (f x)), (\fun (x: A) => inclusion (g x))] :=
+  InFirst.postcompose source target topology f g h inclusion inclusionContinuous;
+\import algebraic_topology.Homotopy[A := A, B := Next.Carrier] \as NextPaths;
+\definition secondPath: NextPaths.Homotopy[source, Next.topology, (\fun (x: A) => Next.inclusion (f x)), (\fun (x: A) => Next.inclusion (g x))] :=
+  InSecond.postcompose source target Next.topology f g h Next.inclusion Next.inclusionContinuous;
+\definition reversePath: NextPaths.Homotopy[source, Next.topology, (\fun (x: A) => Next.inclusion (g x)), (\fun (x: A) => Next.inclusion (f x))] :=
+  NextPaths.reverse source Next.topology (\fun (x: A) => Next.inclusion (f x)) (\fun (x: A) => Next.inclusion (g x)) secondPath;
+\definition forwardPath: NextPaths.Homotopy[source, Next.topology, (\fun (x: A) => Next.apex), (\fun (x: A) => Next.inclusion (f x))] :=
+  NextPaths.Concatenation[].concatenate source Next.topology (\fun (x: A) => Next.apex) (\fun (x: A) => Next.inclusion (g x)) (\fun (x: A) => Next.inclusion (f x)) Next.null reversePath;
+\definition backwardPath: Homotopies.Homotopy[source, topology, (\fun (x: A) => apex), (\fun (x: A) => inclusion (g x))] :=
+  Homotopies.Concatenation[].concatenate source topology (\fun (x: A) => apex) (\fun (x: A) => inclusion (f x)) (\fun (x: A) => inclusion (g x)) null firstPath;
+\import \parent.Universal[D := Next.Carrier, range := Next.topology, original := Next.inclusion, point := Next.apex, homotopy := forwardPath, originalContinuous := Next.inclusionContinuous] \as Forward;
+\import \root.Thom[].CWType[].ConeAttachment[A := A, B := B, source := source, target := target, f := g, continuous := regular].Universal[D := Carrier, range := topology, original := inclusion, point := apex, homotopy := backwardPath, originalContinuous := inclusionContinuous] \as Backward;
+\definition forward: Carrier -> Next.Carrier := Forward.apply;
+\definition backward: Next.Carrier -> Carrier := Backward.apply;
+\definition forwardOriginal: \forall (y: B) -> forward (inclusion y) = Next.inclusion y := Forward.onOriginal;
+\definition backwardOriginal: \forall (y: B) -> backward (Next.inclusion y) = inclusion y := Backward.onOriginal;
+\definition forwardApex: forward apex = Next.apex := Forward.onApex;
+\definition backwardApex: backward Next.apex = apex := Backward.onApex;
+\definition forwardCylinder: \forall (t: I.Carrier)(x: A) -> forward (at t x) = forwardPath (Cylinder.at t x) := Forward.onCylinder;
+\definition backwardCylinder: \forall (t: I.Carrier)(x: A) -> backward (Next.at t x) = backwardPath (Cylinder.at t x) := Backward.onCylinder;
+\definition forwardContinuous: topology.Continuity[A := Carrier, B := Next.Carrier].Continuous topology Next.topology forward := Forward.continuous;
+\definition backwardContinuous: topology.Continuity[A := Next.Carrier, B := Carrier].Continuous Next.topology topology backward := Backward.continuous;
+\module Left;
+\module Right;
+\definition equivalence: algebraic_topology.HomotopyEquivalence[A := Carrier, B := Next.Carrier].Equivalence[topology, Next.topology] :=
+  algebraic_topology.HomotopyEquivalence[A := Carrier, B := Next.Carrier].Equivalence[topology, Next.topology] {
+    forward := forward, backward := backward, forwardContinuous := forwardContinuous, backwardContinuous := backwardContinuous,
+    leftInverse := \exact(Left[].result, algebraic_topology.Homotopy[A := Carrier, B := Carrier].Homotopy[topology, topology, (\fun (z: Carrier) => backward (forward z)), (\fun (z: Carrier) => z)]),
+    rightInverse := \exact(Right[].result, algebraic_topology.Homotopy[A := Next.Carrier, B := Next.Carrier].Homotopy[Next.topology, Next.topology, (\fun (z: Next.Carrier) => forward (backward z)), (\fun (z: Next.Carrier) => z)])
+  };

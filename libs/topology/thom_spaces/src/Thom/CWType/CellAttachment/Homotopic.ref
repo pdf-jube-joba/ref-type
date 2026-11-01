@@ -1,0 +1,32 @@
+\import \parent.ConeModel[] \as First;
+\import \root.Thom[].CWType[].CellAttachment[A := A, source := source, n := n, attach := next, continuous := regular] \as Next;
+\import \root.Thom[].CWType[].CellAttachment[A := A, source := source, n := n, attach := next, continuous := regular].ConeModel[] \as Second;
+\import \root.Thom[].CWType[].ConeAttachment[A := Model.Sphere, B := A, source := Model.sphereTopology, target := source, f := attach, continuous := continuous] \as OldCone;
+\import \root.Thom[].CWType[].ConeAttachment[A := Model.Sphere, B := A, source := Model.sphereTopology, target := source, f := next, continuous := regular] \as NewCone;
+\import \root.Thom[].CWType[].ConeAttachment[A := Model.Sphere, B := A, source := Model.sphereTopology, target := source, f := attach, continuous := continuous].Homotopic[g := next, regular := regular, h := homotopy] \as Change;
+\definition forward[x: Carrier]: Next.Carrier := Second.forward (Change.forward (First.backward x));
+\definition backward[y: Next.Carrier]: Carrier := First.forward (Change.backward (Second.backward y));
+\definition forwardOriginal: \forall (a: A) -> forward (inclusion a) = Next.inclusion a := \fun (a: A) => eq_reason_in!{Next.Carrier _
+  "=" _ "by" { congr!{OldCone.Carrier Next.Carrier} (\fun (x: OldCone.Carrier) => Second.forward (Change.forward x)) _ _ (First.backwardOriginal a) }
+  "=" _ "by" { congr!{NewCone.Carrier Next.Carrier} Second.forward _ _ (Change.forwardOriginal a) }
+  "=" _ "by" { Second.onOriginal a }
+};
+\definition backwardOriginal: \forall (a: A) -> backward (Next.inclusion a) = inclusion a := \fun (a: A) => eq_reason_in!{Carrier _
+  "=" _ "by" { congr!{NewCone.Carrier Carrier} (\fun (y: NewCone.Carrier) => First.forward (Change.backward y)) _ _ (Second.backwardOriginal a) }
+  "=" _ "by" { congr!{OldCone.Carrier Carrier} First.forward _ _ (Change.backwardOriginal a) }
+  "=" _ "by" { First.onOriginal a }
+};
+\definition forwardContinuous: topology.Continuity[A := Carrier, B := Next.Carrier].Continuous topology Next.topology forward :=
+  topology.Composition[A := Carrier, B := NewCone.Carrier, C := Next.Carrier].composeContinuous topology NewCone.topology Next.topology (\fun (x: Carrier) => Change.forward (First.backward x)) Second.forward
+    (topology.Composition[A := Carrier, B := OldCone.Carrier, C := NewCone.Carrier].composeContinuous topology OldCone.topology NewCone.topology First.backward Change.forward First.backwardContinuous Change.forwardContinuous) Second.forwardContinuous;
+\definition backwardContinuous: topology.Continuity[A := Next.Carrier, B := Carrier].Continuous Next.topology topology backward :=
+  topology.Composition[A := Next.Carrier, B := OldCone.Carrier, C := Carrier].composeContinuous Next.topology OldCone.topology topology (\fun (y: Next.Carrier) => Change.backward (Second.backward y)) First.forward
+    (topology.Composition[A := Next.Carrier, B := NewCone.Carrier, C := OldCone.Carrier].composeContinuous Next.topology NewCone.topology OldCone.topology Second.backward Change.backward Second.backwardContinuous Change.backwardContinuous) First.forwardContinuous;
+\module Left;
+\module Right;
+\definition equivalence: algebraic_topology.HomotopyEquivalence[A := Carrier, B := Next.Carrier].Equivalence[topology, Next.topology] :=
+  algebraic_topology.HomotopyEquivalence[A := Carrier, B := Next.Carrier].Equivalence[topology, Next.topology] {
+    forward := forward, backward := backward, forwardContinuous := forwardContinuous, backwardContinuous := backwardContinuous,
+    leftInverse := \exact(Left[].result, algebraic_topology.Homotopy[A := Carrier, B := Carrier].Homotopy[topology, topology, (\fun (x: Carrier) => backward (forward x)), (\fun (x: Carrier) => x)]),
+    rightInverse := \exact(Right[].result, algebraic_topology.Homotopy[A := Next.Carrier, B := Next.Carrier].Homotopy[Next.topology, Next.topology, (\fun (y: Next.Carrier) => forward (backward y)), (\fun (y: Next.Carrier) => y)])
+  };

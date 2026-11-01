@@ -1,0 +1,34 @@
+\import real.Analysis[] \as Real;
+\import dedekind_reals.DedekindReal[] \as D;
+\import D.Arithmetic[].Prop[] \as Laws;
+\import D.Order[] \as Ord;
+\import Real.Algebra[] \as Algebra;
+\import Real.SquareRoot[] \as Root;
+\import Real.Estimates[] \as Estimates;
+\import Real.Estimates[].Product[] \as Products;
+\use Equality.eq_reason_in;
+\definition normNonnegative: \forall (x: Family.Point) -> D.Le Real.zero (norm x) := \fun (x: Family.Point) => Root.nonnegative (squared x);
+\definition diskNorm: \forall (x: DiskBundle) -> D.Le (norm x) Real.one := \fun (x: DiskBundle) => algebraic_topology.Euclidean[].Dimension[n := N.Nat^::zero].Geometry[].upperUnitBound (norm x)
+  (D.leReplaceLeft (squared x) (Real.mul (norm x) (norm x)) Real.one
+    (sym!{Real.Real} _ _ (normSquared x)) (\bysub(Family.Point, ClosedBall, x)));
+\definition scaledSquared: \forall (s: Real.Real)(x: Family.Point) -> squared (scale s x) = Real.mul (Real.mul s (norm x)) (Real.mul s (norm x)) :=
+  \fun (s: Real.Real)(x: Family.Point) => trans!{Real.Real} _ _ _ (squaredScale s x)
+    (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (Real.mul (Real.mul s s)) _ _ (sym!{Real.Real} _ _ (normSquared x)))
+      (Algebra.mulFour s s (norm x) (norm x)));
+\definition positiveNonzero: \forall (d: Real.Real) -> D.Lt Real.zero d -> Logic.Not (d = Real.zero) :=
+  \fun (d: Real.Real)(positive: D.Lt Real.zero d)(zero: d = Real.zero) => Ord.ltNotEq Real.zero d positive (sym!{Real.Real} _ _ zero);
+\definition ratioUnit: \forall (r, d: Real.Real) -> D.Lt Real.zero d -> D.Le r d -> D.Le (Real.mul (Laws.fieldInv d) r) Real.one :=
+  \fun (r, d: Real.Real)(positive: D.Lt Real.zero d)(bound: D.Le r d) => D.leReplaceRight (Real.mul (Laws.fieldInv d) r) (Real.mul (Laws.fieldInv d) d) Real.one
+    (Laws.fieldInverseNonzero d (positiveNonzero d positive))
+    (Estimates.mulMonotone (Laws.fieldInv d) r d (Ord.leOfLt Real.zero (Laws.fieldInv d) (Products.invPositive d positive)) bound);
+\definition rescaleDisk: \forall (d: Real.Real) -> D.Lt Real.zero d -> \forall (x: Family.Point) -> D.Le (norm x) d ->
+  D.Le (squared (scale (Laws.fieldInv d) x)) Real.one :=
+  \fun (d: Real.Real)(positive: D.Lt Real.zero d)(x: Family.Point)(bound: D.Le (norm x) d) =>
+    D.leReplace (Real.mul (Real.mul (Laws.fieldInv d) (norm x)) (Real.mul (Laws.fieldInv d) (norm x)))
+      (squared (scale (Laws.fieldInv d) x)) (Real.mul Real.one Real.one) Real.one
+      (sym!{Real.Real} _ _ (scaledSquared (Laws.fieldInv d) x)) (Algebra.mulOneRight Real.one)
+      (Root.squareMonotone (Real.mul (Laws.fieldInv d) (norm x)) Real.one
+        (Laws.fieldMulNonnegative (Laws.fieldInv d) (norm x) (Ord.leOfLt Real.zero (Laws.fieldInv d) (Products.invPositive d positive)) (normNonnegative x))
+        Laws.oneNonnegative (ratioUnit (norm x) d positive bound));
+\module Motion;
+\module Boundary;

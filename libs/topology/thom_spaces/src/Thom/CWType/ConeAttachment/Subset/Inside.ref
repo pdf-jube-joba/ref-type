@@ -1,0 +1,43 @@
+\structure ConeWitness[z: Carrier]: \Set := {
+  time: I.Carrier,
+  point: A,
+  equality: at time point = z
+};
+\definition fullSubset: \Pow Carrier := { z: Carrier \where Logic.Or[\In[Carrier] originalSubset z, Logic.Or[z = apex, \exists ConeWitness[z]]] };
+\definition originalMember: \forall (y: B) -> \In[B] subset y -> \In[Carrier] fullSubset (inclusion y) := \fun (y: B)(member: _) => Logic.Or[_, _]::left (original y member);
+\definition apexMember: \In[Carrier] fullSubset apex := Logic.Or[_, _]::right (Logic.Or[_, _]::left (\refl(apex)));
+\definition cylinderMember: \forall (t: I.Carrier)(x: A) -> \In[Carrier] fullSubset (at t x) := \fun (t: I.Carrier)(x: A) =>
+  Logic.Or[_, _]::right (Logic.Or[_, _]::right (\exact(ConeWitness[at t x] { time := t, point := x, equality := \refl(at t x) }, ConeWitness[at t x])));
+\definition eliminate: \forall (z: Carrier)(P: \Prop) ->
+  (\forall (y: B) -> \In[B] subset y -> inclusion y = z -> P) -> (apex = z -> P) ->
+  (\forall (t: I.Carrier)(x: A) -> at t x = z -> P) -> \In[Carrier] fullSubset z -> P :=
+  \fun (z: Carrier)(P: \Prop)(onOriginal: _)(onApex: _)(onCylinder: _)(member: _) => either!{member {P}
+    {originalEliminate z P onOriginal}
+    {\fun (cone: Logic.Or[z = apex, \exists ConeWitness[z]]) => either!{cone {P}
+      {\fun (same: z = apex) => onApex (sym!{Carrier} _ _ same)}
+      {\fun (exists: \exists ConeWitness[z]) => \block {
+        \takefrom w: ConeWitness[z] \by exists \then
+        \return onCylinder w.time w.point w.equality
+      }}
+    }}
+  };
+\module Homotopic(g: A -> B, regular: topology.Continuity[A := A, B := B].Continuous source target g,
+  h: algebraic_topology.Homotopy[A := A, B := B].Homotopy[source, target, f, g],
+  hContained: \forall (t: I.Carrier)(x: A) -> \In[B] subset (h (Cylinder.at t x)));
+\definition mapPreserves[D: \Set][targetSubset: \Pow D][map: Carrier -> D]:
+  (\forall (y: B) -> \In[B] subset y -> \In[D] targetSubset (map (inclusion y))) ->
+  \In[D] targetSubset (map apex) ->
+  (\forall (t: I.Carrier)(x: A) -> \In[D] targetSubset (map (at t x))) ->
+  \forall (z: \Cast[Carrier] fullSubset) -> \In[D] targetSubset (map z) :=
+  \fun (onOriginal: _)(onApex: _)(onCylinder: _)(z: \Cast[Carrier] fullSubset) => eliminate z (\In[D] targetSubset (map z))
+    (\fun (y: B)(member: _)(same: inclusion y = z) => \idelim map (inclusion y) = map z \with d: D => \In[D] targetSubset d \by {
+      base: onOriginal y member, equality: congr!{Carrier D} map _ _ same
+    })
+    (\fun (same: apex = z) => \idelim map apex = map z \with d: D => \In[D] targetSubset d \by {
+      base: onApex, equality: congr!{Carrier D} map _ _ same
+    })
+    (\fun (t: I.Carrier)(x: A)(same: at t x = z) => \idelim map (at t x) = map z \with d: D => \In[D] targetSubset d \by {
+      base: onCylinder t x, equality: congr!{Carrier D} map _ _ same
+    }) (\bysub(Carrier, fullSubset, z));
+\definition coneMember: \forall (c: Cone.Carrier) -> \In[Carrier] fullSubset (cone c) := Cone.induction
+  (\fun (c: Cone.Carrier) => \In[Carrier] fullSubset (cone c)) apexMember cylinderMember;

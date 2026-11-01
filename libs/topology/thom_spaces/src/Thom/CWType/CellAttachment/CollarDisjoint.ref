@@ -1,0 +1,16 @@
+\import \parent.Collar[r := r, below := below, U := U, open := first] \as First;
+\import \parent.Collar[r := r, below := below, U := V, open := second] \as Second;
+\import \parent.Punctured[] \as Nonzero;
+\import DiskSpace.Subspace[S := Nonzero.subset] \as PuncturedSpace;
+\definition rightDisjoint: topology.Topology[Carrier := InteriorPoint].Disjoint First.rightRegion Second.rightRegion :=
+  \fun (p: InteriorPoint)(one: _)(two: _) => PuncturedSpace.Open[].imageElim First.zone p Logic.False
+    (\fun (a: Nonzero.Carrier)(ad: Logic.And[D.Lt r (Model.normSquared a), \In[A] U (attach (Nonzero.normal a))])(ae: a = p) =>
+      PuncturedSpace.Open[].imageElim Second.zone p Logic.False
+        (\fun (b: Nonzero.Carrier)(bd: Logic.And[D.Lt r (Model.normSquared b), \In[A] V (attach (Nonzero.normal b))])(be: b = p) =>
+          disjoint (attach (Nonzero.normal a)) ad.right
+            (\idelim attach (Nonzero.normal b) = attach (Nonzero.normal a) \with x: A => \In[A] V x \by {
+              base: bd.right,
+              equality: congr!{Model.Sphere A} attach (Nonzero.normal b) (Nonzero.normal a)
+                (congr!{Nonzero.Carrier Model.Sphere} Nonzero.normal b a (trans!{Model.Disk} b p a be (sym!{Model.Disk} _ _ ae)))
+            })) two) one;
+\definition law: Space.Disjoint First.region Second.region := Cases.joinedDisjoint U V First.rightRegion Second.rightRegion disjoint rightDisjoint;

@@ -1,0 +1,38 @@
+\import algebraic_topology.Euclidean[].Dimension[n := N.Nat^::zero] \as Coordinates;
+\import \root.Thom[].DiskSuspension[X := X, space := source, n := N.Nat^::zero] \as Disk;
+\import \root.Thom[].Adjoin[A := X, source := source] \as Plus;
+\import topology.Topology[Carrier := X] \as Base;
+\import real.Analysis[] \as R;
+\import dedekind_reals.DedekindReal[] \as D;
+\definition forward[p: Disk.DiskCarrier]: X := Pair.first X Coordinates.Coordinate p;
+\definition backward[x: X]: Disk.DiskCarrier := \into[Disk.Point](Pair.pair X Coordinates.Coordinate x (\fun (i: Coordinates.Index) => R.zero), Disk.disk) \by { D.Arithmetic[].Prop[].oneNonnegative };
+\definition leftInverse: \forall (p: Disk.DiskCarrier) -> backward (forward p) = p :=
+  \fun (p: Disk.DiskCarrier) => trans!{Disk.Point} _ _ _
+    (congr!{Coordinates.Coordinate Disk.Point} (Pair.pair X Coordinates.Coordinate (forward p)) _ _
+      (sym!{Coordinates.Coordinate} _ _ (Coordinates.Geometry[].normSquaredZero (Pair.second X Coordinates.Coordinate p) (\refl(R.zero)))))
+    (Pair.Prop[A := X, B := Coordinates.Coordinate].eta p);
+\definition forwardContinuous: topology.Continuity[A := Disk.DiskCarrier, B := X].Continuous Disk.diskTopology source forward :=
+  topology.Continuity[A := Disk.Point, B := X].Restriction[S := Disk.disk].restrictContinuous Disk.totalTopology source (Pair.first X Coordinates.Coordinate)
+    (topological_constructions.Product[A := X, B := Coordinates.Coordinate].Maps[].firstContinuous source Coordinates.topology);
+\definition backwardContinuous: topology.Continuity[A := X, B := Disk.DiskCarrier].Continuous source Disk.diskTopology backward :=
+  topology.Continuity[A := X, B := Disk.Point].Corestriction[S := Disk.disk].corestrictContinuous source Disk.totalTopology backward
+    (topological_constructions.Product[A := X, B := Coordinates.Coordinate].Universal[X := X].pairContinuous source source Coordinates.topology
+      (\fun (x: X) => x) (\fun (x: X) => \fun (i: Coordinates.Index) => R.zero)
+      (topology.Maps[A := X, B := X].Identity[].continuous source)
+      (topology.Maps[A := X, B := Coordinates.Coordinate].constantContinuous source Coordinates.topology (\fun (i: Coordinates.Index) => R.zero)));
+\definition diskHomeomorphism: topology.Homeomorphism[A := Disk.DiskCarrier, B := X].Homeomorphism[Disk.diskTopology, source] :=
+  topology.Homeomorphism[A := Disk.DiskCarrier, B := X].Homeomorphism[Disk.diskTopology, source] {
+    forward := forward, backward := backward, leftInverse := leftInverse, rightInverse := \fun (x: X) => \refl(x),
+    forwardContinuous := forwardContinuous, backwardContinuous := backwardContinuous
+  };
+\definition forwardPreserves: \forall (p: Disk.DiskCarrier) -> \In[Disk.DiskCarrier] Disk.boundary p -> \In[X] Base.Empty (forward p) :=
+  \fun (p: Disk.DiskCarrier)(impossible: R.zero = R.one) => D.Arithmetic[].Prop[].zeroNeOne impossible;
+\definition backwardPreserves: \forall (x: X) -> \In[X] Base.Empty x -> \In[Disk.DiskCarrier] Disk.boundary (backward x) :=
+  \fun (x: X)(empty: Logic.False) => Logic.falseElim (\In[Disk.DiskCarrier] Disk.boundary (backward x)) empty;
+\import \root.Thom[].CollapseComparison[A := Disk.DiskCarrier, B := X, source := Disk.diskTopology, target := source,
+  subset := Disk.boundary, targetSubset := Base.Empty, h := diskHomeomorphism, forwardPreserves := forwardPreserves, backwardPreserves := backwardPreserves] \as Comparison;
+\import \root.Thom[].Collapse[A := X, source := source, subset := Base.Empty] \as Quotient;
+\definition homeomorphism: topology.Homeomorphism[A := Disk.Carrier, B := Plus.Carrier].Homeomorphism[Disk.topology, Plus.topology] :=
+  topology.Homeomorphism[A := Disk.Carrier, B := Quotient.Carrier].Composition[C := Plus.Carrier].compose Disk.topology Quotient.topology Plus.topology Comparison.homeomorphism Plus.homeomorphism;
+\definition preservesPoint: homeomorphism.forward Disk.pointed.basepoint = Plus.point :=
+  trans!{Plus.Carrier} _ _ _ (congr!{Quotient.Carrier Plus.Carrier} Plus.forward _ _ Comparison.pointed) Plus.preservesPoint;

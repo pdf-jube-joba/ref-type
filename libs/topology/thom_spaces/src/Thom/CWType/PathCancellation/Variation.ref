@@ -1,0 +1,57 @@
+\import algebraic_topology.Homotopy[A := Cylinder.Carrier, B := B] \as Wide;
+\import Wide.Concatenation[] \as WideJoin;
+\import Paths.Composition[C := Cylinder.Carrier] \as Pullback;
+\definition start[x: Cylinder.Carrier]: B := f (Cylinder.point x);
+\definition middle[x: Cylinder.Carrier]: B := g (Cylinder.point x);
+\definition endpoint[x: Cylinder.Carrier]: B := h (Cylinder.at (I.Convex[].blend (Cylinder.time x) I.end I.start) (Cylinder.point x));
+\definition first: Wide.Homotopy[Cylinder.topology source, target, start, middle] := Pullback.precompose (Cylinder.topology source) source target f g p Cylinder.point (Cylinder.pointContinuous source);
+\definition time[z: Double.Carrier]: I.Carrier := I.Convex[].blend (Cylinder.time (Double.point z)) (Double.time z) I.start;
+\definition map[z: Double.Carrier]: Cylinder.Carrier := Cylinder.at (time z) (Cylinder.point (Double.point z));
+\definition mapContinuous: topology.Continuity[A := Double.Carrier, B := Cylinder.Carrier].Continuous doubleTopology (Cylinder.topology source) map :=
+  topological_constructions.Product[A := I.Carrier, B := A].Universal[X := Double.Carrier].pairContinuous doubleTopology I.topology source time (\fun (z: Double.Carrier) => Cylinder.point (Double.point z))
+    (I.Convex[].Functions[A := Double.Carrier].continuous doubleTopology (\fun (z: Double.Carrier) => Cylinder.time (Double.point z)) Double.time (\fun (z: Double.Carrier) => I.start)
+      (topology.Composition[A := Double.Carrier, B := Cylinder.Carrier, C := I.Carrier].composeContinuous doubleTopology (Cylinder.topology source) I.topology Double.point Cylinder.time (Double.pointContinuous (Cylinder.topology source)) (Cylinder.timeContinuous source))
+      (Double.timeContinuous (Cylinder.topology source)) (topology.Maps[A := Double.Carrier, B := I.Carrier].constantContinuous doubleTopology I.topology I.start))
+    (topology.Composition[A := Double.Carrier, B := Cylinder.Carrier, C := A].composeContinuous doubleTopology (Cylinder.topology source) source Double.point Cylinder.point (Double.pointContinuous (Cylinder.topology source)) (Cylinder.pointContinuous source));
+\definition second: Wide.Homotopy[Cylinder.topology source, target, middle, endpoint] :=
+  \into[Wide.Family](\fun (z: Double.Carrier) => h (map z), Wide.Homotopy[Cylinder.topology source, target, middle, endpoint]) \by {
+    Wide.Laws[Cylinder.topology source, target, middle, endpoint, (\fun (z: Double.Carrier) => h (map z))] {
+      continuous := topology.Composition[A := Double.Carrier, B := Cylinder.Carrier, C := B].composeContinuous doubleTopology (Cylinder.topology source) target map h mapContinuous (Paths.laws source target g k h).continuous,
+      start := \fun (x: Cylinder.Carrier) => trans!{B} _ _ _
+        (congr!{{I.Carrier} B} (\fun (t: I.Carrier) => h (Cylinder.at t (Cylinder.point x))) _ _ (I.Convex[].fixed (Cylinder.time x) I.start))
+        ((Paths.laws source target g k h).start (Cylinder.point x)),
+      end := \fun (x: Cylinder.Carrier) => \refl(endpoint x)
+    }
+  };
+\definition reversed: Wide.Homotopy[Cylinder.topology source, target, endpoint, middle] := Wide.reverse (Cylinder.topology source) target middle endpoint second;
+\definition initial: Wide.Homotopy[Cylinder.topology source, target, start, endpoint] := WideJoin.concatenate (Cylinder.topology source) target start middle endpoint first second;
+\definition family: Wide.Homotopy[Cylinder.topology source, target, start, middle] := WideJoin.concatenate (Cylinder.topology source) target start endpoint middle initial reversed;
+\definition apply[z: Double.Carrier]: B := family (swap z);
+\definition continuous: topology.Continuity[A := Double.Carrier, B := B].Continuous doubleTopology target apply :=
+  topology.Composition[A := Double.Carrier, B := Double.Carrier, C := B].composeContinuous doubleTopology doubleTopology target swap family swapContinuous (Wide.laws (Cylinder.topology source) target start middle family).continuous;
+\definition atZero: \forall (u: I.Carrier)(x: A) -> apply (Double.at u (Cylinder.at I.start x)) = f x := \fun (u: I.Carrier)(x: A) => (Wide.laws (Cylinder.topology source) target start middle family).start (Cylinder.at u x);
+\definition atOne: \forall (u: I.Carrier)(x: A) -> apply (Double.at u (Cylinder.at I.end x)) = g x := \fun (u: I.Carrier)(x: A) => (Wide.laws (Cylinder.topology source) target start middle family).end (Cylinder.at u x);
+\definition secondAtStart: \forall (t: I.Carrier)(x: A) -> second (Double.at t (Cylinder.at I.start x)) = h (Cylinder.at t x) := \fun (t: I.Carrier)(x: A) =>
+  congr!{{I.Carrier} B} (\fun (v: I.Carrier) => h (Cylinder.at v x)) _ _ (I.Convex[].atStart t I.start);
+\definition secondAtEnd: \forall (t: I.Carrier)(x: A) -> second (Double.at t (Cylinder.at I.end x)) = g x := \fun (t: I.Carrier)(x: A) => trans!{B} _ _ _
+  (congr!{{I.Carrier} B} (\fun (v: I.Carrier) => h (Cylinder.at v x)) _ _ (I.Convex[].atEnd t I.start)) ((Paths.laws source target g k h).start x);
+\definition firstFormula: \forall (t: I.Carrier)(x: A) -> p (Cylinder.at t x) = first (Double.at t (Cylinder.at I.start x)) := \fun (t: I.Carrier)(x: A) => \refl(p (Cylinder.at t x));
+\definition secondFormula: \forall (t: I.Carrier)(x: A) -> h (Cylinder.at t x) = second (Double.at t (Cylinder.at I.start x)) := \fun (t: I.Carrier)(x: A) => sym!{B} _ _ (secondAtStart t x);
+\import \root.Thom[].CWType[].ConcatenationLaws[A := Cylinder.Carrier, B := B, source := Cylinder.topology source, target := target, f := start, g := middle, k := endpoint, h := first, j := second] \as WidePrefix;
+\import WidePrefix.Compare[C := A, D := B, domain := source, range := target, before := Cylinder.at I.start, after := (\fun (x: A)(y: B) => y), a := f, b := g, c := k,
+  first := p, second := h, firstAgrees := firstFormula, secondAgrees := secondFormula] \as StartPrefix;
+\definition reverseFormula: \forall (t: I.Carrier)(x: A) -> reverse (Cylinder.at t x) = reversed (Double.at t (Cylinder.at I.start x)) :=
+  \fun (t: I.Carrier)(x: A) => sym!{B} _ _ (secondAtStart (I.reverse t) x);
+\import \root.Thom[].CWType[].ConcatenationLaws[A := Cylinder.Carrier, B := B, source := Cylinder.topology source, target := target, f := start, g := endpoint, k := middle, h := initial, j := reversed] \as WideTotal;
+\import WideTotal.Compare[C := A, D := B, domain := source, range := target, before := Cylinder.at I.start, after := (\fun (x: A)(y: B) => y), a := f, b := k, c := g,
+  first := prefix, second := reverse, firstAgrees := StartPrefix.result, secondAgrees := reverseFormula] \as StartTotal;
+\definition initialPoint: \forall (t: I.Carrier)(x: A) -> apply (Double.at I.start (Cylinder.at t x)) = detour (Cylinder.at t x) := \fun (t: I.Carrier)(x: A) => sym!{B} _ _ (StartTotal.result t x);
+\definition finalFirst: \forall (t: I.Carrier)(x: A) -> p (Cylinder.at t x) = first (Double.at t (Cylinder.at I.end x)) := \fun (t: I.Carrier)(x: A) => \refl(p (Cylinder.at t x));
+\definition finalSecond: \forall (t: I.Carrier)(x: A) -> constant (Cylinder.at t x) = second (Double.at t (Cylinder.at I.end x)) := \fun (t: I.Carrier)(x: A) => sym!{B} _ _ (secondAtEnd t x);
+\import WidePrefix.Compare[C := A, D := B, domain := source, range := target, before := Cylinder.at I.end, after := (\fun (x: A)(y: B) => y), a := f, b := g, c := g,
+  first := p, second := constant, firstAgrees := finalFirst, secondAgrees := finalSecond] \as EndPrefix;
+\definition finalReverse: \forall (t: I.Carrier)(x: A) -> constant (Cylinder.at t x) = reversed (Double.at t (Cylinder.at I.end x)) :=
+  \fun (t: I.Carrier)(x: A) => sym!{B} _ _ (secondAtEnd (I.reverse t) x);
+\import WideTotal.Compare[C := A, D := B, domain := source, range := target, before := Cylinder.at I.end, after := (\fun (x: A)(y: B) => y), a := f, b := g, c := g,
+  first := paused, second := constant, firstAgrees := EndPrefix.result, secondAgrees := finalReverse] \as EndTotal;
+\definition finalPoint: \forall (t: I.Carrier)(x: A) -> apply (Double.at I.end (Cylinder.at t x)) = compressed (Cylinder.at t x) := \fun (t: I.Carrier)(x: A) => sym!{B} _ _ (EndTotal.result t x);

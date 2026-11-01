@@ -1,0 +1,67 @@
+\import \parent.Representation[] \as Cases;
+\import \parent.Map[] \as Mapping;
+\definition oldOld: \forall (a, b: A) -> Mapping.apply (Cases.original a) = Mapping.apply (Cases.original b) -> Cases.original a = Cases.original b := \fun (a, b: A)(same: _) =>
+  congr!{A Second.Carrier} Cases.original a b (data.originalInjective a b (eq_reason_in!{Y _
+    "=" _ "by" { sym!{Y} _ _ (Cases.onOriginal a) }
+    "=" _ "by" same
+    "=" _ "by" { Cases.onOriginal b }
+  }));
+\definition oldPole: \forall (a: A)(x: First.InteriorPoint) -> Mapping.apply (Cases.original a) = Mapping.apply (Cases.pole x) -> Logic.False := \fun (a: A)(x: First.InteriorPoint)(same: _) =>
+  data.separated a x fiber.pole (\bysub(Base.Disk, First.interiorSubset, x)) (eq_reason_in!{Y _
+    "=" _ "by" { sym!{Y} _ _ (Cases.onOriginal a) }
+    "=" _ "by" same
+    "=" _ "by" { Cases.onPole x }
+  });
+\definition oldGeneral: \forall (a: A)(z: Second.InteriorPoint) -> Mapping.apply (Cases.original a) = Mapping.apply (Cases.general z) -> Logic.False := \fun (a: A)(z: Second.InteriorPoint)(same: _) =>
+  data.separated a (Cases.first z) (fiber.characteristic (Cases.second z)) (Cases.firstInside z) (eq_reason_in!{Y _
+    "=" _ "by" { sym!{Y} _ _ (Cases.onOriginal a) }
+    "=" _ "by" same
+    "=" _ "by" { Cases.onGeneral z }
+  });
+\definition polePole: \forall (x, y: First.InteriorPoint) -> Mapping.apply (Cases.pole x) = Mapping.apply (Cases.pole y) -> Cases.pole x = Cases.pole y := \fun (x, y: First.InteriorPoint)(same: _) => \block {
+  \let coordinates: Logic.And[x = y, fiber.pole = fiber.pole] := data.chartInjective x y fiber.pole fiber.pole (\bysub(Base.Disk, First.interiorSubset, x)) (\bysub(Base.Disk, First.interiorSubset, y)) (eq_reason_in!{Y _
+    "=" _ "by" { sym!{Y} _ _ (Cases.onPole x) }
+    "=" _ "by" same
+    "=" _ "by" { Cases.onPole y }
+  }) \then
+  \return congr!{First.InteriorPoint Second.Carrier} Cases.pole x y coordinates.left
+};
+\definition poleGeneral: \forall (x: First.InteriorPoint)(z: Second.InteriorPoint) -> Mapping.apply (Cases.pole x) = Mapping.apply (Cases.general z) -> Logic.False := \fun (x: First.InteriorPoint)(z: Second.InteriorPoint)(same: _) => \block {
+  \let coordinates: Logic.And[x = Cases.first z, fiber.pole = fiber.characteristic (Cases.second z)] := data.chartInjective x (Cases.first z) fiber.pole (fiber.characteristic (Cases.second z))
+    (\bysub(Base.Disk, First.interiorSubset, x)) (Cases.firstInside z) (eq_reason_in!{Y _
+      "=" _ "by" { sym!{Y} _ _ (Cases.onPole x) }
+      "=" _ "by" same
+      "=" _ "by" { Cases.onGeneral z }
+    }) \then
+  \return Cases.nonpole z (sym!{FiberSphere.Sphere} _ _ coordinates.right)
+};
+\definition generalGeneral: \forall (z, w: Second.InteriorPoint) -> Mapping.apply (Cases.general z) = Mapping.apply (Cases.general w) -> Cases.general z = Cases.general w := \fun (z, w: Second.InteriorPoint)(same: _) => \block {
+  \let coordinates: Logic.And[Cases.first z = Cases.first w, fiber.characteristic (Cases.second z) = fiber.characteristic (Cases.second w)] := data.chartInjective (Cases.first z) (Cases.first w) (fiber.characteristic (Cases.second z)) (fiber.characteristic (Cases.second w))
+    (Cases.firstInside z) (Cases.firstInside w) (eq_reason_in!{Y _
+      "=" _ "by" { sym!{Y} _ _ (Cases.onGeneral z) }
+      "=" _ "by" same
+      "=" _ "by" { Cases.onGeneral w }
+    }) \then
+  \let direction: Cases.second z = Cases.second w := fiber.interiorInjective (Cases.second z) (Cases.second w) (Cases.secondInside z) coordinates.right \then
+  \let pair: Geometry.homeomorphism.forward z = Geometry.homeomorphism.forward w := Pair.Prop[A := Base.Disk, B := FiberDisk.Disk].ext (Geometry.homeomorphism.forward z) (Geometry.homeomorphism.forward w) coordinates.left direction \then
+  \let equal: z = w := eq_reason_in!{Total.Disk z
+    "=" _ "by" { sym!{Total.Disk} _ _ (Geometry.laws.leftInverse z) }
+    "=" _ "by" { congr!{{Pair.Times^[Base.Disk, FiberDisk.Disk]} Total.Disk} Geometry.homeomorphism.backward (Geometry.homeomorphism.forward z) (Geometry.homeomorphism.forward w) pair }
+    "=" _ "by" { Geometry.laws.leftInverse w }
+  } \then
+  \return congr!{Second.InteriorPoint Second.Carrier} Cases.general z w equal
+};
+\definition injective: \forall (p, q: Second.Carrier) -> Mapping.apply p = Mapping.apply q -> p = q :=
+  Cases.induction (\fun (p: Second.Carrier) => \forall (q: Second.Carrier) -> Mapping.apply p = Mapping.apply q -> p = q)
+    (\fun (a: A) => Cases.induction (\fun (q: Second.Carrier) => Mapping.apply (Cases.original a) = Mapping.apply q -> Cases.original a = q)
+      (oldOld a)
+      (\fun (x: First.InteriorPoint)(same: _) => Logic.falseElim (Cases.original a = Cases.pole x) (oldPole a x same))
+      (\fun (z: Second.InteriorPoint)(same: _) => Logic.falseElim (Cases.original a = Cases.general z) (oldGeneral a z same)))
+    (\fun (x: First.InteriorPoint) => Cases.induction (\fun (q: Second.Carrier) => Mapping.apply (Cases.pole x) = Mapping.apply q -> Cases.pole x = q)
+      (\fun (a: A)(same: _) => Logic.falseElim (Cases.pole x = Cases.original a) (oldPole a x (sym!{Y} _ _ same)))
+      (polePole x)
+      (\fun (z: Second.InteriorPoint)(same: _) => Logic.falseElim (Cases.pole x = Cases.general z) (poleGeneral x z same)))
+    (\fun (z: Second.InteriorPoint) => Cases.induction (\fun (q: Second.Carrier) => Mapping.apply (Cases.general z) = Mapping.apply q -> Cases.general z = q)
+      (\fun (a: A)(same: _) => Logic.falseElim (Cases.general z = Cases.original a) (oldGeneral a z (sym!{Y} _ _ same)))
+      (\fun (x: First.InteriorPoint)(same: _) => Logic.falseElim (Cases.general z = Cases.pole x) (poleGeneral x z (sym!{Y} _ _ same)))
+      (generalGeneral z));

@@ -1,0 +1,31 @@
+\import algebraic_topology.HomotopyEquivalence[A := B, B := D] \as Original;
+\definition laws: Original.Laws[target, range, equivalence] := Original.laws target range equivalence;
+\import \root.Thom[].CWType[].ConeAttachment[A := A, B := D, source := source, target := range, f := next, continuous := regular] \as Next;
+\import \parent.Mapping[D := D, range := range, next := next, nextContinuous := regular, map := equivalence.forward, mapContinuous := laws.forwardContinuous, commutes := commutes] \as FirstMap;
+\definition backwardAttach[x: A]: B := equivalence.backward (next x);
+\definition backwardRegular: topology.Continuity[A := A, B := B].Continuous source target backwardAttach :=
+  topology.Composition[A := A, B := D, C := B].composeContinuous source range target next equivalence.backward regular laws.backwardContinuous;
+\definition backwardCommutes: \forall (x: A) -> equivalence.backward (next x) = backwardAttach x := \fun (x: A) => \refl(backwardAttach x);
+\import \root.Thom[].CWType[].ConeAttachment[A := A, B := B, source := source, target := target, f := backwardAttach, continuous := backwardRegular] \as Third;
+\import \root.Thom[].CWType[].ConeAttachment[A := A, B := D, source := source, target := range, f := next, continuous := regular].Mapping[D := B, range := target,
+  next := backwardAttach, nextContinuous := backwardRegular, map := equivalence.backward, mapContinuous := laws.backwardContinuous, commutes := backwardCommutes] \as SecondMap;
+\definition finalAttach[x: A]: D := equivalence.forward (backwardAttach x);
+\definition finalRegular: topology.Continuity[A := A, B := D].Continuous source range finalAttach :=
+  topology.Composition[A := A, B := B, C := D].composeContinuous source target range backwardAttach equivalence.forward backwardRegular laws.forwardContinuous;
+\definition finalCommutes: \forall (x: A) -> equivalence.forward (backwardAttach x) = finalAttach x := \fun (x: A) => \refl(finalAttach x);
+\import \root.Thom[].CWType[].ConeAttachment[A := A, B := D, source := source, target := range, f := finalAttach, continuous := finalRegular] \as Fourth;
+\import \root.Thom[].CWType[].ConeAttachment[A := A, B := B, source := source, target := target, f := backwardAttach, continuous := backwardRegular].Mapping[D := D, range := range,
+  next := finalAttach, nextContinuous := finalRegular, map := equivalence.forward, mapContinuous := laws.forwardContinuous, commutes := finalCommutes] \as ThirdMap;
+\structure Result: \Set := {
+  equivalence: algebraic_topology.HomotopyEquivalence[A := Carrier, B := Next.Carrier].Equivalence[topology, Next.topology],
+  forward: equivalence.forward = FirstMap.apply
+};
+\import algebraic_topology.Homotopy[A := B, B := B] \as Left;
+\import algebraic_topology.Homotopy[A := D, B := D] \as Right;
+\module With(left: Left.Homotopy[target, target, (\fun (y: B) => equivalence.backward (equivalence.forward y)), (\fun (y: B) => y)],
+  right: Right.Homotopy[range, range, (\fun (z: D) => equivalence.forward (equivalence.backward z)), (\fun (z: D) => z)]);
+\definition exists: \exists Result := \block {
+  \takefrom left: Left.Homotopy[target, target, (\fun (y: B) => equivalence.backward (equivalence.forward y)), (\fun (y: B) => y)] \by laws.leftInverse \then
+  \takefrom right: Right.Homotopy[range, range, (\fun (z: D) => equivalence.forward (equivalence.backward z)), (\fun (z: D) => z)] \by laws.rightInverse \then
+  \return With[left := left, right := right].exists
+};

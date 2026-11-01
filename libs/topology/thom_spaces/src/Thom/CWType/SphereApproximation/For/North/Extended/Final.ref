@@ -1,0 +1,46 @@
+\definition southFinal[x: Disk.Disk]: A := Target.inclusion (s.value x);
+\definition southHomotopy: DiskHomotopies.Homotopy[Disk.diskTopology, source, southEnd, southFinal] := DiskHomotopies.forgetRelative Disk.diskTopology source Boundary.subset southEnd southFinal s.homotopy;
+\definition constant: DiskHomotopies.Homotopy[Disk.diskTopology, source, northEnd, northEnd] := DiskHomotopies.constant Disk.diskTopology source northEnd northEndContinuous;
+\definition first: DiskHomotopies.Homotopy[Disk.diskTopology, source, north, northEnd] :=
+  DiskHomotopies.Concatenation[].concatenate Disk.diskTopology source north northEnd northEnd northHomotopy constant;
+\definition second: DiskHomotopies.Homotopy[Disk.diskTopology, source, south, southFinal] :=
+  DiskHomotopies.Concatenation[].concatenate Disk.diskTopology source south southEnd southFinal extensionHomotopy southHomotopy;
+\definition firstAgreement: \forall (t: I.Carrier)(x: Disk.Disk) -> \In[Disk.Disk] Boundary.subset x -> northHomotopy (DiskCylinder.at t x) = extensionHomotopy (DiskCylinder.at t x) :=
+  \fun (t: I.Carrier)(x: Disk.Disk)(inside: _) => sym!{A} _ _ (extensionLaws.extends t (\into[Disk.Disk](x, Boundary.subset) \by { inside }));
+\definition secondAgreement: \forall (t: I.Carrier)(x: Disk.Disk) -> \In[Disk.Disk] Boundary.subset x -> constant (DiskCylinder.at t x) = southHomotopy (DiskCylinder.at t x) :=
+  \fun (t: I.Carrier)(x: Disk.Disk)(inside: _) => trans!{A} _ _ _
+    (sym!{A} _ _ (boundaryEnd (\into[Disk.Disk](x, Boundary.subset) \by { inside })))
+    (sym!{A} _ _ ((DiskHomotopies.relativeLaws Disk.diskTopology source Boundary.subset southEnd southFinal s.homotopy).fixed t x inside));
+\import \root.Thom[].CWType[].ConcatenationAgreement[A := Disk.Disk, B := A].Of[source := Disk.diskTopology, target := source, subset := Boundary.subset,
+  f := north, g := northEnd, k := northEnd, p := south, q := southEnd, r := southFinal, h := northHomotopy, j := constant, u := extensionHomotopy, v := southHomotopy,
+  first := firstAgreement, second := secondAgreement] \as Agreement;
+\definition boundaryAgreement: \forall (t: I.Carrier)(v: Disk.Sphere) -> first (DiskCylinder.at t (Halves.boundaryInclusion v)) = second (DiskCylinder.at t (Halves.boundaryInclusion v)) :=
+  \fun (t: I.Carrier)(v: Disk.Sphere) => Agreement.law t (Halves.boundaryInclusion v) (\bysub(Disk.Coordinate, Disk.Boundary, v));
+\import \root.Thom[].CWType[].SphereFamilies[d := d, B := A, target := source, first := first, second := second].Of[
+  firstContinuous := (DiskHomotopies.laws Disk.diskTopology source north northEnd first).continuous,
+  secondContinuous := (DiskHomotopies.laws Disk.diskTopology source south southFinal second).continuous,
+  compatible := boundaryAgreement] \as Gluing;
+\definition endAgreement: \forall (v: Disk.Sphere) -> n.value (Halves.boundaryInclusion v) = s.value (Halves.boundaryInclusion v) :=
+  \fun (v: Disk.Sphere) => trans!{A} _ _ _
+    (sym!{A} _ _ (boundaryEnd (\into[Disk.Disk](Halves.boundaryInclusion v, Boundary.subset) \by { \bysub(Disk.Coordinate, Disk.Boundary, v) })))
+    (DiskHomotopies.relativeEndpoints Disk.diskTopology source Boundary.subset southEnd southFinal s.homotopy (Halves.boundaryInclusion v) (\bysub(Disk.Coordinate, Disk.Boundary, v)));
+\import Cover.Universal[B := Target.Carrier, target := Target.topology, f := n.value, g := s.value,
+  continuousF := n.continuous, continuousG := s.continuous, agrees := endAgreement] \as Endpoint;
+\definition value: Sphere.Sphere -> Target.Carrier := Endpoint.apply;
+\definition homotopy: Homotopies.Homotopy[Sphere.sphereTopology, source, f, (\fun (x: Sphere.Sphere) => Target.inclusion (value x))] :=
+  \into[Homotopies.Family](Gluing.family, Homotopies.Homotopy[Sphere.sphereTopology, source, f, (\fun (x: Sphere.Sphere) => Target.inclusion (value x))]) \by {
+    Homotopies.Laws[Sphere.sphereTopology, source, f, (\fun (x: Sphere.Sphere) => Target.inclusion (value x)), Gluing.family] {
+      continuous := Gluing.continuous,
+      start := Cover.induction (\fun (x: Sphere.Sphere) => Gluing.family (Cylinder.at I.start x) = f x)
+        (\fun (v: Disk.Disk) => trans!{A} _ _ _ (Gluing.onPositive I.start v) ((DiskHomotopies.laws Disk.diskTopology source north northEnd first).start v))
+        (\fun (v: Disk.Disk) => trans!{A} _ _ _ (Gluing.onNegative I.start v) ((DiskHomotopies.laws Disk.diskTopology source south southFinal second).start v)),
+      end := Cover.induction (\fun (x: Sphere.Sphere) => Gluing.family (Cylinder.at I.end x) = Target.inclusion (value x))
+        (\fun (v: Disk.Disk) => trans!{A} _ _ _ (Gluing.onPositive I.end v)
+          (trans!{A} _ _ _ ((DiskHomotopies.laws Disk.diskTopology source north northEnd first).end v)
+            (congr!{Target.Carrier A} Target.inclusion (n.value v) (value (Halves.positive v)) (sym!{Target.Carrier} _ _ (Endpoint.onPositive v)))))
+        (\fun (v: Disk.Disk) => trans!{A} _ _ _ (Gluing.onNegative I.end v)
+          (trans!{A} _ _ _ ((DiskHomotopies.laws Disk.diskTopology source south southFinal second).end v)
+            (congr!{Target.Carrier A} Target.inclusion (s.value v) (value (Halves.negative v)) (sym!{Target.Carrier} _ _ (Endpoint.onNegative v)))))
+    }
+  };
+\definition result: Result[f] := Result[f] { value := value, continuous := Endpoint.continuous, homotopy := homotopy };

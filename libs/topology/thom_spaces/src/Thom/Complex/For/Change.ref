@@ -1,0 +1,19 @@
+\import \parent.Gauge[metric := left] \as LeftGauge;
+\import \parent.Gauge[metric := right] \as RightGauge;
+\import Gauges.Change[left := LeftGauge.gauge, right := RightGauge.gauge] \as Comparison;
+\import Original.With[metric := left] \as Left;
+\import Original.With[metric := right] \as Right;
+\import topology.Homeomorphism[A := Family.Point, B := RealFamily.Point].Composition[C := RealFamily.Point] \as First;
+\import topology.Homeomorphism[A := Family.Point, B := RealFamily.Point].Composition[C := Family.Point] \as Second;
+\definition inverse: topology.Homeomorphism[A := RealFamily.Point, B := Family.Point].Homeomorphism[Realified.topology, bundle.totalSpace] :=
+  topology.Homeomorphism[A := Family.Point, B := RealFamily.Point].Inverse[].inverse bundle.totalSpace Realified.topology Realified.homeomorphism;
+\definition totalHomeomorphism: topology.Homeomorphism[A := Family.Point, B := Family.Point].Homeomorphism[bundle.totalSpace, bundle.totalSpace] :=
+  Second.compose bundle.totalSpace Realified.topology bundle.totalSpace (First.compose bundle.totalSpace Realified.topology Realified.topology Realified.homeomorphism Comparison.homeomorphism) inverse;
+\definition forwardSquared: \forall (p: Family.Point) -> Right.squared (totalHomeomorphism.forward p) = Left.squared p :=
+  \fun (p: Family.Point) => trans!{R.Real} _ _ _ (Comparison.forwardSquared (Realified.forward p)) (congr!{Family.Point R.Real} Left.squared _ _ (Family.eta p));
+\definition backwardSquared: \forall (p: Family.Point) -> Left.squared (totalHomeomorphism.backward p) = Right.squared p :=
+  \fun (p: Family.Point) => trans!{R.Real} _ _ _ (Comparison.backwardSquared (Realified.forward p)) (congr!{Family.Point R.Real} Right.squared _ _ (Family.eta p));
+\import \root.Thom[].Levels[A := Family.Point, B := Family.Point, source := bundle.totalSpace, target := bundle.totalSpace, q := Left.squared, r := Right.squared,
+  h := totalHomeomorphism, forwardSquared := forwardSquared, backwardSquared := backwardSquared] \as Levels;
+\definition diskHomeomorphism: topology.Homeomorphism[A := Left.DiskBundle, B := Right.DiskBundle].Homeomorphism[Left.diskTopology, Right.diskTopology] := Levels.diskHomeomorphism;
+\definition thomHomeomorphism: topology.Homeomorphism[A := Left.Thom, B := Right.Thom].Homeomorphism[Left.thomTopology, Right.thomTopology] := Levels.thomHomeomorphism;

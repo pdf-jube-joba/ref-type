@@ -1,0 +1,56 @@
+\import \parent.\parent.\parent.Homotopic[g := g, regular := regular, h := h] \as Change;
+\import \root.Thom[].CWType[].ConeAttachment[A := A, B := B, source := source, target := target, f := g, continuous := regular] \as Next;
+\import \root.Thom[].CWType[].ConeAttachment[A := A, B := B, source := source, target := target, f := g, continuous := regular].Subset[subset := subset].Inside[] \as NextInside;
+\import topology.Topology[Carrier := A] \as Input;
+\definition nullContained: \forall (t: I.Carrier)(x: \Cast[A] Input.Whole) -> \In[Carrier] fullSubset (null (Cylinder.at t x)) := \fun (t: I.Carrier)(x: \Cast[A] Input.Whole) => cylinderMember t x;
+\definition nextNullContained: \forall (t: I.Carrier)(x: \Cast[A] Input.Whole) -> \In[Next.Carrier] NextInside.fullSubset (Next.null (Cylinder.at t x)) := \fun (t: I.Carrier)(x: \Cast[A] Input.Whole) => NextInside.cylinderMember t x;
+\definition pathContained: \forall (t: I.Carrier)(x: \Cast[A] Input.Whole) -> \In[Carrier] fullSubset (Change.firstPath (Cylinder.at t x)) := \fun (t: I.Carrier)(x: \Cast[A] Input.Whole) => originalMember (h (Cylinder.at t x)) (hContained t x);
+\definition reverseContained: \forall (t: I.Carrier)(x: \Cast[A] Input.Whole) -> \In[Next.Carrier] NextInside.fullSubset (Change.reversePath (Cylinder.at t x)) := \fun (t: I.Carrier)(x: \Cast[A] Input.Whole) => NextInside.originalMember (h (Cylinder.at (I.reverse t) x)) (hContained (I.reverse t) x);
+\import \root.Thom[].CWType[].PreservedPaths[A := A, B := Next.Carrier, subset := Input.Whole, targetSubset := NextInside.fullSubset].Concatenation[
+  source := source, target := Next.topology, f := (\fun (x: A) => Next.apex), g := (\fun (x: A) => Next.inclusion (g x)), k := (\fun (x: A) => Next.inclusion (f x)),
+  first := Next.null, second := Change.reversePath, firstPreserves := nextNullContained, secondPreserves := reverseContained] \as ForwardPath;
+\import \root.Thom[].CWType[].PreservedPaths[A := A, B := Carrier, subset := Input.Whole, targetSubset := fullSubset].Concatenation[
+  source := source, target := topology, f := (\fun (x: A) => apex), g := (\fun (x: A) => inclusion (f x)), k := (\fun (x: A) => inclusion (g x)),
+  first := null, second := Change.firstPath, firstPreserves := nullContained, secondPreserves := pathContained] \as BackwardPath;
+\definition forwardContained: \forall (z: \Cast[Carrier] fullSubset) -> \In[Next.Carrier] NextInside.fullSubset (Change.forward z) := \fun (z: \Cast[Carrier] fullSubset) =>
+  eliminate z (\In[Next.Carrier] NextInside.fullSubset (Change.forward z))
+    (\fun (y: B)(member: _)(same: inclusion y = z) => \idelim Next.inclusion y = Change.forward z \with q: Next.Carrier => \In[Next.Carrier] NextInside.fullSubset q \by {
+      base: NextInside.originalMember y member,
+      equality: trans!{Next.Carrier} _ _ _ (sym!{Next.Carrier} _ _ (Change.forwardOriginal y)) (congr!{Carrier Next.Carrier} Change.forward _ _ same)
+    })
+    (\fun (same: apex = z) => \idelim Next.apex = Change.forward z \with q: Next.Carrier => \In[Next.Carrier] NextInside.fullSubset q \by {
+      base: NextInside.apexMember,
+      equality: trans!{Next.Carrier} _ _ _ (sym!{Next.Carrier} _ _ Change.forwardApex) (congr!{Carrier Next.Carrier} Change.forward _ _ same)
+    })
+    (\fun (t: I.Carrier)(x: A)(same: at t x = z) => \idelim Change.forwardPath (Cylinder.at t x) = Change.forward z \with q: Next.Carrier => \In[Next.Carrier] NextInside.fullSubset q \by {
+      base: ForwardPath.preserves t (\into[A](x, Input.Whole) \by { \refl(x) }),
+      equality: trans!{Next.Carrier} _ _ _ (sym!{Next.Carrier} _ _ (Change.forwardCylinder t x)) (congr!{Carrier Next.Carrier} Change.forward _ _ same)
+    }) (\bysub(Carrier, fullSubset, z));
+\definition backwardContained: \forall (z: \Cast[Next.Carrier] NextInside.fullSubset) -> \In[Carrier] fullSubset (Change.backward z) := \fun (z: \Cast[Next.Carrier] NextInside.fullSubset) =>
+  NextInside.eliminate z (\In[Carrier] fullSubset (Change.backward z))
+    (\fun (y: B)(member: _)(same: Next.inclusion y = z) => \idelim inclusion y = Change.backward z \with q: Carrier => \In[Carrier] fullSubset q \by {
+      base: originalMember y member,
+      equality: trans!{Carrier} _ _ _ (sym!{Carrier} _ _ (Change.backwardOriginal y)) (congr!{Next.Carrier Carrier} Change.backward _ _ same)
+    })
+    (\fun (same: Next.apex = z) => \idelim apex = Change.backward z \with q: Carrier => \In[Carrier] fullSubset q \by {
+      base: apexMember,
+      equality: trans!{Carrier} _ _ _ (sym!{Carrier} _ _ Change.backwardApex) (congr!{Next.Carrier Carrier} Change.backward _ _ same)
+    })
+    (\fun (t: I.Carrier)(x: A)(same: Next.at t x = z) => \idelim Change.backwardPath (Cylinder.at t x) = Change.backward z \with q: Carrier => \In[Carrier] fullSubset q \by {
+      base: BackwardPath.preserves t (\into[A](x, Input.Whole) \by { \refl(x) }),
+      equality: trans!{Carrier} _ _ _ (sym!{Carrier} _ _ (Change.backwardCylinder t x)) (congr!{Next.Carrier Carrier} Change.backward _ _ same)
+    }) (\bysub(Next.Carrier, NextInside.fullSubset, z));
+\import \root.Thom[].CWType[].PathCancellation[A := A, B := Carrier, source := source, target := topology,
+  f := (\fun (x: A) => apex), g := (\fun (x: A) => inclusion (f x)), k := (\fun (x: A) => inclusion (g x)), p := null, h := Change.firstPath].Preservation[
+  subset := Input.Whole, targetSubset := fullSubset, pPreserves := nullContained, hPreserves := pathContained] \as LeftFill;
+\import \root.Thom[].CWType[].PathCancellation[A := A, B := Next.Carrier, source := source, target := Next.topology,
+  f := (\fun (x: A) => Next.apex), g := (\fun (x: A) => Next.inclusion (g x)), k := (\fun (x: A) => Next.inclusion (f x)), p := Next.null, h := Change.reversePath].Preservation[
+  subset := Input.Whole, targetSubset := NextInside.fullSubset, pPreserves := nextNullContained, hPreserves := reverseContained] \as RightFill;
+\module Left;
+\module Right;
+\definition equivalence: \root.Thom[].CWType[].PairTools[A := Carrier, B := Next.Carrier, source := topology, target := Next.topology, subset := fullSubset, targetSubset := NextInside.fullSubset].Data :=
+  \root.Thom[].CWType[].PairTools[A := Carrier, B := Next.Carrier, source := topology, target := Next.topology, subset := fullSubset, targetSubset := NextInside.fullSubset].Data {
+    forward := Change.forward, backward := Change.backward, forwardContinuous := Change.forwardContinuous, backwardContinuous := Change.backwardContinuous,
+    forwardContained := forwardContained, backwardContained := backwardContained,
+    left := Change.Left[].result, right := Change.Right[].result, leftPreserves := Left[].preserves, rightPreserves := Right[].preserves
+  };

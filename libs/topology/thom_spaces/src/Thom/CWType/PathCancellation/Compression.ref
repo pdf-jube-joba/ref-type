@@ -1,0 +1,34 @@
+\import algebraic_topology.Homotopy[A := A, B := I.Carrier] \as Times;
+\import Times.Concatenation[] \as TimeJoin;
+\definition zero[x: A]: I.Carrier := I.start;
+\definition one[x: A]: I.Carrier := I.end;
+\definition clock: Times.Homotopy[source, I.topology, zero, one] := \into[Times.Family](Cylinder.time, Times.Homotopy[source, I.topology, zero, one]) \by {
+  Times.Laws[source, I.topology, zero, one, Cylinder.time] {
+    continuous := Cylinder.timeContinuous source, start := \fun (x: A) => \refl(I.start), end := \fun (x: A) => \refl(I.end)
+  }
+};
+\definition constantTime: Times.Homotopy[source, I.topology, one, one] := Times.constant source I.topology one (topology.Maps[A := A, B := I.Carrier].constantContinuous source I.topology I.end);
+\definition firstClock: Times.Homotopy[source, I.topology, zero, one] := TimeJoin.concatenate source I.topology zero one one clock constantTime;
+\definition rho: Times.Homotopy[source, I.topology, zero, one] := TimeJoin.concatenate source I.topology zero one one firstClock constantTime;
+\import \root.Thom[].CWType[].ConcatenationLaws[A := A, B := I.Carrier, source := source, target := I.topology, f := zero, g := one, k := one, h := clock, j := constantTime] \as FirstJoin;
+\definition firstAgrees: \forall (t: I.Carrier)(x: A) -> p (Cylinder.at t x) = p (Cylinder.at (clock (Cylinder.at t x)) x) := \fun (t: I.Carrier)(x: A) => \refl(p (Cylinder.at t x));
+\definition constantAgrees: \forall (t: I.Carrier)(x: A) -> constant (Cylinder.at t x) = p (Cylinder.at (constantTime (Cylinder.at t x)) x) := \fun (t: I.Carrier)(x: A) => sym!{B} _ _ ((Paths.laws source target f g p).end x);
+\import FirstJoin.Compare[C := A, D := B, domain := source, range := target, before := (\fun (x: A) => x), after := (\fun (x: A)(t: I.Carrier) => p (Cylinder.at t x)), a := f, b := g, c := g,
+  first := p, second := constant, firstAgrees := firstAgrees, secondAgrees := constantAgrees] \as FirstFormula;
+\import \root.Thom[].CWType[].ConcatenationLaws[A := A, B := I.Carrier, source := source, target := I.topology, f := zero, g := one, k := one, h := firstClock, j := constantTime] \as SecondJoin;
+\import SecondJoin.Compare[C := A, D := B, domain := source, range := target, before := (\fun (x: A) => x), after := (\fun (x: A)(t: I.Carrier) => p (Cylinder.at t x)), a := f, b := g, c := g,
+  first := paused, second := constant, firstAgrees := FirstFormula.result, secondAgrees := constantAgrees] \as Formula;
+\import \root.Thom[].CWType[].PathReparametrization[A := A, B := B, source := source, target := target, f := f, g := g, p := p, clock := rho, q := compressed, formula := Formula.result] \as Value;
+\definition apply: Double.Carrier -> B := Value.apply;
+\definition continuous: topology.Continuity[A := Double.Carrier, B := B].Continuous doubleTopology target apply := Value.continuous;
+\definition start: \forall (t: I.Carrier)(x: A) -> apply (Double.at I.start (Cylinder.at t x)) = compressed (Cylinder.at t x) := Value.start;
+\definition end: \forall (t: I.Carrier)(x: A) -> apply (Double.at I.end (Cylinder.at t x)) = p (Cylinder.at t x) := Value.end;
+\definition atZero: \forall (u: I.Carrier)(x: A) -> apply (Double.at u (Cylinder.at I.start x)) = f x := Value.atZero;
+\definition atOne: \forall (u: I.Carrier)(x: A) -> apply (Double.at u (Cylinder.at I.end x)) = g x := Value.atOne;
+\import \root.Thom[].CWType[].PathReparametrization[A := A, B := B, source := source, target := target, f := f, g := g, p := p, clock := firstClock, q := paused, formula := FirstFormula.result] \as Single;
+\definition singleApply: Double.Carrier -> B := Single.apply;
+\definition singleContinuous: topology.Continuity[A := Double.Carrier, B := B].Continuous doubleTopology target singleApply := Single.continuous;
+\definition singleStart: \forall (t: I.Carrier)(x: A) -> singleApply (Double.at I.start (Cylinder.at t x)) = paused (Cylinder.at t x) := Single.start;
+\definition singleEnd: \forall (t: I.Carrier)(x: A) -> singleApply (Double.at I.end (Cylinder.at t x)) = p (Cylinder.at t x) := Single.end;
+\definition singleAtZero: \forall (u: I.Carrier)(x: A) -> singleApply (Double.at u (Cylinder.at I.start x)) = f x := Single.atZero;
+\definition singleAtOne: \forall (u: I.Carrier)(x: A) -> singleApply (Double.at u (Cylinder.at I.end x)) = g x := Single.atOne;

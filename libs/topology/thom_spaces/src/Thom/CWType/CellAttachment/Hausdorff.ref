@@ -1,0 +1,27 @@
+\import topology.Topology[Carrier := A] \as Base;
+\import R.Estimates[] \as Estimates;
+\definition half: R.Real := R.mul R.half R.one;
+\definition halfBelow: D.Lt half R.one := Estimates.halfStrict R.one Estimates.Product[].onePositive;
+\module Original(a, b: A, different: Logic.Not (inclusion a = inclusion b));
+\module Mixed(a: A, p: InteriorPoint);
+\module Interior(p, q: InteriorPoint, different: Logic.Not (interior p = interior q));
+\definition separated: \forall (x, y: Carrier) -> Logic.Not (x = y) -> \exists Separation[x, y] :=
+  \induction (x: Carrier) \return \forall (y: Carrier) -> Logic.Not (x = y) -> \exists Separation[x, y] \with {
+    | inl: \fun (a: A) => \induction (y: Carrier) \return Logic.Not (inclusion a = y) -> \exists Separation[inclusion a, y] \with {
+      | inl: \fun (b: A)(different: _) => Original[a := a, b := b, different := different].exists
+      | inr: \fun (p: InteriorPoint)(different: _) => Mixed[a := a, p := p].exists
+    }
+    | inr: \fun (p: InteriorPoint) => \induction (y: Carrier) \return Logic.Not (interior p = y) -> \exists Separation[interior p, y] \with {
+      | inl: \block {
+        \fun (a: A)(different: _) \then
+        \takefrom s: Separation[inclusion a, interior p] \by Mixed[a := a, p := p].exists \then
+        \return \exact(reverseSeparation (inclusion a) (interior p) s, Separation[interior p, inclusion a])
+      }
+      | inr: \fun (q: InteriorPoint)(different: _) => Interior[p := p, q := q, different := different].exists
+    }
+  };
+\definition law: Space.IsT2 topology := \block {
+  \fun (x, y: Carrier)(different: _) \then
+  \takefrom s: Separation[x, y] \by separated x y different \then
+  \return separationWitness x y s
+};

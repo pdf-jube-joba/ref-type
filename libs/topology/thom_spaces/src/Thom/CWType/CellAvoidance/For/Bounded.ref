@@ -1,0 +1,51 @@
+\definition boundLaws: C.RadiusLaws[bound] := \bysub(R.Real, C.Radius, bound);
+\definition radius: R.Real := R.mul R.half (R.mul R.half bound);
+\definition positive: D.Lt R.zero radius := R.Estimates[].halfOfPositive (R.mul R.half bound) (R.Estimates[].halfOfPositive bound boundLaws.positive);
+\definition twice: R.Real := R.add radius radius;
+\definition thrice: R.Real := R.add radius twice;
+\definition twiceEquation: twice = R.mul R.half bound := R.Estimates[].halfTwice (R.mul R.half bound);
+\definition tripleSmall: D.Lt thrice bound := D.ltReplaceRight thrice (R.add (R.mul R.half bound) (R.mul R.half bound)) bound (R.Estimates[].halfTwice bound)
+  (D.ltReplaceRight thrice (R.add (R.mul R.half bound) twice) (R.add (R.mul R.half bound) (R.mul R.half bound))
+    (congr!{R.Real R.Real} (R.add (R.mul R.half bound)) _ _ twiceEquation)
+    (Laws.ltAddRight radius (R.mul R.half bound) twice (R.Estimates[].halfStrict (R.mul R.half bound) (R.Estimates[].halfOfPositive bound boundLaws.positive))));
+\definition twiceBelowThrice: D.Le twice thrice := R.Distance[].leAddRightOfNonnegative radius twice (Order.leOfLt _ _ positive);
+\definition inChart: \forall (p: Model.Coordinate) -> D.Le (Sup.norm p) thrice -> D.Lt (Model.normSquared p) R.one :=
+  \fun (p: Model.Coordinate)(small: _) => boundLaws.inside p (D.leLtTrans _ _ _ small tripleSmall);
+\definition openChartDomain: \Pow Chart.Carrier := { p: Chart.Carrier \where D.Lt (Sup.norm p) twice };
+\import metric_spaces.RealFunctions[A := Chart.Carrier] \as ChartFunctions;
+\definition chartNormContinuous: ChartFunctions.Continuous Chart.topology (\fun (p: Chart.Carrier) => Sup.norm p) :=
+  topology.Continuity[A := Model.Disk, B := R.Real].Restriction[S := Chart.interior].restrictContinuous Model.diskTopology metric_spaces.RealLine[].topology (\fun (p: Model.Disk) => Sup.norm p)
+    (topology.Continuity[A := Model.Coordinate, B := R.Real].Restriction[S := Model.ClosedBall].restrictContinuous Model.topology metric_spaces.RealLine[].topology Sup.norm Sup.normContinuous);
+\definition openChartDomainOpen: topology.Topology[Carrier := Chart.Carrier].IsOpenIn Chart.topology openChartDomain := chartNormContinuous
+  (metric_spaces.RealLine[].Rays[].Below twice) (metric_spaces.RealLine[].Rays[].belowOpen twice);
+\import topology.Maps[A := Chart.Carrier, B := Stage.Carrier] \as ChartImages;
+\definition openRegion: \Pow Stage.Carrier := ChartImages.Image C.embed openChartDomain;
+\definition openRegionOpen: StageSpace.IsOpenIn Stage.topology openRegion := C.OpenImage[].imageOpen openChartDomain openChartDomainOpen;
+\definition left: \Pow Domain.Disk := { x: Domain.Disk \where \In[Stage.Carrier] (C.ClosedRegion thrice) (f x) };
+\definition right: \Pow Domain.Disk := { x: Domain.Disk \where Logic.Not (\In[Stage.Carrier] openRegion (f x)) };
+\definition leftClosed: DomainSpace.IsClosedIn Domain.diskTopology left := continuous (StageSpace.Complement (C.ClosedRegion thrice)) (C.closedRegion thrice);
+\definition rightClosed: DomainSpace.IsClosedIn Domain.diskTopology right := DomainSpace.Finite[].openComplementClosed Domain.diskTopology
+  ({ x: Domain.Disk \where \In[Stage.Carrier] openRegion (f x) }) (continuous openRegion openRegionOpen);
+\import DomainSpace.Subspace[S := left] \as LeftSubspace;
+\import DomainSpace.Subspace[S := right] \as RightSubspace;
+\definition Left: \Set := LeftSubspace.CarrierSet;
+\definition Right: \Set := RightSubspace.CarrierSet;
+\definition leftTopology: topology.Topology[Carrier := Left].Topology := LeftSubspace.topology Domain.diskTopology;
+\definition rightTopology: topology.Topology[Carrier := Right].Topology := RightSubspace.topology Domain.diskTopology;
+\import topology.Maps[A := Model.Disk, B := Stage.Carrier] \as DiskImages;
+\definition covered: \forall (x: Domain.Disk) -> Logic.Or[\In[Domain.Disk] left x, \In[Domain.Disk] right x] :=
+  \fun (x: Domain.Disk) => either!{{Classical.excludedMiddle (\In[Stage.Carrier] openRegion (f x))} {Logic.Or[\In[Domain.Disk] left x, \In[Domain.Disk] right x]}
+    {\fun (inside: _) => Logic.Or[_, _]::left (ChartImages.imageElim C.embed openChartDomain (f x) (\In[Stage.Carrier] (C.ClosedRegion thrice) (f x))
+      (\fun (p: Chart.Carrier)(small: _)(image: C.embed p = f x) => \idelim C.embed p = f x
+        \with y: Stage.Carrier => \In[Stage.Carrier] (C.ClosedRegion thrice) y \by {
+          base: DiskImages.imageMember C.characteristic (C.ClosedDomain thrice) p (D.leTrans _ _ _ (Order.leOfLt _ _ small) twiceBelowThrice), equality: image
+        }) inside)}
+    {Logic.Or[_, _]::right}
+  };
+\module Coordinates;
+\module Extended(extension: \root.Thom[].CWType[].CellAvoidance[m := m, A := A, source := source, complex := complex, cell := cell, member := member, larger := larger]
+  .For[f := f, continuous := continuous].Bounded[bound := bound].Coordinates[].Extension);
+\definition exists: \exists Perturbation := \block {
+  \takefrom extension: Coordinates[].Extension \by Coordinates[].extension \then
+  \return Extended[extension := extension].exists
+};

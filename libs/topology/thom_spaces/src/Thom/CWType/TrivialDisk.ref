@@ -1,0 +1,40 @@
+\import real.Analysis[] \as R;
+\import dedekind_reals.DedekindReal[] \as D;
+\import algebraic_topology.Euclidean[].Dimension[n := n] \as Euclidean;
+\import vector_bundles.Bundles[].Over[K := R.Real, field := R.Algebra[].field, conjugation := linear_algebra.Hermitian[].Real[].scalar, scalar := vector_bundles.Bundles[].Real[].scalar] \as Bundles;
+\import Bundles.Trivial[X := X, n := n, baseSpace := source] \as Bundle;
+\import Bundles.Family[X := X, F := (\fun (x: X) => Euclidean.Coordinate)] \as Family;
+\import \root.Thom[].Quadratic[].Over[X := X, F := (\fun (x: X) => Euclidean.Coordinate), bundle := Bundle.bundle] \as Quadratic;
+\definition ClosedSubset: \Pow Family.Point := { p: Family.Point \where D.Le (Euclidean.normSquared p.vector) R.one };
+\import topology.Topology[Carrier := Family.Point].Subspace[S := ClosedSubset] \as ClosedSubspace;
+\definition ClosedCarrier: \Set := ClosedSubspace.CarrierSet;
+\definition closedTopology: topology.Topology[Carrier := ClosedCarrier].Topology := ClosedSubspace.topology Bundle.topology;
+\import topological_constructions.Product[A := X, B := Euclidean.Disk] \as Product;
+\import topological_constructions.Product[A := X, B := Euclidean.Coordinate] \as Ambient;
+\definition Carrier: \Set := Product.CarrierSet;
+\definition topology: topology.Topology[Carrier := Carrier].Topology := Product.topology source Euclidean.diskTopology;
+\definition forward[p: Carrier]: ClosedCarrier := \into[Family.Point](Family.include (Pair.first X Euclidean.Disk p) (Pair.second X Euclidean.Disk p), ClosedSubset) \by {
+  \bysub(Euclidean.Coordinate, Euclidean.ClosedBall, Pair.second X Euclidean.Disk p)
+};
+\definition vector[p: ClosedCarrier]: Euclidean.Disk := \into[Euclidean.Coordinate](p.vector, Euclidean.ClosedBall) \by { \bysub(Family.Point, ClosedSubset, p) };
+\definition backward[p: ClosedCarrier]: Carrier := Pair.pair X Euclidean.Disk p.base (vector p);
+\definition ambient[p: Carrier]: Ambient.CarrierSet := Pair.pair X Euclidean.Coordinate (Pair.first X Euclidean.Disk p) (Pair.second X Euclidean.Disk p);
+\definition ambientContinuous: topology.Continuity[A := Carrier, B := Ambient.CarrierSet].Continuous topology (Ambient.topology source Euclidean.topology) ambient :=
+  Ambient.Universal[X := Carrier].pairContinuous topology source Euclidean.topology (Pair.first X Euclidean.Disk) (\fun (p: Carrier) => Pair.second X Euclidean.Disk p)
+    (Product.Maps[].firstContinuous source Euclidean.diskTopology)
+    (topology.Composition[A := Carrier, B := Euclidean.Disk, C := Euclidean.Coordinate].composeContinuous topology Euclidean.diskTopology Euclidean.topology (Pair.second X Euclidean.Disk) (\fun (v: Euclidean.Disk) => v)
+      (Product.Maps[].secondContinuous source Euclidean.diskTopology) (topology.Continuity[A := Euclidean.Disk, B := Euclidean.Coordinate].Corestriction[S := Euclidean.ClosedBall].inclusionContinuous Euclidean.topology));
+\definition forwardContinuous: topology.Continuity[A := Carrier, B := ClosedCarrier].Continuous topology closedTopology forward :=
+  topology.Continuity[A := Carrier, B := Family.Point].Corestriction[S := ClosedSubset].corestrictContinuous topology Bundle.topology forward
+    (topology.Composition[A := Carrier, B := Ambient.CarrierSet, C := Family.Point].composeContinuous topology (Ambient.topology source Euclidean.topology) Bundle.topology ambient Bundle.backward ambientContinuous Bundle.backwardContinuous);
+\definition vectorContinuous: topology.Continuity[A := ClosedCarrier, B := Euclidean.Disk].Continuous closedTopology Euclidean.diskTopology vector :=
+  topology.Continuity[A := ClosedCarrier, B := Euclidean.Coordinate].Corestriction[S := Euclidean.ClosedBall].corestrictContinuous closedTopology Euclidean.topology vector
+    (topology.Continuity[A := Family.Point, B := Euclidean.Coordinate].Restriction[S := ClosedSubset].restrictContinuous Bundle.topology Euclidean.topology (\fun (p: Family.Point) => p.vector) Bundle.vectorContinuous);
+\definition backwardContinuous: topology.Continuity[A := ClosedCarrier, B := Carrier].Continuous closedTopology topology backward :=
+  Product.Universal[X := ClosedCarrier].pairContinuous closedTopology source Euclidean.diskTopology (\fun (p: ClosedCarrier) => p.base) vector
+    (topology.Continuity[A := Family.Point, B := X].Restriction[S := ClosedSubset].restrictContinuous Bundle.topology source Family.projection Bundle.projectionContinuous) vectorContinuous;
+\definition homeomorphism: topology.Homeomorphism[A := Carrier, B := ClosedCarrier].Homeomorphism[topology, closedTopology] := topology.Homeomorphism[A := Carrier, B := ClosedCarrier].Homeomorphism[topology, closedTopology] {
+  forward := forward, backward := backward, forwardContinuous := forwardContinuous, backwardContinuous := backwardContinuous,
+  leftInverse := Pair.Prop[A := X, B := Euclidean.Disk].eta,
+  rightInverse := \fun (p: ClosedCarrier) => Family.eta p
+};

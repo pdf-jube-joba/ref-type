@@ -1,0 +1,48 @@
+\import topological_constructions.Product[A := Disk.Sphere, B := Fiber.Disk] \as Left;
+\import topological_constructions.Product[A := Disk.Disk, B := Fiber.Sphere] \as Right;
+\definition leftTopology: topology.Topology[Carrier := Left.CarrierSet].Topology := Left.topology Disk.sphereTopology Fiber.diskTopology;
+\definition rightTopology: topology.Topology[Carrier := Right.CarrierSet].Topology := Right.topology Disk.diskTopology Fiber.sphereTopology;
+\definition leftPrism[p: Left.CarrierSet]: Prism.CarrierSet := Pair.pair Disk.Disk Fiber.Disk (Characteristic.boundaryInclusion (Pair.first Disk.Sphere Fiber.Disk p)) (Pair.second Disk.Sphere Fiber.Disk p);
+\definition leftPrismContinuous: topology.Continuity[A := Left.CarrierSet, B := Prism.CarrierSet].Continuous leftTopology prismTopology leftPrism :=
+  Prism.Universal[X := Left.CarrierSet].pairContinuous leftTopology Disk.diskTopology Fiber.diskTopology
+    (\fun (p: Left.CarrierSet) => Characteristic.boundaryInclusion (Pair.first Disk.Sphere Fiber.Disk p)) (Pair.second Disk.Sphere Fiber.Disk)
+    (topology.Composition[A := Left.CarrierSet, B := Disk.Sphere, C := Disk.Disk].composeContinuous leftTopology Disk.sphereTopology Disk.diskTopology (Pair.first Disk.Sphere Fiber.Disk) Characteristic.boundaryInclusion (Left.Maps[].firstContinuous Disk.sphereTopology Fiber.diskTopology) Characteristic.boundaryContinuous)
+    (Left.Maps[].secondContinuous Disk.sphereTopology Fiber.diskTopology);
+\definition left[p: Left.CarrierSet]: Mid.Carrier := \into[DiskBundle](chart.map (leftPrism p), Mid.MidSubset) \by {
+  Logic.Or[_, _]::left (Logic.Or[_, _]::left (\idelim cell.characteristic (Characteristic.boundaryInclusion (Pair.first Disk.Sphere Fiber.Disk p)) = (chart.map (leftPrism p)).base \with x: X => \In[X] (Filtration.subset k) x \by {
+    base: BaseStep.boundaryLower (Pair.first Disk.Sphere Fiber.Disk p), equality: sym!{X} _ _ (chart.base (leftPrism p))
+  }))
+};
+\definition leftContinuous: topology.Continuity[A := Left.CarrierSet, B := Mid.Carrier].Continuous leftTopology Mid.topology left :=
+  topology.Continuity[A := Left.CarrierSet, B := DiskBundle].Corestriction[S := Mid.MidSubset].corestrictContinuous leftTopology diskTopology left
+    (topology.Composition[A := Left.CarrierSet, B := Prism.CarrierSet, C := DiskBundle].composeContinuous leftTopology prismTopology diskTopology leftPrism chart.map leftPrismContinuous chart.continuous);
+\definition fiberBoundaryContinuous: topology.Continuity[A := Fiber.Sphere, B := Fiber.Disk].Continuous Fiber.sphereTopology Fiber.diskTopology Geometry.secondBoundary :=
+  topology.Continuity[A := Fiber.Sphere, B := Fiber.Coordinate].Corestriction[S := Fiber.ClosedBall].corestrictContinuous Fiber.sphereTopology Fiber.topology Geometry.secondBoundary
+    (topology.Continuity[A := Fiber.Sphere, B := Fiber.Coordinate].Corestriction[S := Fiber.Boundary].inclusionContinuous Fiber.topology);
+\definition rightPrism[p: Right.CarrierSet]: Prism.CarrierSet := Pair.pair Disk.Disk Fiber.Disk (Pair.first Disk.Disk Fiber.Sphere p) (Geometry.secondBoundary (Pair.second Disk.Disk Fiber.Sphere p));
+\definition rightPrismContinuous: topology.Continuity[A := Right.CarrierSet, B := Prism.CarrierSet].Continuous rightTopology prismTopology rightPrism :=
+  Prism.Universal[X := Right.CarrierSet].pairContinuous rightTopology Disk.diskTopology Fiber.diskTopology (Pair.first Disk.Disk Fiber.Sphere)
+    (\fun (p: Right.CarrierSet) => Geometry.secondBoundary (Pair.second Disk.Disk Fiber.Sphere p)) (Right.Maps[].firstContinuous Disk.diskTopology Fiber.sphereTopology)
+    (topology.Composition[A := Right.CarrierSet, B := Fiber.Sphere, C := Fiber.Disk].composeContinuous rightTopology Fiber.sphereTopology Fiber.diskTopology (Pair.second Disk.Disk Fiber.Sphere) Geometry.secondBoundary (Right.Maps[].secondContinuous Disk.diskTopology Fiber.sphereTopology) fiberBoundaryContinuous);
+\definition right[p: Right.CarrierSet]: Mid.Carrier := \into[DiskBundle](chart.map (rightPrism p), Mid.MidSubset) \by {
+  Logic.Or[_, _]::right (Logic.And[_, _]::#
+    (\idelim cell.characteristic (Pair.first Disk.Disk Fiber.Sphere p) = (chart.map (rightPrism p)).base \with x: X => \In[X] (BaseSubset k (Lists.List[CW.CellData]::cons cell family)) x \by {
+      base: BaseStep.nextContains (Pair.first Disk.Disk Fiber.Sphere p), equality: sym!{X} _ _ (chart.base (rightPrism p))
+    })
+    (trans!{R.Real} _ _ _ (chart.squared (rightPrism p)) (\bysub(Fiber.Coordinate, Fiber.Boundary, Pair.second Disk.Disk Fiber.Sphere p))))
+};
+\definition rightContinuous: topology.Continuity[A := Right.CarrierSet, B := Mid.Carrier].Continuous rightTopology Mid.topology right :=
+  topology.Continuity[A := Right.CarrierSet, B := DiskBundle].Corestriction[S := Mid.MidSubset].corestrictContinuous rightTopology diskTopology right
+    (topology.Composition[A := Right.CarrierSet, B := Prism.CarrierSet, C := DiskBundle].composeContinuous rightTopology prismTopology diskTopology rightPrism chart.map rightPrismContinuous chart.continuous);
+\definition corner: \forall (x: Disk.Sphere)(v: Fiber.Sphere) -> left (Pair.pair Disk.Sphere Fiber.Disk x (Geometry.secondBoundary v)) = right (Pair.pair Disk.Disk Fiber.Sphere (Geometry.firstBoundary x) v) :=
+  \fun (x: Disk.Sphere)(v: Fiber.Sphere) => \refl(left (Pair.pair Disk.Sphere Fiber.Disk x (Geometry.secondBoundary v)));
+\import Geometry.BoundaryMaps[B := Mid.Carrier, target := Mid.topology, f := left, g := right, fContinuous := leftContinuous, gContinuous := rightContinuous, corner := corner] \as Pasting;
+\definition apply: Total.Sphere -> Mid.Carrier := Pasting.apply;
+\definition continuous: topology.Continuity[A := Total.Sphere, B := Mid.Carrier].Continuous Total.sphereTopology Mid.topology apply := Pasting.continuous;
+\definition boundary[v: Total.Sphere]: Total.Disk := Pasting.boundary v;
+\definition seam: \forall (v: Total.Sphere) -> Mid.toNext (apply v) = characteristic (boundary v) := \fun (v: Total.Sphere) => either!{{Pasting.covered v} {Mid.toNext (apply v) = characteristic (boundary v)}
+  {\fun (member: _) => trans!{Next.Carrier} _ _ _ (congr!{Mid.Carrier Next.Carrier} Mid.toNext _ _ (Pasting.onFirst (\into[Total.Sphere](v, Pasting.F) \by { member })))
+    (congr!{Prism.CarrierSet Next.Carrier} prismChart _ _ (Pair.Prop[A := Disk.Disk, B := Fiber.Disk].eta (Pasting.point v)))}
+  {\fun (member: _) => trans!{Next.Carrier} _ _ _ (congr!{Mid.Carrier Next.Carrier} Mid.toNext _ _ (Pasting.onSecond (\into[Total.Sphere](v, Pasting.G) \by { member })))
+    (congr!{Prism.CarrierSet Next.Carrier} prismChart _ _ (Pair.Prop[A := Disk.Disk, B := Fiber.Disk].eta (Pasting.point v)))}
+};

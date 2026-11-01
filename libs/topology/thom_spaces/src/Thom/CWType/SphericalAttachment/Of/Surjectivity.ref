@@ -1,0 +1,34 @@
+\import \parent.Map[] \as Mapping;
+\import \parent.Representation[] \as Cases;
+\definition onPrism: \forall (p: Prism.CarrierSet) -> \exists (q: Second.Carrier \where Mapping.apply q = data.chart p) :=
+  \induction (p: Prism.CarrierSet) \return \exists (q: Second.Carrier \where Mapping.apply q = data.chart p) \with {
+    | pair: \fun (x: Base.Disk)(s: FiberSphere.Sphere) => either!{{fiber.covers s} {\exists (q: Second.Carrier \where Mapping.apply q = data.chart (Pair.pair Base.Disk FiberSphere.Sphere x s))}
+      {\fun (same: s = fiber.pole) => Logic.existsIntro[Second.Carrier, { q: Second.Carrier \where Mapping.apply q = data.chart (Pair.pair Base.Disk FiberSphere.Sphere x s) }] (Second.inclusion (First.characteristic x)) (eq_reason_in!{Y _
+        "=" _ "by" { Mapping.onOriginal (First.characteristic x) }
+        "=" _ "by" { Mapping.firstCell x }
+        "=" _ "by" { congr!{FiberSphere.Sphere Y} (\fun (t: FiberSphere.Sphere) => data.chart (Pair.pair Base.Disk FiberSphere.Sphere x t)) fiber.pole s (sym!{FiberSphere.Sphere} _ _ same) }
+      })}
+      {\fun (image: _) => \block {
+        \takefrom y: \Cast[FiberDisk.Disk] ({ y: FiberDisk.Disk \where fiber.characteristic y = s }) \by image \then
+        \let p: Pair.Times^[Base.Disk, FiberDisk.Disk] := Pair.pair Base.Disk FiberDisk.Disk x y \then
+        \let z: Total.Disk := Geometry.homeomorphism.backward p \then
+        \return Logic.existsIntro[Second.Carrier, { q: Second.Carrier \where Mapping.apply q = data.chart (Pair.pair Base.Disk FiberSphere.Sphere x s) }] (Second.characteristic z) (eq_reason_in!{Y _
+          "=" _ "by" { Mapping.onCell z }
+          "=" _ "by" { congr!{{Pair.Times^[Base.Disk, FiberDisk.Disk]} Y} (\fun (p: Pair.Times^[Base.Disk, FiberDisk.Disk]) => data.chart (Mapping.prism p)) (Geometry.homeomorphism.forward z) p (Geometry.laws.rightInverse p) }
+          "=" _ "by" { congr!{FiberSphere.Sphere Y} (\fun (t: FiberSphere.Sphere) => data.chart (Pair.pair Base.Disk FiberSphere.Sphere x t)) (fiber.characteristic y) s (\bysub(FiberDisk.Disk, { y: FiberDisk.Disk \where fiber.characteristic y = s }, y)) }
+        })
+      }}
+    }
+  };
+\definition onto: \forall (y: Y) -> \exists (q: Second.Carrier \where Mapping.apply q = y) := \fun (y: Y) => either!{{data.covers y} {\exists (q: Second.Carrier \where Mapping.apply q = y)}
+  {\fun (old: _) => \block {
+    \takefrom a: \Cast[A] ({ a: A \where data.original a = y }) \by old \then
+    \return Logic.existsIntro[Second.Carrier, { q: Second.Carrier \where Mapping.apply q = y }] (Cases.original a) (trans!{Y} _ _ _ (Cases.onOriginal a) (\bysub(A, { a: A \where data.original a = y }, a)))
+  }}
+  {\fun (cell: _) => \block {
+    \takefrom p: \Cast[Prism.CarrierSet] ({ p: Prism.CarrierSet \where data.chart p = y }) \by cell \then
+    \takefrom q: \Cast[Second.Carrier] ({ q: Second.Carrier \where Mapping.apply q = data.chart p }) \by onPrism p \then
+    \return Logic.existsIntro[Second.Carrier, { q: Second.Carrier \where Mapping.apply q = y }] q (trans!{Y} _ _ _
+      (\bysub(Second.Carrier, { q: Second.Carrier \where Mapping.apply q = data.chart p }, q)) (\bysub(Prism.CarrierSet, { p: Prism.CarrierSet \where data.chart p = y }, p)))
+  }}
+};

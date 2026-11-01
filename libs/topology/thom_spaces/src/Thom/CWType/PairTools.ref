@@ -1,0 +1,47 @@
+\import algebraic_topology.Interval[] \as I;
+\import algebraic_topology.Cylinder[A := A] \as LeftCylinder;
+\import algebraic_topology.Cylinder[A := B] \as RightCylinder;
+\import algebraic_topology.Homotopy[A := A, B := A] \as Left;
+\import algebraic_topology.Homotopy[A := B, B := B] \as Right;
+\definition SourceSubset: \Set := \Cast[A] subset;
+\definition TargetSubset: \Set := \Cast[B] targetSubset;
+\structure Data: \Set := {
+  forward: A -> B,
+  backward: B -> A,
+  forwardContinuous: topology.Continuity[A := A, B := B].Continuous source target forward,
+  backwardContinuous: topology.Continuity[A := B, B := A].Continuous target source backward,
+  forwardContained: \forall (x: SourceSubset) -> \In[B] targetSubset (forward x),
+  backwardContained: \forall (y: TargetSubset) -> \In[A] subset (backward y),
+  left: Left.Homotopy[source, source, (\fun (x: A) => backward (forward x)), (\fun (x: A) => x)],
+  right: Right.Homotopy[target, target, (\fun (y: B) => forward (backward y)), (\fun (y: B) => y)],
+  leftPreserves: \forall (t: I.Carrier)(x: SourceSubset) -> \In[A] subset (left (LeftCylinder.at t x)),
+  rightPreserves: \forall (t: I.Carrier)(y: TargetSubset) -> \In[B] targetSubset (right (RightCylinder.at t y))
+};
+\definition forget[e: Data]: algebraic_topology.HomotopyEquivalence[A := A, B := B].Equivalence[source, target] :=
+  algebraic_topology.HomotopyEquivalence[A := A, B := B].Equivalence[source, target] {
+    forward := e.forward, backward := e.backward,
+    forwardContinuous := e.forwardContinuous, backwardContinuous := e.backwardContinuous,
+    leftInverse := \exact(e.left, Left.Homotopy[source, source, (\fun (x: A) => e.backward (e.forward x)), (\fun (x: A) => x)]),
+    rightInverse := \exact(e.right, Right.Homotopy[target, target, (\fun (y: B) => e.forward (e.backward y)), (\fun (y: B) => y)])
+  };
+\module Inverse(e: Data);
+\module Composition(C: \Set, range: topology.Topology[Carrier := C].Topology, finalSubset: \Pow C,
+  first: Data, second: \root.Thom[].CWType[].PairTools[A := B, B := C, source := target, target := range, subset := targetSubset, targetSubset := finalSubset].Data);
+\module Replace(e: Data, next: A -> B,
+  homotopy: algebraic_topology.Homotopy[A := A, B := B].Homotopy[source, target, e.forward, next],
+  preserves: \forall (t: I.Carrier)(x: SourceSubset) -> \In[B] targetSubset (homotopy (LeftCylinder.at t x)));
+\module TwoSided(f: A -> B, leftMap, rightMap: B -> A,
+  continuous: topology.Continuity[A := A, B := B].Continuous source target f,
+  leftContinuous: topology.Continuity[A := B, B := A].Continuous target source leftMap,
+  rightContinuous: topology.Continuity[A := B, B := A].Continuous target source rightMap,
+  forwardContained: \forall (x: SourceSubset) -> \In[B] targetSubset (f x),
+  leftContained: \forall (y: TargetSubset) -> \In[A] subset (leftMap y),
+  rightContained: \forall (y: TargetSubset) -> \In[A] subset (rightMap y),
+  leftInverse: Left.Homotopy[source, source, (\fun (x: A) => leftMap (f x)), (\fun (x: A) => x)],
+  rightInverse: Right.Homotopy[target, target, (\fun (y: B) => f (rightMap y)), (\fun (y: B) => y)],
+  leftInversePreserves: \forall (t: I.Carrier)(x: SourceSubset) -> \In[A] subset (leftInverse (LeftCylinder.at t x)),
+  rightInversePreserves: \forall (t: I.Carrier)(y: TargetSubset) -> \In[B] targetSubset (rightInverse (RightCylinder.at t y)));
+\module Relative(e: Data);
+\module Homeomorphic(h: topology.Homeomorphism[A := A, B := B].Homeomorphism[source, target],
+  forwardContained: \forall (x: SourceSubset) -> \In[B] targetSubset (h.forward x),
+  backwardContained: \forall (y: TargetSubset) -> \In[A] subset (h.backward y));

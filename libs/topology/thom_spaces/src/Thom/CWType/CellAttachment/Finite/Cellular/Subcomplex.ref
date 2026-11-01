@@ -1,0 +1,38 @@
+\import Original.Pair[source := source, complex := sourceComplex] \as OriginalPair;
+\definition partLaws: OriginalPair.SubcomplexLaws[part] := \bysub(OriginalPair.SubcomplexData, { data: OriginalPair.SubcomplexData \where OriginalPair.SubcomplexLaws[data] }, part);
+\definition family: Cells.Cells := CellList.map part.cells;
+\definition chosenMember: \forall (c: Original.CellData) -> Original.CellMember part.cells c -> Cells.CellMember family (oldCell c) := CellList.member part.cells;
+\definition included: \forall (d: Cells.CellData) -> Cells.CellMember family d -> Cells.CellMember cells d := \fun (d: Cells.CellData)(member: _) => \block {
+  \takefrom w: CellList.Witness[part.cells, d] \by CellList.witness part.cells d member \then
+  \return \idelim oldCell w.cell = d \with c: Cells.CellData => Cells.CellMember cells c \by {
+    base: oldMember w.cell (partLaws.included w.cell w.member), equality: sym!{Cells.CellData} _ _ w.same
+  }
+};
+\definition oldBoundary: \forall (family: Cells.Cells) -> (\forall (c: Original.CellData) -> Original.CellMember part.cells c -> Cells.CellMember family (oldCell c)) ->
+  \forall (c: Original.CellData) -> Original.CellMember part.cells c -> \forall (p: algebraic_topology.Euclidean[].Disk c.dimension) ->
+  \In[algebraic_topology.Euclidean[].coordinateCarrier c.dimension] (algebraic_topology.Euclidean[].boundaryAt c.dimension) p ->
+  \exists Cells.BoundaryWitness[family, oldCell c, (oldCell c).characteristic p] := \block {
+  \fun (family: Cells.Cells)(included: _)(c: Original.CellData)(member: _)(p: algebraic_topology.Euclidean[].Disk c.dimension)(boundary: _) \then
+  \takefrom w: Original.BoundaryWitness[part.cells, c, c.characteristic p] \by partLaws.boundary c member p boundary \then
+  \return \exact(Cells.BoundaryWitness[family, oldCell c, (oldCell c).characteristic p] {
+    other := oldCell w.other, member := included w.other w.member, lower := w.lower,
+    contains := \parent.\parent.Interiors[].oldContains w.other (c.characteristic p) w.contains
+  }, Cells.BoundaryWitness[family, oldCell c, (oldCell c).characteristic p])
+};
+\definition boundary: \forall (d: Cells.CellData) -> Cells.CellMember family d -> \forall (p: algebraic_topology.Euclidean[].Disk d.dimension) ->
+  \In[algebraic_topology.Euclidean[].coordinateCarrier d.dimension] (algebraic_topology.Euclidean[].boundaryAt d.dimension) p -> \exists Cells.BoundaryWitness[family, d, d.characteristic p] :=
+  \fun (d: Cells.CellData)(member: _) => \block {
+    \takefrom w: CellList.Witness[part.cells, d] \by CellList.witness part.cells d member \then
+    \return \idelim oldCell w.cell = d \with c: Cells.CellData => \forall (p: algebraic_topology.Euclidean[].Disk c.dimension) ->
+      \In[algebraic_topology.Euclidean[].coordinateCarrier c.dimension] (algebraic_topology.Euclidean[].boundaryAt c.dimension) p -> \exists Cells.BoundaryWitness[family, c, c.characteristic p] \by {
+        base: oldBoundary family chosenMember w.cell w.member, equality: sym!{Cells.CellData} _ _ w.same
+      }
+  };
+\definition result: Pair.Subcomplex := Pair.Subcomplex { cells := family, included := included, boundary := boundary };
+\import \root.Thom[].CWType[].NativeSubcomplex[A := A, source := source, complex := sourceComplex, subcomplex := part] \as Chosen;
+\import singular_cellular.On[A := Chosen.Carrier, source := Chosen.topology, complex := Chosen.result].Filtration[] \as ChosenFiltration;
+\definition outsideIncluded: _ := included;
+\definition outsidePart: _ := result;
+\module Images;
+\module WithCell(lift: Model.Sphere -> Chosen.Carrier, over: \forall (v: Model.Sphere) -> Chosen.inclusion (lift v) = attach v,
+  within: \forall (v: Model.Sphere) -> \In[Chosen.Carrier] (ChosenFiltration.subset n) (lift v));

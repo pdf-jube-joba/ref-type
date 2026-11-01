@@ -1,0 +1,48 @@
+\definition leftMap[z: C]: B := secondEquivalence.backward (h z);
+\definition rightMap[z: C]: B := f (firstEquivalence.backward z);
+\definition leftContinuous: topology.Continuity[A := C, B := B].Continuous thirdSpace secondSpace leftMap :=
+  topology.Composition[A := C, B := D, C := B].composeContinuous thirdSpace fourthSpace secondSpace h secondEquivalence.backward hContinuous secondLaws.backwardContinuous;
+\definition rightContinuous: topology.Continuity[A := C, B := B].Continuous thirdSpace secondSpace rightMap :=
+  topology.Composition[A := C, B := A, C := B].composeContinuous thirdSpace firstSpace secondSpace firstEquivalence.backward f firstLaws.backwardContinuous fContinuous;
+\import algebraic_topology.Cylinder[A := B] \as LeftCylinder;
+\import algebraic_topology.Cylinder[A := C] \as RightCylinder;
+\definition leftHomotopy: Left.Homotopy[secondSpace, secondSpace, (\fun (y: B) => leftMap (g y)), (\fun (y: B) => y)] :=
+  \into[Left.Family](left, Left.Homotopy[secondSpace, secondSpace, (\fun (y: B) => leftMap (g y)), (\fun (y: B) => y)]) \by {
+    Left.Laws[secondSpace, secondSpace, (\fun (y: B) => leftMap (g y)), (\fun (y: B) => y), left] {
+      continuous := (Left.laws secondSpace secondSpace (\fun (y: B) => secondEquivalence.backward (secondEquivalence.forward y)) (\fun (y: B) => y) left).continuous,
+      start := \fun (y: B) => trans!{B} _ _ _ ((Left.laws secondSpace secondSpace (\fun (y: B) => secondEquivalence.backward (secondEquivalence.forward y)) (\fun (y: B) => y) left).start y)
+        (congr!{D B} secondEquivalence.backward _ _ (secondForward y)),
+      end := (Left.laws secondSpace secondSpace (\fun (y: B) => secondEquivalence.backward (secondEquivalence.forward y)) (\fun (y: B) => y) left).end
+    }
+  };
+\definition rightHomotopy: Right.Homotopy[thirdSpace, thirdSpace, (\fun (z: C) => g (rightMap z)), (\fun (z: C) => z)] :=
+  \into[Right.Family](right, Right.Homotopy[thirdSpace, thirdSpace, (\fun (z: C) => g (rightMap z)), (\fun (z: C) => z)]) \by {
+    Right.Laws[thirdSpace, thirdSpace, (\fun (z: C) => g (rightMap z)), (\fun (z: C) => z), right] {
+      continuous := (Right.laws thirdSpace thirdSpace (\fun (z: C) => firstEquivalence.forward (firstEquivalence.backward z)) (\fun (z: C) => z) right).continuous,
+      start := \fun (z: C) => trans!{C} _ _ _ ((Right.laws thirdSpace thirdSpace (\fun (z: C) => firstEquivalence.forward (firstEquivalence.backward z)) (\fun (z: C) => z) right).start z) (firstForward (firstEquivalence.backward z)),
+      end := (Right.laws thirdSpace thirdSpace (\fun (z: C) => firstEquivalence.forward (firstEquivalence.backward z)) (\fun (z: C) => z) right).end
+    }
+  };
+\definition middle: algebraic_topology.HomotopyEquivalence[A := B, B := C].Equivalence[secondSpace, thirdSpace] :=
+  \parent.\parent.EquivalenceTools[A := B, B := C, source := secondSpace, target := thirdSpace].TwoSided[f := g, left := leftMap, right := rightMap, continuous := gContinuous,
+    leftContinuous := leftContinuous, rightContinuous := rightContinuous, leftInverse := leftHomotopy, rightInverse := rightHomotopy].result;
+\definition inverse: algebraic_topology.HomotopyEquivalence[A := C, B := B].Equivalence[thirdSpace, secondSpace] :=
+  algebraic_topology.HomotopyEquivalence[A := B, B := C].Inverse[].inverse secondSpace thirdSpace middle;
+\definition composite: ResultEquivalences.Equivalence[firstSpace, secondSpace] :=
+  First.Composition[C := B].compose firstSpace thirdSpace secondSpace firstEquivalence inverse;
+\import algebraic_topology.Homotopy[A := A, B := B] \as Native;
+\definition pulled: Native.Homotopy[firstSpace, secondSpace, (\fun (x: A) => leftMap (g (f x))), (\fun (x: A) => f x)] :=
+  Left.Composition[C := A].precompose firstSpace secondSpace secondSpace (\fun (y: B) => leftMap (g y)) (\fun (y: B) => y) leftHomotopy f fContinuous;
+\import algebraic_topology.Cylinder[A := A] \as Cylinder;
+\definition homotopy: Native.Homotopy[firstSpace, secondSpace, composite.forward, f] :=
+  \into[Native.Family](pulled, Native.Homotopy[firstSpace, secondSpace, composite.forward, f]) \by {
+    Native.Laws[firstSpace, secondSpace, composite.forward, f, pulled] {
+      continuous := (Native.laws firstSpace secondSpace (\fun (x: A) => leftMap (g (f x))) (\fun (x: A) => f x) pulled).continuous,
+      start := \fun (x: A) => trans!{B} _ _ _ ((Native.laws firstSpace secondSpace (\fun (x: A) => leftMap (g (f x))) (\fun (x: A) => f x) pulled).start x)
+        (congr!{C B} leftMap _ _ (sym!{C} _ _ (firstForward x))),
+      end := (Native.laws firstSpace secondSpace (\fun (x: A) => leftMap (g (f x))) (\fun (x: A) => f x) pulled).end
+    }
+  };
+\definition equivalence: ResultEquivalences.Equivalence[firstSpace, secondSpace] :=
+  \parent.\parent.EquivalenceTools[A := A, B := B, source := firstSpace, target := secondSpace].Replace[e := composite, next := f, homotopy := homotopy].result;
+\definition result: Result := Result { equivalence := equivalence, forward := \refl(f) };

@@ -1,0 +1,20 @@
+\definition delta: R.Real := R.sub (y i) (x i);
+\definition nonzero: Logic.Not (delta = R.zero) := \fun (zero: _) => different (sym!{R.Real} _ _ (Distance.subZeroEq (y i) (x i) zero));
+\definition slope: R.Real := R.mul (R.sub (f y) (f x)) (Laws.fieldInv delta);
+\definition form: Affine := Affine::sum (Affine::constant (f x))
+  (Affine::scale slope (Affine::sum (Affine::coordinate i) (Affine::constant (R.neg (x i)))));
+\definition expression: Expression := Expression::leaf form;
+\definition first: value expression x = f x := eq_reason_in!{R.Real _
+  "=" _ "by" { congr!{R.Real R.Real} (\fun (r: R.Real) => R.add (f x) (R.mul slope r)) _ _ (Laws.subSelf (x i)) }
+  "=" _ "by" { congr!{R.Real R.Real} (R.add (f x)) _ _ (Laws.fieldMulZeroRight slope) }
+  "=" _ "by" { Laws.addZeroRight (f x) }
+};
+\definition second: value expression y = f y := eq_reason_in!{R.Real _
+  "=" _ "by" { congr!{R.Real R.Real} (R.add (f x)) _ _ (Laws.fieldMulAssoc (R.sub (f y) (f x)) (Laws.fieldInv delta) delta) }
+  "=" _ "by" { congr!{R.Real R.Real} (\fun (r: R.Real) => R.add (f x) (R.mul (R.sub (f y) (f x)) r)) _ _ (Laws.fieldInverseNonzero delta nonzero) }
+  "=" _ "by" { congr!{R.Real R.Real} (R.add (f x)) _ _ (R.Algebra[].mulOneRight (R.sub (f y) (f x))) }
+  "=" _ "by" { R.Estimates[].addSubCancel (f y) (f x) }
+};
+\definition result: Approximation.Interpolation[Functions, f, x, y] := Approximation.Interpolation[Functions, f, x, y] {
+  value := value expression, member := member expression, atFirst := first, atSecond := second
+};

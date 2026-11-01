@@ -1,0 +1,44 @@
+\import std.Data[].List[] \as Lists;
+\import N.Basic[].Prop[] \as Nat;
+\structure Witness[k: N.Nat^, family: CW.Cells, x: X]: \Set := {
+  cell: CW.CellData,
+  member: CW.CellMember family cell,
+  dimension: cell.dimension = k,
+  contains: \In[X] (CW.InteriorImage cell) x
+};
+\definition BaseSubset[k: N.Nat^][family: CW.Cells]: \Pow X := { x: X \where Logic.Or[\In[X] (Filtration.subset k) x, \exists Witness[k, family, x]] };
+\definition Subset[k: N.Nat^][family: CW.Cells]: \Pow SphereBundle := { p: SphereBundle \where \In[X] (BaseSubset k family) p.base };
+\definition LowerSubset[k: N.Nat^]: \Pow SphereBundle := { p: SphereBundle \where \In[X] (Filtration.subset k) p.base };
+\definition Included[family: CW.Cells]: \Prop := \forall (c: CW.CellData) -> CW.CellMember family c -> CW.CellMember complex.cells c;
+\module Stage(k: N.Nat^, family: CW.Cells);
+\module Lower(k: N.Nat^);
+\module Step(k: N.Nat^, family: CW.Cells, cell: CW.CellData, member: CW.CellMember complex.cells cell,
+  dimension: cell.dimension = k, included: Included family, unselected: Logic.Not (CW.CellMember family cell));
+\module Cons(k: N.Nat^, family: CW.Cells, cell: CW.CellData);
+\module Iteration(k: N.Nat^);
+\module StageComparison(k: N.Nat^);
+
+\import Lower[k := N.Nat^::zero] \as Zero;
+\definition zeroEmpty: \forall (p: Zero.Carrier) -> Logic.False := \fun (p: Zero.Carrier) =>
+  \idelim Filtration.subset N.Nat^::zero = Base.Empty \with S: \Pow X => \In[X] S p.base \by {
+    base: \bysub(SphereBundle, LowerSubset N.Nat^::zero, p), equality: Filtration.empty
+  };
+\definition zeroProperty: Zero.Property := \root.Thom[].CWType[].EmptyComplex[A := Zero.Carrier, source := Zero.topology, empty := zeroEmpty].property;
+\definition theorem: \forall (k: N.Nat^) -> Lower[k := k].Property := \induction (k: N.Nat^) \return Lower[k := k].Property \with {
+  | zero: zeroProperty
+  | succ: \fun (k: N.Nat^)(previous: Lower[k := k].Property) => StageComparison[k := k].property (Iteration[k := k].full previous)
+};
+\import Lower[k := height] \as Full;
+\definition intoFull[p: SphereBundle]: Full.Carrier := \into[SphereBundle](p, LowerSubset height) \by { Filtration.Exhaustion[].covers p.base };
+\definition homeomorphism: topology.Homeomorphism[A := SphereBundle, B := Full.Carrier].Homeomorphism[sphereTopology, Full.topology] :=
+  topology.Homeomorphism[A := SphereBundle, B := Full.Carrier].Homeomorphism[sphereTopology, Full.topology] {
+    forward := intoFull,
+    backward := \fun (p: Full.Carrier) => p,
+    leftInverse := \fun (p: SphereBundle) => \refl(p),
+    rightInverse := \fun (p: Full.Carrier) => \refl(p),
+    forwardContinuous := topology.Continuity[A := SphereBundle, B := SphereBundle].Corestriction[S := LowerSubset height].corestrictContinuous sphereTopology sphereTopology intoFull
+      (topology.Maps[A := SphereBundle, B := SphereBundle].Identity[].continuous sphereTopology),
+    backwardContinuous := topology.Continuity[A := Full.Carrier, B := SphereBundle].Corestriction[S := LowerSubset height].inclusionContinuous sphereTopology
+  };
+\definition property: \root.Thom[].CWType[].CompactType[A := SphereBundle, source := sphereTopology].Property :=
+  \root.Thom[].CWType[].CompactType[A := SphereBundle, source := sphereTopology].Homeomorphic[B := Full.Carrier, target := Full.topology, h := homeomorphism].fromTarget (theorem height);

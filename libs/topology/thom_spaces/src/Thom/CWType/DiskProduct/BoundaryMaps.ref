@@ -1,0 +1,72 @@
+\definition source: topology.Topology[Carrier := Total.Sphere].Topology := Total.sphereTopology;
+\definition boundary[v: Total.Sphere]: Total.Disk := \into[Total.Coordinate](v, Total.ClosedBall) \by {
+  D.leReplaceLeft R.one (Total.normSquared v) R.one (sym!{R.Real} _ _ (\bysub(Total.Coordinate, Total.Boundary, v))) (D.leRefl R.one)
+};
+\definition boundaryContinuous: topology.Continuity[A := Total.Sphere, B := Total.Disk].Continuous source Total.diskTopology boundary :=
+  topology.Continuity[A := Total.Sphere, B := Total.Coordinate].Corestriction[S := Total.ClosedBall].corestrictContinuous source Total.topology boundary
+    (topology.Continuity[A := Total.Sphere, B := Total.Coordinate].Corestriction[S := Total.Boundary].inclusionContinuous Total.topology);
+\definition point[v: Total.Sphere]: Product.CarrierSet := homeomorphism.forward (boundary v);
+\definition pointContinuous: topology.Continuity[A := Total.Sphere, B := Product.CarrierSet].Continuous source productTopology point :=
+  topology.Composition[A := Total.Sphere, B := Total.Disk, C := Product.CarrierSet].composeContinuous source Total.diskTopology productTopology boundary homeomorphism.forward boundaryContinuous
+    (topology.Homeomorphism[A := Total.Disk, B := Product.CarrierSet].laws Total.diskTopology productTopology homeomorphism).forwardContinuous;
+\definition leftPoint[v: Total.Sphere]: First.Disk := Pair.first First.Disk Second.Disk (point v);
+\definition rightPoint[v: Total.Sphere]: Second.Disk := Pair.second First.Disk Second.Disk (point v);
+\definition leftContinuous: topology.Continuity[A := Total.Sphere, B := First.Disk].Continuous source First.diskTopology leftPoint :=
+  topology.Composition[A := Total.Sphere, B := Product.CarrierSet, C := First.Disk].composeContinuous source productTopology First.diskTopology point (Pair.first First.Disk Second.Disk) pointContinuous (Product.Maps[].firstContinuous First.diskTopology Second.diskTopology);
+\definition rightContinuous: topology.Continuity[A := Total.Sphere, B := Second.Disk].Continuous source Second.diskTopology rightPoint :=
+  topology.Composition[A := Total.Sphere, B := Product.CarrierSet, C := Second.Disk].composeContinuous source productTopology Second.diskTopology point (Pair.second First.Disk Second.Disk) pointContinuous (Product.Maps[].secondContinuous First.diskTopology Second.diskTopology);
+\definition leftAmbient: topology.Continuity[A := Total.Sphere, B := First.Coordinate].Continuous source First.topology (\fun (v: Total.Sphere) => leftPoint v) :=
+  topology.Composition[A := Total.Sphere, B := First.Disk, C := First.Coordinate].composeContinuous source First.diskTopology First.topology leftPoint (\fun (v: First.Disk) => v) leftContinuous
+    (topology.Continuity[A := First.Disk, B := First.Coordinate].Corestriction[S := First.ClosedBall].inclusionContinuous First.topology);
+\definition rightAmbient: topology.Continuity[A := Total.Sphere, B := Second.Coordinate].Continuous source Second.topology (\fun (v: Total.Sphere) => rightPoint v) :=
+  topology.Composition[A := Total.Sphere, B := Second.Disk, C := Second.Coordinate].composeContinuous source Second.diskTopology Second.topology rightPoint (\fun (v: Second.Disk) => v) rightContinuous
+    (topology.Continuity[A := Second.Disk, B := Second.Coordinate].Corestriction[S := Second.ClosedBall].inclusionContinuous Second.topology);
+\definition leftSquaredContinuous: metric_spaces.RealFunctions[A := Total.Sphere].Continuous source (\fun (v: Total.Sphere) => First.normSquared (leftPoint v)) :=
+  topology.Composition[A := Total.Sphere, B := First.Coordinate, C := R.Real].composeContinuous source First.topology metric_spaces.RealLine[].topology (\fun (v: Total.Sphere) => leftPoint v) First.normSquared leftAmbient First.Geometry[].normSquaredContinuous;
+\definition rightSquaredContinuous: metric_spaces.RealFunctions[A := Total.Sphere].Continuous source (\fun (v: Total.Sphere) => Second.normSquared (rightPoint v)) :=
+  topology.Composition[A := Total.Sphere, B := Second.Coordinate, C := R.Real].composeContinuous source Second.topology metric_spaces.RealLine[].topology (\fun (v: Total.Sphere) => rightPoint v) Second.normSquared rightAmbient Second.Geometry[].normSquaredContinuous;
+\definition F: \Pow Total.Sphere := { v: Total.Sphere \where First.normSquared (leftPoint v) = R.one };
+\definition G: \Pow Total.Sphere := { v: Total.Sphere \where Second.normSquared (rightPoint v) = R.one };
+\definition Left: \Set := \Cast[Total.Sphere] F;
+\definition Right: \Set := \Cast[Total.Sphere] G;
+\import topology.Topology[Carrier := Total.Sphere].Subspace[S := F] \as LeftSubspace;
+\import topology.Topology[Carrier := Total.Sphere].Subspace[S := G] \as RightSubspace;
+\definition leftTopology: topology.Topology[Carrier := Left].Topology := LeftSubspace.topology source;
+\definition rightTopology: topology.Topology[Carrier := Right].Topology := RightSubspace.topology source;
+\definition leftClosed: topology.Topology[Carrier := Total.Sphere].IsClosedIn source F :=
+  leftSquaredContinuous ({ t: R.Real \where Logic.Not (t = R.one) }) (metric_spaces.MetricSpace[Carrier := R.Real].Topology[].singletonClosed metric_spaces.RealMetric[].metric R.one);
+\definition rightClosed: topology.Topology[Carrier := Total.Sphere].IsClosedIn source G :=
+  rightSquaredContinuous ({ t: R.Real \where Logic.Not (t = R.one) }) (metric_spaces.MetricSpace[Carrier := R.Real].Topology[].singletonClosed metric_spaces.RealMetric[].metric R.one);
+\definition covered: \forall (v: Total.Sphere) -> Logic.Or[\In[Total.Sphere] F v, \In[Total.Sphere] G v] := \fun (v: Total.Sphere) => forwardBoundary (boundary v) (\bysub(Total.Coordinate, Total.Boundary, v));
+\definition leftSphere[v: Left]: First.Sphere := \into[First.Coordinate](leftPoint v, First.Boundary) \by { \bysub(Total.Sphere, F, v) };
+\definition rightSphere[v: Right]: Second.Sphere := \into[Second.Coordinate](rightPoint v, Second.Boundary) \by { \bysub(Total.Sphere, G, v) };
+\definition leftSphereContinuous: topology.Continuity[A := Left, B := First.Sphere].Continuous leftTopology First.sphereTopology leftSphere :=
+  topology.Continuity[A := Left, B := First.Coordinate].Corestriction[S := First.Boundary].corestrictContinuous leftTopology First.topology leftSphere
+    (topology.Continuity[A := Total.Sphere, B := First.Coordinate].Restriction[S := F].restrictContinuous source First.topology (\fun (v: Total.Sphere) => leftPoint v) leftAmbient);
+\definition rightSphereContinuous: topology.Continuity[A := Right, B := Second.Sphere].Continuous rightTopology Second.sphereTopology rightSphere :=
+  topology.Continuity[A := Right, B := Second.Coordinate].Corestriction[S := Second.Boundary].corestrictContinuous rightTopology Second.topology rightSphere
+    (topology.Continuity[A := Total.Sphere, B := Second.Coordinate].Restriction[S := G].restrictContinuous source Second.topology (\fun (v: Total.Sphere) => rightPoint v) rightAmbient);
+\import topological_constructions.Product[A := First.Sphere, B := Second.Disk] \as LeftProduct;
+\import topological_constructions.Product[A := First.Disk, B := Second.Sphere] \as RightProduct;
+\definition leftPair[v: Left]: LeftProduct.CarrierSet := Pair.pair First.Sphere Second.Disk (leftSphere v) (rightPoint v);
+\definition rightPair[v: Right]: RightProduct.CarrierSet := Pair.pair First.Disk Second.Sphere (leftPoint v) (rightSphere v);
+\definition leftPairContinuous: topology.Continuity[A := Left, B := LeftProduct.CarrierSet].Continuous leftTopology (LeftProduct.topology First.sphereTopology Second.diskTopology) leftPair :=
+  LeftProduct.Universal[X := Left].pairContinuous leftTopology First.sphereTopology Second.diskTopology leftSphere (\fun (v: Left) => rightPoint v) leftSphereContinuous
+    (topology.Continuity[A := Total.Sphere, B := Second.Disk].Restriction[S := F].restrictContinuous source Second.diskTopology rightPoint rightContinuous);
+\definition rightPairContinuous: topology.Continuity[A := Right, B := RightProduct.CarrierSet].Continuous rightTopology (RightProduct.topology First.diskTopology Second.sphereTopology) rightPair :=
+  RightProduct.Universal[X := Right].pairContinuous rightTopology First.diskTopology Second.sphereTopology (\fun (v: Right) => leftPoint v) rightSphere
+    (topology.Continuity[A := Total.Sphere, B := First.Disk].Restriction[S := G].restrictContinuous source First.diskTopology leftPoint leftContinuous) rightSphereContinuous;
+\definition leftValue[v: Left]: B := f (leftPair v);
+\definition rightValue[v: Right]: B := g (rightPair v);
+\import topological_constructions.Gluing[A := Total.Sphere, B := B].Pasting[F := F, G := G] \as Pasting;
+\definition compatible: Pasting.Compatible leftValue rightValue := \fun (p: Left)(q: Right)(same: p = q) => \block {
+  \let member: \In[Total.Sphere] G p := \idelim q = p \with v: Total.Sphere => \In[Total.Sphere] G v \by { base: \bysub(Total.Sphere, G, q), equality: sym!{Total.Sphere} _ _ same } \then
+  \let r: Right := \into[Total.Sphere](p, G) \by { member } \then
+  \return trans!{B} (leftValue p) (rightValue r) (rightValue q) (corner (leftSphere p) (rightSphere r)) (congr!{Right B} rightValue r q same)
+};
+\definition apply: Total.Sphere -> B := Pasting.apply leftValue rightValue covered compatible;
+\definition onFirst: \forall (v: Left) -> apply v = f (leftPair v) := Pasting.onLeft leftValue rightValue covered compatible;
+\definition onSecond: \forall (v: Right) -> apply v = g (rightPair v) := Pasting.onRight leftValue rightValue covered compatible;
+\definition continuous: topology.Continuity[A := Total.Sphere, B := B].Continuous source target apply := Pasting.continuous source target leftValue rightValue covered compatible leftClosed rightClosed
+  (topology.Composition[A := Left, B := LeftProduct.CarrierSet, C := B].composeContinuous leftTopology (LeftProduct.topology First.sphereTopology Second.diskTopology) target leftPair f leftPairContinuous fContinuous)
+  (topology.Composition[A := Right, B := RightProduct.CarrierSet, C := B].composeContinuous rightTopology (RightProduct.topology First.diskTopology Second.sphereTopology) target rightPair g rightPairContinuous gContinuous);

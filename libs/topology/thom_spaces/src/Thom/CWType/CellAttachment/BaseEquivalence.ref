@@ -1,0 +1,20 @@
+\import \parent.ConeModel[] \as First;
+\import \root.Thom[].CWType[].ConeAttachment[A := Model.Sphere, B := A, source := Model.sphereTopology, target := source, f := attach, continuous := continuous] \as OldCone;
+\import \root.Thom[].CWType[].CellAttachment[A := B, source := target, n := n, attach := next, continuous := regular] \as Next;
+\import \root.Thom[].CWType[].CellAttachment[A := B, source := target, n := n, attach := next, continuous := regular].ConeModel[] \as Second;
+\import \root.Thom[].CWType[].ConeAttachment[A := Model.Sphere, B := B, source := Model.sphereTopology, target := target, f := next, continuous := regular] \as NewCone;
+\import \root.Thom[].CWType[].ConeAttachment[A := Model.Sphere, B := A, source := Model.sphereTopology, target := source, f := attach, continuous := continuous].BaseEquivalence[
+  D := B, range := target, equivalence := equivalence, next := next, regular := regular, commutes := commutes] \as Change;
+\definition first: algebraic_topology.HomotopyEquivalence[A := Carrier, B := OldCone.Carrier].Equivalence[topology, OldCone.topology] :=
+  algebraic_topology.HomotopyEquivalence[A := Carrier, B := OldCone.Carrier].fromHomeomorphism topology OldCone.topology
+    (topology.Homeomorphism[A := OldCone.Carrier, B := Carrier].Inverse[].inverse OldCone.topology topology First.homeomorphism);
+\definition last: algebraic_topology.HomotopyEquivalence[A := NewCone.Carrier, B := Next.Carrier].Equivalence[NewCone.topology, Next.topology] :=
+  algebraic_topology.HomotopyEquivalence[A := NewCone.Carrier, B := Next.Carrier].fromHomeomorphism NewCone.topology Next.topology Second.homeomorphism;
+\import algebraic_topology.HomotopyEquivalence[A := Carrier, B := Next.Carrier] \as Comparisons;
+\definition exists: \exists Comparisons.Equivalence[topology, Next.topology] := \block {
+  \takefrom value: Change.Result \by Change.exists \then
+  \let initial: algebraic_topology.HomotopyEquivalence[A := Carrier, B := NewCone.Carrier].Equivalence[topology, NewCone.topology] :=
+    algebraic_topology.HomotopyEquivalence[A := Carrier, B := OldCone.Carrier].Composition[C := NewCone.Carrier].compose topology OldCone.topology NewCone.topology first value.equivalence \then
+  \return \exact(algebraic_topology.HomotopyEquivalence[A := Carrier, B := NewCone.Carrier].Composition[C := Next.Carrier].compose topology NewCone.topology Next.topology initial last,
+    Comparisons.Equivalence[topology, Next.topology])
+};

@@ -1,0 +1,77 @@
+\import algebraic_topology.Interval[] \as I;
+\import algebraic_topology.Cylinder[A := A] \as Cylinder;
+\import algebraic_topology.Cylinder[A := Cylinder.Carrier] \as Double;
+\import algebraic_topology.Homotopy[A := A, B := B] \as Paths;
+\import Paths.Concatenation[] \as Join;
+\definition reverse: Paths.Homotopy[source, target, k, g] := Paths.reverse source target g k h;
+\definition prefix: Paths.Homotopy[source, target, f, k] := Join.concatenate source target f g k p h;
+\definition detour: Paths.Homotopy[source, target, f, g] := Join.concatenate source target f k g prefix reverse;
+\definition constant: Paths.Homotopy[source, target, g, g] := Paths.constant source target g (Paths.endContinuous source target f g p);
+\definition paused: Paths.Homotopy[source, target, f, g] := Join.concatenate source target f g g p constant;
+\definition compressed: Paths.Homotopy[source, target, f, g] := Join.concatenate source target f g g paused constant;
+\definition doubleTopology: topology.Topology[Carrier := Double.Carrier].Topology := Double.topology (Cylinder.topology source);
+\definition swap[z: Double.Carrier]: Double.Carrier := Double.at (Cylinder.time (Double.point z)) (Cylinder.at (Double.time z) (Cylinder.point (Double.point z)));
+\definition swapContinuous: topology.Continuity[A := Double.Carrier, B := Double.Carrier].Continuous doubleTopology doubleTopology swap :=
+  topological_constructions.Product[A := I.Carrier, B := Cylinder.Carrier].Universal[X := Double.Carrier].pairContinuous doubleTopology I.topology (Cylinder.topology source)
+    (\fun (z: Double.Carrier) => Cylinder.time (Double.point z))
+    (\fun (z: Double.Carrier) => Cylinder.at (Double.time z) (Cylinder.point (Double.point z)))
+    (topology.Composition[A := Double.Carrier, B := Cylinder.Carrier, C := I.Carrier].composeContinuous doubleTopology (Cylinder.topology source) I.topology Double.point Cylinder.time
+      (Double.pointContinuous (Cylinder.topology source)) (Cylinder.timeContinuous source))
+    (topological_constructions.Product[A := I.Carrier, B := A].Universal[X := Double.Carrier].pairContinuous doubleTopology I.topology source Double.time
+      (\fun (z: Double.Carrier) => Cylinder.point (Double.point z)) (Double.timeContinuous (Cylinder.topology source))
+      (topology.Composition[A := Double.Carrier, B := Cylinder.Carrier, C := A].composeContinuous doubleTopology (Cylinder.topology source) source Double.point Cylinder.point
+        (Double.pointContinuous (Cylinder.topology source)) (Cylinder.pointContinuous source)));
+\module Variation;
+\module Compression;
+\definition Ends: \Pow Cylinder.Carrier := { z: Cylinder.Carrier \where Logic.Or[Cylinder.time z = I.start, Cylinder.time z = I.end] };
+\import algebraic_topology.Homotopy[A := Cylinder.Carrier, B := B] \as Fillings;
+\definition variation: Fillings.RelativeHomotopy[Cylinder.topology source, target, Ends, detour, compressed] :=
+  \into[Fillings.Family](Variation[].apply, Fillings.RelativeHomotopy[Cylinder.topology source, target, Ends, detour, compressed]) \by {
+    Fillings.RelativeLaws[Cylinder.topology source, target, Ends, detour, compressed, Variation[].apply] {
+      homotopy := Fillings.Laws[Cylinder.topology source, target, detour, compressed, Variation[].apply] {
+        continuous := Variation[].continuous,
+        start := \induction (z: Cylinder.Carrier) \return Variation[].apply (Double.at I.start z) = detour z \with { | pair: Variation[].initialPoint },
+        end := \induction (z: Cylinder.Carrier) \return Variation[].apply (Double.at I.end z) = compressed z \with { | pair: Variation[].finalPoint }
+      },
+      fixed := \fun (u: I.Carrier) => \induction (z: Cylinder.Carrier) \return \In[Cylinder.Carrier] Ends z -> Variation[].apply (Double.at u z) = detour z \with {
+        | pair: \fun (t: I.Carrier)(x: A)(boundary: _) => either!{boundary {Variation[].apply (Double.at u (Cylinder.at t x)) = detour (Cylinder.at t x)}
+          {\fun (same: t = I.start) => \idelim I.start = t \with v: I.Carrier => Variation[].apply (Double.at u (Cylinder.at v x)) = detour (Cylinder.at v x) \by {
+            base: trans!{B} _ _ _ (Variation[].atZero u x) (sym!{B} _ _ ((Paths.laws source target f g detour).start x)), equality: sym!{{I.Carrier}} _ _ same
+          }}
+          {\fun (same: t = I.end) => \idelim I.end = t \with v: I.Carrier => Variation[].apply (Double.at u (Cylinder.at v x)) = detour (Cylinder.at v x) \by {
+            base: trans!{B} _ _ _ (Variation[].atOne u x) (sym!{B} _ _ ((Paths.laws source target f g detour).end x)), equality: sym!{{I.Carrier}} _ _ same
+          }}
+        }
+      }
+    }
+  };
+\definition compression: Fillings.RelativeHomotopy[Cylinder.topology source, target, Ends, compressed, p] :=
+  \into[Fillings.Family](Compression[].apply, Fillings.RelativeHomotopy[Cylinder.topology source, target, Ends, compressed, p]) \by {
+    Fillings.RelativeLaws[Cylinder.topology source, target, Ends, compressed, p, Compression[].apply] {
+      homotopy := Fillings.Laws[Cylinder.topology source, target, compressed, p, Compression[].apply] {
+        continuous := Compression[].continuous,
+        start := \induction (z: Cylinder.Carrier) \return Compression[].apply (Double.at I.start z) = compressed z \with { | pair: Compression[].start },
+        end := \induction (z: Cylinder.Carrier) \return Compression[].apply (Double.at I.end z) = p z \with { | pair: Compression[].end }
+      },
+      fixed := \fun (u: I.Carrier) => \induction (z: Cylinder.Carrier) \return \In[Cylinder.Carrier] Ends z -> Compression[].apply (Double.at u z) = compressed z \with {
+        | pair: \fun (t: I.Carrier)(x: A)(boundary: _) => either!{boundary {Compression[].apply (Double.at u (Cylinder.at t x)) = compressed (Cylinder.at t x)}
+          {\fun (same: t = I.start) => \idelim I.start = t \with v: I.Carrier => Compression[].apply (Double.at u (Cylinder.at v x)) = compressed (Cylinder.at v x) \by {
+            base: trans!{B} _ _ _ (Compression[].atZero u x) (sym!{B} _ _ ((Paths.laws source target f g compressed).start x)), equality: sym!{{I.Carrier}} _ _ same
+          }}
+          {\fun (same: t = I.end) => \idelim I.end = t \with v: I.Carrier => Compression[].apply (Double.at u (Cylinder.at v x)) = compressed (Cylinder.at v x) \by {
+            base: trans!{B} _ _ _ (Compression[].atOne u x) (sym!{B} _ _ ((Paths.laws source target f g compressed).end x)), equality: sym!{{I.Carrier}} _ _ same
+          }}
+        }
+      }
+    }
+  };
+\definition result: Fillings.RelativeHomotopy[Cylinder.topology source, target, Ends, detour, p] :=
+  Fillings.RelativeConcatenation[].concatenate (Cylinder.topology source) target Ends detour compressed p variation compression;
+\definition resultLaws: Fillings.RelativeLaws[Cylinder.topology source, target, Ends, detour, p, result] := Fillings.relativeLaws (Cylinder.topology source) target Ends detour p result;
+\definition resultAtZero: \forall (u: I.Carrier)(x: A) -> result (Double.at u (Cylinder.at I.start x)) = f x := \fun (u: I.Carrier)(x: A) => trans!{B} _ _ _
+  (resultLaws.fixed u (Cylinder.at I.start x) (Logic.Or[_, _]::left (\refl(I.start)))) ((Paths.laws source target f g detour).start x);
+\definition resultAtOne: \forall (u: I.Carrier)(x: A) -> result (Double.at u (Cylinder.at I.end x)) = g x := \fun (u: I.Carrier)(x: A) => trans!{B} _ _ _
+  (resultLaws.fixed u (Cylinder.at I.end x) (Logic.Or[_, _]::right (\refl(I.end)))) ((Paths.laws source target f g detour).end x);
+\module Preservation(subset: \Pow A, targetSubset: \Pow B,
+  pPreserves: \forall (t: I.Carrier)(x: \Cast[A] subset) -> \In[B] targetSubset (p (Cylinder.at t x)),
+  hPreserves: \forall (t: I.Carrier)(x: \Cast[A] subset) -> \In[B] targetSubset (h (Cylinder.at t x)));

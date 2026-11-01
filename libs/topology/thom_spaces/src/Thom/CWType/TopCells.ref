@@ -1,0 +1,20 @@
+\import algebraic_topology.CW[A := A] \as Cells;
+\import singular_cellular.On[A := A, source := source, complex := complex] \as Native;
+\import Native.Filtration[] \as Filtration;
+\import Filtration.Stage[limit := N.Nat^::succ k] \as Upper;
+\import Filtration.Stage[limit := k] \as Lower;
+\definition lowerInclusion: Lower.Carrier -> Upper.Carrier := Filtration.Inclusion[m := k, n := N.Nat^::succ k].apply (N.Basic[].Prop[].leSelfSucc k);
+\import algebraic_topology.Euclidean[].Dimension[n := m] \as Domain;
+\import algebraic_topology.Interval[] \as I;
+\import algebraic_topology.Cylinder[A := Domain.Disk] \as Cylinder;
+\import algebraic_topology.Homotopy[A := Domain.Disk, B := Upper.Carrier] \as Homotopies;
+\import std.Data[].List[] \as Lists;
+\definition centre[c: Cells.CellData]: A := Filtration.Punctures[n := k].centre c;
+\module Centre(c: Cells.CellData);
+\definition centreInterior: \forall (c: Cells.CellData) -> \In[A] (Cells.InteriorImage c) (centre c) := \fun (c: Cells.CellData) => Centre[c := c].inside;
+\definition lowerOutside: \forall (c: Cells.CellData)(present: Cells.CellMember complex.cells c)(dimension: c.dimension = k)(x: Upper.Carrier) ->
+  \In[A] (Filtration.subset k) x -> Logic.Not (\In[A] (Cells.InteriorImage c) x) :=
+  \fun (c: Cells.CellData)(present: _)(dimension: _)(x: Upper.Carrier)(lower: _)(inside: _) =>
+    Filtration.CellInteriors[n := k].Cell[cell := c, member := present, dimension := dimension].outsideLower
+      (\into[A](x, Cells.InteriorImage c) \by { inside }) lower;
+\module For(f: Domain.Disk -> Upper.Carrier, continuous: topology.Continuity[A := Domain.Disk, B := Upper.Carrier].Continuous Domain.diskTopology Upper.topology f);

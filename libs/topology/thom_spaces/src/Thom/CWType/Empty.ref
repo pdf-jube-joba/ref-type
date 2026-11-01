@@ -1,0 +1,20 @@
+\inductive Carrier: \Set := ;
+\import topology.Topology[Carrier := Carrier] \as Space;
+\import algebraic_topology.CW[A := Carrier] \as Cells;
+\import std.Data[].List[] \as Lists;
+\definition impossible[P: \Prop][x: Carrier]: P := \match x \in Carrier \return (\fun (x: Carrier) => P) \with {};
+\definition topology: Space.Topology := Space.Discrete;
+\definition cells: Cells.Cells := Lists.List[Cells.CellData]::nil;
+\definition complex: Cells.FiniteComplex[topology] := Cells.FiniteComplex[topology] {
+  cells := cells,
+  hausdorff := \fun (x, y: Carrier)(different: Logic.Not (x = y)) => impossible (\exists (U: \Pow Carrier \where Space.RegularChoice[topology, Space.Singleton y, x, U])) x,
+  cellLaws := \fun (c: Cells.CellData)(member: Logic.False) => Logic.falseElim Cells.CellLaws[topology, c] member,
+  covers := \fun (x: Carrier) => impossible (\exists Cells.CoverWitness[cells, x]) x,
+  disjoint := \fun (c, d: Cells.CellData)(member: Logic.False)(other: Cells.CellMember cells d)(x: Carrier)(left: \In[Carrier] (Cells.InteriorImage c) x)(right: \In[Carrier] (Cells.InteriorImage d) x) => Logic.falseElim (c = d) member,
+  boundary := \fun (c: Cells.CellData)(member: Logic.False)(p: algebraic_topology.Euclidean[].Disk c.dimension)(boundary: \In[algebraic_topology.Euclidean[].coordinateCarrier c.dimension] (algebraic_topology.Euclidean[].boundaryAt c.dimension) p) => Logic.falseElim (\exists Cells.BoundaryWitness[cells, c, c.characteristic p]) member,
+  weakTopology := \fun (U: \Pow Carrier) => Logic.PropEquiv[Space.IsOpenIn topology U, (\forall (c: Cells.CellData) -> Cells.CellMember cells c -> Cells.DiskOpen c.dimension (Cells.Pullback c U))] {
+    ltr := \fun (open: Space.IsOpenIn topology U)(c: Cells.CellData)(member: Logic.False) => Logic.falseElim (Cells.DiskOpen c.dimension (Cells.Pullback c U)) member,
+    rtl := \fun (local: _) => Space.discreteOpen U
+  }
+};
+\definition finiteType: \root.Thom[].CWType[].FiniteType[A := Carrier, source := topology].Data := \root.Thom[].CWType[].FiniteType[A := Carrier, source := topology].native complex;

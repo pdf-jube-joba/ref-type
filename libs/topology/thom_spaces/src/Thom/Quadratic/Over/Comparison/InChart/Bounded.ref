@@ -1,0 +1,66 @@
+\definition LocalPoint: \Set := Coordinates.TotalPoint;
+\definition localTopology: topology.Topology[Carrier := LocalPoint].Topology := Coordinates.localTopology;
+\definition region: \Pow LocalPoint := { p: LocalPoint \where \In[BasePoint] bound.neighborhood (Coordinates.base p) };
+\import topology.Topology[Carrier := LocalPoint].Subspace[S := region] \as Region;
+\definition Carrier: \Set := Region.CarrierSet;
+\definition topology: topology.Topology[Carrier := Carrier].Topology := Region.topology localTopology;
+\definition baseContinuous: topology.Continuity[A := LocalPoint, B := BasePoint].Continuous localTopology baseTopology Coordinates.base :=
+  topology.Composition[A := LocalPoint, B := Coordinates.ProductPoint, C := BasePoint].composeContinuous localTopology Coordinates.productTopology baseTopology Coordinates.forward
+    (Pair.first BasePoint Euclidean.Coordinate) Chart.laws.forwardContinuous
+    (topological_constructions.Product[A := BasePoint, B := Euclidean.Coordinate].Maps[].firstContinuous baseTopology Euclidean.topology);
+\definition regionOpen: topology.Topology[Carrier := LocalPoint].IsOpenIn localTopology region := baseContinuous bound.neighborhood bound.open;
+\definition positive[p: Carrier][notZero: Logic.Not (Right.norm p = R.zero)]: D.Lt R.zero (Right.norm p) :=
+  Ord.ltOfLeNotEq R.zero (Right.norm p) (Right.normNonnegative p) (\fun (same: _) => notZero (sym!{R.Real} _ _ same));
+\definition coefficientBound: \forall (p: Carrier) -> D.Le (coefficient p) bound.value :=
+  \fun (p: Carrier) => either!{{Classical.excludedMiddle (Right.norm p = R.zero)} {D.Le (coefficient p) bound.value}
+    {\fun (atZero: _) => D.leReplaceLeft R.zero (coefficient p) bound.value (sym!{R.Real} _ _ (coefficientZero p atZero)) (Ord.leOfLt _ _ bound.positive)}
+    {\fun (notZero: _) => Ord.leOfLt _ _ (D.ltReplaceLeft (ratio (Pair.pair BasePoint Euclidean.Sphere (Coordinates.base p)
+        (\parent.Direction[p := p, member := positive p notZero].unit)))
+      (coefficient p) bound.value
+      \parent.Direction[p := p, member := positive p notZero].formula
+      (bound.bounds (Coordinates.base p) (\bysub(LocalPoint, region, p))
+        \parent.Direction[p := p, member := positive p notZero].unit))}
+  };
+\definition parameters: \Pow R.Real := Line.ClosedInterval R.zero bound.value;
+\import topology.Topology[Carrier := R.Real].Subspace[S := parameters] \as ScalarInterval;
+\definition T: \Set := ScalarInterval.CarrierSet;
+\definition parameterTopology: topology.Topology[Carrier := T].Topology := ScalarInterval.topology Line.topology;
+\definition compact: topology.Topology[Carrier := T].IsCompact parameterTopology := ScalarInterval.Properties[].compact Line.topology (Line.CompactIntervals[].intervalCompact R.zero bound.value);
+\definition choose[p: Carrier]: T := \into[R.Real](coefficient p, parameters) \by { Logic.And[_, _]::# (nonnegative p) (coefficientBound p) };
+\import topological_constructions.Product[A := Carrier, B := T] \as ActionDomain;
+\definition actionTopology: topology.Topology[Carrier := ActionDomain.CarrierSet].Topology := ActionDomain.topology topology parameterTopology;
+\definition action[p: ActionDomain.CarrierSet]: Family.Point := scale (Pair.second Carrier T p) (Pair.first Carrier T p);
+\definition inclusionContinuous: topology.Continuity[A := Carrier, B := Family.Point].Continuous topology bundle.totalSpace (\fun (p: Carrier) => p) :=
+  topology.Composition[A := Carrier, B := LocalPoint, C := Family.Point].composeContinuous topology localTopology bundle.totalSpace (\fun (p: Carrier) => p) (\fun (p: LocalPoint) => p)
+    (topology.Continuity[A := Carrier, B := LocalPoint].Corestriction[S := region].inclusionContinuous localTopology)
+    (topology.Continuity[A := LocalPoint, B := Family.Point].Corestriction[S := { p: Family.Point \where \In[X] chart.domain p.base }].inclusionContinuous bundle.totalSpace);
+\definition original[p: ActionDomain.CarrierSet]: Family.Point := Pair.first Carrier T p;
+\definition originalContinuous: topology.Continuity[A := ActionDomain.CarrierSet, B := Family.Point].Continuous actionTopology bundle.totalSpace original :=
+  topology.Composition[A := ActionDomain.CarrierSet, B := Carrier, C := Family.Point].composeContinuous actionTopology topology bundle.totalSpace (Pair.first Carrier T) (\fun (p: Carrier) => p)
+    (ActionDomain.Maps[].firstContinuous topology parameterTopology) inclusionContinuous;
+\import Operations.Along[X := X, F := F, bundle := bundle, Y := ActionDomain.CarrierSet, source := actionTopology, base := (\fun (p: ActionDomain.CarrierSet) => (original p).base)] \as Along;
+\definition actionContinuous: topology.Continuity[A := ActionDomain.CarrierSet, B := Family.Point].Continuous actionTopology bundle.totalSpace action :=
+  Along.scaling (\fun (p: ActionDomain.CarrierSet) => Pair.second Carrier T p) (\fun (p: ActionDomain.CarrierSet) => (original p).vector)
+    (topology.Composition[A := ActionDomain.CarrierSet, B := Family.Point, C := X].composeContinuous actionTopology bundle.totalSpace bundle.baseSpace original Family.projection originalContinuous Family.Of[bundle := bundle].projectionContinuous)
+    (topology.Composition[A := ActionDomain.CarrierSet, B := T, C := R.Real].composeContinuous actionTopology parameterTopology Line.topology (Pair.second Carrier T) (\fun (s: T) => s)
+      (ActionDomain.Maps[].secondContinuous topology parameterTopology) (topology.Continuity[A := T, B := R.Real].Corestriction[S := parameters].inclusionContinuous Line.topology))
+    (topology.Composition[A := ActionDomain.CarrierSet, B := Family.Point, C := Family.Point].composeContinuous actionTopology bundle.totalSpace bundle.totalSpace original (\fun (p: Family.Point) => Family.include p.base p.vector) originalContinuous Away.reconstructedContinuous);
+\definition zeroSet: \Pow Carrier := { p: Carrier \where Right.norm p = R.zero };
+\definition normContinuous: metric_spaces.RealFunctions[A := Carrier].Continuous topology (\fun (p: Carrier) => Right.norm p) :=
+  topology.Composition[A := Carrier, B := Family.Point, C := R.Real].composeContinuous topology bundle.totalSpace Line.topology (\fun (p: Carrier) => p) Right.norm inclusionContinuous Right.continuous;
+\definition zeroClosed: topology.Topology[Carrier := Carrier].IsClosedIn topology zeroSet :=
+  topology.Continuity[A := Carrier, B := R.Real].closedPreimage topology Line.topology (\fun (p: Carrier) => Right.norm p) normContinuous
+    (topology.Topology[Carrier := R.Real].Singleton R.zero) (metric_spaces.MetricSpace[Carrier := R.Real].Topology[].singletonClosed metric_spaces.RealMetric[].metric R.zero);
+\import topology.Topology[Carrier := Carrier].Subspace[S := topology.Topology[Carrier := Carrier].Complement zeroSet] \as Off;
+\definition away[p: Off.CarrierSet]: Away.Carrier := \into[Family.Point](p, nonzero) \by {
+  Ord.ltOfLeNotEq R.zero (Right.norm p) (Right.normNonnegative p) (\fun (same: _) => (\bysub(Carrier, topology.Topology[Carrier := Carrier].Complement zeroSet, p)) (sym!{R.Real} _ _ same))
+};
+\definition awayContinuous: topology.Continuity[A := Off.CarrierSet, B := Away.Carrier].Continuous (Off.topology topology) Away.topology away :=
+  topology.Continuity[A := Off.CarrierSet, B := Family.Point].Corestriction[S := nonzero].corestrictContinuous (Off.topology topology) bundle.totalSpace away
+    (topology.Composition[A := Off.CarrierSet, B := Carrier, C := Family.Point].composeContinuous (Off.topology topology) topology bundle.totalSpace (\fun (p: Off.CarrierSet) => p) (\fun (p: Carrier) => p)
+      (topology.Continuity[A := Off.CarrierSet, B := Carrier].Corestriction[S := topology.Topology[Carrier := Carrier].Complement zeroSet].inclusionContinuous topology) inclusionContinuous);
+\definition offContinuous: topology.Continuity[A := Off.CarrierSet, B := Family.Point].Continuous (Off.topology topology) bundle.totalSpace (\fun (p: Off.CarrierSet) => apply p) :=
+  topology.Composition[A := Off.CarrierSet, B := Away.Carrier, C := Family.Point].composeContinuous (Off.topology topology) Away.topology bundle.totalSpace away (\fun (p: Away.Carrier) => apply p) awayContinuous Away.continuous;
+\definition continuous: topology.Continuity[A := Carrier, B := Family.Point].Continuous topology bundle.totalSpace (\fun (p: Carrier) => apply p) :=
+  \root.Thom[].CompactAction[A := Carrier, B := Family.Point, T := T, source := topology, target := bundle.totalSpace, parameter := parameterTopology, action := action, f := (\fun (p: Carrier) => apply p), choose := choose, zero := zeroSet].continuous compact actionContinuous (\fun (p: Carrier) => \refl(apply p)) zeroClosed offContinuous
+    (\fun (p: Carrier)(atZero: _)(t: T) => trans!{Family.Point} _ _ _ (scaleOnZero p atZero t) (sym!{Family.Point} _ _ (scaleOnZero p atZero (coefficient p))));

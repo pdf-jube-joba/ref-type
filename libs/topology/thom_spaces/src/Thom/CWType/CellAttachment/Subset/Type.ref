@@ -1,0 +1,18 @@
+\import \root.Thom[].CWType[].PairFiniteType[A := A, source := source, subset := subset] \as BaseType;
+\definition data: BaseType.Details[model.Carrier] := BaseType.details model;
+\definition targetSubset: \Pow model.Carrier := algebraic_topology.CW[A := model.Carrier].Pair[source := data.space, complex := data.complex].Of[subcomplex := data.part].Subset;
+\definition next[v: Model.Sphere]: model.Carrier := data.equivalence.forward (attach v);
+\definition regular: topology.Continuity[A := Model.Sphere, B := model.Carrier].Continuous Model.sphereTopology data.space next :=
+  topology.Composition[A := Model.Sphere, B := A, C := model.Carrier].composeContinuous Model.sphereTopology source data.space attach data.equivalence.forward continuous data.equivalence.forwardContinuous;
+\definition commutes: \forall (v: Model.Sphere) -> data.equivalence.forward (attach v) = next v := \fun (v: Model.Sphere) => \refl(next v);
+\import \root.Thom[].CWType[].CellAttachment[A := model.Carrier, source := data.space, n := n, attach := next, continuous := regular] \as Next;
+\import Next.Subset[subset := targetSubset] \as NextSubsets;
+\import \parent.BaseEquivalence[B := model.Carrier, target := data.space, targetSubset := targetSubset, e := data.equivalence, next := next, regular := regular, commutes := commutes] \as Change;
+\import \root.Thom[].CWType[].PairFiniteType[A := Carrier, source := topology, subset := originalSubset] \as OutsideType;
+\import \root.Thom[].CWType[].PairFiniteType[A := Next.Carrier, source := Next.topology, subset := NextSubsets.originalSubset] \as NextOutsideType;
+\import \root.Thom[].CWType[].PairFiniteCellTypes[A := model.Carrier, source := data.space, complex := data.complex, part := data.part] \as Cells;
+\definition exists: \exists OutsideType.Data := \block {
+  \takefrom result: NextOutsideType.Data \by Cells.outside n next regular \then
+  \return \exact(OutsideType.Along[B := Next.Carrier, target := Next.topology, targetSubset := NextSubsets.originalSubset, e := Change.equivalence, model := result].result, OutsideType.Data)
+};
+\module Inside(contained: \forall (v: Model.Sphere) -> \In[A] subset (attach v));

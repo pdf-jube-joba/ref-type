@@ -1,0 +1,58 @@
+\definition firstComposite[y: B]: B := equivalence.backward (equivalence.forward y);
+\definition secondComposite[z: D]: D := equivalence.forward (equivalence.backward z);
+\definition firstContinuous: topology.Continuity[A := B, B := B].Continuous target target firstComposite :=
+  topology.Composition[A := B, B := D, C := B].composeContinuous target range target equivalence.forward equivalence.backward laws.forwardContinuous laws.backwardContinuous;
+\definition secondContinuous: topology.Continuity[A := D, B := D].Continuous range range secondComposite :=
+  topology.Composition[A := D, B := B, C := D].composeContinuous range target range equivalence.backward equivalence.forward laws.backwardContinuous laws.forwardContinuous;
+\definition firstCommutes: \forall (x: A) -> firstComposite (f x) = backwardAttach x := \fun (x: A) => congr!{D B} equivalence.backward _ _ (commutes x);
+\definition secondCommutes: \forall (x: A) -> secondComposite (next x) = finalAttach x := \fun (x: A) => \refl(finalAttach x);
+\definition firstHomotopy: Left.Homotopy[target, target, (\fun (y: B) => y), firstComposite] := Left.reverse target target firstComposite (\fun (y: B) => y) left;
+\definition secondHomotopy: Right.Homotopy[range, range, (\fun (z: D) => z), secondComposite] := Right.reverse range range secondComposite (\fun (z: D) => z) right;
+\import \parent.\parent.HomotopicIdentity[next := backwardAttach, regular := backwardRegular, map := firstComposite, mapContinuous := firstContinuous, commutes := firstCommutes, homotopy := firstHomotopy] \as FirstIdentity;
+\import \root.Thom[].CWType[].ConeAttachment[A := A, B := D, source := source, target := range, f := next, continuous := regular].HomotopicIdentity[
+  next := finalAttach, regular := finalRegular, map := secondComposite, mapContinuous := secondContinuous, commutes := secondCommutes, homotopy := secondHomotopy] \as SecondIdentity;
+\import \parent.\parent.Mapping[D := B, range := target, next := backwardAttach, nextContinuous := backwardRegular, map := firstComposite, mapContinuous := firstContinuous, commutes := firstCommutes] \as FirstComposite;
+\import \root.Thom[].CWType[].ConeAttachment[A := A, B := D, source := source, target := range, f := next, continuous := regular].Mapping[D := D, range := range,
+  next := finalAttach, nextContinuous := finalRegular, map := secondComposite, mapContinuous := secondContinuous, commutes := secondCommutes] \as SecondComposite;
+\definition firstForward: \forall (z: Carrier) -> FirstIdentity.result.forward z = SecondMap.apply (FirstMap.apply z) :=
+  induction (\fun (z: Carrier) => FirstIdentity.result.forward z = SecondMap.apply (FirstMap.apply z))
+    (\fun (y: B) => eq_reason_in!{Third.Carrier _
+      "=" _ "by" { FirstComposite.onOriginal y }
+      "=" _ "by" { sym!{Third.Carrier} _ _ (SecondMap.onOriginal (equivalence.forward y)) }
+      "=" _ "by" { congr!{Next.Carrier Third.Carrier} SecondMap.apply _ _ (sym!{Next.Carrier} _ _ (FirstMap.onOriginal y)) }
+    })
+    (eq_reason_in!{Third.Carrier _
+      "=" _ "by" { FirstComposite.onApex }
+      "=" _ "by" { sym!{Third.Carrier} _ _ SecondMap.onApex }
+      "=" _ "by" { congr!{Next.Carrier Third.Carrier} SecondMap.apply _ _ (sym!{Next.Carrier} _ _ FirstMap.onApex) }
+    })
+    (\fun (t: I.Carrier)(x: A) => eq_reason_in!{Third.Carrier _
+      "=" _ "by" { FirstComposite.onCylinder t x }
+      "=" _ "by" { sym!{Third.Carrier} _ _ (SecondMap.onCylinder t x) }
+      "=" _ "by" { congr!{Next.Carrier Third.Carrier} SecondMap.apply _ _ (sym!{Next.Carrier} _ _ (FirstMap.onCylinder t x)) }
+    });
+\definition secondForward: \forall (z: Next.Carrier) -> SecondIdentity.result.forward z = ThirdMap.apply (SecondMap.apply z) :=
+  Next.induction (\fun (z: Next.Carrier) => SecondIdentity.result.forward z = ThirdMap.apply (SecondMap.apply z))
+    (\fun (y: D) => eq_reason_in!{Fourth.Carrier _
+      "=" _ "by" { SecondComposite.onOriginal y }
+      "=" _ "by" { sym!{Fourth.Carrier} _ _ (ThirdMap.onOriginal (equivalence.backward y)) }
+      "=" _ "by" { congr!{Third.Carrier Fourth.Carrier} ThirdMap.apply _ _ (sym!{Third.Carrier} _ _ (SecondMap.onOriginal y)) }
+    })
+    (eq_reason_in!{Fourth.Carrier _
+      "=" _ "by" { SecondComposite.onApex }
+      "=" _ "by" { sym!{Fourth.Carrier} _ _ ThirdMap.onApex }
+      "=" _ "by" { congr!{Third.Carrier Fourth.Carrier} ThirdMap.apply _ _ (sym!{Third.Carrier} _ _ SecondMap.onApex) }
+    })
+    (\fun (t: I.Carrier)(x: A) => eq_reason_in!{Fourth.Carrier _
+      "=" _ "by" { SecondComposite.onCylinder t x }
+      "=" _ "by" { sym!{Fourth.Carrier} _ _ (ThirdMap.onCylinder t x) }
+      "=" _ "by" { congr!{Third.Carrier Fourth.Carrier} ThirdMap.apply _ _ (sym!{Third.Carrier} _ _ (SecondMap.onCylinder t x)) }
+    });
+\import \root.Thom[].CWType[].TwoOutOfSix[A := Carrier, B := Next.Carrier, C := Third.Carrier, D := Fourth.Carrier,
+  firstSpace := topology, secondSpace := Next.topology, thirdSpace := Third.topology, fourthSpace := Fourth.topology,
+  f := FirstMap.apply, g := SecondMap.apply, h := ThirdMap.apply, fContinuous := FirstMap.continuous, gContinuous := SecondMap.continuous, hContinuous := ThirdMap.continuous,
+  firstEquivalence := FirstIdentity.result, secondEquivalence := SecondIdentity.result, firstForward := firstForward, secondForward := secondForward] \as Cancellation;
+\definition exists: \exists Result := \block {
+  \takefrom value: Cancellation.Result \by Cancellation.exists \then
+  \return \exact(Result { equivalence := value.equivalence, forward := value.forward }, Result)
+};
