@@ -1,0 +1,47 @@
+\import std.Data[].Nat[] \as Nat;
+\import std.Data[].FinSet[] \as Fin;
+\import std.Data[].Pair[] \as Pair;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\import real.Analysis[] \as S;
+\import dedekind_reals.DedekindReal[] \as R;
+\import calculus.Blocks[n := n, m := m] \as Blocks;
+\import Fin.Sum[m := n, n := m] \as Indices;
+\import Indices.Tuples[A := S.Real] \as Tuples;
+\definition dimension: Nat.Nat^ := Blocks.dimension;
+\import \root.Model[n := n] \as Left;
+\import \root.Model[n := m] \as Right;
+\import \root.Model[n := dimension] \as Model;
+\import \root.Dimension[n := n] \as LeftModels;
+\import \root.Dimension[n := m] \as RightModels;
+\import \root.Dimension[n := dimension] \as Models;
+\import calculus.Real[].Multivariable[n := n].Open[] \as LeftOpen;
+\import calculus.Real[].Multivariable[n := m].Open[] \as RightOpen;
+\import calculus.Real[].Multivariable[n := dimension].Open[] \as Open;
+\definition Selected[C: Left.Constraints][D: Right.Constraints]: Indices.Index -> \Prop :=
+  \induction (i: Indices.Index) \return \Prop \with {
+    | inl: \fun (j: Left.Coordinate) => \In[Left.Coordinate] C j
+    | inr: \fun (j: Right.Coordinate) => \In[Right.Coordinate] D j
+  };
+\definition constraints[C: Left.Constraints][D: Right.Constraints]: Model.Constraints := { i: Model.Coordinate \where Selected C D (Indices.split i) };
+\definition selectedLeft: \forall (C: Left.Constraints)(D: Right.Constraints)(i: Left.Coordinate) -> \In[Left.Coordinate] C i -> \In[Model.Coordinate] (constraints C D) (Indices.left i) :=
+  \fun (C: Left.Constraints)(D: Right.Constraints)(i: Left.Coordinate)(member: _) => \idelim Indices.Index::inl i = Indices.split (Indices.left i)
+    \with j: Indices.Index => Selected C D j \by { base: member, equality: sym!{Indices.Index} _ _ (Indices.splitInflate (Indices.Index::inl i)) };
+\definition selectedRight: \forall (C: Left.Constraints)(D: Right.Constraints)(i: Right.Coordinate) -> \In[Right.Coordinate] D i -> \In[Model.Coordinate] (constraints C D) (Indices.right i) :=
+  \fun (C: Left.Constraints)(D: Right.Constraints)(i: Right.Coordinate)(member: _) => \idelim Indices.Index::inr i = Indices.split (Indices.right i)
+    \with j: Indices.Index => Selected C D j \by { base: member, equality: sym!{Indices.Index} _ _ (Indices.splitInflate (Indices.Index::inr i)) };
+\definition nonnegativeJoin: \forall (C: Left.Constraints)(D: Right.Constraints)(x: Left.Point)(y: Right.Point) -> Left.Nonnegative C x -> Right.Nonnegative D y -> Model.Nonnegative (constraints C D) (Blocks.join x y) :=
+  \fun (C: Left.Constraints)(D: Right.Constraints)(x: Left.Point)(y: Right.Point)(left: _)(right: _)(i: Model.Coordinate)(selected: _) =>
+    (\induction (s: Indices.Index) \return Selected C D s -> R.Le S.zero (Tuples.evaluate x y s) \with {
+      | inl: \fun (j: Left.Coordinate) => left j
+      | inr: \fun (j: Right.Coordinate) => right j
+    }) (Indices.split i) selected;
+\definition nonnegativeLeft: \forall (C: Left.Constraints)(D: Right.Constraints)(u: Model.Point) -> Model.Nonnegative (constraints C D) u -> Left.Nonnegative C (Blocks.left u) :=
+  \fun (C: Left.Constraints)(D: Right.Constraints)(u: Model.Point)(member: _)(i: Left.Coordinate)(selected: _) => member (Indices.left i) (selectedLeft C D i selected);
+\definition nonnegativeRight: \forall (C: Left.Constraints)(D: Right.Constraints)(u: Model.Point) -> Model.Nonnegative (constraints C D) u -> Right.Nonnegative D (Blocks.right u) :=
+  \fun (C: Left.Constraints)(D: Right.Constraints)(u: Model.Point)(member: _)(i: Right.Coordinate)(selected: _) => member (Indices.right i) (selectedRight C D i selected);
+\module Of(M: LeftModels.Manifold, N: RightModels.Manifold);
+\module Boundary(C: Left.Constraints, D: Right.Constraints, a: Left.Point, b: Right.Point);

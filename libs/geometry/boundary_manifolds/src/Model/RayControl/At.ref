@@ -1,0 +1,32 @@
+\definition existsPositive: R.Lt Scalars.zero (a i) -> \exists ( radius: Real \where Control[i, radius] ) := \block {
+  \fun (positive: _) \then
+  \takefrom delta: \Cast[Real] ({ d: Real \where Limits.Control[(\fun (t: Real) => path t i), Scalars.zero, path Scalars.zero i, a i, d] }) \by continuous i (a i) positive \then
+  \let control: Limits.Control[(\fun (t: Real) => path t i), Scalars.zero, path Scalars.zero i, a i, delta] :=
+    \bysub(Real, { d: Real \where Limits.Control[(\fun (t: Real) => path t i), Scalars.zero, path Scalars.zero i, a i, d] }, delta) \then
+  \return Logic.existsIntro[Real, { r: Real \where Control[i, r] }] delta (Control[i, delta] {
+    positive := control.positive,
+    bound := \fun (t: Real)(tp: _)(near: _)(selected: _) => Order.leOfLt _ _
+      (R.ltReplaceLeft (Scalars.sub (a i) (a i)) Scalars.zero _ (Laws.subSelf (a i))
+        (Metric.distanceLtLower (a i) (path t i) (a i)
+          (R.ltReplaceLeft _ _ _ (trans!{Real} _ _ _
+            (congr!{Real Real} (Scalars.distance (path t i)) _ _ (congr!{Point Real} (\fun (p: Point) => p i) _ _ center))
+            (Metric.distanceSymmetric (path t i) (a i)))
+            (control.estimate t (\fun (same: t = Scalars.zero) => Order.ltNotEq Scalars.zero t tp (sym!{Real} _ _ same)) near)))),
+  })
+};
+\definition existence: Nonnegative C a -> Cone C a v -> \exists ( radius: Real \where Control[i, radius] ) :=
+  \fun (member: _)(cone: _) => Logic.orElim (\In[Coordinate] C i) (Logic.Not (\In[Coordinate] C i)) (\exists ( radius: Real \where Control[i, radius] ))
+    (Classical.excludedMiddle (\In[Coordinate] C i))
+    (\fun (selected: _) => Logic.orElim (a i = Scalars.zero) (Logic.Not (a i = Scalars.zero)) (\exists ( radius: Real \where Control[i, radius] ))
+      (Classical.excludedMiddle (a i = Scalars.zero))
+      (\fun (zero: _) => Logic.existsIntro[Real, { r: Real \where Control[i, r] }] Scalars.one (Control[i, Scalars.one] {
+        positive := Product.onePositive,
+        bound := \fun (t: Real)(tp: _)(near: _)(inside: _) => R.leReplaceRight Scalars.zero (Scalars.mul t (v i)) (path t i)
+          (sym!{Real} _ _ (trans!{Real} _ _ _ (congr!{Real Real} (\fun (z: Real) => Scalars.add z (Scalars.mul t (v i))) _ _ zero)
+            (Laws.addZeroLeft (Scalars.mul t (v i)))))
+          (Laws.fieldMulNonnegative t (v i) (Order.leOfLt _ _ tp) (cone i (Logic.And[_, _]::# selected zero))),
+      }))
+      (\fun (nonzero: _) => existsPositive (Order.ltOfLeNotEq Scalars.zero (a i) (member i selected) (\fun (same: Scalars.zero = a i) => nonzero (sym!{Real} _ _ same)))))
+    (\fun (unselected: _) => Logic.existsIntro[Real, { r: Real \where Control[i, r] }] Scalars.one (Control[i, Scalars.one] {
+      positive := Product.onePositive, bound := \fun (t: Real)(positive: _)(near: _)(selected: _) => Logic.falseElim _ (unselected selected),
+    }));

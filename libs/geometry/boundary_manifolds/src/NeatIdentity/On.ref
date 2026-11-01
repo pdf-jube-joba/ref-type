@@ -1,0 +1,30 @@
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\import real.Analysis[] \as S;
+\import dedekind_reals.DedekindReal[].Arithmetic[].Prop[] \as Arithmetic;
+\import \root.MapIdentity[n := n].On[M := M] \as Identity;
+\import \root.Immersion[n := n, m := n].Between[M := M, N := M] \as Immersion;
+\import \root.Neat[n := n, m := n].Between[M := M, N := M] \as Neat;
+\import \root.Tangent[n := n].On[M := M] \as Tangent;
+\import \root.DifferentialIdentity[n := n].On[M := M] \as Differential;
+\module At(x: M.Point);
+\definition embedding: Immersion.EmbeddingLaws[Identity.map] := Immersion.EmbeddingLaws[Identity.map] {
+  immersion := \fun (x: M.Point)(u, v: Tangent.Vector x)(same: _) => trans!{{Tangent.Vector x}} _ _ _
+    (sym!{{Tangent.Vector x}} _ _ (Differential.At[x := x].law u)) (trans!{{Tangent.Vector x}} _ _ _ same (Differential.At[x := x].law v)),
+  injective := \fun (x, y: M.Point)(same: _) => same,
+  openLift := \fun (U: \Pow M.Point)(open: _) => Logic.existsIntro[\Pow M.Point, { V: \Pow M.Point \where Logic.And[topology.Topology[Carrier := M.Point].IsOpenIn M.space V,
+    topology.Continuity[A := M.Point, B := M.Point].Preimage (\fun (x: M.Point) => x) V = U] }] U
+    (Logic.And[_, _]::# open (\axiom:setext({ x: M.Point \where \In[M.Point] U x }, U,
+      \fun (x: M.Point)(member: _) => member, \fun (x: M.Point)(member: _) => member))),
+};
+\definition map: Neat.Embedding := \into[\root.SmoothMap[n := n, m := n].Between[M := M, N := M].Map](Identity.map, Neat.Embedding) \by {
+  Neat.Laws[Identity.map] {
+    embedding := embedding,
+    boundary := \fun (x: M.Point) => Logic.PropEquiv[_, _] { ltr := \fun (p: Tangent.At[x := x].Cones[].Boundary) => p, rtl := \fun (p: Tangent.At[x := x].Cones[].Boundary) => p },
+    transverse := \fun (x: M.Point) => At[x := x].normal,
+    reflects := \fun (x: M.Point)(v: Tangent.Vector x) => At[x := x].reflects v,
+  }
+};

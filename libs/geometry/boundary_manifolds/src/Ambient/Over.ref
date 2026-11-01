@@ -1,0 +1,37 @@
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\import \root.Model[n := n] \as Model;
+\import \root.Dimension[n := n] \as Corners;
+\import calculus.Real[].Multivariable[n := n].Open[] \as Open;
+\import calculus.Maps[n := n, m := n] \as Maps;
+\import calculus.Diffeomorphism[n := n, m := n] \as Diffeomorphisms;
+\import manifolds.Dimension[n := n].Chart[M := M.Point, space := M.space] \as OldCharts;
+\import topology.Topology[Carrier := M.Point] \as Ambient;
+\import Ambient.Subspace[S := S] \as Subspace;
+\definition Point: \Set := \Cast[M.Point] S;
+\definition topology: topology.Structures[].Topology[Point] := Subspace.topology M.space;
+\import Corners.Chart[M := Point, space := topology] \as Charts;
+\import Corners.Atlas[M := Point, space := topology] \as Atlas;
+\definition OldChart: \Set := \Cast[OldCharts.Chart] M.atlas.charts;
+\structure Data: \Set := {
+  source: OldChart,
+  image: Open.OpenSet,
+  constraints: Model.Constraints,
+  change: Diffeomorphisms.Diffeomorphism source.image image,
+};
+\definition coordinate[data: Data][p: OldCharts.LocalPoint data.source]: Open.Carrier data.image :=
+  Maps.apply data.source.image data.image data.change.forward (OldCharts.coordinate data.source p);
+\structure Laws[data: Data]: \Prop := {
+  forward: \forall (p: OldCharts.LocalPoint data.source) -> \In[M.Point] S p -> Model.Nonnegative data.constraints (coordinate data p),
+  backward: \forall (p: OldCharts.LocalPoint data.source) -> Model.Nonnegative data.constraints (coordinate data p) -> \In[M.Point] S p,
+};
+\definition Adapted: \Set := \Cast[Data] ({ data: Data \where Laws[data] });
+\module On(patch: Adapted);
+\module Pair(left, right: Adapted, x: Point, inLeft: Charts.Contains \root.Ambient[n := n].Over[M := M, S := S].On[patch := left].chart x, inRight: Charts.Contains \root.Ambient[n := n].Over[M := M, S := S].On[patch := right].chart x);
+\definition ChartContains[p: Adapted][x: Point]: \Prop := Charts.Contains On[patch := p].chart x;
+\definition Cover: \Prop := \forall (x: Point) -> \exists ( p: Adapted \where Charts.Contains On[patch := p].chart x );
+\definition charts: \Pow Charts.Chart := { c: Charts.Chart \where \exists ( p: Adapted \where c = On[patch := p].chart ) };
+\module Build(cover: Cover);

@@ -1,0 +1,72 @@
+\definition constraints: Source.Constraints := { i: Source.Coordinate \where \In[Target.Coordinate] C (Indices.left i) };
+\import calculus.LinearMap[n := n, m := dimension].On[U := Open.whole, L := Linear.horizontal] \as Inclusion;
+\import Maps.Preimage[U := Open.whole, W := Output.whole, V := U, f := Inclusion.map] \as Preimage;
+\definition parameters: Open.OpenSet := Preimage.domain;
+\import \root.Dimension[n := n].Quadrant[C := constraints, U := parameters] \as Domain;
+\import \root.Dimension[n := dimension].Quadrant[C := C, U := U] \as Codomain;
+\definition preserves: \forall (x: Source.Carrier constraints parameters) -> Target.Nonnegative C (Maps.apply parameters U Preimage.map x) :=
+  \fun (x: Source.Carrier constraints parameters)(i: Target.Coordinate)(selected: _) =>
+    (\induction (s: Indices.Index) \return \In[Target.Coordinate] C (Indices.inflate s) -> dedekind_reals.DedekindReal[].Le S.zero (Tuples.evaluate x (\fun (j: Normal.Coordinate) => S.zero) s) \with {
+      | inl: \fun (j: Source.Coordinate)(selected: _) => (\bysub(Open.Carrier parameters, Source.region constraints parameters, x)) j selected
+      | inr: \fun (j: Normal.Coordinate)(selected: _) => dedekind_reals.DedekindReal[].leRefl S.zero
+    }) (Indices.split i)
+      (\idelim (i \of Target.Coordinate) = Indices.inflate (Indices.split i) \with j: Target.Coordinate => \In[Target.Coordinate] C j \by {
+        base: selected, equality: sym!{Target.Coordinate} _ _ (Indices.inflateSplit i)
+      });
+\import \root.QuadrantMap[n := n, m := dimension].Of[C := constraints, D := C, U := parameters, V := U, f := Preimage.map, preserves := preserves] \as Smooth;
+\import \root.SmoothMap[n := n, m := dimension].Between[M := Domain.manifold, N := Codomain.manifold] \as SmoothMaps;
+\definition inclusion: SmoothMaps.Map := Smooth.map;
+\definition FacePoint: \Set := \Cast[Codomain.Point] ({ x: Codomain.Point \where Blocks.right x = (\fun (j: Normal.Coordinate) => S.zero) });
+\definition IsBoundaryFace: \Prop := \forall (j: Normal.Coordinate) -> \In[Target.Coordinate] C (Indices.right j);
+\definition normalZero: \forall (x: Domain.Point) -> Blocks.right (SmoothMaps.apply inclusion x) = (\fun (j: Normal.Coordinate) => S.zero) :=
+  \fun (x: Domain.Point) => Blocks.rightJoin x (\fun (j: Normal.Coordinate) => S.zero);
+\definition leftInverse: \forall (x: Domain.Point) -> Blocks.left (SmoothMaps.apply inclusion x) = (x \of Source.Point) :=
+  \fun (x: Domain.Point) => Blocks.leftJoin x (\fun (j: Normal.Coordinate) => S.zero);
+\definition injective: \forall (x, y: Domain.Point) -> SmoothMaps.apply inclusion x = SmoothMaps.apply inclusion y -> x = y :=
+  \fun (x, y: Domain.Point)(same: _) => Source.equality constraints parameters x y
+    (trans!{Source.Point} _ _ _ (sym!{Source.Point} _ _ (leftInverse x))
+      (trans!{Source.Point} _ _ _ (congr!{Target.Point Source.Point} Blocks.left _ _ same) (leftInverse y)));
+\definition decode[x: FacePoint]: Source.Point := Blocks.left x;
+\definition imageRecovery: \forall (x: FacePoint) -> Blocks.join (decode x) (\fun (j: Normal.Coordinate) => S.zero) = (x \of Target.Point) :=
+  \fun (x: FacePoint) => trans!{Target.Point} _ _ _ (congr!{Normal.Point Target.Point} (Blocks.join (decode x)) _ _
+    (sym!{Normal.Point} _ _ (\bysub(Codomain.Point, FacePoint, x)))) (Blocks.recover x);
+\definition parameterMember: \forall (x: FacePoint) -> \In[Source.Point] parameters.points (decode x) :=
+  \fun (x: FacePoint) => Preimage.intro (\into[Source.Point](decode x, Open.whole.points) \by { \refl(decode x) })
+    (\idelim (x \of Target.Point) = Blocks.join (decode x) (\fun (j: Normal.Coordinate) => S.zero) \with p: Target.Point => \In[Target.Point] U.points p \by {
+      base: \bysub(Target.Point, U.points, x), equality: sym!{Target.Point} _ _ (imageRecovery x)
+    });
+\definition inverse[x: FacePoint]: Domain.Point := \into[Open.Carrier parameters](\into[Source.Point](decode x, parameters.points) \by { parameterMember x }, Source.region constraints parameters) \by {
+  \fun (j: Source.Coordinate)(selected: _) => (\bysub(Output.Carrier U, Target.region C U, x)) (Indices.left j) selected
+};
+\definition rightInverse: \forall (x: FacePoint) -> SmoothMaps.apply inclusion (inverse x) = x :=
+  \fun (x: FacePoint) => Target.equality C U (SmoothMaps.apply inclusion (inverse x)) x (imageRecovery x);
+\module At(x: Domain.Point);
+\import \root.Dimension[n := n] \as FaceModels;
+\definition manifold: FaceModels.Manifold := Domain.manifold;
+\import \root.Dimension[n := n].Quadrant[C := Source.unconstrained, U := Open.whole] \as VectorModel;
+\import \root.Product[n := n, m := n].Of[M := Domain.manifold, N := VectorModel.manifold] \as Bundle;
+\import \root.Dimension[n := \root.Product[n := n, m := n].dimension] \as BundleModels;
+\definition tangentBundle: BundleModels.Manifold := Bundle.manifold;
+\module Topology;
+\import \root.Immersion[n := n, m := dimension].Between[M := Domain.manifold, N := Codomain.manifold] \as Immersions;
+\definition embedding: Immersions.Embedding := \into[SmoothMaps.Map](inclusion, Immersions.Embedding) \by {
+  Immersions.ofCriterion inclusion (Logic.And[_, _]::# (\fun (x: Domain.Point) => At[x := x].injective)
+    (\exact(Topology[].witness, Immersions.IntoImage[f := inclusion].Witness)))
+};
+\import \root.Face[n := n, r := r].Global[F := Domain.manifold, M := Codomain.manifold] \as Global;
+\module GlobalAt(selected: IsBoundaryFace, x: Domain.Point);
+\definition globalFace[selected: IsBoundaryFace]: Global.Face := \into[Immersions.Embedding](embedding, Global.Face) \by {
+  \fun (x: Domain.Point) => \exact(GlobalAt[selected := selected, x := x].form, Global.LocalForm[embedding, x])
+};
+\import \root.Tangent[n := n].On[M := Domain.manifold] \as Tangent;
+\definition BundlePoint: \Set := Bundle.Point;
+\definition projection[p: BundlePoint]: Domain.Point := Bundle.first p;
+\definition fiber[p: BundlePoint]: Tangent.Vector (projection p) := At[x := projection p].vector (Bundle.second p);
+\definition vectorPoint[v: Source.Point]: VectorModel.Point := \into[Open.Carrier Open.whole](\into[Source.Point](v, Open.whole.points) \by { \refl(v) }, Source.region Source.unconstrained Open.whole) \by {
+  Source.unconstrainedNonnegative v
+};
+\definition include[x: Domain.Point][v: Tangent.Vector x]: BundlePoint := std.Data[].Pair[].pair Domain.Point VectorModel.Point x (vectorPoint (At[x := x].coordinate v));
+\definition fiberInclude: \forall (x: Domain.Point)(v: Tangent.Vector x) -> fiber (include x v) = v := \fun (x: Domain.Point)(v: Tangent.Vector x) => At[x := x].vectorCoordinate v;
+\definition includeFiber: \forall (p: BundlePoint) -> include (projection p) (fiber p) = p := \fun (p: BundlePoint) => std.Data[].Pair[].Prop[A := Domain.Point, B := VectorModel.Point].ext (include (projection p) (fiber p)) p
+  (\refl(projection p))
+  (Source.equality Source.unconstrained Open.whole (vectorPoint (At[x := projection p].coordinate (fiber p))) (Bundle.second p) (At[x := projection p].coordinateVector (Bundle.second p)));

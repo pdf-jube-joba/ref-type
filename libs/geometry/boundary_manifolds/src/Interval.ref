@@ -1,0 +1,72 @@
+\import std.Data[].Nat[] \as N;
+\import std.Data[].FinSet[] \as Fin;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\import real.Analysis[] \as S;
+\import S.Algebra[] \as Algebra;
+\import S.Distance[] \as Metric;
+\import S.Estimates[].Product[] \as Abs;
+\import dedekind_reals.DedekindReal[] \as R;
+\import R.Order[] \as Order;
+\import R.Arithmetic[].Prop[] \as Laws;
+\import calculus.Real[].OneDimension[] \as One;
+\import \root.Disk[n := N.Nat^::zero] \as Disk;
+\import \root.Dimension[n := Disk.dimension] \as Model;
+\import calculus.Real[].Multivariable[n := One.dimension].Open[] \as Open;
+\definition manifold: Model.Manifold := Disk.manifold;
+\definition coordinate[t: S.Real]: Open.Carrier Open.whole := \into[One.Index -> S.Real]((\fun (i: One.Index) => t), Open.whole.points) \by { \refl(\fun (i: One.Index) => t) };
+\definition squared: \forall (t: S.Real) -> Disk.squared (coordinate t) = S.mul t t := \fun (t: S.Real) => Laws.addZeroRight (S.mul t t);
+\definition value: \forall (t: S.Real) -> Disk.defining (coordinate t) = S.sub S.one (S.mul t t) :=
+  \fun (t: S.Real) => trans!{S.Real} _ _ _ Disk.At[a := coordinate t].definingFormula
+    (congr!{S.Real S.Real} (S.sub S.one) _ _ (squared t));
+\definition Bounds[t: S.Real]: \Prop := Logic.And[R.Le (S.neg S.one) t, R.Le t S.one];
+\definition absSquared: \forall (t: S.Real) -> S.mul (Abs.abs t) (Abs.abs t) = S.mul t t :=
+  \fun (t: S.Real) => trans!{S.Real} _ _ _ (sym!{S.Real} _ _ (Abs.absProduct t t)) (Abs.absOfNonnegative (S.mul t t) (Algebra.squareNonnegative t));
+\definition squareBound: \forall (t: S.Real) -> Bounds t -> R.Le (S.mul t t) S.one := \block {
+  \fun (t: S.Real)(bounds: Bounds t) \then
+  \let negative: R.Le (S.neg t) S.one := R.leReplaceRight _ (S.neg (S.neg S.one)) S.one (Laws.negInvolutive S.one) (Laws.negAntitone (S.neg S.one) t bounds.left) \then
+  \let absolute: R.Le (Abs.abs t) S.one := R.leReplaceLeft (Metric.max (S.neg t) t) (Abs.abs t) S.one (sym!{S.Real} _ _ (Abs.absExpression t))
+    (Metric.maxLeast (S.neg t) t S.one negative bounds.right) \then
+  \return R.leReplace _ _ _ _ (absSquared t) (Laws.fieldMulOneLeft S.one)
+    (S.SquareRoot[].squareMonotone (Abs.abs t) S.one (Abs.absNonnegative t) (Order.leOfLt _ _ Abs.onePositive) absolute)
+};
+\definition boundsOfSquare: \forall (t: S.Real) -> R.Le (S.mul t t) S.one -> Bounds t := \block {
+  \fun (t: S.Real)(bound: _) \then
+  \let absolute: R.Le (Abs.abs t) S.one := Order.leOfNotLtReverse (Abs.abs t) S.one (\fun (larger: R.Lt S.one (Abs.abs t)) =>
+    R.ltNotLeReverse S.one (S.mul t t)
+      (R.ltReplaceRight S.one (S.mul (Abs.abs t) (Abs.abs t)) (S.mul t t) (absSquared t)
+        (R.ltReplaceLeft (S.mul S.one S.one) S.one (S.mul (Abs.abs t) (Abs.abs t)) (Laws.fieldMulOneLeft S.one)
+          (S.SquareRoot[].squareStrict S.one (Abs.abs t) (Order.leOfLt _ _ Abs.onePositive) larger))) bound) \then
+  \let upper: R.Le t S.one := R.leTrans t (Abs.abs t) S.one
+    (R.leReplaceRight _ (Metric.max (S.neg t) t) (Abs.abs t) (sym!{S.Real} _ _ (Abs.absExpression t)) (Metric.maxRight (S.neg t) t)) absolute \then
+  \let lower: R.Le (S.neg t) S.one := R.leTrans (S.neg t) (Abs.abs t) S.one
+    (R.leReplaceRight _ (Metric.max (S.neg t) t) (Abs.abs t) (sym!{S.Real} _ _ (Abs.absExpression t)) (Metric.maxLeft (S.neg t) t)) absolute \then
+  \return Logic.And[_, _]::# (R.leReplaceRight _ (S.neg (S.neg t)) t (Laws.negInvolutive t) (Laws.negAntitone (S.neg t) S.one lower)) upper
+};
+\definition ofBounds: \forall (t: S.Real) -> Bounds t -> R.Le S.zero (Disk.defining (coordinate t)) :=
+  \fun (t: S.Real)(bounds: _) => R.leReplace S.zero S.zero (S.sub S.one (S.mul t t)) (Disk.defining (coordinate t)) (\refl(S.zero)) (sym!{S.Real} _ _ (value t))
+    (R.leReplaceLeft (S.sub (S.mul t t) (S.mul t t)) S.zero _ (Laws.subSelf (S.mul t t))
+      (Laws.addMonotoneRight (S.mul t t) S.one (S.neg (S.mul t t)) (squareBound t bounds)));
+\definition toBounds: \forall (t: S.Real) -> R.Le S.zero (Disk.defining (coordinate t)) -> Bounds t :=
+  \fun (t: S.Real)(member: _) => boundsOfSquare t (R.leReplace _ _ _ _ (Laws.addZeroLeft (S.mul t t)) (Metric.subAddCancel S.one (S.mul t t))
+    (Laws.addMonotoneRight S.zero (S.sub S.one (S.mul t t)) (S.mul t t)
+      (R.leReplaceRight S.zero _ _ (value t) member)));
+\definition point[t: S.Real][bounds: Bounds t]: manifold.Point :=
+  \into[Open.Carrier Open.whole](coordinate t, { x: Open.Carrier Open.whole \where R.Le S.zero (Disk.defining x) }) \by { ofBounds t bounds };
+\definition negativeOneNonpositive: R.Le (S.neg S.one) S.zero := R.leReplaceRight _ (S.neg S.zero) S.zero Laws.negZero
+  (Laws.negAntitone S.zero S.one (Order.leOfLt _ _ Abs.onePositive));
+\definition endpointOrder: R.Le (S.neg S.one) S.one := R.leTrans (S.neg S.one) S.zero S.one negativeOneNonpositive (Order.leOfLt _ _ Abs.onePositive);
+\definition left: manifold.Point := point (S.neg S.one) (Logic.And[_, _]::# (R.leRefl (S.neg S.one)) endpointOrder);
+\definition right: manifold.Point := point S.one (Logic.And[_, _]::# endpointOrder (R.leRefl S.one));
+
+\definition equalCoordinate: \forall (x, y: manifold.Point) -> x One.index = y One.index -> x = y :=
+  \fun (x, y: manifold.Point)(same: _) => \root.Refinement[A := Open.Carrier Open.whole].equality
+    ({ x: Open.Carrier Open.whole \where R.Le S.zero (Disk.defining x) }) x y
+    (\root.Refinement[A := One.Index -> S.Real].equality Open.whole.points x y
+      (\axiom:funext(x, y, \fun (i: One.Index) => trans!{S.Real} _ _ _
+        (congr!{One.Index S.Real} x _ _ (Fin.singletonValue i)) (trans!{S.Real} _ _ _ same
+          (congr!{One.Index S.Real} y _ _ (sym!{One.Index} _ _ (Fin.singletonValue i)))))));
+\module At(x: manifold.Point);

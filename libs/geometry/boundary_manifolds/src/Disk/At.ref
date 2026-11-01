@@ -1,0 +1,42 @@
+\import Open.Smooth[].Differential[].Operations[U := Open.whole] \as Rules;
+\definition negativeOne: \forall (x: S.Real) -> S.mul (S.neg S.one) x = S.neg x :=
+  \fun (x: S.Real) => trans!{S.Real} _ _ _ (Laws.fieldMulNegLeft S.one x) (congr!{S.Real S.Real} S.neg _ _ (Laws.fieldMulOneLeft x));
+\definition definingFormula: defining a = S.sub S.one (squared a) := congr!{S.Real S.Real} (S.add S.one) _ _ (negativeOne (squared a));
+\definition squaredOne: defining a = S.zero -> squared a = S.one :=
+  \fun (zero: _) => sym!{S.Real} _ _ (S.Distance[].subZeroEq S.one (squared a) (trans!{S.Real} _ _ _ (sym!{S.Real} _ _ definingFormula) zero));
+\definition productRadial: Calculus.value (F.product (F.constant (S.neg S.one)) squared) a a = S.neg (S.add (squared a) (squared a)) :=
+  trans!{S.Real} _ _ _ (Rules.product (F.constant (S.neg S.one)) squared a a)
+    (trans!{S.Real} _ _ _
+      (congr!{S.Real S.Real S.Real} S.add _ _ _ _
+        (trans!{S.Real} _ _ _ (congr!{S.Real S.Real} (S.mul (squared a)) _ _ (Calculus.constant (S.neg S.one) a a)) (Laws.fieldMulZeroRight (squared a)))
+        (trans!{S.Real} _ _ _ (congr!{S.Real S.Real} (S.mul (S.neg S.one)) _ _ (Calculus.radialSquared a)) (negativeOne (S.add (squared a) (squared a)))))
+      (Laws.addZeroLeft (S.neg (S.add (squared a) (squared a)))));
+\definition radial: Calculus.value defining a a = S.neg (S.add (squared a) (squared a)) :=
+  trans!{S.Real} _ _ _ (Rules.addition (F.constant S.one) (F.product (F.constant (S.neg S.one)) squared) a a)
+    (trans!{S.Real} _ _ _ (congr!{S.Real S.Real S.Real} S.add _ _ _ _ (Calculus.constant S.one a a) productRadial)
+      (Laws.addZeroLeft (S.neg (S.add (squared a) (squared a)))));
+\definition coefficient: S.Real := S.neg (S.add S.one S.one);
+\definition radialAtBoundary: defining a = S.zero -> Calculus.value defining a a = coefficient :=
+  \fun (zero: _) => trans!{S.Real} _ _ _ radial
+    (congr!{S.Real S.Real} S.neg _ _ (congr!{S.Real S.Real S.Real} S.add _ _ _ _ (squaredOne zero) (squaredOne zero)));
+\definition twoPositive: R.Lt S.zero (S.add S.one S.one) := Order.ltTrans S.zero S.one (S.add S.one S.one) S.Estimates[].Product[].onePositive
+  (R.ltReplaceLeft (S.add S.one S.zero) S.one (S.add S.one S.one) (Laws.addZeroRight S.one)
+    (Laws.ltAddLeft S.one S.zero S.one S.Estimates[].Product[].onePositive));
+\definition nonzero: Logic.Not (coefficient = S.zero) := \fun (zero: _) => Order.ltNotEq S.zero (S.add S.one S.one) twoPositive
+  (sym!{S.Real} _ _ (trans!{S.Real} _ _ _ (sym!{S.Real} _ _ (Laws.negInvolutive (S.add S.one S.one)))
+    (trans!{S.Real} _ _ _ (congr!{S.Real S.Real} S.neg _ _ zero) Laws.negZero)));
+\definition derivative: calculus.Vector[n := dimension, m := One.dimension].LinearMap := Maps.Differential[U := Open.whole, V := Line.whole, f := function, a := a].value;
+\definition surjective: defining a = S.zero -> inverse_implicit.Product[n := n, m := One.dimension].Submersion[U := Open.whole, f := function, a := a].Surjective := \block {
+  \fun (zero: _)(w: One.Index -> S.Real) \then
+  \let scale: S.Real := S.mul (w One.index) (Laws.fieldInv coefficient) \then
+  \let v: Point := \fun (i: Fin.Fin dimension) => S.mul scale (a i) \then
+  \return Logic.existsIntro[Point, { v: Point \where derivative.apply v = w }] v
+    (\axiom:funext(derivative.apply v, w, \fun (j: One.Index) => trans!{S.Real} _ _ _
+      (congr!{{One.Index -> S.Real} S.Real} (\fun (p: One.Index -> S.Real) => p j) _ _ (derivative.preservesScale scale a))
+      (trans!{S.Real} _ _ _ (congr!{S.Real S.Real} (S.mul scale) _ _ (radialAtBoundary zero))
+        (trans!{S.Real} _ _ _ (Laws.fieldMulAssoc (w One.index) (Laws.fieldInv coefficient) coefficient)
+          (trans!{S.Real} _ _ _
+            (congr!{S.Real S.Real} (S.mul (w One.index)) _ _ (Laws.fieldInverseNonzero coefficient nonzero))
+            (trans!{S.Real} _ _ _ (Algebra.mulOneRight (w One.index))
+              (congr!{One.Index S.Real} w _ _ (sym!{One.Index} _ _ (Fin.singletonValue j)))))))))
+};

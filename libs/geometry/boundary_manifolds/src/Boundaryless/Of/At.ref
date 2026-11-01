@@ -1,0 +1,25 @@
+\import \root.Tangent[n := n].On[M := manifold].At[x := x] \as Tangent;
+\import Tangent.Cones[] \as Cones;
+\module With(c: OldChart, contains: Charts.Contains c x) {
+  \import \root.Boundaryless[n := n].Of[M := M].InChart[c := c] \as P;
+  \import Construction.On[patch := P.patch] \as Patch;
+  \import Corners.Chart[M := manifold.Point, space := manifold.space] \as NewCharts;
+  \definition chart: Tangent.Chart := \into[NewCharts.Chart](Patch.chart, Tangent.Chart) \by {
+    Tangent.ChartLaws[Patch.chart] {
+      member := Logic.existsIntro[Construction.Adapted, { p: Construction.Adapted \where Patch.chart = Construction.On[patch := p].chart }] P.patch (\refl(Patch.chart)),
+      contains := contains,
+    }
+  };
+  \definition noBoundary: Logic.Not Cones.Boundary := \block {
+    \fun (boundary: _) \then
+    \takefrom i: \Cast[Model.Coordinate] ({ i: Model.Coordinate \where Model.Active chart.constraints (Tangent.coordinate chart) i }) \by Cones.coordinateOfBoundary chart boundary \then
+    \return (\bysub(Model.Coordinate, { i: Model.Coordinate \where Model.Active chart.constraints (Tangent.coordinate chart) i }, i)).left
+  };
+}
+\definition noBoundary: Logic.Not Cones.Boundary := \block {
+  \takefrom c: \Cast[Charts.Chart] ({ c: Charts.Chart \where Logic.And[\In[Charts.Chart] M.atlas.charts c, Charts.Contains c x] }) \by M.atlas.covers x \then
+  \let laws: Logic.And[\In[Charts.Chart] M.atlas.charts c, Charts.Contains c x] := \bysub(Charts.Chart,
+    { c: Charts.Chart \where Logic.And[\In[Charts.Chart] M.atlas.charts c, Charts.Contains c x] }, c) \then
+  \let chosen: OldChart := \into[Charts.Chart](c, M.atlas.charts) \by { laws.left } \then
+  \return With[c := chosen, contains := laws.right].noBoundary
+};

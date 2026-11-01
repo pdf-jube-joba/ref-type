@@ -1,0 +1,32 @@
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\import \root.Model[n := n] \as Source;
+\import \root.Model[n := m] \as Middle;
+\import \root.Model[n := l] \as Target;
+\import calculus.Real[].Multivariable[n := n].Open[] \as Open;
+\import calculus.Real[].Multivariable[n := m].Open[] \as MiddleOpen;
+\import calculus.Real[].Multivariable[n := l].Open[] \as Output;
+\import calculus.Maps[n := n, m := m] \as FirstMaps;
+\import calculus.Maps[n := m, m := l] \as SecondMaps;
+\import calculus.Maps[n := n, m := l] \as Maps;
+\import Sources.Chart[M := M.Point, space := M.space] \as SourceCharts;
+\import Middles.Chart[M := N.Point, space := N.space] \as MiddleCharts;
+\import Targets.Chart[M := P.Point, space := P.space] \as TargetCharts;
+\definition data: Result.Data := Result.Data { apply := \fun (x: M.Point) => Second.apply g (First.apply f x) };
+\definition MiddleChart[x: M.Point]: \Set := \Cast[MiddleCharts.Chart] ({ c: MiddleCharts.Chart \where
+  Logic.And[\In[MiddleCharts.Chart] N.atlas.charts c, MiddleCharts.Contains c (First.apply f x)] });
+\module Local(left: SourceCharts.Chart, right: TargetCharts.Chart, middle: MiddleCharts.Chart, x: M.Point,
+  contains: SourceCharts.Contains left x, inMiddle: MiddleCharts.Contains middle (First.apply f x),
+  p: First.At[function := First.apply f, left := left, right := middle, x := x, contains := contains].Extension,
+  q: Second.At[function := Second.apply g, left := middle, right := right, x := First.apply f x, contains := inMiddle].Extension);
+\module At(left: SourceCharts.Chart, right: TargetCharts.Chart, x: M.Point, contains: SourceCharts.Contains left x);
+\definition map: Result.Map := \into[Result.Data](data, { data: Result.Data \where Result.Laws[data] }) \by {
+  Result.Laws[data] {
+    continuous := topology.Composition[A := M.Point, B := N.Point, C := P.Point].composeContinuous M.space N.space P.space (First.apply f) (Second.apply g) f.continuous g.continuous,
+    smooth := \fun (left: SourceCharts.Chart)(right: TargetCharts.Chart)(x: M.Point)(contains: _)(lm: _)(rm: _)(inRight: _) =>
+      At[left := left, right := right, x := x, contains := contains].existence lm rm inRight,
+  }
+};

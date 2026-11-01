@@ -1,0 +1,40 @@
+\definition domain: \Pow Point := Subspace.Trace patch.source.domain;
+\definition Domain: \Set := Charts.Domain domain;
+\definition domainTopology: topology.Structures[].Topology[Domain] := Charts.domainTopology domain;
+\definition oldPoint[p: Domain]: OldCharts.LocalPoint patch.source := \into[M.Point](p, patch.source.domain) \by { \bysub(Point, domain, p) };
+\definition oldCoordinate[p: Domain]: Open.Carrier patch.source.image := OldCharts.coordinate patch.source (oldPoint p);
+\definition vector[p: Domain]: Open.Carrier patch.image := coordinate patch (oldPoint p);
+\definition forward[p: Domain]: Model.Carrier patch.constraints patch.image := \into[Open.Carrier patch.image](vector p, Model.region patch.constraints patch.image) \by {
+  patch.forward (oldPoint p) (\bysub(M.Point, S, p))
+};
+\definition oldParameter[u: Model.Carrier patch.constraints patch.image]: Open.Carrier patch.source.image :=
+  Maps.apply patch.image patch.source.image patch.change.backward u;
+\definition pointValue[u: Model.Carrier patch.constraints patch.image]: OldCharts.LocalPoint patch.source := OldCharts.point patch.source (oldParameter u);
+\definition coordinateParameter: \forall (u: Model.Carrier patch.constraints patch.image) -> coordinate patch (pointValue u) = u :=
+  \fun (u: Model.Carrier patch.constraints patch.image) => trans!{{Open.Carrier patch.image}} _ _ _
+    (congr!{{Open.Carrier patch.source.image} {Open.Carrier patch.image}} (Maps.apply patch.source.image patch.image patch.change.forward) _ _
+      (OldCharts.Of[chart := patch.source].coordinatePoint (oldParameter u))) (patch.change.rightInverse u);
+\definition inRegion: \forall (u: Model.Carrier patch.constraints patch.image) -> \In[M.Point] S (pointValue u) :=
+  \fun (u: Model.Carrier patch.constraints patch.image) => patch.backward (pointValue u)
+    (\idelim (u \of Model.Point) = (coordinate patch (pointValue u) \of Model.Point) \with v: Model.Point => Model.Nonnegative patch.constraints v \by {
+      base: \bysub(Open.Carrier patch.image, Model.region patch.constraints patch.image, u), equality: sym!{Model.Point} _ _ (coordinateParameter u)
+    });
+\definition pointRegion[u: Model.Carrier patch.constraints patch.image]: Point := \into[M.Point](pointValue u, S) \by { inRegion u };
+\definition backward[u: Model.Carrier patch.constraints patch.image]: Domain := \into[Point](pointRegion u, domain) \by { \bysub(M.Point, patch.source.domain, pointValue u) };
+\definition leftInverse: \forall (p: Domain) -> backward (forward p) = p := \block {
+  \fun (p: Domain) \then
+  \let coordinates: oldParameter (forward p) = oldCoordinate p := patch.change.leftInverse (oldCoordinate p) \then
+  \return trans!{M.Point} _ _ _
+    (congr!{{Open.Carrier patch.source.image} M.Point} (\fun (u: Open.Carrier patch.source.image) => OldCharts.point patch.source u) _ _ coordinates)
+    (OldCharts.Of[chart := patch.source].pointCoordinate (oldPoint p))
+};
+\definition rightInverse: \forall (u: Model.Carrier patch.constraints patch.image) -> forward (backward u) = u := coordinateParameter;
+\module Continuity;
+\definition chart: Charts.Chart := Charts.Chart {
+  domain := domain, image := patch.image, constraints := patch.constraints,
+  coordinates := topology.Homeomorphism[A := Domain, B := Model.Carrier patch.constraints patch.image].Homeomorphism[domainTopology, Model.regionTopology patch.constraints patch.image] {
+    forward := forward, backward := backward, leftInverse := leftInverse, rightInverse := rightInverse,
+    forwardContinuous := Continuity[].forwardContinuous, backwardContinuous := Continuity[].backwardContinuous,
+  },
+  open := Subspace.traceOpen M.space patch.source.domain patch.source.open,
+};

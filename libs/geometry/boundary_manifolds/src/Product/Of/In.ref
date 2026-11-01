@@ -1,0 +1,45 @@
+\definition domain: \Pow Point := Product.Rectangle c.domain d.domain;
+\definition Domain: \Set := Charts.Domain domain;
+\definition image: Open.OpenSet := Blocks.product c.image d.image;
+\definition C: Model.Constraints := constraints c.constraints d.constraints;
+\definition leftPoint[p: Domain]: LeftCharts.LocalPoint c := \into[M.Point](first p, c.domain) \by { (\bysub(Point, domain, p)).left };
+\definition rightPoint[p: Domain]: RightCharts.LocalPoint d := \into[N.Point](second p, d.domain) \by { (\bysub(Point, domain, p)).right };
+\import Blocks.On[U := c.image, V := d.image] \as Block;
+\definition coordinate[p: Domain]: Model.Carrier C image := \into[Open.Carrier image](Block.joinPoint (LeftCharts.coordinate c (leftPoint p)) (RightCharts.coordinate d (rightPoint p)), Model.region C image) \by {
+  nonnegativeJoin c.constraints d.constraints (LeftCharts.coordinate c (leftPoint p)) (RightCharts.coordinate d (rightPoint p))
+    (\bysub(LeftOpen.Carrier c.image, Left.region c.constraints c.image, LeftCharts.coordinate c (leftPoint p)))
+    (\bysub(RightOpen.Carrier d.image, Right.region d.constraints d.image, RightCharts.coordinate d (rightPoint p)))
+};
+\definition leftCoordinate[u: Model.Carrier C image]: Left.Carrier c.constraints c.image := \into[LeftOpen.Carrier c.image](Block.leftPoint u, Left.region c.constraints c.image) \by {
+  nonnegativeLeft c.constraints d.constraints u (\bysub(Open.Carrier image, Model.region C image, u))
+};
+\definition rightCoordinate[u: Model.Carrier C image]: Right.Carrier d.constraints d.image := \into[RightOpen.Carrier d.image](Block.rightPoint u, Right.region d.constraints d.image) \by {
+  nonnegativeRight c.constraints d.constraints u (\bysub(Open.Carrier image, Model.region C image, u))
+};
+\definition point[u: Model.Carrier C image]: Domain := \into[Point](Pair.pair M.Point N.Point (LeftCharts.point c (leftCoordinate u)) (RightCharts.point d (rightCoordinate u)), domain) \by {
+  Logic.And[_, _]::# (\bysub(M.Point, c.domain, LeftCharts.point c (leftCoordinate u))) (\bysub(N.Point, d.domain, RightCharts.point d (rightCoordinate u)))
+};
+\import Pair.Prop[A := M.Point, B := N.Point] \as Pairs;
+\definition leftInverse: \forall (p: Domain) -> point (coordinate p) = p := \fun (p: Domain) => \root.Refinement[A := Point].equality domain (point (coordinate p)) p
+  (Pairs.ext _ _
+    (trans!{M.Point} _ _ _
+      (congr!{{Left.Carrier c.constraints c.image} M.Point} (\fun (u: Left.Carrier c.constraints c.image) => LeftCharts.point c u) _ _
+        (Left.equality c.constraints c.image (leftCoordinate (coordinate p)) (LeftCharts.coordinate c (leftPoint p)) (Blocks.leftJoin (LeftCharts.coordinate c (leftPoint p)) (RightCharts.coordinate d (rightPoint p)))))
+      (LeftCharts.pointCoordinate c (leftPoint p)))
+    (trans!{N.Point} _ _ _
+      (congr!{{Right.Carrier d.constraints d.image} N.Point} (\fun (u: Right.Carrier d.constraints d.image) => RightCharts.point d u) _ _
+        (Right.equality d.constraints d.image (rightCoordinate (coordinate p)) (RightCharts.coordinate d (rightPoint p)) (Blocks.rightJoin (LeftCharts.coordinate c (leftPoint p)) (RightCharts.coordinate d (rightPoint p)))))
+      (RightCharts.pointCoordinate d (rightPoint p))));
+\definition rightInverse: \forall (u: Model.Carrier C image) -> coordinate (point u) = u := \fun (u: Model.Carrier C image) => Model.equality C image (coordinate (point u)) u
+  (trans!{Model.Point} _ _ _
+    (congr!{Left.Point Right.Point Model.Point} Blocks.join _ _ _ _ (LeftCharts.coordinatePoint c (leftCoordinate u)) (RightCharts.coordinatePoint d (rightCoordinate u))) (Blocks.recover u));
+\module Continuity;
+\definition chart: Charts.Chart := Charts.Chart {
+  domain := domain, image := image, constraints := C,
+  coordinates := topology.Homeomorphism[A := Domain, B := Model.Carrier C image].Homeomorphism[Charts.domainTopology domain, Model.regionTopology C image] {
+    forward := coordinate, backward := point, leftInverse := leftInverse, rightInverse := rightInverse,
+    forwardContinuous := Continuity[].forwardContinuous, backwardContinuous := Continuity[].backwardContinuous,
+  },
+  open := Space.generatedBasisOpen (Product.Basis M.space N.space) domain
+    (Product.Universal[X := Point].rectangleBasisMember M.space N.space c.domain d.domain c.open d.open),
+};

@@ -1,0 +1,22 @@
+\import Charts.At[x := x, left := left, right := middle, inLeft := contains left] \as FirstChange;
+\import Charts.At[x := x, left := middle, right := right, inLeft := contains middle] \as SecondChange;
+\import Charts.At[x := x, left := left, right := right, inLeft := contains left] \as DirectChange;
+\import \parent.Pair[left := left, right := middle] \as First;
+\import \parent.Pair[left := middle, right := right] \as Second;
+\import \parent.Pair[left := left, right := right] \as Direct;
+\definition cocycle: jacobian left right = Composition.compose (jacobian middle right) (jacobian left middle) := \block {
+  \takefrom p: FirstChange.Extension \by First.compatible \then
+  \takefrom q: SecondChange.Extension \by Second.compatible \then
+  \return With[p := p, q := q].cocycle
+};
+\module With(p: FirstChange.Extension, q: SecondChange.Extension) {
+  \import Charts.Compose[x := x, left := left, middle := middle, right := right,
+    inLeft := contains left, inMiddle := contains middle, inRight := contains right, first := p, second := q] \as Composite;
+  \definition cocycle: jacobian left right = Composition.compose (jacobian middle right) (jacobian left middle) := trans!{{Linear.Map}} _ _ _ (DirectChange.ofExtension Direct.compatible Composite.extension)
+    (trans!{{Linear.Map}} _ _ _ Composite.jacobian
+      (congr!{{Linear.Map} {Linear.Map} {Linear.Map}} Composition.compose _ _ _ _
+        (sym!{{Linear.Map}} _ _ (SecondChange.ofExtension Second.compatible q))
+        (sym!{{Linear.Map}} _ _ (FirstChange.ofExtension First.compatible p))));
+}
+\definition apply: \forall (v: Vectors.Vector) -> transform left right v = transform middle right (transform left middle v) :=
+  \fun (v: Vectors.Vector) => congr!{{Linear.Map} {Vectors.Vector}} (\fun (d: Linear.Map) => d.apply v) _ _ cocycle;

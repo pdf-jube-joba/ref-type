@@ -1,0 +1,37 @@
+\definition Result: \Prop := Logic.Or[Left.boundary C a, Right.boundary D b];
+\definition atInflate: \forall (s: Indices.Index) -> Model.Active (constraints C D) (Blocks.join a b) (Indices.inflate s) -> Result :=
+  \induction (s: Indices.Index) \return Model.Active (constraints C D) (Blocks.join a b) (Indices.inflate s) -> Result \with {
+    | inl: \fun (i: Left.Coordinate)(active: Model.Active (constraints C D) (Blocks.join a b) (Indices.left i)) => Logic.Or[_, _]::left (Logic.existsIntro[Left.Coordinate, { i: Left.Coordinate \where Left.Active C a i }] i
+      (Logic.And[_, _]::#
+        (\idelim Indices.split (Indices.left i) = Indices.Index::inl i \with s: Indices.Index => Selected C D s \by { base: active.left, equality: Indices.splitInflate (Indices.Index::inl i) })
+        (trans!{S.Real} _ _ _ (sym!{S.Real} _ _ (Tuples.atLeft a b i)) active.right)))
+    | inr: \fun (i: Right.Coordinate)(active: Model.Active (constraints C D) (Blocks.join a b) (Indices.right i)) => Logic.Or[_, _]::right (Logic.existsIntro[Right.Coordinate, { i: Right.Coordinate \where Right.Active D b i }] i
+      (Logic.And[_, _]::#
+        (\idelim Indices.split (Indices.right i) = Indices.Index::inr i \with s: Indices.Index => Selected C D s \by { base: active.left, equality: Indices.splitInflate (Indices.Index::inr i) })
+        (trans!{S.Real} _ _ _ (sym!{S.Real} _ _ (Tuples.atRight a b i)) active.right)))
+  };
+\definition split: Model.boundary (constraints C D) (Blocks.join a b) -> Result := \block {
+  \fun (boundary: _) \then
+  \takefrom i: \Cast[Model.Coordinate] ({ i: Model.Coordinate \where Model.Active (constraints C D) (Blocks.join a b) i }) \by boundary \then
+  \return atInflate (Indices.split i)
+    (\idelim (i \of Model.Coordinate) = Indices.inflate (Indices.split i) \with j: Model.Coordinate => Model.Active (constraints C D) (Blocks.join a b) j \by {
+      base: \bysub(Model.Coordinate, { i: Model.Coordinate \where Model.Active (constraints C D) (Blocks.join a b) i }, i),
+      equality: sym!{Model.Coordinate} _ _ (Indices.inflateSplit i)
+    })
+};
+\definition ofLeft: Left.boundary C a -> Model.boundary (constraints C D) (Blocks.join a b) := \block {
+  \fun (boundary: _) \then
+  \takefrom i: \Cast[Left.Coordinate] ({ i: Left.Coordinate \where Left.Active C a i }) \by boundary \then
+  \let active: Left.Active C a i := \bysub(Left.Coordinate, { i: Left.Coordinate \where Left.Active C a i }, i) \then
+  \return Logic.existsIntro[Model.Coordinate, { i: Model.Coordinate \where Model.Active (constraints C D) (Blocks.join a b) i }] (Indices.left i)
+    (Logic.And[_, _]::# (selectedLeft C D i active.left) (trans!{S.Real} _ _ _ (Tuples.atLeft a b i) active.right))
+};
+\definition ofRight: Right.boundary D b -> Model.boundary (constraints C D) (Blocks.join a b) := \block {
+  \fun (boundary: _) \then
+  \takefrom i: \Cast[Right.Coordinate] ({ i: Right.Coordinate \where Right.Active D b i }) \by boundary \then
+  \let active: Right.Active D b i := \bysub(Right.Coordinate, { i: Right.Coordinate \where Right.Active D b i }, i) \then
+  \return Logic.existsIntro[Model.Coordinate, { i: Model.Coordinate \where Model.Active (constraints C D) (Blocks.join a b) i }] (Indices.right i)
+    (Logic.And[_, _]::# (selectedRight C D i active.left) (trans!{S.Real} _ _ _ (Tuples.atRight a b i) active.right))
+};
+\definition join: Result -> Model.boundary (constraints C D) (Blocks.join a b) := \fun (boundary: Result) => Logic.orElim _ _ _ boundary ofLeft ofRight;
+\definition criterion: Logic.PropEquiv[Model.boundary (constraints C D) (Blocks.join a b), Result] := Logic.PropEquiv[_, _] { ltr := split, rtl := join };

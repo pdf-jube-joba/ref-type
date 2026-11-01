@@ -1,0 +1,51 @@
+\use std.Logic[].Equality[].eq_reason_in;
+\import \parent.InCharts[left := left, right := before] \as Before;
+\import \parent.InCharts[left := left, right := after] \as After;
+\import TargetCharts.At[x := Maps.apply f x, left := before, right := after, inLeft := Codomain.contains before] \as Change;
+\import Codomain.Pair[left := before, right := after] \as Pair;
+\import Maps.At[function := Maps.apply f, left := left, right := before, x := x, contains := Domain.contains left] \as BeforeLocal;
+\import Maps.At[function := Maps.apply f, left := left, right := after, x := x, contains := Domain.contains left] \as AfterLocal;
+\import Spaces.Linear[V := SourceVectors.Vector, W := TargetVectors.Vector, source := SourceVectors.space, target := TargetVectors.space] \as Jacobians;
+\import Spaces.Linear[V := TargetVectors.Vector, W := TargetVectors.Vector, source := TargetVectors.space, target := TargetVectors.space] \as End;
+\import End.Composition[U := SourceVectors.Vector, domain := SourceVectors.space] \as Compose;
+\module With(p: BeforeLocal.Extension, q: Change.Extension) {
+  \import \root.MapIdentity[n := m].On[M := N] \as Identity;
+  \import \root.SmoothMap[n := m, m := m].Between[M := N, N := N].At[function := \fun (x: N.Point) => x,
+    left := before, right := after, x := Maps.apply f x, contains := Codomain.contains before] \as IdentityLocal;
+  \definition identityExtension: IdentityLocal.Extension := IdentityLocal.Extension {
+    neighborhood := q.neighborhood, included := q.included, contains := q.contains, map := q.map, inside := q.inside, agrees := q.agrees,
+  };
+  \import \root.MapComposition[n := n, m := m, l := m].Between[M := M, N := N, P := N].Of[f := f, g := Identity.map].Local[
+    left := left, right := after, middle := before, x := x, contains := Domain.contains left, inMiddle := Codomain.contains before, p := p, q := identityExtension] \as Chain;
+  \definition extension: AfterLocal.Extension := AfterLocal.Extension {
+    neighborhood := Chain.extension.neighborhood, included := Chain.extension.included, contains := Chain.extension.contains, map := Chain.extension.map,
+    inside := Chain.extension.inside, agrees := Chain.extension.agrees,
+  };
+  \definition law: After.jacobian = Compose.compose (Codomain.jacobian before after) Before.jacobian :=
+    trans!{{Jacobians.Map}} _ _ _ (AfterLocal.ofExtension After.smooth extension)
+      (trans!{{Jacobians.Map}} _ _ _ Chain.jacobian
+        (congr!{{End.Map} {Jacobians.Map} {Jacobians.Map}} Compose.compose _ _ _ _
+          (sym!{{End.Map}} _ _ (Change.ofExtension Pair.compatible q))
+          (sym!{{Jacobians.Map}} _ _ (BeforeLocal.ofExtension Before.smooth p))));
+}
+\definition jacobian: After.jacobian = Compose.compose (Codomain.jacobian before after) Before.jacobian := \block {
+  \takefrom p: BeforeLocal.Extension \by Before.smooth \then
+  \takefrom q: Change.Extension \by Pair.compatible \then
+  \return With[p := p, q := q].law
+};
+\import Codomain.Coordinate[chart := after] \as Coordinates;
+\import Codomain.ChartIsomorphism[chart := before].Change[other := after] \as Changes;
+\definition coordinateEquality: \forall (v: Domain.Vector) ->
+  Coordinates.decode (After.value.apply v) = Coordinates.decode (Before.value.apply v) :=
+    \fun (v: Domain.Vector) => eq_reason_in!{{TargetVectors.Vector} _
+      "=" _ "by" { After.coordinateLaw v }
+      "=" _ "by" { congr!{{Jacobians.Map} {TargetVectors.Vector}}
+          (\fun (d: Jacobians.Map) => d.apply (Domain.Coordinate[chart := left].decode v)) _ _ jacobian }
+      "=" _ "by" { sym!{{TargetVectors.Vector}} _ _
+        (trans!{{TargetVectors.Vector}} _ _ _
+          (Changes.coordinates (Before.value.apply v))
+          (congr!{{TargetVectors.Vector} {TargetVectors.Vector}} (Codomain.transform before after) _ _ (Before.coordinateLaw v))) }
+    };
+\definition law: After.value = Before.value := Linear.ext After.value Before.value
+  (\axiom:funext((After.value.apply), (Before.value.apply),
+    \fun (v: Domain.Vector) => Coordinates.injective (After.value.apply v) (Before.value.apply v) (coordinateEquality v)));
