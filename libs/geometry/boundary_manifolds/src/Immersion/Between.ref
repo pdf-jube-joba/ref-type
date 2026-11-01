@@ -1,0 +1,46 @@
+\import \root.SmoothMap[n := n, m := m].Between[M := M, N := N] \as Maps;
+\import \root.Tangent[n := n].On[M := M] \as Tangent;
+\import \root.Differential[n := n, m := m].Between[M := M, N := N] \as Differential;
+\import topology.Topology[Carrier := M.Point] \as SourceTopology;
+\import topology.Topology[Carrier := N.Point] \as TargetTopology;
+\import topology.Continuity[A := M.Point, B := N.Point] \as Continuous;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\definition IsImmersion[f: Maps.Map]: \Prop := \forall (x: M.Point)(u, v: Tangent.Vector x) ->
+  Differential.At[f := f, x := x].value.apply u = Differential.At[f := f, x := x].value.apply v -> u = v;
+\definition Immersion: \Set := \Cast[Maps.Map] ({ f: Maps.Map \where IsImmersion f });
+\definition immersionLaws[f: Immersion]: IsImmersion f := \bysub(Maps.Map, { f: Maps.Map \where IsImmersion f }, f);
+\module IntoImage(f: Maps.Map);
+\definition IsTopologicalEmbedding[f: Maps.Map]: \Prop := \exists IntoImage[f := f].Witness;
+\definition IsEmbedding[f: Maps.Map]: \Prop := Logic.And[IsImmersion f, IsTopologicalEmbedding f];
+\structure EmbeddingLaws[f: Maps.Map]: \Prop := {
+  immersion: IsImmersion f,
+  injective: \forall (x, y: M.Point) -> Maps.apply f x = Maps.apply f y -> x = y,
+  openLift: \forall (S: \Pow M.Point) -> SourceTopology.IsOpenIn M.space S ->
+    \exists ( U: \Pow N.Point \where Logic.And[TargetTopology.IsOpenIn N.space U, Continuous.Preimage (Maps.apply f) U = S] ),
+};
+\definition Embedding: \Set := \Cast[Maps.Map] ({ f: Maps.Map \where EmbeddingLaws[f] });
+\definition embeddingLaws[f: Embedding]: EmbeddingLaws[f] := \bysub(Maps.Map, { f: Maps.Map \where EmbeddingLaws[f] }, f);
+\definition asImmersion[f: Embedding]: Immersion := \into[Maps.Map](f, Immersion) \by { (embeddingLaws f).immersion };
+\module OfEmbedding(f: Embedding);
+
+\definition criterion: \forall (f: Maps.Map) -> EmbeddingLaws[f] -> IsEmbedding f := \block {
+  \fun (f: Maps.Map)(laws: EmbeddingLaws[f]) \then
+  \let embedded: Embedding := \into[Maps.Map](f, Embedding) \by { laws } \then
+  \return Logic.And[_, _]::# laws.immersion (\exact(IntoImage[f := f].Witness {
+    homeomorphism := OfEmbedding[f := embedded].homeomorphism,
+    formula := \fun (x: M.Point) => \refl(Maps.apply f x),
+  }, IntoImage[f := f].Witness))
+};
+\definition ofCriterion: \forall (f: Maps.Map) -> IsEmbedding f -> EmbeddingLaws[f] := \block {
+  \fun (f: Maps.Map)(criterion: IsEmbedding f) \then
+  \takefrom witness: IntoImage[f := f].Witness \by criterion.right \then
+  \return EmbeddingLaws[f] { immersion := criterion.left,
+    injective := IntoImage[f := f].OfWitness[witness := witness].injective,
+    openLift := IntoImage[f := f].OfWitness[witness := witness].openLift }
+};
+\definition embeddingCriterion: \forall (f: Maps.Map) -> Logic.PropEquiv[EmbeddingLaws[f], IsEmbedding f] :=
+  \fun (f: Maps.Map) => Logic.PropEquiv[_, _] { ltr := criterion f, rtl := ofCriterion f };

@@ -1,0 +1,56 @@
+\import \root.Tangent[n := n].On[M := Domain.manifold].At[x := x] \as Tangent;
+\import \root.Tangent[n := dimension].On[M := Codomain.manifold].At[x := SmoothMaps.apply inclusion x] \as Ambient;
+\import \root.Dimension[n := n].Chart[M := Domain.Point, space := Domain.topology] \as SourceCharts;
+\import \root.Dimension[n := dimension].Chart[M := Codomain.Point, space := Codomain.topology] \as TargetCharts;
+\definition sourceChart: Tangent.Chart := \into[SourceCharts.Chart](Domain.chart, Tangent.Chart) \by {
+  Tangent.ChartLaws[Domain.chart] { member := \refl(Domain.chart), contains := \refl(x) }
+};
+\definition targetChart: Ambient.Chart := \into[TargetCharts.Chart](Codomain.chart, Ambient.Chart) \by {
+  Ambient.ChartLaws[Codomain.chart] { member := \refl(Codomain.chart), contains := \refl(SmoothMaps.apply inclusion x) }
+};
+\import Tangent.Coordinate[chart := sourceChart] \as A;
+\import Ambient.Coordinate[chart := targetChart] \as B;
+\import \root.Differential[n := n, m := dimension].Between[M := Domain.manifold, N := Codomain.manifold].At[f := inclusion, x := x] \as Differential;
+\import SmoothMaps.At[function := SmoothMaps.apply inclusion, left := sourceChart, right := targetChart, x := x, contains := Tangent.contains sourceChart] \as Local;
+\import Smooth.At[x := x, contains := Tangent.contains sourceChart] \as Extension;
+\definition jacobian: Differential.InCharts[left := sourceChart, right := targetChart].jacobian = Linear.horizontal :=
+  trans!{{calculus.Vector[n := n, m := dimension].LinearMap}} _ _ _
+    (Local.ofExtension (Differential.InCharts[left := sourceChart, right := targetChart].smooth) Extension.extension)
+    (trans!{{calculus.Vector[n := n, m := dimension].LinearMap}} _ _ _ Extension.jacobian
+      (trans!{{calculus.Vector[n := n, m := dimension].LinearMap}} _ _ _ (Preimage.differential x) (Inclusion.differential (Preimage.input x))));
+\definition coordinates: \forall (v: Tangent.Vector) -> B.decode (Differential.value.apply v) = Linear.horizontal.apply (A.decode v) :=
+  \fun (v: Tangent.Vector) => trans!{Target.Point} _ _ _ (Differential.coordinates sourceChart targetChart v)
+    (congr!{{calculus.Vector[n := n, m := dimension].LinearMap} Target.Point} (\fun (L: calculus.Vector[n := n, m := dimension].LinearMap) => L.apply (A.decode v)) _ _ jacobian);
+\definition normalZero: \forall (v: Tangent.Vector) -> Blocks.right (B.decode (Differential.value.apply v)) = (\fun (j: Normal.Coordinate) => S.zero) :=
+  \fun (v: Tangent.Vector) => trans!{Normal.Point} _ _ _ (congr!{Target.Point Normal.Point} Blocks.right _ _ (coordinates v)) (Blocks.rightJoin (A.decode v) (\fun (j: Normal.Coordinate) => S.zero));
+\definition Kernel: \Set := \Cast[Ambient.Vector] ({ v: Ambient.Vector \where Blocks.right (B.decode v) = (\fun (j: Normal.Coordinate) => S.zero) });
+\definition forward[v: Tangent.Vector]: Kernel := \into[Ambient.Vector](Differential.value.apply v, Kernel) \by { normalZero v };
+\definition backward[v: Kernel]: Tangent.Vector := A.encode (Blocks.left (B.decode v));
+\definition backwardForward: \forall (v: Tangent.Vector) -> backward (forward v) = v :=
+  \fun (v: Tangent.Vector) => trans!{Tangent.Vector} _ _ _
+    (congr!{Source.Point Tangent.Vector} A.encode _ _ (trans!{Source.Point} _ _ _ (congr!{Target.Point Source.Point} Blocks.left _ _ (coordinates v)) (Blocks.leftJoin (A.decode v) (\fun (j: Normal.Coordinate) => S.zero)))) (A.encodeDecode v);
+\definition forwardBackward: \forall (v: Kernel) -> forward (backward v) = v :=
+  \fun (v: Kernel) => B.injective _ _ (trans!{Target.Point} _ _ _ (coordinates (backward v))
+    (trans!{Target.Point} _ _ _ (congr!{Source.Point Target.Point} Linear.horizontal.apply _ _ (A.decodeEncode (Blocks.left (B.decode v))))
+      (trans!{Target.Point} _ _ _ (congr!{Normal.Point Target.Point} (Blocks.join (Blocks.left (B.decode v))) _ _
+        (sym!{Normal.Point} _ _ (\bysub(Ambient.Vector, Kernel, v)))) (Blocks.recover (B.decode v)))));
+\definition injective: \forall (u, v: Tangent.Vector) -> Differential.value.apply u = Differential.value.apply v -> u = v :=
+  \fun (u, v: Tangent.Vector)(same: _) => trans!{Tangent.Vector} _ _ _ (sym!{Tangent.Vector} _ _ (backwardForward u))
+    (trans!{Tangent.Vector} _ _ _ (congr!{Kernel Tangent.Vector} backward (forward u) (forward v)
+      (\root.Refinement[A := Ambient.Vector].equality ({ v: Ambient.Vector \where Blocks.right (B.decode v) = (\fun (j: Normal.Coordinate) => S.zero) }) (forward u) (forward v) same)) (backwardForward v));
+
+\definition coordinate[v: Tangent.Vector]: Source.Point := A.decode v;
+\definition vector[v: Source.Point]: Tangent.Vector := A.encode v;
+\definition coordinateVector: \forall (v: Source.Point) -> coordinate (vector v) = v := A.decodeEncode;
+\definition vectorCoordinate: \forall (v: Tangent.Vector) -> vector (coordinate v) = v := A.encodeDecode;
+\module InChart(c: Ambient.Chart) {
+  \definition normal[v: Target.Point]: Normal.Point := Blocks.right (Ambient.transform c targetChart v);
+  \definition coordinates: \forall (v: Ambient.Vector) -> normal (Ambient.Coordinate[chart := c].decode v) = Blocks.right (B.decode v) :=
+    \fun (v: Ambient.Vector) => congr!{Target.Point Normal.Point} Blocks.right _ _
+      (sym!{Target.Point} _ _ (Ambient.ChartIsomorphism[chart := c].Change[other := targetChart].coordinates v));
+  \definition criterion: \forall (v: Ambient.Vector) -> Logic.PropEquiv[normal (Ambient.Coordinate[chart := c].decode v) = (\fun (j: Normal.Coordinate) => S.zero),
+    Blocks.right (B.decode v) = (\fun (j: Normal.Coordinate) => S.zero)] := \fun (v: Ambient.Vector) => Logic.PropEquiv[_, _] {
+      ltr := \fun (zero: normal (Ambient.Coordinate[chart := c].decode v) = (\fun (j: Normal.Coordinate) => S.zero)) => trans!{Normal.Point} _ _ _ (sym!{Normal.Point} _ _ (coordinates v)) zero,
+      rtl := \fun (zero: Blocks.right (B.decode v) = (\fun (j: Normal.Coordinate) => S.zero)) => trans!{Normal.Point} _ _ _ (coordinates v) zero,
+    };
+}

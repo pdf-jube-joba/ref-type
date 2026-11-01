@@ -1,0 +1,66 @@
+\import First.At[function := First.apply f, left := left, right := middle, x := x, contains := contains] \as A;
+\import Second.At[function := Second.apply g, left := middle, right := right, x := First.apply f x, contains := inMiddle] \as B;
+\import Result.At[function := data.apply, left := left, right := right, x := x, contains := contains] \as C;
+\import A.Using[e := p] \as F;
+\import B.Using[e := q] \as G;
+\import FirstMaps.Preimage[U := p.neighborhood, W := MiddleOpen.whole, V := q.neighborhood, f := p.map] \as Preimage;
+\definition domain: Open.OpenSet := Preimage.domain;
+\definition included: Open.Included domain left.image := \fun (u: Source.Point)(member: _) => p.included u (Preimage.included u member);
+\definition centerInside: \In[Source.Point] domain.points A.source := Preimage.intro F.center
+  (\idelim (B.source \of Middle.Point) = FirstMaps.apply p.neighborhood MiddleOpen.whole p.map F.center \with v: Middle.Point => \In[Middle.Point] q.neighborhood.points v \by {
+    base: q.contains, equality: sym!{Middle.Point} _ _ F.centerValue
+  });
+\definition firstPoint[u: Source.Carrier left.constraints domain]: Source.Carrier left.constraints p.neighborhood :=
+  \into[Open.Carrier p.neighborhood](Preimage.input u, Source.region left.constraints p.neighborhood) \by { \bysub(Open.Carrier domain, Source.region left.constraints domain, u) };
+\definition leftCoordinate[u: Source.Carrier left.constraints domain]: Source.Carrier left.constraints left.image :=
+  \into[Open.Carrier left.image](Open.inclusion domain left.image included u, Source.region left.constraints left.image) \by { \bysub(Open.Carrier domain, Source.region left.constraints domain, u) };
+\definition middlePoint[u: Source.Carrier left.constraints domain]: MiddleCharts.LocalPoint middle :=
+  \into[N.Point](First.apply f (SourceCharts.point left (leftCoordinate u)), middle.domain) \by { p.inside (firstPoint u) };
+\definition secondPoint[u: Source.Carrier left.constraints domain]: Middle.Carrier middle.constraints q.neighborhood :=
+  \into[MiddleOpen.Carrier q.neighborhood](Preimage.output u, Middle.region middle.constraints q.neighborhood) \by {
+    \idelim (MiddleCharts.coordinate middle (middlePoint u) \of Middle.Point) = FirstMaps.apply p.neighborhood MiddleOpen.whole p.map (firstPoint u)
+      \with v: Middle.Point => Middle.Nonnegative middle.constraints v \by {
+        base: \bysub(MiddleOpen.Carrier middle.image, Middle.region middle.constraints middle.image, MiddleCharts.coordinate middle (middlePoint u)),
+        equality: sym!{Middle.Point} _ _ (p.agrees (firstPoint u))
+      }
+  };
+\definition middleCoordinate[u: Source.Carrier left.constraints domain]: Middle.Carrier middle.constraints middle.image :=
+  \into[MiddleOpen.Carrier middle.image](MiddleOpen.inclusion q.neighborhood middle.image q.included (secondPoint u), Middle.region middle.constraints middle.image) \by {
+    \bysub(MiddleOpen.Carrier q.neighborhood, Middle.region middle.constraints q.neighborhood, secondPoint u)
+  };
+\import MiddleCharts.Total[c := middle] \as MiddleTotal;
+\import TargetCharts.Total[c := right] \as Right;
+\definition returnsMiddle: \forall (u: Source.Carrier left.constraints domain) -> MiddleCharts.point middle (middleCoordinate u) = First.apply f (SourceCharts.point left (leftCoordinate u)) :=
+  \fun (u: Source.Carrier left.constraints domain) => trans!{N.Point} _ _ _
+    (sym!{N.Point} _ _ (MiddleTotal.pointInside (First.apply f x) (middleCoordinate u)))
+    (trans!{N.Point} _ _ _ (congr!{Middle.Point N.Point} (MiddleTotal.point (First.apply f x)) _ _ (p.agrees (firstPoint u)))
+      (trans!{N.Point} _ _ _ (MiddleTotal.pointInside (First.apply f x) (MiddleCharts.coordinate middle (middlePoint u))) (MiddleCharts.pointCoordinate middle (middlePoint u))));
+\definition inRight: \forall (u: Source.Carrier left.constraints domain) -> TargetCharts.Contains right (data.apply (SourceCharts.point left (leftCoordinate u))) :=
+  \fun (u: Source.Carrier left.constraints domain) => \idelim Second.apply g (MiddleCharts.point middle (middleCoordinate u)) = Second.apply g (First.apply f (SourceCharts.point left (leftCoordinate u)))
+    \with z: P.Point => TargetCharts.Contains right z \by {
+      base: q.inside (secondPoint u), equality: congr!{N.Point P.Point} (Second.apply g) _ _ (returnsMiddle u)
+    };
+\import FirstMaps.Composition[U := domain, V := q.neighborhood, f := Preimage.map].After[l := l, W := Output.whole, g := q.map] \as Composite;
+\definition extension: C.Extension := C.Extension {
+  neighborhood := domain, included := included, contains := centerInside, map := Composite.compose,
+  inside := inRight,
+  agrees := \fun (u: Source.Carrier left.constraints domain) => trans!{Target.Point} _ _ _ (q.agrees (secondPoint u))
+    (trans!{Target.Point} _ _ _
+      (sym!{Target.Point} _ _ (Right.coordinateInside (\into[P.Point](Second.apply g (MiddleCharts.point middle (middleCoordinate u)), right.domain) \by { q.inside (secondPoint u) })))
+      (trans!{Target.Point} _ _ _ (congr!{P.Point Target.Point} Right.coordinate _ _ (congr!{N.Point P.Point} (Second.apply g) _ _ (returnsMiddle u)))
+        (Right.coordinateInside (\into[P.Point](data.apply (SourceCharts.point left (leftCoordinate u)), right.domain) \by { inRight u })))),
+};
+\import real.Analysis[].Algebra[] \as Algebra;
+\import linear_algebra.Commutative[K := real.Analysis[].Real, scalarRing := std.Alg[].Field[].fieldAsCommutativeRing real.Analysis[].Real Algebra.field] \as Spaces;
+\import Spaces.Coordinates[I := std.Data[].FinSet[].Fin n] \as Start;
+\import Spaces.Coordinates[I := std.Data[].FinSet[].Fin m] \as Mid;
+\import Spaces.Coordinates[I := std.Data[].FinSet[].Fin l] \as End;
+\import Spaces.Linear[V := Mid.Vector, W := End.Vector, source := Mid.space, target := End.space].Composition[U := Start.Vector, domain := Start.space] \as Composition;
+\definition center: Source.Carrier left.constraints domain := C.Using[e := extension].center;
+\definition image: FirstMaps.apply domain q.neighborhood Preimage.map center = G.center := F.centerValue;
+\definition jacobian: C.Using[e := extension].jacobian = Composition.compose G.jacobian F.jacobian :=
+  trans!{{calculus.Vector[n := n, m := l].LinearMap}} _ _ _ (Composite.At[a := center].jacobian)
+    (congr!{{calculus.Vector[n := m, m := l].LinearMap} {calculus.Vector[n := n, m := m].LinearMap} {calculus.Vector[n := n, m := l].LinearMap}} Composition.compose _ _ _ _
+      (congr!{{MiddleOpen.Carrier q.neighborhood} {calculus.Vector[n := m, m := l].LinearMap}}
+        (\fun (u: MiddleOpen.Carrier q.neighborhood) => SecondMaps.Differential[U := q.neighborhood, V := Output.whole, f := q.map, a := u].value) _ _ image)
+      (Preimage.differential center));

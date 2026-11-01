@@ -1,0 +1,40 @@
+\import SourceTangent.At[x := x] \as DomainTangent;
+\import TargetTangent.At[x := Maps.apply function x] \as CodomainTangent;
+\import Differential.At[f := function, x := x] \as Differential;
+\import manifolds.Dimension[n := dimension].Chart[M := ambient.Point, space := ambient.space] \as SourceCharts;
+\import manifolds.Dimension[n := One.dimension].Chart[M := target.Point, space := target.space] \as TargetCharts;
+\import manifolds.Dimension[n := dimension].Atlas[M := ambient.Point, space := ambient.space] \as SourceAtlas;
+\import manifolds.Dimension[n := One.dimension].Atlas[M := target.Point, space := target.space] \as TargetAtlas;
+\definition left: DomainTangent.Chart := \into[SourceCharts.Chart](Euclidean.standard, DomainTangent.Chart) \by {
+  DomainTangent.ChartLaws[Euclidean.standard] { member := SourceAtlas.includedInSaturation Euclidean.atlas Euclidean.standard (\refl(Euclidean.standard)), contains := \refl(x) }
+};
+\definition right: CodomainTangent.Chart := \into[TargetCharts.Chart](Target.standard, CodomainTangent.Chart) \by {
+  CodomainTangent.ChartLaws[Target.standard] { member := TargetAtlas.includedInSaturation Target.atlas Target.standard (\refl(Target.standard)), contains := \refl(Maps.apply function x) }
+};
+\import Differential.InCharts[left := left, right := right] \as Derivative;
+\import Maps.Coordinates[f := function, left := Euclidean.standard, right := Target.standard] \as Coordinates;
+\definition included: Open.Included Coordinates.domain U := \fun (p: Model.Point)(member: _) => Coordinates.inLeftImage
+  (\into[Model.Point](p, Coordinates.domain.points) \by { member });
+\import Functions.Restriction[U := Coordinates.domain, V := U, W := Line.whole] \as Restriction;
+\definition restricted: Functions.Map Coordinates.domain Line.whole := Restriction.input included f;
+\import calculus.Vector[n := dimension, m := One.dimension] \as Vector;
+\definition same: Derivative.jacobian = Functions.Differential[U := U, V := Line.whole, f := f, a := x].value :=
+  trans!{{Vector.LinearMap}} _ _ _
+    (Functions.Differential[U := Coordinates.domain, V := Line.whole, f := Derivative.coordinateMap, a := Derivative.point].Compare[W := Line.whole, g := restricted].equal
+      (\axiom:funext((\fun (p: Open.Carrier Coordinates.domain) => Functions.apply Coordinates.domain Line.whole Derivative.coordinateMap p),
+        (\fun (p: Open.Carrier Coordinates.domain) => Functions.apply Coordinates.domain Line.whole restricted p), \fun (p: Open.Carrier Coordinates.domain) => \refl(Functions.apply Coordinates.domain Line.whole restricted p))))
+    (Restriction.differential included f Derivative.point);
+\import DomainTangent.Coordinate[chart := left] \as SourceCoordinates;
+\import CodomainTangent.Coordinate[chart := right] \as TargetCoordinates;
+\definition surjective: \forall (w: CodomainTangent.Vector) -> \exists ( v: DomainTangent.Vector \where Differential.value.apply v = w ) := \block {
+  \fun (w: CodomainTangent.Vector) \then
+  \takefrom v: \Cast[Model.Point] ({ v: Model.Point \where Functions.Differential[U := U, V := Line.whole, f := f, a := x].value.apply v = TargetCoordinates.decode w })
+    \by (regular x (congr!{{One.Index -> S.Real} S.Real} (\fun (v: One.Index -> S.Real) => v One.index) _ _ (\bysub(ambient.Point, Level.points, x)))) (TargetCoordinates.decode w) \then
+  \return Logic.existsIntro[DomainTangent.Vector, { u: DomainTangent.Vector \where Differential.value.apply u = w }] (SourceCoordinates.encode v)
+    (TargetCoordinates.injective _ _ (eq_reason_in!{{One.Index -> S.Real} _
+      "=" _ "by" { Differential.coordinates left right (SourceCoordinates.encode v) }
+      "=" _ "by" { congr!{{Model.Point} {One.Index -> S.Real}} Derivative.jacobian.apply _ _ (SourceCoordinates.decodeEncode v) }
+      "=" _ "by" { congr!{{Vector.LinearMap} {One.Index -> S.Real}} (\fun (L: Vector.LinearMap) => L.apply v) _ _ same }
+      "=" _ "by" { \bysub(Model.Point, { v: Model.Point \where Functions.Differential[U := U, V := Line.whole, f := f, a := x].value.apply v = TargetCoordinates.decode w }, v) }
+    }))
+};

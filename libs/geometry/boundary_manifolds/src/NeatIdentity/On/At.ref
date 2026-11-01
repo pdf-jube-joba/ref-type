@@ -1,0 +1,33 @@
+\import Tangent.At[x := x] \as T;
+\import T.Operations[] \as Operations;
+\import T.Cones[] \as Cones;
+\import \root.Neat[n := n, m := n].Between[M := M, N := M].At[f := Identity.map, x := x] \as Normal;
+\module With(c: T.Chart, w: T.Vector) {
+  \import T.Coordinate[chart := c] \as C;
+  \import T.CoordinateOperations[chart := c] \as Linear;
+  \definition cancel: Cones.Tangential (Operations.plus w (Operations.negative w)) :=
+    Cones.Lineality[c := c, v := Operations.plus w (Operations.negative w)].toIntrinsic
+      (\fun (i: std.Data[].FinSet[].Fin n)(active: _) => trans!{S.Real} _ _ _
+        (congr!{{calculus.Real[].Multivariable[n := n].Point} S.Real} (\fun (v: calculus.Real[].Multivariable[n := n].Point) => v i) _ _ (Linear.addition w (Operations.negative w)))
+        (trans!{S.Real} _ _ _
+          (congr!{S.Real S.Real} (S.add (C.decode w i)) _ _
+            (congr!{{calculus.Real[].Multivariable[n := n].Point} S.Real} (\fun (v: calculus.Real[].Multivariable[n := n].Point) => v i) _ _ (Linear.negative w)))
+          (Arithmetic.addNegRight (C.decode w i))));
+}
+\definition normal: Normal.NormalOnto := \block {
+  \fun (w: T.Vector) \then
+  \takefrom c: T.Chart \by T.chartExists \then
+  \return Logic.existsIntro[T.Vector, { v: T.Vector \where Cones.Tangential (Normal.difference v w) }] w
+    (\idelim w = \root.Differential[n := n, m := n].Between[M := M, N := M].At[f := Identity.map, x := x].value.apply w
+      \with v: T.Vector => Cones.Tangential (Operations.plus v (Operations.negative w)) \by {
+        base: With[c := c, w := w].cancel, equality: sym!{T.Vector} _ _ (Differential.At[x := x].law w)
+      })
+};
+\definition reflects: \forall (v: T.Vector) -> Logic.PropEquiv[Cones.Tangential v, Cones.Tangential (\root.Differential[n := n, m := n].Between[M := M, N := M].At[f := Identity.map, x := x].value.apply v)] :=
+  \fun (v: T.Vector) => Logic.PropEquiv[_, _] {
+    ltr := \fun (p: Cones.Tangential v) => \idelim v = \root.Differential[n := n, m := n].Between[M := M, N := M].At[f := Identity.map, x := x].value.apply v
+      \with w: T.Vector => Cones.Tangential w \by { base: p, equality: sym!{T.Vector} _ _ (Differential.At[x := x].law v) },
+    rtl := \fun (p: Cones.Tangential (\root.Differential[n := n, m := n].Between[M := M, N := M].At[f := Identity.map, x := x].value.apply v)) =>
+      \idelim \root.Differential[n := n, m := n].Between[M := M, N := M].At[f := Identity.map, x := x].value.apply v = v
+        \with w: T.Vector => Cones.Tangential w \by { base: p, equality: Differential.At[x := x].law v },
+  };

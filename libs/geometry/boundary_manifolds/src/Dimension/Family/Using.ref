@@ -1,0 +1,30 @@
+\definition covers: \forall (x: A) -> \exists ( c: Charts.Chart \where Logic.And[\In[Charts.Chart] charts c, Charts.Contains c x] ) := \block {
+  \fun (x: A) \then
+  \takefrom p: \Cast[I] ({ p: I \where Charts.Contains (chart p) x }) \by cover x \then
+  \return Logic.existsIntro[Charts.Chart, { c: Charts.Chart \where Logic.And[\In[Charts.Chart] charts c, Charts.Contains c x] }] (chart p)
+    (Logic.And[_, _]::# (Logic.existsIntro[I, { q: I \where chart p = chart q }] p (\refl(chart p)))
+      (\bysub(I, { p: I \where Charts.Contains (chart p) x }, p)))
+};
+\module Given(c, d: Charts.Chart, p, q: I, x: A, left: Charts.Contains c x, right: Charts.Contains d x) {
+  \definition extension: c = chart p -> d = chart q ->
+    \exists Charts.At[x := x, left := c, right := d, inLeft := left].Extension :=
+    \fun (sameC: _)(sameD: _) => \idelim chart p = c \with a: Charts.Chart => \forall (contains: Charts.Contains a x) ->
+      \exists Charts.At[x := x, left := a, right := d, inLeft := contains].Extension \by {
+        base: \fun (contains: _) => \idelim chart q = d \with b: Charts.Chart => \forall (included: Charts.Contains b x) ->
+          \exists Charts.At[x := x, left := chart p, right := b, inLeft := contains].Extension \by {
+            base: \fun (included: _) => compatible p q x contains included,
+            equality: sym!{{Charts.Chart}} _ _ sameD
+          } right,
+        equality: sym!{{Charts.Chart}} _ _ sameC
+      } left;
+}
+\definition compatibility: \forall (c, d: Charts.Chart)(x: A)(left: Charts.Contains c x)(right: Charts.Contains d x) ->
+  \In[Charts.Chart] charts c -> \In[Charts.Chart] charts d -> \exists Charts.At[x := x, left := c, right := d, inLeft := left].Extension := \block {
+  \fun (c, d: Charts.Chart)(x: A)(left: _)(right: _)(cm: _)(dm: _) \then
+  \takefrom p: \Cast[I] ({ p: I \where c = chart p }) \by cm \then
+  \takefrom q: \Cast[I] ({ q: I \where d = chart q }) \by dm \then
+  \return Given[c := c, d := d, p := p, q := q, x := x, left := left, right := right].extension
+    (\bysub(I, { p: I \where c = chart p }, p))
+    (\bysub(I, { q: I \where d = chart q }, q))
+};
+\definition atlas: Atlas.Atlas := Atlas.Atlas { charts := charts, covers := covers, compatible := compatibility };

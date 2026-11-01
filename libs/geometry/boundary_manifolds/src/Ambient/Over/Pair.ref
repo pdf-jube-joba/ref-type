@@ -1,0 +1,25 @@
+\import \parent.On[patch := left] \as Left;
+\import \parent.On[patch := right] \as Right;
+\import Charts.At[x := x, left := Left.chart, right := Right.chart, inLeft := inLeft] \as Change;
+\import OldCharts.Transition[left := left.source, right := right.source] \as Transition;
+\import manifolds.Dimension[n := n].Atlas[M := M.Point, space := M.space].Pair[left := left.source, right := right.source] \as OldPair;
+\definition compatibility: OldPair.Compatible := M.atlas.compatible left.source right.source (\bysub(OldCharts.Chart, M.atlas.charts, left.source)) (\bysub(OldCharts.Chart, M.atlas.charts, right.source));
+\definition transition: Maps.Map Transition.domain right.source.image := OldPair.smoothMap compatibility;
+\import Maps.Preimage[U := left.image, W := left.source.image, V := Transition.domain, f := left.change.backward] \as Preimage;
+\definition domain: Open.OpenSet := Preimage.domain;
+\definition oldPoint: OldCharts.LocalPoint left.source := \into[M.Point](x, left.source.domain) \by { inLeft };
+\definition oldCoordinate: Open.Carrier left.source.image := OldCharts.coordinate left.source oldPoint;
+\definition overlap: \In[Model.Point] Transition.domain.points oldCoordinate := \bysub(Model.Point, Transition.domain.points, Transition.commonPoint oldPoint inRight);
+\definition contains: \In[Model.Point] domain.points Change.source := Preimage.intro Change.source
+  (\idelim (oldCoordinate \of Model.Point) = Maps.apply left.image left.source.image left.change.backward Change.source \with p: Model.Point => \In[Model.Point] Transition.domain.points p \by {
+    base: overlap, equality: sym!{Model.Point} _ _ (left.change.leftInverse oldCoordinate)
+  });
+\import Maps.Composition[U := domain, V := Transition.domain, f := Preimage.map].After[l := n, W := right.source.image, g := transition] \as First;
+\import Maps.Composition[U := domain, V := right.source.image, f := First.compose].After[l := n, W := right.image, g := right.change.forward] \as Second;
+\import Maps.Corestriction[U := domain, V := right.image, W := Open.whole, f := Second.compose,
+  inside := \fun (u: Open.Carrier domain) => \refl(Maps.apply domain right.image Second.compose u)] \as Final;
+\definition extension: Change.Extension := Change.Extension {
+  neighborhood := domain, included := Preimage.included, contains := contains, map := Final.map,
+  inside := \fun (u: Model.Carrier left.constraints domain) => Transition.inRightDomain (Preimage.output u),
+  agrees := \fun (u: Model.Carrier left.constraints domain) => \refl(Maps.apply domain right.image Second.compose u),
+};
