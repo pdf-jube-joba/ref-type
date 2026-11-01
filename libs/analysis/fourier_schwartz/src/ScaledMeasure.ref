@@ -1,0 +1,50 @@
+\import dedekind_reals.DedekindReal[].Completeness[] \as Complete;
+\import real.Analysis[] \as Real;
+\import Real.Algebra[] \as Algebra;
+\import Real.Estimates[] \as Estimates;
+\import Real.Estimates[].Product[] \as Product;
+\import dedekind_reals.DedekindReal[] \as R;
+\import R.Arithmetic[].Prop[] \as Laws;
+\import R.Order[] \as Order;
+\import functional_analysis.Powers[] \as P;
+\import std.Data[].Nat[] \as N;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.congr;
+\use Equality.trans;
+\use Equality.sym;
+\use Equality.eq_reason_in;
+\import functional_analysis.Measure[A := A] \as M;
+\import M.ValueLaws[] \as Values;
+\import M.Finite[mu := mu] \as Finite;
+\import M.Integral[mu := mu] \as I;
+\import I.Scaling[] \as Scaling;
+\import product_integration.SeriesValues[A := A, mu := mu] \as Series;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Data[].FinSet[] \as Fin;
+\definition nonnegative: R.Le Real.zero c := Order.leOfLt _ _ positive;
+\definition data: M.MeasureData := M.MeasureData { sigma := mu.sigma, value := \fun (S: \Pow A) => M.scale c (mu.value S) };
+\definition laws: M.MeasureLaws[data] := M.MeasureLaws[data] {
+  nonnegative := \fun (S: \Pow A)(valid: _) => Values.scaleNonnegative c (mu.value S) nonnegative (Finite.laws.nonnegative S valid),
+  empty := trans!{M.Value} _ _ _ (congr!{M.Value M.Value} (M.scale c) _ _ Finite.laws.empty) (Values.scaleZeroValue c nonnegative),
+  countableAdditivity := \fun (sets: N.Nat^ -> \Pow A)(valid: _)(disjoint: _) => trans!{M.Value} _ _ _
+    (congr!{M.Value M.Value} (M.scale c) _ _ (Finite.laws.countableAdditivity sets valid disjoint))
+    (Series.scale c (\fun (k: N.Nat^) => mu.value (sets k)) nonnegative (\fun (k: N.Nat^) => Finite.laws.nonnegative (sets k) (valid k))),
+};
+\definition measure: M.Measure := \into[M.MeasureData](data, M.Measure) \by { laws };
+\import M.Integral[mu := measure] \as J;
+\definition old[k: N.Nat^][s: J.Simple[k]]: I.Simple[k] := I.Simple[k] { cells := s.cells, coefficients := s.coefficients, measurable := s.measurable, nonnegative := s.nonnegative, disjoint := s.disjoint };
+\definition fresh[k: N.Nat^][s: I.Simple[k]]: J.Simple[k] := J.Simple[k] { cells := s.cells, coefficients := s.coefficients, measurable := s.measurable, nonnegative := s.nonnegative, disjoint := s.disjoint };
+\definition simple[k: N.Nat^][s: J.Simple[k]]: J.simpleIntegral k s = M.scale c (I.simpleIntegral k (old k s)) := eq_reason_in!{M.Value _
+  "=" _ "by" { congr!{{Fin.Fin k -> M.Value} M.Value} (M.sum k) _ _
+    (\axiom:funext((\fun (i: Fin.Fin k) => M.scale (s.coefficients i) (M.scale c (mu.value (s.cells i)))),
+      (\fun (i: Fin.Fin k) => M.scale c (M.scale (s.coefficients i) (mu.value (s.cells i)))), \fun (i: Fin.Fin k) => eq_reason_in!{M.Value _
+        "=" _ "by" { Values.scaleCompose (s.coefficients i) c (mu.value (s.cells i)) (s.nonnegative i) nonnegative (Finite.laws.nonnegative (s.cells i) (s.measurable i)) }
+        "=" _ "by" { congr!{Real.Real M.Value} (\fun (a: Real.Real) => M.scale a (mu.value (s.cells i))) _ _ (Laws.fieldMulComm (s.coefficients i) c) }
+        "=" _ "by" { sym!{M.Value} _ _ (Values.scaleCompose c (s.coefficients i) (mu.value (s.cells i)) nonnegative (s.nonnegative i) (Finite.laws.nonnegative (s.cells i) (s.measurable i))) }
+      })) }
+  "=" _ "by" { sym!{M.Value} _ _ (Values.scaleSum k c (\fun (i: Fin.Fin k) => M.scale (s.coefficients i) (mu.value (s.cells i))) nonnegative
+    (\fun (i: Fin.Fin k) => Values.scaleNonnegative (s.coefficients i) (mu.value (s.cells i)) (s.nonnegative i) (Finite.laws.nonnegative (s.cells i) (s.measurable i)))) }
+};
+\module Lower(f: A -> Real.Real);
+\definition lower[f: A -> Real.Real]: J.lowerIntegral f = M.scale c (I.lowerIntegral f) := Lower[f := f].law;
+\module RealFunction(f: I.Representatives);

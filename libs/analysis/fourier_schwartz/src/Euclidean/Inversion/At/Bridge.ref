@@ -1,0 +1,48 @@
+\import \root.Euclidean[n := n].Inversion[].At[f := f, x := x] \as Inversion;
+\import \root.Euclidean[n := n].Dilation[a := e, positive := positive] \as Dilation;
+\import \root.Euclidean[n := n].Dilation[a := Laws.fieldInv e, positive := Product.invPositive e positive] \as InverseDilation;
+\import lp_spaces.Euclidean[n := n].Joint[] \as Joint;
+\import functional_analysis.Measure[A := Fubini.PairPoint].Integral[mu := Fubini.measure] \as JI;
+\import measure_convergence.On[A := Fubini.PairPoint, mu := Fubini.measure].Complex[] \as JC;
+\import C.Absolute[] \as Absolute;
+\definition gaussian: Integral.Input := Dilation.complex (Integrability.complex Gaussian.Fourier[].input);
+\definition gaussianReal: I.Representatives := Dilation.real (Integrability.representative Gaussian.schwartz);
+\definition shift[y: Point]: Point := Coordinates.addPoint (Coordinates.negPoint x) y;
+\definition inverseGaussian: Integral.Input := Integral.Translate[a := Coordinates.negPoint x, f := InverseDilation.complex (Integrability.complex Gaussian.Fourier[].input)].value;
+\definition gaussianBound: Integral.BoundedBy := Integral.BoundedBy {
+  function := \fun (y: Point) => C.re (inverseGaussian y),
+  measurable := (I.integralLaw (CI.realPart inverseGaussian)).integrable.left,
+  coefficient := \into[Real.Real](Real.one, I.Scaling[].NonnegativeScalar) \by { Laws.oneNonnegative },
+  bound := \fun (y: Point) => R.leReplaceLeft _ _ _ (sym!{Real.Real} _ _ (Gaussian.absolute (Coordinates.scale (Laws.fieldInv e) (shift y)))) (Gaussian.atMostOne _),
+};
+\definition weighted: Integral.Input := Integral.realProduct input gaussianBound;
+\definition base: Fubini.complexJoint := \into[JC.Function]((\fun (p: Fubini.PairPoint) => D.scale (gaussianReal (Fubini.first p)) (input (Fubini.second p))), Fubini.complexJoint) \by {
+  Logic.And[_, _]::# (JI.integralLaw (Fubini.product gaussianReal (CI.realPart input))).integrable
+    (JI.integralLaw (Fubini.product gaussianReal (CI.imaginaryPart input))).integrable
+};
+\definition fixed[p: Fubini.PairPoint]: C.Complex := Kernel.value (Fubini.first p) (Coordinates.negPoint x);
+\definition fixedMeasurable: Fubini.Measurable[fixed] := Fubini.Measurable[fixed] {
+  real := Joint.leftMeasurable (Integral.realKernel (Coordinates.negPoint x)).function (Integral.realKernel (Coordinates.negPoint x)).measurable,
+  imaginary := Joint.leftMeasurable (Integral.imaginaryKernel (Coordinates.negPoint x)).function (Integral.imaginaryKernel (Coordinates.negPoint x)).measurable,
+};
+\definition phase: Fubini.Phase := Fubini.Phase {
+  function := \fun (p: Fubini.PairPoint) => D.mul (fixed p) (JointKernel.function p),
+  measurable := Fubini.productMeasurable fixed JointKernel.function fixedMeasurable JointKernel.measurable,
+  bound := \fun (p: Fubini.PairPoint) => R.leReplaceLeft _ _ _
+    (sym!{Real.Real} _ _ (trans!{Real.Real} _ _ _ (Absolute.multiplicative (fixed p) (JointKernel.function p))
+      (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real Real.Real} Real.mul _ _ _ _ (Kernel.modulus (Fubini.first p) (Coordinates.negPoint x)) (Kernel.modulus (Fubini.first p) (Fubini.second p))) (Laws.fieldMulOneLeft Real.one))))
+    (R.leRefl Real.one),
+};
+\definition joint: Fubini.complexJoint := Fubini.PhaseProduct[f := base, phase := phase].value;
+\module Forward;
+\module Backward;
+\module Pullback;
+\definition law: left e = D.scale Gaussian.Mass[].value (approximation e) := eq_reason_in!{C.Complex _
+  "=" _ "by" { sym!{C.Complex} _ _ (Fubini.exchange joint Forward[].family) }
+  "=" _ "by" { sym!{C.Complex} _ _ (Fubini.Transpose[f := joint].integral) }
+  "=" _ "by" { Fubini.exchange Fubini.Transpose[f := joint].value Backward[].family }
+  "=" _ "by" { CI.integralScalar (Real.mul Dilation.coefficient Gaussian.Mass[].value) weighted }
+  "=" _ "by" { congr!{Real.Real C.Complex} (\fun (a: Real.Real) => D.scale a (CI.integral weighted)) _ _ (Laws.fieldMulComm Dilation.coefficient Gaussian.Mass[].value) }
+  "=" _ "by" { sym!{C.Complex} _ _ (Scalars.scaleCompose Gaussian.Mass[].value Dilation.coefficient (CI.integral weighted)) }
+  "=" _ "by" { congr!{C.Complex C.Complex} (D.scale Gaussian.Mass[].value) _ _ Pullback[].integral }
+};

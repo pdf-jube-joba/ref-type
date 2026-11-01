@@ -1,0 +1,60 @@
+\import \root.NaturalPowers[] \as Numeric;
+\definition squareSum[a, b: Real.Real]: R.Le (Real.mul (Real.add a b) (Real.add a b))
+  (Real.mul Numeric.two (Real.add (Real.mul a a) (Real.mul b b))) := \block {
+  \let A: Real.Real := Real.add (Real.mul a a) (Real.mul b b) \then
+  \let B: Real.Real := Real.add (Real.mul a b) (Real.mul a b) \then
+  \let difference: Real.mul (Real.sub a b) (Real.sub a b) = Real.sub A B :=
+    trans!{Real.Real} _ _ _ (Algebra.squareAdd a (Real.neg b))
+      (congr!{Real.Real Real.Real Real.Real} Real.add _ _ _ _
+        (congr!{Real.Real Real.Real} (Real.add (Real.mul a a)) _ _ (Laws.fieldMulNegBoth b b))
+        (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real Real.Real} Real.add _ _ _ _ (Laws.fieldMulNegRight a b) (Laws.fieldMulNegRight a b))
+          (sym!{Real.Real} _ _ (Laws.negAdd (Real.mul a b) (Real.mul a b))))) \then
+  \let cross: R.Le B A := R.leReplace _ _ _ _ (Laws.addZeroLeft B) (Distance.subAddCancel A B)
+    (Laws.addMonotoneRight _ _ B (R.leReplaceRight _ _ _ difference (Algebra.squareNonnegative (Real.sub a b)))) \then
+  \return R.leReplace _ _ _ _ (sym!{Real.Real} _ _ (Algebra.squareAdd a b)) (sym!{Real.Real} _ _ (Numeric.twice A))
+    (Laws.addMonotoneLeft B A A cross)
+};
+\definition radiusAdd[x, y: Point]: R.Le (radiusSquared (Coordinates.addPoint x y))
+  (Real.mul Numeric.two (Real.add (radiusSquared x) (radiusSquared y))) :=
+  R.leReplaceRight _ _ _
+    (trans!{Real.Real} _ _ _ (Sum.scalar n Numeric.two (\fun (i: Coordinate) => Real.add (Real.mul (x i) (x i)) (Real.mul (y i) (y i))))
+      (congr!{Real.Real Real.Real} (Real.mul Numeric.two) _ _ (Sum.addition n (\fun (i: Coordinate) => Real.mul (x i) (x i)) (\fun (i: Coordinate) => Real.mul (y i) (y i)))))
+    (Sum.comparison n _ _ (\fun (i: Coordinate) => squareSum (x i) (y i)));
+\definition baseProduct[x, y: Point]: R.Le (Real.add Real.one (Real.add (radiusSquared x) (radiusSquared y)))
+  (Real.mul (weightBase x) (weightBase y)) := \block {
+  \let A: Real.Real := radiusSquared x \then
+  \let B: Real.Real := radiusSquared y \then
+  \let expand: Real.mul (weightBase x) (weightBase y) = Real.add (Real.add Real.one (Real.add A B)) (Real.mul A B) := eq_reason_in!{Real.Real _
+    "=" _ "by" { Algebra.mulAddRight Real.one A (Real.add Real.one B) }
+    "=" _ "by" { congr!{Real.Real Real.Real Real.Real} Real.add _ _ _ _ (Laws.fieldMulOneLeft (Real.add Real.one B))
+      (trans!{Real.Real} _ _ _ (Laws.fieldMulAdd A Real.one B) (congr!{Real.Real Real.Real} (\fun (r: Real.Real) => Real.add r (Real.mul A B)) _ _ (Algebra.mulOneRight A))) }
+    "=" _ "by" { trans!{Real.Real} _ _ _ (sym!{Real.Real} _ _ (Laws.addAssoc (Real.add Real.one B) A (Real.mul A B)))
+      (congr!{Real.Real Real.Real} (\fun (r: Real.Real) => Real.add r (Real.mul A B)) _ _ (trans!{Real.Real} _ _ _ (Laws.addAssoc Real.one B A) (congr!{Real.Real Real.Real} (Real.add Real.one) _ _ (Laws.addComm B A)))) }
+  } \then
+  \return R.leReplaceRight _ _ _ (sym!{Real.Real} _ _ expand)
+    (Algebra.leAddRight _ _ (Laws.fieldMulNonnegative A B (radiusNonnegative x) (radiusNonnegative y)))
+};
+\definition baseAdd[x, y: Point]: R.Le (weightBase (Coordinates.addPoint x y))
+  (Real.mul Numeric.two (Real.mul (weightBase x) (weightBase y))) :=
+  R.leTrans _ (Real.add Real.one (Real.mul Numeric.two (Real.add (radiusSquared x) (radiusSquared y)))) _
+    (Laws.addMonotoneLeft _ _ Real.one (radiusAdd x y))
+    (R.leTrans _ (Real.mul Numeric.two (Real.add Real.one (Real.add (radiusSquared x) (radiusSquared y)))) _
+      (R.leReplaceRight _ _ _ (sym!{Real.Real} _ _ (Laws.fieldMulAdd Numeric.two Real.one _))
+        (Estimates.addLe _ _ _ _
+          (R.leReplaceRight _ _ _ (sym!{Real.Real} _ _ (Algebra.mulOneRight Numeric.two)) (Algebra.leAddRight _ _ Laws.oneNonnegative)) (R.leRefl _)))
+      (Estimates.mulMonotone Numeric.two _ _ Numeric.twoNonnegative (baseProduct x y)));
+\definition add[m: N.Nat^][x, y: Point]: R.Le (weight m (Coordinates.addPoint x y))
+  (Real.mul (Powers.power Numeric.two m) (Real.mul (weight m x) (weight m y))) :=
+  R.leReplaceRight _ _ _ (trans!{Real.Real} _ _ _ (Numeric.product Numeric.two (Real.mul (weightBase x) (weightBase y)) m)
+    (congr!{Real.Real Real.Real} (Real.mul (Powers.power Numeric.two m)) _ _ (Numeric.product (weightBase x) (weightBase y) m)))
+    (Numeric.monotone _ _ (weightBaseNonnegative (Coordinates.addPoint x y)) (baseAdd x y) m);
+
+\import N.Basic[].Def[] \as NatOps;
+\import \parent.Decay[].WeightBounds[] \as Bounds;
+\definition sumLeft[m, k: N.Nat^][x: Point]: R.Le (weight m x) (weight (NatOps.add m k) x) :=
+  R.leReplace _ _ _ _ (Algebra.mulOneRight (weight m x)) (sym!{Real.Real} _ _ (Numeric.addition (weightBase x) m k))
+    (Estimates.mulMonotone _ _ _ (weightNonnegative m x) (Bounds.weightOne k x));
+\definition sumRight[m, k: N.Nat^][x: Point]: R.Le (weight k x) (weight (NatOps.add m k) x) :=
+  R.leReplace _ _ _ _ (Algebra.mulOneRight (weight k x))
+    (trans!{Real.Real} _ _ _ (Laws.fieldMulComm (weight k x) (weight m x)) (sym!{Real.Real} _ _ (Numeric.addition (weightBase x) m k)))
+    (Estimates.mulMonotone _ _ _ (weightNonnegative k x) (Bounds.weightOne m x));

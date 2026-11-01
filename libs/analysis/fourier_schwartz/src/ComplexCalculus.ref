@@ -1,0 +1,106 @@
+\import complex.Complex[] \as C;
+\import C.Def[] \as D;
+\import C.Prop[] \as CL;
+\import real.Analysis[] \as Real;
+\import Real.Algebra[] \as Algebra;
+\import dedekind_reals.DedekindReal[] \as R;
+\import R.Arithmetic[].Prop[] \as Laws;
+\import calculus.Real[] \as Calculus;
+\import Calculus.Derivative[].Def[] \as Derivative;
+\import Calculus.Derivative[].Operations[] \as Operations;
+\import Calculus.Derivative[].Prop[] \as Basic;
+\import Calculus.Derivative[].Product[] \as Product;
+\import Calculus.Derivative[].Chain[] \as Chain;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.congr;
+\use Equality.trans;
+\use Equality.sym;
+\use Equality.eq_reason_in;
+\definition Function: \Set := Real.Real -> C.Complex;
+\structure DerivativeLaws[f: Function, a: Real.Real, d: C.Complex]: \Prop := {
+  real: Derivative.HasDerivativeAt (\fun (t: Real.Real) => C.re (f t)) a (C.re d),
+  imaginary: Derivative.HasDerivativeAt (\fun (t: Real.Real) => C.im (f t)) a (C.im d),
+};
+\definition HasDerivativeAt[f: Function][a: Real.Real][d: C.Complex]: \Prop := DerivativeLaws[f, a, d];
+\definition unique[f: Function][a: Real.Real][d, e: C.Complex]: HasDerivativeAt f a d -> HasDerivativeAt f a e -> d = e :=
+  \fun (left: HasDerivativeAt f a d)(right: HasDerivativeAt f a e) => CL.ext d e (Operations.unique _ a _ _ left.real right.real) (Operations.unique _ a _ _ left.imaginary right.imaginary);
+\definition constant[c: C.Complex][a: Real.Real]: HasDerivativeAt (\fun (t: Real.Real) => c) a D.zero :=
+  DerivativeLaws[(\fun (t: Real.Real) => c), a, D.zero] {
+    real := Basic.constantDerivative (C.re c) a,
+    imaginary := Basic.constantDerivative (C.im c) a,
+  };
+\definition add[f, g: Function][a: Real.Real][d, e: C.Complex]: HasDerivativeAt f a d -> HasDerivativeAt g a e ->
+  HasDerivativeAt (\fun (t: Real.Real) => D.add (f t) (g t)) a (D.add d e) :=
+  \fun (left: HasDerivativeAt f a d)(right: HasDerivativeAt g a e) => DerivativeLaws[(\fun (t: Real.Real) => D.add (f t) (g t)), a, D.add d e] {
+    real := Operations.addDerivative _ _ a _ _ left.real right.real,
+    imaginary := Operations.addDerivative _ _ a _ _ left.imaginary right.imaginary,
+  };
+\definition neg[f: Function][a: Real.Real][d: C.Complex]: HasDerivativeAt f a d ->
+  HasDerivativeAt (\fun (t: Real.Real) => D.neg (f t)) a (D.neg d) :=
+  \fun (law: HasDerivativeAt f a d) => DerivativeLaws[(\fun (t: Real.Real) => D.neg (f t)), a, D.neg d] {
+    real := Operations.negDerivative _ a _ law.real,
+    imaginary := Operations.negDerivative _ a _ law.imaginary,
+  };
+\definition sub[f, g: Function][a: Real.Real][d, e: C.Complex]: HasDerivativeAt f a d -> HasDerivativeAt g a e ->
+  HasDerivativeAt (\fun (t: Real.Real) => D.sub (f t) (g t)) a (D.sub d e) :=
+  \fun (left: HasDerivativeAt f a d)(right: HasDerivativeAt g a e) => add f (\fun (t: Real.Real) => D.neg (g t)) a d (D.neg e) left (neg g a e right);
+\definition scale[c: Real.Real][f: Function][a: Real.Real][d: C.Complex]: HasDerivativeAt f a d ->
+  HasDerivativeAt (\fun (t: Real.Real) => D.scale c (f t)) a (D.scale c d) :=
+  \fun (law: HasDerivativeAt f a d) => DerivativeLaws[(\fun (t: Real.Real) => D.scale c (f t)), a, D.scale c d] {
+    real := Operations.scaleDerivative c _ a _ law.real,
+    imaginary := Operations.scaleDerivative c _ a _ law.imaginary,
+  };
+\definition conjugate[f: Function][a: Real.Real][d: C.Complex]: HasDerivativeAt f a d ->
+  HasDerivativeAt (\fun (t: Real.Real) => D.conj (f t)) a (D.conj d) :=
+  \fun (law: HasDerivativeAt f a d) => DerivativeLaws[(\fun (t: Real.Real) => D.conj (f t)), a, D.conj d] {
+    real := law.real,
+    imaginary := Operations.negDerivative _ a _ law.imaginary,
+  };
+\definition realProduct[a, b, c, d: C.Complex]:
+  Real.sub (Real.add (Real.mul (C.re c) (C.re b)) (Real.mul (C.re a) (C.re d)))
+    (Real.add (Real.mul (C.im c) (C.im b)) (Real.mul (C.im a) (C.im d))) =
+  C.re (D.add (D.mul c b) (D.mul a d)) := Algebra.subAdd _ _ _ _;
+\definition imaginaryProduct[a, b, c, d: C.Complex]:
+  Real.add (Real.add (Real.mul (C.re c) (C.im b)) (Real.mul (C.re a) (C.im d)))
+    (Real.add (Real.mul (C.im c) (C.re b)) (Real.mul (C.im a) (C.re d))) =
+  C.im (D.add (D.mul c b) (D.mul a d)) := Algebra.addFour _ _ _ _;
+\definition product[f, g: Function][a: Real.Real][d, e: C.Complex]: HasDerivativeAt f a d -> HasDerivativeAt g a e ->
+  HasDerivativeAt (\fun (t: Real.Real) => D.mul (f t) (g t)) a (D.add (D.mul d (g a)) (D.mul (f a) e)) :=
+  \fun (left: HasDerivativeAt f a d)(right: HasDerivativeAt g a e) => DerivativeLaws[(\fun (t: Real.Real) => D.mul (f t) (g t)), a, D.add (D.mul d (g a)) (D.mul (f a) e)] {
+    real := \idelim
+      Real.sub (Real.add (Real.mul (C.re d) (C.re (g a))) (Real.mul (C.re (f a)) (C.re e)))
+        (Real.add (Real.mul (C.im d) (C.im (g a))) (Real.mul (C.im (f a)) (C.im e))) =
+      C.re (D.add (D.mul d (g a)) (D.mul (f a) e))
+      \with v: Real.Real => Derivative.HasDerivativeAt (\fun (t: Real.Real) => C.re (D.mul (f t) (g t))) a v \by {
+        base: Operations.subDerivative _ _ a _ _
+          (Product.derivative _ _ a _ _ left.real right.real)
+          (Product.derivative _ _ a _ _ left.imaginary right.imaginary),
+        equality: realProduct (f a) (g a) d e
+      },
+    imaginary := \idelim
+      Real.add (Real.add (Real.mul (C.re d) (C.im (g a))) (Real.mul (C.re (f a)) (C.im e)))
+        (Real.add (Real.mul (C.im d) (C.re (g a))) (Real.mul (C.im (f a)) (C.re e))) =
+      C.im (D.add (D.mul d (g a)) (D.mul (f a) e))
+      \with v: Real.Real => Derivative.HasDerivativeAt (\fun (t: Real.Real) => C.im (D.mul (f t) (g t))) a v \by {
+        base: Operations.addDerivative _ _ a _ _
+          (Product.derivative _ _ a _ _ left.real right.imaginary)
+          (Product.derivative _ _ a _ _ left.imaginary right.real),
+        equality: imaginaryProduct (f a) (g a) d e
+      },
+  };
+\definition compose[f: Function][g: Real.Real -> Real.Real][a, d: Real.Real][e: C.Complex]:
+  Derivative.HasDerivativeAt g a d -> HasDerivativeAt f (g a) e ->
+  HasDerivativeAt (\fun (t: Real.Real) => f (g t)) a (D.scale d e) :=
+  \fun (inner: Derivative.HasDerivativeAt g a d)(outer: HasDerivativeAt f (g a) e) => DerivativeLaws[(\fun (t: Real.Real) => f (g t)), a, D.scale d e] {
+    real := \idelim Real.mul (C.re e) d = Real.mul d (C.re e) \with v: Real.Real =>
+      Derivative.HasDerivativeAt (\fun (t: Real.Real) => C.re (f (g t))) a v \by {
+        base: Chain.derivative g (\fun (s: Real.Real) => C.re (f s)) a d (C.re e) inner outer.real,
+        equality: Laws.fieldMulComm _ _
+      },
+    imaginary := \idelim Real.mul (C.im e) d = Real.mul d (C.im e) \with v: Real.Real =>
+      Derivative.HasDerivativeAt (\fun (t: Real.Real) => C.im (f (g t))) a v \by {
+        base: Chain.derivative g (\fun (s: Real.Real) => C.im (f s)) a d (C.im e) inner outer.imaginary,
+        equality: Laws.fieldMulComm _ _
+      },
+  };

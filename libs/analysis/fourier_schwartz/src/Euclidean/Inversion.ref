@@ -1,0 +1,44 @@
+\import \root.Euclidean[n := n] \as Base;
+\import \parent.Complex[] \as S;
+\import \parent.Integrability[] \as Integrability;
+\import \parent.Integral[] \as Integral;
+\import \parent.Transform[] \as Transform;
+\import \parent.Gaussian[] \as Gaussian;
+\import \parent.Kernel[] \as Kernel;
+\import \parent.Fubini[] \as Fubini;
+\import \parent.JointKernel[] \as JointKernel;
+\import \root.Scalars[] \as Scalars;
+\import complex.Complex[] \as C;
+\import C.Def[] \as D;
+\import C.Prop[] \as CL;
+\import euclidean_measure.Euclidean[n := n].MeasureConstruction[] \as Lebesgue;
+\import functional_analysis.Measure[A := Point].Integral[mu := Lebesgue.measure] \as I;
+\import measure_convergence.On[A := Point, mu := Lebesgue.measure].Complex[] \as CI;
+\import Real.Geometric[q := Real.half] \as Dyadic;
+\import Real.Sequence[] \as Sequence;
+\import Real.Sequence[].Operations[] \as Sequences;
+\import functional_analysis.ScalarLimits[] \as Limits;
+\module At(f: S.Function, x: Point);
+
+\import \root.Normalization[] \as Normalization;
+\definition inverse[f: S.Function][x: Point]: C.Complex := D.scale (Normalization.inverse n) (Transform.function f (Coordinates.negPoint x));
+\definition double[f: S.Function][x: Point]: Transform.function (Transform.Preservation[].value f) (Coordinates.negPoint x) =
+  D.scale (Real.mul Gaussian.Mass[].value Gaussian.Mass[].value) (S.value f x) := At[f := f, x := x].law;
+\definition theorem[f: S.Function][x: Point]: inverse (Transform.Preservation[].value f) x = S.value f x := eq_reason_in!{C.Complex _
+  "=" _ "by" { congr!{C.Complex C.Complex} (D.scale (Normalization.inverse n)) _ _ (double f x) }
+  "=" _ "by" { Scalars.scaleCompose (Normalization.inverse n) (Real.mul Gaussian.Mass[].value Gaussian.Mass[].value) (S.value f x) }
+  "=" _ "by" { congr!{Real.Real C.Complex} (\fun (a: Real.Real) => D.scale a (S.value f x)) _ _ (Normalization.cancellation n) }
+  "=" _ "by" { Scalars.scaleOne (S.value f x) }
+};
+
+\module Reflection;
+\definition inverseSchwartz[f: S.Function]: S.Function := S.realScale (Normalization.inverse n) (Reflection[].function (Transform.Preservation[].value f));
+\definition inverseValue[f: S.Function][x: Point]: S.value (inverseSchwartz f) x = inverse f x :=
+  congr!{C.Complex C.Complex} (D.scale (Normalization.inverse n)) _ _ (Reflection[].value (Transform.Preservation[].value f) x);
+\definition leftInverse[f: S.Function][x: Point]: S.value (inverseSchwartz (Transform.Preservation[].value f)) x = S.value f x :=
+  trans!{C.Complex} _ _ _ (inverseValue (Transform.Preservation[].value f) x) (theorem f x);
+\definition rightInverse[f: S.Function][xi: Point]: Transform.function (inverseSchwartz f) xi = S.value f xi := eq_reason_in!{C.Complex _
+  "=" _ "by" { Transform.Identities[].realScalar (Normalization.inverse n) (Reflection[].function (Transform.Preservation[].value f)) xi }
+  "=" _ "by" { congr!{C.Complex C.Complex} (D.scale (Normalization.inverse n)) _ _ (Reflection[].transform (Transform.Preservation[].value f) xi) }
+  "=" _ "by" { theorem f xi }
+};

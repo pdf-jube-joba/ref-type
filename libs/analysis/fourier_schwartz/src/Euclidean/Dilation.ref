@@ -1,0 +1,54 @@
+\import \root.Euclidean[n := n] \as Base;
+\import euclidean_measure.Euclidean[n := n].Scaling[] \as Scaling;
+\import euclidean_measure.Euclidean[n := n].MeasureConstruction[] \as Lebesgue;
+\import functional_analysis.Measure[A := Point] \as M;
+\import M.Integral[mu := Lebesgue.measure] \as I;
+\import \root.NaturalPowers[] \as Numeric;
+\import \parent.Integral[] \as Fourier;
+\import \parent.Kernel[] \as Kernel;
+\import complex.Complex[] \as C;
+\import C.Def[] \as D;
+\import C.Prop[] \as CL;
+\import measure_convergence.On[A := Point, mu := Lebesgue.measure].Complex[] \as CI;
+\import topology.Topology[Carrier := Point] \as Sets;
+\definition vector: Scaling.PositivePoint := \into[Point]((\fun (i: Coordinate) => a), Scaling.PositivePoint) \by { \fun (i: Coordinate) => positive };
+\definition coefficient: Real.Real := Scaling.factor (Scaling.inverse vector);
+\definition coefficientPositive: R.Lt Real.zero coefficient := Scaling.factorPositive (Scaling.inverse vector);
+\import \root.ScaledMeasure[A := Point, mu := Lebesgue.measure, c := coefficient, positive := coefficientPositive] \as Scaled;
+\definition function[x: Point]: Point := Coordinates.scale a x;
+\definition point[x: Point]: Scaling.scalePoint x (Scaling.inverse (Scaling.inverse vector)) = function x :=
+  \axiom:funext(Scaling.scalePoint x (Scaling.inverse (Scaling.inverse vector)), function x, \fun (i: Coordinate) =>
+    congr!{Real.Real Real.Real} (\fun (r: Real.Real) => Real.mul r (x i)) _ _ (Scaling.inverseInvolutive a positive));
+\definition preimage[S: \Pow Point]: Scaling.scaled S (Scaling.inverse vector) = { x: Point \where Sets.Member S (function x) } :=
+  \axiom:setext(Scaling.scaled S (Scaling.inverse vector), { x: Point \where Sets.Member S (function x) },
+    \fun (x: Point)(member: Sets.Member (Scaling.scaled S (Scaling.inverse vector)) x) => \idelim _ = _ \with y: Point => Sets.Member S y \by { base: member, equality: point x },
+    \fun (x: Point)(member: Sets.Member S (function x)) => \idelim _ = _ \with y: Point => Sets.Member S y \by { base: member, equality: sym!{Point} _ _ (point x) });
+\import product_integration.MeasureMap[A := Point, B := Point, source := Lebesgue.measure, target := Scaled.measure] \as MeasureMap;
+\definition map: MeasureMap.Data := MeasureMap.Data {
+  function := function,
+  measurable := \fun (S: \Pow Point)(valid: _) => \idelim Scaling.scaled S (Scaling.inverse vector) = { x: Point \where Sets.Member S (function x) }
+    \with T: \Pow Point => M.Measurable Lebesgue.measure.sigma T \by { base: Scaling.scaleMeasurable S (Scaling.inverse vector) valid, equality: preimage S },
+  value := \fun (S: \Pow Point)(valid: _) => trans!{M.Value} _ _ _
+    (congr!{{\Pow Point} M.Value} Lebesgue.measure.value _ _ (sym!{\Pow Point} _ _ (preimage S))) (Scaling.measureScale S (Scaling.inverse vector)),
+};
+\module RealFunction(f: I.Representatives) {
+  \import Scaled.RealFunction[f := f] \as Density;
+  \import MeasureMap.On[map := map].RealFunction[f := Density.value] \as Pullback;
+  \definition value: I.Representatives := Pullback.representative;
+  \definition integral: I.integral value = Real.mul coefficient (I.integral f) := trans!{Real.Real} _ _ _ Pullback.integral Density.integral;
+}
+\definition real[f: I.Representatives]: I.Representatives := RealFunction[f := f].value;
+\definition realIntegral[f: I.Representatives]: I.integral (real f) = Real.mul coefficient (I.integral f) := RealFunction[f := f].integral;
+\definition complex[f: Fourier.Input]: Fourier.Input := \into[CI.Function]((\fun (x: Point) => f (function x)), Fourier.Input) \by {
+  Logic.And[_, _]::# (I.integralLaw (real (CI.realPart f))).integrable (I.integralLaw (real (CI.imaginaryPart f))).integrable
+};
+\definition complexIntegral[f: Fourier.Input]: CI.integral (complex f) = D.scale coefficient (CI.integral f) := CL.ext _ _ (realIntegral (CI.realPart f)) (realIntegral (CI.imaginaryPart f));
+\definition coefficientPower: coefficient = Powers.power (Laws.fieldInv a) n := \parent.Decay[].Term[k := N.Nat^::zero].constantProduct n (Laws.fieldInv a);
+
+\definition transform[f: Fourier.Input][xi: Point]: Fourier.transform (complex f) xi = D.scale coefficient (Fourier.transform f (Coordinates.scale (Laws.fieldInv a) xi)) :=
+  trans!{C.Complex} _ _ _
+    (Fourier.Identities[].integralPointwise (Fourier.section (complex f) xi) (complex (Fourier.section f (Coordinates.scale (Laws.fieldInv a) xi)))
+      (\fun (x: Point) => congr!{C.Complex C.Complex} (D.mul (f (function x))) _ _
+        (sym!{C.Complex} _ _ (Kernel.scaleCancellation a (Laws.fieldInv a) x xi
+          (Scaling.inverseRight a positive)))))
+    (complexIntegral (Fourier.section f (Coordinates.scale (Laws.fieldInv a) xi)));

@@ -1,0 +1,53 @@
+\import \root.Euclidean[n := n].Gaussian[] \as Gaussian;
+\import \parent.\parent.Decay[] \as Envelope;
+\import Envelope.Term[k := N.Nat^::zero] \as Term;
+\import euclidean_measure.Exhaustion[n := n] \as Exhaustion;
+\import euclidean_measure.Euclidean[n := n].MeasureConstruction[] \as Lebesgue;
+\import functional_analysis.Measure[A := Point].Integral[mu := Lebesgue.measure] \as I;
+\import I.Scaling[] \as Scaling;
+\import I.Absolute[] \as Absolute;
+\import topology.Topology[Carrier := Point] \as Sets;
+\import std.Logic[].Classical[] \as Classical;
+\import Real.SquareRoot[] \as Square;
+\definition value: Real.Real := I.integral (Integrability.representative Gaussian.schwartz);
+\definition radius: Real.Real := Exhaustion.radius (N.Nat^::succ N.Nat^::zero);
+\definition radiusPositive: R.Lt Real.zero radius := Exhaustion.radiusPositive (N.Nat^::succ N.Nat^::zero);
+\definition constantSum: \forall (k: N.Nat^)(c: Real.Real) -> Sum.sum k (\fun (i: Fin.Fin k) => c) = Real.mul (Powers.natural k) c :=
+  \induction (k: N.Nat^) \return \forall (c: Real.Real) -> Sum.sum k (\fun (i: Fin.Fin k) => c) = Real.mul (Powers.natural k) c \with {
+    | zero: \fun (c: Real.Real) => sym!{Real.Real} _ _ (Laws.fieldMulZeroLeft c)
+    | succ: \fun (k: N.Nat^)(previous: _)(c: Real.Real) => trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (Real.add c) _ _ (previous c))
+      (sym!{Real.Real} _ _ (trans!{Real.Real} _ _ _ (Algebra.mulAddRight (Powers.natural k) Real.one c)
+        (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (Real.add (Real.mul (Powers.natural k) c)) _ _ (Laws.fieldMulOneLeft c)) (Laws.addComm _ _))))
+  };
+\definition coordinateBound[x: Point]: Sets.Member (euclidean_measure.Euclidean[n := n].points (Exhaustion.box (N.Nat^::succ N.Nat^::zero))) x -> \forall (i: Coordinate) -> R.Le (Product.abs (x i)) radius :=
+  \fun (inside: _)(i: Coordinate) => Estimates.distanceLeOfInterval Real.zero (x i) radius
+    (R.leReplaceLeft _ _ _ (sym!{Real.Real} _ _ (Laws.addZeroLeft (Real.neg radius))) (inside.right i).left)
+    (R.leReplaceRight _ _ _ (sym!{Real.Real} _ _ (Laws.addZeroLeft radius)) (inside.right i).right);
+\definition radiusBound[x: Point]: Sets.Member (euclidean_measure.Euclidean[n := n].points (Exhaustion.box (N.Nat^::succ N.Nat^::zero))) x ->
+  R.Le (radiusSquared x) (Real.mul (Powers.natural n) (Real.mul radius radius)) := \fun (inside: _) =>
+  R.leReplaceRight _ _ _ (constantSum n (Real.mul radius radius))
+    (Sum.comparison n _ _ (\fun (i: Coordinate) => R.leReplaceLeft _ _ _ (\root.Scalars[].squareAbs (x i))
+      (Square.squareMonotone (Product.abs (x i)) radius (Product.absNonnegative (x i)) (Order.leOfLt _ _ radiusPositive) (coordinateBound x inside i))));
+\definition lower: Real.Real := Exp.value (Real.neg (Real.mul Real.half (Real.mul (Powers.natural n) (Real.mul radius radius))));
+\definition lowerBound[x: Point]: Sets.Member (euclidean_measure.Euclidean[n := n].points (Exhaustion.box (N.Nat^::succ N.Nat^::zero))) x -> R.Le lower (Gaussian.function x) :=
+  \fun (inside: _) => ExpBounds.monotone _ _ (Laws.negAntitone _ _ (Estimates.mulMonotone _ _ _ (Order.leOfLt _ _ Numeric.halfPositive) (radiusBound x inside)));
+\definition representative: I.Representatives := Scaling.scalarRepresentative lower Term.value;
+\definition dominated[x: Point]: R.Le (representative x) (Gaussian.function x) :=
+  Logic.orElim _ _ _ (Classical.excludedMiddle (Sets.Member (euclidean_measure.Euclidean[n := n].points (Exhaustion.box (N.Nat^::succ N.Nat^::zero))) x))
+    (\fun (inside: _) => R.leReplaceLeft _ _ _
+      (sym!{Real.Real} _ _ (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (Real.mul lower) _ _
+        (trans!{Real.Real} _ _ _ (Term.inside x inside) (Numeric.one Envelope.degree))) (Algebra.mulOneRight lower))) (lowerBound x inside))
+    (\fun (outside: _) => R.leReplaceLeft _ _ _
+      (sym!{Real.Real} _ _ (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (Real.mul lower) _ _ (Term.outside x outside)) (Laws.fieldMulZeroRight lower)))
+      (Order.leOfLt _ _ (Exp.positive _)));
+\definition integral: I.integral representative = Real.mul lower (Powers.power Numeric.four n) := eq_reason_in!{Real.Real _
+  "=" _ "by" { Scaling.integralScalar lower Term.value }
+  "=" _ "by" { congr!{Real.Real Real.Real} (Real.mul lower) _ _ (trans!{Real.Real} _ _ _ Term.integral (Algebra.mulOneRight (Powers.power Numeric.four n))) }
+};
+\definition positive: R.Lt Real.zero value := R.ltLeTrans _ (I.integral representative) _
+  (R.ltReplaceRight _ _ _ (sym!{Real.Real} _ _ integral)
+    (Product.mulPositive lower (Powers.power Numeric.four n) (Exp.positive _)
+      (Numeric.positive Numeric.four (R.ltLeTrans _ Numeric.two _
+        (R.ltLeTrans _ Real.one _ Product.onePositive (Algebra.leAddRight Real.one Real.one Laws.oneNonnegative))
+        (Algebra.leAddRight Numeric.two Numeric.two Numeric.twoNonnegative)) n)))
+  (Absolute.integralMono representative (Integrability.representative Gaussian.schwartz) dominated);

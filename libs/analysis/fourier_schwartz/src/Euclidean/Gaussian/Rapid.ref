@@ -1,0 +1,34 @@
+\import \root.Euclidean[n := n].Gaussian[] \as Gaussian;
+\import \parent.Hermite[] \as Hermite;
+\import \parent.Smooth[] \as Regularity;
+\import N.Basic[].Def[] \as NatOps;
+\module At(m: N.Nat^, d: Directions) {
+  \definition p: Polynomial.Expression := Hermite.expression d;
+  \definition polynomial: Polynomial.Bound[Polynomial.function p] := Polynomial.bound p;
+  \definition magnitude[x: Point]: Product.abs (Base.value (jet Regularity.function d) x) =
+    Real.mul (Product.abs (Base.value (Polynomial.function p) x)) (Gaussian.function x) := eq_reason_in!{Real.Real _
+    "=" _ "by" { congr!{Function Real.Real} (\fun (h: Function) => Product.abs (Base.value h x)) _ _ (Hermite.jets d) }
+    "=" _ "by" { Product.absProduct (Base.value (Polynomial.function p) x) (Gaussian.function x) }
+    "=" _ "by" { congr!{Real.Real Real.Real} (Real.mul (Product.abs (Base.value (Polynomial.function p) x))) _ _
+      (Product.absOfNonnegative (Gaussian.function x) (Order.leOfLt _ _ (Exp.positive _))) }
+  };
+  \definition bound[x: Point]: R.Le (Base.weighted Regularity.function m d x)
+    (Real.mul polynomial.coefficient (Gaussian.coefficient (NatOps.add m polynomial.exponent))) :=
+    R.leReplaceLeft _ _ _ (sym!{Real.Real} _ _ (congr!{Real.Real Real.Real} (Real.mul (weight m x)) _ _ (magnitude x)))
+      (R.leTrans _ (Real.mul polynomial.coefficient (Real.mul (weight (NatOps.add m polynomial.exponent) x) (Gaussian.function x))) _
+        (R.leReplaceRight _ _ _ (eq_reason_in!{Real.Real _
+          "=" _ "by" { congr!{Real.Real Real.Real} (\fun (r: Real.Real) => Real.mul (weight m x) (Real.mul r (Gaussian.function x))) _ _ (\refl(Real.mul polynomial.coefficient (weight polynomial.exponent x))) }
+          "=" _ "by" { sym!{Real.Real} _ _ (Laws.fieldMulAssoc (weight m x) (Real.mul polynomial.coefficient (weight polynomial.exponent x)) (Gaussian.function x)) }
+          "=" _ "by" { congr!{Real.Real Real.Real} (\fun (r: Real.Real) => Real.mul r (Gaussian.function x)) _ _
+            (trans!{Real.Real} _ _ _ (Algebra.mulSwap (weight m x) polynomial.coefficient (weight polynomial.exponent x))
+              (congr!{Real.Real Real.Real} (Real.mul polynomial.coefficient) _ _ (sym!{Real.Real} _ _ (Numeric.addition (weightBase x) m polynomial.exponent)))) }
+          "=" _ "by" { Laws.fieldMulAssoc polynomial.coefficient (weight (NatOps.add m polynomial.exponent) x) (Gaussian.function x) }
+        })
+          (Estimates.mulMonotone _ _ _ (weightNonnegative m x)
+            (R.leReplace _ _ _ _ (Laws.fieldMulComm _ _) (Laws.fieldMulComm _ _)
+              (Estimates.mulMonotone _ _ _ (Order.leOfLt _ _ (Exp.positive _)) (polynomial.estimate x)))))
+        (Estimates.mulMonotone _ _ _ (functional_analysis.Measure[A := Point].Integral[mu := euclidean_measure.Euclidean[n := n].MeasureConstruction[].measure].Scaling[].nonnegative polynomial.coefficient) (Gaussian.bound (NatOps.add m polynomial.exponent) x)));
+}
+\definition law: Rapid Regularity.function := \fun (m: N.Nat^)(d: Directions) =>
+  Logic.existsIntro[Real.Real, { b: Real.Real \where \forall (x: Point) -> R.Le (Base.weighted Regularity.function m d x) b }]
+    (Real.mul At[m := m, d := d].polynomial.coefficient (Gaussian.coefficient (NatOps.add m At[m := m, d := d].polynomial.exponent))) At[m := m, d := d].bound;

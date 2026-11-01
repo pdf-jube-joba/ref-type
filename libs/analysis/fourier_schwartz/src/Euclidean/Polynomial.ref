@@ -1,0 +1,60 @@
+\import \root.Euclidean[n := n] \as Base;
+\import \parent.CoordinateMultiplication[] \as CoordinatesProduct;
+\import \parent.Operations[] \as Operations;
+\import \parent.Weights[] \as Weights;
+\import Open.Projection[U := Open.whole] \as Projection;
+\import N.Basic[].Def[] \as NatOps;
+\import functional_analysis.Measure[A := Point].Integral[mu := euclidean_measure.Euclidean[n := n].MeasureConstruction[].measure].Scaling[] \as Scaling;
+\inductive Expression: \Set :=
+  | constant: Real.Real -> Expression
+  | add: Expression -> Expression -> Expression
+  | scale: Real.Real -> Expression -> Expression
+  | coordinate: Coordinate -> Expression -> Expression;
+\definition function: Expression -> Function := \induction (p: Expression) \return Function \with {
+  | constant: \fun (c: Real.Real) => Functions.constant c
+  | add: \fun (p: Expression)(left: Function)(q: Expression)(right: Function) => Functions.plus left right
+  | scale: \fun (c: Real.Real)(p: Expression)(previous: Function) => Functions.scale c previous
+  | coordinate: \fun (i: Coordinate)(p: Expression)(previous: Function) => CoordinatesProduct.product previous i
+};
+\definition partial[i: Coordinate]: Expression -> Expression := \induction (p: Expression) \return Expression \with {
+  | constant: \fun (c: Real.Real) => Expression::constant Real.zero
+  | add: \fun (p: Expression)(left: Expression)(q: Expression)(right: Expression) => Expression::add left right
+  | scale: \fun (c: Real.Real)(p: Expression)(previous: Expression) => Expression::scale c previous
+  | coordinate: \fun (j: Coordinate)(p: Expression)(previous: Expression) => Expression::add
+      (Expression::scale (Projection.kronecker j i) p) (Expression::coordinate j previous)
+};
+\definition derivative[i: Coordinate]: \forall (p: Expression) -> Differential.apply i (function p) = function (partial i p) :=
+  \induction (p: Expression) \return Differential.apply i (function p) = function (partial i p) \with {
+    | constant: \fun (c: Real.Real) => Differential.constant i c
+    | add: \fun (p: Expression)(left: Differential.apply i (function p) = function (partial i p))(q: Expression)(right: Differential.apply i (function q) = function (partial i q)) => trans!{Function} _ _ _ (Differential.addition i (function p) (function q))
+      (congr!{Function Function Function} Functions.plus _ _ _ _ left right)
+    | scale: \fun (c: Real.Real)(p: Expression)(previous: _) => trans!{Function} _ _ _ (Differential.scalar i c (function p))
+      (congr!{Function Function} (Functions.scale c) _ _ previous)
+    | coordinate: \fun (j: Coordinate)(p: Expression)(previous: _) => trans!{Function} _ _ _ (CoordinatesProduct.partialProduct (function p) j i)
+      (congr!{Function Function} (\fun (h: Function) => Functions.plus (Functions.scale (Projection.kronecker j i) (function p)) (CoordinatesProduct.product h j)) _ _ previous)
+  };
+\structure Bound[f: Function]: \Set := {
+  exponent: N.Nat^,
+  coefficient: Scaling.NonnegativeScalar,
+  estimate: \forall (x: Point) -> R.Le (Product.abs (Base.value f x)) (Real.mul coefficient (weight exponent x)),
+};
+\module Addition(f, g: Function, left: Bound[f], right: Bound[g]);
+\module Coordinate(f: Function, i: Coordinate, bound: Bound[f]);
+\definition bound: \forall (p: Expression) -> Bound[function p] := \induction (p: Expression) \return Bound[function p] \with {
+  | constant: \fun (c: Real.Real) => Bound[Functions.constant c] {
+    exponent := N.Nat^::zero,
+    coefficient := \into[Real.Real](Product.abs c, Scaling.NonnegativeScalar) \by { Product.absNonnegative c },
+    estimate := \fun (x: Point) => R.leReplaceRight _ _ _ (sym!{Real.Real} _ _ (Algebra.mulOneRight (Product.abs c))) (R.leRefl (Product.abs c)),
+  }
+  | add: \fun (p: Expression)(left: Bound[function p])(q: Expression)(right: Bound[function q]) => Addition[f := function p, g := function q, left := left, right := right].value
+  | scale: \fun (c: Real.Real)(p: Expression)(previous: Bound[function p]) => Bound[Functions.scale c (function p)] {
+    exponent := previous.exponent,
+    coefficient := \into[Real.Real](Real.mul (Product.abs c) previous.coefficient, Scaling.NonnegativeScalar) \by {
+      Laws.fieldMulNonnegative _ _ (Product.absNonnegative c) (Scaling.nonnegative previous.coefficient)
+    },
+    estimate := \fun (x: Point) => R.leReplace _ _ _ _ (sym!{Real.Real} _ _ (Product.absProduct c (Base.value (function p) x)))
+      (sym!{Real.Real} _ _ (Laws.fieldMulAssoc _ _ _))
+      (Estimates.mulMonotone _ _ _ (Product.absNonnegative c) (previous.estimate x)),
+  }
+  | coordinate: \fun (i: Coordinate)(p: Expression)(previous: Bound[function p]) => Coordinate[f := function p, i := i, bound := previous].value
+};

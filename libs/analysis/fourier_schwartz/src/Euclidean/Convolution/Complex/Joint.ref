@@ -1,0 +1,43 @@
+\import \root.Euclidean[n := n].Fubini[] \as Fubini;
+\import lp_spaces.Euclidean[n := n].Joint[] \as Joint;
+\import product_integration.Euclidean[n := n] \as Integration;
+\import product_integration.Convolution[A := Point, mu := Lebesgue.measure, exhaustion := Integration.exhaustion] \as Existence;
+\import functional_analysis.Measure[A := Fubini.PairPoint].Functions[mu := Fubini.measure] \as JointFunctions;
+\import lp_spaces.Euclidean[n := n].Compact[p := lp_spaces.Powers[].one] \as Compact;
+\import lp_spaces.Euclidean[n := n].BorelMeasure[] \as BorelMeasure;
+\import M.Functions[mu := BorelMeasure.borel] \as BorelFunctions;
+\import \root.Scalars[] \as Scalars;
+\import C.Absolute[] \as Absolute;
+\definition left: I.Representatives := Linear.addRepresentative (Abs.representative (Integrability.representative g.real)) (Abs.representative (Integrability.representative g.imaginary));
+\definition right: I.Representatives := Linear.addRepresentative (Abs.representative (Integrability.representative f.real)) (Abs.representative (Integrability.representative f.imaginary));
+\definition leftBorel: M.IsMeasurable BorelMeasure.borel left := BorelFunctions.addMeasurable _ _
+  (BorelFunctions.absMeasurable _ (Integrability.Borel[f := g.real].measurable)) (BorelFunctions.absMeasurable _ (Integrability.Borel[f := g.imaginary].measurable));
+\import Existence.For[translations := Integration.translation, f := left, g := right] \as ExistenceFor;
+\definition conditions: ExistenceFor.Conditions := ExistenceFor.Conditions {
+  measurable := Joint.measurableKernel left right leftBorel (I.integralLaw right).integrable.left,
+};
+\definition bound: Fubini.realJoint := ExistenceFor.On[conditions := conditions].joint;
+\definition first[p: Fubini.PairPoint]: C.Complex := S.value g (Coordinates.subPoint (Fubini.first p) (Fubini.second p));
+\definition second[p: Fubini.PairPoint]: C.Complex := S.value f (Fubini.second p);
+\definition function[p: Fubini.PairPoint]: C.Complex := D.mul (first p) (second p);
+\definition firstMeasurable: Fubini.Measurable[first] := Fubini.Measurable[first] {
+  real := Joint.differenceMeasurable (Base.value g.real) (Integrability.Borel[f := g.real].measurable),
+  imaginary := Joint.differenceMeasurable (Base.value g.imaginary) (Integrability.Borel[f := g.imaginary].measurable),
+};
+\definition secondMeasurable: Fubini.Measurable[second] := Fubini.Measurable[second] {
+  real := Joint.rightMeasurable (Base.value f.real) (Integrability.integrable f.real).left,
+  imaginary := Joint.rightMeasurable (Base.value f.imaginary) (Integrability.integrable f.imaginary).left,
+};
+\definition measurable: Fubini.Measurable[function] := Fubini.productMeasurable first second firstMeasurable secondMeasurable;
+\definition absolute[p: Fubini.PairPoint]: R.Le (Absolute.abs (function p)) (bound p) :=
+  R.leReplaceLeft _ _ _ (sym!{Real.Real} _ _ (Absolute.multiplicative (first p) (second p)))
+    (R.leTrans _ (Real.mul (left (Coordinates.subPoint (Fubini.first p) (Fubini.second p))) (Absolute.abs (second p))) _
+      (R.leReplace _ _ _ _ (Laws.fieldMulComm _ _) (Laws.fieldMulComm _ _)
+        (Estimates.mulMonotone _ _ _ (Absolute.nonnegative (second p)) (Scalars.absComponents (first p))))
+      (Estimates.mulMonotone _ _ _ (Laws.addNonnegative _ _ (Product.absNonnegative _) (Product.absNonnegative _)) (Scalars.absComponents (second p))));
+\definition data: Fubini.Dominated := Fubini.Dominated {
+  function := function, realMeasurable := measurable.real, imaginaryMeasurable := measurable.imaginary, bound := bound,
+  realBound := \fun (p: Fubini.PairPoint) => R.leTrans _ _ _ (Scalars.realAbsolute (function p)) (absolute p),
+  imaginaryBound := \fun (p: Fubini.PairPoint) => R.leTrans _ _ _ (Scalars.imaginaryAbsolute (function p)) (absolute p),
+};
+\definition value: Fubini.complexJoint := Fubini.Bounded[data := data].value;

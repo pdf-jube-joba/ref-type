@@ -1,0 +1,19 @@
+\import \root.Euclidean[n := n].Lines[f := f, a := x, i := i] \as Line;
+\definition inner[s: Real.Real]: Real.Real := Real.add (x i) s;
+\definition innerDerivative[s: Real.Real]: Derivative.HasDerivativeAt inner s Real.one :=
+  \idelim Real.add Real.zero Real.one = Real.one \with d: Real.Real => Derivative.HasDerivativeAt inner s d \by {
+    base: RealDerivatives.addDerivative (\fun (s: Real.Real) => x i) (\fun (s: Real.Real) => s) s Real.zero Real.one (Basic.constantDerivative (x i) s) (Basic.identityDerivative s),
+    equality: Laws.addZeroLeft Real.one
+  };
+\definition agreement[s: Real.Real]: Line.function (inner s) = input s x := congr!{Point Real.Real} (Base.value f) _ _ (sym!{Point} _ _ (Uniform.pointEquation s x));
+\definition coefficient[s: Real.Real]: Real.mul (Differential.apply i f (Whole.point (Coordinates.replace x i (inner s)))) Real.one =
+  Base.value (Operations.partial f i) (Uniform.point s x) := trans!{Real.Real} _ _ _ (Algebra.mulOneRight _)
+    (congr!{Point Real.Real} (Base.value (Operations.partial f i)) _ _ (sym!{Point} _ _ (Uniform.pointEquation s x)));
+\definition derivative[s: Real.Real]: Derivative.HasDerivativeAt (\fun (t: Real.Real) => input t x) s (Base.value (Operations.partial f i) (Uniform.point s x)) :=
+  \idelim (\fun (t: Real.Real) => Line.function (inner t)) = (\fun (t: Real.Real) => input t x)
+    \with h: (Real.Real -> Real.Real) => Derivative.HasDerivativeAt h s (Base.value (Operations.partial f i) (Uniform.point s x)) \by {
+      base: \idelim _ = _ \with d: Real.Real => Derivative.HasDerivativeAt (\fun (t: Real.Real) => Line.function (inner t)) s d \by {
+        base: Chain.derivative inner Line.function s Real.one _ (innerDerivative s) (Line.derivative (inner s)), equality: coefficient s
+      },
+      equality: \axiom:funext((\fun (t: Real.Real) => Line.function (inner t)), (\fun (t: Real.Real) => input t x), agreement)
+    };

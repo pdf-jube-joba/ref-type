@@ -1,0 +1,85 @@
+\import \root.Euclidean[n := n] \as Base;
+\import \parent.Complex[] \as S;
+\import \parent.Kernel[] \as Kernel;
+\import \parent.Integrability[] \as Integrability;
+\import \parent.Integral[] \as Fourier;
+\import complex.Complex[] \as C;
+\import C.Def[] \as D;
+\import C.Prop[] \as CL;
+\import \root.ComplexCalculus[] \as Calculus;
+\import \root.Scalars[] \as Scalars;
+\import Open.Smooth[].Operations[] \as Operations;
+\import Open.Analysis[] \as Analysis;
+\import calculus.Real[].Multivariable[n := n].Space[].Prop[] \as Space;
+\definition value[f: S.Function][xi, x: Point]: C.Complex := D.mul (S.value f x) (Kernel.value x xi);
+\definition realSmooth[f: S.Function][xi: Point]: Smooth.SmoothOn Open.whole (\fun (x: Open.Carrier Open.whole) => C.re (value f xi x)) :=
+  Operations.subSmooth Open.whole _ _
+    (Operations.mulSmooth Open.whole _ _ (Integrability.regular f.real) Kernel.Smooth[xi := xi].real)
+    (Operations.mulSmooth Open.whole _ _ (Integrability.regular f.imaginary) Kernel.Smooth[xi := xi].imaginary);
+\definition imaginarySmooth[f: S.Function][xi: Point]: Smooth.SmoothOn Open.whole (\fun (x: Open.Carrier Open.whole) => C.im (value f xi x)) :=
+  Operations.addSmooth Open.whole _ _
+    (Operations.mulSmooth Open.whole _ _ (Integrability.regular f.real) Kernel.Smooth[xi := xi].imaginary)
+    (Operations.mulSmooth Open.whole _ _ (Integrability.regular f.imaginary) Kernel.Smooth[xi := xi].real);
+\definition realFunction[f: S.Function][xi: Point]: Function := \into[Open.ScalarFunction Open.whole]((\fun (x: Open.Carrier Open.whole) => C.re (value f xi x)), Function) \by { realSmooth f xi };
+\definition imaginaryFunction[f: S.Function][xi: Point]: Function := \into[Open.ScalarFunction Open.whole]((\fun (x: Open.Carrier Open.whole) => C.im (value f xi x)), Function) \by { imaginarySmooth f xi };
+\definition input[f: S.Function][xi: Point][i: Coordinate]: S.Function := S.add (S.partial f i) (S.scale (D.scale (Real.neg (xi i)) D.i) f);
+\definition inputValue[f: S.Function][xi: Point][i: Coordinate][x: Point]:
+  S.value (input f xi i) x = D.add (S.value (S.partial f i) x) (D.scale (Real.neg (xi i)) (\root.Phase[].rotate (S.value f x))) :=
+  congr!{C.Complex C.Complex} (D.add (S.value (S.partial f i) x)) _ _
+    (trans!{C.Complex} _ _ _ (S.jetScale _ f Directions::nil x)
+      (trans!{C.Complex} _ _ _ (CL.scaleMulLeft (Real.neg (xi i)) D.i (S.value f x))
+        (congr!{C.Complex C.Complex} (D.scale (Real.neg (xi i))) _ _ (\root.Phase[].rotateAsProduct (S.value f x)))));
+\module At(f: S.Function, xi, a: Point, i: Coordinate);
+\definition realPartial[f: S.Function][xi: Point][i: Coordinate]: Differential.apply i (realFunction f xi) = realFunction (input f xi i) xi :=
+  Functions.ext (Differential.apply i (realFunction f xi)) (realFunction (input f xi i) xi)
+    (\fun (a: Open.Carrier Open.whole) => Analysis.Properties[].partialUnique Open.whole (realFunction f xi) i a _ _
+      (Partial.partialLaw Open.whole (realFunction f xi) i a) At[f := f, xi := xi, a := a, i := i].real);
+\definition imaginaryPartial[f: S.Function][xi: Point][i: Coordinate]: Differential.apply i (imaginaryFunction f xi) = imaginaryFunction (input f xi i) xi :=
+  Functions.ext (Differential.apply i (imaginaryFunction f xi)) (imaginaryFunction (input f xi i) xi)
+    (\fun (a: Open.Carrier Open.whole) => Analysis.Properties[].partialUnique Open.whole (imaginaryFunction f xi) i a _ _
+      (Partial.partialLaw Open.whole (imaginaryFunction f xi) i a) At[f := f, xi := xi, a := a, i := i].imaginary);
+\definition inputs[f: S.Function][xi: Point]: Directions -> S.Function := \induction (d: Directions) \return S.Function \with {
+  | nil: f
+  | cons: \fun (i: Coordinate)(tail: Directions)(previous: S.Function) => input previous xi i
+};
+
+\definition realJet[f: S.Function][xi: Point]: \forall (d: Directions) -> jet (realFunction f xi) d = realFunction (inputs f xi d) xi :=
+  \induction (d: Directions) \return jet (realFunction f xi) d = realFunction (inputs f xi d) xi \with {
+    | nil: \refl(realFunction f xi)
+    | cons: \fun (i: Coordinate)(tail: Directions)(previous: _) => trans!{Function} _ _ _
+      (congr!{Function Function} (Differential.apply i) _ _ previous) (realPartial (inputs f xi tail) xi i)
+  };
+\definition imaginaryJet[f: S.Function][xi: Point]: \forall (d: Directions) -> jet (imaginaryFunction f xi) d = imaginaryFunction (inputs f xi d) xi :=
+  \induction (d: Directions) \return jet (imaginaryFunction f xi) d = imaginaryFunction (inputs f xi d) xi \with {
+    | nil: \refl(imaginaryFunction f xi)
+    | cons: \fun (i: Coordinate)(tail: Directions)(previous: _) => trans!{Function} _ _ _
+      (congr!{Function Function} (Differential.apply i) _ _ previous) (imaginaryPartial (inputs f xi tail) xi i)
+  };
+\definition realBound[f: S.Function][xi: Point][m: N.Nat^][x: Point]:
+  R.Le (Real.mul (weight m x) (Product.abs (C.re (value f xi x)))) (S.componentSeminorm f m Directions::nil) :=
+  R.leTrans _ (Real.add (Base.weighted f.real m Directions::nil x) (Base.weighted f.imaginary m Directions::nil x)) _
+    (R.leReplaceRight _ _ _ (Laws.fieldMulAdd _ _ _)
+      (Estimates.mulMonotone _ _ _ (weightNonnegative m x) (Fourier.Continuity[f := Integrability.complex f, at := xi].realDominated xi x)))
+    (Estimates.addLe _ _ _ _ (pointBound f.real m Directions::nil x) (pointBound f.imaginary m Directions::nil x));
+\definition imaginaryBound[f: S.Function][xi: Point][m: N.Nat^][x: Point]:
+  R.Le (Real.mul (weight m x) (Product.abs (C.im (value f xi x)))) (S.componentSeminorm f m Directions::nil) :=
+  R.leTrans _ (Real.add (Base.weighted f.real m Directions::nil x) (Base.weighted f.imaginary m Directions::nil x)) _
+    (R.leReplaceRight _ _ _ (Laws.fieldMulAdd _ _ _)
+      (Estimates.mulMonotone _ _ _ (weightNonnegative m x) (Fourier.Continuity[f := Integrability.complex f, at := xi].imaginaryDominated xi x)))
+    (Estimates.addLe _ _ _ _ (pointBound f.real m Directions::nil x) (pointBound f.imaginary m Directions::nil x));
+\definition realRapid[f: S.Function][xi: Point]: Rapid (realFunction f xi) :=
+  \fun (m: N.Nat^)(d: Directions) => Logic.existsIntro[Real.Real, { b: Real.Real \where \forall (x: Point) -> R.Le (Base.weighted (realFunction f xi) m d x) b }]
+    (S.componentSeminorm (inputs f xi d) m Directions::nil)
+    (\fun (x: Point) => R.leReplaceLeft _ _ _
+      (sym!{Real.Real} _ _ (congr!{Function Real.Real} (\fun (h: Function) => Real.mul (weight m x) (Product.abs (Base.value h x))) _ _ (realJet f xi d)))
+      (realBound (inputs f xi d) xi m x));
+\definition imaginaryRapid[f: S.Function][xi: Point]: Rapid (imaginaryFunction f xi) :=
+  \fun (m: N.Nat^)(d: Directions) => Logic.existsIntro[Real.Real, { b: Real.Real \where \forall (x: Point) -> R.Le (Base.weighted (imaginaryFunction f xi) m d x) b }]
+    (S.componentSeminorm (inputs f xi d) m Directions::nil)
+    (\fun (x: Point) => R.leReplaceLeft _ _ _
+      (sym!{Real.Real} _ _ (congr!{Function Real.Real} (\fun (h: Function) => Real.mul (weight m x) (Product.abs (Base.value h x))) _ _ (imaginaryJet f xi d)))
+      (imaginaryBound (inputs f xi d) xi m x));
+\definition function[f: S.Function][xi: Point]: S.Function := S.Function {
+  real := \into[Function](realFunction f xi, Schwartz) \by { realRapid f xi },
+  imaginary := \into[Function](imaginaryFunction f xi, Schwartz) \by { imaginaryRapid f xi },
+};

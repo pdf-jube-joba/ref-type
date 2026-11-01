@@ -1,0 +1,29 @@
+\definition forward[r: Real.Real]: M.below (J.lowerIntegral f) r -> M.below (M.scale c (I.lowerIntegral f)) r := \block {
+  \fun (member: _) \then
+  \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where \exists ( s: J.Simple[k] \where Logic.And[J.Dominated k s f, M.below (J.simpleIntegral k s) r] ) }) \by member \then
+  \takefrom s: \Cast[J.Simple[k]] ({ s: J.Simple[k] \where Logic.And[J.Dominated k s f, M.below (J.simpleIntegral k s) r] })
+    \by (\bysub(N.Nat^, { k: N.Nat^ \where \exists ( s: J.Simple[k] \where Logic.And[J.Dominated k s f, M.below (J.simpleIntegral k s) r] ) }, k)) \then
+  \let witness: Logic.And[J.Dominated k s f, M.below (J.simpleIntegral k s) r] := \bysub(J.Simple[k], { s: J.Simple[k] \where Logic.And[J.Dominated k s f, M.below (J.simpleIntegral k s) r] }, s) \then
+  \let scaled: M.below (M.scale c (I.simpleIntegral k (old k s))) r := \idelim J.simpleIntegral k s = M.scale c (I.simpleIntegral k (old k s)) \with v: M.Value => M.below v r \by { base: witness.right, equality: simple k s } \then
+  \takefrom a: \Cast[Real.Real] ({ a: Real.Real \where Logic.And[M.below (I.simpleIntegral k (old k s)) a, R.Lt r (Real.mul c a)] }) \by scaled \then
+  \let bound: Logic.And[M.below (I.simpleIntegral k (old k s)) a, R.Lt r (Real.mul c a)] := \bysub(Real.Real, { a: Real.Real \where Logic.And[M.below (I.simpleIntegral k (old k s)) a, R.Lt r (Real.mul c a)] }, a) \then
+  \return Logic.existsIntro[Real.Real, { a: Real.Real \where Logic.And[M.below (I.lowerIntegral f) a, R.Lt r (Real.mul c a)] }] a
+    (Logic.And[_, _]::# (Logic.existsIntro[N.Nat^, { k: N.Nat^ \where \exists ( s: I.Simple[k] \where Logic.And[I.Dominated k s f, M.below (I.simpleIntegral k s) a] ) }] k
+      (Logic.existsIntro[I.Simple[k], { s: I.Simple[k] \where Logic.And[I.Dominated k s f, M.below (I.simpleIntegral k s) a] }] (old k s) (Logic.And[_, _]::# witness.left bound.left))) bound.right)
+};
+\definition backward[r: Real.Real]: M.below (M.scale c (I.lowerIntegral f)) r -> M.below (J.lowerIntegral f) r := \block {
+  \fun (member: _) \then
+  \takefrom a: \Cast[Real.Real] ({ a: Real.Real \where Logic.And[M.below (I.lowerIntegral f) a, R.Lt r (Real.mul c a)] }) \by member \then
+  \let bound: Logic.And[M.below (I.lowerIntegral f) a, R.Lt r (Real.mul c a)] := \bysub(Real.Real, { a: Real.Real \where Logic.And[M.below (I.lowerIntegral f) a, R.Lt r (Real.mul c a)] }, a) \then
+  \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where \exists ( s: I.Simple[k] \where Logic.And[I.Dominated k s f, M.below (I.simpleIntegral k s) a] ) }) \by bound.left \then
+  \takefrom s: \Cast[I.Simple[k]] ({ s: I.Simple[k] \where Logic.And[I.Dominated k s f, M.below (I.simpleIntegral k s) a] })
+    \by (\bysub(N.Nat^, { k: N.Nat^ \where \exists ( s: I.Simple[k] \where Logic.And[I.Dominated k s f, M.below (I.simpleIntegral k s) a] ) }, k)) \then
+  \let witness: Logic.And[I.Dominated k s f, M.below (I.simpleIntegral k s) a] := \bysub(I.Simple[k], { s: I.Simple[k] \where Logic.And[I.Dominated k s f, M.below (I.simpleIntegral k s) a] }, s) \then
+  \let scaled: M.below (M.scale c (I.simpleIntegral k s)) r := Logic.existsIntro[Real.Real, { a: Real.Real \where Logic.And[M.below (I.simpleIntegral k s) a, R.Lt r (Real.mul c a)] }] a (Logic.And[_, _]::# witness.right bound.right) \then
+  \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where \exists ( s: J.Simple[k] \where Logic.And[J.Dominated k s f, M.below (J.simpleIntegral k s) r] ) }] k
+    (Logic.existsIntro[J.Simple[k], { s: J.Simple[k] \where Logic.And[J.Dominated k s f, M.below (J.simpleIntegral k s) r] }] (fresh k s)
+      (Logic.And[_, _]::# witness.left (\idelim M.scale c (I.simpleIntegral k s) = J.simpleIntegral k (fresh k s) \with v: M.Value => M.below v r \by {
+        base: scaled, equality: sym!{M.Value} _ _ (simple k (fresh k s))
+      })))
+};
+\definition law: J.lowerIntegral f = M.scale c (I.lowerIntegral f) := \axiom:setext(J.lowerIntegral f, M.scale c (I.lowerIntegral f), forward, backward);

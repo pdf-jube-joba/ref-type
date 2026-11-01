@@ -1,0 +1,21 @@
+\import C.Prop[] \as CL;
+\import M.AlmostEverywhere[mu := Lebesgue.measure] \as AE;
+\import topology.Topology[Carrier := Point] \as Sets;
+\definition integralPointwise[f, g: Complex.Representatives]: (\forall (x: Point) -> f x = g x) -> Complex.integral f = Complex.integral g :=
+  \fun (same: _) => Complex.integralAlmost f g (AE.nullSubset ({ x: Point \where std.Logic[].Proposition[].Not (f x = g x) }) Sets.Empty
+    (\fun (x: Point)(different: _) => different (same x)) AE.nullEmpty);
+\definition atOrigin[f: Complex.Representatives]: transform f Coordinates.origin = Complex.integral f :=
+  integralPointwise (section f Coordinates.origin) f (\fun (x: Point) => trans!{C.Complex} _ _ _
+    (congr!{C.Complex C.Complex} (D.mul (f x)) _ _ (Kernel.atOrigin x)) (CL.mulOneRight (f x)));
+\definition addition[f, g: Complex.Representatives][xi: Point]:
+  transform (Complex.addRepresentative f g) xi = D.add (transform f xi) (transform g xi) :=
+  trans!{C.Complex} _ _ _
+    (integralPointwise (section (Complex.addRepresentative f g) xi) (Complex.addRepresentative (section f xi) (section g xi))
+      (\fun (x: Point) => CL.mulAddRight (f x) (g x) (Kernel.value x xi)))
+    (Complex.integralAdd (section f xi) (section g xi));
+\definition scalar[c: C.Complex][f: Complex.Representatives][xi: Point]:
+  transform (Complex.complexScalarRepresentative c f) xi = D.mul c (transform f xi) :=
+  trans!{C.Complex} _ _ _
+    (integralPointwise (section (Complex.complexScalarRepresentative c f) xi) (Complex.complexScalarRepresentative c (section f xi))
+      (\fun (x: Point) => CL.mulAssoc c (f x) (Kernel.value x xi)))
+    (Complex.integralComplexScalar c (section f xi));

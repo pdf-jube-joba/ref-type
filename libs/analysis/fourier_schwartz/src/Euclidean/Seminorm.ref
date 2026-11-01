@@ -1,0 +1,21 @@
+\definition nonempty: Complete.Nonempty (seminormSet f m d) :=
+  Logic.existsIntro[Real.Real, seminormSet f m d] (weighted f m d Coordinates.origin)
+    (Logic.existsIntro[Point, { x: Point \where weighted f m d Coordinates.origin = weighted f m d x }] Coordinates.origin (\refl(weighted f m d Coordinates.origin)));
+\definition bounded: Complete.Bounded (seminormSet f m d) := \block {
+  \takefrom b: \Cast[Real.Real] ({ b: Real.Real \where \forall (x: Point) -> R.Le (weighted f m d x) b }) \by rapid f m d \then
+  \return Logic.existsIntro[Real.Real, { b: Real.Real \where Complete.UpperBound (seminormSet f m d) b }] b
+    (\block {
+      \fun (r: Real.Real)(member: \In[Real.Real] (seminormSet f m d) r) \then
+      \takefrom x: \Cast[Point] ({ x: Point \where r = weighted f m d x }) \by member \then
+      \return R.leReplaceLeft (weighted f m d x) r b (sym!{Real.Real} _ _ (\bysub(Point, { x: Point \where r = weighted f m d x }, x)))
+        ((\bysub(Real.Real, { b: Real.Real \where \forall (x: Point) -> R.Le (weighted f m d x) b }, b)) x)
+    })
+};
+\definition Candidates: \Set := \Cast[Real.Real] ({ b: Real.Real \where Complete.LeastUpperBound[seminormSet f m d, b] });
+\definition exists: \exists Candidates := Complete.complete (seminormSet f m d) nonempty bounded;
+\definition unique[a, b: Candidates]: a = b := Complete.leastUpperBoundUnique (seminormSet f m d) a b
+  (\bysub(Real.Real, { b: Real.Real \where Complete.LeastUpperBound[seminormSet f m d, b] }, a))
+  (\bysub(Real.Real, { b: Real.Real \where Complete.LeastUpperBound[seminormSet f m d, b] }, b));
+\definition value: Real.Real := \choice Candidates \by { existence: exists, uniqueness: unique };
+\definition law: Complete.LeastUpperBound[seminormSet f m d, value] :=
+  \bysub(Real.Real, { b: Real.Real \where Complete.LeastUpperBound[seminormSet f m d, b] }, \choice Candidates \by { existence: exists, uniqueness: unique });

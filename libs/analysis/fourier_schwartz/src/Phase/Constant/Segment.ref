@@ -1,0 +1,22 @@
+\import metric_spaces.RealLine[] \as Line;
+\import Reals.Limit[].Topology[].Subset[S := Line.ClosedInterval a b] \as Local;
+\import Reals.MeanValue[].Interval[a := a, b := b] \as MeanValue;
+\definition constant: (\forall (x: Scalar) -> Inside radius x -> Derivatives.HasDerivativeAt function x Real.zero) -> R.Lt a b -> Inside radius a -> Inside radius b -> function b = function a := \block {
+  \fun (derivatives: \forall (x: Scalar) -> Inside radius x -> Derivatives.HasDerivativeAt function x Real.zero)(ordered: _)(leftInside: _)(rightInside: _) \then
+  \let pointInside: \forall (x: Local.Carrier) -> Inside radius x := \fun (x: Local.Carrier) =>
+    Logic.And[_, _]::# (R.ltLeTrans _ _ _ leftInside.left (\bysub(Scalar, Line.ClosedInterval a b, x)).left)
+      (R.leLtTrans _ _ _ (\bysub(Scalar, Line.ClosedInterval a b, x)).right rightInside.right) \then
+  \let continuous: Local.ContinuousOn function := \fun (x: Local.Carrier) => MeanValue.Estimate[].continuousAt function
+    (\fun (x: Scalar) => Real.zero) x (derivatives x (pointInside x)) \then
+  \let differentiable: MeanValue.DifferentiableOn function := \fun (x: Scalar)(inside: MeanValue.Interior x) =>
+    Logic.existsIntro[Scalar, { d: Scalar \where Derivatives.HasDerivativeAt function x d }] Real.zero
+      (derivatives x (Logic.And[_, _]::# (Order.ltTrans _ _ _ leftInside.left inside.left) (Order.ltTrans _ _ _ inside.right rightInside.right))) \then
+  \takefrom c: \Cast[Scalar] ({ c: Scalar \where MeanValue.MeanValueResult[function, c] }) \by MeanValue.meanValue function ordered continuous differentiable \then
+  \let witness: MeanValue.MeanValueResult[function, c] := \bysub(Scalar, { c: Scalar \where MeanValue.MeanValueResult[function, c] }, c) \then
+  \let zeroSlope: MeanValue.secant function = Real.zero := Operations.unique function c (MeanValue.secant function) Real.zero
+    witness.derivative (derivatives c (Logic.And[_, _]::# (Order.ltTrans _ _ _ leftInside.left witness.interior.left) (Order.ltTrans _ _ _ witness.interior.right rightInside.right))) \then
+  \return Distance.subZeroEq (function b) (function a) (trans!{Scalar} _ _ _
+    (sym!{Scalar} _ _ (Operations.slopeIncrement function a b (\fun (same: b = a) => Order.ltNotEq a b ordered (sym!{Scalar} _ _ same))))
+    (trans!{Scalar} _ _ _ (congr!{Scalar Scalar} (\fun (x: Scalar) => Real.mul x (Real.sub b a)) _ _ zeroSlope)
+      (Laws.fieldMulZeroLeft (Real.sub b a))))
+};

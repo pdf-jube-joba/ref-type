@@ -1,0 +1,17 @@
+\import L.Infinity[] \as Infinity;
+\import L.One[] \as One;
+\import M.Lp[mu := Lebesgue.measure] \as Lp;
+\import topology.Topology[Carrier := Point] \as Sets;
+\import M.AlmostEverywhere[mu := Lebesgue.measure] \as AE;
+\definition bounded: Infinity.Representatives := \into[Point -> Real.Real](g.function, Infinity.Representatives) \by {
+  Lp.EssentiallyBounded[g.function] {
+    measurable := g.measurable,
+    bound := Logic.existsIntro[Real.Real, { c: Real.Real \where Lp.EssentialBound[g.function, c] }] g.coefficient
+      (Infinity.boundOutside g.function g.coefficient Sets.Empty (I.Scaling[].nonnegative g.coefficient) AE.nullEmpty (\fun (x: Point)(outside: _) => g.bound x)),
+  }
+};
+\definition value: I.Representatives := L.Endpoint[].representative (One.fromIntegral f) bounded;
+\definition dominator: I.Representatives := I.Scaling[].scalarRepresentative g.coefficient (Abs.representative f);
+\definition dominated[x: Point]: R.Le (Product.abs (value x)) (dominator x) :=
+  R.leReplace _ _ _ _ (sym!{Real.Real} _ _ (Product.absProduct (f x) (g.function x))) (Laws.fieldMulComm _ _)
+    (Estimates.mulMonotone _ _ _ (Product.absNonnegative (f x)) (g.bound x));

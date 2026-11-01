@@ -1,0 +1,22 @@
+\import \root.Euclidean[n := n].Gaussian[] \as Gaussian;
+\import \root.Euclidean[n := n].Dilation[a := Laws.fieldInv e, positive := Product.invPositive e positive] \as Dilation;
+\import euclidean_measure.Euclidean[n := n].Scaling[] \as MeasureScaling;
+\import euclidean_measure.Euclidean[n := n].MeasureConstruction[] \as Lebesgue;
+\import functional_analysis.Measure[A := Point].Integral[mu := Lebesgue.measure] \as I;
+\import I.Scaling[] \as Scaling;
+\definition unnormalized: I.Representatives := Dilation.real (Integrability.representative Gaussian.schwartz);
+\definition mass: Real.Real := Real.mul Dilation.coefficient Gaussian.Mass[].value;
+\definition massPositive: R.Lt Real.zero mass := Product.mulPositive _ _ Dilation.coefficientPositive Gaussian.Mass[].positive;
+\definition value: I.Representatives := Scaling.scalarRepresentative (Laws.fieldInv mass) unnormalized;
+\definition nonnegative[x: Point]: R.Le Real.zero (value x) := Laws.fieldMulNonnegative _ _
+  (Order.leOfLt _ _ (Product.invPositive mass massPositive)) (Order.leOfLt _ _ (Gaussian.positive (Coordinates.scale (Laws.fieldInv e) x)));
+\definition integral: I.integral value = Real.one := eq_reason_in!{Real.Real _
+  "=" _ "by" { Scaling.integralScalar (Laws.fieldInv mass) unnormalized }
+  "=" _ "by" { congr!{Real.Real Real.Real} (Real.mul (Laws.fieldInv mass)) _ _ (Dilation.realIntegral (Integrability.representative Gaussian.schwartz)) }
+  "=" _ "by" { Laws.fieldInverseNonzero mass (Inverse.positiveNonzero mass massPositive) }
+};
+\definition massFormula: mass = Real.mul (Powers.power e n) Gaussian.Mass[].value := congr!{Real.Real Real.Real} (\fun (a: Real.Real) => Real.mul a Gaussian.Mass[].value) _ _
+  (trans!{Real.Real} _ _ _ Dilation.coefficientPower
+    (congr!{Real.Real Real.Real} (\fun (a: Real.Real) => Powers.power a n) _ _ (MeasureScaling.inverseInvolutive e positive)));
+\definition formula[x: Point]: value x = Real.mul (Laws.fieldInv (Real.mul (Powers.power e n) Gaussian.Mass[].value)) (Gaussian.function (Coordinates.scale (Laws.fieldInv e) x)) :=
+  congr!{Real.Real Real.Real} (\fun (a: Real.Real) => Real.mul (Laws.fieldInv a) (Gaussian.function (Coordinates.scale (Laws.fieldInv e) x))) _ _ massFormula;

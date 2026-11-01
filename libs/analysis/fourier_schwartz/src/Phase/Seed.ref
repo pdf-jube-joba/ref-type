@@ -1,0 +1,52 @@
+\import std.Data[].FinSet[] \as Fin;
+\import Fin.Tuples[A := Scalar] \as Tuples;
+\import calculus.Real[].OneDimension[] \as One;
+\definition one: N.Nat^ := One.dimension;
+\definition two: N.Nat^ := N.Nat^::succ one;
+\definition first: Fin.Fin two := Fin.zero one;
+\definition second: Fin.Fin two := Fin.succ one One.index;
+\import Reals.Multivariable[n := two] \as Model;
+\import topological_algebra.Euclidean[].Dimension[n := two].Def[] \as Coordinates;
+\import Model.Open[] \as Open;
+\import Open.Smooth[] \as Smooth;
+\import Smooth.Operations[] \as SmoothOperations;
+\import Open.Examples[] \as Examples;
+\import calculus.Maps[n := two, m := two] \as Maps;
+\import differential_equations.Euclidean[n := two] \as ODE;
+\definition function[x: Open.Carrier Open.whole]: Open.Carrier Open.whole :=
+  \into[Model.Point](Tuples.extend one (Real.neg (x second)) (\fun (j: One.Index) => x first), Open.whole.points) \by {
+    \refl(Tuples.extend one (Real.neg (x second)) (\fun (j: One.Index) => x first))
+  };
+\definition coordinateZero: Smooth.SmoothOn Open.whole (\fun (x: Open.Carrier Open.whole) => function x first) :=
+  \idelim (\fun (x: Open.Carrier Open.whole) => Real.neg (x second)) = (\fun (x: Open.Carrier Open.whole) => function x first)
+    \with h: Open.ScalarFunction Open.whole => Smooth.SmoothOn Open.whole h \by {
+      base: SmoothOperations.negSmooth Open.whole (\fun (x: Open.Carrier Open.whole) => x second) (Examples.projectionSmooth Open.whole second),
+      equality: \axiom:funext((\fun (x: Open.Carrier Open.whole) => Real.neg (x second)), (\fun (x: Open.Carrier Open.whole) => function x first),
+        \fun (x: Open.Carrier Open.whole) => sym!{Scalar} _ _ (Tuples.atZero one (Real.neg (x second)) (\fun (j: One.Index) => x first)))
+    };
+\definition coordinateSuccessor[j: One.Index]: Smooth.SmoothOn Open.whole (\fun (x: Open.Carrier Open.whole) => function x (Fin.succ one j)) :=
+  \idelim (\fun (x: Open.Carrier Open.whole) => x first) = (\fun (x: Open.Carrier Open.whole) => function x (Fin.succ one j))
+    \with h: Open.ScalarFunction Open.whole => Smooth.SmoothOn Open.whole h \by {
+      base: Examples.projectionSmooth Open.whole first,
+      equality: \axiom:funext((\fun (x: Open.Carrier Open.whole) => x first), (\fun (x: Open.Carrier Open.whole) => function x (Fin.succ one j)),
+        \fun (x: Open.Carrier Open.whole) => sym!{Scalar} _ _ (Tuples.atSuccessor one (Real.neg (x second)) (\fun (j: One.Index) => x first) j))
+    };
+\definition smooth[i: Fin.Fin two]: Smooth.SmoothOn Open.whole (\fun (x: Open.Carrier Open.whole) => function x i) :=
+  Fin.cases one (\fun (j: Fin.Fin two) => Smooth.SmoothOn Open.whole (\fun (x: Open.Carrier Open.whole) => function x j)) coordinateZero coordinateSuccessor i;
+\definition field: Maps.Map Open.whole Open.whole :=
+  \into[Maps.Data[Open.whole, Open.whole]](Maps.Data[Open.whole, Open.whole] { apply := function }, Maps.Map Open.whole Open.whole) \by {
+    Maps.Laws[Open.whole, Open.whole, Maps.Data[Open.whole, Open.whole]::# function] { smooth := smooth }
+  };
+\definition initial: Open.Carrier Open.whole :=
+  \into[Model.Point](Tuples.extend one Real.one (\fun (j: One.Index) => Real.zero), Open.whole.points) \by {
+    \refl(Tuples.extend one Real.one (\fun (j: One.Index) => Real.zero))
+  };
+\import ODE.Smooth[U := Open.whole, field := field, a := initial] \as Equation;
+\import std.Set[].Extension[A := ODE.Vector, B := ODE.Vector, domain := Open.whole.points] \as Extension;
+\module Of(solution: Equation.LocalSolution);
+\definition existsPatch: \exists Patch := \block {
+  \takefrom solution: Equation.LocalSolution \by Equation.localExistence \then
+  \return \exact(Of[solution := solution].patch, Patch)
+};
+\definition halfPositive: R.Lt Real.zero Real.half := R.ltReplaceRight _ _ _ (Algebra.mulOneRight Real.half)
+  (Estimates.halfOfPositive Real.one Product.onePositive);

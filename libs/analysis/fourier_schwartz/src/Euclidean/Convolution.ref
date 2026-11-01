@@ -1,0 +1,57 @@
+\import \root.Euclidean[n := n] \as Base;
+\import \parent.Operations[] \as Operations;
+\import \parent.Translation[] \as Shift;
+\import \parent.Integrability[] \as Integrability;
+\import \parent.Integral[] \as Fourier;
+\import \parent.Weights[] \as Weights;
+\import \root.NaturalPowers[] \as Numeric;
+\import \root.RealBounds[] \as RealBounds;
+\import euclidean_measure.Euclidean[n := n].MeasureConstruction[] \as Lebesgue;
+\import functional_analysis.Measure[A := Point] \as M;
+\import M.Integral[mu := Lebesgue.measure] \as I;
+\import I.Absolute[] \as Abs;
+\import I.Scaling[] \as Scaling;
+\import lp_spaces.On[A := Point, mu := Lebesgue.measure] \as L;
+\import calculus.Real[].Multivariable[n := n].Space[].Prop[] \as Space;
+\import Open.Analysis[] \as Analysis;
+\import topological_algebra.Euclidean[].Dimension[n := n].Norm[] \as Geometry;
+\import topology.Topology[Carrier := Point] \as Sets;
+\import calculus.Real[].Derivative[].Def[] \as Derivative;
+\definition difference[x, y: Point]: Point := Shift.point (Coordinates.negPoint y) x;
+\definition subtract[x, y: Point]: difference x y = Coordinates.subPoint x y := \axiom:funext(difference x y, Coordinates.subPoint x y, \fun (i: Coordinate) => Laws.addComm (Real.neg (y i)) (x i));
+\definition bound[g: Schwartz][x: Point]: R.Le (Product.abs (Base.value g x)) (seminorm g N.Nat^::zero Directions::nil) :=
+  R.leReplaceLeft _ _ _ (Laws.fieldMulOneLeft _) (pointBound g N.Nat^::zero Directions::nil x);
+\module Section(f, g: Schwartz, x: Point);
+\definition section[f, g: Schwartz][x: Point]: I.Representatives := Section[f := f, g := g, x := x].value;
+\definition value[f, g: Schwartz][x: Point]: Real.Real := I.integral (section f g x);
+\module Continuity(f, g: Schwartz, a: Point);
+\module Differentiation(f, g: Schwartz, a: Point, i: Coordinate);
+\definition partial[f, g: Schwartz][i: Coordinate]: Analysis.HasPartialDerivative Open.whole (\fun (x: Open.Carrier Open.whole) => value f g x) i
+  (\fun (x: Open.Carrier Open.whole) => value f (Operations.partial g i) x) := \fun (a: Open.Carrier Open.whole) =>
+  Analysis.Operations[].sectionPartial Open.whole (\fun (x: Open.Carrier Open.whole) => value f g x) a i
+    (\fun (t: Real.Real) => value f g (Coordinates.replace a i t)) (value f (Operations.partial g i) a)
+    (congr!{Point Real.Real} (value f g) _ _ (Space.replaceOriginal a i))
+    (\fun (t: Real.Real)(x: Open.Carrier Open.whole)(same: _) => congr!{Point Real.Real} (value f g) _ _ (sym!{Point} _ _ same))
+    (Differentiation[f := f, g := g, a := a, i := i].law);
+\module Regularity(f, g: Schwartz);
+
+\definition function[f, g: Schwartz]: Function := \into[Open.ScalarFunction Open.whole]((\fun (x: Open.Carrier Open.whole) => value f g x), Function) \by { Regularity[f := f, g := g].smooth };
+\definition partialFunction[f, g: Schwartz][i: Coordinate]: Differential.apply i (function f g) = function f (Operations.partial g i) :=
+  Functions.ext (Differential.apply i (function f g)) (function f (Operations.partial g i))
+    (\fun (a: Open.Carrier Open.whole) => Analysis.Properties[].partialUnique Open.whole (function f g) i a _ _ (Partial.partialLaw Open.whole (function f g) i a) (partial f g i a));
+\definition jets[f, g: Schwartz]: \forall (d: Directions) -> jet (function f g) d = function f (Operations.iterated g d) :=
+  \induction (d: Directions) \return jet (function f g) d = function f (Operations.iterated g d) \with {
+    | nil: \refl(function f g)
+    | cons: \fun (i: Coordinate)(tail: Directions)(previous: _) => trans!{Function} _ _ _ (congr!{Function Function} (Differential.apply i) _ _ previous)
+      (partialFunction f (Operations.iterated g tail) i)
+  };
+
+\module Weighted(f, g: Schwartz, m: N.Nat^);
+\definition rapid[f, g: Schwartz]: Rapid (function f g) := \fun (m: N.Nat^)(d: Directions) =>
+  Logic.existsIntro[Real.Real, { b: Real.Real \where \forall (x: Point) -> R.Le (Base.weighted (function f g) m d x) b }]
+    Weighted[f := f, g := Operations.iterated g d, m := m].bound
+    (\fun (x: Point) => R.leReplaceLeft _ _ _
+      (sym!{Real.Real} _ _ (congr!{Function Real.Real} (\fun (h: Function) => Real.mul (weight m x) (Product.abs (Base.value h x))) _ _ (jets f g d)))
+      (Weighted[f := f, g := Operations.iterated g d, m := m].estimate x));
+\definition convolve[f, g: Schwartz]: Schwartz := \into[Function](function f g, Schwartz) \by { rapid f g };
+\module Complex;

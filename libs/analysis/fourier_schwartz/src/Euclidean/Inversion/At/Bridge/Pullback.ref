@@ -1,0 +1,28 @@
+\import \root.Euclidean[n := n].Gaussian[].Approximation[f := f.real, x := x] \as RealApproximation;
+\import \root.Euclidean[n := n].Gaussian[].Approximation[f := f.imaginary, x := x] \as ImaginaryApproximation;
+\import Integral.Reflected[a := x, f := weighted] \as Reflected;
+\definition point[z: Point]: Point := Coordinates.subPoint x (Coordinates.scale e z);
+\definition inputPoint[z: Point]: point z = RealApproximation.point e z := \axiom:funext(point z, RealApproximation.point e z, \fun (i: Coordinate) =>
+  congr!{Real.Real Real.Real} (Real.add (x i)) _ _ (sym!{Real.Real} _ _ (Laws.fieldMulNegLeft e (z i))));
+\definition gaussianPoint[z: Point]: Coordinates.scale (Laws.fieldInv e) (shift (point z)) = Coordinates.negPoint z :=
+  \axiom:funext(Coordinates.scale (Laws.fieldInv e) (shift (point z)), Coordinates.negPoint z, \fun (i: Coordinate) => eq_reason_in!{Real.Real _
+    "=" _ "by" { congr!{Real.Real Real.Real} (Real.mul (Laws.fieldInv e)) _ _ (Laws.addNegCancelLeft (x i) (Real.neg (Real.mul e (z i)))) }
+    "=" _ "by" { Laws.fieldMulNegRight (Laws.fieldInv e) (Real.mul e (z i)) }
+    "=" _ "by" { congr!{Real.Real Real.Real} Real.neg _ _ (trans!{Real.Real} _ _ _ (sym!{Real.Real} _ _ (Laws.fieldMulAssoc (Laws.fieldInv e) e (z i)))
+      (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (\fun (r: Real.Real) => Real.mul r (z i)) _ _ (Laws.fieldInverseNonzero e (Real.Inverse[].positiveNonzero e positive))) (Laws.fieldMulOneLeft (z i)))) }
+  });
+\definition approximating: Integral.Input := \into[CI.Function]((\fun (z: Point) => D.scale (Gaussian.function z) (S.value f (RealApproximation.point e z))), Integral.Input) \by {
+  Logic.And[_, _]::# (I.integralLaw (RealApproximation.family e)).integrable (I.integralLaw (ImaginaryApproximation.family e)).integrable
+};
+\definition values[z: Point]: Dilation.complex Reflected.value z = approximating z := eq_reason_in!{C.Complex _
+  "=" _ "by" { Reflected.equation (Coordinates.scale e z) }
+  "=" _ "by" { Integral.realProductValue input gaussianBound (point z) }
+  "=" _ "by" { congr!{Real.Real C.Complex C.Complex} D.scale _ _ _ _
+    (trans!{Real.Real} _ _ _ (congr!{Point Real.Real} Gaussian.function _ _ (gaussianPoint z)) (Gaussian.even z))
+    (congr!{Point C.Complex} (S.value f) _ _ (inputPoint z)) }
+};
+\definition integral: D.scale Dilation.coefficient (CI.integral weighted) = approximation e := eq_reason_in!{C.Complex _
+  "=" _ "by" { congr!{C.Complex C.Complex} (D.scale Dilation.coefficient) _ _ (sym!{C.Complex} _ _ Reflected.integral) }
+  "=" _ "by" { sym!{C.Complex} _ _ (Dilation.complexIntegral Reflected.value) }
+  "=" _ "by" { Integral.Identities[].integralPointwise (Dilation.complex Reflected.value) approximating values }
+};

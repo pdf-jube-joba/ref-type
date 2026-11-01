@@ -1,0 +1,14 @@
+\import \root.Scalars[] \as Scalars;
+\import C.Absolute[] \as Absolute;
+\definition function[p: PairPoint]: C.Complex := D.mul (f p) (phase.function p);
+\definition bound: realJoint := J.Linear[].addRepresentative (J.Absolute[].representative (JC.realPart f)) (J.Absolute[].representative (JC.imaginaryPart f));
+\definition absolute[p: PairPoint]: R.Le (Absolute.abs (function p)) (bound p) := R.leTrans _ (Absolute.abs (f p)) _
+  (R.leReplace _ _ _ _ (sym!{Real.Real} _ _ (Absolute.multiplicative (f p) (phase.function p))) (Algebra.mulOneRight (Absolute.abs (f p)))
+    (Estimates.mulMonotone _ _ _ (Absolute.nonnegative (f p)) (phase.bound p))) (Scalars.absComponents (f p));
+\definition product: Measurable[function] := productMeasurable f phase.function (measurable f) phase.measurable;
+\definition data: Dominated := Dominated {
+  function := function, realMeasurable := product.real, imaginaryMeasurable := product.imaginary, bound := bound,
+  realBound := \fun (p: PairPoint) => R.leTrans _ _ _ (Scalars.realAbsolute (function p)) (absolute p),
+  imaginaryBound := \fun (p: PairPoint) => R.leTrans _ _ _ (Scalars.imaginaryAbsolute (function p)) (absolute p),
+};
+\definition value: complexJoint := \parent.Bounded[data := data].value;

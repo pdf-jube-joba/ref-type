@@ -1,0 +1,37 @@
+\import Integral.Continuity[f := transformed, at := Coordinates.negPoint x] \as Bound;
+\definition realPoint[xi: Point]: Sequence.Converges (\fun (k: N.Nat^) => C.re (regulated (Dyadic.value k) xi)) (C.re (target xi)) :=
+  Sequences.congruent (\fun (k: N.Nat^) => Real.mul (C.re (target xi)) (Gaussian.Scaled[].function (Dyadic.value k) xi)) (\fun (k: N.Nat^) => C.re (regulated (Dyadic.value k) xi)) (C.re (target xi))
+    (\fun (k: N.Nat^) => trans!{Real.Real} _ _ _ (Laws.fieldMulComm _ _) (sym!{Real.Real} _ _ (congr!{C.Complex Real.Real} C.re _ _ (pointwise (Dyadic.value k) xi))))
+    (\idelim Real.mul (C.re (target xi)) Real.one = C.re (target xi) \with limit: Real.Real =>
+      Sequence.Converges (\fun (k: N.Nat^) => Real.mul (C.re (target xi)) (Gaussian.Scaled[].function (Dyadic.value k) xi)) limit \by {
+        base: Sequences.scaleConverges (C.re (target xi)) _ Real.one (Gaussian.Scaled[].converges xi), equality: Algebra.mulOneRight _
+      });
+\definition imaginaryPoint[xi: Point]: Sequence.Converges (\fun (k: N.Nat^) => C.im (regulated (Dyadic.value k) xi)) (C.im (target xi)) :=
+  Sequences.congruent (\fun (k: N.Nat^) => Real.mul (C.im (target xi)) (Gaussian.Scaled[].function (Dyadic.value k) xi)) (\fun (k: N.Nat^) => C.im (regulated (Dyadic.value k) xi)) (C.im (target xi))
+    (\fun (k: N.Nat^) => trans!{Real.Real} _ _ _ (Laws.fieldMulComm _ _) (sym!{Real.Real} _ _ (congr!{C.Complex Real.Real} C.im _ _ (pointwise (Dyadic.value k) xi))))
+    (\idelim Real.mul (C.im (target xi)) Real.one = C.im (target xi) \with limit: Real.Real =>
+      Sequence.Converges (\fun (k: N.Nat^) => Real.mul (C.im (target xi)) (Gaussian.Scaled[].function (Dyadic.value k) xi)) limit \by {
+        base: Sequences.scaleConverges (C.im (target xi)) _ Real.one (Gaussian.Scaled[].converges xi), equality: Algebra.mulOneRight _
+      });
+\definition data: CI.DominatedData := CI.DominatedData {
+  sequence := \fun (k: N.Nat^) => regulated (Dyadic.value k), limit := target, bound := Bound.bound,
+  realBound := \fun (k: N.Nat^)(xi: Point) => R.leReplaceLeft _ _ _
+    (sym!{Real.Real} _ _ (congr!{C.Complex Real.Real} (\fun (z: C.Complex) => Product.abs (C.re z)) _ _ (pointwise (Dyadic.value k) xi)))
+    (R.leTrans _ _ _ (Scalars.contract (Gaussian.Scaled[].function (Dyadic.value k) xi) (C.re (target xi))
+      (Order.leOfLt _ _ (Gaussian.positive _)) (Gaussian.atMostOne _)) (Bound.realDominated (Coordinates.negPoint x) xi)),
+  imaginaryBound := \fun (k: N.Nat^)(xi: Point) => R.leReplaceLeft _ _ _
+    (sym!{Real.Real} _ _ (congr!{C.Complex Real.Real} (\fun (z: C.Complex) => Product.abs (C.im z)) _ _ (pointwise (Dyadic.value k) xi)))
+    (R.leTrans _ _ _ (Scalars.contract (Gaussian.Scaled[].function (Dyadic.value k) xi) (C.im (target xi))
+      (Order.leOfLt _ _ (Gaussian.positive _)) (Gaussian.atMostOne _)) (Bound.imaginaryDominated (Coordinates.negPoint x) xi)),
+  realConverges := realPoint, imaginaryConverges := imaginaryPoint,
+};
+\import CI.Dominated[d := data] \as Proof;
+\definition integral: CI.integral Proof.representative = CI.integral target := Integral.Identities[].integralPointwise Proof.representative target (\fun (xi: Point) => \refl(target xi));
+\definition real: Sequence.Converges (\fun (k: N.Nat^) => C.re (left (Dyadic.value k))) (C.re (CI.integral target)) :=
+  \idelim C.re (CI.integral Proof.representative) = C.re (CI.integral target) \with limit: Real.Real => Sequence.Converges (\fun (k: N.Nat^) => C.re (left (Dyadic.value k))) limit \by {
+    base: Proof.realConvergence, equality: congr!{C.Complex Real.Real} C.re _ _ integral
+  };
+\definition imaginary: Sequence.Converges (\fun (k: N.Nat^) => C.im (left (Dyadic.value k))) (C.im (CI.integral target)) :=
+  \idelim C.im (CI.integral Proof.representative) = C.im (CI.integral target) \with limit: Real.Real => Sequence.Converges (\fun (k: N.Nat^) => C.im (left (Dyadic.value k))) limit \by {
+    base: Proof.imaginaryConvergence, equality: congr!{C.Complex Real.Real} C.im _ _ integral
+  };
