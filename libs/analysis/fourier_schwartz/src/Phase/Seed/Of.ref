@@ -1,0 +1,24 @@
+\definition value[t: Scalar]: C.Complex := C.make (solution.value t first) (solution.value t second);
+\definition insideValue[t: Scalar]: Open.Carrier Open.whole := \into[ODE.Vector](solution.value t, Open.whole.points) \by { \refl(solution.value t) };
+\definition fieldEquation[t: Scalar][i: Fin.Fin two]: Equation.extended (solution.value t) i = function (insideValue t) i :=
+  congr!{ODE.Vector Scalar} (\fun (x: ODE.Vector) => x i) _ _ (Extension.inside Equation.function Coordinates.origin (insideValue t));
+\definition derivative[t: Scalar]: Inside solution.radius t -> Calculus.HasDerivativeAt value t (rotate (value t)) :=
+  \fun (inside: _) => Calculus.DerivativeLaws[value, t, rotate (value t)] {
+    real := \idelim Equation.extended (solution.value t) first = Real.neg (solution.value t second)
+      \with d: Scalar => Derivatives.HasDerivativeAt (\fun (s: Scalar) => solution.value s first) t d \by {
+        base: solution.derivative t inside.left inside.right first,
+        equality: trans!{Scalar} _ _ _ (fieldEquation t first) (Tuples.atZero one _ _)
+      },
+    imaginary := \idelim Equation.extended (solution.value t) second = solution.value t first
+      \with d: Scalar => Derivatives.HasDerivativeAt (\fun (s: Scalar) => solution.value s second) t d \by {
+        base: solution.derivative t inside.left inside.right second,
+        equality: trans!{Scalar} _ _ _ (fieldEquation t second) (Tuples.atSuccessor one _ _ One.index)
+      },
+  };
+\definition patch: Patch := Patch {
+  radius := solution.radius, value := value,
+  atZero := trans!{C.Complex} _ _ _
+    (congr!{ODE.Vector C.Complex} (\fun (x: ODE.Vector) => C.make (x first) (x second)) _ _ solution.initialValue)
+    (CL.ext _ _ (Tuples.atZero one Real.one (\fun (j: One.Index) => Real.zero)) (Tuples.atSuccessor one Real.one (\fun (j: One.Index) => Real.zero) One.index)),
+  derivative := derivative,
+};

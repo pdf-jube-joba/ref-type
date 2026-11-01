@@ -1,0 +1,44 @@
+\definition a: Real.Real := Powers.natural (N.Nat^::succ m);
+\definition aPositive: R.Lt Real.zero a := R.leLtTrans _ _ _ (Natural.naturalNonnegative m) (Natural.naturalStep m);
+\definition b: Real.Real := Real.add Real.one t;
+\definition bPositive: R.Lt Real.zero b := R.ltLeTrans _ _ _ Product.onePositive (Algebra.leAddRight Real.one t nonnegative);
+\definition q: Real.Real := Real.mul (Real.mul Real.half b) (Laws.fieldInv a);
+\definition qPositive: R.Lt Real.zero q := Product.mulPositive _ _ (Product.mulPositive _ _ Numeric.halfPositive bPositive) (Product.invPositive a aPositive);
+\definition aq: Real.mul a q = Real.mul Real.half b := eq_reason_in!{Real.Real _
+  "=" _ "by" { Algebra.mulSwap a (Real.mul Real.half b) (Laws.fieldInv a) }
+  "=" _ "by" { congr!{Real.Real Real.Real} (Real.mul (Real.mul Real.half b)) _ _ (trans!{Real.Real} _ _ _ (Laws.fieldMulComm a (Laws.fieldInv a)) (Laws.fieldInverseNonzero a (Inverse.positiveNonzero a aPositive))) }
+  "=" _ "by" { Algebra.mulOneRight (Real.mul Real.half b) }
+};
+\definition k: Real.Real := Real.mul Numeric.two a;
+\definition kNonnegative: R.Le Real.zero k := Laws.fieldMulNonnegative _ _ Numeric.twoNonnegative (Order.leOfLt _ _ aPositive);
+\definition kq: Real.mul k q = b := eq_reason_in!{Real.Real _
+  "=" _ "by" { Laws.fieldMulAssoc Numeric.two a q }
+  "=" _ "by" { congr!{Real.Real Real.Real} (Real.mul Numeric.two) _ _ aq }
+  "=" _ "by" { sym!{Real.Real} _ _ (Laws.fieldMulAssoc Numeric.two Real.half b) }
+  "=" _ "by" { congr!{Real.Real Real.Real} (\fun (r: Real.Real) => Real.mul r b) _ _ Numeric.twoHalf }
+  "=" _ "by" { Laws.fieldMulOneLeft b }
+};
+\definition powerBound: R.Le (Powers.power q m) (Exp.value (Real.mul Real.half b)) :=
+  R.leTrans _ (Exp.value (Real.mul (Powers.natural m) q)) _
+    (R.leReplaceRight _ _ _ (ExpBounds.naturalExponential q m)
+      (Numeric.monotone q (Exp.value q) (Order.leOfLt _ _ qPositive) (Exp.linearLower q qPositive) m))
+    (R.leReplaceRight _ _ _ (congr!{Real.Real Real.Real} Exp.value _ _ aq)
+      (ExpBounds.monotone _ _ (R.leReplace _ _ _ _ (Laws.fieldMulComm q (Powers.natural m)) (Laws.fieldMulComm q a)
+        (Estimates.mulMonotone q _ _ (Order.leOfLt _ _ qPositive) (Order.leOfLt _ _ (Natural.naturalStep m))))));
+\definition polynomialBound: R.Le (Powers.power b m) (Real.mul (Powers.power k m) (Exp.value (Real.mul Real.half b))) :=
+  R.leReplaceLeft _ _ _
+    (trans!{Real.Real} _ _ _ (sym!{Real.Real} _ _ (Numeric.product k q m)) (congr!{Real.Real Real.Real} (\fun (r: Real.Real) => Powers.power r m) _ _ kq))
+    (Estimates.mulMonotone _ _ _ (Numeric.nonnegative k kNonnegative m) powerBound);
+\definition exponentialCancellation: Real.mul (Exp.value (Real.mul Real.half b)) (Exp.value (Real.neg (Real.mul Real.half t))) = Exp.value Real.half := eq_reason_in!{Real.Real _
+  "=" _ "by" { sym!{Real.Real} _ _ (Exp.addition _ _) }
+  "=" _ "by" { congr!{Real.Real Real.Real} Exp.value _ _
+    (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (\fun (r: Real.Real) => Real.add r (Real.neg (Real.mul Real.half t))) _ _
+      (trans!{Real.Real} _ _ _ (Laws.fieldMulAdd Real.half Real.one t) (congr!{Real.Real Real.Real} (\fun (r: Real.Real) => Real.add r (Real.mul Real.half t)) _ _ (Algebra.mulOneRight Real.half))))
+      (Laws.addNegCancelRight (Real.mul Real.half t) Real.half)) }
+};
+\definition bound: R.Le (Real.mul (Powers.power b m) (Exp.value (Real.neg (Real.mul Real.half t)))) (Real.mul (Powers.power k m) (Exp.value Real.half)) :=
+  R.leReplaceRight _ _ _
+    (trans!{Real.Real} _ _ _ (Laws.fieldMulAssoc (Powers.power k m) _ _)
+      (congr!{Real.Real Real.Real} (Real.mul (Powers.power k m)) _ _ exponentialCancellation))
+    (R.leReplace _ _ _ _ (Laws.fieldMulComm _ _) (Laws.fieldMulComm _ _)
+      (Estimates.mulMonotone _ _ _ (Order.leOfLt _ _ (Exp.positive _)) polynomialBound));

@@ -1,0 +1,43 @@
+\import I.Absolute[] \as Absolute;
+\import I.SimpleLaws[] \as Simple;
+\definition coefficient: Scaling.NonnegativeScalar := \into[Real.Real](c, Scaling.NonnegativeScalar) \by { nonnegative };
+\definition absoluteIntegral: Real.Real := I.integral (Absolute.representative f);
+\definition absoluteSup: Complete.LeastUpperBound[J.lowerIntegral (\fun (x: A) => Product.abs (f x)), Real.mul c absoluteIntegral] :=
+  \idelim M.scale c (I.lowerIntegral (\fun (x: A) => Product.abs (f x))) = J.lowerIntegral (\fun (x: A) => Product.abs (f x))
+    \with v: M.Value => Complete.LeastUpperBound[v, Real.mul c absoluteIntegral] \by {
+      base: Scaling.supScale coefficient _ absoluteIntegral (Simple.lowerNonnegative _)
+        (Absolute.nonnegativeIntegralSup (Absolute.representative f) absoluteIntegral (\fun (x: A) => Product.absNonnegative (f x)) (I.integralLaw (Absolute.representative f))),
+      equality: sym!{M.Value} _ _ (lower (\fun (x: A) => Product.abs (f x)))
+    };
+\definition integrable: J.Integrable f := Logic.And[_, _]::# (I.integralLaw f).integrable.left
+  (Logic.And[_, _]::# (\fun (x: A) => Product.absNonnegative (f x))
+    (Logic.existsIntro[Real.Real, { b: Real.Real \where J.IntegralBound[(\fun (x: A) => Product.abs (f x)), b] }] (Real.mul c absoluteIntegral)
+      (J.IntegralBound[(\fun (x: A) => Product.abs (f x)), Real.mul c absoluteIntegral] {
+        nonnegative := Laws.fieldMulNonnegative _ _ nonnegative (Absolute.absoluteIntegralNonnegative f), bound := absoluteSup.upper,
+      })));
+\definition value: J.Representatives := \into[A -> Real.Real](f, J.Representatives) \by { integrable };
+\definition hasIntegral: J.HasIntegral[f, Real.mul c (I.integral f)] := J.HasIntegral[f, Real.mul c (I.integral f)] {
+  integrable := integrable,
+  parts := \block {
+    \takefrom p: \Cast[Real.Real] ({ p: Real.Real \where \exists ( q: Real.Real \where I.Parts[f, I.integral f, p, q] ) }) \by (I.integralLaw f).parts \then
+    \takefrom q: \Cast[Real.Real] ({ q: Real.Real \where I.Parts[f, I.integral f, p, q] })
+      \by (\bysub(Real.Real, { p: Real.Real \where \exists ( q: Real.Real \where I.Parts[f, I.integral f, p, q] ) }, p)) \then
+    \let parts: I.Parts[f, I.integral f, p, q] := \bysub(Real.Real, { q: Real.Real \where I.Parts[f, I.integral f, p, q] }, q) \then
+    \return Logic.existsIntro[Real.Real, { p: Real.Real \where \exists ( q: Real.Real \where J.Parts[f, Real.mul c (I.integral f), p, q] ) }] (Real.mul c p)
+      (Logic.existsIntro[Real.Real, { q: Real.Real \where J.Parts[f, Real.mul c (I.integral f), Real.mul c p, q] }] (Real.mul c q)
+        (J.Parts[f, Real.mul c (I.integral f), Real.mul c p, Real.mul c q] {
+          positiveLaw := \idelim M.scale c (I.lowerIntegral (I.positivePart f)) = J.lowerIntegral (J.positivePart f)
+            \with v: M.Value => Complete.LeastUpperBound[v, Real.mul c p] \by {
+              base: Scaling.supScale coefficient _ p (Simple.lowerNonnegative _) parts.positiveLaw,
+              equality: sym!{M.Value} _ _ (lower (I.positivePart f))
+            },
+          negativeLaw := \idelim M.scale c (I.lowerIntegral (I.negativePart f)) = J.lowerIntegral (J.negativePart f)
+            \with v: M.Value => Complete.LeastUpperBound[v, Real.mul c q] \by {
+              base: Scaling.supScale coefficient _ q (Simple.lowerNonnegative _) parts.negativeLaw,
+              equality: sym!{M.Value} _ _ (lower (I.negativePart f))
+            },
+          difference := trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (Real.mul c) _ _ parts.difference) (Algebra.mulSub c p q),
+        }))
+  },
+};
+\definition integral: J.integral value = Real.mul c (I.integral f) := J.integralUnique f (J.integral value) (Real.mul c (I.integral f)) (J.integralLaw value) hasIntegral;

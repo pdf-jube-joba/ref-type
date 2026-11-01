@@ -1,0 +1,72 @@
+\import \root.ComplexCalculus[] \as Calculus;
+\import complex.Complex[] \as C;
+\import C.Def[] \as D;
+\import C.Prop[] \as CL;
+\import real.Analysis[] \as Real;
+\import Real.Algebra[] \as Algebra;
+\import Real.Distance[] \as Distance;
+\import Real.Estimates[] \as Estimates;
+\import Estimates.Product[] \as Product;
+\import dedekind_reals.DedekindReal[] \as R;
+\import R.Arithmetic[].Prop[] \as Laws;
+\import R.Order[] \as Order;
+\import calculus.Real[] \as Reals;
+\import Reals.Derivative[].Def[] \as Derivatives;
+\import Reals.Derivative[].Operations[] \as Operations;
+\import Reals.Derivative[].Prop[] \as Basic;
+\import Reals.Derivative[].Product[] \as Products;
+\import std.Data[].Nat[] \as N;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.congr;
+\use Equality.trans;
+\use Equality.sym;
+\use Equality.eq_reason_in;
+\use Logic.either;
+\definition Scalar: \Set := Real.Real;
+\definition Positive: \Set := lp_spaces.Exponential[].Positive;
+\definition Inside[r, t: Scalar]: \Prop := Logic.And[R.Lt (Real.neg r) t, R.Lt t r];
+\definition rotate[z: C.Complex]: C.Complex := C.make (Real.neg (C.im z)) (C.re z);
+\definition rotateAsProduct[z: C.Complex]: D.mul D.i z = rotate z := CL.ext (D.mul D.i z) (rotate z)
+  (trans!{Scalar} _ _ _ (congr!{Scalar Scalar Scalar} Real.sub _ _ _ _ (Laws.fieldMulZeroLeft _) (Laws.fieldMulOneLeft _)) (Laws.addZeroLeft _))
+  (trans!{Scalar} _ _ _ (congr!{Scalar Scalar Scalar} Real.add _ _ _ _ (Laws.fieldMulZeroLeft _) (Laws.fieldMulOneLeft _)) (Laws.addZeroLeft _));
+\structure Patch: \Set := {
+  radius: Positive,
+  value: Scalar -> C.Complex,
+  atZero: value Real.zero = D.one,
+  derivative: \forall (t: Scalar) -> Inside radius t -> Calculus.HasDerivativeAt value t (rotate (value t)),
+};
+\definition halfTwice[z: C.Complex]: D.add (D.scale Real.half z) (D.scale Real.half z) = z :=
+  CL.ext _ _ (Estimates.halfTwice (C.re z)) (Estimates.halfTwice (C.im z));
+\definition halfProduct[z: C.Complex]: D.mul (D.scale Real.half (rotate z)) z = D.scale Real.half (rotate (D.mul z z)) := eq_reason_in!{C.Complex _
+  "=" _ "by" { CL.scaleMulLeft Real.half (rotate z) z }
+  "=" _ "by" { congr!{C.Complex C.Complex} (\fun (v: C.Complex) => D.scale Real.half (D.mul v z)) _ _ (sym!{C.Complex} _ _ (rotateAsProduct z)) }
+  "=" _ "by" { congr!{C.Complex C.Complex} (D.scale Real.half) _ _ (CL.mulAssoc D.i z z) }
+  "=" _ "by" { congr!{C.Complex C.Complex} (D.scale Real.half) _ _ (rotateAsProduct (D.mul z z)) }
+};
+\definition doubledDerivative[z: C.Complex]:
+  D.add (D.mul (D.scale Real.half (rotate z)) z) (D.mul z (D.scale Real.half (rotate z))) = rotate (D.mul z z) :=
+  trans!{C.Complex} _ _ _ (congr!{C.Complex C.Complex C.Complex} D.add _ _ _ _ (halfProduct z)
+    (trans!{C.Complex} _ _ _ (CL.mulComm _ _) (halfProduct z))) (halfTwice _);
+\definition normDerivative[f: Calculus.Function][t: Scalar]: Calculus.HasDerivativeAt f t (rotate (f t)) ->
+  Derivatives.HasDerivativeAt (\fun (s: Scalar) => D.normSq (f s)) t Real.zero :=
+  \fun (law: Calculus.HasDerivativeAt f t (rotate (f t))) => \idelim
+    Real.add (Real.add (Real.mul (Real.neg (C.im (f t))) (C.re (f t))) (Real.mul (C.re (f t)) (Real.neg (C.im (f t)))))
+      (Real.add (Real.mul (C.re (f t)) (C.im (f t))) (Real.mul (C.im (f t)) (C.re (f t)))) = Real.zero
+    \with v: Scalar => Derivatives.HasDerivativeAt (\fun (s: Scalar) => D.normSq (f s)) t v \by {
+      base: Operations.addDerivative _ _ t _ _
+        (Products.derivative _ _ t _ _ law.real law.real) (Products.derivative _ _ t _ _ law.imaginary law.imaginary),
+      equality: trans!{Scalar} _ _ _
+        (congr!{Scalar Scalar Scalar} Real.add _ _ _ _
+          (trans!{Scalar} _ _ _ (congr!{Scalar Scalar Scalar} Real.add _ _ _ _
+            (Laws.fieldMulNegLeft _ _) (Laws.fieldMulNegRight _ _))
+            (sym!{Scalar} _ _ (Laws.negAdd _ _)))
+          (Laws.addComm _ _))
+        (Laws.addNegLeft _)
+    };
+\module Constant(radius: Positive, function: Scalar -> Scalar);
+\module Seed;
+\module Double(patch: Patch);
+\module Pair(left, right: Patch);
+\module Growing(seed: Patch);
+\module Global;

@@ -1,0 +1,19 @@
+\import Real.Geometric[q := Real.half] \as Halves;
+\import \parent.Seed[] \as Seed;
+\definition patches: N.Nat^ -> Patch := \induction (k: N.Nat^) \return Patch \with {
+  | zero: seed
+  | succ: \fun (k: N.Nat^)(previous: Patch) => \parent.Double[patch := previous].double
+};
+\definition scaleRadius: \forall (k: N.Nat^) -> Real.mul (Halves.value k) ((patches k).radius) = seed.radius :=
+  \induction (k: N.Nat^) \return Real.mul (Halves.value k) ((patches k).radius) = seed.radius \with {
+    | zero: Laws.fieldMulOneLeft seed.radius
+    | succ: \fun (k: N.Nat^)(previous: _) => trans!{Scalar} _ _ _
+      (Laws.fieldMulAssoc Real.half (Halves.value k) ((patches (N.Nat^::succ k)).radius))
+      (trans!{Scalar} _ _ _ (Algebra.mulSwap Real.half (Halves.value k) ((patches (N.Nat^::succ k)).radius))
+        (trans!{Scalar} _ _ _
+          (congr!{Scalar Scalar} (Real.mul (Halves.value k)) _ _ (\parent.Double[patch := patches k].halfRadius)) previous))
+  };
+\definition seedPositive: R.Lt Real.zero seed.radius := \bysub(Scalar, { r: Scalar \where R.Lt Real.zero r }, seed.radius);
+\module At(t: Scalar);
+\definition containing: \forall (t: Scalar) -> \exists ( patch: Patch \where Inside patch.radius t ) :=
+  \fun (t: Scalar) => At[t := t].existsPatch;

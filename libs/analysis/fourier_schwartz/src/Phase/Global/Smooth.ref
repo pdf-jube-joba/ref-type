@@ -1,0 +1,45 @@
+\import Reals.OneDimension[] \as One;
+\import Reals.Multivariable[n := One.dimension].Open[] \as Open;
+\import One.On[U := Open.whole] \as Lift;
+\import Open.Smooth[] \as Smooth;
+\import Open.Analysis[] \as Analysis;
+\definition iterated: N.Nat^ -> Calculus.Function := \induction (k: N.Nat^) \return Calculus.Function \with {
+  | zero: value
+  | succ: \fun (k: N.Nat^)(previous: Calculus.Function) => \fun (t: Scalar) => rotate (previous t)
+};
+\definition regular: \forall (k: N.Nat^)(t: Scalar) -> Calculus.HasDerivativeAt (iterated k) t (rotate (iterated k t)) :=
+  \induction (k: N.Nat^) \return \forall (t: Scalar) -> Calculus.HasDerivativeAt (iterated k) t (rotate (iterated k t)) \with {
+    | zero: derivative
+    | succ: \fun (k: N.Nat^)(previous: \forall (t: Scalar) -> Calculus.HasDerivativeAt (iterated k) t (rotate (iterated k t)))(t: Scalar) => Calculus.DerivativeLaws[iterated (N.Nat^::succ k), t, rotate (iterated (N.Nat^::succ k) t)] {
+      real := Operations.negDerivative _ t _ (previous t).imaginary,
+      imaginary := (previous t).real,
+    }
+  };
+\definition realFunction: Open.ScalarFunction Open.whole := Lift.lift (\fun (t: Scalar) => C.re (value t));
+\definition imaginaryFunction: Open.ScalarFunction Open.whole := Lift.lift (\fun (t: Scalar) => C.im (value t));
+\definition realFamily[directions: Smooth.Directions]: Open.ScalarFunction Open.whole := Lift.lift (\fun (t: Scalar) => C.re (iterated (Smooth.order directions) t));
+\definition imaginaryFamily[directions: Smooth.Directions]: Open.ScalarFunction Open.whole := Lift.lift (\fun (t: Scalar) => C.im (iterated (Smooth.order directions) t));
+\definition realContDiff[k: N.Nat^]: Smooth.ContDiffOn Open.whole k realFunction :=
+  Logic.existsIntro[Smooth.PartialFamily Open.whole, { jet: Smooth.PartialFamily Open.whole \where Smooth.ContDiffLaws[Open.whole, realFunction, k, jet] }] realFamily
+    (Smooth.ContDiffLaws[Open.whole, realFunction, k, realFamily] {
+      partials := Smooth.PartialFamilyLaws[Open.whole, realFunction, k, realFamily] {
+        function := \refl(realFunction),
+        derivative := \fun (directions: Smooth.Directions)(bound: _)(i: One.Index)(a: Open.Carrier Open.whole) =>
+          Lift.partialAt (\fun (t: Scalar) => C.re (iterated (Smooth.order directions) t)) a _ (regular (Smooth.order directions) (a One.index)).real i,
+      },
+      continuous := \fun (directions: Smooth.Directions)(bound: _)(a: Open.Carrier Open.whole) => Lift.continuousAt _ a
+        (Operations.continuousOfDerivative _ (a One.index) _ (regular (Smooth.order directions) (a One.index)).real),
+    });
+\definition imaginaryContDiff[k: N.Nat^]: Smooth.ContDiffOn Open.whole k imaginaryFunction :=
+  Logic.existsIntro[Smooth.PartialFamily Open.whole, { jet: Smooth.PartialFamily Open.whole \where Smooth.ContDiffLaws[Open.whole, imaginaryFunction, k, jet] }] imaginaryFamily
+    (Smooth.ContDiffLaws[Open.whole, imaginaryFunction, k, imaginaryFamily] {
+      partials := Smooth.PartialFamilyLaws[Open.whole, imaginaryFunction, k, imaginaryFamily] {
+        function := \refl(imaginaryFunction),
+        derivative := \fun (directions: Smooth.Directions)(bound: _)(i: One.Index)(a: Open.Carrier Open.whole) =>
+          Lift.partialAt (\fun (t: Scalar) => C.im (iterated (Smooth.order directions) t)) a _ (regular (Smooth.order directions) (a One.index)).imaginary i,
+      },
+      continuous := \fun (directions: Smooth.Directions)(bound: _)(a: Open.Carrier Open.whole) => Lift.continuousAt _ a
+        (Operations.continuousOfDerivative _ (a One.index) _ (regular (Smooth.order directions) (a One.index)).imaginary),
+    });
+\definition realSmooth: Smooth.SmoothOn Open.whole realFunction := realContDiff;
+\definition imaginarySmooth: Smooth.SmoothOn Open.whole imaginaryFunction := imaginaryContDiff;

@@ -1,0 +1,23 @@
+\import \root.Euclidean[n := n] \as Base;
+\import calculus.Real[].OneDimension[] \as One;
+\import calculus.Real[].Multivariable[n := One.dimension].Open[] \as Source;
+\import Source.Smooth[].Operations[] \as Operations;
+\import Source.Examples[] \as Examples;
+\import One.On[U := Source.whole] \as Lift;
+\import calculus.Maps[n := One.dimension, m := n] \as Maps;
+\import calculus.Real[].Derivative[].Def[] \as Derivative;
+\import calculus.Real[].Derivative[].Operations[] \as Derivatives;
+\import calculus.Real[].Limit[].Def[] \as Limit;
+\definition point[t: Real.Real]: Point := Coordinates.addPoint b (Coordinates.scale t v);
+\definition map: Maps.Map Source.whole Open.whole := \into[Maps.Data[Source.whole, Open.whole]](Maps.Data[Source.whole, Open.whole] { apply := \fun (s: Source.Carrier Source.whole) => Whole.point (point (s One.index)) }, Maps.Map Source.whole Open.whole) \by {
+  Maps.Laws[Source.whole, Open.whole, Maps.Data[Source.whole, Open.whole]::# (\fun (s: Source.Carrier Source.whole) => Whole.point (point (s One.index)))] {
+    smooth := \fun (i: Coordinate) => Operations.addSmooth Source.whole _ _ (Operations.constantSmooth Source.whole (b i))
+      (Operations.mulSmooth Source.whole _ _ (Examples.projectionSmooth Source.whole One.index) (Operations.constantSmooth Source.whole (v i))),
+  }
+};
+\import Maps.Composition[U := Source.whole, V := Open.whole, f := map] \as Composition;
+\definition function[t: Real.Real]: Real.Real := Base.value f (point t);
+\definition source[t: Real.Real]: Source.Carrier Source.whole := \into[calculus.Real[].Multivariable[n := One.dimension].Point]((\fun (j: One.Index) => t), Source.whole.points) \by { \refl(\fun (j: One.Index) => t) };
+\definition differential[t: Real.Real]: Real.Real := Composition.gradient f One.index (source t);
+\definition derivative[t: Real.Real]: Derivative.HasDerivativeAt function t (differential t) := Lift.derivativeAt function (source t) (differential t) (Composition.partials f One.index (source t));
+\definition continuous[t: Real.Real]: Limit.ContinuousAt function t := Derivatives.continuousOfDerivative function t (differential t) (derivative t);

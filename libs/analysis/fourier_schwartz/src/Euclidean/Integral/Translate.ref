@@ -1,0 +1,25 @@
+\import product_integration.Euclidean[n := n] \as Integration;
+\import product_integration.MeasureMap[A := Point, B := Point, source := Lebesgue.measure, target := Lebesgue.measure].On[map := Integration.translation (Coordinates.negPoint a)] \as Map;
+\import Map.RealFunction[f := Complex.realPart f] \as Re;
+\import Map.RealFunction[f := Complex.imaginaryPart f] \as Im;
+\definition function[x: Point]: C.Complex := f (Coordinates.addPoint a x);
+\definition point[x: Point]: Coordinates.subPoint x (Coordinates.negPoint a) = Coordinates.addPoint a x :=
+  \axiom:funext(Coordinates.subPoint x (Coordinates.negPoint a), Coordinates.addPoint a x, \fun (i: Coordinate) =>
+    trans!{Real.Real} _ _ _ (Algebra.subNeg (x i) (a i)) (Laws.addComm (x i) (a i)));
+\definition real: I.Integrable (\fun (x: Point) => C.re (function x)) :=
+  \idelim Re.function = (\fun (x: Point) => C.re (function x)) \with h: (Point -> Real.Real) => I.Integrable h \by {
+    base: Re.integrable,
+    equality: \axiom:funext(Re.function, (\fun (x: Point) => C.re (function x)), \fun (x: Point) => congr!{Point Real.Real} (\fun (p: Point) => C.re (f p)) _ _ (point x))
+  };
+\definition imaginary: I.Integrable (\fun (x: Point) => C.im (function x)) :=
+  \idelim Im.function = (\fun (x: Point) => C.im (function x)) \with h: (Point -> Real.Real) => I.Integrable h \by {
+    base: Im.integrable,
+    equality: \axiom:funext(Im.function, (\fun (x: Point) => C.im (function x)), \fun (x: Point) => congr!{Point Real.Real} (\fun (p: Point) => C.im (f p)) _ _ (point x))
+  };
+\definition value: Input := \into[Complex.Function](function, Input) \by { Logic.And[_, _]::# real imaginary };
+\import lp_spaces.On[A := Point, mu := Lebesgue.measure].One[].Norm[] \as Equal;
+\definition integral: Complex.integral value = Complex.integral f := C.Prop[].ext _ _
+  (trans!{Real.Real} _ _ _ (Equal.integralPointwise (Complex.realPart value) Re.representative
+    (\fun (x: Point) => congr!{Point Real.Real} (\fun (p: Point) => C.re (f p)) _ _ (sym!{Point} _ _ (point x)))) Re.integral)
+  (trans!{Real.Real} _ _ _ (Equal.integralPointwise (Complex.imaginaryPart value) Im.representative
+    (\fun (x: Point) => congr!{Point Real.Real} (\fun (p: Point) => C.im (f p)) _ _ (sym!{Point} _ _ (point x)))) Im.integral);

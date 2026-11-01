@@ -1,0 +1,69 @@
+\import \parent.Seed[] \as Seed;
+\definition patchExists[t: Scalar]: \exists ( patch: Patch \where Inside patch.radius t ) := \block {
+  \takefrom seed: Patch \by Seed.existsPatch \then
+  \return \parent.Growing[seed := seed].containing t
+};
+\definition ValueLaw[t: Scalar][y: C.Complex]: \Prop := \forall (patch: Patch) -> Inside patch.radius t -> y = patch.value t;
+\definition Value[t: Scalar]: \Set := \Cast[C.Complex] ({ y: C.Complex \where ValueLaw t y });
+\definition existsValue[t: Scalar]: \exists Value t := \block {
+  \takefrom patch: \Cast[Patch] ({ p: Patch \where Inside p.radius t }) \by patchExists t \then
+  \let inside: Inside patch.radius t := \bysub(Patch, { p: Patch \where Inside p.radius t }, patch) \then
+  \return Logic.existsIntro[C.Complex, { y: C.Complex \where ValueLaw t y }] (patch.value t)
+    (\fun (other: Patch)(member: _) => \parent.Pair[left := patch, right := other].agreement t inside member)
+};
+\definition uniqueValue[t: Scalar][left, right: Value t]: left = right := \block {
+  \takefrom patch: \Cast[Patch] ({ p: Patch \where Inside p.radius t }) \by patchExists t \then
+  \let inside: Inside patch.radius t := \bysub(Patch, { p: Patch \where Inside p.radius t }, patch) \then
+  \return trans!{C.Complex} _ _ _ (\bysub(C.Complex, { y: C.Complex \where ValueLaw t y }, left) patch inside)
+    (sym!{C.Complex} _ _ (\bysub(C.Complex, { y: C.Complex \where ValueLaw t y }, right) patch inside))
+};
+\definition value[t: Scalar]: C.Complex := \choice Value t \by { existence: existsValue t, uniqueness: uniqueValue t };
+\definition law[t: Scalar]: ValueLaw t (value t) := \bysub(C.Complex, { y: C.Complex \where ValueLaw t y },
+  \choice Value t \by { existence: existsValue t, uniqueness: uniqueValue t });
+\definition atZero: value Real.zero = D.one := \block {
+  \takefrom patch: Patch \by Seed.existsPatch \then
+  \let positive: R.Lt Real.zero patch.radius := lp_spaces.Exponential[].positive patch.radius \then
+  \return trans!{C.Complex} _ _ _ (law Real.zero patch (Logic.And[_, _]::# (Laws.negativeNegOfPositive patch.radius positive) positive)) patch.atZero
+};
+\module At(t: Scalar, patch: Patch, inside: Inside patch.radius t);
+\definition derivative[t: Scalar]: Calculus.HasDerivativeAt value t (rotate (value t)) := \block {
+  \takefrom patch: \Cast[Patch] ({ p: Patch \where Inside p.radius t }) \by patchExists t \then
+  \return At[t := t, patch := patch, inside := \bysub(Patch, { p: Patch \where Inside p.radius t }, patch)].derivative
+};
+\import C.Absolute[] \as Absolute;
+\import Real.SquareRoot[] \as Root;
+\module Norm(t: Scalar, patch: Patch, inside: Inside patch.radius t);
+\definition normSquared[t: Scalar]: D.normSq (value t) = Real.one := \block {
+  \takefrom patch: \Cast[Patch] ({ p: Patch \where Inside p.radius t }) \by patchExists t \then
+  \return Norm[t := t, patch := patch, inside := \bysub(Patch, { p: Patch \where Inside p.radius t }, patch)].equation
+};
+\definition modulus[t: Scalar]: Absolute.abs (value t) = Real.one := eq_reason_in!{Scalar _
+  "=" _ "by" { congr!{Scalar Scalar} Root.sqrt _ _ (normSquared t) }
+  "=" _ "by" { congr!{Scalar Scalar} Root.sqrt _ _ (sym!{Scalar} _ _ (Laws.fieldMulOneLeft Real.one)) }
+  "=" _ "by" { Root.sqrtSquared Real.one Laws.oneNonnegative }
+};
+\definition conjugateProduct[t: Scalar]: D.mul (D.conj (value t)) (value t) = D.one :=
+  trans!{C.Complex} _ _ _ (CL.conjMulSelf (value t)) (congr!{Scalar C.Complex} D.ofReal _ _ (normSquared t));
+\definition rightConjugateProduct[t: Scalar]: D.mul (value t) (D.conj (value t)) = D.one :=
+  trans!{C.Complex} _ _ _ (CL.mulComm _ _) (conjugateProduct t);
+\definition rotateRight[z, w: C.Complex]: D.mul z (rotate w) = rotate (D.mul z w) := eq_reason_in!{C.Complex _
+  "=" _ "by" { congr!{C.Complex C.Complex} (D.mul z) _ _ (sym!{C.Complex} _ _ (rotateAsProduct w)) }
+  "=" _ "by" { CL.mulSwap z D.i w }
+  "=" _ "by" { rotateAsProduct (D.mul z w) }
+};
+\definition scaleOne[z: C.Complex]: D.scale Real.one z = z := CL.ext _ _ (Laws.fieldMulOneLeft (C.re z)) (Laws.fieldMulOneLeft (C.im z));
+\module Addition(a: Scalar, radius: Positive);
+\definition addition[a, t: Scalar]: value (Real.add a t) = D.mul (value a) (value t) := \block {
+  \takefrom patch: \Cast[Patch] ({ p: Patch \where Inside p.radius t }) \by patchExists t \then
+  \return Addition[a := a, radius := patch.radius].equation t patch (\bysub(Patch, { p: Patch \where Inside p.radius t }, patch)) (\refl(patch.radius))
+};
+\definition negative[t: Scalar]: value (Real.neg t) = D.conj (value t) := eq_reason_in!{C.Complex _
+  "=" _ "by" { sym!{C.Complex} _ _ (CL.mulOneLeft (value (Real.neg t))) }
+  "=" _ "by" { congr!{C.Complex C.Complex} (\fun (z: C.Complex) => D.mul z (value (Real.neg t))) _ _ (sym!{C.Complex} _ _ (conjugateProduct t)) }
+  "=" _ "by" { CL.mulAssoc (D.conj (value t)) (value t) (value (Real.neg t)) }
+  "=" _ "by" { congr!{C.Complex C.Complex} (D.mul (D.conj (value t))) _ _ (sym!{C.Complex} _ _ (addition t (Real.neg t))) }
+  "=" _ "by" { congr!{Scalar C.Complex} (\fun (s: Scalar) => D.mul (D.conj (value t)) (value s)) _ _ (Laws.addNegRight t) }
+  "=" _ "by" { congr!{C.Complex C.Complex} (D.mul (D.conj (value t))) _ _ atZero }
+  "=" _ "by" { CL.mulOneRight (D.conj (value t)) }
+};
+\module Smooth;

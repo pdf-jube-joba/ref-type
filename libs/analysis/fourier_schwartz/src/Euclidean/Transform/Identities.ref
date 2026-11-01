@@ -1,0 +1,87 @@
+\import \root.Euclidean[n := n] \as Base;
+\import \root.Euclidean[n := n].Transform[] \as Transform;
+\import \parent.\parent.IntegrationByParts[] \as Parts;
+\import \parent.\parent.Modulation[] \as Modulation;
+\import Fourier.Identities[] \as Integrals;
+\definition pointwise[f, g: S.Function]: (\forall (x: Point) -> S.value f x = S.value g x) -> \forall (xi: Point) -> function f xi = function g xi :=
+  \fun (same: _)(xi: Point) => Integrals.integralPointwise (Fourier.section (Integrability.complex f) xi) (Fourier.section (Integrability.complex g) xi)
+    (\fun (x: Point) => congr!{C.Complex C.Complex} (\fun (z: C.Complex) => D.mul z (Kernel.value x xi)) _ _ (same x));
+\definition addition[f, g: S.Function][xi: Point]: function (S.add f g) xi = D.add (function f xi) (function g xi) :=
+  trans!{C.Complex} _ _ _
+    (Integrals.integralPointwise (Fourier.section (Integrability.complex (S.add f g)) xi)
+      (Fourier.section (CI.addRepresentative (Integrability.complex f) (Integrability.complex g)) xi) (\fun (x: Point) => \refl(D.mul (S.value (S.add f g) x) (Kernel.value x xi))))
+    (Integrals.addition (Integrability.complex f) (Integrability.complex g) xi);
+\definition scalar[c: C.Complex][f: S.Function][xi: Point]: function (S.scale c f) xi = D.mul c (function f xi) :=
+  trans!{C.Complex} _ _ _
+    (Integrals.integralPointwise (Fourier.section (Integrability.complex (S.scale c f)) xi)
+      (Fourier.section (CI.complexScalarRepresentative c (Integrability.complex f)) xi)
+      (\fun (x: Point) => congr!{C.Complex C.Complex} (\fun (z: C.Complex) => D.mul z (Kernel.value x xi)) _ _ (S.jetScale c f Directions::nil x)))
+    (Integrals.scalar c (Integrability.complex f) xi);
+\definition zeroDerivative[f: S.Function][i: Coordinate]: CI.integral (Integrability.complex (S.partial f i)) = D.zero := CL.ext _ _
+  (Parts.integralDerivative f.real i) (Parts.integralDerivative f.imaginary i);
+\definition modulatedDerivative[f: S.Function][xi: Point][i: Coordinate]: function (Modulation.input f xi i) xi = D.zero :=
+  trans!{C.Complex} _ _ _
+    (Integrals.integralPointwise (Fourier.section (Integrability.complex (Modulation.input f xi i)) xi)
+      (Integrability.complex (S.partial (Modulation.function f xi) i))
+      (\fun (x: Point) => CL.ext _ _
+        (sym!{Real.Real} _ _ (congr!{Function Real.Real} (\fun (h: Function) => Base.value h x) _ _ (Modulation.realPartial f xi i)))
+        (sym!{Real.Real} _ _ (congr!{Function Real.Real} (\fun (h: Function) => Base.value h x) _ _ (Modulation.imaginaryPartial f xi i)))))
+    (zeroDerivative (Modulation.function f xi) i);
+\definition sumZero[f: S.Function][xi: Point][i: Coordinate]:
+  D.add (function (S.partial f i) xi) (D.mul (D.scale (Real.neg (xi i)) D.i) (function f xi)) = D.zero :=
+  trans!{C.Complex} _ _ _
+    (sym!{C.Complex} _ _ (trans!{C.Complex} _ _ _ (addition (S.partial f i) (S.scale (D.scale (Real.neg (xi i)) D.i) f) xi)
+      (congr!{C.Complex C.Complex} (D.add (function (S.partial f i) xi)) _ _ (scalar (D.scale (Real.neg (xi i)) D.i) f xi))))
+    (modulatedDerivative f xi i);
+\definition spatialDerivative[f: S.Function][xi: Point][i: Coordinate]:
+  function (S.partial f i) xi = D.scale (xi i) (\root.Phase[].rotate (function f xi)) := eq_reason_in!{C.Complex _
+    "=" _ "by" { Scalars.sumZero _ _ (sumZero f xi i) }
+    "=" _ "by" { congr!{C.Complex C.Complex} D.neg _ _ (CL.scaleMulLeft (Real.neg (xi i)) D.i (function f xi)) }
+    "=" _ "by" { congr!{C.Complex C.Complex} (\fun (z: C.Complex) => D.neg (D.scale (Real.neg (xi i)) z)) _ _ (\root.Phase[].rotateAsProduct (function f xi)) }
+    "=" _ "by" { Scalars.negateScale (xi i) (\root.Phase[].rotate (function f xi)) }
+  };
+
+\definition realScalar[c: Real.Real][f: S.Function][xi: Point]: function (S.realScale c f) xi = D.scale c (function f xi) :=
+  trans!{C.Complex} _ _ _
+    (Integrals.integralPointwise (Fourier.section (Integrability.complex (S.realScale c f)) xi)
+      (CI.scalarRepresentative c (Fourier.section (Integrability.complex f) xi))
+      (\fun (x: Point) => CL.scaleMulLeft c (S.value f x) (Kernel.value x xi)))
+    (CI.integralScalar c (Fourier.section (Integrability.complex f) xi));
+\definition zero[xi: Point]: function S.zero xi = D.zero := trans!{C.Complex} _ _ _
+  (pointwise S.zero (S.scale D.zero S.zero) (\fun (x: Point) => trans!{C.Complex} _ _ _ (S.zeroJet Directions::nil x)
+    (sym!{C.Complex} _ _ (trans!{C.Complex} _ _ _ (S.jetScale D.zero S.zero Directions::nil x) (CL.mulZeroLeft (S.value S.zero x))))) xi)
+  (trans!{C.Complex} _ _ _ (scalar D.zero S.zero xi) (CL.mulZeroLeft (function S.zero xi)));
+\definition secondDerivative[f: S.Function][xi: Point][i: Coordinate]: function (S.partial (S.partial f i) i) xi = D.scale (Real.neg (Real.mul (xi i) (xi i))) (function f xi) :=
+  trans!{C.Complex} _ _ _ (spatialDerivative (S.partial f i) xi i)
+    (trans!{C.Complex} _ _ _ (congr!{C.Complex C.Complex} (\fun (z: C.Complex) => D.scale (xi i) (\root.Phase[].rotate z)) _ _ (spatialDerivative f xi i))
+      (Scalars.doubleRotation (xi i) (function f xi)));
+\definition negativeSecondDerivative[f: S.Function][xi: Point][i: Coordinate]:
+  function (S.realScale (Real.neg Real.one) (S.partial (S.partial f i) i)) xi = D.scale (Real.mul (xi i) (xi i)) (function f xi) := eq_reason_in!{C.Complex _
+    "=" _ "by" { realScalar (Real.neg Real.one) (S.partial (S.partial f i) i) xi }
+    "=" _ "by" { congr!{C.Complex C.Complex} (D.scale (Real.neg Real.one)) _ _ (secondDerivative f xi i) }
+    "=" _ "by" { Scalars.scaleCompose (Real.neg Real.one) (Real.neg (Real.mul (xi i) (xi i))) (function f xi) }
+    "=" _ "by" { congr!{Real.Real C.Complex} (\fun (a: Real.Real) => D.scale a (function f xi)) _ _
+      (trans!{Real.Real} _ _ _ (Laws.fieldMulNegBoth Real.one (Real.mul (xi i) (xi i))) (Laws.fieldMulOneLeft (Real.mul (xi i) (xi i)))) }
+  };
+
+\import \parent.\parent.Translation[].Complex[] \as Translation;
+\definition translation[f: S.Function][a, xi: Point]: function (Translation.translate a f) xi = D.mul (Kernel.value (Coordinates.negPoint a) xi) (function f xi) :=
+  trans!{C.Complex} _ _ _
+    (Integrals.integralPointwise (Fourier.section (Integrability.complex (Translation.translate a f)) xi)
+      (Fourier.Translate[a := a, f := CI.complexScalarRepresentative (Kernel.value (Coordinates.negPoint a) xi) (Fourier.section (Integrability.complex f) xi)].value)
+      (\fun (x: Point) => sym!{C.Complex} _ _ (eq_reason_in!{C.Complex _
+        "=" _ "by" { sym!{C.Complex} _ _ (CL.mulAssoc (Kernel.value (Coordinates.negPoint a) xi) (S.value f (Coordinates.addPoint a x)) (Kernel.value (Coordinates.addPoint a x) xi)) }
+        "=" _ "by" { congr!{C.Complex C.Complex} (\fun (z: C.Complex) => D.mul z (Kernel.value (Coordinates.addPoint a x) xi)) _ _ (CL.mulComm (Kernel.value (Coordinates.negPoint a) xi) (S.value f (Coordinates.addPoint a x))) }
+        "=" _ "by" { CL.mulAssoc _ _ _ }
+        "=" _ "by" { congr!{C.Complex C.Complex} (D.mul (S.value f (Coordinates.addPoint a x))) _ _ (Kernel.translate a x xi) }
+      })))
+    (trans!{C.Complex} _ _ _
+      (Fourier.Translate[a := a, f := CI.complexScalarRepresentative (Kernel.value (Coordinates.negPoint a) xi) (Fourier.section (Integrability.complex f) xi)].integral)
+      (CI.integralComplexScalar (Kernel.value (Coordinates.negPoint a) xi) (Fourier.section (Integrability.complex f) xi)));
+
+\definition coordinateReal[f: S.Function][i: Coordinate][xi: Point]: Base.value (Differential.apply i (realFunction f)) xi = C.re (D.mul (D.neg D.i) (function (S.coordinate f i) xi)) :=
+  trans!{Real.Real} _ _ _ (congr!{Function Real.Real} (\fun (h: Function) => Base.value h xi) _ _ (realJet f (Directions::cons i Directions::nil)))
+    (congr!{C.Complex Real.Real} C.re _ _ (scalar (D.neg D.i) (S.coordinate f i) xi));
+\definition coordinateImaginary[f: S.Function][i: Coordinate][xi: Point]: Base.value (Differential.apply i (imaginaryFunction f)) xi = C.im (D.mul (D.neg D.i) (function (S.coordinate f i) xi)) :=
+  trans!{Real.Real} _ _ _ (congr!{Function Real.Real} (\fun (h: Function) => Base.value h xi) _ _ (imaginaryJet f (Directions::cons i Directions::nil)))
+    (congr!{C.Complex Real.Real} C.im _ _ (scalar (D.neg D.i) (S.coordinate f i) xi));

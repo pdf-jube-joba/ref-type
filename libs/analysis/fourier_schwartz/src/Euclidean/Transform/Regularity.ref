@@ -1,0 +1,45 @@
+\import topological_algebra.Euclidean[].Dimension[n := n].Norm[] \as Geometry;
+\import topology.Topology[Carrier := Point] \as Sets;
+\import L.Parametric[B := Point, metric := Geometry.metric] \as Parameters;
+\definition realContinuous[g: S.Function]: Analysis.ContinuousOn Open.whole (\fun (x: Open.Carrier Open.whole) => C.re (function g x)) :=
+  \fun (a: Open.Carrier Open.whole)(epsilon: Real.Real)(positive: _) => \block {
+    \takefrom delta: \Cast[Real.Real] ({ delta: Real.Real \where Parameters.Control[(\fun (b: Point) => C.re (function g b)), a, Sets.Whole, C.re (function g a), epsilon, delta] })
+      \by Fourier.Continuity[f := Integrability.complex g, at := a].real epsilon positive \then
+    \let control: Parameters.Control[(\fun (b: Point) => C.re (function g b)), a, Sets.Whole, C.re (function g a), epsilon, delta] :=
+      \bysub(Real.Real, { delta: Real.Real \where Parameters.Control[(\fun (b: Point) => C.re (function g b)), a, Sets.Whole, C.re (function g a), epsilon, delta] }, delta) \then
+    \return Logic.existsIntro[Real.Real, { delta: Real.Real \where Analysis.ContinuityControl[Open.whole, (\fun (x: Open.Carrier Open.whole) => C.re (function g x)), a, epsilon, delta] }] delta
+      (Analysis.ContinuityControl[Open.whole, (\fun (x: Open.Carrier Open.whole) => C.re (function g x)), a, epsilon, delta] {
+        positive := control.positive, estimate := \fun (x: Open.Carrier Open.whole)(near: _) => control.estimate x (\refl(x)) near,
+      })
+  };
+\definition imaginaryContinuous[g: S.Function]: Analysis.ContinuousOn Open.whole (\fun (x: Open.Carrier Open.whole) => C.im (function g x)) :=
+  \fun (a: Open.Carrier Open.whole)(epsilon: Real.Real)(positive: _) => \block {
+    \takefrom delta: \Cast[Real.Real] ({ delta: Real.Real \where Parameters.Control[(\fun (b: Point) => C.im (function g b)), a, Sets.Whole, C.im (function g a), epsilon, delta] })
+      \by Fourier.Continuity[f := Integrability.complex g, at := a].imaginary epsilon positive \then
+    \let control: Parameters.Control[(\fun (b: Point) => C.im (function g b)), a, Sets.Whole, C.im (function g a), epsilon, delta] :=
+      \bysub(Real.Real, { delta: Real.Real \where Parameters.Control[(\fun (b: Point) => C.im (function g b)), a, Sets.Whole, C.im (function g a), epsilon, delta] }, delta) \then
+    \return Logic.existsIntro[Real.Real, { delta: Real.Real \where Analysis.ContinuityControl[Open.whole, (\fun (x: Open.Carrier Open.whole) => C.im (function g x)), a, epsilon, delta] }] delta
+      (Analysis.ContinuityControl[Open.whole, (\fun (x: Open.Carrier Open.whole) => C.im (function g x)), a, epsilon, delta] {
+        positive := control.positive, estimate := \fun (x: Open.Carrier Open.whole)(near: _) => control.estimate x (\refl(x)) near,
+      })
+  };
+\definition realFamily[d: Directions]: Open.ScalarFunction Open.whole := \fun (x: Open.Carrier Open.whole) => C.re (function (inputs f d) x);
+\definition imaginaryFamily[d: Directions]: Open.ScalarFunction Open.whole := \fun (x: Open.Carrier Open.whole) => C.im (function (inputs f d) x);
+\definition realContDiff[k: N.Nat^]: Smooth.ContDiffOn Open.whole k (realFamily Directions::nil) :=
+  Logic.existsIntro[Smooth.PartialFamily Open.whole, { family: Smooth.PartialFamily Open.whole \where Smooth.ContDiffLaws[Open.whole, realFamily Directions::nil, k, family] }] realFamily
+    (Smooth.ContDiffLaws[Open.whole, realFamily Directions::nil, k, realFamily] {
+      partials := Smooth.PartialFamilyLaws[Open.whole, realFamily Directions::nil, k, realFamily] {
+        function := \refl(realFamily Directions::nil), derivative := \fun (d: Directions)(bound: _)(i: Coordinate) => realPartial (inputs f d) i,
+      },
+      continuous := \fun (d: Directions)(bound: _) => realContinuous (inputs f d),
+    });
+\definition imaginaryContDiff[k: N.Nat^]: Smooth.ContDiffOn Open.whole k (imaginaryFamily Directions::nil) :=
+  Logic.existsIntro[Smooth.PartialFamily Open.whole, { family: Smooth.PartialFamily Open.whole \where Smooth.ContDiffLaws[Open.whole, imaginaryFamily Directions::nil, k, family] }] imaginaryFamily
+    (Smooth.ContDiffLaws[Open.whole, imaginaryFamily Directions::nil, k, imaginaryFamily] {
+      partials := Smooth.PartialFamilyLaws[Open.whole, imaginaryFamily Directions::nil, k, imaginaryFamily] {
+        function := \refl(imaginaryFamily Directions::nil), derivative := \fun (d: Directions)(bound: _)(i: Coordinate) => imaginaryPartial (inputs f d) i,
+      },
+      continuous := \fun (d: Directions)(bound: _) => imaginaryContinuous (inputs f d),
+    });
+\definition real: Smooth.SmoothOn Open.whole (realFamily Directions::nil) := realContDiff;
+\definition imaginary: Smooth.SmoothOn Open.whole (imaginaryFamily Directions::nil) := imaginaryContDiff;

@@ -1,0 +1,49 @@
+\definition baseOne[x: Point]: R.Le Real.one (weightBase x) := Algebra.leAddRight Real.one _ (radiusNonnegative x);
+\definition scalarBound[a: Real.Real]: R.Le (Product.abs a) (Real.add Real.one (Real.mul a a)) :=
+  Logic.orElim _ _ _ (Order.leTotal (Product.abs a) Real.one)
+    (\fun (small: _) => R.leTrans _ Real.one _ small (Algebra.leAddRight _ _ (Algebra.squareNonnegative a)))
+    (\fun (large: _) => R.leTrans _ (Real.mul a a) _
+      (R.leReplaceRight _ _ _ (\root.Scalars[].squareAbs a)
+        (R.leReplaceLeft _ _ _ (Algebra.mulOneRight (Product.abs a))
+          (Estimates.mulMonotone _ _ _ (Product.absNonnegative a) large)))
+      (R.leReplaceRight _ _ _ (Laws.addComm (Real.mul a a) Real.one) (Algebra.leAddRight _ _ Laws.oneNonnegative)));
+\definition normBase[x: Point]: R.Le (Coordinates.norm x) (weightBase x) := Geometry.finiteUpper n x (weightBase x) (weightBaseNonnegative x)
+  (\fun (i: Coordinate) => R.leReplaceLeft _ _ _ (Distance.distanceSymmetric Real.zero (x i))
+    (R.leTrans _ _ _ (scalarBound (x i)) (Laws.addMonotoneLeft _ _ Real.one
+      (Sum.coordinateUpper n (\fun (j: Coordinate) => Real.mul (x j) (x j)) (\fun (j: Coordinate) => Algebra.squareNonnegative (x j)) i))));
+\definition weightOne[m: N.Nat^][x: Point]: R.Le Real.one (weight m x) :=
+  R.leReplaceLeft _ _ _ (Numeric.one m) (Numeric.monotone Real.one (weightBase x) Laws.oneNonnegative (baseOne x) m);
+\definition insideByNorm[k: N.Nat^][x: Point]: R.Le (Coordinates.norm x) (Exhaustion.radius k) -> Sets.Member (E.points (Exhaustion.box k)) x :=
+  \fun (bound: _) => Logic.And[_, _]::# (\refl(std.Data[].Bool[].Bool^::true)) (\fun (i: Coordinate) => \block {
+    \let close: R.Le (Real.distance Real.zero (x i)) (Exhaustion.radius k) := R.leTrans _ _ _
+      (R.leReplaceLeft _ _ _ (Distance.distanceSymmetric (x i) Real.zero) (Geometry.coordinate x i)) bound \then
+    \return Logic.And[_, _]::#
+      (R.leReplaceLeft _ _ _ (Laws.addZeroLeft (Real.neg (Exhaustion.radius k))) (Estimates.distanceLeLower Real.zero (x i) (Exhaustion.radius k) close))
+      (R.leReplaceRight _ _ _ (Laws.addZeroLeft (Exhaustion.radius k)) (Estimates.distanceLeUpper Real.zero (x i) (Exhaustion.radius k) close))
+  });
+\definition outsideRadius[k: N.Nat^][x: Point]: Logic.Not (Sets.Member (E.points (Exhaustion.box k)) x) -> R.Le (Exhaustion.radius k) (weightBase x) :=
+  \fun (outside: _) => Order.leOfNotLtReverse _ _ (\fun (less: R.Lt (weightBase x) (Exhaustion.radius k)) =>
+    outside (insideByNorm k x (R.leTrans _ _ _ (normBase x) (Order.leOfLt _ _ less))));
+\definition coefficientCancellation[k: N.Nat^]: Real.mul (coefficient k) (Powers.power (Exhaustion.radius k) degree) = Real.one :=
+  Numeric.cancellation (Dyadic.value k) (Exhaustion.radius k) (\parent.Term[k := k].cancellation) degree;
+\definition tailBound[g: Point -> Real.Real][C: Real.Real][k: N.Nat^][x: Point]:
+  (\forall (y: Point) -> R.Le (Real.mul (weight degree y) (Product.abs (g y))) C) ->
+  Logic.Not (Sets.Member (E.points (Exhaustion.box k)) x) -> R.Le (Product.abs (g x)) (Real.mul (coefficient k) C) := \block {
+    \fun (bounded: _)(outside: _) \then
+    \let q: Real.Real := Powers.power (Exhaustion.radius k) degree \then
+    \let weightBound: R.Le q (weight degree x) := Numeric.monotone (Exhaustion.radius k) (weightBase x)
+      (Order.leOfLt _ _ (Exhaustion.radiusPositive k)) (outsideRadius k x outside) degree \then
+    \let recover: Real.mul (coefficient k) (Real.mul q (Product.abs (g x))) = Product.abs (g x) :=
+      trans!{Real.Real} _ _ _ (sym!{Real.Real} _ _ (Laws.fieldMulAssoc (coefficient k) q (Product.abs (g x))))
+        (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (\fun (a: Real.Real) => Real.mul a (Product.abs (g x))) _ _ (coefficientCancellation k)) (Laws.fieldMulOneLeft _)) \then
+    \return R.leReplaceLeft _ _ _ recover
+      (Estimates.mulMonotone (coefficient k) _ _ (coefficientNonnegative k)
+        (R.leTrans _ _ C
+          (R.leReplace _ _ _ _ (Laws.fieldMulComm (Product.abs (g x)) q) (Laws.fieldMulComm (Product.abs (g x)) (weight degree x))
+            (Estimates.mulMonotone _ _ _ (Product.absNonnegative (g x)) weightBound)) (bounded x)))
+};
+\definition headBound[g: Point -> Real.Real][C: Real.Real][x: Point]:
+  (\forall (y: Point) -> R.Le (Real.mul (weight degree y) (Product.abs (g y))) C) -> R.Le (Product.abs (g x)) C :=
+  \fun (bounded: _) => R.leTrans _ _ C
+    (R.leReplace _ _ _ _ (Algebra.mulOneRight (Product.abs (g x))) (Laws.fieldMulComm (Product.abs (g x)) (weight degree x))
+      (Estimates.mulMonotone _ _ _ (Product.absNonnegative (g x)) (weightOne degree x))) (bounded x);

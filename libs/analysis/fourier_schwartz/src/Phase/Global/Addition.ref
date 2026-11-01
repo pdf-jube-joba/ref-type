@@ -1,0 +1,37 @@
+\definition shifted[t: Scalar]: C.Complex := value (Real.add a t);
+\definition coefficient: C.Complex := D.conj (value a);
+\definition normalized[t: Scalar]: C.Complex := D.mul coefficient (shifted t);
+\definition translateDerivative[t: Scalar]: Derivatives.HasDerivativeAt (\fun (s: Scalar) => Real.add a s) t Real.one :=
+  \idelim Real.add Real.zero Real.one = Real.one \with d: Scalar => Derivatives.HasDerivativeAt (\fun (s: Scalar) => Real.add a s) t d \by {
+    base: Operations.addDerivative (\fun (s: Scalar) => a) (\fun (s: Scalar) => s) t Real.zero Real.one (Basic.constantDerivative a t) (Basic.identityDerivative t),
+    equality: Laws.addZeroLeft Real.one
+  };
+\definition shiftedDerivative[t: Scalar]: Calculus.HasDerivativeAt shifted t (rotate (shifted t)) :=
+  \idelim D.scale Real.one (rotate (shifted t)) = rotate (shifted t) \with d: C.Complex => Calculus.HasDerivativeAt shifted t d \by {
+    base: Calculus.compose value (\fun (s: Scalar) => Real.add a s) t Real.one (rotate (shifted t)) (translateDerivative t) (derivative (Real.add a t)),
+    equality: scaleOne (rotate (shifted t))
+  };
+\definition normalizedDerivative[t: Scalar]: Calculus.HasDerivativeAt normalized t (rotate (normalized t)) :=
+  \idelim D.add (D.mul D.zero (shifted t)) (D.mul coefficient (rotate (shifted t))) = rotate (normalized t)
+    \with d: C.Complex => Calculus.HasDerivativeAt normalized t d \by {
+      base: Calculus.product (\fun (s: Scalar) => coefficient) shifted t D.zero (rotate (shifted t)) (Calculus.constant coefficient t) (shiftedDerivative t),
+      equality: trans!{C.Complex} _ _ _
+        (congr!{C.Complex C.Complex} (\fun (z: C.Complex) => D.add z (D.mul coefficient (rotate (shifted t)))) _ _ (CL.mulZeroLeft (shifted t)))
+        (trans!{C.Complex} _ _ _ (CL.addZeroLeft _) (rotateRight coefficient (shifted t)))
+    };
+\definition patch: Patch := Patch {
+  radius := radius, value := normalized,
+  atZero := trans!{C.Complex} _ _ _ (congr!{Scalar C.Complex} (\fun (s: Scalar) => D.mul coefficient (value s)) _ _ (Laws.addZeroRight a)) (conjugateProduct a),
+  derivative := \fun (t: Scalar)(inside: _) => normalizedDerivative t,
+};
+\definition equation[t: Scalar][other: Patch][inside: Inside other.radius t]: radius = other.radius -> value (Real.add a t) = D.mul (value a) (value t) := \block {
+  \fun (same: _) \then
+  \let member: Inside radius t := \idelim other.radius = radius \with r: Scalar => Inside r t \by { base: inside, equality: sym!{Scalar} _ _ same } \then
+  \let equal: normalized t = value t := trans!{C.Complex} _ _ _ (\parent.\parent.Pair[left := patch, right := other].agreement t member inside) (sym!{C.Complex} _ _ (law t other inside)) \then
+  \return eq_reason_in!{C.Complex _
+    "=" _ "by" { sym!{C.Complex} _ _ (CL.mulOneLeft (shifted t)) }
+    "=" _ "by" { congr!{C.Complex C.Complex} (\fun (z: C.Complex) => D.mul z (shifted t)) _ _ (sym!{C.Complex} _ _ (rightConjugateProduct a)) }
+    "=" _ "by" { CL.mulAssoc (value a) coefficient (shifted t) }
+    "=" _ "by" { congr!{C.Complex C.Complex} (D.mul (value a)) _ _ equal }
+  }
+};

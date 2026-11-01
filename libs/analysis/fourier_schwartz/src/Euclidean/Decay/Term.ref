@@ -1,0 +1,45 @@
+\import Finite.Indicator[S := boxes k] \as Indicator;
+\definition value: I.Representatives := Scaling.scalarRepresentative (coefficient k) Indicator.representative;
+\definition nonnegative[x: Point]: R.Le Real.zero (value x) := Laws.fieldMulNonnegative _ _ (coefficientNonnegative k) (Indicator.finite.left x);
+\definition inside[x: Point]: Sets.Member (boxes k) x -> value x = coefficient k := \fun (member: _) =>
+  trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (Real.mul (coefficient k)) _ _ (Indicator.inside x member)) (Algebra.mulOneRight _);
+\definition outside[x: Point]: Logic.Not (Sets.Member (boxes k) x) -> value x = Real.zero := \fun (absent: _) =>
+  trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (Real.mul (coefficient k)) _ _ (Indicator.outside x absent)) (Laws.fieldMulZeroRight _);
+\definition bounded[x: Point]: R.Le (value x) (coefficient k) := Logic.orElim _ _ _ (Classical.excludedMiddle (Sets.Member (boxes k) x))
+  (\fun (member: _) => R.leReplaceLeft _ _ _ (sym!{Real.Real} _ _ (inside x member)) (R.leRefl (coefficient k)))
+  (\fun (absent: _) => R.leReplaceLeft _ _ _ (sym!{Real.Real} _ _ (outside x absent)) (coefficientNonnegative k));
+\definition boxMass: I.integral Indicator.representative = E.volume (Exhaustion.box (N.Nat^::succ k)) := trans!{Real.Real} _ _ _ Indicator.integral
+  (Complete.leastUpperBoundUnique (Lebesgue.measure.value (boxes k)) (Finite.mass (boxes k)) _ (Finite.massLaw (boxes k))
+    (\idelim E.volumeValue (Exhaustion.box (N.Nat^::succ k)) = Lebesgue.measure.value (boxes k)
+      \with v: M.Value => Complete.LeastUpperBound[v, E.volume (Exhaustion.box (N.Nat^::succ k))] \by {
+        base: Volume.volumeSup (Exhaustion.box (N.Nat^::succ k)), equality: sym!{M.Value} _ _ (Volume.boxVolume (Exhaustion.box (N.Nat^::succ k)))
+      }));
+\definition radiusStep: Exhaustion.radius (N.Nat^::succ k) = Real.mul Numeric.two (Exhaustion.radius k) :=
+  trans!{Real.Real} _ _ _ (Numeric.inverseProduct Real.half (Dyadic.value k) Numeric.halfPositive (Limits.dyadicPositive k))
+    (congr!{Real.Real Real.Real} (\fun (a: Real.Real) => Real.mul a (Exhaustion.radius k)) _ _ Numeric.inverseHalf);
+\definition width: Real.sub (Exhaustion.radius (N.Nat^::succ k)) (Real.neg (Exhaustion.radius (N.Nat^::succ k))) = Real.mul Numeric.four (Exhaustion.radius k) :=
+  trans!{Real.Real} _ _ _ (Algebra.subNeg _ _)
+    (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real Real.Real} Real.add _ _ _ _ radiusStep radiusStep)
+      (sym!{Real.Real} _ _ (Algebra.mulAddRight Numeric.two Numeric.two (Exhaustion.radius k))));
+\definition constantProduct: \forall (j: N.Nat^)(a: Real.Real) -> E.product j (\fun (i: Fin.Fin j) => a) = Powers.power a j :=
+  \induction (j: N.Nat^) \return \forall (a: Real.Real) -> E.product j (\fun (i: Fin.Fin j) => a) = Powers.power a j \with {
+    | zero: \fun (a: Real.Real) => \refl(Real.one)
+    | succ: \fun (j: N.Nat^)(previous: _)(a: Real.Real) => congr!{Real.Real Real.Real} (Real.mul a) _ _ (previous a)
+  };
+\definition volume: E.volume (Exhaustion.box (N.Nat^::succ k)) = Real.mul (Powers.power Numeric.four n) (Powers.power (Exhaustion.radius k) n) :=
+  trans!{Real.Real} _ _ _ (constantProduct n _)
+    (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (\fun (a: Real.Real) => Powers.power a n) _ _ width) (Numeric.product Numeric.four (Exhaustion.radius k) n));
+\definition cancellation: Real.mul (Dyadic.value k) (Exhaustion.radius k) = Real.one :=
+  trans!{Real.Real} _ _ _ (Laws.fieldMulComm _ _) (Laws.fieldInverseNonzero _ (Inverse.positiveNonzero _ (Limits.dyadicPositive k)));
+\definition coefficientRadius: Real.mul (coefficient k) (Powers.power (Exhaustion.radius k) n) = Dyadic.value k := eq_reason_in!{Real.Real _
+  "=" _ "by" { Laws.fieldMulAssoc (Dyadic.value k) (Powers.power (Dyadic.value k) n) (Powers.power (Exhaustion.radius k) n) }
+  "=" _ "by" { congr!{Real.Real Real.Real} (Real.mul (Dyadic.value k)) _ _ (Numeric.cancellation (Dyadic.value k) (Exhaustion.radius k) cancellation n) }
+  "=" _ "by" { Algebra.mulOneRight (Dyadic.value k) }
+};
+\definition integral: I.integral value = Real.mul (Powers.power Numeric.four n) (Dyadic.value k) := eq_reason_in!{Real.Real _
+  "=" _ "by" { Scaling.integralScalar (coefficient k) Indicator.representative }
+  "=" _ "by" { congr!{Real.Real Real.Real} (Real.mul (coefficient k)) _ _ boxMass }
+  "=" _ "by" { congr!{Real.Real Real.Real} (Real.mul (coefficient k)) _ _ volume }
+  "=" _ "by" { Algebra.mulSwap (coefficient k) (Powers.power Numeric.four n) (Powers.power (Exhaustion.radius k) n) }
+  "=" _ "by" { congr!{Real.Real Real.Real} (Real.mul (Powers.power Numeric.four n)) _ _ coefficientRadius }
+};
