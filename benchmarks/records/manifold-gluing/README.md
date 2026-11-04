@@ -49,3 +49,5 @@ collar を保つ写像の貼り合わせの検査は [maps/README.md](maps/READM
 積 collar 上のコンパクトな丸め領域の検査は [roundsupport/README.md](roundsupport/README.md) にある。
 
 コンパクトな丸め領域の角近傍モデルの検査は [roundnear/README.md](roundnear/README.md) にある。
+
+積のコンパクトな丸めの大域 atlasの検査は [roundglobal/README.md](roundglobal/README.md) にある。
