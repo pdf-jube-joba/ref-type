@@ -1,0 +1,19 @@
+\import \root.CollarStrip[n := n].On[M := M].With[cover := cover] \as Strips;
+\import Strips.From[deformation := deformation] \as Strip;
+\structure Result: \Set := {
+  regular: Strip.RegularUniform,
+  within: \forall (t: Time.Point)(b: Inclusion.manifold.Point) -> \In[Time.Point] regular.uniform.neighborhood t ->
+    TargetSpace.Member U (Strip.apply (Pair.pair Time.Point Inclusion.manifold.Point t b)),
+};
+\import topological_constructions.Product[A := Time.Point, B := Inclusion.manifold.Point] \as Source;
+\definition preimage: \Pow Source.CarrierSet := { p: Source.CarrierSet \where TargetSpace.Member U (Strip.apply p) };
+\import \root.InwardNeighborhood[n := n].On[M := M].With[cover := cover].From[h := deformation.homotopy, active := deformation.active] \as Candidate;
+\definition fibre: \forall (b: Inclusion.manifold.Point) -> \In[Source.CarrierSet] preimage (Pair.pair Time.Point Inclusion.manifold.Point Time.zero b) :=
+  \fun (b: Inclusion.manifold.Point) => \idelim Inclusion.apply b = Strip.apply (Pair.pair Time.Point Inclusion.manifold.Point Time.zero b)
+    \with p: M.Point => TargetSpace.Member U p \by { base: contains b, equality: sym!{M.Point} _ _ (Candidate.neighborhood.initial b) };
+\module Using(regular: Strip.RegularUniform, compact: Target.IsCompact M.space);
+\definition exists[compact: Target.IsCompact M.space]: \exists Result := \block {
+  \takefrom regular: Strip.RegularUniform \by Strip.existsRegular compact \then
+  \return Using[regular := regular, compact := compact].exists
+};
+\module Of(result: Result);
