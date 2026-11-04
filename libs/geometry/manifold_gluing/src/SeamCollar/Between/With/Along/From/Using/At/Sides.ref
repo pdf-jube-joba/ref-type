@@ -1,0 +1,38 @@
+\import boundary_manifolds.Interior[n := Nat.add One.dimension n].Of[M := M] \as LeftInterior;
+\import boundary_manifolds.Interior[n := Nat.add One.dimension n].Of[M := N] \as RightInterior;
+\definition crossLeftImpossible: \forall (a: M.Point)(b: N.Point) -> \In[M.Point] LeftInterior.points a -> Gluing.inl a = Gluing.inr b -> Logic.False := \block {
+  \fun (a: M.Point)(b: N.Point)(interior: _)(same: _) \then
+  \takefrom c: \Cast[LeftBoundary.manifold.Point] ({ c: LeftBoundary.manifold.Point \where Logic.And[a = LeftBoundary.apply c, b = RightBoundary.apply (BoundaryMaps.apply d.forward c)] })
+    \by (Gluing.crossCriterion a b).ltr same \then
+  \let endpoints: Logic.And[a = LeftBoundary.apply c, b = RightBoundary.apply (BoundaryMaps.apply d.forward c)] := \bysub(LeftBoundary.manifold.Point,
+    { c: LeftBoundary.manifold.Point \where Logic.And[a = LeftBoundary.apply c, b = RightBoundary.apply (BoundaryMaps.apply d.forward c)] }, c) \then
+  \return interior (\idelim LeftBoundary.apply c = a \with p: M.Point => \In[M.Point] LeftAtlas.points p \by {
+    base: \bysub(M.Point, LeftAtlas.points, c), equality: sym!{{M.Point}} _ _ endpoints.left
+  })
+};
+\definition crossRightImpossible: \forall (a: M.Point)(b: N.Point) -> \In[N.Point] RightInterior.points b -> Gluing.inl a = Gluing.inr b -> Logic.False := \block {
+  \fun (a: M.Point)(b: N.Point)(interior: _)(same: _) \then
+  \takefrom c: \Cast[LeftBoundary.manifold.Point] ({ c: LeftBoundary.manifold.Point \where Logic.And[a = LeftBoundary.apply c, b = RightBoundary.apply (BoundaryMaps.apply d.forward c)] })
+    \by (Gluing.crossCriterion a b).ltr same \then
+  \let endpoints: Logic.And[a = LeftBoundary.apply c, b = RightBoundary.apply (BoundaryMaps.apply d.forward c)] := \bysub(LeftBoundary.manifold.Point,
+    { c: LeftBoundary.manifold.Point \where Logic.And[a = LeftBoundary.apply c, b = RightBoundary.apply (BoundaryMaps.apply d.forward c)] }, c) \then
+  \return interior (\idelim RightBoundary.apply (BoundaryMaps.apply d.forward c) = b \with p: N.Point => \In[N.Point] RightAtlas.points p \by {
+    base: \bysub(N.Point, RightAtlas.points, BoundaryMaps.apply d.forward c), equality: sym!{{N.Point}} _ _ endpoints.right
+  })
+};
+\module Left(p: Source.Point, a: M.Point, interior: \In[M.Point] LeftInterior.points a, same: apply p = Gluing.inl a) {
+  \definition impossible: R.Le (scalar p) S.zero -> Logic.False := \fun (nonpositive: _) => crossLeftImpossible a (RightMaps.apply RightMap.map (rightParameter p)) interior
+    (trans!{{Gluing.Point}} _ _ _ (sym!{{Gluing.Point}} _ _ same) (onRight p nonpositive));
+  \definition strict: R.Lt S.zero (scalar p) := Order.byContradiction (R.Lt S.zero (scalar p))
+    (\fun (notStrict: _) => impossible (Order.leOfNotLtReverse (scalar p) S.zero notStrict));
+  \definition value: LeftMaps.apply LeftMap.map (leftParameter p) = a := Gluing.leftInjective _ _
+    (trans!{{Gluing.Point}} _ _ _ (sym!{{Gluing.Point}} _ _ (onLeft p (Order.leOfLt S.zero (scalar p) strict))) same);
+}
+\module Right(p: Source.Point, a: N.Point, interior: \In[N.Point] RightInterior.points a, same: apply p = Gluing.inr a) {
+  \definition impossible: R.Le S.zero (scalar p) -> Logic.False := \fun (nonnegative: _) => crossRightImpossible (LeftMaps.apply LeftMap.map (leftParameter p)) a interior
+    (trans!{{Gluing.Point}} _ _ _ (sym!{{Gluing.Point}} _ _ (onLeft p nonnegative)) same);
+  \definition strict: R.Lt (scalar p) S.zero := Order.byContradiction (R.Lt (scalar p) S.zero)
+    (\fun (notStrict: _) => impossible (Order.leOfNotLtReverse S.zero (scalar p) notStrict));
+  \definition value: RightMaps.apply RightMap.map (rightParameter p) = a := Gluing.rightInjective _ _
+    (trans!{{Gluing.Point}} _ _ _ (sym!{{Gluing.Point}} _ _ (onRight p (Order.leOfLt (scalar p) S.zero strict))) same);
+}

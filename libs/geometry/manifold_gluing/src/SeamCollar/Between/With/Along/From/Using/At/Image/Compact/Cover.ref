@@ -35,3 +35,61 @@
 };
 \module At(y: Gluing.Point);
 \definition covers: \forall (y: Gluing.Point) -> \exists (c: Index \where Charts.Contains (chart c) y) := \fun (y: Gluing.Point) => At[y := y].exists;
+\import \parent.\parent.\parent.Sides[] \as Sides;
+\import \root.InteriorInclusion[n := Nat.add One.dimension n].On[M := M] \as LeftInside;
+\import \root.InteriorInclusion[n := Nat.add One.dimension n].On[M := N] \as RightInside;
+\import \root.InteriorEmbedding[n := Nat.add One.dimension n].On[M := M, A := Gluing.Point, space := Gluing.topology, f := Gluing.inl,
+  compact := leftCompact, hausdorff := Properties.hausdorff, continuous := Gluing.inlContinuous, injective := Gluing.leftInjective] \as LeftPatch;
+\import \root.InteriorEmbedding[n := Nat.add One.dimension n].On[M := N, A := Gluing.Point, space := Gluing.topology, f := Gluing.inr,
+  compact := rightCompact, hausdorff := Properties.hausdorff, continuous := Gluing.inrContinuous, injective := Gluing.rightInjective] \as RightPatch;
+\import \root.ChartTransport[n := Nat.add One.dimension n].From[M := Source.manifold].Into[A := Gluing.Point, space := Gluing.topology, U := image, open := open, h := homeomorphism] \as SeamTransport;
+\import \root.ChartTransport[n := Nat.add One.dimension n].From[M := LeftInside.manifold].Into[A := Gluing.Point, space := Gluing.topology, U := LeftPatch.image, open := Interiors.leftOpen, h := LeftPatch.homeomorphism] \as LeftTransport;
+\import \root.ChartTransport[n := Nat.add One.dimension n].From[M := RightInside.manifold].Into[A := Gluing.Point, space := Gluing.topology, U := RightPatch.image, open := Interiors.rightOpen, h := RightPatch.homeomorphism] \as RightTransport;
+\module SeamLeft(c: Seam.Index, d: Interiors.LeftIndex, y: Gluing.Point, first: Charts.Contains (Seam.chart c) y, second: Charts.Contains (Interiors.leftChart d) y);
+\module SeamRight(c: Seam.Index, d: Interiors.RightIndex, y: Gluing.Point, first: Charts.Contains (Seam.chart c) y, second: Charts.Contains (Interiors.rightChart d) y);
+\module LeftSeam(c: Interiors.LeftIndex, d: Seam.Index, y: Gluing.Point, first: Charts.Contains (Interiors.leftChart c) y, second: Charts.Contains (Seam.chart d) y);
+\module RightSeam(c: Interiors.RightIndex, d: Seam.Index, y: Gluing.Point, first: Charts.Contains (Interiors.rightChart c) y, second: Charts.Contains (Seam.chart d) y);
+\module LeftRight(c: Interiors.LeftIndex, d: Interiors.RightIndex, y: Gluing.Point, first: Charts.Contains (Interiors.leftChart c) y, second: Charts.Contains (Interiors.rightChart d) y);
+\definition Compatibility[i, j: Index]: \Prop := \forall (y: Gluing.Point)(first: Charts.Contains (chart i) y)(second: Charts.Contains (chart j) y) ->
+  \exists Charts.At[x := y, left := chart i, right := chart j, inLeft := first].Extension;
+\definition compatibleLeft[c: Interiors.LeftIndex]: \forall (j: Index) -> Compatibility (Indices.inl c) j :=
+  \induction (j: Index) \return Compatibility (Indices.inl c) j \with {
+    | inl: \fun (d: Interiors.LeftIndex) => Interiors.leftCompatible c d
+    | inr: \induction (j: Others.Carrier) \return Compatibility (Indices.inl c) (Indices.inr j) \with {
+      | inl: \fun (d: Interiors.RightIndex)(y: Gluing.Point)(first: _)(second: _) => Logic.falseElim
+        (\exists Charts.At[x := y, left := Interiors.leftChart c, right := Interiors.rightChart d, inLeft := first].Extension)
+        (LeftRight[c := c, d := d, y := y, first := first, second := second].impossible)
+      | inr: \fun (d: Seam.Index)(y: Gluing.Point)(first: _)(second: _) => LeftSeam[c := c, d := d, y := y, first := first, second := second].exists
+    }
+  };
+\definition compatibleRight[c: Interiors.RightIndex]: \forall (j: Index) -> Compatibility (Indices.inr (Others.inl c)) j :=
+  \induction (j: Index) \return Compatibility (Indices.inr (Others.inl c)) j \with {
+    | inl: \fun (d: Interiors.LeftIndex)(y: Gluing.Point)(first: _)(second: _) => Logic.falseElim
+      (\exists Charts.At[x := y, left := Interiors.rightChart c, right := Interiors.leftChart d, inLeft := first].Extension)
+      (LeftRight[c := d, d := c, y := y, first := second, second := first].impossible)
+    | inr: \induction (j: Others.Carrier) \return Compatibility (Indices.inr (Others.inl c)) (Indices.inr j) \with {
+      | inl: \fun (d: Interiors.RightIndex) => Interiors.rightCompatible c d
+      | inr: \fun (d: Seam.Index)(y: Gluing.Point)(first: _)(second: _) => RightSeam[c := c, d := d, y := y, first := first, second := second].exists
+    }
+  };
+\definition compatibleSeam[c: Seam.Index]: \forall (j: Index) -> Compatibility (Indices.inr (Others.inr c)) j :=
+  \induction (j: Index) \return Compatibility (Indices.inr (Others.inr c)) j \with {
+    | inl: \fun (d: Interiors.LeftIndex)(y: Gluing.Point)(first: _)(second: _) => SeamLeft[c := c, d := d, y := y, first := first, second := second].exists
+    | inr: \induction (j: Others.Carrier) \return Compatibility (Indices.inr (Others.inr c)) (Indices.inr j) \with {
+      | inl: \fun (d: Interiors.RightIndex)(y: Gluing.Point)(first: _)(second: _) => SeamRight[c := c, d := d, y := y, first := first, second := second].exists
+      | inr: \fun (d: Seam.Index) => Seam.compatible c d
+    }
+  };
+\definition compatible: \forall (i, j: Index) -> Compatibility i j :=
+  \induction (i: Index) \return \forall (j: Index) -> Compatibility i j \with {
+    | inl: \fun (c: Interiors.LeftIndex) => compatibleLeft c
+    | inr: \induction (i: Others.Carrier) \return \forall (j: Index) -> Compatibility (Indices.inr i) j \with {
+      | inl: \fun (c: Interiors.RightIndex) => compatibleRight c
+      | inr: \fun (c: Seam.Index) => compatibleSeam c
+    }
+  };
+\import Models.Family[A := Gluing.Point, space := Gluing.topology, I := Index, chart := chart].Using[cover := covers, compatible := compatible] \as Family;
+\definition manifold: Models.Manifold := Models.Manifold {
+  Point := Gluing.Point, space := Gluing.topology, atlas := Family.atlas,
+  hausdorff := Properties.hausdorff, secondCountable := Properties.secondCountable,
+};

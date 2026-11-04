@@ -49,7 +49,7 @@ bump の台を含む半径 \(2q\) の閉集合をチャート内の半径 \(4q\)
 `CollarComparison` は二つの構成に共通の時間近傍を取り、境界を固定する比較同相と、その両方向の実際の滑らかな局所表示を構成する。
 `BoundarySeam` は境界の微分同相に沿う実際の商空間を作る。両側の包含の単射性と交差の判定を公開し、両側がコンパクトであれば商のコンパクト性、Hausdorff 性と第二可算性を証明する。
 その証明には、コンパクトな貼り合わせ部分に沿う商写像の閉性 (`ClosedPushout`)、コンパクト Hausdorff 空間からの閉全射による分離性と第二可算性 (`ClosedSurjection`)、可算基底の有限和の列挙 (`FiniteBasisUnions`) を用いる。
-指定された既存 collar の相対拡張、一般の貼り合わせの滑らかな atlas と大域的な角の丸めはまだ構成していない。
+指定された既存 collar の相対拡張と大域的な角の丸めは引き続き実装中である。
 
 `CompactStrip` の証明は、二つの点が同じ単射性近傍に入る場合と、像を Hausdorff 性で分離できる場合の開集合を合わせる。
 この開集合を二つの時間と二つの底点の積へ引き戻し、底空間の二乗のコンパクト性と tube lemma から共通の時間近傍を得る。
@@ -71,7 +71,7 @@ python3 scripts/check_all.py --initial-memory-mib 12288 --memory-mib 12288 --cac
 `ChartTransport` は、開いた像への同相から実際のチャートを移し、その内部での滑らかな座標変換と被覆を証明する。
 `SignedParameter` は正負の法線パラメータの連続な分解、正側・負側それぞれでの実際の滑らかな局所表示、半開区間からの連続な挿入と零時刻での一致を構成する。
 `CollarBoundary` は、構成した collar 候補の像が境界にあることと時間が零であることが同値であると証明する。
-これらは一般の継ぎ目の atlas を構成するための補題であり、その atlas 自体はまだ完成していない。
+これらは一般の継ぎ目の atlas の構成に用いる。
 
 `SeamCollar` は二つの実際の大域 collar を共通の正の時間幅で、境界の微分同相に沿って接続する。
 符号付き collar から実際の商空間への連続な単射を構成し、その像が開集合であることと像への全射性を証明する。
@@ -79,9 +79,13 @@ python3 scripts/check_all.py --initial-memory-mib 12288 --memory-mib 12288 --cac
 `SeamCollar.Image.Compact` は左右の閉集合上で構成した逆写像を接続し、実際の開いた継ぎ目近傍への同相を構成する。
 `Charts` はその開近傍を覆うチャートを構成し、その内部での滑らかな座標変換を証明する。
 `InteriorInclusion` は G03 の内点多様体を角付き多様体として扱ったときの元の多様体への滑らかな包含である。
-左右の内点チャートと継ぎ目チャートを合わせた、商全体の滑らかな atlas はまだ実装中である。
+左右の内部と継ぎ目の座標を合わせ、商全体の滑らかな atlas を構成する。
 
 `InteriorInclusion.InverseAt` は内点での包含の逆の滑らかな局所表示を構成する。
 `InteriorEmbedding` と `InteriorPatches` は左右の内部の像が商で開くことを示し、その座標近傍を構成する。
 `SeamCollar.Image.Compact.Cover` は左右の内部と継ぎ目の3種類の座標近傍が商空間全体を覆うことを証明する。
-異なる種類の座標近傍の重なりでの滑らかな座標変換は引き続き実装中である。
+`Cover.manifold` は、左右の内部と継ぎ目の全9種類の重なりで実際の滑らかな座標変換を証明した、商空間上の多様体である。
+`LeftTransition`・`RightTransition` と `LeftInverse`・`RightInverse` は内部と継ぎ目を結ぶ両方向の滑らかな局所表示を構成する。
+`Sides` は内部の像が左右で交わらず、左内部との重なりでは法線パラメータが正、右内部との重なりでは負となることを証明する。
+`ChartCross` は局所表示を座標移送に適用し、`LocalSmoothCompose`・`LocalSmoothPair`・`ProductLocalMap` は局所表示の合成と積を構成する。
+境界が残らないことの公開定理、double の API、相対拡張、角の大域的な丸め、向きと写像の貼り合わせは継続中である。
