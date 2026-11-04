@@ -1,0 +1,31 @@
+\import Alternating.Contraction[k := N.Nat^::succ n] \as First;
+\import Alternating.TwoSlots[k := N.Nat^::succ (N.Nat^::succ n), i := Fin.zero (N.Nat^::succ n), j := Fin.succ (N.Nat^::succ n) (Fin.zero n)] \as Slots;
+\definition different: Logic.Not (Fin.zero (N.Nat^::succ n) = Fin.succ (N.Nat^::succ n) (Fin.zero n)) :=
+  \fun (same: _) => NatLaws.zeroNeSucc (Fin.value (N.Nat^::succ n) (Fin.zero n)) same;
+\definition arguments[first, second: V][tail: Multilinear.Arguments n]: Multilinear.Arguments (N.Nat^::succ (N.Nat^::succ n)) := Tuples.extend (N.Nat^::succ n) first (Tuples.extend n second tail);
+\definition atFirst: \forall (first, second: V)(tail: Multilinear.Arguments n) -> arguments first second tail (Fin.zero (N.Nat^::succ n)) = first :=
+  \fun (first, second: V)(tail: Multilinear.Arguments n) => Tuples.atZero (N.Nat^::succ n) first (Tuples.extend n second tail);
+\definition atSecond: \forall (first, second: V)(tail: Multilinear.Arguments n) -> arguments first second tail (Fin.succ (N.Nat^::succ n) (Fin.zero n)) = second :=
+  \fun (first, second: V)(tail: Multilinear.Arguments n) => trans!{V} _ _ _ (Tuples.atSuccessor (N.Nat^::succ n) first (Tuples.extend n second tail) (Fin.zero n)) (Tuples.atZero n second tail);
+\definition swapped: \forall (first, second: V)(tail: Multilinear.Arguments n) -> Slots.swap (arguments first second tail) = arguments second first tail :=
+  \fun (first, second: V)(tail: Multilinear.Arguments n) => trans!{{Multilinear.Arguments (N.Nat^::succ (N.Nat^::succ n))}} _ _ _
+    (congr!{V V {Multilinear.Arguments (N.Nat^::succ (N.Nat^::succ n))}} (Slots.fill (arguments first second tail)) _ _ _ _ (atSecond first second tail) (atFirst first second tail))
+    (trans!{{Multilinear.Arguments (N.Nat^::succ (N.Nat^::succ n))}} _ _ _
+      (congr!{{Multilinear.Arguments (N.Nat^::succ (N.Nat^::succ n))} {Multilinear.Arguments (N.Nat^::succ (N.Nat^::succ n))}}
+        (\fun (a: Multilinear.Arguments (N.Nat^::succ (N.Nat^::succ n))) => Multilinear.update (N.Nat^::succ (N.Nat^::succ n)) a (Fin.succ (N.Nat^::succ n) (Fin.zero n)) first) _ _
+        (Updates.extendHead (N.Nat^::succ n) first (Tuples.extend n second tail) second))
+      (trans!{{Multilinear.Arguments (N.Nat^::succ (N.Nat^::succ n))}} _ _ _
+        (Updates.extendUpdate (N.Nat^::succ n) second (Tuples.extend n second tail) (Fin.zero n) first)
+        (congr!{{Multilinear.Arguments (N.Nat^::succ n)} {Multilinear.Arguments (N.Nat^::succ (N.Nat^::succ n))}}
+          (Tuples.extend (N.Nat^::succ n) second) _ _ (Updates.extendHead n second tail first))));
+\definition swapNormal: \forall (omega: Alternating.Form (N.Nat^::succ (N.Nat^::succ n)))(first, second: V)(tail: Multilinear.Arguments n) ->
+  Contraction.apply (First.apply omega second) first tail = S.neg (Contraction.apply (First.apply omega first) second tail) :=
+  \fun (omega: Alternating.Form (N.Nat^::succ (N.Nat^::succ n)))(first, second: V)(tail: Multilinear.Arguments n) => trans!{S.Real} _ _ _
+    (congr!{{Multilinear.Arguments (N.Nat^::succ (N.Nat^::succ n))} S.Real} omega _ _ (sym!{{Multilinear.Arguments (N.Nat^::succ (N.Nat^::succ n))}} _ _ (swapped first second tail)))
+    (Slots.onSwap omega (arguments first second tail) different);
+\definition cancel: \forall (omega: Alternating.Form (N.Nat^::succ (N.Nat^::succ n)))(first, second: V) ->
+  Forms.plus (Contraction.apply (First.apply omega first) second) (Contraction.apply (First.apply omega second) first) = Forms.origin :=
+  \fun (omega: Alternating.Form (N.Nat^::succ (N.Nat^::succ n)))(first, second: V) => Forms.ext _ _ (\fun (tail: Multilinear.Arguments n) => trans!{S.Real} _ _ _
+    (congr!{S.Real S.Real} (S.add (Contraction.apply (First.apply omega first) second tail)) _ _ (swapNormal omega first second tail))
+    (Laws.addNegRight (Contraction.apply (First.apply omega first) second tail)));
+\definition repeated: \forall (omega: Alternating.Form (N.Nat^::succ (N.Nat^::succ n)))(normal: V) -> Contraction.apply (First.apply omega normal) normal = Forms.origin := Contraction.Square[].law;

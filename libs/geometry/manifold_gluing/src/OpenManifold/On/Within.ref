@@ -1,0 +1,32 @@
+\definition Point: \Set := \Cast[M.Point] U;
+\import OriginalSpace.Subspace[S := U] \as Subspace;
+\definition topology: topology.Structures[].Topology[Point] := Subspace.topology M.space;
+\import Models.Chart[M := Point, space := topology] \as Charts;
+\definition OldChart: \Set := \Cast[Original.Chart] M.atlas.charts;
+\module In(c: OldChart);
+\structure Patch: \Set := {
+  source: OldChart,
+  representative: \root.OpenManifold[n := n].On[M := M].Within[U := U, open := open].In[c := source].Representative,
+};
+\module For(patch: Patch);
+\definition chart[patch: Patch]: Charts.Chart := For[patch := patch].chart;
+\module Pair(left, right: Patch, x: Point, contains: Charts.Contains (chart left) x, otherContains: Charts.Contains (chart right) x);
+\definition covers: \forall (x: Point) -> \exists (patch: Patch \where Charts.Contains (chart patch) x) := \block {
+  \fun (x: Point) \then
+  \takefrom chosen: \Cast[Original.Chart] ({ c: Original.Chart \where Logic.And[\In[Original.Chart] M.atlas.charts c, Original.Contains c x] }) \by M.atlas.covers x \then
+  \let laws: Logic.And[\In[Original.Chart] M.atlas.charts chosen, Original.Contains chosen x] := \bysub(Original.Chart, { c: Original.Chart \where Logic.And[\In[Original.Chart] M.atlas.charts c, Original.Contains c x] }, chosen) \then
+  \let c: OldChart := \into[Original.Chart](chosen, M.atlas.charts) \by { laws.left } \then
+  \takefrom representative: In[c := c].Representative \by In[c := c].exists \then
+  \let patch: Patch := Patch { source := c, representative := representative } \then
+  \return Logic.existsIntro[Patch, { p: Patch \where Charts.Contains (chart p) x }] patch laws.right
+};
+\definition compatible: \forall (left, right: Patch)(x: Point)(contains: Charts.Contains (chart left) x)(otherContains: Charts.Contains (chart right) x) ->
+  \exists Charts.At[x := x, left := chart left, right := chart right, inLeft := contains].Extension :=
+  \fun (left, right: Patch)(x: Point)(contains: _)(otherContains: _) => Pair[left := left, right := right, x := x, contains := contains, otherContains := otherContains].exists;
+\import Models.Family[A := Point, space := topology, I := Patch, chart := chart].Using[cover := covers, compatible := compatible] \as Family;
+\import Subspace.Properties[] \as Properties;
+\definition manifold: Models.Manifold := Models.Manifold {
+  Point := Point, space := topology, atlas := Family.atlas,
+  hausdorff := Properties.hausdorff M.space M.hausdorff,
+  secondCountable := Properties.secondCountable M.space M.secondCountable,
+};

@@ -1,0 +1,37 @@
+\structure Representative: \Set := {
+  domain: Open.OpenSet,
+  included: Open.Included domain U,
+  within: \forall (u: Model.Carrier C domain) -> Space.Member W (include domain included u),
+  captures: \forall (u: Model.Carrier C U) -> Space.Member W u -> \In[Model.Point] domain.points u,
+};
+\module With(S: \Pow (Open.Carrier U), openS: OpenSpace.IsOpenIn (Open.Topology[].Of[U := U].topology) S, sameW: W = Region.Trace S,
+  T: \Pow Model.Point, openT: topology.Topology[Carrier := Model.Point].IsOpenIn Ambient.topology T, sameS: S = Domain.Trace T) {
+  \definition points: Open.OpenSet := Open.Topology[].ofOpen T openT;
+  \definition domain: Open.OpenSet := Open.intersection U points;
+  \definition included: Open.Included domain U := Open.intersectionLeft U points;
+  \definition within: \forall (u: Model.Carrier C domain) -> Space.Member W (include domain included u) :=
+    \fun (u: Model.Carrier C domain) => \idelim Region.Trace S = W \with V: \Pow (Model.Carrier C U) => Space.Member V (include domain included u) \by {
+      base: \idelim Domain.Trace T = S \with V: \Pow (Open.Carrier U) => OpenSpace.Member V (include domain included u) \by {
+        base: (\bysub(Model.Point, domain.points, u)).right,
+        equality: sym!{{\Pow (Open.Carrier U)}} _ _ sameS
+      }, equality: sym!{{\Pow (Model.Carrier C U)}} _ _ sameW
+    };
+  \definition captures: \forall (u: Model.Carrier C U) -> Space.Member W u -> \In[Model.Point] domain.points u := \fun (u: Model.Carrier C U)(member: _) => Logic.And[_, _]::#
+    (\bysub(Model.Point, U.points, u))
+    (\idelim S = Domain.Trace T \with V: \Pow (Open.Carrier U) => OpenSpace.Member V u \by {
+      base: \idelim W = Region.Trace S \with V: \Pow (Model.Carrier C U) => Space.Member V u \by { base: member, equality: sameW }, equality: sameS
+    });
+  \definition representative: Representative := Representative { domain := domain, included := included, within := within, captures := captures };
+
+}
+\definition exists: \exists Representative := \block {
+  \takefrom S: \Cast[\Pow (Open.Carrier U)] ({ S: \Pow (Open.Carrier U) \where Logic.And[OpenSpace.IsOpenIn (Open.Topology[].Of[U := U].topology) S, W = Region.Trace S] })
+    \by Region.openRepresentation (Open.Topology[].Of[U := U].topology) W open \then
+  \let region: Logic.And[OpenSpace.IsOpenIn (Open.Topology[].Of[U := U].topology) S, W = Region.Trace S] := \bysub(\Pow (Open.Carrier U),
+    { S: \Pow (Open.Carrier U) \where Logic.And[OpenSpace.IsOpenIn (Open.Topology[].Of[U := U].topology) S, W = Region.Trace S] }, S) \then
+  \takefrom T: \Cast[\Pow Model.Point] ({ T: \Pow Model.Point \where Logic.And[topology.Topology[Carrier := Model.Point].IsOpenIn Ambient.topology T, S = Domain.Trace T] })
+    \by Domain.openRepresentation Ambient.topology S region.left \then
+  \let ambient: Logic.And[topology.Topology[Carrier := Model.Point].IsOpenIn Ambient.topology T, S = Domain.Trace T] := \bysub(\Pow Model.Point,
+    { T: \Pow Model.Point \where Logic.And[topology.Topology[Carrier := Model.Point].IsOpenIn Ambient.topology T, S = Domain.Trace T] }, T) \then
+  \return \exact(With[S := S, openS := region.left, sameW := region.right, T := T, openT := ambient.left, sameS := ambient.right].representative, Representative)
+};

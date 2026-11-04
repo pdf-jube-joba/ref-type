@@ -1,0 +1,58 @@
+\import \parent.\parent.Unit[].Estimates[] \as ProfileEstimates;
+\import S.Estimates[] \as Estimates;
+\definition Input: \Set := FullOpen.Carrier FullOpen.whole;
+\definition profileInput[x: Input]: Open.Carrier Open.whole := Maps.apply FullOpen.whole Open.whole differenceMap x;
+\definition abs[x: Input]: S.Real := Bounds.abs (S.sub (u x) (v x));
+\definition profileLower: \forall (x: Input) -> R.Le (abs x) (profile x) := \fun (x: Input) =>
+  R.leReplaceLeft (ProfileEstimates.abs (profileInput x)) (abs x) (profile x) (congr!{S.Real S.Real} Bounds.abs _ _ (differenceFormula x)) (ProfileEstimates.lower (profileInput x));
+\definition lower: \forall (x: Input) -> R.Le (S.sub (u x) (v x)) (abs x) := \fun (x: Input) =>
+  R.leReplaceLeft (S.sub (S.sub (u x) (v x)) S.zero) (S.sub (u x) (v x)) (abs x) (Laws.subZeroRight (S.sub (u x) (v x)))
+    (Distance.maxRight (S.sub S.zero (S.sub (u x) (v x))) (S.sub (S.sub (u x) (v x)) S.zero));
+\definition lowerNegative: \forall (x: Input) -> R.Le (S.neg (S.sub (u x) (v x))) (abs x) := \fun (x: Input) =>
+  R.leReplaceLeft (S.sub S.zero (S.sub (u x) (v x))) (S.neg (S.sub (u x) (v x))) (abs x) (Laws.addZeroLeft (S.neg (S.sub (u x) (v x))))
+    (Distance.maxLeft (S.sub S.zero (S.sub (u x) (v x))) (S.sub (S.sub (u x) (v x)) S.zero));
+\definition Quarter[x: Input]: \Prop := Logic.And[R.Le S.zero (u x), R.Le S.zero (v x)];
+\module Included(x: Input, member: R.Le S.zero (defining x)) {
+  \definition above: R.Le (profile x) (sum x) := R.leReplace (S.add S.zero (profile x)) (profile x) (S.add (defining x) (profile x)) (sum x) (Laws.addZeroLeft (profile x))
+    (trans!{S.Real} _ _ _ (congr!{S.Real S.Real} (\fun (a: S.Real) => S.add a (profile x)) _ _ (definingFormula x)) (Distance.subAddCancel (sum x) (profile x)))
+    (Laws.addMonotoneRight S.zero (defining x) (profile x) member);
+  \definition absoluteBelow: R.Le (abs x) (sum x) := R.leTrans (abs x) (profile x) (sum x) (profileLower x) above;
+  \definition second: R.Le S.zero (v x) := Order.leOfNotLtReverse S.zero (v x) (\fun (negative: R.Lt (v x) S.zero) => R.ltNotLeReverse (sum x) (S.sub (u x) (v x))
+    (Laws.ltAddLeft (u x) (v x) (S.neg (v x)) (R.ltLeTrans (v x) S.zero (S.neg (v x)) negative (Laws.nonnegativeNegOfNegative (v x) negative)))
+    (R.leTrans (S.sub (u x) (v x)) (abs x) (sum x) (lower x) absoluteBelow));
+  \definition first: R.Le S.zero (u x) := Order.leOfNotLtReverse S.zero (u x) (\fun (negative: R.Lt (u x) S.zero) => R.ltNotLeReverse (sum x) (S.neg (S.sub (u x) (v x)))
+    (R.ltReplaceRight (sum x) (S.add (S.neg (u x)) (v x)) (S.neg (S.sub (u x) (v x)))
+      (trans!{S.Real} _ _ _ (Laws.addComm (S.neg (u x)) (v x)) (sym!{S.Real} _ _ (Algebra.negSub (u x) (v x))))
+      (Laws.ltAddRight (u x) (S.neg (u x)) (v x) (R.ltLeTrans (u x) S.zero (S.neg (u x)) negative (Laws.nonnegativeNegOfNegative (u x) negative))))
+    (R.leTrans (S.neg (S.sub (u x) (v x))) (abs x) (sum x) (lowerNegative x) absoluteBelow));
+  \definition quarter: Quarter x := Logic.And[_, _]::# first second;
+}
+\definition distanceEquals: \forall (x: Input) -> abs x = S.distance (u x) (v x) := \fun (x: Input) => trans!{S.Real} _ _ _
+  (Distance.distanceSymmetric S.zero (S.sub (u x) (v x))) (Norm.distanceDifference (u x) (v x));
+\definition absoluteBelowSum: \forall (x: Input) -> Quarter x -> R.Le (abs x) (sum x) := \fun (x: Input)(quarter: _) =>
+  R.leReplace (S.distance (u x) (v x)) (abs x) (S.add (S.distance (u x) S.zero) (S.distance S.zero (v x))) (sum x) (sym!{S.Real} _ _ (distanceEquals x))
+    (congr!{S.Real S.Real S.Real} S.add _ _ _ _
+      (trans!{S.Real} _ _ _ (Distance.distanceSymmetric (u x) S.zero) (Bounds.absOfNonnegative (u x) quarter.left)) (Bounds.absOfNonnegative (v x) quarter.right))
+    (Distance.distanceTriangle (u x) S.zero (v x));
+\definition nonnegative: \forall (x: Input) -> R.Le (profile x) (sum x) -> R.Le S.zero (defining x) := \fun (x: Input)(below: _) =>
+  R.leReplace (S.sub (profile x) (profile x)) S.zero (S.sub (sum x) (profile x)) (defining x) (Laws.subSelf (profile x)) (sym!{S.Real} _ _ (definingFormula x))
+    (Laws.addMonotoneRight (profile x) (sum x) (S.neg (profile x)) below);
+\definition three: S.Real := S.add Plateau.two S.one;
+\definition Outside[x: Input]: \Prop := Logic.Or[R.Le three (u x), R.Le three (v x)];
+\module Far(x: Input, quarter: Quarter x, far: Outside x) {
+  \definition sumAbove: R.Le three (sum x) := Logic.orElim (R.Le three (u x)) (R.Le three (v x)) (R.Le three (sum x)) far
+    (\fun (first: _) => R.leTrans three (u x) (sum x) first (Algebra.leAddRight (u x) (v x) quarter.right))
+    (\fun (second: _) => R.leTrans three (v x) (sum x) second
+      (R.leReplaceRight (v x) (S.add (v x) (u x)) (sum x) (Laws.addComm (v x) (u x)) (Algebra.leAddRight (v x) (u x) quarter.left)));
+  \definition whenZero: Profile.bump (profileInput x) = S.zero -> R.Le S.zero (defining x) := \fun (zero: _) => nonnegative x
+    (R.leReplaceLeft (ProfileEstimates.abs (profileInput x)) (profile x) (sum x) (sym!{S.Real} _ _ (ProfileEstimates.equalsAbs (profileInput x) zero))
+      (R.leReplaceLeft (abs x) (ProfileEstimates.abs (profileInput x)) (sum x) (sym!{S.Real} _ _ (congr!{S.Real S.Real} Bounds.abs _ _ (differenceFormula x))) (absoluteBelowSum x quarter)));
+  \definition whenNonzero: Logic.Not (Profile.bump (profileInput x) = S.zero) -> R.Le S.zero (defining x) := \fun (nonzero: _) => nonnegative x (Order.leOfLt (profile x) (sum x)
+    (R.ltLeTrans (profile x) three (sum x)
+      (R.leLtTrans (profile x) (S.add (ProfileEstimates.abs (profileInput x)) S.one) three (ProfileEstimates.upper (profileInput x))
+        (Laws.ltAddRight (ProfileEstimates.abs (profileInput x)) Plateau.two S.one
+          (Order.byContradiction (R.Lt (ProfileEstimates.abs (profileInput x)) Plateau.two)
+            (\fun (notSmall: _) => nonzero (ProfileEstimates.bumpZero (profileInput x) (Order.leOfNotLtReverse Plateau.two (ProfileEstimates.abs (profileInput x)) notSmall)))))) sumAbove));
+  \definition member: R.Le S.zero (defining x) := Logic.orElim (Profile.bump (profileInput x) = S.zero) (Logic.Not (Profile.bump (profileInput x) = S.zero)) (R.Le S.zero (defining x))
+    (Classical.excludedMiddle (Profile.bump (profileInput x) = S.zero)) whenZero whenNonzero;
+}

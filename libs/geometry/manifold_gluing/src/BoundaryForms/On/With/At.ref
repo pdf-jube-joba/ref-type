@@ -1,0 +1,22 @@
+\import boundary_manifolds.Tangent[n := n].On[M := Inclusion.manifold].At[x := b] \as Domain;
+\import boundary_manifolds.Tangent[n := Nat.add One.dimension n].On[M := M].At[x := Inclusion.apply b] \as Ambient;
+\import boundary_manifolds.Differential[n := n, m := Nat.add One.dimension n].Between[M := Inclusion.manifold, N := M].At[f := Inclusion.map, x := b] \as Differential;
+\import Spaces.Multilinear[V := Domain.Vector, space := Domain.space] \as DomainMultilinear;
+\import DomainMultilinear.Alternating[] \as DomainAlternating;
+\import DomainAlternating.At[k := n] \as Forms;
+\import Spaces.Multilinear[V := Ambient.Vector, space := Ambient.space] \as AmbientMultilinear;
+\import AmbientMultilinear.Alternating[] \as AmbientAlternating;
+\import AmbientAlternating.Contraction[k := n] \as Contraction;
+\import DomainAlternating.Precomposition[W := Ambient.Vector, target := Ambient.space] \as Pullback;
+\import \root.BoundarySigns[n := n].On[V := Ambient.Vector, space := Ambient.space] \as Signs;
+\definition AmbientForm: \Set := AmbientAlternating.Form (N.Nat^::succ n);
+\definition Form: \Set := DomainAlternating.Form n;
+\definition inward[omega: AmbientForm][normal: Ambient.Vector]: Form := Pullback.precompose n Differential.value (Signs.inward omega normal);
+\definition outward[omega: AmbientForm][normal: Ambient.Vector]: Form := Pullback.precompose n Differential.value (Signs.outward omega normal);
+\definition oppositeValue: \forall (omega: AmbientForm)(normal: Ambient.Vector)(arguments: DomainMultilinear.Arguments n) -> outward omega normal arguments = S.neg (inward omega normal arguments) :=
+  \fun (omega: AmbientForm)(normal: Ambient.Vector)(arguments: DomainMultilinear.Arguments n) => Signs.normalOppositeValue omega normal (Pullback.arguments n Differential.value arguments);
+\definition opposite: \forall (omega: AmbientForm)(normal: Ambient.Vector) -> outward omega normal = Forms.scale (S.neg S.one) (inward omega normal) :=
+  \fun (omega: AmbientForm)(normal: Ambient.Vector) => Forms.ext _ _ (\fun (arguments: DomainMultilinear.Arguments n) => trans!{S.Real} _ _ _ (oppositeValue omega normal arguments)
+    (sym!{S.Real} _ _ (trans!{S.Real} _ _ _ (Laws.fieldMulNegLeft S.one (inward omega normal arguments)) (congr!{S.Real S.Real} S.neg _ _ (Laws.fieldMulOneLeft (inward omega normal arguments))))));
+\definition rescale: \forall (omega: AmbientForm)(normal: Ambient.Vector)(a: S.Real) -> inward omega (Ambient.space.smul a normal) = Forms.scale a (inward omega normal) :=
+  \fun (omega: AmbientForm)(normal: Ambient.Vector)(a: S.Real) => Forms.ext _ _ (\fun (arguments: DomainMultilinear.Arguments n) => Signs.positiveScale omega normal a (Pullback.arguments n Differential.value arguments));

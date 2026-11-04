@@ -1,0 +1,25 @@
+\import topology.Homeomorphism[A := Original.LocalPoint c, B := Model.Carrier c.constraints c.image] \as Homeos;
+\definition ambient: topology.Continuity[A := LocalPoint, B := M.Point].Continuous domainTopology M.space (\fun (p: LocalPoint) => p) :=
+  topology.Composition[A := LocalPoint, B := Point, C := M.Point].composeContinuous domainTopology topology M.space (\fun (p: LocalPoint) => p) (\fun (p: Point) => p)
+    (topology.Continuity[A := LocalPoint, B := Point].Corestriction[S := domain].inclusionContinuous topology)
+    (topology.Continuity[A := Point, B := M.Point].Corestriction[S := U].inclusionContinuous M.space);
+\definition oldContinuous: topology.Continuity[A := LocalPoint, B := Original.LocalPoint c].Continuous domainTopology (Original.domainTopology c.domain) old :=
+  topology.Continuity[A := LocalPoint, B := M.Point].Corestriction[S := c.domain].corestrictContinuous domainTopology M.space old ambient;
+\definition oldCoordinate: topology.Continuity[A := LocalPoint, B := Model.Carrier c.constraints c.image].Continuous domainTopology (Model.regionTopology c.constraints c.image) (\fun (p: LocalPoint) => Original.coordinate c (old p)) :=
+  topology.Composition[A := LocalPoint, B := Original.LocalPoint c, C := Model.Carrier c.constraints c.image].composeContinuous domainTopology (Original.domainTopology c.domain) (Model.regionTopology c.constraints c.image)
+    old (Original.coordinate c) oldContinuous (Homeos.laws _ _ c.coordinates).forwardContinuous;
+\definition coordinateAmbient: topology.Continuity[A := LocalPoint, B := Model.Point].Continuous domainTopology topological_algebra.Euclidean[].Dimension[n := n].Topology[].topology (\fun (p: LocalPoint) => coordinate p) :=
+  topology.Composition[A := LocalPoint, B := Model.Carrier c.constraints c.image, C := Model.Point].composeContinuous domainTopology (Model.regionTopology c.constraints c.image) topological_algebra.Euclidean[].Dimension[n := n].Topology[].topology
+    (\fun (p: LocalPoint) => Original.coordinate c (old p)) (\fun (u: Model.Carrier c.constraints c.image) => u) oldCoordinate (Model.Topology[C := c.constraints, U := c.image].ambient);
+\definition coordinateContinuous: topology.Continuity[A := LocalPoint, B := Model.Carrier c.constraints image].Continuous domainTopology (Model.regionTopology c.constraints image) coordinate :=
+  Model.Topology[C := c.constraints, U := image].Into[X := LocalPoint, source := domainTopology, f := coordinate].continuous coordinateAmbient;
+\definition inputContinuous: topology.Continuity[A := Model.Carrier c.constraints image, B := Model.Carrier c.constraints c.image].Continuous (Model.regionTopology c.constraints image) (Model.regionTopology c.constraints c.image) input :=
+  Model.Topology[C := c.constraints, U := c.image].Into[X := Model.Carrier c.constraints image, source := Model.regionTopology c.constraints image, f := input].continuous (Model.Topology[C := c.constraints, U := image].ambient);
+\definition originalInverse: topology.Continuity[A := Model.Carrier c.constraints c.image, B := M.Point].Continuous (Model.regionTopology c.constraints c.image) M.space (\fun (u: Model.Carrier c.constraints c.image) => Original.point c u) := OriginalPatch.inverseContinuous;
+\definition pointAmbient: topology.Continuity[A := Model.Carrier c.constraints image, B := M.Point].Continuous (Model.regionTopology c.constraints image) M.space (\fun (u: Model.Carrier c.constraints image) => point u) :=
+  topology.Composition[A := Model.Carrier c.constraints image, B := Model.Carrier c.constraints c.image, C := M.Point].composeContinuous (Model.regionTopology c.constraints image) (Model.regionTopology c.constraints c.image) M.space
+    input (\fun (u: Model.Carrier c.constraints c.image) => Original.point c u) inputContinuous originalInverse;
+\definition valueContinuous: topology.Continuity[A := Model.Carrier c.constraints image, B := Point].Continuous (Model.regionTopology c.constraints image) topology value :=
+  topology.Continuity[A := Model.Carrier c.constraints image, B := M.Point].Corestriction[S := U].corestrictContinuous (Model.regionTopology c.constraints image) M.space value pointAmbient;
+\definition pointContinuous: topology.Continuity[A := Model.Carrier c.constraints image, B := LocalPoint].Continuous (Model.regionTopology c.constraints image) domainTopology point :=
+  topology.Continuity[A := Model.Carrier c.constraints image, B := Point].Corestriction[S := domain].corestrictContinuous (Model.regionTopology c.constraints image) topology point valueContinuous;
