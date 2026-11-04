@@ -1,0 +1,26 @@
+\definition source: Domain.Point := parameter p t nonnegative;
+\import boundary_manifolds.Tangent[n := dimension].On[M := M].At[x := apply source] \as Tangent;
+\import Tangent.Cones[] \as Cones;
+\definition chart: Tangent.Chart := \into[Charts.Chart](data.chart, Tangent.Chart) \by {
+  Tangent.ChartLaws[data.chart] { member := BoundaryAtlas.member data.chart, contains := \bysub(M.Point, data.chart.domain, coordinate source) }
+};
+\definition normalValue: Tangent.coordinate chart Boundary.normal = t One.index := trans!{S.Real} _ _ _
+  (congr!{{Codomain.Point} S.Real} (\fun (u: Codomain.Point) => u Boundary.normal) _ _ (coordinateValue source)) (normalCoordinate p t nonnegative);
+\definition toZero: Cones.Boundary -> t One.index = S.zero := \block {
+  \fun (boundary: Cones.Boundary) \then
+  \takefrom i: \Cast[Model.Coordinate] ({ i: Model.Coordinate \where Model.Active data.chart.constraints (Tangent.coordinate chart) i })
+    \by Cones.coordinateOfBoundary chart boundary \then
+  \let active: Model.Active data.chart.constraints (Tangent.coordinate chart) i := \bysub(Model.Coordinate,
+    { i: Model.Coordinate \where Model.Active data.chart.constraints (Tangent.coordinate chart) i }, i) \then
+  \let same: i = Boundary.normal := \idelim data.chart.constraints = Model.halfSpace Boundary.normal
+    \with C: Model.Constraints => \In[Model.Coordinate] C i \by { base: active.left, equality: BoundaryAtlas.constraints data.chart } \then
+  \return trans!{S.Real} _ _ _ (sym!{S.Real} _ _ normalValue)
+    (trans!{S.Real} _ _ _ (congr!{Model.Coordinate S.Real} (Tangent.coordinate chart) _ _ (sym!{Model.Coordinate} _ _ same)) active.right)
+};
+\definition ofZero: t One.index = S.zero -> Cones.Boundary := \fun (zero: _) => Cones.boundaryOfCoordinate chart
+  (Logic.existsIntro[Model.Coordinate, { i: Model.Coordinate \where Model.Active data.chart.constraints (Tangent.coordinate chart) i }] Boundary.normal
+    (Logic.And[_, _]::#
+      (\idelim Model.halfSpace Boundary.normal = data.chart.constraints \with C: Model.Constraints => \In[Model.Coordinate] C Boundary.normal \by {
+        base: \refl(Boundary.normal), equality: sym!{Model.Constraints} _ _ (BoundaryAtlas.constraints data.chart)
+      }) (trans!{S.Real} _ _ _ normalValue zero)));
+\definition criterion: Logic.PropEquiv[Cones.Boundary, t One.index = S.zero] := Logic.PropEquiv[_, _] { ltr := toZero, rtl := ofZero };

@@ -1,0 +1,59 @@
+\import std.Data[].Nat[] \as N;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\import real.Analysis[] \as S;
+\import dedekind_reals.DedekindReal[] \as R;
+\import R.Order[] \as Order;
+\import R.Arithmetic[].Prop[] \as Laws;
+\import \root.Reflection[n := n] \as Reflection;
+\definition dimension: N.Nat^ := Reflection.dimension;
+\import calculus.Real[].Multivariable[n := dimension].Open[] \as Open;
+\import calculus.Maps[n := dimension, m := dimension] \as Maps;
+\import topology.Topology[Carrier := Open.Carrier Open.whole] \as Ambient;
+\import metric_spaces.RealLine[] \as Line;
+\import Line.Rays[] \as Rays;
+\definition AmbientPoint: \Set := Open.Carrier Open.whole;
+\definition ambient: topology.Structures[].Topology[AmbientPoint] := Open.Topology[].Of[U := Open.whole].topology;
+\definition normal: std.Data[].FinSet[].Fin dimension := Reflection.normal;
+\definition Positive: \Pow AmbientPoint := { x: AmbientPoint \where R.Le S.zero (x normal) };
+\definition Negative: \Pow AmbientPoint := { x: AmbientPoint \where R.Le (x normal) S.zero };
+\definition Zero: \Pow AmbientPoint := { x: AmbientPoint \where x normal = S.zero };
+\definition Half: \Set := \Cast[AmbientPoint] Positive;
+\definition Seam: \Set := \Cast[AmbientPoint] Zero;
+\definition halfTopology: topology.Structures[].Topology[Half] := Ambient.Subspace[S := Positive].topology ambient;
+\definition include[x: Seam]: Half := \into[AmbientPoint](x, Positive) \by {
+  R.leReplaceRight S.zero S.zero (x normal) (sym!{S.Real} _ _ (\bysub(AmbientPoint, Zero, x))) (R.leRefl S.zero)
+};
+\import topological_constructions.Pushout[A := Half, B := Half, C := Seam].Of[u := include, v := include] \as Pushout;
+\definition Point: \Set := Pushout.Carrier;
+\definition topology: topology.Structures[].Topology[Point] := Pushout.topology halfTopology halfTopology;
+\definition reflect[x: AmbientPoint]: AmbientPoint := Maps.apply Open.whole Open.whole Reflection.map x;
+\definition normalContinuous: topology.Continuity[A := AmbientPoint, B := S.Real].Continuous ambient Line.topology (\fun (x: AmbientPoint) => x normal) :=
+  Open.Topology[].Of[U := Open.whole].Continuity[].topological (\fun (x: AmbientPoint) => x normal)
+    (Open.Smooth[].Properties[].continuous Open.whole (\fun (x: AmbientPoint) => x normal) (Open.Examples[].projectionSmooth Open.whole normal));
+\definition negativeClosed: Ambient.IsClosedIn ambient Negative := topology.Continuity[A := AmbientPoint, B := S.Real].closedPreimage
+  ambient Line.topology (\fun (x: AmbientPoint) => x normal) normalContinuous (Rays.AtMost S.zero) (Rays.atMostClosed S.zero);
+\definition positiveClosed: Ambient.IsClosedIn ambient Positive := topology.Continuity[A := AmbientPoint, B := S.Real].closedPreimage
+  ambient Line.topology (\fun (x: AmbientPoint) => x normal) normalContinuous (Rays.AtLeast S.zero) (Rays.atLeastClosed S.zero);
+\definition reflectedPositive: \forall (x: \Cast[AmbientPoint] Negative) -> Ambient.Member Positive (reflect x) :=
+  \fun (x: \Cast[AmbientPoint] Negative) => R.leReplace S.zero S.zero (S.neg (x normal)) (reflect x normal) (\refl(S.zero)) (sym!{S.Real} _ _ (Reflection.normalSign x))
+    (R.leReplaceLeft (S.neg S.zero) S.zero (S.neg (x normal)) Laws.negZero (Laws.negAntitone (x normal) S.zero (\bysub(AmbientPoint, Negative, x))));
+\definition reflectedNegative: \forall (x: Half) -> Ambient.Member Negative (reflect x) :=
+  \fun (x: Half) => R.leReplace (S.neg (x normal)) (reflect x normal) S.zero S.zero (sym!{S.Real} _ _ (Reflection.normalSign x)) (\refl(S.zero))
+    (R.leReplaceRight (S.neg (x normal)) (S.neg S.zero) S.zero Laws.negZero (Laws.negAntitone S.zero (x normal) (\bysub(AmbientPoint, Positive, x))));
+\import Pushout.Universal[D := AmbientPoint] \as Descent;
+\definition compatible: Descent.Compatible (\fun (x: Half) => reflect x) (\fun (x: Half) => x) :=
+  \fun (x: Seam) => boundary_manifolds.Refinement[A := Reflection.Point].equality Open.whole.points (reflect (include x)) (include x)
+    (Reflection.fixesZero x (\bysub(AmbientPoint, Zero, x)));
+\definition forward: Point -> AmbientPoint := Descent.apply (\fun (x: Half) => reflect x) (\fun (x: Half) => x) compatible;
+\definition forwardLeft: \forall (x: Half) -> forward (Pushout.inl x) = reflect x := Descent.onLeft (\fun (x: Half) => reflect x) (\fun (x: Half) => x) compatible;
+\definition forwardRight: \forall (x: Half) -> forward (Pushout.inr x) = x := Descent.onRight (\fun (x: Half) => reflect x) (\fun (x: Half) => x) compatible;
+\definition forwardContinuous: topology.Continuity[A := Point, B := AmbientPoint].Continuous topology ambient forward :=
+  Descent.continuous halfTopology halfTopology ambient (\fun (x: Half) => reflect x) (\fun (x: Half) => x) compatible
+    (topology.Continuity[A := AmbientPoint, B := AmbientPoint].Restriction[S := Positive].restrictContinuous ambient ambient reflect Reflection.continuous)
+    (topology.Continuity[A := Half, B := AmbientPoint].Corestriction[S := Positive].inclusionContinuous ambient);
+\module Inverse;
+\module Smooth;

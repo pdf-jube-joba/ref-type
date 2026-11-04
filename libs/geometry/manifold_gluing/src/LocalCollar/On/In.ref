@@ -1,0 +1,51 @@
+\definition image: Open.OpenSet := Blocks.product data.parameters data.times;
+\import boundary_manifolds.Dimension[n := dimension].Quadrant[C := data.chart.constraints, U := image] \as Domain;
+\definition Point: \Set := Domain.Point;
+\import boundary_manifolds.Dimension[n := dimension].Quadrant[C := data.chart.constraints, U := data.chart.image] \as Codomain;
+\import calculus.Maps[n := dimension, m := dimension] \as Calculus;
+\definition inclusion: Calculus.Map image data.chart.image := Calculus.Map[image, data.chart.image] {
+  apply := Open.inclusion image data.chart.image data.included,
+  smooth := \fun (i: Fin.Fin dimension) => Open.Examples[].projectionSmooth image i,
+};
+\definition preserves: \forall (u: Domain.Point) -> Model.Nonnegative data.chart.constraints (Calculus.apply image data.chart.image inclusion u) :=
+  \fun (u: Domain.Point) => \bysub(Open.Carrier image, Model.region data.chart.constraints image, u);
+\import boundary_manifolds.QuadrantMap[n := dimension, m := dimension].Of[C := data.chart.constraints, D := data.chart.constraints,
+  U := image, V := data.chart.image, f := inclusion, preserves := preserves] \as IntoChart;
+\import \root.ChartMap[n := dimension].On[M := M] \as ChartMaps;
+\definition chart: ChartMaps.Chart := \into[Charts.Chart](data.chart, M.atlas.charts) \by { BoundaryAtlas.member data.chart };
+\import ChartMaps.Of[c := chart] \as ChartMap;
+\import boundary_manifolds.MapComposition[n := dimension, m := dimension, l := dimension].Between[M := Domain.manifold, N := Codomain.manifold, P := M].Of[f := IntoChart.map, g := ChartMap.map] \as Composition;
+\import boundary_manifolds.SmoothMap[n := dimension, m := dimension].Between[M := Domain.manifold, N := M] \as Maps;
+\definition map: Maps.Map := Composition.map;
+\definition apply: Domain.Point -> M.Point := Maps.apply map;
+\definition injective: \forall (u, v: Domain.Point) -> apply u = apply v -> u = v :=
+  \fun (u, v: Domain.Point)(same: _) => Model.equality data.chart.constraints image u v (ChartMap.injective (IntoChart.apply u) (IntoChart.apply v) same);
+\definition coordinate[u: Domain.Point]: Charts.LocalPoint data.chart := \into[M.Point](apply u, data.chart.domain) \by {
+  \bysub(M.Point, data.chart.domain, Charts.point data.chart (IntoChart.apply u))
+};
+\definition coordinateValue: \forall (u: Domain.Point) -> Charts.coordinate data.chart (coordinate u) = IntoChart.apply u :=
+  \fun (u: Domain.Point) => Charts.coordinatePoint data.chart (IntoChart.apply u);
+\definition parameter[p: Parameters.Carrier data.parameters][t: Time.Carrier data.times][nonnegative: R.Le S.zero (t One.index)]: Domain.Point :=
+  \into[Open.Carrier image](\into[Model.Point](Blocks.join p t, image.points) \by {
+    Logic.And[_, _]::#
+      (\idelim (p \of ParameterPoint) = Blocks.left (Blocks.join p t) \with q: ParameterPoint => \In[ParameterPoint] data.parameters.points q \by {
+        base: \bysub(ParameterPoint, data.parameters.points, p), equality: sym!{{ParameterPoint}} _ _ (Blocks.leftJoin p t)
+      })
+      (\idelim (t \of TimePoint) = Blocks.right (Blocks.join p t) \with q: TimePoint => \In[TimePoint] data.times.points q \by {
+        base: \bysub(TimePoint, data.times.points, t), equality: sym!{{TimePoint}} _ _ (Blocks.rightJoin p t)
+      })
+  }, Model.region data.chart.constraints image) \by {
+    \idelim Model.halfSpace Boundary.normal = data.chart.constraints \with C: Model.Constraints => Model.Nonnegative C (Blocks.join p t) \by {
+      base: Model.halfSpaceNonnegative Boundary.normal (Blocks.join p t) (R.leReplaceRight S.zero (t One.index) (Blocks.join p t Boundary.normal)
+        (sym!{S.Real} _ _ (congr!{{TimePoint} S.Real} (\fun (v: TimePoint) => v One.index) _ _ (Blocks.rightJoin p t))) nonnegative),
+      equality: sym!{Model.Constraints} _ _ (BoundaryAtlas.constraints data.chart)
+    }
+  };
+\definition zeroTime: Time.Carrier data.times := \into[TimePoint](zero, data.times.points) \by { data.containsZero };
+\definition zeroParameter[p: Parameters.Carrier data.parameters]: Domain.Point := parameter p zeroTime (R.leRefl S.zero);
+\definition normalCoordinate: \forall (p: Parameters.Carrier data.parameters)(t: Time.Carrier data.times)(nonnegative: _) ->
+  IntoChart.apply (parameter p t nonnegative) Boundary.normal = t One.index :=
+  \fun (p: Parameters.Carrier data.parameters)(t: Time.Carrier data.times)(nonnegative: _) =>
+    congr!{{TimePoint} S.Real} (\fun (v: TimePoint) => v One.index) _ _ (Blocks.rightJoin p t);
+\module Topology;
+\module AtParameter(p: Parameters.Carrier data.parameters, t: Time.Carrier data.times, nonnegative: R.Le S.zero (t One.index));

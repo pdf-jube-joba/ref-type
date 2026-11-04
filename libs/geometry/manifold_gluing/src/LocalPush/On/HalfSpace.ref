@@ -1,0 +1,30 @@
+\import boundary_manifolds.Model[n := dimension] \as Target;
+\import boundary_manifolds.Model[n := One.dimension] \as Time;
+\import boundary_manifolds.Model[n := sourceDimension] \as Source;
+\import boundary_manifolds.Product[n := dimension, m := One.dimension] \as Constraints;
+\definition spatialConstraints: Target.Constraints := Target.halfSpace normal;
+\definition timeConstraints: Time.Constraints := Time.halfSpace One.index;
+\definition constraints: Source.Constraints := Constraints.constraints spatialConstraints timeConstraints;
+\import boundary_manifolds.Dimension[n := sourceDimension].Quadrant[C := constraints, U := Input.whole] \as Domain;
+\import boundary_manifolds.Dimension[n := dimension].Quadrant[C := spatialConstraints, U := Output.whole] \as Codomain;
+\definition spatialNonnegative: \forall (z: Domain.Point) -> R.Le S.zero (spatial z normal) :=
+  \fun (z: Domain.Point) => Constraints.nonnegativeLeft spatialConstraints timeConstraints z
+    (\bysub(Input.Carrier Input.whole, Source.region constraints Input.whole, z)) normal (\refl(normal));
+\definition timeNonnegative: \forall (z: Domain.Point) -> R.Le S.zero (time z) :=
+  \fun (z: Domain.Point) => Constraints.nonnegativeRight spatialConstraints timeConstraints z
+    (\bysub(Input.Carrier Input.whole, Source.region constraints Input.whole, z)) One.index (\refl(One.index));
+\definition displacementNonnegative: \forall (z: Domain.Point) -> R.Le S.zero (displacement z) :=
+  \fun (z: Domain.Point) => Laws.fieldMulNonnegative (time z) (bump z) (timeNonnegative z) (Bump.bounded (spatial z)).left;
+\definition preserves: \forall (z: Domain.Point) -> Target.Nonnegative spatialConstraints (Maps.apply Input.whole Output.whole ambient z) :=
+  \fun (z: Domain.Point) => Target.halfSpaceNonnegative normal (value z)
+    (R.leReplaceRight S.zero (S.add (spatial z normal) (displacement z)) (value z normal) (sym!{S.Real} _ _ (normalValue z))
+      (Laws.addNonnegative (spatial z normal) (displacement z) (spatialNonnegative z) (displacementNonnegative z)));
+\import boundary_manifolds.QuadrantMap[n := sourceDimension, m := dimension].Of[C := constraints, D := spatialConstraints,
+  U := Input.whole, V := Output.whole, f := ambient, preserves := preserves] \as Restriction;
+\import boundary_manifolds.SmoothMap[n := sourceDimension, m := dimension].Between[M := Domain.manifold, N := Codomain.manifold] \as SmoothMaps;
+\definition map: SmoothMaps.Map := Restriction.map;
+\definition movesInward: \forall (z: Domain.Point) -> spatial z normal = S.zero -> R.Lt S.zero (time z) -> R.Lt S.zero (bump z) -> R.Lt S.zero (value z normal) :=
+  \fun (z: Domain.Point)(zero: _)(positiveTime: _)(positiveBump: _) => R.ltReplaceRight S.zero (displacement z) (value z normal)
+    (trans!{S.Real} _ _ _ (sym!{S.Real} _ _ (Laws.addZeroLeft (displacement z)))
+      (trans!{S.Real} _ _ _ (congr!{S.Real S.Real} (\fun (x: S.Real) => S.add x (displacement z)) _ _ (sym!{S.Real} _ _ zero)) (sym!{S.Real} _ _ (normalValue z))))
+    (S.Estimates[].Product[].mulPositive (time z) (bump z) positiveTime positiveBump);

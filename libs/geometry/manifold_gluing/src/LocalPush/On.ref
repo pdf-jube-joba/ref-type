@@ -1,0 +1,61 @@
+\import calculus.Real[].OneDimension[] \as One;
+\import calculus.Blocks[n := dimension, m := One.dimension] \as Blocks;
+\import inverse_implicit.Product[n := dimension, m := One.dimension] \as Product;
+\definition sourceDimension: N.Nat^ := Blocks.dimension;
+\import calculus.Real[].Multivariable[n := sourceDimension].Open[] \as Input;
+\import calculus.Real[].Multivariable[n := dimension].Open[] \as Output;
+\import calculus.Real[].Multivariable[n := dimension].Space[].Def[] \as Coordinates;
+\import calculus.Real[].Multivariable[n := dimension].Space[].Prop[] \as CoordinateLaws;
+\import calculus.Maps[n := sourceDimension, m := dimension] \as Maps;
+\import Input.Smooth[] \as Smooth;
+\import Smooth.Operations[] \as Operations;
+\import Input.Examples[] \as Examples;
+\import Functions.LocalBump[a := a, q := q] \as Bump;
+\definition normal: Fin.Fin dimension := Normal.normal;
+\definition unit: Point := Coordinates.basis normal;
+\definition spatial[z: Input.Carrier Input.whole]: Point := Blocks.left z;
+\definition time[z: Input.Carrier Input.whole]: S.Real := Blocks.right z One.index;
+\definition bump[z: Input.Carrier Input.whole]: S.Real := Bump.value (spatial z);
+\definition displacement[z: Input.Carrier Input.whole]: S.Real := S.mul (time z) (bump z);
+\definition value[z: Input.Carrier Input.whole][i: Fin.Fin dimension]: S.Real := S.add (spatial z i) (S.mul (displacement z) (unit i));
+\import calculus.LinearMap[n := sourceDimension, m := dimension].On[U := Input.whole, L := Product.leftLinear] \as Projection;
+\import Maps.Composition[U := Input.whole, V := Output.whole, f := Projection.map] \as Composition;
+\definition bumpFunction: Output.Smooth[].Derivative[].Function Output.whole :=
+  \into[Output.ScalarFunction Output.whole]((\fun (x: Output.Carrier Output.whole) => Bump.value x),
+    { f: Output.ScalarFunction Output.whole \where Output.Smooth[].SmoothOn Output.whole f }) \by { Bump.smooth };
+\definition bumpSmooth: Smooth.SmoothOn Input.whole bump := Composition.smooth bumpFunction;
+\definition displacementSmooth: Smooth.SmoothOn Input.whole displacement := Operations.mulSmooth Input.whole time bump
+  (Examples.projectionSmooth Input.whole (Fin.Sum[m := dimension, n := One.dimension].right One.index)) bumpSmooth;
+\definition data: Maps.Data[Input.whole, Output.whole] := Maps.Data[Input.whole, Output.whole] {
+  apply := \fun (z: Input.Carrier Input.whole) => \into[Point](value z, Output.whole.points) \by { \refl(value z) },
+};
+\definition smooth: Maps.Laws[Input.whole, Output.whole, data] := Maps.Laws[Input.whole, Output.whole, data] {
+  smooth := \fun (i: Fin.Fin dimension) => Operations.addSmooth Input.whole (\fun (z: Input.Carrier Input.whole) => spatial z i)
+    (\fun (z: Input.Carrier Input.whole) => S.mul (displacement z) (unit i))
+    (Examples.projectionSmooth Input.whole (Fin.Sum[m := dimension, n := One.dimension].left i))
+    (Operations.mulSmooth Input.whole displacement (\fun (z: Input.Carrier Input.whole) => unit i) displacementSmooth (Operations.constantSmooth Input.whole (unit i))),
+};
+\definition ambient: Maps.Map Input.whole Output.whole := \into[Maps.Data[Input.whole, Output.whole]](data,
+  { f: Maps.Data[Input.whole, Output.whole] \where Maps.Laws[Input.whole, Output.whole, f] }) \by { smooth };
+\definition normalValue: \forall (z: Input.Carrier Input.whole) -> value z normal = S.add (spatial z normal) (displacement z) :=
+  \fun (z: Input.Carrier Input.whole) => trans!{S.Real} _ _ _ (congr!{S.Real S.Real} (S.add (spatial z normal)) _ _
+    (congr!{S.Real S.Real} (S.mul (displacement z)) _ _ (CoordinateLaws.replaceSame Coordinates.origin normal S.one)))
+    (congr!{S.Real S.Real} (S.add (spatial z normal)) _ _ (S.Algebra[].mulOneRight (displacement z)));
+\definition tangentialValue: \forall (z: Input.Carrier Input.whole)(i: Fin.Fin dimension) -> Logic.Not (normal = i) -> value z i = spatial z i :=
+  \fun (z: Input.Carrier Input.whole)(i: Fin.Fin dimension)(different: _) => trans!{S.Real} _ _ _
+    (congr!{S.Real S.Real} (S.add (spatial z i)) _ _ (trans!{S.Real} _ _ _
+      (congr!{S.Real S.Real} (S.mul (displacement z)) _ _ (CoordinateLaws.replaceDifferent Coordinates.origin normal i S.one different))
+      (Laws.fieldMulZeroRight (displacement z)))) (Laws.addZeroRight (spatial z i));
+\definition atZero: \forall (z: Input.Carrier Input.whole) -> time z = S.zero -> value z = spatial z :=
+  \fun (z: Input.Carrier Input.whole)(zero: _) => \axiom:funext(value z, spatial z, \fun (i: Fin.Fin dimension) => trans!{S.Real} _ _ _
+    (congr!{S.Real S.Real} (S.add (spatial z i)) _ _ (trans!{S.Real} _ _ _
+      (congr!{S.Real S.Real} (\fun (t: S.Real) => S.mul (S.mul t (bump z)) (unit i)) _ _ zero)
+      (trans!{S.Real} _ _ _ (congr!{S.Real S.Real} (\fun (t: S.Real) => S.mul t (unit i)) _ _ (Laws.fieldMulZeroLeft (bump z))) (Laws.fieldMulZeroLeft (unit i)))))
+    (Laws.addZeroRight (spatial z i)));
+\definition outside: \forall (z: Input.Carrier Input.whole) -> bump z = S.zero -> value z = spatial z :=
+  \fun (z: Input.Carrier Input.whole)(zero: _) => \axiom:funext(value z, spatial z, \fun (i: Fin.Fin dimension) => trans!{S.Real} _ _ _
+    (congr!{S.Real S.Real} (S.add (spatial z i)) _ _ (trans!{S.Real} _ _ _
+      (congr!{S.Real S.Real} (\fun (b: S.Real) => S.mul (S.mul (time z) b) (unit i)) _ _ zero)
+      (trans!{S.Real} _ _ _ (congr!{S.Real S.Real} (\fun (t: S.Real) => S.mul t (unit i)) _ _ (Laws.fieldMulZeroRight (time z))) (Laws.fieldMulZeroLeft (unit i)))))
+    (Laws.addZeroRight (spatial z i)));
+\module HalfSpace;

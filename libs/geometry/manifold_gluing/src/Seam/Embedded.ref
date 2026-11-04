@@ -1,0 +1,95 @@
+\definition alongLeft: \forall (a, b: A)(c: B) -> a = b -> Cross b c -> Cross a c :=
+  \fun (a, b: A)(c: B)(same: a = b)(cross: Cross b c) => \idelim b = a
+    \with x: A => Cross x c \by { base: cross, equality: sym!{A} _ _ same };
+\definition alongRight: \forall (a: A)(b, c: B) -> b = c -> Cross a b -> Cross a c :=
+  \fun (a: A)(b, c: B)(same: b = c)(cross: Cross a b) => \idelim b = c
+    \with x: B => Cross a x \by { base: cross, equality: same };
+\definition leftEqual: \forall (a, b: A)(c: B) -> Cross a c -> Cross b c -> a = b := \block {
+  \fun (a, b: A)(c: B)(ac: Cross a c)(bc: Cross b c) \then
+  \takefrom p: \Cast[C] ({ p: C \where Logic.And[a = u p, c = v p] }) \by ac \then
+  \takefrom q: \Cast[C] ({ q: C \where Logic.And[b = u q, c = v q] }) \by bc \then
+  \let first: Logic.And[a = u p, c = v p] := \bysub(C, { p: C \where Logic.And[a = u p, c = v p] }, p) \then
+  \let second: Logic.And[b = u q, c = v q] := \bysub(C, { q: C \where Logic.And[b = u q, c = v q] }, q) \then
+  \let same: p = q := injections.right p q (trans!{B} _ _ _ (sym!{B} _ _ first.right) second.right) \then
+  \return trans!{A} _ _ _ first.left (trans!{A} _ _ _ (congr!{C A} u _ _ same) (sym!{A} _ _ second.left))
+};
+\definition rightEqual: \forall (a: A)(b, c: B) -> Cross a b -> Cross a c -> b = c := \block {
+  \fun (a: A)(b, c: B)(ab: Cross a b)(ac: Cross a c) \then
+  \takefrom p: \Cast[C] ({ p: C \where Logic.And[a = u p, b = v p] }) \by ab \then
+  \takefrom q: \Cast[C] ({ q: C \where Logic.And[a = u q, c = v q] }) \by ac \then
+  \let first: Logic.And[a = u p, b = v p] := \bysub(C, { p: C \where Logic.And[a = u p, b = v p] }, p) \then
+  \let second: Logic.And[a = u q, c = v q] := \bysub(C, { q: C \where Logic.And[a = u q, c = v q] }, q) \then
+  \let same: p = q := injections.left p q (trans!{A} _ _ _ (sym!{A} _ _ first.left) second.left) \then
+  \return trans!{B} _ _ _ first.right (trans!{B} _ _ _ (congr!{C B} v _ _ same) (sym!{B} _ _ second.right))
+};
+\definition reflexive: \forall (x: Sum.Carrier) -> Normal x x :=
+  \induction (x: Sum.Carrier) \return Normal x x \with {
+    | inl: \fun (a: A) => \refl(a)
+    | inr: \fun (b: B) => \refl(b)
+  };
+\definition symmetric: \forall (x, y: Sum.Carrier) -> Normal x y -> Normal y x :=
+  \induction (x: Sum.Carrier) \return \forall (y: Sum.Carrier) -> Normal x y -> Normal y x \with {
+    | inl: \fun (a: A) => \induction (y: Sum.Carrier) \return Normal (Sum.inl a) y -> Normal y (Sum.inl a) \with {
+      | inl: \fun (b: A)(same: a = b) => sym!{A} _ _ same
+      | inr: \fun (b: B)(cross: Cross a b) => cross
+    }
+    | inr: \fun (a: B) => \induction (y: Sum.Carrier) \return Normal (Sum.inr a) y -> Normal y (Sum.inr a) \with {
+      | inl: \fun (b: A)(cross: Cross b a) => cross
+      | inr: \fun (b: B)(same: a = b) => sym!{B} _ _ same
+    }
+  };
+\definition transitive: \forall (x, y, z: Sum.Carrier) -> Normal x y -> Normal y z -> Normal x z :=
+  \induction (x: Sum.Carrier) \return \forall (y, z: Sum.Carrier) -> Normal x y -> Normal y z -> Normal x z \with {
+    | inl: \fun (a: A) => \induction (y: Sum.Carrier) \return \forall (z: Sum.Carrier) -> Normal (Sum.inl a) y -> Normal y z -> Normal (Sum.inl a) z \with {
+      | inl: \fun (b: A) => \induction (z: Sum.Carrier) \return Normal (Sum.inl a) (Sum.inl b) -> Normal (Sum.inl b) z -> Normal (Sum.inl a) z \with {
+        | inl: \fun (c: A)(ab: a = b)(bc: b = c) => trans!{A} _ _ _ ab bc
+        | inr: \fun (c: B)(ab: a = b)(bc: Cross b c) => alongLeft a b c ab bc
+      }
+      | inr: \fun (b: B) => \induction (z: Sum.Carrier) \return Normal (Sum.inl a) (Sum.inr b) -> Normal (Sum.inr b) z -> Normal (Sum.inl a) z \with {
+        | inl: \fun (c: A)(ab: Cross a b)(bc: Cross c b) => leftEqual a c b ab bc
+        | inr: \fun (c: B)(ab: Cross a b)(bc: b = c) => alongRight a b c bc ab
+      }
+    }
+    | inr: \fun (a: B) => \induction (y: Sum.Carrier) \return \forall (z: Sum.Carrier) -> Normal (Sum.inr a) y -> Normal y z -> Normal (Sum.inr a) z \with {
+      | inl: \fun (b: A) => \induction (z: Sum.Carrier) \return Normal (Sum.inr a) (Sum.inl b) -> Normal (Sum.inl b) z -> Normal (Sum.inr a) z \with {
+        | inl: \fun (c: A)(ab: Cross b a)(bc: b = c) => alongLeft c b a (sym!{A} _ _ bc) ab
+        | inr: \fun (c: B)(ab: Cross b a)(bc: Cross b c) => rightEqual b a c ab bc
+      }
+      | inr: \fun (b: B) => \induction (z: Sum.Carrier) \return Normal (Sum.inr a) (Sum.inr b) -> Normal (Sum.inr b) z -> Normal (Sum.inr a) z \with {
+        | inl: \fun (c: A)(ab: a = b)(bc: Cross c b) => alongRight c b a (sym!{B} _ _ ab) bc
+        | inr: \fun (c: B)(ab: a = b)(bc: b = c) => trans!{B} _ _ _ ab bc
+      }
+    }
+  };
+\definition edgeNormal: \forall (x, y: Sum.Carrier) -> Pushout.Edge x y -> Normal x y := \block {
+  \fun (x, y: Sum.Carrier)(edge: Pushout.Edge x y) \then
+  \takefrom c: \Cast[C] ({ c: C \where Logic.And[x = Sum.inl (u c), y = Sum.inr (v c)] }) \by edge \then
+  \let endpoints: Logic.And[x = Sum.inl (u c), y = Sum.inr (v c)] :=
+    \bysub(C, { c: C \where Logic.And[x = Sum.inl (u c), y = Sum.inr (v c)] }, c) \then
+  \return \idelim Sum.inl (u c) = x \with a: Sum.Carrier => Normal a y \by {
+    base: \idelim Sum.inr (v c) = y \with b: Sum.Carrier => Normal (Sum.inl (u c)) b \by {
+      base: Logic.existsIntro[C, { d: C \where Logic.And[u c = u d, v c = v d] }] c (Logic.And[_, _]::# (\refl(u c)) (\refl(v c))),
+      equality: sym!{{Sum.Carrier}} _ _ endpoints.right
+    }, equality: sym!{{Sum.Carrier}} _ _ endpoints.left
+  }
+};
+\definition normalOfRelated: \forall (x, y: Sum.Carrier) -> Pushout.Related x y -> Normal x y :=
+  \fun (x, y: Sum.Carrier)(related: _) => related Normal edgeNormal reflexive symmetric transitive;
+\import topological_constructions.RelationQuotient[A := Sum.Carrier, relation := Pushout.Related] \as Quotient;
+\definition normalOfEqual: \forall (x, y: Sum.Carrier) -> Pushout.class x = Pushout.class y -> Normal x y :=
+  \fun (x, y: Sum.Carrier)(same: _) => normalOfRelated x y (Quotient.equalRelated Pushout.equivalence x y same);
+\definition leftInjective: \forall (a, b: A) -> Pushout.inl a = Pushout.inl b -> a = b :=
+  \fun (a, b: A) => normalOfEqual (Sum.inl a) (Sum.inl b);
+\definition rightInjective: \forall (a, b: B) -> Pushout.inr a = Pushout.inr b -> a = b :=
+  \fun (a, b: B) => normalOfEqual (Sum.inr a) (Sum.inr b);
+\definition crossOfEqual: \forall (a: A)(b: B) -> Pushout.inl a = Pushout.inr b -> Cross a b :=
+  \fun (a: A)(b: B) => normalOfEqual (Sum.inl a) (Sum.inr b);
+\definition equalOfCross: \forall (a: A)(b: B) -> Cross a b -> Pushout.inl a = Pushout.inr b := \block {
+  \fun (a: A)(b: B)(cross: Cross a b) \then
+  \takefrom c: \Cast[C] ({ c: C \where Logic.And[a = u c, b = v c] }) \by cross \then
+  \let endpoints: Logic.And[a = u c, b = v c] := \bysub(C, { c: C \where Logic.And[a = u c, b = v c] }, c) \then
+  \return trans!{{Pushout.Carrier}} _ _ _ (congr!{A {Pushout.Carrier}} Pushout.inl _ _ endpoints.left)
+    (trans!{{Pushout.Carrier}} _ _ _ (Pushout.glued c) (sym!{{Pushout.Carrier}} _ _ (congr!{B {Pushout.Carrier}} Pushout.inr _ _ endpoints.right)))
+};
+\definition crossCriterion: \forall (a: A)(b: B) -> Logic.PropEquiv[Pushout.inl a = Pushout.inr b, Cross a b] :=
+  \fun (a: A)(b: B) => Logic.PropEquiv[_, _] { ltr := crossOfEqual a b, rtl := equalOfCross a b };

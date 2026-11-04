@@ -1,0 +1,19 @@
+\import \root.TopologicalCollar[T := T, B := B, A := A].On[parameterSpace := parameterSpace, boundarySpace := boundarySpace, space := space, zero := zero, inclusion := inclusion].Of[c := c] \as Left;
+\import \root.TopologicalCollar[T := T, B := B, A := A].On[parameterSpace := parameterSpace, boundarySpace := boundarySpace, space := space, zero := zero, inclusion := inclusion].Of[c := d] \as Right;
+\definition forward[x: Image c.image]: Image d.image := d.homeomorphism.forward (c.homeomorphism.backward x);
+\definition backward[x: Image d.image]: Image c.image := c.homeomorphism.forward (d.homeomorphism.backward x);
+\definition homeomorphism: topology.Homeomorphism[A := Image c.image, B := Image d.image].Homeomorphism[imageTopology c.image, imageTopology d.image] :=
+  topology.Homeomorphism[A := Image c.image, B := Image d.image].Homeomorphism[imageTopology c.image, imageTopology d.image] {
+    forward := forward, backward := backward,
+    leftInverse := \fun (x: Image c.image) => trans!{{Image c.image}} _ _ _
+      (congr!{{Product.CarrierSet} {Image c.image}} c.homeomorphism.forward _ _ (Right.laws.leftInverse (c.homeomorphism.backward x))) (Left.laws.rightInverse x),
+    rightInverse := \fun (x: Image d.image) => trans!{{Image d.image}} _ _ _
+      (congr!{{Product.CarrierSet} {Image d.image}} d.homeomorphism.forward _ _ (Left.laws.leftInverse (d.homeomorphism.backward x))) (Right.laws.rightInverse x),
+    forwardContinuous := topology.Composition[A := Image c.image, B := Product.CarrierSet, C := Image d.image].composeContinuous (imageTopology c.image) source (imageTopology d.image)
+      c.homeomorphism.backward d.homeomorphism.forward Left.laws.backwardContinuous Right.laws.forwardContinuous,
+    backwardContinuous := topology.Composition[A := Image d.image, B := Product.CarrierSet, C := Image c.image].composeContinuous (imageTopology d.image) source (imageTopology c.image)
+      d.homeomorphism.backward c.homeomorphism.forward Right.laws.backwardContinuous Left.laws.forwardContinuous,
+  };
+\definition fixesBoundary: \forall (b: B) -> forward (Left.boundaryPoint b) = Right.boundaryPoint b :=
+  \fun (b: B) => boundary_manifolds.Refinement[A := A].equality d.image (forward (Left.boundaryPoint b)) (Right.boundaryPoint b)
+    (trans!{A} _ _ _ (congr!{{Product.CarrierSet} A} (\fun (p: Product.CarrierSet) => d.homeomorphism.forward p) _ _ (Left.inverseBoundary b)) (d.fixed b));
