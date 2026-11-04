@@ -1,0 +1,71 @@
+\import \parent.Embedding[] \as Embedding;
+\import \parent.Schwartz[] \as Schwartz;
+\import \parent.Unitary[] \as U;
+\import fourier_schwartz.Phase[] \as Phase;
+\import fourier_schwartz.NaturalPowers[] \as Numeric;
+\import N.Basic[].Def[] \as NatOps;
+\import N.Induction[] \as Induction;
+\import Real.SquareRoot[] \as Root;
+\import L.Norm[p := PA.two] \as RealNorm;
+\definition iterated[f: S.Function]: E.Directions -> S.Function := \induction (d: E.Directions) \return S.Function \with {
+  | nil: f
+  | cons: \fun (i: E.Coordinate)(d: E.Directions)(previous: S.Function) => S.partial previous i
+};
+\definition order[d: E.Directions]: N.Nat^ := Lists.length E.Coordinate d;
+\definition partial[f: S.Function][i: E.Coordinate][xi: Point]: S.value (Schwartz.forward (S.partial f i)) xi = D.scale (xi i) (Phase.rotate (S.value (Schwartz.forward f) xi)) := eq_reason_in!{C.Complex _
+  "=" _ "by" { congr!{C.Complex C.Complex} (D.scale Schwartz.coefficient) _ _ (Transform.Identities[].spatialDerivative f xi i) }
+  "=" _ "by" { Scalars.scaleCompose _ _ _ }
+  "=" _ "by" { congr!{Real.Real C.Complex} (\fun (a: Real.Real) => D.scale a (Phase.rotate (Transform.function f xi))) _ _ (Laws.fieldMulComm _ _) }
+  "=" _ "by" { sym!{C.Complex} _ _ (Scalars.scaleCompose _ _ _) }
+  "=" _ "by" { congr!{C.Complex C.Complex} (D.scale (xi i)) _ _ (sym!{C.Complex} _ _ (Scalars.rotateScale Schwartz.coefficient _)) }
+};
+\definition scaleSquared[a: Real.Real][z: C.Complex]: D.normSq (D.scale a z) = Real.mul (Real.mul a a) (D.normSq z) := eq_reason_in!{Real.Real _
+  "=" _ "by" { congr!{Real.Real Real.Real Real.Real} Real.add _ _ _ _ (Algebra.mulFour a (C.re z) a (C.re z)) (Algebra.mulFour a (C.im z) a (C.im z)) }
+  "=" _ "by" { sym!{Real.Real} _ _ (Laws.fieldMulAdd (Real.mul a a) _ _) }
+};
+\definition rotationSquared[z: C.Complex]: D.normSq (Phase.rotate z) = D.normSq z := trans!{Real.Real} _ _ _
+  (congr!{Real.Real Real.Real} (\fun (r: Real.Real) => Real.add r (Real.mul (C.re z) (C.re z))) _ _ (Laws.fieldMulNegBoth (C.im z) (C.im z))) (Laws.addComm _ _);
+\definition partialSquared[f: S.Function][i: E.Coordinate][xi: Point]: D.normSq (S.value (Schwartz.forward (S.partial f i)) xi) = Real.mul (Real.mul (xi i) (xi i)) (D.normSq (S.value (Schwartz.forward f) xi)) := eq_reason_in!{Real.Real _
+  "=" _ "by" { congr!{C.Complex Real.Real} D.normSq _ _ (partial f i xi) }
+  "=" _ "by" { scaleSquared (xi i) _ }
+  "=" _ "by" { congr!{Real.Real Real.Real} (Real.mul (Real.mul (xi i) (xi i))) _ _ (rotationSquared _) }
+};
+\definition symbolSquared[d: E.Directions][xi: Point]: Real.Real := (\induction (d: E.Directions) \return Real.Real \with {
+  | nil: Real.one
+  | cons: \fun (i: E.Coordinate)(d: E.Directions)(previous: Real.Real) => Real.mul (Real.mul (xi i) (xi i)) previous
+}) d;
+\definition symbolNonnegative[xi: Point]: \forall (d: E.Directions) -> R.Le Real.zero (symbolSquared d xi) := \induction (d: E.Directions) \return R.Le Real.zero (symbolSquared d xi) \with {
+  | nil: Laws.oneNonnegative
+  | cons: \fun (i: E.Coordinate)(d: E.Directions)(previous: _) => Laws.fieldMulNonnegative _ _ (Algebra.squareNonnegative (xi i)) previous
+};
+\definition fourierSquared[f: S.Function][xi: Point]: \forall (d: E.Directions) -> D.normSq (S.value (Schwartz.forward (iterated f d)) xi) = Real.mul (symbolSquared d xi) (D.normSq (S.value (Schwartz.forward f) xi)) :=
+  \induction (d: E.Directions) \return D.normSq (S.value (Schwartz.forward (iterated f d)) xi) = Real.mul (symbolSquared d xi) (D.normSq (S.value (Schwartz.forward f) xi)) \with {
+    | nil: sym!{Real.Real} _ _ (Laws.fieldMulOneLeft _)
+    | cons: \fun (i: E.Coordinate)(d: E.Directions)(previous: _) => trans!{Real.Real} _ _ _ (partialSquared (iterated f d) i xi)
+      (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (Real.mul (Real.mul (xi i) (xi i))) _ _ previous) (sym!{Real.Real} _ _ (Laws.fieldMulAssoc _ _ _)))
+  };
+\definition symbolBound[xi: Point]: \forall (d: E.Directions) -> R.Le (symbolSquared d xi) (E.weight (order d) xi) :=
+  \induction (d: E.Directions) \return R.Le (symbolSquared d xi) (E.weight (order d) xi) \with {
+    | nil: R.leRefl Real.one
+    | cons: \fun (i: E.Coordinate)(d: E.Directions)(previous: _) => R.leTrans _ (Real.mul (Real.mul (xi i) (xi i)) (E.weight (order d) xi)) _
+      (Estimates.mulMonotone _ _ _ (Algebra.squareNonnegative (xi i)) previous)
+      (R.leReplace _ _ _ _ (Laws.fieldMulComm _ _) (Laws.fieldMulComm _ _) (Estimates.mulMonotone _ _ _ (E.weightNonnegative (order d) xi)
+        (R.leTrans _ (E.radiusSquared xi) _ (Sum.coordinateUpper n (\fun (j: E.Coordinate) => Real.mul (xi j) (xi j)) (\fun (j: E.Coordinate) => Algebra.squareNonnegative (xi j)) i)
+          (R.leReplaceRight _ _ _ (Laws.addComm _ _) (Algebra.leAddRight _ _ Laws.oneNonnegative)))))
+  };
+\definition powerStep[xi: Point][k: N.Nat^]: R.Le (E.weight k xi) (E.weight (N.Nat^::succ k) xi) := R.leReplaceLeft _ _ _ (Laws.fieldMulOneLeft (E.weight k xi))
+  (R.leReplace _ _ _ _ (Laws.fieldMulComm _ _) (Laws.fieldMulComm _ _) (Estimates.mulMonotone _ _ _ (E.weightNonnegative k xi) (E.Decay[].WeightBounds[].baseOne xi)));
+\definition powerOrder[xi: Point]: \forall (l, k: N.Nat^) -> Nat.Le k l -> R.Le (E.weight k xi) (E.weight l xi) :=
+  \induction (l: N.Nat^) \return \forall (k: N.Nat^) -> Nat.Le k l -> R.Le (E.weight k xi) (E.weight l xi) \with {
+    | zero: \fun (k: N.Nat^)(bound: _) => \idelim N.Nat^::zero = k \with j: N.Nat^ => R.Le (E.weight j xi) Real.one \by { base: R.leRefl Real.one, equality: sym!{N.Nat^} _ _ (Nat.leZeroEq k bound) }
+    | succ: \fun (l: N.Nat^)(previous: _)(k: N.Nat^)(bound: _) => Logic.orElim _ _ _ (Induction.leCases k (N.Nat^::succ l) bound)
+      (\fun (less: _) => R.leTrans _ _ _ (previous k (Induction.belowSuccessor k l less)) (powerStep xi l))
+      (\fun (same: k = N.Nat^::succ l) => R.leReplaceLeft _ _ _ (congr!{N.Nat^ Real.Real} (\fun (k: N.Nat^) => E.weight k xi) _ _ (sym!{N.Nat^} _ _ same)) (R.leRefl (E.weight (N.Nat^::succ l) xi)))
+  };
+\definition squaredMonotone[z, w: C.Complex]: R.Le (D.normSq z) (D.normSq w) -> R.Le (Absolute.abs z) (Absolute.abs w) := \fun (bound: _) => Order.leOfNotLtReverse _ _
+  (\fun (greater: _) => R.ltNotLeReverse _ _ (Normed.ltReplace _ _ _ _ (Absolute.square w) (Absolute.square z) (Root.squareStrict (Absolute.abs w) (Absolute.abs z) (Absolute.nonnegative w) greater)) bound);
+\definition normMonotone[f, g: S.Function]: (\forall (xi: Point) -> R.Le (Absolute.abs (S.value f xi)) (Absolute.abs (S.value g xi))) -> R.Le (L2.normValue (Embedding.value f)) (L2.normValue (Embedding.value g)) := \fun (bound: _) =>
+  R.leReplace _ _ _ _ (sym!{Real.Real} _ _ (L2.normOfFunction (Embedding.representative f))) (sym!{Real.Real} _ _ (L2.normOfFunction (Embedding.representative g)))
+    (RealNorm.monotone (L2.modulusRepresentative (Embedding.representative f)) (L2.modulusRepresentative (Embedding.representative g))
+      (\fun (xi: Point) => R.leReplace _ _ _ _ (sym!{Real.Real} _ _ (Product.absOfNonnegative _ (Absolute.nonnegative (S.value f xi)))) (sym!{Real.Real} _ _ (Product.absOfNonnegative _ (Absolute.nonnegative (S.value g xi)))) (bound xi)));
+\module Comparison(m: N.Nat^);

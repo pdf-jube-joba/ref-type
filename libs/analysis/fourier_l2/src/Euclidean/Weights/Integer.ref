@@ -1,0 +1,24 @@
+\import E.Decay[].WeightBounds[] \as Bounds;
+\import E.Integrability[] \as Integrability;
+\import calculus.Real[].Multivariable[n := n].Open[] \as Open;
+\import Open.Smooth[] \as Smooth;
+\import Open.Whole[] \as Whole;
+\import lp_spaces.Euclidean[n := n].Compact[p := PA.two] \as Compact;
+\definition function: Point -> Real.Real := E.weight m;
+\definition lower[x: Point]: R.Le Real.one (function x) := Bounds.weightOne m x;
+\definition positive[x: Point]: R.Lt Real.zero (function x) := R.ltLeTrans _ _ _ Product.onePositive (lower x);
+\definition smooth: E.Function := \into[Open.ScalarFunction Open.whole]((\fun (x: Open.Carrier Open.whole) => function x), E.Function) \by { Integrability.powerSmooth m };
+\import Smooth.Reciprocal[U := Open.whole, f := smooth, nonzero := (\fun (x: Open.Carrier Open.whole) => Real.Inverse[].positiveNonzero (function x) (positive x))] \as Reciprocal;
+\definition inverseSmooth: smooth_partitions.Euclidean[n := n].IsSmooth (\fun (x: Point) => Laws.fieldInv (function x)) := Reciprocal.smooth;
+\definition inverseNonnegative[x: Point]: R.Le Real.zero (Laws.fieldInv (function x)) := Order.leOfLt _ _ (Product.invPositive _ (positive x));
+\definition inverseBound[x: Point]: R.Le (Laws.fieldInv (function x)) Real.one := R.leReplaceRight _ _ _
+  (sym!{Real.Real} _ _ (Real.Inverse[].inverseUnique Real.one Real.one (Real.Inverse[].positiveNonzero Real.one Product.onePositive) (Laws.fieldMulOneLeft Real.one)))
+  (Real.Inverse[].invAntitone Real.one (function x) Product.onePositive (positive x) (lower x));
+\definition reciprocal: Multiplication.Symbol := Multiplication.Symbol {
+  function := \fun (x: Point) => D.ofReal (Laws.fieldInv (function x)),
+  measurable := Logic.And[_, _]::#
+    (Compact.continuousMeasurable _ (Compact.smoothContinuous _ inverseSmooth)) (I.integralLaw I.Zero[].representative).integrable.left,
+  coefficient := \into[Real.Real](Real.one, Scaling.NonnegativeScalar) \by { Laws.oneNonnegative },
+  bound := \fun (x: Point) => R.leReplaceLeft _ _ _ (sym!{Real.Real} _ _ (trans!{Real.Real} _ _ _ (Scalars.realAxisAbs _) (Product.absOfNonnegative _ (inverseNonnegative x)))) (inverseBound x),
+};
+\definition value: Weight := Weight { function := function, lower := lower, reciprocal := reciprocal, reciprocalValue := \fun (x: Point) => \refl(reciprocal.function x), reciprocalBound := reciprocal.bound };

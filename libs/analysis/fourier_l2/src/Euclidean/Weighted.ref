@@ -1,0 +1,76 @@
+\import \parent.Unitary[] \as U;
+\import \parent.Multiplication[] \as Multiplication;
+\definition reciprocal: Multiplication.Symbol := Multiplication.Symbol {
+  function := weight.reciprocal.function, measurable := weight.reciprocal.measurable,
+  coefficient := \into[Real.Real](Real.one, Scaling.NonnegativeScalar) \by { Laws.oneNonnegative }, bound := weight.reciprocalBound,
+};
+\import Multiplication.By[symbol := reciprocal] \as Reciprocal;
+\import std.Set[].Quotient[A := L2.Representatives, Equivalent := L2.Equivalent] \as Q;
+\import M.AlmostEverywhere[mu := Lebesgue.measure] \as AE;
+\import topology.Topology[Carrier := Point] \as Sets;
+/* A weighted vector stores w times its normalized Fourier transform. */
+\definition Vector: \Set := Space;
+\definition norm: CS.Norm := Geometry.norm;
+\definition inner: InnerFacts.InnerProduct := Inner.inner;
+\definition complete: Hilbert.Complete := L2.Complete[].hilbert;
+\definition frequency[y: Vector]: Space := Reciprocal.value y;
+\definition physical[y: Vector]: Space := U.backward (frequency y);
+\definition positive[x: Point]: R.Lt Real.zero (weight.function x) := R.ltLeTrans _ _ _ Product.onePositive (weight.lower x);
+\definition cancel[x: Point]: Real.mul (weight.function x) (Laws.fieldInv (weight.function x)) = Real.one := trans!{Real.Real} _ _ _ (Laws.fieldMulComm _ _)
+  (Laws.fieldInverseNonzero _ (Real.Inverse[].positiveNonzero _ (positive x)));
+\definition recover[f: L2.Representatives][x: Point]: D.scale (weight.function x) (Reciprocal.representative f x) = f x := eq_reason_in!{C.Complex _
+  "=" _ "by" { congr!{C.Complex C.Complex} (\fun (z: C.Complex) => D.scale (weight.function x) (D.mul z (f x))) _ _ (weight.reciprocalValue x) }
+  "=" _ "by" { congr!{C.Complex C.Complex} (D.scale (weight.function x)) _ _ (Scalars.realProduct _ _) }
+  "=" _ "by" { Scalars.scaleCompose _ _ _ }
+  "=" _ "by" { congr!{Real.Real C.Complex} (\fun (a: Real.Real) => D.scale a (f x)) _ _ (cancel x) }
+  "=" _ "by" { Scalars.scaleOne _ }
+};
+\definition representativeInjective[f, g: L2.Representatives]: Reciprocal.class f = Reciprocal.class g -> L2.ofFunction f = L2.ofFunction g := \fun (same: _) => \block {
+  \let equivalent: L2.Equivalent (Reciprocal.representative f) (Reciprocal.representative g) := Q.equivalentOfClassEq L2.equivalence _ _ same \then
+  \let null: M.Null Lebesgue.measure ({ x: Point \where Logic.Not (Reciprocal.representative f x = Reciprocal.representative g x) }) := L2.almost _ _ equivalent \then
+  \return Q.classOfEq L2.equivalence f g (Logic.And[_, _]::#
+    (AE.nullSubset ({ x: Point \where Logic.Not (C.re (f x) = C.re (g x)) }) ({ x: Point \where Logic.Not (Reciprocal.representative f x = Reciprocal.representative g x) }) (\fun (x: Point)(different: _)(equal: _) => different (congr!{C.Complex Real.Real} C.re _ _ (eq_reason_in!{C.Complex _
+      "=" _ "by" { sym!{C.Complex} _ _ (recover f x) }
+      "=" _ "by" { congr!{C.Complex C.Complex} (D.scale (weight.function x)) _ _ equal }
+      "=" _ "by" { recover g x }
+    }))) null)
+    (AE.nullSubset ({ x: Point \where Logic.Not (C.im (f x) = C.im (g x)) }) ({ x: Point \where Logic.Not (Reciprocal.representative f x = Reciprocal.representative g x) }) (\fun (x: Point)(different: _)(equal: _) => different (congr!{C.Complex Real.Real} C.im _ _ (eq_reason_in!{C.Complex _
+      "=" _ "by" { sym!{C.Complex} _ _ (recover f x) }
+      "=" _ "by" { congr!{C.Complex C.Complex} (D.scale (weight.function x)) _ _ equal }
+      "=" _ "by" { recover g x }
+    }))) null))
+};
+\definition frequencyInjective: \forall (x, y: Vector) -> frequency x = frequency y -> x = y := Q.induction2
+  (\fun (x, y: Space) => frequency x = frequency y -> x = y)
+  (\fun (f, g: L2.Representatives)(same: _) => representativeInjective f g (eq_reason_in!{Space _
+    "=" _ "by" { sym!{Space} _ _ (Reciprocal.onClass f) }
+    "=" _ "by" { same }
+    "=" _ "by" { Reciprocal.onClass g }
+  }));
+\definition injective[x, y: Vector]: physical x = physical y -> x = y := \fun (same: _) => frequencyInjective x y (eq_reason_in!{Space _
+  "=" _ "by" { sym!{Space} _ _ (U.rightInverse (frequency x)) }
+  "=" _ "by" { congr!{Space Space} U.forward _ _ same }
+  "=" _ "by" { U.rightInverse (frequency y) }
+});
+\definition additive[x, y: Vector]: physical (L2.add x y) = L2.add (physical x) (physical y) := trans!{Space} _ _ _
+  (congr!{Space Space} U.backward _ _ (Reciprocal.additive x y)) (U.inverseAdditive (frequency x) (frequency y));
+\definition scalar[c: C.Complex][x: Vector]: physical (L2.scale c x) = L2.scale c (physical x) := trans!{Space} _ _ _
+  (congr!{Space Space} U.backward _ _ (Reciprocal.scalar c x)) (U.inverseScalar c (frequency x));
+\structure Input: \Set := {
+  frequency: L2.Representatives,
+  weighted: L2.Representatives,
+  law: \forall (xi: Point) -> weighted xi = D.scale (weight.function xi) (frequency xi),
+};
+\definition ofFunction[data: Input]: Vector := L2.ofFunction data.weighted;
+\definition inputFrequency[data: Input]: frequency (ofFunction data) = L2.ofFunction data.frequency := trans!{Space} _ _ _ (Reciprocal.onClass data.weighted)
+  (L2.classPointwise (Reciprocal.representative data.weighted) data.frequency (\fun (xi: Point) => eq_reason_in!{C.Complex _
+    "=" _ "by" { congr!{C.Complex C.Complex C.Complex} D.mul _ _ _ _ (weight.reciprocalValue xi) (data.law xi) }
+    "=" _ "by" { Scalars.realProduct _ _ }
+    "=" _ "by" { Scalars.scaleCompose _ _ _ }
+    "=" _ "by" { congr!{Real.Real C.Complex} (\fun (a: Real.Real) => D.scale a (data.frequency xi)) _ _ (trans!{Real.Real} _ _ _ (Laws.fieldMulComm _ _) (cancel xi)) }
+    "=" _ "by" { Scalars.scaleOne _ }
+  }));
+\definition inputPhysical[data: Input]: physical (ofFunction data) = U.backward (L2.ofFunction data.frequency) := congr!{Space Space} U.backward _ _ (inputFrequency data);
+\definition inputNorm[data: Input]: norm.realNorm.norm (ofFunction data) = L2.normRepresentative data.weighted := L2.normOfFunction data.weighted;
+\definition controlsPhysical[y: Vector]: R.Le (L2.normValue (physical y)) (norm.realNorm.norm y) :=
+  R.leReplace _ _ _ _ (sym!{Real.Real} _ _ (U.inverseNorm (frequency y))) (Laws.fieldMulOneLeft _) (Reciprocal.bound y);
