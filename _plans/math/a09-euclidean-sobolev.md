@@ -9,6 +9,6 @@
 
 ## 依存するタスク
 
-- [A07 Plancherel と Fourier 乗算作用素](a07-plancherel.md)
+- [A07 Plancherel と Fourier 乗算作用素](../../libs/analysis/fourier_l2/README.md)
 - [A08 分布と弱微分](a08-distributions.md)
 - [A04 多重積分の変数変換](a04-change-of-variables.md)
