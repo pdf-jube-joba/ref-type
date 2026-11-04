@@ -1,0 +1,22 @@
+\import Spaces.Laws[V := V, space := space] \as Vectors;
+\import Spaces.Multilinear[V := V, space := space] \as Multilinear;
+\import Multilinear.Alternating[] \as Alternating;
+\import Alternating.Contraction[k := n] \as Contraction;
+\import Alternating.At[k := n] \as Forms;
+\import Fin.Tuples[A := V] \as Tuples;
+\import Multilinear.Properties[] \as Updates;
+\definition inward[omega: Alternating.Form (N.Nat^::succ n)][normal: V]: Alternating.Form n := Contraction.apply omega normal;
+\definition outward[omega: Alternating.Form (N.Nat^::succ n)][normal: V]: Alternating.Form n := Contraction.apply omega (space.neg normal);
+\definition normalOpposite: \forall (omega: Alternating.Form (N.Nat^::succ n))(normal: V) -> outward omega normal = Forms.scale (S.neg S.one) (inward omega normal) :=
+  \fun (omega: Alternating.Form (N.Nat^::succ n))(normal: V) => trans!{{Alternating.Form n}} _ _ _
+    (congr!{V {Alternating.Form n}} (Contraction.apply omega) _ _ (sym!{V} _ _ (Vectors.minusOneScale normal)))
+    (Contraction.headScalar (S.neg S.one) omega normal);
+\definition normalOppositeValue: \forall (omega: Alternating.Form (N.Nat^::succ n))(normal: V)(arguments: Multilinear.Arguments n) -> outward omega normal arguments = S.neg (inward omega normal arguments) :=
+  \fun (omega: Alternating.Form (N.Nat^::succ n))(normal: V)(arguments: Multilinear.Arguments n) => trans!{S.Real} _ _ _
+    (congr!{{Alternating.Form n} S.Real} (\fun (f: Alternating.Form n) => f arguments) _ _ (normalOpposite omega normal))
+    (trans!{S.Real} _ _ _ (Laws.fieldMulNegLeft S.one (inward omega normal arguments)) (congr!{S.Real S.Real} S.neg _ _ (Laws.fieldMulOneLeft (inward omega normal arguments))));
+\definition positiveScale: \forall (omega: Alternating.Form (N.Nat^::succ n))(normal: V)(a: S.Real)(arguments: Multilinear.Arguments n) ->
+  inward omega (space.smul a normal) arguments = S.mul a (inward omega normal arguments) :=
+  \fun (omega: Alternating.Form (N.Nat^::succ n))(normal: V)(a: S.Real)(arguments: Multilinear.Arguments n) => congr!{{Alternating.Form n} S.Real}
+    (\fun (f: Alternating.Form n) => f arguments) _ _ (Contraction.headScalar a omega normal);
+\module Corner;

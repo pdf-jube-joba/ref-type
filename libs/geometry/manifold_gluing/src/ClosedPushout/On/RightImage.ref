@@ -1,0 +1,40 @@
+\definition crossOfEqual: \forall (x: B)(y: A) -> Pushout.inr x = Pushout.inl y -> \exists (c: C \where Logic.And[x = v c, y = u c]) := \block {
+  \fun (x: B)(y: A)(same: _) \then
+  \takefrom c: \Cast[C] ({ c: C \where Logic.And[y = u c, x = v c] }) \by Embedded.crossOfEqual y x (sym!{Point} _ _ same) \then
+  \let evidence: Logic.And[y = u c, x = v c] := \bysub(C, { c: C \where Logic.And[y = u c, x = v c] }, c) \then
+  \return Logic.existsIntro[C, { c: C \where Logic.And[x = v c, y = u c] }] c (Logic.And[_, _]::# evidence.right evidence.left)
+};
+\definition image: \Pow Point := RightMaps.Image Pushout.inr F;
+\definition trace: \Pow C := { c: C \where Right.Member F (v c) };
+\definition traceClosed: Boundary.IsClosedIn boundary trace := topology.Continuity[A := C, B := B].closedPreimage boundary right v rightContinuous F closed;
+\definition traceCompact: Boundary.IsCompactIn boundary trace := Boundary.Compactness[].closedCompact boundary compact trace traceClosed;
+\import topology.Maps[A := C, B := A] \as CrossMaps;
+\definition crossed: \Pow A := CrossMaps.Image u trace;
+\definition crossedCompact: Left.IsCompactIn left crossed := topology.Compactness[A := C, B := A].continuousImage boundary left u leftContinuous trace traceCompact;
+\definition crossedClosed: Left.IsClosedIn left crossed := Left.Compactness[].compactClosed left leftHausdorff crossed crossedCompact;
+\definition rightTrace: F = RightMaps.Preimage Pushout.inr image := \axiom:setext(F, RightMaps.Preimage Pushout.inr image,
+  \fun (x: B)(member: Right.Member F x) => RightMaps.imageMember Pushout.inr F x member,
+  \fun (x: B)(member: Right.Member (RightMaps.Preimage Pushout.inr image) x) => RightMaps.imageElim Pushout.inr F (Pushout.inr x) (Right.Member F x)
+    (\fun (y: B)(inF: Right.Member F y)(same: Pushout.inr y = Pushout.inr x) => \idelim y = x \with z: B => Right.Member F z \by {
+      base: inF, equality: Embedded.rightInjective y x same
+    }) member);
+\definition ofCrossed: \forall (y: A) -> Left.Member crossed y -> Left.Member (LeftMaps.Preimage Pushout.inl image) y :=
+  \fun (y: A)(member: Left.Member crossed y) => CrossMaps.imageElim u trace y (Left.Member (LeftMaps.Preimage Pushout.inl image) y)
+    (\fun (c: C)(inF: Boundary.Member trace c)(same: u c = y) => RightMaps.imageElim Pushout.inr F (Pushout.inr (v c)) (Left.Member (LeftMaps.Preimage Pushout.inl image) y)
+      (\fun (x: B)(member: Right.Member F x)(equal: Pushout.inr x = Pushout.inr (v c)) =>
+        Logic.existsIntro[B, { a: B \where Logic.And[Right.Member F a, Pushout.inr a = Pushout.inl y] }] x
+          (Logic.And[_, _]::# member (trans!{Point} _ _ _ equal
+            (trans!{Point} _ _ _ (sym!{Point} _ _ (Pushout.glued c)) (congr!{A Point} Pushout.inl _ _ same)))))
+      (RightMaps.imageMember Pushout.inr F (v c) inF)) member;
+\definition toCrossed: \forall (y: A) -> Left.Member (LeftMaps.Preimage Pushout.inl image) y -> Left.Member crossed y :=
+  \fun (y: A)(member: Left.Member (LeftMaps.Preimage Pushout.inl image) y) => RightMaps.imageElim Pushout.inr F (Pushout.inl y) (Left.Member crossed y) (\block {
+    \fun (x: B)(inF: Right.Member F x)(same: Pushout.inr x = Pushout.inl y) \then
+    \takefrom c: \Cast[C] ({ c: C \where Logic.And[x = v c, y = u c] }) \by crossOfEqual x y same \then
+    \let endpoints: Logic.And[x = v c, y = u c] := \bysub(C, { c: C \where Logic.And[x = v c, y = u c] }, c) \then
+    \return Logic.existsIntro[C, { c: C \where Logic.And[Boundary.Member trace c, u c = y] }] c
+      (Logic.And[_, _]::# (\idelim x = v c \with z: B => Right.Member F z \by { base: inF, equality: endpoints.left }) (sym!{A} _ _ endpoints.right))
+  }) member;
+\definition leftTrace: crossed = LeftMaps.Preimage Pushout.inl image := \axiom:setext(crossed, LeftMaps.Preimage Pushout.inl image, ofCrossed, toCrossed);
+\definition closedImage: Target.IsClosedIn topology image := Logic.And[_, _]::#
+  (\idelim crossed = LeftMaps.Preimage Pushout.inl image \with D: \Pow A => Left.IsClosedIn left D \by { base: crossedClosed, equality: leftTrace })
+  (\idelim F = RightMaps.Preimage Pushout.inr image \with D: \Pow B => Right.IsClosedIn right D \by { base: closed, equality: rightTrace });

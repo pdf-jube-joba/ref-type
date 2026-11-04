@@ -1,0 +1,28 @@
+\definition leftPart: \Pow A := { x: A \where Source.Member F (Sum.inl x) };
+\definition rightPart: \Pow B := { y: B \where Source.Member F (Sum.inr y) };
+\definition leftClosed: Left.IsClosedIn left leftPart := topology.Continuity[A := A, B := Sum.Carrier].closedPreimage left source Sum.inl (Sum.inlContinuous left right) F closed;
+\definition rightClosed: Right.IsClosedIn right rightPart := topology.Continuity[A := B, B := Sum.Carrier].closedPreimage right source Sum.inr (Sum.inrContinuous left right) F closed;
+\import \parent.LeftImage[F := leftPart, closed := leftClosed] \as L;
+\import \parent.RightImage[F := rightPart, closed := rightClosed] \as R;
+\definition image: \Pow Point := Maps.Image Pushout.class F;
+\definition joined: \Pow Point := Target.Finite[].Join L.image R.image;
+\definition leftIncluded: Target.Subset L.image image := \fun (y: Point)(member: Target.Member L.image y) => LeftMaps.imageElim Pushout.inl leftPart y (Target.Member image y)
+  (\fun (x: A)(inF: Left.Member leftPart x)(same: Pushout.inl x = y) => Logic.existsIntro[Sum.Carrier, { p: Sum.Carrier \where Logic.And[Source.Member F p, Pushout.class p = y] }]
+    (Sum.inl x) (Logic.And[_, _]::# inF same)) member;
+\definition rightIncluded: Target.Subset R.image image := \fun (y: Point)(member: Target.Member R.image y) => RightMaps.imageElim Pushout.inr rightPart y (Target.Member image y)
+  (\fun (x: B)(inF: Right.Member rightPart x)(same: Pushout.inr x = y) => Logic.existsIntro[Sum.Carrier, { p: Sum.Carrier \where Logic.And[Source.Member F p, Pushout.class p = y] }]
+    (Sum.inr x) (Logic.And[_, _]::# inF same)) member;
+\definition projectionMember: \forall (p: Sum.Carrier) -> Source.Member F p -> Target.Member joined (Pushout.class p) :=
+  \induction (p: Sum.Carrier) \return Source.Member F p -> Target.Member joined (Pushout.class p) \with {
+    | inl: \fun (x: A)(member: Left.Member leftPart x) => Logic.Or[_, _]::left (LeftMaps.imageMember Pushout.inl leftPart x member)
+    | inr: \fun (y: B)(member: Right.Member rightPart y) => Logic.Or[_, _]::right (RightMaps.imageMember Pushout.inr rightPart y member)
+  };
+\definition toJoined: Target.Subset image joined := \fun (y: Point)(member: Target.Member image y) => Maps.imageElim Pushout.class F y (Target.Member joined y)
+  (\fun (p: Sum.Carrier)(inF: Source.Member F p)(same: Pushout.class p = y) => \idelim Pushout.class p = y \with z: Point => Target.Member joined z \by {
+    base: projectionMember p inF, equality: same
+  }) member;
+\definition imageEquals: joined = image := \axiom:setext(joined, image,
+  (\fun (y: Point)(member: Target.Member joined y) => Logic.orElim (Target.Member L.image y) (Target.Member R.image y) (Target.Member image y) member (leftIncluded y) (rightIncluded y)), toJoined);
+\definition closedImage: Target.IsClosedIn topology image := \idelim joined = image \with S: \Pow Point => Target.IsClosedIn topology S \by {
+  base: Target.Finite[].joinClosed topology L.image R.image L.closedImage R.closedImage, equality: imageEquals
+};

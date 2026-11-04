@@ -1,0 +1,24 @@
+\definition RangePoint: \Set := \Cast[M.Point] patch.range;
+\import topology.Topology[Carrier := RangePoint] \as RangeSpace;
+\import TargetSpace.Subspace[S := patch.range].Open[] \as Inclusion;
+\definition local: \Pow RangePoint := { y: RangePoint \where Space.Member V (patch.backward y) };
+\definition localOpen: RangeSpace.IsOpenIn (TargetSpace.Subspace[S := patch.range].topology M.space) local := patch.backwardContinuous V openV;
+\definition W: \Pow M.Point := Inclusion.image local;
+\definition open: TargetSpace.IsOpenIn M.space W := Inclusion.imageOpen M.space patch.rangeOpen local localOpen;
+\definition value: RangePoint := \into[M.Point](Maps.apply map x, patch.range) \by {
+  patch.forwardIncluded (\into[Product.Point](x, patch.patch.domain) \by { member })
+};
+\definition backwardValue: patch.backward value = (x \of Product.Point) := patch.patch.injective (patch.backward value) x
+  (patch.backwardInside value) member (patch.rightInverse value);
+\definition contains: TargetSpace.Member W (Maps.apply map x) := Inclusion.imageMember local value
+  (\idelim (x \of Product.Point) = patch.backward value \with p: Product.Point => Space.Member V p \by {
+    base: \bysub(Product.Point, V, x), equality: sym!{{Product.Point}} _ _ backwardValue
+  });
+\definition within: TargetSpace.Subset W image := \fun (y: M.Point)(member: TargetSpace.Member W y) => Inclusion.imageElim local y (TargetSpace.Member image y)
+  (\fun (z: RangePoint)(inV: RangeSpace.Member local z)(same: z = y) =>
+    Logic.existsIntro[Input, { p: Input \where Maps.apply map p = y }]
+      (\into[Product.Point](patch.backward z, V) \by { inV })
+      (trans!{M.Point} _ _ _ (patch.rightInverse z) same)) member;
+\definition exists: \exists (W: \Pow M.Point \where TargetSpace.OpenNeighborhood[M.space, Maps.apply map x, image, W]) :=
+  Logic.existsIntro[\Pow M.Point, { U: \Pow M.Point \where TargetSpace.OpenNeighborhood[M.space, Maps.apply map x, image, U] }] W
+    (TargetSpace.OpenNeighborhood[M.space, Maps.apply map x, image, W] { open := open, contains := contains, within := within });

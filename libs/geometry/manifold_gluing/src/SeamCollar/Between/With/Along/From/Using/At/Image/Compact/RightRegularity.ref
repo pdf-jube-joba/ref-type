@@ -1,0 +1,45 @@
+\definition Domain: \Set := Pasting.Right;
+\definition source: topology.Structures[].Topology[Domain] := ImageSpace.Subspace[S := rightPart].topology topology;
+\definition include: Domain -> Point := \fun (y: Domain) => y;
+\definition includeContinuous: topology.Continuity[A := Domain, B := Point].Continuous source topology include :=
+  topology.Continuity[A := Domain, B := Point].Corestriction[S := rightPart].inclusionContinuous topology;
+\definition range[y: Domain]: RightEmbedding.Point := \parent.OnRight[y := y].range;
+\definition rangeAmbient: topology.Continuity[A := Domain, B := Gluing.Point].Continuous source Gluing.topology (\fun (y: Domain) => range y) :=
+  topology.Composition[A := Domain, B := Point, C := Gluing.Point].composeContinuous source topology Gluing.topology include (\fun (y: Point) => y) includeContinuous inclusionContinuous;
+\definition rangeContinuous: topology.Continuity[A := Domain, B := RightEmbedding.Point].Continuous source RightEmbedding.topology range :=
+  topology.Continuity[A := Domain, B := Gluing.Point].Corestriction[S := RightEmbedding.image].corestrictContinuous source Gluing.topology range rangeAmbient;
+\definition base[y: Domain]: N.Point := \parent.OnRight[y := y].base;
+\definition baseContinuous: topology.Continuity[A := Domain, B := N.Point].Continuous source N.space base :=
+  topology.Composition[A := Domain, B := RightEmbedding.Point, C := N.Point].composeContinuous source RightEmbedding.topology N.space range RightEmbedding.backward rangeContinuous RightEmbedding.backwardContinuous;
+\definition collar[y: Domain]: Right.ImagePoint := \parent.OnRight[y := y].collar;
+\definition collarContinuous: topology.Continuity[A := Domain, B := Right.ImagePoint].Continuous source Right.imageTopology collar :=
+  topology.Continuity[A := Domain, B := N.Point].Corestriction[S := Right.image].corestrictContinuous source N.space collar baseContinuous;
+\definition input[y: Domain]: Right.Point := \parent.OnRight[y := y].input;
+\definition inputContinuous: topology.Continuity[A := Domain, B := Right.Point].Continuous source Right.topology input :=
+  topology.Composition[A := Domain, B := Right.ImagePoint, C := Right.Point].composeContinuous source Right.imageTopology Right.topology collar Right.backward collarContinuous Right.backwardContinuous;
+\definition raw[y: Domain]: RightProduct.Point := input y;
+\definition rawContinuous: topology.Continuity[A := Domain, B := RightProduct.Point].Continuous source RightProduct.topology raw :=
+  topology.Composition[A := Domain, B := Right.Point, C := RightProduct.Point].composeContinuous source Right.topology RightProduct.topology input (\fun (p: Right.Point) => p)
+    inputContinuous (topology.Continuity[A := Right.Point, B := RightProduct.Point].Corestriction[S := Right.domain].inclusionContinuous RightProduct.topology);
+\import topological_constructions.Product[A := RightBoundary.manifold.Point, B := Time.Point] \as Product;
+\definition rightBoundary[y: Domain]: RightBoundary.manifold.Point := RightProduct.first (raw y);
+\definition rightBoundaryContinuous: topology.Continuity[A := Domain, B := RightBoundary.manifold.Point].Continuous source RightBoundary.manifold.space rightBoundary :=
+  topology.Composition[A := Domain, B := RightProduct.Point, C := RightBoundary.manifold.Point].composeContinuous source RightProduct.topology RightBoundary.manifold.space raw RightProduct.first rawContinuous
+    (Product.Maps[].firstContinuous RightBoundary.manifold.space Time.manifold.space);
+\import boundary_manifolds.SmoothMap[n := n, m := n].Between[M := RightBoundary.manifold, N := LeftBoundary.manifold] \as BoundaryBack;
+\definition boundary[y: Domain]: LeftBoundary.manifold.Point := BoundaryBack.apply d.backward (rightBoundary y);
+\definition boundaryContinuous: topology.Continuity[A := Domain, B := LeftBoundary.manifold.Point].Continuous source LeftBoundary.manifold.space boundary :=
+  topology.Composition[A := Domain, B := RightBoundary.manifold.Point, C := LeftBoundary.manifold.Point].composeContinuous source RightBoundary.manifold.space LeftBoundary.manifold.space rightBoundary (BoundaryBack.apply d.backward)
+    rightBoundaryContinuous d.backward.continuous;
+\definition time[y: Domain]: Time.Point := RightProduct.second (raw y);
+\definition timeContinuous: topology.Continuity[A := Domain, B := Time.Point].Continuous source Time.manifold.space time :=
+  topology.Composition[A := Domain, B := RightProduct.Point, C := Time.Point].composeContinuous source RightProduct.topology Time.manifold.space raw RightProduct.second rawContinuous
+    (Product.Maps[].secondContinuous RightBoundary.manifold.space Time.manifold.space);
+\definition small[y: Domain]: Signed.SmallTimes[].Point := \into[Time.Point](time y, Signed.SmallTimes[].points) \by { \parent.OnRight[y := y].small };
+\definition smallContinuous: topology.Continuity[A := Domain, B := Signed.SmallTimes[].Point].Continuous source Signed.SmallTimes[].topology small :=
+  topology.Continuity[A := Domain, B := Time.Point].Corestriction[S := Signed.SmallTimes[].points].corestrictContinuous source Time.manifold.space small timeContinuous;
+\definition signed[y: Domain]: Signed.Point := Signed.SmallTimes[].negative (small y);
+\definition signedContinuous: topology.Continuity[A := Domain, B := Signed.Point].Continuous source Signed.manifold.space signed :=
+  topology.Composition[A := Domain, B := Signed.SmallTimes[].Point, C := Signed.Point].composeContinuous source Signed.SmallTimes[].topology Signed.manifold.space small Signed.SmallTimes[].negative smallContinuous Signed.SmallTimes[].negativeContinuous;
+\definition continuous: topology.Continuity[A := Domain, B := Source.Point].Continuous source Source.topology rightBranch :=
+  topological_constructions.Product[A := LeftBoundary.manifold.Point, B := Signed.Point].Universal[X := Domain].pairContinuous source LeftBoundary.manifold.space Signed.manifold.space boundary signed boundaryContinuous signedContinuous;

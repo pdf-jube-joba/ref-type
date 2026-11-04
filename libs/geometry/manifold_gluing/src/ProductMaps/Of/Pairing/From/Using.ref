@@ -1,0 +1,68 @@
+\definition apply[x: P.Point]: Product.Point := Pair.pair M.Point N.Point (LeftMaps.apply f x) (RightMaps.apply g x);
+\definition data: Result.Data := Result.Data { apply := apply };
+\module In(left: SourceCharts.Chart, c: Product.LeftChart, d: Product.RightChart, x: P.Point, contains: SourceCharts.Contains left x,
+  inLeft: LeftCharts.Contains c (LeftMaps.apply f x), inRight: RightCharts.Contains d (RightMaps.apply g x)) {
+  \import LeftMaps.At[function := LeftMaps.apply f, left := left, right := c, x := x, contains := contains] \as First;
+  \import RightMaps.At[function := RightMaps.apply g, left := left, right := d, x := x, contains := contains] \as Second;
+  \import Product.In[c := c, d := d] \as Patch;
+  \import Result.At[function := apply, left := left, right := Patch.chart, x := x, contains := contains] \as Total;
+  \module With(first: First.Extension, second: Second.Extension) {
+    \definition domain: SourceOpen.OpenSet := SourceOpen.intersection first.neighborhood second.neighborhood;
+    \definition included: SourceOpen.Included domain left.image := \fun (u: Source.Point)(member: _) => first.included u member.left;
+    \import calculus.Maps[n := p, m := n] \as FirstCalculus;
+    \import calculus.Maps[n := p, m := m] \as SecondCalculus;
+    \import calculus.Maps[n := p, m := dimension] \as Calculus;
+    \definition firstMap: FirstCalculus.Map domain LeftOpen.whole := FirstCalculus.Restriction[U := domain, V := first.neighborhood, W := LeftOpen.whole].input
+      (SourceOpen.intersectionLeft first.neighborhood second.neighborhood) first.map;
+    \definition secondMap: SecondCalculus.Map domain RightOpen.whole := SecondCalculus.Restriction[U := domain, V := second.neighborhood, W := RightOpen.whole].input
+      (SourceOpen.intersectionRight first.neighborhood second.neighborhood) second.map;
+    \import Blocks.Pair[d := p].On[U := domain, V := LeftOpen.whole, W := RightOpen.whole, f := firstMap, g := secondMap] \as PairMap;
+    \import Calculus.Corestriction[U := domain, V := Blocks.product LeftOpen.whole RightOpen.whole, W := Open.whole, f := PairMap.map,
+      inside := \fun (u: SourceOpen.Carrier domain) => \refl(Calculus.apply domain (Blocks.product LeftOpen.whole RightOpen.whole) PairMap.map u)] \as Corestriction;
+    \definition firstInput[u: Source.Carrier left.constraints domain]: Source.Carrier left.constraints first.neighborhood :=
+      \into[SourceOpen.Carrier first.neighborhood](SourceOpen.inclusion domain first.neighborhood (SourceOpen.intersectionLeft first.neighborhood second.neighborhood) u,
+        Source.region left.constraints first.neighborhood) \by { \bysub(SourceOpen.Carrier domain, Source.region left.constraints domain, u) };
+    \definition secondInput[u: Source.Carrier left.constraints domain]: Source.Carrier left.constraints second.neighborhood :=
+      \into[SourceOpen.Carrier second.neighborhood](SourceOpen.inclusion domain second.neighborhood (SourceOpen.intersectionRight first.neighborhood second.neighborhood) u,
+        Source.region left.constraints second.neighborhood) \by { \bysub(SourceOpen.Carrier domain, Source.region left.constraints domain, u) };
+    \definition extension: Total.Extension := Total.Extension {
+      neighborhood := domain, included := included, contains := Logic.And[_, _]::# first.contains second.contains,
+      map := Corestriction.map,
+      inside := \fun (u: Source.Carrier left.constraints domain) => Logic.And[_, _]::# (first.inside (firstInput u)) (second.inside (secondInput u)),
+      agrees := \fun (u: Source.Carrier left.constraints domain) => congr!{{Left.Point} {Right.Point} {Model.Point}} Blocks.join _ _ _ _
+        (first.agrees (firstInput u)) (second.agrees (secondInput u)),
+    };
+  }
+  \definition existsExtension: \In[SourceCharts.Chart] P.atlas.charts left -> \exists Total.Extension := \block {
+    \fun (member: _) \then
+    \takefrom first: First.Extension \by f.smooth left c x contains member (\bysub(LeftCharts.Chart, M.atlas.charts, c)) inLeft \then
+    \takefrom second: Second.Extension \by g.smooth left d x contains member (\bysub(RightCharts.Chart, N.atlas.charts, d)) inRight \then
+    \return \exact(With[first := first, second := second].extension, Total.Extension)
+  };
+}
+\module At(left: SourceCharts.Chart, right: Charts.Chart, x: P.Point, contains: SourceCharts.Contains left x, inRight: Charts.Contains right (apply x)) {
+  \module With(i: Product.Index, same: right = Product.chart i) {
+    \definition existsExtension: \In[SourceCharts.Chart] P.atlas.charts left ->
+      \exists Result.At[function := apply, left := left, right := right, x := x, contains := contains].Extension :=
+      \fun (member: _) => \idelim Product.chart i = right \with a: Charts.Chart => Charts.Contains a (apply x) ->
+        \exists Result.At[function := apply, left := left, right := a, x := x, contains := contains].Extension \by {
+          base: \fun (inside: Charts.Contains (Product.chart i) (apply x)) => \root.ProductMaps[n := n, m := m].Of[M := M, N := N].Pairing[p := p].From[P := P].Using[f := f, g := g].In[
+            left := left, c := Pair.first Product.LeftChart Product.RightChart i, d := Pair.second Product.LeftChart Product.RightChart i,
+            x := x, contains := contains, inLeft := inside.left, inRight := inside.right].existsExtension member,
+          equality: sym!{{Charts.Chart}} _ _ same
+        } inRight;
+  }
+  \definition existsExtension: \In[SourceCharts.Chart] P.atlas.charts left -> \In[Charts.Chart] Product.manifold.atlas.charts right ->
+    \exists Result.At[function := apply, left := left, right := right, x := x, contains := contains].Extension := \block {
+    \fun (sourceMember: _)(targetMember: _) \then
+    \takefrom i: \Cast[Product.Index] ({ i: Product.Index \where right = Product.chart i }) \by targetMember \then
+    \return With[i := i, same := \bysub(Product.Index, { i: Product.Index \where right = Product.chart i }, i)].existsExtension sourceMember
+  };
+}
+\definition map: Result.Map := \into[Result.Data](data, Result.Map) \by {
+  Result.Laws[data] {
+    continuous := Topology.Universal[X := P.Point].pairContinuous P.space M.space N.space (LeftMaps.apply f) (RightMaps.apply g) f.continuous g.continuous,
+    smooth := \fun (left: SourceCharts.Chart)(right: Charts.Chart)(x: P.Point)(contains: _)(lm: _)(rm: _)(inRight: _) =>
+      At[left := left, right := right, x := x, contains := contains, inRight := inRight].existsExtension lm rm,
+  }
+};

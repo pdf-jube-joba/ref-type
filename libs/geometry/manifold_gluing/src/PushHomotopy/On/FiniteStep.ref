@@ -1,0 +1,17 @@
+\definition tail: Fin.Fin k -> Homotopy := \fun (i: Fin.Fin k) => f (Fin.succ k i);
+\import \parent.Composition[first := finite k tail, second := f (Fin.zero k)] \as Composition;
+\definition zeroActive: \forall (x: M.Point) -> Activates (f (Fin.zero k)) x -> Activates (finite (N.Nat^::succ k) f) x := Composition.activatesSecond;
+\definition successorActive: \forall (j: Fin.Fin k)(x: M.Point) -> Activates (f (Fin.succ k j)) x -> Activates (finite (N.Nat^::succ k) f) x :=
+  \fun (j: Fin.Fin k)(x: M.Point)(active: _) => Composition.activatesFirst x (previous tail j x active);
+\definition law: \forall (i: Fin.Fin (N.Nat^::succ k))(x: M.Point) -> Activates (f i) x -> Activates (finite (N.Nat^::succ k) f) x :=
+  \fun (i: Fin.Fin (N.Nat^::succ k))(x: M.Point)(active: _) =>
+    Logic.orElim (i = N.Nat^::zero) (\exists ( j: Fin.Fin k \where i = N.Nat^::succ (Fin.value k j) ))
+      (Activates (finite (N.Nat^::succ k) f) x) (Fin.successorCases k i (Fin.bound (N.Nat^::succ k) i))
+      (\fun (same: _) => zeroActive x (\idelim i = Fin.zero k \with j: Fin.Fin (N.Nat^::succ k) => Activates (f j) x \by { base: active, equality: same }))
+      (\block {
+        \fun (exists: _) \then
+        \takefrom j: \Cast[Fin.Fin k] ({ j: Fin.Fin k \where i = N.Nat^::succ (Fin.value k j) }) \by exists \then
+        \return successorActive j x (\idelim i = Fin.succ k j \with index: Fin.Fin (N.Nat^::succ k) => Activates (f index) x \by {
+          base: active, equality: \bysub(Fin.Fin k, { j: Fin.Fin k \where i = N.Nat^::succ (Fin.value k j) }, j)
+        })
+      });

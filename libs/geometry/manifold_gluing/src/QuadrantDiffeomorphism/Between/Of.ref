@@ -1,0 +1,12 @@
+\import \root.QuadrantMap[n := n, m := n].On[C := C, D := D, U := U, V := V, f := d.forward, nonnegative := forward] \as Forward;
+\import \root.QuadrantMap[n := n, m := n].On[C := D, D := C, U := V, V := U, f := d.backward, nonnegative := backward] \as Backward;
+\import \root.Diffeomorphism[n := n, m := n].Between[M := Source.manifold, N := Target.manifold] \as Results;
+\definition laws: Diffeomorphisms.Laws[U, V, d] := \bysub(Diffeomorphisms.Data[U, V], Diffeomorphisms.Diffeomorphism U V, d);
+\definition data: Results.Data := Results.Data { forward := Forward.map, backward := Backward.map };
+\definition diffeomorphism: Results.Diffeomorphism := \into[Results.Data](data, Results.Diffeomorphism) \by { Results.Laws[data] {
+  leftInverse := \fun (x: Source.Point) => Model.equality C U (Backward.function (Forward.function x)) x
+    (congr!{{Open.Carrier U} {Model.Point}} (\fun (x: Open.Carrier U) => x) _ _ (laws.leftInverse x)),
+  rightInverse := \fun (x: Target.Point) => Model.equality D V (Forward.function (Backward.function x)) x
+    (congr!{{Open.Carrier V} {Model.Point}} (\fun (x: Open.Carrier V) => x) _ _ (laws.rightInverse x)),
+} };
+\definition homeomorphism: topology.Homeomorphism[A := Source.Point, B := Target.Point].Homeomorphism[Source.topology, Target.topology] := Results.Of[d := diffeomorphism].homeomorphism;

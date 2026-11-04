@@ -1,0 +1,49 @@
+\definition timeChart: Product.RightChart := \into[TimeCharts.Chart](Time.chart, Time.manifold.atlas.charts) \by { Time.chartMember };
+\import Product.In[c := c, d := timeChart] \as Patch;
+\definition center: Product.Point := Pair.pair M.Point Time.Point x Time.zero;
+\definition sourceContains: SourceCharts.Contains Patch.chart center := Logic.And[_, _]::# contains (\refl(Time.zero));
+\definition targetContains: Charts.Contains c (Maps.apply h.map center) := \idelim x = Maps.apply h.map center \with y: M.Point => Charts.Contains c y \by {
+  base: contains, equality: sym!{M.Point} _ _ (h.initial x)
+};
+\definition patchMember: \In[SourceCharts.Chart] Product.manifold.atlas.charts Patch.chart :=
+  Logic.existsIntro[Product.Index, { i: Product.Index \where Patch.chart = Product.chart i }] (Pair.pair Product.LeftChart Product.RightChart c timeChart) (\refl(Patch.chart));
+\import Maps.At[function := Maps.apply h.map, left := Patch.chart, right := c, x := center, contains := sourceContains] \as Local;
+\definition smooth: \exists Local.Extension := h.map.smooth Patch.chart c center sourceContains patchMember (\bysub(Charts.Chart, M.atlas.charts, c)) targetContains;
+\module With(e: Local.Extension);
+\import inverse_implicit.Product[n := n, m := One.dimension] \as ProductLinear;
+\import calculus.Blocks[n := n, m := One.dimension] \as Blocks;
+\import topological_algebra.Euclidean[].Dimension[n := n].Def[] \as SpatialCoordinates;
+\import topological_algebra.Euclidean[].Dimension[n := Nat.add One.dimension n].Def[] \as InputCoordinates;
+\import topological_algebra.Euclidean[].Dimension[n := One.dimension].Def[] \as TimeCoordinates;
+\import std.Data[].FinSet[] \as Fin;
+\definition derivative: calculus.Vector[n := Nat.add One.dimension n, m := n].LinearMap := Local.derivative smooth;
+\definition spatialIdentity: \forall (v: Model.Point) -> derivative.apply (ProductLinear.horizontal.apply v) = v := \block {
+  \fun (v: Model.Point) \then
+  \takefrom e: Local.Extension \by smooth \then
+  \return trans!{Model.Point} _ _ _
+    (congr!{{calculus.Vector[n := Nat.add One.dimension n, m := n].LinearMap} Model.Point}
+      (\fun (d: calculus.Vector[n := Nat.add One.dimension n, m := n].LinearMap) => d.apply (ProductLinear.horizontal.apply v)) _ _ (Local.ofExtension smooth e))
+    (With[e := e].spatialIdentity v)
+};
+\definition one: One.Index -> S.Real := \fun (i: One.Index) => S.one;
+\definition timeUnit: Source.Point := ProductLinear.vertical.apply one;
+\definition velocity: Model.Point := derivative.apply timeUnit;
+\definition timeScalar[w: Source.Point]: S.Real := Blocks.right w One.index;
+\definition rightAsScale: \forall (w: Source.Point) -> Blocks.right w = TimeCoordinates.scale (timeScalar w) one :=
+  \fun (w: Source.Point) => \axiom:funext(Blocks.right w, TimeCoordinates.scale (timeScalar w) one, \fun (i: One.Index) => trans!{S.Real} _ _ _
+    (congr!{One.Index S.Real} (Blocks.right w) _ _ (Fin.singletonValue i)) (sym!{S.Real} _ _ (S.Algebra[].mulOneRight (timeScalar w))));
+\definition verticalAsScale: \forall (w: Source.Point) -> ProductLinear.vertical.apply (Blocks.right w) = InputCoordinates.scale (timeScalar w) timeUnit :=
+  \fun (w: Source.Point) => trans!{Source.Point} _ _ _
+    (congr!{{One.Index -> S.Real} Source.Point} ProductLinear.vertical.apply _ _ (rightAsScale w))
+    (ProductLinear.vertical.preservesScale (timeScalar w) one);
+\definition formula: \forall (w: Source.Point) -> derivative.apply w = SpatialCoordinates.addPoint (Blocks.left w) (SpatialCoordinates.scale (timeScalar w) velocity) :=
+  \fun (w: Source.Point) => trans!{Model.Point} _ _ _
+    (congr!{Source.Point Model.Point} derivative.apply _ _ (sym!{Source.Point} _ _ (ProductLinear.decomposition w)))
+    (trans!{Model.Point} _ _ _ (derivative.preservesAdd (ProductLinear.horizontal.apply (Blocks.left w)) (ProductLinear.vertical.apply (Blocks.right w)))
+      (congr!{Model.Point Model.Point Model.Point} SpatialCoordinates.addPoint _ _ _ _ (spatialIdentity (Blocks.left w))
+        (trans!{Model.Point} _ _ _ (congr!{Source.Point Model.Point} derivative.apply _ _ (verticalAsScale w)) (derivative.preservesScale (timeScalar w) timeUnit))));
+\module Cone(e: Local.Extension);
+\definition velocityInCone: Model.Cone c.constraints (Charts.coordinate c (\into[M.Point](x, c.domain) \by { contains })) velocity := \block {
+  \takefrom e: Local.Extension \by smooth \then
+  \return Cone[e := e].law
+};

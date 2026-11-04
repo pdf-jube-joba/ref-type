@@ -1,0 +1,56 @@
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\import boundary_manifolds.Model[n := n] \as Model;
+\import calculus.Real[].Multivariable[n := n].Open[] \as Open;
+\import boundary_manifolds.Dimension[n := n].Quadrant[C := c.constraints, U := c.image] \as Domain;
+\import Models.Chart[M := Domain.Point, space := Domain.topology] \as SourceCharts;
+\import boundary_manifolds.SmoothMap[n := n, m := n].Between[M := Domain.manifold, N := M] \as Maps;
+\definition apply[x: Domain.Point]: M.Point := Charts.point c x;
+\definition data: Maps.Data := Maps.Data { apply := apply };
+\import topology.Homeomorphism[A := Charts.LocalPoint c, B := Domain.Point] \as Homeomorphisms;
+\definition continuous: topology.Continuity[A := Domain.Point, B := M.Point].Continuous Domain.topology M.space apply :=
+  topology.Composition[A := Domain.Point, B := Charts.LocalPoint c, C := M.Point].composeContinuous Domain.topology (Charts.domainTopology c.domain) M.space
+    (Charts.point c) (\fun (x: Charts.LocalPoint c) => x) (Homeomorphisms.laws _ _ c.coordinates).backwardContinuous
+    (topology.Continuity[A := Charts.LocalPoint c, B := M.Point].Corestriction[S := c.domain].inclusionContinuous M.space);
+\module At(right: Charts.Chart, x: Domain.Point, contains: SourceCharts.Contains Domain.chart x, inRight: Charts.Contains right (apply x)) {
+  \definition inLeft: Charts.Contains c (apply x) := \bysub(M.Point, c.domain, Charts.point c x);
+  \import Charts.At[x := apply x, left := c, right := right, inLeft := inLeft] \as Change;
+  \import Maps.At[function := apply, left := Domain.chart, right := right, x := x, contains := contains] \as Local;
+  \module With(e: Change.Extension) {
+    \definition extension: Local.Extension := Local.Extension {
+      neighborhood := e.neighborhood, included := e.included,
+      contains := \idelim Charts.coordinate c (Charts.point c x) = x
+        \with y: Domain.Point => \In[Model.Point] e.neighborhood.points y \by { base: e.contains, equality: Charts.coordinatePoint c x },
+      map := e.map, inside := e.inside, agrees := e.agrees,
+    };
+  }
+  \definition existsExtension: \In[Charts.Chart] M.atlas.charts right -> \exists Local.Extension := \block {
+    \fun (member: _) \then
+    \takefrom e: Change.Extension \by M.atlas.compatible c right (apply x) inLeft inRight (\bysub(Charts.Chart, M.atlas.charts, c)) member \then
+    \return \exact(With[e := e].extension, Local.Extension)
+  };
+}
+\module InCharts(left: SourceCharts.Chart, right: Charts.Chart, x: Domain.Point, contains: SourceCharts.Contains left x, inRight: Charts.Contains right (apply x)) {
+  \definition existsExtension: left = Domain.chart -> \In[Charts.Chart] M.atlas.charts right ->
+    \exists Maps.At[function := apply, left := left, right := right, x := x, contains := contains].Extension :=
+    \fun (same: left = Domain.chart)(member: _) => \idelim Domain.chart = left \with d: SourceCharts.Chart => \forall (inside: SourceCharts.Contains d x) ->
+      \exists Maps.At[function := apply, left := d, right := right, x := x, contains := inside].Extension \by {
+        base: \fun (inside: _) => \root.ChartMap[n := n].On[M := M].Of[c := c].At[right := right, x := x, contains := inside, inRight := inRight].existsExtension member,
+        equality: sym!{{SourceCharts.Chart}} _ _ same
+      } contains;
+}
+\definition map: Maps.Map := \into[Maps.Data](data, Maps.Map) \by {
+  Maps.Laws[data] {
+    continuous := continuous,
+    smooth := \fun (left: SourceCharts.Chart)(right: Charts.Chart)(x: Domain.Point)(contains: _)(lm: _)(rm: _)(inRight: _) =>
+      InCharts[left := left, right := right, x := x, contains := contains, inRight := inRight].existsExtension lm rm,
+  }
+};
+\definition injective: \forall (x, y: Domain.Point) -> apply x = apply y -> x = y :=
+  \fun (x, y: Domain.Point)(same: apply x = apply y) => trans!{{Domain.Point}} _ _ _
+    (sym!{{Domain.Point}} _ _ (Charts.coordinatePoint c x))
+    (trans!{{Domain.Point}} _ _ _ (congr!{{Charts.LocalPoint c} {Domain.Point}} (Charts.coordinate c) (Charts.point c x) (Charts.point c y)
+      (boundary_manifolds.Refinement[A := M.Point].equality c.domain (Charts.point c x) (Charts.point c y) same)) (Charts.coordinatePoint c y));

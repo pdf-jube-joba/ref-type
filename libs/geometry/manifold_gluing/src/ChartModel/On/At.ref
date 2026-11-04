@@ -1,0 +1,35 @@
+\import Models.Quadrant[C := c.constraints, U := c.image] \as Target;
+\import Models.Chart[M := Target.Point, space := Target.topology] \as TargetCharts;
+\definition local[x: M.Point]: Charts.LocalPoint c := \into[M.Point](x, c.domain) \by { covers x };
+\definition forward[x: M.Point]: Target.Point := Charts.coordinate c (local x);
+\definition backward[u: Target.Point]: M.Point := Charts.point c u;
+\definition localContinuous: topology.Continuity[A := M.Point, B := Charts.LocalPoint c].Continuous M.space (Charts.domainTopology c.domain) local :=
+  topology.Continuity[A := M.Point, B := M.Point].Corestriction[S := c.domain].corestrictContinuous M.space M.space local (topology.Maps[A := M.Point, B := M.Point].Identity[].continuous M.space);
+\definition forwardContinuous: topology.Continuity[A := M.Point, B := Target.Point].Continuous M.space Target.topology forward :=
+  topology.Composition[A := M.Point, B := Charts.LocalPoint c, C := Target.Point].composeContinuous M.space (Charts.domainTopology c.domain) Target.topology local (Charts.coordinate c) localContinuous c.coordinates.forwardContinuous;
+\definition backwardContinuous: topology.Continuity[A := Target.Point, B := M.Point].Continuous Target.topology M.space backward :=
+  topology.Composition[A := Target.Point, B := Charts.LocalPoint c, C := M.Point].composeContinuous Target.topology (Charts.domainTopology c.domain) M.space (Charts.point c) (\fun (p: Charts.LocalPoint c) => p) c.coordinates.backwardContinuous
+    (topology.Continuity[A := Charts.LocalPoint c, B := M.Point].Corestriction[S := c.domain].inclusionContinuous M.space);
+\definition leftInverse: \forall (x: M.Point) -> backward (forward x) = x := \fun (x: M.Point) =>
+  congr!{{Charts.LocalPoint c} {M.Point}} (\fun (p: Charts.LocalPoint c) => p) (Charts.point c (Charts.coordinate c (local x))) (local x) (Charts.pointCoordinate c (local x));
+\definition localBackward: \forall (u: Target.Point) -> local (backward u) = Charts.point c u := \fun (u: Target.Point) =>
+  boundary_manifolds.Refinement[A := M.Point].equality c.domain (local (backward u)) (Charts.point c u) (\refl(backward u));
+\definition rightInverse: \forall (u: Target.Point) -> forward (backward u) = u := \fun (u: Target.Point) => trans!{Target.Point} _ _ _
+  (congr!{{Charts.LocalPoint c} {Target.Point}} (Charts.coordinate c) _ _ (localBackward u)) (Charts.coordinatePoint c u);
+\definition identity: Calculus.Map c.image Open.whole := Calculus.Map[c.image, Open.whole] {
+  apply := \fun (u: Open.Carrier c.image) => \into[Model.Point](u, Open.whole.points) \by { \refl(u \of Model.Point) },
+  smooth := \fun (i: Model.Coordinate) => Open.Examples[].projectionSmooth c.image i,
+};
+\import boundary_manifolds.SmoothMap[n := n, m := n].Between[M := M, N := Target.manifold] \as Forward;
+\import boundary_manifolds.SmoothMap[n := n, m := n].Between[M := Target.manifold, N := M] \as Backward;
+\import \root.LocalSmoothMap[n := n, m := n].Between[M := M, N := Target.manifold].Of[function := forward] \as ForwardLocal;
+\import \root.LocalSmoothMap[n := n, m := n].Between[M := Target.manifold, N := M].Of[function := backward] \as BackwardLocal;
+\module ForwardAt(x: M.Point);
+\module BackwardAt(u: Target.Point);
+\definition forwardMap: Forward.Map := ForwardLocal.map forwardContinuous (\fun (x: M.Point) => \exact(ForwardAt[x := x].witness, ForwardLocal.Witness[x]));
+\definition backwardMap: Backward.Map := BackwardLocal.map backwardContinuous (\fun (u: Target.Point) => \exact(BackwardAt[u := u].witness, BackwardLocal.Witness[u]));
+\import \root.Diffeomorphism[n := n, m := n].Between[M := M, N := Target.manifold] \as Diffeomorphisms;
+\definition data: Diffeomorphisms.Data := Diffeomorphisms.Data { forward := forwardMap, backward := backwardMap };
+\definition diffeomorphism: Diffeomorphisms.Diffeomorphism := \into[Diffeomorphisms.Data](data, Diffeomorphisms.Diffeomorphism) \by {
+  Diffeomorphisms.Laws[data] { leftInverse := leftInverse, rightInverse := rightInverse }
+};

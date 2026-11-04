@@ -1,0 +1,65 @@
+\import \root.RoundingWindow[] \as Window;
+\import Window.At[q := Scale.q, positive := Scale.qPositive, bounded := Scale.outerBounded] \as WindowTimes;
+\import boundary_manifolds.Product[n := n, m := m].Of[M := LeftBase.manifold, N := RightBase.manifold] \as Base;
+\import boundary_manifolds.Product[n := Nat.add m n, m := Round.dimension].Of[M := Base.manifold, N := Window.manifold] \as Near;
+\import \root.ProductMaps[n := n, m := m].Of[M := LeftBase.manifold, N := RightBase.manifold] \as BaseMaps;
+\import \root.ProductMaps[n := Nat.add m n, m := Round.dimension].Of[M := Base.manifold, N := Window.manifold] \as Projections;
+\definition leftBaseMap: boundary_manifolds.SmoothMap[n := Nat.add Round.dimension (Nat.add m n), m := n].Between[M := Near.manifold, N := LeftBase.manifold].Map :=
+  boundary_manifolds.MapComposition[n := Nat.add Round.dimension (Nat.add m n), m := Nat.add m n, l := n].Between[M := Near.manifold, N := Base.manifold, P := LeftBase.manifold].Of[f := Projections.First[].map, g := BaseMaps.First[].map].map;
+\definition rightBaseMap: boundary_manifolds.SmoothMap[n := Nat.add Round.dimension (Nat.add m n), m := m].Between[M := Near.manifold, N := RightBase.manifold].Map :=
+  boundary_manifolds.MapComposition[n := Nat.add Round.dimension (Nat.add m n), m := Nat.add m n, l := m].Between[M := Near.manifold, N := Base.manifold, P := RightBase.manifold].Of[f := Projections.First[].map, g := BaseMaps.Second[].map].map;
+\definition leftTimeMap: boundary_manifolds.SmoothMap[n := Nat.add Round.dimension (Nat.add m n), m := One.dimension].Between[M := Near.manifold, N := Time.manifold].Map :=
+  boundary_manifolds.MapComposition[n := Nat.add Round.dimension (Nat.add m n), m := Round.dimension, l := One.dimension].Between[M := Near.manifold, N := Window.manifold, P := Time.manifold].Of[f := Projections.Second[].map, g := WindowTimes.leftMap].map;
+\definition rightTimeMap: boundary_manifolds.SmoothMap[n := Nat.add Round.dimension (Nat.add m n), m := One.dimension].Between[M := Near.manifold, N := Time.manifold].Map :=
+  boundary_manifolds.MapComposition[n := Nat.add Round.dimension (Nat.add m n), m := Round.dimension, l := One.dimension].Between[M := Near.manifold, N := Window.manifold, P := Time.manifold].Of[f := Projections.Second[].map, g := WindowTimes.rightMap].map;
+\definition leftParameterMap: boundary_manifolds.SmoothMap[n := Nat.add Round.dimension (Nat.add m n), m := Nat.add One.dimension n].Between[M := Near.manifold, N := LeftParameter.manifold].Map :=
+  \root.ProductMaps[n := n, m := One.dimension].Of[M := LeftBase.manifold, N := Time.manifold].Pairing[p := Nat.add Round.dimension (Nat.add m n)].From[P := Near.manifold].Using[f := leftBaseMap, g := leftTimeMap].map;
+\definition rightParameterMap: boundary_manifolds.SmoothMap[n := Nat.add Round.dimension (Nat.add m n), m := Nat.add One.dimension m].Between[M := Near.manifold, N := RightParameter.manifold].Map :=
+  \root.ProductMaps[n := m, m := One.dimension].Of[M := RightBase.manifold, N := Time.manifold].Pairing[p := Nat.add Round.dimension (Nat.add m n)].From[P := Near.manifold].Using[f := rightBaseMap, g := rightTimeMap].map;
+\import boundary_manifolds.SmoothMap[n := Nat.add Round.dimension (Nat.add m n), m := Nat.add One.dimension n].Between[M := Near.manifold, N := LeftParameter.manifold] \as LPMaps;
+\import boundary_manifolds.SmoothMap[n := Nat.add Round.dimension (Nat.add m n), m := Nat.add One.dimension m].Between[M := Near.manifold, N := RightParameter.manifold] \as RPMaps;
+\definition leftParameter[x: Near.Point]: LeftParameter.Point := LPMaps.apply leftParameterMap x;
+\definition rightParameter[x: Near.Point]: RightParameter.Point := RPMaps.apply rightParameterMap x;
+\definition leftTimeValue: \forall (x: Near.Point) -> Time.value (LeftParameter.second (leftParameter x)) = S.mul Scale.q (Near.second x Round.firstNormal) := \fun (x: Near.Point) => \refl(S.mul Scale.q (Near.second x Round.firstNormal));
+\definition rightTimeValue: \forall (x: Near.Point) -> Time.value (RightParameter.second (rightParameter x)) = S.mul Scale.q (Near.second x Round.secondNormal) := \fun (x: Near.Point) => \refl(S.mul Scale.q (Near.second x Round.secondNormal));
+\definition leftSmall: \forall (x: Near.Point) -> R.Lt (Time.value (LeftParameter.second (leftParameter x))) Scale.outer := \fun (x: Near.Point) =>
+  R.ltReplaceLeft (S.mul Scale.q (Near.second x Round.firstNormal)) (Time.value (LeftParameter.second (leftParameter x))) Scale.outer (sym!{S.Real} _ _ (leftTimeValue x))
+    (S.Estimates[].Product[].mulStrict Scale.q (Near.second x Round.firstNormal) \root.RoundingScale[].four Scale.qPositive (Window.firstBound (Near.second x)));
+\definition rightSmall: \forall (x: Near.Point) -> R.Lt (Time.value (RightParameter.second (rightParameter x))) Scale.outer := \fun (x: Near.Point) =>
+  R.ltReplaceLeft (S.mul Scale.q (Near.second x Round.secondNormal)) (Time.value (RightParameter.second (rightParameter x))) Scale.outer (sym!{S.Real} _ _ (rightTimeValue x))
+    (S.Estimates[].Product[].mulStrict Scale.q (Near.second x Round.secondNormal) \root.RoundingScale[].four Scale.qPositive (Window.secondBound (Near.second x)));
+\definition leftInput[x: Near.Point]: LeftModel.Point := \into[LeftParameter.Point](leftParameter x, LeftWindow.points) \by { leftSmall x };
+\definition rightInput[x: Near.Point]: RightModel.Point := \into[RightParameter.Point](rightParameter x, RightWindow.points) \by { rightSmall x };
+\definition parameter[x: Near.Point]: Source.Point := Pair.pair LeftModel.Point RightModel.Point (leftInput x) (rightInput x);
+\import topological_constructions.Product[A := LeftModel.Point, B := RightModel.Point] \as ParameterProduct;
+\definition leftContinuous: topology.Continuity[A := Near.Point, B := LeftModel.Point].Continuous Near.topology LeftModel.topology leftInput :=
+  topology.Continuity[A := Near.Point, B := LeftParameter.Point].Corestriction[S := LeftWindow.points].corestrictContinuous Near.topology LeftParameter.topology leftInput leftParameterMap.continuous;
+\definition rightContinuous: topology.Continuity[A := Near.Point, B := RightModel.Point].Continuous Near.topology RightModel.topology rightInput :=
+  topology.Continuity[A := Near.Point, B := RightParameter.Point].Corestriction[S := RightWindow.points].corestrictContinuous Near.topology RightParameter.topology rightInput rightParameterMap.continuous;
+\definition parameterContinuous: topology.Continuity[A := Near.Point, B := Source.Point].Continuous Near.topology Source.topology parameter := ParameterProduct.Universal[X := Near.Point].pairContinuous Near.topology LeftModel.topology RightModel.topology leftInput rightInput leftContinuous rightContinuous;
+\definition leftMap: boundary_manifolds.SmoothMap[n := Nat.add Round.dimension (Nat.add m n), m := Nat.add One.dimension n].Between[M := Near.manifold, N := M].Map :=
+  boundary_manifolds.MapComposition[n := Nat.add Round.dimension (Nat.add m n), m := Nat.add One.dimension n, l := Nat.add One.dimension n].Between[M := Near.manifold, N := LeftParameter.manifold, P := M].Of[f := leftParameterMap, g := LeftMap.map].map;
+\definition rightMap: boundary_manifolds.SmoothMap[n := Nat.add Round.dimension (Nat.add m n), m := Nat.add One.dimension m].Between[M := Near.manifold, N := N].Map :=
+  boundary_manifolds.MapComposition[n := Nat.add Round.dimension (Nat.add m n), m := Nat.add One.dimension m, l := Nat.add One.dimension m].Between[M := Near.manifold, N := RightParameter.manifold, P := N].Of[f := rightParameterMap, g := RightMap.map].map;
+\definition map: boundary_manifolds.SmoothMap[n := Nat.add Round.dimension (Nat.add m n), m := Nat.add (Nat.add One.dimension m) (Nat.add One.dimension n)].Between[M := Near.manifold, N := Product.manifold].Map :=
+  \root.ProductMaps[n := Nat.add One.dimension n, m := Nat.add One.dimension m].Of[M := M, N := N].Pairing[p := Nat.add Round.dimension (Nat.add m n)].From[P := Near.manifold].Using[f := leftMap, g := rightMap].map;
+\definition rawSame: \forall (x: Near.Point) -> (raw (parameter x) \of RoundModel.Point) = (Near.second x \of RoundModel.Point) := \fun (x: Near.Point) => trans!{{RoundModel.Point}} _ _ _
+  (congr!{S.Real S.Real {RoundModel.Point}} Plane.point _ _ _ _ (Normalize.cancel (Near.second x Round.firstNormal)) (Normalize.cancel (Near.second x Round.secondNormal)))
+  (Plane.recover (Near.second x));
+\import \root.Reflection[n := Nats.Nat^::zero] \as FirstReflection;
+\import boundary_manifolds.Sublevel[n := FirstReflection.dimension].Of[U := RoundOpen.whole, f := Round.function] \as Region;
+\definition wholeSame: \forall (x: Near.Point) -> raw (parameter x) = (Near.second x \of RoundOpen.Carrier RoundOpen.whole) := \fun (x: Near.Point) => boundary_manifolds.Refinement[A := RoundModel.Point].equality RoundOpen.whole.points (raw (parameter x)) (Near.second x) (rawSame x);
+\definition notRemoved: \forall (x: Near.Point) -> R.Le S.zero (value (parameter x)) := \fun (x: Near.Point) =>
+  R.leReplaceRight S.zero (Round.defining (Near.second x)) (value (parameter x))
+    (congr!{{RoundOpen.Carrier RoundOpen.whole} S.Real} Round.defining _ _ (sym!{{RoundOpen.Carrier RoundOpen.whole}} _ _ (wholeSame x)))
+    (\bysub(RoundOpen.Carrier RoundOpen.whole, Region.points, Near.second x));
+\definition rawParameterContinuous: topology.Continuity[A := Source.Point, B := RoundOpen.Carrier RoundOpen.whole].Continuous Source.topology (RoundOpen.Topology[].Of[U := RoundOpen.whole].topology) raw := rawContinuous;
+\module Parameters;
+
+\definition RoundedPoint: \Set := Point;
+\definition roundedPoints: \Pow Product.Point := points;
+\definition roundedTopology: topology.Structures[].Topology[RoundedPoint] := topology;
+\import \parent.ParameterRegion[] \as RegionMembership;
+\module Image;
+\module Coordinates;
+\module Outside;

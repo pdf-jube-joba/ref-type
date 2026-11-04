@@ -1,0 +1,54 @@
+\import \root.SignedParameter[].At[epsilon := epsilon, positive := positive, bounded := bounded] \as Signed;
+\import boundary_manifolds.Product[n := n, m := One.dimension].Of[M := LeftBoundary.manifold, N := Signed.manifold] \as Source;
+\import boundary_manifolds.Product[n := n, m := One.dimension].Of[M := LeftBoundary.manifold, N := Time.manifold] \as LeftProduct;
+\import boundary_manifolds.Product[n := n, m := One.dimension].Of[M := RightBoundary.manifold, N := Time.manifold] \as RightProduct;
+\import \root.CollarEmbedding[n := n].On[M := M].With[cover := leftCover].From[deformation := left] \as LeftMap;
+\import \root.CollarEmbedding[n := n].On[M := N].With[cover := rightCover].From[deformation := right] \as RightMap;
+\import boundary_manifolds.SmoothMap[n := Nat.add One.dimension n, m := Nat.add One.dimension n].Between[M := LeftProduct.manifold, N := M] \as LeftMaps;
+\import boundary_manifolds.SmoothMap[n := Nat.add One.dimension n, m := Nat.add One.dimension n].Between[M := RightProduct.manifold, N := N] \as RightMaps;
+\import topology.Topology[Carrier := Source.Point] \as Space;
+\import topological_constructions.Product[A := LeftBoundary.manifold.Point, B := Signed.Point] \as Product;
+\definition plus[p: Source.Point]: Time.Point := Signed.plus (Source.second p);
+\definition minus[p: Source.Point]: Time.Point := Signed.minus (Source.second p);
+\definition leftParameter[p: Source.Point]: LeftProduct.Point := Pair.pair LeftBoundary.manifold.Point Time.Point (Source.first p) (plus p);
+\definition rightBase[p: Source.Point]: RightBoundary.manifold.Point := BoundaryMaps.apply d.forward (Source.first p);
+\definition rightParameter[p: Source.Point]: RightProduct.Point := Pair.pair RightBoundary.manifold.Point Time.Point (rightBase p) (minus p);
+\definition leftPoint[p: Source.Point]: Left.Point := \into[LeftProduct.Point](leftParameter p, Left.domain) \by {
+  leftWithin (plus p) (Signed.positiveSmall (Source.second p))
+};
+\definition rightPoint[p: Source.Point]: Right.Point := \into[RightProduct.Point](rightParameter p, Right.domain) \by {
+  rightWithin (minus p) (Signed.negativeBound (Source.second p))
+};
+\definition leftValue[p: Source.Point]: Gluing.Point := Gluing.inl (LeftMaps.apply LeftMap.map (leftParameter p));
+\definition rightValue[p: Source.Point]: Gluing.Point := Gluing.inr (RightMaps.apply RightMap.map (rightParameter p));
+\definition scalar[p: Source.Point]: S.Real := Signed.value (Source.second p);
+\definition Positive: \Pow Source.Point := { p: Source.Point \where R.Le S.zero (scalar p) };
+\definition Negative: \Pow Source.Point := { p: Source.Point \where R.Le (scalar p) S.zero };
+\import topological_constructions.Gluing[A := Source.Point, B := Gluing.Point].Pasting[F := Positive, G := Negative] \as Pasting;
+\definition covered: Pasting.Covered := \fun (p: Source.Point) => Logic.orElim (R.Le S.zero (scalar p)) (R.Lt (scalar p) S.zero)
+  (Logic.Or[Space.Member Positive p, Space.Member Negative p]) (Laws.nonnegativeOrNegativeReal (scalar p))
+  (\fun (nonnegative: _) => Logic.Or[_, _]::left nonnegative)
+  (\fun (negative: _) => Logic.Or[_, _]::right (Order.leOfLt (scalar p) S.zero negative));
+\module Continuity;
+\module Compatibility;
+\definition apply: Source.Point -> Gluing.Point := Pasting.apply
+  (\fun (p: Pasting.Left) => leftValue p) (\fun (p: Pasting.Right) => rightValue p) covered Compatibility[].law;
+\definition onLeft: \forall (p: Source.Point) -> Space.Member Positive p -> apply p = leftValue p :=
+  \fun (p: Source.Point)(member: _) => Pasting.onLeft (\fun (p: Pasting.Left) => leftValue p) (\fun (p: Pasting.Right) => rightValue p) covered Compatibility[].law (\into[Source.Point](p, Positive) \by { member });
+\definition onRight: \forall (p: Source.Point) -> Space.Member Negative p -> apply p = rightValue p :=
+  \fun (p: Source.Point)(member: _) => Pasting.onRight (\fun (p: Pasting.Left) => leftValue p) (\fun (p: Pasting.Right) => rightValue p) covered Compatibility[].law (\into[Source.Point](p, Negative) \by { member });
+\definition continuous: topology.Continuity[A := Source.Point, B := Gluing.Point].Continuous Source.topology Gluing.topology apply :=
+  Pasting.continuous Source.topology Gluing.topology (\fun (p: Pasting.Left) => leftValue p) (\fun (p: Pasting.Right) => rightValue p) covered Compatibility[].law
+    Continuity[].positiveClosed Continuity[].negativeClosed
+    (topology.Continuity[A := Source.Point, B := Gluing.Point].Restriction[S := Positive].restrictContinuous Source.topology Gluing.topology leftValue Continuity[].leftContinuous)
+    (topology.Continuity[A := Source.Point, B := Gluing.Point].Restriction[S := Negative].restrictContinuous Source.topology Gluing.topology rightValue Continuity[].rightContinuous);
+\definition sameParts: \forall (t, s: Signed.Point) -> Signed.plus t = Signed.plus s -> Signed.minus t = Signed.minus s -> t = s :=
+  \fun (t, s: Signed.Point)(plusEqual: _)(minusEqual: _) => Signed.equality t s
+    (trans!{S.Real} _ _ _ (sym!{S.Real} _ _ (Signed.recover t))
+      (trans!{S.Real} _ _ _ (congr!{S.Real S.Real S.Real} S.sub _ _ _ _
+        (congr!{{Time.Point} S.Real} Time.value _ _ plusEqual) (congr!{{Time.Point} S.Real} Time.value _ _ minusEqual)) (Signed.recover s)));
+\module Cross(p, q: Source.Point, first: Space.Member Positive p, second: Space.Member Negative q, same: apply p = apply q);
+\module Equal(p, q: Source.Point, same: apply p = apply q);
+\definition injective: \forall (p, q: Source.Point) -> apply p = apply q -> p = q := \fun (p, q: Source.Point)(same: _) => Equal[p := p, q := q, same := same].law;
+\module Image;
+\module Sides;

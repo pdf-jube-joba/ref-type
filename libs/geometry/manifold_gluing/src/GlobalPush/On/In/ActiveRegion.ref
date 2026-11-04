@@ -1,0 +1,43 @@
+\import \parent.Inward[] \as Inward;
+\import Functions.LocalBump[a := a, q := q] \as Bump;
+\import topology.Topology[Carrier := M.Point] \as Space;
+\import Space.Subspace[S := c.domain].Open[] \as Inclusion;
+\import topology.Topology[Carrier := Charts.LocalPoint c] \as LocalSpace;
+\import topological_algebra.Euclidean[].Dimension[n := dimension].Topology[] \as Ambient;
+\import topological_algebra.Euclidean[].Dimension[n := dimension].Norm[] \as Norm;
+\import metric_spaces.MetricSpace[Carrier := Model.Point] \as Metrics;
+\import Metrics.Topology[] \as MetricTopology;
+\import topology.Homeomorphism[A := Charts.LocalPoint c, B := Model.Carrier c.constraints c.image] \as Homeomorphisms;
+\definition coordinateContinuous: topology.Continuity[A := Charts.LocalPoint c, B := Model.Point].Continuous (Charts.domainTopology c.domain) Ambient.topology
+  (\fun (x: Charts.LocalPoint c) => Charts.coordinate c x) :=
+  topology.Composition[A := Charts.LocalPoint c, B := Model.Carrier c.constraints c.image, C := Model.Point].composeContinuous
+    (Charts.domainTopology c.domain) (Model.regionTopology c.constraints c.image) Ambient.topology (Charts.coordinate c) (\fun (u: Model.Carrier c.constraints c.image) => u)
+    (Homeomorphisms.laws _ _ c.coordinates).forwardContinuous (Model.Topology[C := c.constraints, U := c.image].ambient);
+\definition local: \Pow (Charts.LocalPoint c) := { x: Charts.LocalPoint c \where \In[Model.Point] (Metrics.Ball Norm.metric a q) (Charts.coordinate c x) };
+\definition localOpen: LocalSpace.IsOpenIn (Charts.domainTopology c.domain) local :=
+  coordinateContinuous (Metrics.Ball Norm.metric a q) (MetricTopology.ballOpenIn Norm.metric a q);
+\definition domain: \Pow M.Point := Inclusion.image local;
+\definition open: Space.IsOpenIn M.space domain := Inclusion.imageOpen M.space c.open local localOpen;
+\definition centerContains: Space.Member domain Inward.center := Inclusion.imageMember local (Charts.point c a)
+  (\idelim (a \of Model.Point) = (Charts.coordinate c (Charts.point c a) \of Model.Point) \with u: Model.Point => \In[Model.Point] (Metrics.Ball Norm.metric a q) u \by {
+    base: Metrics.ballCenter Norm.metric a q Bump.qPositive,
+    equality: sym!{Model.Point} _ _ (Charts.coordinatePoint c a)
+  });
+\definition pairLocal[x: Charts.LocalPoint c][t: Time.Point]: LocalPoint := \into[Product.Point](Pair.pair M.Point Time.Point x t, localDomain) \by { \bysub(M.Point, c.domain, x) };
+\definition spatialValue: \forall (x: Charts.LocalPoint c)(t: Time.Point) -> (spatial (pairLocal x t) \of Model.Point) = (Charts.coordinate c x \of Model.Point) :=
+  \fun (x: Charts.LocalPoint c)(t: Time.Point) => \refl(Charts.coordinate c x \of Model.Point);
+\definition activatesLocal: \forall (x: Charts.LocalPoint c) -> LocalSpace.Member local x -> Homotopies.Activates homotopy x :=
+  \fun (x: Charts.LocalPoint c)(near: _)(t: Time.Point)(positive: _) =>
+    Logic.orElim (\In[M.Point] BoundaryAtlas.points x) (Homotopies.Interior x)
+      (Homotopies.Interior (apply (Pair.pair M.Point Time.Point x t))) (Classical.excludedMiddle (\In[M.Point] BoundaryAtlas.points x))
+      (\fun (boundary: _) => Inward.enters (pairLocal x t) boundary positive
+        (R.ltReplaceRight S.zero S.one (Bump.value (spatial (pairLocal x t)))
+          (sym!{S.Real} _ _ (trans!{S.Real} _ _ _ (congr!{Model.Point S.Real} Bump.value _ _ (spatialValue x t))
+            (Bump.oneNear (Charts.coordinate c x) (R.ltReplaceLeft _ _ q (Norm.distanceSymmetric a (Charts.coordinate c x)) near)))) S.Estimates[].Product[].onePositive))
+      (\fun (interior: _) => Inward.preservesInterior (Pair.pair M.Point Time.Point x t) interior);
+\definition activates: \forall (x: M.Point) -> Space.Member domain x -> Homotopies.Activates homotopy x :=
+  \fun (x: M.Point)(member: _) => Inclusion.imageElim local x (Homotopies.Activates homotopy x)
+    (\fun (y: Charts.LocalPoint c)(near: _)(same: y = x) => \idelim (y \of M.Point) = x \with p: M.Point => Homotopies.Activates homotopy p \by {
+      base: activatesLocal y near, equality: same
+    }) member;
+\definition patch: Homotopies.Patch := Homotopies.Patch { domain := domain, open := open, homotopy := homotopy, activates := activates };

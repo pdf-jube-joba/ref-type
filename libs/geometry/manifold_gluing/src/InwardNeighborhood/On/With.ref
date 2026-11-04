@@ -1,0 +1,28 @@
+\import \root.BoundaryInclusion[n := n].On[M := M].With[cover := cover] \as Inclusion;
+\import \root.PushHomotopy[n := Nat.add One.dimension n].On[M := M] \as Homotopies;
+\import boundary_manifolds.Product[n := n, m := One.dimension].Of[M := Inclusion.manifold, N := Time.manifold] \as Product;
+\import boundary_manifolds.Product[n := Nat.add One.dimension n, m := One.dimension].Of[M := M, N := Time.manifold] \as AmbientProduct;
+\import \root.ProductMaps[n := n, m := One.dimension].Of[M := Inclusion.manifold, N := Time.manifold] \as Projections;
+\import boundary_manifolds.MapComposition[n := Nat.add One.dimension n, m := n, l := Nat.add One.dimension n].Between[M := Product.manifold, N := Inclusion.manifold, P := M].Of[f := Projections.First[].map, g := Inclusion.map] \as First;
+\import \root.ProductMaps[n := Nat.add One.dimension n, m := One.dimension].Of[M := M, N := Time.manifold].Pairing[p := Nat.add One.dimension n].From[P := Product.manifold].Using[f := First.map, g := Projections.Second[].map] \as Pairing;
+\import boundary_manifolds.SmoothMap[n := Nat.add One.dimension n, m := Nat.add One.dimension n].Between[M := Product.manifold, N := M] \as Maps;
+\definition initialPoint[x: Inclusion.manifold.Point]: Product.Point := Pair.pair Inclusion.manifold.Point Time.Point x Time.zero;
+\structure Neighborhood: \Set := {
+  map: Maps.Map,
+  initial: \forall (x: Inclusion.manifold.Point) -> Maps.apply map (initialPoint x) = Inclusion.apply x,
+  enters: \forall (z: Product.Point) -> R.Lt S.zero (Time.value (Product.second z)) -> Homotopies.Interior (Maps.apply map z),
+};
+\module From(h: Homotopies.Homotopy, active: \forall (x: M.Point) -> \In[M.Point] Atlas.points x -> Homotopies.Activates h x) {
+  \import boundary_manifolds.MapComposition[n := Nat.add One.dimension n, m := Nat.add One.dimension (Nat.add One.dimension n), l := Nat.add One.dimension n].Between[M := Product.manifold, N := AmbientProduct.manifold, P := M].Of[f := Pairing.map, g := h.map] \as Composition;
+  \definition neighborhood: Neighborhood := Neighborhood {
+    map := Composition.map,
+    initial := \fun (x: Inclusion.manifold.Point) => h.initial (Inclusion.apply x),
+    enters := \fun (z: Product.Point)(positive: _) => active (Inclusion.apply (Product.first z))
+      (\bysub(M.Point, Atlas.points, Product.first z)) (Product.second z) positive,
+  };
+}
+\import \root.GlobalPush[n := n].On[M := M] \as Push;
+\definition exists[compact: topology.Topology[Carrier := M.Point].IsCompact M.space]: \exists Neighborhood := \block {
+  \takefrom h: \Cast[Homotopies.Homotopy] ({ h: Homotopies.Homotopy \where \forall (x: M.Point) -> \In[M.Point] Atlas.points x -> Homotopies.Activates h x }) \by Push.existsOnCompact cover compact \then
+  \return \exact(From[h := h, active := \bysub(Homotopies.Homotopy, { h: Homotopies.Homotopy \where \forall (x: M.Point) -> \In[M.Point] Atlas.points x -> Homotopies.Activates h x }, h)].neighborhood, Neighborhood)
+};

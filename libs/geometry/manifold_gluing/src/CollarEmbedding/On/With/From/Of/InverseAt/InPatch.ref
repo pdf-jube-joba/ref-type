@@ -1,0 +1,25 @@
+\definition identitySubset: Space.Subset domain domain := \fun (x: Product.Point)(member: Space.Member domain x) => member;
+\import \root.CollarEmbedding[n := n].On[M := M].With[cover := cover].From[deformation := deformation].Of[regular := regular].ImageOf[V := domain, openV := open, inside := identitySubset].InPatch[x := backward y, b := b, patch := patch, member := member] \as Region;
+\import \root.CollarLocal[n := n].On[M := M].With[cover := cover].From[deformation := deformation].InverseFunction[b := b, range := patch.range, backward := patch.backward] \as PatchFunction;
+\definition contains: TargetSpace.Member Region.W y := \idelim Maps.apply map (backward y) = (y \of M.Point) \with z: M.Point => TargetSpace.Member Region.W z \by {
+  base: Region.contains, equality: rightValue y
+};
+\definition point[z: Region.RangePoint][member: \In[Region.RangePoint] Region.local z]: Point := \into[Product.Point](patch.backward z, domain) \by { member };
+\definition target[z: Region.RangePoint][member: \In[Region.RangePoint] Region.local z]: ImagePoint := \into[M.Point](z, image) \by {
+  Logic.existsIntro[Point, { p: Point \where Maps.apply map p = (z \of M.Point) }] (point z member) (patch.rightInverse z)
+};
+\definition agreesOnRange: \forall (z: Region.RangePoint)(member: \In[Region.RangePoint] Region.local z) -> function z = PatchFunction.function z :=
+  \fun (z: Region.RangePoint)(member: _) => trans!{{Product.Point}} _ _ _ (inside (target z member))
+    (trans!{{Product.Point}} _ _ _ (sym!{{Product.Point}} _ _ (uniquePreimage (target z member) (point z member) (patch.rightInverse z))) (sym!{{Product.Point}} _ _ (PatchFunction.inside z)));
+\definition agrees: \forall (z: M.Point) -> TargetSpace.Member Region.W z -> function z = PatchFunction.function z :=
+  \fun (z: M.Point)(member: TargetSpace.Member Region.W z) => TargetSpace.Subspace[S := patch.range].Open[].imageElim Region.local z (function z = PatchFunction.function z)
+    (\fun (p: Region.RangePoint)(inLocal: \In[Region.RangePoint] Region.local p)(same: p = z) => \idelim (p \of M.Point) = z
+      \with q: M.Point => function q = PatchFunction.function q \by { base: agreesOnRange p inLocal, equality: same }) member;
+\definition rangePoint: Region.RangePoint := \into[M.Point](y, patch.range) \by {
+  TargetSpace.Subspace[S := patch.range].Open[].imageIncluded Region.local y contains
+};
+\definition exists: \exists Witness := \block {
+  \takefrom chosen: PatchFunction.Witness y \by patch.localSmooth rangePoint \then
+  \return \root.LocalSmoothTransfer[n := Nat.add One.dimension n, m := Nat.add One.dimension n].Between[M := M, N := Product.manifold].From[f := function, g := PatchFunction.function].At[
+    x := (y \of M.Point), U := Region.W, open := Region.open, contains := contains, agrees := agrees, chosen := chosen].exists
+};

@@ -1,0 +1,16 @@
+\import \root.InwardNeighborhood[n := n].On[M := M].With[cover := cover].From[h := deformation.homotopy, active := deformation.active] \as Candidate;
+\definition apply[b: Inclusion.manifold.Point][t: Time.Point]: M.Point := Maps.apply Candidate.neighborhood.map (Pair.pair Inclusion.manifold.Point Time.Point b t);
+\definition atZero: \forall (b: Inclusion.manifold.Point) -> \In[M.Point] Atlas.points (apply b Time.zero) :=
+  \fun (b: Inclusion.manifold.Point) => \idelim Inclusion.apply b = apply b Time.zero \with p: M.Point => \In[M.Point] Atlas.points p \by {
+    base: \bysub(M.Point, Atlas.points, b), equality: sym!{M.Point} _ _ (Candidate.neighborhood.initial b)
+  };
+\definition zeroOfBoundary: \forall (b: Inclusion.manifold.Point)(t: Time.Point) -> \In[M.Point] Atlas.points (apply b t) -> Time.value t = S.zero :=
+  \fun (b: Inclusion.manifold.Point)(t: Time.Point)(boundary: _) => R.Order[].byContradiction (Time.value t = S.zero)
+    (\fun (different: Logic.Not (Time.value t = S.zero)) => Candidate.neighborhood.enters (Pair.pair Inclusion.manifold.Point Time.Point b t)
+      (R.Order[].ltOfLeNotEq S.zero (Time.value t) (Time.nonnegative t) (\fun (same: S.zero = Time.value t) => different (sym!{S.Real} _ _ same))) boundary);
+\definition boundaryOfZero: \forall (b: Inclusion.manifold.Point)(t: Time.Point) -> Time.value t = S.zero -> \In[M.Point] Atlas.points (apply b t) :=
+  \fun (b: Inclusion.manifold.Point)(t: Time.Point)(zero: _) => \idelim Time.zero = t \with s: Time.Point => \In[M.Point] Atlas.points (apply b s) \by {
+    base: atZero b, equality: sym!{{Time.Point}} _ _ (\root.ParameterLaws[].zero t zero)
+  };
+\definition criterion: \forall (b: Inclusion.manifold.Point)(t: Time.Point) -> Logic.PropEquiv[\In[M.Point] Atlas.points (apply b t), Time.value t = S.zero] :=
+  \fun (b: Inclusion.manifold.Point)(t: Time.Point) => Logic.PropEquiv[_, _] { ltr := zeroOfBoundary b t, rtl := boundaryOfZero b t };

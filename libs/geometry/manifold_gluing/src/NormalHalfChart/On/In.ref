@@ -1,0 +1,13 @@
+\import \root.ChartRestriction[n := Nat.add One.dimension n].On[M := M].Of[c := data.chart].Within[U := data.source, included := data.included] \as Restricted;
+\import \root.SwapCoordinates[n := Nat.add One.dimension n].At[a := data.normal, b := Boundary.normal] \as Swap;
+\import Swap.On[U := data.source] \as Change;
+\definition forward: \forall (u: Model.Carrier data.chart.constraints data.source) -> Model.Nonnegative (Model.halfSpace Boundary.normal) (Calculus.apply data.source Change.V Change.forwardMap u) := \fun (u: Model.Carrier data.chart.constraints data.source) =>
+  Model.halfSpaceNonnegative Boundary.normal (Swap.apply u) (dedekind_reals.DedekindReal[].leReplaceRight real.Analysis[].zero (u data.normal) (Swap.apply u Boundary.normal) (sym!{real.Analysis[].Real} _ _ (Swap.second u))
+    (((data.equivalent u).ltr (\bysub(Open.Carrier data.source, Model.region data.chart.constraints data.source, u))) data.normal (\refl(data.normal))));
+\definition backward: \forall (u: Model.Carrier (Model.halfSpace Boundary.normal) Change.V) -> Model.Nonnegative data.chart.constraints (Calculus.apply Change.V data.source Change.backwardMap u) := \fun (u: Model.Carrier (Model.halfSpace Boundary.normal) Change.V) =>
+  (data.equivalent (Change.backward u)).rtl (Model.halfSpaceNonnegative data.normal (Swap.apply u)
+    (dedekind_reals.DedekindReal[].leReplaceRight real.Analysis[].zero (u Boundary.normal) (Swap.apply u data.normal) (sym!{real.Analysis[].Real} _ _ (Swap.first u))
+      ((\bysub(Open.Carrier Change.V, Model.region (Model.halfSpace Boundary.normal) Change.V, u)) Boundary.normal (\refl(Boundary.normal)))));
+\import \root.ChartReparametrization[n := Nat.add One.dimension n].On[M := M].Of[c := Restricted.chart, D := Model.halfSpace Boundary.normal, V := Change.V, d := Change.diffeomorphism, forward := forward, backward := backward] \as Reparametrized;
+\definition chart: Charts.Chart := Reparametrized.chart;
+\module At(x: M.Point, contains: Charts.Contains chart x);

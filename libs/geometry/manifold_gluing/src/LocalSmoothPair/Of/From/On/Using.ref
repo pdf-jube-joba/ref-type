@@ -1,0 +1,40 @@
+\definition apply[x: P.Point]: Product.Point := Pair.pair M.Point N.Point (f x) (g x);
+
+\module In(left: SourceCharts.Chart, c: Product.LeftChart, d: Product.RightChart, x: P.Point, contains: SourceCharts.Contains left x,
+  inLeft: LeftCharts.Contains c (f x), inRight: RightCharts.Contains d (g x)) {
+  \import LeftMaps.At[function := f, left := left, right := c, x := x, contains := contains] \as First;
+  \import RightMaps.At[function := g, left := left, right := d, x := x, contains := contains] \as Second;
+  \import Product.In[c := c, d := d] \as Patch;
+  \import Result.At[function := apply, left := left, right := Patch.chart, x := x, contains := contains] \as Total;
+  \module With(first: First.Extension, second: Second.Extension) {
+    \definition domain: SourceOpen.OpenSet := SourceOpen.intersection first.neighborhood second.neighborhood;
+    \definition included: SourceOpen.Included domain left.image := \fun (u: Source.Point)(member: _) => first.included u member.left;
+    \import calculus.Maps[n := p, m := n] \as FirstCalculus;
+    \import calculus.Maps[n := p, m := m] \as SecondCalculus;
+    \import calculus.Maps[n := p, m := dimension] \as Calculus;
+    \definition firstMap: FirstCalculus.Map domain LeftOpen.whole := FirstCalculus.Restriction[U := domain, V := first.neighborhood, W := LeftOpen.whole].input
+      (SourceOpen.intersectionLeft first.neighborhood second.neighborhood) first.map;
+    \definition secondMap: SecondCalculus.Map domain RightOpen.whole := SecondCalculus.Restriction[U := domain, V := second.neighborhood, W := RightOpen.whole].input
+      (SourceOpen.intersectionRight first.neighborhood second.neighborhood) second.map;
+    \import Blocks.Pair[d := p].On[U := domain, V := LeftOpen.whole, W := RightOpen.whole, f := firstMap, g := secondMap] \as PairMap;
+    \import Calculus.Corestriction[U := domain, V := Blocks.product LeftOpen.whole RightOpen.whole, W := Open.whole, f := PairMap.map,
+      inside := \fun (u: SourceOpen.Carrier domain) => \refl(Calculus.apply domain (Blocks.product LeftOpen.whole RightOpen.whole) PairMap.map u)] \as Corestriction;
+    \definition firstInput[u: Source.Carrier left.constraints domain]: Source.Carrier left.constraints first.neighborhood :=
+      \into[SourceOpen.Carrier first.neighborhood](SourceOpen.inclusion domain first.neighborhood (SourceOpen.intersectionLeft first.neighborhood second.neighborhood) u,
+        Source.region left.constraints first.neighborhood) \by { \bysub(SourceOpen.Carrier domain, Source.region left.constraints domain, u) };
+    \definition secondInput[u: Source.Carrier left.constraints domain]: Source.Carrier left.constraints second.neighborhood :=
+      \into[SourceOpen.Carrier second.neighborhood](SourceOpen.inclusion domain second.neighborhood (SourceOpen.intersectionRight first.neighborhood second.neighborhood) u,
+        Source.region left.constraints second.neighborhood) \by { \bysub(SourceOpen.Carrier domain, Source.region left.constraints domain, u) };
+    \definition extension: Total.Extension := Total.Extension {
+      neighborhood := domain, included := included, contains := Logic.And[_, _]::# first.contains second.contains,
+      map := Corestriction.map,
+      inside := \fun (u: Source.Carrier left.constraints domain) => Logic.And[_, _]::# (first.inside (firstInput u)) (second.inside (secondInput u)),
+      agrees := \fun (u: Source.Carrier left.constraints domain) => congr!{{Left.Point} {Right.Point} {Model.Point}} Blocks.join _ _ _ _
+        (first.agrees (firstInput u)) (second.agrees (secondInput u)),
+    };
+  }
+}
+\import \root.LocalSmoothMap[n := p, m := n].Between[M := P, N := M].Of[function := f] \as FirstLocal;
+\import \root.LocalSmoothMap[n := p, m := m].Between[M := P, N := N].Of[function := g] \as SecondLocal;
+\import \root.LocalSmoothMap[n := p, m := dimension].Between[M := P, N := Product.manifold].Of[function := apply] \as Destination;
+\module At(x: P.Point, first: FirstLocal.Witness[x], second: SecondLocal.Witness[x]);

@@ -1,0 +1,78 @@
+\import std.Data[].Nat[] \as N;
+\import std.Data[].FinSet[] \as Fin;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\import real.Analysis[] \as S;
+\import dedekind_reals.DedekindReal[].Arithmetic[].Prop[] \as Laws;
+\import calculus.Real[].OneDimension[] \as One;
+\import calculus.Blocks[n := n, m := One.dimension] \as Blocks;
+\import Fin.Sum[m := n, n := One.dimension] \as Indices;
+\import Indices.Tuples[A := S.Real] \as Tuples;
+\definition dimension: N.Nat^ := Blocks.dimension;
+\import calculus.Real[].Multivariable[n := dimension].Open[] \as Open;
+\import calculus.Real[].Multivariable[n := dimension].Space[].Def[] \as Coordinates;
+\import calculus.Vector[n := dimension, m := dimension] \as Vectors;
+\import calculus.Maps[n := dimension, m := dimension] \as Maps;
+\definition Point: \Set := Fin.Fin dimension -> S.Real;
+\definition normal: Fin.Fin dimension := Indices.right One.index;
+\definition flip[x: Point]: Point := Blocks.join (Blocks.left x) (\fun (i: One.Index) => S.neg (Blocks.right x i));
+\definition tangential[x: Point]: Blocks.left (flip x) = Blocks.left x := Blocks.leftJoin (Blocks.left x) (\fun (i: One.Index) => S.neg (Blocks.right x i));
+\definition normalPart[x: Point]: Blocks.right (flip x) = (\fun (i: One.Index) => S.neg (Blocks.right x i)) := Blocks.rightJoin (Blocks.left x) (\fun (i: One.Index) => S.neg (Blocks.right x i));
+\definition normalSign[x: Point]: flip x normal = S.neg (x normal) :=
+  congr!{{One.Index -> S.Real} {S.Real}} (\fun (v: One.Index -> S.Real) => v One.index) _ _ (normalPart x);
+\definition involution: \forall (x: Point) -> flip (flip x) = x :=
+  \fun (x: Point) => trans!{Point} _ _ _
+    (congr!{{Fin.Fin n -> S.Real} {One.Index -> S.Real} Point} Blocks.join _ _ _ _ (tangential x)
+      (\axiom:funext((\fun (i: One.Index) => S.neg (Blocks.right (flip x) i)), Blocks.right x,
+        \fun (i: One.Index) => trans!{S.Real} _ _ _ (congr!{S.Real S.Real} S.neg _ _
+          (congr!{{One.Index -> S.Real} S.Real} (\fun (v: One.Index -> S.Real) => v i) _ _ (normalPart x))) (Laws.negInvolutive (Blocks.right x i)))))
+    (Blocks.recover x);
+\definition fixesZero: \forall (x: Point) -> x normal = S.zero -> flip x = x := \block {
+  \fun (x: Point)(zero: x normal = S.zero) \then
+  \let component: \forall (i: One.Index) -> Blocks.right x i = S.zero := \fun (i: One.Index) =>
+    trans!{S.Real} _ _ _ (congr!{One.Index S.Real} (Blocks.right x) _ _ (Fin.singletonValue i)) zero \then
+  \return trans!{Point} _ _ _
+    (congr!{{One.Index -> S.Real} Point} (Blocks.join (Blocks.left x)) _ _
+      (\axiom:funext((\fun (i: One.Index) => S.neg (Blocks.right x i)), Blocks.right x,
+        \fun (i: One.Index) => trans!{S.Real} _ _ _ (congr!{S.Real S.Real} S.neg _ _ (component i))
+          (trans!{S.Real} _ _ _ Laws.negZero (sym!{S.Real} _ _ (component i))))))
+    (Blocks.recover x)
+};
+\definition linear: Vectors.LinearMap := Vectors.LinearMap {
+  apply := flip,
+  preservesAdd := \fun (x, y: Point) => \axiom:funext(flip (Coordinates.addPoint x y), Coordinates.addPoint (flip x) (flip y),
+    \fun (k: Fin.Fin dimension) => (\induction (i: Indices.Index) \return
+      Tuples.evaluate (Blocks.left (Coordinates.addPoint x y)) (\fun (j: One.Index) => S.neg (Blocks.right (Coordinates.addPoint x y) j)) i =
+      S.add (Tuples.evaluate (Blocks.left x) (\fun (j: One.Index) => S.neg (Blocks.right x j)) i)
+        (Tuples.evaluate (Blocks.left y) (\fun (j: One.Index) => S.neg (Blocks.right y j)) i) \with {
+        | inl: \fun (j: Fin.Fin n) => \refl(S.add (Blocks.left x j) (Blocks.left y j))
+        | inr: \fun (j: One.Index) => Laws.negAdd (Blocks.right x j) (Blocks.right y j)
+      }) (Indices.split k)),
+  preservesScale := \fun (c: S.Real)(x: Point) => \axiom:funext(flip (Coordinates.scale c x), Coordinates.scale c (flip x),
+    \fun (k: Fin.Fin dimension) => (\induction (i: Indices.Index) \return
+      Tuples.evaluate (Blocks.left (Coordinates.scale c x)) (\fun (j: One.Index) => S.neg (Blocks.right (Coordinates.scale c x) j)) i =
+      S.mul c (Tuples.evaluate (Blocks.left x) (\fun (j: One.Index) => S.neg (Blocks.right x j)) i) \with {
+        | inl: \fun (j: Fin.Fin n) => \refl(S.mul c (Blocks.left x j))
+        | inr: \fun (j: One.Index) => sym!{S.Real} _ _ (Laws.fieldMulNegRight c (Blocks.right x j))
+      }) (Indices.split k)),
+};
+\import calculus.LinearMap[n := dimension, m := dimension].On[U := Open.whole, L := linear] \as Linear;
+\definition map: Maps.Map Open.whole Open.whole := Linear.map;
+\definition continuous: topology.Continuity[A := Open.Carrier Open.whole, B := Open.Carrier Open.whole].Continuous
+  (Open.Topology[].Of[U := Open.whole].topology) (Open.Topology[].Of[U := Open.whole].topology) (Maps.apply Open.whole Open.whole map) :=
+  Maps.Topology[U := Open.whole, V := Open.whole].continuous map;
+\import calculus.Diffeomorphism[n := dimension, m := dimension] \as Diffeomorphisms;
+\definition data: Diffeomorphisms.Data[Open.whole, Open.whole] := Diffeomorphisms.Data[Open.whole, Open.whole] { forward := map, backward := map };
+\definition diffeomorphism: Diffeomorphisms.Diffeomorphism Open.whole Open.whole :=
+  \into[Diffeomorphisms.Data[Open.whole, Open.whole]](data, { d: Diffeomorphisms.Data[Open.whole, Open.whole] \where Diffeomorphisms.Laws[Open.whole, Open.whole, d] }) \by {
+    Diffeomorphisms.Laws[Open.whole, Open.whole, data] {
+      leftInverse := \fun (x: Open.Carrier Open.whole) => boundary_manifolds.Refinement[A := Point].equality Open.whole.points
+        (Maps.apply Open.whole Open.whole map (Maps.apply Open.whole Open.whole map x)) x (involution x),
+      rightInverse := \fun (x: Open.Carrier Open.whole) => boundary_manifolds.Refinement[A := Point].equality Open.whole.points
+        (Maps.apply Open.whole Open.whole map (Maps.apply Open.whole Open.whole map x)) x (involution x),
+    }
+  };
+\definition differential: \forall (x: Open.Carrier Open.whole) -> Maps.Differential[U := Open.whole, V := Open.whole, f := map, a := x].value = linear := Linear.differential;
+\module Orientation;

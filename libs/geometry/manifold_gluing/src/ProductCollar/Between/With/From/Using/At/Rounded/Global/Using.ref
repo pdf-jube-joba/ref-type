@@ -1,0 +1,29 @@
+\import boundary_manifolds.Dimension[n := Nat.add (Nat.add One.dimension m) (Nat.add One.dimension n)] \as Models;
+\definition nearManifold: Models.Manifold := Change.manifold change;
+\definition nearHomeomorphism: topology.Homeomorphism[A := nearManifold.Point, B := \Cast[Point] nearRegion].Homeomorphism[nearManifold.space, topology.Topology[Carrier := Point].Subspace[S := nearRegion].topology topology] := NearImage.homeomorphism;
+\import boundary_manifolds.SmoothMap[n := Nat.add (Nat.add One.dimension m) (Nat.add One.dimension n), m := Nat.add (Nat.add One.dimension m) (Nat.add One.dimension n)].Between[M := nearManifold, N := Product.manifold] \as NearMaps;
+\definition nearMap: NearMaps.Map := boundary_manifolds.MapComposition[n := Nat.add (Nat.add One.dimension m) (Nat.add One.dimension n), m := Nat.add Round.dimension (Nat.add m n), l := Nat.add (Nat.add One.dimension m) (Nat.add One.dimension n)].Between[M := nearManifold, N := Near.manifold, P := Product.manifold].Of[f := change.backward, g := NearConstruction.map].map;
+\definition nearValue: \forall (x: nearManifold.Point) -> NearMaps.apply nearMap x = (nearHomeomorphism.forward x \of Product.Point) := \fun (x: nearManifold.Point) =>
+  congr!{{Near.Point} {Product.Point}} (\fun (p: Near.Point) => boundary_manifolds.SmoothMap[n := Nat.add Round.dimension (Nat.add m n), m := Nat.add (Nat.add One.dimension m) (Nat.add One.dimension n)].Between[M := Near.manifold, N := Product.manifold].apply NearConstruction.map p) _ _ (change.backwardIdentity x);
+\import \root.ChartTransport[n := Nat.add (Nat.add One.dimension m) (Nat.add One.dimension n)].From[M := nearManifold].Into[A := Point, space := topology, U := nearRegion, open := nearRegionOpen, h := nearHomeomorphism] \as NearCharts;
+\import \root.ChartTransport[n := Nat.add (Nat.add One.dimension m) (Nat.add One.dimension n)].From[M := Far.manifold].Into[A := Point, space := topology, U := farRegion, open := farRegionOpen, h := farHomeomorphism] \as FarCharts;
+\module NearTransition(x: nearManifold.Point, member: Space.Member far (NearMaps.apply nearMap x));
+
+\import \root.OpenManifold[n := Nat.add One.dimension n].On[M := M].Within[U := Left.image, open := Left.imageOpen] \as LeftImage;
+\import \root.OpenManifold[n := Nat.add One.dimension m].On[M := N].Within[U := Right.image, open := Right.imageOpen] \as RightImage;
+\import boundary_manifolds.Product[n := Nat.add One.dimension n, m := Nat.add One.dimension m].Of[M := LeftImage.manifold, N := RightImage.manifold] \as ImageProduct;
+\import \root.OpenProductModel[n := Nat.add One.dimension n, m := Nat.add One.dimension m].Between[M := M, N := N].Within[U := Left.image, V := Right.image, openU := Left.imageOpen, openV := Right.imageOpen] \as OriginalOpen;
+\import \root.Diffeomorphism[n := Nat.add One.dimension n, m := Nat.add One.dimension n].Between[M := LeftModel.manifold, N := LeftImage.manifold] \as LeftDiffeos;
+\import \root.Diffeomorphism[n := Nat.add One.dimension m, m := Nat.add One.dimension m].Between[M := RightModel.manifold, N := RightImage.manifold] \as RightDiffeos;
+\definition parameterMap: boundary_manifolds.SmoothMap[n := Nat.add (Nat.add One.dimension m) (Nat.add One.dimension n), m := Nat.add (Nat.add One.dimension m) (Nat.add One.dimension n)].Between[M := ImageProduct.manifold, N := Source.manifold].Map :=
+  \root.MapProduct[n := Nat.add One.dimension n, m := Nat.add One.dimension m, p := Nat.add One.dimension n, q := Nat.add One.dimension m].Between[M := LeftImage.manifold, N := RightImage.manifold, P := LeftModel.manifold, Q := RightModel.manifold].Of[f := Left.diffeomorphism.backward, g := Right.diffeomorphism.backward].map;
+\import boundary_manifolds.SmoothMap[n := Nat.add (Nat.add One.dimension m) (Nat.add One.dimension n), m := Nat.add (Nat.add One.dimension m) (Nat.add One.dimension n)].Between[M := ImageProduct.manifold, N := Source.manifold] \as ParameterMaps;
+\definition imagePoint[p: Product.Point][member: Space.Member near p]: ImageProduct.Point := Pair.pair LeftImage.Point RightImage.Point
+  (\into[M.Point](Product.first p, Left.image) \by { member.left }) (\into[N.Point](Product.second p, Right.image) \by { member.right });
+\definition imageValue: \forall (p: Product.Point)(member: Space.Member near p) -> OriginalOpen.include (imagePoint p member) = p := \fun (p: Product.Point)(member: Space.Member near p) => Pair.Prop[A := M.Point, B := N.Point].eta p;
+\definition mapValue: \forall (p: ImageProduct.Point) -> (Parameterization.forward (ParameterMaps.apply parameterMap p) \of Product.Point) = OriginalOpen.include p := \fun (p: ImageProduct.Point) => Pair.Prop[A := M.Point, B := N.Point].ext (Parameterization.forward (ParameterMaps.apply parameterMap p)) (OriginalOpen.include p)
+  (congr!{{LeftImage.Point} {M.Point}} (\fun (z: LeftImage.Point) => z) _ _ ((LeftDiffeos.laws Left.diffeomorphism).rightInverse (ImageProduct.first p)))
+  (congr!{{RightImage.Point} {N.Point}} (\fun (z: RightImage.Point) => z) _ _ ((RightDiffeos.laws Right.diffeomorphism).rightInverse (ImageProduct.second p)));
+\module ParameterInverse(x: ImageProduct.Point);
+\module FarTransition(x: Far.Point, member: Space.Member near x);
+\module Cover;

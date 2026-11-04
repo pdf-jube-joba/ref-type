@@ -1,0 +1,54 @@
+\import topological_constructions.Gluing[A := AmbientPoint, B := Point].Pasting[F := Negative, G := Positive] \as Pasting;
+\definition Left: \Set := \Cast[AmbientPoint] Negative;
+\definition leftPoint[x: Left]: Half := \into[AmbientPoint](reflect x, Positive) \by { reflectedPositive x };
+\definition left[x: Left]: Point := Pushout.inl (leftPoint x);
+\definition right[x: Half]: Point := Pushout.inr x;
+\definition covered: Pasting.Covered := \fun (x: AmbientPoint) => Order.leTotal (x normal) S.zero;
+\definition compatible: Pasting.Compatible left right := \block {
+  \fun (a: Left)(b: Half)(same: a = b) \then
+  \let nonnegative: R.Le S.zero (a normal) := R.leReplaceRight S.zero (b normal) (a normal)
+    (sym!{S.Real} _ _ (congr!{AmbientPoint S.Real} (\fun (x: AmbientPoint) => x normal) _ _ same)) (\bysub(AmbientPoint, Positive, b)) \then
+  \let zero: a normal = S.zero := R.leAntisym (a normal) S.zero (\bysub(AmbientPoint, Negative, a)) nonnegative \then
+  \let seam: Seam := \into[AmbientPoint](a, Zero) \by { zero } \then
+  \let fixed: leftPoint a = include seam := boundary_manifolds.Refinement[A := AmbientPoint].equality Positive (leftPoint a) (include seam)
+    (boundary_manifolds.Refinement[A := Reflection.Point].equality Open.whole.points (reflect a) a (Reflection.fixesZero a zero)) \then
+  \return trans!{Point} _ _ _ (congr!{Half Point} Pushout.inl _ _ fixed)
+    (trans!{Point} _ _ _ (Pushout.glued seam) (congr!{Half Point} Pushout.inr _ _
+      (boundary_manifolds.Refinement[A := AmbientPoint].equality Positive (include seam) b same)))
+};
+\definition backward: AmbientPoint -> Point := Pasting.apply left right covered compatible;
+\definition negative: \forall (x: Left) -> backward x = left x := Pasting.onLeft left right covered compatible;
+\definition positive: \forall (x: Half) -> backward x = Pushout.inr x := Pasting.onRight left right covered compatible;
+\definition leftPointContinuous: topology.Continuity[A := Left, B := Half].Continuous
+  (Ambient.Subspace[S := Negative].topology ambient) halfTopology leftPoint :=
+  topology.Continuity[A := Left, B := AmbientPoint].Corestriction[S := Positive].corestrictContinuous
+    (Ambient.Subspace[S := Negative].topology ambient) ambient leftPoint
+    (topology.Continuity[A := AmbientPoint, B := AmbientPoint].Restriction[S := Negative].restrictContinuous ambient ambient reflect Reflection.continuous);
+\definition backwardContinuous: topology.Continuity[A := AmbientPoint, B := Point].Continuous ambient topology backward :=
+  Pasting.continuous ambient topology left right covered compatible negativeClosed positiveClosed
+    (topology.Composition[A := Left, B := Half, C := Point].composeContinuous (Ambient.Subspace[S := Negative].topology ambient) halfTopology topology
+      leftPoint Pushout.inl leftPointContinuous (Pushout.inlContinuous halfTopology halfTopology))
+    (Pushout.inrContinuous halfTopology halfTopology);
+\definition reflectedLeft[x: Half]: Left := \into[AmbientPoint](reflect x, Negative) \by { reflectedNegative x };
+\definition reflectInvolution: \forall (x: AmbientPoint) -> reflect (reflect x) = x :=
+  \fun (x: AmbientPoint) => boundary_manifolds.Refinement[A := Reflection.Point].equality Open.whole.points (reflect (reflect x)) x (Reflection.involution x);
+\definition backwardLeft: \forall (x: Half) -> backward (reflect x) = Pushout.inl x :=
+  \fun (x: Half) => trans!{Point} _ _ _ (negative (reflectedLeft x))
+    (congr!{Half Point} Pushout.inl _ _ (boundary_manifolds.Refinement[A := AmbientPoint].equality Positive (leftPoint (reflectedLeft x)) x (reflectInvolution x)));
+\definition leftInverse: \forall (x: Point) -> backward (forward x) = x :=
+  Pushout.induction (\fun (x: Point) => backward (forward x) = x)
+    (\fun (x: Half) => trans!{Point} _ _ _ (congr!{AmbientPoint Point} backward _ _ (forwardLeft x)) (backwardLeft x))
+    (\fun (x: Half) => trans!{Point} _ _ _ (congr!{AmbientPoint Point} backward _ _ (forwardRight x)) (positive x));
+\definition rightInverse: \forall (x: AmbientPoint) -> forward (backward x) = x :=
+  \fun (x: AmbientPoint) => Logic.orElim (Ambient.Member Negative x) (Ambient.Member Positive x) (forward (backward x) = x) (covered x)
+    (\fun (member: Ambient.Member Negative x) => trans!{AmbientPoint} _ _ _
+      (congr!{Point AmbientPoint} forward _ _ (negative (\into[AmbientPoint](x, Negative) \by { member })))
+      (trans!{AmbientPoint} _ _ _ (forwardLeft (leftPoint (\into[AmbientPoint](x, Negative) \by { member }))) (reflectInvolution x)))
+    (\fun (member: Ambient.Member Positive x) => trans!{AmbientPoint} _ _ _
+      (congr!{Point AmbientPoint} forward _ _ (positive (\into[AmbientPoint](x, Positive) \by { member })))
+      (forwardRight (\into[AmbientPoint](x, Positive) \by { member })));
+\definition homeomorphism: topology.Homeomorphism[A := Point, B := AmbientPoint].Homeomorphism[topology, ambient] :=
+  topology.Homeomorphism[A := Point, B := AmbientPoint].Homeomorphism[topology, ambient] {
+    forward := forward, backward := backward, leftInverse := leftInverse, rightInverse := rightInverse,
+    forwardContinuous := forwardContinuous, backwardContinuous := backwardContinuous,
+  };

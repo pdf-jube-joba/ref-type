@@ -1,0 +1,18 @@
+
+\import boundary_manifolds.Tangent[n := n].On[M := M].At[x := Product.first x] \as LT;
+\import \root.HalfModel[n := m].On[M := N].In[data := d] \as Local;
+\definition left: Product.LeftChart := \into[LeftCharts.Chart](c, M.atlas.charts) \by { LT.member c };
+\definition right: Product.RightChart := d.chart;
+\definition leftNonnegative: \forall (u: LeftOpen.Carrier c.image) -> Left.Nonnegative c.constraints u := \fun (u: LeftOpen.Carrier c.image) => Free.At[x := Product.first x].From[c := c].nonnegative u;
+\import \root.ProductHalfCharts[n := n, m := m].Between[M := M, N := N].RightHalf[
+ c := left, d := right, U := c.image, V := d.source, includedLeft := \fun (u: Left.Point)(member: \In[Left.Point] c.image.points u) => member, includedRight := d.included,
+ leftNonnegative := leftNonnegative, normal := d.normal, rightEquivalent := d.equivalent] \as Patch;
+\definition local: Local.Point := \into[N.Point](Product.second x, Local.domain) \by { member };
+\definition leftContains: LeftCharts.Contains left (Product.first x) := LT.contains c;
+\definition rightContains: RightCharts.Contains right (Product.second x) := \bysub(N.Point, right.domain, Local.old local);
+\definition rightPoint: RightCharts.LocalPoint right := \into[N.Point](Product.second x, right.domain) \by { rightContains };
+\definition same: rightPoint = Local.old local := boundary_manifolds.Refinement[A := N.Point].equality right.domain rightPoint (Local.old local) (\refl(Product.second x));
+\definition rightInside: \In[Right.Point] d.source.points (RightCharts.coordinate right rightPoint) := \idelim Local.old local = rightPoint \with p: RightCharts.LocalPoint right => \In[Right.Point] d.source.points (RightCharts.coordinate right p) \by { base: Local.inside local, equality: sym!{{RightCharts.LocalPoint right}} _ _ same };
+\definition contains: Result.Contains Patch.data x := Patch.Contains[p := x, leftContains := leftContains, rightContains := rightContains,
+ leftInside := \bysub(Left.Point, c.image.points, LeftCharts.coordinate c (\into[M.Point](Product.first x, c.domain) \by { leftContains })), rightInside := rightInside].member;
+\definition exists: \exists (d: Result.Data \where Result.Contains d x) := Logic.existsIntro[Result.Data, { d: Result.Data \where Result.Contains d x }] Patch.data contains;

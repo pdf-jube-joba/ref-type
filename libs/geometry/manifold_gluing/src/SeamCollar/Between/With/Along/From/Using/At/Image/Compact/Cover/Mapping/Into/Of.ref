@@ -1,0 +1,11 @@
+\import \root.LocalSmoothMap[n := Nat.add One.dimension n, m := m].Between[M := manifold, N := P].Of[function := f] \as Local;
+\import LeftOut.Of[f := left, g := f, agrees := agreesLeft] \as OnLeft;
+\import RightOut.Of[f := right, g := f, agrees := agreesRight] \as OnRight;
+\import SeamOut.Of[f := seam, g := f, agrees := agreesSeam] \as OnSeam;
+\definition local: \forall (y: Gluing.Point) -> \exists Local.Witness[y] := \fun (y: Gluing.Point) =>
+  Logic.orElim (Target.Member Interiors.leftImage y) (Logic.Or[Target.Member Interiors.rightImage y, Target.Member image y]) (\exists Local.Witness[y]) (regions y)
+    (\fun (member: _) => OnLeft.At[y := \into[Gluing.Point](y, LeftPatch.image) \by { member }].exists)
+    (\fun (other: _) => Logic.orElim (Target.Member Interiors.rightImage y) (Target.Member image y) (\exists Local.Witness[y]) other
+      (\fun (member: _) => OnRight.At[y := \into[Gluing.Point](y, RightPatch.image) \by { member }].exists)
+      (\fun (member: _) => OnSeam.At[y := \into[Gluing.Point](y, image) \by { member }].exists));
+\definition map: Maps.Map := Local.map continuous local;

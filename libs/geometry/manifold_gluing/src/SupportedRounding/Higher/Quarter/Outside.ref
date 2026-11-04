@@ -1,0 +1,23 @@
+\import \parent.Far[] \as Far;
+\import \root.OpenManifold[n := dimension].On[M := Target.manifold].Within[U := Far.points, open := Far.open] \as OldOutside;
+\definition points: \Pow manifold.Point := { x: manifold.Point \where \In[FullModel.Point] Far.raw.points x };
+\definition open: topology.Topology[Carrier := manifold.Point].IsOpenIn manifold.space points := ambientContinuous Far.raw.points (FullOpen.Topology[].open Far.raw);
+\import \root.OpenManifold[n := dimension].On[M := manifold].Within[U := points, open := open] \as Rounded;
+\import boundary_manifolds.SmoothMap[n := dimension, m := dimension].Between[M := Rounded.manifold, N := Target.manifold] \as ToQuarter;
+\definition ambientMap: ToQuarter.Map := boundary_manifolds.MapComposition[n := dimension, m := dimension, l := dimension].Between[M := Rounded.manifold, N := manifold, P := Target.manifold].Of[f := Rounded.Inclusion[].map, g := map].map;
+\import \root.OpenCorestriction[n := dimension, m := dimension].Between[M := Rounded.manifold, N := Target.manifold].Into[U := Far.points, open := Far.open].Of[f := ambientMap,
+  inside := \fun (x: Rounded.Point) => \bysub(manifold.Point, points, x)] \as Forward;
+\import \root.OpenCorestriction[n := dimension, m := dimension].Between[M := OldOutside.manifold, N := manifold].Into[U := points, open := open].Of[f := Far.map,
+  inside := \fun (x: OldOutside.Point) => \bysub(Target.Point, Far.points, x)] \as Backward;
+\import \root.Diffeomorphism[n := dimension, m := dimension].Between[M := Rounded.manifold, N := OldOutside.manifold] \as Diffeomorphisms;
+\definition data: Diffeomorphisms.Data := Diffeomorphisms.Data { forward := Forward.map, backward := Backward.map };
+\definition roundedEquality: \forall (a, b: manifold.Point) -> (a \of FullModel.Point) = (b \of FullModel.Point) -> a = b :=
+  \fun (a, b: manifold.Point)(same: (a \of FullModel.Point) = (b \of FullModel.Point)) =>
+    boundary_manifolds.Refinement[A := Region.ambient.Point].equality Region.points a b (boundary_manifolds.Refinement[A := FullModel.Point].equality FullOpen.whole.points a b same);
+\definition quarterEquality: \forall (a, b: Target.Point) -> (a \of FullModel.Point) = (b \of FullModel.Point) -> a = b :=
+  \fun (a, b: Target.Point)(same: (a \of FullModel.Point) = (b \of FullModel.Point)) => FullModel.equality constraints FullOpen.whole a b same;
+\definition laws: Diffeomorphisms.Laws[data] := Diffeomorphisms.Laws[data] {
+  leftInverse := \fun (x: Rounded.Point) => boundary_manifolds.Refinement[A := manifold.Point].equality points (Backward.function (Forward.function x)) x (roundedEquality (Backward.function (Forward.function x)) x (\refl(x \of FullModel.Point))),
+  rightInverse := \fun (x: OldOutside.Point) => boundary_manifolds.Refinement[A := Target.Point].equality Far.points (Forward.function (Backward.function x)) x (quarterEquality (Forward.function (Backward.function x)) x (\refl(x \of FullModel.Point))),
+};
+\definition diffeomorphism: Diffeomorphisms.Diffeomorphism := \into[Diffeomorphisms.Data](data, Diffeomorphisms.Diffeomorphism) \by { laws };

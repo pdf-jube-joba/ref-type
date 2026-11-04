@@ -1,0 +1,25 @@
+\import Composite.Local[left := a, right := c, middle := b, x := x, contains := Domain.contains a, inMiddle := Middle.contains b, p := p, q := q] \as Local;
+\import Left.Using[e := p] \as FirstExtension;
+\import Right.Using[e := q] \as SecondExtension;
+\import Total.Using[e := Local.extension] \as TotalExtension;
+\definition first: FirstDerivative.jacobian = FirstExtension.jacobian := Left.ofExtension FirstDerivative.smooth p;
+\definition second: SecondDerivative.jacobian = SecondExtension.jacobian := Right.ofExtension SecondDerivative.smooth q;
+\definition total: TotalDerivative.jacobian = TotalExtension.jacobian := Total.ofExtension TotalDerivative.smooth Local.extension;
+\definition firstValue[v: Domain.Vector]: FirstExtension.jacobian.apply (Domain.Coordinate[chart := a].decode v) = Middle.Coordinate[chart := b].decode (D1.value.apply v) :=
+  trans!{Mid.Point} _ _ _
+    (congr!{{calculus.Vector[n := n, m := m].LinearMap} Mid.Point} (\fun (d: calculus.Vector[n := n, m := m].LinearMap) => d.apply (Domain.Coordinate[chart := a].decode v)) _ _
+      (sym!{{calculus.Vector[n := n, m := m].LinearMap}} _ _ first))
+    (sym!{Mid.Point} _ _ (D1.coordinates a b v));
+\definition law: \forall (v: Domain.Vector) -> Codomain.Coordinate[chart := c].decode (D.value.apply v) = Codomain.Coordinate[chart := c].decode (candidate.apply v) :=
+  \fun (v: Domain.Vector) => trans!{Target.Point} _ _ _ (D.coordinates a c v)
+    (trans!{Target.Point} _ _ _
+      (congr!{{calculus.Vector[n := n, m := l].LinearMap} Target.Point}
+        (\fun (d: calculus.Vector[n := n, m := l].LinearMap) => d.apply (Domain.Coordinate[chart := a].decode v)) _ _
+        (trans!{{calculus.Vector[n := n, m := l].LinearMap}} _ _ _ total Local.jacobian))
+      (trans!{Target.Point} _ _ _
+        (congr!{Mid.Point Target.Point} SecondExtension.jacobian.apply _ _ (firstValue v))
+        (trans!{Target.Point} _ _ _
+          (congr!{{calculus.Vector[n := m, m := l].LinearMap} Target.Point}
+            (\fun (d: calculus.Vector[n := m, m := l].LinearMap) => d.apply (Middle.Coordinate[chart := b].decode (D1.value.apply v))) _ _
+            (sym!{{calculus.Vector[n := m, m := l].LinearMap}} _ _ second))
+          (sym!{Target.Point} _ _ (D2.coordinates b c (D1.value.apply v))))));

@@ -1,0 +1,14 @@
+\import boundary_manifolds.Tangent[n := n].On[M := M].At[x := Product.first x] \as Source;
+\import boundary_manifolds.Tangent[n := m].On[M := N].At[x := Product.second x] \as Target;
+\import boundary_manifolds.Tangent[n := Nat.add m n].On[M := Product.manifold].At[x := x] \as T;
+\definition left: Product.LeftChart := \into[LeftCharts.Chart](c, M.atlas.charts) \by { Source.member c };
+\definition right: Product.RightChart := \into[RightCharts.Chart](d, N.atlas.charts) \by { Target.member d };
+\import Product.In[c := left, d := right] \as Patch;
+\definition chart: T.Chart := \into[Charts.Chart](Patch.chart, T.Chart) \by { T.ChartLaws[Patch.chart] {
+  member := Logic.existsIntro[Product.Index, { i: Product.Index \where Patch.chart = Product.chart i }] (Pair.pair Product.LeftChart Product.RightChart left right) (\refl(Patch.chart)),
+  contains := Logic.And[_, _]::# (Source.contains c) (Target.contains d),
+} };
+\definition constraints: chart.constraints = Model.unconstrained := trans!{{Model.Constraints}} _ _ _
+  (congr!{{Left.Constraints} {Right.Constraints} {Model.Constraints}} Products.constraints _ _ _ _
+    (\bysub(Source.Chart, { c: Source.Chart \where c.constraints = Left.unconstrained }, c)) (\bysub(Target.Chart, { c: Target.Chart \where c.constraints = Right.unconstrained }, d))) empty;
+\definition witness: Free.At[x := x].Witness := \into[T.Chart](chart, { c: T.Chart \where c.constraints = Model.unconstrained }) \by { constraints };

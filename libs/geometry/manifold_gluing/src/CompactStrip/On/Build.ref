@@ -1,0 +1,70 @@
+\import \parent.SeparatedOpen[continuous := continuous, hausdorff := hausdorff] \as Separation;
+\definition initialPair: \forall (b, c: B) -> PairSpace.Member region (Pair.pair Point Point (center b) (center c)) :=
+  \fun (b, c: B) => Logic.orElim (b = c) (Logic.Not (b = c)) (PairSpace.Member region (Pair.pair Point Point (center b) (center c))) (Classical.excludedMiddle (b = c))
+    (\block {
+      \fun (same: b = c) \then
+      \takefrom p: \Cast[Patch] ({ p: Patch \where Source.Member p.domain (center b) }) \by local b \then
+      \let member: Source.Member p.domain (center b) := \bysub(Patch, { p: Patch \where Source.Member p.domain (center b) }, p) \then
+      \return ofPatch p (center b) (center c) member (\idelim center b = center c
+        \with x: Point => Source.Member p.domain x \by { base: member, equality: congr!{B Point} center _ _ same })
+    })
+    (\fun (different: Logic.Not (b = c)) => Separation.ofSeparated (Pair.pair Point Point (center b) (center c))
+      (\fun (same: f (center b) = f (center c)) => different (initial b c same)));
+\import topological_constructions.Product[A := T, B := T] \as Times;
+\import topological_constructions.Product[A := B, B := B] \as Bases;
+\definition TimePair: \Set := Times.CarrierSet;
+\definition BasePair: \Set := Bases.CarrierSet;
+\definition times: topology.Structures[].Topology[TimePair] := Times.topology parameterSpace parameterSpace;
+\definition bases: topology.Structures[].Topology[BasePair] := Bases.topology baseSpace baseSpace;
+\import topological_constructions.Product[A := TimePair, B := BasePair] \as Total;
+\definition TotalPoint: \Set := Total.CarrierSet;
+\definition total: topology.Structures[].Topology[TotalPoint] := Total.topology times bases;
+\definition timePair[z: TotalPoint]: TimePair := Pair.first TimePair BasePair z;
+\definition basePair[z: TotalPoint]: BasePair := Pair.second TimePair BasePair z;
+\definition firstTime[z: TotalPoint]: T := Pair.first T T (timePair z);
+\definition secondTime[z: TotalPoint]: T := Pair.second T T (timePair z);
+\definition firstBase[z: TotalPoint]: B := Pair.first B B (basePair z);
+\definition secondBase[z: TotalPoint]: B := Pair.second B B (basePair z);
+\definition leftPoint[z: TotalPoint]: Point := Pair.pair T B (firstTime z) (firstBase z);
+\definition rightPoint[z: TotalPoint]: Point := Pair.pair T B (secondTime z) (secondBase z);
+\definition rearrange[z: TotalPoint]: Pairs.CarrierSet := Pair.pair Point Point (leftPoint z) (rightPoint z);
+\definition firstTimeContinuous: topology.Continuity[A := TotalPoint, B := T].Continuous total parameterSpace firstTime :=
+  topology.Composition[A := TotalPoint, B := TimePair, C := T].composeContinuous total times parameterSpace timePair (Pair.first T T)
+    (Total.Maps[].firstContinuous times bases) (Times.Maps[].firstContinuous parameterSpace parameterSpace);
+\definition secondTimeContinuous: topology.Continuity[A := TotalPoint, B := T].Continuous total parameterSpace secondTime :=
+  topology.Composition[A := TotalPoint, B := TimePair, C := T].composeContinuous total times parameterSpace timePair (Pair.second T T)
+    (Total.Maps[].firstContinuous times bases) (Times.Maps[].secondContinuous parameterSpace parameterSpace);
+\definition firstBaseContinuous: topology.Continuity[A := TotalPoint, B := B].Continuous total baseSpace firstBase :=
+  topology.Composition[A := TotalPoint, B := BasePair, C := B].composeContinuous total bases baseSpace basePair (Pair.first B B)
+    (Total.Maps[].secondContinuous times bases) (Bases.Maps[].firstContinuous baseSpace baseSpace);
+\definition secondBaseContinuous: topology.Continuity[A := TotalPoint, B := B].Continuous total baseSpace secondBase :=
+  topology.Composition[A := TotalPoint, B := BasePair, C := B].composeContinuous total bases baseSpace basePair (Pair.second B B)
+    (Total.Maps[].secondContinuous times bases) (Bases.Maps[].secondContinuous baseSpace baseSpace);
+\definition leftContinuous: topology.Continuity[A := TotalPoint, B := Point].Continuous total source leftPoint :=
+  Product.Universal[X := TotalPoint].pairContinuous total parameterSpace baseSpace firstTime firstBase firstTimeContinuous firstBaseContinuous;
+\definition rightContinuous: topology.Continuity[A := TotalPoint, B := Point].Continuous total source rightPoint :=
+  Product.Universal[X := TotalPoint].pairContinuous total parameterSpace baseSpace secondTime secondBase secondTimeContinuous secondBaseContinuous;
+\definition rearrangeContinuous: topology.Continuity[A := TotalPoint, B := Pairs.CarrierSet].Continuous total pairSpace rearrange :=
+  Pairs.Universal[X := TotalPoint].pairContinuous total source source leftPoint rightPoint leftContinuous rightContinuous;
+\definition regionPreimage: \Pow TotalPoint := { z: TotalPoint \where PairSpace.Member region (rearrange z) };
+\definition zeroPair: TimePair := Pair.pair T T zero zero;
+\definition fibre: \forall (p: BasePair) -> topology.Topology[Carrier := TotalPoint].Member regionPreimage (Pair.pair TimePair BasePair zeroPair p) :=
+  \fun (p: BasePair) => initialPair (Pair.first B B p) (Pair.second B B p);
+\definition existsUniform: \exists Uniform := \block {
+  \takefrom tube: Total.Compactness[].Tube[times, zeroPair, regionPreimage, topology.Topology[Carrier := BasePair].Whole]
+    \by Total.Compactness[].tubeLemma times bases topology.Topology[Carrier := BasePair].Whole
+      (Bases.Compactness[].productCompact baseSpace baseSpace compact compact) zeroPair regionPreimage
+      (rearrangeContinuous region regionOpen) (\fun (p: BasePair)(whole: _) => fibre p) \then
+  \takefrom rectangle: Times.Compactness[].Neighborhood[parameterSpace, parameterSpace, zeroPair, tube.neighborhood]
+    \by Times.Compactness[].rectangleNeighborhoods parameterSpace parameterSpace tube.neighborhood tube.open zeroPair tube.contains \then
+  \let W: \Pow T := Parameters.Intersection rectangle.leftSet rectangle.rightSet \then
+  \return \exact(Uniform {
+    neighborhood := W,
+    open := (Parameters.topologyLaws parameterSpace).intersectionOpen rectangle.leftSet rectangle.rightSet rectangle.leftOpen rectangle.rightOpen,
+    contains := Logic.And[_, _]::# rectangle.leftContains rectangle.rightContains,
+    injective := \fun (t, s: T)(b, c: B)(left: Parameters.Member W t)(right: Parameters.Member W s) =>
+      regionSafe (rearrange (Pair.pair TimePair BasePair (Pair.pair T T t s) (Pair.pair B B b c)))
+        (tube.within (Pair.pair T T t s) (rectangle.within (Pair.pair T T t s) (Logic.And[_, _]::# left.left right.right))
+          (Pair.pair B B b c) (\refl(Pair.pair B B b c))),
+  }, Uniform)
+};

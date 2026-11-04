@@ -1,0 +1,19 @@
+\definition squareNonnegative: R.Le S.zero (S.mul (coordinate x) (coordinate x)) := Algebra.squareNonnegative (coordinate x);
+\definition aboveSquare: R.Le (S.mul (coordinate x) (coordinate x)) (radicand x) := Algebra.leAddRight (S.mul (coordinate x) (coordinate x)) (bump x) (Bump.bounded x).left;
+\module Zero(same: coordinate x = S.zero) {
+  \definition equalsZero: (x \of Model.Point) = zero := \axiom:funext((x \of Model.Point), zero, \fun (i: One.Index) => trans!{S.Real} _ _ _
+    (congr!{One.Index S.Real} (\fun (j: One.Index) => x j) _ _ (Fin.singletonValue i)) same);
+  \definition bumpOne: bump x = S.one := trans!{S.Real} _ _ _ (congr!{{Model.Point} S.Real} Bump.value _ _ equalsZero) bumpZero;
+  \definition valueOne: radicand x = S.one := trans!{S.Real} _ _ _
+    (congr!{S.Real S.Real S.Real} S.add _ _ _ _
+      (trans!{S.Real} _ _ _ (congr!{S.Real S.Real S.Real} S.mul _ _ _ _ same same) (Laws.fieldMulZeroLeft S.zero)) bumpOne)
+    (Laws.addZeroLeft S.one);
+  \definition positive: R.Lt S.zero (radicand x) := R.ltReplaceRight S.zero S.one (radicand x) (sym!{S.Real} _ _ valueOne) Bounds.onePositive;
+}
+\module Nonzero(different: Logic.Not (coordinate x = S.zero)) {
+  \definition positiveSquare: R.Lt S.zero (S.mul (coordinate x) (coordinate x)) := Order.ltOfLeNotEq S.zero (S.mul (coordinate x) (coordinate x)) squareNonnegative
+    (\fun (same: S.zero = S.mul (coordinate x) (coordinate x)) => different (Algebra.squareZero (coordinate x) (sym!{S.Real} _ _ same)));
+  \definition positive: R.Lt S.zero (radicand x) := R.ltLeTrans S.zero (S.mul (coordinate x) (coordinate x)) (radicand x) positiveSquare aboveSquare;
+}
+\definition positive: R.Lt S.zero (radicand x) := Logic.orElim (coordinate x = S.zero) (Logic.Not (coordinate x = S.zero)) (R.Lt S.zero (radicand x)) (Classical.excludedMiddle (coordinate x = S.zero))
+  (\fun (same: _) => Zero[same := same].positive) (\fun (different: _) => Nonzero[different := different].positive);

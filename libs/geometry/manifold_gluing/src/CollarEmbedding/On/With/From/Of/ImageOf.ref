@@ -1,0 +1,26 @@
+\definition Input: \Set := \Cast[Product.Point] V;
+\definition image: \Pow M.Point := { y: M.Point \where \exists (x: Input \where Maps.apply map x = y) };
+\module InPatch(x: Input, b: Inclusion.manifold.Point, patch: Local.OpenPatch[b], member: Space.Member patch.patch.domain x);
+\definition neighborhood: \forall (x: Input) -> \exists (W: \Pow M.Point \where TargetSpace.OpenNeighborhood[M.space, Maps.apply map x, image, W]) := \block {
+  \fun (x: Input) \then
+  \let region: Space.Member Strip.region x := regularPoint x (inside x (\bysub(Product.Point, V, x))) \then
+  \return Space.unionMemberElim Strip.patches x
+    (\exists (W: \Pow M.Point \where TargetSpace.OpenNeighborhood[M.space, Maps.apply map x, image, W]))
+    (\block {
+      \fun (U: \Pow Product.Point)(member: Space.FamilyMember Strip.patches U)(inU: Space.Member U x) \then
+      \takefrom b: \Cast[Inclusion.manifold.Point] ({ b: Inclusion.manifold.Point \where \exists (p: Local.OpenPatch[b] \where U = p.patch.domain) }) \by member \then
+      \takefrom patch: \Cast[Local.OpenPatch[b]] ({ p: Local.OpenPatch[b] \where U = p.patch.domain }) \by \bysub(Inclusion.manifold.Point,
+        { b: Inclusion.manifold.Point \where \exists (p: Local.OpenPatch[b] \where U = p.patch.domain) }, b) \then
+      \let inPatch: Space.Member patch.patch.domain x := \idelim U = patch.patch.domain \with D: \Pow Product.Point => Space.Member D x \by {
+        base: inU, equality: \bysub(Local.OpenPatch[b], { p: Local.OpenPatch[b] \where U = p.patch.domain }, patch)
+      } \then
+      \return InPatch[x := x, b := b, patch := patch, member := inPatch].exists
+    }) region
+};
+\definition open: TargetSpace.IsOpenIn M.space image := TargetSpace.openOfNeighborhoods M.space image (\block {
+  \fun (y: M.Point)(member: TargetSpace.Member image y) \then
+  \takefrom x: \Cast[Input] ({ x: Input \where Maps.apply map x = y }) \by member \then
+  \return \idelim Maps.apply map x = y \with z: M.Point => \exists (W: \Pow M.Point \where TargetSpace.OpenNeighborhood[M.space, z, image, W]) \by {
+    base: neighborhood x, equality: \bysub(Input, { x: Input \where Maps.apply map x = y }, x)
+  }
+});

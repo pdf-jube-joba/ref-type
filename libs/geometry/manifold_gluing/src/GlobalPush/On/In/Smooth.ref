@@ -1,0 +1,57 @@
+\import \parent.Continuity[] \as Continuity;
+\import \parent.Enclosure[] \as Enclosure;
+\import \root.LocalSmoothMap[n := Nat.add One.dimension (Nat.add One.dimension n), m := Nat.add One.dimension n].Between[M := Product.manifold, N := M].Of[function := apply] \as Locality;
+\import boundary_manifolds.SmoothMap[n := Nat.add One.dimension (Nat.add One.dimension n), m := Nat.add One.dimension n].Between[M := Product.manifold, N := M] \as Maps;
+\import \root.ProductMaps[n := Nat.add One.dimension n, m := One.dimension].Of[M := M, N := Time.manifold].First[] \as Projection;
+\definition chartContains: \forall (z: LocalPoint) -> Charts.Contains c (apply z) :=
+  \fun (z: LocalPoint) => \idelim partial z = apply z \with y: M.Point => Charts.Contains c y \by {
+    base: \bysub(M.Point, c.domain, Charts.point c (imagePoint z)), equality: sym!{M.Point} _ _ (inside z)
+  };
+\module Positive(z: LocalPoint) {
+  \definition contains: SourceCharts.Contains Patch.chart z := \bysub(Product.Point, Patch.domain, sourcePoint z);
+  \definition member: \In[SourceCharts.Chart] Product.manifold.atlas.charts Patch.chart :=
+    Logic.existsIntro[Product.Index, { i: Product.Index \where Patch.chart = Product.chart i }]
+      (Pair.pair Product.LeftChart Product.RightChart sourceChart timeChart) (\refl(Patch.chart));
+  \definition left: Locality.SourceChart z := \into[SourceCharts.Chart](Patch.chart, Locality.SourceChart z) \by { Logic.And[_, _]::# member contains };
+  \definition right: Locality.TargetChart (apply z) := \into[Charts.Chart](c, Locality.TargetChart (apply z)) \by {
+    Logic.And[_, _]::# (BoundaryAtlas.member c) (chartContains z)
+  };
+  \import Maps.At[function := apply, left := left, right := right, x := z, contains := Locality.leftContains z left] \as Local;
+  \import calculus.Maps[n := sourceDimension, m := dimension] \as Calculus;
+  \definition wholeIncluded: Input.Included Patch.image Input.whole := \fun (u: Source.Point)(member: _) => \refl(u);
+  \definition identityIncluded: Input.Included Patch.image Patch.image := \fun (u: Source.Point)(member: _) => member;
+  \definition model[u: Source.Carrier Patch.C Patch.image]: SourceCharts.LocalPoint Patch.chart := SourceCharts.point Patch.chart u;
+  \definition local[u: Source.Carrier Patch.C Patch.image]: LocalPoint := \into[Product.Point](model u, localDomain) \by {
+    (\bysub(Product.Point, Patch.domain, model u)).left
+  };
+  \definition ambientInput[u: Source.Carrier Patch.C Patch.image]: Input.Carrier Input.whole := \into[Source.Point](u, Input.whole.points) \by { \refl(u) };
+  \definition inputValue: \forall (u: Source.Carrier Patch.C Patch.image) -> input (local u) = ambientInput u :=
+    \fun (u: Source.Carrier Patch.C Patch.image) => boundary_manifolds.Refinement[A := Source.Point].equality Input.whole.points (input (local u)) (ambientInput u)
+      (SourceCharts.coordinatePoint Patch.chart u);
+  \definition target[u: Source.Carrier Patch.C Patch.image]: Charts.LocalPoint c := \into[M.Point](apply (model u), c.domain) \by { chartContains (local u) };
+  \definition targetEquals: \forall (u: Source.Carrier Patch.C Patch.image) -> target u = Charts.point c (imagePoint (local u)) :=
+    \fun (u: Source.Carrier Patch.C Patch.image) => boundary_manifolds.Refinement[A := M.Point].equality c.domain (target u) (Charts.point c (imagePoint (local u))) (inside (local u));
+  \definition coordinates: \forall (u: Source.Carrier Patch.C Patch.image) -> Charts.coordinate c (target u) = imagePoint (local u) :=
+    \fun (u: Source.Carrier Patch.C Patch.image) => trans!{{Model.Carrier c.constraints c.image}} _ _ _
+      (congr!{{Charts.LocalPoint c} {Model.Carrier c.constraints c.image}} (Charts.coordinate c) _ _ (targetEquals u))
+      (Charts.coordinatePoint c (imagePoint (local u)));
+  \import Calculus.Restriction[U := Patch.image, V := Input.whole, W := Open.whole] \as Restriction;
+  \definition extension: Local.Extension := Local.Extension {
+    neighborhood := Patch.image, included := identityIncluded,
+    contains := \bysub(Source.Point, Patch.image.points, coordinate z),
+    map := Restriction.input wholeIncluded Polynomial.ambient,
+    inside := \fun (u: Source.Carrier Patch.C Patch.image) => chartContains (local u),
+    agrees := \fun (u: Source.Carrier Patch.C Patch.image) => trans!{Model.Point} _ _ _
+      (congr!{{Input.Carrier Input.whole} {Model.Point}} Polynomial.value _ _ (sym!{{Input.Carrier Input.whole}} _ _ (inputValue u)))
+      (sym!{Model.Point} _ _ (coordinates u)),
+  };
+  \definition witness: Locality.Witness[z] := Locality.Witness[z] { left := left, right := right, extension := extension };
+}
+\definition outsideWitness[z: Product.Point][member: \In[Product.Point] Continuity.outsideDomain z]: \exists Locality.Witness[z] :=
+  Locality.EqualNear[x := z, g := Projection.map, U := Continuity.outsideDomain, open := Continuity.outsideOpen, contains := member, agrees := Enclosure.identityOutside].exists;
+\definition local: \forall (z: Product.Point) -> \exists Locality.Witness[z] :=
+  \fun (z: Product.Point) => Logic.orElim (\In[Product.Point] localDomain z) (Logic.Not (\In[Product.Point] localDomain z)) (\exists Locality.Witness[z])
+    (Classical.excludedMiddle (\In[Product.Point] localDomain z))
+    (\fun (member: _) => \exact(Positive[z := \into[Product.Point](z, localDomain) \by { member }].witness, Locality.Witness[z]))
+    (\fun (missing: _) => outsideWitness z (Continuity.outsideOfMissing z missing));
+\definition map: Maps.Map := Locality.map Continuity.continuous local;

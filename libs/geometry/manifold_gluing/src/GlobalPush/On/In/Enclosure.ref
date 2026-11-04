@@ -1,0 +1,77 @@
+\import Functions.LocalBump[a := a, q := q] \as Bump;
+\import Bump.Support[] \as Support;
+\import topology.Topology[Carrier := Model.Point] \as Coordinates;
+\import Coordinates.Compactness[] \as Compact;
+\import topological_algebra.Euclidean[].Dimension[n := dimension].Topology[] \as Ambient;
+\import topological_algebra.Euclidean[].Dimension[n := dimension].Norm[] \as Norm;
+\import metric_spaces.RealLine[] \as Line;
+\import Line.Rays[] \as Rays;
+\import topology.Topology[Carrier := M.Point] \as Space;
+\definition half: \Pow Model.Point := { x: Model.Point \where R.Le S.zero (x Boundary.normal) };
+\definition halfClosed: Coordinates.IsClosedIn Ambient.topology half := topology.Continuity[A := Model.Point, B := S.Real].closedPreimage
+  Ambient.topology Line.topology (\fun (x: Model.Point) => x Boundary.normal) (Ambient.coordinateContinuous Boundary.normal)
+  (Rays.AtLeast S.zero) (Rays.atLeastClosed S.zero);
+\definition K: \Pow Model.Point := Coordinates.Intersection Bump.envelope half;
+\definition closedK: Coordinates.IsClosedIn Ambient.topology K := Coordinates.Finite[].intersectionClosed Ambient.topology Bump.envelope half Support.envelopeClosed halfClosed;
+\definition compactK: Coordinates.IsCompactIn Ambient.topology K := Compact.closedSubset Ambient.topology Bump.envelope K Support.envelopeCompact closedK
+  (\fun (x: Model.Point)(member: Coordinates.Member K x) => member.left);
+\definition Point: \Set := \Cast[Model.Point] K;
+\definition topology: topology.Structures[].Topology[Point] := Coordinates.Subspace[S := K].topology Ambient.topology;
+\definition compactPoint: topology.Topology[Carrier := Point].IsCompact topology := Coordinates.Subspace[S := K].Properties[].compact Ambient.topology compactK;
+\definition doublePositive: R.Lt S.zero (S.add q q) := Order.ltTrans S.zero q (S.add q q) Bump.qPositive
+  (R.ltReplaceLeft (S.add q S.zero) q (S.add q q) (Laws.addZeroRight q) (Laws.ltAddLeft q S.zero q Bump.qPositive));
+\definition radiusLarge: R.Lt Bump.radius Bounds.radius := R.ltReplaceLeft (S.add Bump.radius S.zero) Bump.radius Bounds.radius (Laws.addZeroRight Bump.radius)
+  (Laws.ltAddLeft Bump.radius S.zero (S.add q q) doublePositive);
+\definition envelopeInside: \forall (x: Model.Point) -> Coordinates.Member Bump.envelope x -> \In[Model.Point] c.image.points x :=
+  \fun (x: Model.Point)(inside: _) => ball.included x (R.leLtTrans _ Bump.radius Bounds.radius
+    (R.leReplaceLeft (Norm.metric.distance a x) (Norm.metric.distance x a) Bump.radius (Norm.distanceSymmetric a x) inside) radiusLarge);
+\definition model[x: Point]: Model.Carrier c.constraints c.image := \into[Open.Carrier c.image](\into[Model.Point](x, c.image.points) \by {
+  envelopeInside x (\bysub(Model.Point, K, x)).left
+}, Model.region c.constraints c.image) \by {
+  \idelim Model.halfSpace Boundary.normal = c.constraints \with C: Model.Constraints => Model.Nonnegative C x \by {
+    base: Model.halfSpaceNonnegative Boundary.normal x (\bysub(Model.Point, K, x)).right,
+    equality: sym!{Model.Constraints} _ _ (BoundaryAtlas.constraints c)
+  }
+};
+\definition modelContinuous: topology.Continuity[A := Point, B := Model.Carrier c.constraints c.image].Continuous topology (Model.regionTopology c.constraints c.image) model :=
+  Model.Topology[C := c.constraints, U := c.image].Into[X := Point, source := topology, f := model].continuous
+    (topology.Continuity[A := Point, B := Model.Point].Corestriction[S := K].inclusionContinuous Ambient.topology);
+\import \root.ChartMap[n := Nat.add One.dimension n].On[M := M].Of[c := sourceChart] \as ChartMap;
+\definition map[x: Point]: M.Point := Charts.point c (model x);
+\definition continuous: topology.Continuity[A := Point, B := M.Point].Continuous topology M.space map :=
+  topology.Composition[A := Point, B := Model.Carrier c.constraints c.image, C := M.Point].composeContinuous topology (Model.regionTopology c.constraints c.image) M.space
+    model (\fun (u: Model.Carrier c.constraints c.image) => Charts.point c u) modelContinuous ChartMap.continuous;
+\import topology.Maps[A := Point, B := M.Point] \as Images;
+\definition envelope: \Pow M.Point := Images.Image map topology.Topology[Carrier := Point].Whole;
+\definition compact: Space.IsCompactIn M.space envelope := topology.Compactness[A := Point, B := M.Point].continuousImage topology M.space map continuous
+  topology.Topology[Carrier := Point].Whole compactPoint;
+\definition closed: Space.IsClosedIn M.space envelope := Space.Compactness[].compactClosed M.space M.hausdorff envelope compact;
+\definition withinChart: Space.Subset envelope c.domain := \fun (x: M.Point)(member: Space.Member envelope x) => Images.imageElim map topology.Topology[Carrier := Point].Whole x
+  (Space.Member c.domain x) (\fun (p: Point)(whole: _)(same: map p = x) => \idelim map p = x \with y: M.Point => Space.Member c.domain y \by {
+    base: \bysub(M.Point, c.domain, Charts.point c (model p)), equality: same
+  }) member;
+\definition containsSupport: \forall (z: LocalPoint) -> Logic.Not (Bump.value (spatial z) = S.zero) -> Space.Member envelope (Product.first z) := \block {
+  \fun (z: LocalPoint)(nonzero: _) \then
+  \let p: Point := \into[Model.Point](spatial z, K) \by {
+    Logic.And[_, _]::# (Bump.nonzeroWithin (spatial z) nonzero) (spatialNonnegative z Boundary.normal (\refl(Boundary.normal)))
+  } \then
+  \return \idelim map p = Product.first z \with x: M.Point => Space.Member envelope x \by {
+    base: Images.imageMember map topology.Topology[Carrier := Point].Whole p (\refl(p)),
+    equality: Charts.pointCoordinate c (spatialPoint z)
+  }
+};
+\definition outsideBump: \forall (z: LocalPoint) -> Logic.Not (Space.Member envelope (Product.first z)) -> Bump.value (spatial z) = S.zero :=
+  \fun (z: LocalPoint)(outside: _) => Order.byContradiction (Bump.value (spatial z) = S.zero) (\fun (nonzero: _) => outside (containsSupport z nonzero));
+\definition localIdentity: \forall (z: LocalPoint) -> Bump.value (spatial z) = S.zero -> partial z = Product.first z :=
+  \fun (z: LocalPoint)(zero: _) => trans!{M.Point} _ _ _
+    (congr!{{Model.Carrier c.constraints c.image} M.Point} (\fun (u: Model.Carrier c.constraints c.image) => Charts.point c u) (imagePoint z) (spatial z)
+      (Model.equality c.constraints c.image (imagePoint z) (spatial z)
+        (trans!{Model.Point} _ _ _ (Polynomial.outside (input z)
+          (trans!{S.Real} _ _ _ (congr!{Model.Point S.Real} Bump.value _ _ (spatialFormula z)) zero)) (spatialFormula z))))
+    (Charts.pointCoordinate c (spatialPoint z));
+\definition identityOutside: \forall (z: Product.Point) -> Logic.Not (Space.Member envelope (Product.first z)) -> apply z = Product.first z :=
+  \fun (z: Product.Point)(missing: _) => Logic.orElim (\In[Product.Point] localDomain z) (Logic.Not (\In[Product.Point] localDomain z)) (apply z = Product.first z)
+    (Classical.excludedMiddle (\In[Product.Point] localDomain z))
+    (\fun (member: _) => trans!{M.Point} _ _ _ (inside (\into[Product.Point](z, localDomain) \by { member }))
+      (localIdentity (\into[Product.Point](z, localDomain) \by { member }) (outsideBump (\into[Product.Point](z, localDomain) \by { member }) missing)))
+    (outside z);

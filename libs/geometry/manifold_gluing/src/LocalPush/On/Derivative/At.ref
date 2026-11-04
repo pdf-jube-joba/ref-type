@@ -1,0 +1,57 @@
+\import Maps.Differential[U := Input.whole, V := Output.whole, f := ambient, a := z0] \as Differential;
+\definition timeBumpValue: \forall (v: InputPoint) -> (Scalar.value Input.whole timeBump z0).apply v = S.mul (bump z0) (v timeIndex) :=
+  \fun (v: InputPoint) => trans!{S.Real} _ _ _ (Differentiation.product timeFunction bumpFunction z0 v)
+    (trans!{S.Real} _ _ _
+      (congr!{S.Real S.Real S.Real} S.add _ _ _ _
+        (congr!{{calculus.Real[].Multivariable[n := sourceDimension].Differential[].Def[].LinearMap} S.Real}
+          (\fun (d: calculus.Real[].Multivariable[n := sourceDimension].Differential[].Def[].LinearMap) => S.mul (bump z0) (d.apply v)) _ _ (Rules.projectionValue timeIndex z0))
+        (trans!{S.Real} _ _ _ (congr!{S.Real S.Real} (\fun (t: S.Real) => S.mul t ((Scalar.value Input.whole bumpFunction z0).apply v)) _ _ zeroTime)
+          (Laws.fieldMulZeroLeft _)))
+      (Laws.addZeroRight _));
+\definition displacementValue: \forall (v: InputPoint) -> (Scalar.value Input.whole displacementFunction z0).apply v = S.mul q (S.mul (bump z0) (v timeIndex)) :=
+  \fun (v: InputPoint) => trans!{S.Real} _ _ _ (Differentiation.product (Functions.constant q) timeBump z0 v)
+    (trans!{S.Real} _ _ _
+      (congr!{S.Real S.Real S.Real} S.add _ _ _ _
+        (trans!{S.Real} _ _ _
+          (congr!{{calculus.Real[].Multivariable[n := sourceDimension].Differential[].Def[].LinearMap} S.Real}
+            (\fun (d: calculus.Real[].Multivariable[n := sourceDimension].Differential[].Def[].LinearMap) => S.mul (timeBump z0) (d.apply v)) _ _ (Rules.constantValue q z0))
+          (Laws.fieldMulZeroRight _))
+        (congr!{S.Real S.Real} (S.mul q) _ _ (timeBumpValue v))) (Laws.addZeroLeft _));
+\definition scaledValue: \forall (i: Fin.Fin dimension)(v: InputPoint) ->
+  (Scalar.value Input.whole (Functions.product displacementFunction (Functions.constant (unit i))) z0).apply v = S.mul (unit i) (S.mul q (S.mul (bump z0) (v timeIndex))) :=
+  \fun (i: Fin.Fin dimension)(v: InputPoint) => trans!{S.Real} _ _ _ (Differentiation.product displacementFunction (Functions.constant (unit i)) z0 v)
+    (trans!{S.Real} _ _ _
+      (congr!{S.Real S.Real S.Real} S.add _ _ _ _ (congr!{S.Real S.Real} (S.mul (unit i)) _ _ (displacementValue v))
+        (trans!{S.Real} _ _ _
+          (congr!{{calculus.Real[].Multivariable[n := sourceDimension].Differential[].Def[].LinearMap} S.Real}
+            (\fun (d: calculus.Real[].Multivariable[n := sourceDimension].Differential[].Def[].LinearMap) => S.mul (displacementFunction z0) (d.apply v)) _ _ (Rules.constantValue (unit i) z0))
+          (Laws.fieldMulZeroRight _))) (Laws.addZeroRight _));
+\definition componentValue: \forall (i: Fin.Fin dimension)(v: InputPoint) -> (Scalar.value Input.whole (component i) z0).apply v =
+  S.add (v (spatialIndex i)) (S.mul (unit i) (S.mul q (S.mul (bump z0) (v timeIndex)))) :=
+  \fun (i: Fin.Fin dimension)(v: InputPoint) => trans!{S.Real} _ _ _
+    (Differentiation.addition (Rules.projection (spatialIndex i)) (Functions.product displacementFunction (Functions.constant (unit i))) z0 v)
+    (congr!{S.Real S.Real S.Real} S.add _ _ _ _
+      (congr!{{calculus.Real[].Multivariable[n := sourceDimension].Differential[].Def[].LinearMap} S.Real}
+        (\fun (d: calculus.Real[].Multivariable[n := sourceDimension].Differential[].Def[].LinearMap) => d.apply v) _ _ (Rules.projectionValue (spatialIndex i) z0))
+      (scaledValue i v));
+\definition value: \forall (v: InputPoint)(i: Fin.Fin dimension) -> (Differential.value).apply v i =
+  S.add (v (spatialIndex i)) (S.mul (unit i) (S.mul q (S.mul (bump z0) (v timeIndex)))) :=
+  \fun (v: InputPoint)(i: Fin.Fin dimension) => trans!{S.Real} _ _ _
+    (congr!{{calculus.Real[].Multivariable[n := sourceDimension].Differential[].Def[].LinearMap} S.Real}
+      (\fun (d: calculus.Real[].Multivariable[n := sourceDimension].Differential[].Def[].LinearMap) => d.apply v) _ _
+      (Rules.congruent (Differential.component i) (component i) z0 (\fun (x: Input.Carrier Input.whole) => \refl(\root.LocalPush[n := n].On[a := a, q := q].value x i))))
+    (componentValue i v);
+\definition one: One.Index -> S.Real := \fun (i: One.Index) => S.one;
+\definition timeDirection: InputPoint := Product.vertical.apply one;
+\definition spatialTimeDirection: timeDirection (spatialIndex normal) = S.zero :=
+  congr!{Point S.Real} (\fun (v: Point) => v normal) _ _ (Blocks.leftJoin Coordinates.origin one);
+\definition timeTimeDirection: timeDirection timeIndex = S.one :=
+  congr!{{One.Index -> S.Real} S.Real} (\fun (v: One.Index -> S.Real) => v One.index) _ _ (Blocks.rightJoin Coordinates.origin one);
+\definition timeNormal: Differential.value.apply timeDirection normal = S.mul q (bump z0) := trans!{S.Real} _ _ _ (value timeDirection normal)
+  (trans!{S.Real} _ _ _
+    (congr!{S.Real S.Real S.Real} S.add _ _ _ _ spatialTimeDirection
+      (trans!{S.Real} _ _ _
+        (congr!{S.Real S.Real S.Real} S.mul _ _ _ _ (CoordinateLaws.replaceSame Coordinates.origin normal S.one)
+          (congr!{S.Real S.Real} (\fun (s: S.Real) => S.mul q (S.mul (bump z0) s)) _ _ timeTimeDirection))
+        (trans!{S.Real} _ _ _ (Laws.fieldMulOneLeft _) (congr!{S.Real S.Real} (S.mul q) _ _ (S.Algebra[].mulOneRight (bump z0))))))
+    (Laws.addZeroLeft _));

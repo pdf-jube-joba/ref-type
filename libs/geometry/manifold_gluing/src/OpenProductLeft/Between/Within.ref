@@ -1,0 +1,28 @@
+\import \root.OpenManifold[n := n].On[M := M].Within[U := U, open := open] \as Left;
+\import boundary_manifolds.Product[n := n, m := m].Of[M := M, N := N] \as Whole;
+\import \root.ProductMaps[n := n, m := m].Of[M := M, N := N] \as Projections;
+\import boundary_manifolds.Product[n := n, m := m].Of[M := Left.manifold, N := N] \as Product;
+\definition domain: \Pow Whole.Point := { p: Whole.Point \where \In[M.Point] U (Whole.first p) };
+\definition domainOpen: topology.Topology[Carrier := Whole.Point].IsOpenIn Whole.topology domain := Projections.First[].map.continuous U open;
+\import \root.OpenManifold[n := Nat.add m n].On[M := Whole.manifold].Within[U := domain, open := domainOpen] \as Source;
+\import boundary_manifolds.MapIdentity[n := m].On[M := N] \as Identity;
+\definition include: boundary_manifolds.SmoothMap[n := Nat.add m n, m := Nat.add m n].Between[M := Product.manifold, N := Whole.manifold].Map :=
+  \root.MapProduct[n := n, m := m, p := n, q := m].Between[M := Left.manifold, N := N, P := M, Q := N].Of[f := Left.Inclusion[].map, g := Identity.map].map;
+\import \root.OpenCorestriction[n := Nat.add m n, m := Nat.add m n].Between[M := Product.manifold, N := Whole.manifold].Into[U := domain, open := domainOpen].Of[f := include,
+  inside := \fun (p: Product.Point) => \bysub(M.Point, U, Product.first p)] \as Forward;
+\definition first: boundary_manifolds.SmoothMap[n := Nat.add m n, m := n].Between[M := Source.manifold, N := M].Map :=
+  boundary_manifolds.MapComposition[n := Nat.add m n, m := Nat.add m n, l := n].Between[M := Source.manifold, N := Whole.manifold, P := M].Of[f := Source.Inclusion[].map, g := Projections.First[].map].map;
+\import \root.OpenCorestriction[n := Nat.add m n, m := n].Between[M := Source.manifold, N := M].Into[U := U, open := open].Of[f := first,
+  inside := \fun (p: Source.Point) => \bysub(Whole.Point, domain, p)] \as LeftProjection;
+\definition second: boundary_manifolds.SmoothMap[n := Nat.add m n, m := m].Between[M := Source.manifold, N := N].Map :=
+  boundary_manifolds.MapComposition[n := Nat.add m n, m := Nat.add m n, l := m].Between[M := Source.manifold, N := Whole.manifold, P := N].Of[f := Source.Inclusion[].map, g := Projections.Second[].map].map;
+\definition backward: boundary_manifolds.SmoothMap[n := Nat.add m n, m := Nat.add m n].Between[M := Source.manifold, N := Product.manifold].Map :=
+  \root.ProductMaps[n := n, m := m].Of[M := Left.manifold, N := N].Pairing[p := Nat.add m n].From[P := Source.manifold].Using[f := LeftProjection.map, g := second].map;
+\import boundary_manifolds.SmoothMap[n := Nat.add m n, m := Nat.add m n].Between[M := Source.manifold, N := Product.manifold] \as Backward;
+\import \root.Diffeomorphism[n := Nat.add m n, m := Nat.add m n].Between[M := Product.manifold, N := Source.manifold] \as Diffeomorphisms;
+\definition data: Diffeomorphisms.Data := Diffeomorphisms.Data { forward := Forward.map, backward := backward };
+\definition diffeomorphism: Diffeomorphisms.Diffeomorphism := \into[Diffeomorphisms.Data](data, Diffeomorphisms.Diffeomorphism) \by { Diffeomorphisms.Laws[data] {
+  leftInverse := \fun (p: Product.Point) => Pair.Prop[A := Left.Point, B := N.Point].ext (Backward.apply backward (Forward.function p)) p
+    (boundary_manifolds.Refinement[A := M.Point].equality U (Product.first (Backward.apply backward (Forward.function p))) (Product.first p) (\refl(Product.first p \of M.Point))) (\refl(Product.second p)),
+  rightInverse := \fun (p: Source.Point) => boundary_manifolds.Refinement[A := Whole.Point].equality domain (Forward.function (Backward.apply backward p)) p (Pair.Prop[A := M.Point, B := N.Point].eta p),
+} };

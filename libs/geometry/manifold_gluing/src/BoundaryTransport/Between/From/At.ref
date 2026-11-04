@@ -1,0 +1,22 @@
+\import Transport.In[c := c] \as Patch;
+\import boundary_manifolds.Tangent[n := n].On[M := N].At[x := y] \as Target;
+\import Target.Cones[] \as TargetCones;
+\definition targetChart: Target.Chart := \into[Charts.Chart](Patch.chart, Target.Chart) \by {
+  Target.ChartLaws[Patch.chart] { member := member, contains := contains }
+};
+\definition point: Patch.Point := Target.localPoint targetChart;
+\definition old: M.Point := Patch.old point;
+\import boundary_manifolds.Tangent[n := n].On[M := M].At[x := old] \as Source;
+\import Source.Cones[] \as SourceCones;
+\definition sourceChart: Source.Chart := \into[OriginalCharts.Chart](c, Source.Chart) \by {
+  Source.ChartLaws[c] { member := \bysub(OriginalCharts.Chart, M.atlas.charts, c), contains := Patch.contains point }
+};
+\definition originalPointEqual: Patch.old point = Source.localPoint sourceChart := boundary_manifolds.Refinement[A := M.Point].equality c.domain (Patch.old point) (Source.localPoint sourceChart) (\refl(old));
+\definition coordinateEqual: (Target.coordinate targetChart \of Model.Point) = (Source.coordinate sourceChart \of Model.Point) :=
+  congr!{{OriginalCharts.LocalPoint c} {Model.Point}} (\fun (p: OriginalCharts.LocalPoint c) => OriginalCharts.coordinate c p) _ _ originalPointEqual;
+\definition boundary: TargetCones.Boundary -> SourceCones.Boundary := \fun (boundary: _) => SourceCones.boundaryOfCoordinate sourceChart
+  (\idelim (Target.coordinate targetChart \of Model.Point) = (Source.coordinate sourceChart \of Model.Point)
+    \with u: Model.Point => Model.boundary c.constraints u \by {
+      base: TargetCones.coordinateOfBoundary targetChart boundary, equality: coordinateEqual
+    });
+\definition noBoundary: Logic.Not SourceCones.Boundary -> Logic.Not TargetCones.Boundary := \fun (interior: _)(bad: _) => interior (boundary bad);

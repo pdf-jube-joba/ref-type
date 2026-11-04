@@ -1,0 +1,22 @@
+\import \parent.\parent.\parent.Down[U := V, open := partner.open] \as Right;
+\definition leftContains: Target.Member Left.points x := Left.contains x choice.covers;
+\definition rightContains: Target.Member Right.points y := Right.contains y partner.covers;
+\definition disjoint: Target.Disjoint Left.points Right.points := \block {
+  \fun (z: B)(first: Target.Member Left.points z)(second: Target.Member Right.points z) \then
+  \takefrom p: \Cast[A] ({ p: A \where q p = z }) \by onto z \then
+  \let same: q p = z := \bysub(A, { p: A \where q p = z }, p) \then
+  \return partner.disjoint p
+    (Left.within p (\idelim z = q p \with a: B => Target.Member Left.points a \by { base: first, equality: sym!{B} _ _ same }))
+    (Right.within p (\idelim z = q p \with a: B => Target.Member Right.points a \by { base: second, equality: sym!{B} _ _ same }))
+};
+\definition exists: \exists (U: \Pow B \where Target.RegularChoice[target, Target.Singleton y, x, U]) :=
+  Logic.existsIntro[\Pow B, { U: \Pow B \where Target.RegularChoice[target, Target.Singleton y, x, U] }] Left.points
+    (Target.RegularChoice[target, Target.Singleton y, x, Left.points] {
+      open := Left.open, contains := leftContains,
+      partner := Logic.existsIntro[\Pow B, { V: \Pow B \where Target.NormalPartner[target, Target.Singleton y, Left.points, V] }] Right.points
+        (Target.NormalPartner[target, Target.Singleton y, Left.points, Right.points] {
+          open := Right.open,
+          covers := \fun (z: B)(same: z = y) => \idelim y = z \with p: B => Target.Member Right.points p \by { base: rightContains, equality: sym!{B} _ _ same },
+          disjoint := disjoint,
+        }),
+    });

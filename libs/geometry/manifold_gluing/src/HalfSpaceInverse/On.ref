@@ -1,0 +1,21 @@
+\import \root.HalfSpaceJet[n := n].On[U := U, f := f, a := a, zeroNormal := zeroNormal, fixed := fixed] \as Jet;
+\import \root.HalfSpaceSigns[n := n].On[U := U, f := f, a := a, zeroNormal := zeroNormal, fixed := fixed] \as Signs;
+\import inverse_implicit.Euclidean[n := dimension] \as Euclidean;
+\structure Patch: \Set := {
+  domain: Open.OpenSet,
+  target: Open.OpenSet,
+  included: Open.Included domain U,
+  contains: \In[Point] domain.points a,
+  containsImage: \In[Point] target.points (Maps.apply U Open.whole f a),
+  change: Diffeomorphisms.Diffeomorphism domain target,
+  forward: \forall (x: Open.Carrier domain) -> Maps.apply domain target change.forward x = Maps.apply U Open.whole f (Open.inclusion domain U included x),
+  signs: \forall (x: Open.Carrier domain) -> Logic.PropEquiv[R.Le S.zero (x normal), R.Le S.zero (Maps.apply domain target change.forward x normal)],
+};
+\module Using(inverse: Euclidean.LocalInverse[U, f, a], signs: Signs.Patch);
+\module Of(patch: Patch);
+\definition exists: R.Lt S.zero Jet.coefficient -> \exists Patch := \block {
+  \fun (positive: _) \then
+  \takefrom inverse: Euclidean.LocalInverse[U, f, a] \by Jet.localInverse (\fun (zero: Jet.coefficient = S.zero) => Order.ltNotEq S.zero Jet.coefficient positive (sym!{S.Real} Jet.coefficient S.zero zero)) \then
+  \takefrom signs: Signs.Patch \by Signs.exists positive \then
+  \return \exact(Using[inverse := inverse, signs := signs].patch, Patch)
+};

@@ -1,0 +1,21 @@
+\module In(c: Chart, contains: Charts.Contains c x) {
+  \import \root.Boundary[n := n].On[M := M].In[c := c] \as Patch;
+  \definition point: Charts.LocalPoint c := \into[M.Point](x, c.domain) \by { contains };
+  \import Patch.At[p := point] \as Local;
+  \definition positive: Model.interior c.constraints (Patch.coordinate point) := Model.Interior[C := c.constraints].ofNotBoundary
+    (Patch.coordinate point) (\bysub(calculus.Real[].Multivariable[n := n].Open[].Carrier c.image, Model.region c.constraints c.image, Charts.coordinate c point))
+    (\fun (boundary: Model.boundary c.constraints (Patch.coordinate point)) => inside (Tangent.At[x := x].Cones[].boundaryOfCoordinate Local.chart boundary));
+  \definition neighborhood: Space.OpenNeighborhood[M.space, x, interior, Patch.neighborhood] :=
+    Space.OpenNeighborhood[M.space, x, interior, Patch.neighborhood] {
+      open := Patch.open, contains := Space.Subspace[S := c.domain].Open[].imageMember Patch.local point positive,
+      within := Patch.within,
+    };
+}
+\definition neighborhoodExists: \exists ( U: \Pow M.Point \where Space.OpenNeighborhood[M.space, x, interior, U] ) := \block {
+  \takefrom c: \Cast[Charts.Chart] ({ c: Charts.Chart \where Logic.And[\In[Charts.Chart] M.atlas.charts c, Charts.Contains c x] }) \by M.atlas.covers x \then
+  \let laws: Logic.And[\In[Charts.Chart] M.atlas.charts c, Charts.Contains c x] := \bysub(Charts.Chart,
+    { c: Charts.Chart \where Logic.And[\In[Charts.Chart] M.atlas.charts c, Charts.Contains c x] }, c) \then
+  \let chart: Chart := \into[Charts.Chart](c, M.atlas.charts) \by { laws.left } \then
+  \return Logic.existsIntro[\Pow M.Point, { U: \Pow M.Point \where Space.OpenNeighborhood[M.space, x, interior, U] }]
+    (\parent.In[c := chart].neighborhood) In[c := chart, contains := laws.right].neighborhood
+};

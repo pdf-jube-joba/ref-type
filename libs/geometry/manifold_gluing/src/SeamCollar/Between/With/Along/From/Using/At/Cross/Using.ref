@@ -1,0 +1,27 @@
+\import \parent.\parent.Compatibility[] \as Initial;
+\import \root.CollarBoundary[n := n].On[M := M].With[cover := leftCover].From[deformation := left] \as LeftBoundaryCriterion;
+\import \root.CollarBoundary[n := n].On[M := N].With[cover := rightCover].From[deformation := right] \as RightBoundaryCriterion;
+\definition leftBoundary: \In[M.Point] LeftAtlas.points (LeftMaps.apply LeftMap.map (leftParameter p)) :=
+  \idelim LeftBoundary.apply b = LeftMaps.apply LeftMap.map (leftParameter p) \with x: M.Point => \In[M.Point] LeftAtlas.points x \by {
+    base: \bysub(M.Point, LeftAtlas.points, b), equality: sym!{M.Point} _ _ endpoints.left
+  };
+\definition rightBoundary: \In[N.Point] RightAtlas.points (RightMaps.apply RightMap.map (rightParameter q)) :=
+  \idelim RightBoundary.apply (BoundaryMaps.apply d.forward b) = RightMaps.apply RightMap.map (rightParameter q) \with x: N.Point => \In[N.Point] RightAtlas.points x \by {
+    base: \bysub(N.Point, RightAtlas.points, BoundaryMaps.apply d.forward b), equality: sym!{N.Point} _ _ endpoints.right
+  };
+\definition plusZero: plus p = Time.zero := \root.ParameterLaws[].zero (plus p) (LeftBoundaryCriterion.zeroOfBoundary (Source.first p) (plus p) leftBoundary);
+\definition minusZero: minus q = Time.zero := \root.ParameterLaws[].zero (minus q) (RightBoundaryCriterion.zeroOfBoundary (rightBase q) (minus q) rightBoundary);
+\definition firstTime: Source.second p = Signed.zero := sameParts (Source.second p) Signed.zero
+  (trans!{{Time.Point}} _ _ _ plusZero (sym!{{Time.Point}} _ _ Signed.plusAtZero))
+  (trans!{{Time.Point}} _ _ _ (Signed.minusZero (Source.second p) first) (sym!{{Time.Point}} _ _ Signed.minusAtZero));
+\definition secondTime: Source.second q = Signed.zero := sameParts (Source.second q) Signed.zero
+  (trans!{{Time.Point}} _ _ _ (Signed.plusZero (Source.second q) second) (sym!{{Time.Point}} _ _ Signed.plusAtZero))
+  (trans!{{Time.Point}} _ _ _ minusZero (sym!{{Time.Point}} _ _ Signed.minusAtZero));
+\definition boundaryEqual: Gluing.inl (LeftBoundary.apply (Source.first p)) = Gluing.inl (LeftBoundary.apply (Source.first q)) :=
+  trans!{{Gluing.Point}} _ _ _ (sym!{{Gluing.Point}} _ _ (Initial.leftInitial p plusZero))
+    (trans!{{Gluing.Point}} _ _ _ sideEqual
+      (trans!{{Gluing.Point}} _ _ _ (Initial.rightInitial q minusZero) (sym!{{Gluing.Point}} _ _ (Gluing.glued (Source.first q)))));
+\definition baseEqual: Source.first p = Source.first q := \root.CollarStrip[n := n].On[M := M].With[cover := leftCover].inclusionInjective (Source.first p) (Source.first q)
+  (Gluing.leftInjective _ _ boundaryEqual);
+\definition timeEqual: Source.second p = Source.second q := trans!{{Signed.Point}} _ _ _ firstTime (sym!{{Signed.Point}} _ _ secondTime);
+\definition law: p = q := Pair.Prop[A := LeftBoundary.manifold.Point, B := Signed.Point].ext p q baseEqual timeEqual;

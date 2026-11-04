@@ -1,0 +1,39 @@
+\import std.Data[].Nat[] \as N;
+\import real.Analysis[] \as S;
+\import dedekind_reals.DedekindReal[] \as R;
+\definition positiveOne: \Cast[S.Real] ({ t: S.Real \where R.Lt S.zero t }) :=
+  \into[S.Real](S.one, { t: S.Real \where R.Lt S.zero t }) \by { S.Estimates[].Product[].onePositive };
+\module Line {
+  \import \root.HalfSpaceDouble[n := N.Nat^::zero] \as Double;
+  \import manifolds.Dimension[n := Double.dimension].Smooth[] \as Models;
+  \definition manifold: Models.Manifold := Double.Smooth[].manifold;
+  \definition inverseLaw: \forall (x: Double.Point) -> Double.Inverse[].backward (Double.forward x) = x := Double.Inverse[].leftInverse;
+}
+\module Quadrant {
+  \import \root.RoundedCorner[n := N.Nat^::zero] \as Rounding;
+  \import Rounding.AtScale[epsilon := positiveOne] \as Rounded;
+  \import boundary_manifolds.Dimension[n := Rounding.dimension] \as Models;
+  \definition manifold: Models.Manifold := Rounded.manifold;
+  \definition positiveCoordinates: \forall (x: manifold.Point) -> std.Logic[].Proposition[].And[R.Lt S.zero (x Rounding.firstNormal), R.Lt S.zero (x Rounding.secondNormal)] :=
+    \fun (x: manifold.Point) => std.Logic[].Proposition[].And[_, _]::# (Rounded.In[x := x].firstPositive) (Rounded.In[x := x].secondPositive);
+}
+\module Interval {
+  \import calculus.Real[].OneDimension[] \as One;
+  \import boundary_manifolds.Disk[n := N.Nat^::zero] \as Disk;
+  \import calculus.Real[].Multivariable[n := Disk.dimension].Open[] \as Open;
+  \import boundary_manifolds.Sublevel[n := N.Nat^::zero].Of[U := Open.whole, f := Disk.function].Build[regular := Disk.regular] \as Geometry;
+  \import \root.LocalCollar[n := N.Nat^::zero].On[M := Disk.manifold] \as Collars;
+  \import boundary_manifolds.Boundary[n := N.Nat^::zero].Of[M := Disk.manifold] \as Boundary;
+  \definition localCollars: \forall (x: Boundary.Point) -> Collars.ExistsAt x := Collars.localExistence Geometry.boundaryCover;
+  \import \root.GlobalPush[n := N.Nat^::zero].On[M := Disk.manifold] \as Push;
+  \definition centeredPushes: \forall (x: Boundary.Point) -> \exists Push.Centered[x] := Push.existsCentered Geometry.boundaryCover;
+  \import \root.BoundaryInclusion[n := N.Nat^::zero].On[M := Disk.manifold].With[cover := Geometry.boundaryCover] \as Inclusion;
+  \definition boundaryInclusion: _ := Inclusion.map;
+  \definition transversePatches: \root.TransverseHomotopy[n := Disk.dimension].On[M := Disk.manifold].Local := Push.transverseLocal Geometry.boundaryCover;
+}
+\module Push {
+  \import \root.LocalPush[n := N.Nat^::zero] \as Push;
+  \definition origin: Push.Point := \fun (i: std.Data[].FinSet[].Fin Push.dimension) => S.zero;
+  \import Push.On[a := origin, q := positiveOne] \as Formula;
+  \definition smoothMap: _ := Formula.HalfSpace[].map;
+}

@@ -1,0 +1,14 @@
+\definition scalar: F.Function := F.product (F.constant q) (Differentiation.projection i);
+\definition normalBound: \forall (x: Open.Carrier domain) -> R.Lt (x i) Bounds.four := \fun (x: Open.Carrier domain) => Logic.orElim (i = Rounded.firstNormal) (i = Rounded.secondNormal) (R.Lt (x i) Bounds.four) constrained
+  (\fun (same: i = Rounded.firstNormal) => \idelim Rounded.firstNormal = i \with j: Model.Coordinate => R.Lt (x j) Bounds.four \by { base: (\bysub(Model.Point, raw, x)).left, equality: sym!{{Model.Coordinate}} i Rounded.firstNormal same })
+  (\fun (same: i = Rounded.secondNormal) => \idelim Rounded.secondNormal = i \with j: Model.Coordinate => R.Lt (x j) Bounds.four \by { base: (\bysub(Model.Point, raw, x)).right, equality: sym!{{Model.Coordinate}} i Rounded.secondNormal same });
+\definition below: \forall (x: Open.Carrier domain) -> R.Lt (scalar x) S.one := \fun (x: Open.Carrier domain) => R.Order[].ltTrans (scalar x) (S.mul q Bounds.four) S.one (Estimates.mulStrict q (x i) Bounds.four positive (normalBound x)) bounded;
+\definition function: Calculus.Map domain Time.domain := Calculus.Map[domain, Time.domain] {
+  apply := \fun (x: Open.Carrier domain) => \into[boundary_manifolds.Model[n := One.dimension].Point]((\fun (j: One.Index) => scalar x), Time.domain.points) \by { below x },
+  smooth := \fun (j: One.Index) => \bysub(Open.ScalarFunction domain, F.Predicate, scalar),
+};
+\definition nonnegative: \forall (x: QuarterWindow.Point) -> boundary_manifolds.Model[n := One.dimension].Nonnegative Time.constraints (Calculus.apply domain Time.domain function x) :=
+  \fun (x: QuarterWindow.Point) => boundary_manifolds.Model[n := One.dimension].halfSpaceNonnegative One.index (\fun (j: One.Index) => scalar x)
+    (R.Arithmetic[].Prop[].fieldMulNonnegative q (x i) (R.Order[].leOfLt S.zero q positive) ((\bysub(Open.Carrier domain, Model.region Quarter.constraints domain, x)) i constrained));
+\definition map: boundary_manifolds.SmoothMap[n := Rounded.dimension, m := One.dimension].Between[M := QuarterWindow.manifold, N := Time.manifold].Map :=
+  \root.QuadrantMap[n := Rounded.dimension, m := One.dimension].On[C := Quarter.constraints, D := Time.constraints, U := domain, V := Time.domain, f := function, nonnegative := nonnegative].map;

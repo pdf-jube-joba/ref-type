@@ -1,0 +1,23 @@
+\import \parent.\parent.Scale[c := c, a := a, r := r, ball := ball] \as Scale;
+\import \parent.\parent.In[c := c, a := a, q := Scale.q, ball := Scale.resized] \as Push;
+\import Push.Inward[] \as Inward;
+\definition centerBoundary: \In[M.Point] BoundaryAtlas.points Inward.center :=
+  \idelim (x \of M.Point) = Inward.center \with y: M.Point => \In[M.Point] BoundaryAtlas.points y \by {
+    base: \bysub(M.Point, BoundaryAtlas.points, x), equality: sym!{M.Point} _ _ pointEquals
+  };
+\definition centered: Centered[x] := Centered[x] {
+  homotopy := Push.homotopy,
+  enters := \fun (t: Time.Point)(positive: _) => \idelim Inward.center = (x \of M.Point) \with y: M.Point =>
+    Homotopies.Interior (Push.apply (Pair.pair M.Point Time.Point y t)) \by {
+      base: Inward.centerEnters centerBoundary t positive, equality: pointEquals
+    },
+};
+\import Push.ActiveRegion[] \as Region;
+\definition contains: \In[M.Point] Region.domain x := \idelim Inward.center = (x \of M.Point) \with y: M.Point => \In[M.Point] Region.domain y \by {
+  base: Region.centerContains, equality: pointEquals
+};
+\definition local: \exists ( p: Homotopies.Patch \where \In[M.Point] p.domain x ) :=
+  Logic.existsIntro[Homotopies.Patch, { p: Homotopies.Patch \where \In[M.Point] p.domain x }] Region.patch contains;
+\import Push.TransverseRegion[] \as TransverseRegion;
+\definition transverseLocal: \exists ( p: Transverse.Patch \where \In[M.Point] p.patch.domain x ) :=
+  Logic.existsIntro[Transverse.Patch, { p: Transverse.Patch \where \In[M.Point] p.patch.domain x }] TransverseRegion.patch contains;

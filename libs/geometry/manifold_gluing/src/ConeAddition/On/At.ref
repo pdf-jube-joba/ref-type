@@ -1,0 +1,24 @@
+\import Tangent.At[x := x] \as Space;
+\import Space.Operations[] \as Operations;
+\import Space.Cones[] \as Cones;
+\definition inward: \forall (u, v: Space.Vector) -> Cones.Inward u -> Cones.Inward v -> Cones.Inward (Operations.plus u v) :=
+  \fun (u, v: Space.Vector)(left: _)(right: _)(c: Space.Chart)(i: Core.Coordinate)(active: _) =>
+    R.leReplaceRight S.zero (S.add (Space.Coordinate[chart := c].decode u i) (Space.Coordinate[chart := c].decode v i)) (Space.Coordinate[chart := c].decode (Operations.plus u v) i)
+      (sym!{S.Real} _ _ (congr!{Core.Point S.Real} (\fun (w: Core.Point) => w i) _ _ (Space.CoordinateOperations[chart := c].addition u v)))
+      (Laws.addNonnegative _ _ (left c i active) (right c i active));
+\module Left(u, v: Space.Vector, left: Cones.Inward u, right: Cones.Inward v, c: Space.Chart);
+\definition tangentLeft: \forall (u, v: Space.Vector) -> Cones.Inward u -> Cones.Inward v -> Cones.Tangential (Operations.plus u v) -> Cones.Tangential u := \block {
+  \fun (u, v: Space.Vector)(left: _)(right: _)(tangent: _) \then
+  \takefrom c: Space.Chart \by Space.chartExists \then
+  \return Cones.Lineality[c := c, v := u].toIntrinsic (Left[u := u, v := v, left := left, right := right, c := c].law tangent)
+};
+\definition strictLeft: \forall (u, v: Space.Vector) -> Cones.Inward u -> Cones.Inward v -> Logic.Not (Cones.Tangential u) -> Logic.Not (Cones.Tangential (Operations.plus u v)) :=
+  \fun (u, v: Space.Vector)(left: _)(right: _)(strict: _)(tangent: _) => strict (tangentLeft u v left right tangent);
+\definition strictRight: \forall (u, v: Space.Vector) -> Cones.Inward u -> Cones.Inward v -> Logic.Not (Cones.Tangential v) -> Logic.Not (Cones.Tangential (Operations.plus u v)) := \block {
+  \fun (u, v: Space.Vector)(left: _)(right: _)(strict: _)(tangent: _) \then
+  \takefrom c: Space.Chart \by Space.chartExists \then
+  \return strict (tangentLeft v u right left
+    (\idelim Operations.plus u v = Operations.plus v u \with w: Space.Vector => Cones.Tangential w \by {
+      base: tangent, equality: Space.StructureLaws[chart := c].commutative u v
+    }))
+};

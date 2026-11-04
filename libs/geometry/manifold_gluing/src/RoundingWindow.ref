@@ -1,0 +1,45 @@
+\import std.Data[].Nat[] \as Nat;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\import real.Analysis[] \as S;
+\import S.Estimates[].Product[] \as Estimates;
+\import dedekind_reals.DedekindReal[] \as R;
+\import \root.SupportedRounding[].Higher[n := Nat.Nat^::zero] \as Rounded;
+\import \root.SupportedRounding[].Higher[n := Nat.Nat^::zero].Quarter[] \as Quarter;
+\import \root.RoundingScale[] \as Bounds;
+\import \root.Parameter[] \as Time;
+\import calculus.Real[].OneDimension[] \as One;
+\import boundary_manifolds.Dimension[n := Rounded.dimension] \as Models;
+\import boundary_manifolds.Model[n := Rounded.dimension] \as Model;
+\import calculus.Real[].Multivariable[n := Rounded.dimension].Open[] \as Open;
+\import calculus.Real[].Multivariable[n := One.dimension].Open[] \as LineOpen;
+\import calculus.Maps[n := Rounded.dimension, m := One.dimension] \as Calculus;
+\import topological_algebra.Euclidean[].Dimension[n := Rounded.dimension].Topology[] \as Ambient;
+\import metric_spaces.RealLine[].Rays[] \as Rays;
+\import topology.Topology[Carrier := Model.Point] \as RawSpace;
+\definition raw: \Pow Model.Point := { x: Model.Point \where Logic.And[R.Lt (x Rounded.firstNormal) Bounds.four, R.Lt (x Rounded.secondNormal) Bounds.four] };
+\definition rawOpen: RawSpace.IsOpenIn Ambient.topology raw := (RawSpace.topologyLaws Ambient.topology).intersectionOpen
+  ({ x: Model.Point \where R.Lt (x Rounded.firstNormal) Bounds.four }) ({ x: Model.Point \where R.Lt (x Rounded.secondNormal) Bounds.four })
+  (Ambient.coordinateContinuous Rounded.firstNormal (Rays.Below Bounds.four) (Rays.belowOpen Bounds.four))
+  (Ambient.coordinateContinuous Rounded.secondNormal (Rays.Below Bounds.four) (Rays.belowOpen Bounds.four));
+\definition domain: Open.OpenSet := Open.Topology[].ofOpen raw rawOpen;
+\definition points: \Pow Rounded.manifold.Point := { x: Rounded.manifold.Point \where \In[Model.Point] raw x };
+\definition open: topology.Topology[Carrier := Rounded.manifold.Point].IsOpenIn Rounded.manifold.space points := Quarter.ambientContinuous raw rawOpen;
+\import \root.OpenManifold[n := Rounded.dimension].On[M := Rounded.manifold].Within[U := points, open := open] \as Window;
+\definition Point: \Set := Window.Point;
+\definition manifold: Models.Manifold := Window.manifold;
+\definition firstBound: \forall (x: Point) -> R.Lt (x Rounded.firstNormal) Bounds.four := \fun (x: Point) => (\bysub(Rounded.manifold.Point, points, x)).left;
+\definition secondBound: \forall (x: Point) -> R.Lt (x Rounded.secondNormal) Bounds.four := \fun (x: Point) => (\bysub(Rounded.manifold.Point, points, x)).right;
+\import Models.Quadrant[C := Quarter.constraints, U := Open.whole] \as Original;
+\definition quarterMap: boundary_manifolds.SmoothMap[n := Rounded.dimension, m := Rounded.dimension].Between[M := Window.manifold, N := Original.manifold].Map :=
+  boundary_manifolds.MapComposition[n := Rounded.dimension, m := Rounded.dimension, l := Rounded.dimension].Between[M := Window.manifold, N := Rounded.manifold, P := Original.manifold].Of[f := Window.Inclusion[].map, g := Quarter.map].map;
+\import \root.QuadrantFactor[n := Rounded.dimension, m := Rounded.dimension].From[M := Window.manifold, C := Quarter.constraints, U := Open.whole].Into[D := Quarter.constraints, V := domain].Of[f := quarterMap,
+  inside := \fun (x: Point) => \bysub(Rounded.manifold.Point, points, x), nonnegative := \fun (x: Point) => Quarter.nonnegative x] \as QuarterFactor;
+\import Models.Quadrant[C := Quarter.constraints, U := domain] \as QuarterWindow;
+\module At(q: S.Real, positive: R.Lt S.zero q, bounded: R.Lt (S.mul q Bounds.four) S.one);
+\definition windowPoints: \Pow Rounded.manifold.Point := points;
+\definition windowOpen: topology.Topology[Carrier := Rounded.manifold.Point].IsOpenIn Rounded.manifold.space windowPoints := open;
+\module Outside;

@@ -1,0 +1,61 @@
+\import \root.LocalPush[n := n].On[a := a, q := q] \as Polynomial;
+\import Polynomial.Bounds[] \as Bounds;
+\import Polynomial.HalfSpace[] \as HalfSpace;
+\definition sourceChart: Product.LeftChart := \into[Charts.Chart](c, M.atlas.charts) \by { BoundaryAtlas.member c };
+\definition timeChart: Product.RightChart := \into[TimeCharts.Chart](Time.chart, Time.manifold.atlas.charts) \by { Time.chartMember };
+\import Product.In[c := sourceChart, d := timeChart] \as Patch;
+\definition localDomain: \Pow Product.Point := { z: Product.Point \where Charts.Contains c (Product.first z) };
+\definition LocalPoint: \Set := \Cast[Product.Point] localDomain;
+\definition sourcePoint[z: LocalPoint]: SourceCharts.LocalPoint Patch.chart := \into[Product.Point](z, Patch.domain) \by {
+  Logic.And[_, _]::# (\bysub(Product.Point, localDomain, z)) (\refl(Product.second z))
+};
+\definition coordinate[z: LocalPoint]: Source.Carrier Patch.C Patch.image := SourceCharts.coordinate Patch.chart (sourcePoint z);
+\definition input[z: LocalPoint]: Input.Carrier Input.whole := \into[Source.Point](coordinate z, Input.whole.points) \by { \refl(coordinate z) };
+\definition spatialPoint[z: LocalPoint]: Charts.LocalPoint c := \into[M.Point](Product.first z, c.domain) \by { \bysub(Product.Point, localDomain, z) };
+\definition spatial[z: LocalPoint]: Model.Carrier c.constraints c.image := Charts.coordinate c (spatialPoint z);
+\definition spatialFormula: \forall (z: LocalPoint) -> Polynomial.spatial (input z) = (spatial z \of Model.Point) :=
+  \fun (z: LocalPoint) => Blocks.leftJoin (spatial z) (Product.second z);
+\definition timeFormula: \forall (z: LocalPoint) -> Polynomial.time (input z) = Time.value (Product.second z) :=
+  \fun (z: LocalPoint) => congr!{{One.Index -> S.Real} S.Real} (\fun (t: One.Index -> S.Real) => t One.index) _ _ (Blocks.rightJoin (spatial z) (Product.second z));
+\definition nonnegativeTime[z: LocalPoint]: R.Le S.zero (Polynomial.time (input z)) := R.leReplaceRight S.zero (Time.value (Product.second z)) (Polynomial.time (input z))
+  (sym!{S.Real} _ _ (timeFormula z)) (Time.nonnegative (Product.second z));
+\definition upperTime[z: LocalPoint]: R.Le (Polynomial.time (input z)) S.one := R.leReplaceLeft (Time.value (Product.second z)) (Polynomial.time (input z)) S.one
+  (sym!{S.Real} _ _ (timeFormula z)) (Time.upper (Product.second z));
+\definition stays[z: LocalPoint]: \In[Model.Point] c.image.points (Polynomial.value (input z)) := Bounds.stays c.image ball (input z)
+  (\idelim (spatial z \of Model.Point) = Polynomial.spatial (input z) \with p: Model.Point => \In[Model.Point] c.image.points p \by {
+    base: \bysub(Model.Point, c.image.points, spatial z), equality: sym!{Model.Point} _ _ (spatialFormula z)
+  }) (nonnegativeTime z) (upperTime z);
+\definition spatialNonnegative[z: LocalPoint]: Model.Nonnegative (Model.halfSpace Boundary.normal) (spatial z) :=
+  \idelim c.constraints = Model.halfSpace Boundary.normal \with C: Model.Constraints => Model.Nonnegative C (spatial z) \by {
+    base: \bysub(Open.Carrier c.image, Model.region c.constraints c.image, spatial z), equality: BoundaryAtlas.constraints c
+  };
+\definition inputNonnegative[z: LocalPoint]: Source.Nonnegative HalfSpace.constraints (coordinate z) :=
+  Products.nonnegativeJoin HalfSpace.spatialConstraints HalfSpace.timeConstraints (spatial z) (Product.second z)
+    (spatialNonnegative z) (\bysub(TimeOpen.Carrier Time.domain, TimeModel.region Time.constraints Time.domain, Product.second z));
+\definition halfInput[z: LocalPoint]: Source.Carrier HalfSpace.constraints Input.whole :=
+  \into[Input.Carrier Input.whole](input z, Source.region HalfSpace.constraints Input.whole) \by { inputNonnegative z };
+\definition imagePoint[z: LocalPoint]: Model.Carrier c.constraints c.image :=
+  \into[Open.Carrier c.image](\into[Model.Point](Polynomial.value (input z), c.image.points) \by { stays z }, Model.region c.constraints c.image) \by {
+    \idelim Model.halfSpace Boundary.normal = c.constraints \with C: Model.Constraints => Model.Nonnegative C (Polynomial.value (input z)) \by {
+      base: HalfSpace.preserves (halfInput z), equality: sym!{Model.Constraints} _ _ (BoundaryAtlas.constraints c)
+    }
+  };
+\definition partial[z: LocalPoint]: M.Point := Charts.point c (imagePoint z);
+\import std.Set[].Extension[A := Product.Point, B := M.Point, domain := localDomain] \as Extension;
+\definition apply[z: Product.Point]: M.Point := Extension.extend partial (Product.first z) z;
+\definition inside: \forall (z: LocalPoint) -> apply z = partial z := \fun (z: LocalPoint) => Extension.inside partial (Product.first z) z;
+\definition outside: \forall (z: Product.Point) -> Logic.Not (\In[Product.Point] localDomain z) -> apply z = Product.first z :=
+  \fun (z: Product.Point) => Extension.outside partial (Product.first z) z;
+\module Initial;
+\module Enclosure;
+\module Continuity;
+\module Smooth;
+\module Inward;
+\import \root.PushHomotopy[n := Nat.add One.dimension n].On[M := M] \as Homotopies;
+\definition homotopy: Homotopies.Homotopy := Homotopies.Homotopy {
+  map := Smooth[].map, initial := Initial[].initial, preserves := Inward[].preservesInterior, stationary := Inward[].stationary,
+};
+\module ActiveRegion;
+\module Jet(x: Charts.LocalPoint c);
+\module Velocity(x: Charts.LocalPoint c);
+\module TransverseRegion;

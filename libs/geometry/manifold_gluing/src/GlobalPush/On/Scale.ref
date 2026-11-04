@@ -1,0 +1,23 @@
+\import S.Estimates[] \as Estimates;
+\definition value: S.Real := S.mul S.half (S.mul S.half r);
+\definition positive: R.Lt S.zero value := Estimates.halfOfPositive (S.mul S.half r) (Estimates.halfOfPositive r ball.positive);
+\definition q: Functions.Positive := \into[S.Real](value, { s: S.Real \where R.Lt S.zero s }) \by { positive };
+\import \root.LocalPush[n := n].On[a := a, q := q] \as Polynomial;
+\import Polynomial.Bounds[] \as Bounds;
+\definition radiusEquation: Bounds.radius = r := trans!{S.Real} _ _ _
+  (congr!{S.Real S.Real} (\fun (s: S.Real) => S.add s (S.add q q)) _ _
+    (trans!{S.Real} _ _ _ (Laws.fieldMulAdd q S.one S.one)
+      (congr!{S.Real S.Real S.Real} S.add _ _ _ _ (S.Algebra[].mulOneRight q) (S.Algebra[].mulOneRight q))))
+  (trans!{S.Real} _ _ _
+    (congr!{S.Real S.Real S.Real} S.add _ _ _ _ (Estimates.halfTwice (S.mul S.half r)) (Estimates.halfTwice (S.mul S.half r)))
+    (Estimates.halfTwice r));
+\definition resized: Open.BallInside[c.image.points, a, Bounds.radius] := Open.BallInside[c.image.points, a, Bounds.radius] {
+  positive := R.ltReplaceRight S.zero r Bounds.radius (sym!{S.Real} _ _ radiusEquation) ball.positive,
+  included := \fun (x: Model.Point)(near: _) => ball.included x (R.ltReplaceRight _ Bounds.radius r radiusEquation near),
+};
+\import \parent.In[c := c, a := a, q := q, ball := resized] \as Push;
+\import Push.Smooth[] \as Smooth;
+\import Push.Initial[] \as Initial;
+\import boundary_manifolds.SmoothMap[n := Nat.add One.dimension (Nat.add One.dimension n), m := Nat.add One.dimension n].Between[M := Product.manifold, N := M] \as Maps;
+\definition map: Maps.Map := Smooth.map;
+\definition initial: \forall (x: M.Point) -> Maps.apply map (Pair.pair M.Point Time.Point x Time.zero) = x := Initial.initial;

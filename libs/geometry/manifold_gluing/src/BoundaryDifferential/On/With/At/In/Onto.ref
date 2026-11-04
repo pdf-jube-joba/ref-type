@@ -1,0 +1,18 @@
+\import \root.HalfChartBoundary[n := n].On[M := M].In[c := c] \as Criterion;
+\definition point: Charts.LocalPoint c := \into[M.Point](x, c.domain) \by { contains };
+\definition active: Target.Active c.constraints (Codomain.coordinate targetChart) Boundary.normal := Logic.And[_, _]::# Criterion.At[p := point].normalSelected
+  (Criterion.normalZero point (\bysub(M.Point, Atlas.points, x)));
+\definition raw: Target.Point := Codomain.Coordinate[chart := targetChart].decode v;
+\definition normalZero: raw Boundary.normal = S.zero := Codomain.Cones[].Lineality[c := targetChart, v := v].fromIntrinsic tangent Boundary.normal active;
+\definition rightZero: Blocks.right raw = zero := \axiom:funext(Blocks.right raw, zero, \fun (i: One.Index) => trans!{S.Real} _ _ _
+  (congr!{One.Index S.Real} (Blocks.right raw) _ _ (Fin.singletonValue i)) normalZero);
+\definition input: Domain.Vector := Domain.Coordinate[chart := sourceChart].encode (Blocks.left raw);
+\import \root.BoundaryDifferential[n := n].On[M := M].With[cover := cover].At[x := x].In[c := c, contains := contains] \as Parent;
+\definition coordinates: Codomain.Coordinate[chart := targetChart].decode (apply input) = raw := trans!{Target.Point} _ _ _
+  (Parent.coordinates input)
+  (trans!{Target.Point} _ _ _
+    (congr!{Source.Point Target.Point} Linear.horizontal.apply _ _ (Domain.Coordinate[chart := sourceChart].decodeEncode (Blocks.left raw)))
+    (trans!{Target.Point} _ _ _ (congr!{{One.Index -> S.Real} Target.Point} (Blocks.join (Blocks.left raw)) _ _ (sym!{{One.Index -> S.Real}} _ _ rightZero)) (Blocks.recover raw)));
+\definition law: apply input = v := trans!{{Codomain.Vector}} _ _ _ (sym!{{Codomain.Vector}} _ _ (Codomain.Coordinate[chart := targetChart].encodeDecode (apply input)))
+  (trans!{{Codomain.Vector}} _ _ _ (congr!{Target.Point {Codomain.Vector}} Codomain.Coordinate[chart := targetChart].encode _ _ coordinates)
+    (Codomain.Coordinate[chart := targetChart].encodeDecode v));

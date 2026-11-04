@@ -1,0 +1,30 @@
+\import \root.InitialJet[n := Nat.add One.dimension n].On[M := M].Of[h := homotopy].In[x := x, c := sourceChart, contains := \bysub(M.Point, c.domain, x)] \as InitialJet;
+\definition zeroPoint: LocalPoint := \into[Product.Point](Pair.pair M.Point Time.Point x Time.zero, localDomain) \by { \bysub(M.Point, c.domain, x) };
+\import \parent.Smooth[].Positive[z := zeroPoint] \as Positive;
+\import \parent.Smooth[] \as Smooth;
+\import boundary_manifolds.SmoothMap[n := Nat.add One.dimension (Nat.add One.dimension n), m := Nat.add One.dimension n].Between[M := Product.manifold, N := M].At[function := apply, left := Patch.chart, right := c, x := InitialJet.center, contains := InitialJet.sourceContains] \as At;
+\definition extension: At.Extension := At.Extension {
+  neighborhood := Positive.extension.neighborhood,
+  included := Positive.extension.included,
+  contains := Positive.extension.contains,
+  map := Positive.extension.map,
+  inside := Positive.extension.inside,
+  agrees := Positive.extension.agrees,
+};
+\import At.Using[e := extension] \as Local;
+\definition zeroTime: Polynomial.time (input zeroPoint) = S.zero := timeFormula zeroPoint;
+\import Polynomial.Derivative[].At[z0 := input zeroPoint, zeroTime := zeroTime] \as Derivative;
+\import calculus.Maps[n := Nat.add One.dimension (Nat.add One.dimension n), m := Nat.add One.dimension n] \as Calculus;
+\definition derivative: Local.jacobian = Calculus.Differential[U := Input.whole, V := Open.whole, f := Polynomial.ambient, a := input zeroPoint].value :=
+  Calculus.Restriction[U := Patch.image, V := Input.whole, W := Open.whole].differential Positive.wholeIncluded Polynomial.ambient Local.center;
+\definition velocity: InitialJet.velocity Boundary.normal = S.mul q (Polynomial.bump (input zeroPoint)) := trans!{S.Real} _ _ _
+  (congr!{{calculus.Vector[n := Nat.add One.dimension (Nat.add One.dimension n), m := Nat.add One.dimension n].LinearMap} S.Real}
+    (\fun (d: calculus.Vector[n := Nat.add One.dimension (Nat.add One.dimension n), m := Nat.add One.dimension n].LinearMap) => d.apply InitialJet.timeUnit Boundary.normal) _ _
+    (At.ofExtension InitialJet.smooth extension))
+  (trans!{S.Real} _ _ _
+    (congr!{{calculus.Vector[n := Nat.add One.dimension (Nat.add One.dimension n), m := Nat.add One.dimension n].LinearMap} S.Real}
+      (\fun (d: calculus.Vector[n := Nat.add One.dimension (Nat.add One.dimension n), m := Nat.add One.dimension n].LinearMap) => d.apply InitialJet.timeUnit Boundary.normal) _ _ derivative)
+    Derivative.timeNormal);
+\definition positive: R.Lt S.zero (Polynomial.bump (input zeroPoint)) -> R.Lt S.zero (InitialJet.velocity Boundary.normal) :=
+  \fun (positiveBump: _) => R.ltReplaceRight S.zero (S.mul q (Polynomial.bump (input zeroPoint))) (InitialJet.velocity Boundary.normal)
+    (sym!{S.Real} _ _ velocity) (S.Estimates[].Product[].mulPositive q (Polynomial.bump (input zeroPoint)) (\bysub(S.Real, Functions.Positive, q)) positiveBump);

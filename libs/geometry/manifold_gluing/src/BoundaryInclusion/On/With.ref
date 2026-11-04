@@ -1,0 +1,20 @@
+\import Atlas.Build[cover := cover] \as BoundaryManifold;
+\import boundary_manifolds.Boundaryless[n := n].Of[M := BoundaryManifold.manifold] \as Converted;
+\definition manifold: SourceModels.Manifold := Converted.manifold;
+\definition apply[x: manifold.Point]: M.Point := x;
+\import SourceModels.Chart[M := manifold.Point, space := manifold.space] \as SourceCharts;
+\import manifolds.Dimension[n := n].Chart[M := Atlas.Point, space := Atlas.topology] \as OrdinaryCharts;
+\import boundary_manifolds.SmoothMap[n := n, m := Nat.add One.dimension n].Between[M := manifold, N := M] \as Maps;
+\import \root.LocalSmoothMap[n := n, m := Nat.add One.dimension n].Between[M := manifold, N := M].Of[function := apply] \as Locality;
+\import boundary_manifolds.Ambient[n := n].Over[M := BoundaryManifold.manifold, S := topology.Topology[Carrier := Atlas.Point].Whole] \as Construction;
+\module In(x: manifold.Point, c: Atlas.Chart, contains: Charts.Contains c x);
+\definition continuous: topology.Continuity[A := manifold.Point, B := M.Point].Continuous manifold.space M.space apply :=
+  topology.Composition[A := manifold.Point, B := Atlas.Point, C := M.Point].composeContinuous manifold.space Atlas.topology M.space Converted.backward
+    (\fun (x: Atlas.Point) => x) (topology.Homeomorphism[A := Atlas.Point, B := manifold.Point].laws _ _ Converted.comparison).backwardContinuous
+    (topology.Continuity[A := Atlas.Point, B := M.Point].Corestriction[S := Atlas.points].inclusionContinuous M.space);
+\definition local: \forall (x: manifold.Point) -> \exists Locality.Witness[x] := \block {
+  \fun (x: manifold.Point) \then
+  \takefrom c: \Cast[Atlas.Chart] ({ c: Atlas.Chart \where Charts.Contains c x }) \by cover (Converted.backward x) \then
+  \return \exact(In[x := x, c := c, contains := \bysub(Atlas.Chart, { c: Atlas.Chart \where Charts.Contains c x }, c)].witness, Locality.Witness[x])
+};
+\definition map: Maps.Map := Locality.map continuous local;

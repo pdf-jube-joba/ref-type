@@ -1,0 +1,46 @@
+\definition source: topology.Structures[].Topology[Point] := Product.topology parameterSpace baseSpace;
+\import topology.Topology[Carrier := Point] \as Source;
+\import topological_constructions.Product[A := Point, B := Point] \as Pairs;
+\import topology.Topology[Carrier := Pairs.CarrierSet] \as PairSpace;
+\definition pairSpace: topology.Structures[].Topology[Pairs.CarrierSet] := Pairs.topology source source;
+\definition first[p: Pairs.CarrierSet]: Point := Pair.first Point Point p;
+\definition second[p: Pairs.CarrierSet]: Point := Pair.second Point Point p;
+\definition center[b: B]: Point := Pair.pair T B zero b;
+\definition InitialInjective: \Prop := \forall (b, c: B) -> f (center b) = f (center c) -> b = c;
+\structure Patch: \Set := {
+  domain: \Pow Point,
+  open: Source.IsOpenIn source domain,
+  injective: \forall (x, y: Point) -> Source.Member domain x -> Source.Member domain y -> f x = f y -> x = y,
+};
+\definition Local: \Prop := \forall (b: B) -> \exists ( p: Patch \where Source.Member p.domain (center b) );
+\definition Separated: \Pow Pairs.CarrierSet := { p: Pairs.CarrierSet \where Logic.Not (f (first p) = f (second p)) };
+\definition Safe[U: \Pow Pairs.CarrierSet]: \Prop := \forall (p: Pairs.CarrierSet) -> PairSpace.Member U p -> f (first p) = f (second p) -> first p = second p;
+\definition family: \Pow (\Pow Pairs.CarrierSet) := { U: \Pow Pairs.CarrierSet \where Logic.And[PairSpace.IsOpenIn pairSpace U, Safe U] };
+\definition region: \Pow Pairs.CarrierSet := PairSpace.Union family;
+\definition regionOpen: PairSpace.IsOpenIn pairSpace region := (PairSpace.topologyLaws pairSpace).unionOpen family
+  (\fun (U: \Pow Pairs.CarrierSet)(member: PairSpace.FamilyMember family U) => member.left);
+\definition regionSafe: Safe region := \fun (p: Pairs.CarrierSet)(member: PairSpace.Member region p) => PairSpace.unionMemberElim family p
+  (f (first p) = f (second p) -> first p = second p)
+  (\fun (U: \Pow Pairs.CarrierSet)(included: PairSpace.FamilyMember family U)(inside: PairSpace.Member U p) => included.right p inside) member;
+\definition patchOpen: \forall (p: Patch) -> PairSpace.IsOpenIn pairSpace (Pairs.Rectangle p.domain p.domain) :=
+  \fun (p: Patch) => PairSpace.generatedBasisOpen (Pairs.Basis source source) (Pairs.Rectangle p.domain p.domain)
+    (Pairs.Universal[X := Pairs.CarrierSet].rectangleBasisMember source source p.domain p.domain p.open p.open);
+\definition patchSafe: \forall (p: Patch) -> Safe (Pairs.Rectangle p.domain p.domain) :=
+  \fun (p: Patch)(q: Pairs.CarrierSet)(member: PairSpace.Member (Pairs.Rectangle p.domain p.domain) q) => p.injective (first q) (second q) member.left member.right;
+\definition ofPatch: \forall (p: Patch)(x, y: Point) -> Source.Member p.domain x -> Source.Member p.domain y -> PairSpace.Member region (Pair.pair Point Point x y) :=
+  \fun (p: Patch)(x, y: Point)(left: _)(right: _) => PairSpace.unionMemberOf family (Pairs.Rectangle p.domain p.domain) (Pair.pair Point Point x y)
+    (Logic.And[_, _]::# (patchOpen p) (patchSafe p)) (Logic.And[_, _]::# left right);
+\module SeparatedOpen(continuous: topology.Continuity[A := Point, B := X].Continuous source targetSpace f, hausdorff: Target.IsT2 targetSpace);
+\structure Uniform: \Set := {
+  neighborhood: \Pow T,
+  open: Parameters.IsOpenIn parameterSpace neighborhood,
+  contains: Parameters.Member neighborhood zero,
+  injective: \forall (t, s: T)(b, c: B) -> Parameters.Member neighborhood t -> Parameters.Member neighborhood s ->
+    f (Pair.pair T B t b) = f (Pair.pair T B s c) -> Pair.pair T B t b = Pair.pair T B s c,
+};
+\module Build(continuous: topology.Continuity[A := Point, B := X].Continuous source targetSpace f, hausdorff: Target.IsT2 targetSpace,
+  compact: Base.IsCompact baseSpace, initial: InitialInjective, local: Local);
+\definition existsUniform: topology.Continuity[A := Point, B := X].Continuous source targetSpace f -> Target.IsT2 targetSpace ->
+  Base.IsCompact baseSpace -> InitialInjective -> Local -> \exists Uniform :=
+  \fun (continuous: _)(hausdorff: _)(compact: _)(initial: _)(local: _) =>
+    Build[continuous := continuous, hausdorff := hausdorff, compact := compact, initial := initial, local := local].existsUniform;

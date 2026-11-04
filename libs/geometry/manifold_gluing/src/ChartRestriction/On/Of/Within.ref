@@ -1,0 +1,46 @@
+\definition local: \Pow (Charts.LocalPoint c) := { p: Charts.LocalPoint c \where \In[Model.Point] U.points (Charts.coordinate c p) };
+\definition localOpen: LocalSpace.IsOpenIn (Charts.domainTopology c.domain) local := c.coordinates.forwardContinuous
+  ({ u: Model.Carrier c.constraints c.image \where \In[Model.Point] U.points u }) (Model.Topology[C := c.constraints, U := c.image].ambient U.points (Open.Topology[].open U));
+\definition domain: \Pow M.Point := Original.image local;
+\definition domainOpen: Space.IsOpenIn M.space domain := Original.imageOpen M.space c.open local localOpen;
+\definition Point: \Set := \Cast[M.Point] domain;
+\definition topology: topology.Structures[].Topology[Point] := Space.Subspace[S := domain].topology M.space;
+\definition old[p: Point]: Charts.LocalPoint c := \into[M.Point](p, c.domain) \by { Original.imageIncluded local p (\bysub(M.Point, domain, p)) };
+\definition inSource: \forall (p: Point) -> \In[Model.Point] U.points (Charts.coordinate c (old p)) := \fun (p: Point) => Original.imageElim local p (\In[Model.Point] U.points (Charts.coordinate c (old p)))
+  (\fun (q: Charts.LocalPoint c)(member: LocalSpace.Member local q)(same: (q \of M.Point) = (p \of M.Point)) => \idelim q = old p \with z: Charts.LocalPoint c => \In[Model.Point] U.points (Charts.coordinate c z) \by {
+    base: member, equality: boundary_manifolds.Refinement[A := M.Point].equality c.domain q (old p) same
+  }) (\bysub(M.Point, domain, p));
+\definition coordinate[p: Point]: Model.Carrier c.constraints U := \into[Open.Carrier U](\into[Model.Point](Charts.coordinate c (old p), U.points) \by { inSource p }, Model.region c.constraints U) \by {
+  \bysub(Open.Carrier c.image, Model.region c.constraints c.image, Charts.coordinate c (old p))
+};
+\definition input[u: Model.Carrier c.constraints U]: Model.Carrier c.constraints c.image := \into[Open.Carrier c.image](Open.inclusion U c.image included u, Model.region c.constraints c.image) \by { \bysub(Open.Carrier U, Model.region c.constraints U, u) };
+\definition pointMember: \forall (u: Model.Carrier c.constraints U) -> Space.Member domain (Charts.point c (input u)) := \fun (u: Model.Carrier c.constraints U) => Original.imageMember local (Charts.point c (input u))
+  (\idelim (u \of Model.Point) = (Charts.coordinate c (Charts.point c (input u)) \of Model.Point) \with p: Model.Point => \In[Model.Point] U.points p \by {
+    base: \bysub(Model.Point, U.points, u), equality: sym!{{Model.Point}} _ _ (congr!{{Model.Carrier c.constraints c.image} {Model.Point}} (\fun (p: Model.Carrier c.constraints c.image) => p) _ _ (Charts.coordinatePoint c (input u)))
+  });
+\definition point[u: Model.Carrier c.constraints U]: Point := \into[M.Point](Charts.point c (input u), domain) \by { pointMember u };
+\definition inputCoordinate: \forall (p: Point) -> input (coordinate p) = Charts.coordinate c (old p) := \fun (p: Point) => Model.equality c.constraints c.image (input (coordinate p)) (Charts.coordinate c (old p)) (\refl(Charts.coordinate c (old p) \of Model.Point));
+\definition leftInverse: \forall (p: Point) -> point (coordinate p) = p := \fun (p: Point) => boundary_manifolds.Refinement[A := M.Point].equality domain (point (coordinate p)) p
+  (trans!{{M.Point}} _ _ _ (congr!{{Model.Carrier c.constraints c.image} {M.Point}} (\fun (u: Model.Carrier c.constraints c.image) => Charts.point c u) _ _ (inputCoordinate p))
+    (congr!{{Charts.LocalPoint c} {M.Point}} (\fun (z: Charts.LocalPoint c) => z) _ _ (Charts.pointCoordinate c (old p))));
+\definition oldPoint: \forall (u: Model.Carrier c.constraints U) -> old (point u) = Charts.point c (input u) := \fun (u: Model.Carrier c.constraints U) => boundary_manifolds.Refinement[A := M.Point].equality c.domain (old (point u)) (Charts.point c (input u)) (\refl(Charts.point c (input u) \of M.Point));
+\definition rightInverse: \forall (u: Model.Carrier c.constraints U) -> coordinate (point u) = u := \fun (u: Model.Carrier c.constraints U) => Model.equality c.constraints U (coordinate (point u)) u
+  (trans!{{Model.Point}} _ _ _ (congr!{{Charts.LocalPoint c} {Model.Point}} (\fun (p: Charts.LocalPoint c) => Charts.coordinate c p) _ _ (oldPoint u))
+    (congr!{{Model.Carrier c.constraints c.image} {Model.Point}} (\fun (p: Model.Carrier c.constraints c.image) => p) _ _ (Charts.coordinatePoint c (input u))));
+\module Continuity;
+\definition chart: Charts.Chart := Charts.Chart {
+  domain := domain, image := U, constraints := c.constraints, open := domainOpen,
+  coordinates := topology.Homeomorphism[A := Point, B := Model.Carrier c.constraints U].Homeomorphism[topology, Model.regionTopology c.constraints U] {
+    forward := coordinate, backward := point, leftInverse := leftInverse, rightInverse := rightInverse,
+    forwardContinuous := Continuity[].coordinateContinuous, backwardContinuous := Continuity[].pointContinuous,
+  },
+};
+
+\definition identity: Calculus.Map U Open.whole := Calculus.Map[U, Open.whole] {
+  apply := \fun (u: Open.Carrier U) => \into[Model.Point](u, Open.whole.points) \by { \refl(u \of Model.Point) },
+  smooth := \fun (i: Model.Coordinate) => Open.Examples[].projectionSmooth U i,
+};
+\module ToOld(x: M.Point, contains: Charts.Contains chart x);
+\module FromOld(x: M.Point, contains: Charts.Contains c x, inRestricted: Charts.Contains chart x);
+
+\definition containsFrom[p: Charts.LocalPoint c]: \In[Model.Point] U.points (Charts.coordinate c p) -> Space.Member domain p := \fun (member: \In[Model.Point] U.points (Charts.coordinate c p)) => Original.imageMember local p member;

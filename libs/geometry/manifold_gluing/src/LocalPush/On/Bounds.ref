@@ -1,0 +1,62 @@
+\import std.Logic[].Classical[] \as Classical;
+\import S.Estimates[] \as Estimates;
+\import Estimates.Product[] \as Products;
+\import S.Distance[] \as Distance;
+\import topological_algebra.Euclidean[].Dimension[n := dimension].Norm[] \as Norm;
+\definition nonnegative: \forall (z: Input.Carrier Input.whole) -> R.Le S.zero (time z) -> R.Le S.zero (displacement z) :=
+  \fun (z: Input.Carrier Input.whole)(positiveTime: _) => Laws.fieldMulNonnegative q (S.mul (time z) (bump z)) (Order.leOfLt _ _ Bump.qPositive)
+    (Laws.fieldMulNonnegative (time z) (bump z) positiveTime (Bump.bounded (spatial z)).left);
+\definition upper: \forall (z: Input.Carrier Input.whole) -> R.Le S.zero (time z) -> R.Le (time z) S.one -> R.Le (displacement z) q := \block {
+  \fun (z: Input.Carrier Input.whole)(positiveTime: _)(upperTime: _) \then
+  \let inner: R.Le (S.mul (time z) (bump z)) S.one := R.leTrans _ (time z) S.one
+    (R.leReplaceRight _ (S.mul (time z) S.one) (time z) (S.Algebra[].mulOneRight (time z))
+      (Estimates.mulMonotone (time z) (bump z) S.one positiveTime (Bump.bounded (spatial z)).right)) upperTime \then
+  \return R.leReplaceRight _ (S.mul q S.one) q (S.Algebra[].mulOneRight q)
+    (Estimates.mulMonotone q (S.mul (time z) (bump z)) S.one (Order.leOfLt _ _ Bump.qPositive) inner)
+};
+\definition asReplace: \forall (z: Input.Carrier Input.whole) -> value z = Coordinates.replace (spatial z) normal (value z normal) :=
+  \fun (z: Input.Carrier Input.whole) => \axiom:funext(value z, Coordinates.replace (spatial z) normal (value z normal),
+    \fun (i: Fin.Fin dimension) => Logic.orElim (normal = i) (Logic.Not (normal = i))
+      (value z i = Coordinates.replace (spatial z) normal (value z normal) i) (Classical.excludedMiddle (normal = i))
+      (\fun (same: normal = i) => \idelim normal = i \with j: Fin.Fin dimension => value z j = Coordinates.replace (spatial z) normal (value z normal) j \by {
+        base: sym!{S.Real} _ _ (CoordinateLaws.replaceSame (spatial z) normal (value z normal)), equality: same
+      })
+      (\fun (different: _) => trans!{S.Real} _ _ _ (tangentialValue z i different)
+        (sym!{S.Real} _ _ (CoordinateLaws.replaceDifferent (spatial z) normal i (value z normal) different))));
+\definition incrementDifference: \forall (x, d: S.Real) -> S.sub (S.add x d) x = d :=
+  \fun (x, d: S.Real) => trans!{S.Real} _ _ _ (congr!{S.Real S.Real} (\fun (v: S.Real) => S.sub v x) _ _ (Laws.addComm x d))
+    (trans!{S.Real} _ _ _ (Laws.addAssoc d x (S.neg x))
+      (trans!{S.Real} _ _ _ (congr!{S.Real S.Real} (S.add d) _ _ (Laws.addNegRight x)) (Laws.addZeroRight d)));
+\definition movement: \forall (z: Input.Carrier Input.whole) -> R.Le S.zero (time z) -> Coordinates.pointDistance (value z) (spatial z) = displacement z :=
+  \fun (z: Input.Carrier Input.whole)(positiveTime: _) => trans!{S.Real} _ _ _
+    (congr!{Point S.Real} (\fun (u: Point) => Coordinates.pointDistance u (spatial z)) _ _ (asReplace z))
+    (trans!{S.Real} _ _ _ (CoordinateLaws.replaceDistance (spatial z) normal (value z normal))
+      (trans!{S.Real} _ _ _ (congr!{S.Real S.Real} (\fun (r: S.Real) => S.distance r (spatial z normal)) _ _ (normalValue z))
+        (trans!{S.Real} _ _ _ (sym!{S.Real} _ _ (Estimates.distanceDifference (S.add (spatial z normal) (displacement z)) (spatial z normal)))
+          (trans!{S.Real} _ _ _ (congr!{S.Real S.Real} (\fun (r: S.Real) => S.distance r S.zero) _ _ (incrementDifference (spatial z normal) (displacement z)))
+            (trans!{S.Real} _ _ _ (Distance.distanceSymmetric (displacement z) S.zero) (Products.absOfNonnegative (displacement z) (nonnegative z positiveTime)))))));
+\definition boundedMovement: \forall (z: Input.Carrier Input.whole) -> R.Le S.zero (time z) -> R.Le (time z) S.one -> R.Le (Coordinates.pointDistance (value z) (spatial z)) q :=
+  \fun (z: Input.Carrier Input.whole)(positiveTime: _)(upperTime: _) => R.leReplaceLeft (displacement z) (Coordinates.pointDistance (value z) (spatial z)) q
+    (sym!{S.Real} _ _ (movement z positiveTime)) (upper z positiveTime upperTime);
+\definition radius: S.Real := S.add Bump.radius (S.add q q);
+\definition margin: S.Real := S.add Bump.radius q;
+\definition marginSmall: R.Lt margin radius := Laws.ltAddLeft Bump.radius q (S.add q q)
+  (R.ltReplaceLeft (S.add q S.zero) q (S.add q q) (Laws.addZeroRight q) (Laws.ltAddLeft q S.zero q Bump.qPositive));
+\definition nearCenter: \forall (z: Input.Carrier Input.whole) -> R.Le S.zero (time z) -> R.Le (time z) S.one -> \In[Point] Bump.envelope (spatial z) -> R.Lt (Coordinates.pointDistance (value z) a) radius :=
+  \fun (z: Input.Carrier Input.whole)(positiveTime: _)(upperTime: _)(inside: _) => R.leLtTrans _ margin radius
+    (R.leTrans _ (S.add (Coordinates.pointDistance (value z) (spatial z)) (Coordinates.pointDistance (spatial z) a)) margin
+      (Norm.distanceTriangle (value z) (spatial z) a)
+      (R.leReplaceRight _ (S.add q Bump.radius) margin (Laws.addComm q Bump.radius)
+        (Estimates.addLe _ _ _ _ (boundedMovement z positiveTime upperTime)
+          (R.leReplaceLeft (Coordinates.pointDistance a (spatial z)) (Coordinates.pointDistance (spatial z) a) Bump.radius (Norm.distanceSymmetric a (spatial z)) inside)))) marginSmall;
+\definition zeroOutside: \forall (x: Point) -> Logic.Not (\In[Point] Bump.envelope x) -> Bump.value x = S.zero :=
+  \fun (x: Point)(outside: _) => Order.byContradiction (Bump.value x = S.zero) (\fun (nonzero: Logic.Not (Bump.value x = S.zero)) => outside (Bump.nonzeroWithin x nonzero));
+\definition stays: \forall (U: Output.OpenSet) -> Output.BallInside[U.points, a, radius] -> \forall (z: Input.Carrier Input.whole) ->
+  \In[Point] U.points (spatial z) -> R.Le S.zero (time z) -> R.Le (time z) S.one -> \In[Point] U.points (value z) :=
+  \fun (U: Output.OpenSet)(ball: _)(z: Input.Carrier Input.whole)(inside: _)(positiveTime: _)(upperTime: _) =>
+    Logic.orElim (\In[Point] Bump.envelope (spatial z)) (Logic.Not (\In[Point] Bump.envelope (spatial z))) (\In[Point] U.points (value z))
+      (Classical.excludedMiddle (\In[Point] Bump.envelope (spatial z)))
+      (\fun (member: _) => ball.included (value z) (nearCenter z positiveTime upperTime member))
+      (\fun (missing: _) => \idelim (spatial z \of Point) = value z \with x: Point => \In[Point] U.points x \by {
+        base: inside, equality: sym!{Point} _ _ (outside z (zeroOutside (spatial z) missing))
+      });

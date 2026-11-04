@@ -1,0 +1,22 @@
+
+\import \root.HalfModel[n := m].On[M := N].In[data := d] \as Local;
+\import Left.Interior[C := c.constraints] \as Interior;
+\definition left: Product.LeftChart := \into[LeftCharts.Chart](c, M.atlas.charts) \by { LT.member c };
+\definition right: Product.RightChart := d.chart;
+\definition U: LeftOpen.OpenSet := LeftOpen.intersection c.image Interior.domain;
+\definition V: RightOpen.OpenSet := d.source;
+\definition includedLeft: LeftOpen.Included U c.image := LeftOpen.intersectionLeft c.image Interior.domain;
+\definition leftNonnegative: \forall (u: LeftOpen.Carrier U) -> Left.Nonnegative c.constraints u := \fun (u: LeftOpen.Carrier U) => Interior.nonnegative (LeftOpen.inclusion U Interior.domain (LeftOpen.intersectionRight c.image Interior.domain) u);
+\import \root.ProductHalfCharts[n := n, m := m].Between[M := M, N := N].RightHalf[
+ c := left, d := right, U := U, V := V, includedLeft := includedLeft, includedRight := d.included, leftNonnegative := leftNonnegative, normal := d.normal, rightEquivalent := d.equivalent] \as Patch;
+\definition local: Local.Point := \into[N.Point](Product.second x, Local.domain) \by { member };
+\definition leftContains: LeftCharts.Contains left (Product.first x) := LT.contains c;
+\definition rightContains: RightCharts.Contains right (Product.second x) := \bysub(N.Point, right.domain, Local.old local);
+\definition rightPoint: RightCharts.LocalPoint right := \into[N.Point](Product.second x, right.domain) \by { rightContains };
+\definition same: rightPoint = Local.old local := boundary_manifolds.Refinement[A := N.Point].equality right.domain rightPoint (Local.old local) (\refl(Product.second x));
+\definition rightInside: \In[Right.Point] V.points (RightCharts.coordinate right rightPoint) := \idelim Local.old local = rightPoint \with p: RightCharts.LocalPoint right => \In[Right.Point] V.points (RightCharts.coordinate right p) \by { base: Local.inside local, equality: sym!{{RightCharts.LocalPoint right}} _ _ same };
+\definition notCoordinate: Logic.Not (Left.boundary c.constraints (LT.coordinate c)) := \fun (boundary: Left.boundary c.constraints (LT.coordinate c)) => interior (LT.Cones[].boundaryOfCoordinate c boundary);
+\definition leftInside: \In[Left.Point] U.points (LeftCharts.coordinate c (\into[M.Point](Product.first x, c.domain) \by { leftContains })) := Logic.And[_, _]::#
+ (\bysub(Left.Point, c.image.points, LT.coordinate c)) (Interior.ofNotBoundary (LT.coordinate c) (\bysub(LeftOpen.Carrier c.image, Left.region c.constraints c.image, LT.coordinate c)) notCoordinate);
+\definition contains: Result.Contains Patch.data x := Patch.Contains[p := x, leftContains := leftContains, rightContains := rightContains, leftInside := leftInside, rightInside := rightInside].member;
+\definition exists: \exists (d: Result.Data \where Result.Contains d x) := Logic.existsIntro[Result.Data, { d: Result.Data \where Result.Contains d x }] Patch.data contains;

@@ -1,0 +1,34 @@
+\import topology.Topology[Carrier := S.Real] \as Scalar;
+\definition interval: \Pow S.Real := Line.ClosedInterval S.zero a;
+\import Scalar.Subspace[S := interval] \as Source;
+\definition Point: \Set := Source.CarrierSet;
+\definition topology: topology.Structures[].Topology[Point] := Source.topology Line.topology;
+\import topology.Topology[Carrier := Point] \as Small;
+\definition compactSource: Small.IsCompact topology := Source.Properties[].compact Line.topology (Line.CompactIntervals[].intervalCompact S.zero a);
+\definition apply[t: Point]: Time.Point := Time.point t (\bysub(S.Real, interval, t)).left (R.leLtTrans t a S.one (\bysub(S.Real, interval, t)).right bounded);
+\import topological_algebra.Coordinates[K := S.Real, I := One.Index].Universal[A := Point] \as Universal;
+\definition scalarContinuous: topology.Continuity[A := Point, B := S.Real].Continuous topology Line.topology (\fun (t: Point) => t) :=
+  topology.Continuity[A := Point, B := S.Real].Corestriction[S := interval].inclusionContinuous Line.topology;
+\import topological_algebra.Euclidean[].Dimension[n := One.dimension].Topology[] \as Ambient;
+\definition ambientContinuous: topology.Continuity[A := Point, B := Model.Point].Continuous topology Ambient.topology (\fun (t: Point) => apply t) :=
+  \fun (U: \Pow Model.Point)(open: _) => Universal.continuous topology Line.topology (\fun (t: Point) => apply t) (\fun (i: One.Index) => scalarContinuous) U (Ambient.metricOpen U open);
+\definition continuous: topology.Continuity[A := Point, B := Time.Point].Continuous topology Time.manifold.space apply :=
+  Model.Topology[C := Time.constraints, U := Time.domain].Into[X := Point, source := topology, f := apply].continuous ambientContinuous;
+\import topology.Topology[Carrier := Time.Point] \as Target;
+\import topology.Maps[A := Point, B := Time.Point] \as Maps;
+\definition points: \Pow Time.Point := { t: Time.Point \where R.Le (Time.value t) a };
+\definition imageEquals: Maps.Image apply Small.Whole = points := \axiom:setext(Maps.Image apply Small.Whole, points,
+  (\fun (t: Time.Point)(member: Target.Member (Maps.Image apply Small.Whole) t) => Maps.imageElim apply Small.Whole t (Target.Member points t)
+    (\fun (p: Point)(whole: Small.Member Small.Whole p)(same: apply p = t) => \idelim apply p = t \with s: Time.Point => Target.Member points s \by {
+      base: (\bysub(S.Real, interval, p)).right, equality: same
+    }) member),
+  (\fun (t: Time.Point)(member: Target.Member points t) => \block {
+    \let p: Point := \into[S.Real](Time.value t, interval) \by { Logic.And[_, _]::# (Time.nonnegative t) member } \then
+    \return \idelim apply p = t \with s: Time.Point => Target.Member (Maps.Image apply Small.Whole) s \by {
+      base: Maps.imageMember apply Small.Whole p (\refl(p)), equality: \root.ParameterLaws[].equality (apply p) t (\refl(Time.value t))
+    }
+  }));
+\definition compact: Target.IsCompactIn Time.manifold.space points := \idelim Maps.Image apply Small.Whole = points \with U: \Pow Time.Point => Target.IsCompactIn Time.manifold.space U \by {
+  base: topology.Compactness[A := Point, B := Time.Point].continuousImage topology Time.manifold.space apply continuous Small.Whole compactSource,
+  equality: imageEquals
+};

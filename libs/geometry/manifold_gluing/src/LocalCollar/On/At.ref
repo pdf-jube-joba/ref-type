@@ -1,0 +1,25 @@
+\import BoundaryAtlas.In[c := chart] \as BoundaryChart;
+\definition boundaryPoint: BoundaryChart.Domain := \into[BoundaryAtlas.Point](x, BoundaryChart.domain) \by { contains };
+\definition coordinate: Model.Carrier chart.constraints chart.image := BoundaryChart.oldCoordinate boundaryPoint;
+\definition normalZero: coordinate Boundary.normal = S.zero := BoundaryChart.At[p := boundaryPoint].zero;
+\definition zeroPart: Blocks.right coordinate = zero := \axiom:funext(Blocks.right coordinate, zero,
+  \fun (i: One.Index) => trans!{S.Real} _ _ _ (congr!{One.Index S.Real} (Blocks.right coordinate) _ _ (Fin.singletonValue i)) normalZero);
+\module With(rectangle: Product.Rectangle[chart.image, coordinate]) {
+  \definition data: Data := Data {
+    chart := chart, parameters := rectangle.parameters, times := rectangle.values, included := rectangle.included,
+    containsZero := \idelim Blocks.right coordinate = zero \with v: TimePoint => \In[TimePoint] rectangle.values.points v \by {
+      base: rectangle.containsRight, equality: zeroPart
+    },
+  };
+  \import \root.LocalCollar[n := n].On[M := M].In[data := data] \as Collar;
+  \definition source: Collar.Point := \into[Open.Carrier Collar.image](\into[Model.Point](coordinate, Collar.image.points) \by {
+    Logic.And[_, _]::# rectangle.containsLeft rectangle.containsRight
+  }, Model.region chart.constraints Collar.image) \by { \bysub(Open.Carrier chart.image, Model.region chart.constraints chart.image, coordinate) };
+  \definition atSource: Collar.apply source = x := Charts.pointCoordinate chart (BoundaryChart.oldPoint boundaryPoint);
+  \definition exists: ExistsAt x := Logic.existsIntro[Data, { data: Data \where \exists ( p: \root.LocalCollar[n := n].On[M := M].In[data := data].Point \where \root.LocalCollar[n := n].On[M := M].In[data := data].apply p = x ) }] data
+    (Logic.existsIntro[Collar.Point, { p: Collar.Point \where Collar.apply p = x }] source atSource);
+}
+\definition exists: ExistsAt x := \block {
+  \takefrom rectangle: Product.Rectangle[chart.image, coordinate] \by Product.Neighborhood[U := chart.image, a := coordinate].rectangleExists \then
+  \return With[rectangle := rectangle].exists
+};

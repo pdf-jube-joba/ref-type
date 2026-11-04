@@ -1,0 +1,42 @@
+\import boundary_manifolds.Product[n := n, m := One.dimension].Of[M := M, N := Time.manifold] \as Product;
+\import boundary_manifolds.SmoothMap[n := Nat.add One.dimension n, m := n].Between[M := Product.manifold, N := M] \as Maps;
+\import boundary_manifolds.Tangent[n := n].On[M := M] \as Tangent;
+\import \root.ProductMaps[n := n, m := One.dimension].Of[M := M, N := Time.manifold] \as Products;
+\definition initialPoint[x: M.Point]: Product.Point := Pair.pair M.Point Time.Point x Time.zero;
+\definition Interior[x: M.Point]: \Prop := Logic.Not (Tangent.At[x := x].Cones[].Boundary);
+\structure Homotopy: \Set := {
+  map: Maps.Map,
+  initial: \forall (x: M.Point) -> Maps.apply map (initialPoint x) = x,
+  stationary: \forall (z: Product.Point) -> Tangent.At[x := Maps.apply map z].Cones[].Boundary -> Maps.apply map z = Product.first z,
+  preserves: \forall (z: Product.Point) -> Interior (Product.first z) -> Interior (Maps.apply map z),
+};
+\definition identity: Homotopy := Homotopy {
+  map := Products.First[].map,
+  initial := \fun (x: M.Point) => \refl(x),
+  preserves := \fun (z: Product.Point)(interior: _) => interior,
+  stationary := \fun (z: Product.Point)(boundary: _) => \refl(Product.first z),
+};
+\definition Activates[h: Homotopy][x: M.Point]: \Prop := \forall (t: Time.Point) -> dedekind_reals.DedekindReal[].Lt real.Analysis[].zero (Time.value t) ->
+  Interior (Maps.apply h.map (Pair.pair M.Point Time.Point x t));
+\module Composition(first, second: Homotopy);
+\definition finite: \forall (k: N.Nat^) -> (Fin.Fin k -> Homotopy) -> Homotopy :=
+  \induction (k: N.Nat^) \return (Fin.Fin k -> Homotopy) -> Homotopy \with {
+    | zero: \fun (f: _) => identity
+    | succ: \fun (k: N.Nat^)(previous: _)(f: Fin.Fin (N.Nat^::succ k) -> Homotopy) =>
+      Composition[first := previous (\fun (i: Fin.Fin k) => f (Fin.succ k i)), second := f (Fin.zero k)].homotopy
+  };
+\module FiniteStep(k: N.Nat^, f: Fin.Fin (N.Nat^::succ k) -> Homotopy, previous: \forall (f: Fin.Fin k -> Homotopy)(i: Fin.Fin k)(x: M.Point) -> Activates (f i) x -> Activates (finite k f) x);
+\definition finiteActivates: \forall (k: N.Nat^)(f: Fin.Fin k -> Homotopy)(i: Fin.Fin k)(x: M.Point) -> Activates (f i) x -> Activates (finite k f) x :=
+  \induction (k: N.Nat^) \return \forall (f: Fin.Fin k -> Homotopy)(i: Fin.Fin k)(x: M.Point) -> Activates (f i) x -> Activates (finite k f) x \with {
+    | zero: \fun (f: _)(i: Fin.Fin N.Nat^::zero)(x: M.Point)(active: _) => Logic.falseElim _ (Fin.zeroImpossible i (Fin.bound N.Nat^::zero i))
+    | succ: \fun (k: N.Nat^)(previous: _)(f: _) => FiniteStep[k := k, f := f, previous := previous].law
+  };
+\import topology.Topology[Carrier := M.Point] \as Space;
+\structure Patch: \Set := {
+  domain: \Pow M.Point,
+  open: Space.IsOpenIn M.space domain,
+  homotopy: Homotopy,
+  activates: \forall (x: M.Point) -> Space.Member domain x -> Activates homotopy x,
+};
+\definition Local[K: \Pow M.Point]: \Prop := \forall (x: M.Point) -> Space.Member K x -> \exists ( p: Patch \where Space.Member p.domain x );
+\module Compact(K: \Pow M.Point, compact: Space.IsCompactIn M.space K, local: Local K);

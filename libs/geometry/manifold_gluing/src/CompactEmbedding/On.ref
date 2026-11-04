@@ -1,0 +1,21 @@
+\definition image: \Pow B := Maps.Image f Source.Whole;
+\definition Point: \Set := \Cast[B] image;
+\definition topology: topology.Structures[].Topology[Point] := Target.Subspace[S := image].topology target;
+\definition closed: Target.IsClosedIn target image := Target.Compactness[].compactClosed target hausdorff image
+  (topology.Compactness[A := A, B := B].continuousImage source target f continuous Source.Whole compact);
+\definition forward[x: A]: Point := \into[B](f x, image) \by { Maps.imageMember f Source.Whole x (\refl(x)) };
+\definition forwardContinuous: topology.Continuity[A := A, B := Point].Continuous source topology forward :=
+  topology.Continuity[A := A, B := B].Corestriction[S := image].corestrictContinuous source target forward continuous;
+\definition forwardInjective: \forall (x, y: A) -> forward x = forward y -> x = y := \fun (x, y: A)(same: _) => injective x y same;
+\definition onto: \forall (y: Point) -> \exists (x: A \where forward x = y) := \fun (y: Point) => Maps.imageElim f Source.Whole y (\exists (x: A \where forward x = y))
+  (\fun (x: A)(whole: _)(same: f x = y) => Logic.existsIntro[A, { p: A \where forward p = y }] x
+    (boundary_manifolds.Refinement[A := B].equality image (forward x) y same)) (\bysub(B, image, y));
+\definition imageHausdorff: topology.Topology[Carrier := Point].IsT2 topology := Target.Subspace[S := image].Properties[].hausdorff target hausdorff;
+\import topological_constructions.CompactQuotient[A := A, B := Point, source := source, target := topology, q := forward] \as Quotient;
+\import topology.Homeomorphism[A := A, B := Point].OfQuotient[f := forward] \as Inverse;
+\definition homeomorphism: topology.Homeomorphism[A := A, B := Point].Homeomorphism[source, topology] :=
+  Inverse.homeomorphism source topology forwardInjective onto forwardContinuous (Quotient.quotientMap compact imageHausdorff forwardContinuous onto).reflectsOpen;
+\definition backward: Point -> A := homeomorphism.backward;
+\definition leftInverse: \forall (x: A) -> backward (forward x) = x := (topology.Homeomorphism[A := A, B := Point].laws source topology homeomorphism).leftInverse;
+\definition rightInverse: \forall (y: Point) -> forward (backward y) = y := (topology.Homeomorphism[A := A, B := Point].laws source topology homeomorphism).rightInverse;
+\definition backwardContinuous: topology.Continuity[A := Point, B := A].Continuous topology source backward := (topology.Homeomorphism[A := A, B := Point].laws source topology homeomorphism).backwardContinuous;

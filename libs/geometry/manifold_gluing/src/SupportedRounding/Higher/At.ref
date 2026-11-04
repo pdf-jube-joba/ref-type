@@ -1,0 +1,25 @@
+\import Maps.Differential[U := FullOpen.whole, V := Open.whole, f := differenceMap, a := x] \as Inner;
+\import LineMaps.Differential[U := Open.whole, V := Open.whole, f := profileMap, a := Maps.apply FullOpen.whole Open.whole differenceMap x] \as Outer;
+\import Maps.Differential[U := FullOpen.whole, V := Open.whole, f := ProfileComposition.compose, a := x] \as Composite;
+\definition innerZero: Inner.value.apply direction = (\fun (i: One.Index) => S.zero) := \axiom:funext(Inner.value.apply direction, (\fun (i: One.Index) => S.zero), \fun (i: One.Index) => differenceDerivative x);
+\definition compositeZero: Composite.value.apply direction = (\fun (i: One.Index) => S.zero) := trans!{Model.Point} _ _ _
+  (congr!{{calculus.Vector[n := dimension, m := One.dimension].LinearMap} {Model.Point}} (\fun (f: calculus.Vector[n := dimension, m := One.dimension].LinearMap) => f.apply direction) _ _ (ProfileComposition.At[a := x].jacobian))
+  (trans!{Model.Point} _ _ _ (congr!{Model.Point Model.Point} Outer.value.apply _ _ innerZero) (Outer.value.preservesZero));
+\definition profileDerivative: D.value profile x direction = S.zero := congr!{Model.Point S.Real} (\fun (w: Model.Point) => w One.index) _ _ compositeZero;
+\definition transverse: D.value defining x direction = Plateau.two := trans!{S.Real} _ _ _ (Rules.addition sum (FullF.product (FullF.constant (S.neg S.one)) profile) x direction)
+  (trans!{S.Real} _ _ _ (congr!{S.Real S.Real S.Real} S.add _ _ _ _ (sumDerivative x)
+    (trans!{S.Real} _ _ _ (scaleDerivative (S.neg S.one) profile x) (trans!{S.Real} _ _ _ (congr!{S.Real S.Real} (S.mul (S.neg S.one)) _ _ profileDerivative) (Laws.fieldMulZeroRight (S.neg S.one))))) (Laws.addZeroRight Plateau.two));
+\definition differential: calculus.Vector[n := dimension, m := One.dimension].LinearMap := Maps.Differential[U := FullOpen.whole, V := Open.whole, f := function, a := x].value;
+\definition nonzero: Logic.Not (Plateau.two = S.zero) := S.Inverse[].positiveNonzero Plateau.two Plateau.twoPositive;
+\definition surjective: inverse_implicit.Product[n := First.dimension, m := One.dimension].Submersion[U := FullOpen.whole, f := function, a := x].Surjective := \block {
+  \fun (w: Model.Point) \then
+  \let scale: S.Real := S.mul (w One.index) (Laws.fieldInv Plateau.two) \then
+  \let answer: Fin.Fin dimension -> S.Real := Coordinates.scale scale direction \then
+  \return Logic.existsIntro[Fin.Fin dimension -> S.Real, { z: Fin.Fin dimension -> S.Real \where differential.apply z = w }] answer
+    (\axiom:funext(differential.apply answer, w, \fun (i: One.Index) => trans!{S.Real} _ _ _
+      (congr!{Model.Point S.Real} (\fun (v: Model.Point) => v i) _ _ (differential.preservesScale scale direction))
+      (trans!{S.Real} _ _ _ (congr!{S.Real S.Real} (S.mul scale) _ _ transverse)
+        (trans!{S.Real} _ _ _ (Laws.fieldMulAssoc (w One.index) (Laws.fieldInv Plateau.two) Plateau.two)
+          (trans!{S.Real} _ _ _ (congr!{S.Real S.Real} (S.mul (w One.index)) _ _ (Laws.fieldInverseNonzero Plateau.two nonzero))
+            (trans!{S.Real} _ _ _ (Algebra.mulOneRight (w One.index)) (congr!{One.Index S.Real} w _ _ (sym!{One.Index} _ _ (Fin.singletonValue i)))))))))
+};

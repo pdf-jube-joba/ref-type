@@ -1,0 +1,51 @@
+
+\import Source.At[x := point].InCharts[c := c, d := timeChart] \as ProductChart;
+\import Models.Chart[M := Source.Point, space := Source.topology] \as SourceCharts;
+\definition chart: Transport.OldChart := \into[SourceCharts.Chart](ProductChart.total, Source.manifold.atlas.charts) \by { SourceTangent.member ProductChart.total };
+\import Differential.At[x := point, c := chart, contains := SourceTangent.contains ProductChart.total, member := member chart] \as Actual;
+\import SourceTangent.ChartIsomorphism[chart := Actual.left] \as SourceCoordinates;
+\import Spaces.Linear[V := SourceTangent.Vector, W := Target.Vector, source := SourceTangent.space, target := Target.space].Composition[U := Reflection.Point, domain := Coordinates.space] \as Compose;
+\import Spaces.Linear[V := Reflection.Point, W := Target.Vector, source := Coordinates.space, target := Target.space] \as Frames;
+\import Frames.Composition[U := Reflection.Point, domain := Coordinates.space] \as Reflected;
+\definition positive: Frames.Map := Compose.compose D.value SourceCoordinates.backward;
+\definition negative: Frames.Map := Reflected.compose positive Reflection.linear;
+\definition frameCoordinates: \forall (v: Reflection.Point) -> positive.apply v = Target.Coordinate[chart := Actual.right].encode v := Actual.frame;
+\import Spaces.Multilinear[V := Target.Vector, space := Target.space] \as TargetMultilinear;
+\import TargetMultilinear.Alternating[] \as TargetAlternating;
+\import Alternating.Precomposition[W := Target.Vector, target := Target.space] \as Pullback;
+\definition Form: \Set := TargetAlternating.Form (Nat.add One.dimension n);
+\definition leftForm[omega: Form]: Alternating.Form (Nat.add One.dimension n) := Pullback.precompose (Nat.add One.dimension n) positive omega;
+\definition rightForm[omega: Form]: Alternating.Form (Nat.add One.dimension n) := Pullback.precompose (Nat.add One.dimension n) negative omega;
+\definition orientationSign: \forall (omega: Form)(arguments: Multilinear.Arguments (Nat.add One.dimension n)) -> rightForm omega arguments = S.neg (leftForm omega arguments) := \fun (omega: Form)(arguments: Multilinear.Arguments (Nat.add One.dimension n)) => Reflection.Orientation[].volumeSign (leftForm omega) arguments;
+\definition horizontal: \forall (v: Reflection.Point) -> v Reflection.normal = S.zero -> negative.apply v = positive.apply v := \fun (v: Reflection.Point)(zero: v Reflection.normal = S.zero) => congr!{{Reflection.Point} {Target.Vector}} positive.apply _ _ (Reflection.fixesZero v zero);
+\definition leftNormal: Target.Vector := positive.apply Reflection.Orientation[].normalVector;
+\definition rightNormal: Target.Vector := negative.apply Reflection.Orientation[].normalVector;
+\import Frames.Operations[] \as FrameLaws;
+\definition normalOpposite: rightNormal = Target.space.neg leftNormal := trans!{{Target.Vector}} _ _ _ (congr!{{Reflection.Point} {Target.Vector}} positive.apply _ _ Reflection.Orientation[].normalNegative) (FrameLaws.preservesNeg positive Reflection.Orientation[].normalVector);
+\import \root.BoundarySigns[n := n].On[V := Target.Vector, space := Target.space] \as Signs;
+\definition boundaryOpposite: \forall (omega: TargetAlternating.Form (Nats.Nat^::succ n))(arguments: TargetMultilinear.Arguments n) -> Signs.inward omega rightNormal arguments = S.neg (Signs.inward omega leftNormal arguments) := \fun (omega: TargetAlternating.Form (Nats.Nat^::succ n))(arguments: TargetMultilinear.Arguments n) => trans!{{S.Real}} _ _ _
+ (congr!{{Target.Vector} {S.Real}} (\fun (normal: Target.Vector) => Signs.inward omega normal arguments) _ _ normalOpposite) (Signs.normalOppositeValue omega leftNormal arguments);
+
+\definition CoordinateForm: \Set := Alternating.Form (Nat.add One.dimension n);
+\definition Arguments: \Set := Multilinear.Arguments (Nat.add One.dimension n);
+\definition BoundaryForm: \Set := TargetAlternating.Form (Nats.Nat^::succ n);
+\definition BoundaryOutputForm: \Set := TargetAlternating.Form n;
+\definition BoundaryArguments: \Set := TargetMultilinear.Arguments n;
+\import Alternating.At[k := Nat.add One.dimension n] \as CoordinateForms;
+\definition orientationCoherence: \forall (omega: Form) -> rightForm omega = CoordinateForms.scale (S.neg S.one) (leftForm omega) := \fun (omega: Form) => CoordinateForms.ext _ _ (\fun (arguments: Arguments) => trans!{{S.Real}} _ _ _ (orientationSign omega arguments)
+ (sym!{{S.Real}} _ _ (trans!{{S.Real}} _ _ _ (Laws.fieldMulNegLeft S.one (leftForm omega arguments)) (congr!{{S.Real} {S.Real}} S.neg _ _ (Laws.fieldMulOneLeft (leftForm omega arguments))))));
+\definition decodeArguments[arguments: TargetMultilinear.Arguments (Nat.add One.dimension n)]: Arguments := \fun (i: Fin.Fin (Nat.add One.dimension n)) => Target.Coordinate[chart := Actual.right].decode (arguments i);
+\definition recoverForm: \forall (omega: Form)(arguments: TargetMultilinear.Arguments (Nat.add One.dimension n)) -> leftForm omega (decodeArguments arguments) = omega arguments := \fun (omega: Form)(arguments: TargetMultilinear.Arguments (Nat.add One.dimension n)) => congr!{{TargetMultilinear.Arguments (Nat.add One.dimension n)} {S.Real}} omega _ _
+ (\axiom:funext((\fun (i: Fin.Fin (Nat.add One.dimension n)) => positive.apply (Target.Coordinate[chart := Actual.right].decode (arguments i))), arguments, \fun (i: Fin.Fin (Nat.add One.dimension n)) => trans!{{Target.Vector}} _ _ _ (frameCoordinates (Target.Coordinate[chart := Actual.right].decode (arguments i))) (Target.Coordinate[chart := Actual.right].encodeDecode (arguments i))));
+\definition leftBoundary[omega: BoundaryForm]: TargetAlternating.Form n := Signs.outward omega leftNormal;
+\definition rightBoundary[omega: BoundaryForm]: TargetAlternating.Form n := Signs.outward omega rightNormal;
+\import Spaces.Laws[V := Target.Vector, space := Target.space] \as VectorLaws;
+\definition doubleNegative: Target.space.neg (Target.space.neg leftNormal) = leftNormal := VectorLaws.cancelLeft (Target.space.neg leftNormal) _ _
+ (trans!{{Target.Vector}} _ _ _ (VectorLaws.comm (Target.space.neg leftNormal) (Target.space.neg (Target.space.neg leftNormal)))
+ (trans!{{Target.Vector}} _ _ _ (VectorLaws.inverseLeft (Target.space.neg leftNormal)) (sym!{{Target.Vector}} _ _ (VectorLaws.inverseLeft leftNormal))));
+\definition rightOutwardNormal: Target.space.neg rightNormal = leftNormal := trans!{{Target.Vector}} _ _ _ (congr!{{Target.Vector} {Target.Vector}} Target.space.neg _ _ normalOpposite) doubleNegative;
+\definition rightBoundaryValue: \forall (omega: BoundaryForm)(arguments: BoundaryArguments) -> rightBoundary omega arguments = Signs.inward omega leftNormal arguments := \fun (omega: BoundaryForm)(arguments: BoundaryArguments) => congr!{{Target.Vector} {S.Real}} (\fun (normal: Target.Vector) => Signs.inward omega normal arguments) _ _ rightOutwardNormal;
+\definition outwardOpposite: \forall (omega: BoundaryForm)(arguments: BoundaryArguments) -> rightBoundary omega arguments = S.neg (leftBoundary omega arguments) := \fun (omega: BoundaryForm)(arguments: BoundaryArguments) => trans!{{S.Real}} _ _ _ (rightBoundaryValue omega arguments)
+ (sym!{{S.Real}} _ _ (trans!{{S.Real}} _ _ _ (congr!{{S.Real} {S.Real}} S.neg _ _ (Signs.normalOppositeValue omega leftNormal arguments)) (Laws.negInvolutive (Signs.inward omega leftNormal arguments))));
+\definition boundaryCancellation: \forall (omega: BoundaryForm)(arguments: BoundaryArguments) -> S.add (leftBoundary omega arguments) (rightBoundary omega arguments) = S.zero := \fun (omega: BoundaryForm)(arguments: BoundaryArguments) => trans!{{S.Real}} _ _ _
+ (congr!{{S.Real} {S.Real}} (S.add (leftBoundary omega arguments)) _ _ (outwardOpposite omega arguments)) (Laws.addNegRight (leftBoundary omega arguments));

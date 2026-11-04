@@ -1,0 +1,51 @@
+\import boundary_manifolds.Interior[n := n].Of[M := M] \as Intrinsic;
+\import Intrinsic.Build[] \as IntrinsicManifold;
+\import boundary_manifolds.Boundaryless[n := n].Of[M := IntrinsicManifold.manifold] \as Converted;
+\import \root.InteriorInclusion[n := n].On[M := M] \as Interior;
+\import topology.Topology[Carrier := M.Point] \as Source;
+\import topology.Topology[Carrier := A] \as Target;
+\import topology.Maps[A := M.Point, B := A] \as Maps;
+\import \root.CompactEmbedding[A := M.Point, B := A].On[source := M.space, target := space, f := f, compact := compact, hausdorff := hausdorff, continuous := continuous, injective := injective] \as Embedding;
+\definition image: \Pow A := Maps.Image f Intrinsic.points;
+\definition Point: \Set := \Cast[A] image;
+\definition topology: topology.Structures[].Topology[Point] := Target.Subspace[S := image].topology space;
+\definition embeddingMember: \forall (y: Point) -> Target.Member Embedding.image y := \fun (y: Point) => Maps.imageElim f Intrinsic.points y (Target.Member Embedding.image y)
+  (\fun (p: M.Point)(member: Source.Member Intrinsic.points p)(same: f p = (y \of A)) => \idelim f p = (y \of A) \with a: A => Target.Member Embedding.image a \by {
+    base: Maps.imageMember f Source.Whole p (\refl(p)), equality: same
+  }) (\bysub(A, image, y));
+\definition range[y: Point]: Embedding.Point := \into[A](y, Embedding.image) \by { embeddingMember y };
+\definition base[y: Point]: M.Point := Embedding.backward (range y);
+\definition classValue: \forall (y: Point) -> f (base y) = (y \of A) := \fun (y: Point) => Embedding.rightInverse (range y);
+\definition intrinsicMember: \forall (y: Point) -> Source.Member Intrinsic.points (base y) := \fun (y: Point) => Maps.imageElim f Intrinsic.points y (Source.Member Intrinsic.points (base y))
+  (\fun (p: M.Point)(member: Source.Member Intrinsic.points p)(same: f p = (y \of A)) => \idelim p = base y \with q: M.Point => Source.Member Intrinsic.points q \by {
+    base: member, equality: sym!{{M.Point}} _ _ (injective (base y) p (trans!{A} _ _ _ (classValue y) (sym!{A} _ _ same)))
+  }) (\bysub(A, image, y));
+\definition intrinsic[y: Point]: Intrinsic.Point := \into[M.Point](base y, Intrinsic.points) \by { intrinsicMember y };
+\definition backward[y: Point]: Interior.manifold.Point := Converted.forward (intrinsic y);
+\definition forward[p: Interior.manifold.Point]: Point := \into[A](f (Interior.apply p), image) \by {
+  Maps.imageMember f Intrinsic.points (Interior.apply p) (\bysub(M.Point, Intrinsic.points, p))
+};
+\definition rightInverse: \forall (y: Point) -> forward (backward y) = y := \fun (y: Point) => boundary_manifolds.Refinement[A := A].equality image (forward (backward y)) y (classValue y);
+\definition leftInverse: \forall (p: Interior.manifold.Point) -> backward (forward p) = p := \fun (p: Interior.manifold.Point) =>
+  boundary_manifolds.Refinement[A := Intrinsic.Point].equality (topology.Topology[Carrier := Intrinsic.Point].Whole) (backward (forward p)) p
+    (boundary_manifolds.Refinement[A := M.Point].equality Intrinsic.points (backward (forward p)) p (injective (base (forward p)) (Interior.apply p) (classValue (forward p))));
+\definition forwardAmbient: topology.Continuity[A := Interior.manifold.Point, B := A].Continuous Interior.manifold.space space (\fun (p: Interior.manifold.Point) => forward p) :=
+  topology.Composition[A := Interior.manifold.Point, B := M.Point, C := A].composeContinuous Interior.manifold.space M.space space Interior.apply f Interior.continuous continuous;
+\definition forwardContinuous: topology.Continuity[A := Interior.manifold.Point, B := Point].Continuous Interior.manifold.space topology forward :=
+  topology.Continuity[A := Interior.manifold.Point, B := A].Corestriction[S := image].corestrictContinuous Interior.manifold.space space forward forwardAmbient;
+\definition rangeContinuous: topology.Continuity[A := Point, B := Embedding.Point].Continuous topology Embedding.topology range :=
+  topology.Continuity[A := Point, B := A].Corestriction[S := Embedding.image].corestrictContinuous topology space range
+    (topology.Continuity[A := Point, B := A].Corestriction[S := image].inclusionContinuous space);
+\definition baseContinuous: topology.Continuity[A := Point, B := M.Point].Continuous topology M.space base :=
+  topology.Composition[A := Point, B := Embedding.Point, C := M.Point].composeContinuous topology Embedding.topology M.space range Embedding.backward rangeContinuous Embedding.backwardContinuous;
+\definition intrinsicContinuous: topology.Continuity[A := Point, B := Intrinsic.Point].Continuous topology Intrinsic.topology intrinsic :=
+  topology.Continuity[A := Point, B := M.Point].Corestriction[S := Intrinsic.points].corestrictContinuous topology M.space intrinsic baseContinuous;
+\definition backwardContinuous: topology.Continuity[A := Point, B := Interior.manifold.Point].Continuous topology Interior.manifold.space backward :=
+  topology.Composition[A := Point, B := Intrinsic.Point, C := Interior.manifold.Point].composeContinuous topology Intrinsic.topology Interior.manifold.space intrinsic Converted.forward intrinsicContinuous
+    (topology.Homeomorphism[A := Intrinsic.Point, B := Interior.manifold.Point].laws Intrinsic.topology Interior.manifold.space Converted.comparison).forwardContinuous;
+\definition homeomorphism: topology.Homeomorphism[A := Interior.manifold.Point, B := Point].Homeomorphism[Interior.manifold.space, topology] :=
+  topology.Homeomorphism[A := Interior.manifold.Point, B := Point].Homeomorphism[Interior.manifold.space, topology] {
+    forward := forward, backward := backward, leftInverse := leftInverse, rightInverse := rightInverse,
+    forwardContinuous := forwardContinuous, backwardContinuous := backwardContinuous,
+  };
+\module Charts(open: Target.IsOpenIn space image);

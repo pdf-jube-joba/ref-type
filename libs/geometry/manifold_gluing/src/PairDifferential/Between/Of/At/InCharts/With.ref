@@ -1,0 +1,49 @@
+\import LocalPair.With[first := first, second := second] \as Pair;
+\import First.Using[e := first] \as FirstExtension;
+\import Second.Using[e := second] \as SecondExtension;
+\import Total.Using[e := Pair.extension] \as Extension;
+\import calculus.Maps[n := p, m := n] \as LeftCalculus;
+\import calculus.Maps[n := p, m := m] \as RightCalculus;
+\import calculus.Maps[n := p, m := Nat.add m n] \as Calculus;
+\import Linear.Pair[d := p, U := Pair.domain, f := Pair.firstMap, g := Pair.secondMap] \as Paired;
+\import Calculus.Differential[U := Pair.domain, V := Output.whole, f := Pair.extension.map, a := Extension.center] \as Actual;
+\import Calculus.Differential[U := Pair.domain, V := Output.whole, f := Paired.map, a := Extension.center] \as Expected;
+\definition same: Actual.value = Expected.value := Actual.Compare[W := Output.whole, g := Paired.map].equal
+  (\axiom:funext((\fun (u: Open.Carrier Pair.domain) => Calculus.apply Pair.domain Output.whole Pair.extension.map u),
+    (\fun (u: Open.Carrier Pair.domain) => Calculus.apply Pair.domain Output.whole Paired.map u), \fun (u: Open.Carrier Pair.domain) => \refl(Calculus.apply Pair.domain Output.whole Paired.map u)));
+\definition firstCenter: Open.inclusion Pair.domain first.neighborhood (Open.intersectionLeft first.neighborhood second.neighborhood) Extension.center = (FirstExtension.center \of Open.Carrier first.neighborhood) :=
+  boundary_manifolds.Refinement[A := Source.Point].equality first.neighborhood.points (Open.inclusion Pair.domain first.neighborhood (Open.intersectionLeft first.neighborhood second.neighborhood) Extension.center) FirstExtension.center (\refl(Domain.coordinate a \of Source.Point));
+\definition secondCenter: Open.inclusion Pair.domain second.neighborhood (Open.intersectionRight first.neighborhood second.neighborhood) Extension.center = (SecondExtension.center \of Open.Carrier second.neighborhood) :=
+  boundary_manifolds.Refinement[A := Source.Point].equality second.neighborhood.points (Open.inclusion Pair.domain second.neighborhood (Open.intersectionRight first.neighborhood second.neighborhood) Extension.center) SecondExtension.center (\refl(Domain.coordinate a \of Source.Point));
+\definition firstDerivative: LeftCalculus.Differential[U := Pair.domain, V := LeftOpen.whole, f := Pair.firstMap, a := Extension.center].value = FirstDerivative.jacobian :=
+  trans!{{calculus.Vector[n := p, m := n].LinearMap}} _ _ _
+    (LeftCalculus.Restriction[U := Pair.domain, V := first.neighborhood, W := LeftOpen.whole].differential (Open.intersectionLeft first.neighborhood second.neighborhood) first.map Extension.center)
+    (trans!{{calculus.Vector[n := p, m := n].LinearMap}} _ _ _
+      (congr!{{Open.Carrier first.neighborhood} {calculus.Vector[n := p, m := n].LinearMap}}
+        (\fun (u: Open.Carrier first.neighborhood) => LeftCalculus.Differential[U := first.neighborhood, V := LeftOpen.whole, f := first.map, a := u].value) _ _ firstCenter)
+      (sym!{{calculus.Vector[n := p, m := n].LinearMap}} _ _ (First.ofExtension FirstDerivative.smooth first)));
+\definition secondDerivative: RightCalculus.Differential[U := Pair.domain, V := RightOpen.whole, f := Pair.secondMap, a := Extension.center].value = SecondDerivative.jacobian :=
+  trans!{{calculus.Vector[n := p, m := m].LinearMap}} _ _ _
+    (RightCalculus.Restriction[U := Pair.domain, V := second.neighborhood, W := RightOpen.whole].differential (Open.intersectionRight first.neighborhood second.neighborhood) second.map Extension.center)
+    (trans!{{calculus.Vector[n := p, m := m].LinearMap}} _ _ _
+      (congr!{{Open.Carrier second.neighborhood} {calculus.Vector[n := p, m := m].LinearMap}}
+        (\fun (u: Open.Carrier second.neighborhood) => RightCalculus.Differential[U := second.neighborhood, V := RightOpen.whole, f := second.map, a := u].value) _ _ secondCenter)
+      (sym!{{calculus.Vector[n := p, m := m].LinearMap}} _ _ (Second.ofExtension SecondDerivative.smooth second)));
+\definition totalDerivative: Derivative.jacobian = Paired.At[a := Extension.center].candidate :=
+  trans!{{calculus.Vector[n := p, m := Nat.add m n].LinearMap}} _ _ _ (Total.ofExtension Derivative.smooth Pair.extension)
+    (trans!{{calculus.Vector[n := p, m := Nat.add m n].LinearMap}} _ _ _ same (Paired.At[a := Extension.center].jacobian));
+\definition law: \forall (v: Domain.Vector) -> Codomain.Coordinate[chart := TargetChart.total].decode (D.value.apply v) =
+  Blocks.join (LeftTangent.Coordinate[chart := c].decode (D1.value.apply v)) (RightTangent.Coordinate[chart := d].decode (D2.value.apply v)) :=
+  \fun (v: Domain.Vector) => trans!{Target.Point} _ _ _ (D.coordinates a TargetChart.total v)
+    (trans!{Target.Point} _ _ _
+      (congr!{{calculus.Vector[n := p, m := Nat.add m n].LinearMap} Target.Point}
+        (\fun (j: calculus.Vector[n := p, m := Nat.add m n].LinearMap) => j.apply (Domain.Coordinate[chart := a].decode v)) _ _ totalDerivative)
+      (congr!{Left.Point Right.Point Target.Point} Blocks.join _ _ _ _
+        (trans!{Left.Point} _ _ _
+          (congr!{{calculus.Vector[n := p, m := n].LinearMap} Left.Point}
+            (\fun (j: calculus.Vector[n := p, m := n].LinearMap) => j.apply (Domain.Coordinate[chart := a].decode v)) _ _ firstDerivative)
+          (sym!{Left.Point} _ _ (D1.coordinates a c v)))
+        (trans!{Right.Point} _ _ _
+          (congr!{{calculus.Vector[n := p, m := m].LinearMap} Right.Point}
+            (\fun (j: calculus.Vector[n := p, m := m].LinearMap) => j.apply (Domain.Coordinate[chart := a].decode v)) _ _ secondDerivative)
+          (sym!{Right.Point} _ _ (D2.coordinates a d v)))));

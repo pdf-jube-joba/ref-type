@@ -1,0 +1,21 @@
+\definition left: Destination.SourceChart x := first.left;
+\definition c: Product.LeftChart := \into[LeftCharts.Chart](first.right, M.atlas.charts) \by { FirstLocal.rightMember (f x) first.right };
+\definition d: Product.RightChart := \into[RightCharts.Chart](second.right, N.atlas.charts) \by { SecondLocal.rightMember (g x) second.right };
+\definition inLeft: LeftCharts.Contains c (f x) := FirstLocal.rightContains (f x) first.right;
+\definition inRight: RightCharts.Contains d (g x) := SecondLocal.rightContains (g x) second.right;
+\import Product.In[c := c, d := d] \as Patch;
+\definition right: Destination.TargetChart (apply x) := \into[Charts.Chart](Patch.chart, Destination.TargetChart (apply x)) \by {
+  Logic.And[_, _]::# (Logic.existsIntro[Product.Index, { i: Product.Index \where Patch.chart = Product.chart i }]
+    (Pair.pair Product.LeftChart Product.RightChart c d) (\refl(Patch.chart))) (Logic.And[_, _]::# inLeft inRight)
+};
+\import RightMaps.At[function := g, left := left, right := d, x := x, contains := Destination.leftContains x left] \as Last;
+\import SecondLocal.Change[x := x, left := left, right := d, contains := Destination.leftContains x left, containsImage := inRight, chosen := second] \as Adjust;
+\module With(q: Last.Extension) {
+  \import \root.LocalSmoothPair[n := n, m := m].Of[M := M, N := N].From[p := p].On[P := P].Using[f := f, g := g].In[
+    left := left, c := c, d := d, x := x, contains := Destination.leftContains x left, inLeft := inLeft, inRight := inRight].With[first := first.extension, second := q] \as Combined;
+  \definition witness: Destination.Witness[x] := Destination.Witness[x] { left := left, right := right, extension := Combined.extension };
+}
+\definition exists: \exists Destination.Witness[x] := \block {
+  \takefrom q: Last.Extension \by Adjust.existsExtension (Destination.leftMember x left) (\bysub(RightCharts.Chart, N.atlas.charts, d)) \then
+  \return \exact(With[q := q].witness, Destination.Witness[x])
+};

@@ -1,0 +1,15 @@
+\import boundary_manifolds.MapComposition[n := n, m := m, l := l].Between[M := M, N := N, P := P].Of[f := f.forward, g := g.forward] \as Forward;
+\import boundary_manifolds.MapComposition[n := l, m := m, l := n].Between[M := P, N := N, P := M].Of[f := g.backward, g := f.backward] \as Backward;
+\import boundary_manifolds.SmoothMap[n := n, m := m].Between[M := M, N := N] \as FirstForward;
+\import boundary_manifolds.SmoothMap[n := m, m := n].Between[M := N, N := M] \as FirstBackward;
+\import boundary_manifolds.SmoothMap[n := m, m := l].Between[M := N, N := P] \as SecondForward;
+\import boundary_manifolds.SmoothMap[n := l, m := m].Between[M := P, N := N] \as SecondBackward;
+\definition value: Result.Diffeomorphism := Result.Diffeomorphism {
+  forward := Forward.map, backward := Backward.map,
+  leftInverse := \fun (x: M.Point) => trans!{{M.Point}} _ _ _
+    (congr!{{N.Point} {M.Point}} (FirstBackward.apply f.backward) _ _ ((Second.laws g).leftInverse (FirstForward.apply f.forward x)))
+    ((First.laws f).leftInverse x),
+  rightInverse := \fun (x: P.Point) => trans!{{P.Point}} _ _ _
+    (congr!{{N.Point} {P.Point}} (SecondForward.apply g.forward) _ _ ((First.laws f).rightInverse (SecondBackward.apply g.backward x)))
+    ((Second.laws g).rightInverse x),
+};

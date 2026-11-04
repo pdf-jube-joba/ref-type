@@ -1,0 +1,45 @@
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Classical[] \as Classical;
+\import linear_algebra.Commutative[K := S.Real, scalarRing := std.Alg[].Field[].fieldAsCommutativeRing S.Real (S.Algebra[].field)] \as Spaces;
+\import Spaces.Coordinates[I := Fin.Fin dimension] \as Coordinates;
+\import Coordinates.Kronecker[] \as Kronecker;
+\import Spaces.FiniteCoordinates[n := dimension] \as Basis;
+\import Basis.Top[] \as Top;
+\import Spaces.Laws[V := Point, space := Coordinates.space] \as VectorLaws;
+\import Spaces.Multilinear[V := Point, space := Coordinates.space] \as Multilinear;
+\import Multilinear.Alternating[] \as Alternating;
+\import Multilinear.Properties[] \as Updates;
+\definition normalVector: Point := Basis.vectors normal;
+\definition horizontalZero: \forall (i: Fin.Fin n) -> Blocks.left normalVector i = S.zero :=
+  \fun (i: Fin.Fin n) => Kronecker.different normal (Indices.left i) (\fun (same: normal = Indices.left i) => Indices.different i One.index (sym!{{Fin.Fin dimension}} _ _ same));
+\definition normalNegative: flip normalVector = Coordinates.negative normalVector :=
+  trans!{Point} _ _ _ (congr!{{Fin.Fin n -> S.Real} Point} (\fun (v: Fin.Fin n -> S.Real) => Blocks.join v (\fun (i: One.Index) => S.neg (Blocks.right normalVector i))) _ _
+    (\axiom:funext(Blocks.left normalVector, Blocks.left (Coordinates.negative normalVector), \fun (i: Fin.Fin n) => trans!{S.Real} _ _ _ (horizontalZero i)
+      (trans!{S.Real} _ _ _ (sym!{S.Real} _ _ Laws.negZero) (sym!{S.Real} _ _ (congr!{S.Real S.Real} S.neg _ _ (horizontalZero i)))))))
+    (Blocks.recover (Coordinates.negative normalVector));
+\definition negativeNormal: Point := Coordinates.scale (S.neg S.one) normalVector;
+\definition normalScaled: flip normalVector = negativeNormal := trans!{Point} _ _ _ normalNegative
+  (sym!{Point} _ _ (VectorLaws.minusOneScale normalVector));
+\definition changed: Top.Arguments := Multilinear.update dimension Top.basisArguments normal negativeNormal;
+\definition transformed: Top.transformed linear Top.basisArguments = changed := \axiom:funext(Top.transformed linear Top.basisArguments, changed,
+  \fun (i: Fin.Fin dimension) => Logic.orElim (i = normal) (Logic.Not (i = normal)) (flip (Basis.vectors i) = changed i) (Classical.excludedMiddle (i = normal))
+    (\fun (same: i = normal) => \idelim normal = i \with j: Fin.Fin dimension => flip (Basis.vectors j) = changed j \by {
+      base: trans!{Point} _ _ _ normalScaled (sym!{Point} _ _ (Updates.updateSelf dimension Top.basisArguments normal negativeNormal)),
+      equality: sym!{{Fin.Fin dimension}} _ _ same
+    })
+    (\fun (different: Logic.Not (i = normal)) => trans!{Point} _ _ _ (fixesZero (Basis.vectors i) (Kronecker.different i normal different))
+      (sym!{Point} _ _ (Updates.updateOther dimension Top.basisArguments normal i negativeNormal (\fun (same: normal = i) => different (sym!{{Fin.Fin dimension}} _ _ same))))));
+\definition volumeLaws: Multilinear.Laws[dimension, Top.volume] := (\bysub(Multilinear.Function dimension, Alternating.Form dimension, Top.volume)).linear;
+\definition determinant: Top.determinant linear = S.neg S.one :=
+  trans!{S.Real} _ _ _ (congr!{{Top.Arguments} S.Real} Top.volume _ _ transformed)
+    (trans!{S.Real} _ _ _ (volumeLaws.scalar Top.basisArguments normal (S.neg S.one) normalVector)
+      (trans!{S.Real} _ _ _ (congr!{S.Real S.Real} (S.mul (S.neg S.one)) _ _ (congr!{{Top.Arguments} S.Real} Top.volume _ _ (Updates.updateSame dimension Top.basisArguments normal)))
+        (trans!{S.Real} _ _ _ (congr!{S.Real S.Real} (S.mul (S.neg S.one)) _ _ Top.normalized) (S.Algebra[].mulOneRight (S.neg S.one)))));
+\definition reverses: dedekind_reals.DedekindReal[].Lt (Top.determinant linear) S.zero :=
+  dedekind_reals.DedekindReal[].ltReplaceLeft (S.neg S.one) (Top.determinant linear) S.zero (sym!{S.Real} _ _ determinant)
+    (dedekind_reals.DedekindReal[].ltReplaceRight (S.neg S.one) (S.neg S.zero) S.zero Laws.negZero
+      (Laws.negStrictAntitone S.zero S.one S.Estimates[].Product[].onePositive));
+\definition volumeSign: \forall (omega: Top.Form)(arguments: Top.Arguments) -> omega (Top.transformed linear arguments) = S.neg (omega arguments) :=
+  \fun (omega: Top.Form)(arguments: Top.Arguments) => trans!{S.Real} _ _ _ (Top.action linear omega arguments)
+    (trans!{S.Real} _ _ _ (congr!{S.Real S.Real} (\fun (c: S.Real) => S.mul c (omega arguments)) _ _ determinant)
+      (trans!{S.Real} _ _ _ (Laws.fieldMulNegLeft S.one (omega arguments)) (congr!{S.Real S.Real} S.neg _ _ (Laws.fieldMulOneLeft (omega arguments)))));

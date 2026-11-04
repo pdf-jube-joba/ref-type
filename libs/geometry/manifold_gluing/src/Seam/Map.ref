@@ -1,0 +1,28 @@
+\import topological_constructions.Pushout[A := D, B := E, C := F].Of[u := s, v := t] \as Target;
+\import Pushout.Universal[D := Target.Carrier] \as Descent;
+\structure Laws: \Prop := {
+  left: \forall (c: C) -> left (u c) = s (seam c),
+  right: \forall (c: C) -> right (v c) = t (seam c),
+};
+\definition compatible: Laws -> Descent.Compatible (\fun (a: A) => Target.inl (left a)) (\fun (b: B) => Target.inr (right b)) :=
+  \fun (laws: Laws)(c: C) => trans!{{Target.Carrier}} _ _ _ (congr!{D {Target.Carrier}} Target.inl _ _ (laws.left c))
+    (trans!{{Target.Carrier}} _ _ _ (Target.glued (seam c)) (sym!{{Target.Carrier}} _ _ (congr!{E {Target.Carrier}} Target.inr _ _ (laws.right c))));
+\definition apply[laws: Laws]: Pushout.Carrier -> Target.Carrier :=
+  Descent.apply (\fun (a: A) => Target.inl (left a)) (\fun (b: B) => Target.inr (right b)) (compatible laws);
+\definition onLeft: \forall (laws: Laws)(a: A) -> apply laws (Pushout.inl a) = Target.inl (left a) :=
+  \fun (laws: Laws) => Descent.onLeft (\fun (a: A) => Target.inl (left a)) (\fun (b: B) => Target.inr (right b)) (compatible laws);
+\definition onRight: \forall (laws: Laws)(b: B) -> apply laws (Pushout.inr b) = Target.inr (right b) :=
+  \fun (laws: Laws) => Descent.onRight (\fun (a: A) => Target.inl (left a)) (\fun (b: B) => Target.inr (right b)) (compatible laws);
+\definition continuous: \forall (laws: Laws)
+  (sourceLeft: topology.Structures[].Topology[A])(sourceRight: topology.Structures[].Topology[B])
+  (targetLeft: topology.Structures[].Topology[D])(targetRight: topology.Structures[].Topology[E]) ->
+  topology.Continuity[A := A, B := D].Continuous sourceLeft targetLeft left ->
+  topology.Continuity[A := B, B := E].Continuous sourceRight targetRight right ->
+  topology.Continuity[A := Pushout.Carrier, B := Target.Carrier].Continuous (Pushout.topology sourceLeft sourceRight) (Target.topology targetLeft targetRight) (apply laws) :=
+  \fun (laws: Laws)(sourceLeft: _)(sourceRight: _)(targetLeft: _)(targetRight: _)(leftRegular: _)(rightRegular: _) =>
+    Descent.continuous sourceLeft sourceRight (Target.topology targetLeft targetRight)
+      (\fun (a: A) => Target.inl (left a)) (\fun (b: B) => Target.inr (right b)) (compatible laws)
+      (topology.Composition[A := A, B := D, C := Target.Carrier].composeContinuous sourceLeft targetLeft (Target.topology targetLeft targetRight)
+        left Target.inl leftRegular (Target.inlContinuous targetLeft targetRight))
+      (topology.Composition[A := B, B := E, C := Target.Carrier].composeContinuous sourceRight targetRight (Target.topology targetLeft targetRight)
+        right Target.inr rightRegular (Target.inrContinuous targetLeft targetRight));

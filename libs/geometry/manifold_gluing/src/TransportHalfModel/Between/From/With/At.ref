@@ -1,0 +1,19 @@
+
+\import \root.HalfModel[n := n].On[M := M].In[data := d] \as Local;
+\import Transport.In[c := d.chart] \as Patch;
+\definition old: Target.OldChart := \into[Charts.Chart](Patch.chart, N.atlas.charts) \by { chartMember d.chart };
+\definition data: Target.Data := Target.Data { chart := old, source := d.source, included := d.included, normal := d.normal, equivalent := d.equivalent };
+\import \root.ChartRestriction[n := n].On[M := N].Of[c := old].Within[U := d.source, included := d.included] \as Restriction;
+\definition local: Local.Point := \into[M.Point](h.backward y, Local.domain) \by { member };
+\definition original: Old.LocalPoint d.chart := Local.old local;
+\definition containsOld: Old.Contains d.chart (h.backward y) := \bysub(M.Point, d.chart.domain, original);
+\definition input: Old.LocalPoint d.chart := \into[M.Point](h.backward y, d.chart.domain) \by { containsOld };
+\definition inputEqual: input = original := boundary_manifolds.Refinement[A := M.Point].equality d.chart.domain input original (\refl(h.backward y));
+\definition originalInside: \In[Model.Point] d.source.points (Old.coordinate d.chart input) := \idelim original = input \with p: Old.LocalPoint d.chart => \In[Model.Point] d.source.points (Old.coordinate d.chart p) \by { base: Local.inside local, equality: sym!{{Old.LocalPoint d.chart}} _ _ inputEqual };
+\definition point: Charts.LocalPoint Patch.chart := Patch.lift (h.backward y) containsOld;
+\definition coordinateEqual: Patch.coordinate point = Old.coordinate d.chart input := Patch.coordinateLift (h.backward y) containsOld;
+\definition inside: \In[Model.Point] d.source.points (Patch.coordinate point) := \idelim Old.coordinate d.chart input = Patch.coordinate point \with u: Model.Carrier d.chart.constraints d.chart.image => \In[Model.Point] d.source.points u \by { base: originalInside, equality: sym!{{Model.Carrier d.chart.constraints d.chart.image}} _ _ coordinateEqual };
+\definition contains: Target.Contains data y := \idelim Transport.value (h.backward y) = (y \of N.Point) \with p: N.Point => Target.Contains data p \by {
+ base: Restriction.containsFrom point inside, equality: Transport.laws.rightInverse y
+};
+\definition exists: \exists (d: Target.Data \where Target.Contains d y) := Logic.existsIntro[Target.Data, { d: Target.Data \where Target.Contains d y }] data contains;

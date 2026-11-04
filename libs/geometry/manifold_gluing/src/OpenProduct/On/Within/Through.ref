@@ -1,0 +1,39 @@
+\definition source: topology.Structures[].Topology[Source.CarrierSet] := Source.topology first second;
+\definition Point: \Set := Image.CarrierSet;
+\definition topology: topology.Structures[].Topology[Point] := Image.topology (Target.topology left right);
+\definition leftPoint[p: Point]: L.CarrierSet := \into[A](Pair.first A B p, U) \by { (\bysub(Target.CarrierSet, image, p)).left };
+\definition rightPoint[p: Point]: R.CarrierSet := \into[B](Pair.second A B p, V) \by { (\bysub(Target.CarrierSet, image, p)).right };
+\definition forward[p: Source.CarrierSet]: Point := \into[Target.CarrierSet](Pair.pair A B (h.forward (Pair.first X Y p)) (k.forward (Pair.second X Y p)), image) \by {
+  Logic.And[_, _]::# (\bysub(A, U, h.forward (Pair.first X Y p))) (\bysub(B, V, k.forward (Pair.second X Y p)))
+};
+\definition backward[p: Point]: Source.CarrierSet := Pair.pair X Y (h.backward (leftPoint p)) (k.backward (rightPoint p));
+\definition leftCoordinates: \forall (p: Source.CarrierSet) -> leftPoint (forward p) = h.forward (Pair.first X Y p) := \fun (p: Source.CarrierSet) => boundary_manifolds.Refinement[A := A].equality U (leftPoint (forward p)) (h.forward (Pair.first X Y p)) (\refl(h.forward (Pair.first X Y p) \of A));
+\definition rightCoordinates: \forall (p: Source.CarrierSet) -> rightPoint (forward p) = k.forward (Pair.second X Y p) := \fun (p: Source.CarrierSet) => boundary_manifolds.Refinement[A := B].equality V (rightPoint (forward p)) (k.forward (Pair.second X Y p)) (\refl(k.forward (Pair.second X Y p) \of B));
+\definition leftInverse: \forall (p: Source.CarrierSet) -> backward (forward p) = p := \fun (p: Source.CarrierSet) => Pair.Prop[A := X, B := Y].ext (backward (forward p)) p
+  (trans!{X} _ _ _ (congr!{{L.CarrierSet} X} h.backward _ _ (leftCoordinates p)) (h.leftInverse (Pair.first X Y p)))
+  (trans!{Y} _ _ _ (congr!{{R.CarrierSet} Y} k.backward _ _ (rightCoordinates p)) (k.leftInverse (Pair.second X Y p)));
+\definition rightInverse: \forall (p: Point) -> forward (backward p) = p := \fun (p: Point) => boundary_manifolds.Refinement[A := Target.CarrierSet].equality image (forward (backward p)) p
+  (Pair.Prop[A := A, B := B].ext (forward (backward p)) p
+    (congr!{{L.CarrierSet} A} (\fun (a: L.CarrierSet) => a) _ _ (h.rightInverse (leftPoint p)))
+    (congr!{{R.CarrierSet} B} (\fun (b: R.CarrierSet) => b) _ _ (k.rightInverse (rightPoint p))));
+\definition firstForwardContinuous: topology.Continuity[A := X, B := A].Continuous first left (\fun (x: X) => h.forward x) :=
+  topology.Composition[A := X, B := L.CarrierSet, C := A].composeContinuous first (L.topology left) left h.forward (\fun (x: L.CarrierSet) => x) h.forwardContinuous (topology.Continuity[A := L.CarrierSet, B := A].Corestriction[S := U].inclusionContinuous left);
+\definition secondForwardContinuous: topology.Continuity[A := Y, B := B].Continuous second right (\fun (y: Y) => k.forward y) :=
+  topology.Composition[A := Y, B := R.CarrierSet, C := B].composeContinuous second (R.topology right) right k.forward (\fun (y: R.CarrierSet) => y) k.forwardContinuous (topology.Continuity[A := R.CarrierSet, B := B].Corestriction[S := V].inclusionContinuous right);
+\definition firstContinuous: topology.Continuity[A := Source.CarrierSet, B := A].Continuous source left (\fun (p: Source.CarrierSet) => h.forward (Pair.first X Y p)) :=
+  topology.Composition[A := Source.CarrierSet, B := X, C := A].composeContinuous source first left (Pair.first X Y) (\fun (x: X) => h.forward x) (Source.Maps[].firstContinuous first second) firstForwardContinuous;
+\definition secondContinuous: topology.Continuity[A := Source.CarrierSet, B := B].Continuous source right (\fun (p: Source.CarrierSet) => k.forward (Pair.second X Y p)) :=
+  topology.Composition[A := Source.CarrierSet, B := Y, C := B].composeContinuous source second right (Pair.second X Y) (\fun (y: Y) => k.forward y) (Source.Maps[].secondContinuous first second) secondForwardContinuous;
+\definition forwardContinuous: topology.Continuity[A := Source.CarrierSet, B := Point].Continuous source topology forward :=
+  topology.Continuity[A := Source.CarrierSet, B := Target.CarrierSet].Corestriction[S := image].corestrictContinuous source (Target.topology left right) forward
+    (Target.Universal[X := Source.CarrierSet].pairContinuous source left right (\fun (p: Source.CarrierSet) => h.forward (Pair.first X Y p)) (\fun (p: Source.CarrierSet) => k.forward (Pair.second X Y p)) firstContinuous secondContinuous);
+\definition leftAmbientContinuous: topology.Continuity[A := Point, B := A].Continuous topology left (\fun (p: Point) => leftPoint p) := topology.Continuity[A := Target.CarrierSet, B := A].Restriction[S := image].restrictContinuous (Target.topology left right) left (Pair.first A B) (Target.Maps[].firstContinuous left right);
+\definition rightAmbientContinuous: topology.Continuity[A := Point, B := B].Continuous topology right (\fun (p: Point) => rightPoint p) := topology.Continuity[A := Target.CarrierSet, B := B].Restriction[S := image].restrictContinuous (Target.topology left right) right (Pair.second A B) (Target.Maps[].secondContinuous left right);
+\definition leftContinuous: topology.Continuity[A := Point, B := L.CarrierSet].Continuous topology (L.topology left) leftPoint := topology.Continuity[A := Point, B := A].Corestriction[S := U].corestrictContinuous topology left leftPoint leftAmbientContinuous;
+\definition rightContinuous: topology.Continuity[A := Point, B := R.CarrierSet].Continuous topology (R.topology right) rightPoint := topology.Continuity[A := Point, B := B].Corestriction[S := V].corestrictContinuous topology right rightPoint rightAmbientContinuous;
+\definition firstBackwardContinuous: topology.Continuity[A := Point, B := X].Continuous topology first (\fun (p: Point) => h.backward (leftPoint p)) := topology.Composition[A := Point, B := L.CarrierSet, C := X].composeContinuous topology (L.topology left) first leftPoint h.backward leftContinuous h.backwardContinuous;
+\definition secondBackwardContinuous: topology.Continuity[A := Point, B := Y].Continuous topology second (\fun (p: Point) => k.backward (rightPoint p)) := topology.Composition[A := Point, B := R.CarrierSet, C := Y].composeContinuous topology (R.topology right) second rightPoint k.backward rightContinuous k.backwardContinuous;
+\definition backwardContinuous: topology.Continuity[A := Point, B := Source.CarrierSet].Continuous topology source backward := Source.Universal[X := Point].pairContinuous topology first second (\fun (p: Point) => h.backward (leftPoint p)) (\fun (p: Point) => k.backward (rightPoint p)) firstBackwardContinuous secondBackwardContinuous;
+\definition homeomorphism: topology.Homeomorphism[A := Source.CarrierSet, B := Point].Homeomorphism[source, topology] := topology.Homeomorphism[A := Source.CarrierSet, B := Point].Homeomorphism[source, topology] {
+  forward := forward, backward := backward, leftInverse := leftInverse, rightInverse := rightInverse, forwardContinuous := forwardContinuous, backwardContinuous := backwardContinuous,
+};

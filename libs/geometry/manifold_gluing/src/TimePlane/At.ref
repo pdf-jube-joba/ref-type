@@ -1,0 +1,36 @@
+\import \root.PositiveScale[].At[q := q, positive := positive] \as Normalize;
+\import Open.Smooth[].Algebra[U := Standard.image] \as F;
+\import boundary_manifolds.Differentiation[n := Nat.add One.dimension One.dimension].On[U := Standard.image] \as D;
+\definition first: F.Function := F.product (F.constant Normalize.inverse) (D.projection (SourceIndices.left One.index));
+\definition second: F.Function := F.product (F.constant Normalize.inverse) (D.projection (SourceIndices.right One.index));
+\definition function: Calculus.Map Standard.image Output.whole := Calculus.Map[Standard.image, Output.whole] {
+  apply := \fun (x: Open.Carrier Standard.image) => \into[TargetModel.Point](Plane.point (first x) (second x), Output.whole.points) \by { \refl(Plane.point (first x) (second x)) },
+  smooth := \fun (i: TargetModel.Coordinate) => (\induction (j: TargetIndices.Index) \return Open.Smooth[].SmoothOn Standard.image (\fun (x: Open.Carrier Standard.image) => Tuples.evaluate (\fun (i: Fin.Fin First.dimension) => first x) (\fun (i: One.Index) => second x) j) \with {
+    | inl: \fun (j: Fin.Fin First.dimension) => \bysub(Open.ScalarFunction Standard.image, F.Predicate, first)
+    | inr: \fun (j: One.Index) => \bysub(Open.ScalarFunction Standard.image, F.Predicate, second)
+  }) (TargetIndices.split i),
+};
+\definition firstNonnegative: \forall (x: Source.Point) -> R.Le S.zero (first x) := \fun (x: Source.Point) => Normalize.nonnegative (x (SourceIndices.left One.index))
+  ((Products.nonnegativeLeft Time.constraints Time.constraints x (\bysub(Open.Carrier Standard.image, Model.region Standard.C Standard.image, x))) One.index (\refl(One.index)));
+\definition secondNonnegative: \forall (x: Source.Point) -> R.Le S.zero (second x) := \fun (x: Source.Point) => Normalize.nonnegative (x (SourceIndices.right One.index))
+  ((Products.nonnegativeRight Time.constraints Time.constraints x (\bysub(Open.Carrier Standard.image, Model.region Standard.C Standard.image, x))) One.index (\refl(One.index)));
+\definition nonnegative: \forall (x: Source.Point) -> TargetModel.Nonnegative Quarter.constraints (Calculus.apply Standard.image Output.whole function x) :=
+  \fun (x: Source.Point)(i: TargetModel.Coordinate)(member: Logic.Or[i = Round.firstNormal, i = Round.secondNormal]) => Logic.orElim (i = Round.firstNormal) (i = Round.secondNormal)
+    (R.Le S.zero (Plane.point (first x) (second x) i)) member
+      (\fun (same: i = Round.firstNormal) => \idelim Round.firstNormal = i \with j: TargetModel.Coordinate => R.Le S.zero (Plane.point (first x) (second x) j) \by {
+        base: R.leReplaceRight S.zero (first x) (Plane.point (first x) (second x) Round.firstNormal) (sym!{S.Real} _ _ (Plane.first (first x) (second x))) (firstNonnegative x), equality: sym!{{TargetModel.Coordinate}} i Round.firstNormal same
+      })
+      (\fun (same: i = Round.secondNormal) => \idelim Round.secondNormal = i \with j: TargetModel.Coordinate => R.Le S.zero (Plane.point (first x) (second x) j) \by {
+        base: R.leReplaceRight S.zero (second x) (Plane.point (first x) (second x) Round.secondNormal) (sym!{S.Real} _ _ (Plane.second (first x) (second x))) (secondNonnegative x), equality: sym!{{TargetModel.Coordinate}} i Round.secondNormal same
+      });
+\import \root.QuadrantMap[n := Nat.add One.dimension One.dimension, m := Round.dimension].On[C := Standard.C, D := Quarter.constraints, U := Standard.image, V := Output.whole, f := function, nonnegative := nonnegative] \as QuarterMap;
+\import boundary_manifolds.Dimension[n := Round.dimension].Quadrant[C := Quarter.constraints, U := Output.whole] \as Target;
+\definition map: boundary_manifolds.SmoothMap[n := Nat.add One.dimension One.dimension, m := Round.dimension].Between[M := Product.manifold, N := Target.manifold].Map :=
+  boundary_manifolds.MapComposition[n := Nat.add One.dimension One.dimension, m := Nat.add One.dimension One.dimension, l := Round.dimension].Between[M := Product.manifold, N := Source.manifold, P := Target.manifold].Of[f := Chart.forwardMap, g := QuarterMap.map].map;
+\import boundary_manifolds.SmoothMap[n := Nat.add One.dimension One.dimension, m := Round.dimension].Between[M := Product.manifold, N := Target.manifold] \as Maps;
+\definition firstCoordinate: \forall (x: Product.Point) -> first (Chart.forward x) = Normalize.value (Time.value (Product.first x)) := \fun (x: Product.Point) =>
+  congr!{S.Real S.Real} (S.mul Normalize.inverse) _ _ (congr!{{One.Index -> S.Real} S.Real} (\fun (p: One.Index -> S.Real) => p One.index) _ _ (Blocks.leftJoin (Product.first x) (Product.second x)));
+\definition secondCoordinate: \forall (x: Product.Point) -> second (Chart.forward x) = Normalize.value (Time.value (Product.second x)) := \fun (x: Product.Point) =>
+  congr!{S.Real S.Real} (S.mul Normalize.inverse) _ _ (congr!{{One.Index -> S.Real} S.Real} (\fun (p: One.Index -> S.Real) => p One.index) _ _ (Blocks.rightJoin (Product.first x) (Product.second x)));
+\definition formula: \forall (x: Product.Point) -> (Maps.apply map x \of TargetModel.Point) = Plane.point (Normalize.value (Time.value (Product.first x))) (Normalize.value (Time.value (Product.second x))) := \fun (x: Product.Point) =>
+  congr!{S.Real S.Real {TargetModel.Point}} Plane.point _ _ _ _ (firstCoordinate x) (secondCoordinate x);

@@ -1,0 +1,32 @@
+\definition domain: Open.OpenSet := Open.intersection neighborhood.domain e.neighborhood;
+\definition included: Open.Included domain c.image := \fun (u: Model.Point)(member: _) => neighborhood.included u member.left;
+\definition input[u: Model.Carrier c.constraints domain]: Model.Carrier c.constraints c.image :=
+  \into[Open.Carrier c.image](Open.inclusion domain c.image included u, Model.region c.constraints c.image) \by { \bysub(Open.Carrier domain, Model.region c.constraints domain, u) };
+\definition actual[u: Model.Carrier c.constraints domain]: M.Point := LeftCharts.point c (input u);
+\definition localInput[u: Model.Carrier c.constraints domain]: Model.Carrier c.constraints neighborhood.domain :=
+  \into[Open.Carrier neighborhood.domain](Open.inclusion domain neighborhood.domain (Open.intersectionLeft neighborhood.domain e.neighborhood) u,
+    Model.region c.constraints neighborhood.domain) \by { \bysub(Open.Carrier domain, Model.region c.constraints domain, u) };
+\definition oldInput[u: Model.Carrier c.constraints domain]: Model.Carrier c.constraints e.neighborhood :=
+  \into[Open.Carrier e.neighborhood](Open.inclusion domain e.neighborhood (Open.intersectionRight neighborhood.domain e.neighborhood) u,
+    Model.region c.constraints e.neighborhood) \by { \bysub(Open.Carrier domain, Model.region c.constraints domain, u) };
+\definition equal: \forall (u: Model.Carrier c.constraints domain) -> (k.forward (f (actual u)) \of A) = (h.forward (actual u) \of A) :=
+  \fun (u: Model.Carrier c.constraints domain) => agrees (actual u) (neighborhood.within (localInput u));
+\definition inside: \forall (u: Model.Carrier c.constraints domain) -> Charts.Contains Right.chart (Charts.point Left.chart (input u)) :=
+  \fun (u: Model.Carrier c.constraints domain) => \idelim (k.forward (f (actual u)) \of A) = (Charts.point Left.chart (input u) \of A)
+    \with y: A => Charts.Contains Right.chart y \by { base: Right.inDomain (f (actual u)) (e.inside (oldInput u)), equality: equal u };
+\definition target[u: Model.Carrier c.constraints domain]: Charts.LocalPoint Right.chart := \into[A](Charts.point Left.chart (input u), Right.chart.domain) \by { inside u };
+\definition targetEqual: \forall (u: Model.Carrier c.constraints domain) -> Right.lift (f (actual u)) (e.inside (oldInput u)) = target u :=
+  \fun (u: Model.Carrier c.constraints domain) => boundary_manifolds.Refinement[A := A].equality Right.domain (Right.lift (f (actual u)) (e.inside (oldInput u))) (target u) (equal u);
+\import Calculus.Restriction[U := domain, V := e.neighborhood, W := Open.whole] \as Restriction;
+\definition contains: \In[Model.Point] domain.points New.source := \idelim (center \of Model.Point) = (New.source \of Model.Point)
+  \with u: Model.Point => \In[Model.Point] domain.points u \by {
+    base: Logic.And[_, _]::# neighborhood.contains e.contains,
+    equality: congr!{{Model.Carrier c.constraints c.image} {Model.Point}} (\fun (u: Model.Carrier c.constraints c.image) => u) _ _ (sym!{{Model.Carrier c.constraints c.image}} _ _ sourceEqual)
+  };
+\definition extension: New.Extension := New.Extension {
+  neighborhood := domain, included := included, contains := contains,
+  map := Restriction.input (Open.intersectionRight neighborhood.domain e.neighborhood) e.map, inside := inside,
+  agrees := \fun (u: Model.Carrier c.constraints domain) => trans!{Model.Point} _ _ _ (e.agrees (oldInput u))
+    (trans!{Model.Point} _ _ _ (sym!{Model.Point} _ _ (Right.coordinateLift (f (actual u)) (e.inside (oldInput u))))
+      (congr!{{Charts.LocalPoint Right.chart} {Model.Point}} (\fun (p: Charts.LocalPoint Right.chart) => Charts.coordinate Right.chart p) _ _ (targetEqual u))),
+};

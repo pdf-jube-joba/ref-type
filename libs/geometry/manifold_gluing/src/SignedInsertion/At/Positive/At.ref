@@ -1,0 +1,22 @@
+\definition left: Locality.SourceChart t := \into[SourceCharts.Chart](Time.chart, Locality.SourceChart t) \by { Logic.And[_, _]::# Time.chartMember (\refl(t \of Time.Point)) };
+\definition right: Locality.TargetChart (function t) := \into[TargetCharts.Chart](Construction.chart, Locality.TargetChart (function t)) \by {
+  Logic.And[_, _]::# (\refl(Construction.chart)) (\refl(function t))
+};
+\import Maps.At[function := function, left := left, right := right, x := (t \of Time.Point), contains := Locality.leftContains t left] \as Local;
+\import calculus.Maps[n := One.dimension, m := One.dimension] \as Calculus;
+\definition identity: Calculus.Map neighborhood Open.whole := Calculus.Map[neighborhood, Open.whole] {
+  apply := \fun (u: Open.Carrier neighborhood) => \into[Model.Point](u, Open.whole.points) \by { \refl(u \of Model.Point) },
+  smooth := \fun (i: One.Index) => Open.Examples[].projectionSmooth neighborhood i,
+};
+\definition value: \forall (u: Model.Carrier Time.constraints neighborhood) -> (function (original u) \of Model.Point) = (u \of Model.Point) :=
+  \fun (u: Model.Carrier Time.constraints neighborhood) => trans!{Model.Point} _ _ _
+    (congr!{{Signed.Point} {Model.Point}} (\fun (z: Signed.Point) => z) _ _ (inside (smallInput u)))
+    (Signed.rawEquality (Small.positive (smallInput u)) u (\refl(u One.index)));
+\definition extension: Local.Extension := Local.Extension {
+  neighborhood := neighborhood, included := included,
+  contains := Logic.And[_, _]::# (\bysub(Model.Point, Time.domain.points, t)) (\bysub(Time.Point, Small.points, t)),
+  map := identity,
+  inside := \fun (u: Model.Carrier Time.constraints neighborhood) => \refl(function (original u)),
+  agrees := \fun (u: Model.Carrier Time.constraints neighborhood) => sym!{Model.Point} _ _ (value u),
+};
+\definition witness: Locality.Witness[t] := Locality.Witness[t] { left := left, right := right, extension := extension };

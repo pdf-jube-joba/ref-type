@@ -1,0 +1,54 @@
+\definition anchor: Open.Carrier U := Open.inclusion neighborhood U inclusion u;
+\definition t: S.Real := u normal;
+\definition output: S.Real := Maps.apply U Open.whole f anchor normal;
+\import Open.Analysis[].Section[U := U, f := component, a := anchor, i := normal] \as Section;
+\import \root.SectionIncreasing[n := dimension].On[U := U, f := component, g := partial, a := anchor, i := normal, partial := Partials.partialLaw U component normal] \as Increasing;
+\import inverse_implicit.Euclidean[n := One.dimension] \as Time;
+\definition time: TimeOpen.Carrier Rectangle.values := \into[TimePoint](Blocks.right u, Rectangle.values.points) \by {
+  (\bysub(Point, neighborhood.points, u)).right
+};
+\definition timeNear: R.Lt (TimeCoordinates.pointDistance (Blocks.right u) (Blocks.right a)) Rectangle.radius := Time.ofBall (Blocks.right a) Rectangle.radius time;
+\definition scalarNear: R.Lt (S.distance t S.zero) Rectangle.radius :=
+  R.ltReplaceLeft (S.distance t (a normal)) (S.distance t S.zero) Rectangle.radius (congr!{S.Real S.Real} (S.distance t) _ _ zeroNormal)
+    (R.leLtTrans _ _ _ (TimeNorm.coordinateDistance (Blocks.right u) (Blocks.right a) One.index) timeNear);
+\definition curveDistance: \forall (s: S.Real) -> R.Le (Metric.min S.zero t) s -> R.Le s (Metric.max S.zero t) -> R.Lt (TimeCoordinates.pointDistance (Normal.constant s) (Blocks.right a)) Rectangle.radius :=
+  \fun (s: S.Real)(lower: _)(upper: _) => R.ltReplaceLeft (S.distance s S.zero) (TimeCoordinates.pointDistance (Normal.constant s) (Blocks.right a)) Rectangle.radius
+    (sym!{S.Real} _ _ (trans!{S.Real} _ _ _
+      (congr!{TimePoint S.Real} (TimeCoordinates.pointDistance (Normal.constant s)) _ _ Jet.rightZero) (Normal.constantDistance s S.zero)))
+    (R.leLtTrans _ _ _ (Estimates.betweenDistance S.zero t s lower upper) scalarNear);
+\definition curveInside: \forall (s: S.Real) -> R.Le (Metric.min S.zero t) s -> R.Le s (Metric.max S.zero t) -> \In[Point] neighborhood.points (Coordinates.replace anchor normal s) :=
+  \fun (s: S.Real)(lower: _)(upper: _) => Logic.And[_, _]::#
+    (\idelim (Blocks.left u \of LeftPoint) = Blocks.left (Coordinates.replace anchor normal s) \with p: LeftPoint => \In[LeftPoint] Rectangle.parameters.points p \by {
+      base: (\bysub(Point, neighborhood.points, u)).left, equality: sym!{LeftPoint} _ _ (Normal.replaceLeft anchor s)
+    })
+    (\idelim Normal.constant s = Blocks.right (Coordinates.replace anchor normal s) \with p: TimePoint => \In[TimePoint] Rectangle.values.points p \by {
+      base: Time.inBall (Blocks.right a) (Normal.constant s) Rectangle.radius (curveDistance s lower upper), equality: sym!{TimePoint} _ _ (Normal.replaceRight anchor s)
+    });
+\definition sample[s: S.Real][lower: R.Le (Metric.min S.zero t) s][upper: R.Le s (Metric.max S.zero t)]: Open.Carrier neighborhood :=
+  \into[Point](Coordinates.replace anchor normal s, neighborhood.points) \by { curveInside s lower upper };
+\definition zeroPoint: Open.Carrier neighborhood := sample S.zero (Metric.minLeft S.zero t) (Metric.maxLeft S.zero t);
+\definition zeroInput: Open.Carrier U := Open.inclusion neighborhood U inclusion zeroPoint;
+\definition zeroValue: Section.value S.zero = S.zero := trans!{S.Real} _ _ _ (Section.agreement S.zero zeroInput (\refl(Coordinates.replace anchor normal S.zero)))
+  (trans!{S.Real} _ _ _
+    (congr!{Point S.Real} (\fun (x: Point) => x normal) _ _ (fixed zeroInput (calculus.Real[].Multivariable[n := dimension].Space[].Prop[].replaceSame anchor normal S.zero)))
+    (calculus.Real[].Multivariable[n := dimension].Space[].Prop[].replaceSame anchor normal S.zero));
+\definition timeValue: Section.value t = output := Section.center;
+\module Positive(positive: R.Lt S.zero t);
+\module Negative(negative: R.Lt t S.zero);
+\definition vanishesLeft: t = S.zero -> output = S.zero := \fun (zero: _) => trans!{S.Real} _ _ _
+  (congr!{Point S.Real} (\fun (x: Point) => x normal) _ _ (fixed anchor zero)) zero;
+\definition strictlyPositive[nonnegative: R.Le S.zero t][nonzero: Logic.Not (t = S.zero)]: R.Lt S.zero t :=
+  Order.ltOfLeNotEq S.zero t nonnegative (\fun (same: S.zero = t) => nonzero (sym!{S.Real} S.zero t same));
+\definition nonnegativeLeft: R.Le S.zero t -> R.Le S.zero output := \fun (nonnegative: _) =>
+  Logic.orElim (t = S.zero) (Logic.Not (t = S.zero)) (R.Le S.zero output) (Classical.excludedMiddle (t = S.zero))
+    (\fun (zero: _) => R.leReplaceRight S.zero S.zero output (sym!{S.Real} _ _ (vanishesLeft zero)) (R.leRefl S.zero))
+    (\fun (nonzero: _) => Order.leOfLt S.zero output (Positive[positive := strictlyPositive nonnegative nonzero].result));
+\definition nonnegativeRight: R.Le S.zero output -> R.Le S.zero t := \fun (nonnegative: _) => Order.leOfNotLtReverse S.zero t
+  (\fun (negative: R.Lt t S.zero) => R.ltNotLeReverse output S.zero Negative[negative := negative].result nonnegative);
+\definition zeroNonnegative[zero: output = S.zero]: R.Le S.zero output := R.leReplaceRight S.zero S.zero output (sym!{S.Real} output S.zero zero) (R.leRefl S.zero);
+\definition positiveForZero[zero: output = S.zero][nonzero: Logic.Not (t = S.zero)]: R.Lt S.zero t := strictlyPositive (nonnegativeRight (zeroNonnegative zero)) nonzero;
+\definition vanishesRight: output = S.zero -> t = S.zero := \fun (zero: _) => Order.byContradiction (t = S.zero) (\fun (nonzero: _) =>
+  R.ltNotLeReverse S.zero output Positive[positive := positiveForZero zero nonzero].result
+    (R.leReplaceLeft S.zero output S.zero (sym!{S.Real} output S.zero zero) (R.leRefl S.zero)));
+\definition nonnegative: Logic.PropEquiv[R.Le S.zero t, R.Le S.zero output] := Logic.PropEquiv[_, _] { ltr := nonnegativeLeft, rtl := nonnegativeRight };
+\definition vanishes: Logic.PropEquiv[t = S.zero, output = S.zero] := Logic.PropEquiv[_, _] { ltr := vanishesLeft, rtl := vanishesRight };

@@ -1,0 +1,20 @@
+\import SeamTransport.In[c := c] \as From;
+\import RightTransport.In[c := d] \as To;
+\definition start: From.Point := \into[Gluing.Point](y, From.domain) \by { first };
+\definition finish: To.Point := \into[Gluing.Point](y, To.domain) \by { second };
+\definition s: Source.Point := backward (From.range start);
+\definition a: RightInside.manifold.Point := To.old finish;
+\definition sourceValue: apply s = y := rightValue (From.range start);
+\definition targetValue: Gluing.inr a = y := RightPatch.classValue (To.range finish);
+\definition sideEqual: apply s = Gluing.inr a := trans!{{Gluing.Point}} _ _ _ sourceValue (sym!{{Gluing.Point}} _ _ targetValue);
+\import Sides.Right[p := s, a := (a \of N.Point), interior := \bysub(N.Point, RightInterior.points, a),
+  same := sideEqual] \as Side;
+\import \parent.\parent.RightTransition[s := s, strict := Side.strict] \as Transition;
+\import \root.LocalSmoothMap[n := Nat.add One.dimension n, m := Nat.add One.dimension n].Between[M := Source.manifold, N := RightInside.manifold].Of[function := Transition.function] \as Local;
+\import \root.ChartCross[n := Nat.add One.dimension n].Between[M := Source.manifold, N := RightInside.manifold].Into[
+  A := Gluing.Point, space := Gluing.topology, U := image, V := RightPatch.image, openU := open, openV := Interiors.rightOpen, h := homeomorphism, k := RightPatch.homeomorphism].Along[
+  f := Transition.function, x := s, W := Transition.W, openW := Transition.openW, inW := Side.strict, agrees := Transition.classValue] \as Cross;
+\definition exists: \exists Charts.At[x := y, left := Seam.chart c, right := Interiors.rightChart d, inLeft := first].Extension := \block {
+  \takefrom chosen: Local.Witness[s] \by Transition.exists \then
+  \return Cross.Across[c := c, d := d, y := y, same := sourceValue, inLeft := first, inRight := second, chosen := chosen].exists
+};

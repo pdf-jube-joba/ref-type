@@ -1,0 +1,24 @@
+\definition chart: \Cast[Charts.Chart] M.atlas.charts := \into[Charts.Chart](c, M.atlas.charts) \by { Atlas.member c };
+\import \root.InitialJet[n := Nat.add One.dimension n].On[M := M].Of[h := h].In[x := x, c := chart, contains := contains] \as Jet;
+\import \root.HomotopyVelocity[n := Nat.add One.dimension n].On[M := M].Of[h := h].At[x := x] \as Velocity;
+\import Velocity.In[c := chart, contains := contains] \as Coordinates;
+\import boundary_manifolds.Tangent[n := Nat.add One.dimension n].On[M := M].At[x := x] \as Tangent;
+\import \root.HalfChartBoundary[n := n].On[M := M].In[c := c] \as Criterion;
+\definition point: Charts.LocalPoint c := \into[M.Point](x, c.domain) \by { contains };
+\definition active: Model.Active c.constraints (Tangent.coordinate Coordinates.targetChart) Boundary.normal := Logic.And[_, _]::# Criterion.At[p := point].normalSelected
+  (Criterion.normalZero point (\bysub(M.Point, Atlas.points, x)));
+\definition coefficient: S.Real := Jet.velocity Boundary.normal;
+\definition coordinate: Tangent.Coordinate[chart := Coordinates.targetChart].decode Velocity.value Boundary.normal = coefficient :=
+  congr!{Model.Point S.Real} (\fun (v: Model.Point) => v Boundary.normal) _ _ Coordinates.coordinates;
+\definition nonnegative: R.Le S.zero coefficient := R.leReplaceRight S.zero _ _ coordinate (Velocity.inward Coordinates.targetChart Boundary.normal active);
+\definition notZero[strict: Transverse.StrictAt h x]: Logic.Not (coefficient = S.zero) := \fun (zero: _) => strict
+  (Tangent.Cones[].Lineality[c := Coordinates.targetChart, v := Velocity.value].toIntrinsic
+    (\fun (i: Model.Coordinate)(selected: Model.Active c.constraints (Tangent.coordinate Coordinates.targetChart) i) =>
+      \idelim Boundary.normal = i \with j: Model.Coordinate => Tangent.Coordinate[chart := Coordinates.targetChart].decode Velocity.value j = S.zero \by {
+        base: trans!{S.Real} _ _ _ coordinate zero,
+        equality: sym!{Model.Coordinate} _ _ (\idelim c.constraints = Model.halfSpace Boundary.normal \with C: Model.Constraints => \In[Model.Coordinate] C i \by {
+          base: selected.left, equality: Atlas.constraints c
+        })
+      }));
+\definition positive[strict: Transverse.StrictAt h x]: R.Lt S.zero coefficient := Order.ltOfLeNotEq S.zero coefficient nonnegative
+  (\fun (same: S.zero = coefficient) => notZero strict (sym!{S.Real} S.zero coefficient same));

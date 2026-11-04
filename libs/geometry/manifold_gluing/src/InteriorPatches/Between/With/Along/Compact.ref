@@ -1,0 +1,55 @@
+\import Gluing.Compact[leftCompact := leftCompact, rightCompact := rightCompact] \as Properties;
+\import topology.Topology[Carrier := Gluing.Point] \as Target;
+\import \root.InteriorEmbedding[n := Nat.add One.dimension n].On[M := M, A := Gluing.Point, space := Gluing.topology, f := Gluing.inl,
+  compact := leftCompact, hausdorff := Properties.hausdorff, continuous := Gluing.inlContinuous, injective := Gluing.leftInjective] \as Left;
+\import \root.InteriorEmbedding[n := Nat.add One.dimension n].On[M := N, A := Gluing.Point, space := Gluing.topology, f := Gluing.inr,
+  compact := rightCompact, hausdorff := Properties.hausdorff, continuous := Gluing.inrContinuous, injective := Gluing.rightInjective] \as Right;
+\import boundary_manifolds.Interior[n := Nat.add One.dimension n].Of[M := M] \as LeftInterior;
+\import boundary_manifolds.Interior[n := Nat.add One.dimension n].Of[M := N] \as RightInterior;
+\definition leftInteriorOpen: LeftSpace.IsOpenIn M.space LeftInterior.points := \root.Boundary[n := Nat.add One.dimension n].On[M := M].closed;
+\definition rightInteriorOpen: RightSpace.IsOpenIn N.space RightInterior.points := \root.Boundary[n := Nat.add One.dimension n].On[M := N].closed;
+\definition leftMatched: \forall (b: LeftBoundary.manifold.Point) -> Logic.PropEquiv[LeftSpace.Member LeftInterior.points (Gluing.left b), RightSpace.Member RightSpace.Empty (Gluing.right b)] :=
+  \fun (b: LeftBoundary.manifold.Point) => Logic.PropEquiv[_, _] {
+    ltr := \fun (interior: _) => interior (\bysub(M.Point, LeftAtlas.points, b)),
+    rtl := \fun (empty: Logic.False) => Logic.falseElim _ empty,
+  };
+\definition rightMatched: \forall (b: LeftBoundary.manifold.Point) -> Logic.PropEquiv[LeftSpace.Member LeftSpace.Empty (Gluing.left b), RightSpace.Member RightInterior.points (Gluing.right b)] :=
+  \fun (b: LeftBoundary.manifold.Point) => Logic.PropEquiv[_, _] {
+    ltr := \fun (empty: Logic.False) => Logic.falseElim _ empty,
+    rtl := \fun (interior: _) => interior (\bysub(N.Point, RightAtlas.points, BoundaryMaps.apply d.forward b)),
+  };
+\import \root.SeamOpen[A := M.Point, B := N.Point, C := LeftBoundary.manifold.Point, u := Gluing.left, v := Gluing.right].On[
+  left := M.space, right := N.space, injections := Gluing.injections] \as OpenSets;
+\import OpenSets.Pair[U := LeftInterior.points, V := RightSpace.Empty, openU := leftInteriorOpen, openV := (RightSpace.topologyLaws N.space).emptyOpen, matched := leftMatched] \as LeftOpen;
+\import OpenSets.Pair[U := LeftSpace.Empty, V := RightInterior.points, openU := (LeftSpace.topologyLaws M.space).emptyOpen, openV := rightInteriorOpen, matched := rightMatched] \as RightOpen;
+\import topology.Maps[A := M.Point, B := Gluing.Point] \as LeftMaps;
+\import topology.Maps[A := N.Point, B := Gluing.Point] \as RightMaps;
+\definition leftEmpty: \forall (y: Gluing.Point) -> Target.Member (LeftMaps.Image Gluing.inl LeftSpace.Empty) y -> Logic.False := \fun (y: Gluing.Point)(member: _) =>
+  LeftMaps.imageElim Gluing.inl LeftSpace.Empty y Logic.False (\fun (p: M.Point)(empty: Logic.False)(same: Gluing.inl p = y) => empty) member;
+\definition rightEmpty: \forall (y: Gluing.Point) -> Target.Member (RightMaps.Image Gluing.inr RightSpace.Empty) y -> Logic.False := \fun (y: Gluing.Point)(member: _) =>
+  RightMaps.imageElim Gluing.inr RightSpace.Empty y Logic.False (\fun (p: N.Point)(empty: Logic.False)(same: Gluing.inr p = y) => empty) member;
+\definition leftEquals: LeftOpen.image = Left.image := \axiom:setext(LeftOpen.image, Left.image,
+  (\fun (y: Gluing.Point)(member: Target.Member LeftOpen.image y) => Logic.orElim (Target.Member Left.image y) (Target.Member (RightMaps.Image Gluing.inr RightSpace.Empty) y) (Target.Member Left.image y) member
+    (\fun (inside: _) => inside) (\fun (empty: _) => Logic.falseElim (Target.Member Left.image y) (rightEmpty y empty))),
+  (\fun (y: Gluing.Point)(member: Target.Member Left.image y) => Logic.Or[_, _]::left member));
+\definition rightEquals: RightOpen.image = Right.image := \axiom:setext(RightOpen.image, Right.image,
+  (\fun (y: Gluing.Point)(member: Target.Member RightOpen.image y) => Logic.orElim (Target.Member (LeftMaps.Image Gluing.inl LeftSpace.Empty) y) (Target.Member Right.image y) (Target.Member Right.image y) member
+    (\fun (empty: _) => Logic.falseElim (Target.Member Right.image y) (leftEmpty y empty)) (\fun (inside: _) => inside)),
+  (\fun (y: Gluing.Point)(member: Target.Member Right.image y) => Logic.Or[_, _]::right member));
+\definition leftOpen: Target.IsOpenIn Gluing.topology Left.image := \idelim LeftOpen.image = Left.image \with U: \Pow Gluing.Point => Target.IsOpenIn Gluing.topology U \by { base: LeftOpen.open, equality: leftEquals };
+\definition rightOpen: Target.IsOpenIn Gluing.topology Right.image := \idelim RightOpen.image = Right.image \with U: \Pow Gluing.Point => Target.IsOpenIn Gluing.topology U \by { base: RightOpen.open, equality: rightEquals };
+\import Left.Charts[open := leftOpen] \as LeftCharts;
+\import Right.Charts[open := rightOpen] \as RightCharts;
+\definition LeftIndex: \Set := LeftCharts.Index;
+\definition RightIndex: \Set := RightCharts.Index;
+\import Models.Chart[M := Gluing.Point, space := Gluing.topology] \as Charts;
+\definition leftImage: \Pow Gluing.Point := Left.image;
+\definition rightImage: \Pow Gluing.Point := Right.image;
+\definition leftChart[c: LeftIndex]: Charts.Chart := LeftCharts.chart c;
+\definition rightChart[c: RightIndex]: Charts.Chart := RightCharts.chart c;
+\definition leftCovers: \forall (y: Left.Point) -> \exists (c: LeftIndex \where Charts.Contains (leftChart c) y) := LeftCharts.covers;
+\definition rightCovers: \forall (y: Right.Point) -> \exists (c: RightIndex \where Charts.Contains (rightChart c) y) := RightCharts.covers;
+\definition leftCompatible: \forall (c, d: LeftIndex)(y: Gluing.Point)(first: Charts.Contains (leftChart c) y)(second: Charts.Contains (leftChart d) y) ->
+  \exists Charts.At[x := y, left := leftChart c, right := leftChart d, inLeft := first].Extension := LeftCharts.compatible;
+\definition rightCompatible: \forall (c, d: RightIndex)(y: Gluing.Point)(first: Charts.Contains (rightChart c) y)(second: Charts.Contains (rightChart d) y) ->
+  \exists Charts.At[x := y, left := rightChart c, right := rightChart d, inLeft := first].Extension := RightCharts.compatible;

@@ -1,0 +1,17 @@
+\import \root.ProductDifferential[n := n, m := m].Of[M := M, N := N].At[x := x] \as Domain;
+\import \root.ProductDifferential[n := p, m := q].Of[M := P, N := Q].At[x := Maps.apply ProductMap.map x] \as Codomain;
+\import boundary_manifolds.Tangent[n := n].On[M := M].At[x := Source.first x] \as Left;
+\import boundary_manifolds.Tangent[n := m].On[M := N].At[x := Source.second x] \as Right;
+\import boundary_manifolds.Tangent[n := p].On[M := P].At[x := LeftMaps.apply f (Source.first x)] \as LeftImage;
+\import boundary_manifolds.Tangent[n := q].On[M := Q].At[x := RightMaps.apply g (Source.second x)] \as RightImage;
+\import boundary_manifolds.Differential[n := n, m := p].Between[M := M, N := P].At[f := f, x := Source.first x] \as D1;
+\import boundary_manifolds.Differential[n := m, m := q].Between[M := N, N := Q].At[f := g, x := Source.second x] \as D2;
+\import boundary_manifolds.Differential[n := Nat.add m n, m := Nat.add q p].Between[M := Source.manifold, N := Target.manifold].At[f := ProductMap.map, x := x] \as D;
+\import \root.SmoothChainRule[n := Nat.add m n, m := n, l := p].Between[M := Source.manifold, N := M, P := P].Of[f := Projections.First[].map, g := f] \as First;
+\import \root.SmoothChainRule[n := Nat.add m n, m := m, l := q].Between[M := Source.manifold, N := N, P := Q].Of[f := Projections.Second[].map, g := g] \as Second;
+\import \root.PairDifferential[p := Nat.add m n, n := p, m := q].Between[P := Source.manifold, M := P, N := Q].Of[f := ProductMap.first, g := ProductMap.second] \as Pair;
+\import boundary_manifolds.Tangent[n := Nat.add q p].On[M := Target.manifold].At[x := Maps.apply ProductMap.map x] \as TargetTangent;
+\definition law: \forall (u: Left.Vector)(v: Right.Vector) -> D.value.apply (Domain.pair u v) = Codomain.pair (D1.value.apply u) (D2.value.apply v) := \fun (u: Left.Vector)(v: Right.Vector) => trans!{{TargetTangent.Vector}} _ _ _ (Pair.At[x := x].law (Domain.pair u v))
+  (congr!{{LeftImage.Vector} {RightImage.Vector} {TargetTangent.Vector}} Codomain.pair _ _ _ _
+    (trans!{{LeftImage.Vector}} _ _ _ (First.At[x := x].pointwise (Domain.pair u v)) (congr!{{Left.Vector} {LeftImage.Vector}} D1.value.apply _ _ (Domain.firstPair u v)))
+    (trans!{{RightImage.Vector}} _ _ _ (Second.At[x := x].pointwise (Domain.pair u v)) (congr!{{Right.Vector} {RightImage.Vector}} D2.value.apply _ _ (Domain.secondPair u v))));

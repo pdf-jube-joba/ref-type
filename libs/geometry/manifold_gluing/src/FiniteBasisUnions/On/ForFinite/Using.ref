@@ -1,0 +1,16 @@
+\definition n: N.Nat^ := Lists.length (\Pow A) xs;
+\definition sets: Fin.Fin n -> \Pow A := FromList.tuple xs;
+\definition enumeration: Enumeration.Enumerates[F, xs] := \bysub(Lists.List[\Pow A], Enumeration.Enumeration[F], xs);
+\definition membership: \forall (i: Fin.Fin n) -> Space.FamilyMember F (sets i) := \fun (i: Fin.Fin n) => enumeration.included (sets i) (ListIndex.member xs i);
+\definition choices: \exists (f: Fin.Fin n -> N.Nat^ \where \forall (i: Fin.Fin n) -> basis (f i) = sets i) :=
+  Fin.Choice[A := N.Nat^].exists n (\fun (i: Fin.Fin n)(k: N.Nat^) => basis k = sets i)
+    (\block {
+      \fun (i: Fin.Fin n) \then
+      \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where sets i = basis k }) \by included (sets i) (membership i) \then
+      \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where basis k = sets i }] k (sym!{{\Pow A}} _ _ (\bysub(N.Nat^, { k: N.Nat^ \where sets i = basis k }, k)))
+    });
+\module With(f: Fin.Fin n -> N.Nat^, agrees: \forall (i: Fin.Fin n) -> basis (f i) = sets i);
+\definition exists: \exists (k: N.Nat^ \where sequence k = Space.Union F) := \block {
+  \takefrom f: \Cast[Fin.Fin n -> N.Nat^] ({ f: Fin.Fin n -> N.Nat^ \where \forall (i: Fin.Fin n) -> basis (f i) = sets i }) \by choices \then
+  \return With[f := f, agrees := \bysub(Fin.Fin n -> N.Nat^, { f: Fin.Fin n -> N.Nat^ \where \forall (i: Fin.Fin n) -> basis (f i) = sets i }, f)].exists
+};

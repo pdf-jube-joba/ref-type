@@ -1,0 +1,79 @@
+\import Local.Using[e := e] \as Extension;
+\import calculus.Blocks[n := n, m := One.dimension] \as Blocks;
+\import inverse_implicit.Product[n := n, m := One.dimension] \as Linear;
+\import calculus.LinearMap[n := n, m := Nat.add One.dimension n].On[U := Open.whole, L := Linear.horizontal] \as Horizontal;
+\import calculus.Maps[n := n, m := Nat.add One.dimension n] \as Inputs;
+\import calculus.Maps[n := n, m := n] \as Outputs;
+\import Inputs.Preimage[U := Open.whole, W := Input.whole, V := e.neighborhood, f := Horizontal.map] \as Preimage;
+\definition domain: Open.OpenSet := Open.intersection c.image Preimage.domain;
+\definition included: Open.Included domain c.image := Open.intersectionLeft c.image Preimage.domain;
+\definition preimageIncluded: Open.Included domain Preimage.domain := Open.intersectionRight c.image Preimage.domain;
+\definition point: Charts.LocalPoint c := \into[M.Point](x, c.domain) \by { contains };
+\definition a: Model.Carrier c.constraints c.image := Charts.coordinate c point;
+\definition inputFormula: (Local.source \of Source.Point) = Linear.horizontal.apply a := \refl(Local.source \of Source.Point);
+\definition preimageContains: \In[Model.Point] Preimage.domain.points a := Preimage.intro (\into[Model.Point](a, Open.whole.points) \by { \refl(a) })
+  (\idelim (Local.source \of Source.Point) = Linear.horizontal.apply a \with z: Source.Point => \In[Source.Point] e.neighborhood.points z \by {
+    base: e.contains, equality: inputFormula
+  });
+\definition centerPoint: Model.Carrier c.constraints domain := \into[Open.Carrier domain](\into[Model.Point](a, domain.points) \by {
+  Logic.And[_, _]::# (\bysub(Model.Point, c.image.points, a)) preimageContains
+}, Model.region c.constraints domain) \by { \bysub(Open.Carrier c.image, Model.region c.constraints c.image, a) };
+\definition spatial[u: Model.Carrier c.constraints domain]: Model.Carrier c.constraints c.image :=
+  \into[Open.Carrier c.image](Open.inclusion domain c.image included u, Model.region c.constraints c.image) \by { \bysub(Open.Carrier domain, Model.region c.constraints domain, u) };
+\definition raw[u: Model.Carrier c.constraints domain]: Open.Carrier Preimage.domain := Open.inclusion domain Preimage.domain preimageIncluded u;
+\definition slice[u: Model.Carrier c.constraints domain]: Source.Carrier Patch.C e.neighborhood :=
+  \into[Input.Carrier e.neighborhood](Preimage.output (raw u), Source.region Patch.C e.neighborhood) \by {
+    Products.nonnegativeJoin c.constraints Time.chart.constraints u Time.zero
+      (\bysub(Open.Carrier domain, Model.region c.constraints domain, u))
+      (\bysub(calculus.Real[].Multivariable[n := One.dimension].Open[].Carrier Time.domain,
+        boundary_manifolds.Model[n := One.dimension].region Time.chart.constraints Time.domain, Time.zero))
+  };
+\definition original[u: Model.Carrier c.constraints domain]: Source.Carrier Patch.C Patch.image :=
+  \into[Input.Carrier Patch.image](Input.inclusion e.neighborhood Patch.image e.included (slice u), Source.region Patch.C Patch.image) \by {
+    \bysub(Input.Carrier e.neighborhood, Source.region Patch.C e.neighborhood, slice u)
+  };
+\definition leftCoordinate: \forall (u: Model.Carrier c.constraints domain) -> Patch.leftCoordinate (original u) = spatial u :=
+  \fun (u: Model.Carrier c.constraints domain) => Model.equality c.constraints c.image (Patch.leftCoordinate (original u)) (spatial u) (Blocks.leftJoin u Time.zero);
+\definition rightCoordinate: \forall (u: Model.Carrier c.constraints domain) -> Patch.rightCoordinate (original u) = Time.zero :=
+  \fun (u: Model.Carrier c.constraints domain) => boundary_manifolds.Model[n := One.dimension].equality Time.chart.constraints Time.domain (Patch.rightCoordinate (original u)) Time.zero (Blocks.rightJoin u Time.zero);
+\definition slicePoint: \forall (u: Model.Carrier c.constraints domain) -> SourceCharts.point Patch.chart (original u) = Pair.pair M.Point Time.Point (Charts.point c (spatial u)) Time.zero :=
+  \fun (u: Model.Carrier c.constraints domain) => congr!{M.Point Time.Point {Product.Point}} (Pair.pair M.Point Time.Point) _ _ _ _
+    (congr!{{Model.Carrier c.constraints c.image} M.Point} (\fun (v: Model.Carrier c.constraints c.image) => Charts.point c v) _ _ (leftCoordinate u)) (rightCoordinate u);
+\definition valuePoint: \forall (u: Model.Carrier c.constraints domain) -> Maps.apply h.map (SourceCharts.point Patch.chart (original u)) = (Charts.point c (spatial u) \of M.Point) :=
+  \fun (u: Model.Carrier c.constraints domain) => trans!{M.Point} _ _ _ (congr!{{Product.Point} M.Point} (Maps.apply h.map) _ _ (slicePoint u)) (h.initial (Charts.point c (spatial u)));
+\import Charts.Total[c := c] \as Total;
+\definition agrees: \forall (u: Model.Carrier c.constraints domain) -> (calculus.Maps[n := Nat.add One.dimension n, m := n].apply e.neighborhood Open.whole e.map (slice u) \of Model.Point) = (u \of Model.Point) :=
+  \fun (u: Model.Carrier c.constraints domain) => trans!{Model.Point} _ _ _ (e.agrees (slice u))
+    (trans!{Model.Point} _ _ _
+      (sym!{Model.Point} _ _ (Total.coordinateInside (\into[M.Point](Maps.apply h.map (SourceCharts.point Patch.chart (original u)), c.domain) \by { e.inside (slice u) })))
+      (trans!{Model.Point} _ _ _ (congr!{M.Point Model.Point} Total.coordinate _ _ (valuePoint u))
+        (trans!{Model.Point} _ _ _ (Total.coordinateInside (Charts.point c (spatial u))) (Charts.coordinatePoint c (spatial u)))));
+\import Inputs.Composition[U := Preimage.domain, V := e.neighborhood, f := Preimage.map].After[l := n, W := Open.whole, g := e.map] \as Composition;
+\definition map: Outputs.Map domain Open.whole := Outputs.Restriction[U := domain, V := Preimage.domain, W := Open.whole].input preimageIncluded Composition.compose;
+\import calculus.LinearMap[n := n, m := n].On[U := domain, L := calculus.Identity[n := n].linear] \as Identity;
+\definition identityDerivative: Outputs.Differential[U := domain, V := Open.whole, f := map, a := centerPoint].value = calculus.Identity[n := n].linear :=
+  trans!{{calculus.Vector[n := n, m := n].LinearMap}} _ _ _
+    (boundary_manifolds.Extensions[n := n, m := n].At[C := c.constraints, U := domain, f := map, g := Identity.map, a := centerPoint].unique agrees)
+    (Identity.differential centerPoint);
+\import calculus.Maps[n := Nat.add One.dimension n, m := n] \as AmbientMaps;
+\import Outputs.Differential[U := domain, V := Open.whole, f := map, a := centerPoint] \as RestrictedDerivative;
+\import Outputs.Differential[U := Preimage.domain, V := Open.whole, f := Composition.compose, a := raw centerPoint] \as CompositeDerivative;
+\import AmbientMaps.Differential[U := e.neighborhood, V := Open.whole, f := e.map, a := Preimage.output (raw centerPoint)] \as OuterDerivative;
+\import Inputs.Differential[U := Preimage.domain, V := e.neighborhood, f := Preimage.map, a := raw centerPoint] \as InnerDerivative;
+\definition inner: InnerDerivative.value = Linear.horizontal := trans!{{calculus.Vector[n := n, m := Nat.add One.dimension n].LinearMap}} _ _ _
+  (Preimage.differential (raw centerPoint)) (Horizontal.differential (Preimage.input (raw centerPoint)));
+\definition centerEquals: Preimage.output (raw centerPoint) = (Extension.center \of Input.Carrier e.neighborhood) :=
+  boundary_manifolds.Refinement[A := Source.Point].equality e.neighborhood.points (Preimage.output (raw centerPoint)) Extension.center (sym!{Source.Point} _ _ inputFormula);
+\definition outer: OuterDerivative.value = Extension.jacobian := congr!{{Input.Carrier e.neighborhood} {calculus.Vector[n := Nat.add One.dimension n, m := n].LinearMap}}
+  (\fun (p: Input.Carrier e.neighborhood) => AmbientMaps.Differential[U := e.neighborhood, V := Open.whole, f := e.map, a := p].value) _ _ centerEquals;
+\definition compositeValue: \forall (v: Model.Point) -> CompositeDerivative.value.apply v = Extension.jacobian.apply (Linear.horizontal.apply v) :=
+  \fun (v: Model.Point) => trans!{Model.Point} _ _ _
+    (congr!{{calculus.Vector[n := n, m := n].LinearMap} Model.Point} (\fun (d: calculus.Vector[n := n, m := n].LinearMap) => d.apply v) _ _ (Composition.At[a := raw centerPoint].jacobian))
+    (congr!{{calculus.Vector[n := Nat.add One.dimension n, m := n].LinearMap} {calculus.Vector[n := n, m := Nat.add One.dimension n].LinearMap} Model.Point}
+      (\fun (d: calculus.Vector[n := Nat.add One.dimension n, m := n].LinearMap)(j: calculus.Vector[n := n, m := Nat.add One.dimension n].LinearMap) => d.apply (j.apply v)) _ _ _ _ outer inner);
+\definition spatialIdentity: \forall (v: Model.Point) -> Extension.jacobian.apply (Linear.horizontal.apply v) = v :=
+  \fun (v: Model.Point) => trans!{Model.Point} _ _ _ (sym!{Model.Point} _ _ (compositeValue v))
+    (trans!{Model.Point} _ _ _
+      (congr!{{calculus.Vector[n := n, m := n].LinearMap} Model.Point} (\fun (d: calculus.Vector[n := n, m := n].LinearMap) => d.apply v) _ _
+        (sym!{{calculus.Vector[n := n, m := n].LinearMap}} _ _ (Outputs.Restriction[U := domain, V := Preimage.domain, W := Open.whole].differential preimageIncluded Composition.compose centerPoint)))
+      (congr!{{calculus.Vector[n := n, m := n].LinearMap} Model.Point} (\fun (d: calculus.Vector[n := n, m := n].LinearMap) => d.apply v) _ _ identityDerivative));

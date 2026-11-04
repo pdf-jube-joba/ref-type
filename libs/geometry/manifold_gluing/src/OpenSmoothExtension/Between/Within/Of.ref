@@ -1,0 +1,16 @@
+\import std.Set[].Extension[A := M.Point, B := N.Point, domain := U] \as Extend;
+\definition function[x: M.Point]: N.Point := Extend.extend (LocalMaps.apply f) (GlobalMaps.apply g x) x;
+\definition inside: \forall (x: Source.Point) -> function x = LocalMaps.apply f x := \fun (x: Source.Point) => Extend.inside (LocalMaps.apply f) (GlobalMaps.apply g x) x;
+\definition outside: \forall (x: M.Point) -> Logic.Not (Space.Member U x) -> function x = GlobalMaps.apply g x := \fun (x: M.Point)(missing: Logic.Not (Space.Member U x)) => Extend.outside (LocalMaps.apply f) (GlobalMaps.apply g x) x missing;
+\definition unchanged: \forall (x: M.Point) -> Logic.Not (Space.Member K x) -> function x = GlobalMaps.apply g x := \fun (x: M.Point)(missing: Logic.Not (Space.Member K x)) => Logic.orElim (Space.Member U x) (Logic.Not (Space.Member U x)) (function x = GlobalMaps.apply g x)
+  (Classical.excludedMiddle (Space.Member U x))
+  (\fun (member: Space.Member U x) => trans!{{N.Point}} _ _ _ (inside (\into[M.Point](x, U) \by { member })) (agrees (\into[M.Point](x, U) \by { member }) missing))
+  (\fun (member: Logic.Not (Space.Member U x)) => outside x member);
+\module Continuity;
+\import \root.LocalSmoothMap[n := n, m := m].Between[M := M, N := N].Of[function := function] \as Local;
+\module In(x: Source.Point);
+\module Outside(x: M.Point, missing: Logic.Not (Space.Member K x));
+\definition local: \forall (x: M.Point) -> \exists Local.Witness[x] := \fun (x: M.Point) => Logic.orElim (Space.Member U x) (Logic.Not (Space.Member U x)) (\exists Local.Witness[x]) (Classical.excludedMiddle (Space.Member U x))
+  (\fun (member: Space.Member U x) => In[x := \into[M.Point](x, U) \by { member }].exists)
+  (\fun (member: Logic.Not (Space.Member U x)) => Outside[x := x, missing := \fun (inK: Space.Member K x) => member (included x inK)].exists);
+\definition map: GlobalMaps.Map := Local.map Continuity[].continuous local;

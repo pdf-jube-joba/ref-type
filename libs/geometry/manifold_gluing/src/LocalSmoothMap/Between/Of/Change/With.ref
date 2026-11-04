@@ -1,0 +1,82 @@
+\definition middle: Middle.Extension := chosen.extension;
+\import First.Using[extension := first] \as FirstCenter;
+\import Middle.Using[e := middle] \as MiddleCenter;
+\import SourceMaps.Preimage[U := first.neighborhood, W := Open.whole, V := middle.neighborhood, f := first.map] \as FirstPreimage;
+\import SourceMaps.Composition[U := FirstPreimage.domain, V := middle.neighborhood, f := FirstPreimage.map].After[l := m, W := Output.whole, g := middle.map] \as FirstComposition;
+\import Calculus.Preimage[U := FirstPreimage.domain, W := Output.whole, V := last.neighborhood, f := FirstComposition.compose] \as LastPreimage;
+\import Calculus.Composition[U := LastPreimage.domain, V := last.neighborhood, f := LastPreimage.map].After[l := m, W := Output.whole, g := last.map] \as Composition;
+\definition domain: Open.OpenSet := LastPreimage.domain;
+\definition inFirst: Open.Included domain first.neighborhood := \fun (u: Source.Point)(member: _) => FirstPreimage.included u (LastPreimage.included u member);
+\definition included: Open.Included domain left.image := \fun (u: Source.Point)(member: _) => first.included u (inFirst u member);
+\definition centerInFirst: \In[Source.Point] FirstPreimage.domain.points First.source := FirstPreimage.intro FirstCenter.center
+  (\idelim (Middle.source \of Source.Point) = SourceMaps.apply first.neighborhood Open.whole first.map FirstCenter.center
+    \with u: Source.Point => \In[Source.Point] middle.neighborhood.points u \by { base: middle.contains, equality: sym!{Source.Point} _ _ FirstCenter.centerValue });
+\definition firstCenter: Open.Carrier FirstPreimage.domain := \into[Source.Point](First.source, FirstPreimage.domain.points) \by { centerInFirst };
+\definition middleCenter: FirstPreimage.output firstCenter = (MiddleCenter.center \of Open.Carrier middle.neighborhood) :=
+  boundary_manifolds.Refinement[A := Source.Point].equality middle.neighborhood.points (FirstPreimage.output firstCenter) MiddleCenter.center FirstCenter.centerValue;
+\definition firstValue: Calculus.apply FirstPreimage.domain Output.whole FirstComposition.compose firstCenter = MiddleCenter.target :=
+  trans!{Target.Point} _ _ _ (congr!{{Open.Carrier middle.neighborhood} {Target.Point}} (\fun (u: Open.Carrier middle.neighborhood) => Calculus.apply middle.neighborhood Output.whole middle.map u) _ _ middleCenter)
+    MiddleCenter.centerValue;
+\definition centerInside: \In[Source.Point] domain.points First.source := LastPreimage.intro firstCenter
+  (\idelim (Last.source \of Target.Point) = Calculus.apply FirstPreimage.domain Output.whole FirstComposition.compose firstCenter
+    \with v: Target.Point => \In[Target.Point] last.neighborhood.points v \by { base: last.contains, equality: sym!{Target.Point} _ _ firstValue });
+\definition firstInput[u: Source.Carrier left.constraints domain]: Source.Carrier left.constraints first.neighborhood :=
+  \into[Open.Carrier first.neighborhood](Open.inclusion domain first.neighborhood inFirst u, Source.region left.constraints first.neighborhood) \by {
+    \bysub(Open.Carrier domain, Source.region left.constraints domain, u)
+  };
+\definition leftCoordinate[u: Source.Carrier left.constraints domain]: Source.Carrier left.constraints left.image :=
+  \into[Open.Carrier left.image](Open.inclusion domain left.image included u, Source.region left.constraints left.image) \by {
+    \bysub(Open.Carrier domain, Source.region left.constraints domain, u)
+  };
+\definition actual[u: Source.Carrier left.constraints domain]: M.Point := SourceCharts.point left (leftCoordinate u);
+\definition chosenPoint[u: Source.Carrier left.constraints domain]: SourceCharts.LocalPoint chosen.left :=
+  \into[M.Point](actual u, chosen.left.domain) \by { first.inside (firstInput u) };
+\definition middleInput[u: Source.Carrier left.constraints domain]: Source.Carrier chosen.left.constraints middle.neighborhood :=
+  \into[Open.Carrier middle.neighborhood](FirstPreimage.output (LastPreimage.input u), Source.region chosen.left.constraints middle.neighborhood) \by {
+    \idelim (SourceCharts.coordinate chosen.left (chosenPoint u) \of Source.Point) = SourceMaps.apply first.neighborhood Open.whole first.map (firstInput u)
+      \with v: Source.Point => Source.Nonnegative chosen.left.constraints v \by {
+        base: \bysub(Open.Carrier chosen.left.image, Source.region chosen.left.constraints chosen.left.image, SourceCharts.coordinate chosen.left (chosenPoint u)),
+        equality: sym!{Source.Point} _ _ (first.agrees (firstInput u))
+      }
+  };
+\definition chosenCoordinate[u: Source.Carrier left.constraints domain]: Source.Carrier chosen.left.constraints chosen.left.image :=
+  \into[Open.Carrier chosen.left.image](Open.inclusion middle.neighborhood chosen.left.image middle.included (middleInput u), Source.region chosen.left.constraints chosen.left.image) \by {
+    \bysub(Open.Carrier middle.neighborhood, Source.region chosen.left.constraints middle.neighborhood, middleInput u)
+  };
+\definition returnsChosen: \forall (u: Source.Carrier left.constraints domain) -> SourceCharts.point chosen.left (chosenCoordinate u) = actual u :=
+  \fun (u: Source.Carrier left.constraints domain) => trans!{M.Point} _ _ _
+    (congr!{{Source.Carrier chosen.left.constraints chosen.left.image} {M.Point}} (\fun (v: Source.Carrier chosen.left.constraints chosen.left.image) => SourceCharts.point chosen.left v) _ _
+      (Source.equality chosen.left.constraints chosen.left.image (chosenCoordinate u) (SourceCharts.coordinate chosen.left (chosenPoint u)) (first.agrees (firstInput u))))
+    (SourceCharts.pointCoordinate chosen.left (chosenPoint u));
+\definition imagePoint[u: Source.Carrier left.constraints domain]: TargetCharts.LocalPoint chosen.right :=
+  \into[N.Point](function (SourceCharts.point chosen.left (chosenCoordinate u)), chosen.right.domain) \by { middle.inside (middleInput u) };
+\definition lastInput[u: Source.Carrier left.constraints domain]: Target.Carrier chosen.right.constraints last.neighborhood :=
+  \into[Output.Carrier last.neighborhood](LastPreimage.output u, Target.region chosen.right.constraints last.neighborhood) \by {
+    \idelim (TargetCharts.coordinate chosen.right (imagePoint u) \of Target.Point) = Calculus.apply middle.neighborhood Output.whole middle.map (middleInput u)
+      \with v: Target.Point => Target.Nonnegative chosen.right.constraints v \by {
+        base: \bysub(Output.Carrier chosen.right.image, Target.region chosen.right.constraints chosen.right.image, TargetCharts.coordinate chosen.right (imagePoint u)),
+        equality: sym!{Target.Point} _ _ (middle.agrees (middleInput u))
+      }
+  };
+\definition lastCoordinate[u: Source.Carrier left.constraints domain]: Target.Carrier chosen.right.constraints chosen.right.image :=
+  \into[Output.Carrier chosen.right.image](Output.inclusion last.neighborhood chosen.right.image last.included (lastInput u), Target.region chosen.right.constraints chosen.right.image) \by {
+    \bysub(Output.Carrier last.neighborhood, Target.region chosen.right.constraints last.neighborhood, lastInput u)
+  };
+\definition returnsImage: \forall (u: Source.Carrier left.constraints domain) -> TargetCharts.point chosen.right (lastCoordinate u) = function (actual u) :=
+  \fun (u: Source.Carrier left.constraints domain) => trans!{N.Point} _ _ _
+    (congr!{{Target.Carrier chosen.right.constraints chosen.right.image} {N.Point}} (\fun (v: Target.Carrier chosen.right.constraints chosen.right.image) => TargetCharts.point chosen.right v) _ _
+      (Target.equality chosen.right.constraints chosen.right.image (lastCoordinate u) (TargetCharts.coordinate chosen.right (imagePoint u)) (middle.agrees (middleInput u))))
+    (trans!{N.Point} _ _ _ (TargetCharts.pointCoordinate chosen.right (imagePoint u)) (congr!{M.Point N.Point} function _ _ (returnsChosen u)));
+\definition inside: \forall (u: Source.Carrier left.constraints domain) -> TargetCharts.Contains right (function (actual u)) :=
+  \fun (u: Source.Carrier left.constraints domain) => \idelim TargetCharts.point chosen.right (lastCoordinate u) = function (actual u)
+    \with y: N.Point => TargetCharts.Contains right y \by { base: last.inside (lastInput u), equality: returnsImage u };
+\import TargetCharts.Total[c := right] \as Right;
+\definition extension: Result.Extension := Result.Extension {
+  neighborhood := domain, included := included, contains := centerInside, map := Composition.compose,
+  inside := inside,
+  agrees := \fun (u: Source.Carrier left.constraints domain) => trans!{Target.Point} _ _ _ (last.agrees (lastInput u))
+    (trans!{Target.Point} _ _ _ (sym!{Target.Point} _ _ (Right.coordinateInside
+      (\into[N.Point](TargetCharts.point chosen.right (lastCoordinate u), right.domain) \by { last.inside (lastInput u) })))
+      (trans!{Target.Point} _ _ _ (congr!{N.Point Target.Point} Right.coordinate _ _ (returnsImage u))
+        (Right.coordinateInside (\into[N.Point](function (actual u), right.domain) \by { inside u })))),
+};
