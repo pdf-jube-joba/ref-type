@@ -1,0 +1,20 @@
+\import \root.SupportedRounding[].Higher[n := Nat.Nat^::zero].Quarter[].Far[] \as Far;
+\import \root.OpenManifold[n := Rounded.dimension].On[M := Original.manifold].Within[U := Far.points, open := Far.open] \as OriginalOutside;
+\definition points: \Pow QuarterWindow.Point := { x: QuarterWindow.Point \where \In[Model.Point] Far.raw.points x };
+\definition open: topology.Topology[Carrier := QuarterWindow.Point].IsOpenIn QuarterWindow.topology points := Model.Topology[C := Quarter.constraints, U := domain].ambient Far.raw.points (Open.Topology[].open Far.raw);
+\import \root.OpenManifold[n := Rounded.dimension].On[M := QuarterWindow.manifold].Within[U := points, open := open] \as Source;
+\import boundary_manifolds.MapIdentity[n := Rounded.dimension].On[M := QuarterWindow.manifold] \as Identity;
+\import \root.QuadrantFactor[n := Rounded.dimension, m := Rounded.dimension].From[M := QuarterWindow.manifold, C := Quarter.constraints, U := domain].Into[D := Quarter.constraints, V := Open.whole].Of[f := Identity.map,
+  inside := \fun (x: QuarterWindow.Point) => \refl(x \of Model.Point), nonnegative := \fun (x: QuarterWindow.Point) => \bysub(Open.Carrier domain, Model.region Quarter.constraints domain, x)] \as Inclusion;
+\definition toOriginal: boundary_manifolds.SmoothMap[n := Rounded.dimension, m := Rounded.dimension].Between[M := Source.manifold, N := Original.manifold].Map :=
+  boundary_manifolds.MapComposition[n := Rounded.dimension, m := Rounded.dimension, l := Rounded.dimension].Between[M := Source.manifold, N := QuarterWindow.manifold, P := Original.manifold].Of[f := Source.Inclusion[].map, g := Inclusion.map].map;
+\import \root.OpenCorestriction[n := Rounded.dimension, m := Rounded.dimension].Between[M := Source.manifold, N := Original.manifold].Into[U := Far.points, open := Far.open].Of[f := toOriginal,
+  inside := \fun (x: Source.Point) => \bysub(QuarterWindow.Point, points, x)] \as ToFar;
+\definition toRounded: boundary_manifolds.SmoothMap[n := Rounded.dimension, m := Rounded.dimension].Between[M := Source.manifold, N := Rounded.manifold].Map :=
+  boundary_manifolds.MapComposition[n := Rounded.dimension, m := Rounded.dimension, l := Rounded.dimension].Between[M := Source.manifold, N := OriginalOutside.manifold, P := Rounded.manifold].Of[f := ToFar.map, g := Far.map].map;
+\import \root.OpenCorestriction[n := Rounded.dimension, m := Rounded.dimension].Between[M := Source.manifold, N := Rounded.manifold].Into[U := windowPoints, open := windowOpen].Of[f := toRounded,
+  inside := \fun (x: Source.Point) => \bysub(Model.Point, raw, x)] \as ToWindow;
+\import boundary_manifolds.SmoothMap[n := Rounded.dimension, m := Rounded.dimension].Between[M := Source.manifold, N := Window.manifold] \as Maps;
+\definition map: Maps.Map := ToWindow.map;
+\definition formula: \forall (x: Source.Point) -> (Maps.apply map x \of Model.Point) = (x \of Model.Point) := \fun (x: Source.Point) => \refl(x \of Model.Point);
+\module InverseAt(x: Source.Point);

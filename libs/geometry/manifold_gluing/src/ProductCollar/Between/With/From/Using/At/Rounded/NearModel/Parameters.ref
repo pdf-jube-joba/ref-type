@@ -1,0 +1,63 @@
+\definition points: \Pow Source.Point := { p: Source.Point \where R.Le S.zero (value p) };
+\definition Point: \Set := \Cast[Source.Point] points;
+\definition topology: topology.Structures[].Topology[Point] := ParameterSpace.Subspace[S := points].topology Source.topology;
+\definition forward[x: Near.Point]: Point := \into[Source.Point](parameter x, points) \by { notRemoved x };
+\definition normal[p: Point]: Round.manifold.Point := \into[RoundOpen.Carrier RoundOpen.whole](raw p, Region.points) \by { \bysub(Source.Point, points, p) };
+\definition firstBound: \forall (p: Point) -> R.Lt (normal p Round.firstNormal) \root.RoundingScale[].four := \fun (p: Point) =>
+  R.ltReplaceLeft (first p) (normal p Round.firstNormal) \root.RoundingScale[].four (sym!{S.Real} _ _ (Plane.first (first p) (second p)))
+    (Normalize.lt (firstTime p) \root.RoundingScale[].four (\bysub(LeftParameter.Point, LeftWindow.points, Source.first p)));
+\definition secondBound: \forall (p: Point) -> R.Lt (normal p Round.secondNormal) \root.RoundingScale[].four := \fun (p: Point) =>
+  R.ltReplaceLeft (second p) (normal p Round.secondNormal) \root.RoundingScale[].four (sym!{S.Real} _ _ (Plane.second (first p) (second p)))
+    (Normalize.lt (secondTime p) \root.RoundingScale[].four (\bysub(RightParameter.Point, RightWindow.points, Source.second p)));
+\definition window[p: Point]: Window.Point := \into[Round.manifold.Point](normal p, \root.RoundingWindow[].points) \by { Logic.And[_, _]::# (firstBound p) (secondBound p) };
+\definition base[p: Point]: Base.Point := Pair.pair LeftBase.manifold.Point RightBase.manifold.Point (LeftParameter.first (Source.first p)) (RightParameter.first (Source.second p));
+\definition backward[p: Point]: Near.Point := Pair.pair Base.Point Window.Point (base p) (window p);
+\definition leftTimeRecover: \forall (p: Point) -> Time.value (LeftParameter.second (leftParameter (backward p))) = firstTime p := \fun (p: Point) => trans!{S.Real} _ _ _ (leftTimeValue (backward p))
+  (trans!{S.Real} _ _ _ (congr!{S.Real S.Real} (S.mul Scale.q) _ _ (Plane.first (first p) (second p))) (Normalize.undo (firstTime p)));
+\definition rightTimeRecover: \forall (p: Point) -> Time.value (RightParameter.second (rightParameter (backward p))) = secondTime p := \fun (p: Point) => trans!{S.Real} _ _ _ (rightTimeValue (backward p))
+  (trans!{S.Real} _ _ _ (congr!{S.Real S.Real} (S.mul Scale.q) _ _ (Plane.second (first p) (second p))) (Normalize.undo (secondTime p)));
+\definition rightInverse: \forall (p: Point) -> forward (backward p) = p := \fun (p: Point) => boundary_manifolds.Refinement[A := Source.Point].equality points (forward (backward p)) p
+  (Pair.Prop[A := LeftModel.Point, B := RightModel.Point].ext (parameter (backward p)) p
+    (boundary_manifolds.Refinement[A := LeftParameter.Point].equality LeftWindow.points (leftInput (backward p)) (Source.first p)
+      (Pair.Prop[A := LeftBase.manifold.Point, B := Time.Point].ext (leftParameter (backward p)) (Source.first p) (\refl(LeftParameter.first (Source.first p)))
+        (\root.ParameterLaws[].equality (LeftParameter.second (leftParameter (backward p))) (LeftParameter.second (Source.first p)) (leftTimeRecover p))))
+    (boundary_manifolds.Refinement[A := RightParameter.Point].equality RightWindow.points (rightInput (backward p)) (Source.second p)
+      (Pair.Prop[A := RightBase.manifold.Point, B := Time.Point].ext (rightParameter (backward p)) (Source.second p) (\refl(RightParameter.first (Source.second p)))
+        (\root.ParameterLaws[].equality (RightParameter.second (rightParameter (backward p))) (RightParameter.second (Source.second p)) (rightTimeRecover p)))));
+\definition windowEquality: \forall (a, b: Window.Point) -> (a \of RoundModel.Point) = (b \of RoundModel.Point) -> a = b :=
+  \fun (a, b: Window.Point)(same: (a \of RoundModel.Point) = (b \of RoundModel.Point)) => boundary_manifolds.Refinement[A := Round.manifold.Point].equality \root.RoundingWindow[].points a b
+    (boundary_manifolds.Refinement[A := Region.ambient.Point].equality Region.points a b (boundary_manifolds.Refinement[A := RoundModel.Point].equality RoundOpen.whole.points a b same));
+\definition leftInverse: \forall (x: Near.Point) -> backward (forward x) = x := \fun (x: Near.Point) => Pair.Prop[A := Base.Point, B := Window.Point].ext (backward (forward x)) x
+  (Pair.Prop[A := LeftBase.manifold.Point, B := RightBase.manifold.Point].eta (Near.first x)) (windowEquality (window (forward x)) (Near.second x) (rawSame x));
+\definition forwardContinuous: topology.Continuity[A := Near.Point, B := Point].Continuous Near.topology topology forward :=
+  topology.Continuity[A := Near.Point, B := Source.Point].Corestriction[S := points].corestrictContinuous Near.topology Source.topology forward parameterContinuous;
+
+\import topological_constructions.Product[A := LeftModel.Point, B := RightModel.Point] \as OldParameters;
+\import topological_constructions.Product[A := LeftBase.manifold.Point, B := Time.Point] \as LeftProduct;
+\import topological_constructions.Product[A := RightBase.manifold.Point, B := Time.Point] \as RightProduct;
+\definition leftBaseContinuous: topology.Continuity[A := Source.Point, B := LeftBase.manifold.Point].Continuous Source.topology LeftBase.manifold.space (\fun (p: Source.Point) => LeftParameter.first (Source.first p)) :=
+  topology.Composition[A := Source.Point, B := LeftModel.Point, C := LeftBase.manifold.Point].composeContinuous Source.topology LeftModel.topology LeftBase.manifold.space Source.first (\fun (p: LeftModel.Point) => LeftParameter.first p)
+    (OldParameters.Maps[].firstContinuous LeftModel.topology RightModel.topology)
+    (topology.Continuity[A := LeftParameter.Point, B := LeftBase.manifold.Point].Restriction[S := LeftWindow.points].restrictContinuous LeftParameter.topology LeftBase.manifold.space LeftParameter.first (LeftProduct.Maps[].firstContinuous LeftBase.manifold.space Time.manifold.space));
+\definition rightBaseContinuous: topology.Continuity[A := Source.Point, B := RightBase.manifold.Point].Continuous Source.topology RightBase.manifold.space (\fun (p: Source.Point) => RightParameter.first (Source.second p)) :=
+  topology.Composition[A := Source.Point, B := RightModel.Point, C := RightBase.manifold.Point].composeContinuous Source.topology RightModel.topology RightBase.manifold.space Source.second (\fun (p: RightModel.Point) => RightParameter.first p)
+    (OldParameters.Maps[].secondContinuous LeftModel.topology RightModel.topology)
+    (topology.Continuity[A := RightParameter.Point, B := RightBase.manifold.Point].Restriction[S := RightWindow.points].restrictContinuous RightParameter.topology RightBase.manifold.space RightParameter.first (RightProduct.Maps[].firstContinuous RightBase.manifold.space Time.manifold.space));
+\definition firstContinuous: topology.Continuity[A := Point, B := LeftBase.manifold.Point].Continuous topology LeftBase.manifold.space (\fun (p: Point) => LeftParameter.first (Source.first p)) :=
+  topology.Continuity[A := Source.Point, B := LeftBase.manifold.Point].Restriction[S := points].restrictContinuous Source.topology LeftBase.manifold.space (\fun (p: Source.Point) => LeftParameter.first (Source.first p)) leftBaseContinuous;
+\definition secondContinuous: topology.Continuity[A := Point, B := RightBase.manifold.Point].Continuous topology RightBase.manifold.space (\fun (p: Point) => RightParameter.first (Source.second p)) :=
+  topology.Continuity[A := Source.Point, B := RightBase.manifold.Point].Restriction[S := points].restrictContinuous Source.topology RightBase.manifold.space (\fun (p: Source.Point) => RightParameter.first (Source.second p)) rightBaseContinuous;
+\import topological_constructions.Product[A := LeftBase.manifold.Point, B := RightBase.manifold.Point] \as Bases;
+\definition baseContinuous: topology.Continuity[A := Point, B := Base.Point].Continuous topology Base.topology base := Bases.Universal[X := Point].pairContinuous topology LeftBase.manifold.space RightBase.manifold.space
+  (\fun (p: Point) => LeftParameter.first (Source.first p)) (\fun (p: Point) => RightParameter.first (Source.second p)) firstContinuous secondContinuous;
+\definition rawContinuous: topology.Continuity[A := Point, B := RoundOpen.Carrier RoundOpen.whole].Continuous topology (RoundOpen.Topology[].Of[U := RoundOpen.whole].topology) (\fun (p: Point) => raw p) :=
+  topology.Continuity[A := Source.Point, B := RoundOpen.Carrier RoundOpen.whole].Restriction[S := points].restrictContinuous Source.topology (RoundOpen.Topology[].Of[U := RoundOpen.whole].topology) raw rawParameterContinuous;
+\definition normalContinuous: topology.Continuity[A := Point, B := Round.manifold.Point].Continuous topology Round.manifold.space normal :=
+  topology.Continuity[A := Point, B := RoundOpen.Carrier RoundOpen.whole].Corestriction[S := Region.points].corestrictContinuous topology (RoundOpen.Topology[].Of[U := RoundOpen.whole].topology) normal rawContinuous;
+\definition windowContinuous: topology.Continuity[A := Point, B := Window.Point].Continuous topology Window.manifold.space window :=
+  topology.Continuity[A := Point, B := Round.manifold.Point].Corestriction[S := \root.RoundingWindow[].points].corestrictContinuous topology Round.manifold.space window normalContinuous;
+\import topological_constructions.Product[A := Base.Point, B := Window.Point] \as Result;
+\definition backwardContinuous: topology.Continuity[A := Point, B := Near.Point].Continuous topology Near.topology backward := Result.Universal[X := Point].pairContinuous topology Base.topology Window.manifold.space base window baseContinuous windowContinuous;
+\definition homeomorphism: topology.Homeomorphism[A := Near.Point, B := Point].Homeomorphism[Near.topology, topology] := topology.Homeomorphism[A := Near.Point, B := Point].Homeomorphism[Near.topology, topology] {
+  forward := forward, backward := backward, leftInverse := leftInverse, rightInverse := rightInverse, forwardContinuous := forwardContinuous, backwardContinuous := backwardContinuous,
+};

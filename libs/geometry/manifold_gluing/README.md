@@ -116,3 +116,9 @@ python3 scripts/check_all.py --initial-memory-mib 12288 --memory-mib 12288 --cac
 `Rounded` は正規座標の丸め関数が負となる開集合を実際の積から除き、閉じたコンパクトな丸め領域を得る。
 変更箇所は上記コンパクト領域の内側に含まれ、その外側は元の積と点ごとに一致する。
 この丸め領域への滑らかな atlas の接続は継続中である。
+
+`ProductCollar.Rounded.NearModel` は境界の積と丸めた正規モデルの積から元の積多様体への実際の滑らかな写像を構成する。
+`Parameters` は非負の丸め条件を満たす collar パラメータ領域との同相を、`Image` は実際のコンパクトな丸め領域の開いた角近傍との同相を構成する。
+`TimePlane` は二つの collar 時間から正規化された象限への実際の滑らかな写像を与える。
+`RoundingWindow.Outside` は外側の象限から丸めモデルへの滑らかな写像と局所逆写像を、`OpenProductModel` は開いた積部分の滑らかな包含と局所逆写像を与える。
+外側のチャートとの接続と、指定された部分 collar の相対拡張は継続中である。
