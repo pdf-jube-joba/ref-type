@@ -52,3 +52,11 @@ Rust と検査ドライバのソースは取り込んだ main と一致する。
 - `work/b07-integration-regression/20261104T230841.655526Z` (normal_bundles)。
 - `work/b07-integration-fourier/20261104T230903.087617Z` (fourier_l2)。
 - `work/b07-integration-full/20261104T231008.503714Z` (repository)。
+
+## 報告のバイト列と保存形式
+
+当初の `*-report.json.gz` は JSON をキー順・空白なしで再シリアライズした保存版であり、`raw_report_sha256` は実行環境内の整形付き原本のハッシュを指す。
+両者は JSON 内容として一致するが、展開後のバイト列と SHA256 は異なる。
+原本バイト列を保持する `*-report-original.json.gz` を追加し、展開後の SHA256 が各 scope の `raw_report_sha256` と一致することを確認した。
+[report-encoding.json](report-encoding.json) に、元の保存版・追加した原本版それぞれの圧縮前後のハッシュと JSON 内容の照合結果を記録する。
+当初の保存版と検査結果は変更していない。

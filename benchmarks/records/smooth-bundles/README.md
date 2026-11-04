@@ -1,6 +1,7 @@
 # B07 smooth bundles: normal checking
 
-最新の A07 main 統合後の検査は [integration-a07](integration-a07/README.md) に記録する。
+最新の A07・G04 main 統合後の検査は [integration-g04](integration-g04/README.md) に記録する。
+A07 統合時の検査と保存形式の補足は [integration-a07](integration-a07/README.md) に保持する。
 
 Base main: `ed1af945bfdfdc1849bf1919317e3ce422b1ac1f`.
 Mathematical source commit: `d7eb138f7991559a350164ed1b844b8ebec4aed6`.
