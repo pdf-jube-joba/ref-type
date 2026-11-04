@@ -37,3 +37,5 @@ Rust は `rustc 1.99.1 (58cf8f9c3 2026-10-13)`、checker の SHA-256 は `8b62b7
 内部と継ぎ目の座標近傍による全体被覆の検査は [cover/README.md](cover/README.md) にある。
 
 商空間上の滑らかな atlasの検査は [atlas/README.md](atlas/README.md) にある。
+
+境界のない貼り合わせと doubleの検査は [double/README.md](double/README.md) にある。
