@@ -92,4 +92,8 @@ python3 scripts/check_all.py --initial-memory-mib 12288 --memory-mib 12288 --cac
 `CompactGluing` は実際の pushout の位相上の滑らかな atlas と境界がないことを組にした構造を構成し、`Double` は境界の恒等写像に沿う double を公開する。
 `TransportInclusion` は開近傍へ移したモデルから全体への滑らかな写像と、その逆の滑らかな局所表示を構成する。
 `TransportOut` と `Cover.Mapping` は、左右の内部と符号付き継ぎ目での滑らかな写像を用いて、商全体の写像の滑らかさを証明する。
-指定された部分 collar の相対拡張、角の大域的な丸め、向きと collar を保つ写像の貼り合わせは継続中である。
+`Cover.Inclusions` は左右の元の境界付き多様体から商への実際の滑らかな包含を構成する。
+`Cover.CollarMaps` は共通の collar 幅で collar 座標を保つ左右の滑らかな写像と滑らかな境界写像から、商の間の実際の滑らかな写像を構成する。
+零時刻の collar の一致から商への降下条件を導き、左右の内部と符号付き継ぎ目での実際の表示を用いて全体の滑らかさを証明する。
+`Cover.IdentityMap` は恒等写像をこの構成に適用し、得られた商全体の写像が実際に恒等写像であることを証明する。
+指定された部分 collar の相対拡張、角の大域的な丸めと向きの整合性は継続中である。
