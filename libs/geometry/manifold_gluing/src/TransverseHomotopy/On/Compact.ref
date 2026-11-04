@@ -1,0 +1,44 @@
+\import std.Set[].FiniteSubset[A := \Pow M.Point] \as Finite;
+\definition family: \Pow (\Pow M.Point) := { U: \Pow M.Point \where \exists ( p: Patch \where U = p.patch.domain ) };
+\definition Included[Y: \Pow (\Pow M.Point)]: \Prop := \forall (U: \Pow M.Point) -> Space.FamilyMember Y U -> Space.FamilyMember family U;
+\structure Works[Y: \Pow (\Pow M.Point), h: Homotopies.Homotopy]: \Prop := {
+  active: \forall (x: M.Point) -> Space.Member (Space.Union Y) x -> Homotopies.Activates h x,
+  strict: \forall (x: M.Point) -> Space.Member boundary x -> Space.Member (Space.Union Y) x -> StrictAt h x,
+};
+\definition Predicate: \Pow (\Pow (\Pow M.Point)) := { Y: \Pow (\Pow M.Point) \where Included Y -> \exists ( h: Homotopies.Homotopy \where Works[Y, h] ) };
+\definition empty: \In[\Pow (\Pow M.Point)] Predicate Finite.Empty :=
+  \fun (included: _) => Logic.existsIntro[Homotopies.Homotopy, { h: Homotopies.Homotopy \where Works[Finite.Empty, h] }] Homotopies.identity (Works[Finite.Empty, Homotopies.identity] {
+    active := \fun (x: M.Point)(member: _) => Space.unionMemberElim Finite.Empty x (Homotopies.Activates Homotopies.identity x)
+      (\fun (U: \Pow M.Point)(empty: Logic.False)(inside: _) => Logic.falseElim _ empty) member,
+    strict := \fun (x: M.Point)(boundary: _)(member: _) => Space.unionMemberElim Finite.Empty x (StrictAt Homotopies.identity x)
+      (\fun (U: \Pow M.Point)(empty: Logic.False)(inside: _) => Logic.falseElim _ empty) member,
+  });
+\module Insert(Y: \Pow (\Pow M.Point), previous: \In[\Pow (\Pow M.Point)] Predicate Y, U: \Pow M.Point);
+\definition finiteWorks[F: Finite.FiniteSubset]: Included F -> \exists ( h: Homotopies.Homotopy \where Works[F, h] ) :=
+  Finite.induction Predicate empty (\fun (Y: \Pow (\Pow M.Point))(previous: _)(U: \Pow M.Point) => Insert[Y := Y, previous := previous, U := U].law) F;
+\definition familyOpen: \forall (U: \Pow M.Point) -> Space.FamilyMember family U -> Space.IsOpenIn M.space U := \block {
+  \fun (U: \Pow M.Point)(member: _) \then
+  \takefrom p: \Cast[Patch] ({ p: Patch \where U = p.patch.domain }) \by member \then
+  \return \idelim p.patch.domain = U \with V: \Pow M.Point => Space.IsOpenIn M.space V \by {
+    base: p.patch.open, equality: sym!{{\Pow M.Point}} _ _ (\bysub(Patch, { p: Patch \where U = p.patch.domain }, p))
+  }
+};
+\definition covers: Space.Covers family boundary := \block {
+  \fun (x: M.Point)(member: _) \then
+  \takefrom p: \Cast[Patch] ({ p: Patch \where Space.Member p.patch.domain x }) \by local x member \then
+  \return Space.unionMemberOf family p.patch.domain x
+    (Logic.existsIntro[Patch, { q: Patch \where p.patch.domain = q.patch.domain }] p (\refl(p.patch.domain)))
+    (\bysub(Patch, { p: Patch \where Space.Member p.patch.domain x }, p))
+};
+\definition exists: \exists Result := \block {
+  \takefrom F: \Cast[Finite.FiniteSubset] ({ F: Finite.FiniteSubset \where Space.FiniteSubcover[family, boundary, F] }) \by compact family
+    (Space.IsOpenCover[M.space, family, boundary] { covers := covers, open := familyOpen }) \then
+  \let subcover: Space.FiniteSubcover[family, boundary, F] := \bysub(Finite.FiniteSubset, { F: Finite.FiniteSubset \where Space.FiniteSubcover[family, boundary, F] }, F) \then
+  \takefrom h: \Cast[Homotopies.Homotopy] ({ h: Homotopies.Homotopy \where Works[F, h] }) \by finiteWorks F subcover.included \then
+  \let works: Works[F, h] := \bysub(Homotopies.Homotopy, { h: Homotopies.Homotopy \where Works[F, h] }, h) \then
+  \return \exact(Result {
+    homotopy := h,
+    strict := \fun (x: M.Point)(member: _) => works.strict x member (subcover.covers x member),
+    active := \fun (x: M.Point)(member: _) => works.active x (subcover.covers x member),
+  }, Result)
+};

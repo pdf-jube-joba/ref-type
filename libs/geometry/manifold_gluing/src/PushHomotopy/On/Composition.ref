@@ -1,0 +1,27 @@
+\import Products.Pairing[p := Nat.add One.dimension n].From[P := Product.manifold].Using[f := first.map, g := Products.Second[].map] \as Pairing;
+\import boundary_manifolds.MapComposition[n := Nat.add One.dimension n, m := Nat.add One.dimension n, l := n].Between[M := Product.manifold, N := Product.manifold, P := M].Of[f := Pairing.map, g := second.map] \as Composition;
+\definition pairInitial: \forall (x: M.Point) -> Pairing.apply (initialPoint x) = initialPoint x :=
+  \fun (x: M.Point) => congr!{M.Point {Product.Point}} (\fun (y: M.Point) => Pair.pair M.Point Time.Point y Time.zero) _ _ (first.initial x);
+\definition homotopy: Homotopy := Homotopy {
+  map := Composition.map,
+  initial := \fun (x: M.Point) => trans!{M.Point} _ _ _
+    (congr!{{Product.Point} M.Point} (Maps.apply second.map) _ _ (pairInitial x)) (second.initial x),
+  stationary := \fun (z: Product.Point)(boundary: _) => trans!{M.Point} _ _ _ (second.stationary (Pairing.apply z) boundary)
+    (first.stationary z (\idelim Maps.apply second.map (Pairing.apply z) = Maps.apply first.map z \with y: M.Point => Tangent.At[x := y].Cones[].Boundary \by {
+      base: boundary, equality: second.stationary (Pairing.apply z) boundary
+    })),
+  preserves := \fun (z: Product.Point)(interior: _) => second.preserves (Pairing.apply z) (first.preserves z interior),
+};
+\definition activatesFirst: \forall (x: M.Point) -> Activates first x -> Activates homotopy x :=
+  \fun (x: M.Point)(active: _)(t: Time.Point)(positive: _) => second.preserves (Pairing.apply (Pair.pair M.Point Time.Point x t)) (active t positive);
+\definition activatesSecond: \forall (x: M.Point) -> Activates second x -> Activates homotopy x :=
+  \fun (x: M.Point)(active: _)(t: Time.Point)(positive: _) =>
+    Logic.orElim (Tangent.At[x := Maps.apply first.map (Pair.pair M.Point Time.Point x t)].Cones[].Boundary)
+      (Interior (Maps.apply first.map (Pair.pair M.Point Time.Point x t)))
+      (Interior (Maps.apply homotopy.map (Pair.pair M.Point Time.Point x t)))
+      (std.Logic[].Classical[].excludedMiddle (Tangent.At[x := Maps.apply first.map (Pair.pair M.Point Time.Point x t)].Cones[].Boundary))
+      (\fun (boundary: _) => \idelim x = Maps.apply first.map (Pair.pair M.Point Time.Point x t) \with y: M.Point =>
+        Interior (Maps.apply second.map (Pair.pair M.Point Time.Point y t)) \by {
+          base: active t positive, equality: sym!{M.Point} _ _ (first.stationary (Pair.pair M.Point Time.Point x t) boundary)
+        })
+      (\fun (interior: _) => second.preserves (Pairing.apply (Pair.pair M.Point Time.Point x t)) interior);

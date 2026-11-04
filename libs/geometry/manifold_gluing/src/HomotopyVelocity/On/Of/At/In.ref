@@ -1,0 +1,58 @@
+\import \root.InitialJet[n := n].On[M := M].Of[h := h].In[x := x, c := c, contains := contains] \as Jet;
+\definition targetChart: Target.Chart := \into[Charts.Chart](c, Target.Chart) \by {
+  Target.ChartLaws[c] { member := \bysub(Charts.Chart, M.atlas.charts, c), contains := contains }
+};
+\import ProductTangent.InCharts[c := targetChart, d := timeChart] \as ProductChart;
+\definition imageChart: Image.Chart := \into[Charts.Chart](c, Image.Chart) \by {
+  Image.ChartLaws[c] { member := \bysub(Charts.Chart, M.atlas.charts, c), contains := Jet.targetContains }
+};
+\definition verticalCoordinates: Domain.Coordinate[chart := ProductChart.total].decode vertical = Jet.timeUnit :=
+  trans!{Source.Point} _ _ _ (ProductTangent.Coordinates[c := targetChart, d := timeChart].pairCoordinates Operations.origin timeVector)
+    (congr!{Model.Point {One.Index -> S.Real} Source.Point} calculus.Blocks[n := n, m := One.dimension].join _ _ _ _
+      Target.CoordinateOperations[chart := targetChart].origin (TimeTangent.Coordinate[chart := timeChart].decodeEncode (\fun (i: One.Index) => S.one)));
+\import boundary_manifolds.SmoothMap[n := Nat.add One.dimension n, m := n].Between[M := Product.manifold, N := M] \as Maps;
+\import Maps.At[function := h.map.apply, left := ProductChart.total, right := imageChart, x := center, contains := Domain.contains ProductChart.total] \as Local;
+\import Maps.At[function := h.map.apply, left := ProductChart.total, right := imageChart, x := center, contains := Jet.sourceContains] \as Original;
+\import Differential.InCharts[left := ProductChart.total, right := imageChart] \as Derivative;
+\module With(e: Original.Extension);
+\definition imageCoordinates: Image.Coordinate[chart := imageChart].decode (Differential.value.apply vertical) = Jet.velocity := \block {
+  \takefrom e: Original.Extension \by Jet.smooth \then
+  \return With[e := e].law
+};
+\definition chartEquals: Transport.chart imageChart = targetChart := boundary_manifolds.Refinement[A := Charts.Chart].equality ({ d: Charts.Chart \where Target.ChartLaws[d] })
+  (Transport.chart imageChart) targetChart (Transport.underlying imageChart);
+\definition coordinates: Target.Coordinate[chart := targetChart].decode value = Jet.velocity := trans!{Model.Point} _ _ _
+  (congr!{{Target.Chart} Model.Point} (\fun (d: Target.Chart) => Target.Coordinate[chart := d].decode value) _ _ (sym!{{Target.Chart}} _ _ chartEquals))
+  (trans!{Model.Point} _ _ _ (Transport.coordinates imageChart (Differential.value.apply vertical)) imageCoordinates);
+\definition inward: Target.Cones[].Inward value := Target.Cones[].criterion targetChart value
+  (\idelim Jet.velocity = Target.Coordinate[chart := targetChart].decode value \with v: Model.Point => Model.Cone c.constraints (Target.coordinate targetChart) v \by {
+    base: Jet.velocityInCone, equality: sym!{Model.Point} _ _ coordinates
+  });
+\definition imageAllCoordinates: \forall (w: Domain.Vector) -> Image.Coordinate[chart := imageChart].decode (Differential.value.apply w) =
+  Jet.derivative.apply (Domain.Coordinate[chart := ProductChart.total].decode w) := \block {
+  \fun (w: Domain.Vector) \then
+  \takefrom e: Original.Extension \by Jet.smooth \then
+  \return With[e := e].allCoordinates w
+};
+\definition allCoordinates: \forall (w: Domain.Vector) -> Target.Coordinate[chart := targetChart].decode (Transport.vector (Differential.value.apply w)) =
+  Jet.derivative.apply (Domain.Coordinate[chart := ProductChart.total].decode w) :=
+  \fun (w: Domain.Vector) => trans!{Model.Point} _ _ _
+    (congr!{{Target.Chart} Model.Point} (\fun (d: Target.Chart) => Target.Coordinate[chart := d].decode (Transport.vector (Differential.value.apply w))) _ _
+      (sym!{{Target.Chart}} _ _ chartEquals))
+    (trans!{Model.Point} _ _ _ (Transport.coordinates imageChart (Differential.value.apply w)) (imageAllCoordinates w));
+\definition horizontalCoordinates: \forall (v: Target.Vector) -> Domain.Coordinate[chart := ProductChart.total].decode (horizontal v) =
+  inverse_implicit.Product[n := n, m := One.dimension].horizontal.apply (Target.Coordinate[chart := targetChart].decode v) :=
+  \fun (v: Target.Vector) => trans!{Source.Point} _ _ _ (ProductTangent.Coordinates[c := targetChart, d := timeChart].pairCoordinates v TimeOperations.origin)
+    (congr!{{One.Index -> S.Real} Source.Point} (calculus.Blocks[n := n, m := One.dimension].join (Target.Coordinate[chart := targetChart].decode v)) _ _
+      TimeTangent.CoordinateOperations[chart := timeChart].origin);
+\definition spatialCoordinates: \forall (v: Target.Vector) -> Target.Coordinate[chart := targetChart].decode (Transport.vector (Differential.value.apply (horizontal v))) =
+  Target.Coordinate[chart := targetChart].decode v :=
+  \fun (v: Target.Vector) => trans!{Model.Point} _ _ _ (allCoordinates (horizontal v))
+    (trans!{Model.Point} _ _ _ (congr!{Source.Point Model.Point} Jet.derivative.apply _ _ (horizontalCoordinates v))
+      (Jet.spatialIdentity (Target.Coordinate[chart := targetChart].decode v)));
+\definition spatialIdentity: \forall (v: Target.Vector) -> Transport.vector (Differential.value.apply (horizontal v)) = v :=
+  \fun (v: Target.Vector) => trans!{{Target.Vector}} _ _ _
+    (sym!{{Target.Vector}} _ _ (Target.Coordinate[chart := targetChart].encodeDecode (Transport.vector (Differential.value.apply (horizontal v)))))
+    (trans!{{Target.Vector}} _ _ _
+      (congr!{Model.Point {Target.Vector}} Target.Coordinate[chart := targetChart].encode _ _ (spatialCoordinates v))
+      (Target.Coordinate[chart := targetChart].encodeDecode v));

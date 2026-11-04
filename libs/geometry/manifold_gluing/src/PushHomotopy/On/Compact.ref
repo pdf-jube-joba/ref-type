@@ -1,0 +1,34 @@
+\import std.Set[].FiniteSubset[A := \Pow M.Point] \as Finite;
+\definition family: \Pow (\Pow M.Point) := { U: \Pow M.Point \where \exists ( p: Patch \where U = p.domain ) };
+\definition Included[Y: \Pow (\Pow M.Point)]: \Prop := \forall (U: \Pow M.Point) -> Space.FamilyMember Y U -> Space.FamilyMember family U;
+\definition Works[Y: \Pow (\Pow M.Point)][h: Homotopy]: \Prop := \forall (x: M.Point) -> Space.Member (Space.Union Y) x -> Activates h x;
+\definition Predicate: \Pow (\Pow (\Pow M.Point)) := { Y: \Pow (\Pow M.Point) \where Included Y -> \exists ( h: Homotopy \where Works Y h ) };
+\definition empty: \In[\Pow (\Pow M.Point)] Predicate Finite.Empty :=
+  \fun (included: _) => Logic.existsIntro[Homotopy, { h: Homotopy \where Works Finite.Empty h }] identity
+    (\fun (x: M.Point)(member: _) => Space.unionMemberElim Finite.Empty x (Activates identity x)
+      (\fun (U: \Pow M.Point)(empty: Logic.False)(inside: _) => Logic.falseElim _ empty) member);
+\module Insert(Y: \Pow (\Pow M.Point), previous: \In[\Pow (\Pow M.Point)] Predicate Y, U: \Pow M.Point);
+\definition finiteWorks[F: Finite.FiniteSubset]: Included F -> \exists ( h: Homotopy \where Works F h ) :=
+  Finite.induction Predicate empty (\fun (Y: \Pow (\Pow M.Point))(previous: _)(U: \Pow M.Point) => Insert[Y := Y, previous := previous, U := U].law) F;
+\definition familyOpen: \forall (U: \Pow M.Point) -> Space.FamilyMember family U -> Space.IsOpenIn M.space U := \block {
+  \fun (U: \Pow M.Point)(member: _) \then
+  \takefrom p: \Cast[Patch] ({ p: Patch \where U = p.domain }) \by member \then
+  \return \idelim p.domain = U \with V: \Pow M.Point => Space.IsOpenIn M.space V \by {
+    base: p.open, equality: sym!{{\Pow M.Point}} _ _ (\bysub(Patch, { p: Patch \where U = p.domain }, p))
+  }
+};
+\definition covers: Space.Covers family K := \block {
+  \fun (x: M.Point)(member: _) \then
+  \takefrom p: \Cast[Patch] ({ p: Patch \where Space.Member p.domain x }) \by local x member \then
+  \return Space.unionMemberOf family p.domain x
+    (Logic.existsIntro[Patch, { q: Patch \where p.domain = q.domain }] p (\refl(p.domain)))
+    (\bysub(Patch, { p: Patch \where Space.Member p.domain x }, p))
+};
+\definition exists: \exists ( h: Homotopy \where \forall (x: M.Point) -> Space.Member K x -> Activates h x ) := \block {
+  \takefrom F: \Cast[Finite.FiniteSubset] ({ F: Finite.FiniteSubset \where Space.FiniteSubcover[family, K, F] }) \by compact family
+    (Space.IsOpenCover[M.space, family, K] { covers := covers, open := familyOpen }) \then
+  \let subcover: Space.FiniteSubcover[family, K, F] := \bysub(Finite.FiniteSubset, { F: Finite.FiniteSubset \where Space.FiniteSubcover[family, K, F] }, F) \then
+  \takefrom h: \Cast[Homotopy] ({ h: Homotopy \where Works F h }) \by finiteWorks F subcover.included \then
+  \return Logic.existsIntro[Homotopy, { h: Homotopy \where \forall (x: M.Point) -> Space.Member K x -> Activates h x }] h
+    (\fun (x: M.Point)(member: _) => (\bysub(Homotopy, { h: Homotopy \where Works F h }, h)) x (subcover.covers x member))
+};

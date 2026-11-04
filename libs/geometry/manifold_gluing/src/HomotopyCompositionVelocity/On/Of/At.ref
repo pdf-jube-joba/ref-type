@@ -1,0 +1,47 @@
+\definition center: Product.Point := Pair.pair M.Point Time.Point x Time.zero;
+\definition y: M.Point := first.map.apply center;
+\definition lifted: Product.Point := Pair.pair M.Point Time.Point y Time.zero;
+\definition z: M.Point := second.map.apply lifted;
+\import Velocity.Of[h := first].At[x := x] \as First;
+\import Velocity.Of[h := second].At[x := y] \as Second;
+\import Velocity.Of[h := second].At[x := x] \as SecondAtX;
+\import Velocity.Of[h := Composite.homotopy].At[x := x] \as Total;
+\import Tangent.At[x := x] \as Target;
+\import Tangent.At[x := y] \as Middle;
+\import Tangent.At[x := z] \as Image;
+\import Target.Operations[] \as Operations;
+\import Middle.Operations[] \as MiddleOperations;
+\import Tangent.Transport[x := y, y := x, same := first.initial x] \as FirstTransport;
+\import Tangent.Transport[x := z, y := y, same := second.initial y] \as SecondTransport;
+\import Tangent.Transport[x := z, y := x, same := Composite.homotopy.initial x] \as TotalTransport;
+\import boundary_manifolds.Differential[n := Nat.add One.dimension n, m := n].Between[M := Product.manifold, N := M].At[f := first.map, x := center] \as D1;
+\import boundary_manifolds.Differential[n := Nat.add One.dimension n, m := n].Between[M := Product.manifold, N := M].At[f := second.map, x := lifted] \as D2;
+\import \root.ProductDifferential[n := n, m := One.dimension].Of[M := M, N := Time.manifold].At[x := center] \as SourceProduct;
+\import \root.ProductDifferential[n := n, m := One.dimension].Of[M := M, N := Time.manifold].At[x := lifted] \as TargetProduct;
+\import boundary_manifolds.Tangent[n := Nat.add One.dimension n].On[M := Product.manifold].At[x := center] \as Domain;
+\import boundary_manifolds.Tangent[n := Nat.add One.dimension n].On[M := Product.manifold].At[x := lifted] \as LiftedTangent;
+\import std.Logic[].Equality[].Transport[A := M.Point] \as EqualityTransport;
+\import boundary_manifolds.Tangent[n := One.dimension].On[M := Time.manifold].At[x := Time.zero] \as TimeTangent;
+\import boundary_manifolds.Differential[n := Nat.add One.dimension n, m := Nat.add One.dimension n].Between[M := Product.manifold, N := Product.manifold].At[f := Lift.map, x := center] \as DLift;
+\import boundary_manifolds.Differential[n := Nat.add One.dimension n, m := n].Between[M := Product.manifold, N := M].At[f := Chain.map, x := center] \as DComposite;
+\definition liftedVector: LiftedTangent.Vector := TargetProduct.pair (D1.value.apply First.vertical) Velocity.timeVector;
+\definition liftDerivative: DLift.value.apply First.vertical = liftedVector := trans!{{LiftedTangent.Vector}} _ _ _ (Lift.At[x := center].law First.vertical)
+  (congr!{{TimeTangent.Vector} {LiftedTangent.Vector}}
+    (\fun (v: TimeTangent.Vector) => TargetProduct.pair (D1.value.apply First.vertical) v) _ _
+    (SourceProduct.secondPair Tangent.At[x := x].Operations[].origin Velocity.timeVector));
+\definition composedDerivative: DComposite.value.apply First.vertical = D2.value.apply liftedVector :=
+  trans!{{Image.Vector}} _ _ _ (Chain.At[x := center].pointwise First.vertical)
+    (congr!{{LiftedTangent.Vector} {Image.Vector}} D2.value.apply _ _ liftDerivative);
+\definition evaluateSecond: SecondTransport.vector (D2.value.apply liftedVector) = MiddleOperations.plus (D1.value.apply First.vertical) Second.value :=
+  Second.evaluateWithTime (D1.value.apply First.vertical);
+\definition secondNatural: FirstTransport.vector Second.value = SecondAtX.value :=
+  EqualityTransport.pointNatural Tangent.Vector secondVelocity y x (first.initial x);
+\definition law: Total.value = Operations.plus First.value SecondAtX.value := trans!{{Target.Vector}} _ _ _
+  (congr!{{Image.Vector} {Target.Vector}} TotalTransport.vector _ _ composedDerivative)
+  (trans!{{Target.Vector}} _ _ _
+    (sym!{{Target.Vector}} _ _ (EqualityTransport.castComposition Tangent.Vector z y x (second.initial y) (first.initial x) (D2.value.apply liftedVector)))
+    (trans!{{Target.Vector}} _ _ _
+      (congr!{{Middle.Vector} {Target.Vector}} FirstTransport.vector _ _ evaluateSecond)
+      (trans!{{Target.Vector}} _ _ _
+        (EqualityTransport.binaryNatural Tangent.Vector Tangent.Vector Tangent.Vector Velocity.addition y x (first.initial x) (D1.value.apply First.vertical) Second.value)
+        (congr!{{Target.Vector} {Target.Vector}} (Operations.plus First.value) _ _ secondNatural))));

@@ -19,6 +19,7 @@ Rust は `rustc 1.99.1 (58cf8f9c3 2026-10-13)`、checker の SHA-256 は `8b62b7
 全体検査は `python3 scripts/check_all.py --state-dir work/g04-final/repository --initial-memory-mib 12288 --memory-mib 12288 --cache-budget-mib 12288 --min-free-mib 512` で実行した。
 全体の所要時間は 5,651.742 秒、最大 RSS は 10,436,744 KiB、最大仮想メモリは 12,424,536 KiB であった。
 保存失敗と破損キャッシュの読み出しは 0 件、checkpoint の再開は 0 回、worker の回復は 1 回であった。
+`compact_support_k` の worker で 285,212,688 bytes のメモリ割当が失敗し、checkpoint 36604 から再開して accepted になった。
 各 package の終了コード、検査対象、再利用対象、回復の詳細は機械可読の記録に保存した。
 
 対象 package の検査前後、および全体検査前後の source snapshot の全ファイルを、この数学ソースの Git blob と比較し、一致を確認した。

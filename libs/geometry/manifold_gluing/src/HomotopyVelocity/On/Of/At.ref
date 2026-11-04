@@ -1,0 +1,40 @@
+\definition center: Product.Point := Pair.pair M.Point Time.Point x Time.zero;
+\import Tangent.At[x := x] \as Target;
+\import Tangent.At[x := h.map.apply center] \as Image;
+\import boundary_manifolds.Tangent[n := Nat.add One.dimension n].On[M := Product.manifold].At[x := center] \as Domain;
+\import \root.ProductDifferential[n := n, m := One.dimension].Of[M := M, N := Time.manifold].At[x := center] \as ProductTangent;
+\import Target.Operations[] \as Operations;
+\definition vertical: Domain.Vector := ProductTangent.pair Operations.origin timeVector;
+\import boundary_manifolds.Differential[n := Nat.add One.dimension n, m := n].Between[M := Product.manifold, N := M].At[f := h.map, x := center] \as Differential;
+\import Tangent.Transport[x := h.map.apply center, y := x, same := h.initial x] \as Transport;
+\definition value: Target.Vector := Transport.vector (Differential.value.apply vertical);
+\definition horizontal[v: Target.Vector]: Domain.Vector := ProductTangent.pair v TimeOperations.origin;
+\module In(c: Product.LeftChart, contains: Charts.Contains c x);
+\definition inward: Target.Cones[].Inward value := \block {
+  \takefrom c: Target.Chart \by Target.chartExists \then
+  \return In[c := \into[Charts.Chart](c, M.atlas.charts) \by { Target.member c }, contains := Target.contains c].inward
+};
+\definition spatialIdentity: \forall (v: Target.Vector) -> Transport.vector (Differential.value.apply (horizontal v)) = v := \block {
+  \fun (v: Target.Vector) \then
+  \takefrom c: Target.Chart \by Target.chartExists \then
+  \return In[c := \into[Charts.Chart](c, M.atlas.charts) \by { Target.member c }, contains := Target.contains c].spatialIdentity v
+};
+\import Domain.Operations[] \as DomainOperations;
+\import Image.Operations[] \as ImageOperations;
+\import Spaces.Laws[V := Target.Vector, space := Target.space] \as TargetLaws;
+\import Spaces.Laws[V := TimeTangent.Vector, space := TimeTangent.space] \as TimeLaws;
+\import std.Logic[].Equality[].Transport[A := M.Point] \as EqualityTransport;
+\definition split: \forall (v: Target.Vector) -> ProductTangent.pair v timeVector = DomainOperations.plus (horizontal v) vertical :=
+  \fun (v: Target.Vector) => trans!{{Domain.Vector}} _ _ _
+    (sym!{{Domain.Vector}} _ _ (congr!{{Target.Vector} {TimeTangent.Vector} {Domain.Vector}} (\fun (u: Target.Vector)(w: TimeTangent.Vector) => ProductTangent.pair u w) _ _ _ _
+      (TargetLaws.zeroRight v) (TimeLaws.zeroLeft timeVector)))
+    (ProductTangent.pairAdd v Operations.origin TimeOperations.origin timeVector);
+\definition transportAdd: \forall (u, v: Image.Vector) -> Transport.vector (ImageOperations.plus u v) = Operations.plus (Transport.vector u) (Transport.vector v) :=
+  \fun (u, v: Image.Vector) => EqualityTransport.binaryNatural Tangent.Vector Tangent.Vector Tangent.Vector addition (h.map.apply center) x (h.initial x) u v;
+\definition evaluateWithTime: \forall (v: Target.Vector) -> Transport.vector (Differential.value.apply (ProductTangent.pair v timeVector)) = Operations.plus v value :=
+  \fun (v: Target.Vector) => trans!{{Target.Vector}} _ _ _
+    (congr!{{Domain.Vector} {Target.Vector}} (\fun (w: Domain.Vector) => Transport.vector (Differential.value.apply w)) _ _ (split v))
+    (trans!{{Target.Vector}} _ _ _
+      (congr!{{Image.Vector} {Target.Vector}} Transport.vector _ _ (Differential.value.preservesAdd (horizontal v) vertical))
+      (trans!{{Target.Vector}} _ _ _ (transportAdd (Differential.value.apply (horizontal v)) (Differential.value.apply vertical))
+        (congr!{{Target.Vector} {Target.Vector}} (\fun (w: Target.Vector) => Operations.plus w value) _ _ (spatialIdentity v))));
