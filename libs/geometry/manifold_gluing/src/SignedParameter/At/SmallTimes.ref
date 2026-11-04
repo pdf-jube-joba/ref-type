@@ -1,0 +1,25 @@
+\import topology.Topology[Carrier := Time.Point] \as Space;
+\definition points: \Pow Time.Point := { t: Time.Point \where R.Lt (Time.value t) epsilon };
+\definition Point: \Set := \Cast[Time.Point] points;
+\definition topology: topology.Structures[].Topology[Point] := Space.Subspace[S := points].topology Time.manifold.space;
+\import metric_spaces.RealFunctions[A := Time.Point] \as TimeFunctions;
+\definition timeContinuous: TimeFunctions.Continuous Time.manifold.space Time.value :=
+  topology.Composition[A := Time.Point, B := Model.Point, C := S.Real].composeContinuous Time.manifold.space Ambient.topology Line.topology
+    (\fun (t: Time.Point) => t) (\fun (u: Model.Point) => u One.index) (Model.Topology[C := Time.constraints, U := Time.domain].ambient) (Ambient.coordinateContinuous One.index);
+\definition open: Space.IsOpenIn Time.manifold.space points := timeContinuous (Rays.Below epsilon) (Rays.belowOpen epsilon);
+\definition positive[t: Point]: Construction.Point := positivePoint t (\bysub(Time.Point, points, t));
+\definition negative[t: Point]: Construction.Point := negativePoint t (\bysub(Time.Point, points, t));
+\import metric_spaces.RealFunctions[A := Point] \as Functions;
+\definition value[t: Point]: S.Real := Time.value t;
+\definition valueContinuous: Functions.Continuous topology value :=
+  topology.Continuity[A := Time.Point, B := S.Real].Restriction[S := points].restrictContinuous Time.manifold.space Line.topology Time.value timeContinuous;
+\import topological_algebra.Coordinates[K := S.Real, I := One.Index].Universal[A := Point] \as Universal;
+\definition positiveAmbient: topology.Continuity[A := Point, B := Model.Point].Continuous topology Ambient.topology (\fun (t: Point) => positive t) :=
+  \fun (U: \Pow Model.Point)(open: _) => Universal.continuous topology Line.topology (\fun (t: Point) => positive t) (\fun (i: One.Index) => valueContinuous) U (Ambient.metricOpen U open);
+\definition negativeScalar: Functions.Continuous topology (\fun (t: Point) => S.neg (value t)) := Functions.negContinuous topology value valueContinuous;
+\definition negativeAmbient: topology.Continuity[A := Point, B := Model.Point].Continuous topology Ambient.topology (\fun (t: Point) => negative t) :=
+  \fun (U: \Pow Model.Point)(open: _) => Universal.continuous topology Line.topology (\fun (t: Point) => negative t) (\fun (i: One.Index) => negativeScalar) U (Ambient.metricOpen U open);
+\definition positiveContinuous: topology.Continuity[A := Point, B := Construction.Point].Continuous topology manifold.space positive :=
+  Model.Topology[C := Model.unconstrained, U := domain].Into[X := Point, source := topology, f := positive].continuous positiveAmbient;
+\definition negativeContinuous: topology.Continuity[A := Point, B := Construction.Point].Continuous topology manifold.space negative :=
+  Model.Topology[C := Model.unconstrained, U := domain].Into[X := Point, source := topology, f := negative].continuous negativeAmbient;

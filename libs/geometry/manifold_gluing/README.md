@@ -67,3 +67,8 @@ python3 scripts/check_all.py --initial-memory-mib 12288 --memory-mib 12288 --cac
 ```
 
 検査結果と対象ソースの対応は [検査記録](../../../benchmarks/records/manifold-gluing/README.md) に記録する。
+
+`ChartTransport` は、開いた像への同相から実際のチャートを移し、その内部での滑らかな座標変換と被覆を証明する。
+`SignedParameter` は正負の法線パラメータの連続な分解、正側・負側それぞれでの実際の滑らかな局所表示、半開区間からの連続な挿入と零時刻での一致を構成する。
+`CollarBoundary` は、構成した collar 候補の像が境界にあることと時間が零であることが同値であると証明する。
+これらは一般の継ぎ目の atlas を構成するための補題であり、その atlas 自体はまだ完成していない。

@@ -1,0 +1,62 @@
+\definition local: \Pow RangePoint := { p: RangePoint \where OldCharts.Contains c (h.backward p) };
+\definition localOpen: RangeSpace.IsOpenIn rangeTopology local := laws.backwardContinuous c.domain c.open;
+\definition domain: \Pow A := Inclusion.image local;
+\definition domainOpen: Space.IsOpenIn space domain := Inclusion.imageOpen space open local localOpen;
+\definition Point: \Set := \Cast[A] domain;
+\definition topology: topology.Structures[].Topology[Point] := Space.Subspace[S := domain].topology space;
+\definition range[x: Point]: RangePoint := \into[A](x, U) \by { Inclusion.imageIncluded local x (\bysub(A, domain, x)) };
+\definition contains: \forall (x: Point) -> OldCharts.Contains c (h.backward (range x)) :=
+  \fun (x: Point) => Inclusion.imageElim local x (OldCharts.Contains c (h.backward (range x)))
+    (\fun (p: RangePoint)(member: RangeSpace.Member local p)(same: p = x) => \idelim p = range x \with q: RangePoint => OldCharts.Contains c (h.backward q) \by {
+      base: member, equality: boundary_manifolds.Refinement[A := A].equality U p (range x) same
+    }) (\bysub(A, domain, x));
+\definition old[x: Point]: OldCharts.LocalPoint c := \into[M.Point](h.backward (range x), c.domain) \by { contains x };
+\definition coordinate[x: Point]: Model.Carrier c.constraints c.image := OldCharts.coordinate c (old x);
+\definition inDomain[x: M.Point][member: OldCharts.Contains c x]: Space.Member domain (value x) := Inclusion.imageMember local (h.forward x)
+  (\idelim x = h.backward (h.forward x) \with p: M.Point => OldCharts.Contains c p \by { base: member, equality: sym!{{M.Point}} _ _ (laws.leftInverse x) });
+\definition lift[x: M.Point][member: OldCharts.Contains c x]: Point := \into[A](value x, domain) \by { inDomain x member };
+\definition point[u: Model.Carrier c.constraints c.image]: Point := lift (OldCharts.point c u) (\bysub(M.Point, c.domain, OldCharts.point c u));
+\definition oldLift: \forall (x: M.Point)(member: OldCharts.Contains c x) -> (old (lift x member) \of M.Point) = x :=
+  \fun (x: M.Point)(member: _) => laws.leftInverse x;
+\definition valueOld: \forall (x: Point) -> value (old x) = (x \of A) := \fun (x: Point) => laws.rightInverse (range x);
+\definition leftInverse: \forall (x: Point) -> point (coordinate x) = x :=
+  \fun (x: Point) => boundary_manifolds.Refinement[A := A].equality domain (point (coordinate x)) x
+    (trans!{A} _ _ _ (congr!{{M.Point} A} value _ _ (OldCharts.pointCoordinate c (old x))) (valueOld x));
+\definition oldPoint: \forall (u: Model.Carrier c.constraints c.image) -> old (point u) = OldCharts.point c u :=
+  \fun (u: Model.Carrier c.constraints c.image) => boundary_manifolds.Refinement[A := M.Point].equality c.domain (old (point u)) (OldCharts.point c u) (laws.leftInverse (OldCharts.point c u));
+\definition rightInverse: \forall (u: Model.Carrier c.constraints c.image) -> coordinate (point u) = u :=
+  \fun (u: Model.Carrier c.constraints c.image) => trans!{{Model.Carrier c.constraints c.image}} _ _ _
+    (congr!{{OldCharts.LocalPoint c} {Model.Carrier c.constraints c.image}} (OldCharts.coordinate c) _ _ (oldPoint u)) (OldCharts.coordinatePoint c u);
+\definition rangeContinuous: topology.Continuity[A := Point, B := RangePoint].Continuous topology rangeTopology range :=
+  topology.Continuity[A := Point, B := A].Corestriction[S := U].corestrictContinuous topology space range
+    (topology.Continuity[A := Point, B := A].Corestriction[S := domain].inclusionContinuous space);
+\definition backwardContinuous: topology.Continuity[A := Point, B := M.Point].Continuous topology M.space (\fun (x: Point) => old x) :=
+  topology.Composition[A := Point, B := RangePoint, C := M.Point].composeContinuous topology rangeTopology M.space range h.backward rangeContinuous laws.backwardContinuous;
+\definition oldContinuous: topology.Continuity[A := Point, B := OldCharts.LocalPoint c].Continuous topology (OldCharts.domainTopology c.domain) old :=
+  topology.Continuity[A := Point, B := M.Point].Corestriction[S := c.domain].corestrictContinuous topology M.space old backwardContinuous;
+\import topology.Homeomorphism[A := OldCharts.LocalPoint c, B := Model.Carrier c.constraints c.image] \as Original;
+\definition coordinateContinuous: topology.Continuity[A := Point, B := Model.Carrier c.constraints c.image].Continuous topology (Model.regionTopology c.constraints c.image) coordinate :=
+  topology.Composition[A := Point, B := OldCharts.LocalPoint c, C := Model.Carrier c.constraints c.image].composeContinuous topology (OldCharts.domainTopology c.domain) (Model.regionTopology c.constraints c.image)
+    old (OldCharts.coordinate c) oldContinuous (Original.laws _ _ c.coordinates).forwardContinuous;
+\definition valueContinuous: topology.Continuity[A := M.Point, B := A].Continuous M.space space value :=
+  topology.Composition[A := M.Point, B := RangePoint, C := A].composeContinuous M.space rangeTopology space h.forward (\fun (p: RangePoint) => p)
+    laws.forwardContinuous (topology.Continuity[A := RangePoint, B := A].Corestriction[S := U].inclusionContinuous space);
+\definition originalContinuous: topology.Continuity[A := Model.Carrier c.constraints c.image, B := M.Point].Continuous (Model.regionTopology c.constraints c.image) M.space (\fun (u: Model.Carrier c.constraints c.image) => OldCharts.point c u) :=
+  topology.Composition[A := Model.Carrier c.constraints c.image, B := OldCharts.LocalPoint c, C := M.Point].composeContinuous (Model.regionTopology c.constraints c.image) (OldCharts.domainTopology c.domain) M.space
+    (OldCharts.point c) (\fun (p: OldCharts.LocalPoint c) => p) (Original.laws _ _ c.coordinates).backwardContinuous
+    (topology.Continuity[A := OldCharts.LocalPoint c, B := M.Point].Corestriction[S := c.domain].inclusionContinuous M.space);
+\definition pointAmbient: topology.Continuity[A := Model.Carrier c.constraints c.image, B := A].Continuous (Model.regionTopology c.constraints c.image) space (\fun (u: Model.Carrier c.constraints c.image) => point u) :=
+  topology.Composition[A := Model.Carrier c.constraints c.image, B := M.Point, C := A].composeContinuous (Model.regionTopology c.constraints c.image) M.space space
+    (\fun (u: Model.Carrier c.constraints c.image) => OldCharts.point c u) value originalContinuous valueContinuous;
+\definition pointContinuous: topology.Continuity[A := Model.Carrier c.constraints c.image, B := Point].Continuous (Model.regionTopology c.constraints c.image) topology point :=
+  topology.Continuity[A := Model.Carrier c.constraints c.image, B := A].Corestriction[S := domain].corestrictContinuous (Model.regionTopology c.constraints c.image) space point pointAmbient;
+\definition chart: Charts.Chart := Charts.Chart {
+  domain := domain, image := c.image, constraints := c.constraints, open := domainOpen,
+  coordinates := topology.Homeomorphism[A := Point, B := Model.Carrier c.constraints c.image].Homeomorphism[topology, Model.regionTopology c.constraints c.image] {
+    forward := coordinate, backward := point, leftInverse := leftInverse, rightInverse := rightInverse,
+    forwardContinuous := coordinateContinuous, backwardContinuous := pointContinuous,
+  },
+};
+\definition coordinateLift: \forall (x: M.Point)(member: OldCharts.Contains c x) -> coordinate (lift x member) = OldCharts.coordinate c (\into[M.Point](x, c.domain) \by { member }) :=
+  \fun (x: M.Point)(member: _) => congr!{{OldCharts.LocalPoint c} {Model.Carrier c.constraints c.image}} (OldCharts.coordinate c) _ _
+    (boundary_manifolds.Refinement[A := M.Point].equality c.domain (old (lift x member)) (\into[M.Point](x, c.domain) \by { member }) (oldLift x member));
