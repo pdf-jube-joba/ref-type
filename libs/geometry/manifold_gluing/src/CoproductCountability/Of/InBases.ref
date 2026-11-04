@@ -1,0 +1,35 @@
+\definition leftSet: N.Nat^ -> \Pow A := \induction (k: N.Nat^) \return \Pow A \with {
+  | zero: Left.Empty
+  | succ: \fun (k: N.Nat^)(previous: \Pow A) => l k
+};
+\definition rightSet: N.Nat^ -> \Pow B := \induction (k: N.Nat^) \return \Pow B \with {
+  | zero: Right.Empty
+  | succ: \fun (k: N.Nat^)(previous: \Pow B) => r k
+};
+\definition leftOpen: \forall (k: N.Nat^) -> Left.IsOpenIn left (leftSet k) :=
+  \induction (k: N.Nat^) \return Left.IsOpenIn left (leftSet k) \with {
+    | zero: (Left.topologyLaws left).emptyOpen
+    | succ: \fun (k: N.Nat^)(previous: _) => ll.open k
+  };
+\definition rightOpen: \forall (k: N.Nat^) -> Right.IsOpenIn right (rightSet k) :=
+  \induction (k: N.Nat^) \return Right.IsOpenIn right (rightSet k) \with {
+    | zero: (Right.topologyLaws right).emptyOpen
+    | succ: \fun (k: N.Nat^)(previous: _) => rr.open k
+  };
+\import Sum.Properties[left := left, right := right] \as Join;
+\definition rectangle[p: Pair.NatPair]: \Pow Sum.Carrier := Join.Joined (leftSet (Pair.natPairFirst p)) (rightSet (Pair.natPairSecond p));
+\definition basis[k: N.Nat^]: \Pow Sum.Carrier := rectangle (Enumeration.enumerate k);
+\definition open: \forall (k: N.Nat^) -> Space.IsOpenIn (Sum.topology left right) (basis k) :=
+  \fun (k: N.Nat^) => Join.joinedOpen (leftSet (Pair.natPairFirst (Enumeration.enumerate k))) (rightSet (Pair.natPairSecond (Enumeration.enumerate k)))
+    (leftOpen (Pair.natPairFirst (Enumeration.enumerate k))) (rightOpen (Pair.natPairSecond (Enumeration.enumerate k)));
+\module LeftAt(U: \Pow Sum.Carrier, openU: Space.IsOpenIn (Sum.topology left right) U, x: A, member: Space.Member U (Sum.inl x));
+\module RightAt(U: \Pow Sum.Carrier, openU: Space.IsOpenIn (Sum.topology left right) U, x: B, member: Space.Member U (Sum.inr x));
+\definition refines: \forall (U: \Pow Sum.Carrier) -> Space.IsOpenIn (Sum.topology left right) U -> \forall (x: Sum.Carrier) -> Space.Member U x ->
+  \exists (k: N.Nat^ \where Logic.And[Space.Member (basis k) x, Space.Subset (basis k) U]) :=
+  \fun (U: \Pow Sum.Carrier)(openU: _) => \induction (x: Sum.Carrier) \return Space.Member U x -> \exists (k: N.Nat^ \where Logic.And[Space.Member (basis k) x, Space.Subset (basis k) U]) \with {
+    | inl: \fun (x: A)(member: _) => LeftAt[U := U, openU := openU, x := x, member := member].exists
+    | inr: \fun (x: B)(member: _) => RightAt[U := U, openU := openU, x := x, member := member].exists
+  };
+\definition secondCountable: Space.IsSecondCountable (Sum.topology left right) :=
+  Logic.existsIntro[N.Nat^ -> \Pow Sum.Carrier, { b: N.Nat^ -> \Pow Sum.Carrier \where Space.IsCountableBasis[Sum.topology left right, b] }] basis
+    (Space.IsCountableBasis[Sum.topology left right, basis] { open := open, refines := refines });

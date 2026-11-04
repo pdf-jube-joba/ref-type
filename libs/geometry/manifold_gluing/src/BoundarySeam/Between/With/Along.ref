@@ -1,0 +1,28 @@
+\definition left: LeftBoundary.manifold.Point -> M.Point := LeftBoundary.apply;
+\definition right[b: LeftBoundary.manifold.Point]: N.Point := RightBoundary.apply (BoundaryMaps.apply d.forward b);
+\import \root.Seam[A := M.Point, B := N.Point, C := LeftBoundary.manifold.Point, u := left, v := right] \as Seam;
+\import \root.CollarStrip[n := n].On[M := M].With[cover := leftCover] \as LeftInclusion;
+\import \root.CollarStrip[n := n].On[M := N].With[cover := rightCover] \as RightInclusion;
+\definition injections: Seam.Injections := Seam.Injections {
+  left := LeftInclusion.inclusionInjective,
+  right := \fun (b, c: LeftBoundary.manifold.Point)(same: _) => Diffeomorphisms.Of[d := d].injective b c
+    (RightInclusion.inclusionInjective (BoundaryMaps.apply d.forward b) (BoundaryMaps.apply d.forward c) same),
+};
+\import Seam.Embedded[injections := injections] \as Embedded;
+\import topological_constructions.Pushout[A := M.Point, B := N.Point, C := LeftBoundary.manifold.Point].Of[u := left, v := right] \as Pushout;
+\definition Point: \Set := Pushout.Carrier;
+\definition topology: topology.Structures[].Topology[Point] := Pushout.topology M.space N.space;
+\definition inl: M.Point -> Point := Pushout.inl;
+\definition inr: N.Point -> Point := Pushout.inr;
+\definition inlContinuous: topology.Continuity[A := M.Point, B := Point].Continuous M.space topology inl := Pushout.inlContinuous M.space N.space;
+\definition inrContinuous: topology.Continuity[A := N.Point, B := Point].Continuous N.space topology inr := Pushout.inrContinuous M.space N.space;
+\definition glued: \forall (b: LeftBoundary.manifold.Point) -> inl (left b) = inr (right b) := Pushout.glued;
+\definition leftInjective: \forall (x, y: M.Point) -> inl x = inl y -> x = y := Embedded.leftInjective;
+\definition rightInjective: \forall (x, y: N.Point) -> inr x = inr y -> x = y := Embedded.rightInjective;
+\definition crossCriterion: \forall (x: M.Point)(y: N.Point) -> Logic.PropEquiv[inl x = inr y, Seam.Cross x y] := Embedded.crossCriterion;
+\import topological_constructions.Coproduct[A := M.Point, B := N.Point] \as Sum;
+\import topological_constructions.RelationQuotient[A := Sum.Carrier, relation := Pushout.Related] \as Quotient;
+\definition compact: LeftSpace.IsCompact M.space -> RightSpace.IsCompact N.space -> topology.Topology[Carrier := Point].IsCompact topology :=
+  \fun (leftCompact: _)(rightCompact: _) => topology.Compactness[A := Sum.Carrier, B := Point].surjectiveImage (Sum.topology M.space N.space) topology Pushout.class
+    (Quotient.projectionContinuous (Sum.topology M.space N.space)) Quotient.surjective (Sum.Properties[left := M.space, right := N.space].compact leftCompact rightCompact);
+\module Compact(leftCompact: LeftSpace.IsCompact M.space, rightCompact: RightSpace.IsCompact N.space);

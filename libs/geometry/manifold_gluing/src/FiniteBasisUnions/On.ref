@@ -1,0 +1,32 @@
+\definition union[n: N.Nat^][values: Fin.Fin n -> N.Nat^]: \Pow A := { x: A \where \exists (i: Fin.Fin n \where Space.Member (basis (values i)) x) };
+\definition sequence[k: N.Nat^]: \Pow A := union (length k) (values k);
+\definition family[n: N.Nat^][values: Fin.Fin n -> N.Nat^]: \Pow (\Pow A) := { U: \Pow A \where \exists (i: Fin.Fin n \where U = basis (values i)) };
+\definition equalsUnion: \forall (n: N.Nat^)(values: Fin.Fin n -> N.Nat^) -> union n values = Space.Union (family n values) := \fun (n: N.Nat^)(values: Fin.Fin n -> N.Nat^) => \axiom:setext(union n values, Space.Union (family n values),
+  (\block {
+    \fun (x: A)(member: Space.Member (union n values) x) \then
+    \takefrom i: \Cast[Fin.Fin n] ({ i: Fin.Fin n \where Space.Member (basis (values i)) x }) \by member \then
+    \return Space.unionMemberOf (family n values) (basis (values i)) x
+      (Logic.existsIntro[Fin.Fin n, { j: Fin.Fin n \where basis (values i) = basis (values j) }] i (\refl(basis (values i))))
+      (\bysub(Fin.Fin n, { i: Fin.Fin n \where Space.Member (basis (values i)) x }, i))
+  }),
+  (\fun (x: A)(member: Space.Member (Space.Union (family n values)) x) => Space.unionMemberElim (family n values) x (Space.Member (union n values) x) (\block {
+    \fun (U: \Pow A)(included: Space.FamilyMember (family n values) U)(inU: Space.Member U x) \then
+    \takefrom i: \Cast[Fin.Fin n] ({ i: Fin.Fin n \where U = basis (values i) }) \by included \then
+    \return Logic.existsIntro[Fin.Fin n, { i: Fin.Fin n \where Space.Member (basis (values i)) x }] i
+      (\idelim U = basis (values i) \with V: \Pow A => Space.Member V x \by { base: inU, equality: \bysub(Fin.Fin n, { i: Fin.Fin n \where U = basis (values i) }, i) })
+  }) member));
+\definition open: \forall (k: N.Nat^) -> Space.IsOpenIn topology (sequence k) := \fun (k: N.Nat^) =>
+  \idelim Space.Union (family (length k) (values k)) = sequence k \with U: \Pow A => Space.IsOpenIn topology U \by {
+    base: (Space.topologyLaws topology).unionOpen (family (length k) (values k)) (\block {
+      \fun (U: \Pow A)(member: Space.FamilyMember (family (length k) (values k)) U) \then
+      \takefrom i: \Cast[Fin.Fin (length k)] ({ i: Fin.Fin (length k) \where U = basis (values k i) }) \by member \then
+      \return \idelim basis (values k i) = U \with V: \Pow A => Space.IsOpenIn topology V \by {
+        base: laws.open (values k i), equality: sym!{{\Pow A}} _ _ (\bysub(Fin.Fin (length k), { i: Fin.Fin (length k) \where U = basis (values k i) }, i))
+      }
+    }), equality: sym!{{\Pow A}} _ _ (equalsUnion (length k) (values k))
+  };
+\definition indexed: \Pow (\Pow A) := { U: \Pow A \where \exists (k: N.Nat^ \where U = basis k) };
+\import topology.Topology[Carrier := \Pow A] \as Families;
+\module ForFinite(F: Finite.FiniteSubset, included: Families.Subset F indexed);
+\definition exhaustive: \forall (F: Finite.FiniteSubset) -> Families.Subset F indexed -> \exists (k: N.Nat^ \where sequence k = Space.Union F) :=
+  \fun (F: Finite.FiniteSubset)(included: _) => ForFinite[F := F, included := included].exists;
