@@ -1,0 +1,40 @@
+\definition c: \Cast[Charts.Chart] M.atlas.charts := (bundle.atlas.local i).chart;
+\import Atlas.InChart[i := i] \as Raw;
+\definition chartData: Trivializations.ChartData := Trivializations.ChartData { domain := c.domain, dimension := r, frame := (bundle.atlas.local i).frame };
+\import Trivializations.In[c := chartData] \as Local;
+\definition rawChart: TotalCharts.Chart := Construction.totalChart i;
+\import topology.Topology[Carrier := Point] \as RawSpace;
+\import RawSpace.Subspace[S := Raw.domain] \as RawDomain;
+\definition rawTopology: topology.Topology[Carrier := Raw.LocalPoint].Topology := RawDomain.topology topology;
+\definition rawPoint[p: Local.TotalPoint]: Raw.LocalPoint := \into[Point](embed p, Raw.domain) \by { \bysub(Continuous.Point, { p: Continuous.Point \where \In[M.Point] c.domain p.base }, p) };
+\import topology.Continuity[A := Continuous.Point, B := Point].Restriction[S := { p: Continuous.Point \where \In[M.Point] c.domain p.base }] \as Restrict;
+\import topology.Continuity[A := Local.TotalPoint, B := Point].Corestriction[S := Raw.domain] \as Corestrict;
+\definition rawPointContinuous: topology.Continuity[A := Local.TotalPoint, B := Raw.LocalPoint].Continuous Local.localTopology rawTopology rawPoint :=
+  Corestrict.corestrictContinuous Local.localTopology topology rawPoint (Restrict.restrictContinuous totalTopology topology embed embedContinuous);
+\import calculus.Real[].Multivariable[n := totalDimension].Open[] \as Open;
+\import calculus.Real[].Multivariable[n := n].Open[] \as BaseOpen;
+\import calculus.Real[].Multivariable[n := r].Open[] \as FiberOpen;
+\import calculus.Blocks[n := n, m := r] \as Blocks;
+\import Blocks.On[U := c.image, V := FiberOpen.whole] \as Parameters;
+\definition parameterTopology: topology.Topology[Carrier := Open.Carrier Parameters.domain].Topology := Open.Topology[].Of[U := Parameters.domain].topology;
+\import topology.Homeomorphism[A := Raw.LocalPoint, B := Open.Carrier Parameters.domain] \as RawCoordinates;
+\definition rawCoordinateContinuous: topology.Continuity[A := Raw.LocalPoint, B := Open.Carrier Parameters.domain].Continuous rawTopology parameterTopology Raw.coordinate :=
+  (RawCoordinates.laws rawTopology parameterTopology rawChart.coordinates).forwardContinuous;
+\definition coordinate[p: Local.TotalPoint]: Open.Carrier Parameters.domain := Raw.coordinate (rawPoint p);
+\definition coordinateContinuous: topology.Continuity[A := Local.TotalPoint, B := Open.Carrier Parameters.domain].Continuous Local.localTopology parameterTopology coordinate :=
+  topology.Composition[A := Local.TotalPoint, B := Raw.LocalPoint, C := Open.Carrier Parameters.domain].composeContinuous Local.localTopology rawTopology parameterTopology rawPoint Raw.coordinate rawPointContinuous rawCoordinateContinuous;
+\import topology.Continuity[A := Continuous.Point, B := M.Point].Restriction[S := { p: Continuous.Point \where \In[M.Point] c.domain p.base }] \as RestrictProjection;
+\import topology.Continuity[A := Local.TotalPoint, B := M.Point].Corestriction[S := c.domain] \as IntoBase;
+\definition baseContinuous: topology.Continuity[A := Local.TotalPoint, B := Local.BasePoint].Continuous Local.localTopology (Charts.domainTopology c.domain) Local.base :=
+  IntoBase.corestrictContinuous Local.localTopology M.space Local.base (RestrictProjection.restrictContinuous totalTopology M.space Continuous.projection projectionContinuous);
+\module Vector;
+\module Backward;
+\import topological_constructions.Product[A := Local.BasePoint, B := Fin.Fin r -> R.Real] \as Product;
+\definition forwardContinuous: topology.Continuity[A := Local.TotalPoint, B := Local.ProductPoint].Continuous Local.localTopology Local.productTopology Local.forward :=
+  Product.Universal[X := Local.TotalPoint].pairContinuous Local.localTopology (Charts.domainTopology c.domain) (Bundles.coordinateTopology r)
+    Local.base Vector[].value baseContinuous Vector[].continuous;
+\definition chart: Trivializations.Chart := \into[Trivializations.ChartData](chartData, Trivializations.Chart) \by {
+  Local.Laws { baseOpen := c.open, totalOpen := projectionContinuous c.domain c.open,
+    forwardContinuous := forwardContinuous, backwardContinuous := Backward[].continuous,
+  }
+};

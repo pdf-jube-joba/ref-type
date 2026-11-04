@@ -79,6 +79,7 @@
 | [geometry/boundary_manifolds](geometry/boundary_manifolds/README.md) | `boundary_manifolds` | 半空間・象限チャート、接錐と座標不変な微分、境界・面の接束、neat embedding、積・区間・円板 |
 | [geometry/vector_bundles](geometry/vector_bundles/README.md) | `vector_bundles` | 一般の実・複素束、局所定数ランク、束写像・切断・引き戻しと普遍性 |
 | [geometry/bundle_operations](geometry/bundle_operations/README.md) | `bundle_operations` | Cocycle の貼り合わせ、直和・テンソル・双対・Hom・外冪、実化・複素化と引き戻し |
+| [geometry/smooth_bundles](geometry/smooth_bundles/README.md) | `smooth_bundles` | 実・複素滑らかな束と計量、双対・テンソル・外冪、枠束の滑らかな作用・局所微分同相、表現による随伴束、接束・法束との比較 |
 | [geometry/bundle_complements](geometry/bundle_complements/README.md) | `bundle_complements` | 有限分割からの計量・有限埋め込み、直交補束、連続射影の像と同型類の集合 |
 | [geometry/bundle_extension](geometry/bundle_extension/README.md) | `bundle_extension` | Tietze、閉部分空間上の束・写像・同型の近傍延長、縮小比較と安定化 |
 | [geometry/grassmannians](geometry/grassmannians/README.md) | `grassmannians` | 有限 Grassmannian、グラフ座標、普遍束と安定化 |

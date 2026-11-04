@@ -1,0 +1,22 @@
+\import \root.Complex[n := n, r := r].On[M := M].Family[F := F, space := space].Of[I := I, bundle := bundle].Columns[enumeration := enumeration].FrameBundle[].Native[].Action[] \as Native;
+\definition productDimension: N.Nat^ := Native.dimension;
+\import manifolds.Dimension[n := productDimension].Smooth[] \as ProductModels;
+\definition productManifold: ProductModels.Manifold := Native.source;
+\definition ProductPoint: \Set := Native.SourcePoint;
+\definition make: Point -> GroupPoint -> ProductPoint := Native.make;
+\import manifolds.SmoothMap[n := productDimension, m := dimension].Between[M := productManifold, N := manifold] \as Maps;
+\definition map: Maps.Map := Native.map;
+\definition firstMap: Maps.Map := Native.firstMap;
+\definition secondMap: manifolds.SmoothMap[n := productDimension, m := groupDimension].Between[M := productManifold, N := groupManifold].Map := Native.secondMap;
+\definition action[p: Point][g: GL.Carrier]: Point := Construction.act p g;
+\definition formula: \forall (p: Point)(g: GL.Carrier) -> Maps.apply map (make p (toGroupPoint g)) = action p g := Native.actionFormula;
+\definition firstMake: \forall (p: Point)(g: GroupPoint) -> Maps.apply firstMap (make p g) = p := Native.firstMake;
+\definition secondMake: \forall (p: Point)(g: GroupPoint) -> manifolds.SmoothMap[n := productDimension, m := groupDimension].Between[M := productManifold, N := groupManifold].apply secondMap (make p g) = g := Native.secondMake;
+\module Pair(d: N.Nat^);
+
+\definition identity: \forall (p: Point) -> Maps.apply map (make p (toGroupPoint GL.identity)) = p := \fun (p: Point) =>
+  trans!{Point} _ _ _ (formula p GL.identity) (Construction.actionIdentity p);
+\definition composition: \forall (p: Point)(g, h: GL.Carrier) -> Maps.apply map (make (Maps.apply map (make p (toGroupPoint g))) (toGroupPoint h)) = Maps.apply map (make p (toGroupPoint (GL.multiply g h))) :=
+  \fun (p: Point)(g, h: GL.Carrier) => trans!{Point} _ _ _ (formula (Maps.apply map (make p (toGroupPoint g))) h)
+    (trans!{Point} _ _ _ (congr!{Point Point} (\fun (q: Point) => action q h) _ _ (formula p g))
+      (trans!{Point} _ _ _ (Construction.actionProduct p g h) (sym!{Point} _ _ (formula p (GL.multiply g h)))));

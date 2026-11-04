@@ -1,0 +1,52 @@
+\definition Function: \Set := Model.Carrier U -> C.Complex;
+\structure SmoothLaws[f: Function]: \Prop := {
+  real: RealSmooth.SmoothOn U (\fun (x: Model.Carrier U) => C.re (f x)),
+  imaginary: RealSmooth.SmoothOn U (\fun (x: Model.Carrier U) => C.im (f x)),
+};
+\definition Smooth[f: Function]: \Prop := SmoothLaws[f];
+\definition constant: \forall (z: C.Complex) -> Smooth (\fun (x: Model.Carrier U) => z) := \fun (z: C.Complex) => SmoothLaws[\fun (x: Model.Carrier U) => z] {
+  real := Operations.constantSmooth U (C.re z), imaginary := Operations.constantSmooth U (C.im z),
+};
+\definition plus: \forall (f, g: Function) -> Smooth f -> Smooth g -> Smooth (\fun (x: Model.Carrier U) => Op.add (f x) (g x)) :=
+  \fun (f, g: Function)(left: Smooth f)(right: Smooth g) => SmoothLaws[\fun (x: Model.Carrier U) => Op.add (f x) (g x)] {
+    real := Operations.addSmooth U (\fun (x: Model.Carrier U) => C.re (f x)) (\fun (x: Model.Carrier U) => C.re (g x)) left.real right.real,
+    imaginary := Operations.addSmooth U (\fun (x: Model.Carrier U) => C.im (f x)) (\fun (x: Model.Carrier U) => C.im (g x)) left.imaginary right.imaginary,
+  };
+\definition negative: \forall (f: Function) -> Smooth f -> Smooth (\fun (x: Model.Carrier U) => Op.neg (f x)) :=
+  \fun (f: Function)(regular: Smooth f) => SmoothLaws[\fun (x: Model.Carrier U) => Op.neg (f x)] {
+    real := Operations.negSmooth U (\fun (x: Model.Carrier U) => C.re (f x)) regular.real,
+    imaginary := Operations.negSmooth U (\fun (x: Model.Carrier U) => C.im (f x)) regular.imaginary,
+  };
+\definition times: \forall (f, g: Function) -> Smooth f -> Smooth g -> Smooth (\fun (x: Model.Carrier U) => Op.mul (f x) (g x)) :=
+  \fun (f, g: Function)(left: Smooth f)(right: Smooth g) => SmoothLaws[\fun (x: Model.Carrier U) => Op.mul (f x) (g x)] {
+    real := Operations.subSmooth U (\fun (x: Model.Carrier U) => R.mul (C.re (f x)) (C.re (g x))) (\fun (x: Model.Carrier U) => R.mul (C.im (f x)) (C.im (g x)))
+      (Operations.mulSmooth U (\fun (x: Model.Carrier U) => C.re (f x)) (\fun (x: Model.Carrier U) => C.re (g x)) left.real right.real)
+      (Operations.mulSmooth U (\fun (x: Model.Carrier U) => C.im (f x)) (\fun (x: Model.Carrier U) => C.im (g x)) left.imaginary right.imaginary),
+    imaginary := Operations.addSmooth U (\fun (x: Model.Carrier U) => R.mul (C.re (f x)) (C.im (g x))) (\fun (x: Model.Carrier U) => R.mul (C.im (f x)) (C.re (g x)))
+      (Operations.mulSmooth U (\fun (x: Model.Carrier U) => C.re (f x)) (\fun (x: Model.Carrier U) => C.im (g x)) left.real right.imaginary)
+      (Operations.mulSmooth U (\fun (x: Model.Carrier U) => C.im (f x)) (\fun (x: Model.Carrier U) => C.re (g x)) left.imaginary right.real),
+  };
+\definition conjugate: \forall (f: Function) -> Smooth f -> Smooth (\fun (x: Model.Carrier U) => Op.conj (f x)) :=
+  \fun (f: Function)(regular: Smooth f) => SmoothLaws[\fun (x: Model.Carrier U) => Op.conj (f x)] {
+    real := regular.real, imaginary := Operations.negSmooth U (\fun (x: Model.Carrier U) => C.im (f x)) regular.imaginary,
+  };
+\definition equalSmooth: \forall (f, g: Function) -> (\forall (x: Model.Carrier U) -> f x = g x) -> Smooth f -> Smooth g :=
+  \fun (f, g: Function)(same: _)(regular: Smooth f) => SmoothLaws[g] {
+    real := smooth_partitions.Euclidean[n := n].smoothCongruent U (\fun (x: Model.Carrier U) => C.re (f x)) (\fun (x: Model.Carrier U) => C.re (g x))
+      (\fun (x: Model.Carrier U) => congr!{{C.Complex} {R.Real}} C.re _ _ (same x)) regular.real,
+    imaginary := smooth_partitions.Euclidean[n := n].smoothCongruent U (\fun (x: Model.Carrier U) => C.im (f x)) (\fun (x: Model.Carrier U) => C.im (g x))
+      (\fun (x: Model.Carrier U) => congr!{{C.Complex} {R.Real}} C.im _ _ (same x)) regular.imaginary,
+  };
+\module Sums(I: \Set);
+
+\import linear_algebra.Hermitian[].Over[K := C.Complex, field := C.Algebra[].field, scalar := linear_algebra.Hermitian[].Complex[].scalar].Sums[] \as NaturalSums;
+\definition finiteSmooth: \forall (size: N.Nat^)(functions: Fin.Fin size -> Function) -> (\forall (i: Fin.Fin size) -> Smooth (functions i)) ->
+  Smooth (\fun (x: Model.Carrier U) => NaturalSums.sum size (\fun (i: Fin.Fin size) => functions i x)) :=
+  \induction (size: N.Nat^) \return \forall (functions: Fin.Fin size -> Function) -> (\forall (i: Fin.Fin size) -> Smooth (functions i)) ->
+    Smooth (\fun (x: Model.Carrier U) => NaturalSums.sum size (\fun (i: Fin.Fin size) => functions i x)) \with {
+      | zero: \fun (functions: Fin.Fin N.Nat^::zero -> Function)(regular: _) => constant Op.zero
+      | succ: \fun (size: N.Nat^)(previous: _)(functions: Fin.Fin (N.Nat^::succ size) -> Function)(regular: _) =>
+        plus (functions (Fin.zero size)) (\fun (x: Model.Carrier U) => NaturalSums.sum size (\fun (i: Fin.Fin size) => functions (Fin.succ size i) x))
+          (regular (Fin.zero size)) (previous (\fun (i: Fin.Fin size) => functions (Fin.succ size i)) (\fun (i: Fin.Fin size) => regular (Fin.succ size i)))
+    };
+\module Locality(f: Function);

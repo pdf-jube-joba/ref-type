@@ -1,0 +1,18 @@
+\import ComplexAtlas.Change[i := i, j := j] \as Forward;
+\import Charts.Transition[left := (bundle.atlas.local i).chart, right := (bundle.atlas.local j).chart] \as Base;
+\import calculus.Real[].Multivariable[n := n].Open[] \as Open;
+\import \root.ComplexCalculus[n := n].On[U := Base.domain] \as Calculus;
+\definition evaluate: \forall (v: Vector)(a: Fin.Fin r) -> Calculus.Smooth (\fun (t: Open.Carrier Base.domain) => (Forward.matrix t).apply v a) := Forward.fromReal (bundle.regular i j);
+\import Spaces.Linear[V := Vector, W := Vector, source := coordinates, target := coordinates] \as Linear;
+\definition backward[t: Open.Carrier Base.domain]: Linear.Map := Linear.Map {
+  apply := \fun (v: Vector) => ((bundle.atlas.local i).frame (Forward.x t)).forward.apply (((bundle.atlas.local j).frame (Forward.y t)).backward.apply v),
+  preservesAdd := \fun (v, w: Vector) => trans!{Vector} _ _ _
+    (congr!{{F (Forward.x t)} Vector} ((bundle.atlas.local i).frame (Forward.x t)).forward.apply _ _ (((bundle.atlas.local j).frame (Forward.y t)).backward.preservesAdd v w))
+    (((bundle.atlas.local i).frame (Forward.x t)).forward.preservesAdd (((bundle.atlas.local j).frame (Forward.y t)).backward.apply v) (((bundle.atlas.local j).frame (Forward.y t)).backward.apply w)),
+  preservesScale := \fun (a: C.Complex)(v: Vector) => trans!{Vector} _ _ _
+    (congr!{{F (Forward.x t)} Vector} ((bundle.atlas.local i).frame (Forward.x t)).forward.apply _ _ (((bundle.atlas.local j).frame (Forward.y t)).backward.preservesScale a v))
+    (((bundle.atlas.local i).frame (Forward.x t)).forward.preservesScale a (((bundle.atlas.local j).frame (Forward.y t)).backward.apply v)),
+};
+\import \root.ComplexMatrix[d := n, p := r, q := r].On[U := Base.domain, A := backward] \as Backward;
+\import Real.Of[I := I, bundle := forget].Reverse[i := i, j := j] \as RealInverse;
+\definition inverseEvaluate: \forall (v: Vector)(a: Fin.Fin r) -> Calculus.Smooth (\fun (t: Open.Carrier Base.domain) => (backward t).apply v a) := Backward.fromReal RealInverse.regular;

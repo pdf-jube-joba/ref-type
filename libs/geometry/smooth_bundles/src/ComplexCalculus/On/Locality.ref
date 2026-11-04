@@ -1,0 +1,25 @@
+\structure Patch: \Set := {
+  domain: Model.OpenSet,
+  included: Model.Included domain U,
+  smooth: \root.ComplexCalculus[n := n].On[U := domain].Smooth (\fun (x: Model.Carrier domain) => f (Model.inclusion domain U included x)),
+};
+\definition Contains[patch: Patch][x: Model.Carrier U]: \Prop := \In[Fin.Fin n -> R.Real] patch.domain.points x;
+\definition Patches[x: Model.Carrier U]: \Pow Patch := { patch: Patch \where Contains patch x };
+\definition IsLocal: \Prop := \forall (x: Model.Carrier U) -> \exists \Cast[Patch] (Patches x);
+\import Model.LocalSmooth[U := U, f := \fun (x: Model.Carrier U) => C.re (f x)] \as Real;
+\import Model.LocalSmooth[U := U, f := \fun (x: Model.Carrier U) => C.im (f x)] \as Imaginary;
+\definition realLocal: IsLocal -> Real.IsLocal := \block {
+  \fun (local: IsLocal)(x: Model.Carrier U) \then
+  \takefrom patch: \Cast[Patch] (Patches x) \by local x \then
+  \return Logic.existsIntro[Real.Patch, Real.Patches x]
+    (Real.Patch { domain := patch.domain, included := patch.included, smooth := patch.smooth.real }) (\bysub(Patch, Patches x, patch))
+};
+\definition imaginaryLocal: IsLocal -> Imaginary.IsLocal := \block {
+  \fun (local: IsLocal)(x: Model.Carrier U) \then
+  \takefrom patch: \Cast[Patch] (Patches x) \by local x \then
+  \return Logic.existsIntro[Imaginary.Patch, Imaginary.Patches x]
+    (Imaginary.Patch { domain := patch.domain, included := patch.included, smooth := patch.smooth.imaginary }) (\bysub(Patch, Patches x, patch))
+};
+\definition smooth: IsLocal -> Smooth f := \fun (local: IsLocal) => SmoothLaws[f] {
+  real := Real.smooth (realLocal local), imaginary := Imaginary.smooth (imaginaryLocal local),
+};

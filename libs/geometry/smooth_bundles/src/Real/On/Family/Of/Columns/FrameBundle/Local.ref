@@ -1,0 +1,71 @@
+\import RawAtlas.InChart[i := i] \as Raw;
+\definition c: tangent_bundles.FrameBundle[n := n, r := r].Over[M := M].Chart := (data.local i).chart;
+\definition base[p: Raw.LocalPoint]: Charts.LocalPoint c := \into[M.Point](p.base, c.domain) \by { \bysub(RawFamily.Point, Raw.domain, p) };
+\import matrix_invariants.Ring[K := R.Real, scalars := std.Alg[].Field[].fieldAsCommutativeRing R.Real (R.Algebra[].field)].At[n := r] \as Matrices;
+\import matrix_invariants.Field[K := R.Real, field := R.Algebra[].field].At[n := r] \as Inversion;
+\import Matrices.Representation[] \as Representation;
+\import hermitian_frames.Hermitian[].Over[K := R.Real, field := R.Algebra[].field, scalar := linear_algebra.Hermitian[].Real[].scalar, topological := vector_bundles.Bundles[].Real[].scalar.topological].At[n := r].Square[] \as Square;
+\definition matrix[p: Raw.LocalPoint]: Matrices.Matrix := \fun (a, b: Fin.Fin r) => ((originalAtlas.local i).frame (base p)).forward.apply (p.vector b) a;
+\definition candidate[p: Raw.LocalPoint][nonzero: Inversion.Nonzero (matrix p)]: GL.Frames[V := F p.base, space := space p.base].Frame :=
+  GL.Frames[V := F p.base, space := space p.base].act ((originalAtlas.local i).frame (base p)) (GL.MatrixModel[].backward (\into[Matrices.Matrix](matrix p, Inversion.Nonsingular) \by { nonzero }));
+\definition columnFormula: \forall (p: Raw.LocalPoint)(b: Fin.Fin r) -> Matrices.columns (matrix p) b = ((originalAtlas.local i).frame (base p)).forward.apply (p.vector b) :=
+  \fun (p: Raw.LocalPoint)(b: Fin.Fin r) => \axiom:funext(Matrices.columns (matrix p) b, ((originalAtlas.local i).frame (base p)).forward.apply (p.vector b), \fun (a: Fin.Fin r) => \refl(matrix p a b));
+\definition candidateColumn[p: Raw.LocalPoint][nonzero: Inversion.Nonzero (matrix p)][b: Fin.Fin r]: columns p.base (candidate p nonzero) b = p.vector b :=
+  trans!{{F p.base}}
+    (((originalAtlas.local i).frame (base p)).backward.apply ((Matrices.linear (matrix p)).apply (Spaces.FiniteCoordinates[n := r].vectors b)))
+    (((originalAtlas.local i).frame (base p)).backward.apply (((originalAtlas.local i).frame (base p)).forward.apply (p.vector b)))
+    (p.vector b)
+    (congr!{{GL.Vector} {F p.base}} ((originalAtlas.local i).frame (base p)).backward.apply
+      ((Matrices.linear (matrix p)).apply (Spaces.FiniteCoordinates[n := r].vectors b))
+      (((originalAtlas.local i).frame (base p)).forward.apply (p.vector b)) (trans!{{GL.Vector}} _ _ _ (Matrices.onBasis (matrix p) b) (columnFormula p b)))
+    (((originalAtlas.local i).frame (base p)).leftInverse (p.vector b));
+\definition candidateColumns: \forall (p: Raw.LocalPoint)(nonzero: Inversion.Nonzero (matrix p)) -> columns p.base (candidate p nonzero) = p.vector :=
+  \fun (p: Raw.LocalPoint)(nonzero: Inversion.Nonzero (matrix p)) => \axiom:funext(columns p.base (candidate p nonzero), p.vector, candidateColumn p nonzero);
+\definition ofNonsingular: \forall (p: Raw.LocalPoint) -> Inversion.Nonzero (matrix p) -> IsFrame p := \fun (p: Raw.LocalPoint)(nonzero: _) =>
+  Logic.existsIntro[GL.Frames[V := F p.base, space := space p.base].Frame, { f: GL.Frames[V := F p.base, space := space p.base].Frame \where columns p.base f = p.vector }] (candidate p nonzero) (candidateColumns p nonzero);
+\definition nonsingular: \forall (p: Raw.LocalPoint) -> IsFrame p -> Inversion.Nonzero (matrix p) := \block {
+  \fun (p: Raw.LocalPoint)(inside: IsFrame p) \then
+  \takefrom f: \Cast[GL.Frames[V := F p.base, space := space p.base].Frame] ({ f: GL.Frames[V := F p.base, space := space p.base].Frame \where columns p.base f = p.vector }) \by inside \then
+  \let same: columns p.base f = p.vector := \bysub(GL.Frames[V := F p.base, space := space p.base].Frame, { f: GL.Frames[V := F p.base, space := space p.base].Frame \where columns p.base f = p.vector }, f) \then
+  \let g: GL.Carrier := GL.Frames[V := F p.base, space := space p.base].change f ((originalAtlas.local i).frame (base p)) \then
+  \return \idelim GL.entries g = matrix p \with A: Matrices.Matrix => Inversion.Nonzero A \by {
+    base: \bysub(Matrices.Matrix, Inversion.Nonsingular, GL.Nonsingular[u := g].value),
+    equality: Matrices.Operations[].ext (GL.entries g) (matrix p) (\fun (a, b: Fin.Fin r) => congr!{{Fiber p.base} R.Real} (\fun (v: Fiber p.base) => ((originalAtlas.local i).frame (base p)).forward.apply (v b) a) _ _ same)
+  }
+};
+\import calculus.Real[].Multivariable[n := dimension].Open[] \as Open;
+\definition parameterTopology: topology.Topology[Carrier := Open.Carrier Raw.image].Topology := Open.Topology[].Of[U := Raw.image].topology;
+\import Forget.Local[i := i] \as Forgotten;
+\import vector_bundles.Bundles[].Over[K := R.Real, field := R.Algebra[].field, conjugation := linear_algebra.Hermitian[].Real[].scalar, scalar := vector_bundles.Bundles[].Real[].scalar].Family[X := M.Point, F := Fiber] \as Continuous;
+\definition LocalTotal: \Set := \Cast[Continuous.Point] ({ p: Continuous.Point \where \In[M.Point] c.domain p.base });
+\definition localTopology: topology.Topology[Carrier := LocalTotal].Topology := topology.Topology[Carrier := Continuous.Point].Subspace[S := { p: Continuous.Point \where \In[M.Point] c.domain p.base }].topology Forget.totalTopology;
+\definition toForgotten[u: Open.Carrier Raw.image]: LocalTotal := \into[Continuous.Point](Forget.recover (Raw.point u), { p: Continuous.Point \where \In[M.Point] c.domain p.base }) \by { \bysub(RawFamily.Point, Raw.domain, Raw.point u) };
+\definition chart: TotalCharts.Chart := Build.totalChart i;
+\definition rawTopology: topology.Topology[Carrier := Raw.LocalPoint].Topology := TotalSpace.Subspace[S := Raw.domain].topology Total.manifold.space;
+\definition rawContinuous: topology.Continuity[A := Open.Carrier Raw.image, B := Raw.LocalPoint].Continuous parameterTopology rawTopology Raw.point := chart.coordinates.backwardContinuous;
+\import topology.Continuity[A := Raw.LocalPoint, B := RawFamily.Point].Corestriction[S := Raw.domain] \as RawInclusion;
+\import topology.Continuity[A := Open.Carrier Raw.image, B := Continuous.Point].Corestriction[S := { p: Continuous.Point \where \In[M.Point] c.domain p.base }] \as IntoLocal;
+\definition toForgottenContinuous: topology.Continuity[A := Open.Carrier Raw.image, B := LocalTotal].Continuous parameterTopology localTopology toForgotten :=
+  IntoLocal.corestrictContinuous parameterTopology Forget.totalTopology toForgotten
+    (topology.Composition[A := Open.Carrier Raw.image, B := RawFamily.Point, C := Continuous.Point].composeContinuous parameterTopology Total.manifold.space Forget.totalTopology
+      (\fun (u: Open.Carrier Raw.image) => Raw.point u) Forget.recover
+      (topology.Composition[A := Open.Carrier Raw.image, B := Raw.LocalPoint, C := RawFamily.Point].composeContinuous parameterTopology rawTopology Total.manifold.space Raw.point (\fun (p: Raw.LocalPoint) => p)
+        rawContinuous (RawInclusion.inclusionContinuous Total.manifold.space)) Forget.recoverContinuous);
+\definition flat[u: Open.Carrier Raw.image]: Fin.Fin rank -> R.Real := ((data.local i).frame (base (Raw.point u))).forward.apply (Raw.point u).vector;
+\import topological_algebra.Coordinates[K := R.Real, I := Fin.Fin rank] \as Flat;
+\definition flatContinuous: topology.Continuity[A := Open.Carrier Raw.image, B := Fin.Fin rank -> R.Real].Continuous parameterTopology (Flat.topology vector_bundles.Bundles[].Real[].scalar.topological.space) flat :=
+  topology.Composition[A := Open.Carrier Raw.image, B := LocalTotal, C := Fin.Fin rank -> R.Real].composeContinuous parameterTopology localTopology (Flat.topology vector_bundles.Bundles[].Real[].scalar.topological.space)
+    toForgotten (\fun (p: LocalTotal) => ((data.local i).frame (\into[M.Point](p.base, c.domain) \by { \bysub(Continuous.Point, { p: Continuous.Point \where \In[M.Point] c.domain p.base }, p) })).forward.apply p.vector) toForgottenContinuous
+    Forgotten.Vector[].continuous;
+\import hermitian_frames.Hermitian[].Over[K := R.Real, field := R.Algebra[].field, scalar := linear_algebra.Hermitian[].Real[].scalar, topological := vector_bundles.Bundles[].Real[].scalar.topological].Functions[X := Open.Carrier Raw.image] \as Functions;
+\definition regular: Square.Families[X := Open.Carrier Raw.image].Regular parameterTopology (\fun (u: Open.Carrier Raw.image) => matrix (Raw.point u)) := \fun (a, b: Fin.Fin r) =>
+  Functions.transport parameterTopology (\fun (u: Open.Carrier Raw.image) => flat u (Indices.index (pair a b))) (\fun (u: Open.Carrier Raw.image) => matrix (Raw.point u) a b)
+    (\fun (u: Open.Carrier Raw.image) => \parent.\parent.Local[i := i, x := base (Raw.point u)].atPair (Raw.point u).vector a b)
+    (topology.Composition[A := Open.Carrier Raw.image, B := Fin.Fin rank -> R.Real, C := R.Real].composeContinuous parameterTopology (Flat.topology vector_bundles.Bundles[].Real[].scalar.topological.space) vector_bundles.Bundles[].Real[].scalar.topological.space flat (\fun (v: Fin.Fin rank -> R.Real) => v (Indices.index (pair a b))) flatContinuous (Flat.evaluationContinuous vector_bundles.Bundles[].Real[].scalar.topological.space (Indices.index (pair a b))));
+\definition open: topology.Topology[Carrier := Open.Carrier Raw.image].IsOpenIn parameterTopology ({ u: Open.Carrier Raw.image \where IsFrame (Raw.point u) }) :=
+  \idelim ({ u: Open.Carrier Raw.image \where Inversion.Nonzero (matrix (Raw.point u)) }) = ({ u: Open.Carrier Raw.image \where IsFrame (Raw.point u) })
+    \with S: \Pow (Open.Carrier Raw.image) => topology.Topology[Carrier := Open.Carrier Raw.image].IsOpenIn parameterTopology S \by {
+      base: Square.Families[X := Open.Carrier Raw.image].nonsingularOpen parameterTopology (\fun (u: Open.Carrier Raw.image) => matrix (Raw.point u)) regular,
+      equality: \axiom:setext(({ u: Open.Carrier Raw.image \where Inversion.Nonzero (matrix (Raw.point u)) }), ({ u: Open.Carrier Raw.image \where IsFrame (Raw.point u) }),
+        \fun (u: Open.Carrier Raw.image)(inside: _) => ofNonsingular (Raw.point u) inside, \fun (u: Open.Carrier Raw.image)(inside: _) => nonsingular (Raw.point u) inside)
+    };

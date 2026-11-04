@@ -1,0 +1,53 @@
+\import std.Data[].Pair[] \as Pair;
+\import topological_constructions.Product[A := Local.BasePoint, B := Fin.Fin r -> R.Real] \as Product;
+\import Product.Maps[] \as Projections;
+\definition base[p: Local.ProductPoint]: Local.BasePoint := Pair.first Local.BasePoint (Fin.Fin r -> R.Real) p;
+\definition vector[p: Local.ProductPoint]: Fin.Fin r -> R.Real := Pair.second Local.BasePoint (Fin.Fin r -> R.Real) p;
+\definition baseCoordinate[p: Local.ProductPoint]: BaseOpen.Carrier c.image := Charts.coordinate c (base p);
+\import topology.Homeomorphism[A := Local.BasePoint, B := BaseOpen.Carrier c.image] \as BaseCoordinates;
+\definition baseCoordinateContinuous: topology.Continuity[A := Local.ProductPoint, B := BaseOpen.Carrier c.image].Continuous Local.productTopology (Charts.imageTopology c.image) baseCoordinate :=
+  topology.Composition[A := Local.ProductPoint, B := Local.BasePoint, C := BaseOpen.Carrier c.image].composeContinuous Local.productTopology (Charts.domainTopology c.domain) (Charts.imageTopology c.image)
+    base (Charts.coordinate c) (Projections.firstContinuous (Charts.domainTopology c.domain) (Bundles.coordinateTopology r))
+    (BaseCoordinates.laws (Charts.domainTopology c.domain) (Charts.imageTopology c.image) c.coordinates).forwardContinuous;
+\import topological_algebra.Euclidean[].Dimension[n := n].Topology[] \as BaseEuclidean;
+\import topological_algebra.Euclidean[].Dimension[n := r].Topology[] \as FiberEuclidean;
+\import topological_algebra.Euclidean[].Dimension[n := totalDimension].Topology[] \as TotalEuclidean;
+\import topology.Continuity[A := BaseOpen.Carrier c.image, B := Fin.Fin n -> R.Real].Corestriction[S := c.image.points] \as BaseInclusion;
+\definition baseAmbient: topology.Continuity[A := Local.ProductPoint, B := Fin.Fin n -> R.Real].Continuous Local.productTopology BaseEuclidean.topology (\fun (p: Local.ProductPoint) => baseCoordinate p) :=
+  topology.Composition[A := Local.ProductPoint, B := BaseOpen.Carrier c.image, C := Fin.Fin n -> R.Real].composeContinuous Local.productTopology (Charts.imageTopology c.image) BaseEuclidean.topology
+    baseCoordinate (\fun (u: BaseOpen.Carrier c.image) => u) baseCoordinateContinuous (BaseInclusion.inclusionContinuous BaseEuclidean.topology);
+\definition fiberAmbient: topology.Continuity[A := Local.ProductPoint, B := Fin.Fin r -> R.Real].Continuous Local.productTopology FiberEuclidean.topology vector :=
+  \fun (W: \Pow (Fin.Fin r -> R.Real))(open: _) => Projections.secondContinuous (Charts.domainTopology c.domain) (Bundles.coordinateTopology r) W (FiberEuclidean.metricOpen W open);
+\definition parameter[p: Local.ProductPoint]: Open.Carrier Parameters.domain := Parameters.joinPoint (baseCoordinate p)
+  (\into[Fin.Fin r -> R.Real](vector p, FiberOpen.whole.points) \by { \refl(vector p) });
+\import topology.Continuity[A := Local.ProductPoint, B := Fin.Fin totalDimension -> R.Real].Corestriction[S := Parameters.domain.points] \as IntoParameters;
+\definition parameterContinuous: topology.Continuity[A := Local.ProductPoint, B := Open.Carrier Parameters.domain].Continuous Local.productTopology parameterTopology parameter :=
+  IntoParameters.corestrictContinuous Local.productTopology TotalEuclidean.topology parameter
+    (topological_algebra.Euclidean[].Blocks[n := n, m := r].Joining[X := Local.ProductPoint].continuous Local.productTopology
+      (\fun (p: Local.ProductPoint) => baseCoordinate p) vector baseAmbient fiberAmbient);
+\import topology.Continuity[A := Raw.LocalPoint, B := Point].Corestriction[S := Raw.domain] \as RawInclusion;
+\definition pointContinuous: topology.Continuity[A := Open.Carrier Parameters.domain, B := Point].Continuous parameterTopology topology (\fun (u: Open.Carrier Parameters.domain) => Raw.point u) :=
+  topology.Composition[A := Open.Carrier Parameters.domain, B := Raw.LocalPoint, C := Point].composeContinuous parameterTopology rawTopology topology Raw.point
+    (\fun (p: Raw.LocalPoint) => p) (RawCoordinates.laws rawTopology parameterTopology rawChart.coordinates).backwardContinuous (RawInclusion.inclusionContinuous topology);
+\definition value[p: Local.ProductPoint]: Continuous.Point := recover (Raw.point (parameter p));
+\definition valueContinuous: topology.Continuity[A := Local.ProductPoint, B := Continuous.Point].Continuous Local.productTopology totalTopology value :=
+  topology.Composition[A := Local.ProductPoint, B := Point, C := Continuous.Point].composeContinuous Local.productTopology topology totalTopology
+    (\fun (p: Local.ProductPoint) => Raw.point (parameter p)) recover
+    (topology.Composition[A := Local.ProductPoint, B := Open.Carrier Parameters.domain, C := Point].composeContinuous Local.productTopology parameterTopology topology parameter
+      (\fun (u: Open.Carrier Parameters.domain) => Raw.point u) parameterContinuous pointContinuous) recoverContinuous;
+\definition assembled[p: Local.ProductPoint]: Raw.LocalPoint := \into[Point](include (base p) (((bundle.atlas.local i).frame (base p)).backward.apply (vector p)), Raw.domain) \by {
+  \bysub(M.Point, c.domain, base p)
+};
+\definition coordinateAssembled: \forall (p: Local.ProductPoint) -> Raw.coordinate (assembled p) = parameter p :=
+  \fun (p: Local.ProductPoint) => congr!{{Fin.Fin r -> R.Real} {Fin.Fin totalDimension -> R.Real}} (Blocks.join (baseCoordinate p)) _ _
+    ((Spaces.Isomorphism[V := F (base p), W := Fin.Fin r -> R.Real, source := space (base p), target := Spaces.Coordinates[I := Fin.Fin r].space].laws ((bundle.atlas.local i).frame (base p))).rightInverse (vector p));
+\definition backward[p: Local.ProductPoint]: Continuous.Point := Local.backward p;
+\definition equality: value = backward := \axiom:funext(value, backward,
+  \fun (p: Local.ProductPoint) => congr!{Point {Continuous.Point}} recover _ _
+    (trans!{Point} _ _ _ (congr!{{Open.Carrier Parameters.domain} Point} (\fun (u: Open.Carrier Parameters.domain) => Raw.point u) _ _ (sym!{{Open.Carrier Parameters.domain}} _ _ (coordinateAssembled p)))
+      (Raw.pointCoordinate (assembled p))));
+\definition backwardContinuous: topology.Continuity[A := Local.ProductPoint, B := Continuous.Point].Continuous Local.productTopology totalTopology backward :=
+  \idelim value = backward \with f: (Local.ProductPoint -> Continuous.Point) => topology.Continuity[A := Local.ProductPoint, B := Continuous.Point].Continuous Local.productTopology totalTopology f \by { base: valueContinuous, equality: equality };
+\import topology.Continuity[A := Local.ProductPoint, B := Continuous.Point].Corestriction[S := { p: Continuous.Point \where \In[M.Point] c.domain p.base }] \as IntoLocal;
+\definition continuous: topology.Continuity[A := Local.ProductPoint, B := Local.TotalPoint].Continuous Local.productTopology Local.localTopology Local.backward :=
+  IntoLocal.corestrictContinuous Local.productTopology totalTopology Local.backward backwardContinuous;

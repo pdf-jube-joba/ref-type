@@ -1,0 +1,57 @@
+\import TensorAtlas.Change[i := i, j := j] \as New;
+\import ComplexAtlas.Change[i := i, j := j] \as Left;
+\import OtherAtlas.Change[i := i, j := j] \as Right;
+\import Charts.Transition[left := (bundle.atlas.local i).chart, right := (bundle.atlas.local j).chart] \as Base;
+\import calculus.Real[].Multivariable[n := n].Open[] \as Open;
+\import \root.ComplexCalculus[n := n].On[U := Base.domain] \as Calculus;
+\import Calculus.Sums[I := Fin.Fin r] \as Outer;
+\import Calculus.Sums[I := Fin.Fin s] \as Inner;
+\import Spaces.Sums[I := Fin.Fin r].Prop[] \as OuterLaws;
+\import Spaces.Sums[I := Fin.Fin s].Prop[] \as InnerLaws;
+\import Spaces.FiniteCoordinates[n := r] \as LeftStandard;
+\import Spaces.FiniteCoordinates[n := s] \as RightStandard;
+\import std.Data[].Pair[] \as Pair;
+\definition first[a: Fin.Fin rank]: Fin.Fin r := Pair.first (Fin.Fin r) (Fin.Fin s) (Coefficients.enumerate a);
+\definition second[a: Fin.Fin rank]: Fin.Fin s := Pair.second (Fin.Fin r) (Fin.Fin s) (Coefficients.enumerate a);
+\definition entry[u: Fin.Fin r][v: Fin.Fin s]: Coefficients.Index := \into[PairIndices.Pair](Pair.pair (Fin.Fin r) (Fin.Fin s) u v, PairIndices.Whole) \by { \refl(Pair.pair (Fin.Fin r) (Fin.Fin s) u v) };
+\definition constant[w: Fin.Fin rank -> C.Complex][u: Fin.Fin r][v: Fin.Fin s]: C.Complex := Coefficients.decode w (entry u v);
+\definition term[w: Fin.Fin rank -> C.Complex][a: Fin.Fin rank][u: Fin.Fin r][v: Fin.Fin s][t: Open.Carrier Base.domain]: C.Complex :=
+  Algebra.field.mul (constant w u v) (Algebra.field.mul ((Left.matrix t).apply (LeftStandard.vectors u) (first a)) ((Right.matrix t).apply (RightStandard.vectors v) (second a)));
+\definition expression[w: Fin.Fin rank -> C.Complex][a: Fin.Fin rank][t: Open.Carrier Base.domain]: C.Complex := Spaces.Sums[I := Fin.Fin r].sum (Fin.elements r)
+  (\fun (u: Fin.Fin r) => Spaces.Sums[I := Fin.Fin s].sum (Fin.elements s) (\fun (v: Fin.Fin s) => term w a u v t));
+\definition raw[w: Fin.Fin rank -> C.Complex][a: Fin.Fin rank][t: Open.Carrier Base.domain][u: Fin.Fin r][v: Fin.Fin s]: C.Complex :=
+  Algebra.field.mul (constant w u v) ((\parent.In[i := j, x := Left.y t].coefficient a).apply
+    (pure (Left.x t) (((bundle.atlas.local i).frame (Left.x t)).backward.apply (LeftStandard.vectors u)) ((otherFrame i (Left.x t)).backward.apply (RightStandard.vectors v))));
+\definition scalarFormula: \forall (w: Fin.Fin rank -> C.Complex)(a: Fin.Fin rank)(t: Open.Carrier Base.domain)(u: Fin.Fin r)(v: Fin.Fin s) -> raw w a t u v = term w a u v t :=
+  \fun (w: Fin.Fin rank -> C.Complex)(a: Fin.Fin rank)(t: Open.Carrier Base.domain)(u: Fin.Fin r)(v: Fin.Fin s) =>
+    congr!{{C.Complex} {C.Complex}} (Algebra.field.mul (constant w u v))
+      ((\parent.In[i := j, x := Left.y t].coefficient a).apply
+        (pure (Left.x t) (((bundle.atlas.local i).frame (Left.x t)).backward.apply (LeftStandard.vectors u)) ((otherFrame i (Left.x t)).backward.apply (RightStandard.vectors v))))
+      (Algebra.field.mul ((Left.matrix t).apply (LeftStandard.vectors u) (first a)) ((Right.matrix t).apply (RightStandard.vectors v) (second a)))
+      (\parent.In[i := j, x := Left.y t].onPure a (((bundle.atlas.local i).frame (Left.x t)).backward.apply (LeftStandard.vectors u)) ((otherFrame i (Left.x t)).backward.apply (RightStandard.vectors v)));
+\definition rowFormula: \forall (w: Fin.Fin rank -> C.Complex)(a: Fin.Fin rank)(t: Open.Carrier Base.domain)(u: Fin.Fin r) ->
+  Spaces.Sums[I := Fin.Fin s].sum (Fin.elements s) (raw w a t u) = Spaces.Sums[I := Fin.Fin s].sum (Fin.elements s) (\fun (v: Fin.Fin s) => term w a u v t) :=
+  \fun (w: Fin.Fin rank -> C.Complex)(a: Fin.Fin rank)(t: Open.Carrier Base.domain)(u: Fin.Fin r) =>
+    InnerLaws.congruent (Fin.elements s) (raw w a t u) (\fun (v: Fin.Fin s) => term w a u v t) (scalarFormula w a t u);
+\definition formula: \forall (w: Fin.Fin rank -> C.Complex)(a: Fin.Fin rank)(t: Open.Carrier Base.domain) -> (New.matrix t).apply w a = expression w a t :=
+  \fun (w: Fin.Fin rank -> C.Complex)(a: Fin.Fin rank)(t: Open.Carrier Base.domain) => trans!{{C.Complex}}
+    ((New.matrix t).apply w a)
+    (Spaces.Sums[I := Fin.Fin r].sum (Fin.elements r) (\fun (u: Fin.Fin r) => Spaces.Sums[I := Fin.Fin s].sum (Fin.elements s) (raw w a t u)))
+    (expression w a t)
+    (\parent.In[i := i, x := Left.x t].expansion (\parent.In[i := j, x := Left.y t].coefficient a) w)
+    (OuterLaws.congruent (Fin.elements r)
+      (\fun (u: Fin.Fin r) => Spaces.Sums[I := Fin.Fin s].sum (Fin.elements s) (raw w a t u))
+      (\fun (u: Fin.Fin r) => Spaces.Sums[I := Fin.Fin s].sum (Fin.elements s) (\fun (v: Fin.Fin s) => term w a u v t)) (rowFormula w a t));
+\definition termSmooth: \forall (w: Fin.Fin rank -> C.Complex)(a: Fin.Fin rank)(u: Fin.Fin r)(v: Fin.Fin s) -> Calculus.Smooth (term w a u v) :=
+  \fun (w: Fin.Fin rank -> C.Complex)(a: Fin.Fin rank)(u: Fin.Fin r)(v: Fin.Fin s) => Calculus.times (\fun (t: Open.Carrier Base.domain) => constant w u v)
+    (\fun (t: Open.Carrier Base.domain) => Algebra.field.mul ((Left.matrix t).apply (LeftStandard.vectors u) (first a)) ((Right.matrix t).apply (RightStandard.vectors v) (second a)))
+    (Calculus.constant (constant w u v))
+    (Calculus.times (\fun (t: Open.Carrier Base.domain) => (Left.matrix t).apply (LeftStandard.vectors u) (first a))
+      (\fun (t: Open.Carrier Base.domain) => (Right.matrix t).apply (RightStandard.vectors v) (second a))
+      (\parent.\parent.\parent.\parent.Change[i := i, j := j].evaluate (LeftStandard.vectors u) (first a))
+      (regular i j (RightStandard.vectors v) (second a)));
+\definition smooth: New.Regular := \fun (w: Fin.Fin rank -> C.Complex)(a: Fin.Fin rank) =>
+  Calculus.equalSmooth (expression w a) (\fun (t: Open.Carrier Base.domain) => (New.matrix t).apply w a)
+    (\fun (t: Open.Carrier Base.domain) => sym!{{C.Complex}} _ _ (formula w a t))
+    (Outer.smooth (Fin.elements r) (\fun (u: Fin.Fin r)(t: Open.Carrier Base.domain) => Spaces.Sums[I := Fin.Fin s].sum (Fin.elements s) (\fun (v: Fin.Fin s) => term w a u v t))
+      (\fun (u: Fin.Fin r) => Inner.smooth (Fin.elements s) (\fun (v: Fin.Fin s) => term w a u v) (\fun (v: Fin.Fin s) => termSmooth w a u v)));

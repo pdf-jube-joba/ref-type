@@ -1,0 +1,32 @@
+\import \root.ComplexCalculus[n := d].On[U := U] \as Calculus;
+\import Source.On[U := U] \as SourceSmooth;
+\import Target.On[U := U] \as TargetSmooth;
+\definition Regular: \Prop := \forall (v: Source.Vector)(i: Fin.Fin q) -> Calculus.Smooth (\fun (x: Open.Carrier U) => (A x).apply v i);
+\import Real.Linear[V := Source.RealVector, W := Target.RealVector, source := Real.Coordinates[I := Fin.Fin Source.rank].space, target := Real.Coordinates[I := Fin.Fin Target.rank].space] \as RealMatrices;
+\definition realify[x: Open.Carrier U]: RealMatrices.Map := After.compose TargetCoordinates.frame.forward (Before.compose (Restrict.map (A x)) SourceCoordinates.frame.backward);
+\import calculus.MatrixFamily[d := d, p := Source.rank, q := Target.rank] \as Matrix;
+\definition RealRegular: \Prop := Matrix.Regular U realify;
+\import R.FiniteSums[].Linear[] \as Finite;
+\definition toReal: Regular -> RealRegular := \fun (regular: Regular)(a: Fin.Fin Target.rank)(b: Fin.Fin Source.rank) =>
+  TargetSmooth.encodeSmooth (\fun (x: Open.Carrier U) => (A x).apply (Source.decode (Finite.basis Source.rank b)))
+    (regular (Source.decode (Finite.basis Source.rank b))) a;
+\definition formula: \forall (v: Source.Vector)(x: Open.Carrier U) -> Target.decode ((realify x).apply (Source.encode v)) = (A x).apply v :=
+  \fun (v: Source.Vector)(x: Open.Carrier U) => trans!{{Target.Vector}} _ _ _
+    (Target.decodeEncode ((A x).apply (Source.decode (Source.encode v))))
+    (congr!{{Source.Vector} {Target.Vector}} (A x).apply _ _ (Source.decodeEncode v));
+\definition fromReal: RealRegular -> Regular := \fun (regular: RealRegular)(v: Source.Vector)(i: Fin.Fin q) =>
+  Calculus.equalSmooth (\fun (x: Open.Carrier U) => Target.decode ((realify x).apply (Source.encode v)) i)
+    (\fun (x: Open.Carrier U) => (A x).apply v i)
+    (\fun (x: Open.Carrier U) => congr!{{Target.Vector} {C.Complex}} (\fun (w: Target.Vector) => w i) _ _ (formula v x))
+    (TargetSmooth.decodeSmooth (\fun (x: Open.Carrier U) => (realify x).apply (Source.encode v))
+      (Matrix.evaluate U realify regular (Source.encode v)) i);
+
+\definition actionFormula: \forall (v: Open.Carrier U -> Source.Vector)(x: Open.Carrier U) -> Target.decode ((realify x).apply (Source.encode (v x))) = (A x).apply (v x) :=
+  \fun (v: Open.Carrier U -> Source.Vector)(x: Open.Carrier U) => formula (v x) x;
+\definition action: Regular -> \forall (v: Open.Carrier U -> Source.Vector) -> SourceSmooth.Smooth v -> TargetSmooth.Smooth (\fun (x: Open.Carrier U) => (A x).apply (v x)) :=
+  \fun (regular: Regular)(v: Open.Carrier U -> Source.Vector)(smooth: SourceSmooth.Smooth v)(i: Fin.Fin q) =>
+    Calculus.equalSmooth (\fun (x: Open.Carrier U) => Target.decode ((realify x).apply (Source.encode (v x))) i)
+      (\fun (x: Open.Carrier U) => (A x).apply (v x) i)
+      (\fun (x: Open.Carrier U) => congr!{{Target.Vector} {C.Complex}} (\fun (w: Target.Vector) => w i) _ _ (actionFormula v x))
+      (TargetSmooth.decodeSmooth (\fun (x: Open.Carrier U) => (realify x).apply (Source.encode (v x)))
+        (Matrix.action U realify (toReal regular) (\fun (x: Open.Carrier U) => Source.encode (v x)) (SourceSmooth.encodeSmooth v smooth)) i);

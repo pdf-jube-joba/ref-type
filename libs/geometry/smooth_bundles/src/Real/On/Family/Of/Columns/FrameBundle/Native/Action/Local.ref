@@ -1,0 +1,63 @@
+\import \parent.\parent.Local[i := i] \as Frame;
+\import ProductAtlas.InChart[i := i] \as Raw;
+\import calculus.Blocks[n := frameDimension, m := Matrix.size] \as Outer;
+\import calculus.Blocks[n := n, m := Matrix.size] \as Inner;
+\import Inner.On[U := Frame.c.image, V := Matrix.domain] \as TargetProduct;
+\import calculus.Real[].Multivariable[n := dimension].Open[] \as Open;
+\import calculus.Real[].Multivariable[n := frameDimension].Open[] \as FrameOpen;
+\import calculus.Real[].Multivariable[n := n].Open[] \as BaseOpen;
+\import ProductCharts.Restricted[U := subset].Of[chart := Full.totalChart i] \as Image;
+\import Outer.On[U := (chart i).image, V := calculus.Real[].Multivariable[n := Matrix.size].Open[].whole] \as Parameters;
+\definition frameParameter[z: Open.Carrier Image.image]: FrameOpen.Carrier (chart i).image := Parameters.leftPoint (Image.oldCoordinate z);
+\definition a[z: Open.Carrier Image.image]: Matrix.RealVector := Inner.right (Outer.left z);
+\definition b[z: Open.Carrier Image.image]: Matrix.RealVector := Outer.right z;
+\definition firstInside[z: Open.Carrier Image.image]: \In[calculus.Real[].Multivariable[n := frameDimension].Point] TargetProduct.domain.points (Outer.left z) :=
+  Frame.forwardIncluded (Outer.left z) (\bysub(calculus.Real[].Multivariable[n := frameDimension].Point, (chart i).image.points, frameParameter z));
+\definition first[z: Open.Carrier Image.image]: Matrix.Point := \into[Matrix.RealVector](a z, Matrix.domain.points) \by { (firstInside z).right };
+\definition second[z: Open.Carrier Image.image]: Matrix.Point := \into[Matrix.RealVector](b z, Matrix.domain.points) \by { Image.backwardMember z };
+\definition base[z: Open.Carrier Image.image]: BaseOpen.Carrier Frame.c.image := \into[calculus.Real[].Multivariable[n := n].Point](Inner.left (Outer.left z), Frame.c.image.points) \by { (firstInside z).left };
+\definition product[z: Open.Carrier Image.image]: Matrix.Point := \into[Matrix.RealVector](Matrix.multiply (a z) (b z), Matrix.domain.points) \by { Matrix.multiplyInside (first z) (second z) };
+\import calculus.Maps[n := dimension, m := n] \as BaseMaps;
+\definition baseMap: BaseMaps.Map Image.image Frame.c.image := \into[BaseMaps.Data[Image.image, Frame.c.image]](BaseMaps.Data[Image.image, Frame.c.image] { apply := base }, BaseMaps.Map Image.image Frame.c.image) \by {
+  BaseMaps.Laws[Image.image, Frame.c.image, BaseMaps.Data[Image.image, Frame.c.image] { apply := base }] {
+    smooth := \fun (j: Fin.Fin n) => Open.Examples[].projectionSmooth Image.image (std.Data[].FinSet[].Sum[m := frameDimension, n := Matrix.size].left (std.Data[].FinSet[].Sum[m := n, n := Matrix.size].left j)),
+  }
+};
+\definition leftSmooth: \forall (j: Fin.Fin Matrix.size) -> Open.Smooth[].SmoothOn Image.image (\fun (z: Open.Carrier Image.image) => a z j) :=
+  \fun (j: Fin.Fin Matrix.size) => Open.Examples[].projectionSmooth Image.image (std.Data[].FinSet[].Sum[m := frameDimension, n := Matrix.size].left (std.Data[].FinSet[].Sum[m := n, n := Matrix.size].right j));
+\definition rightSmooth: \forall (j: Fin.Fin Matrix.size) -> Open.Smooth[].SmoothOn Image.image (\fun (z: Open.Carrier Image.image) => b z j) :=
+  \fun (j: Fin.Fin Matrix.size) => Open.Examples[].projectionSmooth Image.image (std.Data[].FinSet[].Sum[m := frameDimension, n := Matrix.size].right j);
+\import Matrix.SmoothProduct[d := dimension].On[U := Image.image, a := a, b := b, left := leftSmooth, right := rightSmooth] \as SmoothProduct;
+\import calculus.Maps[n := dimension, m := Matrix.size] \as FiberMaps;
+\definition productMap: FiberMaps.Map Image.image Matrix.domain := \into[FiberMaps.Data[Image.image, Matrix.domain]](FiberMaps.Data[Image.image, Matrix.domain] { apply := product }, FiberMaps.Map Image.image Matrix.domain) \by {
+  FiberMaps.Laws[Image.image, Matrix.domain, FiberMaps.Data[Image.image, Matrix.domain] { apply := product }] { smooth := SmoothProduct.smooth }
+};
+\import Inner.Pair[d := dimension].On[U := Image.image, V := Frame.c.image, W := Matrix.domain, f := baseMap, g := productMap] \as Joined;
+\import calculus.Maps[n := dimension, m := frameDimension] \as Calculus;
+\import Calculus.Corestriction[U := Image.image, V := TargetProduct.domain, W := (chart i).image, f := Joined.map,
+  inside := \fun (z: Open.Carrier Image.image) => Frame.backwardIncluded (Joined.value z) (\bysub(calculus.Real[].Multivariable[n := frameDimension].Point, TargetProduct.domain.points, Joined.value z))] \as Into;
+\definition coordinates: Calculus.Map Image.image (chart i).image := Into.map;
+\import manifolds.EuclideanMap[n := dimension, m := frameDimension].Between[U := Image.image, V := (chart i).image] \as Euclidean;
+\import manifolds.ChartMap[n := frameDimension].On[M := manifold].At[chart := chart i] \as Parametrize;
+\import manifolds.Composition[n := dimension, m := frameDimension, l := frameDimension].Between[M := Euclidean.source, N := Euclidean.target, P := manifold] \as Compose;
+\definition map: manifolds.SmoothMap[n := dimension, m := frameDimension].Between[M := Euclidean.source, N := manifold].Map := Compose.compose (Euclidean.map coordinates) Parametrize.map;
+\definition point[z: Open.Carrier Image.image]: Charts.LocalPoint (chart i) := Charts.point (chart i) (frameParameter z);
+\definition acted[z: Open.Carrier Image.image]: Charts.LocalPoint (chart i) := Frame.acted (point z) (Matrix.fromPoint (second z));
+\definition coordinateFormula[z: Open.Carrier Image.image]: Frame.coordinate (acted z) = Calculus.apply Image.image (chart i).image coordinates z :=
+  trans!{{calculus.Real[].Multivariable[n := frameDimension].Point}} _ _ _ (Frame.actionCoordinate (point z) (Matrix.fromPoint (second z)))
+    (congr!{{calculus.Real[].Multivariable[n := frameDimension].Point} {Matrix.RealVector} {calculus.Real[].Multivariable[n := frameDimension].Point}}
+      (\fun (v: calculus.Real[].Multivariable[n := frameDimension].Point)(w: Matrix.RealVector) => Inner.join (Inner.left v) (Matrix.multiply (Inner.right v) w)) _ _ _ _
+      (Charts.Of[chart := chart i].coordinatePoint (frameParameter z)) (Matrix.toFrom (second z)));
+\definition agrees: \forall (z: Open.Carrier Image.image) -> manifolds.SmoothMap[n := dimension, m := frameDimension].Between[M := Euclidean.source, N := manifold].apply map z = apply (SourceCharts.point (sourceChart i) z) :=
+  \fun (z: Open.Carrier Image.image) => trans!{Point} _ _ _
+    (congr!{{FrameOpen.Carrier (chart i).image} Point} (\fun (u: FrameOpen.Carrier (chart i).image) => Charts.point (chart i) u) _ _
+      (bundle_operations.Operations[].Subset[E := calculus.Real[].Multivariable[n := frameDimension].Point, U := (chart i).image.points].equality
+        (Calculus.apply Image.image (chart i).image coordinates z) (Charts.coordinate (chart i) (acted z))
+        (sym!{{calculus.Real[].Multivariable[n := frameDimension].Point}} _ _ (coordinateFormula z))))
+    (Charts.Of[chart := chart i].pointCoordinate (acted z));
+
+\definition groupCoordinates: FiberMaps.Map Image.image Matrix.domain := \into[FiberMaps.Data[Image.image, Matrix.domain]](FiberMaps.Data[Image.image, Matrix.domain] { apply := second }, FiberMaps.Map Image.image Matrix.domain) \by {
+  FiberMaps.Laws[Image.image, Matrix.domain, FiberMaps.Data[Image.image, Matrix.domain] { apply := second }] { smooth := rightSmooth }
+};
+\definition groupMap: manifolds.SmoothMap[n := dimension, m := Matrix.size].Between[M := Euclidean.source, N := Matrix.manifold].Map :=
+  manifolds.EuclideanMap[n := dimension, m := Matrix.size].Between[U := Image.image, V := Matrix.domain].map groupCoordinates;

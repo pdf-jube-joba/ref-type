@@ -1,0 +1,33 @@
+\import \parent.\parent.Reverse[i := i, j := j] \as Inverse;
+\import AlternatingAtlas.Change[i := i, j := j] \as New;
+\import Atlas.Change[i := i, j := j] \as Old;
+\import Atlas.InChart[i := j] \as Target;
+\import Charts.Transition[left := (bundle.atlas.local i).chart, right := (bundle.atlas.local j).chart] \as Base;
+\import calculus.Real[].Multivariable[n := n].Open[] \as Open;
+\import Open.Smooth[].Operations[] \as Smooth;
+\import Open.Smooth[].Sums[].Listed[I := Fin.Fin rank] \as Sums;
+\import Spaces.FiniteCoordinates[n := r] \as Standard;
+\import Standard.Exterior[] \as Exterior;
+\import Spaces.Multilinear[V := Fin.Fin r -> R.Real, space := Spaces.Coordinates[I := Fin.Fin r].space].Alternating[] \as Alternating;
+\import euclidean_forms.Euclidean[n := r].Evaluation[m := n, U := Base.domain] \as Evaluation;
+\import R.FiniteSums[].Linear[] \as Finite;
+\definition arguments[a: Fin.Fin rank][t: Open.Carrier Base.domain][l: Fin.Fin k]: Fin.Fin r -> R.Real :=
+  (Inverse.backward t).apply (Standard.vectors (Coefficients.enumerate a l));
+\definition word[c: Fin.Fin rank]: Alternating.Form k := Exterior.word k (Coefficients.enumerate c);
+\definition wordSmooth: \forall (c, a: Fin.Fin rank) -> Open.Smooth[].SmoothOn Base.domain
+  (\fun (t: Open.Carrier Base.domain) => word c (arguments a t)) :=
+  \fun (c, a: Fin.Fin rank) => Evaluation.law k
+    (\fun (t: Open.Carrier Base.domain) => Alternating.asMultilinear k (word c)) (arguments a)
+    (\fun (indices: Fin.Fin k -> Fin.Fin r) => Smooth.constantSmooth Base.domain (word c (\fun (l: Fin.Fin k) => Standard.vectors (indices l))))
+    (\fun (l: Fin.Fin k)(d: Fin.Fin r) => Inverse.evaluate (Standard.vectors (Coefficients.enumerate a l)) d);
+\definition expression[a, b: Fin.Fin rank][t: Open.Carrier Base.domain]: R.Real := Spaces.Sums[I := Fin.Fin rank].sum (Fin.elements rank)
+  (\fun (c: Fin.Fin rank) => R.mul (Finite.basis rank b c) (word c (arguments a t)));
+\definition formula: \forall (a, b: Fin.Fin rank)(t: Open.Carrier Base.domain) -> New.coefficient a b t = expression a b t :=
+  \fun (a, b: Fin.Fin rank)(t: Open.Carrier Base.domain) => \parent.In[i := i, x := Old.x t].evaluation (Finite.basis rank b)
+    (\fun (l: Fin.Fin k) => Target.encode (Old.y t) (Standard.vectors (Coefficients.enumerate a l)));
+\definition smooth: \forall (a, b: Fin.Fin rank) -> New.CoefficientSmooth a b := \fun (a, b: Fin.Fin rank) =>
+  smooth_partitions.Euclidean[n := n].smoothCongruent Base.domain (expression a b) (New.coefficient a b)
+    (\fun (t: Open.Carrier Base.domain) => sym!{{R.Real}} _ _ (formula a b t))
+    (Sums.smooth Base.domain (Fin.elements rank) (\fun (c: Fin.Fin rank)(t: Open.Carrier Base.domain) => R.mul (Finite.basis rank b c) (word c (arguments a t)))
+      (\fun (c: Fin.Fin rank) => Smooth.mulSmooth Base.domain (\fun (t: Open.Carrier Base.domain) => Finite.basis rank b c)
+        (\fun (t: Open.Carrier Base.domain) => word c (arguments a t)) (Smooth.constantSmooth Base.domain (Finite.basis rank b c)) (wordSmooth c a)));

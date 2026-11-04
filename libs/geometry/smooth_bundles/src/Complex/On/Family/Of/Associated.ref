@@ -1,0 +1,32 @@
+\import \root.GeneralLinear[K := C.Complex, field := C.Algebra[].field, conjugation := linear_algebra.Hermitian[].Complex[].scalar, scalar := vector_bundles.Bundles[].Complex[].scalar, n := s] \as TargetGL;
+\import \root.GeneralLinear[K := C.Complex, field := C.Algebra[].field, conjugation := linear_algebra.Hermitian[].Complex[].scalar, scalar := vector_bundles.Bundles[].Complex[].scalar, n := r] \as GL;
+\import \root.ComplexLinear[r := r].Representation[s := s] \as Representations;
+\definition laws: Representations.Laws[representation] := Representations.laws representation;
+\import manifolds.Dimension[n := n].Chart[M := M.Point, space := M.space] \as Charts;
+\import Operations.Cocycle[X := M.Point, I := I, baseSpace := M.space, domain := \fun (i: I) => (bundle.atlas.local i).chart.domain, dimension := \fun (i: I) => s] \as Cocycle;
+\definition source[x: M.Point][i, j: Cocycle.Index x]: GL.Carrier := GL.Frames[V := F x, space := space x].change
+  ((bundle.atlas.local i).frame (\into[M.Point](x, (bundle.atlas.local i).chart.domain) \by { \bysub(I, { i: I \where \In[M.Point] (bundle.atlas.local i).chart.domain x }, i) }))
+  ((bundle.atlas.local j).frame (\into[M.Point](x, (bundle.atlas.local j).chart.domain) \by { \bysub(I, { j: I \where \In[M.Point] (bundle.atlas.local j).chart.domain x }, j) }));
+\definition data: Cocycle.Data := Cocycle.Data { transition := \fun (x: M.Point)(i, j: Cocycle.Index x) => representation.apply (source x i j) };
+\definition cocycle: Cocycle.Cocycle := \into[Cocycle.Data](data, Cocycle.Cocycle) \by { Cocycle.Laws[data] {
+  identity := \fun (x: M.Point)(i: Cocycle.Index x)(v: Fin.Fin s -> C.Complex) => congr!{{TargetGL.Carrier} {Fin.Fin s -> C.Complex}} (\fun (g: TargetGL.Carrier) => g.forward.apply v) _ _
+    (trans!{{TargetGL.Carrier}} _ _ _
+      (congr!{{GL.Carrier} {TargetGL.Carrier}} representation.apply _ _ (GL.Frames[V := F x, space := space x].changeIdentity ((bundle.atlas.local i).frame (\into[M.Point](x, (bundle.atlas.local i).chart.domain) \by { \bysub(I, { i: I \where \In[M.Point] (bundle.atlas.local i).chart.domain x }, i) })))) laws.identity),
+  composition := \fun (x: M.Point)(i, j, k: Cocycle.Index x)(v: Fin.Fin s -> C.Complex) => congr!{{TargetGL.Carrier} {Fin.Fin s -> C.Complex}} (\fun (g: TargetGL.Carrier) => g.forward.apply v) _ _
+    (trans!{{TargetGL.Carrier}} _ _ _ (sym!{{TargetGL.Carrier}} _ _ (laws.product (source x j k) (source x i j)))
+      (congr!{{GL.Carrier} {TargetGL.Carrier}} representation.apply _ _ (GL.Frames[V := F x, space := space x].composition
+        ((bundle.atlas.local i).frame (\into[M.Point](x, (bundle.atlas.local i).chart.domain) \by { \bysub(I, { i: I \where \In[M.Point] (bundle.atlas.local i).chart.domain x }, i) }))
+        ((bundle.atlas.local j).frame (\into[M.Point](x, (bundle.atlas.local j).chart.domain) \by { \bysub(I, { j: I \where \In[M.Point] (bundle.atlas.local j).chart.domain x }, j) }))
+        ((bundle.atlas.local k).frame (\into[M.Point](x, (bundle.atlas.local k).chart.domain) \by { \bysub(I, { k: I \where \In[M.Point] (bundle.atlas.local k).chart.domain x }, k) }))))),
+} };
+\import Cocycle.With[cocycle := cocycle] \as Glued;
+\definition Fiber: M.Point -> \Set := Glued.Fiber;
+\definition fiberSpace: \forall (x: M.Point) -> Spaces.VectorSpace (Fiber x) := Glued.fiberSpace;
+\import \root.Complex[n := n, r := s].On[M := M].Family[F := Fiber, space := fiberSpace] \as Result;
+\module Local(i: I);
+\definition local[i: I]: Result.Local := Result.Local {
+  chart := (bundle.atlas.local i).chart, frame := Local[i := i].frame,
+};
+\definition atlas: Result.Data[I] := Result.Data[I] { local := local, covers := bundle.atlas.covers };
+\module Change(i, j: I);
+\definition associated: Result.Bundle[I] := Result.Bundle[I] { atlas := atlas, regular := \fun (i, j: I) => Change[i := i, j := j].toReal Change[i := i, j := j].smooth };

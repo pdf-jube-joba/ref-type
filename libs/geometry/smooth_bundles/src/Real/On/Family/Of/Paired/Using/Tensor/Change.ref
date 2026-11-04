@@ -1,0 +1,41 @@
+\import TensorAtlas.Change[i := i, j := j] \as New;
+\import Atlas.Change[i := i, j := j] \as Left;
+\import Other.Change[i := i, j := j] \as Right;
+\import Charts.Transition[left := (bundle.atlas.local i).chart, right := (bundle.atlas.local j).chart] \as Base;
+\import calculus.Real[].Multivariable[n := n].Open[] \as Open;
+\import Open.Smooth[].Operations[] \as Smooth;
+\import Open.Smooth[].Sums[].Listed[I := Fin.Fin r] \as Outer;
+\import Open.Smooth[].Sums[].Listed[I := Fin.Fin s] \as Inner;
+\import Spaces.Sums[I := Fin.Fin r].Prop[] \as OuterLaws;
+\import Spaces.Sums[I := Fin.Fin s].Prop[] \as InnerLaws;
+\import Spaces.FiniteCoordinates[n := r] \as LeftStandard;
+\import Spaces.FiniteCoordinates[n := s] \as RightStandard;
+\import R.FiniteSums[].Linear[] \as Finite;
+\import std.Data[].Pair[] \as Pair;
+\definition first[a: Fin.Fin rank]: Fin.Fin r := Pair.first (Fin.Fin r) (Fin.Fin s) (Coefficients.enumerate a);
+\definition second[a: Fin.Fin rank]: Fin.Fin s := Pair.second (Fin.Fin r) (Fin.Fin s) (Coefficients.enumerate a);
+\definition entry[u: Fin.Fin r][v: Fin.Fin s]: Coefficients.Index := \into[PairIndices.Pair](Pair.pair (Fin.Fin r) (Fin.Fin s) u v, PairIndices.Whole) \by { \refl(Pair.pair (Fin.Fin r) (Fin.Fin s) u v) };
+\definition constant[b: Fin.Fin rank][u: Fin.Fin r][v: Fin.Fin s]: R.Real := Coefficients.decode (Finite.basis rank b) (entry u v);
+\definition term[a, b: Fin.Fin rank][u: Fin.Fin r][v: Fin.Fin s][t: Open.Carrier Base.domain]: R.Real :=
+  R.mul (constant b u v) (R.mul ((Left.linear t).apply (LeftStandard.vectors u) (first a)) ((Right.linear t).apply (RightStandard.vectors v) (second a)));
+\definition expression[a, b: Fin.Fin rank][t: Open.Carrier Base.domain]: R.Real := Spaces.Sums[I := Fin.Fin r].sum (Fin.elements r)
+  (\fun (u: Fin.Fin r) => Spaces.Sums[I := Fin.Fin s].sum (Fin.elements s) (\fun (v: Fin.Fin s) => term a b u v t));
+\definition formula: \forall (a, b: Fin.Fin rank)(t: Open.Carrier Base.domain) -> New.coefficient a b t = expression a b t :=
+  \fun (a, b: Fin.Fin rank)(t: Open.Carrier Base.domain) => trans!{{R.Real}} _ _ _
+    (\parent.In[i := i, x := Left.x t].expansion (\parent.In[i := j, x := Left.y t].coefficient a) (Finite.basis rank b))
+    (OuterLaws.congruent (Fin.elements r) _ _ (\fun (u: Fin.Fin r) => InnerLaws.congruent (Fin.elements s) _ _ (\fun (v: Fin.Fin s) =>
+      congr!{{R.Real} {R.Real}} (R.mul (constant b u v)) _ _
+        (\parent.In[i := j, x := Left.y t].onPure a (((bundle.atlas.local i).frame (Left.x t)).backward.apply (LeftStandard.vectors u)) ((otherFrame i (Left.x t)).backward.apply (RightStandard.vectors v))))));
+\definition termSmooth: \forall (a, b: Fin.Fin rank)(u: Fin.Fin r)(v: Fin.Fin s) -> Open.Smooth[].SmoothOn Base.domain (term a b u v) :=
+  \fun (a, b: Fin.Fin rank)(u: Fin.Fin r)(v: Fin.Fin s) => Smooth.mulSmooth Base.domain (\fun (t: Open.Carrier Base.domain) => constant b u v)
+    (\fun (t: Open.Carrier Base.domain) => R.mul ((Left.linear t).apply (LeftStandard.vectors u) (first a)) ((Right.linear t).apply (RightStandard.vectors v) (second a)))
+    (Smooth.constantSmooth Base.domain (constant b u v))
+    (Smooth.mulSmooth Base.domain (\fun (t: Open.Carrier Base.domain) => (Left.linear t).apply (LeftStandard.vectors u) (first a))
+      (\fun (t: Open.Carrier Base.domain) => (Right.linear t).apply (RightStandard.vectors v) (second a))
+      (calculus.MatrixFamily[d := n, p := r, q := r].evaluate Base.domain Left.linear (bundle.regular i j) (LeftStandard.vectors u) (first a))
+      (calculus.MatrixFamily[d := n, p := s, q := s].evaluate Base.domain Right.linear (regular i j) (RightStandard.vectors v) (second a)));
+\definition smooth: \forall (a, b: Fin.Fin rank) -> New.CoefficientSmooth a b := \fun (a, b: Fin.Fin rank) =>
+  smooth_partitions.Euclidean[n := n].smoothCongruent Base.domain (expression a b) (New.coefficient a b)
+    (\fun (t: Open.Carrier Base.domain) => sym!{{R.Real}} _ _ (formula a b t))
+    (Outer.smooth Base.domain (Fin.elements r) (\fun (u: Fin.Fin r)(t: Open.Carrier Base.domain) => Spaces.Sums[I := Fin.Fin s].sum (Fin.elements s) (\fun (v: Fin.Fin s) => term a b u v t))
+      (\fun (u: Fin.Fin r) => Inner.smooth Base.domain (Fin.elements s) (\fun (v: Fin.Fin s) => term a b u v) (\fun (v: Fin.Fin s) => termSmooth a b u v)));

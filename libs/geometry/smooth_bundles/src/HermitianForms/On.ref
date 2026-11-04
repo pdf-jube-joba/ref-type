@@ -1,0 +1,37 @@
+\import Geometry.Inner[V := V, space := space] \as Inner;
+\definition Form: \Set := Inner.Form;
+\definition Nonnegative[h: Form]: \Prop := \forall (v: V) -> Order.Le R.zero (scalar.realPart (h.dot v v));
+\definition zero: Form := Inner.Form {
+  dot := \fun (v, w: V) => field.zero,
+  symmetric := \fun (v, w: V) => sym!{K} _ _ Geometry.conjugateZero,
+  zeroRight := \fun (v: V) => \refl(field.zero),
+  addRight := \fun (u, v, w: V) => sym!{K} _ _ (Spaces.addZeroLeft field.zero),
+  scaleRight := \fun (a: K)(v, w: V) => sym!{K} _ _ (Spaces.mulZeroRight a),
+};
+\definition plus[h, g: Form]: Form := Inner.Form {
+  dot := \fun (v, w: V) => field.add (h.dot v w) (g.dot v w),
+  symmetric := \fun (v, w: V) => trans!{K} _ _ _
+    (congr!{K K K} field.add _ _ _ _ (h.symmetric v w) (g.symmetric v w))
+    (sym!{K} _ _ (scalar.conjugateAdd (h.dot w v) (g.dot w v))),
+  zeroRight := \fun (v: V) => trans!{K} _ _ _ (congr!{K K K} field.add _ _ _ _ (h.zeroRight v) (g.zeroRight v)) (Spaces.addZeroLeft field.zero),
+  addRight := \fun (u, v, w: V) => trans!{K} _ _ _ (congr!{K K K} field.add _ _ _ _ (h.addRight u v w) (g.addRight u v w))
+    (shuffle (h.dot u v) (h.dot u w) (g.dot u v) (g.dot u w)),
+  scaleRight := \fun (a: K)(v, w: V) => trans!{K} _ _ _ (congr!{K K K} field.add _ _ _ _ (h.scaleRight a v w) (g.scaleRight a v w))
+    (sym!{K} _ _ (Spaces.mulAdd a (h.dot v w) (g.dot v w))),
+};
+\definition selfReal: \forall (h: Form)(v: V) -> h.dot v v = scalar.embed (scalar.realPart (h.dot v v)) :=
+  \fun (h: Form)(v: V) => scalar.fixedReal (h.dot v v) (sym!{K} _ _ (h.symmetric v v));
+\definition plusReal: \forall (h, g: Form)(v: V) -> scalar.realPart ((plus h g).dot v v) = R.add (scalar.realPart (h.dot v v)) (scalar.realPart (g.dot v v)) :=
+  \fun (h, g: Form)(v: V) => trans!{{R.Real}} _ _ _
+    (congr!{K {R.Real}} scalar.realPart _ _ (trans!{K} _ _ _
+      (congr!{K K K} field.add _ _ _ _ (selfReal h v) (selfReal g v))
+      (sym!{K} _ _ (scalar.embedAdd (scalar.realPart (h.dot v v)) (scalar.realPart (g.dot v v))))))
+    (scalar.realEmbed (R.add (scalar.realPart (h.dot v v)) (scalar.realPart (g.dot v v))));
+\definition zeroNonnegative: Nonnegative zero := \fun (v: V) => Order.leReplaceRight R.zero R.zero (scalar.realPart field.zero) (sym!{{R.Real}} _ _ Geometry.reZero) (Order.leRefl R.zero);
+\definition plusNonnegative: \forall (h, g: Form) -> Nonnegative h -> Nonnegative g -> Nonnegative (plus h g) :=
+  \fun (h, g: Form)(left: Nonnegative h)(right: Nonnegative g)(v: V) => Order.leReplaceRight R.zero
+    (R.add (scalar.realPart (h.dot v v)) (scalar.realPart (g.dot v v))) (scalar.realPart ((plus h g).dot v v)) (sym!{{R.Real}} _ _ (plusReal h g v))
+    (Order.leReplaceLeft (R.add R.zero R.zero) R.zero _ (RealLaws.addZeroLeft R.zero) (Estimates.addLe R.zero R.zero _ _ (left v) (right v)));
+\module SumZero(h, g: Form, left: Nonnegative h, right: Nonnegative g, v: V, equal: (plus h g).dot v v = field.zero);
+\module Pullback(W: \Set, target: Spaces.VectorSpace W, form: Geometry.Inner[V := W, space := target].Form,
+  map: Spaces.Linear[V := V, W := W, source := space, target := target].Map);

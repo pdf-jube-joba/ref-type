@@ -1,0 +1,31 @@
+\import \root.Real[n := n, r := r].On[M := M].Family[F := F, space := sourceSpace] \as Source;
+\import \root.Real[n := n, r := s].On[M := M].Family[F := G, space := targetSpace] \as Target;
+\import \root.Real[n := n, r := r].On[M := M].Family[F := F, space := sourceSpace].Of[I := I, bundle := source] \as SourceBundle;
+\import \root.Real[n := n, r := s].On[M := M].Family[F := G, space := targetSpace].Of[I := J, bundle := target] \as TargetBundle;
+\import manifolds.SmoothMap[n := sourceDimension, m := targetDimension].Between[M := SourceBundle.manifold, N := TargetBundle.manifold] \as Total;
+\definition TotalMap: \Set := Total.Map;
+\definition totalApply: TotalMap -> Source.Point -> Target.Point := Total.apply;
+\definition Linear[x: M.Point]: \Set := Spaces.Linear[V := F x, W := G x, source := sourceSpace x, target := targetSpace x].Map;
+\structure Data: \Set := { fiber: \forall (x: M.Point) -> Linear x };
+\definition total[data: Data][p: Source.Point]: Target.Point := Target.include p.base ((data.fiber p.base).apply p.vector);
+\definition Smooth[data: Data]: \Prop := \exists ( map: Total.Map \where Total.apply map = total data );
+\definition Map: \Set := \Cast[Data] ({ data: Data \where Smooth data });
+\definition regular[map: Map]: Smooth map := \bysub(Data, Map, map);
+\definition projection: \forall (map: Map)(p: Source.Point) -> Target.projection (total map p) = Source.projection p :=
+  \fun (map: Map)(p: Source.Point) => \refl(p.base);
+\import SourceBundle.Sections[] \as Left;
+\import TargetBundle.Sections[] \as Right;
+\import manifolds.Composition[n := n, m := sourceDimension, l := targetDimension].Between[M := M, N := SourceBundle.manifold, P := TargetBundle.manifold] \as Composition;
+\module Applying(a: Map, s: Left.Section);
+
+\module After(t: N.Nat^, H: M.Point -> \Set, rangeSpace: \forall (x: M.Point) -> Spaces.VectorSpace (H x), L: \Set,
+  range: \root.Real[n := n, r := t].On[M := M].Family[F := H, space := rangeSpace].Bundle[L]);
+\definition dataEta: \forall (a: Data) -> Data { fiber := a.fiber } = a :=
+  \induction (a: Data) \return Data { fiber := a.fiber } = a \with {
+    | # : \fun (fiber: \forall (x: M.Point) -> Linear x) => \refl(Data { fiber := fiber })
+  };
+\definition ext: \forall (a, b: Map) -> (\forall (x: M.Point)(v: F x) -> (a.fiber x).apply v = (b.fiber x).apply v) -> a = b :=
+  \fun (a, b: Map)(same: _) => trans!{Data} _ _ _ (sym!{Data} _ _ (dataEta a))
+    (trans!{Data} _ _ _ (congr!{{\forall (x: M.Point) -> Linear x} Data} Data::# _ _
+      (\axiom:funext(a.fiber, b.fiber, \fun (x: M.Point) => Spaces.Linear[V := F x, W := G x, source := sourceSpace x, target := targetSpace x].ext (a.fiber x) (b.fiber x)
+        (\axiom:funext((a.fiber x).apply, (b.fiber x).apply, same x))))) (dataEta b));

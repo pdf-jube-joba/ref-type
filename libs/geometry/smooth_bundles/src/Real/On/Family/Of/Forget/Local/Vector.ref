@@ -1,0 +1,19 @@
+\import topological_algebra.Euclidean[].Dimension[n := r].Topology[] \as Euclidean;
+\import calculus.Maps[n := totalDimension, m := r].Topology[U := Parameters.domain, V := FiberOpen.whole] \as Projection;
+\import topology.Continuity[A := FiberOpen.Carrier FiberOpen.whole, B := Fin.Fin r -> R.Real].Corestriction[S := FiberOpen.whole.points] \as Inclusion;
+\definition rightContinuous: topology.Continuity[A := Open.Carrier Parameters.domain, B := Fin.Fin r -> R.Real].Continuous parameterTopology Euclidean.topology (\fun (u: Open.Carrier Parameters.domain) => Blocks.right u) :=
+  topology.Composition[A := Open.Carrier Parameters.domain, B := FiberOpen.Carrier FiberOpen.whole, C := Fin.Fin r -> R.Real].composeContinuous
+    parameterTopology (FiberOpen.Topology[].Of[U := FiberOpen.whole].topology) Euclidean.topology Parameters.rightPoint
+    (\fun (v: FiberOpen.Carrier FiberOpen.whole) => v) (Projection.continuous Parameters.rightMap) (Inclusion.inclusionContinuous Euclidean.topology);
+\definition rightCoordinateContinuous: topology.Continuity[A := Open.Carrier Parameters.domain, B := Fin.Fin r -> R.Real].Continuous parameterTopology (Bundles.coordinateTopology r) (\fun (u: Open.Carrier Parameters.domain) => Blocks.right u) :=
+  \fun (W: \Pow (Fin.Fin r -> R.Real))(open: _) => rightContinuous W (Euclidean.coordinateOpen W open);
+\definition value[p: Local.TotalPoint]: Fin.Fin r -> R.Real := ((bundle.atlas.local i).frame (Local.base p)).forward.apply p.vector;
+\definition formula: \forall (p: Local.TotalPoint) -> Blocks.right (coordinate p) = value p :=
+  \fun (p: Local.TotalPoint) => Blocks.rightJoin (Charts.coordinate c (Local.base p)) (value p);
+\definition continuous: topology.Continuity[A := Local.TotalPoint, B := Fin.Fin r -> R.Real].Continuous Local.localTopology (Bundles.coordinateTopology r) value :=
+  \idelim (\fun (p: Local.TotalPoint) => Blocks.right (coordinate p)) = value
+    \with f: (Local.TotalPoint -> Fin.Fin r -> R.Real) => topology.Continuity[A := Local.TotalPoint, B := Fin.Fin r -> R.Real].Continuous Local.localTopology (Bundles.coordinateTopology r) f \by {
+      base: topology.Composition[A := Local.TotalPoint, B := Open.Carrier Parameters.domain, C := Fin.Fin r -> R.Real].composeContinuous
+        Local.localTopology parameterTopology (Bundles.coordinateTopology r) coordinate (\fun (u: Open.Carrier Parameters.domain) => Blocks.right u) coordinateContinuous rightCoordinateContinuous,
+      equality: \axiom:funext((\fun (p: Local.TotalPoint) => Blocks.right (coordinate p)), value, formula)
+    };

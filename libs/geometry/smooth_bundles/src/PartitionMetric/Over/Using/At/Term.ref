@@ -1,0 +1,24 @@
+\definition entry: Entry := parts k;
+\import Complement.Weighted[entry := entry] \as Weighted;
+\definition dimension: N.Nat^ := entry.chart.dimension;
+\import Geometry.Finite[n := dimension] \as Euclidean;
+\definition map: Spaces.Linear[V := F x, W := Fin.Fin dimension -> K, source := bundle.space x, target := Bundles.coordinates dimension].Map := Weighted.map.fiber x;
+\definition form: Forms.Form := Forms.Pullback[W := Fin.Fin dimension -> K, target := Bundles.coordinates dimension, form := Euclidean.form, map := map].value;
+\definition nonnegative: Forms.Nonnegative form := \fun (v: F x) => Euclidean.positive.nonnegative (map.apply v);
+\definition kernel: \forall (v: F x) -> form.dot v v = field.zero -> (bundle.space x).smul (conjugation.embed (weight parts k x)) v = (bundle.space x).zero :=
+  \fun (v: F x)(equal: _) => Weighted.Kernel[x := x].killsScaled v (Euclidean.positive.definite (map.apply v) equal);
+\import Bundles.Family[X := X, F := F].With[data := bundle] \as Charts;
+\definition zeroMap: weight parts k x = R.zero -> \forall (v: F x) -> map.apply v = (Bundles.coordinates dimension).zero :=
+  \fun (zero: _)(v: F x) => trans!{{Fin.Fin dimension -> K}} _ _ _ (Weighted.At[x := x].formula v)
+    (either!{{Classical.excludedMiddle (Base.Member entry.chart.domain x)} {Weighted.value (Family.include x v) = (Bundles.coordinates dimension).zero}
+      {\fun (inside: _) => \block {
+        \let point: \Cast[X] entry.chart.domain := \into[X](x, entry.chart.domain) \by { inside } \then
+        \return trans!{{Fin.Fin dimension -> K}} _ _ _ (Weighted.inside point v)
+          (trans!{{Fin.Fin dimension -> K}} _ _ _
+            (congr!{K {Fin.Fin dimension -> K}} (\fun (a: K) => (Bundles.coordinates dimension).smul a ((entry.chart.frame point).forward.apply v)) _ _
+              (trans!{K} _ _ _ (congr!{{R.Real} K} conjugation.embed _ _ zero) conjugation.embedZero))
+            (Spaces.Laws[V := Fin.Fin dimension -> K, space := Bundles.coordinates dimension].zeroScale ((entry.chart.frame point).forward.apply v)))
+      }}
+      {\fun (outside: _) => Weighted.outside x outside v}});
+\definition zero: weight parts k x = R.zero -> \forall (v, w: F x) -> form.dot v w = field.zero :=
+  \fun (vanishes: _)(v, w: F x) => trans!{K} _ _ _ (congr!{{Fin.Fin dimension -> K} K} (Euclidean.dot (map.apply v)) _ _ (zeroMap vanishes w)) (Euclidean.form.zeroRight (map.apply v));

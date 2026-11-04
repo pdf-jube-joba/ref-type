@@ -10,4 +10,4 @@
 ## 依存するタスク
 
 - [G05 コンパクト多様体の埋め込み](g05-compact-embeddings.md)
-- [B07 滑らかな束と既存の接束・法束との接続](b07-smooth-bundles.md)
+- [滑らかな束・枠束・随伴束](../../libs/geometry/smooth_bundles/README.md)

@@ -1,0 +1,32 @@
+\definition Vector: \Set := Fin.Fin rank -> R.Real;
+\definition coordinates: Spaces.VectorSpace Vector := Spaces.Coordinates[I := Fin.Fin rank].space;
+\import Spaces.Linear[V := Fiber x, W := Vector, source := fiberSpace x, target := coordinates] \as Forward;
+\import Spaces.Linear[V := Vector, W := Fiber x, source := coordinates, target := fiberSpace x] \as Backward;
+\definition encode[v: Fiber x]: Vector := \fun (a: Fin.Fin rank) => ((bundle.atlas.local i).frame x).forward.apply (v (column (Indices.enumerate a))) (row (Indices.enumerate a));
+\definition decode[v: Vector]: Fiber x := \fun (b: Fin.Fin r) => ((bundle.atlas.local i).frame x).backward.apply (\fun (a: Fin.Fin r) => v (Indices.index (pair a b)));
+\definition forward: Forward.Map := Forward.Map {
+  apply := encode,
+  preservesAdd := \fun (v, w: Fiber x) => \axiom:funext(encode ((fiberSpace x).add v w), coordinates.add (encode v) (encode w), \fun (a: Fin.Fin rank) =>
+    congr!{{Fin.Fin r -> R.Real} R.Real} (\fun (z: Fin.Fin r -> R.Real) => z (row (Indices.enumerate a))) _ _ (((bundle.atlas.local i).frame x).forward.preservesAdd (v (column (Indices.enumerate a))) (w (column (Indices.enumerate a))))),
+  preservesScale := \fun (c: R.Real)(v: Fiber x) => \axiom:funext(encode ((fiberSpace x).smul c v), coordinates.smul c (encode v), \fun (a: Fin.Fin rank) =>
+    congr!{{Fin.Fin r -> R.Real} R.Real} (\fun (z: Fin.Fin r -> R.Real) => z (row (Indices.enumerate a))) _ _ (((bundle.atlas.local i).frame x).forward.preservesScale c (v (column (Indices.enumerate a))))),
+};
+\definition backward: Backward.Map := Backward.Map {
+  apply := decode,
+  preservesAdd := \fun (v, w: Vector) => \axiom:funext(decode (coordinates.add v w), (fiberSpace x).add (decode v) (decode w), \fun (b: Fin.Fin r) =>
+    ((bundle.atlas.local i).frame x).backward.preservesAdd (\fun (a: Fin.Fin r) => v (Indices.index (pair a b))) (\fun (a: Fin.Fin r) => w (Indices.index (pair a b)))),
+  preservesScale := \fun (c: R.Real)(v: Vector) => \axiom:funext(decode (coordinates.smul c v), (fiberSpace x).smul c (decode v), \fun (b: Fin.Fin r) =>
+    ((bundle.atlas.local i).frame x).backward.preservesScale c (\fun (a: Fin.Fin r) => v (Indices.index (pair a b)))),
+};
+\definition atPair: \forall (v: Fiber x)(a, b: Fin.Fin r) -> encode v (Indices.index (pair a b)) = ((bundle.atlas.local i).frame x).forward.apply (v b) a :=
+  \fun (v: Fiber x)(a, b: Fin.Fin r) => congr!{{Indices.Index} R.Real} (\fun (q: Indices.Index) => ((bundle.atlas.local i).frame x).forward.apply (v (column q)) (row q)) _ _ (std.Data[].ListIndex[A := Pairs.Pair].Selected[S := Pairs.Whole].Listed[xs := enumeration].enumerateIndex (pair a b));
+\definition pairRecover: \forall (q: Indices.Index) -> pair (row q) (column q) = q := \fun (q: Indices.Index) => Pair.Prop[A := Fin.Fin r, B := Fin.Fin r].eta q;
+\definition frame: Spaces.Isomorphism[V := Fiber x, W := Vector, source := fiberSpace x, target := coordinates].Isomorphism := Spaces.Isomorphism[V := Fiber x, W := Vector, source := fiberSpace x, target := coordinates].Isomorphism {
+  forward := forward, backward := backward,
+  leftInverse := \fun (v: Fiber x) => \axiom:funext(decode (encode v), v, \fun (b: Fin.Fin r) => trans!{{F x}} _ _ _
+    (congr!{{Fin.Fin r -> R.Real} {F x}} ((bundle.atlas.local i).frame x).backward.apply _ _ (\axiom:funext((\fun (a: Fin.Fin r) => encode v (Indices.index (pair a b))), ((bundle.atlas.local i).frame x).forward.apply (v b), \fun (a: Fin.Fin r) => atPair v a b)))
+    (((bundle.atlas.local i).frame x).leftInverse (v b))),
+  rightInverse := \fun (v: Vector) => \axiom:funext(encode (decode v), v, \fun (k: Fin.Fin rank) => trans!{R.Real} _ _ _
+    (congr!{{Fin.Fin r -> R.Real} R.Real} (\fun (z: Fin.Fin r -> R.Real) => z (row (Indices.enumerate k))) _ _ (((bundle.atlas.local i).frame x).rightInverse (\fun (a: Fin.Fin r) => v (Indices.index (pair a (column (Indices.enumerate k)))))))
+    (congr!{{Fin.Fin rank} R.Real} v _ _ (trans!{{Fin.Fin rank}} _ _ _ (congr!{{Indices.Index} {Fin.Fin rank}} Indices.index _ _ (pairRecover (Indices.enumerate k))) (std.Data[].ListIndex[A := Pairs.Pair].Selected[S := Pairs.Whole].Listed[xs := enumeration].indexEnumerate k)))),
+};

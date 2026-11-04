@@ -1,0 +1,59 @@
+\definition c: \Cast[Charts.Chart] M.atlas.charts := (bundle.atlas.local j).chart;
+\definition d: \Cast[Charts.Chart] M.atlas.charts := (bundle.atlas.local (indices k)).chart;
+\import ComplexAtlas.Change[i := j, j := indices k] \as Change;
+\import \parent.\parent.\parent.Change[i := j, j := indices k] \as Original;
+\import Charts.Transition[left := c, right := d] \as Transition;
+\import Complement.Weighted[entry := entry k] \as Weighted;
+\import Geometry.Finite[n := r] \as Euclidean;
+\import C.Def[] \as Op;
+\import \root.ComplexCalculus[n := n].On[U := c.image] \as Current;
+\import \root.ComplexCalculus[n := n].On[U := Transition.domain] \as Calculus;
+\definition vectors[x: Charts.LocalPoint c][l: Fin.Fin r]: F x := ((bundle.atlas.local j).frame x).backward.apply (Standard.vectors l);
+\definition value[u: Open.Carrier c.image]: C.Complex := (Construction.At[x := Charts.point c u].Term[k := k].form).dot (vectors (Charts.point c u) a) (vectors (Charts.point c u) b);
+\definition phi[u: Open.Carrier c.image]: R.Real := partition.functions k (Charts.point c u);
+\definition phiSmooth: Regularity.SmoothOn c.image phi := Functions.regular (partition.functions k) c;
+\definition included: Open.Included Transition.domain c.image := \fun (x: Fin.Fin n -> R.Real)(member: _) =>
+  Transition.inLeftImage (\into[Fin.Fin n -> R.Real](x, Transition.domain.points) \by { member });
+\definition localPhi[t: Open.Carrier Transition.domain]: R.Real := phi (Transition.leftCoordinate t);
+\definition localPhiSmooth: Regularity.SmoothOn Transition.domain localPhi := Open.Restriction[].localSmooth Transition.domain c.image included phi phiSmooth;
+\definition complexPhi[t: Open.Carrier Transition.domain]: C.Complex := Op.ofReal (localPhi t);
+\definition complexPhiSmooth: Calculus.Smooth complexPhi := Calculus.SmoothLaws[complexPhi] {
+  real := localPhiSmooth, imaginary := SmoothOperations.constantSmooth Transition.domain R.zero,
+};
+\definition weighted[l: Fin.Fin r][t: Open.Carrier Transition.domain][q: Fin.Fin r]: C.Complex := Op.mul (complexPhi t) ((Change.matrix t).apply (Standard.vectors l) q);
+\definition weightedSmooth: \forall (l, q: Fin.Fin r) -> Calculus.Smooth (\fun (t: Open.Carrier Transition.domain) => weighted l t q) :=
+  \fun (l, q: Fin.Fin r) => Calculus.times complexPhi (\fun (t: Open.Carrier Transition.domain) => (Change.matrix t).apply (Standard.vectors l) q)
+    complexPhiSmooth (Original.evaluate (Standard.vectors l) q);
+\definition expression[t: Open.Carrier Transition.domain]: C.Complex := Euclidean.dot (weighted a t) (weighted b t);
+\definition expressionSmooth: Calculus.Smooth expression := Calculus.finiteSmooth r
+  (\fun (q: Fin.Fin r)(t: Open.Carrier Transition.domain) => Op.mul (Op.conj (weighted a t q)) (weighted b t q))
+  (\fun (q: Fin.Fin r) => Calculus.times (\fun (t: Open.Carrier Transition.domain) => Op.conj (weighted a t q))
+    (\fun (t: Open.Carrier Transition.domain) => weighted b t q)
+    (Calculus.conjugate (\fun (t: Open.Carrier Transition.domain) => weighted a t q) (weightedSmooth a q)) (weightedSmooth b q));
+\definition insideMap: \forall (t: Open.Carrier Transition.domain)(l: Fin.Fin r) -> (Weighted.map.fiber (Change.x t)).apply (vectors (Change.x t) l) = weighted l t :=
+  \fun (t: Open.Carrier Transition.domain)(l: Fin.Fin r) => trans!{{Fin.Fin r -> C.Complex}} _ _ _ (Weighted.At[x := Change.x t].formula (vectors (Change.x t) l))
+    (Weighted.inside (Change.y t) (vectors (Change.x t) l));
+\definition inside: \forall (t: Open.Carrier Transition.domain) -> value (Transition.leftCoordinate t) = expression t :=
+  \fun (t: Open.Carrier Transition.domain) => congr!{{Fin.Fin r -> C.Complex} {Fin.Fin r -> C.Complex} {C.Complex}} Euclidean.dot _ _ _ _ (insideMap t a) (insideMap t b);
+\definition support: \Pow M.Point := Functions.support (partition.functions k);
+\definition supportClosed: Base.IsClosedIn M.space support := Base.Closure[].closed M.space (Functions.Nonzero (partition.functions k));
+\import Scalars.Neighborhood[c := c, U := Base.Complement support, open := supportClosed] \as Away;
+\import \root.ComplexCalculus[n := n].On[U := Away.domain] \as AwayCalculus;
+\definition zeroAway: \forall (u: Open.Carrier Away.domain) -> value (Open.inclusion Away.domain c.image Away.included u) = Op.zero :=
+  \fun (u: Open.Carrier Away.domain) => Construction.At[x := Charts.point c (Open.inclusion Away.domain c.image Away.included u)].Term[k := k].zero
+    (Weighted.zeroOffSupport (Charts.point c (Open.inclusion Away.domain c.image Away.included u)) (Away.point u))
+    (vectors (Charts.point c (Open.inclusion Away.domain c.image Away.included u)) a) (vectors (Charts.point c (Open.inclusion Away.domain c.image Away.included u)) b);
+\import Current.Locality[f := value] \as Locally;
+\definition smooth: Current.Smooth value := Locally.smooth (\fun (u: Open.Carrier c.image) =>
+  either!{{Classical.excludedMiddle (Base.Member d.domain (Charts.point c u))} {\exists \Cast[Locally.Patch] (Locally.Patches u)}
+    {\fun (member: _) => Logic.existsIntro[Locally.Patch, Locally.Patches u]
+      (Locally.Patch { domain := Transition.domain, included := included,
+        smooth := Calculus.equalSmooth expression (\fun (t: Open.Carrier Transition.domain) => value (Open.inclusion Transition.domain c.image included t))
+          (\fun (t: Open.Carrier Transition.domain) => sym!{{C.Complex}} _ _ (inside t)) expressionSmooth,
+      }) (Transition.intro u member)}
+    {\fun (outside: _) => Logic.existsIntro[Locally.Patch, Locally.Patches u]
+      (Locally.Patch { domain := Away.domain, included := Away.included,
+        smooth := AwayCalculus.equalSmooth (\fun (t: Open.Carrier Away.domain) => Op.zero)
+          (\fun (t: Open.Carrier Away.domain) => value (Open.inclusion Away.domain c.image Away.included t))
+          (\fun (t: Open.Carrier Away.domain) => sym!{{C.Complex}} _ _ (zeroAway t)) (AwayCalculus.constant Op.zero),
+      }) (Away.contains u (\fun (member: _) => outside ((\bysub(I, { i: I \where Base.Subset support (bundle.atlas.local i).chart.domain }, indices k)) (Charts.point c u) member)))}});

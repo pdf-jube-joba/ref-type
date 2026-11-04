@@ -1,0 +1,42 @@
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\definition domain: Charts.OpenSubset := \into[\Pow M.Point](c.domain, Charts.OpenSubset) \by { c.open };
+\import manifolds.OpenSubmanifold[n := n].On[M := M].In[U := domain] \as Restricted;
+\definition source: Models.Manifold := Restricted.manifold;
+\import manifolds.Dimension[n := n].Examples[].Euclidean[].Subspace[U := c.image] \as Parameter;
+\definition target: Models.Manifold := Parameter.smoothManifold;
+\import manifolds.Dimension[n := n].Chart[M := source.Point, space := source.space] \as LocalCharts;
+\import manifolds.Dimension[n := n].Atlas[M := source.Point, space := source.space] \as LocalAtlas;
+\definition chart: \Cast[LocalCharts.Chart] source.atlas.charts := \into[LocalCharts.Chart](Restricted.restricted c, source.atlas.charts) \by {
+  LocalAtlas.includedInSaturation Restricted.atlas (Restricted.restricted c)
+    (std.Logic[].Proposition[].existsIntro[Restricted.OriginalChart, { d: Restricted.OriginalChart \where Restricted.restricted d = Restricted.restricted c }] c (\refl(Restricted.restricted c)))
+};
+\definition contains: \forall (x: source.Point) -> LocalCharts.Contains chart x := \fun (x: source.Point) => \bysub(M.Point, c.domain, x);
+\import manifolds.GlobalChart[n := n].On[M := source].At[chart := chart, contains := contains] \as Coordinates;
+\import Charts.Restricted[U := domain].Of[chart := c] \as Image;
+\import calculus.Real[].Multivariable[n := n].Open[] \as Open;
+\import calculus.Maps[n := n, m := n] \as Calculus;
+\definition inclusion: Calculus.Map Image.image c.image := \into[Calculus.Data[Image.image, c.image]](Calculus.Data[Image.image, c.image] { apply := Image.oldCoordinate }, Calculus.Map Image.image c.image) \by {
+  Calculus.Laws[Image.image, c.image, Calculus.Data[Image.image, c.image] { apply := Image.oldCoordinate }] {
+    smooth := \fun (a: std.Data[].FinSet[].Fin n) => Open.Examples[].projectionSmooth Image.image a,
+  }
+};
+\import manifolds.EuclideanMap[n := n, m := n].Between[U := Image.image, V := c.image] \as Inclusion;
+\import manifolds.Composition[n := n, m := n, l := n].Between[M := source, N := Coordinates.target, P := target] \as Compose;
+\import manifolds.SmoothMap[n := n, m := n].Between[M := source, N := target] \as Forward;
+\import manifolds.SmoothMap[n := n, m := n].Between[M := target, N := source] \as Backward;
+\definition forward: Forward.Map := Compose.compose Coordinates.forward (Inclusion.map inclusion);
+\import manifolds.ChartMap[n := n].On[M := M].At[chart := c] \as Parametrize;
+\import manifolds.SmoothMapCorestriction[n := n, m := n].Between[M := target, N := M].Into[U := domain].Of[f := Parametrize.map,
+  inside := \fun (u: Open.Carrier c.image) => \bysub(M.Point, c.domain, Charts.point c u)] \as Into;
+\definition backward: Backward.Map := Into.map;
+\definition forwardFormula: \forall (p: source.Point) -> Forward.apply forward p = Charts.coordinate c p := \fun (p: source.Point) => \refl(Charts.coordinate c p);
+\definition backwardFormula: \forall (u: Open.Carrier c.image) -> Backward.apply backward u = Charts.point c u := \fun (u: Open.Carrier c.image) => \refl(Charts.point c u);
+\definition diffeomorphism: manifolds.Diffeomorphism[n := n, m := n].Between[M := source, N := target].Diffeomorphism :=
+  manifolds.Diffeomorphism[n := n, m := n].Between[M := source, N := target].Diffeomorphism {
+    forward := forward, backward := backward,
+    leftInverse := \fun (p: source.Point) => Charts.Of[chart := c].pointCoordinate p,
+    rightInverse := Charts.Of[chart := c].coordinatePoint,
+  };

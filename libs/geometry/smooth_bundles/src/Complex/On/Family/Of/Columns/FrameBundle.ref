@@ -1,0 +1,65 @@
+\import \root.GeneralLinear[K := C.Complex, field := C.Algebra[].field, conjugation := linear_algebra.Hermitian[].Complex[].scalar, scalar := vector_bundles.Bundles[].Complex[].scalar, n := r] \as GL;
+\import Result.Of[I := I, bundle := columnsBundle] \as Total;
+\import Total.Forget[] \as Forget;
+\import tangent_bundles.FrameBundle[n := n, r := \root.Complex[n := n, r := rank].realRank].Over[M := M].Family[F := Fiber, space := Result.realSpace] \as RawFamily;
+\import RawFamily.Using[I := I, data := Result.Using[I := I, data := data].realData] \as RawAtlas;
+\import RawAtlas.Build[changes := columnsBundle.regular] \as Build;
+\definition dimension: N.Nat^ := calculus.Blocks[n := n, m := \root.Complex[n := n, r := rank].realRank].dimension;
+\definition columns[x: M.Point][f: GL.Frames[V := F x, space := space x].Frame]: Fiber x := \fun (j: Fin.Fin r) => f.backward.apply (linear_algebra.Hermitian[].Over[K := C.Complex, field := C.Algebra[].field, scalar := Hermitian.scalar].Finite[n := r].basis j);
+\definition IsFrame[p: RawFamily.Point]: \Prop := \exists ( f: GL.Frames[V := F p.base, space := space p.base].Frame \where columns p.base f = p.vector );
+\definition frames: \Pow RawFamily.Point := { p: RawFamily.Point \where IsFrame p };
+\import topology.Topology[Carrier := RawFamily.Point] \as TotalSpace;
+\import manifolds.Dimension[n := dimension].Chart[M := RawFamily.Point, space := Total.manifold.space] \as TotalCharts;
+\module Local(i: I);
+\definition open: TotalSpace.IsOpenIn Total.manifold.space frames := \fun (i: I) => Local[i := i].open;
+\definition openSubset: TotalCharts.OpenSubset := \into[\Pow RawFamily.Point](frames, TotalCharts.OpenSubset) \by { open };
+\import manifolds.OpenSubmanifold[n := dimension].On[M := Total.manifold].In[U := openSubset] \as Submanifold;
+\import manifolds.Dimension[n := dimension].Smooth[] \as Models;
+\definition manifold: Models.Manifold := Submanifold.manifold;
+\definition Point: \Set := Submanifold.Point;
+\definition projection[p: Point]: M.Point := p.base;
+\definition embed[p: \parent.\parent.Frames[].Point]: Point := \into[RawFamily.Point](RawFamily.include p.base (columns p.base p.frame), frames) \by {
+  Logic.existsIntro[GL.Frames[V := F p.base, space := space p.base].Frame, { f: GL.Frames[V := F p.base, space := space p.base].Frame \where columns p.base f = columns p.base p.frame }] p.frame (\refl(columns p.base p.frame))
+};
+
+\definition columnExt: \forall (x: M.Point)(f, g: GL.Frames[V := F x, space := space x].Frame) -> columns x f = columns x g -> f = g :=
+  \fun (x: M.Point)(f, g: GL.Frames[V := F x, space := space x].Frame)(same: _) => GL.Frames[V := F x, space := space x].backwardBasisExt f g
+    (\fun (j: Fin.Fin r) => congr!{{Fiber x} {F x}} (\fun (v: Fiber x) => v j) _ _ same);
+\definition onto: \forall (p: Point) -> \exists ( f: \parent.\parent.Frames[].Point \where embed f = p ) := \block {
+  \fun (p: Point) \then
+  \takefrom f: \Cast[GL.Frames[V := F p.base, space := space p.base].Frame] ({ f: GL.Frames[V := F p.base, space := space p.base].Frame \where columns p.base f = p.vector }) \by \bysub(RawFamily.Point, frames, p) \then
+  \let same: columns p.base f = p.vector := \bysub(GL.Frames[V := F p.base, space := space p.base].Frame, { f: GL.Frames[V := F p.base, space := space p.base].Frame \where columns p.base f = p.vector }, f) \then
+  \return Logic.existsIntro[\parent.\parent.Frames[].Point, { f: \parent.\parent.Frames[].Point \where embed f = p }]
+    (\parent.\parent.Frames[].Point { base := p.base, frame := f })
+    (trans!{{RawFamily.Point}} _ _ _ (congr!{{Fiber p.base} {RawFamily.Point}} (RawFamily.include p.base) _ _ same) (RawFamily.eta p))
+};
+
+\definition Choice[p: Point]: \Set := \Cast[GL.Frames[V := F p.base, space := space p.base].Frame]
+  ({ f: GL.Frames[V := F p.base, space := space p.base].Frame \where columns p.base f = p.vector });
+\definition unique: \forall (p: Point)(f, g: Choice p) -> f = g := \fun (p: Point)(f, g: Choice p) => columnExt p.base f g
+  (trans!{{Fiber p.base}} _ _ _
+    (\bysub(GL.Frames[V := F p.base, space := space p.base].Frame, { f: GL.Frames[V := F p.base, space := space p.base].Frame \where columns p.base f = p.vector }, f))
+    (sym!{{Fiber p.base}} _ _ (\bysub(GL.Frames[V := F p.base, space := space p.base].Frame, { f: GL.Frames[V := F p.base, space := space p.base].Frame \where columns p.base f = p.vector }, g))));
+\definition recover[p: Point]: Choice p := \choice Choice p \by { existence: \bysub(RawFamily.Point, frames, p), uniqueness: unique p };
+\definition recoverColumns[p: Point]: columns p.base (recover p) = p.vector := \bysub(GL.Frames[V := F p.base, space := space p.base].Frame, { f: GL.Frames[V := F p.base, space := space p.base].Frame \where columns p.base f = p.vector }, recover p);
+\definition recoverEmbed: \forall (x: M.Point)(f: GL.Frames[V := F x, space := space x].Frame) -> recover (embed (\parent.\parent.Frames[].Point { base := x, frame := f })) = f :=
+  \fun (x: M.Point)(f: GL.Frames[V := F x, space := space x].Frame) => columnExt x (recover (embed (\parent.\parent.Frames[].Point { base := x, frame := f }))) f (recoverColumns (embed (\parent.\parent.Frames[].Point { base := x, frame := f })));
+\definition act[p: Point][g: GL.Carrier]: Point := embed (\parent.\parent.Frames[].Point { base := p.base, frame := GL.Frames[V := F p.base, space := space p.base].act (recover p) g });
+\definition actionIdentity: \forall (p: Point) -> act p GL.identity = p := \fun (p: Point) => trans!{{RawFamily.Point}} _ _ _
+  (congr!{{GL.Frames[V := F p.base, space := space p.base].Frame} {RawFamily.Point}} (\fun (f: GL.Frames[V := F p.base, space := space p.base].Frame) => RawFamily.include p.base (columns p.base f)) _ _
+    (GL.Frames[V := F p.base, space := space p.base].actIdentity (recover p)))
+  (trans!{{RawFamily.Point}} _ _ _ (congr!{{Fiber p.base} {RawFamily.Point}} (RawFamily.include p.base) _ _ (recoverColumns p)) (RawFamily.eta p));
+\definition actionProduct: \forall (p: Point)(g, h: GL.Carrier) -> act (act p g) h = act p (GL.multiply g h) := \fun (p: Point)(g, h: GL.Carrier) =>
+  congr!{{GL.Frames[V := F p.base, space := space p.base].Frame} {RawFamily.Point}} (\fun (f: GL.Frames[V := F p.base, space := space p.base].Frame) => RawFamily.include p.base (columns p.base f)) _ _
+    (trans!{{GL.Frames[V := F p.base, space := space p.base].Frame}} _ _ _
+      (congr!{{GL.Frames[V := F p.base, space := space p.base].Frame} {GL.Frames[V := F p.base, space := space p.base].Frame}}
+        (\fun (f: GL.Frames[V := F p.base, space := space p.base].Frame) => GL.Frames[V := F p.base, space := space p.base].act f h) _ _
+        (recoverEmbed p.base (GL.Frames[V := F p.base, space := space p.base].act (recover p) g)))
+      (GL.Frames[V := F p.base, space := space p.base].actProduct (recover p) g h));
+\import manifolds.SmoothMap[n := dimension, m := n].Between[M := manifold, N := M] \as Projections;
+\import manifolds.Composition[n := dimension, m := dimension, l := n].Between[M := manifold, N := Total.manifold, P := M] \as Compose;
+\definition projectionMap: Projections.Map := Compose.compose Submanifold.Inclusion[].map Build.Projection[].map;
+
+\module NativeGL;
+
+\module Native;

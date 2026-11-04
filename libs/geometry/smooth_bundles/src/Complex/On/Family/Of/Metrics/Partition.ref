@@ -1,0 +1,20 @@
+\import \parent.\parent.Forget[] \as Forget;
+\import metric_spaces.RealFunctions[A := M.Point].Bounded[] \as Bounded;
+\import bundle_complements.Complements[].Over[K := C.Complex, field := C.Algebra[].field, conjugation := Hermitian.scalar, scalar := vector_bundles.Bundles[].Complex[].scalar].For[X := M.Point, F := F, bundle := Forget.continuous] \as Complement;
+\import \root.PartitionMetric[K := C.Complex, field := C.Algebra[].field, conjugation := Hermitian.scalar, scalar := vector_bundles.Bundles[].Complex[].scalar].Over[X := M.Point, F := F, bundle := Forget.continuous] \as MetricAlgebra;
+\definition weight[k: N.Nat^]: Bounded.Function[M.space] := \into[M.Point -> R.Real](partition.functions k, Bounded.Function[M.space]) \by {
+  Bounded.FunctionLaws[M.space, partition.functions k] {
+    continuous := Scalars.Continuity[].continuous (partition.functions k) (Functions.regular (partition.functions k)),
+    nonnegative := partition.lower k, bounded := partition.upper k,
+  }
+};
+\definition entry[k: N.Nat^]: MetricAlgebra.Entry := Complement.WeightedChart {
+  chart := Forget.Local[i := indices k].chart, weight := weight k,
+  supportWithin := \bysub(I, { i: I \where Base.Subset (Functions.support (partition.functions k)) (bundle.atlas.local i).chart.domain }, indices k),
+};
+\import MetricAlgebra.Using[parts := entry, total := partition.normalized] \as Construction;
+\definition data: Data := Data { form := Construction.form, positive := Construction.positive };
+\module Term(k: N.Nat^, j: I, a, b: Fin.Fin r);
+\module Coefficient(j: I, a, b: Fin.Fin r);
+\definition smooth: Smooth data := \fun (j: I)(a, b: Fin.Fin r) => Coefficient[j := j, a := a, b := b].smooth;
+\definition metric: Metric := \into[Data](data, Metric) \by { smooth };
