@@ -1,0 +1,33 @@
+\import std.Data[].Nat[] \as Nat;
+\import std.Data[].FinSet[] \as Fin;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\import real.Analysis[] \as S;
+\import calculus.Real[].OneDimension[] \as One;
+\import \root.Reflection[n := Nat.Nat^::zero] \as First;
+\import \root.Reflection[n := First.dimension] \as Second;
+\import \root.SupportedRounding[].Higher[n := Nat.Nat^::zero] \as Rounding;
+\import calculus.Blocks[n := First.dimension, m := One.dimension] \as Blocks;
+\import Fin.Sum[m := Nat.Nat^::zero, n := One.dimension] \as Inner;
+\import Fin.Sum[m := First.dimension, n := One.dimension] \as Outer;
+\import Outer.Tuples[A := S.Real] \as Tuples;
+\definition Point: \Set := Fin.Fin Second.dimension -> S.Real;
+\definition point[u, v: S.Real]: Point := Blocks.join (\fun (i: Fin.Fin First.dimension) => u) (\fun (i: One.Index) => v);
+\definition first: \forall (u, v: S.Real) -> point u v Rounding.firstNormal = u := \fun (u, v: S.Real) => Tuples.atLeft (\fun (i: Fin.Fin First.dimension) => u) (\fun (i: One.Index) => v) First.normal;
+\definition second: \forall (u, v: S.Real) -> point u v Rounding.secondNormal = v := \fun (u, v: S.Real) => Tuples.atRight (\fun (i: Fin.Fin First.dimension) => u) (\fun (i: One.Index) => v) One.index;
+\definition innerIndex: \forall (i: Fin.Fin First.dimension) -> i = First.normal := \fun (i: Fin.Fin First.dimension) => trans!{{Fin.Fin First.dimension}} _ _ _ (sym!{{Fin.Fin First.dimension}} _ _ (Inner.inflateSplit i))
+  ((\induction (j: Inner.Index) \return Inner.inflate j = First.normal \with {
+    | inl: \fun (j: Fin.Fin Nat.Nat^::zero) => Logic.falseElim (Inner.inflate (std.Data[].Sum[].Sum[Fin.Fin Nat.Nat^::zero, One.Index]::inl j) = First.normal) (Fin.zeroImpossible j (Fin.bound Nat.Nat^::zero j))
+    | inr: \fun (j: One.Index) => congr!{One.Index {Fin.Fin First.dimension}} Inner.right j One.index (Fin.singletonValue j)
+  }) (Inner.split i));
+\definition recover: \forall (x: Point) -> point (x Rounding.firstNormal) (x Rounding.secondNormal) = x := \fun (x: Point) => trans!{Point} _ _ _
+  (congr!{{Fin.Fin First.dimension -> S.Real} {One.Index -> S.Real} Point} Blocks.join _ _ _ _
+    (\axiom:funext((\fun (i: Fin.Fin First.dimension) => x Rounding.firstNormal), Blocks.left x, \fun (i: Fin.Fin First.dimension) => sym!{S.Real} _ _ (congr!{{Fin.Fin First.dimension} S.Real} (Blocks.left x) i First.normal (innerIndex i))))
+    (\axiom:funext((\fun (i: One.Index) => x Rounding.secondNormal), Blocks.right x, \fun (i: One.Index) => sym!{S.Real} _ _ (congr!{One.Index S.Real} (Blocks.right x) i One.index (Fin.singletonValue i)))))
+  (Blocks.recover x);
+\import topological_algebra.Euclidean[].Dimension[n := Second.dimension].Topology[] \as Ambient;
+\import metric_spaces.RealLine[] \as Line;
+\module From(A: \Set);

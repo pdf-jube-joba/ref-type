@@ -1,0 +1,37 @@
+\import S.Distance[] \as Metric;
+\definition epsilon: S.Real := Metric.min leftWidth.radius rightWidth.radius;
+\definition positive: R.Lt S.zero epsilon := S.Estimates[].Product[].minPositive leftWidth.radius rightWidth.radius leftWidth.positive rightWidth.positive;
+\definition bounded: R.Le epsilon S.one := R.leTrans epsilon leftWidth.radius S.one (Metric.minLeft leftWidth.radius rightWidth.radius) leftWidth.bounded;
+\import \root.RoundingScale[].At[epsilon := epsilon, positive := positive, bounded := bounded] \as Scale;
+\definition leftWithin: \forall (t: Time.Point) -> R.Lt (Time.value t) Scale.outer -> \In[Time.Point] leftRegular.uniform.neighborhood t := \fun (t: Time.Point)(small: R.Lt (Time.value t) Scale.outer) =>
+  leftWidth.within t (R.ltLeTrans (Time.value t) epsilon leftWidth.radius (Order.ltTrans (Time.value t) Scale.outer epsilon small Scale.outerSmall) (Metric.minLeft leftWidth.radius rightWidth.radius));
+\definition rightWithin: \forall (t: Time.Point) -> R.Lt (Time.value t) Scale.outer -> \In[Time.Point] rightRegular.uniform.neighborhood t := \fun (t: Time.Point)(small: R.Lt (Time.value t) Scale.outer) =>
+  rightWidth.within t (R.ltLeTrans (Time.value t) epsilon rightWidth.radius (Order.ltTrans (Time.value t) Scale.outer epsilon small Scale.outerSmall) (Metric.minRight leftWidth.radius rightWidth.radius));
+\import \root.CollarWindow[n := n].On[M := M].With[cover := leftCover].From[deformation := left].Of[regular := leftRegular].At[a := Scale.outer, positive := Scale.outerPositive, bounded := Scale.outerBounded, within := leftWithin] \as LeftWindow;
+\import \root.CollarWindow[n := m].On[M := N].With[cover := rightCover].From[deformation := right].Of[regular := rightRegular].At[a := Scale.outer, positive := Scale.outerPositive, bounded := Scale.outerBounded, within := rightWithin] \as RightWindow;
+\import \root.CollarRestriction[n := n].On[M := M].With[cover := leftCover].From[deformation := left].Of[regular := leftRegular].Within[V := LeftWindow.points, open := LeftWindow.open, inside := LeftWindow.inside] \as Left;
+\import \root.CollarRestriction[n := m].On[M := N].With[cover := rightCover].From[deformation := right].Of[regular := rightRegular].Within[V := RightWindow.points, open := RightWindow.open, inside := RightWindow.inside] \as Right;
+\import \root.OpenManifold[n := Nat.add One.dimension n].On[M := LeftParameter.manifold].Within[U := LeftWindow.points, open := LeftWindow.open] \as LeftModel;
+\import \root.OpenManifold[n := Nat.add One.dimension m].On[M := RightParameter.manifold].Within[U := RightWindow.points, open := RightWindow.open] \as RightModel;
+\import boundary_manifolds.Product[n := Nat.add One.dimension n, m := Nat.add One.dimension m].Of[M := LeftModel.manifold, N := RightModel.manifold] \as Source;
+\import \root.OpenProduct[A := M.Point, B := N.Point, X := LeftModel.Point, Y := RightModel.Point].On[left := M.space, right := N.space, first := LeftModel.topology, second := RightModel.topology].Within[U := Left.image, V := Right.image, openU := Left.imageOpen, openV := Right.imageOpen] \as Neighborhood;
+\import Neighborhood.Through[h := Left.homeomorphism, k := Right.homeomorphism] \as Parameterization;
+\definition near: \Pow Product.Point := Neighborhood.image;
+\definition nearOpen: Space.IsOpenIn Product.topology near := Neighborhood.open;
+\import LeftWindow.Core[r := Scale.inner, positive := Scale.innerPositive, small := Scale.innerSmall] \as LeftCore;
+\import RightWindow.Core[r := Scale.inner, positive := Scale.innerPositive, small := Scale.innerSmall] \as RightCore;
+\definition core: \Pow Product.Point := ProductTopology.Rectangle LeftCore.points RightCore.points;
+\definition coreCompact: \forall (leftCompact: LeftSpace.IsCompact M.space)(rightCompact: RightSpace.IsCompact N.space) -> Space.IsCompactIn Product.topology core :=
+  \fun (leftCompact: LeftSpace.IsCompact M.space)(rightCompact: RightSpace.IsCompact N.space) => ProductTopology.Compactness[].productCompactIn M.space N.space LeftCore.points RightCore.points (LeftCore.compact leftCompact) (RightCore.compact rightCompact);
+\definition coreClosed: \forall (leftCompact: LeftSpace.IsCompact M.space)(rightCompact: RightSpace.IsCompact N.space) -> Space.IsClosedIn Product.topology core :=
+  \fun (leftCompact: LeftSpace.IsCompact M.space)(rightCompact: RightSpace.IsCompact N.space) => Space.Compactness[].compactClosed Product.topology Product.manifold.hausdorff core (coreCompact leftCompact rightCompact);
+\definition coreNear: Space.Subset core near := \fun (x: Product.Point)(member: Space.Member core x) => Logic.And[_, _]::# (LeftCore.included (Product.first x) member.left) (RightCore.included (Product.second x) member.right);
+\definition firstTime[p: Source.Point]: S.Real := Time.value (LeftParameter.second (Source.first p));
+\definition secondTime[p: Source.Point]: S.Real := Time.value (RightParameter.second (Source.second p));
+\definition coreOfTimes: \forall (p: Source.Point) -> R.Le (firstTime p) Scale.inner -> R.Le (secondTime p) Scale.inner -> Space.Member core (Parameterization.forward p) :=
+  \fun (p: Source.Point)(first: R.Le (firstTime p) Scale.inner)(second: R.Le (secondTime p) Scale.inner) => Logic.And[_, _]::# (LeftCore.contains (Source.first p) first) (RightCore.contains (Source.second p) second);
+\definition timesOfCore: \forall (p: Source.Point) -> Space.Member core (Parameterization.forward p) -> Logic.And[R.Le (firstTime p) Scale.inner, R.Le (secondTime p) Scale.inner] :=
+  \fun (p: Source.Point)(member: Space.Member core (Parameterization.forward p)) => Logic.And[_, _]::#
+    (LeftCore.detects (\into[LeftParameter.Point](Source.first p, LeftCollar.domain) \by { LeftWindow.inside (Source.first p) (\bysub(LeftParameter.Point, LeftWindow.points, Source.first p)) }) member.left)
+    (RightCore.detects (\into[RightParameter.Point](Source.second p, RightCollar.domain) \by { RightWindow.inside (Source.second p) (\bysub(RightParameter.Point, RightWindow.points, Source.second p)) }) member.right);
+\module Rounded;

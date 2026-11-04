@@ -1,0 +1,79 @@
+\import \root.PositiveScale[].At[q := Scale.q, positive := Scale.qPositive] \as Normalize;
+\import \root.NormalPlane[] \as Plane;
+\import std.Data[].Nat[] \as Nats;
+\import \root.SupportedRounding[].Higher[n := Nats.Nat^::zero] \as Round;
+\import calculus.Real[].Multivariable[n := Round.dimension].Open[] \as RoundOpen;
+\import boundary_manifolds.Model[n := Round.dimension] \as RoundModel;
+\import calculus.Maps[n := Round.dimension, m := One.dimension] \as RoundMaps;
+\import calculus.Real[].Multivariable[n := One.dimension].Open[] \as LineOpen;
+\import topological_algebra.Euclidean[].Dimension[n := One.dimension].Topology[] \as LineAmbient;
+\import boundary_manifolds.Model[n := One.dimension] \as TimeModel;
+\import metric_spaces.RealLine[] \as Line;
+\import metric_spaces.RealFunctions[A := Source.Point] \as Functions;
+\import topological_constructions.Product[A := LeftModel.Point, B := RightModel.Point] \as SourceProduct;
+\import topological_constructions.Product[A := LeftBase.manifold.Point, B := Time.Point] \as LeftProduct;
+\import topological_constructions.Product[A := RightBase.manifold.Point, B := Time.Point] \as RightProduct;
+\definition timeContinuous: topology.Continuity[A := Time.Point, B := S.Real].Continuous Time.manifold.space Line.topology Time.value :=
+  topology.Composition[A := Time.Point, B := TimeModel.Point, C := S.Real].composeContinuous Time.manifold.space LineAmbient.topology Line.topology
+    (\fun (t: Time.Point) => t) (\fun (t: TimeModel.Point) => t One.index) (TimeModel.Topology[C := Time.constraints, U := Time.domain].ambient) (LineAmbient.coordinateContinuous One.index);
+\definition leftTimeContinuous: topology.Continuity[A := LeftParameter.Point, B := S.Real].Continuous LeftParameter.topology Line.topology (\fun (p: LeftParameter.Point) => Time.value (LeftParameter.second p)) :=
+  topology.Composition[A := LeftParameter.Point, B := Time.Point, C := S.Real].composeContinuous LeftParameter.topology Time.manifold.space Line.topology LeftParameter.second Time.value (LeftProduct.Maps[].secondContinuous LeftBase.manifold.space Time.manifold.space) timeContinuous;
+\definition rightTimeContinuous: topology.Continuity[A := RightParameter.Point, B := S.Real].Continuous RightParameter.topology Line.topology (\fun (p: RightParameter.Point) => Time.value (RightParameter.second p)) :=
+  topology.Composition[A := RightParameter.Point, B := Time.Point, C := S.Real].composeContinuous RightParameter.topology Time.manifold.space Line.topology RightParameter.second Time.value (RightProduct.Maps[].secondContinuous RightBase.manifold.space Time.manifold.space) timeContinuous;
+\definition firstTimeContinuous: Functions.Continuous Source.topology firstTime := topology.Composition[A := Source.Point, B := LeftModel.Point, C := S.Real].composeContinuous Source.topology LeftModel.topology Line.topology Source.first
+  (\fun (p: LeftModel.Point) => Time.value (LeftParameter.second p)) (SourceProduct.Maps[].firstContinuous LeftModel.topology RightModel.topology)
+  (topology.Continuity[A := LeftParameter.Point, B := S.Real].Restriction[S := LeftWindow.points].restrictContinuous LeftParameter.topology Line.topology (\fun (p: LeftParameter.Point) => Time.value (LeftParameter.second p)) leftTimeContinuous);
+\definition secondTimeContinuous: Functions.Continuous Source.topology secondTime := topology.Composition[A := Source.Point, B := RightModel.Point, C := S.Real].composeContinuous Source.topology RightModel.topology Line.topology Source.second
+  (\fun (p: RightModel.Point) => Time.value (RightParameter.second p)) (SourceProduct.Maps[].secondContinuous LeftModel.topology RightModel.topology)
+  (topology.Continuity[A := RightParameter.Point, B := S.Real].Restriction[S := RightWindow.points].restrictContinuous RightParameter.topology Line.topology (\fun (p: RightParameter.Point) => Time.value (RightParameter.second p)) rightTimeContinuous);
+\definition first[p: Source.Point]: S.Real := Normalize.value (firstTime p);
+\definition second[p: Source.Point]: S.Real := Normalize.value (secondTime p);
+\definition firstContinuous: Functions.Continuous Source.topology first := Functions.Product[].continuous Source.topology (\fun (p: Source.Point) => Normalize.inverse) firstTime (Functions.constantContinuous Source.topology Normalize.inverse) firstTimeContinuous;
+\definition secondContinuous: Functions.Continuous Source.topology second := Functions.Product[].continuous Source.topology (\fun (p: Source.Point) => Normalize.inverse) secondTime (Functions.constantContinuous Source.topology Normalize.inverse) secondTimeContinuous;
+\import Plane.From[A := Source.Point].On[space := Source.topology, u := first, v := second, firstContinuous := firstContinuous, secondContinuous := secondContinuous] \as NormalCoordinates;
+\definition raw[p: Source.Point]: RoundOpen.Carrier RoundOpen.whole := \into[RoundModel.Point](NormalCoordinates.function p, RoundOpen.whole.points) \by { \refl(NormalCoordinates.function p) };
+\definition rawContinuous: topology.Continuity[A := Source.Point, B := RoundOpen.Carrier RoundOpen.whole].Continuous Source.topology (RoundOpen.Topology[].Of[U := RoundOpen.whole].topology) raw :=
+  topology.Continuity[A := Source.Point, B := RoundModel.Point].Corestriction[S := RoundOpen.whole.points].corestrictContinuous Source.topology topological_algebra.Euclidean[].Dimension[n := Round.dimension].Topology[].topology raw NormalCoordinates.continuous;
+\definition value[p: Source.Point]: S.Real := Round.defining (raw p);
+\definition output[p: Source.Point]: LineOpen.Carrier LineOpen.whole := RoundMaps.apply RoundOpen.whole LineOpen.whole Round.function (raw p);
+\definition outputContinuous: topology.Continuity[A := Source.Point, B := LineOpen.Carrier LineOpen.whole].Continuous Source.topology (LineOpen.Topology[].Of[U := LineOpen.whole].topology) output :=
+  topology.Composition[A := Source.Point, B := RoundOpen.Carrier RoundOpen.whole, C := LineOpen.Carrier LineOpen.whole].composeContinuous Source.topology (RoundOpen.Topology[].Of[U := RoundOpen.whole].topology) (LineOpen.Topology[].Of[U := LineOpen.whole].topology) raw
+    (RoundMaps.apply RoundOpen.whole LineOpen.whole Round.function) rawContinuous (RoundMaps.Topology[U := RoundOpen.whole, V := LineOpen.whole].continuous Round.function);
+\definition outputScalarContinuous: topology.Continuity[A := LineOpen.Carrier LineOpen.whole, B := S.Real].Continuous (LineOpen.Topology[].Of[U := LineOpen.whole].topology) Line.topology (\fun (x: LineOpen.Carrier LineOpen.whole) => x One.index) :=
+  topology.Continuity[A := TimeModel.Point, B := S.Real].Restriction[S := LineOpen.whole.points].restrictContinuous LineAmbient.topology Line.topology (\fun (x: TimeModel.Point) => x One.index) (LineAmbient.coordinateContinuous One.index);
+\definition continuous: Functions.Continuous Source.topology value := topology.Composition[A := Source.Point, B := LineOpen.Carrier LineOpen.whole, C := S.Real].composeContinuous Source.topology (LineOpen.Topology[].Of[U := LineOpen.whole].topology) Line.topology output (\fun (x: LineOpen.Carrier LineOpen.whole) => x One.index) outputContinuous outputScalarContinuous;
+\definition quarter: \forall (p: Source.Point) -> \root.SupportedRounding[].Higher[n := Nats.Nat^::zero].Estimates[].Quarter (raw p) := \fun (p: Source.Point) => Logic.And[_, _]::#
+  (R.leReplaceRight S.zero (first p) (Round.u (raw p)) (sym!{S.Real} _ _ (Plane.first (first p) (second p))) (Normalize.nonnegative (firstTime p) (Time.nonnegative (LeftParameter.second (Source.first p)))))
+  (R.leReplaceRight S.zero (second p) (Round.v (raw p)) (sym!{S.Real} _ _ (Plane.second (first p) (second p))) (Normalize.nonnegative (secondTime p) (Time.nonnegative (RightParameter.second (Source.second p)))));
+\import Round.Estimates[] \as Estimates;
+\import topology.Topology[Carrier := Source.Point] \as ParameterSpace;
+\definition negative: \Pow Source.Point := { p: Source.Point \where R.Lt (value p) S.zero };
+\definition negativeOpen: ParameterSpace.IsOpenIn Source.topology negative := continuous (Line.Rays[].Below S.zero) (Line.Rays[].belowOpen S.zero);
+\import Space.Subspace[S := near] \as NearSpace;
+\definition bad: \Pow Parameterization.Point := { x: Parameterization.Point \where ParameterSpace.Member negative (Parameterization.backward x) };
+\definition badOpen: topology.Topology[Carrier := Parameterization.Point].IsOpenIn Parameterization.topology bad := Parameterization.backwardContinuous negative negativeOpen;
+\definition removed: \Pow Product.Point := NearSpace.Open[].image bad;
+\definition removedOpen: Space.IsOpenIn Product.topology removed := NearSpace.Open[].imageOpen Product.topology nearOpen bad badOpen;
+\module NegativeAt(p: Source.Point, negative: ParameterSpace.Member negative p);
+\definition removedCore: Space.Subset removed core := \fun (x: Product.Point)(member: Space.Member removed x) => NearSpace.Open[].imageElim bad x (Space.Member core x)
+  (\fun (y: Parameterization.Point)(negative: topology.Topology[Carrier := Parameterization.Point].Member bad y)(same: (y \of Product.Point) = x) => \block {
+    \let p: Source.Point := Parameterization.backward y \then
+    \let bounds: NegativeAt[p := p, negative := negative].Bounds := NegativeAt[p := p, negative := negative].bounds \then
+    \let inCore: Space.Member core (Parameterization.forward p) := coreOfTimes p bounds.first bounds.second \then
+    \return \idelim (Parameterization.forward p \of Product.Point) = x \with z: Product.Point => Space.Member core z \by {
+      base: inCore, equality: trans!{{Product.Point}} _ _ _ (congr!{{Parameterization.Point} {Product.Point}} (\fun (z: Parameterization.Point) => z) _ _ (Parameterization.rightInverse y)) same
+    }
+  }) member;
+\definition points: \Pow Product.Point := Space.Complement removed;
+\definition closed: Space.IsClosedIn Product.topology points := \idelim removed = Space.Complement points \with U: \Pow Product.Point => Space.IsOpenIn Product.topology U \by {
+  base: removedOpen, equality: sym!{{\Pow Product.Point}} _ _ (Space.Finite[].doubleComplement removed)
+};
+\definition Point: \Set := \Cast[Product.Point] points;
+\definition topology: topology.Structures[].Topology[Point] := Space.Subspace[S := points].topology Product.topology;
+\definition compact: \forall (leftCompact: LeftSpace.IsCompact M.space)(rightCompact: RightSpace.IsCompact N.space) -> topology.Topology[Carrier := Point].IsCompact topology :=
+  \fun (leftCompact: LeftSpace.IsCompact M.space)(rightCompact: RightSpace.IsCompact N.space) => Space.Subspace[S := points].Properties[].compact Product.topology
+    (Space.Compactness[].closedCompact Product.topology (ProductTopology.Compactness[].productCompact M.space N.space leftCompact rightCompact) points closed);
+\definition unchanged: Space.Subset (Space.Complement core) points := \fun (x: Product.Point)(outside: Space.Member (Space.Complement core) x)(member: Space.Member removed x) => outside (removedCore x member);
+\definition covered: \forall (x: Point) -> Logic.Or[Space.Member near x, Space.Member (Space.Complement core) x] := \fun (x: Point) => Logic.orElim (Space.Member core x) (Logic.Not (Space.Member core x))
+  (Logic.Or[Space.Member near x, Space.Member (Space.Complement core) x]) (std.Logic[].Classical[].excludedMiddle (Space.Member core x))
+    (\fun (member: Space.Member core x) => Logic.Or[_, _]::left (coreNear x member)) (\fun (member: Logic.Not (Space.Member core x)) => Logic.Or[_, _]::right member);

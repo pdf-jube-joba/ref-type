@@ -109,3 +109,10 @@ python3 scripts/check_all.py --initial-memory-mib 12288 --memory-mib 12288 --cac
 `OpenManifold.Inclusion` と `OpenCorestriction` は開部分多様体の滑らかな包含・局所逆写像と、像が開部分に入る写像の制限を与える。
 `ChartModel` は一つの大域チャートを持つ多様体とその標準象限の実際の微分同相を、`DimensionChange` は同じ次元の異なる自然数表示間の恒等写像を構成する。
 `CompactTimes` は collar の有限な閉時間区間のコンパクト性を証明する。
+
+`CollarRestriction` は任意の小さい開いた collar パラメータ領域とその像との実際の微分同相を構成する。
+`CollarWindow.Core` は閉時間区間から得られるコンパクトな collar 領域を構成し、その領域に入ることと時間座標の上限を対応させる。
+`ProductCollar` は二つのコンパクト collar の共通の正のスケールを選び、積の角の開近傍と、その内側のコンパクト領域を構成する。
+`Rounded` は正規座標の丸め関数が負となる開集合を実際の積から除き、閉じたコンパクトな丸め領域を得る。
+変更箇所は上記コンパクト領域の内側に含まれ、その外側は元の積と点ごとに一致する。
+この丸め領域への滑らかな atlas の接続は継続中である。
