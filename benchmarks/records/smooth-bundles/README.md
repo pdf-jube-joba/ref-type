@@ -1,5 +1,7 @@
 # B07 smooth bundles: normal checking
 
+最新の A07 main 統合後の検査は [integration-a07](integration-a07/README.md) に記録する。
+
 Base main: `ed1af945bfdfdc1849bf1919317e3ce422b1ac1f`.
 Mathematical source commit: `d7eb138f7991559a350164ed1b844b8ebec4aed6`.
 Package tree: `961dd9d5d908ef3fedfaa0f060afd67a2a3a5100`.
