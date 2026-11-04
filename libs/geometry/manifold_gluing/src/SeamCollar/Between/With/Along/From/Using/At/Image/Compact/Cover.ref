@@ -1,0 +1,37 @@
+\import std.Logic[].Classical[] \as Classical;
+\import \root.InteriorPatches[n := n].Between[M := M, N := N].With[leftCover := leftCover, rightCover := rightCover].Along[d := d].Compact[leftCompact := leftCompact, rightCompact := rightCompact] \as Interiors;
+\import \parent.\parent.\parent.Compatibility[] \as Initial;
+\import boundary_manifolds.Interior[n := Nat.add One.dimension n].Of[M := M] \as LeftInterior;
+\import boundary_manifolds.Interior[n := Nat.add One.dimension n].Of[M := N] \as RightInterior;
+\module BoundaryLeft(a: M.Point, boundary: \In[M.Point] LeftAtlas.points a);
+\module BoundaryRight(a: N.Point, boundary: \In[N.Point] RightAtlas.points a);
+\definition leftCases: \forall (a: M.Point) -> Logic.Or[Target.Member Interiors.leftImage (Gluing.inl a), Target.Member image (Gluing.inl a)] :=
+  \fun (a: M.Point) => Logic.orElim (\In[M.Point] LeftAtlas.points a) (Logic.Not (\In[M.Point] LeftAtlas.points a))
+    (Logic.Or[Target.Member Interiors.leftImage (Gluing.inl a), Target.Member image (Gluing.inl a)]) (Classical.excludedMiddle (\In[M.Point] LeftAtlas.points a))
+    (\fun (boundary: _) => Logic.Or[_, _]::right (BoundaryLeft[a := a, boundary := boundary].member))
+    (\fun (interior: _) => Logic.Or[_, _]::left (topology.Maps[A := M.Point, B := Gluing.Point].imageMember Gluing.inl LeftInterior.points a interior));
+\definition rightCases: \forall (a: N.Point) -> Logic.Or[Target.Member Interiors.rightImage (Gluing.inr a), Target.Member image (Gluing.inr a)] :=
+  \fun (a: N.Point) => Logic.orElim (\In[N.Point] RightAtlas.points a) (Logic.Not (\In[N.Point] RightAtlas.points a))
+    (Logic.Or[Target.Member Interiors.rightImage (Gluing.inr a), Target.Member image (Gluing.inr a)]) (Classical.excludedMiddle (\In[N.Point] RightAtlas.points a))
+    (\fun (boundary: _) => Logic.Or[_, _]::right (BoundaryRight[a := a, boundary := boundary].member))
+    (\fun (interior: _) => Logic.Or[_, _]::left (topology.Maps[A := N.Point, B := Gluing.Point].imageMember Gluing.inr RightInterior.points a interior));
+\definition Covered[y: Gluing.Point]: \Prop := Logic.Or[Target.Member Interiors.leftImage y, Logic.Or[Target.Member Interiors.rightImage y, Target.Member image y]];
+\definition regions: \forall (y: Gluing.Point) -> Covered y := Quotient.induction (\fun (y: Gluing.Point) => Covered y)
+  (\fun (a: M.Point) => Logic.orElim (Target.Member Interiors.leftImage (Gluing.inl a)) (Target.Member image (Gluing.inl a)) (Covered (Gluing.inl a)) (leftCases a)
+    (\fun (member: _) => Logic.Or[_, _]::left member) (\fun (member: _) => Logic.Or[_, _]::right (Logic.Or[_, _]::right member)))
+  (\fun (a: N.Point) => Logic.orElim (Target.Member Interiors.rightImage (Gluing.inr a)) (Target.Member image (Gluing.inr a)) (Covered (Gluing.inr a)) (rightCases a)
+    (\fun (member: _) => Logic.Or[_, _]::right (Logic.Or[_, _]::left member)) (\fun (member: _) => Logic.Or[_, _]::right (Logic.Or[_, _]::right member)));
+\import \parent.Charts[] \as Seam;
+\import topological_constructions.Coproduct[A := Interiors.RightIndex, B := Seam.Index] \as Others;
+\import topological_constructions.Coproduct[A := Interiors.LeftIndex, B := Others.Carrier] \as Indices;
+\definition Index: \Set := Indices.Carrier;
+\import Models.Chart[M := Gluing.Point, space := Gluing.topology] \as Charts;
+\definition chart: Index -> Charts.Chart := \induction (i: Index) \return Charts.Chart \with {
+  | inl: \fun (c: Interiors.LeftIndex) => Interiors.leftChart c
+  | inr: \induction (i: Others.Carrier) \return Charts.Chart \with {
+    | inl: \fun (c: Interiors.RightIndex) => Interiors.rightChart c
+    | inr: \fun (c: Seam.Index) => Seam.chart c
+  }
+};
+\module At(y: Gluing.Point);
+\definition covers: \forall (y: Gluing.Point) -> \exists (c: Index \where Charts.Contains (chart c) y) := \fun (y: Gluing.Point) => At[y := y].exists;

@@ -1,0 +1,23 @@
+\definition fromLeft: Target.Member Interiors.leftImage y -> \exists (c: Index \where Charts.Contains (chart c) y) := \block {
+  \fun (member: _) \then
+  \takefrom c: \Cast[Interiors.LeftIndex] ({ c: Interiors.LeftIndex \where Charts.Contains (Interiors.leftChart c) y })
+    \by Interiors.leftCovers (\into[Gluing.Point](y, Interiors.leftImage) \by { member }) \then
+  \return Logic.existsIntro[Index, { i: Index \where Charts.Contains (chart i) y }] (Indices.inl c)
+    (\bysub(Interiors.LeftIndex, { c: Interiors.LeftIndex \where Charts.Contains (Interiors.leftChart c) y }, c))
+};
+\definition fromRight: Target.Member Interiors.rightImage y -> \exists (c: Index \where Charts.Contains (chart c) y) := \block {
+  \fun (member: _) \then
+  \takefrom c: \Cast[Interiors.RightIndex] ({ c: Interiors.RightIndex \where Charts.Contains (Interiors.rightChart c) y })
+    \by Interiors.rightCovers (\into[Gluing.Point](y, Interiors.rightImage) \by { member }) \then
+  \return Logic.existsIntro[Index, { i: Index \where Charts.Contains (chart i) y }] (Indices.inr (Others.inl c))
+    (\bysub(Interiors.RightIndex, { c: Interiors.RightIndex \where Charts.Contains (Interiors.rightChart c) y }, c))
+};
+\definition fromSeam: Target.Member image y -> \exists (c: Index \where Charts.Contains (chart c) y) := \block {
+  \fun (member: _) \then
+  \takefrom c: \Cast[Seam.Index] ({ c: Seam.Index \where Charts.Contains (Seam.chart c) y }) \by Seam.covers (\into[Gluing.Point](y, image) \by { member }) \then
+  \return Logic.existsIntro[Index, { i: Index \where Charts.Contains (chart i) y }] (Indices.inr (Others.inr c))
+    (\bysub(Seam.Index, { c: Seam.Index \where Charts.Contains (Seam.chart c) y }, c))
+};
+\definition exists: \exists (c: Index \where Charts.Contains (chart c) y) := Logic.orElim (Target.Member Interiors.leftImage y)
+  (Logic.Or[Target.Member Interiors.rightImage y, Target.Member image y]) (\exists (c: Index \where Charts.Contains (chart c) y)) (regions y) fromLeft
+  (\fun (member: _) => Logic.orElim (Target.Member Interiors.rightImage y) (Target.Member image y) (\exists (c: Index \where Charts.Contains (chart c) y)) member fromRight fromSeam);

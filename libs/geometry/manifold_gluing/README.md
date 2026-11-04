@@ -80,3 +80,8 @@ python3 scripts/check_all.py --initial-memory-mib 12288 --memory-mib 12288 --cac
 `Charts` はその開近傍を覆うチャートを構成し、その内部での滑らかな座標変換を証明する。
 `InteriorInclusion` は G03 の内点多様体を角付き多様体として扱ったときの元の多様体への滑らかな包含である。
 左右の内点チャートと継ぎ目チャートを合わせた、商全体の滑らかな atlas はまだ実装中である。
+
+`InteriorInclusion.InverseAt` は内点での包含の逆の滑らかな局所表示を構成する。
+`InteriorEmbedding` と `InteriorPatches` は左右の内部の像が商で開くことを示し、その座標近傍を構成する。
+`SeamCollar.Image.Compact.Cover` は左右の内部と継ぎ目の3種類の座標近傍が商空間全体を覆うことを証明する。
+異なる種類の座標近傍の重なりでの滑らかな座標変換は引き続き実装中である。
