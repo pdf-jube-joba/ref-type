@@ -1,0 +1,41 @@
+\import \parent.ParameterInverse[x := imagePoint x member] \as Inverse;
+\definition parameter[p: Far.Point]: Source.Point := Inverse.function p;
+\import topology.Topology[Carrier := Far.Point] \as FarSpace;
+\definition W: \Pow Far.Point := { p: Far.Point \where Space.Member near p };
+\definition openW: FarSpace.IsOpenIn Far.topology W := Far.Inclusion[].continuous near nearOpen;
+\definition parameterValue: \forall (p: Far.Point)(member: FarSpace.Member W p) -> (Parameterization.forward (parameter p) \of Product.Point) = (p \of Product.Point) := \fun (p: Far.Point)(member: FarSpace.Member W p) => Inverse.value p member;
+\definition parameterFar: \forall (p: Far.Point)(member: FarSpace.Member W p) -> Logic.Not (Space.Member core (Parameterization.forward (parameter p))) := \fun (p: Far.Point)(member: FarSpace.Member W p) =>
+  \idelim (p \of Product.Point) = (Parameterization.forward (parameter p) \of Product.Point) \with z: Product.Point => Logic.Not (Space.Member core z) \by {
+    base: \bysub(Product.Point, far, p), equality: sym!{{Product.Point}} _ _ (parameterValue p member)
+  };
+\import \parent.\parent.\parent.NearModel[].Outside[] \as Outside;
+\definition normalOutside: \forall (p: Far.Point)(member: FarSpace.Member W p) -> \In[Source.Point] Outside.points (parameter p) := \fun (p: Far.Point)(member: FarSpace.Member W p) => Outside.strictOfFar (parameter p) (parameterFar p member);
+\import Outside.At[x := parameter x, member := normalOutside x member] \as Lift;
+\definition lifted[p: Far.Point]: Near.Point := Lift.function (parameter p);
+\definition function[p: Far.Point]: nearManifold.Point := Change.forwardApply change.atlas change.forward (lifted p);
+\import \root.LocalSmoothMap[n := Nat.add (Nat.add One.dimension m) (Nat.add One.dimension n), m := Nat.add (Nat.add One.dimension m) (Nat.add One.dimension n)].Between[M := Far.manifold, N := Product.manifold].Of[function := Far.Inclusion[].apply] \as InclusionLocal;
+\import \root.SmoothWitness[n := Nat.add (Nat.add One.dimension m) (Nat.add One.dimension n), m := Nat.add (Nat.add One.dimension m) (Nat.add One.dimension n)].Between[M := Far.manifold, N := Product.manifold].Of[f := Far.Inclusion[].map] \as InclusionWitness;
+\import \root.LocalSmoothMap[n := Nat.add (Nat.add One.dimension m) (Nat.add One.dimension n), m := Nat.add (Nat.add One.dimension m) (Nat.add One.dimension n)].Between[M := Product.manifold, N := Source.manifold].Of[function := Inverse.function] \as OriginalLocal;
+\definition inverseExists: \exists OriginalLocal.Witness[x] := \idelim OriginalOpen.include (imagePoint x member) = (x \of Product.Point) \with p: Product.Point => \exists OriginalLocal.Witness[p] \by {
+  base: Inverse.exists, equality: imageValue x member
+};
+\import \root.LocalSmoothMap[n := Nat.add (Nat.add One.dimension m) (Nat.add One.dimension n), m := Nat.add (Nat.add One.dimension m) (Nat.add One.dimension n)].Between[M := Far.manifold, N := Source.manifold].Of[function := parameter] \as ParameterLocal;
+\import \root.LocalSmoothCompose[n := Nat.add (Nat.add One.dimension m) (Nat.add One.dimension n), m := Nat.add (Nat.add One.dimension m) (Nat.add One.dimension n), l := Nat.add (Nat.add One.dimension m) (Nat.add One.dimension n)].Between[M := Far.manifold, N := Product.manifold, P := Source.manifold].From[f := Far.Inclusion[].apply, g := Inverse.function] \as ParameterComposition;
+\import \root.LocalSmoothMap[n := Nat.add (Nat.add One.dimension m) (Nat.add One.dimension n), m := Nat.add Round.dimension (Nat.add m n)].Between[M := Source.manifold, N := Near.manifold].Of[function := Lift.function] \as LiftLocal;
+\import \root.LocalSmoothMap[n := Nat.add (Nat.add One.dimension m) (Nat.add One.dimension n), m := Nat.add Round.dimension (Nat.add m n)].Between[M := Far.manifold, N := Near.manifold].Of[function := lifted] \as OldLocal;
+\import \root.LocalSmoothCompose[n := Nat.add (Nat.add One.dimension m) (Nat.add One.dimension n), m := Nat.add (Nat.add One.dimension m) (Nat.add One.dimension n), l := Nat.add Round.dimension (Nat.add m n)].Between[M := Far.manifold, N := Source.manifold, P := Near.manifold].From[f := parameter, g := Lift.function] \as Composition;
+\import \root.LocalSmoothPostcompose[n := Nat.add (Nat.add One.dimension m) (Nat.add One.dimension n), m := Nat.add Round.dimension (Nat.add m n), l := Nat.add (Nat.add One.dimension m) (Nat.add One.dimension n)].Between[M := Far.manifold, N := Near.manifold, P := nearManifold].From[f := lifted, g := change.forward] \as Reindex;
+\import \root.LocalSmoothMap[n := Nat.add (Nat.add One.dimension m) (Nat.add One.dimension n), m := Nat.add (Nat.add One.dimension m) (Nat.add One.dimension n)].Between[M := Far.manifold, N := nearManifold].Of[function := function] \as Local;
+\definition exists: \exists Local.Witness[x] := \block {
+  \takefrom inclusion: InclusionLocal.Witness[x] \by InclusionWitness.exists x \then
+  \takefrom inverse: OriginalLocal.Witness[x] \by inverseExists \then
+  \takefrom parameterWitness: ParameterLocal.Witness[x] \by ParameterComposition.At[x := x, chosen := inclusion, next := inverse].exists \then
+  \takefrom lift: LiftLocal.Witness[parameter x] \by Lift.exists \then
+  \takefrom old: OldLocal.Witness[x] \by Composition.At[x := x, chosen := parameterWitness, next := lift].exists \then
+  \return Reindex.At[x := x, chosen := old].exists
+};
+\definition rawValue: \forall (p: Far.Point)(member: FarSpace.Member W p) -> (nearHomeomorphism.forward (function p) \of Product.Point) = (p \of Product.Point) := \fun (p: Far.Point)(member: FarSpace.Member W p) =>
+  trans!{{Product.Point}} _ _ _ (congr!{{Near.Point} {Product.Point}} (\fun (z: Near.Point) => NearImage.homeomorphism.forward z) _ _ (change.forwardIdentity (lifted p)))
+    (trans!{{Product.Point}} _ _ _ (Lift.rawValue (parameter p) (normalOutside p member)) (parameterValue p member));
+\definition agrees: \forall (p: Far.Point) -> FarSpace.Member W p -> (nearHomeomorphism.forward (function p) \of Point) = (farHomeomorphism.forward p \of Point) :=
+  \fun (p: Far.Point)(member: FarSpace.Member W p) => boundary_manifolds.Refinement[A := Product.Point].equality points (nearHomeomorphism.forward (function p)) (farHomeomorphism.forward p) (rawValue p member);

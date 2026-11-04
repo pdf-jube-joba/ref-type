@@ -1,0 +1,42 @@
+\import Models.Chart[M := Point, space := topology] \as Charts;
+\import topological_constructions.Coproduct[A := NearCharts.OldChart, B := FarCharts.OldChart] \as Indices;
+\definition Index: \Set := Indices.Carrier;
+\definition nearChart[c: NearCharts.OldChart]: Charts.Chart := NearCharts.In[c := c].chart;
+\definition farChart[c: FarCharts.OldChart]: Charts.Chart := FarCharts.In[c := c].chart;
+\definition chart: Index -> Charts.Chart := \induction (i: Index) \return Charts.Chart \with {
+  | inl: \fun (c: NearCharts.OldChart) => nearChart c
+  | inr: \fun (c: FarCharts.OldChart) => farChart c
+};
+\definition covers: \forall (y: Point) -> \exists (i: Index \where Charts.Contains (chart i) y) := \fun (y: Point) => Logic.orElim (\In[Point] nearRegion y) (\In[Point] farRegion y) (\exists (i: Index \where Charts.Contains (chart i) y)) (covered y)
+  (\block {
+    \fun (member: \In[Point] nearRegion y) \then
+    \takefrom c: \Cast[NearCharts.OldChart] ({ c: NearCharts.OldChart \where Charts.Contains (nearChart c) y }) \by NearCharts.covers (\into[Point](y, nearRegion) \by { member }) \then
+    \return Logic.existsIntro[Index, { i: Index \where Charts.Contains (chart i) y }] (Indices.inl c) (\bysub(NearCharts.OldChart, { c: NearCharts.OldChart \where Charts.Contains (nearChart c) y }, c))
+  })
+  (\block {
+    \fun (member: \In[Point] farRegion y) \then
+    \takefrom c: \Cast[FarCharts.OldChart] ({ c: FarCharts.OldChart \where Charts.Contains (farChart c) y }) \by FarCharts.covers (\into[Point](y, farRegion) \by { member }) \then
+    \return Logic.existsIntro[Index, { i: Index \where Charts.Contains (chart i) y }] (Indices.inr c) (\bysub(FarCharts.OldChart, { c: FarCharts.OldChart \where Charts.Contains (farChart c) y }, c))
+  });
+\module NearFar(c: NearCharts.OldChart, d: FarCharts.OldChart, y: Point, first: Charts.Contains (nearChart c) y, second: Charts.Contains (farChart d) y);
+\module FarNear(c: FarCharts.OldChart, d: NearCharts.OldChart, y: Point, first: Charts.Contains (farChart c) y, second: Charts.Contains (nearChart d) y);
+\definition Compatibility[i, j: Index]: \Prop := \forall (y: Point)(first: Charts.Contains (chart i) y)(second: Charts.Contains (chart j) y) -> \exists Charts.At[x := y, left := chart i, right := chart j, inLeft := first].Extension;
+\definition compatibleNear[c: NearCharts.OldChart]: \forall (j: Index) -> Compatibility (Indices.inl c) j := \induction (j: Index) \return Compatibility (Indices.inl c) j \with {
+  | inl: \fun (d: NearCharts.OldChart)(y: Point)(first: _)(second: _) => NearCharts.Pair[c := c, d := d, x := y, contains := first, otherContains := second].exists
+  | inr: \fun (d: FarCharts.OldChart)(y: Point)(first: _)(second: _) => NearFar[c := c, d := d, y := y, first := first, second := second].exists
+};
+\definition compatibleFar[c: FarCharts.OldChart]: \forall (j: Index) -> Compatibility (Indices.inr c) j := \induction (j: Index) \return Compatibility (Indices.inr c) j \with {
+  | inl: \fun (d: NearCharts.OldChart)(y: Point)(first: _)(second: _) => FarNear[c := c, d := d, y := y, first := first, second := second].exists
+  | inr: \fun (d: FarCharts.OldChart)(y: Point)(first: _)(second: _) => FarCharts.Pair[c := c, d := d, x := y, contains := first, otherContains := second].exists
+};
+\definition compatible: \forall (i, j: Index) -> Compatibility i j := \induction (i: Index) \return \forall (j: Index) -> Compatibility i j \with {
+  | inl: \fun (c: NearCharts.OldChart) => compatibleNear c
+  | inr: \fun (c: FarCharts.OldChart) => compatibleFar c
+};
+\import Models.Family[A := Point, space := topology, I := Index, chart := chart].Using[cover := covers, compatible := compatible] \as Family;
+\import Space.Subspace[S := points].Properties[] \as Properties;
+\definition manifold: Models.Manifold := Models.Manifold {
+  Point := Point, space := topology, atlas := Family.atlas,
+  hausdorff := Properties.hausdorff Product.topology Product.manifold.hausdorff,
+  secondCountable := Properties.secondCountable Product.topology Product.manifold.secondCountable,
+};

@@ -1,0 +1,23 @@
+\import \parent.Coordinates[] \as Coordinates;
+\import \parent.Parameters[] \as Parameters;
+\import \parent.Image[] \as Image;
+\import \root.RoundingWindow[].Outside[] \as WindowOutside;
+\import \root.SupportedRounding[].Higher[n := Nats.Nat^::zero].Quarter[] \as Quarter;
+\import boundary_manifolds.Dimension[n := Round.dimension].Quadrant[C := Quarter.constraints, U := \root.RoundingWindow[].domain] \as QuarterWindow;
+\import boundary_manifolds.SmoothMap[n := Nat.add (Nat.add One.dimension m) (Nat.add One.dimension n), m := Round.dimension].Between[M := Source.manifold, N := QuarterWindow.manifold] \as CoordinateMaps;
+\import \root.OpenManifold[n := Round.dimension].On[M := QuarterWindow.manifold].Within[U := WindowOutside.points, open := WindowOutside.open] \as NormalOutside;
+\definition points: \Pow Source.Point := { p: Source.Point \where \In[QuarterWindow.Point] WindowOutside.points (CoordinateMaps.apply Coordinates.map p) };
+\definition open: ParameterSpace.IsOpenIn Source.topology points := Coordinates.map.continuous WindowOutside.points WindowOutside.open;
+\definition normal[p: Source.Point][member: ParameterSpace.Member points p]: NormalOutside.Point := \into[QuarterWindow.Point](CoordinateMaps.apply Coordinates.map p, WindowOutside.points) \by { member };
+\module Far(p: Source.Point, far: Logic.Not (Space.Member core (Parameterization.forward p)));
+\definition strictOfFar: \forall (p: Source.Point) -> Logic.Not (Space.Member core (Parameterization.forward p)) -> ParameterSpace.Member points p := \fun (p: Source.Point)(far: Logic.Not (Space.Member core (Parameterization.forward p))) => Far[p := p, far := far].strict;
+\import boundary_manifolds.SmoothMap[n := Round.dimension, m := Round.dimension].Between[M := NormalOutside.manifold, N := Window.manifold] \as NormalMaps;
+\definition rounded[p: Source.Point][member: ParameterSpace.Member points p]: Window.Point := NormalMaps.apply WindowOutside.map (normal p member);
+\definition roundedRaw: \forall (p: Source.Point)(member: ParameterSpace.Member points p) -> (rounded p member \of RoundModel.Point) = (raw p \of RoundModel.Point) := \fun (p: Source.Point)(member: ParameterSpace.Member points p) =>
+  trans!{{RoundModel.Point}} _ _ _ (WindowOutside.formula (normal p member)) (Coordinates.formula p);
+\definition nonnegative: \forall (p: Source.Point) -> ParameterSpace.Member points p -> R.Le S.zero (value p) := \fun (p: Source.Point)(member: ParameterSpace.Member points p) =>
+  R.leReplaceRight S.zero (Round.defining (rounded p member)) (value p)
+    (congr!{{RoundOpen.Carrier RoundOpen.whole} S.Real} Round.defining _ _ (boundary_manifolds.Refinement[A := RoundModel.Point].equality RoundOpen.whole.points (rounded p member) (raw p) (roundedRaw p member)))
+    (\bysub(RoundOpen.Carrier RoundOpen.whole, Region.points, rounded p member));
+\definition cut[p: Source.Point][member: ParameterSpace.Member points p]: Parameters.Point := \into[Source.Point](p, Parameters.points) \by { nonnegative p member };
+\module At(x: Source.Point, member: ParameterSpace.Member points x);

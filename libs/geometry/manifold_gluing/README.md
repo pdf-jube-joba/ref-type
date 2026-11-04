@@ -122,3 +122,10 @@ python3 scripts/check_all.py --initial-memory-mib 12288 --memory-mib 12288 --cac
 `TimePlane` は二つの collar 時間から正規化された象限への実際の滑らかな写像を与える。
 `RoundingWindow.Outside` は外側の象限から丸めモデルへの滑らかな写像と局所逆写像を、`OpenProductModel` は開いた積部分の滑らかな包含と局所逆写像を与える。
 外側のチャートとの接続と、指定された部分 collar の相対拡張は継続中である。
+
+`ProductCollar.Rounded.Global.Using.Cover` は実際のコンパクトな丸め領域に、内側と外側の全4種類の滑らかなチャート変換を持つ大域 atlas を構成する。
+内側から外側への変換は実際の滑らかな collar 写像と開部分の局所逆写像から、外側から内側への変換は二つの collar の局所逆写像、正規化、外側の丸めモデルの逆写像から構成する。
+`ProductCollar.With.Compact.exists` は二つのコンパクトな境界付き多様体とその境界チャート被覆だけから、collar・共通スケール・丸め領域・大域 atlas を構成する。
+`Compact.Of` は得られた多様体、そのコンパクト性、コンパクトな変更領域の外側で元の積と一致すること、元の角の点が丸め領域から除かれることを公開する。
+内側の局所モデルは通常の境界多様体の積と正則な sublevel の積である。
+指定された既存の部分 collar の相対拡張は継続中である。
