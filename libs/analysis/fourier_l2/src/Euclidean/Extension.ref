@@ -1,0 +1,67 @@
+\import \parent.Embedding[] \as Embedding;
+\import \parent.Density[] \as Density;
+\import \parent.Sequences[] \as Sequences;
+\import std.Data[].Nat[].Order[].Prop[] \as Bounds;
+\import L2.Complete[] \as Complete;
+\import Real.Sequence[] \as ScalarSequence;
+\import ScalarSequence.Operations[] \as ScalarOperations;
+\definition source[s: Density.Sequence]: N.Nat^ -> Space := \fun (k: N.Nat^) => Embedding.value (s k);
+\definition image[s: Density.Sequence]: N.Nat^ -> Space := \fun (k: N.Nat^) => Embedding.value (map (s k));
+\definition cauchy[s: Density.Sequence]: Metric.Cauchy Geometry.metric (source s) -> Metric.Cauchy Geometry.metric (image s) := \fun (law: _)(epsilon: Real.Real)(positive: _) => \block {
+  \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where Metric.CauchyControl Geometry.metric (source s) epsilon k }) \by law epsilon positive \then
+  \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where Metric.CauchyControl Geometry.metric (image s) epsilon k }] k
+    (\fun (i, j: N.Nat^)(ki: _)(kj: _) => R.ltReplaceLeft _ _ _ (sym!{Real.Real} _ _ (preserves (s i) (s j)))
+      ((\bysub(N.Nat^, { k: N.Nat^ \where Metric.CauchyControl Geometry.metric (source s) epsilon k }, k)) i j ki kj))
+};
+\definition transfer[s, t: Density.Sequence][x, y: Space]: Metric.Converges Geometry.metric (source s) x -> Metric.Converges Geometry.metric (source t) x -> Metric.Converges Geometry.metric (image t) y -> Metric.Converges Geometry.metric (image s) y :=
+  \fun (sx: _)(tx: _)(ty: _)(epsilon: Real.Real)(positive: _) => \block {
+    \let h: Real.Real := Real.mul Real.half epsilon \then
+    \let q: Real.Real := Real.mul Real.half h \then
+    \let hp: R.Lt Real.zero h := Estimates.halfOfPositive epsilon positive \then
+    \let qp: R.Lt Real.zero q := Estimates.halfOfPositive h hp \then
+    \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where Metric.LimitControl Geometry.metric (source s) x q k }) \by sx q qp \then
+    \takefrom l: \Cast[N.Nat^] ({ l: N.Nat^ \where Metric.LimitControl Geometry.metric (source t) x q l }) \by tx q qp \then
+    \takefrom m: \Cast[N.Nat^] ({ m: N.Nat^ \where Metric.LimitControl Geometry.metric (image t) y h m }) \by ty h hp \then
+    \let threshold: N.Nat^ := Bounds.commonBound (Bounds.commonBound k l) m \then
+    \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where Metric.LimitControl Geometry.metric (image s) y epsilon k }] threshold
+      (\fun (j: N.Nat^)(later: Nat.Le threshold j) => \block {
+        \let kl: Nat.Le (Bounds.commonBound k l) j := Nat.leTrans (Bounds.commonBound k l) threshold j (Bounds.leftLeCommonBound (Bounds.commonBound k l) m) later \then
+        \let first: R.Lt (Geometry.metric.distance (source s j) x) q := (\bysub(N.Nat^, { k: N.Nat^ \where Metric.LimitControl Geometry.metric (source s) x q k }, k)) j (Nat.leTrans _ _ _ (Bounds.leftLeCommonBound k l) kl) \then
+        \let second: R.Lt (Geometry.metric.distance x (source t j)) q := R.ltReplaceLeft _ _ _ (Geometry.metric.symmetric (source t j) x)
+          ((\bysub(N.Nat^, { l: N.Nat^ \where Metric.LimitControl Geometry.metric (source t) x q l }, l)) j (Nat.leTrans _ _ _ (Bounds.rightLeCommonBound k l) kl)) \then
+        \let near: R.Lt (Geometry.metric.distance (image s j) (image t j)) h := R.ltReplaceLeft _ _ _ (sym!{Real.Real} _ _ (preserves (s j) (t j)))
+          (R.leLtTrans _ _ _ (Geometry.metric.triangle (source s j) x (source t j)) (R.ltReplaceRight _ _ _ (Estimates.halfTwice h) (Estimates.addLt _ _ _ _ first second))) \then
+        \return R.leLtTrans _ _ _ (Geometry.metric.triangle (image s j) (image t j) y)
+          (R.ltReplaceRight _ _ _ (Estimates.halfTwice epsilon) (Estimates.addLt _ _ _ _ near
+            ((\bysub(N.Nat^, { m: N.Nat^ \where Metric.LimitControl Geometry.metric (image t) y h m }, m)) j (Nat.leTrans _ _ _ (Bounds.rightLeCommonBound (Bounds.commonBound k l) m) later))))
+      })
+  };
+\definition Law[x, y: Space]: \Prop := \forall (s: Density.Sequence) -> Metric.Converges Geometry.metric (source s) x -> Metric.Converges Geometry.metric (image s) y;
+\definition Values[x: Space]: \Set := \Cast[Space] ({ y: Space \where Law x y });
+\definition exists[x: Space]: \exists Values x := \block {
+  \takefrom s: \Cast[Density.Sequence] ({ s: Density.Sequence \where Metric.Converges Geometry.metric (source s) x }) \by Density.sequenceExists x \then
+  \let limit: Metric.Converges Geometry.metric (source s) x := \bysub(Density.Sequence, { s: Density.Sequence \where Metric.Converges Geometry.metric (source s) x }, s) \then
+  \takefrom y: \Cast[Space] ({ y: Space \where Metric.Converges Geometry.metric (image s) y }) \by Complete.complete (image s) (cauchy s (Metric.convergentCauchy Geometry.metric (source s) x limit)) \then
+  \return \exact(\into[Space](y, Values x) \by {
+    \fun (t: Density.Sequence)(tx: _) => transfer t s x y tx limit (\bysub(Space, { y: Space \where Metric.Converges Geometry.metric (image s) y }, y))
+  }, Values x)
+};
+\definition unique[x: Space][y, z: Values x]: y = z := \block {
+  \takefrom s: \Cast[Density.Sequence] ({ s: Density.Sequence \where Metric.Converges Geometry.metric (source s) x }) \by Density.sequenceExists x \then
+  \let limit: Metric.Converges Geometry.metric (source s) x := \bysub(Density.Sequence, { s: Density.Sequence \where Metric.Converges Geometry.metric (source s) x }, s) \then
+  \return Metric.limitUnique Geometry.metric (image s) y z ((\bysub(Space, { y: Space \where Law x y }, y)) s limit) ((\bysub(Space, { y: Space \where Law x y }, z)) s limit)
+};
+\definition value[x: Space]: Values x := \choice Values x \by { existence: exists x, uniqueness: unique x };
+\definition law[x: Space]: Law x (value x) := \bysub(Space, { y: Space \where Law x y }, value x);
+\definition onSchwartz[f: S.Function]: value (Embedding.value f) = Embedding.value (map f) := Metric.limitUnique Geometry.metric (\fun (_: N.Nat^) => Embedding.value (map f)) _ _
+  (law (Embedding.value f) (\fun (_: N.Nat^) => f) (Metric.constantConverges Geometry.metric (Embedding.value f))) (Metric.constantConverges Geometry.metric (Embedding.value (map f)));
+\definition distance[x, y: Space]: Geometry.metric.distance (value x) (value y) = Geometry.metric.distance x y := \block {
+  \takefrom s: \Cast[Density.Sequence] ({ s: Density.Sequence \where Metric.Converges Geometry.metric (source s) x }) \by Density.sequenceExists x \then
+  \takefrom t: \Cast[Density.Sequence] ({ t: Density.Sequence \where Metric.Converges Geometry.metric (source t) y }) \by Density.sequenceExists y \then
+  \let sx: Metric.Converges Geometry.metric (source s) x := \bysub(Density.Sequence, { s: Density.Sequence \where Metric.Converges Geometry.metric (source s) x }, s) \then
+  \let ty: Metric.Converges Geometry.metric (source t) y := \bysub(Density.Sequence, { t: Density.Sequence \where Metric.Converges Geometry.metric (source t) y }, t) \then
+  \return ScalarSequence.limitUnique (\fun (k: N.Nat^) => Geometry.metric.distance (image s k) (image t k)) _ _
+    (Sequences.distance (image s) (image t) (value x) (value y) (law x s sx) (law y t ty))
+    (ScalarOperations.congruent (\fun (k: N.Nat^) => Geometry.metric.distance (source s k) (source t k)) (\fun (k: N.Nat^) => Geometry.metric.distance (image s k) (image t k)) _
+      (\fun (k: N.Nat^) => sym!{Real.Real} _ _ (preserves (s k) (t k))) (Sequences.distance (source s) (source t) x y sx ty))
+};

@@ -1,0 +1,58 @@
+\definition function[f: L2.Representatives][x: Point]: C.Complex := D.mul (symbol.function x) (f x);
+\definition measurable[f: L2.Representatives]: Characterization.Measurable (function f) := productMeasurable symbol.function f symbol.measurable (Characterization.forward f (L2.properties f)).left;
+\definition dominator[f: L2.Representatives]: F.Representatives := F.scaleRepresentative symbol.coefficient (L2.modulusRepresentative f);
+\definition absoluteBound[f: L2.Representatives][x: Point]: R.Le (Absolute.abs (function f x)) (dominator f x) :=
+  R.leReplaceLeft _ _ _ (sym!{Real.Real} _ _ (Absolute.multiplicative (symbol.function x) (f x)))
+    (R.leReplace _ _ _ _ (Laws.fieldMulComm _ _) (Laws.fieldMulComm _ _) (Estimates.mulMonotone _ _ _ (Absolute.nonnegative (f x)) (symbol.bound x)));
+\definition component[f: L2.Representatives][part: C.Complex -> Real.Real][valid: M.IsMeasurable Lebesgue.measure (\fun (x: Point) => part (function f x))][bound: \forall (z: C.Complex) -> R.Le (Product.abs (part z)) (Absolute.abs z)]: F.Representatives :=
+  \into[Point -> Real.Real](\fun (x: Point) => part (function f x), F.Representatives) \by {
+    F.hasMoment _ valid (I.finiteMono (F.moment (\fun (x: Point) => part (function f x))) (F.moment (dominator f)) (F.momentNonnegative _)
+      (\fun (x: Point) => PA.monotone (F.absolute (\fun (x: Point) => part (function f x)) x) (F.absolute (dominator f) x) (lp_spaces.Powers[].exponent PA.two)
+        (R.leReplaceRight _ _ _ (sym!{Real.Real} _ _ (Product.absOfNonnegative _ (Laws.fieldMulNonnegative _ _ (Scaling.nonnegative symbol.coefficient) (Absolute.nonnegative (f x)))))
+          (R.leTrans _ _ _ (bound (function f x)) (absoluteBound f x)))) (F.finiteMoment (dominator f)))
+  };
+\definition representative[f: L2.Representatives]: L2.Representatives := L2.join
+  (component f C.re (measurable f).left Scalars.realAbsolute)
+  (component f C.im (measurable f).right Scalars.imaginaryAbsolute);
+\definition class[f: L2.Representatives]: Space := L2.ofFunction (representative f);
+\definition respects: Maps.Respects class := \fun (f, g: L2.Representatives)(same: _) => Q.classOfEq L2.equivalence (representative f) (representative g)
+  (Logic.And[_, _]::#
+    (AE.nullSubset _ ({ x: Point \where Logic.Not (f x = g x) }) (\fun (x: Point)(different: _)(equal: _) => different (congr!{C.Complex Real.Real} (\fun (z: C.Complex) => C.re (D.mul (symbol.function x) z)) _ _ equal)) (L2.almost f g same))
+    (AE.nullSubset _ ({ x: Point \where Logic.Not (f x = g x) }) (\fun (x: Point)(different: _)(equal: _) => different (congr!{C.Complex Real.Real} (\fun (z: C.Complex) => C.im (D.mul (symbol.function x) z)) _ _ equal)) (L2.almost f g same)));
+\definition value: Space -> Space := Maps.value L2.equivalence class respects;
+\definition onClass[f: L2.Representatives]: value (L2.ofFunction f) = class f := Maps.onClass L2.equivalence class respects f;
+\definition representativeBound[f: L2.Representatives]: R.Le (L2.normRepresentative (representative f)) (Real.mul symbol.coefficient (L2.normRepresentative f)) :=
+  R.leReplaceRight _ _ _ (trans!{Real.Real} _ _ _ (F.normScalar symbol.coefficient (L2.modulusRepresentative f))
+    (congr!{Real.Real Real.Real} (\fun (a: Real.Real) => Real.mul a (L2.normRepresentative f)) _ _ (Product.absOfNonnegative symbol.coefficient (Scaling.nonnegative symbol.coefficient))))
+    (RealNorm.monotone (L2.modulusRepresentative (representative f)) (dominator f)
+      (\fun (x: Point) => R.leReplace _ _ _ _
+        (sym!{Real.Real} _ _ (Product.absOfNonnegative _ (Absolute.nonnegative (function f x))))
+        (sym!{Real.Real} _ _ (Product.absOfNonnegative _ (Laws.fieldMulNonnegative _ _ (Scaling.nonnegative symbol.coefficient) (Absolute.nonnegative (f x)))))
+        (absoluteBound f x)));
+\definition bound: \forall (x: Space) -> R.Le (L2.normValue (value x)) (Real.mul symbol.coefficient (L2.normValue x)) := Q.induction
+  (\fun (x: Space) => R.Le (L2.normValue (value x)) (Real.mul symbol.coefficient (L2.normValue x)))
+  (\fun (f: L2.Representatives) => R.leReplace _ _ _ _
+    (sym!{Real.Real} _ _ (trans!{Real.Real} _ _ _ (congr!{Space Real.Real} L2.normValue _ _ (onClass f)) (L2.normOfFunction (representative f))))
+    (congr!{Real.Real Real.Real} (Real.mul symbol.coefficient) _ _ (sym!{Real.Real} _ _ (L2.normOfFunction f))) (representativeBound f));
+\definition additive: \forall (x, y: Space) -> value (L2.add x y) = L2.add (value x) (value y) := Q.induction2
+  (\fun (x, y: Space) => value (L2.add x y) = L2.add (value x) (value y))
+  (\fun (f, g: L2.Representatives) => eq_reason_in!{Space _
+    "=" _ "by" { congr!{Space Space} value _ _ (L2.addClass f g) }
+    "=" _ "by" { onClass (L2.addRepresentative f g) }
+    "=" _ "by" { L2.classPointwise (representative (L2.addRepresentative f g)) (L2.addRepresentative (representative f) (representative g)) (\fun (x: Point) => CL.mulAddLeft (symbol.function x) (f x) (g x)) }
+    "=" _ "by" { sym!{Space} _ _ (L2.addClass (representative f) (representative g)) }
+    "=" _ "by" { congr!{Space Space Space} L2.add _ _ _ _ (sym!{Space} _ _ (onClass f)) (sym!{Space} _ _ (onClass g)) }
+  });
+\definition scalar[c: C.Complex]: \forall (x: Space) -> value (L2.scale c x) = L2.scale c (value x) := Q.induction
+  (\fun (x: Space) => value (L2.scale c x) = L2.scale c (value x))
+  (\fun (f: L2.Representatives) => eq_reason_in!{Space _
+    "=" _ "by" { congr!{Space Space} value _ _ (L2.scaleClass c f) }
+    "=" _ "by" { onClass (L2.scaleRepresentative c f) }
+    "=" _ "by" { L2.classPointwise (representative (L2.scaleRepresentative c f)) (L2.scaleRepresentative c (representative f)) (\fun (x: Point) => eq_reason_in!{C.Complex _
+      "=" _ "by" { sym!{C.Complex} _ _ (CL.mulAssoc _ _ _) }
+      "=" _ "by" { congr!{C.Complex C.Complex} (\fun (z: C.Complex) => D.mul z (f x)) _ _ (CL.mulComm _ _) }
+      "=" _ "by" { CL.mulAssoc _ _ _ }
+    }) }
+    "=" _ "by" { sym!{Space} _ _ (L2.scaleClass c (representative f)) }
+    "=" _ "by" { congr!{Space Space} (L2.scale c) _ _ (sym!{Space} _ _ (onClass f)) }
+  });

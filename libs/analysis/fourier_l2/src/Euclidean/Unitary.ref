@@ -1,0 +1,132 @@
+\import \parent.Embedding[] \as Embedding;
+\import \parent.Schwartz[] \as Schwartz;
+\import \parent.Density[] \as Density;
+\import \parent.Sequences[] \as Sequences;
+\import \parent.Extension[map := Schwartz.forward, preserves := Schwartz.distance] \as Forward;
+\import \parent.Extension[map := Schwartz.backward, preserves := Schwartz.backwardDistance] \as Backward;
+\definition forward[x: Space]: Space := Forward.value x;
+\definition backward[x: Space]: Space := Backward.value x;
+\definition onSchwartz[f: S.Function]: forward (Embedding.value f) = Embedding.value (Schwartz.forward f) := Forward.onSchwartz f;
+\definition inverseOnSchwartz[f: S.Function]: backward (Embedding.value f) = Embedding.value (Schwartz.backward f) := Backward.onSchwartz f;
+\definition leftInverse[x: Space]: backward (forward x) = x := \block {
+  \takefrom s: \Cast[Density.Sequence] ({ s: Density.Sequence \where Metric.Converges Geometry.metric (Forward.source s) x }) \by Density.sequenceExists x \then
+  \let limit: Metric.Converges Geometry.metric (Forward.source s) x := \bysub(Density.Sequence, { s: Density.Sequence \where Metric.Converges Geometry.metric (Forward.source s) x }, s) \then
+  \let transformed: Density.Sequence := \fun (k: N.Nat^) => Schwartz.forward (s k) \then
+  \return Metric.limitUnique Geometry.metric (Forward.source s) (backward (forward x)) x
+    (Sequences.pointwise (Backward.image transformed) (Forward.source s) (backward (forward x)) (\fun (k: N.Nat^) => Schwartz.leftInverse (s k))
+      (Backward.law (forward x) transformed (Forward.law x s limit))) limit
+};
+\definition rightInverse[x: Space]: forward (backward x) = x := \block {
+  \takefrom s: \Cast[Density.Sequence] ({ s: Density.Sequence \where Metric.Converges Geometry.metric (Backward.source s) x }) \by Density.sequenceExists x \then
+  \let limit: Metric.Converges Geometry.metric (Backward.source s) x := \bysub(Density.Sequence, { s: Density.Sequence \where Metric.Converges Geometry.metric (Backward.source s) x }, s) \then
+  \let transformed: Density.Sequence := \fun (k: N.Nat^) => Schwartz.backward (s k) \then
+  \return Metric.limitUnique Geometry.metric (Backward.source s) (forward (backward x)) x
+    (Sequences.pointwise (Forward.image transformed) (Backward.source s) (forward (backward x)) (\fun (k: N.Nat^) => Schwartz.rightInverse (s k))
+      (Forward.law (backward x) transformed (Backward.law x s limit))) limit
+};
+\definition additive[x, y: Space]: forward (L2.add x y) = L2.add (forward x) (forward y) := \block {
+  \takefrom s: \Cast[Density.Sequence] ({ s: Density.Sequence \where Metric.Converges Geometry.metric (Forward.source s) x }) \by Density.sequenceExists x \then
+  \takefrom t: \Cast[Density.Sequence] ({ t: Density.Sequence \where Metric.Converges Geometry.metric (Forward.source t) y }) \by Density.sequenceExists y \then
+  \let sx: Metric.Converges Geometry.metric (Forward.source s) x := \bysub(Density.Sequence, { s: Density.Sequence \where Metric.Converges Geometry.metric (Forward.source s) x }, s) \then
+  \let ty: Metric.Converges Geometry.metric (Forward.source t) y := \bysub(Density.Sequence, { t: Density.Sequence \where Metric.Converges Geometry.metric (Forward.source t) y }, t) \then
+  \let u: Density.Sequence := \fun (k: N.Nat^) => S.add (s k) (t k) \then
+  \let sourceLimit: Metric.Converges Geometry.metric (Forward.source u) (L2.add x y) := Sequences.pointwise (\fun (k: N.Nat^) => L2.add (Embedding.value (s k)) (Embedding.value (t k))) (Forward.source u) (L2.add x y)
+    (\fun (k: N.Nat^) => sym!{Space} _ _ (Embedding.add (s k) (t k))) (Sequences.add (Forward.source s) (Forward.source t) x y sx ty) \then
+  \return Metric.limitUnique Geometry.metric (Forward.image u) _ _ (Forward.law (L2.add x y) u sourceLimit)
+    (Sequences.pointwise (\fun (k: N.Nat^) => L2.add (Embedding.value (Schwartz.forward (s k))) (Embedding.value (Schwartz.forward (t k)))) (Forward.image u) _
+      (\fun (k: N.Nat^) => sym!{Space} _ _ (Schwartz.addition (s k) (t k))) (Sequences.add (Forward.image s) (Forward.image t) (forward x) (forward y) (Forward.law x s sx) (Forward.law y t ty)))
+};
+\definition scalar[c: C.Complex][x: Space]: forward (L2.scale c x) = L2.scale c (forward x) := \block {
+  \takefrom s: \Cast[Density.Sequence] ({ s: Density.Sequence \where Metric.Converges Geometry.metric (Forward.source s) x }) \by Density.sequenceExists x \then
+  \let sx: Metric.Converges Geometry.metric (Forward.source s) x := \bysub(Density.Sequence, { s: Density.Sequence \where Metric.Converges Geometry.metric (Forward.source s) x }, s) \then
+  \let u: Density.Sequence := \fun (k: N.Nat^) => S.scale c (s k) \then
+  \let sourceLimit: Metric.Converges Geometry.metric (Forward.source u) (L2.scale c x) := Sequences.pointwise (\fun (k: N.Nat^) => L2.scale c (Embedding.value (s k))) (Forward.source u) (L2.scale c x)
+    (\fun (k: N.Nat^) => sym!{Space} _ _ (Embedding.scale c (s k))) (Sequences.scale c (Forward.source s) x sx) \then
+  \return Metric.limitUnique Geometry.metric (Forward.image u) _ _ (Forward.law (L2.scale c x) u sourceLimit)
+    (Sequences.pointwise (\fun (k: N.Nat^) => L2.scale c (Embedding.value (Schwartz.forward (s k)))) (Forward.image u) _
+      (\fun (k: N.Nat^) => sym!{Space} _ _ (Schwartz.scalar c (s k))) (Sequences.scale c (Forward.image s) (forward x) (Forward.law x s sx)))
+};
+\definition injective[x, y: Space]: forward x = forward y -> x = y := \fun (same: _) => eq_reason_in!{Space _
+  "=" _ "by" { sym!{Space} _ _ (leftInverse x) }
+  "=" _ "by" { congr!{Space Space} backward _ _ same }
+  "=" _ "by" { leftInverse y }
+};
+\definition inverseAdditive[x, y: Space]: backward (L2.add x y) = L2.add (backward x) (backward y) := injective _ _ (eq_reason_in!{Space _
+  "=" _ "by" { rightInverse (L2.add x y) }
+  "=" _ "by" { sym!{Space} _ _ (congr!{Space Space Space} L2.add _ _ _ _ (rightInverse x) (rightInverse y)) }
+  "=" _ "by" { sym!{Space} _ _ (additive (backward x) (backward y)) }
+});
+\definition inverseScalar[c: C.Complex][x: Space]: backward (L2.scale c x) = L2.scale c (backward x) := injective _ _ (eq_reason_in!{Space _
+  "=" _ "by" { rightInverse (L2.scale c x) }
+  "=" _ "by" { sym!{Space} _ _ (congr!{Space Space} (L2.scale c) _ _ (rightInverse x)) }
+  "=" _ "by" { sym!{Space} _ _ (scalar c (backward x)) }
+});
+\import linear_algebra.Commutative[K := C.Complex, scalarRing := std.Alg[].Field[].fieldAsCommutativeRing C.Complex C.Algebra[].field].Laws[V := Space, space := Vector.space] \as VL;
+\definition zero: forward L2.zero = L2.zero := VL.idempotentZero (forward L2.zero)
+  (trans!{Space} _ _ _ (sym!{Space} _ _ (additive L2.zero L2.zero)) (congr!{Space Space} forward _ _ (Vector.zeroLeft L2.zero)));
+\definition norm[x: Space]: L2.normValue (forward x) = L2.normValue x := eq_reason_in!{Real.Real _
+  "=" _ "by" { sym!{Real.Real} _ _ (congr!{Space Real.Real} L2.normValue _ _ (Normed.subZeroRight (forward x))) }
+  "=" _ "by" { congr!{Space Real.Real} (Geometry.metric.distance (forward x)) _ _ (sym!{Space} _ _ zero) }
+  "=" _ "by" { Forward.distance x L2.zero }
+  "=" _ "by" { congr!{Space Real.Real} L2.normValue _ _ (Normed.subZeroRight x) }
+};
+\definition inverseNorm[x: Space]: L2.normValue (backward x) = L2.normValue x := trans!{Real.Real} _ _ _ (sym!{Real.Real} _ _ (norm (backward x))) (congr!{Space Real.Real} L2.normValue _ _ (rightInverse x));
+\import functional_analysis.Normed[V := Space, space := CS.realSpace].Hilbert[norm := Geometry.norm.realNorm].Quadratic[inner := Hilbert.realInner] \as Quadratic;
+\definition energy[x: Space]: Real.Real := C.re (Inner.value x x);
+\definition energyPreserved[x: Space]: energy (forward x) = energy x := eq_reason_in!{Real.Real _
+  "=" _ "by" { Inner.normSquared (forward x) }
+  "=" _ "by" { congr!{Real.Real Real.Real Real.Real} Real.mul _ _ _ _ (norm x) (norm x) }
+  "=" _ "by" { sym!{Real.Real} _ _ (Inner.normSquared x) }
+};
+\definition realPolarization[x, y: Space]: C.re (Inner.value x y) = Real.mul Real.half (Real.sub (energy (L2.add x y)) (Real.add (energy x) (energy y))) := sym!{Real.Real} _ _ (eq_reason_in!{Real.Real _
+  "=" _ "by" { congr!{Real.Real Real.Real} (\fun (a: Real.Real) => Real.mul Real.half (Real.sub a (Real.add (energy x) (energy y)))) _ _ (Quadratic.sum x y) }
+  "=" _ "by" { congr!{Real.Real Real.Real} (Real.mul Real.half) _ _ (trans!{Real.Real} _ _ _
+    (congr!{Real.Real Real.Real} (\fun (a: Real.Real) => Real.sub a (Real.add (energy x) (energy y))) _ _ (Laws.addComm _ _))
+    (Laws.addNegCancelRight (Real.add (energy x) (energy y)) (Real.add (C.re (Inner.value x y)) (C.re (Inner.value x y))))) }
+  "=" _ "by" { Laws.fieldMulAdd _ _ _ }
+  "=" _ "by" { Estimates.halfTwice _ }
+});
+\definition realPart[x, y: Space]: C.re (Inner.value (forward x) (forward y)) = C.re (Inner.value x y) := eq_reason_in!{Real.Real _
+  "=" _ "by" { realPolarization (forward x) (forward y) }
+  "=" _ "by" { congr!{Real.Real Real.Real} (\fun (a: Real.Real) => Real.mul Real.half a) _ _
+    (congr!{Real.Real Real.Real Real.Real} Real.sub _ _ _ _
+      (trans!{Real.Real} _ _ _ (congr!{Space Real.Real} energy _ _ (sym!{Space} _ _ (additive x y))) (energyPreserved (L2.add x y)))
+      (congr!{Real.Real Real.Real Real.Real} Real.add _ _ _ _ (energyPreserved x) (energyPreserved y))) }
+  "=" _ "by" { sym!{Real.Real} _ _ (realPolarization x y) }
+};
+\definition unitReal[z: C.Complex]: C.re (D.mul D.i z) = Real.neg (C.im z) := eq_reason_in!{Real.Real _
+  "=" _ "by" { congr!{Real.Real Real.Real Real.Real} Real.sub _ _ _ _ (Laws.fieldMulZeroLeft (C.re z)) (Laws.fieldMulOneLeft (C.im z)) }
+  "=" _ "by" { Laws.addZeroLeft _ }
+};
+\definition imaginaryPart[x, y: Space]: C.im (Inner.value (forward x) (forward y)) = C.im (Inner.value x y) :=
+  trans!{Real.Real} _ _ _ (sym!{Real.Real} _ _ (Laws.negInvolutive _))
+    (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} Real.neg _ _ (eq_reason_in!{Real.Real _
+      "=" _ "by" { sym!{Real.Real} _ _ (unitReal _) }
+      "=" _ "by" { sym!{Real.Real} _ _ (congr!{C.Complex Real.Real} C.re _ _ (Inner.scaleRight D.i (forward x) (forward y))) }
+      "=" _ "by" { congr!{Space Real.Real} (\fun (z: Space) => C.re (Inner.value (forward x) z)) _ _ (sym!{Space} _ _ (scalar D.i y)) }
+      "=" _ "by" { realPart x (L2.scale D.i y) }
+      "=" _ "by" { congr!{C.Complex Real.Real} C.re _ _ (Inner.scaleRight D.i x y) }
+      "=" _ "by" { unitReal _ }
+    })) (Laws.negInvolutive _));
+\definition parseval[x, y: Space]: Inner.value (forward x) (forward y) = Inner.value x y := CL.ext _ _ (realPart x y) (imaginaryPart x y);
+\definition adjointFormula[x, y: Space]: Inner.value (forward x) y = Inner.value x (backward y) :=
+  trans!{C.Complex} _ _ _ (congr!{Space C.Complex} (Inner.value (forward x)) _ _ (sym!{Space} _ _ (rightInverse y))) (parseval x (backward y));
+\import linear_algebra.Commutative[K := C.Complex, scalarRing := std.Alg[].Field[].fieldAsCommutativeRing C.Complex C.Algebra[].field].Linear[V := Space, W := Space, source := Vector.space, target := Vector.space] \as Linear;
+\import CS.Operators[W := Space, target := Vector.space, norm := Geometry.norm, targetNorm := Geometry.norm] \as Operators;
+\definition linear: Linear.Map := Linear.Map { apply := forward, preservesAdd := additive, preservesScale := scalar };
+\definition inverseLinear: Linear.Map := Linear.Map { apply := backward, preservesAdd := inverseAdditive, preservesScale := inverseScalar };
+\definition operator: Operators.Map := \into[Linear.Map](linear, Operators.Map) \by {
+  Logic.existsIntro[Real.Real, { c: Real.Real \where Operators.Bound[linear, c] }] Real.one (Operators.Bound[linear, Real.one] {
+    nonnegative := Laws.oneNonnegative,
+    estimate := \fun (x: Space) => R.leReplace _ _ _ _ (sym!{Real.Real} _ _ (norm x)) (sym!{Real.Real} _ _ (Laws.fieldMulOneLeft _)) (R.leRefl _),
+  })
+};
+\definition inverseOperator: Operators.Map := \into[Linear.Map](inverseLinear, Operators.Map) \by {
+  Logic.existsIntro[Real.Real, { c: Real.Real \where Operators.Bound[inverseLinear, c] }] Real.one (Operators.Bound[inverseLinear, Real.one] {
+    nonnegative := Laws.oneNonnegative,
+    estimate := \fun (x: Space) => R.leReplace _ _ _ _ (sym!{Real.Real} _ _ (inverseNorm x)) (sym!{Real.Real} _ _ (Laws.fieldMulOneLeft _)) (R.leRefl _),
+  })
+};
+\import Operators.Adjoints[inner := Inner.inner, targetInner := Inner.inner] \as Adjoints;
+\definition adjoint[x: Space]: (Adjoints.adjoint L2.Complete[].hilbert L2.Complete[].hilbert operator).apply x = backward x :=
+  sym!{Space} _ _ (Adjoints.unique L2.Complete[].hilbert L2.Complete[].hilbert operator inverseLinear adjointFormula x);

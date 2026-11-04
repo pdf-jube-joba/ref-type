@@ -1,0 +1,75 @@
+\import \parent.Embedding[] \as Embedding;
+\import \parent.Schwartz[] \as Schwartz;
+\import \parent.Unitary[] \as U;
+\import \parent.Sequences[] \as Sequences;
+\import \parent.Density[] \as Density;
+\import L2.Complete[] \as Completion;
+\import std.Set[].Quotient[A := L2.Representatives, Equivalent := L2.Equivalent] \as Q;
+\import Q.Maps[B := Space] \as Maps;
+\import M.AlmostEverywhere[mu := Lebesgue.measure] \as AE;
+\definition representative[f: L2.Representatives]: L2.Representatives := L2.join (L2.realPart f) (F.negRepresentative (L2.imaginaryPart f));
+\definition class[f: L2.Representatives]: Space := L2.ofFunction (representative f);
+\definition respects: Maps.Respects class := \fun (f, g: L2.Representatives)(same: _) => Q.classOfEq L2.equivalence (representative f) (representative g)
+  (Logic.And[_, _]::# same.left (AE.nullSubset ({ x: Point \where Logic.Not (Real.neg (C.im (f x)) = Real.neg (C.im (g x))) }) ({ x: Point \where Logic.Not (C.im (f x) = C.im (g x)) })
+    (\fun (x: Point)(different: _)(equal: _) => different (congr!{Real.Real Real.Real} Real.neg _ _ equal)) same.right));
+\definition value: Space -> Space := Maps.value L2.equivalence class respects;
+\definition onClass[f: L2.Representatives]: value (L2.ofFunction f) = class f := Maps.onClass L2.equivalence class respects f;
+\definition conjugateDifference[z, w: C.Complex]: D.conj (D.sub z w) = D.sub (D.conj z) (D.conj w) := CL.ext _ _ (\refl(Real.sub (C.re z) (C.re w))) (Laws.negAdd (C.im z) (Real.neg (C.im w)));
+\definition distance: \forall (x, y: Space) -> Geometry.metric.distance (value x) (value y) = Geometry.metric.distance x y := Q.induction2
+  (\fun (x, y: Space) => Geometry.metric.distance (value x) (value y) = Geometry.metric.distance x y)
+  (\fun (f, g: L2.Representatives) => eq_reason_in!{Real.Real _
+    "=" _ "by" { congr!{Space Space Real.Real} Geometry.metric.distance _ _ _ _ (onClass f) (onClass g) }
+    "=" _ "by" { Completion.classDistance (representative f) (representative g) }
+    "=" _ "by" { Geometry.realPointwise (L2.modulusRepresentative (Completion.difference (representative f) (representative g))) (L2.modulusRepresentative (Completion.difference f g))
+      (\fun (x: Point) => trans!{Real.Real} _ _ _ (congr!{C.Complex Real.Real} Absolute.abs _ _ (sym!{C.Complex} _ _ (conjugateDifference (f x) (g x)))) (Absolute.conjugate (D.sub (f x) (g x)))) }
+    "=" _ "by" { sym!{Real.Real} _ _ (Completion.classDistance f g) }
+  });
+\definition involutive: \forall (x: Space) -> value (value x) = x := Q.induction (\fun (x: Space) => value (value x) = x)
+  (\fun (f: L2.Representatives) => eq_reason_in!{Space _
+    "=" _ "by" { congr!{Space Space} value _ _ (onClass f) }
+    "=" _ "by" { onClass (representative f) }
+    "=" _ "by" { L2.classPointwise (representative (representative f)) f (\fun (x: Point) => CL.conjConj (f x)) }
+  });
+\definition schwartz[f: S.Function]: S.Function := S.Function { real := f.real, imaginary := E.Operations[].scale (Real.neg Real.one) f.imaginary };
+\definition schwartzValue[f: S.Function][x: Point]: S.value (schwartz f) x = D.conj (S.value f x) := CL.ext (S.value (schwartz f) x) (D.conj (S.value f x)) (\refl(E.value f.real x))
+  (trans!{Real.Real} _ _ _ (Laws.fieldMulNegLeft Real.one _) (congr!{Real.Real Real.Real} Real.neg _ _ (Laws.fieldMulOneLeft _)));
+\definition onSchwartz[f: S.Function]: value (Embedding.value f) = Embedding.value (schwartz f) := trans!{Space} _ _ _ (onClass (Embedding.representative f))
+  (L2.classPointwise (representative (Embedding.representative f)) (Embedding.representative (schwartz f)) (\fun (x: Point) => sym!{C.Complex} _ _ (schwartzValue f x)));
+\definition negativeKernel[x, xi: Point]: Kernel.value x (Coordinates.negPoint xi) = D.conj (Kernel.value x xi) := trans!{C.Complex} _ _ _ (Kernel.symmetric x (Coordinates.negPoint xi))
+  (trans!{C.Complex} _ _ _ (Kernel.negative xi x) (congr!{C.Complex C.Complex} D.conj _ _ (Kernel.symmetric xi x)));
+\definition raw[f: S.Function][xi: Point]: Transform.function (schwartz f) xi = D.conj (Transform.function f (Coordinates.negPoint xi)) := trans!{C.Complex} _ _ _
+  (Inner.pointwise (Integral.section (Integrability.complex (schwartz f)) xi) (Inner.conjugate (Integral.section (Integrability.complex f) (Coordinates.negPoint xi)))
+    (\fun (x: Point) => eq_reason_in!{C.Complex _
+      "=" _ "by" { congr!{C.Complex C.Complex} (\fun (z: C.Complex) => D.mul z (Kernel.value x xi)) _ _ (schwartzValue f x) }
+      "=" _ "by" { congr!{C.Complex C.Complex} (D.mul (D.conj (S.value f x))) _ _ (sym!{C.Complex} _ _ (trans!{C.Complex} _ _ _ (congr!{C.Complex C.Complex} D.conj _ _ (negativeKernel x xi)) (CL.conjConj _))) }
+      "=" _ "by" { sym!{C.Complex} _ _ (CL.conjMul _ _) }
+    })) (Inner.integralConjugate (Integral.section (Integrability.complex f) (Coordinates.negPoint xi)));
+\definition coefficient: Real.mul Schwartz.mass (Normalization.inverse n) = Schwartz.coefficient := Real.Inverse[].inverseUnique Schwartz.mass (Real.mul Schwartz.mass (Normalization.inverse n)) Schwartz.nonzero
+  (eq_reason_in!{Real.Real _
+    "=" _ "by" { Laws.fieldMulAssoc Schwartz.mass (Normalization.inverse n) Schwartz.mass }
+    "=" _ "by" { Algebra.mulSwap Schwartz.mass (Normalization.inverse n) Schwartz.mass }
+    "=" _ "by" { Normalization.cancellation n }
+  });
+\definition conjugateScale[a: Real.Real][z: C.Complex]: D.conj (D.scale a z) = D.scale a (D.conj z) := CL.ext _ _ (\refl(Real.mul a (C.re z))) (sym!{Real.Real} _ _ (Laws.fieldMulNegRight a (C.im z)));
+\definition normalized[f: S.Function]: Embedding.value (Schwartz.forward (schwartz f)) = value (Embedding.value (Schwartz.backward f)) := trans!{Space} _ _ _
+  (Embedding.pointwise _ (schwartz (Schwartz.backward f)) (\fun (xi: Point) => eq_reason_in!{C.Complex _
+    "=" _ "by" { congr!{C.Complex C.Complex} (D.scale Schwartz.coefficient) _ _ (raw f xi) }
+    "=" _ "by" { sym!{C.Complex} _ _ (conjugateScale Schwartz.coefficient _) }
+    "=" _ "by" { congr!{C.Complex C.Complex} D.conj _ _ (trans!{C.Complex} _ _ _
+      (congr!{Real.Real C.Complex} (\fun (a: Real.Real) => D.scale a (Transform.function f (Coordinates.negPoint xi))) _ _ (sym!{Real.Real} _ _ coefficient))
+      (trans!{C.Complex} _ _ _ (sym!{C.Complex} _ _ (Scalars.scaleCompose _ _ _)) (sym!{C.Complex} _ _ (Schwartz.backwardValue f xi)))) }
+    "=" _ "by" { sym!{C.Complex} _ _ (schwartzValue (Schwartz.backward f) xi) }
+  })) (sym!{Space} _ _ (onSchwartz (Schwartz.backward f)));
+\import \parent.Extension[map := Schwartz.forward, preserves := Schwartz.distance] \as Forward;
+\import \parent.Extension[map := Schwartz.backward, preserves := Schwartz.backwardDistance] \as Backward;
+\definition fourier[x: Space]: U.forward (value x) = value (U.backward x) := \block {
+  \takefrom s: \Cast[Density.Sequence] ({ s: Density.Sequence \where Metric.Converges Geometry.metric (Forward.source s) x }) \by Density.sequenceExists x \then
+  \let limit: Metric.Converges Geometry.metric (Forward.source s) x := \bysub(Density.Sequence, { s: Density.Sequence \where Metric.Converges Geometry.metric (Forward.source s) x }, s) \then
+  \let t: Density.Sequence := \fun (k: N.Nat^) => schwartz (s k) \then
+  \let conjugated: Metric.Converges Geometry.metric (Forward.source t) (value x) := Sequences.pointwise (\fun (k: N.Nat^) => value (Embedding.value (s k))) (Forward.source t) _
+    (\fun (k: N.Nat^) => onSchwartz (s k)) (Sequences.isometry value distance (Forward.source s) x limit) \then
+  \return Metric.limitUnique Geometry.metric (Forward.image t) _ _ (Forward.law (value x) t conjugated)
+    (Sequences.pointwise (\fun (k: N.Nat^) => value (Embedding.value (Schwartz.backward (s k)))) (Forward.image t) _
+      (\fun (k: N.Nat^) => sym!{Space} _ _ (normalized (s k)))
+      (Sequences.isometry value distance (Backward.image s) (U.backward x) (Backward.law x s limit)))
+};

@@ -1,0 +1,37 @@
+\import M.Functions[mu := Lebesgue.measure] \as Functions;
+\import L.Products[] \as Products;
+\import L2.Characterization[] \as Characterization;
+\import L.Norm[p := PA.two] \as RealNorm;
+\import std.Set[].Quotient[A := L2.Representatives, Equivalent := L2.Equivalent] \as Q;
+\import Q.Maps[B := Space] \as Maps;
+\import M.AlmostEverywhere[mu := Lebesgue.measure] \as AE;
+\structure Symbol: \Set := {
+  function: Point -> C.Complex,
+  measurable: Characterization.Measurable function,
+  coefficient: I.Scaling[].NonnegativeScalar,
+  bound: \forall (x: Point) -> R.Le (Absolute.abs (function x)) coefficient,
+};
+\definition productMeasurable[f, g: Point -> C.Complex]: Characterization.Measurable f -> Characterization.Measurable g -> Characterization.Measurable (\fun (x: Point) => D.mul (f x) (g x)) :=
+  \fun (left: _)(right: _) => Logic.And[_, _]::#
+    (Functions.addMeasurable _ _ (Products.measurable _ _ left.left right.left) (Functions.negMeasurable _ (Products.measurable _ _ left.right right.right)))
+    (Functions.addMeasurable _ _ (Products.measurable _ _ left.left right.right) (Products.measurable _ _ left.right right.left));
+\module By(symbol: Symbol);
+\definition conjugate[s: Symbol]: Symbol := Symbol {
+  function := \fun (x: Point) => D.conj (s.function x),
+  measurable := Logic.And[_, _]::# s.measurable.left (Functions.negMeasurable _ s.measurable.right),
+  coefficient := s.coefficient,
+  bound := \fun (x: Point) => R.leReplaceLeft _ _ _ (sym!{Real.Real} _ _ (Absolute.conjugate (s.function x))) (s.bound x),
+};
+\definition adjoint[s: Symbol]: \forall (x, y: Space) -> Inner.value (By[symbol := s].value x) y = Inner.value x (By[symbol := conjugate s].value y) := Q.induction2
+  (\fun (x, y: Space) => Inner.value (By[symbol := s].value x) y = Inner.value x (By[symbol := conjugate s].value y))
+  (\fun (f, g: L2.Representatives) => eq_reason_in!{C.Complex _
+    "=" _ "by" { congr!{Space C.Complex} (\fun (x: Space) => Inner.value x (L2.ofFunction g)) _ _ (By[symbol := s].onClass f) }
+    "=" _ "by" { Inner.onClass (By[symbol := s].representative f) g }
+    "=" _ "by" { Inner.pointwise (Inner.product (By[symbol := s].representative f) g) (Inner.product f (By[symbol := conjugate s].representative g)) (\fun (x: Point) => eq_reason_in!{C.Complex _
+      "=" _ "by" { congr!{C.Complex C.Complex} (\fun (z: C.Complex) => D.mul z (g x)) _ _ (CL.conjMul (s.function x) (f x)) }
+      "=" _ "by" { congr!{C.Complex C.Complex} (\fun (z: C.Complex) => D.mul z (g x)) _ _ (CL.mulComm _ _) }
+      "=" _ "by" { CL.mulAssoc _ _ _ }
+    }) }
+    "=" _ "by" { sym!{C.Complex} _ _ (Inner.onClass f (By[symbol := conjugate s].representative g)) }
+    "=" _ "by" { congr!{Space C.Complex} (Inner.value (L2.ofFunction f)) _ _ (sym!{Space} _ _ (By[symbol := conjugate s].onClass g)) }
+  });

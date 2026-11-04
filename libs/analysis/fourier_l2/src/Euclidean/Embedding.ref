@@ -1,0 +1,37 @@
+\import E.Operations[] \as Operations;
+\import E.Integrability[] \as Integrability;
+\definition coefficient[f: E.Schwartz]: Scaling.NonnegativeScalar := \into[Real.Real](E.seminorm f N.Nat^::zero E.Directions::nil, Scaling.NonnegativeScalar) \by {
+  E.seminormNonnegative f N.Nat^::zero E.Directions::nil
+};
+\definition bound[f: E.Schwartz][x: Point]: R.Le (Product.abs (E.value f x)) (coefficient f) :=
+  R.leReplaceLeft _ _ _ (Laws.fieldMulOneLeft (Product.abs (E.value f x))) (E.pointBound f N.Nat^::zero E.Directions::nil x);
+\definition bounded[f: E.Schwartz]: Integral.BoundedBy := Integral.BoundedBy {
+  function := E.value f, coefficient := coefficient f,
+  measurable := (I.integralLaw (Integrability.representative f)).integrable.left, bound := bound f,
+};
+\definition dominator[f: E.Schwartz]: I.Representatives := Scaling.scalarRepresentative (coefficient f) (Abs.representative (Integrability.representative f));
+\definition square[f: E.Schwartz][x: Point]: F.moment (E.value f) x = Real.mul (Product.abs (E.value f x)) (Product.abs (E.value f x)) := PA.square (F.absolute (E.value f) x);
+\definition real[f: E.Schwartz]: F.Representatives := \into[Point -> Real.Real](E.value f, F.Representatives) \by {
+  F.hasMoment (E.value f) (I.integralLaw (Integrability.representative f)).integrable.left
+    (I.finiteMono (F.moment (E.value f)) (dominator f) (F.momentNonnegative (E.value f))
+      (\fun (x: Point) => R.leReplace _ _ _ _ (sym!{Real.Real} _ _ (square f x)) (Laws.fieldMulComm _ _)
+        (Estimates.mulMonotone _ _ _ (Product.absNonnegative (E.value f x)) (bound f x)))
+      (\idelim Abs.abs (dominator f) = (dominator f) \with h: (Point -> Real.Real) => I.Finite h \by {
+        base: (I.integralLaw (dominator f)).integrable.right,
+        equality: \axiom:funext(Abs.abs (dominator f), (dominator f), \fun (x: Point) => Product.absOfNonnegative _
+          (Laws.fieldMulNonnegative _ _ (Scaling.nonnegative (coefficient f)) (Product.absNonnegative (E.value f x))))
+      }))
+};
+\definition representative[f: S.Function]: L2.Representatives := L2.join (real f.real) (real f.imaginary);
+\definition value[f: S.Function]: Space := L2.ofFunction (representative f);
+\definition add[f, g: S.Function]: value (S.add f g) = L2.add (value f) (value g) := trans!{Space} _ _ _
+  (L2.classPointwise (representative (S.add f g)) (L2.addRepresentative (representative f) (representative g)) (\fun (x: Point) => \refl(S.value (S.add f g) x)))
+  (sym!{Space} _ _ (L2.addClass (representative f) (representative g)));
+\definition scale[c: C.Complex][f: S.Function]: value (S.scale c f) = L2.scale c (value f) := trans!{Space} _ _ _
+  (L2.classPointwise (representative (S.scale c f)) (L2.scaleRepresentative c (representative f)) (\fun (x: Point) => S.jetScale c f E.Directions::nil x))
+  (sym!{Space} _ _ (L2.scaleClass c (representative f)));
+\definition pointwise[f, g: S.Function]: (\forall (x: Point) -> S.value f x = S.value g x) -> value f = value g := L2.classPointwise (representative f) (representative g);
+\definition realScale[c: Real.Real][f: S.Function]: value (S.realScale c f) = L2.scale (D.ofReal c) (value f) := trans!{Space} _ _ _
+  (L2.classPointwise (representative (S.realScale c f)) (L2.scaleRepresentative (D.ofReal c) (representative f))
+    (\fun (x: Point) => sym!{C.Complex} _ _ (Scalars.realProduct c (S.value f x))))
+  (sym!{Space} _ _ (L2.scaleClass (D.ofReal c) (representative f)));

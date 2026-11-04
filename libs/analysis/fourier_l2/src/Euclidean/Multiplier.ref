@@ -1,0 +1,34 @@
+\import linear_algebra.Commutative[K := C.Complex, scalarRing := std.Alg[].Field[].fieldAsCommutativeRing C.Complex C.Algebra[].field].Linear[V := Space, W := Space, source := Vector.space, target := Vector.space] \as Linear;
+\import CS.Operators[W := Space, target := Vector.space, norm := Geometry.norm, targetNorm := Geometry.norm] \as Operators;
+\import \parent.Unitary[] \as U;
+\import \parent.Multiplication[] \as Multiplication;
+\import Multiplication.By[symbol := symbol] \as M;
+\definition value[x: Space]: Space := U.backward (M.value (U.forward x));
+\definition additive[x, y: Space]: value (L2.add x y) = L2.add (value x) (value y) := eq_reason_in!{Space _
+  "=" _ "by" { congr!{Space Space} (\fun (z: Space) => U.backward (M.value z)) _ _ (U.additive x y) }
+  "=" _ "by" { congr!{Space Space} U.backward _ _ (M.additive (U.forward x) (U.forward y)) }
+  "=" _ "by" { U.inverseAdditive (M.value (U.forward x)) (M.value (U.forward y)) }
+};
+\definition scalar[c: C.Complex][x: Space]: value (L2.scale c x) = L2.scale c (value x) := eq_reason_in!{Space _
+  "=" _ "by" { congr!{Space Space} (\fun (z: Space) => U.backward (M.value z)) _ _ (U.scalar c x) }
+  "=" _ "by" { congr!{Space Space} U.backward _ _ (M.scalar c (U.forward x)) }
+  "=" _ "by" { U.inverseScalar c (M.value (U.forward x)) }
+};
+\definition bound[x: Space]: R.Le (L2.normValue (value x)) (Real.mul symbol.coefficient (L2.normValue x)) := R.leReplace _ _ _ _
+  (sym!{Real.Real} _ _ (U.inverseNorm (M.value (U.forward x))))
+  (congr!{Real.Real Real.Real} (Real.mul symbol.coefficient) _ _ (U.norm x)) (M.bound (U.forward x));
+\definition linear: Linear.Map := Linear.Map { apply := value, preservesAdd := additive, preservesScale := scalar };
+\definition operator: Operators.Map := \into[Linear.Map](linear, Operators.Map) \by {
+  Logic.existsIntro[Real.Real, { c: Real.Real \where Operators.Bound[linear, c] }] symbol.coefficient
+    (Operators.Bound[linear, symbol.coefficient] { nonnegative := Scaling.nonnegative symbol.coefficient, estimate := bound })
+};
+\definition fourier[x: Space]: U.forward (value x) = M.value (U.forward x) := U.rightInverse (M.value (U.forward x));
+\definition adjointFormula[x, y: Space]: Inner.value (value x) y = Inner.value x (\parent.Multiplier[symbol := Multiplication.conjugate symbol].value y) := eq_reason_in!{C.Complex _
+  "=" _ "by" { sym!{C.Complex} _ _ (U.parseval (value x) y) }
+  "=" _ "by" { congr!{Space C.Complex} (\fun (z: Space) => Inner.value z (U.forward y)) _ _ (fourier x) }
+  "=" _ "by" { Multiplication.adjoint symbol (U.forward x) (U.forward y) }
+  "=" _ "by" { U.adjointFormula x (Multiplication.By[symbol := Multiplication.conjugate symbol].value (U.forward y)) }
+};
+\import Operators.Adjoints[inner := Inner.inner, targetInner := Inner.inner] \as Adjoints;
+\definition adjoint[x: Space]: (Adjoints.adjoint L2.Complete[].hilbert L2.Complete[].hilbert operator).apply x = \parent.Multiplier[symbol := Multiplication.conjugate symbol].value x :=
+  sym!{Space} _ _ (Adjoints.unique L2.Complete[].hilbert L2.Complete[].hilbert operator \parent.Multiplier[symbol := Multiplication.conjugate symbol].linear adjointFormula x);

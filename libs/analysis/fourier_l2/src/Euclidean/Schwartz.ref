@@ -1,0 +1,89 @@
+\import \parent.Embedding[] \as Embedding;
+\import Real.SquareRoot[] \as Root;
+\import linear_algebra.Commutative[K := C.Complex, scalarRing := std.Alg[].Field[].fieldAsCommutativeRing C.Complex C.Algebra[].field].Laws[V := Space, space := Vector.space] \as VL;
+\definition mass: Real.Real := Normalization.gaussianMass n;
+\definition positive: R.Lt Real.zero mass := E.Gaussian[].Mass[].positive;
+\definition nonzero: Logic.Not (mass = Real.zero) := Real.Inverse[].positiveNonzero mass positive;
+\definition coefficient: Real.Real := Laws.fieldInv mass;
+\definition cancel: Real.mul coefficient mass = Real.one := Laws.fieldInverseNonzero mass nonzero;
+\definition forward[f: S.Function]: S.Function := S.realScale coefficient (Transform.Preservation[].value f);
+\definition backward[f: S.Function]: S.Function := S.realScale mass (Inversion.inverseSchwartz f);
+\definition scaleInner[a: Real.Real][x, y: Space]: Inner.value (L2.scale (D.ofReal a) x) (L2.scale (D.ofReal a) y) = D.scale (Real.mul a a) (Inner.value x y) := eq_reason_in!{C.Complex _
+  "=" _ "by" { InnerFacts.scaleLeft Inner.inner (D.ofReal a) x (L2.scale (D.ofReal a) y) }
+  "=" _ "by" { congr!{C.Complex C.Complex C.Complex} D.mul _ _ _ _ (CL.conjOfReal a) (Inner.scaleRight (D.ofReal a) x y) }
+  "=" _ "by" { sym!{C.Complex} _ _ (CL.mulAssoc _ _ _) }
+  "=" _ "by" { congr!{C.Complex C.Complex} (\fun (z: C.Complex) => D.mul z (Inner.value x y)) _ _ (CL.ofRealMul a a) }
+  "=" _ "by" { Scalars.realProduct (Real.mul a a) (Inner.value x y) }
+};
+\definition normalization: Real.mul (Real.mul coefficient coefficient) (Real.mul mass mass) = Real.one := trans!{Real.Real} _ _ _
+  (Algebra.mulFour coefficient coefficient mass mass)
+  (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real Real.Real} Real.mul _ _ _ _ cancel cancel) (Laws.fieldMulOneLeft Real.one));
+\definition parseval[f, g: S.Function]: Inner.value (Embedding.value (forward f)) (Embedding.value (forward g)) = Inner.value (Embedding.value f) (Embedding.value g) := eq_reason_in!{C.Complex _
+  "=" _ "by" { congr!{Space Space C.Complex} Inner.value _ _ _ _ (Embedding.realScale coefficient (Transform.Preservation[].value f)) (Embedding.realScale coefficient (Transform.Preservation[].value g)) }
+  "=" _ "by" { scaleInner coefficient (Embedding.value (Transform.Preservation[].value f)) (Embedding.value (Transform.Preservation[].value g)) }
+  "=" _ "by" { congr!{C.Complex C.Complex} (D.scale (Real.mul coefficient coefficient)) _ _ (\parent.Parseval[f := f, g := g].law) }
+  "=" _ "by" { Scalars.scaleCompose _ _ _ }
+  "=" _ "by" { congr!{Real.Real C.Complex} (\fun (a: Real.Real) => D.scale a (Inner.value (Embedding.value f) (Embedding.value g))) _ _ normalization }
+  "=" _ "by" { Scalars.scaleOne _ }
+};
+\definition norm[f: S.Function]: L2.normValue (Embedding.value (forward f)) = L2.normValue (Embedding.value f) := eq_reason_in!{Real.Real _
+  "=" _ "by" { sym!{Real.Real} _ _ (Root.sqrtSquared _ (Geometry.nonnegative (Embedding.value (forward f)))) }
+  "=" _ "by" { congr!{Real.Real Real.Real} Root.sqrt _ _ (sym!{Real.Real} _ _ (Inner.normSquared (Embedding.value (forward f)))) }
+  "=" _ "by" { congr!{C.Complex Real.Real} (\fun (z: C.Complex) => Root.sqrt (C.re z)) _ _ (parseval f f) }
+  "=" _ "by" { congr!{Real.Real Real.Real} Root.sqrt _ _ (Inner.normSquared (Embedding.value f)) }
+  "=" _ "by" { Root.sqrtSquared _ (Geometry.nonnegative (Embedding.value f)) }
+};
+\definition forwardValue[f: S.Function][xi: Point]: S.value (forward f) xi = D.scale coefficient (Transform.function f xi) := \refl(S.value (forward f) xi);
+\definition backwardValue[f: S.Function][x: Point]: S.value (backward f) x = D.scale mass (Inversion.inverse f x) :=
+  congr!{C.Complex C.Complex} (D.scale mass) _ _ (Inversion.inverseValue f x);
+\definition scalePointwise[a, b: Real.Real][f: S.Function][x: Point]: S.value (S.realScale a (S.realScale b f)) x = D.scale (Real.mul a b) (S.value f x) := Scalars.scaleCompose a b (S.value f x);
+\definition leftInverse[f: S.Function]: Embedding.value (backward (forward f)) = Embedding.value f := Embedding.pointwise _ f
+  (\fun (x: Point) => eq_reason_in!{C.Complex _
+    "=" _ "by" { backwardValue (forward f) x }
+    "=" _ "by" { congr!{C.Complex C.Complex} (D.scale mass) _ _ (congr!{C.Complex C.Complex} (D.scale (Normalization.inverse n)) _ _ (Transform.Identities[].realScalar coefficient (Transform.Preservation[].value f) (Coordinates.negPoint x))) }
+    "=" _ "by" { congr!{C.Complex C.Complex} (D.scale mass) _ _ (trans!{C.Complex} _ _ _ (Scalars.scaleCompose _ _ _)
+      (trans!{C.Complex} _ _ _ (congr!{Real.Real C.Complex} (\fun (a: Real.Real) => D.scale a (Transform.function (Transform.Preservation[].value f) (Coordinates.negPoint x))) _ _ (Laws.fieldMulComm _ _))
+        (sym!{C.Complex} _ _ (Scalars.scaleCompose _ _ _)))) }
+    "=" _ "by" { congr!{C.Complex C.Complex} (\fun (z: C.Complex) => D.scale mass (D.scale coefficient z)) _ _ (Inversion.theorem f x) }
+    "=" _ "by" { Scalars.scaleCompose _ _ _ }
+    "=" _ "by" { congr!{Real.Real C.Complex} (\fun (a: Real.Real) => D.scale a (S.value f x)) _ _ (trans!{Real.Real} _ _ _ (Laws.fieldMulComm mass coefficient) cancel) }
+    "=" _ "by" { Scalars.scaleOne _ }
+  });
+\definition rightInverse[f: S.Function]: Embedding.value (forward (backward f)) = Embedding.value f := Embedding.pointwise _ f
+  (\fun (xi: Point) => eq_reason_in!{C.Complex _
+    "=" _ "by" { congr!{C.Complex C.Complex} (D.scale coefficient) _ _ (Transform.Identities[].realScalar mass (Inversion.inverseSchwartz f) xi) }
+    "=" _ "by" { congr!{C.Complex C.Complex} (\fun (z: C.Complex) => D.scale coefficient (D.scale mass z)) _ _ (Inversion.rightInverse f xi) }
+    "=" _ "by" { Scalars.scaleCompose _ _ _ }
+    "=" _ "by" { congr!{Real.Real C.Complex} (\fun (a: Real.Real) => D.scale a (S.value f xi)) _ _ cancel }
+    "=" _ "by" { Scalars.scaleOne _ }
+  });
+\definition addition[f, g: S.Function]: Embedding.value (forward (S.add f g)) = L2.add (Embedding.value (forward f)) (Embedding.value (forward g)) :=
+  trans!{Space} _ _ _ (Embedding.pointwise _ (S.add (forward f) (forward g))
+    (\fun (xi: Point) => trans!{C.Complex} _ _ _ (congr!{C.Complex C.Complex} (D.scale coefficient) _ _ (Transform.Identities[].addition f g xi)) (CL.ext _ _ (Laws.fieldMulAdd coefficient _ _) (Laws.fieldMulAdd coefficient _ _))))
+    (Embedding.add (forward f) (forward g));
+\definition scalar[c: C.Complex][f: S.Function]: Embedding.value (forward (S.scale c f)) = L2.scale c (Embedding.value (forward f)) :=
+  trans!{Space} _ _ _ (Embedding.pointwise _ (S.scale c (forward f)) (\fun (xi: Point) => eq_reason_in!{C.Complex _
+    "=" _ "by" { congr!{C.Complex C.Complex} (D.scale coefficient) _ _ (Transform.Identities[].scalar c f xi) }
+    "=" _ "by" { sym!{C.Complex} _ _ (Scalars.scaleRight coefficient c (Transform.function f xi)) }
+    "=" _ "by" { sym!{C.Complex} _ _ (S.jetScale c (forward f) E.Directions::nil xi) }
+  })) (Embedding.scale c (forward f));
+\definition difference[f, g: S.Function]: S.Function := S.add f (S.scale (D.neg D.one) g);
+\definition differenceValue[f, g: S.Function]: Embedding.value (difference f g) = Normed.sub (Embedding.value f) (Embedding.value g) := eq_reason_in!{Space _
+  "=" _ "by" { Embedding.add f (S.scale (D.neg D.one) g) }
+  "=" _ "by" { congr!{Space Space} (L2.add (Embedding.value f)) _ _ (Embedding.scale (D.neg D.one) g) }
+  "=" _ "by" { congr!{Space Space} (L2.add (Embedding.value f)) _ _ (VL.minusOneScale (Embedding.value g)) }
+};
+\definition forwardDifference[f, g: S.Function]: Embedding.value (forward (difference f g)) = Normed.sub (Embedding.value (forward f)) (Embedding.value (forward g)) := eq_reason_in!{Space _
+  "=" _ "by" { addition f (S.scale (D.neg D.one) g) }
+  "=" _ "by" { congr!{Space Space} (L2.add (Embedding.value (forward f))) _ _ (scalar (D.neg D.one) g) }
+  "=" _ "by" { congr!{Space Space} (L2.add (Embedding.value (forward f))) _ _ (VL.minusOneScale (Embedding.value (forward g))) }
+};
+\definition distance[f, g: S.Function]: Geometry.metric.distance (Embedding.value (forward f)) (Embedding.value (forward g)) = Geometry.metric.distance (Embedding.value f) (Embedding.value g) := eq_reason_in!{Real.Real _
+  "=" _ "by" { congr!{Space Real.Real} L2.normValue _ _ (sym!{Space} _ _ (forwardDifference f g)) }
+  "=" _ "by" { norm (difference f g) }
+  "=" _ "by" { congr!{Space Real.Real} L2.normValue _ _ (differenceValue f g) }
+};
+\definition backwardDistance[f, g: S.Function]: Geometry.metric.distance (Embedding.value (backward f)) (Embedding.value (backward g)) = Geometry.metric.distance (Embedding.value f) (Embedding.value g) := eq_reason_in!{Real.Real _
+  "=" _ "by" { sym!{Real.Real} _ _ (distance (backward f) (backward g)) }
+  "=" _ "by" { congr!{Space Space Real.Real} Geometry.metric.distance _ _ _ _ (rightInverse f) (rightInverse g) }
+};

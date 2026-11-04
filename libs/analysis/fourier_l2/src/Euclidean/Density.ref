@@ -1,0 +1,46 @@
+\import \parent.Embedding[] \as Embedding;
+\import lp_spaces.Euclidean[n := n] \as LE;
+\import LE.Compact[p := PA.two] \as Compact;
+\import LE.Approximation[p := PA.two] \as Approximation;
+\import L2.Complete[] \as Completion;
+\import L.Norm[p := PA.two] \as RealNorm;
+\import std.Set[].Quotient[A := L2.Representatives, Equivalent := L2.Equivalent] \as Q;
+\definition Approximable[x: Space]: \Prop := \forall (epsilon: Real.Real) -> R.Lt Real.zero epsilon -> \exists ( f: S.Function \where R.Lt (Geometry.metric.distance (Embedding.value f) x) epsilon );
+\definition complex[f, g: LE.SmoothCompact]: S.Function := S.Function { real := \parent.CompactEmbedding[f := f].value, imaginary := \parent.CompactEmbedding[f := g].value };
+\definition realClass[f, g: LE.SmoothCompact]: Completion.realClass (Embedding.value (S.Function { real := \parent.CompactEmbedding[f := f].value, imaginary := \parent.CompactEmbedding[f := g].value })) = Approximation.ofSmooth f :=
+  trans!{F.Space} _ _ _ (Completion.realOnClass (Embedding.representative (complex f g))) (F.classPointwise (L2.realPart (Embedding.representative (complex f g))) (Compact.smoothRepresentative f) (\fun (x: Point) => \refl(f x)));
+\definition imaginaryClass[f, g: LE.SmoothCompact]: Completion.imaginaryClass (Embedding.value (S.Function { real := \parent.CompactEmbedding[f := f].value, imaginary := \parent.CompactEmbedding[f := g].value })) = Approximation.ofSmooth g :=
+  trans!{F.Space} _ _ _ (Completion.imaginaryOnClass (Embedding.representative (complex f g))) (F.classPointwise (L2.imaginaryPart (Embedding.representative (complex f g))) (Compact.smoothRepresentative g) (\fun (x: Point) => \refl(g x)));
+\definition dense: \forall (x: Space) -> Approximable x := Q.induction (\fun (x: Space) => Approximable x)
+  (\fun (f: L2.Representatives)(epsilon: Real.Real)(positive: _) => \block {
+    \let h: Real.Real := Real.mul Real.half epsilon \then
+    \let hp: R.Lt Real.zero h := Estimates.halfOfPositive epsilon positive \then
+    \takefrom re: \Cast[LE.SmoothCompact] ({ re: LE.SmoothCompact \where R.Lt (RealNorm.metric.distance (Approximation.ofSmooth re) (F.ofFunction (L2.realPart f))) h }) \by Approximation.smoothDense (F.ofFunction (L2.realPart f)) h hp \then
+    \takefrom im: \Cast[LE.SmoothCompact] ({ im: LE.SmoothCompact \where R.Lt (RealNorm.metric.distance (Approximation.ofSmooth im) (F.ofFunction (L2.imaginaryPart f))) h }) \by Approximation.smoothDense (F.ofFunction (L2.imaginaryPart f)) h hp \then
+    \let s: S.Function := S.Function { real := \parent.CompactEmbedding[f := re].value, imaginary := \parent.CompactEmbedding[f := im].value } \then
+    \return Logic.existsIntro[S.Function, { s: S.Function \where R.Lt (Geometry.metric.distance (Embedding.value s) (L2.ofFunction f)) epsilon }] s
+      (R.leLtTrans _ _ _ (Completion.distanceComponents (Embedding.value s) (L2.ofFunction f))
+        (R.ltReplaceRight _ (Real.add h h) epsilon (Estimates.halfTwice epsilon)
+          (Estimates.addLt _ _ _ _
+            (R.ltReplaceLeft _ _ _ (sym!{Real.Real} _ _ (congr!{F.Space F.Space Real.Real} RealNorm.metric.distance _ _ _ _ (realClass re im) (Completion.realOnClass f)))
+              (\bysub(LE.SmoothCompact, { re: LE.SmoothCompact \where R.Lt (RealNorm.metric.distance (Approximation.ofSmooth re) (F.ofFunction (L2.realPart f))) h }, re)))
+            (R.ltReplaceLeft _ _ _ (sym!{Real.Real} _ _ (congr!{F.Space F.Space Real.Real} RealNorm.metric.distance _ _ _ _ (imaginaryClass re im) (Completion.imaginaryOnClass f)))
+              (\bysub(LE.SmoothCompact, { im: LE.SmoothCompact \where R.Lt (RealNorm.metric.distance (Approximation.ofSmooth im) (F.ofFunction (L2.imaginaryPart f))) h }, im))))))
+  });
+\import Real.Geometric[q := Real.half] \as Dyadic;
+\import functional_analysis.ScalarLimits[] \as Limits;
+\definition Sequence: \Set := N.Nat^ -> S.Function;
+\definition sequenceExists[x: Space]: \exists ( s: Sequence \where Metric.Converges Geometry.metric (\fun (k: N.Nat^) => Embedding.value (s k)) x ) := \block {
+  \takefrom choose: \forall (k: N.Nat^) -> \Cast[S.Function] ({ f: S.Function \where R.Lt (Geometry.metric.distance (Embedding.value f) x) (Dyadic.value k) }) \by
+    \axiom:classicalIndefiniteChoice(N.Nat^, (\fun (k: N.Nat^) => \Cast[S.Function] ({ f: S.Function \where R.Lt (Geometry.metric.distance (Embedding.value f) x) (Dyadic.value k) })),
+      (\fun (k: N.Nat^) => dense x (Dyadic.value k) (Limits.dyadicPositive k))) \then
+  \let s: Sequence := \fun (k: N.Nat^) => choose k \then
+  \return Logic.existsIntro[Sequence, { s: Sequence \where Metric.Converges Geometry.metric (\fun (k: N.Nat^) => Embedding.value (s k)) x }] s
+    (\fun (epsilon: Real.Real)(positive: _) => \block {
+      \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where \forall (j: N.Nat^) -> Nat.Le k j -> R.Lt (Dyadic.value j) epsilon }) \by Limits.dyadicSmall epsilon positive \then
+      \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where Metric.LimitControl Geometry.metric (\fun (k: N.Nat^) => Embedding.value (s k)) x epsilon k }] k
+        (\fun (j: N.Nat^)(later: _) => Order.ltTrans _ _ _
+          (\bysub(S.Function, { f: S.Function \where R.Lt (Geometry.metric.distance (Embedding.value f) x) (Dyadic.value j) }, choose j))
+          ((\bysub(N.Nat^, { k: N.Nat^ \where \forall (j: N.Nat^) -> Nat.Le k j -> R.Lt (Dyadic.value j) epsilon }, k)) j later))
+    })
+};
