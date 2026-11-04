@@ -1,0 +1,47 @@
+\import Gluing.Compact[leftCompact := leftCompact, rightCompact := rightCompact] \as Properties;
+\import \root.CompactEmbedding[A := M.Point, B := Gluing.Point].On[source := M.space, target := Gluing.topology, f := Gluing.inl,
+  compact := leftCompact, hausdorff := Properties.hausdorff, continuous := Gluing.inlContinuous, injective := Gluing.leftInjective] \as LeftEmbedding;
+\import \root.CompactEmbedding[A := N.Point, B := Gluing.Point].On[source := N.space, target := Gluing.topology, f := Gluing.inr,
+  compact := rightCompact, hausdorff := Properties.hausdorff, continuous := Gluing.inrContinuous, injective := Gluing.rightInjective] \as RightEmbedding;
+\import topology.Topology[Carrier := Point] \as ImageSpace;
+\definition leftPart: \Pow Point := { y: Point \where Target.Member LeftEmbedding.image y };
+\definition rightPart: \Pow Point := { y: Point \where Target.Member RightEmbedding.image y };
+\definition inclusionContinuous: topology.Continuity[A := Point, B := Gluing.Point].Continuous topology Gluing.topology (\fun (y: Point) => y) :=
+  topology.Continuity[A := Point, B := Gluing.Point].Corestriction[S := image].inclusionContinuous Gluing.topology;
+\definition leftClosed: ImageSpace.IsClosedIn topology leftPart := topology.Continuity[A := Point, B := Gluing.Point].closedPreimage topology Gluing.topology (\fun (y: Point) => y) inclusionContinuous LeftEmbedding.image LeftEmbedding.closed;
+\definition rightClosed: ImageSpace.IsClosedIn topology rightPart := topology.Continuity[A := Point, B := Gluing.Point].closedPreimage topology Gluing.topology (\fun (y: Point) => y) inclusionContinuous RightEmbedding.image RightEmbedding.closed;
+\import topological_constructions.Gluing[A := Point, B := Source.Point].Pasting[F := leftPart, G := rightPart] \as Pasting;
+\import topological_constructions.Pushout[A := M.Point, B := N.Point, C := LeftBoundary.manifold.Point].Of[u := Gluing.left, v := Gluing.right] \as Quotient;
+\definition wholeCovered: \forall (y: Gluing.Point) -> Logic.Or[Target.Member LeftEmbedding.image y, Target.Member RightEmbedding.image y] :=
+  Quotient.induction (\fun (y: Gluing.Point) => Logic.Or[Target.Member LeftEmbedding.image y, Target.Member RightEmbedding.image y])
+    (\fun (a: M.Point) => Logic.Or[_, _]::left (topology.Maps[A := M.Point, B := Gluing.Point].imageMember Gluing.inl (topology.Topology[Carrier := M.Point].Whole) a (\refl(a))))
+    (\fun (b: N.Point) => Logic.Or[_, _]::right (topology.Maps[A := N.Point, B := Gluing.Point].imageMember Gluing.inr (topology.Topology[Carrier := N.Point].Whole) b (\refl(b))));
+\definition covered: Pasting.Covered := \fun (y: Point) => wholeCovered y;
+\module OnLeft(y: Pasting.Left);
+\module OnRight(y: Pasting.Right);
+\definition leftBranch[y: Pasting.Left]: Source.Point := OnLeft[y := y].point;
+\definition rightBranch[y: Pasting.Right]: Source.Point := OnRight[y := y].point;
+\module LeftRegularity;
+\module RightRegularity;
+\definition compatible: Pasting.Compatible leftBranch rightBranch := \fun (p: Pasting.Left)(q: Pasting.Right)(same: p = q) => injective (leftBranch p) (rightBranch q)
+  (trans!{{Gluing.Point}} _ _ _ (OnLeft[y := p].rightInverse)
+    (trans!{{Gluing.Point}} _ _ _ (congr!{Point {Gluing.Point}} (\fun (y: Point) => y) _ _ same) (sym!{{Gluing.Point}} _ _ (OnRight[y := q].rightInverse))));
+\definition backward: Point -> Source.Point := Pasting.apply leftBranch rightBranch covered compatible;
+\definition backwardContinuous: topology.Continuity[A := Point, B := Source.Point].Continuous topology Source.topology backward :=
+  Pasting.continuous topology Source.topology leftBranch rightBranch covered compatible leftClosed rightClosed LeftRegularity[].continuous RightRegularity[].continuous;
+\definition rightValue: \forall (y: Point) -> apply (backward y) = (y \of Gluing.Point) := \fun (y: Point) =>
+  Logic.orElim (ImageSpace.Member leftPart y) (ImageSpace.Member rightPart y) (apply (backward y) = (y \of Gluing.Point)) (covered y)
+    (\fun (member: _) => trans!{{Gluing.Point}} _ _ _
+      (congr!{{Source.Point} {Gluing.Point}} apply _ _ (Pasting.onLeft leftBranch rightBranch covered compatible (\into[Point](y, leftPart) \by { member })))
+      (OnLeft[y := \into[Point](y, leftPart) \by { member }].rightInverse))
+    (\fun (member: _) => trans!{{Gluing.Point}} _ _ _
+      (congr!{{Source.Point} {Gluing.Point}} apply _ _ (Pasting.onRight leftBranch rightBranch covered compatible (\into[Point](y, rightPart) \by { member })))
+      (OnRight[y := \into[Point](y, rightPart) \by { member }].rightInverse));
+\definition rightInverse: \forall (y: Point) -> forward (backward y) = y := \fun (y: Point) => boundary_manifolds.Refinement[A := Gluing.Point].equality image (forward (backward y)) y (rightValue y);
+\definition leftInverse: \forall (p: Source.Point) -> backward (forward p) = p := \fun (p: Source.Point) => injective (backward (forward p)) p (rightValue (forward p));
+\definition homeomorphism: topology.Homeomorphism[A := Source.Point, B := Point].Homeomorphism[Source.topology, topology] :=
+  topology.Homeomorphism[A := Source.Point, B := Point].Homeomorphism[Source.topology, topology] {
+    forward := forward, backward := backward, leftInverse := leftInverse, rightInverse := rightInverse,
+    forwardContinuous := forwardContinuous, backwardContinuous := backwardContinuous,
+  };
+\module Charts;
