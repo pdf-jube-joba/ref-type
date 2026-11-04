@@ -33,3 +33,5 @@ Rust は `rustc 1.99.1 (58cf8f9c3 2026-10-13)`、checker の SHA-256 は `8b62b7
 
 [summary.json](summary.json) に正確なコマンド、終了コード、各計測値、snapshot とソースの対応を保存した。
 [verification-reports.json.gz](verification-reports.json.gz) は各検査の報告をまとめた gzip 圧縮 JSON であり、個々の検査対象と検査済み・再利用の対応を含む。
+
+内部と継ぎ目の座標近傍による全体被覆の検査は [cover/README.md](cover/README.md) にある。
