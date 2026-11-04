@@ -1,0 +1,12 @@
+\import \root.Euclidean[n := n].Weighted[weight := \root.Euclidean[n := n].Weights[].Integer[m := m].value] \as W;
+\import \root.Euclidean[n := n].Integer[m := m] \as Integer;
+\definition pointwise[f: S.Function][d: E.Directions][bound: Nat.Le (order d) (NatOps.add m m)][xi: Point]: R.Le (Absolute.abs (S.value (Schwartz.forward (iterated f d)) xi)) (Absolute.abs (S.value (Schwartz.forward (Transform.Preservation[].iterate f m)) xi)) :=
+  squaredMonotone _ _ (R.leReplace _ _ _ _ (sym!{Real.Real} _ _ (fourierSquared f xi d))
+    (sym!{Real.Real} _ _ (trans!{Real.Real} _ _ _ (congr!{C.Complex Real.Real} D.normSq _ _ (Integer.multiplier f xi))
+      (trans!{Real.Real} _ _ _ (scaleSquared (E.weight m xi) _) (congr!{Real.Real Real.Real} (\fun (a: Real.Real) => Real.mul a (D.normSq (S.value (Schwartz.forward f) xi))) _ _
+        (sym!{Real.Real} _ _ (Numeric.addition (E.weightBase xi) m m))))))
+    (R.leReplace _ _ _ _ (Laws.fieldMulComm _ _) (Laws.fieldMulComm _ _) (Estimates.mulMonotone _ _ _ (CL.normSqNonnegative (S.value (Schwartz.forward f) xi))
+      (R.leTrans _ _ _ (symbolBound xi d) (powerOrder xi _ _ bound)))));
+\definition derivative[f: S.Function][d: E.Directions]: Nat.Le (order d) (NatOps.add m m) -> R.Le (L2.normValue (Embedding.value (iterated f d))) (W.norm.realNorm.norm (Integer.ofSchwartz f)) := \fun (bound: _) =>
+  R.leReplace _ _ _ _ (Schwartz.norm (iterated f d)) (sym!{Real.Real} _ _ (trans!{Real.Real} _ _ _ (Integer.norm f) (sym!{Real.Real} _ _ (Schwartz.norm (Transform.Preservation[].iterate f m)))))
+    (normMonotone (Schwartz.forward (iterated f d)) (Schwartz.forward (Transform.Preservation[].iterate f m)) (pointwise f d bound));
