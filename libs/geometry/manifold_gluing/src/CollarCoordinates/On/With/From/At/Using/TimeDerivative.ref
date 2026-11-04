@@ -1,0 +1,68 @@
+\import \root.HomotopyVelocity[n := Nat.add One.dimension n].On[M := M] \as Velocities;
+\import Velocities.Of[h := deformation.homotopy].At[x := Inclusion.apply b] \as Velocity;
+\definition targetChartMember: \Cast[Charts.Chart] M.atlas.charts := \into[Charts.Chart](c, M.atlas.charts) \by { Atlas.member c };
+\import Velocity.In[c := targetChartMember, contains := contains] \as VelocityCoordinates;
+\import boundary_manifolds.Tangent[n := n].On[M := Inclusion.manifold].At[x := b] \as BoundaryTangent;
+\import boundary_manifolds.Tangent[n := dimension].On[M := Product.manifold].At[x := center] \as Domain;
+\import boundary_manifolds.Tangent[n := dimension].On[M := M].At[x := Inclusion.apply b] \as Middle;
+\import boundary_manifolds.Tangent[n := dimension].On[M := M].At[x := Maps.apply map center] \as Image;
+\import boundary_manifolds.Tangent[n := One.dimension].On[M := Time.manifold].At[x := Time.zero] \as TimeTangent;
+\import BoundaryTangent.Operations[] \as BoundaryOperations;
+\import Middle.Operations[] \as MiddleOperations;
+\import \root.ProductDifferential[n := n, m := One.dimension].Of[M := Inclusion.manifold, N := Time.manifold].At[x := center] \as SourceProduct;
+\definition boundaryChart: BoundaryTangent.Chart := \into[BoundaryCharts.Chart](BoundaryChart.left, BoundaryTangent.Chart) \by {
+  BoundaryTangent.ChartLaws[BoundaryChart.left] { member := BoundaryChart.sourceMember, contains := contains }
+};
+\import SourceProduct.InCharts[c := boundaryChart, d := Velocities.timeChart] \as SourceChart;
+\definition vertical: Domain.Vector := SourceProduct.pair BoundaryOperations.origin Velocities.timeVector;
+\definition timeUnit: Model.Point := Linear.vertical.apply (Normal.constant S.one);
+\definition verticalCoordinates: Domain.Coordinate[chart := SourceChart.total].decode vertical = timeUnit :=
+  trans!{Model.Point} _ _ _ (SourceProduct.Coordinates[c := boundaryChart, d := Velocities.timeChart].pairCoordinates BoundaryOperations.origin Velocities.timeVector)
+    (congr!{Parameters.Point {One.Index -> S.Real} Model.Point} Blocks.join _ _ _ _
+      BoundaryTangent.CoordinateOperations[chart := boundaryChart].origin (TimeTangent.Coordinate[chart := Velocities.timeChart].decodeEncode (Normal.constant S.one)));
+\import \root.ProductMaps[n := n, m := One.dimension].Of[M := Inclusion.manifold, N := Time.manifold] \as Projections;
+\import \root.SmoothChainRule[n := Nat.add One.dimension n, m := n, l := Nat.add One.dimension n].Between[M := Product.manifold, N := Inclusion.manifold, P := M].Of[f := Projections.First[].map, g := Inclusion.map] \as FirstChain;
+\import \root.PairDifferential[p := Nat.add One.dimension n, n := Nat.add One.dimension n, m := One.dimension].Between[P := Product.manifold, M := M, N := Time.manifold].Of[f := FirstChain.map, g := Projections.Second[].map] \as Lift;
+\import boundary_manifolds.Product[n := Nat.add One.dimension n, m := One.dimension].Of[M := M, N := Time.manifold] \as AmbientProduct;
+\definition lifted: AmbientProduct.Point := Pair.pair M.Point Time.Point (Inclusion.apply b) Time.zero;
+\import \root.ProductDifferential[n := Nat.add One.dimension n, m := One.dimension].Of[M := M, N := Time.manifold].At[x := lifted] \as TargetProduct;
+\import boundary_manifolds.Tangent[n := Nat.add One.dimension (Nat.add One.dimension n)].On[M := AmbientProduct.manifold].At[x := lifted] \as LiftedTangent;
+\import boundary_manifolds.Differential[n := Nat.add One.dimension n, m := Nat.add One.dimension n].Between[M := Product.manifold, N := M].At[f := FirstChain.map, x := center] \as DFirst;
+\import boundary_manifolds.Differential[n := n, m := Nat.add One.dimension n].Between[M := Inclusion.manifold, N := M].At[f := Inclusion.map, x := b] \as DInclusion;
+\import boundary_manifolds.Differential[n := Nat.add One.dimension n, m := One.dimension].Between[M := Product.manifold, N := Time.manifold].At[f := Projections.Second[].map, x := center] \as DTime;
+\import boundary_manifolds.Differential[n := Nat.add One.dimension n, m := Nat.add One.dimension (Nat.add One.dimension n)].Between[M := Product.manifold, N := AmbientProduct.manifold].At[f := Lift.map, x := center] \as DLift;
+\definition firstVertical: DFirst.value.apply vertical = MiddleOperations.origin := trans!{{Middle.Vector}} _ _ _ (FirstChain.At[x := center].pointwise vertical)
+  (trans!{{Middle.Vector}} _ _ _ (congr!{{BoundaryTangent.Vector} {Middle.Vector}} DInclusion.value.apply _ _ (SourceProduct.firstPair BoundaryOperations.origin Velocities.timeVector))
+    DInclusion.value.preservesZero);
+\definition timeVertical: DTime.value.apply vertical = Velocities.timeVector := SourceProduct.secondPair BoundaryOperations.origin Velocities.timeVector;
+\definition liftedVertical: DLift.value.apply vertical = Velocity.vertical := trans!{{LiftedTangent.Vector}} _ _ _ (Lift.At[x := center].law vertical)
+  (congr!{{Middle.Vector} {TimeTangent.Vector} {LiftedTangent.Vector}} (\fun (u: Middle.Vector)(v: TimeTangent.Vector) => TargetProduct.pair u v) _ _ _ _ firstVertical timeVertical);
+\import \root.SmoothChainRule[n := Nat.add One.dimension n, m := Nat.add One.dimension (Nat.add One.dimension n), l := Nat.add One.dimension n].Between[M := Product.manifold, N := AmbientProduct.manifold, P := M].Of[f := Lift.map, g := deformation.homotopy.map] \as Chain;
+\import boundary_manifolds.Differential[n := Nat.add One.dimension n, m := Nat.add One.dimension n].Between[M := Product.manifold, N := M].At[f := map, x := center] \as D;
+\import boundary_manifolds.Differential[n := Nat.add One.dimension (Nat.add One.dimension n), m := Nat.add One.dimension n].Between[M := AmbientProduct.manifold, N := M].At[f := deformation.homotopy.map, x := lifted] \as DH;
+\definition value: D.value.apply vertical = DH.value.apply Velocity.vertical := trans!{{Image.Vector}} _ _ _ (Chain.At[x := center].pointwise vertical)
+  (congr!{{LiftedTangent.Vector} {Image.Vector}} DH.value.apply _ _ liftedVertical);
+\import Maps.At[function := Maps.apply map, left := SourceChart.total, right := VelocityCoordinates.imageChart, x := center, contains := Domain.contains SourceChart.total] \as Canonical;
+\definition extension: Canonical.Extension := Canonical.Extension {
+  neighborhood := e.neighborhood, included := e.included, contains := e.contains,
+  map := e.map, inside := e.inside, agrees := e.agrees,
+};
+\import D.InCharts[left := SourceChart.total, right := VelocityCoordinates.imageChart] \as Derivative;
+\definition derivative: Derivative.jacobian = Extension.jacobian := Canonical.ofExtension Derivative.smooth extension;
+\import \root.InitialJet[n := Nat.add One.dimension n].On[M := M].Of[h := deformation.homotopy].In[x := Inclusion.apply b, c := targetChartMember, contains := contains] \as Jet;
+\definition coefficient: Extension.jacobian.apply timeUnit Boundary.normal = Jet.velocity Boundary.normal := trans!{S.Real} _ _ _
+  (congr!{{calculus.Vector[n := dimension, m := dimension].LinearMap} S.Real}
+    (\fun (j: calculus.Vector[n := dimension, m := dimension].LinearMap) => j.apply timeUnit Boundary.normal) _ _ (sym!{{calculus.Vector[n := dimension, m := dimension].LinearMap}} _ _ derivative))
+  (trans!{S.Real} _ _ _
+    (congr!{Model.Point S.Real} (\fun (v: Model.Point) => v Boundary.normal) _ _
+      (trans!{Model.Point} _ _ _
+        (congr!{Model.Point Model.Point} Derivative.jacobian.apply _ _ (sym!{Model.Point} _ _ verticalCoordinates))
+        (sym!{Model.Point} _ _ (D.coordinates SourceChart.total VelocityCoordinates.imageChart vertical))))
+    (trans!{S.Real} _ _ _
+      (congr!{{Image.Vector} S.Real} (\fun (v: Image.Vector) => Image.Coordinate[chart := VelocityCoordinates.imageChart].decode v Boundary.normal) _ _ value)
+      (congr!{Model.Point S.Real} (\fun (v: Model.Point) => v Boundary.normal) _ _ VelocityCoordinates.imageCoordinates)));
+\definition boundaryBase: Atlas.Point := \into[M.Point](Inclusion.apply b, Atlas.points) \by { \bysub(M.Point, Atlas.points, b) };
+\import \root.TransverseVelocity[n := n].On[M := M].Of[h := deformation.homotopy].At[x := boundaryBase, c := c, contains := contains] \as TransverseVelocity;
+\definition positive: R.Lt S.zero (Extension.jacobian.apply timeUnit Boundary.normal) :=
+  R.ltReplaceRight S.zero (Jet.velocity Boundary.normal) (Extension.jacobian.apply timeUnit Boundary.normal) (sym!{S.Real} _ _ coefficient)
+    (TransverseVelocity.positive (deformation.strict (Inclusion.apply b) (\bysub(M.Point, Atlas.points, b))));

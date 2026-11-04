@@ -1,0 +1,54 @@
+\import Space.Subspace[S := Chart.chart.domain].Open[] \as Inclusion;
+\import topology.Topology[Carrier := SourceCharts.LocalPoint Chart.chart] \as LocalSpace;
+\import topological_algebra.Euclidean[].Dimension[n := Nat.add One.dimension n].Topology[] \as Ambient;
+\import topology.Homeomorphism[A := SourceCharts.LocalPoint Chart.chart, B := Model.Carrier Chart.C Chart.image] \as Homeomorphism;
+\definition coordinateContinuous: topology.Continuity[A := SourceCharts.LocalPoint Chart.chart, B := Model.Point].Continuous (SourceCharts.domainTopology Chart.domain) Ambient.topology
+  (\fun (x: SourceCharts.LocalPoint Chart.chart) => SourceCharts.coordinate Chart.chart x) :=
+  topology.Composition[A := SourceCharts.LocalPoint Chart.chart, B := Model.Carrier Chart.C Chart.image, C := Model.Point].composeContinuous
+    (SourceCharts.domainTopology Chart.domain) (Model.regionTopology Chart.C Chart.image) Ambient.topology (SourceCharts.coordinate Chart.chart) (\fun (u: Model.Carrier Chart.C Chart.image) => u)
+    (Homeomorphism.laws _ _ Chart.chart.coordinates).forwardContinuous (Model.Topology[C := Chart.C, U := Chart.image].ambient);
+\definition local: \Pow (SourceCharts.LocalPoint Chart.chart) := { x: SourceCharts.LocalPoint Chart.chart \where \In[Model.Point] inverse.domain.points (SourceCharts.coordinate Chart.chart x) };
+\definition localOpen: LocalSpace.IsOpenIn (SourceCharts.domainTopology Chart.domain) local := coordinateContinuous inverse.domain.points (Open.Topology[].open inverse.domain);
+\definition domain: \Pow Product.Point := Inclusion.image local;
+\definition open: Space.IsOpenIn Product.topology domain := Inclusion.imageOpen Product.topology Chart.chart.open local localOpen;
+\definition initial: SourceCharts.LocalPoint Chart.chart := \into[Product.Point](center b, Chart.domain) \by { Coordinate.sourceContains };
+\definition contains: Space.Member domain (center b) := Inclusion.imageMember local initial inverse.contains;
+\definition Point: \Set := \Cast[Product.Point] domain;
+\definition oldPoint[x: Point]: SourceCharts.LocalPoint Chart.chart := \into[Product.Point](x, Chart.domain) \by { Inclusion.imageIncluded local x (\bysub(Product.Point, domain, x)) };
+\definition inside: \forall (x: Point) -> \In[Model.Point] inverse.domain.points (SourceCharts.coordinate Chart.chart (oldPoint x)) :=
+  \fun (x: Point) => Inclusion.imageElim local x (\In[Model.Point] inverse.domain.points (SourceCharts.coordinate Chart.chart (oldPoint x)))
+    (\fun (p: SourceCharts.LocalPoint Chart.chart)(member: LocalSpace.Member local p)(same: p = x) =>
+      \idelim p = oldPoint x \with y: SourceCharts.LocalPoint Chart.chart => \In[Model.Point] inverse.domain.points (SourceCharts.coordinate Chart.chart y) \by {
+        base: member, equality: boundary_manifolds.Refinement[A := Product.Point].equality Chart.domain p (oldPoint x) same
+      }) (\bysub(Product.Point, domain, x));
+\definition parameter[x: Point]: Open.Carrier inverse.domain := \into[Model.Point](SourceCharts.coordinate Chart.chart (oldPoint x), inverse.domain.points) \by { inside x };
+\definition input[x: Point]: Model.Carrier Chart.C e.neighborhood := \into[Open.Carrier e.neighborhood](Open.inclusion inverse.domain e.neighborhood inverse.included (parameter x), Model.region Chart.C e.neighborhood) \by {
+  \bysub(Open.Carrier Chart.image, Model.region Chart.C Chart.image, SourceCharts.coordinate Chart.chart (oldPoint x))
+};
+\definition original[x: Point]: Model.Carrier Chart.C Chart.image := \into[Open.Carrier Chart.image](Open.inclusion e.neighborhood Chart.image e.included (input x), Model.region Chart.C Chart.image) \by {
+  \bysub(Open.Carrier e.neighborhood, Model.region Chart.C e.neighborhood, input x)
+};
+\definition coordinateEquals: \forall (x: Point) -> original x = SourceCharts.coordinate Chart.chart (oldPoint x) :=
+  \fun (x: Point) => Model.equality Chart.C Chart.image (original x) (SourceCharts.coordinate Chart.chart (oldPoint x)) (\refl(SourceCharts.coordinate Chart.chart (oldPoint x) \of Model.Point));
+\definition sourceEquals: \forall (x: Point) -> (SourceCharts.point Chart.chart (original x) \of Product.Point) = (x \of Product.Point) :=
+  \fun (x: Point) => trans!{{Product.Point}} _ _ _
+    (congr!{{Model.Carrier Chart.C Chart.image} {Product.Point}} (\fun (u: Model.Carrier Chart.C Chart.image) => SourceCharts.point Chart.chart u) _ _ (coordinateEquals x))
+    (SourceCharts.pointCoordinate Chart.chart (oldPoint x));
+\import Charts.Total[c := c] \as Total;
+\definition mapValue: \forall (x: Point) -> (calculus.Maps[n := Nat.add One.dimension n, m := Nat.add One.dimension n].apply e.neighborhood Open.whole e.map (input x) \of Model.Point) = Total.coordinate (Maps.apply map x) :=
+  \fun (x: Point) => trans!{Model.Point} _ _ _ (e.agrees (input x))
+    (trans!{Model.Point} _ _ _
+      (sym!{Model.Point} _ _ (Total.coordinateInside (\into[M.Point](Maps.apply map (SourceCharts.point Chart.chart (original x)), c.domain) \by { e.inside (input x) })))
+      (congr!{{Product.Point} Model.Point} (\fun (p: Product.Point) => Total.coordinate (Maps.apply map p)) _ _ (sourceEquals x)));
+\definition forwardValue: \forall (x: Point) -> (calculus.Maps[n := Nat.add One.dimension n, m := Nat.add One.dimension n].apply inverse.domain inverse.target inverse.change.forward (parameter x) \of Model.Point) = Total.coordinate (Maps.apply map x) :=
+  \fun (x: Point) => trans!{Model.Point} _ _ _ (inverse.forward (parameter x)) (mapValue x);
+\module Equal(x, y: Point, same: Maps.apply map x = Maps.apply map y);
+\definition injective: \forall (x, y: Product.Point) -> Space.Member domain x -> Space.Member domain y -> Maps.apply map x = Maps.apply map y -> x = y :=
+  \fun (x, y: Product.Point)(left: _)(right: _)(same: _) => Equal[x := \into[Product.Point](x, domain) \by { left }, y := \into[Product.Point](y, domain) \by { right }, same := same].law;
+\definition patch: Patch[b] := Patch[b] { domain := domain, open := open, contains := contains, injective := injective };
+\module Range;
+\definition openPatch: OpenPatch[b] := OpenPatch[b] {
+  patch := patch, range := Range[].range, backward := Range[].backward, rangeOpen := Range[].open,
+  forwardIncluded := Range[].forwardIncluded, backwardInside := Range[].backwardInside, rightInverse := Range[].rightInverse,
+  backwardContinuous := Range[].backwardContinuous,
+};

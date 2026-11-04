@@ -1,0 +1,19 @@
+\import \root.BoundaryInclusion[n := n].On[M := M].With[cover := cover] \as Inclusion;
+\import topology.Topology[Carrier := Atlas.Point] \as BoundarySpace;
+\import topology.Topology[Carrier := Inclusion.manifold.Point] \as Base;
+\import \root.Boundary[n := Nat.add One.dimension n].On[M := M] \as ClosedBoundary;
+\definition compact: Target.IsCompact M.space -> Base.IsCompact Inclusion.manifold.space := \fun (compact: _) =>
+  BoundarySpace.Subspace[S := BoundarySpace.Whole].Properties[].compact Atlas.topology (ClosedBoundary.compact compact);
+\definition inclusionInjective: \forall (x, y: Inclusion.manifold.Point) -> Inclusion.apply x = Inclusion.apply y -> x = y := \block {
+  \fun (x, y: Inclusion.manifold.Point)(same: _) \then
+  \let boundary: (x \of Atlas.Point) = (y \of Atlas.Point) := boundary_manifolds.Refinement[A := M.Point].equality Atlas.points x y same \then
+  \return boundary_manifolds.Refinement[A := Atlas.Point].equality BoundarySpace.Whole x y boundary
+};
+\module From(deformation: Transverse.Result);
+\structure Construction: \Set := { deformation: Transverse.Result, uniform: From[deformation := deformation].Uniform, };
+\import \root.GlobalPush[n := n].On[M := M] \as Push;
+\definition exists[compact: Target.IsCompact M.space]: \exists Construction := \block {
+  \takefrom deformation: Transverse.Result \by Push.existsTransverse cover compact \then
+  \takefrom uniform: From[deformation := deformation].Uniform \by From[deformation := deformation].existsUniform compact \then
+  \return \exact(Construction { deformation := deformation, uniform := uniform }, Construction)
+};

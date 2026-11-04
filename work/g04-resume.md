@@ -52,3 +52,7 @@ G04 全体は未完了である。
 
 半空間の局所逆写像までの数学ソース `2aa597e8667be0efee4a8ac2d2521eecde79ab1f` の全ローカル検査では 203 module を新規検査し、通常の全体検査では 11,910 対象すべてが accepted である。
 対応する検査記録は [halfspace](../benchmarks/records/manifold-gluing/halfspace/README.md) にある。
+
+## Common collar neighborhood checkpoint
+
+Added TransverseVelocity, CollarCoordinates, CollarLocal, CollarStrip, CollarEmbedding. The very same compactly constructed inward candidate has positive normal derivative at every boundary point; actual half-space local inverses give injectivity, open images and continuous inverses. CompactStrip and a second tube lemma yield a common open parameter neighborhood. CollarEmbedding constructs the actual open image, unique inverse, inverse continuity, and TopologicalCollar.Data on that parameter neighborhood. Its forward map is the restriction of the original smooth map. Scratch package full result accepted in /tmp/g04-step-37.json; integration and fixed-source verification follow. This is not completion of G04: smooth inverse, relative extension/comparison, general gluing/doubles and supported global corner rounding remain.

@@ -1,0 +1,112 @@
+\import real.Analysis[] \as S;
+\import dedekind_reals.DedekindReal[] \as R;
+\import calculus.Blocks[n := n, m := One.dimension] \as Blocks;
+\import calculus.Maps[n := Nat.add One.dimension n, m := Nat.add One.dimension n] \as Calculus;
+\import boundary_manifolds.Product[n := n, m := One.dimension] \as ProductModels;
+\import boundary_manifolds.Model[n := n] \as Left;
+\import boundary_manifolds.Model[n := One.dimension] \as Right;
+\definition sourcePositive: \forall (u: Model.Point) -> R.Le S.zero (u Boundary.normal) -> Model.Nonnegative Chart.C u :=
+  \fun (u: Model.Point)(positive: _) => \idelim Blocks.join (Blocks.left u) (Blocks.right u) = u \with v: Model.Point => Model.Nonnegative Chart.C v \by {
+    base: ProductModels.nonnegativeJoin Coordinate.leftChart.constraints Coordinate.timeChart.constraints (Blocks.left u) (Blocks.right u)
+      (Left.unconstrainedNonnegative (Blocks.left u)) (Right.halfSpaceNonnegative One.index (Blocks.right u) positive),
+    equality: Blocks.recover u
+  };
+\import topology.Topology[Carrier := M.Point] \as TargetSpace;
+\import TargetSpace.Subspace[S := c.domain].Open[] \as TargetInclusion;
+\import topology.Topology[Carrier := Charts.LocalPoint c] \as TargetLocalSpace;
+\import topology.Homeomorphism[A := Charts.LocalPoint c, B := Model.Carrier c.constraints c.image] \as TargetHomeomorphism;
+\definition targetCoordinateContinuous: topology.Continuity[A := Charts.LocalPoint c, B := Model.Point].Continuous (Charts.domainTopology c.domain) Ambient.topology
+  (\fun (x: Charts.LocalPoint c) => Charts.coordinate c x) :=
+  topology.Composition[A := Charts.LocalPoint c, B := Model.Carrier c.constraints c.image, C := Model.Point].composeContinuous
+    (Charts.domainTopology c.domain) (Model.regionTopology c.constraints c.image) Ambient.topology (Charts.coordinate c) (\fun (u: Model.Carrier c.constraints c.image) => u)
+    (TargetHomeomorphism.laws _ _ c.coordinates).forwardContinuous (Model.Topology[C := c.constraints, U := c.image].ambient);
+\definition local: \Pow (Charts.LocalPoint c) := { y: Charts.LocalPoint c \where \In[Model.Point] inverse.target.points (Charts.coordinate c y) };
+\definition localOpen: TargetLocalSpace.IsOpenIn (Charts.domainTopology c.domain) local := targetCoordinateContinuous inverse.target.points (Open.Topology[].open inverse.target);
+\definition range: \Pow M.Point := TargetInclusion.image local;
+\definition open: TargetSpace.IsOpenIn M.space range := TargetInclusion.imageOpen M.space c.open local localOpen;
+\definition RangePoint: \Set := \Cast[M.Point] range;
+\definition topology: topology.Structures[].Topology[RangePoint] := TargetSpace.Subspace[S := range].topology M.space;
+\definition oldPoint[y: RangePoint]: Charts.LocalPoint c := \into[M.Point](y, c.domain) \by { TargetInclusion.imageIncluded local y (\bysub(M.Point, range, y)) };
+\definition inside: \forall (y: RangePoint) -> \In[Model.Point] inverse.target.points (Charts.coordinate c (oldPoint y)) :=
+  \fun (y: RangePoint) => TargetInclusion.imageElim local y (\In[Model.Point] inverse.target.points (Charts.coordinate c (oldPoint y)))
+    (\fun (p: Charts.LocalPoint c)(member: TargetLocalSpace.Member local p)(same: p = y) =>
+      \idelim p = oldPoint y \with z: Charts.LocalPoint c => \In[Model.Point] inverse.target.points (Charts.coordinate c z) \by {
+        base: member, equality: boundary_manifolds.Refinement[A := M.Point].equality c.domain p (oldPoint y) same
+      }) (\bysub(M.Point, range, y));
+\definition parameter[y: RangePoint]: Open.Carrier inverse.target := \into[Model.Point](Charts.coordinate c (oldPoint y), inverse.target.points) \by { inside y };
+\definition raw[y: RangePoint]: Open.Carrier inverse.domain := Calculus.apply inverse.target inverse.domain inverse.change.backward (parameter y);
+\definition normalSelected: \In[Model.Coordinate] c.constraints Boundary.normal :=
+  \idelim Model.halfSpace Boundary.normal = c.constraints \with C: Model.Constraints => \In[Model.Coordinate] C Boundary.normal \by {
+    base: \refl(Boundary.normal), equality: sym!{Model.Constraints} _ _ (Atlas.constraints c)
+  };
+\definition targetPositive: \forall (y: RangePoint) -> R.Le S.zero (parameter y Boundary.normal) :=
+  \fun (y: RangePoint) => (\bysub(Open.Carrier c.image, Model.region c.constraints c.image, Charts.coordinate c (oldPoint y))) Boundary.normal normalSelected;
+\definition rawPositive: \forall (y: RangePoint) -> R.Le S.zero (raw y Boundary.normal) :=
+  \fun (y: RangePoint) => (inverse.signs (raw y)).rtl
+    (R.leReplaceRight S.zero (parameter y Boundary.normal) (Calculus.apply inverse.domain inverse.target inverse.change.forward (raw y) Boundary.normal)
+      (sym!{S.Real} _ _ (congr!{Model.Point S.Real} (\fun (u: Model.Point) => u Boundary.normal) _ _ (inverse.change.rightInverse (parameter y)))) (targetPositive y));
+\definition model[y: RangePoint]: Model.Carrier Chart.C e.neighborhood := \into[Open.Carrier e.neighborhood](Open.inclusion inverse.domain e.neighborhood inverse.included (raw y), Model.region Chart.C e.neighborhood) \by { sourcePositive (raw y) (rawPositive y) };
+\definition sourceModel[y: RangePoint]: Model.Carrier Chart.C Chart.image := \into[Open.Carrier Chart.image](Open.inclusion e.neighborhood Chart.image e.included (model y), Model.region Chart.C Chart.image) \by { sourcePositive (raw y) (rawPositive y) };
+\definition backward[y: RangePoint]: Product.Point := SourceCharts.point Chart.chart (sourceModel y);
+\definition coordinateBackward: \forall (y: RangePoint) -> (SourceCharts.coordinate Chart.chart (SourceCharts.point Chart.chart (sourceModel y)) \of Model.Point) = (raw y \of Model.Point) :=
+  \fun (y: RangePoint) => SourceCharts.coordinatePoint Chart.chart (sourceModel y);
+\definition backwardInside: \forall (y: RangePoint) -> Space.Member domain (backward y) :=
+  \fun (y: RangePoint) => Inclusion.imageMember \root.CollarLocal[n := n].On[M := M].With[cover := cover].From[deformation := deformation].At[b := b, c := c, contains := Coordinate.sourceContains.left].Using[e := e].With[inverse := inverse].local
+    (SourceCharts.point Chart.chart (sourceModel y))
+    (\idelim (raw y \of Model.Point) = (SourceCharts.coordinate Chart.chart (SourceCharts.point Chart.chart (sourceModel y)) \of Model.Point)
+      \with u: Model.Point => \In[Model.Point] inverse.domain.points u \by {
+        base: \bysub(Model.Point, inverse.domain.points, raw y), equality: sym!{Model.Point} _ _ (coordinateBackward y)
+      });
+\definition mapped[y: RangePoint]: Charts.LocalPoint c := \into[M.Point](Maps.apply map (backward y), c.domain) \by { e.inside (model y) };
+\definition mappedCoordinate: \forall (y: RangePoint) -> (Charts.coordinate c (mapped y) \of Model.Point) = (parameter y \of Model.Point) :=
+  \fun (y: RangePoint) => trans!{Model.Point} _ _ _ (sym!{Model.Point} _ _ (e.agrees (model y)))
+    (trans!{Model.Point} _ _ _ (sym!{Model.Point} _ _ (inverse.forward (raw y))) (inverse.change.rightInverse (parameter y)));
+\definition coordinateMapped: \forall (y: RangePoint) -> Charts.coordinate c (mapped y) = Charts.coordinate c (oldPoint y) :=
+  \fun (y: RangePoint) => Model.equality c.constraints c.image (Charts.coordinate c (mapped y)) (Charts.coordinate c (oldPoint y)) (mappedCoordinate y);
+\definition rightInverse: \forall (y: RangePoint) -> Maps.apply map (backward y) = (y \of M.Point) :=
+  \fun (y: RangePoint) => trans!{M.Point} _ _ _ (sym!{M.Point} _ _ (Charts.pointCoordinate c (mapped y)))
+    (trans!{M.Point} _ _ _ (congr!{{Model.Carrier c.constraints c.image} M.Point} (\fun (u: Model.Carrier c.constraints c.image) => Charts.point c u) _ _ (coordinateMapped y)) (Charts.pointCoordinate c (oldPoint y)));
+\import \root.CollarLocal[n := n].On[M := M].With[cover := cover].From[deformation := deformation].At[b := b, c := c, contains := Coordinate.sourceContains.left].Using[e := e].With[inverse := inverse] \as SourcePatch;
+\definition forwardContains[x: SourcePatch.Point]: Charts.Contains c (Maps.apply map x) :=
+  \idelim (SourceCharts.point Chart.chart (SourcePatch.original x) \of Product.Point) = (x \of Product.Point)
+    \with p: Product.Point => Charts.Contains c (Maps.apply map p) \by {
+      base: e.inside (SourcePatch.input x), equality: SourcePatch.sourceEquals x
+    };
+\definition forwardLocal[x: SourcePatch.Point]: Charts.LocalPoint c := \into[M.Point](Maps.apply map x, c.domain) \by { forwardContains x };
+\definition forwardCoordinate: \forall (x: SourcePatch.Point) -> (Calculus.apply inverse.domain inverse.target inverse.change.forward (SourcePatch.parameter x) \of Model.Point) = (Charts.coordinate c (forwardLocal x) \of Model.Point) :=
+  \fun (x: SourcePatch.Point) => trans!{Model.Point} _ _ _ (SourcePatch.forwardValue x) (Total.coordinateInside (forwardLocal x));
+\definition forwardIncluded: \forall (x: SourcePatch.Point) -> TargetSpace.Member range (Maps.apply map x) :=
+  \fun (x: SourcePatch.Point) => TargetInclusion.imageMember local (forwardLocal x)
+    (\idelim (Calculus.apply inverse.domain inverse.target inverse.change.forward (SourcePatch.parameter x) \of Model.Point) = (Charts.coordinate c (forwardLocal x) \of Model.Point)
+      \with u: Model.Point => \In[Model.Point] inverse.target.points u \by {
+        base: \bysub(Model.Point, inverse.target.points, Calculus.apply inverse.domain inverse.target inverse.change.forward (SourcePatch.parameter x)), equality: forwardCoordinate x
+      });
+\definition forward[x: SourcePatch.Point]: RangePoint := \into[M.Point](Maps.apply map x, range) \by { forwardIncluded x };
+\definition leftInverse: \forall (x: SourcePatch.Point) -> backward (forward x) = (x \of Product.Point) :=
+  \fun (x: SourcePatch.Point) => SourcePatch.injective (backward (forward x)) x (backwardInside (forward x)) (\bysub(Product.Point, domain, x)) (rightInverse (forward x));
+\definition oldPointContinuous: topology.Continuity[A := RangePoint, B := Charts.LocalPoint c].Continuous topology (Charts.domainTopology c.domain) oldPoint :=
+  topology.Continuity[A := RangePoint, B := M.Point].Corestriction[S := c.domain].corestrictContinuous topology M.space oldPoint
+    (topology.Continuity[A := RangePoint, B := M.Point].Corestriction[S := range].inclusionContinuous M.space);
+\definition parameterAmbient: topology.Continuity[A := RangePoint, B := Model.Point].Continuous topology Ambient.topology (\fun (y: RangePoint) => parameter y) :=
+  topology.Composition[A := RangePoint, B := Charts.LocalPoint c, C := Model.Point].composeContinuous topology (Charts.domainTopology c.domain) Ambient.topology oldPoint
+    (\fun (p: Charts.LocalPoint c) => Charts.coordinate c p) oldPointContinuous targetCoordinateContinuous;
+\definition parameterContinuous: topology.Continuity[A := RangePoint, B := Open.Carrier inverse.target].Continuous topology (Open.Topology[].Of[U := inverse.target].topology) parameter :=
+  topology.Continuity[A := RangePoint, B := Model.Point].Corestriction[S := inverse.target.points].corestrictContinuous topology Ambient.topology parameter parameterAmbient;
+\definition rawContinuous: topology.Continuity[A := RangePoint, B := Open.Carrier inverse.domain].Continuous topology (Open.Topology[].Of[U := inverse.domain].topology) raw :=
+  topology.Composition[A := RangePoint, B := Open.Carrier inverse.target, C := Open.Carrier inverse.domain].composeContinuous topology
+    (Open.Topology[].Of[U := inverse.target].topology) (Open.Topology[].Of[U := inverse.domain].topology) parameter (Calculus.apply inverse.target inverse.domain inverse.change.backward)
+    parameterContinuous (Calculus.Topology[U := inverse.target, V := inverse.domain].continuous inverse.change.backward);
+\definition rawAmbient: topology.Continuity[A := RangePoint, B := Model.Point].Continuous topology Ambient.topology (\fun (y: RangePoint) => raw y) :=
+  topology.Composition[A := RangePoint, B := Open.Carrier inverse.domain, C := Model.Point].composeContinuous topology (Open.Topology[].Of[U := inverse.domain].topology) Ambient.topology raw (\fun (u: Open.Carrier inverse.domain) => u)
+    rawContinuous (topology.Continuity[A := Open.Carrier inverse.domain, B := Model.Point].Corestriction[S := inverse.domain.points].inclusionContinuous Ambient.topology);
+\definition sourceModelContinuous: topology.Continuity[A := RangePoint, B := Model.Carrier Chart.C Chart.image].Continuous topology (Model.regionTopology Chart.C Chart.image) sourceModel :=
+  Model.Topology[C := Chart.C, U := Chart.image].Into[X := RangePoint, source := topology, f := sourceModel].continuous rawAmbient;
+\definition backwardLocalContinuous: topology.Continuity[A := RangePoint, B := SourceCharts.LocalPoint Chart.chart].Continuous topology (SourceCharts.domainTopology Chart.domain)
+  (\fun (y: RangePoint) => SourceCharts.point Chart.chart (sourceModel y)) :=
+  topology.Composition[A := RangePoint, B := Model.Carrier Chart.C Chart.image, C := SourceCharts.LocalPoint Chart.chart].composeContinuous topology
+    (Model.regionTopology Chart.C Chart.image) (SourceCharts.domainTopology Chart.domain) sourceModel (SourceCharts.point Chart.chart) sourceModelContinuous
+    (Homeomorphism.laws _ _ Chart.chart.coordinates).backwardContinuous;
+\definition backwardContinuous: topology.Continuity[A := RangePoint, B := Product.Point].Continuous topology Product.topology backward :=
+  topology.Composition[A := RangePoint, B := SourceCharts.LocalPoint Chart.chart, C := Product.Point].composeContinuous topology (SourceCharts.domainTopology Chart.domain) Product.topology
+    (\fun (y: RangePoint) => SourceCharts.point Chart.chart (sourceModel y)) (\fun (p: SourceCharts.LocalPoint Chart.chart) => p) backwardLocalContinuous
+    (topology.Continuity[A := SourceCharts.LocalPoint Chart.chart, B := Product.Point].Corestriction[S := Chart.domain].inclusionContinuous Product.topology);

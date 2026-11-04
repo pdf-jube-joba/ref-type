@@ -1,0 +1,68 @@
+\definition domain: \Pow Product.Point := { p: Product.Point \where \In[Time.Point] regular.uniform.neighborhood (Product.second p) };
+\definition open: Space.IsOpenIn Product.topology domain :=
+  topological_constructions.Product[A := Inclusion.manifold.Point, B := Time.Point].Maps[].secondContinuous Inclusion.manifold.space Time.manifold.space regular.uniform.neighborhood regular.uniform.open;
+\definition Point: \Set := \Cast[Product.Point] domain;
+\definition topology: topology.Structures[].Topology[Point] := Space.Subspace[S := domain].topology Product.topology;
+\definition injective: \forall (x, y: Point) -> Maps.apply map x = Maps.apply map y -> (x \of Product.Point) = (y \of Product.Point) := \block {
+  \fun (x, y: Point)(same: _) \then
+  \let swapped: Pair.pair Time.Point Inclusion.manifold.Point (Product.second x) (Product.first x) = Pair.pair Time.Point Inclusion.manifold.Point (Product.second y) (Product.first y) :=
+    regular.uniform.injective (Product.second x) (Product.second y) (Product.first x) (Product.first y)
+      (\bysub(Product.Point, domain, x)) (\bysub(Product.Point, domain, y)) same \then
+  \return Pair.Prop[A := Inclusion.manifold.Point, B := Time.Point].ext x y
+    (congr!{{Pair.Times^[Time.Point, Inclusion.manifold.Point]} {Inclusion.manifold.Point}} (Pair.second Time.Point Inclusion.manifold.Point) _ _ swapped)
+    (congr!{{Pair.Times^[Time.Point, Inclusion.manifold.Point]} Time.Point} (Pair.first Time.Point Inclusion.manifold.Point) _ _ swapped)
+};
+\definition image: \Pow M.Point := { y: M.Point \where \exists (x: Point \where Maps.apply map x = y) };
+\definition ImagePoint: \Set := \Cast[M.Point] image;
+\definition imageTopology: topology.Structures[].Topology[ImagePoint] := TargetSpace.Subspace[S := image].topology M.space;
+\definition Fibre[y: ImagePoint]: \Set := \Cast[Point] ({ x: Point \where Maps.apply map x = (y \of M.Point) });
+\definition fibreUnique: \forall (y: ImagePoint)(x, z: Fibre y) -> x = z :=
+  \fun (y: ImagePoint)(x, z: Fibre y) => boundary_manifolds.Refinement[A := Point].equality ({ x: Point \where Maps.apply map x = (y \of M.Point) }) x z
+    (boundary_manifolds.Refinement[A := Product.Point].equality domain x z
+      (injective x z (trans!{M.Point} _ _ _ (\bysub(Point, { x: Point \where Maps.apply map x = (y \of M.Point) }, x))
+        (sym!{M.Point} _ _ (\bysub(Point, { x: Point \where Maps.apply map x = (y \of M.Point) }, z))))));
+\definition chosen[y: ImagePoint]: Fibre y := \choice (Fibre y) \by { existence: \bysub(M.Point, image, y), uniqueness: fibreUnique y };
+\definition backward[y: ImagePoint]: Point := chosen y;
+\definition forward[x: Point]: ImagePoint := \into[M.Point](Maps.apply map x, image) \by {
+  Logic.existsIntro[Point, { z: Point \where Maps.apply map z = Maps.apply map x }] x (\refl(Maps.apply map x))
+};
+\definition rightInverse: \forall (y: ImagePoint) -> forward (backward y) = y :=
+  \fun (y: ImagePoint) => boundary_manifolds.Refinement[A := M.Point].equality image (forward (backward y)) y
+    (\bysub(Point, { x: Point \where Maps.apply map x = (y \of M.Point) }, chosen y));
+\definition leftInverse: \forall (x: Point) -> backward (forward x) = x :=
+  \fun (x: Point) => boundary_manifolds.Refinement[A := Product.Point].equality domain (backward (forward x)) x
+    (injective (backward (forward x)) x (\bysub(Point, { z: Point \where Maps.apply map z = (forward x \of M.Point) }, chosen (forward x))));
+\definition forwardContinuous: topology.Continuity[A := Point, B := ImagePoint].Continuous topology imageTopology forward :=
+  topology.Continuity[A := Point, B := M.Point].Corestriction[S := image].corestrictContinuous topology M.space forward
+    (topology.Continuity[A := Product.Point, B := M.Point].Restriction[S := domain].restrictContinuous Product.topology M.space (Maps.apply map) map.continuous);
+\definition regularPoint[x: Product.Point][member: Space.Member domain x]: Space.Member Strip.region x :=
+  \idelim Strip.swap (Pair.pair Time.Point Inclusion.manifold.Point (Product.second x) (Product.first x)) = x
+    \with p: Product.Point => Space.Member Strip.region p \by {
+      base: regular.regular (Product.second x) (Product.first x) member,
+      equality: Pair.Prop[A := Inclusion.manifold.Point, B := Time.Point].ext (Strip.swap (Pair.pair Time.Point Inclusion.manifold.Point (Product.second x) (Product.first x))) x (\refl(Product.first x)) (\refl(Product.second x))
+    };
+\module ImageOf(V: \Pow Product.Point, openV: Space.IsOpenIn Product.topology V, inside: Space.Subset V domain);
+\definition imageOpen: TargetSpace.IsOpenIn M.space image := ImageOf[V := domain, openV := open, inside := \fun (x: Product.Point)(member: Space.Member domain x) => member].open;
+\definition rightValue: \forall (y: ImagePoint) -> Maps.apply map (backward y) = (y \of M.Point) :=
+  \fun (y: ImagePoint) => \bysub(Point, { x: Point \where Maps.apply map x = (y \of M.Point) }, chosen y);
+\definition uniquePreimage: \forall (y: ImagePoint)(p: Point) -> Maps.apply map p = (y \of M.Point) -> p = backward y :=
+  \fun (y: ImagePoint)(p: Point)(same: _) => boundary_manifolds.Refinement[A := Product.Point].equality domain p (backward y)
+    (injective p (backward y) (trans!{M.Point} _ _ _ same (sym!{M.Point} _ _ (rightValue y))));
+\module OpenPreimage(V: \Pow Point, openV: topology.Topology[Carrier := Point].IsOpenIn topology V);
+\definition backwardContinuous: topology.Continuity[A := ImagePoint, B := Point].Continuous imageTopology topology backward :=
+  \fun (V: \Pow Point)(openV: _) => OpenPreimage[V := V, openV := openV].open;
+\definition homeomorphism: topology.Homeomorphism[A := Point, B := ImagePoint].Homeomorphism[topology, imageTopology] :=
+  topology.Homeomorphism[A := Point, B := ImagePoint].Homeomorphism[topology, imageTopology] {
+    forward := forward, backward := backward, leftInverse := leftInverse, rightInverse := rightInverse,
+    forwardContinuous := forwardContinuous, backwardContinuous := backwardContinuous,
+  };
+\module Slice;
+\import \root.TopologicalCollar[T := Slice[].Parameter, B := Inclusion.manifold.Point, A := M.Point].On[
+  parameterSpace := Slice[].parameterTopology, boundarySpace := Inclusion.manifold.space, space := M.space,
+  zero := Slice[].zero, inclusion := Inclusion.apply] \as Collars;
+\definition collar: Collars.Data := Collars.Data {
+  image := image, open := imageOpen,
+  homeomorphism := topology.Homeomorphism[A := Slice[].SourcePoint, B := Point].Composition[C := ImagePoint].compose
+    Slice[].source topology imageTopology Slice[].homeomorphism homeomorphism,
+  fixed := \fun (b: Inclusion.manifold.Point) => \root.InwardNeighborhood[n := n].On[M := M].With[cover := cover].From[h := deformation.homotopy, active := deformation.active].neighborhood.initial b,
+};

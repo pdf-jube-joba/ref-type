@@ -1,0 +1,19 @@
+\import Inclusion.In[x := b, c := c, contains := contains] \as BoundaryChart;
+\definition leftChart: Product.LeftChart := \into[BoundaryCharts.Chart](BoundaryChart.left, Inclusion.manifold.atlas.charts) \by { BoundaryChart.sourceMember };
+\definition timeChart: Product.RightChart := \into[TimeCharts.Chart](Time.chart, Time.manifold.atlas.charts) \by { Time.chartMember };
+\import Product.In[c := leftChart, d := timeChart] \as Patch;
+\definition center: Product.Point := Pair.pair Inclusion.manifold.Point Time.Point b Time.zero;
+\definition sourceContains: SourceCharts.Contains Patch.chart center := Logic.And[_, _]::# contains (\refl(Time.zero));
+\definition member: \In[SourceCharts.Chart] Product.manifold.atlas.charts Patch.chart :=
+  Logic.existsIntro[Product.Index, { i: Product.Index \where Patch.chart = Product.chart i }] (Pair.pair Product.LeftChart Product.RightChart leftChart timeChart) (\refl(Patch.chart));
+\definition initial: Maps.apply map center = Inclusion.apply b := Candidate.neighborhood.initial b;
+\definition targetContains: Charts.Contains c (Maps.apply map center) := \idelim Inclusion.apply b = Maps.apply map center \with p: M.Point => Charts.Contains c p \by {
+  base: contains, equality: sym!{M.Point} _ _ initial
+};
+\import Maps.At[function := Maps.apply map, left := Patch.chart, right := c, x := center, contains := sourceContains] \as Local;
+\definition smooth: \exists Local.Extension := map.smooth Patch.chart c center sourceContains member (Atlas.member c) targetContains;
+\definition boundaryPoint: BoundaryCharts.LocalPoint BoundaryChart.left := \into[Inclusion.manifold.Point](b, BoundaryChart.left.domain) \by { contains };
+\definition boundaryCoordinate: Parameters.Carrier BoundaryChart.left.constraints BoundaryChart.left.image := BoundaryCharts.coordinate BoundaryChart.left boundaryPoint;
+\definition zeroNormal: Local.source Boundary.normal = S.zero :=
+  congr!{{One.Index -> S.Real} S.Real} (\fun (t: One.Index -> S.Real) => t One.index) _ _ (Blocks.rightJoin boundaryCoordinate Time.zero);
+\module Using(e: Local.Extension);
