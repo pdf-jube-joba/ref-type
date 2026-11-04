@@ -1,0 +1,23 @@
+
+\import Global.Using[change := near.change] \as Atlas;
+\import Atlas.Cover[] \as Cover;
+\import boundary_manifolds.Dimension[n := Nat.add (Nat.add One.dimension m) (Nat.add One.dimension n)].Chart[M := Rounding.Point, space := Rounding.topology] \as Charts;
+
+\import \root.ChartTransport[n := Nat.add (Nat.add One.dimension m) (Nat.add One.dimension n)].From[M := Atlas.nearManifold].Into[A := Rounding.Point, space := Rounding.topology, U := Global.nearRegion, open := Global.nearRegionOpen, h := Atlas.nearHomeomorphism] \as NearCharts;
+\import \root.ChartTransport[n := Nat.add (Nat.add One.dimension m) (Nat.add One.dimension n)].From[M := Far.manifold].Into[A := Rounding.Point, space := Rounding.topology, U := Global.farRegion, open := Global.farRegionOpen, h := Global.farHomeomorphism] \as FarCharts;
+\import topological_constructions.Coproduct[A := NearCharts.OldChart, B := FarCharts.OldChart] \as Indices;
+\definition nearMember: \forall (c: NearCharts.OldChart) -> \In[Charts.Chart] Cover.manifold.atlas.charts NearCharts.In[c := c].chart := \fun (c: NearCharts.OldChart) => Logic.existsIntro[Cover.Index, { i: Cover.Index \where NearCharts.In[c := c].chart = Cover.chart i }] (Indices.inl c) (\refl(NearCharts.In[c := c].chart));
+\definition farMember: \forall (c: FarCharts.OldChart) -> \In[Charts.Chart] Cover.manifold.atlas.charts FarCharts.In[c := c].chart := \fun (c: FarCharts.OldChart) => Logic.existsIntro[Cover.Index, { i: Cover.Index \where FarCharts.In[c := c].chart = Cover.chart i }] (Indices.inr c) (\refl(FarCharts.In[c := c].chart));
+\import \root.TransportHalfModel[n := Nat.add (Nat.add One.dimension m) (Nat.add One.dimension n)].Between[M := Atlas.nearManifold, N := Cover.manifold].From[U := Global.nearRegion, open := Global.nearRegionOpen, h := Atlas.nearHomeomorphism].With[sourceCover := near.cover, chartMember := nearMember] \as NearCover;
+\import \root.TransportHalfModel[n := Nat.add (Nat.add One.dimension m) (Nat.add One.dimension n)].Between[M := Far.manifold, N := Cover.manifold].From[U := Global.farRegion, open := Global.farRegionOpen, h := Global.farHomeomorphism].With[sourceCover := FarHalf.cover, chartMember := farMember] \as FarCover;
+\import \root.HalfModel[n := Nat.add (Nat.add One.dimension m) (Nat.add One.dimension n)].On[M := Cover.manifold] \as Half;
+\definition halfCover: Half.Cover := \fun (y: Rounding.Point)(boundary: boundary_manifolds.Tangent[n := Nat.add (Nat.add One.dimension m) (Nat.add One.dimension n)].On[M := Cover.manifold].At[x := y].Cones[].Boundary) =>
+ Logic.orElim (\In[Rounding.Point] Global.nearRegion y) (\In[Rounding.Point] Global.farRegion y) (\exists (d: Half.Data \where Half.Contains d y)) (Rounding.covered y)
+  (\fun (member: \In[Rounding.Point] Global.nearRegion y) => NearCover.cover (\into[Rounding.Point](y, Global.nearRegion) \by { member }) boundary)
+  (\fun (member: \In[Rounding.Point] Global.farRegion y) => FarCover.cover (\into[Rounding.Point](y, Global.farRegion) \by { member }) boundary);
+
+\import \root.DimensionChangeHalf[n := Nat.add (Nat.add One.dimension m) (Nat.add One.dimension n)].On[M := Cover.manifold].With[cover := halfCover] \as FinalDimensions;
+\import FinalDimensions.At[m := Nat.add One.dimension (Nat.add m (Nat.add One.dimension n))] \as FinalChoice;
+\definition finalExists: \exists FinalChoice.Data := FinalDimensions.exists (Nat.add One.dimension (Nat.add m (Nat.add One.dimension n))) (std.Data[].Nat[].Basic[].Prop[].addAssoc One.dimension m (Nat.add One.dimension n));
+\module Final(change: FinalChoice.Data);
+\definition FinalData: \Set := FinalChoice.Data;

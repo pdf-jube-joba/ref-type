@@ -45,7 +45,9 @@
 `Rounded.Global.Using.Cover` は内側と外側の全4種類の滑らかなチャート変換を構成する。
 `ProductCollar.Between.With.Compact.exists` は入力のコンパクト性と境界チャート被覆から、collar・スケール・丸め領域・大域 atlas まで構成する。
 `Compact.Of` はその多様体、コンパクト性、コンパクト領域の外側での一致、元の角を除く法則を公開する。
-現状の結果は角付き多様体型であり、丸めた結果の正規化された `Boundary.Cover` と高次の角がない保証を追加している。
+`RoundedBoundary.Between.With.Compact.exists` は同じ丸め領域上に、正規化した境界付き多様体の atlas を構成する。
+`Compact.Of.boundaryCover` は実際の `Boundary.Cover` を返し、`noHigherCorners` は各点で有効な境界座標が高々一つとなるチャートの存在を保証する。
+`Compact.Of` はコンパクト性、コンパクト領域の外側での一致、元の角を除く法則も公開する。
 
 ## 向きと補助定理
 

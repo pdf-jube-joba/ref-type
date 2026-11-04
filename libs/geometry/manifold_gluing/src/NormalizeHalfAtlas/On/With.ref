@@ -1,0 +1,41 @@
+\import topological_constructions.Coproduct[A := Half.OldChart, B := Half.Data] \as Indices;
+\definition Index: \Set := Indices.Carrier;
+\definition chart: Index -> Charts.Chart := \induction (i: Index) \return Charts.Chart \with {
+  | inl: \fun (c: Half.OldChart) => c
+  | inr: \fun (d: Half.Data) => Normal.In[data := d].chart
+};
+\definition covers: \forall (x: M.Point) -> \exists (i: Index \where Charts.Contains (chart i) x) := \block {
+  \fun (x: M.Point) \then
+  \takefrom c: \Cast[Charts.Chart] ({ c: Charts.Chart \where Logic.And[\In[Charts.Chart] M.atlas.charts c, Charts.Contains c x] }) \by M.atlas.covers x \then
+  \let laws: Logic.And[\In[Charts.Chart] M.atlas.charts c, Charts.Contains c x] := \bysub(Charts.Chart, { c: Charts.Chart \where Logic.And[\In[Charts.Chart] M.atlas.charts c, Charts.Contains c x] }, c) \then
+  \let old: Half.OldChart := \into[Charts.Chart](c, M.atlas.charts) \by { laws.left } \then
+  \return Logic.existsIntro[Index, { i: Index \where Charts.Contains (chart i) x }] (Indices.inl old) laws.right
+};
+\definition OldAt[x: M.Point]: \Set := \Cast[Half.OldChart] ({ c: Half.OldChart \where Charts.Contains c x });
+\definition oldContains[x: M.Point][c: OldAt x]: Charts.Contains c x := \bysub(Half.OldChart, { c: Half.OldChart \where Charts.Contains c x }, c);
+\structure Bridge[i: Index][p: Charts.LocalPoint (chart i)]: \Set := {
+  old: OldAt p,
+  toOld: Charts.At[x := p, left := chart i, right := old, inLeft := \bysub(M.Point, (chart i).domain, p)].Extension,
+  fromOld: Charts.At[x := p, left := old, right := chart i, inLeft := oldContains p old].Extension,
+};
+\module OldBridge(c: Half.OldChart, p: Charts.LocalPoint c);
+\module NormalBridge(d: Half.Data, p: Charts.LocalPoint (chart (Indices.inr d)));
+\definition bridge: \forall (i: Index)(p: Charts.LocalPoint (chart i)) -> Bridge[i, p] :=
+  \induction (i: Index) \return \forall (p: Charts.LocalPoint (chart i)) -> Bridge[i, p] \with {
+    | inl: \fun (c: Half.OldChart)(p: Charts.LocalPoint c) => OldBridge[c := c, p := p].value
+    | inr: \fun (d: Half.Data)(p: Charts.LocalPoint (chart (Indices.inr d))) => NormalBridge[d := d, p := p].value
+  };
+\module Pair(i, j: Index, x: M.Point, first: Charts.Contains (chart i) x, second: Charts.Contains (chart j) x);
+\definition compatible: \forall (i, j: Index)(x: M.Point)(first: Charts.Contains (chart i) x)(second: Charts.Contains (chart j) x) -> \exists Charts.At[x := x, left := chart i, right := chart j, inLeft := first].Extension :=
+  \fun (i, j: Index)(x: M.Point)(first: _)(second: _) => Pair[i := i, j := j, x := x, first := first, second := second].exists;
+\import Models.Family[A := M.Point, space := M.space, I := Index, chart := chart].Using[cover := covers, compatible := compatible] \as Family;
+\definition manifold: Models.Manifold := Models.Manifold {
+  Point := M.Point, space := M.space, atlas := Family.atlas, hausdorff := M.hausdorff, secondCountable := M.secondCountable,
+};
+\definition oldMember: \forall (c: Half.OldChart) -> \In[Charts.Chart] manifold.atlas.charts c := \fun (c: Half.OldChart) => Logic.existsIntro[Index, { i: Index \where c = chart i }] (Indices.inl c) (\refl(c));
+\import boundary_manifolds.Boundary[n := n].Of[M := manifold] \as Boundary;
+\module BoundaryAt(x: Boundary.Point);
+\definition boundaryCover: Boundary.Cover := \fun (x: Boundary.Point) => BoundaryAt[x := x].exists;
+
+\module NoHigherAt(x: manifold.Point);
+\definition noHigherCorners: \forall (x: manifold.Point) -> \exists NoHigherAt[x := x].Witness := \fun (x: manifold.Point) => NoHigherAt[x := x].exists;
