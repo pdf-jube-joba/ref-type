@@ -1,0 +1,30 @@
+
+\import \root.SeamCollar[n := n].Between[M := M, N := N].With[leftCover := leftCover, rightCover := rightCover].Along[d := d].From[left := result.collars.left, right := result.collars.right].Using[leftRegular := result.collars.leftRegular, rightRegular := result.collars.rightRegular].At[
+ epsilon := result.collars.parameters.epsilon, positive := result.collars.parameters.positive, bounded := result.collars.parameters.bounded,
+ leftWithin := result.collars.parameters.leftWithin, rightWithin := result.collars.parameters.rightWithin] \as Stage;
+\import \root.SignedParameter[].At[epsilon := result.collars.parameters.epsilon, positive := result.collars.parameters.positive, bounded := result.collars.parameters.bounded] \as Signed;
+\import boundary_manifolds.Product[n := n, m := One.dimension].Of[M := LeftBoundary.manifold, N := Signed.manifold] \as Source;
+\definition manifold: Models.Manifold := Glued.manifold result;
+\import boundary_manifolds.SmoothMap[n := Nat.add One.dimension n, m := Nat.add One.dimension n].Between[M := Source.manifold, N := manifold] \as SeamMaps;
+\import boundary_manifolds.SmoothMap[n := Nat.add One.dimension n, m := Nat.add One.dimension n].Between[M := M, N := manifold] \as LeftMaps;
+\import boundary_manifolds.SmoothMap[n := Nat.add One.dimension n, m := Nat.add One.dimension n].Between[M := N, N := manifold] \as RightMaps;
+\import Stage.Image[] \as Image;
+\import Stage.Image[].Compact[leftCompact := leftCompact, rightCompact := rightCompact] \as ImageCompact;
+\import Stage.Image[].Compact[leftCompact := leftCompact, rightCompact := rightCompact].Cover[] \as Canonical;
+\import Canonical.Mapping[m := Nat.add One.dimension n].Into[P := Canonical.manifold] \as Membership;
+\import \root.ChartTransport[n := Nat.add One.dimension n].From[M := Source.manifold].Into[A := Gluing.Point, space := Gluing.topology, U := Image.image, open := Image.open, h := ImageCompact.homeomorphism] \as Transport;
+\import Models.Chart[M := Gluing.Point, space := Gluing.topology] \as TargetCharts;
+\definition member: \forall (c: Transport.OldChart) -> \In[TargetCharts.Chart] manifold.atlas.charts Transport.In[c := c].chart := \fun (c: Transport.OldChart) =>
+ \idelim Glued.Construction[c := result.collars].atlas = result.atlas \with atlas: Models.Atlas[M := Gluing.Point, space := Gluing.topology].Atlas => \In[TargetCharts.Chart] atlas.charts Transport.In[c := c].chart \by { base: Membership.seamMember c, equality: sym!{{Models.Atlas[M := Gluing.Point, space := Gluing.topology].Atlas}} _ _ result.atlasConstructed };
+\import \root.TransportDifferential[n := Nat.add One.dimension n].Between[M := Source.manifold, N := manifold].From[U := Image.image, open := Image.open, h := ImageCompact.homeomorphism].For[f := result.seam, values := result.seamValue] \as Differential;
+
+\import \root.CollarEmbedding[n := n].On[M := M].With[cover := leftCover].From[deformation := result.collars.left] \as LeftCollar;
+\import \root.CollarEmbedding[n := n].On[M := N].With[cover := rightCover].From[deformation := result.collars.right] \as RightCollar;
+\import \root.Parameter[] \as Time;
+\import boundary_manifolds.Product[n := n, m := One.dimension].Of[M := LeftBoundary.manifold, N := Time.manifold] \as LeftParameter;
+\import boundary_manifolds.Product[n := n, m := One.dimension].Of[M := RightBoundary.manifold, N := Time.manifold] \as RightParameter;
+\import boundary_manifolds.SmoothMap[n := Nat.add One.dimension n, m := Nat.add One.dimension n].Between[M := LeftParameter.manifold, N := M] \as LeftCollarMaps;
+\import boundary_manifolds.SmoothMap[n := Nat.add One.dimension n, m := Nat.add One.dimension n].Between[M := RightParameter.manifold, N := N] \as RightCollarMaps;
+\definition leftSide: \forall (p: Source.Point) -> R.Le S.zero (Stage.scalar p) -> SeamMaps.apply result.seam p = LeftMaps.apply result.left (LeftCollarMaps.apply LeftCollar.map (Stage.leftParameter p)) := \fun (p: Source.Point)(nonnegative: R.Le S.zero (Stage.scalar p)) => trans!{{Gluing.Point}} _ _ _ (result.seamValue p) (trans!{{Gluing.Point}} _ _ _ (Stage.onLeft p nonnegative) (sym!{{Gluing.Point}} _ _ (result.leftValue (LeftCollarMaps.apply LeftCollar.map (Stage.leftParameter p)))));
+\definition rightSide: \forall (p: Source.Point) -> R.Le (Stage.scalar p) S.zero -> SeamMaps.apply result.seam p = RightMaps.apply result.right (RightCollarMaps.apply RightCollar.map (Stage.rightParameter p)) := \fun (p: Source.Point)(nonpositive: R.Le (Stage.scalar p) S.zero) => trans!{{Gluing.Point}} _ _ _ (result.seamValue p) (trans!{{Gluing.Point}} _ _ _ (Stage.onRight p nonpositive) (sym!{{Gluing.Point}} _ _ (result.rightValue (RightCollarMaps.apply RightCollar.map (Stage.rightParameter p)))));
+\module At(b: LeftBoundary.manifold.Point);

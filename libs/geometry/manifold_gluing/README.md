@@ -54,7 +54,12 @@
 `Reflection.Orientation` は法線反射の行列式と任意の最高次交代形式の符号反転を証明する。
 `BoundarySigns` は外向き法線の反転、二つの法線の収縮順序の交換、境界の打ち消しの符号を証明する。
 `BoundaryForms` は実際の境界包含の微分による引き戻しにこれらの符号を適用する。
-貼り合わせと double の実際の包含に対する向きの整合性を追加している。
+`GluingForms.Between.With.Along.Compact.For` は返された `CompactGluing.Result` を取り、実際の継ぎ目写像が正負の collar 上で左右の包含と一致する `leftSide`・`rightSide` を証明する。
+`For.At.In` は任意の境界点とそのチャートで、実際の継ぎ目写像の微分から左右の法線座標 frame を構成する。
+`frameCoordinates` と `recoverForm` はこの微分が座標同型を与え、最高次形式の情報を失わないことを示す。
+`orientationCoherence` は右の frame への引き戻しが左の引き戻しの \(-1\) 倍となることを証明する。
+`normalOpposite`・`horizontal`・`outwardOpposite`・`boundaryCancellation` は左右の内向き法線の反転、共通の接方向、外向き境界形式の符号と打ち消しを証明する。
+`DoubleForms.On.With.Compact.For.At.In` は同じ符号と境界の打ち消しを、実際の double の結果へ特殊化する。
 `DiffeomorphismCones` は実際の滑らかな逆写像から境界と接方向の保存を導く。
 `OpenManifoldCones` は開部分の包含について、境界の一致と、その微分による接方向・厳密な法線方向の判定を証明する。
 `OpenSmoothExtension` は開集合上の滑らかな写像と閉集合の外の写像が重なりで一致するとき、その実際の滑らかな接続を構成する。

@@ -1,0 +1,30 @@
+
+\import Transport.In[c := c] \as Patch;
+\import boundary_manifolds.Tangent[n := n].On[M := M].At[x := x] \as Domain;
+\import boundary_manifolds.Tangent[n := n].On[M := N].At[x := Maps.apply f x] \as Codomain;
+\import boundary_manifolds.Differential[n := n, m := n].Between[M := M, N := N].At[f := f, x := x] \as D;
+\definition left: Domain.Chart := \into[SourceCharts.Chart](c, Domain.Chart) \by { Domain.ChartLaws[c] { member := \bysub(SourceCharts.Chart, M.atlas.charts, c), contains := contains } };
+\definition containsRight: TargetCharts.Contains Patch.chart (Maps.apply f x) := \idelim (h.forward x \of N.Point) = Maps.apply f x \with y: N.Point => TargetCharts.Contains Patch.chart y \by { base: Patch.inDomain x contains, equality: sym!{{N.Point}} _ _ (values x) };
+\definition right: Codomain.Chart := \into[TargetCharts.Chart](Patch.chart, Codomain.Chart) \by { Codomain.ChartLaws[Patch.chart] { member := member, contains := containsRight } };
+\definition function[x: M.Point]: N.Point := h.forward x;
+\import Maps.At[function := function, left := left, right := right, x := x, contains := Domain.contains left] \as Canonical;
+\definition identity: Calculus.Map c.image Open.whole := Calculus.Map[c.image, Open.whole] { apply := \fun (u: Open.Carrier c.image) => \into[Model.Point](u, Open.whole.points) \by { \refl(u \of Model.Point) }, smooth := \fun (i: Model.Coordinate) => Open.Examples[].projectionSmooth c.image i };
+\definition extension: Canonical.Extension := Canonical.Extension {
+ neighborhood := c.image, included := \fun (u: Model.Point)(inside: \In[Model.Point] c.image.points u) => inside,
+ contains := \bysub(Model.Point, c.image.points, Canonical.source), map := identity,
+ inside := \fun (u: Model.Carrier c.constraints c.image) => Patch.inDomain (SourceCharts.point c u) (\bysub(M.Point, c.domain, SourceCharts.point c u)),
+ agrees := \fun (u: Model.Carrier c.constraints c.image) => sym!{{Model.Point}} _ _ (trans!{{Model.Point}} _ _ _ (Patch.coordinateLift (SourceCharts.point c u) (\bysub(M.Point, c.domain, SourceCharts.point c u))) (SourceCharts.coordinatePoint c u)),
+};
+\import Canonical.Using[e := extension] \as E;
+\import calculus.Identity[n := n] \as Identity;
+\import Calculus.Differential[U := c.image, V := Open.whole, f := identity, a := E.center] \as Derivative;
+\definition canonicalMatrix: \forall (smooth: \exists Canonical.Extension) -> Canonical.derivative smooth = Identity.linear := \fun (smooth: \exists Canonical.Extension) => trans!{{calculus.Vector[n := n, m := n].LinearMap}} _ _ _
+ (Canonical.ofExtension smooth extension)
+ (trans!{{calculus.Vector[n := n, m := n].LinearMap}} _ _ _ (Derivative.Compare[W := c.image, g := Identity.map c.image].equal
+ (\axiom:funext((\fun (u: Open.Carrier c.image) => Calculus.apply c.image Open.whole identity u \of Model.Point), (\fun (u: Open.Carrier c.image) => Calculus.apply c.image c.image (Identity.map c.image) u \of Model.Point), \fun (u: Open.Carrier c.image) => \refl(u \of Model.Point)))) (Identity.At[U := c.image, a := E.center].differential));
+\definition Property[g: M.Point -> N.Point]: \Prop := \forall (smooth: \exists Maps.At[function := g, left := left, right := right, x := x, contains := Domain.contains left].Extension) -> Maps.At[function := g, left := left, right := right, x := x, contains := Domain.contains left].derivative smooth = Identity.linear;
+\definition functionEqual: function = Maps.apply f := \axiom:funext(function, Maps.apply f, \fun (p: M.Point) => sym!{{N.Point}} _ _ (values p));
+\definition matrix: D.InCharts[left := left, right := right].jacobian = Identity.linear := (\idelim function = Maps.apply f \with g: (M.Point -> N.Point) => Property g \by { base: canonicalMatrix, equality: functionEqual }) D.InCharts[left := left, right := right].smooth;
+\definition coordinates: \forall (v: Domain.Vector) -> Codomain.Coordinate[chart := right].decode (D.value.apply v) = Domain.Coordinate[chart := left].decode v := \fun (v: Domain.Vector) => trans!{{Model.Point}} _ _ _ (D.coordinates left right v) (congr!{{calculus.Vector[n := n, m := n].LinearMap} {Model.Point}} (\fun (d: calculus.Vector[n := n, m := n].LinearMap) => d.apply (Domain.Coordinate[chart := left].decode v)) _ _ matrix);
+\definition frame: \forall (v: Model.Point) -> D.value.apply (Domain.Coordinate[chart := left].encode v) = Codomain.Coordinate[chart := right].encode v := \fun (v: Model.Point) => Codomain.Coordinate[chart := right].injective _ _
+ (trans!{{Model.Point}} _ _ _ (coordinates (Domain.Coordinate[chart := left].encode v)) (trans!{{Model.Point}} _ _ _ (Domain.Coordinate[chart := left].decodeEncode v) (sym!{{Model.Point}} _ _ (Codomain.Coordinate[chart := right].decodeEncode v))));
