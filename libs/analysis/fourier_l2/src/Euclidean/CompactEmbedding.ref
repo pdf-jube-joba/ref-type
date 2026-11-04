@@ -1,0 +1,53 @@
+\import lp_spaces.Euclidean[n := n] \as LE;
+\import LE.Compact[p := PA.two] \as Compact;
+\import LE.CompactBounds[] \as Bounds;
+\import smooth_partitions.Euclidean[n := n] \as SmoothFunctions;
+\import SmoothFunctions.Jets[f := f] \as Jets;
+\import calculus.Real[].Multivariable[n := n].Open[] \as Open;
+\import Open.Smooth[] \as Smooth;
+\import Smooth.Derivative[] \as Derivative;
+\import Open.Restriction[] \as Restriction;
+\import Open.Analysis[].Properties[] \as Partial;
+\import Open.Analysis[] \as Analysis;
+\import topology.Topology[Carrier := Point] \as Sets;
+\import topological_algebra.Euclidean[].Dimension[n := n].Topology[] \as Ambient;
+\import metric_spaces.RealFunctions[A := Point].Lattice[] \as Lattice;
+\definition function: E.Function := \into[Open.ScalarFunction Open.whole](Restriction.function Open.whole f, E.Function) \by { (LE.smoothCompactLaws f).smooth };
+\definition derivativeAway[h: E.Function][i: E.Coordinate]: (\forall (x: Open.Carrier Jets.away) -> h (Open.inclusion Jets.away Open.whole Jets.included x) = Real.zero) ->
+  \forall (x: Open.Carrier Jets.away) -> E.value (Derivative.Linear[U := Open.whole].apply i h) x = Real.zero := \fun (zero: _) => \block {
+    \let local: Open.ScalarFunction Jets.away := Open.restrict Jets.away Open.whole Jets.included h \then
+    \let derivative: Open.ScalarFunction Jets.away := Open.restrict Jets.away Open.whole Jets.included (Derivative.partial Open.whole h i) \then
+    \let law: Analysis.HasPartialDerivative Jets.away local i derivative := Restriction.localPartial Jets.away Open.whole Jets.included h (Derivative.partial Open.whole h i) i (Derivative.partialLaw Open.whole h i) \then
+    \let zeroLaw: Analysis.HasPartialDerivative Jets.away (\fun (x: Open.Carrier Jets.away) => Real.zero) i derivative :=
+      \idelim local = (\fun (x: Open.Carrier Jets.away) => Real.zero) \with g: Open.ScalarFunction Jets.away => Analysis.HasPartialDerivative Jets.away g i derivative \by {
+        base: law, equality: \axiom:funext(local, (\fun (x: Open.Carrier Jets.away) => Real.zero), zero)
+      } \then
+    \return \fun (x: Open.Carrier Jets.away) => Partial.partialUnique Jets.away (\fun (x: Open.Carrier Jets.away) => Real.zero) i x (derivative x) Real.zero
+      (zeroLaw x) (Analysis.Operations[].constantPartial Jets.away Real.zero i x)
+  };
+\definition jetAway: \forall (d: E.Directions)(x: Open.Carrier Jets.away) -> E.value (E.jet function d) x = Real.zero :=
+  \induction (d: E.Directions) \return \forall (x: Open.Carrier Jets.away) -> E.value (E.jet function d) x = Real.zero \with {
+    | nil: Jets.zeroAway
+    | cons: \fun (i: E.Coordinate)(d: E.Directions)(previous: _) => derivativeAway (E.jet function d) i previous
+  };
+\definition outside[d: E.Directions][x: Point]: Logic.Not (Sets.Member (SmoothFunctions.support f) x) -> E.value (E.jet function d) x = Real.zero :=
+  \fun (absent: _) => jetAway d (\into[Point](x, Open.Carrier Jets.away) \by { absent });
+\definition rapid[m: N.Nat^][d: E.Directions]: \exists ( b: Real.Real \where \forall (x: Point) -> R.Le (E.weighted function m d x) b ) := \block {
+  \let moment: Point -> Real.Real := Integrability.moment function m d \then
+  \let continuous: metric_spaces.RealFunctions[A := Point].Continuous Ambient.topology (\fun (x: Point) => Product.abs (moment x)) :=
+    Lattice.absoluteContinuous Ambient.topology moment (Compact.smoothContinuous moment (Integrability.momentSmooth function m d)) \then
+  \takefrom b: \Cast[Real.Real] ({ b: Real.Real \where \forall (x: Point) -> Sets.Member (SmoothFunctions.support f) x -> R.Le (Product.abs (moment x)) b }) \by
+    Bounds.scalarBound (SmoothFunctions.support f) (\fun (x: Point) => Product.abs (moment x)) (LE.smoothCompactLaws f).compact continuous \then
+  \return Logic.existsIntro[Real.Real, { b: Real.Real \where \forall (x: Point) -> R.Le (E.weighted function m d x) b }] (Distance.max Real.zero b)
+    (\fun (x: Point) => std.Logic[].Proposition[].orElim _ _ _ (std.Logic[].Classical[].excludedMiddle (Sets.Member (SmoothFunctions.support f) x))
+      (\fun (inside: _) => R.leTrans _ b _
+        (R.leReplaceLeft _ _ _ (Integrability.weightedAbsolute m x (E.value (E.jet function d) x))
+          ((\bysub(Real.Real, { b: Real.Real \where \forall (x: Point) -> Sets.Member (SmoothFunctions.support f) x -> R.Le (Product.abs (moment x)) b }, b)) x inside))
+        (Distance.maxRight Real.zero b))
+      (\fun (absent: _) => R.leReplaceLeft Real.zero _ _ (sym!{Real.Real} _ _ (eq_reason_in!{Real.Real _
+        "=" _ "by" { congr!{Real.Real Real.Real} (\fun (r: Real.Real) => Real.mul (E.weight m x) (Product.abs r)) _ _ (outside d x absent) }
+        "=" _ "by" { congr!{Real.Real Real.Real} (Real.mul (E.weight m x)) _ _ (Distance.distanceSelf Real.zero) }
+        "=" _ "by" { Laws.fieldMulZeroRight _ }
+      })) (Distance.maxLeft Real.zero b)))
+};
+\definition value: E.Schwartz := \into[E.Function](function, E.Schwartz) \by { rapid };

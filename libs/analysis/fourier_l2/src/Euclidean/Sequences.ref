@@ -1,0 +1,70 @@
+\import std.Data[].Nat[].Order[].Prop[] \as Bounds;
+\import Real.Sequence[] \as ScalarSequence;
+\import functional_analysis.ScalarLimits[] \as Limits;
+\definition pointwise[s, t: N.Nat^ -> Space][x: Space]: (\forall (k: N.Nat^) -> s k = t k) -> Metric.Converges Geometry.metric s x -> Metric.Converges Geometry.metric t x :=
+  \fun (same: _)(limit: _) => \idelim s = t \with u: (N.Nat^ -> Space) => Metric.Converges Geometry.metric u x \by { base: limit, equality: \axiom:funext(s, t, same) };
+\definition replace[s: N.Nat^ -> Space][x, y: Space]: x = y -> Metric.Converges Geometry.metric s x -> Metric.Converges Geometry.metric s y :=
+  \fun (same: _)(limit: _) => \idelim x = y \with u: Space => Metric.Converges Geometry.metric s u \by { base: limit, equality: same };
+\definition bridge[a, b, x, y: Space]: R.Le (Geometry.metric.distance a b) (Real.add (Geometry.metric.distance x y) (Real.add (Geometry.metric.distance a x) (Geometry.metric.distance b y))) :=
+  R.leTrans _ _ _ (Geometry.metric.triangle a x b)
+    (R.leReplaceRight _ _ _ (trans!{Real.Real} _ _ _ (Algebra.addSwap (Geometry.metric.distance a x) (Geometry.metric.distance x y) (Geometry.metric.distance y b))
+      (congr!{Real.Real Real.Real} (\fun (r: Real.Real) => Real.add (Geometry.metric.distance x y) (Real.add (Geometry.metric.distance a x) r)) _ _ (Geometry.metric.symmetric y b)))
+      (Laws.addMonotoneLeft _ _ (Geometry.metric.distance a x) (Geometry.metric.triangle x y b)));
+\definition pairBound[a, b, x, y: Space]: R.Le (Real.distance (Geometry.metric.distance a b) (Geometry.metric.distance x y))
+  (Real.add (Geometry.metric.distance a x) (Geometry.metric.distance b y)) := \block {
+  \let e: Real.Real := Real.add (Geometry.metric.distance a x) (Geometry.metric.distance b y) \then
+  \let upper: R.Le (Geometry.metric.distance x y) (Real.add (Geometry.metric.distance a b) e) :=
+    R.leReplaceRight _ _ _ (congr!{Real.Real Real.Real Real.Real} (\fun (u, v: Real.Real) => Real.add (Geometry.metric.distance a b) (Real.add u v)) _ _ _ _ (Geometry.metric.symmetric x a) (Geometry.metric.symmetric y b)) (bridge x y a b) \then
+  \let reverse: R.Le (Geometry.metric.distance a b) (Real.add (Geometry.metric.distance x y) e) := bridge a b x y \then
+  \let cancel: Real.add (Real.add (Geometry.metric.distance x y) e) (Real.neg e) = Geometry.metric.distance x y := trans!{Real.Real} _ _ _ (Laws.addAssoc _ _ _)
+    (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (Real.add (Geometry.metric.distance x y)) _ _ (Laws.addNegRight e)) (Laws.addZeroRight _)) \then
+  \return Estimates.distanceLeOfInterval (Geometry.metric.distance a b) (Geometry.metric.distance x y) e
+    (R.leReplaceRight _ _ _ cancel (Laws.addMonotoneRight _ _ (Real.neg e) reverse)) upper
+};
+\definition distance[s, t: N.Nat^ -> Space][x, y: Space]: Metric.Converges Geometry.metric s x -> Metric.Converges Geometry.metric t y ->
+  ScalarSequence.Converges (\fun (k: N.Nat^) => Geometry.metric.distance (s k) (t k)) (Geometry.metric.distance x y) := \fun (left: _)(right: _)(epsilon: Real.Real)(positive: _) => \block {
+    \let h: Real.Real := Real.mul Real.half epsilon \then
+    \let hp: R.Lt Real.zero h := Estimates.halfOfPositive epsilon positive \then
+    \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where Metric.LimitControl Geometry.metric s x h k }) \by left h hp \then
+    \takefrom l: \Cast[N.Nat^] ({ l: N.Nat^ \where Metric.LimitControl Geometry.metric t y h l }) \by right h hp \then
+    \return Logic.existsIntro[N.Nat^, { j: N.Nat^ \where ScalarSequence.LimitControl (\fun (k: N.Nat^) => Geometry.metric.distance (s k) (t k)) (Geometry.metric.distance x y) epsilon j }] (Bounds.commonBound k l)
+      (\fun (j: N.Nat^)(later: _) => R.leLtTrans _ _ _ (pairBound (s j) (t j) x y)
+        (R.ltReplaceRight _ _ _ (Estimates.halfTwice epsilon) (Estimates.addLt _ _ _ _
+          ((\bysub(N.Nat^, { k: N.Nat^ \where Metric.LimitControl Geometry.metric s x h k }, k)) j (Nat.leTrans _ _ _ (Bounds.leftLeCommonBound k l) later))
+          ((\bysub(N.Nat^, { l: N.Nat^ \where Metric.LimitControl Geometry.metric t y h l }, l)) j (Nat.leTrans _ _ _ (Bounds.rightLeCommonBound k l) later)))))
+};
+\definition addBound[a, b, x, y: Space]: R.Le (Geometry.metric.distance (L2.add a b) (L2.add x y)) (Real.add (Geometry.metric.distance a x) (Geometry.metric.distance b y)) :=
+  R.leReplaceLeft _ _ _ (sym!{Real.Real} _ _ (congr!{Space Real.Real} L2.normValue _ _ (Normed.addSub a b x y))) (Geometry.triangle (Normed.sub a x) (Normed.sub b y));
+\definition add[s, t: N.Nat^ -> Space][x, y: Space]: Metric.Converges Geometry.metric s x -> Metric.Converges Geometry.metric t y ->
+  Metric.Converges Geometry.metric (\fun (k: N.Nat^) => L2.add (s k) (t k)) (L2.add x y) := \fun (left: _)(right: _)(epsilon: Real.Real)(positive: _) => \block {
+    \let h: Real.Real := Real.mul Real.half epsilon \then
+    \let hp: R.Lt Real.zero h := Estimates.halfOfPositive epsilon positive \then
+    \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where Metric.LimitControl Geometry.metric s x h k }) \by left h hp \then
+    \takefrom l: \Cast[N.Nat^] ({ l: N.Nat^ \where Metric.LimitControl Geometry.metric t y h l }) \by right h hp \then
+    \return Logic.existsIntro[N.Nat^, { j: N.Nat^ \where Metric.LimitControl Geometry.metric (\fun (k: N.Nat^) => L2.add (s k) (t k)) (L2.add x y) epsilon j }] (Bounds.commonBound k l)
+      (\fun (j: N.Nat^)(later: _) => R.leLtTrans _ _ _ (addBound (s j) (t j) x y)
+        (R.ltReplaceRight _ _ _ (Estimates.halfTwice epsilon) (Estimates.addLt _ _ _ _
+          ((\bysub(N.Nat^, { k: N.Nat^ \where Metric.LimitControl Geometry.metric s x h k }, k)) j (Nat.leTrans _ _ _ (Bounds.leftLeCommonBound k l) later))
+          ((\bysub(N.Nat^, { l: N.Nat^ \where Metric.LimitControl Geometry.metric t y h l }, l)) j (Nat.leTrans _ _ _ (Bounds.rightLeCommonBound k l) later)))))
+};
+\import linear_algebra.Commutative[K := C.Complex, scalarRing := std.Alg[].Field[].fieldAsCommutativeRing C.Complex C.Algebra[].field].Laws[V := Space, space := Vector.space] \as VL;
+\definition scaleDistance[c: C.Complex][x, y: Space]: Geometry.metric.distance (L2.scale c x) (L2.scale c y) = Real.mul (Absolute.abs c) (Geometry.metric.distance x y) :=
+  trans!{Real.Real} _ _ _ (congr!{Space Real.Real} L2.normValue _ _ (sym!{Space} _ _ (trans!{Space} _ _ _ (Vector.vectorAdd c x (L2.neg y)) (congr!{Space Space} (L2.add (L2.scale c x)) _ _ (VL.scaleNegative c y))))) (Geometry.homogeneous c (Normed.sub x y));
+\definition scale[c: C.Complex][s: N.Nat^ -> Space][x: Space]: Metric.Converges Geometry.metric s x -> Metric.Converges Geometry.metric (\fun (k: N.Nat^) => L2.scale c (s k)) (L2.scale c x) := \fun (limit: _)(epsilon: Real.Real)(positive: _) => \block {
+  \let q: Real.Real := Product.coefficient (Absolute.abs c) Real.zero \then
+  \let qp: R.Lt Real.zero q := Product.coefficientPositive (Absolute.abs c) Real.zero \then
+  \let delta: Real.Real := Product.radius q epsilon \then
+  \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where Metric.LimitControl Geometry.metric s x delta k }) \by limit delta (Product.radiusPositive q epsilon qp positive) \then
+  \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where Metric.LimitControl Geometry.metric (\fun (k: N.Nat^) => L2.scale c (s k)) (L2.scale c x) epsilon k }] k
+    (\fun (j: N.Nat^)(later: _) => R.ltReplaceLeft _ _ _ (sym!{Real.Real} _ _ (scaleDistance c (s j) x))
+      (R.leLtTrans _ _ _ (R.leReplace _ _ _ _ (Laws.fieldMulComm _ _) (Laws.fieldMulComm _ _)
+        (Estimates.mulMonotone (Geometry.metric.distance (s j) x) (Absolute.abs c) q (Geometry.metric.nonnegative (s j) x)
+          (R.leReplaceLeft _ _ _ (Product.absOfNonnegative _ (Absolute.nonnegative c)) (Product.coefficientFirst (Absolute.abs c) Real.zero))))
+        (Order.ltTrans _ _ _ (Product.mulStrict q _ delta qp ((\bysub(N.Nat^, { k: N.Nat^ \where Metric.LimitControl Geometry.metric s x delta k }, k)) j later)) (Product.radiusSmall q epsilon qp positive))))
+};
+\definition isometry[map: Space -> Space][preserves: \forall (x, y: Space) -> Geometry.metric.distance (map x) (map y) = Geometry.metric.distance x y][s: N.Nat^ -> Space][x: Space]:
+  Metric.Converges Geometry.metric s x -> Metric.Converges Geometry.metric (\fun (k: N.Nat^) => map (s k)) (map x) := \fun (limit: _)(epsilon: Real.Real)(positive: _) => \block {
+  \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where Metric.LimitControl Geometry.metric s x epsilon k }) \by limit epsilon positive \then
+  \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where Metric.LimitControl Geometry.metric (\fun (k: N.Nat^) => map (s k)) (map x) epsilon k }] k
+    (\fun (j: N.Nat^)(later: _) => R.ltReplaceLeft _ _ _ (sym!{Real.Real} _ _ (preserves (s j) x)) ((\bysub(N.Nat^, { k: N.Nat^ \where Metric.LimitControl Geometry.metric s x epsilon k }, k)) j later))
+};

@@ -1,0 +1,78 @@
+\import \parent.Embedding[] \as Embedding;
+\import lp_spaces.Euclidean[n := n].Joint[] \as Joint;
+\import E.JointKernel[] \as JointKernel;
+\import functional_analysis.Measure[A := Fubini.PairPoint].Integral[mu := Fubini.measure] \as J;
+\import measure_convergence.On[A := Fubini.PairPoint, mu := Fubini.measure].Complex[] \as JC;
+\import lp_spaces.On[A := Fubini.PairPoint, mu := Fubini.measure].Complex[].Inner[] \as JInner;
+\import functional_analysis.Measure[A := Fubini.PairPoint].Functions[mu := Fubini.measure] \as JointFunctions;
+\definition transformed[f: S.Function]: S.Function := Transform.Preservation[].value f;
+\definition h: S.Function := transformed g;
+\definition raw: Fubini.complexJoint := JInner.fromComponents (JInner.Components {
+  function := \fun (p: Fubini.PairPoint) => D.mul (D.conj (S.value f (Fubini.first p))) (S.value h (Fubini.second p)),
+  real := J.Linear[].addRepresentative (Fubini.product (Integrability.representative f.real) (Integrability.representative h.real))
+    (Fubini.product (Integrability.representative f.imaginary) (Integrability.representative h.imaginary)),
+  imaginary := J.Linear[].addRepresentative (Fubini.product (Integrability.representative f.real) (Integrability.representative h.imaginary))
+    (J.Negation[].representative (Fubini.product (Integrability.representative f.imaginary) (Integrability.representative h.real))),
+  realLaw := \fun (p: Fubini.PairPoint) => trans!{Real.Real} _ _ _
+    (congr!{Real.Real Real.Real} (Real.sub (Real.mul (C.re (S.value f (Fubini.first p))) (C.re (S.value h (Fubini.second p))))) _ _
+      (Laws.fieldMulNegLeft (C.im (S.value f (Fubini.first p))) (C.im (S.value h (Fubini.second p))))) (Algebra.subNeg _ _),
+  imaginaryLaw := \fun (p: Fubini.PairPoint) => congr!{Real.Real Real.Real}
+    (Real.add (Real.mul (C.re (S.value f (Fubini.first p))) (C.im (S.value h (Fubini.second p))))) _ _
+    (Laws.fieldMulNegLeft (C.im (S.value f (Fubini.first p))) (C.re (S.value h (Fubini.second p)))),
+});
+\definition phase: Fubini.Phase := Fubini.Phase {
+  function := \fun (p: Fubini.PairPoint) => D.conj (JointKernel.function p),
+  measurable := Fubini.Measurable[\fun (p: Fubini.PairPoint) => D.conj (JointKernel.function p)] {
+    real := JointKernel.measurable.real,
+    imaginary := JointFunctions.negMeasurable _ JointKernel.measurable.imaginary,
+  },
+  bound := \fun (p: Fubini.PairPoint) => R.leReplaceLeft _ _ _ (sym!{Real.Real} _ _ (Absolute.conjugate (JointKernel.function p))) (JointKernel.phase.bound p),
+};
+\definition joint: Fubini.complexJoint := Fubini.PhaseProduct[f := raw, phase := phase].value;
+\definition mass: Real.Real := Normalization.gaussianMass n;
+\definition massSquared: Real.Real := Real.mul mass mass;
+\definition spatialProduct: CI.Representatives := Inner.product (Embedding.representative f) (Embedding.representative g);
+\definition frequencyProduct: CI.Representatives := Inner.product (Embedding.representative (transformed f)) (Embedding.representative h);
+\definition firstSection[x: Point]: CI.Representatives := CI.complexScalarRepresentative (D.conj (S.value f x)) (Integral.section (Integrability.complex h) (Coordinates.negPoint x));
+\definition firstOuter: CI.Representatives := CI.scalarRepresentative massSquared spatialProduct;
+\definition firstFamily: Fubini.Family[joint] := Fubini.Family[joint] {
+  sections := firstSection, outer := firstOuter,
+  sectionValues := \fun (x, y: Point) => eq_reason_in!{C.Complex _
+    "=" _ "by" { congr!{C.Complex C.Complex} (\fun (z: C.Complex) => D.mul (D.conj (S.value f x)) (D.mul (S.value h y) z)) _ _
+      (trans!{C.Complex} _ _ _ (Kernel.symmetric y (Coordinates.negPoint x)) (Kernel.negative x y)) }
+    "=" _ "by" { sym!{C.Complex} _ _ (CL.mulAssoc _ _ _) }
+  },
+  outerValues := \fun (x: Point) => sym!{C.Complex} _ _ (eq_reason_in!{C.Complex _
+    "=" _ "by" { CI.integralComplexScalar (D.conj (S.value f x)) (Integral.section (Integrability.complex h) (Coordinates.negPoint x)) }
+    "=" _ "by" { congr!{C.Complex C.Complex} (D.mul (D.conj (S.value f x))) _ _ (Inversion.double g x) }
+    "=" _ "by" { Scalars.scaleRight massSquared (D.conj (S.value f x)) (S.value g x) }
+  }),
+};
+\definition secondSection[xi: Point]: CI.Representatives := CI.complexScalarRepresentative (S.value h xi) (Inner.conjugate (Integral.section (Integrability.complex f) xi));
+\definition secondFamily: Fubini.Family[Fubini.Transpose[f := joint].value] := Fubini.Family[Fubini.Transpose[f := joint].value] {
+  sections := secondSection, outer := frequencyProduct,
+  sectionValues := \fun (xi, x: Point) => eq_reason_in!{C.Complex _
+    "=" _ "by" { congr!{C.Complex C.Complex} (D.mul (S.value h xi)) _ _ (CL.conjMul (S.value f x) (Kernel.value x xi)) }
+    "=" _ "by" { CL.mulComm _ _ }
+    "=" _ "by" { CL.mulAssoc _ _ _ }
+    "=" _ "by" { congr!{C.Complex C.Complex} (D.mul (D.conj (S.value f x))) _ _ (CL.mulComm _ _) }
+    "=" _ "by" { sym!{C.Complex} _ _ (CL.mulAssoc _ _ _) }
+  },
+  outerValues := \fun (xi: Point) => sym!{C.Complex} _ _ (eq_reason_in!{C.Complex _
+    "=" _ "by" { CI.integralComplexScalar (S.value h xi) (Inner.conjugate (Integral.section (Integrability.complex f) xi)) }
+    "=" _ "by" { congr!{C.Complex C.Complex} (D.mul (S.value h xi)) _ _ (Inner.integralConjugate (Integral.section (Integrability.complex f) xi)) }
+    "=" _ "by" { CL.mulComm _ _ }
+  }),
+};
+\definition integral: CI.integral frequencyProduct = D.scale massSquared (CI.integral spatialProduct) := eq_reason_in!{C.Complex _
+  "=" _ "by" { sym!{C.Complex} _ _ (Fubini.exchange Fubini.Transpose[f := joint].value secondFamily) }
+  "=" _ "by" { Fubini.Transpose[f := joint].integral }
+  "=" _ "by" { Fubini.exchange joint firstFamily }
+  "=" _ "by" { CI.integralScalar massSquared spatialProduct }
+};
+\definition law: Inner.value (Embedding.value (transformed f)) (Embedding.value (transformed g)) =
+  D.scale massSquared (Inner.value (Embedding.value f) (Embedding.value g)) := eq_reason_in!{C.Complex _
+  "=" _ "by" { Inner.onClass (Embedding.representative (transformed f)) (Embedding.representative (transformed g)) }
+  "=" _ "by" { integral }
+  "=" _ "by" { congr!{C.Complex C.Complex} (D.scale massSquared) _ _ (sym!{C.Complex} _ _ (Inner.onClass (Embedding.representative f) (Embedding.representative g))) }
+};

@@ -1,0 +1,27 @@
+\import \parent.Embedding[] \as Embedding;
+\import \parent.Unitary[] \as U;
+\import \parent.Schwartz[] \as Schwartz;
+\import \parent.Weights[].Integer[m := m] \as Weight;
+\import \parent.Weighted[weight := Weight.value] \as W;
+\import Transform.Preservation[] \as P;
+\definition multiplier[f: S.Function][xi: Point]: S.value (Schwartz.forward (P.iterate f m)) xi = D.scale (E.weight m xi) (S.value (Schwartz.forward f) xi) := eq_reason_in!{C.Complex _
+  "=" _ "by" { congr!{C.Complex C.Complex} (D.scale Schwartz.coefficient) _ _ (P.moment f xi m) }
+  "=" _ "by" { Scalars.scaleCompose _ _ _ }
+  "=" _ "by" { congr!{Real.Real C.Complex} (\fun (a: Real.Real) => D.scale a (Transform.function f xi)) _ _ (Laws.fieldMulComm _ _) }
+  "=" _ "by" { sym!{C.Complex} _ _ (Scalars.scaleCompose _ _ _) }
+};
+\definition input[f: S.Function]: W.Input := W.Input {
+  frequency := Embedding.representative (Schwartz.forward f), weighted := Embedding.representative (Schwartz.forward (P.iterate f m)), law := multiplier f,
+};
+\definition ofSchwartz[f: S.Function]: W.Vector := W.ofFunction (input f);
+\definition physical[f: S.Function]: W.physical (ofSchwartz f) = Embedding.value f := eq_reason_in!{Space _
+  "=" _ "by" { W.inputPhysical (input f) }
+  "=" _ "by" { congr!{Space Space} U.backward _ _ (sym!{Space} _ _ (U.onSchwartz f)) }
+  "=" _ "by" { U.leftInverse (Embedding.value f) }
+};
+\definition norm[f: S.Function]: W.norm.realNorm.norm (ofSchwartz f) = L2.normValue (Embedding.value (P.iterate f m)) := eq_reason_in!{Real.Real _
+  "=" _ "by" { congr!{Space Real.Real} L2.normValue _ _ (sym!{Space} _ _ (U.onSchwartz (P.iterate f m))) }
+  "=" _ "by" { U.norm (Embedding.value (P.iterate f m)) }
+};
+\definition lower[f: S.Function]: R.Le (L2.normValue (Embedding.value f)) (W.norm.realNorm.norm (ofSchwartz f)) := R.leReplaceLeft _ _ _
+  (congr!{Space Real.Real} L2.normValue _ _ (physical f)) (W.controlsPhysical (ofSchwartz f));

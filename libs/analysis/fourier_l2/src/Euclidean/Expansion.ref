@@ -1,0 +1,77 @@
+\import \parent.Embedding[] \as Embedding;
+\import \parent.Schwartz[] \as Schwartz;
+\import \parent.Unitary[] \as U;
+\import Transform.Preservation[] \as P;
+\import linear_algebra.Commutative[K := C.Complex, scalarRing := std.Alg[].Field[].fieldAsCommutativeRing C.Complex C.Algebra[].field].Laws[V := Space, space := Vector.space] \as VL;
+\definition value: N.Nat^ -> S.Function -> S.Function := \induction (m: N.Nat^) \return S.Function -> S.Function \with {
+  | zero: \fun (f: S.Function) => f
+  | succ: \fun (m: N.Nat^)(previous: S.Function -> S.Function)(f: S.Function) => S.add (previous f)
+    (P.sum n (\fun (i: E.Coordinate) => S.realScale (Real.neg Real.one) (previous (S.partial (S.partial f i) i))))
+};
+\definition coefficient[c: Real.Real][xi: Point]: Real.add c (Sum.sum n (\fun (i: E.Coordinate) => Real.mul c (Real.mul (xi i) (xi i)))) = Real.mul (E.weightBase xi) c := eq_reason_in!{Real.Real _
+  "=" _ "by" { congr!{Real.Real Real.Real} (Real.add c) _ _ (Sum.scalar n c (\fun (i: E.Coordinate) => Real.mul (xi i) (xi i))) }
+  "=" _ "by" { congr!{Real.Real Real.Real} (\fun (a: Real.Real) => Real.add a (Real.mul c (E.radiusSquared xi))) _ _ (sym!{Real.Real} _ _ (Algebra.mulOneRight c)) }
+  "=" _ "by" { sym!{Real.Real} _ _ (Laws.fieldMulAdd c Real.one (E.radiusSquared xi)) }
+  "=" _ "by" { Laws.fieldMulComm _ _ }
+};
+\definition negativeMoment[f, h: S.Function][i: E.Coordinate][xi: Point][c: Real.Real]: Transform.function h xi = D.scale c (Transform.function (S.partial (S.partial f i) i) xi) ->
+  Transform.function (S.realScale (Real.neg Real.one) h) xi = D.scale (Real.mul c (Real.mul (xi i) (xi i))) (Transform.function f xi) := \fun (law: _) => eq_reason_in!{C.Complex _
+    "=" _ "by" { Transform.Identities[].realScalar (Real.neg Real.one) h xi }
+    "=" _ "by" { congr!{C.Complex C.Complex} (D.scale (Real.neg Real.one)) _ _ law }
+    "=" _ "by" { congr!{C.Complex C.Complex} (\fun (z: C.Complex) => D.scale (Real.neg Real.one) (D.scale c z)) _ _ (Transform.Identities[].secondDerivative f xi i) }
+    "=" _ "by" { congr!{C.Complex C.Complex} (D.scale (Real.neg Real.one)) _ _ (Scalars.scaleCompose _ _ _) }
+    "=" _ "by" { Scalars.scaleCompose _ _ _ }
+    "=" _ "by" { congr!{Real.Real C.Complex} (\fun (a: Real.Real) => D.scale a (Transform.function f xi)) _ _
+      (trans!{Real.Real} _ _ _ (Algebra.mulSwap (Real.neg Real.one) c (Real.neg (Real.mul (xi i) (xi i))))
+        (congr!{Real.Real Real.Real} (Real.mul c) _ _ (trans!{Real.Real} _ _ _ (Laws.fieldMulNegBoth Real.one (Real.mul (xi i) (xi i))) (Laws.fieldMulOneLeft _)))) }
+  };
+\definition moment: \forall (m: N.Nat^)(f: S.Function)(xi: Point) -> Transform.function (value m f) xi = D.scale (E.weight m xi) (Transform.function f xi) :=
+  \induction (m: N.Nat^) \return \forall (f: S.Function)(xi: Point) -> Transform.function (value m f) xi = D.scale (E.weight m xi) (Transform.function f xi) \with {
+    | zero: \fun (f: S.Function)(xi: Point) => sym!{C.Complex} _ _ (Scalars.scaleOne _)
+    | succ: \fun (m: N.Nat^)(previous: _)(f: S.Function)(xi: Point) => eq_reason_in!{C.Complex _
+      "=" _ "by" { Transform.Identities[].addition (value m f) (P.sum n (\fun (i: E.Coordinate) => S.realScale (Real.neg Real.one) (value m (S.partial (S.partial f i) i)))) xi }
+      "=" _ "by" { congr!{C.Complex C.Complex C.Complex} D.add _ _ _ _ (previous f xi)
+        (P.sumScalar n (\fun (i: E.Coordinate) => S.realScale (Real.neg Real.one) (value m (S.partial (S.partial f i) i)))
+          (\fun (i: E.Coordinate) => Real.mul (E.weight m xi) (Real.mul (xi i) (xi i))) xi (Transform.function f xi)
+          (\fun (i: E.Coordinate) => negativeMoment f (value m (S.partial (S.partial f i) i)) i xi (E.weight m xi) (previous (S.partial (S.partial f i) i) xi))) }
+      "=" _ "by" { Scalars.scaleAdd _ _ _ }
+      "=" _ "by" { congr!{Real.Real C.Complex} (\fun (a: Real.Real) => D.scale a (Transform.function f xi)) _ _ (coefficient (E.weight m xi) xi) }
+    }
+  };
+\definition agrees[m: N.Nat^][f: S.Function]: Embedding.value (value m f) = Embedding.value (P.iterate f m) := U.injective _ _ (eq_reason_in!{Space _
+  "=" _ "by" { U.onSchwartz (value m f) }
+  "=" _ "by" { Embedding.pointwise (Schwartz.forward (value m f)) (Schwartz.forward (P.iterate f m))
+    (\fun (xi: Point) => congr!{C.Complex C.Complex} (D.scale Schwartz.coefficient) _ _ (trans!{C.Complex} _ _ _ (moment m f xi) (sym!{C.Complex} _ _ (P.moment f xi m)))) }
+  "=" _ "by" { sym!{Space} _ _ (U.onSchwartz (P.iterate f m)) }
+});
+\definition norm[f: S.Function]: Real.Real := L2.normValue (Embedding.value f);
+\definition normAdd[f, g: S.Function]: R.Le (norm (S.add f g)) (Real.add (norm f) (norm g)) := R.leReplaceLeft _ _ _
+  (sym!{Real.Real} _ _ (congr!{Space Real.Real} L2.normValue _ _ (Embedding.add f g))) (Geometry.triangle (Embedding.value f) (Embedding.value g));
+\definition normNegative[f: S.Function]: norm (S.realScale (Real.neg Real.one) f) = norm f := eq_reason_in!{Real.Real _
+  "=" _ "by" { congr!{Space Real.Real} L2.normValue _ _ (Embedding.realScale (Real.neg Real.one) f) }
+  "=" _ "by" { congr!{C.Complex Real.Real} (\fun (c: C.Complex) => L2.normValue (L2.scale c (Embedding.value f))) _ _ (CL.ext _ _ (\refl(Real.neg Real.one)) (sym!{Real.Real} _ _ Laws.negZero)) }
+  "=" _ "by" { congr!{Space Real.Real} L2.normValue _ _ (VL.minusOneScale (Embedding.value f)) }
+  "=" _ "by" { Normed.normNegative Geometry.norm.realNorm (Embedding.value f) }
+};
+\definition normZero: norm S.zero = Real.zero := trans!{Real.Real} _ _ _ (congr!{Space Real.Real} L2.normValue _ _
+  (L2.classPointwise (Embedding.representative S.zero) L2.zeroRepresentative (\fun (x: Point) => \refl(D.zero)))) Geometry.normZero;
+\definition sumNorm: \forall (k: N.Nat^)(f: Fin.Fin k -> S.Function) -> R.Le (norm (P.sum k f)) (Sum.sum k (\fun (i: Fin.Fin k) => norm (f i))) :=
+  \induction (k: N.Nat^) \return \forall (f: Fin.Fin k -> S.Function) -> R.Le (norm (P.sum k f)) (Sum.sum k (\fun (i: Fin.Fin k) => norm (f i))) \with {
+    | zero: \fun (f: _) => R.leReplaceLeft _ _ _ (sym!{Real.Real} _ _ normZero) (R.leRefl Real.zero)
+    | succ: \fun (k: N.Nat^)(previous: _)(f: _) => R.leTrans _ _ _ (normAdd (f (Fin.zero k)) (P.sum k (\fun (i: Fin.Fin k) => f (Fin.succ k i))))
+      (Laws.addMonotoneLeft _ _ (norm (f (Fin.zero k))) (previous (\fun (i: Fin.Fin k) => f (Fin.succ k i))))
+  };
+\definition derivativeSum: N.Nat^ -> S.Function -> Real.Real := \induction (m: N.Nat^) \return S.Function -> Real.Real \with {
+  | zero: norm
+  | succ: \fun (m: N.Nat^)(previous: S.Function -> Real.Real)(f: S.Function) => Real.add (previous f) (Sum.sum n (\fun (i: E.Coordinate) => previous (S.partial (S.partial f i) i)))
+};
+\definition upper: \forall (m: N.Nat^)(f: S.Function) -> R.Le (norm (value m f)) (derivativeSum m f) :=
+  \induction (m: N.Nat^) \return \forall (f: S.Function) -> R.Le (norm (value m f)) (derivativeSum m f) \with {
+    | zero: \fun (f: S.Function) => R.leRefl (norm f)
+    | succ: \fun (m: N.Nat^)(previous: _)(f: S.Function) => R.leTrans _ _ _
+      (normAdd (value m f) (P.sum n (\fun (i: E.Coordinate) => S.realScale (Real.neg Real.one) (value m (S.partial (S.partial f i) i)))))
+      (Estimates.addLe _ _ _ _ (previous f) (R.leTrans _ _ _ (sumNorm n (\fun (i: E.Coordinate) => S.realScale (Real.neg Real.one) (value m (S.partial (S.partial f i) i))))
+        (Sum.comparison n _ _ (\fun (i: E.Coordinate) => R.leReplaceLeft _ _ _ (sym!{Real.Real} _ _ (normNegative (value m (S.partial (S.partial f i) i)))) (previous (S.partial (S.partial f i) i))))))
+  };
+\definition comparison[m: N.Nat^][f: S.Function]: R.Le (L2.normValue (\parent.Integer[m := m].ofSchwartz f)) (derivativeSum m f) :=
+  R.leReplaceLeft _ _ _ (sym!{Real.Real} _ _ (trans!{Real.Real} _ _ _ (\parent.Integer[m := m].norm f) (congr!{Space Real.Real} L2.normValue _ _ (sym!{Space} _ _ (agrees m f))))) (upper m f);

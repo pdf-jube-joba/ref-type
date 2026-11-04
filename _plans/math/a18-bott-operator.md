@@ -9,5 +9,5 @@
 
 ## 依存するタスク
 
-- [A07 Plancherel と Fourier 乗算作用素](a07-plancherel.md)
+- [A07 Plancherel と Fourier 乗算作用素](../../libs/analysis/fourier_l2/README.md)
 - [A11 Fredholm 作用素と指数](a11-fredholm-operators.md)

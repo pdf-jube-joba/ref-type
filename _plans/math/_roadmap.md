@@ -127,10 +127,11 @@ B02 の束演算は B07・C05 でも利用でき、A01 の後は A02 へ進め�
 | K02 CW cofibration と Puppe 列 | [puppe_sequences](../../libs/topology/puppe_sequences/README.md) |
 | K03 相対 K 群と負次数の完全列 | [relative_k_theory](../../libs/topology/relative_k_theory/README.md) |
 | K09 Bott 周期性と整数次数 | [periodic_k_theory](../../libs/topology/periodic_k_theory/README.md) |
+| A07 Plancherel と Fourier 乗算作用素 | [fourier_l2](../../libs/analysis/fourier_l2/README.md) |
 
 ## タスク一覧
 
-未完了76件、概算合計397千行。
+未完了75件、概算合計393千行。
 
 ### 線形代数と特性級数
 
@@ -228,7 +229,7 @@ B02 の束演算は B07・C05 でも利用でき、A01 の後は A02 へ進め�
 
 ### 測度・関数解析・楕円作用素
 
-19件、概算103千行。
+18件、概算99千行。
 
 | タスク | 概算（千行） |
 | --- | ---: |
@@ -238,7 +239,6 @@ B02 の束演算は B07・C05 でも利用でき、A01 の後は A02 へ進め�
 | [A04 多重積分の変数変換](a04-change-of-variables.md) | 6 |
 | [A05 Lp 空間のノルムと完備性](a05-lp-completeness.md) | 5 |
 | [A06 Schwartz 空間と Fourier 変換](a06-schwartz-fourier.md) | 6 |
-| [A07 Plancherel と Fourier 乗算作用素](a07-plancherel.md) | 4 |
 | [A08 分布と弱微分](a08-distributions.md) | 5 |
 | [A09 Euclid 空間の Sobolev 評価](a09-euclidean-sobolev.md) | 6 |
 | [A10 Rellich コンパクト性](a10-rellich.md) | 5 |
