@@ -1,6 +1,6 @@
 # G04 の局所基礎の検査記録
 
-大域的な横断的押し込みの検査は [global/README.md](global/README.md)、半空間の局所逆写像を追加した後の検査は [halfspace/README.md](halfspace/README.md)、大域 collar 同相の検査は [embedding/README.md](embedding/README.md) にある。
+大域的な横断的押し込みの検査は [global/README.md](global/README.md)、半空間の局所逆写像を追加した後の検査は [halfspace/README.md](halfspace/README.md)、大域 collar 同相の検査は [embedding/README.md](embedding/README.md)、その滑らかな逆写像・近傍内への制限・比較の検査は [smooth/README.md](smooth/README.md) にある。
 
 この記録の数学ソースは `8b314683331496400104d0de8cb29f7c0a500f90` であり、G04 全体の完成を表すものではない。
 基点は `ed1af945bfdfdc1849bf1919317e3ce422b1ac1f` である。
