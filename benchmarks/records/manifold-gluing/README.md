@@ -41,3 +41,5 @@ Rust は `rustc 1.99.1 (58cf8f9c3 2026-10-13)`、checker の SHA-256 は `8b62b7
 境界のない貼り合わせと doubleの検査は [double/README.md](double/README.md) にある。
 
 collar を保つ写像の貼り合わせの検査は [maps/README.md](maps/README.md) にある。
+
+台を持つ丸めの正規モデルと境界向きの符号の検査は [roundmodel/README.md](roundmodel/README.md) にある。
