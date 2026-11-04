@@ -24,7 +24,10 @@ G04 全体は未完了である。
 `ConeAddition` は内向き速度の和と、厳密な内向き性の保存を証明する。
 `TransverseHomotopy` は局所的な横断性をコンパクトな境界全体へ大域化し、`GlobalPush.existsTransverse` は実際の bump による局所族を適用してその存在を証明する。
 
-次の段階は、`InwardNeighborhood` の境界への制限の初期微分が同型であること、半空間を保つ局所逆写像、局所 collar の証明である。
+`BoundaryDifferential` は境界包含の微分の単射性と、その像が接境界全体であることを証明する。
+`HalfSpaceJet` は境界超平面を固定する滑らかな座標写像の微分とその逆を構成する。
+`HalfSpaceSigns` は法線偏微分の連続性と平均値の定理から符号を保つ近傍を構成し、`HalfSpaceInverse` は半空間を保つ実際の局所微分同相を構成する。
+次の段階は、`InwardNeighborhood` の境界への制限について座標表示が境界超平面を固定することと、初期の法線微分が正であることを証明し、この局所逆写像を適用することである。
 `CompactStrip.On.existsUniform` はコンパクトな境界上の単射性を一様化する補題として利用できる。
 局所逆写像の定義域の被覆にも tube lemma を適用し、像が開で逆写像が滑らかになる共通の幅を選ぶ必要がある。
 

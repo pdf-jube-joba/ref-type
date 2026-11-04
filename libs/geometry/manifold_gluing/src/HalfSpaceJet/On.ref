@@ -1,0 +1,56 @@
+\import calculus.LinearMap[n := n, m := dimension].On[U := LeftOpen.whole, L := Linear.horizontal] \as Horizontal;
+\import SliceMaps.Preimage[U := LeftOpen.whole, W := Open.whole, V := U, f := Horizontal.map] \as Preimage;
+\definition rightZero: Blocks.right a = zero := \axiom:funext(Blocks.right a, zero, \fun (i: One.Index) => trans!{S.Real} _ _ _
+  (congr!{One.Index S.Real} (Blocks.right a) _ _ (Fin.singletonValue i)) zeroNormal);
+\definition recovery: Linear.horizontal.apply (Blocks.left a) = (a \of Point) := trans!{Point} _ _ _
+  (congr!{{One.Index -> S.Real} Point} (Blocks.join (Blocks.left a)) _ _ (sym!{{One.Index -> S.Real}} _ _ rightZero)) (Blocks.recover a);
+\definition source: LeftOpen.Carrier Preimage.domain := \into[LeftPoint](Blocks.left a, Preimage.domain.points) \by {
+  Preimage.intro (\into[LeftPoint](Blocks.left a, LeftOpen.whole.points) \by { \refl(Blocks.left a) })
+    (\idelim (a \of Point) = Linear.horizontal.apply (Blocks.left a) \with p: Point => \In[Point] U.points p \by {
+      base: \bysub(Point, U.points, a), equality: sym!{Point} _ _ recovery
+    })
+};
+\import SliceMaps.Composition[U := Preimage.domain, V := U, f := Preimage.map].After[l := dimension, W := Open.whole, g := f] \as Slice;
+\import calculus.LinearMap[n := n, m := dimension].On[U := Preimage.domain, L := Linear.horizontal] \as Identity;
+\definition sliceZero: \forall (u: LeftOpen.Carrier Preimage.domain) -> Preimage.output u normal = S.zero :=
+  \fun (u: LeftOpen.Carrier Preimage.domain) => congr!{{One.Index -> S.Real} S.Real} (\fun (p: One.Index -> S.Real) => p One.index) _ _ (Blocks.rightJoin u zero);
+\definition sliceFixed: \forall (u: LeftOpen.Carrier Preimage.domain) -> SliceMaps.apply Preimage.domain Open.whole Slice.compose u = SliceMaps.apply Preimage.domain Open.whole Identity.map u :=
+  \fun (u: LeftOpen.Carrier Preimage.domain) => fixed (Preimage.output u) (sliceZero u);
+\import SliceMaps.Differential[U := Preimage.domain, V := Open.whole, f := Slice.compose, a := source] \as SliceDerivative;
+\definition sliceDerivative: SliceDerivative.value = Linear.horizontal := trans!{{calculus.Vector[n := n, m := dimension].LinearMap}} _ _ _
+  (SliceDerivative.Compare[W := Open.whole, g := Identity.map].equal
+    (\axiom:funext((\fun (u: LeftOpen.Carrier Preimage.domain) => SliceMaps.apply Preimage.domain Open.whole Slice.compose u),
+      (\fun (u: LeftOpen.Carrier Preimage.domain) => SliceMaps.apply Preimage.domain Open.whole Identity.map u), sliceFixed)))
+  (Identity.differential source);
+\definition center: Preimage.output source = a := boundary_manifolds.Refinement[A := Point].equality U.points (Preimage.output source) a recovery;
+\import Maps.Differential[U := U, V := Open.whole, f := f, a := a] \as Derivative;
+\definition derivative: calculus.Vector[n := dimension, m := dimension].LinearMap := Derivative.value;
+\definition inner: SliceMaps.Differential[U := Preimage.domain, V := U, f := Preimage.map, a := source].value = Linear.horizontal :=
+  trans!{{calculus.Vector[n := n, m := dimension].LinearMap}} _ _ _ (Preimage.differential source) (Horizontal.differential (Preimage.input source));
+\definition outer: Maps.Differential[U := U, V := Open.whole, f := f, a := Preimage.output source].value = derivative :=
+  congr!{{Open.Carrier U} {calculus.Vector[n := dimension, m := dimension].LinearMap}}
+    (\fun (p: Open.Carrier U) => Maps.Differential[U := U, V := Open.whole, f := f, a := p].value) _ _ center;
+\definition horizontal: \forall (v: LeftPoint) -> derivative.apply (Linear.horizontal.apply v) = Linear.horizontal.apply v :=
+  \fun (v: LeftPoint) => trans!{Point} _ _ _
+    (sym!{Point} _ _ (trans!{Point} _ _ _
+      (congr!{{calculus.Vector[n := n, m := dimension].LinearMap} Point} (\fun (d: calculus.Vector[n := n, m := dimension].LinearMap) => d.apply v) _ _ (Slice.At[a := source].jacobian))
+      (congr!{{calculus.Vector[n := dimension, m := dimension].LinearMap} {calculus.Vector[n := n, m := dimension].LinearMap} Point}
+        (\fun (d: calculus.Vector[n := dimension, m := dimension].LinearMap)(j: calculus.Vector[n := n, m := dimension].LinearMap) => d.apply (j.apply v)) _ _ _ _ outer inner)))
+    (congr!{{calculus.Vector[n := n, m := dimension].LinearMap} Point} (\fun (d: calculus.Vector[n := n, m := dimension].LinearMap) => d.apply v) _ _ sliceDerivative);
+\definition timeUnit: Point := Linear.vertical.apply one;
+\definition velocity: Point := derivative.apply timeUnit;
+\definition timeScalar[w: Point]: S.Real := Blocks.right w One.index;
+\definition rightAsScale: \forall (w: Point) -> Blocks.right w = TimeCoordinates.scale (timeScalar w) one :=
+  \fun (w: Point) => \axiom:funext(Blocks.right w, TimeCoordinates.scale (timeScalar w) one, \fun (i: One.Index) => trans!{S.Real} _ _ _
+    (congr!{One.Index S.Real} (Blocks.right w) _ _ (Fin.singletonValue i)) (sym!{S.Real} _ _ (Algebra.mulOneRight (timeScalar w))));
+\definition verticalAsScale: \forall (w: Point) -> Linear.vertical.apply (Blocks.right w) = Coordinates.scale (timeScalar w) timeUnit :=
+  \fun (w: Point) => trans!{Point} _ _ _ (congr!{{One.Index -> S.Real} Point} Linear.vertical.apply _ _ (rightAsScale w)) (Linear.vertical.preservesScale (timeScalar w) one);
+\definition formula: \forall (w: Point) -> derivative.apply w = Coordinates.addPoint (Linear.horizontal.apply (Blocks.left w)) (Coordinates.scale (timeScalar w) velocity) :=
+  \fun (w: Point) => trans!{Point} _ _ _ (congr!{Point Point} derivative.apply _ _ (sym!{Point} _ _ (Linear.decomposition w)))
+    (trans!{Point} _ _ _ (derivative.preservesAdd (Linear.horizontal.apply (Blocks.left w)) (Linear.vertical.apply (Blocks.right w)))
+      (congr!{Point Point Point} Coordinates.addPoint _ _ _ _ (horizontal (Blocks.left w))
+        (trans!{Point} _ _ _ (congr!{Point Point} derivative.apply _ _ (verticalAsScale w)) (derivative.preservesScale (timeScalar w) timeUnit))));
+\definition coefficient: S.Real := velocity normal;
+\module Inverse(nonzero: Logic.Not (coefficient = S.zero));
+\definition localInverse: Logic.Not (coefficient = S.zero) -> \exists inverse_implicit.Euclidean[n := dimension].LocalInverse[U, f, a] :=
+  \fun (nonzero: _) => inverse_implicit.Euclidean[n := dimension].InverseFunction[U := U, f := f, a := a].localExistence Inverse[nonzero := nonzero].nonsingular;

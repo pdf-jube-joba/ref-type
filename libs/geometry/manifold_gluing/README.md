@@ -22,6 +22,10 @@ G04 の実装途中の package である。
 | `SmoothChainRule` / `ProductDifferential` / `PairDifferential` | 角付き多様体の微分の連鎖律、積の接ベクトルの分解、積へ値を取る写像の微分 |
 | `HomotopyCompositionVelocity` / `ConeAddition` | 合成の初期速度が和であることと、内向き速度を加えたときの厳密な内向き性の保存 |
 | `TransverseHomotopy` | 局所的に横断的な押し込みが与えられた場合の、コンパクトな境界上の大域的な横断的押し込みへの合成 |
+| `BoundaryDifferential` | 境界包含の微分の単射性と、その像が境界に接する接ベクトル全体であること |
+| `HalfSpaceJet` | 境界超平面を固定する滑らかな写像の微分の明示式、法線方向の微分が非零の場合の実際の逆行列と局所逆写像 |
+| `HalfSpaceSigns` / `ScalarIncreasing` / `SectionIncreasing` | 正の法線偏微分から、平均値の定理を用いて法線座標の符号を保つ近傍を構成 |
+| `HalfSpaceInverse` | 境界超平面を固定し、初期の法線微分が正である写像の、半空間を保つ局所微分同相 |
 | `CompactStrip[T,B,X].On[...]` | コンパクトな底空間上で、初期単射性と零時刻付近の局所単射性から時間幅を一様化する定理 |
 | `TopologicalCollar.On.Of.Relative` | 既存の collar とコンパクトな境界について、指定された開近傍に入るパラメータ近傍の存在 |
 | `TopologicalCollar.On.Comparison` | 既存の二つの位相的 collar の像の間の、境界を固定する同相 |

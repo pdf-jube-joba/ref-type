@@ -1,0 +1,51 @@
+\import Inclusion.In[x := x, c := c, contains := contains] \as InclusionChart;
+\import Atlas.In[c := c] \as Face;
+\definition sourceChart: Domain.Chart := \into[SourceCharts.Chart](InclusionChart.left, Domain.Chart) \by {
+  Domain.ChartLaws[InclusionChart.left] { member := InclusionChart.sourceMember, contains := contains }
+};
+\definition targetChart: Codomain.Chart := \into[Charts.Chart](c, Codomain.Chart) \by {
+  Codomain.ChartLaws[c] { member := Atlas.member c, contains := contains }
+};
+\import boundary_manifolds.SmoothMap[n := n, m := Nat.add One.dimension n].Between[M := Inclusion.manifold, N := M].At[function := Inclusion.apply, left := sourceChart, right := targetChart, x := x, contains := Domain.contains sourceChart] \as Local;
+\definition extension: Local.Extension := Local.Extension {
+  neighborhood := InclusionChart.extension.neighborhood, included := InclusionChart.extension.included,
+  contains := InclusionChart.extension.contains, map := InclusionChart.extension.map,
+  inside := InclusionChart.extension.inside, agrees := InclusionChart.extension.agrees,
+};
+\import calculus.LinearMap[n := n, m := Nat.add One.dimension n].On[U := Face.image, L := Linear.horizontal] \as Horizontal;
+\definition derivative: Differential.InCharts[left := sourceChart, right := targetChart].jacobian = Linear.horizontal :=
+  trans!{{calculus.Vector[n := n, m := Nat.add One.dimension n].LinearMap}} _ _ _
+    (Local.ofExtension Differential.InCharts[left := sourceChart, right := targetChart].smooth extension)
+    (Horizontal.differential Local.Using[e := extension].center);
+\definition coordinates: \forall (v: Domain.Vector) -> Codomain.Coordinate[chart := targetChart].decode (apply v) = Linear.horizontal.apply (Domain.Coordinate[chart := sourceChart].decode v) :=
+  \fun (v: Domain.Vector) => trans!{Target.Point} _ _ _ (Differential.coordinates sourceChart targetChart v)
+    (congr!{{calculus.Vector[n := n, m := Nat.add One.dimension n].LinearMap} Target.Point}
+      (\fun (d: calculus.Vector[n := n, m := Nat.add One.dimension n].LinearMap) => d.apply (Domain.Coordinate[chart := sourceChart].decode v)) _ _ derivative);
+\definition zero: One.Index -> S.Real := \fun (i: One.Index) => S.zero;
+\definition normalZero: \forall (v: Domain.Vector) -> Codomain.Coordinate[chart := targetChart].decode (apply v) Boundary.normal = S.zero :=
+  \fun (v: Domain.Vector) => trans!{S.Real} _ _ _
+    (congr!{Target.Point S.Real} (\fun (w: Target.Point) => w Boundary.normal) _ _ (coordinates v))
+    (congr!{{One.Index -> S.Real} S.Real} (\fun (t: One.Index -> S.Real) => t One.index) _ _ (Blocks.rightJoin (Domain.Coordinate[chart := sourceChart].decode v) zero));
+\definition tangential: \forall (v: Domain.Vector) -> Codomain.Cones[].Tangential (apply v) :=
+  \fun (v: Domain.Vector) => Codomain.Cones[].Lineality[c := targetChart, v := apply v].toIntrinsic
+    (\fun (i: Target.Coordinate)(active: Target.Active c.constraints (Codomain.coordinate targetChart) i) =>
+      \idelim Boundary.normal = i \with j: Target.Coordinate => Codomain.Coordinate[chart := targetChart].decode (apply v) j = S.zero \by {
+        base: normalZero v, equality: sym!{Target.Coordinate} _ _ (\idelim c.constraints = Target.halfSpace Boundary.normal \with C: Target.Constraints => \In[Target.Coordinate] C i \by {
+          base: active.left, equality: Atlas.constraints c
+        })
+      });
+\definition injective: \forall (u, v: Domain.Vector) -> apply u = apply v -> u = v := \block {
+  \fun (u, v: Domain.Vector)(same: _) \then
+  \let raw: Domain.Coordinate[chart := sourceChart].decode u = Domain.Coordinate[chart := sourceChart].decode v := trans!{Source.Point} _ _ _
+    (sym!{Source.Point} _ _ (Blocks.leftJoin (Domain.Coordinate[chart := sourceChart].decode u) zero))
+    (trans!{Source.Point} _ _ _
+      (congr!{Target.Point Source.Point} Blocks.left _ _
+        (trans!{Target.Point} _ _ _ (sym!{Target.Point} _ _ (coordinates u))
+          (trans!{Target.Point} _ _ _ (congr!{{Codomain.Vector} Target.Point} Codomain.Coordinate[chart := targetChart].decode _ _ same) (coordinates v))))
+      (Blocks.leftJoin (Domain.Coordinate[chart := sourceChart].decode v) zero)) \then
+  \return trans!{{Domain.Vector}} _ _ _ (sym!{{Domain.Vector}} _ _ (Domain.Coordinate[chart := sourceChart].encodeDecode u))
+    (trans!{{Domain.Vector}} _ _ _ (congr!{Source.Point {Domain.Vector}} Domain.Coordinate[chart := sourceChart].encode _ _ raw) (Domain.Coordinate[chart := sourceChart].encodeDecode v))
+};
+\module Onto(v: Codomain.Vector, tangent: Codomain.Cones[].Tangential v);
+\definition onto: \forall (v: Codomain.Vector) -> Codomain.Cones[].Tangential v -> \exists ( u: Domain.Vector \where apply u = v ) :=
+  \fun (v: Codomain.Vector)(tangent: _) => Logic.existsIntro[Domain.Vector, { u: Domain.Vector \where apply u = v }] Onto[v := v, tangent := tangent].input Onto[v := v, tangent := tangent].law;

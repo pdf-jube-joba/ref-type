@@ -1,0 +1,68 @@
+\definition inverseScalar: S.Real := Laws.fieldInv coefficient;
+\definition scalar[w: Point]: S.Real := S.mul (w normal) inverseScalar;
+\definition scalarAdd: \forall (u, v: Point) -> scalar (Coordinates.addPoint u v) = S.add (scalar u) (scalar v) :=
+  \fun (u, v: Point) => Algebra.mulAddRight (u normal) (v normal) inverseScalar;
+\definition scalarScale: \forall (r: S.Real)(u: Point) -> scalar (Coordinates.scale r u) = S.mul r (scalar u) :=
+  \fun (r: S.Real)(u: Point) => Laws.fieldMulAssoc r (u normal) inverseScalar;
+\definition leftMap: calculus.Vector[n := dimension, m := n].LinearMap := calculus.Vector[n := dimension, m := n].LinearMap {
+  apply := \fun (w: Point)(i: Fin.Fin n) => S.sub (Blocks.left w i) (S.mul (scalar w) (Blocks.left velocity i)),
+  preservesAdd := \fun (u, v: Point) => \axiom:funext(
+    (\fun (i: Fin.Fin n) => S.sub (S.add (Blocks.left u i) (Blocks.left v i)) (S.mul (scalar (Coordinates.addPoint u v)) (Blocks.left velocity i))),
+    (\fun (i: Fin.Fin n) => S.add (S.sub (Blocks.left u i) (S.mul (scalar u) (Blocks.left velocity i))) (S.sub (Blocks.left v i) (S.mul (scalar v) (Blocks.left velocity i)))),
+    \fun (i: Fin.Fin n) => trans!{S.Real} _ _ _
+      (congr!{S.Real S.Real} (S.sub (S.add (Blocks.left u i) (Blocks.left v i))) _ _
+        (trans!{S.Real} _ _ _ (congr!{S.Real S.Real} (\fun (r: S.Real) => S.mul r (Blocks.left velocity i)) _ _ (scalarAdd u v))
+          (Algebra.mulAddRight (scalar u) (scalar v) (Blocks.left velocity i))))
+      (Algebra.subAdd (Blocks.left u i) (Blocks.left v i) (S.mul (scalar u) (Blocks.left velocity i)) (S.mul (scalar v) (Blocks.left velocity i)))),
+  preservesScale := \fun (r: S.Real)(u: Point) => \axiom:funext(
+    (\fun (i: Fin.Fin n) => S.sub (S.mul r (Blocks.left u i)) (S.mul (scalar (Coordinates.scale r u)) (Blocks.left velocity i))),
+    (\fun (i: Fin.Fin n) => S.mul r (S.sub (Blocks.left u i) (S.mul (scalar u) (Blocks.left velocity i)))),
+    \fun (i: Fin.Fin n) => trans!{S.Real} _ _ _
+      (congr!{S.Real S.Real} (S.sub (S.mul r (Blocks.left u i))) _ _
+        (trans!{S.Real} _ _ _ (congr!{S.Real S.Real} (\fun (s: S.Real) => S.mul s (Blocks.left velocity i)) _ _ (scalarScale r u))
+          (Laws.fieldMulAssoc r (scalar u) (Blocks.left velocity i))))
+      (sym!{S.Real} _ _ (Algebra.mulSub r (Blocks.left u i) (S.mul (scalar u) (Blocks.left velocity i))))),
+};
+\definition rightMap: calculus.Vector[n := dimension, m := One.dimension].LinearMap := calculus.Vector[n := dimension, m := One.dimension].LinearMap {
+  apply := \fun (w: Point)(i: One.Index) => scalar w,
+  preservesAdd := \fun (u, v: Point) => \axiom:funext((\fun (i: One.Index) => scalar (Coordinates.addPoint u v)),
+    (\fun (i: One.Index) => S.add (scalar u) (scalar v)), \fun (i: One.Index) => scalarAdd u v),
+  preservesScale := \fun (r: S.Real)(u: Point) => \axiom:funext((\fun (i: One.Index) => scalar (Coordinates.scale r u)),
+    (\fun (i: One.Index) => S.mul r (scalar u)), \fun (i: One.Index) => scalarScale r u),
+};
+\definition inverse: calculus.Vector[n := dimension, m := dimension].LinearMap := Linear.LinearPair[d := dimension, left := leftMap, right := rightMap].map;
+\definition left: \forall (w: Point) -> Blocks.left (inverse.apply w) = leftMap.apply w := \fun (w: Point) => Blocks.leftJoin (leftMap.apply w) (rightMap.apply w);
+\definition time: \forall (w: Point) -> timeScalar (inverse.apply w) = scalar w :=
+  \fun (w: Point) => congr!{{One.Index -> S.Real} S.Real} (\fun (t: One.Index -> S.Real) => t One.index) _ _ (Blocks.rightJoin (leftMap.apply w) (rightMap.apply w));
+\definition normalized: \forall (w: Point) -> S.mul (scalar w) coefficient = w normal :=
+  \fun (w: Point) => trans!{S.Real} _ _ _ (Laws.fieldMulAssoc (w normal) inverseScalar coefficient)
+    (trans!{S.Real} _ _ _ (congr!{S.Real S.Real} (S.mul (w normal)) _ _ (Laws.fieldInverseNonzero coefficient nonzero)) (Algebra.mulOneRight (w normal)));
+\definition cancel: \forall (x, y: S.Real) -> S.add (S.sub x y) y = x := \fun (x, y: S.Real) => trans!{S.Real} _ _ _ (Laws.addComm (S.sub x y) y) (Estimates.addSubCancel x y);
+\definition leftDerivative: \forall (w: Point) -> Blocks.left (derivative.apply (inverse.apply w)) = Blocks.left w :=
+  \fun (w: Point) => \axiom:funext(Blocks.left (derivative.apply (inverse.apply w)), Blocks.left w,
+    \fun (i: Fin.Fin n) => trans!{S.Real} _ _ _
+      (congr!{Point S.Real} (\fun (v: Point) => Blocks.left v i) _ _ (formula (inverse.apply w)))
+      (trans!{S.Real} _ _ _
+        (congr!{S.Real S.Real S.Real} S.add _ _ _ _
+          (trans!{S.Real} _ _ _
+            (congr!{LeftPoint S.Real} (\fun (v: LeftPoint) => v i) _ _ (Blocks.leftJoin (Blocks.left (inverse.apply w)) zero))
+            (congr!{LeftPoint S.Real} (\fun (v: LeftPoint) => v i) _ _ (left w)))
+          (congr!{S.Real S.Real} (\fun (r: S.Real) => S.mul r (Blocks.left velocity i)) _ _ (time w)))
+        (cancel (Blocks.left w i) (S.mul (scalar w) (Blocks.left velocity i)))));
+\definition normalDerivative: \forall (w: Point) -> derivative.apply (inverse.apply w) normal = w normal :=
+  \fun (w: Point) => trans!{S.Real} _ _ _ (congr!{Point S.Real} (\fun (v: Point) => v normal) _ _ (formula (inverse.apply w)))
+    (trans!{S.Real} _ _ _
+      (congr!{S.Real S.Real S.Real} S.add _ _ _ _
+        (congr!{{One.Index -> S.Real} S.Real} (\fun (t: One.Index -> S.Real) => t One.index) _ _ (Blocks.rightJoin (Blocks.left (inverse.apply w)) zero))
+        (congr!{S.Real S.Real} (\fun (r: S.Real) => S.mul r coefficient) _ _ (time w)))
+      (trans!{S.Real} _ _ _ (Laws.addZeroLeft (S.mul (scalar w) coefficient)) (normalized w)));
+\definition rightDerivative: \forall (w: Point) -> Blocks.right (derivative.apply (inverse.apply w)) = Blocks.right w :=
+  \fun (w: Point) => \axiom:funext(Blocks.right (derivative.apply (inverse.apply w)), Blocks.right w,
+    \fun (i: One.Index) => trans!{S.Real} _ _ _
+      (congr!{One.Index S.Real} (Blocks.right (derivative.apply (inverse.apply w))) _ _ (Fin.singletonValue i))
+      (trans!{S.Real} _ _ _ (normalDerivative w) (sym!{S.Real} _ _ (congr!{One.Index S.Real} (Blocks.right w) _ _ (Fin.singletonValue i)))));
+\definition right: \forall (w: Point) -> derivative.apply (inverse.apply w) = w :=
+  \fun (w: Point) => trans!{Point} _ _ _ (sym!{Point} _ _ (Blocks.recover (derivative.apply (inverse.apply w))))
+    (trans!{Point} _ _ _ (congr!{LeftPoint {One.Index -> S.Real} Point} Blocks.join _ _ _ _ (leftDerivative w) (rightDerivative w)) (Blocks.recover w));
+\definition nonsingular: inverse_implicit.Euclidean[n := dimension].InverseFunction[U := U, f := f, a := a].Nonsingular :=
+  inverse_implicit.Euclidean[n := dimension].OneSided[d := derivative, e := inverse].nonzero right;

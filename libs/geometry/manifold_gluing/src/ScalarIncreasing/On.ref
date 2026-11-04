@@ -1,0 +1,23 @@
+\import calculus.Real[].MeanValue[].Interval[a := a, b := b] \as MeanValue;
+\import calculus.Real[].Limit[].Topology[].Subset[S := metric_spaces.RealLine[].ClosedInterval a b] \as Local;
+\structure PositiveDerivative[c, d: S.Real]: \Prop := { derivative: Derivative.HasDerivativeAt f c d, positive: R.Lt S.zero d, };
+\definition strictly: R.Lt a b -> Local.ContinuousOn f -> (\forall (c: S.Real) -> MeanValue.Interior c -> \exists ( d: S.Real \where PositiveDerivative[c, d] )) -> R.Lt (f a) (f b) := \block {
+  \fun (ab: _)(continuous: _)(derivatives: _) \then
+  \let differentiable: MeanValue.DifferentiableOn f := \block {
+    \fun (c: S.Real)(inside: _) \then
+    \takefrom d: \Cast[S.Real] ({ d: S.Real \where PositiveDerivative[c, d] }) \by derivatives c inside \then
+    \return Logic.existsIntro[S.Real, { e: S.Real \where Derivative.HasDerivativeAt f c e }] d (\bysub(S.Real, { d: S.Real \where PositiveDerivative[c, d] }, d)).derivative
+  } \then
+  \takefrom c: \Cast[S.Real] ({ c: S.Real \where MeanValue.MeanValueResult[f, c] }) \by MeanValue.meanValue f ab continuous differentiable \then
+  \let witness: MeanValue.MeanValueResult[f, c] := \bysub(S.Real, { c: S.Real \where MeanValue.MeanValueResult[f, c] }, c) \then
+  \takefrom d: \Cast[S.Real] ({ d: S.Real \where PositiveDerivative[c, d] }) \by derivatives c witness.interior \then
+  \let law: PositiveDerivative[c, d] := \bysub(S.Real, { d: S.Real \where PositiveDerivative[c, d] }, d) \then
+  \let slope: MeanValue.secant f = (d \of S.Real) := Derivatives.unique f c (MeanValue.secant f) d witness.derivative law.derivative \then
+  \let increment: S.sub (f b) (f a) = S.mul d (S.sub b a) := trans!{S.Real} _ _ _
+    (sym!{S.Real} _ _ (Derivatives.slopeIncrement f a b (\fun (same: b = a) => Order.ltNotEq a b ab (sym!{S.Real} _ _ same))))
+    (congr!{S.Real S.Real} (\fun (r: S.Real) => S.mul r (S.sub b a)) _ _ slope) \then
+  \let positive: R.Lt S.zero (S.sub (f b) (f a)) := R.ltReplaceRight S.zero (S.mul d (S.sub b a)) (S.sub (f b) (f a)) (sym!{S.Real} _ _ increment)
+    (S.Estimates[].Product[].mulPositive d (S.sub b a) law.positive (metric_spaces.RealLine[].Rays[].subPositive b a ab)) \then
+  \return R.ltReplaceRight (f a) (S.add (f a) (S.sub (f b) (f a))) (f b) (S.Estimates[].addSubCancel (f b) (f a))
+    (R.ltReplaceLeft (S.add (f a) S.zero) (f a) _ (Laws.addZeroRight (f a)) (Laws.ltAddLeft (f a) S.zero (S.sub (f b) (f a)) positive))
+};

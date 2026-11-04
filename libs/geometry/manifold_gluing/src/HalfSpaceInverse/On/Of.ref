@@ -1,0 +1,22 @@
+\definition constraints: Model.Constraints := Model.halfSpace normal;
+\import boundary_manifolds.Dimension[n := dimension].Quadrant[C := constraints, U := patch.domain] \as Domain;
+\import boundary_manifolds.Dimension[n := dimension].Quadrant[C := constraints, U := patch.target] \as Target;
+\definition forwardPreserves: \forall (x: Domain.Point) -> Model.Nonnegative constraints (Maps.apply patch.domain patch.target patch.change.forward x) :=
+  \fun (x: Domain.Point) => Model.halfSpaceNonnegative normal (Maps.apply patch.domain patch.target patch.change.forward x)
+    ((patch.signs x).ltr ((\bysub(Open.Carrier patch.domain, Model.region constraints patch.domain, x)) normal (\refl(normal))));
+\definition backwardPreserves: \forall (y: Target.Point) -> Model.Nonnegative constraints (Maps.apply patch.target patch.domain patch.change.backward y) :=
+  \fun (y: Target.Point) => Model.halfSpaceNonnegative normal (Maps.apply patch.target patch.domain patch.change.backward y)
+    ((patch.signs (Maps.apply patch.target patch.domain patch.change.backward y)).rtl
+      (R.leReplaceRight S.zero (y normal) (Maps.apply patch.domain patch.target patch.change.forward (Maps.apply patch.target patch.domain patch.change.backward y) normal)
+        (sym!{S.Real} _ _ (congr!{Point S.Real} (\fun (u: Point) => u normal) _ _ (patch.change.rightInverse y)))
+        ((\bysub(Open.Carrier patch.target, Model.region constraints patch.target, y)) normal (\refl(normal)))));
+\import boundary_manifolds.QuadrantMap[n := dimension, m := dimension].Of[C := constraints, D := constraints, U := patch.domain, V := patch.target, f := patch.change.forward, preserves := forwardPreserves] \as Forward;
+\import boundary_manifolds.QuadrantMap[n := dimension, m := dimension].Of[C := constraints, D := constraints, U := patch.target, V := patch.domain, f := patch.change.backward, preserves := backwardPreserves] \as Backward;
+\import \root.Diffeomorphism[n := dimension, m := dimension].Between[M := Domain.manifold, N := Target.manifold] \as Equivalences;
+\definition data: Equivalences.Data := Equivalences.Data { forward := Forward.map, backward := Backward.map };
+\definition value: Equivalences.Diffeomorphism := \into[Equivalences.Data](data, Equivalences.Diffeomorphism) \by {
+  Equivalences.Laws[data] {
+    leftInverse := \fun (x: Domain.Point) => Model.equality constraints patch.domain (Backward.apply (Forward.apply x)) x (patch.change.leftInverse x),
+    rightInverse := \fun (y: Target.Point) => Model.equality constraints patch.target (Forward.apply (Backward.apply y)) y (patch.change.rightInverse y),
+  }
+};

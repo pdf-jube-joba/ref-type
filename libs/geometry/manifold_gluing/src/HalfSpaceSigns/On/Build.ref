@@ -1,0 +1,25 @@
+\import topology.Topology[Carrier := Point] \as Space;
+\import Space.Subspace[S := U.points].Open[] \as Inclusion;
+\import topology.Topology[Carrier := Open.Carrier U] \as Local;
+\import metric_spaces.RealLine[].Rays[] \as Rays;
+\definition positiveSet: \Pow (Open.Carrier U) := { x: Open.Carrier U \where R.Lt S.zero (partial x) };
+\definition partialContinuous: topology.Continuity[A := Open.Carrier U, B := S.Real].Continuous (Open.Topology[].Of[U := U].topology) metric_spaces.RealLine[].topology partial :=
+  Open.Topology[].Of[U := U].Continuity[].topological partial
+    (Open.Smooth[].Properties[].continuous U partial (Partials.partialSmooth U component normal));
+\definition positiveOpen: Local.IsOpenIn (Open.Topology[].Of[U := U].topology) positiveSet := partialContinuous (Rays.Above S.zero) (Rays.aboveOpen S.zero);
+\definition domain: Open.OpenSet := Open.Topology[].ofOpen (Inclusion.image positiveSet)
+  (Inclusion.imageOpen Ambient.topology (Open.Topology[].open U) positiveSet positiveOpen);
+\definition included: Open.Included domain U := Inclusion.imageIncluded positiveSet;
+\definition input[x: Open.Carrier domain]: Open.Carrier U := Open.inclusion domain U included x;
+\definition valuePositive: \forall (x: Open.Carrier domain) -> R.Lt S.zero (partial (input x)) :=
+  \fun (x: Open.Carrier domain) => Inclusion.imageElim positiveSet x (R.Lt S.zero (partial (input x)))
+    (\fun (y: Open.Carrier U)(member: R.Lt S.zero (partial y))(same: y = x) => \idelim y = input x \with p: Open.Carrier U => R.Lt S.zero (partial p) \by {
+      base: member, equality: boundary_manifolds.Refinement[A := Point].equality U.points y (input x) same
+    }) (\bysub(Point, domain.points, x));
+\definition contains: \In[Point] domain.points a := Inclusion.imageMember positiveSet a (R.ltReplaceRight S.zero Jet.coefficient (partial a) (sym!{S.Real} _ _ atCenter) positive);
+\definition point: Open.Carrier domain := \into[Point](a, domain.points) \by { contains };
+\module At(rho: S.Real, ball: Open.BallInside[domain.points, a, rho]);
+\definition exists: \exists Patch := \block {
+  \takefrom rho: \Cast[S.Real] ({ rho: S.Real \where Open.BallInside[domain.points, a, rho] }) \by domain.open a contains \then
+  \return \exact(At[rho := rho, ball := \bysub(S.Real, { rho: S.Real \where Open.BallInside[domain.points, a, rho] }, rho)].patch, Patch)
+};
