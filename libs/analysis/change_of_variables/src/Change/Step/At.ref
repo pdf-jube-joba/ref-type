@@ -1,0 +1,38 @@
+\import \root.Triangular[n := N.Nat^::succ n].Nonsingular[U := U, V := V, f := e] \as Nonsingular;
+\module Local(a: Open.Carrier U, pivot: Fin.Fin (N.Nat^::succ n), local: \root.Triangular[n := n].First[].Pivoted[U := U, V := V, f := e, pivot := pivot, a := a].Local);
+\structure Neighborhood: \Set := {
+  source: Open.Carrier U,
+  pivot: Fin.Fin (N.Nat^::succ n),
+  local: \root.Triangular[n := n].First[].Pivoted[U := U, V := V, f := e, pivot := pivot, a := source].Local,
+};
+\definition target[q: Neighborhood]: Open.OpenSet := Local[a := q.source, pivot := q.pivot, local := q.local].target;
+\definition family: \Pow (\Pow E.Point) := { W: \Pow E.Point \where \exists (q: Neighborhood \where W = (target q).points) };
+\definition member[q: Neighborhood]: Sets.FamilyMember family (target q).points := Logic.existsIntro[Neighborhood, { r: Neighborhood \where (target q).points = (target r).points }] q (\refl((target q).points));
+\definition existsAt[y: Open.Carrier V]: \exists (q: Neighborhood \where Sets.Member (target q).points y) := \block {
+  \let a: Open.Carrier U := Maps.apply V U e.backward y \then
+  \takefrom pivot: \Cast[Fin.Fin (N.Nat^::succ n)] ({ j: Fin.Fin (N.Nat^::succ n) \where Logic.Not (Nonsingular.matrix a (Fin.zero n) j = Real.zero) }) \by Nonsingular.row a (Fin.zero n) \then
+  \let nonzero: Logic.Not (Nonsingular.matrix a (Fin.zero n) pivot = Real.zero) := \bysub(Fin.Fin (N.Nat^::succ n), { j: Fin.Fin (N.Nat^::succ n) \where Logic.Not (Nonsingular.matrix a (Fin.zero n) j = Real.zero) }, pivot) \then
+  \takefrom local: \root.Triangular[n := n].First[].Pivoted[U := U, V := V, f := e, pivot := pivot, a := a].Local
+    \by \root.Triangular[n := n].First[].Pivoted[U := U, V := V, f := e, pivot := pivot, a := a].localExistence nonzero \then
+  \let q: Neighborhood := Neighborhood { source := a, pivot := pivot, local := local } \then
+  \return Logic.existsIntro[Neighborhood, { r: Neighborhood \where Sets.Member (target r).points y }] q
+    (\idelim Maps.apply U V e.forward a = y \with p: E.Point => Sets.Member (target q).points p \by {
+      base: Local[a := a, pivot := pivot, local := local].contains, equality: e.rightInverse y
+    })
+};
+\import Open.Topology[] \as Topology;
+\definition opened[W: \Pow E.Point]: Sets.FamilyMember family W -> Sets.IsOpenIn Ambient.topology W := \fun (inFamily: _) => \block {
+  \takefrom q: \Cast[Neighborhood] ({ q: Neighborhood \where W = (target q).points }) \by inFamily \then
+  \return \idelim (target q).points = W \with S: \Pow E.Point => Sets.IsOpenIn Ambient.topology S \by {
+    base: Topology.open (target q), equality: sym!{{\Pow E.Point}} _ _ (\bysub(Neighborhood, { q: Neighborhood \where W = (target q).points }, q))
+  }
+};
+\definition included[W: \Pow E.Point]: Sets.FamilyMember family W -> Sets.Subset W V.points := \fun (inFamily: _) => \block {
+  \takefrom q: \Cast[Neighborhood] ({ q: Neighborhood \where W = (target q).points }) \by inFamily \then
+  \return \idelim (target q).points = W \with S: \Pow E.Point => Sets.Subset S V.points \by {
+    base: Local[a := q.source, pivot := q.pivot, local := q.local].included,
+    equality: sym!{{\Pow E.Point}} _ _ (\bysub(Neighborhood, { q: Neighborhood \where W = (target q).points }, q))
+  }
+};
+\module For(f: L.SmoothCompact, within: Sets.Subset (Functions.support f) V.points);
+\definition theorem: C.Property U V e := \fun (f: L.SmoothCompact)(within: Sets.Subset (Functions.support f) V.points) => For[f := f, within := within].theorem;

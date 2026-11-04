@@ -1,0 +1,27 @@
+\definition point[x: Continuous.Point]: Target.Point := \into[Real](g x, Line.ClosedInterval target.left target.right) \by { conditions.inside x };
+\definition continuousPoint: topology.Continuity[A := Continuous.Point, B := Target.Point].Continuous Continuous.topology Target.topology point :=
+  Into.corestrictContinuous Continuous.topology Line.topology point (\bysub(Real -> Real, Continuous.Function, g));
+\definition composed[x: Real]: Real := Primitive.primitive (g x);
+\definition composedContinuous: Continuous.IsContinuous composed :=
+  Compose.composeContinuous Continuous.topology Target.topology Line.topology point (Target.restrict Primitive.primitive) continuousPoint Primitive.primitiveContinuous;
+\definition integrand[x: Real]: Real := Scalars.mul (h (g x)) (dg x);
+\definition input: Continuous.Function := \into[Real -> Real](integrand, Continuous.Function) \by {
+  Multiplication.continuous Continuous.topology _ _
+    (Compose.composeContinuous Continuous.topology Target.topology Line.topology point (Target.restrict h) continuousPoint Primitive.continuous)
+    (\bysub(Real -> Real, Continuous.Function, dg))
+};
+\definition derivative[x: Real]: R.Lt a x -> R.Lt x b -> Derivative.HasDerivativeAt composed x (input x) :=
+  \fun (ax: _)(xb: _) => Chain.derivative g Primitive.primitive x (dg x) (h (g x)) (conditions.derivative x ax xb)
+    (Primitive.fundamentalTheorem (g x) (conditions.interior x ax xb).left (conditions.interior x ax xb).right);
+\definition theorem: Continuous.Of[f := input].value = Scalars.neg Primitive.value := eq_reason_in!{Real _
+  "=" _ "by" { \root.Interval[interval := interval].Fundamental[f := input, g := composed].theorem composedContinuous derivative }
+  "=" _ "by" { congr!{Real Real Real} Scalars.sub _ _ _ _
+    (trans!{Real} _ _ _ (congr!{Real Real} Primitive.primitive _ _ conditions.right) Primitive.primitiveLeft)
+    (trans!{Real} _ _ _ (congr!{Real Real} Primitive.primitive _ _ conditions.left) Primitive.primitiveRight) }
+  "=" _ "by" { Laws.addZeroLeft (Scalars.neg Primitive.value) }
+};
+\import \root.Interval[interval := interval].Lebesgue[f := input] \as SourceIntegral;
+\import \root.Interval[interval := target].Lebesgue[f := h] \as TargetIntegral;
+\definition lebesgue: LineIntegral.integral SourceIntegral.representative = Scalars.neg (LineIntegral.integral TargetIntegral.representative) :=
+  trans!{Real} _ _ _ SourceIntegral.integral (trans!{Real} _ _ _ theorem (congr!{Real Real} Scalars.neg _ _ (sym!{Real} _ _ TargetIntegral.integral)));
+\module Absolute;

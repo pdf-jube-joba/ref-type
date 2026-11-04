@@ -1,0 +1,30 @@
+\definition continuous: Local.ContinuousOn g := Local.continuousOfTopological g (\bysub(Real.Real -> Real.Real, Continuous.Function, g));
+\definition strict[u, v: Real.Real]: R.Le a u -> R.Le v b -> R.Lt u v -> R.Lt (g u) (g v) := \block {
+  \fun (au: R.Le a u) (vb: R.Le v b) (uv: R.Lt u v) \then
+  \let included: \forall (x: Real.Real) -> \In[Real.Real] (Topology.ClosedInterval u v) x -> \In[Real.Real] (Topology.ClosedInterval a b) x :=
+    \fun (x: Real.Real) (inside: Logic.And[R.Le u x, R.Le x v]) => Logic.And[_, _]::# (R.leTrans a u x au inside.left) (R.leTrans x v b inside.right vb) \then
+  \let restricted: MVT.Interval[a := u, b := v].DifferentiableOn g := \fun (c: Real.Real) (inside: Logic.And[R.Lt u c, R.Lt c v]) =>
+    Logic.existsIntro[Real.Real, { d: Real.Real \where Derivative.HasDerivativeAt g c d }] (dg c)
+      (derivative c (R.leLtTrans a u c au inside.left) (R.ltLeTrans c v b inside.right vb)) \then
+  \takefrom c: \Cast[Real.Real] ({ c: Real.Real \where MVT.Interval[a := u, b := v].MeanValueResult[g, c] }) \by
+    MVT.Interval[a := u, b := v].meanValue g uv (Local.Restriction[U := Topology.ClosedInterval u v].continuous included g continuous) restricted \then
+  \let witness: MVT.Interval[a := u, b := v].MeanValueResult[g, c] := \bysub(Real.Real, { c: Real.Real \where MVT.Interval[a := u, b := v].MeanValueResult[g, c] }, c) \then
+  \let ac: R.Lt a c := R.leLtTrans a u c au witness.interior.left \then
+  \let cb: R.Lt c b := R.ltLeTrans c v b witness.interior.right vb \then
+  \let slope: MVT.Interval[a := u, b := v].secant g = dg c := Derivatives.unique g c _ _ witness.derivative (derivative c ac cb) \then
+  \let increment: Real.sub (g v) (g u) = Real.mul (dg c) (Real.sub v u) := trans!{Real.Real} _ _ _
+    (sym!{Real.Real} _ _ (Derivatives.slopeIncrement g u v (\fun (equal: v = u) => Order.ltNotEq u v uv (sym!{Real.Real} _ _ equal))))
+    (congr!{Real.Real Real.Real} (\fun (s: Real.Real) => Real.mul s (Real.sub v u)) _ _ slope) \then
+  \let incrementPositive: R.Lt Real.zero (Real.sub (g v) (g u)) := R.ltReplaceRight Real.zero (Real.mul (dg c) (Real.sub v u)) (Real.sub (g v) (g u))
+    (sym!{Real.Real} _ _ increment) (Product.mulPositive (dg c) (Real.sub v u) (positive c ac cb) (Product.subPositive v u uv)) \then
+  \return R.ltReplaceRight (g u) (Real.add (g u) (Real.sub (g v) (g u))) (g v) (Estimates.addSubCancel (g v) (g u))
+    (R.ltReplaceLeft (Real.add (g u) Real.zero) (g u) (Real.add (g u) (Real.sub (g v) (g u))) (Laws.addZeroRight (g u))
+      (Laws.ltAddLeft (g u) Real.zero (Real.sub (g v) (g u)) incrementPositive))
+};
+\definition weak[u, v: Real.Real]: R.Le a u -> R.Le v b -> R.Le u v -> R.Le (g u) (g v) :=
+  \fun (au: R.Le a u) (vb: R.Le v b) (uv: R.Le u v) =>
+    Logic.orElim (u = v) (Logic.Not (u = v)) (R.Le (g u) (g v)) (Classical.excludedMiddle (u = v))
+      (\fun (equal: u = v) => R.leReplaceRight (g u) (g u) (g v) (congr!{Real.Real Real.Real} g _ _ equal) (R.leRefl (g u)))
+      (\fun (different: Logic.Not (u = v)) => Order.leOfLt (g u) (g v) (strict u v au vb (Order.ltOfLeNotEq u v uv different)));
+\definition target: Integration.Interval := Integration.Interval { left := g a, right := g b, ordered := weak a b (R.leRefl a) (R.leRefl b) interval.ordered };
+\module Into(h: Integration.Riemann[interval := target].Continuous[].Function);

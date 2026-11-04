@@ -1,0 +1,20 @@
+\import \root.Interval[interval := interval].Lebesgue[f := h] \as Integral;
+\import Line.IntervalIntegral[interval := interval] \as Indicator;
+\import std.Logic[].Classical[] \as Classical;
+\import Real.Algebra[] \as Algebra;
+\definition values[t: Real.Real]: Integral.representative t = f t :=
+  Logic.orElim (SetsOfReal.Member (Line.interval interval.left interval.right) t)
+    (Logic.Not (SetsOfReal.Member (Line.interval interval.left interval.right) t))
+    (Integral.representative t = f t) (Classical.excludedMiddle (SetsOfReal.Member (Line.interval interval.left interval.right) t))
+    (\fun (member: Logic.And[R.Le interval.left t, R.Le t interval.right]) => eq_reason_in!{Real.Real _
+      "=" _ "by" { Integral.values t }
+      "=" _ "by" { congr!{Real.Real Real.Real} (\fun (c: Real.Real) => Real.mul c (h t)) _ _ (Indicator.pointwiseInside t member.left member.right) }
+      "=" _ "by" { dedekind_reals.DedekindReal[].Arithmetic[].Prop[].fieldMulOneLeft (h t) }
+      "=" _ "by" { inside t member.left member.right }
+    })
+    (\fun (notMember: Logic.Not (SetsOfReal.Member (Line.interval interval.left interval.right) t)) => eq_reason_in!{Real.Real _
+      "=" _ "by" { Integral.values t }
+      "=" _ "by" { congr!{Real.Real Real.Real} (\fun (c: Real.Real) => Real.mul c (h t)) _ _ (Indicator.pointwiseOutside t notMember) }
+      "=" _ "by" { dedekind_reals.DedekindReal[].Arithmetic[].Prop[].fieldMulZeroLeft (h t) }
+      "=" _ "by" { sym!{Real.Real} _ _ (outside t notMember) }
+    });

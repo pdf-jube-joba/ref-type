@@ -1,0 +1,17 @@
+\definition point: Open.Carrier domain := Coordinates.point a;
+\import Maps.Differential[U := domain, V := V, f := normalized.forward, a := point] \as Normal;
+\import Maps.Differential[U := U, V := V, f := f.forward, a := Coordinates.forward point] \as Original;
+\import Maps.Composition[U := domain, V := U, f := reindexing.forward].After[l := n, W := V, g := f.forward].At[a := point] \as Chain;
+\definition entry: Factor.gradient point = matrix a row pivot := eq_reason_in!{Real.Real _
+  "=" _ "by" { congr!{{calculus.Vector[n := n, m := n].LinearMap} Real.Real}
+    (\fun (d: calculus.Vector[n := n, m := n].LinearMap) => d.apply (Basis.vectors row) row) _ _ Chain.jacobian }
+  "=" _ "by" { congr!{{calculus.Vector[n := n, m := n].LinearMap} Real.Real}
+    (\fun (d: calculus.Vector[n := n, m := n].LinearMap) => Original.value.apply (d.apply (Basis.vectors row)) row) _ _ (Coordinates.differential point) }
+  "=" _ "by" { congr!{Point Real.Real} (\fun (v: Point) => Original.value.apply v row) _ _ Swap.basis }
+  "=" _ "by" { congr!{{Open.Carrier U} Real.Real}
+    (\fun (p: Open.Carrier U) => (Maps.Differential[U := U, V := V, f := f.forward, a := p].value).apply (Basis.vectors pivot) row) _ _ (Coordinates.image a) }
+};
+\definition regular: Logic.Not (matrix a row pivot = Real.zero) -> Factor.Regular point :=
+  \fun (nonzero: _)(zero: _) => nonzero (trans!{Real.Real} _ _ _ (sym!{Real.Real} _ _ entry) zero);
+\definition localExistence: Logic.Not (matrix a row pivot = Real.zero) -> \exists Factor.Local point :=
+  \fun (nonzero: _) => Factor.localExistence point (regular nonzero);

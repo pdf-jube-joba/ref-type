@@ -1,0 +1,16 @@
+\import Euclidean.Diffeomorphism[U := U, V := V, e := e].Gluing[f := f, within := within, family := family] \as Gluing;
+\definition conditions[local: \forall (p: Patch) -> LocalFormula p]: Gluing.Conditions := Gluing.Conditions {
+  cover := Sets.IsOpenCover[Ambient.topology, family, Functions.support f] {
+    open := familyOpen,
+    covers := \fun (y: E.Point)(supported: _) => covers (\into[E.Point](y, V.points) \by { within y supported }),
+  },
+  included := familyIncluded,
+  local := \fun (W: \Pow E.Point)(member: Sets.FamilyMember family W) => \block {
+    \takefrom p: \Cast[Patch] ({ p: Patch \where image p = W }) \by member \then
+    \let equal: image p = W := \bysub(Patch, { p: Patch \where image p = W }, p) \then
+    \return \fun (h: L.SmoothCompact)(supported: Sets.Subset (Functions.support h) W)(inTarget: Sets.Subset (Functions.support h) V.points) =>
+      local p h (\fun (x: E.Point)(inside: _) => \idelim W = image p \with S: \Pow E.Point => Sets.Member S x \by { base: supported x inside, equality: sym!{{\Pow E.Point}} _ _ equal }) inTarget
+  },
+};
+\definition theorem[local: \forall (p: Patch) -> LocalFormula p]:
+  I.integral (Euclidean.Diffeomorphism[U := U, V := V, e := e].Compact[f := f, within := within].representative) = I.integral (TargetIntegral.representative f) := Gluing.theorem (conditions local);

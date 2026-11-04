@@ -1,0 +1,29 @@
+\definition laws[xs: Lists.List[Index]][i: Index][v: Point][w: Clearing xs i v]: ClearLaws[xs, i, v, w] := \bysub(Word, Clearing xs i v, w);
+\module Step(xs: Lists.List[Index], i: Index, v: Point, w: Clearing xs i v, k: Other i);
+\definition exists: \forall (xs: Lists.List[Index])(i: Index)(v: Point) -> v i = Real.one -> \exists Clearing xs i v :=
+  \induction (xs: Lists.List[Index]) \return \forall (i: Index)(v: Point) -> v i = Real.one -> \exists Clearing xs i v \with {
+    | nil: \fun (i: Index)(v: Point)(pivot: _) => Logic.existsIntro[Word, { w: Word \where ClearLaws[Lists.List[Index]::nil, i, v, w] }] Word::identity
+      (ClearLaws[Lists.List[Index]::nil, i, v, Word::identity] {
+        pivot := pivot,
+        cleared := \fun (k: Index)(impossible: Fin.Occurs n k Lists.List[Index]::nil)(different: _) => Logic.falseElim _ impossible,
+        basis := \fun (k: Index)(different: _) => \refl(Basis.vectors k),
+      })
+    | cons: \fun (head: Index)(tail: Lists.List[Index])
+      (previous: \forall (i: Index)(v: Point) -> v i = Real.one -> \exists Clearing tail i v)
+      (i: Index)(v: Point)(pivot: _) => \block {
+        \takefrom w: Clearing tail i v \by previous i v pivot \then
+        \return Logic.orElim _ _ _ (Classical.excludedMiddle (head = i))
+          (\fun (same: _) => Logic.existsIntro[Word, { w: Word \where ClearLaws[Lists.List[Index]::cons head tail, i, v, w] }] w
+            (ClearLaws[Lists.List[Index]::cons head tail, i, v, w] {
+              pivot := (laws tail i v w).pivot,
+              cleared := \fun (k: Index)(member: _)(different: _) => Logic.orElim _ _ _ member
+                (\fun (atHead: _) => Logic.falseElim _ (different (trans!{Index} _ _ _ atHead same)))
+                (\fun (atTail: _) => (laws tail i v w).cleared k atTail different),
+              basis := (laws tail i v w).basis,
+            }))
+          (\fun (different: Logic.Not (head = i)) => \block {
+            \let target: Other i := otherIndex i head (\fun (same: i = head) => different (sym!{Index} i head same)) \then
+            \return \root.Elementary[n := n].Clearing[].Step[xs := tail, i := i, v := v, w := w, k := target].exists
+          })
+      }
+  };

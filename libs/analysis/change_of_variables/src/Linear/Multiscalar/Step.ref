@@ -1,0 +1,19 @@
+\import Multilinear.Contraction[k := k] \as Contract;
+\definition theorem: (\forall (f: Multilinear.Form k)(a: Fin.Fin k -> Real.Real)(v: Multilinear.Arguments k) ->
+  f (scaled k a v) = Real.mul (E.product k a) (f v)) ->
+  \forall (f: Multilinear.Form (N.Nat^::succ k))(a: Fin.Fin (N.Nat^::succ k) -> Real.Real)(v: Multilinear.Arguments (N.Nat^::succ k)) ->
+  f (scaled (N.Nat^::succ k) a v) = Real.mul (E.product (N.Nat^::succ k) a) (f v) :=
+  \fun (previous: _)(f: Multilinear.Form (N.Nat^::succ k))(a: Fin.Fin (N.Nat^::succ k) -> Real.Real)(v: Multilinear.Arguments (N.Nat^::succ k)) => \block {
+    \let tailA: Fin.Fin k -> Real.Real := \fun (i: Fin.Fin k) => a (Fin.succ k i) \then
+    \let tailV: Multilinear.Arguments k := \fun (i: Fin.Fin k) => v (Fin.succ k i) \then
+    \let restore: Tuples.extend k (Coordinates.scale (a (Fin.zero k)) (v (Fin.zero k))) (scaled k tailA tailV) = scaled (N.Nat^::succ k) a v :=
+      Tuples.recover k (scaled (N.Nat^::succ k) a v) \then
+    \return eq_reason_in!{Real.Real _
+      "=" _ "by" { congr!{{Multilinear.Arguments (N.Nat^::succ k)} Real.Real} f _ _ (sym!{{Multilinear.Arguments (N.Nat^::succ k)}} _ _ restore) }
+      "=" _ "by" { Contract.headScalar (a (Fin.zero k)) f (v (Fin.zero k)) (scaled k tailA tailV) }
+      "=" _ "by" { congr!{Real.Real Real.Real} (Real.mul (a (Fin.zero k))) _ _ (previous (Contract.apply f (v (Fin.zero k))) tailA tailV) }
+      "=" _ "by" { sym!{Real.Real} _ _ (Laws.fieldMulAssoc (a (Fin.zero k)) (E.product k tailA) (f (Tuples.extend k (v (Fin.zero k)) tailV))) }
+      "=" _ "by" { congr!{Real.Real Real.Real} (Real.mul (E.product (N.Nat^::succ k) a)) _ _
+        (congr!{{Multilinear.Arguments (N.Nat^::succ k)} Real.Real} f _ _ (Tuples.recover k v)) }
+    }
+  };

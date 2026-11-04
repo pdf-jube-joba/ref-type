@@ -1,0 +1,21 @@
+/* A nonsingular matrix has a nonzero entry in every specified row. */
+\definition determinantForm: Multilinear.Form n :=
+  \into[Multilinear.Function n](Matrix.determinant, Multilinear.Form n) \by { Rows.regular };
+\definition zeroRow[A: Matrix.Matrix][row: Index]:
+  (\forall (j: Index) -> A row j = Real.zero) -> Matrix.determinant A = Real.zero :=
+  \fun (zero: _) => eq_reason_in!{Real.Real _
+    "=" _ "by" { congr!{Matrix.Matrix Real.Real} Matrix.determinant _ _ (sym!{Matrix.Matrix} _ _ (Updates.updateSame n A row)) }
+    "=" _ "by" { congr!{Point Real.Real} (\fun (v: Point) => Matrix.determinant (Multilinear.update n A row v)) _ _
+      (\axiom:funext(A row, Vectors.space.zero, zero)) }
+    "=" _ "by" { Updates.zeroArgument n determinantForm A row }
+  };
+\definition existsInRow[A: Matrix.Matrix][row: Index]:
+  Logic.Not (Matrix.determinant A = Real.zero) -> \exists (j: Index \where Logic.Not (A row j = Real.zero)) :=
+  \fun (nonzero: _) => Logic.orElim _ _ _
+    (Classical.excludedMiddle (\exists (j: Index \where Logic.Not (A row j = Real.zero))))
+    (\fun (found: _) => found)
+    (\fun (missing: _) => Logic.falseElim _ (nonzero (zeroRow A row
+      (\fun (j: Index) => Logic.orElim _ _ _ (Classical.excludedMiddle (A row j = Real.zero))
+        (\fun (zero: _) => zero)
+        (\fun (nonzeroEntry: _) => Logic.falseElim _ (missing
+          (Logic.existsIntro[Index, { k: Index \where Logic.Not (A row k = Real.zero) }] j nonzeroEntry)))))));

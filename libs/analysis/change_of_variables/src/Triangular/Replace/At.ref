@@ -1,0 +1,24 @@
+\import Maps.Differential[U := U, V := Open.whole, f := map, a := x] \as Derivative;
+\definition pivotRow: Derivative.row pivot = Differential.value U h x :=
+  congr!{{Smooth.SmoothFunction U} {calculus.Real[].Multivariable[n := n].Differential[].Def[].LinearMap}}
+    (\fun (f: Smooth.SmoothFunction U) => Differential.value U f x) _ _ pivotCoordinate;
+\definition otherRow[j: Index]: Logic.Not (pivot = j) -> Derivative.row j = Projections.linear j :=
+  \fun (different: _) => trans!{{calculus.Real[].Multivariable[n := n].Differential[].Def[].LinearMap}} _ _ _
+    (congr!{{Smooth.SmoothFunction U} {calculus.Real[].Multivariable[n := n].Differential[].Def[].LinearMap}}
+      (\fun (f: Smooth.SmoothFunction U) => Differential.value U f x) _ _ (otherCoordinate j different))
+    (Projections.differential j x);
+\definition entries: matrix x = replaceRow pivot (gradient x) := MatrixOperations.ext _ _
+  (\fun (j, i: Index) => Logic.orElim _ _ _ (Classical.excludedMiddle (pivot = j))
+    (\fun (same: pivot = j) => \idelim pivot = j \with k: Index => matrix x k i = replaceRow pivot (gradient x) k i \by {
+      base: trans!{Real.Real} _ _ _
+        (congr!{{calculus.Real[].Multivariable[n := n].Differential[].Def[].LinearMap} Real.Real}
+          (\fun (d: calculus.Real[].Multivariable[n := n].Differential[].Def[].LinearMap) => d.apply (Basis.vectors i)) _ _ pivotRow)
+        (sym!{Real.Real} _ _ (congr!{Point Real.Real} (\fun (row: Point) => row i) _ _ (Updates.updateSelf n Matrix.identity pivot (gradient x)))),
+      equality: same
+    })
+    (\fun (different: Logic.Not (pivot = j)) => trans!{Real.Real} _ _ _
+      (congr!{{calculus.Real[].Multivariable[n := n].Differential[].Def[].LinearMap} Real.Real}
+        (\fun (d: calculus.Real[].Multivariable[n := n].Differential[].Def[].LinearMap) => d.apply (Basis.vectors i)) _ _ (otherRow j different))
+      (sym!{Real.Real} _ _ (congr!{Point Real.Real} (\fun (row: Point) => row i) _ _ (Updates.updateOther n Matrix.identity pivot j (gradient x) different)))));
+\definition determinant: Matrix.determinant (matrix x) = gradient x pivot :=
+  trans!{Real.Real} _ _ _ (congr!{Matrix.Matrix Real.Real} Matrix.determinant _ _ entries) (\root.Triangular[n := n].Row[pivot := pivot].determinant (gradient x));

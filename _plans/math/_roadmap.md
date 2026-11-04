@@ -130,6 +130,7 @@ B02 の束演算は C05 でも利用でき、A01 の後は A02 へ進められ�
 | K03 相対 K 群と負次数の完全列 | [relative_k_theory](../../libs/topology/relative_k_theory/README.md) |
 | K09 Bott 周期性と整数次数 | [periodic_k_theory](../../libs/topology/periodic_k_theory/README.md) |
 | A07 Plancherel と Fourier 乗算作用素 | [fourier_l2](../../libs/analysis/fourier_l2/README.md) |
+| A04 多重積分の変数変換 | [change_of_variables](../../libs/analysis/change_of_variables/README.md) |
 
 ## タスク一覧
 
@@ -230,14 +231,13 @@ B02 の束演算は C05 でも利用でき、A01 の後は A02 へ進められ�
 
 ### 測度・関数解析・楕円作用素
 
-18件、概算99千行。
+17件、概算93千行。
 
 | タスク | 概算（千行） |
 | --- | ---: |
 | [A01 測度積分の収束定理](a01-measure-convergence.md) | 5 |
 | [A02 Euclid 空間の Lebesgue 測度](a02-lebesgue-measure.md) | 6 |
 | [A03 積測度と Fubini](a03-product-integration.md) | 5 |
-| [A04 多重積分の変数変換](a04-change-of-variables.md) | 6 |
 | [A05 Lp 空間のノルムと完備性](a05-lp-completeness.md) | 5 |
 | [A06 Schwartz 空間と Fourier 変換](a06-schwartz-fourier.md) | 6 |
 | [A08 分布と弱微分](a08-distributions.md) | 5 |

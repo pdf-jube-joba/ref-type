@@ -1,0 +1,41 @@
+\import \parent.Multiscalar[] \as AllScalars;
+\import euclidean_measure.GeneralDiagonal[n := n] \as Diagonal;
+\import euclidean_measure.SingularScale[n := n] \as Scaling;
+\definition function: Point -> Point := Scaling.map a;
+\definition map: Maps.Map := Maps.Map {
+  apply := function,
+  preservesAdd := \fun (x, y: Point) => \axiom:funext(function (Coordinates.plus x y), Coordinates.plus (function x) (function y),
+    \fun (i: Fin.Fin n) => Laws.fieldMulAdd (a i) (x i) (y i)),
+  preservesScale := \fun (c: Real.Real)(x: Point) => \axiom:funext(function (Coordinates.scale c x), Coordinates.scale c (function x),
+    \fun (i: Fin.Fin n) => Algebra.mulSwap (a i) c (x i)),
+};
+\definition basis[j: Fin.Fin n]: map.apply (Basis.vectors j) = Coordinates.scale (a j) (Basis.vectors j) :=
+  \axiom:funext(map.apply (Basis.vectors j), Coordinates.scale (a j) (Basis.vectors j), \fun (i: Fin.Fin n) =>
+    Logic.orElim _ _ _ (Classical.excludedMiddle (i = j))
+      (\fun (equal: i = j) => congr!{Real.Real Real.Real} (\fun (c: Real.Real) => Real.mul c (Basis.vectors j i)) _ _ (congr!{{Fin.Fin n} Real.Real} a _ _ equal))
+      (\fun (different: Logic.Not (i = j)) => eq_reason_in!{Real.Real _
+        "=" _ "by" { congr!{Real.Real Real.Real} (Real.mul (a i)) _ _ (Kronecker.different j i (\fun (same: j = i) => different (sym!{{Fin.Fin n}} _ _ same))) }
+        "=" Real.zero "by" { Laws.fieldMulZeroRight (a i) }
+        "=" _ "by" { sym!{Real.Real} _ _ (Laws.fieldMulZeroRight (a j)) }
+        "=" _ "by" { congr!{Real.Real Real.Real} (Real.mul (a j)) _ _ (sym!{Real.Real} _ _ (Kronecker.different j i (\fun (same: j = i) => different (sym!{{Fin.Fin n}} _ _ same)))) }
+      }));
+\definition determinant: Top.determinant map = E.product n a := eq_reason_in!{Real.Real _
+  "=" _ "by" { congr!{{Top.Arguments} Real.Real} Top.volume _ _
+    (\axiom:funext(Top.transformed map Top.basisArguments, AllScalars.scaled n a Top.basisArguments, basis)) }
+  "=" _ "by" { AllScalars.theorem n (Alternating.asMultilinear n Top.volume) a Top.basisArguments }
+  "=" _ "by" { congr!{Real.Real Real.Real} (Real.mul (E.product n a)) _ _ Top.normalized }
+  "=" _ "by" { Algebra.mulOneRight (E.product n a) }
+};
+\definition absoluteProduct: \forall (k: N.Nat^)(a: Fin.Fin k -> Real.Real) -> Absolute.abs (E.product k a) = E.product k (\fun (i: Fin.Fin k) => Absolute.abs (a i)) :=
+  \induction (k: N.Nat^) \return \forall (a: Fin.Fin k -> Real.Real) -> Absolute.abs (E.product k a) = E.product k (\fun (i: Fin.Fin k) => Absolute.abs (a i)) \with {
+    | zero: \fun (a: _) => Absolute.absOfNonnegative Real.one Laws.oneNonnegative
+    | succ: \fun (k: N.Nat^)(previous: _)(a: Fin.Fin (N.Nat^::succ k) -> Real.Real) => trans!{Real.Real} _ _ _
+      (Absolute.absProduct (a (Fin.zero k)) (E.product k (\fun (i: Fin.Fin k) => a (Fin.succ k i))))
+      (congr!{Real.Real Real.Real} (Real.mul (Absolute.abs (a (Fin.zero k)))) _ _ (previous (\fun (i: Fin.Fin k) => a (Fin.succ k i))))
+  };
+\definition imageEqual[S: \Pow Point]: image map S = Scaling.image S a := \refl(image map S);
+\definition measure[S: \Pow Point]: Lebesgue.measure.value (image map S) = M.scale (Absolute.abs (Top.determinant map)) (Lebesgue.measure.value S) :=
+  trans!{M.Value} _ _ _ (Diagonal.formula S a).left
+    (congr!{Real.Real M.Value} (\fun (c: Real.Real) => M.scale c (Lebesgue.measure.value S)) _ _
+      (sym!{Real.Real} _ _ (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} Absolute.abs _ _ determinant) (absoluteProduct n a))));
+\definition measurable[S: \Pow Point]: M.Measurable Lebesgue.measure.sigma S -> M.Measurable Lebesgue.measure.sigma (image map S) := (Diagonal.formula S a).right;

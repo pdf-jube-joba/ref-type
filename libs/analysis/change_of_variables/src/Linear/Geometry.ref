@@ -1,0 +1,38 @@
+/* Finite coordinate linear maps are continuous in the Euclidean topology. */
+\import std.Data[].List[] \as Lists;
+\import Spaces.Sums[I := Fin.Fin n] \as Sums;
+\import matrix_invariants.Ring[K := Real.Real, scalars := std.Alg[].Field[].fieldAsCommutativeRing Real.Real Algebra.field].At[n := n] \as Matrix;
+\import Matrix.Representation[] \as Representation;
+\import metric_spaces.RealFunctions[A := Point] \as Functions;
+\import Functions.Product[] \as Products;
+\import metric_spaces.RealLine[] \as Line;
+\import topological_algebra.Coordinates[K := Real.Real, I := Fin.Fin n].Universal[A := Point] \as Components;
+\import topology.Continuity[A := Point, B := Point] \as Continuous;
+\definition sum: \forall (indices: Lists.List[Fin.Fin n])(f: Point -> Point) ->
+  (\forall (i: Fin.Fin n) -> Functions.Continuous Ambient.topology (\fun (x: Point) => f x i)) ->
+  Functions.Continuous Ambient.topology (\fun (x: Point) => Sums.sum indices (f x)) :=
+  \induction (indices: Lists.List[Fin.Fin n]) \return \forall (f: Point -> Point) ->
+    (\forall (i: Fin.Fin n) -> Functions.Continuous Ambient.topology (\fun (x: Point) => f x i)) ->
+    Functions.Continuous Ambient.topology (\fun (x: Point) => Sums.sum indices (f x)) \with {
+      | nil: \fun (f: Point -> Point)(valid: _) => Functions.constantContinuous Ambient.topology Real.zero
+      | cons: \fun (i: Fin.Fin n)(rest: Lists.List[Fin.Fin n])(previous: _)(f: Point -> Point)(valid: _) =>
+        Functions.sumContinuous Ambient.topology (\fun (x: Point) => f x i) (\fun (x: Point) => Sums.sum rest (f x)) (valid i) (previous f valid)
+    };
+\definition matrix[A: Matrix.Matrix]: Continuous.Continuous Ambient.topology Ambient.topology (Matrix.linear A).apply :=
+  \fun (U: \Pow Point)(opened: _) => Components.continuous Ambient.topology Line.topology (Matrix.linear A).apply
+    (\fun (i: Fin.Fin n) => sum (Fin.elements n) (\fun (x: Point)(j: Fin.Fin n) => Real.mul (A i j) (x j))
+      (\fun (j: Fin.Fin n) => Products.continuous Ambient.topology (\fun (_: Point) => A i j) (\fun (x: Point) => x j)
+        (Functions.constantContinuous Ambient.topology (A i j)) (Ambient.coordinateContinuous j))) U (Ambient.metricOpen U opened);
+\definition continuous[L: Maps.Map]: Continuous.Continuous Ambient.topology Ambient.topology L.apply :=
+  \idelim Matrix.linear (Representation.entries L) = L \with f: Maps.Map => Continuous.Continuous Ambient.topology Ambient.topology f.apply \by {
+    base: matrix (Representation.entries L), equality: Representation.linearEntries L
+  };
+\module Inverse(L, backward: Maps.Map,
+  left: \forall (x: Point) -> backward.apply (L.apply x) = x,
+  right: \forall (x: Point) -> L.apply (backward.apply x) = x) {
+  \definition homeomorphism: Homeomorphisms.Homeomorphism[Ambient.topology, Ambient.topology] := Homeomorphisms.Homeomorphism[Ambient.topology, Ambient.topology] {
+    forward := L.apply, backward := backward.apply,
+    leftInverse := left, rightInverse := right,
+    forwardContinuous := continuous L, backwardContinuous := continuous backward,
+  };
+}

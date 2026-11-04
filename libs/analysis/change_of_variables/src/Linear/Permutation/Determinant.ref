@@ -1,0 +1,32 @@
+\import std.Data[].List[] \as Lists;
+\import N.Basic[].Def[] \as Nat;
+\definition basis[j: Fin.Fin n]: map.apply (Basis.vectors j) = Basis.vectors (p.backward j) := \axiom:funext(map.apply (Basis.vectors j), Basis.vectors (p.backward j), \fun (i: Fin.Fin n) =>
+  Logic.orElim (i = p.backward j) (Logic.Not (i = p.backward j)) (Basis.vectors j (p.forward i) = Basis.vectors (p.backward j) i) (Classical.excludedMiddle (i = p.backward j))
+    (\fun (same: i = p.backward j) => \idelim p.backward j = i \with k: Fin.Fin n => Basis.vectors j (p.forward k) = Basis.vectors (p.backward j) k \by {
+      base: eq_reason_in!{Real.Real _
+        "=" _ "by" { congr!{{Fin.Fin n} Real.Real} (Basis.vectors j) _ _ (law.rightInverse j) }
+        "=" Real.one "by" { Kronecker.self j }
+        "=" _ "by" { sym!{Real.Real} _ _ (Kronecker.self (p.backward j)) }
+      }, equality: sym!{{Fin.Fin n}} _ _ same
+    })
+    (\fun (different: Logic.Not (i = p.backward j)) => trans!{Real.Real} _ _ _
+      (Kronecker.different j (p.forward i) (\fun (same: j = p.forward i) => different
+        (trans!{{Fin.Fin n}} _ _ _ (sym!{{Fin.Fin n}} _ _ (law.leftInverse i)) (sym!{{Fin.Fin n}} _ _ (congr!{{Fin.Fin n} {Fin.Fin n}} p.backward _ _ same)))))
+      (sym!{Real.Real} _ _ (Kronecker.different (p.backward j) i (\fun (same: _) => different (sym!{{Fin.Fin n}} _ _ same))))));
+\definition absoluteSign: \forall (word: Permutations.Word) -> Absolute.abs (Signs.sign word) = Real.one :=
+  \induction (word: Permutations.Word) \return Absolute.abs (Signs.sign word) = Real.one \with {
+    | nil: Absolute.absOfNonnegative Real.one Laws.oneNonnegative
+    | cons: \fun (s: Permutations.Swap)(tail: Permutations.Word)(previous: _) =>
+      Bool.cases (\fun (test: Bool.Bool^) => Absolute.abs (Bool.ite Real.Real test (Signs.sign tail) (Real.neg (Signs.sign tail))) = Real.one)
+        (trans!{Real.Real} _ _ _ (Absolute.absNeg (Signs.sign tail)) previous) previous (Nat.eqb s.first s.second)
+  };
+\definition theorem: Absolute.abs (Top.determinant map) = Real.one := \block {
+  \takefrom word: \Cast[Permutations.Word] ({ word: Permutations.Word \where Permutations.Represents inverse word }) \by Signs.decomposition inverse \then
+  \let represents: Permutations.Represents inverse word := \bysub(Permutations.Word, { word: Permutations.Word \where Permutations.Represents inverse word }, word) \then
+  \return trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} Absolute.abs _ _ (eq_reason_in!{Real.Real _
+    "=" _ "by" { congr!{{Top.Arguments} Real.Real} Top.volume _ _ (\axiom:funext(Top.transformed map Top.basisArguments, (\fun (j: Fin.Fin n) => Basis.vectors (p.backward j)), basis)) }
+    "=" _ "by" { Signs.transformation inverse word Top.volume Top.basisArguments represents }
+    "=" _ "by" { congr!{Real.Real Real.Real} (Real.mul (Signs.sign word)) _ _ Top.normalized }
+    "=" _ "by" { Algebra.mulOneRight (Signs.sign word) }
+  })) (absoluteSign word)
+};

@@ -1,0 +1,43 @@
+\definition sourceData: PI.StepData := PI.StepData { set := Push.preimage (preimage S), coefficient := Real.one,
+  measurable := ProductBorel.measurable (preimage S) preimageValid, nonnegative := Laws.oneNonnegative };
+\definition targetData: PI.StepData := PI.StepData { set := Push.preimage S, coefficient := Real.one,
+  measurable := ProductBorel.measurable S valid, nonnegative := Laws.oneNonnegative };
+\import PI.Step[p := sourceData] \as Source;
+\import PI.Step[p := targetData] \as Target;
+\import PI.Evaluation[n := Source.size, s := Source.simple] \as SourceEval;
+\import PI.Evaluation[n := Target.size, s := Target.simple] \as TargetEval;
+\definition source: PI.NonnegativeMeasurable := PI.NonnegativeMeasurable { function := SourceEval.value, measurable := SourceEval.measurable, nonnegative := SourceEval.nonnegative };
+\definition target: PI.NonnegativeMeasurable := PI.NonnegativeMeasurable { function := TargetEval.value, measurable := TargetEval.measurable, nonnegative := TargetEval.nonnegative };
+\definition memberForward[p: Sigma.Point]: ProductSets.Member sourceData.set p -> ProductSets.Member targetData.set (transform p) :=
+  \fun (inside: ProductSets.Member sourceData.set p) => \idelim map (Coordinates.join p) = Coordinates.join (transform p)
+    \with x: E.Point => Sets.Member S x \by { base: inside, equality: atJoin p };
+\definition memberBackward[p: Sigma.Point]: ProductSets.Member targetData.set (transform p) -> ProductSets.Member sourceData.set p :=
+  \fun (inside: ProductSets.Member targetData.set (transform p)) => \idelim Coordinates.join (transform p) = map (Coordinates.join p)
+    \with x: E.Point => Sets.Member S x \by { base: inside, equality: sym!{E.Point} _ _ (atJoin p) };
+\definition values[x: Left.Point][t: Right.Point]: source.function (Pair.pair Left.Point Right.Point x t) = target.function (Pair.pair Left.Point Right.Point x (Right.subPoint t (a x))) :=
+  Logic.orElim (ProductSets.Member sourceData.set (Pair.pair Left.Point Right.Point x t))
+    (Logic.Not (ProductSets.Member sourceData.set (Pair.pair Left.Point Right.Point x t)))
+    (source.function (Pair.pair Left.Point Right.Point x t) = target.function (transform (Pair.pair Left.Point Right.Point x t)))
+    (Classical.excludedMiddle (ProductSets.Member sourceData.set (Pair.pair Left.Point Right.Point x t)))
+    (\fun (inside: ProductSets.Member sourceData.set (Pair.pair Left.Point Right.Point x t)) =>
+      trans!{Real.Real} _ _ _ (Source.inside (Pair.pair Left.Point Right.Point x t) inside)
+        (sym!{Real.Real} _ _ (Target.inside (transform (Pair.pair Left.Point Right.Point x t)) (memberForward (Pair.pair Left.Point Right.Point x t) inside))))
+    (\fun (outside: Logic.Not (ProductSets.Member sourceData.set (Pair.pair Left.Point Right.Point x t))) =>
+      trans!{Real.Real} _ _ _ (Source.outside (Pair.pair Left.Point Right.Point x t) outside)
+        (sym!{Real.Real} _ _ (Target.outside (transform (Pair.pair Left.Point Right.Point x t))
+          (\fun (inside: ProductSets.Member targetData.set (transform (Pair.pair Left.Point Right.Point x t))) => outside (memberBackward (Pair.pair Left.Point Right.Point x t) inside)))));
+\definition sourceValue: PI.lowerIntegral source.function = Lebesgue.measure.value (preimage S) := eq_reason_in!{M.Value _
+  "=" _ "by" { Source.lowerIntegral }
+  "=" _ "by" { Values.oneScale (Product.measure.value sourceData.set) (PM.Finite[mu := Product.measure].laws.nonnegative sourceData.set sourceData.measurable) }
+  "=" _ "by" { Comparison.theorem (preimage S) preimageValid }
+};
+\definition targetValue: PI.lowerIntegral target.function = Lebesgue.measure.value S := eq_reason_in!{M.Value _
+  "=" _ "by" { Target.lowerIntegral }
+  "=" _ "by" { Values.oneScale (Product.measure.value targetData.set) (PM.Finite[mu := Product.measure].laws.nonnegative targetData.set targetData.measurable) }
+  "=" _ "by" { Comparison.theorem S valid }
+};
+\definition theorem: Lebesgue.measure.value (preimage S) = Lebesgue.measure.value S := eq_reason_in!{M.Value _
+  "=" _ "by" { sym!{M.Value} _ _ sourceValue }
+  "=" _ "by" { \parent.Nonnegative[f := source, g := target, values := values].theorem }
+  "=" _ "by" { targetValue }
+};

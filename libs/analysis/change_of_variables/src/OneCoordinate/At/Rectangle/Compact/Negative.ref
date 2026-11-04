@@ -1,0 +1,26 @@
+\import Integration.Riemann[interval := interval].Continuous[] \as Continuous;
+\import metric_spaces.RealLine[] \as RealTopology;
+\import metric_spaces.RealFunctions[A := Continuous.Point] \as ContinuousFunctions;
+\import topology.Continuity[A := Continuous.Point, B := Real.Real].Corestriction[S := RealTopology.ClosedInterval interval.left interval.right] \as Inclusion;
+\import std.Set[].Extension[A := Base.Point, B := Continuous.Function, domain := base] \as Extend;
+\import calculus.Real[].Derivative[].Operations[] \as Derivatives;
+\module Fiber(x: \Cast[Base.Point] base);
+\definition identity: Continuous.Function := \into[Real.Real -> Real.Real]((\fun (t: Real.Real) => Real.neg t), Continuous.Function) \by { ContinuousFunctions.negContinuous Continuous.topology (\fun (t: Continuous.Point) => t) (Inclusion.inclusionContinuous RealTopology.topology) };
+\definition unit: Continuous.Function := \into[Real.Real -> Real.Real]((\fun (_: Real.Real) => Real.neg Real.one), Continuous.Function) \by { ContinuousFunctions.constantContinuous Continuous.topology (Real.neg Real.one) };
+\definition maps[x: Base.Point]: Continuous.Function := Extend.extend (\fun (x: \Cast[Base.Point] base) => Fiber[x := x].value) identity x;
+\definition derivatives[x: Base.Point]: Continuous.Function := Extend.extend (\fun (x: \Cast[Base.Point] base) => Fiber[x := x].derivative) unit x;
+\definition mapsInside[x: \Cast[Base.Point] base]: maps x = Fiber[x := x].value := Extend.inside (\fun (x: \Cast[Base.Point] base) => Fiber[x := x].value) identity x;
+\definition derivativesInside[x: \Cast[Base.Point] base]: derivatives x = Fiber[x := x].derivative := Extend.inside (\fun (x: \Cast[Base.Point] base) => Fiber[x := x].derivative) unit x;
+\definition mapsOutside[x: Base.Point]: Logic.Not (BaseSets.Member base x) -> maps x = identity := Extend.outside (\fun (x: \Cast[Base.Point] base) => Fiber[x := x].value) identity x;
+\definition derivativesOutside[x: Base.Point]: Logic.Not (BaseSets.Member base x) -> derivatives x = unit := Extend.outside (\fun (x: \Cast[Base.Point] base) => Fiber[x := x].derivative) unit x;
+\module Parameters;
+\module TargetFiber(x: Base.Point);
+\module Integrand;
+\definition targetOutside[x: Base.Point][t: Real.Real]: Logic.Not (RealSets.Member (Line.interval (Slices.reverseImageInterval Parameters[].data x).left (Slices.reverseImageInterval Parameters[].data x).right) t) -> target (Pair.pair Base.Point Real.Real x t) = Real.zero :=
+  \fun (outside: Logic.Not (RealSets.Member (Line.interval (Slices.reverseImageInterval Parameters[].data x).left (Slices.reverseImageInterval Parameters[].data x).right) t)) =>
+    targetZero (join x t) (\fun (member: Sets.Member image (join x t)) => outside (Integrand[].Support[x := x, t := t].inside member));
+\import Slices.ReverseRectangle[data := Parameters[].data, f := source, h := target,
+  continuous := \fun (x: Base.Point) => TargetFiber[x := x].continuous,
+  weighted := Integrand[].weighted, sourceOutside := Integrand[].sourceOutside, targetOutside := targetOutside] \as Change;
+\definition theorem: I.integral Pullback.representative = I.integral (TargetIntegral.representative f) :=
+  trans!{Real.Real} _ _ _ sourceIntegral (trans!{Real.Real} _ _ _ Change.theorem targetIntegral);

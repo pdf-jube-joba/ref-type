@@ -1,0 +1,21 @@
+\import \parent.Topology[] \as Geometry;
+\import \parent.\parent.OpenTransport[h := Geometry.homeomorphism, c := Real.one] \as Transport;
+\definition imageEqual[S: \Pow Point]: image map S = forward S := \axiom:setext(image map S, forward S,
+  \fun (y: Point)(inside: Sets.Member (image map S) y) => \block {
+    \takefrom x: \Cast[Point] ({ x: Point \where Logic.And[Sets.Member S x, point x = y] }) \by inside \then
+    \let data: Logic.And[Sets.Member S x, point x = y] := \bysub(Point, { x: Point \where Logic.And[Sets.Member S x, point x = y] }, x) \then
+    \return \idelim x = backpoint y \with z: Point => Sets.Member S z \by {
+      base: data.left, equality: trans!{Point} _ _ _ (sym!{Point} _ _ (left x)) (congr!{Point Point} backpoint _ _ data.right)
+    }
+  },
+  \fun (y: Point)(inside: Sets.Member (forward S) y) => Logic.existsIntro[Point, { x: Point \where Logic.And[Sets.Member S x, point x = y] }] (backpoint y)
+    (Logic.And[_, _]::# inside (right y)));
+\definition openLaw: Transport.OpenLaw := \fun (U: \Pow Point)(opened: _) => trans!{M.Value} _ _ _ (outer U)
+  (sym!{M.Value} _ _ (Values.oneScale (E.outer U) (E.outerNonnegative U)));
+\definition theorem[S: \Pow Point]: E.outer (image map S) = E.outer S := trans!{M.Value} _ _ _
+  (congr!{{\Pow Point} M.Value} E.outer _ _ (imageEqual S)) (outer S);
+\definition measurable[S: \Pow Point]: E.Caratheodory S -> E.Caratheodory (image map S) :=
+  \fun (valid: _) => \idelim forward S = image map S \with U: \Pow Point => E.Caratheodory U \by {
+    base: Transport.measurable Absolute.onePositive openLaw S valid,
+    equality: sym!{{\Pow Point}} _ _ (imageEqual S)
+  };

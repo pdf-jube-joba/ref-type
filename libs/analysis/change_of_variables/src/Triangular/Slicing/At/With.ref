@@ -1,0 +1,71 @@
+\import Split.LeftSection[V := U, c := c] \as Source;
+\import Split.LeftSection[V := V, c := c] \as Target;
+\definition domain: Fiber.OpenSet := Source.domain;
+\definition target: Fiber.OpenSet := Target.domain;
+\definition forward: Ambient.Carrier U -> Ambient.Carrier V := AmbientMaps.apply U V f.forward;
+\definition backward: Ambient.Carrier V -> Ambient.Carrier U := AmbientMaps.apply V U f.backward;
+\definition laws: AmbientDiffeomorphisms.Laws[U, V, f] :=
+  \bysub(AmbientDiffeomorphisms.Data[U, V], AmbientDiffeomorphisms.Diffeomorphism U V, f);
+\definition inverseFixed[y: Ambient.Carrier V]: Split.left (backward y) = Split.left y :=
+  trans!{Point} _ _ _ (sym!{Point} _ _ (fixed (backward y)))
+    (congr!{AmbientPoint Point} Split.left _ _ (laws.rightInverse y));
+\definition forwardJoin[x: Fiber.Carrier Source.domain]: Split.join c (Split.right (forward (Source.apply x))) = forward (Source.apply x) :=
+  trans!{AmbientPoint} _ _ _
+    (congr!{Point AmbientPoint} (\fun (p: Point) => Split.join p (Split.right (forward (Source.apply x)))) _ _
+      (sym!{Point} _ _ (trans!{Point} _ _ _ (fixed (Source.apply x)) (Split.leftJoin c x))))
+    (Split.recover (forward (Source.apply x)));
+\definition backwardJoin[y: Fiber.Carrier Target.domain]: Split.join c (Split.right (backward (Target.apply y))) = backward (Target.apply y) :=
+  trans!{AmbientPoint} _ _ _
+    (congr!{Point AmbientPoint} (\fun (p: Point) => Split.join p (Split.right (backward (Target.apply y)))) _ _
+      (sym!{Point} _ _ (trans!{Point} _ _ _ (inverseFixed (Target.apply y)) (Split.leftJoin c y))))
+    (Split.recover (backward (Target.apply y)));
+\definition apply[x: Fiber.Carrier Source.domain]: Fiber.Carrier Target.domain :=
+  \into[FiberPoint](Split.right (forward (Source.apply x)), Target.domain.points) \by {
+    Target.intro (Split.right (forward (Source.apply x)))
+      (\idelim forward (Source.apply x) = Split.join c (Split.right (forward (Source.apply x)))
+        \with p: AmbientPoint => \In[AmbientPoint] V.points p \by {
+          base: \bysub(AmbientPoint, V.points, forward (Source.apply x)),
+          equality: sym!{AmbientPoint} _ _ (forwardJoin x)
+        })
+  };
+\definition inverse[y: Fiber.Carrier Target.domain]: Fiber.Carrier Source.domain :=
+  \into[FiberPoint](Split.right (backward (Target.apply y)), Source.domain.points) \by {
+    Source.intro (Split.right (backward (Target.apply y)))
+      (\idelim backward (Target.apply y) = Split.join c (Split.right (backward (Target.apply y)))
+        \with p: AmbientPoint => \In[AmbientPoint] U.points p \by {
+          base: \bysub(AmbientPoint, U.points, backward (Target.apply y)),
+          equality: sym!{AmbientPoint} _ _ (backwardJoin y)
+        })
+  };
+\definition forwardSmooth[i: Fin.Fin m]: Fiber.Smooth[].SmoothOn Source.domain (\fun (x: Fiber.Carrier Source.domain) => apply x i) :=
+  Sections.Composition[U := Source.domain, V := U, f := Source.map].smooth
+    (AmbientMaps.coordinateFunction U V f.forward (Indices.right i));
+\definition backwardSmooth[i: Fin.Fin m]: Fiber.Smooth[].SmoothOn Target.domain (\fun (y: Fiber.Carrier Target.domain) => inverse y i) :=
+  Sections.Composition[U := Target.domain, V := V, f := Target.map].smooth
+    (AmbientMaps.coordinateFunction V U f.backward (Indices.right i));
+\definition forwardMap: FiberMaps.Map Source.domain Target.domain :=
+  \into[FiberMaps.Data[Source.domain, Target.domain]](FiberMaps.Data[Source.domain, Target.domain] { apply := apply },
+    FiberMaps.Map Source.domain Target.domain) \by {
+      FiberMaps.Laws[Source.domain, Target.domain, FiberMaps.Data[Source.domain, Target.domain]::# apply] { smooth := forwardSmooth }
+    };
+\definition backwardMap: FiberMaps.Map Target.domain Source.domain :=
+  \into[FiberMaps.Data[Target.domain, Source.domain]](FiberMaps.Data[Target.domain, Source.domain] { apply := inverse },
+    FiberMaps.Map Target.domain Source.domain) \by {
+      FiberMaps.Laws[Target.domain, Source.domain, FiberMaps.Data[Target.domain, Source.domain]::# inverse] { smooth := backwardSmooth }
+    };
+\definition leftInverse[x: Fiber.Carrier Source.domain]: inverse (apply x) = x :=
+  trans!{FiberPoint} _ _ _
+    (congr!{{Ambient.Carrier V} FiberPoint} (\fun (p: Ambient.Carrier V) => Split.right (backward p)) (Target.apply (apply x)) (forward (Source.apply x)) (forwardJoin x))
+    (trans!{FiberPoint} _ _ _ (congr!{AmbientPoint FiberPoint} Split.right _ _ (laws.leftInverse (Source.apply x))) (Split.rightJoin c x));
+\definition rightInverse[y: Fiber.Carrier Target.domain]: apply (inverse y) = y :=
+  trans!{FiberPoint} _ _ _
+    (congr!{{Ambient.Carrier U} FiberPoint} (\fun (p: Ambient.Carrier U) => Split.right (forward p)) (Source.apply (inverse y)) (backward (Target.apply y)) (backwardJoin y))
+    (trans!{FiberPoint} _ _ _ (congr!{AmbientPoint FiberPoint} Split.right _ _ (laws.rightInverse (Target.apply y))) (Split.rightJoin c y));
+\definition diffeomorphism: FiberDiffeomorphisms.Diffeomorphism Source.domain Target.domain :=
+  \into[FiberDiffeomorphisms.Data[Source.domain, Target.domain]](FiberDiffeomorphisms.Data[Source.domain, Target.domain] {
+    forward := forwardMap, backward := backwardMap,
+  }, FiberDiffeomorphisms.Diffeomorphism Source.domain Target.domain) \by {
+    FiberDiffeomorphisms.Laws[Source.domain, Target.domain, FiberDiffeomorphisms.Data[Source.domain, Target.domain]::# forwardMap backwardMap] {
+      leftInverse := leftInverse, rightInverse := rightInverse,
+    }
+  };

@@ -1,0 +1,15 @@
+\import Fin.Tuples[A := Point] \as Tuples;
+\definition scaled[k: N.Nat^][a: Fin.Fin k -> Real.Real][v: Multilinear.Arguments k]: Multilinear.Arguments k :=
+  \fun (i: Fin.Fin k) => Coordinates.scale (a i) (v i);
+\module Step(k: N.Nat^);
+\definition theorem: \forall (k: N.Nat^)(f: Multilinear.Form k)(a: Fin.Fin k -> Real.Real)(v: Multilinear.Arguments k) ->
+  f (scaled k a v) = Real.mul (E.product k a) (f v) :=
+  \induction (k: N.Nat^) \return \forall (f: Multilinear.Form k)(a: Fin.Fin k -> Real.Real)(v: Multilinear.Arguments k) ->
+    f (scaled k a v) = Real.mul (E.product k a) (f v) \with {
+    | zero: \fun (f: Multilinear.Form N.Nat^::zero)(a: Fin.Fin N.Nat^::zero -> Real.Real)(v: Multilinear.Arguments N.Nat^::zero) =>
+      trans!{Real.Real} _ _ _ (congr!{{Multilinear.Arguments N.Nat^::zero} Real.Real} f _ _
+        (\axiom:funext(scaled N.Nat^::zero a v, v, \fun (i: Fin.Fin N.Nat^::zero) => Logic.falseElim _ (Fin.zeroImpossible i (Fin.bound N.Nat^::zero i)))))
+        (sym!{Real.Real} _ _ (Laws.fieldMulOneLeft (f v)))
+    | succ: \fun (k: N.Nat^)(previous: \forall (f: Multilinear.Form k)(a: Fin.Fin k -> Real.Real)(v: Multilinear.Arguments k) ->
+      f (scaled k a v) = Real.mul (E.product k a) (f v)) => Step[k := k].theorem previous
+  };

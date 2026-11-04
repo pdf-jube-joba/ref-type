@@ -1,0 +1,21 @@
+\import \root.CurveRestriction[n := Index.total].On[U := U, h := scalar, a := join x interval.left, i := pivot, interval := interval] \as Curve;
+\definition included: Curve.Contains := \fun (t: Continuous.Point) => \block {
+  \let bounds: Logic.And[R.Le interval.left t, R.Le t interval.right] := \bysub(Real.Real, RealTopology.ClosedInterval interval.left interval.right, t) \then
+  \return \idelim join x t = Points.replace (join x interval.left) pivot t \with p: E.Point => Sets.Member U.points p \by {
+    base: contains x t (\bysub(Base.Point, base, x)) bounds.left bounds.right, equality: sym!{E.Point} _ _ (replaceJoin x interval.left t) }
+};
+\import Curve.With[contains := included] \as Restricted;
+\definition value: Continuous.Function := Restricted.value;
+\definition derivative: Continuous.Function := Restricted.derivative;
+\definition point[t: Continuous.Point]: Open.Carrier U := Restricted.point t;
+\definition pointValue[t: Continuous.Point]: point t = join x t := replaceJoin x interval.left t;
+\definition valueAt[t: Continuous.Point]: value t = scalar (point t) := Restricted.valueAt t;
+\definition derivativeAt[t: Continuous.Point]: derivative t = partial (point t) := Restricted.derivativeAt t;
+\definition law: \forall (t: Real.Real) -> R.Lt interval.left t -> R.Lt t interval.right -> calculus.Real[].Derivative[].Def[].HasDerivativeAt value t (derivative t) := Restricted.law;
+\definition positive[t: Continuous.Point]: R.Lt Real.zero (derivative t) := \block {
+  \let bounds: Logic.And[R.Le interval.left t, R.Le t interval.right] := \bysub(Real.Real, RealTopology.ClosedInterval interval.left interval.right, t) \then
+  \let standard: Open.Carrier U := \into[E.Point](join x t, U.points) \by { contains x t (\bysub(Base.Point, base, x)) bounds.left bounds.right } \then
+  \return R.ltReplaceRight Real.zero (partial standard) (derivative t)
+    (sym!{Real.Real} _ _ (trans!{Real.Real} _ _ _ (derivativeAt t) (congr!{{Open.Carrier U} Real.Real} partial (point t) standard (pointValue t))))
+    (sign x t (\bysub(Base.Point, base, x)) bounds.left bounds.right)
+};

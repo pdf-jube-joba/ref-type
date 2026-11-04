@@ -1,0 +1,49 @@
+\definition evaluate: Word -> Maps.Map := \induction (word: Word) \return Maps.Map \with {
+  | identity: identity
+  | diagonal: \fun (a: NonzeroPoint) => diagonal a
+  | shear: \fun (i: Index)(j: Other i)(t: Real.Real) => \parent.Shear[i := i, j := j, t := t].map
+  | compose: \fun (left: Word)(fl: Maps.Map)(right: Word)(fr: Maps.Map) => compose fl fr
+};
+\definition inverse: Word -> Word := \induction (word: Word) \return Word \with {
+  | identity: Word::identity
+  | diagonal: \fun (a: NonzeroPoint) => Word::diagonal (inversePoint a)
+  | shear: \fun (i: Index)(j: Other i)(t: Real.Real) => Word::shear i j (Real.neg t)
+  | compose: \fun (left: Word)(il: Word)(right: Word)(ir: Word) => Word::compose ir il
+};
+\module Diagonal(a: NonzeroPoint) {
+  \definition left[x: Point]: (diagonal (inversePoint a)).apply ((diagonal a).apply x) = x := \axiom:funext((diagonal (inversePoint a)).apply ((diagonal a).apply x), x, \fun (i: Index) => eq_reason_in!{Real.Real _
+    "=" _ "by" { sym!{Real.Real} _ _ (Laws.fieldMulAssoc (Algebra.field.inv (a i)) (a i) (x i)) }
+    "=" _ "by" { congr!{Real.Real Real.Real} (\fun (c: Real.Real) => Real.mul c (x i)) _ _ (Algebra.field.inverse (a i) (nonzero a i)) }
+    "=" _ "by" { Laws.fieldMulOneLeft (x i) }
+  });
+  \definition right[x: Point]: (diagonal a).apply ((diagonal (inversePoint a)).apply x) = x := \axiom:funext((diagonal a).apply ((diagonal (inversePoint a)).apply x), x, \fun (i: Index) => eq_reason_in!{Real.Real _
+    "=" _ "by" { sym!{Real.Real} _ _ (Laws.fieldMulAssoc (a i) (Algebra.field.inv (a i)) (x i)) }
+    "=" _ "by" { congr!{Real.Real Real.Real} (\fun (c: Real.Real) => Real.mul c (x i)) _ _
+      (trans!{Real.Real} _ _ _ (Laws.fieldMulComm (a i) (Algebra.field.inv (a i))) (Algebra.field.inverse (a i) (nonzero a i))) }
+    "=" _ "by" { Laws.fieldMulOneLeft (x i) }
+  });
+}
+\definition cancellation: \forall (word: Word) -> \forall (x: Point) -> (evaluate (inverse word)).apply ((evaluate word).apply x) = x :=
+  \induction (word: Word) \return \forall (x: Point) -> (evaluate (inverse word)).apply ((evaluate word).apply x) = x \with {
+    | identity: \fun (x: Point) => \refl(x)
+    | diagonal: \fun (a: NonzeroPoint) => Diagonal[a := a].left
+    | shear: \fun (i: Index)(j: Other i)(t: Real.Real)(x: Point) =>
+      \parent.Shear[i := i, j := j, t := t].cancellation (Real.neg t) x (distinct i j) (Laws.addNegRight t)
+    | compose: \fun (left: Word)(lc: \forall (x: Point) -> (evaluate (inverse left)).apply ((evaluate left).apply x) = x)
+      (right: Word)(rc: \forall (x: Point) -> (evaluate (inverse right)).apply ((evaluate right).apply x) = x)(x: Point) =>
+      trans!{Point} _ _ _ (congr!{Point Point} ((evaluate (inverse right)).apply) _ _ (lc ((evaluate right).apply x))) (rc x)
+  };
+\definition reverseCancellation: \forall (word: Word) -> \forall (x: Point) -> (evaluate word).apply ((evaluate (inverse word)).apply x) = x :=
+  \induction (word: Word) \return \forall (x: Point) -> (evaluate word).apply ((evaluate (inverse word)).apply x) = x \with {
+    | identity: \fun (x: Point) => \refl(x)
+    | diagonal: \fun (a: NonzeroPoint) => Diagonal[a := a].right
+    | shear: \fun (i: Index)(j: Other i)(t: Real.Real)(x: Point) =>
+      \parent.Shear[i := i, j := j, t := Real.neg t].cancellation t x (distinct i j) (Laws.addNegLeft t)
+    | compose: \fun (left: Word)(lc: \forall (x: Point) -> (evaluate left).apply ((evaluate (inverse left)).apply x) = x)
+      (right: Word)(rc: \forall (x: Point) -> (evaluate right).apply ((evaluate (inverse right)).apply x) = x)(x: Point) =>
+      trans!{Point} _ _ _ (congr!{Point Point} ((evaluate left).apply) _ _ (rc ((evaluate (inverse left)).apply x))) (lc x)
+  };
+\definition inverseLaw[word: Word]: Inverse[evaluate word] := Inverse[evaluate word] {
+  backward := evaluate (inverse word), left := cancellation word, right := reverseCancellation word,
+};
+\definition Generated[L: Maps.Map]: \Prop := \exists ( w: Word \where evaluate w = L );

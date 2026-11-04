@@ -1,0 +1,20 @@
+\definition section[x: A]: Integration.Riemann[interval := reverseImageInterval data x].Continuous[].Function :=
+  \into[Real.Real -> Real.Real]((\fun (t: Real.Real) => h (Pair.pair A Real.Real x t)), Integration.Riemann[interval := reverseImageInterval data x].Continuous[].Function) \by { continuous x };
+\definition changes: ReverseChanges := ReverseChanges {
+  sourceInterval := data.intervals,
+  targetInterval := reverseImageInterval data,
+  integrand := section,
+  map := data.maps,
+  derivative := data.derivatives,
+  conditions := \fun (x: A) => \root.RealLine[].Monotone[interval := data.intervals x, g := data.maps x, dg := data.derivatives x].Decreasing[derivative := data.differentiable x, negative := data.negative x].Into[h := section x].conditions,
+};
+\import \parent.ReverseAbsoluteSubstitution[data := changes, nonpositive := data.nonpositive] \as Formula;
+\definition sourceInside[x: A][t: Real.Real]: R.Le (data.intervals x).left t -> R.Le t (data.intervals x).right -> Formula.input x t = f (Pair.pair A Real.Real x t) :=
+  \fun (at: R.Le (data.intervals x).left t) (tb: R.Le t (data.intervals x).right) => sym!{Real.Real} _ _ (weighted x t at tb);
+\definition sourceValues[x: A][t: Real.Real]: Formula.source x t = f (Pair.pair A Real.Real x t) :=
+  \parent.Masked[interval := data.intervals x, h := Formula.input x, f := \fun (s: Real.Real) => f (Pair.pair A Real.Real x s), inside := sourceInside x, outside := sourceOutside x].values t;
+\definition targetInside[x: A][t: Real.Real]: R.Le (reverseImageInterval data x).left t -> R.Le t (reverseImageInterval data x).right -> section x t = h (Pair.pair A Real.Real x t) :=
+  \fun (_: R.Le (reverseImageInterval data x).left t) (_: R.Le t (reverseImageInterval data x).right) => \refl(h (Pair.pair A Real.Real x t));
+\definition targetValues[x: A][t: Real.Real]: Formula.target x t = h (Pair.pair A Real.Real x t) :=
+  \parent.Masked[interval := reverseImageInterval data x, h := section x, f := \fun (s: Real.Real) => h (Pair.pair A Real.Real x s), inside := targetInside x, outside := targetOutside x].values t;
+\definition theorem: PI.integral f = PI.integral h := Formula.Integrate[f := f, g := h, sourceValues := sourceValues, targetValues := targetValues].theorem;

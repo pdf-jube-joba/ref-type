@@ -11,4 +11,4 @@
 
 - [A05 Lp 空間のノルムと完備性](a05-lp-completeness.md)
 - [G01 滑らかな bump 関数と従属分割](g01-smooth-partitions.md)
-- [A04 多重積分の変数変換](a04-change-of-variables.md)
+- [A04 多重積分の変数変換](../../libs/analysis/change_of_variables/README.md)

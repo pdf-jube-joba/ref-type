@@ -1,0 +1,43 @@
+\import lp_spaces.Euclidean[n := n] \as L;
+\import L.Compact[p := lp_spaces.Powers[].one] \as Compact;
+\import L.BorelMeasure[] \as Borel;
+\import euclidean_measure.EuclideanBorel[n := n] \as Measurable;
+\import E.Borel[] \as BorelSigma;
+\import M.Integral[mu := Borel.borel] \as BI;
+\import product_integration.Finiteness[A := Point, mu := Borel.borel] \as Finite;
+\import smooth_partitions.Euclidean[n := n] \as Smooth;
+\import functional_analysis.Support[A := Point] \as Support;
+\import topological_algebra.Euclidean[].Dimension[n := n].Topology[] \as Ambient;
+\import topology.Topology[Carrier := Point] \as Sets;
+\import \parent.Compact[] \as Integrals;
+\definition support: Finite.FiniteMeasurableSet := \into[\Pow Point](Smooth.support f, Finite.FiniteMeasurableSet) \by {
+  Finite.FiniteSet[Smooth.support f] {
+    measurable := BorelSigma.closed (Smooth.support f) (Support.supportClosed Ambient.topology f),
+    bounded := (L.CompactBounds[].finite (Smooth.support f) (L.smoothCompactLaws f).compact).bounded,
+  }
+};
+\import Finite.Bounded[S := support] \as Bounded;
+\definition integrable: BI.Integrable f := \block {
+  \takefrom coefficient: \Cast[L.Nonnegative] ({ c: L.Nonnegative \where \forall (x: Point) -> R.Le (Absolute.abs (f x)) c })
+    \by Compact.absoluteBound f (Compact.smoothContinuous f (L.smoothCompactLaws f).smooth) (L.smoothCompactLaws f).compact \then
+  \let c: BI.Scaling[].NonnegativeScalar := \into[Real.Real](coefficient, BI.Scaling[].NonnegativeScalar) \by {
+    lp_spaces.Powers[].baseNonnegative coefficient
+  } \then
+  \return Bounded.integrable c f (Bounded.Conditions[f, c] {
+    measurable := Compact.continuousBorel f (Compact.smoothContinuous f (L.smoothCompactLaws f).smooth),
+    bound := \fun (x: Point)(inside: _) => (\bysub(L.Nonnegative, { c: L.Nonnegative \where \forall (x: Point) -> R.Le (Absolute.abs (f x)) c }, coefficient)) x,
+    outside := Support.zeroOutsideSupport Ambient.topology f,
+  })
+};
+\definition representative: BI.Representatives := \into[Point -> Real.Real](f, BI.Representatives) \by { integrable };
+\import product_integration.MeasureMap[A := Point, B := Point, source := Lebesgue.measure, target := Borel.borel] \as Completion;
+\definition completion: Completion.Data := Completion.Data {
+  function := \fun (x: Point) => x,
+  measurable := Measurable.borelMeasurable,
+  value := \fun (S: \Pow Point)(valid: _) => \refl(Lebesgue.measure.value S),
+};
+\import Completion.On[map := completion].RealFunction[f := representative] \as Complete;
+\import lp_spaces.On[A := Point, mu := Lebesgue.measure].One[].Norm[] \as Equality;
+\definition integral: BI.integral representative = I.integral (Integrals.representative f) :=
+  trans!{Real.Real} _ _ _ (sym!{Real.Real} _ _ Complete.integral)
+    (Equality.integralPointwise Complete.representative (Integrals.representative f) (\fun (x: Point) => \refl(f x)));

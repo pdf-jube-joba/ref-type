@@ -1,0 +1,35 @@
+\import Intervals.Riemann[interval := interval].Continuous[] \as Continuous;
+\import euclidean_measure.RealLine[].RiemannMap[interval := interval] \as RiemannMap;
+\import euclidean_measure.RealLine[].IntervalIntegral[interval := interval] \as Indicator;
+\import calculus.Real[].Derivative[].Def[] \as Derivative;
+\import M.Functions[mu := Lebesgue.measure] \as Measurable;
+\import I.Null[] \as Null;
+\import M.AlmostEverywhere[mu := Lebesgue.measure] \as AE;
+\import lp_spaces.On[A := Real.Real, mu := Line.measure].One[].Norm[] \as LineEquality;
+\definition joint[p: Sigma.Point]: Real.Real :=
+  RiemannMap.restrict (integrand (Pair.first Point Real.Real p)) (Pair.second Point Real.Real p);
+\definition boundary[x: Point]: Real.Real := Real.sub (primitive x interval.right) (primitive x interval.left);
+\structure Conditions: \Prop := {
+  integrable: J.Integrable joint,
+  boundaryMeasurable: M.IsMeasurable Lebesgue.measure boundary,
+  continuous: \forall (x: Point) -> Continuous.IsContinuous (primitive x),
+  derivative: \forall (x: Point)(t: Real.Real) -> R.Lt interval.left t -> R.Lt t interval.right ->
+    Derivative.HasDerivativeAt (primitive x) t (integrand x t),
+};
+\definition representative[valid: Conditions]: J.Representatives := \into[Sigma.Point -> Real.Real](joint, J.Representatives) \by { valid.integrable };
+\definition sections[x: Point]: RI.Representatives := RiemannMap.representative (Continuous.Of[f := integrand x].integral);
+\definition sectionIntegral[valid: Conditions][x: Point]: RI.integral (sections x) = boundary x :=
+  trans!{Real.Real} _ _ _ (RiemannMap.integral (Continuous.Of[f := integrand x].integral))
+    (\root.Interval[interval := interval].Fundamental[f := integrand x, g := primitive x].theorem (valid.continuous x) (valid.derivative x));
+\module With(valid: Conditions, fubini: Fubini.AEFubini[representative valid]);
+\definition boundaryIntegrable[valid: Conditions]: I.Integrable boundary := \block {
+  \takefrom fubini: Fubini.AEFubini[representative valid] \by Fubini.fubini (representative valid) \then
+  \return With[valid := valid, fubini := fubini].integrable
+};
+\definition boundaryRepresentative[valid: Conditions]: I.Representatives := \into[Point -> Real.Real](boundary, I.Representatives) \by { boundaryIntegrable valid };
+\definition theorem[valid: Conditions]: J.integral (representative valid) = I.integral (boundaryRepresentative valid) := \block {
+  \takefrom fubini: Fubini.AEFubini[representative valid] \by Fubini.fubini (representative valid) \then
+  \return trans!{Real.Real} _ _ _ fubini.exchange
+    (Null.integralAlmost fubini.outer (boundaryRepresentative valid) (With[valid := valid, fubini := fubini].almost))
+};
+\module HalfSpace;

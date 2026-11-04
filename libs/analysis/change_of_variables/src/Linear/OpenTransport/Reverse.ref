@@ -1,0 +1,23 @@
+\import Homeomorphisms.Inverse[] \as Reversal;
+\definition inverse: Homeomorphisms.Homeomorphism[Ambient.topology, Ambient.topology] := Reversal.inverse Ambient.topology Ambient.topology h;
+\import \parent.\parent.OpenTransport[h := inverse, c := Laws.fieldInv c] \as Reverse;
+\definition openLaw: R.Lt Real.zero c -> OpenLaw -> Reverse.OpenLaw :=
+  \fun (positive: _)(valid: _)(U: \Pow Point)(opened: _) => \block {
+    \let restored: E.outer (forward (backward U)) = E.outer U := congr!{{\Pow Point} M.Value} E.outer _ _ (restores U) \then
+    \let scaled: M.scale c (E.outer (backward U)) = E.outer U := trans!{M.Value} _ _ _
+      (sym!{M.Value} _ _ (valid (backward U) (laws.forwardContinuous U opened))) restored \then
+    \return eq_reason_in!{M.Value _
+      "=" _ "by" { sym!{M.Value} _ _ (Scaling.scaleInverseLeft c (E.outer (backward U)) positive (E.outerNonnegative (backward U))) }
+      "=" _ "by" { congr!{M.Value M.Value} (M.scale (Laws.fieldInv c)) _ _ scaled }
+    }
+  };
+\definition lower: R.Lt Real.zero c -> OpenLaw -> \forall (S: \Pow Point) -> Values.Included (M.scale c (E.outer S)) (E.outer (forward S)) :=
+  \fun (positive: _)(valid: _)(S: \Pow Point)(r: Real.Real)(member: M.below (M.scale c (E.outer S)) r) =>
+    \idelim M.scale c (M.scale (Laws.fieldInv c) (E.outer (forward S))) = E.outer (forward S) \with v: M.Value => M.below v r \by {
+      base: Values.scaleMono c (E.outer S) (M.scale (Laws.fieldInv c) (E.outer (forward S)))
+        (\fun (t: Real.Real)(inside: M.below (E.outer S) t) => Reverse.upper (Absolute.invPositive c positive) (openLaw positive valid) (forward S) t
+          (\idelim E.outer S = E.outer (backward (forward S)) \with v: M.Value => M.below v t \by {
+            base: inside, equality: sym!{M.Value} _ _ (congr!{{\Pow Point} M.Value} E.outer _ _ (restoresBack S))
+          })) r member,
+      equality: Scaling.scaleInverseRight c (E.outer (forward S)) positive (E.outerNonnegative (forward S))
+    };

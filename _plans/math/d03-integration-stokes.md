@@ -9,5 +9,5 @@
 
 ## 依存するタスク
 
-- [A04 多重積分の変数変換](a04-change-of-variables.md)
+- [A04 多重積分の変数変換](../../libs/analysis/change_of_variables/README.md)
 - [G04 collar と境界の貼り合わせ](g04-collars-gluing.md)

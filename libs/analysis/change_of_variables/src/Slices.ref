@@ -1,0 +1,92 @@
+\import real.Analysis[] \as Real;
+\import euclidean_measure.RealLine[] \as Line;
+\import \root.RealLine[] \as LineFinite;
+\import product_integration.Integration[A := A, B := Real.Real, mu := mu, nu := Line.measure, left := exhaustion, right := LineFinite.exhaustion] \as Fubini;
+\import functional_analysis.Measure[A := A] \as LM;
+\import LM.Integral[mu := mu] \as LI;
+\import functional_analysis.Measure[A := Real.Real].Integral[mu := Line.measure] \as RI;
+\import product_integration.ProductSigma[A := A, B := Real.Real, left := mu.sigma, right := Line.measure.sigma] \as Sigma;
+\import product_integration.Product[A := A, B := Real.Real, mu := mu, nu := Line.measure, left := exhaustion, right := LineFinite.exhaustion] \as Product;
+\import functional_analysis.Measure[A := Sigma.Point].Integral[mu := Product.measure] \as PI;
+\import topology.Topology[Carrier := A] \as Sets;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Data[].Pair[] \as Pair;
+\use std.Logic[].Equality[].sym;
+\use std.Logic[].Equality[].trans;
+\use std.Logic[].Equality[].eq_reason_in;
+\use std.Logic[].Equality[].congr;
+\import LI.Null[] \as Null;
+\import product_integration.FiniteNull[A := A, mu := mu] \as FiniteNull;
+\import dedekind_reals.DedekindReal[].Order[] \as Order;
+\import lp_spaces.On[A := A, mu := mu].One[].Norm[] \as LeftNorm;
+\import lp_spaces.On[A := Real.Real, mu := Line.measure].One[].Norm[] \as RightNorm;
+\module Exchange(f, g: PI.Representatives, source, target: A -> RI.Representatives, exception: Null.NullSet,
+  sourceValues: \forall (x: A) -> Logic.Not (Sets.Member exception x) -> \forall (y: Real.Real) -> source x y = f (Pair.pair A Real.Real x y),
+  targetValues: \forall (x: A) -> Logic.Not (Sets.Member exception x) -> \forall (y: Real.Real) -> target x y = g (Pair.pair A Real.Real x y),
+  sections: \forall (x: A) -> RI.integral (source x) = RI.integral (target x));
+\module Shear(a: A -> Real.Real, f, g: PI.Representatives,
+  values: \forall (x: A) (t: Real.Real) -> f (Pair.pair A Real.Real x t) = g (Pair.pair A Real.Real x (Real.sub t (a x))));
+\import integration.Real[] \as Integration;
+\structure Changes: \Set := {
+  sourceInterval: A -> Integration.Interval,
+  targetInterval: A -> Integration.Interval,
+  integrand: \forall (x: A) -> Integration.Riemann[interval := targetInterval x].Continuous[].Function,
+  map: \forall (x: A) -> Integration.Riemann[interval := sourceInterval x].Continuous[].Function,
+  derivative: \forall (x: A) -> Integration.Riemann[interval := sourceInterval x].Continuous[].Function,
+  conditions: \forall (x: A) -> \root.Interval[interval := sourceInterval x].Substitution[target := targetInterval x, h := integrand x, g := map x, dg := derivative x].Conditions,
+};
+\module Substitution(data: Changes);
+\import product_integration.MeasureMap[A := Real.Real, B := Real.Real, source := Line.measure, target := Line.measure] \as LineMaps;
+\import product_integration.ExtendedIntegral[A := A, mu := mu] \as Outer;
+\module NonnegativeShear(a: A -> Real.Real, f, g: PI.NonnegativeMeasurable,
+  values: \forall (x: A) (t: Real.Real) -> f.function (Pair.pair A Real.Real x t) = g.function (Pair.pair A Real.Real x (Real.sub t (a x))));
+\module AbsoluteSubstitution(data: Changes, nonnegative: \forall (x: A) ->
+  \root.Interval[interval := data.sourceInterval x].Substitution[target := data.targetInterval x, h := data.integrand x, g := data.map x, dg := data.derivative x].For[conditions := data.conditions x].Absolute[].Nonnegative);
+\structure ReverseChanges: \Set := {
+  sourceInterval: A -> Integration.Interval,
+  targetInterval: A -> Integration.Interval,
+  integrand: \forall (x: A) -> Integration.Riemann[interval := targetInterval x].Continuous[].Function,
+  map: \forall (x: A) -> Integration.Riemann[interval := sourceInterval x].Continuous[].Function,
+  derivative: \forall (x: A) -> Integration.Riemann[interval := sourceInterval x].Continuous[].Function,
+  conditions: \forall (x: A) -> \root.Interval[interval := sourceInterval x].ReverseSubstitution[target := targetInterval x, h := integrand x, g := map x, dg := derivative x].Conditions,
+};
+\module ReverseAbsoluteSubstitution(data: ReverseChanges, nonpositive: \forall (x: A) ->
+  \root.Interval[interval := data.sourceInterval x].ReverseSubstitution[target := data.targetInterval x, h := data.integrand x, g := data.map x, dg := data.derivative x].For[conditions := data.conditions x].Absolute[].Nonpositive);
+\import dedekind_reals.DedekindReal[] \as R;
+\import topology.Topology[Carrier := Real.Real] \as SetsOfReal;
+\module Masked(interval: Integration.Interval, h: Integration.Riemann[interval := interval].Continuous[].Function,
+  f: Real.Real -> Real.Real,
+  inside: \forall (t: Real.Real) -> R.Le interval.left t -> R.Le t interval.right -> h t = f t,
+  outside: \forall (t: Real.Real) -> Logic.Not (SetsOfReal.Member (Line.interval interval.left interval.right) t) -> f t = Real.zero);
+\structure IncreasingMaps: \Set := {
+  intervals: A -> Integration.Interval,
+  maps: \forall (x: A) -> Integration.Riemann[interval := intervals x].Continuous[].Function,
+  derivatives: \forall (x: A) -> Integration.Riemann[interval := intervals x].Continuous[].Function,
+  differentiable: \forall (x: A) -> \root.RealLine[].Monotone[interval := intervals x, g := maps x, dg := derivatives x].DerivativeLaw,
+  positive: \forall (x: A) -> \root.RealLine[].Monotone[interval := intervals x, g := maps x, dg := derivatives x].Positive,
+  nonnegative: \forall (x: A) (t: Real.Real) -> R.Le (intervals x).left t -> R.Le t (intervals x).right -> R.Le Real.zero (derivatives x t),
+};
+\definition imageInterval[data: IncreasingMaps][x: A]: Integration.Interval :=
+  \root.RealLine[].Monotone[interval := data.intervals x, g := data.maps x, dg := data.derivatives x].For[derivative := data.differentiable x, positive := data.positive x].target;
+\module Rectangle(data: IncreasingMaps, f, h: PI.Representatives,
+  continuous: \forall (x: A) -> Integration.Riemann[interval := imageInterval data x].Continuous[].IsContinuous (\fun (t: Real.Real) => h (Pair.pair A Real.Real x t)),
+  weighted: \forall (x: A) (t: Real.Real) -> R.Le (data.intervals x).left t -> R.Le t (data.intervals x).right ->
+    f (Pair.pair A Real.Real x t) = Real.mul (h (Pair.pair A Real.Real x (data.maps x t))) (real.Analysis[].Estimates[].Product[].abs (data.derivatives x t)),
+  sourceOutside: \forall (x: A) (t: Real.Real) -> Logic.Not (SetsOfReal.Member (Line.interval (data.intervals x).left (data.intervals x).right) t) -> f (Pair.pair A Real.Real x t) = Real.zero,
+  targetOutside: \forall (x: A) (t: Real.Real) -> Logic.Not (SetsOfReal.Member (Line.interval (imageInterval data x).left (imageInterval data x).right) t) -> h (Pair.pair A Real.Real x t) = Real.zero);
+\structure DecreasingMaps: \Set := {
+  intervals: A -> Integration.Interval,
+  maps: \forall (x: A) -> Integration.Riemann[interval := intervals x].Continuous[].Function,
+  derivatives: \forall (x: A) -> Integration.Riemann[interval := intervals x].Continuous[].Function,
+  differentiable: \forall (x: A) -> \root.RealLine[].Monotone[interval := intervals x, g := maps x, dg := derivatives x].DerivativeLaw,
+  negative: \forall (x: A) -> \root.RealLine[].Monotone[interval := intervals x, g := maps x, dg := derivatives x].Negative,
+  nonpositive: \forall (x: A) (t: Real.Real) -> R.Le (intervals x).left t -> R.Le t (intervals x).right -> R.Le (derivatives x t) Real.zero,
+};
+\definition reverseImageInterval[data: DecreasingMaps][x: A]: Integration.Interval :=
+  \root.RealLine[].Monotone[interval := data.intervals x, g := data.maps x, dg := data.derivatives x].Decreasing[derivative := data.differentiable x, negative := data.negative x].target;
+\module ReverseRectangle(data: DecreasingMaps, f, h: PI.Representatives,
+  continuous: \forall (x: A) -> Integration.Riemann[interval := reverseImageInterval data x].Continuous[].IsContinuous (\fun (t: Real.Real) => h (Pair.pair A Real.Real x t)),
+  weighted: \forall (x: A) (t: Real.Real) -> R.Le (data.intervals x).left t -> R.Le t (data.intervals x).right ->
+    f (Pair.pair A Real.Real x t) = Real.mul (h (Pair.pair A Real.Real x (data.maps x t))) (real.Analysis[].Estimates[].Product[].abs (data.derivatives x t)),
+  sourceOutside: \forall (x: A) (t: Real.Real) -> Logic.Not (SetsOfReal.Member (Line.interval (data.intervals x).left (data.intervals x).right) t) -> f (Pair.pair A Real.Real x t) = Real.zero,
+  targetOutside: \forall (x: A) (t: Real.Real) -> Logic.Not (SetsOfReal.Member (Line.interval (reverseImageInterval data x).left (reverseImageInterval data x).right) t) -> h (Pair.pair A Real.Real x t) = Real.zero);

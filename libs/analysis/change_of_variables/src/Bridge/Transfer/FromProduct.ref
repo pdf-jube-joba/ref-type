@@ -1,0 +1,36 @@
+\import Real.Estimates[].Product[] \as Abs;
+\import M.Functions[mu := BorelMeasure.borel] \as Functions;
+\import functional_analysis.Measure[A := Sigma.Point] \as Source;
+\definition function[x: E.Point]: Real.Real := f (split x);
+\definition absolute: BI.NonnegativeMeasurable := BI.NonnegativeMeasurable {
+  function := \fun (x: E.Point) => Abs.abs (function x),
+  measurable := Functions.absMeasurable function borel,
+  nonnegative := \fun (x: E.Point) => Abs.absNonnegative (function x),
+};
+\import Maps.On[map := data].Nonnegative[f := absolute] \as Absolute;
+\definition equality: (\fun (p: Sigma.Point) => Abs.abs (function (join p))) = (\fun (p: Sigma.Point) => Abs.abs (f p)) :=
+  \axiom:funext((\fun (p: Sigma.Point) => Abs.abs (function (join p))), (\fun (p: Sigma.Point) => Abs.abs (f p)), \fun (p: Sigma.Point) => congr!{Sigma.Point Real.Real} (\fun (q: Sigma.Point) => Abs.abs (f q)) _ _ (splitJoin p));
+\definition integrable: BI.Integrable function := \block {
+  \takefrom b: \Cast[Real.Real] ({ b: Real.Real \where J.IntegralBound[(\fun (p: Sigma.Point) => Abs.abs (f p)), b] }) \by (J.integralLaw f).integrable.right.right \then
+  \let bound: J.IntegralBound[(\fun (p: Sigma.Point) => Abs.abs (f p)), b] := \bysub(Real.Real, { b: Real.Real \where J.IntegralBound[(\fun (p: Sigma.Point) => Abs.abs (f p)), b] }, b) \then
+  \return Logic.And[_, _]::# borel (Logic.And[_, _]::# (\fun (x: E.Point) => Abs.absNonnegative (function x))
+    (Logic.existsIntro[Real.Real, { b: Real.Real \where BI.IntegralBound[(\fun (x: E.Point) => Abs.abs (function x)), b] }] b
+      (BI.IntegralBound[(\fun (x: E.Point) => Abs.abs (function x)), b] {
+        nonnegative := bound.nonnegative,
+        bound := \fun (r: Real.Real)(member: M.below (BI.lowerIntegral absolute.function) r) => bound.bound r
+          (\idelim BI.lowerIntegral absolute.function = J.lowerIntegral (\fun (p: Sigma.Point) => Abs.abs (f p)) \with v: M.Value => M.below v r \by {
+            base: member,
+            equality: eq_reason_in!{M.Value _
+              "=" _ "by" { sym!{M.Value} _ _ Absolute.lower }
+              "=" _ "by" { congr!{{Sigma.Point -> Real.Real} M.Value} J.lowerIntegral _ _ equality }
+            } }),
+      })))
+};
+\definition borelRepresentative: BI.Representatives := \into[E.Point -> Real.Real](function, BI.Representatives) \by { integrable };
+\import \root.Bridge[n := n].Transfer[].For[f := borelRepresentative] \as Converted;
+\definition representative: I.Representatives := Converted.euclidean;
+\import lp_spaces.On[A := Sigma.Point, mu := Product.measure].One[].Norm[] \as Norm;
+\definition theorem: I.integral representative = J.integral f := eq_reason_in!{Real.Real _
+  "=" _ "by" { Converted.theorem }
+  "=" _ "by" { Norm.integralPointwise Converted.product f (\fun (p: Sigma.Point) => congr!{Sigma.Point Real.Real} f _ _ (splitJoin p)) }
+};

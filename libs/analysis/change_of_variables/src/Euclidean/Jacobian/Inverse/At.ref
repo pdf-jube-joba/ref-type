@@ -1,0 +1,33 @@
+\import \root.Euclidean[n := n].Jacobian[U := U, V := V, f := f] \as Base;
+\import inverse_implicit.Euclidean[n := n].DiffeomorphismDerivative[U := U, V := V, f := e, x := x] \as Derivatives;
+\definition forwardEqual: Derivatives.forward = differential x :=
+  congr!{{Maps.Map U V} {Linear.Map}} (\fun (h: Maps.Map U V) => Maps.Differential[U := U, V := V, f := h, a := x].value) _ _ agrees;
+\definition imageEqual: Derivatives.image = Maps.apply U V f x := congr!{{Maps.Map U V} {Open.Carrier V}} (\fun (h: Maps.Map U V) => Maps.apply U V h x) _ _ agrees;
+\definition inverse: MatrixOperations.Inverse (Representation.entries Derivatives.forward) :=
+  \into[Matrix.Matrix](Representation.entries Derivatives.backward, MatrixOperations.Inverse (Representation.entries Derivatives.forward)) \by {
+    Representation.inverseCertificate Derivatives.forward Derivatives.backward Derivatives.left Derivatives.right
+  };
+\definition nonzero: Logic.Not (Base.signed x = Real.zero) :=
+  \idelim Top.determinant Derivatives.forward = Base.signed x \with d: Real.Real => Logic.Not (d = Real.zero) \by {
+    base: \idelim Matrix.determinant (Representation.entries Derivatives.forward) = Top.determinant Derivatives.forward
+      \with d: Real.Real => Logic.Not (d = Real.zero) \by {
+        base: Inversion.nonzeroOfInverse (Representation.entries Derivatives.forward) inverse,
+        equality: Representation.determinantComparison Derivatives.forward
+      },
+    equality: congr!{{Linear.Map} Real.Real} Top.determinant _ _ forwardEqual
+  };
+\definition signed: Backward.signed (Maps.apply U V f x) = Algebra.field.inv (Base.signed x) := eq_reason_in!{Real.Real _
+  "=" _ "by" { congr!{{Open.Carrier V} Real.Real} Backward.signed _ _ (sym!{{Open.Carrier V}} _ _ imageEqual) }
+  "=" _ "by" { sym!{Real.Real} _ _ (Representation.determinantComparison Derivatives.backward) }
+  "=" _ "by" { Inversion.inverseDeterminant (Representation.entries Derivatives.forward) inverse }
+  "=" _ "by" { congr!{Real.Real Real.Real} Algebra.field.inv _ _ (trans!{Real.Real} _ _ _
+    (Representation.determinantComparison Derivatives.forward) (congr!{{Linear.Map} Real.Real} Top.determinant _ _ forwardEqual)) }
+};
+\definition signedCancellation: Real.mul (Backward.signed (Maps.apply U V f x)) (Base.signed x) = Real.one :=
+  trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (\fun (a: Real.Real) => Real.mul a (Base.signed x)) _ _ signed)
+    (Algebra.field.inverse (Base.signed x) nonzero);
+\definition cancellation: Real.mul (Backward.absolute (Maps.apply U V f x)) (Base.absolute x) = Real.one := eq_reason_in!{Real.Real _
+  "=" _ "by" { sym!{Real.Real} _ _ (Absolute.absProduct (Backward.signed (Maps.apply U V f x)) (Base.signed x)) }
+  "=" _ "by" { congr!{Real.Real Real.Real} Absolute.abs _ _ signedCancellation }
+  "=" _ "by" { Absolute.absOfNonnegative Real.one Laws.oneNonnegative }
+};

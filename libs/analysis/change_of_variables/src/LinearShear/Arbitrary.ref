@@ -1,0 +1,24 @@
+\import Fin.Permutations[n := Index.total] \as Permutations;
+\import Permutations.Operations[] \as Operations;
+\definition swap: Permutations.Swap := Permutations.Swap { first := i, second := last };
+\definition permutation: Permutations.Permutation := Operations.transposition swap;
+\import Fin.Transposition[n := Index.total, a := i, b := last] \as Swap;
+\import Linear.Permutation[p := permutation] \as P;
+\import Rules.Permutation[p := permutation] \as PRule;
+\import Elementary.Shear[i := i, j := j, t := t] \as Original;
+\definition TailIndex: \Set := \Cast[Fin.Fin n] ({ k: Fin.Fin n \where Index.left k = Swap.apply j });
+\definition tailExists: Logic.Not (i = j) -> \exists TailIndex := \fun (distinct: _) =>
+  (\induction (index: Index.Index) \return Index.inflate index = Swap.apply j -> \exists TailIndex \with {
+    | inl: \fun (k: Fin.Fin n)(same: _) => Logic.existsIntro[Fin.Fin n, { k: Fin.Fin n \where Index.left k = Swap.apply j }] k same
+    | inr: \fun (k: Fin.Fin one)(same: _) => Logic.falseElim (\exists TailIndex) (distinct (eq_reason_in!{{Fin.Fin Index.total} i
+      "=" _ "by" { sym!{{Fin.Fin Index.total}} _ _ Swap.onSecond }
+      "=" _ "by" { congr!{{Fin.Fin Index.total} {Fin.Fin Index.total}} Swap.apply _ _ (congr!{{Fin.Fin one} {Fin.Fin Index.total}} Index.right _ _ (oneEqual k)) }
+      "=" _ "by" { congr!{{Fin.Fin Index.total} {Fin.Fin Index.total}} Swap.apply _ _ same }
+      "=" j "by" { Swap.involution j }
+    }))
+  }) (Index.split (Swap.apply j)) (Index.inflateSplit (Swap.apply j));
+\module With(q: TailIndex);
+\definition rule: Logic.Not (i = j) -> Rules.Rule[Original.map] := \fun (distinct: _) => \block {
+  \takefrom q: TailIndex \by tailExists distinct \then
+  \return With[q := q].rule
+};

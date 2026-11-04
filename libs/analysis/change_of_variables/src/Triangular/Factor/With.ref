@@ -1,0 +1,28 @@
+\definition domain: Open.OpenSet := local.domain;
+\definition middle: Open.OpenSet := local.target;
+\definition included: Open.Included domain U := local.included;
+\definition contains: \In[Point] domain.points a := local.contains;
+\definition simple: Diffeomorphisms.Diffeomorphism domain middle := local.equivalence;
+\import Diffeomorphisms.Inverse[U := U, V := V, f := f] \as OriginalInverse;
+\import InverseFunction.RestrictDiffeomorphism[U := V, V := U, f := OriginalInverse.inverse, W := domain, included := included] \as Restriction;
+\definition target: Open.OpenSet := Restriction.domain;
+\definition targetIncluded: Open.Included target V := Restriction.input;
+\definition original: Diffeomorphisms.Diffeomorphism domain target := Diffeomorphisms.Inverse[U := target, V := domain, f := Restriction.equivalence].inverse;
+\definition undo: Diffeomorphisms.Diffeomorphism middle domain := Diffeomorphisms.Inverse[U := domain, V := middle, f := simple].inverse;
+\definition residual: Diffeomorphisms.Diffeomorphism middle target :=
+  Diffeomorphisms.Composition[U := middle, V := domain, f := undo].After[l := n, W := target, g := original].compose;
+\definition source[x: Open.Carrier domain]: Open.Carrier U := Open.inclusion domain U included x;
+\definition originalFormula[x: Open.Carrier domain]: Maps.apply domain target original.forward x = Maps.apply U V f.forward (source x) := \refl(Maps.apply U V f.forward (source x));
+\definition simpleFormula[x: Open.Carrier domain]: Maps.apply domain middle simple.forward x = Replacement.function (source x) := local.forward x;
+\definition residualFormula[y: Open.Carrier middle]: Maps.apply middle target residual.forward y =
+  Maps.apply U V f.forward (source (Maps.apply middle domain simple.backward y)) := \refl(Maps.apply middle target residual.forward y);
+\definition composition[x: Open.Carrier domain]: Maps.apply middle target residual.forward (Maps.apply domain middle simple.forward x) = Maps.apply U V f.forward (source x) :=
+  trans!{Point} _ _ _
+    (congr!{{Open.Carrier domain} Point} (\fun (p: Open.Carrier domain) => Maps.apply domain target original.forward p) _ _ (simple.leftInverse x))
+    (originalFormula x);
+\definition residualFixed[y: Open.Carrier middle]: Maps.apply middle target residual.forward y pivot = y pivot :=
+  Replacement.LocalCoordinates[a := a, local := local].backwardPivot y;
+\definition simpleOther[j: Index]: Logic.Not (pivot = j) -> \forall (x: Open.Carrier domain) -> Maps.apply domain middle simple.forward x j = x j :=
+  Replacement.LocalCoordinates[a := a, local := local].forwardOther j;
+\definition simplePivot[x: Open.Carrier domain]: Maps.apply domain middle simple.forward x pivot = coordinate (source x) :=
+  Replacement.LocalCoordinates[a := a, local := local].forwardPivot x;

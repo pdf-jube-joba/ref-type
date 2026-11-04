@@ -1,0 +1,61 @@
+\import Intervals.Riemann[interval := interval].Continuous[] \as Continuous;
+\import product_integration.Finiteness[A := Point, mu := Lebesgue.measure] \as LF;
+\import product_integration.Finiteness[A := Sigma.Point, mu := Product.measure] \as JF;
+\import functional_analysis.Measure[A := Sigma.Point] \as JM;
+\import topology.Topology[Carrier := Sigma.Point] \as JointSets;
+\import metric_spaces.RealFunctions[A := Continuous.Point] \as Functions;
+\import Functions.Product[] \as Multiplication;
+\import calculus.Real[].Derivative[].Def[] \as Derivative;
+\import calculus.Real[].Derivative[].Operations[] \as Derivatives;
+\import I.Scaling[] \as Scaling;
+\import real.Analysis[].Estimates[].Product[] \as Absolute;
+\definition base: LF.FiniteMeasurableSet := \into[\Pow Point](E.points box, LF.FiniteMeasurableSet) \by { Base.boxFinite box };
+\import LF.Indicator[S := base] \as Mask;
+\definition line: RF.FiniteMeasurableSet := \into[\Pow Real.Real](Line.interval interval.left interval.right, RF.FiniteMeasurableSet) \by {
+  RF.FiniteSet[Line.interval interval.left interval.right] {
+    measurable := Line.intervalMeasurable interval.left interval.right interval.ordered,
+    bounded := Logic.existsIntro[Real.Real, { b: Real.Real \where \forall (r: Real.Real) -> RM.below (Line.measure.value (Line.interval interval.left interval.right)) r -> R.Le r b }]
+      (Real.sub interval.right interval.left) (\fun (r: Real.Real)(member: _) => Order.leOfLt _ _
+        (\idelim Line.measure.value (Line.interval interval.left interval.right) = { t: Real.Real \where R.Lt t (Real.sub interval.right interval.left) }
+          \with v: RM.Value => RM.below v r \by {
+            base: member, equality: Line.intervalMeasure interval.left interval.right interval.ordered
+          })),
+  }
+};
+\definition points: \Pow Sigma.Point := Sigma.rectangle base line;
+\definition finite: JF.FiniteSet[points] := JF.FiniteSet[points] {
+  measurable := Sigma.rectangleMeasurable base line (LF.finiteLaw base).measurable (RF.finiteLaw line).measurable,
+  bounded := Logic.existsIntro[Real.Real, { b: Real.Real \where \forall (r: Real.Real) -> JM.below (Product.measure.value points) r -> R.Le r b }]
+    (Real.mul (LF.mass base) (RF.mass line))
+    (\fun (r: Real.Real)(member: _) => Order.leOfLt _ _
+      (\idelim Product.measure.value points = { t: Real.Real \where R.Lt t (Real.mul (LF.mass base) (RF.mass line)) }
+        \with v: JM.Value => JM.below v r \by {
+          base: member, equality: Product.FiniteRectangle[U := base, V := line].theorem
+        })),
+};
+\definition domain: JF.FiniteMeasurableSet := \into[\Pow Sigma.Point](points, JF.FiniteMeasurableSet) \by { finite };
+\definition primitiveOn[x: Point][t: Real.Real]: Real.Real := Real.mul (Mask.function x) (primitive x t);
+\definition derivativeOn[x: Point]: Continuous.Function := \into[Real.Real -> Real.Real]((\fun (t: Real.Real) => Real.mul (Mask.function x) (integrand x t)), Continuous.Function) \by {
+  Multiplication.continuous Continuous.topology (\fun (_: Continuous.Point) => Mask.function x) (Continuous.restrict (integrand x))
+    (Functions.constantContinuous Continuous.topology (Mask.function x)) (\bysub(Real.Real -> Real.Real, Continuous.Function, integrand x))
+};
+\import \root.Boundary[n := n].Strip[interval := interval, primitive := primitiveOn, integrand := derivativeOn] \as Strip;
+\structure Conditions: \Set := {
+  measurable: JM.IsMeasurable Product.measure Strip.joint,
+  coefficient: Scaling.NonnegativeScalar,
+  bound: \forall (x: Point)(t: Real.Real) -> Sets.Member base x -> R.Le interval.left t -> R.Le t interval.right -> R.Le (Absolute.abs (integrand x t)) coefficient,
+  boundaryMeasurable: M.IsMeasurable Lebesgue.measure Strip.boundary,
+  continuous: \forall (x: Point) -> Continuous.IsContinuous (primitive x),
+  derivative: \forall (x: Point)(t: Real.Real) -> R.Lt interval.left t -> R.Lt t interval.right -> Derivative.HasDerivativeAt (primitive x) t (integrand x t),
+};
+\module Integrability;
+\definition conditions[valid: Conditions]: Strip.Conditions := Strip.Conditions {
+  integrable := Integrability[].integrable valid,
+  boundaryMeasurable := valid.boundaryMeasurable,
+  continuous := \fun (x: Point) => Multiplication.continuous Continuous.topology _ _
+    (Functions.constantContinuous Continuous.topology (Mask.function x)) (valid.continuous x),
+  derivative := \fun (x: Point)(t: Real.Real)(at: _)(tb: _) => Derivatives.scaleDerivative (Mask.function x) (primitive x) t (integrand x t) (valid.derivative x t at tb),
+};
+\definition theorem[valid: Conditions]: J.integral (Strip.representative (conditions valid)) = I.integral (Strip.boundaryRepresentative (conditions valid)) := Strip.theorem (conditions valid);
+\definition faceFormula[x: Point]: Strip.boundary x = Real.mul (Mask.function x) (Real.sub (primitive x interval.right) (primitive x interval.left)) :=
+  sym!{Real.Real} _ _ (Algebra.mulSub (Mask.function x) (primitive x interval.right) (primitive x interval.left));

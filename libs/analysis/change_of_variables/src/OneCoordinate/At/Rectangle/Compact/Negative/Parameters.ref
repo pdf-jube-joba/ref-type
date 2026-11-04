@@ -1,0 +1,37 @@
+\import calculus.Real[].Derivative[].Def[] \as Derivative;
+\import Real.Estimates[].Product[] \as Product;
+\definition law[x: Base.Point]: \forall (t: Real.Real) -> R.Lt interval.left t -> R.Lt t interval.right -> Derivative.HasDerivativeAt (maps x) t (derivatives x t) :=
+  \fun (t: Real.Real) (at: R.Lt interval.left t) (tb: R.Lt t interval.right) =>
+  Logic.orElim (BaseSets.Member base x) (Logic.Not (BaseSets.Member base x)) (Derivative.HasDerivativeAt (maps x) t (derivatives x t)) (Classical.excludedMiddle (BaseSets.Member base x))
+    (\fun (member: BaseSets.Member base x) => \block {
+      \let point: \Cast[Base.Point] base := \into[Base.Point](x, base) \by { member } \then
+      \return \idelim \parent.Fiber[x := point].value = maps x \with g: (Real.Real -> Real.Real) => Derivative.HasDerivativeAt g t (derivatives x t) \by {
+        base: \idelim \parent.Fiber[x := point].derivative t = derivatives x t \with d: Real.Real => Derivative.HasDerivativeAt (\parent.Fiber[x := point].value) t d \by {
+          base: \parent.Fiber[x := point].law t at tb,
+          equality: sym!{Real.Real} _ _ (congr!{{Continuous.Function} Real.Real} (\fun (f: Continuous.Function) => f t) _ _ (derivativesInside point)) },
+        equality: sym!{{Continuous.Function}} _ _ (mapsInside point) }
+    })
+    (\fun (outside: Logic.Not (BaseSets.Member base x)) => \idelim identity = maps x \with g: (Real.Real -> Real.Real) => Derivative.HasDerivativeAt g t (derivatives x t) \by {
+      base: \idelim Real.neg Real.one = derivatives x t \with d: Real.Real => Derivative.HasDerivativeAt identity t d \by {
+        base: Derivatives.negDerivative (\fun (s: Real.Real) => s) t Real.one (calculus.Real[].Derivative[].Prop[].identityDerivative t),
+        equality: sym!{Real.Real} _ _ (congr!{{Continuous.Function} Real.Real} (\fun (f: Continuous.Function) => f t) _ _ (derivativesOutside x outside)) },
+      equality: sym!{{Continuous.Function}} _ _ (mapsOutside x outside) });
+\definition closedNegative[x: Base.Point][t: Continuous.Point]: R.Lt (derivatives x t) Real.zero :=
+  Logic.orElim (BaseSets.Member base x) (Logic.Not (BaseSets.Member base x)) (R.Lt (derivatives x t) Real.zero) (Classical.excludedMiddle (BaseSets.Member base x))
+    (\fun (member: BaseSets.Member base x) => \block {
+      \let point: \Cast[Base.Point] base := \into[Base.Point](x, base) \by { member } \then
+      \return R.ltReplaceLeft (\parent.Fiber[x := point].derivative t) (derivatives x t) Real.zero
+        (sym!{Real.Real} _ _ (congr!{{Continuous.Function} Real.Real} (\fun (f: Continuous.Function) => f t) _ _ (derivativesInside point))) (\parent.Fiber[x := point].negative t)
+    })
+    (\fun (outside: Logic.Not (BaseSets.Member base x)) => R.ltReplaceLeft (Real.neg Real.one) (derivatives x t) Real.zero
+      (sym!{Real.Real} _ _ (congr!{{Continuous.Function} Real.Real} (\fun (f: Continuous.Function) => f t) _ _ (derivativesOutside x outside))) (R.ltReplaceRight (Real.neg Real.one) (Real.neg Real.zero) Real.zero Laws.negZero (Laws.negStrictAntitone Real.zero Real.one Product.onePositive)));
+\definition data: Slices.DecreasingMaps := Slices.DecreasingMaps {
+  intervals := \fun (_: Base.Point) => interval,
+  maps := maps,
+  derivatives := derivatives,
+  differentiable := law,
+  negative := \fun (x: Base.Point) (t: Real.Real) (at: R.Lt interval.left t) (tb: R.Lt t interval.right) =>
+    closedNegative x (\into[Real.Real](t, RealTopology.ClosedInterval interval.left interval.right) \by { Logic.And[_, _]::# (Order.leOfLt interval.left t at) (Order.leOfLt t interval.right tb) }),
+  nonpositive := \fun (x: Base.Point) (t: Real.Real) (at: R.Le interval.left t) (tb: R.Le t interval.right) =>
+    Order.leOfLt (derivatives x t) Real.zero (closedNegative x (\into[Real.Real](t, RealTopology.ClosedInterval interval.left interval.right) \by { Logic.And[_, _]::# at tb })),
+};

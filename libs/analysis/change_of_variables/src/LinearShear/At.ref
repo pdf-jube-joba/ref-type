@@ -1,0 +1,37 @@
+\import Elementary.Shear[i := last, j := Index.left j, t := t] \as Shear;
+\import Elementary.Shear[i := last, j := Index.left j, t := Real.neg t] \as Back;
+\definition different: Logic.Not (last = Index.left j) := \fun (same: _) => Index.different j (Fin.zero N.Nat^::zero) (sym!{{Fin.Fin Index.total}} _ _ same);
+\definition left[x: E.Point]: Back.map.apply (Shear.map.apply x) = x := Shear.cancellation (Real.neg t) x different (Laws.addNegRight t);
+\definition right[x: E.Point]: Shear.map.apply (Back.map.apply x) = x := Back.cancellation t x different (Laws.addNegLeft t);
+\import Geometry.Inverse[L := Shear.map, backward := Back.map, left := left, right := right] \as Inverse;
+\import Linear.OpenTransport[h := Inverse.homeomorphism, c := Real.one] \as Transport;
+\definition coefficient[x: Tail.Point]: Head.Point := \fun (_: Fin.Fin one) => Real.mul t (x j);
+\import Slices.Along[a := coefficient] \as Translation;
+\definition atLeft[x: E.Point][k: Fin.Fin n]: Translation.map x (Index.left k) = x (Index.left k) := Tuples.atLeft _ _ k;
+\definition atLast[x: E.Point]: Translation.map x last = Real.sub (x last) (Real.mul t (x (Index.left j))) := Tuples.atRight _ _ (Fin.zero N.Nat^::zero);
+\module Identification;
+\definition preimage[S: \Pow E.Point]: Translation.preimage S = Transport.forward S :=
+  congr!{{E.Point -> E.Point} {\Pow E.Point}} (\fun (f: E.Point -> E.Point) => { x: E.Point \where Sets.Member S (f x) }) _ _ Identification[].theorem;
+\definition preimageOpen[U: \Pow E.Point][opened: Sets.IsOpenIn Ambient.topology U]: M.Measurable Borel.sigma (Translation.preimage U) :=
+  \idelim Transport.forward U = Translation.preimage U \with S: \Pow E.Point => M.Measurable Borel.sigma S \by {
+    base: Borel.open (Transport.forward U) (Geometry.continuous Back.map U opened),
+    equality: sym!{{\Pow E.Point}} _ _ (preimage U)
+  };
+\definition openLaw: Transport.OpenLaw := \fun (U: \Pow E.Point)(opened: Sets.IsOpenIn Ambient.topology U) => eq_reason_in!{M.Value _
+  "=" _ "by" { congr!{{\Pow E.Point} M.Value} E.outer _ _ (sym!{{\Pow E.Point}} _ _ (preimage U)) }
+  "=" _ "by" { Translation.Measured[S := U, valid := Borel.open U opened, preimageValid := preimageOpen U opened].theorem }
+  "=" _ "by" { sym!{M.Value} _ _ (Values.oneScale (E.outer U) (E.outerNonnegative U)) }
+};
+\module Image;
+\definition rule: Rules.Rule[Shear.map] := Rules.Rule[Shear.map] {
+  measure := \fun (S: \Pow E.Point) => eq_reason_in!{M.Value _
+    "=" _ "by" { congr!{{\Pow E.Point} M.Value} E.outer _ _ (Image[].theorem S) }
+    "=" _ "by" { Transport.theorem Absolute.onePositive openLaw S }
+    "=" _ "by" { congr!{Real.Real M.Value} (\fun (c: Real.Real) => M.scale c (E.outer S)) _ _
+      (sym!{Real.Real} _ _ (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} Absolute.abs _ _ (Shear.linearDeterminant different)) (Absolute.absOfNonnegative Real.one Laws.oneNonnegative))) }
+  },
+  measurable := \fun (S: \Pow E.Point)(valid: _) => \idelim Transport.forward S = Linear.image Shear.map S \with U: \Pow E.Point => E.Caratheodory U \by {
+    base: Transport.measurable Absolute.onePositive openLaw S valid,
+    equality: sym!{{\Pow E.Point}} _ _ (Image[].theorem S)
+  },
+};

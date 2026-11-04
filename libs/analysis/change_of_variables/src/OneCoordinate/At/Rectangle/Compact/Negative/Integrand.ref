@@ -1,0 +1,47 @@
+\import \root.Euclidean[n := Index.total].Jacobian[U := U, V := V, f := e.forward] \as J;
+\import Real.Estimates[].Product[] \as Absolute;
+\definition sourceOutside[x: Base.Point][t: Real.Real]: Logic.Not (RealSets.Member (Line.interval interval.left interval.right) t) -> source (Pair.pair Base.Point Real.Real x t) = Real.zero :=
+  \fun (outside: Logic.Not (RealSets.Member (Line.interval interval.left interval.right) t)) => sourceZero (join x t)
+    (\fun (inside: Sets.Member region (join x t)) => outside (Logic.And[_, _]::#
+      (R.leReplaceRight interval.left (Coordinates.normal (join x t)) t (normalJoin x t) (Order.leOfLt interval.left (Coordinates.normal (join x t)) inside.right.left))
+      (R.leReplaceLeft (Coordinates.normal (join x t)) t interval.right (normalJoin x t) (Order.leOfLt (Coordinates.normal (join x t)) interval.right inside.right.right))));
+\definition weighted[x: Base.Point][t: Real.Real]: R.Le interval.left t -> R.Le t interval.right ->
+  source (Pair.pair Base.Point Real.Real x t) = Real.mul (target (Pair.pair Base.Point Real.Real x (maps x t))) (Absolute.abs (derivatives x t)) :=
+  \fun (at: R.Le interval.left t) (tb: R.Le t interval.right) =>
+  Logic.orElim (BaseSets.Member base x) (Logic.Not (BaseSets.Member base x))
+    (source (Pair.pair Base.Point Real.Real x t) = Real.mul (target (Pair.pair Base.Point Real.Real x (maps x t))) (Absolute.abs (derivatives x t)))
+    (Classical.excludedMiddle (BaseSets.Member base x))
+    (\fun (member: BaseSets.Member base x) => \block {
+      \let xbase: \Cast[Base.Point] base := \into[Base.Point](x, base) \by { member } \then
+      \let closed: Continuous.Point := \into[Real.Real](t, RealTopology.ClosedInterval interval.left interval.right) \by { Logic.And[_, _]::# at tb } \then
+      \let point: Open.Carrier U := \parent.Fiber[x := xbase].point closed \then
+      \let pointValue: point = join x t := \parent.Fiber[x := xbase].pointValue closed \then
+      \let mapValue: maps x t = scalar point := trans!{Real.Real} _ _ _
+        (congr!{{Continuous.Function} Real.Real} (\fun (g: Continuous.Function) => g t) _ _ (mapsInside xbase)) (\parent.Fiber[x := xbase].valueAt closed) \then
+      \let derivativeValue: derivatives x t = partial point := trans!{Real.Real} _ _ _
+        (congr!{{Continuous.Function} Real.Real} (\fun (g: Continuous.Function) => g t) _ _ (derivativesInside xbase)) (\parent.Fiber[x := xbase].derivativeAt closed) \then
+      \let imagePoint: Maps.apply U V e.forward point = join x (maps x t) := pointExt (Maps.apply U V e.forward point) (join x (maps x t))
+        (trans!{Base.Point} _ _ _ (fixed point) (trans!{Base.Point} _ _ _ (congr!{E.Point Base.Point} Coordinates.base _ _ pointValue)
+          (trans!{Base.Point} _ _ _ (baseJoin x t) (sym!{Base.Point} _ _ (baseJoin x (maps x t))))))
+        (trans!{Real.Real} _ _ _ (sym!{Real.Real} _ _ mapValue) (sym!{Real.Real} _ _ (normalJoin x (maps x t)))) \then
+      \return eq_reason_in!{Real.Real _
+        "=" _ "by" { congr!{E.Point Real.Real} Pullback.value _ _ (sym!{E.Point} _ _ pointValue) }
+        "=" _ "by" { Pullback.inside point }
+        "=" _ "by" { congr!{Real.Real Real.Real Real.Real} Real.mul _ _ _ _
+          (congr!{Real.Real Real.Real} Absolute.abs _ _ (trans!{Real.Real} _ _ _ (\root.OneCoordinate[n := n].At[U := U, V := V, e := e].signed fixed point) (sym!{Real.Real} _ _ derivativeValue)))
+          (congr!{E.Point Real.Real} f _ _ imagePoint) }
+        "=" _ "by" { Laws.fieldMulComm (Absolute.abs (derivatives x t)) (target (Pair.pair Base.Point Real.Real x (maps x t))) }
+      }
+    })
+    (\fun (outside: Logic.Not (BaseSets.Member base x)) => \block {
+      \let sourceVanish: source (Pair.pair Base.Point Real.Real x t) = Real.zero := sourceZero (join x t)
+        (\fun (inside: Sets.Member region (join x t)) => outside (\idelim Coordinates.base (join x t) = x \with p: Base.Point => BaseSets.Member base p \by { base: inside.left, equality: baseJoin x t })) \then
+      \let targetVanish: target (Pair.pair Base.Point Real.Real x (maps x t)) = Real.zero := targetZero (join x (maps x t))
+        (\fun (inside: Sets.Member image (join x (maps x t))) => outside (\idelim Coordinates.base (join x (maps x t)) = x \with p: Base.Point => BaseSets.Member base p \by { base: imageBase (join x (maps x t)) inside, equality: baseJoin x (maps x t) })) \then
+      \return eq_reason_in!{Real.Real _
+        "=" _ "by" { sourceVanish }
+        "=" _ "by" { sym!{Real.Real} _ _ (Laws.fieldMulZeroLeft (Absolute.abs (derivatives x t))) }
+        "=" _ "by" { congr!{Real.Real Real.Real} (\fun (c: Real.Real) => Real.mul c (Absolute.abs (derivatives x t))) _ _ (sym!{Real.Real} _ _ targetVanish) }
+      }
+    });
+\module Support(x: Base.Point, t: Real.Real);

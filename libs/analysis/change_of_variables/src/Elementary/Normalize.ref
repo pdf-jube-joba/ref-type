@@ -1,0 +1,41 @@
+\import \root.Elementary[n := n].Clearing[] \as Clear;
+\import Spaces.Multilinear[V := Real.Real, space := Spaces.scalarSpace] \as ScalarMultilinear;
+\import ScalarMultilinear.Properties[] \as ScalarUpdates;
+\definition ones: Point := \fun (k: Index) => Real.one;
+\definition factors: Point := ScalarMultilinear.update n ones i (Algebra.field.inv (v i));
+\definition factorsAt: factors i = Algebra.field.inv (v i) := ScalarUpdates.updateSelf n ones i (Algebra.field.inv (v i));
+\definition factorsOther[k: Index]: Logic.Not (i = k) -> factors k = Real.one := ScalarUpdates.updateOther n ones i k (Algebra.field.inv (v i));
+\definition factorsNonzero[k: Index]: Logic.Not (factors k = Real.zero) := \fun (zero: _) =>
+  Logic.orElim _ _ _ (Classical.excludedMiddle (i = k))
+    (\fun (same: _) => inverseNonzero (v i) nonzero (trans!{Real.Real} _ _ _
+      (sym!{Real.Real} _ _ factorsAt) (trans!{Real.Real} _ _ _ (congr!{Index Real.Real} factors _ _ same) zero)))
+    (\fun (different: _) => Algebra.field.nontrivial (sym!{Real.Real} _ _ (trans!{Real.Real} _ _ _ (sym!{Real.Real} _ _ (factorsOther k different)) zero)));
+\definition scalars: NonzeroPoint := \into[Point](factors, NonzeroPoint) \by { factorsNonzero };
+\definition scaled: Point := (diagonal scalars).apply v;
+\definition pivot: scaled i = Real.one := trans!{Real.Real} _ _ _
+  (congr!{Real.Real Real.Real} (\fun (a: Real.Real) => Real.mul a (v i)) _ _ factorsAt) (Algebra.field.inverse (v i) nonzero);
+\definition basis[k: Index]: Logic.Not (k = i) -> (diagonal scalars).apply (Basis.vectors k) = Basis.vectors k :=
+  \fun (different: _) => \axiom:funext((diagonal scalars).apply (Basis.vectors k), Basis.vectors k, \fun (l: Index) =>
+    Logic.orElim _ _ _ (Classical.excludedMiddle (i = l))
+      (\fun (same: _) => eq_reason_in!{Real.Real _
+        "=" _ "by" { congr!{Real.Real Real.Real} (Real.mul (scalars l)) _ _ (Kronecker.different k l (\fun (equal: _) => different (trans!{Index} _ _ _ equal (sym!{Index} _ _ same)))) }
+        "=" _ "by" { Laws.fieldMulZeroRight (scalars l) }
+        "=" _ "by" { sym!{Real.Real} _ _ (Kronecker.different k l (\fun (equal: _) => different (trans!{Index} _ _ _ equal (sym!{Index} _ _ same)))) }
+      })
+      (\fun (other: _) => trans!{Real.Real} _ _ _
+        (congr!{Real.Real Real.Real} (\fun (a: Real.Real) => Real.mul a (Basis.vectors k l)) _ _ (factorsOther l other)) (Laws.fieldMulOneLeft (Basis.vectors k l))));
+\definition exists: \exists ( w: Word \where Logic.And[(Words.evaluate w).apply v = Basis.vectors i, FixOther w i] ) := \block {
+  \takefrom c: Clearing (Fin.elements n) i scaled \by Clear.exists (Fin.elements n) i scaled pivot \then
+  \let result: Word := Word::compose c (Word::diagonal scalars) \then
+  \let cl: ClearLaws[Fin.elements n, i, scaled, c] := Clear.laws (Fin.elements n) i scaled c \then
+  \return Logic.existsIntro[Word, { w: Word \where Logic.And[(Words.evaluate w).apply v = Basis.vectors i, FixOther w i] }] result
+    (Logic.And[_, _]::#
+      (\axiom:funext((Words.evaluate result).apply v, Basis.vectors i, \fun (k: Index) =>
+        Logic.orElim _ _ _ (Classical.excludedMiddle (k = i))
+          (\fun (same: _) => trans!{Real.Real} _ _ _
+            (trans!{Real.Real} _ _ _ (congr!{Index Real.Real} ((Words.evaluate c).apply scaled) _ _ same) cl.pivot)
+            (sym!{Real.Real} _ _ (Kronecker.equal i k (sym!{Index} _ _ same))))
+          (\fun (different: _) => trans!{Real.Real} _ _ _ (cl.cleared k (Fin.exhaustive n k) different)
+            (sym!{Real.Real} _ _ (Kronecker.different i k (\fun (same: _) => different (sym!{Index} _ _ same)))))))
+      (fixedCompose c (Word::diagonal scalars) i cl.basis basis))
+};

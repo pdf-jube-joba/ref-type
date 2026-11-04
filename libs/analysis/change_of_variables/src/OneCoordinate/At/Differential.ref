@@ -1,0 +1,47 @@
+/* A map fixing the base block is exactly a replacement of the last coordinate. */
+\import \root.Triangular[n := Index.total].Replace[U := U, h := scalar, pivot := pivot] \as Replacement;
+\import calculus.Vector[n := Index.total, m := Index.total] \as Vector;
+\import \root.Euclidean[n := Index.total].Jacobian[U := U, V := V, f := e.forward] \as J;
+\import real.Analysis[].Algebra[] \as Algebra;
+\import Real.Estimates[].Product[] \as Absolute;
+\import linear_algebra.Commutative[K := Real.Real, scalarRing := std.Alg[].Field[].fieldAsCommutativeRing Real.Real Algebra.field] \as Spaces;
+\import Spaces.FiniteCoordinates[n := Index.total] \as Basis;
+\import Basis.Top[] \as Top;
+\import matrix_invariants.Ring[K := Real.Real, scalars := std.Alg[].Field[].fieldAsCommutativeRing Real.Real Algebra.field].At[n := Index.total] \as Matrix;
+\import Matrix.Representation[] \as Representation;
+\import matrix_invariants.Real[].At[n := Index.total].Smooth[d := Index.total] \as BasisComparison;
+\import Smooth.Differential[] \as ScalarDifferential;
+\import Open.Analysis[] \as Analysis;
+\import Analysis.Properties[] \as Uniqueness;
+\definition base[x: Open.Carrier U]: Coordinates.base (Replacement.function x) = Coordinates.base x :=
+  \axiom:funext(Coordinates.base (Replacement.function x), Coordinates.base x,
+    \fun (j: Fin.Fin n) => Replacement.atOther (Index.left j)
+      (\fun (same: pivot = Index.left j) => Index.different j (Fin.zero N.Nat^::zero) (sym!{{Fin.Fin Index.total}} _ _ same)) x);
+\definition function[x: Open.Carrier U]: Maps.apply U V e.forward x = Replacement.function x :=
+  pointExt (Maps.apply U V e.forward x) (Replacement.function x)
+    (trans!{Base.Point} _ _ _ (fixed x) (sym!{Base.Point} _ _ (base x)))
+    (sym!{Real.Real} _ _ (Replacement.atPivot x));
+\definition first: Vector.Function U := \fun (p: Open.Carrier U) => Maps.apply U V e.forward p;
+\definition second: Vector.Function U := \fun (p: Open.Carrier U) => Maps.apply U Open.whole Replacement.map p;
+\definition differential[x: Open.Carrier U]: J.differential x = Replacement.differential x :=
+  Maps.Differential[U := U, V := V, f := e.forward, a := x].Compare[W := Open.whole, g := Replacement.map].equal
+    (\axiom:funext(first, second, function));
+\definition gradientPartial[x: Open.Carrier U]: Replacement.gradient x pivot = partial x :=
+  trans!{Real.Real} _ _ _
+    (congr!{E.Point Real.Real} (ScalarDifferential.value U scalar x).apply _ _
+      (sym!{E.Point} _ _ (BasisComparison.basisComparison pivot)))
+    (sym!{Real.Real} _ _ (Uniqueness.partialUnique U scalar pivot x _ _
+      (Partial.partialLaw U scalar pivot x)
+      (Analysis.Differential[U := U, f := scalar, a := x, d := ScalarDifferential.value U scalar x].Partial[i := pivot].law
+        (ScalarDifferential.law U scalar x))));
+\definition signed[x: Open.Carrier U]: J.signed x = partial x := eq_reason_in!{Real.Real _
+  "=" _ "by" { congr!{{Vector.LinearMap} Real.Real} Top.determinant _ _ (differential x) }
+  "=" _ "by" { sym!{Real.Real} _ _ (Representation.determinantComparison (Replacement.differential x)) }
+  "=" _ "by" { Replacement.determinant x }
+  "=" _ "by" { gradientPartial x }
+};
+\definition absolute[x: Open.Carrier U]: J.absolute x = Absolute.abs (partial x) :=
+  congr!{Real.Real Real.Real} Absolute.abs _ _ (signed x);
+\definition nonzero[x: Open.Carrier U]: Logic.Not (partial x = Real.zero) :=
+  \fun (zero: _) => J.Inverse[e := e, agrees := \refl(e.forward)].nonzero x
+    (trans!{Real.Real} _ _ _ (signed x) zero);

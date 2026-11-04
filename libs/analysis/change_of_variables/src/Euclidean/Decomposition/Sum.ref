@@ -1,0 +1,22 @@
+\definition representative: N.Nat^ -> I.Representatives := \induction (k: N.Nat^) \return I.Representatives \with {
+  | zero: Zero.representative
+  | succ: \fun (k: N.Nat^)(previous: I.Representatives) => Linear.addRepresentative previous (Integrals.representative (data.pieces k))
+};
+\definition pointwise: \forall (k: N.Nat^)(x: Point) -> representative k x = Countable.prefix (\fun (j: N.Nat^)(y: Point) => data.pieces j y) x k :=
+  \induction (k: N.Nat^) \return \forall (x: Point) -> representative k x = Countable.prefix (\fun (j: N.Nat^)(y: Point) => data.pieces j y) x k \with {
+    | zero: \fun (x: Point) => \refl(Real.zero)
+    | succ: \fun (k: N.Nat^)(previous: _)(x: Point) => congr!{Real.Real Real.Real} (\fun (v: Real.Real) => Real.add v (data.pieces k x)) _ _ (previous x)
+  };
+\definition integrals: \forall (k: N.Nat^) -> I.integral (representative k) = ScalarCountable.prefix
+  (\fun (j: N.Nat^)(z: Real.Real) => I.integral (Integrals.representative (data.pieces j))) Real.zero k :=
+  \induction (k: N.Nat^) \return I.integral (representative k) = ScalarCountable.prefix
+    (\fun (j: N.Nat^)(z: Real.Real) => I.integral (Integrals.representative (data.pieces j))) Real.zero k \with {
+    | zero: Zero.integralZero
+    | succ: \fun (k: N.Nat^)(previous: _) => trans!{Real.Real} _ _ _ (Linear.integralAdd (representative k) (Integrals.representative (data.pieces k)))
+      (congr!{Real.Real Real.Real} (\fun (v: Real.Real) => Real.add v (I.integral (Integrals.representative (data.pieces k)))) _ _ previous)
+  };
+\definition theorem: I.integral (Integrals.representative f) = ScalarCountable.prefix
+  (\fun (j: N.Nat^)(z: Real.Real) => I.integral (Integrals.representative (data.pieces j))) Real.zero data.size :=
+  trans!{Real.Real} _ _ _ (IntegralEquality.integralPointwise (Integrals.representative f) (representative data.size)
+    (\fun (x: Point) => sym!{Real.Real} _ _ (trans!{Real.Real} _ _ _ (pointwise data.size x) (data.pointwise x))))
+    (integrals data.size);

@@ -1,0 +1,59 @@
+\import \parent.Multiscalar[] \as AllScalars;
+\import Multilinear.Alternating[].PermutationRule[k := n] \as Signs;
+\import std.Data[].Bool[] \as Bool;
+\definition law: Permutations.Laws[p] := Permutations.laws p;
+\definition point[x: Point]: Point := \fun (i: Fin.Fin n) => x (p.forward i);
+\definition backpoint[x: Point]: Point := \fun (i: Fin.Fin n) => x (p.backward i);
+\definition left[x: Point]: backpoint (point x) = x := \axiom:funext(backpoint (point x), x,
+  \fun (i: Fin.Fin n) => congr!{{Fin.Fin n} Real.Real} x _ _ (law.rightInverse i));
+\definition right[x: Point]: point (backpoint x) = x := \axiom:funext(point (backpoint x), x,
+  \fun (i: Fin.Fin n) => congr!{{Fin.Fin n} Real.Real} x _ _ (law.leftInverse i));
+\definition map: Maps.Map := Maps.Map {
+  apply := point,
+  preservesAdd := \fun (x, y: Point) => \refl(point (Coordinates.plus x y)),
+  preservesScale := \fun (c: Real.Real)(x: Point) => \refl(point (Coordinates.scale c x)),
+};
+\definition inverseData: Permutations.Data := Permutations.Data { forward := p.backward, backward := p.forward };
+\definition inverse: Permutations.Permutation := \into[Permutations.Data](inverseData, Permutations.Permutation) \by {
+  Permutations.Laws[inverseData] { leftInverse := law.rightInverse, rightInverse := law.leftInverse }
+};
+\module Product(a: Point);
+\definition product[a: Point]: E.product n (point a) = E.product n a := Product[a := a].theorem;
+\definition box[b: E.Box]: E.Box := E.Box { active := b.active, left := point b.left, right := point b.right,
+  ordered := \fun (i: Fin.Fin n) => b.ordered (p.forward i) };
+\definition volume[b: E.Box]: E.volume (box b) = E.volume b := Bool.cases (\fun (active: Bool.Bool^) =>
+  (\match active \in Bool.Bool^ \return (\fun (_: Bool.Bool^) => Real.Real) \with {
+    | false: Real.zero | true: E.product n (\fun (i: Fin.Fin n) => Real.sub (b.right (p.forward i)) (b.left (p.forward i))) }) =
+  (\match active \in Bool.Bool^ \return (\fun (_: Bool.Bool^) => Real.Real) \with {
+    | false: Real.zero | true: E.product n (\fun (i: Fin.Fin n) => Real.sub (b.right i) (b.left i)) }))
+  (\refl(Real.zero)) (product (\fun (i: Fin.Fin n) => Real.sub (b.right i) (b.left i))) b.active;
+\definition forward[S: \Pow Point]: \Pow Point := { x: Point \where Sets.Member S (backpoint x) };
+\definition member[b: E.Box][x: Point]: Sets.Member (E.points b) x -> Sets.Member (E.points (box b)) (point x) :=
+  \fun (inside: _) => Logic.And[_, _]::# inside.left (\fun (i: Fin.Fin n) => inside.right (p.forward i));
+\definition family[f: N.Nat^ -> E.Box]: N.Nat^ -> E.Box := \fun (k: N.Nat^) => box (f k);
+\definition covers[S: \Pow Point][f: N.Nat^ -> E.Box]: E.Covers f S -> E.Covers (family f) (forward S) :=
+  \fun (cover: _)(x: Point)(inside: _) => \block {
+    \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where Sets.Member (E.points (f k)) (backpoint x) }) \by cover (backpoint x) inside \then
+    \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where Sets.Member (E.points (family f k)) x }] k
+      (\idelim point (backpoint x) = x \with y: Point => Sets.Member (E.points (family f k)) y \by {
+        base: member (f k) (backpoint x) (\bysub(N.Nat^, { k: N.Nat^ \where Sets.Member (E.points (f k)) (backpoint x) }, k)),
+        equality: right x
+      })
+  };
+\definition cost[f: N.Nat^ -> E.Box]: E.cost (family f) = E.cost f := congr!{{N.Nat^ -> M.Value} M.Value} M.series _ _
+  (\axiom:funext((\fun (k: N.Nat^) => E.volumeValue (family f k)), (\fun (k: N.Nat^) => E.volumeValue (f k)),
+    \fun (k: N.Nat^) => congr!{Real.Real M.Value} (\fun (v: Real.Real) => { r: Real.Real \where R.Lt r v }) _ _ (volume (f k))));
+\definition upper[S: \Pow Point]: Values.Included (E.outer (forward S)) (E.outer S) := E.greatestLowerBound S (E.outer (forward S)) (E.outerNonnegative (forward S))
+  (\fun (f: N.Nat^ -> E.Box)(cover: _)(r: Real.Real)(inside: M.below (E.outer (forward S)) r) =>
+    \idelim E.cost (family f) = E.cost f \with v: M.Value => M.below v r \by {
+      base: E.boundedByCover (forward S) (family f) (covers S f cover) r inside, equality: cost f
+    });
+\module Inverse;
+\definition outer[S: \Pow Point]: E.outer (forward S) = E.outer S := \axiom:setext(E.outer (forward S), E.outer S, upper S, Inverse[].lower S);
+\module Topology;
+\module Measure;
+\definition measure[S: \Pow Point]: Lebesgue.measure.value (image map S) = Lebesgue.measure.value S := Measure[].theorem S;
+\definition measurable[S: \Pow Point]: M.Measurable Lebesgue.measure.sigma S -> M.Measurable Lebesgue.measure.sigma (image map S) := Measure[].measurable S;
+\module Determinant;
+\module Integration;
+\module Smooth;

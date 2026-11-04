@@ -1,0 +1,32 @@
+\import JF.Bounded[S := domain] \as Bounded;
+\import euclidean_measure.RealLine[].IntervalIntegral[interval := interval] \as Indicator;
+\definition inside[p: Sigma.Point]: JointSets.Member domain p -> Strip.joint p = integrand (Pair.first Point Real.Real p) (Pair.second Point Real.Real p) :=
+  \fun (member: Logic.And[Sets.Member base (Pair.first Point Real.Real p), Logic.And[R.Le interval.left (Pair.second Point Real.Real p), R.Le (Pair.second Point Real.Real p) interval.right]]) => eq_reason_in!{Real.Real _
+    "=" _ "by" { congr!{Real.Real Real.Real Real.Real} Real.mul _ _ _ _
+      (Indicator.pointwiseInside (Pair.second Point Real.Real p) member.right.left member.right.right)
+      (trans!{Real.Real} _ _ _
+        (congr!{Real.Real Real.Real} (\fun (a: Real.Real) => Real.mul a (integrand (Pair.first Point Real.Real p) (Pair.second Point Real.Real p))) _ _ (Mask.inside (Pair.first Point Real.Real p) member.left))
+        (Laws.fieldMulOneLeft _)) }
+    "=" _ "by" { Laws.fieldMulOneLeft _ }
+  };
+\definition outside[p: Sigma.Point]: Logic.Not (JointSets.Member domain p) -> Strip.joint p = Real.zero :=
+  \fun (absent: _) => Logic.orElim _ _ _ (std.Logic[].Classical[].excludedMiddle (Sets.Member base (Pair.first Point Real.Real p)))
+    (\fun (inBase: _) => trans!{Real.Real} _ _ _
+      (congr!{Real.Real Real.Real} (\fun (a: Real.Real) => Real.mul a (derivativeOn (Pair.first Point Real.Real p) (Pair.second Point Real.Real p))) _ _
+        (Indicator.pointwiseOutside (Pair.second Point Real.Real p)
+          (\fun (inInterval: Logic.And[R.Le interval.left (Pair.second Point Real.Real p), R.Le (Pair.second Point Real.Real p) interval.right]) => absent (Logic.And[_, _]::# inBase inInterval))))
+      (Laws.fieldMulZeroLeft _))
+    (\fun (notInBase: _) => trans!{Real.Real} _ _ _
+      (congr!{Real.Real Real.Real} (Real.mul (Indicator.representative (Pair.second Point Real.Real p))) _ _
+        (trans!{Real.Real} _ _ _
+          (congr!{Real.Real Real.Real} (\fun (a: Real.Real) => Real.mul a (integrand (Pair.first Point Real.Real p) (Pair.second Point Real.Real p))) _ _ (Mask.outside (Pair.first Point Real.Real p) notInBase))
+          (Laws.fieldMulZeroLeft _)))
+      (Laws.fieldMulZeroRight _));
+\definition integrable[valid: Conditions]: J.Integrable Strip.joint := Bounded.integrable valid.coefficient Strip.joint
+  (Bounded.Conditions[Strip.joint, valid.coefficient] {
+    measurable := valid.measurable,
+    bound := \fun (p: Sigma.Point)(member: Logic.And[Sets.Member base (Pair.first Point Real.Real p), Logic.And[R.Le interval.left (Pair.second Point Real.Real p), R.Le (Pair.second Point Real.Real p) interval.right]]) =>
+      R.leReplaceLeft _ _ _ (sym!{Real.Real} _ _ (congr!{Real.Real Real.Real} Absolute.abs _ _ (inside p member)))
+        (valid.bound (Pair.first Point Real.Real p) (Pair.second Point Real.Real p) member.left member.right.left member.right.right),
+    outside := outside,
+  });

@@ -10,4 +10,4 @@
 ## 依存するタスク
 
 - [A13 シンボルと局所量子化](a13-symbol-quantization.md)
-- [A04 多重積分の変数変換](a04-change-of-variables.md)
+- [A04 多重積分の変数変換](../../libs/analysis/change_of_variables/README.md)

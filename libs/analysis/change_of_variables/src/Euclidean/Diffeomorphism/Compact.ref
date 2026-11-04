@@ -1,0 +1,84 @@
+\import \parent.Regularity[] \as Regularity;
+\import Open.Restriction[] \as Restriction;
+\import Euclidean.Localization[U := U] \as Localization;
+\import Sets.Subspace[S := Functions.support f] \as Domain;
+\import Domain.Properties[] \as DomainCompact;
+\import topology.Topology[Carrier := Domain.CarrierSet] \as CarrierSets;
+\import Open.Topology[].Of[U := U] \as SourceTopology;
+\import Open.Topology[].Of[U := V] \as TargetTopology;
+\import topology.Continuity[A := Domain.CarrierSet, B := Point].Corestriction[S := Functions.support f] \as DomainInclusion;
+\import topology.Continuity[A := Domain.CarrierSet, B := Point].Corestriction[S := V.points] \as IntoTarget;
+\import topology.Continuity[A := Open.Carrier U, B := Point].Corestriction[S := U.points] \as SourceInclusion;
+\import topology.Composition[A := Domain.CarrierSet, B := Open.Carrier V, C := Open.Carrier U] \as LocalComposition;
+\import topology.Composition[A := Domain.CarrierSet, B := Open.Carrier U, C := Point] \as AmbientComposition;
+\import topology.Maps[A := Domain.CarrierSet, B := Point] \as Image;
+\import topology.Compactness[A := Domain.CarrierSet, B := Point] \as CompactMaps;
+\import Sets.Compactness[] \as CompactSets;
+\import std.Logic[].Classical[] \as Classical;
+\definition target[x: Domain.CarrierSet]: Open.Carrier V :=
+  \into[Point](x, V.points) \by { within x (\bysub(Point, Functions.support f, x)) };
+\definition backward[x: Domain.CarrierSet]: Point := Maps.apply V U e.backward (target x);
+\definition compact: CarrierSets.IsCompact (Domain.topology Ambient.topology) :=
+  DomainCompact.compact Ambient.topology (L.smoothCompactLaws f).compact;
+\definition targetContinuous: topology.Continuity[A := Domain.CarrierSet, B := Open.Carrier V].Continuous
+  (Domain.topology Ambient.topology) TargetTopology.topology target :=
+  IntoTarget.corestrictContinuous (Domain.topology Ambient.topology) Ambient.topology target
+    (DomainInclusion.inclusionContinuous Ambient.topology);
+\definition backwardContinuous: topology.Continuity[A := Domain.CarrierSet, B := Point].Continuous
+  (Domain.topology Ambient.topology) Ambient.topology backward :=
+  AmbientComposition.composeContinuous (Domain.topology Ambient.topology) SourceTopology.topology Ambient.topology
+    (\fun (x: Domain.CarrierSet) => Maps.apply V U e.backward (target x)) (\fun (x: Open.Carrier U) => x)
+    (LocalComposition.composeContinuous (Domain.topology Ambient.topology) TargetTopology.topology SourceTopology.topology
+      target (Maps.apply V U e.backward) targetContinuous (Maps.Topology[U := V, V := U].continuous e.backward))
+    (SourceInclusion.inclusionContinuous Ambient.topology);
+\definition carrier: \Pow Point := Image.Image backward CarrierSets.Whole;
+\definition carrierCompact: Sets.IsCompactIn Ambient.topology carrier :=
+  CompactMaps.continuousImage (Domain.topology Ambient.topology) Ambient.topology backward backwardContinuous CarrierSets.Whole compact;
+\definition carrierClosed: Sets.IsClosedIn Ambient.topology carrier := CompactSets.compactClosed Ambient.topology Ambient.hausdorff carrier carrierCompact;
+\definition carrierWithin: Sets.Subset carrier U.points :=
+  \fun (x: Point)(member: Sets.Member carrier x) => Image.imageElim backward CarrierSets.Whole x (Sets.Member U.points x)
+    (\fun (y: Domain.CarrierSet)(whole: _)(same: backward y = x) =>
+      \idelim backward y = x \with z: Point => Sets.Member U.points z \by {
+        base: \bysub(Point, U.points, Maps.apply V U e.backward (target y)), equality: same
+      }) member;
+\definition input: Smooth.SmoothFunction V :=
+  \into[Open.ScalarFunction V](Restriction.function V f, Smooth.SmoothFunction V) \by {
+    Restriction.localSmooth V Open.whole (\fun (x: Point)(inside: _) => \refl(x))
+      (Restriction.function Open.whole f) (L.smoothCompactLaws f).smooth
+  };
+\definition local: Smooth.SmoothFunction U := Regularity.density input;
+\definition zeroAway[x: Open.Carrier U]: Logic.Not (Sets.Member carrier x) -> local x = Real.zero :=
+  \fun (outside: _) => \block {
+    \let vanishes: f (Maps.apply U V e.forward x) = Real.zero :=
+      R.Order[].byContradiction (f (Maps.apply U V e.forward x) = Real.zero) (\fun (nonzero: _) => \block {
+        \let y: Domain.CarrierSet := \into[Point](Maps.apply U V e.forward x, Functions.support f) \by {
+          Support.nonzeroInSupport Ambient.topology f (Maps.apply U V e.forward x) nonzero
+        } \then
+        \let member: Sets.Member carrier (backward y) := Image.imageMember backward CarrierSets.Whole y (\refl(y)) \then
+        \return outside (\idelim backward y = x \with z: Point => Sets.Member carrier z \by {
+          base: member, equality: e.leftInverse x
+        })
+      }) \then
+    \return trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (Real.mul (J.absolute x)) _ _ vanishes)
+      (Laws.fieldMulZeroRight (J.absolute x))
+  };
+\import Functions.ZeroExtension[U := U, f := local] \as Extension;
+\definition zeroOutside[x: Point]: Logic.Not (Sets.Member carrier x) -> Extension.value x = Real.zero :=
+  \fun (outside: _) => Logic.orElim (Sets.Member U.points x) (Logic.Not (Sets.Member U.points x)) (Extension.value x = Real.zero)
+    (Classical.excludedMiddle (Sets.Member U.points x))
+    (\fun (inside: Sets.Member U.points x) => \block {
+      \let point: Open.Carrier U := \into[Point](x, U.points) \by { inside } \then
+      \return trans!{Real.Real} _ _ _ (Extension.inside point) (zeroAway point outside)
+    })
+    (\fun (notIn: Logic.Not (Sets.Member U.points x)) => Extension.outside x notIn);
+\definition supportWithin: Sets.Subset (Functions.support Extension.value) carrier :=
+  Support.supportWithinClosed Ambient.topology Extension.value carrier carrierClosed zeroOutside;
+\definition conditions: Localization.Conditions[local] := Localization.Conditions[local] {
+  smooth := \bysub(Open.ScalarFunction U, Smooth.SmoothFunction U, local),
+  compact := Support.compactSupportWithin Ambient.topology Extension.value carrier carrierCompact supportWithin,
+  within := \fun (x: Point)(member: _) => carrierWithin x (supportWithin x member),
+};
+\definition value: L.SmoothCompact := Localization.extend local conditions;
+\definition representative: I.Representatives := Localization.representative local conditions;
+\definition inside[x: Open.Carrier U]: value x = Real.mul (J.absolute x) (f (Maps.apply U V e.forward x)) := Extension.inside x;
+\definition outside[x: Point]: Logic.Not (Sets.Member U.points x) -> value x = Real.zero := Extension.outside x;

@@ -1,0 +1,26 @@
+\definition x: Point := L.apply (Basis.vectors i);
+\definition fromPivot: \exists Reduction L xs i := Logic.orElim _ _ _ (Classical.excludedMiddle (x i = Real.zero))
+  (\fun (zero: x i = Real.zero) => \block {
+    \let pNonzero: Logic.Not (x p = Real.zero) := (pivotLaws L xs i p).right \then
+    \let different: Logic.Not (i = p) := \fun (same: i = p) => pNonzero (trans!{Real.Real} _ _ _ (congr!{Index Real.Real} x p i (sym!{Index} i p same)) zero) \then
+    \let generator: Word := Word::shear i (otherIndex i p different) Real.one \then
+    \let y: Point := (Words.evaluate generator).apply x \then
+    \let targetValue: y i = x p := eq_reason_in!{Real.Real { y i }
+      "=" _ "by" { \root.Elementary[n := n].Shear[i := i, j := p, t := Real.one].atTarget x }
+      "=" _ "by" { congr!{Real.Real Real.Real Real.Real} Real.add _ _ _ _ zero (Laws.fieldMulOneLeft (x p)) }
+      "=" _ "by" { Laws.addZeroLeft (x p) }
+    } \then
+    \let nonzero: Logic.Not (y i = Real.zero) := \fun (vanishes: _) => pNonzero (trans!{Real.Real} _ _ _ (sym!{Real.Real} _ _ targetValue) vanishes) \then
+    \takefrom normal: \Cast[Word] ({ w: Word \where Logic.And[(Words.evaluate w).apply y = Basis.vectors i, FixOther w i] }) \by \root.Elementary[n := n].Normalize[i := i, v := y, nonzero := nonzero].exists \then
+    \let data: Logic.And[(Words.evaluate normal).apply y = Basis.vectors i, FixOther normal i] := \bysub(Word, { w: Word \where Logic.And[(Words.evaluate w).apply y = Basis.vectors i, FixOther w i] }, normal) \then
+    \return Logic.existsIntro[Word, { w: Word \where Logic.And[(Words.evaluate w).apply x = Basis.vectors i, FixedOutside (Words.evaluate w) xs] }] (Word::compose normal generator)
+      (Logic.And[_, _]::# data.left (\fun (k: Index)(outside: _) => trans!{Point} _ _ _
+        (congr!{Point Point} (Words.evaluate normal).apply _ _ (\root.Elementary[n := n].Shear[i := i, j := p, t := Real.one].fixedBasis k (outsideDifferent xs p (pivotLaws L xs i p).left k outside)))
+        (data.right k (outsideDifferent xs i member k outside))))
+  })
+  (\fun (nonzero: Logic.Not (x i = Real.zero)) => \block {
+    \takefrom normal: \Cast[Word] ({ w: Word \where Logic.And[(Words.evaluate w).apply x = Basis.vectors i, FixOther w i] }) \by \root.Elementary[n := n].Normalize[i := i, v := x, nonzero := nonzero].exists \then
+    \let data: Logic.And[(Words.evaluate normal).apply x = Basis.vectors i, FixOther normal i] := \bysub(Word, { w: Word \where Logic.And[(Words.evaluate w).apply x = Basis.vectors i, FixOther w i] }, normal) \then
+    \return Logic.existsIntro[Word, { w: Word \where Logic.And[(Words.evaluate w).apply x = Basis.vectors i, FixedOutside (Words.evaluate w) xs] }] normal
+      (Logic.And[_, _]::# data.left (\fun (k: Index)(outside: _) => data.right k (outsideDifferent xs i member k outside)))
+  });

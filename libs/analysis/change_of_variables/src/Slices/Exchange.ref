@@ -1,0 +1,31 @@
+\definition theorem: PI.integral f = PI.integral g := \block {
+  \takefrom ff: Fubini.AEFubini[f] \by Fubini.fubini f \then
+  \takefrom gg: Fubini.AEFubini[g] \by Fubini.fubini g \then
+  \let exceptional: Null.NullSet := FiniteNull.pair ff.exception (FiniteNull.pair gg.exception exception) \then
+  \let agree: \forall (x: A) -> Logic.Not (Sets.Member exceptional x) -> ff.outer x = gg.outer x :=
+    \fun (x: A) (outside: Logic.Not (Sets.Member exceptional x)) => \block {
+      \let first: Logic.Not (Sets.Member ff.exception x) := \fun (inside: Sets.Member ff.exception x) => outside (Logic.Or[_, _]::left inside) \then
+      \let second: Logic.Not (Sets.Member gg.exception x) := \fun (inside: Sets.Member gg.exception x) => outside (Logic.Or[_, _]::right (Logic.Or[_, _]::left inside)) \then
+      \let third: Logic.Not (Sets.Member exception x) := \fun (inside: Sets.Member exception x) => outside (Logic.Or[_, _]::right (Logic.Or[_, _]::right inside)) \then
+      \return eq_reason_in!{Real.Real _
+        "=" _ "by" { ff.outerValues x }
+        "=" _ "by" { RightNorm.integralPointwise (ff.sections x) (source x) (\fun (y: Real.Real) => trans!{Real.Real} _ _ _ (ff.sectionValues x first y) (sym!{Real.Real} _ _ (sourceValues x third y))) }
+        "=" _ "by" { sections x }
+        "=" _ "by" { RightNorm.integralPointwise (target x) (gg.sections x) (\fun (y: Real.Real) => trans!{Real.Real} _ _ _ (targetValues x third y) (sym!{Real.Real} _ _ (gg.sectionValues x second y))) }
+        "=" _ "by" { sym!{Real.Real} _ _ (gg.outerValues x) }
+      }
+    } \then
+  \let almost: LM.AlmostEqual mu ff.outer gg.outer :=
+    Logic.existsIntro[\Pow A, { N: \Pow A \where LM.NullCover[mu, { x: A \where Logic.Not (ff.outer x = gg.outer x) }, N] }] exceptional
+      (LM.NullCover[mu, { x: A \where Logic.Not (ff.outer x = gg.outer x) }, exceptional] {
+        measurable := (Null.nullSetLaw exceptional).measurable,
+        measure := (Null.nullSetLaw exceptional).zeroMeasure,
+        included := \fun (x: A) (different: Logic.Not (ff.outer x = gg.outer x)) =>
+          Order.byContradiction (Sets.Member exceptional x) (\fun (outside: Logic.Not (Sets.Member exceptional x)) => different (agree x outside)),
+      }) \then
+  \return eq_reason_in!{Real.Real _
+    "=" _ "by" { ff.exchange }
+    "=" _ "by" { Null.integralAlmost ff.outer gg.outer almost }
+    "=" _ "by" { sym!{Real.Real} _ _ gg.exchange }
+  }
+};

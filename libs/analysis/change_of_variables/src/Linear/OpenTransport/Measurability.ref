@@ -1,0 +1,28 @@
+\import \parent.\parent.OpenTransport[h := h, c := c] \as Transport;
+\definition intersection[S, T: \Pow Point]: forward (Sets.Intersection S T) = Sets.Intersection (forward S) (forward T) := \refl(forward (Sets.Intersection S T));
+\definition complement[S: \Pow Point]: forward (Sets.Complement S) = Sets.Complement (forward S) := \refl(forward (Sets.Complement S));
+\definition theorem: R.Lt Real.zero c -> OpenLaw -> \forall (S: \Pow Point) -> E.Caratheodory S -> E.Caratheodory (forward S) :=
+  \fun (positive: _)(valid: _)(S: \Pow Point)(measurable: _)(T: \Pow Point) => \block {
+    \let W: \Pow Point := backward T \then
+    \let restore: forward W = T := restores T \then
+    \let inside: forward (Sets.Intersection W S) = Sets.Intersection T (forward S) := eq_reason_in!{{\Pow Point} _
+      "=" _ "by" { intersection W S }
+      "=" _ "by" { congr!{{\Pow Point} {\Pow Point}} (\fun (U: \Pow Point) => Sets.Intersection U (forward S)) _ _ restore }
+    } \then
+    \let outside: forward (Sets.Intersection W (Sets.Complement S)) = Sets.Intersection T (Sets.Complement (forward S)) := eq_reason_in!{{\Pow Point} _
+      "=" _ "by" { intersection W (Sets.Complement S) }
+      "=" _ "by" { congr!{{\Pow Point} {\Pow Point} {\Pow Point}} Sets.Intersection _ _ _ _ restore (complement S) }
+    } \then
+    \return eq_reason_in!{M.Value _
+      "=" _ "by" { congr!{{\Pow Point} M.Value} E.outer _ _ (sym!{{\Pow Point}} _ _ restore) }
+      "=" _ "by" { Transport.theorem positive valid W }
+      "=" _ "by" { congr!{M.Value M.Value} (M.scale c) _ _ (measurable W) }
+      "=" _ "by" { Values.scaleAdd c (E.outer (Sets.Intersection W S)) (E.outer (Sets.Intersection W (Sets.Complement S)))
+        (Order.leOfLt _ _ positive) (E.outerNonnegative (Sets.Intersection W S)) (E.outerNonnegative (Sets.Intersection W (Sets.Complement S))) }
+      "=" _ "by" { congr!{M.Value M.Value M.Value} M.add _ _ _ _
+        (sym!{M.Value} _ _ (Transport.theorem positive valid (Sets.Intersection W S)))
+        (sym!{M.Value} _ _ (Transport.theorem positive valid (Sets.Intersection W (Sets.Complement S)))) }
+      "=" _ "by" { congr!{M.Value M.Value M.Value} M.add _ _ _ _
+        (congr!{{\Pow Point} M.Value} E.outer _ _ inside) (congr!{{\Pow Point} M.Value} E.outer _ _ outside) }
+    }
+  };

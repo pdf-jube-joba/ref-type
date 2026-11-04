@@ -1,0 +1,28 @@
+\import \parent.On[U := U] \as Source;
+\import \parent.On[U := V] \as Target;
+\definition domain: Open.OpenSet := Source.domain;
+\definition target: Open.OpenSet := Target.domain;
+\definition sourceEquivalence: Diffeomorphisms.Diffeomorphism domain U := Source.equivalence;
+\definition targetEquivalence: Diffeomorphisms.Diffeomorphism target V := Target.equivalence;
+\definition input[x: Open.Carrier domain]: Open.Carrier U := Source.forward x;
+\definition undoTarget: Diffeomorphisms.Diffeomorphism V target := Diffeomorphisms.Inverse[U := target, V := V, f := Target.equivalence].inverse;
+\definition composite: Diffeomorphisms.Diffeomorphism domain V :=
+  Diffeomorphisms.Composition[U := domain, V := U, f := Source.equivalence].After[l := n, W := V, g := f].compose;
+\definition normalized: Diffeomorphisms.Diffeomorphism domain target :=
+  Diffeomorphisms.Composition[U := domain, V := V, f := composite].After[l := n, W := target, g := undoTarget].compose;
+\definition formula[x: Open.Carrier domain][j: Index]: SmoothMaps.apply domain target normalized.forward x j = SmoothMaps.apply U V f.forward (input x) (Indices.apply j) :=
+  \refl(SmoothMaps.apply U V f.forward (input x) (Indices.apply j));
+\definition changed[x: Open.Carrier domain]: SmoothMaps.apply domain target normalized.forward x second = SmoothMaps.apply U V f.forward (input x) first :=
+  congr!{Index Real.Real} (SmoothMaps.apply U V f.forward (input x)) _ _ Indices.onSecond;
+\definition Condition: \Prop := \forall (j: Index) -> Logic.Not (first = j) -> \forall (x: Open.Carrier U) -> SmoothMaps.apply U V f.forward x j = x j;
+\definition preservesOthers: Condition -> \forall (j: Index) -> Logic.Not (second = j) -> \forall (x: Open.Carrier domain) ->
+  SmoothMaps.apply domain target normalized.forward x j = x j :=
+  \fun (fixed: Condition)(j: Index)(different: Logic.Not (second = j))(x: Open.Carrier domain) => trans!{Real.Real} _ _ _
+    (fixed (Indices.apply j)
+      (\fun (same: first = Indices.apply j) => different (trans!{Index} _ _ _ (sym!{Index} _ _ Indices.onFirst)
+        (trans!{Index} _ _ _ (congr!{Index Index} Indices.apply _ _ same) (Indices.involution j)))) (input x))
+    (congr!{Index Real.Real} x _ _ (Indices.involution j));
+
+\definition commutes[x: Open.Carrier domain]: SmoothMaps.apply target V targetEquivalence.forward
+  (SmoothMaps.apply domain target normalized.forward x) = SmoothMaps.apply U V f.forward (input x) :=
+  Target.equivalence.rightInverse (SmoothMaps.apply U V f.forward (input x));

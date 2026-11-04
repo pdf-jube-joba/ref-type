@@ -1,0 +1,24 @@
+\import functional_analysis.Measure[A := Sigma.Point] \as Source;
+\import functional_analysis.Measure[A := L.Point] \as LM;
+\import euclidean_measure.EuclideanBorel[n := n] \as LB;
+\import Source.Functions[mu := Product.measure] \as Functions;
+\definition first[f: L.Point -> Real.Real]: LM.IsMeasurable L.MeasureConstruction[].measure f -> Source.IsMeasurable Product.measure (\fun (p: Sigma.Point) => f (Pair.first L.Point Real.Real p)) := \fun (valid: _)(r: Real.Real) =>
+  \idelim Sigma.rectangle ({ x: L.Point \where Order.Lt r (f x) }) RightSets.Whole = { p: Sigma.Point \where Order.Lt r (f (Pair.first L.Point Real.Real p)) } \with S: \Pow Sigma.Point => Source.Measurable Product.measure.sigma S \by {
+    base: Sigma.rectangleMeasurable _ _ (valid r) (RM.Sigma[].wholeMeasurable Line.measure.sigma),
+    equality: \axiom:setext(Sigma.rectangle ({ x: L.Point \where Order.Lt r (f x) }) RightSets.Whole, { p: Sigma.Point \where Order.Lt r (f (Pair.first L.Point Real.Real p)) }, \fun (p: Sigma.Point)(member: PairSets.Member (Sigma.rectangle ({ x: L.Point \where Order.Lt r (f x) }) RightSets.Whole) p) => member.left, \fun (p: Sigma.Point)(member: Order.Lt r (f (Pair.first L.Point Real.Real p))) => Logic.And[_, _]::# member (\refl(Pair.second L.Point Real.Real p))) };
+\definition second: Source.IsMeasurable Product.measure (\fun (p: Sigma.Point) => Pair.second L.Point Real.Real p) := \fun (r: Real.Real) =>
+  \idelim Sigma.rectangle LeftSets.Whole (scalarSet (euclidean_measure.EuclideanBorel[n := one].above (Fin.zero N.Nat^::zero) r)) = { p: Sigma.Point \where Order.Lt r (Pair.second L.Point Real.Real p) } \with S: \Pow Sigma.Point => Source.Measurable Product.measure.sigma S \by {
+    base: Sigma.rectangleMeasurable _ _ (LM.Sigma[].wholeMeasurable L.MeasureConstruction[].measure.sigma) (scalarMeasurable _ (euclidean_measure.EuclideanBorel[n := one].aboveMeasurable (Fin.zero N.Nat^::zero) r)),
+    equality: \axiom:setext(Sigma.rectangle LeftSets.Whole (scalarSet (euclidean_measure.EuclideanBorel[n := one].above (Fin.zero N.Nat^::zero) r)), { p: Sigma.Point \where Order.Lt r (Pair.second L.Point Real.Real p) }, \fun (p: Sigma.Point)(member: PairSets.Member (Sigma.rectangle LeftSets.Whole (scalarSet (euclidean_measure.EuclideanBorel[n := one].above (Fin.zero N.Nat^::zero) r))) p) => member.right, \fun (p: Sigma.Point)(member: Order.Lt r (Pair.second L.Point Real.Real p)) => Logic.And[_, _]::# (\refl(Pair.first L.Point Real.Real p)) member) };
+\definition coordinates[i: Fin.Fin Index.total]: Source.IsMeasurable Product.measure (\fun (p: Sigma.Point) => join p i) :=
+  \idelim Index.inflate (Index.split i) = i \with k: Fin.Fin Index.total => Source.IsMeasurable Product.measure (\fun (p: Sigma.Point) => join p k) \by {
+    base: (\induction (index: Index.Index) \return Source.IsMeasurable Product.measure (\fun (p: Sigma.Point) => join p (Index.inflate index)) \with {
+      | inl: \fun (k: Fin.Fin n) => \idelim (\fun (p: Sigma.Point) => Pair.first L.Point Real.Real p k) = (\fun (p: Sigma.Point) => join p (Index.left k)) \with f: (Sigma.Point -> Real.Real) => Source.IsMeasurable Product.measure f \by {
+        base: first (\fun (x: L.Point) => x k) (\fun (r: Real.Real) => LB.aboveMeasurable k r),
+        equality: \axiom:funext((\fun (p: Sigma.Point) => Pair.first L.Point Real.Real p k), (\fun (p: Sigma.Point) => join p (Index.left k)), \fun (p: Sigma.Point) => sym!{Real.Real} _ _ (Tuples.atLeft (Pair.first L.Point Real.Real p) (Line.point (Pair.second L.Point Real.Real p)) k)) }
+      | inr: \fun (k: Fin.Fin one) => \idelim (\fun (p: Sigma.Point) => Pair.second L.Point Real.Real p) = (\fun (p: Sigma.Point) => join p (Index.right k)) \with f: (Sigma.Point -> Real.Real) => Source.IsMeasurable Product.measure f \by {
+        base: second,
+        equality: \axiom:funext((\fun (p: Sigma.Point) => Pair.second L.Point Real.Real p), (\fun (p: Sigma.Point) => join p (Index.right k)), \fun (p: Sigma.Point) => sym!{Real.Real} _ _ (Tuples.atRight (Pair.first L.Point Real.Real p) (Line.point (Pair.second L.Point Real.Real p)) k)) }
+    }) (Index.split i), equality: Index.inflateSplit i };
+\import lp_spaces.Euclidean[n := Index.total].MeasurableMap[A := Sigma.Point, source := Product.measure, map := join, coordinates := coordinates] \as Map;
+\definition measurable: \forall (S: \Pow E.Point) -> M.Measurable E.Borel[].sigma S -> M.Measurable Push.sigma S := Map.measurable;

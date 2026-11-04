@@ -1,0 +1,83 @@
+\import std.Data[].Nat[] \as N;
+\import std.Data[].FinSet[] \as Fin;
+\import std.Data[].Pair[] \as Pair;
+\import std.Logic[].Proposition[] \as Logic;
+\import real.Analysis[] \as Real;
+\import dedekind_reals.DedekindReal[] \as Order;
+\import Order.Arithmetic[].Prop[] \as Laws;
+\use std.Logic[].Equality[].congr;
+\use std.Logic[].Equality[].sym;
+\use std.Logic[].Equality[].eq_reason_in;
+\definition one: N.Nat^ := N.Nat^::succ N.Nat^::zero;
+\import Fin.Sum[m := n, n := one] \as Index;
+\import product_integration.EuclideanProduct[m := n, n := one] \as EP;
+\import \root.Boundary[n := n] \as Boundary;
+\import euclidean_measure.Euclidean[n := n] \as L;
+\import euclidean_measure.Euclidean[n := one] \as R;
+\import euclidean_measure.Euclidean[n := Index.total] \as E;
+\import euclidean_measure.RealLine[] \as Line;
+\import product_integration.Product[A := L.Point, B := Real.Real, mu := L.MeasureConstruction[].measure, nu := Line.measure, left := product_integration.Euclidean[n := n].exhaustion, right := Boundary.lineExhaustion] \as Product;
+\import product_integration.ProductSigma[A := L.Point, B := Real.Real, left := L.MeasureConstruction[].measure.sigma, right := Line.measure.sigma] \as Sigma;
+\import topology.Topology[Carrier := L.Point] \as LeftSets;
+\import topology.Topology[Carrier := Real.Real] \as RightSets;
+\import topology.Topology[Carrier := R.Point] \as VectorSets;
+\import topology.Topology[Carrier := E.Point] \as Sets;
+\import topology.Topology[Carrier := Sigma.Point] \as PairSets;
+\import functional_analysis.Measure[A := E.Point] \as M;
+\import M.Sigma[] \as MS;
+\import functional_analysis.Measure[A := Real.Real] \as RM;
+\import functional_analysis.Measure[A := R.Point] \as VM;
+\import product_integration.ProductSigma[A := L.Point, B := R.Point, left := L.MeasureConstruction[].measure.sigma, right := R.MeasureConstruction[].measure.sigma] \as VS;
+\import product_integration.Euclidean[n := n] \as Left;
+\import product_integration.Euclidean[n := one] \as Right;
+\import product_integration.Product[A := L.Point, B := R.Point, mu := L.MeasureConstruction[].measure, nu := R.MeasureConstruction[].measure, left := Left.exhaustion, right := Right.exhaustion] \as VP;
+\import euclidean_measure.Pushforward[A := VS.Point, B := E.Point, source := VP.measure, map := EP.join] \as VPush;
+\import topology.Topology[Carrier := VS.Point] \as VPS;
+\import Index.Tuples[A := Real.Real] \as Tuples;
+\definition vectorPair[p: Sigma.Point]: VS.Point := Pair.pair L.Point R.Point (Pair.first L.Point Real.Real p) (Line.point (Pair.second L.Point Real.Real p));
+\definition join[p: Sigma.Point]: E.Point := EP.join (vectorPair p);
+\definition split[x: E.Point]: Sigma.Point := Pair.pair L.Point Real.Real (Pair.first L.Point R.Point (EP.split x)) (Line.scalar (Pair.second L.Point R.Point (EP.split x)));
+\definition base[x: E.Point][i: Fin.Fin n]: Real.Real := x (Index.left i);
+\definition normal[x: E.Point]: Real.Real := x (Index.right (Fin.zero N.Nat^::zero));
+\definition splitCoordinates[x: E.Point]: split x = Pair.pair L.Point Real.Real (base x) (normal x) := \refl(split x);
+\definition pairSplit[x: E.Point]: vectorPair (split x) = EP.split x := Pair.Prop[A := L.Point, B := R.Point].ext (vectorPair (split x)) (EP.split x) (\refl(Pair.first L.Point R.Point (EP.split x))) (Line.pointScalar (Pair.second L.Point R.Point (EP.split x)));
+\definition joinSplit[x: E.Point]: join (split x) = x := eq_reason_in!{E.Point _
+  "=" _ "by" { congr!{VS.Point E.Point} EP.join _ _ (pairSplit x) }
+  "=" _ "by" { EP.joinSplit x }
+};
+\definition splitJoin[p: Sigma.Point]: split (join p) = p := eq_reason_in!{Sigma.Point _
+  "=" _ "by" { congr!{VS.Point Sigma.Point} (\fun (q: VS.Point) => Pair.pair L.Point Real.Real (Pair.first L.Point R.Point q) (Line.scalar (Pair.second L.Point R.Point q))) _ _ (EP.splitJoin (vectorPair p)) }
+  "=" _ "by" { Pair.Prop[A := L.Point, B := Real.Real].ext (Pair.pair L.Point Real.Real (Pair.first L.Point Real.Real p) (Line.scalar (Line.point (Pair.second L.Point Real.Real p)))) p (\refl(Pair.first L.Point Real.Real p)) (Line.scalarPoint (Pair.second L.Point Real.Real p)) }
+};
+\definition leftBox: E.Box -> L.Box := EP.leftBox;
+\definition rightBox: E.Box -> R.Box := EP.rightBox;
+\import euclidean_measure.Pushforward[A := R.Point, B := Real.Real, source := R.MeasureConstruction[].measure, map := Line.scalar] \as LP;
+\definition scalarSet[S: \Pow R.Point]: \Pow Real.Real := { t: Real.Real \where VectorSets.Member S (Line.point t) };
+\definition scalarPreimage[S: \Pow R.Point]: LP.preimage (scalarSet S) = S := \axiom:setext(LP.preimage (scalarSet S), S,
+  \fun (x: R.Point)(member: VectorSets.Member (LP.preimage (scalarSet S)) x) => \idelim Line.point (Line.scalar x) = x \with y: R.Point => VectorSets.Member S y \by { base: member, equality: Line.pointScalar x },
+  \fun (x: R.Point)(member: VectorSets.Member S x) => \idelim x = Line.point (Line.scalar x) \with y: R.Point => VectorSets.Member S y \by { base: member, equality: sym!{R.Point} _ _ (Line.pointScalar x) });
+\definition scalarMeasurable[S: \Pow R.Point]: VM.Measurable R.MeasureConstruction[].measure.sigma S -> RM.Measurable Line.measure.sigma (scalarSet S) := \fun (valid: _) =>
+  \idelim S = LP.preimage (scalarSet S) \with T: \Pow R.Point => VM.Measurable R.MeasureConstruction[].measure.sigma T \by { base: valid, equality: sym!{{\Pow R.Point}} _ _ (scalarPreimage S) };
+\definition scalarValue[S: \Pow R.Point]: Line.measure.value (scalarSet S) = R.MeasureConstruction[].measure.value S := congr!{{\Pow R.Point} M.Value} R.MeasureConstruction[].measure.value _ _ (scalarPreimage S);
+\import euclidean_measure.Pushforward[A := Sigma.Point, B := E.Point, source := Product.measure, map := join] \as Push;
+\definition boxPreimage[b: E.Box]: Push.preimage (E.points b) = Sigma.rectangle (L.points (leftBox b)) (scalarSet (R.points (rightBox b))) :=
+  \axiom:setext(Push.preimage (E.points b), Sigma.rectangle (L.points (leftBox b)) (scalarSet (R.points (rightBox b))),
+    \fun (p: Sigma.Point)(member: PairSets.Member (Push.preimage (E.points b)) p) =>
+      \idelim VPush.preimage (E.points b) = VS.rectangle (L.points (leftBox b)) (R.points (rightBox b)) \with S: \Pow VS.Point => VPS.Member S (vectorPair p) \by { base: member, equality: EP.boxPreimage b },
+    \fun (p: Sigma.Point)(member: PairSets.Member (Sigma.rectangle (L.points (leftBox b)) (scalarSet (R.points (rightBox b)))) p) =>
+      \idelim VS.rectangle (L.points (leftBox b)) (R.points (rightBox b)) = VPush.preimage (E.points b) \with S: \Pow VS.Point => VPS.Member S (vectorPair p) \by { base: member, equality: sym!{{\Pow VS.Point}} _ _ (EP.boxPreimage b) });
+\definition boxMeasurable[b: E.Box]: M.Measurable Push.sigma (E.points b) :=
+  \idelim Sigma.rectangle (L.points (leftBox b)) (scalarSet (R.points (rightBox b))) = Push.preimage (E.points b) \with S: \Pow Sigma.Point => functional_analysis.Measure[A := Sigma.Point].Measurable Product.measure.sigma S \by {
+    base: Sigma.rectangleMeasurable _ _ (Left.boxFinite (leftBox b)).measurable (scalarMeasurable _ (Right.boxFinite (rightBox b)).measurable),
+    equality: sym!{{\Pow Sigma.Point}} _ _ (boxPreimage b) };
+\module Volumes;
+\module Borel;
+\module Comparison;
+\module Transfer;
+\module Strip(interval: integration.Real[].Interval, primitive: L.Point -> Real.Real -> Real.Real,
+  integrand: L.Point -> integration.Real[].Riemann[interval := interval].Continuous[].Function);
+\module Rectangle(box: L.Box, interval: integration.Real[].Interval, primitive: L.Point -> Real.Real -> Real.Real,
+  integrand: L.Point -> integration.Real[].Riemann[interval := interval].Continuous[].Function);
+\module IntegrationByParts(interval: integration.Real[].Interval,
+  f, g, df, dg: L.Point -> integration.Real[].Riemann[interval := interval].Continuous[].Function);
+\module Permuted(p: Fin.Permutations[n := Index.total].Permutation, f: M.Integral[mu := E.MeasureConstruction[].measure].Representatives);

@@ -1,0 +1,42 @@
+/* The compact change-of-variables formula for a coordinate transposition on
+   an arbitrary open set, obtained by restriction of the global formula. */
+\import std.Data[].FinSet[] \as Fin;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.congr;
+\use Equality.trans;
+\use Equality.sym;
+\import real.Analysis[] \as Real;
+\import calculus.Real[].Multivariable[n := n].Open[] \as Open;
+\import calculus.Maps[n := n, m := n] \as Maps;
+\import \root.Euclidean[n := n] \as Euclidean;
+\import \root.Triangular[n := n] \as Triangular;
+\import lp_spaces.Euclidean[n := n] \as L;
+\import smooth_partitions.Euclidean[n := n] \as Functions;
+\import topology.Topology[Carrier := Euclidean.Point] \as Sets;
+\import euclidean_measure.Euclidean[n := n].MeasureConstruction[] \as Lebesgue;
+\import functional_analysis.Measure[A := Euclidean.Point].Integral[mu := Lebesgue.measure] \as I;
+\import lp_spaces.On[A := Euclidean.Point, mu := Lebesgue.measure].One[].Norm[] \as IntegralEquality;
+\module Swap(first, second: Fin.Fin n, U: Open.OpenSet) {
+  \import Triangular.Swap[first := first, second := second] \as Swap;
+  \import Swap.On[U := U] \as Local;
+  \import Euclidean.Diffeomorphism[U := Open.whole, V := Open.whole, e := Swap.equivalence].Restriction[D := Local.domain, E := U, r := Local.equivalence] \as Restriction;
+  \definition conditions: Restriction.Conditions := Restriction.Conditions {
+    sourceIncluded := \fun (x: Euclidean.Point)(inside: _) => \refl(x),
+    targetIncluded := Local.included,
+    forward := \fun (x: Open.Carrier Local.domain) => \refl(Maps.apply Local.domain U Local.equivalence.forward x),
+  };
+  \import Restriction.With[conditions := conditions] \as Restricted;
+  \module Compact(f: L.SmoothCompact, within: Sets.Subset (Functions.support f) U.points) {
+    \import Restricted.Compact[f := f, within := within] \as Comparison;
+    \import \root.Linear[n := n].Permutation[p := Swap.permutation].Smooth[].Compact[f := f] \as Global;
+    \import Euclidean.Compact[] \as Compact;
+    \import Euclidean.Diffeomorphism[U := Open.whole, V := Open.whole, e := Swap.equivalence].Compact[f := f, within := Comparison.globalWithin] \as Large;
+    \import Euclidean.Diffeomorphism[U := Local.domain, V := U, e := Local.equivalence].Compact[f := f, within := within] \as Pullback;
+    \definition theorem: I.integral Pullback.representative = I.integral (Compact.representative f) := trans!{Real.Real} _ _ _
+      (sym!{Real.Real} _ _ Comparison.integral)
+      (trans!{Real.Real} _ _ _
+        (IntegralEquality.integralPointwise Large.representative Global.representative
+          (\fun (x: Euclidean.Point) => \refl(Large.value x))) Global.integral);
+  }
+}

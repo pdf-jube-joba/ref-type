@@ -1,0 +1,33 @@
+\import AmbientMaps.Differential[U := U, V := V, f := f.forward, a := Source.apply x] \as Original;
+\import FiberMaps.Differential[U := Source.domain, V := Target.domain, f := Data.forwardMap, a := x] \as Slice;
+\import Big.Representation[] \as BigRepresentation;
+\import Matrix.Representation[] \as Representation;
+\definition originalMatrix: Big.Matrix := BigRepresentation.entries Original.value;
+\definition sliceMatrix: Matrix.Matrix := Representation.entries Slice.value;
+\import Ambient.Projection[U := U] \as Projection;
+\import Ambient.Smooth[].Differential[] \as ScalarDerivative;
+\definition firstCoordinate: AmbientMaps.coordinateFunction U V f.forward (Fin.zero n) = Projection.function (Fin.zero n) :=
+  \axiom:funext(AmbientMaps.coordinateFunction U V f.forward (Fin.zero n), Projection.function (Fin.zero n),
+    \fun (p: Ambient.Carrier U) => congr!{LeftPoint Real.Real} (\fun (q: LeftPoint) => q (Fin.zero N.Nat^::zero)) _ _ (fixed p));
+\definition firstRow: Original.row (Fin.zero n) = Projection.linear (Fin.zero n) :=
+  trans!{{calculus.Real[].Multivariable[n := N.Nat^::succ n].Differential[].Def[].LinearMap}} _ _ _
+    (congr!{{Ambient.Smooth[].SmoothFunction U} {calculus.Real[].Multivariable[n := N.Nat^::succ n].Differential[].Def[].LinearMap}}
+      (\fun (g: Ambient.Smooth[].SmoothFunction U) => ScalarDerivative.value U g (Source.apply x)) _ _ firstCoordinate)
+    (Projection.differential (Fin.zero n) (Source.apply x));
+\definition firstEntry[j: Block.BigIndex]: originalMatrix (Fin.zero n) j = BigBasis.vectors j (Fin.zero n) :=
+  congr!{{calculus.Real[].Multivariable[n := N.Nat^::succ n].Differential[].Def[].LinearMap} Real.Real}
+    (\fun (d: calculus.Real[].Multivariable[n := N.Nat^::succ n].Differential[].Def[].LinearMap) => d.apply (BigBasis.vectors j)) _ _ firstRow;
+\module Entry(j, i: Index);
+\definition minor: sliceMatrix = Block.minor originalMatrix := MatrixOperations.ext _ _ (\fun (j, i: Index) => Entry[j := j, i := i].value);
+\definition determinant: Big.determinant originalMatrix = Matrix.determinant sliceMatrix :=
+  trans!{Real.Real} _ _ _
+    (Block.firstRow originalMatrix
+      (trans!{Real.Real} _ _ _ (firstEntry (Fin.zero n)) (BigKronecker.self (Fin.zero n)))
+      (\fun (i: Index) => trans!{Real.Real} _ _ _ (firstEntry (Fin.succ n i))
+        (BigKronecker.different (Fin.succ n i) (Fin.zero n) (N.Basic[].Prop[].succNeZero (Fin.value n i)))))
+    (congr!{Matrix.Matrix Real.Real} Matrix.determinant _ _ (sym!{Matrix.Matrix} _ _ minor));
+\import Basis.Top[] \as Top;
+\import BigBasis.Top[] \as BigTop;
+\definition signedDeterminant: BigTop.determinant Original.value = Top.determinant Slice.value :=
+  trans!{Real.Real} _ _ _ (sym!{Real.Real} _ _ (BigRepresentation.determinantComparison Original.value))
+    (trans!{Real.Real} _ _ _ determinant (Representation.determinantComparison Slice.value));

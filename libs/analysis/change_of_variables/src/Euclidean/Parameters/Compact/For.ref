@@ -1,0 +1,21 @@
+\import Finite.Bounded[S := conditions.region] \as Bounded;
+\definition dominator: I.Representatives := Bounded.dominator conditions.coefficient;
+\definition partialDominated[t: Real.Real]: R.Lt (Real.distance t conditions.at) conditions.radius -> \forall (x: Point) ->
+  R.Le (Absolute.abs (partial t x)) (dominator x) :=
+  \fun (near: _) => Bounded.dominated conditions.coefficient (partial t) (Bounded.Conditions[partial t, conditions.coefficient] {
+    measurable := (I.integralLaw (Integrals.representative (partial t))).integrable.left,
+    bound := conditions.bound t near,
+    outside := conditions.outside t near,
+  });
+\definition data: Dominated.Data := Dominated.Data {
+  function := \fun (t: Real.Real) => Integrals.representative (function t),
+  derivative := Integrals.representative (partial conditions.at),
+  at := conditions.at, radius := conditions.radius, bound := dominator,
+  dominated := \fun (t: Real.Real)(different: _)(near: _)(x: Point) =>
+    Bounds.slopeLocal (\fun (s: Real.Real) => function s x) (\fun (s: Real.Real) => partial s x) conditions.at t (dominator x) conditions.radius
+      (\fun (s: Real.Real) => conditions.derivative s x)
+      (\fun (s: Real.Real)(inside: _) => partialDominated s inside x) near different,
+  pointwise := conditions.derivative conditions.at,
+};
+\definition theorem: Derivative.HasDerivativeAt (\fun (t: Real.Real) => I.integral (Integrals.representative (function t))) conditions.at
+  (I.integral (Integrals.representative (partial conditions.at))) := Dominated.derivative data;

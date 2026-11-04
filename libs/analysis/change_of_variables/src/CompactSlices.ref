@@ -1,0 +1,51 @@
+/* Smooth compact functions restricted to a fixed Euclidean coordinate block. */
+\import std.Data[].Nat[] \as N;
+\import std.Data[].FinSet[] \as Fin;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\import calculus.Blocks[n := n, m := m] \as Split;
+\import topological_algebra.Euclidean[].Dimension[n := n] \as Left;
+\import real.Analysis[] \as Real;
+\import dedekind_reals.DedekindReal[] \as R;
+\import R.Arithmetic[].Prop[] \as Laws;
+\import lp_spaces.Euclidean[n := Split.dimension] \as Source;
+\import lp_spaces.Euclidean[n := m] \as Fiber;
+\import smooth_partitions.Euclidean[n := Split.dimension] \as SourceSmooth;
+\import smooth_partitions.Euclidean[n := m] \as FiberSmooth;
+\import calculus.Real[].Multivariable[n := Split.dimension].Open[] \as SourceOpen;
+\import calculus.Real[].Multivariable[n := m].Open[] \as FiberOpen;
+\import topological_algebra.Euclidean[].Dimension[n := Split.dimension].Topology[] \as SourceTopology;
+\import topological_algebra.Euclidean[].Dimension[n := m].Topology[] \as FiberTopology;
+\import topological_algebra.Euclidean[].Dimension[n := Split.dimension].Norm[] \as SourceNorm;
+\import topological_algebra.Euclidean[].Dimension[n := m].Norm[] \as FiberNorm;
+\import topology.Topology[Carrier := Source.Point] \as SourceSets;
+\import topology.Topology[Carrier := Fiber.Point] \as FiberSets;
+\import FiberSets.Compactness[] \as Compact;
+\import functional_analysis.Support[A := Source.Point] \as SourceSupport;
+\import functional_analysis.Support[A := Fiber.Point] \as FiberSupport;
+\import topology.Maps[A := Source.Point, B := Fiber.Point] \as Projection;
+\import topology.Compactness[A := Source.Point, B := Fiber.Point] \as Images;
+\import topology.Continuity[A := Source.Point, B := Fiber.Point] \as ProjectContinuity;
+\import topology.Continuity[A := Fiber.Point, B := Source.Point] \as InsertContinuity;
+\import metric_spaces.MetricSpace[Carrier := Source.Point].Lipschitz[B := Fiber.Point].Between[metric := SourceNorm.metric, other := FiberNorm.metric] \as ProjectLipschitz;
+\import metric_spaces.MetricSpace[Carrier := Fiber.Point].Lipschitz[B := Source.Point].Between[metric := FiberNorm.metric, other := SourceNorm.metric] \as InsertLipschitz;
+\definition projectionContinuous: ProjectContinuity.Continuous SourceTopology.topology FiberTopology.topology Split.right :=
+  ProjectLipschitz.continuous Split.right Real.one (\fun (x, y: Source.Point) => R.leReplaceRight _ _ _
+    (sym!{Real.Real} _ _ (Laws.fieldMulOneLeft _)) (Split.rightDistance x y));
+\definition insertionContinuous[c: Left.Point]: InsertContinuity.Continuous FiberTopology.topology SourceTopology.topology (Split.join c) :=
+  InsertLipschitz.continuous (Split.join c) Real.one (\fun (x, y: Fiber.Point) => R.leReplaceRight _ _ _
+    (sym!{Real.Real} _ _ (Laws.fieldMulOneLeft _)) (Split.fixedLeftDistance x y c));
+\module At(f: Source.SmoothCompact, c: Left.Point);
+\definition slice[f: Source.SmoothCompact][c: Left.Point]: Fiber.SmoothCompact := At[f := f, c := c].value;
+\definition pointwise[f: Source.SmoothCompact][c: Left.Point][x: Fiber.Point]: slice f c x = f (Split.join c x) := \refl(slice f c x);
+\definition supportWithin[f: Source.SmoothCompact][c: Left.Point]:
+  \forall (x: Fiber.Point) -> \In[Fiber.Point] (FiberSmooth.support (slice f c)) x ->
+  \In[Source.Point] (SourceSmooth.support f) (Split.join c x) := At[f := f, c := c].included;
+\definition within[f: Source.SmoothCompact][V: SourceOpen.OpenSet]:
+  SourceSets.Subset (SourceSmooth.support f) V.points -> \forall (c: Left.Point) ->
+  FiberSets.Subset (FiberSmooth.support (slice f c)) (Split.LeftSection[V := V, c := c].domain.points) :=
+  \fun (included: _)(c: Left.Point)(x: Fiber.Point)(member: _) =>
+    Split.LeftSection[V := V, c := c].intro x (included (Split.join c x) (supportWithin f c x member));

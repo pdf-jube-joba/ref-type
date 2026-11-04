@@ -1,0 +1,67 @@
+\definition row: Point := Coordinates.plus (Matrix.identity i) (Coordinates.scale t (Matrix.identity j));
+\definition matrix: Matrix.Matrix := Multilinear.update n Matrix.identity i row;
+\definition map: Maps.Map := Matrix.linear matrix;
+\definition rowAction[v, x: Point]: Real.Real := Sums.sum (Fin.elements n) (\fun (k: Index) => Real.mul (v k) (x k));
+\definition basisAction[k: Index][x: Point]: rowAction (Matrix.identity k) x = x k :=
+  trans!{Real.Real} _ _ _
+    (SumLaws.congruent (Fin.elements n) _ _ (\fun (l: Index) => trans!{Real.Real} _ _ _ (Laws.fieldMulComm (Matrix.identity k l) (x l)) (congr!{Real.Real Real.Real} (Real.mul (x l)) _ _ (Kronecker.symmetric l k))))
+    (Basis.dualReconstruction x k);
+\definition rowAddition[v, w, x: Point]: rowAction (Coordinates.plus v w) x = Real.add (rowAction v x) (rowAction w x) :=
+  trans!{Real.Real} _ _ _
+    (SumLaws.congruent (Fin.elements n) _ _ (\fun (l: Index) => Algebra.mulAddRight (v l) (w l) (x l)))
+    (SumLaws.additive (Fin.elements n) _ _);
+\definition rowScalar[c: Real.Real][v, x: Point]: rowAction (Coordinates.scale c v) x = Real.mul c (rowAction v x) :=
+  trans!{Real.Real} _ _ _
+    (SumLaws.congruent (Fin.elements n) _ _ (\fun (l: Index) => Laws.fieldMulAssoc c (v l) (x l)))
+    (SumLaws.multiplyLeft (Fin.elements n) c _);
+\definition atTarget[x: Point]: map.apply x i = Real.add (x i) (Real.mul t (x j)) := eq_reason_in!{Real.Real _
+  "=" _ "by" { congr!{Point Real.Real} (\fun (v: Point) => rowAction v x) _ _ (Updates.updateSelf n Matrix.identity i row) }
+  "=" _ "by" { rowAddition (Matrix.identity i) (Coordinates.scale t (Matrix.identity j)) x }
+  "=" _ "by" { congr!{Real.Real Real.Real Real.Real} Real.add _ _ _ _ (basisAction i x)
+    (trans!{Real.Real} _ _ _ (rowScalar t (Matrix.identity j) x) (congr!{Real.Real Real.Real} (Real.mul t) _ _ (basisAction j x))) }
+};
+\definition other[k: Index][x: Point]: Logic.Not (i = k) -> map.apply x k = x k :=
+  \fun (different: _) => trans!{Real.Real} _ _ _
+    (congr!{Point Real.Real} (\fun (v: Point) => rowAction v x) _ _ (Updates.updateOther n Matrix.identity i k row different))
+    (basisAction k x);
+\definition determinant: Logic.Not (i = j) -> Matrix.determinant matrix = Real.one :=
+  \fun (different: _) => eq_reason_in!{Real.Real _
+    "=" _ "by" { Rows.regular.addition Matrix.identity i (Matrix.identity i) (Coordinates.scale t (Matrix.identity j)) }
+    "=" _ "by" { congr!{Real.Real Real.Real Real.Real} Real.add _ _ _ _
+      (trans!{Real.Real} _ _ _ (congr!{Matrix.Matrix Real.Real} Matrix.determinant _ _ (Updates.updateSame n Matrix.identity i)) Matrix.atIdentity)
+      (trans!{Real.Real} _ _ _ (Rows.regular.scalar Matrix.identity i t (Matrix.identity j))
+        (trans!{Real.Real} _ _ _
+          (congr!{Real.Real Real.Real} (Real.mul t) _ _ (Rows.Projection[i := i, j := j].singular different))
+          (Laws.fieldMulZeroRight t))) }
+    "=" _ "by" { Laws.addZeroRight Real.one }
+  };
+\definition linearDeterminant: Logic.Not (i = j) -> Top.determinant map = Real.one :=
+  \fun (different: _) => trans!{Real.Real} _ _ _ (Matrix.determinantLinear matrix) (determinant different);
+\definition cancellation[s: Real.Real][x: Point]: Logic.Not (i = j) -> Real.add t s = Real.zero -> (\parent.Shear[i := i, j := j, t := s].map).apply (map.apply x) = x :=
+  \fun (distinct: _)(cancel: _) => \axiom:funext((\parent.Shear[i := i, j := j, t := s].map).apply (map.apply x), x, \fun (k: Index) =>
+    Logic.orElim _ _ _ (Classical.excludedMiddle (i = k))
+      (\fun (same: i = k) => \idelim i = k \with l: Index => (\parent.Shear[i := i, j := j, t := s].map).apply (map.apply x) l = x l \by {
+        base: eq_reason_in!{Real.Real _
+          "=" _ "by" { \parent.Shear[i := i, j := j, t := s].atTarget (map.apply x) }
+          "=" _ "by" { congr!{Real.Real Real.Real Real.Real} Real.add _ _ _ _ (atTarget x)
+            (congr!{Real.Real Real.Real} (Real.mul s) _ _ (other j x distinct)) }
+          "=" _ "by" { Laws.addAssoc (x i) (Real.mul t (x j)) (Real.mul s (x j)) }
+          "=" _ "by" { congr!{Real.Real Real.Real} (Real.add (x i)) _ _ (sym!{Real.Real} _ _ (Algebra.mulAddRight t s (x j))) }
+          "=" _ "by" { congr!{Real.Real Real.Real} (\fun (a: Real.Real) => Real.add (x i) (Real.mul a (x j))) _ _ cancel }
+          "=" _ "by" { congr!{Real.Real Real.Real} (Real.add (x i)) _ _ (Laws.fieldMulZeroLeft (x j)) }
+          "=" _ "by" { Laws.addZeroRight (x i) }
+        }, equality: same
+      })
+      (\fun (different: _) => trans!{Real.Real} _ _ _ (\parent.Shear[i := i, j := j, t := s].other k (map.apply x) different) (other k x different)));
+\definition fixedBasis[k: Index]: Logic.Not (k = j) -> map.apply (Basis.vectors k) = Basis.vectors k :=
+  \fun (different: _) => \axiom:funext(map.apply (Basis.vectors k), Basis.vectors k, \fun (l: Index) =>
+    Logic.orElim _ _ _ (Classical.excludedMiddle (i = l))
+      (\fun (same: _) => \idelim i = l \with h: Index => map.apply (Basis.vectors k) h = Basis.vectors k h \by {
+        base: eq_reason_in!{Real.Real _
+          "=" _ "by" { atTarget (Basis.vectors k) }
+          "=" _ "by" { congr!{Real.Real Real.Real} (\fun (a: Real.Real) => Real.add (Basis.vectors k i) (Real.mul t a)) _ _ (Kronecker.different k j different) }
+          "=" _ "by" { congr!{Real.Real Real.Real} (Real.add (Basis.vectors k i)) _ _ (Laws.fieldMulZeroRight t) }
+          "=" _ "by" { Laws.addZeroRight (Basis.vectors k i) }
+        }, equality: same
+      })
+      (\fun (otherIndex: _) => other l (Basis.vectors k) otherIndex));

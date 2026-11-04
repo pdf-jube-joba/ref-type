@@ -1,0 +1,49 @@
+\definition pieceWithin[k: N.Nat^]: Sets.Subset (Functions.support (data.pieces k)) V.points :=
+  Logic.orElim _ _ _ (data.refines k)
+    (\fun (member: Sets.FamilyMember family (data.domains k)) => Sets.subsetTrans _ _ _ (data.within k) (conditions.included (data.domains k) member))
+    (\fun (empty: data.domains k = Sets.Empty)(x: Point)(supported: Sets.Member (Functions.support (data.pieces k)) x) =>
+      Logic.falseElim _ (\idelim data.domains k = Sets.Empty \with W: \Pow Point => Sets.Member W x \by { base: data.within k x supported, equality: empty }));
+\definition pulled[k: N.Nat^]: I.Representatives := Euclidean.Diffeomorphism[U := U, V := V, e := e].Compact[f := data.pieces k, within := pieceWithin k].representative;
+\import Euclidean.FiniteIntegral[family := pulled] \as Sum;
+\import Euclidean.Diffeomorphism[U := U, V := V, e := e].Compact[f := f, within := within] \as Whole;
+\definition prefixInside: \forall (k: N.Nat^)(x: Open.Carrier U) -> Sum.prefix (\fun (j: N.Nat^) => pulled j x) k =
+  Real.mul (J.absolute x) (Sum.prefix (\fun (j: N.Nat^) => data.pieces j (Maps.apply U V e.forward x)) k) :=
+  \induction (k: N.Nat^) \return \forall (x: Open.Carrier U) -> Sum.prefix (\fun (j: N.Nat^) => pulled j x) k =
+    Real.mul (J.absolute x) (Sum.prefix (\fun (j: N.Nat^) => data.pieces j (Maps.apply U V e.forward x)) k) \with {
+    | zero: \fun (x: Open.Carrier U) => sym!{Real.Real} _ _ (Laws.fieldMulZeroRight (J.absolute x))
+    | succ: \fun (k: N.Nat^)(previous: _)(x: Open.Carrier U) => trans!{Real.Real} _ _ _
+      (congr!{Real.Real Real.Real Real.Real} Real.add _ _ _ _ (previous x)
+        (Euclidean.Diffeomorphism[U := U, V := V, e := e].Compact[f := data.pieces k, within := pieceWithin k].inside x))
+      (sym!{Real.Real} _ _ (Laws.fieldMulAdd (J.absolute x) _ _))
+  };
+\definition prefixOutside[x: Point]: Logic.Not (Sets.Member U.points x) -> \forall (k: N.Nat^) -> Sum.prefix (\fun (j: N.Nat^) => pulled j x) k = Real.zero :=
+  \fun (outside: _) => \induction (k: N.Nat^) \return Sum.prefix (\fun (j: N.Nat^) => pulled j x) k = Real.zero \with {
+    | zero: \refl(Real.zero)
+    | succ: \fun (k: N.Nat^)(previous: _) => trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real Real.Real} Real.add _ _ _ _ previous
+      (Euclidean.Diffeomorphism[U := U, V := V, e := e].Compact[f := data.pieces k, within := pieceWithin k].outside x outside)) (Laws.addZeroLeft Real.zero)
+  };
+\definition values[x: Point]: Whole.representative x = Sum.value data.size x :=
+  Logic.orElim (Sets.Member U.points x) (Logic.Not (Sets.Member U.points x)) (Whole.representative x = Sum.value data.size x)
+    (std.Logic[].Classical[].excludedMiddle (Sets.Member U.points x))
+    (\fun (member: Sets.Member U.points x) => \block {
+      \let point: Open.Carrier U := \into[Point](x, U.points) \by { member } \then
+      \return trans!{Real.Real} _ _ _ (Whole.inside point)
+        (sym!{Real.Real} _ _ (trans!{Real.Real} _ _ _ (Sum.pointwise data.size x)
+          (trans!{Real.Real} _ _ _ (prefixInside data.size point)
+            (congr!{Real.Real Real.Real} (Real.mul (J.absolute point)) _ _ (data.pointwise (Maps.apply U V e.forward point))))))
+    })
+    (\fun (outside: Logic.Not (Sets.Member U.points x)) => trans!{Real.Real} _ _ _ (Whole.outside x outside)
+      (sym!{Real.Real} _ _ (trans!{Real.Real} _ _ _ (Sum.pointwise data.size x) (prefixOutside x outside data.size))));
+\definition local[k: N.Nat^]: I.integral (pulled k) = I.integral (Integrals.representative (data.pieces k)) :=
+  Logic.orElim _ _ _ (data.refines k)
+    (\fun (member: Sets.FamilyMember family (data.domains k)) => conditions.local (data.domains k) member (data.pieces k) (data.within k) (pieceWithin k))
+    (\fun (emptyDomain: data.domains k = Sets.Empty) => empty (data.pieces k)
+      (\fun (x: Point)(supported: Sets.Member (Functions.support (data.pieces k)) x) =>
+        \idelim data.domains k = Sets.Empty \with W: \Pow Point => Sets.Member W x \by { base: data.within k x supported, equality: emptyDomain })
+      (pieceWithin k));
+\definition theorem: I.integral Whole.representative = I.integral (Integrals.representative f) := eq_reason_in!{Real.Real _
+  "=" _ "by" { Equality.integralPointwise Whole.representative (Sum.value data.size) values }
+  "=" _ "by" { Sum.integral data.size }
+  "=" _ "by" { Sum.prefixCongruent (\fun (j: N.Nat^) => I.integral (pulled j)) (\fun (j: N.Nat^) => I.integral (Integrals.representative (data.pieces j))) local data.size }
+  "=" _ "by" { sym!{Real.Real} _ _ (Decomposition.Sum[data := data].theorem) }
+};

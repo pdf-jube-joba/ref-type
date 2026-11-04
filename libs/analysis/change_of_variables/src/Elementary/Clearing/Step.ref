@@ -1,0 +1,18 @@
+\import \parent.\parent.Shear[i := k, j := i, t := Real.neg ((Words.evaluate w).apply v k)] \as Kill;
+\definition word: Word := Word::compose (Word::shear k (otherIndex k i (\fun (same: _) => distinct i k (sym!{Index} _ _ same))) (Real.neg ((Words.evaluate w).apply v k))) w;
+\definition target: (Words.evaluate word).apply v k = Real.zero := eq_reason_in!{Real.Real _
+  "=" _ "by" { Kill.atTarget ((Words.evaluate w).apply v) }
+  "=" _ "by" { congr!{Real.Real Real.Real} (\fun (a: Real.Real) => Real.add ((Words.evaluate w).apply v k) (Real.mul (Real.neg ((Words.evaluate w).apply v k)) a)) _ _ (laws xs i v w).pivot }
+  "=" _ "by" { congr!{Real.Real Real.Real} (Real.add ((Words.evaluate w).apply v k)) _ _ (Algebra.mulOneRight (Real.neg ((Words.evaluate w).apply v k))) }
+  "=" _ "by" { Laws.addNegRight ((Words.evaluate w).apply v k) }
+};
+\definition certificate: ClearLaws[Lists.List[Index]::cons k xs, i, v, word] := ClearLaws[Lists.List[Index]::cons k xs, i, v, word] {
+  pivot := trans!{Real.Real} _ _ _ (Kill.other i ((Words.evaluate w).apply v) (\fun (same: _) => distinct i k (sym!{Index} _ _ same))) (laws xs i v w).pivot,
+  cleared := \fun (l: Index)(member: _)(different: _) => Logic.orElim _ _ _ (Classical.excludedMiddle (k = l))
+    (\fun (same: _) => \idelim k = l \with h: Index => (Words.evaluate word).apply v h = Real.zero \by { base: target, equality: same })
+    (\fun (other: _) => trans!{Real.Real} _ _ _ (Kill.other l ((Words.evaluate w).apply v) other)
+      ((laws xs i v w).cleared l (Logic.orElim _ _ _ member
+        (\fun (same: _) => Logic.falseElim _ (other (sym!{Index} _ _ same))) (\fun (inside: _) => inside)) different)),
+  basis := fixedCompose _ _ i (\fun (l: Index)(different: _) => Kill.fixedBasis l different) (laws xs i v w).basis,
+};
+\definition exists: \exists Clearing (Lists.List[Index]::cons k xs) i v := Logic.existsIntro[Word, { w: Word \where ClearLaws[Lists.List[Index]::cons k xs, i, v, w] }] word certificate;

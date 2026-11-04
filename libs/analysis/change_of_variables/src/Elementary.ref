@@ -1,0 +1,82 @@
+\import std.Data[].Nat[] \as N;
+\import std.Data[].FinSet[] \as Fin;
+\import std.Data[].Bool[] \as Bool;
+\import std.Data[].List[] \as Lists;
+\import N.Basic[].Prop[] \as Nat;
+\import N.Basic[].Def[] \as NatDef;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Classical[] \as Classical;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.congr;
+\use Equality.trans;
+\use Equality.sym;
+\use Equality.eq_reason_in;
+\import real.Analysis[] \as Real;
+\import Real.Algebra[] \as Algebra;
+\import dedekind_reals.DedekindReal[].Arithmetic[].Prop[] \as Laws;
+\import linear_algebra.Commutative[K := Real.Real, scalarRing := std.Alg[].Field[].fieldAsCommutativeRing Real.Real Algebra.field] \as Spaces;
+\import Spaces.Coordinates[I := Fin.Fin n] \as Coordinates;
+\import Spaces.FiniteCoordinates[n := n] \as Basis;
+\import Basis.Top[] \as Top;
+\import Coordinates.Kronecker[] \as Kronecker;
+\import Spaces.Linear[V := Coordinates.Vector, W := Coordinates.Vector, source := Coordinates.space, target := Coordinates.space] \as Maps;
+\import Maps.Composition[U := Coordinates.Vector, domain := Coordinates.space] \as Composition;
+\import matrix_invariants.Ring[K := Real.Real, scalars := std.Alg[].Field[].fieldAsCommutativeRing Real.Real Algebra.field].At[n := n] \as Matrix;
+\import Matrix.Operations[] \as Operations;
+\import Matrix.Rows[] \as Rows;
+\import Matrix.Representation[] \as Representation;
+\import Spaces.Multilinear[V := Coordinates.Vector, space := Coordinates.space] \as Multilinear;
+\import Multilinear.Properties[] \as Updates;
+\import Spaces.Sums[I := Fin.Fin n] \as Sums;
+\import Sums.Prop[] \as SumLaws;
+\definition Index: \Set := Fin.Fin n;
+\definition Point: \Set := Coordinates.Vector;
+\definition identity: Maps.Map := Basis.identity;
+\definition compose: Maps.Map -> Maps.Map -> Maps.Map := Composition.compose;
+\definition fixed[L: Maps.Map][indices: Lists.List[Index]]: \Prop := \forall (i: Index) -> Fin.Occurs n i indices -> L.apply (Basis.vectors i) = Basis.vectors i;
+\module Shear(i, j: Index, t: Real.Real);
+\definition NonzeroPoint: \Set := \Cast[Point] ({ a: Point \where \forall (i: Index) -> Logic.Not (a i = Real.zero) });
+\definition nonzero[a: NonzeroPoint][i: Index]: Logic.Not (a i = Real.zero) := \bysub(Point, NonzeroPoint, a) i;
+\definition diagonal[a: Point]: Maps.Map := Maps.Map {
+  apply := \fun (x: Point)(i: Index) => Real.mul (a i) (x i),
+  preservesAdd := \fun (x, y: Point) => \axiom:funext((\fun (i: Index) => Real.mul (a i) (Real.add (x i) (y i))), (\fun (i: Index) => Real.add (Real.mul (a i) (x i)) (Real.mul (a i) (y i))), \fun (i: Index) => Laws.fieldMulAdd (a i) (x i) (y i)),
+  preservesScale := \fun (c: Real.Real)(x: Point) => \axiom:funext((\fun (i: Index) => Real.mul (a i) (Real.mul c (x i))), (\fun (i: Index) => Real.mul c (Real.mul (a i) (x i))), \fun (i: Index) => Algebra.mulSwap (a i) c (x i)),
+};
+\definition inverseNonzero[a: Real.Real]: Logic.Not (a = Real.zero) -> Logic.Not (Algebra.field.inv a = Real.zero) :=
+  \fun (nonzero: _)(zero: _) => Algebra.field.nontrivial (eq_reason_in!{Real.Real Real.zero
+    "=" _ "by" { sym!{Real.Real} _ _ (Laws.fieldMulZeroLeft a) }
+    "=" _ "by" { congr!{Real.Real Real.Real} (\fun (c: Real.Real) => Real.mul c a) _ _ (sym!{Real.Real} _ _ zero) }
+    "=" _ "by" { Algebra.field.inverse a nonzero }
+  });
+\definition inversePoint[a: NonzeroPoint]: NonzeroPoint := \into[Point]((\fun (i: Index) => Algebra.field.inv (a i)), NonzeroPoint) \by {
+  \fun (i: Index) => inverseNonzero (a i) (nonzero a i)
+};
+\structure Inverse[L: Maps.Map]: \Set := {
+  backward: Maps.Map,
+  left: \forall (x: Point) -> backward.apply (L.apply x) = x,
+  right: \forall (x: Point) -> L.apply (backward.apply x) = x,
+};
+\definition Other[i: Index]: \Set := \Cast[Index] ({ j: Index \where Logic.Not (i = j) });
+\definition distinct[i: Index][j: Other i]: Logic.Not (i = j) := \bysub(Index, Other i, j);
+\definition otherIndex[i, j: Index][different: Logic.Not (i = j)]: Other i := \into[Index](j, Other i) \by { different };
+\inductive Word: \Set :=
+| identity: Word
+| diagonal: NonzeroPoint -> Word
+| shear: \forall (i: Index) -> Other i -> Real.Real -> Word
+| compose: Word -> Word -> Word
+;
+\module Words;
+\import \root.Elementary[n := n].Words[] \as Words;
+\definition FixOther[w: Word][i: Index]: \Prop := \forall (k: Index) -> Logic.Not (k = i) -> (Words.evaluate w).apply (Basis.vectors k) = Basis.vectors k;
+\definition fixedCompose[u, v: Word][i: Index]: FixOther u i -> FixOther v i -> FixOther (Word::compose u v) i :=
+  \fun (first: _)(second: _)(k: Index)(different: _) => trans!{Point} _ _ _
+    (congr!{Point Point} (Words.evaluate u).apply _ _ (second k different)) (first k different);
+\structure ClearLaws[xs: Lists.List[Index], i: Index, v: Point, w: Word]: \Prop := {
+  pivot: (Words.evaluate w).apply v i = Real.one,
+  cleared: \forall (k: Index) -> Fin.Occurs n k xs -> Logic.Not (k = i) -> (Words.evaluate w).apply v k = Real.zero,
+  basis: FixOther w i,
+};
+\definition Clearing[xs: Lists.List[Index]][i: Index][v: Point]: \Set := \Cast[Word] ({ w: Word \where ClearLaws[xs, i, v, w] });
+\module Clearing;
+\module Normalize(i: Index, v: Point, nonzero: Logic.Not (v i = Real.zero));
+\module Elimination;

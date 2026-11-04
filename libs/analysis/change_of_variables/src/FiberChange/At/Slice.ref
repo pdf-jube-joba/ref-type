@@ -1,0 +1,35 @@
+\import First.With[fixed := fixed, c := c] \as Slice;
+\import Split.LeftSection[V := U, c := c] \as Source;
+\import Split.LeftSection[V := V, c := c] \as Target;
+\import \root.Triangular[n := one].Slicing[m := n].At[U := U, V := V, f := e].With[fixed := fixed, c := c] \as Data;
+\definition target: FiberL.SmoothCompact := Slices.slice f c;
+\definition withinTarget: FiberSets.Subset (FiberFunctions.support target) Target.domain.points := Slices.within f V within c;
+\import \root.Euclidean[n := n].Diffeomorphism[U := Source.domain, V := Target.domain, e := Slice.slice].Compact[f := target, within := withinTarget] \as Low;
+\import \root.Euclidean[n := n].Jacobian[U := Source.domain, V := Target.domain, f := Slice.slice.forward] \as LowJ;
+\definition jacobian[x: FiberOpen.Carrier Source.domain]: BigJ.absolute (Source.apply x) = LowJ.absolute x :=
+  congr!{Real.Real Real.Real} Absolute.abs _ _ (Slice.Differential[x := x].signedDeterminant);
+\definition image[x: FiberOpen.Carrier Source.domain]: target (FiberMaps.apply Source.domain Target.domain Slice.slice.forward x) = f (BigMaps.apply U V e.forward (Source.apply x)) :=
+  trans!{Real.Real} _ _ _ (Slices.pointwise f c (FiberMaps.apply Source.domain Target.domain Slice.slice.forward x))
+    (congr!{Big.Point Real.Real} f _ _ (Data.forwardJoin x));
+\definition inside[x: FiberOpen.Carrier Source.domain]: Slices.slice Pullback.value c x = Low.representative x := eq_reason_in!{Real.Real _
+  "=" _ "by" { Slices.pointwise Pullback.value c x }
+  "=" _ "by" { Pullback.inside (Source.apply x) }
+  "=" _ "by" { congr!{Real.Real Real.Real Real.Real} Real.mul _ _ _ _ (jacobian x) (sym!{Real.Real} _ _ (image x)) }
+  "=" _ "by" { sym!{Real.Real} _ _ (Low.inside x) }
+};
+\definition outside[x: Fiber.Point][out: Logic.Not (FiberSets.Member Source.domain.points x)]: Slices.slice Pullback.value c x = Low.representative x := \block {
+  \let absent: Logic.Not (BigSets.Member U.points (Split.join c x)) := \fun (member: _) => out (Source.intro x member) \then
+  \return eq_reason_in!{Real.Real _
+    "=" _ "by" { Slices.pointwise Pullback.value c x }
+    "=" _ "by" { Pullback.outside (Split.join c x) absent }
+    "=" _ "by" { sym!{Real.Real} _ _ (Low.outside x out) }
+  }
+};
+\definition pointwise[x: Fiber.Point]: Slices.slice Pullback.value c x = Low.representative x :=
+  Logic.orElim (FiberSets.Member Source.domain.points x) (Logic.Not (FiberSets.Member Source.domain.points x)) (Slices.slice Pullback.value c x = Low.representative x)
+    (Classical.excludedMiddle (FiberSets.Member Source.domain.points x))
+    (\fun (member: _) => inside (\into[Fiber.Point](x, Source.domain.points) \by { member })) (outside x);
+\definition theorem: FI.integral (FiberCompact.representative (Slices.slice Pullback.value c)) = FI.integral (FiberCompact.representative (Slices.slice f c)) := eq_reason_in!{Real.Real _
+  "=" _ "by" { FiberEquality.integralPointwise (FiberCompact.representative (Slices.slice Pullback.value c)) Low.representative pointwise }
+  "=" _ "by" { induction Source.domain Target.domain Slice.slice target withinTarget }
+};

@@ -1,0 +1,26 @@
+\import lp_spaces.Euclidean[n := n] \as L;
+\import L.SmoothOperations[] \as Operations;
+\import L.Compact[p := lp_spaces.Powers[].one] \as Integrable;
+\import lp_spaces.On[A := Point, mu := Lebesgue.measure].One[] \as One;
+\import lp_spaces.On[A := Point, mu := Lebesgue.measure].One[].Norm[] \as IntegralEquality;
+\import smooth_partitions.Euclidean[n := n] \as Smooth;
+\import functional_analysis.Support[A := Point] \as Support;
+\import topology.Topology[Carrier := Point] \as Sets;
+\import topological_algebra.Euclidean[].Dimension[n := n].Topology[] \as Ambient;
+\import Open.Smooth[].Algebra[U := Open.whole] \as Functions;
+\import Open.Whole[] \as Whole;
+\import Open.Smooth[].Derivative[].Linear[U := Open.whole] \as Partial;
+\import fourier_schwartz.Euclidean[n := n] \as Schwartz;
+\definition representative[f: L.SmoothCompact]: I.Representatives := One.toIntegral (Integrable.smoothRepresentative f);
+\definition function[f: L.SmoothCompact]: Functions.Function := \into[Open.ScalarFunction Open.whole]((\fun (x: Open.Carrier Open.whole) => f x), Functions.Function) \by { (L.smoothCompactLaws f).smooth };
+\definition partial[f: L.SmoothCompact][i: Fin.Fin n]: L.SmoothCompact := Operations.partial f i;
+\definition partialValue[f: L.SmoothCompact][i: Fin.Fin n][x: Point]: partial f i x = Partial.apply i (function f) (Whole.point x) := \refl(partial f i x);
+\definition integralDerivative[f: L.SmoothCompact][i: Fin.Fin n]: I.integral (representative (partial f i)) = Real.zero :=
+  trans!{Real.Real} _ _ _
+    (IntegralEquality.integralPointwise (representative (partial f i))
+      (Schwartz.Integrability[].representative (Schwartz.Operations[].partial (fourier_l2.Euclidean[n := n].CompactEmbedding[f := f].value) i))
+      (\fun (x: Point) => \refl(partial f i x)))
+    (Schwartz.IntegrationByParts[].integralDerivative (fourier_l2.Euclidean[n := n].CompactEmbedding[f := f].value) i);
+\module Multiply(f: L.SmoothCompact, g: Functions.Function);
+\definition multiply[f: L.SmoothCompact][g: Functions.Function]: L.SmoothCompact := Multiply[f := f, g := g].value;
+\module IntegrationByParts(f: L.SmoothCompact, g: Functions.Function, i: Fin.Fin n);

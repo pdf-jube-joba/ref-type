@@ -1,0 +1,21 @@
+\import \root.Triangular[n := N.Nat^::succ n].Pivoted[U := U, V := V, f := e, row := Fin.zero n, pivot := pivot] \as Normal;
+\import \root.Triangular[n := n].First[].Pivoted[U := U, V := V, f := e, pivot := pivot, a := a] \as Pivot;
+\import Pivot.With[local := local] \as F;
+\import \root.Triangular[n := N.Nat^::succ n].Factor[U := Normal.domain, V := V, f := Normal.normalized, pivot := Fin.zero n].With[a := Normal.At[a := a].point, local := local] \as Raw;
+\import Diffeomorphisms.Composition[U := F.domain, V := F.middle, f := F.simple].After[l := N.Nat^::succ n, W := F.target, g := F.residual] \as Compose;
+\import \root.Euclidean[n := N.Nat^::succ n].Diffeomorphism[U := Normal.domain, V := V, e := Normal.normalized] \as NormalChange;
+\import NormalChange.Restriction[D := F.domain, E := F.target, r := Compose.compose] \as Restrict;
+\definition conditions: Restrict.Conditions := Restrict.Conditions {
+  sourceIncluded := F.included,
+  targetIncluded := Raw.targetIncluded,
+  forward := Raw.composition,
+};
+\definition target: Open.OpenSet := F.target;
+\definition included: Open.Included target V := Raw.targetIncluded;
+\definition contains: Sets.Member target.points (Maps.apply U V e.forward a) :=
+  \idelim Maps.apply F.middle F.target F.residual.forward (Maps.apply F.domain F.middle F.simple.forward F.origin) = Maps.apply U V e.forward a
+    \with p: E.Point => Sets.Member target.points p \by {
+      base: \bysub(E.Point, F.target.points, Maps.apply F.middle F.target F.residual.forward (Maps.apply F.domain F.middle F.simple.forward F.origin)),
+      equality: trans!{E.Point} _ _ _ (F.composition F.origin) (congr!{{Open.Carrier U} E.Point} (Maps.apply U V e.forward) _ _ F.center)
+    };
+\module Compact(f: L.SmoothCompact, within: Sets.Subset (Functions.support f) target.points);

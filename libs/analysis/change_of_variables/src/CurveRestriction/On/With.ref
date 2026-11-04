@@ -1,0 +1,28 @@
+\definition point[t: Closed]: Open.Carrier U := \into[Model.Point](Coordinates.replace a i t, U.points) \by { contains t };
+\definition valueAt[t: Closed]: Value.value t = h (point t) := Value.agreement t (point t) (\refl(Coordinates.replace a i t));
+\definition derivativeAt[t: Closed]: First.value t = Partial.partial U h i (point t) := First.agreement t (point t) (\refl(Coordinates.replace a i t));
+\definition secondAt[t: Closed]: Second.value t = Partial.partial U (Partial.derivative U h i) i (point t) :=
+  Second.agreement t (point t) (\refl(Coordinates.replace a i t));
+\definition closedDerivative[t: Closed]: Derivatives.HasDerivativeAt Value.value t (First.value t) :=
+  \idelim Partial.partial U h i (point t) = First.value t \with d: Real.Real => Derivatives.HasDerivativeAt Value.value t d \by {
+    base: Value.derivativeAt t (point t) (Partial.partial U h i (point t)) (\refl(Coordinates.replace a i t))
+      (Partial.partialLaw U h i (point t)),
+    equality: sym!{Real.Real} _ _ (derivativeAt t)
+  };
+\definition closedSecond[t: Closed]: Derivatives.HasDerivativeAt First.value t (Second.value t) :=
+  \idelim Partial.partial U (Partial.derivative U h i) i (point t) = Second.value t
+    \with d: Real.Real => Derivatives.HasDerivativeAt First.value t d \by {
+      base: First.derivativeAt t (point t) (Partial.partial U (Partial.derivative U h i) i (point t)) (\refl(Coordinates.replace a i t))
+        (Partial.partialLaw U (Partial.derivative U h i) i (point t)),
+      equality: sym!{Real.Real} _ _ (secondAt t)
+    };
+\definition value: Continuous.Function := \into[Real.Real -> Real.Real](Value.value, Continuous.Function) \by {
+  Local.topologicalOfContinuous Value.value (\fun (t: Closed) => Estimates.continuousAt Value.value First.value t (closedDerivative t))
+};
+\definition derivative: Continuous.Function := \into[Real.Real -> Real.Real](First.value, Continuous.Function) \by {
+  Local.topologicalOfContinuous First.value (\fun (t: Closed) => Estimates.continuousAt First.value Second.value t (closedSecond t))
+};
+\definition law: \forall (t: Real.Real) -> R.Lt interval.left t -> R.Lt t interval.right -> Derivatives.HasDerivativeAt value t (derivative t) :=
+  \fun (t: Real.Real)(left: _)(right: _) => closedDerivative (\into[Real.Real](t, Line.ClosedInterval interval.left interval.right) \by {
+    Logic.And[_, _]::# (Order.leOfLt interval.left t left) (Order.leOfLt t interval.right right)
+  });
