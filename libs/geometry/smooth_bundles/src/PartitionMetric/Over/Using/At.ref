@@ -1,0 +1,69 @@
+\import \root.HermitianForms[K := K, field := field, scalar := conjugation].On[V := F x, space := bundle.space x] \as Forms;
+\import Spaces.Laws[V := F x, space := bundle.space x] \as Laws;
+\module Term(k: N.Nat^);
+\definition prefix: N.Nat^ -> Forms.Form := \induction (n: N.Nat^) \return Forms.Form \with {
+  | zero: Forms.zero
+  | succ: \fun (n: N.Nat^)(previous: Forms.Form) => Forms.plus previous (Term[k := n].form)
+};
+\definition prefixNonnegative: \forall (n: N.Nat^) -> Forms.Nonnegative (prefix n) :=
+  \induction (n: N.Nat^) \return Forms.Nonnegative (prefix n) \with {
+    | zero: Forms.zeroNonnegative
+    | succ: \fun (n: N.Nat^)(previous: Forms.Nonnegative (prefix n)) => Forms.plusNonnegative (prefix n) (Term[k := n].form) previous (Term[k := n].nonnegative)
+  };
+\definition Kernel[n: N.Nat^]: \Prop := \forall (v: F x) -> (prefix n).dot v v = field.zero ->
+  (bundle.space x).smul (conjugation.embed (Countable.prefix (weight parts) x n)) v = (bundle.space x).zero;
+\module Step(n: N.Nat^, previous: Kernel n);
+\definition prefixKernel: \forall (n: N.Nat^) -> Kernel n := \induction (n: N.Nat^) \return Kernel n \with {
+  | zero: \fun (v: F x)(equal: _) => trans!{{F x}} _ _ _
+      (congr!{K {F x}} (\fun (a: K) => (bundle.space x).smul a v) _ _ conjugation.embedZero) (Laws.zeroScale v)
+  | succ: \fun (n: N.Nat^)(previous: Kernel n) => Step[n := n, previous := previous].kernel
+};
+\definition stableAdded: \forall (n: N.Nat^) -> Countable.TailZero (weight parts) x n -> \forall (m: N.Nat^)(v, w: F x) ->
+  (prefix (Arithmetic.add n m)).dot v w = (prefix n).dot v w :=
+  \fun (n: N.Nat^)(tail: _) => \induction (m: N.Nat^) \return \forall (v, w: F x) -> (prefix (Arithmetic.add n m)).dot v w = (prefix n).dot v w \with {
+    | zero: \fun (v, w: F x) => \refl((prefix n).dot v w)
+    | succ: \fun (m: N.Nat^)(previous: _)(v, w: F x) => trans!{K} _ _ _
+      (congr!{K K K} field.add _ _ _ _ (previous v w) (Term[k := Arithmetic.add n m].zero (tail (Arithmetic.add n m) (Nat.leAddRight n m)) v w))
+      (Spaces.addZeroRight ((prefix n).dot v w))
+  };
+\definition stable: \forall (n, m: N.Nat^) -> Countable.TailZero (weight parts) x n -> Nat.Le n m -> \forall (v, w: F x) -> (prefix m).dot v w = (prefix n).dot v w :=
+  \fun (n, m: N.Nat^)(tail: _)(later: _)(v, w: F x) => \idelim Arithmetic.add n (Arithmetic.sub m n) = m
+    \with k: N.Nat^ => (prefix k).dot v w = (prefix n).dot v w \by { base: stableAdded n tail (Arithmetic.sub m n) v w, equality: Nat.addSubOfLe n m later };
+\definition Dot: \Set := F x -> F x -> K;
+\definition DotLaw[f: Dot]: \Prop := \forall (n: N.Nat^) -> Countable.TailZero (weight parts) x n -> \forall (v, w: F x) -> f v w = (prefix n).dot v w;
+\definition Choice: \Set := \Cast[Dot] ({ f: Dot \where DotLaw f });
+\definition existsDot: \exists Choice := \block {
+  \takefrom n: \Cast[N.Nat^] ({ n: N.Nat^ \where Logic.And[Countable.TailZero (weight parts) x n, Countable.prefix (weight parts) x n = R.one] }) \by total x \then
+  \let tail: Countable.TailZero (weight parts) x n := (\bysub(N.Nat^, { n: N.Nat^ \where Logic.And[Countable.TailZero (weight parts) x n, Countable.prefix (weight parts) x n = R.one] }, n)).left \then
+  \return Logic.existsIntro[Dot, { f: Dot \where DotLaw f }] (prefix n).dot (\fun (m: N.Nat^)(tailM: _)(v, w: F x) => trans!{K} _ _ _
+    (sym!{K} _ _ (stable n (NaturalOrder.commonBound n m) tail (NaturalOrder.leftLeCommonBound n m) v w))
+    (stable m (NaturalOrder.commonBound n m) tailM (NaturalOrder.rightLeCommonBound n m) v w))
+};
+\definition uniqueDot: \forall (f, g: Choice) -> f = g := \block {
+  \fun (f, g: Choice) \then
+  \takefrom n: \Cast[N.Nat^] ({ n: N.Nat^ \where Logic.And[Countable.TailZero (weight parts) x n, Countable.prefix (weight parts) x n = R.one] }) \by total x \then
+  \let tail: Countable.TailZero (weight parts) x n := (\bysub(N.Nat^, { n: N.Nat^ \where Logic.And[Countable.TailZero (weight parts) x n, Countable.prefix (weight parts) x n = R.one] }, n)).left \then
+  \return \axiom:funext(f, g, \fun (v: F x) => \axiom:funext(f v, g v, \fun (w: F x) => trans!{K} _ _ _
+    ((\bysub(Dot, { f: Dot \where DotLaw f }, f)) n tail v w) (sym!{K} _ _ ((\bysub(Dot, { f: Dot \where DotLaw f }, g)) n tail v w))))
+};
+\definition dot: Choice := \choice Choice \by { existence: existsDot, uniqueness: uniqueDot };
+\definition formula[n: N.Nat^][tail: Countable.TailZero (weight parts) x n][v, w: F x]: dot v w = (prefix n).dot v w := (\bysub(Dot, { f: Dot \where DotLaw f }, dot)) n tail v w;
+\structure FormLaws[f: Dot]: \Prop := {
+  symmetric: \forall (v, w: F x) -> f v w = conjugation.conjugate (f w v),
+  zeroRight: \forall (v: F x) -> f v (bundle.space x).zero = field.zero,
+  addRight: \forall (u, v, w: F x) -> f u ((bundle.space x).add v w) = field.add (f u v) (f u w),
+  scaleRight: \forall (a: K)(v, w: F x) -> f v ((bundle.space x).smul a w) = field.mul a (f v w),
+};
+\definition laws: FormLaws[dot] := \block {
+  \takefrom n: \Cast[N.Nat^] ({ n: N.Nat^ \where Logic.And[Countable.TailZero (weight parts) x n, Countable.prefix (weight parts) x n = R.one] }) \by total x \then
+  \let tail: Countable.TailZero (weight parts) x n := (\bysub(N.Nat^, { n: N.Nat^ \where Logic.And[Countable.TailZero (weight parts) x n, Countable.prefix (weight parts) x n = R.one] }, n)).left \then
+  \let same: (prefix n).dot = dot := \axiom:funext((prefix n).dot, dot, \fun (v: F x) => \axiom:funext((prefix n).dot v, dot v, \fun (w: F x) => sym!{K} _ _ (formula n tail v w))) \then
+  \return \idelim (prefix n).dot = dot \with f: Dot => FormLaws[f] \by {
+    base: FormLaws[(prefix n).dot] { symmetric := (prefix n).symmetric, zeroRight := (prefix n).zeroRight, addRight := (prefix n).addRight, scaleRight := (prefix n).scaleRight }, equality: same
+  }
+};
+\definition form: Forms.Form := Geometry.Inner[V := F x, space := bundle.space x].Form {
+  dot := dot, symmetric := laws.symmetric, zeroRight := laws.zeroRight, addRight := laws.addRight, scaleRight := laws.scaleRight,
+};
+\module Positive;
+\definition positive: Geometry.Inner[V := F x, space := bundle.space x].Positive[form] := Positive[].value;

@@ -1,0 +1,31 @@
+\import vector_bundles.Bundles[].Over[K := C.Complex, field := Algebra.field, conjugation := Hermitian.scalar, scalar := vector_bundles.Bundles[].Complex[].scalar] \as Bundles;
+\import Bundles.Family[X := M.Point, F := F] \as Continuous;
+\import UnderlyingBundle.Forget[] \as RealForget;
+\definition embed[p: Continuous.Point]: Point := Underlying.include p.base p.vector;
+\definition recover[p: Point]: Continuous.Point := Continuous.include p.base p.vector;
+\import topological_constructions.Induced[A := Continuous.Point, B := Point] \as Induced;
+\definition totalTopology: topology.Topology[Carrier := Continuous.Point].Topology := Induced.topology UnderlyingBundle.topology embed;
+\definition embedContinuous: topology.Continuity[A := Continuous.Point, B := Point].Continuous totalTopology UnderlyingBundle.topology embed := Induced.continuous UnderlyingBundle.topology embed;
+\definition recoverContinuous: topology.Continuity[A := Point, B := Continuous.Point].Continuous UnderlyingBundle.topology totalTopology recover :=
+  Induced.Universal[Z := Point].continuous UnderlyingBundle.topology UnderlyingBundle.topology embed recover
+    (\idelim (\fun (p: Point) => p) = (\fun (p: Point) => embed (recover p)) \with f: (Point -> Point) => topology.Continuity[A := Point, B := Point].Continuous UnderlyingBundle.topology UnderlyingBundle.topology f \by {
+      base: topology.Maps[A := Point, B := Point].Identity[].continuous UnderlyingBundle.topology,
+      equality: \axiom:funext((\fun (p: Point) => p), (\fun (p: Point) => embed (recover p)), \fun (p: Point) => sym!{Point} _ _ (Underlying.eta p))
+    });
+\definition data: Continuous.Data := Continuous.Data { baseSpace := M.space, totalSpace := totalTopology, space := space };
+\import Continuous.With[data := data] \as Trivializations;
+\import vector_bundles.Bundles[].Over[K := R.Real, field := R.Algebra[].field, conjugation := linear_algebra.Hermitian[].Real[].scalar, scalar := vector_bundles.Bundles[].Real[].scalar] \as RealBundles;
+\import RealBundles.Family[X := M.Point, F := F] \as RealFamily;
+\definition realPoint[p: Continuous.Point]: RealFamily.Point := RealForget.recover (embed p);
+\definition realPointContinuous: topology.Continuity[A := Continuous.Point, B := RealFamily.Point].Continuous totalTopology RealForget.totalTopology realPoint :=
+  topology.Composition[A := Continuous.Point, B := Point, C := RealFamily.Point].composeContinuous totalTopology UnderlyingBundle.topology RealForget.totalTopology embed RealForget.recover embedContinuous RealForget.recoverContinuous;
+\definition projectionContinuous: topology.Continuity[A := Continuous.Point, B := M.Point].Continuous totalTopology M.space Continuous.projection :=
+  topology.Composition[A := Continuous.Point, B := RealFamily.Point, C := M.Point].composeContinuous totalTopology RealForget.totalTopology M.space realPoint RealFamily.projection realPointContinuous RealForget.projectionContinuous;
+\module Local(i: I);
+\definition continuous: Continuous.Bundle := \into[Continuous.Data](data, Continuous.Bundle) \by {
+  \fun (x: M.Point) => \block {
+    \takefrom i: \Cast[I] ({ i: I \where Charts.Contains (bundle.atlas.local i).chart x }) \by bundle.atlas.covers x \then
+    \return Logic.existsIntro[Trivializations.Chart, { c: Trivializations.Chart \where \In[M.Point] c.domain x }] (Local[i := i].chart)
+      (\bysub(I, { i: I \where Charts.Contains (bundle.atlas.local i).chart x }, i))
+  }
+};

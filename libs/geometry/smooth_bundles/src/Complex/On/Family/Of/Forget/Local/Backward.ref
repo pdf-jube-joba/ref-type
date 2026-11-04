@@ -1,0 +1,33 @@
+\import Product.Maps[] \as Projections;
+\definition base[p: CoordinatesLocal.ProductPoint]: CoordinatesLocal.BasePoint := Pair.first CoordinatesLocal.BasePoint Vector p;
+\definition vector[p: CoordinatesLocal.ProductPoint]: Vector := Pair.second CoordinatesLocal.BasePoint Vector p;
+\definition encoded[p: CoordinatesLocal.ProductPoint]: Fin.Fin realRank -> R.Real := Coordinates.frame.forward.apply (vector p);
+\definition encodedContinuous: topology.Continuity[A := CoordinatesLocal.ProductPoint, B := Fin.Fin realRank -> R.Real].Continuous CoordinatesLocal.productTopology (RealBundles.coordinateTopology realRank) encoded :=
+  topology.Composition[A := CoordinatesLocal.ProductPoint, B := Vector, C := Fin.Fin realRank -> R.Real].composeContinuous CoordinatesLocal.productTopology (Bundles.coordinateTopology r) (RealBundles.coordinateTopology realRank)
+    vector Coordinates.frame.forward.apply (Projections.secondContinuous (Charts.domainTopology c.domain) (Bundles.coordinateTopology r)) Coordinates.Topology[].forwardContinuous;
+\definition parameter[p: CoordinatesLocal.ProductPoint]: RealLocal.ProductPoint := Pair.pair RealLocal.BasePoint (Fin.Fin realRank -> R.Real) (base p) (encoded p);
+\definition parameterContinuous: topology.Continuity[A := CoordinatesLocal.ProductPoint, B := RealLocal.ProductPoint].Continuous CoordinatesLocal.productTopology RealLocal.productTopology parameter :=
+  RealProduct.Universal[X := CoordinatesLocal.ProductPoint].pairContinuous CoordinatesLocal.productTopology (Charts.domainTopology c.domain) (RealBundles.coordinateTopology realRank)
+    base encoded (Projections.firstContinuous (Charts.domainTopology c.domain) (Bundles.coordinateTopology r)) encodedContinuous;
+\import topology.Continuity[A := RealLocal.TotalPoint, B := RealFamily.Point].Corestriction[S := { p: RealFamily.Point \where \In[M.Point] c.domain p.base }] \as Inclusion;
+\definition realBackward[p: CoordinatesLocal.ProductPoint]: RealFamily.Point := RealLocal.backward (parameter p);
+\definition realBackwardContinuous: topology.Continuity[A := CoordinatesLocal.ProductPoint, B := RealFamily.Point].Continuous CoordinatesLocal.productTopology RealForget.totalTopology realBackward :=
+  topology.Composition[A := CoordinatesLocal.ProductPoint, B := RealLocal.TotalPoint, C := RealFamily.Point].composeContinuous CoordinatesLocal.productTopology RealLocal.localTopology RealForget.totalTopology
+    (\fun (p: CoordinatesLocal.ProductPoint) => RealLocal.backward (parameter p)) (\fun (p: RealLocal.TotalPoint) => p)
+    (topology.Composition[A := CoordinatesLocal.ProductPoint, B := RealLocal.ProductPoint, C := RealLocal.TotalPoint].composeContinuous CoordinatesLocal.productTopology RealLocal.productTopology RealLocal.localTopology
+      parameter RealLocal.backward parameterContinuous realLaws.backwardContinuous) (Inclusion.inclusionContinuous RealForget.totalTopology);
+\definition value[p: CoordinatesLocal.ProductPoint]: Continuous.Point := recover (RealForget.embed (realBackward p));
+\definition valueContinuous: topology.Continuity[A := CoordinatesLocal.ProductPoint, B := Continuous.Point].Continuous CoordinatesLocal.productTopology totalTopology value :=
+  topology.Composition[A := CoordinatesLocal.ProductPoint, B := Point, C := Continuous.Point].composeContinuous CoordinatesLocal.productTopology UnderlyingBundle.topology totalTopology
+    (\fun (p: CoordinatesLocal.ProductPoint) => RealForget.embed (realBackward p)) recover
+    (topology.Composition[A := CoordinatesLocal.ProductPoint, B := RealFamily.Point, C := Point].composeContinuous CoordinatesLocal.productTopology RealForget.totalTopology UnderlyingBundle.topology
+      realBackward RealForget.embed realBackwardContinuous RealForget.embedContinuous) recoverContinuous;
+\definition backward[p: CoordinatesLocal.ProductPoint]: Continuous.Point := CoordinatesLocal.backward p;
+\definition equality: value = backward := \axiom:funext(value, backward, \fun (p: CoordinatesLocal.ProductPoint) =>
+  congr!{{F (base p)} {Continuous.Point}} (Continuous.include (base p)) _ _
+    (congr!{Vector {F (base p)}} ((bundle.atlas.local i).frame (base p)).backward.apply _ _ (\root.ComplexCoordinates[n := n, r := r].decodeEncode (vector p))));
+\definition backwardContinuous: topology.Continuity[A := CoordinatesLocal.ProductPoint, B := Continuous.Point].Continuous CoordinatesLocal.productTopology totalTopology backward :=
+  \idelim value = backward \with f: (CoordinatesLocal.ProductPoint -> Continuous.Point) => topology.Continuity[A := CoordinatesLocal.ProductPoint, B := Continuous.Point].Continuous CoordinatesLocal.productTopology totalTopology f \by { base: valueContinuous, equality: equality };
+\import topology.Continuity[A := CoordinatesLocal.ProductPoint, B := Continuous.Point].Corestriction[S := { p: Continuous.Point \where \In[M.Point] c.domain p.base }] \as IntoLocal;
+\definition continuous: topology.Continuity[A := CoordinatesLocal.ProductPoint, B := CoordinatesLocal.TotalPoint].Continuous CoordinatesLocal.productTopology CoordinatesLocal.localTopology CoordinatesLocal.backward :=
+  IntoLocal.corestrictContinuous CoordinatesLocal.productTopology totalTopology CoordinatesLocal.backward backwardContinuous;

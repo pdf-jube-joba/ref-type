@@ -1,0 +1,23 @@
+\import \root.ComplexCalculus[n := d].On[U := U] \as Calculus;
+\import Calculus.Sums[I := Fin.Fin r] \as Sums;
+\definition Family[k: N.Nat^]: \Set := Open.Carrier U -> Multilinear.MultilinearForm k;
+\definition CoefficientSmooth[k: N.Nat^][omega: Family k]: \Prop :=
+  \forall (indices: Fin.Fin k -> Fin.Fin r) -> Calculus.Smooth (\fun (x: Open.Carrier U) => omega x (\fun (i: Fin.Fin k) => Basis.vectors (indices i)));
+\definition VariableArguments[k: N.Nat^]: \Set := Open.Carrier U -> Multilinear.Arguments k;
+\definition ArgumentSmooth[k: N.Nat^][arguments: VariableArguments k]: \Prop :=
+  \forall (i: Fin.Fin k)(j: Fin.Fin r) -> Calculus.Smooth (\fun (x: Open.Carrier U) => arguments x i j);
+\definition Law[k: N.Nat^]: \Prop := \forall (omega: Family k)(arguments: VariableArguments k) ->
+  CoefficientSmooth k omega -> ArgumentSmooth k arguments -> Calculus.Smooth (\fun (x: Open.Carrier U) => omega x (arguments x));
+\definition equalSmooth: \forall (f, g: Calculus.Function) -> (\forall (x: Open.Carrier U) -> f x = g x) -> Calculus.Smooth f -> Calculus.Smooth g := Calculus.equalSmooth;
+\definition zero: Law N.Nat^::zero :=
+  \fun (omega: Family N.Nat^::zero)(arguments: VariableArguments N.Nat^::zero)(coefficients: CoefficientSmooth N.Nat^::zero omega)(regular: ArgumentSmooth N.Nat^::zero arguments) =>
+    equalSmooth (\fun (x: Open.Carrier U) => omega x (\fun (i: Fin.Fin N.Nat^::zero) => Basis.vectors (Empty.function i)))
+      (\fun (x: Open.Carrier U) => omega x (arguments x))
+      (\fun (x: Open.Carrier U) => congr!{{Multilinear.Arguments N.Nat^::zero} {C.Complex}} (omega x) _ _
+        (trans!{{Multilinear.Arguments N.Nat^::zero}} _ _ _ (Scalars.argumentsUnique (\fun (i: Fin.Fin N.Nat^::zero) => Basis.vectors (Empty.function i)))
+          (sym!{{Multilinear.Arguments N.Nat^::zero}} _ _ (Scalars.argumentsUnique (arguments x))))) (coefficients Empty.function);
+\module Step(k: N.Nat^, omega: Family (N.Nat^::succ k));
+\definition law: \forall (k: N.Nat^) -> Law k := \induction (k: N.Nat^) \return Law k \with {
+  | zero: zero
+  | succ: \fun (k: N.Nat^)(previous: Law k)(omega: Family (N.Nat^::succ k)) => Step[k := k, omega := omega].law previous
+};

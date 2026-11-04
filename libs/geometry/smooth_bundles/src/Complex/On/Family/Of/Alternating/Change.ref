@@ -1,0 +1,30 @@
+\import \parent.\parent.Change[i := i, j := j] \as Inverse;
+\import AlternatingAtlas.Change[i := i, j := j] \as New;
+\import ComplexAtlas.Change[i := i, j := j] \as Old;
+\import Charts.Transition[left := (bundle.atlas.local i).chart, right := (bundle.atlas.local j).chart] \as Base;
+\import calculus.Real[].Multivariable[n := n].Open[] \as Open;
+\import \root.ComplexCalculus[n := n].On[U := Base.domain] \as Calculus;
+\import Calculus.Sums[I := Fin.Fin rank] \as Sums;
+\import Spaces.FiniteCoordinates[n := r] \as Standard;
+\import Standard.Exterior[] \as Exterior;
+\import Spaces.Multilinear[V := Fin.Fin r -> C.Complex, space := Spaces.Coordinates[I := Fin.Fin r].space].Alternating[] \as Alternating;
+\import \root.ComplexEvaluation[d := n, r := r].On[U := Base.domain] \as Evaluation;
+\definition arguments[a: Fin.Fin rank][t: Open.Carrier Base.domain][l: Fin.Fin k]: Fin.Fin r -> C.Complex :=
+  (Inverse.backward t).apply (Standard.vectors (Coefficients.enumerate a l));
+\definition word[c: Fin.Fin rank]: Alternating.Form k := Exterior.word k (Coefficients.enumerate c);
+\definition wordSmooth: \forall (c, a: Fin.Fin rank) -> Calculus.Smooth (\fun (t: Open.Carrier Base.domain) => word c (arguments a t)) :=
+  \fun (c, a: Fin.Fin rank) => Evaluation.law k
+    (\fun (t: Open.Carrier Base.domain) => Alternating.asMultilinear k (word c)) (arguments a)
+    (\fun (indices: Fin.Fin k -> Fin.Fin r) => Calculus.constant (word c (\fun (l: Fin.Fin k) => Standard.vectors (indices l))))
+    (\fun (l: Fin.Fin k)(d: Fin.Fin r) => Inverse.inverseEvaluate (Standard.vectors (Coefficients.enumerate a l)) d);
+\definition expression[v: Fin.Fin rank -> C.Complex][a: Fin.Fin rank][t: Open.Carrier Base.domain]: C.Complex := Spaces.Sums[I := Fin.Fin rank].sum (Fin.elements rank)
+  (\fun (c: Fin.Fin rank) => Algebra.field.mul (v c) (word c (arguments a t)));
+\definition formula: \forall (v: Fin.Fin rank -> C.Complex)(a: Fin.Fin rank)(t: Open.Carrier Base.domain) -> (New.matrix t).apply v a = expression v a t :=
+  \fun (v: Fin.Fin rank -> C.Complex)(a: Fin.Fin rank)(t: Open.Carrier Base.domain) => \parent.In[i := i, x := Old.x t].evaluation v
+    (\fun (l: Fin.Fin k) => ((bundle.atlas.local j).frame (Old.y t)).backward.apply (Standard.vectors (Coefficients.enumerate a l)));
+\definition smooth: New.Regular := \fun (v: Fin.Fin rank -> C.Complex)(a: Fin.Fin rank) =>
+  Calculus.equalSmooth (expression v a) (\fun (t: Open.Carrier Base.domain) => (New.matrix t).apply v a)
+    (\fun (t: Open.Carrier Base.domain) => sym!{{C.Complex}} _ _ (formula v a t))
+    (Sums.smooth (Fin.elements rank) (\fun (c: Fin.Fin rank)(t: Open.Carrier Base.domain) => Algebra.field.mul (v c) (word c (arguments a t)))
+      (\fun (c: Fin.Fin rank) => Calculus.times (\fun (t: Open.Carrier Base.domain) => v c)
+        (\fun (t: Open.Carrier Base.domain) => word c (arguments a t)) (Calculus.constant (v c)) (wordSmooth c a)));

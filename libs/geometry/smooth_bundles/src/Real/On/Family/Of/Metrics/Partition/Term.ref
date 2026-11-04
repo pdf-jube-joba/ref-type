@@ -1,0 +1,48 @@
+\definition c: \Cast[Charts.Chart] M.atlas.charts := (bundle.atlas.local j).chart;
+\definition d: \Cast[Charts.Chart] M.atlas.charts := (bundle.atlas.local (indices k)).chart;
+\import Atlas.Change[i := j, j := indices k] \as Change;
+\import Charts.Transition[left := c, right := d] \as Transition;
+\import Complement.Weighted[entry := entry k] \as Weighted;
+\import Geometry.Finite[n := r] \as Euclidean;
+\definition vectors[x: Charts.LocalPoint c][l: Fin.Fin r]: F x := ((bundle.atlas.local j).frame x).backward.apply (Standard.vectors l);
+\definition value[u: Open.Carrier c.image]: R.Real := (Construction.At[x := Charts.point c u].Term[k := k].form).dot (vectors (Charts.point c u) a) (vectors (Charts.point c u) b);
+\definition phi[u: Open.Carrier c.image]: R.Real := partition.functions k (Charts.point c u);
+\definition phiSmooth: Regularity.SmoothOn c.image phi := Functions.regular (partition.functions k) c;
+\definition included: Open.Included Transition.domain c.image := \fun (x: Fin.Fin n -> R.Real)(member: _) =>
+  Transition.inLeftImage (\into[Fin.Fin n -> R.Real](x, Transition.domain.points) \by { member });
+\definition localPhi[t: Open.Carrier Transition.domain]: R.Real := phi (Transition.leftCoordinate t);
+\definition localPhiSmooth: Regularity.SmoothOn Transition.domain localPhi := Open.Restriction[].localSmooth Transition.domain c.image included phi phiSmooth;
+\definition weighted[l: Fin.Fin r][t: Open.Carrier Transition.domain][q: Fin.Fin r]: R.Real := R.mul (localPhi t) ((Change.linear t).apply (Standard.vectors l) q);
+\definition weightedSmooth: \forall (l, q: Fin.Fin r) -> Regularity.SmoothOn Transition.domain (\fun (t: Open.Carrier Transition.domain) => weighted l t q) :=
+  \fun (l, q: Fin.Fin r) => SmoothOperations.mulSmooth Transition.domain localPhi (\fun (t: Open.Carrier Transition.domain) => (Change.linear t).apply (Standard.vectors l) q)
+    localPhiSmooth (calculus.MatrixFamily[d := n, p := r, q := r].evaluate Transition.domain Change.linear (bundle.regular j (indices k)) (Standard.vectors l) q);
+\definition expression[t: Open.Carrier Transition.domain]: R.Real := Euclidean.dot (weighted a t) (weighted b t);
+\definition expressionSmooth: Regularity.SmoothOn Transition.domain expression := Open.Smooth[].Sums[].smooth Transition.domain r
+  (\fun (q: Fin.Fin r)(t: Open.Carrier Transition.domain) => R.mul (weighted a t q) (weighted b t q))
+  (\fun (q: Fin.Fin r) => SmoothOperations.mulSmooth Transition.domain (\fun (t: Open.Carrier Transition.domain) => weighted a t q)
+    (\fun (t: Open.Carrier Transition.domain) => weighted b t q) (weightedSmooth a q) (weightedSmooth b q));
+\definition insideMap: \forall (t: Open.Carrier Transition.domain)(l: Fin.Fin r) -> (Weighted.map.fiber (Change.x t)).apply (vectors (Change.x t) l) = weighted l t :=
+  \fun (t: Open.Carrier Transition.domain)(l: Fin.Fin r) => trans!{{Fin.Fin r -> R.Real}} _ _ _ (Weighted.At[x := Change.x t].formula (vectors (Change.x t) l))
+    (Weighted.inside (Change.y t) (vectors (Change.x t) l));
+\definition inside: \forall (t: Open.Carrier Transition.domain) -> value (Transition.leftCoordinate t) = expression t :=
+  \fun (t: Open.Carrier Transition.domain) => congr!{{Fin.Fin r -> R.Real} {Fin.Fin r -> R.Real} {R.Real}} Euclidean.dot _ _ _ _ (insideMap t a) (insideMap t b);
+\definition support: \Pow M.Point := Functions.support (partition.functions k);
+\definition supportClosed: Base.IsClosedIn M.space support := Base.Closure[].closed M.space (Functions.Nonzero (partition.functions k));
+\import Scalars.Neighborhood[c := c, U := Base.Complement support, open := supportClosed] \as Away;
+\definition zeroAway: \forall (u: Open.Carrier Away.domain) -> value (Open.inclusion Away.domain c.image Away.included u) = R.zero :=
+  \fun (u: Open.Carrier Away.domain) => Construction.At[x := Charts.point c (Open.inclusion Away.domain c.image Away.included u)].Term[k := k].zero
+    (Weighted.zeroOffSupport (Charts.point c (Open.inclusion Away.domain c.image Away.included u)) (Away.point u))
+    (vectors (Charts.point c (Open.inclusion Away.domain c.image Away.included u)) a) (vectors (Charts.point c (Open.inclusion Away.domain c.image Away.included u)) b);
+\import Open.LocalSmooth[U := c.image, f := value] \as Local;
+\definition smooth: Regularity.SmoothOn c.image value := Local.smooth (\fun (u: Open.Carrier c.image) =>
+  either!{{Classical.excludedMiddle (Base.Member d.domain (Charts.point c u))} {\exists \Cast[Local.Patch] (Local.Patches u)}
+    {\fun (member: _) => Logic.existsIntro[Local.Patch, Local.Patches u]
+      (Local.Patch { domain := Transition.domain, included := included,
+        smooth := smooth_partitions.Euclidean[n := n].smoothCongruent Transition.domain expression (Open.restrict Transition.domain c.image included value)
+          (\fun (t: Open.Carrier Transition.domain) => sym!{{R.Real}} _ _ (inside t)) expressionSmooth,
+      }) (Transition.intro u member)}
+    {\fun (outside: _) => Logic.existsIntro[Local.Patch, Local.Patches u]
+      (Local.Patch { domain := Away.domain, included := Away.included,
+        smooth := smooth_partitions.Euclidean[n := n].smoothCongruent Away.domain (\fun (t: Open.Carrier Away.domain) => R.zero) (Open.restrict Away.domain c.image Away.included value)
+          (\fun (t: Open.Carrier Away.domain) => sym!{{R.Real}} _ _ (zeroAway t)) (SmoothOperations.constantSmooth Away.domain R.zero),
+      }) (Away.contains u (\fun (member: _) => outside ((\bysub(I, { i: I \where Base.Subset support (bundle.atlas.local i).chart.domain }, indices k)) (Charts.point c u) member)))}});

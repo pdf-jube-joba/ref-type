@@ -1,0 +1,18 @@
+\import Charts.Transition[left := (data.local i).chart, right := (data.local j).chart] \as Base;
+\import calculus.Real[].Multivariable[n := n].Open[] \as Open;
+\definition x[t: Open.Carrier Base.domain]: Charts.LocalPoint (data.local i).chart := Charts.point (data.local i).chart (Base.leftCoordinate t);
+\definition y[t: Open.Carrier Base.domain]: Charts.LocalPoint (data.local j).chart := Base.overlapPoint t;
+\import Spaces.Linear[V := Vector, W := Vector, source := coordinates, target := coordinates] \as Linear;
+\definition matrix[t: Open.Carrier Base.domain]: Linear.Map := Linear.Map {
+  apply := \fun (v: Vector) => ((data.local j).frame (y t)).forward.apply (((data.local i).frame (x t)).backward.apply v),
+  preservesAdd := \fun (v, w: Vector) => trans!{Vector} _ _ _
+    (congr!{{F (x t)} Vector} ((data.local j).frame (y t)).forward.apply _ _ (((data.local i).frame (x t)).backward.preservesAdd v w))
+    (((data.local j).frame (y t)).forward.preservesAdd (((data.local i).frame (x t)).backward.apply v) (((data.local i).frame (x t)).backward.apply w)),
+  preservesScale := \fun (a: C.Complex)(v: Vector) => trans!{Vector} _ _ _
+    (congr!{{F (x t)} Vector} ((data.local j).frame (y t)).forward.apply _ _ (((data.local i).frame (x t)).backward.preservesScale a v))
+    (((data.local j).frame (y t)).forward.preservesScale a (((data.local i).frame (x t)).backward.apply v)),
+};
+\import \root.ComplexMatrix[d := n, p := r, q := r].On[U := Base.domain, A := matrix] \as Matrices;
+\definition Regular: \Prop := Matrices.Regular;
+\definition toReal: Regular -> RealAtlas.Change[i := i, j := j].Regular := Matrices.toReal;
+\definition fromReal: RealAtlas.Change[i := i, j := j].Regular -> Regular := Matrices.fromReal;

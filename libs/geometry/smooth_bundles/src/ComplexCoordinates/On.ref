@@ -1,0 +1,16 @@
+\import \root.ComplexCalculus[n := n].On[U := U] \as Calculus;
+\definition Smooth[v: Open.Carrier U -> Vector]: \Prop := \forall (i: Fin.Fin r) -> Calculus.Smooth (\fun (x: Open.Carrier U) => v x i);
+\definition RealSmooth[v: Open.Carrier U -> RealVector]: \Prop := \forall (i: Fin.Fin rank) -> Open.Smooth[].SmoothOn U (\fun (x: Open.Carrier U) => v x i);
+\definition encodeAt: \forall (v: Open.Carrier U -> Vector) -> Smooth v -> \forall (a: Indices.Index) ->
+  Open.Smooth[].SmoothOn U (\fun (x: Open.Carrier U) => Tuples.evaluate (\fun (i: Fin.Fin r) => C.re (v x i)) (\fun (i: Fin.Fin r) => C.im (v x i)) a) :=
+  \fun (v: Open.Carrier U -> Vector)(regular: Smooth v) =>
+    \induction (a: Indices.Index) \return Open.Smooth[].SmoothOn U (\fun (x: Open.Carrier U) => Tuples.evaluate (\fun (i: Fin.Fin r) => C.re (v x i)) (\fun (i: Fin.Fin r) => C.im (v x i)) a) \with {
+      | inl: \fun (i: Fin.Fin r) => (regular i).real
+      | inr: \fun (i: Fin.Fin r) => (regular i).imaginary
+    };
+\definition encodeSmooth: \forall (v: Open.Carrier U -> Vector) -> Smooth v -> RealSmooth (\fun (x: Open.Carrier U) => encode (v x)) :=
+  \fun (v: Open.Carrier U -> Vector)(regular: Smooth v)(a: Fin.Fin rank) => encodeAt v regular (Indices.split a);
+\definition decodeSmooth: \forall (v: Open.Carrier U -> RealVector) -> RealSmooth v -> Smooth (\fun (x: Open.Carrier U) => decode (v x)) :=
+  \fun (v: Open.Carrier U -> RealVector)(regular: RealSmooth v)(i: Fin.Fin r) => Calculus.SmoothLaws[\fun (x: Open.Carrier U) => decode (v x) i] {
+    real := regular (Indices.left i), imaginary := regular (Indices.right i),
+  };

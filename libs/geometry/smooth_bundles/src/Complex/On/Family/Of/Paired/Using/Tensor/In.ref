@@ -1,0 +1,16 @@
+\import Operations.TensorFrame[V := F x, W := G x, left := space x, right := otherSpace x, n := r, m := s, first := (bundle.atlas.local i).frame x, second := otherFrame i x] \as Frames;
+\definition frame: Family.FrameAt x := Frames.Enumerated[enumeration := enumeration].frame;
+\definition coefficient[a: Fin.Fin rank]: Spaces.Linear[V := Fiber x, W := C.Complex, source := fiberSpace x, target := Spaces.scalarSpace].Map := Frames.Recovery[].functional (Coefficients.enumerate a);
+\import std.Data[].Pair[] \as Pair;
+\definition first[a: Fin.Fin rank]: Fin.Fin r := Pair.first (Fin.Fin r) (Fin.Fin s) (Coefficients.enumerate a);
+\definition second[a: Fin.Fin rank]: Fin.Fin s := Pair.second (Fin.Fin r) (Fin.Fin s) (Coefficients.enumerate a);
+\import Spaces.Coordinates[I := Coefficients.Index] \as Raw;
+\import Spaces.Tensor[V := F x, W := G x, left := space x, right := otherSpace x].Universal[U := Raw.Vector, target := Raw.space] \as Encode;
+\definition onPure: \forall (a: Fin.Fin rank)(v: F x)(w: G x) -> (coefficient a).apply (pure x v w) =
+  Algebra.field.mul (((bundle.atlas.local i).frame x).forward.apply v (first a)) ((otherFrame i x).forward.apply w (second a)) :=
+  \fun (a: Fin.Fin rank)(v: F x)(w: G x) => congr!{{Raw.Vector} {C.Complex}} (\fun (f: Raw.Vector) => f (Coefficients.enumerate a)) _ _ (Encode.onTensor Frames.outer Frames.bilinear v w);
+\import Spaces.Linear[V := Fiber x, W := C.Complex, source := fiberSpace x, target := Spaces.scalarSpace] \as Functionals;
+\definition expansion: \forall (h: Functionals.Map)(v: Fin.Fin rank -> C.Complex) -> h.apply (frame.backward.apply v) =
+  Spaces.Sums[I := Fin.Fin r].sum (Fin.elements r) (\fun (a: Fin.Fin r) => Spaces.Sums[I := Fin.Fin s].sum (Fin.elements s) (\fun (b: Fin.Fin s) =>
+    Algebra.field.mul (Coefficients.decode v (Frames.entry a b)) (h.apply (pure x (((bundle.atlas.local i).frame x).backward.apply (Spaces.FiniteCoordinates[n := r].vectors a)) ((otherFrame i x).backward.apply (Spaces.FiniteCoordinates[n := s].vectors b)))))) :=
+  \fun (h: Functionals.Map)(v: Fin.Fin rank -> C.Complex) => Frames.Summation[U := C.Complex, target := Spaces.scalarSpace].law h (Coefficients.decode v);

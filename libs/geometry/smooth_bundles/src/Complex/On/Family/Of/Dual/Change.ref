@@ -1,0 +1,18 @@
+\import \parent.\parent.Change[i := i, j := j] \as Inverse;
+\import ComplexAtlas.Change[i := i, j := j] \as Original;
+\import DualAtlas.Change[i := i, j := j] \as New;
+\import Charts.Transition[left := (bundle.atlas.local i).chart, right := (bundle.atlas.local j).chart] \as Base;
+\import calculus.Real[].Multivariable[n := n].Open[] \as Open;
+\import \root.ComplexCalculus[n := n].On[U := Base.domain] \as Calculus;
+\import Calculus.Sums[I := Fin.Fin r] \as Sums;
+\import Spaces.FiniteCoordinates[n := r] \as Standard;
+\definition expression[v: Vector][a: Fin.Fin r][t: Open.Carrier Base.domain]: C.Complex := Spaces.Sums[I := Fin.Fin r].sum (Fin.elements r)
+  (\fun (l: Fin.Fin r) => Algebra.field.mul (v l) ((Inverse.backward t).apply (Standard.vectors a) l));
+\definition formula: \forall (v: Vector)(a: Fin.Fin r)(t: Open.Carrier Base.domain) -> (New.matrix t).apply v a = expression v a t :=
+  \fun (v: Vector)(a: Fin.Fin r)(t: Open.Carrier Base.domain) => \parent.In[i := i, x := Original.x t].evaluation v
+    (((bundle.atlas.local j).frame (Original.y t)).backward.apply (Standard.vectors a));
+\definition smooth: New.Regular := \fun (v: Vector)(a: Fin.Fin r) => Calculus.equalSmooth (expression v a) (\fun (t: Open.Carrier Base.domain) => (New.matrix t).apply v a)
+  (\fun (t: Open.Carrier Base.domain) => sym!{{C.Complex}} _ _ (formula v a t))
+  (Sums.smooth (Fin.elements r) (\fun (l: Fin.Fin r)(t: Open.Carrier Base.domain) => Algebra.field.mul (v l) ((Inverse.backward t).apply (Standard.vectors a) l))
+    (\fun (l: Fin.Fin r) => Calculus.times (\fun (t: Open.Carrier Base.domain) => v l) (\fun (t: Open.Carrier Base.domain) => (Inverse.backward t).apply (Standard.vectors a) l)
+      (Calculus.constant (v l)) (Inverse.inverseEvaluate (Standard.vectors a) l)));

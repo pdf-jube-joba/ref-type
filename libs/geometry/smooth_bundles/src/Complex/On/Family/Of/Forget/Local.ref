@@ -1,0 +1,43 @@
+\definition c: Chart := (bundle.atlas.local i).chart;
+\definition chartData: Trivializations.ChartData := Trivializations.ChartData { domain := c.domain, dimension := r, frame := (bundle.atlas.local i).frame };
+\import Trivializations.In[c := chartData] \as CoordinatesLocal;
+\import RealFamily.With[data := RealForget.forget] \as RealCharts;
+\definition realChart: RealCharts.Chart := RealForget.Local[i := i].chart;
+\import RealCharts.In[c := realChart] \as RealLocal;
+\definition realLaws: RealLocal.Laws := \bysub(RealCharts.ChartData, RealCharts.Chart, realChart);
+\definition toReal[p: CoordinatesLocal.TotalPoint]: RealLocal.TotalPoint := \into[RealFamily.Point](realPoint p, { p: RealFamily.Point \where \In[M.Point] c.domain p.base }) \by {
+  \bysub(Continuous.Point, { p: Continuous.Point \where \In[M.Point] c.domain p.base }, p)
+};
+\import topology.Continuity[A := Continuous.Point, B := RealFamily.Point].Restriction[S := { p: Continuous.Point \where \In[M.Point] c.domain p.base }] \as Restrict;
+\import topology.Continuity[A := CoordinatesLocal.TotalPoint, B := RealFamily.Point].Corestriction[S := { p: RealFamily.Point \where \In[M.Point] c.domain p.base }] \as IntoLocal;
+\definition toRealContinuous: topology.Continuity[A := CoordinatesLocal.TotalPoint, B := RealLocal.TotalPoint].Continuous CoordinatesLocal.localTopology RealLocal.localTopology toReal :=
+  IntoLocal.corestrictContinuous CoordinatesLocal.localTopology RealForget.totalTopology toReal (Restrict.restrictContinuous totalTopology RealForget.totalTopology realPoint realPointContinuous);
+\import std.Data[].Pair[] \as Pair;
+\import topological_constructions.Product[A := RealLocal.BasePoint, B := Fin.Fin realRank -> R.Real] \as RealProduct;
+\import RealProduct.Maps[] \as RealProjections;
+\definition realForward[p: CoordinatesLocal.TotalPoint]: RealLocal.ProductPoint := RealLocal.forward (toReal p);
+\definition realForwardContinuous: topology.Continuity[A := CoordinatesLocal.TotalPoint, B := RealLocal.ProductPoint].Continuous CoordinatesLocal.localTopology RealLocal.productTopology realForward :=
+  topology.Composition[A := CoordinatesLocal.TotalPoint, B := RealLocal.TotalPoint, C := RealLocal.ProductPoint].composeContinuous CoordinatesLocal.localTopology RealLocal.localTopology RealLocal.productTopology toReal RealLocal.forward toRealContinuous realLaws.forwardContinuous;
+\definition baseContinuous: topology.Continuity[A := CoordinatesLocal.TotalPoint, B := CoordinatesLocal.BasePoint].Continuous CoordinatesLocal.localTopology (Charts.domainTopology c.domain) CoordinatesLocal.base :=
+  topology.Composition[A := CoordinatesLocal.TotalPoint, B := RealLocal.ProductPoint, C := CoordinatesLocal.BasePoint].composeContinuous CoordinatesLocal.localTopology RealLocal.productTopology (Charts.domainTopology c.domain)
+    realForward (Pair.first RealLocal.BasePoint (Fin.Fin realRank -> R.Real)) realForwardContinuous (RealProjections.firstContinuous (Charts.domainTopology c.domain) (RealBundles.coordinateTopology realRank));
+\definition realVector[p: CoordinatesLocal.TotalPoint]: Fin.Fin realRank -> R.Real := Pair.second RealLocal.BasePoint (Fin.Fin realRank -> R.Real) (realForward p);
+\definition realVectorContinuous: topology.Continuity[A := CoordinatesLocal.TotalPoint, B := Fin.Fin realRank -> R.Real].Continuous CoordinatesLocal.localTopology (RealBundles.coordinateTopology realRank) realVector :=
+  topology.Composition[A := CoordinatesLocal.TotalPoint, B := RealLocal.ProductPoint, C := Fin.Fin realRank -> R.Real].composeContinuous CoordinatesLocal.localTopology RealLocal.productTopology (RealBundles.coordinateTopology realRank)
+    realForward (Pair.second RealLocal.BasePoint (Fin.Fin realRank -> R.Real)) realForwardContinuous (RealProjections.secondContinuous (Charts.domainTopology c.domain) (RealBundles.coordinateTopology realRank));
+\definition vector[p: CoordinatesLocal.TotalPoint]: Vector := ((bundle.atlas.local i).frame (CoordinatesLocal.base p)).forward.apply p.vector;
+\definition vectorFormula: \forall (p: CoordinatesLocal.TotalPoint) -> Coordinates.frame.backward.apply (realVector p) = vector p :=
+  \fun (p: CoordinatesLocal.TotalPoint) => \root.ComplexCoordinates[n := n, r := r].decodeEncode (vector p);
+\definition vectorContinuous: topology.Continuity[A := CoordinatesLocal.TotalPoint, B := Vector].Continuous CoordinatesLocal.localTopology (Bundles.coordinateTopology r) vector :=
+  \idelim (\fun (p: CoordinatesLocal.TotalPoint) => Coordinates.frame.backward.apply (realVector p)) = vector \with f: (CoordinatesLocal.TotalPoint -> Vector) => topology.Continuity[A := CoordinatesLocal.TotalPoint, B := Vector].Continuous CoordinatesLocal.localTopology (Bundles.coordinateTopology r) f \by {
+    base: topology.Composition[A := CoordinatesLocal.TotalPoint, B := Fin.Fin realRank -> R.Real, C := Vector].composeContinuous CoordinatesLocal.localTopology (RealBundles.coordinateTopology realRank) (Bundles.coordinateTopology r)
+      realVector Coordinates.frame.backward.apply realVectorContinuous Coordinates.Topology[].backwardContinuous,
+    equality: \axiom:funext((\fun (p: CoordinatesLocal.TotalPoint) => Coordinates.frame.backward.apply (realVector p)), vector, vectorFormula)
+  };
+\import topological_constructions.Product[A := CoordinatesLocal.BasePoint, B := Vector] \as Product;
+\definition forwardContinuous: topology.Continuity[A := CoordinatesLocal.TotalPoint, B := CoordinatesLocal.ProductPoint].Continuous CoordinatesLocal.localTopology CoordinatesLocal.productTopology CoordinatesLocal.forward :=
+  Product.Universal[X := CoordinatesLocal.TotalPoint].pairContinuous CoordinatesLocal.localTopology (Charts.domainTopology c.domain) (Bundles.coordinateTopology r) CoordinatesLocal.base vector baseContinuous vectorContinuous;
+\module Backward;
+\definition chart: Trivializations.Chart := \into[Trivializations.ChartData](chartData, Trivializations.Chart) \by {
+  CoordinatesLocal.Laws { baseOpen := c.open, totalOpen := projectionContinuous c.domain c.open, forwardContinuous := forwardContinuous, backwardContinuous := Backward[].continuous }
+};

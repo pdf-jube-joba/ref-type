@@ -1,0 +1,49 @@
+\import std.Logic[].Classical[] \as Classical;
+\use Logic.either;
+\import dedekind_reals.DedekindReal[] \as Order;
+\import topology.Topology[Carrier := M.Point] \as Base;
+\import calculus.Real[].Multivariable[n := n].Open[] \as Open;
+\import Open.Smooth[] \as Regularity;
+\import Regularity.Operations[] \as SmoothOperations;
+\import Spaces.FiniteCoordinates[n := r] \as Standard;
+\import linear_algebra.Hermitian[].Over[K := R.Real, field := R.Algebra[].field, scalar := linear_algebra.Hermitian[].Real[].scalar] \as Geometry;
+\definition Form[x: M.Point]: \Set := Geometry.Inner[V := F x, space := space x].Form;
+\definition Positive[x: M.Point][h: Form x]: \Prop := Geometry.Inner[V := F x, space := space x].Positive[h];
+\structure Data: \Set := { form: \forall (x: M.Point) -> Form x, positive: \forall (x: M.Point) -> Positive x (form x) };
+\import manifolds.Dimension[n := n].Chart[M := M.Point, space := M.space] \as Charts;
+\definition coefficient[data: Data][i: I][a, b: Fin.Fin r][u: Open.Carrier (bundle.atlas.local i).chart.image]: R.Real :=
+  (data.form (Charts.point (bundle.atlas.local i).chart u)).dot
+    (((bundle.atlas.local i).frame (Charts.point (bundle.atlas.local i).chart u)).backward.apply (Standard.vectors a))
+    (((bundle.atlas.local i).frame (Charts.point (bundle.atlas.local i).chart u)).backward.apply (Standard.vectors b));
+\definition Smooth[data: Data]: \Prop := \forall (i: I)(a, b: Fin.Fin r) -> Open.Smooth[].SmoothOn (bundle.atlas.local i).chart.image (coefficient data i a b);
+\definition Metric: \Set := \Cast[Data] ({ data: Data \where Smooth data });
+\import smooth_partitions.Manifold[n := n].On[M := M] \as Scalars;
+\import smooth_partitions.Scalars[A := M.Point, space := M.space].Using[calculus := Scalars.calculus] \as Functions;
+\definition family: \Pow (\Pow M.Point) := { U: \Pow M.Point \where \exists ( i: I \where (bundle.atlas.local i).chart.domain = U ) };
+\definition cover: Base.IsOpenCover[M.space, family, Base.Whole] := Base.IsOpenCover[M.space, family, Base.Whole] {
+  open := \fun (U: \Pow M.Point)(member: _) => \block {
+    \takefrom i: \Cast[I] ({ i: I \where (bundle.atlas.local i).chart.domain = U }) \by member \then
+    \return \idelim (bundle.atlas.local i).chart.domain = U \with V: \Pow M.Point => Base.IsOpenIn M.space V \by {
+      base: (bundle.atlas.local i).chart.open, equality: \bysub(I, { i: I \where (bundle.atlas.local i).chart.domain = U }, i)
+    }
+  },
+  covers := \fun (x: M.Point)(whole: _) => \block {
+    \takefrom i: \Cast[I] ({ i: I \where Charts.Contains (bundle.atlas.local i).chart x }) \by bundle.atlas.covers x \then
+    \return Base.unionMemberOf family (bundle.atlas.local i).chart.domain x
+      (Logic.existsIntro[I, { j: I \where (bundle.atlas.local j).chart.domain = (bundle.atlas.local i).chart.domain }] i (\refl((bundle.atlas.local i).chart.domain)))
+      (\bysub(I, { i: I \where Charts.Contains (bundle.atlas.local i).chart x }, i))
+  }
+};
+\definition Selection[partition: Functions.SmoothPartition[family]]: \Set := \forall (k: N.Nat^) -> \Cast[I]
+  ({ i: I \where Base.Subset (Functions.support (partition.functions k)) (bundle.atlas.local i).chart.domain });
+\module Select(default: I, partition: Functions.SmoothPartition[family]);
+\module Partition(partition: Functions.SmoothPartition[family], indices: Selection partition);
+\module Empty(noIndex: Logic.Not (\exists I));
+\definition existsMetric: \exists Metric := either!{{Classical.excludedMiddle (\exists I)} {\exists Metric}
+  {\fun (nonempty: \exists I) => \block {
+    \takefrom default: I \by nonempty \then
+    \takefrom partition: Functions.SmoothPartition[family] \by Scalars.Partitions[family := family].existsPartition cover \then
+    \takefrom indices: Selection partition \by Select[default := default, partition := partition].exists \then
+    \return \exact(Partition[partition := partition, indices := indices].metric, Metric)
+  }}
+  {\fun (empty: Logic.Not (\exists I)) => \exact(Empty[noIndex := empty].metric, Metric)}};
