@@ -88,4 +88,8 @@ python3 scripts/check_all.py --initial-memory-mib 12288 --memory-mib 12288 --cac
 `LeftTransition`・`RightTransition` と `LeftInverse`・`RightInverse` は内部と継ぎ目を結ぶ両方向の滑らかな局所表示を構成する。
 `Sides` は内部の像が左右で交わらず、左内部との重なりでは法線パラメータが正、右内部との重なりでは負となることを証明する。
 `ChartCross` は局所表示を座標移送に適用し、`LocalSmoothCompose`・`LocalSmoothPair`・`ProductLocalMap` は局所表示の合成と積を構成する。
-境界が残らないことの公開定理、double の API、相対拡張、角の大域的な丸め、向きと写像の貼り合わせは継続中である。
+`Cover.Interior.noBoundary` は貼り合わせた多様体に境界が残らないことを証明する。
+`CompactGluing` は実際の pushout の位相上の滑らかな atlas と境界がないことを組にした構造を構成し、`Double` は境界の恒等写像に沿う double を公開する。
+`TransportInclusion` は開近傍へ移したモデルから全体への滑らかな写像と、その逆の滑らかな局所表示を構成する。
+`TransportOut` と `Cover.Mapping` は、左右の内部と符号付き継ぎ目での滑らかな写像を用いて、商全体の写像の滑らかさを証明する。
+指定された部分 collar の相対拡張、角の大域的な丸め、向きと collar を保つ写像の貼り合わせは継続中である。

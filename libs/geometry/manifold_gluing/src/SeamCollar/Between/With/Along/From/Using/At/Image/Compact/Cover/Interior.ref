@@ -1,0 +1,43 @@
+\import \parent.\parent.Charts[] \as SeamCharts;
+\import boundary_manifolds.Tangent[n := Nat.add One.dimension n].On[M := manifold] \as Tangent;
+\import LeftInterior.Build[] \as LeftOrdinary;
+\import RightInterior.Build[] \as RightOrdinary;
+\import boundary_manifolds.Boundaryless[n := Nat.add One.dimension n].Of[M := LeftOrdinary.manifold] \as LeftConverted;
+\import boundary_manifolds.Boundaryless[n := Nat.add One.dimension n].Of[M := RightOrdinary.manifold] \as RightConverted;
+\import boundary_manifolds.Boundary[n := n].Of[M := M].Build[cover := leftCover] \as BoundaryOrdinary;
+\import boundary_manifolds.Boundaryless[n := n].Of[M := BoundaryOrdinary.manifold] \as BoundaryConverted;
+\import \root.OpenRegion[n := One.dimension].On[U := Signed.domain] \as SignedRegion;
+\definition sourceNoBoundary: \forall (p: Source.Point) -> Logic.Not boundary_manifolds.Tangent[n := Nat.add One.dimension n].On[M := Source.manifold].At[x := p].Cones[].Boundary :=
+  \fun (p: Source.Point)(bad: _) => Logic.orElim
+    (boundary_manifolds.Tangent[n := n].On[M := LeftBoundary.manifold].At[x := Source.first p].Cones[].Boundary)
+    (boundary_manifolds.Tangent[n := One.dimension].On[M := Signed.manifold].At[x := Source.second p].Cones[].Boundary) Logic.False (Source.At[x := p].boundaryCriterion.ltr bad)
+    (BoundaryConverted.At[x := Source.first p].noBoundary) (SignedRegion.At[x := Source.second p].noBoundary);
+\definition chartMember[i: Index]: \In[Charts.Chart] manifold.atlas.charts (chart i) := Logic.existsIntro[Index, { j: Index \where chart i = chart j }] i (\refl(chart i));
+\module Left(c: Interiors.LeftIndex, y: Gluing.Point, contains: Charts.Contains (Interiors.leftChart c) y) {
+  \import \root.BoundaryTransport[n := Nat.add One.dimension n].Between[M := LeftInside.manifold, N := manifold].From[
+    U := LeftPatch.image, open := Interiors.leftOpen, h := LeftPatch.homeomorphism].At[c := c, y := y, member := chartMember (Indices.inl c), contains := contains] \as Transport;
+  \definition noBoundary: Logic.Not Tangent.At[x := y].Cones[].Boundary := Transport.noBoundary (LeftConverted.At[x := Transport.old].noBoundary);
+}
+\module Right(c: Interiors.RightIndex, y: Gluing.Point, contains: Charts.Contains (Interiors.rightChart c) y) {
+  \import \root.BoundaryTransport[n := Nat.add One.dimension n].Between[M := RightInside.manifold, N := manifold].From[
+    U := RightPatch.image, open := Interiors.rightOpen, h := RightPatch.homeomorphism].At[c := c, y := y, member := chartMember (Indices.inr (Others.inl c)), contains := contains] \as Transport;
+  \definition noBoundary: Logic.Not Tangent.At[x := y].Cones[].Boundary := Transport.noBoundary (RightConverted.At[x := Transport.old].noBoundary);
+}
+\module Seam(c: SeamCharts.Index, y: Gluing.Point, contains: Charts.Contains (SeamCharts.chart c) y) {
+  \import \root.BoundaryTransport[n := Nat.add One.dimension n].Between[M := Source.manifold, N := manifold].From[
+    U := image, open := open, h := homeomorphism].At[c := c, y := y, member := chartMember (Indices.inr (Others.inr c)), contains := contains] \as Transport;
+  \definition noBoundary: Logic.Not Tangent.At[x := y].Cones[].Boundary := Transport.noBoundary (sourceNoBoundary Transport.old);
+}
+\definition ByIndex[i: Index]: \Prop := \forall (y: Gluing.Point) -> Charts.Contains (chart i) y -> Logic.Not Tangent.At[x := y].Cones[].Boundary;
+\definition byIndex: \forall (i: Index) -> ByIndex i := \induction (i: Index) \return ByIndex i \with {
+  | inl: \fun (c: Interiors.LeftIndex)(y: Gluing.Point)(contains: _) => Left[c := c, y := y, contains := contains].noBoundary
+  | inr: \induction (i: Others.Carrier) \return ByIndex (Indices.inr i) \with {
+    | inl: \fun (c: Interiors.RightIndex)(y: Gluing.Point)(contains: _) => Right[c := c, y := y, contains := contains].noBoundary
+    | inr: \fun (c: SeamCharts.Index)(y: Gluing.Point)(contains: _) => Seam[c := c, y := y, contains := contains].noBoundary
+  }
+};
+\definition noBoundary: \forall (y: Gluing.Point) -> Logic.Not Tangent.At[x := y].Cones[].Boundary := \block {
+  \fun (y: Gluing.Point) \then
+  \takefrom i: \Cast[Index] ({ i: Index \where Charts.Contains (chart i) y }) \by covers y \then
+  \return byIndex i y (\bysub(Index, { i: Index \where Charts.Contains (chart i) y }, i))
+};
