@@ -1,0 +1,22 @@
+\import \root.ComplexMatrix[d := d, p := r, q := r].On[U := U, A := \fun (x: Open.Carrier U) => (f x).forward] \as Forward;
+\import \root.ComplexMatrix[d := d, p := r, q := r].On[U := U, A := \fun (x: Open.Carrier U) => (f x).backward] \as Backward;
+\import \root.ComplexCoordinates[n := d, r := r] \as Coordinates;
+\import bundle_operations.Operations[].Scalars[].RealCoordinates[n := r] \as Reindex;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\definition left: \forall (x: Open.Carrier U)(v: Coordinates.RealVector) -> (Backward.realify x).apply ((Forward.realify x).apply v) = v :=
+  \fun (x: Open.Carrier U)(v: Coordinates.RealVector) => trans!{{Coordinates.RealVector}} _ _ _
+    (congr!{{Coordinates.Vector} {Coordinates.RealVector}} Coordinates.encode _ _ (trans!{{Coordinates.Vector}} _ _ _
+      (congr!{{Coordinates.Vector} {Coordinates.Vector}} (f x).backward.apply _ _ (Reindex.frame.leftInverse ((f x).forward.apply (Coordinates.decode v))))
+      ((f x).leftInverse (Coordinates.decode v))))
+    (Coordinates.encodeDecode v);
+\definition right: \forall (x: Open.Carrier U)(v: Coordinates.RealVector) -> (Forward.realify x).apply ((Backward.realify x).apply v) = v :=
+  \fun (x: Open.Carrier U)(v: Coordinates.RealVector) => trans!{{Coordinates.RealVector}} _ _ _
+    (congr!{{Coordinates.Vector} {Coordinates.RealVector}} Coordinates.encode _ _ (trans!{{Coordinates.Vector}} _ _ _
+      (congr!{{Coordinates.Vector} {Coordinates.Vector}} (f x).forward.apply _ _ (Reindex.frame.leftInverse ((f x).backward.apply (Coordinates.decode v))))
+      ((f x).rightInverse (Coordinates.decode v))))
+    (Coordinates.encodeDecode v);
+\definition regular: Backward.Regular := Backward.fromReal
+  (calculus.InverseFamily[d := d, r := Coordinates.rank].regular U Forward.realify Backward.realify left right (Forward.toReal regular));

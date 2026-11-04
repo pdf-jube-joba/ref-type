@@ -1,0 +1,16 @@
+\import ComplexAtlas.Change[i := i, j := j] \as Forward;
+\import manifolds.Dimension[n := n].Chart[M := M.Point, space := M.space] \as Charts;
+\import Charts.Transition[left := (bundle.atlas.local i).chart, right := (bundle.atlas.local j).chart] \as Base;
+\import calculus.Real[].Multivariable[n := n].Open[] \as Open;
+\definition value[t: Open.Carrier Base.domain]: GL.Carrier := GL.Frames[V := F (Forward.x t), space := space (Forward.x t)].change
+  ((bundle.atlas.local i).frame (Forward.x t)) ((bundle.atlas.local j).frame (Forward.y t));
+\definition smooth: \root.ComplexLinear[r := r].Smooth[d := n].Regular Base.domain value := Forward.fromReal (bundle.regular i j);
+
+\import \parent.Local[i := i] \as First;
+\import \parent.Local[i := j] \as Second;
+\definition coordinateFormula: \forall (t: Open.Carrier Base.domain)(g: GL.Carrier) -> Second.encode (Forward.y t) (First.decode (Forward.x t) g) = GL.multiply (value t) g :=
+  \fun (t: Open.Carrier Base.domain)(g: GL.Carrier) => GL.ext (Second.encode (Forward.y t) (First.decode (Forward.x t) g)) (GL.multiply (value t) g)
+    (\fun (v: GL.Vector) => \refl(((bundle.atlas.local j).frame (Forward.y t)).forward.apply (((bundle.atlas.local i).frame (Forward.x t)).backward.apply (g.forward.apply v))));
+\definition coordinateSmooth: \forall (g: Open.Carrier Base.domain -> GL.Carrier) -> \root.ComplexLinear[r := r].Smooth[d := n].Regular Base.domain g ->
+  \root.ComplexLinear[r := r].Smooth[d := n].Regular Base.domain (\fun (t: Open.Carrier Base.domain) => GL.multiply (value t) (g t)) :=
+  \fun (g: Open.Carrier Base.domain -> GL.Carrier)(regular: \root.ComplexLinear[r := r].Smooth[d := n].Regular Base.domain g) => \root.ComplexLinear[r := r].Smooth[d := n].product Base.domain value g smooth regular;

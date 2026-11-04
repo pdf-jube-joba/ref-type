@@ -1,0 +1,37 @@
+\import topology.Topology[Carrier := X] \as Source;
+\import topology.Maps[A := X, B := Carrier] \as Maps;
+\import Topological.Families[X := X].Matrix[m := n] \as EndFamilies;
+\import hermitian_frames.Hermitian[].Over[K := K, field := field, scalar := conjugation, topological := scalar.topological].Functions[X := X] \as Functions;
+\import Matrices.Universal[A := X] \as IntoMatrices;
+\definition Regular[source: Source.Topology][u: X -> Carrier]: \Prop := EndFamilies.Components source (\fun (x: X) => (u x).forward);
+\definition continuous: \forall (source: Source.Topology)(u: X -> Carrier) -> Regular source u ->
+  topology.Continuity[A := X, B := Carrier].Continuous source topology u :=
+  \fun (source: Source.Topology)(u: X -> Carrier)(regular: Regular source u) => Maps.generatedContinuous source u Basis (\block {
+    \fun (W: \Pow Carrier)(member: Space.FamilyMember Basis W) \then
+    \takefrom U: \Cast[\Pow Matrices.Carrier] ({ U: \Pow Matrices.Carrier \where Logic.And[MatrixSpace.IsOpenIn matrixTopology U, W = Pullback.Preimage entries U] }) \by member \then
+    \let evidence: Logic.And[MatrixSpace.IsOpenIn matrixTopology U, W = Pullback.Preimage entries U] := \bysub(\Pow Matrices.Carrier, { U: \Pow Matrices.Carrier \where Logic.And[MatrixSpace.IsOpenIn matrixTopology U, W = Pullback.Preimage entries U] }, U) \then
+    \return \idelim Pullback.Preimage entries U = W \with V: \Pow Carrier => Source.IsOpenIn source (Maps.Preimage u V) \by {
+      base: IntoMatrices.continuous source scalar.topological.space (\fun (x: X) => entries (u x)) (\fun (i, j: Fin.Fin n) => regular j i) U evidence.left,
+      equality: sym!{\Pow Carrier} _ _ evidence.right
+    }
+  });
+\import topology.Composition[A := X, B := Carrier, C := K] \as ComposeEntry;
+\import topology.Composition[A := Carrier, B := Matrices.Carrier, C := K] \as Entry;
+\definition regular: \forall (source: Source.Topology)(u: X -> Carrier) -> topology.Continuity[A := X, B := Carrier].Continuous source topology u -> Regular source u :=
+  \fun (source: Source.Topology)(u: X -> Carrier)(continuous: _)(j, i: Fin.Fin n) =>
+    ComposeEntry.composeContinuous source topology scalar.topological.space u (\fun (v: Carrier) => entries v i j) continuous
+      (Entry.composeContinuous topology matrixTopology scalar.topological.space entries (Matrices.entry i j) entriesContinuous (Matrices.entryContinuous scalar.topological.space i j));
+\definition product: \forall (source: Source.Topology)(u, v: X -> Carrier) -> Regular source u -> Regular source v -> Regular source (\fun (x: X) => multiply (u x) (v x)) :=
+  \fun (source: Source.Topology)(u, v: X -> Carrier)(uc: Regular source u)(vc: Regular source v)(j: Fin.Fin n) =>
+    EndFamilies.evaluate source (\fun (x: X) => (u x).forward) (\fun (x: X) => (v x).forward.apply (E.basis j)) uc (vc j);
+\definition nonsingular[u: X -> Carrier][x: X]: Inversion.Nonsingular := \parent.Nonsingular[u := u x].value;
+\definition inverseComponents: \forall (source: Source.Topology)(u: X -> Carrier) -> Regular source u ->
+  EndFamilies.Regular source (\fun (x: X) => Square.Inverse[A := nonsingular u x].value) :=
+  \fun (source: Source.Topology)(u: X -> Carrier)(regular: Regular source u) =>
+    Square.Families[X := X].inverseMaps source (nonsingular u) (\fun (i, j: Fin.Fin n) => regular j i);
+\definition reciprocal: \forall (source: Source.Topology)(u: X -> Carrier) -> Regular source u -> Regular source (\fun (x: X) => inverse (u x)) :=
+  \fun (source: Source.Topology)(u: X -> Carrier)(regular: Regular source u)(j, i: Fin.Fin n) => Functions.transport source
+    (\fun (x: X) => Square.Inverse[A := nonsingular u x].value.apply (E.basis j) i)
+    (\fun (x: X) => (inverse (u x)).forward.apply (E.basis j) i)
+    (\fun (x: X) => sym!{K} _ _ (congr!{Vector K} (\fun (v: Vector) => v i) _ _ (\parent.Nonsingular[u := u x].equal (E.basis j))))
+    (inverseComponents source u regular (E.basis j) i);

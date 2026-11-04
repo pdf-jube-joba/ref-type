@@ -1,0 +1,66 @@
+\import Spaces.Isomorphism[V := V, W := Vector, source := space, target := coordinates] \as Frames;
+\definition Frame: \Set := Frames.Isomorphism;
+\import Spaces.Linear[V := V, W := Vector, source := space, target := coordinates] \as Forward;
+\import Spaces.Linear[V := Vector, W := V, source := coordinates, target := space] \as Backward;
+\import Backward.Composition[U := Vector, domain := coordinates] \as ToFiber;
+\import Forward.Composition[U := Vector, domain := coordinates] \as ToCoordinates;
+\definition change[u, v: Frame]: Carrier := Isomorphisms.Isomorphism {
+  forward := ToCoordinates.compose v.forward u.backward,
+  backward := ToCoordinates.compose u.forward v.backward,
+  leftInverse := \fun (a: Vector) => trans!{Vector} _ _ _
+    (congr!{V Vector} u.forward.apply _ _ (v.leftInverse (u.backward.apply a))) (u.rightInverse a),
+  rightInverse := \fun (a: Vector) => trans!{Vector} _ _ _
+    (congr!{V Vector} v.forward.apply _ _ (u.leftInverse (v.backward.apply a))) (v.rightInverse a),
+};
+\definition changeIdentity: \forall (u: Frame) -> change u u = identity := \fun (u: Frame) => ext (change u u) identity u.rightInverse;
+\definition composition: \forall (u, v, w: Frame) -> multiply (change v w) (change u v) = change u w :=
+  \fun (u, v, w: Frame) => ext (multiply (change v w) (change u v)) (change u w)
+    (\fun (a: Vector) => congr!{V Vector} w.forward.apply _ _ (v.leftInverse (u.backward.apply a)));
+\definition eta: \forall (u: Frames.Data) -> Frames.Data::# u.forward u.backward = u :=
+  \induction (u: Frames.Data) \return Frames.Data::# u.forward u.backward = u \with {
+    | # : \fun (f: Forward.Map)(g: Backward.Map) => \refl(Frames.Data::# f g)
+  };
+\definition frameExt: \forall (u, v: Frame) -> (\forall (w: V) -> u.forward.apply w = v.forward.apply w) -> u = v := \block {
+  \fun (u, v: Frame)(same: _) \then
+  \let forwards: u.forward = v.forward := Forward.ext u.forward v.forward (\axiom:funext(u.forward.apply, v.forward.apply, same)) \then
+  \let backwards: u.backward = v.backward := Backward.ext u.backward v.backward (\axiom:funext(u.backward.apply, v.backward.apply, \fun (w: Vector) => trans!{V} _ _ _
+    (sym!{V} _ _ (v.leftInverse (u.backward.apply w)))
+    (trans!{V} _ _ _ (congr!{Vector V} v.backward.apply _ _ (sym!{Vector} _ _ (same (u.backward.apply w))))
+      (congr!{Vector V} v.backward.apply _ _ (u.rightInverse w))))) \then
+  \return trans!{Frames.Data} _ _ _ (sym!{Frames.Data} _ _ (eta u))
+    (trans!{Frames.Data} _ _ _ (congr!{{Forward.Map} {Backward.Map} {Frames.Data}} Frames.Data::# _ _ _ _ forwards backwards) (eta v))
+};
+\import End.Composition[U := V, domain := space] \as FromFiber;
+\definition act[u: Frame][g: Carrier]: Frame := Frames.Isomorphism {
+  forward := FromFiber.compose g.backward u.forward,
+  backward := ToFiber.compose u.backward g.forward,
+  leftInverse := \fun (v: V) => trans!{V} _ _ _
+    (congr!{Vector V} u.backward.apply _ _ (g.rightInverse (u.forward.apply v))) (u.leftInverse v),
+  rightInverse := \fun (v: Vector) => trans!{Vector} _ _ _
+    (congr!{Vector Vector} g.backward.apply _ _ (u.rightInverse (g.forward.apply v))) (g.leftInverse v),
+};
+\definition actIdentity: \forall (u: Frame) -> act u identity = u := \fun (u: Frame) => frameExt (act u identity) u (\fun (v: V) => \refl(u.forward.apply v));
+\definition actProduct: \forall (u: Frame)(g, h: Carrier) -> act (act u g) h = act u (multiply g h) :=
+  \fun (u: Frame)(g, h: Carrier) => frameExt (act (act u g) h) (act u (multiply g h)) (\fun (v: V) => \refl(h.backward.apply (g.backward.apply (u.forward.apply v))));
+\definition transitive: \forall (u, v: Frame) -> act u (change v u) = v := \fun (u, v: Frame) => frameExt (act u (change v u)) v
+  (\fun (w: V) => congr!{V Vector} v.forward.apply _ _ (u.leftInverse w));
+\definition free: \forall (u: Frame)(g, h: Carrier) -> act u g = act u h -> g = h := \block {
+  \fun (u: Frame)(g, h: Carrier)(same: _) \then
+  \let backwards: \forall (w: Vector) -> g.backward.apply w = h.backward.apply w := \fun (w: Vector) => trans!{Vector} _ _ _
+    (congr!{Vector Vector} g.backward.apply _ _ (sym!{Vector} _ _ (u.rightInverse w)))
+    (trans!{Vector} _ _ _ (congr!{Frame Vector} (\fun (a: Frame) => a.forward.apply (u.backward.apply w)) (act u g) (act u h) same)
+      (congr!{Vector Vector} h.backward.apply _ _ (u.rightInverse w))) \then
+  \return ext g h (\fun (w: Vector) => trans!{Vector} _ _ _
+    (congr!{Vector Vector} g.forward.apply _ _ (sym!{Vector} _ _ (h.leftInverse w)))
+    (trans!{Vector} _ _ _ (congr!{Vector Vector} g.forward.apply _ _ (sym!{Vector} _ _ (backwards (h.forward.apply w)))) (g.rightInverse (h.forward.apply w))))
+};
+
+\definition backwardBasisExt: \forall (u, v: Frame) -> (\forall (j: Fin.Fin n) -> u.backward.apply (E.basis j) = v.backward.apply (E.basis j)) -> u = v := \block {
+  \fun (u, v: Frame)(same: _) \then
+  \let g: Carrier := change u v \then
+  \let equal: g = identity := basisExt g identity (\fun (j: Fin.Fin n) => trans!{Vector} _ _ _
+    (congr!{V Vector} v.forward.apply _ _ (same j)) (v.rightInverse (E.basis j))) \then
+  \return frameExt u v (\fun (w: V) => trans!{Vector} _ _ _
+    (sym!{Vector} _ _ (congr!{Carrier Vector} (\fun (a: Carrier) => a.forward.apply (u.forward.apply w)) g identity equal))
+    (congr!{V Vector} v.forward.apply _ _ (u.leftInverse w)))
+};

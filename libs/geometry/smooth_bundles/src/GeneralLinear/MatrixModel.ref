@@ -1,0 +1,29 @@
+\definition Point: \Set := Inversion.Nonsingular;
+\definition domain: \Pow AlgebraMatrix.Matrix := { A: AlgebraMatrix.Matrix \where Inversion.Nonzero A };
+\import MatrixSpace.Subspace[S := domain] \as Subspace;
+\definition source: topology.Topology[Carrier := Point].Topology := Subspace.topology matrixTopology;
+\definition open: MatrixSpace.IsOpenIn matrixTopology domain := Square.Families[X := AlgebraMatrix.Matrix].nonsingularOpen matrixTopology (\fun (A: AlgebraMatrix.Matrix) => A)
+  (\fun (i, j: Fin.Fin n) => Matrices.entryContinuous scalar.topological.space i j);
+\definition forward[u: Carrier]: Point := \parent.Nonsingular[u := u].value;
+\definition backward[A: Point]: Carrier := Isomorphisms.Isomorphism {
+  forward := Square.linear A, backward := Square.Inverse[A := A].value,
+  leftInverse := Square.Inverse[A := A].left, rightInverse := Square.Inverse[A := A].right,
+};
+\definition leftInverse: \forall (u: Carrier) -> backward (forward u) = u := \fun (u: Carrier) => ext (backward (forward u)) u
+  (\fun (v: Vector) => congr!{Map Vector} (\fun (f: Map) => f.apply v) _ _ (Representation.linearEntries u.forward));
+\definition rightInverse: \forall (A: Point) -> forward (backward A) = A := \fun (A: Point) => Representation.entriesLinear A;
+\import topology.Continuity[A := Carrier, B := AlgebraMatrix.Matrix].Corestriction[S := domain] \as Into;
+\definition forwardContinuous: topology.Continuity[A := Carrier, B := Point].Continuous topology source forward := Into.corestrictContinuous topology matrixTopology forward entriesContinuous;
+\import \parent.Families[X := Point] \as Families;
+\import topology.Continuity[A := Point, B := AlgebraMatrix.Matrix].Corestriction[S := domain] \as Inclusion;
+\definition components: Families.Regular source backward := \fun (j, i: Fin.Fin n) =>
+  hermitian_frames.Hermitian[].Over[K := K, field := field, scalar := conjugation, topological := scalar.topological].Functions[X := Point].transport source
+    (\fun (A: Point) => A i j) (\fun (A: Point) => (backward A).forward.apply (E.basis j) i)
+    (\fun (A: Point) => sym!{K} _ _ (congr!{Vector K} (\fun (v: Vector) => v i) _ _ (AlgebraMatrix.onBasis A j)))
+    (topology.Composition[A := Point, B := AlgebraMatrix.Matrix, C := K].composeContinuous source matrixTopology scalar.topological.space
+      (\fun (A: Point) => A) (Matrices.entry i j) (Inclusion.inclusionContinuous matrixTopology) (Matrices.entryContinuous scalar.topological.space i j));
+\definition backwardContinuous: topology.Continuity[A := Point, B := Carrier].Continuous source topology backward := Families.continuous source backward components;
+\definition homeomorphism: topology.Homeomorphism[A := Carrier, B := Point].Homeomorphism[topology, source] := topology.Homeomorphism[A := Carrier, B := Point].Homeomorphism[topology, source] {
+  forward := forward, backward := backward, leftInverse := leftInverse, rightInverse := rightInverse,
+  forwardContinuous := forwardContinuous, backwardContinuous := backwardContinuous,
+};
