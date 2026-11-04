@@ -1,0 +1,35 @@
+\import topological_constructions.Product[A := LeftBoundary.manifold.Point, B := Time.Point] \as LeftTopology;
+\import topological_constructions.Product[A := RightBoundary.manifold.Point, B := Time.Point] \as RightTopology;
+\definition plusContinuous: topology.Continuity[A := Source.Point, B := Time.Point].Continuous Source.topology Time.manifold.space plus :=
+  topology.Composition[A := Source.Point, B := Signed.Point, C := Time.Point].composeContinuous Source.topology Signed.manifold.space Time.manifold.space Source.second Signed.plus
+    (Product.Maps[].secondContinuous LeftBoundary.manifold.space Signed.manifold.space) Signed.Continuity[].plusContinuous;
+\definition minusContinuous: topology.Continuity[A := Source.Point, B := Time.Point].Continuous Source.topology Time.manifold.space minus :=
+  topology.Composition[A := Source.Point, B := Signed.Point, C := Time.Point].composeContinuous Source.topology Signed.manifold.space Time.manifold.space Source.second Signed.minus
+    (Product.Maps[].secondContinuous LeftBoundary.manifold.space Signed.manifold.space) Signed.Continuity[].minusContinuous;
+\definition leftParameterContinuous: topology.Continuity[A := Source.Point, B := LeftProduct.Point].Continuous Source.topology LeftProduct.topology leftParameter :=
+  LeftTopology.Universal[X := Source.Point].pairContinuous Source.topology LeftBoundary.manifold.space Time.manifold.space Source.first plus
+    (Product.Maps[].firstContinuous LeftBoundary.manifold.space Signed.manifold.space) plusContinuous;
+\definition rightBaseContinuous: topology.Continuity[A := Source.Point, B := RightBoundary.manifold.Point].Continuous Source.topology RightBoundary.manifold.space rightBase :=
+  topology.Composition[A := Source.Point, B := LeftBoundary.manifold.Point, C := RightBoundary.manifold.Point].composeContinuous Source.topology LeftBoundary.manifold.space RightBoundary.manifold.space
+    Source.first (BoundaryMaps.apply d.forward) (Product.Maps[].firstContinuous LeftBoundary.manifold.space Signed.manifold.space) d.forward.continuous;
+\definition rightParameterContinuous: topology.Continuity[A := Source.Point, B := RightProduct.Point].Continuous Source.topology RightProduct.topology rightParameter :=
+  RightTopology.Universal[X := Source.Point].pairContinuous Source.topology RightBoundary.manifold.space Time.manifold.space rightBase minus rightBaseContinuous minusContinuous;
+\definition leftAmbient: topology.Continuity[A := Source.Point, B := M.Point].Continuous Source.topology M.space (\fun (p: Source.Point) => LeftMaps.apply LeftMap.map (leftParameter p)) :=
+  topology.Composition[A := Source.Point, B := LeftProduct.Point, C := M.Point].composeContinuous Source.topology LeftProduct.topology M.space leftParameter (LeftMaps.apply LeftMap.map) leftParameterContinuous LeftMap.map.continuous;
+\definition rightAmbient: topology.Continuity[A := Source.Point, B := N.Point].Continuous Source.topology N.space (\fun (p: Source.Point) => RightMaps.apply RightMap.map (rightParameter p)) :=
+  topology.Composition[A := Source.Point, B := RightProduct.Point, C := N.Point].composeContinuous Source.topology RightProduct.topology N.space rightParameter (RightMaps.apply RightMap.map) rightParameterContinuous RightMap.map.continuous;
+\definition leftContinuous: topology.Continuity[A := Source.Point, B := Gluing.Point].Continuous Source.topology Gluing.topology leftValue :=
+  topology.Composition[A := Source.Point, B := M.Point, C := Gluing.Point].composeContinuous Source.topology M.space Gluing.topology
+    (\fun (p: Source.Point) => LeftMaps.apply LeftMap.map (leftParameter p)) Gluing.inl leftAmbient Gluing.inlContinuous;
+\definition rightContinuous: topology.Continuity[A := Source.Point, B := Gluing.Point].Continuous Source.topology Gluing.topology rightValue :=
+  topology.Composition[A := Source.Point, B := N.Point, C := Gluing.Point].composeContinuous Source.topology N.space Gluing.topology
+    (\fun (p: Source.Point) => RightMaps.apply RightMap.map (rightParameter p)) Gluing.inr rightAmbient Gluing.inrContinuous;
+\import metric_spaces.RealLine[] \as Line;
+\import Line.Rays[] \as Rays;
+\definition scalarContinuous: topology.Continuity[A := Source.Point, B := S.Real].Continuous Source.topology Line.topology scalar :=
+  topology.Composition[A := Source.Point, B := Signed.Point, C := S.Real].composeContinuous Source.topology Signed.manifold.space Line.topology Source.second Signed.value
+    (Product.Maps[].secondContinuous LeftBoundary.manifold.space Signed.manifold.space) Signed.Continuity[].coordinate;
+\definition positiveClosed: Space.IsClosedIn Source.topology Positive := topology.Continuity[A := Source.Point, B := S.Real].closedPreimage Source.topology Line.topology scalar scalarContinuous
+  (Rays.AtLeast S.zero) (Rays.atLeastClosed S.zero);
+\definition negativeClosed: Space.IsClosedIn Source.topology Negative := topology.Continuity[A := Source.Point, B := S.Real].closedPreimage Source.topology Line.topology scalar scalarContinuous
+  (Rays.AtMost S.zero) (Rays.atMostClosed S.zero);

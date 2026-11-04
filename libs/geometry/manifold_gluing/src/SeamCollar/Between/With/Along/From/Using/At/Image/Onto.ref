@@ -1,0 +1,22 @@
+\import topology.Maps[A := M.Point, B := Gluing.Point] \as LeftImageMaps;
+\import topology.Maps[A := N.Point, B := Gluing.Point] \as RightImageMaps;
+\definition left: \forall (y: Point) -> Target.Member Region.leftImage y -> \exists (p: Source.Point \where forward p = y) :=
+  \fun (y: Point)(member: _) => LeftImageMaps.imageElim Gluing.inl LeftImage.image y (\exists (p: Source.Point \where forward p = y)) (\block {
+    \fun (a: M.Point)(inside: \In[M.Point] LeftImage.image a)(same: Gluing.inl a = (y \of Gluing.Point)) \then
+    \takefrom x: \Cast[LeftImage.Input] ({ x: LeftImage.Input \where LeftMaps.apply LeftMap.map x = a }) \by inside \then
+    \return Logic.existsIntro[Source.Point, { p: Source.Point \where forward p = y }] \parent.LeftAt[x := x].point
+      (boundary_manifolds.Refinement[A := Gluing.Point].equality image (forward \parent.LeftAt[x := x].point) y
+        (trans!{{Gluing.Point}} _ _ _ (\parent.LeftAt[x := x].value)
+          (trans!{{Gluing.Point}} _ _ _ (congr!{{M.Point} {Gluing.Point}} Gluing.inl _ _ (\bysub(LeftImage.Input, { x: LeftImage.Input \where LeftMaps.apply LeftMap.map x = a }, x))) same)))
+  }) member;
+\definition right: \forall (y: Point) -> Target.Member Region.rightImage y -> \exists (p: Source.Point \where forward p = y) :=
+  \fun (y: Point)(member: _) => RightImageMaps.imageElim Gluing.inr RightImage.image y (\exists (p: Source.Point \where forward p = y)) (\block {
+    \fun (a: N.Point)(inside: \In[N.Point] RightImage.image a)(same: Gluing.inr a = (y \of Gluing.Point)) \then
+    \takefrom x: \Cast[RightImage.Input] ({ x: RightImage.Input \where RightMaps.apply RightMap.map x = a }) \by inside \then
+    \return Logic.existsIntro[Source.Point, { p: Source.Point \where forward p = y }] \parent.RightAt[x := x].point
+      (boundary_manifolds.Refinement[A := Gluing.Point].equality image (forward \parent.RightAt[x := x].point) y
+        (trans!{{Gluing.Point}} _ _ _ (\parent.RightAt[x := x].value)
+          (trans!{{Gluing.Point}} _ _ _ (congr!{{N.Point} {Gluing.Point}} Gluing.inr _ _ (\bysub(RightImage.Input, { x: RightImage.Input \where RightMaps.apply RightMap.map x = a }, x))) same)))
+  }) member;
+\definition law: \forall (y: Point) -> \exists (p: Source.Point \where forward p = y) := \fun (y: Point) => Logic.orElim (Target.Member Region.leftImage y) (Target.Member Region.rightImage y)
+  (\exists (p: Source.Point \where forward p = y)) (\bysub(Gluing.Point, image, y)) (left y) (right y);

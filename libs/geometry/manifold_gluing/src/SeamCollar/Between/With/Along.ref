@@ -1,0 +1,22 @@
+\import \root.BoundarySeam[n := n].Between[M := M, N := N].With[leftCover := leftCover, rightCover := rightCover].Along[d := d] \as Gluing;
+\import \root.TransverseHomotopy[n := Nat.add One.dimension n].On[M := M] \as LeftHomotopies;
+\import \root.TransverseHomotopy[n := Nat.add One.dimension n].On[M := N] \as RightHomotopies;
+\module From(left: LeftHomotopies.Result, right: RightHomotopies.Result);
+\structure Construction: \Set := {
+  left: LeftHomotopies.Result,
+  right: RightHomotopies.Result,
+  leftRegular: \root.CollarStrip[n := n].On[M := M].With[cover := leftCover].From[deformation := left].RegularUniform,
+  rightRegular: \root.CollarStrip[n := n].On[M := N].With[cover := rightCover].From[deformation := right].RegularUniform,
+  parameters: From[left := left, right := right].Using[leftRegular := leftRegular, rightRegular := rightRegular].Parameters,
+};
+\definition exists[leftCompact: LeftSpace.IsCompact M.space][rightCompact: RightSpace.IsCompact N.space]: \exists Construction := \block {
+  \takefrom left: LeftHomotopies.Result \by \root.GlobalPush[n := n].On[M := M].existsTransverse leftCover leftCompact \then
+  \takefrom right: RightHomotopies.Result \by \root.GlobalPush[n := n].On[M := N].existsTransverse rightCover rightCompact \then
+  \takefrom leftRegular: \root.CollarStrip[n := n].On[M := M].With[cover := leftCover].From[deformation := left].RegularUniform
+    \by \root.CollarStrip[n := n].On[M := M].With[cover := leftCover].From[deformation := left].existsRegular leftCompact \then
+  \takefrom rightRegular: \root.CollarStrip[n := n].On[M := N].With[cover := rightCover].From[deformation := right].RegularUniform
+    \by \root.CollarStrip[n := n].On[M := N].With[cover := rightCover].From[deformation := right].existsRegular rightCompact \then
+  \takefrom parameters: From[left := left, right := right].Using[leftRegular := leftRegular, rightRegular := rightRegular].Parameters
+    \by From[left := left, right := right].Using[leftRegular := leftRegular, rightRegular := rightRegular].existsParameters \then
+  \return \exact(Construction { left := left, right := right, leftRegular := leftRegular, rightRegular := rightRegular, parameters := parameters }, Construction)
+};

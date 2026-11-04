@@ -1,0 +1,29 @@
+\definition leftImage: \Pow Point := LeftMaps.Image Pushout.inl U;
+\definition rightImage: \Pow Point := RightMaps.Image Pushout.inr V;
+\definition image: \Pow Point := Target.Finite[].Join leftImage rightImage;
+\definition ofLeft: \forall (x: A) -> Left.Member U x -> Target.Member image (Pushout.inl x) := \fun (x: A)(member: _) => Logic.Or[_, _]::left (LeftMaps.imageMember Pushout.inl U x member);
+\definition ofRight: \forall (y: B) -> Right.Member V y -> Target.Member image (Pushout.inr y) := \fun (y: B)(member: _) => Logic.Or[_, _]::right (RightMaps.imageMember Pushout.inr V y member);
+\module CrossLeft(x: A, y: B, member: Right.Member V y, same: Pushout.inl x = Pushout.inr y);
+\module CrossRight(x: A, y: B, member: Left.Member U x, same: Pushout.inl x = Pushout.inr y);
+\definition toLeft: \forall (x: A) -> Target.Member image (Pushout.inl x) -> Left.Member U x :=
+  \fun (x: A)(member: _) => Logic.orElim (Target.Member leftImage (Pushout.inl x)) (Target.Member rightImage (Pushout.inl x)) (Left.Member U x) member
+    (\fun (leftMember: _) => LeftMaps.imageElim Pushout.inl U (Pushout.inl x) (Left.Member U x)
+      (\fun (a: A)(inU: Left.Member U a)(same: Pushout.inl a = Pushout.inl x) => \idelim a = x \with p: A => Left.Member U p \by {
+        base: inU, equality: Embedded.leftInjective a x same
+      }) leftMember)
+    (\fun (rightMember: _) => RightMaps.imageElim Pushout.inr V (Pushout.inl x) (Left.Member U x)
+      (\fun (b: B)(inV: Right.Member V b)(same: Pushout.inr b = Pushout.inl x) =>
+        CrossLeft[x := x, y := b, member := inV, same := sym!{Point} (Pushout.inr b) (Pushout.inl x) same].law) rightMember);
+\definition toRight: \forall (y: B) -> Target.Member image (Pushout.inr y) -> Right.Member V y :=
+  \fun (y: B)(member: _) => Logic.orElim (Target.Member leftImage (Pushout.inr y)) (Target.Member rightImage (Pushout.inr y)) (Right.Member V y) member
+    (\fun (leftMember: _) => LeftMaps.imageElim Pushout.inl U (Pushout.inr y) (Right.Member V y)
+      (\fun (a: A)(inU: Left.Member U a)(same: Pushout.inl a = Pushout.inr y) => CrossRight[x := a, y := y, member := inU, same := same].law) leftMember)
+    (\fun (rightMember: _) => RightMaps.imageElim Pushout.inr V (Pushout.inr y) (Right.Member V y)
+      (\fun (b: B)(inV: Right.Member V b)(same: Pushout.inr b = Pushout.inr y) => \idelim b = y \with p: B => Right.Member V p \by {
+        base: inV, equality: Embedded.rightInjective b y same
+      }) rightMember);
+\definition leftTrace: U = LeftMaps.Preimage Pushout.inl image := \axiom:setext(U, LeftMaps.Preimage Pushout.inl image, ofLeft, toLeft);
+\definition rightTrace: V = RightMaps.Preimage Pushout.inr image := \axiom:setext(V, RightMaps.Preimage Pushout.inr image, ofRight, toRight);
+\definition open: Target.IsOpenIn topology image := Logic.And[_, _]::#
+  (\idelim U = LeftMaps.Preimage Pushout.inl image \with S: \Pow A => Left.IsOpenIn left S \by { base: openU, equality: leftTrace })
+  (\idelim V = RightMaps.Preimage Pushout.inr image \with S: \Pow B => Right.IsOpenIn right S \by { base: openV, equality: rightTrace });
