@@ -1,0 +1,15 @@
+\definition initial: RightInside.manifold.Point := RightConverted.forward (\into[N.Point](x, RightInterior.points) \by { interior });
+\import RightInside.InverseAt[x := initial] \as Inverse;
+\definition function[p: N.Point]: Gluing.Point := Gluing.inr (Inverse.function p);
+\import \root.LocalSmoothMap[n := Nat.add One.dimension n, m := Nat.add One.dimension n].Between[M := N, N := manifold].Of[function := function] \as Local;
+\import \root.LocalSmoothPostcompose[n := Nat.add One.dimension n, m := Nat.add One.dimension n, l := Nat.add One.dimension n].Between[M := N, N := RightInside.manifold, P := manifold].From[
+  f := Inverse.function, g := RightSmooth.map] \as Composition;
+\definition equal: \forall (p: N.Point) -> \In[N.Point] RightInterior.points p -> Gluing.inr p = function p :=
+  \fun (p: N.Point)(member: _) => congr!{{N.Point} {Gluing.Point}} Gluing.inr _ _
+    (sym!{{N.Point}} _ _ (congr!{{RightInside.manifold.Point} {N.Point}} (\fun (z: RightInside.manifold.Point) => z) _ _ (Inverse.inside (\into[N.Point](p, RightInterior.points) \by { member }))));
+\import \root.LocalSmoothTransfer[n := Nat.add One.dimension n, m := Nat.add One.dimension n].Between[M := N, N := manifold].From[f := Gluing.inr, g := function] \as Transfer;
+\definition exists: \exists RightLocal.Witness[x] := \block {
+  \takefrom inverse: Inverse.Witness \by Inverse.exists \then
+  \takefrom composition: Local.Witness[x] \by Composition.At[x := x, chosen := inverse].exists \then
+  \return Transfer.At[x := x, U := RightInterior.points, open := Interiors.rightInteriorOpen, contains := interior, agrees := equal, chosen := composition].exists
+};

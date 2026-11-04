@@ -1,0 +1,24 @@
+\import Local.Using[e := e] \as Extension;
+\import boundary_manifolds.Model[n := One.dimension] \as TimeModel;
+\import dedekind_reals.DedekindReal[] \as R;
+\definition point: Charts.LocalPoint c := \into[M.Point](x, c.domain) \by { contains };
+\definition a: Model.Carrier c.constraints c.image := Charts.coordinate c point;
+\definition positiveTime: TimeModel.Nonnegative timeChart.constraints one := \fun (i: One.Index)(selected: _) =>
+  R.leReplaceRight S.zero S.one (one i) (\refl(S.one)) (R.Order[].leOfLt S.zero S.one S.Estimates[].Product[].onePositive);
+\definition positiveSpatial: Model.Nonnegative c.constraints SpatialCoordinates.origin := \fun (i: Model.Coordinate)(selected: _) => R.leRefl S.zero;
+\definition nonnegative: Source.Nonnegative Patch.C timeUnit := Products.nonnegativeJoin c.constraints timeChart.constraints SpatialCoordinates.origin one positiveSpatial positiveTime;
+\definition timeCone: Source.Cone Patch.C Local.source timeUnit := \fun (i: Source.Coordinate)(active: _) => nonnegative i active.left;
+\definition preserved: Model.Cone c.constraints Extension.target (Extension.jacobian.apply timeUnit) := Extension.preservesCone timeUnit timeCone;
+\import Charts.Total[c := c] \as Total;
+\definition image: Charts.LocalPoint c := \into[M.Point](Maps.apply h.map center, c.domain) \by { Extension.targetContains };
+\definition targetEquals: (Extension.target \of Model.Point) = (a \of Model.Point) := trans!{Model.Point} _ _ _
+  (sym!{Model.Point} _ _ (Total.coordinateInside image))
+  (trans!{Model.Point} _ _ _ (congr!{M.Point Model.Point} Total.coordinate _ _ (h.initial x)) (Total.coordinateInside point));
+\definition derivativeEquals: Extension.jacobian.apply timeUnit = velocity := congr!{{calculus.Vector[n := Nat.add One.dimension n, m := n].LinearMap} Model.Point}
+  (\fun (d: calculus.Vector[n := Nat.add One.dimension n, m := n].LinearMap) => d.apply timeUnit) _ _ (sym!{{calculus.Vector[n := Nat.add One.dimension n, m := n].LinearMap}} _ _ (Local.ofExtension smooth e));
+\definition law: Model.Cone c.constraints a velocity :=
+  \idelim (Extension.target \of Model.Point) = (a \of Model.Point) \with p: Model.Point => Model.Cone c.constraints p velocity \by {
+    base: \idelim Extension.jacobian.apply timeUnit = velocity \with v: Model.Point => Model.Cone c.constraints Extension.target v \by {
+      base: preserved, equality: derivativeEquals
+    }, equality: targetEquals
+  };

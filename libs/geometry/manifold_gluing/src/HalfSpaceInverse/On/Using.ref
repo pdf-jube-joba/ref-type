@@ -1,0 +1,34 @@
+\import Maps.Preimage[U := inverse.target, W := inverse.domain, V := signs.domain, f := inverse.equivalence.backward] \as Backward;
+\definition target: Open.OpenSet := Backward.domain;
+\import Euclidean.RestrictDiffeomorphism[U := inverse.domain, V := inverse.target, f := inverse.equivalence, W := target, included := Backward.included] \as Restriction;
+\definition domain: Open.OpenSet := Restriction.domain;
+\definition included: Open.Included domain U := \fun (x: Point)(member: _) => inverse.included x (Restriction.input x member);
+\definition input[x: Open.Carrier domain]: Open.Carrier inverse.domain := Open.inclusion domain inverse.domain Restriction.input x;
+\definition image[x: Open.Carrier domain]: Open.Carrier target := Maps.apply domain target Restriction.equivalence.forward x;
+\definition sourceInside: \forall (x: Open.Carrier domain) -> \In[Point] signs.domain.points x :=
+  \fun (x: Open.Carrier domain) => \idelim (Maps.apply inverse.target inverse.domain inverse.equivalence.backward (Backward.input (image x)) \of Point) = (x \of Point)
+    \with p: Point => \In[Point] signs.domain.points p \by {
+      base: Backward.inTarget (image x), equality: inverse.equivalence.leftInverse (input x)
+    };
+\definition signInput[x: Open.Carrier domain]: Open.Carrier signs.domain := \into[Point](x, signs.domain.points) \by { sourceInside x };
+\definition point: Open.Carrier inverse.domain := \into[Point](a, inverse.domain.points) \by { inverse.contains };
+\definition imagePoint: Open.Carrier inverse.target := Maps.apply inverse.domain inverse.target inverse.equivalence.forward point;
+\definition targetContainsPoint: \In[Point] target.points imagePoint := Backward.intro imagePoint
+  (\idelim (a \of Point) = (Maps.apply inverse.target inverse.domain inverse.equivalence.backward imagePoint \of Point) \with p: Point => \In[Point] signs.domain.points p \by {
+    base: signs.contains, equality: sym!{Point} _ _ (inverse.equivalence.leftInverse point)
+  });
+\definition contains: \In[Point] domain.points a := Restriction.intro point targetContainsPoint;
+\definition imageEquals: (imagePoint \of Point) = (Maps.apply U Open.whole f a \of Point) := inverse.forward point;
+\definition containsImage: \In[Point] target.points (Maps.apply U Open.whole f a) :=
+  \idelim (imagePoint \of Point) = (Maps.apply U Open.whole f a \of Point) \with p: Point => \In[Point] target.points p \by { base: targetContainsPoint, equality: imageEquals };
+\definition forward: \forall (x: Open.Carrier domain) -> Maps.apply domain target Restriction.equivalence.forward x = Maps.apply U Open.whole f (Open.inclusion domain U included x) :=
+  \fun (x: Open.Carrier domain) => inverse.forward (input x);
+\definition scalarForward: \forall (x: Open.Carrier domain) -> Maps.apply domain target Restriction.equivalence.forward x normal = Maps.apply U Open.whole f (Open.inclusion signs.domain U signs.included (signInput x)) normal :=
+  \fun (x: Open.Carrier domain) => congr!{Point S.Real} (\fun (u: Point) => u normal) _ _ (forward x);
+\definition sign: \forall (x: Open.Carrier domain) -> Logic.PropEquiv[R.Le S.zero (x normal), R.Le S.zero (Maps.apply domain target Restriction.equivalence.forward x normal)] :=
+  \fun (x: Open.Carrier domain) => Logic.PropEquiv[_, _] {
+    ltr := \fun (positive: _) => R.leReplaceRight S.zero _ _ (sym!{S.Real} _ _ (scalarForward x)) ((signs.nonnegative (signInput x)).ltr positive),
+    rtl := \fun (positive: _) => (signs.nonnegative (signInput x)).rtl (R.leReplaceRight S.zero _ _ (scalarForward x) positive),
+  };
+\definition patch: Patch := Patch { domain := domain, target := target, included := included, contains := contains, containsImage := containsImage,
+  change := Restriction.equivalence, forward := forward, signs := sign };

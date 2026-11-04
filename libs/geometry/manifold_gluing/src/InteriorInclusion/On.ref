@@ -1,0 +1,25 @@
+\import boundary_manifolds.Interior[n := n].Of[M := M] \as Interior;
+\import Interior.Build[] \as InteriorManifold;
+\import boundary_manifolds.Boundaryless[n := n].Of[M := InteriorManifold.manifold] \as Converted;
+\definition manifold: Models.Manifold := Converted.manifold;
+\definition apply[x: manifold.Point]: M.Point := x;
+\import Models.Chart[M := manifold.Point, space := manifold.space] \as SourceCharts;
+\import Models.Chart[M := M.Point, space := M.space] \as TargetCharts;
+\import manifolds.Dimension[n := n].Chart[M := Interior.Point, space := Interior.topology] \as OrdinaryCharts;
+\import boundary_manifolds.SmoothMap[n := n, m := n].Between[M := manifold, N := M] \as Maps;
+\import \root.LocalSmoothMap[n := n, m := n].Between[M := manifold, N := M].Of[function := apply] \as Locality;
+\import boundary_manifolds.Ambient[n := n].Over[M := InteriorManifold.manifold, S := topology.Topology[Carrier := Interior.Point].Whole] \as Construction;
+\module In(x: manifold.Point, c: Interior.Chart, contains: TargetCharts.Contains c x);
+\definition continuous: topology.Continuity[A := manifold.Point, B := M.Point].Continuous manifold.space M.space apply :=
+  topology.Composition[A := manifold.Point, B := Interior.Point, C := M.Point].composeContinuous manifold.space Interior.topology M.space Converted.backward (\fun (x: Interior.Point) => x)
+    (topology.Homeomorphism[A := Interior.Point, B := manifold.Point].laws Interior.topology manifold.space Converted.comparison).backwardContinuous
+    (topology.Continuity[A := Interior.Point, B := M.Point].Corestriction[S := Interior.points].inclusionContinuous M.space);
+\definition local: \forall (x: manifold.Point) -> \exists Locality.Witness[x] := \block {
+  \fun (x: manifold.Point) \then
+  \takefrom c: \Cast[TargetCharts.Chart] ({ c: TargetCharts.Chart \where Logic.And[\In[TargetCharts.Chart] M.atlas.charts c, TargetCharts.Contains c x] }) \by M.atlas.covers x \then
+  \let data: Logic.And[\In[TargetCharts.Chart] M.atlas.charts c, TargetCharts.Contains c x] := \bysub(TargetCharts.Chart, { c: TargetCharts.Chart \where Logic.And[\In[TargetCharts.Chart] M.atlas.charts c, TargetCharts.Contains c x] }, c) \then
+  \let chart: Interior.Chart := \into[TargetCharts.Chart](c, M.atlas.charts) \by { data.left } \then
+  \return \exact(In[x := x, c := chart, contains := data.right].witness, Locality.Witness[x])
+};
+\definition map: Maps.Map := Locality.map continuous local;
+\module InverseAt(x: manifold.Point);

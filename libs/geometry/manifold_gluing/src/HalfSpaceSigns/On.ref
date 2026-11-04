@@ -1,0 +1,16 @@
+\import \root.HalfSpaceJet[n := n].On[U := U, f := f, a := a, zeroNormal := zeroNormal, fixed := fixed] \as Jet;
+\import Open.Smooth[].Derivative[] \as Partials;
+\definition component: Partials.Function U := Maps.coordinateFunction U Open.whole f normal;
+\definition partial: Partials.Function U := Partials.derivative U component normal;
+\import inverse_implicit.Euclidean[n := dimension].Jacobian[U := U, f := f].Coordinate[j := normal, i := normal] \as Coordinate;
+\definition atCenter: partial a = Jet.coefficient := trans!{S.Real} _ _ _ (sym!{S.Real} _ _ (Coordinate.value a))
+  (congr!{Point S.Real} (\fun (v: Point) => Jet.derivative.apply v normal) _ _ Normal.basis);
+\structure Patch: \Set := {
+  domain: Open.OpenSet,
+  included: Open.Included domain U,
+  contains: \In[Point] domain.points a,
+  nonnegative: \forall (u: Open.Carrier domain) -> Logic.PropEquiv[R.Le S.zero (u normal), R.Le S.zero (Maps.apply U Open.whole f (Open.inclusion domain U included u) normal)],
+  vanishes: \forall (u: Open.Carrier domain) -> Logic.PropEquiv[u normal = S.zero, Maps.apply U Open.whole f (Open.inclusion domain U included u) normal = S.zero],
+};
+\module Build(positive: R.Lt S.zero Jet.coefficient);
+\definition exists: R.Lt S.zero Jet.coefficient -> \exists Patch := \fun (positive: _) => Build[positive := positive].exists;

@@ -1,0 +1,18 @@
+\import topology.Homeomorphism[A := Product.CarrierSet, B := Image c.image] \as Homeomorphisms;
+\definition laws: Homeomorphisms.Laws[source, imageTopology c.image, c.homeomorphism] := Homeomorphisms.laws _ _ c.homeomorphism;
+\definition apply[p: Product.CarrierSet]: A := c.homeomorphism.forward p;
+\definition continuous: topology.Continuity[A := Product.CarrierSet, B := A].Continuous source space apply :=
+  topology.Composition[A := Product.CarrierSet, B := Image c.image, C := A].composeContinuous source (imageTopology c.image) space
+    c.homeomorphism.forward (\fun (x: Image c.image) => x) laws.forwardContinuous
+    (topology.Continuity[A := Image c.image, B := A].Corestriction[S := c.image].inclusionContinuous space);
+\definition boundaryMember: \forall (b: B) -> Space.Member c.image (inclusion b) :=
+  \fun (b: B) => \idelim apply (Pair.pair T B zero b) = inclusion b \with x: A => Space.Member c.image x \by {
+    base: \bysub(A, c.image, c.homeomorphism.forward (Pair.pair T B zero b)), equality: c.fixed b
+  };
+\definition boundaryPoint[b: B]: Image c.image := \into[A](inclusion b, c.image) \by { boundaryMember b };
+\definition inverseBoundary: \forall (b: B) -> c.homeomorphism.backward (boundaryPoint b) = Pair.pair T B zero b :=
+  \fun (b: B) => trans!{{Product.CarrierSet}} _ _ _
+    (sym!{{Product.CarrierSet}} _ _ (congr!{{Image c.image} {Product.CarrierSet}} c.homeomorphism.backward _ _
+      (boundary_manifolds.Refinement[A := A].equality c.image (c.homeomorphism.forward (Pair.pair T B zero b)) (boundaryPoint b) (c.fixed b))))
+    (laws.leftInverse (Pair.pair T B zero b));
+\module Relative(U: \Pow A, open: Space.IsOpenIn space U, contains: \forall (b: B) -> Space.Member U (inclusion b));

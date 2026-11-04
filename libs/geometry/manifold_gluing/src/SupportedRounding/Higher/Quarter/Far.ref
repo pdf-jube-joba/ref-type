@@ -1,0 +1,48 @@
+\import metric_spaces.RealLine[].Rays[] \as Rays;
+\import topology.Topology[Carrier := FullModel.Point] \as RawSpace;
+\definition first: \Pow FullModel.Point := { x: FullModel.Point \where R.Lt Estimates.three (x firstNormal) };
+\definition second: \Pow FullModel.Point := { x: FullModel.Point \where R.Lt Estimates.three (x secondNormal) };
+\definition raw: FullOpen.OpenSet := FullOpen.Topology[].ofOpen ({ x: FullModel.Point \where Logic.Or[R.Lt Estimates.three (x firstNormal), R.Lt Estimates.three (x secondNormal)] })
+  (RawSpace.Finite[].joinOpen FullAmbient.topology first second
+    (FullAmbient.coordinateContinuous firstNormal (Rays.Above Estimates.three) (Rays.aboveOpen Estimates.three))
+    (FullAmbient.coordinateContinuous secondNormal (Rays.Above Estimates.three) (Rays.aboveOpen Estimates.three)));
+\definition points: \Pow Target.Point := { x: Target.Point \where \In[FullModel.Point] raw.points x };
+\definition open: topology.Topology[Carrier := Target.Point].IsOpenIn Target.topology points := FullModel.Topology[C := constraints, U := FullOpen.whole].ambient raw.points (FullOpen.Topology[].open raw);
+\import \root.OpenManifold[n := dimension].On[M := Target.manifold].Within[U := points, open := open] \as Source;
+\definition old: Source.OldChart := \into[TargetCharts.Chart](Target.chart, Target.manifold.atlas.charts) \by { \refl(Target.chart) };
+\definition representation: Source.In[c := old].Representative := Source.In[c := old].Representative {
+  domain := raw, included := \fun (x: FullModel.Point)(member: _) => \refl(x),
+  within := \fun (x: FullModel.Carrier constraints raw) => \bysub(FullModel.Point, raw.points, x),
+  captures := \fun (x: Target.Point)(member: \In[Target.Point] points x) => member,
+};
+\definition patch: Source.Patch := Source.Patch { source := old, representative := representation };
+\import Source.For[patch := patch] \as Standard;
+\import FullModels.Chart[M := Source.Point, space := Source.topology] \as Charts;
+\definition sourceContains: \forall (x: Source.Point) -> Charts.Contains Standard.chart x := \fun (x: Source.Point) => \refl(x \of Target.Point);
+\definition quarter: \forall (x: Source.Point) -> Estimates.Quarter x := \fun (x: Source.Point) => Logic.And[_, _]::#
+  ((\bysub(FullOpen.Carrier FullOpen.whole, FullModel.region constraints FullOpen.whole, x)) firstNormal (Logic.Or[_, _]::left (\refl(firstNormal))))
+  ((\bysub(FullOpen.Carrier FullOpen.whole, FullModel.region constraints FullOpen.whole, x)) secondNormal (Logic.Or[_, _]::right (\refl(secondNormal))));
+\definition far: \forall (x: Source.Point) -> Estimates.Outside x := \fun (x: Source.Point) => Logic.orElim (R.Lt Estimates.three (x firstNormal)) (R.Lt Estimates.three (x secondNormal)) (Estimates.Outside x) (\bysub(Target.Point, points, x))
+  (\fun (member: _) => Logic.Or[_, _]::left (Order.leOfLt Estimates.three (x firstNormal) member))
+  (\fun (member: _) => Logic.Or[_, _]::right (Order.leOfLt Estimates.three (x secondNormal) member));
+\definition include[x: Source.Point]: manifold.Point := \into[Region.ambient.Point](x, Region.points) \by { Estimates.Far[x := x, quarter := quarter x, far := far x].member };
+\definition rawContinuous: topology.Continuity[A := Source.Point, B := FullModel.Point].Continuous Source.topology FullAmbient.topology (\fun (x: Source.Point) => include x) :=
+  topology.Composition[A := Source.Point, B := Target.Point, C := FullModel.Point].composeContinuous Source.topology Target.topology FullAmbient.topology (\fun (x: Source.Point) => x) (\fun (x: Target.Point) => x)
+    Source.Inclusion[].continuous (FullModel.Topology[C := constraints, U := FullOpen.whole].ambient);
+\definition ambientContinuous: topology.Continuity[A := Source.Point, B := Region.ambient.Point].Continuous Source.topology Region.ambient.space (\fun (x: Source.Point) => include x) :=
+  topology.Continuity[A := Source.Point, B := FullModel.Point].Corestriction[S := FullOpen.whole.points].corestrictContinuous Source.topology FullAmbient.topology (\fun (x: Source.Point) => include x) rawContinuous;
+\definition continuous: topology.Continuity[A := Source.Point, B := manifold.Point].Continuous Source.topology manifold.space include :=
+  topology.Continuity[A := Source.Point, B := Region.ambient.Point].Corestriction[S := Region.points].corestrictContinuous Source.topology Region.ambient.space include ambientContinuous;
+\import boundary_manifolds.SmoothMap[n := dimension, m := dimension].Between[M := Source.manifold, N := manifold] \as Maps;
+\import \root.LocalSmoothMap[n := dimension, m := dimension].Between[M := Source.manifold, N := manifold].Of[function := include] \as Local;
+\module AtPatch(x: Source.Point, adapted: Construction.Adapted, contains: SourceCharts.Contains Construction.On[patch := adapted].chart (include x),
+  coordinatesIdentity: \forall (p: AmbientCharts.LocalPoint adapted.source) -> (AmbientCharts.coordinate adapted.source p \of FullModel.Point) = (p \of FullModel.Point));
+\module InteriorAt(x: Source.Point, positive: R.Lt S.zero (defining (include x)));
+\module BoundaryAt(x: Source.Point, zero: defining (include x) = S.zero);
+\definition local: \forall (x: Source.Point) -> \exists Local.Witness[x] := \fun (x: Source.Point) => Logic.orElim (defining (include x) = S.zero) (Logic.Not (defining (include x) = S.zero)) (\exists Local.Witness[x])
+  (Classical.excludedMiddle (defining (include x) = S.zero)) (\fun (zero: _) => BoundaryAt[x := x, zero := zero].exists)
+  (\fun (nonzero: Logic.Not (defining (include x) = S.zero)) => \block {
+    \let positive: R.Lt S.zero (defining (include x)) := Order.ltOfLeNotEq S.zero (defining (include x)) (\bysub(Region.ambient.Point, Region.points, include x)) (\fun (same: S.zero = defining (include x)) => nonzero (sym!{S.Real} _ _ same)) \then
+    \return InteriorAt[x := x, positive := positive].exists
+  });
+\definition map: Maps.Map := Local.map continuous local;

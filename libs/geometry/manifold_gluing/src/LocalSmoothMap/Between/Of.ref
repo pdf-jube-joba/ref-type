@@ -1,0 +1,27 @@
+\definition SourceChart[x: M.Point]: \Set := \Cast[SourceCharts.Chart] ({ c: SourceCharts.Chart \where Logic.And[\In[SourceCharts.Chart] M.atlas.charts c, SourceCharts.Contains c x] });
+\definition TargetChart[y: N.Point]: \Set := \Cast[TargetCharts.Chart] ({ c: TargetCharts.Chart \where Logic.And[\In[TargetCharts.Chart] N.atlas.charts c, TargetCharts.Contains c y] });
+\definition leftMember[x: M.Point][c: SourceChart x]: \In[SourceCharts.Chart] M.atlas.charts c := (\bysub(SourceCharts.Chart, SourceChart x, c)).left;
+\definition rightMember[y: N.Point][c: TargetChart y]: \In[TargetCharts.Chart] N.atlas.charts c := (\bysub(TargetCharts.Chart, TargetChart y, c)).left;
+\definition leftContains[x: M.Point][c: SourceChart x]: SourceCharts.Contains c x := (\bysub(SourceCharts.Chart, SourceChart x, c)).right;
+\definition rightContains[y: N.Point][c: TargetChart y]: TargetCharts.Contains c y := (\bysub(TargetCharts.Chart, TargetChart y, c)).right;
+\structure Witness[x: M.Point]: \Set := {
+  left: SourceChart x,
+  right: TargetChart (function x),
+  extension: Maps.At[function := function, left := left, right := right, x := x, contains := leftContains x left].Extension,
+};
+\module Change(x: M.Point, left: SourceCharts.Chart, right: TargetCharts.Chart, contains: SourceCharts.Contains left x,
+  containsImage: TargetCharts.Contains right (function x), chosen: Witness[x]);
+\module EqualNear(x: M.Point, g: Maps.Map, U: \Pow M.Point, open: topology.Topology[Carrier := M.Point].IsOpenIn M.space U,
+  contains: \In[M.Point] U x, agrees: \forall (y: M.Point) -> \In[M.Point] U y -> function y = Maps.apply g y);
+\definition data: Maps.Data := Maps.Data { apply := function };
+\definition map[continuous: topology.Continuity[A := M.Point, B := N.Point].Continuous M.space N.space function]
+  [local: \forall (x: M.Point) -> \exists Witness[x]]: Maps.Map := \into[Maps.Data](data, Maps.Map) \by {
+    Maps.Laws[data] {
+      continuous := continuous,
+      smooth := \block {
+        \fun (left: SourceCharts.Chart)(right: TargetCharts.Chart)(x: M.Point)(contains: _)(lm: _)(rm: _)(inRight: _) \then
+        \takefrom chosen: Witness[x] \by local x \then
+        \return Change[x := x, left := left, right := right, contains := contains, containsImage := inRight, chosen := chosen].existsExtension lm rm
+      },
+    }
+  };

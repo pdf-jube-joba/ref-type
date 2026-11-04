@@ -1,0 +1,36 @@
+\definition input: \Pow A := Continuous.Preimage q V;
+\definition openInput: Source.IsOpenIn source input := continuous V openV;
+\definition family: \Pow (\Pow A) := { U: \Pow A \where \exists (k: N.Nat^ \where Logic.And[U = basis k, Source.Subset U input]) };
+\definition familyWithin: \forall (U: \Pow A) -> Source.FamilyMember family U -> Source.Subset U input := \block {
+  \fun (U: \Pow A)(member: Source.FamilyMember family U) \then
+  \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where Logic.And[U = basis k, Source.Subset U input] }) \by member \then
+  \return (\bysub(N.Nat^, { k: N.Nat^ \where Logic.And[U = basis k, Source.Subset U input] }, k)).right
+};
+\definition familyIncluded: \forall (U: \Pow A) -> Source.FamilyMember family U -> Source.FamilyMember Unions.indexed U := \block {
+  \fun (U: \Pow A)(member: Source.FamilyMember family U) \then
+  \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where Logic.And[U = basis k, Source.Subset U input] }) \by member \then
+  \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where U = basis k }] k
+    (\bysub(N.Nat^, { k: N.Nat^ \where Logic.And[U = basis k, Source.Subset U input] }, k)).left
+};
+\definition familyOpen: \forall (U: \Pow A) -> Source.FamilyMember family U -> Source.IsOpenIn source U := \block {
+  \fun (U: \Pow A)(member: Source.FamilyMember family U) \then
+  \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where U = basis k }) \by familyIncluded U member \then
+  \return \idelim basis k = U \with W: \Pow A => Source.IsOpenIn source W \by {
+    base: laws.open k, equality: sym!{{\Pow A}} _ _ (\bysub(N.Nat^, { k: N.Nat^ \where U = basis k }, k))
+  }
+};
+\definition covers: Source.Covers family (fibre y) := \block {
+  \fun (p: A)(same: q p = y) \then
+  \let inInput: Source.Member input p := \idelim y = q p \with z: B => Target.Member V z \by { base: member, equality: sym!{B} _ _ same } \then
+  \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where Logic.And[Source.Member (basis k) p, Source.Subset (basis k) input] }) \by laws.refines input openInput p inInput \then
+  \let data: Logic.And[Source.Member (basis k) p, Source.Subset (basis k) input] := \bysub(N.Nat^, { k: N.Nat^ \where Logic.And[Source.Member (basis k) p, Source.Subset (basis k) input] }, k) \then
+  \return Source.unionMemberOf family (basis k) p
+    (Logic.existsIntro[N.Nat^, { j: N.Nat^ \where Logic.And[basis k = basis j, Source.Subset (basis k) input] }] k (Logic.And[_, _]::# (\refl(basis k)) data.right)) data.left
+};
+\import std.Set[].FiniteSubset[A := \Pow A] \as Finite;
+\module Using(finite: Finite.FiniteSubset, selected: Source.FiniteSubcover[family, fibre y, finite]);
+\definition exists: \exists (k: N.Nat^ \where Logic.And[Target.Member (targetBasis k) y, Target.Subset (targetBasis k) V]) := \block {
+  \takefrom finite: \Cast[Finite.FiniteSubset] ({ f: Finite.FiniteSubset \where Source.FiniteSubcover[family, fibre y, f] })
+    \by Source.Compactness[].closedCompact source compact (fibre y) (fibreClosed y) family (Source.IsOpenCover[source, family, fibre y] { open := familyOpen, covers := covers }) \then
+  \return Using[finite := finite, selected := \bysub(Finite.FiniteSubset, { f: Finite.FiniteSubset \where Source.FiniteSubcover[family, fibre y, f] }, finite)].exists
+};

@@ -1,0 +1,66 @@
+\import \root.OpenManifold[n := Nat.add One.dimension n].On[M := Product.manifold].Within[U := V, open := open] \as Source;
+\import \root.CollarEmbedding[n := n].On[M := M].With[cover := cover].From[deformation := deformation].Of[regular := regular].ImageOf[V := V, openV := open, inside := inside] \as Image;
+\definition image: \Pow M.Point := Image.image;
+\definition imageOpen: Target.IsOpenIn M.space image := Image.open;
+\definition Point: \Set := \Cast[M.Point] image;
+\definition topology: topology.Structures[].Topology[Point] := Target.Subspace[S := image].topology M.space;
+\definition input[x: Source.Point]: Collar.Point := \into[Product.Point](x, Collar.domain) \by { inside x (\bysub(Product.Point, V, x)) };
+\definition forward[x: Source.Point]: Point := \into[M.Point](Maps.apply Candidate.map x, image) \by {
+  Logic.existsIntro[Source.Point, { z: Source.Point \where Maps.apply Candidate.map z = Maps.apply Candidate.map x }] x (\refl(Maps.apply Candidate.map x))
+};
+\definition imageInclude[y: Point]: Collar.ImagePoint := \into[M.Point](y, Collar.image) \by { \block {
+  \takefrom x: \Cast[Source.Point] ({ p: Source.Point \where Maps.apply Candidate.map p = (y \of M.Point) }) \by \bysub(M.Point, image, y) \then
+  \return Logic.existsIntro[Collar.Point, { p: Collar.Point \where Maps.apply Candidate.map p = (y \of M.Point) }] (input x)
+    (\bysub(Source.Point, { p: Source.Point \where Maps.apply Candidate.map p = (y \of M.Point) }, x))
+} };
+\definition inverseInside: \forall (y: Point) -> \In[Product.Point] V (Collar.backward (imageInclude y)) := \block {
+  \fun (y: Point) \then
+  \takefrom x: \Cast[Source.Point] ({ p: Source.Point \where Maps.apply Candidate.map p = (y \of M.Point) }) \by \bysub(M.Point, image, y) \then
+  \let same: input x = Collar.backward (imageInclude y) := Collar.uniquePreimage (imageInclude y) (input x)
+    (\bysub(Source.Point, { p: Source.Point \where Maps.apply Candidate.map p = (y \of M.Point) }, x)) \then
+  \return \idelim input x = Collar.backward (imageInclude y) \with z: Collar.Point => \In[Product.Point] V z \by {
+    base: \bysub(Product.Point, V, x), equality: same
+  }
+};
+\definition backward[y: Point]: Source.Point := \into[Product.Point](Collar.backward (imageInclude y), V) \by { inverseInside y };
+\definition rightValue: \forall (y: Point) -> Maps.apply Candidate.map (backward y) = (y \of M.Point) := \fun (y: Point) => Collar.rightValue (imageInclude y);
+\definition leftInverse: \forall (x: Source.Point) -> backward (forward x) = x := \fun (x: Source.Point) => boundary_manifolds.Refinement[A := Product.Point].equality V (backward (forward x)) x
+  (Collar.injective (input (backward (forward x))) (input x) (rightValue (forward x)));
+\definition rightInverse: \forall (y: Point) -> forward (backward y) = y := \fun (y: Point) => boundary_manifolds.Refinement[A := M.Point].equality image (forward (backward y)) y (rightValue y);
+\definition forwardContinuous: topology.Continuity[A := Source.Point, B := Point].Continuous Source.topology topology forward :=
+  topology.Continuity[A := Source.Point, B := M.Point].Corestriction[S := image].corestrictContinuous Source.topology M.space forward
+    (topology.Continuity[A := Product.Point, B := M.Point].Restriction[S := V].restrictContinuous Product.topology M.space (Maps.apply Candidate.map) Candidate.map.continuous);
+\definition imageIncludeContinuous: topology.Continuity[A := Point, B := Collar.ImagePoint].Continuous topology Collar.imageTopology imageInclude :=
+  topology.Continuity[A := Point, B := M.Point].Corestriction[S := Collar.image].corestrictContinuous topology M.space imageInclude
+    (topology.Continuity[A := Point, B := M.Point].Corestriction[S := image].inclusionContinuous M.space);
+\definition inverseToCollarContinuous: topology.Continuity[A := Point, B := Collar.Point].Continuous topology Collar.topology (\fun (y: Point) => Collar.backward (imageInclude y)) :=
+  topology.Composition[A := Point, B := Collar.ImagePoint, C := Collar.Point].composeContinuous topology Collar.imageTopology Collar.topology imageInclude Collar.backward imageIncludeContinuous Collar.backwardContinuous;
+\definition inverseToProductContinuous: topology.Continuity[A := Point, B := Product.Point].Continuous topology Product.topology (\fun (y: Point) => backward y) :=
+  topology.Composition[A := Point, B := Collar.Point, C := Product.Point].composeContinuous topology Collar.topology Product.topology (\fun (y: Point) => Collar.backward (imageInclude y)) (\fun (x: Collar.Point) => x) inverseToCollarContinuous
+    (topology.Continuity[A := Collar.Point, B := Product.Point].Corestriction[S := Collar.domain].inclusionContinuous Product.topology);
+\definition backwardContinuous: topology.Continuity[A := Point, B := Source.Point].Continuous topology Source.topology backward :=
+  topology.Continuity[A := Point, B := Product.Point].Corestriction[S := V].corestrictContinuous topology Product.topology backward inverseToProductContinuous;
+\definition homeomorphism: topology.Homeomorphism[A := Source.Point, B := Point].Homeomorphism[Source.topology, topology] :=
+  topology.Homeomorphism[A := Source.Point, B := Point].Homeomorphism[Source.topology, topology] {
+    forward := forward, backward := backward, leftInverse := leftInverse, rightInverse := rightInverse,
+    forwardContinuous := forwardContinuous, backwardContinuous := backwardContinuous,
+  };
+\definition map: boundary_manifolds.SmoothMap[n := Nat.add One.dimension n, m := Nat.add One.dimension n].Between[M := Source.manifold, N := M].Map :=
+  boundary_manifolds.MapComposition[n := Nat.add One.dimension n, m := Nat.add One.dimension n, l := Nat.add One.dimension n].Between[M := Source.manifold, N := Product.manifold, P := M].Of[f := Source.Inclusion[].map, g := Candidate.map].map;
+
+\import \root.OpenManifold[n := Nat.add One.dimension n].On[M := M].Within[U := image, open := imageOpen] \as ImageModel;
+\import boundary_manifolds.SmoothMap[n := Nat.add One.dimension n, m := Nat.add One.dimension n].Between[M := ImageModel.manifold, N := Product.manifold] \as InverseMaps;
+\definition inverse[y: Point]: Product.Point := backward y;
+\import \root.LocalSmoothMap[n := Nat.add One.dimension n, m := Nat.add One.dimension n].Between[M := ImageModel.manifold, N := Product.manifold].Of[function := inverse] \as InverseLocal;
+\import topology.Topology[Carrier := Point] \as ImageSpace;
+\module InverseAt(y: Point);
+\definition inverseMap: InverseMaps.Map := InverseLocal.map inverseToProductContinuous (\fun (y: Point) => InverseAt[y := y].exists);
+\import \root.OpenCorestriction[n := Nat.add One.dimension n, m := Nat.add One.dimension n].Between[M := ImageModel.manifold, N := Product.manifold].Into[U := V, open := open].Of[f := inverseMap,
+  inside := \fun (y: Point) => \bysub(Product.Point, V, backward y)] \as InverseCorestriction;
+\import \root.OpenCorestriction[n := Nat.add One.dimension n, m := Nat.add One.dimension n].Between[M := Source.manifold, N := M].Into[U := image, open := imageOpen].Of[f := map,
+  inside := \fun (x: Source.Point) => \bysub(M.Point, image, forward x)] \as ForwardCorestriction;
+\import \root.Diffeomorphism[n := Nat.add One.dimension n, m := Nat.add One.dimension n].Between[M := Source.manifold, N := ImageModel.manifold] \as Diffeomorphisms;
+\definition data: Diffeomorphisms.Data := Diffeomorphisms.Data { forward := ForwardCorestriction.map, backward := InverseCorestriction.map };
+\definition diffeomorphism: Diffeomorphisms.Diffeomorphism := \into[Diffeomorphisms.Data](data, Diffeomorphisms.Diffeomorphism) \by {
+  Diffeomorphisms.Laws[data] { leftInverse := leftInverse, rightInverse := rightInverse }
+};

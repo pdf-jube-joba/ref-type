@@ -1,0 +1,27 @@
+\import WindowOutside.InverseAt[x := normal x member] \as Inverse;
+\import \root.LocalSmoothMap[n := Round.dimension, m := Round.dimension].Between[M := QuarterWindow.manifold, N := Window.manifold].Of[function := Inverse.function] \as InverseLocal;
+\definition window[p: Source.Point]: Window.Point := Inverse.function (CoordinateMaps.apply Coordinates.map p);
+\import boundary_manifolds.SmoothMap[n := Nat.add (Nat.add One.dimension m) (Nat.add One.dimension n), m := Nat.add m n].Between[M := Source.manifold, N := Base.manifold] \as BaseMaps;
+\definition function[p: Source.Point]: Near.Point := Pair.pair Base.Point Window.Point (BaseMaps.apply Coordinates.baseMap p) (window p);
+\import \root.LocalSmoothMap[n := Nat.add (Nat.add One.dimension m) (Nat.add One.dimension n), m := Round.dimension].Between[M := Source.manifold, N := QuarterWindow.manifold].Of[function := CoordinateMaps.apply Coordinates.map] \as NormalLocal;
+\import \root.SmoothWitness[n := Nat.add (Nat.add One.dimension m) (Nat.add One.dimension n), m := Round.dimension].Between[M := Source.manifold, N := QuarterWindow.manifold].Of[f := Coordinates.map] \as NormalWitness;
+\import \root.LocalSmoothMap[n := Nat.add (Nat.add One.dimension m) (Nat.add One.dimension n), m := Round.dimension].Between[M := Source.manifold, N := Window.manifold].Of[function := window] \as WindowLocal;
+\import \root.LocalSmoothCompose[n := Nat.add (Nat.add One.dimension m) (Nat.add One.dimension n), m := Round.dimension, l := Round.dimension].Between[M := Source.manifold, N := QuarterWindow.manifold, P := Window.manifold].From[f := CoordinateMaps.apply Coordinates.map, g := Inverse.function] \as Compose;
+\import \root.LocalSmoothMap[n := Nat.add (Nat.add One.dimension m) (Nat.add One.dimension n), m := Nat.add m n].Between[M := Source.manifold, N := Base.manifold].Of[function := BaseMaps.apply Coordinates.baseMap] \as BaseLocal;
+\import \root.SmoothWitness[n := Nat.add (Nat.add One.dimension m) (Nat.add One.dimension n), m := Nat.add m n].Between[M := Source.manifold, N := Base.manifold].Of[f := Coordinates.baseMap] \as BaseWitness;
+\import \root.LocalSmoothMap[n := Nat.add (Nat.add One.dimension m) (Nat.add One.dimension n), m := Nat.add Round.dimension (Nat.add m n)].Between[M := Source.manifold, N := Near.manifold].Of[function := function] \as Local;
+\import \root.LocalSmoothPair[n := Nat.add m n, m := Round.dimension].Of[M := Base.manifold, N := Window.manifold].From[p := Nat.add (Nat.add One.dimension m) (Nat.add One.dimension n)].On[P := Source.manifold].Using[f := BaseMaps.apply Coordinates.baseMap, g := window] \as PairLocal;
+\definition exists: \exists Local.Witness[x] := \block {
+  \takefrom normal: NormalLocal.Witness[x] \by NormalWitness.exists x \then
+  \takefrom inverse: InverseLocal.Witness[CoordinateMaps.apply Coordinates.map x] \by Inverse.exists \then
+  \takefrom composite: WindowLocal.Witness[x] \by Compose.At[x := x, chosen := normal, next := inverse].exists \then
+  \takefrom base: BaseLocal.Witness[x] \by BaseWitness.exists x \then
+  \return PairLocal.At[x := x, first := base, second := composite].exists
+};
+\definition windowEqual: \forall (p: Source.Point)(member: ParameterSpace.Member points p) -> window p = rounded p member := \fun (p: Source.Point)(member: ParameterSpace.Member points p) => Inverse.inside (normal p member);
+\definition equalsInverse: \forall (p: Source.Point)(member: ParameterSpace.Member points p) -> function p = Parameters.backward (cut p member) := \fun (p: Source.Point)(member: ParameterSpace.Member points p) => Pair.Prop[A := Base.Point, B := Window.Point].ext (function p) (Parameters.backward (cut p member))
+  (\refl(Parameters.base (cut p member))) (trans!{{Window.Point}} _ _ _ (windowEqual p member)
+    (Parameters.windowEquality (rounded p member) (Parameters.window (cut p member)) (roundedRaw p member)));
+\definition rawValue: \forall (p: Source.Point)(member: ParameterSpace.Member points p) -> (Image.homeomorphism.forward (function p) \of Product.Point) = (Parameterization.forward p \of Product.Point) := \fun (p: Source.Point)(member: ParameterSpace.Member points p) =>
+  trans!{{Product.Point}} _ _ _ (congr!{{Near.Point} {Product.Point}} (\fun (z: Near.Point) => Image.homeomorphism.forward z) _ _ (equalsInverse p member))
+    (congr!{{Parameters.Point} {Product.Point}} (\fun (z: Parameters.Point) => Image.forward z) _ _ (Parameters.rightInverse (cut p member)));

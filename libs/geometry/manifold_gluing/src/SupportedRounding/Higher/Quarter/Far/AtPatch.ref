@@ -1,0 +1,43 @@
+\import Construction.On[patch := adapted] \as Patch;
+\definition left: Local.SourceChart x := \into[Charts.Chart](Standard.chart, Local.SourceChart x) \by {
+  Logic.And[_, _]::# (Logic.existsIntro[Source.Patch, { p: Source.Patch \where Standard.chart = Source.chart p }] patch (\refl(Standard.chart))) (sourceContains x)
+};
+\definition right: Local.TargetChart (include x) := \into[SourceCharts.Chart](Patch.chart, Local.TargetChart (include x)) \by {
+  Logic.And[_, _]::# (Logic.existsIntro[Construction.Adapted, { p: Construction.Adapted \where Patch.chart = Construction.On[patch := p].chart }] adapted (\refl(Patch.chart))) contains
+};
+\import Maps.At[function := include, left := left, right := right, x := x, contains := Local.leftContains x left] \as Extension;
+\definition oldCenter: AmbientCharts.LocalPoint adapted.source := Patch.oldPoint (\into[manifold.Point](include x, Patch.domain) \by { contains });
+\definition centerInSource: \In[FullModel.Point] adapted.source.image.points Extension.source := \idelim (AmbientCharts.coordinate adapted.source oldCenter \of FullModel.Point) = (Extension.source \of FullModel.Point)
+  \with u: FullModel.Point => \In[FullModel.Point] adapted.source.image.points u \by {
+    base: \bysub(FullModel.Point, adapted.source.image.points, AmbientCharts.coordinate adapted.source oldCenter), equality: coordinatesIdentity oldCenter
+  };
+\definition neighborhood: FullOpen.OpenSet := FullOpen.intersection adapted.source.image raw;
+\definition included: FullOpen.Included neighborhood raw := FullOpen.intersectionRight adapted.source.image raw;
+\definition source[u: FullModel.Carrier constraints neighborhood]: FullModel.Carrier constraints raw := \into[FullOpen.Carrier raw](FullOpen.inclusion neighborhood raw included u, FullModel.region constraints raw) \by { \bysub(FullOpen.Carrier neighborhood, FullModel.region constraints neighborhood, u) };
+\definition actual[u: FullModel.Carrier constraints neighborhood]: Source.Point := Charts.point Standard.chart (source u);
+\definition oldInput[u: FullModel.Carrier constraints neighborhood]: FullOpen.Carrier adapted.source.image := FullOpen.inclusion neighborhood adapted.source.image (FullOpen.intersectionLeft adapted.source.image raw) u;
+\definition original[u: FullModel.Carrier constraints neighborhood]: AmbientCharts.LocalPoint adapted.source := AmbientCharts.point adapted.source (oldInput u);
+\definition originalEquals: \forall (u: FullModel.Carrier constraints neighborhood) -> (original u \of FullModel.Point) = (include (actual u) \of FullModel.Point) :=
+  \fun (u: FullModel.Carrier constraints neighborhood) => trans!{FullModel.Point} _ _ _ (sym!{FullModel.Point} _ _ (coordinatesIdentity (original u)))
+    (congr!{{FullOpen.Carrier adapted.source.image} {FullModel.Point}} (\fun (p: FullOpen.Carrier adapted.source.image) => p) _ _ (AmbientCharts.Of[chart := adapted.source].coordinatePoint (oldInput u)));
+\definition inside: \forall (u: FullModel.Carrier constraints neighborhood) -> SourceCharts.Contains Patch.chart (include (actual u)) :=
+  \fun (u: FullModel.Carrier constraints neighborhood) => \idelim (original u \of Region.ambient.Point) = (include (actual u) \of Region.ambient.Point)
+    \with p: Region.ambient.Point => AmbientCharts.Contains adapted.source p \by {
+      base: \bysub(Region.ambient.Point, adapted.source.domain, original u),
+      equality: boundary_manifolds.Refinement[A := FullModel.Point].equality FullOpen.whole.points (original u) (include (actual u)) (originalEquals u)
+    };
+\definition target[u: FullModel.Carrier constraints neighborhood]: SourceCharts.LocalPoint Patch.chart := \into[manifold.Point](include (actual u), Patch.domain) \by { inside u };
+\definition coordinateEqual: \forall (u: FullModel.Carrier constraints neighborhood) -> AmbientCharts.coordinate adapted.source (Patch.oldPoint (target u)) = oldInput u :=
+  \fun (u: FullModel.Carrier constraints neighborhood) => boundary_manifolds.Refinement[A := FullModel.Point].equality adapted.source.image.points (AmbientCharts.coordinate adapted.source (Patch.oldPoint (target u))) (oldInput u) (coordinatesIdentity (Patch.oldPoint (target u)));
+\import calculus.Maps[n := dimension, m := dimension] \as Calculus;
+\import Calculus.Restriction[U := neighborhood, V := adapted.source.image, W := adapted.image] \as Restriction;
+\definition forward: Calculus.Map neighborhood adapted.image := Restriction.input (FullOpen.intersectionLeft adapted.source.image raw) adapted.change.forward;
+\import Calculus.Corestriction[U := neighborhood, V := adapted.image, W := FullOpen.whole, f := forward,
+  inside := \fun (u: FullOpen.Carrier neighborhood) => \refl(Calculus.apply neighborhood adapted.image forward u \of FullModel.Point)] \as Forward;
+\definition extension: Extension.Extension := Extension.Extension {
+  neighborhood := neighborhood, included := included,
+  contains := Logic.And[_, _]::# centerInSource (\bysub(Target.Point, points, x)), map := Forward.map, inside := inside,
+  agrees := \fun (u: FullModel.Carrier constraints neighborhood) => congr!{{FullOpen.Carrier adapted.source.image} {FullModel.Point}}
+    (\fun (p: FullOpen.Carrier adapted.source.image) => Calculus.apply adapted.source.image adapted.image adapted.change.forward p) _ _ (sym!{{FullOpen.Carrier adapted.source.image}} _ _ (coordinateEqual u)),
+};
+\definition witness: Local.Witness[x] := Local.Witness[x] { left := left, right := right, extension := extension };

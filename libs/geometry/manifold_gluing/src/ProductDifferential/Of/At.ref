@@ -1,0 +1,57 @@
+\import boundary_manifolds.Tangent[n := Nat.add m n].On[M := Product.manifold].At[x := x] \as Tangent;
+\import boundary_manifolds.Tangent[n := n].On[M := M].At[x := Product.first x] \as LeftTangent;
+\import boundary_manifolds.Tangent[n := m].On[M := N].At[x := Product.second x] \as RightTangent;
+\import boundary_manifolds.Differential[n := Nat.add m n, m := n].Between[M := Product.manifold, N := M].At[f := Projections.First[].map, x := x] \as First;
+\import boundary_manifolds.Differential[n := Nat.add m n, m := m].Between[M := Product.manifold, N := N].At[f := Projections.Second[].map, x := x] \as Second;
+\definition first[v: Tangent.Vector]: LeftTangent.Vector := First.value.apply v;
+\definition second[v: Tangent.Vector]: RightTangent.Vector := Second.value.apply v;
+\module InCharts(c: LeftTangent.Chart, d: RightTangent.Chart);
+\definition Values[u: LeftTangent.Vector][v: RightTangent.Vector]: \Set := \Cast[Tangent.Vector]
+  ({ w: Tangent.Vector \where Logic.And[first w = u, second w = v] });
+\definition existence: \forall (u: LeftTangent.Vector)(v: RightTangent.Vector) -> \exists Values u v := \block {
+  \fun (u: LeftTangent.Vector)(v: RightTangent.Vector) \then
+  \takefrom c: LeftTangent.Chart \by LeftTangent.chartExists \then
+  \takefrom d: RightTangent.Chart \by RightTangent.chartExists \then
+  \return \exact(\into[Tangent.Vector](InCharts[c := c, d := d].pair u v, Values u v) \by {
+    Logic.And[_, _]::# (InCharts[c := c, d := d].firstPair u v) (InCharts[c := c, d := d].secondPair u v)
+  }, Values u v)
+};
+\definition injective: \forall (u, v: Tangent.Vector) -> first u = first v -> second u = second v -> u = v := \block {
+  \fun (u, v: Tangent.Vector)(left: _)(right: _) \then
+  \takefrom c: LeftTangent.Chart \by LeftTangent.chartExists \then
+  \takefrom d: RightTangent.Chart \by RightTangent.chartExists \then
+  \return InCharts[c := c, d := d].injective u v left right
+};
+\definition uniqueness[u: LeftTangent.Vector][v: RightTangent.Vector]: \forall (w, z: Values u v) -> w = z :=
+  \fun (w, z: Values u v) => injective w z
+    (trans!{{LeftTangent.Vector}} _ _ _ (\bysub(Tangent.Vector, Values u v, w)).left (sym!{{LeftTangent.Vector}} _ _ (\bysub(Tangent.Vector, Values u v, z)).left))
+    (trans!{{RightTangent.Vector}} _ _ _ (\bysub(Tangent.Vector, Values u v, w)).right (sym!{{RightTangent.Vector}} _ _ (\bysub(Tangent.Vector, Values u v, z)).right));
+\definition pair[u: LeftTangent.Vector][v: RightTangent.Vector]: Values u v := \choice Values u v \by { existence: existence u v, uniqueness: uniqueness u v };
+\definition firstPair[u: LeftTangent.Vector][v: RightTangent.Vector]: first (pair u v) = u := (\bysub(Tangent.Vector, Values u v, pair u v)).left;
+\definition secondPair[u: LeftTangent.Vector][v: RightTangent.Vector]: second (pair u v) = v := (\bysub(Tangent.Vector, Values u v, pair u v)).right;
+\definition recover: \forall (v: Tangent.Vector) -> pair (first v) (second v) = v := \fun (v: Tangent.Vector) => injective _ _ (firstPair (first v) (second v)) (secondPair (first v) (second v));
+\import Tangent.Operations[] \as Operations;
+\import LeftTangent.Operations[] \as LeftOperations;
+\import RightTangent.Operations[] \as RightOperations;
+\definition pairZero: pair LeftOperations.origin RightOperations.origin = Operations.origin := injective _ _
+  (trans!{{LeftTangent.Vector}} _ _ _ (firstPair LeftOperations.origin RightOperations.origin) (sym!{{LeftTangent.Vector}} _ _ First.value.preservesZero))
+  (trans!{{RightTangent.Vector}} _ _ _ (secondPair LeftOperations.origin RightOperations.origin) (sym!{{RightTangent.Vector}} _ _ Second.value.preservesZero));
+\definition pairAdd: \forall (u, v: LeftTangent.Vector)(w, z: RightTangent.Vector) ->
+  pair (LeftOperations.plus u v) (RightOperations.plus w z) = Operations.plus (pair u w) (pair v z) :=
+  \fun (u, v: LeftTangent.Vector)(w, z: RightTangent.Vector) => injective _ _
+    (trans!{{LeftTangent.Vector}} _ _ _ (firstPair (LeftOperations.plus u v) (RightOperations.plus w z))
+      (sym!{{LeftTangent.Vector}} _ _ (trans!{{LeftTangent.Vector}} _ _ _ (First.value.preservesAdd (pair u w) (pair v z))
+        (congr!{{LeftTangent.Vector} {LeftTangent.Vector} {LeftTangent.Vector}} LeftOperations.plus _ _ _ _ (firstPair u w) (firstPair v z)))))
+    (trans!{{RightTangent.Vector}} _ _ _ (secondPair (LeftOperations.plus u v) (RightOperations.plus w z))
+      (sym!{{RightTangent.Vector}} _ _ (trans!{{RightTangent.Vector}} _ _ _ (Second.value.preservesAdd (pair u w) (pair v z))
+        (congr!{{RightTangent.Vector} {RightTangent.Vector} {RightTangent.Vector}} RightOperations.plus _ _ _ _ (secondPair u w) (secondPair v z)))));
+\definition pairScale: \forall (r: real.Analysis[].Real)(u: LeftTangent.Vector)(v: RightTangent.Vector) ->
+  pair (LeftOperations.scale r u) (RightOperations.scale r v) = Operations.scale r (pair u v) :=
+  \fun (r: real.Analysis[].Real)(u: LeftTangent.Vector)(v: RightTangent.Vector) => injective _ _
+    (trans!{{LeftTangent.Vector}} _ _ _ (firstPair (LeftOperations.scale r u) (RightOperations.scale r v))
+      (sym!{{LeftTangent.Vector}} _ _ (trans!{{LeftTangent.Vector}} _ _ _ (First.value.preservesScale r (pair u v))
+        (congr!{{LeftTangent.Vector} {LeftTangent.Vector}} (LeftOperations.scale r) _ _ (firstPair u v)))))
+    (trans!{{RightTangent.Vector}} _ _ _ (secondPair (LeftOperations.scale r u) (RightOperations.scale r v))
+      (sym!{{RightTangent.Vector}} _ _ (trans!{{RightTangent.Vector}} _ _ _ (Second.value.preservesScale r (pair u v))
+        (congr!{{RightTangent.Vector} {RightTangent.Vector}} (RightOperations.scale r) _ _ (secondPair u v)))));
+\module Coordinates(c: LeftTangent.Chart, d: RightTangent.Chart);

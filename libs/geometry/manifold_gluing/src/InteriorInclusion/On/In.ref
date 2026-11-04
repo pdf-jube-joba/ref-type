@@ -1,0 +1,32 @@
+\import Interior.In[c := c] \as Face;
+\import manifolds.Dimension[n := n].Atlas[M := Interior.Point, space := Interior.topology] \as OrdinaryAtlas;
+\definition originalMember: \In[OrdinaryCharts.Chart] Interior.charts Face.chart :=
+  Logic.existsIntro[Interior.Chart, { d: Interior.Chart \where Face.chart = Interior.In[c := d].chart }] c (\refl(Face.chart));
+\definition oldChart: Converted.OldChart := \into[OrdinaryCharts.Chart](Face.chart, InteriorManifold.manifold.atlas.charts) \by {
+  OrdinaryAtlas.includedInSaturation InteriorManifold.atlas Face.chart originalMember
+};
+\import Converted.InChart[c := oldChart] \as Conversion;
+\import Construction.On[patch := Conversion.patch] \as Patch;
+\definition sourceMember: \In[SourceCharts.Chart] manifold.atlas.charts Patch.chart :=
+  Logic.existsIntro[Construction.Adapted, { p: Construction.Adapted \where Patch.chart = Construction.On[patch := p].chart }] Conversion.patch (\refl(Patch.chart));
+\definition left: Locality.SourceChart x := \into[SourceCharts.Chart](Patch.chart, Locality.SourceChart x) \by { Logic.And[_, _]::# sourceMember contains };
+\definition right: Locality.TargetChart (apply x) := \into[TargetCharts.Chart](c, Locality.TargetChart (apply x)) \by { Logic.And[_, _]::# (\bysub(TargetCharts.Chart, M.atlas.charts, c)) contains };
+\import Maps.At[function := apply, left := left, right := right, x := x, contains := Locality.leftContains x left] \as Local;
+\import calculus.Maps[n := n, m := n] \as Calculus;
+\definition identity: Calculus.Map Face.image Open.whole := Calculus.Map[Face.image, Open.whole] {
+  apply := \fun (u: Open.Carrier Face.image) => \into[Model.Point](u, Open.whole.points) \by { \refl(u \of Model.Point) },
+  smooth := \fun (i: Model.Coordinate) => Open.Examples[].projectionSmooth Face.image i,
+};
+\definition included: Open.Included Face.image Patch.chart.image := \fun (u: Model.Point)(member: _) => member;
+\definition target[u: Model.Carrier Patch.chart.constraints Face.image]: TargetCharts.LocalPoint c := Face.pointValue u;
+\definition containsTarget: \forall (u: Model.Carrier Patch.chart.constraints Face.image) -> TargetCharts.Contains c (apply (SourceCharts.point Patch.chart u)) :=
+  \fun (u: Model.Carrier Patch.chart.constraints Face.image) => \bysub(M.Point, c.domain, target u);
+\definition coordinateValue: \forall (u: Model.Carrier Patch.chart.constraints Face.image) -> (TargetCharts.coordinate c (target u) \of Model.Point) = (u \of Model.Point) :=
+  \fun (u: Model.Carrier Patch.chart.constraints Face.image) => TargetCharts.coordinatePoint c (Face.coordinateInput u);
+\definition extension: Local.Extension := Local.Extension {
+  neighborhood := Face.image, included := included,
+  contains := \bysub(Model.Point, Face.image.points, SourceCharts.coordinate Patch.chart (\into[manifold.Point](x, Patch.chart.domain) \by { contains })),
+  map := identity, inside := containsTarget,
+  agrees := \fun (u: Model.Carrier Patch.chart.constraints Face.image) => sym!{Model.Point} _ _ (coordinateValue u),
+};
+\definition witness: Locality.Witness[x] := Locality.Witness[x] { left := left, right := right, extension := extension };

@@ -1,0 +1,25 @@
+\import ProductTangent.InCharts[c := c, d := d] \as TargetChart;
+\definition left: Product.LeftChart := \into[LeftCharts.Chart](c, M.atlas.charts) \by { LeftTangent.member c };
+\definition right: Product.RightChart := \into[RightCharts.Chart](d, N.atlas.charts) \by { RightTangent.member d };
+\import Pairing.In[left := a, c := left, d := right, x := x, contains := Domain.contains a, inLeft := LeftTangent.contains c, inRight := RightTangent.contains d] \as LocalPair;
+\import FirstMaps.At[function := f.apply, left := a, right := c, x := x, contains := Domain.contains a] \as First;
+\import SecondMaps.At[function := g.apply, left := a, right := d, x := x, contains := Domain.contains a] \as Second;
+\import Maps.At[function := Pairing.apply, left := a, right := TargetChart.total, x := x, contains := Domain.contains a] \as Total;
+\import D1.InCharts[left := a, right := c] \as FirstDerivative;
+\import D2.InCharts[left := a, right := d] \as SecondDerivative;
+\import D.InCharts[left := a, right := TargetChart.total] \as Derivative;
+\module With(first: First.Extension, second: Second.Extension);
+\definition coordinateLaw: \forall (v: Domain.Vector) -> Codomain.Coordinate[chart := TargetChart.total].decode (D.value.apply v) =
+  Blocks.join (LeftTangent.Coordinate[chart := c].decode (D1.value.apply v)) (RightTangent.Coordinate[chart := d].decode (D2.value.apply v)) := \block {
+  \fun (v: Domain.Vector) \then
+  \takefrom first: First.Extension \by FirstDerivative.smooth \then
+  \takefrom second: Second.Extension \by SecondDerivative.smooth \then
+  \return With[first := first, second := second].law v
+};
+\definition law: \forall (v: Domain.Vector) -> D.value.apply v = ProductTangent.pair (D1.value.apply v) (D2.value.apply v) :=
+  \fun (v: Domain.Vector) => trans!{{Codomain.Vector}} _ _ _ (sym!{{Codomain.Vector}} _ _ (Codomain.Coordinate[chart := TargetChart.total].encodeDecode (D.value.apply v)))
+    (trans!{{Codomain.Vector}} _ _ _
+      (congr!{Target.Point {Codomain.Vector}} Codomain.Coordinate[chart := TargetChart.total].encode _ _
+        (trans!{Target.Point} _ _ _ (coordinateLaw v)
+          (sym!{Target.Point} _ _ (ProductTangent.Coordinates[c := c, d := d].pairCoordinates (D1.value.apply v) (D2.value.apply v)))))
+      (Codomain.Coordinate[chart := TargetChart.total].encodeDecode (ProductTangent.pair (D1.value.apply v) (D2.value.apply v))));

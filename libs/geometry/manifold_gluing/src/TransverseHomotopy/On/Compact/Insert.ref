@@ -1,0 +1,27 @@
+\definition oldIncluded[included: Included (Finite.Insert U Y)]: Included Y :=
+  \fun (V: \Pow M.Point)(member: _) => included V (Logic.Or[_, _]::right member);
+\module With(p: Patch, same: U = p.patch.domain, h: Homotopies.Homotopy, works: Works[Y, h]) {
+  \import \root.TransverseHomotopy[n := n].On[M := M].Composition[first := h, second := p.patch.homotopy] \as StrictComposition;
+  \import Homotopies.Composition[first := h, second := p.patch.homotopy] \as Composition;
+  \definition homotopy: Homotopies.Homotopy := Composition.homotopy;
+  \definition joined: Works[Finite.Insert U Y, homotopy] := Works[Finite.Insert U Y, homotopy] {
+    active := \fun (x: M.Point)(member: _) => Space.unionMemberElim (Finite.Insert U Y) x (Homotopies.Activates homotopy x)
+      (\fun (V: \Pow M.Point)(selected: _)(inside: _) => Logic.orElim (V = U) (Space.FamilyMember Y V) (Homotopies.Activates homotopy x) selected
+        (\fun (equal: _) => Composition.activatesSecond x (p.patch.activates x
+          (\idelim V = p.patch.domain \with W: \Pow M.Point => Space.Member W x \by { base: inside, equality: trans!{{\Pow M.Point}} _ _ _ equal same })))
+        (\fun (old: _) => Composition.activatesFirst x (works.active x (Space.unionMemberOf Y V x old inside)))) member,
+    strict := \fun (x: M.Point)(boundary: _)(member: _) => Space.unionMemberElim (Finite.Insert U Y) x (StrictAt homotopy x)
+      (\fun (V: \Pow M.Point)(selected: _)(inside: _) => Logic.orElim (V = U) (Space.FamilyMember Y V) (StrictAt homotopy x) selected
+        (\fun (equal: _) => StrictComposition.strictRight x (p.strict x boundary
+          (\idelim V = p.patch.domain \with W: \Pow M.Point => Space.Member W x \by { base: inside, equality: trans!{{\Pow M.Point}} _ _ _ equal same })))
+        (\fun (old: _) => StrictComposition.strictLeft x (works.strict x boundary (Space.unionMemberOf Y V x old inside)))) member,
+  };
+}
+\definition law: \In[\Pow (\Pow M.Point)] Predicate (Finite.Insert U Y) := \block {
+  \fun (included: Included (Finite.Insert U Y)) \then
+  \takefrom p: \Cast[Patch] ({ p: Patch \where U = p.patch.domain }) \by included U (Finite.inInsertNew U Y) \then
+  \takefrom h: \Cast[Homotopies.Homotopy] ({ h: Homotopies.Homotopy \where Works[Y, h] }) \by previous (oldIncluded included) \then
+  \return Logic.existsIntro[Homotopies.Homotopy, { h: Homotopies.Homotopy \where Works[Finite.Insert U Y, h] }]
+    With[p := p, same := \bysub(Patch, { p: Patch \where U = p.patch.domain }, p), h := h, works := \bysub(Homotopies.Homotopy, { h: Homotopies.Homotopy \where Works[Y, h] }, h)].homotopy
+    With[p := p, same := \bysub(Patch, { p: Patch \where U = p.patch.domain }, p), h := h, works := \bysub(Homotopies.Homotopy, { h: Homotopies.Homotopy \where Works[Y, h] }, h)].joined
+};

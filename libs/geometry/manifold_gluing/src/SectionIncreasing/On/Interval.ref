@@ -1,0 +1,20 @@
+\import Section.Interval[left := left, right := right] \as Curve;
+\import calculus.Real[].MeanValue[].Interval[a := left, b := right] \as Mean;
+\import Mean.Estimate[] \as Estimate;
+\import \root.ScalarIncreasing[].On[a := left, b := right, f := Section.value] \as Increasing;
+\definition continuous: calculus.Real[].Limit[].Topology[].Subset[S := metric_spaces.RealLine[].ClosedInterval left right].ContinuousOn Section.value :=
+  \fun (s: Closed left right) => Estimate.continuousAt Section.value (Curve.coefficient g) s (Curve.derivative g contains partial s);
+\definition positiveDerivatives: \forall (c: S.Real) -> Mean.Interior c -> \exists ( d: S.Real \where Increasing.PositiveDerivative[c, d] ) := \block {
+  \fun (c: S.Real)(inside: Mean.Interior c) \then
+  \let closed: Closed left right := \into[S.Real](c, metric_spaces.RealLine[].ClosedInterval left right) \by {
+    Logic.And[_, _]::# (Order.leOfLt left c inside.left) (Order.leOfLt c right inside.right)
+  } \then
+  \return Logic.existsIntro[S.Real, { d: S.Real \where Increasing.PositiveDerivative[c, d] }] (Curve.coefficient g c)
+    (Increasing.PositiveDerivative[c, Curve.coefficient g c] {
+      derivative := Curve.derivative g contains partial closed,
+      positive := R.ltReplaceRight S.zero (g (sample left right contains closed)) (Curve.coefficient g c)
+        (sym!{S.Real} _ _ (Curve.coefficientValue g closed contains)) (positive closed),
+    })
+};
+\definition strictly: R.Lt left right -> R.Lt (Section.value left) (Section.value right) :=
+  \fun (ordered: _) => Increasing.strictly ordered continuous positiveDerivatives;

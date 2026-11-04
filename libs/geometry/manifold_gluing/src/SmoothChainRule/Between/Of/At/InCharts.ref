@@ -1,0 +1,22 @@
+\import First.At[function := First.apply f, left := a, right := b, x := x, contains := Domain.contains a] \as Left;
+\import Second.At[function := Second.apply g, left := b, right := c, x := First.apply f x, contains := Middle.contains b] \as Right;
+\import Result.At[function := Result.apply map, left := a, right := c, x := x, contains := Domain.contains a] \as Total;
+\import boundary_manifolds.Model[n := n] \as Source;
+\import boundary_manifolds.Model[n := m] \as Mid;
+\import boundary_manifolds.Model[n := l] \as Target;
+\import D1.InCharts[left := a, right := b] \as FirstDerivative;
+\import D2.InCharts[left := b, right := c] \as SecondDerivative;
+\import D.InCharts[left := a, right := c] \as TotalDerivative;
+\module With(p: Left.Extension, q: Right.Extension);
+\definition coordinateLaw: \forall (v: Domain.Vector) -> Codomain.Coordinate[chart := c].decode (D.value.apply v) = Codomain.Coordinate[chart := c].decode (candidate.apply v) := \block {
+  \fun (v: Domain.Vector) \then
+  \takefrom p: Left.Extension \by FirstDerivative.smooth \then
+  \takefrom q: Right.Extension \by SecondDerivative.smooth \then
+  \return With[p := p, q := q].law v
+};
+\definition law: \forall (v: Domain.Vector) -> D.value.apply v = candidate.apply v :=
+  \fun (v: Domain.Vector) => trans!{{Codomain.Vector}} _ _ _
+    (sym!{{Codomain.Vector}} _ _ (Codomain.Coordinate[chart := c].encodeDecode (D.value.apply v)))
+    (trans!{{Codomain.Vector}} _ _ _
+      (congr!{Target.Point {Codomain.Vector}} Codomain.Coordinate[chart := c].encode _ _ (coordinateLaw v))
+      (Codomain.Coordinate[chart := c].encodeDecode (candidate.apply v)));

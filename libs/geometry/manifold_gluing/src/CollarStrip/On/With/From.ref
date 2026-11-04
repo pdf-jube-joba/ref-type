@@ -1,0 +1,62 @@
+\import \root.CollarLocal[n := n].On[M := M].With[cover := cover].From[deformation := deformation] \as Local;
+\import \root.InwardNeighborhood[n := n].On[M := M].With[cover := cover].From[h := deformation.homotopy, active := deformation.active] \as Candidate;
+\import boundary_manifolds.Product[n := n, m := One.dimension].Of[M := Inclusion.manifold, N := Time.manifold] \as Product;
+\import boundary_manifolds.SmoothMap[n := Nat.add One.dimension n, m := Nat.add One.dimension n].Between[M := Product.manifold, N := M] \as Maps;
+\import topological_constructions.Product[A := Time.Point, B := Inclusion.manifold.Point] \as Source;
+\import topological_constructions.Product[A := Inclusion.manifold.Point, B := Time.Point] \as ForwardProduct;
+\definition source: topology.Structures[].Topology[Source.CarrierSet] := Source.topology Time.manifold.space Inclusion.manifold.space;
+\definition swap[p: Source.CarrierSet]: Product.Point := Pair.pair Inclusion.manifold.Point Time.Point
+  (Pair.second Time.Point Inclusion.manifold.Point p) (Pair.first Time.Point Inclusion.manifold.Point p);
+\definition swapContinuous: topology.Continuity[A := Source.CarrierSet, B := Product.Point].Continuous source Product.topology swap :=
+  ForwardProduct.Universal[X := Source.CarrierSet].pairContinuous source Inclusion.manifold.space Time.manifold.space
+    (Pair.second Time.Point Inclusion.manifold.Point) (Pair.first Time.Point Inclusion.manifold.Point)
+    (Source.Maps[].secondContinuous Time.manifold.space Inclusion.manifold.space) (Source.Maps[].firstContinuous Time.manifold.space Inclusion.manifold.space);
+\definition apply[p: Source.CarrierSet]: M.Point := Maps.apply Local.map (swap p);
+\definition continuous: topology.Continuity[A := Source.CarrierSet, B := M.Point].Continuous source M.space apply :=
+  topology.Composition[A := Source.CarrierSet, B := Product.Point, C := M.Point].composeContinuous source Product.topology M.space swap (Maps.apply Local.map)
+    swapContinuous Local.map.continuous;
+\import \root.CompactStrip[T := Time.Point, B := Inclusion.manifold.Point, X := M.Point].On[parameterSpace := Time.manifold.space, baseSpace := Inclusion.manifold.space, targetSpace := M.space, zero := Time.zero, f := apply] \as Strip;
+\definition Uniform: \Set := Strip.Uniform;
+\definition initialInjective: Strip.InitialInjective := \fun (x, y: Inclusion.manifold.Point)(same: _) => inclusionInjective x y
+  (trans!{M.Point} _ _ _ (sym!{M.Point} _ _ (Candidate.neighborhood.initial x))
+    (trans!{M.Point} _ _ _ same (Candidate.neighborhood.initial y)));
+\module Patch(b: Inclusion.manifold.Point, patch: Local.Patch[b]);
+\definition local: Strip.Local := \block {
+  \fun (b: Inclusion.manifold.Point) \then
+  \takefrom patch: Local.Patch[b] \by Local.local b \then
+  \return Logic.existsIntro[Strip.Patch, { p: Strip.Patch \where \In[Source.CarrierSet] p.domain (Pair.pair Time.Point Inclusion.manifold.Point Time.zero b) }]
+    Patch[b := b, patch := patch].patch Patch[b := b, patch := patch].contains
+};
+\definition existsUniform[compactM: Target.IsCompact M.space]: \exists Uniform := Strip.existsUniform continuous M.hausdorff (compact compactM) initialInjective local;
+\definition patches: \Pow (\Pow Product.Point) := { U: \Pow Product.Point \where
+  \exists (b: Inclusion.manifold.Point \where \exists (p: Local.OpenPatch[b] \where U = p.patch.domain)) };
+\import topology.Topology[Carrier := Product.Point] \as ProductSpace;
+\definition region: \Pow Product.Point := ProductSpace.Union patches;
+\definition regionOpen: ProductSpace.IsOpenIn Product.topology region := (ProductSpace.topologyLaws Product.topology).unionOpen patches
+  (\block {
+    \fun (U: \Pow Product.Point)(member: ProductSpace.FamilyMember patches U) \then
+    \takefrom b: \Cast[Inclusion.manifold.Point] ({ b: Inclusion.manifold.Point \where \exists (p: Local.OpenPatch[b] \where U = p.patch.domain) }) \by member \then
+    \takefrom p: \Cast[Local.OpenPatch[b]] ({ p: Local.OpenPatch[b] \where U = p.patch.domain }) \by \bysub(Inclusion.manifold.Point,
+      { b: Inclusion.manifold.Point \where \exists (p: Local.OpenPatch[b] \where U = p.patch.domain) }, b) \then
+    \return \idelim p.patch.domain = U \with V: \Pow Product.Point => ProductSpace.IsOpenIn Product.topology V \by {
+      base: p.patch.open, equality: sym!{{\Pow Product.Point}} U p.patch.domain (\bysub(Local.OpenPatch[b], { p: Local.OpenPatch[b] \where U = p.patch.domain }, p))
+    }
+  });
+\definition patchMember[b: Inclusion.manifold.Point][p: Local.OpenPatch[b]]: ProductSpace.FamilyMember patches p.patch.domain :=
+  Logic.existsIntro[Inclusion.manifold.Point, { c: Inclusion.manifold.Point \where \exists (q: Local.OpenPatch[c] \where p.patch.domain = q.patch.domain) }] b
+    (Logic.existsIntro[Local.OpenPatch[b], { q: Local.OpenPatch[b] \where p.patch.domain = q.patch.domain }] p (\refl(p.patch.domain)));
+\definition centerMember: \forall (b: Inclusion.manifold.Point) -> ProductSpace.Member region (Local.center b) := \block {
+  \fun (b: Inclusion.manifold.Point) \then
+  \takefrom p: Local.OpenPatch[b] \by Local.openLocal b \then
+  \return ProductSpace.unionMemberOf patches p.patch.domain (Local.center b) (patchMember b p) p.patch.contains
+};
+\structure RegularUniform: \Set := {
+  uniform: Uniform,
+  regular: \forall (t: Time.Point)(b: Inclusion.manifold.Point) -> \In[Time.Point] uniform.neighborhood t ->
+    ProductSpace.Member region (swap (Pair.pair Time.Point Inclusion.manifold.Point t b)),
+};
+\module Regular(uniform: Uniform, compactM: Target.IsCompact M.space);
+\definition existsRegular[compactM: Target.IsCompact M.space]: \exists RegularUniform := \block {
+  \takefrom uniform: Uniform \by existsUniform compactM \then
+  \return Regular[uniform := uniform, compactM := compactM].exists
+};

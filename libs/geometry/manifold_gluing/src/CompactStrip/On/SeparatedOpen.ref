@@ -1,0 +1,30 @@
+\import topology.Continuity[A := Pairs.CarrierSet, B := X] \as Maps;
+\definition leftContinuous: Maps.Continuous pairSpace targetSpace (\fun (p: Pairs.CarrierSet) => f (first p)) :=
+  topology.Composition[A := Pairs.CarrierSet, B := Point, C := X].composeContinuous pairSpace source targetSpace first f
+    (Pairs.Maps[].firstContinuous source source) continuous;
+\definition rightContinuous: Maps.Continuous pairSpace targetSpace (\fun (p: Pairs.CarrierSet) => f (second p)) :=
+  topology.Composition[A := Pairs.CarrierSet, B := Point, C := X].composeContinuous pairSpace source targetSpace second f
+    (Pairs.Maps[].secondContinuous source source) continuous;
+\definition open: PairSpace.IsOpenIn pairSpace Separated := PairSpace.openOfNeighborhoods pairSpace Separated (\block {
+  \fun (p: Pairs.CarrierSet)(distinct: PairSpace.Member Separated p) \then
+  \takefrom U: \Cast[\Pow X] ({ U: \Pow X \where Target.RegularChoice[targetSpace, Target.Singleton (f (second p)), f (first p), U] })
+    \by hausdorff (f (first p)) (f (second p)) distinct \then
+  \let choice: Target.RegularChoice[targetSpace, Target.Singleton (f (second p)), f (first p), U] := \bysub(\Pow X,
+    { U: \Pow X \where Target.RegularChoice[targetSpace, Target.Singleton (f (second p)), f (first p), U] }, U) \then
+  \takefrom V: \Cast[\Pow X] ({ V: \Pow X \where Target.NormalPartner[targetSpace, Target.Singleton (f (second p)), U, V] }) \by choice.partner \then
+  \let last: Target.NormalPartner[targetSpace, Target.Singleton (f (second p)), U, V] := \bysub(\Pow X,
+    { V: \Pow X \where Target.NormalPartner[targetSpace, Target.Singleton (f (second p)), U, V] }, V) \then
+  \let W: \Pow Pairs.CarrierSet := PairSpace.Intersection (Maps.Preimage (\fun (q: Pairs.CarrierSet) => f (first q)) U)
+    (Maps.Preimage (\fun (q: Pairs.CarrierSet) => f (second q)) V) \then
+  \return Logic.existsIntro[\Pow Pairs.CarrierSet, { W: \Pow Pairs.CarrierSet \where PairSpace.OpenNeighborhood[pairSpace, p, Separated, W] }] W
+    (PairSpace.OpenNeighborhood[pairSpace, p, Separated, W] {
+      open := (PairSpace.topologyLaws pairSpace).intersectionOpen _ _ (leftContinuous U choice.open) (rightContinuous V last.open),
+      contains := Logic.And[_, _]::# choice.contains (last.covers (f (second p)) (\refl(f (second p)))),
+      within := \fun (q: Pairs.CarrierSet)(member: PairSpace.Member W q)(same: f (first q) = f (second q)) =>
+        last.disjoint (f (first q)) member.left (\idelim f (second q) = f (first q)
+          \with x: X => Target.Member V x \by { base: member.right, equality: sym!{X} _ _ same }),
+    })
+});
+\definition ofSeparated: \forall (p: Pairs.CarrierSet) -> PairSpace.Member Separated p -> PairSpace.Member region p :=
+  \fun (p: Pairs.CarrierSet)(distinct: PairSpace.Member Separated p) => PairSpace.unionMemberOf family Separated p
+    (Logic.And[_, _]::# open (\fun (q: Pairs.CarrierSet)(distinct: PairSpace.Member Separated q)(same: _) => Logic.falseElim _ (distinct same))) distinct;

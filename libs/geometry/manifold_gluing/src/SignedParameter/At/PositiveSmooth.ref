@@ -1,0 +1,32 @@
+\import Models.Chart[M := Time.Point, space := Time.manifold.space] \as TimeCharts;
+\import Models.Chart[M := Point, space := manifold.space] \as Charts;
+\import \root.LocalSmoothMap[n := One.dimension, m := One.dimension].Between[M := manifold, N := Time.manifold].Of[function := plus] \as Locality;
+\definition left: Locality.SourceChart t := \into[Charts.Chart](Construction.chart, Locality.SourceChart t) \by {
+  Logic.And[_, _]::# (\refl(Construction.chart)) (\refl(t))
+};
+\definition right: Locality.TargetChart (plus t) := \into[TimeCharts.Chart](Time.chart, Locality.TargetChart (plus t)) \by {
+  Logic.And[_, _]::# Time.chartMember (\refl(plus t))
+};
+\import boundary_manifolds.SmoothMap[n := One.dimension, m := One.dimension].Between[M := manifold, N := Time.manifold] \as Maps;
+\import Maps.At[function := plus, left := left, right := right, x := t, contains := Locality.leftContains t left] \as Local;
+\definition positiveDomain: Open.OpenSet := Open.Topology[].ofOpen ({ u: Model.Point \where R.Lt S.zero (u One.index) })
+  (Ambient.coordinateContinuous One.index (Rays.Above S.zero) (Rays.aboveOpen S.zero));
+\definition neighborhood: Open.OpenSet := Open.intersection domain positiveDomain;
+\import calculus.Maps[n := One.dimension, m := One.dimension] \as Calculus;
+\definition identity: Calculus.Map neighborhood Open.whole := Calculus.Map[neighborhood, Open.whole] {
+  apply := \fun (u: Open.Carrier neighborhood) => \into[Model.Point](u, Open.whole.points) \by { \refl(u \of Model.Point) },
+  smooth := \fun (i: One.Index) => Open.Examples[].projectionSmooth neighborhood i,
+};
+\definition included: Open.Included neighborhood domain := Open.intersectionLeft domain positiveDomain;
+\definition model[u: Model.Carrier Model.unconstrained neighborhood]: Point := \into[Open.Carrier domain](Open.inclusion neighborhood domain included u, Model.region Model.unconstrained domain) \by {
+  Model.unconstrainedNonnegative u
+};
+\definition extension: Local.Extension := Local.Extension {
+  neighborhood := neighborhood, included := included,
+  contains := Logic.And[_, _]::# (\bysub(Model.Point, domain.points, t)) strict,
+  map := identity,
+  inside := \fun (u: Model.Carrier Model.unconstrained neighborhood) => \refl(plus (model u)),
+  agrees := \fun (u: Model.Carrier Model.unconstrained neighborhood) => sym!{Model.Point} _ _
+    (plusIdentity (model u) (Order.leOfLt S.zero (u One.index) (\bysub(Model.Point, neighborhood.points, u)).right)),
+};
+\definition witness: Locality.Witness[t] := Locality.Witness[t] { left := left, right := right, extension := extension };

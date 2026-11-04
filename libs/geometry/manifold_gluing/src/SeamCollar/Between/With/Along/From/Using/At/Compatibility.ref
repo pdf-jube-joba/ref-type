@@ -1,0 +1,20 @@
+\import \root.InwardNeighborhood[n := n].On[M := M].With[cover := leftCover].From[h := left.homotopy, active := left.active] \as LeftCandidate;
+\import \root.InwardNeighborhood[n := n].On[M := N].With[cover := rightCover].From[h := right.homotopy, active := right.active] \as RightCandidate;
+\definition leftInitial: \forall (p: Source.Point) -> plus p = Time.zero -> leftValue p = Gluing.inl (LeftBoundary.apply (Source.first p)) :=
+  \fun (p: Source.Point)(zero: _) => congr!{{M.Point} {Gluing.Point}} Gluing.inl _ _
+    (trans!{M.Point} _ _ _ (congr!{{Time.Point} M.Point} (\fun (t: Time.Point) => LeftMaps.apply LeftMap.map (Pair.pair LeftBoundary.manifold.Point Time.Point (Source.first p) t)) _ _ zero)
+      (LeftCandidate.neighborhood.initial (Source.first p)));
+\definition rightInitial: \forall (p: Source.Point) -> minus p = Time.zero -> rightValue p = Gluing.inr (RightBoundary.apply (rightBase p)) :=
+  \fun (p: Source.Point)(zero: _) => congr!{{N.Point} {Gluing.Point}} Gluing.inr _ _
+    (trans!{N.Point} _ _ _ (congr!{{Time.Point} N.Point} (\fun (t: Time.Point) => RightMaps.apply RightMap.map (Pair.pair RightBoundary.manifold.Point Time.Point (rightBase p) t)) _ _ zero)
+      (RightCandidate.neighborhood.initial (rightBase p)));
+\definition law: Pasting.Compatible (\fun (p: Pasting.Left) => leftValue p) (\fun (p: Pasting.Right) => rightValue p) := \block {
+  \fun (p: Pasting.Left)(q: Pasting.Right)(same: p = q) \then
+  \let nonpositive: Space.Member Negative p := \idelim (q \of Source.Point) = (p \of Source.Point) \with x: Source.Point => Space.Member Negative x \by {
+    base: \bysub(Source.Point, Negative, q), equality: sym!{{Source.Point}} _ _ same
+  } \then
+  \let nonnegative: Space.Member Positive p := \bysub(Source.Point, Positive, p) \then
+  \return trans!{{Gluing.Point}} _ _ _ (leftInitial p (Signed.plusZero (Source.second p) nonpositive))
+    (trans!{{Gluing.Point}} _ _ _ (Gluing.glued (Source.first p))
+      (trans!{{Gluing.Point}} _ _ _ (sym!{{Gluing.Point}} _ _ (rightInitial p (Signed.minusZero (Source.second p) nonnegative))) (congr!{{Source.Point} {Gluing.Point}} rightValue _ _ same)))
+};

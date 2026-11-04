@@ -1,0 +1,32 @@
+\import \parent.\parent.SmallLeft[a := (x \of M.Point), member := member] \as Initial;
+\import Left.InverseAt[y := Initial.collar] \as Inverse;
+\import \root.SignedInsertion[].At[epsilon := epsilon, positive := positive, bounded := bounded] \as Insert;
+\definition input[p: M.Point]: LeftProduct.Point := Inverse.function p;
+\definition lift[z: LeftProduct.Point]: Source.Point := Pair.pair LeftBoundary.manifold.Point Signed.Point (LeftProduct.first z) (Insert.Positive[].function (LeftProduct.second z));
+\definition function[p: M.Point]: Source.Point := lift (input p);
+\import topology.Topology[Carrier := M.Point] \as InteriorSpace;
+\definition W: \Pow M.Point := { p: M.Point \where \In[M.Point] LeftImage.image p };
+\definition openW: InteriorSpace.IsOpenIn M.space W := LeftImage.open;
+\module In(p: M.Point, member: InteriorSpace.Member W p);
+\definition classValue: \forall (p: M.Point) -> InteriorSpace.Member W p -> apply (function p) = Gluing.inl p :=
+  \fun (p: M.Point)(member: _) => In[p := p, member := member].value;
+\definition sampleSmall: R.Lt (Time.value (LeftProduct.second (input x))) epsilon :=
+  \idelim (Initial.input \of LeftProduct.Point) = input x \with z: LeftProduct.Point => R.Lt (Time.value (LeftProduct.second z)) epsilon \by {
+    base: Initial.small, equality: sym!{{LeftProduct.Point}} _ _ (Inverse.inside Initial.collar)
+  };
+\definition sampleTime: Signed.SmallTimes[].Point := \into[Time.Point](LeftProduct.second (input x), Signed.SmallTimes[].points) \by { sampleSmall };
+\import \root.LocalSmoothMap[n := Nat.add One.dimension n, m := Nat.add One.dimension n].Between[M := M, N := LeftProduct.manifold].Of[function := input] \as InputLocal;
+\import \root.LocalSmoothMap[n := Nat.add One.dimension n, m := Nat.add One.dimension n].Between[M := LeftProduct.manifold, N := Source.manifold].Of[function := lift] \as LiftLocal;
+\import \root.LocalSmoothMap[n := Nat.add One.dimension n, m := Nat.add One.dimension n].Between[M := M, N := Source.manifold].Of[function := function] \as Destination;
+\import boundary_manifolds.MapIdentity[n := n].On[M := LeftBoundary.manifold] \as Identity;
+\import \root.SmoothWitness[n := n, m := n].Between[M := LeftBoundary.manifold, N := LeftBoundary.manifold].Of[f := Identity.map] \as IdentityWitness;
+\import \root.LocalSmoothMap[n := n, m := n].Between[M := LeftBoundary.manifold, N := LeftBoundary.manifold].Of[function := (\fun (b: LeftBoundary.manifold.Point) => b)] \as IdentityLocal;
+\import \root.ProductLocalMap[n := n, m := One.dimension, p := n, q := One.dimension].Between[M := LeftBoundary.manifold, N := Time.manifold, P := LeftBoundary.manifold, Q := Signed.manifold].Of[
+  f := (\fun (b: LeftBoundary.manifold.Point) => b), g := Insert.Positive[].function] \as ProductLocal;
+\import \root.LocalSmoothCompose[n := Nat.add One.dimension n, m := Nat.add One.dimension n, l := Nat.add One.dimension n].Between[M := M, N := LeftProduct.manifold, P := Source.manifold].From[f := input, g := lift] \as FinalComposition;
+\definition exists: \exists Destination.Witness[x] := \block {
+  \takefrom first: InputLocal.Witness[x] \by Inverse.exists \then
+  \takefrom identity: IdentityLocal.Witness[LeftProduct.first (input x)] \by IdentityWitness.exists (LeftProduct.first (input x)) \then
+  \takefrom second: LiftLocal.Witness[input x] \by ProductLocal.At[x := input x, first := identity, second := Insert.Positive[].At[t := sampleTime].witness].exists \then
+  \return FinalComposition.At[x := x, chosen := first, next := second].exists
+};

@@ -1,0 +1,18 @@
+\import Mapping.Down[U := Unions.sequence k, open := Unions.open k] \as Down;
+\definition covers: Source.Subset (fibre y) (Unions.sequence k) := \fun (p: A)(member: Source.Member (fibre y) p) =>
+  \idelim Source.Union finite = Unions.sequence k \with U: \Pow A => Source.Member U p \by {
+    base: selected.covers p member, equality: sym!{{\Pow A}} _ _ equal
+  };
+\definition within: Source.Subset (Unions.sequence k) input := \fun (p: A)(member: Source.Member (Unions.sequence k) p) => Source.unionMemberElim finite p (Source.Member input p)
+  (\fun (U: \Pow A)(included: Source.FamilyMember finite U)(inside: Source.Member U p) => familyWithin U (selected.included U included) p inside)
+  (\idelim Unions.sequence k = Source.Union finite \with U: \Pow A => Source.Member U p \by { base: member, equality: equal });
+\definition targetWithin: Target.Subset (targetBasis k) V := \block {
+  \fun (z: B)(member: Target.Member (targetBasis k) z) \then
+  \takefrom p: \Cast[A] ({ p: A \where q p = z }) \by onto z \then
+  \let same: q p = z := \bysub(A, { p: A \where q p = z }, p) \then
+  \let input: Source.Member input p := within p (Down.within p (\idelim z = q p \with a: B => Target.Member Down.points a \by { base: member, equality: sym!{B} _ _ same })) \then
+  \return \idelim q p = z \with a: B => Target.Member V a \by { base: input, equality: same }
+};
+\definition exists: \exists (k: N.Nat^ \where Logic.And[Target.Member (targetBasis k) y, Target.Subset (targetBasis k) V]) :=
+  Logic.existsIntro[N.Nat^, { j: N.Nat^ \where Logic.And[Target.Member (targetBasis j) y, Target.Subset (targetBasis j) V] }] k
+    (Logic.And[_, _]::# (Down.contains y covers) targetWithin);

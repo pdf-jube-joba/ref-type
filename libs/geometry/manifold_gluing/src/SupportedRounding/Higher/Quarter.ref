@@ -1,0 +1,36 @@
+\import boundary_manifolds.Model[n := dimension] \as FullModel;
+\import boundary_manifolds.Ambient[n := dimension].Over[M := Region.ambient, S := Region.points] \as Construction;
+\import FullModels.Chart[M := manifold.Point, space := manifold.space] \as SourceCharts;
+\import manifolds.Dimension[n := dimension].Chart[M := Region.ambient.Point, space := Region.ambient.space] \as AmbientCharts;
+\import \parent.Estimates[] \as Estimates;
+\definition constraints: FullModel.Constraints := { i: Fin.Fin dimension \where Logic.Or[i = firstNormal, i = secondNormal] };
+\import FullModels.Quadrant[C := constraints, U := FullOpen.whole] \as Target;
+\import FullModels.Chart[M := Target.Point, space := Target.topology] \as TargetCharts;
+\definition nonnegative: \forall (x: manifold.Point) -> FullModel.Nonnegative constraints x := \fun (x: manifold.Point)(i: Fin.Fin dimension)(member: Logic.Or[i = firstNormal, i = secondNormal]) =>
+  Logic.orElim (i = firstNormal) (i = secondNormal) (R.Le S.zero (x i)) member
+    (\fun (same: i = firstNormal) => \idelim firstNormal = i \with j: Fin.Fin dimension => R.Le S.zero (x j) \by { base: \parent.In[x := x].quarter.left, equality: sym!{{Fin.Fin dimension}} _ _ same })
+    (\fun (same: i = secondNormal) => \idelim secondNormal = i \with j: Fin.Fin dimension => R.Le S.zero (x j) \by { base: \parent.In[x := x].quarter.right, equality: sym!{{Fin.Fin dimension}} _ _ same });
+\definition apply[x: manifold.Point]: Target.Point := \into[FullOpen.Carrier FullOpen.whole](x, FullModel.region constraints FullOpen.whole) \by { nonnegative x };
+\import topological_algebra.Euclidean[].Dimension[n := dimension].Topology[] \as FullAmbient;
+\definition ambientContinuous: topology.Continuity[A := manifold.Point, B := FullModel.Point].Continuous manifold.space FullAmbient.topology (\fun (x: manifold.Point) => apply x) :=
+  topology.Composition[A := manifold.Point, B := Region.ambient.Point, C := FullModel.Point].composeContinuous manifold.space Region.ambient.space FullAmbient.topology
+    (\fun (x: manifold.Point) => x) (\fun (x: Region.ambient.Point) => x)
+    (topology.Continuity[A := manifold.Point, B := Region.ambient.Point].Corestriction[S := Region.points].inclusionContinuous Region.ambient.space)
+    (topology.Continuity[A := FullOpen.Carrier FullOpen.whole, B := FullModel.Point].Corestriction[S := FullOpen.whole.points].inclusionContinuous FullAmbient.topology);
+\definition continuous: topology.Continuity[A := manifold.Point, B := Target.Point].Continuous manifold.space Target.topology apply :=
+  FullModel.Topology[C := constraints, U := FullOpen.whole].Into[X := manifold.Point, source := manifold.space, f := apply].continuous ambientContinuous;
+\import boundary_manifolds.SmoothMap[n := dimension, m := dimension].Between[M := manifold, N := Target.manifold] \as SmoothMaps;
+\import \root.LocalSmoothMap[n := dimension, m := dimension].Between[M := manifold, N := Target.manifold].Of[function := apply] \as Local;
+\module AtPatch(x: manifold.Point, patch: Construction.Adapted, contains: SourceCharts.Contains Construction.On[patch := patch].chart x,
+  coordinatesIdentity: \forall (p: AmbientCharts.LocalPoint patch.source) -> (AmbientCharts.coordinate patch.source p \of FullModel.Point) = (p \of FullModel.Point));
+\module InteriorAt(x: manifold.Point, positive: R.Lt S.zero (defining x));
+\module BoundaryAt(x: manifold.Point, zero: defining x = S.zero);
+\definition local: \forall (x: manifold.Point) -> \exists Local.Witness[x] := \fun (x: manifold.Point) => Logic.orElim (defining x = S.zero) (Logic.Not (defining x = S.zero)) (\exists Local.Witness[x])
+  (Classical.excludedMiddle (defining x = S.zero)) (\fun (zero: _) => BoundaryAt[x := x, zero := zero].exists)
+  (\fun (nonzero: Logic.Not (defining x = S.zero)) => \block {
+    \let positive: R.Lt S.zero (defining x) := Order.ltOfLeNotEq S.zero (defining x) (\bysub(Region.ambient.Point, Region.points, x)) (\fun (same: S.zero = defining x) => nonzero (sym!{S.Real} _ _ same)) \then
+    \return InteriorAt[x := x, positive := positive].exists
+  });
+\definition map: SmoothMaps.Map := Local.map continuous local;
+\module Far;
+\module Outside;

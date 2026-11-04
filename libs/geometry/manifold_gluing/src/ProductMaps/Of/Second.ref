@@ -1,0 +1,59 @@
+\definition data: SecondMaps.Data := SecondMaps.Data { apply := Product.second };
+\module In(c: Product.LeftChart, d: Product.RightChart, right: RightCharts.Chart, x: Product.Point,
+  contains: Charts.Contains Product.In[c := c, d := d].chart x, inRight: RightCharts.Contains right (Product.second x)) {
+  \import Product.In[c := c, d := d] \as Patch;
+  \import RightCharts.At[x := Product.second x, left := d, right := right, inLeft := contains.right] \as Change;
+  \import SecondMaps.At[function := Product.second, left := Patch.chart, right := right, x := x, contains := contains] \as Local;
+  \module With(e: Change.Extension) {
+    \import Change.Using[extension := e] \as Center;
+    \import Blocks.On[U := c.image, V := e.neighborhood] \as Rectangle;
+    \import calculus.Maps[n := dimension, m := m] \as Maps;
+    \import Maps.Composition[U := Rectangle.domain, V := e.neighborhood, f := Rectangle.rightMap].After[l := m, W := RightOpen.whole, g := e.map] \as Composition;
+    \definition leftPoint: LeftCharts.LocalPoint c := \into[M.Point](Product.first x, c.domain) \by { contains.left };
+    \definition domain: Open.OpenSet := Rectangle.domain;
+    \definition included: Open.Included domain Patch.image := \fun (u: Model.Point)(member: _) => Logic.And[_, _]::#
+      member.left (e.included (Blocks.right u) member.right);
+    \definition input[u: Model.Carrier Patch.C domain]: Right.Carrier d.constraints e.neighborhood :=
+      \into[RightOpen.Carrier e.neighborhood](Rectangle.rightPoint u, Right.region d.constraints e.neighborhood) \by {
+        Products.nonnegativeRight c.constraints d.constraints u (\bysub(Open.Carrier domain, Model.region Patch.C domain, u))
+      };
+    \definition extension: Local.Extension := Local.Extension {
+      neighborhood := domain, included := included,
+      contains := \bysub(Model.Point, domain.points, Rectangle.joinPoint (LeftCharts.coordinate c leftPoint) Center.center),
+      map := Composition.compose,
+      inside := \fun (u: Model.Carrier Patch.C domain) => e.inside (input u),
+      agrees := \fun (u: Model.Carrier Patch.C domain) => e.agrees (input u),
+    };
+  }
+  \definition existsExtension: \In[RightCharts.Chart] N.atlas.charts right -> \exists Local.Extension := \block {
+    \fun (member: _) \then
+    \takefrom e: Change.Extension \by N.atlas.compatible d right (Product.second x) contains.right inRight
+      (\bysub(RightCharts.Chart, N.atlas.charts, d)) member \then
+    \return \exact(With[e := e].extension, Local.Extension)
+  };
+}
+\module At(left: Charts.Chart, right: RightCharts.Chart, x: Product.Point, contains: Charts.Contains left x, inRight: RightCharts.Contains right (Product.second x)) {
+  \module With(i: Product.Index, same: left = Product.chart i) {
+    \definition existsExtension: \In[RightCharts.Chart] N.atlas.charts right ->
+      \exists SecondMaps.At[function := Product.second, left := left, right := right, x := x, contains := contains].Extension :=
+      \fun (member: _) => \idelim Product.chart i = left \with a: Charts.Chart => \forall (inside: Charts.Contains a x) ->
+        \exists SecondMaps.At[function := Product.second, left := a, right := right, x := x, contains := inside].Extension \by {
+          base: \fun (inside: _) => \root.ProductMaps[n := n, m := m].Of[M := M, N := N].Second[].In[c := Pair.first Product.LeftChart Product.RightChart i,
+            d := Pair.second Product.LeftChart Product.RightChart i, right := right, x := x, contains := inside, inRight := inRight].existsExtension member,
+          equality: sym!{{Charts.Chart}} _ _ same
+        } contains;
+  }
+  \definition existsExtension: \In[Charts.Chart] Product.manifold.atlas.charts left -> \In[RightCharts.Chart] N.atlas.charts right ->
+    \exists SecondMaps.At[function := Product.second, left := left, right := right, x := x, contains := contains].Extension := \block {
+    \fun (sourceMember: _)(targetMember: _) \then
+    \takefrom i: \Cast[Product.Index] ({ i: Product.Index \where left = Product.chart i }) \by sourceMember \then
+    \return With[i := i, same := \bysub(Product.Index, { i: Product.Index \where left = Product.chart i }, i)].existsExtension targetMember
+  };
+}
+\definition map: SecondMaps.Map := \into[SecondMaps.Data](data, SecondMaps.Map) \by {
+  SecondMaps.Laws[data] {
+    continuous := Topology.Maps[].secondContinuous M.space N.space,
+    smooth := \fun (left: Charts.Chart)(right: RightCharts.Chart)(x: Product.Point)(contains: _)(lm: _)(rm: _)(inRight: _) =>
+      At[left := left, right := right, x := x, contains := contains, inRight := inRight].existsExtension lm rm,
+  }
+};

@@ -1,0 +1,73 @@
+\definition left: Product.LeftChart := \into[LeftCharts.Chart](c, M.atlas.charts) \by { LeftTangent.member c };
+\definition right: Product.RightChart := \into[RightCharts.Chart](d, N.atlas.charts) \by { RightTangent.member d };
+\import Product.In[c := left, d := right] \as Patch;
+\definition member: \In[Charts.Chart] Product.manifold.atlas.charts Patch.chart :=
+  Logic.existsIntro[Product.Index, { i: Product.Index \where Patch.chart = Product.chart i }] (Pair.pair Product.LeftChart Product.RightChart left right) (\refl(Patch.chart));
+\definition total: Tangent.Chart := \into[Charts.Chart](Patch.chart, Tangent.Chart) \by {
+  Tangent.ChartLaws[Patch.chart] { member := member, contains := Logic.And[_, _]::# (LeftTangent.contains c) (RightTangent.contains d) }
+};
+\import boundary_manifolds.SmoothMap[n := Nat.add m n, m := n].Between[M := Product.manifold, N := M].At[function := Product.first, left := total, right := c, x := x, contains := Tangent.contains total] \as A;
+\import boundary_manifolds.SmoothMap[n := Nat.add m n, m := m].Between[M := Product.manifold, N := N].At[function := Product.second, left := total, right := d, x := x, contains := Tangent.contains total] \as B;
+\import calculus.LinearMap[n := Nat.add m n, m := n].On[U := Patch.image, L := Linear.leftLinear] \as LeftProjection;
+\import calculus.LinearMap[n := Nat.add m n, m := m].On[U := Patch.image, L := Linear.rightLinear] \as RightProjection;
+\definition included: Open.Included Patch.image Patch.image := \fun (p: Source.Point)(member: _) => member;
+\definition firstExtension: A.Extension := A.Extension {
+  neighborhood := Patch.image, included := included,
+  contains := \bysub(Source.Point, Patch.image.points, Tangent.coordinate total),
+  map := LeftProjection.map,
+  inside := \fun (u: Source.Carrier Patch.C Patch.image) => \bysub(M.Point, c.domain, LeftCharts.point c (Patch.leftCoordinate u)),
+  agrees := \fun (u: Source.Carrier Patch.C Patch.image) => sym!{Left.Point} _ _ (LeftCharts.coordinatePoint c (Patch.leftCoordinate u)),
+};
+\definition secondExtension: B.Extension := B.Extension {
+  neighborhood := Patch.image, included := included,
+  contains := \bysub(Source.Point, Patch.image.points, Tangent.coordinate total),
+  map := RightProjection.map,
+  inside := \fun (u: Source.Carrier Patch.C Patch.image) => \bysub(N.Point, d.domain, RightCharts.point d (Patch.rightCoordinate u)),
+  agrees := \fun (u: Source.Carrier Patch.C Patch.image) => sym!{Right.Point} _ _ (RightCharts.coordinatePoint d (Patch.rightCoordinate u)),
+};
+\definition firstDerivative: First.InCharts[left := total, right := c].jacobian = Linear.leftLinear :=
+  trans!{{calculus.Vector[n := Nat.add m n, m := n].LinearMap}} _ _ _ (A.ofExtension First.InCharts[left := total, right := c].smooth firstExtension)
+    (LeftProjection.differential A.Using[e := firstExtension].center);
+\definition secondDerivative: Second.InCharts[left := total, right := d].jacobian = Linear.rightLinear :=
+  trans!{{calculus.Vector[n := Nat.add m n, m := m].LinearMap}} _ _ _ (B.ofExtension Second.InCharts[left := total, right := d].smooth secondExtension)
+    (RightProjection.differential B.Using[e := secondExtension].center);
+\definition firstCoordinates: \forall (v: Tangent.Vector) -> LeftTangent.Coordinate[chart := c].decode (first v) = Blocks.left (Tangent.Coordinate[chart := total].decode v) :=
+  \fun (v: Tangent.Vector) => trans!{Left.Point} _ _ _ (First.coordinates total c v)
+    (congr!{{calculus.Vector[n := Nat.add m n, m := n].LinearMap} Left.Point}
+      (\fun (j: calculus.Vector[n := Nat.add m n, m := n].LinearMap) => j.apply (Tangent.Coordinate[chart := total].decode v)) _ _ firstDerivative);
+\definition secondCoordinates: \forall (v: Tangent.Vector) -> RightTangent.Coordinate[chart := d].decode (second v) = Blocks.right (Tangent.Coordinate[chart := total].decode v) :=
+  \fun (v: Tangent.Vector) => trans!{Right.Point} _ _ _ (Second.coordinates total d v)
+    (congr!{{calculus.Vector[n := Nat.add m n, m := m].LinearMap} Right.Point}
+      (\fun (j: calculus.Vector[n := Nat.add m n, m := m].LinearMap) => j.apply (Tangent.Coordinate[chart := total].decode v)) _ _ secondDerivative);
+\definition pair[u: LeftTangent.Vector][v: RightTangent.Vector]: Tangent.Vector := Tangent.Coordinate[chart := total].encode
+  (Blocks.join (LeftTangent.Coordinate[chart := c].decode u) (RightTangent.Coordinate[chart := d].decode v));
+\definition firstPair: \forall (u: LeftTangent.Vector)(v: RightTangent.Vector) -> first (pair u v) = u :=
+  \fun (u: LeftTangent.Vector)(v: RightTangent.Vector) => trans!{{LeftTangent.Vector}} _ _ _
+    (sym!{{LeftTangent.Vector}} _ _ (LeftTangent.Coordinate[chart := c].encodeDecode (first (pair u v))))
+    (trans!{{LeftTangent.Vector}} _ _ _
+      (congr!{Left.Point {LeftTangent.Vector}} LeftTangent.Coordinate[chart := c].encode _ _
+        (trans!{Left.Point} _ _ _ (firstCoordinates (pair u v))
+          (trans!{Left.Point} _ _ _
+            (congr!{Source.Point Left.Point} Blocks.left _ _ (Tangent.Coordinate[chart := total].decodeEncode (Blocks.join (LeftTangent.Coordinate[chart := c].decode u) (RightTangent.Coordinate[chart := d].decode v))))
+            (Blocks.leftJoin (LeftTangent.Coordinate[chart := c].decode u) (RightTangent.Coordinate[chart := d].decode v)))))
+      (LeftTangent.Coordinate[chart := c].encodeDecode u));
+\definition secondPair: \forall (u: LeftTangent.Vector)(v: RightTangent.Vector) -> second (pair u v) = v :=
+  \fun (u: LeftTangent.Vector)(v: RightTangent.Vector) => trans!{{RightTangent.Vector}} _ _ _
+    (sym!{{RightTangent.Vector}} _ _ (RightTangent.Coordinate[chart := d].encodeDecode (second (pair u v))))
+    (trans!{{RightTangent.Vector}} _ _ _
+      (congr!{Right.Point {RightTangent.Vector}} RightTangent.Coordinate[chart := d].encode _ _
+        (trans!{Right.Point} _ _ _ (secondCoordinates (pair u v))
+          (trans!{Right.Point} _ _ _
+            (congr!{Source.Point Right.Point} Blocks.right _ _ (Tangent.Coordinate[chart := total].decodeEncode (Blocks.join (LeftTangent.Coordinate[chart := c].decode u) (RightTangent.Coordinate[chart := d].decode v))))
+            (Blocks.rightJoin (LeftTangent.Coordinate[chart := c].decode u) (RightTangent.Coordinate[chart := d].decode v)))))
+      (RightTangent.Coordinate[chart := d].encodeDecode v));
+\definition recover: \forall (v: Tangent.Vector) -> pair (first v) (second v) = v :=
+  \fun (v: Tangent.Vector) => trans!{{Tangent.Vector}} _ _ _
+    (congr!{Source.Point {Tangent.Vector}} Tangent.Coordinate[chart := total].encode _ _
+      (trans!{Source.Point} _ _ _
+        (congr!{Left.Point Right.Point Source.Point} Blocks.join _ _ _ _ (firstCoordinates v) (secondCoordinates v))
+        (Blocks.recover (Tangent.Coordinate[chart := total].decode v))))
+    (Tangent.Coordinate[chart := total].encodeDecode v);
+\definition injective: \forall (u, v: Tangent.Vector) -> first u = first v -> second u = second v -> u = v :=
+  \fun (u, v: Tangent.Vector)(left: _)(right: _) => trans!{{Tangent.Vector}} _ _ _ (sym!{{Tangent.Vector}} _ _ (recover u))
+    (trans!{{Tangent.Vector}} _ _ _ (congr!{{LeftTangent.Vector} {RightTangent.Vector} {Tangent.Vector}} pair _ _ _ _ left right) (recover v));

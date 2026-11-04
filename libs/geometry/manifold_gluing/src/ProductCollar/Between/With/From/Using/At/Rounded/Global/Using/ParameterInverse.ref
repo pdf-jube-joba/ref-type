@@ -1,0 +1,14 @@
+\import OriginalOpen.InverseAt[x := x] \as Inverse;
+\definition function[p: Product.Point]: Source.Point := ParameterMaps.apply parameterMap (Inverse.function p);
+\import \root.LocalSmoothMap[n := Nat.add (Nat.add One.dimension m) (Nat.add One.dimension n), m := Nat.add (Nat.add One.dimension m) (Nat.add One.dimension n)].Between[M := Product.manifold, N := Source.manifold].Of[function := function] \as Local;
+\import \root.LocalSmoothPostcompose[n := Nat.add (Nat.add One.dimension m) (Nat.add One.dimension n), m := Nat.add (Nat.add One.dimension m) (Nat.add One.dimension n), l := Nat.add (Nat.add One.dimension m) (Nat.add One.dimension n)].Between[M := Product.manifold, N := ImageProduct.manifold, P := Source.manifold].From[f := Inverse.function, g := parameterMap] \as Compose;
+\definition exists: \exists Local.Witness[OriginalOpen.include x] := \block {
+  \takefrom inverse: \root.LocalSmoothMap[n := Nat.add (Nat.add One.dimension m) (Nat.add One.dimension n), m := Nat.add (Nat.add One.dimension m) (Nat.add One.dimension n)].Between[M := Product.manifold, N := ImageProduct.manifold].Of[function := Inverse.function].Witness[OriginalOpen.include x] \by Inverse.exists \then
+  \return Compose.At[x := OriginalOpen.include x, chosen := inverse].exists
+};
+\definition equalsMap: \forall (p: Product.Point)(member: Space.Member near p) -> function p = ParameterMaps.apply parameterMap (imagePoint p member) := \fun (p: Product.Point)(member: Space.Member near p) =>
+  congr!{{ImageProduct.Point} {Source.Point}} (ParameterMaps.apply parameterMap) _ _ (trans!{{ImageProduct.Point}} _ _ _
+    (congr!{{Product.Point} {ImageProduct.Point}} Inverse.function p (OriginalOpen.include (imagePoint p member)) (sym!{{Product.Point}} _ _ (imageValue p member))) (Inverse.inside (imagePoint p member)));
+\definition value: \forall (p: Product.Point)(member: Space.Member near p) -> (Parameterization.forward (function p) \of Product.Point) = p := \fun (p: Product.Point)(member: Space.Member near p) =>
+  trans!{{Product.Point}} _ _ _ (congr!{{Source.Point} {Product.Point}} (\fun (z: Source.Point) => Parameterization.forward z) _ _ (equalsMap p member))
+    (trans!{{Product.Point}} _ _ _ (mapValue (imagePoint p member)) (imageValue p member));

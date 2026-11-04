@@ -1,0 +1,44 @@
+
+\import \root.ProductCollar[n := n, m := m].Between[M := M, N := N].With[leftCover := leftCover, rightCover := rightCover].From[left := result.left.deformation, right := result.right.deformation].Using[leftRegular := result.left.regular, rightRegular := result.right.regular].At[leftWidth := result.leftWidth, rightWidth := result.rightWidth] \as Parameters;
+\import Parameters.Rounded[] \as Rounding;
+\import Rounding.Global[leftCompact := leftCompact, rightCompact := rightCompact] \as Global;
+\import \root.BoundaryInclusion[n := n].On[M := M].With[cover := leftCover] \as LeftBase;
+\import \root.BoundaryInclusion[n := m].On[M := N].With[cover := rightCover] \as RightBase;
+\import boundary_manifolds.Boundary[n := n].Of[M := M].Build[cover := leftCover] \as LeftOrdinary;
+\import boundary_manifolds.Boundary[n := m].Of[M := N].Build[cover := rightCover] \as RightOrdinary;
+\import boundary_manifolds.Product[n := n, m := m].Of[M := LeftBase.manifold, N := RightBase.manifold] \as Base;
+\import \root.SupportedRounding[].Higher[n := std.Data[].Nat[].Nat^::zero] \as Round;
+\import \root.Reflection[n := std.Data[].Nat[].Nat^::zero] \as RoundFirst;
+\import \root.RoundingWindow[] \as Window;
+\import boundary_manifolds.Product[n := Nat.add m n, m := Round.dimension].Of[M := Base.manifold, N := Window.manifold] \as Near;
+\import \root.OrdinaryFreeCharts[n := n].On[M := LeftOrdinary.manifold] \as LeftFree;
+\import \root.OrdinaryFreeCharts[n := m].On[M := RightOrdinary.manifold] \as RightFree;
+\import \root.ProductFreeCharts[n := n, m := m].Between[M := LeftBase.manifold, N := RightBase.manifold].With[leftCover := LeftFree.cover, rightCover := RightFree.cover] \as BaseFree;
+\import boundary_manifolds.Sublevel[n := RoundFirst.dimension].Of[U := calculus.Real[].Multivariable[n := Round.dimension].Open[].whole, f := Round.function].Build[regular := Round.regular] \as RoundBoundary;
+\import \root.HalfCover[n := RoundFirst.dimension].On[M := Round.manifold].With[boundaryCover := RoundBoundary.boundaryCover] \as RoundHalf;
+\import \root.OpenHalfModel[n := Round.dimension].On[M := Round.manifold].Within[U := Window.windowPoints, open := Window.windowOpen].With[originalCover := RoundHalf.cover] \as WindowHalf;
+\import \root.FreeHalfProduct[n := Nat.add m n, m := Round.dimension].Between[M := Base.manifold, N := Window.manifold].With[leftCover := BaseFree.cover, rightCover := WindowHalf.cover] \as NearHalf;
+\import \root.DimensionChangeHalf[n := Nat.add Round.dimension (Nat.add m n)].On[M := Near.manifold].With[cover := NearHalf.cover] \as NearDimensions;
+\import NearDimensions.At[m := Nat.add (Nat.add One.dimension m) (Nat.add One.dimension n)] \as NearChange;
+\definition nearExists: \exists NearChange.Data := NearDimensions.exists (Nat.add (Nat.add One.dimension m) (Nat.add One.dimension n)) (sym!{{std.Data[].Nat[].Nat^}} _ _ Global.dimensions);
+\import \root.HalfCover[n := n].On[M := M].With[boundaryCover := leftCover] \as LeftHalf;
+\import \root.HalfCover[n := m].On[M := N].With[boundaryCover := rightCover] \as RightHalf;
+\import \root.HalfProductLocal[n := Nat.add One.dimension n, m := Nat.add One.dimension m].Between[M := M, N := N].With[leftCover := LeftHalf.cover, rightCover := RightHalf.cover] \as Outside;
+\import \root.OpenManifold[n := Nat.add (Nat.add One.dimension m) (Nat.add One.dimension n)].On[M := Product.manifold].Within[U := Global.far, open := Global.farOpen] \as Far;
+\module FarAt(x: Far.Point);
+\definition farLocalCover: \root.OpenHalfModel[n := Nat.add (Nat.add One.dimension m) (Nat.add One.dimension n)].On[M := Product.manifold].Within[U := Global.far, open := Global.farOpen].LocalCover := \fun (x: Far.Point) => FarAt[x := x].cover;
+\import \root.OpenHalfModel[n := Nat.add (Nat.add One.dimension m) (Nat.add One.dimension n)].On[M := Product.manifold].Within[U := Global.far, open := Global.farOpen].From[localCover := farLocalCover] \as FarHalf;
+\module Using(near: NearChange.Data);
+
+\import boundary_manifolds.Dimension[n := Nat.add One.dimension (Nat.add m (Nat.add One.dimension n))] \as Models;
+\import Models.Atlas[M := Rounding.Point, space := Rounding.topology] \as Atlases;
+\definition ofAtlas[atlas: Atlases.Atlas]: Models.Manifold := Models.Manifold { Point := Rounding.Point, space := Rounding.topology, atlas := atlas, hausdorff := (Global.manifold result.atlas).hausdorff, secondCountable := (Global.manifold result.atlas).secondCountable };
+\definition BoundaryCover[atlas: Atlases.Atlas]: \Prop := boundary_manifolds.Boundary[n := Nat.add m (Nat.add One.dimension n)].Of[M := ofAtlas atlas].Cover;
+\definition NoHigher[atlas: Atlases.Atlas]: \Prop := \root.OneActiveCharts[n := Nat.add One.dimension (Nat.add m (Nat.add One.dimension n))].On[M := ofAtlas atlas].Cover;
+\structure Result: \Set := { atlas: Atlases.Atlas, boundaryCover: BoundaryCover atlas, noHigherCorners: NoHigher atlas, };
+\definition manifold[result: Result]: Models.Manifold := ofAtlas result.atlas;
+\definition exists: \exists Result := \block {
+ \takefrom near: NearChange.Data \by nearExists \then
+ \takefrom change: Using[near := near].FinalData \by Using[near := near].finalExists \then
+ \return \exact(Using[near := near].Final[change := change].value, Result)
+};

@@ -1,0 +1,16 @@
+\definition function[x: M.Point]: Target.Point := \into[Output.Carrier V](\into[TargetModel.Point](Maps.apply f x, V.points) \by { inside x }, TargetModel.region D V) \by { nonnegative x };
+\import \root.LocalSmoothMap[n := n, m := m].Between[M := M, N := Target.manifold].Of[function := function] \as Local;
+\definition ambientContinuous: topology.Continuity[A := M.Point, B := TargetModel.Point].Continuous M.space topological_algebra.Euclidean[].Dimension[n := m].Topology[].topology (\fun (x: M.Point) => function x) :=
+  topology.Composition[A := M.Point, B := Original.Point, C := TargetModel.Point].composeContinuous M.space Original.topology topological_algebra.Euclidean[].Dimension[n := m].Topology[].topology
+    (Maps.apply f) (\fun (x: Original.Point) => x) f.continuous (TargetModel.Topology[C := C, U := U].ambient);
+\definition continuous: topology.Continuity[A := M.Point, B := Target.Point].Continuous M.space Target.topology function :=
+  TargetModel.Topology[C := D, U := V].Into[X := M.Point, source := M.space, f := function].continuous ambientContinuous;
+\module At(x: M.Point, c: \Cast[SourceCharts.Chart] M.atlas.charts, contains: SourceCharts.Contains c x);
+\definition local: \forall (x: M.Point) -> \exists Local.Witness[x] := \block {
+  \fun (x: M.Point) \then
+  \takefrom chosen: \Cast[SourceCharts.Chart] ({ c: SourceCharts.Chart \where Logic.And[\In[SourceCharts.Chart] M.atlas.charts c, SourceCharts.Contains c x] }) \by M.atlas.covers x \then
+  \let laws: Logic.And[\In[SourceCharts.Chart] M.atlas.charts chosen, SourceCharts.Contains chosen x] := \bysub(SourceCharts.Chart, { c: SourceCharts.Chart \where Logic.And[\In[SourceCharts.Chart] M.atlas.charts c, SourceCharts.Contains c x] }, chosen) \then
+  \let c: \Cast[SourceCharts.Chart] M.atlas.charts := \into[SourceCharts.Chart](chosen, M.atlas.charts) \by { laws.left } \then
+  \return At[x := x, c := c, contains := laws.right].exists
+};
+\definition map: Result.Map := Local.map continuous local;

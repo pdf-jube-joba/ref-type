@@ -1,0 +1,28 @@
+\import Smooth.Algebra[U := U] \as Functions;
+\definition projection[i: Fin.Fin n]: Functions.Function := \into[Open.ScalarFunction U]((\fun (x: Open.Carrier U) => x i), Functions.Function) \by { Open.Examples[].projectionSmooth U i };
+\definition evaluation[i: Fin.Fin n]: Linear.LinearMap := Linear.LinearMap {
+  apply := \fun (v: Point) => v i,
+  additive := \fun (v, w: Point) => \refl(S.add (v i) (w i)),
+  homogeneous := \fun (c: S.Real)(v: Point) => \refl(S.mul c (v i)),
+};
+\definition congruent: \forall (f, g: Functions.Function)(a: Open.Carrier U) -> (\forall (x: Open.Carrier U) -> f x = g x) -> Derivative.value U f a = Derivative.value U g a :=
+  \fun (f, g: Functions.Function)(a: Open.Carrier U)(agrees: _) =>
+    congr!{{Functions.Function} {Linear.LinearMap}} (\fun (h: Functions.Function) => Derivative.value U h a) _ _ (Functions.ext f g agrees);
+\definition projectionValue: \forall (i: Fin.Fin n)(a: Open.Carrier U) -> Derivative.value U (projection i) a = evaluation i :=
+  \fun (i: Fin.Fin n)(a: Open.Carrier U) => Open.Analysis[].Differential[U := U, f := projection i, a := a, d := Derivative.value U (projection i) a].uniqueness
+    (evaluation i) (Derivative.law U (projection i) a) (Open.Analysis[].Linear[U := U, d := evaluation i].law a);
+\definition zero: Linear.LinearMap := Linear.LinearMap {
+  apply := \fun (v: Point) => S.zero,
+  additive := \fun (v, w: Point) => sym!{S.Real} _ _ (Laws.addZeroLeft S.zero),
+  homogeneous := \fun (c: S.Real)(v: Point) => sym!{S.Real} _ _ (Laws.fieldMulZeroRight c),
+};
+\import calculus.Real[].Multivariable[n := n].Space[].Linear[] \as ScalarLinear;
+\import S.FiniteSums[] \as Sums;
+\import Partials.Linear[U := U] \as Partial;
+\definition constantValue: \forall (c: S.Real)(a: Open.Carrier U) -> Derivative.value U (Functions.constant c) a = zero :=
+  \fun (c: S.Real)(a: Open.Carrier U) => ScalarLinear.ext (Derivative.value U (Functions.constant c) a) zero
+    (\axiom:funext((Derivative.value U (Functions.constant c) a).apply, zero.apply, \fun (v: Point) => trans!{S.Real} _ _ _
+      (Sums.congruent n (\fun (i: Fin.Fin n) => S.mul (Partials.partial U (Functions.constant c) i a) (v i)) (\fun (i: Fin.Fin n) => S.zero)
+        (\fun (i: Fin.Fin n) => trans!{S.Real} _ _ _
+          (congr!{{Functions.Function} S.Real} (\fun (f: Functions.Function) => S.mul (f a) (v i)) _ _ (Partial.constant i c))
+          (Laws.fieldMulZeroLeft (v i)))) (Sums.zeroSum n)));

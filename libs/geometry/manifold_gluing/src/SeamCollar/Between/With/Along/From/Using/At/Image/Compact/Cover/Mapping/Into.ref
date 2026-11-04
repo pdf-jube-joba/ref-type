@@ -1,0 +1,21 @@
+\import boundary_manifolds.SmoothMap[n := Nat.add One.dimension n, m := m].Between[M := LeftInside.manifold, N := P] \as LeftMaps;
+\import boundary_manifolds.SmoothMap[n := Nat.add One.dimension n, m := m].Between[M := RightInside.manifold, N := P] \as RightMaps;
+\import boundary_manifolds.SmoothMap[n := Nat.add One.dimension n, m := m].Between[M := Source.manifold, N := P] \as SeamMaps;
+\import boundary_manifolds.SmoothMap[n := Nat.add One.dimension n, m := m].Between[M := manifold, N := P] \as Maps;
+\definition leftMember: \forall (c: LeftTransport.OldChart) -> \In[Charts.Chart] manifold.atlas.charts LeftTransport.In[c := c].chart :=
+  \fun (c: LeftTransport.OldChart) => Logic.existsIntro[Index, { i: Index \where Interiors.leftChart c = chart i }] (Indices.inl c) (\refl(Interiors.leftChart c));
+\definition rightMember: \forall (c: RightTransport.OldChart) -> \In[Charts.Chart] manifold.atlas.charts RightTransport.In[c := c].chart :=
+  \fun (c: RightTransport.OldChart) => Logic.existsIntro[Index, { i: Index \where Interiors.rightChart c = chart i }] (Indices.inr (Others.inl c)) (\refl(Interiors.rightChart c));
+\definition seamMember: \forall (c: SeamTransport.OldChart) -> \In[Charts.Chart] manifold.atlas.charts SeamTransport.In[c := c].chart :=
+  \fun (c: SeamTransport.OldChart) => Logic.existsIntro[Index, { i: Index \where Seam.chart c = chart i }] (Indices.inr (Others.inr c)) (\refl(Seam.chart c));
+\import \root.TransportOut[n := Nat.add One.dimension n, m := m].Between[M := LeftInside.manifold, N := manifold, P := P].On[
+  U := LeftPatch.image, open := Interiors.leftOpen, h := LeftPatch.homeomorphism].With[member := leftMember] \as LeftOut;
+\import \root.TransportOut[n := Nat.add One.dimension n, m := m].Between[M := RightInside.manifold, N := manifold, P := P].On[
+  U := RightPatch.image, open := Interiors.rightOpen, h := RightPatch.homeomorphism].With[member := rightMember] \as RightOut;
+\import \root.TransportOut[n := Nat.add One.dimension n, m := m].Between[M := Source.manifold, N := manifold, P := P].On[
+  U := image, open := open, h := homeomorphism].With[member := seamMember] \as SeamOut;
+\module Of(f: Gluing.Point -> P.Point, continuous: topology.Continuity[A := Gluing.Point, B := P.Point].Continuous Gluing.topology P.space f,
+  left: LeftMaps.Map, right: RightMaps.Map, seam: SeamMaps.Map,
+  agreesLeft: \forall (p: LeftInside.manifold.Point) -> f (Gluing.inl p) = LeftMaps.apply left p,
+  agreesRight: \forall (p: RightInside.manifold.Point) -> f (Gluing.inr p) = RightMaps.apply right p,
+  agreesSeam: \forall (p: Source.Point) -> f (apply p) = SeamMaps.apply seam p);

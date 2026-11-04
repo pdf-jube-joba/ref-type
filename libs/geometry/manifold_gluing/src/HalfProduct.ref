@@ -1,0 +1,24 @@
+\import std.Data[].FinSet[] \as Fin;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\import calculus.Real[].OneDimension[] \as One;
+\import \root.Parameter[] \as Time;
+\import boundary_manifolds.Product[n := n, m := One.dimension] \as Product;
+\import boundary_manifolds.Model[n := n] \as Left;
+\import boundary_manifolds.Model[n := std.Data[].Nat[].Basic[].Def[].add One.dimension n] \as Model;
+\import Fin.Sum[m := n, n := One.dimension] \as Indices;
+\definition normal: Model.Coordinate := Indices.right One.index;
+\definition C: Model.Constraints := Product.constraints Left.unconstrained Time.constraints;
+\definition selected: \forall (j: Indices.Index) -> Product.Selected Left.unconstrained Time.constraints j -> Indices.inflate j = normal :=
+  \induction (j: Indices.Index) \return Product.Selected Left.unconstrained Time.constraints j -> Indices.inflate j = normal \with {
+    | inl: \fun (j: Fin.Fin n)(member: \In[Left.Coordinate] Left.unconstrained j) => Logic.falseElim (Indices.inflate (Indices.Index::inl j) = normal) member
+    | inr: \fun (j: One.Index)(member: j = One.index) => congr!{One.Index {Model.Coordinate}} Indices.right j One.index member
+  };
+\definition constraints: C = Model.halfSpace normal := \axiom:setext(C, Model.halfSpace normal,
+  (\fun (i: Model.Coordinate)(member: \In[Model.Coordinate] C i) => trans!{{Model.Coordinate}} _ _ _ (sym!{{Model.Coordinate}} _ _ (Indices.inflateSplit i)) (selected (Indices.split i) member)),
+  (\fun (i: Model.Coordinate)(member: i = normal) => \idelim normal = i \with j: Model.Coordinate => \In[Model.Coordinate] C j \by {
+    base: Product.selectedRight Left.unconstrained Time.constraints One.index (\refl(One.index)), equality: sym!{{Model.Coordinate}} _ _ member
+  }));

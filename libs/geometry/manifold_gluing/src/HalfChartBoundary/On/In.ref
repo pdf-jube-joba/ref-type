@@ -1,0 +1,20 @@
+\definition normalZero: \forall (p: Charts.LocalPoint c) -> \In[M.Point] Atlas.points p -> Charts.coordinate c p Boundary.normal = S.zero :=
+  \fun (p: Charts.LocalPoint c)(boundary: _) => Atlas.In[c := c].At[p := \into[Atlas.Point](\into[M.Point](p, Atlas.points) \by { boundary }, Atlas.In[c := c].domain) \by {
+    \bysub(M.Point, c.domain, p)
+  }].zero;
+\module At(p: Charts.LocalPoint c) {
+  \import boundary_manifolds.Tangent[n := Nat.add One.dimension n].On[M := M].At[x := p] \as Tangent;
+  \definition chart: Tangent.Chart := \into[Charts.Chart](c, Tangent.Chart) \by {
+    Tangent.ChartLaws[c] { member := Atlas.member c, contains := \bysub(M.Point, c.domain, p) }
+  };
+  \definition normalSelected: \In[Model.Coordinate] c.constraints Boundary.normal :=
+    \idelim Model.halfSpace Boundary.normal = c.constraints \with C: Model.Constraints => \In[Model.Coordinate] C Boundary.normal \by {
+      base: \refl(Boundary.normal), equality: sym!{Model.Constraints} _ _ (Atlas.constraints c)
+    };
+  \definition boundary: Charts.coordinate c p Boundary.normal = S.zero -> \In[M.Point] Atlas.points p :=
+    \fun (zero: _) => Tangent.Cones[].boundaryOfCoordinate chart
+      (Logic.existsIntro[Model.Coordinate, { i: Model.Coordinate \where Model.Active c.constraints (Charts.coordinate c p) i }] Boundary.normal
+        (Logic.And[_, _]::# normalSelected zero));
+}
+\definition criterion[p: Charts.LocalPoint c]: Logic.PropEquiv[\In[M.Point] Atlas.points p, Charts.coordinate c p Boundary.normal = S.zero] :=
+  Logic.PropEquiv[_, _] { ltr := normalZero p, rtl := At[p := p].boundary };

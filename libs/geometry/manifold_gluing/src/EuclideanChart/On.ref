@@ -1,0 +1,69 @@
+\import topology.Topology[Carrier := A] \as Space;
+\import topology.Topology[Carrier := Point] \as Ambient;
+\import topology.Homeomorphism[A := A, B := Point] \as Homeomorphisms;
+\import topology.Maps[A := A, B := Point] \as Into;
+\import topology.Maps[A := Point, B := A] \as From;
+\definition comparison: Homeomorphisms.Laws[source, ambient, h] := Homeomorphisms.laws source ambient h;
+\import topology.Topology[Carrier := std.Data[].FinSet[].Fin n -> real.Analysis[].Real].Subspace[S := Open.whole.points].Properties[] \as AmbientProperties;
+\definition ambientHausdorff: Ambient.IsT2 ambient := AmbientProperties.hausdorff Euclidean.topology Euclidean.hausdorff;
+\definition ambientCountable: Ambient.IsSecondCountable ambient := AmbientProperties.secondCountable Euclidean.topology Countability.secondCountable;
+\definition injective: \forall (x, y: A) -> h.forward x = h.forward y -> x = y :=
+  \fun (x, y: A)(same: _) => trans!{A} _ _ _ (sym!{A} _ _ (comparison.leftInverse x))
+    (trans!{A} _ _ _ (congr!{Point A} h.backward _ _ same) (comparison.leftInverse y));
+\import topological_constructions.Separation[].Pullback[A := A, B := Point, source := source, target := ambient, f := h.forward, continuous := comparison.forwardContinuous] \as Separation;
+\definition hausdorff: Space.IsT2 source := \fun (x, y: A)(different: Logic.Not (x = y)) =>
+  Separation.separate ambientHausdorff x y (\fun (same: h.forward x = h.forward y) => different (injective x y same));
+\module Basis(basis: N.Nat^ -> \Pow Point, basisLaws: Ambient.IsCountableBasis[ambient, basis]) {
+  \definition pulled[k: N.Nat^]: \Pow A := Into.Preimage h.forward (basis k);
+  \definition open: \forall (k: N.Nat^) -> Space.IsOpenIn source (pulled k) := \fun (k: N.Nat^) => comparison.forwardContinuous (basis k) (basisLaws.open k);
+  \definition refines: \forall (U: \Pow A) -> Space.IsOpenIn source U -> \forall (x: A) -> Space.Member U x ->
+    \exists ( k: N.Nat^ \where Logic.And[Space.Member (pulled k) x, Space.Subset (pulled k) U] ) := \block {
+    \fun (U: \Pow A)(open: Space.IsOpenIn source U)(x: A)(inside: Space.Member U x) \then
+    \let V: \Pow Point := From.Preimage h.backward U \then
+    \let center: Ambient.Member V (h.forward x) := \idelim x = h.backward (h.forward x)
+      \with a: A => Space.Member U a \by { base: inside, equality: sym!{A} _ _ (comparison.leftInverse x) } \then
+    \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where Logic.And[Ambient.Member (basis k) (h.forward x), Ambient.Subset (basis k) V] })
+      \by basisLaws.refines V (comparison.backwardContinuous U open) (h.forward x) center \then
+    \let selected: Logic.And[Ambient.Member (basis k) (h.forward x), Ambient.Subset (basis k) V] := \bysub(N.Nat^,
+      { k: N.Nat^ \where Logic.And[Ambient.Member (basis k) (h.forward x), Ambient.Subset (basis k) V] }, k) \then
+    \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where Logic.And[Space.Member (pulled k) x, Space.Subset (pulled k) U] }] k
+      (Logic.And[_, _]::# selected.left (\fun (y: A)(member: Space.Member (pulled k) y) => \idelim h.backward (h.forward y) = y
+        \with a: A => Space.Member U a \by { base: selected.right (h.forward y) member, equality: comparison.leftInverse y }))
+  };
+  \definition laws: Space.IsCountableBasis[source, pulled] := Space.IsCountableBasis[source, pulled] { open := open, refines := refines };
+}
+\definition secondCountable: Space.IsSecondCountable source := \block {
+  \takefrom basis: \Cast[N.Nat^ -> \Pow Point] ({ b: N.Nat^ -> \Pow Point \where Ambient.IsCountableBasis[ambient, b] }) \by ambientCountable \then
+  \return Logic.existsIntro[N.Nat^ -> \Pow A, { b: N.Nat^ -> \Pow A \where Space.IsCountableBasis[source, b] }]
+    (\fun (k: N.Nat^) => Into.Preimage h.forward (basis k))
+    (Basis[basis := basis, basisLaws := \bysub(N.Nat^ -> \Pow Point, { b: N.Nat^ -> \Pow Point \where Ambient.IsCountableBasis[ambient, b] }, basis)].laws)
+};
+\import manifolds.Dimension[n := n].Chart[M := A, space := source] \as Charts;
+\import manifolds.Dimension[n := n].Atlas[M := A, space := source] \as Atlases;
+\definition forward[x: Charts.Domain Space.Whole]: Point := h.forward x;
+\definition backward[x: Point]: Charts.Domain Space.Whole := \into[A](h.backward x, Space.Whole) \by { \refl(h.backward x) };
+\definition chart: Charts.Chart := Charts.Chart {
+  domain := Space.Whole, image := Open.whole,
+  coordinates := topology.Homeomorphism[A := Charts.Domain Space.Whole, B := Point].Homeomorphism[Charts.domainTopology Space.Whole, ambient] {
+    forward := forward, backward := backward,
+    leftInverse := \fun (x: Charts.Domain Space.Whole) => boundary_manifolds.Refinement[A := A].equality Space.Whole (backward (forward x)) x (comparison.leftInverse x),
+    rightInverse := comparison.rightInverse,
+    forwardContinuous := topology.Continuity[A := A, B := Point].Restriction[S := Space.Whole].restrictContinuous source ambient h.forward comparison.forwardContinuous,
+    backwardContinuous := topology.Continuity[A := Point, B := A].Corestriction[S := Space.Whole].corestrictContinuous ambient source backward comparison.backwardContinuous,
+  },
+  open := (Space.topologyLaws source).wholeOpen,
+};
+\definition compatible: \forall (c, d: Charts.Chart) -> c = chart -> d = chart -> Atlases.Compatible c d :=
+  \fun (c, d: Charts.Chart)(first: c = chart)(second: d = chart) => \idelim c = d
+    \with e: Charts.Chart => Atlases.Compatible c e \by {
+      base: Atlases.Self[chart := c].compatible, equality: trans!{{Charts.Chart}} _ _ _ first (sym!{{Charts.Chart}} _ _ second)
+    };
+\definition atlas: Atlases.Atlas := Atlases.Atlas {
+  charts := { c: Charts.Chart \where c = chart },
+  covers := \fun (x: A) => Logic.existsIntro[Charts.Chart, { c: Charts.Chart \where Logic.And[c = chart, Charts.Contains c x] }] chart
+    (Logic.And[_, _]::# (\refl(chart)) (\refl(x))),
+  compatible := compatible,
+};
+\import manifolds.Dimension[n := n].Smooth[] \as Smooth;
+\import Smooth.From[M := A, space := source, atlas := atlas] \as Construction;
+\definition manifold: Smooth.Manifold := Construction.manifold hausdorff secondCountable;

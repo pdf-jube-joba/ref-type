@@ -1,0 +1,31 @@
+\definition timePositive: TimeModel.Nonnegative timeChart.constraints (Blocks.right u) := TimeModel.halfSpaceNonnegative One.index (Blocks.right u)
+  (R.leReplaceRight S.zero S.zero (u Boundary.normal) (sym!{S.Real} _ _ zero) (R.leRefl S.zero));
+\definition nonnegative: Model.Nonnegative Patch.C u := \idelim Blocks.join (Blocks.left u) (Blocks.right u) = (u \of Model.Point) \with p: Model.Point => Model.Nonnegative Patch.C p \by {
+  base: Products.nonnegativeJoin leftChart.constraints timeChart.constraints (Blocks.left u) (Blocks.right u) (Parameters.unconstrainedNonnegative (Blocks.left u)) timePositive,
+  equality: Blocks.recover u
+};
+\definition input: Model.Carrier Patch.C e.neighborhood := \into[Open.Carrier e.neighborhood](u, Model.region Patch.C e.neighborhood) \by { nonnegative };
+\definition original: Model.Carrier Patch.C Patch.image := \into[Open.Carrier Patch.image](Open.inclusion e.neighborhood Patch.image e.included u, Model.region Patch.C Patch.image) \by { nonnegative };
+\definition left: Parameters.Carrier leftChart.constraints leftChart.image := Patch.leftCoordinate original;
+\definition right: TimeModel.Carrier timeChart.constraints timeChart.image := Patch.rightCoordinate original;
+\definition rawZero: Blocks.right u = (\fun (i: One.Index) => S.zero) := \axiom:funext(Blocks.right u, (\fun (i: One.Index) => S.zero), \fun (i: One.Index) => trans!{S.Real} _ _ _
+  (congr!{One.Index S.Real} (Blocks.right u) _ _ (Fin.singletonValue i)) zero);
+\definition timeValue: Time.Point := TimeCharts.point Time.chart right;
+\definition timeZero: timeValue = Time.zero := TimeModel.equality Time.constraints Time.domain timeValue Time.zero rawZero;
+\definition boundaryValue: Inclusion.manifold.Point := BoundaryCharts.point BoundaryChart.left left;
+\definition sourceZero: (SourceCharts.point Patch.chart original \of Product.Point) = Pair.pair Inclusion.manifold.Point Time.Point boundaryValue Time.zero :=
+  congr!{Time.Point {Product.Point}} (Pair.pair Inclusion.manifold.Point Time.Point boundaryValue) _ _ timeZero;
+\definition value: Maps.apply map (SourceCharts.point Patch.chart original) = Inclusion.apply boundaryValue := trans!{M.Point} _ _ _
+  (congr!{{Product.Point} M.Point} (Maps.apply map) _ _ sourceZero) (Candidate.neighborhood.initial boundaryValue);
+\definition included: Charts.LocalPoint c := \into[M.Point](Inclusion.apply boundaryValue, c.domain) \by { BoundaryChart.containsTarget left };
+\definition boundaryCoordinate: (Charts.coordinate c included \of Model.Point) = Linear.horizontal.apply (left \of Parameters.Point) :=
+  sym!{Model.Point} _ _ (BoundaryChart.extension.agrees left);
+\definition recovery: Linear.horizontal.apply (left \of Parameters.Point) = (u \of Model.Point) := trans!{Model.Point} _ _ _
+  (congr!{{One.Index -> S.Real} Model.Point} (Blocks.join (Blocks.left u)) _ _ (sym!{{One.Index -> S.Real}} _ _ rawZero)) (Blocks.recover u);
+\import Charts.Total[c := c] \as Total;
+\definition target: Charts.LocalPoint c := \into[M.Point](Maps.apply map (SourceCharts.point Patch.chart original), c.domain) \by { e.inside input };
+\definition law: (calculus.Maps[n := dimension, m := dimension].apply e.neighborhood Open.whole e.map u \of Model.Point) = (u \of Model.Point) :=
+  trans!{Model.Point} _ _ _ (e.agrees input)
+    (trans!{Model.Point} _ _ _ (sym!{Model.Point} _ _ (Total.coordinateInside target))
+      (trans!{Model.Point} _ _ _ (congr!{M.Point Model.Point} Total.coordinate _ _ value)
+        (trans!{Model.Point} _ _ _ (Total.coordinateInside included) (trans!{Model.Point} _ _ _ boundaryCoordinate recovery))));

@@ -1,0 +1,18 @@
+\definition point: Far.Point := \into[Product.Point](NearMaps.apply nearMap x, far) \by { member };
+\import Far.Inclusion[].InverseAt[x := point] \as Inverse;
+\definition function[p: nearManifold.Point]: Far.Point := Inverse.function (NearMaps.apply nearMap p);
+\import \root.LocalSmoothMap[n := Nat.add (Nat.add One.dimension m) (Nat.add One.dimension n), m := Nat.add (Nat.add One.dimension m) (Nat.add One.dimension n)].Between[M := nearManifold, N := Far.manifold].Of[function := function] \as Local;
+\import \root.LocalSmoothMap[n := Nat.add (Nat.add One.dimension m) (Nat.add One.dimension n), m := Nat.add (Nat.add One.dimension m) (Nat.add One.dimension n)].Between[M := nearManifold, N := Product.manifold].Of[function := NearMaps.apply nearMap] \as FirstLocal;
+\import \root.SmoothWitness[n := Nat.add (Nat.add One.dimension m) (Nat.add One.dimension n), m := Nat.add (Nat.add One.dimension m) (Nat.add One.dimension n)].Between[M := nearManifold, N := Product.manifold].Of[f := nearMap] \as Witness;
+\import \root.LocalSmoothCompose[n := Nat.add (Nat.add One.dimension m) (Nat.add One.dimension n), m := Nat.add (Nat.add One.dimension m) (Nat.add One.dimension n), l := Nat.add (Nat.add One.dimension m) (Nat.add One.dimension n)].Between[M := nearManifold, N := Product.manifold, P := Far.manifold].From[f := NearMaps.apply nearMap, g := Inverse.function] \as Compose;
+\import topology.Topology[Carrier := nearManifold.Point] \as NearSpace;
+\definition W: \Pow nearManifold.Point := { p: nearManifold.Point \where Space.Member far (NearMaps.apply nearMap p) };
+\definition openW: NearSpace.IsOpenIn nearManifold.space W := nearMap.continuous far farOpen;
+\definition agrees: \forall (p: nearManifold.Point) -> NearSpace.Member W p -> (farHomeomorphism.forward (function p) \of Point) = (nearHomeomorphism.forward p \of Point) :=
+  \fun (p: nearManifold.Point)(member: NearSpace.Member W p) => boundary_manifolds.Refinement[A := Product.Point].equality points (farHomeomorphism.forward (function p)) (nearHomeomorphism.forward p)
+    (trans!{{Product.Point}} _ _ _ (congr!{{Far.Point} {Product.Point}} (\fun (z: Far.Point) => z) _ _ (Inverse.inside (\into[Product.Point](NearMaps.apply nearMap p, far) \by { member }))) (nearValue p));
+\definition exists: \exists Local.Witness[x] := \block {
+  \takefrom first: FirstLocal.Witness[x] \by Witness.exists x \then
+  \takefrom next: Inverse.Witness \by Inverse.exists \then
+  \return Compose.At[x := x, chosen := first, next := next].exists
+};

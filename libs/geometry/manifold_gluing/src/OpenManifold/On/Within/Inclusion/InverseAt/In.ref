@@ -1,0 +1,33 @@
+\import \parent.\parent.\parent.For[patch := patch] \as PatchChart;
+\definition c: OldChart := patch.source;
+\definition left: Locality.SourceChart x := \into[Original.Chart](c, Locality.SourceChart x) \by { Logic.And[_, _]::# (\bysub(Original.Chart, M.atlas.charts, c)) contains };
+\definition targetContains: Charts.Contains PatchChart.chart (function x) := \idelim x = function x \with p: Point => Charts.Contains PatchChart.chart p \by { base: contains, equality: sym!{Point} _ _ (inside x) };
+\definition right: Locality.TargetChart (function x) := \into[Charts.Chart](PatchChart.chart, Locality.TargetChart (function x)) \by {
+  Logic.And[_, _]::# (Logic.existsIntro[Patch, { p: Patch \where PatchChart.chart = chart p }] patch (\refl(PatchChart.chart))) targetContains
+};
+\import InverseMaps.At[function := function, left := left, right := right, x := (x \of M.Point), contains := Locality.leftContains x left] \as Extension;
+\definition sourcePoint: PatchChart.LocalPoint := \into[Point](x, PatchChart.domain) \by { contains };
+\definition pointEqual: PatchChart.old sourcePoint = Extension.local := boundary_manifolds.Refinement[A := M.Point].equality c.domain (PatchChart.old sourcePoint) Extension.local (\refl(x \of M.Point));
+\definition sourceEqual: (PatchChart.coordinate sourcePoint \of Model.Point) = (Extension.source \of Model.Point) := congr!{{Original.LocalPoint c} {Model.Point}} (\fun (p: Original.LocalPoint c) => Original.coordinate c p) _ _ pointEqual;
+\definition contains: \In[Model.Point] PatchChart.image.points Extension.source := \idelim (PatchChart.coordinate sourcePoint \of Model.Point) = (Extension.source \of Model.Point)
+  \with u: Model.Point => \In[Model.Point] PatchChart.image.points u \by { base: \bysub(Model.Point, PatchChart.image.points, PatchChart.coordinate sourcePoint), equality: sourceEqual };
+\definition identity: Calculus.Map PatchChart.image Open.whole := Calculus.Map[PatchChart.image, Open.whole] {
+  apply := \fun (u: Open.Carrier PatchChart.image) => \into[Model.Point](u, Open.whole.points) \by { \refl(u \of Model.Point) },
+  smooth := \fun (i: Model.Coordinate) => Open.Examples[].projectionSmooth PatchChart.image i,
+};
+\definition equal: \forall (u: Model.Carrier c.constraints PatchChart.image) -> function (Original.point c (PatchChart.input u)) = PatchChart.value u :=
+  \fun (u: Model.Carrier c.constraints PatchChart.image) => inside (PatchChart.value u);
+\definition inTarget: \forall (u: Model.Carrier c.constraints PatchChart.image) -> Charts.Contains PatchChart.chart (function (Original.point c (PatchChart.input u))) :=
+  \fun (u: Model.Carrier c.constraints PatchChart.image) => \idelim PatchChart.value u = function (Original.point c (PatchChart.input u)) \with p: Point => Charts.Contains PatchChart.chart p \by {
+    base: \bysub(Point, PatchChart.domain, PatchChart.point u), equality: sym!{Point} _ _ (equal u)
+  };
+\definition output[u: Model.Carrier c.constraints PatchChart.image]: Charts.LocalPoint PatchChart.chart := \into[Point](function (Original.point c (PatchChart.input u)), PatchChart.domain) \by { inTarget u };
+\definition outputEqual: \forall (u: Model.Carrier c.constraints PatchChart.image) -> output u = PatchChart.point u :=
+  \fun (u: Model.Carrier c.constraints PatchChart.image) => boundary_manifolds.Refinement[A := Point].equality PatchChart.domain (output u) (PatchChart.point u) (equal u);
+\definition extension: Extension.Extension := Extension.Extension {
+  neighborhood := PatchChart.image, included := patch.representative.included, contains := contains, map := identity, inside := inTarget,
+  agrees := \fun (u: Model.Carrier c.constraints PatchChart.image) => sym!{Model.Point} _ _ (trans!{Model.Point} _ _ _
+    (congr!{{Charts.LocalPoint PatchChart.chart} {Model.Point}} (\fun (p: Charts.LocalPoint PatchChart.chart) => Charts.coordinate PatchChart.chart p) _ _ (outputEqual u))
+    (congr!{{Model.Carrier c.constraints PatchChart.image} {Model.Point}} (\fun (p: Model.Carrier c.constraints PatchChart.image) => p) _ _ (PatchChart.rightInverse u))),
+};
+\definition witness: Witness := Locality.Witness[x] { left := left, right := right, extension := extension };

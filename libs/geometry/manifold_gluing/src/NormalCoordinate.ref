@@ -1,0 +1,38 @@
+\import std.Data[].Nat[].Basic[].Def[] \as Nat;
+\import std.Data[].FinSet[] \as Fin;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\import real.Analysis[] \as S;
+\import S.Distance[] \as Metric;
+\import dedekind_reals.DedekindReal[] \as R;
+\import calculus.Real[].OneDimension[] \as One;
+\definition dimension: std.Data[].Nat[].Nat^ := Nat.add One.dimension n;
+\import calculus.Blocks[n := n, m := One.dimension] \as Blocks;
+\import inverse_implicit.Product[n := n, m := One.dimension] \as Linear;
+\import Fin.Sum[m := n, n := One.dimension] \as Indices;
+\import topological_algebra.Euclidean[].Dimension[n := dimension].Def[] \as Coordinates;
+\import calculus.Real[].Multivariable[n := dimension].Space[].Prop[] \as Laws;
+\import topological_algebra.Euclidean[].Dimension[n := One.dimension].Def[] \as TimeCoordinates;
+\import topological_algebra.Euclidean[].Dimension[n := One.dimension].Norm[] \as TimeNorm;
+\definition Point: \Set := Fin.Fin dimension -> S.Real;
+\definition normal: Fin.Fin dimension := Indices.right One.index;
+\definition constant[t: S.Real]: One.Index -> S.Real := \fun (i: One.Index) => t;
+\definition replaceLeft: \forall (x: Point)(t: S.Real) -> Blocks.left (Coordinates.replace x normal t) = Blocks.left x :=
+  \fun (x: Point)(t: S.Real) => \axiom:funext(Blocks.left (Coordinates.replace x normal t), Blocks.left x,
+    \fun (i: Fin.Fin n) => Laws.replaceDifferent x normal (Indices.left i) t (\fun (same: normal = Indices.left i) => Indices.different i One.index (sym!{{Fin.Fin dimension}} _ _ same)));
+\definition replaceRight: \forall (x: Point)(t: S.Real) -> Blocks.right (Coordinates.replace x normal t) = constant t :=
+  \fun (x: Point)(t: S.Real) => \axiom:funext(Blocks.right (Coordinates.replace x normal t), constant t,
+    \fun (i: One.Index) => trans!{S.Real} _ _ _
+      (congr!{One.Index S.Real} (Blocks.right (Coordinates.replace x normal t)) _ _ (Fin.singletonValue i)) (Laws.replaceSame x normal t));
+\definition replaceFormula: \forall (x: Point)(t: S.Real) -> Coordinates.replace x normal t = Blocks.join (Blocks.left x) (constant t) :=
+  \fun (x: Point)(t: S.Real) => trans!{Point} _ _ _ (sym!{Point} _ _ (Blocks.recover (Coordinates.replace x normal t)))
+    (congr!{{Fin.Fin n -> S.Real} {One.Index -> S.Real} Point} Blocks.join _ _ _ _ (replaceLeft x t) (replaceRight x t));
+\definition basis: Coordinates.basis normal = Linear.vertical.apply (constant S.one) := replaceFormula Coordinates.origin S.one;
+\definition constantDistance: \forall (s, t: S.Real) -> TimeCoordinates.pointDistance (constant s) (constant t) = S.distance s t :=
+  \fun (s, t: S.Real) => R.leAntisym _ _
+    (TimeNorm.finiteUpper One.dimension (TimeCoordinates.subPoint (constant s) (constant t)) (S.distance s t) (Metric.distanceNonnegative s t)
+      (\fun (i: One.Index) => R.leReplaceLeft (S.distance s t) (S.distance (S.sub s t) S.zero) (S.distance s t)
+        (sym!{S.Real} _ _ (S.Estimates[].distanceDifference s t)) (R.leRefl (S.distance s t))))
+    (TimeNorm.coordinateDistance (constant s) (constant t) One.index);

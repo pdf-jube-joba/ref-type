@@ -1,0 +1,58 @@
+\import \root.InwardNeighborhood[n := k].On[M := P].With[cover := pCover].From[h := p.homotopy, active := p.active] \as PCandidate;
+\import \root.InwardNeighborhood[n := k].On[M := Q].With[cover := qCover].From[h := q.homotopy, active := q.active] \as QCandidate;
+\definition leftBoundary: \forall (b: LeftBoundary.manifold.Point) -> SideLeftMaps.apply data.left (LeftBoundary.apply b) = PInclusion.apply (BaseMaps.apply data.base b) :=
+  \fun (b: LeftBoundary.manifold.Point) => trans!{{P.Point}} _ _ _
+    (congr!{{M.Point} {P.Point}} (SideLeftMaps.apply data.left) _ _ (sym!{{M.Point}} _ _ (LeftCandidate.neighborhood.initial b)))
+    (trans!{{P.Point}} _ _ _ (data.preserveLeft b Time.zero positive) (PCandidate.neighborhood.initial (BaseMaps.apply data.base b)));
+\definition rightBoundary: \forall (b: LeftBoundary.manifold.Point) -> SideRightMaps.apply data.right (RightBoundary.apply (BoundaryMaps.apply d.forward b)) = QInclusion.apply (TargetBoundaryMaps.apply e.forward (BaseMaps.apply data.base b)) :=
+  \fun (b: LeftBoundary.manifold.Point) => trans!{{Q.Point}} _ _ _
+    (congr!{{N.Point} {Q.Point}} (SideRightMaps.apply data.right) _ _ (sym!{{N.Point}} _ _ (RightCandidate.neighborhood.initial (BoundaryMaps.apply d.forward b))))
+    (trans!{{Q.Point}} _ _ _ (data.preserveRight b Time.zero positive) (QCandidate.neighborhood.initial (TargetBoundaryMaps.apply e.forward (BaseMaps.apply data.base b))));
+\import \root.Seam[A := M.Point, B := N.Point, C := LeftBoundary.manifold.Point, u := Gluing.left, v := Gluing.right].Map[
+  D := P.Point, E := Q.Point, F := PInclusion.manifold.Point, s := TargetSeam.left, t := TargetSeam.right,
+  left := SideLeftMaps.apply data.left, right := SideRightMaps.apply data.right, seam := BaseMaps.apply data.base] \as Descent;
+\definition laws: Descent.Laws := Descent.Laws { left := leftBoundary, right := rightBoundary };
+\definition function: Gluing.Point -> TargetSeam.Point := Descent.apply laws;
+\definition continuous: topology.Continuity[A := Gluing.Point, B := TargetSeam.Point].Continuous Gluing.topology TargetSeam.topology function :=
+  Descent.continuous laws M.space N.space P.space Q.space data.left.continuous data.right.continuous;
+\definition onLeftClass: \forall (a: M.Point) -> function (Gluing.inl a) = TargetSeam.inl (SideLeftMaps.apply data.left a) := Descent.onLeft laws;
+\definition onRightClass: \forall (a: N.Point) -> function (Gluing.inr a) = TargetSeam.inr (SideRightMaps.apply data.right a) := Descent.onRight laws;
+\import \root.ProductMaps[n := n, m := One.dimension].Of[M := LeftBoundary.manifold, N := Signed.manifold] \as Projections;
+\import boundary_manifolds.MapComposition[n := Nat.add One.dimension n, m := n, l := k].Between[M := Source.manifold, N := LeftBoundary.manifold, P := PInclusion.manifold].Of[
+  f := Projections.First[].map, g := data.base] \as BaseComposition;
+\import \root.ProductMaps[n := k, m := One.dimension].Of[M := PInclusion.manifold, N := Signed.manifold].Pairing[p := Nat.add One.dimension n].From[P := Source.manifold].Using[
+  f := BaseComposition.map, g := Projections.Second[].map] \as ProductMap;
+\import boundary_manifolds.MapComposition[n := Nat.add One.dimension n, m := Nat.add One.dimension k, l := Nat.add One.dimension k].Between[M := Source.manifold, N := TargetProduct.manifold, P := TargetGluing.manifold].Of[
+  f := ProductMap.map, g := TargetInclusions.seam] \as SeamComposition;
+\import boundary_manifolds.SmoothMap[n := Nat.add One.dimension n, m := Nat.add One.dimension k].Between[M := Source.manifold, N := TargetGluing.manifold] \as SeamMaps;
+\definition targetPoint[x: Source.Point]: TargetProduct.Point := Pair.pair PInclusion.manifold.Point Signed.Point (BaseMaps.apply data.base (Source.first x)) (Source.second x);
+\definition seamValue: \forall (x: Source.Point) -> SeamMaps.apply SeamComposition.map x = TargetCollar.apply (targetPoint x) := \fun (x: Source.Point) => \refl(TargetCollar.apply (targetPoint x));
+\definition onPositive: \forall (x: Source.Point) -> Space.Member Positive x -> function (apply x) = SeamMaps.apply SeamComposition.map x :=
+  \fun (x: Source.Point)(member: _) => trans!{{TargetSeam.Point}} _ _ _ (congr!{{Gluing.Point} {TargetSeam.Point}} function _ _ (onLeft x member))
+    (trans!{{TargetSeam.Point}} _ _ _ (Descent.onLeft laws (LeftMaps.apply LeftMap.map (leftParameter x)))
+      (trans!{{TargetSeam.Point}} _ _ _ (congr!{{P.Point} {TargetSeam.Point}} TargetSeam.inl _ _ (data.preserveLeft (Source.first x) (plus x) (Signed.positiveSmall (Source.second x))))
+        (sym!{{TargetSeam.Point}} _ _ (TargetCollar.onLeft (targetPoint x) member))));
+\definition onNegative: \forall (x: Source.Point) -> Space.Member Negative x -> function (apply x) = SeamMaps.apply SeamComposition.map x :=
+  \fun (x: Source.Point)(member: _) => trans!{{TargetSeam.Point}} _ _ _ (congr!{{Gluing.Point} {TargetSeam.Point}} function _ _ (onRight x member))
+    (trans!{{TargetSeam.Point}} _ _ _ (Descent.onRight laws (RightMaps.apply RightMap.map (rightParameter x)))
+      (trans!{{TargetSeam.Point}} _ _ _ (congr!{{Q.Point} {TargetSeam.Point}} TargetSeam.inr _ _ (data.preserveRight (Source.first x) (minus x) (Signed.negativeBound (Source.second x))))
+        (sym!{{TargetSeam.Point}} _ _ (TargetCollar.onRight (targetPoint x) member))));
+\definition agreesSeam: \forall (x: Source.Point) -> function (apply x) = SeamMaps.apply SeamComposition.map x :=
+  \fun (x: Source.Point) => Logic.orElim (R.Le S.zero (scalar x)) (R.Lt (scalar x) S.zero) (function (apply x) = SeamMaps.apply SeamComposition.map x) (Laws.nonnegativeOrNegativeReal (scalar x)) (onPositive x) (\fun (negative: R.Lt (scalar x) S.zero) => onNegative x (Order.leOfLt (scalar x) S.zero negative));
+\import boundary_manifolds.MapComposition[n := Nat.add One.dimension n, m := Nat.add One.dimension n, l := Nat.add One.dimension k].Between[M := LeftInside.manifold, N := M, P := P].Of[
+  f := LeftInside.map, g := data.left] \as LeftSideComposition;
+\import boundary_manifolds.MapComposition[n := Nat.add One.dimension n, m := Nat.add One.dimension k, l := Nat.add One.dimension k].Between[M := LeftInside.manifold, N := P, P := TargetGluing.manifold].Of[
+  f := LeftSideComposition.map, g := TargetInclusions.left] \as LeftComposition;
+\import boundary_manifolds.MapComposition[n := Nat.add One.dimension n, m := Nat.add One.dimension n, l := Nat.add One.dimension k].Between[M := RightInside.manifold, N := N, P := Q].Of[
+  f := RightInside.map, g := data.right] \as RightSideComposition;
+\import boundary_manifolds.MapComposition[n := Nat.add One.dimension n, m := Nat.add One.dimension k, l := Nat.add One.dimension k].Between[M := RightInside.manifold, N := Q, P := TargetGluing.manifold].Of[
+  f := RightSideComposition.map, g := TargetInclusions.right] \as RightComposition;
+\import boundary_manifolds.SmoothMap[n := Nat.add One.dimension n, m := Nat.add One.dimension k].Between[M := LeftInside.manifold, N := TargetGluing.manifold] \as LeftOutputMaps;
+\import boundary_manifolds.SmoothMap[n := Nat.add One.dimension n, m := Nat.add One.dimension k].Between[M := RightInside.manifold, N := TargetGluing.manifold] \as RightOutputMaps;
+\definition agreesLeft: \forall (x: LeftInside.manifold.Point) -> function (Gluing.inl x) = LeftOutputMaps.apply LeftComposition.map x := \fun (x: LeftInside.manifold.Point) => Descent.onLeft laws x;
+\definition agreesRight: \forall (x: RightInside.manifold.Point) -> function (Gluing.inr x) = RightOutputMaps.apply RightComposition.map x := \fun (x: RightInside.manifold.Point) => Descent.onRight laws x;
+\import \parent.\parent.\parent.\parent.\parent.\parent.\parent.\parent.\parent.Mapping[m := Nat.add One.dimension k].Into[P := TargetGluing.manifold].Of[
+  f := function, continuous := continuous, left := LeftComposition.map, right := RightComposition.map, seam := SeamComposition.map,
+  agreesLeft := agreesLeft, agreesRight := agreesRight, agreesSeam := agreesSeam] \as Smooth;
+\import boundary_manifolds.SmoothMap[n := Nat.add One.dimension n, m := Nat.add One.dimension k].Between[M := manifold, N := TargetGluing.manifold] \as Result;
+\definition map: Result.Map := Smooth.map;

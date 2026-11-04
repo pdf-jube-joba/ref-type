@@ -1,0 +1,31 @@
+\import LeftTransport.In[c := c] \as Left;
+\import RightTransport.In[c := d] \as Right;
+\definition a: Left.Point := \into[A](h.forward x, Left.domain) \by { inLeft };
+\definition b: Right.Point := \into[A](h.forward x, Right.domain) \by { inRight };
+\import topology.Homeomorphism[A := M.Point, B := \Cast[A] U] \as LeftHomeos;
+\import topology.Homeomorphism[A := N.Point, B := \Cast[A] V] \as RightHomeos;
+\definition leftRange: Left.range a = h.forward x := boundary_manifolds.Refinement[A := A].equality U (Left.range a) (h.forward x) (\refl(h.forward x \of A));
+\definition rightRange: Right.range b = k.forward (f x) := boundary_manifolds.Refinement[A := A].equality V (Right.range b) (k.forward (f x)) (sym!{A} _ _ (agrees x inW));
+\definition leftOld: (Left.old a \of M.Point) = x := trans!{{M.Point}} _ _ _ (congr!{{\Cast[A] U} {M.Point}} h.backward _ _ leftRange) ((LeftHomeos.laws _ _ h).leftInverse x);
+\definition rightOld: (Right.old b \of N.Point) = f x := trans!{{N.Point}} _ _ _ (congr!{{\Cast[A] V} {N.Point}} k.backward _ _ rightRange) ((RightHomeos.laws _ _ k).leftInverse (f x));
+\definition oldLeft: LeftCharts.Contains c x := \idelim (Left.old a \of M.Point) = x \with p: M.Point => LeftCharts.Contains c p \by { base: Left.contains a, equality: leftOld };
+\definition oldRight: RightCharts.Contains d (f x) := \idelim (Right.old b \of N.Point) = f x \with p: N.Point => RightCharts.Contains d p \by { base: Right.contains b, equality: rightOld };
+\import \parent.At[c := c, d := d, inLeft := oldLeft, inRight := oldRight, chosen := chosen] \as Original;
+\import Charts.At[x := (h.forward x \of A), left := Left.chart, right := Right.chart, inLeft := Original.leftContains] \as Old;
+\import Charts.At[x := (h.forward x \of A), left := Left.chart, right := Right.chart, inLeft := inLeft] \as New;
+\definition sourceEqual: Old.source = New.source := congr!{{Charts.LocalPoint Left.chart} {Model.Carrier Left.chart.constraints Left.chart.image}}
+  (Charts.coordinate Left.chart) Old.sourcePoint New.sourcePoint
+  (boundary_manifolds.Refinement[A := A].equality Left.chart.domain Old.sourcePoint New.sourcePoint (\refl(h.forward x \of A)));
+\module Using(e: Old.Extension) {
+  \definition extension: New.Extension := New.Extension {
+    neighborhood := e.neighborhood, included := e.included, map := e.map, inside := e.inside, agrees := e.agrees,
+    contains := \idelim (Old.source \of Model.Point) = (New.source \of Model.Point) \with u: Model.Point => \In[Model.Point] e.neighborhood.points u \by {
+      base: e.contains,
+      equality: congr!{{Model.Carrier Left.chart.constraints Left.chart.image} {Model.Point}} (\fun (u: Model.Carrier Left.chart.constraints Left.chart.image) => u) _ _ sourceEqual
+    },
+  };
+}
+\definition exists: \exists New.Extension := \block {
+  \takefrom e: Old.Extension \by Original.exists \then
+  \return \exact(Using[e := e].extension, New.Extension)
+};

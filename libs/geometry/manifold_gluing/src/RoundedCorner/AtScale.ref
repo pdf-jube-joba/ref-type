@@ -1,0 +1,49 @@
+\import boundary_manifolds.Differentiation[n := dimension].On[U := domain] \as Derivative;
+\import Open.Smooth[].Algebra[U := domain] \as F;
+\import Open.Smooth[].Differential[].Operations[U := domain] \as Rules;
+\definition u: F.Function := Derivative.projection firstNormal;
+\definition v: F.Function := Derivative.projection secondNormal;
+\definition defining: F.Function := F.plus (F.product u v) (F.constant (S.neg epsilon));
+\definition value[x: Open.Carrier domain]: S.Real := S.sub (S.mul (x firstNormal) (x secondNormal)) epsilon;
+\definition formula[x: Open.Carrier domain]: defining x = value x := \refl(value x);
+\definition function: Maps.Map domain Line.whole := Maps.Map[domain, Line.whole] {
+  apply := \fun (x: Open.Carrier domain) => \into[One.Index -> S.Real]((\fun (i: One.Index) => defining x), Line.whole.points) \by { \refl(\fun (i: One.Index) => defining x) },
+  smooth := \fun (i: One.Index) => \bysub(Open.ScalarFunction domain, F.Predicate, defining),
+};
+\import boundary_manifolds.Sublevel[n := First.dimension].Of[U := domain, f := function] \as Region;
+\definition direction: Fin.Fin dimension -> S.Real := Coordinates.basis secondNormal;
+\definition firstDirection: direction firstNormal = S.zero := CoordinateLaws.replaceDifferent Coordinates.origin secondNormal firstNormal S.one
+  (\fun (same: secondNormal = firstNormal) => different (sym!{{Fin.Fin dimension}} _ _ same));
+\definition secondDirection: direction secondNormal = S.one := CoordinateLaws.replaceSame Coordinates.origin secondNormal S.one;
+\definition productDerivative: \forall (x: Open.Carrier domain) -> Derivative.value (F.product u v) x direction = x firstNormal :=
+  \fun (x: Open.Carrier domain) => trans!{S.Real} _ _ _ (Rules.product u v x direction)
+    (trans!{S.Real} _ _ _ (congr!{S.Real S.Real S.Real} S.add _ _ _ _
+      (trans!{S.Real} _ _ _ (congr!{S.Real S.Real} (S.mul (v x)) _ _
+        (trans!{S.Real} _ _ _ (Derivative.projectionDerivative firstNormal x direction) firstDirection)) (Laws.fieldMulZeroRight (v x)))
+      (trans!{S.Real} _ _ _ (congr!{S.Real S.Real} (S.mul (u x)) _ _
+        (trans!{S.Real} _ _ _ (Derivative.projectionDerivative secondNormal x direction) secondDirection)) (S.Algebra[].mulOneRight (u x))))
+      (Laws.addZeroLeft (u x)));
+\definition transverse: \forall (x: Open.Carrier domain) -> Derivative.value defining x direction = x firstNormal :=
+  \fun (x: Open.Carrier domain) => trans!{S.Real} _ _ _ (Rules.addition (F.product u v) (F.constant (S.neg epsilon)) x direction)
+    (trans!{S.Real} _ _ _ (congr!{S.Real S.Real S.Real} S.add _ _ _ _ (productDerivative x) (Derivative.constant (S.neg epsilon) x direction)) (Laws.addZeroRight (x firstNormal)));
+\module At(x: Open.Carrier domain) {
+  \definition positive: R.Lt S.zero (x firstNormal) := \bysub(Fin.Fin dimension -> S.Real, points, x);
+  \definition nonzero: Logic.Not (x firstNormal = S.zero) := S.Inverse[].positiveNonzero (x firstNormal) positive;
+  \definition differential: calculus.Vector[n := dimension, m := One.dimension].LinearMap := Maps.Differential[U := domain, V := Line.whole, f := function, a := x].value;
+  \definition surjective: inverse_implicit.Product[n := First.dimension, m := One.dimension].Submersion[U := domain, f := function, a := x].Surjective := \block {
+    \fun (w: One.Index -> S.Real) \then
+    \let scale: S.Real := S.mul (w One.index) (Laws.fieldInv (x firstNormal)) \then
+    \let answer: Fin.Fin dimension -> S.Real := Coordinates.scale scale direction \then
+    \return Logic.existsIntro[Fin.Fin dimension -> S.Real, { z: Fin.Fin dimension -> S.Real \where differential.apply z = w }] answer
+      (\axiom:funext(differential.apply answer, w, \fun (i: One.Index) => trans!{S.Real} _ _ _
+        (congr!{{One.Index -> S.Real} S.Real} (\fun (v: One.Index -> S.Real) => v i) _ _ (differential.preservesScale scale direction))
+        (trans!{S.Real} _ _ _ (congr!{S.Real S.Real} (S.mul scale) _ _ (transverse x))
+          (trans!{S.Real} _ _ _ (Laws.fieldMulAssoc (w One.index) (Laws.fieldInv (x firstNormal)) (x firstNormal))
+            (trans!{S.Real} _ _ _ (congr!{S.Real S.Real} (S.mul (w One.index)) _ _ (Laws.fieldInverseNonzero (x firstNormal) nonzero))
+              (trans!{S.Real} _ _ _ (S.Algebra[].mulOneRight (w One.index)) (congr!{One.Index S.Real} w _ _ (sym!{One.Index} _ _ (Fin.singletonValue i)))))))))
+  };
+}
+\definition regular: Region.Regular := \fun (x: Open.Carrier domain)(zero: _) => At[x := x].surjective;
+\import boundary_manifolds.Dimension[n := dimension] \as Models;
+\definition manifold: Models.Manifold := Region.Build[regular := regular].manifold;
+\module In(x: manifold.Point);

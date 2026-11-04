@@ -1,0 +1,22 @@
+\definition insideContinuous: topology.Continuity[A := Source.Point, B := N.Point].Continuous Source.topology N.space (\fun (x: Source.Point) => function x) :=
+  \idelim LocalMaps.apply f = (\fun (x: Source.Point) => function x) \with h: (Source.Point -> N.Point) => topology.Continuity[A := Source.Point, B := N.Point].Continuous Source.topology N.space h \by {
+    base: f.continuous, equality: \axiom:funext(LocalMaps.apply f, (\fun (x: Source.Point) => function x), \fun (x: Source.Point) => sym!{{N.Point}} _ _ (inside x))
+  };
+\definition outside: \Pow M.Point := Space.Complement K;
+\definition Point: \Set := \Cast[M.Point] outside;
+\definition topology: topology.Structures[].Topology[Point] := Space.Subspace[S := outside].topology M.space;
+\definition outsideContinuous: topology.Continuity[A := Point, B := N.Point].Continuous topology N.space (\fun (x: Point) => function x) :=
+  \idelim (\fun (x: Point) => GlobalMaps.apply g x) = (\fun (x: Point) => function x) \with h: (Point -> N.Point) => topology.Continuity[A := Point, B := N.Point].Continuous topology N.space h \by {
+    base: topology.Continuity[A := M.Point, B := N.Point].Restriction[S := outside].restrictContinuous M.space N.space (GlobalMaps.apply g) g.continuous,
+    equality: \axiom:funext((\fun (x: Point) => GlobalMaps.apply g x), (\fun (x: Point) => function x), \fun (x: Point) => sym!{{N.Point}} _ _ (unchanged x (\bysub(M.Point, outside, x))))
+  };
+\definition insideLocal: Gluing.ContinuousOn M.space N.space function U := Gluing.Restriction[U := U].localFromRestriction M.space N.space function open insideContinuous;
+\definition outsideLocal: Gluing.ContinuousOn M.space N.space function outside := Gluing.Restriction[U := outside].localFromRestriction M.space N.space function closed outsideContinuous;
+\definition family: \Pow (\Pow M.Point) := { V: \Pow M.Point \where Logic.Or[V = U, V = outside] };
+\definition covers: Space.Covers family Space.Whole := \fun (x: M.Point)(whole: Space.Member Space.Whole x) => Logic.orElim (Space.Member U x) (Logic.Not (Space.Member U x)) (Space.Member (Space.Union family) x) (Classical.excludedMiddle (Space.Member U x))
+  (\fun (member: Space.Member U x) => Space.unionMemberOf family U x (Logic.Or[_, _]::left (\refl(U))) member)
+  (\fun (missing: Logic.Not (Space.Member U x)) => Space.unionMemberOf family outside x (Logic.Or[_, _]::right (\refl(outside))) (\fun (member: Space.Member K x) => missing (included x member)));
+\definition continuous: topology.Continuity[A := M.Point, B := N.Point].Continuous M.space N.space function := Gluing.openCover M.space N.space function family covers
+  (\fun (V: \Pow M.Point)(member: Space.FamilyMember family V) => Logic.orElim (V = U) (V = outside) (Gluing.ContinuousOn M.space N.space function V) member
+    (\fun (same: V = U) => \idelim U = V \with W: \Pow M.Point => Gluing.ContinuousOn M.space N.space function W \by { base: insideLocal, equality: sym!{{\Pow M.Point}} _ _ same })
+    (\fun (same: V = outside) => \idelim outside = V \with W: \Pow M.Point => Gluing.ContinuousOn M.space N.space function W \by { base: outsideLocal, equality: sym!{{\Pow M.Point}} _ _ same }));

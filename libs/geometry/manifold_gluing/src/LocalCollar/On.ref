@@ -1,0 +1,17 @@
+\import Boundary.Of[M := M] \as BoundaryAtlas;
+\import Models.Chart[M := M.Point, space := M.space] \as Charts;
+\structure Data: \Set := {
+  chart: BoundaryAtlas.Chart,
+  parameters: Parameters.OpenSet,
+  times: Time.OpenSet,
+  included: Open.Included (Blocks.product parameters times) chart.image,
+  containsZero: \In[TimePoint] times.points zero,
+};
+\module In(data: Data);
+\definition ExistsAt[x: BoundaryAtlas.Point]: \Prop := \exists ( data: Data \where \exists ( p: In[data := data].Point \where In[data := data].apply p = x ) );
+\module At(x: BoundaryAtlas.Point, chart: BoundaryAtlas.Chart, contains: Charts.Contains chart x);
+\definition localExistence: BoundaryAtlas.Cover -> \forall (x: BoundaryAtlas.Point) -> ExistsAt x := \block {
+  \fun (cover: BoundaryAtlas.Cover)(x: BoundaryAtlas.Point) \then
+  \takefrom chart: \Cast[BoundaryAtlas.Chart] ({ chart: BoundaryAtlas.Chart \where Charts.Contains chart x }) \by cover x \then
+  \return At[x := x, chart := chart, contains := \bysub(BoundaryAtlas.Chart, { chart: BoundaryAtlas.Chart \where Charts.Contains chart x }, chart)].exists
+};

@@ -1,0 +1,45 @@
+\import smooth_partitions.Exponential[].Plateau[] \as Plateau;
+\import smooth_partitions.FiniteProducts[] \as Products;
+\import S.Estimates[] \as Estimates;
+\definition abs[x: Open.Carrier Open.whole]: S.Real := Bounds.abs (coordinate x);
+\definition absNonnegative: \forall (x: Open.Carrier Open.whole) -> R.Le S.zero (abs x) := \fun (x: Open.Carrier Open.whole) => Bounds.absNonnegative (coordinate x);
+\definition absSquare: \forall (x: Open.Carrier Open.whole) -> S.mul (abs x) (abs x) = S.mul (coordinate x) (coordinate x) :=
+  \fun (x: Open.Carrier Open.whole) => Logic.orElim (R.Le S.zero (coordinate x)) (R.Lt (coordinate x) S.zero)
+    (S.mul (abs x) (abs x) = S.mul (coordinate x) (coordinate x)) (Laws.nonnegativeOrNegativeReal (coordinate x))
+    (\fun (nonnegative: _) => congr!{S.Real S.Real S.Real} S.mul _ _ _ _ (Bounds.absOfNonnegative (coordinate x) nonnegative) (Bounds.absOfNonnegative (coordinate x) nonnegative))
+    (\fun (negative: _) => trans!{S.Real} _ _ _ (congr!{S.Real S.Real S.Real} S.mul _ _ _ _ (Bounds.absOfNegative (coordinate x) negative) (Bounds.absOfNegative (coordinate x) negative))
+      (trans!{S.Real} _ _ _ (Laws.fieldMulNegLeft (coordinate x) (S.neg (coordinate x)))
+        (trans!{S.Real} _ _ _ (congr!{S.Real S.Real} S.neg _ _ (Laws.fieldMulNegRight (coordinate x) (coordinate x))) (Laws.negInvolutive (S.mul (coordinate x) (coordinate x))))));
+\definition lower: \forall (x: Open.Carrier Open.whole) -> R.Le (abs x) (value x) := \fun (x: Open.Carrier Open.whole) =>
+  Order.leOfNotLtReverse (abs x) (value x) (\fun (reverse: _) => R.ltNotLeReverse (radicand x) (S.mul (coordinate x) (coordinate x))
+    (R.ltReplaceLeft (S.mul (value x) (value x)) (radicand x) (S.mul (coordinate x) (coordinate x)) (square x)
+      (R.ltReplaceRight (S.mul (value x) (value x)) (S.mul (abs x) (abs x)) (S.mul (coordinate x) (coordinate x)) (absSquare x)
+        (Root.squareStrict (value x) (abs x) (nonnegative x) reverse))) (\parent.At[x := x].aboveSquare));
+\definition above[x: Open.Carrier Open.whole]: S.Real := S.add (abs x) S.one;
+\definition aboveNonnegative: \forall (x: Open.Carrier Open.whole) -> R.Le S.zero (above x) := \fun (x: Open.Carrier Open.whole) => R.leTrans S.zero (abs x) (above x) (absNonnegative x) (Algebra.leAddRight (abs x) S.one Laws.oneNonnegative);
+\definition aboveSquare: \forall (x: Open.Carrier Open.whole) -> S.mul (above x) (above x) = S.add (S.add (S.mul (coordinate x) (coordinate x)) S.one) (S.add (abs x) (abs x)) :=
+  \fun (x: Open.Carrier Open.whole) => trans!{S.Real} _ _ _ (Algebra.squareAdd (abs x) S.one)
+    (congr!{S.Real S.Real S.Real} S.add _ _ _ _
+      (congr!{S.Real S.Real S.Real} S.add _ _ _ _ (absSquare x) (Algebra.mulOneRight S.one))
+      (congr!{S.Real S.Real S.Real} S.add _ _ _ _ (Algebra.mulOneRight (abs x)) (Algebra.mulOneRight (abs x))));
+\definition radicandBelow: \forall (x: Open.Carrier Open.whole) -> R.Le (radicand x) (S.mul (above x) (above x)) := \fun (x: Open.Carrier Open.whole) =>
+  R.leReplaceRight (radicand x) (S.add (S.add (S.mul (coordinate x) (coordinate x)) S.one) (S.add (abs x) (abs x))) (S.mul (above x) (above x)) (sym!{S.Real} _ _ (aboveSquare x))
+    (R.leTrans (radicand x) (S.add (S.mul (coordinate x) (coordinate x)) S.one) _
+      (Estimates.addLe (S.mul (coordinate x) (coordinate x)) (bump x) (S.mul (coordinate x) (coordinate x)) S.one (R.leRefl (S.mul (coordinate x) (coordinate x))) (Bump.bounded x).right)
+      (Algebra.leAddRight (S.add (S.mul (coordinate x) (coordinate x)) S.one) (S.add (abs x) (abs x))
+        (R.leTrans S.zero (abs x) (S.add (abs x) (abs x)) (absNonnegative x) (Algebra.leAddRight (abs x) (abs x) (absNonnegative x)))));
+\definition upper: \forall (x: Open.Carrier Open.whole) -> R.Le (value x) (above x) := \fun (x: Open.Carrier Open.whole) =>
+  Order.leOfNotLtReverse (value x) (above x) (\fun (reverse: _) => R.ltNotLeReverse (S.mul (above x) (above x)) (radicand x)
+    (R.ltReplaceRight (S.mul (above x) (above x)) (S.mul (value x) (value x)) (radicand x) (square x)
+      (Root.squareStrict (above x) (value x) (aboveNonnegative x) reverse)) (radicandBelow x));
+\definition bumpZero: \forall (x: Open.Carrier Open.whole) -> R.Le Plateau.two (abs x) -> bump x = S.zero := \fun (x: Open.Carrier Open.whole)(far: _) =>
+  Order.byContradiction (bump x = S.zero) (\fun (nonzero: _) => R.ltNotLeReverse (abs x) Plateau.two
+    (R.ltReplaceLeft (S.distance (coordinate x) S.zero) (abs x) Plateau.two (Distance.distanceSymmetric (coordinate x) S.zero)
+      (R.ltReplaceRight (S.distance (coordinate x) S.zero) Bump.radius Plateau.two (Laws.fieldMulOneLeft Plateau.two)
+        (Bump.Coordinate[i := One.index].inside x (Products.nonzeroAt One.dimension (\fun (i: One.Index) => Bump.coordinateValue i x) nonzero One.index)))) far);
+\definition equalsAbs: \forall (x: Open.Carrier Open.whole) -> bump x = S.zero -> value x = abs x := \fun (x: Open.Carrier Open.whole)(zero: _) =>
+  Root.squaresInjective (value x) (abs x) (nonnegative x) (absNonnegative x)
+    (trans!{S.Real} _ _ _ (square x) (trans!{S.Real} _ _ _
+      (congr!{S.Real S.Real} (S.add (S.mul (coordinate x) (coordinate x))) _ _ zero)
+      (trans!{S.Real} _ _ _ (Laws.addZeroRight (S.mul (coordinate x) (coordinate x))) (sym!{S.Real} _ _ (absSquare x)))));
+\definition outside: \forall (x: Open.Carrier Open.whole) -> R.Le Plateau.two (abs x) -> value x = abs x := \fun (x: Open.Carrier Open.whole)(far: _) => equalsAbs x (bumpZero x far);

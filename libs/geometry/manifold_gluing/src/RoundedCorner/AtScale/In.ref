@@ -1,0 +1,20 @@
+\definition firstPositive: R.Lt S.zero (x firstNormal) := \bysub(Fin.Fin dimension -> S.Real, points, x);
+\definition productAbove: R.Le epsilon (S.mul (x firstNormal) (x secondNormal)) :=
+  R.leReplace (S.add S.zero epsilon) epsilon (S.add (value x) epsilon) (S.mul (x firstNormal) (x secondNormal))
+    (Laws.addZeroLeft epsilon) (S.Distance[].subAddCancel (S.mul (x firstNormal) (x secondNormal)) epsilon)
+    (Laws.addMonotoneRight S.zero (value x) epsilon (\bysub(Open.Carrier domain, Region.points, x)));
+\definition secondPositive: R.Lt S.zero (x secondNormal) := Order.byContradiction (R.Lt S.zero (x secondNormal)) (\block {
+  \fun (notPositive: Logic.Not (R.Lt S.zero (x secondNormal))) \then
+  \let productNonpositive: R.Le (S.mul (x firstNormal) (x secondNormal)) S.zero := R.leReplaceRight _ (S.mul (x firstNormal) S.zero) S.zero
+    (Laws.fieldMulZeroRight (x firstNormal)) (S.Estimates[].mulMonotone (x firstNormal) (x secondNormal) S.zero
+      (Order.leOfLt _ _ firstPositive) (Order.leOfNotLtReverse (x secondNormal) S.zero notPositive)) \then
+  \return R.ltNotLeReverse S.zero epsilon (\bysub(S.Real, { e: S.Real \where R.Lt S.zero e }, epsilon))
+    (R.leTrans epsilon (S.mul (x firstNormal) (x secondNormal)) S.zero productAbove productNonpositive)
+});
+\import boundary_manifolds.Tangent[n := dimension].On[M := manifold].At[x := x].Cones[] \as Cones;
+\import Region.Build[regular := regular].At[x := x] \as Geometry;
+\definition boundary: Logic.PropEquiv[Cones.Boundary, S.mul (x firstNormal) (x secondNormal) = epsilon] := Logic.PropEquiv[_, _] {
+  ltr := \fun (boundary: Cones.Boundary) => S.Distance[].subZeroEq (S.mul (x firstNormal) (x secondNormal)) epsilon (Geometry.toZero boundary),
+  rtl := \fun (same: S.mul (x firstNormal) (x secondNormal) = epsilon) => Geometry.ofZero
+    (trans!{S.Real} _ _ _ (congr!{S.Real S.Real} (\fun (a: S.Real) => S.sub a epsilon) _ _ same) (Laws.subSelf epsilon)),
+};

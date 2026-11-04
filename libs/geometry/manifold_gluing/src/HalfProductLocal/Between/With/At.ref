@@ -1,0 +1,17 @@
+
+\import boundary_manifolds.Tangent[n := n].On[M := M].At[x := Product.first x].Cones[] \as LC;
+\import boundary_manifolds.Tangent[n := m].On[M := N].At[x := Product.second x].Cones[] \as RC;
+\import boundary_manifolds.Tangent[n := Nat.add m n].On[M := Product.manifold].At[x := x].Cones[] \as Total;
+\definition left: LC.Boundary -> \exists (d: Result.Data \where Result.Contains d x) := \block {
+ \fun (boundary: LC.Boundary) \then
+ \let interior: Logic.Not RC.Boundary := \fun (right: RC.Boundary) => noCorner (Logic.And[_, _]::# boundary right) \then
+ \takefrom d: \Cast[LeftHalf.Data] ({ d: LeftHalf.Data \where LeftHalf.Contains d (Product.first x) }) \by leftCover (Product.first x) boundary \then
+ \return \parent.\parent.LeftBoundary[x := x, d := d, member := \bysub(LeftHalf.Data, { d: LeftHalf.Data \where LeftHalf.Contains d (Product.first x) }, d), interior := interior].exists
+};
+\definition right: RC.Boundary -> \exists (d: Result.Data \where Result.Contains d x) := \block {
+ \fun (boundary: RC.Boundary) \then
+ \let interior: Logic.Not LC.Boundary := \fun (left: LC.Boundary) => noCorner (Logic.And[_, _]::# left boundary) \then
+ \takefrom d: \Cast[RightHalf.Data] ({ d: RightHalf.Data \where RightHalf.Contains d (Product.second x) }) \by rightCover (Product.second x) boundary \then
+ \return \parent.\parent.RightBoundary[x := x, d := d, member := \bysub(RightHalf.Data, { d: RightHalf.Data \where RightHalf.Contains d (Product.second x) }, d), interior := interior].exists
+};
+\definition exists: Total.Boundary -> \exists (d: Result.Data \where Result.Contains d x) := \fun (boundary: Total.Boundary) => Logic.orElim LC.Boundary RC.Boundary _ (Product.At[x := x].boundaryCriterion.ltr boundary) left right;

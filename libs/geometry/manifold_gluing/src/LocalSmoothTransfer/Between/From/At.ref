@@ -1,0 +1,58 @@
+\definition c: Destination.SourceChart x := chosen.left;
+\definition d: Destination.TargetChart (f x) := \into[TargetCharts.Chart](chosen.right, Destination.TargetChart (f x)) \by {
+  Logic.And[_, _]::# (Original.rightMember (g x) chosen.right)
+    (\idelim g x = f x \with y: N.Point => TargetCharts.Contains chosen.right y \by {
+      base: Original.rightContains (g x) chosen.right, equality: sym!{{N.Point}} _ _ (agrees x contains)
+    })
+};
+\definition point: SourceCharts.LocalPoint c := \into[M.Point](x, c.domain) \by { Destination.leftContains x c };
+\definition center: Source.Carrier c.constraints c.image := SourceCharts.coordinate c point;
+\import topology.Homeomorphism[A := SourceCharts.LocalPoint c, B := Source.Carrier c.constraints c.image] \as Homeomorphisms;
+\definition inverseContinuous: topology.Continuity[A := Source.Carrier c.constraints c.image, B := M.Point].Continuous
+  (Source.regionTopology c.constraints c.image) M.space (\fun (u: Source.Carrier c.constraints c.image) => SourceCharts.point c u) :=
+  topology.Composition[A := Source.Carrier c.constraints c.image, B := SourceCharts.LocalPoint c, C := M.Point].composeContinuous
+    (Source.regionTopology c.constraints c.image) (SourceCharts.domainTopology c.domain) M.space (SourceCharts.point c) (\fun (p: SourceCharts.LocalPoint c) => p)
+    (Homeomorphisms.laws _ _ c.coordinates).backwardContinuous
+    (topology.Continuity[A := SourceCharts.LocalPoint c, B := M.Point].Corestriction[S := c.domain].inclusionContinuous M.space);
+\definition region: \Pow (Source.Carrier c.constraints c.image) := { u: Source.Carrier c.constraints c.image \where \In[M.Point] U (SourceCharts.point c u) };
+\import \root.QuadrantNeighborhood[n := n].On[C := c.constraints, U := c.image] \as Neighborhoods;
+\import Maps.At[function := g, left := c, right := d, x := x, contains := Destination.leftContains x c] \as Old;
+\import Maps.At[function := f, left := c, right := d, x := x, contains := Destination.leftContains x c] \as New;
+\module With(neighborhood: Neighborhoods.Neighborhood[region, center], e: Old.Extension) {
+  \definition domain: Open.OpenSet := Open.intersection neighborhood.domain e.neighborhood;
+  \definition included: Open.Included domain c.image := \fun (u: Source.Point)(member: _) => neighborhood.included u member.left;
+  \definition sourceCoordinate[u: Source.Carrier c.constraints domain]: Source.Carrier c.constraints c.image :=
+    \into[Open.Carrier c.image](Open.inclusion domain c.image included u, Source.region c.constraints c.image) \by {
+      \bysub(Open.Carrier domain, Source.region c.constraints domain, u)
+    };
+  \definition actual[u: Source.Carrier c.constraints domain]: M.Point := SourceCharts.point c (sourceCoordinate u);
+  \definition localInput[u: Source.Carrier c.constraints domain]: Source.Carrier c.constraints neighborhood.domain :=
+    \into[Open.Carrier neighborhood.domain](Open.inclusion domain neighborhood.domain (Open.intersectionLeft neighborhood.domain e.neighborhood) u,
+      Source.region c.constraints neighborhood.domain) \by { \bysub(Open.Carrier domain, Source.region c.constraints domain, u) };
+  \definition oldInput[u: Source.Carrier c.constraints domain]: Source.Carrier c.constraints e.neighborhood :=
+    \into[Open.Carrier e.neighborhood](Open.inclusion domain e.neighborhood (Open.intersectionRight neighborhood.domain e.neighborhood) u,
+      Source.region c.constraints e.neighborhood) \by { \bysub(Open.Carrier domain, Source.region c.constraints domain, u) };
+  \definition equal: \forall (u: Source.Carrier c.constraints domain) -> f (actual u) = g (actual u) :=
+    \fun (u: Source.Carrier c.constraints domain) => agrees (actual u) (neighborhood.within (localInput u));
+  \definition inside: \forall (u: Source.Carrier c.constraints domain) -> TargetCharts.Contains d (f (actual u)) :=
+    \fun (u: Source.Carrier c.constraints domain) => \idelim g (actual u) = f (actual u)
+      \with y: N.Point => TargetCharts.Contains d y \by { base: e.inside (oldInput u), equality: sym!{N.Point} _ _ (equal u) };
+  \import Calculus.Restriction[U := domain, V := e.neighborhood, W := Output.whole] \as Restriction;
+  \import TargetCharts.Total[c := d] \as Right;
+  \definition extension: New.Extension := New.Extension {
+    neighborhood := domain, included := included, contains := Logic.And[_, _]::# neighborhood.contains e.contains,
+    map := Restriction.input (Open.intersectionRight neighborhood.domain e.neighborhood) e.map,
+    inside := inside,
+    agrees := \fun (u: Source.Carrier c.constraints domain) => trans!{Target.Point} _ _ _ (e.agrees (oldInput u))
+      (trans!{Target.Point} _ _ _ (sym!{Target.Point} _ _ (Right.coordinateInside (\into[N.Point](g (actual u), d.domain) \by { e.inside (oldInput u) })))
+        (trans!{Target.Point} _ _ _ (congr!{N.Point Target.Point} Right.coordinate _ _ (sym!{N.Point} _ _ (equal u)))
+          (Right.coordinateInside (\into[N.Point](f (actual u), d.domain) \by { inside u })))),
+  };
+  \definition witness: Destination.Witness[x] := Destination.Witness[x] { left := c, right := d, extension := extension };
+}
+\definition centerInside: \In[M.Point] U (SourceCharts.point c center) := \idelim x = SourceCharts.point c center
+  \with y: M.Point => \In[M.Point] U y \by { base: contains, equality: sym!{M.Point} _ _ (SourceCharts.pointCoordinate c point) };
+\definition exists: \exists Destination.Witness[x] := \block {
+  \takefrom neighborhood: Neighborhoods.Neighborhood[region, center] \by Neighborhoods.At[W := region, open := inverseContinuous U open, a := center, inside := centerInside].exists \then
+  \return \exact(With[neighborhood := neighborhood, e := chosen.extension].witness, Destination.Witness[x])
+};

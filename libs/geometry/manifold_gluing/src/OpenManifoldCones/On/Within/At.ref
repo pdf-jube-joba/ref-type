@@ -1,0 +1,16 @@
+\import boundary_manifolds.Tangent[n := n].On[M := Source.manifold].At[x := x] \as Domain;
+\import boundary_manifolds.Tangent[n := n].On[M := M].At[x := x] \as Codomain;
+\import Domain.Cones[] \as SourceCones;
+\import Codomain.Cones[] \as TargetCones;
+\import boundary_manifolds.Differential[n := n, m := n].Between[M := Source.manifold, N := M].At[f := Source.Inclusion[].map, x := x] \as D;
+\module In(patch: Source.Patch, contains: Charts.Contains Source.For[patch := patch].chart x);
+\definition boundary: Logic.PropEquiv[SourceCones.Boundary, TargetCones.Boundary] := \block {
+  \takefrom patch: \Cast[Source.Patch] ({ p: Source.Patch \where Charts.Contains Source.For[patch := p].chart x }) \by Source.covers x \then
+  \return In[patch := patch, contains := \bysub(Source.Patch, { p: Source.Patch \where Charts.Contains Source.For[patch := p].chart x }, patch)].boundary
+};
+\definition reflectsTangential: \forall (v: Domain.Vector) -> TargetCones.Tangential (D.value.apply v) -> SourceCones.Tangential v := \block {
+  \fun (v: Domain.Vector)(member: TargetCones.Tangential (D.value.apply v)) \then
+  \takefrom patch: \Cast[Source.Patch] ({ p: Source.Patch \where Charts.Contains Source.For[patch := p].chart x }) \by Source.covers x \then
+  \return In[patch := patch, contains := \bysub(Source.Patch, { p: Source.Patch \where Charts.Contains Source.For[patch := p].chart x }, patch)].reflectsTangential v member
+};
+\definition strict: \forall (v: Domain.Vector) -> Logic.Not (SourceCones.Tangential v) -> Logic.Not (TargetCones.Tangential (D.value.apply v)) := \fun (v: Domain.Vector)(nonzero: Logic.Not (SourceCones.Tangential v))(member: TargetCones.Tangential (D.value.apply v)) => nonzero (reflectsTangential v member);

@@ -1,0 +1,88 @@
+\import \root.HalfChartBoundary[n := n].On[M := M].In[c := c] \as Criterion;
+\import \parent.Smooth[] \as Smooth;
+\import Functions.LocalBump[a := a, q := q] \as Bump;
+\definition target[z: LocalPoint]: Charts.LocalPoint c := \into[M.Point](apply z, c.domain) \by { Smooth.chartContains z };
+\definition targetEquals: \forall (z: LocalPoint) -> target z = Charts.point c (imagePoint z) :=
+  \fun (z: LocalPoint) => boundary_manifolds.Refinement[A := M.Point].equality c.domain (target z) (Charts.point c (imagePoint z)) (inside z);
+\definition coordinateValue: \forall (z: LocalPoint) -> Charts.coordinate c (target z) = imagePoint z :=
+  \fun (z: LocalPoint) => trans!{{Model.Carrier c.constraints c.image}} _ _ _
+    (congr!{{Charts.LocalPoint c} {Model.Carrier c.constraints c.image}} (Charts.coordinate c) _ _ (targetEquals z)) (Charts.coordinatePoint c (imagePoint z));
+\definition interiorOfPositive: \forall (z: LocalPoint) -> R.Lt S.zero (Polynomial.value (input z) Boundary.normal) -> Logic.Not (\In[M.Point] BoundaryAtlas.points (apply z)) :=
+  \fun (z: LocalPoint)(positive: _)(boundary: _) => R.ltNotLeReverse S.zero (Polynomial.value (input z) Boundary.normal) positive
+    (R.leReplaceLeft S.zero (Polynomial.value (input z) Boundary.normal) S.zero
+      (sym!{S.Real} _ _ (trans!{S.Real} _ _ _
+        (sym!{S.Real} _ _ (congr!{{Model.Carrier c.constraints c.image} S.Real} (\fun (u: Model.Carrier c.constraints c.image) => u Boundary.normal) _ _ (coordinateValue z)))
+        (Criterion.normalZero (target z) boundary))) (R.leRefl S.zero));
+\definition normalMonotone: \forall (z: LocalPoint) -> R.Le (Polynomial.spatial (input z) Boundary.normal) (Polynomial.value (input z) Boundary.normal) :=
+  \fun (z: LocalPoint) => R.leReplaceRight _ (S.add (Polynomial.spatial (input z) Boundary.normal) (Polynomial.displacement (input z))) (Polynomial.value (input z) Boundary.normal)
+    (sym!{S.Real} _ _ (Polynomial.normalValue (input z)))
+    (R.leReplaceLeft (S.add (Polynomial.spatial (input z) Boundary.normal) S.zero) (Polynomial.spatial (input z) Boundary.normal) _
+      (Laws.addZeroRight _) (Laws.addMonotoneLeft S.zero (Polynomial.displacement (input z)) (Polynomial.spatial (input z) Boundary.normal)
+        (HalfSpace.displacementNonnegative (halfInput z))));
+\definition spatialPositive: \forall (z: LocalPoint) -> Logic.Not (\In[M.Point] BoundaryAtlas.points (Product.first z)) -> R.Lt S.zero (Polynomial.spatial (input z) Boundary.normal) :=
+  \fun (z: LocalPoint)(interior: _) => Order.ltOfLeNotEq S.zero (Polynomial.spatial (input z) Boundary.normal)
+    (HalfSpace.spatialNonnegative (halfInput z))
+    (\fun (zero: S.zero = Polynomial.spatial (input z) Boundary.normal) => interior (Criterion.At[p := spatialPoint z].boundary
+      (trans!{S.Real} _ _ _ (sym!{S.Real} _ _ (congr!{Model.Point S.Real} (\fun (u: Model.Point) => u Boundary.normal) _ _ (spatialFormula z))) (sym!{S.Real} _ _ zero))));
+\definition localPreservesInterior: \forall (z: LocalPoint) -> Logic.Not (\In[M.Point] BoundaryAtlas.points (Product.first z)) -> Logic.Not (\In[M.Point] BoundaryAtlas.points (apply z)) :=
+  \fun (z: LocalPoint)(interior: _) => interiorOfPositive z (R.ltLeTrans _ _ _ (spatialPositive z interior) (normalMonotone z));
+\definition preservesInterior: \forall (z: Product.Point) -> Logic.Not (\In[M.Point] BoundaryAtlas.points (Product.first z)) -> Logic.Not (\In[M.Point] BoundaryAtlas.points (apply z)) :=
+  \fun (z: Product.Point)(interior: _) => Logic.orElim (\In[Product.Point] localDomain z) (Logic.Not (\In[Product.Point] localDomain z))
+    (Logic.Not (\In[M.Point] BoundaryAtlas.points (apply z))) (Classical.excludedMiddle (\In[Product.Point] localDomain z))
+    (\fun (member: _) => localPreservesInterior (\into[Product.Point](z, localDomain) \by { member }) interior)
+    (\fun (missing: _) => \idelim Product.first z = apply z \with y: M.Point => Logic.Not (\In[M.Point] BoundaryAtlas.points y) \by {
+      base: interior, equality: sym!{M.Point} _ _ (outside z missing)
+    });
+\definition enters: \forall (z: LocalPoint) -> \In[M.Point] BoundaryAtlas.points (Product.first z) -> R.Lt S.zero (Time.value (Product.second z)) -> R.Lt S.zero (Bump.value (spatial z)) ->
+  Logic.Not (\In[M.Point] BoundaryAtlas.points (apply z)) :=
+  \fun (z: LocalPoint)(boundary: _)(positiveTime: _)(positiveBump: _) => interiorOfPositive z
+    (HalfSpace.movesInward (halfInput z)
+      (trans!{S.Real} _ _ _ (congr!{Model.Point S.Real} (\fun (u: Model.Point) => u Boundary.normal) _ _ (spatialFormula z)) (Criterion.normalZero (spatialPoint z) boundary))
+      (R.ltReplaceRight S.zero (Time.value (Product.second z)) (Polynomial.time (input z)) (sym!{S.Real} _ _ (timeFormula z)) positiveTime)
+      (R.ltReplaceRight S.zero (Bump.value (spatial z)) (Polynomial.bump (input z))
+        (sym!{S.Real} _ _ (congr!{Model.Point S.Real} Bump.value _ _ (spatialFormula z))) positiveBump));
+\import topological_algebra.Euclidean[].Dimension[n := dimension].Norm[] \as Norm;
+\import calculus.Real[].Multivariable[n := dimension].Space[].Def[] \as Coordinates;
+\definition center: M.Point := Charts.point c a;
+\definition centerInput[t: Time.Point]: LocalPoint := \into[Product.Point](Pair.pair M.Point Time.Point center t, localDomain) \by {
+  \bysub(M.Point, c.domain, Charts.point c a)
+};
+\definition centerSpatial: \forall (t: Time.Point) -> (spatial (centerInput t) \of Model.Point) = a :=
+  \fun (t: Time.Point) => Charts.coordinatePoint c a;
+\definition centerBump: \forall (t: Time.Point) -> Bump.value (spatial (centerInput t)) = S.one :=
+  \fun (t: Time.Point) => trans!{S.Real} _ _ _
+    (congr!{Model.Point S.Real} Bump.value _ _ (centerSpatial t))
+    (Bump.oneNear a (R.ltReplaceLeft S.zero (Coordinates.pointDistance a a) q
+      (sym!{S.Real} _ _ (Norm.distanceSelf a)) Bump.qPositive));
+\definition centerEnters: \In[M.Point] BoundaryAtlas.points center -> \forall (t: Time.Point) -> R.Lt S.zero (Time.value t) ->
+  Logic.Not (\In[M.Point] BoundaryAtlas.points (apply (Pair.pair M.Point Time.Point center t))) :=
+  \fun (boundary: _)(t: Time.Point)(positive: _) => enters (centerInput t) boundary positive
+    (R.ltReplaceRight S.zero S.one (Bump.value (spatial (centerInput t))) (sym!{S.Real} _ _ (centerBump t)) S.Estimates[].Product[].onePositive);
+\definition boundaryNormalZero: \forall (z: LocalPoint) -> \In[M.Point] BoundaryAtlas.points (apply z) -> Polynomial.value (input z) Boundary.normal = S.zero :=
+  \fun (z: LocalPoint)(boundary: _) => trans!{S.Real} _ _ _
+    (sym!{S.Real} _ _ (congr!{{Model.Carrier c.constraints c.image} S.Real} (\fun (u: Model.Carrier c.constraints c.image) => u Boundary.normal) _ _ (coordinateValue z)))
+    (Criterion.normalZero (target z) boundary);
+\definition displacementBelowNormal: \forall (z: LocalPoint) -> R.Le (Polynomial.displacement (input z)) (Polynomial.value (input z) Boundary.normal) :=
+  \fun (z: LocalPoint) => R.leReplaceRight _ (S.add (Polynomial.spatial (input z) Boundary.normal) (Polynomial.displacement (input z))) (Polynomial.value (input z) Boundary.normal)
+    (sym!{S.Real} _ _ (Polynomial.normalValue (input z)))
+    (R.leReplaceLeft (S.add S.zero (Polynomial.displacement (input z))) (Polynomial.displacement (input z)) _
+      (Laws.addZeroLeft _) (Laws.addMonotoneRight S.zero (Polynomial.spatial (input z) Boundary.normal) (Polynomial.displacement (input z))
+        (HalfSpace.spatialNonnegative (halfInput z))));
+\definition boundaryDisplacementZero: \forall (z: LocalPoint) -> \In[M.Point] BoundaryAtlas.points (apply z) -> Polynomial.displacement (input z) = S.zero :=
+  \fun (z: LocalPoint)(boundary: _) => R.leAntisym _ _
+    (R.leReplaceRight _ (Polynomial.value (input z) Boundary.normal) S.zero (boundaryNormalZero z boundary) (displacementBelowNormal z))
+    (HalfSpace.displacementNonnegative (halfInput z));
+\definition stationaryLocal: \forall (z: LocalPoint) -> \In[M.Point] BoundaryAtlas.points (apply z) -> apply z = Product.first z := \block {
+  \fun (z: LocalPoint)(boundary: _) \then
+  \let valueEquals: Polynomial.value (input z) = (spatial z \of Model.Point) := trans!{Model.Point} _ _ _
+    (Polynomial.zeroDisplacement (input z) (boundaryDisplacementZero z boundary)) (spatialFormula z) \then
+  \let refined: imagePoint z = spatial z := boundary_manifolds.Refinement[A := Model.Point].equality c.image.points (imagePoint z) (spatial z) valueEquals \then
+  \return trans!{M.Point} _ _ _ (inside z)
+    (trans!{M.Point} _ _ _ (congr!{{Model.Carrier c.constraints c.image} M.Point} (\fun (u: Model.Carrier c.constraints c.image) => Charts.point c u) _ _ refined)
+      (Charts.pointCoordinate c (spatialPoint z)))
+};
+\definition stationary: \forall (z: Product.Point) -> \In[M.Point] BoundaryAtlas.points (apply z) -> apply z = Product.first z :=
+  \fun (z: Product.Point)(boundary: _) => Logic.orElim (\In[Product.Point] localDomain z) (Logic.Not (\In[Product.Point] localDomain z))
+    (apply z = Product.first z) (Classical.excludedMiddle (\In[Product.Point] localDomain z))
+    (\fun (member: _) => stationaryLocal (\into[Product.Point](z, localDomain) \by { member }) boundary)
+    (\fun (missing: _) => outside z missing);

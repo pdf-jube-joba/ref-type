@@ -1,0 +1,60 @@
+\import \root.LocalSmoothMap[n := Nat.add One.dimension n, m := Nat.add One.dimension n].Between[M := M, N := Product.manifold].Of[function := Full.function] \as Locality;
+\definition left: Locality.SourceChart y := \into[Charts.Chart](c, Locality.SourceChart y) \by {
+  Logic.And[_, _]::# (Atlas.member c) (\bysub(M.Point, c.domain, oldPoint y))
+};
+\definition rightContains: SourceCharts.Contains Chart.chart (Full.function y) :=
+  \idelim backward y = Full.function y \with p: Product.Point => SourceCharts.Contains Chart.chart p \by {
+    base: \bysub(Product.Point, Chart.domain, SourceCharts.point Chart.chart (sourceModel y)), equality: sym!{{Product.Point}} _ _ (Full.inside y)
+  };
+\definition right: Locality.TargetChart (Full.function y) := \into[SourceCharts.Chart](Chart.chart, Locality.TargetChart (Full.function y)) \by {
+  Logic.And[_, _]::# Coordinate.member rightContains
+};
+\import boundary_manifolds.SmoothMap[n := Nat.add One.dimension n, m := Nat.add One.dimension n].Between[M := M, N := Product.manifold] \as BackwardMaps;
+\import BackwardMaps.At[function := Full.function, left := left, right := right, x := (y \of M.Point), contains := Locality.leftContains y left] \as Local;
+\definition neighborhood: Open.OpenSet := Open.intersection inverse.target c.image;
+\definition included: Open.Included neighborhood c.image := Open.intersectionRight inverse.target c.image;
+\definition toTarget[u: Open.Carrier neighborhood]: Open.Carrier inverse.target := Open.inclusion neighborhood inverse.target (Open.intersectionLeft inverse.target c.image) u;
+\import Calculus.Restriction[U := neighborhood, V := inverse.target, W := inverse.domain] \as Restricted;
+\definition restricted: Calculus.Map neighborhood inverse.domain := Restricted.input (Open.intersectionLeft inverse.target c.image) inverse.change.backward;
+\definition ambient: Calculus.Map neighborhood Open.whole := Calculus.Map[neighborhood, Open.whole] {
+  apply := \fun (u: Open.Carrier neighborhood) => \into[Model.Point](Calculus.apply neighborhood inverse.domain restricted u, Open.whole.points) \by { \refl(Calculus.apply neighborhood inverse.domain restricted u \of Model.Point) },
+  smooth := restricted.smooth,
+};
+\definition input[u: Model.Carrier c.constraints neighborhood]: Model.Carrier c.constraints c.image := \into[Open.Carrier c.image](Open.inclusion neighborhood c.image included u, Model.region c.constraints c.image) \by {
+  \bysub(Open.Carrier neighborhood, Model.region c.constraints neighborhood, u)
+};
+\definition point[u: Model.Carrier c.constraints neighborhood]: Charts.LocalPoint c := Charts.point c (input u);
+\definition coordinatePoint: \forall (u: Model.Carrier c.constraints neighborhood) -> (Charts.coordinate c (point u) \of Model.Point) = (u \of Model.Point) :=
+  \fun (u: Model.Carrier c.constraints neighborhood) => Charts.coordinatePoint c (input u);
+\definition rangePoint[u: Model.Carrier c.constraints neighborhood]: RangePoint := \into[M.Point](point u, range) \by {
+  TargetInclusion.imageMember local (point u)
+    (\idelim (u \of Model.Point) = (Charts.coordinate c (point u) \of Model.Point) \with v: Model.Point => \In[Model.Point] inverse.target.points v \by {
+      base: (\bysub(Model.Point, neighborhood.points, u)).left, equality: sym!{Model.Point} _ _ (coordinatePoint u)
+    })
+};
+\definition inside: \forall (u: Model.Carrier c.constraints neighborhood) -> SourceCharts.Contains Chart.chart (Full.function (point u)) :=
+  \fun (u: Model.Carrier c.constraints neighborhood) => \idelim backward (rangePoint u) = Full.function (point u)
+    \with p: Product.Point => SourceCharts.Contains Chart.chart p \by {
+      base: \bysub(Product.Point, Chart.domain, SourceCharts.point Chart.chart (sourceModel (rangePoint u))), equality: sym!{{Product.Point}} _ _ (Full.inside (rangePoint u))
+    };
+\definition parameterEqual: \forall (u: Model.Carrier c.constraints neighborhood) -> parameter (rangePoint u) = toTarget u :=
+  \fun (u: Model.Carrier c.constraints neighborhood) => boundary_manifolds.Refinement[A := Model.Point].equality inverse.target.points (parameter (rangePoint u)) (toTarget u)
+    (coordinatePoint u);
+\definition rawEqual: \forall (u: Model.Carrier c.constraints neighborhood) -> (raw (rangePoint u) \of Model.Point) = (Calculus.apply neighborhood Open.whole ambient u \of Model.Point) :=
+  \fun (u: Model.Carrier c.constraints neighborhood) => congr!{{Open.Carrier inverse.target} Model.Point}
+    (\fun (v: Open.Carrier inverse.target) => Calculus.apply inverse.target inverse.domain inverse.change.backward v) _ _ (parameterEqual u);
+\import SourceCharts.Total[c := Chart.chart] \as SourceTotal;
+\definition coordinateFull: \forall (u: Model.Carrier c.constraints neighborhood) -> SourceTotal.coordinate (Full.function (point u)) = (raw (rangePoint u) \of Model.Point) :=
+  \fun (u: Model.Carrier c.constraints neighborhood) => trans!{Model.Point} _ _ _
+    (congr!{{Product.Point} Model.Point} SourceTotal.coordinate _ _ (Full.inside (rangePoint u)))
+    (trans!{Model.Point} _ _ _ (SourceTotal.coordinateInside (SourceCharts.point Chart.chart (sourceModel (rangePoint u)))) (coordinateBackward (rangePoint u)));
+\definition extension: Local.Extension := Local.Extension {
+  neighborhood := neighborhood, included := included,
+  contains := Logic.And[_, _]::# (\root.CollarLocal[n := n].On[M := M].With[cover := cover].From[deformation := deformation].At[b := b, c := c, contains := Coordinate.sourceContains.left].Using[e := e].With[inverse := inverse].Range[].inside y)
+    (\bysub(Model.Point, c.image.points, Charts.coordinate c (oldPoint y))),
+  map := ambient, inside := inside,
+  agrees := \fun (u: Model.Carrier c.constraints neighborhood) => trans!{Model.Point} _ _ _ (sym!{Model.Point} _ _ (rawEqual u))
+    (trans!{Model.Point} _ _ _ (sym!{Model.Point} _ _ (coordinateFull u))
+      (SourceTotal.coordinateInside (\into[Product.Point](Full.function (point u), Chart.domain) \by { inside u }))),
+};
+\definition witness: Full.Witness y := Locality.Witness[y] { left := left, right := right, extension := extension };

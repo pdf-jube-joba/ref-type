@@ -1,0 +1,44 @@
+\import \root.CollarStrip[n := n].On[M := M].With[cover := cover] \as Strips;
+\definition bounded: R.Lt r S.one := Order.ltTrans r a S.one small bounded;
+\import \root.CompactTimes[].At[a := r, positive := positive, bounded := bounded] \as Times;
+\import topological_constructions.Product[A := Inclusion.manifold.Point, B := Times.Point] \as ClosedProduct;
+\definition source: topology.Structures[].Topology[ClosedProduct.CarrierSet] := ClosedProduct.topology Inclusion.manifold.space Times.topology;
+\import topology.Topology[Carrier := ClosedProduct.CarrierSet] \as ClosedSpace;
+\import topological_constructions.Product[A := Inclusion.manifold.Point, B := Time.Point] \as OpenProduct;
+\definition parameter[p: ClosedProduct.CarrierSet]: Product.Point := Pair.pair Inclusion.manifold.Point Time.Point (Pair.first Inclusion.manifold.Point Times.Point p) (Times.apply (Pair.second Inclusion.manifold.Point Times.Point p));
+\definition function[p: ClosedProduct.CarrierSet]: M.Point := Maps.apply Candidate.map (parameter p);
+\definition firstContinuous: topology.Continuity[A := ClosedProduct.CarrierSet, B := Inclusion.manifold.Point].Continuous source Inclusion.manifold.space (Pair.first Inclusion.manifold.Point Times.Point) := ClosedProduct.Maps[].firstContinuous Inclusion.manifold.space Times.topology;
+\definition secondContinuous: topology.Continuity[A := ClosedProduct.CarrierSet, B := Time.Point].Continuous source Time.manifold.space (\fun (p: ClosedProduct.CarrierSet) => Times.apply (Pair.second Inclusion.manifold.Point Times.Point p)) :=
+  topology.Composition[A := ClosedProduct.CarrierSet, B := Times.Point, C := Time.Point].composeContinuous source Times.topology Time.manifold.space (Pair.second Inclusion.manifold.Point Times.Point) Times.apply (ClosedProduct.Maps[].secondContinuous Inclusion.manifold.space Times.topology) Times.continuous;
+\definition parameterContinuous: topology.Continuity[A := ClosedProduct.CarrierSet, B := Product.Point].Continuous source Product.topology parameter := OpenProduct.Universal[X := ClosedProduct.CarrierSet].pairContinuous source Inclusion.manifold.space Time.manifold.space
+  (Pair.first Inclusion.manifold.Point Times.Point) (\fun (p: ClosedProduct.CarrierSet) => Times.apply (Pair.second Inclusion.manifold.Point Times.Point p)) firstContinuous secondContinuous;
+\definition continuous: topology.Continuity[A := ClosedProduct.CarrierSet, B := M.Point].Continuous source M.space function := topology.Composition[A := ClosedProduct.CarrierSet, B := Product.Point, C := M.Point].composeContinuous source Product.topology M.space parameter (Maps.apply Candidate.map) parameterContinuous Candidate.map.continuous;
+\import topology.Maps[A := ClosedProduct.CarrierSet, B := M.Point] \as Image;
+\definition points: \Pow M.Point := Image.Image function ClosedSpace.Whole;
+\definition compact: \forall (compactM: Target.IsCompact M.space) -> Target.IsCompactIn M.space points := \fun (compactM: Target.IsCompact M.space) =>
+  topology.Compactness[A := ClosedProduct.CarrierSet, B := M.Point].continuousImage source M.space function continuous ClosedSpace.Whole
+    (ClosedProduct.Compactness[].productCompact Inclusion.manifold.space Times.topology (Strips.compact compactM) Times.compactSource);
+\definition closed: \forall (compactM: Target.IsCompact M.space) -> Target.IsClosedIn M.space points := \fun (compactM: Target.IsCompact M.space) => Target.Compactness[].compactClosed M.space M.hausdorff points (compact compactM);
+\definition timeBound: \forall (p: ClosedProduct.CarrierSet) -> R.Le (Time.value (Product.second (parameter p))) r := \fun (p: ClosedProduct.CarrierSet) => (\bysub(S.Real, Times.interval, Pair.second Inclusion.manifold.Point Times.Point p)).right;
+\definition included: Target.Subset points image := \fun (y: M.Point)(member: Target.Member points y) => Image.imageElim function ClosedSpace.Whole y (Target.Member image y)
+  (\fun (p: ClosedProduct.CarrierSet)(whole: ClosedSpace.Member ClosedSpace.Whole p)(same: function p = y) => \idelim function p = y \with z: M.Point => Target.Member image z \by {
+    base: \block {
+      \let x: \Cast[Product.Point] ({ x: Product.Point \where R.Lt (Time.value (Product.second x)) a }) := \into[Product.Point](parameter p, { x: Product.Point \where R.Lt (Time.value (Product.second x)) a }) \by { R.leLtTrans (Time.value (Product.second (parameter p))) r a (timeBound p) small } \then
+      \return Logic.existsIntro[\Cast[Product.Point] ({ x: Product.Point \where R.Lt (Time.value (Product.second x)) a }), { x: \Cast[Product.Point] ({ x: Product.Point \where R.Lt (Time.value (Product.second x)) a }) \where Maps.apply Candidate.map x = function p }] x (\refl(function p))
+    }, equality: same
+  }) member;
+\definition contains: \forall (p: Product.Point) -> R.Le (Time.value (Product.second p)) r -> Target.Member points (Maps.apply Candidate.map p) := \fun (p: Product.Point)(bound: R.Le (Time.value (Product.second p)) r) => \block {
+  \let t: Times.Point := \into[S.Real](Time.value (Product.second p), Times.interval) \by { Logic.And[_, _]::# (Time.nonnegative (Product.second p)) bound } \then
+  \let q: ClosedProduct.CarrierSet := Pair.pair Inclusion.manifold.Point Times.Point (Product.first p) t \then
+  \let sameParameter: parameter q = p := Pair.Prop[A := Inclusion.manifold.Point, B := Time.Point].ext (parameter q) p (\refl(Product.first p)) (\root.ParameterLaws[].equality (Times.apply t) (Product.second p) (\refl(Time.value (Product.second p)))) \then
+  \return \idelim function q = Maps.apply Candidate.map p \with y: M.Point => Target.Member points y \by {
+    base: Image.imageMember function ClosedSpace.Whole q (\refl(q)), equality: congr!{{Product.Point} {M.Point}} (Maps.apply Candidate.map) _ _ sameParameter
+  }
+};
+\definition detects: \forall (p: Collar.Point) -> Target.Member points (Maps.apply Candidate.map p) -> R.Le (Time.value (Product.second p)) r :=
+  \fun (p: Collar.Point)(member: Target.Member points (Maps.apply Candidate.map p)) => Image.imageElim function ClosedSpace.Whole (Maps.apply Candidate.map p) (R.Le (Time.value (Product.second p)) r)
+    (\fun (q: ClosedProduct.CarrierSet)(whole: ClosedSpace.Member ClosedSpace.Whole q)(same: function q = Maps.apply Candidate.map p) => \block {
+      \let input: Collar.Point := \into[Product.Point](parameter q, Collar.domain) \by { within (Product.second (parameter q)) (R.leLtTrans (Time.value (Product.second (parameter q))) r a (timeBound q) small) } \then
+      \let equal: (input \of Product.Point) = (p \of Product.Point) := Collar.injective input p same \then
+      \return \idelim (input \of Product.Point) = (p \of Product.Point) \with x: Product.Point => R.Le (Time.value (Product.second x)) r \by { base: timeBound q, equality: equal }
+    }) member;

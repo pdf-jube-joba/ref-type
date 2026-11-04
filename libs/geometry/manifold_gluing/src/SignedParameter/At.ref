@@ -1,0 +1,86 @@
+\import topology.Topology[Carrier := Model.Point] \as AmbientSpace;
+\definition lower: \Pow Model.Point := { t: Model.Point \where R.Lt (S.neg epsilon) (t One.index) };
+\definition upper: \Pow Model.Point := { t: Model.Point \where R.Lt (t One.index) epsilon };
+\definition points: \Pow Model.Point := AmbientSpace.Intersection lower upper;
+\definition domain: Open.OpenSet := Open.Topology[].ofOpen points
+  ((AmbientSpace.topologyLaws Ambient.topology).intersectionOpen lower upper
+    (Ambient.coordinateContinuous One.index (Rays.Above (S.neg epsilon)) (Rays.aboveOpen (S.neg epsilon)))
+    (Ambient.coordinateContinuous One.index (Rays.Below epsilon) (Rays.belowOpen epsilon)));
+\import Models.Quadrant[C := Model.unconstrained, U := domain] \as Construction;
+\definition manifold: Models.Manifold := Construction.manifold;
+\definition Point: \Set := Construction.Point;
+\definition value[t: Point]: S.Real := t One.index;
+\definition less: \forall (t: Point) -> R.Lt (value t) epsilon := \fun (t: Point) => (\bysub(Model.Point, points, t)).right;
+\definition greater: \forall (t: Point) -> R.Lt (S.neg epsilon) (value t) := \fun (t: Point) => (\bysub(Model.Point, points, t)).left;
+\definition zeroLess: R.Lt (S.neg epsilon) S.zero := R.ltReplaceRight (S.neg epsilon) (S.neg S.zero) S.zero Laws.negZero (Laws.negStrictAntitone S.zero epsilon positive);
+\definition point[t: S.Real][below: R.Lt (S.neg epsilon) t][above: R.Lt t epsilon]: Point :=
+  \into[Open.Carrier domain](\into[Model.Point]((\fun (i: One.Index) => t), points) \by { Logic.And[_, _]::# below above }, Model.region Model.unconstrained domain) \by {
+    Model.unconstrainedNonnegative (\fun (i: One.Index) => t)
+  };
+\definition zero: Point := point S.zero zeroLess positive;
+\definition positiveValue[t: Point]: S.Real := Metric.max S.zero (value t);
+\definition negativeValue[t: Point]: S.Real := Metric.max S.zero (S.neg (value t));
+\definition negativeSmall: \forall (t: Point) -> R.Lt (S.neg (value t)) epsilon :=
+  \fun (t: Point) => R.ltReplaceRight (S.neg (value t)) (S.neg (S.neg epsilon)) epsilon (Laws.negInvolutive epsilon)
+    (Laws.negStrictAntitone (S.neg epsilon) (value t) (greater t));
+\definition positiveSmall: \forall (t: Point) -> R.Lt (positiveValue t) epsilon := \fun (t: Point) => Metric.maxLt S.zero (value t) epsilon positive (less t);
+\definition negativeBound: \forall (t: Point) -> R.Lt (negativeValue t) epsilon := \fun (t: Point) => Metric.maxLt S.zero (S.neg (value t)) epsilon positive (negativeSmall t);
+\definition plus[t: Point]: Time.Point := Time.point (positiveValue t) (Metric.maxLeft S.zero (value t)) (R.ltLeTrans (positiveValue t) epsilon S.one (positiveSmall t) bounded);
+\definition minus[t: Point]: Time.Point := Time.point (negativeValue t) (Metric.maxLeft S.zero (S.neg (value t))) (R.ltLeTrans (negativeValue t) epsilon S.one (negativeBound t) bounded);
+\definition plusIdentity: \forall (t: Point) -> R.Le S.zero (value t) -> (plus t \of Model.Point) = (t \of Model.Point) :=
+  \fun (t: Point)(nonnegative: _) => \axiom:funext((plus t \of Model.Point), (t \of Model.Point),
+    \fun (i: One.Index) => trans!{S.Real} _ _ _ (Metric.maxOfLe S.zero (value t) nonnegative)
+      (sym!{S.Real} _ _ (congr!{One.Index S.Real} (\fun (j: One.Index) => t j) _ _ (Fin.singletonValue i))));
+\module Continuity;
+\module PositiveSmooth(t: Point, strict: R.Lt S.zero (value t));
+\definition negativeNonnegative: \forall (t: Point) -> R.Le (value t) S.zero -> R.Le S.zero (S.neg (value t)) :=
+  \fun (t: Point)(nonpositive: _) => R.leReplaceLeft (S.neg S.zero) S.zero (S.neg (value t)) Laws.negZero (Laws.negAntitone (value t) S.zero nonpositive);
+\definition minusReflection: \forall (t: Point) -> R.Le (value t) S.zero -> (minus t \of Model.Point) = (\fun (i: One.Index) => S.neg (t i)) :=
+  \fun (t: Point)(nonpositive: _) => \axiom:funext((minus t \of Model.Point), (\fun (i: One.Index) => S.neg (t i)),
+    \fun (i: One.Index) => trans!{S.Real} _ _ _ (Metric.maxOfLe S.zero (S.neg (value t)) (negativeNonnegative t nonpositive))
+      (congr!{S.Real S.Real} S.neg _ _ (sym!{S.Real} _ _ (congr!{One.Index S.Real} (\fun (j: One.Index) => t j) _ _ (Fin.singletonValue i)))));
+\definition plusAtNonpositive: \forall (t: Point) -> R.Le (value t) S.zero -> Time.value (plus t) = S.zero :=
+  \fun (t: Point)(nonpositive: _) => Metric.maxOfGe S.zero (value t) nonpositive;
+\definition minusAtNonnegative: \forall (t: Point) -> R.Le S.zero (value t) -> Time.value (minus t) = S.zero :=
+  \fun (t: Point)(nonnegative: _) => Metric.maxOfGe S.zero (S.neg (value t))
+    (R.leReplaceRight (S.neg (value t)) (S.neg S.zero) S.zero Laws.negZero (Laws.negAntitone S.zero (value t) nonnegative));
+\module NegativeSmooth(t: Point, strict: R.Lt (value t) S.zero);
+\definition rawEquality: \forall (f, g: Model.Point) -> f One.index = g One.index -> f = g :=
+  \fun (f, g: Model.Point)(same: _) => \axiom:funext(f, g, \fun (i: One.Index) => trans!{S.Real} _ _ _
+    (congr!{One.Index S.Real} f _ _ (Fin.singletonValue i)) (trans!{S.Real} _ _ _ same (sym!{S.Real} _ _ (congr!{One.Index S.Real} g _ _ (Fin.singletonValue i)))));
+\definition equality: \forall (t, s: Point) -> value t = value s -> t = s :=
+  \fun (t, s: Point)(same: _) => Model.equality Model.unconstrained domain t s (rawEquality t s same);
+\definition timeEquality: \forall (t, s: Time.Point) -> Time.value t = Time.value s -> t = s :=
+  \fun (t, s: Time.Point)(same: _) => Model.equality Time.constraints Time.domain t s (rawEquality t s same);
+\definition plusZero: \forall (t: Point) -> R.Le (value t) S.zero -> plus t = Time.zero :=
+  \fun (t: Point)(nonpositive: _) => timeEquality (plus t) Time.zero (plusAtNonpositive t nonpositive);
+\definition minusZero: \forall (t: Point) -> R.Le S.zero (value t) -> minus t = Time.zero :=
+  \fun (t: Point)(nonnegative: _) => timeEquality (minus t) Time.zero (minusAtNonnegative t nonnegative);
+\definition plusAtZero: plus zero = Time.zero := plusZero zero (R.leRefl S.zero);
+\definition minusAtZero: minus zero = Time.zero := minusZero zero (R.leRefl S.zero);
+\definition recover: \forall (t: Point) -> S.sub (Time.value (plus t)) (Time.value (minus t)) = value t :=
+  \fun (t: Point) => Logic.orElim (R.Le S.zero (value t)) (R.Lt (value t) S.zero)
+    (S.sub (Time.value (plus t)) (Time.value (minus t)) = value t) (Laws.nonnegativeOrNegativeReal (value t))
+    (\fun (nonnegative: _) => trans!{S.Real} _ _ _
+      (congr!{S.Real S.Real S.Real} S.sub _ _ _ _ (congr!{Model.Point S.Real} (\fun (u: Model.Point) => u One.index) _ _ (plusIdentity t nonnegative)) (minusAtNonnegative t nonnegative))
+      (Laws.subZeroRight (value t)))
+    (\fun (negative: _) => trans!{S.Real} _ _ _
+      (congr!{S.Real S.Real S.Real} S.sub _ _ _ _ (plusAtNonpositive t (Order.leOfLt (value t) S.zero negative))
+        (congr!{Model.Point S.Real} (\fun (u: Model.Point) => u One.index) _ _ (minusReflection t (Order.leOfLt (value t) S.zero negative))))
+      (trans!{S.Real} _ _ _ (Laws.addZeroLeft (S.neg (S.neg (value t)))) (Laws.negInvolutive (value t))));
+\definition nonpositiveNegative: \forall (t: Time.Point) -> R.Le (S.neg (Time.value t)) S.zero :=
+  \fun (t: Time.Point) => R.leReplaceRight (S.neg (Time.value t)) (S.neg S.zero) S.zero Laws.negZero (Laws.negAntitone S.zero (Time.value t) (Time.nonnegative t));
+\definition positivePoint[t: Time.Point][small: R.Lt (Time.value t) epsilon]: Point := point (Time.value t)
+  (R.ltLeTrans (S.neg epsilon) S.zero (Time.value t) zeroLess (Time.nonnegative t)) small;
+\definition negativePoint[t: Time.Point][small: R.Lt (Time.value t) epsilon]: Point := point (S.neg (Time.value t))
+  (Laws.negStrictAntitone (Time.value t) epsilon small) (R.leLtTrans (S.neg (Time.value t)) S.zero epsilon (nonpositiveNegative t) positive);
+\definition plusPositive: \forall (t: Time.Point)(small: R.Lt (Time.value t) epsilon) -> plus (positivePoint t small) = t :=
+  \fun (t: Time.Point)(small: _) => timeEquality (plus (positivePoint t small)) t (Metric.maxOfLe S.zero (Time.value t) (Time.nonnegative t));
+\definition minusPositive: \forall (t: Time.Point)(small: R.Lt (Time.value t) epsilon) -> minus (positivePoint t small) = Time.zero :=
+  \fun (t: Time.Point)(small: _) => minusZero (positivePoint t small) (Time.nonnegative t);
+\definition plusNegative: \forall (t: Time.Point)(small: R.Lt (Time.value t) epsilon) -> plus (negativePoint t small) = Time.zero :=
+  \fun (t: Time.Point)(small: _) => plusZero (negativePoint t small) (nonpositiveNegative t);
+\definition minusNegative: \forall (t: Time.Point)(small: R.Lt (Time.value t) epsilon) -> minus (negativePoint t small) = t :=
+  \fun (t: Time.Point)(small: _) => timeEquality (minus (negativePoint t small)) t
+    (trans!{S.Real} _ _ _ (Metric.maxOfLe S.zero (S.neg (S.neg (Time.value t))) (negativeNonnegative (negativePoint t small) (nonpositiveNegative t))) (Laws.negInvolutive (Time.value t)));
+\module SmallTimes;

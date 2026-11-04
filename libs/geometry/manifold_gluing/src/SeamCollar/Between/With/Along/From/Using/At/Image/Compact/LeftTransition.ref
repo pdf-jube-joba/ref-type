@@ -1,0 +1,43 @@
+\import \parent.\parent.\parent.Continuity[] \as Continuity;
+\import metric_spaces.RealLine[].Rays[] \as Rays;
+\import boundary_manifolds.Interior[n := Nat.add One.dimension n].Of[M := M] \as Intrinsic;
+\import Intrinsic.Build[] \as InteriorManifold;
+\import boundary_manifolds.Boundaryless[n := Nat.add One.dimension n].Of[M := InteriorManifold.manifold] \as Converted;
+\import \root.InteriorInclusion[n := Nat.add One.dimension n].On[M := M] \as Interior;
+\definition ambient[p: Source.Point]: M.Point := LeftMaps.apply LeftMap.map (leftParameter p);
+\definition W: \Pow Source.Point := { p: Source.Point \where R.Lt S.zero (scalar p) };
+\definition openW: Space.IsOpenIn Source.topology W := Continuity.scalarContinuous (Rays.Above S.zero) (Rays.aboveOpen S.zero);
+\definition timePositive: \forall (p: Source.Point) -> Space.Member W p -> R.Lt S.zero (Time.value (plus p)) :=
+  \fun (p: Source.Point)(member: _) => R.ltReplaceRight S.zero (scalar p) (Time.value (plus p))
+    (sym!{S.Real} _ _ (congr!{boundary_manifolds.Model[n := One.dimension].Point S.Real}
+      (\fun (u: boundary_manifolds.Model[n := One.dimension].Point) => u One.index) _ _
+      (Signed.plusIdentity (Source.second p) (Order.leOfLt S.zero (scalar p) member)))) member;
+\definition interior: \forall (p: Source.Point) -> Space.Member W p -> \In[M.Point] Intrinsic.points (ambient p) :=
+  \fun (p: Source.Point)(member: _) => LeftCandidate.neighborhood.enters (leftParameter p) (timePositive p member);
+\definition initial: Interior.manifold.Point := Converted.forward (\into[M.Point](ambient s, Intrinsic.points) \by { interior s strict });
+\import Interior.InverseAt[x := initial] \as Inverse;
+\definition function[p: Source.Point]: Interior.manifold.Point := Inverse.function (ambient p);
+\definition functionInside: \forall (p: Source.Point)(member: Space.Member W p) -> function p = Converted.forward (\into[M.Point](ambient p, Intrinsic.points) \by { interior p member }) :=
+  \fun (p: Source.Point)(member: _) => Inverse.inside (\into[M.Point](ambient p, Intrinsic.points) \by { interior p member });
+\definition underlying: \forall (p: Source.Point) -> Space.Member W p -> (function p \of M.Point) = ambient p :=
+  \fun (p: Source.Point)(member: _) => congr!{{Interior.manifold.Point} {M.Point}} (\fun (z: Interior.manifold.Point) => z) _ _ (functionInside p member);
+\definition classValue: \forall (p: Source.Point) -> Space.Member W p -> Gluing.inl (function p) = apply p :=
+  \fun (p: Source.Point)(member: _) => trans!{{Gluing.Point}} _ _ _ (congr!{{M.Point} {Gluing.Point}} Gluing.inl _ _ (underlying p member))
+    (sym!{{Gluing.Point}} _ _ (onLeft p (Order.leOfLt S.zero (scalar p) member)));
+\import \root.LocalSmoothMap[n := Nat.add One.dimension n, m := Nat.add One.dimension n].Between[M := Source.manifold, N := LeftProduct.manifold].Of[function := leftParameter] \as ParameterLocal;
+\import \root.LocalSmoothMap[n := Nat.add One.dimension n, m := Nat.add One.dimension n].Between[M := Source.manifold, N := M].Of[function := ambient] \as AmbientLocal;
+\import \root.LocalSmoothMap[n := Nat.add One.dimension n, m := Nat.add One.dimension n].Between[M := Source.manifold, N := Interior.manifold].Of[function := function] \as Destination;
+\import boundary_manifolds.MapIdentity[n := n].On[M := LeftBoundary.manifold] \as Identity;
+\import \root.SmoothWitness[n := n, m := n].Between[M := LeftBoundary.manifold, N := LeftBoundary.manifold].Of[f := Identity.map] \as IdentityWitness;
+\import \root.LocalSmoothMap[n := n, m := n].Between[M := LeftBoundary.manifold, N := LeftBoundary.manifold].Of[function := (\fun (b: LeftBoundary.manifold.Point) => b)] \as IdentityLocal;
+\import \root.ProductLocalMap[n := n, m := One.dimension, p := n, q := One.dimension].Between[M := LeftBoundary.manifold, N := Signed.manifold, P := LeftBoundary.manifold, Q := Time.manifold].Of[
+  f := (\fun (b: LeftBoundary.manifold.Point) => b), g := Signed.plus] \as ProductLocal;
+\import \root.LocalSmoothPostcompose[n := Nat.add One.dimension n, m := Nat.add One.dimension n, l := Nat.add One.dimension n].Between[M := Source.manifold, N := LeftProduct.manifold, P := M].From[f := leftParameter, g := LeftMap.map] \as Forward;
+\import \root.LocalSmoothCompose[n := Nat.add One.dimension n, m := Nat.add One.dimension n, l := Nat.add One.dimension n].Between[M := Source.manifold, N := M, P := Interior.manifold].From[f := ambient, g := Inverse.function] \as Backward;
+\definition exists: \exists Destination.Witness[s] := \block {
+  \takefrom identity: IdentityLocal.Witness[Source.first s] \by IdentityWitness.exists (Source.first s) \then
+  \takefrom parameter: ParameterLocal.Witness[s] \by ProductLocal.At[x := s, first := identity, second := Signed.PositiveSmooth[t := Source.second s, strict := strict].witness].exists \then
+  \takefrom ambient: AmbientLocal.Witness[s] \by Forward.At[x := s, chosen := parameter].exists \then
+  \takefrom inverse: Inverse.Witness \by Inverse.exists \then
+  \return Backward.At[x := s, chosen := ambient, next := inverse].exists
+};

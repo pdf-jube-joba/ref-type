@@ -1,0 +1,31 @@
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\import real.Analysis[] \as S;
+\import dedekind_reals.DedekindReal[] \as R;
+\import R.Order[] \as Order;
+\import calculus.Real[].OneDimension[] \as One;
+\import calculus.Real[].Multivariable[n := One.dimension].Open[] \as Open;
+\import boundary_manifolds.Model[n := One.dimension] \as Model;
+\import boundary_manifolds.Dimension[n := One.dimension] \as Models;
+\import topological_algebra.Euclidean[].Dimension[n := One.dimension].Topology[] \as Ambient;
+\import metric_spaces.RealLine[].Rays[] \as Rays;
+\definition points: \Pow Model.Point := { t: Model.Point \where R.Lt (t One.index) S.one };
+\definition domain: Open.OpenSet := Open.Topology[].ofOpen points
+  (Ambient.coordinateContinuous One.index (Rays.Below S.one) (Rays.belowOpen S.one));
+\definition constraints: Model.Constraints := Model.halfSpace One.index;
+\import Models.Quadrant[C := constraints, U := domain] \as Construction;
+\definition manifold: Models.Manifold := Construction.manifold;
+\definition Point: \Set := Construction.Point;
+\definition value[t: Point]: S.Real := t One.index;
+\definition nonnegative: \forall (t: Point) -> R.Le S.zero (value t) :=
+  \fun (t: Point) => (\bysub(Open.Carrier domain, Model.region constraints domain, t)) One.index (\refl(One.index));
+\definition small: \forall (t: Point) -> R.Lt (value t) S.one := \fun (t: Point) => \bysub(Model.Point, points, t);
+\definition upper: \forall (t: Point) -> R.Le (value t) S.one := \fun (t: Point) => Order.leOfLt _ _ (small t);
+\definition point[t: S.Real][positive: R.Le S.zero t][less: R.Lt t S.one]: Point :=
+  \into[Open.Carrier domain](\into[Model.Point]((\fun (i: One.Index) => t), points) \by { less }, Model.region constraints domain) \by {
+    Model.halfSpaceNonnegative One.index (\fun (i: One.Index) => t) positive
+  };
+\definition zero: Point := point S.zero (R.leRefl S.zero) S.Estimates[].Product[].onePositive;
+\import Models.Chart[M := Point, space := manifold.space] \as Charts;
+\definition chart: Charts.Chart := Construction.chart;
+\definition chartMember: \In[Charts.Chart] manifold.atlas.charts chart := \refl(chart);

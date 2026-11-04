@@ -192,7 +192,7 @@ B02 の束演算は C05 でも利用でき、A01 の後は A02 へ進められ�
 | [G01 滑らかな bump 関数と従属分割](g01-smooth-partitions.md) | 5 |
 | [G02 逆関数・陰関数と正則値の局所形](../../libs/geometry/inverse_implicit/README.md)（実装済み） | 5 |
 | [G03 境界・角付き多様体](g03-boundary-manifolds.md) | 5 |
-| [G04 collar と境界の貼り合わせ](g04-collars-gluing.md) | 5 |
+| [G04 collar と境界の貼り合わせ](../../libs/geometry/manifold_gluing/README.md)（実装済み） | 5 |
 | [G05 コンパクト多様体の埋め込み](g05-compact-embeddings.md) | 5 |
 | [G06 管状近傍と collapse 写像](g06-tubular-neighborhoods.md) | 5 |
 | [G07 Sard の定理](g07-sard.md) | 6 |

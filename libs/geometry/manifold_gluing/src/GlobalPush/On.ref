@@ -1,0 +1,50 @@
+\import Boundary.Of[M := M] \as BoundaryAtlas;
+\import Models.Chart[M := M.Point, space := M.space] \as Charts;
+\import boundary_manifolds.Product[n := Nat.add One.dimension n, m := One.dimension] \as Products;
+\import Products.Of[M := M, N := Time.manifold] \as Product;
+\definition sourceDimension: N.Nat^ := Products.dimension;
+\import boundary_manifolds.Model[n := sourceDimension] \as Source;
+\import boundary_manifolds.Dimension[n := Nat.add One.dimension (Nat.add One.dimension n)] \as SourceModels;
+\import SourceModels.Chart[M := Product.Point, space := Product.topology] \as SourceCharts;
+\import calculus.Real[].Multivariable[n := sourceDimension].Open[] \as Input;
+\import calculus.Blocks[n := dimension, m := One.dimension] \as Blocks;
+\import boundary_manifolds.Model[n := One.dimension] \as TimeModel;
+\import calculus.Real[].Multivariable[n := One.dimension].Open[] \as TimeOpen;
+\import boundary_manifolds.Dimension[n := One.dimension].Chart[M := Time.Point, space := Time.manifold.space] \as TimeCharts;
+\module In(c: BoundaryAtlas.Chart, a: Model.Carrier c.constraints c.image, q: Functions.Positive,
+  ball: Open.BallInside[c.image.points, a, \root.LocalPush[n := n].On[a := a, q := q].Bounds[].radius]);
+\module Scale(c: BoundaryAtlas.Chart, a: Model.Carrier c.constraints c.image, r: S.Real, ball: Open.BallInside[c.image.points, a, r]);
+\import \root.PushHomotopy[n := Nat.add One.dimension n].On[M := M] \as Homotopies;
+\structure Centered[x: M.Point]: \Set := {
+  homotopy: Homotopies.Homotopy,
+  enters: \forall (t: Time.Point) -> R.Lt S.zero (Time.value t) -> Homotopies.Interior (homotopy.map.apply (Pair.pair M.Point Time.Point x t)),
+};
+\import \root.TransverseHomotopy[n := Nat.add One.dimension n].On[M := M] \as Transverse;
+\module At(x: BoundaryAtlas.Point, c: BoundaryAtlas.Chart, contains: Charts.Contains c x);
+\definition existsCentered[cover: BoundaryAtlas.Cover]: \forall (x: BoundaryAtlas.Point) -> \exists Centered[x] := \block {
+  \fun (x: BoundaryAtlas.Point) \then
+  \takefrom c: \Cast[BoundaryAtlas.Chart] ({ c: BoundaryAtlas.Chart \where Charts.Contains c x }) \by cover x \then
+  \return At[x := x, c := c, contains := \bysub(BoundaryAtlas.Chart, { c: BoundaryAtlas.Chart \where Charts.Contains c x }, c)].exists
+};
+\definition local[cover: BoundaryAtlas.Cover]: Homotopies.Local BoundaryAtlas.points := \block {
+  \fun (x: M.Point)(member: \In[M.Point] BoundaryAtlas.points x) \then
+  \let point: BoundaryAtlas.Point := \into[M.Point](x, BoundaryAtlas.points) \by { member } \then
+  \takefrom c: \Cast[BoundaryAtlas.Chart] ({ c: BoundaryAtlas.Chart \where Charts.Contains c x }) \by cover point \then
+  \return At[x := point, c := c, contains := \bysub(BoundaryAtlas.Chart, { c: BoundaryAtlas.Chart \where Charts.Contains c x }, c)].localExists
+};
+\definition existsInward[cover: BoundaryAtlas.Cover][compact: topology.Topology[Carrier := M.Point].IsCompactIn M.space BoundaryAtlas.points]:
+  \exists ( h: Homotopies.Homotopy \where \forall (x: M.Point) -> \In[M.Point] BoundaryAtlas.points x -> Homotopies.Activates h x ) :=
+  Homotopies.Compact[K := BoundaryAtlas.points, compact := compact, local := local cover].exists;
+\import topology.Topology[Carrier := M.Point] \as Space;
+\import \root.Boundary[n := Nat.add One.dimension n].On[M := M] \as ClosedBoundary;
+\definition existsOnCompact[cover: BoundaryAtlas.Cover][compact: Space.IsCompact M.space]:
+  \exists ( h: Homotopies.Homotopy \where \forall (x: M.Point) -> \In[M.Point] BoundaryAtlas.points x -> Homotopies.Activates h x ) :=
+  existsInward cover (Space.Compactness[].closedCompact M.space compact BoundaryAtlas.points ClosedBoundary.closed);
+\definition transverseLocal[cover: BoundaryAtlas.Cover]: Transverse.Local := \block {
+  \fun (x: M.Point)(member: \In[M.Point] BoundaryAtlas.points x) \then
+  \let point: BoundaryAtlas.Point := \into[M.Point](x, BoundaryAtlas.points) \by { member } \then
+  \takefrom c: \Cast[BoundaryAtlas.Chart] ({ c: BoundaryAtlas.Chart \where Charts.Contains c x }) \by cover point \then
+  \return At[x := point, c := c, contains := \bysub(BoundaryAtlas.Chart, { c: BoundaryAtlas.Chart \where Charts.Contains c x }, c)].transverseExists
+};
+\definition existsTransverse[cover: BoundaryAtlas.Cover][compact: Space.IsCompact M.space]: \exists Transverse.Result :=
+  Transverse.Compact[compact := Space.Compactness[].closedCompact M.space compact BoundaryAtlas.points ClosedBoundary.closed, local := transverseLocal cover].exists;

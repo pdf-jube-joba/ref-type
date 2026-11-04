@@ -1,0 +1,29 @@
+\import Space.Subspace[S := domain].Open[] \as Inclusion;
+\definition U: \Pow Product.Point := Inclusion.image V;
+\definition openU: Space.IsOpenIn Product.topology U := Inclusion.imageOpen Product.topology open V openV;
+\definition included: Space.Subset U domain := Inclusion.imageIncluded V;
+\import \root.CollarEmbedding[n := n].On[M := M].With[cover := cover].From[deformation := deformation].Of[regular := regular].ImageOf[V := U, openV := openU, inside := included] \as Image;
+\import topology.Topology[Carrier := ImagePoint] \as RangeSpace;
+\definition preimage: \Pow ImagePoint := { y: ImagePoint \where \In[Point] V (backward y) };
+\definition forward: \forall (y: ImagePoint) -> RangeSpace.Member preimage y -> TargetSpace.Member Image.image y :=
+  \fun (y: ImagePoint)(member: RangeSpace.Member preimage y) =>
+    Logic.existsIntro[Image.Input, { x: Image.Input \where Maps.apply map x = (y \of M.Point) }]
+      (\into[Product.Point](backward y, U) \by { Inclusion.imageMember V (backward y) member }) (rightValue y);
+\definition ofPreimage: \forall (y: ImagePoint)(p: Point) -> \In[Point] V p -> Maps.apply map p = (y \of M.Point) -> RangeSpace.Member preimage y :=
+  \fun (y: ImagePoint)(p: Point)(member: \In[Point] V p)(same: _) => \idelim p = backward y \with q: Point => \In[Point] V q \by {
+    base: member, equality: uniquePreimage y p same
+  };
+\definition backward: \forall (y: ImagePoint) -> TargetSpace.Member Image.image y -> RangeSpace.Member preimage y := \block {
+  \fun (y: ImagePoint)(member: TargetSpace.Member Image.image y) \then
+  \takefrom x: \Cast[Image.Input] ({ x: Image.Input \where Maps.apply map x = (y \of M.Point) }) \by member \then
+  \return Inclusion.imageElim V x (RangeSpace.Member preimage y)
+    (\fun (p: Point)(inV: \In[Point] V p)(same: p = x) => ofPreimage y p inV
+      (trans!{M.Point} _ _ _ (congr!{{Product.Point} M.Point} (Maps.apply map) _ _ same) (\bysub(Image.Input, { x: Image.Input \where Maps.apply map x = (y \of M.Point) }, x))))
+    (\bysub(Product.Point, U, x))
+};
+\definition equal: TargetSpace.Subspace[S := image].Trace Image.image = preimage :=
+  \axiom:setext(TargetSpace.Subspace[S := image].Trace Image.image, preimage, backward, forward);
+\definition open: RangeSpace.IsOpenIn imageTopology preimage :=
+  \idelim TargetSpace.Subspace[S := image].Trace Image.image = preimage \with W: \Pow ImagePoint => RangeSpace.IsOpenIn imageTopology W \by {
+    base: TargetSpace.Subspace[S := image].traceOpen M.space Image.image Image.open, equality: equal
+  };

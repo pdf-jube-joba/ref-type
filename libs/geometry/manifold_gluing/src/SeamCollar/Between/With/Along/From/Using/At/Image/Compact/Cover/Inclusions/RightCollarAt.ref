@@ -1,0 +1,14 @@
+\import \parent.\parent.\parent.RightLift[x := x, member := member] \as Lift;
+\definition function[p: N.Point]: Gluing.Point := apply (Lift.function p);
+\import \root.LocalSmoothMap[n := Nat.add One.dimension n, m := Nat.add One.dimension n].Between[M := N, N := manifold].Of[function := function] \as Local;
+\import \root.LocalSmoothPostcompose[n := Nat.add One.dimension n, m := Nat.add One.dimension n, l := Nat.add One.dimension n].Between[M := N, N := Source.manifold, P := manifold].From[
+  f := Lift.function, g := SeamSmooth.map] \as Composition;
+\definition equal: \forall (p: N.Point) -> \In[N.Point] RightImage.image p -> Gluing.inr p = function p :=
+  \fun (p: N.Point)(member: _) => sym!{{Gluing.Point}} _ _ (Lift.classValue p member);
+\import \root.LocalSmoothTransfer[n := Nat.add One.dimension n, m := Nat.add One.dimension n].Between[M := N, N := manifold].From[f := Gluing.inr, g := function] \as Transfer;
+\import \root.LocalSmoothMap[n := Nat.add One.dimension n, m := Nat.add One.dimension n].Between[M := N, N := Source.manifold].Of[function := Lift.function] \as LiftLocal;
+\definition exists: \exists RightLocal.Witness[x] := \block {
+  \takefrom lift: LiftLocal.Witness[x] \by Lift.exists \then
+  \takefrom composition: Local.Witness[x] \by Composition.At[x := x, chosen := lift].exists \then
+  \return Transfer.At[x := x, U := RightImage.image, open := RightImage.open, contains := member, agrees := equal, chosen := composition].exists
+};

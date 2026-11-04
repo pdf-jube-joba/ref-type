@@ -1,0 +1,53 @@
+\import topology.Topology[Carrier := LeftProduct.Point] \as LeftSpace;
+\import topology.Topology[Carrier := RightProduct.Point] \as RightSpace;
+\import topology.Topology[Carrier := Gluing.Point] \as Target;
+\definition leftDomain: \Pow LeftProduct.Point := { x: LeftProduct.Point \where R.Lt (Time.value (LeftProduct.second x)) epsilon };
+\definition rightDomain: \Pow RightProduct.Point := { x: RightProduct.Point \where R.Lt (Time.value (RightProduct.second x)) epsilon };
+\definition leftOpen: LeftSpace.IsOpenIn LeftProduct.topology leftDomain := topological_constructions.Product[A := LeftBoundary.manifold.Point, B := Time.Point].Maps[].secondContinuous
+  LeftBoundary.manifold.space Time.manifold.space Signed.SmallTimes[].points Signed.SmallTimes[].open;
+\definition rightOpen: RightSpace.IsOpenIn RightProduct.topology rightDomain := topological_constructions.Product[A := RightBoundary.manifold.Point, B := Time.Point].Maps[].secondContinuous
+  RightBoundary.manifold.space Time.manifold.space Signed.SmallTimes[].points Signed.SmallTimes[].open;
+\definition leftIncluded: LeftSpace.Subset leftDomain Left.domain := \fun (x: LeftProduct.Point)(member: _) => leftWithin (LeftProduct.second x) member;
+\definition rightIncluded: RightSpace.Subset rightDomain Right.domain := \fun (x: RightProduct.Point)(member: _) => rightWithin (RightProduct.second x) member;
+\import Left.ImageOf[V := leftDomain, openV := leftOpen, inside := leftIncluded] \as LeftImage;
+\import Right.ImageOf[V := rightDomain, openV := rightOpen, inside := rightIncluded] \as RightImage;
+\import \root.InwardNeighborhood[n := n].On[M := M].With[cover := leftCover].From[h := left.homotopy, active := left.active] \as LeftCandidate;
+\import \root.InwardNeighborhood[n := n].On[M := N].With[cover := rightCover].From[h := right.homotopy, active := right.active] \as RightCandidate;
+\definition leftBoundary: \forall (b: LeftBoundary.manifold.Point) -> \In[M.Point] LeftImage.image (LeftBoundary.apply b) :=
+  \fun (b: LeftBoundary.manifold.Point) => Logic.existsIntro[LeftImage.Input, { x: LeftImage.Input \where LeftMaps.apply LeftMap.map x = LeftBoundary.apply b }]
+    (\into[LeftProduct.Point](Pair.pair LeftBoundary.manifold.Point Time.Point b Time.zero, leftDomain) \by { positive }) (LeftCandidate.neighborhood.initial b);
+\definition rightBoundary: \forall (b: RightBoundary.manifold.Point) -> \In[N.Point] RightImage.image (RightBoundary.apply b) :=
+  \fun (b: RightBoundary.manifold.Point) => Logic.existsIntro[RightImage.Input, { x: RightImage.Input \where RightMaps.apply RightMap.map x = RightBoundary.apply b }]
+    (\into[RightProduct.Point](Pair.pair RightBoundary.manifold.Point Time.Point b Time.zero, rightDomain) \by { positive }) (RightCandidate.neighborhood.initial b);
+\definition matched: \forall (b: LeftBoundary.manifold.Point) -> Logic.PropEquiv[\In[M.Point] LeftImage.image (Gluing.left b), \In[N.Point] RightImage.image (Gluing.right b)] :=
+  \fun (b: LeftBoundary.manifold.Point) => Logic.PropEquiv[_, _] {
+    ltr := \fun (member: _) => rightBoundary (BoundaryMaps.apply d.forward b), rtl := \fun (member: _) => leftBoundary b,
+  };
+\import \root.SeamOpen[A := M.Point, B := N.Point, C := LeftBoundary.manifold.Point, u := Gluing.left, v := Gluing.right].On[
+  left := M.space, right := N.space, injections := Gluing.injections].Pair[U := LeftImage.image, V := RightImage.image, openU := LeftImage.open, openV := RightImage.open, matched := matched] \as Region;
+\definition image: \Pow Gluing.Point := Region.image;
+\definition open: Target.IsOpenIn Gluing.topology image := Region.open;
+\definition leftInImage: \forall (p: Source.Point) -> Target.Member image (leftValue p) :=
+  \fun (p: Source.Point) => Region.ofLeft (LeftMaps.apply LeftMap.map (leftParameter p))
+    (Logic.existsIntro[LeftImage.Input, { x: LeftImage.Input \where LeftMaps.apply LeftMap.map x = LeftMaps.apply LeftMap.map (leftParameter p) }]
+      (\into[LeftProduct.Point](leftParameter p, leftDomain) \by { Signed.positiveSmall (Source.second p) }) (\refl(LeftMaps.apply LeftMap.map (leftParameter p))));
+\definition rightInImage: \forall (p: Source.Point) -> Target.Member image (rightValue p) :=
+  \fun (p: Source.Point) => Region.ofRight (RightMaps.apply RightMap.map (rightParameter p))
+    (Logic.existsIntro[RightImage.Input, { x: RightImage.Input \where RightMaps.apply RightMap.map x = RightMaps.apply RightMap.map (rightParameter p) }]
+      (\into[RightProduct.Point](rightParameter p, rightDomain) \by { Signed.negativeBound (Source.second p) }) (\refl(RightMaps.apply RightMap.map (rightParameter p))));
+\definition included: \forall (p: Source.Point) -> Target.Member image (apply p) := \fun (p: Source.Point) =>
+  Logic.orElim (Space.Member Positive p) (Space.Member Negative p) (Target.Member image (apply p)) (covered p)
+    (\fun (member: _) => \idelim leftValue p = apply p \with y: Gluing.Point => Target.Member image y \by { base: leftInImage p, equality: sym!{{Gluing.Point}} _ _ (onLeft p member) })
+    (\fun (member: _) => \idelim rightValue p = apply p \with y: Gluing.Point => Target.Member image y \by { base: rightInImage p, equality: sym!{{Gluing.Point}} _ _ (onRight p member) });
+\definition Point: \Set := \Cast[Gluing.Point] image;
+\definition topology: topology.Structures[].Topology[Point] := Target.Subspace[S := image].topology Gluing.topology;
+\definition forward[p: Source.Point]: Point := \into[Gluing.Point](apply p, image) \by { included p };
+\definition forwardContinuous: topology.Continuity[A := Source.Point, B := Point].Continuous Source.topology topology forward :=
+  topology.Continuity[A := Source.Point, B := Gluing.Point].Corestriction[S := image].corestrictContinuous Source.topology Gluing.topology forward continuous;
+\module LeftAt(x: LeftImage.Input);
+\module RightAt(x: RightImage.Input);
+\module Onto;
+\definition onto: \forall (y: Point) -> \exists (p: Source.Point \where forward p = y) := Onto[].law;
+\module Compact(leftCompact: topology.Topology[Carrier := M.Point].IsCompact M.space, rightCompact: topology.Topology[Carrier := N.Point].IsCompact N.space);
+\module SmallLeft(a: M.Point, member: \In[M.Point] LeftImage.image a);
+\module SmallRight(a: N.Point, member: \In[N.Point] RightImage.image a);

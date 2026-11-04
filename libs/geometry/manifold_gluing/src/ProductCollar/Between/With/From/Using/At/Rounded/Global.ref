@@ -1,0 +1,33 @@
+\import \parent.NearModel[] \as NearConstruction;
+\import \root.RoundingWindow[] \as Window;
+\import boundary_manifolds.Product[n := n, m := m].Of[M := LeftBase.manifold, N := RightBase.manifold] \as Base;
+\import boundary_manifolds.Product[n := Nat.add m n, m := Round.dimension].Of[M := Base.manifold, N := Window.manifold] \as Near;
+\import \root.DimensionChange[n := Nat.add Round.dimension (Nat.add m n)].On[M := Near.manifold] \as Dimensions;
+\import Dimensions.At[m := Nat.add (Nat.add One.dimension m) (Nat.add One.dimension n)] \as Change;
+\definition dimensions: Nat.add (Nat.add One.dimension m) (Nat.add One.dimension n) = Nat.add Round.dimension (Nat.add m n) := std.Data[].Nat[].Basic[].Prop[].addInterchange One.dimension m One.dimension n;
+\definition existsDimensions: \exists Change.Data := Dimensions.exists (Nat.add (Nat.add One.dimension m) (Nat.add One.dimension n)) (sym!{{Nats.Nat^}} _ _ dimensions);
+\definition far: \Pow Product.Point := Space.Complement core;
+\definition farOpen: Space.IsOpenIn Product.topology far := coreClosed leftCompact rightCompact;
+\import \root.OpenManifold[n := Nat.add (Nat.add One.dimension m) (Nat.add One.dimension n)].On[M := Product.manifold].Within[U := far, open := farOpen] \as Far;
+\definition farRegion: \Pow Point := { x: Point \where Space.Member far x };
+\definition farRegionOpen: topology.Topology[Carrier := Point].IsOpenIn topology farRegion := Space.Subspace[S := points].traceOpen Product.topology far farOpen;
+\import Space.Subspace[S := far].Inside[U := points] \as FarImage;
+\definition farHomeomorphism: topology.Homeomorphism[A := Far.Point, B := \Cast[Point] farRegion].Homeomorphism[Far.topology, topology.Topology[Carrier := Point].Subspace[S := farRegion].topology topology] := FarImage.homeomorphism Product.topology unchanged;
+\import \parent.NearModel[].Image[] \as NearImage;
+\definition nearRegion: \Pow Point := NearImage.region;
+\definition nearRegionOpen: topology.Topology[Carrier := Point].IsOpenIn topology nearRegion := NearImage.open;
+\module Using(change: Change.Data);
+
+\import boundary_manifolds.Dimension[n := Nat.add (Nat.add One.dimension m) (Nat.add One.dimension n)] \as Models;
+\import Models.Atlas[M := Point, space := topology] \as Atlases;
+\import Space.Subspace[S := points].Properties[] \as Properties;
+\structure Result: \Set := { atlas: Atlases.Atlas, };
+\definition manifold[result: Result]: Models.Manifold := Models.Manifold {
+  Point := Point, space := topology, atlas := result.atlas,
+  hausdorff := Properties.hausdorff Product.topology Product.manifold.hausdorff,
+  secondCountable := Properties.secondCountable Product.topology Product.manifold.secondCountable,
+};
+\definition exists: \exists Result := \block {
+  \takefrom change: Change.Data \by existsDimensions \then
+  \return \exact(Result { atlas := Using[change := change].Cover[].manifold.atlas }, Result)
+};

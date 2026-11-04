@@ -1,0 +1,17 @@
+\import \root.HomotopyVelocity[n := Nat.add One.dimension n].On[M := M].Of[h := homotopy].At[x := x] \as Velocity;
+\import Velocity.In[c := sourceChart, contains := \bysub(M.Point, c.domain, x)] \as Coordinates;
+\import \parent.Jet[x := x] \as Jet;
+\import boundary_manifolds.Tangent[n := Nat.add One.dimension n].On[M := M].At[x := x] \as Tangent;
+\import Tangent.Cones[] \as Cones;
+\import Tangent.Cones[].Lineality[c := Coordinates.targetChart, v := Velocity.value] \as Lineality;
+\import \root.HalfChartBoundary[n := n].On[M := M].In[c := c] \as Criterion;
+\definition value: Tangent.Vector := Velocity.value;
+\definition inward: Cones.Inward value := Velocity.inward;
+\definition normal: Tangent.Coordinate[chart := Coordinates.targetChart].decode value Boundary.normal = S.mul q (Polynomial.bump (input Jet.zeroPoint)) :=
+  trans!{S.Real} _ _ _ (congr!{Model.Point S.Real} (\fun (v: Model.Point) => v Boundary.normal) _ _ Coordinates.coordinates) Jet.velocity;
+\definition strict: \In[M.Point] BoundaryAtlas.points x -> R.Lt S.zero (Polynomial.bump (input Jet.zeroPoint)) -> Logic.Not (Cones.Tangential value) :=
+  \fun (boundary: _)(positiveBump: _)(tangential: _) => R.ltNotLeReverse S.zero (S.mul q (Polynomial.bump (input Jet.zeroPoint)))
+    (S.Estimates[].Product[].mulPositive q (Polynomial.bump (input Jet.zeroPoint)) (\bysub(S.Real, Functions.Positive, q)) positiveBump)
+    (R.leReplaceLeft S.zero (S.mul q (Polynomial.bump (input Jet.zeroPoint))) S.zero
+      (sym!{S.Real} _ _ (trans!{S.Real} _ _ _ (sym!{S.Real} _ _ normal)
+        ((Lineality.fromIntrinsic tangential) Boundary.normal (Logic.And[_, _]::# Criterion.At[p := x].normalSelected (Criterion.normalZero x boundary))))) (R.leRefl S.zero));

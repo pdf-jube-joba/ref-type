@@ -1,0 +1,44 @@
+\import \parent.Parameters[] \as Parameters;
+\definition region: \Pow RoundedPoint := { y: RoundedPoint \where Space.Member near y };
+\import topology.Topology[Carrier := RoundedPoint] \as RoundedSpace;
+\definition open: RoundedSpace.IsOpenIn roundedTopology region := Space.Subspace[S := roundedPoints].traceOpen Product.topology near nearOpen;
+\definition Point: \Set := \Cast[RoundedPoint] region;
+\definition topology: topology.Structures[].Topology[Point] := RoundedSpace.Subspace[S := region].topology roundedTopology;
+\definition parameter[y: Point]: Parameterization.Point := \into[Product.Point](y, near) \by { \bysub(RoundedPoint, region, y) };
+\definition rounded[p: Parameters.Point]: RoundedPoint := \into[Product.Point](Parameterization.forward p, roundedPoints) \by { RegionMembership.nonnegativeContains p (\bysub(Source.Point, Parameters.points, p)) };
+\definition forward[p: Parameters.Point]: Point := \into[RoundedPoint](rounded p, region) \by { \bysub(Product.Point, near, Parameterization.forward p) };
+\definition rawBackward[y: Point]: Source.Point := Parameterization.backward (parameter y);
+\definition inRounded: \forall (y: Point) -> Space.Member roundedPoints (Parameterization.forward (rawBackward y)) := \fun (y: Point) =>
+  \idelim (y \of Product.Point) = (Parameterization.forward (rawBackward y) \of Product.Point) \with p: Product.Point => Space.Member roundedPoints p \by {
+    base: \bysub(Product.Point, roundedPoints, y), equality: sym!{{Product.Point}} _ _ (congr!{{Parameterization.Point} {Product.Point}} (\fun (p: Parameterization.Point) => p) _ _ (Parameterization.rightInverse (parameter y)))
+  };
+\definition backward[y: Point]: Parameters.Point := \into[Source.Point](rawBackward y, Parameters.points) \by { RegionMembership.containsNonnegative (rawBackward y) (inRounded y) };
+\definition leftInverse: \forall (p: Parameters.Point) -> backward (forward p) = p := \fun (p: Parameters.Point) => boundary_manifolds.Refinement[A := Source.Point].equality Parameters.points (backward (forward p)) p
+  (trans!{{Source.Point}} _ _ _
+    (congr!{{Parameterization.Point} {Source.Point}} Parameterization.backward _ _ (boundary_manifolds.Refinement[A := Product.Point].equality near (parameter (forward p)) (Parameterization.forward p) (\refl(Parameterization.forward p \of Product.Point))))
+    (Parameterization.leftInverse p));
+\definition rightInverse: \forall (y: Point) -> forward (backward y) = y := \fun (y: Point) => boundary_manifolds.Refinement[A := RoundedPoint].equality region (forward (backward y)) y
+  (boundary_manifolds.Refinement[A := Product.Point].equality roundedPoints (forward (backward y)) y (congr!{{Parameterization.Point} {Product.Point}} (\fun (p: Parameterization.Point) => p) _ _ (Parameterization.rightInverse (parameter y))));
+\definition forwardToNearContinuous: topology.Continuity[A := Parameters.Point, B := Parameterization.Point].Continuous Parameters.topology Parameterization.topology (\fun (p: Parameters.Point) => Parameterization.forward p) :=
+  topology.Continuity[A := Source.Point, B := Parameterization.Point].Restriction[S := Parameters.points].restrictContinuous Source.topology Parameterization.topology Parameterization.forward Parameterization.forwardContinuous;
+\definition forwardToProductContinuous: topology.Continuity[A := Parameters.Point, B := Product.Point].Continuous Parameters.topology Product.topology (\fun (p: Parameters.Point) => Parameterization.forward p) :=
+  topology.Composition[A := Parameters.Point, B := Parameterization.Point, C := Product.Point].composeContinuous Parameters.topology Parameterization.topology Product.topology (\fun (p: Parameters.Point) => Parameterization.forward p) (\fun (p: Parameterization.Point) => p) forwardToNearContinuous
+    (topology.Continuity[A := Parameterization.Point, B := Product.Point].Corestriction[S := near].inclusionContinuous Product.topology);
+\definition roundedContinuous: topology.Continuity[A := Parameters.Point, B := RoundedPoint].Continuous Parameters.topology roundedTopology rounded :=
+  topology.Continuity[A := Parameters.Point, B := Product.Point].Corestriction[S := roundedPoints].corestrictContinuous Parameters.topology Product.topology rounded forwardToProductContinuous;
+\definition forwardContinuous: topology.Continuity[A := Parameters.Point, B := Point].Continuous Parameters.topology topology forward :=
+  topology.Continuity[A := Parameters.Point, B := RoundedPoint].Corestriction[S := region].corestrictContinuous Parameters.topology roundedTopology forward roundedContinuous;
+\definition inclusionContinuous: topology.Continuity[A := Point, B := Product.Point].Continuous topology Product.topology (\fun (y: Point) => y) :=
+  topology.Composition[A := Point, B := RoundedPoint, C := Product.Point].composeContinuous topology roundedTopology Product.topology (\fun (y: Point) => y) (\fun (y: RoundedPoint) => y)
+    (topology.Continuity[A := Point, B := RoundedPoint].Corestriction[S := region].inclusionContinuous roundedTopology)
+    (topology.Continuity[A := RoundedPoint, B := Product.Point].Corestriction[S := roundedPoints].inclusionContinuous Product.topology);
+\definition parameterContinuous: topology.Continuity[A := Point, B := Parameterization.Point].Continuous topology Parameterization.topology parameter :=
+  topology.Continuity[A := Point, B := Product.Point].Corestriction[S := near].corestrictContinuous topology Product.topology parameter inclusionContinuous;
+\definition rawBackwardContinuous: topology.Continuity[A := Point, B := Source.Point].Continuous topology Source.topology rawBackward :=
+  topology.Composition[A := Point, B := Parameterization.Point, C := Source.Point].composeContinuous topology Parameterization.topology Source.topology parameter Parameterization.backward parameterContinuous Parameterization.backwardContinuous;
+\definition backwardContinuous: topology.Continuity[A := Point, B := Parameters.Point].Continuous topology Parameters.topology backward :=
+  topology.Continuity[A := Point, B := Source.Point].Corestriction[S := Parameters.points].corestrictContinuous topology Source.topology backward rawBackwardContinuous;
+\definition cutHomeomorphism: topology.Homeomorphism[A := Parameters.Point, B := Point].Homeomorphism[Parameters.topology, topology] := topology.Homeomorphism[A := Parameters.Point, B := Point].Homeomorphism[Parameters.topology, topology] {
+  forward := forward, backward := backward, leftInverse := leftInverse, rightInverse := rightInverse, forwardContinuous := forwardContinuous, backwardContinuous := backwardContinuous,
+};
+\definition homeomorphism: topology.Homeomorphism[A := Near.Point, B := Point].Homeomorphism[Near.topology, topology] := topology.Homeomorphism[A := Near.Point, B := Parameters.Point].Composition[C := Point].compose Near.topology Parameters.topology topology Parameters.homeomorphism cutHomeomorphism;

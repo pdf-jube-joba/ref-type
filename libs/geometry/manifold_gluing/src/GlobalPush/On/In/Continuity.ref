@@ -1,0 +1,75 @@
+\import \parent.Enclosure[] \as Enclosure;
+\import topological_constructions.Product[A := M.Point, B := Time.Point] \as Topology;
+\import topology.Topology[Carrier := Product.Point] \as SourceSpace;
+\import SourceSpace.Subspace[S := localDomain] \as LocalSpace;
+\definition localTopology: topology.Structures[].Topology[LocalPoint] := LocalSpace.topology Product.topology;
+\definition localOpen: SourceSpace.IsOpenIn Product.topology localDomain := Topology.Maps[].firstContinuous M.space Time.manifold.space c.domain c.open;
+\definition sourcePointContinuous: topology.Continuity[A := LocalPoint, B := SourceCharts.LocalPoint Patch.chart].Continuous localTopology (SourceCharts.domainTopology Patch.domain) sourcePoint :=
+  topology.Continuity[A := LocalPoint, B := Product.Point].Corestriction[S := Patch.domain].corestrictContinuous localTopology Product.topology sourcePoint
+    (topology.Continuity[A := LocalPoint, B := Product.Point].Corestriction[S := localDomain].inclusionContinuous Product.topology);
+\import topology.Homeomorphism[A := SourceCharts.LocalPoint Patch.chart, B := Source.Carrier Patch.C Patch.image] \as Homeomorphisms;
+\definition coordinateContinuous: topology.Continuity[A := LocalPoint, B := Source.Carrier Patch.C Patch.image].Continuous localTopology (Source.regionTopology Patch.C Patch.image) coordinate :=
+  topology.Composition[A := LocalPoint, B := SourceCharts.LocalPoint Patch.chart, C := Source.Carrier Patch.C Patch.image].composeContinuous
+    localTopology (SourceCharts.domainTopology Patch.domain) (Source.regionTopology Patch.C Patch.image) sourcePoint (SourceCharts.coordinate Patch.chart)
+    sourcePointContinuous (Homeomorphisms.laws _ _ Patch.chart.coordinates).forwardContinuous;
+\import topological_algebra.Euclidean[].Dimension[n := sourceDimension].Topology[] \as InputAmbient;
+\definition coordinateAmbient: topology.Continuity[A := LocalPoint, B := Source.Point].Continuous localTopology InputAmbient.topology (\fun (z: LocalPoint) => coordinate z) :=
+  topology.Composition[A := LocalPoint, B := Source.Carrier Patch.C Patch.image, C := Source.Point].composeContinuous localTopology
+    (Source.regionTopology Patch.C Patch.image) InputAmbient.topology coordinate (\fun (u: Source.Carrier Patch.C Patch.image) => u)
+    coordinateContinuous (Source.Topology[C := Patch.C, U := Patch.image].ambient);
+\definition inputContinuous: topology.Continuity[A := LocalPoint, B := Input.Carrier Input.whole].Continuous localTopology (Input.Topology[].Of[U := Input.whole].topology) input :=
+  topology.Continuity[A := LocalPoint, B := Source.Point].Corestriction[S := Input.whole.points].corestrictContinuous localTopology InputAmbient.topology input coordinateAmbient;
+\import calculus.Maps[n := sourceDimension, m := dimension] \as Calculus;
+\definition ambientValue[z: LocalPoint]: Open.Carrier Open.whole := Calculus.apply Input.whole Open.whole Polynomial.ambient (input z);
+\definition ambientContinuous: topology.Continuity[A := LocalPoint, B := Open.Carrier Open.whole].Continuous localTopology (Open.Topology[].Of[U := Open.whole].topology) ambientValue :=
+  topology.Composition[A := LocalPoint, B := Input.Carrier Input.whole, C := Open.Carrier Open.whole].composeContinuous localTopology
+    (Input.Topology[].Of[U := Input.whole].topology) (Open.Topology[].Of[U := Open.whole].topology) input
+    (Calculus.apply Input.whole Open.whole Polynomial.ambient) inputContinuous (Calculus.Topology[U := Input.whole, V := Open.whole].continuous Polynomial.ambient);
+\import topological_algebra.Euclidean[].Dimension[n := dimension].Topology[] \as Ambient;
+\definition valueContinuous: topology.Continuity[A := LocalPoint, B := Model.Point].Continuous localTopology Ambient.topology (\fun (z: LocalPoint) => Polynomial.value (input z)) :=
+  topology.Composition[A := LocalPoint, B := Open.Carrier Open.whole, C := Model.Point].composeContinuous localTopology (Open.Topology[].Of[U := Open.whole].topology) Ambient.topology
+    ambientValue (\fun (u: Open.Carrier Open.whole) => u) ambientContinuous
+    (topology.Continuity[A := Open.Carrier Open.whole, B := Model.Point].Corestriction[S := Open.whole.points].inclusionContinuous Ambient.topology);
+\definition imageContinuous: topology.Continuity[A := LocalPoint, B := Model.Carrier c.constraints c.image].Continuous localTopology (Model.regionTopology c.constraints c.image) imagePoint :=
+  Model.Topology[C := c.constraints, U := c.image].Into[X := LocalPoint, source := localTopology, f := imagePoint].continuous valueContinuous;
+\import \root.ChartMap[n := Nat.add One.dimension n].On[M := M].Of[c := sourceChart] \as ChartMap;
+\definition partialContinuous: topology.Continuity[A := LocalPoint, B := M.Point].Continuous localTopology M.space partial :=
+  topology.Composition[A := LocalPoint, B := Model.Carrier c.constraints c.image, C := M.Point].composeContinuous localTopology (Model.regionTopology c.constraints c.image) M.space
+    imagePoint (\fun (u: Model.Carrier c.constraints c.image) => Charts.point c u) imageContinuous ChartMap.continuous;
+\definition localContinuous: topology.Continuity[A := LocalPoint, B := M.Point].Continuous localTopology M.space (\fun (z: LocalPoint) => apply z) :=
+  \idelim partial = (\fun (z: LocalPoint) => apply z) \with f: (LocalPoint -> M.Point) => topology.Continuity[A := LocalPoint, B := M.Point].Continuous localTopology M.space f \by {
+    base: partialContinuous, equality: \axiom:funext(partial, (\fun (z: LocalPoint) => apply z), \fun (z: LocalPoint) => sym!{M.Point} _ _ (inside z))
+  };
+\definition outsideDomain: \Pow Product.Point := { z: Product.Point \where Logic.Not (\In[M.Point] Enclosure.envelope (Product.first z)) };
+\definition outsideOpen: SourceSpace.IsOpenIn Product.topology outsideDomain := Topology.Maps[].firstContinuous M.space Time.manifold.space
+  (topology.Topology[Carrier := M.Point].Complement Enclosure.envelope) Enclosure.closed;
+\definition OutsidePoint: \Set := \Cast[Product.Point] outsideDomain;
+\definition outsideTopology: topology.Structures[].Topology[OutsidePoint] := SourceSpace.Subspace[S := outsideDomain].topology Product.topology;
+\definition outsideContinuous: topology.Continuity[A := OutsidePoint, B := M.Point].Continuous outsideTopology M.space (\fun (z: OutsidePoint) => apply z) :=
+  \idelim (\fun (z: OutsidePoint) => Product.first z) = (\fun (z: OutsidePoint) => apply z)
+    \with f: (OutsidePoint -> M.Point) => topology.Continuity[A := OutsidePoint, B := M.Point].Continuous outsideTopology M.space f \by {
+      base: topology.Continuity[A := Product.Point, B := M.Point].Restriction[S := outsideDomain].restrictContinuous Product.topology M.space Product.first (Topology.Maps[].firstContinuous M.space Time.manifold.space),
+      equality: \axiom:funext((\fun (z: OutsidePoint) => Product.first z), (\fun (z: OutsidePoint) => apply z), \fun (z: OutsidePoint) => sym!{M.Point} _ _
+        (Enclosure.identityOutside z (\bysub(Product.Point, outsideDomain, z))))
+    };
+\import topological_constructions.Gluing[A := Product.Point, B := M.Point] \as Gluing;
+\definition localRegular: Gluing.ContinuousOn Product.topology M.space apply localDomain :=
+  Gluing.Restriction[U := localDomain].localFromRestriction Product.topology M.space apply localOpen localContinuous;
+\definition outsideRegular: Gluing.ContinuousOn Product.topology M.space apply outsideDomain :=
+  Gluing.Restriction[U := outsideDomain].localFromRestriction Product.topology M.space apply outsideOpen outsideContinuous;
+\definition family: \Pow (\Pow Product.Point) := { U: \Pow Product.Point \where Logic.Or[U = localDomain, U = outsideDomain] };
+\definition outsideOfMissing: \forall (z: Product.Point) -> Logic.Not (\In[Product.Point] localDomain z) -> \In[Product.Point] outsideDomain z :=
+  \fun (z: Product.Point)(missing: _)(member: \In[M.Point] Enclosure.envelope (Product.first z)) => missing (Enclosure.withinChart (Product.first z) member);
+\definition covers: SourceSpace.Covers family SourceSpace.Whole := \fun (z: Product.Point)(whole: _) =>
+  Logic.orElim (\In[Product.Point] localDomain z) (Logic.Not (\In[Product.Point] localDomain z)) (SourceSpace.Member (SourceSpace.Union family) z) (Classical.excludedMiddle (\In[Product.Point] localDomain z))
+    (\fun (member: _) => SourceSpace.unionMemberOf family localDomain z (Logic.Or[_, _]::left (\refl(localDomain))) member)
+    (\fun (missing: _) => SourceSpace.unionMemberOf family outsideDomain z (Logic.Or[_, _]::right (\refl(outsideDomain))) (outsideOfMissing z missing));
+\definition continuous: topology.Continuity[A := Product.Point, B := M.Point].Continuous Product.topology M.space apply :=
+  Gluing.openCover Product.topology M.space apply family covers (\fun (U: \Pow Product.Point)(member: SourceSpace.FamilyMember family U) =>
+    Logic.orElim (U = localDomain) (U = outsideDomain) (Gluing.ContinuousOn Product.topology M.space apply U) member
+      (\fun (same: _) => \idelim localDomain = U \with V: \Pow Product.Point => Gluing.ContinuousOn Product.topology M.space apply V \by {
+        base: localRegular, equality: sym!{{\Pow Product.Point}} _ _ same
+      })
+      (\fun (same: _) => \idelim outsideDomain = U \with V: \Pow Product.Point => Gluing.ContinuousOn Product.topology M.space apply V \by {
+        base: outsideRegular, equality: sym!{{\Pow Product.Point}} _ _ same
+      }));

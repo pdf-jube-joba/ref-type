@@ -1,0 +1,37 @@
+\import \parent.Mapping[m := Nat.add One.dimension n].Into[P := manifold] \as Criterion;
+\import \root.TransportInclusion[n := Nat.add One.dimension n].Between[M := LeftInside.manifold, N := manifold].On[
+  U := LeftPatch.image, open := Interiors.leftOpen, h := LeftPatch.homeomorphism].With[member := Criterion.leftMember] \as LeftSmooth;
+\import \root.TransportInclusion[n := Nat.add One.dimension n].Between[M := RightInside.manifold, N := manifold].On[
+  U := RightPatch.image, open := Interiors.rightOpen, h := RightPatch.homeomorphism].With[member := Criterion.rightMember] \as RightSmooth;
+\import \root.TransportInclusion[n := Nat.add One.dimension n].Between[M := Source.manifold, N := manifold].On[
+  U := image, open := open, h := homeomorphism].With[member := Criterion.seamMember] \as SeamSmooth;
+\import boundary_manifolds.SmoothMap[n := Nat.add One.dimension n, m := Nat.add One.dimension n].Between[M := M, N := manifold] \as LeftMaps;
+\import boundary_manifolds.SmoothMap[n := Nat.add One.dimension n, m := Nat.add One.dimension n].Between[M := N, N := manifold] \as RightMaps;
+\import \root.LocalSmoothMap[n := Nat.add One.dimension n, m := Nat.add One.dimension n].Between[M := M, N := manifold].Of[function := Gluing.inl] \as LeftLocal;
+\import \root.LocalSmoothMap[n := Nat.add One.dimension n, m := Nat.add One.dimension n].Between[M := N, N := manifold].Of[function := Gluing.inr] \as RightLocal;
+\import LeftInterior.Build[] \as LeftOrdinary;
+\import RightInterior.Build[] \as RightOrdinary;
+\import boundary_manifolds.Boundaryless[n := Nat.add One.dimension n].Of[M := LeftOrdinary.manifold] \as LeftConverted;
+\import boundary_manifolds.Boundaryless[n := Nat.add One.dimension n].Of[M := RightOrdinary.manifold] \as RightConverted;
+\import boundary_manifolds.Boundary[n := n].Of[M := M].Build[cover := leftCover] \as LeftBoundaryOrdinary;
+\import boundary_manifolds.Boundary[n := n].Of[M := N].Build[cover := rightCover] \as RightBoundaryOrdinary;
+\import boundary_manifolds.Boundaryless[n := n].Of[M := LeftBoundaryOrdinary.manifold] \as LeftBoundaryConverted;
+\import boundary_manifolds.Boundaryless[n := n].Of[M := RightBoundaryOrdinary.manifold] \as RightBoundaryConverted;
+\module LeftInteriorAt(x: M.Point, interior: \In[M.Point] LeftInterior.points x);
+\module RightInteriorAt(x: N.Point, interior: \In[N.Point] RightInterior.points x);
+\module LeftCollarAt(x: M.Point, member: \In[M.Point] LeftImage.image x);
+\module RightCollarAt(x: N.Point, member: \In[N.Point] RightImage.image x);
+\definition leftLocal: \forall (x: M.Point) -> \exists LeftLocal.Witness[x] := \fun (x: M.Point) =>
+  Logic.orElim (\In[M.Point] LeftAtlas.points x) (Logic.Not (\In[M.Point] LeftAtlas.points x)) (\exists LeftLocal.Witness[x])
+    (std.Logic[].Classical[].excludedMiddle (\In[M.Point] LeftAtlas.points x))
+    (\fun (boundary: _) => LeftCollarAt[x := x, member := leftBoundary (LeftBoundaryConverted.forward (\into[M.Point](x, LeftAtlas.points) \by { boundary }))].exists)
+    (\fun (interior: _) => LeftInteriorAt[x := x, interior := interior].exists);
+\definition rightLocal: \forall (x: N.Point) -> \exists RightLocal.Witness[x] := \fun (x: N.Point) =>
+  Logic.orElim (\In[N.Point] RightAtlas.points x) (Logic.Not (\In[N.Point] RightAtlas.points x)) (\exists RightLocal.Witness[x])
+    (std.Logic[].Classical[].excludedMiddle (\In[N.Point] RightAtlas.points x))
+    (\fun (boundary: _) => RightCollarAt[x := x, member := rightBoundary (RightBoundaryConverted.forward (\into[N.Point](x, RightAtlas.points) \by { boundary }))].exists)
+    (\fun (interior: _) => RightInteriorAt[x := x, interior := interior].exists);
+\definition left: LeftMaps.Map := LeftLocal.map Gluing.inlContinuous leftLocal;
+\definition right: RightMaps.Map := RightLocal.map Gluing.inrContinuous rightLocal;
+\import boundary_manifolds.SmoothMap[n := Nat.add One.dimension n, m := Nat.add One.dimension n].Between[M := Source.manifold, N := manifold] \as SeamMaps;
+\definition seam: SeamMaps.Map := SeamSmooth.map;

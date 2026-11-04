@@ -1,0 +1,27 @@
+\import Model.Interior[C := c.constraints] \as Interior;
+\import topological_algebra.Euclidean[].Dimension[n := n].Topology[] \as Ambient;
+\import Space.Subspace[S := c.domain].Open[] \as Inclusion;
+\import topology.Topology[Carrier := Charts.LocalPoint c] \as Local;
+\definition coordinate[p: Charts.LocalPoint c]: Model.Point := Charts.coordinate c p;
+\import topology.Homeomorphism[A := Charts.LocalPoint c, B := Model.Carrier c.constraints c.image] \as Homeomorphism;
+\definition coordinateContinuous: topology.Continuity[A := Charts.LocalPoint c, B := Model.Point].Continuous (Charts.domainTopology c.domain) Ambient.topology coordinate :=
+  topology.Composition[A := Charts.LocalPoint c, B := Model.Carrier c.constraints c.image, C := Model.Point].composeContinuous
+    (Charts.domainTopology c.domain) (Model.regionTopology c.constraints c.image) Ambient.topology
+    (Charts.coordinate c) (\fun (u: Model.Carrier c.constraints c.image) => u)
+    (Homeomorphism.laws _ _ c.coordinates).forwardContinuous (Model.Topology[C := c.constraints, U := c.image].ambient);
+\definition local: \Pow (Charts.LocalPoint c) := { p: Charts.LocalPoint c \where Model.interior c.constraints (coordinate p) };
+\definition localOpen: Local.IsOpenIn (Charts.domainTopology c.domain) local := coordinateContinuous Interior.points Interior.open;
+\definition neighborhood: \Pow M.Point := Inclusion.image local;
+\definition open: Space.IsOpenIn M.space neighborhood := Inclusion.imageOpen M.space c.open local localOpen;
+\module At(p: Charts.LocalPoint c) {
+  \import Tangent.At[x := p] \as T;
+  \definition chart: T.Chart := \into[Charts.Chart](c, T.Chart) \by {
+    T.ChartLaws[c] { member := \bysub(Charts.Chart, M.atlas.charts, c), contains := \bysub(M.Point, c.domain, p) }
+  };
+  \definition noBoundary: Local.Member local p -> Space.Member interior p :=
+    \fun (positive: Local.Member local p)(boundary: T.Cones[].Boundary) => Interior.notBoundary (coordinate p) positive (T.Cones[].coordinateOfBoundary chart boundary);
+}
+\definition within: Space.Subset neighborhood interior :=
+  \fun (x: M.Point)(member: Space.Member neighborhood x) => Inclusion.imageElim local x (Space.Member interior x)
+    (\fun (p: Charts.LocalPoint c)(positive: Local.Member local p)(same: p = x) => \idelim p = x
+      \with y: M.Point => Space.Member interior y \by { base: At[p := p].noBoundary positive, equality: same }) member;

@@ -1,0 +1,39 @@
+\import \parent.\parent.In[x := x, c := c, contains := contains] \as Forward;
+\import Interior.In[c := c] \as Face;
+\import Converted.InChart[c := Forward.oldChart] \as Conversion;
+\import Construction.On[patch := Conversion.patch] \as Patch;
+\definition left: Locality.SourceChart x := \into[TargetCharts.Chart](c, Locality.SourceChart x) \by {
+  Logic.And[_, _]::# (\bysub(TargetCharts.Chart, M.atlas.charts, c)) contains
+};
+\definition rightContains: SourceCharts.Contains Patch.chart (function x) := \idelim x = function x \with p: manifold.Point => SourceCharts.Contains Patch.chart p \by {
+  base: contains, equality: sym!{{manifold.Point}} _ _ initial
+};
+\definition right: Locality.TargetChart (function x) := \into[SourceCharts.Chart](Patch.chart, Locality.TargetChart (function x)) \by { Logic.And[_, _]::# Forward.sourceMember rightContains };
+\import boundary_manifolds.SmoothMap[n := n, m := n].Between[M := M, N := manifold] \as BackwardMaps;
+\import BackwardMaps.At[function := function, left := left, right := right, x := (x \of M.Point), contains := Locality.leftContains x left] \as Local;
+\definition neighborhood: Open.OpenSet := Face.image;
+\definition included: Open.Included neighborhood c.image := Open.intersectionLeft c.image (boundary_manifolds.Model[n := n].Interior[C := c.constraints].domain);
+\definition original[u: Model.Carrier c.constraints neighborhood]: M.Point := Face.pointValue u;
+\definition model[u: Model.Carrier c.constraints neighborhood]: Model.Carrier Patch.chart.constraints neighborhood := \into[Open.Carrier neighborhood](u, Model.region Patch.chart.constraints neighborhood) \by {
+  Model.unconstrainedNonnegative u
+};
+\definition target[u: Model.Carrier c.constraints neighborhood]: manifold.Point := SourceCharts.point Patch.chart (model u);
+\definition equal: \forall (u: Model.Carrier c.constraints neighborhood) -> function (original u) = target u :=
+  \fun (u: Model.Carrier c.constraints neighborhood) => inside (Face.pointInterior u);
+\definition insideTarget: \forall (u: Model.Carrier c.constraints neighborhood) -> SourceCharts.Contains Patch.chart (function (original u)) :=
+  \fun (u: Model.Carrier c.constraints neighborhood) => \idelim target u = function (original u) \with p: manifold.Point => SourceCharts.Contains Patch.chart p \by {
+    base: \bysub(manifold.Point, Patch.chart.domain, SourceCharts.point Patch.chart (model u)), equality: sym!{{manifold.Point}} _ _ (equal u)
+  };
+\definition actual[u: Model.Carrier c.constraints neighborhood]: SourceCharts.LocalPoint Patch.chart := \into[manifold.Point](function (original u), Patch.chart.domain) \by { insideTarget u };
+\definition actualEqual: \forall (u: Model.Carrier c.constraints neighborhood) -> actual u = SourceCharts.point Patch.chart (model u) :=
+  \fun (u: Model.Carrier c.constraints neighborhood) => boundary_manifolds.Refinement[A := manifold.Point].equality Patch.chart.domain (actual u) (SourceCharts.point Patch.chart (model u)) (equal u);
+\definition source: Face.Domain := \into[Interior.Point](x, Face.domain) \by { contains };
+\definition extension: Local.Extension := Local.Extension {
+  neighborhood := neighborhood, included := included,
+  contains := \bysub(Model.Point, neighborhood.points, Face.forward source), map := Forward.identity,
+  inside := insideTarget,
+  agrees := \fun (u: Model.Carrier c.constraints neighborhood) => sym!{Model.Point} _ _
+    (trans!{Model.Point} _ _ _ (congr!{{SourceCharts.LocalPoint Patch.chart} Model.Point} (\fun (p: SourceCharts.LocalPoint Patch.chart) => SourceCharts.coordinate Patch.chart p) _ _ (actualEqual u))
+      (SourceCharts.coordinatePoint Patch.chart (model u))),
+};
+\definition witness: Witness := Locality.Witness[x] { left := left, right := right, extension := extension };

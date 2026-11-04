@@ -1,0 +1,17 @@
+\import Transport.In[c := c] \as Patch;
+\definition left: Local.SourceChart x := \into[SourceCharts.Chart](c, Local.SourceChart x) \by { Logic.And[_, _]::# (\bysub(SourceCharts.Chart, M.atlas.charts, c)) contains };
+\definition right: Local.TargetChart (function x) := \into[TargetCharts.Chart](Patch.chart, Local.TargetChart (function x)) \by { Logic.And[_, _]::# (member c) (Patch.inDomain x contains) };
+\import Maps.At[function := function, left := left, right := right, x := x, contains := Local.leftContains x left] \as Extension;
+\definition identity: Calculus.Map c.image Open.whole := Calculus.Map[c.image, Open.whole] {
+  apply := \fun (u: Open.Carrier c.image) => \into[Model.Point](u, Open.whole.points) \by { \refl(u \of Model.Point) },
+  smooth := \fun (i: Model.Coordinate) => Open.Examples[].projectionSmooth c.image i,
+};
+\definition extension: Extension.Extension := Extension.Extension {
+  neighborhood := c.image, included := \fun (u: Model.Point)(inside: _) => inside,
+  contains := \bysub(Model.Point, c.image.points, Extension.source), map := identity,
+  inside := \fun (u: Model.Carrier c.constraints c.image) => Patch.inDomain (SourceCharts.point c u) (\bysub(M.Point, c.domain, SourceCharts.point c u)),
+  agrees := \fun (u: Model.Carrier c.constraints c.image) => sym!{Model.Point} _ _
+    (trans!{Model.Point} _ _ _ (Patch.coordinateLift (SourceCharts.point c u) (\bysub(M.Point, c.domain, SourceCharts.point c u)))
+      (SourceCharts.coordinatePoint c u)),
+};
+\definition witness: Local.Witness[x] := Local.Witness[x] { left := left, right := right, extension := extension };

@@ -1,0 +1,16 @@
+\import boundary_manifolds.MapIdentity[n := Nat.add One.dimension n].On[M := M] \as LeftIdentity;
+\import boundary_manifolds.MapIdentity[n := Nat.add One.dimension n].On[M := N] \as RightIdentity;
+\import boundary_manifolds.MapIdentity[n := n].On[M := LeftBoundary.manifold] \as BoundaryIdentity;
+\import \parent.CollarMaps[k := n].Into[P := M, Q := N].With[pCover := leftCover, qCover := rightCover].Along[e := d].From[p := left, q := right].Using[
+  pRegular := leftRegular, qRegular := rightRegular].At[pWithin := leftWithin, qWithin := rightWithin].Compact[pCompact := leftCompact, qCompact := rightCompact] \as Maps;
+\definition data: Maps.Data := Maps.Data {
+  left := LeftIdentity.map, right := RightIdentity.map, base := BoundaryIdentity.map,
+  preserveLeft := \fun (b: LeftBoundary.manifold.Point)(t: Time.Point)(small: _) => \refl(LeftMaps.apply LeftMap.map (Pair.pair LeftBoundary.manifold.Point Time.Point b t)),
+  preserveRight := \fun (b: LeftBoundary.manifold.Point)(t: Time.Point)(small: _) => \refl(RightMaps.apply RightMap.map (Pair.pair RightBoundary.manifold.Point Time.Point (BoundaryMaps.apply d.forward b) t)),
+};
+\import Maps.Of[data := data] \as Glued;
+\import boundary_manifolds.SmoothMap[n := Nat.add One.dimension n, m := Nat.add One.dimension n].Between[M := manifold, N := manifold] \as SmoothMaps;
+\definition map: SmoothMaps.Map := Glued.map;
+\definition identity: \forall (x: Gluing.Point) -> SmoothMaps.apply map x = x := Quotient.induction
+  (\fun (x: Gluing.Point) => SmoothMaps.apply map x = x)
+  (\fun (x: M.Point) => Glued.onLeftClass x) (\fun (x: N.Point) => Glued.onRightClass x);

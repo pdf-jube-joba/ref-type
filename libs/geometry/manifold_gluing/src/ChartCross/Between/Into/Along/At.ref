@@ -1,0 +1,24 @@
+\import LeftTransport.In[c := c] \as Left;
+\import RightTransport.In[c := d] \as Right;
+\definition point: A := h.forward x;
+\definition leftContains: Charts.Contains Left.chart point := Left.inDomain x inLeft;
+\definition rightContains: Charts.Contains Right.chart point := \idelim (k.forward (f x) \of A) = point
+  \with y: A => Charts.Contains Right.chart y \by { base: Right.inDomain (f x) inRight, equality: agrees x inW };
+\import Charts.At[x := point, left := Left.chart, right := Right.chart, inLeft := leftContains] \as New;
+\import Maps.At[function := f, left := c, right := d, x := x, contains := inLeft] \as Old;
+\import Local.Change[x := x, left := c, right := d, contains := inLeft, containsImage := inRight, chosen := chosen] \as Adjust;
+\definition localPoint: LeftCharts.LocalPoint c := \into[M.Point](x, c.domain) \by { inLeft };
+\definition center: Model.Carrier c.constraints c.image := LeftCharts.coordinate c localPoint;
+\definition sourceEqual: New.source = center := Left.coordinateLift x inLeft;
+\definition inverseContinuous: topology.Continuity[A := Model.Carrier c.constraints c.image, B := M.Point].Continuous
+  (Model.regionTopology c.constraints c.image) M.space (\fun (u: Model.Carrier c.constraints c.image) => LeftCharts.point c u) := Left.originalContinuous;
+\definition region: \Pow (Model.Carrier c.constraints c.image) := { u: Model.Carrier c.constraints c.image \where SourceSpace.Member W (LeftCharts.point c u) };
+\definition centerIn: \In[Model.Carrier c.constraints c.image] region center := \idelim x = (LeftCharts.point c center \of M.Point)
+  \with p: M.Point => SourceSpace.Member W p \by { base: inW, equality: sym!{M.Point} _ _ (LeftCharts.pointCoordinate c localPoint) };
+\import \root.QuadrantNeighborhood[n := n].On[C := c.constraints, U := c.image] \as Neighborhoods;
+\module With(neighborhood: Neighborhoods.Neighborhood[region, center], e: Old.Extension);
+\definition exists: \exists New.Extension := \block {
+  \takefrom neighborhood: Neighborhoods.Neighborhood[region, center] \by Neighborhoods.At[W := region, open := inverseContinuous W openW, a := center, inside := centerIn].exists \then
+  \takefrom e: Old.Extension \by Adjust.existsExtension (\bysub(LeftCharts.Chart, M.atlas.charts, c)) (\bysub(RightCharts.Chart, N.atlas.charts, d)) \then
+  \return \exact(With[neighborhood := neighborhood, e := e].extension, New.Extension)
+};

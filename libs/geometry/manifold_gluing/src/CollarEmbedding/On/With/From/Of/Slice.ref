@@ -1,0 +1,44 @@
+\import topology.Topology[Carrier := Time.Point] \as TimeSpace;
+\definition Parameter: \Set := \Cast[Time.Point] regular.uniform.neighborhood;
+\definition parameterTopology: topology.Structures[].Topology[Parameter] := TimeSpace.Subspace[S := regular.uniform.neighborhood].topology Time.manifold.space;
+\definition zero: Parameter := \into[Time.Point](Time.zero, regular.uniform.neighborhood) \by { regular.uniform.contains };
+\import topological_constructions.Product[A := Parameter, B := Inclusion.manifold.Point] \as Slice;
+\definition SourcePoint: \Set := Slice.CarrierSet;
+\definition source: topology.Structures[].Topology[SourcePoint] := Slice.topology parameterTopology Inclusion.manifold.space;
+\definition pack[p: SourcePoint]: Point := \into[Product.Point](Pair.pair Inclusion.manifold.Point Time.Point (Pair.second Parameter Inclusion.manifold.Point p) (Pair.first Parameter Inclusion.manifold.Point p), domain) \by {
+  \bysub(Time.Point, regular.uniform.neighborhood, Pair.first Parameter Inclusion.manifold.Point p)
+};
+\definition time[x: Point]: Parameter := \into[Time.Point](Product.second x, regular.uniform.neighborhood) \by { \bysub(Product.Point, domain, x) };
+\definition unpack[x: Point]: SourcePoint := Pair.pair Parameter Inclusion.manifold.Point (time x) (Product.first x);
+\definition leftInverse: \forall (p: SourcePoint) -> unpack (pack p) = p :=
+  \fun (p: SourcePoint) => Pair.Prop[A := Parameter, B := Inclusion.manifold.Point].ext (unpack (pack p)) p
+    (boundary_manifolds.Refinement[A := Time.Point].equality regular.uniform.neighborhood (time (pack p)) (Pair.first Parameter Inclusion.manifold.Point p) (\refl(Pair.first Parameter Inclusion.manifold.Point p \of Time.Point)))
+    (\refl(Pair.second Parameter Inclusion.manifold.Point p));
+\definition rightInverse: \forall (x: Point) -> pack (unpack x) = x :=
+  \fun (x: Point) => boundary_manifolds.Refinement[A := Product.Point].equality domain (pack (unpack x)) x
+    (Pair.Prop[A := Inclusion.manifold.Point, B := Time.Point].ext (pack (unpack x)) x (\refl(Product.first x)) (\refl(Product.second x)));
+\definition firstContinuous: topology.Continuity[A := SourcePoint, B := Time.Point].Continuous source Time.manifold.space (\fun (p: SourcePoint) => Pair.first Parameter Inclusion.manifold.Point p) :=
+  topology.Composition[A := SourcePoint, B := Parameter, C := Time.Point].composeContinuous source parameterTopology Time.manifold.space
+    (Pair.first Parameter Inclusion.manifold.Point) (\fun (t: Parameter) => t)
+    (Slice.Maps[].firstContinuous parameterTopology Inclusion.manifold.space)
+    (topology.Continuity[A := Parameter, B := Time.Point].Corestriction[S := regular.uniform.neighborhood].inclusionContinuous Time.manifold.space);
+\definition packAmbient: topology.Continuity[A := SourcePoint, B := Product.Point].Continuous source Product.topology (\fun (p: SourcePoint) => pack p) :=
+  topological_constructions.Product[A := Inclusion.manifold.Point, B := Time.Point].Universal[X := SourcePoint].pairContinuous source Inclusion.manifold.space Time.manifold.space
+    (Pair.second Parameter Inclusion.manifold.Point) (\fun (p: SourcePoint) => Pair.first Parameter Inclusion.manifold.Point p)
+    (Slice.Maps[].secondContinuous parameterTopology Inclusion.manifold.space) firstContinuous;
+\definition packContinuous: topology.Continuity[A := SourcePoint, B := Point].Continuous source topology pack :=
+  topology.Continuity[A := SourcePoint, B := Product.Point].Corestriction[S := domain].corestrictContinuous source Product.topology pack packAmbient;
+\definition timeAmbient: topology.Continuity[A := Point, B := Time.Point].Continuous topology Time.manifold.space (\fun (x: Point) => time x) :=
+  topology.Continuity[A := Product.Point, B := Time.Point].Restriction[S := domain].restrictContinuous Product.topology Time.manifold.space Product.second
+    (topological_constructions.Product[A := Inclusion.manifold.Point, B := Time.Point].Maps[].secondContinuous Inclusion.manifold.space Time.manifold.space);
+\definition timeContinuous: topology.Continuity[A := Point, B := Parameter].Continuous topology parameterTopology time :=
+  topology.Continuity[A := Point, B := Time.Point].Corestriction[S := regular.uniform.neighborhood].corestrictContinuous topology Time.manifold.space time timeAmbient;
+\definition unpackContinuous: topology.Continuity[A := Point, B := SourcePoint].Continuous topology source unpack :=
+  Slice.Universal[X := Point].pairContinuous topology parameterTopology Inclusion.manifold.space time (\fun (x: Point) => Product.first x) timeContinuous
+    (topology.Continuity[A := Product.Point, B := Inclusion.manifold.Point].Restriction[S := domain].restrictContinuous Product.topology Inclusion.manifold.space Product.first
+      (topological_constructions.Product[A := Inclusion.manifold.Point, B := Time.Point].Maps[].firstContinuous Inclusion.manifold.space Time.manifold.space));
+\definition homeomorphism: topology.Homeomorphism[A := SourcePoint, B := Point].Homeomorphism[source, topology] :=
+  topology.Homeomorphism[A := SourcePoint, B := Point].Homeomorphism[source, topology] {
+    forward := pack, backward := unpack, leftInverse := leftInverse, rightInverse := rightInverse,
+    forwardContinuous := packContinuous, backwardContinuous := unpackContinuous,
+  };

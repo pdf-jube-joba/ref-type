@@ -1,0 +1,14 @@
+\import \root.CollarEmbedding[n := n].On[M := M].With[cover := cover].From[deformation := deformation].Of[regular := regular].InverseAt[y := imageInclude y] \as Original;
+\import \root.LocalSmoothMap[n := Nat.add One.dimension n, m := Nat.add One.dimension n].Between[M := ImageModel.manifold, N := M].Of[function := ImageModel.Inclusion[].apply] \as FirstLocal;
+\import \root.SmoothWitness[n := Nat.add One.dimension n, m := Nat.add One.dimension n].Between[M := ImageModel.manifold, N := M].Of[f := ImageModel.Inclusion[].map] \as FirstWitness;
+\definition composite[p: Point]: Product.Point := Original.function p;
+\import \root.LocalSmoothMap[n := Nat.add One.dimension n, m := Nat.add One.dimension n].Between[M := ImageModel.manifold, N := Product.manifold].Of[function := composite] \as CompositeLocal;
+\import \root.LocalSmoothCompose[n := Nat.add One.dimension n, m := Nat.add One.dimension n, l := Nat.add One.dimension n].Between[M := ImageModel.manifold, N := M, P := Product.manifold].From[f := ImageModel.Inclusion[].apply, g := Original.function] \as Compose;
+\import \root.LocalSmoothTransfer[n := Nat.add One.dimension n, m := Nat.add One.dimension n].Between[M := ImageModel.manifold, N := Product.manifold].From[f := inverse, g := composite] \as Transfer;
+\definition agrees: \forall (p: Point) -> ImageSpace.Member ImageSpace.Whole p -> inverse p = composite p := \fun (p: Point)(member: _) => sym!{{Product.Point}} (composite p) (inverse p) (Original.inside (imageInclude p));
+\definition exists: \exists InverseLocal.Witness[y] := \block {
+  \takefrom first: FirstLocal.Witness[y] \by FirstWitness.exists y \then
+  \takefrom next: Original.Witness \by Original.exists \then
+  \takefrom composite: CompositeLocal.Witness[y] \by Compose.At[x := y, chosen := first, next := next].exists \then
+  \return Transfer.At[x := y, U := ImageSpace.Whole, open := (ImageSpace.topologyLaws topology).wholeOpen, contains := \refl(y), agrees := agrees, chosen := composite].exists
+};

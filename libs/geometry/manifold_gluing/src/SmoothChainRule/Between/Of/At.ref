@@ -1,0 +1,21 @@
+\import boundary_manifolds.Tangent[n := n].On[M := M].At[x := x] \as Domain;
+\import boundary_manifolds.Tangent[n := m].On[M := N].At[x := First.apply f x] \as Middle;
+\import boundary_manifolds.Tangent[n := l].On[M := P].At[x := Second.apply g (First.apply f x)] \as Codomain;
+\import boundary_manifolds.Differential[n := n, m := m].Between[M := M, N := N].At[f := f, x := x] \as D1;
+\import boundary_manifolds.Differential[n := m, m := l].Between[M := N, N := P].At[f := g, x := First.apply f x] \as D2;
+\import boundary_manifolds.Differential[n := n, m := l].Between[M := M, N := P].At[f := map, x := x] \as D;
+\import real.Analysis[] \as S;
+\import linear_algebra.Commutative[K := S.Real, scalarRing := std.Alg[].Field[].fieldAsCommutativeRing S.Real S.Algebra[].field] \as Spaces;
+\import Spaces.Linear[V := Domain.Vector, W := Codomain.Vector, source := Domain.space, target := Codomain.space] \as Maps;
+\import Spaces.Linear[V := Middle.Vector, W := Codomain.Vector, source := Middle.space, target := Codomain.space].Composition[U := Domain.Vector, domain := Domain.space] \as Composition;
+\definition candidate: Maps.Map := Composition.compose D2.value D1.value;
+\module InCharts(a: Domain.Chart, b: Middle.Chart, c: Codomain.Chart);
+\definition pointwise: \forall (v: Domain.Vector) -> D.value.apply v = candidate.apply v := \block {
+  \fun (v: Domain.Vector) \then
+  \takefrom a: Domain.Chart \by Domain.chartExists \then
+  \takefrom b: Middle.Chart \by Middle.chartExists \then
+  \takefrom c: Codomain.Chart \by Codomain.chartExists \then
+  \return InCharts[a := a, b := b, c := c].law v
+};
+\definition law: D.value = candidate := Spaces.Linear[V := Domain.Vector, W := Codomain.Vector, source := Domain.space, target := Codomain.space].ext D.value candidate
+  (\axiom:funext(D.value.apply, candidate.apply, pointwise));

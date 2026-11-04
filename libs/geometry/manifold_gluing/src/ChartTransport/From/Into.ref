@@ -1,0 +1,22 @@
+\import topology.Topology[Carrier := A] \as Space;
+\definition RangePoint: \Set := \Cast[A] U;
+\definition rangeTopology: topology.Structures[].Topology[RangePoint] := Space.Subspace[S := U].topology space;
+\import topology.Topology[Carrier := RangePoint] \as RangeSpace;
+\import topology.Homeomorphism[A := M.Point, B := RangePoint] \as Homeomorphisms;
+\definition laws: Homeomorphisms.Laws[M.space, rangeTopology, h] := Homeomorphisms.laws M.space rangeTopology h;
+\import Space.Subspace[S := U].Open[] \as Inclusion;
+\import Models.Chart[M := A, space := space] \as Charts;
+\definition OldChart: \Set := \Cast[OldCharts.Chart] M.atlas.charts;
+\definition value[x: M.Point]: A := h.forward x;
+\module In(c: OldChart);
+\module Pair(c, d: OldChart, x: A, contains: Charts.Contains (\root.ChartTransport[n := n].From[M := M].Into[A := A, space := space, U := U, open := open, h := h].In[c := c].chart) x, otherContains: Charts.Contains (\root.ChartTransport[n := n].From[M := M].Into[A := A, space := space, U := U, open := open, h := h].In[c := d].chart) x);
+\definition covers: \forall (a: RangePoint) -> \exists (c: OldChart \where Charts.Contains (\root.ChartTransport[n := n].From[M := M].Into[A := A, space := space, U := U, open := open, h := h].In[c := c].chart) a) := \block {
+  \fun (a: RangePoint) \then
+  \takefrom c: \Cast[OldCharts.Chart] ({ c: OldCharts.Chart \where Logic.And[\In[OldCharts.Chart] M.atlas.charts c, OldCharts.Contains c (h.backward a)] }) \by M.atlas.covers (h.backward a) \then
+  \let data: Logic.And[\In[OldCharts.Chart] M.atlas.charts c, OldCharts.Contains c (h.backward a)] := \bysub(OldCharts.Chart, { c: OldCharts.Chart \where Logic.And[\In[OldCharts.Chart] M.atlas.charts c, OldCharts.Contains c (h.backward a)] }, c) \then
+  \let chart: OldChart := \into[OldCharts.Chart](c, M.atlas.charts) \by { data.left } \then
+  \return Logic.existsIntro[OldChart, { c: OldChart \where Charts.Contains (\root.ChartTransport[n := n].From[M := M].Into[A := A, space := space, U := U, open := open, h := h].In[c := c].chart) a }] chart
+    (\idelim value (h.backward a) = (a \of A) \with x: A => Charts.Contains (\root.ChartTransport[n := n].From[M := M].Into[A := A, space := space, U := U, open := open, h := h].In[c := chart].chart) x \by {
+      base: In[c := chart].inDomain (h.backward a) data.right, equality: laws.rightInverse a
+    })
+};

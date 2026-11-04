@@ -1,0 +1,18 @@
+\module LeftLeft(first: Space.Member Positive p, second: Space.Member Positive q);
+\module RightRight(first: Space.Member Negative p, second: Space.Member Negative q);
+\module LeftRight(first: Space.Member Positive p, second: Space.Member Negative q) {
+  \import \parent.\parent.Cross[p := p, q := q, first := first, second := second, same := same] \as Cross;
+  \definition law: p = q := Cross.law;
+}
+\definition reverse: apply q = apply p := sym!{{Gluing.Point}} _ _ same;
+\module RightLeft(first: Space.Member Negative p, second: Space.Member Positive q) {
+  \import \parent.\parent.Cross[p := q, q := p, first := second, second := first, same := reverse] \as Cross;
+  \definition law: p = q := sym!{{Source.Point}} _ _ Cross.law;
+}
+\definition law: p = q := Logic.orElim (Space.Member Positive p) (Space.Member Negative p) (p = q) (covered p)
+  (\fun (first: Space.Member Positive p) => Logic.orElim (Space.Member Positive q) (Space.Member Negative q) (p = q) (covered q)
+    (\fun (second: Space.Member Positive q) => LeftLeft[first := first, second := second].law)
+    (\fun (second: Space.Member Negative q) => LeftRight[first := first, second := second].law))
+  (\fun (first: Space.Member Negative p) => Logic.orElim (Space.Member Positive q) (Space.Member Negative q) (p = q) (covered q)
+    (\fun (second: Space.Member Positive q) => RightLeft[first := first, second := second].law)
+    (\fun (second: Space.Member Negative q) => RightRight[first := first, second := second].law));

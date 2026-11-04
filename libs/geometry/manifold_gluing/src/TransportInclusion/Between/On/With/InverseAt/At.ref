@@ -1,0 +1,29 @@
+\import Transport.In[c := c] \as Patch;
+\definition sourceContains: TargetCharts.Contains Patch.chart y := \idelim (h.forward (h.backward y) \of N.Point) = (y \of N.Point) \with z: N.Point => TargetCharts.Contains Patch.chart z \by {
+  base: Patch.inDomain (h.backward y) contains, equality: (Homeos.laws _ _ h).rightInverse y
+};
+\definition left: Locality.SourceChart y := \into[TargetCharts.Chart](Patch.chart, Locality.SourceChart y) \by { Logic.And[_, _]::# (member c) sourceContains };
+\definition targetContains: SourceCharts.Contains c (function y) := \idelim h.backward y = function y \with p: M.Point => SourceCharts.Contains c p \by {
+  base: contains, equality: sym!{{M.Point}} _ _ (inside y)
+};
+\definition right: Locality.TargetChart (function y) := \into[SourceCharts.Chart](c, Locality.TargetChart (function y)) \by { Logic.And[_, _]::# (\bysub(SourceCharts.Chart, M.atlas.charts, c)) targetContains };
+\import InverseMaps.At[function := function, left := left, right := right, x := (y \of N.Point), contains := Locality.leftContains y left] \as Extension;
+\definition identity: Calculus.Map c.image Open.whole := Calculus.Map[c.image, Open.whole] {
+  apply := \fun (u: Open.Carrier c.image) => \into[Model.Point](u, Open.whole.points) \by { \refl(u \of Model.Point) },
+  smooth := \fun (i: Model.Coordinate) => Open.Examples[].projectionSmooth c.image i,
+};
+\definition value: \forall (u: Model.Carrier c.constraints c.image) -> function (TargetCharts.point Patch.chart u) = (SourceCharts.point c u \of M.Point) :=
+  \fun (u: Model.Carrier c.constraints c.image) => trans!{{M.Point}} _ _ _ (inside (h.forward (SourceCharts.point c u))) ((Homeos.laws _ _ h).leftInverse (SourceCharts.point c u));
+\definition inTarget: \forall (u: Model.Carrier c.constraints c.image) -> SourceCharts.Contains c (function (TargetCharts.point Patch.chart u)) :=
+  \fun (u: Model.Carrier c.constraints c.image) => \idelim (SourceCharts.point c u \of M.Point) = function (TargetCharts.point Patch.chart u)
+    \with p: M.Point => SourceCharts.Contains c p \by { base: \bysub(M.Point, c.domain, SourceCharts.point c u), equality: sym!{{M.Point}} _ _ (value u) };
+\definition output[u: Model.Carrier c.constraints c.image]: SourceCharts.LocalPoint c := \into[M.Point](function (TargetCharts.point Patch.chart u), c.domain) \by { inTarget u };
+\definition outputEqual: \forall (u: Model.Carrier c.constraints c.image) -> output u = SourceCharts.point c u :=
+  \fun (u: Model.Carrier c.constraints c.image) => boundary_manifolds.Refinement[A := M.Point].equality c.domain (output u) (SourceCharts.point c u) (value u);
+\definition extension: Extension.Extension := Extension.Extension {
+  neighborhood := c.image, included := \fun (u: Model.Point)(inside: _) => inside,
+  contains := \bysub(Model.Point, c.image.points, Extension.source), map := identity, inside := inTarget,
+  agrees := \fun (u: Model.Carrier c.constraints c.image) => sym!{Model.Point} _ _
+    (trans!{Model.Point} _ _ _ (congr!{{SourceCharts.LocalPoint c} {Model.Point}} (\fun (p: SourceCharts.LocalPoint c) => SourceCharts.coordinate c p) _ _ (outputEqual u)) (SourceCharts.coordinatePoint c u)),
+};
+\definition witness: Witness := Locality.Witness[y] { left := left, right := right, extension := extension };

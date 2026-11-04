@@ -1,0 +1,68 @@
+\import std.Data[].Nat[] \as N;
+\import \root.Reflection[n := n] \as First;
+\import \root.Reflection[n := First.dimension] \as Second;
+\definition dimension: N.Nat^ := Second.dimension;
+\import Fin.Sum[m := First.dimension, n := One.dimension] \as Indices;
+\definition firstNormal: Fin.Fin dimension := Indices.left First.normal;
+\definition secondNormal: Fin.Fin dimension := Indices.right One.index;
+\definition different: Logic.Not (firstNormal = secondNormal) := Indices.different First.normal One.index;
+\import calculus.Real[].Multivariable[n := dimension].Open[] \as FullOpen;
+\import calculus.Real[].Multivariable[n := dimension].Space[].Def[] \as Coordinates;
+\import calculus.Real[].Multivariable[n := dimension].Space[].Prop[] \as CoordinateLaws;
+\import FullOpen.Smooth[].Algebra[U := FullOpen.whole] \as FullF;
+\import FullOpen.Smooth[].Differential[].Operations[U := FullOpen.whole] \as Rules;
+\import boundary_manifolds.Differentiation[n := dimension].On[U := FullOpen.whole] \as D;
+\import calculus.Maps[n := dimension, m := One.dimension] \as Maps;
+\import calculus.Maps[n := One.dimension, m := One.dimension] \as LineMaps;
+\import \parent.Unit[] \as Profile;
+\import smooth_partitions.Exponential[].Plateau[] \as Plateau;
+\definition u: FullF.Function := D.projection firstNormal;
+\definition v: FullF.Function := D.projection secondNormal;
+\definition difference: FullF.Function := FullF.plus u (FullF.product (FullF.constant (S.neg S.one)) v);
+\definition sum: FullF.Function := FullF.plus u v;
+\definition differenceMap: Maps.Map FullOpen.whole Open.whole := Maps.Map[FullOpen.whole, Open.whole] {
+  apply := \fun (x: FullOpen.Carrier FullOpen.whole) => \into[Model.Point]((\fun (i: One.Index) => difference x), Open.whole.points) \by { \refl(\fun (i: One.Index) => difference x) },
+  smooth := \fun (i: One.Index) => \bysub(FullOpen.ScalarFunction FullOpen.whole, FullF.Predicate, difference),
+};
+\definition profileMap: LineMaps.Map Open.whole Open.whole := LineMaps.Map[Open.whole, Open.whole] {
+  apply := \fun (x: Open.Carrier Open.whole) => \into[Model.Point]((\fun (i: One.Index) => Profile.value x), Open.whole.points) \by { \refl(\fun (i: One.Index) => Profile.value x) },
+  smooth := \fun (i: One.Index) => \bysub(Open.ScalarFunction Open.whole, F.Predicate, Profile.function),
+};
+\import Maps.Composition[U := FullOpen.whole, V := Open.whole, f := differenceMap] \as Composition;
+\import Composition.After[l := One.dimension, W := Open.whole, g := profileMap] \as ProfileComposition;
+\definition profile: FullF.Function := Composition.function Profile.function;
+\definition defining: FullF.Function := FullF.plus sum (FullF.product (FullF.constant (S.neg S.one)) profile);
+\definition function: Maps.Map FullOpen.whole Open.whole := Maps.Map[FullOpen.whole, Open.whole] {
+  apply := \fun (x: FullOpen.Carrier FullOpen.whole) => \into[Model.Point]((\fun (i: One.Index) => defining x), Open.whole.points) \by { \refl(\fun (i: One.Index) => defining x) },
+  smooth := \fun (i: One.Index) => \bysub(FullOpen.ScalarFunction FullOpen.whole, FullF.Predicate, defining),
+};
+\definition direction: Fin.Fin dimension -> S.Real := Coordinates.addPoint (Coordinates.basis firstNormal) (Coordinates.basis secondNormal);
+\definition directionFirst: direction firstNormal = S.one := trans!{S.Real} _ _ _
+  (congr!{S.Real S.Real S.Real} S.add _ _ _ _ (CoordinateLaws.replaceSame Coordinates.origin firstNormal S.one)
+    (CoordinateLaws.replaceDifferent Coordinates.origin secondNormal firstNormal S.one (\fun (same: secondNormal = firstNormal) => different (sym!{{Fin.Fin dimension}} _ _ same)))) (Laws.addZeroRight S.one);
+\definition directionSecond: direction secondNormal = S.one := trans!{S.Real} _ _ _
+  (congr!{S.Real S.Real S.Real} S.add _ _ _ _ (CoordinateLaws.replaceDifferent Coordinates.origin firstNormal secondNormal S.one different)
+    (CoordinateLaws.replaceSame Coordinates.origin secondNormal S.one)) (Laws.addZeroLeft S.one);
+\definition scaleDerivative: \forall (c: S.Real)(f: FullF.Function)(x: FullOpen.Carrier FullOpen.whole) -> D.value (FullF.product (FullF.constant c) f) x direction = S.mul c (D.value f x direction) :=
+  \fun (c: S.Real)(f: FullF.Function)(x: FullOpen.Carrier FullOpen.whole) => trans!{S.Real} _ _ _ (Rules.product (FullF.constant c) f x direction)
+    (trans!{S.Real} _ _ _ (congr!{S.Real S.Real} (\fun (a: S.Real) => S.add a (S.mul c (D.value f x direction))) _ _
+      (trans!{S.Real} _ _ _ (congr!{S.Real S.Real} (S.mul (f x)) _ _ (D.constant c x direction)) (Laws.fieldMulZeroRight (f x)))) (Laws.addZeroLeft (S.mul c (D.value f x direction))));
+\definition uDerivative: \forall (x: FullOpen.Carrier FullOpen.whole) -> D.value u x direction = S.one := \fun (x: FullOpen.Carrier FullOpen.whole) => trans!{S.Real} _ _ _ (D.projectionDerivative firstNormal x direction) directionFirst;
+\definition vDerivative: \forall (x: FullOpen.Carrier FullOpen.whole) -> D.value v x direction = S.one := \fun (x: FullOpen.Carrier FullOpen.whole) => trans!{S.Real} _ _ _ (D.projectionDerivative secondNormal x direction) directionSecond;
+\definition sumDerivative: \forall (x: FullOpen.Carrier FullOpen.whole) -> D.value sum x direction = Plateau.two := \fun (x: FullOpen.Carrier FullOpen.whole) => trans!{S.Real} _ _ _ (Rules.addition u v x direction) (congr!{S.Real S.Real S.Real} S.add _ _ _ _ (uDerivative x) (vDerivative x));
+\definition differenceDerivative: \forall (x: FullOpen.Carrier FullOpen.whole) -> D.value difference x direction = S.zero := \fun (x: FullOpen.Carrier FullOpen.whole) => trans!{S.Real} _ _ _ (Rules.addition u (FullF.product (FullF.constant (S.neg S.one)) v) x direction)
+  (trans!{S.Real} _ _ _ (congr!{S.Real S.Real S.Real} S.add _ _ _ _ (uDerivative x)
+    (trans!{S.Real} _ _ _ (scaleDerivative (S.neg S.one) v x) (trans!{S.Real} _ _ _ (congr!{S.Real S.Real} (S.mul (S.neg S.one)) _ _ (vDerivative x)) (Algebra.mulOneRight (S.neg S.one))))) (Laws.addNegRight S.one));
+\module At(x: FullOpen.Carrier FullOpen.whole);
+\import boundary_manifolds.Sublevel[n := First.dimension].Of[U := FullOpen.whole, f := function] \as Region;
+\definition regular: Region.Regular := \fun (x: FullOpen.Carrier FullOpen.whole)(zero: _) => At[x := x].surjective;
+\import boundary_manifolds.Dimension[n := dimension] \as FullModels;
+\definition manifold: FullModels.Manifold := Region.Build[regular := regular].manifold;
+\definition differenceFormula: \forall (x: FullOpen.Carrier FullOpen.whole) -> difference x = S.sub (u x) (v x) :=
+  \fun (x: FullOpen.Carrier FullOpen.whole) => congr!{S.Real S.Real} (S.add (u x)) _ _ (trans!{S.Real} _ _ _ (Laws.fieldMulNegLeft S.one (v x)) (congr!{S.Real S.Real} S.neg _ _ (Laws.fieldMulOneLeft (v x))));
+\definition definingFormula: \forall (x: FullOpen.Carrier FullOpen.whole) -> defining x = S.sub (sum x) (profile x) :=
+  \fun (x: FullOpen.Carrier FullOpen.whole) => congr!{S.Real S.Real} (S.add (sum x)) _ _ (trans!{S.Real} _ _ _ (Laws.fieldMulNegLeft S.one (profile x)) (congr!{S.Real S.Real} S.neg _ _ (Laws.fieldMulOneLeft (profile x))));
+\module Estimates;
+\module In(x: manifold.Point);
+\module Quarter;
+\module ZeroNormal(x: FullOpen.Carrier FullOpen.whole, firstZero: u x = S.zero, secondZero: v x = S.zero);
