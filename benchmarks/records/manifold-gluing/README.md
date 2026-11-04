@@ -1,6 +1,7 @@
 # G04 の検査記録
 
-最終実装の固定ソースと検査結果は [complete/README.md](complete/README.md) にある。
+A07 を含む main との最新の統合検査は [main-a07/README.md](main-a07/README.md) にある。
+G04 実装完了時点の固定ソースと検査結果は [complete/README.md](complete/README.md) にある。
 以下は実装段階ごとの記録である。
 
 ## 初回の局所基礎
