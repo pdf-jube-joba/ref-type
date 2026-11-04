@@ -1,0 +1,22 @@
+\import \parent.\parent.Reverse[i := i, j := j] \as Inverse;
+\import DualAtlas.Change[i := i, j := j] \as New;
+\import Atlas.Change[i := i, j := j] \as Old;
+\import Atlas.InChart[i := j] \as Target;
+\import Charts.Transition[left := (bundle.atlas.local i).chart, right := (bundle.atlas.local j).chart] \as Base;
+\import calculus.Real[].Multivariable[n := n].Open[] \as Open;
+\import Open.Smooth[].Operations[] \as Smooth;
+\import Open.Smooth[].Sums[].Listed[I := Fin.Fin r] \as Sums;
+\import Spaces.FiniteCoordinates[n := r] \as Standard;
+\import R.FiniteSums[].Linear[] \as Finite;
+\definition expression[a, b: Fin.Fin r][t: Open.Carrier Base.domain]: R.Real := Spaces.Sums[I := Fin.Fin r].sum (Fin.elements r)
+  (\fun (l: Fin.Fin r) => R.mul (Finite.basis r b l) ((Inverse.backward t).apply (Standard.vectors a) l));
+\definition formula: \forall (a, b: Fin.Fin r)(t: Open.Carrier Base.domain) -> New.coefficient a b t = expression a b t :=
+  \fun (a, b: Fin.Fin r)(t: Open.Carrier Base.domain) => \parent.In[i := i, x := Old.x t].evaluation (Finite.basis r b)
+    (Target.encode (Old.y t) (Standard.vectors a));
+\definition smooth: \forall (a, b: Fin.Fin r) -> New.CoefficientSmooth a b := \fun (a, b: Fin.Fin r) =>
+  smooth_partitions.Euclidean[n := n].smoothCongruent Base.domain (expression a b) (New.coefficient a b)
+    (\fun (t: Open.Carrier Base.domain) => sym!{{R.Real}} _ _ (formula a b t))
+    (Sums.smooth Base.domain (Fin.elements r) (\fun (l: Fin.Fin r)(t: Open.Carrier Base.domain) => R.mul (Finite.basis r b l) ((Inverse.backward t).apply (Standard.vectors a) l))
+      (\fun (l: Fin.Fin r) => Smooth.mulSmooth Base.domain (\fun (t: Open.Carrier Base.domain) => Finite.basis r b l)
+        (\fun (t: Open.Carrier Base.domain) => (Inverse.backward t).apply (Standard.vectors a) l)
+        (Smooth.constantSmooth Base.domain (Finite.basis r b l)) (Inverse.evaluate (Standard.vectors a) l)));

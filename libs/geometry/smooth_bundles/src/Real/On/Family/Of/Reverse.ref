@@ -1,0 +1,30 @@
+\import Atlas.Change[i := i, j := j] \as Forward;
+\import Atlas.InChart[i := i] \as First;
+\import Atlas.InChart[i := j] \as Second;
+\import manifolds.Dimension[n := n].Chart[M := M.Point, space := M.space] \as Charts;
+\import Charts.Transition[left := (bundle.atlas.local i).chart, right := (bundle.atlas.local j).chart] \as Base;
+\import calculus.Real[].Multivariable[n := n].Open[] \as Open;
+\definition Vector: \Set := Fin.Fin r -> R.Real;
+\definition coordinates: Spaces.VectorSpace Vector := Spaces.Coordinates[I := Fin.Fin r].space;
+\import Spaces.Linear[V := Vector, W := Vector, source := coordinates, target := coordinates] \as Linear;
+\definition backward[t: Open.Carrier Base.domain]: Linear.Map := Linear.Map {
+  apply := \fun (v: Vector) => First.decode (Forward.x t) (Second.encode (Forward.y t) v),
+  preservesAdd := \fun (v, w: Vector) => trans!{Vector} _ _ _
+    (congr!{{F (Forward.x t)} Vector} (First.decode (Forward.x t)) _ _ ((Second.frame (Forward.y t)).backward.preservesAdd v w))
+    ((First.frame (Forward.x t)).forward.preservesAdd (Second.encode (Forward.y t) v) (Second.encode (Forward.y t) w)),
+  preservesScale := \fun (a: R.Real)(v: Vector) => trans!{Vector} _ _ _
+    (congr!{{F (Forward.x t)} Vector} (First.decode (Forward.x t)) _ _ ((Second.frame (Forward.y t)).backward.preservesScale a v))
+    ((First.frame (Forward.x t)).forward.preservesScale a (Second.encode (Forward.y t) v)),
+};
+\definition left: \forall (t: Open.Carrier Base.domain)(v: Vector) -> (backward t).apply ((Forward.linear t).apply v) = v :=
+  \fun (t: Open.Carrier Base.domain)(v: Vector) => trans!{Vector} _ _ _
+    (congr!{{F (Forward.x t)} Vector} (First.decode (Forward.x t)) _ _ (Second.At[x := Forward.y t].encodeDecode (First.encode (Forward.x t) v)))
+    (First.At[x := Forward.x t].decodeEncode v);
+\definition right: \forall (t: Open.Carrier Base.domain)(v: Vector) -> (Forward.linear t).apply ((backward t).apply v) = v :=
+  \fun (t: Open.Carrier Base.domain)(v: Vector) => trans!{Vector} _ _ _
+    (congr!{{F (Forward.x t)} Vector} (Second.decode (Forward.y t)) _ _ (First.At[x := Forward.x t].encodeDecode (Second.encode (Forward.y t) v)))
+    (Second.At[x := Forward.y t].decodeEncode v);
+\import calculus.MatrixFamily[d := n, p := r, q := r] \as Matrices;
+\definition regular: Matrices.Regular Base.domain backward := calculus.InverseFamily[d := n, r := r].regular Base.domain Forward.linear backward left right (bundle.regular i j);
+\definition evaluate: \forall (v: Vector)(a: Fin.Fin r) -> Open.Smooth[].SmoothOn Base.domain (\fun (t: Open.Carrier Base.domain) => (backward t).apply v a) :=
+  \fun (v: Vector)(a: Fin.Fin r) => Matrices.evaluate Base.domain backward regular v a;
