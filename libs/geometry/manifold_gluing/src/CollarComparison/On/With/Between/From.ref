@@ -1,0 +1,41 @@
+\import topology.Topology[Carrier := Time.Point] \as Parameters;
+\definition W: \Pow Time.Point := Parameters.Intersection leftRegular.uniform.neighborhood rightRegular.uniform.neighborhood;
+\definition open: Parameters.IsOpenIn Time.manifold.space W := (Parameters.topologyLaws Time.manifold.space).intersectionOpen
+  leftRegular.uniform.neighborhood rightRegular.uniform.neighborhood leftRegular.uniform.open rightRegular.uniform.open;
+\definition contains: Parameters.Member W Time.zero := Logic.And[_, _]::# leftRegular.uniform.contains rightRegular.uniform.contains;
+\import \root.CompactStrip[T := Time.Point, B := Inclusion.manifold.Point, X := M.Point].On[
+  parameterSpace := Time.manifold.space, baseSpace := Inclusion.manifold.space, targetSpace := M.space, zero := Time.zero, f := LeftStrip.apply] \as LeftUniforms;
+\import \root.CompactStrip[T := Time.Point, B := Inclusion.manifold.Point, X := M.Point].On[
+  parameterSpace := Time.manifold.space, baseSpace := Inclusion.manifold.space, targetSpace := M.space, zero := Time.zero, f := RightStrip.apply] \as RightUniforms;
+\definition leftValue: LeftStrip.RegularUniform := LeftStrip.RegularUniform {
+  uniform := LeftUniforms.Uniform { neighborhood := W, open := open, contains := contains,
+    injective := \fun (t, s: Time.Point)(b, c: Inclusion.manifold.Point)(first: _)(second: _) => leftRegular.uniform.injective t s b c first.left second.left,
+  },
+  regular := \fun (t: Time.Point)(b: Inclusion.manifold.Point)(member: _) => leftRegular.regular t b member.left,
+};
+\definition rightValue: RightStrip.RegularUniform := RightStrip.RegularUniform {
+  uniform := RightUniforms.Uniform { neighborhood := W, open := open, contains := contains,
+    injective := \fun (t, s: Time.Point)(b, c: Inclusion.manifold.Point)(first: _)(second: _) => rightRegular.uniform.injective t s b c first.right second.right,
+  },
+  regular := \fun (t: Time.Point)(b: Inclusion.manifold.Point)(member: _) => rightRegular.regular t b member.right,
+};
+\import \root.CollarEmbedding[n := n].On[M := M].With[cover := cover].From[deformation := left].Of[regular := leftValue] \as Left;
+\import \root.CollarEmbedding[n := n].On[M := M].With[cover := cover].From[deformation := right].Of[regular := rightValue] \as Right;
+\definition forward[x: Left.ImagePoint]: Right.ImagePoint := Right.forward (Left.backward x);
+\definition backward[y: Right.ImagePoint]: Left.ImagePoint := Left.forward (Right.backward y);
+\definition leftInverse: \forall (x: Left.ImagePoint) -> backward (forward x) = x :=
+  \fun (x: Left.ImagePoint) => trans!{{Left.ImagePoint}} _ _ _
+    (congr!{{Left.Point} {Left.ImagePoint}} Left.forward _ _ (Right.leftInverse (Left.backward x))) (Left.rightInverse x);
+\definition rightInverse: \forall (y: Right.ImagePoint) -> forward (backward y) = y :=
+  \fun (y: Right.ImagePoint) => trans!{{Right.ImagePoint}} _ _ _
+    (congr!{{Right.Point} {Right.ImagePoint}} Right.forward _ _ (Left.leftInverse (Right.backward y))) (Right.rightInverse y);
+\definition homeomorphism: topology.Homeomorphism[A := Left.ImagePoint, B := Right.ImagePoint].Homeomorphism[Left.imageTopology, Right.imageTopology] :=
+  topology.Homeomorphism[A := Left.ImagePoint, B := Left.Point].Composition[C := Right.ImagePoint].compose Left.imageTopology Left.topology Right.imageTopology
+    (topology.Homeomorphism[A := Left.Point, B := Left.ImagePoint].Inverse[].inverse Left.topology Left.imageTopology Left.homeomorphism) Right.homeomorphism;
+\definition center[b: Inclusion.manifold.Point]: Left.Point := \into[Product.Point](Pair.pair Inclusion.manifold.Point Time.Point b Time.zero, Left.domain) \by { contains };
+\definition leftBoundary[b: Inclusion.manifold.Point]: Left.ImagePoint := Left.forward (center b);
+\definition rightBoundary[b: Inclusion.manifold.Point]: Right.ImagePoint := Right.forward (center b);
+\definition fixesBoundary: \forall (b: Inclusion.manifold.Point) -> forward (leftBoundary b) = rightBoundary b :=
+  \fun (b: Inclusion.manifold.Point) => congr!{{Left.Point} {Right.ImagePoint}} Right.forward _ _ (Left.leftInverse (center b));
+\module ForwardAt(x: Left.ImagePoint);
+\module BackwardAt(y: Right.ImagePoint);
