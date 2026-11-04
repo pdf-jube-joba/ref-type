@@ -49,3 +49,6 @@ G04 全体は未完了である。
 最初の全体検査の数学ソースは `8b314683331496400104d0de8cb29f7c0a500f90` であり、11,767 対象すべてが accepted である。
 大域押し込みの数学ソース `827da4f87550e523586407535211346eb2126e24` の全ローカル検査では 177 module を新規検査し、通常の全体検査では 11,884 対象すべてが accepted である。
 対応する検査記録は [global](../benchmarks/records/manifold-gluing/global/README.md) にある。
+
+半空間の局所逆写像までの数学ソース `2aa597e8667be0efee4a8ac2d2521eecde79ab1f` の全ローカル検査では 203 module を新規検査し、通常の全体検査では 11,910 対象すべてが accepted である。
+対応する検査記録は [halfspace](../benchmarks/records/manifold-gluing/halfspace/README.md) にある。
