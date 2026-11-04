@@ -1,4 +1,9 @@
-# G04 の局所基礎の検査記録
+# G04 の検査記録
+
+最終実装の固定ソースと検査結果は [complete/README.md](complete/README.md) にある。
+以下は実装段階ごとの記録である。
+
+## 初回の局所基礎
 
 大域的な横断的押し込みの検査は [global/README.md](global/README.md)、半空間の局所逆写像を追加した後の検査は [halfspace/README.md](halfspace/README.md)、大域 collar 同相の検査は [embedding/README.md](embedding/README.md)、その滑らかな逆写像・近傍内への制限・比較の検査は [smooth/README.md](smooth/README.md)、境界貼り合わせの商の位相の検査は [seamtopology/README.md](seamtopology/README.md)、符号付き collar の継ぎ目への構成の検査は [signedseam/README.md](signedseam/README.md) にある。
 継ぎ目の同相写像と座標近傍の検査は [seamhomeo/README.md](seamhomeo/README.md) にある。
@@ -55,3 +60,5 @@ collar を保つ写像の貼り合わせの検査は [maps/README.md](maps/READM
 公開された貼り合わせ包含と接錐の整合性の検査は [reviewapi/README.md](reviewapi/README.md) にある。
 
 境界チャート被覆を持つコンパクトな積の丸めの検査は [roundboundary/README.md](roundboundary/README.md) にある。
+
+G04 の実装完了時点の検査は [complete/README.md](complete/README.md) にある。
