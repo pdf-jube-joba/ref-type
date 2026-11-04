@@ -102,7 +102,8 @@ K04 の実・複素 Stone–Weierstrass、Laurent 近似と行列・束の一様
 K07 の [clutching_linearization](../../libs/topology/clutching_linearization/README.md) は、選択に依存しないスペクトル逆クラス、自然性・直和・基本積の相互逆を公開し、K08 で利用できる。
 K02 の [puppe_sequences](../../libs/topology/puppe_sequences/README.md) は、有限 CW 対の cofibration、自然な Puppe 列と反変 Hom の完全性を公開し、K03・B08・C02・T02 で利用できる。
 K03 の [relative_k_theory](../../libs/topology/relative_k_theory/README.md) は、相対三つ組と被約群の比較、負次数の完全列、切除、Mayer–Vietoris、自然な外積と束の円板・球面対を公開し、K08 で利用できる。
-B02 の束演算は B07・C05 でも利用でき、A01 の後は A02 へ進められる。
+B07 の [smooth_bundles](../../libs/geometry/smooth_bundles/README.md) は、実・複素の滑らかな束、計量、枠束・随伴束と接束・法束の比較を公開し、D01・G06・I11・T01・A12 で利用できる。
+B02 の束演算は C05 でも利用でき、A01 の後は A02 へ進められる。
 空いた担当には C01・L04・A19 を割り当て、長い解析の経路を早めに進める。
 各節の番号は識別子で、実装順は依存リストから決まる。
 
@@ -120,6 +121,7 @@ B02 の束演算は B07・C05 でも利用でき、A01 の後は A02 へ進め�
 | B03 束の計量・補束と集合による表示 | [bundle_complements](../../libs/geometry/bundle_complements/README.md) |
 | K06 連続なスペクトル分離 | [spectral_splitting](../../libs/algebra/spectral_splitting/README.md) |
 | B04 束のホモトピー不変性と clutching | [bundle_homotopy](../../libs/geometry/bundle_homotopy/README.md) |
+| B07 滑らかな束と既存の接束・法束との接続 | [smooth_bundles](../../libs/geometry/smooth_bundles/README.md) |
 | B09 閉部分空間からの束の延長 | [bundle_extension](../../libs/geometry/bundle_extension/README.md) |
 | K01 束の Grothendieck 環 | [topological_k_theory](../../libs/topology/k_theory/README.md) |
 | K04 Stone–Weierstrass と Laurent 近似 | [uniform_approximation](../../libs/analysis/uniform_approximation/README.md) |
@@ -130,7 +132,7 @@ B02 の束演算は B07・C05 でも利用でき、A01 の後は A02 へ進め�
 
 ## タスク一覧
 
-未完了76件、概算合計397千行。
+未完了73件、概算合計382千行。
 
 ### 線形代数と特性級数
 
@@ -142,13 +144,12 @@ B02 の束演算は B07・C05 でも利用でき、A01 の後は A02 へ進め�
 
 ### ベクトル束
 
-5件、概算26千行。
+3件、概算16千行。
 
 | タスク | 概算（千行） |
 | --- | ---: |
 | [B05 有限 Grassmannian と普遍束](b05-grassmannians.md) | 5 |
 | [B06 束の分類写像と安定化](b06-bundle-classification.md) | 5 |
-| [B07 滑らかな束と既存の接束・法束との接続](b07-smooth-bundles.md) | 5 |
 | [B08 Grassmannian のセル分解](b08-grassmannian-cells.md) | 6 |
 
 ### 特性類
@@ -274,7 +275,7 @@ B02 の束演算は B07・C05 でも利用でき、A01 の後は A02 へ進め�
 
 | 合流点 | 完了タスク | 得られるもの |
 | --- | --- | --- |
-| 共通の束基盤 | B03・B04・B07 | 同型類の集合、補束、ホモトピー不変性、既存の接束・法束との比較 |
+| 共通の束基盤 | B03・B04・[B07](../../libs/geometry/smooth_bundles/README.md) | 同型類の集合、補束、ホモトピー不変性、既存の接束・法束との比較 |
 | 位相的特性類 | C08・C09・C10 | 整数・mod 2・有理特性類、特性数、射影空間の計算 |
 | 位相的 K 理論 | K09・K11・K12 | 周期性、コンパクト台の Thom 同型、Chern 指標による比較 |
 | コボルディズム | T04・T05・T06 | Pontryagin–Thom 同型、不変量、具体的な非零類 |

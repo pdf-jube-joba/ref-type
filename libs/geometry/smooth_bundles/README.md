@@ -57,6 +57,16 @@ Hermitian 形式は第一変数に共役線形、第二変数に線形とする�
 
 `Of.Frames.Smooth[enumeration].manifold` は、列の束のうち基底をなす列からなる開部分多様体である。
 `Columns.FrameBundle` で可逆性と行列式非零の同値、開性、枠との対応、列からの一意な枠の復元、右作用と滑らかな射影を証明する。
+`Frames.Smooth.groupManifold` は非特異行列の実座標による GL の滑らかな多様体であり、`toGroupPoint`・`fromGroupPoint` が線形同型との対応を与える。
+`Frames.Smooth.Local[i].diffeomorphism` は、枠束の第 \(i\) 基底チャート上の開部分と、基底座標像と GL の開部分の積との実際の `Diffeomorphism` である。
+その順写像・逆写像はいずれも `manifolds.SmoothMap` の値で、`basePreserved` が基底への射影の一致、`groupFormula` が GL 成分と局所枠座標の一致を証明する。
+`ChartDomain.On.At` は、この構成に使うチャート定義域と座標像の微分同相を構成する。
+
+`Frames.Smooth.Action.productManifold` は、枠束と実行列座標の自明束を非特異行列の開部分へ制限して得る積多様体である。
+`firstMap` と `secondMap` はその滑らかな両射影であり、`Pair[d].From[X].Of[f,g].map` は任意の滑らかな写像の組からの滑らかな組写像を返す。
+`Frames.Smooth.Action.map` は、この積多様体から枠束への実際の滑らかな右作用写像である。
+`formula` が元の線形同型による右作用との一致を、`identity` と `composition` がこの滑らかな写像の作用則を証明する。
+各局所作用の座標表示を行列積の滑らかな写像として構成し、チャート被覆上の一致式から全体の `SmoothMap` を貼り合わせる。
 
 `RealLinear.Representation` と `ComplexLinear.Representation` は滑らかな群表現である。
 滑らかさは任意の有限次元の滑らかな行列パラメータ族を保存することとして記述する。

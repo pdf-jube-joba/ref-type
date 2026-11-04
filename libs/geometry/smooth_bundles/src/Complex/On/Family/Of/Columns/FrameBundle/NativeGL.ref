@@ -1,0 +1,89 @@
+\import matrix_invariants.Ring[K := C.Complex, scalars := std.Alg[].Field[].fieldAsCommutativeRing C.Complex (C.Algebra[].field)].At[n := r] \as Matrices;
+\import Matrices.Representation[] \as Representation;
+\import matrix_invariants.Field[K := C.Complex, field := C.Algebra[].field].At[n := r] \as Inversion;
+\import hermitian_frames.Hermitian[].Over[K := C.Complex, field := C.Algebra[].field, scalar := Hermitian.scalar, topological := vector_bundles.Bundles[].Complex[].scalar.topological].At[n := r].Square[] \as Square;
+\import std.Data[].ListIndex[A := Pairs.Pair].Selected[S := Pairs.Whole].Listed[xs := enumeration] \as Enumeration;
+\definition Vector: \Set := Fin.Fin rank -> C.Complex;
+\import \root.ComplexCoordinates[n := n, r := rank] \as RealCoordinates;
+\definition size: N.Nat^ := RealCoordinates.rank;
+\definition RealVector: \Set := Fin.Fin size -> R.Real;
+\definition encode: Vector -> RealVector := RealCoordinates.encode;
+\definition decode: RealVector -> Vector := RealCoordinates.decode;
+\definition decodeEncode: \forall (v: Vector) -> decode (encode v) = v := RealCoordinates.decodeEncode;
+\definition encodeDecode: \forall (v: RealVector) -> encode (decode v) = v := RealCoordinates.encodeDecode;
+\definition flatten[A: Matrices.Matrix]: Vector := \fun (a: Fin.Fin rank) => A (row (Indices.enumerate a)) (column (Indices.enumerate a));
+\definition unflatten[v: Vector]: Matrices.Matrix := \fun (a, b: Fin.Fin r) => v (Indices.index (pair a b));
+\definition unflattenFlatten: \forall (A: Matrices.Matrix) -> unflatten (flatten A) = A := \fun (A: Matrices.Matrix) => Matrices.Operations[].ext _ _
+  (\fun (a, b: Fin.Fin r) => congr!{{Indices.Index} C.Complex} (\fun (q: Indices.Index) => A (row q) (column q)) _ _ (Enumeration.enumerateIndex (pair a b)));
+\definition pairRecover: \forall (q: Indices.Index) -> pair (row q) (column q) = q := \fun (q: Indices.Index) => Pair.Prop[A := Fin.Fin r, B := Fin.Fin r].eta q;
+\definition flattenUnflatten: \forall (v: Vector) -> flatten (unflatten v) = v := \fun (v: Vector) => \axiom:funext(flatten (unflatten v), v,
+  \fun (a: Fin.Fin rank) => congr!{{Fin.Fin rank} C.Complex} v _ _ (trans!{{Fin.Fin rank}} _ _ _ (congr!{{Indices.Index} {Fin.Fin rank}} Indices.index _ _
+    (pairRecover (Indices.enumerate a))) (Enumeration.indexEnumerate a)));
+\definition matrix[a: RealVector]: Matrices.Matrix := unflatten (decode a);
+\definition coordinates[A: Matrices.Matrix]: RealVector := encode (flatten A);
+\definition matrixCoordinates: \forall (A: Matrices.Matrix) -> matrix (coordinates A) = A := \fun (A: Matrices.Matrix) => trans!{{Matrices.Matrix}} _ _ _
+  (congr!{Vector {Matrices.Matrix}} unflatten _ _ (decodeEncode (flatten A))) (unflattenFlatten A);
+\definition coordinatesMatrix: \forall (a: RealVector) -> coordinates (matrix a) = a := \fun (a: RealVector) => trans!{RealVector} _ _ _
+  (congr!{Vector RealVector} encode _ _ (flattenUnflatten (decode a))) (encodeDecode a);
+\import calculus.Real[].Multivariable[n := size].Open[] \as Open;
+\import topological_algebra.Euclidean[].Dimension[n := size].Topology[] \as Euclidean;
+\import topological_algebra.Coordinates[K := R.Real, I := Fin.Fin size] \as RealProduct;
+\import topological_algebra.Coordinates[K := C.Complex, I := Fin.Fin rank] \as Product;
+\definition realContinuous: topology.Continuity[A := RealVector, B := RealVector].Continuous Euclidean.topology (RealProduct.topology vector_bundles.Bundles[].Real[].scalar.topological.space) (\fun (v: RealVector) => v) :=
+  \fun (W: \Pow RealVector)(open: _) => Euclidean.coordinateOpen W open;
+\definition decodeContinuous: topology.Continuity[A := RealVector, B := Vector].Continuous Euclidean.topology (Product.topology vector_bundles.Bundles[].Complex[].scalar.topological.space) decode := topology.Composition[A := RealVector, B := RealVector, C := Vector].composeContinuous Euclidean.topology (RealProduct.topology vector_bundles.Bundles[].Real[].scalar.topological.space)
+  (Product.topology vector_bundles.Bundles[].Complex[].scalar.topological.space) (\fun (v: RealVector) => v) decode realContinuous
+  (bundle_operations.Operations[].Scalars[].RealCoordinates[n := rank].Topology[].backwardContinuous);
+\definition regular: Square.Families[X := RealVector].Regular Euclidean.topology matrix := \fun (a, b: Fin.Fin r) =>
+  topology.Composition[A := RealVector, B := Vector, C := C.Complex].composeContinuous Euclidean.topology (Product.topology vector_bundles.Bundles[].Complex[].scalar.topological.space) vector_bundles.Bundles[].Complex[].scalar.topological.space decode
+    (\fun (v: Vector) => v (Indices.index (pair a b))) decodeContinuous (Product.evaluationContinuous vector_bundles.Bundles[].Complex[].scalar.topological.space (Indices.index (pair a b)));
+\definition points: \Pow RealVector := { a: RealVector \where Inversion.Nonzero (matrix a) };
+\definition pointsOpen: topology.Topology[Carrier := RealVector].IsOpenIn Euclidean.topology points := Square.Families[X := RealVector].nonsingularOpen Euclidean.topology matrix regular;
+\definition domain: Open.OpenSet := Open.Topology[].ofOpen points pointsOpen;
+\import manifolds.Dimension[n := size].Examples[].Euclidean[].Subspace[U := domain] \as Model;
+\import manifolds.Dimension[n := size].Smooth[] \as Models;
+\definition manifold: Models.Manifold := Model.smoothManifold;
+\definition Point: \Set := Open.Carrier domain;
+\definition toPoint[g: GL.Carrier]: Point := \into[RealVector](coordinates (GL.entries g), points) \by {
+  \idelim GL.entries g = matrix (coordinates (GL.entries g)) \with A: Matrices.Matrix => Inversion.Nonzero A \by {
+    base: \bysub(Matrices.Matrix, Inversion.Nonsingular, GL.Nonsingular[u := g].value), equality: sym!{{Matrices.Matrix}} _ _ (matrixCoordinates (GL.entries g))
+  }
+};
+\definition fromPoint[a: Point]: GL.Carrier := GL.MatrixModel[].backward (\into[Matrices.Matrix](matrix a, Inversion.Nonsingular) \by { \bysub(RealVector, points, a) });
+\definition entriesFrom: \forall (a: Point) -> GL.entries (fromPoint a) = matrix a := \fun (a: Point) => Representation.entriesLinear (matrix a);
+\definition fromTo: \forall (g: GL.Carrier) -> fromPoint (toPoint g) = g := \fun (g: GL.Carrier) => GL.ext (fromPoint (toPoint g)) g
+  (\fun (v: GL.Vector) => congr!{{GL.Map} {GL.Vector}} (\fun (f: GL.Map) => f.apply v) _ _
+    (trans!{{GL.Map}} _ _ _ (congr!{{Matrices.Matrix} {GL.Map}} Matrices.linear _ _ (matrixCoordinates (GL.entries g))) (Representation.linearEntries g.forward)));
+\definition toFrom: \forall (a: Point) -> toPoint (fromPoint a) = a := \fun (a: Point) => trans!{RealVector} _ _ _
+  (congr!{{Matrices.Matrix} RealVector} coordinates _ _ (entriesFrom a)) (coordinatesMatrix a);
+\definition multiply[a, b: RealVector]: RealVector := coordinates (Matrices.product (matrix a) (matrix b));
+\definition multiplyPoints: \forall (g, h: GL.Carrier) -> toPoint (GL.multiply g h) = multiply (toPoint g) (toPoint h) := \fun (g, h: GL.Carrier) =>
+  congr!{{Matrices.Matrix} RealVector} coordinates _ _ (trans!{{Matrices.Matrix}} _ _ _ (Representation.composition g.forward h.forward)
+    (sym!{{Matrices.Matrix}} _ _ (congr!{{Matrices.Matrix} {Matrices.Matrix} {Matrices.Matrix}} Matrices.product _ _ _ _ (matrixCoordinates (GL.entries g)) (matrixCoordinates (GL.entries h)))));
+\definition multiplyInside: \forall (a, b: Point) -> \In[RealVector] points (multiply a b) := \fun (a, b: Point) =>
+  \idelim toPoint (GL.multiply (fromPoint a) (fromPoint b)) = multiply a b \with z: RealVector => \In[RealVector] points z \by {
+    base: \bysub(RealVector, points, toPoint (GL.multiply (fromPoint a) (fromPoint b))),
+    equality: trans!{RealVector} _ _ _ (multiplyPoints (fromPoint a) (fromPoint b))
+      (congr!{RealVector RealVector RealVector} multiply _ _ _ _ (toFrom a) (toFrom b))
+  };
+\module SmoothProduct(d: N.Nat^);
+
+\import manifolds.Dimension[n := size].Examples[].Euclidean[] \as Ambient;
+\import calculus.Maps[n := size, m := size] \as Calculus;
+\definition intoWhole: Calculus.Map domain Open.whole := \into[Calculus.Data[domain, Open.whole]](Calculus.Data[domain, Open.whole] {
+  apply := \fun (a: Point) => \into[RealVector](a, Open.whole.points) \by { \refl(a) }
+}, Calculus.Map domain Open.whole) \by {
+  Calculus.Laws[domain, Open.whole, Calculus.Data[domain, Open.whole] { apply := \fun (a: Point) => \into[RealVector](a, Open.whole.points) \by { \refl(a) } }] {
+    smooth := \fun (j: Fin.Fin size) => Open.Examples[].projectionSmooth domain j,
+  }
+};
+\import manifolds.EuclideanMap[n := size, m := size].Between[U := domain, V := Open.whole] \as IntoWhole;
+\import manifolds.Dimension[n := size].Chart[M := RealVector, space := Euclidean.topology] \as AmbientCharts;
+\import manifolds.Dimension[n := size].Atlas[M := RealVector, space := Euclidean.topology] \as AmbientAtlas;
+\definition standard: \Cast[AmbientCharts.Chart] Ambient.smoothManifold.atlas.charts := \into[AmbientCharts.Chart](Ambient.standard, Ambient.smoothManifold.atlas.charts) \by {
+  AmbientAtlas.includedInSaturation Ambient.atlas Ambient.standard (\refl(Ambient.standard))
+};
+\import manifolds.ChartMap[n := size].On[M := Ambient.smoothManifold].At[chart := standard] \as AmbientParameter;
+\import manifolds.Composition[n := size, m := size, l := size].Between[M := manifold, N := IntoWhole.target, P := Ambient.smoothManifold] \as AmbientCompose;
+\definition inclusion: manifolds.SmoothMap[n := size, m := size].Between[M := manifold, N := Ambient.smoothManifold].Map := AmbientCompose.compose (IntoWhole.map intoWhole) AmbientParameter.map;
+\definition inclusionFormula: \forall (g: Point) -> manifolds.SmoothMap[n := size, m := size].Between[M := manifold, N := Ambient.smoothManifold].apply inclusion g = g := \fun (g: Point) => \refl(g);

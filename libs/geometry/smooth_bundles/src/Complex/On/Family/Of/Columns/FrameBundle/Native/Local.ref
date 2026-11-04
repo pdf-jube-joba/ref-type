@@ -1,0 +1,131 @@
+\import RawAtlas.InChart[i := i] \as Raw;
+\import \parent.\parent.Local[i := i] \as Algebra;
+\import matrix_invariants.Ring[K := C.Complex, scalars := std.Alg[].Field[].fieldAsCommutativeRing C.Complex (C.Algebra[].field)].At[n := r] \as Matrices;
+\import matrix_invariants.Field[K := C.Complex, field := C.Algebra[].field].At[n := r] \as Inversion;
+\import calculus.Blocks[n := n, m := Matrix.size] \as Blocks;
+\import calculus.Real[].Multivariable[n := frameDimension].Open[] \as Open;
+\import calculus.Real[].Multivariable[n := n].Open[] \as BaseOpen;
+\definition c: Chart := (originalAtlas.local i).chart;
+\import TotalCharts.Restricted[U := openSubset].Of[chart := Build.totalChart i] \as Image;
+\definition flatFormula: \forall (p: Raw.LocalPoint) -> Blocks.right (Raw.coordinate p) = Matrix.encode (\parent.\parent.\parent.Local[i := i, x := Algebra.base p].encode p.vector) :=
+  \fun (p: Raw.LocalPoint) => Blocks.rightJoin (manifolds.Dimension[n := n].Chart[M := M.Point, space := M.space].coordinate c (Algebra.base p))
+    (Matrix.encode (\parent.\parent.\parent.Local[i := i, x := Algebra.base p].encode p.vector));
+\definition decodedFormula: \forall (p: Raw.LocalPoint) -> Matrix.decode (Blocks.right (Raw.coordinate p)) = \parent.\parent.\parent.Local[i := i, x := Algebra.base p].encode p.vector :=
+  \fun (p: Raw.LocalPoint) => trans!{{Matrix.Vector}} _ _ _ (congr!{{Matrix.RealVector} {Matrix.Vector}} Matrix.decode _ _ (flatFormula p))
+    (Matrix.decodeEncode (\parent.\parent.\parent.Local[i := i, x := Algebra.base p].encode p.vector));
+\definition coefficientAtCoordinate[p: Raw.LocalPoint][a, b: Fin.Fin r]: Matrix.matrix (Blocks.right (Raw.coordinate p)) a b = Algebra.matrix p a b :=
+  trans!{C.Complex} (Matrix.decode (Blocks.right (Raw.coordinate p)) (Indices.index (pair a b)))
+    (\parent.\parent.\parent.Local[i := i, x := Algebra.base p].encode p.vector (Indices.index (pair a b)))
+    (Algebra.matrix p a b)
+    (congr!{{Matrix.Vector} C.Complex} (\fun (v: Matrix.Vector) => v (Indices.index (pair a b))) (Matrix.decode (Blocks.right (Raw.coordinate p)))
+      (\parent.\parent.\parent.Local[i := i, x := Algebra.base p].encode p.vector) (decodedFormula p))
+    (\parent.\parent.\parent.Local[i := i, x := Algebra.base p].atPair p.vector a b);
+\definition matrixAtCoordinate: \forall (p: Raw.LocalPoint) -> Matrix.matrix (Blocks.right (Raw.coordinate p)) = Algebra.matrix p :=
+  \fun (p: Raw.LocalPoint) => Matrices.Operations[].ext (Matrix.matrix (Blocks.right (Raw.coordinate p))) (Algebra.matrix p) (coefficientAtCoordinate p);
+\definition matrixFormula: \forall (u: Open.Carrier Raw.image) -> Algebra.matrix (Raw.point u) = Matrix.matrix (Blocks.right u) :=
+  \fun (u: Open.Carrier Raw.image) => trans!{{Matrices.Matrix}} _ _ _ (sym!{{Matrices.Matrix}} _ _ (matrixAtCoordinate (Raw.point u)))
+    (congr!{{Open.Carrier Raw.image} {Matrices.Matrix}} (\fun (v: Open.Carrier Raw.image) => Matrix.matrix (Blocks.right v)) _ _ (Raw.coordinatePoint u));
+\import Blocks.On[U := c.image, V := Matrix.domain] \as Product;
+\definition forwardIncluded: Open.Included Image.image Product.domain := \fun (z: calculus.Real[].Multivariable[n := frameDimension].Point)(inside: _) => \block {
+  \let u: Open.Carrier Image.image := \into[calculus.Real[].Multivariable[n := frameDimension].Point](z, Image.image.points) \by { inside } \then
+  \let old: Open.Carrier Raw.image := Image.oldCoordinate u \then
+  \return Logic.And[_, _]::# ((\bysub(calculus.Real[].Multivariable[n := frameDimension].Point, Raw.image.points, old)).left)
+    (\idelim Algebra.matrix (Raw.point old) = Matrix.matrix (Blocks.right old) \with A: Matrices.Matrix => Inversion.Nonzero A \by {
+      base: Algebra.nonsingular (Raw.point old) (Image.backwardMember u), equality: matrixFormula old
+    })
+};
+\import topology.Topology[Carrier := calculus.Real[].Multivariable[n := frameDimension].Point].Subspace[S := Raw.image.points].Open[] \as OpenImage;
+\definition backwardIncluded: Open.Included Product.domain Image.image := \fun (z: calculus.Real[].Multivariable[n := frameDimension].Point)(inside: _) => \block {
+  \let old: Open.Carrier Raw.image := \into[calculus.Real[].Multivariable[n := frameDimension].Point](z, Raw.image.points) \by { Logic.And[_, _]::# inside.left (\refl(Blocks.right z)) } \then
+  \let nonzero: Inversion.Nonzero (Algebra.matrix (Raw.point old)) := \idelim Matrix.matrix (Blocks.right old) = Algebra.matrix (Raw.point old) \with A: Matrices.Matrix => Inversion.Nonzero A \by {
+    base: inside.right, equality: sym!{{Matrices.Matrix}} _ _ (matrixFormula old)
+  } \then
+  \return OpenImage.imageMember Image.overlap old (Algebra.ofNonsingular (Raw.point old) nonzero)
+};
+\import \root.ChartDomain[n := frameDimension].On[M := manifold].At[c := chart i] \as Domain;
+\import manifolds.Dimension[n := frameDimension].Smooth[] \as Models;
+\definition source: Models.Manifold := Domain.source;
+\import manifolds.Dimension[n := frameDimension].Examples[].Euclidean[].Subspace[U := Product.domain] \as Target;
+\definition target: Models.Manifold := Target.smoothManifold;
+\import calculus.Maps[n := frameDimension, m := frameDimension] \as Calculus;
+\definition forwardCoordinates: Calculus.Map Image.image Product.domain := \into[Calculus.Data[Image.image, Product.domain]](Calculus.Data[Image.image, Product.domain] { apply := Open.inclusion Image.image Product.domain forwardIncluded }, Calculus.Map Image.image Product.domain) \by {
+  Calculus.Laws[Image.image, Product.domain, Calculus.Data[Image.image, Product.domain] { apply := Open.inclusion Image.image Product.domain forwardIncluded }] {
+    smooth := \fun (j: Fin.Fin frameDimension) => Open.Examples[].projectionSmooth Image.image j,
+  }
+};
+\definition backwardCoordinates: Calculus.Map Product.domain Image.image := \into[Calculus.Data[Product.domain, Image.image]](Calculus.Data[Product.domain, Image.image] { apply := Open.inclusion Product.domain Image.image backwardIncluded }, Calculus.Map Product.domain Image.image) \by {
+  Calculus.Laws[Product.domain, Image.image, Calculus.Data[Product.domain, Image.image] { apply := Open.inclusion Product.domain Image.image backwardIncluded }] {
+    smooth := \fun (j: Fin.Fin frameDimension) => Open.Examples[].projectionSmooth Product.domain j,
+  }
+};
+\import manifolds.EuclideanMap[n := frameDimension, m := frameDimension].Between[U := Image.image, V := Product.domain] \as ForwardCoordinates;
+\import manifolds.EuclideanMap[n := frameDimension, m := frameDimension].Between[U := Product.domain, V := Image.image] \as BackwardCoordinates;
+\definition coordinateDiffeomorphism: manifolds.Diffeomorphism[n := frameDimension, m := frameDimension].Between[M := Domain.target, N := target].Diffeomorphism := manifolds.Diffeomorphism[n := frameDimension, m := frameDimension].Between[M := Domain.target, N := target].Diffeomorphism {
+  forward := ForwardCoordinates.map forwardCoordinates, backward := BackwardCoordinates.map backwardCoordinates,
+  leftInverse := \fun (z: Open.Carrier Image.image) => \refl(z), rightInverse := \fun (z: Open.Carrier Product.domain) => \refl(z),
+};
+\definition diffeomorphism: manifolds.Diffeomorphism[n := frameDimension, m := frameDimension].Between[M := source, N := target].Diffeomorphism :=
+  manifolds.DiffeomorphismComposition[n := frameDimension, m := frameDimension, l := frameDimension].Between[M := source, N := Domain.target, P := target].Of[d := Domain.diffeomorphism, e := coordinateDiffeomorphism].compose;
+
+\import manifolds.Dimension[n := n].Chart[M := M.Point, space := M.space] \as OriginalCharts;
+\definition rawPoint[p: Charts.LocalPoint (chart i)]: Raw.LocalPoint := \into[RawFamily.Point](p, Raw.domain) \by { \bysub(Point, (chart i).domain, p) };
+\definition base[p: Charts.LocalPoint (chart i)]: OriginalCharts.LocalPoint c := Algebra.base (rawPoint p);
+\definition group[p: Charts.LocalPoint (chart i)]: GL.Carrier := GL.Frames[V := F p.base, space := space p.base].change (recover p) ((originalAtlas.local i).frame (base p));
+\definition flat[p: Charts.LocalPoint (chart i)]: Matrix.RealVector := Blocks.right (Charts.coordinate (chart i) p);
+\definition encodeFrame: \forall (x: OriginalCharts.LocalPoint c)(f: GL.Frames[V := F x, space := space x].Frame) ->
+  \parent.\parent.\parent.Local[i := i, x := x].encode (columns x f) = Matrix.flatten (GL.entries (GL.Frames[V := F x, space := space x].change f ((originalAtlas.local i).frame x))) :=
+  \fun (x: OriginalCharts.LocalPoint c)(f: GL.Frames[V := F x, space := space x].Frame) =>
+    \axiom:funext(\parent.\parent.\parent.Local[i := i, x := x].encode (columns x f), Matrix.flatten (GL.entries (GL.Frames[V := F x, space := space x].change f ((originalAtlas.local i).frame x))),
+      \fun (a: Fin.Fin rank) => \refl(((originalAtlas.local i).frame x).forward.apply (f.backward.apply (Spaces.FiniteCoordinates[n := r].vectors (column (Indices.enumerate a)))) (row (Indices.enumerate a))));
+\definition groupToFlat[p: Charts.LocalPoint (chart i)]: Matrix.toPoint (group p) = flat p :=
+  trans!{{Matrix.RealVector}} (Matrix.coordinates (GL.entries (group p)))
+    (Matrix.encode (\parent.\parent.\parent.Local[i := i, x := base p].encode (columns p.base (recover p)))) (flat p)
+    (congr!{{Matrix.Vector} {Matrix.RealVector}} Matrix.encode (Matrix.flatten (GL.entries (group p)))
+      (\parent.\parent.\parent.Local[i := i, x := base p].encode (columns p.base (recover p))) (sym!{{Matrix.Vector}} _ _ (encodeFrame (base p) (recover p))))
+    (trans!{{Matrix.RealVector}} (Matrix.encode (\parent.\parent.\parent.Local[i := i, x := base p].encode (columns p.base (recover p))))
+      (Matrix.encode (\parent.\parent.\parent.Local[i := i, x := base p].encode p.vector)) (flat p)
+      (congr!{{Fiber p.base} {Matrix.RealVector}} (\fun (v: Fiber p.base) => Matrix.encode (\parent.\parent.\parent.Local[i := i, x := base p].encode v))
+        (columns p.base (recover p)) p.vector (recoverColumns p))
+      (sym!{{Matrix.RealVector}} _ _ (flatFormula (rawPoint p))));
+\definition acted[p: Charts.LocalPoint (chart i)][g: GL.Carrier]: Charts.LocalPoint (chart i) := \into[Point](act p g, (chart i).domain) \by { \bysub(Point, (chart i).domain, p) };
+\import \root.Complex[n := n, r := r].On[M := M].Family[F := F, space := space].Of[I := I, bundle := bundle].Frames[].Local[i := i] \as FrameCoordinates;
+\definition groupAction[p: Charts.LocalPoint (chart i)][g: GL.Carrier]: group (acted p g) = GL.multiply (group p) g :=
+  trans!{{GL.Carrier}} (group (acted p g))
+    (GL.Frames[V := F p.base, space := space p.base].change (GL.Frames[V := F p.base, space := space p.base].act (recover p) g) ((originalAtlas.local i).frame (base p)))
+    (GL.multiply (group p) g)
+    (congr!{{GL.Frames[V := F p.base, space := space p.base].Frame} {GL.Carrier}}
+      (\fun (f: GL.Frames[V := F p.base, space := space p.base].Frame) => GL.Frames[V := F p.base, space := space p.base].change f ((originalAtlas.local i).frame (base p)))
+      (recover (act p g)) (GL.Frames[V := F p.base, space := space p.base].act (recover p) g)
+      (recoverEmbed p.base (GL.Frames[V := F p.base, space := space p.base].act (recover p) g)))
+    (FrameCoordinates.actionFormula (base p) (recover p) g);
+\definition flatAction[p: Charts.LocalPoint (chart i)][g: GL.Carrier]: flat (acted p g) = Matrix.multiply (flat p) (Matrix.toPoint g) :=
+  trans!{{Matrix.RealVector}} (flat (acted p g)) (Matrix.toPoint (group (acted p g))) (Matrix.multiply (flat p) (Matrix.toPoint g))
+    (sym!{{Matrix.RealVector}} _ _ (groupToFlat (acted p g)))
+    (trans!{{Matrix.RealVector}} (Matrix.toPoint (group (acted p g))) (Matrix.toPoint (GL.multiply (group p) g)) (Matrix.multiply (flat p) (Matrix.toPoint g))
+      (congr!{{GL.Carrier} {Matrix.RealVector}} Matrix.toPoint (group (acted p g)) (GL.multiply (group p) g) (groupAction p g))
+      (trans!{{Matrix.RealVector}} (Matrix.toPoint (GL.multiply (group p) g)) (Matrix.multiply (Matrix.toPoint (group p)) (Matrix.toPoint g)) (Matrix.multiply (flat p) (Matrix.toPoint g))
+        (Matrix.multiplyPoints (group p) g) (congr!{{Matrix.RealVector} {Matrix.RealVector}} (\fun (v: Matrix.RealVector) => Matrix.multiply v (Matrix.toPoint g)) _ _ (groupToFlat p))));
+\definition baseFormula: \forall (p: Charts.LocalPoint (chart i)) -> Blocks.left (Charts.coordinate (chart i) p) = OriginalCharts.coordinate c (base p) :=
+  \fun (p: Charts.LocalPoint (chart i)) => Blocks.leftJoin (OriginalCharts.coordinate c (base p)) (Matrix.encode (\parent.\parent.\parent.Local[i := i, x := base p].encode p.vector));
+\definition coordinate[p: Charts.LocalPoint (chart i)]: calculus.Real[].Multivariable[n := frameDimension].Point := Charts.coordinate (chart i) p;
+\definition actionCoordinate[p: Charts.LocalPoint (chart i)][g: GL.Carrier]: coordinate (acted p g) = Blocks.join (Blocks.left (coordinate p)) (Matrix.multiply (flat p) (Matrix.toPoint g)) :=
+  trans!{{calculus.Real[].Multivariable[n := frameDimension].Point}} _ _ _ (sym!{{calculus.Real[].Multivariable[n := frameDimension].Point}} _ _ (Blocks.recover (coordinate (acted p g))))
+    (congr!{{calculus.Real[].Multivariable[n := n].Point} {Matrix.RealVector} {calculus.Real[].Multivariable[n := frameDimension].Point}} Blocks.join _ _ _ _
+      (trans!{{calculus.Real[].Multivariable[n := n].Point}} _ _ _ (baseFormula (acted p g)) (sym!{{calculus.Real[].Multivariable[n := n].Point}} _ _ (baseFormula p))) (flatAction p g));
+
+\import manifolds.SmoothMap[n := frameDimension, m := frameDimension].Between[M := source, N := target] \as TrivializationMaps;
+\definition forwardBase: \forall (p: source.Point) -> Blocks.left (TrivializationMaps.apply diffeomorphism.forward p) = OriginalCharts.coordinate c (base p) :=
+  \fun (p: source.Point) => baseFormula p;
+\definition forwardGroup: \forall (p: source.Point) -> Blocks.right (TrivializationMaps.apply diffeomorphism.forward p) = Matrix.toPoint (group p) :=
+  \fun (p: source.Point) => sym!{{Matrix.RealVector}} _ _ (groupToFlat p);
+\import manifolds.Dimension[n := n].Examples[].Euclidean[].Subspace[U := c.image] \as BaseModel;
+\definition baseMap: manifolds.SmoothMap[n := frameDimension, m := n].Between[M := target, N := BaseModel.smoothManifold].Map :=
+  manifolds.EuclideanMap[n := frameDimension, m := n].Between[U := Product.domain, V := c.image].map Product.leftMap;
+\definition groupMap: manifolds.SmoothMap[n := frameDimension, m := Matrix.size].Between[M := target, N := Matrix.manifold].Map :=
+  manifolds.EuclideanMap[n := frameDimension, m := Matrix.size].Between[U := Product.domain, V := Matrix.domain].map Product.rightMap;
+\definition projectionPreserved: \forall (p: source.Point) -> OriginalCharts.point c (Product.leftPoint (TrivializationMaps.apply diffeomorphism.forward p)) = p.base :=
+  \fun (p: source.Point) => trans!{{M.Point}} _ _ _
+    (congr!{{BaseOpen.Carrier c.image} {M.Point}} (\fun (u: BaseOpen.Carrier c.image) => OriginalCharts.point c u) _ _
+      (bundle_operations.Operations[].Subset[E := calculus.Real[].Multivariable[n := n].Point, U := c.image.points].equality
+        (Product.leftPoint (TrivializationMaps.apply diffeomorphism.forward p)) (OriginalCharts.coordinate c (base p)) (forwardBase p)))
+    (OriginalCharts.Of[chart := c].pointCoordinate (base p));

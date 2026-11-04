@@ -9,7 +9,7 @@
 
 ## 依存するタスク
 
-- [B07 滑らかな束と既存の接束・法束との接続](b07-smooth-bundles.md)
+- [滑らかな束・枠束・随伴束](../../libs/geometry/smooth_bundles/README.md)
 - [A09 Euclid 空間の Sobolev 評価](a09-euclidean-sobolev.md)
 - [A10 Rellich コンパクト性](a10-rellich.md)
 - [A04 多重積分の変数変換](a04-change-of-variables.md)

@@ -1,0 +1,52 @@
+\import tangent_bundles.Trivial[n := frameDimension, r := Matrix.size].On[M := manifold] \as Product;
+\import Product.Covered[I := I, chart := chart, covers := covers] \as Full;
+\definition dimension: N.Nat^ := calculus.Blocks[n := frameDimension, m := Matrix.size].dimension;
+\import linear_algebra.Euclidean[n := Matrix.size] \as FiberModel;
+\import tangent_bundles.FrameBundle[n := frameDimension, r := Matrix.size].Over[M := manifold].Family[F := \fun (p: Point) => FiberModel.Vector, space := \fun (p: Point) => FiberModel.space] \as ProductFamily;
+\import ProductFamily.Using[I := I, data := Full.data] \as ProductAtlas;
+\import manifolds.Dimension[n := Matrix.size].Examples[].Euclidean[] \as MatrixEuclidean;
+\import manifolds.SmoothMap[n := dimension, m := Matrix.size].Between[M := Full.manifold, N := MatrixEuclidean.smoothManifold] \as VectorMaps;
+\definition points: \Pow Product.Point := { p: Product.Point \where \In[Matrix.RealVector] Matrix.domain.points p.vector };
+\import topology.Topology[Carrier := Product.Point] \as Space;
+\definition open: Space.IsOpenIn Full.manifold.space points :=
+  (\bysub(VectorMaps.Data, { f: VectorMaps.Data \where VectorMaps.Continuous f }, Full.Vector[].map)) Matrix.points Matrix.pointsOpen;
+\import manifolds.Dimension[n := dimension].Chart[M := Product.Point, space := Full.manifold.space] \as ProductCharts;
+\definition subset: ProductCharts.OpenSubset := \into[\Pow Product.Point](points, ProductCharts.OpenSubset) \by { open };
+\import manifolds.OpenSubmanifold[n := dimension].On[M := Full.manifold].In[U := subset] \as Restricted;
+\import manifolds.Dimension[n := dimension].Smooth[] \as Models;
+\definition source: Models.Manifold := Restricted.manifold;
+\definition SourcePoint: \Set := Restricted.Point;
+\definition groupPoint[p: SourcePoint]: Matrix.Point := \into[Matrix.RealVector](p.vector, Matrix.domain.points) \by { \bysub(Product.Point, points, p) };
+\definition apply[p: SourcePoint]: Point := act p.base (Matrix.fromPoint (groupPoint p));
+\import manifolds.Dimension[n := dimension].Chart[M := SourcePoint, space := source.space] \as SourceCharts;
+\import manifolds.Dimension[n := dimension].Atlas[M := SourcePoint, space := source.space] \as SourceAtlas;
+\definition sourceChart[i: I]: \Cast[SourceCharts.Chart] source.atlas.charts := \into[SourceCharts.Chart](Restricted.restricted (Full.totalChart i), source.atlas.charts) \by {
+  SourceAtlas.includedInSaturation Restricted.atlas (Restricted.restricted (Full.totalChart i))
+    (Logic.existsIntro[Restricted.OriginalChart, { c: Restricted.OriginalChart \where Restricted.restricted c = Restricted.restricted (Full.totalChart i) }] (Full.totalChart i) (\refl(Restricted.restricted (Full.totalChart i))))
+};
+\definition sourceCovers: \forall (p: SourcePoint) -> \exists ( i: I \where SourceCharts.Contains (sourceChart i) p ) := \fun (p: SourcePoint) => covers p.base;
+\import manifolds.FromCharts[n := dimension, m := frameDimension].Between[M := source, N := manifold].Covered[I := I, chart := sourceChart, covers := sourceCovers] \as Plots;
+\module Local(i: I);
+\definition maps: Plots.Family := \fun (i: I) => Local[i := i].map;
+\definition agrees: Plots.Agreement apply maps := \fun (i: I) => Local[i := i].agrees;
+\import Plots.Of[f := apply, maps := maps, agrees := agrees] \as Construct;
+\import manifolds.SmoothMap[n := dimension, m := frameDimension].Between[M := source, N := manifold] \as Maps;
+\definition map: Maps.Map := Construct.value;
+\definition formula: Maps.apply map = apply := Construct.apply;
+\definition make[p: Point][g: Matrix.Point]: SourcePoint := \into[Product.Point](Product.include p g, points) \by { \bysub(Matrix.RealVector, Matrix.domain.points, g) };
+\definition actionFormula: \forall (p: Point)(g: GL.Carrier) -> Maps.apply map (make p (Matrix.toPoint g)) = act p g :=
+  \fun (p: Point)(g: GL.Carrier) => congr!{{GL.Carrier} Point} (act p) (Matrix.fromPoint (Matrix.toPoint g)) g (Matrix.fromTo g);
+\definition basePreserved: \forall (p: SourcePoint) -> (Maps.apply map p).base = p.base.base := \fun (p: SourcePoint) => \refl(p.base.base);
+
+\import ProductAtlas.Build[changes := Full.changes].Projection[] \as FullProjection;
+\import manifolds.Composition[n := dimension, m := dimension, l := frameDimension].Between[M := source, N := Full.manifold, P := manifold] \as FirstCompose;
+\definition firstMap: Maps.Map := FirstCompose.compose Restricted.Inclusion[].map FullProjection.map;
+\import manifolds.FromCharts[n := dimension, m := Matrix.size].Between[M := source, N := Matrix.manifold].Covered[I := I, chart := sourceChart, covers := sourceCovers] \as GroupPlots;
+\definition groupMaps: GroupPlots.Family := \fun (i: I) => Local[i := i].groupMap;
+\definition groupAgrees: GroupPlots.Agreement groupPoint groupMaps := \fun (i: I)(z: calculus.Real[].Multivariable[n := dimension].Open[].Carrier (sourceChart i).image) => \refl(groupPoint (SourceCharts.point (sourceChart i) z));
+\import GroupPlots.Of[f := groupPoint, maps := groupMaps, agrees := groupAgrees] \as GroupConstruct;
+\definition secondMap: manifolds.SmoothMap[n := dimension, m := Matrix.size].Between[M := source, N := Matrix.manifold].Map := GroupConstruct.value;
+\definition firstMake: \forall (p: Point)(g: Matrix.Point) -> Maps.apply firstMap (make p g) = p := \fun (p: Point)(g: Matrix.Point) => \refl(p);
+\definition secondMake: \forall (p: Point)(g: Matrix.Point) -> manifolds.SmoothMap[n := dimension, m := Matrix.size].Between[M := source, N := Matrix.manifold].apply secondMap (make p g) = g := \fun (p: Point)(g: Matrix.Point) => \refl(g);
+\definition makeEta: \forall (p: SourcePoint) -> make p.base (groupPoint p) = p := \fun (p: SourcePoint) => ProductFamily.eta p;
+\module Pair(d: N.Nat^);
