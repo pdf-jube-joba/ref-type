@@ -1,0 +1,24 @@
+\import \parent.\parent.For[patch := patch] \as PatchChart;
+\definition c: OldChart := patch.source;
+\definition left: Local.SourceChart x := \into[Charts.Chart](PatchChart.chart, Local.SourceChart x) \by {
+  Logic.And[_, _]::# (Logic.existsIntro[Patch, { p: Patch \where PatchChart.chart = chart p }] patch (\refl(PatchChart.chart))) contains
+};
+\definition right: Local.TargetChart (apply x) := \into[Original.Chart](c, Local.TargetChart (apply x)) \by { Logic.And[_, _]::# (\bysub(Original.Chart, M.atlas.charts, c)) contains };
+\import Maps.At[function := apply, left := left, right := right, x := x, contains := Local.leftContains x left] \as Extension;
+\definition identity: Calculus.Map PatchChart.image Open.whole := Calculus.Map[PatchChart.image, Open.whole] {
+  apply := \fun (u: Open.Carrier PatchChart.image) => \into[Model.Point](u, Open.whole.points) \by { \refl(u \of Model.Point) },
+  smooth := \fun (i: Model.Coordinate) => Open.Examples[].projectionSmooth PatchChart.image i,
+};
+\definition inside: \forall (u: Model.Carrier c.constraints PatchChart.image) -> Original.Contains c (apply (Charts.point PatchChart.chart u)) :=
+  \fun (u: Model.Carrier c.constraints PatchChart.image) => \bysub(M.Point, c.domain, Original.point c (PatchChart.input u));
+\definition output[u: Model.Carrier c.constraints PatchChart.image]: Original.LocalPoint c := \into[M.Point](apply (Charts.point PatchChart.chart u), c.domain) \by { inside u };
+\definition outputEqual: \forall (u: Model.Carrier c.constraints PatchChart.image) -> output u = Original.point c (PatchChart.input u) :=
+  \fun (u: Model.Carrier c.constraints PatchChart.image) => boundary_manifolds.Refinement[A := M.Point].equality c.domain (output u) (Original.point c (PatchChart.input u)) (\refl(Original.point c (PatchChart.input u) \of M.Point));
+\definition extension: Extension.Extension := Extension.Extension {
+  neighborhood := PatchChart.image, included := \fun (u: Model.Point)(member: _) => member,
+  contains := \bysub(Model.Point, PatchChart.image.points, Extension.source), map := identity, inside := inside,
+  agrees := \fun (u: Model.Carrier c.constraints PatchChart.image) => sym!{Model.Point} _ _ (trans!{Model.Point} _ _ _
+    (congr!{{Original.LocalPoint c} {Model.Point}} (\fun (p: Original.LocalPoint c) => Original.coordinate c p) _ _ (outputEqual u))
+    (congr!{{Model.Carrier c.constraints c.image} {Model.Point}} (\fun (p: Model.Carrier c.constraints c.image) => p) _ _ (Original.coordinatePoint c (PatchChart.input u)))),
+};
+\definition witness: Local.Witness[x] := Local.Witness[x] { left := left, right := right, extension := extension };

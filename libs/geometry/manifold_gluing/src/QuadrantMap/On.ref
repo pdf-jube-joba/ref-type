@@ -1,0 +1,22 @@
+\import Sources.Quadrant[C := C, U := U] \as Source;
+\import Targets.Quadrant[C := D, U := V] \as Target;
+\import Sources.Chart[M := Source.Point, space := Source.topology] \as SourceCharts;
+\import Targets.Chart[M := Target.Point, space := Target.topology] \as TargetCharts;
+\import boundary_manifolds.SmoothMap[n := n, m := m].Between[M := Source.manifold, N := Target.manifold] \as Maps;
+\definition function[x: Source.Point]: Target.Point := \into[Output.Carrier V](Calculus.apply U V f x, TargetModel.region D V) \by { nonnegative x };
+\import \root.LocalSmoothMap[n := n, m := m].Between[M := Source.manifold, N := Target.manifold].Of[function := function] \as Local;
+\import topological_algebra.Euclidean[].Dimension[n := m].Topology[] \as TargetAmbient;
+\definition intoOpen: topology.Continuity[A := Source.Point, B := Output.Carrier V].Continuous Source.topology (Output.Topology[].Of[U := V].topology) (\fun (x: Source.Point) => Calculus.apply U V f x) :=
+  topology.Composition[A := Source.Point, B := Open.Carrier U, C := Output.Carrier V].composeContinuous Source.topology (Open.Topology[].Of[U := U].topology) (Output.Topology[].Of[U := V].topology)
+    (\fun (x: Source.Point) => x) (Calculus.apply U V f)
+    (topology.Continuity[A := Source.Point, B := Open.Carrier U].Corestriction[S := SourceModel.region C U].inclusionContinuous (Open.Topology[].Of[U := U].topology)) (Calculus.Topology[U := U, V := V].continuous f);
+\definition intoAmbient: topology.Continuity[A := Source.Point, B := TargetModel.Point].Continuous Source.topology TargetAmbient.topology (\fun (x: Source.Point) => function x) :=
+  topology.Composition[A := Source.Point, B := Output.Carrier V, C := TargetModel.Point].composeContinuous Source.topology (Output.Topology[].Of[U := V].topology) TargetAmbient.topology
+    (\fun (x: Source.Point) => Calculus.apply U V f x) (\fun (x: Output.Carrier V) => x) intoOpen
+    (topology.Continuity[A := Output.Carrier V, B := TargetModel.Point].Corestriction[S := V.points].inclusionContinuous TargetAmbient.topology);
+\definition continuous: topology.Continuity[A := Source.Point, B := Target.Point].Continuous Source.topology Target.topology function :=
+  TargetModel.Topology[C := D, U := V].Into[X := Source.Point, source := Source.topology, f := function].continuous intoAmbient;
+\import Calculus.Corestriction[U := U, V := V, W := Output.whole, f := f, inside := \fun (x: Open.Carrier U) => \refl(Calculus.apply U V f x \of TargetModel.Point)] \as Corestriction;
+\module At(x: Source.Point);
+\definition local: \forall (x: Source.Point) -> \exists Local.Witness[x] := \fun (x: Source.Point) => \exact(At[x := x].witness, Local.Witness[x]);
+\definition map: Maps.Map := Local.map continuous local;

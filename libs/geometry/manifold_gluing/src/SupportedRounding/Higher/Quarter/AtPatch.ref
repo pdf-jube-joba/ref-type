@@ -1,0 +1,19 @@
+\import Construction.On[patch := patch] \as Patch;
+\definition left: Local.SourceChart x := \into[SourceCharts.Chart](Patch.chart, Local.SourceChart x) \by {
+  Logic.And[_, _]::# (Logic.existsIntro[Construction.Adapted, { p: Construction.Adapted \where Patch.chart = Construction.On[patch := p].chart }] patch (\refl(Patch.chart))) contains
+};
+\definition right: Local.TargetChart (apply x) := \into[TargetCharts.Chart](Target.chart, Local.TargetChart (apply x)) \by { Logic.And[_, _]::# (\refl(Target.chart)) (\refl(apply x)) };
+\import SmoothMaps.At[function := apply, left := left, right := right, x := x, contains := Local.leftContains x left] \as Extension;
+\import calculus.Maps[n := dimension, m := dimension] \as Calculus;
+\import Calculus.Corestriction[U := patch.image, V := patch.source.image, W := FullOpen.whole, f := patch.change.backward,
+  inside := \fun (u: FullOpen.Carrier patch.image) => \refl(Calculus.apply patch.image patch.source.image patch.change.backward u \of FullModel.Point)] \as Backward;
+\definition pointEquals: \forall (u: FullModel.Carrier patch.constraints patch.image) -> (SourceCharts.point Patch.chart u \of FullModel.Point) = (Patch.oldParameter u \of FullModel.Point) :=
+  \fun (u: FullModel.Carrier patch.constraints patch.image) => trans!{FullModel.Point} _ _ _ (sym!{FullModel.Point} _ _ (coordinatesIdentity (Patch.pointValue u)))
+    (congr!{{FullOpen.Carrier patch.source.image} {FullModel.Point}} (\fun (p: FullOpen.Carrier patch.source.image) => p) _ _ (AmbientCharts.Of[chart := patch.source].coordinatePoint (Patch.oldParameter u)));
+\definition extension: Extension.Extension := Extension.Extension {
+  neighborhood := patch.image, included := \fun (u: FullModel.Point)(member: _) => member,
+  contains := \bysub(FullModel.Point, patch.image.points, Extension.source), map := Backward.map,
+  inside := \fun (u: FullModel.Carrier patch.constraints patch.image) => \refl(apply (SourceCharts.point Patch.chart u)),
+  agrees := \fun (u: FullModel.Carrier patch.constraints patch.image) => sym!{FullModel.Point} _ _ (pointEquals u),
+};
+\definition witness: Local.Witness[x] := Local.Witness[x] { left := left, right := right, extension := extension };

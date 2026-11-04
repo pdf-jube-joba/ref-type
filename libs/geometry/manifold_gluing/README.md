@@ -103,3 +103,9 @@ python3 scripts/check_all.py --initial-memory-mib 12288 --memory-mib 12288 --cac
 接方向を加えた任意次元の正規モデルを扱い、境界は \(u+v=\psi(u-v)\) である。
 `QuadrantOpen` と `OpenManifold` は角付き多様体の任意の開部分集合に、制限されたチャートと実際の滑らかな atlas を構成する。
 指定された部分 collar の相対拡張と、一般の積多様体への丸めモデルの大域的な接続は継続中である。
+
+`SupportedRounding.Higher.Quarter` は丸めた領域から元の象限への実際の滑らかな包含写像を持つ。
+`Quarter.Outside` は二つの法線座標のいずれかが 3 より大きい開部分について、元の象限と丸めた多様体の間の恒等微分同相を構成する。
+`OpenManifold.Inclusion` と `OpenCorestriction` は開部分多様体の滑らかな包含・局所逆写像と、像が開部分に入る写像の制限を与える。
+`ChartModel` は一つの大域チャートを持つ多様体とその標準象限の実際の微分同相を、`DimensionChange` は同じ次元の異なる自然数表示間の恒等写像を構成する。
+`CompactTimes` は collar の有限な閉時間区間のコンパクト性を証明する。
