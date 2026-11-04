@@ -1,0 +1,24 @@
+\definition y: N.Point := Forward.apply f x;
+\definition z: M.Point := Backward.apply g y;
+\import Source.At[x := x] \as Domain;
+\import Target.At[x := y] \as Codomain;
+\import Source.At[x := z] \as Image;
+\import Domain.Cones[] \as SourceCones;
+\import Codomain.Cones[] \as TargetCones;
+\import Image.Cones[] \as ImageCones;
+\import boundary_manifolds.Differential[n := n, m := m].Between[M := M, N := N].At[f := f, x := x] \as D1;
+\import boundary_manifolds.Differential[n := m, m := n].Between[M := N, N := M].At[f := g, x := y] \as D2;
+\import Source.Transport[x := z, y := x, same := inverse x] \as Transport;
+\import \root.TangentTransportCones[n := n].On[M := M].Along[x := z, y := x, same := inverse x] \as ConeTransport;
+\import D2.Cones[] \as Inward;
+\import \root.DifferentialCones[n := m, m := n].Between[M := N, N := M].Of[f := g].At[x := y] \as Tangential;
+\definition back[v: Codomain.Vector]: Domain.Vector := Transport.vector (D2.value.apply v);
+\definition leftInverse: \forall (v: Domain.Vector) -> back (D1.value.apply v) = v := \fun (v: Domain.Vector) => trans!{{Domain.Vector}} _ _ _
+  (congr!{{Image.Vector} {Domain.Vector}} Transport.vector _ _ (sym!{{Image.Vector}} _ _ (Chain.At[x := x].pointwise v))) (Identity.At[x := x].law v);
+\definition backInward: \forall (v: Codomain.Vector) -> TargetCones.Inward v -> SourceCones.Inward (back v) := \fun (v: Codomain.Vector)(member: TargetCones.Inward v) => ConeTransport.inward (D2.value.apply v) (Inward.preserves v member);
+\definition backTangential: \forall (v: Codomain.Vector) -> TargetCones.Tangential v -> SourceCones.Tangential (back v) := \fun (v: Codomain.Vector)(member: TargetCones.Tangential v) => ConeTransport.tangential (D2.value.apply v) (Tangential.tangential v member);
+\definition reflectsTangential: \forall (v: Domain.Vector) -> TargetCones.Tangential (D1.value.apply v) -> SourceCones.Tangential v := \fun (v: Domain.Vector)(member: TargetCones.Tangential (D1.value.apply v)) =>
+  \idelim back (D1.value.apply v) = v \with w: Domain.Vector => SourceCones.Tangential w \by { base: backTangential (D1.value.apply v) member, equality: leftInverse v };
+\definition strict: \forall (v: Domain.Vector) -> Logic.Not (SourceCones.Tangential v) -> Logic.Not (TargetCones.Tangential (D1.value.apply v)) := \fun (v: Domain.Vector)(nonzero: Logic.Not (SourceCones.Tangential v))(member: TargetCones.Tangential (D1.value.apply v)) => nonzero (reflectsTangential v member);
+\definition boundary: SourceCones.Boundary -> TargetCones.Boundary := \fun (boundary: SourceCones.Boundary)(all: \forall (v: Codomain.Vector) -> TargetCones.Inward v) => boundary
+  (\fun (v: Domain.Vector) => \idelim back (D1.value.apply v) = v \with w: Domain.Vector => SourceCones.Inward w \by { base: backInward (D1.value.apply v) (all (D1.value.apply v)), equality: leftInverse v });

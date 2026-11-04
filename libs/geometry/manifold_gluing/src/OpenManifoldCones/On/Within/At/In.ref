@@ -1,0 +1,33 @@
+\import Source.For[patch := patch] \as Patch;
+\definition c: Source.OldChart := patch.source;
+\definition left: Domain.Chart := \into[Charts.Chart](Patch.chart, Domain.Chart) \by { Domain.ChartLaws[Patch.chart] {
+  member := Logic.existsIntro[Source.Patch, { p: Source.Patch \where Patch.chart = Source.For[patch := p].chart }] patch (\refl(Patch.chart)), contains := contains,
+} };
+\definition right: Codomain.Chart := \into[Original.Chart](c, Codomain.Chart) \by { Codomain.ChartLaws[c] { member := \bysub(Original.Chart, M.atlas.charts, c), contains := contains } };
+\definition oldPoint: Patch.old (Domain.localPoint left) = Codomain.localPoint right := boundary_manifolds.Refinement[A := M.Point].equality c.domain (Patch.old (Domain.localPoint left)) (Codomain.localPoint right) (\refl(x \of M.Point));
+\definition coordinateSame: (Domain.coordinate left \of Model.Point) = (Codomain.coordinate right \of Model.Point) := congr!{{Original.LocalPoint c} {Model.Point}} (\fun (p: Original.LocalPoint c) => Original.coordinate c p) _ _ oldPoint;
+\definition boundary: Logic.PropEquiv[SourceCones.Boundary, TargetCones.Boundary] := Logic.PropEquiv[_, _] {
+  ltr := \fun (member: SourceCones.Boundary) => TargetCones.boundaryOfCoordinate right (\idelim (Domain.coordinate left \of Model.Point) = (Codomain.coordinate right \of Model.Point) \with u: Model.Point => Model.boundary c.constraints u \by { base: SourceCones.coordinateOfBoundary left member, equality: coordinateSame }),
+  rtl := \fun (member: TargetCones.Boundary) => SourceCones.boundaryOfCoordinate left (\idelim (Codomain.coordinate right \of Model.Point) = (Domain.coordinate left \of Model.Point) \with u: Model.Point => Model.boundary c.constraints u \by { base: TargetCones.coordinateOfBoundary right member, equality: sym!{{Model.Point}} _ _ coordinateSame }),
+};
+\import Source.Inclusion[].At[x := x, patch := patch, contains := contains] \as Inclusion;
+\import boundary_manifolds.SmoothMap[n := n, m := n].Between[M := Source.manifold, N := M].At[function := Source.Inclusion[].apply, left := left, right := right, x := x, contains := Domain.contains left] \as Local;
+\definition extension: Local.Extension := Local.Extension {
+  neighborhood := Inclusion.extension.neighborhood, included := Inclusion.extension.included,
+  contains := Inclusion.extension.contains, map := Inclusion.extension.map, inside := Inclusion.extension.inside, agrees := Inclusion.extension.agrees,
+};
+\import Local.Using[e := extension] \as E;
+\import calculus.Identity[n := n] \as Identity;
+\import Calculus.Differential[U := Patch.image, V := Open.whole, f := Inclusion.identity, a := E.center] \as Derivative;
+\definition matrix: D.InCharts[left := left, right := right].jacobian = Identity.linear := trans!{{calculus.Vector[n := n, m := n].LinearMap}} _ _ _
+  (Local.ofExtension D.InCharts[left := left, right := right].smooth extension)
+  (trans!{{calculus.Vector[n := n, m := n].LinearMap}} _ _ _ (Derivative.Compare[W := Patch.image, g := Identity.map Patch.image].equal
+    (\axiom:funext((\fun (u: Open.Carrier Patch.image) => Calculus.apply Patch.image Open.whole Inclusion.identity u \of Model.Point),
+      (\fun (u: Open.Carrier Patch.image) => Calculus.apply Patch.image Patch.image (Identity.map Patch.image) u \of Model.Point), \fun (u: Open.Carrier Patch.image) => \refl(u \of Model.Point)))) (Identity.At[U := Patch.image, a := E.center].differential));
+\definition coordinates: \forall (v: Domain.Vector) -> Codomain.Coordinate[chart := right].decode (D.value.apply v) = Domain.Coordinate[chart := left].decode v := \fun (v: Domain.Vector) => trans!{{Model.Point}} _ _ _ (D.coordinates left right v)
+  (congr!{{calculus.Vector[n := n, m := n].LinearMap} {Model.Point}} (\fun (d: calculus.Vector[n := n, m := n].LinearMap) => d.apply (Domain.Coordinate[chart := left].decode v)) _ _ matrix);
+\definition reflectsTangential: \forall (v: Domain.Vector) -> TargetCones.Tangential (D.value.apply v) -> SourceCones.Tangential v := \fun (v: Domain.Vector)(member: TargetCones.Tangential (D.value.apply v)) => SourceCones.Lineality[c := left, v := v].toIntrinsic
+  (\fun (i: Model.Coordinate)(active: Model.Active c.constraints (Domain.coordinate left) i) => trans!{real.Analysis[].Real} _ _ _
+    (sym!{real.Analysis[].Real} _ _ (congr!{{Model.Point} {real.Analysis[].Real}} (\fun (p: Model.Point) => p i) _ _ (coordinates v)))
+    (TargetCones.Lineality[c := right, v := D.value.apply v].fromIntrinsic member i
+      (\idelim (Domain.coordinate left \of Model.Point) = (Codomain.coordinate right \of Model.Point) \with p: Model.Point => Model.Active c.constraints p i \by { base: active, equality: coordinateSame })));

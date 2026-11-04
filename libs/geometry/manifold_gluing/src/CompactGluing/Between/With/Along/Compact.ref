@@ -3,8 +3,23 @@
 \definition ofAtlas[atlas: Atlases.Atlas]: Models.Manifold := Models.Manifold {
   Point := Point, space := topology, atlas := atlas, hausdorff := Properties.hausdorff, secondCountable := Properties.secondCountable,
 };
+\module Construction(c: Collars.Construction);
+\definition LeftMap[atlas: Atlases.Atlas]: \Set := boundary_manifolds.SmoothMap[n := Nat.add One.dimension n, m := Nat.add One.dimension n].Between[M := M, N := ofAtlas atlas].Map;
+\definition RightMap[atlas: Atlases.Atlas]: \Set := boundary_manifolds.SmoothMap[n := Nat.add One.dimension n, m := Nat.add One.dimension n].Between[M := N, N := ofAtlas atlas].Map;
+\definition SeamMap[c: Collars.Construction][atlas: Atlases.Atlas]: \Set := Construction[c := c].SeamMap atlas;
+\definition leftApply[atlas: Atlases.Atlas][f: LeftMap atlas][x: M.Point]: Point := boundary_manifolds.SmoothMap[n := Nat.add One.dimension n, m := Nat.add One.dimension n].Between[M := M, N := ofAtlas atlas].apply f x;
+\definition rightApply[atlas: Atlases.Atlas][f: RightMap atlas][x: N.Point]: Point := boundary_manifolds.SmoothMap[n := Nat.add One.dimension n, m := Nat.add One.dimension n].Between[M := N, N := ofAtlas atlas].apply f x;
+\definition seamApply[c: Collars.Construction][atlas: Atlases.Atlas][f: SeamMap c atlas][x: Construction[c := c].SeamPoint]: Point := Construction[c := c].seamApply atlas f x;
 \structure Result: \Set := {
+  collars: Collars.Construction,
   atlas: Atlases.Atlas,
+  atlasConstructed: atlas = Construction[c := collars].atlas,
+  left: LeftMap atlas,
+  right: RightMap atlas,
+  seam: SeamMap collars atlas,
+  leftValue: \forall (x: M.Point) -> leftApply atlas left x = Seam.inl x,
+  rightValue: \forall (x: N.Point) -> rightApply atlas right x = Seam.inr x,
+  seamValue: \forall (x: Construction[c := collars].SeamPoint) -> seamApply collars atlas seam x = Construction[c := collars].seamFunction x,
   noBoundary: \forall (x: Point) -> Logic.Not boundary_manifolds.Tangent[n := Nat.add One.dimension n].On[M := ofAtlas atlas].At[x := x].Cones[].Boundary,
 };
 \definition manifold[result: Result]: Models.Manifold := ofAtlas result.atlas;
