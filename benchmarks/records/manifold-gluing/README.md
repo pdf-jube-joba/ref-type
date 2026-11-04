@@ -47,3 +47,5 @@ collar を保つ写像の貼り合わせの検査は [maps/README.md](maps/READM
 丸めの外側の恒等微分同相の検査は [roundoutside/README.md](roundoutside/README.md) にある。
 
 積 collar 上のコンパクトな丸め領域の検査は [roundsupport/README.md](roundsupport/README.md) にある。
+
+コンパクトな丸め領域の角近傍モデルの検査は [roundnear/README.md](roundnear/README.md) にある。
