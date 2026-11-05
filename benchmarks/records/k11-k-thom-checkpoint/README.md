@@ -61,3 +61,13 @@ K11 の計画ファイルは完了扱いにせず残している。
 類の比較の検査は、実際の束同型と微分の可換性を持つ `Differential.Data` を引数とする定理の検査である。
 そのデータの存在・局所引き戻し・全体の積の最終接続、および全体の Thom 同型は、無加工ソースでの統合検査を継続している。
 Draft PR は [#75](https://github.com/pdf-jube-joba/ref-type/pull/75) である。
+
+## 無加工ソースの積の定理
+
+数学ソース `c96d11aad` 上で、通常 CLI の `--module k_theory_thom.Thom.KoszulProduct` が成功した。
+宣言・本体を省略せず、CLI 自身の `--save-source-snapshot` で読み込んだソースを保存した検査である。
+8,108 source steps、587検査モジュール、対象と依存の2,451モジュールを受理した。
+実際のデータの存在、局所引き戻し、標準 Koszul 類と外積の一致、およびすべての `KoszulProduct` 子モジュールを含む。
+[koszul-product-report.json.gz](koszul-product-report.json.gz) が元報告、[product-source-sha256.json.gz](product-source-sha256.json.gz) が入力全8,121ファイルのハッシュである。
+入力の全バイト列を checkout と `c96d11aad` の Git blob に照合した。
+一般 Thom 同型・任意階数 Bott 同型・公開 API 全体と通常の回帰・全体検査は引き続き検査中であり、K11 全体の完了はまだ宣言しない。
