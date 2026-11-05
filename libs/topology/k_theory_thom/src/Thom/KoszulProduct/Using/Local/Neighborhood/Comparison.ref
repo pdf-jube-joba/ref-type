@@ -1,0 +1,58 @@
+\import Operations.Models[X := Geometry.Total, baseSpace := Geometry.topology] \as Models;
+\import Operations.Models[X := Product.Z, baseSpace := Product.topology] \as TargetModels;
+\import Whole.FiniteComplexes[].Of[complex := Encoded.complex] \as First;
+\import Support.On[X := Product.Z, space := Product.topology, hausdorff := Product.hausdorffProduct,
+  locallyCompact := topology.LocallyCompact[A := Product.Z].compactLocallyCompact Product.topology Product.compactProduct]
+  .FiniteComplexes[].Of[complex := Restricted.complex] \as Second;
+\import bundle_complements.Complements[].Over[K := C.Complex, field := C.Algebra[].field,
+  conjugation := linear_algebra.Hermitian[].Complex[].scalar, scalar := Scalars.scalar] \as Complements;
+\import Models.Pullback[b := First.even, Y := Product.Z, source := Product.topology, f := g, regular := gContinuous] \as Positive;
+\import Models.Pullback[b := First.odd, Y := Product.Z, source := Product.topology, f := g, regular := gContinuous] \as Negative;
+\definition originalPositive: Bundles.Isomorphisms[X := Product.Z, F := (\fun (p: Product.Z) => First.Even (g p)), G := Second.Even,
+  source := TargetModels.bundle Positive.value, target := TargetModels.bundle Second.even].Isomorphism := Restricted.positive;
+\definition originalNegative: Bundles.Isomorphisms[X := Product.Z, F := (\fun (p: Product.Z) => First.Odd (g p)), G := Second.Odd,
+  source := TargetModels.bundle Negative.value, target := TargetModels.bundle Second.odd].Isomorphism := Restricted.negative;
+\definition originalCommutesD: \forall (p: Product.Z)(v: First.Even (g p)) ->
+  (Second.d.fiber p).apply ((originalPositive.forward.fiber p).apply v) = (originalNegative.forward.fiber p).apply ((First.d.fiber (g p)).apply v) := Restricted.forward;
+\definition originalCommutesE: \forall (p: Product.Z)(v: First.Odd (g p)) ->
+  (Second.e.fiber p).apply ((originalNegative.forward.fiber p).apply v) = (originalPositive.forward.fiber p).apply ((First.e.fiber (g p)).apply v) := Restricted.backward;
+\import Models.PullbackMap[p := First.even, q := First.odd, Y := ActualPair.A, source := ActualPair.subspace,
+  f := In.boundaryInclusion, regular := In.boundaryRegular] \as OriginalD;
+\import Models.PullbackMap[p := First.odd, q := First.even, Y := ActualPair.A, source := ActualPair.subspace,
+  f := In.boundaryInclusion, regular := In.boundaryRegular] \as OriginalE;
+\import Operations.Models[X := ActualPair.A, baseSpace := ActualPair.subspace] \as BoundaryModels;
+\import BoundaryModels.Pullback[b := In.boundaryEvenModel, Y := ProductPair.A, source := ProductPair.subspace, f := boundary, regular := boundaryRegular] \as OldPositive;
+\import BoundaryModels.Pullback[b := In.boundaryOddModel, Y := ProductPair.A, source := ProductPair.subspace, f := boundary, regular := boundaryRegular] \as OldNegative;
+\import BoundaryModels.PullbackMap[p := In.boundaryEvenModel, q := In.boundaryOddModel, Y := ProductPair.A, source := ProductPair.subspace, f := boundary, regular := boundaryRegular] \as OldD;
+\import BoundaryModels.PullbackMap[p := In.boundaryOddModel, q := In.boundaryEvenModel, Y := ProductPair.A, source := ProductPair.subspace, f := boundary, regular := boundaryRegular] \as OldE;
+\import \root.Thom[].AcyclicPullback[X := ActualPair.A, space := ActualPair.subspace, compact := In.boundaryCompact, hausdorff := In.boundaryHausdorff,
+  p := In.boundaryEvenModel, q := In.boundaryOddModel, d := OriginalD.map First.d, e := OriginalE.map First.e,
+  Y := ProductPair.A, target := ProductPair.subspace, targetCompact := RC.boundaryCompact, targetHausdorff := RC.boundaryHausdorff,
+  f := boundary, regular := boundaryRegular].With[c := c] \as PulledContraction;
+\import TargetModels.Pullback[b := Second.even, Y := ProductPair.A, source := ProductPair.subspace, f := RC.inclusion, regular := RC.inclusionContinuous] \as BoundaryPositive;
+\import TargetModels.Pullback[b := Second.odd, Y := ProductPair.A, source := ProductPair.subspace, f := RC.inclusion, regular := RC.inclusionContinuous] \as BoundaryNegative;
+\import TargetModels.PullbackMap[p := Second.even, q := Second.odd, Y := ProductPair.A, source := ProductPair.subspace, f := RC.inclusion, regular := RC.inclusionContinuous] \as TargetD;
+\import TargetModels.PullbackMap[p := Second.odd, q := Second.even, Y := ProductPair.A, source := ProductPair.subspace, f := RC.inclusion, regular := RC.inclusionContinuous] \as TargetE;
+\module BoundaryGeometry;
+\import Support.CompactBundles[X := ProductPair.A, space := ProductPair.subspace, compact := RC.boundaryCompact, hausdorff := RC.boundaryHausdorff]
+  .Transport[p := OldPositive.value, q := OldNegative.value, r := BoundaryPositive.value, s := BoundaryNegative.value,
+    d0 := OldD.map (OriginalD.map First.d), e0 := OldE.map (OriginalE.map First.e), d1 := TargetD.map Second.d, e1 := TargetE.map Second.e,
+    positive := BoundaryGeometry[].positive, negative := BoundaryGeometry[].negative,
+    commutesD := BoundaryGeometry[].commutesD, commutesE := BoundaryGeometry[].commutesE].With[c := PulledContraction.contraction] \as Transport;
+\import In.With[contraction := c] \as Start;
+\import RC.Supported[exact := restrictedExact].With[contraction := Transport.contraction] \as Finish;
+\import ProductMapping.BundleTriples[F := In.FirstFiber, G := In.SecondFiber, firstModel := In.firstOnLocal, secondModel := In.secondOnLocal] \as Triples;
+\import Triples.With[alpha := Start.comparison] \as Pulled;
+\module LocalGeometry;
+\definition commutes: \forall (p: ProductPair.A)(v: First.Even (g p)) ->
+  (Finish.comparison.forward.fiber p).apply ((LocalGeometry[].positive.forward.fiber p).apply v) =
+  (LocalGeometry[].negative.forward.fiber p).apply ((Pulled.comparison.forward.fiber p).apply v) :=
+  \fun (p: ProductPair.A)(v: First.Even (g p)) => Transport.forwardFormula p v;
+\import ProductPair.BundleTriples[F := Triples.FirstFiber, G := Triples.SecondFiber, firstModel := Triples.firstModelOnSource, secondModel := Triples.secondModelOnSource]
+  .To[H := Second.Even, I := Second.Odd, newFirstModel := RC.firstModel, newSecondModel := RC.secondModel]
+  .With[alpha := Pulled.comparison, beta := Finish.comparison, positive := LocalGeometry[].positive, negative := LocalGeometry[].negative, commutes := commutes] \as Change;
+\definition localEquation: Finish.value = ProductMapping.relative Start.localValue := trans!{{ProductQ.Relative}} _ _ _
+  (sym!{{ProductQ.Relative}} _ _ Change.reducedEquation) Pulled.reducedNaturality;
+\definition equation: value c = restrictedValue := trans!{{ProductQ.Relative}} _ _ _ (mappingFormula c)
+  (trans!{{ProductQ.Relative}} _ _ _ (sym!{{ProductQ.Relative}} _ _ localEquation)
+    (sym!{{ProductQ.Relative}} _ _ (RC.Supported[exact := restrictedExact].agreement Transport.contraction)));
