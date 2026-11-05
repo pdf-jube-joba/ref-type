@@ -1,0 +1,20 @@
+\import Box.With[h := h] \as Rectangle;
+\definition base: BaseOpen.OpenSet := Rectangle.base;
+\definition baseBox: Base.Box := Rectangle.baseBox;
+\definition interval: Integration.Interval := Rectangle.interval;
+\definition centerBase: Base.Point := Rectangle.centerBase;
+\definition centerNormal: Real.Real := Rectangle.centerNormal;
+\definition baseContains: BaseSets.Member base.points centerBase := Rectangle.baseContains;
+\definition baseIncluded[x: Base.Point]: BaseSets.Member base.points x -> BaseSets.Member (Base.points baseBox) x := Rectangle.baseIncluded x;
+\definition intervalStrict: R.Lt interval.left interval.right := Rectangle.intervalStrict;
+\definition centerInterval: Logic.And[R.Lt interval.left centerNormal, R.Lt centerNormal interval.right] := Rectangle.centerInterval;
+\definition join[x: Base.Point][t: Real.Real]: E.Point := P.point (Coordinates.join (Pair.pair Base.Point Real.Real x t));
+\definition included[x: E.Point]: Sets.Member domain.points x -> Sets.Member U.points (P.point x) := \fun (inside: _) => Preimage.inTarget (\into[E.Point](x, domain.points) \by { inside });
+\definition productIncluded[x: Base.Point][t: Real.Real]: BaseSets.Member (Base.points baseBox) x ->
+  Logic.And[R.Le interval.left t, R.Le t interval.right] -> Sets.Member U.points (join x t) :=
+  \fun (baseInside: _)(normalInside: _) => included _ (Rectangle.productIncluded x t baseInside normalInside);
+\definition openProductIncluded[x: Base.Point][t: Real.Real]: BaseSets.Member base.points x ->
+  Logic.And[R.Le interval.left t, R.Le t interval.right] -> Sets.Member U.points (join x t) :=
+  \fun (baseInside: _)(normalInside: _) => productIncluded x t (baseIncluded x baseInside) normalInside;
+\definition centerJoined: join centerBase centerNormal = a := trans!{E.Point} _ _ _
+  (congr!{E.Point E.Point} P.point _ _ Rectangle.centerPoint) (P.right a);

@@ -1,0 +1,37 @@
+\import Forms.On[U := U] \as SourceForms;
+\import Forms.On[U := V] \as TargetForms;
+\import Forms.Pullback[m := n, U := U, V := V, f := e.forward] \as Pullback;
+\import Real.SquareRoot[] \as Root;
+\import R.Order[] \as Order;
+\definition signed: Smooth.SmoothFunction U :=
+  SourceForms.evaluate n (Pullback.apply n (TargetForms.At[k := n].constant Top.volume)) Top.basisArguments;
+\definition signedValue[x: Open.Carrier U]: signed x = J.signed x := \refl(J.signed x);
+\definition signedSmooth: Smooth.SmoothOn U J.signed :=
+  \bysub(Open.ScalarFunction U, Smooth.SmoothFunction U, signed);
+\definition square[x: Open.Carrier U]: Real.Real := Real.mul (J.signed x) (J.signed x);
+\definition squarePositive[x: Open.Carrier U]: R.Lt Real.zero (square x) :=
+  Order.ltOfLeNotEq Real.zero (square x) (Algebra.squareNonnegative (J.signed x))
+    (\fun (zero: Real.zero = square x) => J.Inverse[e := e, agrees := \refl(e.forward)].nonzero x
+      (Algebra.squareZero (J.signed x) (sym!{Real.Real} _ _ zero)));
+\definition squareFunction: Smooth.SmoothFunction U :=
+  \into[Open.ScalarFunction U](square, Smooth.SmoothFunction U) \by {
+    Operations.mulSmooth U J.signed J.signed signedSmooth signedSmooth
+  };
+\import Smooth.SquareRoot[U := U, f := squareFunction, positive := squarePositive] \as SquareRoot;
+\definition absoluteSquare[x: Open.Carrier U]: Real.mul (J.absolute x) (J.absolute x) = square x :=
+  trans!{Real.Real} _ _ _ (sym!{Real.Real} _ _ (Absolute.absProduct (J.signed x) (J.signed x)))
+    (Absolute.absOfNonnegative (square x) (Algebra.squareNonnegative (J.signed x)));
+\definition rootValue[x: Open.Carrier U]: SquareRoot.value x = J.absolute x :=
+  Root.squaresInjective (SquareRoot.value x) (J.absolute x) (Root.nonnegative (square x)) (J.nonnegative x)
+    (trans!{Real.Real} _ _ _ (Root.squareOfNonnegative (square x) (Algebra.squareNonnegative (J.signed x)))
+      (sym!{Real.Real} _ _ (absoluteSquare x)));
+\definition absoluteSmooth: Smooth.SmoothOn U J.absolute :=
+  \idelim SquareRoot.value = J.absolute \with h: Open.ScalarFunction U => Smooth.SmoothOn U h \by {
+    base: SquareRoot.smooth,
+    equality: \axiom:funext(SquareRoot.value, J.absolute, rootValue)
+  };
+\definition absolute: Smooth.SmoothFunction U := \into[Open.ScalarFunction U](J.absolute, Smooth.SmoothFunction U) \by { absoluteSmooth };
+\definition density[h: Smooth.SmoothFunction V]: Smooth.SmoothFunction U :=
+  \into[Open.ScalarFunction U](Euclidean.Density[U := U, V := V, f := e.forward].pullback h, Smooth.SmoothFunction U) \by {
+    Operations.mulSmooth U J.absolute (Composition.scalar h) absoluteSmooth (Composition.smooth h)
+  };

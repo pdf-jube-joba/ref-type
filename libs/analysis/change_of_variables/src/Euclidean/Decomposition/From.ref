@@ -1,0 +1,45 @@
+\import Partitions.Sequence[family := family, bumps := selected.values] \as Sequence;
+\import Sequence.FiniteCover[S := SmoothFunctions.support f] \as Cover;
+\definition multiplier[k: N.Nat^]: Functions.Function :=
+  \into[Open.ScalarFunction Open.whole]((\fun (x: Open.Carrier Open.whole) => Sequence.part k x), Functions.Function) \by { Partitions.regular (Sequence.part k) };
+\definition piece[k: N.Nat^]: L.SmoothCompact := Integrals.multiply f (multiplier k);
+\definition within[k: N.Nat^]: Sets.Subset (SmoothFunctions.support (piece k)) (selected.values k).openSet :=
+  Sets.subsetTrans _ _ _
+    (Support.supportWithinClosed Ambient.topology (piece k) (SmoothFunctions.support (Sequence.part k)) (Support.supportClosed Ambient.topology (Sequence.part k))
+      (\fun (x: Point)(outside: _) => trans!{Real.Real} _ _ _
+        (congr!{Real.Real Real.Real} (Real.mul (f x)) _ _ (Support.zeroOutsideSupport Ambient.topology (Sequence.part k) x outside)) (Laws.fieldMulZeroRight (f x))))
+    (Sets.subsetTrans _ _ _ (Sequence.partSupport k) (selected.values k).supportWithin);
+\definition prefix: \forall (k: N.Nat^)(x: Point) -> Countable.prefix (\fun (j: N.Nat^)(y: Point) => piece j y) x k =
+  Real.mul (f x) (Countable.prefix Sequence.values x k) :=
+  \induction (k: N.Nat^) \return \forall (x: Point) -> Countable.prefix (\fun (j: N.Nat^)(y: Point) => piece j y) x k =
+    Real.mul (f x) (Countable.prefix Sequence.values x k) \with {
+    | zero: \fun (x: Point) => sym!{Real.Real} _ _ (Laws.fieldMulZeroRight (f x))
+    | succ: \fun (k: N.Nat^)(previous: _)(x: Point) => trans!{Real.Real} _ _ _
+      (congr!{Real.Real Real.Real} (\fun (v: Real.Real) => Real.add v (piece k x)) _ _ (previous x))
+      (sym!{Real.Real} _ _ (Laws.fieldMulAdd (f x) (Countable.prefix Sequence.values x k) (Sequence.part k x)))
+  };
+\definition normalized[k: N.Nat^][x: Point]: Sets.Member (Cover.region k) x -> Countable.prefix Sequence.values x k = Real.one :=
+  \fun (inside: _) => trans!{Real.Real} _ _ _
+    (sym!{Real.Real} _ _ (Laws.addZeroRight (Countable.prefix Sequence.values x k)))
+    (trans!{Real.Real} _ _ _
+      (congr!{Real.Real Real.Real} (Real.add (Countable.prefix Sequence.values x k)) _ _ (sym!{Real.Real} _ _ (Cover.residueZero k x inside)))
+      (Sequence.normalization k x));
+\definition pointwise[k: N.Nat^]: Sets.Subset (SmoothFunctions.support f) (Cover.region k) -> \forall (x: Point) ->
+  Countable.prefix (\fun (j: N.Nat^)(y: Point) => piece j y) x k = f x :=
+  \fun (covered: _)(x: Point) => trans!{Real.Real} _ _ _ (prefix k x)
+    (Logic.orElim _ _ _ (std.Logic[].Classical[].excludedMiddle (Sets.Member (SmoothFunctions.support f) x))
+      (\fun (inside: Sets.Member (SmoothFunctions.support f) x) => trans!{Real.Real} _ _ _
+        (congr!{Real.Real Real.Real} (Real.mul (f x)) _ _ (normalized k x (covered x inside))) (Algebra.mulOneRight (f x)))
+      (\fun (outside: Logic.Not (Sets.Member (SmoothFunctions.support f) x)) => trans!{Real.Real} _ _ _
+        (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (\fun (v: Real.Real) => Real.mul v (Countable.prefix Sequence.values x k)) _ _ (Support.zeroOutsideSupport Ambient.topology f x outside)) (Laws.fieldMulZeroLeft _))
+        (sym!{Real.Real} _ _ (Support.zeroOutsideSupport Ambient.topology f x outside))));
+\definition exists: \exists Data := \block {
+  \takefrom size: \Cast[N.Nat^] ({ k: N.Nat^ \where Sets.Subset (SmoothFunctions.support f) (Cover.region k) })
+    \by Cover.prefixExists (L.smoothCompactLaws f).compact selected.covers \then
+  \return \exact(Data {
+    size := size, pieces := piece, domains := \fun (k: N.Nat^) => (selected.values k).openSet,
+    refines := \fun (k: N.Nat^) => (selected.values k).inCover,
+    within := within,
+    pointwise := pointwise size (\bysub(N.Nat^, { k: N.Nat^ \where Sets.Subset (SmoothFunctions.support f) (Cover.region k) }, size)),
+  }, Data)
+};

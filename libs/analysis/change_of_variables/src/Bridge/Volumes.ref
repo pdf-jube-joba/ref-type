@@ -1,0 +1,24 @@
+\import product_integration.Finiteness[A := Real.Real, mu := Line.measure] \as RF;
+\import product_integration.Cuts[A := E.Point] \as Cuts;
+\import EP.Volumes[] \as EV;
+\definition leftMass[b: E.Box]: product_integration.Finiteness[A := L.Point, mu := L.MeasureConstruction[].measure].FiniteMeasurableSet := EV.leftMass b;
+\definition rightMass[b: E.Box]: RF.FiniteMeasurableSet := \into[\Pow Real.Real](scalarSet (R.points (rightBox b)), RF.FiniteMeasurableSet) \by {
+  RF.FiniteSet[scalarSet (R.points (rightBox b))] {
+    measurable := scalarMeasurable _ (Right.boxFinite (rightBox b)).measurable,
+    bounded := Logic.existsIntro[Real.Real, { bound: Real.Real \where \forall (r: Real.Real) -> M.below (Line.measure.value (scalarSet (R.points (rightBox b)))) r -> Order.Le r bound }] (R.volume (rightBox b))
+      (\fun (r: Real.Real)(member: M.below (Line.measure.value (scalarSet (R.points (rightBox b)))) r) => Order.Order[].leOfLt r (R.volume (rightBox b))
+        (\idelim Line.measure.value (scalarSet (R.points (rightBox b))) = R.volumeValue (rightBox b) \with v: M.Value => M.below v r \by {
+          base: member, equality: eq_reason_in!{M.Value _ "=" _ "by" { scalarValue _ } "=" _ "by" { euclidean_measure.BoxVolume[n := one].boxVolume (rightBox b) } } })),
+  }
+};
+\definition rightValue[b: E.Box]: RF.mass (rightMass b) = R.volume (rightBox b) := Cuts.injective _ _ (eq_reason_in!{M.Value _
+  "=" _ "by" { sym!{M.Value} _ _ (RF.massCut (rightMass b)) }
+  "=" _ "by" { scalarValue _ }
+  "=" _ "by" { euclidean_measure.BoxVolume[n := one].boxVolume (rightBox b) }
+});
+\definition theorem[b: E.Box]: Push.measure.value (E.points b) = E.volumeValue b := eq_reason_in!{M.Value _
+  "=" _ "by" { congr!{{\Pow Sigma.Point} M.Value} Product.measure.value _ _ (boxPreimage b) }
+  "=" _ "by" { Product.FiniteRectangle[U := leftMass b, V := rightMass b].theorem }
+  "=" _ "by" { congr!{Real.Real M.Value} Cuts.cut _ _ (congr!{Real.Real Real.Real Real.Real} Real.mul _ _ _ _ (EV.leftValue b) (rightValue b)) }
+  "=" _ "by" { congr!{Real.Real M.Value} Cuts.cut _ _ (sym!{Real.Real} _ _ (EV.volume b)) }
+};

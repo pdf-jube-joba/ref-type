@@ -1,0 +1,38 @@
+\definition within: Sets.Subset (Functions.support f) V.points := \fun (y: E.Point) (member: Sets.Member (Functions.support f) y) => withinTarget y (supported y member);
+\import \root.Euclidean[n := Index.total].Diffeomorphism[U := U, V := V, e := e].Compact[f := f, within := within] \as Pullback;
+\import \root.Euclidean[n := Index.total].Compact[] \as TargetIntegral;
+\definition sourceZero[x: E.Point]: Logic.Not (Sets.Member region x) -> Pullback.value x = Real.zero := \fun (outside: Logic.Not (Sets.Member region x)) =>
+  Logic.orElim (Sets.Member U.points x) (Logic.Not (Sets.Member U.points x)) (Pullback.value x = Real.zero) (Classical.excludedMiddle (Sets.Member U.points x))
+    (\fun (inside: Sets.Member U.points x) => \block {
+      \let point: Open.Carrier U := \into[E.Point](x, U.points) \by { inside } \then
+      \let zero: f (Maps.apply U V e.forward point) = Real.zero := Support.zeroOutsideSupport Ambient.topology f (Maps.apply U V e.forward point)
+        (\fun (member: Sets.Member (Functions.support f) (Maps.apply U V e.forward point)) => outside (preimage point (supported (Maps.apply U V e.forward point) member))) \then
+      \return eq_reason_in!{Real.Real _
+        "=" _ "by" { Pullback.inside point }
+        "=" _ "by" { congr!{Real.Real Real.Real} (Real.mul (\root.Euclidean[n := Index.total].Jacobian[U := U, V := V, f := e.forward].absolute point)) _ _ zero }
+        "=" _ "by" { Laws.fieldMulZeroRight (\root.Euclidean[n := Index.total].Jacobian[U := U, V := V, f := e.forward].absolute point) }
+      }
+    })
+    (\fun (outsideU: Logic.Not (Sets.Member U.points x)) => Pullback.outside x outsideU);
+\definition targetZero[y: E.Point]: Logic.Not (Sets.Member image y) -> f y = Real.zero :=
+  \fun (outside: Logic.Not (Sets.Member image y)) => Support.zeroOutsideSupport Ambient.topology f y (\fun (member: Sets.Member (Functions.support f) y) => outside (supported y member));
+\import \root.Euclidean[n := Index.total].BorelCompact[f := Pullback.value] \as SourceBorel;
+\import \root.Euclidean[n := Index.total].BorelCompact[f := f] \as TargetBorel;
+\import \root.Bridge[n := n].Transfer[].For[f := SourceBorel.representative] \as SourceTransport;
+\import \root.Bridge[n := n].Transfer[].For[f := TargetBorel.representative] \as TargetTransport;
+\import lp_spaces.On[A := E.Point, mu := Lebesgue.measure].One[].Norm[] \as IntegralEquality;
+\import functional_analysis.Measure[A := CoordinatesPoint].Integral[mu := product_integration.Product[A := Base.Point, B := Real.Real, mu := BaseMeasure.measure, nu := Line.measure, left := BaseFinite.exhaustion, right := \root.RealLine[].exhaustion].measure] \as PI;
+\definition source: PI.Representatives := SourceTransport.product;
+\definition target: PI.Representatives := TargetTransport.product;
+\definition sourceIntegral: I.integral Pullback.representative = PI.integral source :=
+  trans!{Real.Real} _ _ _ (IntegralEquality.integralPointwise Pullback.representative SourceTransport.euclidean (\fun (x: E.Point) => \refl(Pullback.value x))) SourceTransport.theorem;
+\definition targetIntegral: PI.integral target = I.integral (TargetIntegral.representative f) :=
+  trans!{Real.Real} _ _ _ (sym!{Real.Real} _ _ TargetTransport.theorem)
+    (IntegralEquality.integralPointwise TargetTransport.euclidean (TargetIntegral.representative f) (\fun (x: E.Point) => \refl(f x)));
+\import Open.Restriction[] \as Restriction;
+\definition global: Smooth.SmoothFunction Open.whole := \into[Open.ScalarFunction Open.whole]((\fun (x: Open.Carrier Open.whole) => f x), Smooth.SmoothFunction Open.whole) \by {
+  (L.smoothCompactLaws f).smooth };
+\module Positive(sign: \forall (x: Base.Point) (t: Real.Real) (inBase: BaseSets.Member base x) (at: R.Le interval.left t) (tb: R.Le t interval.right) ->
+  R.Lt Real.zero (partial (\into[E.Point](join x t, U.points) \by { contains x t inBase at tb })));
+\module Negative(sign: \forall (x: Base.Point) (t: Real.Real) (inBase: BaseSets.Member base x) (at: R.Le interval.left t) (tb: R.Le t interval.right) ->
+  R.Lt (partial (\into[E.Point](join x t, U.points) \by { contains x t inBase at tb })) Real.zero);

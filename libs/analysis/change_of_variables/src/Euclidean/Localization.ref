@@ -1,0 +1,24 @@
+\import lp_spaces.Euclidean[n := n] \as L;
+\import L.Compact[p := lp_spaces.Powers[].one] \as Integrable;
+\import smooth_partitions.Euclidean[n := n] \as Smooth;
+\import topological_algebra.Euclidean[].Dimension[n := n].Topology[] \as Ambient;
+\import topology.Topology[Carrier := Point] \as Sets;
+\structure Conditions[h: Open.ScalarFunction U]: \Prop := {
+  smooth: Open.Smooth[].SmoothOn U h,
+  compact: Sets.IsCompactIn Ambient.topology (Smooth.support (Smooth.ZeroExtension[U := U, f := h].value)),
+  within: Sets.Subset (Smooth.support (Smooth.ZeroExtension[U := U, f := h].value)) U.points,
+};
+\definition extend[h: Open.ScalarFunction U][valid: Conditions[h]]: L.SmoothCompact :=
+  \into[L.Function](Smooth.ZeroExtension[U := U, f := h].value, L.SmoothCompact) \by {
+    L.SmoothCompactLaws[Smooth.ZeroExtension[U := U, f := h].value] {
+      smooth := Smooth.ZeroExtension[U := U, f := h].smooth valid.smooth valid.within,
+      compact := valid.compact,
+    }
+  };
+\definition representative[h: Open.ScalarFunction U][valid: Conditions[h]]: I.Representatives :=
+  lp_spaces.On[A := Point, mu := Lebesgue.measure].One[].toIntegral (Integrable.smoothRepresentative (extend h valid));
+\definition inside[h: Open.ScalarFunction U][valid: Conditions[h]][x: Open.Carrier U]: extend h valid x = h x := Smooth.ZeroExtension[U := U, f := h].inside x;
+\definition outside[h: Open.ScalarFunction U][valid: Conditions[h]][x: Point]: Logic.Not (Sets.Member U.points x) -> extend h valid x = Real.zero :=
+  Smooth.ZeroExtension[U := U, f := h].outside x;
+\definition cutoff[K: \Pow Point]: Sets.IsCompactIn Ambient.topology K -> Sets.Subset K U.points -> \exists Smooth.CompactCutoff[K := K, U := U].Data :=
+  Smooth.CompactCutoff[K := K, U := U].existsCutoff;

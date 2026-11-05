@@ -1,0 +1,102 @@
+/* Eliminate a finite list of coordinate directions in the ambient space.
+   This also covers dimension zero: the list is then empty. */
+\definition FixedOutside[L: Maps.Map][xs: Lists.List[Index]]: \Prop := \forall (k: Index) -> Logic.Not (Fin.Occurs n k xs) -> L.apply (Basis.vectors k) = Basis.vectors k;
+\definition outsideDifferent[xs: Lists.List[Index]][i: Index][member: Fin.Occurs n i xs][k: Index][outside: Logic.Not (Fin.Occurs n k xs)]: Logic.Not (k = i) :=
+  \fun (same: _) => outside (\idelim i = k \with h: Index => Fin.Occurs n h xs \by { base: member, equality: sym!{Index} _ _ same });
+\definition action[L: Maps.Map][v: Point][l: Index]: L.apply v l = Sums.sum (Fin.elements n) (\fun (k: Index) => Real.mul (L.apply (Basis.vectors k) l) (v k)) :=
+  sym!{Real.Real} _ _ (congr!{{Maps.Map} Real.Real} (\fun (f: Maps.Map) => f.apply v l) _ _ (Representation.linearEntries L));
+\definition fixedVector[L: Maps.Map][xs: Lists.List[Index]][v: Point]: FixedOutside L xs ->
+  (\forall (k: Index) -> Fin.Occurs n k xs -> v k = Real.zero) -> L.apply v = v :=
+  \fun (fixed: _)(vanishes: _) => \axiom:funext(L.apply v, v, \fun (l: Index) => eq_reason_in!{Real.Real _
+    "=" _ "by" { action L v l }
+    "=" { Sums.sum (Fin.elements n) (\fun (k: Index) => Real.mul (Basis.vectors k l) (v k)) } "by" {
+      SumLaws.congruent (Fin.elements n) _ _ (\fun (k: Index) => Logic.orElim _ _ _ (Classical.excludedMiddle (Fin.Occurs n k xs))
+        (\fun (inside: _) => eq_reason_in!{Real.Real _
+          "=" _ "by" { congr!{Real.Real Real.Real} (Real.mul (L.apply (Basis.vectors k) l)) _ _ (vanishes k inside) }
+          "=" _ "by" { Laws.fieldMulZeroRight (L.apply (Basis.vectors k) l) }
+          "=" _ "by" { sym!{Real.Real} _ _ (Laws.fieldMulZeroRight (Basis.vectors k l)) }
+          "=" _ "by" { congr!{Real.Real Real.Real} (Real.mul (Basis.vectors k l)) _ _ (sym!{Real.Real} _ _ (vanishes k inside)) }
+        })
+        (\fun (outside: _) => congr!{Real.Real Real.Real} (\fun (a: Real.Real) => Real.mul a (v k)) _ _
+          (congr!{Point Real.Real} (\fun (x: Point) => x l) _ _ (fixed k outside))))
+    }
+    "=" { Sums.sum (Fin.elements n) (\fun (k: Index) => Real.mul (v k) (Basis.vectors l k)) } "by" {
+      SumLaws.congruent (Fin.elements n) _ _ (\fun (k: Index) => trans!{Real.Real} _ _ _ (Laws.fieldMulComm (Basis.vectors k l) (v k))
+        (congr!{Real.Real Real.Real} (Real.mul (v k)) _ _ (Kronecker.symmetric k l)))
+    }
+    "=" _ "by" { Basis.dualReconstruction v l }
+  });
+\definition Pivot[L: Maps.Map][xs: Lists.List[Index]][i: Index]: \Set := \Cast[Index] ({ k: Index \where Logic.And[Fin.Occurs n k xs, Logic.Not (L.apply (Basis.vectors i) k = Real.zero)] });
+\definition pivotLaws[L: Maps.Map][xs: Lists.List[Index]][i: Index][p: Pivot L xs i]: Logic.And[Fin.Occurs n p xs, Logic.Not (L.apply (Basis.vectors i) p = Real.zero)] := \bysub(Index, Pivot L xs i, p);
+\definition pivotExists[L: Maps.Map][xs: Lists.List[Index]][i: Index]: Inverse[L] -> FixedOutside L xs -> Fin.Occurs n i xs -> \exists Pivot L xs i :=
+  \fun (inverse: _)(fixed: _)(member: _) => Logic.orElim _ _ _ (Classical.excludedMiddle (\exists Pivot L xs i))
+    (\fun (exists: _) => exists)
+    (\fun (noPivot: _) => \block {
+      \let x: Point := L.apply (Basis.vectors i) \then
+      \let vanishes: \forall (k: Index) -> Fin.Occurs n k xs -> x k = Real.zero := \fun (k: Index)(inside: _) =>
+        Logic.orElim _ _ _ (Classical.excludedMiddle (x k = Real.zero)) (\fun (zero: _) => zero)
+          (\fun (nonzero: _) => Logic.falseElim _ (noPivot (Logic.existsIntro[Index, { k: Index \where Logic.And[Fin.Occurs n k xs, Logic.Not (x k = Real.zero)] }] k (Logic.And[_, _]::# inside nonzero)))) \then
+      \let sameImage: L.apply x = L.apply (Basis.vectors i) := fixedVector L xs x fixed vanishes \then
+      \let same: x = Basis.vectors i := eq_reason_in!{Point x
+        "=" _ "by" { sym!{Point} _ _ (inverse.left x) }
+        "=" _ "by" { congr!{Point Point} inverse.backward.apply _ _ sameImage }
+        "=" _ "by" { inverse.left (Basis.vectors i) }
+      } \then
+      \return Logic.falseElim _ (Algebra.field.nontrivial (eq_reason_in!{Real.Real Real.zero
+        "=" _ "by" { sym!{Real.Real} _ _ (vanishes i member) }
+        "=" _ "by" { congr!{Point Real.Real} (\fun (v: Point) => v i) _ _ same }
+        "=" _ "by" { Kronecker.self i }
+      }))
+    });
+\definition Reduction[L: Maps.Map][xs: Lists.List[Index]][i: Index]: \Set := \Cast[Word] ({ w: Word \where Logic.And[(Words.evaluate w).apply (L.apply (Basis.vectors i)) = Basis.vectors i, FixedOutside (Words.evaluate w) xs] });
+\definition reductionLaws[L: Maps.Map][xs: Lists.List[Index]][i: Index][w: Reduction L xs i]: Logic.And[(Words.evaluate w).apply (L.apply (Basis.vectors i)) = Basis.vectors i, FixedOutside (Words.evaluate w) xs] := \bysub(Word, Reduction L xs i, w);
+\module Prepare(L: Maps.Map, xs: Lists.List[Index], i: Index, member: Fin.Occurs n i xs, p: Pivot L xs i);
+\definition cancel: \forall (xs: Lists.List[Index])(L: Maps.Map) -> Inverse[L] -> FixedOutside L xs ->
+  \exists ( w: Word \where compose (Words.evaluate w) L = identity ) :=
+  \induction (xs: Lists.List[Index]) \return \forall (L: Maps.Map) -> Inverse[L] -> FixedOutside L xs ->
+    \exists ( w: Word \where compose (Words.evaluate w) L = identity ) \with {
+      | nil: \fun (L: Maps.Map)(inverse: Inverse[L])(fixed: FixedOutside L Lists.List[Index]::nil) =>
+        Logic.existsIntro[Word, { w: Word \where compose (Words.evaluate w) L = identity }] Word::identity
+          (Maps.ext (compose (Words.evaluate Word::identity) L) identity (\axiom:funext((compose (Words.evaluate Word::identity) L).apply, identity.apply, \fun (x: Point) => fixedVector L Lists.List[Index]::nil x fixed
+            (\fun (k: Index)(impossible: Fin.Occurs n k Lists.List[Index]::nil) => Logic.falseElim _ impossible))))
+      | cons: \fun (i: Index)(tail: Lists.List[Index])
+        (previous: \forall (L: Maps.Map) -> Inverse[L] -> FixedOutside L tail -> \exists ( w: Word \where compose (Words.evaluate w) L = identity ))
+        (L: Maps.Map)(inverse: Inverse[L])(fixed: FixedOutside L (Lists.List[Index]::cons i tail)) => \block {
+          \let xs: Lists.List[Index] := Lists.List[Index]::cons i tail \then
+          \let member: Fin.Occurs n i xs := Logic.Or[_, _]::left (\refl(i)) \then
+          \takefrom p: Pivot L xs i \by pivotExists L xs i inverse fixed member \then
+          \takefrom r: Reduction L xs i \by \root.Elementary[n := n].Elimination[].Prepare[L := L, xs := xs, i := i, member := member, p := p].fromPivot \then
+          \let reduced: Maps.Map := compose (Words.evaluate r) L \then
+          \let data: Logic.And[(Words.evaluate r).apply (L.apply (Basis.vectors i)) = Basis.vectors i, FixedOutside (Words.evaluate r) xs] := reductionLaws L xs i r \then
+          \let inverseReduced: Inverse[reduced] := Inverse[reduced] {
+            backward := compose inverse.backward (Words.evaluate (Words.inverse r)),
+            left := \fun (x: Point) => trans!{Point} _ _ _
+              (congr!{Point Point} inverse.backward.apply _ _ (Words.cancellation r (L.apply x))) (inverse.left x),
+            right := \fun (x: Point) => trans!{Point} _ _ _
+              (congr!{Point Point} (Words.evaluate r).apply _ _ (inverse.right ((Words.evaluate (Words.inverse r)).apply x))) (Words.reverseCancellation r x),
+          } \then
+          \let fixedReduced: FixedOutside reduced tail := \fun (k: Index)(outside: _) => Logic.orElim _ _ _ (Classical.excludedMiddle (k = i))
+            (\fun (same: _) => \idelim i = k \with h: Index => reduced.apply (Basis.vectors h) = Basis.vectors h \by { base: data.left, equality: sym!{Index} _ _ same })
+            (\fun (different: _) => \block {
+              \let outsideAll: Logic.Not (Fin.Occurs n k xs) := \fun (inside: _) => Logic.orElim _ _ _ inside
+                (\fun (same: _) => different same) (\fun (insideTail: _) => outside insideTail) \then
+              \return trans!{Point} _ _ _ (congr!{Point Point} (Words.evaluate r).apply _ _ (fixed k outsideAll)) (data.right k outsideAll)
+            }) \then
+          \takefrom w: \Cast[Word] ({ w: Word \where compose (Words.evaluate w) reduced = identity }) \by previous reduced inverseReduced fixedReduced \then
+          \let cancels: compose (Words.evaluate w) reduced = identity := \bysub(Word, { w: Word \where compose (Words.evaluate w) reduced = identity }, w) \then
+          \return Logic.existsIntro[Word, { w: Word \where compose (Words.evaluate w) L = identity }] (Word::compose w r)
+            (Maps.ext (compose (Words.evaluate (Word::compose w r)) L) identity (\axiom:funext((compose (Words.evaluate (Word::compose w r)) L).apply, identity.apply,
+              \fun (x: Point) => congr!{{Maps.Map} Point} (\fun (f: Maps.Map) => f.apply x) _ _ cancels)))
+        }
+    };
+\definition factorization[L: Maps.Map]: Inverse[L] -> Words.Generated L := \fun (inverse: Inverse[L]) => \block {
+  \takefrom c: \Cast[Word] ({ w: Word \where compose (Words.evaluate w) L = identity }) \by cancel (Fin.elements n) L inverse
+    (\fun (k: Index)(outside: Logic.Not (Fin.Occurs n k (Fin.elements n))) => Logic.falseElim _ (outside (Fin.exhaustive n k))) \then
+  \let cancellation: compose (Words.evaluate c) L = identity := \bysub(Word, { w: Word \where compose (Words.evaluate w) L = identity }, c) \then
+  \return Logic.existsIntro[Word, { w: Word \where Words.evaluate w = L }] (Words.inverse c)
+    (Maps.ext (Words.evaluate (Words.inverse c)) L (\axiom:funext((Words.evaluate (Words.inverse c)).apply, L.apply, \fun (x: Point) => eq_reason_in!{Point _
+      "=" _ "by" { congr!{Point Point} (Words.evaluate (Words.inverse c)).apply _ _
+        (sym!{Point} _ _ (congr!{{Maps.Map} Point} (\fun (f: Maps.Map) => f.apply x) _ _ cancellation)) }
+      "=" _ "by" { Words.cancellation c (L.apply x) }
+    })))
+};

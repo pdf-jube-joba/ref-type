@@ -1,0 +1,32 @@
+\definition imageInterval: Integration.Interval := Slices.reverseImageInterval \parent.\parent.Parameters[].data x;
+\import \root.RealLine[].Monotone[interval := interval, g := maps x, dg := derivatives x].Decreasing[derivative := \parent.\parent.Parameters[].data.differentiable x, negative := \parent.\parent.Parameters[].data.negative x] \as Increasing;
+\definition inside: Sets.Member image (join x t) -> Logic.And[R.Le imageInterval.left t, R.Le t imageInterval.right] := \block {
+  \fun (member: Sets.Member image (join x t)) \then
+  \takefrom z: \Cast[Open.Carrier U] ({ z: Open.Carrier U \where Logic.And[Sets.Member region z, Maps.apply U V e.forward z = join x t] }) \by member \then
+  \let law: Logic.And[Sets.Member region z, Maps.apply U V e.forward z = join x t] := \bysub(Open.Carrier U, { z: Open.Carrier U \where Logic.And[Sets.Member region z, Maps.apply U V e.forward z = join x t] }, z) \then
+  \let baseEqual: Coordinates.base z = x := eq_reason_in!{Base.Point _
+    "=" _ "by" { sym!{Base.Point} _ _ (fixed z) }
+    "=" _ "by" { congr!{E.Point Base.Point} Coordinates.base _ _ law.right }
+    "=" _ "by" { baseJoin x t }
+  } \then
+  \let inBase: BaseSets.Member base x := \idelim Coordinates.base z = x \with p: Base.Point => BaseSets.Member base p \by { base: law.left.left, equality: baseEqual } \then
+  \let xbase: \Cast[Base.Point] base := \into[Base.Point](x, base) \by { inBase } \then
+  \let s: Real.Real := Coordinates.normal z \then
+  \let closed: Continuous.Point := \into[Real.Real](s, RealTopology.ClosedInterval interval.left interval.right) \by {
+    Logic.And[_, _]::# (Order.leOfLt interval.left s law.left.right.left) (Order.leOfLt s interval.right law.left.right.right) } \then
+  \let zValue: z = join x s := pointExt z (join x s)
+    (trans!{Base.Point} _ _ _ baseEqual (sym!{Base.Point} _ _ (baseJoin x s))) (sym!{Real.Real} _ _ (normalJoin x s)) \then
+  \let pointValue: \parent.\parent.Fiber[x := xbase].point closed = z := trans!{E.Point} _ _ _ (\parent.\parent.Fiber[x := xbase].pointValue closed) (sym!{E.Point} _ _ zValue) \then
+  \let mapValue: maps x s = t := eq_reason_in!{Real.Real _
+    "=" _ "by" { congr!{{Continuous.Function} Real.Real} (\fun (g: Continuous.Function) => g s) _ _ (mapsInside xbase) }
+    "=" _ "by" { \parent.\parent.Fiber[x := xbase].valueAt closed }
+    "=" _ "by" { congr!{{Open.Carrier U} Real.Real} scalar (\parent.\parent.Fiber[x := xbase].point closed) z pointValue }
+    "=" _ "by" { congr!{E.Point Real.Real} Coordinates.normal _ _ law.right }
+    "=" _ "by" { normalJoin x t }
+  } \then
+  \return \idelim maps x s = t \with r: Real.Real => Logic.And[R.Le imageInterval.left r, R.Le r imageInterval.right] \by {
+    base: Logic.And[_, _]::#
+      (Increasing.weak s interval.right (Order.leOfLt interval.left s law.left.right.left) (R.leRefl interval.right) (Order.leOfLt s interval.right law.left.right.right))
+      (Increasing.weak interval.left s (R.leRefl interval.left) (Order.leOfLt s interval.right law.left.right.right) (Order.leOfLt interval.left s law.left.right.left)),
+    equality: mapValue }
+};

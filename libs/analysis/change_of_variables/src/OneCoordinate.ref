@@ -1,0 +1,61 @@
+\import std.Data[].Nat[] \as N;
+\import std.Data[].FinSet[] \as Fin;
+\import std.Data[].Pair[] \as Pair;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Classical[] \as Classical;
+\use std.Logic[].Equality[].congr;
+\use std.Logic[].Equality[].trans;
+\use std.Logic[].Equality[].sym;
+\use std.Logic[].Equality[].eq_reason_in;
+\import real.Analysis[] \as Real;
+\import dedekind_reals.DedekindReal[] \as R;
+\import R.Arithmetic[].Prop[] \as Laws;
+\import R.Order[] \as Order;
+\definition one: N.Nat^ := N.Nat^::succ N.Nat^::zero;
+\import Fin.Sum[m := n, n := one] \as Index;
+\import \root.Bridge[n := n] \as Coordinates;
+\import euclidean_measure.Euclidean[n := n] \as Base;
+\import Base.MeasureConstruction[] \as BaseMeasure;
+\import product_integration.Euclidean[n := n] \as BaseFinite;
+\import \root.Slices[A := Base.Point, mu := BaseMeasure.measure, exhaustion := BaseFinite.exhaustion] \as Slices;
+\import euclidean_measure.Euclidean[n := Index.total] \as E;
+\import E.MeasureConstruction[] \as Lebesgue;
+\import functional_analysis.Measure[A := E.Point].Integral[mu := Lebesgue.measure] \as I;
+\import euclidean_measure.RealLine[] \as Line;
+\import calculus.Real[].Multivariable[n := Index.total].Open[] \as Open;
+\import calculus.Maps[n := Index.total, m := Index.total] \as Maps;
+\import calculus.Diffeomorphism[n := Index.total, m := Index.total] \as Diffeomorphisms;
+\import Open.Smooth[] \as Smooth;
+\import Smooth.Derivative[] \as Partial;
+\import topology.Topology[Carrier := Base.Point] \as BaseSets;
+\import topology.Topology[Carrier := E.Point] \as Sets;
+\import topology.Topology[Carrier := Real.Real] \as RealSets;
+\import smooth_partitions.Euclidean[n := Index.total] \as Functions;
+\import lp_spaces.Euclidean[n := Index.total] \as L;
+\import functional_analysis.Support[A := E.Point] \as Support;
+\import topological_algebra.Euclidean[].Dimension[n := Index.total].Topology[] \as Ambient;
+\import integration.Real[] \as Integration;
+\definition join[x: Base.Point][t: Real.Real]: E.Point := Coordinates.join (Pair.pair Base.Point Real.Real x t);
+\definition pivot: Fin.Fin Index.total := Index.right (Fin.zero N.Nat^::zero);
+\definition CoordinatesPoint: \Set := Pair.Times^[Base.Point, Real.Real];
+\definition baseJoin[x: Base.Point][t: Real.Real]: Coordinates.base (join x t) = x :=
+  congr!{CoordinatesPoint Base.Point} (Pair.first Base.Point Real.Real) _ _ (Coordinates.splitJoin (Pair.pair Base.Point Real.Real x t));
+\definition normalJoin[x: Base.Point][t: Real.Real]: Coordinates.normal (join x t) = t :=
+  congr!{CoordinatesPoint Real.Real} (Pair.second Base.Point Real.Real) _ _ (Coordinates.splitJoin (Pair.pair Base.Point Real.Real x t));
+\import topological_algebra.Euclidean[].Dimension[n := Index.total].Def[] \as Points;
+\import calculus.Real[].Multivariable[n := Index.total].Space[].Prop[] \as SpaceLaws;
+\definition pointExt[x, y: E.Point]: Coordinates.base x = Coordinates.base y -> Coordinates.normal x = Coordinates.normal y -> x = y :=
+  \fun (baseEqual: Coordinates.base x = Coordinates.base y) (normalEqual: Coordinates.normal x = Coordinates.normal y) => eq_reason_in!{E.Point _
+    "=" _ "by" { sym!{E.Point} _ _ (Coordinates.joinSplit x) }
+    "=" _ "by" { congr!{CoordinatesPoint E.Point} Coordinates.join _ _ (Pair.Prop[A := Base.Point, B := Real.Real].ext (Coordinates.split x) (Coordinates.split y) baseEqual normalEqual) }
+    "=" _ "by" { Coordinates.joinSplit y }
+  };
+\definition replaceJoin[x: Base.Point][a, t: Real.Real]: Points.replace (join x a) pivot t = join x t :=
+  pointExt (Points.replace (join x a) pivot t) (join x t)
+    (\axiom:funext(Coordinates.base (Points.replace (join x a) pivot t), Coordinates.base (join x t), \fun (j: Fin.Fin n) => eq_reason_in!{Real.Real _
+      "=" _ "by" { SpaceLaws.replaceDifferent (join x a) pivot (Index.left j) t (\fun (equal: pivot = Index.left j) => Index.different j (Fin.zero N.Nat^::zero) (sym!{{Fin.Fin Index.total}} _ _ equal)) }
+      "=" _ "by" { congr!{Base.Point Real.Real} (\fun (p: Base.Point) => p j) _ _ (baseJoin x a) }
+      "=" _ "by" { sym!{Real.Real} _ _ (congr!{Base.Point Real.Real} (\fun (p: Base.Point) => p j) _ _ (baseJoin x t)) }
+    }))
+    (trans!{Real.Real} _ _ _ (SpaceLaws.replaceSame (join x a) pivot t) (sym!{Real.Real} _ _ (normalJoin x t)));
+\module At(U, V: Open.OpenSet, e: Diffeomorphisms.Diffeomorphism U V);

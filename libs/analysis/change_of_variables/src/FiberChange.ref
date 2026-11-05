@@ -1,0 +1,49 @@
+\import std.Data[].Nat[] \as N;
+\import std.Data[].FinSet[] \as Fin;
+\import std.Data[].Pair[] \as Pair;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Classical[] \as Classical;
+\use std.Logic[].Equality[].congr;
+\use std.Logic[].Equality[].sym;
+\use std.Logic[].Equality[].trans;
+\use std.Logic[].Equality[].eq_reason_in;
+\import real.Analysis[] \as Real;
+\import dedekind_reals.DedekindReal[] \as Order;
+\definition one: N.Nat^ := N.Nat^::succ N.Nat^::zero;
+\definition total: N.Nat^ := N.Nat^::succ n;
+\import euclidean_measure.Euclidean[n := one] \as Left;
+\import euclidean_measure.Euclidean[n := n] \as Fiber;
+\import euclidean_measure.Euclidean[n := total] \as Big;
+\import product_integration.Euclidean[n := one] \as LeftMeasure;
+\import product_integration.Euclidean[n := n] \as FiberMeasure;
+\import product_integration.EuclideanProduct[m := one, n := n] \as EP;
+\import product_integration.Product[A := Left.Point, B := Fiber.Point, mu := Left.MeasureConstruction[].measure, nu := Fiber.MeasureConstruction[].measure, left := LeftMeasure.exhaustion, right := FiberMeasure.exhaustion] \as Product;
+\import product_integration.ProductSigma[A := Left.Point, B := Fiber.Point, left := Left.MeasureConstruction[].measure.sigma, right := Fiber.MeasureConstruction[].measure.sigma] \as Sigma;
+\import product_integration.Integration[A := Left.Point, B := Fiber.Point, mu := Left.MeasureConstruction[].measure, nu := Fiber.MeasureConstruction[].measure, left := LeftMeasure.exhaustion, right := FiberMeasure.exhaustion] \as Fubini;
+\import functional_analysis.Measure[A := Sigma.Point] \as PM;
+\import PM.Integral[mu := Product.measure] \as PI;
+\import functional_analysis.Measure[A := Left.Point] \as LM;
+\import LM.Integral[mu := Left.MeasureConstruction[].measure] \as LI;
+\import functional_analysis.Measure[A := Fiber.Point].Integral[mu := Fiber.MeasureConstruction[].measure] \as FI;
+\import functional_analysis.Measure[A := Big.Point].Integral[mu := Big.MeasureConstruction[].measure] \as BI;
+\import topology.Topology[Carrier := Left.Point] \as LeftSets;
+\import topology.Topology[Carrier := Fiber.Point] \as FiberSets;
+\import topology.Topology[Carrier := Big.Point] \as BigSets;
+\import lp_spaces.Euclidean[n := total] \as BigL;
+\import lp_spaces.Euclidean[n := n] \as FiberL;
+\import \root.Euclidean[n := total].Compact[] \as BigCompact;
+\import \root.Euclidean[n := n].Compact[] \as FiberCompact;
+\import calculus.Real[].Multivariable[n := n].Open[] \as FiberOpen;
+\import calculus.Real[].Multivariable[n := total].Open[] \as BigOpen;
+\import calculus.Diffeomorphism[n := n, m := n] \as FiberDiffeomorphisms;
+\import calculus.Diffeomorphism[n := total, m := total] \as BigDiffeomorphisms;
+\import smooth_partitions.Euclidean[n := n] \as FiberFunctions;
+\import smooth_partitions.Euclidean[n := total] \as BigFunctions;
+\definition Hypothesis: \Prop := \forall (U, V: FiberOpen.OpenSet)(e: FiberDiffeomorphisms.Diffeomorphism U V)(f: FiberL.SmoothCompact)(within: FiberSets.Subset (FiberFunctions.support f) V.points) ->
+  FI.integral (\root.Euclidean[n := n].Diffeomorphism[U := U, V := V, e := e].Compact[f := f, within := within].representative) = FI.integral (FiberCompact.representative f);
+\module Compact(f: BigL.SmoothCompact);
+\module Exchange(f, g: BigL.SmoothCompact,
+  sections: \forall (c: Left.Point) -> FI.integral (FiberCompact.representative (\root.CompactSlices[n := one, m := n].slice f c)) = FI.integral (FiberCompact.representative (\root.CompactSlices[n := one, m := n].slice g c)));
+\module At(U, V: BigOpen.OpenSet, e: BigDiffeomorphisms.Diffeomorphism U V,
+  f: BigL.SmoothCompact, within: BigSets.Subset (BigFunctions.support f) V.points,
+  fixed: \root.Triangular[n := n].First[].At[U := U, V := V, f := e].Condition, induction: Hypothesis);

@@ -1,0 +1,15 @@
+\import \root.Interval[interval := interval].Lebesgue[f := g] \as Other;
+\import LineMeasure.IntervalIntegral[interval := interval] \as Mask;
+\import lp_spaces.On[A := Real, mu := LineMeasure.measure].One[].Norm[] \as IntegralEquality;
+\definition InsideEqual: \Prop := \forall (x: Real) -> R.Le a x -> R.Le x b -> f x = g x;
+\definition pointwise: InsideEqual -> \forall (x: Real) -> representative x = Other.representative x :=
+  \fun (same: _)(x: Real) => Logic.orElim _ _ _ (std.Logic[].Classical[].excludedMiddle (Logic.And[R.Le a x, R.Le x b]))
+    (\fun (inside: Logic.And[R.Le a x, R.Le x b]) => congr!{Real Real} (Scalars.mul (Mask.representative x)) _ _ (same x inside.left inside.right))
+    (\fun (outside: Logic.Not (Logic.And[R.Le a x, R.Le x b])) => eq_reason_in!{Real _
+      "=" _ "by" { congr!{Real Real} (\fun (v: Real) => Scalars.mul v (f x)) _ _ (Mask.pointwiseOutside x outside) }
+      "=" _ "by" { Laws.fieldMulZeroLeft (f x) }
+      "=" _ "by" { sym!{Real} _ _ (Laws.fieldMulZeroLeft (g x)) }
+      "=" _ "by" { sym!{Real} _ _ (congr!{Real Real} (\fun (v: Real) => Scalars.mul v (g x)) _ _ (Mask.pointwiseOutside x outside)) }
+    });
+\definition theorem: InsideEqual -> I.integral representative = I.integral Other.representative :=
+  \fun (same: _) => IntegralEquality.integralPointwise representative Other.representative (pointwise same);

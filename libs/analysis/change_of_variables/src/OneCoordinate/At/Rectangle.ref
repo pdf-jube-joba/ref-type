@@ -1,0 +1,28 @@
+\definition region: \Pow E.Point := { x: E.Point \where Logic.And[BaseSets.Member base (Coordinates.base x), Logic.And[R.Lt interval.left (Coordinates.normal x), R.Lt (Coordinates.normal x) interval.right]] };
+\definition image: \Pow E.Point := { y: E.Point \where \exists (x: Open.Carrier U \where Logic.And[Sets.Member region x, Maps.apply U V e.forward x = y]) };
+\definition withinTarget[y: E.Point]: Sets.Member image y -> Sets.Member V.points y := \block {
+  \fun (member: Sets.Member image y) \then
+  \takefrom x: \Cast[Open.Carrier U] ({ x: Open.Carrier U \where Logic.And[Sets.Member region x, Maps.apply U V e.forward x = y] }) \by member \then
+  \let law: Logic.And[Sets.Member region x, Maps.apply U V e.forward x = y] := \bysub(Open.Carrier U, { x: Open.Carrier U \where Logic.And[Sets.Member region x, Maps.apply U V e.forward x = y] }, x) \then
+  \return \idelim Maps.apply U V e.forward x = y \with z: E.Point => Sets.Member V.points z \by { base: \bysub(E.Point, V.points, Maps.apply U V e.forward x), equality: law.right }
+};
+\definition preimage[x: Open.Carrier U]: Sets.Member image (Maps.apply U V e.forward x) -> Sets.Member region x := \block {
+  \fun (member: Sets.Member image (Maps.apply U V e.forward x)) \then
+  \takefrom z: \Cast[Open.Carrier U] ({ z: Open.Carrier U \where Logic.And[Sets.Member region z, Maps.apply U V e.forward z = Maps.apply U V e.forward x] }) \by member \then
+  \let law: Logic.And[Sets.Member region z, Maps.apply U V e.forward z = Maps.apply U V e.forward x] := \bysub(Open.Carrier U, { z: Open.Carrier U \where Logic.And[Sets.Member region z, Maps.apply U V e.forward z = Maps.apply U V e.forward x] }, z) \then
+  \let equal: z = x := eq_reason_in!{{Open.Carrier U} _
+    "=" _ "by" { sym!{{Open.Carrier U}} _ _ (e.leftInverse z) }
+    "=" _ "by" { congr!{{Open.Carrier V} {Open.Carrier U}} (Maps.apply V U e.backward) _ _ law.right }
+    "=" _ "by" { e.leftInverse x }
+  } \then
+  \return \idelim z = x \with p: E.Point => Sets.Member region p \by { base: law.left, equality: equal }
+};
+\definition imageBase[y: E.Point]: Sets.Member image y -> BaseSets.Member base (Coordinates.base y) := \block {
+  \fun (member: Sets.Member image y) \then
+  \takefrom x: \Cast[Open.Carrier U] ({ x: Open.Carrier U \where Logic.And[Sets.Member region x, Maps.apply U V e.forward x = y] }) \by member \then
+  \let law: Logic.And[Sets.Member region x, Maps.apply U V e.forward x = y] := \bysub(Open.Carrier U, { x: Open.Carrier U \where Logic.And[Sets.Member region x, Maps.apply U V e.forward x = y] }, x) \then
+  \return \idelim Coordinates.base x = Coordinates.base y \with p: Base.Point => BaseSets.Member base p \by {
+    base: law.left.left, equality: trans!{Base.Point} _ _ _ (sym!{Base.Point} _ _ (fixed x)) (congr!{E.Point Base.Point} Coordinates.base _ _ law.right) }
+};
+\module Topology(openBase: BaseSets.IsOpenIn topological_algebra.Euclidean[].Dimension[n := n].Topology[].topology base);
+\module Compact(f: L.SmoothCompact, supported: Sets.Subset (Functions.support f) image);

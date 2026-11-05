@@ -1,0 +1,43 @@
+/* Open rectangles and their diffeomorphic images are ambient-open. */
+\import topological_algebra.Euclidean[].Dimension[n := n].Topology[] \as BaseTopology;
+\import metric_spaces.RealLine[] \as RealLine;
+\import RealLine.Rays[] \as Rays;
+\import topological_algebra.Coordinates[K := Real.Real, I := Fin.Fin n].Universal[A := E.Point] \as Components;
+\import topology.Continuity[A := E.Point, B := Base.Point] \as BaseContinuous;
+\import Sets.Subspace[S := U.points] \as Source;
+\import Sets.Subspace[S := V.points] \as Target;
+\import Target.Open[] \as TargetOpen;
+\import topology.Topology[Carrier := Open.Carrier V] \as TargetSets;
+\import Open.Topology[].Of[U := V] \as TargetTopology;
+\import Open.Topology[].Of[U := U] \as SourceTopology;
+\definition baseContinuous: BaseContinuous.Continuous Ambient.topology BaseTopology.topology Coordinates.base :=
+  \fun (W: \Pow Base.Point)(opened: BaseSets.IsOpenIn BaseTopology.topology W) =>
+    Components.continuous Ambient.topology RealLine.topology Coordinates.base
+      (\fun (j: Fin.Fin n) => Ambient.coordinateContinuous (Index.left j)) W (BaseTopology.metricOpen W opened);
+\definition baseRegion: \Pow E.Point := { x: E.Point \where BaseSets.Member base (Coordinates.base x) };
+\definition lowerRegion: \Pow E.Point := { x: E.Point \where R.Lt interval.left (Coordinates.normal x) };
+\definition upperRegion: \Pow E.Point := { x: E.Point \where R.Lt (Coordinates.normal x) interval.right };
+\definition regionOpen: Sets.IsOpenIn Ambient.topology region :=
+  (Sets.topologyLaws Ambient.topology).intersectionOpen baseRegion (Sets.Intersection lowerRegion upperRegion)
+    (baseContinuous base openBase)
+    ((Sets.topologyLaws Ambient.topology).intersectionOpen lowerRegion upperRegion
+      (Ambient.coordinateContinuous pivot (Rays.Above interval.left) (Rays.aboveOpen interval.left))
+      (Ambient.coordinateContinuous pivot (Rays.Below interval.right) (Rays.belowOpen interval.right)));
+\definition regionWithin: Sets.Subset region U.points := \fun (x: E.Point)(inside: Sets.Member region x) =>
+  \idelim join (Coordinates.base x) (Coordinates.normal x) = x \with y: E.Point => Sets.Member U.points y \by {
+    base: contains (Coordinates.base x) (Coordinates.normal x) inside.left
+      (Order.leOfLt interval.left (Coordinates.normal x) inside.right.left)
+      (Order.leOfLt (Coordinates.normal x) interval.right inside.right.right),
+    equality: Coordinates.joinSplit x
+  };
+\definition localImage: \Pow (Open.Carrier V) := { y: Open.Carrier V \where Sets.Member region (Maps.apply V U e.backward y) };
+\definition localImageOpen: TargetSets.IsOpenIn TargetTopology.topology localImage :=
+  Maps.Topology[U := V, V := U].continuous e.backward (Source.Trace region) (Source.traceOpen Ambient.topology region regionOpen);
+\definition liftedImage: \Pow E.Point := TargetOpen.image localImage;
+\definition liftedImageOpen: Sets.IsOpenIn Ambient.topology liftedImage :=
+  TargetOpen.imageOpen Ambient.topology (Open.Topology[].open V) localImage localImageOpen;
+\module Identification;
+\definition imageOpen: Sets.IsOpenIn Ambient.topology image :=
+  \idelim liftedImage = image \with S: \Pow E.Point => Sets.IsOpenIn Ambient.topology S \by {
+    base: liftedImageOpen, equality: Identification[].theorem
+  };

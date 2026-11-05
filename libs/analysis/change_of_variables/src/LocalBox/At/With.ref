@@ -1,0 +1,45 @@
+\definition positive: R.Lt Real.zero h := (law h).positive;
+\definition lower[c: Real.Real]: R.Lt (Real.sub c h) c := Root.subBelow c h positive;
+\definition upper[c: Real.Real]: R.Lt c (Real.add c h) := Root.addPositive c h positive;
+\definition ordered[c: Real.Real]: R.Le (Real.sub c h) (Real.add c h) := Order.leOfLt _ _ (Order.ltTrans _ _ _ (lower c) (upper c));
+\definition cube: E.Box := E.Box {
+  active := std.Data[].Bool[].Bool^::true,
+  left := \fun (i: Fin.Fin Index.total) => Real.sub (a i) h,
+  right := \fun (i: Fin.Fin Index.total) => Real.add (a i) h,
+  ordered := \fun (i: Fin.Fin Index.total) => ordered (a i),
+};
+\definition closedIncluded[x: E.Point]: Sets.Member (E.points cube) x -> Sets.Member U.points x := \fun (inside: _) => (law h).included x inside.right;
+\definition centerInterior[i: Fin.Fin Index.total]: Logic.And[R.Lt (cube.left i) (a i), R.Lt (a i) (cube.right i)] := Logic.And[_, _]::# (lower (a i)) (upper (a i));
+\definition centerBase: Base.Point := Coordinates.base a;
+\definition centerNormal: Real.Real := Coordinates.normal a;
+\definition baseBox: Base.Box := Base.Box {
+  active := std.Data[].Bool[].Bool^::true,
+  left := \fun (i: Fin.Fin n) => Real.sub (centerBase i) h,
+  right := \fun (i: Fin.Fin n) => Real.add (centerBase i) h,
+  ordered := \fun (i: Fin.Fin n) => ordered (centerBase i),
+};
+\definition base: BaseOpen.OpenSet := BaseOpen.Topology[].ofOpen (BaseMetric.Ball BaseNorm.metric centerBase h) (BaseMetricTopology.ballOpenIn BaseNorm.metric centerBase h);
+\definition baseContains: BaseSets.Member base.points centerBase := BaseMetric.ballCenter BaseNorm.metric centerBase h positive;
+\definition interval: Integration.Interval := Integration.Interval {
+  left := Real.sub centerNormal h, right := Real.add centerNormal h, ordered := ordered centerNormal,
+};
+\definition intervalStrict: R.Lt interval.left interval.right := Order.ltTrans _ _ _ (lower centerNormal) (upper centerNormal);
+\definition centerInterval: Logic.And[R.Lt interval.left centerNormal, R.Lt centerNormal interval.right] := Logic.And[_, _]::# (lower centerNormal) (upper centerNormal);
+\definition baseIncluded[x: Base.Point]: BaseSets.Member base.points x -> BaseSets.Member (Base.points baseBox) x :=
+  \fun (inside: BaseSets.Member base.points x) => Logic.And[_, _]::# (\refl(std.Data[].Bool[].Bool^::true)) (\fun (i: Fin.Fin n) => \block {
+    \let near: R.Lt (Real.distance (centerBase i) (x i)) h := R.ltReplaceLeft (Real.distance (Real.sub (centerBase i) (x i)) Real.zero) (Real.distance (centerBase i) (x i)) h
+      (BaseNorm.distanceDifference (centerBase i) (x i))
+      (R.leLtTrans _ _ _ (BaseNorm.coordinate (BaseDef.subPoint centerBase x) i) inside) \then
+    \return Logic.And[_, _]::# (Order.leOfLt _ _ (Distance.distanceLtLower (centerBase i) (x i) h near)) (Order.leOfLt _ _ (Distance.distanceLtUpper (centerBase i) (x i) h near))
+  });
+\module Product;
+\definition productIncluded[x: Base.Point][t: Real.Real]: BaseSets.Member (Base.points baseBox) x ->
+  Logic.And[R.Le interval.left t, R.Le t interval.right] -> Sets.Member U.points (Coordinates.join (Pair.pair Base.Point Real.Real x t)) :=
+  \fun (baseInside: _)(normalInside: _) => closedIncluded _ (Product[].inside x t baseInside normalInside);
+\definition openProductIncluded[x: Base.Point][t: Real.Real]: BaseSets.Member base.points x ->
+  Logic.And[R.Le interval.left t, R.Le t interval.right] -> Sets.Member U.points (Coordinates.join (Pair.pair Base.Point Real.Real x t)) :=
+  \fun (baseInside: _)(normalInside: _) => productIncluded x t (baseIncluded x baseInside) normalInside;
+\import euclidean_measure.BoxCompact[n := n] \as BaseCompact;
+\definition baseBoxClosed: BaseSets.IsClosedIn BaseTopology.topology (Base.points baseBox) := BaseCompact.pointsClosed baseBox;
+\definition baseBoxCompact: BaseSets.IsCompactIn BaseTopology.topology (Base.points baseBox) := BaseCompact.compact baseBox;
+\definition centerPoint: Coordinates.join (Pair.pair Base.Point Real.Real centerBase centerNormal) = a := Coordinates.joinSplit a;

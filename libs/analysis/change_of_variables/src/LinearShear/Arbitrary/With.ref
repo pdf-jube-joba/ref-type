@@ -1,0 +1,32 @@
+\import \parent.\parent.At[j := q, t := t] \as Head;
+\import Elementary.Shear[i := last, j := Index.left q, t := t] \as H;
+\definition target: Index.left q = Swap.apply j := \bysub(Fin.Fin n, TailIndex, q);
+\definition source: Swap.apply (Index.left q) = j := trans!{{Fin.Fin Index.total}} _ _ _
+  (congr!{{Fin.Fin Index.total} {Fin.Fin Index.total}} Swap.apply _ _ target) (Swap.involution j);
+\definition composite: Maps.Map := Composition.compose P.map (Composition.compose H.map P.map);
+\definition at[x: E.Point]: composite.apply x = Original.map.apply x := \axiom:funext(composite.apply x, Original.map.apply x,
+  \fun (k: Fin.Fin Index.total) => Logic.orElim (i = k) (Logic.Not (i = k)) (composite.apply x k = Original.map.apply x k) (Classical.excludedMiddle (i = k))
+    (\fun (same: i = k) => \idelim i = k \with l: Fin.Fin Index.total => composite.apply x l = Original.map.apply x l \by {
+      base: eq_reason_in!{Real.Real _
+        "=" _ "by" { congr!{{Fin.Fin Index.total} Real.Real} (H.map.apply (P.map.apply x)) _ _ Swap.onFirst }
+        "=" _ "by" { H.atTarget (P.map.apply x) }
+        "=" _ "by" { congr!{Real.Real Real.Real Real.Real} Real.add _ _ _ _
+          (congr!{{Fin.Fin Index.total} Real.Real} x _ _ Swap.onSecond)
+          (congr!{Real.Real Real.Real} (Real.mul t) _ _ (congr!{{Fin.Fin Index.total} Real.Real} x _ _ source)) }
+        "=" _ "by" { sym!{Real.Real} _ _ (Original.atTarget x) }
+      }, equality: same
+    })
+    (\fun (different: Logic.Not (i = k)) => eq_reason_in!{Real.Real _
+      "=" _ "by" { H.other (Swap.apply k) (P.map.apply x) (\fun (equal: last = Swap.apply k) => different (eq_reason_in!{{Fin.Fin Index.total} i
+        "=" _ "by" { sym!{{Fin.Fin Index.total}} _ _ Swap.onSecond }
+        "=" _ "by" { congr!{{Fin.Fin Index.total} {Fin.Fin Index.total}} Swap.apply _ _ equal }
+        "=" k "by" { Swap.involution k }
+      })) }
+      "=" _ "by" { congr!{{Fin.Fin Index.total} Real.Real} x _ _ (Swap.involution k) }
+      "=" _ "by" { sym!{Real.Real} _ _ (Original.other k x different) }
+    }));
+\definition equality: composite = Original.map := Maps.ext _ _ (\axiom:funext(composite.apply, Original.map.apply, at));
+\definition rule: Rules.Rule[Original.map] := \idelim composite = Original.map \with L: Maps.Map => Rules.Rule[L] \by {
+  base: Rules.compose P.map (Composition.compose H.map P.map) PRule.rule (Rules.compose H.map P.map Head.rule PRule.rule),
+  equality: equality
+};

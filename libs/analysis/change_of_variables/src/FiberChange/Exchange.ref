@@ -1,0 +1,40 @@
+\import \root.FiberChange[n := n].Compact[f := f] \as Source;
+\import \root.FiberChange[n := n].Compact[f := g] \as Target;
+\import \root.CompactSlices[n := one, m := n] \as Slices;
+\import LI.Null[] \as Null;
+\import product_integration.FiniteNull[A := Left.Point, mu := Left.MeasureConstruction[].measure] \as FiniteNull;
+\import lp_spaces.On[A := Fiber.Point, mu := Fiber.MeasureConstruction[].measure].One[].Norm[] \as FiberEquality;
+\definition theorem: BI.integral (BigCompact.representative f) = BI.integral (BigCompact.representative g) := \block {
+  \takefrom ff: Fubini.AEFubini[Source.joint] \by Fubini.fubini Source.joint \then
+  \takefrom gg: Fubini.AEFubini[Target.joint] \by Fubini.fubini Target.joint \then
+  \let exceptional: Null.NullSet := FiniteNull.pair ff.exception gg.exception \then
+  \let agree: \forall (c: Left.Point) -> Logic.Not (LeftSets.Member exceptional c) -> ff.outer c = gg.outer c :=
+    \fun (c: Left.Point)(outside: Logic.Not (LeftSets.Member exceptional c)) => \block {
+      \let first: Logic.Not (LeftSets.Member ff.exception c) := \fun (inside: _) => outside (Logic.Or[_, _]::left inside) \then
+      \let second: Logic.Not (LeftSets.Member gg.exception c) := \fun (inside: _) => outside (Logic.Or[_, _]::right inside) \then
+      \return eq_reason_in!{Real.Real _
+        "=" _ "by" { ff.outerValues c }
+        "=" _ "by" { FiberEquality.integralPointwise (ff.sections c) (FiberCompact.representative (Slices.slice f c))
+          (\fun (x: Fiber.Point) => trans!{Real.Real} _ _ _ (ff.sectionValues c first x) (sym!{Real.Real} _ _ (Slices.pointwise f c x))) }
+        "=" _ "by" { sections c }
+        "=" _ "by" { FiberEquality.integralPointwise (FiberCompact.representative (Slices.slice g c)) (gg.sections c)
+          (\fun (x: Fiber.Point) => trans!{Real.Real} _ _ _ (Slices.pointwise g c x) (sym!{Real.Real} _ _ (gg.sectionValues c second x))) }
+        "=" _ "by" { sym!{Real.Real} _ _ (gg.outerValues c) }
+      }
+    } \then
+  \let almost: LM.AlmostEqual Left.MeasureConstruction[].measure ff.outer gg.outer :=
+    Logic.existsIntro[\Pow Left.Point, { N: \Pow Left.Point \where LM.NullCover[Left.MeasureConstruction[].measure, { c: Left.Point \where Logic.Not (ff.outer c = gg.outer c) }, N] }] exceptional
+      (LM.NullCover[Left.MeasureConstruction[].measure, { c: Left.Point \where Logic.Not (ff.outer c = gg.outer c) }, exceptional] {
+        measurable := (Null.nullSetLaw exceptional).measurable,
+        measure := (Null.nullSetLaw exceptional).zeroMeasure,
+        included := \fun (c: Left.Point)(different: Logic.Not (ff.outer c = gg.outer c)) =>
+          Order.Order[].byContradiction (LeftSets.Member exceptional c) (\fun (outside: Logic.Not (LeftSets.Member exceptional c)) => different (agree c outside)),
+      }) \then
+  \return eq_reason_in!{Real.Real _
+    "=" _ "by" { sym!{Real.Real} _ _ Source.integral }
+    "=" _ "by" { ff.exchange }
+    "=" _ "by" { Null.integralAlmost ff.outer gg.outer almost }
+    "=" _ "by" { sym!{Real.Real} _ _ gg.exchange }
+    "=" _ "by" { Target.integral }
+  }
+};

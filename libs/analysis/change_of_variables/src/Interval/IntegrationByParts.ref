@@ -1,0 +1,19 @@
+\import Functions.Product[] \as Multiplication;
+\definition derivativeFunction[x: Real]: Real := Scalars.add (Scalars.mul (df x) (g x)) (Scalars.mul (f x) (dg x));
+\definition integrand: Continuous.Function := \into[Real -> Real](derivativeFunction, Continuous.Function) \by {
+  Functions.sumContinuous Continuous.topology _ _
+    (Multiplication.continuous Continuous.topology _ _ (\bysub(Real -> Real, Continuous.Function, df)) (\bysub(Real -> Real, Continuous.Function, g)))
+    (Multiplication.continuous Continuous.topology _ _ (\bysub(Real -> Real, Continuous.Function, f)) (\bysub(Real -> Real, Continuous.Function, dg)))
+};
+\definition primitive[x: Real]: Real := Scalars.mul (f x) (g x);
+\definition derivative: (\forall (x: Real) -> R.Lt a x -> R.Lt x b -> Derivative.HasDerivativeAt f x (df x)) ->
+  (\forall (x: Real) -> R.Lt a x -> R.Lt x b -> Derivative.HasDerivativeAt g x (dg x)) ->
+  \forall (x: Real) -> R.Lt a x -> R.Lt x b -> Derivative.HasDerivativeAt primitive x (integrand x) :=
+  \fun (left: _)(right: _)(x: Real)(ax: _)(xb: _) => Product.derivative f g x (df x) (dg x) (left x ax xb) (right x ax xb);
+\definition boundary: Real := Scalars.sub (Scalars.mul (f b) (g b)) (Scalars.mul (f a) (g a));
+\definition theorem: (\forall (x: Real) -> R.Lt a x -> R.Lt x b -> Derivative.HasDerivativeAt f x (df x)) ->
+  (\forall (x: Real) -> R.Lt a x -> R.Lt x b -> Derivative.HasDerivativeAt g x (dg x)) ->
+  Continuous.Of[f := integrand].value = boundary :=
+  \fun (left: _)(right: _) => \parent.Fundamental[f := integrand, g := primitive].theorem
+    (Multiplication.continuous Continuous.topology _ _ (\bysub(Real -> Real, Continuous.Function, f)) (\bysub(Real -> Real, Continuous.Function, g)))
+    (derivative left right);

@@ -1,0 +1,30 @@
+\definition functional: Dual.Map := Dual.Map {
+  apply := \fun (row: Point) => Matrix.determinant (replaceRow pivot row),
+  preservesAdd := Rows.regular.addition Matrix.identity pivot,
+  preservesScale := Rows.regular.scalar Matrix.identity pivot,
+};
+\definition identityRow[i: Index]: Matrix.identity i = Basis.vectors i :=
+  \axiom:funext(Matrix.identity i, Basis.vectors i, \fun (j: Index) => Kronecker.symmetric j i);
+\definition coefficient[i: Index]: functional.apply (Basis.vectors i) = Basis.vectors pivot i :=
+  Logic.orElim _ _ _ (Classical.excludedMiddle (i = pivot))
+    (\fun (same: i = pivot) => eq_reason_in!{Real.Real _
+      "=" _ "by" { congr!{Index Real.Real} (\fun (j: Index) => functional.apply (Basis.vectors j)) _ _ same }
+      "=" _ "by" { congr!{Point Real.Real} (\fun (v: Point) => Matrix.determinant (replaceRow pivot v)) _ _ (sym!{Point} _ _ (identityRow pivot)) }
+      "=" _ "by" { congr!{Matrix.Matrix Real.Real} Matrix.determinant _ _ (Updates.updateSame n Matrix.identity pivot) }
+      "=" _ "by" { Matrix.atIdentity }
+      "=" _ "by" { sym!{Real.Real} _ _ (Kronecker.equal pivot i (sym!{Index} _ _ same)) }
+    })
+    (\fun (different: Logic.Not (i = pivot)) => eq_reason_in!{Real.Real _
+      "=" _ "by" { Rows.repeated (replaceRow pivot (Basis.vectors i)) pivot i
+        (\fun (same: pivot = i) => different (sym!{Index} _ _ same))
+        (trans!{Point} _ _ _ (Updates.updateSelf n Matrix.identity pivot (Basis.vectors i))
+          (sym!{Point} _ _ (trans!{Point} _ _ _
+            (Updates.updateOther n Matrix.identity pivot i (Basis.vectors i) (\fun (same: pivot = i) => different (sym!{Index} _ _ same)))
+            (identityRow i)))) }
+      "=" _ "by" { sym!{Real.Real} _ _ (Kronecker.different pivot i (\fun (same: pivot = i) => different (sym!{Index} _ _ same))) }
+    });
+\definition determinant[row: Point]: Matrix.determinant (replaceRow pivot row) = row pivot := eq_reason_in!{Real.Real _
+  "=" _ "by" { Expansion.functionalExpansion Basis.basis functional row }
+  "=" _ "by" { Sums.congruent (Fin.elements n) _ _ (\fun (i: Index) => congr!{Real.Real Real.Real} (Real.mul (row i)) _ _ (coefficient i)) }
+  "=" _ "by" { Basis.dualReconstruction row pivot }
+};

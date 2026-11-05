@@ -1,0 +1,26 @@
+\import I.Linear[] \as Linear;
+\import I.Zero[] \as Zero;
+\definition prefix[g: N.Nat^ -> Real.Real]: N.Nat^ -> Real.Real := \induction (k: N.Nat^) \return Real.Real \with {
+  | zero: Real.zero
+  | succ: \fun (k: N.Nat^)(previous: Real.Real) => Real.add previous (g k)
+};
+\definition value: N.Nat^ -> I.Representatives := \induction (k: N.Nat^) \return I.Representatives \with {
+  | zero: Zero.representative
+  | succ: \fun (k: N.Nat^)(previous: I.Representatives) => Linear.addRepresentative previous (family k)
+};
+\definition pointwise: \forall (k: N.Nat^)(x: Point) -> value k x = prefix (\fun (j: N.Nat^) => family j x) k :=
+  \induction (k: N.Nat^) \return \forall (x: Point) -> value k x = prefix (\fun (j: N.Nat^) => family j x) k \with {
+    | zero: \fun (x: Point) => \refl(Real.zero)
+    | succ: \fun (k: N.Nat^)(previous: _)(x: Point) => congr!{Real.Real Real.Real} (\fun (v: Real.Real) => Real.add v (family k x)) _ _ (previous x)
+  };
+\definition integral: \forall (k: N.Nat^) -> I.integral (value k) = prefix (\fun (j: N.Nat^) => I.integral (family j)) k :=
+  \induction (k: N.Nat^) \return I.integral (value k) = prefix (\fun (j: N.Nat^) => I.integral (family j)) k \with {
+    | zero: Zero.integralZero
+    | succ: \fun (k: N.Nat^)(previous: _) => trans!{Real.Real} _ _ _ (Linear.integralAdd (value k) (family k))
+      (congr!{Real.Real Real.Real} (\fun (v: Real.Real) => Real.add v (I.integral (family k))) _ _ previous)
+  };
+\definition prefixCongruent[g, h: N.Nat^ -> Real.Real]: (\forall (j: N.Nat^) -> g j = h j) -> \forall (k: N.Nat^) -> prefix g k = prefix h k :=
+  \fun (same: _) => \induction (k: N.Nat^) \return prefix g k = prefix h k \with {
+    | zero: \refl(Real.zero)
+    | succ: \fun (k: N.Nat^)(previous: _) => congr!{Real.Real Real.Real Real.Real} Real.add _ _ _ _ previous (same k)
+  };

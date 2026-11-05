@@ -1,0 +1,20 @@
+\import Box.With[h := h] \as Rectangle;
+\definition data: PatchData := PatchData { base := Rectangle.base, interval := Rectangle.interval };
+\definition inside: Contains data := \fun (x: Base.Point)(t: Real.Real)(inBase: _)(at: _)(tb: _) =>
+  included (join x t) (Rectangle.openProductIncluded x t inBase (Logic.And[_, _]::# at tb));
+\definition point[x: Base.Point][t: Real.Real][inBase: BaseSets.Member data.base.points x][at: R.Le data.interval.left t][tb: R.Le t data.interval.right]: Open.Carrier D :=
+  \into[E.Point](join x t, D.points) \by { Rectangle.openProductIncluded x t inBase (Logic.And[_, _]::# at tb) };
+\definition properties: PatchLaws[data] := PatchLaws[data] {
+  contains := inside,
+  sign := Logic.orElim _ _ (Logic.Or[Positive data inside, Negative data inside]) sign
+    (\fun (positive: \forall (x: Open.Carrier D) -> R.Lt Real.zero (partial (Open.inclusion D U included x))) => Logic.Or[_, _]::left
+      (\fun (x: Base.Point)(t: Real.Real)(inBase: _)(at: _)(tb: _) => positive (point x t inBase at tb)))
+    (\fun (negative: \forall (x: Open.Carrier D) -> R.Lt (partial (Open.inclusion D U included x)) Real.zero) => Logic.Or[_, _]::right
+      (\fun (x: Base.Point)(t: Real.Real)(inBase: _)(at: _)(tb: _) => negative (point x t inBase at tb))),
+};
+\definition patch: Patch := \into[PatchData](data, Patch) \by { properties };
+\definition exists: \exists (p: Patch \where Sets.Member (image p) (Maps.apply U V e.forward (Open.inclusion D U included a))) :=
+  Logic.existsIntro[Patch, { p: Patch \where Sets.Member (image p) (Maps.apply U V e.forward (Open.inclusion D U included a)) }] patch
+    (Logic.existsIntro[Open.Carrier U, { x: Open.Carrier U \where Logic.And[Sets.Member (region patch) x, Maps.apply U V e.forward x = Maps.apply U V e.forward (Open.inclusion D U included a)] }]
+      (Open.inclusion D U included a) (Logic.And[_, _]::# (Logic.And[_, _]::# Rectangle.baseContains Rectangle.centerInterval)
+        (\refl(Maps.apply U V e.forward (Open.inclusion D U included a)))));

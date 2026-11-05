@@ -1,0 +1,51 @@
+/* Elementary elimination supplies the generators, all of whose measure rules are proved. */
+\import N.Basic[].Def[] \as NatOp;
+\import N.Basic[].Prop[] \as Nat;
+\definition one: N.Nat^ := N.Nat^::succ N.Nat^::zero;
+\import \root.Elementary[n := n] \as Elementary;
+\import Elementary.Words[] \as Words;
+\import Elementary.Elimination[] \as Elimination;
+\import \parent.Rules[] \as Rules;
+\definition allShears: \forall (k: N.Nat^)(i, j: Fin.Fin k)(t: Real.Real) -> Logic.Not (i = j) ->
+  \root.Linear[n := k].Rules[].Rule[\root.Elementary[n := k].Shear[i := i, j := j, t := t].map] :=
+  \induction (k: N.Nat^) \return \forall (i, j: Fin.Fin k)(t: Real.Real) -> Logic.Not (i = j) ->
+    \root.Linear[n := k].Rules[].Rule[\root.Elementary[n := k].Shear[i := i, j := j, t := t].map] \with {
+      | zero: \fun (i, j: Fin.Fin N.Nat^::zero)(t: Real.Real)(different: Logic.Not (i = j)) => Logic.falseElim
+        (\root.Linear[n := N.Nat^::zero].Rules[].Rule[\root.Elementary[n := N.Nat^::zero].Shear[i := i, j := j, t := t].map])
+        (Fin.zeroImpossible i (Fin.bound N.Nat^::zero i))
+      | succ: \fun (k: N.Nat^)(previous: \forall (i, j: Fin.Fin k)(t: Real.Real) -> Logic.Not (i = j) -> \root.Linear[n := k].Rules[].Rule[\root.Elementary[n := k].Shear[i := i, j := j, t := t].map]) =>
+        \idelim NatOp.add one k = N.Nat^::succ k \with d: N.Nat^ => \forall (i, j: Fin.Fin d)(t: Real.Real) -> Logic.Not (i = j) ->
+          \root.Linear[n := d].Rules[].Rule[\root.Elementary[n := d].Shear[i := i, j := j, t := t].map] \by {
+            base: \fun (i, j: Fin.Fin (NatOp.add one k))(t: Real.Real)(different: Logic.Not (i = j)) =>
+              \root.LinearShear[n := k].Arbitrary[i := i, j := j, t := t].rule different,
+            equality: Nat.addComm one k
+          }
+
+    };
+\module Diagonal(a: Point) {
+  \import \parent.\parent.Diagonal[a := a] \as D;
+  \definition equality: D.map = Elementary.diagonal a := Maps.ext D.map (Elementary.diagonal a) (\refl(D.map.apply));
+  \definition rule: Rules.Rule[Elementary.diagonal a] :=
+    \idelim D.map = Elementary.diagonal a \with L: Maps.Map => Rules.Rule[L] \by {
+      base: Rules.Diagonal[a := a].rule, equality: equality
+    };
+}
+\definition word: \forall (w: Elementary.Word) -> Rules.Rule[Words.evaluate w] :=
+  \induction (w: Elementary.Word) \return Rules.Rule[Words.evaluate w] \with {
+    | identity: Rules.identity
+    | diagonal: \fun (a: Elementary.NonzeroPoint) => Diagonal[a := a].rule
+    | shear: \fun (i: Fin.Fin n)(j: Elementary.Other i)(t: Real.Real) => allShears n i j t (Elementary.distinct i j)
+    | compose: \fun (u: Elementary.Word)(first: Rules.Rule[Words.evaluate u])(v: Elementary.Word)(second: Rules.Rule[Words.evaluate v]) =>
+      Rules.compose (Words.evaluate u) (Words.evaluate v) first second
+  };
+\definition generated[L: Maps.Map]: Words.Generated L -> Rules.Rule[L] := \fun (generated: _) => \block {
+  \takefrom w: \Cast[Elementary.Word] ({ w: Elementary.Word \where Words.evaluate w = L }) \by generated \then
+  \return \idelim Words.evaluate w = L \with f: Maps.Map => Rules.Rule[f] \by {
+    base: word w, equality: \bysub(Elementary.Word, { w: Elementary.Word \where Words.evaluate w = L }, w)
+  }
+};
+\definition theorem[L: Maps.Map]: Elementary.Inverse[L] -> Rules.Rule[L] := \fun (inverse: Elementary.Inverse[L]) => generated L (Elimination.factorization L inverse);
+\definition measure[L: Maps.Map][inverse: Elementary.Inverse[L]][S: \Pow Point]:
+  Lebesgue.measure.value (image L S) = M.scale (Absolute.abs (Top.determinant L)) (Lebesgue.measure.value S) := (theorem L inverse).measure S;
+\definition measurable[L: Maps.Map][inverse: Elementary.Inverse[L]][S: \Pow Point]:
+  M.Measurable Lebesgue.measure.sigma S -> M.Measurable Lebesgue.measure.sigma (image L S) := (theorem L inverse).measurable S;

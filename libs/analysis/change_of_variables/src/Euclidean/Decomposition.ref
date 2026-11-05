@@ -1,0 +1,41 @@
+\import lp_spaces.Euclidean[n := n] \as L;
+\import \parent.Compact[] \as Integrals;
+\import smooth_partitions.Euclidean[n := n] \as SmoothFunctions;
+\import SmoothFunctions.ScalarCalculus[] \as Calculus;
+\import smooth_partitions.Scalars[A := Point, space := topological_algebra.Euclidean[].Dimension[n := n].Topology[].topology].Using[calculus := Calculus.calculus] \as Partitions;
+\import topological_algebra.Euclidean[].Dimension[n := n].Topology[] \as Ambient;
+\import topological_algebra.Euclidean[].Dimension[n := n].Countability[] \as Countability;
+\import topology.Topology[Carrier := Point] \as Sets;
+\import functional_analysis.Support[A := Point] \as Support;
+\import Partitions.Selection[family := family, S := SmoothFunctions.support f] \as Selection;
+\import Calculus.Bumps[family := family] \as Bumps;
+\import smooth_partitions.Countable[A := Point] \as Countable;
+\import smooth_partitions.Countable[A := Real.Real] \as ScalarCountable;
+\import N.Basic[].Prop[] \as Nat;
+\import Open.Smooth[].Algebra[U := Open.whole] \as Functions;
+\import Open.Whole[] \as Whole;
+\import I.Linear[] \as Linear;
+\import I.Zero[] \as Zero;
+\import lp_spaces.On[A := Point, mu := Lebesgue.measure].One[].Norm[] \as IntegralEquality;
+\structure Data: \Set := {
+  size: N.Nat^,
+  pieces: N.Nat^ -> L.SmoothCompact,
+  domains: N.Nat^ -> \Pow Point,
+  refines: \forall (k: N.Nat^) -> Logic.Or[Sets.FamilyMember family (domains k), domains k = Sets.Empty],
+  within: \forall (k: N.Nat^) -> Sets.Subset (SmoothFunctions.support (pieces k)) (domains k),
+  pointwise: \forall (x: Point) -> Countable.prefix (\fun (k: N.Nat^)(y: Point) => pieces k y) x size = f x,
+};
+\definition local: Sets.IsOpenCover[Ambient.topology, family, SmoothFunctions.support f] ->
+  \forall (x: Point) -> Sets.Member (SmoothFunctions.support f) x -> \exists ( b: Partitions.Bump[family] \where Sets.Member b.oneRegion x ) :=
+  \fun (cover: _)(x: Point)(supported: _) => Sets.unionMemberElim family x
+    (\exists ( b: Partitions.Bump[family] \where Sets.Member b.oneRegion x ))
+    (\fun (U: \Pow Point)(member: Sets.FamilyMember family U)(inside: Sets.Member U x) =>
+      Bumps.At[x := x, U := U, member := member, open := cover.open U member, inside := inside].existsBump)
+    (cover.covers x supported);
+\module From(selected: Selection.CountableBumps);
+\definition exists: Sets.IsOpenCover[Ambient.topology, family, SmoothFunctions.support f] -> \exists Data :=
+  \fun (cover: _) => \block {
+    \takefrom selected: Selection.CountableBumps \by Selection.countable Countability.secondCountable (local cover) \then
+    \return From[selected := selected].exists
+  };
+\module Sum(data: Data);

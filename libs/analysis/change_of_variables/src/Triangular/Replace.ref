@@ -1,0 +1,44 @@
+\import std.Data[].Bool[] \as Bool;
+\use Equality.transport;
+\import N.Basic[].Def[] \as Naturals;
+\import Open.Smooth[] \as Smooth;
+\import Smooth.Differential[] \as Differential;
+\import topological_algebra.Euclidean[].Dimension[n := n].Def[] \as Coordinates;
+\import calculus.Real[].Multivariable[n := n].Space[].Prop[] \as SpaceLaws;
+\import calculus.Maps[n := n, m := n] \as Maps;
+\import calculus.Identity[n := n] \as Identity;
+\import Open.Projection[U := U] \as Projections;
+\import inverse_implicit.Euclidean[n := n] \as Local;
+\import Matrix.Representation[] \as Representation;
+\definition function[x: Open.Carrier U]: Point := Coordinates.replace x pivot (h x);
+\definition scalar: Open.ScalarFunction U := h;
+\definition regular[j: Index]: Smooth.SmoothOn U (\fun (x: Open.Carrier U) => function x j) :=
+  Bool.cases (\fun (b: Bool.Bool^) => Smooth.SmoothOn U (\fun (x: Open.Carrier U) => Bool.ite Real.Real b (h x) (x j)))
+    (Open.Examples[].projectionSmooth U j)
+    (transport!{{Open.ScalarFunction U}} (Smooth.SmoothOn U) scalar (\fun (x: Open.Carrier U) => h x)
+      (\axiom:funext(scalar, \fun (x: Open.Carrier U) => h x, \fun (x: Open.Carrier U) => \refl(h x)))
+      (\bysub(Open.ScalarFunction U, Smooth.SmoothFunction U, h)))
+    (Naturals.eqb (Fin.value n j) (Fin.value n pivot));
+\definition map: Maps.Map U Open.whole := \into[Maps.Data[U, Open.whole]](Maps.Data[U, Open.whole] {
+  apply := \fun (x: Open.Carrier U) => \into[Point](function x, Open.whole.points) \by { \refl(function x) },
+}, Maps.Map U Open.whole) \by {
+  Maps.Laws[U, Open.whole, Maps.Data[U, Open.whole]::# (\fun (x: Open.Carrier U) => \into[Point](function x, Open.whole.points) \by { \refl(function x) })] {
+    smooth := regular,
+  }
+};
+\definition atPivot[x: Open.Carrier U]: function x pivot = h x := SpaceLaws.replaceSame x pivot (h x);
+\definition atOther[j: Index]: Logic.Not (pivot = j) -> \forall (x: Open.Carrier U) -> function x j = x j :=
+  \fun (different: _)(x: Open.Carrier U) => SpaceLaws.replaceDifferent x pivot j (h x) different;
+\definition pivotCoordinate: Maps.coordinateFunction U Open.whole map pivot = h :=
+  \axiom:funext(Maps.coordinateFunction U Open.whole map pivot, h, atPivot);
+\definition otherCoordinate[j: Index]: Logic.Not (pivot = j) -> Maps.coordinateFunction U Open.whole map j = Projections.function j :=
+  \fun (different: _) => \axiom:funext(Maps.coordinateFunction U Open.whole map j, Projections.function j, atOther j different);
+\definition differential[x: Open.Carrier U]: calculus.Vector[n := n, m := n].LinearMap := Maps.Differential[U := U, V := Open.whole, f := map, a := x].value;
+\definition gradient[x: Open.Carrier U][i: Index]: Real.Real := (Differential.value U h x).apply (Basis.vectors i);
+\definition matrix[x: Open.Carrier U]: Matrix.Matrix := Representation.entries (differential x);
+\module At(x: Open.Carrier U);
+\definition determinant[x: Open.Carrier U]: Matrix.determinant (matrix x) = gradient x pivot := At[x := x].determinant;
+\definition localExistence[x: Open.Carrier U]: Logic.Not (gradient x pivot = Real.zero) -> \exists Local.LocalInverse[U, map, x] :=
+  \fun (nonzero: _) => Local.InverseFunction[U := U, f := map, a := x].localExistence
+    (\fun (zero: Matrix.determinant (matrix x) = Real.zero) => nonzero (trans!{Real.Real} _ _ _ (sym!{Real.Real} _ _ (determinant x)) zero));
+\module LocalCoordinates(a: Open.Carrier U, local: Local.LocalInverse[U, map, a]);

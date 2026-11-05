@@ -1,0 +1,52 @@
+\import Intervals.Riemann[interval := interval].Continuous[] \as Continuous;
+\import euclidean_measure.RealLine[].IntervalIntegral[interval := interval] \as Indicator;
+\import calculus.Real[].Derivative[].Def[] \as Derivative;
+\import metric_spaces.RealFunctions[A := Continuous.Point] \as Functions;
+\import Functions.Product[] \as Multiplication;
+\import J.Linear[] \as Linear;
+\import lp_spaces.On[A := Sigma.Point, mu := Product.measure].One[].Norm[] \as JointEquality;
+\module Slice(x: Point) {
+  \import \root.Interval[interval := interval].IntegrationByParts[f := f x, g := g x, df := df x, dg := dg x] \as Parts;
+  \definition integrand: Continuous.Function := Parts.integrand;
+  \definition primitive: Real.Real -> Real.Real := Parts.primitive;
+  \definition derivative: (\forall (t: Real.Real) -> R.Lt interval.left t -> R.Lt t interval.right -> Derivative.HasDerivativeAt (f x) t (df x t)) ->
+    (\forall (t: Real.Real) -> R.Lt interval.left t -> R.Lt t interval.right -> Derivative.HasDerivativeAt (g x) t (dg x t)) ->
+    \forall (t: Real.Real) -> R.Lt interval.left t -> R.Lt t interval.right -> Derivative.HasDerivativeAt primitive t (integrand t) := Parts.derivative;
+}
+\definition integrand[x: Point]: Continuous.Function := Slice[x := x].integrand;
+\definition primitive[x: Point]: Real.Real -> Real.Real := Slice[x := x].primitive;
+\import \root.Boundary[n := n].Strip[interval := interval, primitive := primitive, integrand := integrand] \as Strip;
+\definition leftFunction[p: Sigma.Point]: Real.Real := Real.mul (Indicator.representative (Pair.second Point Real.Real p))
+  (Real.mul (df (Pair.first Point Real.Real p) (Pair.second Point Real.Real p)) (g (Pair.first Point Real.Real p) (Pair.second Point Real.Real p)));
+\definition rightFunction[p: Sigma.Point]: Real.Real := Real.mul (Indicator.representative (Pair.second Point Real.Real p))
+  (Real.mul (f (Pair.first Point Real.Real p) (Pair.second Point Real.Real p)) (dg (Pair.first Point Real.Real p) (Pair.second Point Real.Real p)));
+\definition equation[p: Sigma.Point]: Strip.joint p = Real.add (leftFunction p) (rightFunction p) := Laws.fieldMulAdd _ _ _;
+\structure Conditions: \Prop := {
+  leftIntegrable: J.Integrable leftFunction,
+  rightIntegrable: J.Integrable rightFunction,
+  boundaryMeasurable: M.IsMeasurable Lebesgue.measure Strip.boundary,
+  leftDerivative: \forall (x: Point)(t: Real.Real) -> R.Lt interval.left t -> R.Lt t interval.right -> Derivative.HasDerivativeAt (f x) t (df x t),
+  rightDerivative: \forall (x: Point)(t: Real.Real) -> R.Lt interval.left t -> R.Lt t interval.right -> Derivative.HasDerivativeAt (g x) t (dg x t),
+};
+\definition left[valid: Conditions]: J.Representatives := \into[Sigma.Point -> Real.Real](leftFunction, J.Representatives) \by { valid.leftIntegrable };
+\definition right[valid: Conditions]: J.Representatives := \into[Sigma.Point -> Real.Real](rightFunction, J.Representatives) \by { valid.rightIntegrable };
+\definition conditions[valid: Conditions]: Strip.Conditions := Strip.Conditions {
+  integrable := \idelim (\fun (p: Sigma.Point) => Real.add (leftFunction p) (rightFunction p)) = Strip.joint
+    \with h: (Sigma.Point -> Real.Real) => J.Integrable h \by {
+      base: (J.integralLaw (Linear.addRepresentative (left valid) (right valid))).integrable,
+      equality: \axiom:funext((\fun (p: Sigma.Point) => Real.add (leftFunction p) (rightFunction p)), Strip.joint, \fun (p: Sigma.Point) => sym!{Real.Real} _ _ (equation p))
+    },
+  boundaryMeasurable := valid.boundaryMeasurable,
+  continuous := \fun (x: Point) => Multiplication.continuous Continuous.topology _ _
+    (\bysub(Real.Real -> Real.Real, Continuous.Function, f x)) (\bysub(Real.Real -> Real.Real, Continuous.Function, g x)),
+  derivative := \fun (x: Point) => Slice[x := x].derivative (valid.leftDerivative x) (valid.rightDerivative x),
+};
+\definition boundary[valid: Conditions]: I.Representatives := Strip.boundaryRepresentative (conditions valid);
+\definition sum[valid: Conditions]: Real.add (J.integral (left valid)) (J.integral (right valid)) = I.integral (boundary valid) := eq_reason_in!{Real.Real _
+  "=" _ "by" { sym!{Real.Real} _ _ (Linear.integralAdd (left valid) (right valid)) }
+  "=" _ "by" { JointEquality.integralPointwise (Linear.addRepresentative (left valid) (right valid)) (Strip.representative (conditions valid)) (\fun (p: Sigma.Point) => sym!{Real.Real} _ _ (equation p)) }
+  "=" _ "by" { Strip.theorem (conditions valid) }
+};
+\definition theorem[valid: Conditions]: J.integral (left valid) = Real.sub (I.integral (boundary valid)) (J.integral (right valid)) :=
+  trans!{Real.Real} _ _ _ (sym!{Real.Real} _ _ (Laws.addNegCancelRight (J.integral (right valid)) (J.integral (left valid))))
+    (congr!{Real.Real Real.Real} (\fun (a: Real.Real) => Real.sub a (J.integral (right valid))) _ _ (sum valid));

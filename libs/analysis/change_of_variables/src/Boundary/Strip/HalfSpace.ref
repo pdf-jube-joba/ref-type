@@ -1,0 +1,72 @@
+\import \root.Boundary[n := n].Strip[interval := interval, primitive := primitive, integrand := integrand] \as Strip;
+\import I.Negation[] \as Negation;
+\import lp_spaces.On[A := Point, mu := Lebesgue.measure].One[].Norm[] \as BaseEquality;
+\import lp_spaces.On[A := Sigma.Point, mu := Product.measure].One[].Norm[] \as JointEquality;
+\module At(x: Point, t: Real.Real) {
+  \import std.Logic[].Classical[].Cases[A := Real.Real, P := R.Le interval.left t] \as Cases;
+  \definition value: Real.Real := Cases.select (integrand x t) Real.zero;
+  \definition inside: R.Le interval.left t -> value = integrand x t := Cases.whenTrue (integrand x t) Real.zero;
+  \definition outside: Logic.Not (R.Le interval.left t) -> value = Real.zero := Cases.whenFalse (integrand x t) Real.zero;
+}
+\definition function[p: Sigma.Point]: Real.Real := At[x := Pair.first Point Real.Real p, t := Pair.second Point Real.Real p].value;
+\definition TailZero: \Prop := \forall (x: Point)(t: Real.Real) -> R.Lt interval.right t -> integrand x t = Real.zero;
+\definition equation: TailZero -> \forall (p: Sigma.Point) -> function p = Strip.joint p :=
+  \fun (tail: _)(p: Sigma.Point) => \block {
+    \let x: Point := Pair.first Point Real.Real p \then
+    \let t: Real.Real := Pair.second Point Real.Real p \then
+    \let upper: R.Le t interval.right -> R.Le interval.left t -> function p = Strip.joint p :=
+      \fun (tb: _)(at: _) => eq_reason_in!{Real.Real _
+        "=" _ "by" { At[x := x, t := t].inside at }
+        "=" _ "by" { sym!{Real.Real} _ _ (trans!{Real.Real} _ _ _
+          (congr!{Real.Real Real.Real} (\fun (a: Real.Real) => Real.mul a (integrand x t)) _ _ (Indicator.pointwiseInside t at tb))
+          (Laws.fieldMulOneLeft (integrand x t))) }
+      } \then
+    \return Logic.orElim _ _ _ (std.Logic[].Classical[].excludedMiddle (R.Le interval.left t))
+      (\fun (at: _) => Logic.orElim _ _ _ (std.Logic[].Classical[].excludedMiddle (R.Le t interval.right))
+        (\fun (tb: _) => upper tb at)
+        (\fun (notUpper: _) => eq_reason_in!{Real.Real _
+          "=" _ "by" { At[x := x, t := t].inside at }
+          "=" _ "by" { tail x t (Order.byContradiction (R.Lt interval.right t) (\fun (notLess: _) => notUpper (Order.leOfNotLtReverse t interval.right notLess))) }
+          "=" _ "by" { sym!{Real.Real} _ _ (trans!{Real.Real} _ _ _
+            (congr!{Real.Real Real.Real} (\fun (a: Real.Real) => Real.mul a (integrand x t)) _ _ (Indicator.pointwiseOutside t (\fun (both: Logic.And[R.Le interval.left t, R.Le t interval.right]) => notUpper both.right)))
+            (Laws.fieldMulZeroLeft _)) }
+        }))
+      (\fun (notLower: _) => eq_reason_in!{Real.Real _
+        "=" _ "by" { At[x := x, t := t].outside notLower }
+        "=" _ "by" { sym!{Real.Real} _ _ (trans!{Real.Real} _ _ _
+          (congr!{Real.Real Real.Real} (\fun (a: Real.Real) => Real.mul a (integrand x t)) _ _ (Indicator.pointwiseOutside t (\fun (both: Logic.And[R.Le interval.left t, R.Le t interval.right]) => notLower both.left)))
+          (Laws.fieldMulZeroLeft _)) }
+      })
+  };
+\definition representative[valid: Strip.Conditions][tail: TailZero]: J.Representatives :=
+  \into[Sigma.Point -> Real.Real](function, J.Representatives) \by {
+    \idelim Strip.joint = function \with h: (Sigma.Point -> Real.Real) => J.Integrable h \by {
+      base: valid.integrable,
+      equality: \axiom:funext(Strip.joint, function, \fun (p: Sigma.Point) => sym!{Real.Real} _ _ (equation tail p))
+    }
+  };
+\definition UpperZero: \Prop := \forall (x: Point) -> primitive x interval.right = Real.zero;
+\definition lowerValue[upper: UpperZero][x: Point]: Real.neg (Strip.boundary x) = primitive x interval.left :=
+  trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} Real.neg _ _
+    (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (\fun (a: Real.Real) => Real.sub a (primitive x interval.left)) _ _ (upper x))
+      (Laws.addZeroLeft (Real.neg (primitive x interval.left)))))
+    (Laws.negInvolutive (primitive x interval.left));
+\definition lower[valid: Strip.Conditions][upper: UpperZero]: I.Representatives :=
+  \into[Point -> Real.Real]((\fun (x: Point) => primitive x interval.left), I.Representatives) \by {
+    \idelim Negation.neg (Strip.boundaryRepresentative valid) = (\fun (x: Point) => primitive x interval.left)
+      \with h: (Point -> Real.Real) => I.Integrable h \by {
+        base: (I.integralLaw (Negation.representative (Strip.boundaryRepresentative valid))).integrable,
+        equality: \axiom:funext(Negation.neg (Strip.boundaryRepresentative valid), (\fun (x: Point) => primitive x interval.left), lowerValue upper)
+      }
+  };
+\definition theorem[valid: Strip.Conditions][tail: TailZero][upper: UpperZero]:
+  J.integral (representative valid tail) = Real.neg (I.integral (lower valid upper)) := eq_reason_in!{Real.Real _
+    "=" _ "by" { JointEquality.integralPointwise (representative valid tail) (Strip.representative valid) (equation tail) }
+    "=" _ "by" { Strip.theorem valid }
+    "=" _ "by" { sym!{Real.Real} _ _ (Laws.negInvolutive (I.integral (Strip.boundaryRepresentative valid))) }
+    "=" _ "by" { congr!{Real.Real Real.Real} Real.neg _ _ (sym!{Real.Real} _ _
+      (trans!{Real.Real} _ _ _
+        (BaseEquality.integralPointwise (lower valid upper) (Negation.representative (Strip.boundaryRepresentative valid))
+          (\fun (x: Point) => sym!{Real.Real} _ _ (lowerValue upper x)))
+        (Negation.integralNeg (Strip.boundaryRepresentative valid)))) }
+  };

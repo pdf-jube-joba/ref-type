@@ -1,0 +1,73 @@
+/* A restriction of a diffeomorphism gives the same compact pullback after
+   zero extension. The inverse-image condition follows from bijectivity. */
+\structure Conditions: \Prop := {
+  sourceIncluded: Open.Included D U,
+  targetIncluded: Open.Included E V,
+  forward: \forall (x: Open.Carrier D) -> Maps.apply D E r.forward x = Maps.apply U V e.forward (Open.inclusion D U sourceIncluded x),
+};
+\module With(conditions: Conditions) {
+  \definition source[x: Open.Carrier D]: Open.Carrier U := Open.inclusion D U conditions.sourceIncluded x;
+  \definition target[y: Open.Carrier E]: Open.Carrier V := Open.inclusion E V conditions.targetIncluded y;
+  \definition forwardInTarget[x: Open.Carrier D]: target (Maps.apply D E r.forward x) = Maps.apply U V e.forward (source x) := conditions.forward x;
+  \definition backward[y: Open.Carrier E]: Maps.apply V U e.backward (target y) = source (Maps.apply E D r.backward y) := eq_reason_in!{Point _
+    "=" _ "by" { congr!{{Open.Carrier V} Point} (\fun (z: Open.Carrier V) => Maps.apply V U e.backward z) _ _
+      (sym!{{Open.Carrier V}} _ _ (trans!{{Open.Carrier V}} _ _ _
+        (sym!{{Open.Carrier V}} _ _ (forwardInTarget (Maps.apply E D r.backward y)))
+        (congr!{{Open.Carrier E} {Open.Carrier V}} target _ _ (r.rightInverse y)))) }
+    "=" _ "by" { e.leftInverse (source (Maps.apply E D r.backward y)) }
+  };
+  \definition preimage[x: Open.Carrier U]: Sets.Member E.points (Maps.apply U V e.forward x) -> Sets.Member D.points x := \fun (inside: _) => \block {
+    \let y: Open.Carrier E := \into[Point](Maps.apply U V e.forward x, E.points) \by { inside } \then
+    \let z: Open.Carrier D := Maps.apply E D r.backward y \then
+    \let same: z = x := trans!{Point} _ _ _ (sym!{Point} _ _ (backward y)) (e.leftInverse x) \then
+    \return \idelim z = x \with p: Point => Sets.Member D.points p \by { base: \bysub(Point, D.points, z), equality: same }
+  };
+  \import Maps.Restriction[U := D, V := U, W := V] \as Restrict;
+  \definition restricted: Maps.Map D V := Restrict.input conditions.sourceIncluded e.forward;
+  \import \root.Euclidean[n := n].Jacobian[U := D, V := E, f := r.forward] \as LocalJacobian;
+  \definition differential[x: Open.Carrier D]: LocalJacobian.differential x = J.differential (source x) := \block {
+    \let first: Open.Carrier D -> Point := \fun (z: Open.Carrier D) => Maps.apply D E r.forward z \then
+    \let second: Open.Carrier D -> Point := \fun (z: Open.Carrier D) => Maps.apply D V restricted z \then
+    \return trans!{{Linear.Map}} _ _ _
+      (Maps.Differential[U := D, V := E, f := r.forward, a := x].Compare[W := V, g := restricted].equal
+        (\axiom:funext(first, second, conditions.forward)))
+      (Restrict.differential conditions.sourceIncluded e.forward x)
+  };
+  \definition signed[x: Open.Carrier D]: LocalJacobian.signed x = J.signed (source x) :=
+    congr!{{Linear.Map} Real.Real} Top.determinant _ _ (differential x);
+  \definition absolute[x: Open.Carrier D]: LocalJacobian.absolute x = J.absolute (source x) :=
+    congr!{Real.Real Real.Real} Absolute.abs _ _ (signed x);
+  \module Compact(f: L.SmoothCompact, within: Sets.Subset (Functions.support f) E.points) {
+    \definition globalWithin: Sets.Subset (Functions.support f) V.points := \fun (x: Point)(supported: _) => conditions.targetIncluded x (within x supported);
+    \import \root.Euclidean[n := n].Diffeomorphism[U := U, V := V, e := e].Compact[f := f, within := globalWithin] \as Global;
+    \import \root.Euclidean[n := n].Diffeomorphism[U := D, V := E, e := r].Compact[f := f, within := within] \as Local;
+    \import lp_spaces.On[A := Point, mu := Lebesgue.measure].One[].Norm[] \as IntegralEquality;
+    \definition inside[x: Open.Carrier D]: Global.representative x = Local.representative x := eq_reason_in!{Real.Real _
+      "=" _ "by" { Global.inside (source x) }
+      "=" _ "by" { congr!{Real.Real Real.Real Real.Real} Real.mul _ _ _ _ (sym!{Real.Real} _ _ (absolute x))
+        (congr!{Point Real.Real} f _ _ (sym!{Point} _ _ (conditions.forward x))) }
+      "=" _ "by" { sym!{Real.Real} _ _ (Local.inside x) }
+    };
+    \definition outsideLocal[x: Open.Carrier U]: Logic.Not (Sets.Member D.points x) -> Global.representative x = Real.zero := \fun (outside: _) => \block {
+      \let vanishes: f (Maps.apply U V e.forward x) = Real.zero := Support.zeroOutsideSupport Ambient.topology f (Maps.apply U V e.forward x)
+        (\fun (supported: _) => outside (preimage x (within (Maps.apply U V e.forward x) supported))) \then
+      \return trans!{Real.Real} _ _ _ (Global.inside x)
+        (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (Real.mul (J.absolute x)) _ _ vanishes) (Laws.fieldMulZeroRight (J.absolute x)))
+    };
+    \definition outside[x: Point]: Logic.Not (Sets.Member D.points x) -> Global.representative x = Local.representative x := \fun (notInD: _) =>
+      Logic.orElim (Sets.Member U.points x) (Logic.Not (Sets.Member U.points x)) (Global.representative x = Local.representative x)
+        (std.Logic[].Classical[].excludedMiddle (Sets.Member U.points x))
+        (\fun (insideU: Sets.Member U.points x) => \block {
+          \let local: Open.Carrier U := \into[Point](x, U.points) \by { insideU } \then
+          \return trans!{Real.Real} _ _ _ (outsideLocal local notInD) (sym!{Real.Real} _ _ (Local.outside x notInD))
+        })
+        (\fun (notInU: Logic.Not (Sets.Member U.points x)) => trans!{Real.Real} _ _ _ (Global.outside x notInU) (sym!{Real.Real} _ _ (Local.outside x notInD)));
+    \definition pointwise[x: Point]: Global.representative x = Local.representative x :=
+      Logic.orElim (Sets.Member D.points x) (Logic.Not (Sets.Member D.points x)) (Global.representative x = Local.representative x)
+        (std.Logic[].Classical[].excludedMiddle (Sets.Member D.points x))
+        (\fun (insideD: Sets.Member D.points x) => inside (\into[Point](x, D.points) \by { insideD }))
+        (\fun (notInD: Logic.Not (Sets.Member D.points x)) => outside x notInD);
+    \definition integral: I.integral Global.representative = I.integral Local.representative :=
+      IntegralEquality.integralPointwise Global.representative Local.representative pointwise;
+  }
+}

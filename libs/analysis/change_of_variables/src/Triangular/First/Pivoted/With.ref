@@ -1,0 +1,37 @@
+\import Factor.With[a := point, local := local] \as Construction;
+\import \root.Triangular[n := N.Nat^::succ n].Swap[first := Fin.zero n, second := pivot].On[U := U] \as Coordinates;
+\definition domain: Ambient.OpenSet := Construction.domain;
+\definition middle: Ambient.OpenSet := Construction.middle;
+\definition target: Ambient.OpenSet := Construction.target;
+\definition included: Ambient.Included domain Normal.domain := Construction.included;
+\definition simple: Diffeomorphisms.Diffeomorphism domain middle := Construction.simple;
+\definition residual: Diffeomorphisms.Diffeomorphism middle target := Construction.residual;
+\definition origin: Ambient.Carrier domain := \into[Fin.Fin (N.Nat^::succ n) -> Real.Real](point, domain.points) \by { Construction.contains };
+\definition source[x: Ambient.Carrier domain]: Ambient.Carrier U := Coordinates.forward (Construction.source x);
+\definition center: source origin = a := Coordinates.image a;
+\definition composition[x: Ambient.Carrier domain]: AmbientMaps.apply middle target residual.forward (AmbientMaps.apply domain middle simple.forward x) = AmbientMaps.apply U V f.forward (source x) := Construction.composition x;
+\definition fixed: \parent.\parent.At[U := middle, V := target, f := residual].Condition :=
+  \fun (x: Ambient.Carrier middle) => \axiom:funext(Split.left (AmbientMaps.apply middle target residual.forward x), Split.left x,
+    \fun (i: Fin.Fin one) => \idelim Fin.zero N.Nat^::zero = i \with j: Fin.Fin one =>
+      Split.left (AmbientMaps.apply middle target residual.forward x) j = Split.left x j \by {
+        base: Construction.residualFixed x,
+        equality: sym!{{Fin.Fin one}} _ _ (Fin.singletonValue i)
+      });
+\definition simpleOthers[x: Ambient.Carrier domain][i: Fin.Fin (N.Nat^::succ n)]: Logic.Not (Fin.zero n = i) -> AmbientMaps.apply domain middle simple.forward x i = x i :=
+  \fun (different: _) => Construction.simpleOther i different x;
+/* The same factorization, now on an open neighborhood in the original coordinates. */
+\import inverse_implicit.Euclidean[n := N.Nat^::succ n] \as Local;
+\definition coordinatesInverse: Diffeomorphisms.Diffeomorphism U Normal.domain := Diffeomorphisms.Inverse[U := Normal.domain, V := U, f := Normal.reindexing].inverse;
+\import Local.RestrictDiffeomorphism[U := U, V := Normal.domain, f := coordinatesInverse, W := domain, included := included] \as OriginalRestriction;
+\definition chartDomain: Ambient.OpenSet := OriginalRestriction.domain;
+\definition chartIncluded: Ambient.Included chartDomain U := OriginalRestriction.input;
+\definition chart: Diffeomorphisms.Diffeomorphism chartDomain domain := OriginalRestriction.equivalence;
+\definition containsOriginal: \In[Fin.Fin (N.Nat^::succ n) -> Real.Real] chartDomain.points a := OriginalRestriction.intro a Construction.contains;
+\definition chartFormula[x: Ambient.Carrier chartDomain]: source (AmbientMaps.apply chartDomain domain chart.forward x) = x :=
+  Normal.reindexing.rightInverse (Ambient.inclusion chartDomain U chartIncluded x);
+\definition originalComposition[x: Ambient.Carrier chartDomain]: AmbientMaps.apply middle target residual.forward
+  (AmbientMaps.apply domain middle simple.forward (AmbientMaps.apply chartDomain domain chart.forward x)) =
+  AmbientMaps.apply U V f.forward (Ambient.inclusion chartDomain U chartIncluded x) :=
+  trans!{{Fin.Fin (N.Nat^::succ n) -> Real.Real}} _ _ _ (composition (AmbientMaps.apply chartDomain domain chart.forward x))
+    (congr!{{Ambient.Carrier U} {Fin.Fin (N.Nat^::succ n) -> Real.Real}} (AmbientMaps.apply U V f.forward)
+      (source (AmbientMaps.apply chartDomain domain chart.forward x)) (Ambient.inclusion chartDomain U chartIncluded x) (chartFormula x));

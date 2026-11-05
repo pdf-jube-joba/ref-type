@@ -1,0 +1,36 @@
+\import \root.Euclidean[n := n].Decomposition[family := family, f := f] \as Decomposition;
+\import \root.Euclidean[n := n].Compact[] \as Integrals;
+\import lp_spaces.On[A := Point, mu := Lebesgue.measure].One[].Norm[] \as Equality;
+\definition Local[W: \Pow Point]: \Prop := \forall (h: L.SmoothCompact)(inside: Sets.Subset (Functions.support h) W)
+  (inTarget: Sets.Subset (Functions.support h) V.points) ->
+  I.integral (Euclidean.Diffeomorphism[U := U, V := V, e := e].Compact[f := h, within := inTarget].representative) = I.integral (Integrals.representative h);
+\structure Conditions: \Prop := {
+  cover: Sets.IsOpenCover[Ambient.topology, family, Functions.support f],
+  included: \forall (W: \Pow Point) -> Sets.FamilyMember family W -> Sets.Subset W V.points,
+  local: \forall (W: \Pow Point) -> Sets.FamilyMember family W -> Local W,
+};
+\definition empty[h: L.SmoothCompact][inside: Sets.Subset (Functions.support h) Sets.Empty][inTarget: Sets.Subset (Functions.support h) V.points]:
+  I.integral (Euclidean.Diffeomorphism[U := U, V := V, e := e].Compact[f := h, within := inTarget].representative) = I.integral (Integrals.representative h) := \block {
+  \let zero: \forall (x: Point) -> h x = Real.zero := \fun (x: Point) => Support.zeroOutsideSupport Ambient.topology h x (inside x) \then
+  \return Equality.integralPointwise (Euclidean.Diffeomorphism[U := U, V := V, e := e].Compact[f := h, within := inTarget].representative) (Integrals.representative h)
+    (\fun (x: Point) => Logic.orElim (Sets.Member U.points x) (Logic.Not (Sets.Member U.points x))
+      (Euclidean.Diffeomorphism[U := U, V := V, e := e].Compact[f := h, within := inTarget].representative x = h x)
+      (std.Logic[].Classical[].excludedMiddle (Sets.Member U.points x))
+      (\fun (member: Sets.Member U.points x) => \block {
+        \let point: Open.Carrier U := \into[Point](x, U.points) \by { member } \then
+        \return trans!{Real.Real} _ _ _
+          (trans!{Real.Real} _ _ _ (Euclidean.Diffeomorphism[U := U, V := V, e := e].Compact[f := h, within := inTarget].inside point)
+            (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (Real.mul (J.absolute point)) _ _ (zero (Maps.apply U V e.forward point))) (Laws.fieldMulZeroRight (J.absolute point))))
+          (sym!{Real.Real} _ _ (zero x))
+      })
+      (\fun (outside: Logic.Not (Sets.Member U.points x)) => trans!{Real.Real} _ _ _
+        (Euclidean.Diffeomorphism[U := U, V := V, e := e].Compact[f := h, within := inTarget].outside x outside)
+        (sym!{Real.Real} _ _ (zero x))))
+};
+\module With(data: Decomposition.Data, conditions: Conditions);
+\definition theorem: Conditions ->
+  I.integral (Euclidean.Diffeomorphism[U := U, V := V, e := e].Compact[f := f, within := within].representative) = I.integral (Integrals.representative f) :=
+  \fun (conditions: Conditions) => \block {
+    \takefrom data: Decomposition.Data \by Decomposition.exists conditions.cover \then
+    \return With[data := data, conditions := conditions].theorem
+  };

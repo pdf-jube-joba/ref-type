@@ -1,0 +1,47 @@
+\import std.Data[].Nat[] \as N;
+\import std.Logic[].Proposition[] \as Logic;
+\use std.Logic[].Equality[].congr;
+\use std.Logic[].Equality[].sym;
+\import real.Analysis[] \as Real;
+\import euclidean_measure.RealLine[] \as Line;
+\import euclidean_measure.Euclidean[n := N.Nat^::succ N.Nat^::zero] \as E;
+\import E.MeasureConstruction[] \as Construction;
+\import euclidean_measure.Pushforward[A := E.Point, B := Real.Real, source := Construction.measure, map := Line.scalar] \as Push;
+\import euclidean_measure.Exhaustion[n := N.Nat^::succ N.Nat^::zero] \as Boxes;
+\import product_integration.Euclidean[n := N.Nat^::succ N.Nat^::zero] \as PointFinite;
+\import product_integration.Finiteness[A := Real.Real, mu := Line.measure] \as F;
+\import topology.Topology[Carrier := E.Point] \as PointSets;
+\import topology.Topology[Carrier := Real.Real] \as Sets;
+\import functional_analysis.Measure[A := E.Point] \as PM;
+\definition sets[k: N.Nat^]: \Pow Real.Real := { t: Real.Real \where PointSets.Member (E.points (Boxes.box k)) (Line.point t) };
+\definition preimage[k: N.Nat^]: Push.preimage (sets k) = E.points (Boxes.box k) :=
+  \axiom:setext(Push.preimage (sets k), E.points (Boxes.box k),
+    \fun (x: E.Point) (inside: PointSets.Member (E.points (Boxes.box k)) (Line.point (Line.scalar x))) =>
+      \idelim Line.point (Line.scalar x) = x \with p: E.Point => PointSets.Member (E.points (Boxes.box k)) p \by { base: inside, equality: Line.pointScalar x },
+    \fun (x: E.Point) (inside: PointSets.Member (E.points (Boxes.box k)) x) =>
+      \idelim x = Line.point (Line.scalar x) \with p: E.Point => PointSets.Member (E.points (Boxes.box k)) p \by { base: inside, equality: sym!{E.Point} _ _ (Line.pointScalar x) });
+\definition finite[k: N.Nat^]: F.FiniteSet[sets k] := F.FiniteSet[sets k] {
+  measurable := \idelim E.points (Boxes.box k) = Push.preimage (sets k) \with S: \Pow E.Point => PM.Measurable Construction.measure.sigma S \by {
+    base: (PointFinite.boxFinite (Boxes.box k)).measurable, equality: sym!{\Pow E.Point} _ _ (preimage k) },
+  bounded := \idelim E.points (Boxes.box k) = Push.preimage (sets k) \with S: \Pow E.Point =>
+    \exists (b: Real.Real \where \forall (r: Real.Real) -> PM.below (Construction.measure.value S) r -> dedekind_reals.DedekindReal[].Le r b) \by {
+      base: (PointFinite.boxFinite (Boxes.box k)).bounded, equality: sym!{\Pow E.Point} _ _ (preimage k) },
+};
+\definition exhaustion: F.Exhaustion := F.Exhaustion {
+  sets := sets,
+  finite := finite,
+  covers := \fun (x: Real.Real) => Boxes.covers (Line.point x),
+};
+\definition sigmaFinite: F.SigmaFinite := \exact(exhaustion, F.Exhaustion);
+\import product_integration.MeasureMap[A := Real.Real, B := Real.Real, source := Line.measure, target := Line.measure] \as Maps;
+\import functional_analysis.Measure[A := Real.Real].Integral[mu := Line.measure] \as I;
+\definition translation[a: Real.Real]: Maps.Data := Maps.Data {
+  function := \fun (t: Real.Real) => Real.sub t a,
+  measurable := \fun (S: \Pow Real.Real) (valid: functional_analysis.Measure[A := Real.Real].Measurable Line.measure.sigma S) =>
+    Construction.translateMeasurable (Push.preimage S) (Line.point a) valid,
+  value := \fun (S: \Pow Real.Real) (_: functional_analysis.Measure[A := Real.Real].Measurable Line.measure.sigma S) =>
+    Construction.translateMeasure (Push.preimage S) (Line.point a),
+};
+\module Translate(a: Real.Real, f: I.Representatives);
+\module Monotone(interval: integration.Real[].Interval,
+  g, dg: integration.Real[].Riemann[interval := interval].Continuous[].Function);

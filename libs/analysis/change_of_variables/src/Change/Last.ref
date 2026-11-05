@@ -1,0 +1,28 @@
+\import std.Data[].FinSet[] \as Fin;
+\import std.Logic[].Proposition[] \as Logic;
+\use std.Logic[].Equality[].sym;
+\import real.Analysis[] \as Real;
+\definition one: N.Nat^ := N.Nat^::succ N.Nat^::zero;
+\import Fin.Sum[m := n, n := one] \as Index;
+\import \root.OneCoordinate[n := n] \as O;
+\import \root.Bridge[n := n] \as B;
+\import \root.Change[].In[n := Index.total] \as C;
+\import calculus.Real[].Multivariable[n := Index.total].Open[] \as Open;
+\import calculus.Diffeomorphism[n := Index.total, m := Index.total] \as Diffeomorphisms;
+\import calculus.Maps[n := Index.total, m := Index.total] \as Maps;
+\definition fixed[U, V: Open.OpenSet][e: Diffeomorphisms.Diffeomorphism U V]: C.Single U V e O.pivot -> O.At[U := U, V := V, e := e].Fixed :=
+  \fun (single: C.Single U V e O.pivot)(x: Open.Carrier U) =>
+    \axiom:funext(B.base (Maps.apply U V e.forward x), B.base x,
+      \fun (i: Fin.Fin n) => single x (Index.left i)
+        (\fun (same: O.pivot = Index.left i) => Index.different i (Fin.zero N.Nat^::zero) (sym!{{Fin.Fin Index.total}} _ _ same)));
+\definition dimension: Index.total = N.Nat^::succ n := N.Basic[].Prop[].addComm one n;
+\definition coordinate: C.CoordinateProperty O.pivot :=
+  \fun (U, V: Open.OpenSet)(e: Diffeomorphisms.Diffeomorphism U V)(otherCoordinates: C.Single U V e O.pivot)
+    (f: lp_spaces.Euclidean[n := Index.total].SmoothCompact)
+    (within: topology.Topology[Carrier := euclidean_measure.Euclidean[n := Index.total].Point].Subset (smooth_partitions.Euclidean[n := Index.total].support f) V.points) =>
+    O.At[U := U, V := V, e := e].Global[fixed := fixed U V e otherCoordinates].theorem f within;
+\definition all: C.SingleProperty := C.AllCoordinates[last := O.pivot, known := coordinate].theorem;
+\definition successor: \root.Change[].In[n := N.Nat^::succ n].SingleProperty :=
+  \idelim Index.total = N.Nat^::succ n \with k: N.Nat^ => \root.Change[].In[n := k].SingleProperty \by {
+    base: all, equality: dimension
+  };

@@ -1,0 +1,66 @@
+/* Exact measure transformation rules are closed under composition. */
+\import Maps.Composition[U := Point, domain := Coordinates.space] \as Composition;
+\definition coefficient[L: Maps.Map]: Real.Real := Absolute.abs (Top.determinant L);
+\structure Rule[L: Maps.Map]: \Prop := {
+  measure: \forall (S: \Pow Point) -> Lebesgue.measure.value (image L S) = M.scale (coefficient L) (Lebesgue.measure.value S),
+  measurable: \forall (S: \Pow Point) -> M.Measurable Lebesgue.measure.sigma S -> M.Measurable Lebesgue.measure.sigma (image L S),
+};
+\definition imageIdentity[S: \Pow Point]: image Basis.identity S = S := \axiom:setext(image Basis.identity S, S,
+  \fun (y: Point)(member: Sets.Member (image Basis.identity S) y) => \block {
+    \takefrom x: \Cast[Point] ({ x: Point \where Logic.And[Sets.Member S x, x = y] }) \by member \then
+    \let data: Logic.And[Sets.Member S x, x = y] := \bysub(Point, { x: Point \where Logic.And[Sets.Member S x, x = y] }, x) \then
+    \return \idelim x = y \with z: Point => Sets.Member S z \by { base: data.left, equality: data.right }
+  },
+  \fun (y: Point)(member: Sets.Member S y) => Logic.existsIntro[Point, { x: Point \where Logic.And[Sets.Member S x, x = y] }] y (Logic.And[Sets.Member S y, y = y]::# member (\refl(y))));
+\definition identity: Rule[Basis.identity] := Rule[Basis.identity] {
+  measure := \fun (S: \Pow Point) => eq_reason_in!{M.Value _
+    "=" _ "by" { congr!{{\Pow Point} M.Value} Lebesgue.measure.value _ _ (imageIdentity S) }
+    "=" _ "by" { sym!{M.Value} _ _ (Values.oneScale (Lebesgue.measure.value S) (E.outerNonnegative S)) }
+    "=" _ "by" { congr!{Real.Real M.Value} (\fun (c: Real.Real) => M.scale c (Lebesgue.measure.value S)) _ _
+      (sym!{Real.Real} _ _ (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} Absolute.abs _ _ Top.atIdentity) (Absolute.absOfNonnegative Real.one Laws.oneNonnegative))) }
+  },
+  measurable := \fun (S: \Pow Point)(measurable: _) => \idelim S = image Basis.identity S \with T: \Pow Point => M.Measurable Lebesgue.measure.sigma T \by { base: measurable, equality: sym!{{\Pow Point}} _ _ (imageIdentity S) },
+};
+\definition imageCompose[f, g: Maps.Map][S: \Pow Point]: image (Composition.compose f g) S = image f (image g S) := \axiom:setext(image (Composition.compose f g) S, image f (image g S),
+  \fun (y: Point)(member: Sets.Member (image (Composition.compose f g) S) y) => \block {
+    \takefrom x: \Cast[Point] ({ x: Point \where Logic.And[Sets.Member S x, f.apply (g.apply x) = y] }) \by member \then
+    \let data: Logic.And[Sets.Member S x, f.apply (g.apply x) = y] := \bysub(Point, { x: Point \where Logic.And[Sets.Member S x, f.apply (g.apply x) = y] }, x) \then
+    \return Logic.existsIntro[Point, { z: Point \where Logic.And[Sets.Member (image g S) z, f.apply z = y] }] (g.apply x)
+      (Logic.And[Sets.Member (image g S) (g.apply x), f.apply (g.apply x) = y]::# (Logic.existsIntro[Point, { w: Point \where Logic.And[Sets.Member S w, g.apply w = g.apply x] }] x (Logic.And[Sets.Member S x, g.apply x = g.apply x]::# data.left (\refl(g.apply x)))) data.right)
+  },
+  \fun (y: Point)(member: Sets.Member (image f (image g S)) y) => \block {
+    \takefrom z: \Cast[Point] ({ z: Point \where Logic.And[Sets.Member (image g S) z, f.apply z = y] }) \by member \then
+    \let outer: Logic.And[Sets.Member (image g S) z, f.apply z = y] := \bysub(Point, { z: Point \where Logic.And[Sets.Member (image g S) z, f.apply z = y] }, z) \then
+    \takefrom x: \Cast[Point] ({ x: Point \where Logic.And[Sets.Member S x, g.apply x = z] }) \by outer.left \then
+    \let inner: Logic.And[Sets.Member S x, g.apply x = z] := \bysub(Point, { x: Point \where Logic.And[Sets.Member S x, g.apply x = z] }, x) \then
+    \return Logic.existsIntro[Point, { x: Point \where Logic.And[Sets.Member S x, f.apply (g.apply x) = y] }] x
+      (Logic.And[Sets.Member S x, f.apply (g.apply x) = y]::# inner.left (trans!{Point} _ _ _ (congr!{Point Point} f.apply _ _ inner.right) outer.right))
+  });
+\definition compose[f, g: Maps.Map][first: Rule[f]][second: Rule[g]]: Rule[Composition.compose f g] := Rule[Composition.compose f g] {
+  measure := \fun (S: \Pow Point) => eq_reason_in!{M.Value _
+    "=" _ "by" { congr!{{\Pow Point} M.Value} Lebesgue.measure.value _ _ (imageCompose f g S) }
+    "=" _ "by" { first.measure (image g S) }
+    "=" _ "by" { congr!{M.Value M.Value} (M.scale (coefficient f)) _ _ (second.measure S) }
+    "=" _ "by" { Values.scaleCompose (coefficient f) (coefficient g) (Lebesgue.measure.value S) (Absolute.absNonnegative (Top.determinant f)) (Absolute.absNonnegative (Top.determinant g)) (E.outerNonnegative S) }
+    "=" _ "by" { congr!{Real.Real M.Value} (\fun (c: Real.Real) => M.scale c (Lebesgue.measure.value S)) _ _
+      (sym!{Real.Real} _ _ (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} Absolute.abs _ _ (Top.multiplicative f g)) (Absolute.absProduct (Top.determinant f) (Top.determinant g)))) }
+  },
+  measurable := \fun (S: \Pow Point)(measurable: _) => \idelim image f (image g S) = image (Composition.compose f g) S \with T: \Pow Point => M.Measurable Lebesgue.measure.sigma T \by {
+    base: first.measurable (image g S) (second.measurable S measurable), equality: sym!{{\Pow Point}} _ _ (imageCompose f g S)
+  },
+};
+\module Diagonal(a: Point) {
+  \import \parent.\parent.Diagonal[a := a] \as D;
+  \definition rule: Rule[D.map] := Rule[D.map] { measure := D.measure, measurable := D.measurable };
+}
+\module Permutation(p: Permutations.Permutation) {
+  \import \parent.\parent.Permutation[p := p] \as P;
+  \definition rule: Rule[P.map] := Rule[P.map] {
+    measure := \fun (S: \Pow Point) => eq_reason_in!{M.Value _
+      "=" _ "by" { P.measure S }
+      "=" _ "by" { sym!{M.Value} _ _ (Values.oneScale (Lebesgue.measure.value S) (E.outerNonnegative S)) }
+      "=" _ "by" { congr!{Real.Real M.Value} (\fun (c: Real.Real) => M.scale c (Lebesgue.measure.value S)) _ _ (sym!{Real.Real} _ _ P.Determinant[].theorem) }
+    },
+    measurable := P.measurable,
+  };
+}

@@ -1,0 +1,73 @@
+/* A one-dimensional identity block may be removed from a determinant. */
+\import dedekind_reals.DedekindReal[].Arithmetic[].Prop[] \as ScalarLaws;
+\import N.Basic[].Prop[] \as NatLaws;
+\import Fin.Tuples[A := Real.Real] \as Tuples;
+\import Spaces.Coordinates[I := Fin.Fin (N.Nat^::succ n)] \as BigVectors;
+\import Spaces.FiniteCoordinates[n := N.Nat^::succ n] \as BigBasis;
+\import BigVectors.Kronecker[] \as BigKronecker;
+\import matrix_invariants.Ring[K := Real.Real, scalars := std.Alg[].Field[].fieldAsCommutativeRing Real.Real Algebra.field].At[n := N.Nat^::succ n] \as Big;
+\import Big.Rows[] \as BigRows;
+\import Big.Operations[] \as BigOperations;
+\import Spaces.Multilinear[V := BigVectors.Vector, space := BigVectors.space] \as BigMultilinear;
+\import BigMultilinear.Properties[] \as BigUpdates;
+\import BigMultilinear.Alternating[].Contraction[k := n] \as Contract;
+\import Multilinear.Alternating[].Precomposition[W := BigVectors.Vector, target := BigVectors.space] \as Pullback;
+\import Basis.Top[] \as Top;
+\import Fin.Tuples[A := BigVectors.Vector] \as RowTuples;
+\import Spaces.Linear[V := Point, W := BigVectors.Vector, source := Vectors.space, target := BigVectors.space] \as Embeddings;
+\definition BigPoint: \Set := BigVectors.Vector;
+\definition BigIndex: \Set := Big.Index;
+\definition embed[v: Point]: BigPoint := Tuples.extend n Real.zero v;
+\definition embedding: Embeddings.Map := Embeddings.Map {
+  apply := embed,
+  preservesAdd := \fun (v, w: Point) => Tuples.extensionality n _ _
+    (trans!{Real.Real} _ _ _ (Tuples.atZero n Real.zero (Vectors.plus v w))
+      (sym!{Real.Real} _ _ (trans!{Real.Real} _ _ _
+        (congr!{Real.Real Real.Real Real.Real} Real.add _ _ _ _ (Tuples.atZero n Real.zero v) (Tuples.atZero n Real.zero w))
+        (ScalarLaws.addZeroLeft Real.zero))))
+    (\fun (i: Index) => trans!{Real.Real} _ _ _ (Tuples.atSuccessor n Real.zero (Vectors.plus v w) i)
+      (sym!{Real.Real} _ _ (congr!{Real.Real Real.Real Real.Real} Real.add _ _ _ _ (Tuples.atSuccessor n Real.zero v i) (Tuples.atSuccessor n Real.zero w i)))),
+  preservesScale := \fun (a: Real.Real)(v: Point) => Tuples.extensionality n _ _
+    (trans!{Real.Real} _ _ _ (Tuples.atZero n Real.zero (Vectors.scale a v))
+      (sym!{Real.Real} _ _ (trans!{Real.Real} _ _ _
+        (congr!{Real.Real Real.Real} (Real.mul a) _ _ (Tuples.atZero n Real.zero v)) (ScalarLaws.fieldMulZeroRight a))))
+    (\fun (i: Index) => trans!{Real.Real} _ _ _ (Tuples.atSuccessor n Real.zero (Vectors.scale a v) i)
+      (sym!{Real.Real} _ _ (congr!{Real.Real Real.Real} (Real.mul a) _ _ (Tuples.atSuccessor n Real.zero v i)))),
+};
+\definition basisTail[i: Index]: embed (Basis.vectors i) = Big.identity (Fin.succ n i) := Tuples.extensionality n _ _
+  (trans!{Real.Real} _ _ _ (Tuples.atZero n Real.zero (Basis.vectors i))
+    (sym!{Real.Real} _ _ (BigKronecker.different (Fin.zero n) (Fin.succ n i) (NatLaws.zeroNeSucc (Fin.value n i)))))
+  (\fun (j: Index) => trans!{Real.Real} _ _ _ (Tuples.atSuccessor n Real.zero (Basis.vectors i) j)
+    (Logic.orElim _ _ _ (Classical.excludedMiddle (i = j))
+      (\fun (same: _) => trans!{Real.Real} _ _ _ (Kronecker.equal i j same)
+        (sym!{Real.Real} _ _ (BigKronecker.equal (Fin.succ n j) (Fin.succ n i) (congr!{Index BigIndex} (Fin.succ n) _ _ (sym!{Index} _ _ same)))))
+      (\fun (different: _) => trans!{Real.Real} _ _ _ (Kronecker.different i j different)
+        (sym!{Real.Real} _ _ (BigKronecker.different (Fin.succ n j) (Fin.succ n i)
+          (\fun (same: Fin.succ n j = Fin.succ n i) => different (sym!{Index} j i (NatLaws.succInjective (Fin.value n j) (Fin.value n i) same))))))));
+\definition form[head: BigPoint]: Top.Form := Pullback.precompose n embedding (Contract.apply BigRows.form head);
+\definition basisRows[head: BigPoint]: RowTuples.extend n head (\fun (i: Index) => embed (Basis.vectors i)) = BigMultilinear.update (N.Nat^::succ n) Big.identity (Fin.zero n) head :=
+  RowTuples.extensionality n _ _
+    (trans!{BigPoint} _ _ _ (RowTuples.atZero n head _) (sym!{BigPoint} _ _ (BigUpdates.updateSelf (N.Nat^::succ n) Big.identity (Fin.zero n) head)))
+    (\fun (i: Index) => trans!{BigPoint} _ _ _ (RowTuples.atSuccessor n head _ i)
+      (trans!{BigPoint} _ _ _ (basisTail i) (sym!{BigPoint} _ _ (BigUpdates.updateOther (N.Nat^::succ n) Big.identity (Fin.zero n) (Fin.succ n i) head (NatLaws.zeroNeSucc (Fin.value n i))))));
+\definition coefficient[head: BigPoint]: form head Top.basisArguments = head (Fin.zero n) :=
+  trans!{Real.Real} _ _ _ (congr!{Big.Matrix Real.Real} Big.determinant _ _ (basisRows head))
+    (\root.Triangular[n := N.Nat^::succ n].Row[pivot := Fin.zero n].determinant head);
+\definition evaluation[head: BigPoint][arguments: Multilinear.Arguments n]: form head arguments = Real.mul (head (Fin.zero n)) (Matrix.determinant arguments) :=
+  trans!{Real.Real} _ _ _
+    (congr!{{Top.Form} Real.Real} (\fun (f: Top.Form) => f arguments) _ _ (Top.reconstruction (form head)))
+    (congr!{Real.Real Real.Real Real.Real} Real.mul _ _ _ _ (coefficient head)
+      (sym!{Real.Real} _ _ (congr!{{Top.Form} Real.Real} (\fun (f: Top.Form) => f arguments) _ _ Rows.agrees)));
+\definition minor[A: Big.Matrix][i, j: Index]: Real.Real := A (Fin.succ n i) (Fin.succ n j);
+\module At(A: Big.Matrix);
+\definition firstColumn[A: Big.Matrix]:
+  (\forall (i: Index) -> A (Fin.succ n i) (Fin.zero n) = Real.zero) ->
+  Big.determinant A = Real.mul (A (Fin.zero n) (Fin.zero n)) (Matrix.determinant (minor A)) := At[A := A].firstColumn;
+\definition firstRow[A: Big.Matrix]: A (Fin.zero n) (Fin.zero n) = Real.one ->
+  (\forall (i: Index) -> A (Fin.zero n) (Fin.succ n i) = Real.zero) -> Big.determinant A = Matrix.determinant (minor A) :=
+  \fun (one: _)(zeros: _) => eq_reason_in!{Real.Real _
+    "=" _ "by" { sym!{Real.Real} _ _ (BigRows.transposeInvariant A) }
+    "=" _ "by" { firstColumn (Big.transpose A) zeros }
+    "=" _ "by" { congr!{Real.Real Real.Real Real.Real} Real.mul _ _ _ _ one (Rows.transposeInvariant (minor A)) }
+    "=" _ "by" { ScalarLaws.fieldMulOneLeft (Matrix.determinant (minor A)) }
+  };

@@ -1,0 +1,18 @@
+\import Forms.On[U := U] \as Local;
+\import Local.At[k := n] \as Operations;
+\import Open.Smooth[] \as Smooth;
+\definition volume: Local.Form n := Operations.constant Top.volume;
+\definition coefficient[omega: Local.Form n]: Smooth.SmoothFunction U := Local.evaluate n omega Top.basisArguments;
+\definition form[f: Smooth.SmoothFunction U]: Local.Form n := Operations.multiply f volume;
+\definition coefficientForm[f: Smooth.SmoothFunction U]: coefficient (form f) = f :=
+  \axiom:funext(coefficient (form f), f, \fun (x: Open.Carrier U) => trans!{Real.Real} _ _ _
+    (congr!{Real.Real Real.Real} (Real.mul (f x)) _ _ Top.normalized) (Algebra.mulOneRight (f x)));
+\definition reconstruction[omega: Local.Form n]: form (coefficient omega) = omega :=
+  Local.ext n (form (coefficient omega)) omega (\fun (x: Open.Carrier U)(arguments: Top.Arguments) =>
+    congr!{{Top.Form} Real.Real} (\fun (eta: Top.Form) => eta arguments) _ _ (sym!{{Top.Form}} _ _ (Top.reconstruction (omega x))));
+\definition ext[omega, eta: Local.Form n]: coefficient omega = coefficient eta -> omega = eta :=
+  \fun (same: _) => eq_reason_in!{{Local.Form n} _
+    "=" _ "by" { sym!{{Local.Form n}} _ _ (reconstruction omega) }
+    "=" _ "by" { congr!{{Smooth.SmoothFunction U} {Local.Form n}} form _ _ same }
+    "=" _ "by" { reconstruction eta }
+  };

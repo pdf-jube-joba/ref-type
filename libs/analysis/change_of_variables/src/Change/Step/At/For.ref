@@ -1,0 +1,23 @@
+\import \root.Euclidean[n := N.Nat^::succ n].Diffeomorphism[U := U, V := V, e := e].Gluing[f := f, within := within, family := family] \as Gluing;
+\definition covers: Sets.Covers family (Functions.support f) := \fun (x: E.Point)(supported: Sets.Member (Functions.support f) x) => \block {
+  \let y: Open.Carrier V := \into[E.Point](x, V.points) \by { within x supported } \then
+  \takefrom q: \Cast[Neighborhood] ({ q: Neighborhood \where Sets.Member (target q).points y }) \by existsAt y \then
+  \return Sets.unionMemberOf family (target q).points x (member q)
+    (\bysub(Neighborhood, { q: Neighborhood \where Sets.Member (target q).points y }, q))
+};
+\definition local[W: \Pow E.Point]: Sets.FamilyMember family W -> Gluing.Local W := \fun (inFamily: _) => \block {
+  \takefrom q: \Cast[Neighborhood] ({ q: Neighborhood \where W = (target q).points }) \by inFamily \then
+  \let same: W = (target q).points := \bysub(Neighborhood, { q: Neighborhood \where W = (target q).points }, q) \then
+  \let proof: Gluing.Local W := \fun (h: L.SmoothCompact)(inside: Sets.Subset (Functions.support h) W)(inTarget: Sets.Subset (Functions.support h) V.points) => \block {
+    \let withinLocal: Sets.Subset (Functions.support h) (target q).points := \fun (x: E.Point)(supported: _) =>
+      \idelim W = (target q).points \with S: \Pow E.Point => Sets.Member S x \by { base: inside x supported, equality: same } \then
+    \return \parent.Local[a := q.source, pivot := q.pivot, local := q.local].Compact[f := h, within := withinLocal].theorem
+  } \then
+  \return proof
+};
+\definition conditions: Gluing.Conditions := Gluing.Conditions {
+  cover := Sets.IsOpenCover[Ambient.topology, family, Functions.support f] { covers := covers, open := opened },
+  included := included,
+  local := local,
+};
+\definition theorem: C.Statement U V e f within := Gluing.theorem conditions;

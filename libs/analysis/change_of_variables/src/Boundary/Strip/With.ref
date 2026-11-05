@@ -1,0 +1,20 @@
+\definition outside[x: Point]: Logic.Not (Sets.Member fubini.exception x) -> fubini.outer x = boundary x :=
+  \fun (absent: _) => eq_reason_in!{Real.Real _
+    "=" _ "by" { fubini.outerValues x }
+    "=" _ "by" { LineEquality.integralPointwise (fubini.sections x) (sections x) (fubini.sectionValues x absent) }
+    "=" _ "by" { sectionIntegral valid x }
+  };
+\definition almost: M.AlmostEqual Lebesgue.measure fubini.outer boundary := \block {
+  \let exceptionLaw: Null.NullSetLaw[fubini.exception] := Null.nullSetLaw fubini.exception \then
+  \let null: M.Null Lebesgue.measure fubini.exception := Logic.existsIntro[\Pow Point, { S: \Pow Point \where M.NullCover[Lebesgue.measure, fubini.exception, S] }] fubini.exception
+    (M.NullCover[Lebesgue.measure, fubini.exception, fubini.exception] {
+      measurable := exceptionLaw.measurable,
+      measure := exceptionLaw.zeroMeasure,
+      included := \fun (x: Point)(member: Sets.Member fubini.exception x) => member,
+    }) \then
+  \return AE.nullSubset ({ x: Point \where Logic.Not (fubini.outer x = boundary x) }) fubini.exception
+    (\fun (x: Point)(different: _) => Order.byContradiction (Sets.Member fubini.exception x)
+      (\fun (absent: _) => different (outside x absent))) null
+};
+\definition integrable: I.Integrable boundary := Null.integrableAlmost fubini.outer boundary almost
+  (I.integralLaw fubini.outer).integrable valid.boundaryMeasurable;

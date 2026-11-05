@@ -1,0 +1,70 @@
+/* The zero-dimensional change of variables is pointwise equality: the ambient
+   space has one point and every zero-dimensional determinant equals one. */
+\import std.Data[].Nat[] \as N;
+\import std.Data[].FinSet[] \as Fin;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Classical[] \as Classical;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.congr;
+\use Equality.trans;
+\use Equality.sym;
+\use Equality.eq_reason_in;
+\import real.Analysis[] \as Real;
+\import Real.Algebra[] \as Algebra;
+\import Real.Estimates[].Product[] \as Absolute;
+\import dedekind_reals.DedekindReal[].Arithmetic[].Prop[] \as Laws;
+\import \root.Euclidean[n := N.Nat^::zero] \as E;
+\import euclidean_measure.Zero[] \as Zero;
+\import calculus.Real[].Multivariable[n := N.Nat^::zero].Open[] \as Open;
+\import calculus.Maps[n := N.Nat^::zero, m := N.Nat^::zero] \as Maps;
+\import calculus.Diffeomorphism[n := N.Nat^::zero, m := N.Nat^::zero] \as Diffeomorphisms;
+\import linear_algebra.Commutative[K := Real.Real, scalarRing := std.Alg[].Field[].fieldAsCommutativeRing Real.Real Algebra.field] \as Spaces;
+\import Spaces.Coordinates[I := Fin.Fin N.Nat^::zero] \as Coordinates;
+\import Spaces.FiniteCoordinates[n := N.Nat^::zero].Top[] \as Top;
+\import Spaces.Linear[V := Coordinates.Vector, W := Coordinates.Vector, source := Coordinates.space, target := Coordinates.space] \as Linear;
+\import lp_spaces.Euclidean[n := N.Nat^::zero] \as L;
+\import smooth_partitions.Euclidean[n := N.Nat^::zero] \as Functions;
+\import functional_analysis.Support[A := E.Point] \as Support;
+\import topology.Topology[Carrier := E.Point] \as Sets;
+\import topological_algebra.Euclidean[].Dimension[n := N.Nat^::zero].Topology[] \as Ambient;
+\import euclidean_measure.Euclidean[n := N.Nat^::zero].MeasureConstruction[] \as Lebesgue;
+\import functional_analysis.Measure[A := E.Point].Integral[mu := Lebesgue.measure] \as I;
+\import lp_spaces.On[A := E.Point, mu := Lebesgue.measure].One[].Norm[] \as IntegralEquality;
+\definition determinant[F: Linear.Map]: Top.determinant F = Real.one := trans!{Real.Real} _ _ _
+  (congr!{{Top.Arguments} Real.Real} Top.volume _ _
+    (Fin.Empty[A := E.Point].unique (Top.transformed F Top.basisArguments) Top.basisArguments)) Top.normalized;
+\module Of(U, V: Open.OpenSet, e: Diffeomorphisms.Diffeomorphism U V, f: L.SmoothCompact, within: Sets.Subset (Functions.support f) V.points) {
+  \import E.Jacobian[U := U, V := V, f := e.forward] \as J;
+  \import E.Diffeomorphism[U := U, V := V, e := e].Compact[f := f, within := within] \as Pull;
+  \import E.Compact[] \as Compact;
+  \definition jacobian[x: Open.Carrier U]: J.absolute x = Real.one := trans!{Real.Real} _ _ _
+    (congr!{Real.Real Real.Real} Absolute.abs _ _ (determinant (J.differential x)))
+    (Absolute.absOfNonnegative Real.one Laws.oneNonnegative);
+  \definition inside[x: Open.Carrier U]: Pull.value x = f x := eq_reason_in!{Real.Real _
+    "=" _ "by" { Pull.inside x }
+    "=" _ "by" { congr!{Real.Real Real.Real} (\fun (a: Real.Real) => Real.mul a (f (Maps.apply U V e.forward x))) _ _ (jacobian x) }
+    "=" _ "by" { Laws.fieldMulOneLeft (f (Maps.apply U V e.forward x)) }
+    "=" _ "by" { congr!{E.Point Real.Real} f _ _ (Zero.unique (Maps.apply U V e.forward x) x) }
+  };
+  \definition outside[x: E.Point]: Logic.Not (Sets.Member U.points x) -> Pull.value x = f x := \fun (outsideU: _) => \block {
+    \let outsideV: Logic.Not (Sets.Member V.points x) := \fun (insideV: _) => \block {
+      \let target: Open.Carrier V := \into[E.Point](x, V.points) \by { insideV } \then
+      \let source: Open.Carrier U := Maps.apply V U e.backward target \then
+      \return outsideU (\idelim source = x \with y: E.Point => Sets.Member U.points y \by {
+        base: \bysub(E.Point, U.points, source), equality: Zero.unique source x
+      })
+    } \then
+    \let vanishes: f x = Real.zero := Support.zeroOutsideSupport Ambient.topology f x
+      (\fun (supported: _) => outsideV (within x supported)) \then
+    \return trans!{Real.Real} _ _ _ (Pull.outside x outsideU) (sym!{Real.Real} _ _ vanishes)
+  };
+  \definition pointwise[x: E.Point]: Pull.representative x = Compact.representative f x :=
+    Logic.orElim (Sets.Member U.points x) (Logic.Not (Sets.Member U.points x)) (Pull.representative x = Compact.representative f x) (Classical.excludedMiddle (Sets.Member U.points x))
+      (\fun (member: Sets.Member U.points x) => \block {
+        \let local: Open.Carrier U := \into[E.Point](x, U.points) \by { member } \then
+        \return inside local
+      })
+      (\fun (outsideU: Logic.Not (Sets.Member U.points x)) => outside x outsideU);
+  \definition theorem: I.integral Pull.representative = I.integral (Compact.representative f) :=
+    IntegralEquality.integralPointwise Pull.representative (Compact.representative f) pointwise;
+}

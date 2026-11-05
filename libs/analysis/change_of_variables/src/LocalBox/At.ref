@@ -1,0 +1,23 @@
+\structure RadiusLaws[h: Real.Real]: \Prop := {
+  positive: R.Lt Real.zero h,
+  included: \forall (x: E.Point) -> Bounds a x h -> Sets.Member U.points x,
+};
+\definition Radius: \Set := \Cast[Real.Real] ({ h: Real.Real \where RadiusLaws[h] });
+\definition law[h: Radius]: RadiusLaws[h] := \bysub(Real.Real, Radius, h);
+\definition distanceBound[x: E.Point][h: Real.Real]: R.Le Real.zero h -> Bounds a x h -> R.Le (Def.pointDistance x a) h :=
+  \fun (nonnegative: _)(bounds: _) => Norm.finiteUpper Index.total (Def.subPoint x a) h nonnegative (\fun (i: Fin.Fin Index.total) =>
+    R.leReplaceLeft (Real.distance (a i) (x i)) (Real.distance (Real.sub (x i) (a i)) Real.zero) h
+      (sym!{Real.Real} _ _ (trans!{Real.Real} _ _ _ (Norm.distanceDifference (x i) (a i)) (Distance.distanceSymmetric (x i) (a i))))
+      (Estimates.distanceLeOfInterval (a i) (x i) h (bounds i).left (bounds i).right));
+\definition exists: \exists Radius := \block {
+  \takefrom rho: \Cast[Real.Real] ({ r: Real.Real \where Open.BallInside[U.points, a, r] }) \by U.open a (\bysub(E.Point, U.points, a)) \then
+  \let ball: Open.BallInside[U.points, a, rho] := \bysub(Real.Real, { r: Real.Real \where Open.BallInside[U.points, a, r] }, rho) \then
+  \let h: Real.Real := Real.mul Real.half rho \then
+  \let positive: R.Lt Real.zero h := Estimates.halfOfPositive rho ball.positive \then
+  \return Logic.existsIntro[Real.Real, { h: Real.Real \where RadiusLaws[h] }] h (RadiusLaws[h] {
+    positive := positive,
+    included := \fun (x: E.Point)(bounds: Bounds a x h) => ball.included x
+      (R.leLtTrans (Def.pointDistance x a) h rho (distanceBound x h (Order.leOfLt Real.zero h positive) bounds) (Estimates.halfStrict rho ball.positive)),
+  })
+};
+\module With(h: Radius);

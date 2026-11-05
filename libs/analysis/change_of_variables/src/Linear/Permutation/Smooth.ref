@@ -1,0 +1,29 @@
+/* Coordinate permutations as smooth global diffeomorphisms. */
+\import \parent.\parent.Permutation[p := p] \as P;
+\import \parent.\parent.Permutation[p := inverse] \as Back;
+\import calculus.Real[].Multivariable[n := n].Open[] \as Open;
+\import Open.Whole[] \as Whole;
+\import calculus.Maps[n := n, m := n] \as SmoothMaps;
+\import calculus.Diffeomorphism[n := n, m := n] \as Diffeomorphisms;
+\import calculus.LinearMap[n := n, m := n].On[U := Open.whole, L := P.map] \as Forward;
+\import calculus.LinearMap[n := n, m := n].On[U := Open.whole, L := Back.map] \as Backward;
+\definition forward: SmoothMaps.Map Open.whole Open.whole := Forward.map;
+\definition backward: SmoothMaps.Map Open.whole Open.whole := Backward.map;
+\definition data: Diffeomorphisms.Data[Open.whole, Open.whole] := Diffeomorphisms.Data[Open.whole, Open.whole] {
+  forward := forward, backward := backward,
+};
+\definition equivalence: Diffeomorphisms.Diffeomorphism Open.whole Open.whole := \into[Diffeomorphisms.Data[Open.whole, Open.whole]](data,
+  { e: Diffeomorphisms.Data[Open.whole, Open.whole] \where Diffeomorphisms.Laws[Open.whole, Open.whole, e] }) \by {
+    Diffeomorphisms.Laws[Open.whole, Open.whole, data] {
+      leftInverse := \fun (x: Open.Carrier Open.whole) => P.left x,
+      rightInverse := \fun (x: Open.Carrier Open.whole) => P.right x,
+    }
+  };
+\import \root.Euclidean[n := n] \as Euclidean;
+\import Euclidean.Jacobian[U := Open.whole, V := Open.whole, f := forward] \as Jacobian;
+\import P.Determinant[] \as Determinant;
+\definition differential[x: Open.Carrier Open.whole]: Jacobian.differential x = P.map := Forward.differential x;
+\definition absolute[x: Open.Carrier Open.whole]: Jacobian.absolute x = Real.one :=
+  trans!{Real.Real} _ _ _ (congr!{{Maps.Map} Real.Real} (\fun (L: Maps.Map) => Absolute.abs (Top.determinant L)) _ _ (differential x)) Determinant.theorem;
+\import lp_spaces.Euclidean[n := n] \as Functions;
+\module Compact(f: Functions.SmoothCompact);

@@ -1,0 +1,22 @@
+\import metric_spaces.RealFunctions[A := Continuous.Point] \as Functions;
+\definition negG: Continuous.Function := \into[Real.Real -> Real.Real]((\fun (t: Real.Real) => Real.neg (g t)), Continuous.Function) \by {
+  Functions.negContinuous Continuous.topology (Continuous.restrict g) (\bysub(Real.Real -> Real.Real, Continuous.Function, g)) };
+\definition negD: Continuous.Function := \into[Real.Real -> Real.Real]((\fun (t: Real.Real) => Real.neg (dg t)), Continuous.Function) \by {
+  Functions.negContinuous Continuous.topology (Continuous.restrict dg) (\bysub(Real.Real -> Real.Real, Continuous.Function, dg)) };
+\definition negDerivative: \root.RealLine[].Monotone[interval := interval, g := negG, dg := negD].DerivativeLaw :=
+  \fun (t: Real.Real) (at: R.Lt a t) (tb: R.Lt t b) => Derivatives.negDerivative g t (dg t) (derivative t at tb);
+\definition negPositive: \root.RealLine[].Monotone[interval := interval, g := negG, dg := negD].Positive :=
+  \fun (t: Real.Real) (at: R.Lt a t) (tb: R.Lt t b) => R.ltReplaceLeft (Real.neg Real.zero) Real.zero (Real.neg (dg t)) Laws.negZero
+    (Laws.negStrictAntitone (dg t) Real.zero (negative t at tb));
+\import \root.RealLine[].Monotone[interval := interval, g := negG, dg := negD].For[derivative := negDerivative, positive := negPositive] \as Increasing;
+\definition strict[u, v: Real.Real]: R.Le a u -> R.Le v b -> R.Lt u v -> R.Lt (g v) (g u) :=
+  \fun (au: R.Le a u) (vb: R.Le v b) (uv: R.Lt u v) =>
+    R.ltReplaceLeft (Real.neg (negG v)) (g v) (g u) (Laws.negInvolutive (g v))
+      (R.ltReplaceRight (Real.neg (negG v)) (Real.neg (negG u)) (g u) (Laws.negInvolutive (g u))
+        (Laws.negStrictAntitone (negG u) (negG v) (Increasing.strict u v au vb uv)));
+\definition weak[u, v: Real.Real]: R.Le a u -> R.Le v b -> R.Le u v -> R.Le (g v) (g u) :=
+  \fun (au: R.Le a u) (vb: R.Le v b) (uv: R.Le u v) =>
+    R.leReplace (Real.neg (negG v)) (g v) (Real.neg (negG u)) (g u) (Laws.negInvolutive (g v)) (Laws.negInvolutive (g u))
+      (Laws.negAntitone (negG u) (negG v) (Increasing.weak u v au vb uv));
+\definition target: Integration.Interval := Integration.Interval { left := g b, right := g a, ordered := weak a b (R.leRefl a) (R.leRefl b) interval.ordered };
+\module Into(h: Integration.Riemann[interval := target].Continuous[].Function);

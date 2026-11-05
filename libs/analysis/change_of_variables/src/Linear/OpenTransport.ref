@@ -1,0 +1,38 @@
+\import euclidean_measure.CoverExpansion[n := n] \as Regular;
+\import E.Scaling[] \as Scaling;
+\import R.Order[] \as Order;
+\definition forward[S: \Pow Point]: \Pow Point := { y: Point \where Sets.Member S (h.backward y) };
+\definition backward[S: \Pow Point]: \Pow Point := { x: Point \where Sets.Member S (h.forward x) };
+\definition laws: Homeomorphisms.Laws[Ambient.topology, Ambient.topology, h] := Homeomorphisms.laws Ambient.topology Ambient.topology h;
+\definition restores[S: \Pow Point]: forward (backward S) = S := \axiom:setext(forward (backward S), S,
+  \fun (x: Point)(member: Sets.Member (forward (backward S)) x) =>
+    \idelim h.forward (h.backward x) = x \with y: Point => Sets.Member S y \by { base: member, equality: laws.rightInverse x },
+  \fun (x: Point)(member: Sets.Member S x) =>
+    \idelim x = h.forward (h.backward x) \with y: Point => Sets.Member S y \by { base: member, equality: sym!{Point} _ _ (laws.rightInverse x) });
+\definition restoresBack[S: \Pow Point]: backward (forward S) = S := \axiom:setext(backward (forward S), S,
+  \fun (x: Point)(member: Sets.Member (backward (forward S)) x) =>
+    \idelim h.backward (h.forward x) = x \with y: Point => Sets.Member S y \by { base: member, equality: laws.leftInverse x },
+  \fun (x: Point)(member: Sets.Member S x) =>
+    \idelim x = h.backward (h.forward x) \with y: Point => Sets.Member S y \by { base: member, equality: sym!{Point} _ _ (laws.leftInverse x) });
+\definition OpenLaw: \Prop := \forall (U: \Pow Point) -> Sets.IsOpenIn Ambient.topology U -> E.outer (forward U) = M.scale c (E.outer U);
+\definition openLower[S: \Pow Point][v: M.Value]: M.NonnegativeValue[v] ->
+  (\forall (U: \Pow Point) -> Sets.IsOpenIn Ambient.topology U -> Sets.Subset S U -> Values.Included v (E.outer U)) -> Values.Included v (E.outer S) :=
+  \fun (valid: _)(lower: _)(r: Real.Real)(member: M.below v r) => \block {
+    \takefrom t: \Cast[Real.Real] ({ t: Real.Real \where Logic.And[R.Lt r t, M.below v t] }) \by valid.rounded r member \then
+    \let law: Logic.And[R.Lt r t, M.below v t] := \bysub(Real.Real, { t: Real.Real \where Logic.And[R.Lt r t, M.below v t] }, t) \then
+    \return \idelim Regular.openInfimum S = E.outer S \with w: M.Value => M.below w r \by {
+      base: Logic.existsIntro[Real.Real, { t: Real.Real \where Logic.And[R.Lt r t, \forall (U: \Pow Point) -> Sets.IsOpenIn Ambient.topology U -> Sets.Subset S U -> M.below (E.outer U) t] }] t
+        (Logic.And[_, _]::# law.left (\fun (U: \Pow Point)(opened: _)(contains: _) => lower U opened contains t law.right)),
+      equality: sym!{M.Value} _ _ (Regular.outerRegular S)
+    }
+  };
+\module Upper(S: \Pow Point);
+\definition upper: R.Lt Real.zero c -> OpenLaw -> \forall (S: \Pow Point) -> Values.Included (E.outer (forward S)) (M.scale c (E.outer S)) :=
+  \fun (positive: _)(openLaw: _)(S: \Pow Point) => Upper[S := S].theorem positive openLaw;
+\module Reverse;
+\definition theorem: R.Lt Real.zero c -> OpenLaw -> \forall (S: \Pow Point) -> E.outer (forward S) = M.scale c (E.outer S) :=
+  \fun (positive: _)(openLaw: _)(S: \Pow Point) => \axiom:setext(E.outer (forward S), M.scale c (E.outer S), upper positive openLaw S,
+    Reverse[].lower positive openLaw S);
+\module Measurability;
+\definition measurable: R.Lt Real.zero c -> OpenLaw -> \forall (S: \Pow Point) -> M.Measurable Lebesgue.measure.sigma S -> M.Measurable Lebesgue.measure.sigma (forward S) :=
+  \fun (positive: _)(openLaw: _) => Measurability[].theorem positive openLaw;

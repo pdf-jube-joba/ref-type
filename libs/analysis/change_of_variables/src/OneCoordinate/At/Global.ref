@@ -1,0 +1,73 @@
+/* Compact local formulas glue over images of signed coordinate rectangles. */
+\import calculus.Real[].Multivariable[n := n].Open[] \as BaseOpen;
+\import \root.Euclidean[n := Index.total] \as Euclidean;
+\import Euclidean.Compact[] \as TargetIntegral;
+\import \root.OneCoordinate[n := n].At[U := U, V := V, e := e].Sign[] \as Sign;
+\structure PatchData: \Set := {
+  base: BaseOpen.OpenSet,
+  interval: Integration.Interval,
+};
+\definition Contains[p: PatchData]: \Prop := \forall (x: Base.Point)(t: Real.Real) -> BaseSets.Member p.base.points x ->
+  R.Le p.interval.left t -> R.Le t p.interval.right -> Sets.Member U.points (join x t);
+\definition Positive[p: PatchData][contains: Contains p]: \Prop := \forall (x: Base.Point)(t: Real.Real)(inBase: BaseSets.Member p.base.points x)
+  (at: R.Le p.interval.left t)(tb: R.Le t p.interval.right) -> R.Lt Real.zero (partial (\into[E.Point](join x t, U.points) \by { contains x t inBase at tb }));
+\definition Negative[p: PatchData][contains: Contains p]: \Prop := \forall (x: Base.Point)(t: Real.Real)(inBase: BaseSets.Member p.base.points x)
+  (at: R.Le p.interval.left t)(tb: R.Le t p.interval.right) -> R.Lt (partial (\into[E.Point](join x t, U.points) \by { contains x t inBase at tb })) Real.zero;
+\structure PatchLaws[p: PatchData]: \Prop := {
+  contains: Contains p,
+  sign: Logic.Or[Positive p contains, Negative p contains],
+};
+\definition Patch: \Set := \Cast[PatchData] ({ p: PatchData \where PatchLaws[p] });
+\definition laws[p: Patch]: PatchLaws[p] := \bysub(PatchData, Patch, p);
+\definition region[p: PatchData]: \Pow E.Point := { x: E.Point \where Logic.And[BaseSets.Member p.base.points (Coordinates.base x), Logic.And[R.Lt p.interval.left (Coordinates.normal x), R.Lt (Coordinates.normal x) p.interval.right]] };
+\definition image[p: PatchData]: \Pow E.Point := { y: E.Point \where \exists (x: Open.Carrier U \where Logic.And[Sets.Member (region p) x, Maps.apply U V e.forward x = y]) };
+\definition family: \Pow (\Pow E.Point) := { W: \Pow E.Point \where \exists (p: Patch \where image p = W) };
+\definition LocalFormula[p: Patch]: \Prop := \forall (f: L.SmoothCompact)(supported: Sets.Subset (Functions.support f) (image p))(within: Sets.Subset (Functions.support f) V.points) ->
+  I.integral (Euclidean.Diffeomorphism[U := U, V := V, e := e].Compact[f := f, within := within].representative) = I.integral (TargetIntegral.representative f);
+\module Patch(p: Patch);
+\module Around(D: Open.OpenSet, included: Open.Included D U, a: Open.Carrier D,
+  sign: Logic.Or[\forall (x: Open.Carrier D) -> R.Lt Real.zero (partial (Open.inclusion D U included x)),
+    \forall (x: Open.Carrier D) -> R.Lt (partial (Open.inclusion D U included x)) Real.zero]);
+\definition covered[a: Open.Carrier U]: \exists (p: Patch \where Sets.Member (image p) (Maps.apply U V e.forward a)) :=
+  Logic.orElim (R.Lt Real.zero (partial a)) (Logic.Or[Real.zero = partial a, R.Lt (partial a) Real.zero])
+    (\exists (p: Patch \where Sets.Member (image p) (Maps.apply U V e.forward a))) (Order.ltTrichotomy Real.zero (partial a))
+    (\fun (positive: R.Lt Real.zero (partial a)) => \block {
+      \let point: Open.Carrier Sign.positive := \into[E.Point](a, Sign.positive.points) \by { Sign.positiveIntro a positive } \then
+      \let signed: Logic.Or[\forall (x: Open.Carrier Sign.positive) -> R.Lt Real.zero (partial (Open.inclusion Sign.positive U Sign.positiveIncluded x)),
+        \forall (x: Open.Carrier Sign.positive) -> R.Lt (partial (Open.inclusion Sign.positive U Sign.positiveIncluded x)) Real.zero] := Logic.Or[_, _]::left Sign.positiveSign \then
+      \return \root.OneCoordinate[n := n].At[U := U, V := V, e := e].Global[fixed := fixed].Around[D := Sign.positive, included := Sign.positiveIncluded, a := point, sign := signed].exists
+    })
+    (\fun (other: Logic.Or[Real.zero = partial a, R.Lt (partial a) Real.zero]) => Logic.orElim (Real.zero = partial a) (R.Lt (partial a) Real.zero) (\exists (p: Patch \where Sets.Member (image p) (Maps.apply U V e.forward a))) other
+      (\fun (zero: Real.zero = partial a) => Logic.falseElim _ (nonzero fixed a (sym!{Real.Real} _ _ zero)))
+      (\fun (negative: R.Lt (partial a) Real.zero) => \block {
+        \let point: Open.Carrier Sign.negative := \into[E.Point](a, Sign.negative.points) \by { Sign.negativeIntro a negative } \then
+        \let signed: Logic.Or[\forall (x: Open.Carrier Sign.negative) -> R.Lt Real.zero (partial (Open.inclusion Sign.negative U Sign.negativeIncluded x)),
+          \forall (x: Open.Carrier Sign.negative) -> R.Lt (partial (Open.inclusion Sign.negative U Sign.negativeIncluded x)) Real.zero] := Logic.Or[_, _]::right Sign.negativeSign \then
+        \return \root.OneCoordinate[n := n].At[U := U, V := V, e := e].Global[fixed := fixed].Around[D := Sign.negative, included := Sign.negativeIncluded, a := point, sign := signed].exists
+      }));
+\definition familyOpen[W: \Pow E.Point]: Sets.FamilyMember family W -> Sets.IsOpenIn Ambient.topology W := \fun (member: _) => \block {
+  \takefrom p: \Cast[Patch] ({ p: Patch \where image p = W }) \by member \then
+  \let equal: image p = W := \bysub(Patch, { p: Patch \where image p = W }, p) \then
+  \return \idelim image p = W \with S: \Pow E.Point => Sets.IsOpenIn Ambient.topology S \by {
+    base: \root.OneCoordinate[n := n].At[U := U, V := V, e := e].Global[fixed := fixed].Patch[p := p].open, equality: equal
+  }
+};
+\definition familyIncluded[W: \Pow E.Point]: Sets.FamilyMember family W -> Sets.Subset W V.points := \fun (member: _) => \block {
+  \takefrom p: \Cast[Patch] ({ p: Patch \where image p = W }) \by member \then
+  \let equal: image p = W := \bysub(Patch, { p: Patch \where image p = W }, p) \then
+  \return \idelim image p = W \with S: \Pow E.Point => Sets.Subset S V.points \by {
+    base: \root.OneCoordinate[n := n].At[U := U, V := V, e := e].Global[fixed := fixed].Patch[p := p].included, equality: equal
+  }
+};
+\definition covers[y: Open.Carrier V]: Sets.Member (Sets.Union family) y := \block {
+  \let a: Open.Carrier U := Maps.apply V U e.backward y \then
+  \takefrom p: \Cast[Patch] ({ p: Patch \where Sets.Member (image p) (Maps.apply U V e.forward a) }) \by covered a \then
+  \let contains: Sets.Member (image p) (Maps.apply U V e.forward a) := \bysub(Patch, { p: Patch \where Sets.Member (image p) (Maps.apply U V e.forward a) }, p) \then
+  \return Sets.unionMemberOf family (image p) y (Logic.existsIntro[Patch, { q: Patch \where image q = image p }] p (\refl(image p)))
+    (\idelim Maps.apply U V e.forward a = y \with z: E.Point => Sets.Member (image p) z \by { base: contains, equality: e.rightInverse y })
+};
+\module Glue(f: L.SmoothCompact, within: Sets.Subset (Functions.support f) V.points);
+\definition local[p: Patch]: LocalFormula p := \root.OneCoordinate[n := n].At[U := U, V := V, e := e].Global[fixed := fixed].Patch[p := p].local;
+\definition theorem[f: L.SmoothCompact][within: Sets.Subset (Functions.support f) V.points]:
+  I.integral (Euclidean.Diffeomorphism[U := U, V := V, e := e].Compact[f := f, within := within].representative) = I.integral (TargetIntegral.representative f) :=
+  \root.OneCoordinate[n := n].At[U := U, V := V, e := e].Global[fixed := fixed].Glue[f := f, within := within].theorem local;

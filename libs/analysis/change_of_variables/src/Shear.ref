@@ -1,0 +1,67 @@
+\import std.Data[].Nat[] \as N;
+\import std.Data[].Pair[] \as Pair;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Classical[] \as Classical;
+\use std.Logic[].Equality[].sym;
+\use std.Logic[].Equality[].trans;
+\use std.Logic[].Equality[].congr;
+\use std.Logic[].Equality[].eq_reason_in;
+\import real.Analysis[] \as Real;
+\import dedekind_reals.DedekindReal[] \as R;
+\import R.Arithmetic[].Prop[] \as Laws;
+\definition one: N.Nat^ := N.Nat^::succ N.Nat^::zero;
+\import euclidean_measure.Euclidean[n := n] \as Left;
+\import euclidean_measure.Euclidean[n := one] \as Right;
+\import Left.MeasureConstruction[] \as LeftMeasure;
+\import Right.MeasureConstruction[] \as RightMeasure;
+\import product_integration.Euclidean[n := n] \as LeftFinite;
+\import product_integration.Euclidean[n := one] \as RightFinite;
+\import product_integration.ProductSigma[A := Left.Point, B := Right.Point, left := LeftMeasure.measure.sigma, right := RightMeasure.measure.sigma] \as Sigma;
+\import product_integration.Product[A := Left.Point, B := Right.Point, mu := LeftMeasure.measure, nu := RightMeasure.measure, left := LeftFinite.exhaustion, right := RightFinite.exhaustion] \as Product;
+\import product_integration.Integration[A := Left.Point, B := Right.Point, mu := LeftMeasure.measure, nu := RightMeasure.measure, left := LeftFinite.exhaustion, right := RightFinite.exhaustion] \as Fubini;
+\import functional_analysis.Measure[A := Sigma.Point] \as PM;
+\import PM.Integral[mu := Product.measure] \as PI;
+\import functional_analysis.Measure[A := Left.Point] \as LM;
+\import functional_analysis.Measure[A := Right.Point].Integral[mu := RightMeasure.measure] \as RI;
+\import product_integration.ExtendedIntegral[A := Left.Point, mu := LeftMeasure.measure] \as Outer;
+\import product_integration.MeasureMap[A := Right.Point, B := Right.Point, source := RightMeasure.measure, target := RightMeasure.measure] \as RightMaps;
+\import product_integration.EuclideanProduct[m := n, n := one] \as Coordinates;
+\import std.Data[].FinSet[].Sum[m := n, n := one] \as Index;
+\import euclidean_measure.Euclidean[n := Index.total] \as E;
+\import E.MeasureConstruction[] \as Lebesgue;
+\import E.Borel[] \as Borel;
+\import product_integration.EuclideanProduct[m := n, n := one].Borel[] \as ProductBorel;
+\import product_integration.EuclideanProduct[m := n, n := one].Comparison[] \as Comparison;
+\import euclidean_measure.Pushforward[A := Sigma.Point, B := E.Point, source := Product.measure, map := Coordinates.join] \as Push;
+\import functional_analysis.Measure[A := E.Point] \as M;
+\import topology.Topology[Carrier := E.Point] \as Sets;
+\import topology.Topology[Carrier := Sigma.Point] \as ProductSets;
+\import PM.ValueLaws[] \as Values;
+\module Along(a: Left.Point -> Right.Point) {
+  \definition transform[p: Sigma.Point]: Sigma.Point := Pair.pair Left.Point Right.Point (Pair.first Left.Point Right.Point p)
+    (Right.subPoint (Pair.second Left.Point Right.Point p) (a (Pair.first Left.Point Right.Point p)));
+  \definition map[x: E.Point]: E.Point := Coordinates.join (transform (Coordinates.split x));
+  \definition preimage[S: \Pow E.Point]: \Pow E.Point := { x: E.Point \where Sets.Member S (map x) };
+  \definition atJoin[p: Sigma.Point]: map (Coordinates.join p) = Coordinates.join (transform p) :=
+    congr!{Sigma.Point E.Point} (\fun (q: Sigma.Point) => Coordinates.join (transform q)) _ _ (Coordinates.splitJoin p);
+  \module Nonnegative(f, g: PI.NonnegativeMeasurable,
+    values: \forall (x: Left.Point) (t: Right.Point) -> f.function (Pair.pair Left.Point Right.Point x t) = g.function (Pair.pair Left.Point Right.Point x (Right.subPoint t (a x)))) {
+    \definition section[x: Left.Point]: RI.NonnegativeMeasurable := RI.NonnegativeMeasurable {
+      function := \fun (t: Right.Point) => g.function (Pair.pair Left.Point Right.Point x t),
+      measurable := \fun (r: Real.Real) => Sigma.sectionMeasurable ({ p: Sigma.Point \where R.Lt r (g.function p) }) (g.measurable r) x,
+      nonnegative := \fun (t: Right.Point) => g.nonnegative (Pair.pair Left.Point Right.Point x t),
+    };
+    \definition lower[x: Left.Point]: Fubini.sectionLower f x = Fubini.sectionLower g x := eq_reason_in!{LM.Value _
+      "=" _ "by" { congr!{{Right.Point -> Real.Real} LM.Value} RI.lowerIntegral _ _ (\axiom:funext(
+        (\fun (t: Right.Point) => f.function (Pair.pair Left.Point Right.Point x t)),
+        (\fun (t: Right.Point) => g.function (Pair.pair Left.Point Right.Point x (Right.subPoint t (a x)))), values x)) }
+      "=" _ "by" { RightMaps.On[map := RightFinite.translation (a x)].Nonnegative[f := section x].lower }
+    };
+    \definition theorem: PI.lowerIntegral f.function = PI.lowerIntegral g.function := eq_reason_in!{LM.Value _
+      "=" _ "by" { Fubini.tonelli f }
+      "=" _ "by" { congr!{{Left.Point -> LM.Value} LM.Value} Outer.lowerIntegral _ _ (\axiom:funext(Fubini.sectionLower f, Fubini.sectionLower g, lower)) }
+      "=" _ "by" { sym!{LM.Value} _ _ (Fubini.tonelli g) }
+    };
+  }
+  \module Measured(S: \Pow E.Point, valid: M.Measurable Borel.sigma S, preimageValid: M.Measurable Borel.sigma (preimage S));
+}

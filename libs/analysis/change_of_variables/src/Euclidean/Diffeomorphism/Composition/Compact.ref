@@ -1,0 +1,27 @@
+\import \root.Euclidean[n := n].Compact[] \as Integrals;
+\import lp_spaces.On[A := Point, mu := Lebesgue.measure].One[].Norm[] \as Equality;
+\import Second.Compact[f := f, within := within] \as SecondPullback;
+\definition middle: L.SmoothCompact := SecondPullback.value;
+\definition middleWithin: Sets.Subset (Functions.support middle) V.points := SecondPullback.conditions.within;
+\import \root.Euclidean[n := n].Diffeomorphism[U := U, V := V, e := e].Compact[f := middle, within := middleWithin] \as FirstPullback;
+\import Result.Compact[f := f, within := within] \as ResultPullback;
+\import \root.Euclidean[n := n].Jacobian[U := U, V := V, f := e.forward].Composition[W := W, g := d.forward] \as Jacobian;
+\import \root.Euclidean[n := n].Jacobian[U := V, V := W, f := d.forward] \as SecondJacobian;
+\definition inside[x: Open.Carrier U]: ResultPullback.representative x = FirstPullback.representative x := eq_reason_in!{Real.Real _
+  "=" _ "by" { ResultPullback.inside x }
+  "=" _ "by" { congr!{Real.Real Real.Real} (\fun (v: Real.Real) => Real.mul v (f (Maps.apply U W Compose.compose.forward x))) _ _ (Jacobian.absolute x) }
+  "=" _ "by" { congr!{Real.Real Real.Real} (\fun (v: Real.Real) => Real.mul v (f (Maps.apply U W Compose.compose.forward x))) _ _
+    (Laws.fieldMulComm (SecondJacobian.absolute (Maps.apply U V e.forward x)) (J.absolute x)) }
+  "=" _ "by" { Laws.fieldMulAssoc (J.absolute x) (SecondJacobian.absolute (Maps.apply U V e.forward x)) (f (Maps.apply U W Compose.compose.forward x)) }
+  "=" _ "by" { congr!{Real.Real Real.Real} (Real.mul (J.absolute x)) _ _ (sym!{Real.Real} _ _ (SecondPullback.inside (Maps.apply U V e.forward x))) }
+  "=" _ "by" { sym!{Real.Real} _ _ (FirstPullback.inside x) }
+};
+\definition pointwise[x: Point]: ResultPullback.representative x = FirstPullback.representative x :=
+  Logic.orElim (Sets.Member U.points x) (Logic.Not (Sets.Member U.points x)) (ResultPullback.representative x = FirstPullback.representative x)
+    (std.Logic[].Classical[].excludedMiddle (Sets.Member U.points x))
+    (\fun (member: Sets.Member U.points x) => inside (\into[Point](x, U.points) \by { member }))
+    (\fun (outside: Logic.Not (Sets.Member U.points x)) => trans!{Real.Real} _ _ _ (ResultPullback.outside x outside) (sym!{Real.Real} _ _ (FirstPullback.outside x outside)));
+\definition integral: I.integral ResultPullback.representative = I.integral FirstPullback.representative :=
+  Equality.integralPointwise ResultPullback.representative FirstPullback.representative pointwise;
+\definition middleIntegral: I.integral (Integrals.representative middle) = I.integral SecondPullback.representative :=
+  Equality.integralPointwise (Integrals.representative middle) SecondPullback.representative (\fun (x: Point) => \refl(middle x));

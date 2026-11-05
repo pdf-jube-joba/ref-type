@@ -1,0 +1,32 @@
+\definition function[x: Fiber.Point]: Real.Real := f (Split.join c x);
+\definition envelope: \Pow Fiber.Point := { x: Fiber.Point \where \In[Source.Point] (SourceSmooth.support f) (Split.join c x) };
+\definition closed: FiberSets.IsClosedIn FiberTopology.topology envelope :=
+  InsertContinuity.closedPreimage FiberTopology.topology SourceTopology.topology (Split.join c) (insertionContinuous c)
+    (SourceSmooth.support f) (SourceSupport.supportClosed SourceTopology.topology f);
+\definition included: FiberSets.Subset (FiberSmooth.support function) envelope :=
+  FiberSupport.supportWithinClosed FiberTopology.topology function envelope closed
+    (\fun (x: Fiber.Point)(outside: _) => SourceSupport.zeroOutsideSupport SourceTopology.topology f (Split.join c x) outside);
+\definition compactEnvelope: FiberSets.IsCompactIn FiberTopology.topology envelope :=
+  Compact.closedSubset FiberTopology.topology (Projection.Image Split.right (SourceSmooth.support f)) envelope
+    (Images.continuousImage SourceTopology.topology FiberTopology.topology Split.right projectionContinuous
+      (SourceSmooth.support f) (Source.smoothCompactLaws f).compact) closed
+    (\fun (x: Fiber.Point)(member: _) => \idelim Split.right (Split.join c x) = x
+      \with y: Fiber.Point => \In[Fiber.Point] (Projection.Image Split.right (SourceSmooth.support f)) y \by {
+        base: Projection.imageMember Split.right (SourceSmooth.support f) (Split.join c x) member,
+        equality: Split.rightJoin c x
+      });
+\import Split.FixedLeft[U := FiberOpen.whole, V := SourceOpen.whole, c := c] \as Insertion;
+\definition wholeIncluded: Insertion.Included := \fun (x: FiberOpen.Carrier FiberOpen.whole) => \refl(Split.join c x);
+\import calculus.Maps[n := m, m := Split.dimension].Composition[U := FiberOpen.whole, V := SourceOpen.whole, f := Insertion.map wholeIncluded] \as Composition;
+\import SourceOpen.Smooth[].Derivative[] \as Derivatives;
+\definition sourceFunction: Derivatives.Function SourceOpen.whole :=
+  \into[SourceOpen.ScalarFunction SourceOpen.whole]((\fun (x: SourceOpen.Carrier SourceOpen.whole) => f x),
+    { h: SourceOpen.ScalarFunction SourceOpen.whole \where SourceOpen.Smooth[].SmoothOn SourceOpen.whole h }) \by {
+      (Source.smoothCompactLaws f).smooth
+    };
+\definition value: Fiber.SmoothCompact := \into[Fiber.Function](function, Fiber.SmoothCompact) \by {
+  Fiber.SmoothCompactLaws[function] {
+    smooth := Composition.smooth sourceFunction,
+    compact := FiberSupport.compactSupportWithin FiberTopology.topology function envelope compactEnvelope included,
+  }
+};

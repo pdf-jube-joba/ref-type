@@ -1,0 +1,32 @@
+\import Functions.Lattice[] \as Lattice;
+\import real.Analysis[].Estimates[].Product[] \as Absolute;
+\definition absoluteInput: Continuous.Function := \into[Real -> Real]((\fun (t: Real) => Scalars.mul (h (g t)) (Absolute.abs (dg t))), Continuous.Function) \by {
+  Multiplication.continuous Continuous.topology _ _
+    (Compose.composeContinuous Continuous.topology Target.topology Line.topology point (Target.restrict h) continuousPoint Primitive.continuous)
+    (Lattice.absoluteContinuous Continuous.topology (Continuous.restrict dg) (\bysub(Real -> Real, Continuous.Function, dg)))
+};
+\import \root.Interval[interval := interval].Lebesgue[f := absoluteInput] \as AbsoluteIntegral;
+\import LineIntegral.Negation[] \as Negation;
+\import lp_spaces.On[A := Real, mu := euclidean_measure.RealLine[].measure].One[].Norm[] \as IntegralEquality;
+\definition Nonpositive: \Prop := \forall (t: Real) -> R.Le a t -> R.Le t b -> R.Le (dg t) Scalars.zero;
+\definition absoluteNonpositive[t: Real]: R.Le (dg t) Scalars.zero -> Absolute.abs (dg t) = Scalars.neg (dg t) :=
+  \fun (negative: _) => trans!{Real} _ _ _
+    (congr!{Real Real Real} Distance.max _ _ _ _ (Laws.addZeroLeft (Scalars.neg (dg t))) (Laws.subZeroRight (dg t)))
+    (Distance.maxOfGe (Scalars.neg (dg t)) (dg t)
+      (R.leTrans _ Scalars.zero _ negative (R.leReplaceLeft (Scalars.neg Scalars.zero) Scalars.zero (Scalars.neg (dg t)) Laws.negZero (Laws.negAntitone (dg t) Scalars.zero negative))));
+\definition negativeInput: Continuous.Function := \into[Real -> Real]((\fun (t: Real) => Scalars.neg (input t)), Continuous.Function) \by {
+  Functions.negContinuous Continuous.topology (Continuous.restrict input) (\bysub(Real -> Real, Continuous.Function, input))
+};
+\import \root.Interval[interval := interval].Lebesgue[f := negativeInput] \as NegativeIntegral;
+\definition negativeValue[t: Real]: NegativeIntegral.representative t = Negation.representative SourceIntegral.representative t :=
+  Laws.fieldMulNegRight _ _;
+\definition theorem: Nonpositive -> LineIntegral.integral AbsoluteIntegral.representative = LineIntegral.integral TargetIntegral.representative :=
+  \fun (negative: _) => eq_reason_in!{Real _
+    "=" _ "by" { AbsoluteIntegral.Equality[g := negativeInput].theorem (\fun (t: Real)(at: _)(tb: _) =>
+      trans!{Real} _ _ _ (congr!{Real Real} (Scalars.mul (h (g t))) _ _ (absoluteNonpositive t (negative t at tb)))
+        (Laws.fieldMulNegRight (h (g t)) (dg t))) }
+    "=" _ "by" { IntegralEquality.integralPointwise NegativeIntegral.representative (Negation.representative SourceIntegral.representative) negativeValue }
+    "=" _ "by" { Negation.integralNeg SourceIntegral.representative }
+    "=" _ "by" { congr!{Real Real} Scalars.neg _ _ lebesgue }
+    "=" _ "by" { Laws.negInvolutive (LineIntegral.integral TargetIntegral.representative) }
+  };
