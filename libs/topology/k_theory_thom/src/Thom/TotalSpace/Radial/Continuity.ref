@@ -1,0 +1,36 @@
+\import metric_spaces.RealFunctions[A := Family.Point] \as Functions;
+\definition denominatorContinuous: Functions.Continuous bundle.totalSpace (\fun (p: Family.Point) => Real.add Real.one (Disk.norm p)) :=
+  Functions.sumContinuous bundle.totalSpace (\fun (p: Family.Point) => Real.one) Disk.norm (Functions.constantContinuous bundle.totalSpace Real.one) Disk.normContinuous;
+\definition coefficientContinuous: Functions.Continuous bundle.totalSpace coefficient := Functions.Reciprocal[].continuousPositive bundle.totalSpace
+  (\fun (p: Family.Point) => Real.add Real.one (Disk.norm p)) denominatorContinuous
+  (\fun (p: Family.Point) => \parent.Compression[t := Disk.norm p, nonnegative := Disk.normNonnegative p].denominatorPositive);
+\import Operations.Along[X := X, F := F, bundle := bundle, Y := Family.Point, source := bundle.totalSpace, base := Family.projection] \as ForwardAlong;
+\definition forwardContinuous: topology.Continuity[A := Family.Point, B := Carrier].Continuous bundle.totalSpace topology forward :=
+  topology.Continuity[A := Family.Point, B := Family.Point].Corestriction[S := OpenBall].corestrictContinuous bundle.totalSpace bundle.totalSpace forward
+    (ForwardAlong.scaling (\fun (p: Family.Point) => linear_algebra.Hermitian[].Complex[].scalar.embed (coefficient p)) (\fun (p: Family.Point) => p.vector)
+      Original.projectionContinuous
+      (hermitian_frames.Hermitian[].Over[K := C.Complex, field := C.Algebra[].field, scalar := linear_algebra.Hermitian[].Complex[].scalar, topological := Scalars.scalar.topological].Functions[X := Family.Point].embedding bundle.totalSpace coefficient coefficientContinuous)
+      Disk.reconstructedContinuous);
+\import metric_spaces.RealFunctions[A := Carrier] \as InverseFunctions;
+\definition inclusionContinuous: topology.Continuity[A := Carrier, B := Family.Point].Continuous topology bundle.totalSpace (\fun (p: Carrier) => p) :=
+  topology.Continuity[A := Carrier, B := Family.Point].Corestriction[S := OpenBall].inclusionContinuous bundle.totalSpace;
+\definition normContinuous: InverseFunctions.Continuous topology (\fun (p: Carrier) => Disk.norm p) :=
+  topology.Composition[A := Carrier, B := Family.Point, C := Real.Real].composeContinuous topology bundle.totalSpace Line.topology
+    (\fun (p: Carrier) => p) Disk.norm inclusionContinuous Disk.normContinuous;
+\definition gapContinuous: InverseFunctions.Continuous topology (\fun (p: Carrier) => Real.sub Real.one (Disk.norm p)) :=
+  InverseFunctions.subContinuous topology (\fun (p: Carrier) => Real.one) (\fun (p: Carrier) => Disk.norm p)
+    (InverseFunctions.constantContinuous topology Real.one) normContinuous;
+\definition inverseCoefficientContinuous: InverseFunctions.Continuous topology inverseCoefficient := InverseFunctions.Reciprocal[].continuousPositive topology
+  (\fun (p: Carrier) => Real.sub Real.one (Disk.norm p)) gapContinuous
+  (\fun (p: Carrier) => \parent.Expansion[t := Disk.norm p, inside := \bysub(Family.Point, OpenBall, p)].denominatorPositive);
+\definition baseContinuous: topology.Continuity[A := Carrier, B := X].Continuous topology bundle.baseSpace (\fun (p: Carrier) => p.base) :=
+  topology.Composition[A := Carrier, B := Family.Point, C := X].composeContinuous topology bundle.totalSpace bundle.baseSpace (\fun (p: Carrier) => p) Family.projection inclusionContinuous Original.projectionContinuous;
+\definition reconstructedContinuous: topology.Continuity[A := Carrier, B := Family.Point].Continuous topology bundle.totalSpace (\fun (p: Carrier) => Family.include p.base p.vector) :=
+  topology.Composition[A := Carrier, B := Family.Point, C := Family.Point].composeContinuous topology bundle.totalSpace bundle.totalSpace
+    (\fun (p: Carrier) => p) (\fun (p: Family.Point) => Family.include p.base p.vector) inclusionContinuous Disk.reconstructedContinuous;
+\import Operations.Along[X := X, F := F, bundle := bundle, Y := Carrier, source := topology, base := (\fun (p: Carrier) => p.base)] \as BackwardAlong;
+\definition backwardContinuous: topology.Continuity[A := Carrier, B := Family.Point].Continuous topology bundle.totalSpace backward :=
+  BackwardAlong.scaling (\fun (p: Carrier) => linear_algebra.Hermitian[].Complex[].scalar.embed (inverseCoefficient p)) (\fun (p: Carrier) => p.vector)
+    baseContinuous
+    (hermitian_frames.Hermitian[].Over[K := C.Complex, field := C.Algebra[].field, scalar := linear_algebra.Hermitian[].Complex[].scalar, topological := Scalars.scalar.topological].Functions[X := Carrier].embedding topology inverseCoefficient inverseCoefficientContinuous)
+    reconstructedContinuous;

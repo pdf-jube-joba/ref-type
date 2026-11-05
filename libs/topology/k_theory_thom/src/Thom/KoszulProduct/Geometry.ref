@@ -1,0 +1,99 @@
+\definition baseSeparated: topology.Topology[Carrier := X].IsT2 left.baseSpace := hausdorff;
+\import compact_support_k.Support[] \as Support;
+\import relative_k_theory.Relative[] \as Relative;
+\import std.Data[].Pair[] \as P;
+\import \root.Thom[].Koszul[X := X, F := F, bundle := left] \as LeftKoszul;
+\import \root.Thom[].Koszul[X := X, F := G, bundle := right] \as RightKoszul;
+\import \root.Thom[].Koszul[X := X, F := Sum.Fiber, bundle := sum] \as SumKoszul;
+\import \root.Thom[].TotalSpace[X := X, F := F, bundle := left, compact := compact, hausdorff := hausdorff] \as LeftTotal;
+\import \root.Thom[].TotalSpace[X := X, F := G, bundle := right, compact := rightCompact, hausdorff := rightHausdorff] \as RightTotal;
+\import \root.Thom[].TotalSpace[X := X, F := Sum.Fiber, bundle := sum, compact := compact, hausdorff := hausdorff] \as SumTotal;
+\import topological_constructions.Product[A := LeftKoszul.Total, B := RightKoszul.Total] \as Cartesian;
+\definition Total: \Set := Cartesian.CarrierSet;
+\definition topology: topology.Topology[Carrier := Total].Topology := Cartesian.topology left.totalSpace right.totalSpace;
+\definition first: Total -> LeftKoszul.Total := P.first LeftKoszul.Total RightKoszul.Total;
+\definition second: Total -> RightKoszul.Total := P.second LeftKoszul.Total RightKoszul.Total;
+\definition firstRegular: topology.Continuity[A := Total, B := LeftKoszul.Total].Continuous topology left.totalSpace first := Cartesian.Maps[].firstContinuous left.totalSpace right.totalSpace;
+\definition secondRegular: topology.Continuity[A := Total, B := RightKoszul.Total].Continuous topology right.totalSpace second := Cartesian.Maps[].secondContinuous left.totalSpace right.totalSpace;
+\definition hausdorff: topology.Topology[Carrier := Total].IsT2 topology := topological_constructions.Separation[].Product[A := LeftKoszul.Total, B := RightKoszul.Total]
+  .On[left := left.totalSpace, right := right.totalSpace, leftHausdorff := LeftTotal.separated, rightHausdorff := RightTotal.separated].hausdorff;
+\import Support.On[X := LeftKoszul.Total, space := left.totalSpace, hausdorff := LeftTotal.separated, locallyCompact := LeftTotal.locallyCompact] \as Left;
+\import Support.On[X := RightKoszul.Total, space := right.totalSpace, hausdorff := RightTotal.separated, locallyCompact := RightTotal.locallyCompact] \as Right;
+\import Left.Product[Y := RightKoszul.Total, otherSpace := right.totalSpace, otherHausdorff := RightTotal.separated, otherLocallyCompact := RightTotal.locallyCompact] \as External;
+\import External.Coordinates[] \as Coordinates;
+\import Relative.Smash[left := Left.model, right := Right.model] \as Smash;
+\import Support.ClosedPair[M := Smash.model.Carrier, space := Smash.topology, compact := Smash.compact, hausdorff := Smash.hausdorff,
+  subset := Smash.wedge, closed := Smash.wedgeClosed] \as Complement;
+\import Support.Homeomorphic[A := Total, B := External.Carrier, source := topology, target := External.topology, h := Coordinates.homeomorphism] \as Change;
+\definition locallyCompact: topology.LocallyCompact[A := Total].IsLocallyCompact topology := Change.locallyCompact Complement.interiorLocallyCompact;
+\definition zeroSection: \Pow Total := Cartesian.Rectangle LeftKoszul.ZeroSection RightKoszul.ZeroSection;
+\definition zeroCompact: topology.Topology[Carrier := Total].IsCompactIn topology zeroSection :=
+  Cartesian.Compactness[].productCompactIn left.totalSpace right.totalSpace LeftKoszul.ZeroSection RightKoszul.ZeroSection LeftTotal.zeroCompact RightTotal.zeroCompact;
+\import Support.On[X := Total, space := topology, hausdorff := hausdorff, locallyCompact := locallyCompact] \as Whole;
+\definition model: Relative.CompactPointed := Whole.model;
+\definition Carrier: \Set := Relative.Reduced[model := model].Carrier;
+\definition sumTotal: \Set := SumKoszul.Total;
+\definition sumTopology: topology.Topology[Carrier := sumTotal].Topology := sum.totalSpace;
+\definition sumHausdorff: topology.Topology[Carrier := sumTotal].IsT2 sumTopology := SumTotal.separated;
+\definition sumLocallyCompact: topology.LocallyCompact[A := sumTotal].IsLocallyCompact sumTopology := SumTotal.locallyCompact;
+\import \root.Thom[].FiberProduct[X := X, F := F, G := G, left := left, right := right, sameBase := sameBase, baseHausdorff := baseSeparated] \as Fiber;
+\definition inclusion: sumTotal -> Total := Fiber.inclusion;
+\definition regular: topology.Continuity[A := sumTotal, B := Total].Continuous sumTopology topology inclusion := Fiber.continuous;
+\definition proper: Support.Proper[A := sumTotal, B := Total, source := sumTopology, target := topology].IsProper inclusion := Fiber.proper;
+\import Support.On[X := sumTotal, space := sumTopology, hausdorff := sumHausdorff, locallyCompact := sumLocallyCompact] \as SumSupport;
+\definition sumModel: Relative.CompactPointed := SumSupport.model;
+\import SumSupport.Pullback[Y := Total, target := topology, targetHausdorff := hausdorff, targetLocallyCompact := locallyCompact,
+  f := inclusion, continuous := regular, proper := proper] \as Pull;
+\definition map: Relative.Map sumModel model := Pull.mapping;
+\definition pull: Carrier -> SumFor.Carrier := Relative.Pullback[source := sumModel, target := model, f := map].map;
+\import topology.Maps[A := sumTotal, B := Total] \as Preimage;
+\definition zeroPreimage: \Pow sumTotal := Preimage.Preimage inclusion zeroSection;
+\definition zeroPreimageCompact: topology.Topology[Carrier := sumTotal].IsCompactIn sumTopology zeroPreimage := proper zeroSection zeroCompact;
+\definition zeroReflected: \forall (p: sumTotal) -> \In[sumTotal] zeroPreimage p -> \In[sumTotal] SumKoszul.ZeroSection p :=
+  \fun (p: sumTotal)(zero: Logic.And[\In[LeftKoszul.Total] LeftKoszul.ZeroSection (first (inclusion p)), \In[RightKoszul.Total] RightKoszul.ZeroSection (second (inclusion p))]) =>
+    trans!{{Sum.Fiber p.base}} _ _ _ (sym!{{Sum.Fiber p.base}} _ _ (P.Prop[A := F p.base, B := G p.base].eta p.vector))
+      (congr!{{F p.base} {G p.base} {Sum.Fiber p.base}} (P.pair (F p.base) (G p.base)) _ _ _ _ zero.left zero.right);
+\definition zeroPreserved: \forall (p: sumTotal) -> \In[sumTotal] SumKoszul.ZeroSection p -> \In[sumTotal] zeroPreimage p :=
+  \fun (p: sumTotal)(zero: \In[sumTotal] SumKoszul.ZeroSection p) => Logic.And[\In[LeftKoszul.Total] LeftKoszul.ZeroSection (first (inclusion p)), \In[RightKoszul.Total] RightKoszul.ZeroSection (second (inclusion p))] {
+    left := congr!{{Sum.Fiber p.base} {F p.base}} (P.first (F p.base) (G p.base)) _ _ zero,
+    right := congr!{{Sum.Fiber p.base} {G p.base}} (P.second (F p.base) (G p.base)) _ _ zero
+  };
+\definition zeroEquation: zeroPreimage = SumKoszul.ZeroSection := \axiom:setext(zeroPreimage, SumKoszul.ZeroSection, zeroReflected, zeroPreserved);
+\import Whole.Pullback[Y := External.Carrier, target := External.topology, targetHausdorff := Complement.interiorHausdorff,
+  targetLocallyCompact := Complement.interiorLocallyCompact, f := Coordinates.forward, continuous := Coordinates.forwardContinuous, proper := Change.proper] \as CoordinatesPull;
+\import Relative.Composition[source := model, middle := Complement.model, target := Smash.result,
+  first := CoordinatesPull.mapping, second := Complement.equivalence.backward] \as ExternalMap;
+\definition externalModel: Relative.CompactPointed := Smash.result;
+\definition toSmash: Relative.Map model externalModel := ExternalMap.map;
+\definition external[a: Multiplication.First][b: Multiplication.Second]: Carrier :=
+  Relative.Pullback[source := model, target := externalModel, f := toSmash].map (Smash.External[].product a b);
+\import Support.OnePoint[X := Total, space := topology] \as Points;
+\import Support.OnePoint[X := sumTotal, space := sumTopology] \as SumPoints;
+\import Support.OnePoint[X := LeftKoszul.Total, space := left.totalSpace] \as LeftPoints;
+\import Support.OnePoint[X := RightKoszul.Total, space := right.totalSpace] \as RightPoints;
+\definition onFinite: \forall (p: Total) -> toSmash (Points.inclusion p) =
+  Smash.projection (P.pair LeftPoints.Carrier RightPoints.Carrier (LeftPoints.inclusion (first p)) (RightPoints.inclusion (second p))) :=
+  \fun (p: Total) => Complement.backwardOnInterior (Coordinates.forward p);
+\import Relative.Composition[source := sumModel, middle := model, target := externalModel, first := map, second := toSmash] \as Composite;
+\definition agreesOnFinite: \forall (p: sumTotal) -> Composite.map (SumPoints.inclusion p) = Multiplication.mapping (SumPoints.inclusion p) :=
+  \fun (p: sumTotal) => trans!{{externalModel.Carrier}} _ _ _ (onFinite (inclusion p))
+    (sym!{{externalModel.Carrier}} _ _ (Multiplication.onFinite p));
+\definition agreesAtInfinity: Composite.map SumPoints.point = Multiplication.mapping SumPoints.point :=
+  trans!{{externalModel.Carrier}} _ _ _
+    (algebraic_topology.Pointed[A := sumModel.Carrier].Maps[B := externalModel.Carrier].laws (Relative.pointed sumModel) (Relative.pointed externalModel) Composite.map).pointed
+    (sym!{{externalModel.Carrier}} _ _
+      (algebraic_topology.Pointed[A := sumModel.Carrier].Maps[B := externalModel.Carrier].laws (Relative.pointed sumModel) (Relative.pointed externalModel) Multiplication.mapping).pointed);
+\definition mappingEquation: Composite.map = Multiplication.mapping := \axiom:funext(Composite.map, Multiplication.mapping,
+  \induction (p: sumModel.Carrier) \return Composite.map p = Multiplication.mapping p \with {
+    | none: agreesAtInfinity | some: agreesOnFinite
+  });
+\definition productFormula: \forall (a: Multiplication.First)(b: Multiplication.Second) -> pull (external a b) = Multiplication.multiply a b :=
+  \fun (a: Multiplication.First)(b: Multiplication.Second) => trans!{{SumFor.Carrier}} _ _ _
+    (sym!{{SumFor.Carrier}} _ _ (Relative.PullbackComposition[source := sumModel, middle := model, target := externalModel, first := map, second := toSmash].equation (Smash.External[].product a b)))
+    (trans!{{SumFor.Carrier}} _ _ _
+      (congr!{{Relative.Map sumModel externalModel} {SumFor.Carrier}}
+        (\fun (f: Relative.Map sumModel externalModel) => Relative.Pullback[source := sumModel, target := externalModel, f := f].map (Smash.External[].product a b))
+        _ _ mappingEquation)
+      (sym!{{SumFor.Carrier}} _ _ (Multiplication.formula a b)));
+
+\module Primal;

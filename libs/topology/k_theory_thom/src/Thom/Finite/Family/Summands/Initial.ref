@@ -1,0 +1,68 @@
+\use Equality.eq_reason_in;
+\import Models.Sum[first := term N.Nat^::zero, second := Chains.empty] \as Sum;
+\definition A[x: X]: \Set := Models.Fiber (term N.Nat^::zero).ranks x;
+\definition B[x: X]: \Set := Models.Fiber Chains.empty.ranks x;
+\definition V[x: X]: \Set := Models.Fiber (folded N.Nat^::zero).even.ranks x;
+\definition firstInclusion: Models.Map (term N.Nat^::zero) (folded N.Nat^::zero).even := Sum.firstInclusion;
+\definition secondInclusion: Models.Map Chains.empty (folded N.Nat^::zero).even := Sum.secondInclusion;
+\definition join[x: X][a: A x][b: B x]: V x := (Sum.isomorphism.forward.fiber x).apply (Pair.pair (A x) (B x) a b);
+\definition head[x: X][v: V x]: A x := Pair.first (A x) (B x) ((Sum.isomorphism.backward.fiber x).apply v);
+\definition rest[x: X][v: V x]: B x := Pair.second (A x) (B x) ((Sum.isomorphism.backward.fiber x).apply v);
+\definition recover: \forall (x: X)(v: V x) -> join x (head x v) (rest x v) = v :=
+  \fun (x: X)(v: V x) => trans!{{V x}} _ _ _
+    (congr!{{Sum.SourceFiber x} {V x}} (Sum.isomorphism.forward.fiber x).apply _ _
+      (Pair.Prop[A := A x, B := B x].eta ((Sum.isomorphism.backward.fiber x).apply v)))
+    (Sum.isomorphism.rightInverse x v);
+\definition split: \forall (x: X)(a: A x)(b: B x) -> ((Models.bundle (folded N.Nat^::zero).even).space x).add
+  ((firstInclusion.fiber x).apply a) ((secondInclusion.fiber x).apply b) = join x a b :=
+  \fun (x: X)(a: A x)(b: B x) => trans!{{V x}} _ _ _
+    (sym!{{V x}} _ _ ((Sum.isomorphism.forward.fiber x).preservesAdd
+      (Pair.pair (A x) (B x) a ((Models.bundle Chains.empty).space x).zero)
+      (Pair.pair (A x) (B x) ((Models.bundle (term N.Nat^::zero)).space x).zero b)))
+    (congr!{{Sum.SourceFiber x} {V x}} (Sum.isomorphism.forward.fiber x).apply _ _
+      (congr!{{A x} {B x} {Sum.SourceFiber x}} (Pair.pair (A x) (B x)) _ _ _ _
+        (Spaces.Laws[V := A x, space := (Models.bundle (term N.Nat^::zero)).space x].zeroRight a)
+        (Spaces.Laws[V := B x, space := (Models.bundle Chains.empty).space x].zeroLeft b)));
+\definition compare: \forall (target: Models.Bundle)(first, second: Models.Map (folded N.Nat^::zero).even target)(x: X) ->
+  (\forall (a: A x) -> (first.fiber x).apply ((firstInclusion.fiber x).apply a) = (second.fiber x).apply ((firstInclusion.fiber x).apply a)) ->
+  (\forall (b: B x) -> (first.fiber x).apply ((secondInclusion.fiber x).apply b) = (second.fiber x).apply ((secondInclusion.fiber x).apply b)) ->
+  \forall (v: V x) -> (first.fiber x).apply v = (second.fiber x).apply v :=
+  \fun (target: Models.Bundle)(first, second: Models.Map (folded N.Nat^::zero).even target)(x: X)(left: _)(right: _)(v: V x) =>
+  eq_reason_in!{{Models.Fiber target.ranks x} _
+    "=" { (first.fiber x).apply (((Models.bundle (folded N.Nat^::zero).even).space x).add
+      ((firstInclusion.fiber x).apply (head x v)) ((secondInclusion.fiber x).apply (rest x v))) } "by" {
+      congr!{{V x} {Models.Fiber target.ranks x}} (first.fiber x).apply _ _
+        (sym!{{V x}} _ _ (trans!{{V x}} _ _ _ (split x (head x v) (rest x v)) (recover x v))) }
+    "=" { ((Models.bundle target).space x).add
+      ((first.fiber x).apply ((firstInclusion.fiber x).apply (head x v))) ((first.fiber x).apply ((secondInclusion.fiber x).apply (rest x v))) } "by" { (first.fiber x).preservesAdd _ _ }
+    "=" { ((Models.bundle target).space x).add
+      ((second.fiber x).apply ((firstInclusion.fiber x).apply (head x v))) ((second.fiber x).apply ((secondInclusion.fiber x).apply (rest x v))) } "by" {
+      congr!{{Models.Fiber target.ranks x} {Models.Fiber target.ranks x} {Models.Fiber target.ranks x}} ((Models.bundle target).space x).add _ _ _ _ (left (head x v)) (right (rest x v)) }
+    "=" { (second.fiber x).apply (((Models.bundle (folded N.Nat^::zero).even).space x).add
+      ((firstInclusion.fiber x).apply (head x v)) ((secondInclusion.fiber x).apply (rest x v))) } "by" { sym!{{Models.Fiber target.ranks x}} _ _ ((second.fiber x).preservesAdd _ _) }
+    "=" _ "by" {
+      congr!{{V x} {Models.Fiber target.ranks x}} (second.fiber x).apply _ _
+        (trans!{{V x}} _ _ _ (split x (head x v) (rest x v)) (recover x v)) }
+  };
+
+\definition copair[target: Models.Bundle][first: Models.Map (term N.Nat^::zero) target][second: Models.Map Chains.empty target]: Models.Map (folded N.Nat^::zero).even target := Sum.To[target := target].copair first second;
+\definition onFirst: \forall (target: Models.Bundle)(first: Models.Map (term N.Nat^::zero) target)(second: Models.Map Chains.empty target)(x: X)(v: A x) ->
+  ((copair target first second).fiber x).apply ((firstInclusion.fiber x).apply v) = (first.fiber x).apply v :=
+  \fun (target: Models.Bundle)(first: Models.Map (term N.Nat^::zero) target)(second: Models.Map Chains.empty target)(x: X)(v: A x) =>
+  trans!{{Models.Fiber target.ranks x}} _ _ _
+    (congr!{{Sum.SourceFiber x} {Models.Fiber target.ranks x}}
+      (\fun (z: Sum.SourceFiber x) => ((Models.bundle target).space x).add ((first.fiber x).apply (Pair.first (A x) (B x) z)) ((second.fiber x).apply (Pair.second (A x) (B x) z))) _ _
+      (Sum.isomorphism.leftInverse x (Pair.pair (A x) (B x) v ((Models.bundle Chains.empty).space x).zero)))
+    (trans!{{Models.Fiber target.ranks x}} _ _ _
+      (congr!{{Models.Fiber target.ranks x} {Models.Fiber target.ranks x}} (((Models.bundle target).space x).add ((first.fiber x).apply v)) _ _ (second.fiber x).preservesZero)
+      (Spaces.Laws[V := Models.Fiber target.ranks x, space := (Models.bundle target).space x].zeroRight ((first.fiber x).apply v)));
+\definition onSecond: \forall (target: Models.Bundle)(first: Models.Map (term N.Nat^::zero) target)(second: Models.Map Chains.empty target)(x: X)(v: B x) ->
+  ((copair target first second).fiber x).apply ((secondInclusion.fiber x).apply v) = (second.fiber x).apply v :=
+  \fun (target: Models.Bundle)(first: Models.Map (term N.Nat^::zero) target)(second: Models.Map Chains.empty target)(x: X)(v: B x) =>
+  trans!{{Models.Fiber target.ranks x}} _ _ _
+    (congr!{{Sum.SourceFiber x} {Models.Fiber target.ranks x}}
+      (\fun (z: Sum.SourceFiber x) => ((Models.bundle target).space x).add ((first.fiber x).apply (Pair.first (A x) (B x) z)) ((second.fiber x).apply (Pair.second (A x) (B x) z))) _ _
+      (Sum.isomorphism.leftInverse x (Pair.pair (A x) (B x) ((Models.bundle (term N.Nat^::zero)).space x).zero v)))
+    (trans!{{Models.Fiber target.ranks x}} _ _ _
+      (congr!{{Models.Fiber target.ranks x} {Models.Fiber target.ranks x}} (\fun (w: Models.Fiber target.ranks x) => ((Models.bundle target).space x).add w ((second.fiber x).apply v)) _ _ (first.fiber x).preservesZero)
+      (Spaces.Laws[V := Models.Fiber target.ranks x, space := (Models.bundle target).space x].zeroLeft ((second.fiber x).apply v)));

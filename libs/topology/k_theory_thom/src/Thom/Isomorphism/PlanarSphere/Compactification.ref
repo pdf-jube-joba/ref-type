@@ -1,0 +1,32 @@
+\import \parent.Plane[] \as Plane;
+\import \parent.Chart[] \as Chart;
+\import \parent.Forward[] \as Forward;
+\import Relative.PointPair[model := sphere] \as PointPair;
+\import compact_support_k.Support[].ClosedPair[M := sphere.Carrier, space := (Relative.details sphere).topology,
+  compact := (Relative.details sphere).compact, hausdorff := (Relative.details sphere).hausdorff,
+  subset := PointPair.subset, closed := PointPair.closed] \as Closed;
+\import compact_support_k.Support[].OnePoint[X := Plane.Carrier, space := Plane.topology] \as SourcePlus;
+\import compact_support_k.Support[].OnePoint[X := Closed.Interior, space := Closed.interiorTopology] \as RangePlus;
+\import Relative.Pair[X := sphere.Carrier, space := (Relative.details sphere).topology,
+  compact := (Relative.details sphere).compact, hausdorff := (Relative.details sphere).hausdorff,
+  subset := PointPair.subset, closed := PointPair.closed].Quotient[] \as PointQuotient;
+\import compact_support_k.Support[].Homeomorphic[A := Plane.Carrier, B := Closed.Interior,
+  source := Plane.topology, target := Closed.interiorTopology, h := Chart.homeomorphism].Extension[] \as Extension;
+\import \root.Thom[].Isomorphism[].Model[A := SourcePlus.Carrier, source := SourcePlus.topology,
+  target := Closed.model, h := Extension.homeomorphism, point := SourcePlus.point,
+  preserves := (\refl(RangePlus.point))] \as Model;
+\definition model: Relative.CompactPointed := Model.model;
+\import Relative.Equivalence[source := sphere, target := Closed.model].Compose[middle := PointQuotient.model,
+  first := PointPair.equivalence, second := Closed.equivalence] \as SphereToOff;
+\import Relative.Equivalence[source := model, target := sphere].Compose[middle := Closed.model,
+  first := Model.equivalence, second := Relative.Equivalence[source := sphere, target := Closed.model].inverse SphereToOff.result] \as Comparison;
+\definition equivalence: Relative.Equivalence[source := model, target := sphere].Data := Comparison.result;
+\definition onFinite: \forall (z: Plane.Carrier) -> equivalence.forward (SourcePlus.inclusion z) = Forward.map z :=
+  \fun (z: Plane.Carrier) => trans!{{sphere.Carrier}} _ _ _
+    (congr!{{RangePlus.Carrier} {sphere.Carrier}} SphereToOff.result.backward _ _
+      (sym!{{RangePlus.Carrier}} _ _ (Closed.onInterior (Chart.forward z))))
+    (SphereToOff.result.leftInverse (Forward.map z));
+\definition atInfinity: equivalence.forward SourcePlus.point = (Relative.details sphere).point :=
+  (algebraic_topology.Pointed[A := model.Carrier].Maps[B := sphere.Carrier].laws
+    (Relative.pointed model) (Relative.pointed sphere) equivalence.forward).pointed;
+\import Relative.Equivalence[source := model, target := sphere].With[e := equivalence].Groups[] \as Groups;

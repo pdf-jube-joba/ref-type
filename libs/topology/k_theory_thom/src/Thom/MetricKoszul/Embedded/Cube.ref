@@ -1,0 +1,27 @@
+\import topology.Topology[Carrier := Real.Real] \as RealSpace;
+\definition realBox: \Pow Real.Real := Line.ClosedInterval (Real.neg Real.one) Real.one;
+\definition realCompact: RealSpace.IsCompactIn Line.topology realBox := Line.CompactIntervals[].intervalCompact (Real.neg Real.one) Real.one;
+\import topological_constructions.Product[A := Real.Real, B := Real.Real] \as RealProduct;
+\definition scalarBox: \Pow C.Complex := RealProduct.Rectangle realBox realBox;
+\definition scalarCompact: topology.Topology[Carrier := C.Complex].IsCompactIn Scalars.scalar.topological.space scalarBox :=
+  RealProduct.Compactness[].productCompactIn Line.topology Line.topology realBox realBox realCompact realCompact;
+\import topology.Topology[Carrier := C.Complex].Subspace[S := scalarBox] \as Small;
+\definition SmallScalar: \Set := Small.CarrierSet;
+\definition smallTopology: topology.Topology[Carrier := SmallScalar].Topology := Small.topology Scalars.scalar.topological.space;
+\definition smallCompact: topology.Topology[Carrier := SmallScalar].IsCompact smallTopology := Small.Properties[].compact Scalars.scalar.topological.space scalarCompact;
+\import topological_algebra.FinitePower[K := SmallScalar] \as Power;
+\definition Carrier: \Set := Power.Carrier n;
+\definition topology: topology.Topology[Carrier := Carrier].Topology := Power.At[n := n].topology smallTopology;
+\definition compact: topology.Topology[Carrier := Carrier].IsCompact topology := Power.compact smallTopology smallCompact n;
+\definition vectors[v: Carrier][i: Fin.Fin n]: C.Complex := v i;
+\import topological_algebra.Coordinates[K := C.Complex, I := Fin.Fin n] \as Coordinates;
+\definition continuous: topology.Continuity[A := Carrier, B := Bundles.Vector n].Continuous topology (Bundles.coordinateTopology n) vectors :=
+  Coordinates.Universal[A := Carrier].continuous topology Scalars.scalar.topological.space vectors (\fun (i: Fin.Fin n) =>
+    topology.Composition[A := Carrier, B := SmallScalar, C := C.Complex].composeContinuous topology smallTopology Scalars.scalar.topological.space
+      (\fun (v: Carrier) => v i) (\fun (z: SmallScalar) => z)
+      (topological_algebra.Coordinates[K := SmallScalar, I := Fin.Fin n].evaluationContinuous smallTopology i)
+      (topology.Continuity[A := SmallScalar, B := C.Complex].Corestriction[S := scalarBox].inclusionContinuous Scalars.scalar.topological.space));
+\definition point[v: Bundles.Vector n][bound: \forall (i: Fin.Fin n) -> \In[C.Complex] scalarBox (v i)]: Carrier :=
+  \fun (i: Fin.Fin n) => \into[C.Complex](v i, scalarBox) \by { bound i };
+\definition pointEquation[v: Bundles.Vector n][bound: \forall (i: Fin.Fin n) -> \In[C.Complex] scalarBox (v i)]: vectors (point v bound) = v :=
+  \axiom:funext(vectors (point v bound), v, \fun (i: Fin.Fin n) => \refl(v i));

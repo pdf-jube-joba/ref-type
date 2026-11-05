@@ -1,0 +1,36 @@
+\import C.Prop[] \as ComplexLaws;
+\import Order.Arithmetic[].Prop[] \as RealLaws;
+\definition sumNorm[z: Smash.model.Carrier]: Real.Real := Real.add (firstNorm z) (secondNorm z);
+\definition onePlusPositive[q: Real.Real][nonnegative: Order.Le Real.zero q]: Order.Lt Real.zero (Real.add Real.one q) :=
+  Order.ltLeTrans Real.zero Real.one (Real.add Real.one q) Real.Estimates[].Product[].onePositive (Real.Algebra[].leAddRight Real.one q nonnegative);
+\definition positiveIfOne[a, b: Real.Real][nonnegativeA: Order.Le Real.zero a][nonnegativeB: Order.Le Real.zero b][one: Logic.Or[a = Real.one, b = Real.one]]: Order.Lt Real.zero (Real.add a b) :=
+  Logic.orElim[a = Real.one, b = Real.one, Order.Lt Real.zero (Real.add a b)] one
+    (\fun (same: a = Real.one) => Order.ltReplaceRight Real.zero (Real.add Real.one b) (Real.add a b)
+      (sym!{{Real.Real}} _ _ (congr!{{Real.Real} {Real.Real}} (\fun (q: Real.Real) => Real.add q b) _ _ same)) (onePlusPositive b nonnegativeB))
+    (\fun (same: b = Real.one) => Order.ltReplaceRight Real.zero (Real.add Real.one a) (Real.add a b)
+      (sym!{{Real.Real}} _ _ (trans!{{Real.Real}} _ _ _ (congr!{{Real.Real} {Real.Real}} (Real.add a) _ _ same) (RealLaws.addComm a Real.one)))
+      (onePlusPositive a nonnegativeA));
+\definition one: \forall (z: \Cast[Smash.model.Carrier] Smash.wedge) -> Logic.Or[firstNorm z = Real.one, secondNorm z = Real.one] :=
+  \fun (z: \Cast[Smash.model.Carrier] Smash.wedge) => Logic.orElim[Smash.first z = point, Smash.second z = Other.point, Logic.Or[firstNorm z = Real.one, secondNorm z = Real.one]]
+    (\bysub(Smash.model.Carrier, Smash.wedge, z))
+    (\fun (same: _) => Logic.Or[_, _]::left (trans!{{Real.Real}} _ _ _ (congr!{{Base} {Real.Real}} leftNorm _ _ same) leftNormPoint))
+    (\fun (same: _) => Logic.Or[_, _]::right (trans!{{Real.Real}} _ _ _ (congr!{{Other.Base} {Real.Real}} Other.norm _ _ same) Other.normAtPoint));
+\definition positive: \forall (z: \Cast[Smash.model.Carrier] Smash.wedge) -> Order.Lt Real.zero (sumNorm z) :=
+  \fun (z: \Cast[Smash.model.Carrier] Smash.wedge) => positiveIfOne (firstNorm z) (secondNorm z) (normNonnegative (Smash.first z)) (Other.normNonnegative (Smash.second z)) (one z);
+\definition nonzero: \forall (z: \Cast[Smash.model.Carrier] Smash.wedge) -> Scalar.NonZero (ProductSymbol.coefficient z) :=
+  \fun (z: \Cast[Smash.model.Carrier] Smash.wedge)(zero: _) => Real.Inverse[].positiveNonzero (sumNorm z) (positive z)
+    (ComplexLaws.ofRealInjective (sumNorm z) Real.zero (trans!{{C.Complex}} _ _ _ (sym!{{C.Complex}} _ _ (normCoefficient z)) zero));
+\import ProductSymbol.On[subset := Smash.wedge, nonzero := nonzero] \as Symbol;
+\import \root.Thom[].ComplexProductBundles[left := model, right := OtherGeometry.model].Factors[
+  F0 := Even, F1 := Odd, G0 := Other.Even, G1 := Other.Odd,
+  e0 := evenBundle, e1 := oddBundle, f0 := Other.evenBundle, f1 := Other.oddBundle,
+  e0Same := (\refl(baseTopology)), e1Same := (\refl(baseTopology)), f0Same := (\refl(Other.baseTopology)), f1Same := (\refl(Other.baseTopology))] \as Factors;
+\definition comparison: Factors.BoundaryIsomorphism := Symbol.isomorphism;
+\import Factors.With[alpha := comparison] \as Class;
+\import topological_k_theory.KTheory[].On[X := Base, baseSpace := baseTopology, compact := baseCompact, hausdorff := baseHausdorff].K0[] \as FirstK;
+\import topological_k_theory.KTheory[].On[X := Other.Base, baseSpace := Other.baseTopology, compact := Other.baseCompact, hausdorff := Other.baseHausdorff].K0[] \as SecondK;
+\definition firstAgreement: relativeClass = FirstK.difference Factors.firstEven Factors.firstOdd := sym!{{FirstK.Carrier}} _ _ classFormula;
+\definition secondAgreement: Other.relativeClass = SecondK.difference Factors.secondEven Factors.secondOdd := sym!{{SecondK.Carrier}} _ _ Other.classFormula;
+\import Class.Of[a := relativeClass, b := Other.relativeClass, firstAgreement := firstAgreement, secondAgreement := secondAgreement] \as Recognition;
+\definition value: Relative.Reduced[model := Smash.result].Carrier := Class.value;
+\definition equation: value = Smash.External[].product relativeClass Other.relativeClass := Recognition.equation;

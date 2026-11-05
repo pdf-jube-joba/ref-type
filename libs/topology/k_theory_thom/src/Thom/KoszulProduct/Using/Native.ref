@@ -1,0 +1,54 @@
+\import compact_support_k.Support[] \as Support;
+\import relative_k_theory.Relative[] \as Relative;
+\import N.Basic[].Def[] \as Nat;
+\import N.Basic[].Prop[] \as Naturals;
+\import N.Order[].Prop[] \as Order;
+\import \root.Thom[].Koszul[X := X, F := F, bundle := left] \as LeftKoszul;
+\import \root.Thom[].Koszul[X := X, F := G, bundle := right] \as RightKoszul;
+\import Bundles.Family[X := X, F := F].Of[bundle := left] \as LeftOriginal;
+\import Bundles.Family[X := X, F := G].Of[bundle := right] \as RightOriginal;
+\import \root.Thom[].ExteriorParityPullback[A := X, B := X, Y := Geometry.Total, F := F, G := G, left := left, right := right,
+  firstSelection := firstData.selection, secondSelection := secondData.selection, source := Geometry.topology,
+  f := Geometry.first, g := Geometry.second, firstRegular := Geometry.firstRegular, secondRegular := Geometry.secondRegular] \as Factors;
+\import \root.Thom[].SumComplex[X := Geometry.Total, F := Factors.FirstFiber, G := Factors.SecondFiber,
+  left := Factors.leftBundle, right := Factors.rightBundle, sameBase := (\refl(Geometry.topology)),
+  firstSection := Factors.firstSection, secondSection := Factors.secondSection] \as Raw;
+\import Operations.DirectSum[X := Geometry.Total, F := Factors.FirstFiber, G := Factors.SecondFiber, left := Factors.leftBundle, right := Factors.rightBundle] \as Primal;
+\import \root.Thom[].ExteriorParity[X := Geometry.Total, F := Factors.FirstFiber, G := Factors.SecondFiber,
+  left := Factors.leftBundle, right := Factors.rightBundle, sameBase := (\refl(Geometry.topology))] \as Parity;
+\import Raw.Coordinates[] \as Coordinates;
+\import Operations.Models[X := Geometry.Total, baseSpace := Geometry.topology] \as Models;
+\definition FirstFiber[z: Geometry.Total]: \Set := Factors.FirstFiber z;
+\definition SecondFiber[z: Geometry.Total]: \Set := Factors.SecondFiber z;
+\definition firstBundle: Bundles.Family[X := Geometry.Total, F := FirstFiber].Bundle := Factors.leftBundle;
+\definition secondBundle: Bundles.Family[X := Geometry.Total, F := SecondFiber].Bundle := Factors.rightBundle;
+\definition firstSection: Bundles.Family[X := Geometry.Total, F := FirstFiber].Of[bundle := firstBundle].Sections[].Section := Factors.firstSection;
+\definition secondSection: Bundles.Family[X := Geometry.Total, F := SecondFiber].Of[bundle := secondBundle].Sections[].Section := Factors.secondSection;
+\definition PrimalFiber[z: Geometry.Total]: \Set := Primal.Fiber z;
+\definition primalBundle: Bundles.Family[X := Geometry.Total, F := PrimalFiber].Bundle := Raw.sum;
+\definition primalSection: Bundles.Family[X := Geometry.Total, F := PrimalFiber].Of[bundle := primalBundle].Sections[].Section := Raw.section;
+\definition Term[k: N.Nat^][z: Geometry.Total]: \Set := Raw.Term k z;
+\definition term[k: N.Nat^]: Bundles.Family[X := Geometry.Total, F := Term k].Bundle := Raw.term k;
+\definition Form[k: N.Nat^][z: Geometry.Total]: \Set := Raw.Form k z;
+\definition forms[k: N.Nat^]: Bundles.Family[X := Geometry.Total, F := Form k].Bundle := Raw.forms k;
+\definition toForm[k: N.Nat^]: Bundles.Isomorphisms[X := Geometry.Total, F := Term k, G := Form k, source := term k, target := forms k].Isomorphism := Raw.comparison k;
+\definition rawDifferential[k: N.Nat^]: Bundles.Morphisms[X := Geometry.Total, Y := Geometry.Total, F := Term (N.Nat^::succ k), G := Term k,
+  source := term (N.Nat^::succ k), target := term k, f := (\fun (z: Geometry.Total) => z)].Map := Raw.Degree[k := k].differential;
+\definition TotalSelection: \Set := \forall (k: N.Nat^) -> Coordinates.Choice[k];
+\definition existence: \exists TotalSelection := Coordinates.selections;
+\definition degree: N.Nat^ := Nat.add firstDegree secondDegree;
+\module At(z: Geometry.Total);
+\definition truncation: \forall (z: Geometry.Total)(omega: Raw.Term degree z) -> omega = ((Raw.term degree).space z).zero :=
+  \fun (z: Geometry.Total) => At[z := z].zeroAbove;
+\definition formTruncation: \forall (z: Geometry.Total)(omega: Raw.Form degree z) -> omega = ((Raw.forms degree).space z).zero :=
+  \fun (z: Geometry.Total) => At[z := z].formsZeroAbove;
+\definition zeroAbove: \forall (z: Geometry.Total)(omega: Term degree z) -> omega = ((term degree).space z).zero := truncation;
+\definition formsZeroAbove: \forall (z: Geometry.Total)(omega: Form degree z) -> omega = ((forms degree).space z).zero := formTruncation;
+\definition nonzero: \forall (z: Geometry.Total) -> \In[Geometry.Total] (topology.Topology[Carrier := Geometry.Total].Complement Geometry.zeroSection) z ->
+  Logic.Not (Raw.section.value z = (Raw.sum.space z).zero) :=
+  \fun (z: Geometry.Total)(outside: Logic.Not (\In[Geometry.Total] Geometry.zeroSection z))(same: Raw.section.value z = (Raw.sum.space z).zero) =>
+    outside (Logic.And[\In[LeftKoszul.Total] LeftKoszul.ZeroSection (Geometry.first z), \In[RightKoszul.Total] RightKoszul.ZeroSection (Geometry.second z)] {
+      left := congr!{{Primal.Fiber z} {Factors.FirstFiber z}} (std.Data[].Pair[].first (Factors.FirstFiber z) (Factors.SecondFiber z)) _ _ same,
+      right := congr!{{Primal.Fiber z} {Factors.SecondFiber z}} (std.Data[].Pair[].second (Factors.FirstFiber z) (Factors.SecondFiber z)) _ _ same
+    });
+\module With(selection: TotalSelection);

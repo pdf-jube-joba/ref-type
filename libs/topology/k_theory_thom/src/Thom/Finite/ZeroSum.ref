@@ -1,0 +1,32 @@
+
+\use Equality.eq_reason_in;
+\import Models.Sum[first := first, second := second] \as Sum;
+\definition A[x: X]: \Set := Models.Fiber first.ranks x;
+\definition B[x: X]: \Set := Models.Fiber second.ranks x;
+\definition V[x: X]: \Set := Models.Fiber Sum.value.ranks x;
+\definition join[x: X][a: A x][b: B x]: V x := (Sum.isomorphism.forward.fiber x).apply (Pair.pair (A x) (B x) a b);
+\definition head[x: X][v: V x]: A x := Pair.first (A x) (B x) ((Sum.isomorphism.backward.fiber x).apply v);
+\definition rest[x: X][v: V x]: B x := Pair.second (A x) (B x) ((Sum.isomorphism.backward.fiber x).apply v);
+\definition restJoin: \forall (x: X)(a: A x)(b: B x) -> rest x (join x a b) = b :=
+  \fun (x: X)(a: A x)(b: B x) => congr!{{Sum.SourceFiber x} {B x}} (Pair.second (A x) (B x)) _ _
+    (Sum.isomorphism.leftInverse x (Pair.pair (A x) (B x) a b));
+\definition recover: \forall (x: X)(v: V x) -> join x (head x v) (rest x v) = v :=
+  \fun (x: X)(v: V x) => trans!{{V x}} _ _ _
+    (congr!{{Sum.SourceFiber x} {V x}} (Sum.isomorphism.forward.fiber x).apply _ _
+      (Pair.Prop[A := A x, B := B x].eta ((Sum.isomorphism.backward.fiber x).apply v)))
+    (Sum.isomorphism.rightInverse x v);
+\definition insert: Models.Map second Sum.value := Sum.secondInclusion;
+\definition project: Models.Map Sum.value second := Sum.secondProjection;
+\definition formula: \forall (x: X)(v: B x) -> (insert.fiber x).apply v = join x ((Models.bundle first).space x).zero v :=
+  \fun (x: X)(v: B x) => \refl((insert.fiber x).apply v);
+\definition leftInverse: \forall (x: X)(v: B x) -> (project.fiber x).apply ((insert.fiber x).apply v) = v :=
+  \fun (x: X)(v: B x) => restJoin x ((Models.bundle first).space x).zero v;
+\definition rightInverse: \forall (x: X)(v: V x) -> (insert.fiber x).apply ((project.fiber x).apply v) = v :=
+  \fun (x: X)(v: V x) => trans!{{V x}} _ _ _
+    (congr!{{A x} {V x}} (\fun (a: A x) => join x a (rest x v)) _ _ (sym!{{A x}} _ _ (zero x (head x v))))
+    (recover x v);
+\definition isomorphism: Iso second Sum.value := Bundles.Isomorphisms[X := X,
+  F := Models.Fiber second.ranks, G := Models.Fiber Sum.value.ranks,
+  source := Models.bundle second, target := Models.bundle Sum.value].Isomorphism {
+    forward := insert, backward := project, leftInverse := leftInverse, rightInverse := rightInverse
+  };

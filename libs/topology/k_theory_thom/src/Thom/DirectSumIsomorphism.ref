@@ -1,0 +1,60 @@
+\import \root.Thom[].FiberMultiply[X := X, F := F, G := G, left := left, right := right,
+  sameBase := sameBase, compact := compact, hausdorff := hausdorff] \as Product;
+\import \root.Thom[].For[X := X, F := F, bundle := left, compact := compact, hausdorff := hausdorff] \as First;
+\import \root.Thom[].For[X := X, F := G, bundle := right, compact := Product.rightCompact, hausdorff := Product.rightHausdorff] \as Second;
+\import Operations.DirectSum[X := X, F := F, G := G, left := left, right := right] \as Sum;
+\import \root.Thom[].For[X := X, F := Sum.Fiber, bundle := Product.sum, compact := compact, hausdorff := hausdorff] \as Result;
+\import First.Isomorphism[] \as FirstIsomorphism;
+\import Result.Isomorphism[] \as ResultIsomorphism;
+\import \root.Thom[].KoszulProduct[X := X, F := F, G := G, left := left, right := right,
+  sameBase := sameBase, compact := compact, hausdorff := hausdorff] \as KoszulProduct;
+\import \root.Thom[].FiberAction[X := X, F := F, G := G, left := left, right := right,
+  sameBase := sameBase, compact := compact, hausdorff := hausdorff] \as Action;
+\import First.Product[] \as FirstAction;
+\import Result.Product[] \as ResultAction;
+\import topological_k_theory.KTheory[].On[X := X, baseSpace := left.baseSpace, compact := compact, hausdorff := hausdorff].K0[] \as K;
+\definition forward[u: Product.First]: Product.Carrier := Product.multiply u Second.thom;
+\definition backward[u: Product.Carrier]: Product.First := First.forward (ResultIsomorphism.data.backward u);
+\definition composition: \forall (a: K.Carrier) -> forward (First.forward a) = Result.forward a :=
+  \fun (a: K.Carrier) => trans!{{Product.Carrier}} _ _ _ (Action.equation a First.thom Second.thom)
+    (congr!{{Product.Carrier} {Product.Carrier}} (ResultAction.multiply a) _ _ (sym!{{Product.Carrier}} _ _ KoszulProduct.equation));
+\definition formula: \forall (u: Product.First) -> forward u = Result.forward (FirstIsomorphism.data.backward u) :=
+  \fun (u: Product.First) => trans!{{Product.Carrier}} _ _ _
+    (congr!{{Product.First} {Product.Carrier}} forward _ _ (sym!{{Product.First}} _ _ (FirstIsomorphism.data.rightInverse u)))
+    (composition (FirstIsomorphism.data.backward u));
+\definition leftInverse: \forall (u: Product.First) -> backward (forward u) = u :=
+  \fun (u: Product.First) => trans!{{Product.First}} _ _ _
+    (congr!{{Product.Carrier} {Product.First}} backward _ _ (formula u))
+    (trans!{{Product.First}} _ _ _
+      (congr!{{K.Carrier} {Product.First}} First.forward _ _ (ResultIsomorphism.data.leftInverse (FirstIsomorphism.data.backward u)))
+      (FirstIsomorphism.data.rightInverse u));
+\definition rightInverse: \forall (u: Product.Carrier) -> forward (backward u) = u :=
+  \fun (u: Product.Carrier) => trans!{{Product.Carrier}} _ _ _ (composition (ResultIsomorphism.data.backward u))
+    (ResultIsomorphism.data.rightInverse u);
+\import Bundles.Family[X := X, F := F] \as FirstFamily;
+\import Bundles.Family[X := X, F := Sum.Fiber] \as SumFamily;
+\import \root.Thom[].TotalSpace[X := X, F := F, bundle := left, compact := compact, hausdorff := hausdorff] \as FirstTotal;
+\import \root.Thom[].TotalSpace[X := X, F := Sum.Fiber, bundle := Product.sum, compact := compact, hausdorff := hausdorff] \as SumTotal;
+\import compact_support_k.Support[].On[X := FirstFamily.Point, space := left.totalSpace,
+  hausdorff := FirstTotal.separated, locallyCompact := FirstTotal.locallyCompact] \as Source;
+\import compact_support_k.Support[].On[X := SumFamily.Point, space := Product.sum.totalSpace,
+  hausdorff := SumTotal.separated, locallyCompact := SumTotal.locallyCompact] \as Target;
+\import relative_k_theory.Relative[] \as Relative;
+\definition sourceGroup: std.Alg[].Alg[].CommutativeGroup[Product.First] := Relative.Reduced[model := Source.model].group;
+\definition targetGroup: std.Alg[].Alg[].CommutativeGroup[Product.Carrier] := Relative.Reduced[model := Target.model].group;
+\definition forwardAdd: \forall (u, v: Product.First) -> forward (sourceGroup.base.op u v) = targetGroup.base.op (forward u) (forward v) :=
+  \fun (u, v: Product.First) => Product.additiveLeft u v Second.thom;
+\definition backwardAdd: \forall (u, v: Product.Carrier) -> backward (targetGroup.base.op u v) = sourceGroup.base.op (backward u) (backward v) :=
+  \fun (u, v: Product.Carrier) => trans!{{Product.First}} _ _ _
+    (congr!{{K.Carrier} {Product.First}} First.forward _ _ (ResultIsomorphism.data.backwardAdd u v))
+    (First.additive (ResultIsomorphism.data.backward u) (ResultIsomorphism.data.backward v));
+\definition forwardZero: forward sourceGroup.base.unit = targetGroup.base.unit := trans!{{Product.Carrier}} _ _ _
+  (formula sourceGroup.base.unit)
+  (trans!{{Product.Carrier}} _ _ _ (congr!{{K.Carrier} {Product.Carrier}} Result.forward _ _ FirstIsomorphism.data.backwardZero) ResultIsomorphism.data.forwardZero);
+\definition backwardZero: backward targetGroup.base.unit = sourceGroup.base.unit := trans!{{Product.First}} _ _ _
+  (congr!{{K.Carrier} {Product.First}} First.forward _ _ ResultIsomorphism.data.backwardZero) FirstIsomorphism.data.forwardZero;
+\definition data: periodic_k_theory.Periodicity[].Isomorphism[A := Product.First, B := Product.Carrier, source := sourceGroup, target := targetGroup].Data :=
+  periodic_k_theory.Periodicity[].Isomorphism[A := Product.First, B := Product.Carrier, source := sourceGroup, target := targetGroup].Data {
+    forward := forward, backward := backward, leftInverse := leftInverse, rightInverse := rightInverse,
+    forwardAdd := forwardAdd, backwardAdd := backwardAdd, forwardZero := forwardZero, backwardZero := backwardZero
+  };

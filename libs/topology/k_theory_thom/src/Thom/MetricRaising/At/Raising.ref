@@ -1,0 +1,32 @@
+\import Algebra.Cartan[k := k, v := p.vector, ell := Metric.covector p] \as Cartan;
+\import Algebra.Cartan[k := N.Nat^::succ k, v := p.vector, ell := Metric.covector p] \as Next;
+\import \root.Thom[].WedgeOne[X := Total, F := Koszul.Fiber, bundle := Koszul.pulled, ell := Metric.ell, k := k] \as Wedge;
+\import \root.Thom[].Koszul[X := X, F := F, bundle := bundle].Degree[k := k] \as Contract;
+\definition formula[v: Vector k p]: ((raising k).fiber p).apply v =
+  (Coordinates.encode (N.Nat^::succ k) p).apply (Cartan.wedge ((Coordinates.decode k p).apply v)) :=
+  congr!{{Koszul.Term (N.Nat^::succ k) p} {Vector (N.Nat^::succ k) p}} (Coordinates.encode (N.Nat^::succ k) p).apply _ _
+    (Wedge.At[x := p].formula ((Coordinates.decode k p).apply v));
+\definition decode[v: Vector k p]: (Coordinates.decode (N.Nat^::succ k) p).apply (((raising k).fiber p).apply v) = Cartan.wedge ((Coordinates.decode k p).apply v) :=
+  trans!{{Koszul.Term (N.Nat^::succ k) p}} _ _ _
+    (congr!{{Vector (N.Nat^::succ k) p} {Koszul.Term (N.Nat^::succ k) p}} (Coordinates.decode (N.Nat^::succ k) p).apply _ _ (formula v))
+    (Coordinates.decodeEncode (N.Nat^::succ k) p (Cartan.wedge ((Coordinates.decode k p).apply v)));
+\definition after[v: Vector k p]: ((differential k).fiber p).apply (((raising k).fiber p).apply v) =
+  (Coordinates.encode k p).apply ((Contract.differential.fiber p).apply (Cartan.wedge ((Coordinates.decode k p).apply v))) :=
+  congr!{{Koszul.Term (N.Nat^::succ k) p} {Vector k p}}
+    (\fun (omega: Koszul.Term (N.Nat^::succ k) p) => (Coordinates.encode k p).apply ((Contract.differential.fiber p).apply omega)) _ _ (decode v);
+\definition before[v: Vector (N.Nat^::succ k) p]: ((raising k).fiber p).apply (((differential k).fiber p).apply v) =
+  (Coordinates.encode (N.Nat^::succ k) p).apply (Cartan.wedge ((Contract.differential.fiber p).apply ((Coordinates.decode (N.Nat^::succ k) p).apply v))) :=
+  trans!{{Vector (N.Nat^::succ k) p}} _ _ _ (formula (((differential k).fiber p).apply v))
+    (congr!{{Koszul.Term k p} {Vector (N.Nat^::succ k) p}}
+      (\fun (omega: Koszul.Term k p) => (Coordinates.encode (N.Nat^::succ k) p).apply (Cartan.wedge omega)) _ _
+      (Coordinates.decodeEncode k p ((Contract.differential.fiber p).apply ((Coordinates.decode (N.Nat^::succ k) p).apply v))));
+\import \root.Thom[].WedgeOne[X := Total, F := Koszul.Fiber, bundle := Koszul.pulled, ell := Metric.ell, k := N.Nat^::succ k] \as NextWedge;
+\definition square[v: Vector k p]: ((raising (N.Nat^::succ k)).fiber p).apply (((raising k).fiber p).apply v) = ((Models.bundle (model (N.Nat^::succ (N.Nat^::succ k)))).space p).zero :=
+  trans!{{Vector (N.Nat^::succ (N.Nat^::succ k)) p}} _ _ _ (congr!{{Koszul.Term (N.Nat^::succ (N.Nat^::succ k)) p} {Vector (N.Nat^::succ (N.Nat^::succ k)) p}} (Coordinates.encode (N.Nat^::succ (N.Nat^::succ k)) p).apply _ _ (NextWedge.At[x := p].formula ((Coordinates.decode (N.Nat^::succ k) p).apply (((raising k).fiber p).apply v))))
+    (trans!{{Vector (N.Nat^::succ (N.Nat^::succ k)) p}} _ _ _
+      (congr!{{Koszul.Term (N.Nat^::succ k) p} {Vector (N.Nat^::succ (N.Nat^::succ k)) p}}
+        (\fun (omega: Koszul.Term (N.Nat^::succ k) p) => (Coordinates.encode (N.Nat^::succ (N.Nat^::succ k)) p).apply (Next.wedge omega)) _ _ (decode v))
+      (trans!{{Vector (N.Nat^::succ (N.Nat^::succ k)) p}} _ _ _
+        (congr!{{Koszul.Term (N.Nat^::succ (N.Nat^::succ k)) p} {Vector (N.Nat^::succ (N.Nat^::succ k)) p}}
+          (Coordinates.encode (N.Nat^::succ (N.Nat^::succ k)) p).apply _ _ (Cartan.Square[].equation ((Coordinates.decode k p).apply v)))
+        (Coordinates.encode (N.Nat^::succ (N.Nat^::succ k)) p).preservesZero));

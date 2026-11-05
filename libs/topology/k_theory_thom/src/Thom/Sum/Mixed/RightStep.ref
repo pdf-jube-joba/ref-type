@@ -1,0 +1,22 @@
+\definition step:
+  (\forall (f: LeftShuffle.Function)(g: RightShuffle.Function) -> LeftLinear.Linear f ->
+    Shuffle.product (leftMap f) (rightMap g) (Lists.map W Total inRight ys) = Op.mul (f Lists.List[V]::nil) (g ys)) ->
+  \forall (w: W)(f: LeftShuffle.Function)(g: RightShuffle.Function) -> LeftLinear.Linear f ->
+    Shuffle.product (leftMap f) (rightMap g) (Lists.map W Total inRight (Lists.List[W]::cons w ys)) = Op.mul (f Lists.List[V]::nil) (g (Lists.List[W]::cons w ys)) := \block {
+  \fun (previous: _)(w: W)(f: LeftShuffle.Function)(g: RightShuffle.Function)(linear: LeftLinear.Linear f) \then
+  \let xs: Lists.List[Total] := Lists.map W Total inRight ys \then
+  \let zero: Shuffle.product (Shuffle.shift (inRight w) (leftMap f)) (rightMap g) xs = Op.zero := trans!{{C.Complex}} _ _ _
+    (Products.congruent (Shuffle.shift (inRight w) (leftMap f)) Shuffle.origin (rightMap g) (rightMap g)
+      (zeroFirstShift f linear w) (\fun (zs: Lists.List[Total]) => \refl(rightMap g zs)) xs)
+    (Products.zeroLeft (rightMap g) xs) \then
+  \let value: Shuffle.product (Shuffle.twist (leftMap f)) (Shuffle.shift (inRight w) (rightMap g)) xs = Op.mul (f Lists.List[V]::nil) (g (Lists.List[W]::cons w ys)) :=
+    trans!{{C.Complex}} _ _ _
+      (Products.congruent (Shuffle.twist (leftMap f)) (leftMap (LeftShuffle.twist f))
+        (Shuffle.shift (inRight w) (rightMap g)) (rightMap (RightShuffle.shift w g)) (LeftSeries.twistMap Sum.first f)
+        (\fun (zs: Lists.List[Total]) => \refl(g (Lists.List[W]::cons w (Lists.map Total W Sum.second zs)))) xs)
+      (trans!{{C.Complex}} _ _ _ (previous (LeftShuffle.twist f) (RightShuffle.shift w g) (LeftLinear.twistedLinear f linear))
+        (congr!{{C.Complex} {C.Complex}} (\fun (a: C.Complex) => Op.mul a (g (Lists.List[W]::cons w ys))) _ _ (Laws.mulOneLeft (f Lists.List[V]::nil)))) \then
+  \return trans!{{C.Complex}} _ _ _ (Shuffle.atCons (inRight w) xs (leftMap f) (rightMap g))
+    (trans!{{C.Complex}} _ _ _ (congr!{{C.Complex} {C.Complex} {C.Complex}} Op.add _ _ _ _ zero value)
+      (Laws.addZeroLeft (Op.mul (f Lists.List[V]::nil) (g (Lists.List[W]::cons w ys)))))
+};

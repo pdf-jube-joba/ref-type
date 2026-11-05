@@ -1,0 +1,77 @@
+\import std.Data[].Pair[] \as Pair;
+\import std.Logic[].Equality[].Transport[A := X] \as Transport;
+\import Bundles.Family[X := X, F := F] \as First;
+\import Bundles.Family[X := X, F := G] \as Second;
+\import Operations.DirectSum[X := X, F := F, G := G, left := left, right := right] \as Sum;
+\definition Fiber[x: X]: \Set := Sum.Fiber x;
+\definition totalSum: Bundles.Family[X := X, F := Fiber].Bundle := Sum.bundle sameBase;
+\import Bundles.Family[X := X, F := Fiber] \as Family;
+\definition Total: \Set := Family.Point;
+\import topological_constructions.Product[A := First.Point, B := Second.Point] \as Product;
+\definition ProductCarrier: \Set := Product.CarrierSet;
+\definition productTopology: topology.Topology[Carrier := ProductCarrier].Topology := Product.topology left.totalSpace right.totalSpace;
+\definition inclusion: Total -> ProductCarrier := Sum.embedding;
+\definition continuous: topology.Continuity[A := Total, B := ProductCarrier].Continuous totalSum.totalSpace productTopology inclusion := Sum.embeddingContinuous;
+\definition first[p: ProductCarrier]: First.Point := Pair.first First.Point Second.Point p;
+\definition second[p: ProductCarrier]: Second.Point := Pair.second First.Point Second.Point p;
+\definition firstBase[p: ProductCarrier]: X := (first p).base;
+\definition secondBase[p: ProductCarrier]: X := (second p).base;
+\definition firstBaseContinuous: topology.Continuity[A := ProductCarrier, B := X].Continuous productTopology left.baseSpace firstBase :=
+  topology.Composition[A := ProductCarrier, B := First.Point, C := X].composeContinuous productTopology left.totalSpace left.baseSpace first First.projection
+    (Product.Maps[].firstContinuous left.totalSpace right.totalSpace) First.Of[bundle := left].projectionContinuous;
+\definition secondBaseContinuous: topology.Continuity[A := ProductCarrier, B := X].Continuous productTopology left.baseSpace secondBase :=
+  \idelim right.baseSpace = left.baseSpace \with space: topology.Topology[Carrier := X].Topology =>
+    topology.Continuity[A := ProductCarrier, B := X].Continuous productTopology space secondBase \by {
+    base: topology.Composition[A := ProductCarrier, B := Second.Point, C := X].composeContinuous productTopology right.totalSpace right.baseSpace second Second.projection
+      (Product.Maps[].secondContinuous left.totalSpace right.totalSpace) Second.Of[bundle := right].projectionContinuous,
+    equality: sym!{{topology.Topology[Carrier := X].Topology}} _ _ sameBase
+  };
+\import topology.Topology[Carrier := ProductCarrier] \as ProductSpace;
+\definition closedSubset: \Pow ProductCarrier := { p: ProductCarrier \where secondBase p = firstBase p };
+\definition closed: ProductSpace.IsClosedIn productTopology closedSubset :=
+  thom_spaces.Thom[].CWType[].Separated[A := ProductCarrier, B := X, source := productTopology, target := left.baseSpace, hausdorff := baseHausdorff,
+    f := secondBase, g := firstBase, first := secondBaseContinuous, second := firstBaseContinuous].closed;
+\import ProductSpace.Subspace[S := closedSubset] \as Closed;
+\definition ClosedCarrier: \Set := Closed.CarrierSet;
+\definition closedTopology: topology.Topology[Carrier := ClosedCarrier].Topology := Closed.topology productTopology;
+\definition join[p: ClosedCarrier]: Total := Family.include (firstBase p)
+  (Pair.pair (F (firstBase p)) (G (firstBase p)) (first p).vector
+    (Transport.cast G (secondBase p) (firstBase p) (\bysub(ProductCarrier, closedSubset, p)) (second p).vector));
+\definition firstFormula[p: ClosedCarrier]: Sum.first (join p) = first p := First.eta (first p);
+\definition secondFormula[p: ClosedCarrier]: Sum.second (join p) = second p :=
+  trans!{Second.Point} _ _ _ (Second.includeTransport (secondBase p) (firstBase p) (\bysub(ProductCarrier, closedSubset, p)) (second p).vector) (Second.eta (second p));
+\definition inclusionFormula[p: ClosedCarrier]: inclusion (join p) = p :=
+  Pair.Prop[A := First.Point, B := Second.Point].ext _ _ (firstFormula p) (secondFormula p);
+\definition restrict[p: Total]: ClosedCarrier := \into[ProductCarrier](inclusion p, closedSubset) \by { \refl(p.base) };
+\definition joinRestrict[p: Total]: join (restrict p) = p := trans!{Total} _ _ _
+  (congr!{{Fiber p.base} Total} (Family.include p.base) _ _
+    (trans!{{Fiber p.base}} _ _ _
+      (congr!{{G p.base} {Fiber p.base}} (Pair.pair (F p.base) (G p.base) (Pair.first (F p.base) (G p.base) p.vector)) _ _
+        (Transport.castRefl G p.base (Pair.second (F p.base) (G p.base) p.vector)))
+      (Pair.Prop[A := F p.base, B := G p.base].eta p.vector)))
+  (Family.eta p);
+\module Continuity;
+\definition homeomorphism: topology.Homeomorphism[A := Total, B := ClosedCarrier].Homeomorphism[totalSum.totalSpace, closedTopology] :=
+  topology.Homeomorphism[A := Total, B := ClosedCarrier].Homeomorphism[totalSum.totalSpace, closedTopology] {
+    forward := restrict, backward := join, leftInverse := joinRestrict, rightInverse := inclusionFormula,
+    forwardContinuous := topology.Continuity[A := Total, B := ProductCarrier].Corestriction[S := closedSubset].corestrictContinuous totalSum.totalSpace productTopology restrict continuous,
+    backwardContinuous := Continuity[].joinContinuous
+  };
+\module CompactPreimage(K: \Pow ProductCarrier, compactK: ProductSpace.IsCompactIn productTopology K);
+\definition proper: compact_support_k.Support[].Proper[A := Total, B := ProductCarrier, source := totalSum.totalSpace, target := productTopology].IsProper inclusion :=
+  \fun (K: \Pow ProductCarrier)(compactK: _) => CompactPreimage[K := K, compactK := compactK].compact;
+\module Stabilization(n: N.Nat^, stable: Bundles.Isomorphisms[X := X, F := Fiber, G := (\fun (x: X) => Bundles.Vector n), source := totalSum, target := Bundles.Trivial[X := X, n := n, baseSpace := left.baseSpace].bundle].Isomorphism);
+\definition injective: \forall (p, q: Total) -> inclusion p = inclusion q -> p = q :=
+  \fun (p, q: Total)(same: _) => trans!{Total} _ _ _ (sym!{Total} _ _ (joinRestrict p))
+    (trans!{Total} _ _ _ (congr!{ClosedCarrier Total} join (restrict p) (restrict q) same) (joinRestrict q));
+\import topology.Maps[A := Total, B := ProductCarrier] \as Image;
+\import topology.Topology[Carrier := Total] \as Domain;
+\definition imageEquation: Image.Image inclusion Domain.Whole = closedSubset :=
+  \axiom:setext(Image.Image inclusion Domain.Whole, closedSubset,
+    \fun (q: ProductCarrier)(member: _) => Image.imageElim inclusion Domain.Whole q (ProductSpace.Member closedSubset q)
+      (\fun (p: Total)(whole: _)(same: inclusion p = q) => \idelim inclusion p = q \with r: ProductCarrier => ProductSpace.Member closedSubset r \by {
+        base: \refl(p.base), equality: same
+      }) member,
+    \fun (q: ProductCarrier)(inside: ProductSpace.Member closedSubset q) => Logic.existsIntro[Total,
+      { p: Total \where Logic.And[Domain.Member Domain.Whole p, inclusion p = q] }] (join (\into[ProductCarrier](q, closedSubset) \by { inside }))
+      (Logic.And[_, _]::# (\refl(join (\into[ProductCarrier](q, closedSubset) \by { inside }))) (inclusionFormula (\into[ProductCarrier](q, closedSubset) \by { inside }))));

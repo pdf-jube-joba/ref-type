@@ -1,0 +1,27 @@
+\definition inverseEquation[x: X]: Scalar.mul (reciprocal x)
+  (Scalar.add (operators.a x) (operators.b x)) = Scalar.one :=
+  trans!{{C.Complex}} _ _ _
+    (congr!{{C.Complex} {C.Complex}} (Scalar.mul (reciprocal x)) _ _
+      (sym!{{C.Complex}} _ _ (ComplexLaws.ofRealAdd (Real.mul (coefficient x) (coefficient x)) (data.norm x)))) (inverseLaw x);
+\import Symbol.Normalized[reciprocal := reciprocal, continuous := reciprocalContinuous, inverseLaw := inverseEquation]
+  .Graded[grading := Grading.rightGrading.forward, gradingSquare := Grading.rightSquare, anticommutes := data.anticommutes]
+  .Decomposed[U := Parity.Even, T := Parity.Odd, even := Parity.evenBundle, odd := Parity.oddBundle,
+    same := (\refl(auxiliary.baseSpace)), decomposition := Parity.isomorphism] \as Blocks;
+\module CliffordParity(x: X);
+\definition compatible: Blocks.Compatible := \fun (x: X)(v: Parity.SourceFiber x) =>
+  trans!{{Parity.TargetFiber x}} _ _ _
+    (congr!{{Parity.SourceFiber x} {Parity.TargetFiber x}} (Parity.isomorphism.forward.fiber x).apply _ _
+      (CliffordParity[x := x].equation v))
+    (Grading.compatible x v);
+\definition isomorphism: Bundles.Isomorphisms[X := X, F := Parity.Even, G := Parity.Odd,
+  source := Parity.evenBundle, target := Parity.oddBundle].Isomorphism := Blocks.With[compatible := compatible].isomorphism;
+
+\definition forwardFormula[x: X][v: Parity.Even x]: (isomorphism.forward.fiber x).apply v = (rawForward.fiber x).apply v :=
+  trans!{{Parity.Odd x}} _ _ _
+    (congr!{{Parity.SourceFiber x} {Parity.Odd x}} (Raw.projectOdd.fiber x).apply _ _ (\parent.BlockFiber[x := x].fullEquation ((Raw.embedEven.fiber x).apply v)))
+    (trans!{{Parity.Odd x}} _ _ _
+      ((Raw.projectOdd.fiber x).preservesAdd
+        ((Parity.sourceBundle.space x).smul (scalar x) ((Raw.left.fiber x).apply ((Raw.embedEven.fiber x).apply v)))
+        ((Raw.right.fiber x).apply ((Raw.embedEven.fiber x).apply v)))
+      (congr!{{Parity.Odd x} {Parity.Odd x}} (\fun (z: Parity.Odd x) => (Parity.oddBundle.space x).add z ((RightBlock.forward.fiber x).apply v)) _ _
+        ((Raw.projectOdd.fiber x).preservesScale (scalar x) ((Raw.left.fiber x).apply ((Raw.embedEven.fiber x).apply v)))));

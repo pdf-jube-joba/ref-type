@@ -1,0 +1,67 @@
+\import Spaces.Laws[V := V y, space := (Target.bundle p).space y] \as EvenLaws;
+\import Spaces.Laws[V := W y, space := (Target.bundle q).space y] \as OddLaws;
+\import Operations.ContractingPair[V := V y, W := W y, even := (Target.bundle p).space y, odd := (Target.bundle q).space y] \as Pair;
+\definition data: Pair.Data := Pair.Data { d := D.fiber y, e := E.fiber y, h := normalizedH.fiber y, k := normalizedK.fiber y };
+\definition even: \forall (v: V y) -> ((Target.bundle p).space y).add ((E.fiber y).apply ((normalizedK.fiber y).apply v)) ((normalizedH.fiber y).apply ((D.fiber y).apply v)) = v :=
+  \fun (v: V y) => trans!{{V y}} _ _ _
+    (congr!{{V y} {V y}} (\fun (w: V y) => ((Target.bundle p).space y).add w ((normalizedH.fiber y).apply ((D.fiber y).apply v))) _ _
+      ((E.fiber y).preservesScale (reciprocal y) ((K.fiber y).apply v)))
+    (trans!{{V y}} _ _ _
+      (sym!{{V y}} _ _ (((Target.bundle p).space y).vectorAdd (reciprocal y) ((E.fiber y).apply ((K.fiber y).apply v)) ((H.fiber y).apply ((D.fiber y).apply v))))
+      (trans!{{V y}} _ _ _
+        (congr!{{V y} {V y}} (((Target.bundle p).space y).smul (reciprocal y)) _ _ (evenCartan (f y) v))
+        (trans!{{V y}} _ _ _
+          (sym!{{V y}} _ _ (((Target.bundle p).space y).scalarAssoc (reciprocal y) (coefficient y) v))
+          (trans!{{V y}} _ _ _
+            (congr!{{C.Complex} {V y}} (\fun (a: C.Complex) => ((Target.bundle p).space y).smul a v) _ _ (ScalarLaws.inverseNonzero (coefficient y) (coefficientNonzero y)))
+            (((Target.bundle p).space y).scalarOne v)))));
+\definition odd: \forall (v: W y) -> ((Target.bundle q).space y).add ((D.fiber y).apply ((normalizedH.fiber y).apply v)) ((normalizedK.fiber y).apply ((E.fiber y).apply v)) = v :=
+  \fun (v: W y) => trans!{{W y}} _ _ _
+    (congr!{{W y} {W y}} (\fun (w: W y) => ((Target.bundle q).space y).add w ((normalizedK.fiber y).apply ((E.fiber y).apply v))) _ _
+      ((D.fiber y).preservesScale (reciprocal y) ((H.fiber y).apply v)))
+    (trans!{{W y}} _ _ _
+      (sym!{{W y}} _ _ (((Target.bundle q).space y).vectorAdd (reciprocal y) ((D.fiber y).apply ((H.fiber y).apply v)) ((K.fiber y).apply ((E.fiber y).apply v))))
+      (trans!{{W y}} _ _ _
+        (congr!{{W y} {W y}} (((Target.bundle q).space y).smul (reciprocal y)) _ _ (oddCartan (f y) v))
+        (trans!{{W y}} _ _ _
+          (sym!{{W y}} _ _ (((Target.bundle q).space y).scalarAssoc (reciprocal y) (coefficient y) v))
+          (trans!{{W y}} _ _ _
+            (congr!{{C.Complex} {W y}} (\fun (a: C.Complex) => ((Target.bundle q).space y).smul a v) _ _ (ScalarLaws.inverseNonzero (coefficient y) (coefficientNonzero y)))
+            (((Target.bundle q).space y).scalarOne v)))));
+\definition laws: Pair.Laws[data] := Pair.Laws[data] {
+  squareEven := Chain.squareZero.left (f y), squareOdd := Chain.squareZero.right (f y), even := even, odd := odd
+};
+\definition hk: \forall (v: V y) -> ((normalizedH.fiber y).apply ((normalizedK.fiber y).apply v)) = ((Target.bundle p).space y).zero :=
+  \fun (v: V y) => trans!{{V y}} _ _ _
+    (congr!{{V y} {V y}} (((Target.bundle p).space y).smul (reciprocal y)) _ _ ((H.fiber y).preservesScale (reciprocal y) ((K.fiber y).apply v)))
+    (trans!{{V y}} _ _ _
+      (congr!{{V y} {V y}} (\fun (w: V y) => ((Target.bundle p).space y).smul (reciprocal y) (((Target.bundle p).space y).smul (reciprocal y) w)) _ _ (rawHK (f y) v))
+      (trans!{{V y}} _ _ _
+        (congr!{{V y} {V y}} (((Target.bundle p).space y).smul (reciprocal y)) _ _ (EvenLaws.scaleZero (reciprocal y)))
+        (EvenLaws.scaleZero (reciprocal y))));
+\definition kh: \forall (v: W y) -> ((normalizedK.fiber y).apply ((normalizedH.fiber y).apply v)) = ((Target.bundle q).space y).zero :=
+  \fun (v: W y) => trans!{{W y}} _ _ _
+    (congr!{{W y} {W y}} (((Target.bundle q).space y).smul (reciprocal y)) _ _ ((K.fiber y).preservesScale (reciprocal y) ((H.fiber y).apply v)))
+    (trans!{{W y}} _ _ _
+      (congr!{{W y} {W y}} (\fun (w: W y) => ((Target.bundle q).space y).smul (reciprocal y) (((Target.bundle q).space y).smul (reciprocal y) w)) _ _ (rawKH (f y) v))
+      (trans!{{W y}} _ _ _
+        (congr!{{W y} {W y}} (((Target.bundle q).space y).smul (reciprocal y)) _ _ (OddLaws.scaleZero (reciprocal y)))
+        (OddLaws.scaleZero (reciprocal y))));
+\definition pair: Pair.Pair := \into[Pair.Data](data, Pair.Pair) \by { laws };
+\import \root.Thom[].ComplexProductRescale[V := V y, W := W y, even := (Target.bundle p).space y, odd := (Target.bundle q).space y, c := pair].Strong[hk := hk, kh := kh] \as Strong;
+\definition restoreH: \forall (v: W y) -> ((Target.bundle p).space y).smul (coefficient y) (((Target.bundle p).space y).smul (reciprocal y) ((H.fiber y).apply v)) = (H.fiber y).apply v :=
+  \fun (v: W y) => trans!{{V y}} _ _ _
+    (sym!{{V y}} _ _ (((Target.bundle p).space y).scalarAssoc (coefficient y) (reciprocal y) ((H.fiber y).apply v)))
+    (trans!{{V y}} _ _ _
+      (congr!{{C.Complex} {V y}} (\fun (a: C.Complex) => ((Target.bundle p).space y).smul a ((H.fiber y).apply v)) _ _ (ScalarLaws.inverseNonzeroRight (coefficient y) (coefficientNonzero y)))
+      (((Target.bundle p).space y).scalarOne ((H.fiber y).apply v)));
+\definition restoreK: \forall (v: V y) -> ((Target.bundle q).space y).smul (coefficient y) (((Target.bundle q).space y).smul (reciprocal y) ((K.fiber y).apply v)) = (K.fiber y).apply v :=
+  \fun (v: V y) => trans!{{W y}} _ _ _
+    (sym!{{W y}} _ _ (((Target.bundle q).space y).scalarAssoc (coefficient y) (reciprocal y) ((K.fiber y).apply v)))
+    (trans!{{W y}} _ _ _
+      (congr!{{C.Complex} {W y}} (\fun (a: C.Complex) => ((Target.bundle q).space y).smul a ((K.fiber y).apply v)) _ _ (ScalarLaws.inverseNonzeroRight (coefficient y) (coefficientNonzero y)))
+      (((Target.bundle q).space y).scalarOne ((K.fiber y).apply v)));
+
+\import Pair.With[c := pair] \as Normalized;
+\definition hFixed: \forall (v: W y) -> Normalized.h.apply v = (normalizedH.fiber y).apply v := Strong.hFixed;
+\definition kFixed: \forall (v: V y) -> Normalized.k.apply v = (normalizedK.fiber y).apply v := Strong.kFixed;

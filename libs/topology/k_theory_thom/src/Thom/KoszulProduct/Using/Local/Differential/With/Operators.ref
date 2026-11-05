@@ -1,0 +1,47 @@
+\import \root.Thom[].ComplexProductParity[X := Product.Z,
+  F0 := OriginalBundles.FirstEven, F1 := OriginalBundles.FirstOdd, G0 := OriginalBundles.SecondEven, G1 := OriginalBundles.SecondOdd,
+  e0 := OriginalBundles.FirstEvenBundle, e1 := OriginalBundles.FirstOddBundle, f0 := OriginalBundles.SecondEvenBundle, f1 := OriginalBundles.SecondOddBundle,
+  sameE1 := (\refl(Product.topology)), sameF0 := (\refl(Product.topology)), sameF1 := (\refl(Product.topology))] \as Source;
+\import \root.Thom[].ComplexProductParity[X := Product.Z,
+  F0 := Models.Fiber firstEvenOnDisk.ranks, F1 := Models.Fiber firstOddOnDisk.ranks,
+  G0 := Models.Fiber secondEvenOnDisk.ranks, G1 := Models.Fiber secondOddOnDisk.ranks,
+  e0 := Models.bundle firstEvenOnDisk, e1 := Models.bundle firstOddOnDisk, f0 := Models.bundle secondEvenOnDisk, f1 := Models.bundle secondOddOnDisk,
+  sameE1 := (\refl(Product.topology)), sameF0 := (\refl(Product.topology)), sameF1 := (\refl(Product.topology))] \as Target;
+\import Source.Grading[] \as SourceGrading;
+\import Target.Grading[] \as TargetGrading;
+\definition firstD: Models.Map firstEvenOnDisk firstOddOnDisk := GlobalModels.PullbackMap[p := globalFirstEven, q := globalFirstOdd,
+  Y := Product.Z, source := Product.topology, f := g, regular := gContinuous].map globalFirstD;
+\definition firstE: Models.Map firstOddOnDisk firstEvenOnDisk := GlobalModels.PullbackMap[p := globalFirstOdd, q := globalFirstEven,
+  Y := Product.Z, source := Product.topology, f := g, regular := gContinuous].map globalFirstE;
+\definition secondD: Models.Map secondEvenOnDisk secondOddOnDisk := GlobalModels.PullbackMap[p := globalSecondEven, q := globalSecondOdd,
+  Y := Product.Z, source := Product.topology, f := g, regular := gContinuous].map globalSecondD;
+\definition secondE: Models.Map secondOddOnDisk secondEvenOnDisk := GlobalModels.PullbackMap[p := globalSecondOdd, q := globalSecondEven,
+  Y := Product.Z, source := Product.topology, f := g, regular := gContinuous].map globalSecondE;
+\import \root.Thom[].OddPairOperator[X := Product.Z, F := Models.Fiber firstEvenOnDisk.ranks, G := Models.Fiber firstOddOnDisk.ranks,
+  first := Models.bundle firstEvenOnDisk, second := Models.bundle firstOddOnDisk, sameBase := (\refl(Product.topology))].With[d := firstD, e := firstE] \as First;
+\import \root.Thom[].OddPairOperator[X := Product.Z, F := Models.Fiber secondEvenOnDisk.ranks, G := Models.Fiber secondOddOnDisk.ranks,
+  first := Models.bundle secondEvenOnDisk, second := Models.bundle secondOddOnDisk, sameBase := (\refl(Product.topology))].With[d := secondD, e := secondE] \as Second;
+\import \root.Thom[].TensorNaturality[X := Product.Z,
+  F := Source.LeftFiber, G := Source.RightFiber, A := Target.LeftFiber, B := Target.RightFiber,
+  first := Source.leftBundle, second := Source.rightBundle, newFirst := Target.leftBundle, newSecond := Target.rightBundle,
+  sameSource := (\refl(Product.topology)), sameTarget := (\refl(Product.topology)), firstIso := Change.firstIso, secondIso := Change.secondIso] \as Tensor;
+\definition c: Tensor.Data := Tensor.Data {
+  sourceFirst := Raw.firstDifferential, sourceSecond := Raw.secondDifferential, sourceGrading := SourceGrading.leftGrading.forward,
+  targetFirst := First.operator, targetSecond := Second.operator, targetGrading := TargetGrading.leftGrading.forward
+};
+\module At(p: Product.Z);
+\definition laws: Tensor.Laws[c] := Tensor.Laws[c] {
+  first := \fun (p: Product.Z) => At[p := p].first,
+  second := \fun (p: Product.Z) => At[p := p].second,
+  grading := \fun (p: Product.Z) => At[p := p].grading
+};
+\import Tensor.With[c := c, laws := laws] \as Natural;
+\import Change.Blocks[c := Natural.source, d := Natural.target, operatorCommutes := Natural.commutes] \as EvenBlocks;
+\import Change.OddBlocks[c := Natural.source, d := Natural.target, operatorCommutes := Natural.commutes] \as OddBlocks;
+\module Blocks(p: Product.Z);
+\definition forward[p: Product.Z][v: Original.OriginalEven p]:
+  (Contraction.forward.fiber (g p)).apply ((toGlobalEven.forward.fiber p).apply v) =
+    (toGlobalOdd.forward.fiber p).apply ((Raw.dGlobal.fiber p).apply v) := Blocks[p := p].forward v;
+\definition backward[p: Product.Z][v: Original.OriginalOdd p]:
+  (Contraction.backward.fiber (g p)).apply ((toGlobalOdd.forward.fiber p).apply v) =
+    (toGlobalEven.forward.fiber p).apply ((Raw.eGlobal.fiber p).apply v) := Blocks[p := p].backward v;

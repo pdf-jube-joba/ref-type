@@ -1,0 +1,55 @@
+\import relative_k_theory.Relative[] \as Relative;
+\import Bundles.Family[X := X, F := F] \as Family;
+\import topology.Topology[Carrier := X] \as Base;
+\import \root.Thom[].ClosedRestriction[X := X, F := F, bundle := bundle, compact := compact, hausdorff := hausdorff, U := U, closed := closedU] \as First;
+\import \root.Thom[].ClosedRestriction[X := X, F := F, bundle := bundle, compact := compact, hausdorff := hausdorff, U := V, closed := closedV] \as Second;
+\definition intersection: \Pow X := Base.Intersection U V;
+\definition closedIntersection: Base.IsClosedIn bundle.baseSpace intersection := Base.Finite[].intersectionClosed bundle.baseSpace U V closedU closedV;
+\import \root.Thom[].ClosedRestriction[X := X, F := F, bundle := bundle, compact := compact, hausdorff := hausdorff, U := intersection, closed := closedIntersection] \as Meet;
+\import compact_support_k.Support[].OnePoint[X := Family.Point, space := bundle.totalSpace] \as Compactification;
+\import topology.Topology[Carrier := Compactification.Carrier] \as Space;
+\definition model: Relative.CompactPointed := First.wholeModel;
+\definition firstSet: \Pow model.Carrier := First.Subset;
+\definition secondSet: \Pow model.Carrier := Second.Subset;
+\definition closedFirst: Space.IsClosedIn Compactification.topology firstSet := First.subsetClosed;
+\definition closedSecond: Space.IsClosedIn Compactification.topology secondSet := Second.subsetClosed;
+\definition firstPoint: Space.Member firstSet Compactification.point := First.containsPoint;
+\definition secondPoint: Space.Member secondSet Compactification.point := Second.containsPoint;
+\definition covering: \forall (p: Compactification.Carrier) -> Logic.Or[Space.Member firstSet p, Space.Member secondSet p] :=
+  \induction (p: Compactification.Carrier) \return Logic.Or[Space.Member firstSet p, Space.Member secondSet p] \with {
+    | none: Logic.Or[_, _]::left firstPoint
+    | some: \fun (p: Family.Point) => covers p.base
+  };
+\definition meetFirst: \forall (p: Compactification.Carrier) -> Space.Member Meet.Subset p -> Space.Member firstSet p :=
+  \induction (p: Compactification.Carrier) \return Space.Member Meet.Subset p -> Space.Member firstSet p \with {
+    | none: \fun (member: _) => firstPoint
+    | some: \fun (p: Family.Point)(member: Logic.And[Base.Member U p.base, Base.Member V p.base]) => member.left
+  };
+\definition meetSecond: \forall (p: Compactification.Carrier) -> Space.Member Meet.Subset p -> Space.Member secondSet p :=
+  \induction (p: Compactification.Carrier) \return Space.Member Meet.Subset p -> Space.Member secondSet p \with {
+    | none: \fun (member: _) => secondPoint
+    | some: \fun (p: Family.Point)(member: Logic.And[Base.Member U p.base, Base.Member V p.base]) => member.right
+  };
+\definition bothMeet: \forall (p: Compactification.Carrier) -> Space.Member firstSet p -> Space.Member secondSet p -> Space.Member Meet.Subset p :=
+  \induction (p: Compactification.Carrier) \return Space.Member firstSet p -> Space.Member secondSet p -> Space.Member Meet.Subset p \with {
+    | none: \fun (first, second: _) => Meet.containsPoint
+    | some: \fun (p: Family.Point)(first: Base.Member U p.base)(second: Base.Member V p.base) => Logic.And[_, _]::# first second
+  };
+\definition intersectionEquation: Space.Intersection firstSet secondSet = Meet.Subset :=
+  \axiom:setext(Space.Intersection firstSet secondSet, Meet.Subset,
+    \fun (p: Compactification.Carrier)(both: Logic.And[Space.Member firstSet p, Space.Member secondSet p]) => bothMeet p both.left both.right,
+    \fun (p: Compactification.Carrier)(member: _) => Logic.And[_, _]::# (meetFirst p member) (meetSecond p member));
+\import \root.Thom[].MayerVietoris[model := model, U := firstSet, V := secondSet, closedU := closedFirst, closedV := closedSecond, pointU := firstPoint, pointV := secondPoint, covers := covering] \as MV;
+\definition firstModel: Relative.CompactPointed := First.partModel;
+\definition secondModel: Relative.CompactPointed := Second.partModel;
+\definition intersectionModel: Relative.CompactPointed := Meet.partModel;
+\definition firstEquivalence: Relative.Equivalence[source := firstModel, target := MV.firstModel].Data := First.equivalence;
+\definition secondEquivalence: Relative.Equivalence[source := secondModel, target := MV.secondModel].Data := Second.equivalence;
+\module IntersectionComparison;
+\definition intersectionEquivalence: Relative.Equivalence[source := intersectionModel, target := MV.intersectionModel].Data := IntersectionComparison[].equivalence;
+\definition firstRestriction: Relative.Map firstModel model := First.map;
+\definition secondRestriction: Relative.Map secondModel model := Second.map;
+\definition intersectionRestriction: Relative.Map intersectionModel model := Meet.map;
+\definition firstFactorization: \forall (p: firstModel.Carrier) -> MV.firstInclusion (firstEquivalence.forward p) = firstRestriction p := First.factorization;
+\definition secondFactorization: \forall (p: secondModel.Carrier) -> MV.secondInclusion (secondEquivalence.forward p) = secondRestriction p := Second.factorization;
+\definition intersectionFactorization: \forall (p: intersectionModel.Carrier) -> MV.secondInclusion (MV.intersectionToSecond (intersectionEquivalence.forward p)) = intersectionRestriction p := IntersectionComparison[].overWhole;

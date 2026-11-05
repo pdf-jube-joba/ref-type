@@ -1,0 +1,18 @@
+\definition Valid[b: N.Nat^]: \Prop := \forall (x: X) -> Naturals.Le (Original.rank x) b;
+\definition value[b: N.Nat^][valid: Valid b]: Carrier :=
+  \parent.Using[data := Data { bound := b, selection := selection, rankBound := valid }].thom;
+\definition sameBound: \forall (a, b: N.Nat^) -> a = b -> \forall (first: Valid a)(second: Valid b) -> value a first = value b second :=
+  \fun (a, b: N.Nat^)(equation: a = b) =>
+    \idelim a = b \with bound: N.Nat^ => \forall (first: Valid a)(second: Valid bound) -> value a first = value bound second \by {
+      base: \fun (first, second: Valid a) => \refl(value a first), equality: equation
+    };
+\module Step(b: N.Nat^, valid: Valid b);
+\module Growth(base: N.Nat^, valid: Valid base);
+\import Growth[base := firstBound, valid := firstRankBound] \as FirstGrowth;
+\import Growth[base := secondBound, valid := secondRankBound] \as SecondGrowth;
+\definition equation: value firstBound firstRankBound = value secondBound secondRankBound :=
+  trans!{Carrier} _ _ _ (FirstGrowth.equation secondBound)
+    (trans!{Carrier} _ _ _
+      (sameBound (Nat.add firstBound secondBound) (Nat.add secondBound firstBound) (Naturals.addComm firstBound secondBound)
+        (FirstGrowth.rankAt secondBound) (SecondGrowth.rankAt firstBound))
+      (sym!{Carrier} _ _ (SecondGrowth.equation firstBound)));

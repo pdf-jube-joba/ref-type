@@ -1,0 +1,79 @@
+\import SourceModels.Pullback[b := Encoded.model k, Y := Geometry.sumTotal, source := Geometry.sumTopology,
+  f := Geometry.inclusion, regular := Geometry.regular] \as Model;
+\import Operations.Alternating[X := Geometry.Total, F := Primal.GlobalFiber, bundle := Primal.globalBundle, k := k]
+  .Pullback[Y := Geometry.sumTotal, source := Geometry.sumTopology, f := Geometry.inclusion, regular := Geometry.regular] \as FormPull;
+\import Operations.Alternating[X := Geometry.sumTotal, F := Primal.Fiber, bundle := Primal.sourceBundle, k := k] \as FirstForm;
+\import Operations.Alternating[X := Geometry.sumTotal, F := SumKoszul.Fiber, bundle := SumKoszul.pulled, k := k] \as SecondForm;
+\import SecondForm.Contramap[G := Primal.Fiber, target := Primal.sourceBundle, sameBase := (\refl(Geometry.sumTopology))] \as Forward;
+\import FirstForm.Contramap[G := SumKoszul.Fiber, target := SumKoszul.pulled, sameBase := (\refl(Geometry.sumTopology))] \as Backward;
+\definition forward: Bundles.Morphisms[X := Geometry.sumTotal, Y := Geometry.sumTotal, F := FirstForm.Fiber, G := SecondForm.Fiber,
+  source := FirstForm.alternating, target := SecondForm.alternating, f := (\fun (p: Geometry.sumTotal) => p)].Map := Forward.map Primal.isomorphism.backward;
+\definition backward: Bundles.Morphisms[X := Geometry.sumTotal, Y := Geometry.sumTotal, F := SecondForm.Fiber, G := FirstForm.Fiber,
+  source := SecondForm.alternating, target := FirstForm.alternating, f := (\fun (p: Geometry.sumTotal) => p)].Map := Backward.map Primal.isomorphism.forward;
+\definition forwardFormula: \forall (p: Geometry.sumTotal)(omega: FirstForm.Fiber p) -> (forward.fiber p).apply omega = omega :=
+  \fun (p: Geometry.sumTotal)(omega: FirstForm.Fiber p) =>
+    Spaces.Multilinear[V := SumKoszul.Fiber p, space := SumKoszul.pulled.space p].Alternating[].At[k := k].ext
+      ((forward.fiber p).apply omega) omega
+      (\fun (arguments: Fin.Fin k -> SumKoszul.Fiber p) =>
+        congr!{{Fin.Fin k -> Primal.Fiber p} {C.Complex}} omega _ _
+          (\axiom:funext((\fun (i: Fin.Fin k) => (Primal.isomorphism.backward.fiber p).apply (arguments i)), arguments,
+            \fun (i: Fin.Fin k) => Primal.backwardFormula p (arguments i))));
+\definition backwardFormula: \forall (p: Geometry.sumTotal)(omega: SecondForm.Fiber p) -> (backward.fiber p).apply omega = omega :=
+  \fun (p: Geometry.sumTotal)(omega: SecondForm.Fiber p) =>
+    Spaces.Multilinear[V := Primal.Fiber p, space := Primal.sourceBundle.space p].Alternating[].At[k := k].ext
+      ((backward.fiber p).apply omega) omega
+      (\fun (arguments: Fin.Fin k -> Primal.Fiber p) =>
+        congr!{{Fin.Fin k -> SumKoszul.Fiber p} {C.Complex}} omega _ _
+          (\axiom:funext((\fun (i: Fin.Fin k) => (Primal.isomorphism.forward.fiber p).apply (arguments i)), arguments,
+            \fun (i: Fin.Fin k) => Primal.forwardFormula p (arguments i))));
+\definition formsIso: Bundles.Isomorphisms[X := Geometry.sumTotal, F := FirstForm.Fiber, G := SecondForm.Fiber,
+  source := FirstForm.alternating, target := SecondForm.alternating].Isomorphism :=
+  Bundles.Isomorphisms[X := Geometry.sumTotal, F := FirstForm.Fiber, G := SecondForm.Fiber,
+    source := FirstForm.alternating, target := SecondForm.alternating].Isomorphism {
+    forward := forward, backward := backward,
+    leftInverse := \fun (p: Geometry.sumTotal)(omega: FirstForm.Fiber p) => trans!{{FirstForm.Fiber p}} _ _ _
+      (backwardFormula p ((forward.fiber p).apply omega)) (forwardFormula p omega),
+    rightInverse := \fun (p: Geometry.sumTotal)(omega: SecondForm.Fiber p) => trans!{{SecondForm.Fiber p}} _ _ _
+      (forwardFormula p ((backward.fiber p).apply omega)) (backwardFormula p omega)
+  };
+\import Bundles.Family[X := Geometry.Total, F := Native.Term k].Of[bundle := Native.term k]
+  .Pullback[Y := Geometry.sumTotal, source := Geometry.sumTopology, f := Geometry.inclusion] \as RawPull;
+\import Complements.PulledIsomorphism[X := Geometry.Total, Y := Geometry.sumTotal, F := Native.Term k, G := Native.Form k,
+  source := Native.term k, target := Native.forms k, base := Geometry.sumTopology, f := Geometry.inclusion,
+  sourceRegular := Geometry.regular, targetRegular := Geometry.regular] \as NativePull;
+\import Operations.IsomorphismComposition[X := Geometry.sumTotal,
+  F := (\fun (p: Geometry.sumTotal) => Native.Term k (Geometry.inclusion p)),
+  G := (\fun (p: Geometry.sumTotal) => Native.Form k (Geometry.inclusion p)), H := FirstForm.Fiber,
+  source := RawPull.pulled Geometry.regular, middle := FormPull.firstBundle, target := FirstForm.alternating] \as FirstComposition;
+\definition throughForms: FirstComposition.Isomorphism := FirstComposition.compose (NativePull.isomorphism (Native.toForm k)) FormPull.isomorphism;
+\import Operations.IsomorphismComposition[X := Geometry.sumTotal,
+  F := (\fun (p: Geometry.sumTotal) => Native.Term k (Geometry.inclusion p)), G := FirstForm.Fiber, H := SumKoszul.Term k,
+  source := RawPull.pulled Geometry.regular, middle := FirstForm.alternating, target := SumKoszul.term k] \as ToCanonical;
+\definition rawIsomorphism: ToCanonical.Isomorphism := ToCanonical.compose throughForms formsIso;
+\import Bundles.Isomorphisms[X := Geometry.sumTotal,
+  F := (\fun (p: Geometry.sumTotal) => Native.Term k (Geometry.inclusion p)), G := SumKoszul.Term k,
+  source := RawPull.pulled Geometry.regular, target := SumKoszul.term k] \as Reverse;
+\import Complements.PulledIsomorphism[X := Geometry.Total, Y := Geometry.sumTotal, F := Native.Term k, G := SourceModels.Fiber (Encoded.model k).ranks,
+  source := Native.term k, target := SourceModels.bundle (Encoded.model k), base := Geometry.sumTopology, f := Geometry.inclusion,
+  sourceRegular := Geometry.regular, targetRegular := Geometry.regular] \as CoordinatePull;
+\import Operations.IsomorphismComposition[X := Geometry.sumTotal, F := SumKoszul.Term k,
+  G := (\fun (p: Geometry.sumTotal) => Native.Term k (Geometry.inclusion p)), H := Models.Fiber Model.value.ranks,
+  source := SumKoszul.term k, middle := RawPull.pulled Geometry.regular, target := Models.bundle Model.value] \as Compose;
+\definition isomorphism: Compose.Isomorphism := Compose.compose (Reverse.inverse rawIsomorphism) (CoordinatePull.isomorphism (selection k).first.isomorphism);
+\definition choice: SumCoordinates.Choice k := Models.From[F := SumKoszul.Term k, original := SumKoszul.term k].Result {
+  model := Model.value, isomorphism := isomorphism
+};
+\definition rawForwardFormula: \forall (p: Geometry.sumTotal)(v: Native.Term k (Geometry.inclusion p)) ->
+  (rawIsomorphism.forward.fiber p).apply v = ((Native.toForm k).forward.fiber (Geometry.inclusion p)).apply v :=
+  \fun (p: Geometry.sumTotal)(v: Native.Term k (Geometry.inclusion p)) => forwardFormula p (((Native.toForm k).forward.fiber (Geometry.inclusion p)).apply v);
+\definition rawBackwardFormula: \forall (p: Geometry.sumTotal)(omega: SumKoszul.Term k p) ->
+  (rawIsomorphism.backward.fiber p).apply omega = ((Native.toForm k).backward.fiber (Geometry.inclusion p)).apply omega :=
+  \fun (p: Geometry.sumTotal)(omega: SumKoszul.Term k p) =>
+    congr!{{SumKoszul.Term k p} {Native.Term k (Geometry.inclusion p)}} (((Native.toForm k).backward.fiber (Geometry.inclusion p)).apply) _ _ (backwardFormula p omega);
+\definition encodeFormula: \forall (p: Geometry.sumTotal)(omega: SumKoszul.Term k p) ->
+  (isomorphism.forward.fiber p).apply omega = (Encoded.encode k (Geometry.inclusion p)).apply (((Native.toForm k).backward.fiber (Geometry.inclusion p)).apply omega) :=
+  \fun (p: Geometry.sumTotal)(omega: SumKoszul.Term k p) =>
+    congr!{{Native.Term k (Geometry.inclusion p)} {Encoded.Vector k (Geometry.inclusion p)}} ((Encoded.encode k (Geometry.inclusion p)).apply) _ _ (rawBackwardFormula p omega);
+\definition decodeFormula: \forall (p: Geometry.sumTotal)(v: Encoded.Vector k (Geometry.inclusion p)) ->
+  (isomorphism.backward.fiber p).apply v = ((Native.toForm k).forward.fiber (Geometry.inclusion p)).apply ((Encoded.decode k (Geometry.inclusion p)).apply v) :=
+  \fun (p: Geometry.sumTotal)(v: Encoded.Vector k (Geometry.inclusion p)) => rawForwardFormula p ((Encoded.decode k (Geometry.inclusion p)).apply v);

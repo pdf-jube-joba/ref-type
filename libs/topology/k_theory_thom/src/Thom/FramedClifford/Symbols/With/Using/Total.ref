@@ -1,0 +1,42 @@
+\import std.Data[].Pair[] \as P;
+\import Operations.DirectSum[X := Quotient.Carrier, F := PositiveFiber, G := NegativeFiber, left := descendedPositive, right := descendedNegative] \as Sum;
+\definition Fiber[q: Quotient.Carrier]: \Set := Sum.Fiber q;
+\definition bundle: Bundles.Family[X := Quotient.Carrier, F := Fiber].Bundle := Sum.bundle (\refl(Quotient.topology));
+\import Sum.Of[same := (\refl(Quotient.topology))] \as Split;
+\import Split.From[Y := Quotient.Carrier, H := Fiber, source := bundle, f := (\fun (q: Quotient.Carrier) => q)] \as Into;
+\import Bundles.Morphisms[X := Quotient.Carrier, Y := Quotient.Carrier, F := Fiber, G := NegativeFiber,
+  source := bundle, target := descendedNegative, f := (\fun (q: Quotient.Carrier) => q)]
+  .Composition[Z := Quotient.Carrier, H := PositiveFiber, range := descendedPositive, g := (\fun (q: Quotient.Carrier) => q)] \as ToPositive;
+\import Bundles.Morphisms[X := Quotient.Carrier, Y := Quotient.Carrier, F := Fiber, G := PositiveFiber,
+  source := bundle, target := descendedPositive, f := (\fun (q: Quotient.Carrier) => q)]
+  .Composition[Z := Quotient.Carrier, H := NegativeFiber, range := descendedNegative, g := (\fun (q: Quotient.Carrier) => q)] \as ToNegative;
+\definition positive: Bundles.Morphisms[X := Quotient.Carrier, Y := Quotient.Carrier, F := Fiber, G := PositiveFiber,
+  source := bundle, target := descendedPositive, f := (\fun (q: Quotient.Carrier) => q)].Map := ToPositive.compose Split.secondMap backward;
+\definition negative: Bundles.Morphisms[X := Quotient.Carrier, Y := Quotient.Carrier, F := Fiber, G := NegativeFiber,
+  source := bundle, target := descendedNegative, f := (\fun (q: Quotient.Carrier) => q)].Map := ToNegative.compose Split.firstMap forward;
+\definition operator: Bundles.Morphisms[X := Quotient.Carrier, Y := Quotient.Carrier, F := Fiber, G := Fiber,
+  source := bundle, target := bundle, f := (\fun (q: Quotient.Carrier) => q)].Map := Into.pair positive negative;
+\import Bundles.Identity[X := Quotient.Carrier, F := PositiveFiber, bundle := descendedPositive] \as PositiveIdentity;
+\import Operations.Negation[X := Quotient.Carrier, F := NegativeFiber, bundle := descendedNegative] \as Minus;
+\import Operations.IdentityIsomorphism[X := Quotient.Carrier, F := PositiveFiber, bundle := descendedPositive] \as PositiveIso;
+\import Operations.DirectSumIsomorphisms[X := Quotient.Carrier, F := PositiveFiber, G := NegativeFiber, A := PositiveFiber, B := NegativeFiber,
+  first := descendedPositive, second := descendedNegative, newFirst := descendedPositive, newSecond := descendedNegative,
+  sameSource := (\refl(Quotient.topology)), sameTarget := (\refl(Quotient.topology))] \as GradedPair;
+\definition gradingIso: Bundles.Isomorphisms[X := Quotient.Carrier, F := Fiber, G := Fiber, source := bundle, target := bundle].Isomorphism :=
+  GradedPair.isomorphism PositiveIso.isomorphism Minus.isomorphism;
+\definition grading: Bundles.Morphisms[X := Quotient.Carrier, Y := Quotient.Carrier, F := Fiber, G := Fiber,
+  source := bundle, target := bundle, f := (\fun (q: Quotient.Carrier) => q)].Map := gradingIso.forward;
+\definition square: \forall (q: Quotient.Carrier)(v: Fiber q) -> (operator.fiber q).apply ((operator.fiber q).apply v) = (bundle.space q).smul (coefficient q) v :=
+  \fun (q: Quotient.Carrier)(v: Fiber q) => P.Prop[A := PositiveFiber q, B := NegativeFiber q].pairCong _ _ _ _
+    (evenSquare q (P.first (PositiveFiber q) (NegativeFiber q) v))
+    (oddSquare q (P.second (PositiveFiber q) (NegativeFiber q) v));
+\definition gradingSquare: \forall (q: Quotient.Carrier)(v: Fiber q) -> (grading.fiber q).apply ((grading.fiber q).apply v) = v := gradingIso.leftInverse;
+\definition gradingFormula: \forall (q: Quotient.Carrier)(v: Fiber q) -> (grading.fiber q).apply v =
+  P.pair (PositiveFiber q) (NegativeFiber q) (P.first (PositiveFiber q) (NegativeFiber q) v)
+    ((descendedNegative.space q).neg (P.second (PositiveFiber q) (NegativeFiber q) v)) :=
+  \fun (q: Quotient.Carrier)(v: Fiber q) => congr!{{NegativeFiber q} {Fiber q}}
+    (P.pair (PositiveFiber q) (NegativeFiber q) (P.first (PositiveFiber q) (NegativeFiber q) v)) _ _ (Minus.formula q (P.second (PositiveFiber q) (NegativeFiber q) v));
+\module At(q: Quotient.Carrier);
+\definition anticommutes: \forall (q: Quotient.Carrier)(v: Fiber q) -> (bundle.space q).add
+  ((grading.fiber q).apply ((operator.fiber q).apply v)) ((operator.fiber q).apply ((grading.fiber q).apply v)) = (bundle.space q).zero :=
+  \fun (q: Quotient.Carrier) => At[q := q].equation;

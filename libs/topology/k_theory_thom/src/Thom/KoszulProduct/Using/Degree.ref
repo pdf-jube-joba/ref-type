@@ -1,0 +1,38 @@
+\import N.Basic[].Def[] \as Nat;
+\import N.Basic[].Prop[] \as Naturals;
+\import N.Order[].Prop[] \as Order;
+\definition bound: N.Nat^ := N.Nat^::succ (Nat.add firstData.bound secondData.bound);
+\definition addDegree: \forall (a, b: N.Nat^) -> Nat.add (SumFor.degreeOf a) (SumFor.degreeOf b) = SumFor.degreeOf (N.Nat^::succ (Nat.add a b)) :=
+  \fun (a: N.Nat^) => \induction (b: N.Nat^) \return Nat.add (SumFor.degreeOf a) (SumFor.degreeOf b) = SumFor.degreeOf (N.Nat^::succ (Nat.add a b)) \with {
+    | zero: \refl(N.Nat^::succ (N.Nat^::succ (SumFor.degreeOf a)))
+    | succ: \fun (b: N.Nat^)(previous: _) => congr!{{N.Nat^} {N.Nat^}} (\fun (n: N.Nat^) => N.Nat^::succ (N.Nat^::succ n)) _ _ previous
+  };
+\definition degreeEquation: Nat.add First.degree Second.degree = SumFor.degreeOf bound := addDegree firstData.bound secondData.bound;
+\import Bundles.Family[X := X, F := F] \as LeftFamily;
+\import Bundles.Family[X := X, F := G] \as RightFamily;
+\import Bundles.Family[X := X, F := Sum.Fiber] \as SumFamily;
+\import LeftFamily.Of[bundle := left] \as Left;
+\import RightFamily.Of[bundle := right] \as Right;
+\import SumFamily.Of[bundle := sum] \as Whole;
+\import LeftFamily.With[data := left] \as LeftCharts;
+\import RightFamily.With[data := right] \as RightCharts;
+\import topology.Topology[Carrier := X] \as Base;
+\module Rank(x: X);
+\definition rankEquation: \forall (x: X) -> Whole.rank x = Nat.add (Left.rank x) (Right.rank x) := \fun (x: X) => Rank[x := x].equation;
+\definition upperEquation: Nat.add (N.Nat^::succ firstData.bound) (N.Nat^::succ secondData.bound) = N.Nat^::succ bound :=
+  congr!{{N.Nat^} {N.Nat^}} (\fun (n: N.Nat^) => N.Nat^::succ n) _ _ (Naturals.addSuccLeft firstData.bound secondData.bound);
+\definition ranksStrict: \forall (x: X) -> Naturals.Lt (Nat.add (Left.rank x) (Right.rank x)) (N.Nat^::succ bound) :=
+  \fun (x: X) => \idelim Nat.add (N.Nat^::succ firstData.bound) (N.Nat^::succ secondData.bound) = N.Nat^::succ bound
+    \with n: N.Nat^ => Naturals.Lt (Nat.add (Left.rank x) (Right.rank x)) n \by {
+      base: Order.ltAdd (Left.rank x) (N.Nat^::succ firstData.bound) (Right.rank x) (N.Nat^::succ secondData.bound)
+        (Naturals.leLtTrans (Left.rank x) firstData.bound (N.Nat^::succ firstData.bound) (firstData.rankBound x) (Order.ltSelfSucc firstData.bound))
+        (Naturals.leLtTrans (Right.rank x) secondData.bound (N.Nat^::succ secondData.bound) (secondData.rankBound x) (Order.ltSelfSucc secondData.bound)),
+      equality: upperEquation
+    };
+\definition ranksBound: \forall (x: X) -> Naturals.Le (Nat.add (Left.rank x) (Right.rank x)) bound :=
+  \fun (x: X) => Naturals.leOfSuccSucc (Nat.add (Left.rank x) (Right.rank x)) bound
+    (Naturals.succLeOfLt (N.Nat^::succ bound) (Nat.add (Left.rank x) (Right.rank x)) (ranksStrict x));
+\definition rankBound: \forall (x: X) -> Naturals.Le (Whole.rank x) bound :=
+  \fun (x: X) => \idelim Nat.add (Left.rank x) (Right.rank x) = Whole.rank x \with n: N.Nat^ => Naturals.Le n bound \by {
+    base: ranksBound x, equality: sym!{{N.Nat^}} _ _ (rankEquation x)
+  };

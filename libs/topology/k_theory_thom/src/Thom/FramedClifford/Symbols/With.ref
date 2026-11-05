@@ -1,0 +1,37 @@
+\definition backwardAgrees: \forall (x: Pair.A)(v: G x) -> (alpha.forward.fiber x).apply ((c.backward.fiber x).apply v) = v :=
+  \fun (x: Pair.A)(v: G x) => trans!{{G x}} _ _ _ (sym!{{G x}} _ _ (agrees x ((c.backward.fiber x).apply v)))
+    (trans!{{G x}} _ _ _ (laws.oddSquare x v)
+      (trans!{{G x}} _ _ _ (congr!{{C.Complex} {G x}} (\fun (a: C.Complex) => (negativeBundle.space x).smul a v) _ _ (laws.boundary x))
+        ((negativeBundle.space x).scalarOne v)));
+\import DescendForward.With[alpha := alpha, beta := beta, h := c.forward, c := coordinateIdentity, compatible := agrees] \as D;
+\import DescendBackward.With[alpha := beta, beta := alpha, h := c.backward, c := coordinateIdentity, compatible := backwardAgrees] \as E;
+\import Positive.With[comparison := alpha] \as First;
+\import Negative.With[comparison := beta] \as Second;
+\definition one: N.Nat^ := N.Nat^::succ N.Nat^::zero;
+\definition index: Fin.Fin one := Fin.zero N.Nat^::zero;
+\import Quotient.Matrices[m := one, n := one] \as Matrices;
+\definition coefficientData: Matrices.Function := Matrices.Function {
+  value := (\fun (x: X)(i: Fin.Fin one)(j: Fin.Fin one) => c.coefficient x),
+  constant := (\fun (i: Fin.Fin one)(j: Fin.Fin one) => Scalar.one),
+  continuous := (\fun (i: Fin.Fin one)(j: Fin.Fin one) => c.continuous),
+  boundary := (\fun (x: Pair.A) => \axiom:funext((\fun (i: Fin.Fin one)(j: Fin.Fin one) => c.coefficient x), (\fun (i: Fin.Fin one)(j: Fin.Fin one) => Scalar.one),
+    (\fun (i: Fin.Fin one) => \axiom:funext((\fun (j: Fin.Fin one) => c.coefficient x), (\fun (j: Fin.Fin one) => Scalar.one), (\fun (j: Fin.Fin one) => laws.boundary x)))))
+};
+\import Matrices.With[f := coefficientData] \as Coefficient;
+\definition coefficient[q: Quotient.Carrier]: C.Complex := Coefficient.value q index index;
+\definition coefficientContinuous: topology.Continuity[A := Quotient.Carrier, B := C.Complex].Continuous Quotient.topology Scalars.scalar.topological.space coefficient := Coefficient.entriesContinuous index index;
+\definition atPoint: coefficient Quotient.point = Scalar.one := congr!{{Matrices.Matrix} {C.Complex}} (\fun (a: Matrices.Matrix) => a index index) _ _ Coefficient.atPoint;
+\definition onProjection: \forall (x: X) -> coefficient (Quotient.projection x) = c.coefficient x :=
+  \fun (x: X) => congr!{{Matrices.Matrix} {C.Complex}} (\fun (a: Matrices.Matrix) => a index index) _ _ (Coefficient.onOriginal x);
+\import Triples.With[alpha := alpha] \as Native;
+\import Pair.FramedClass[F := F, sourceModel := positiveModel, n := n].With[alpha := alpha] \as Framed;
+\import Pair.FramedClass[F := G, sourceModel := negativeModel, n := n].With[alpha := beta] \as NegativeClass;
+\import Operations.IdentityIsomorphism[X := X, F := G, bundle := negativeBundle] \as NegativeIdentity;
+\import NegativeClass.Global[h := NegativeIdentity.isomorphism, extends := (\fun (x: Pair.A)(v: G x) => \refl(v))] \as NegativeZero;
+\import Pair.FromBundles[F := F, G := G, source := positiveBundle, target := negativeBundle, sourceSame := (\refl(space)), targetSame := (\refl(space))] \as Represent;
+\module NativeUsing(r: Represent.Result[alpha]);
+\definition nativeEquation: Native.reduced = Framed.value := \block {
+  \takefrom r: Represent.Result[alpha] \by Represent.existence alpha \then
+  \return NativeUsing[r := r].equation
+};
+\module Using(first: First.Result, second: Second.Result);

@@ -1,0 +1,15 @@
+\import Operations.Tensor[X := X, F := Left n side, G := G, left := leftBundle n side, right := bundle] \as Tensor;
+\import Spaces.Linear[V := Tensor.Fiber x, W := U, source := Tensor.fiberSpace x, target := target] \as Maps;
+\import Maps.Composition[U := Left n side x, domain := (leftBundle n side).space x] \as Compose;
+\import Operations.TensorFactors[V := Left n side x, W := G x, left := (leftBundle n side).space x, right := bundle.space x] \as Factors;
+\import \parent.FiberExt[x := x, U := U, target := target] \as FoldExt;
+\import Operations.TensorEquality[V := Left n side x, W := G x, U := U,
+  left := (leftBundle n side).space x, right := bundle.space x, target := target] \as EqualityOnPure;
+\definition Agreement[first, second: Maps.Map]: \Prop := \forall (s: Labels.Index n)(tag: Labels.even n s = side)
+  (v: Models.Fiber (term (Labels.degree n s)).ranks x)(w: G x) ->
+  first.apply (pure n side x (((Summands.at n s side tag).fiber x).apply v) w) =
+  second.apply (pure n side x (((Summands.at n s side tag).fiber x).apply v) w);
+\definition ext[first, second: Maps.Map][agreement: Agreement first second]: \forall (t: Tensor.Fiber x) -> first.apply t = second.apply t :=
+  EqualityOnPure.pointwise first second (\fun (v: Left n side x)(w: G x) =>
+    FoldExt.ext n side (Compose.compose first (Factors.second w)) (Compose.compose second (Factors.second w))
+      (\fun (s: Labels.Index n)(tag: Labels.even n s = side)(a: Models.Fiber (term (Labels.degree n s)).ranks x) => agreement s tag a w) v);

@@ -1,0 +1,15 @@
+\import Spaces.Shuffle[I := J] \as Output;
+\import Output.Naturality[J := I] \as Mapping;
+\import \parent.\parent.SeriesWords[I := J, A := A, covector := \fun (a: A) => Mapping.mapSeries f (covector a)] \as After;
+\definition law: \forall (xs: Lists.List[A]) -> Mapping.mapSeries f (value xs) = After.value xs :=
+  \induction (xs: Lists.List[A]) \return Mapping.mapSeries f (value xs) = After.value xs \with {
+    | nil: \axiom:funext(Mapping.mapSeries f Series.unit, Output.unit, \induction (arguments: Lists.List[J]) \return Mapping.mapSeries f Series.unit arguments = Output.unit arguments \with {
+      | nil: \refl(Op.one)
+      | cons: \fun (head: J)(tail: Lists.List[J])(previous: _) => \refl(Op.zero)
+    })
+    | cons: \fun (head: A)(tail: Lists.List[A])(previous: _) =>
+      trans!{{Output.Function}} _ _ _
+        (\axiom:funext(Mapping.mapSeries f (Series.product (covector head) (value tail)),
+          Output.product (Mapping.mapSeries f (covector head)) (Mapping.mapSeries f (value tail)), \fun (arguments: Lists.List[J]) => sym!{{C.Complex}} _ _ (Mapping.productMap arguments f (covector head) (value tail))))
+        (congr!{{Output.Function} {Output.Function}} (Output.product (Mapping.mapSeries f (covector head))) _ _ previous)
+  };

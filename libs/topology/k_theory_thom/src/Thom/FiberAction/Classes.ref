@@ -1,0 +1,67 @@
+\import \parent.Maps[] \as Maps;
+\import Relative.Reduced[model := A.model] \as AGroup;
+\import Relative.Reduced[model := B.model] \as BGroup;
+\import Relative.Reduced[model := C.model] \as CGroup;
+\import Relative.Reduced[model := Source.model] \as Group;
+\import Relative.Reduced[model := AB.result] \as ABGroup;
+\import Relative.Reduced[model := BC.result] \as BCGroup;
+\import Relative.Reduced[model := Left.result] \as LeftGroup;
+\import Relative.Reduced[model := Right.result] \as RightGroup;
+\import Relative.Identity[model := A.model] \as IdentityA;
+\import Relative.Identity[model := C.model] \as IdentityC;
+\import BC.Mapping[targetLeft := AB.result, targetRight := C.model, f := FirstGraph.map, g := IdentityC.map] \as LeftMapping;
+\import AS.Mapping[targetLeft := A.model, targetRight := BC.result, f := IdentityA.map, g := Multiply.mapping] \as RightMapping;
+\import Relative.Pullback[source := B.model, target := AB.result, f := FirstGraph.map] \as FirstPull;
+\import Relative.Pullback[source := Source.model, target := BC.result, f := Multiply.mapping] \as MultiplyPull;
+\import Relative.Pullback[source := Source.model, target := AS.result, f := SumGraph.map] \as SumPull;
+\import Relative.Pullback[source := BC.result, target := Left.result, f := LeftMapping.map] \as LeftMappingPull;
+\import Relative.Pullback[source := AS.result, target := Right.result, f := RightMapping.map] \as RightMappingPull;
+\import Relative.Pullback[source := Source.model, target := Left.result, f := Maps.leftMap] \as LeftPull;
+\import Relative.Pullback[source := Source.model, target := Right.result, f := Maps.rightMap] \as RightPull;
+\import Relative.Pullback[source := Left.result, target := Right.result, f := Associator.equivalence.forward] \as AssociationPull;
+\import Relative.Composition[source := Source.model, middle := Left.result, target := Right.result, first := Maps.leftMap, second := Associator.equivalence.forward] \as Associated;
+\import Relative.Pullback[source := Source.model, target := Right.result, f := Associated.map] \as AssociatedPull;
+\definition externalLeft[x: ABGroup.Carrier][v: CGroup.Carrier]: BC.External[].product (FirstPull.map x) v = LeftMappingPull.map (Left.External[].product x v) :=
+  trans!{{BCGroup.Carrier}} _ _ _
+    (congr!{{CGroup.Carrier} {BCGroup.Carrier}} (BC.External[].product (FirstPull.map x)) _ _
+      (sym!{{CGroup.Carrier}} _ _ (Relative.PullbackIdentity[model := C.model].equation v)))
+    (sym!{{BCGroup.Carrier}} _ _ (LeftMapping.External[].naturality x v));
+\definition externalRight[a: AGroup.Carrier][x: BCGroup.Carrier]: AS.External[].product a (MultiplyPull.map x) = RightMappingPull.map (Right.External[].product a x) :=
+  trans!{{Relative.Reduced[model := AS.result].Carrier}} _ _ _
+    (congr!{{AGroup.Carrier} {Relative.Reduced[model := AS.result].Carrier}} (\fun (v: AGroup.Carrier) => AS.External[].product v (MultiplyPull.map x)) _ _
+      (sym!{{AGroup.Carrier}} _ _ (Relative.PullbackIdentity[model := A.model].equation a)))
+    (sym!{{Relative.Reduced[model := AS.result].Carrier}} _ _ (RightMapping.External[].naturality a x));
+\definition baseLeft[a: AGroup.Carrier][u: BGroup.Carrier]: BGroup.Carrier := FirstPull.map (AB.External[].product a u);
+\definition baseSum[a: AGroup.Carrier][w: Group.Carrier]: Group.Carrier := SumPull.map (AS.External[].product a w);
+\definition leftFormula: \forall (a: AGroup.Carrier)(u: BGroup.Carrier)(v: CGroup.Carrier) ->
+  Multiply.multiply (baseLeft a u) v = LeftPull.map (Left.External[].product (AB.External[].product a u) v) :=
+  \fun (a: AGroup.Carrier)(u: BGroup.Carrier)(v: CGroup.Carrier) => trans!{{Group.Carrier}} _ _ _ (Multiply.formula (baseLeft a u) v)
+    (trans!{{Group.Carrier}} _ _ _
+      (congr!{{BCGroup.Carrier} {Group.Carrier}} MultiplyPull.map _ _ (externalLeft (AB.External[].product a u) v))
+      (sym!{{Group.Carrier}} _ _ (Relative.PullbackComposition[source := Source.model, middle := BC.result, target := Left.result,
+        first := Multiply.mapping, second := LeftMapping.map].equation (Left.External[].product (AB.External[].product a u) v))));
+\definition rightFormula: \forall (a: AGroup.Carrier)(u: BGroup.Carrier)(v: CGroup.Carrier) ->
+  baseSum a (Multiply.multiply u v) = RightPull.map (Right.External[].product a (BC.External[].product u v)) :=
+  \fun (a: AGroup.Carrier)(u: BGroup.Carrier)(v: CGroup.Carrier) => trans!{{Group.Carrier}} _ _ _
+    (congr!{{Relative.Reduced[model := AS.result].Carrier} {Group.Carrier}} SumPull.map _ _
+      (trans!{{Relative.Reduced[model := AS.result].Carrier}} _ _ _
+        (congr!{{Group.Carrier} {Relative.Reduced[model := AS.result].Carrier}} (AS.External[].product a) _ _ (Multiply.formula u v))
+        (externalRight a (BC.External[].product u v))))
+    (sym!{{Group.Carrier}} _ _ (Relative.PullbackComposition[source := Source.model, middle := AS.result, target := Right.result,
+      first := SumGraph.map, second := RightMapping.map].equation (Right.External[].product a (BC.External[].product u v))));
+\import \root.Thom[].ExternalAssociativity[first := A.model, second := B.model, third := C.model].Comparison[] \as Associativity;
+\definition baseEquation: \forall (a: AGroup.Carrier)(u: BGroup.Carrier)(v: CGroup.Carrier) -> Multiply.multiply (baseLeft a u) v = baseSum a (Multiply.multiply u v) :=
+  \fun (a: AGroup.Carrier)(u: BGroup.Carrier)(v: CGroup.Carrier) => trans!{{Group.Carrier}} _ _ _ (leftFormula a u v)
+    (trans!{{Group.Carrier}} _ _ _
+      (congr!{{LeftGroup.Carrier} {Group.Carrier}} LeftPull.map _ _ (Associativity.equation a u v))
+      (trans!{{Group.Carrier}} _ _ _
+        (sym!{{Group.Carrier}} _ _ (Relative.PullbackComposition[source := Source.model, middle := Left.result, target := Right.result,
+          first := Maps.leftMap, second := Associator.equivalence.forward].equation (Right.External[].product a (BC.External[].product u v))))
+        (trans!{{Group.Carrier}} _ _ _
+          (congr!{{Relative.Map Source.model Right.result} {Group.Carrier}}
+            (\fun (f: Relative.Map Source.model Right.result) => Relative.Pullback[source := Source.model, target := Right.result, f := f].map (Right.External[].product a (BC.External[].product u v))) _ _ Maps.equation)
+          (sym!{{Group.Carrier}} _ _ (rightFormula a u v)))));
+\definition action: \forall (a: K.Carrier)(u: Multiply.First)(v: Multiply.Second) -> Multiply.multiply (FirstAction.multiply a u) v = SumAction.multiply a (Multiply.multiply u v) :=
+  \fun (a: K.Carrier)(u: Multiply.First)(v: Multiply.Second) => trans!{{Group.Carrier}} _ _ _
+    (congr!{{BGroup.Carrier} {Group.Carrier}} (\fun (w: BGroup.Carrier) => Multiply.multiply w v) _ _ (FirstGraph.formula a u))
+    (trans!{{Group.Carrier}} _ _ _ (baseEquation (Coefficient.forward a) u v) (sym!{{Group.Carrier}} _ _ (SumGraph.formula a (Multiply.multiply u v))));

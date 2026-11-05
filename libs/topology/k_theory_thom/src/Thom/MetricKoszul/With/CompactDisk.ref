@@ -1,0 +1,39 @@
+\import \parent.\parent.Embedded[embedding := embedding] \as Embedded;
+\import thom_spaces.Thom[].Over[K := C.Complex, field := C.Algebra[].field,
+  conjugation := linear_algebra.Hermitian[].Complex[].scalar, scalar := Scalars.scalar].For[X := X, F := F, bundle := bundle] \as Original;
+\import Original.With[metric := Embedded.metric] \as Source;
+\import topology.Topology[Carrier := Total] \as Ambient;
+\definition sourceSphereCompactIn: Ambient.IsCompactIn bundle.totalSpace Source.UnitSphere :=
+  Ambient.Compactness[].closedSubset bundle.totalSpace Source.ClosedBall Source.UnitSphere Embedded.diskCompact Source.sphereClosed
+    (\fun (p: Total)(unit: Source.squared p = Real.one) => D.leReplaceLeft Real.one (Source.squared p) Real.one (sym!{Real.Real} _ _ unit) (D.leRefl Real.one));
+\definition sourceSphereCompact: topology.Topology[Carrier := Source.SphereBundle].IsCompact Source.sphereTopology :=
+  Ambient.Subspace[S := Source.UnitSphere].Properties[].compact bundle.totalSpace sourceSphereCompactIn;
+\import Original.Change[left := Embedded.metric, right := metric] \as Change;
+\definition comparison: topology.Homeomorphism[A := Source.SphereBundle, B := Geometry.SphereBundle].Homeomorphism[Source.sphereTopology, Geometry.sphereTopology] := Change.sphereHomeomorphism;
+\definition sphereCompact: topology.Topology[Carrier := Geometry.SphereBundle].IsCompact Geometry.sphereTopology :=
+  topology.Compactness[A := Source.SphereBundle, B := Geometry.SphereBundle].surjectiveImage Source.sphereTopology Geometry.sphereTopology comparison.forward
+    (topology.Homeomorphism[A := Source.SphereBundle, B := Geometry.SphereBundle].laws Source.sphereTopology Geometry.sphereTopology comparison).forwardContinuous
+    (\fun (p: Geometry.SphereBundle) => Logic.existsIntro[Source.SphereBundle, { q: Source.SphereBundle \where comparison.forward q = p }] (comparison.backward p)
+      ((topology.Homeomorphism[A := Source.SphereBundle, B := Geometry.SphereBundle].laws Source.sphereTopology Geometry.sphereTopology comparison).rightInverse p)) sourceSphereCompact;
+\import Geometry.CylinderModel[] \as CylinderModel;
+\import thom_spaces.Thom[].CWType[].MappingCylinder[A := Geometry.SphereBundle, B := X, source := Geometry.sphereTopology, target := bundle.baseSpace,
+  f := Geometry.sphereProjection, continuous := Geometry.sphereProjectionContinuous] \as MappingCylinder;
+\definition compactDisk: topology.Topology[Carrier := Geometry.DiskBundle].IsCompact Geometry.diskTopology :=
+  topology.Compactness[A := MappingCylinder.Carrier, B := Geometry.DiskBundle].surjectiveImage MappingCylinder.topology Geometry.diskTopology CylinderModel.toDisk
+    CylinderModel.toDiskContinuous CylinderModel.onto (MappingCylinder.compact sphereCompact compact);
+\import topology.Maps[A := Geometry.DiskBundle, B := Total] \as Inclusion;
+\definition inclusion[p: Geometry.DiskBundle]: Total := p;
+\definition diskWhole: \Pow Geometry.DiskBundle := topology.Topology[Carrier := Geometry.DiskBundle].Whole;
+\definition imageEquation: Inclusion.Image inclusion diskWhole = Geometry.ClosedBall :=
+  \axiom:setext(Inclusion.Image inclusion diskWhole, Geometry.ClosedBall,
+    \fun (p: Total)(member: Ambient.Member (Inclusion.Image inclusion diskWhole) p) => Inclusion.imageElim inclusion diskWhole p (Ambient.Member Geometry.ClosedBall p)
+      (\fun (q: Geometry.DiskBundle)(whole: \In[Geometry.DiskBundle] diskWhole q)(same: inclusion q = p) => \idelim inclusion q = p \with z: Total => Ambient.Member Geometry.ClosedBall z \by { base: \bysub(Total, Geometry.ClosedBall, q), equality: same }) member,
+    \fun (p: Total)(bound: Ambient.Member Geometry.ClosedBall p) => Inclusion.imageMember inclusion diskWhole (\into[Total](p, Geometry.ClosedBall) \by { bound }) (\refl(\into[Total](p, Geometry.ClosedBall) \by { bound })));
+\definition result: Ambient.IsCompactIn bundle.totalSpace Geometry.ClosedBall :=
+  \idelim Inclusion.Image inclusion diskWhole = Geometry.ClosedBall
+    \with S: \Pow Total => Ambient.IsCompactIn bundle.totalSpace S \by {
+    base: topology.Compactness[A := Geometry.DiskBundle, B := Total].continuousImage Geometry.diskTopology bundle.totalSpace inclusion
+      (topology.Continuity[A := Geometry.DiskBundle, B := Total].Corestriction[S := Geometry.ClosedBall].inclusionContinuous bundle.totalSpace)
+      diskWhole compactDisk,
+    equality: imageEquation
+  };

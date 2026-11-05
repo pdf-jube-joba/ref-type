@@ -1,0 +1,18 @@
+\import Spaces.Linear[V := SourceFiber x, W := TargetFiber x, source := sourceBundle.space x, target := targetBundle.space x] \as Maps;
+\import Maps.Composition[U := SourceFiber x, domain := sourceBundle.space x] \as Before;
+\import Spaces.Linear[V := TargetFiber x, W := TargetFiber x, source := targetBundle.space x, target := targetBundle.space x]
+  .Composition[U := SourceFiber x, domain := sourceBundle.space x] \as After;
+\definition before: Maps.Map := Before.compose (isomorphism.forward.fiber x) (source.fiber x);
+\definition after: Maps.Map := After.compose (target.fiber x) (isomorphism.forward.fiber x);
+\import Operations.TensorEquality[V := F x, W := Sum.Fiber x, U := TargetFiber x,
+  left := first.space x, right := sum.space x, target := targetBundle.space x] \as EqualityOnPure;
+\definition pureEquation: \forall (v: F x)(w: Sum.Fiber x) -> before.apply (Source.pure x v w) = after.apply (Source.pure x v w) :=
+  \fun (v: F x)(w: Sum.Fiber x) => trans!{{TargetFiber x}} _ _ _
+    (congr!{{SourceFiber x} {TargetFiber x}} (isomorphism.forward.fiber x).apply _ _ (SourceMapping.onPure a block x v w))
+    (trans!{{TargetFiber x}} _ _ _ (Distribution.forwardOnPure x ((a.fiber x).apply v) ((block.fiber x).apply w))
+      (trans!{{TargetFiber x}} _ _ _
+        (P.Prop[A := Left.Fiber x, B := Right.Fiber x].pairCong _ _ _ _
+          (sym!{{Left.Fiber x}} _ _ (LeftMapping.onPure a b x v (P.first (G x) (H x) w)))
+          (sym!{{Right.Fiber x}} _ _ (RightMapping.onPure a c x v (P.second (G x) (H x) w))))
+        (congr!{{TargetFiber x} {TargetFiber x}} (target.fiber x).apply _ _ (sym!{{TargetFiber x}} _ _ (Distribution.forwardOnPure x v w)))));
+\definition equation: \forall (v: SourceFiber x) -> before.apply v = after.apply v := EqualityOnPure.pointwise before after pureEquation;

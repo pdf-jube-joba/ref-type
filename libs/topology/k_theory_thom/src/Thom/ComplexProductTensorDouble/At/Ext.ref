@@ -1,0 +1,24 @@
+\import Operations.Tensor[X := X, F := Left, G := Right,
+  left := Models.bundle (First.parity n firstSide), right := Models.bundle (Second.parity m secondSide)] \as Tensor;
+\import Spaces.Linear[V := Fiber x, W := U, source := (bundle.space x), target := spaceU] \as Maps;
+\import Maps.Composition[U := Right x, domain := (Models.bundle (Second.parity m secondSide)).space x] \as Compose;
+\import Operations.TensorFactors[V := Left x, W := Right x,
+  left := (Models.bundle (First.parity n firstSide)).space x, right := (Models.bundle (Second.parity m secondSide)).space x] \as Factors;
+\import Builder.TensorExt[n := n, side := firstSide, x := x, U := U, target := spaceU] \as LeftExt;
+\import \root.Thom[].ComplexProductTensorSum[X := X, space := space, term := secondTerm, differential := secondDifferential,
+  G := Models.Fiber (firstTerm N.Nat^::zero).ranks, bundle := Models.bundle (firstTerm N.Nat^::zero), same := (\refl(space))]
+  .FiberExt[x := x, U := U, target := spaceU] \as RightExt;
+\definition Agreement[first, second: Maps.Map]: \Prop := \forall (s: First.Colored n firstSide)(t: Second.Colored m secondSide)
+  (v: Models.Fiber (firstTerm (Labels.degree n s)).ranks x)(w: Models.Fiber (secondTerm (Labels.degree m t)).ranks x) ->
+  first.apply (pure x (((First.at n s firstSide (\bysub(Labels.Index n, First.Colored n firstSide, s))).fiber x).apply v)
+    (((Second.at m t secondSide (\bysub(Labels.Index m, Second.Colored m secondSide, t))).fiber x).apply w)) =
+  second.apply (pure x (((First.at n s firstSide (\bysub(Labels.Index n, First.Colored n firstSide, s))).fiber x).apply v)
+    (((Second.at m t secondSide (\bysub(Labels.Index m, Second.Colored m secondSide, t))).fiber x).apply w));
+\definition ext[first, second: Maps.Map][agreement: Agreement first second]: \forall (z: Fiber x) -> first.apply z = second.apply z :=
+  LeftExt.ext first second
+    (\fun (s: Labels.Index n)(tag: Labels.even n s = firstSide)(v: Models.Fiber (firstTerm (Labels.degree n s)).ranks x)(w: Right x) =>
+      RightExt.ext m secondSide
+        (Compose.compose first (Factors.first (((First.at n s firstSide tag).fiber x).apply v)))
+        (Compose.compose second (Factors.first (((First.at n s firstSide tag).fiber x).apply v)))
+        (\fun (t: Labels.Index m)(tagT: Labels.even m t = secondSide)(a: Models.Fiber (secondTerm (Labels.degree m t)).ranks x) =>
+          agreement (First.colored n s firstSide tag) (Second.colored m t secondSide tagT) v a) w);

@@ -1,0 +1,36 @@
+\import \parent.Stereographic[] \as Stereo;
+\import D2.Contraction[] \as Disk;
+\import Real.SquareRoot[] \as Root;
+\definition height: Stereo.head (Relative.details sphere).point = Real.one :=
+  trans!{{Real.Real}} _ _ _ (Split2.headJoin (Root.sqrt (Real.sub Real.one (D2.normSquared Disk.origin))) Disk.origin)
+    (trans!{{Real.Real}} _ _ _ (congr!{{Real.Real} {Real.Real}} Root.sqrt _ _
+      (trans!{{Real.Real}} _ _ _ (congr!{{Real.Real} {Real.Real}} (Real.sub Real.one) _ _ (Disk.zeroSum (std.Data[].FinSet[].elements Bott.two))) (Laws.subZeroRight Real.one))) Root.sqrtOne);
+\definition x: Stereo.x (Relative.details sphere).point = Real.zero :=
+  trans!{{Real.Real}} _ _ _ (congr!{{D2.Coordinate} {Real.Real}} Split1.head _ _
+    (Split2.tailJoin (Root.sqrt (Real.sub Real.one (D2.normSquared Disk.origin))) Disk.origin)) (\refl(Real.zero));
+\definition y: Stereo.y (Relative.details sphere).point = Real.zero :=
+  trans!{{Real.Real}} _ _ _ (congr!{{D2.Coordinate} {Real.Real}}
+    (\fun (v: D2.Coordinate) => Split1.tail v (std.Data[].FinSet[].zero N.Nat^::zero)) _ _
+    (Split2.tailJoin (Root.sqrt (Real.sub Real.one (D2.normSquared Disk.origin))) Disk.origin)) (\refl(Real.zero));
+\definition lowerZero: \forall (a: Real.Real) -> Real.add Real.one a = Real.one -> a = Real.zero :=
+  \fun (a: Real.Real)(same: _) => eq_reason_in!{{Real.Real} a
+    "=" _ "by" { sym!{{Real.Real}} _ _ (Laws.addNegCancelRight Real.one a) }
+    "=" _ "by" { congr!{{Real.Real} {Real.Real}} (\fun (v: Real.Real) => Real.sub v Real.one) _ _ (Laws.addComm a Real.one) }
+    "=" _ "by" { congr!{{Real.Real} {Real.Real}} (\fun (v: Real.Real) => Real.sub v Real.one) _ _ same }
+    "=" _ "by" { Laws.subSelf Real.one }
+  };
+\import Bott.ProjectiveLine[].Coordinates[].SphereMap[].Matrix[].Geometry[] \as Identities;
+\definition characterizes: \forall (p: sphere.Carrier) -> Stereo.head p = Real.one -> p = (Relative.details sphere).point := \block {
+  \fun (p: sphere.Carrier)(same: _) \then
+  \let squared: square (Stereo.head p) = Real.one := trans!{{Real.Real}} _ _ _ (congr!{{Real.Real} {Real.Real}} square _ _ same) (Laws.fieldMulOneLeft Real.one) \then
+  \let sum: Real.add Real.one (Stereo.rest p) = Real.one := trans!{{Real.Real}} _ _ _
+    (congr!{{Real.Real} {Real.Real}} (\fun (v: Real.Real) => Real.add v (Stereo.rest p)) _ _ (sym!{{Real.Real}} _ _ squared)) (Identities.equation p) \then
+  \let rest: Stereo.rest p = Real.zero := lowerZero (Stereo.rest p) sum \then
+  \let first: Stereo.x p = Real.zero := Algebra.sumSquaresZeroLeft (Stereo.x p) (Stereo.y p) rest \then
+  \let second: Stereo.y p = Real.zero := Algebra.sumSquaresZeroLeft (Stereo.y p) (Stereo.x p)
+    (trans!{{Real.Real}} _ _ _ (Laws.addComm (square (Stereo.y p)) (square (Stereo.x p))) rest) \then
+  \return Stereo.extent p (Relative.details sphere).point
+    (trans!{{Real.Real}} _ _ _ same (sym!{{Real.Real}} _ _ height))
+    (trans!{{Real.Real}} _ _ _ first (sym!{{Real.Real}} _ _ x))
+    (trans!{{Real.Real}} _ _ _ second (sym!{{Real.Real}} _ _ y))
+};

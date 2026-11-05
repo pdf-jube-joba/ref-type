@@ -1,0 +1,46 @@
+\use Equality.eq_reason_in;
+\import Raw.FormExact[x := x] \as OriginalAt;
+\import \root.Thom[].Algebra[V := Sum.Fiber x, space := sum.space x] \as Algebra;
+\definition square: \forall (k: N.Nat^)(v: FormVector (N.Nat^::succ (N.Nat^::succ k)) x) ->
+  ((formDifferential k).fiber x).apply (((formDifferential (N.Nat^::succ k)).fiber x).apply v) = ((Models.bundle (formModel k)).space x).zero :=
+  \fun (k: N.Nat^)(v: FormVector (N.Nat^::succ (N.Nat^::succ k)) x) => eq_reason_in!{{FormVector k x} _
+    "=" { (encodeForm k x).apply ((\root.Thom[].Contraction[X := X, F := Sum.Fiber, bundle := sum, section := section, k := k].map.fiber x).apply
+      ((\root.Thom[].Contraction[X := X, F := Sum.Fiber, bundle := sum, section := section, k := N.Nat^::succ k].map.fiber x).apply
+        ((decodeForm (N.Nat^::succ (N.Nat^::succ k)) x).apply v))) } "by" {
+      congr!{{Form (N.Nat^::succ k) x} {FormVector k x}}
+        (\fun (omega: Form (N.Nat^::succ k) x) => (encodeForm k x).apply ((\root.Thom[].Contraction[X := X, F := Sum.Fiber, bundle := sum, section := section, k := k].map.fiber x).apply omega)) _ _
+        (decodeEncodeForm (N.Nat^::succ k) x _) }
+    "=" { (encodeForm k x).apply (((forms k).space x).zero) } "by" {
+      congr!{{Form k x} {FormVector k x}} (encodeForm k x).apply _ _
+        (\root.Thom[].Contraction[X := X, F := Sum.Fiber, bundle := sum, section := section, k := k].squareZero x ((decodeForm (N.Nat^::succ (N.Nat^::succ k)) x).apply v)) }
+    "=" _ "by" { (encodeForm k x).preservesZero }
+  };
+\definition rawClosed: \forall (k: N.Nat^)(v: FormVector (N.Nat^::succ k) x) ->
+  ((formDifferential k).fiber x).apply v = ((Models.bundle (formModel k)).space x).zero ->
+  (\root.Thom[].Contraction[X := X, F := Sum.Fiber, bundle := sum, section := section, k := k].map.fiber x).apply ((decodeForm (N.Nat^::succ k) x).apply v) = ((forms k).space x).zero :=
+  \fun (k: N.Nat^)(v: FormVector (N.Nat^::succ k) x)(closed: _) => trans!{{Form k x}} _ _ _
+    (sym!{{Form k x}} _ _ (decodeEncodeForm k x _))
+    (trans!{{Form k x}} _ _ _
+      (congr!{{FormVector k x} {Form k x}} (decodeForm k x).apply _ _ closed)
+      (decodeForm k x).preservesZero);
+\definition preimage: \forall (k: N.Nat^)(v: FormVector k x) -> Logic.Not ((section.value x) = (sum.space x).zero) ->
+  Algebra.Closed k (section.value x) ((decodeForm k x).apply v) ->
+  \exists (w: FormVector (N.Nat^::succ k) x \where ((formDifferential k).fiber x).apply w = v) := \block {
+  \fun (k: N.Nat^)(v: FormVector k x)(nonzero: _)(closed: _) \then
+  \takefrom eta: \Cast[Form (N.Nat^::succ k) x] ({ eta: Form (N.Nat^::succ k) x \where
+    (\root.Thom[].Contraction[X := X, F := Sum.Fiber, bundle := sum, section := section, k := k].map.fiber x).apply eta = (decodeForm k x).apply v })
+    \by OriginalAt.exact k ((decodeForm k x).apply v) nonzero closed \then
+  \return Logic.existsIntro[FormVector (N.Nat^::succ k) x, { w: FormVector (N.Nat^::succ k) x \where ((formDifferential k).fiber x).apply w = v }]
+    ((encodeForm (N.Nat^::succ k) x).apply eta)
+    (eq_reason_in!{{FormVector k x} _
+      "=" { (encodeForm k x).apply ((\root.Thom[].Contraction[X := X, F := Sum.Fiber, bundle := sum, section := section, k := k].map.fiber x).apply eta) } "by" {
+        congr!{{Form (N.Nat^::succ k) x} {FormVector k x}}
+          (\fun (omega: Form (N.Nat^::succ k) x) => (encodeForm k x).apply ((\root.Thom[].Contraction[X := X, F := Sum.Fiber, bundle := sum, section := section, k := k].map.fiber x).apply omega)) _ _
+          (decodeEncodeForm (N.Nat^::succ k) x eta) }
+      "=" { (encodeForm k x).apply ((decodeForm k x).apply v) } "by" {
+        congr!{{Form k x} {FormVector k x}} (encodeForm k x).apply _ _
+          (\bysub(Form (N.Nat^::succ k) x, { eta: Form (N.Nat^::succ k) x \where
+            (\root.Thom[].Contraction[X := X, F := Sum.Fiber, bundle := sum, section := section, k := k].map.fiber x).apply eta = (decodeForm k x).apply v }, eta)) }
+      "=" v "by" { encodeDecodeForm k x v }
+    })
+};

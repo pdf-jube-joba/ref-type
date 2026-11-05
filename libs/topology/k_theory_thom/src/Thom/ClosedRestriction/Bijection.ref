@@ -1,0 +1,26 @@
+\definition totalInjective: \forall (p, q: PulledFamily.Point) -> Pullback.map p = Pullback.map q -> p = q :=
+  \fun (p, q: PulledFamily.Point)(same: _) => Pullback.jointInjective p q
+    (congr!{Family.Point X} Family.projection (Pullback.map p) (Pullback.map q) same) same;
+\definition injective: \forall (p, q: Domain.Carrier) -> corestrict p = corestrict q -> p = q :=
+  \induction (p: Domain.Carrier) \return \forall (q: Domain.Carrier) -> corestrict p = corestrict q -> p = q \with {
+    | none: \induction (q: Domain.Carrier) \return corestrict Domain.point = corestrict q -> Domain.point = q \with {
+      | none: \fun (same: _) => \refl(Domain.point)
+      | some: \fun (q: PulledFamily.Point)(same: _) => Logic.falseElim _ (Range.different (Pullback.map q) (sym!{Range.Carrier} _ _ same))
+    }
+    | some: \fun (p: PulledFamily.Point) => \induction (q: Domain.Carrier) \return corestrict (Domain.inclusion p) = corestrict q -> Domain.inclusion p = q \with {
+      | none: \fun (same: _) => Logic.falseElim _ (Range.different (Pullback.map p) same)
+      | some: \fun (q: PulledFamily.Point)(same: _) => congr!{PulledFamily.Point Domain.Carrier} Domain.inclusion p q (totalInjective p q (Range.injective (Pullback.map p) (Pullback.map q) same))
+    }
+  };
+\definition lift[p: Family.Point][inside: Base.Member U p.base]: PulledFamily.Point :=
+  PulledFamily.include (\into[X](p.base, U) \by { inside }) p.vector;
+\definition onto: \forall (p: Carrier) -> \exists (q: Domain.Carrier \where corestrict q = p) := \block {
+  \fun (p: Carrier) \then
+  \return (\induction (p: Range.Carrier) \return \forall (inside: RangeSpace.Member Subset p) ->
+    \exists (q: Domain.Carrier \where corestrict q = (\into[Range.Carrier](p, Subset) \by { inside })) \with {
+      | none: \fun (inside: _) => Logic.existsIntro[Domain.Carrier, { q: Domain.Carrier \where corestrict q = (\into[Range.Carrier](Range.point, Subset) \by { inside }) }] Domain.point (\refl(Range.point))
+      | some: \fun (p: Family.Point)(inside: Base.Member U p.base) =>
+        Logic.existsIntro[Domain.Carrier, { q: Domain.Carrier \where corestrict q = (\into[Range.Carrier](Range.inclusion p, Subset) \by { inside }) }]
+          (Domain.inclusion (lift p inside)) (congr!{Family.Point Range.Carrier} Range.inclusion _ _ (Family.eta p))
+    }) p (\bysub(Range.Carrier, Subset, p))
+};

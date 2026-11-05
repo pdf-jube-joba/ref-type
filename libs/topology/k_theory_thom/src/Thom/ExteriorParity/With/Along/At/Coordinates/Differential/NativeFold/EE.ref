@@ -1,0 +1,39 @@
+\import \parent.Placement[] \as Placement;
+\import \parent.Previous[] \as Previous;
+\import \parent.Zero[] \as Zero;
+\definition firstSide: B.Bool^ := B.Bool^::true;
+\definition secondSide: B.Bool^ := B.Bool^::true;
+\definition side: B.Bool^ := ProductLabels.evenPair firstSide secondSide;
+\definition output: B.Bool^ := Labels.flip side;
+\definition outcome[p, q: N.Nat^][x: X][omega: FirstForm p x][eta: SecondForm q x]: Models.Fiber (target output).ranks x :=
+  ((Models.bundle (target output)).space x).add
+    (placed (Nat.pred p) q (Labels.flip firstSide) secondSide x (\parent.\parent.\parent.\parent.\parent.NativeLeibniz[x := x].firstLower p omega) eta)
+    (((Models.bundle (target output)).space x).smul (Color.color firstSide)
+      (placed p (Nat.pred q) firstSide (Labels.flip secondSide) x omega (\parent.\parent.\parent.\parent.\parent.NativeLeibniz[x := x].secondLower q eta)));
+\definition Statement[p, q: N.Nat^]: \Prop := \forall (firstBound: Naturals.Le p n)(secondBound: Naturals.Le q m)
+  (firstColor: FirstLower.side n p = firstSide)(secondColor: SecondLower.side m q = secondSide)
+  (x: X)(omega: FirstForm p x)(eta: SecondForm q x) ->
+  ((totalOperator side).fiber x).apply (placed p q firstSide secondSide x omega eta) = outcome p q x omega eta;
+\module Output(x: X);
+\module ZeroZero(firstBound: Naturals.Le N.Nat^::zero n, secondBound: Naturals.Le N.Nat^::zero m,
+  firstColor: FirstLower.side n N.Nat^::zero = firstSide, secondColor: SecondLower.side m N.Nat^::zero = secondSide, x: X);
+\module LeftZero(q: N.Nat^, firstBound: Naturals.Le N.Nat^::zero n, secondBound: Naturals.Le (N.Nat^::succ q) m,
+  firstColor: FirstLower.side n N.Nat^::zero = firstSide, secondColor: SecondLower.side m (N.Nat^::succ q) = secondSide, x: X);
+\module RightZero(p: N.Nat^, firstBound: Naturals.Le (N.Nat^::succ p) n, secondBound: Naturals.Le N.Nat^::zero m,
+  firstColor: FirstLower.side n (N.Nat^::succ p) = firstSide, secondColor: SecondLower.side m N.Nat^::zero = secondSide, x: X);
+\module Positive(p, q: N.Nat^, firstBound: Naturals.Le (N.Nat^::succ p) n, secondBound: Naturals.Le (N.Nat^::succ q) m,
+  firstColor: FirstLower.side n (N.Nat^::succ p) = firstSide, secondColor: SecondLower.side m (N.Nat^::succ q) = secondSide, x: X);
+\definition result: \forall (p, q: N.Nat^) -> Statement p q :=
+  \induction (p: N.Nat^) \return \forall (q: N.Nat^) -> Statement p q \with {
+    | zero: \induction (q: N.Nat^) \return Statement N.Nat^::zero q \with {
+      | zero: \fun (fb: _)(sb: _)(cf: _)(cg: _)(x: X) => ZeroZero[firstBound := fb, secondBound := sb, firstColor := cf, secondColor := cg, x := x].result
+      | succ: \fun (q: N.Nat^)(unused: _)(fb: _)(sb: _)(cf: _)(cg: _)(x: X) => LeftZero[q := q, firstBound := fb, secondBound := sb, firstColor := cf, secondColor := cg, x := x].result
+    }
+    | succ: \fun (p: N.Nat^)(unused: _) => \induction (q: N.Nat^) \return Statement (N.Nat^::succ p) q \with {
+      | zero: \fun (fb: _)(sb: _)(cf: _)(cg: _)(x: X) => RightZero[p := p, firstBound := fb, secondBound := sb, firstColor := cf, secondColor := cg, x := x].result
+      | succ: \fun (q: N.Nat^)(unused: _)(fb: _)(sb: _)(cf: _)(cg: _)(x: X) => Positive[p := p, q := q, firstBound := fb, secondBound := sb, firstColor := cf, secondColor := cg, x := x].result
+    }
+  };
+\definition formsLaw[p, q: N.Nat^]: Statement p q := result p q;
+\module Labels;
+\definition equation: Labels[].Statement := Labels[].equation;

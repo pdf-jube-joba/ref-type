@@ -1,0 +1,38 @@
+\import First.Construction[extension := first] \as From;
+\import Second.Construction[extension := second] \as To;
+\definition PositiveFiber[q: Quotient.Carrier]: \Set := First.Fiber q;
+\definition NegativeFiber[q: Quotient.Carrier]: \Set := Second.Fiber q;
+\definition descendedPositive: Bundles.Family[X := Quotient.Carrier, F := PositiveFiber].Bundle := From.bundleOnQuotient;
+\definition descendedNegative: Bundles.Family[X := Quotient.Carrier, F := NegativeFiber].Bundle := To.bundleOnQuotient;
+\import D.Between[first := first, second := second] \as ForwardMap;
+\import E.Between[first := second, second := first] \as BackwardMap;
+\definition forward: Bundles.Morphisms[X := Quotient.Carrier, Y := Quotient.Carrier, F := PositiveFiber, G := NegativeFiber,
+  source := descendedPositive, target := descendedNegative, f := (\fun (q: Quotient.Carrier) => q)].Map := ForwardMap.morphism;
+\definition backward: Bundles.Morphisms[X := Quotient.Carrier, Y := Quotient.Carrier, F := NegativeFiber, G := PositiveFiber,
+  source := descendedNegative, target := descendedPositive, f := (\fun (q: Quotient.Carrier) => q)].Map := BackwardMap.morphism;
+\module At(q: Quotient.Carrier);
+\definition evenSquare: \forall (q: Quotient.Carrier)(v: PositiveFiber q) -> (backward.fiber q).apply ((forward.fiber q).apply v) = (descendedPositive.space q).smul (coefficient q) v :=
+  \fun (q: Quotient.Carrier) => At[q := q].evenSquare;
+\definition oddSquare: \forall (q: Quotient.Carrier)(v: NegativeFiber q) -> (forward.fiber q).apply ((backward.fiber q).apply v) = (descendedNegative.space q).smul (coefficient q) v :=
+  \fun (q: Quotient.Carrier) => At[q := q].oddSquare;
+\import topological_k_theory.KTheory[].On[X := Quotient.Carrier, baseSpace := Quotient.topology,
+  compact := Quotient.quotientCompact, hausdorff := Quotient.quotientHausdorff] \as K;
+\import K.K0[] \as K0;
+\import K.Bundle[F := PositiveFiber, original := descendedPositive, same := From.sameBaseSpace] \as PositiveClass;
+\import K.Bundle[F := NegativeFiber, original := descendedNegative, same := To.sameBaseSpace] \as MinusClass;
+\import K.Trivial[n := n] \as TrivialClass;
+\import Framed.Value[e := first] \as FirstValue;
+\import NegativeClass.Value[e := second] \as SecondValue;
+\import algebra.Group[].Of[Carrier := K0.Carrier, group := K0.group] \as Group;
+\definition difference: K0.Carrier := K0.difference PositiveClass.value MinusClass.value;
+\definition negativeDifference: K0.difference MinusClass.value TrivialClass.value = K0.zero :=
+  trans!{{K0.Carrier}} _ _ _ (sym!{{K0.Carrier}} _ _ (NegativeClass.agreement second)) NegativeZero.equation;
+\definition framedEquation: difference = Framed.value :=
+  trans!{{K0.Carrier}} _ _ _ (sym!{{K0.Carrier}} _ _ (Group.zeroRight difference))
+    (trans!{{K0.Carrier}} _ _ _ (congr!{{K0.Carrier} {K0.Carrier}} (Group.add difference) _ _ (sym!{{K0.Carrier}} _ _ negativeDifference))
+      (trans!{{K0.Carrier}} _ _ _ (Group.composeDifferences (K0.include PositiveClass.value) (K0.include MinusClass.value) (K0.include TrivialClass.value))
+        (sym!{{K0.Carrier}} _ _ (Framed.agreement first))));
+\definition nativeClass: Quotient.Relative := Native.reduced;
+\definition nativeClassFormula: nativeClass = difference := trans!{{K0.Carrier}} _ _ _ nativeEquation (sym!{{K0.Carrier}} _ _ framedEquation);
+\module Total;
+\module Comparison;

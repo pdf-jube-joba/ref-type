@@ -1,0 +1,91 @@
+\import Operations.Models[X := X, baseSpace := space] \as Models;
+\import Models.Chains[] \as Chains;
+\import std.Data[].Bool[] \as B;
+\import \root.Thom[].FiniteLabels[] \as Labels;
+\import \root.Thom[].Finite[X := X, baseSpace := space].Family[term := term,
+  differential := differential, domain := { x: X \where Logic.False }] \as Family;
+\import Family.Summands[] \as Summands;
+\definition Left[n: N.Nat^][side: B.Bool^][x: X]: \Set := Models.Fiber (Summands.parity n side).ranks x;
+\definition leftBundle[n: N.Nat^][side: B.Bool^]: Bundles.Family[X := X, F := Left n side].Bundle := Models.bundle (Summands.parity n side);
+\definition Fiber[n: N.Nat^][side: B.Bool^][x: X]: \Set := Operations.Tensor[X := X, F := Left n side, G := G, left := leftBundle n side, right := bundle].Fiber x;
+\definition source[n: N.Nat^][side: B.Bool^]: Bundles.Family[X := X, F := Fiber n side].Bundle :=
+  Operations.Tensor[X := X, F := Left n side, G := G, left := leftBundle n side, right := bundle].bundle same;
+\definition Component[i: N.Nat^][x: X]: \Set := Operations.Tensor[X := X, F := Models.Fiber (term i).ranks, G := G, left := Models.bundle (term i), right := bundle].Fiber x;
+\definition componentBundle[i: N.Nat^]: Bundles.Family[X := X, F := Component i].Bundle :=
+  Operations.Tensor[X := X, F := Models.Fiber (term i).ranks, G := G, left := Models.bundle (term i), right := bundle].bundle same;
+\definition pure[n: N.Nat^][side: B.Bool^][x: X][v: Left n side x][w: G x]: Fiber n side x :=
+  Operations.Tensor[X := X, F := Left n side, G := G, left := leftBundle n side, right := bundle].pure x v w;
+\definition componentPure[i: N.Nat^][x: X][v: Models.Fiber (term i).ranks x][w: G x]: Component i x :=
+  Operations.Tensor[X := X, F := Models.Fiber (term i).ranks, G := G, left := Models.bundle (term i), right := bundle].pure x v w;
+\definition Map[n: N.Nat^][side: B.Bool^][target: Models.Bundle]: \Set := Bundles.Morphisms[X := X, Y := X,
+  F := Fiber n side, G := Models.Fiber target.ranks, source := source n side, target := Models.bundle target, f := (\fun (x: X) => x)].Map;
+\definition ComponentMap[i: N.Nat^][target: Models.Bundle]: \Set := Bundles.Morphisms[X := X, Y := X,
+  F := Component i, G := Models.Fiber target.ranks, source := componentBundle i, target := Models.bundle target, f := (\fun (x: X) => x)].Map;
+\definition Components[n: N.Nat^][side: B.Bool^][target: Models.Bundle]: \Set :=
+  \forall (s: Summands.Colored n side) -> ComponentMap (Labels.degree n s) target;
+\definition tailComponents[n: N.Nat^][side: B.Bool^][target: Models.Bundle][components: Components (N.Nat^::succ n) (Labels.flip side) target]: Components n side target :=
+  \fun (s: Summands.Colored n side) => components (Summands.colored (N.Nat^::succ n) (Labels.Index::tail n s) (Labels.flip side)
+    (congr!{{B.Bool^} {B.Bool^}} Labels.flip _ _ (\bysub(Labels.Index n, Summands.Colored n side, s))));
+\module Part(head, tail, target: Models.Bundle);
+\module Empty(target: Models.Bundle);
+\definition assemble: \forall (n: N.Nat^)(side: B.Bool^)(target: Models.Bundle) -> Components n side target -> Map n side target :=
+  \induction (n: N.Nat^) \return \forall (side: B.Bool^)(target: Models.Bundle) -> Components n side target -> Map n side target \with {
+    | zero: \induction (side: B.Bool^) \return \forall (target: Models.Bundle) -> Components N.Nat^::zero side target -> Map N.Nat^::zero side target \with {
+      | false: \fun (target: Models.Bundle)(components: Components N.Nat^::zero B.Bool^::false target) => Empty[target := target].map
+      | true: \fun (target: Models.Bundle)(components: Components N.Nat^::zero B.Bool^::true target) =>
+        Part[head := term N.Nat^::zero, tail := Chains.empty, target := target].map
+          (components (Summands.colored N.Nat^::zero (Labels.Index::head N.Nat^::zero) B.Bool^::true (\refl(B.Bool^::true)))) (Empty[target := target].map)
+    }
+    | succ: \fun (n: N.Nat^)(previous: \forall (side: B.Bool^)(target: Models.Bundle) -> Components n side target -> Map n side target) =>
+      \induction (side: B.Bool^) \return \forall (target: Models.Bundle) -> Components (N.Nat^::succ n) side target -> Map (N.Nat^::succ n) side target \with {
+        | false: \fun (target: Models.Bundle)(components: Components (N.Nat^::succ n) B.Bool^::false target) => previous B.Bool^::true target (tailComponents n B.Bool^::true target components)
+        | true: \fun (target: Models.Bundle)(components: Components (N.Nat^::succ n) B.Bool^::true target) =>
+          Part[head := term (N.Nat^::succ n), tail := Summands.parity n B.Bool^::false, target := target].map
+            (components (Summands.colored (N.Nat^::succ n) (Labels.Index::head (N.Nat^::succ n)) B.Bool^::true (\refl(B.Bool^::true))))
+            (previous B.Bool^::false target (tailComponents n B.Bool^::false target components))
+      }
+  };
+
+\definition HeadProperty[n: N.Nat^]: \Prop := \forall (target: Models.Bundle)(components: Components n B.Bool^::true target)(x: X)(v: Models.Fiber (term n).ranks x)(w: G x) ->
+  ((assemble n B.Bool^::true target components).fiber x).apply
+    (pure n B.Bool^::true x (((Summands.at n (Labels.Index::head n) B.Bool^::true (\refl(B.Bool^::true))).fiber x).apply v) w) =
+  ((components (Summands.colored n (Labels.Index::head n) B.Bool^::true (\refl(B.Bool^::true)))).fiber x).apply (componentPure n x v w);
+\definition headFormula: \forall (n: N.Nat^) -> HeadProperty n :=
+  \induction (n: N.Nat^) \return HeadProperty n \with {
+      | zero: \fun (target: Models.Bundle)(components: Components N.Nat^::zero B.Bool^::true target) =>
+        Part[head := term N.Nat^::zero, tail := Chains.empty, target := target].onFirst
+          (components (Summands.colored N.Nat^::zero (Labels.Index::head N.Nat^::zero) B.Bool^::true (\refl(B.Bool^::true)))) (Empty[target := target].map)
+      | succ: \fun (n: N.Nat^)(unused: HeadProperty n)(target: Models.Bundle)(components: Components (N.Nat^::succ n) B.Bool^::true target) =>
+        Part[head := term (N.Nat^::succ n), tail := Summands.parity n B.Bool^::false, target := target].onFirst
+          (components (Summands.colored (N.Nat^::succ n) (Labels.Index::head (N.Nat^::succ n)) B.Bool^::true (\refl(B.Bool^::true))))
+          (assemble n B.Bool^::false target (tailComponents n B.Bool^::false target components))
+    };
+\definition tailFormula[n: N.Nat^]: \forall (side: B.Bool^)(target: Models.Bundle)(components: Components (N.Nat^::succ n) (Labels.flip side) target)(x: X)(v: Left n side x)(w: G x) ->
+  ((assemble (N.Nat^::succ n) (Labels.flip side) target components).fiber x).apply
+    (pure (N.Nat^::succ n) (Labels.flip side) x (((Summands.lift n side).fiber x).apply v) w) =
+  ((assemble n side target (tailComponents n side target components)).fiber x).apply (pure n side x v w) :=
+  \induction (side: B.Bool^) \return \forall (target: Models.Bundle)(components: Components (N.Nat^::succ n) (Labels.flip side) target)(x: X)(v: Left n side x)(w: G x) ->
+    ((assemble (N.Nat^::succ n) (Labels.flip side) target components).fiber x).apply
+      (pure (N.Nat^::succ n) (Labels.flip side) x (((Summands.lift n side).fiber x).apply v) w) =
+    ((assemble n side target (tailComponents n side target components)).fiber x).apply (pure n side x v w) \with {
+      | false: \fun (target: Models.Bundle)(components: Components (N.Nat^::succ n) B.Bool^::true target) =>
+        Part[head := term (N.Nat^::succ n), tail := Summands.parity n B.Bool^::false, target := target].onSecond
+          (components (Summands.colored (N.Nat^::succ n) (Labels.Index::head (N.Nat^::succ n)) B.Bool^::true (\refl(B.Bool^::true))))
+          (assemble n B.Bool^::false target (tailComponents n B.Bool^::false target components))
+      | true: \fun (target: Models.Bundle)(components: Components (N.Nat^::succ n) B.Bool^::false target)(x: X)(v: Left n B.Bool^::true x)(w: G x) =>
+        \refl(((assemble n B.Bool^::true target (tailComponents n B.Bool^::true target components)).fiber x).apply (pure n B.Bool^::true x v w))
+    };
+\definition Property[n: N.Nat^][s: Labels.Index n]: \Prop := \forall (side: B.Bool^)(tag: Labels.even n s = side)(target: Models.Bundle)(components: Components n side target)
+  (x: X)(v: Models.Fiber (term (Labels.degree n s)).ranks x)(w: G x) ->
+  ((assemble n side target components).fiber x).apply (pure n side x (((Summands.at n s side tag).fiber x).apply v) w) =
+  ((components (Summands.colored n s side tag)).fiber x).apply (componentPure (Labels.degree n s) x v w);
+\module Head(n: N.Nat^);
+\module Tail(n: N.Nat^, s: Labels.Index n, previous: Property n s);
+\definition onSummand: \forall (n: N.Nat^)(s: Labels.Index n) -> Property n s :=
+  \induction (n: N.Nat^)(s: Labels.Index n) \return Property n s \with {
+    | head: \fun (n: N.Nat^) => Head[n := n].equation
+    | tail: \fun (n: N.Nat^)(s: Labels.Index n)(previous: Property n s) => Tail[n := n, s := s, previous := previous].equation
+  };
+\module FiberExt(x: X, U: \Set, target: Spaces.VectorSpace U);
+\module TensorExt(n: N.Nat^, side: B.Bool^, x: X, U: \Set, target: Spaces.VectorSpace U);
+\module Insertion(n, p: N.Nat^);

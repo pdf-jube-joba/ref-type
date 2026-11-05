@@ -1,0 +1,68 @@
+\import Operations.ContractingPair[V := Source.Even x, W := Source.Odd x,
+  even := (Models.bundle Source.even).space x, odd := (Models.bundle Source.odd).space x] \as Original;
+\definition original: Original.Pair := \into[Original.Data](Original.Data {
+  d := FirstChain.parity.forward.fiber x, e := FirstChain.parity.backward.fiber x,
+  h := contraction.h.fiber x, k := contraction.k.fiber x
+}, Original.Pair) \by { contraction.laws x };
+\definition positiveAt: Spaces.Isomorphism[V := Source.Even x, W := Target.Even x,
+  source := (Models.bundle Source.even).space x, target := (Models.bundle Target.even).space x].Isomorphism :=
+  Spaces.Isomorphism[V := Source.Even x, W := Target.Even x,
+    source := (Models.bundle Source.even).space x, target := (Models.bundle Target.even).space x].Isomorphism {
+    forward := positive.forward.fiber x, backward := positive.backward.fiber x,
+    leftInverse := positiveLaws.leftInverse x, rightInverse := positiveLaws.rightInverse x
+  };
+\definition negativeAt: Spaces.Isomorphism[V := Source.Odd x, W := Target.Odd x,
+  source := (Models.bundle Source.odd).space x, target := (Models.bundle Target.odd).space x].Isomorphism :=
+  Spaces.Isomorphism[V := Source.Odd x, W := Target.Odd x,
+    source := (Models.bundle Source.odd).space x, target := (Models.bundle Target.odd).space x].Isomorphism {
+    forward := negative.forward.fiber x, backward := negative.backward.fiber x,
+    leftInverse := negativeLaws.leftInverse x, rightInverse := negativeLaws.rightInverse x
+  };
+\import Original.Transport[U := Target.Even x, T := Target.Odd x,
+  newEven := (Models.bundle Target.even).space x, newOdd := (Models.bundle Target.odd).space x,
+  c := original, positive := positiveAt, negative := negativeAt] \as Transport;
+\import Operations.ContractingPair[V := Target.Even x, W := Target.Odd x,
+  even := (Models.bundle Target.even).space x, odd := (Models.bundle Target.odd).space x] \as Changed;
+\definition dSame[v: Target.Even x]: (SecondChain.parity.forward.fiber x).apply v = Transport.d.apply v :=
+  trans!{{Target.Odd x}} _ _ _
+    (congr!{{Target.Even x} {Target.Odd x}} (SecondChain.parity.forward.fiber x).apply _ _
+      (sym!{{Target.Even x}} _ _ (positiveLaws.rightInverse x v)))
+    (forwardCommutes x ((positive.backward.fiber x).apply v));
+\definition eSame[v: Target.Odd x]: (SecondChain.parity.backward.fiber x).apply v = Transport.e.apply v :=
+  trans!{{Target.Even x}} _ _ _
+    (congr!{{Target.Odd x} {Target.Even x}} (SecondChain.parity.backward.fiber x).apply _ _
+      (sym!{{Target.Odd x}} _ _ (negativeLaws.rightInverse x v)))
+    (backwardCommutes x ((negative.backward.fiber x).apply v));
+\definition data: Changed.Data := Changed.Data {
+  d := SecondChain.parity.forward.fiber x, e := SecondChain.parity.backward.fiber x, h := h.fiber x, k := k.fiber x
+};
+\definition laws: Changed.Laws[data] := Changed.Laws[data] {
+  squareEven := \fun (v: Target.Even x) => trans!{{Target.Even x}} _ _ _
+    (trans!{{Target.Even x}} _ _ _
+      (congr!{{Target.Odd x} {Target.Even x}} (SecondChain.parity.backward.fiber x).apply _ _ (dSame v))
+      (eSame (Transport.d.apply v))) (Transport.squareEven v),
+  squareOdd := \fun (v: Target.Odd x) => trans!{{Target.Odd x}} _ _ _
+    (trans!{{Target.Odd x}} _ _ _
+      (congr!{{Target.Even x} {Target.Odd x}} (SecondChain.parity.forward.fiber x).apply _ _ (eSame v))
+      (dSame (Transport.e.apply v))) (Transport.squareOdd v),
+  even := \fun (v: Target.Even x) => trans!{{Target.Even x}} _ _ _
+    (congr!{{Target.Even x} {Target.Even x} {Target.Even x}} ((Models.bundle Target.even).space x).add _ _ _ _
+      (eSame (Transport.k.apply v)) (congr!{{Target.Odd x} {Target.Even x}} Transport.h.apply _ _ (dSame v)))
+    (Transport.evenLaw v),
+  odd := \fun (v: Target.Odd x) => trans!{{Target.Odd x}} _ _ _
+    (congr!{{Target.Odd x} {Target.Odd x} {Target.Odd x}} ((Models.bundle Target.odd).space x).add _ _ _ _
+      (dSame (Transport.h.apply v)) (congr!{{Target.Even x} {Target.Odd x}} Transport.k.apply _ _ (eSame v)))
+    (Transport.oddLaw v)
+};
+\definition normalizedCommutes[v: Source.Even x]:
+  ((Models.bundle Target.odd).space x).add
+    ((SecondChain.parity.forward.fiber x).apply ((positive.forward.fiber x).apply v))
+    ((k.fiber x).apply ((SecondChain.parity.backward.fiber x).apply ((k.fiber x).apply ((positive.forward.fiber x).apply v)))) =
+  (negative.forward.fiber x).apply (((Models.bundle Source.odd).space x).add
+    ((FirstChain.parity.forward.fiber x).apply v)
+    ((contraction.k.fiber x).apply ((FirstChain.parity.backward.fiber x).apply ((contraction.k.fiber x).apply v)))) :=
+  trans!{{Target.Odd x}} _ _ _
+    (congr!{{Target.Odd x} {Target.Odd x} {Target.Odd x}} ((Models.bundle Target.odd).space x).add _ _ _ _
+      (dSame ((positive.forward.fiber x).apply v))
+      (congr!{{Target.Even x} {Target.Odd x}} Transport.k.apply _ _ (eSame (Transport.k.apply ((positive.forward.fiber x).apply v)))))
+    (Transport.forwardFormula v);

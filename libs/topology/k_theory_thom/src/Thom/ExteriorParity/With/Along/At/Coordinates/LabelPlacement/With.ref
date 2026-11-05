@@ -1,0 +1,23 @@
+\definition side: B.Bool^ := ProductLabels.evenPair firstSide secondSide;
+\import \parent.\parent.Bidegree[p := p, q := q, side := side] \as Placement;
+\definition a: Placement.AlignedFirst := \into[Labels.Index n](s, Placement.AlignedFirst) \by { \refl(p) };
+\definition b: Placement.AlignedSecond := \into[Labels.Index m](t, Placement.AlignedSecond) \by { \refl(q) };
+\definition map: Bundles.Morphisms[X := X, Y := X, F := Tensor.Component p q, G := Models.Fiber (model side).ranks,
+  source := Tensor.componentBundle p q, target := Models.bundle (model side), f := (\fun (x: X) => x)].Map := Placement.labelMap a b;
+\import Placement.LabelMap[a := a, b := b] \as Known;
+\definition firstValue[x: X][v: Models.Fiber (firstTerm p).ranks x]: (Known.firstMap.fiber x).apply v = ((First.at n s first (\refl(first))).fiber x).apply v :=
+  congr!{{Models.Fiber (firstTerm p).ranks x} {Models.Fiber (First.parity n first).ranks x}} ((First.at n s first (\refl(first))).fiber x).apply _ _
+    (Known.firstCastValue p (sym!{N.Nat^} _ _ (\bysub(Labels.Index n, Placement.AlignedFirst, a))) x v);
+\definition secondValue[x: X][w: Models.Fiber (secondTerm q).ranks x]: (Known.secondMap.fiber x).apply w = ((Second.at m t second (\refl(second))).fiber x).apply w :=
+  congr!{{Models.Fiber (secondTerm q).ranks x} {Models.Fiber (Second.parity m second).ranks x}} ((Second.at m t second (\refl(second))).fiber x).apply _ _
+    (Known.secondCastValue q (sym!{N.Nat^} _ _ (\bysub(Labels.Index m, Placement.AlignedSecond, b))) x w);
+\definition canonical[firstColor: first = firstSide][secondColor: second = secondSide]:
+  \forall (x: X)(v: Models.Fiber (firstTerm p).ranks x)(w: Models.Fiber (secondTerm q).ranks x) ->
+  (map.fiber x).apply (Tensor.componentPure p q x v w) =
+  ((select (ProductLabels.evenPair first second) side).fiber x).apply (((block first second).fiber x).apply (\parent.\parent.\parent.Slot[firstSide := first, secondSide := second].pure x
+    (((First.at n s first (\refl(first))).fiber x).apply v) (((Second.at m t second (\refl(second))).fiber x).apply w))) :=
+  \fun (x: X)(v: Models.Fiber (firstTerm p).ranks x)(w: Models.Fiber (secondTerm q).ranks x) =>
+    trans!{{Models.Fiber (model side).ranks x}} _ _ _ (Known.onPure x v w)
+      (congr!{{Models.Fiber (First.parity n first).ranks x} {Models.Fiber (Second.parity m second).ranks x} {Models.Fiber (model side).ranks x}}
+        (\fun (u: Models.Fiber (First.parity n first).ranks x)(z: Models.Fiber (Second.parity m second).ranks x) =>
+          ((select (ProductLabels.evenPair first second) side).fiber x).apply (((block first second).fiber x).apply (Known.foldedPure x u z))) _ _ _ _ (firstValue x v) (secondValue x w));

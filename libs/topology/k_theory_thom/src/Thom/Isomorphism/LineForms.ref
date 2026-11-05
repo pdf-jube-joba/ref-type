@@ -1,0 +1,90 @@
+\import linear_algebra.Commutative[K := C.Complex, scalarRing := C.Algebra[].commutativeRing] \as Linear;
+\import Linear.Multilinear[V := C.Complex, space := Linear.scalarSpace] \as Multilinear;
+\import Multilinear.Alternating[] \as Alternating;
+\import Alternating.DegreeZero[] \as Zero;
+\import C.Def[] \as Scalar;
+\import C.Prop[] \as Laws;
+\definition one: N.Nat^ := N.Nat^::succ N.Nat^::zero;
+\definition index: Fin.Fin one := Fin.zero N.Nat^::zero;
+\definition constant[a: C.Complex]: Multilinear.Arguments one := \fun (i: Fin.Fin one) => a;
+\definition argumentEquality: \forall (v: Multilinear.Arguments one) -> constant (v index) = v :=
+  \fun (v: Multilinear.Arguments one) => \axiom:funext(constant (v index), v,
+    \fun (i: Fin.Fin one) => congr!{{Fin.Fin one} {C.Complex}} v _ _ (sym!{{Fin.Fin one}} _ _ (Fin.singletonValue i)));
+\definition identityForm: Alternating.Form one := \into[Multilinear.Function one]((\fun (v: Multilinear.Arguments one) => v index), Alternating.Form one) \by {
+  Alternating.AlternatingLaws[one, (\fun (v: Multilinear.Arguments one) => v index)] {
+    linear := Multilinear.Laws[one, (\fun (v: Multilinear.Arguments one) => v index)] {
+      addition := \fun (v: Multilinear.Arguments one)(i: Fin.Fin one)(x, y: C.Complex) =>
+        \idelim index = i \with j: Fin.Fin one =>
+          Multilinear.update one v j (Scalar.add x y) index = Scalar.add (Multilinear.update one v j x index) (Multilinear.update one v j y index) \by {
+            base: \refl(Scalar.add x y), equality: sym!{{Fin.Fin one}} _ _ (Fin.singletonValue i)
+          },
+      scalar := \fun (v: Multilinear.Arguments one)(i: Fin.Fin one)(a, x: C.Complex) =>
+        \idelim index = i \with j: Fin.Fin one =>
+          Multilinear.update one v j (Scalar.mul a x) index = Scalar.mul a (Multilinear.update one v j x index) \by {
+            base: \refl(Scalar.mul a x), equality: sym!{{Fin.Fin one}} _ _ (Fin.singletonValue i)
+          }
+    },
+    alternating := \fun (v: Multilinear.Arguments one)(i, j: Fin.Fin one)(different: Logic.Not (i = j))(same: v i = v j) =>
+      Logic.falseElim (v index = Scalar.zero) (different
+        (trans!{{Fin.Fin one}} _ _ _ (Fin.singletonValue i) (sym!{{Fin.Fin one}} _ _ (Fin.singletonValue j))))
+  }
+};
+\import Alternating.At[k := one] \as Forms;
+\import Linear.Linear[V := C.Complex, W := Alternating.Form one, source := Linear.scalarSpace, target := Forms.vectorSpace] \as Forward;
+\import Linear.Linear[V := Alternating.Form one, W := C.Complex, source := Forms.vectorSpace, target := Linear.scalarSpace] \as Backward;
+\definition fromScalar: Forward.Map := Forward.Map {
+  apply := \fun (a: C.Complex) => Forms.vectorSpace.smul a identityForm,
+  preservesAdd := \fun (a, b: C.Complex) => Forms.vectorSpace.scalarAdd a b identityForm,
+  preservesScale := \fun (a, b: C.Complex) => Forms.vectorSpace.scalarAssoc a b identityForm
+};
+\definition evaluate: Backward.Map := Backward.Map {
+  apply := \fun (f: Alternating.Form one) => f (constant Scalar.one),
+  preservesAdd := \fun (f, g: Alternating.Form one) => \refl(Scalar.add (f (constant Scalar.one)) (g (constant Scalar.one))),
+  preservesScale := \fun (a: C.Complex)(f: Alternating.Form one) => \refl(Scalar.mul a (f (constant Scalar.one)))
+};
+\definition updateConstant: \forall (v: Multilinear.Arguments one)(a: C.Complex) -> Multilinear.update one v index a = constant a :=
+  \fun (v: Multilinear.Arguments one)(a: C.Complex) => \axiom:funext(Multilinear.update one v index a, constant a,
+    \fun (i: Fin.Fin one) => trans!{{C.Complex}} _ _ _
+      (congr!{{Fin.Fin one} {C.Complex}} (Multilinear.update one v index a) _ _ (Fin.singletonValue i))
+      (Multilinear.Properties[].updateSelf one v index a));
+\definition homogeneous: \forall (f: Alternating.Form one)(a: C.Complex) -> f (constant a) = Scalar.mul a (f (constant Scalar.one)) :=
+  \fun (f: Alternating.Form one)(a: C.Complex) => trans!{{C.Complex}} _ _ _
+    (sym!{{C.Complex}} _ _ (congr!{{Multilinear.Arguments one} {C.Complex}} f _ _
+      (trans!{{Multilinear.Arguments one}} _ _ _ (updateConstant (constant Scalar.one) (Scalar.mul a Scalar.one))
+        (\axiom:funext(constant (Scalar.mul a Scalar.one), constant a, \fun (i: Fin.Fin one) => Laws.mulOneRight a)))))
+    (trans!{{C.Complex}} _ _ _
+      (((\bysub(Multilinear.Function one, Alternating.Form one, f)).linear).scalar (constant Scalar.one) index a Scalar.one)
+      (congr!{{C.Complex} {C.Complex}} (Scalar.mul a) _ _
+        (congr!{{Multilinear.Arguments one} {C.Complex}} f _ _ (updateConstant (constant Scalar.one) Scalar.one))));
+\definition leftInverse: \forall (a: C.Complex) -> evaluate.apply (fromScalar.apply a) = a := Laws.mulOneRight;
+\definition rightInverse: \forall (f: Alternating.Form one) -> fromScalar.apply (evaluate.apply f) = f :=
+  \fun (f: Alternating.Form one) => Forms.ext _ _ (\fun (v: Multilinear.Arguments one) => trans!{{C.Complex}} _ _ _
+    (Laws.mulComm (evaluate.apply f) (v index))
+    (trans!{{C.Complex}} _ _ _ (sym!{{C.Complex}} _ _ (homogeneous f (v index)))
+      (congr!{{Multilinear.Arguments one} {C.Complex}} f _ _ (argumentEquality v))));
+\definition isomorphism: Linear.Isomorphism[V := C.Complex, W := Alternating.Form one, source := Linear.scalarSpace, target := Forms.vectorSpace].Isomorphism :=
+  Linear.Isomorphism[V := C.Complex, W := Alternating.Form one, source := Linear.scalarSpace, target := Forms.vectorSpace].Isomorphism {
+    forward := fromScalar, backward := evaluate, leftInverse := leftInverse, rightInverse := rightInverse
+  };
+\definition contractedArguments: \forall (z: C.Complex) ->
+  Fin.Tuples[A := C.Complex].extend N.Nat^::zero z Zero.emptyArguments = constant z :=
+  \fun (z: C.Complex) => \axiom:funext(Fin.Tuples[A := C.Complex].extend N.Nat^::zero z Zero.emptyArguments, constant z,
+    \fun (i: Fin.Fin one) => trans!{{C.Complex}} _ _ _
+      (congr!{{Fin.Fin one} {C.Complex}} (Fin.Tuples[A := C.Complex].extend N.Nat^::zero z Zero.emptyArguments) _ _ (Fin.singletonValue i))
+      (Fin.Tuples[A := C.Complex].atZero N.Nat^::zero z Zero.emptyArguments));
+\definition contractionScalar: \forall (z: C.Complex)(f: Alternating.Form one) ->
+  Zero.evaluate.apply (Alternating.Contraction[k := N.Nat^::zero].apply f z) = Scalar.mul z (evaluate.apply f) :=
+  \fun (z: C.Complex)(f: Alternating.Form one) => trans!{{C.Complex}} _ _ _
+    (congr!{{Multilinear.Arguments one} {C.Complex}} f _ _ (contractedArguments z)) (homogeneous f z);
+\module Coordinates(k: N.Nat^, ordered: Fin.Ordering[].Increasing k one (\fun (i: Fin.Fin k) => index));
+\definition zeroOrdered: Fin.Ordering[].Increasing N.Nat^::zero one (\fun (i: Fin.Fin N.Nat^::zero) => index) :=
+  \fun (i, j: Fin.Fin N.Nat^::zero)(less: N.Basic[].Prop[].Lt i j) => Logic.falseElim _ (Fin.zeroImpossible i (Fin.bound N.Nat^::zero i));
+\definition oneOrdered: Fin.Ordering[].Increasing one one (\fun (i: Fin.Fin one) => index) :=
+  \fun (i, j: Fin.Fin one)(less: N.Basic[].Prop[].Lt i j) => Logic.falseElim _
+    (N.Basic[].Prop[].ltNe i j less
+      (congr!{{Fin.Fin one} {N.Nat^}} (Fin.value one) _ _
+        (trans!{{Fin.Fin one}} _ _ _ (Fin.singletonValue i) (sym!{{Fin.Fin one}} _ _ (Fin.singletonValue j)))));
+\module ZeroCoordinates(n: N.Nat^);
+\module ModelSums(X: \Set, baseSpace: topology.Topology[Carrier := X].Topology);
+\module CoordinateForms;
+\module Koszul(X: \Set, baseSpace: topology.Topology[Carrier := X].Topology);

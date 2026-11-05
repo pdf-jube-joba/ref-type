@@ -1,0 +1,25 @@
+\import bundle_operations.Operations[].Subset[E := FormFamily.Point, U := Evaluations.Domain s].Pullback[A := Total, f := sectionTotal] \as TestDomain;
+\definition Domain: \Set := TestDomain.Point;
+\definition subset: \Pow Total := TestDomain.Domain;
+\definition topology: topology.Topology[Carrier := Domain].Topology := Base.Subspace[S := subset].topology bundle.totalSpace;
+\definition center[p: Domain]: \Cast[Total] s.domain := \into[Total](p, s.domain) \by { \bysub(Total, subset, p) };
+\definition centerContinuous: topology.Continuity[A := Domain, B := \Cast[Total] s.domain].Continuous topology (Base.Subspace[S := s.domain].topology bundle.totalSpace) center :=
+  topology.Continuity[A := Domain, B := Total].Corestriction[S := s.domain].corestrictContinuous topology bundle.totalSpace center
+    (topology.Continuity[A := Domain, B := Total].Corestriction[S := subset].inclusionContinuous bundle.totalSpace);
+\definition tuple[p: Domain]: PulledFamily.Point := PulledFamily.include p (s.value head (center p));
+\definition tupleContinuous: topology.Continuity[A := Domain, B := PulledFamily.Point].Continuous topology Koszul.pulled.totalSpace tuple :=
+  topology.Composition[A := Domain, B := \Cast[Total] s.domain, C := PulledFamily.Point].composeContinuous topology (Base.Subspace[S := s.domain].topology bundle.totalSpace) Koszul.pulled.totalSpace center
+    (\fun (p: \Cast[Total] s.domain) => PulledFamily.include p (s.value head p)) centerContinuous (s.regular head);
+\definition originalTuple[p: Domain]: Family.Point := Pullback.map (tuple p);
+\definition originalTupleContinuous: topology.Continuity[A := Domain, B := Family.Point].Continuous topology bundle.totalSpace originalTuple :=
+  topology.Composition[A := Domain, B := PulledFamily.Point, C := Family.Point].composeContinuous topology Koszul.pulled.totalSpace bundle.totalSpace tuple Pullback.map tupleContinuous Pullback.mapContinuous;
+\import Operations.DirectSum[X := X, F := F, G := F, left := bundle, right := bundle] \as PairBundle;
+\import Bundles.Family[X := X, F := PairBundle.Fiber] \as PairFamily;
+\definition pair[p: Domain]: PairFamily.Point := PairFamily.include p.base (std.Data[].Pair[].pair (F p.base) (F p.base) p.vector (s.value head (center p)));
+\definition pairContinuous: topology.Continuity[A := Domain, B := PairFamily.Point].Continuous topology PairBundle.topology pair :=
+  PairBundle.Universal[Y := Domain].continuous topology pair
+    (topology.Continuity[A := Total, B := Total].Restriction[S := subset].restrictContinuous bundle.totalSpace bundle.totalSpace reconstructed reconstructedContinuous)
+    originalTupleContinuous;
+\definition value[p: Domain]: C.Complex := (covector p) (\fun (i: Fin.Fin one) => s.value i (center p));
+\definition continuous: topology.Continuity[A := Domain, B := C.Complex].Continuous topology Scalars.scalar.topological.space value :=
+  topology.Composition[A := Domain, B := PairFamily.Point, C := C.Complex].composeContinuous topology PairBundle.topology Scalars.scalar.topological.space pair (Complement.evaluation metric.form) pairContinuous metric.continuous;

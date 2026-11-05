@@ -1,0 +1,33 @@
+\import \root.Thom[].Algebra[V := Fiber p, space := pulled.space p] \as Algebra;
+\import Spaces.Multilinear[V := Fiber p, space := pulled.space p].Alternating[] \as Forms;
+\import Spaces.Multilinear[V := Fiber p, space := pulled.space p] \as Multilinear;
+\import Spaces.Exterior[V := Fiber p, space := pulled.space p] \as Exterior;
+\import Family.Of[bundle := bundle] \as OriginalBundle;
+\definition normalizedExists: Logic.Not (p.vector = (bundle.space p.base).zero) -> \exists Algebra.Normalized p.vector := \block {
+  \fun (nonzero: _) \then
+  \takefrom frame: OriginalBundle.Frame (OriginalBundle.rank p.base) p.base \by
+    \bysub(N.Nat^, OriginalBundle.RankAt p.base, OriginalBundle.rank p.base) \then
+  \return Algebra.InCoordinates[n := OriginalBundle.rank p.base, frame := frame].existence p.vector nonzero
+};
+\definition exact: \forall (k: N.Nat^)(omega: Term k p) -> Logic.Not (p.vector = (bundle.space p.base).zero) ->
+  Algebra.Closed k p.vector omega -> \exists (eta: Term (N.Nat^::succ k) p \where
+    (\parent.Degree[k := k].differential.fiber p).apply eta = omega) := \block {
+  \fun (k: N.Nat^)(omega: Term k p)(nonzero: _)(closed: _) \then
+  \takefrom ell: Algebra.Normalized p.vector \by normalizedExists nonzero \then
+  \return Logic.existsIntro[Term (N.Nat^::succ k) p, { eta: Term (N.Nat^::succ k) p \where
+    (\parent.Degree[k := k].differential.fiber p).apply eta = omega }]
+    (Algebra.Exact[k := k, v := p.vector, ell := ell, normalized := \bysub(Forms.Form Algebra.one, Algebra.Normalized p.vector, ell)].primitive omega)
+    (Algebra.Exact[k := k, v := p.vector, ell := ell, normalized := \bysub(Forms.Form Algebra.one, Algebra.Normalized p.vector, ell)].equation omega closed)
+};
+\definition closedAtZero: \forall (omega: Term N.Nat^::zero p) -> Algebra.Closed N.Nat^::zero p.vector omega :=
+  \fun (omega: Term N.Nat^::zero p)(xs: std.Data[].List[].List[Fiber p]) =>
+    Spaces.Exterior[V := Fiber p, space := pulled.space p].ZeroHeads[].nonempty omega p.vector xs;
+\definition closedAtSuccessor: \forall (k: N.Nat^)(omega: Term (N.Nat^::succ k) p) ->
+  (\parent.Degree[k := k].differential.fiber p).apply omega = ((term k).space p).zero ->
+  Algebra.Closed (N.Nat^::succ k) p.vector omega :=
+  \fun (k: N.Nat^)(omega: Term (N.Nat^::succ k) p)(closed: _)(xs: std.Data[].List[].List[Fiber p]) =>
+    trans!{{C.Complex}} _ _ _
+      (Spaces.Exterior[V := Fiber p, space := pulled.space p].SeriesShift[k := k].atCons omega p.vector xs)
+      (trans!{{C.Complex}} _ _ _
+        (congr!{{Term k p} {C.Complex}} (\fun (eta: Term k p) => Exterior.component k eta xs) _ _ closed)
+        (Multilinear.ListSeries[k := k].zeroComponent xs));

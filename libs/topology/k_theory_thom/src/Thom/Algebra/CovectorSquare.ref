@@ -1,0 +1,27 @@
+\use Equality.eq_reason_in;
+\definition q: Shuffle.Function := Covectors.value f;
+\definition right: \forall (v: V)(xs: Lists.List[V]) -> Shuffle.product q (Shuffle.shift v q) xs = Op.mul (f v) (q xs) :=
+  \fun (v: V)(xs: Lists.List[V]) => eq_reason_in!{{C.Complex} _
+    "=" { Shuffle.product q (Shuffle.scale (f v) Shuffle.unit) xs } "by" {
+      congr!{{Shuffle.Function} {C.Complex}} (\fun (g: Shuffle.Function) => Shuffle.product q g xs) _ _ (Covectors.shifted f v) }
+    "=" { Op.mul (f v) (Shuffle.product q Shuffle.unit xs) } "by" { Products.scalarRight (f v) q Shuffle.unit xs }
+    "=" _ "by" { congr!{{C.Complex} {C.Complex}} (Op.mul (f v)) _ _ (Products.rightUnit xs q) }
+  };
+\definition negative: \forall (v: V)(xs: Lists.List[V]) ->
+  Shuffle.product (Shuffle.twist q) (Shuffle.shift v q) xs = Op.neg (Op.mul (f v) (q xs)) :=
+  \fun (v: V)(xs: Lists.List[V]) => eq_reason_in!{{C.Complex} _
+    "=" { Shuffle.product (Shuffle.Alternation[].negative q) (Shuffle.shift v q) xs } "by" {
+      congr!{{Shuffle.Function} {C.Complex}} (\fun (g: Shuffle.Function) => Shuffle.product g (Shuffle.shift v q) xs) _ _ (Covectors.twisted f) }
+    "=" { Op.neg (Shuffle.product q (Shuffle.shift v q) xs) } "by" { Shuffle.Alternation[].productNegativeLeft q (Shuffle.shift v q) xs }
+    "=" _ "by" { congr!{{C.Complex} {C.Complex}} Op.neg _ _ (right v xs) }
+  };
+\definition equation: \forall (xs: Lists.List[V]) -> Shuffle.product q q xs = Op.zero :=
+  \induction (xs: Lists.List[V]) \return Shuffle.product q q xs = Op.zero \with {
+    | nil: trans!{{C.Complex}} _ _ _ (Shuffle.atEmpty q q) (Laws.mulZeroLeft Op.zero)
+    | cons: \fun (v: V)(xs: Lists.List[V])(unused: _) => eq_reason_in!{{C.Complex} _
+      "=" { Op.add (Shuffle.product (Shuffle.shift v q) q xs) (Shuffle.product (Shuffle.twist q) (Shuffle.shift v q) xs) } "by" { Shuffle.atCons v xs q q }
+      "=" { Op.add (Op.mul (f v) (q xs)) (Op.neg (Op.mul (f v) (q xs))) } "by" {
+        congr!{{C.Complex} {C.Complex} {C.Complex}} Op.add _ _ _ _ (Covectors.leftProduct f q v xs) (negative v xs) }
+      "=" _ "by" { Laws.addNegRight (Op.mul (f v) (q xs)) }
+    }
+  };

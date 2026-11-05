@@ -1,0 +1,54 @@
+\use Equality.eq_reason_in;
+\import \root.Thom[].ComplexProductClifford[V := F x, W := G x, firstSpace := first.space x, secondSpace := second.space x] \as Algebra;
+\import Algebra.With[c := fiberData c x, laws := laws x] \as Symbol;
+\import Symbol.Graded[grading := grading.fiber x, gradingSquare := gradingSquare x, anticommutes := anticommutes x] \as Graded;
+\import Operations.TensorEquality[V := F x, W := G x, U := Tensor.Fiber x, left := first.space x, right := second.space x, target := Tensor.fiberSpace x] \as EqualityOnPure;
+\definition parityEquation: \forall (z: Tensor.Fiber x) -> (parity.fiber x).apply z = Graded.parity.apply z :=
+  EqualityOnPure.pointwise (parity.fiber x) Graded.parity
+    (\fun (v: F x)(w: G x) => trans!{{Tensor.Fiber x}} _ _ _ (Mapping.onPure c.grading grading x v w)
+      (sym!{{Tensor.Fiber x}} _ _ (Graded.onPure v w)));
+\definition operatorEquation: \forall (z: Tensor.Fiber x) -> (operator.fiber x).apply z = Symbol.operator.apply z :=
+  EqualityOnPure.pointwise (operator.fiber x) Symbol.operator
+    (\fun (v: F x)(w: G x) => trans!{{Tensor.Fiber x}} _ _ _ (onPure x v w)
+      (sym!{{Tensor.Fiber x}} _ _ (Symbol.onPure v w)));
+\import Bundles.Isomorphisms[X := X, F := Tensor.Fiber, G := Split.Fiber, source := bundle, target := Split.bundle same] \as Decompositions;
+\definition decompositionAt: Spaces.Isomorphism[V := Tensor.Fiber x, W := Split.Fiber x, source := Tensor.fiberSpace x, target := Split.fiberSpace x].Isomorphism :=
+  Spaces.Isomorphism[V := Tensor.Fiber x, W := Split.Fiber x, source := Tensor.fiberSpace x, target := Split.fiberSpace x].Isomorphism {
+    forward := decomposition.forward.fiber x, backward := decomposition.backward.fiber x,
+    leftInverse := (\bysub(Decompositions.Data, Decompositions.Isomorphism, decomposition)).leftInverse x,
+    rightInverse := (\bysub(Decompositions.Data, Decompositions.Isomorphism, decomposition)).rightInverse x
+  };
+\import Graded.Decomposed[U := U x, T := T x, even := even.space x, odd := odd.space x, decomposition := decompositionAt] \as Blocks;
+\definition blockCompatible: Blocks.Compatible := \fun (z: Tensor.Fiber x) => trans!{{Split.Fiber x}} _ _ _
+  (congr!{{Tensor.Fiber x} {Split.Fiber x}} (decomposition.forward.fiber x).apply _ _ (sym!{{Tensor.Fiber x}} _ _ (parityEquation z))) (compatible x z);
+\import C.Prop[] \as ComplexLaws;
+\definition nonzero: Scalar.NonZero (Scalar.add (c.a x) (c.b x)) := \fun (zero: Scalar.add (c.a x) (c.b x) = Scalar.zero) => ComplexLaws.zeroNeOne
+  (trans!{{C.Complex}} _ _ _ (sym!{{C.Complex}} _ _ (ComplexLaws.mulZeroRight (reciprocal x)))
+    (trans!{{C.Complex}} _ _ _ (congr!{{C.Complex} {C.Complex}} (Scalar.mul (reciprocal x)) _ _ (sym!{{C.Complex}} _ _ zero)) (inverseLaw x)));
+\definition norm: C.Complex := Scalar.add (c.a x) (c.b x);
+\definition normInverse: C.Complex := Scalar.inv norm;
+\definition reciprocalEquation: reciprocal x = normInverse := eq_reason_in!{{C.Complex} _
+  "=" { Scalar.mul (reciprocal x) Scalar.one } "by" { sym!{{C.Complex}} _ _ (ComplexLaws.mulOneRight (reciprocal x)) }
+  "=" { Scalar.mul (reciprocal x) (Scalar.mul norm normInverse) } "by" {
+    congr!{{C.Complex} {C.Complex}} (Scalar.mul (reciprocal x)) _ _ (sym!{{C.Complex}} _ _ (ComplexLaws.inverseNonzeroRight norm nonzero)) }
+  "=" { Scalar.mul (Scalar.mul (reciprocal x) norm) normInverse } "by" { sym!{{C.Complex}} _ _ (ComplexLaws.mulAssoc (reciprocal x) norm normInverse) }
+  "=" { Scalar.mul Scalar.one normInverse } "by" { congr!{{C.Complex} {C.Complex}} (\fun (a: C.Complex) => Scalar.mul a normInverse) _ _ (inverseLaw x) }
+  "=" _ "by" { ComplexLaws.mulOneLeft normInverse }
+};
+\import Blocks.With[compatible := blockCompatible].Invertible[nonzero := nonzero] \as Inverse;
+\definition forwardEquation[v: U x]: (forward.fiber x).apply v = Inverse.isomorphism.forward.apply v :=
+  trans!{{T x}} _ _ _
+    (congr!{{Tensor.Fiber x} {T x}} (projectOdd.fiber x).apply _ _ (operatorEquation ((embedEven.fiber x).apply v)))
+    (sym!{{T x}} _ _ (Inverse.forwardFormula v));
+\definition backwardEquation[v: T x]: (backward.fiber x).apply v = Inverse.isomorphism.backward.apply v :=
+  trans!{{U x}} _ _ _
+    (congr!{{Tensor.Fiber x} {U x}} (projectEven.fiber x).apply _ _
+      (congr!{{C.Complex} {Tensor.Fiber x} {Tensor.Fiber x}} (Tensor.fiberSpace x).smul _ _ _ _ reciprocalEquation (operatorEquation ((embedOdd.fiber x).apply v))))
+    (sym!{{U x}} _ _ (Inverse.backwardFormula v));
+\import Spaces.Isomorphism[V := U x, W := T x, source := even.space x, target := odd.space x] \as Isomorphisms;
+\definition left[v: U x]: (backward.fiber x).apply ((forward.fiber x).apply v) = v :=
+  trans!{{U x}} _ _ _ (backwardEquation ((forward.fiber x).apply v))
+    (trans!{{U x}} _ _ _ (congr!{{T x} {U x}} Inverse.isomorphism.backward.apply _ _ (forwardEquation v)) ((Isomorphisms.laws Inverse.isomorphism).leftInverse v));
+\definition right[v: T x]: (forward.fiber x).apply ((backward.fiber x).apply v) = v :=
+  trans!{{T x}} _ _ _ (forwardEquation ((backward.fiber x).apply v))
+    (trans!{{T x}} _ _ _ (congr!{{U x} {T x}} Inverse.isomorphism.forward.apply _ _ (backwardEquation v)) ((Isomorphisms.laws Inverse.isomorphism).rightInverse v));

@@ -1,0 +1,28 @@
+\import Bundles.Trivial[X := X, n := one, baseSpace := baseSpace] \as Original;
+\import Bundles.Trivial[X := X, n := N.Nat^::zero, baseSpace := baseSpace] \as Empty;
+\import Operations.Alternating[X := X, F := (\fun (x: X) => Bundles.Vector one), bundle := Original.bundle, k := degree] \as FormsBundle;
+\import FormsBundle.In[c := Original.trivialization, enumeration := enumeration] \as Global;
+\definition dimension: Global.dimension = N.Nat^::zero := \refl(N.Nat^::zero);
+\import bundle_homotopy.Homotopy[].Over[K := C.Complex, field := C.Algebra[].field,
+  conjugation := linear_algebra.Hermitian[].Complex[].scalar, scalar := Scalars.scalar].ChartPullback[
+  X := X, F := FormsBundle.Fiber, bundle := FormsBundle.alternating, chart := Global.trivialization,
+  Y := X, source := baseSpace, f := (\fun (x: X) => x),
+  continuous := topology.Maps[A := X, B := X].Identity[].continuous baseSpace,
+  inside := (\fun (x: X) => \refl(x))] \as Chart;
+\import Bundles.Family[X := X, F := FormsBundle.Fiber].Of[bundle := FormsBundle.alternating].PullbackIdentity[] \as Identity;
+\import Operations.IsomorphismComposition[X := X, F := FormsBundle.Fiber, G := FormsBundle.Fiber,
+  H := (\fun (x: X) => Bundles.Vector N.Nat^::zero), source := FormsBundle.alternating,
+  middle := Chart.pulledBundle, target := Empty.bundle] \as Composition;
+\import Bundles.Isomorphisms[X := X, F := FormsBundle.Fiber, G := (\fun (x: X) => Bundles.Vector N.Nat^::zero),
+  source := FormsBundle.alternating, target := Empty.bundle] \as Maps;
+\definition isomorphism: Maps.Isomorphism := Composition.compose Identity.isomorphism Chart.isomorphism;
+\definition emptyUnique: \forall (v: Bundles.Vector N.Nat^::zero) -> v = (Bundles.coordinates N.Nat^::zero).zero :=
+  \fun (v: Bundles.Vector N.Nat^::zero) => \axiom:funext(v, (Bundles.coordinates N.Nat^::zero).zero,
+    \fun (i: Fin.Fin N.Nat^::zero) => Logic.falseElim _ (Fin.zeroImpossible i (Fin.bound N.Nat^::zero i)));
+\definition zero: \forall (x: X)(omega: FormsBundle.Fiber x) -> omega = (FormsBundle.fiberSpace x).zero :=
+  \fun (x: X)(omega: FormsBundle.Fiber x) => trans!{{FormsBundle.Fiber x}} _ _ _
+    (sym!{{FormsBundle.Fiber x}} _ _ ((\bysub(Maps.Data, Maps.Isomorphism, isomorphism)).leftInverse x omega))
+    (trans!{{FormsBundle.Fiber x}} _ _ _
+      (congr!{{Bundles.Vector N.Nat^::zero} {FormsBundle.Fiber x}} (isomorphism.backward.fiber x).apply _ _
+        (emptyUnique ((isomorphism.forward.fiber x).apply omega)))
+      (isomorphism.backward.fiber x).preservesZero);

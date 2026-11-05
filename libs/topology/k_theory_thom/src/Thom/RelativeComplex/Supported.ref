@@ -1,0 +1,40 @@
+\definition boundaryExact: Acyclic.Exact := \fun (x: Pair.A) =>
+  Operations.AcyclicCoordinates[n := even.ranks x, m := odd.ranks x,
+    d := Chain.parity.forward.fiber x, e := Chain.parity.backward.fiber x].Exact {
+    squareEven := Chain.squareZero.left x,
+    squareOdd := Chain.squareZero.right x,
+    even := \fun (v: _) => (exact x).left v (\bysub(Even x, { v: Even x \where
+      (Chain.parity.forward.fiber x).apply v = ((Models.bundle odd).space x).zero }, v)),
+    odd := \fun (v: _) => (exact x).right v (\bysub(Odd x, { v: Odd x \where
+      (Chain.parity.backward.fiber x).apply v = ((Models.bundle even).space x).zero }, v))
+  };
+\definition existence: \exists Acyclic.Contraction := Acyclic.With[exact := boundaryExact].existence;
+\module With(contraction: Acyclic.Contraction);
+\module Choices(first, second: Acyclic.Contraction);
+\definition Values: \Set := \Cast[Pair.Quotient[].Relative] ({ v: Pair.Quotient[].Relative \where
+  \exists (c: Acyclic.Contraction \where With[contraction := c].value = v) });
+\definition existsValue: \exists Values := \block {
+  \takefrom c: Acyclic.Contraction \by existence \then
+  \return Logic.existsIntro[Pair.Quotient[].Relative, { v: Pair.Quotient[].Relative \where
+    \exists (c: Acyclic.Contraction \where With[contraction := c].value = v) }]
+    With[contraction := c].value (Logic.existsIntro[Acyclic.Contraction, { d: Acyclic.Contraction \where
+      With[contraction := d].value = With[contraction := c].value }] c (\refl(With[contraction := c].value)))
+};
+\definition unique: \forall (u, v: Values) -> u = v := \block {
+  \fun (u, v: Values) \then
+  \takefrom c: \Cast[Acyclic.Contraction] ({ c: Acyclic.Contraction \where With[contraction := c].value = u }) \by
+    \bysub(Pair.Quotient[].Relative, Values, u) \then
+  \takefrom d: \Cast[Acyclic.Contraction] ({ d: Acyclic.Contraction \where With[contraction := d].value = v }) \by
+    \bysub(Pair.Quotient[].Relative, Values, v) \then
+  \return trans!{{Pair.Quotient[].Relative}} _ _ _
+    (sym!{{Pair.Quotient[].Relative}} _ _ (\bysub(Acyclic.Contraction, { c: Acyclic.Contraction \where With[contraction := c].value = u }, c)))
+    (trans!{{Pair.Quotient[].Relative}} _ _ _ Choices[first := c, second := d].equation
+      (\bysub(Acyclic.Contraction, { d: Acyclic.Contraction \where With[contraction := d].value = v }, d)))
+};
+\definition value: Values := \choice Values \by { existence: existsValue, uniqueness: unique };
+\definition agreement: \forall (c: Acyclic.Contraction) -> value = With[contraction := c].value :=
+  \fun (c: Acyclic.Contraction) => unique value
+    (\into[Pair.Quotient[].Relative](With[contraction := c].value, Values) \by {
+      Logic.existsIntro[Acyclic.Contraction, { d: Acyclic.Contraction \where With[contraction := d].value = With[contraction := c].value }]
+        c (\refl(With[contraction := c].value))
+    });

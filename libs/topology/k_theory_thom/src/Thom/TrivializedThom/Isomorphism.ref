@@ -1,0 +1,26 @@
+\import topological_k_theory.KTheory[].On[X := X, baseSpace := bundle.baseSpace, compact := compact, hausdorff := hausdorff].K0[] \as K;
+\import topological_k_theory.KTheory[].On[X := X, baseSpace := bundle.baseSpace, compact := compact, hausdorff := hausdorff].IdentityPullback[] \as Identity;
+\definition coefficientIdentity: \forall (a: K.Carrier) -> Change.coefficient a = a := Identity.onK0;
+\import periodic_k_theory.Periodicity[] \as Periodicity;
+\import Trivial.Isomorphism[] \as Native;
+\import Relative.Equivalence[source := model, target := Trivial.model].With[e := Change.Inverse[].equivalence].Groups[] \as Groups;
+\definition geometric: Periodicity.Isomorphism[A := Trivial.Carrier, B := Carrier,
+  source := Relative.Reduced[model := Trivial.model].group, target := Relative.Reduced[model := model].group].Data :=
+  Periodicity.Isomorphism[A := Trivial.Carrier, B := Carrier, source := Relative.Reduced[model := Trivial.model].group, target := Relative.Reduced[model := model].group].Data {
+    forward := Groups.forward, backward := Groups.backward, leftInverse := Groups.rightInverse, rightInverse := Groups.leftInverse,
+    forwardAdd := Groups.forwardAdd, backwardAdd := Groups.backwardAdd, forwardZero := Groups.forwardZero, backwardZero := Groups.backwardZero
+  };
+\import Periodicity.Isomorphism[A := K.Carrier, B := Trivial.Carrier, source := K.group, target := Relative.Reduced[model := Trivial.model].group]
+  .Compose[C := Carrier, last := Relative.Reduced[model := model].group, first := Native.data, second := geometric] \as Composite;
+\definition factorization: \forall (a: K.Carrier) -> Composite.data.forward a = Theory.forward a :=
+  \fun (a: K.Carrier) => trans!{Carrier} _ _ _ (Change.forwardNaturality a)
+    (congr!{{K.Carrier} Carrier} Theory.forward _ _ (coefficientIdentity a));
+\definition data: Periodicity.Isomorphism[A := K.Carrier, B := Carrier, source := K.group, target := Relative.Reduced[model := model].group].Data :=
+  Periodicity.Isomorphism[A := K.Carrier, B := Carrier, source := K.group, target := Relative.Reduced[model := model].group].Data {
+    forward := Theory.forward, backward := Composite.data.backward,
+    leftInverse := \fun (a: K.Carrier) => trans!{{K.Carrier}} _ _ _
+      (congr!{Carrier {K.Carrier}} Composite.data.backward _ _ (sym!{Carrier} _ _ (factorization a))) (Composite.data.leftInverse a),
+    rightInverse := \fun (u: Carrier) => trans!{Carrier} _ _ _ (sym!{Carrier} _ _ (factorization (Composite.data.backward u))) (Composite.data.rightInverse u),
+    forwardAdd := Theory.additive, backwardAdd := Composite.data.backwardAdd,
+    forwardZero := trans!{Carrier} _ _ _ (sym!{Carrier} _ _ (factorization K.zero)) Composite.data.forwardZero, backwardZero := Composite.data.backwardZero
+  };

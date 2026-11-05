@@ -1,0 +1,33 @@
+\use Equality.eq_reason_in;
+\definition firstTerm: Tensor.Carrier := Tensor.tensor (c.first.apply (c.first.apply v)) w;
+\definition secondTerm: Tensor.Carrier := Tensor.tensor (c.grading.apply (c.first.apply v)) (c.second.apply w);
+\definition thirdTerm: Tensor.Carrier := Tensor.tensor (c.first.apply (c.grading.apply v)) (c.second.apply w);
+\definition fourthTerm: Tensor.Carrier := Tensor.tensor (c.grading.apply (c.grading.apply v)) (c.second.apply (c.second.apply w));
+\definition cross: Tensor.plus secondTerm thirdTerm = Tensor.origin :=
+  trans!{{Tensor.Carrier}} _ _ _
+    (sym!{{Tensor.Carrier}} _ _ (Tensor.bilinear.addLeft (c.grading.apply (c.first.apply v)) (c.first.apply (c.grading.apply v)) (c.second.apply w)))
+    (trans!{{Tensor.Carrier}} _ _ _
+      (congr!{V {Tensor.Carrier}} (\fun (z: V) => Tensor.tensor z (c.second.apply w)) _ _ (laws.anticommutes v)) (Factors.zeroLeft (c.second.apply w)));
+\definition firstSquare: firstTerm = Tensor.scale c.a (Tensor.tensor v w) :=
+  trans!{{Tensor.Carrier}} _ _ _ (congr!{V {Tensor.Carrier}} (\fun (z: V) => Tensor.tensor z w) _ _ (laws.firstSquare v)) (Tensor.bilinear.scaleLeft c.a v w);
+\definition secondSquare: fourthTerm = Tensor.scale c.b (Tensor.tensor v w) :=
+  trans!{{Tensor.Carrier}} _ _ _
+    (congr!{V W {Tensor.Carrier}} Tensor.tensor _ _ _ _ (laws.gradingSquare v) (laws.secondSquare w)) (Tensor.bilinear.scaleRight c.b v w);
+\definition equation: operator.apply (operator.apply (Tensor.tensor v w)) = Tensor.scale (Scalar.add c.a c.b) (Tensor.tensor v w) :=
+  eq_reason_in!{{Tensor.Carrier} _
+    "=" { operator.apply (Tensor.plus (Tensor.tensor (c.first.apply v) w) (Tensor.tensor (c.grading.apply v) (c.second.apply w))) } "by" {
+      congr!{{Tensor.Carrier} {Tensor.Carrier}} operator.apply _ _ (onPure v w) }
+    "=" { Tensor.plus (operator.apply (Tensor.tensor (c.first.apply v) w)) (operator.apply (Tensor.tensor (c.grading.apply v) (c.second.apply w))) } "by" {
+      operator.preservesAdd (Tensor.tensor (c.first.apply v) w) (Tensor.tensor (c.grading.apply v) (c.second.apply w)) }
+    "=" { Tensor.plus (Tensor.plus firstTerm secondTerm) (Tensor.plus thirdTerm fourthTerm) } "by" {
+      congr!{{Tensor.Carrier} {Tensor.Carrier} {Tensor.Carrier}} Tensor.plus _ _ _ _ (onPure (c.first.apply v) w) (onPure (c.grading.apply v) (c.second.apply w)) }
+    "=" { Tensor.plus (Tensor.plus firstTerm fourthTerm) (Tensor.plus secondTerm thirdTerm) } "by" {
+      trans!{{Tensor.Carrier}} _ _ _
+        (congr!{{Tensor.Carrier} {Tensor.Carrier}} (Tensor.plus (Tensor.plus firstTerm secondTerm)) _ _ (TensorLaws.comm thirdTerm fourthTerm))
+        (TensorLaws.shuffle firstTerm secondTerm fourthTerm thirdTerm) }
+    "=" { Tensor.plus (Tensor.plus (Tensor.scale c.a (Tensor.tensor v w)) (Tensor.scale c.b (Tensor.tensor v w))) Tensor.origin } "by" {
+      congr!{{Tensor.Carrier} {Tensor.Carrier} {Tensor.Carrier}} Tensor.plus _ _ _ _
+        (congr!{{Tensor.Carrier} {Tensor.Carrier} {Tensor.Carrier}} Tensor.plus _ _ _ _ firstSquare secondSquare) cross }
+    "=" { Tensor.plus (Tensor.scale c.a (Tensor.tensor v w)) (Tensor.scale c.b (Tensor.tensor v w)) } "by" { TensorLaws.zeroRight _ }
+    "=" _ "by" { sym!{{Tensor.Carrier}} _ _ (Tensor.space.scalarAdd c.a c.b (Tensor.tensor v w)) }
+  };

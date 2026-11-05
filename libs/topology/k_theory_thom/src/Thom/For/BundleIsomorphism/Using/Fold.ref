@@ -1,0 +1,48 @@
+\import \root.Thom[].Finite[X := TargetKoszul.Total, baseSpace := target.totalSpace].Family[
+  term := OldModel.model, differential := OldModel.differential,
+  domain := topology.Topology[Carrier := TargetKoszul.Total].Complement TargetKoszul.ZeroSection]
+  .Pullback[Y := Koszul.Total, targetSpace := bundle.totalSpace, f := Natural.total, regular := Natural.continuous] \as Pull;
+\import \root.Thom[].Finite[X := Koszul.Total, baseSpace := bundle.totalSpace] \as Finite;
+\definition termIso[k: N.Nat^]: Finite.Iso (Pull.pulledTerm k) (SourceModel.model k) :=
+  Bundles.Isomorphisms[X := Koszul.Total, F := Models.Fiber (Pull.pulledTerm k).ranks,
+    G := SourceModel.Vector k, source := Models.bundle (Pull.pulledTerm k), target := Models.bundle (SourceModel.model k)].Isomorphism {
+    forward := Models.identity (Pull.pulledTerm k), backward := Models.identity (Pull.pulledTerm k),
+    leftInverse := \fun (p: Koszul.Total)(v: Models.Fiber (Pull.pulledTerm k).ranks p) => \refl(v),
+    rightInverse := \fun (p: Koszul.Total)(v: SourceModel.Vector k p) => \refl(v)
+  };
+\definition termCommutes: \forall (k: N.Nat^)(p: Koszul.Total)(v: Models.Fiber (Pull.pulledTerm (N.Nat^::succ k)).ranks p) ->
+  ((SourceModel.differential k).fiber p).apply (((termIso (N.Nat^::succ k)).forward.fiber p).apply v) =
+  ((termIso k).forward.fiber p).apply (((Pull.pulledDifferential k).fiber p).apply v) :=
+  \fun (k: N.Nat^) => \parent.Differential[k := k].equation;
+\import Finite.Family[term := Pull.pulledTerm, differential := Pull.pulledDifferential,
+  domain := topology.Topology[Carrier := Koszul.Total].Complement Koszul.ZeroSection]
+  .Comparison[targetTerm := SourceModel.model, targetDifferential := SourceModel.differential,
+    isomorphism := termIso, commutes := termCommutes] \as Change;
+\import TargetSupport.FiniteComplexes[].Of[complex := First.complex] \as OldClass;
+\import Supported.FiniteComplexes[].Of[complex := Second.complex] \as NewClass;
+\import OldModels.Pullback[b := OldClass.even, Y := Koszul.Total, source := bundle.totalSpace,
+  f := Natural.total, regular := Natural.continuous] \as PositivePull;
+\import OldModels.Pullback[b := OldClass.odd, Y := Koszul.Total, source := bundle.totalSpace,
+  f := Natural.total, regular := Natural.continuous] \as NegativePull;
+\import Operations.IsomorphismComposition[X := Koszul.Total, F := (\fun (p: Koszul.Total) => OldClass.Even (Natural.total p)),
+  G := Models.Fiber (Pull.targetParity First.degree).even.ranks, H := NewClass.Even,
+  source := Models.bundle PositivePull.value, middle := Models.bundle (Pull.targetParity First.degree).even, target := Models.bundle NewClass.even] \as PositiveCompose;
+\definition positive: PositiveCompose.Isomorphism := PositiveCompose.compose (Pull.value First.degree).even (Change.value First.degree).even;
+\import Operations.IsomorphismComposition[X := Koszul.Total, F := (\fun (p: Koszul.Total) => OldClass.Odd (Natural.total p)),
+  G := Models.Fiber (Pull.targetParity First.degree).odd.ranks, H := NewClass.Odd,
+  source := Models.bundle NegativePull.value, middle := Models.bundle (Pull.targetParity First.degree).odd, target := Models.bundle NewClass.odd] \as NegativeCompose;
+\definition negative: NegativeCompose.Isomorphism := NegativeCompose.compose (Pull.value First.degree).odd (Change.value First.degree).odd;
+\definition forward: \forall (p: Koszul.Total)(v: OldClass.Even (Natural.total p)) ->
+  (NewClass.d.fiber p).apply ((positive.forward.fiber p).apply v) =
+  (negative.forward.fiber p).apply ((OldClass.d.fiber (Natural.total p)).apply v) :=
+  \fun (p: Koszul.Total)(v: OldClass.Even (Natural.total p)) => trans!{{NewClass.Odd p}} _ _ _
+    ((Change.value First.degree).forward p (((Pull.value First.degree).even.forward.fiber p).apply v))
+    (congr!{{Models.Fiber (Pull.targetParity First.degree).odd.ranks p} {NewClass.Odd p}}
+      ((Change.value First.degree).odd.forward.fiber p).apply _ _ ((Pull.value First.degree).forward p v));
+\definition backward: \forall (p: Koszul.Total)(v: OldClass.Odd (Natural.total p)) ->
+  (NewClass.e.fiber p).apply ((negative.forward.fiber p).apply v) =
+  (positive.forward.fiber p).apply ((OldClass.e.fiber (Natural.total p)).apply v) :=
+  \fun (p: Koszul.Total)(v: OldClass.Odd (Natural.total p)) => trans!{{NewClass.Even p}} _ _ _
+    ((Change.value First.degree).backward p (((Pull.value First.degree).odd.forward.fiber p).apply v))
+    (congr!{{Models.Fiber (Pull.targetParity First.degree).even.ranks p} {NewClass.Even p}}
+      ((Change.value First.degree).even.forward.fiber p).apply _ _ ((Pull.value First.degree).backward p v));

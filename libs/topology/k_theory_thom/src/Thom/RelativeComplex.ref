@@ -1,0 +1,27 @@
+\import Operations.Models[X := X, baseSpace := space] \as Models;
+\import Models.Chains[].Of[complex := complex] \as Chain;
+\import relative_k_theory.Relative[].Pair[X := X, space := space, compact := compact, hausdorff := hausdorff,
+  subset := subset, closed := closed] \as Pair;
+\definition even: Models.Bundle := Chain.parity.even;
+\definition odd: Models.Bundle := Chain.parity.odd;
+\definition Even[x: X]: \Set := Models.Fiber even.ranks x;
+\definition Odd[x: X]: \Set := Models.Fiber odd.ranks x;
+\definition firstModel: Pair.BundleModel[F := Even].Bundle := Pair.BundleModel[F := Even].From[original := Models.bundle even, same := (\refl(space))].model;
+\definition secondModel: Pair.BundleModel[F := Odd].Bundle := Pair.BundleModel[F := Odd].From[original := Models.bundle odd, same := (\refl(space))].model;
+\definition inclusion[x: Pair.A]: X := x;
+\definition inclusionContinuous: topology.Continuity[A := Pair.A, B := X].Continuous Pair.subspace space inclusion :=
+  topology.Continuity[A := Pair.A, B := X].Corestriction[S := subset].inclusionContinuous space;
+\import Models.Pullback[b := even, Y := Pair.A, source := Pair.subspace, f := inclusion, regular := inclusionContinuous] \as BoundaryEven;
+\import Models.Pullback[b := odd, Y := Pair.A, source := Pair.subspace, f := inclusion, regular := inclusionContinuous] \as BoundaryOdd;
+\import Models.PullbackMap[p := even, q := odd, Y := Pair.A, source := Pair.subspace, f := inclusion, regular := inclusionContinuous] \as D;
+\import Models.PullbackMap[p := odd, q := even, Y := Pair.A, source := Pair.subspace, f := inclusion, regular := inclusionContinuous] \as E;
+\definition boundaryCompact: topology.Topology[Carrier := Pair.A].IsCompact Pair.subspace :=
+  topology.Topology[Carrier := X].Subspace[S := subset].Properties[].compact space
+    (topology.Topology[Carrier := X].Compactness[].closedCompact space compact subset closed);
+\definition boundaryHausdorff: topology.Topology[Carrier := Pair.A].IsT2 Pair.subspace :=
+  topology.Topology[Carrier := X].Subspace[S := subset].Properties[].hausdorff space hausdorff;
+\import compact_support_k.Support[].CompactBundles[X := Pair.A, space := Pair.subspace,
+  compact := boundaryCompact, hausdorff := boundaryHausdorff] \as Boundary;
+\import Boundary.Acyclic[p := BoundaryEven.value, q := BoundaryOdd.value, d := D.map Chain.parity.forward, e := E.map Chain.parity.backward] \as Acyclic;
+\definition Exact: \Prop := \forall (x: Pair.A) -> Chain.ExactAt x;
+\module Supported(exact: Exact);

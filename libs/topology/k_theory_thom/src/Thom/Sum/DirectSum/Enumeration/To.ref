@@ -1,0 +1,24 @@
+\import Native.To[W := U, target := target] \as Universal;
+\definition extension: Modules.Hom[V := Carrier, W := U, source := space, target := target].Map := Universal.extension components;
+\import Modules.Sums[I := Bidegree].Vector[V := U, space := target] \as SumDegrees;
+\import Modules.Sums[I := Index].Vector[V := U, space := target] \as SumIndices;
+\import Modules.Sums[I := Bidegree].Vector[V := Carrier, space := space].Mapping[W := U, target := target] \as Mapping;
+\definition reindex: \forall (xs: Lists.List[Index])(f: Bidegree -> U) ->
+  SumDegrees.sum (Lists.map Index Bidegree at xs) f = SumIndices.sum xs (\fun (i: Index) => f (at i)) :=
+  \induction (xs: Lists.List[Index]) \return \forall (f: Bidegree -> U) ->
+    SumDegrees.sum (Lists.map Index Bidegree at xs) f = SumIndices.sum xs (\fun (i: Index) => f (at i)) \with {
+      | nil: \fun (f: Bidegree -> U) => \refl(target.zero)
+      | cons: \fun (head: Index)(tail: Lists.List[Index])
+        (previous: \forall (f: Bidegree -> U) -> SumDegrees.sum (Lists.map Index Bidegree at tail) f = SumIndices.sum tail (\fun (i: Index) => f (at i)))
+        (f: Bidegree -> U) => congr!{U U} (target.add (f (at head))) _ _ (previous f)
+    };
+\definition terms[v: Carrier][d: Bidegree]: Carrier := (Native.Injection[i := d].map).apply (coordinates v d);
+\definition formula[v: Carrier]: extension.apply v = SumIndices.sum (Fin.elements (N.Nat^::succ k))
+  (\fun (i: Index) => (components (at i)).apply (coordinates v (at i))) :=
+  trans!{U} _ _ _ (congr!{Carrier U} extension.apply _ _ (sym!{Carrier} _ _ (reconstruction v)))
+    (trans!{U} _ _ _ (Mapping.law extension labels (terms v))
+      (trans!{U} _ _ _
+        (SumDegrees.congruent labels (\fun (d: Bidegree) => extension.apply (terms v d))
+          (\fun (d: Bidegree) => (components d).apply (coordinates v d))
+          (\fun (d: Bidegree) => Universal.onInjection components d (coordinates v d)))
+        (reindex (Fin.elements (N.Nat^::succ k)) (\fun (d: Bidegree) => (components d).apply (coordinates v d)))));

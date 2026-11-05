@@ -1,0 +1,55 @@
+\use Equality.eq_reason_in;
+\import relative_k_theory.Relative[] \as Relative;
+\import topological_k_theory.KTheory[] \as KTheory;
+\import Relative.Smash[left := left, right := right] \as Smash;
+\import KTheory.On[X := source.Carrier, baseSpace := (Relative.details source).topology, compact := (Relative.details source).compact, hausdorff := (Relative.details source).hausdorff] \as SourceTheory;
+\import KTheory.On[X := Smash.model.Carrier, baseSpace := Smash.topology, compact := Smash.compact, hausdorff := Smash.hausdorff] \as WholeTheory;
+\import KTheory.On[X := Smash.result.Carrier, baseSpace := (Relative.details Smash.result).topology, compact := (Relative.details Smash.result).compact, hausdorff := (Relative.details Smash.result).hausdorff] \as ResultTheory;
+\import KTheory.On[X := left.Carrier, baseSpace := (Relative.details left).topology, compact := (Relative.details left).compact, hausdorff := (Relative.details left).hausdorff] \as LeftTheory;
+\import KTheory.On[X := right.Carrier, baseSpace := (Relative.details right).topology, compact := (Relative.details right).compact, hausdorff := (Relative.details right).hausdorff] \as RightTheory;
+\definition projectionRegular: topology.Continuity[A := Smash.model.Carrier, B := Smash.result.Carrier].Continuous Smash.topology (Relative.details Smash.result).topology Smash.projection :=
+  (algebraic_topology.Pointed[A := Smash.model.Carrier].Maps[B := Smash.result.Carrier].laws (Relative.pointed Smash.model) (Relative.pointed Smash.result) Smash.projection).continuous;
+\definition firstRegular: topology.Continuity[A := Smash.model.Carrier, B := left.Carrier].Continuous Smash.topology (Relative.details left).topology Smash.first :=
+  (algebraic_topology.Pointed[A := Smash.model.Carrier].Maps[B := left.Carrier].laws (Relative.pointed Smash.model) (Relative.pointed left) Smash.firstMap).continuous;
+\definition secondRegular: topology.Continuity[A := Smash.model.Carrier, B := right.Carrier].Continuous Smash.topology (Relative.details right).topology Smash.second :=
+  (algebraic_topology.Pointed[A := Smash.model.Carrier].Maps[B := right.Carrier].laws (Relative.pointed Smash.model) (Relative.pointed right) Smash.secondMap).continuous;
+\import ResultTheory.Pullback[Y := Smash.model.Carrier, space := Smash.topology, sourceCompact := Smash.compact, sourceHausdorff := Smash.hausdorff,
+  f := Smash.projection, regular := projectionRegular] \as Projection;
+\import LeftTheory.Pullback[Y := Smash.model.Carrier, space := Smash.topology, sourceCompact := Smash.compact, sourceHausdorff := Smash.hausdorff,
+  f := Smash.first, regular := firstRegular] \as First;
+\import RightTheory.Pullback[Y := Smash.model.Carrier, space := Smash.topology, sourceCompact := Smash.compact, sourceHausdorff := Smash.hausdorff,
+  f := Smash.second, regular := secondRegular] \as Second;
+\import WholeTheory.Pullback[Y := source.Carrier, space := (Relative.details source).topology, sourceCompact := (Relative.details source).compact,
+  sourceHausdorff := (Relative.details source).hausdorff, f := f, regular := regular] \as Whole;
+\import Projection.Composition[Z := source.Carrier, nextSpace := (Relative.details source).topology, nextCompact := (Relative.details source).compact,
+  nextHausdorff := (Relative.details source).hausdorff, g := f, nextRegular := regular] \as ProjectionComposition;
+\import First.Composition[Z := source.Carrier, nextSpace := (Relative.details source).topology, nextCompact := (Relative.details source).compact,
+  nextHausdorff := (Relative.details source).hausdorff, g := f, nextRegular := regular] \as FirstComposition;
+\import Second.Composition[Z := source.Carrier, nextSpace := (Relative.details source).topology, nextCompact := (Relative.details source).compact,
+  nextHausdorff := (Relative.details source).hausdorff, g := f, nextRegular := regular] \as SecondComposition;
+\import ResultTheory.Pullback[Y := source.Carrier, space := (Relative.details source).topology, sourceCompact := (Relative.details source).compact,
+  sourceHausdorff := (Relative.details source).hausdorff, f := (\fun (x: source.Carrier) => Smash.projection (f x)), regular := ProjectionComposition.compositeRegular].K0[] \as Pull;
+\import LeftTheory.Pullback[Y := source.Carrier, space := (Relative.details source).topology, sourceCompact := (Relative.details source).compact,
+  sourceHausdorff := (Relative.details source).hausdorff, f := (\fun (x: source.Carrier) => Smash.first (f x)), regular := FirstComposition.compositeRegular].K0[] \as LeftPull;
+\import RightTheory.Pullback[Y := source.Carrier, space := (Relative.details source).topology, sourceCompact := (Relative.details source).compact,
+  sourceHausdorff := (Relative.details source).hausdorff, f := (\fun (x: source.Carrier) => Smash.second (f x)), regular := SecondComposition.compositeRegular].K0[] \as RightPull;
+\import Relative.Reduced[model := left] \as Left;
+\import Relative.Reduced[model := right] \as Right;
+\import Relative.PairIteration[pair := Smash.pair].Sequence[degree := N.Nat^::zero] \as Sequence;
+\import SourceTheory.K0[] \as K;
+\import WholeTheory.K0[] \as WholeK;
+\import algebra.Hom[A := WholeK.Carrier, B := K.Carrier] \as Maps;
+\import std.Alg[].Ring[] \as Rings;
+\definition equation: \forall (a: Left.Carrier)(b: Right.Carrier) ->
+  Pull.map (Smash.External[].product a b) = K.mul (LeftPull.map a) (RightPull.map b) :=
+  \fun (a: Left.Carrier)(b: Right.Carrier) => eq_reason_in!{{K.Carrier} _
+    "=" { Whole.K0[].map (Projection.K0[].map (Smash.External[].product a b)) } "by" { ProjectionComposition.onK0 (Smash.External[].product a b) }
+    "=" { Whole.K0[].map (Smash.External[].forget (Smash.External[].product a b)) } "by" {
+      congr!{{WholeK.Carrier} {K.Carrier}} Whole.K0[].map _ _ (sym!{{WholeK.Carrier}} _ _ (Sequence.forgetFormula (Smash.External[].product a b))) }
+    "=" { Whole.K0[].map (WholeK.mul (First.K0[].map a) (Second.K0[].map b)) } "by" {
+      congr!{{WholeK.Carrier} {K.Carrier}} Whole.K0[].map _ _ (Smash.External[].formula a b) }
+    "=" { K.mul (Whole.K0[].map (First.K0[].map a)) (Whole.K0[].map (Second.K0[].map b)) } "by" {
+      (Maps.semiringLaws (Rings.ringAsSemiring WholeK.Carrier WholeK.ring) (Rings.ringAsSemiring K.Carrier K.ring) Whole.K0[].map).mul (First.K0[].map a) (Second.K0[].map b) }
+    "=" _ "by" { congr!{{K.Carrier} {K.Carrier} {K.Carrier}} K.mul _ _ _ _
+      (sym!{{K.Carrier}} _ _ (FirstComposition.onK0 a)) (sym!{{K.Carrier}} _ _ (SecondComposition.onK0 b)) }
+  };

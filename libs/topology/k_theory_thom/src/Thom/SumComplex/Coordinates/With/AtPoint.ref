@@ -1,0 +1,35 @@
+\import Raw.Exact[x := x] \as Original;
+\definition square: \forall (k: N.Nat^)(v: Vector (N.Nat^::succ (N.Nat^::succ k)) x) ->
+  ((differential k).fiber x).apply (((differential (N.Nat^::succ k)).fiber x).apply v) = ((Models.bundle (model k)).space x).zero :=
+  \fun (k: N.Nat^)(v: Vector (N.Nat^::succ (N.Nat^::succ k)) x) =>
+    trans!{{Vector k x}} _ _ _
+      (congr!{{Term (N.Nat^::succ k) x} {Vector k x}}
+        (\fun (omega: Term (N.Nat^::succ k) x) => (encode k x).apply ((Raw.Degree[k := k].differential.fiber x).apply omega)) _ _
+        (decodeEncode (N.Nat^::succ k) x ((Raw.Degree[k := N.Nat^::succ k].differential.fiber x).apply ((decode (N.Nat^::succ (N.Nat^::succ k)) x).apply v))))
+      (trans!{{Vector k x}} _ _ _
+        (congr!{{Term k x} {Vector k x}} (encode k x).apply _ _
+          (Raw.Degree[k := k].Square[].equation x ((decode (N.Nat^::succ (N.Nat^::succ k)) x).apply v)))
+        (encode k x).preservesZero);
+\definition rawClosed: \forall (k: N.Nat^)(v: Vector (N.Nat^::succ k) x) ->
+  ((differential k).fiber x).apply v = ((Models.bundle (model k)).space x).zero ->
+  (Raw.Degree[k := k].differential.fiber x).apply ((decode (N.Nat^::succ k) x).apply v) = ((term k).space x).zero :=
+  \fun (k: N.Nat^)(v: Vector (N.Nat^::succ k) x)(closed: _) =>
+    trans!{{Term k x}} _ _ _ (sym!{{Term k x}} _ _ (decodeEncode k x _))
+      (trans!{{Term k x}} _ _ _ (congr!{{Vector k x} {Term k x}} (decode k x).apply _ _ closed) (decode k x).preservesZero);
+\definition preimage: \forall (k: N.Nat^)(v: Vector k x) -> Logic.Not (section.value x = (sum.space x).zero) ->
+  Original.Closed k ((decode k x).apply v) ->
+  \exists (w: Vector (N.Nat^::succ k) x \where ((differential k).fiber x).apply w = v) := \block {
+  \fun (k: N.Nat^)(v: Vector k x)(nonzero: _)(closed: _) \then
+  \takefrom eta: \Cast[Term (N.Nat^::succ k) x] ({ eta: Term (N.Nat^::succ k) x \where
+    (Raw.Degree[k := k].differential.fiber x).apply eta = (decode k x).apply v }) \by Original.exact k ((decode k x).apply v) nonzero closed \then
+  \return Logic.existsIntro[Vector (N.Nat^::succ k) x, { w: Vector (N.Nat^::succ k) x \where ((differential k).fiber x).apply w = v }]
+    ((encode (N.Nat^::succ k) x).apply eta)
+    (trans!{{Vector k x}} _ _ _
+      (congr!{{Term (N.Nat^::succ k) x} {Vector k x}}
+        (\fun (omega: Term (N.Nat^::succ k) x) => (encode k x).apply ((Raw.Degree[k := k].differential.fiber x).apply omega)) _ _
+        (decodeEncode (N.Nat^::succ k) x eta))
+      (trans!{{Vector k x}} _ _ _
+        (congr!{{Term k x} {Vector k x}} (encode k x).apply _ _
+          (\bysub(Term (N.Nat^::succ k) x, { eta: Term (N.Nat^::succ k) x \where (Raw.Degree[k := k].differential.fiber x).apply eta = (decode k x).apply v }, eta)))
+        ((selection k).first.isomorphism.rightInverse x v)))
+};

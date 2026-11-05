@@ -1,0 +1,51 @@
+
+\import std.Data[].Bool[] \as B;
+\inductive Index: \forall (n: N.Nat^) -> \Set :=
+  | head: \forall (n: N.Nat^) -> Index n
+  | tail: \forall (n: N.Nat^) -> Index n -> Index (N.Nat^::succ n);
+\definition degree: \forall (n: N.Nat^) -> Index n -> N.Nat^ :=
+  \induction (n: N.Nat^)(s: Index n) \return N.Nat^ \with {
+    | head: \fun (n: N.Nat^) => n
+    | tail: \fun (n: N.Nat^)(s: Index n)(previous: N.Nat^) => previous
+  };
+\definition flip: B.Bool^ -> B.Bool^ := \induction (b: B.Bool^) \return B.Bool^ \with {
+  | false: B.Bool^::true
+  | true: B.Bool^::false
+};
+\definition even: \forall (n: N.Nat^) -> Index n -> B.Bool^ :=
+  \induction (n: N.Nat^)(s: Index n) \return B.Bool^ \with {
+    | head: \fun (n: N.Nat^) => B.Bool^::true
+    | tail: \fun (n: N.Nat^)(s: Index n)(previous: B.Bool^) => flip previous
+  };
+\definition flipTwice: \forall (b: B.Bool^) -> flip (flip b) = b := \induction (b: B.Bool^) \return flip (flip b) = b \with {
+  | false: \refl(B.Bool^::false)
+  | true: \refl(B.Bool^::true)
+};
+\import N.Basic[].Def[] \as Nat;
+\import N.Basic[].Prop[] \as Naturals;
+\import B.Prop[] \as Booleans;
+
+\definition branch[n: N.Nat^][previous: N.Nat^ -> Index n][i: N.Nat^]: B.Bool^ -> Index (N.Nat^::succ n) :=
+  \induction (test: B.Bool^) \return Index (N.Nat^::succ n) \with {
+    | false: Index::tail n (previous i)
+    | true: Index::head (N.Nat^::succ n)
+  };
+\definition rawLookup: \forall (n: N.Nat^) -> N.Nat^ -> Index n :=
+  \induction (n: N.Nat^) \return N.Nat^ -> Index n \with {
+    | zero: \fun (i: N.Nat^) => Index::head N.Nat^::zero
+    | succ: \fun (n: N.Nat^)(previous: N.Nat^ -> Index n)(i: N.Nat^) => branch n previous i (Nat.eqb i (N.Nat^::succ n))
+  };
+\module NextDegree(n: N.Nat^, previous: \forall (i: N.Nat^) -> Naturals.Le i n -> degree n (rawLookup n i) = i);
+\definition rawDegree: \forall (n, i: N.Nat^) -> Naturals.Le i n -> degree n (rawLookup n i) = i :=
+  \induction (n: N.Nat^) \return \forall (i: N.Nat^) -> Naturals.Le i n -> degree n (rawLookup n i) = i \with {
+    | zero: \fun (i: N.Nat^)(bound: Naturals.Le i N.Nat^::zero) => sym!{{N.Nat^}} _ _ (Naturals.leZeroEq i bound)
+    | succ: \fun (n: N.Nat^)(previous: \forall (i: N.Nat^) -> Naturals.Le i n -> degree n (rawLookup n i) = i) => NextDegree[n := n, previous := previous].result
+  };
+\definition lookup[n, i: N.Nat^][bound: Naturals.Le i n]: Index n := rawLookup n i;
+\definition lookupDegree: \forall (n, i: N.Nat^)(bound: Naturals.Le i n) -> degree n (lookup n i bound) = i :=
+  \fun (n, i: N.Nat^)(bound: Naturals.Le i n) => rawDegree n i bound;
+\definition degreeBound: \forall (n: N.Nat^)(s: Index n) -> Naturals.Le (degree n s) n :=
+  \induction (n: N.Nat^)(s: Index n) \return Naturals.Le (degree n s) n \with {
+    | head: \fun (n: N.Nat^) => Naturals.leRefl n
+    | tail: \fun (n: N.Nat^)(s: Index n)(previous: Naturals.Le (degree n s) n) => Naturals.leStep n (degree n s) previous
+  };

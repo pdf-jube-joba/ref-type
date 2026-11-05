@@ -1,0 +1,87 @@
+
+\use Equality.eq_reason_in;
+\import Chains.Step[first := first, second := second, differential := differential, tail := source] \as SourceStep;
+\import TargetChains.Step[first := firstTarget, second := secondTarget, differential := targetDifferential, tail := target] \as TargetStep;
+\import TargetFinite.SumComparison[first := pull first, second := pull source.odd, firstTarget := firstTarget, secondTarget := target.odd,
+  firstIso := headIso, secondIso := tail.odd] \as Blocks;
+\import Models.Sum[first := first, second := source.odd] \as SourceSum;
+\import TargetModels.Sum[first := firstTarget, second := target.odd] \as TargetSum;
+\import TargetModels.Sum[first := pull first, second := pull source.odd] \as Intermediate;
+\import \root.Thom[].ModelSumPullback[X := X, space := baseSpace, p := first, q := source.odd,
+  Y := Y, target := targetSpace, f := f, regular := regular] \as SumPullback;
+\definition sourceNext: Chains.Parity[first] := SourceStep.value;
+\definition targetNext: TargetChains.Parity[firstTarget] := TargetStep.value;
+\import Operations.IsomorphismComposition[X := Y,
+  F := (\fun (y: Y) => Models.Fiber sourceNext.even.ranks (f y)), G := TargetModels.Fiber Intermediate.value.ranks,
+  H := TargetModels.Fiber targetNext.even.ranks,
+  source := TargetModels.bundle (pull sourceNext.even), middle := TargetModels.bundle Intermediate.value,
+  target := TargetModels.bundle targetNext.even] \as Composition;
+\definition even: Iso sourceNext.even targetNext.even := Composition.compose SumPullback.isomorphism Blocks.isomorphism;
+\definition odd: Iso sourceNext.odd targetNext.odd := tail.even;
+\definition A[y: Y]: \Set := Models.Fiber first.ranks (f y);
+\definition B[y: Y]: \Set := Models.Fiber source.odd.ranks (f y);
+\definition C[y: Y]: \Set := TargetModels.Fiber firstTarget.ranks y;
+\definition D[y: Y]: \Set := TargetModels.Fiber target.odd.ranks y;
+\definition V[y: Y]: \Set := Models.Fiber sourceNext.even.ranks (f y);
+\definition W[y: Y]: \Set := TargetModels.Fiber targetNext.even.ranks y;
+\definition T[y: Y]: \Set := TargetModels.Fiber target.even.ranks y;
+\definition U[y: Y]: \Set := Models.Fiber source.even.ranks (f y);
+\definition join[y: Y][a: A y][b: B y]: V y := (SourceSum.isomorphism.forward.fiber (f y)).apply (Pair.pair (A y) (B y) a b);
+\definition head[y: Y][v: V y]: A y := Pair.first (A y) (B y) ((SourceSum.isomorphism.backward.fiber (f y)).apply v);
+\definition rest[y: Y][v: V y]: B y := Pair.second (A y) (B y) ((SourceSum.isomorphism.backward.fiber (f y)).apply v);
+\definition recover: \forall (y: Y)(v: V y) -> join y (head y v) (rest y v) = v :=
+  \fun (y: Y)(v: V y) => trans!{{V y}} _ _ _
+    (congr!{{SourceSum.SourceFiber (f y)} {V y}} (SourceSum.isomorphism.forward.fiber (f y)).apply _ _ (Pair.Prop[A := A y, B := B y].eta ((SourceSum.isomorphism.backward.fiber (f y)).apply v)))
+    (SourceSum.isomorphism.rightInverse (f y) v);
+\definition formula: \forall (y: Y)(a: A y)(b: B y) -> (even.forward.fiber y).apply (join y a b) =
+  Blocks.targetJoin y ((headIso.forward.fiber y).apply a) ((tail.odd.forward.fiber y).apply b) :=
+  \fun (y: Y)(a: A y)(b: B y) => trans!{{W y}} _ _ _
+    (congr!{{TargetModels.Fiber Intermediate.value.ranks y} {W y}} (Blocks.forward.fiber y).apply _ _ (SumPullback.formula y a b))
+    (Blocks.formula y a b);
+\definition targetForwardJoin: \forall (y: Y)(a: C y)(b: D y) -> (targetNext.forward.fiber y).apply (Blocks.targetJoin y a b) =
+  ((TargetModels.bundle target.even).space y).add ((target.inclusion.fiber y).apply ((targetDifferential.fiber y).apply a)) ((target.backward.fiber y).apply b) :=
+  \fun (y: Y)(a: C y)(b: D y) => congr!{{TargetSum.SourceFiber y} {T y}}
+    (\fun (z: TargetSum.SourceFiber y) => ((TargetModels.bundle target.even).space y).add
+      ((target.inclusion.fiber y).apply ((targetDifferential.fiber y).apply (Pair.first (C y) (D y) z)))
+      ((target.backward.fiber y).apply (Pair.second (C y) (D y) z))) _ _
+    (TargetSum.isomorphism.leftInverse y (Pair.pair (C y) (D y) a b));
+\definition mapFormula: \forall (y: Y)(v: V y) -> (even.forward.fiber y).apply v =
+  Blocks.targetJoin y ((headIso.forward.fiber y).apply (head y v)) ((tail.odd.forward.fiber y).apply (rest y v)) :=
+  \fun (y: Y)(v: V y) => trans!{{W y}} _ _ _
+    (congr!{{V y} {W y}} (even.forward.fiber y).apply _ _ (sym!{{V y}} _ _ (recover y v)))
+    (formula y (head y v) (rest y v));
+\definition inclusion: \forall (y: Y)(v: A y) ->
+  (even.forward.fiber y).apply ((sourceNext.inclusion.fiber (f y)).apply v) = (targetNext.inclusion.fiber y).apply ((headIso.forward.fiber y).apply v) :=
+  \fun (y: Y)(v: A y) => trans!{{W y}} _ _ _ (formula y v ((Models.bundle source.odd).space (f y)).zero)
+    (congr!{{D y} {W y}} (Blocks.targetJoin y ((headIso.forward.fiber y).apply v)) _ _ (tail.odd.forward.fiber y).preservesZero);
+\definition forward: \forall (y: Y)(v: V y) ->
+  (targetNext.forward.fiber y).apply ((even.forward.fiber y).apply v) = (odd.forward.fiber y).apply ((sourceNext.forward.fiber (f y)).apply v) :=
+  \fun (y: Y)(v: V y) => eq_reason_in!{{T y} _
+    "=" { (targetNext.forward.fiber y).apply (Blocks.targetJoin y ((headIso.forward.fiber y).apply (head y v)) ((tail.odd.forward.fiber y).apply (rest y v))) } "by" {
+      congr!{{W y} {T y}} (targetNext.forward.fiber y).apply _ _ (mapFormula y v) }
+    "=" { ((TargetModels.bundle target.even).space y).add
+      ((target.inclusion.fiber y).apply ((targetDifferential.fiber y).apply ((headIso.forward.fiber y).apply (head y v))))
+      ((target.backward.fiber y).apply ((tail.odd.forward.fiber y).apply (rest y v))) } "by" { targetForwardJoin y _ _ }
+    "=" { ((TargetModels.bundle target.even).space y).add
+      ((tail.even.forward.fiber y).apply ((source.inclusion.fiber (f y)).apply ((differential.fiber (f y)).apply (head y v))))
+      ((tail.even.forward.fiber y).apply ((source.backward.fiber (f y)).apply (rest y v))) } "by" {
+      congr!{{T y} {T y} {T y}} ((TargetModels.bundle target.even).space y).add _ _ _ _
+        (trans!{{T y}} _ _ _
+          (congr!{{TargetModels.Fiber secondTarget.ranks y} {T y}} (target.inclusion.fiber y).apply _ _ (commutes y (head y v)))
+          (sym!{{T y}} _ _ (tail.inclusion y ((differential.fiber (f y)).apply (head y v)))))
+        (tail.backward y (rest y v)) }
+    "=" _ "by" { sym!{{T y}} _ _ ((tail.even.forward.fiber y).preservesAdd _ _) }
+  };
+\definition backward: \forall (y: Y)(v: U y) ->
+  (targetNext.backward.fiber y).apply ((odd.forward.fiber y).apply v) = (even.forward.fiber y).apply ((sourceNext.backward.fiber (f y)).apply v) :=
+  \fun (y: Y)(v: U y) => eq_reason_in!{{W y} _
+    "=" { Blocks.targetJoin y ((headIso.forward.fiber y).apply ((Models.bundle first).space (f y)).zero)
+      ((tail.odd.forward.fiber y).apply ((source.forward.fiber (f y)).apply v)) } "by" {
+      congr!{{C y} {D y} {W y}} (Blocks.targetJoin y) _ _ _ _
+        (sym!{{C y}} _ _ (headIso.forward.fiber y).preservesZero) (tail.forward y v) }
+    "=" _ "by" { sym!{{W y}} _ _ (formula y ((Models.bundle first).space (f y)).zero ((source.forward.fiber (f y)).apply v)) }
+  };
+\definition result: Comparison[first, firstTarget, sourceNext, targetNext, headIso] :=
+  Comparison[first, firstTarget, sourceNext, targetNext, headIso] {
+    even := even, odd := odd, inclusion := inclusion, forward := forward, backward := backward
+  };

@@ -1,0 +1,36 @@
+\import std.Logic[].Classical[] \as Classical;
+\use Logic.either;
+\import \parent.\parent.Component[d := d] \as Factor;
+\import \parent.\parent.At[d := d] \as Inclusion;
+\import \parent.\parent.\parent.At[p := d.p, q := d.q].InFrames[n := n, m := m,
+  firstFrame := firstFrame, secondFrame := secondFrame,
+  firstEnumeration := firstEnumeration d.p, secondEnumeration := secondEnumeration d.q] \as Frame;
+\import Frame.Regraded[k := k, degree := degree d] \as Regraded;
+\definition backward: Spaces.Linear[V := Exterior.Form k, W := Factor.Carrier, source := Target.vectorSpace, target := Factor.space].Map := Regraded.backward;
+\import Spaces.Linear[V := Exterior.Form k, W := Factor.Carrier, source := Target.vectorSpace, target := Factor.space].Composition[U := Carrier, domain := space] \as Composition;
+\definition composite: Spaces.Linear[V := Carrier, W := Factor.Carrier, source := space, target := Factor.space].Map := Composition.compose backward forward;
+\import Modules.Hom[V := Carrier, W := Factor.Carrier, source := space, target := Factor.space] \as Maps;
+\definition nativeComposite: Maps.Map := Maps.Map {
+  apply := composite.apply, addition := composite.preservesAdd, scalar := composite.preservesScale
+};
+\import Support.At[i := d] \as Projection;
+\import Native.To[W := Factor.Carrier, target := Factor.space] \as Determination;
+\definition own[x: Factor.Carrier]: composite.apply (Inclusion.injection.apply x) = Inclusion.projection.apply (Inclusion.injection.apply x) :=
+  trans!{{Factor.Carrier}} _ _ _
+    (trans!{{Factor.Carrier}} _ _ _
+      (congr!{{Exterior.Form k} {Factor.Carrier}} backward.apply _ _ (Inclusion.onInjection x)) (Regraded.leftInverse x))
+    (sym!{{Factor.Carrier}} _ _ (Inclusion.projectionOwn x));
+\module Other(e: Bidegree);
+\definition onInjection: \forall (e: Bidegree)(x: family.Carrier e) ->
+  composite.apply ((Native.Injection[i := e].map).apply x) = Inclusion.projection.apply ((Native.Injection[i := e].map).apply x) :=
+  \fun (e: Bidegree) => either!{{(Classical.excludedMiddle (e = d))} {
+    \forall (x: family.Carrier e) -> composite.apply ((Native.Injection[i := e].map).apply x) = Inclusion.projection.apply ((Native.Injection[i := e].map).apply x)}
+    {\fun (same: e = d) => \idelim d = e \with index: Bidegree =>
+      \forall (x: family.Carrier index) -> composite.apply ((Native.Injection[i := index].map).apply x) = Inclusion.projection.apply ((Native.Injection[i := index].map).apply x) \by {
+        base: own, equality: sym!{Bidegree} _ _ same
+      }}
+    {\fun (different: Logic.Not (e = d)) => Other[e := e].equation different}
+  };
+\definition equality: nativeComposite = Projection.evaluate := Determination.ext nativeComposite Projection.evaluate onInjection;
+\definition recovery[x: Carrier]: backward.apply (forward.apply x) = Inclusion.projection.apply x :=
+  congr!{Maps.Map {Factor.Carrier}} (\fun (f: Maps.Map) => f.apply x) _ _ equality;

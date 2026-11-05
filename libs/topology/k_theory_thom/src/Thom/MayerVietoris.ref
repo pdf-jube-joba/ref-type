@@ -1,0 +1,45 @@
+\import relative_k_theory.Relative[] \as Relative;
+\definition X: \Set := model.Carrier;
+\definition space: topology.Topology[Carrier := X].Topology := (Relative.details model).topology;
+\import topology.Topology[Carrier := X] \as Base;
+\definition compact: Base.IsCompact space := (Relative.details model).compact;
+\definition hausdorff: Base.IsT2 space := (Relative.details model).hausdorff;
+\import Relative.Pair[X := X, space := space, compact := compact, hausdorff := hausdorff, subset := U, closed := closedU] \as Closed;
+\import Closed.ClosedCover[V := V, closedV := closedV, covers := covers] \as Cover;
+\definition pair: Relative.ClosedPointedPair := Relative.packPair model (Relative.ClosedPairDetails[model] {
+  subset := U, closed := closedU, containsPoint := pointU
+});
+\import Relative.PointedPair[pair := pair] \as WholePair;
+\definition piecePoint: Cover.Y := \into[X]((Relative.details model).point, V) \by { pointV };
+\definition piece: Relative.CompactPointed := Relative.pack Cover.Y (Relative.PointedDetails[Cover.Y] {
+  topology := Cover.source, compact := Cover.compactSource, hausdorff := Cover.hausdorffSource, point := piecePoint
+});
+\definition piecePair: Relative.ClosedPointedPair := Relative.packPair piece (Relative.ClosedPairDetails[piece] {
+  subset := Cover.sourceSubset, closed := Cover.closedSource, containsPoint := pointU
+});
+\import Relative.PointedPair[pair := piecePair] \as PartPair;
+\import algebraic_topology.Pointed[A := piece.Carrier].Maps[B := model.Carrier] \as Maps;
+\definition inclusion: Relative.Map piece model := \into[piece.Carrier -> model.Carrier](Cover.inclusion, Relative.Map piece model) \by {
+  Maps.Laws[Relative.pointed piece, Relative.pointed model, Cover.inclusion] {
+    continuous := Cover.inclusionContinuous, pointed := \refl((Relative.details model).point)
+  }
+};
+\definition mappingData: Relative.PairMapData[piecePair, pair] := Relative.PairMapData[piecePair, pair] {
+  function := inclusion, preserves := \fun (p: piece.Carrier)(member: \In[piece.Carrier] Cover.sourceSubset p) => member
+};
+\import Relative.PairMapping[source := piecePair, target := pair, f := mappingData] \as Mapping;
+\import Relative.Equivalence[source := PartPair.quotientModel, target := WholePair.quotientModel].With[e := Cover.equivalence] \as Invariance;
+\definition wholeModel: Relative.CompactPointed := model;
+\definition firstModel: Relative.CompactPointed := WholePair.subsetModel;
+\definition secondModel: Relative.CompactPointed := piece;
+\definition intersectionModel: Relative.CompactPointed := PartPair.subsetModel;
+\definition firstInclusion: Relative.Map firstModel wholeModel := WholePair.inclusion;
+\definition secondInclusion: Relative.Map secondModel wholeModel := inclusion;
+\definition intersectionToFirst: Relative.Map intersectionModel firstModel := Mapping.subsetMap;
+\definition intersectionToSecond: Relative.Map intersectionModel secondModel := PartPair.inclusion;
+\module Sequence(degree: N.Nat^);
+\module Extension(ambient: Relative.CompactPointed, j: Relative.Map model ambient,
+  r: Relative.Map ambient firstModel, h: Relative.Map secondModel intersectionModel,
+  retract: \forall (u: firstModel.Carrier) -> r (j (firstInclusion u)) = u,
+  preserves: \forall (v: secondModel.Carrier) -> r (j (secondInclusion v)) = intersectionToFirst (h v),
+  section: \forall (w: intersectionModel.Carrier) -> h (intersectionToSecond w) = w);

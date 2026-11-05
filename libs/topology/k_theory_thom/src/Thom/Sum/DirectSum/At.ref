@@ -1,0 +1,23 @@
+\import \parent.Component[d := d] \as Factor;
+\import Native.Injection[i := d] \as Inclusion;
+\import Support.At[i := d] \as Evaluation;
+\definition injection: Spaces.Linear[V := Factor.Carrier, W := Carrier, source := Factor.space, target := space].Map :=
+  Spaces.Linear[V := Factor.Carrier, W := Carrier, source := Factor.space, target := space].Map {
+    apply := Inclusion.map.apply, preservesAdd := Inclusion.map.addition, preservesScale := Inclusion.map.scalar
+  };
+\definition projection: Spaces.Linear[V := Carrier, W := Factor.Carrier, source := space, target := Factor.space].Map :=
+  Spaces.Linear[V := Carrier, W := Factor.Carrier, source := space, target := Factor.space].Map {
+    apply := Evaluation.evaluate.apply, preservesAdd := Evaluation.evaluate.addition, preservesScale := Evaluation.evaluate.scalar
+  };
+\definition onInjection[x: Factor.Carrier]: forward.apply (injection.apply x) = Factor.regraded.apply x := Universal.onInjection components d x;
+\definition projectionOwn[x: Factor.Carrier]: projection.apply (injection.apply x) = x := Support.atOwn d x;
+\definition projectionOther[e: Bidegree][x: family.Carrier e][different: Logic.Not (e = d)]:
+  projection.apply ((Native.Injection[i := e].map).apply x) = Factor.space.zero := Support.atOther e d x different;
+\definition injectionInjective[x, y: Factor.Carrier][same: injection.apply x = injection.apply y]: x = y :=
+  trans!{{Factor.Carrier}} _ _ _ (sym!{{Factor.Carrier}} _ _ (projectionOwn x))
+    (trans!{{Factor.Carrier}} _ _ _ (congr!{Carrier {Factor.Carrier}} projection.apply _ _ same) (projectionOwn y));
+\module InFrames(n, m: N.Nat^,
+  firstFrame: Bundles.Dimension[V := V, space := left].Frame n,
+  secondFrame: Bundles.Dimension[V := W, space := right].Frame m,
+  firstEnumeration: Operations.ExteriorIndices[n := n, k := d.p].Enumeration,
+  secondEnumeration: Operations.ExteriorIndices[n := m, k := d.q].Enumeration);

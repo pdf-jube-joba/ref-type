@@ -1,0 +1,23 @@
+\definition p: N.Nat^ := Labels.degree n s;
+\definition A[x: X]: \Set := Models.Fiber (firstTerm p).ranks x;
+\import \root.Thom[].ComplexProductTensorSum[X := X, space := space, term := secondTerm, differential := secondDifferential,
+  G := A, bundle := Models.bundle (firstTerm p), same := (\refl(space))] \as Inner;
+\module Entry(t: Second.Colored m secondSide);
+\definition parts: Inner.Components m secondSide target := \fun (t: Second.Colored m secondSide) => Entry[t := t].map;
+\definition assembled: Inner.Map m secondSide target := Inner.assemble m secondSide target parts;
+\import Operations.Tensor[X := X, F := A, G := Right, left := Models.bundle (firstTerm p), right := Models.bundle (Second.parity m secondSide)] \as Input;
+\import Input.Of[same := (\refl(space))].Symmetry[] \as Flip;
+\import Input.Of[same := (\refl(space))].Transpose[] \as Transpose;
+\import Bundles.Morphisms[X := X, Y := X, F := Input.Fiber, G := Inner.Fiber m secondSide,
+  source := Input.bundle (\refl(space)), target := Inner.source m secondSide, f := (\fun (x: X) => x)]
+  .Composition[Z := X, H := Models.Fiber target.ranks, range := Models.bundle target, g := (\fun (x: X) => x)] \as Compose;
+\definition map: Builder.ComponentMap p target := Compose.compose Flip.isomorphism.forward assembled;
+\definition onSummand[t: Second.Colored m secondSide][x: X][v: A x][w: Models.Fiber (secondTerm (Labels.degree m t)).ranks x]:
+  (map.fiber x).apply (Input.pure x v (((Second.at m t secondSide (\bysub(Labels.Index m, Second.Colored m secondSide, t))).fiber x).apply w)) =
+  ((components s t).fiber x).apply (componentPure p (Labels.degree m t) x v w) :=
+  trans!{{Models.Fiber target.ranks x}} _ _ _
+    (congr!{{Inner.Fiber m secondSide x} {Models.Fiber target.ranks x}} (assembled.fiber x).apply _ _
+      (Transpose.onPure x v (((Second.at m t secondSide (\bysub(Labels.Index m, Second.Colored m secondSide, t))).fiber x).apply w)))
+    (trans!{{Models.Fiber target.ranks x}} _ _ _
+      (Inner.onSummand m t secondSide (\bysub(Labels.Index m, Second.Colored m secondSide, t)) target parts x w v)
+      (Entry[t := t].onPure x w v));

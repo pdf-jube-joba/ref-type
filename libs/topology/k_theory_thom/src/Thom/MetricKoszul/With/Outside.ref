@@ -1,0 +1,35 @@
+\import topology.Topology[Carrier := Total] \as Ambient;
+\definition subset: \Pow Total := Ambient.Complement Koszul.ZeroSection;
+\definition Carrier: \Set := Koszul.Outside;
+\definition topology: topology.Topology[Carrier := Carrier].Topology := Ambient.Subspace[S := subset].topology bundle.totalSpace;
+\definition inclusionContinuous: topology.Continuity[A := Carrier, B := Total].Continuous topology bundle.totalSpace (\fun (p: Carrier) => p) :=
+  topology.Continuity[A := Carrier, B := Total].Corestriction[S := subset].inclusionContinuous bundle.totalSpace;
+\definition diagonalRegular: topology.Continuity[A := Carrier, B := C.Complex].Continuous topology Scalars.scalar.topological.space (\fun (p: Carrier) => diagonal p) :=
+  topology.Continuity[A := Total, B := C.Complex].Restriction[S := subset].restrictContinuous bundle.totalSpace Scalars.scalar.topological.space diagonal diagonalContinuous;
+\definition reciprocal[p: Carrier]: C.Complex := Op.inv (diagonal p);
+\definition reciprocalContinuous: topology.Continuity[A := Carrier, B := C.Complex].Continuous topology Scalars.scalar.topological.space reciprocal :=
+  topological_algebra.Complex[].Functions[A := Carrier].inverseContinuous topology (\fun (p: Carrier) => diagonal p) diagonalRegular nonzero;
+\import FormFamily.Of[bundle := Alternating.alternating].Pullback[Y := Carrier, source := topology, f := (\fun (p: Carrier) => p)] \as FormPullback;
+\definition Fiber[p: Carrier]: \Set := Alternating.Fiber p;
+\definition normalizedBundle: Bundles.Family[X := Carrier, F := Fiber].Bundle := FormPullback.pulled inclusionContinuous;
+\import Bundles.Family[X := Carrier, F := Fiber] \as NormalizedFamily;
+\import NormalizedFamily.Of[bundle := normalizedBundle].Sections[] \as NormalizedSections;
+\definition normalized[p: Carrier]: Fiber p := (Alternating.fiberSpace p).smul (reciprocal p) (covector p);
+\definition normalizedData: NormalizedSections.SectionData := NormalizedSections.SectionData { value := normalized };
+\definition covectorRegular: topology.Continuity[A := Carrier, B := FormFamily.Point].Continuous topology Alternating.topology (\fun (p: Carrier) => FormFamily.include p (covector p)) :=
+  topology.Composition[A := Carrier, B := Total, C := FormFamily.Point].composeContinuous topology bundle.totalSpace Alternating.topology (\fun (p: Carrier) => p) sectionTotal inclusionContinuous \parent.Continuity[].continuous;
+\import Operations.Along[X := Total, F := Alternating.Fiber, bundle := Alternating.alternating, Y := Carrier, source := topology, base := (\fun (p: Carrier) => p)] \as Along;
+\definition scaledContinuous: topology.Continuity[A := Carrier, B := FormFamily.Point].Continuous topology Alternating.topology (\fun (p: Carrier) => FormFamily.include p (normalized p)) :=
+  Along.scaling reciprocal (\fun (p: Carrier) => covector p) inclusionContinuous reciprocalContinuous covectorRegular;
+\definition normalizedContinuous: topology.Continuity[A := Carrier, B := NormalizedFamily.Point].Continuous topology normalizedBundle.totalSpace (NormalizedSections.total normalizedData) :=
+  FormPullback.Universal[Z := Carrier].continuous topology (NormalizedSections.total normalizedData)
+    (topology.Maps[A := Carrier, B := Carrier].Identity[].continuous topology) scaledContinuous;
+\definition normalizedEll: NormalizedSections.Section := \into[NormalizedSections.SectionData](normalizedData, NormalizedSections.Section) \by { normalizedContinuous };
+\definition normalizedEvaluation[p: Carrier]: normalized p (\fun (i: Fin.Fin one) => p.vector) = Op.one := Laws.inverseNonzero (diagonal p) (nonzero p);
+\definition restore[p: Carrier]: (Alternating.fiberSpace p).smul (diagonal p) (normalized p) = covector p :=
+  trans!{{Fiber p}} _ _ _
+    (sym!{{Fiber p}} _ _ ((Alternating.fiberSpace p).scalarAssoc (diagonal p) (reciprocal p) (covector p)))
+    (trans!{{Fiber p}} _ _ _
+      (congr!{{C.Complex} {Fiber p}} (\fun (a: C.Complex) => (Alternating.fiberSpace p).smul a (covector p)) _ _ (Laws.inverseNonzeroRight (diagonal p) (nonzero p)))
+      ((Alternating.fiberSpace p).scalarOne (covector p)));
+\module Interpolation;

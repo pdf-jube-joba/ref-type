@@ -1,0 +1,25 @@
+\import Spaces.Linear[V := Source.Fiber x, W := Target.Fiber x, source := sourceBundle.space x, target := targetBundle.space x] \as Maps;
+\import Maps.Composition[U := Source.Fiber x, domain := sourceBundle.space x] \as Before;
+\import Spaces.Linear[V := Target.Fiber x, W := Target.Fiber x, source := targetBundle.space x, target := targetBundle.space x]
+  .Composition[U := Source.Fiber x, domain := sourceBundle.space x] \as After;
+\definition before: Maps.Map := Before.compose (isomorphism.forward.fiber x) (source.fiber x);
+\definition after: Maps.Map := After.compose (target.fiber x) (isomorphism.forward.fiber x);
+\import Operations.TensorEquality[V := F x, W := G x, U := Target.Fiber x,
+  left := first.space x, right := second.space x, target := targetBundle.space x] \as EqualityOnPure;
+\definition pureEquation: \forall (v: F x)(w: G x) -> before.apply (Source.pure x v w) = after.apply (Source.pure x v w) :=
+  \fun (v: F x)(w: G x) => trans!{{Target.Fiber x}} _ _ _
+    (congr!{{Source.Fiber x} {Target.Fiber x}} (isomorphism.forward.fiber x).apply _ _ (sourceOnPure x v w))
+    (trans!{{Target.Fiber x}} _ _ _
+      ((isomorphism.forward.fiber x).preservesAdd (Source.pure x ((c.sourceFirst.fiber x).apply v) w) (Source.pure x ((c.sourceGrading.fiber x).apply v) ((c.sourceSecond.fiber x).apply w)))
+      (trans!{{Target.Fiber x}} _ _ _
+        (congr!{{Target.Fiber x} {Target.Fiber x} {Target.Fiber x}} (targetBundle.space x).add _ _ _ _
+          (TensorIso.onPure firstIso secondIso x ((c.sourceFirst.fiber x).apply v) w)
+          (TensorIso.onPure firstIso secondIso x ((c.sourceGrading.fiber x).apply v) ((c.sourceSecond.fiber x).apply w)))
+        (trans!{{Target.Fiber x}} _ _ _
+          (congr!{{Target.Fiber x} {Target.Fiber x} {Target.Fiber x}} (targetBundle.space x).add _ _ _ _
+            (congr!{{A x} {Target.Fiber x}} (\fun (u: A x) => Target.pure x u ((secondIso.forward.fiber x).apply w)) _ _ (laws.first x v))
+            (congr!{{A x} {B x} {Target.Fiber x}} (Target.pure x) _ _ _ _ (laws.grading x v) (laws.second x w)))
+          (trans!{{Target.Fiber x}} _ _ _
+            (sym!{{Target.Fiber x}} _ _ (targetOnPure x ((firstIso.forward.fiber x).apply v) ((secondIso.forward.fiber x).apply w)))
+            (congr!{{Target.Fiber x} {Target.Fiber x}} (target.fiber x).apply _ _ (sym!{{Target.Fiber x}} _ _ (TensorIso.onPure firstIso secondIso x v w)))))));
+\definition equation: \forall (v: Source.Fiber x) -> before.apply v = after.apply v := EqualityOnPure.pointwise before after pureEquation;

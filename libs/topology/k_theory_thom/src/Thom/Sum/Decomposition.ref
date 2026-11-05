@@ -1,0 +1,81 @@
+\import Fin.Sum[m := n, n := m] \as Indices;
+\import \root.Thom[].MixedIndices[n := n, m := m] \as Splitting;
+\import \root.Thom[].MixedFrames[V := V, W := W, leftSpace := left, rightSpace := right,
+  n := n, m := m, first := firstFrame, second := secondFrame] \as Frame;
+\import \parent.BasisWords[U := V, vectorSpace := left, r := n, frame := firstFrame] \as LeftWords;
+\import \parent.BasisWords[U := W, vectorSpace := right, r := m, frame := secondFrame] \as RightWords;
+\import \parent.BasisWords[U := Total, vectorSpace := Sum.space, r := Indices.total, frame := Frame.frame] \as TotalWords;
+\import Shuffle.Boundary[].OneCovector[] \as Covectors;
+\import LeftShuffle.Boundary[].OneCovector[] \as LeftCovectors;
+\import RightShuffle.Boundary[].OneCovector[] \as RightCovectors;
+\import \parent.SeriesWords[I := Total, A := Fin.Fin Indices.total,
+  covector := \fun (i: Fin.Fin Indices.total) => Covectors.value (\fun (v: Total) => Frame.frame.forward.apply v i)] \as TotalProduct;
+\import \parent.SeriesWords[I := V, A := Fin.Fin n,
+  covector := \fun (i: Fin.Fin n) => LeftCovectors.value (\fun (v: V) => firstFrame.forward.apply v i)] \as LeftProduct;
+\import \parent.SeriesWords[I := W, A := Fin.Fin m,
+  covector := \fun (i: Fin.Fin m) => RightCovectors.value (\fun (w: W) => secondFrame.forward.apply w i)] \as RightProduct;
+\definition leftCovector: \forall (i: Fin.Fin n) ->
+  Covectors.value (\fun (v: Total) => Frame.frame.forward.apply v (Indices.left i)) =
+    LeftSeries.mapSeries Sum.first (LeftCovectors.value (\fun (v: V) => firstFrame.forward.apply v i)) :=
+  \fun (i: Fin.Fin n) => \axiom:funext(Covectors.value (\fun (v: Total) => Frame.frame.forward.apply v (Indices.left i)),
+    LeftSeries.mapSeries Sum.first (LeftCovectors.value (\fun (v: V) => firstFrame.forward.apply v i)),
+    \induction (xs: Lists.List[Total]) \return
+      Covectors.value (\fun (v: Total) => Frame.frame.forward.apply v (Indices.left i)) xs =
+      LeftSeries.mapSeries Sum.first (LeftCovectors.value (\fun (v: V) => firstFrame.forward.apply v i)) xs \with {
+        | nil: \refl(Op.zero)
+        | cons: \fun (head: Total)(tail: Lists.List[Total])(previous: _) =>
+          (\induction (tail: Lists.List[Total]) \return
+            Covectors.value (\fun (v: Total) => Frame.frame.forward.apply v (Indices.left i)) (Lists.List[Total]::cons head tail) =
+            LeftSeries.mapSeries Sum.first (LeftCovectors.value (\fun (v: V) => firstFrame.forward.apply v i)) (Lists.List[Total]::cons head tail) \with {
+              | nil: Frame.leftCoordinate head i
+              | cons: \fun (next: Total)(rest: Lists.List[Total])(previous: _) => \refl(Op.zero)
+            }) tail
+      });
+\definition rightCovector: \forall (i: Fin.Fin m) ->
+  Covectors.value (\fun (v: Total) => Frame.frame.forward.apply v (Indices.right i)) =
+    RightSeries.mapSeries Sum.second (RightCovectors.value (\fun (v: W) => secondFrame.forward.apply v i)) :=
+  \fun (i: Fin.Fin m) => \axiom:funext(Covectors.value (\fun (v: Total) => Frame.frame.forward.apply v (Indices.right i)),
+    RightSeries.mapSeries Sum.second (RightCovectors.value (\fun (v: W) => secondFrame.forward.apply v i)),
+    \induction (xs: Lists.List[Total]) \return
+      Covectors.value (\fun (v: Total) => Frame.frame.forward.apply v (Indices.right i)) xs =
+      RightSeries.mapSeries Sum.second (RightCovectors.value (\fun (v: W) => secondFrame.forward.apply v i)) xs \with {
+        | nil: \refl(Op.zero)
+        | cons: \fun (head: Total)(tail: Lists.List[Total])(previous: _) =>
+          (\induction (tail: Lists.List[Total]) \return
+            Covectors.value (\fun (v: Total) => Frame.frame.forward.apply v (Indices.right i)) (Lists.List[Total]::cons head tail) =
+            RightSeries.mapSeries Sum.second (RightCovectors.value (\fun (v: W) => secondFrame.forward.apply v i)) (Lists.List[Total]::cons head tail) \with {
+              | nil: Frame.rightCoordinate head i
+              | cons: \fun (next: Total)(rest: Lists.List[Total])(previous: _) => \refl(Op.zero)
+            }) tail
+      });
+\definition leftProduct: \forall (xs: Lists.List[Fin.Fin n]) ->
+  TotalProduct.value (Lists.map (Fin.Fin n) (Fin.Fin Indices.total) Indices.left xs) = LeftSeries.mapSeries Sum.first (LeftProduct.value xs) :=
+  \induction (xs: Lists.List[Fin.Fin n]) \return
+    TotalProduct.value (Lists.map (Fin.Fin n) (Fin.Fin Indices.total) Indices.left xs) = LeftSeries.mapSeries Sum.first (LeftProduct.value xs) \with {
+      | nil: \axiom:funext(Shuffle.unit, LeftSeries.mapSeries Sum.first LeftShuffle.unit,
+        \induction (arguments: Lists.List[Total]) \return Shuffle.unit arguments = LeftSeries.mapSeries Sum.first LeftShuffle.unit arguments \with {
+          | nil: \refl(Op.one)
+          | cons: \fun (head: Total)(tail: Lists.List[Total])(previous: _) => \refl(Op.zero)
+        })
+      | cons: \fun (head: Fin.Fin n)(tail: Lists.List[Fin.Fin n])(previous: _) => trans!{{Shuffle.Function}} _ _ _
+        (congr!{{Shuffle.Function} {Shuffle.Function} {Shuffle.Function}} Shuffle.product _ _ _ _ (leftCovector head) previous)
+        (\axiom:funext(Shuffle.product (LeftSeries.mapSeries Sum.first (LeftCovectors.value (\fun (v: V) => firstFrame.forward.apply v head))) (LeftSeries.mapSeries Sum.first (LeftProduct.value tail)),
+          LeftSeries.mapSeries Sum.first (LeftShuffle.product (LeftCovectors.value (\fun (v: V) => firstFrame.forward.apply v head)) (LeftProduct.value tail)),
+          \fun (arguments: Lists.List[Total]) => LeftSeries.productMap arguments Sum.first (LeftCovectors.value (\fun (v: V) => firstFrame.forward.apply v head)) (LeftProduct.value tail)))
+    };
+\definition rightProduct: \forall (xs: Lists.List[Fin.Fin m]) ->
+  TotalProduct.value (Lists.map (Fin.Fin m) (Fin.Fin Indices.total) Indices.right xs) = RightSeries.mapSeries Sum.second (RightProduct.value xs) :=
+  \induction (xs: Lists.List[Fin.Fin m]) \return
+    TotalProduct.value (Lists.map (Fin.Fin m) (Fin.Fin Indices.total) Indices.right xs) = RightSeries.mapSeries Sum.second (RightProduct.value xs) \with {
+      | nil: \axiom:funext(Shuffle.unit, RightSeries.mapSeries Sum.second RightShuffle.unit,
+        \induction (arguments: Lists.List[Total]) \return Shuffle.unit arguments = RightSeries.mapSeries Sum.second RightShuffle.unit arguments \with {
+          | nil: \refl(Op.one)
+          | cons: \fun (head: Total)(tail: Lists.List[Total])(previous: _) => \refl(Op.zero)
+        })
+      | cons: \fun (head: Fin.Fin m)(tail: Lists.List[Fin.Fin m])(previous: _) => trans!{{Shuffle.Function}} _ _ _
+        (congr!{{Shuffle.Function} {Shuffle.Function} {Shuffle.Function}} Shuffle.product _ _ _ _ (rightCovector head) previous)
+        (\axiom:funext(Shuffle.product (RightSeries.mapSeries Sum.second (RightCovectors.value (\fun (v: W) => secondFrame.forward.apply v head))) (RightSeries.mapSeries Sum.second (RightProduct.value tail)),
+          RightSeries.mapSeries Sum.second (RightShuffle.product (RightCovectors.value (\fun (v: W) => secondFrame.forward.apply v head)) (RightProduct.value tail)),
+          \fun (arguments: Lists.List[Total]) => RightSeries.productMap arguments Sum.second (RightCovectors.value (\fun (v: W) => secondFrame.forward.apply v head)) (RightProduct.value tail)))
+    };
+\module At(k: N.Nat^);

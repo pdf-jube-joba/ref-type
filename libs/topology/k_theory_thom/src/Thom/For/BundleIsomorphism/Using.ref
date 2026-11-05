@@ -1,0 +1,36 @@
+\import \root.Thom[].For[X := X, F := G, bundle := target, compact := targetCompact, hausdorff := targetHausdorff].Using[data := data] \as First;
+\import TargetCoordinates.With[selection := data.selection] \as OldModel;
+\module Degree(k: N.Nat^);
+\definition selection[k: N.Nat^]: Coordinates.Choice k := Degree[k := k].choice;
+\definition rankBound: \forall (x: X) -> Naturals.Le (Original.rank x) data.bound :=
+  \fun (x: X) => \idelim TargetBundle.rank x = Original.rank x \with rank: N.Nat^ => Naturals.Le rank data.bound \by {
+    base: data.rankBound x, equality: sym!{{N.Nat^}} _ _ (rankEquality x)
+  };
+\definition sourceData: Data := Data { bound := data.bound, selection := selection, rankBound := rankBound };
+\import \root.Thom[].For[X := X, F := F, bundle := bundle, compact := compact, hausdorff := hausdorff].Using[data := sourceData] \as Second;
+\import Coordinates.With[selection := selection] \as SourceModel;
+\module Differential(k: N.Nat^);
+\module Fold;
+\import TargetCoordinates.With[selection := data.selection].Finite[].At[n := First.degree, zeroAbove := First.zeroAbove] \as FirstComplex;
+\import Coordinates.With[selection := selection].Finite[].At[n := Second.degree, zeroAbove := Second.zeroAbove] \as SecondComplex;
+\import topology.Maps[A := Koszul.Total, B := TargetKoszul.Total] \as Maps;
+\definition support: \Pow Koszul.Total := Maps.Preimage Natural.total TargetKoszul.ZeroSection;
+\definition compactSupport: topology.Topology[Carrier := Koszul.Total].IsCompactIn bundle.totalSpace support :=
+  Natural.proper TargetKoszul.ZeroSection TargetTotal.zeroCompact;
+\definition exact: \forall (p: \Cast[Koszul.Total] (topology.Topology[Carrier := Koszul.Total].Complement support)) ->
+  Models.Chains[].Of[complex := Second.complex].ExactAt p :=
+  \fun (p: \Cast[Koszul.Total] (topology.Topology[Carrier := Koszul.Total].Complement support)) =>
+    SecondComplex.exactOutside (\into[Koszul.Total](p, topology.Topology[Carrier := Koszul.Total].Complement Koszul.ZeroSection) \by {
+      \fun (inside: _) => (\bysub(Koszul.Total, topology.Topology[Carrier := Koszul.Total].Complement support, p)) (zeroPreserved p inside)
+    });
+\import \root.Thom[].FiniteProperPullback[X := TargetKoszul.Total, space := target.totalSpace,
+  hausdorff := TargetTotal.separated, locallyCompact := TargetTotal.locallyCompact, Y := Koszul.Total, target := bundle.totalSpace,
+  targetHausdorff := Total.separated, targetLocallyCompact := Total.locallyCompact,
+  f := Natural.total, regular := Natural.continuous, proper := Natural.proper]
+  .Complexes[first := First.complex, second := Second.complex]
+  .With[positive := Fold[].positive, negative := Fold[].negative, commutesD := Fold[].forward, commutesE := Fold[].backward]
+  .Supported[K := TargetKoszul.ZeroSection, compactK := TargetTotal.zeroCompact,
+    firstExact := FirstComplex.exactOutside, secondExact := exact] \as Classes;
+\import Supported.FiniteComplexes[].Of[complex := Second.complex].Supported[K := support, compactK := compactSupport, exactOutside := exact]
+  .Enlarge[H := Koszul.ZeroSection, compactH := Total.zeroCompact, included := zeroReflected] \as Enlarge;
+\definition equation: Second.thom = pull First.thom := trans!{Carrier} _ _ _ (sym!{Carrier} _ _ Enlarge.equation) Classes.equation;

@@ -1,0 +1,34 @@
+\import C.Def[] \as Op;
+\import std.Logic[].Classical[] \as Classical;
+\import module_theory.Module[].Over[R := C.Complex, ring := Spaces.ring] \as Modules;
+\definition Target[side: B.Bool^]: \Set := Models.Fiber (target side).ranks x;
+\definition Code[side: B.Bool^]: \Set := Models.Fiber (model side).ranks x;
+\definition targetSpace[side: B.Bool^]: Spaces.VectorSpace (Target side) := (Models.bundle (target side)).space x;
+\definition candidate[side: B.Bool^]: Models.Map (target side) (target side) := Models.compose (target side) (model side) (target side) (backwardCode side) (forwardCode side);
+\definition Fixed[side: B.Bool^][v: Target side]: \Prop := ((candidate side).fiber x).apply v = v;
+\definition zeroFixed[side: B.Bool^]: Fixed side (targetSpace side).zero := ((candidate side).fiber x).preservesZero;
+\definition onImage[side: B.Bool^][u: Code side]: Fixed side (((forwardCode side).fiber x).apply u) :=
+  congr!{{Code side} {Target side}} ((forwardCode side).fiber x).apply _ _ (codedLeft side x u);
+\definition fromImage[side: B.Bool^][u: Code side][v: Target side][same: ((forwardCode side).fiber x).apply u = v]: Fixed side v :=
+  \idelim ((forwardCode side).fiber x).apply u = v \with w: Target side => Fixed side w \by { base: onImage side u, equality: same };
+\definition fromZero[side: B.Bool^][v: Target side][same: v = (targetSpace side).zero]: Fixed side v :=
+  \idelim (targetSpace side).zero = v \with w: Target side => Fixed side w \by { base: zeroFixed side, equality: sym!{{Target side}} _ _ same };
+\module Blocks;
+\module Piece(r: Labels.Index degree, p, q: N.Nat^, decomposition: Nat.add p q = Labels.degree degree r);
+\definition Generator[p, q: N.Nat^]: \Prop := \forall (r: Labels.Index degree)(side: B.Bool^)(color: Labels.even degree r = side)
+  (decomposition: Nat.add p q = Labels.degree degree r)(omega: FirstForm p x)(eta: SecondForm q x) ->
+  Fixed side (Piece[r := r, p := p, q := q, decomposition := decomposition].value side color omega eta);
+\module Bounded(a: Labels.Index n, b: Labels.Index m);
+\module Choose(p, q: N.Nat^, firstBound: Naturals.Le p n, secondBound: Naturals.Le q m);
+\module OutsideFirst(p, q: N.Nat^, negative: Logic.Not (Naturals.Le p n));
+\module OutsideSecond(p, q: N.Nat^, negative: Logic.Not (Naturals.Le q m));
+\definition generators: \forall (p, q: N.Nat^) -> Generator p q :=
+  \fun (p, q: N.Nat^) => Logic.orElim[Naturals.Le p n, Logic.Not (Naturals.Le p n), Generator p q] (Classical.excludedMiddle (Naturals.Le p n))
+    (\fun (firstBound: Naturals.Le p n) => Logic.orElim[Naturals.Le q m, Logic.Not (Naturals.Le q m), Generator p q] (Classical.excludedMiddle (Naturals.Le q m))
+      (\fun (secondBound: Naturals.Le q m) => Choose[p := p, q := q, firstBound := firstBound, secondBound := secondBound].result)
+      (\fun (negative: Logic.Not (Naturals.Le q m)) => OutsideSecond[p := p, q := q, negative := negative].result))
+    (\fun (negative: Logic.Not (Naturals.Le p n)) => OutsideFirst[p := p, q := q, negative := negative].result);
+\module Label(r: Labels.Index degree, side: B.Bool^, color: Labels.even degree r = side);
+\definition result: \forall (side: B.Bool^)(v: Target side) -> Fixed side v :=
+  \fun (side: B.Bool^)(v: Target side) => Total.ext degree side (target side) (candidate side) (Models.identity (target side)) x
+    (\fun (r: Labels.Index degree)(color: Labels.even degree r = side) => Label[r := r, side := side, color := color].equation) v;

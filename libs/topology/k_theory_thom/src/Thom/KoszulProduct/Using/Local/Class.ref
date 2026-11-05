@@ -1,0 +1,46 @@
+\import Operations.Models[X := Product.Z, baseSpace := Product.topology] \as Models;
+\import \root.Thom[].RelativeComplex[X := Product.Z, space := Product.topology, compact := Product.compactProduct,
+  hausdorff := Product.hausdorffProduct, subset := Product.boundary, closed := Product.boundaryClosed, complex := Restricted.complex] \as RC;
+\import \root.Thom[].ScalarCliffordClass[X := Product.Z, space := Product.topology, compact := Product.compactProduct,
+  hausdorff := Product.hausdorffProduct, subset := Product.boundary, closed := Product.boundaryClosed, complex := Restricted.complex] \as ScalarClass;
+\import bundle_complements.Complements[].Over[K := C.Complex, field := C.Algebra[].field,
+  conjugation := linear_algebra.Hermitian[].Complex[].scalar, scalar := Scalars.scalar] \as Complements;
+\import Complements.PulledIsomorphism[X := Product.Z, Y := ProductPair.A,
+  F := Original.OriginalEven, G := Models.Fiber Restricted.even.ranks,
+  source := Original.originalEvenBundle, target := Models.bundle Restricted.even,
+  base := ProductPair.subspace, f := RC.inclusion, sourceRegular := RC.inclusionContinuous, targetRegular := RC.inclusionContinuous] \as Positive;
+\import Complements.PulledIsomorphism[X := Product.Z, Y := ProductPair.A,
+  F := Original.OriginalOdd, G := Models.Fiber Restricted.odd.ranks,
+  source := Original.originalOddBundle, target := Models.bundle Restricted.odd,
+  base := ProductPair.subspace, f := RC.inclusion, sourceRegular := RC.inclusionContinuous, targetRegular := RC.inclusionContinuous] \as Negative;
+\import Raw.Boundary[] \as Boundary;
+\import ScalarClass.Transport[U := Boundary.U, T := Boundary.T, first := Boundary.first, second := Boundary.second,
+  positive := Positive.isomorphism comparison.positive, negative := Negative.isomorphism comparison.negative] \as Transport;
+\definition sourceData: Transport.SourceData := Transport.SourceData {
+  d := Boundary.d, e := Boundary.e, h := Boundary.h, k := Boundary.k,
+  q := Boundary.q, continuous := Boundary.continuous, positive := Boundary.positive
+};
+\definition sourceLaws: Transport.SourceLaws[sourceData] := Transport.SourceLaws[sourceData] {
+  forwardCommutes := \fun (x: ProductPair.A) => comparison.forward x,
+  backwardCommutes := \fun (x: ProductPair.A) => comparison.backward x,
+  hk := Boundary.hk, kh := Boundary.kh, evenSquare := Boundary.evenSquare, oddSquare := Boundary.oddSquare
+};
+\import Transport.With[c := sourceData, laws := sourceLaws] \as Normalization;
+\import Normalization.Class[] \as Normalized;
+\import ScalarClass.With[c := Normalization.data, laws := Normalization.targetLaws] \as ScalarProof;
+\definition exact: RC.Exact := ScalarProof.exact;
+\definition commutes: \forall (x: ProductPair.A)(v: Original.OriginalEven x) ->
+  (Normalized.comparison.forward.fiber x).apply ((comparison.positive.forward.fiber x).apply v) =
+    (comparison.negative.forward.fiber x).apply ((Original.originalComparison.forward.fiber x).apply v) :=
+  \fun (x: ProductPair.A)(v: Original.OriginalEven x) => trans!{{ScalarClass.Odd x}} _ _ _
+    (Normalized.forwardFormula x v)
+    (congr!{{Boundary.T x} {ScalarClass.Odd x}} (comparison.negative.forward.fiber x).apply _ _
+      (sym!{{Boundary.T x}} _ _ (Boundary.formula x v)));
+\import ProductPair.BundleTriples[F := Original.OriginalEven, G := Original.OriginalOdd,
+  firstModel := Original.originalEvenModel, secondModel := Original.originalOddModel]
+  .To[H := RC.Even, I := RC.Odd, newFirstModel := RC.firstModel, newSecondModel := RC.secondModel]
+  .With[alpha := Original.originalComparison, beta := Normalized.comparison,
+    positive := comparison.positive, negative := comparison.negative, commutes := commutes] \as Change;
+\definition equation[boundaryExact: RC.Exact]: RC.Supported[exact := boundaryExact].value = Original.originalValue :=
+  trans!{{ProductQ.Relative}} _ _ _ (Normalized.equation boundaryExact)
+    (sym!{{ProductQ.Relative}} _ _ Change.reducedEquation);

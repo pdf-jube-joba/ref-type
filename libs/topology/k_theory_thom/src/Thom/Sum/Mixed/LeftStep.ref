@@ -1,0 +1,17 @@
+\definition step:
+  (\forall (ys: Lists.List[W])(f: LeftShuffle.Function)(g: RightShuffle.Function) -> LeftLinear.Linear f -> RightLinear.Linear g ->
+    Shuffle.product (leftMap f) (rightMap g) (Lists.append Total (Lists.map V Total inLeft xs) (Lists.map W Total inRight ys)) = Op.mul (f xs) (g ys)) ->
+  \forall (v: V)(ys: Lists.List[W])(f: LeftShuffle.Function)(g: RightShuffle.Function) -> LeftLinear.Linear f -> RightLinear.Linear g ->
+    Shuffle.product (leftMap f) (rightMap g) (Lists.append Total (Lists.map V Total inLeft (Lists.List[V]::cons v xs)) (Lists.map W Total inRight ys)) = Op.mul (f (Lists.List[V]::cons v xs)) (g ys) := \block {
+  \fun (previous: _)(v: V)(ys: Lists.List[W])(f: LeftShuffle.Function)(g: RightShuffle.Function)(first: LeftLinear.Linear f)(second: RightLinear.Linear g) \then
+  \let zs: Lists.List[Total] := Lists.append Total (Lists.map V Total inLeft xs) (Lists.map W Total inRight ys) \then
+  \let zero: Shuffle.product (Shuffle.twist (leftMap f)) (Shuffle.shift (inLeft v) (rightMap g)) zs = Op.zero := trans!{{C.Complex}} _ _ _
+    (Products.congruent (Shuffle.twist (leftMap f)) (Shuffle.twist (leftMap f)) (Shuffle.shift (inLeft v) (rightMap g)) Shuffle.origin
+      (\fun (ts: Lists.List[Total]) => \refl(Shuffle.twist (leftMap f) ts)) (zeroSecondShift g second v) zs)
+    (Products.zeroRight (Shuffle.twist (leftMap f)) zs) \then
+  \return trans!{{C.Complex}} _ _ _ (Shuffle.atCons (inLeft v) zs (leftMap f) (rightMap g))
+    (trans!{{C.Complex}} _ _ _
+      (congr!{{C.Complex} {C.Complex} {C.Complex}} Op.add _ _ _ _
+        (previous ys (LeftShuffle.shift v f) g (LeftLinear.shiftedLinear f first v) second) zero)
+      (Laws.addZeroRight (Op.mul (f (Lists.List[V]::cons v xs)) (g ys))))
+};

@@ -1,0 +1,27 @@
+\import \parent.Fold[] \as Fold;
+\import compact_support_k.Support[] \as Support;
+\import relative_k_theory.Relative[] \as Relative;
+\import Support.On[X := Geometry.sumTotal, space := Geometry.sumTopology, hausdorff := Geometry.sumHausdorff,
+  locallyCompact := Geometry.sumLocallyCompact] \as Supported;
+\import SumCoordinates.With[selection := selectionAt].Finite[].At[n := Canonical.degree, zeroAbove := Canonical.zeroAbove] \as Actual;
+\definition exact: \forall (p: \Cast[Geometry.sumTotal] (topology.Topology[Carrier := Geometry.sumTotal].Complement Geometry.zeroPreimage)) ->
+  Models.Chains[].Of[complex := Canonical.complex].ExactAt p :=
+  \fun (p: \Cast[Geometry.sumTotal] (topology.Topology[Carrier := Geometry.sumTotal].Complement Geometry.zeroPreimage)) =>
+    Actual.exactOutside (\into[Geometry.sumTotal](p, topology.Topology[Carrier := Geometry.sumTotal].Complement SumKoszul.ZeroSection) \by {
+      \fun (inside: \In[Geometry.sumTotal] SumKoszul.ZeroSection p) =>
+        (\bysub(Geometry.sumTotal, topology.Topology[Carrier := Geometry.sumTotal].Complement Geometry.zeroPreimage, p)) (Geometry.zeroPreserved p inside)
+    });
+\import \root.Thom[].FiniteProperPullback[X := Geometry.Total, space := Geometry.topology,
+  hausdorff := Geometry.hausdorff, locallyCompact := Geometry.locallyCompact,
+  Y := Geometry.sumTotal, target := Geometry.sumTopology, targetHausdorff := Geometry.sumHausdorff,
+  targetLocallyCompact := Geometry.sumLocallyCompact, f := Geometry.inclusion, regular := Geometry.regular, proper := Geometry.proper]
+  .Complexes[first := Encoded.complex, second := Canonical.complex]
+  .With[positive := Fold.positive, negative := Fold.negative, commutesD := Fold.forward, commutesE := Fold.backward]
+  .Supported[K := Geometry.zeroSection, compactK := Geometry.zeroCompact, firstExact := Encoded.exactOutside, secondExact := exact] \as Classes;
+\import Supported.FiniteComplexes[].Of[complex := Canonical.complex]
+  .Supported[K := Geometry.zeroPreimage, compactK := Geometry.zeroPreimageCompact, exactOutside := exact]
+  .Enlarge[H := SumKoszul.ZeroSection,
+    compactH := \root.Thom[].TotalSpace[X := X, F := Sum.Fiber, bundle := sum, compact := compact, hausdorff := hausdorff].zeroCompact,
+    included := Geometry.zeroReflected] \as Enlarge;
+\definition equation: Canonical.thom = Geometry.pull Encoded.value :=
+  trans!{SumFor.Carrier} _ _ _ (sym!{SumFor.Carrier} _ _ Enlarge.equation) Classes.equation;

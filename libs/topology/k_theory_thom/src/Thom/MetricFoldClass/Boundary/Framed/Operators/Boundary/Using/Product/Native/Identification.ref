@@ -1,0 +1,24 @@
+\import \parent.Sectors[].Parity[] \as Parity;
+\import Parity.Operators[] \as Operators;
+\import \parent.Stabilization[] \as Stable;
+\definition commutes: \forall (z: NativePair.A)(v: Factors.Even (NativeProduct.image z)) ->
+  (Stable.stableComparison.forward.fiber z).apply ((Parity.even.forward.fiber z).apply v) =
+  (Parity.odd.forward.fiber z).apply ((comparison.forward.fiber z).apply v) :=
+  \fun (z: NativePair.A)(v: Factors.Even (NativeProduct.image z)) => trans!{{Stable.TensorOdd z}} _ _ _
+    (Stable.stableForwardFormula z ((Parity.even.forward.fiber z).apply v))
+    (trans!{{Stable.TensorOdd z}} _ _ _ (sym!{{Stable.TensorOdd z}} _ _ (Operators.commutes z v))
+      (congr!{{Parity.OddSource z} {Stable.TensorOdd z}} (Parity.odd.forward.fiber z).apply _ _ (sym!{{Parity.OddSource z}} _ _ (formula z v))));
+\import NativePair.BundleTriples[F := (\fun (z: NativeProduct.Z) => Factors.Even (NativeProduct.image z)), G := (\fun (z: NativeProduct.Z) => Factors.Odd (NativeProduct.image z)),
+  firstModel := Mapping.BundleTriples[F := Factors.Even, G := Factors.Odd, firstModel := Factors.evenModel, secondModel := Factors.oddModel].firstModelOnSource,
+  secondModel := Mapping.BundleTriples[F := Factors.Even, G := Factors.Odd, firstModel := Factors.evenModel, secondModel := Factors.oddModel].secondModelOnSource]
+  .To[H := Stable.TensorEven, I := Stable.TensorOdd, newFirstModel := Stable.stableEvenModel, newSecondModel := Stable.stableOddModel]
+  .With[alpha := comparison, beta := Stable.stableComparison, positive := Parity.even, negative := Parity.odd, commutes := commutes] \as Change;
+\definition localEquation: value = Stable.stableValue := Change.reducedEquation;
+\import \parent.Localization[] \as Localization;
+\definition globalEquation: Localization.extension Stable.stableValue = Localization.external :=
+  trans!{{Localization.Carrier}} _ _ _ (congr!{{NativeQ.Relative} {Localization.Carrier}} Localization.extension _ _ (sym!{{NativeQ.Relative}} _ _ localEquation)) Localization.extensionEquation;
+
+\import \parent.Normalization[] \as Normalization;
+\definition globalNormalizedEquation: Localization.extension Stable.Normalized[].value = Localization.external :=
+  trans!{{Localization.Carrier}} _ _ _
+    (congr!{{NativeQ.Relative} {Localization.Carrier}} Localization.extension _ _ (sym!{{NativeQ.Relative}} _ _ Normalization.equation)) globalEquation;

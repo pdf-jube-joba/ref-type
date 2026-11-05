@@ -1,0 +1,60 @@
+
+\use Equality.eq_reason_in;
+\definition original: Chains.Parity[term n] := Chains.fold (term n) (data n);
+\definition middle: Chains.Parity[term (N.Nat^::succ n)] := Chains.fold (term (N.Nat^::succ n)) (data (N.Nat^::succ n));
+\definition padded: Chains.Parity[term (N.Nat^::succ (N.Nat^::succ n))] := Chains.fold (term (N.Nat^::succ (N.Nat^::succ n))) (data (N.Nat^::succ (N.Nat^::succ n)));
+\import \root.Thom[].Finite[X := X, baseSpace := baseSpace].ZeroSum[
+  first := term (N.Nat^::succ (N.Nat^::succ n)), second := original.even, zero := zeroTwo] \as EvenBlock;
+\import \root.Thom[].Finite[X := X, baseSpace := baseSpace].ZeroSum[
+  first := term (N.Nat^::succ n), second := original.odd, zero := zeroOne] \as OddBlock;
+\import Models.Sum[first := term (N.Nat^::succ (N.Nat^::succ n)), second := original.even] \as EvenSum;
+\import Models.Sum[first := term (N.Nat^::succ n), second := original.odd] \as OddSum;
+\definition even: Iso original.even padded.even := EvenBlock.isomorphism;
+\definition odd: Iso original.odd padded.odd := OddBlock.isomorphism;
+\definition A[x: X]: \Set := Models.Fiber (term (N.Nat^::succ n)).ranks x;
+\definition B[x: X]: \Set := Models.Fiber (term (N.Nat^::succ (N.Nat^::succ n))).ranks x;
+\definition V[x: X]: \Set := Models.Fiber original.even.ranks x;
+\definition W[x: X]: \Set := Models.Fiber original.odd.ranks x;
+\definition T[x: X]: \Set := Models.Fiber padded.odd.ranks x;
+\definition U[x: X]: \Set := Models.Fiber padded.even.ranks x;
+\definition zeroHead: \forall (x: X) ->
+  (middle.inclusion.fiber x).apply (((differential (N.Nat^::succ n)).fiber x).apply ((Models.bundle (term (N.Nat^::succ (N.Nat^::succ n)))).space x).zero) = ((Models.bundle middle.even).space x).zero :=
+  \fun (x: X) => trans!{{T x}} _ _ _
+    (congr!{{A x} {T x}} (middle.inclusion.fiber x).apply _ _ ((differential (N.Nat^::succ n)).fiber x).preservesZero)
+    (middle.inclusion.fiber x).preservesZero;
+\definition forward: \forall (x: X)(v: V x) ->
+  (padded.forward.fiber x).apply ((even.forward.fiber x).apply v) = (odd.forward.fiber x).apply ((original.forward.fiber x).apply v) :=
+  \fun (x: X)(v: V x) => eq_reason_in!{{T x} _
+    "=" { ((Models.bundle middle.even).space x).add
+      ((middle.inclusion.fiber x).apply (((differential (N.Nat^::succ n)).fiber x).apply ((Models.bundle (term (N.Nat^::succ (N.Nat^::succ n)))).space x).zero))
+      ((middle.backward.fiber x).apply v) } "by" {
+      congr!{{EvenSum.SourceFiber x} {T x}}
+        (\fun (z: EvenSum.SourceFiber x) => ((Models.bundle middle.even).space x).add
+          ((middle.inclusion.fiber x).apply (((differential (N.Nat^::succ n)).fiber x).apply (Pair.first (B x) (V x) z)))
+          ((middle.backward.fiber x).apply (Pair.second (B x) (V x) z))) _ _
+        (EvenSum.isomorphism.leftInverse x (Pair.pair (B x) (V x) ((Models.bundle (term (N.Nat^::succ (N.Nat^::succ n)))).space x).zero v)) }
+    "=" { ((Models.bundle middle.even).space x).add ((Models.bundle middle.even).space x).zero ((middle.backward.fiber x).apply v) } "by" {
+      congr!{{T x} {T x}} (\fun (a: T x) => ((Models.bundle middle.even).space x).add a ((middle.backward.fiber x).apply v)) _ _ (zeroHead x) }
+    "=" _ "by" { Spaces.Laws[V := T x, space := (Models.bundle middle.even).space x].zeroLeft ((middle.backward.fiber x).apply v) }
+  };
+\definition middleForward: \forall (x: X)(v: W x) ->
+  (middle.forward.fiber x).apply ((odd.forward.fiber x).apply v) = (original.backward.fiber x).apply v :=
+  \fun (x: X)(v: W x) => eq_reason_in!{{V x} _
+    "=" { ((Models.bundle original.even).space x).add
+      ((original.inclusion.fiber x).apply (((differential n).fiber x).apply ((Models.bundle (term (N.Nat^::succ n))).space x).zero))
+      ((original.backward.fiber x).apply v) } "by" {
+      congr!{{OddSum.SourceFiber x} {V x}}
+        (\fun (z: OddSum.SourceFiber x) => ((Models.bundle original.even).space x).add
+          ((original.inclusion.fiber x).apply (((differential n).fiber x).apply (Pair.first (A x) (W x) z)))
+          ((original.backward.fiber x).apply (Pair.second (A x) (W x) z))) _ _
+        (OddSum.isomorphism.leftInverse x (Pair.pair (A x) (W x) ((Models.bundle (term (N.Nat^::succ n))).space x).zero v)) }
+    "=" { ((Models.bundle original.even).space x).add ((Models.bundle original.even).space x).zero ((original.backward.fiber x).apply v) } "by" {
+      congr!{{V x} {V x}} (\fun (a: V x) => ((Models.bundle original.even).space x).add a ((original.backward.fiber x).apply v)) _ _
+        (trans!{{V x}} _ _ _ (congr!{{Models.Fiber (term n).ranks x} {V x}} (original.inclusion.fiber x).apply _ _ ((differential n).fiber x).preservesZero)
+          (original.inclusion.fiber x).preservesZero) }
+    "=" _ "by" { Spaces.Laws[V := V x, space := (Models.bundle original.even).space x].zeroLeft ((original.backward.fiber x).apply v) }
+  };
+\definition backward: \forall (x: X)(v: W x) ->
+  (padded.backward.fiber x).apply ((odd.forward.fiber x).apply v) = (even.forward.fiber x).apply ((original.backward.fiber x).apply v) :=
+  \fun (x: X)(v: W x) => congr!{{V x} {U x}}
+    (EvenBlock.join x ((Models.bundle (term (N.Nat^::succ (N.Nat^::succ n)))).space x).zero) _ _ (middleForward x v);

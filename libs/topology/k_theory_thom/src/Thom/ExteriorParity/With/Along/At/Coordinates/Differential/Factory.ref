@@ -1,0 +1,80 @@
+\import std.Data[].Pair[] \as P;
+\definition E0[x: X]: \Set := Models.Fiber (First.parity n B.Bool^::true).ranks x;
+\definition E1[x: X]: \Set := Models.Fiber (First.parity n B.Bool^::false).ranks x;
+\definition F0[x: X]: \Set := Models.Fiber (Second.parity m B.Bool^::true).ranks x;
+\definition F1[x: X]: \Set := Models.Fiber (Second.parity m B.Bool^::false).ranks x;
+\import Operations.DirectSum[X := X, F := E0, G := E1, left := Models.bundle (First.parity n B.Bool^::true), right := Models.bundle (First.parity n B.Bool^::false)].Of[same := (\refl(left.baseSpace))] \as Left;
+\import Operations.DirectSum[X := X, F := F0, G := F1, left := Models.bundle (Second.parity m B.Bool^::true), right := Models.bundle (Second.parity m B.Bool^::false)].Of[same := (\refl(left.baseSpace))] \as Right;
+\import Bundles.Morphisms[X := X, Y := X, F := Parity.LeftFiber, G := E1, source := Parity.leftBundle, target := Models.bundle (First.parity n B.Bool^::false), f := (\fun (x: X) => x)]
+  .Composition[Z := X, H := E0, range := Models.bundle (First.parity n B.Bool^::true), g := (\fun (x: X) => x)] \as LeftEven;
+\definition firstEven: Bundles.Morphisms[X := X, Y := X, F := Parity.LeftFiber, G := E0, source := Parity.leftBundle, target := Models.bundle (First.parity n B.Bool^::true), f := (\fun (x: X) => x)].Map := LeftEven.compose Left.secondMap firstBackward;
+\import Bundles.Morphisms[X := X, Y := X, F := Parity.LeftFiber, G := E0, source := Parity.leftBundle, target := Models.bundle (First.parity n B.Bool^::true), f := (\fun (x: X) => x)]
+  .Composition[Z := X, H := E1, range := Models.bundle (First.parity n B.Bool^::false), g := (\fun (x: X) => x)] \as LeftOdd;
+\definition firstOdd: Bundles.Morphisms[X := X, Y := X, F := Parity.LeftFiber, G := E1, source := Parity.leftBundle, target := Models.bundle (First.parity n B.Bool^::false), f := (\fun (x: X) => x)].Map := LeftOdd.compose Left.firstMap firstForward;
+\definition firstWhole: Bundles.Morphisms[X := X, Y := X, F := Parity.LeftFiber, G := Parity.LeftFiber, source := Parity.leftBundle, target := Parity.leftBundle, f := (\fun (x: X) => x)].Map :=
+  Left.From[Y := X, H := Parity.LeftFiber, source := Parity.leftBundle, f := (\fun (x: X) => x)].pair firstEven firstOdd;
+\import Bundles.Morphisms[X := X, Y := X, F := Parity.RightFiber, G := F1, source := Parity.rightBundle, target := Models.bundle (Second.parity m B.Bool^::false), f := (\fun (x: X) => x)]
+  .Composition[Z := X, H := F0, range := Models.bundle (Second.parity m B.Bool^::true), g := (\fun (x: X) => x)] \as RightEven;
+\definition secondEven: Bundles.Morphisms[X := X, Y := X, F := Parity.RightFiber, G := F0, source := Parity.rightBundle, target := Models.bundle (Second.parity m B.Bool^::true), f := (\fun (x: X) => x)].Map := RightEven.compose Right.secondMap secondBackward;
+\import Bundles.Morphisms[X := X, Y := X, F := Parity.RightFiber, G := F0, source := Parity.rightBundle, target := Models.bundle (Second.parity m B.Bool^::true), f := (\fun (x: X) => x)]
+  .Composition[Z := X, H := F1, range := Models.bundle (Second.parity m B.Bool^::false), g := (\fun (x: X) => x)] \as RightOdd;
+\definition secondOdd: Bundles.Morphisms[X := X, Y := X, F := Parity.RightFiber, G := F1, source := Parity.rightBundle, target := Models.bundle (Second.parity m B.Bool^::false), f := (\fun (x: X) => x)].Map := RightOdd.compose Right.firstMap secondForward;
+\definition secondWhole: Bundles.Morphisms[X := X, Y := X, F := Parity.RightFiber, G := Parity.RightFiber, source := Parity.rightBundle, target := Parity.rightBundle, f := (\fun (x: X) => x)].Map :=
+  Right.From[Y := X, H := Parity.RightFiber, source := Parity.rightBundle, f := (\fun (x: X) => x)].pair secondEven secondOdd;
+\definition firstFormula: \forall (x: X)(v: Parity.LeftFiber x) -> (firstWhole.fiber x).apply v =
+  P.pair (E0 x) (E1 x) ((firstBackward.fiber x).apply (P.second (E0 x) (E1 x) v)) ((firstForward.fiber x).apply (P.first (E0 x) (E1 x) v)) :=
+  \fun (x: X)(v: Parity.LeftFiber x) => \refl((firstWhole.fiber x).apply v);
+\definition secondFormula: \forall (x: X)(v: Parity.RightFiber x) -> (secondWhole.fiber x).apply v =
+  P.pair (F0 x) (F1 x) ((secondBackward.fiber x).apply (P.second (F0 x) (F1 x) v)) ((secondForward.fiber x).apply (P.first (F0 x) (F1 x) v)) :=
+  \fun (x: X)(v: Parity.RightFiber x) => \refl((secondWhole.fiber x).apply v);
+\import Parity.Grading[] \as Grading;
+\import Operations.Tensor[X := X, F := Parity.LeftFiber, G := Parity.RightFiber, left := Parity.leftBundle, right := Parity.rightBundle] \as FullTensor;
+\import FullTensor.Of[same := (\refl(left.baseSpace))].Mapping[Y := X, A := Parity.LeftFiber, B := Parity.RightFiber, leftTarget := Parity.leftBundle, rightTarget := Parity.rightBundle, f := (\fun (x: X) => x)].Of[targetSame := (\refl(left.baseSpace))] \as TensorMap;
+\import Bundles.Identity[X := X, F := Parity.RightFiber, bundle := Parity.rightBundle] \as RightIdentity;
+\import Operations.MapOperations[X := X, F := Parity.SourceFiber, G := Parity.SourceFiber, source := Parity.sourceBundle, target := Parity.sourceBundle] \as FullMaps;
+\definition firstTensor: FullMaps.Map := TensorMap.map firstWhole RightIdentity.map;
+\definition secondTensor: FullMaps.Map := TensorMap.map Grading.leftGrading.forward secondWhole;
+\definition tensorOperator: FullMaps.Map := FullMaps.add firstTensor secondTensor;
+\definition onTensor: \forall (x: X)(v: Parity.LeftFiber x)(w: Parity.RightFiber x) ->
+  (tensorOperator.fiber x).apply (Parity.pure x v w) = (Parity.sourceBundle.space x).add
+    (Parity.pure x ((firstWhole.fiber x).apply v) w) (Parity.pure x ((Grading.leftGrading.forward.fiber x).apply v) ((secondWhole.fiber x).apply w)) :=
+  \fun (x: X)(v: Parity.LeftFiber x)(w: Parity.RightFiber x) => congr!{{Parity.SourceFiber x} {Parity.SourceFiber x} {Parity.SourceFiber x}} (Parity.sourceBundle.space x).add _ _ _ _
+    (TensorMap.onPure firstWhole RightIdentity.map x v w) (TensorMap.onPure Grading.leftGrading.forward secondWhole x v w);
+\import Operations.DirectSum[X := X, F := Parity.Even, G := Parity.Odd, left := Parity.evenBundle, right := Parity.oddBundle].Of[same := (\refl(left.baseSpace))] \as Split;
+\import Split.Inclusions[] \as Inclusions;
+\import Bundles.Morphisms[X := X, Y := X, F := Parity.Even, G := Parity.TargetFiber, source := Parity.evenBundle, target := Parity.targetBundle, f := (\fun (x: X) => x)]
+  .Composition[Z := X, H := Parity.SourceFiber, range := Parity.sourceBundle, g := (\fun (x: X) => x)] \as EmbedEven;
+\definition embedEven: Bundles.Morphisms[X := X, Y := X, F := Parity.Even, G := Parity.SourceFiber, source := Parity.evenBundle, target := Parity.sourceBundle, f := (\fun (x: X) => x)].Map := EmbedEven.compose Inclusions.first Parity.isomorphism.backward;
+\import Bundles.Morphisms[X := X, Y := X, F := Parity.Odd, G := Parity.TargetFiber, source := Parity.oddBundle, target := Parity.targetBundle, f := (\fun (x: X) => x)]
+  .Composition[Z := X, H := Parity.SourceFiber, range := Parity.sourceBundle, g := (\fun (x: X) => x)] \as EmbedOdd;
+\definition embedOdd: Bundles.Morphisms[X := X, Y := X, F := Parity.Odd, G := Parity.SourceFiber, source := Parity.oddBundle, target := Parity.sourceBundle, f := (\fun (x: X) => x)].Map := EmbedOdd.compose Inclusions.second Parity.isomorphism.backward;
+\import Bundles.Morphisms[X := X, Y := X, F := Parity.SourceFiber, G := Parity.TargetFiber, source := Parity.sourceBundle, target := Parity.targetBundle, f := (\fun (x: X) => x)]
+  .Composition[Z := X, H := Parity.Even, range := Parity.evenBundle, g := (\fun (x: X) => x)] \as ProjectEven;
+\definition projectEven: Bundles.Morphisms[X := X, Y := X, F := Parity.SourceFiber, G := Parity.Even, source := Parity.sourceBundle, target := Parity.evenBundle, f := (\fun (x: X) => x)].Map := ProjectEven.compose Parity.isomorphism.forward Split.firstMap;
+\import Bundles.Morphisms[X := X, Y := X, F := Parity.SourceFiber, G := Parity.TargetFiber, source := Parity.sourceBundle, target := Parity.targetBundle, f := (\fun (x: X) => x)]
+  .Composition[Z := X, H := Parity.Odd, range := Parity.oddBundle, g := (\fun (x: X) => x)] \as ProjectOdd;
+\definition projectOdd: Bundles.Morphisms[X := X, Y := X, F := Parity.SourceFiber, G := Parity.Odd, source := Parity.sourceBundle, target := Parity.oddBundle, f := (\fun (x: X) => x)].Map := ProjectOdd.compose Parity.isomorphism.forward Split.secondMap;
+\import Bundles.Morphisms[X := X, Y := X, F := Parity.Even, G := Parity.SourceFiber, source := Parity.evenBundle, target := Parity.sourceBundle, f := (\fun (x: X) => x)]
+  .Composition[Z := X, H := Parity.SourceFiber, range := Parity.sourceBundle, g := (\fun (x: X) => x)] \as ForwardStart;
+\import Bundles.Morphisms[X := X, Y := X, F := Parity.Even, G := Parity.SourceFiber, source := Parity.evenBundle, target := Parity.sourceBundle, f := (\fun (x: X) => x)]
+  .Composition[Z := X, H := Parity.Odd, range := Parity.oddBundle, g := (\fun (x: X) => x)] \as ForwardEnd;
+\definition forward: Bundles.Morphisms[X := X, Y := X, F := Parity.Even, G := Parity.Odd, source := Parity.evenBundle, target := Parity.oddBundle, f := (\fun (x: X) => x)].Map := ForwardEnd.compose (ForwardStart.compose embedEven tensorOperator) projectOdd;
+\import Bundles.Morphisms[X := X, Y := X, F := Parity.Odd, G := Parity.SourceFiber, source := Parity.oddBundle, target := Parity.sourceBundle, f := (\fun (x: X) => x)]
+  .Composition[Z := X, H := Parity.SourceFiber, range := Parity.sourceBundle, g := (\fun (x: X) => x)] \as BackwardStart;
+\import Bundles.Morphisms[X := X, Y := X, F := Parity.Odd, G := Parity.SourceFiber, source := Parity.oddBundle, target := Parity.sourceBundle, f := (\fun (x: X) => x)]
+  .Composition[Z := X, H := Parity.Even, range := Parity.evenBundle, g := (\fun (x: X) => x)] \as BackwardEnd;
+\definition backward: Bundles.Morphisms[X := X, Y := X, F := Parity.Odd, G := Parity.Even, source := Parity.oddBundle, target := Parity.evenBundle, f := (\fun (x: X) => x)].Map := BackwardEnd.compose (BackwardStart.compose embedOdd tensorOperator) projectEven;
+\import Bundles.Morphisms[X := X, Y := X, F := Models.Fiber (model B.Bool^::true).ranks, G := Parity.Even, source := Models.bundle (model B.Bool^::true), target := Parity.evenBundle, f := (\fun (x: X) => x)]
+  .Composition[Z := X, H := Parity.Odd, range := Parity.oddBundle, g := (\fun (x: X) => x)] \as CodeEvenStart;
+\import Bundles.Morphisms[X := X, Y := X, F := Models.Fiber (model B.Bool^::true).ranks, G := Parity.Odd, source := Models.bundle (model B.Bool^::true), target := Parity.oddBundle, f := (\fun (x: X) => x)]
+  .Composition[Z := X, H := Models.Fiber (model B.Bool^::false).ranks, range := Models.bundle (model B.Bool^::false), g := (\fun (x: X) => x)] \as CodeEvenEnd;
+\definition codeEven: Models.Map (model B.Bool^::true) (model B.Bool^::false) := CodeEvenEnd.compose (CodeEvenStart.compose evenChoice.isomorphism.backward forward) oddChoice.isomorphism.forward;
+\import Bundles.Morphisms[X := X, Y := X, F := Models.Fiber (model B.Bool^::false).ranks, G := Parity.Odd, source := Models.bundle (model B.Bool^::false), target := Parity.oddBundle, f := (\fun (x: X) => x)]
+  .Composition[Z := X, H := Parity.Even, range := Parity.evenBundle, g := (\fun (x: X) => x)] \as CodeOddStart;
+\import Bundles.Morphisms[X := X, Y := X, F := Models.Fiber (model B.Bool^::false).ranks, G := Parity.Even, source := Models.bundle (model B.Bool^::false), target := Parity.evenBundle, f := (\fun (x: X) => x)]
+  .Composition[Z := X, H := Models.Fiber (model B.Bool^::true).ranks, range := Models.bundle (model B.Bool^::true), g := (\fun (x: X) => x)] \as CodeOddEnd;
+\definition codeOdd: Models.Map (model B.Bool^::false) (model B.Bool^::true) := CodeOddEnd.compose (CodeOddStart.compose oddChoice.isomorphism.backward backward) evenChoice.isomorphism.forward;
+\definition coded: \forall (side: B.Bool^) -> Models.Map (model side) (model (Labels.flip side)) :=
+  \induction (side: B.Bool^) \return Models.Map (model side) (model (Labels.flip side)) \with { | false: codeOdd | true: codeEven };
+\module TensorZero(V, W: \Set, first: Spaces.VectorSpace V, second: Spaces.VectorSpace W);
+\module At(x: X);

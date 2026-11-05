@@ -1,0 +1,34 @@
+\definition leftToRight: \forall (z: Triple) -> LeftCollapsed z -> RightCollapsed z :=
+  \fun (z: Triple)(member: _) => Logic.orElim[_, _, RightCollapsed z] member
+    (\fun (inside: _) => Logic.orElim[_, _, RightCollapsed z] inside
+      (\fun (equalA: _) => Logic.Or[_, _]::left equalA)
+      (\fun (equalB: _) => Logic.Or[_, _]::right (Logic.Or[_, _]::left equalB)))
+    (\fun (equalC: _) => Logic.Or[_, _]::right (Logic.Or[_, _]::right equalC));
+\definition rightToLeft: \forall (z: Triple) -> RightCollapsed z -> LeftCollapsed z :=
+  \fun (z: Triple)(member: _) => Logic.orElim[_, _, LeftCollapsed z] member
+    (\fun (equalA: _) => Logic.Or[_, _]::left (Logic.Or[_, _]::left equalA))
+    (\fun (inside: _) => Logic.orElim[_, _, LeftCollapsed z] inside
+      (\fun (equalB: _) => Logic.Or[_, _]::left (Logic.Or[_, _]::right equalB))
+      (\fun (equalC: _) => Logic.Or[_, _]::right equalC));
+\definition reflectLeft: \forall (z: Triple) -> \In[Left.model.Carrier] Left.wedge (leftRaw z) -> LeftCollapsed z :=
+  \fun (z: Triple)(member: _) => Logic.orElim[_, _, LeftCollapsed z] member
+    (\fun (inside: _) => Logic.Or[_, _]::left (ABFibers.reflects (ab z) inside))
+    (\fun (equalC: _) => Logic.Or[_, _]::right equalC);
+\definition reflectRight: \forall (z: Triple) -> \In[Right.model.Carrier] Right.wedge (rightRaw z) -> RightCollapsed z :=
+  \fun (z: Triple)(member: _) => Logic.orElim[_, _, RightCollapsed z] member
+    (\fun (equalA: _) => Logic.Or[_, _]::left equalA)
+    (\fun (inside: _) => Logic.Or[_, _]::right (BCFibers.reflects (bc z) inside));
+\definition collapseLeft: \forall (z: Triple) -> LeftCollapsed z -> left z = (Relative.details Left.result).point :=
+  \fun (z: Triple)(member: _) => LeftFibers.collapse (leftRaw z)
+    (Logic.orElim[_, _, \In[Left.model.Carrier] Left.wedge (leftRaw z)] member
+      (\fun (inside: _) => Logic.Or[_, _]::left (ABFibers.collapse (ab z) inside))
+      (\fun (equalC: _) => Logic.Or[_, _]::right equalC));
+\definition collapseRight: \forall (z: Triple) -> RightCollapsed z -> right z = (Relative.details Right.result).point :=
+  \fun (z: Triple)(member: _) => RightFibers.collapse (rightRaw z)
+    (Logic.orElim[_, _, \In[Right.model.Carrier] Right.wedge (rightRaw z)] member
+      (\fun (equalA: _) => Logic.Or[_, _]::left equalA)
+      (\fun (inside: _) => Logic.Or[_, _]::right (BCFibers.collapse (bc z) inside)));
+\definition leftPoint: left (Relative.details RawModel.model).point = (Relative.details Left.result).point :=
+  collapseLeft (Relative.details RawModel.model).point (Logic.Or[_, _]::left (Logic.Or[_, _]::left (\refl((Relative.details first).point))));
+\definition rightPoint: right (Relative.details RawModel.model).point = (Relative.details Right.result).point :=
+  collapseRight (Relative.details RawModel.model).point (Logic.Or[_, _]::left (\refl((Relative.details first).point)));

@@ -1,0 +1,74 @@
+\import Fin.FromList[A := Fin.Fin Indices.total] \as TotalLists;
+\import Spaces.FiniteExterior[V := Total, space := Sum.space, n := Indices.total, b := Frame.totalBasis].At[k := k] \as TotalExterior;
+\import \parent.\parent.DirectSum[k := k] \as Direct;
+\import Forms.At[k := k] \as Result;
+\import Spaces.Sums[I := TotalExterior.Tuple].Vector[V := Exterior.Form k, space := Result.vectorSpace] \as Sums;
+\import Spaces.Multilinear[V := Total, space := Sum.space].Alternating[].Dimension[n := Indices.total, b := Frame.totalBasis].Increasing[k := k] \as Increasing;
+\import Lists.Membership[A := TotalExterior.Tuple] \as Membership;
+\definition Preimage[omega: Exterior.Form k]: \Set := \Cast[Direct.Carrier] ({ x: Direct.Carrier \where Direct.forward.apply x = omega });
+\definition InImage[omega: Exterior.Form k]: \Prop := \exists Preimage omega;
+\module Word(indices: Fin.Fin k -> Fin.Fin Indices.total, parts: Splitting.Split (TotalLists.list k indices));
+\definition wordInImage: \forall (indices: TotalExterior.Tuple) -> Fin.Ordering[].Increasing k Indices.total indices -> InImage (TotalExterior.word indices) := \block {
+  \fun (indices: TotalExterior.Tuple)(increasing: Fin.Ordering[].Increasing k Indices.total indices) \then
+  \takefrom parts: Splitting.Split (TotalLists.list k indices) \by Splitting.tupleSplit k indices increasing \then
+  \return Logic.existsIntro[Direct.Carrier, { x: Direct.Carrier \where Direct.forward.apply x = TotalExterior.word indices }]
+    (Word[indices := indices, parts := parts].preimage) (Word[indices := indices, parts := parts].onPreimage)
+};
+\definition scalarImage: \forall (omega: Exterior.Form k)(c: C.Complex) -> InImage omega -> InImage (Result.scale c omega) := \block {
+  \fun (omega: Exterior.Form k)(c: C.Complex)(exists: InImage omega) \then
+  \takefrom x: Preimage omega \by exists \then
+  \return Logic.existsIntro[Direct.Carrier, { y: Direct.Carrier \where Direct.forward.apply y = Result.scale c omega }]
+    (Direct.space.smul c x)
+    (trans!{{Exterior.Form k}} _ _ _ (Direct.forward.preservesScale c x)
+      (congr!{{Exterior.Form k} {Exterior.Form k}} (Result.scale c) _ _ (\bysub(Direct.Carrier, Preimage omega, x))))
+};
+\definition finiteImage: \forall (xs: Lists.List[TotalExterior.Tuple])(f: TotalExterior.Tuple -> Exterior.Form k) ->
+  (\forall (i: TotalExterior.Tuple) -> Membership.Occurs i xs -> InImage (f i)) -> InImage (Sums.sum xs f) :=
+  \induction (xs: Lists.List[TotalExterior.Tuple]) \return \forall (f: TotalExterior.Tuple -> Exterior.Form k) ->
+    (\forall (i: TotalExterior.Tuple) -> Membership.Occurs i xs -> InImage (f i)) -> InImage (Sums.sum xs f) \with {
+      | nil: \fun (f: TotalExterior.Tuple -> Exterior.Form k)(each: \forall (i: TotalExterior.Tuple) -> Membership.Occurs i Lists.List[TotalExterior.Tuple]::nil -> InImage (f i)) =>
+        Logic.existsIntro[Direct.Carrier, { x: Direct.Carrier \where Direct.forward.apply x = Result.vectorSpace.zero }] Direct.space.zero Direct.forward.preservesZero
+      | cons: \block {
+        \fun (head: TotalExterior.Tuple)(tail: Lists.List[TotalExterior.Tuple])(previous: \forall (f: TotalExterior.Tuple -> Exterior.Form k) -> (\forall (i: TotalExterior.Tuple) -> Membership.Occurs i tail -> InImage (f i)) -> InImage (Sums.sum tail f))(f: TotalExterior.Tuple -> Exterior.Form k)(each: \forall (i: TotalExterior.Tuple) -> Membership.Occurs i (Lists.List[TotalExterior.Tuple]::cons head tail) -> InImage (f i)) \then
+        \takefrom x: Preimage (f head) \by each head (Logic.Or[_, _]::left (\refl(head))) \then
+        \takefrom y: Preimage (Sums.sum tail f) \by previous f (\fun (i: TotalExterior.Tuple)(member: Membership.Occurs i tail) => each i (Logic.Or[_, _]::right member)) \then
+        \return Logic.existsIntro[Direct.Carrier, { z: Direct.Carrier \where Direct.forward.apply z = Sums.sum (Lists.List[TotalExterior.Tuple]::cons head tail) f }]
+          (Direct.space.add x y)
+          (trans!{{Exterior.Form k}} _ _ _ (Direct.forward.preservesAdd x y)
+            (congr!{{Exterior.Form k} {Exterior.Form k} {Exterior.Form k}} Result.plus _ _ _ _
+              (\bysub(Direct.Carrier, Preimage (f head), x)) (\bysub(Direct.Carrier, Preimage (Sums.sum tail f), y))))
+      }
+    };
+\definition surjective: \forall (omega: Exterior.Form k) -> InImage omega := \block {
+  \fun (omega: Exterior.Form k) \then
+  \takefrom enumeration: TotalExterior.Enumeration \by TotalExterior.existsEnumeration \then
+  \takefrom x: Preimage (TotalExterior.assemble enumeration (TotalExterior.coefficient omega)) \by
+    finiteImage enumeration (\fun (i: TotalExterior.Tuple) => Result.scale (TotalExterior.coefficient omega i) (TotalExterior.word i))
+      (\fun (i: TotalExterior.Tuple)(member: Membership.Occurs i enumeration) =>
+        scalarImage (TotalExterior.word i) (TotalExterior.coefficient omega i) (wordInImage i (Increasing.included enumeration i member))) \then
+  \return Logic.existsIntro[Direct.Carrier, { x: Direct.Carrier \where Direct.forward.apply x = omega }] x
+    (trans!{{Exterior.Form k}} _ _ _ (\bysub(Direct.Carrier, Preimage (TotalExterior.assemble enumeration (TotalExterior.coefficient omega)), x))
+      (TotalExterior.reconstruction omega enumeration))
+};
+\definition injective: \forall (x, y: Direct.Carrier) -> Direct.forward.apply x = Direct.forward.apply y -> x = y :=
+  \fun (x, y: Direct.Carrier)(same: Direct.forward.apply x = Direct.forward.apply y) => Direct.extensionality x y
+    (\block {
+      \fun (d: Direct.Bidegree) \then
+      \takefrom firstEnumeration: Operations.ExteriorIndices[n := n, k := d.p].Enumeration \by Operations.ExteriorIndices[n := n, k := d.p].existsEnumeration \then
+      \takefrom secondEnumeration: Operations.ExteriorIndices[n := m, k := d.q].Enumeration \by Operations.ExteriorIndices[n := m, k := d.q].existsEnumeration \then
+      \return trans!{{Direct.Component[d := d].Carrier}} _ _ _
+        (sym!{{Direct.Component[d := d].Carrier}} _ _ (Direct.At[d := d].InFrames[n := n, m := m, firstFrame := firstFrame, secondFrame := secondFrame,
+          firstEnumeration := firstEnumeration, secondEnumeration := secondEnumeration].recovery x))
+        (trans!{{Direct.Component[d := d].Carrier}} _ _ _
+          (congr!{{Exterior.Form k} {Direct.Component[d := d].Carrier}}
+            (Direct.At[d := d].InFrames[n := n, m := m, firstFrame := firstFrame, secondFrame := secondFrame,
+              firstEnumeration := firstEnumeration, secondEnumeration := secondEnumeration].backward).apply _ _ same)
+          (Direct.At[d := d].InFrames[n := n, m := m, firstFrame := firstFrame, secondFrame := secondFrame,
+            firstEnumeration := firstEnumeration, secondEnumeration := secondEnumeration].recovery y))
+    });
+\import Spaces.Isomorphism[V := Direct.Carrier, W := Exterior.Form k, source := Direct.space, target := Result.vectorSpace] \as Isomorphisms;
+\import Isomorphisms.OfBijective[f := Direct.forward] \as Inverse;
+\definition isomorphism: Isomorphisms.Isomorphism := Inverse.isomorphism injective surjective;
+\module InFrames(
+  firstEnumeration: \forall (p: N.Nat^) -> Operations.ExteriorIndices[n := n, k := p].Enumeration,
+  secondEnumeration: \forall (q: N.Nat^) -> Operations.ExteriorIndices[n := m, k := q].Enumeration);

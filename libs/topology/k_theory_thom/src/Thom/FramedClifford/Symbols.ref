@@ -1,0 +1,29 @@
+\definition positiveBundle: Bundles.Family[X := X, F := F].Bundle := Pair.BundleModel[F := F].bundle positiveModel;
+\definition G[x: X]: \Set := Bundles.Vector n;
+\import Bundles.Trivial[X := X, n := n, baseSpace := space] \as Trivial;
+\definition negativeBundle: Bundles.Family[X := X, F := G].Bundle := Trivial.bundle;
+\import Pair.BundleModel[F := G].From[original := negativeBundle, same := (\refl(space))] \as BasedNegative;
+\definition negativeModel: Pair.BundleModel[F := G].Bundle := BasedNegative.model;
+\import Relative.Descent[X := X, F := F, bundle := positiveBundle, compact := compact, hausdorff := hausdorff, subset := subset, closed := closed, dimension := n] \as Positive;
+\import Relative.Descent[X := X, F := G, bundle := negativeBundle, compact := compact, hausdorff := hausdorff, subset := subset, closed := closed, dimension := n] \as Negative;
+\import Bundles.Family[X := X, F := G].Of[bundle := negativeBundle].Restriction[U := subset] \as NegativeBoundary;
+\import Operations.IdentityIsomorphism[X := Pair.A, F := (\fun (x: Pair.A) => G x), bundle := NegativeBoundary.restricted] \as BoundaryIdentity;
+\definition beta: Negative.OnSubset := BoundaryIdentity.isomorphism;
+\import Bundles.Morphisms[X := X, Y := X, F := F, G := G, source := positiveBundle, target := negativeBundle, f := (\fun (x: X) => x)] \as Forward;
+\import Bundles.Morphisms[X := X, Y := X, F := G, G := F, source := negativeBundle, target := positiveBundle, f := (\fun (x: X) => x)] \as Backward;
+\structure Data: \Set := {
+  forward: Forward.Map, backward: Backward.Map, coefficient: X -> C.Complex,
+  continuous: topology.Continuity[A := X, B := C.Complex].Continuous space Scalars.scalar.topological.space coefficient
+};
+\structure Laws[c: Data]: \Prop := {
+  evenSquare: \forall (x: X)(v: F x) -> (c.backward.fiber x).apply ((c.forward.fiber x).apply v) = (positiveBundle.space x).smul (c.coefficient x) v,
+  oddSquare: \forall (x: X)(v: G x) -> (c.forward.fiber x).apply ((c.backward.fiber x).apply v) = (negativeBundle.space x).smul (c.coefficient x) v,
+  boundary: \forall (x: Pair.A) -> c.coefficient x = Scalar.one
+};
+\import Spaces.Linear[V := Bundles.Vector n, W := Bundles.Vector n, source := Bundles.coordinates n, target := Bundles.coordinates n] \as Coordinates;
+\definition coordinateIdentity: Coordinates.Map := Spaces.FiniteCoordinates[n := n].identity;
+\import Pair.FramedBundles[F := F, G := G, sourceModel := positiveModel, targetModel := negativeModel, n := n, m := n] \as DescendForward;
+\import Pair.FramedBundles[F := G, G := F, sourceModel := negativeModel, targetModel := positiveModel, n := n, m := n] \as DescendBackward;
+\import Pair.BundleTriples[F := F, G := G, firstModel := positiveModel, secondModel := negativeModel] \as Triples;
+\module With(alpha: Positive.OnSubset, c: Data, laws: Laws[c],
+  agrees: \forall (x: Pair.A)(v: F x) -> (c.forward.fiber x).apply v = (alpha.forward.fiber x).apply v);

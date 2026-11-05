@@ -1,0 +1,23 @@
+\import C.Def[] \as Scalar;
+\import Spaces.Linear[V := B, W := V, source := secondSpace, target := even] \as Inclusion;
+\import Spaces.Linear[V := V, W := B, source := even, target := secondSpace] \as Projection;
+\import Spaces.Linear[V := V, W := W, source := even, target := odd] \as Forward;
+\import Spaces.Linear[V := W, W := V, source := odd, target := even] \as Backward;
+\import Spaces.Linear[V := A, W := B, source := firstSpace, target := secondSpace] \as Lower;
+\import Spaces.Linear[V := B, W := A, source := secondSpace, target := firstSpace] \as Raise;
+\import Spaces.Linear[V := A, W := A, source := firstSpace, target := firstSpace] \as Defect;
+\structure Data: \Set := {
+  i: Inclusion.Map, p: Projection.Map, d: Forward.Map, e: Backward.Map,
+  h: Backward.Map, k: Forward.Map, l: Lower.Map, r: Raise.Map, t: Defect.Map, lambda: C.Complex
+};
+\structure Laws[c: Data]: \Prop := {
+  projection: \forall (b: B) -> c.p.apply (c.i.apply b) = b,
+  vanishes: \forall (w: W) -> c.p.apply (c.e.apply w) = secondSpace.zero,
+  raisingVanishes: \forall (b: B) -> c.k.apply (c.i.apply b) = odd.zero,
+  even: \forall (v: V) -> even.add (even.add (c.e.apply (c.k.apply v)) (c.h.apply (c.d.apply v)))
+    (c.i.apply (c.l.apply (c.r.apply (c.p.apply v)))) = even.smul c.lambda v,
+  odd: \forall (w: W) -> odd.add (c.d.apply (c.h.apply w)) (c.k.apply (c.e.apply w)) = odd.smul c.lambda w,
+  head: \forall (a: A) -> firstSpace.add (c.r.apply (c.l.apply a)) (c.t.apply a) = firstSpace.smul c.lambda a
+};
+\import Spaces.DirectSum[V := A, W := W, left := firstSpace, right := odd] \as Sum;
+\module With(c: Data, laws: Laws[c]);

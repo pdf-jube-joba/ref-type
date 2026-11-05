@@ -1,0 +1,25 @@
+\definition identity: SecondMaps.Map := SecondMaps.Map {
+  apply := \fun (w: W) => w,
+  preservesAdd := \fun (w, z: W) => \refl(secondSpace.add w z),
+  preservesScale := \fun (a: C.Complex)(w: W) => \refl(secondSpace.smul a w)
+};
+\import \parent.Lift[first := c.first, second := identity] \as First;
+\import \parent.Lift[first := c.grading, second := c.second] \as Second;
+\definition operator: Maps.Map := MapOperations.plus First.map Second.map;
+\definition onPure[v: V][w: W]: operator.apply (Tensor.tensor v w) = Tensor.plus
+  (Tensor.tensor (c.first.apply v) w) (Tensor.tensor (c.grading.apply v) (c.second.apply w)) :=
+  congr!{{Tensor.Carrier} {Tensor.Carrier} {Tensor.Carrier}} Tensor.plus _ _ _ _ (First.onPure v w) (Second.onPure v w);
+\definition squareMap: Maps.Map := Maps.Composition[U := Tensor.Carrier, domain := Tensor.space].compose operator operator;
+\definition identityTensor: Maps.Map := Maps.Map {
+  apply := \fun (t: Tensor.Carrier) => t,
+  preservesAdd := \fun (t, u: Tensor.Carrier) => \refl(Tensor.plus t u),
+  preservesScale := \fun (a: C.Complex)(t: Tensor.Carrier) => \refl(Tensor.scale a t)
+};
+\definition squareTarget: Maps.Map := MapOperations.scale (Scalar.add c.a c.b) identityTensor;
+\module Pure(v: V, w: W);
+\definition square: \forall (t: Tensor.Carrier) -> operator.apply (operator.apply t) = Tensor.scale (Scalar.add c.a c.b) t :=
+  EqualityOnPure.pointwise squareMap squareTarget (\fun (v: V)(w: W) => Pure[v := v, w := w].equation);
+\module Invertible(nonzero: Scalar.NonZero (Scalar.add c.a c.b));
+\module Graded(grading: SecondMaps.Map,
+  gradingSquare: \forall (w: W) -> grading.apply (grading.apply w) = w,
+  anticommutes: \forall (w: W) -> secondSpace.add (grading.apply (c.second.apply w)) (c.second.apply (grading.apply w)) = secondSpace.zero);

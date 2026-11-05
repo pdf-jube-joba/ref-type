@@ -1,0 +1,184 @@
+\definition E0Space: Spaces.VectorSpace (E0 x) := (Models.bundle (First.parity n B.Bool^::true)).space x;
+\definition zE0: E0 x := E0Space.zero;
+\definition E1Space: Spaces.VectorSpace (E1 x) := (Models.bundle (First.parity n B.Bool^::false)).space x;
+\definition zE1: E1 x := E1Space.zero;
+\definition F0Space: Spaces.VectorSpace (F0 x) := (Models.bundle (Second.parity m B.Bool^::true)).space x;
+\definition zF0: F0 x := F0Space.zero;
+\definition F1Space: Spaces.VectorSpace (F1 x) := (Models.bundle (Second.parity m B.Bool^::false)).space x;
+\definition zF1: F1 x := F1Space.zero;
+\import \parent.TensorZero[V := E0 x, W := F0 x, first := E0Space, second := F0Space] \as ZeroEE;
+\import \parent.TensorZero[V := E1 x, W := F1 x, first := E1Space, second := F1Space] \as ZeroOO;
+\import \parent.TensorZero[V := E0 x, W := F1 x, first := E0Space, second := F1Space] \as ZeroEO;
+\import \parent.TensorZero[V := E1 x, W := F0 x, first := E1Space, second := F0Space] \as ZeroOE;
+\definition evenProjection[v: Parity.LeftFiber x][w: Parity.RightFiber x]:
+  (projectEven.fiber x).apply (Parity.pure x v w) = P.pair (Parity.EEFiber x) (Parity.OOFiber x)
+    (Parity.ee x (P.first (E0 x) (E1 x) v) (P.first (F0 x) (F1 x) w))
+    (Parity.oo x (P.second (E0 x) (E1 x) v) (P.second (F0 x) (F1 x) w)) :=
+  congr!{{Parity.TargetFiber x} {Parity.Even x}} (P.first (Parity.Even x) (Parity.Odd x)) _ _ (Parity.onPure x v w);
+\definition oddProjection[v: Parity.LeftFiber x][w: Parity.RightFiber x]:
+  (projectOdd.fiber x).apply (Parity.pure x v w) = P.pair (Parity.EOFiber x) (Parity.OEFiber x)
+    (Parity.eo x (P.first (E0 x) (E1 x) v) (P.second (F0 x) (F1 x) w))
+    (Parity.oe x (P.second (E0 x) (E1 x) v) (P.first (F0 x) (F1 x) w)) :=
+  congr!{{Parity.TargetFiber x} {Parity.Odd x}} (P.second (Parity.Even x) (Parity.Odd x)) _ _ (Parity.onPure x v w);
+
+\definition eeInput[v: E0 x][w: F0 x]: Parity.Even x := P.pair (Parity.EEFiber x) (Parity.OOFiber x) (Parity.ee x v w) (Parity.ooBundle.space x).zero;
+\definition eeDecomposition[v: E0 x][w: F0 x]:
+  (Parity.isomorphism.forward.fiber x).apply (Parity.pure x (P.pair (E0 x) (E1 x) v zE1) (P.pair (F0 x) (F1 x) w zF1)) =
+  ((Inclusions.first.fiber x).apply (eeInput v w)) :=
+  trans!{{Parity.TargetFiber x}} _ _ _ (Parity.onPure x (P.pair (E0 x) (E1 x) v zE1) (P.pair (F0 x) (F1 x) w zF1))
+    (P.Prop[A := Parity.Even x, B := Parity.Odd x].pairCong _ _ _ _ (P.Prop[A := Parity.EEFiber x, B := Parity.OOFiber x].pairCong _ _ _ _ (\refl(Parity.ee x v w)) (ZeroOO.leftZero zF1)) (P.Prop[A := Parity.EOFiber x, B := Parity.OEFiber x].pairCong _ _ _ _ (ZeroEO.rightZero v) (ZeroOE.leftZero w)));
+\definition eeEmbedding[v: E0 x][w: F0 x]:
+  (embedEven.fiber x).apply (eeInput v w) = Parity.pure x (P.pair (E0 x) (E1 x) v zE1) (P.pair (F0 x) (F1 x) w zF1) :=
+  trans!{{Parity.SourceFiber x}} _ _ _
+    (congr!{{Parity.TargetFiber x} {Parity.SourceFiber x}} (Parity.isomorphism.backward.fiber x).apply _ _
+      (sym!{{Parity.TargetFiber x}} _ _ (eeDecomposition v w)))
+    (Parity.isomorphism.leftInverse x (Parity.pure x (P.pair (E0 x) (E1 x) v zE1) (P.pair (F0 x) (F1 x) w zF1)));
+
+\definition ooInput[v: E1 x][w: F1 x]: Parity.Even x := P.pair (Parity.EEFiber x) (Parity.OOFiber x) (Parity.eeBundle.space x).zero (Parity.oo x v w);
+\definition ooDecomposition[v: E1 x][w: F1 x]:
+  (Parity.isomorphism.forward.fiber x).apply (Parity.pure x (P.pair (E0 x) (E1 x) zE0 v) (P.pair (F0 x) (F1 x) zF0 w)) =
+  ((Inclusions.first.fiber x).apply (ooInput v w)) :=
+  trans!{{Parity.TargetFiber x}} _ _ _ (Parity.onPure x (P.pair (E0 x) (E1 x) zE0 v) (P.pair (F0 x) (F1 x) zF0 w))
+    (P.Prop[A := Parity.Even x, B := Parity.Odd x].pairCong _ _ _ _ (P.Prop[A := Parity.EEFiber x, B := Parity.OOFiber x].pairCong _ _ _ _ (ZeroEE.leftZero zF0) (\refl(Parity.oo x v w))) (P.Prop[A := Parity.EOFiber x, B := Parity.OEFiber x].pairCong _ _ _ _ (ZeroEO.leftZero w) (ZeroOE.rightZero v)));
+\definition ooEmbedding[v: E1 x][w: F1 x]:
+  (embedEven.fiber x).apply (ooInput v w) = Parity.pure x (P.pair (E0 x) (E1 x) zE0 v) (P.pair (F0 x) (F1 x) zF0 w) :=
+  trans!{{Parity.SourceFiber x}} _ _ _
+    (congr!{{Parity.TargetFiber x} {Parity.SourceFiber x}} (Parity.isomorphism.backward.fiber x).apply _ _
+      (sym!{{Parity.TargetFiber x}} _ _ (ooDecomposition v w)))
+    (Parity.isomorphism.leftInverse x (Parity.pure x (P.pair (E0 x) (E1 x) zE0 v) (P.pair (F0 x) (F1 x) zF0 w)));
+
+\definition eoInput[v: E0 x][w: F1 x]: Parity.Odd x := P.pair (Parity.EOFiber x) (Parity.OEFiber x) (Parity.eo x v w) (Parity.oeBundle.space x).zero;
+\definition eoDecomposition[v: E0 x][w: F1 x]:
+  (Parity.isomorphism.forward.fiber x).apply (Parity.pure x (P.pair (E0 x) (E1 x) v zE1) (P.pair (F0 x) (F1 x) zF0 w)) =
+  ((Inclusions.second.fiber x).apply (eoInput v w)) :=
+  trans!{{Parity.TargetFiber x}} _ _ _ (Parity.onPure x (P.pair (E0 x) (E1 x) v zE1) (P.pair (F0 x) (F1 x) zF0 w))
+    (P.Prop[A := Parity.Even x, B := Parity.Odd x].pairCong _ _ _ _ (P.Prop[A := Parity.EEFiber x, B := Parity.OOFiber x].pairCong _ _ _ _ (ZeroEE.rightZero v) (ZeroOO.leftZero w)) (P.Prop[A := Parity.EOFiber x, B := Parity.OEFiber x].pairCong _ _ _ _ (\refl(Parity.eo x v w)) (ZeroOE.leftZero zF0)));
+\definition eoEmbedding[v: E0 x][w: F1 x]:
+  (embedOdd.fiber x).apply (eoInput v w) = Parity.pure x (P.pair (E0 x) (E1 x) v zE1) (P.pair (F0 x) (F1 x) zF0 w) :=
+  trans!{{Parity.SourceFiber x}} _ _ _
+    (congr!{{Parity.TargetFiber x} {Parity.SourceFiber x}} (Parity.isomorphism.backward.fiber x).apply _ _
+      (sym!{{Parity.TargetFiber x}} _ _ (eoDecomposition v w)))
+    (Parity.isomorphism.leftInverse x (Parity.pure x (P.pair (E0 x) (E1 x) v zE1) (P.pair (F0 x) (F1 x) zF0 w)));
+
+\definition oeInput[v: E1 x][w: F0 x]: Parity.Odd x := P.pair (Parity.EOFiber x) (Parity.OEFiber x) (Parity.eoBundle.space x).zero (Parity.oe x v w);
+\definition oeDecomposition[v: E1 x][w: F0 x]:
+  (Parity.isomorphism.forward.fiber x).apply (Parity.pure x (P.pair (E0 x) (E1 x) zE0 v) (P.pair (F0 x) (F1 x) w zF1)) =
+  ((Inclusions.second.fiber x).apply (oeInput v w)) :=
+  trans!{{Parity.TargetFiber x}} _ _ _ (Parity.onPure x (P.pair (E0 x) (E1 x) zE0 v) (P.pair (F0 x) (F1 x) w zF1))
+    (P.Prop[A := Parity.Even x, B := Parity.Odd x].pairCong _ _ _ _ (P.Prop[A := Parity.EEFiber x, B := Parity.OOFiber x].pairCong _ _ _ _ (ZeroEE.leftZero w) (ZeroOO.rightZero v)) (P.Prop[A := Parity.EOFiber x, B := Parity.OEFiber x].pairCong _ _ _ _ (ZeroEO.leftZero zF1) (\refl(Parity.oe x v w))));
+\definition oeEmbedding[v: E1 x][w: F0 x]:
+  (embedOdd.fiber x).apply (oeInput v w) = Parity.pure x (P.pair (E0 x) (E1 x) zE0 v) (P.pair (F0 x) (F1 x) w zF1) :=
+  trans!{{Parity.SourceFiber x}} _ _ _
+    (congr!{{Parity.TargetFiber x} {Parity.SourceFiber x}} (Parity.isomorphism.backward.fiber x).apply _ _
+      (sym!{{Parity.TargetFiber x}} _ _ (oeDecomposition v w)))
+    (Parity.isomorphism.leftInverse x (Parity.pure x (P.pair (E0 x) (E1 x) zE0 v) (P.pair (F0 x) (F1 x) w zF1)));
+
+\definition firstEvenAction[v: E0 x]:
+  (firstWhole.fiber x).apply (P.pair (E0 x) (E1 x) v zE1) = P.pair (E0 x) (E1 x) zE0 ((firstForward.fiber x).apply v) :=
+  P.Prop[A := E0 x, B := E1 x].pairCong _ _ _ _ ((firstBackward.fiber x).preservesZero) (\refl((firstForward.fiber x).apply v));
+\definition firstOddAction[v: E1 x]:
+  (firstWhole.fiber x).apply (P.pair (E0 x) (E1 x) zE0 v) = P.pair (E0 x) (E1 x) ((firstBackward.fiber x).apply v) zE1 :=
+  P.Prop[A := E0 x, B := E1 x].pairCong _ _ _ _ (\refl((firstBackward.fiber x).apply v)) ((firstForward.fiber x).preservesZero);
+\definition secondEvenAction[v: F0 x]:
+  (secondWhole.fiber x).apply (P.pair (F0 x) (F1 x) v zF1) = P.pair (F0 x) (F1 x) zF0 ((secondForward.fiber x).apply v) :=
+  P.Prop[A := F0 x, B := F1 x].pairCong _ _ _ _ ((secondBackward.fiber x).preservesZero) (\refl((secondForward.fiber x).apply v));
+\definition secondOddAction[v: F1 x]:
+  (secondWhole.fiber x).apply (P.pair (F0 x) (F1 x) zF0 v) = P.pair (F0 x) (F1 x) ((secondBackward.fiber x).apply v) zF1 :=
+  P.Prop[A := F0 x, B := F1 x].pairCong _ _ _ _ (\refl((secondBackward.fiber x).apply v)) ((secondForward.fiber x).preservesZero);
+\import Spaces.Laws[V := E1 x, space := E1Space] \as E1Laws;
+\definition negativeOrigin: E1Space.neg zE1 = zE1 :=
+  trans!{{E1 x}} _ _ _ (sym!{{E1 x}} _ _ (E1Laws.minusOneScale zE1)) (E1Laws.scaleZero (Op.neg Op.one));
+\definition gammaEven[v: E0 x]: (Grading.leftGrading.forward.fiber x).apply (P.pair (E0 x) (E1 x) v zE1) = P.pair (E0 x) (E1 x) v zE1 :=
+  trans!{{Parity.LeftFiber x}} _ _ _ (Grading.leftFormula x (P.pair (E0 x) (E1 x) v zE1))
+    (P.Prop[A := E0 x, B := E1 x].pairCong _ _ _ _ (\refl(v)) negativeOrigin);
+\definition gammaOdd[v: E1 x]: (Grading.leftGrading.forward.fiber x).apply (P.pair (E0 x) (E1 x) zE0 v) = P.pair (E0 x) (E1 x) zE0 (E1Space.neg v) :=
+  Grading.leftFormula x (P.pair (E0 x) (E1 x) zE0 v);
+
+\definition eeProjection[v: E0 x][w: F0 x]:
+  (projectEven.fiber x).apply (Parity.pure x (P.pair (E0 x) (E1 x) v zE1) (P.pair (F0 x) (F1 x) w zF1)) = eeInput v w :=
+  trans!{{Parity.Even x}} _ _ _ (evenProjection (P.pair (E0 x) (E1 x) v zE1) (P.pair (F0 x) (F1 x) w zF1))
+    (P.Prop[A := Parity.EEFiber x, B := Parity.OOFiber x].pairCong _ _ _ _ (\refl(Parity.ee x v w)) (ZeroOO.leftZero zF1));
+\definition ooProjection[v: E1 x][w: F1 x]:
+  (projectEven.fiber x).apply (Parity.pure x (P.pair (E0 x) (E1 x) zE0 v) (P.pair (F0 x) (F1 x) zF0 w)) = ooInput v w :=
+  trans!{{Parity.Even x}} _ _ _ (evenProjection (P.pair (E0 x) (E1 x) zE0 v) (P.pair (F0 x) (F1 x) zF0 w))
+    (P.Prop[A := Parity.EEFiber x, B := Parity.OOFiber x].pairCong _ _ _ _ (ZeroEE.leftZero zF0) (\refl(Parity.oo x v w)));
+\definition eoProjection[v: E0 x][w: F1 x]:
+  (projectOdd.fiber x).apply (Parity.pure x (P.pair (E0 x) (E1 x) v zE1) (P.pair (F0 x) (F1 x) zF0 w)) = eoInput v w :=
+  trans!{{Parity.Odd x}} _ _ _ (oddProjection (P.pair (E0 x) (E1 x) v zE1) (P.pair (F0 x) (F1 x) zF0 w))
+    (P.Prop[A := Parity.EOFiber x, B := Parity.OEFiber x].pairCong _ _ _ _ (\refl(Parity.eo x v w)) (ZeroOE.leftZero zF0));
+\definition oeProjection[v: E1 x][w: F0 x]:
+  (projectOdd.fiber x).apply (Parity.pure x (P.pair (E0 x) (E1 x) zE0 v) (P.pair (F0 x) (F1 x) w zF1)) = oeInput v w :=
+  trans!{{Parity.Odd x}} _ _ _ (oddProjection (P.pair (E0 x) (E1 x) zE0 v) (P.pair (F0 x) (F1 x) w zF1))
+    (P.Prop[A := Parity.EOFiber x, B := Parity.OEFiber x].pairCong _ _ _ _ (ZeroEO.leftZero zF1) (\refl(Parity.oe x v w)));
+\definition eeTensor[v: E0 x][w: F0 x]:
+  (tensorOperator.fiber x).apply (Parity.pure x (P.pair (E0 x) (E1 x) v zE1) (P.pair (F0 x) (F1 x) w zF1)) = (Parity.sourceBundle.space x).add
+    (Parity.pure x (P.pair (E0 x) (E1 x) zE0 ((firstForward.fiber x).apply v)) (P.pair (F0 x) (F1 x) w zF1)) (Parity.pure x (P.pair (E0 x) (E1 x) v zE1) (P.pair (F0 x) (F1 x) zF0 ((secondForward.fiber x).apply w))) :=
+  trans!{{Parity.SourceFiber x}} _ _ _ (onTensor x (P.pair (E0 x) (E1 x) v zE1) (P.pair (F0 x) (F1 x) w zF1))
+    (congr!{{Parity.SourceFiber x} {Parity.SourceFiber x} {Parity.SourceFiber x}} (Parity.sourceBundle.space x).add _ _ _ _
+      (congr!{{Parity.LeftFiber x} {Parity.SourceFiber x}} (\fun (z: Parity.LeftFiber x) => Parity.pure x z (P.pair (F0 x) (F1 x) w zF1)) _ _ (firstEvenAction v))
+      (congr!{{Parity.LeftFiber x} {Parity.RightFiber x} {Parity.SourceFiber x}} (Parity.pure x) _ _ _ _ (gammaEven v) (secondEvenAction w)));
+\definition eeAction[v: E0 x][w: F0 x]:
+  (forward.fiber x).apply (eeInput v w) = (Parity.oddBundle.space x).add (oeInput ((firstForward.fiber x).apply v) w) (eoInput v ((secondForward.fiber x).apply w)) :=
+  trans!{{Parity.Odd x}} _ _ _
+    (congr!{{Parity.SourceFiber x} {Parity.Odd x}} (\fun (z: Parity.SourceFiber x) => (projectOdd.fiber x).apply ((tensorOperator.fiber x).apply z)) _ _ (eeEmbedding v w))
+    (trans!{{Parity.Odd x}} _ _ _
+      (congr!{{Parity.SourceFiber x} {Parity.Odd x}} (projectOdd.fiber x).apply _ _ (eeTensor v w))
+      (trans!{{Parity.Odd x}} _ _ _
+        ((projectOdd.fiber x).preservesAdd (Parity.pure x (P.pair (E0 x) (E1 x) zE0 ((firstForward.fiber x).apply v)) (P.pair (F0 x) (F1 x) w zF1)) (Parity.pure x (P.pair (E0 x) (E1 x) v zE1) (P.pair (F0 x) (F1 x) zF0 ((secondForward.fiber x).apply w))))
+        (congr!{{Parity.Odd x} {Parity.Odd x} {Parity.Odd x}} (Parity.oddBundle.space x).add _ _ _ _
+          (oeProjection ((firstForward.fiber x).apply v) w) (eoProjection v ((secondForward.fiber x).apply w)))));
+
+\definition ooTensor[v: E1 x][w: F1 x]:
+  (tensorOperator.fiber x).apply (Parity.pure x (P.pair (E0 x) (E1 x) zE0 v) (P.pair (F0 x) (F1 x) zF0 w)) = (Parity.sourceBundle.space x).add
+    (Parity.pure x (P.pair (E0 x) (E1 x) ((firstBackward.fiber x).apply v) zE1) (P.pair (F0 x) (F1 x) zF0 w)) (Parity.pure x (P.pair (E0 x) (E1 x) zE0 (E1Space.neg v)) (P.pair (F0 x) (F1 x) ((secondBackward.fiber x).apply w) zF1)) :=
+  trans!{{Parity.SourceFiber x}} _ _ _ (onTensor x (P.pair (E0 x) (E1 x) zE0 v) (P.pair (F0 x) (F1 x) zF0 w))
+    (congr!{{Parity.SourceFiber x} {Parity.SourceFiber x} {Parity.SourceFiber x}} (Parity.sourceBundle.space x).add _ _ _ _
+      (congr!{{Parity.LeftFiber x} {Parity.SourceFiber x}} (\fun (z: Parity.LeftFiber x) => Parity.pure x z (P.pair (F0 x) (F1 x) zF0 w)) _ _ (firstOddAction v))
+      (congr!{{Parity.LeftFiber x} {Parity.RightFiber x} {Parity.SourceFiber x}} (Parity.pure x) _ _ _ _ (gammaOdd v) (secondOddAction w)));
+\definition ooAction[v: E1 x][w: F1 x]:
+  (forward.fiber x).apply (ooInput v w) = (Parity.oddBundle.space x).add (eoInput ((firstBackward.fiber x).apply v) w) (oeInput (E1Space.neg v) ((secondBackward.fiber x).apply w)) :=
+  trans!{{Parity.Odd x}} _ _ _
+    (congr!{{Parity.SourceFiber x} {Parity.Odd x}} (\fun (z: Parity.SourceFiber x) => (projectOdd.fiber x).apply ((tensorOperator.fiber x).apply z)) _ _ (ooEmbedding v w))
+    (trans!{{Parity.Odd x}} _ _ _
+      (congr!{{Parity.SourceFiber x} {Parity.Odd x}} (projectOdd.fiber x).apply _ _ (ooTensor v w))
+      (trans!{{Parity.Odd x}} _ _ _
+        ((projectOdd.fiber x).preservesAdd (Parity.pure x (P.pair (E0 x) (E1 x) ((firstBackward.fiber x).apply v) zE1) (P.pair (F0 x) (F1 x) zF0 w)) (Parity.pure x (P.pair (E0 x) (E1 x) zE0 (E1Space.neg v)) (P.pair (F0 x) (F1 x) ((secondBackward.fiber x).apply w) zF1)))
+        (congr!{{Parity.Odd x} {Parity.Odd x} {Parity.Odd x}} (Parity.oddBundle.space x).add _ _ _ _
+          (eoProjection ((firstBackward.fiber x).apply v) w) (oeProjection (E1Space.neg v) ((secondBackward.fiber x).apply w)))));
+
+\definition eoTensor[v: E0 x][w: F1 x]:
+  (tensorOperator.fiber x).apply (Parity.pure x (P.pair (E0 x) (E1 x) v zE1) (P.pair (F0 x) (F1 x) zF0 w)) = (Parity.sourceBundle.space x).add
+    (Parity.pure x (P.pair (E0 x) (E1 x) zE0 ((firstForward.fiber x).apply v)) (P.pair (F0 x) (F1 x) zF0 w)) (Parity.pure x (P.pair (E0 x) (E1 x) v zE1) (P.pair (F0 x) (F1 x) ((secondBackward.fiber x).apply w) zF1)) :=
+  trans!{{Parity.SourceFiber x}} _ _ _ (onTensor x (P.pair (E0 x) (E1 x) v zE1) (P.pair (F0 x) (F1 x) zF0 w))
+    (congr!{{Parity.SourceFiber x} {Parity.SourceFiber x} {Parity.SourceFiber x}} (Parity.sourceBundle.space x).add _ _ _ _
+      (congr!{{Parity.LeftFiber x} {Parity.SourceFiber x}} (\fun (z: Parity.LeftFiber x) => Parity.pure x z (P.pair (F0 x) (F1 x) zF0 w)) _ _ (firstEvenAction v))
+      (congr!{{Parity.LeftFiber x} {Parity.RightFiber x} {Parity.SourceFiber x}} (Parity.pure x) _ _ _ _ (gammaEven v) (secondOddAction w)));
+\definition eoAction[v: E0 x][w: F1 x]:
+  (backward.fiber x).apply (eoInput v w) = (Parity.evenBundle.space x).add (ooInput ((firstForward.fiber x).apply v) w) (eeInput v ((secondBackward.fiber x).apply w)) :=
+  trans!{{Parity.Even x}} _ _ _
+    (congr!{{Parity.SourceFiber x} {Parity.Even x}} (\fun (z: Parity.SourceFiber x) => (projectEven.fiber x).apply ((tensorOperator.fiber x).apply z)) _ _ (eoEmbedding v w))
+    (trans!{{Parity.Even x}} _ _ _
+      (congr!{{Parity.SourceFiber x} {Parity.Even x}} (projectEven.fiber x).apply _ _ (eoTensor v w))
+      (trans!{{Parity.Even x}} _ _ _
+        ((projectEven.fiber x).preservesAdd (Parity.pure x (P.pair (E0 x) (E1 x) zE0 ((firstForward.fiber x).apply v)) (P.pair (F0 x) (F1 x) zF0 w)) (Parity.pure x (P.pair (E0 x) (E1 x) v zE1) (P.pair (F0 x) (F1 x) ((secondBackward.fiber x).apply w) zF1)))
+        (congr!{{Parity.Even x} {Parity.Even x} {Parity.Even x}} (Parity.evenBundle.space x).add _ _ _ _
+          (ooProjection ((firstForward.fiber x).apply v) w) (eeProjection v ((secondBackward.fiber x).apply w)))));
+
+\definition oeTensor[v: E1 x][w: F0 x]:
+  (tensorOperator.fiber x).apply (Parity.pure x (P.pair (E0 x) (E1 x) zE0 v) (P.pair (F0 x) (F1 x) w zF1)) = (Parity.sourceBundle.space x).add
+    (Parity.pure x (P.pair (E0 x) (E1 x) ((firstBackward.fiber x).apply v) zE1) (P.pair (F0 x) (F1 x) w zF1)) (Parity.pure x (P.pair (E0 x) (E1 x) zE0 (E1Space.neg v)) (P.pair (F0 x) (F1 x) zF0 ((secondForward.fiber x).apply w))) :=
+  trans!{{Parity.SourceFiber x}} _ _ _ (onTensor x (P.pair (E0 x) (E1 x) zE0 v) (P.pair (F0 x) (F1 x) w zF1))
+    (congr!{{Parity.SourceFiber x} {Parity.SourceFiber x} {Parity.SourceFiber x}} (Parity.sourceBundle.space x).add _ _ _ _
+      (congr!{{Parity.LeftFiber x} {Parity.SourceFiber x}} (\fun (z: Parity.LeftFiber x) => Parity.pure x z (P.pair (F0 x) (F1 x) w zF1)) _ _ (firstOddAction v))
+      (congr!{{Parity.LeftFiber x} {Parity.RightFiber x} {Parity.SourceFiber x}} (Parity.pure x) _ _ _ _ (gammaOdd v) (secondEvenAction w)));
+\definition oeAction[v: E1 x][w: F0 x]:
+  (backward.fiber x).apply (oeInput v w) = (Parity.evenBundle.space x).add (eeInput ((firstBackward.fiber x).apply v) w) (ooInput (E1Space.neg v) ((secondForward.fiber x).apply w)) :=
+  trans!{{Parity.Even x}} _ _ _
+    (congr!{{Parity.SourceFiber x} {Parity.Even x}} (\fun (z: Parity.SourceFiber x) => (projectEven.fiber x).apply ((tensorOperator.fiber x).apply z)) _ _ (oeEmbedding v w))
+    (trans!{{Parity.Even x}} _ _ _
+      (congr!{{Parity.SourceFiber x} {Parity.Even x}} (projectEven.fiber x).apply _ _ (oeTensor v w))
+      (trans!{{Parity.Even x}} _ _ _
+        ((projectEven.fiber x).preservesAdd (Parity.pure x (P.pair (E0 x) (E1 x) ((firstBackward.fiber x).apply v) zE1) (P.pair (F0 x) (F1 x) w zF1)) (Parity.pure x (P.pair (E0 x) (E1 x) zE0 (E1Space.neg v)) (P.pair (F0 x) (F1 x) zF0 ((secondForward.fiber x).apply w))))
+        (congr!{{Parity.Even x} {Parity.Even x} {Parity.Even x}} (Parity.evenBundle.space x).add _ _ _ _
+          (eeProjection ((firstBackward.fiber x).apply v) w) (ooProjection (E1Space.neg v) ((secondForward.fiber x).apply w)))));
+

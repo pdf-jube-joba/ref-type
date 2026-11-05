@@ -1,0 +1,36 @@
+\import Acyclic.Normalized[c := c] \as Normal;
+\import LocalClass.With[contraction := c] \as Chosen;
+\import bundle_homotopy.Homotopy[].Examples[].CircleLine[] \as CircleLine;
+\import \parent.\parent.GeometryProof[] \as Geometry;
+\import complex.Complex[].Def[] \as Op;
+\import complex.Complex[].Prop[] \as ComplexLaws;
+\import bundle_homotopy.Homotopy[].Over[K := C.Complex, field := C.Algebra[].field,
+  conjugation := linear_algebra.Hermitian[].Complex[].scalar, scalar := Scalars.scalar].ScalarUnits[n := one] \as Scalars;
+\definition circle[p: Pair.A]: D2.Sphere := \into[D2.Coordinate](h p, D2.Boundary) \by { Geometry.hBoundary p };
+\definition scalarFormula: \forall (p: Pair.A) -> CircleLine.coefficient (circle p) = TotalCoordinates.forward p := \fun (p: Pair.A) => Geometry.hCoordinates p;
+\definition nonzero: \forall (p: Pair.A) -> Logic.Not (TotalCoordinates.forward p = Op.zero) :=
+  \fun (p: Pair.A)(zero: TotalCoordinates.forward p = Op.zero) => CircleLine.nonzero (circle p)
+    (trans!{{C.Complex}} _ _ _ (scalarFormula p) zero);
+\module Fiber(p: Pair.A);
+\definition normalBackward: \forall (p: Pair.A)(w: Chain.Odd p) ->
+  (Normal.backward.fiber p).apply w = (Chain.parity.backward.fiber p).apply w :=
+  \fun (p: Pair.A)(w: Chain.Odd p) => Fiber[p := p].normalBackward w;
+\definition inverse: \forall (p: Pair.A)(v: Chain.Even p) ->
+  (Chain.parity.backward.fiber p).apply ((Normal.forward.fiber p).apply v) = v :=
+  \fun (p: Pair.A)(v: Chain.Even p) => trans!{{Chain.Even p}} _ _ _
+    (sym!{{Chain.Even p}} _ _ (normalBackward p ((Normal.forward.fiber p).apply v))) (Normal.At[x := p].left v);
+\definition multiply: \forall (p: Pair.A)(v: Chain.Even p) ->
+  (Bundles.coordinates one).smul (TotalCoordinates.forward p) ((Forms.negative.forward.fiber p).apply ((Normal.forward.fiber p).apply v)) =
+    (Forms.positive.forward.fiber p).apply v :=
+  \fun (p: Pair.A)(v: Chain.Even p) => trans!{{Bundles.Vector one}} _ _ _
+    (sym!{{Bundles.Vector one}} _ _ (Forms.coefficient p ((Normal.forward.fiber p).apply v)))
+    (congr!{{Chain.Even p} {Bundles.Vector one}} (Forms.positive.forward.fiber p).apply _ _ (inverse p v));
+\definition coefficient: \forall (p: Pair.A)(v: Chain.Even p) ->
+  (Forms.negative.forward.fiber p).apply ((Chosen.comparison.forward.fiber p).apply v) =
+    (Bundles.coordinates one).smul (Op.inv (TotalCoordinates.forward p)) ((Forms.positive.forward.fiber p).apply v) :=
+  \fun (p: Pair.A)(v: Chain.Even p) => trans!{{Bundles.Vector one}} _ _ _
+    (congr!{{Chain.Odd p} {Bundles.Vector one}} (Forms.negative.forward.fiber p).apply _ _ (Chosen.formula p v))
+    (trans!{{Bundles.Vector one}} _ _ _
+      (sym!{{Bundles.Vector one}} _ _ (Scalars.left (TotalCoordinates.forward p) (nonzero p)
+        ((Forms.negative.forward.fiber p).apply ((Normal.forward.fiber p).apply v))))
+      (congr!{{Bundles.Vector one} {Bundles.Vector one}} ((Bundles.coordinates one).smul (Op.inv (TotalCoordinates.forward p))) _ _ (multiply p v)));

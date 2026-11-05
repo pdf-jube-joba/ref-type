@@ -1,0 +1,19 @@
+\import Spaces.Shuffle[I := I] \as Series;
+\import Series.Laws[] \as Laws;
+\definition value: Lists.List[A] -> Series.Function :=
+  \induction (xs: Lists.List[A]) \return Series.Function \with {
+    | nil: Series.unit
+    | cons: \fun (head: A)(tail: Lists.List[A])(previous: Series.Function) => Series.product (covector head) previous
+  };
+\definition append: \forall (xs, ys: Lists.List[A]) -> value (Lists.append A xs ys) = Series.product (value xs) (value ys) :=
+  \induction (xs: Lists.List[A]) \return \forall (ys: Lists.List[A]) -> value (Lists.append A xs ys) = Series.product (value xs) (value ys) \with {
+    | nil: \fun (ys: Lists.List[A]) => \axiom:funext(value ys, Series.product Series.unit (value ys),
+      \fun (arguments: Lists.List[I]) => sym!{{C.Complex}} _ _ (Laws.leftUnit arguments (value ys)))
+    | cons: \fun (head: A)(tail: Lists.List[A])(previous: \forall (ys: Lists.List[A]) -> _) (ys: Lists.List[A]) =>
+      trans!{{Series.Function}} _ _ _
+        (congr!{{Series.Function} {Series.Function}} (Series.product (covector head)) _ _ (previous ys))
+        (\axiom:funext(Series.product (covector head) (Series.product (value tail) (value ys)), Series.product (Series.product (covector head) (value tail)) (value ys),
+          \fun (arguments: Lists.List[I]) => sym!{{C.Complex}} _ _ (Laws.associative arguments (covector head) (value tail) (value ys))))
+  };
+\module Mapping(B: \Set, f: B -> A);
+\module Pullback(J: \Set, f: J -> I);

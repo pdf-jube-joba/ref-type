@@ -1,0 +1,45 @@
+\import Operations.Models[X := Y, baseSpace := source] \as TargetModels;
+\import Chosen.Finite[] \as SourceSequence;
+\import \root.Thom[].Finite[X := Geometry.Total, baseSpace := Geometry.topology].Family[
+  term := model, differential := differential, domain := SourceSequence.domain]
+  .Pullback[Y := Y, targetSpace := source, f := f, regular := regular] \as Rebase;
+\definition pulledTerm[k: N.Nat^]: TargetModels.Bundle := Rebase.pulledTerm k;
+\definition pulledDifferential[k: N.Nat^]: TargetModels.Map (pulledTerm (N.Nat^::succ k)) (pulledTerm k) := Rebase.pulledDifferential k;
+\definition domain: \Pow Y := { y: Y \where \In[Geometry.Total] SourceSequence.domain (f y) };
+\import \root.Thom[].Finite[X := Y, baseSpace := source].Family[term := pulledTerm, differential := pulledDifferential, domain := domain] \as Sequence;
+\definition square: \forall (k: N.Nat^)(y: Y)(v: TargetModels.Fiber (pulledTerm (N.Nat^::succ (N.Nat^::succ k))).ranks y) ->
+  ((pulledDifferential k).fiber y).apply (((pulledDifferential (N.Nat^::succ k)).fiber y).apply v) = ((TargetModels.bundle (pulledTerm k)).space y).zero :=
+  \fun (k: N.Nat^)(y: Y) => SourceSequence.square k (f y);
+\definition sourceClosed: \forall (k: N.Nat^)(y: Y)(v: TargetModels.Fiber (pulledTerm k).ranks y) -> Sequence.Closed k y v ->
+  \root.Thom[].Finite[X := Geometry.Total, baseSpace := Geometry.topology].Family[term := model, differential := differential, domain := SourceSequence.domain].Closed k (f y) v :=
+  \induction (k: N.Nat^) \return \forall (y: Y)(v: TargetModels.Fiber (pulledTerm k).ranks y) -> Sequence.Closed k y v ->
+    \root.Thom[].Finite[X := Geometry.Total, baseSpace := Geometry.topology].Family[term := model, differential := differential, domain := SourceSequence.domain].Closed k (f y) v \with {
+      | zero: \fun (y: Y)(v: TargetModels.Fiber (pulledTerm N.Nat^::zero).ranks y)(closed: _) => closed
+      | succ: \fun (k: N.Nat^)(unused: _)(y: Y)(v: TargetModels.Fiber (pulledTerm (N.Nat^::succ k)).ranks y)(closed: _) => closed
+    };
+\definition exact: \forall (k: N.Nat^)(y: Y) -> \In[Y] domain y -> \forall (v: TargetModels.Fiber (pulledTerm k).ranks y) -> Sequence.Closed k y v ->
+  \exists (w: TargetModels.Fiber (pulledTerm (N.Nat^::succ k)).ranks y \where ((pulledDifferential k).fiber y).apply w = v) :=
+  \fun (k: N.Nat^)(y: Y)(member: \In[Y] domain y)(v: TargetModels.Fiber (pulledTerm k).ranks y)(closed: _) =>
+    SourceSequence.exact k (f y) member v (sourceClosed k y v closed);
+\definition zero: \forall (y: Y)(v: TargetModels.Fiber (pulledTerm degree).ranks y) -> v = ((TargetModels.bundle (pulledTerm degree)).space y).zero :=
+  \fun (y: Y) => Construction.zero (f y);
+\import Sequence.With[squareZero := square, exact := exact].At[n := degree, zeroAbove := zero] \as Target;
+\definition complex: TargetModels.Chains[].Complex := Target.value;
+\definition exactAt: \forall (y: Y) -> \In[Y] domain y -> TargetModels.Chains[].Of[complex := complex].ExactAt y := Target.exactAt;
+\definition exactOutside: \forall (y: Y) -> Logic.Not (\In[Geometry.Total] Geometry.zeroSection (f y)) -> TargetModels.Chains[].Of[complex := complex].ExactAt y :=
+  \fun (y: Y)(outside: Logic.Not (\In[Geometry.Total] Geometry.zeroSection (f y))) => exactAt y (nonzero (f y) outside);
+\import Models.Chains[].Of[complex := Construction.complex] \as OriginalChain;
+\import TargetModels.Chains[].Of[complex := complex] \as TargetChain;
+\import \root.Thom[].Finite[X := Y, baseSpace := source] \as Finite;
+\definition sourceEven: TargetModels.Bundle := Models.Pullback[b := OriginalChain.parity.even, Y := Y, source := source, f := f, regular := regular].value;
+\definition sourceOdd: TargetModels.Bundle := Models.Pullback[b := OriginalChain.parity.odd, Y := Y, source := source, f := f, regular := regular].value;
+\definition even: TargetModels.Bundle := TargetChain.parity.even;
+\definition odd: TargetModels.Bundle := TargetChain.parity.odd;
+\definition positive: Finite.Iso sourceEven even := (Rebase.value degree).even;
+\definition negative: Finite.Iso sourceOdd odd := (Rebase.value degree).odd;
+\definition forward: \forall (y: Y)(v: TargetModels.Fiber sourceEven.ranks y) ->
+  (TargetChain.parity.forward.fiber y).apply ((positive.forward.fiber y).apply v) =
+    (negative.forward.fiber y).apply ((OriginalChain.parity.forward.fiber (f y)).apply v) := (Rebase.value degree).forward;
+\definition backward: \forall (y: Y)(v: TargetModels.Fiber sourceOdd.ranks y) ->
+  (TargetChain.parity.backward.fiber y).apply ((negative.forward.fiber y).apply v) =
+    (positive.forward.fiber y).apply ((OriginalChain.parity.backward.fiber (f y)).apply v) := (Rebase.value degree).backward;

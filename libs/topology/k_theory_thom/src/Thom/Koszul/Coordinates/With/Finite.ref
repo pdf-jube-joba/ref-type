@@ -1,0 +1,22 @@
+\import \root.Thom[].Finite[X := Total, baseSpace := bundle.totalSpace] \as Finite;
+\definition domain: \Pow Total := topology.Topology[Carrier := Total].Complement ZeroSection;
+\import Finite.Family[term := model, differential := differential, domain := domain] \as Sequence;
+\definition square: \forall (n: N.Nat^)(p: Total)(v: Vector (N.Nat^::succ (N.Nat^::succ n)) p) ->
+  ((differential n).fiber p).apply (((differential (N.Nat^::succ n)).fiber p).apply v) = ((Models.bundle (model n)).space p).zero :=
+  \fun (n: N.Nat^)(p: Total) => \parent.At[p := p].square n;
+\definition RawClosed[n: N.Nat^][p: Total][v: Vector n p]: \Prop :=
+  \root.Thom[].Algebra[V := Fiber p, space := pulled.space p].Closed n p.vector ((decode n p).apply v);
+\definition rawClosed: \forall (n: N.Nat^)(p: Total)(v: Vector n p) -> Sequence.Closed n p v -> RawClosed n p v :=
+  \induction (n: N.Nat^) \return \forall (p: Total)(v: Vector n p) -> Sequence.Closed n p v -> RawClosed n p v \with {
+    | zero: \fun (p: Total)(v: Vector N.Nat^::zero p)(closed: _) =>
+      \root.Thom[].Koszul[X := X, F := F, bundle := bundle].At[p := p].closedAtZero ((decode N.Nat^::zero p).apply v)
+    | succ: \fun (n: N.Nat^)(unused: _)(p: Total)(v: Vector (N.Nat^::succ n) p)(closed: _) =>
+      \root.Thom[].Koszul[X := X, F := F, bundle := bundle].At[p := p].closedAtSuccessor n ((decode (N.Nat^::succ n) p).apply v)
+        (\parent.At[p := p].rawClosed n v closed)
+  };
+\definition exact: \forall (n: N.Nat^)(p: Total) -> \In[Total] domain p -> \forall (v: Vector n p) -> Sequence.Closed n p v ->
+  \exists (w: Vector (N.Nat^::succ n) p \where ((differential n).fiber p).apply w = v) :=
+  \fun (n: N.Nat^)(p: Total)(nonzero: \In[Total] domain p)(v: Vector n p)(closed: _) =>
+    \parent.At[p := p].preimage n v nonzero (rawClosed n p v closed);
+\import Sequence.With[squareZero := square, exact := exact] \as Construction;
+\module At(n: N.Nat^, zeroAbove: \forall (p: Total)(omega: Term n p) -> omega = ((term n).space p).zero);

@@ -1,0 +1,43 @@
+\import Source.Entry[s := s, t := t] \as Entry;
+\import \parent.\parent.Bidegree[p := Entry.p, q := Entry.q, side := side] \as Placement;
+\import \parent.\parent.Degree[k := Entry.k, side := side].At[x := x] \as NativeMap;
+\import \root.Thom[].Sum[V := F x, W := G x, left := left.space x, right := right.space x].DirectSum[k := Entry.k] \as Direct;
+\definition index: Direct.Bidegree := Direct.make Entry.p Entry.q Entry.decomposition;
+\import \root.Thom[].SumBundles[X := X, F := F, G := G, left := left, right := right, sameBase := sameBase, k := Entry.k]
+  .Component[p := Entry.p, q := Entry.q, degree := Entry.decomposition].Identification[x := x] \as Identification;
+\definition nativeStep[v: Models.Fiber (firstTerm Entry.p).ranks x][w: Models.Fiber (secondTerm Entry.q).ranks x]:
+  (candidate.fiber x).apply (Source.pure x (((First.at n s firstSide (\bysub(Labels.Index n, First.Colored n firstSide, s))).fiber x).apply v)
+    (((Second.at m t secondSide (\bysub(Labels.Index m, Second.Colored m secondSide, t))).fiber x).apply w)) =
+  (Placement.post.fiber x).apply (Tensor.componentPure Entry.p Entry.q x v w) :=
+  trans!{{Models.Fiber (model side).ranks x}} _ _ _
+    (congr!{{Models.Fiber (target side).ranks x} {Models.Fiber (model side).ranks x}} ((backwardCode side).fiber x).apply _ _ (Source.onPair s t x v w))
+    (trans!{{Models.Fiber (model side).ranks x}} _ _ _
+      (Total.onSummand degree Entry.label side Entry.labelParity (model side) (parts side) x
+        ((Entry.encoded.fiber x).apply (Tensor.componentPure Entry.p Entry.q x v w)))
+      (trans!{{Models.Fiber (model side).ranks x}} _ _ _
+        (congr!{{Models.Fiber (totalTerm Entry.k).ranks x} {Models.Fiber (model side).ranks x}} ((\parent.\parent.Degree[k := Entry.k, side := side].map).fiber x).apply _ _
+          (congr!{{Native Entry.k x} {Models.Fiber (totalTerm Entry.k).ranks x}} ((data.total Entry.k).isomorphism.forward.fiber x).apply _ _
+            (Identification.equation ((Placement.decodeForms.fiber x).apply (Tensor.componentPure Entry.p Entry.q x v w)))))
+        (trans!{{Models.Fiber (model side).ranks x}} _ _ _
+          (NativeMap.onInjection index ((Placement.decodeForms.fiber x).apply (Tensor.componentPure Entry.p Entry.q x v w)))
+          (Placement.onDecode x (Tensor.componentPure Entry.p Entry.q x v w)))));
+\definition firstAligned: Placement.AlignedFirst := \into[Labels.Index n](s, Placement.AlignedFirst) \by { \refl(Entry.p) };
+\definition secondAligned: Placement.AlignedSecond := \into[Labels.Index m](t, Placement.AlignedSecond) \by { \refl(Entry.q) };
+\definition firstSame: Placement.firstLabel (Labels.degreeBound n s) = firstAligned := ProductLabels.lookupInverse n s;
+\definition secondSame: Placement.secondLabel (Labels.degreeBound m t) = secondAligned := ProductLabels.lookupInverse m t;
+\import \parent.\parent.LabelPlacement[s := s, t := t] \as LabelsPlaced;
+\definition placementStep[v: Models.Fiber (firstTerm Entry.p).ranks x][w: Models.Fiber (secondTerm Entry.q).ranks x]:
+  (Placement.post.fiber x).apply (Tensor.componentPure Entry.p Entry.q x v w) =
+  ((block firstSide secondSide).fiber x).apply (Source.pure x (((First.at n s firstSide (\bysub(Labels.Index n, First.Colored n firstSide, s))).fiber x).apply v)
+    (((Second.at m t secondSide (\bysub(Labels.Index m, Second.Colored m secondSide, t))).fiber x).apply w)) :=
+  trans!{{Models.Fiber (model side).ranks x}} _ _ _ (Placement.postWithin (Labels.degreeBound n s) (Labels.degreeBound m t) x v w)
+    (trans!{{Models.Fiber (model side).ranks x}} _ _ _
+      (congr!{{Placement.AlignedFirst} {Placement.AlignedSecond} {Models.Fiber (model side).ranks x}}
+        (\fun (a: Placement.AlignedFirst)(b: Placement.AlignedSecond) => ((Placement.labelMap a b).fiber x).apply (Tensor.componentPure Entry.p Entry.q x v w)) _ _ _ _ firstSame secondSame)
+      (LabelsPlaced.equation firstSide secondSide (\bysub(Labels.Index n, First.Colored n firstSide, s)) (\bysub(Labels.Index m, Second.Colored m secondSide, t)) x v w));
+\definition equation[v: Models.Fiber (firstTerm Entry.p).ranks x][w: Models.Fiber (secondTerm Entry.q).ranks x]:
+  (candidate.fiber x).apply (Source.pure x (((First.at n s firstSide (\bysub(Labels.Index n, First.Colored n firstSide, s))).fiber x).apply v)
+    (((Second.at m t secondSide (\bysub(Labels.Index m, Second.Colored m secondSide, t))).fiber x).apply w)) =
+  ((block firstSide secondSide).fiber x).apply (Source.pure x (((First.at n s firstSide (\bysub(Labels.Index n, First.Colored n firstSide, s))).fiber x).apply v)
+    (((Second.at m t secondSide (\bysub(Labels.Index m, Second.Colored m secondSide, t))).fiber x).apply w)) :=
+  trans!{{Models.Fiber (model side).ranks x}} _ _ _ (nativeStep v w) (placementStep v w);

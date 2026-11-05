@@ -1,0 +1,47 @@
+\definition Point: \Set := \Cast[SourceFamily.Point] (domain c);
+\import topology.Topology[Carrier := SourceFamily.Point].Subspace[S := domain c] \as Subspace;
+\definition topology: topology.Topology[Carrier := Point].Topology := Subspace.topology bundle.totalSpace;
+\definition centerLeft[y: Point]: \Cast[X] c.first.domain := \into[X](y.base, c.first.domain) \by { (\bysub(SourceFamily.Point, domain c, y)).left };
+\definition centerRight[y: Point]: \Cast[X] c.second.domain := \into[X](y.base, c.second.domain) \by { (\bysub(SourceFamily.Point, domain c, y)).right };
+\import topology.Continuity[A := SourceFamily.Point, B := X].Restriction[S := domain c] \as Restrict;
+\definition baseRegular: topology.Continuity[A := Point, B := X].Continuous topology left.baseSpace (\fun (y: Point) => y.base) := Restrict.restrictContinuous bundle.totalSpace left.baseSpace SourceFamily.projection SourceOriginal.projectionContinuous;
+\import topology.Continuity[A := Point, B := X].Corestriction[S := c.first.domain] \as IntoLeft;
+\import topology.Continuity[A := Point, B := X].Corestriction[S := c.second.domain] \as IntoRight;
+\definition centerLeftContinuous: topology.Continuity[A := Point, B := \Cast[X] c.first.domain].Continuous topology (Base.Subspace[S := c.first.domain].topology left.baseSpace) centerLeft := IntoLeft.corestrictContinuous topology left.baseSpace centerLeft baseRegular;
+\definition centerRightContinuous: topology.Continuity[A := Point, B := \Cast[X] c.second.domain].Continuous topology (Base.Subspace[S := c.second.domain].topology right.baseSpace) centerRight :=
+  IntoRight.corestrictContinuous topology right.baseSpace centerRight
+    (\idelim left.baseSpace = right.baseSpace \with t: Base.Topology => topology.Continuity[A := Point, B := X].Continuous topology t (\fun (y: Point) => y.base) \by { base: baseRegular, equality: sameBase });
+\import LeftForms.In[c := c.first, enumeration := c.firstEnumeration] \as Left;
+\import RightForms.In[c := c.second, enumeration := c.secondEnumeration] \as Right;
+\definition leftDimension: N.Nat^ := Left.dimension;
+\definition rightDimension: N.Nat^ := Right.dimension;
+\import Operations.Chart[X := X, F := LeftForms.Fiber, bundle := LeftForms.alternating, chart := Left.trivialization] \as LeftChart;
+\import Operations.Chart[X := X, F := RightForms.Fiber, bundle := RightForms.alternating, chart := Right.trivialization] \as RightChart;
+\definition leftBasis[a: Fin.Fin leftDimension][y: Point]: LeftForms.Fiber y.base := (Left.trivialization.frame (centerLeft y)).backward.apply (Spaces.FiniteCoordinates[n := leftDimension].vectors a);
+\definition rightBasis[b: Fin.Fin rightDimension][y: Point]: RightForms.Fiber y.base := (Right.trivialization.frame (centerRight y)).backward.apply (Spaces.FiniteCoordinates[n := rightDimension].vectors b);
+\definition leftBasisContinuous[a: Fin.Fin leftDimension]: topology.Continuity[A := Point, B := Bundles.Family[X := X, F := LeftForms.Fiber].Point].Continuous topology LeftForms.topology (\fun (y: Point) => Bundles.Family[X := X, F := LeftForms.Fiber].include y.base (leftBasis a y)) :=
+  LeftChart.Maps[Y := Point, source := topology].pointContinuous centerLeft (\fun (y: Point) => Spaces.FiniteCoordinates[n := leftDimension].vectors a) centerLeftContinuous
+    (topology.Maps[A := Point, B := Operations.Vector leftDimension].constantContinuous topology (Operations.coordinateTopology leftDimension) (Spaces.FiniteCoordinates[n := leftDimension].vectors a));
+\definition rightBasisContinuous[b: Fin.Fin rightDimension]: topology.Continuity[A := Point, B := Bundles.Family[X := X, F := RightForms.Fiber].Point].Continuous topology RightForms.topology (\fun (y: Point) => Bundles.Family[X := X, F := RightForms.Fiber].include y.base (rightBasis b y)) :=
+  RightChart.Maps[Y := Point, source := topology].pointContinuous centerRight (\fun (y: Point) => Spaces.FiniteCoordinates[n := rightDimension].vectors b) centerRightContinuous
+    (topology.Maps[A := Point, B := Operations.Vector rightDimension].constantContinuous topology (Operations.coordinateTopology rightDimension) (Spaces.FiniteCoordinates[n := rightDimension].vectors b));
+\module Test(a: Fin.Fin leftDimension, b: Fin.Fin rightDimension);
+\definition coefficient[a: Fin.Fin leftDimension][b: Fin.Fin rightDimension][y: Point]: C.Complex := Test[a := a, b := b].value y;
+\definition scaledLeft[a: Fin.Fin leftDimension][b: Fin.Fin rightDimension][y: Point]: LeftForms.Fiber y.base := (LeftForms.fiberSpace y.base).smul (coefficient a b y) (leftBasis a y);
+\import Operations.Along[X := X, F := LeftForms.Fiber, bundle := LeftForms.alternating, Y := Point, source := topology, base := \fun (y: Point) => y.base] \as LeftAlong;
+\definition scaledLeftContinuous[a: Fin.Fin leftDimension][b: Fin.Fin rightDimension]: LeftAlong.Continuous (scaledLeft a b) :=
+  LeftAlong.scaling (coefficient a b) (leftBasis a) baseRegular Test[a := a, b := b].continuous (leftBasisContinuous a);
+\definition pure[a: Fin.Fin leftDimension][b: Fin.Fin rightDimension][y: Point]: Tensor.Fiber y.base := Tensor.pure y.base (scaledLeft a b y) (rightBasis b y);
+\import Tensor.Of[same := sameBase].Pure[].Along[Y := Point, source := topology, base := \fun (y: Point) => y.base] \as Pure;
+\import Operations.Along[X := X, F := Tensor.Fiber, bundle := Tensor.bundle sameBase, Y := Point, source := topology, base := \fun (y: Point) => y.base] \as Output;
+\definition pureContinuous[a: Fin.Fin leftDimension][b: Fin.Fin rightDimension]: Output.Continuous (pure a b) := Pure.continuous (scaledLeft a b) (rightBasis b) (scaledLeftContinuous a b) (rightBasisContinuous b);
+\definition row[a: Fin.Fin leftDimension]: Output.Vectors := Output.Sums[I := Fin.Fin rightDimension].sum (Fin.elements rightDimension) (pure a);
+\definition rowContinuous[a: Fin.Fin leftDimension]: Output.Continuous (row a) := Output.Sums[I := Fin.Fin rightDimension].continuous (Fin.elements rightDimension) (pure a) baseRegular (pureContinuous a);
+\definition vector: Output.Vectors := Output.Sums[I := Fin.Fin leftDimension].sum (Fin.elements leftDimension) row;
+\definition model[y: Point]: OutputFamily.Point := OutputFamily.include y.base (vector y);
+\definition modelContinuous: topology.Continuity[A := Point, B := OutputFamily.Point].Continuous topology Tensor.topology model := Output.Sums[I := Fin.Fin leftDimension].continuous (Fin.elements leftDimension) row baseRegular rowContinuous;
+\module At(y: Point);
+\definition continuous: topology.Continuity[A := Point, B := OutputFamily.Point].Continuous topology Tensor.topology (\fun (y: Point) => Maps.total data y) :=
+  \idelim model = (\fun (y: Point) => Maps.total data y) \with f: (Point -> OutputFamily.Point) => topology.Continuity[A := Point, B := OutputFamily.Point].Continuous topology Tensor.topology f \by {
+    base: modelContinuous, equality: \axiom:funext(model, (\fun (y: Point) => Maps.total data y), \fun (y: Point) => At[y := y].formula)
+  };

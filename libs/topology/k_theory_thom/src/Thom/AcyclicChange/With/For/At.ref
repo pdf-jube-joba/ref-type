@@ -1,0 +1,68 @@
+\import Operations.ContractingPair[V := SourceEven x, W := SourceOdd x,
+  even := (Models.bundle p).space x, odd := (Models.bundle q).space x] \as Original;
+\definition original: Original.Pair := \into[Original.Data](Original.Data {
+  d := d.fiber x, e := e.fiber x,
+  h := contraction.h.fiber x, k := contraction.k.fiber x
+}, Original.Pair) \by { contraction.laws x };
+\definition positiveAt: Spaces.Isomorphism[V := SourceEven x, W := TargetEven x,
+  source := (Models.bundle p).space x, target := (Models.bundle r).space x].Isomorphism :=
+  Spaces.Isomorphism[V := SourceEven x, W := TargetEven x,
+    source := (Models.bundle p).space x, target := (Models.bundle r).space x].Isomorphism {
+    forward := positive.forward.fiber x, backward := positive.backward.fiber x,
+    leftInverse := positiveLaws.leftInverse x, rightInverse := positiveLaws.rightInverse x
+  };
+\definition negativeAt: Spaces.Isomorphism[V := SourceOdd x, W := TargetOdd x,
+  source := (Models.bundle q).space x, target := (Models.bundle s).space x].Isomorphism :=
+  Spaces.Isomorphism[V := SourceOdd x, W := TargetOdd x,
+    source := (Models.bundle q).space x, target := (Models.bundle s).space x].Isomorphism {
+    forward := negative.forward.fiber x, backward := negative.backward.fiber x,
+    leftInverse := negativeLaws.leftInverse x, rightInverse := negativeLaws.rightInverse x
+  };
+\import Original.Transport[U := TargetEven x, T := TargetOdd x,
+  newEven := (Models.bundle r).space x, newOdd := (Models.bundle s).space x,
+  c := original, positive := positiveAt, negative := negativeAt] \as Transport;
+\import Operations.ContractingPair[V := TargetEven x, W := TargetOdd x,
+  even := (Models.bundle r).space x, odd := (Models.bundle s).space x] \as Changed;
+\definition dSame[v: TargetEven x]: (newD.fiber x).apply v = Transport.d.apply v :=
+  trans!{{TargetOdd x}} _ _ _
+    (congr!{{TargetEven x} {TargetOdd x}} (newD.fiber x).apply _ _
+      (sym!{{TargetEven x}} _ _ (positiveLaws.rightInverse x v)))
+    (forwardCommutes x ((positive.backward.fiber x).apply v));
+\definition eSame[v: TargetOdd x]: (newE.fiber x).apply v = Transport.e.apply v :=
+  trans!{{TargetEven x}} _ _ _
+    (congr!{{TargetOdd x} {TargetEven x}} (newE.fiber x).apply _ _
+      (sym!{{TargetOdd x}} _ _ (negativeLaws.rightInverse x v)))
+    (backwardCommutes x ((negative.backward.fiber x).apply v));
+\definition data: Changed.Data := Changed.Data {
+  d := newD.fiber x, e := newE.fiber x, h := h.fiber x, k := k.fiber x
+};
+\definition laws: Changed.Laws[data] := Changed.Laws[data] {
+  squareEven := \fun (v: TargetEven x) => trans!{{TargetEven x}} _ _ _
+    (trans!{{TargetEven x}} _ _ _
+      (congr!{{TargetOdd x} {TargetEven x}} (newE.fiber x).apply _ _ (dSame v))
+      (eSame (Transport.d.apply v))) (Transport.squareEven v),
+  squareOdd := \fun (v: TargetOdd x) => trans!{{TargetOdd x}} _ _ _
+    (trans!{{TargetOdd x}} _ _ _
+      (congr!{{TargetEven x} {TargetOdd x}} (newD.fiber x).apply _ _ (eSame v))
+      (dSame (Transport.e.apply v))) (Transport.squareOdd v),
+  even := \fun (v: TargetEven x) => trans!{{TargetEven x}} _ _ _
+    (congr!{{TargetEven x} {TargetEven x} {TargetEven x}} ((Models.bundle r).space x).add _ _ _ _
+      (eSame (Transport.k.apply v)) (congr!{{TargetOdd x} {TargetEven x}} Transport.h.apply _ _ (dSame v)))
+    (Transport.evenLaw v),
+  odd := \fun (v: TargetOdd x) => trans!{{TargetOdd x}} _ _ _
+    (congr!{{TargetOdd x} {TargetOdd x} {TargetOdd x}} ((Models.bundle s).space x).add _ _ _ _
+      (dSame (Transport.h.apply v)) (congr!{{TargetEven x} {TargetOdd x}} Transport.k.apply _ _ (eSame v)))
+    (Transport.oddLaw v)
+};
+\definition normalizedCommutes[v: SourceEven x]:
+  ((Models.bundle s).space x).add
+    ((newD.fiber x).apply ((positive.forward.fiber x).apply v))
+    ((k.fiber x).apply ((newE.fiber x).apply ((k.fiber x).apply ((positive.forward.fiber x).apply v)))) =
+  (negative.forward.fiber x).apply (((Models.bundle q).space x).add
+    ((d.fiber x).apply v)
+    ((contraction.k.fiber x).apply ((e.fiber x).apply ((contraction.k.fiber x).apply v)))) :=
+  trans!{{TargetOdd x}} _ _ _
+    (congr!{{TargetOdd x} {TargetOdd x} {TargetOdd x}} ((Models.bundle s).space x).add _ _ _ _
+      (dSame ((positive.forward.fiber x).apply v))
+      (congr!{{TargetEven x} {TargetOdd x}} Transport.k.apply _ _ (eSame (Transport.k.apply ((positive.forward.fiber x).apply v)))))
+    (Transport.forwardFormula v);

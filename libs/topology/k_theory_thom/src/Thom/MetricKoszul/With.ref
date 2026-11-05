@@ -1,0 +1,38 @@
+\import C.Def[] \as Op;
+\import C.Prop[] \as Laws;
+\import real.Analysis[] \as Real;
+\import dedekind_reals.DedekindReal[] \as D;
+\import linear_algebra.Hermitian[].Over[K := C.Complex, field := C.Algebra[].field, scalar := linear_algebra.Hermitian[].Complex[].scalar] \as Hermitian;
+\definition Total: \Set := Family.Point;
+\import Original.Pullback[Y := Total, source := bundle.totalSpace, f := Family.projection] \as Pullback;
+\import Bundles.Family[X := Total, F := Koszul.Fiber] \as PulledFamily;
+\import Operations.Alternating[X := Total, F := Koszul.Fiber, bundle := Koszul.pulled, k := one] \as Alternating;
+\import Bundles.Family[X := Total, F := Alternating.Fiber] \as FormFamily;
+\import FormFamily.Of[bundle := Alternating.alternating].Sections[] \as Sections;
+\definition head: Fin.Fin one := Fin.zero N.Nat^::zero;
+\module At(p: Total);
+\definition covector[p: Total]: Alternating.Fiber p := At[p := p].form;
+\definition sectionData: Sections.SectionData := Sections.SectionData { value := covector };
+\definition sectionTotal[p: Total]: FormFamily.Point := Sections.total sectionData p;
+\module Continuity;
+\definition ell: Sections.Section := \into[Sections.SectionData](sectionData, Sections.Section) \by { Continuity[].continuous };
+\definition evaluation[p: Total]: covector p (\fun (i: Fin.Fin one) => p.vector) = (metric.form p.base).dot p.vector p.vector := \refl((metric.form p.base).dot p.vector p.vector);
+\definition diagonal[p: Total]: C.Complex := (metric.form p.base).dot p.vector p.vector;
+\import thom_spaces.Thom[].Over[K := C.Complex, field := C.Algebra[].field,
+  conjugation := linear_algebra.Hermitian[].Complex[].scalar, scalar := Scalars.scalar].For[X := X, F := F, bundle := bundle].With[metric := metric] \as Geometry;
+\definition squared: Total -> Real.Real := Geometry.squared;
+\definition diagonalContinuous: topology.Continuity[A := Total, B := C.Complex].Continuous bundle.totalSpace Scalars.scalar.topological.space diagonal := Geometry.dotContinuous;
+\definition squaredContinuous: metric_spaces.RealFunctions[A := Total].Continuous bundle.totalSpace squared := Geometry.squaredContinuous;
+\definition diagonalReal[p: Total]: diagonal p = Op.ofReal (squared p) := Hermitian.Inner[V := F p.base, space := bundle.space p.base].Of[h := metric.form p.base].selfReal p.vector;
+\definition nonnegative[p: Total]: D.Le Real.zero (squared p) := Geometry.nonnegative p;
+\definition positive[p: Koszul.Outside]: D.Lt Real.zero (squared p) :=
+  Hermitian.Inner[V := F p.base, space := bundle.space p.base].Of[h := metric.form p.base].positiveNorm (metric.positive p.base) p.vector (\bysub(Total, topology.Topology[Carrier := Total].Complement Koszul.ZeroSection, p));
+\definition nonzero[p: Koszul.Outside]: Logic.Not (diagonal p = Op.zero) :=
+  \fun (zero: _) => (\bysub(Total, topology.Topology[Carrier := Total].Complement Koszul.ZeroSection, p)) ((metric.positive p.base).definite p.vector zero);
+\module Outside;
+\module CompactDisk(embedding: Complement.Embedding);
+\definition diskCompact: topology.Topology[Carrier := Total].IsCompactIn bundle.totalSpace Geometry.ClosedBall := \block {
+  \takefrom embedding: Complement.Embedding \by Complement.embeddingExists compact hausdorff \then
+  \return CompactDisk[embedding := embedding].result
+};
+\module Neighborhood;

@@ -1,0 +1,48 @@
+\import std.Data[].Pair[] \as Pair;
+\import relative_k_theory.Relative[] \as Relative;
+\import compact_support_k.Support[] \as Support;
+\import topology.Topology[Carrier := X] \as Base;
+\definition rightCompact: Base.IsCompact right.baseSpace := \idelim left.baseSpace = right.baseSpace \with t: Base.Topology => Base.IsCompact t \by { base: compact, equality: sameBase };
+\definition rightHausdorff: Base.IsT2 right.baseSpace := \idelim left.baseSpace = right.baseSpace \with t: Base.Topology => Base.IsT2 t \by { base: hausdorff, equality: sameBase };
+\import \root.Thom[].TrivialThom[X := X, space := right.baseSpace, compact := rightCompact, hausdorff := rightHausdorff, n := n] \as Standard;
+\import \root.Thom[].TrivializedThom[X := X, F := G, bundle := right, compact := rightCompact, hausdorff := rightHausdorff, n := n, iso := iso] \as Trivialization;
+\import Bundles.Trivial[X := X, n := n, baseSpace := right.baseSpace] \as Trivial;
+\import Bundles.Trivial[X := Standard.Point, n := n, baseSpace := Standard.pointTopology] \as PointBundle;
+\import Bundles.Isomorphisms[X := X, F := G, G := (\fun (_: X) => Bundles.Vector n), source := right, target := Trivial.bundle] \as Isomorphisms;
+\definition isoLaws: Isomorphisms.Laws[iso] := \bysub(Isomorphisms.Data, Isomorphisms.Isomorphism, iso);
+\import Operations.DirectSum[X := X, F := F, G := G, left := left, right := right] \as Sum;
+\definition sum: Bundles.Family[X := X, F := Sum.Fiber].Bundle := Sum.bundle sameBase;
+\import Bundles.Family[X := X, F := F] \as LeftFamily;
+\import Bundles.Family[X := X, F := G] \as RightFamily;
+\import Bundles.Family[X := X, F := Sum.Fiber] \as SumFamily;
+\import Bundles.Family[X := X, F := (\fun (_: X) => Bundles.Vector n)] \as TrivialFamily;
+\import Bundles.Family[X := Standard.Point, F := (\fun (_: Standard.Point) => Bundles.Vector n)] \as PointFamily;
+\import \root.Thom[].TotalSpace[X := X, F := F, bundle := left, compact := compact, hausdorff := hausdorff] \as LeftTotal;
+\import \root.Thom[].TotalSpace[X := X, F := Sum.Fiber, bundle := sum, compact := compact, hausdorff := hausdorff] \as SumTotal;
+\import \root.Thom[].TotalSpace[X := Standard.Point, F := (\fun (_: Standard.Point) => Bundles.Vector n), bundle := PointBundle.bundle, compact := Standard.pointCompact, hausdorff := Standard.pointHausdorff] \as PointTotal;
+\import Support.On[X := LeftFamily.Point, space := left.totalSpace, hausdorff := LeftTotal.separated, locallyCompact := LeftTotal.locallyCompact] \as LeftSupport;
+\import Support.On[X := SumFamily.Point, space := sum.totalSpace, hausdorff := SumTotal.separated, locallyCompact := SumTotal.locallyCompact] \as Source;
+\import Support.On[X := PointFamily.Point, space := PointBundle.bundle.totalSpace, hausdorff := PointTotal.separated, locallyCompact := PointTotal.locallyCompact] \as PointSupport;
+\import LeftSupport.Product[Y := PointFamily.Point, otherSpace := PointBundle.bundle.totalSpace, otherHausdorff := PointTotal.separated, otherLocallyCompact := PointTotal.locallyCompact] \as External;
+\import External.Coordinates[] \as Coordinates;
+\import Relative.Smash[left := LeftSupport.model, right := PointSupport.model] \as Smash;
+\import Support.ClosedPair[M := Smash.model.Carrier, space := Smash.topology, compact := Smash.compact, hausdorff := Smash.hausdorff, subset := Smash.wedge, closed := Smash.wedgeClosed] \as Complement;
+\import topological_constructions.Product[A := LeftFamily.Point, B := PointFamily.Point] \as Product;
+\definition productTopology: topology.Topology[Carrier := Product.CarrierSet].Topology := Product.topology left.totalSpace PointBundle.bundle.totalSpace;
+\definition forward[p: SumFamily.Point]: Product.CarrierSet := Pair.pair LeftFamily.Point PointFamily.Point (Sum.first p) (Trivialization.projection (Sum.second p));
+\definition backward[z: Product.CarrierSet]: SumFamily.Point := SumFamily.include (Pair.first LeftFamily.Point PointFamily.Point z).base
+  (Pair.pair (F (Pair.first LeftFamily.Point PointFamily.Point z).base) (G (Pair.first LeftFamily.Point PointFamily.Point z).base)
+    (Pair.first LeftFamily.Point PointFamily.Point z).vector ((iso.backward.fiber (Pair.first LeftFamily.Point PointFamily.Point z).base).apply (Pair.second LeftFamily.Point PointFamily.Point z).vector));
+\module Geometry;
+\definition homeomorphism: topology.Homeomorphism[A := SumFamily.Point, B := Product.CarrierSet].Homeomorphism[sum.totalSpace, productTopology] := Geometry[].homeomorphism;
+\module Compactification;
+\definition leftModel: Relative.CompactPointed := LeftSupport.model;
+\definition pointModel: Relative.CompactPointed := PointSupport.model;
+\definition pointThom: Relative.Reduced[model := pointModel].Carrier := Trivialization.pointThom;
+\definition sourceModel: Relative.CompactPointed := Source.model;
+\definition targetModel: Relative.CompactPointed := Smash.result;
+\definition equivalence: Relative.Equivalence[source := sourceModel, target := targetModel].Data := Compactification[].equivalence;
+\module Classes;
+\definition equation: \forall (a: \root.Thom[].FiberMultiply[X := X, F := F, G := G, left := left, right := right, sameBase := sameBase, compact := compact, hausdorff := hausdorff].First) ->
+  \root.Thom[].FiberMultiply[X := X, F := F, G := G, left := left, right := right, sameBase := sameBase, compact := compact, hausdorff := hausdorff].multiply a Trivialization.thom =
+  Relative.Pullback[source := sourceModel, target := targetModel, f := equivalence.forward].map (Smash.External[].product a Trivialization.pointThom) := Classes[].equation;

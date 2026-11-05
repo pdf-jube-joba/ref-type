@@ -1,0 +1,54 @@
+\import Models.PullbackMap[p := First.even, q := First.odd, Y := OriginalPair.A, source := OriginalPair.subspace,
+  f := FirstLocal.boundaryInclusion, regular := FirstLocal.boundaryRegular] \as OriginalD;
+\import Models.PullbackMap[p := First.odd, q := First.even, Y := OriginalPair.A, source := OriginalPair.subspace,
+  f := FirstLocal.boundaryInclusion, regular := FirstLocal.boundaryRegular] \as OriginalE;
+\import Operations.Models[X := OriginalPair.A, baseSpace := OriginalPair.subspace] \as BoundaryModels;
+\import BoundaryModels.Pullback[b := FirstLocal.boundaryEvenModel, Y := TargetPair.A, source := TargetPair.subspace,
+  f := boundary, regular := boundaryRegular] \as OldPositive;
+\import BoundaryModels.Pullback[b := FirstLocal.boundaryOddModel, Y := TargetPair.A, source := TargetPair.subspace,
+  f := boundary, regular := boundaryRegular] \as OldNegative;
+\import BoundaryModels.PullbackMap[p := FirstLocal.boundaryEvenModel, q := FirstLocal.boundaryOddModel,
+  Y := TargetPair.A, source := TargetPair.subspace, f := boundary, regular := boundaryRegular] \as OldD;
+\import BoundaryModels.PullbackMap[p := FirstLocal.boundaryOddModel, q := FirstLocal.boundaryEvenModel,
+  Y := TargetPair.A, source := TargetPair.subspace, f := boundary, regular := boundaryRegular] \as OldE;
+\import \root.Thom[].AcyclicPullback[X := OriginalPair.A, space := OriginalPair.subspace,
+  compact := FirstLocal.boundaryCompact, hausdorff := FirstLocal.boundaryHausdorff,
+  p := FirstLocal.boundaryEvenModel, q := FirstLocal.boundaryOddModel, d := OriginalD.map First.d, e := OriginalE.map First.e,
+  Y := TargetPair.A, target := TargetPair.subspace, targetCompact := SecondLocal.boundaryCompact,
+  targetHausdorff := SecondLocal.boundaryHausdorff, f := boundary, regular := boundaryRegular].With[c := c] \as PulledContraction;
+\import TargetModels.PullbackMap[p := Second.even, q := Second.odd, Y := TargetPair.A, source := TargetPair.subspace,
+  f := SecondLocal.boundaryInclusion, regular := SecondLocal.boundaryRegular] \as TargetD;
+\import TargetModels.PullbackMap[p := Second.odd, q := Second.even, Y := TargetPair.A, source := TargetPair.subspace,
+  f := SecondLocal.boundaryInclusion, regular := SecondLocal.boundaryRegular] \as TargetE;
+\module BoundaryGeometry;
+\import compact_support_k.Support[].CompactBundles[X := TargetPair.A, space := TargetPair.subspace,
+  compact := SecondLocal.boundaryCompact, hausdorff := SecondLocal.boundaryHausdorff]
+  .Transport[p := OldPositive.value, q := OldNegative.value, r := SecondLocal.boundaryEvenModel, s := SecondLocal.boundaryOddModel,
+    d0 := OldD.map (OriginalD.map First.d), e0 := OldE.map (OriginalE.map First.e),
+    d1 := TargetD.map Second.d, e1 := TargetE.map Second.e, positive := BoundaryGeometry[].positive, negative := BoundaryGeometry[].negative,
+    commutesD := BoundaryGeometry[].commutesD, commutesE := BoundaryGeometry[].commutesE].With[c := PulledContraction.contraction] \as Transport;
+\definition contraction: SecondLocal.Contraction := Transport.contraction;
+\import FirstLocal.With[contraction := c] \as Start;
+\import SecondLocal.With[contraction := contraction] \as Finish;
+\import OriginalPair.Mapping[Y := TargetLocal.Carrier, source := TargetLocal.topology, sourceCompact := TargetLocal.compact,
+  sourceHausdorff := TargetLocal.separated, sourceSubset := TargetLocal.boundary, sourceClosed := TargetLocal.boundaryClosed,
+  f := Localization.base, regular := Localization.regular, preserves := Localization.preserves] \as Mapping;
+\import Mapping.BundleTriples[F := FirstLocal.FirstFiber, G := FirstLocal.SecondFiber,
+  firstModel := FirstLocal.firstOnLocal, secondModel := FirstLocal.secondOnLocal] \as Triples;
+\import Triples.With[alpha := Start.comparison] \as Pulled;
+\module LocalGeometry;
+\definition commutes: \forall (x: TargetPair.A)(v: First.Even (f x)) ->
+  (Finish.comparison.forward.fiber x).apply ((LocalGeometry[].positive.forward.fiber x).apply v) =
+  (LocalGeometry[].negative.forward.fiber x).apply ((Pulled.comparison.forward.fiber x).apply v) :=
+  \fun (x: TargetPair.A)(v: First.Even (f x)) => Transport.forwardFormula x v;
+\import TargetPair.BundleTriples[F := Triples.FirstFiber, G := Triples.SecondFiber,
+  firstModel := Triples.firstModelOnSource, secondModel := Triples.secondModelOnSource].To[
+    H := SecondLocal.FirstFiber, I := SecondLocal.SecondFiber,
+    newFirstModel := SecondLocal.firstOnLocal, newSecondModel := SecondLocal.secondOnLocal].With[
+      alpha := Pulled.comparison, beta := Finish.comparison, positive := LocalGeometry[].positive, negative := LocalGeometry[].negative, commutes := commutes] \as Change;
+\definition localEquation: Finish.localValue = Mapping.relative Start.localValue :=
+  trans!{{TargetPair.Quotient[].Relative}} _ _ _ (sym!{{TargetPair.Quotient[].Relative}} _ _ Change.reducedEquation) Pulled.reducedNaturality;
+\definition equation: Finish.value = Relative.Pullback[source := Source.model, target := Original.model, f := Pull.mapping].map Start.value :=
+  trans!{{Relative.Reduced[model := Source.model].Carrier}} _ _ _
+    (congr!{{TargetPair.Quotient[].Relative} {Relative.Reduced[model := Source.model].Carrier}} TargetLocal.extend _ _ localEquation)
+    (Localization.equation Start.localValue);

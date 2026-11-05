@@ -1,0 +1,75 @@
+\use Equality.eq_reason_in;
+\definition old: Chains.Parity[previous.head] := parity previous;
+\import Chains.Step[first := first, second := previous.head, differential := differential, tail := old] \as Extension;
+\import Models.Sum[first := first, second := old.odd] \as Sum;
+\definition next: Chains.Parity[first] := Extension.value;
+\definition diagram: Chains.Diagram := Chains.Diagram {
+  head := first, data := Chains.Data::cons first previous.head differential previous.data
+};
+\definition A[x: X]: \Set := Models.Fiber first.ranks x;
+\definition B[x: X]: \Set := Models.Fiber old.odd.ranks x;
+\definition V[x: X]: \Set := Models.Fiber next.even.ranks x;
+\definition W[x: X]: \Set := Models.Fiber next.odd.ranks x;
+\definition firstSpace[x: X]: Spaces.VectorSpace (A x) := (Models.bundle first).space x;
+\definition evenSpace[x: X]: Spaces.VectorSpace (V x) := (Models.bundle next.even).space x;
+\definition oddSpace[x: X]: Spaces.VectorSpace (W x) := (Models.bundle next.odd).space x;
+\definition oldOddSpace[x: X]: Spaces.VectorSpace (B x) := (Models.bundle old.odd).space x;
+\definition join[x: X][a: A x][b: B x]: V x :=
+  (Sum.isomorphism.forward.fiber x).apply (Pair.pair (A x) (B x) a b);
+\definition head[x: X][v: V x]: A x := Pair.first (A x) (B x) ((Sum.isomorphism.backward.fiber x).apply v);
+\definition rest[x: X][v: V x]: B x := Pair.second (A x) (B x) ((Sum.isomorphism.backward.fiber x).apply v);
+\definition headJoin: \forall (x: X)(a: A x)(b: B x) -> head x (join x a b) = a :=
+  \fun (x: X)(a: A x)(b: B x) => congr!{{Sum.SourceFiber x} {A x}} (Pair.first (A x) (B x)) _ _
+    (Sum.isomorphism.leftInverse x (Pair.pair (A x) (B x) a b));
+\definition restJoin: \forall (x: X)(a: A x)(b: B x) -> rest x (join x a b) = b :=
+  \fun (x: X)(a: A x)(b: B x) => congr!{{Sum.SourceFiber x} {B x}} (Pair.second (A x) (B x)) _ _
+    (Sum.isomorphism.leftInverse x (Pair.pair (A x) (B x) a b));
+\definition recover: \forall (x: X)(v: V x) -> join x (head x v) (rest x v) = v :=
+  \fun (x: X)(v: V x) => trans!{{V x}} _ _ _
+    (congr!{{Sum.SourceFiber x} {V x}} (Sum.isomorphism.forward.fiber x).apply _ _
+      (Pair.Prop[A := A x, B := B x].eta ((Sum.isomorphism.backward.fiber x).apply v)))
+    (Sum.isomorphism.rightInverse x v);
+\definition inclusion: \forall (x: X)(a: A x) -> (next.inclusion.fiber x).apply a = join x a (oldOddSpace x).zero :=
+  \fun (x: X)(a: A x) => \refl(join x a (oldOddSpace x).zero);
+\definition forward: \forall (x: X)(v: V x) -> (next.forward.fiber x).apply v = (oddSpace x).add
+  ((old.inclusion.fiber x).apply ((differential.fiber x).apply (head x v))) ((old.backward.fiber x).apply (rest x v)) :=
+  \fun (x: X)(v: V x) => \refl((next.forward.fiber x).apply v);
+\definition backward: \forall (x: X)(w: W x) -> (next.backward.fiber x).apply w = join x (firstSpace x).zero ((old.forward.fiber x).apply w) :=
+  \fun (x: X)(w: W x) => \refl((next.backward.fiber x).apply w);
+\definition forwardJoin: \forall (x: X)(a: A x)(b: B x) -> (next.forward.fiber x).apply (join x a b) =
+  (oddSpace x).add ((old.inclusion.fiber x).apply ((differential.fiber x).apply a)) ((old.backward.fiber x).apply b) :=
+  \fun (x: X)(a: A x)(b: B x) => congr!{{Sum.SourceFiber x} {W x}}
+    (\fun (z: Sum.SourceFiber x) => (oddSpace x).add ((old.inclusion.fiber x).apply ((differential.fiber x).apply (Pair.first (A x) (B x) z))) ((old.backward.fiber x).apply (Pair.second (A x) (B x) z)))
+    _ _ (Sum.isomorphism.leftInverse x (Pair.pair (A x) (B x) a b));
+\definition forwardHead: \forall (x: X)(a: A x) -> (next.forward.fiber x).apply ((next.inclusion.fiber x).apply a) =
+  (old.inclusion.fiber x).apply ((differential.fiber x).apply a) :=
+  \fun (x: X)(a: A x) => trans!{{W x}} _ _ _ (forwardJoin x a (oldOddSpace x).zero)
+    (trans!{{W x}} _ _ _
+      (congr!{{W x} {W x}} ((oddSpace x).add ((old.inclusion.fiber x).apply ((differential.fiber x).apply a))) _ _ (old.backward.fiber x).preservesZero)
+      (Spaces.Laws[V := W x, space := oddSpace x].zeroRight ((old.inclusion.fiber x).apply ((differential.fiber x).apply a))));
+\definition squareZero: Chains.SquareZero diagram := Logic.And[_, _]::#
+  (\fun (x: X)(v: V x) => eq_reason_in!{{V x} _
+    "=" { join x (firstSpace x).zero ((old.forward.fiber x).apply ((next.forward.fiber x).apply v)) } "by" { backward x ((next.forward.fiber x).apply v) }
+    "=" { join x (firstSpace x).zero ((oldOddSpace x).add
+      ((old.forward.fiber x).apply ((old.inclusion.fiber x).apply ((differential.fiber x).apply (head x v))))
+      ((old.forward.fiber x).apply ((old.backward.fiber x).apply (rest x v)))) } "by" {
+      congr!{{B x} {V x}} (join x (firstSpace x).zero) _ _ ((old.forward.fiber x).preservesAdd _ _) }
+    "=" { join x (firstSpace x).zero ((oldOddSpace x).add (oldOddSpace x).zero (oldOddSpace x).zero) } "by" {
+      congr!{{B x} {V x}} (join x (firstSpace x).zero) _ _
+        (congr!{{B x} {B x} {B x}} (oldOddSpace x).add _ _ _ _
+          (consecutive x (head x v)) ((Chains.Of[complex := previous].squareZero).right x (rest x v))) }
+    "=" { join x (firstSpace x).zero (oldOddSpace x).zero } "by" {
+      congr!{{B x} {V x}} (join x (firstSpace x).zero) _ _ (Spaces.Laws[V := B x, space := oldOddSpace x].zeroLeft (oldOddSpace x).zero) }
+    "=" _ "by" { (Sum.isomorphism.forward.fiber x).preservesZero }
+  })
+  (\fun (x: X)(w: W x) => eq_reason_in!{{W x} _
+    "=" { (oddSpace x).add ((old.inclusion.fiber x).apply ((differential.fiber x).apply (firstSpace x).zero))
+      ((old.backward.fiber x).apply ((old.forward.fiber x).apply w)) } "by" { forwardJoin x (firstSpace x).zero ((old.forward.fiber x).apply w) }
+    "=" { (oddSpace x).add (oddSpace x).zero (oddSpace x).zero } "by" {
+      congr!{{W x} {W x} {W x}} (oddSpace x).add _ _ _ _
+        (trans!{{W x}} _ _ _ (congr!{{Head previous x} {W x}} (old.inclusion.fiber x).apply _ _ (differential.fiber x).preservesZero) (old.inclusion.fiber x).preservesZero)
+        ((Chains.Of[complex := previous].squareZero).left x w) }
+    "=" _ "by" { Spaces.Laws[V := W x, space := oddSpace x].zeroLeft (oddSpace x).zero }
+  });
+\definition complex: Chains.Complex := \into[Chains.Diagram](diagram, Chains.Complex) \by { squareZero };
+

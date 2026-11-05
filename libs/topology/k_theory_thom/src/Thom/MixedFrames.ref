@@ -1,0 +1,46 @@
+\import std.Data[].List[] \as Lists;
+\import std.Logic[].Classical[] \as Classical;
+\use Logic.either;
+\import Fin.Sum[m := n, n := m] \as Indices;
+\import Spaces.CoordinateSum[n := n, m := m] \as Blocks;
+\import Blocks.Of[V := V, W := W, firstSpace := leftSpace, secondSpace := rightSpace, first := first, second := second] \as Combined;
+\import Spaces.DirectSum[V := V, W := W, left := leftSpace, right := rightSpace] \as Sum;
+\definition frame: Bundles.Dimension[V := Sum.Carrier, space := Sum.space].Frame Indices.total := Combined.isomorphism;
+\definition firstBasis: Spaces.Finite[V := V, I := Fin.Fin n, space := leftSpace].Basis := Bundles.Dimension[V := V, space := leftSpace].At[n := n].basis first;
+\definition secondBasis: Spaces.Finite[V := W, I := Fin.Fin m, space := rightSpace].Basis := Bundles.Dimension[V := W, space := rightSpace].At[n := m].basis second;
+\definition totalBasis: Spaces.Finite[V := Sum.Carrier, I := Fin.Fin Indices.total, space := Sum.space].Basis :=
+  Bundles.Dimension[V := Sum.Carrier, space := Sum.space].At[n := Indices.total].basis frame;
+\import Spaces.FiniteCoordinates[n := n] \as FirstStandard;
+\import Spaces.FiniteCoordinates[n := m] \as SecondStandard;
+\import Spaces.FiniteCoordinates[n := Indices.total] \as TotalStandard;
+\import Spaces.Coordinates[I := Fin.Fin n].Kronecker[] \as FirstDelta;
+\import Spaces.Coordinates[I := Fin.Fin m].Kronecker[] \as SecondDelta;
+\import Spaces.Coordinates[I := Fin.Fin Indices.total].Kronecker[] \as TotalDelta;
+\import Spaces.Coordinates[I := Fin.Fin n] \as FirstCoordinates;
+\import Spaces.Coordinates[I := Fin.Fin m] \as SecondCoordinates;
+\import C.Def[] \as Op;
+\import Indices.Tuples[A := C.Complex] \as BlockTuples;
+\module Delta;
+\definition firstLeft[i: Fin.Fin n]: Blocks.left (TotalStandard.vectors (Indices.left i)) = FirstStandard.vectors i :=
+  \axiom:funext(Blocks.left (TotalStandard.vectors (Indices.left i)), FirstStandard.vectors i, Delta[].left i);
+\definition secondLeft[i: Fin.Fin n]: Blocks.right (TotalStandard.vectors (Indices.left i)) = SecondCoordinates.space.zero :=
+  \axiom:funext(Blocks.right (TotalStandard.vectors (Indices.left i)), SecondCoordinates.space.zero, Delta[].leftRight i);
+\definition firstRight[i: Fin.Fin m]: Blocks.left (TotalStandard.vectors (Indices.right i)) = FirstCoordinates.space.zero :=
+  \axiom:funext(Blocks.left (TotalStandard.vectors (Indices.right i)), FirstCoordinates.space.zero, Delta[].rightLeft i);
+\definition secondRight[i: Fin.Fin m]: Blocks.right (TotalStandard.vectors (Indices.right i)) = SecondStandard.vectors i :=
+  \axiom:funext(Blocks.right (TotalStandard.vectors (Indices.right i)), SecondStandard.vectors i, Delta[].right i);
+\definition inLeft[v: V]: Sum.Carrier := Sum.make v rightSpace.zero;
+\definition inRight[w: W]: Sum.Carrier := Sum.make leftSpace.zero w;
+\definition leftVector[i: Fin.Fin n]: totalBasis.vectors (Indices.left i) = inLeft (firstBasis.vectors i) :=
+  congr!{V W {Sum.Carrier}} Sum.make _ _ _ _
+    (congr!{{FirstCoordinates.Vector} V} first.backward.apply _ _ (firstLeft i))
+    (trans!{W} _ _ _ (congr!{{SecondCoordinates.Vector} W} second.backward.apply _ _ (secondLeft i)) second.backward.preservesZero);
+\definition rightVector[i: Fin.Fin m]: totalBasis.vectors (Indices.right i) = inRight (secondBasis.vectors i) :=
+  congr!{V W {Sum.Carrier}} Sum.make _ _ _ _
+    (trans!{V} _ _ _ (congr!{{FirstCoordinates.Vector} V} first.backward.apply _ _ (firstRight i)) first.backward.preservesZero)
+    (congr!{{SecondCoordinates.Vector} W} second.backward.apply _ _ (secondRight i));
+\module Arguments;
+\definition leftCoordinate[v: Sum.Carrier][i: Fin.Fin n]: frame.forward.apply v (Indices.left i) = first.forward.apply (Sum.first v) i :=
+  BlockTuples.atLeft (first.forward.apply (Sum.first v)) (second.forward.apply (Sum.second v)) i;
+\definition rightCoordinate[v: Sum.Carrier][i: Fin.Fin m]: frame.forward.apply v (Indices.right i) = second.forward.apply (Sum.second v) i :=
+  BlockTuples.atRight (first.forward.apply (Sum.first v)) (second.forward.apply (Sum.second v)) i;

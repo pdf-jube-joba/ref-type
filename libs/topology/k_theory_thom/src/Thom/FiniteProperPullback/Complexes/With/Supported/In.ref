@@ -1,0 +1,63 @@
+\import compact_support_k.Support[].OnePoint[X := X, space := space] \as Range;
+\import compact_support_k.Support[].OnePoint[X := Y, space := target] \as Domain;
+\import compact_support_k.Support[].Proper[A := Y, B := X, source := target, target := space]
+  .With[f := f, continuous := regular, proper := proper] \as Extension;
+\import topology.Topology[Carrier := Domain.Carrier] \as DomainSpace;
+\import topology.Topology[Carrier := Range.Carrier] \as RangeSpace;
+\import topology.Maps[A := Domain.Carrier, B := Range.Carrier] \as ExtendedMaps;
+\import topology.Maps[A := Y, B := Domain.Carrier] \as DomainMaps;
+\import topology.Maps[A := X, B := Range.Carrier] \as RangeMaps;
+\definition inner: \Pow Domain.Carrier := ExtendedMaps.Preimage Extension.extension w.inner;
+\definition envelope: \Pow Domain.Carrier := ExtendedMaps.Preimage Extension.extension w.envelope;
+\definition contains: DomainSpace.Subset SourceNeighbors.image inner :=
+  \fun (z: Domain.Carrier)(member: _) => DomainMaps.imageElim Domain.inclusion support z (DomainSpace.Member inner z)
+    (\fun (y: Y)(inside: _)(same: Domain.inclusion y = z) => \idelim Domain.inclusion y = z
+      \with point: Domain.Carrier => DomainSpace.Member inner point \by {
+        base: w.contains (Range.inclusion (f y)) (RangeMaps.imageMember Range.inclusion K (f y) inside), equality: same
+      }) member;
+\definition within: DomainSpace.Subset envelope SourceNeighbors.finitePart :=
+  \induction (z: Domain.Carrier) \return DomainSpace.Member envelope z -> DomainSpace.Member SourceNeighbors.finitePart z \with {
+    | none: \fun (inside: _) => w.within Range.point inside
+    | some: \fun (y: Y)(inside: _) => \refl(y)
+  };
+\definition witness: SourceNeighbors.Witness := DomainSpace.Urysohn[].ShrinkData[Domain.topology, SourceNeighbors.image, SourceNeighbors.finitePart] {
+  inner := inner, envelope := envelope,
+  innerOpen := Extension.extensionContinuous w.inner w.innerOpen,
+  envelopeClosed := topology.Continuity[A := Domain.Carrier, B := Range.Carrier].closedPreimage Domain.topology Range.topology
+    Extension.extension Extension.extensionContinuous w.envelope w.envelopeClosed,
+  contains := contains, enclosed := \fun (z: Domain.Carrier)(inside: _) => w.enclosed (Extension.extension z) inside,
+  within := within
+};
+\import OriginalNeighbors.With[w := w] \as OriginalNeighbor;
+\import SourceNeighbors.With[w := witness] \as SourceNeighbor;
+\import FirstClass.In[w := w] \as FirstLocal;
+\import SecondClass.In[w := witness] \as SecondLocal;
+\import Original.Localization[U := OriginalNeighbor.openSet, open := OriginalNeighbor.open,
+  L := OriginalNeighbor.compactSet, compactL := OriginalNeighbor.compact, enclosed := OriginalNeighbor.enclosed] \as OriginalLocal;
+\import Source.Localization[U := SourceNeighbor.openSet, open := SourceNeighbor.open,
+  L := SourceNeighbor.compactSet, compactL := SourceNeighbor.compact, enclosed := SourceNeighbor.enclosed] \as TargetLocal;
+\import Pull.Localization[U := OriginalNeighbor.openSet, open := OriginalNeighbor.open,
+  L := OriginalNeighbor.compactSet, compactL := OriginalNeighbor.compact, enclosed := OriginalNeighbor.enclosed]
+  .Using[openProof := SourceNeighbor.open, compactProof := SourceNeighbor.compact, enclosedProof := SourceNeighbor.enclosed] \as Localization;
+\import Relative.Pair[X := OriginalLocal.Carrier, space := OriginalLocal.topology, compact := OriginalLocal.compact,
+  hausdorff := OriginalLocal.separated, subset := OriginalLocal.boundary, closed := OriginalLocal.boundaryClosed] \as OriginalPair;
+\import Relative.Pair[X := TargetLocal.Carrier, space := TargetLocal.topology, compact := TargetLocal.compact,
+  hausdorff := TargetLocal.separated, subset := TargetLocal.boundary, closed := TargetLocal.boundaryClosed] \as TargetPair;
+\definition boundary[x: TargetPair.A]: OriginalPair.A := \into[OriginalLocal.Carrier](Localization.base x, OriginalLocal.boundary) \by {
+  Localization.preserves x (\bysub(TargetLocal.Carrier, TargetLocal.boundary, x))
+};
+\definition boundaryRegular: topology.Continuity[A := TargetPair.A, B := OriginalPair.A].Continuous TargetPair.subspace OriginalPair.subspace boundary :=
+  topology.Continuity[A := TargetPair.A, B := OriginalLocal.Carrier].Corestriction[S := OriginalLocal.boundary]
+    .corestrictContinuous TargetPair.subspace OriginalLocal.topology boundary
+      (topology.Composition[A := TargetPair.A, B := TargetLocal.Carrier, C := OriginalLocal.Carrier].composeContinuous
+        TargetPair.subspace TargetLocal.topology OriginalLocal.topology SecondLocal.boundaryLocal Localization.base
+        SecondLocal.boundaryLocalRegular Localization.regular);
+\module Using(c: FirstLocal.Contraction);
+\definition equation: SecondLocal.value = Relative.Pullback[source := Source.model, target := Original.model, f := Pull.mapping].map FirstLocal.value := \block {
+  \takefrom c: FirstLocal.Contraction \by FirstLocal.contractions \then
+  \return trans!{{Relative.Reduced[model := Source.model].Carrier}} _ _ _ (SecondLocal.agreement Using[c := c].contraction)
+    (trans!{{Relative.Reduced[model := Source.model].Carrier}} _ _ _ Using[c := c].equation
+      (congr!{{Relative.Reduced[model := Original.model].Carrier} {Relative.Reduced[model := Source.model].Carrier}}
+        Relative.Pullback[source := Source.model, target := Original.model, f := Pull.mapping].map _ _
+        (sym!{{Relative.Reduced[model := Original.model].Carrier}} _ _ (FirstLocal.agreement c))))
+};

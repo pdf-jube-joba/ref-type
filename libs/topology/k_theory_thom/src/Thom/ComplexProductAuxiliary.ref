@@ -1,0 +1,27 @@
+\import real.Analysis[] \as Real;
+\import metric_spaces.RealFunctions[A := X] \as Functions;
+\import C.Def[] \as Scalar;
+\import C.Prop[] \as ComplexLaws;
+\import linear_algebra.Hermitian[].Complex[] \as Hermitian;
+\import \root.Thom[].ComplexProductParity[X := X, F0 := H, F1 := H, G0 := F0, G1 := F1,
+  e0 := auxiliary, e1 := auxiliary, f0 := first, f1 := second,
+  sameE1 := (\refl(auxiliary.baseSpace)), sameF0 := sameFirst, sameF1 := sameSecond] \as Parity;
+\import Parity.Grading[] \as Grading;
+\import Bundles.Morphisms[X := X, Y := X, F := Parity.RightFiber, G := Parity.RightFiber,
+  source := Parity.rightBundle, target := Parity.rightBundle, f := (\fun (x: X) => x)] \as PartnerMaps;
+\structure Data: \Set := {
+  partner: PartnerMaps.Map,
+  norm: X -> Real.Real,
+  continuous: Functions.Continuous auxiliary.baseSpace norm,
+  nonnegative: \forall (x: X) -> dedekind_reals.DedekindReal[].Le Real.zero (norm x),
+  square: \forall (x: X)(w: Parity.RightFiber x) -> (partner.fiber x).apply ((partner.fiber x).apply w) =
+    (Parity.rightBundle.space x).smul (Scalar.ofReal (norm x)) w,
+  anticommutes: \forall (x: X)(w: Parity.RightFiber x) -> (Parity.rightBundle.space x).add
+    ((Grading.rightGrading.forward.fiber x).apply ((partner.fiber x).apply w))
+    ((partner.fiber x).apply ((Grading.rightGrading.forward.fiber x).apply w)) = (Parity.rightBundle.space x).zero
+};
+\import Operations.DirectSum[X := X, F := H, G := H, left := auxiliary, right := auxiliary] \as Auxiliary;
+\import Auxiliary.Of[same := (\refl(auxiliary.baseSpace))].Symmetry[] \as Symmetry;
+\definition flip: Bundles.Morphisms[X := X, Y := X, F := Parity.LeftFiber, G := Parity.LeftFiber,
+  source := Parity.leftBundle, target := Parity.leftBundle, f := (\fun (x: X) => x)].Map := Symmetry.isomorphism.forward;
+\module With(data: Data);

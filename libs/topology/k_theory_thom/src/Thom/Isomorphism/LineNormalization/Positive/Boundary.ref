@@ -1,0 +1,21 @@
+\definition overlap[p: DiskPair.A]: Disks.Overlap := \into[Sphere.Sphere](Halves.positive p, Disks.overlap) \by {
+  Logic.And[_, _]::# (Halves.positiveInU p)
+    (\idelim Halves.negative p = Halves.positive p \with s: Sphere.Sphere => \In[Sphere.Sphere] Disks.V s \by {
+      base: Halves.negativeInV p, equality: sym!{{Sphere.Sphere}} _ _ (hemisphereEquality p)
+    })
+};
+\import bundle_operations.Operations[].Subset[E := Sphere.Sphere, U := Disks.overlap] \as OverlapEquality;
+\definition boundaryRecovery: \forall (p: DiskPair.A) -> Disks.boundary (overlap p) = circle p :=
+  \fun (p: DiskPair.A) => trans!{{Plane.Sphere}} _ _ _
+    (congr!{{Disks.Overlap} {Plane.Sphere}} Disks.boundary _ _ (OverlapEquality.equality (overlap p) (Disks.equatorPoint (circle p)) (Halves.positiveBoundary (circle p))))
+    (Disks.boundaryEquator (circle p));
+\definition action: \forall (p: DiskPair.A)(v: Bundles.Vector one) ->
+  (zComparison.forward.fiber p).apply v = (Transition.map (circle p)).apply v :=
+  \fun (p: DiskPair.A)(v: Bundles.Vector one) => trans!{{Bundles.Vector one}} _ _ _
+    (Clutched.FrameChange[x := overlap p].onFiber ((positiveBoundary.backward.fiber p).apply v))
+    (trans!{{Bundles.Vector one}} _ _ _
+      (congr!{{Bundles.Vector one} {Bundles.Vector one}} (Transition.map (Disks.boundary (overlap p))).apply _ _
+        ((\bysub(PositiveMaps.Data, PositiveMaps.Isomorphism, positiveBoundary)).rightInverse p v))
+      (congr!{{Plane.Sphere} {Bundles.Vector one}} (\fun (s: Plane.Sphere) => (Transition.map s).apply v) _ _ (boundaryRecovery p)));
+\definition scalarAction: \forall (p: DiskPair.A)(v: Bundles.Vector one) ->
+  (zComparison.forward.fiber p).apply v = (Bundles.coordinates one).smul (Native.coefficient (circle p)) v := action;

@@ -1,0 +1,94 @@
+\definition evenMember[v: U]: Subspaces.Member positive (embedEven.apply v) :=
+  injective (parity.apply (embedEven.apply v)) (embedEven.apply v)
+    (trans!{{Split.Carrier}} _ _ _ (compatible (embedEven.apply v))
+      (trans!{{Split.Carrier}} _ _ _
+        (std.Data[].Pair[].Prop[A := U, B := T].pairCong _ _ _ _ (evenDecode v)
+          (trans!{T} _ _ _ (congr!{T T} odd.neg _ _
+            (congr!{{Split.Carrier} T} Split.second _ _ (decompositionLaws.rightInverse (Split.make v odd.zero)))) oddNegZero))
+        (sym!{{Split.Carrier}} _ _ (decompositionLaws.rightInverse (Split.make v odd.zero)))));
+\definition oddMember[v: T]: Subspaces.Member negative (embedOdd.apply v) :=
+  injective (parity.apply (embedOdd.apply v)) (Tensor.space.neg (embedOdd.apply v))
+    (trans!{{Split.Carrier}} _ _ _ (compatible (embedOdd.apply v))
+      (trans!{{Split.Carrier}} _ _ _
+        (std.Data[].Pair[].Prop[A := U, B := T].pairCong _ _ _ _
+          (congr!{{Split.Carrier} U} Split.first _ _ (decompositionLaws.rightInverse (Split.make even.zero v)))
+          (congr!{T T} odd.neg _ _ (oddDecode v)))
+        (sym!{{Split.Carrier}} _ _
+          (trans!{{Split.Carrier}} _ _ _ (DecompositionOperations.preservesNeg decomposition.forward (embedOdd.apply v))
+            (trans!{{Split.Carrier}} _ _ _
+              (congr!{{Split.Carrier} {Split.Carrier}} Split.space.neg _ _ (decompositionLaws.rightInverse (Split.make even.zero v)))
+              (std.Data[].Pair[].Prop[A := U, B := T].pairCong _ _ _ _ evenNegZero (\refl(odd.neg v))))))));
+\definition positiveZero[z: Positive.Carrier]: projectOdd.apply z = odd.zero :=
+  OddLaws.oppositeSelfZero half (projectOdd.apply z) doubleHalf
+    (trans!{T} _ _ _
+      (sym!{T} _ _ (congr!{{Tensor.Carrier} T} projectOdd.apply _ _ (\bysub(Tensor.Carrier, positive.carrier, z))))
+      (congr!{{Split.Carrier} T} Split.second _ _ (compatible z)));
+\definition negativeZero[z: Negative.Carrier]: projectEven.apply z = even.zero :=
+  EvenLaws.oppositeSelfZero half (projectEven.apply z) doubleHalf
+    (trans!{U} _ _ _ (sym!{U} _ _ (congr!{{Split.Carrier} U} Split.first _ _ (compatible z)))
+      (trans!{U} _ _ _
+        (congr!{{Tensor.Carrier} U} projectEven.apply _ _ (\bysub(Tensor.Carrier, negative.carrier, z)))
+        (EvenProjection.Operations[].preservesNeg projectEven z)));
+\definition positiveRecover[z: Positive.Carrier]: embedEven.apply (projectEven.apply z) = z :=
+  trans!{{Tensor.Carrier}} _ _ _ (sym!{{Tensor.Carrier}} _ _ (TensorLaws.zeroRight (embedEven.apply (projectEven.apply z))))
+    (trans!{{Tensor.Carrier}} _ _ _
+      (congr!{{Tensor.Carrier} {Tensor.Carrier}} (Tensor.plus (embedEven.apply (projectEven.apply z))) _ _
+        (sym!{{Tensor.Carrier}} _ _ (trans!{{Tensor.Carrier}} _ _ _ (congr!{T {Tensor.Carrier}} embedOdd.apply _ _ (positiveZero z)) embedOdd.preservesZero)))
+      (reconstruction z));
+\definition negativeRecover[z: Negative.Carrier]: embedOdd.apply (projectOdd.apply z) = z :=
+  trans!{{Tensor.Carrier}} _ _ _ (sym!{{Tensor.Carrier}} _ _ (TensorLaws.zeroLeft (embedOdd.apply (projectOdd.apply z))))
+    (trans!{{Tensor.Carrier}} _ _ _
+      (congr!{{Tensor.Carrier} {Tensor.Carrier}} (\fun (t: Tensor.Carrier) => Tensor.plus t (embedOdd.apply (projectOdd.apply z))) _ _
+        (sym!{{Tensor.Carrier}} _ _ (trans!{{Tensor.Carrier}} _ _ _ (congr!{U {Tensor.Carrier}} embedEven.apply _ _ (negativeZero z)) embedEven.preservesZero)))
+      (reconstruction z));
+\import Spaces.Isomorphism[V := U, W := Positive.Carrier, source := even, target := Positive.induced] \as EvenIsomorphisms;
+\definition evenForward: Spaces.Linear[V := U, W := Positive.Carrier, source := even, target := Positive.induced].Map :=
+  Spaces.Linear[V := U, W := Positive.Carrier, source := even, target := Positive.induced].Map {
+    apply := \fun (v: U) => \into[Tensor.Carrier](embedEven.apply v, positive.carrier) \by { evenMember v },
+    preservesAdd := embedEven.preservesAdd, preservesScale := embedEven.preservesScale
+  };
+\definition evenBackward: Spaces.Linear[V := Positive.Carrier, W := U, source := Positive.induced, target := even].Map :=
+  Spaces.Linear[V := Positive.Carrier, W := U, source := Positive.induced, target := even].Map {
+    apply := \fun (z: Positive.Carrier) => projectEven.apply z,
+    preservesAdd := \fun (z, w: Positive.Carrier) => projectEven.preservesAdd z w,
+    preservesScale := \fun (a: C.Complex)(z: Positive.Carrier) => projectEven.preservesScale a z
+  };
+\definition evenIsomorphism: EvenIsomorphisms.Isomorphism := EvenIsomorphisms.Isomorphism {
+  forward := evenForward, backward := evenBackward, leftInverse := evenDecode, rightInverse := positiveRecover
+};
+\import Spaces.Isomorphism[V := T, W := Negative.Carrier, source := odd, target := Negative.induced] \as OddIsomorphisms;
+\definition oddForward: Spaces.Linear[V := T, W := Negative.Carrier, source := odd, target := Negative.induced].Map :=
+  Spaces.Linear[V := T, W := Negative.Carrier, source := odd, target := Negative.induced].Map {
+    apply := \fun (v: T) => \into[Tensor.Carrier](embedOdd.apply v, negative.carrier) \by { oddMember v },
+    preservesAdd := embedOdd.preservesAdd, preservesScale := embedOdd.preservesScale
+  };
+\definition oddBackward: Spaces.Linear[V := Negative.Carrier, W := T, source := Negative.induced, target := odd].Map :=
+  Spaces.Linear[V := Negative.Carrier, W := T, source := Negative.induced, target := odd].Map {
+    apply := \fun (z: Negative.Carrier) => projectOdd.apply z,
+    preservesAdd := \fun (z, w: Negative.Carrier) => projectOdd.preservesAdd z w,
+    preservesScale := \fun (a: C.Complex)(z: Negative.Carrier) => projectOdd.preservesScale a z
+  };
+\definition oddIsomorphism: OddIsomorphisms.Isomorphism := OddIsomorphisms.Isomorphism {
+  forward := oddForward, backward := oddBackward, leftInverse := oddDecode, rightInverse := negativeRecover
+};
+\module Invertible(nonzero: Scalar.NonZero (Scalar.add c.a c.b));
+\import Spaces.Linear[V := Tensor.Carrier, W := Tensor.Carrier, source := Tensor.space, target := Tensor.space].Composition[U := U, domain := even] \as EvenStart;
+\import Spaces.Linear[V := Tensor.Carrier, W := T, source := Tensor.space, target := odd].Composition[U := U, domain := even] \as EvenFinish;
+\definition rawForward: Spaces.Linear[V := U, W := T, source := even, target := odd].Map := EvenFinish.compose projectOdd (EvenStart.compose operator embedEven);
+\import Spaces.Linear[V := Tensor.Carrier, W := Tensor.Carrier, source := Tensor.space, target := Tensor.space].Composition[U := T, domain := odd] \as OddStart;
+\import Spaces.Linear[V := Tensor.Carrier, W := U, source := Tensor.space, target := even].Composition[U := T, domain := odd] \as OddFinish;
+\definition rawBackward: Spaces.Linear[V := T, W := U, source := odd, target := even].Map := OddFinish.compose projectEven (OddStart.compose operator embedOdd);
+\definition negativeSymbol[v: U]: Negative.Carrier := \into[Tensor.Carrier](operator.apply (embedEven.apply v), negative.carrier) \by { positiveToNegative (evenForward.apply v) };
+\definition positiveSymbol[v: T]: Positive.Carrier := \into[Tensor.Carrier](operator.apply (embedOdd.apply v), positive.carrier) \by { negativeToPositive (oddForward.apply v) };
+\definition rawSquareLeft[v: U]: rawBackward.apply (rawForward.apply v) = even.smul (Scalar.add c.a c.b) v :=
+  trans!{U} _ _ _
+    (congr!{{Tensor.Carrier} U} (\fun (z: Tensor.Carrier) => projectEven.apply (operator.apply z)) _ _ (negativeRecover (negativeSymbol v)))
+    (trans!{U} _ _ _ (congr!{{Tensor.Carrier} U} projectEven.apply _ _ (operatorSquare (embedEven.apply v)))
+      (trans!{U} _ _ _ (projectEven.preservesScale (Scalar.add c.a c.b) (embedEven.apply v))
+        (congr!{U U} (even.smul (Scalar.add c.a c.b)) _ _ (evenDecode v))));
+\definition rawSquareRight[v: T]: rawForward.apply (rawBackward.apply v) = odd.smul (Scalar.add c.a c.b) v :=
+  trans!{T} _ _ _
+    (congr!{{Tensor.Carrier} T} (\fun (z: Tensor.Carrier) => projectOdd.apply (operator.apply z)) _ _ (positiveRecover (positiveSymbol v)))
+    (trans!{T} _ _ _ (congr!{{Tensor.Carrier} T} projectOdd.apply _ _ (operatorSquare (embedOdd.apply v)))
+      (trans!{T} _ _ _ (projectOdd.preservesScale (Scalar.add c.a c.b) (embedOdd.apply v))
+        (congr!{T T} (odd.smul (Scalar.add c.a c.b)) _ _ (oddDecode v))));

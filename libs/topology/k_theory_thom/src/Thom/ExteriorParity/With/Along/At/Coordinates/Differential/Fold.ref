@@ -1,0 +1,155 @@
+\import Contraction.At[x := x] \as Actions;
+\import std.Data[].Pair[] \as P;
+\definition EvenTarget: \Set := Models.Fiber (target B.Bool^::true).ranks x;
+\definition evenSpace: Spaces.VectorSpace EvenTarget := (Models.bundle (target B.Bool^::true)).space x;
+\definition OddTarget: \Set := Models.Fiber (target B.Bool^::false).ranks x;
+\definition oddSpace: Spaces.VectorSpace OddTarget := (Models.bundle (target B.Bool^::false)).space x;
+\import Spaces.Linear[V := OddTarget, W := EvenTarget, source := oddSpace, target := evenSpace].Composition[U := Parity.Odd x, domain := Parity.oddBundle.space x] \as LeftOdd;
+\import Spaces.Linear[V := EvenTarget, W := OddTarget, source := evenSpace, target := oddSpace].Composition[U := Parity.Even x, domain := Parity.evenBundle.space x] \as EvenLeft;
+\definition leftEven: Spaces.Linear[V := Parity.Even x, W := OddTarget, source := Parity.evenBundle.space x, target := oddSpace].Map :=
+  EvenLeft.compose ((totalOperator B.Bool^::true).fiber x) (forwardEven.fiber x);
+\import Spaces.Linear[V := Parity.Odd x, W := OddTarget, source := Parity.oddBundle.space x, target := oddSpace].Composition[U := Parity.Even x, domain := Parity.evenBundle.space x] \as EvenRight;
+\definition rightEven: Spaces.Linear[V := Parity.Even x, W := OddTarget, source := Parity.evenBundle.space x, target := oddSpace].Map :=
+  EvenRight.compose (forwardOdd.fiber x) (Contraction.forward.fiber x);
+\import Spaces.Linear[V := OddTarget, W := EvenTarget, source := oddSpace, target := evenSpace].Composition[U := Parity.Odd x, domain := Parity.oddBundle.space x] \as OddLeft;
+\definition leftOdd: Spaces.Linear[V := Parity.Odd x, W := EvenTarget, source := Parity.oddBundle.space x, target := evenSpace].Map :=
+  OddLeft.compose ((totalOperator B.Bool^::false).fiber x) (forwardOdd.fiber x);
+\import Spaces.Linear[V := Parity.Even x, W := EvenTarget, source := Parity.evenBundle.space x, target := evenSpace].Composition[U := Parity.Odd x, domain := Parity.oddBundle.space x] \as OddRight;
+\definition rightOdd: Spaces.Linear[V := Parity.Odd x, W := EvenTarget, source := Parity.oddBundle.space x, target := evenSpace].Map :=
+  OddRight.compose (forwardEven.fiber x) (Contraction.backward.fiber x);
+
+\definition eeLeft[v: Models.Fiber (First.parity n B.Bool^::true).ranks x][w: Models.Fiber (Second.parity m B.Bool^::true).ranks x]: leftEven.apply (Actions.eeInput v w) =
+  ((totalOperator B.Bool^::true).fiber x).apply ((EE.forward.fiber x).apply (EE.pure x v w)) :=
+  congr!{{EvenTarget} {OddTarget}} ((totalOperator B.Bool^::true).fiber x).apply _ _ (EvenCopair.onFirst EE.forward OO.forward x (EE.pure x v w));
+\definition eeRight[v: Models.Fiber (First.parity n B.Bool^::true).ranks x][w: Models.Fiber (Second.parity m B.Bool^::true).ranks x]: rightEven.apply (Actions.eeInput v w) = oddSpace.add
+  ((OE.forward.fiber x).apply (OE.pure x (((firstOperator B.Bool^::true).fiber x).apply v) w))
+  ((EO.forward.fiber x).apply (EO.pure x v (((secondOperator B.Bool^::true).fiber x).apply w))) :=
+  trans!{{OddTarget}} _ _ _ (congr!{{Parity.Odd x} {OddTarget}} (forwardOdd.fiber x).apply _ _ (Actions.eeAction v w))
+    (trans!{{OddTarget}} _ _ _
+      ((forwardOdd.fiber x).preservesAdd (Actions.oeInput (((firstOperator B.Bool^::true).fiber x).apply v) w) (Actions.eoInput v (((secondOperator B.Bool^::true).fiber x).apply w)))
+      (congr!{{OddTarget} {OddTarget} {OddTarget}} oddSpace.add _ _ _ _
+        (OddCopair.onSecond EO.forward OE.forward x (OE.pure x (((firstOperator B.Bool^::true).fiber x).apply v) w))
+        (OddCopair.onFirst EO.forward OE.forward x (EO.pure x v (((secondOperator B.Bool^::true).fiber x).apply w)))));
+
+\definition ooLeft[v: Models.Fiber (First.parity n B.Bool^::false).ranks x][w: Models.Fiber (Second.parity m B.Bool^::false).ranks x]: leftEven.apply (Actions.ooInput v w) =
+  ((totalOperator B.Bool^::true).fiber x).apply ((OO.forward.fiber x).apply (OO.pure x v w)) :=
+  congr!{{EvenTarget} {OddTarget}} ((totalOperator B.Bool^::true).fiber x).apply _ _ (EvenCopair.onSecond EE.forward OO.forward x (OO.pure x v w));
+\definition ooRight[v: Models.Fiber (First.parity n B.Bool^::false).ranks x][w: Models.Fiber (Second.parity m B.Bool^::false).ranks x]: rightEven.apply (Actions.ooInput v w) = oddSpace.add
+  ((EO.forward.fiber x).apply (EO.pure x (((firstOperator B.Bool^::false).fiber x).apply v) w))
+  ((OE.forward.fiber x).apply (OE.pure x (((Models.bundle (First.parity n B.Bool^::false)).space x).neg v) (((secondOperator B.Bool^::false).fiber x).apply w))) :=
+  trans!{{OddTarget}} _ _ _ (congr!{{Parity.Odd x} {OddTarget}} (forwardOdd.fiber x).apply _ _ (Actions.ooAction v w))
+    (trans!{{OddTarget}} _ _ _
+      ((forwardOdd.fiber x).preservesAdd (Actions.eoInput (((firstOperator B.Bool^::false).fiber x).apply v) w) (Actions.oeInput (((Models.bundle (First.parity n B.Bool^::false)).space x).neg v) (((secondOperator B.Bool^::false).fiber x).apply w)))
+      (congr!{{OddTarget} {OddTarget} {OddTarget}} oddSpace.add _ _ _ _
+        (OddCopair.onFirst EO.forward OE.forward x (EO.pure x (((firstOperator B.Bool^::false).fiber x).apply v) w))
+        (OddCopair.onSecond EO.forward OE.forward x (OE.pure x (((Models.bundle (First.parity n B.Bool^::false)).space x).neg v) (((secondOperator B.Bool^::false).fiber x).apply w)))));
+
+\definition eoLeft[v: Models.Fiber (First.parity n B.Bool^::true).ranks x][w: Models.Fiber (Second.parity m B.Bool^::false).ranks x]: leftOdd.apply (Actions.eoInput v w) =
+  ((totalOperator B.Bool^::false).fiber x).apply ((EO.forward.fiber x).apply (EO.pure x v w)) :=
+  congr!{{OddTarget} {EvenTarget}} ((totalOperator B.Bool^::false).fiber x).apply _ _ (OddCopair.onFirst EO.forward OE.forward x (EO.pure x v w));
+\definition eoRight[v: Models.Fiber (First.parity n B.Bool^::true).ranks x][w: Models.Fiber (Second.parity m B.Bool^::false).ranks x]: rightOdd.apply (Actions.eoInput v w) = evenSpace.add
+  ((OO.forward.fiber x).apply (OO.pure x (((firstOperator B.Bool^::true).fiber x).apply v) w))
+  ((EE.forward.fiber x).apply (EE.pure x v (((secondOperator B.Bool^::false).fiber x).apply w))) :=
+  trans!{{EvenTarget}} _ _ _ (congr!{{Parity.Even x} {EvenTarget}} (forwardEven.fiber x).apply _ _ (Actions.eoAction v w))
+    (trans!{{EvenTarget}} _ _ _
+      ((forwardEven.fiber x).preservesAdd (Actions.ooInput (((firstOperator B.Bool^::true).fiber x).apply v) w) (Actions.eeInput v (((secondOperator B.Bool^::false).fiber x).apply w)))
+      (congr!{{EvenTarget} {EvenTarget} {EvenTarget}} evenSpace.add _ _ _ _
+        (EvenCopair.onSecond EE.forward OO.forward x (OO.pure x (((firstOperator B.Bool^::true).fiber x).apply v) w))
+        (EvenCopair.onFirst EE.forward OO.forward x (EE.pure x v (((secondOperator B.Bool^::false).fiber x).apply w)))));
+
+\definition oeLeft[v: Models.Fiber (First.parity n B.Bool^::false).ranks x][w: Models.Fiber (Second.parity m B.Bool^::true).ranks x]: leftOdd.apply (Actions.oeInput v w) =
+  ((totalOperator B.Bool^::false).fiber x).apply ((OE.forward.fiber x).apply (OE.pure x v w)) :=
+  congr!{{OddTarget} {EvenTarget}} ((totalOperator B.Bool^::false).fiber x).apply _ _ (OddCopair.onSecond EO.forward OE.forward x (OE.pure x v w));
+\definition oeRight[v: Models.Fiber (First.parity n B.Bool^::false).ranks x][w: Models.Fiber (Second.parity m B.Bool^::true).ranks x]: rightOdd.apply (Actions.oeInput v w) = evenSpace.add
+  ((EE.forward.fiber x).apply (EE.pure x (((firstOperator B.Bool^::false).fiber x).apply v) w))
+  ((OO.forward.fiber x).apply (OO.pure x (((Models.bundle (First.parity n B.Bool^::false)).space x).neg v) (((secondOperator B.Bool^::true).fiber x).apply w))) :=
+  trans!{{EvenTarget}} _ _ _ (congr!{{Parity.Even x} {EvenTarget}} (forwardEven.fiber x).apply _ _ (Actions.oeAction v w))
+    (trans!{{EvenTarget}} _ _ _
+      ((forwardEven.fiber x).preservesAdd (Actions.eeInput (((firstOperator B.Bool^::false).fiber x).apply v) w) (Actions.ooInput (((Models.bundle (First.parity n B.Bool^::false)).space x).neg v) (((secondOperator B.Bool^::true).fiber x).apply w)))
+      (congr!{{EvenTarget} {EvenTarget} {EvenTarget}} evenSpace.add _ _ _ _
+        (EvenCopair.onFirst EE.forward OO.forward x (EE.pure x (((firstOperator B.Bool^::false).fiber x).apply v) w))
+        (EvenCopair.onSecond EE.forward OO.forward x (OO.pure x (((Models.bundle (First.parity n B.Bool^::false)).space x).neg v) (((secondOperator B.Bool^::true).fiber x).apply w)))));
+
+
+\import Operations.DirectSum[X := X, F := Parity.EEFiber, G := Parity.OOFiber, left := Parity.eeBundle, right := Parity.ooBundle].Of[same := (\refl(left.baseSpace))].Inclusions[] \as EvenInclusions;
+\import Operations.DirectSum[X := X, F := Parity.EOFiber, G := Parity.OEFiber, left := Parity.eoBundle, right := Parity.oeBundle].Of[same := (\refl(left.baseSpace))].Inclusions[] \as OddInclusions;
+
+\import Spaces.Linear[V := Parity.Even x, W := OddTarget, source := Parity.evenBundle.space x, target := oddSpace].Composition[U := Parity.EEFiber x, domain := Parity.eeBundle.space x] \as EECompose;
+\definition eeLeftMap: Spaces.Linear[V := Parity.EEFiber x, W := OddTarget, source := Parity.eeBundle.space x, target := oddSpace].Map := EECompose.compose leftEven (EvenInclusions.first.fiber x);
+\definition eeRightMap: Spaces.Linear[V := Parity.EEFiber x, W := OddTarget, source := Parity.eeBundle.space x, target := oddSpace].Map := EECompose.compose rightEven (EvenInclusions.first.fiber x);
+\import Tensor.At[n := n, m := m, firstSide := B.Bool^::true, secondSide := B.Bool^::true, target := target B.Bool^::true].Ext[x := x, U := OddTarget, spaceU := oddSpace] \as EEExt;
+
+\import Spaces.Linear[V := Parity.Even x, W := OddTarget, source := Parity.evenBundle.space x, target := oddSpace].Composition[U := Parity.OOFiber x, domain := Parity.ooBundle.space x] \as OOCompose;
+\definition ooLeftMap: Spaces.Linear[V := Parity.OOFiber x, W := OddTarget, source := Parity.ooBundle.space x, target := oddSpace].Map := OOCompose.compose leftEven (EvenInclusions.second.fiber x);
+\definition ooRightMap: Spaces.Linear[V := Parity.OOFiber x, W := OddTarget, source := Parity.ooBundle.space x, target := oddSpace].Map := OOCompose.compose rightEven (EvenInclusions.second.fiber x);
+\import Tensor.At[n := n, m := m, firstSide := B.Bool^::false, secondSide := B.Bool^::false, target := target B.Bool^::true].Ext[x := x, U := OddTarget, spaceU := oddSpace] \as OOExt;
+
+\import Spaces.Linear[V := Parity.Odd x, W := EvenTarget, source := Parity.oddBundle.space x, target := evenSpace].Composition[U := Parity.EOFiber x, domain := Parity.eoBundle.space x] \as EOCompose;
+\definition eoLeftMap: Spaces.Linear[V := Parity.EOFiber x, W := EvenTarget, source := Parity.eoBundle.space x, target := evenSpace].Map := EOCompose.compose leftOdd (OddInclusions.first.fiber x);
+\definition eoRightMap: Spaces.Linear[V := Parity.EOFiber x, W := EvenTarget, source := Parity.eoBundle.space x, target := evenSpace].Map := EOCompose.compose rightOdd (OddInclusions.first.fiber x);
+\import Tensor.At[n := n, m := m, firstSide := B.Bool^::true, secondSide := B.Bool^::false, target := target B.Bool^::false].Ext[x := x, U := EvenTarget, spaceU := evenSpace] \as EOExt;
+
+\import Spaces.Linear[V := Parity.Odd x, W := EvenTarget, source := Parity.oddBundle.space x, target := evenSpace].Composition[U := Parity.OEFiber x, domain := Parity.oeBundle.space x] \as OECompose;
+\definition oeLeftMap: Spaces.Linear[V := Parity.OEFiber x, W := EvenTarget, source := Parity.oeBundle.space x, target := evenSpace].Map := OECompose.compose leftOdd (OddInclusions.second.fiber x);
+\definition oeRightMap: Spaces.Linear[V := Parity.OEFiber x, W := EvenTarget, source := Parity.oeBundle.space x, target := evenSpace].Map := OECompose.compose rightOdd (OddInclusions.second.fiber x);
+\import Tensor.At[n := n, m := m, firstSide := B.Bool^::false, secondSide := B.Bool^::true, target := target B.Bool^::false].Ext[x := x, U := EvenTarget, spaceU := evenSpace] \as OEExt;
+\module Negative(secondSide: B.Bool^);
+\definition ee[z: Parity.EEFiber x]: leftEven.apply ((EvenInclusions.first.fiber x).apply z) = rightEven.apply ((EvenInclusions.first.fiber x).apply z) :=
+  EEExt.ext eeLeftMap eeRightMap
+    (\fun (s: First.Colored n B.Bool^::true)(t: Second.Colored m B.Bool^::true)(v: Models.Fiber (firstTerm (Labels.degree n s)).ranks x)(w: Models.Fiber (secondTerm (Labels.degree m t)).ranks x) =>
+      trans!{{OddTarget}} _ _ _ (eeLeft (((First.at n s B.Bool^::true (\bysub(Labels.Index n, First.Colored n B.Bool^::true, s))).fiber x).apply v) (((Second.at m t B.Bool^::true (\bysub(Labels.Index m, Second.Colored m B.Bool^::true, t))).fiber x).apply w))
+        (trans!{{OddTarget}} _ _ _
+          (\parent.NativeFold[].EE[].equation s t x v w)
+          (trans!{{OddTarget}} _ _ _
+            (congr!{{OddTarget} {OddTarget} {OddTarget}} oddSpace.add _ _ _ _ (\refl(((OE.forward.fiber x).apply (OE.pure x (((firstOperator B.Bool^::true).fiber x).apply (((First.at n s B.Bool^::true (\bysub(Labels.Index n, First.Colored n B.Bool^::true, s))).fiber x).apply v)) (((Second.at m t B.Bool^::true (\bysub(Labels.Index m, Second.Colored m B.Bool^::true, t))).fiber x).apply w))))) (oddSpace.scalarOne ((EO.forward.fiber x).apply (EO.pure x (((First.at n s B.Bool^::true (\bysub(Labels.Index n, First.Colored n B.Bool^::true, s))).fiber x).apply v) (((secondOperator B.Bool^::true).fiber x).apply (((Second.at m t B.Bool^::true (\bysub(Labels.Index m, Second.Colored m B.Bool^::true, t))).fiber x).apply w))))))
+            (sym!{{OddTarget}} _ _ (eeRight (((First.at n s B.Bool^::true (\bysub(Labels.Index n, First.Colored n B.Bool^::true, s))).fiber x).apply v) (((Second.at m t B.Bool^::true (\bysub(Labels.Index m, Second.Colored m B.Bool^::true, t))).fiber x).apply w)))))) z;
+
+\definition oo[z: Parity.OOFiber x]: leftEven.apply ((EvenInclusions.second.fiber x).apply z) = rightEven.apply ((EvenInclusions.second.fiber x).apply z) :=
+  OOExt.ext ooLeftMap ooRightMap
+    (\fun (s: First.Colored n B.Bool^::false)(t: Second.Colored m B.Bool^::false)(v: Models.Fiber (firstTerm (Labels.degree n s)).ranks x)(w: Models.Fiber (secondTerm (Labels.degree m t)).ranks x) =>
+      trans!{{OddTarget}} _ _ _ (ooLeft (((First.at n s B.Bool^::false (\bysub(Labels.Index n, First.Colored n B.Bool^::false, s))).fiber x).apply v) (((Second.at m t B.Bool^::false (\bysub(Labels.Index m, Second.Colored m B.Bool^::false, t))).fiber x).apply w))
+        (trans!{{OddTarget}} _ _ _
+          (\parent.NativeFold[].OO[].equation s t x v w)
+          (trans!{{OddTarget}} _ _ _
+            (congr!{{OddTarget} {OddTarget} {OddTarget}} oddSpace.add _ _ _ _ (\refl(((EO.forward.fiber x).apply (EO.pure x (((firstOperator B.Bool^::false).fiber x).apply (((First.at n s B.Bool^::false (\bysub(Labels.Index n, First.Colored n B.Bool^::false, s))).fiber x).apply v)) (((Second.at m t B.Bool^::false (\bysub(Labels.Index m, Second.Colored m B.Bool^::false, t))).fiber x).apply w))))) (sym!{{OddTarget}} _ _ (Negative[secondSide := B.Bool^::true].equation (((First.at n s B.Bool^::false (\bysub(Labels.Index n, First.Colored n B.Bool^::false, s))).fiber x).apply v) (((secondOperator B.Bool^::false).fiber x).apply (((Second.at m t B.Bool^::false (\bysub(Labels.Index m, Second.Colored m B.Bool^::false, t))).fiber x).apply w)))))
+            (sym!{{OddTarget}} _ _ (ooRight (((First.at n s B.Bool^::false (\bysub(Labels.Index n, First.Colored n B.Bool^::false, s))).fiber x).apply v) (((Second.at m t B.Bool^::false (\bysub(Labels.Index m, Second.Colored m B.Bool^::false, t))).fiber x).apply w)))))) z;
+
+\definition eo[z: Parity.EOFiber x]: leftOdd.apply ((OddInclusions.first.fiber x).apply z) = rightOdd.apply ((OddInclusions.first.fiber x).apply z) :=
+  EOExt.ext eoLeftMap eoRightMap
+    (\fun (s: First.Colored n B.Bool^::true)(t: Second.Colored m B.Bool^::false)(v: Models.Fiber (firstTerm (Labels.degree n s)).ranks x)(w: Models.Fiber (secondTerm (Labels.degree m t)).ranks x) =>
+      trans!{{EvenTarget}} _ _ _ (eoLeft (((First.at n s B.Bool^::true (\bysub(Labels.Index n, First.Colored n B.Bool^::true, s))).fiber x).apply v) (((Second.at m t B.Bool^::false (\bysub(Labels.Index m, Second.Colored m B.Bool^::false, t))).fiber x).apply w))
+        (trans!{{EvenTarget}} _ _ _
+          (\parent.NativeFold[].EO[].equation s t x v w)
+          (trans!{{EvenTarget}} _ _ _
+            (congr!{{EvenTarget} {EvenTarget} {EvenTarget}} evenSpace.add _ _ _ _ (\refl(((OO.forward.fiber x).apply (OO.pure x (((firstOperator B.Bool^::true).fiber x).apply (((First.at n s B.Bool^::true (\bysub(Labels.Index n, First.Colored n B.Bool^::true, s))).fiber x).apply v)) (((Second.at m t B.Bool^::false (\bysub(Labels.Index m, Second.Colored m B.Bool^::false, t))).fiber x).apply w))))) (evenSpace.scalarOne ((EE.forward.fiber x).apply (EE.pure x (((First.at n s B.Bool^::true (\bysub(Labels.Index n, First.Colored n B.Bool^::true, s))).fiber x).apply v) (((secondOperator B.Bool^::false).fiber x).apply (((Second.at m t B.Bool^::false (\bysub(Labels.Index m, Second.Colored m B.Bool^::false, t))).fiber x).apply w))))))
+            (sym!{{EvenTarget}} _ _ (eoRight (((First.at n s B.Bool^::true (\bysub(Labels.Index n, First.Colored n B.Bool^::true, s))).fiber x).apply v) (((Second.at m t B.Bool^::false (\bysub(Labels.Index m, Second.Colored m B.Bool^::false, t))).fiber x).apply w)))))) z;
+
+\definition oe[z: Parity.OEFiber x]: leftOdd.apply ((OddInclusions.second.fiber x).apply z) = rightOdd.apply ((OddInclusions.second.fiber x).apply z) :=
+  OEExt.ext oeLeftMap oeRightMap
+    (\fun (s: First.Colored n B.Bool^::false)(t: Second.Colored m B.Bool^::true)(v: Models.Fiber (firstTerm (Labels.degree n s)).ranks x)(w: Models.Fiber (secondTerm (Labels.degree m t)).ranks x) =>
+      trans!{{EvenTarget}} _ _ _ (oeLeft (((First.at n s B.Bool^::false (\bysub(Labels.Index n, First.Colored n B.Bool^::false, s))).fiber x).apply v) (((Second.at m t B.Bool^::true (\bysub(Labels.Index m, Second.Colored m B.Bool^::true, t))).fiber x).apply w))
+        (trans!{{EvenTarget}} _ _ _
+          (\parent.NativeFold[].OE[].equation s t x v w)
+          (trans!{{EvenTarget}} _ _ _
+            (congr!{{EvenTarget} {EvenTarget} {EvenTarget}} evenSpace.add _ _ _ _ (\refl(((EE.forward.fiber x).apply (EE.pure x (((firstOperator B.Bool^::false).fiber x).apply (((First.at n s B.Bool^::false (\bysub(Labels.Index n, First.Colored n B.Bool^::false, s))).fiber x).apply v)) (((Second.at m t B.Bool^::true (\bysub(Labels.Index m, Second.Colored m B.Bool^::true, t))).fiber x).apply w))))) (sym!{{EvenTarget}} _ _ (Negative[secondSide := B.Bool^::false].equation (((First.at n s B.Bool^::false (\bysub(Labels.Index n, First.Colored n B.Bool^::false, s))).fiber x).apply v) (((secondOperator B.Bool^::true).fiber x).apply (((Second.at m t B.Bool^::true (\bysub(Labels.Index m, Second.Colored m B.Bool^::true, t))).fiber x).apply w)))))
+            (sym!{{EvenTarget}} _ _ (oeRight (((First.at n s B.Bool^::false (\bysub(Labels.Index n, First.Colored n B.Bool^::false, s))).fiber x).apply v) (((Second.at m t B.Bool^::true (\bysub(Labels.Index m, Second.Colored m B.Bool^::true, t))).fiber x).apply w)))))) z;
+
+\definition even[v: Parity.Even x]: leftEven.apply v = rightEven.apply v :=
+  trans!{{OddTarget}} _ _ _
+    (congr!{{Parity.Even x} {OddTarget}} leftEven.apply _ _ (sym!{{Parity.Even x}} _ _ (EvenInclusions.decomposition x v)))
+    (trans!{{OddTarget}} _ _ _ (leftEven.preservesAdd ((EvenInclusions.first.fiber x).apply (P.first (Parity.EEFiber x) (Parity.OOFiber x) v)) ((EvenInclusions.second.fiber x).apply (P.second (Parity.EEFiber x) (Parity.OOFiber x) v)))
+      (trans!{{OddTarget}} _ _ _
+        (congr!{{OddTarget} {OddTarget} {OddTarget}} oddSpace.add _ _ _ _
+          (ee (P.first (Parity.EEFiber x) (Parity.OOFiber x) v)) (oo (P.second (Parity.EEFiber x) (Parity.OOFiber x) v)))
+        (trans!{{OddTarget}} _ _ _ (sym!{{OddTarget}} _ _ (rightEven.preservesAdd ((EvenInclusions.first.fiber x).apply (P.first (Parity.EEFiber x) (Parity.OOFiber x) v)) ((EvenInclusions.second.fiber x).apply (P.second (Parity.EEFiber x) (Parity.OOFiber x) v))))
+          (congr!{{Parity.Even x} {OddTarget}} rightEven.apply _ _ (EvenInclusions.decomposition x v)))));
+
+\definition odd[v: Parity.Odd x]: leftOdd.apply v = rightOdd.apply v :=
+  trans!{{EvenTarget}} _ _ _
+    (congr!{{Parity.Odd x} {EvenTarget}} leftOdd.apply _ _ (sym!{{Parity.Odd x}} _ _ (OddInclusions.decomposition x v)))
+    (trans!{{EvenTarget}} _ _ _ (leftOdd.preservesAdd ((OddInclusions.first.fiber x).apply (P.first (Parity.EOFiber x) (Parity.OEFiber x) v)) ((OddInclusions.second.fiber x).apply (P.second (Parity.EOFiber x) (Parity.OEFiber x) v)))
+      (trans!{{EvenTarget}} _ _ _
+        (congr!{{EvenTarget} {EvenTarget} {EvenTarget}} evenSpace.add _ _ _ _
+          (eo (P.first (Parity.EOFiber x) (Parity.OEFiber x) v)) (oe (P.second (Parity.EOFiber x) (Parity.OEFiber x) v)))
+        (trans!{{EvenTarget}} _ _ _ (sym!{{EvenTarget}} _ _ (rightOdd.preservesAdd ((OddInclusions.first.fiber x).apply (P.first (Parity.EOFiber x) (Parity.OEFiber x) v)) ((OddInclusions.second.fiber x).apply (P.second (Parity.EOFiber x) (Parity.OEFiber x) v))))
+          (congr!{{Parity.Odd x} {EvenTarget}} rightOdd.apply _ _ (OddInclusions.decomposition x v)))));

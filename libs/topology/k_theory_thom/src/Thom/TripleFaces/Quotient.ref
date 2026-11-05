@@ -1,0 +1,37 @@
+\import Relative.PointedPair[pair := pair] \as Native;
+\import Relative.Pair[X := X, space := space, compact := (Relative.details model).compact,
+  hausdorff := (Relative.details model).hausdorff, subset := union, closed := closed].Quotient[] \as Q;
+\definition toCollapsed[z: X]: Base.Member union z -> Triple.LeftCollapsed z :=
+  \fun (member: _) => Logic.orElim[_, _, Triple.LeftCollapsed z] member
+    (\fun (a: Base.Member U0 z) => Logic.Or[_, _]::left (Logic.Or[_, _]::left a))
+    (\fun (bc: Base.Member LastTwo.union z) => Logic.orElim[_, _, Triple.LeftCollapsed z] bc
+      (\fun (b: Base.Member U1 z) => Logic.Or[_, _]::left (Logic.Or[_, _]::right b))
+      (\fun (c: Base.Member U2 z) => Logic.Or[_, _]::right c));
+\definition fromCollapsed[z: X]: Triple.LeftCollapsed z -> Base.Member union z :=
+  \fun (member: _) => Logic.orElim[_, _, Base.Member union z] member
+    (\fun (ab: \In[AB.model.Carrier] AB.wedge (Triple.ab z)) => Logic.orElim[_, _, Base.Member union z] ab
+      (\fun (a: Base.Member U0 z) => Logic.Or[_, _]::left a)
+      (\fun (b: Base.Member U1 z) => Logic.Or[_, _]::right (Logic.Or[_, _]::left b)))
+    (\fun (c: Base.Member U2 z) => Logic.Or[_, _]::right (Logic.Or[_, _]::right c));
+\definition forwardFibers: \forall (z, w: X) -> Q.projection z = Q.projection w -> Triple.left z = Triple.left w :=
+  \fun (z, w: X)(same: _) => Logic.orElim[_, _, Triple.left z = Triple.left w] (Q.separates z w same)
+    (\fun (equal: z = w) => congr!{X {Left.result.Carrier}} Triple.left z w equal)
+    (\fun (both: Logic.And[Base.Member union z, Base.Member union w]) => trans!{{Left.result.Carrier}} _ _ _
+      (Triple.Collapsed[].collapseLeft z (toCollapsed z both.left))
+      (sym!{{Left.result.Carrier}} _ _ (Triple.Collapsed[].collapseLeft w (toCollapsed w both.right))));
+\definition backwardFibers: \forall (z, w: X) -> Triple.left z = Triple.left w -> Q.projection z = Q.projection w :=
+  \fun (z, w: X)(same: _) => Logic.orElim[_, _, Q.projection z = Q.projection w] (Triple.Fibers[].leftSeparates z w same)
+    (\fun (equal: z = w) => congr!{X {Q.Carrier}} Q.projection z w equal)
+    (\fun (both: Logic.And[Triple.LeftCollapsed z, Triple.LeftCollapsed w]) => trans!{{Q.Carrier}} _ _ _
+      (Q.onSubset (\into[X](z, union) \by { fromCollapsed z both.left }))
+      (sym!{{Q.Carrier}} _ _ (Q.onSubset (\into[X](w, union) \by { fromCollapsed w both.right }))));
+\import Relative.CommonQuotient[R := X, space := space, compact := (Relative.details model).compact,
+  source := Native.quotientModel, target := Left.result, f := Q.projection, g := Triple.left,
+  fRegular := Q.continuous, gRegular := Geometry.leftContinuous,
+  fOnto := Native.quotientOnto, gOnto := Triple.Onto[].leftOnto,
+  forwardFibers := forwardFibers, backwardFibers := backwardFibers,
+  r0 := (Relative.details model).point,
+  sourcePoint := Q.onSubset (\into[X]((Relative.details model).point, union) \by { containsPoint }),
+  targetPoint := Triple.Collapsed[].leftPoint] \as Comparison;
+\definition equivalence: Relative.Equivalence[source := Native.quotientModel, target := Left.result].Data := Comparison.equivalence;
+\module Injection;

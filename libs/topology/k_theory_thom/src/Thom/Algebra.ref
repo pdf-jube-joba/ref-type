@@ -1,0 +1,29 @@
+\import C.Def[] \as Op;
+\import C.Prop[] \as Laws;
+\import N.Basic[].Def[] \as Nat;
+\import N.Basic[].Prop[] \as Naturals;
+\import std.Data[].List[] \as Lists;
+\import Spaces.Multilinear[V := V, space := space] \as Multilinear;
+\import Multilinear.Alternating[] \as Forms;
+\import Spaces.Exterior[V := V, space := space] \as Exterior;
+\import Spaces.Shuffle[I := V] \as Shuffle;
+\import Shuffle.Laws[] \as Products;
+\import Shuffle.Boundary[].OneCovector[] \as Covectors;
+\definition one: N.Nat^ := N.Nat^::succ N.Nat^::zero;
+\definition evaluate[ell: Forms.Form one][v: V]: C.Complex := ell (\fun (i: Fin.Fin one) => v);
+\definition series[ell: Forms.Form one]: Shuffle.Function := Exterior.component one ell;
+\definition singleton: \forall (ell: Forms.Form one)(v: V) -> series ell (Covectors.singleton v) = evaluate ell v :=
+  \fun (ell: Forms.Form one)(v: V) => Multilinear.ListSeries[k := one].onArguments ell (\fun (i: Fin.Fin one) => v);
+\definition covector: \forall (ell: Forms.Form one) -> series ell = Covectors.value (evaluate ell) :=
+  \fun (ell: Forms.Form one) => trans!{{Shuffle.Function}} _ _ _
+    (Covectors.normalForm (series ell) (Multilinear.ListSeries[k := one].outside ell))
+    (congr!{{V -> C.Complex} {Shuffle.Function}} Covectors.value _ _
+      (\axiom:funext((\fun (v: V) => series ell (Covectors.singleton v)), evaluate ell, singleton ell)));
+\definition Closed[k: N.Nat^][v: V][omega: Forms.Form k]: \Prop :=
+  \forall (xs: Lists.List[V]) -> Exterior.component k omega (Lists.List[V]::cons v xs) = Op.zero;
+\module Exact(k: N.Nat^, v: V, ell: Forms.Form one, normalized: evaluate ell v = Op.one);
+\definition Normalized[v: V]: \Set := \Cast[Forms.Form one] ({ ell: Forms.Form one \where evaluate ell v = Op.one });
+\module InCoordinates(n: N.Nat^,
+  frame: Spaces.Isomorphism[V := V, W := Operations.Vector n, source := space, target := Operations.coordinates n].Isomorphism);
+\module Cartan(k: N.Nat^, v: V, ell: Forms.Form one);
+\module CovectorSquare(f: V -> C.Complex);

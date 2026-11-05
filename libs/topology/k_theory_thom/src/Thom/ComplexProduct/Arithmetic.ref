@@ -1,0 +1,36 @@
+\use Equality.eq_reason_in;
+\import algebra.Group[].Of[Carrier := ProductK.Carrier, group := ProductK.group] \as Group;
+\import algebra.GroupCompletion[].Semiring[M := ProductTheory.Classes, semiring := BundlesRing.semiring] \as Completion;
+\import algebra.GroupCompletion[].Of[M := ProductTheory.Classes, monoid := Completion.additive] \as Additive;
+\definition shuffle[a, b, c, d: ProductK.Carrier]:
+  Group.difference (Group.difference a b) (Group.difference c d) = Group.difference (Group.add a d) (Group.add b c) :=
+  eq_reason_in!{{ProductK.Carrier} _
+    "=" { Group.add (Group.add a (Group.neg b)) (Group.add (Group.neg c) (Group.neg (Group.neg d))) } "by" {
+      congr!{{ProductK.Carrier} {ProductK.Carrier}} (Group.add (Group.difference a b)) _ _ (Group.negAdd c (Group.neg d)) }
+    "=" { Group.add (Group.add a (Group.neg b)) (Group.add (Group.neg c) d) } "by" {
+      congr!{{ProductK.Carrier} {ProductK.Carrier}} (\fun (v: ProductK.Carrier) => Group.add (Group.add a (Group.neg b)) (Group.add (Group.neg c) v)) _ _ (Group.negNeg d) }
+    "=" { Group.add (Group.add a (Group.neg b)) (Group.add d (Group.neg c)) } "by" {
+      congr!{{ProductK.Carrier} {ProductK.Carrier}} (Group.add (Group.add a (Group.neg b))) _ _ (Group.comm (Group.neg c) d) }
+    "=" { Group.add (Group.add a d) (Group.add (Group.neg b) (Group.neg c)) } "by" { Group.four a (Group.neg b) d (Group.neg c) }
+    "=" _ "by" { congr!{{ProductK.Carrier} {ProductK.Carrier}} (Group.add (Group.add a d)) _ _ (sym!{{ProductK.Carrier}} _ _ (Group.negAdd b c)) }
+  };
+\definition differences[a, b, c, d: ProductTheory.Classes]:
+  ProductK.mul (ProductK.difference a b) (ProductK.difference c d) =
+  ProductK.difference (BundlesRing.add (BundlesRing.mul a c) (BundlesRing.mul b d))
+    (BundlesRing.add (BundlesRing.mul a d) (BundlesRing.mul b c)) :=
+  eq_reason_in!{{ProductK.Carrier} _
+    "=" { Completion.mul (Additive.class (Additive.pair a b)) (Additive.class (Additive.pair c d)) } "by" {
+      congr!{{ProductK.Carrier} {ProductK.Carrier} {ProductK.Carrier}} ProductK.mul _ _ _ _ (ProductK.differenceClass a b) (ProductK.differenceClass c d) }
+    "=" { Group.difference (Completion.scale a (Additive.class (Additive.pair c d))) (Completion.scale b (Additive.class (Additive.pair c d))) } "by" {
+      Completion.mulClass (Additive.pair a b) (Additive.class (Additive.pair c d)) }
+    "=" { Group.difference (ProductK.difference (BundlesRing.mul a c) (BundlesRing.mul a d)) (ProductK.difference (BundlesRing.mul b c) (BundlesRing.mul b d)) } "by" {
+      congr!{{ProductK.Carrier} {ProductK.Carrier} {ProductK.Carrier}} Group.difference _ _ _ _
+        (Completion.scaleClass a (Additive.pair c d)) (Completion.scaleClass b (Additive.pair c d)) }
+    "=" { Group.difference (Group.add (ProductK.include (BundlesRing.mul a c)) (ProductK.include (BundlesRing.mul b d)))
+      (Group.add (ProductK.include (BundlesRing.mul a d)) (ProductK.include (BundlesRing.mul b c))) } "by" {
+      shuffle (ProductK.include (BundlesRing.mul a c)) (ProductK.include (BundlesRing.mul a d))
+        (ProductK.include (BundlesRing.mul b c)) (ProductK.include (BundlesRing.mul b d)) }
+    "=" _ "by" { congr!{{ProductK.Carrier} {ProductK.Carrier} {ProductK.Carrier}} Group.difference _ _ _ _
+      (sym!{{ProductK.Carrier}} _ _ (ProductK.includeAdd (BundlesRing.mul a c) (BundlesRing.mul b d)))
+      (sym!{{ProductK.Carrier}} _ _ (ProductK.includeAdd (BundlesRing.mul a d) (BundlesRing.mul b c))) }
+  };

@@ -1,0 +1,55 @@
+\import N.Basic[].Def[] \as Nat;
+\import N.Basic[].Prop[] \as Naturals;
+\definition one: N.Nat^ := N.Nat^::succ N.Nat^::zero;
+\definition degree: Nat.add one k = N.Nat^::succ k := trans!{{N.Nat^}} _ _ _
+  (Naturals.addSuccLeft N.Nat^::zero k) (congr!{{N.Nat^} {N.Nat^}} N.Nat^::succ _ _ (Naturals.addZeroLeft k));
+\import Operations.Alternating[X := X, F := F, bundle := bundle, k := one] \as Covectors;
+\import Operations.Alternating[X := X, F := F, bundle := bundle, k := k] \as Source;
+\import Operations.Alternating[X := X, F := F, bundle := bundle, k := N.Nat^::succ k] \as Target;
+\import Bundles.Family[X := X, F := Source.Fiber] \as SourceFamily;
+\import Bundles.Family[X := X, F := Covectors.Fiber] \as CovectorFamily;
+\import Bundles.Family[X := X, F := Target.Fiber] \as TargetFamily;
+\import CovectorFamily.Of[bundle := Covectors.alternating].Sections[] \as Sections;
+\import Operations.Tensor[X := X, F := Covectors.Fiber, G := Source.Fiber, left := Covectors.alternating, right := Source.alternating] \as Tensor;
+\import Bundles.Family[X := X, F := Tensor.Fiber] \as TensorFamily;
+\import Operations.DirectSum[X := X, F := F, G := F, left := bundle, right := bundle] \as Sum;
+\import Sum.Of[same := (\refl(bundle.baseSpace))].From[Y := X, H := F, source := bundle, f := \fun (x: X) => x] \as Diagonal;
+\definition diagonal: Bundles.Morphisms[X := X, Y := X, F := F, G := Sum.Fiber, source := bundle, target := Sum.bundle (\refl(bundle.baseSpace)), f := \fun (x: X) => x].Map :=
+  Diagonal.pair Bundles.Identity[X := X, F := F, bundle := bundle].map Bundles.Identity[X := X, F := F, bundle := bundle].map;
+\import \root.Thom[].SumBundles[X := X, F := F, G := F, left := bundle, right := bundle, sameBase := (\refl(bundle.baseSpace)), k := N.Nat^::succ k].Component[p := one, q := k, degree := degree] \as Component;
+\import Operations.Alternating[X := X, F := Sum.Fiber, bundle := Sum.bundle (\refl(bundle.baseSpace)), k := N.Nat^::succ k] \as SumForms;
+\definition restriction: Bundles.Morphisms[X := X, Y := X, F := SumForms.Fiber, G := Target.Fiber,
+  source := SumForms.alternating, target := Target.alternating, f := \fun (x: X) => x].Map :=
+  Target.Contramap[G := Sum.Fiber, target := Sum.bundle (\refl(bundle.baseSpace)), sameBase := (\refl(bundle.baseSpace))].map diagonal;
+\definition tensorFiber[x: X]: Spaces.Linear[V := Source.Fiber x, W := Tensor.Fiber x, source := Source.fiberSpace x, target := Tensor.fiberSpace x].Map :=
+  Spaces.Linear[V := Source.Fiber x, W := Tensor.Fiber x, source := Source.fiberSpace x, target := Tensor.fiberSpace x].Map {
+    apply := \fun (omega: Source.Fiber x) => Tensor.pure x (ell.value x) omega,
+    preservesAdd := \fun (omega, eta: Source.Fiber x) => Spaces.Tensor[V := Covectors.Fiber x, W := Source.Fiber x, left := Covectors.fiberSpace x, right := Source.fiberSpace x].bilinear.addRight (ell.value x) omega eta,
+    preservesScale := \fun (a: C.Complex)(omega: Source.Fiber x) => Spaces.Tensor[V := Covectors.Fiber x, W := Source.Fiber x, left := Covectors.fiberSpace x, right := Source.fiberSpace x].bilinear.scaleRight a (ell.value x) omega
+  };
+\import Bundles.Morphisms[X := X, Y := X, F := Source.Fiber, G := Tensor.Fiber,
+  source := Source.alternating, target := Tensor.bundle (\refl(bundle.baseSpace)), f := \fun (x: X) => x] \as IntoTensor;
+\definition tensorData: IntoTensor.Data := IntoTensor.Data { fiber := tensorFiber };
+\definition ellContinuous: topology.Continuity[A := SourceFamily.Point, B := CovectorFamily.Point].Continuous Source.topology Covectors.topology
+  (\fun (y: SourceFamily.Point) => CovectorFamily.include y.base (ell.value y.base)) :=
+  topology.Composition[A := SourceFamily.Point, B := X, C := CovectorFamily.Point].composeContinuous Source.topology bundle.baseSpace Covectors.topology
+    SourceFamily.projection (Sections.total ell) Source.projectionContinuous (Sections.continuous ell);
+\definition intoTensor: IntoTensor.Map := \into[IntoTensor.Data](tensorData, IntoTensor.Map) \by {
+  Tensor.Of[same := (\refl(bundle.baseSpace))].Pure[].Along[Y := SourceFamily.Point, source := Source.topology, base := SourceFamily.projection].continuous
+    (\fun (y: SourceFamily.Point) => ell.value y.base) (\fun (y: SourceFamily.Point) => y.vector) ellContinuous
+    (\idelim (\fun (y: SourceFamily.Point) => y) = (\fun (y: SourceFamily.Point) => SourceFamily.include y.base y.vector)
+      \with f: (SourceFamily.Point -> SourceFamily.Point) => topology.Continuity[A := SourceFamily.Point, B := SourceFamily.Point].Continuous Source.topology Source.topology f \by {
+        base: topology.Maps[A := SourceFamily.Point, B := SourceFamily.Point].Identity[].continuous Source.topology,
+        equality: \axiom:funext((\fun (y: SourceFamily.Point) => y), (\fun (y: SourceFamily.Point) => SourceFamily.include y.base y.vector), \fun (y: SourceFamily.Point) => sym!{{SourceFamily.Point}} _ _ (SourceFamily.eta y))
+      })
+};
+\import IntoTensor.Composition[Z := X, H := SumForms.Fiber, range := SumForms.alternating, g := \fun (x: X) => x] \as FirstComposition;
+\definition toSum: Bundles.Morphisms[X := X, Y := X, F := Source.Fiber, G := SumForms.Fiber,
+  source := Source.alternating, target := SumForms.alternating, f := \fun (x: X) => x].Map := FirstComposition.compose intoTensor Component.wedge;
+\import Bundles.Morphisms[X := X, Y := X, F := Source.Fiber, G := SumForms.Fiber,
+  source := Source.alternating, target := SumForms.alternating, f := \fun (x: X) => x].Composition[
+  Z := X, H := Target.Fiber, range := Target.alternating, g := \fun (x: X) => x] \as SecondComposition;
+\definition map: Bundles.Morphisms[X := X, Y := X, F := Source.Fiber, G := Target.Fiber,
+  source := Source.alternating, target := Target.alternating, f := \fun (x: X) => x].Map := SecondComposition.compose toSum restriction;
+\module At(x: X);
+\module Square;

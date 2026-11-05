@@ -1,0 +1,50 @@
+\import \root.Thom[].SumComplex[X := X, F := F, G := G, left := left, right := right, sameBase := sameBase, firstSection := firstSection, secondSection := secondSection] \as Raw;
+\definition model[k: N.Nat^]: Models.Bundle := (selection k).first.model;
+\definition formModel[k: N.Nat^]: Models.Bundle := (selection k).second.model;
+\definition Vector[k: N.Nat^][x: X]: \Set := Models.Fiber (model k).ranks x;
+\definition FormVector[k: N.Nat^][x: X]: \Set := Models.Fiber (formModel k).ranks x;
+\definition encode[k: N.Nat^][x: X]: Spaces.Linear[V := Term k x, W := Vector k x, source := (term k).space x, target := (Models.bundle (model k)).space x].Map :=
+  ((selection k).first.isomorphism.forward.fiber x);
+\definition decode[k: N.Nat^][x: X]: Spaces.Linear[V := Vector k x, W := Term k x, source := (Models.bundle (model k)).space x, target := (term k).space x].Map :=
+  ((selection k).first.isomorphism.backward.fiber x);
+\definition encodeForm[k: N.Nat^][x: X]: Spaces.Linear[V := Form k x, W := FormVector k x, source := (forms k).space x, target := (Models.bundle (formModel k)).space x].Map :=
+  ((selection k).second.isomorphism.forward.fiber x);
+\definition decodeForm[k: N.Nat^][x: X]: Spaces.Linear[V := FormVector k x, W := Form k x, source := (Models.bundle (formModel k)).space x, target := (forms k).space x].Map :=
+  ((selection k).second.isomorphism.backward.fiber x);
+\definition decodeEncode[k: N.Nat^][x: X][v: Term k x]: (decode k x).apply ((encode k x).apply v) = v := (selection k).first.isomorphism.leftInverse x v;
+\definition decodeEncodeForm[k: N.Nat^][x: X][v: Form k x]: (decodeForm k x).apply ((encodeForm k x).apply v) = v := (selection k).second.isomorphism.leftInverse x v;
+\definition encodeDecodeForm[k: N.Nat^][x: X][v: FormVector k x]: (encodeForm k x).apply ((decodeForm k x).apply v) = v := (selection k).second.isomorphism.rightInverse x v;
+\module Differential(k: N.Nat^);
+\module FormDifferential(k: N.Nat^);
+\definition differential[k: N.Nat^]: Models.Map (model (N.Nat^::succ k)) (model k) := Differential[k := k].map;
+\definition formDifferential[k: N.Nat^]: Models.Map (formModel (N.Nat^::succ k)) (formModel k) := FormDifferential[k := k].map;
+\module At(k: N.Nat^);
+\definition isomorphism[k: N.Nat^]: Bundles.Isomorphisms[X := X, F := Vector k, G := FormVector k,
+  source := Models.bundle (model k), target := Models.bundle (formModel k)].Isomorphism := At[k := k].isomorphism;
+\definition commutes: \forall (k: N.Nat^)(x: X)(v: Vector (N.Nat^::succ k) x) ->
+  ((formDifferential k).fiber x).apply (((isomorphism (N.Nat^::succ k)).forward.fiber x).apply v) =
+    ((isomorphism k).forward.fiber x).apply (((differential k).fiber x).apply v) :=
+  \fun (k: N.Nat^)(x: X)(v: Vector (N.Nat^::succ k) x) =>
+    trans!{{FormVector k x}} _ _ _
+      (congr!{{Form (N.Nat^::succ k) x} {FormVector k x}}
+        (\fun (omega: Form (N.Nat^::succ k) x) => (encodeForm k x).apply
+          ((\root.Thom[].Contraction[X := X, F := Sum.Fiber, bundle := sum, section := section, k := k].map.fiber x).apply omega)) _ _
+        (decodeEncodeForm (N.Nat^::succ k) x (((comparison (N.Nat^::succ k)).forward.fiber x).apply ((decode (N.Nat^::succ k) x).apply v))))
+      (trans!{{FormVector k x}} _ _ _
+        (congr!{{Form k x} {FormVector k x}} (encodeForm k x).apply _ _
+          (sym!{{Form k x}} _ _ (\root.Thom[].SumComplex[X := X, F := F, G := G, left := left, right := right, sameBase := sameBase, firstSection := firstSection, secondSection := secondSection].Degree[k := k].chain x ((decode (N.Nat^::succ k) x).apply v))))
+        (sym!{{FormVector k x}} _ _
+          (congr!{{Term k x} {FormVector k x}}
+            (\fun (omega: Term k x) => (encodeForm k x).apply (((comparison k).forward.fiber x).apply omega)) _ _
+            (decodeEncode k x ((\root.Thom[].SumComplex[X := X, F := F, G := G, left := left, right := right, sameBase := sameBase, firstSection := firstSection, secondSection := secondSection].Degree[k := k].differential.fiber x).apply ((decode (N.Nat^::succ k) x).apply v))))));
+\module Fold(domain: \Pow X);
+\module AtPoint(x: X);
+\module Finite;
+\module FormAtPoint(x: X);
+\module FormFinite;
+\module Class(n: N.Nat^,
+  zeroAbove: \forall (x: X)(omega: Form n x) -> omega = ((forms n).space x).zero,
+  compact: topology.Topology[Carrier := X].IsCompact left.baseSpace,
+  hausdorff: topology.Topology[Carrier := X].IsT2 left.baseSpace,
+  subset: \Pow X, closed: topology.Topology[Carrier := X].IsClosedIn left.baseSpace subset,
+  nonzero: \forall (x: X) -> \In[X] subset x -> Logic.Not (section.value x = (sum.space x).zero));

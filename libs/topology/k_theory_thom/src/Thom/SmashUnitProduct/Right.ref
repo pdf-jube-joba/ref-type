@@ -1,0 +1,23 @@
+\import \parent.Left[] \as LeftUnit;
+\import Relative.Smash[left := base, right := Sphere.zero] \as Smash;
+\import Smash.Symmetry[] \as Symmetry;
+\definition space: Relative.CompactPointed := Smash.result;
+\import Relative.Reduced[model := space] \as Result;
+\import Relative.Reduced[model := LeftUnit.space] \as Middle;
+\import Relative.Equivalence[source := space, target := LeftUnit.space].With[e := Symmetry.equivalence].Groups[] \as Change;
+\definition transport: Periodicity.Isomorphism[A := Middle.Carrier, B := Result.Carrier, source := Middle.group, target := Result.group].Data :=
+  Periodicity.Isomorphism[A := Middle.Carrier, B := Result.Carrier, source := Middle.group, target := Result.group].Data {
+    forward := Change.forward, backward := Change.backward,
+    leftInverse := Change.rightInverse, rightInverse := Change.leftInverse,
+    forwardAdd := Change.additive, backwardAdd := Change.inverseAdditive,
+    forwardZero := Change.forwardZero, backwardZero := Change.backwardZero
+  };
+\import Periodicity.Isomorphism[A := Group.Carrier, B := Middle.Carrier, source := Group.group, target := Middle.group].Compose[
+  C := Result.Carrier, last := Result.group, first := LeftUnit.isomorphism, second := transport] \as Composite;
+\definition isomorphism: Periodicity.Isomorphism[A := Group.Carrier, B := Result.Carrier, source := Group.group, target := Result.group].Data := Composite.data;
+\definition forward[a: Group.Carrier]: Result.Carrier := isomorphism.forward a;
+\definition backward: Result.Carrier -> Group.Carrier := isomorphism.backward;
+\definition forwardProduct: \forall (a: Group.Carrier) -> forward a = Smash.External[].product a unit :=
+  \fun (a: Group.Carrier) => Periodicity.ExternalSymmetry[left := base, right := Sphere.zero].symmetry a unit;
+\definition leftInverse: \forall (a: Group.Carrier) -> backward (forward a) = a := isomorphism.leftInverse;
+\definition rightInverse: \forall (a: Result.Carrier) -> forward (backward a) = a := isomorphism.rightInverse;

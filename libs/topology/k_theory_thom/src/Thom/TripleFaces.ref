@@ -1,0 +1,96 @@
+\import relative_k_theory.Relative[] \as Relative;
+\import \root.Thom[].SmashAssociator[first := first, second := second, third := third] \as Triple;
+\import Relative.Smash[left := first, right := second] \as AB;
+\import Relative.Smash[left := second, right := third] \as BC;
+\import Relative.Smash[left := AB.result, right := third] \as Left;
+\import Triple.Topology[] \as Geometry;
+\definition model: Relative.CompactPointed := Triple.model;
+\definition X: \Set := model.Carrier;
+\definition space: topology.Topology[Carrier := X].Topology := (Relative.details model).topology;
+\import topology.Topology[Carrier := X] \as Base;
+\import std.Data[].Pair[] \as Pair;
+\import topological_constructions.Product[A := first.Carrier, B := BC.model.Carrier] \as Outer;
+\import topological_constructions.Product[A := second.Carrier, B := third.Carrier] \as Inner;
+\definition U0: \Pow X := { z: X \where Triple.a z = (Relative.details first).point };
+\definition closed0: Base.IsClosedIn space U0 := topology.Continuity[A := X, B := first.Carrier].closedPreimage
+  space (Relative.details first).topology Triple.a Geometry.aContinuous
+  (topology.Topology[Carrier := first.Carrier].Singleton (Relative.details first).point)
+  (topology.Topology[Carrier := first.Carrier].Compactness[].hausdorffT1 (Relative.details first).topology (Relative.details first).hausdorff (Relative.details first).point);
+\definition point0: Base.Member U0 (Relative.details model).point := \refl((Relative.details first).point);
+\definition U1: \Pow X := { z: X \where Triple.b z = (Relative.details second).point };
+\definition closed1: Base.IsClosedIn space U1 := topology.Continuity[A := X, B := second.Carrier].closedPreimage
+  space (Relative.details second).topology Triple.b Geometry.bContinuous
+  (topology.Topology[Carrier := second.Carrier].Singleton (Relative.details second).point)
+  (topology.Topology[Carrier := second.Carrier].Compactness[].hausdorffT1 (Relative.details second).topology (Relative.details second).hausdorff (Relative.details second).point);
+\definition point1: Base.Member U1 (Relative.details model).point := \refl((Relative.details second).point);
+\definition U2: \Pow X := { z: X \where Triple.c z = (Relative.details third).point };
+\definition closed2: Base.IsClosedIn space U2 := topology.Continuity[A := X, B := third.Carrier].closedPreimage
+  space (Relative.details third).topology Triple.c Geometry.cContinuous
+  (topology.Topology[Carrier := third.Carrier].Singleton (Relative.details third).point)
+  (topology.Topology[Carrier := third.Carrier].Compactness[].hausdorffT1 (Relative.details third).topology (Relative.details third).hausdorff (Relative.details third).point);
+\definition point2: Base.Member U2 (Relative.details model).point := \refl((Relative.details third).point);
+\definition reset0[z: X]: X := Pair.pair first.Carrier BC.model.Carrier (Relative.details first).point (Triple.bc z);
+\definition inner1[z: X]: BC.model.Carrier := Pair.pair second.Carrier third.Carrier (Relative.details second).point (Triple.c z);
+\definition inner2[z: X]: BC.model.Carrier := Pair.pair second.Carrier third.Carrier (Triple.b z) (Relative.details third).point;
+\definition reset1[z: X]: X := Pair.pair first.Carrier BC.model.Carrier (Triple.a z) (inner1 z);
+\definition reset2[z: X]: X := Pair.pair first.Carrier BC.model.Carrier (Triple.a z) (inner2 z);
+\definition reset0Continuous: topology.Continuity[A := X, B := X].Continuous space space reset0 :=
+  Outer.Universal[X := X].pairContinuous space (Relative.details first).topology BC.topology
+    (\fun (z: X) => (Relative.details first).point) Triple.bc
+    (topology.Maps[A := X, B := first.Carrier].constantContinuous space (Relative.details first).topology (Relative.details first).point)
+    Geometry.bcContinuous;
+\definition inner1Continuous: topology.Continuity[A := X, B := BC.model.Carrier].Continuous space BC.topology inner1 :=
+  Inner.Universal[X := X].pairContinuous space (Relative.details second).topology (Relative.details third).topology (\fun (z: X) => (Relative.details second).point) Triple.c (topology.Maps[A := X, B := second.Carrier].constantContinuous space (Relative.details second).topology (Relative.details second).point) Geometry.cContinuous;
+\definition reset1Continuous: topology.Continuity[A := X, B := X].Continuous space space reset1 :=
+  Outer.Universal[X := X].pairContinuous space (Relative.details first).topology BC.topology
+    Triple.a inner1 Geometry.aContinuous inner1Continuous;
+\definition inner2Continuous: topology.Continuity[A := X, B := BC.model.Carrier].Continuous space BC.topology inner2 :=
+  Inner.Universal[X := X].pairContinuous space (Relative.details second).topology (Relative.details third).topology Triple.b (\fun (z: X) => (Relative.details third).point) Geometry.bContinuous (topology.Maps[A := X, B := third.Carrier].constantContinuous space (Relative.details third).topology (Relative.details third).point);
+\definition reset2Continuous: topology.Continuity[A := X, B := X].Continuous space space reset2 :=
+  Outer.Universal[X := X].pairContinuous space (Relative.details first).topology BC.topology
+    Triple.a inner2 Geometry.aContinuous inner2Continuous;
+\definition map0: Relative.Map model model := \into[X -> X](reset0, Relative.Map model model) \by {
+  algebraic_topology.Pointed[A := X].Maps[B := X].Laws[Relative.pointed model, Relative.pointed model, reset0] {
+    continuous := reset0Continuous, pointed := \refl((Relative.details model).point)
+  }
+};
+\definition lands0: \forall (z: X) -> Base.Member U0 (reset0 z) := \fun (z: X) => \refl((Relative.details first).point);
+\definition fixes0: \forall (z: X) -> Base.Member U0 z -> reset0 z = z :=
+  \fun (z: X)(member: Base.Member U0 z) => Triple.ext (reset0 z) z (sym!{{first.Carrier}} _ _ member) (\refl(Triple.b z)) (\refl(Triple.c z));
+\definition map1: Relative.Map model model := \into[X -> X](reset1, Relative.Map model model) \by {
+  algebraic_topology.Pointed[A := X].Maps[B := X].Laws[Relative.pointed model, Relative.pointed model, reset1] {
+    continuous := reset1Continuous, pointed := \refl((Relative.details model).point)
+  }
+};
+\definition lands1: \forall (z: X) -> Base.Member U1 (reset1 z) := \fun (z: X) => \refl((Relative.details second).point);
+\definition fixes1: \forall (z: X) -> Base.Member U1 z -> reset1 z = z :=
+  \fun (z: X)(member: Base.Member U1 z) => Triple.ext (reset1 z) z (\refl(Triple.a z)) (sym!{{second.Carrier}} _ _ member) (\refl(Triple.c z));
+\definition map2: Relative.Map model model := \into[X -> X](reset2, Relative.Map model model) \by {
+  algebraic_topology.Pointed[A := X].Maps[B := X].Laws[Relative.pointed model, Relative.pointed model, reset2] {
+    continuous := reset2Continuous, pointed := \refl((Relative.details model).point)
+  }
+};
+\definition lands2: \forall (z: X) -> Base.Member U2 (reset2 z) := \fun (z: X) => \refl((Relative.details third).point);
+\definition fixes2: \forall (z: X) -> Base.Member U2 z -> reset2 z = z :=
+  \fun (z: X)(member: Base.Member U2 z) => Triple.ext (reset2 z) z (\refl(Triple.a z)) (\refl(Triple.b z)) (sym!{{third.Carrier}} _ _ member);
+\import \root.Thom[].ClosedRetract[ambient := model, subset := U2, closed := closed2, containsPoint := point2,
+  reset := map2, lands := lands2, fixes := fixes2] \as Face2;
+\import \root.Thom[].RetractingUnion[ambient := model, U := U1, V := U2,
+  closedU := closed1, closedV := closed2, pointU := point1, pointV := point2,
+  reset := map1, landsU := lands1, fixesU := fixes1,
+  preservesV := (\fun (z: X)(member: Base.Member U2 z) => member)] \as LastTwo;
+\import \root.Thom[].RetractingUnion[ambient := model, U := U0, V := LastTwo.union,
+  closedU := closed0, closedV := LastTwo.closedUnion, pointU := point0, pointV := LastTwo.pointUnion,
+  reset := map0, landsU := lands0, fixesU := fixes0,
+  preservesV := (\fun (z: X)(member: Base.Member LastTwo.union z) => member)] \as All;
+\definition pair: Relative.ClosedPointedPair := All.pair;
+\definition union: \Pow X := All.union;
+\definition closed: Base.IsClosedIn space union := All.closedUnion;
+\definition containsPoint: Base.Member union (Relative.details model).point := All.pointUnion;
+\definition subsetModel: Relative.CompactPointed := All.model;
+\definition inclusion: Relative.Map subsetModel model := All.j;
+\module At(degree: N.Nat^) {
+  \definition ontoLastTwo: \forall (v: Relative.Negative[original := LastTwo.model, degree := degree].Carrier) -> \exists (a: Relative.Negative[original := model, degree := degree].Carrier \where Relative.NegativeMap[source := LastTwo.model, target := model, f := LastTwo.j, degree := degree].map a = v) := LastTwo.At[degree := degree].surjective Face2.At[degree := degree].surjective;
+  \definition onto: \forall (v: Relative.Negative[original := subsetModel, degree := degree].Carrier) -> \exists (a: Relative.Negative[original := model, degree := degree].Carrier \where Relative.NegativeMap[source := subsetModel, target := model, f := inclusion, degree := degree].map a = v) := All.At[degree := degree].surjective ontoLastTwo;
+}
+\module Quotient;

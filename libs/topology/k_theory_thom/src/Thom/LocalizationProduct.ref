@@ -1,0 +1,54 @@
+\use Equality.eq_reason_in;
+\use Logic.either;
+\import compact_support_k.Support[] \as Support;
+\import relative_k_theory.Relative[] \as Relative;
+\import std.Data[].Pair[] \as Pair;
+\import std.Logic[].Classical[] \as Classical;
+\import topology.Topology[Carrier := X] \as FirstSpace;
+\import topology.Topology[Carrier := Y] \as SecondSpace;
+\import Support.On[X := X, space := firstSpace, hausdorff := firstHausdorff, locallyCompact := firstLocallyCompact] \as First;
+\import Support.On[X := Y, space := secondSpace, hausdorff := secondHausdorff, locallyCompact := secondLocallyCompact] \as Second;
+\import First.Localization[U := U, open := openU, L := L, compactL := compactL, enclosed := enclosedU] \as FirstLocal;
+\import Second.Localization[U := V, open := openV, L := M, compactL := compactM, enclosed := enclosedV] \as SecondLocal;
+\import Relative.Pair[X := FirstLocal.Carrier, space := FirstLocal.topology, compact := FirstLocal.compact, hausdorff := FirstLocal.separated,
+  subset := FirstLocal.boundary, closed := FirstLocal.boundaryClosed] \as FirstPair;
+\import Relative.Pair[X := SecondLocal.Carrier, space := SecondLocal.topology, compact := SecondLocal.compact, hausdorff := SecondLocal.separated,
+  subset := SecondLocal.boundary, closed := SecondLocal.boundaryClosed] \as SecondPair;
+\import FirstPair.Quotient[] \as FirstQ;
+\import SecondPair.Quotient[] \as SecondQ;
+\import FirstPair.Product[Y := SecondLocal.Carrier, otherSpace := SecondLocal.topology, otherCompact := SecondLocal.compact,
+  otherHausdorff := SecondLocal.separated, otherSubset := SecondLocal.boundary, otherClosed := SecondLocal.boundaryClosed] \as LocalProduct;
+\import Relative.Pair[X := LocalProduct.Z, space := LocalProduct.topology, compact := LocalProduct.compactProduct,
+  hausdorff := LocalProduct.hausdorffProduct, subset := LocalProduct.boundary, closed := LocalProduct.boundaryClosed] \as LocalPair;
+\import LocalPair.Quotient[] \as LocalQ;
+\import topological_constructions.Product[A := X, B := Y] \as Cartesian;
+\definition Carrier: \Set := Cartesian.CarrierSet;
+\definition topology: topology.Topology[Carrier := Carrier].Topology := Cartesian.topology firstSpace secondSpace;
+\definition hausdorff: topology.Topology[Carrier := Carrier].IsT2 topology :=
+  topological_constructions.Separation[].Product[A := X, B := Y].On[left := firstSpace, right := secondSpace,
+    leftHausdorff := firstHausdorff, rightHausdorff := secondHausdorff].hausdorff;
+\import First.Product[Y := Y, otherSpace := secondSpace, otherHausdorff := secondHausdorff, otherLocallyCompact := secondLocallyCompact] \as External;
+\import External.Coordinates[] \as Coordinates;
+\import Relative.Smash[left := First.model, right := Second.model] \as GlobalSmash;
+\import Support.ClosedPair[M := GlobalSmash.model.Carrier, space := GlobalSmash.topology, compact := GlobalSmash.compact,
+  hausdorff := GlobalSmash.hausdorff, subset := GlobalSmash.wedge, closed := GlobalSmash.wedgeClosed] \as GlobalComplement;
+\import Support.Homeomorphic[A := Carrier, B := External.Carrier, source := topology, target := External.topology,
+  h := Coordinates.homeomorphism] \as CoordinatesChange;
+\definition locallyCompact: topology.LocallyCompact[A := Carrier].IsLocallyCompact topology := CoordinatesChange.locallyCompact GlobalComplement.interiorLocallyCompact;
+\import Support.On[X := Carrier, space := topology, hausdorff := hausdorff, locallyCompact := locallyCompact] \as Whole;
+\import topology.Topology[Carrier := Carrier] \as Base;
+\definition openSet: \Pow Carrier := Cartesian.Rectangle U V;
+\definition compactSet: \Pow Carrier := Cartesian.Rectangle L M;
+\definition open: Base.IsOpenIn topology openSet := Base.generatedBasisOpen (Cartesian.Basis firstSpace secondSpace) openSet
+  (Cartesian.Universal[X := Carrier].rectangleBasisMember firstSpace secondSpace U V openU openV);
+\definition compact: Base.IsCompactIn topology compactSet := Cartesian.Compactness[].productCompactIn firstSpace secondSpace L M compactL compactM;
+\definition enclosed: Base.Subset openSet compactSet := \fun (p: Carrier)(inside: _) => Logic.And[_, _]::#
+  (enclosedU (Pair.first X Y p) inside.left) (enclosedV (Pair.second X Y p) inside.right);
+\import Whole.Localization[U := openSet, open := open, L := compactSet, compactL := compact, enclosed := enclosed] \as WholeLocal;
+\import Relative.Pair[X := WholeLocal.Carrier, space := WholeLocal.topology, compact := WholeLocal.compact, hausdorff := WholeLocal.separated,
+  subset := WholeLocal.boundary, closed := WholeLocal.boundaryClosed] \as WholePair;
+\import WholePair.Quotient[] \as WholeQ;
+\module CompactCoordinates;
+\module Quotient;
+\module Diagram;
+\module Classes;

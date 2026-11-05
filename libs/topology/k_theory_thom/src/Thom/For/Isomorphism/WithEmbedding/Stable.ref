@@ -1,0 +1,53 @@
+\import \root.Thom[].FiberProduct[X := X, F := F, G := OtherFiber, left := bundle, right := other,
+  sameBase := (\refl(bundle.baseSpace)), baseHausdorff := hausdorff].Stabilization[n := embedding.dimension, stable := Split.isomorphism] \as Stabilization;
+\import Operations.DirectSum[X := X, F := OtherFiber, G := F, left := other, right := bundle] \as Reverse;
+\definition reverseBundle: Bundles.Family[X := X, F := Reverse.Fiber].Bundle := Reverse.bundle (\refl(bundle.baseSpace));
+\import \root.Thom[].For[X := X, F := Reverse.Fiber, bundle := reverseBundle, compact := compact, hausdorff := hausdorff] \as ReverseFor;
+\import \root.Thom[].KoszulProduct[X := X, F := OtherFiber, G := F, left := other, right := bundle,
+  sameBase := (\refl(bundle.baseSpace)), compact := compact, hausdorff := hausdorff] \as ReverseKoszul;
+\import \root.Thom[].FiberAssociativity[X := X, F := F, G := OtherFiber, H := F, first := bundle, second := other, third := bundle,
+  sameSecond := (\refl(bundle.baseSpace)), sameThird := (\refl(bundle.baseSpace)), compact := compact, hausdorff := hausdorff] \as Associate;
+\import \root.Thom[].FiberTrivialization[X := X, F := F, G := Reverse.Fiber, left := bundle, right := reverseBundle,
+  sameBase := (\refl(bundle.baseSpace)), compact := compact, hausdorff := hausdorff, n := embedding.dimension, iso := Stabilization.reverseStable] \as Trivialize;
+\import \root.Thom[].Isomorphism[].BottExternal[base := Supported.model, n := embedding.dimension] \as Bott;
+\import Relative.Equivalence[source := Associate.sourceModel, target := Associate.targetModel].With[e := Associate.associationEquivalence].Groups[] \as Association;
+\import Relative.Equivalence[source := Trivialize.sourceModel, target := Trivialize.targetModel].With[e := Trivialize.equivalence].Groups[] \as Trivialization;
+\import \root.Thom[].FiberMultiply[X := X, F := Sum.Fiber, G := F, left := sum, right := bundle,
+  sameBase := (\refl(bundle.baseSpace)), compact := compact, hausdorff := hausdorff] \as Third;
+\import \root.Thom[].FiberMultiply[X := X, F := F, G := Reverse.Fiber, left := bundle, right := reverseBundle,
+  sameBase := (\refl(bundle.baseSpace)), compact := compact, hausdorff := hausdorff] \as Right;
+\import \root.Thom[].FiberMultiply[X := X, F := OtherFiber, G := F, left := other, right := bundle,
+  sameBase := (\refl(bundle.baseSpace)), compact := compact, hausdorff := hausdorff] \as Middle;
+\import Middle.Proofs[otherSameBase := Associate.lastBase, otherCompact := Associate.secondCompact, otherHausdorff := Associate.secondHausdorff] \as MiddleProofs;
+\import \root.Thom[].For[X := X, F := F, bundle := bundle, compact := compact, hausdorff := hausdorff].Proofs[otherCompact := Middle.rightCompact, otherHausdorff := Middle.rightHausdorff] \as FirstProofs;
+\import ReverseFor.Proofs[otherCompact := Trivialize.rightCompact, otherHausdorff := Trivialize.rightHausdorff] \as ReverseProofs;
+\definition reverseEquation: ReverseFor.thom = Middle.multiply OtherFor.thom thom := trans!{{ReverseFor.Carrier}} _ _ _ ReverseKoszul.equation
+  (congr!{{Relative.Reduced[model := Supported.model].Carrier} {ReverseFor.Carrier}} (Middle.multiply OtherFor.thom) _ _ FirstProofs.equation);
+\definition Carrier: \Set := Relative.Reduced[model := Associate.sourceModel].Carrier;
+\definition third[u: SumFor.Carrier]: Carrier := Third.multiply u thom;
+\definition formula: \forall (u: Relative.Reduced[model := Supported.model].Carrier) -> third (second u) = Association.forward (Trivialization.forward (Bott.isomorphism.forward u)) :=
+  \fun (u: Relative.Reduced[model := Supported.model].Carrier) => trans!{Carrier} _ _ _ (Associate.associativity u OtherFor.thom thom)
+    (trans!{Carrier} _ _ _
+      (congr!{{Relative.Reduced[model := Associate.targetModel].Carrier} Carrier} Association.forward _ _
+        (congr!{{ReverseFor.Carrier} {Relative.Reduced[model := Associate.targetModel].Carrier}} (Right.multiply u) _ _
+          (MiddleProofs.equation OtherFor.thom thom)))
+      (trans!{Carrier} _ _ _
+        (congr!{{Relative.Reduced[model := Associate.targetModel].Carrier} Carrier} Association.forward _ _
+          (congr!{{ReverseFor.Carrier} {Relative.Reduced[model := Associate.targetModel].Carrier}} (Right.multiply u) _ _
+            (sym!{{ReverseFor.Carrier}} _ _ reverseEquation)))
+        (trans!{Carrier} _ _ _
+          (congr!{{Relative.Reduced[model := Associate.targetModel].Carrier} Carrier} Association.forward _ _
+            (trans!{{Relative.Reduced[model := Associate.targetModel].Carrier}} _ _ _
+              (congr!{{ReverseFor.Carrier} {Relative.Reduced[model := Associate.targetModel].Carrier}} (Right.multiply u) _ _
+                (sym!{{ReverseFor.Carrier}} _ _ ReverseProofs.equation)) (Trivialize.equation u)))
+          (congr!{{Bott.Carrier} Carrier} (\fun (v: Bott.Carrier) => Association.forward (Trivialization.forward v)) _ _
+            (sym!{{Bott.Carrier}} _ _ (Bott.forwardProduct u))))));
+\definition inverse[u: Carrier]: Relative.Reduced[model := Supported.model].Carrier := Bott.isomorphism.backward (Trivialization.backward (Association.backward u));
+\definition leftInverse: \forall (u: Relative.Reduced[model := Supported.model].Carrier) -> inverse (third (second u)) = u :=
+  \fun (u: Relative.Reduced[model := Supported.model].Carrier) => trans!{{Relative.Reduced[model := Supported.model].Carrier}} _ _ _ (congr!{Carrier {Relative.Reduced[model := Supported.model].Carrier}} inverse _ _ (formula u))
+    (trans!{{Relative.Reduced[model := Supported.model].Carrier}} _ _ _
+      (congr!{{Relative.Reduced[model := Associate.targetModel].Carrier} {Relative.Reduced[model := Supported.model].Carrier}}
+        (\fun (v: Relative.Reduced[model := Associate.targetModel].Carrier) => Bott.isomorphism.backward (Trivialization.backward v)) _ _
+        (Association.rightInverse (Trivialization.forward (Bott.isomorphism.forward u))))
+      (trans!{{Relative.Reduced[model := Supported.model].Carrier}} _ _ _ (congr!{{Bott.Carrier} {Relative.Reduced[model := Supported.model].Carrier}} Bott.isomorphism.backward _ _
+        (Trivialization.rightInverse (Bott.isomorphism.forward u))) (Bott.isomorphism.leftInverse u)));

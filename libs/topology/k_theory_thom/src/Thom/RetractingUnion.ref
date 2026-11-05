@@ -1,0 +1,104 @@
+\import relative_k_theory.Relative[] \as Relative;
+\definition X: \Set := ambient.Carrier;
+\definition space: topology.Topology[Carrier := X].Topology := (Relative.details ambient).topology;
+\import topology.Topology[Carrier := X] \as Base;
+\definition union: \Pow X := Base.Finite[].Join U V;
+\definition closedUnion: Base.IsClosedIn space union := Base.Finite[].joinClosed space U V closedU closedV;
+\definition pointUnion: Base.Member union (Relative.details ambient).point := Logic.Or[_, _]::left pointU;
+\definition pair: Relative.ClosedPointedPair := Relative.packPair ambient (Relative.ClosedPairDetails[ambient] {
+  subset := union, closed := closedUnion, containsPoint := pointUnion
+});
+\import Relative.PointedPair[pair := pair] \as Whole;
+\definition model: Relative.CompactPointed := Whole.subsetModel;
+\definition j: Relative.Map model ambient := Whole.inclusion;
+\definition first: \Pow model.Carrier := { x: model.Carrier \where Base.Member U x };
+\definition second: \Pow model.Carrier := { x: model.Carrier \where Base.Member V x };
+\definition firstClosed: topology.Topology[Carrier := model.Carrier].IsClosedIn (Relative.details model).topology first :=
+  topology.Continuity[A := model.Carrier, B := X].closedPreimage (Relative.details model).topology space j
+    (algebraic_topology.Pointed[A := model.Carrier].Maps[B := X].laws (Relative.pointed model) (Relative.pointed ambient) j).continuous U closedU;
+\definition secondClosed: topology.Topology[Carrier := model.Carrier].IsClosedIn (Relative.details model).topology second :=
+  topology.Continuity[A := model.Carrier, B := X].closedPreimage (Relative.details model).topology space j
+    (algebraic_topology.Pointed[A := model.Carrier].Maps[B := X].laws (Relative.pointed model) (Relative.pointed ambient) j).continuous V closedV;
+\import \root.Thom[].MayerVietoris[model := model, U := first, V := second,
+  closedU := firstClosed, closedV := secondClosed, pointU := pointU, pointV := pointV,
+  covers := (\fun (x: model.Carrier) => \bysub(X, union, x))] \as MV;
+\definition resetLaws: algebraic_topology.Pointed[A := X].Maps[B := X].Laws[Relative.pointed ambient, Relative.pointed ambient, reset] :=
+  algebraic_topology.Pointed[A := X].Maps[B := X].laws (Relative.pointed ambient) (Relative.pointed ambient) reset;
+\definition resetUnion[x: X]: model.Carrier := \into[X](reset x, union) \by { Logic.Or[_, _]::left (landsU x) };
+\definition resetUnionContinuous: topology.Continuity[A := X, B := model.Carrier].Continuous space (Relative.details model).topology resetUnion :=
+  topology.Continuity[A := X, B := X].Corestriction[S := union].corestrictContinuous space space resetUnion resetLaws.continuous;
+\definition r[x: X]: MV.firstModel.Carrier := \into[model.Carrier](resetUnion x, first) \by { landsU x };
+\definition rContinuous: topology.Continuity[A := X, B := MV.firstModel.Carrier].Continuous space (Relative.details MV.firstModel).topology r :=
+  topology.Continuity[A := X, B := model.Carrier].Corestriction[S := first].corestrictContinuous space (Relative.details model).topology r resetUnionContinuous;
+\definition retract: Relative.Map ambient MV.firstModel := \into[X -> MV.firstModel.Carrier](r, Relative.Map ambient MV.firstModel) \by {
+  algebraic_topology.Pointed[A := X].Maps[B := MV.firstModel.Carrier].Laws[Relative.pointed ambient, Relative.pointed MV.firstModel, r] {
+    continuous := rContinuous, pointed := resetLaws.pointed
+  }
+};
+\definition resetSecond[x: MV.secondModel.Carrier]: MV.secondModel.Carrier :=
+  \into[model.Carrier](resetUnion x, second) \by { preservesV x (\bysub(model.Carrier, second, x)) };
+\definition resetSecondContinuous: topology.Continuity[A := MV.secondModel.Carrier, B := MV.secondModel.Carrier].Continuous
+  (Relative.details MV.secondModel).topology (Relative.details MV.secondModel).topology resetSecond :=
+  topology.Continuity[A := MV.secondModel.Carrier, B := model.Carrier].Corestriction[S := second].corestrictContinuous
+    (Relative.details MV.secondModel).topology (Relative.details model).topology resetSecond
+    (topology.Composition[A := MV.secondModel.Carrier, B := X, C := model.Carrier].composeContinuous
+      (Relative.details MV.secondModel).topology space (Relative.details model).topology
+      (\fun (x: MV.secondModel.Carrier) => x) resetUnion
+      (topology.Composition[A := MV.secondModel.Carrier, B := model.Carrier, C := X].composeContinuous
+        (Relative.details MV.secondModel).topology (Relative.details model).topology space MV.secondInclusion j
+        (algebraic_topology.Pointed[A := MV.secondModel.Carrier].Maps[B := model.Carrier].laws
+          (Relative.pointed MV.secondModel) (Relative.pointed model) MV.secondInclusion).continuous
+        (algebraic_topology.Pointed[A := model.Carrier].Maps[B := X].laws
+          (Relative.pointed model) (Relative.pointed ambient) j).continuous)
+      resetUnionContinuous);
+\definition meet: \Pow MV.secondModel.Carrier := { x: MV.secondModel.Carrier \where \In[model.Carrier] first x };
+\definition h[x: MV.secondModel.Carrier]: MV.intersectionModel.Carrier :=
+  \into[MV.secondModel.Carrier](resetSecond x, meet) \by { landsU x };
+\definition hContinuous: topology.Continuity[A := MV.secondModel.Carrier, B := MV.intersectionModel.Carrier].Continuous
+  (Relative.details MV.secondModel).topology (Relative.details MV.intersectionModel).topology h :=
+  topology.Continuity[A := MV.secondModel.Carrier, B := MV.secondModel.Carrier].Corestriction[S := meet].corestrictContinuous
+    (Relative.details MV.secondModel).topology (Relative.details MV.secondModel).topology h resetSecondContinuous;
+\definition meetReset: Relative.Map MV.secondModel MV.intersectionModel :=
+  \into[MV.secondModel.Carrier -> MV.intersectionModel.Carrier](h, Relative.Map MV.secondModel MV.intersectionModel) \by {
+    algebraic_topology.Pointed[A := MV.secondModel.Carrier].Maps[B := MV.intersectionModel.Carrier].Laws[
+      Relative.pointed MV.secondModel, Relative.pointed MV.intersectionModel, h] {
+        continuous := hContinuous, pointed := resetLaws.pointed
+      }
+  };
+\import MV.Extension[ambient := ambient, j := j, r := retract, h := meetReset,
+  retract := (\fun (u: MV.firstModel.Carrier) => fixesU u (\bysub(model.Carrier, first, u))),
+  preserves := (\fun (v: MV.secondModel.Carrier) => \refl(retract (j (MV.secondInclusion v)))),
+  section := (\fun (w: MV.intersectionModel.Carrier) => fixesU w (\bysub(MV.secondModel.Carrier, meet, w)))] \as Extension;
+\definition secondPair: Relative.ClosedPointedPair := Relative.packPair ambient (Relative.ClosedPairDetails[ambient] {
+  subset := V, closed := closedV, containsPoint := pointV
+});
+\import Relative.PointedPair[pair := secondPair] \as Second;
+\definition secondModel: Relative.CompactPointed := Second.subsetModel;
+\definition secondInclusion: Relative.Map secondModel ambient := Second.inclusion;
+\definition toSecond[x: MV.secondModel.Carrier]: secondModel.Carrier :=
+  \into[X](x, V) \by { \bysub(model.Carrier, second, x) };
+\definition toSecondContinuous: topology.Continuity[A := MV.secondModel.Carrier, B := secondModel.Carrier].Continuous
+  (Relative.details MV.secondModel).topology (Relative.details secondModel).topology toSecond :=
+  topology.Continuity[A := MV.secondModel.Carrier, B := X].Corestriction[S := V].corestrictContinuous
+    (Relative.details MV.secondModel).topology space toSecond
+    (topology.Composition[A := MV.secondModel.Carrier, B := model.Carrier, C := X].composeContinuous
+      (Relative.details MV.secondModel).topology (Relative.details model).topology space MV.secondInclusion j
+      (algebraic_topology.Pointed[A := MV.secondModel.Carrier].Maps[B := model.Carrier].laws
+        (Relative.pointed MV.secondModel) (Relative.pointed model) MV.secondInclusion).continuous
+      (algebraic_topology.Pointed[A := model.Carrier].Maps[B := X].laws
+        (Relative.pointed model) (Relative.pointed ambient) j).continuous);
+\definition secondMap: Relative.Map MV.secondModel secondModel :=
+  \into[MV.secondModel.Carrier -> secondModel.Carrier](toSecond, Relative.Map MV.secondModel secondModel) \by {
+    algebraic_topology.Pointed[A := MV.secondModel.Carrier].Maps[B := secondModel.Carrier].Laws[
+      Relative.pointed MV.secondModel, Relative.pointed secondModel, toSecond] {
+      continuous := toSecondContinuous, pointed := \refl((Relative.details ambient).point)
+    }
+  };
+\definition fromSecond[x: secondModel.Carrier]: MV.secondModel.Carrier :=
+  \into[model.Carrier](\into[X](x, union) \by { Logic.Or[_, _]::right (\bysub(X, V, x)) }, second) \by { \bysub(X, V, x) };
+\definition secondEquivalence: Relative.Equivalence[source := MV.secondModel, target := secondModel].Data :=
+  Relative.Equivalence[source := MV.secondModel, target := secondModel].FromMap[f := secondMap,
+    injective := (\fun (x, y: MV.secondModel.Carrier)(same: toSecond x = toSecond y) => same),
+    onto := (\fun (x: secondModel.Carrier) => Logic.existsIntro[MV.secondModel.Carrier, { y: MV.secondModel.Carrier \where toSecond y = x }]
+      (fromSecond x) (\refl(x)))].equivalence;
+\module At(degree: N.Nat^);

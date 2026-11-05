@@ -1,0 +1,57 @@
+\import compact_support_k.Support[] \as Support;
+\import relative_k_theory.Relative[] \as Relative;
+\import std.Data[].Pair[] \as P;
+\import \parent.Native[] \as Native;
+\import Native.With[selection := selection] \as Encoded;
+\import FirstFold.Boundary[].Framed[r := firstFactor.representation].Operators[].Boundary[]
+  .Using[first := firstFactor.positive, second := firstFactor.negative] \as FirstDescended;
+\import FirstDescended.Product[Y := X, G := G, otherBundle := right, otherCompact := rightCompact, otherHausdorff := rightHausdorff,
+  otherMetric := secondMetric, otherData := secondData, otherFactor := secondFactor] \as DescendedProduct;
+\import DescendedProduct.Native[] \as ActualNative;
+\import ActualNative.Stabilization[].Original[] \as OriginalBundles;
+\import OriginalBundles.Classes[] \as Original;
+\import OriginalBundles.Raw[] \as Raw;
+\import Relative.Pair[X := FirstFold.Disk, space := FirstFold.diskTopology, compact := FirstFold.diskCompact, hausdorff := FirstFold.diskHausdorff,
+  subset := FirstFold.diskBoundary, closed := FirstFold.diskBoundaryClosed] \as FirstPair;
+\import FirstPair.Product[Y := SecondFold.Disk, otherSpace := SecondFold.diskTopology, otherCompact := SecondFold.diskCompact,
+  otherHausdorff := SecondFold.diskHausdorff, otherSubset := SecondFold.diskBoundary, otherClosed := SecondFold.diskBoundaryClosed] \as Product;
+\import Relative.Pair[X := Product.Z, space := Product.topology, compact := Product.compactProduct, hausdorff := Product.hausdorffProduct,
+  subset := Product.boundary, closed := Product.boundaryClosed] \as ProductPair;
+\import ProductPair.Quotient[] \as ProductQ;
+\import ActualNative.Localization[] \as Localization;
+\import ActualNative.Stabilization[].Result[] \as Cancellation;
+\import \root.Thom[].Koszul[X := X, F := F, bundle := left] \as LeftKoszul;
+\import \root.Thom[].Koszul[X := X, F := G, bundle := right] \as RightKoszul;
+\import topological_constructions.Product[A := FirstFold.Disk, B := SecondFold.Disk] \as LocalCartesian;
+\definition firstProjection: Product.Z -> LeftKoszul.Total := \fun (p: Product.Z) => FirstFold.inclusion (Product.first p);
+\definition secondProjection: Product.Z -> RightKoszul.Total := \fun (p: Product.Z) => SecondFold.inclusion (Product.second p);
+\definition firstRegular: topology.Continuity[A := Product.Z, B := LeftKoszul.Total].Continuous Product.topology left.totalSpace firstProjection :=
+  topology.Composition[A := Product.Z, B := FirstFold.Disk, C := LeftKoszul.Total].composeContinuous Product.topology FirstFold.diskTopology left.totalSpace
+    Product.first FirstFold.inclusion (LocalCartesian.Maps[].firstContinuous FirstFold.diskTopology SecondFold.diskTopology) FirstFold.regular;
+\definition secondRegular: topology.Continuity[A := Product.Z, B := RightKoszul.Total].Continuous Product.topology right.totalSpace secondProjection :=
+  topology.Composition[A := Product.Z, B := SecondFold.Disk, C := RightKoszul.Total].composeContinuous Product.topology SecondFold.diskTopology right.totalSpace
+    Product.second SecondFold.inclusion (LocalCartesian.Maps[].secondContinuous FirstFold.diskTopology SecondFold.diskTopology) SecondFold.regular;
+\import topological_constructions.Product[A := LeftKoszul.Total, B := RightKoszul.Total] \as Cartesian;
+\definition g[p: Product.Z]: Geometry.Total := P.pair LeftKoszul.Total RightKoszul.Total (firstProjection p) (secondProjection p);
+\definition gContinuous: topology.Continuity[A := Product.Z, B := Geometry.Total].Continuous Product.topology Geometry.topology g :=
+  Cartesian.Universal[X := Product.Z].pairContinuous Product.topology left.totalSpace right.totalSpace firstProjection secondProjection firstRegular secondRegular;
+\import Encoded.Restriction[Y := Product.Z, source := Product.topology, f := g, regular := gContinuous] \as Restricted;
+\import \root.Thom[].LocalizationProduct[X := LeftKoszul.Total, Y := RightKoszul.Total,
+  firstSpace := left.totalSpace, secondSpace := right.totalSpace,
+  firstHausdorff := FirstFold.totalHausdorff, secondHausdorff := SecondFold.totalHausdorff,
+  firstLocallyCompact := FirstFold.totalLocallyCompact, secondLocallyCompact := SecondFold.totalLocallyCompact,
+  U := FirstFold.openSet, V := SecondFold.openSet, openU := FirstFold.openSetOpen, openV := SecondFold.openSetOpen,
+  L := FirstFold.compactSet, M := SecondFold.compactSet, compactL := FirstFold.compactSetCompact, compactM := SecondFold.compactSetCompact,
+  enclosedU := FirstFold.enclosed, enclosedV := SecondFold.enclosed] \as Rectangle;
+\module Neighborhood;
+\module Differential;
+\module Class(comparison: \parent.Differential[].Data);
+\module Global;
+\definition equation: Encoded.value = Geometry.external First.thom Second.thom := \block {
+  \takefrom comparison: Differential[].Data \by Differential[].existence \then
+  \return trans!{{Geometry.Carrier}} _ _ _ Neighborhood[].restrictedAgreement
+    (trans!{{Geometry.Carrier}} _ _ _
+      (congr!{{ProductQ.Relative} {Geometry.Carrier}} Localization.extension _ _
+        (Class[comparison := comparison].equation Neighborhood[].restrictedExact))
+      (trans!{{Geometry.Carrier}} _ _ _ Cancellation.globalEquation Global[].equation))
+};

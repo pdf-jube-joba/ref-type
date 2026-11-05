@@ -1,0 +1,29 @@
+\definition error: FirstK.Carrier := FirstGroup.sub (MV.restriction v).first (Equation.firstPull x);
+\definition errorZero: Equation.toFirst error = MV.intersectionGroup.base.unit := eq_reason_in!{{MV.Intersection} _
+  "=" { IntersectionGroup.sub (Equation.toFirst (MV.restriction v).first) (Equation.toFirst (Equation.firstPull x)) } "by" { FirstRestriction.difference (MV.restriction v).first (Equation.firstPull x) }
+  "=" { IntersectionGroup.sub (Equation.toSecond (MV.restriction v).second) (Equation.toFirst (Equation.firstPull x)) } "by" { congr!{{MV.Intersection} {MV.Intersection}} (\fun (z: MV.Intersection) => IntersectionGroup.sub z (Equation.toFirst (Equation.firstPull x))) _ _ (agrees v) }
+  "=" { IntersectionGroup.sub (Equation.toSecond (MV.restriction v).second) (Equation.toSecond (Equation.secondPull x)) } "by" { congr!{{MV.Intersection} {MV.Intersection}} (IntersectionGroup.sub (Equation.toSecond (MV.restriction v).second)) _ _ (ambientAgrees x) }
+  "=" { IntersectionGroup.sub (Equation.toSecond (MV.restriction v).second) (Equation.toSecond (MV.restriction v).second) } "by" { congr!{{SecondK.Carrier} {MV.Intersection}} (\fun (z: SecondK.Carrier) => IntersectionGroup.sub (Equation.toSecond (MV.restriction v).second) (Equation.toSecond z)) _ _ onSecond }
+  "=" { MV.intersectionGroup.base.unit } "by" { IntersectionGroup.subSelf (Equation.toSecond (MV.restriction v).second) }
+};
+\import Relative.NegativeMap[source := firstModel, target := ambient, f := First.map, degree := degree] \as FirstPull;
+\import Relative.NegativeMap[source := secondModel, target := ambient, f := Second.map, degree := degree] \as SecondPull;
+\import Relative.NegativeMap[source := secondModel, target := intersectionModel, f := h, degree := degree] \as IntersectionLift;
+\definition correction: Ambient.Carrier := Equation.retractPull error;
+\definition value: Ambient.Carrier := Ambient.group.base.op x correction;
+\definition firstEquation: (MV.restriction (Equation.restrict value)).first = (MV.restriction v).first := eq_reason_in!{{FirstK.Carrier} _
+  "=" { Equation.firstPull value } "by" { Equation.firstFormula value }
+  "=" { FirstK.group.base.op (Equation.firstPull x) (Equation.firstPull correction) } "by" { FirstPull.additive x correction }
+  "=" { FirstK.group.base.op (Equation.firstPull x) error } "by" { congr!{{FirstK.Carrier} {FirstK.Carrier}} (FirstK.group.base.op (Equation.firstPull x)) _ _ (Equation.retraction error) }
+  "=" { (MV.restriction v).first } "by" { FirstGroup.restore (MV.restriction v).first (Equation.firstPull x) }
+};
+\definition secondEquation: (MV.restriction (Equation.restrict value)).second = (MV.restriction v).second := eq_reason_in!{{SecondK.Carrier} _
+  "=" { Equation.secondPull value } "by" { Equation.secondFormula value }
+  "=" { SecondK.group.base.op (Equation.secondPull x) (Equation.secondPull correction) } "by" { SecondPull.additive x correction }
+  "=" { SecondK.group.base.op (Equation.secondPull x) (Equation.lift (Equation.toFirst error)) } "by" { congr!{{SecondK.Carrier} {SecondK.Carrier}} (SecondK.group.base.op (Equation.secondPull x)) _ _ (Equation.preservation error) }
+  "=" { SecondK.group.base.op (Equation.secondPull x) (Equation.lift MV.intersectionGroup.base.unit) } "by" { congr!{{MV.Intersection} {SecondK.Carrier}} (\fun (z: MV.Intersection) => SecondK.group.base.op (Equation.secondPull x) (Equation.lift z)) _ _ errorZero }
+  "=" { SecondK.group.base.op (Equation.secondPull x) SecondK.group.base.unit } "by" { congr!{{SecondK.Carrier} {SecondK.Carrier}} (SecondK.group.base.op (Equation.secondPull x)) _ _ IntersectionLift.preservesZero }
+  "=" { Equation.secondPull x } "by" { SecondK.group.group.monoid.rightIdentity (Equation.secondPull x) }
+  "=" { (MV.restriction v).second } "by" onSecond
+};
+\definition equation: Equation.restrict value = v := jointlyInjective (Equation.restrict value) v firstEquation secondEquation;

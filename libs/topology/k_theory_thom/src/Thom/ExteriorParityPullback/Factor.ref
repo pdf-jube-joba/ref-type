@@ -1,0 +1,35 @@
+\import \root.Thom[].Koszul[X := Z, F := H, bundle := original] \as Koszul;
+\import Koszul.Coordinates[].With[selection := selection] \as Coordinates;
+\import Operations.Models[X := Koszul.Total, baseSpace := original.totalSpace] \as SourceModels;
+\import \root.Thom[].Naturality[X := Koszul.Total, F := Koszul.Fiber, bundle := Koszul.pulled, Y := Y, source := source, f := map, regular := regular] \as Natural;
+\import Natural.WithSection[section := Koszul.tautological] \as Section;
+\definition Fiber[y: Y]: \Set := Natural.Fiber y;
+\definition bundle: Bundles.Family[X := Y, F := Fiber].Bundle := Natural.pulled;
+\definition section: Bundles.Family[X := Y, F := Fiber].Of[bundle := bundle].Sections[].Section := Section.sectionOnPullback;
+\definition Form[k: N.Nat^][y: Y]: \Set := Operations.Alternating[X := Y, F := Fiber, bundle := bundle, k := k].Fiber y;
+\definition forms[k: N.Nat^]: Bundles.Family[X := Y, F := Form k].Bundle := Operations.Alternating[X := Y, F := Fiber, bundle := bundle, k := k].alternating;
+\module Degree(k: N.Nat^);
+\definition choice[k: N.Nat^]: Models.From[F := Form k, original := forms k].Result := Degree[k := k].choice;
+\definition term[k: N.Nat^]: Models.Bundle := (choice k).model;
+\import \root.Thom[].Finite[X := Koszul.Total, baseSpace := original.totalSpace].Family[
+  term := Coordinates.model, differential := Coordinates.differential, domain := topology.Topology[Carrier := Koszul.Total].Complement Koszul.ZeroSection]
+  .Pullback[Y := Y, targetSpace := source, f := map, regular := regular] \as Fold;
+\definition differential[k: N.Nat^]: Models.Map (term (N.Nat^::succ k)) (term k) := Fold.pulledDifferential k;
+\module Differential(k: N.Nat^);
+\definition contractionFormula: \forall (k: N.Nat^)(y: Y)(v: Models.Fiber (term (N.Nat^::succ k)).ranks y) ->
+  ((choice k).isomorphism.forward.fiber y).apply
+    ((\root.Thom[].Contraction[X := Y, F := Fiber, bundle := bundle, section := section, k := k].map.fiber y).apply
+      (((choice (N.Nat^::succ k)).isomorphism.backward.fiber y).apply v)) = ((differential k).fiber y).apply v :=
+  \fun (k: N.Nat^) => Differential[k := k].equation;
+\definition sourceEven[n: N.Nat^]: SourceModels.Bundle := (Fold.sourceParity n).even;
+\definition sourceOdd[n: N.Nat^]: SourceModels.Bundle := (Fold.sourceParity n).odd;
+\definition sourceForward[n: N.Nat^]: SourceModels.Map (sourceEven n) (sourceOdd n) := (Fold.sourceParity n).forward;
+\definition sourceBackward[n: N.Nat^]: SourceModels.Map (sourceOdd n) (sourceEven n) := (Fold.sourceParity n).backward;
+\definition pulledEven[n: N.Nat^]: Models.Bundle := SourceModels.Pullback[b := sourceEven n, Y := Y, source := source, f := map, regular := regular].value;
+\definition pulledOdd[n: N.Nat^]: Models.Bundle := SourceModels.Pullback[b := sourceOdd n, Y := Y, source := source, f := map, regular := regular].value;
+\definition foldedEven[n: N.Nat^]: Models.Bundle := (Fold.targetParity n).even;
+\definition foldedOdd[n: N.Nat^]: Models.Bundle := (Fold.targetParity n).odd;
+\definition rebase[n: N.Nat^]: Fold.Result n := Fold.value n;
+\module WithDifferential(targetDifferential: \forall (k: N.Nat^) -> Models.Map (term (N.Nat^::succ k)) (term k),
+  commutes: \forall (k: N.Nat^)(y: Y)(v: Models.Fiber (term (N.Nat^::succ k)).ranks y) ->
+    ((targetDifferential k).fiber y).apply v = ((differential k).fiber y).apply v);

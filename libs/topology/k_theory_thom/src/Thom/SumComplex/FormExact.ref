@@ -1,0 +1,33 @@
+\import \root.Thom[].Algebra[V := Sum.Fiber x, space := sum.space x] \as Algebra;
+\import Spaces.Multilinear[V := Sum.Fiber x, space := sum.space x].Alternating[] \as Forms;
+\import Spaces.Multilinear[V := Sum.Fiber x, space := sum.space x] \as Multilinear;
+\import Spaces.Exterior[V := Sum.Fiber x, space := sum.space x] \as Exterior;
+\import Bundles.Family[X := X, F := Sum.Fiber].Of[bundle := sum] \as OriginalBundle;
+\definition normalizedExists: Logic.Not ((section.value x) = (sum.space x).zero) -> \exists Algebra.Normalized (section.value x) := \block {
+  \fun (nonzero: _) \then
+  \takefrom frame: OriginalBundle.Frame (OriginalBundle.rank x) x \by
+    \bysub(N.Nat^, OriginalBundle.RankAt x, OriginalBundle.rank x) \then
+  \return Algebra.InCoordinates[n := OriginalBundle.rank x, frame := frame].existence (section.value x) nonzero
+};
+\definition exact: \forall (k: N.Nat^)(omega: Form k x) -> Logic.Not ((section.value x) = (sum.space x).zero) ->
+  Algebra.Closed k (section.value x) omega -> \exists (eta: Form (N.Nat^::succ k) x \where
+    (\root.Thom[].Contraction[X := X, F := Sum.Fiber, bundle := sum, section := section, k := k].map.fiber x).apply eta = omega) := \block {
+  \fun (k: N.Nat^)(omega: Form k x)(nonzero: _)(closed: _) \then
+  \takefrom ell: Algebra.Normalized (section.value x) \by normalizedExists nonzero \then
+  \return Logic.existsIntro[Form (N.Nat^::succ k) x, { eta: Form (N.Nat^::succ k) x \where
+    (\root.Thom[].Contraction[X := X, F := Sum.Fiber, bundle := sum, section := section, k := k].map.fiber x).apply eta = omega }]
+    (Algebra.Exact[k := k, v := (section.value x), ell := ell, normalized := \bysub(Forms.Form Algebra.one, Algebra.Normalized (section.value x), ell)].primitive omega)
+    (Algebra.Exact[k := k, v := (section.value x), ell := ell, normalized := \bysub(Forms.Form Algebra.one, Algebra.Normalized (section.value x), ell)].equation omega closed)
+};
+\definition closedAtZero: \forall (omega: Form N.Nat^::zero x) -> Algebra.Closed N.Nat^::zero (section.value x) omega :=
+  \fun (omega: Form N.Nat^::zero x)(xs: std.Data[].List[].List[Sum.Fiber x]) =>
+    Spaces.Exterior[V := Sum.Fiber x, space := sum.space x].ZeroHeads[].nonempty omega (section.value x) xs;
+\definition closedAtSuccessor: \forall (k: N.Nat^)(omega: Form (N.Nat^::succ k) x) ->
+  (\root.Thom[].Contraction[X := X, F := Sum.Fiber, bundle := sum, section := section, k := k].map.fiber x).apply omega = ((forms k).space x).zero ->
+  Algebra.Closed (N.Nat^::succ k) (section.value x) omega :=
+  \fun (k: N.Nat^)(omega: Form (N.Nat^::succ k) x)(closed: _)(xs: std.Data[].List[].List[Sum.Fiber x]) =>
+    trans!{{C.Complex}} _ _ _
+      (Spaces.Exterior[V := Sum.Fiber x, space := sum.space x].SeriesShift[k := k].atCons omega (section.value x) xs)
+      (trans!{{C.Complex}} _ _ _
+        (congr!{{Form k x} {C.Complex}} (\fun (eta: Form k x) => Exterior.component k eta xs) _ _ closed)
+        (Multilinear.ListSeries[k := k].zeroComponent xs));

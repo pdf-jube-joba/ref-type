@@ -1,0 +1,28 @@
+\import Spaces.Multilinear[V := F p.base, space := bundle.space p.base] \as Multilinear;
+\import Multilinear.Alternating[] \as Forms;
+\import Multilinear.Properties[] \as Arguments;
+\import N.Basic[].Prop[] \as Naturals;
+\definition uniqueIndex[j: Fin.Fin one]: j = head := Naturals.leZeroEq j (Naturals.succLeOfLt one j (Fin.bound one j));
+\definition updateHead[arguments: Multilinear.Arguments one][j: Fin.Fin one][v: F p.base]: Multilinear.update one arguments j v head = v :=
+  trans!{{F p.base}} _ _ _ (congr!{{Fin.Fin one} {F p.base}} (Multilinear.update one arguments j v) head j (sym!{{Fin.Fin one}} _ _ (uniqueIndex j))) (Arguments.updateSelf one arguments j v);
+\definition function: Multilinear.Function one := \fun (arguments: Multilinear.Arguments one) => (metric.form p.base).dot p.vector (arguments head);
+\definition linear: Multilinear.Laws[one, function] := Multilinear.Laws[one, function] {
+  addition := \fun (arguments: Multilinear.Arguments one)(j: Fin.Fin one)(v, w: F p.base) => trans!{{C.Complex}} _ _ _
+    (congr!{{F p.base} {C.Complex}} ((metric.form p.base).dot p.vector) _ _ (updateHead arguments j ((bundle.space p.base).add v w)))
+    (trans!{{C.Complex}} _ _ _ ((metric.form p.base).addRight p.vector v w)
+      (sym!{{C.Complex}} _ _ (congr!{{C.Complex} {C.Complex} {C.Complex}} Op.add _ _ _ _
+        (congr!{{F p.base} {C.Complex}} ((metric.form p.base).dot p.vector) _ _ (updateHead arguments j v))
+        (congr!{{F p.base} {C.Complex}} ((metric.form p.base).dot p.vector) _ _ (updateHead arguments j w))))),
+  scalar := \fun (arguments: Multilinear.Arguments one)(j: Fin.Fin one)(a: C.Complex)(v: F p.base) => trans!{{C.Complex}} _ _ _
+    (congr!{{F p.base} {C.Complex}} ((metric.form p.base).dot p.vector) _ _ (updateHead arguments j ((bundle.space p.base).smul a v)))
+    (trans!{{C.Complex}} _ _ _ ((metric.form p.base).scaleRight a p.vector v)
+      (sym!{{C.Complex}} _ _ (congr!{{C.Complex} {C.Complex}} (Op.mul a) _ _
+        (congr!{{F p.base} {C.Complex}} ((metric.form p.base).dot p.vector) _ _ (updateHead arguments j v)))))
+};
+\definition form: Forms.Form one := \into[Multilinear.Function one](function, Forms.Form one) \by {
+  Forms.AlternatingLaws[one, function] {
+    linear := linear,
+    alternating := \fun (arguments: Multilinear.Arguments one)(i, j: Fin.Fin one)(different: Logic.Not (i = j))(same: arguments i = arguments j) =>
+      Logic.falseElim (function arguments = Op.zero) (different (trans!{{Fin.Fin one}} _ _ _ (uniqueIndex i) (sym!{{Fin.Fin one}} _ _ (uniqueIndex j))))
+  }
+};

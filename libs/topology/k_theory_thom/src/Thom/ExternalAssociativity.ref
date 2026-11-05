@@ -1,0 +1,65 @@
+\use Equality.eq_reason_in;
+\import relative_k_theory.Relative[] \as Relative;
+\import \root.Thom[].SmashAssociator[first := first, second := second, third := third] \as Geometry;
+\import Geometry.Topology[] \as Continuous;
+\import Relative.Smash[left := first, right := second] \as AB;
+\import Relative.Smash[left := second, right := third] \as BC;
+\import Relative.Smash[left := AB.result, right := third] \as Left;
+\import Relative.Smash[left := first, right := BC.result] \as Right;
+\definition model: Relative.CompactPointed := Geometry.model;
+\definition abMap: Relative.Map model AB.model := \into[model.Carrier -> AB.model.Carrier](Geometry.ab, Relative.Map model AB.model) \by {
+  algebraic_topology.Pointed[A := model.Carrier].Maps[B := AB.model.Carrier].Laws[Relative.pointed model, Relative.pointed AB.model, Geometry.ab] {
+    continuous := Continuous.abContinuous, pointed := \refl((Relative.details AB.model).point)
+  }
+};
+\definition bcMap: Relative.Map model BC.model := \into[model.Carrier -> BC.model.Carrier](Geometry.bc, Relative.Map model BC.model) \by {
+  algebraic_topology.Pointed[A := model.Carrier].Maps[B := BC.model.Carrier].Laws[Relative.pointed model, Relative.pointed BC.model, Geometry.bc] {
+    continuous := Continuous.bcContinuous, pointed := \refl((Relative.details BC.model).point)
+  }
+};
+\definition leftRaw: Relative.Map model Left.model := \into[model.Carrier -> Left.model.Carrier](Geometry.leftRaw, Relative.Map model Left.model) \by {
+  algebraic_topology.Pointed[A := model.Carrier].Maps[B := Left.model.Carrier].Laws[Relative.pointed model, Relative.pointed Left.model, Geometry.leftRaw] {
+    continuous := Continuous.leftRawContinuous,
+    pointed := std.Data[].Pair[].Prop[A := AB.result.Carrier, B := third.Carrier].ext (Geometry.leftRaw (Relative.details model).point) (Relative.details Left.model).point
+      (algebraic_topology.Pointed[A := AB.model.Carrier].Maps[B := AB.result.Carrier].laws (Relative.pointed AB.model) (Relative.pointed AB.result) AB.projection).pointed
+      (\refl((Relative.details third).point))
+  }
+};
+\definition rightRaw: Relative.Map model Right.model := \into[model.Carrier -> Right.model.Carrier](Geometry.rightRaw, Relative.Map model Right.model) \by {
+  algebraic_topology.Pointed[A := model.Carrier].Maps[B := Right.model.Carrier].Laws[Relative.pointed model, Relative.pointed Right.model, Geometry.rightRaw] {
+    continuous := Continuous.rightRawContinuous,
+    pointed := std.Data[].Pair[].Prop[A := first.Carrier, B := BC.result.Carrier].ext (Geometry.rightRaw (Relative.details model).point) (Relative.details Right.model).point
+      (\refl((Relative.details first).point))
+      (algebraic_topology.Pointed[A := BC.model.Carrier].Maps[B := BC.result.Carrier].laws (Relative.pointed BC.model) (Relative.pointed BC.result) BC.projection).pointed
+  }
+};
+\import \root.Thom[].ExternalExpansion[source := model, left := first, right := second, f := abMap] \as ABExpand;
+\import \root.Thom[].ExternalExpansion[source := model, left := second, right := third, f := bcMap] \as BCExpand;
+\import \root.Thom[].ExternalExpansion[source := model, left := AB.result, right := third, f := leftRaw] \as LeftExpand;
+\import \root.Thom[].ExternalExpansion[source := model, left := first, right := BC.result, f := rightRaw] \as RightExpand;
+\import Relative.Reduced[model := model] \as Group;
+\import Group.Multiplication[] \as Ring;
+\import Relative.Reduced[model := first] \as A;
+\import Relative.Reduced[model := second] \as B;
+\import Relative.Reduced[model := third] \as C;
+\import Relative.Pullback[source := model, target := Left.result, f := Geometry.leftMap] \as LeftPull;
+\import Relative.Pullback[source := model, target := Right.result, f := Geometry.rightMap] \as RightPull;
+\import Relative.Composition[source := model, middle := AB.model, target := first, first := abMap, second := AB.firstMap] \as AMap;
+\import Relative.Composition[source := model, middle := AB.model, target := second, first := abMap, second := AB.secondMap] \as BMap;
+\import Relative.Composition[source := model, middle := BC.model, target := third, first := bcMap, second := BC.secondMap] \as CMap;
+\import Relative.Pullback[source := model, target := first, f := AMap.map] \as APull;
+\import Relative.Pullback[source := model, target := second, f := BMap.map] \as BPull;
+\import Relative.Pullback[source := model, target := third, f := CMap.map] \as CPull;
+\definition leftFormula: \forall (a: A.Carrier)(b: B.Carrier)(c: C.Carrier) ->
+  LeftPull.map (Left.External[].product (AB.External[].product a b) c) =
+    Ring.mul (Ring.mul (APull.map a) (BPull.map b)) (CPull.map c) :=
+  \fun (a: A.Carrier)(b: B.Carrier)(c: C.Carrier) => trans!{{Group.Carrier}} _ _ _
+    (LeftExpand.formula (AB.External[].product a b) c)
+    (congr!{{Group.Carrier} {Group.Carrier}} (\fun (v: Group.Carrier) => Ring.mul v (CPull.map c)) _ _ (ABExpand.formula a b));
+\definition rightFormula: \forall (a: A.Carrier)(b: B.Carrier)(c: C.Carrier) ->
+  RightPull.map (Right.External[].product a (BC.External[].product b c)) =
+    Ring.mul (APull.map a) (Ring.mul (BPull.map b) (CPull.map c)) :=
+  \fun (a: A.Carrier)(b: B.Carrier)(c: C.Carrier) => trans!{{Group.Carrier}} _ _ _
+    (RightExpand.formula a (BC.External[].product b c))
+    (congr!{{Group.Carrier} {Group.Carrier}} (Ring.mul (APull.map a)) _ _ (BCExpand.formula b c));
+\module Comparison;

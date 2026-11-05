@@ -1,0 +1,41 @@
+\import Spaces.DirectSum[V := H x, W := H x, left := auxiliary.space x, right := auxiliary.space x] \as Sum;
+\import Spaces.Laws[V := H x, space := auxiliary.space x] \as Laws;
+\import Spaces.Laws[V := Sum.Carrier, space := Sum.space] \as SumLaws;
+\import Spaces.Linear[V := Sum.Carrier, W := Sum.Carrier, source := Sum.space, target := Sum.space].Operations[] \as Maps;
+\import std.Data[].Pair[].Prop[A := H x, B := H x] \as Pairs;
+\definition flipSquare[v: Sum.Carrier]: (flip.fiber x).apply ((flip.fiber x).apply v) = v := Pairs.eta v;
+\definition unscaledAnti[v: Sum.Carrier]: Sum.space.add
+  ((Grading.rightGrading.forward.fiber x).apply ((flip.fiber x).apply v))
+  ((flip.fiber x).apply ((Grading.rightGrading.forward.fiber x).apply v)) = Sum.space.zero :=
+  trans!{{Sum.Carrier}} _ _ _
+    (congr!{{Sum.Carrier} {Sum.Carrier} {Sum.Carrier}} Sum.space.add _ _ _ _
+      (Grading.rightFormula x ((flip.fiber x).apply v))
+      (congr!{{Sum.Carrier} {Sum.Carrier}} (flip.fiber x).apply _ _ (Grading.rightFormula x v)))
+    (Pairs.pairCong _ _ _ _
+      (trans!{{H x}} _ _ _ (Laws.comm (Sum.second v) ((auxiliary.space x).neg (Sum.second v))) (Laws.inverseLeft (Sum.second v)))
+      (Laws.inverseLeft (Sum.first v)));
+\definition secondSquare[v: Sum.Carrier]: (secondOperator.fiber x).apply ((secondOperator.fiber x).apply v) =
+  Sum.space.smul (Scalar.ofReal (Real.mul (coefficient x) (coefficient x))) v :=
+  trans!{{Sum.Carrier}} _ _ _
+    (congr!{{Sum.Carrier} {Sum.Carrier}} (Sum.space.smul (scalar x)) _ _ ((flip.fiber x).preservesScale (scalar x) ((flip.fiber x).apply v)))
+    (trans!{{Sum.Carrier}} _ _ _
+      (congr!{{Sum.Carrier} {Sum.Carrier}} (\fun (z: Sum.Carrier) => Sum.space.smul (scalar x) (Sum.space.smul (scalar x) z)) _ _ (flipSquare v))
+      (trans!{{Sum.Carrier}} _ _ _ (sym!{{Sum.Carrier}} _ _ (Sum.space.scalarAssoc (scalar x) (scalar x) v))
+        (congr!{{C.Complex} {Sum.Carrier}} (\fun (a: C.Complex) => Sum.space.smul a v) _ _ (ComplexLaws.ofRealMul (coefficient x) (coefficient x)))));
+\definition scaledAnti[v: Sum.Carrier]: Sum.space.add
+  ((Grading.rightGrading.forward.fiber x).apply ((secondOperator.fiber x).apply v))
+  ((secondOperator.fiber x).apply ((Grading.rightGrading.forward.fiber x).apply v)) = Sum.space.zero :=
+  trans!{{Sum.Carrier}} _ _ _
+    (congr!{{Sum.Carrier} {Sum.Carrier}} (\fun (z: Sum.Carrier) => Sum.space.add z ((secondOperator.fiber x).apply ((Grading.rightGrading.forward.fiber x).apply v))) _ _
+      ((Grading.rightGrading.forward.fiber x).preservesScale (scalar x) ((flip.fiber x).apply v)))
+    (trans!{{Sum.Carrier}} _ _ _
+      (sym!{{Sum.Carrier}} _ _ (Sum.space.vectorAdd (scalar x)
+        ((Grading.rightGrading.forward.fiber x).apply ((flip.fiber x).apply v))
+        ((flip.fiber x).apply ((Grading.rightGrading.forward.fiber x).apply v))))
+      (trans!{{Sum.Carrier}} _ _ _ (congr!{{Sum.Carrier} {Sum.Carrier}} (Sum.space.smul (scalar x)) _ _ (unscaledAnti v)) (SumLaws.scaleZero (scalar x))));
+\definition laws: \root.Thom[].ComplexProductClifford[V := Parity.LeftFiber x, W := Parity.RightFiber x,
+  firstSpace := Parity.leftBundle.space x, secondSpace := Parity.rightBundle.space x].Laws[Clifford.fiberData operators x] :=
+  \root.Thom[].ComplexProductClifford[V := Parity.LeftFiber x, W := Parity.RightFiber x,
+    firstSpace := Parity.leftBundle.space x, secondSpace := Parity.rightBundle.space x].Laws[Clifford.fiberData operators x] {
+    firstSquare := data.square x, secondSquare := secondSquare, gradingSquare := Grading.leftSquare x, anticommutes := data.anticommutes x
+  };

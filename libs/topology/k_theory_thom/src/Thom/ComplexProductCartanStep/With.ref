@@ -1,0 +1,47 @@
+\definition Vspace: Spaces.VectorSpace V := even;
+\import Spaces.Laws[V := A, space := firstSpace] \as FirstLaws;
+\import Spaces.Laws[V := B, space := secondSpace] \as SecondLaws;
+\import Spaces.Laws[V := V, space := even] \as EvenLaws;
+\import Spaces.Laws[V := W, space := odd] \as OddLaws;
+\import std.Data[].Pair[].Prop[A := A, B := W] \as Pairs;
+\definition D[x: Sum.Carrier]: V := even.add (c.i.apply (c.l.apply (Sum.first x))) (c.e.apply (Sum.second x));
+\definition E[v: V]: Sum.Carrier := Sum.make firstSpace.zero (c.d.apply v);
+\definition H[v: V]: Sum.Carrier := Sum.make (c.r.apply (c.p.apply v)) (c.k.apply v);
+\definition K[x: Sum.Carrier]: V := c.h.apply (Sum.second x);
+\definition T[x: Sum.Carrier]: Sum.Carrier := Sum.make (c.t.apply (Sum.first x)) odd.zero;
+\definition projectionD[x: Sum.Carrier]: c.p.apply (D x) = c.l.apply (Sum.first x) :=
+  trans!{B} _ _ _ (c.p.preservesAdd (c.i.apply (c.l.apply (Sum.first x))) (c.e.apply (Sum.second x)))
+    (trans!{B} _ _ _
+      (congr!{B B B} secondSpace.add _ _ _ _ (laws.projection (c.l.apply (Sum.first x))) (laws.vanishes (Sum.second x)))
+      (SecondLaws.zeroRight (c.l.apply (Sum.first x))));
+\definition kD[x: Sum.Carrier]: c.k.apply (D x) = c.k.apply (c.e.apply (Sum.second x)) :=
+  trans!{W} _ _ _ (c.k.preservesAdd (c.i.apply (c.l.apply (Sum.first x))) (c.e.apply (Sum.second x)))
+    (trans!{W} _ _ _
+      (congr!{W W} (\fun (w: W) => odd.add w (c.k.apply (c.e.apply (Sum.second x)))) _ _ (laws.raisingVanishes (c.l.apply (Sum.first x))))
+      (OddLaws.zeroLeft (c.k.apply (c.e.apply (Sum.second x)))));
+\definition evenFirst[x: Sum.Carrier]:
+  firstSpace.add (firstSpace.add firstSpace.zero (c.r.apply (c.p.apply (D x)))) (c.t.apply (Sum.first x)) = firstSpace.smul c.lambda (Sum.first x) :=
+  trans!{A} _ _ _
+    (congr!{A A} (\fun (a: A) => firstSpace.add a (c.t.apply (Sum.first x))) _ _ (FirstLaws.zeroLeft (c.r.apply (c.p.apply (D x)))))
+    (trans!{A} _ _ _
+      (congr!{A A} (\fun (a: A) => firstSpace.add a (c.t.apply (Sum.first x))) _ _
+        (congr!{B A} c.r.apply _ _ (projectionD x))) (laws.head (Sum.first x)));
+\definition evenSecond[x: Sum.Carrier]:
+  odd.add (odd.add (c.d.apply (c.h.apply (Sum.second x))) (c.k.apply (D x))) odd.zero = odd.smul c.lambda (Sum.second x) :=
+  trans!{W} _ _ _ (OddLaws.zeroRight (odd.add (c.d.apply (c.h.apply (Sum.second x))) (c.k.apply (D x))))
+    (trans!{W} _ _ _
+      (congr!{W W} (odd.add (c.d.apply (c.h.apply (Sum.second x)))) _ _ (kD x)) (laws.odd (Sum.second x)));
+\definition odd[v: V]: even.add (D (H v)) (K (E v)) = even.smul c.lambda v :=
+  trans!{V} _ _ _
+    (EvenLaws.assoc (c.i.apply (c.l.apply (c.r.apply (c.p.apply v)))) (c.e.apply (c.k.apply v)) (c.h.apply (c.d.apply v)))
+    (trans!{V} _ _ _
+      (EvenLaws.comm (c.i.apply (c.l.apply (c.r.apply (c.p.apply v)))) (even.add (c.e.apply (c.k.apply v)) (c.h.apply (c.d.apply v))))
+      (laws.even v));
+
+\definition even[x: Sum.Carrier]: Sum.plus (Sum.plus (E (K x)) (H (D x))) (T x) = Sum.scale c.lambda x :=
+  Pairs.ext _ _ (evenFirst x) (evenSecond x);
+
+\definition cartanEven[x: Sum.Carrier]: Sum.plus (Sum.plus (E (K x)) (H (D x))) (T x) = Sum.scale c.lambda x := even x;
+\definition cartanOdd[v: V]: Vspace.add (D (H v)) (K (E v)) = Vspace.smul c.lambda v := odd v;
+\module Transported(U: \Set, space: Spaces.VectorSpace U,
+  isomorphism: Spaces.Isomorphism[V := Sum.Carrier, W := U, source := Sum.space, target := space].Isomorphism);

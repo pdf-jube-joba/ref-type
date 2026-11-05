@@ -1,0 +1,22 @@
+\import D.Arithmetic[].Prop[] \as Laws;
+\import algebraic_topology.Euclidean[].Dimension[n := N.Nat^::zero].Geometry[] \as RealGeometry;
+\definition vector: Bundles.Vector n := (embedding.map.fiber p.base).apply p.vector;
+\definition squaredEquation: Geometry.squared p = Euclidean.squared vector := Euclidean.squaredFormula vector;
+\definition coordinate[bound: D.Le (Geometry.squared p) Real.one][i: Fin.Fin n]: D.Le (Op.normSq (vector i)) Real.one :=
+  D.leTrans (Op.normSq (vector i)) (Euclidean.squared vector) Real.one
+    (D.leReplaceLeft (C.re (Op.mul (Op.conj (vector i)) (vector i))) (Op.normSq (vector i)) (Euclidean.squared vector)
+      (congr!{{C.Complex} Real.Real} C.re _ _ (ComplexLaws.conjMulSelf (vector i)))
+      (Real.FiniteSums[].coordinateUpper n (\fun (j: Fin.Fin n) => C.re (Op.mul (Op.conj (vector j)) (vector j)))
+        (\fun (j: Fin.Fin n) => linear_algebra.Hermitian[].Complex[].scalar.scalarNonnegative (vector j)) i))
+    (D.leReplaceLeft (Geometry.squared p) (Euclidean.squared vector) Real.one squaredEquation bound);
+\definition realBound[bound: D.Le (Geometry.squared p) Real.one][i: Fin.Fin n]: D.Le (Real.mul (C.re (vector i)) (C.re (vector i))) Real.one :=
+  D.leTrans _ _ _
+    (D.leReplaceLeft (Real.add (Real.mul (C.re (vector i)) (C.re (vector i))) Real.zero) (Real.mul (C.re (vector i)) (C.re (vector i))) (Op.normSq (vector i))
+      (Laws.addZeroRight _) (Laws.addMonotoneLeft Real.zero (Real.mul (C.im (vector i)) (C.im (vector i))) (Real.mul (C.re (vector i)) (C.re (vector i))) (Real.Algebra[].squareNonnegative (C.im (vector i))))) (coordinate bound i);
+\definition imaginaryBound[bound: D.Le (Geometry.squared p) Real.one][i: Fin.Fin n]: D.Le (Real.mul (C.im (vector i)) (C.im (vector i))) Real.one :=
+  D.leTrans _ _ _
+    (D.leReplaceLeft (Real.add Real.zero (Real.mul (C.im (vector i)) (C.im (vector i)))) (Real.mul (C.im (vector i)) (C.im (vector i))) (Op.normSq (vector i))
+      (Laws.addZeroLeft _) (Laws.addMonotoneRight Real.zero (Real.mul (C.re (vector i)) (C.re (vector i))) (Real.mul (C.im (vector i)) (C.im (vector i))) (Real.Algebra[].squareNonnegative (C.re (vector i))))) (coordinate bound i);
+\definition inBox[bound: D.Le (Geometry.squared p) Real.one][i: Fin.Fin n]: \In[C.Complex] \parent.Cube[].scalarBox (vector i) := Logic.And[_, _]::#
+  (RealGeometry.unitBounds (C.re (vector i)) (realBound bound i))
+  (RealGeometry.unitBounds (C.im (vector i)) (imaginaryBound bound i));

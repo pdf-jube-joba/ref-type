@@ -1,0 +1,85 @@
+\import N.Basic[].Def[] \as Nat;
+\import N.Basic[].Prop[] \as Naturals;
+\import \root.Thom[].Koszul[X := X, F := F, bundle := bundle] \as Koszul;
+\import Koszul.Coordinates[] \as Coordinates;
+\import Bundles.Family[X := X, F := F].Of[bundle := bundle] \as Original;
+\import \root.Thom[].TotalSpace[X := X, F := F, bundle := bundle, compact := compact, hausdorff := hausdorff] \as Total;
+\import compact_support_k.Support[].On[X := Koszul.Total, space := bundle.totalSpace,
+  hausdorff := Total.separated, locallyCompact := Total.locallyCompact] \as Supported;
+\definition Carrier: \Set := Supported.At[degree := std.Arithmetic[].Int[].Int^::ofNat N.Nat^::zero].Carrier;
+\definition degreeOf: N.Nat^ -> N.Nat^ := \induction (n: N.Nat^) \return N.Nat^ \with {
+  | zero: N.Nat^::succ (N.Nat^::succ N.Nat^::zero)
+  | succ: \fun (n: N.Nat^)(previous: N.Nat^) => N.Nat^::succ (N.Nat^::succ previous)
+};
+\definition degreeAbove: \forall (n: N.Nat^) -> Naturals.Lt n (degreeOf n) :=
+  \induction (n: N.Nat^) \return Naturals.Lt n (degreeOf n) \with {
+    | zero: \refl(std.Data[].Bool[].Bool^::true)
+    | succ: \fun (n: N.Nat^)(previous: Naturals.Lt n (degreeOf n)) =>
+      Naturals.ltLeTrans (N.Nat^::succ n) (N.Nat^::succ (degreeOf n)) (degreeOf (N.Nat^::succ n))
+        (Naturals.ltSuccSucc n (degreeOf n) previous) (Naturals.leSelfSucc (N.Nat^::succ (degreeOf n)))
+  };
+\structure Data: \Set := {
+  bound: N.Nat^,
+  selection: \forall (k: N.Nat^) -> Coordinates.Choice k,
+  rankBound: \forall (x: X) -> Naturals.Le (Original.rank x) bound
+};
+\definition existence: \exists Data := \block {
+  \takefrom bound: \Cast[N.Nat^] ({ n: N.Nat^ \where \forall (x: X) -> Naturals.Le (Original.rank x) n })
+    \by Koszul.Compact[compact := compact].rankBoundExists \then
+  \takefrom selection: (\forall (k: N.Nat^) -> Coordinates.Choice k) \by Coordinates.selections \then
+  \return \exact(Data { bound := bound, selection := selection,
+    rankBound := \bysub(N.Nat^, { n: N.Nat^ \where \forall (x: X) -> Naturals.Le (Original.rank x) n }, bound) }, Data)
+};
+\module Product;
+\module Using(data: Data);
+\module Choices(bound: N.Nat^, firstSelection, secondSelection: \forall (k: N.Nat^) -> Coordinates.Choice k,
+  rankBound: \forall (x: X) -> Naturals.Le (Original.rank x) bound);
+\module Bounds(firstBound, secondBound: N.Nat^, selection: \forall (k: N.Nat^) -> Coordinates.Choice k,
+  firstRankBound: \forall (x: X) -> Naturals.Le (Original.rank x) firstBound,
+  secondRankBound: \forall (x: X) -> Naturals.Le (Original.rank x) secondBound);
+\module ChoicesAny(first, second: Data);
+\definition Values: \Set := \Cast[Carrier] ({ u: Carrier \where \exists (data: Data \where Using[data := data].thom = u) });
+\definition valuesExist: \exists Values := \block {
+  \takefrom data: Data \by existence \then
+  \return Logic.existsIntro[Carrier, { u: Carrier \where \exists (data: Data \where Using[data := data].thom = u) }]
+    Using[data := data].thom (Logic.existsIntro[Data, { d: Data \where Using[data := d].thom = Using[data := data].thom }]
+      data (\refl(Using[data := data].thom)))
+};
+\definition valuesUnique: \forall (u, v: Values) -> u = v := \block {
+  \fun (u, v: Values) \then
+  \takefrom first: \Cast[Data] ({ d: Data \where Using[data := d].thom = u }) \by \bysub(Carrier, Values, u) \then
+  \takefrom second: \Cast[Data] ({ d: Data \where Using[data := d].thom = v }) \by \bysub(Carrier, Values, v) \then
+  \return trans!{Carrier} _ _ _ (sym!{Carrier} _ _ (\bysub(Data, { d: Data \where Using[data := d].thom = u }, first)))
+    (trans!{Carrier} _ _ _ ChoicesAny[first := first, second := second].equation
+      (\bysub(Data, { d: Data \where Using[data := d].thom = v }, second)))
+};
+\definition chosen: Values := \choice Values \by { existence: valuesExist, uniqueness: valuesUnique };
+\definition thom: Carrier := chosen;
+\definition represented[data: Data]: Values := \into[Carrier](Using[data := data].thom, Values) \by {
+  Logic.existsIntro[Data, { d: Data \where Using[data := d].thom = Using[data := data].thom }] data (\refl(Using[data := data].thom))
+};
+\definition formula: \forall (data: Data) -> thom = Using[data := data].thom :=
+  \fun (data: Data) => congr!{Values Carrier} (\fun (u: Values) => u) chosen (represented data) (valuesUnique chosen (represented data));
+\import \parent.For[X := X, F := F, bundle := bundle, compact := compact, hausdorff := hausdorff].Product[] \as Multiplication;
+\import topological_k_theory.KTheory[].On[X := X, baseSpace := bundle.baseSpace, compact := compact, hausdorff := hausdorff].K0[] \as K;
+\definition forward[a: K.Carrier]: Carrier := Multiplication.multiply a thom;
+\definition additive: \forall (a, b: K.Carrier) -> forward (K.add a b) = Supported.At[degree := std.Arithmetic[].Int[].Int^::ofNat N.Nat^::zero].group.base.op (forward a) (forward b) :=
+  \fun (a, b: K.Carrier) => Multiplication.additiveLeft a b thom;
+\module ProductPullback(Y: \Set, source: topology.Topology[Carrier := Y].Topology,
+  sourceCompact: topology.Topology[Carrier := Y].IsCompact source,
+  sourceHausdorff: topology.Topology[Carrier := Y].IsT2 source,
+  f: Y -> X, regular: topology.Continuity[A := Y, B := X].Continuous source bundle.baseSpace f);
+\module ThomPullback(Y: \Set, source: topology.Topology[Carrier := Y].Topology,
+  sourceCompact: topology.Topology[Carrier := Y].IsCompact source,
+  sourceHausdorff: topology.Topology[Carrier := Y].IsT2 source,
+  f: Y -> X, regular: topology.Continuity[A := Y, B := X].Continuous source bundle.baseSpace f);
+\module BundleIsomorphism(G: X -> \Set,
+  target: Bundles.Family[X := X, F := G].Bundle,
+  targetCompact: topology.Topology[Carrier := X].IsCompact target.baseSpace,
+  targetHausdorff: topology.Topology[Carrier := X].IsT2 target.baseSpace,
+  sameBase: bundle.baseSpace = target.baseSpace,
+  iso: Bundles.Isomorphisms[X := X, F := F, G := G, source := bundle, target := target].Isomorphism);
+\module Zero;
+\module Isomorphism;
+\module Proofs(otherCompact: topology.Topology[Carrier := X].IsCompact bundle.baseSpace,
+  otherHausdorff: topology.Topology[Carrier := X].IsT2 bundle.baseSpace);

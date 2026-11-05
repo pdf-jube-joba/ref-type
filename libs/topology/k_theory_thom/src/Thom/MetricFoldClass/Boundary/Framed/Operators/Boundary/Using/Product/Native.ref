@@ -1,0 +1,43 @@
+\import \parent.Boundary[] \as Global;
+\import Pair.Product[Y := OtherGeometry.Disk, otherSpace := OtherGeometry.diskTopology, otherCompact := OtherGeometry.diskCompact,
+  otherHausdorff := OtherGeometry.diskHausdorff, otherSubset := OtherGeometry.diskBoundary, otherClosed := OtherGeometry.diskBoundaryClosed] \as NativeProduct;
+\import NativeProduct.QuotientComparison[] \as Comparison;
+\import Relative.Pair[X := NativeProduct.Z, space := NativeProduct.topology, compact := NativeProduct.compactProduct,
+  hausdorff := NativeProduct.hausdorffProduct, subset := NativeProduct.boundary, closed := NativeProduct.boundaryClosed] \as NativePair;
+\import NativePair.Quotient[] \as NativeQ;
+\import Relative.Pair[X := Smash.model.Carrier, space := Smash.topology, compact := Smash.compact, hausdorff := Smash.hausdorff,
+  subset := Smash.wedge, closed := Smash.wedgeClosed] \as GlobalPair;
+\import GlobalPair.Mapping[Y := NativeProduct.Z, source := NativeProduct.topology, sourceCompact := NativeProduct.compactProduct,
+  sourceHausdorff := NativeProduct.hausdorffProduct, sourceSubset := NativeProduct.boundary, sourceClosed := NativeProduct.boundaryClosed,
+  f := NativeProduct.image, regular := Comparison.imageContinuous, preserves := Comparison.inWedge] \as Mapping;
+\import \root.Thom[].ComplexProductBundles[left := model, right := OtherGeometry.model].Factors[
+  F0 := Even, F1 := Odd, G0 := Other.Even, G1 := Other.Odd, e0 := evenBundle, e1 := oddBundle, f0 := Other.evenBundle, f1 := Other.oddBundle,
+  e0Same := (\refl(baseTopology)), e1Same := (\refl(baseTopology)), f0Same := (\refl(Other.baseTopology)), f1Same := (\refl(Other.baseTopology))] \as Factors;
+\import Mapping.BundleTriples[F := Factors.Even, G := Factors.Odd, firstModel := Factors.evenModel, secondModel := Factors.oddModel].With[alpha := Global.comparison] \as Pull;
+\definition comparison: NativePair.BundleTriples[F := (\fun (z: NativeProduct.Z) => Factors.Even (NativeProduct.image z)), G := (\fun (z: NativeProduct.Z) => Factors.Odd (NativeProduct.image z)),
+  firstModel := Mapping.BundleTriples[F := Factors.Even, G := Factors.Odd, firstModel := Factors.evenModel, secondModel := Factors.oddModel].firstModelOnSource,
+  secondModel := Mapping.BundleTriples[F := Factors.Even, G := Factors.Odd, firstModel := Factors.evenModel, secondModel := Factors.oddModel].secondModelOnSource].OnSubset := Pull.comparison;
+\definition value: NativeQ.Relative :=
+  NativePair.BundleTriples[F := (\fun (z: NativeProduct.Z) => Factors.Even (NativeProduct.image z)), G := (\fun (z: NativeProduct.Z) => Factors.Odd (NativeProduct.image z)),
+    firstModel := Mapping.BundleTriples[F := Factors.Even, G := Factors.Odd, firstModel := Factors.evenModel, secondModel := Factors.oddModel].firstModelOnSource,
+    secondModel := Mapping.BundleTriples[F := Factors.Even, G := Factors.Odd, firstModel := Factors.evenModel, secondModel := Factors.oddModel].secondModelOnSource].With[alpha := comparison].reduced;
+\definition mapsAgree: \forall (q: NativeQ.Carrier) -> Mapping.quotientMap q = Comparison.equivalence.forward q :=
+  NativeQ.MapsEqual[target := Smash.result].pointwise Mapping.quotientMap Comparison.equivalence.forward
+    (\fun (z: NativeProduct.Z) => trans!{{Smash.result.Carrier}} _ _ _ (Mapping.onProjection z) (sym!{{Smash.result.Carrier}} _ _ (Comparison.onProjection z)));
+\definition mapsEqual: Mapping.quotientMap = Comparison.equivalence.forward := \axiom:funext(Mapping.quotientMap, Comparison.equivalence.forward, mapsAgree);
+\definition equation: value = NativeProduct.External[].product relativeClass Other.relativeClass :=
+  trans!{{NativeQ.Relative}} _ _ _ Pull.reducedNaturality
+    (trans!{{NativeQ.Relative}} _ _ _
+      (congr!{{Relative.Reduced[model := Smash.result].Carrier} {NativeQ.Relative}} Mapping.relative _ _ Global.equation)
+      (congr!{{Relative.Map NativeQ.model Smash.result} {NativeQ.Relative}}
+        (\fun (f: Relative.Map NativeQ.model Smash.result) => Relative.Pullback[source := NativeQ.model, target := Smash.result, f := f].map (Smash.External[].product relativeClass Other.relativeClass)) _ _ mapsEqual));
+\definition formula: \forall (z: NativePair.A)(v: Factors.Even (NativeProduct.image z)) ->
+  (comparison.forward.fiber z).apply v = (ProductSymbol.forward.fiber (NativeProduct.image z)).apply v :=
+  \fun (z: NativePair.A)(v: Factors.Even (NativeProduct.image z)) => \refl((ProductSymbol.forward.fiber (NativeProduct.image z)).apply v);
+\module Localization;
+
+\module Sectors;
+\module Stabilization;
+
+\module Normalization;
+\module Identification;

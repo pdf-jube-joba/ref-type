@@ -1,0 +1,46 @@
+\import C.Def[] \as Scalar;
+\definition outside[x: Pair.A]: Logic.Not (\In[Koszul.Total] Koszul.ZeroSection (In.boundaryInclusion x)) :=
+  \bysub(Koszul.Total, topology.Topology[Carrier := Koszul.Total].Complement Koszul.ZeroSection, In.outside x);
+\import Fold.On[Y := Pair.A, source := Pair.subspace, sourceCompact := In.boundaryCompact, sourceHausdorff := In.boundaryHausdorff,
+  f := In.boundaryInclusion, regular := In.boundaryRegular, nonzero := outside] \as Contraction;
+\definition inDisk[x: Pair.A]: \In[Koszul.Total] Neighborhood.disk x :=
+  \idelim Neighbor.compactSet = Neighborhood.disk \with S: \Pow Koszul.Total => \In[Koszul.Total] S x \by {
+    base: \bysub(Koszul.Total, Neighbor.compactSet, x), equality: Neighborhood.compactEquation
+  };
+\definition notBall[x: Pair.A]: Logic.Not (\In[Koszul.Total] Neighborhood.ball x) :=
+  \idelim Neighbor.openSet = Neighborhood.ball \with S: \Pow Koszul.Total => Logic.Not (\In[Koszul.Total] S x) \by {
+    base: \bysub(Local.Carrier, Local.boundary, x), equality: Neighborhood.openEquation
+  };
+\definition squaredUnit[x: Pair.A]: Metric.squared x = real.Analysis[].one :=
+  Neighborhood.boundary (\into[Koszul.Total](x, Geometry.DiskBundle) \by { inDisk x }) (notBall x);
+\definition unit[x: Pair.A]: Contraction.coefficient x = Scalar.one :=
+  trans!{{C.Complex}} _ _ _ (Metric.diagonalReal x)
+    (trans!{{C.Complex}} _ _ _
+      (congr!{{real.Analysis[].Real} {C.Complex}} Scalar.ofReal _ _
+        (squaredUnit x))
+      (\refl(Scalar.one)));
+\import Contraction.Unit[unit := unit] \as Unit;
+\import In.With[contraction := Contraction.contraction] \as ChosenClass;
+\definition localValue: Pair.Quotient[].Relative := ChosenClass.localValue;
+\definition value: Thom.Carrier := ChosenClass.value;
+\definition equation: Chosen.thom = value := trans!{Thom.Carrier} _ _ _ (Supported.agreement Neighborhood.witness) (In.agreement Contraction.contraction);
+\definition comparison: Pair.BundleTriples[F := In.FirstFiber, G := In.SecondFiber, firstModel := In.firstOnLocal, secondModel := In.secondOnLocal].OnSubset := ChosenClass.comparison;
+\definition formula: \forall (x: Pair.A)(v: Fold.Even x) -> (comparison.forward.fiber x).apply v = (Fold.cliffordForward.fiber x).apply v :=
+  \fun (x: Pair.A)(v: Fold.Even x) => trans!{{Fold.Odd x}} _ _ _ (ChosenClass.formula x v) (Unit.forward x v);
+\import Pair.FromBundles[F := In.FirstFiber, G := In.SecondFiber,
+  source := Pair.BundleModel[F := In.FirstFiber].bundle In.firstOnLocal, target := Pair.BundleModel[F := In.SecondFiber].bundle In.secondOnLocal,
+  sourceSame := (\refl(Local.topology)), targetSame := (\refl(Local.topology))] \as Represent;
+\definition Representation: \Set := Represent.Result[comparison];
+\definition representationExists: \exists Representation := Represent.existence comparison;
+\module Framed(r: Representation);
+\structure Factor: \Set := {
+  representation: Representation,
+  positive: Framed[r := representation].Operators[].Boundary[].PositiveResult,
+  negative: Framed[r := representation].Operators[].Boundary[].NegativeResult
+};
+\definition factorExists: \exists Factor := \block {
+  \takefrom r: Representation \by representationExists \then
+  \takefrom first: Framed[r := r].Operators[].Boundary[].PositiveResult \by Framed[r := r].Operators[].Boundary[].positiveExists \then
+  \takefrom second: Framed[r := r].Operators[].Boundary[].NegativeResult \by Framed[r := r].Operators[].Boundary[].negativeExists \then
+  \return \exact(Factor { representation := r, positive := first, negative := second }, Factor)
+};

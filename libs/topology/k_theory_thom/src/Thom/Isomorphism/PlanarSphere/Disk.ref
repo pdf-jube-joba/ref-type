@@ -1,0 +1,49 @@
+\import \parent.Plane[] \as Plane;
+\import \parent.Forward[] \as Forward;
+\import \parent.Stereographic[] \as Stereo;
+\import \parent.Scalar[] \as Scalar;
+\import bundle_homotopy.Homotopy[].Over[K := C.Complex, field := C.Algebra[].field,
+  conjugation := linear_algebra.Hermitian[].Complex[].scalar, scalar := Scalars.scalar].Disks[d := Bott.two].Hemispheres[] \as Halves;
+\import Halves.Cover[] \as Cover;
+\import std.Data[].FinSet[] \as Fin;
+\definition input[v: D2.Disk]: Plane.Carrier := std.Data[].Pair[].pair Real.Real Real.Real
+  (v (Fin.zero Bott.one)) (v (Fin.succ Bott.one (Fin.zero N.Nat^::zero)));
+\definition normFormula: \forall (v: D2.Disk) -> Plane.r2 (input v) = D2.normSquared v :=
+  \fun (v: D2.Disk) => congr!{{Real.Real} {Real.Real}}
+    (Real.add (square (v (Fin.zero Bott.one)))) _ _
+    (sym!{{Real.Real}} _ _ (Laws.addZeroRight (square (v (Fin.succ Bott.one (Fin.zero N.Nat^::zero))))));
+\definition inputContinuous: topology.Continuity[A := D2.Disk, B := Plane.Carrier].Continuous D2.diskTopology Plane.topology input :=
+  topological_constructions.Product[A := Real.Real, B := Real.Real].Universal[X := D2.Disk].pairContinuous
+    D2.diskTopology Line.topology Line.topology
+    (\fun (v: D2.Disk) => v (Fin.zero Bott.one))
+    (\fun (v: D2.Disk) => v (Fin.succ Bott.one (Fin.zero N.Nat^::zero)))
+    (Halves.coordinateContinuous (Fin.zero Bott.one)) (Halves.coordinateContinuous (Fin.succ Bott.one (Fin.zero N.Nat^::zero)));
+\definition diskBound: \forall (v: D2.Disk) -> R.Le (Plane.r2 (input v)) Real.one :=
+  \fun (v: D2.Disk) => R.leReplaceLeft (D2.normSquared v) (Plane.r2 (input v)) Real.one
+    (sym!{{Real.Real}} _ _ (normFormula v)) (\bysub(D2.Coordinate, D2.ClosedBall, v));
+\definition numeratorNegative: \forall (v: D2.Disk) -> R.Le (Real.sub (Plane.r2 (input v)) (square (Plane.gap (input v)))) Real.zero :=
+  \fun (v: D2.Disk) => R.leReplaceRight _ (Real.sub Real.one Real.one) Real.zero (Laws.subSelf Real.one)
+    (R.leReplaceRight _ (Real.sub Real.one (square Real.one)) (Real.sub Real.one Real.one)
+      (congr!{{Real.Real} {Real.Real}} (Real.sub Real.one) _ _ (Laws.fieldMulOneLeft Real.one))
+      (Laws.addMonotoneRight (Plane.r2 (input v)) Real.one (Real.neg (square Real.one)) (diskBound v)));
+\definition inputNegative: \forall (v: D2.Disk) -> \In[Sphere.Sphere] Cover.NegativeHalf (Forward.map (input v)) :=
+  \fun (v: D2.Disk) => R.leReplace _ (Stereo.head (Forward.map (input v))) _ Real.zero
+    (sym!{{Real.Real}} _ _ (trans!{{Real.Real}} _ _ _ (Stereo.headFormula (input v))
+      (Laws.fieldMulComm (Real.sub (Plane.r2 (input v)) (square (Plane.gap (input v)))) (Plane.inverse (input v)))))
+    (Laws.fieldMulZeroRight (Plane.inverse (input v)))
+    (Estimates.mulMonotone (Plane.inverse (input v)) _ Real.zero
+      (Order.leOfLt Real.zero (Plane.inverse (input v))
+        (Estimates.Product[].invPositive (Plane.denominator (input v)) \parent.Interior[z := input v].denominatorPositive))
+      (numeratorNegative v));
+\definition reparameter[v: D2.Disk]: D2.Disk := Cover.tailDisk (Forward.map (input v));
+\definition reparameterContinuous: topology.Continuity[A := D2.Disk, B := D2.Disk].Continuous D2.diskTopology D2.diskTopology reparameter :=
+  topology.Composition[A := D2.Disk, B := Sphere.Sphere, C := D2.Disk].composeContinuous
+    D2.diskTopology Sphere.sphereTopology D2.diskTopology (\fun (v: D2.Disk) => Forward.map (input v)) Cover.tailDisk
+    (topology.Composition[A := D2.Disk, B := Plane.Carrier, C := Sphere.Sphere].composeContinuous
+      D2.diskTopology Plane.topology Sphere.sphereTopology input Forward.map inputContinuous Forward.continuous)
+    Cover.tailDiskContinuous;
+\definition diagram: \forall (v: D2.Disk) -> Halves.negative (reparameter v) = Forward.map (input v) :=
+  \fun (v: D2.Disk) => Cover.recoverNegative (Forward.map (input v)) (inputNegative v);
+\module Boundary(v: D2.Disk, edge: D2.normSquared v = Real.one);
+\definition onBoundary: \forall (v: D2.Disk) -> D2.normSquared v = Real.one -> reparameter v = v :=
+  \fun (v: D2.Disk)(edge: D2.normSquared v = Real.one) => Boundary[v := v, edge := edge].equation;

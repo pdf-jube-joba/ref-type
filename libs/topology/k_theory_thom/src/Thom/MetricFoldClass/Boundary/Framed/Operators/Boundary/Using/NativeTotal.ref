@@ -1,0 +1,57 @@
+\import Operations.DirectSum[X := Local.Carrier, F := PositiveFiber, G := NegativeFiber, left := positiveBundle, right := negativeBundle] \as NativeSum;
+\definition NativeFiber[x: Local.Carrier]: \Set := NativeSum.Fiber x;
+\definition nativeBundle: Bundles.Family[X := Local.Carrier, F := NativeFiber].Bundle := NativeSum.bundle (\refl(Local.topology));
+\import NativeSum.Of[same := (\refl(Local.topology))] \as Split;
+\import Split.From[Y := Local.Carrier, H := NativeFiber, source := nativeBundle, f := (\fun (x: Local.Carrier) => x)] \as Into;
+\import Bundles.Morphisms[X := Local.Carrier, Y := Local.Carrier, F := NativeFiber, G := NegativeFiber,
+  source := nativeBundle, target := negativeBundle, f := (\fun (x: Local.Carrier) => x)]
+  .Composition[Z := Local.Carrier, H := PositiveFiber, range := positiveBundle, g := (\fun (x: Local.Carrier) => x)] \as ToPositive;
+\import Bundles.Morphisms[X := Local.Carrier, Y := Local.Carrier, F := NativeFiber, G := PositiveFiber,
+  source := nativeBundle, target := positiveBundle, f := (\fun (x: Local.Carrier) => x)]
+  .Composition[Z := Local.Carrier, H := NegativeFiber, range := negativeBundle, g := (\fun (x: Local.Carrier) => x)] \as ToNegative;
+\definition nativeOperator: Bundles.Morphisms[X := Local.Carrier, Y := Local.Carrier, F := NativeFiber, G := NativeFiber,
+  source := nativeBundle, target := nativeBundle, f := (\fun (x: Local.Carrier) => x)].Map :=
+  Into.pair (ToPositive.compose Split.secondMap stableBackward) (ToNegative.compose Split.firstMap stableForward);
+\import Operations.IdentityIsomorphism[X := Local.Carrier, F := PositiveFiber, bundle := positiveBundle] \as PositiveIdentity;
+\import Operations.Negation[X := Local.Carrier, F := NegativeFiber, bundle := negativeBundle] \as NegativeSign;
+\import Operations.DirectSumIsomorphisms[X := Local.Carrier, F := PositiveFiber, G := NegativeFiber, A := PositiveFiber, B := NegativeFiber,
+  first := positiveBundle, second := negativeBundle, newFirst := positiveBundle, newSecond := negativeBundle,
+  sameSource := (\refl(Local.topology)), sameTarget := (\refl(Local.topology))] \as NativePair;
+\definition nativeGrading: Bundles.Isomorphisms[X := Local.Carrier, F := NativeFiber, G := NativeFiber, source := nativeBundle, target := nativeBundle].Isomorphism :=
+  NativePair.isomorphism PositiveIdentity.isomorphism NegativeSign.isomorphism;
+\import Operations.DirectSum[X := Quotient.Carrier, F := Even, G := Odd, left := evenBundle, right := oddBundle]
+  .Of[same := (\refl(Quotient.topology))].Pullback[Y := Local.Carrier, source := Local.topology, f := Quotient.projection, regular := Quotient.continuous] \as PulledSum;
+\definition PulledFiber[x: Local.Carrier]: \Set := Fiber (Quotient.projection x);
+\definition pulledBundle: Bundles.Family[X := Local.Carrier, F := PulledFiber].Bundle := PulledSum.firstBundle;
+\import Operations.DirectSumIsomorphisms[X := Local.Carrier, F := PositivePulled, G := NegativePulled, A := PositiveFiber, B := NegativeFiber,
+  first := pulledPositive, second := pulledNegative, newFirst := positiveBundle, newSecond := negativeBundle,
+  sameSource := (\refl(Local.topology)), sameTarget := (\refl(Local.topology))] \as Sectors;
+\import Operations.IsomorphismComposition[X := Local.Carrier, F := PulledFiber, G := PulledFiber, H := NativeFiber,
+  source := pulledBundle, middle := Sectors.sourceBundle, target := nativeBundle] \as Compose;
+\definition isomorphism: Bundles.Isomorphisms[X := Local.Carrier, F := PulledFiber, G := NativeFiber, source := pulledBundle, target := nativeBundle].Isomorphism :=
+  Compose.compose PulledSum.isomorphism (Sectors.isomorphism positive nativeNegative);
+\definition commutes: \forall (x: Local.Carrier)(v: PulledFiber x) ->
+  (isomorphism.forward.fiber x).apply ((clifford.fiber (Quotient.projection x)).apply v) =
+  (nativeOperator.fiber x).apply ((isomorphism.forward.fiber x).apply v) :=
+  \fun (x: Local.Carrier)(v: PulledFiber x) => P.Prop[A := PositiveFiber x, B := NegativeFiber x].pairCong _ _ _ _
+    (nativeBackwardCommutes x (P.second (PositivePulled x) (NegativePulled x) v))
+    (nativeForwardCommutes x (P.first (PositivePulled x) (NegativePulled x) v));
+\definition gradingCommutes: \forall (x: Local.Carrier)(v: PulledFiber x) ->
+  (isomorphism.forward.fiber x).apply ((grading.fiber (Quotient.projection x)).apply v) =
+  (nativeGrading.forward.fiber x).apply ((isomorphism.forward.fiber x).apply v) :=
+  \fun (x: Local.Carrier)(v: PulledFiber x) => P.Prop[A := PositiveFiber x, B := NegativeFiber x].pairCong _ _ _ _
+    (\refl((positive.forward.fiber x).apply (P.first (PositivePulled x) (NegativePulled x) v)))
+    ((nativeNegative.forward.fiber x).preservesScale (C.Algebra[].field.neg C.Algebra[].field.one) (P.second (PositivePulled x) (NegativePulled x) v));
+\definition nativeNorm[x: Local.Carrier]: Real.Real := Metric.squared x;
+\definition nativeNormContinuous: metric_spaces.RealFunctions[A := Local.Carrier].Continuous Local.topology nativeNorm :=
+  topology.Composition[A := Local.Carrier, B := Koszul.Total, C := Real.Real].composeContinuous Local.topology totalTopology metric_spaces.RealLine[].topology Local.inclusion Metric.squared Local.regular Metric.squaredContinuous;
+\definition nativeNormNonnegative: \forall (x: Local.Carrier) -> Order.Le Real.zero (nativeNorm x) := \fun (x: Local.Carrier) => Metric.nonnegative x;
+\definition nativeCoefficient[x: Local.Carrier]: C.Complex := Metric.diagonal x;
+\definition nativeCoefficientReal: \forall (x: Local.Carrier) -> nativeCoefficient x = Scalar.ofReal (nativeNorm x) := \fun (x: Local.Carrier) => Metric.diagonalReal x;
+\module At(x: Local.Carrier);
+\definition nativeSquare: \forall (x: Local.Carrier)(v: NativeFiber x) -> (nativeOperator.fiber x).apply ((nativeOperator.fiber x).apply v) = (nativeBundle.space x).smul (nativeCoefficient x) v :=
+  \fun (x: Local.Carrier) => At[x := x].square;
+\definition nativeGradingSquare: \forall (x: Local.Carrier)(v: NativeFiber x) -> (nativeGrading.forward.fiber x).apply ((nativeGrading.forward.fiber x).apply v) = v := nativeGrading.leftInverse;
+\definition nativeAnticommutes: \forall (x: Local.Carrier)(v: NativeFiber x) -> (nativeBundle.space x).add
+  ((nativeGrading.forward.fiber x).apply ((nativeOperator.fiber x).apply v)) ((nativeOperator.fiber x).apply ((nativeGrading.forward.fiber x).apply v)) = (nativeBundle.space x).zero :=
+  \fun (x: Local.Carrier) => At[x := x].equation;

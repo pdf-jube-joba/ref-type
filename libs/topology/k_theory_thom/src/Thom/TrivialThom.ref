@@ -1,0 +1,169 @@
+\import relative_k_theory.Relative[] \as Relative;
+\import compact_support_k.Support[] \as Support;
+\definition one: N.Nat^ := N.Nat^::succ N.Nat^::zero;
+\definition Point: \Set := Fin.Fin one;
+\definition point: Point := Fin.zero N.Nat^::zero;
+\definition pointTopology: topology.Topology[Carrier := Point].Topology := topology.Topology[Carrier := Point].Discrete;
+\import topological_k_theory.KTheory[].FiniteDiscrete[n := one] \as PointFinite;
+\import Bundles.Trivial[X := Point, n := n, baseSpace := pointTopology] \as PointBundle;
+\import Bundles.Trivial[X := X, n := n, baseSpace := space] \as NativeBundle;
+\import \root.Thom[].For[X := Point, F := (\fun (_: Point) => Bundles.Vector n), bundle := PointBundle.bundle,
+  compact := PointFinite.compact, hausdorff := PointFinite.hausdorff] \as PointFor;
+\import \root.Thom[].For[X := X, F := (\fun (_: X) => Bundles.Vector n), bundle := NativeBundle.bundle,
+  compact := compact, hausdorff := hausdorff] \as NativeFor;
+\definition constant[x: X]: Point := point;
+\definition regular: topology.Continuity[A := X, B := Point].Continuous space pointTopology constant :=
+  topology.Maps[A := X, B := Point].constantContinuous space pointTopology point;
+\import \root.Thom[].For[X := Point, F := (\fun (_: Point) => Bundles.Vector n), bundle := PointBundle.bundle,
+  compact := PointFinite.compact, hausdorff := PointFinite.hausdorff]
+  .ThomPullback[Y := X, source := space, sourceCompact := compact, sourceHausdorff := hausdorff, f := constant, regular := regular] \as PointPull;
+\import Operations.TrivialPullback[X := Point, Y := X, n := n, original := pointTopology, base := space, f := constant, regular := regular] \as TrivialPull;
+\import \root.Thom[].For[X := X, F := (\fun (_: X) => Bundles.Vector n), bundle := TrivialPull.pulled,
+  compact := compact, hausdorff := hausdorff] \as PulledFor;
+\import Bundles.Isomorphisms[X := X, F := (\fun (_: X) => Bundles.Vector n), G := (\fun (_: X) => Bundles.Vector n),
+  source := TrivialPull.pulled, target := NativeBundle.bundle] \as Reverse;
+\import \root.Thom[].For[X := X, F := (\fun (_: X) => Bundles.Vector n), bundle := NativeBundle.bundle,
+  compact := compact, hausdorff := hausdorff].BundleIsomorphism[G := (\fun (_: X) => Bundles.Vector n), target := TrivialPull.pulled,
+  targetCompact := compact, targetHausdorff := hausdorff,
+  sameBase := (\refl(space)), iso := Reverse.inverse TrivialPull.isomorphism] \as Change;
+\import Bundles.Family[X := X, F := (\fun (_: X) => Bundles.Vector n)] \as NativeFamily;
+\import Bundles.Family[X := Point, F := (\fun (_: Point) => Bundles.Vector n)] \as PointFamily;
+\import \root.Thom[].Naturality[X := Point, F := (\fun (_: Point) => Bundles.Vector n), bundle := PointBundle.bundle,
+  Y := X, source := space, f := constant, regular := regular].Koszul[] \as PointMap;
+\import \root.Thom[].TotalSpace[X := Point, F := (\fun (_: Point) => Bundles.Vector n), bundle := PointBundle.bundle,
+  compact := PointFinite.compact, hausdorff := PointFinite.hausdorff]
+  .Pullback[Y := X, source := space, sourceCompact := compact, f := constant, regular := regular] \as PointProper;
+\definition homeomorphism: topology.Homeomorphism[A := NativeFamily.Point, B := NativeFamily.Point].Homeomorphism[NativeBundle.bundle.totalSpace, TrivialPull.pulled.totalSpace] :=
+  Change.totalHomeomorphism;
+\import Support.Homeomorphic[A := NativeFamily.Point, B := NativeFamily.Point,
+  source := NativeBundle.bundle.totalSpace, target := TrivialPull.pulled.totalSpace, h := homeomorphism] \as Homeomorphism;
+\definition projection[p: NativeFamily.Point]: PointFamily.Point := PointMap.total (homeomorphism.forward p);
+\definition onFinite: \forall (p: NativeFamily.Point) -> projection p = PointFamily.include point p.vector :=
+  \fun (p: NativeFamily.Point) => \refl(PointFamily.include point p.vector);
+\definition continuous: topology.Continuity[A := NativeFamily.Point, B := PointFamily.Point].Continuous
+  NativeBundle.bundle.totalSpace PointBundle.bundle.totalSpace projection :=
+  topology.Composition[A := NativeFamily.Point, B := NativeFamily.Point, C := PointFamily.Point].composeContinuous
+    NativeBundle.bundle.totalSpace TrivialPull.pulled.totalSpace PointBundle.bundle.totalSpace
+    homeomorphism.forward PointMap.total homeomorphism.forwardContinuous PointMap.continuous;
+\definition proper: Support.Proper[A := NativeFamily.Point, B := PointFamily.Point,
+  source := NativeBundle.bundle.totalSpace, target := PointBundle.bundle.totalSpace].IsProper projection :=
+  Support.ProperComposition[A := NativeFamily.Point, B := NativeFamily.Point, C := PointFamily.Point,
+    firstSpace := NativeBundle.bundle.totalSpace, middleSpace := TrivialPull.pulled.totalSpace, lastSpace := PointBundle.bundle.totalSpace,
+    f := homeomorphism.forward, g := PointMap.total, firstContinuous := homeomorphism.forwardContinuous, secondContinuous := PointMap.continuous,
+    firstProper := Homeomorphism.proper, secondProper := PointProper.proper].proper;
+\import \root.Thom[].TotalSpace[X := X, F := (\fun (_: X) => Bundles.Vector n), bundle := NativeBundle.bundle,
+  compact := compact, hausdorff := hausdorff] \as NativeTotal;
+\import \root.Thom[].TotalSpace[X := X, F := (\fun (_: X) => Bundles.Vector n), bundle := TrivialPull.pulled,
+  compact := compact, hausdorff := hausdorff] \as PulledTotal;
+\import \root.Thom[].TotalSpace[X := Point, F := (\fun (_: Point) => Bundles.Vector n), bundle := PointBundle.bundle,
+  compact := PointFinite.compact, hausdorff := PointFinite.hausdorff] \as PointTotal;
+\import Support.On[X := NativeFamily.Point, space := NativeBundle.bundle.totalSpace,
+  hausdorff := NativeTotal.separated, locallyCompact := NativeTotal.locallyCompact] \as NativeSupport;
+\import Support.On[X := NativeFamily.Point, space := TrivialPull.pulled.totalSpace,
+  hausdorff := PulledTotal.separated, locallyCompact := PulledTotal.locallyCompact] \as PulledSupport;
+\import Support.On[X := PointFamily.Point, space := PointBundle.bundle.totalSpace,
+  hausdorff := PointTotal.separated, locallyCompact := PointTotal.locallyCompact] \as PointSupport;
+\import NativeSupport.Pullback[Y := PointFamily.Point, target := PointBundle.bundle.totalSpace,
+  targetHausdorff := PointTotal.separated, targetLocallyCompact := PointTotal.locallyCompact,
+  f := projection, continuous := continuous, proper := proper] \as Direct;
+\import NativeSupport.Pullback[Y := NativeFamily.Point, target := TrivialPull.pulled.totalSpace,
+  targetHausdorff := PulledTotal.separated, targetLocallyCompact := PulledTotal.locallyCompact,
+  f := homeomorphism.forward, continuous := homeomorphism.forwardContinuous, proper := Homeomorphism.proper] \as First;
+\import PulledSupport.Pullback[Y := PointFamily.Point, target := PointBundle.bundle.totalSpace,
+  targetHausdorff := PointTotal.separated, targetLocallyCompact := PointTotal.locallyCompact,
+  f := PointMap.total, continuous := PointMap.continuous, proper := PointProper.proper] \as Second;
+\definition pull: PointFor.Carrier -> NativeFor.Carrier :=
+  Relative.Pullback[source := NativeSupport.model, target := PointSupport.model, f := Direct.mapping].map;
+\import Relative.Composition[source := NativeSupport.model, middle := PulledSupport.model, target := PointSupport.model,
+  first := First.mapping, second := Second.mapping] \as Composite;
+\import Support.OnePoint[X := NativeFamily.Point, space := NativeBundle.bundle.totalSpace] \as NativePoints;
+\import Support.OnePoint[X := PointFamily.Point, space := PointBundle.bundle.totalSpace] \as PointPoints;
+\definition maps: Composite.map = Direct.mapping := \axiom:funext(Composite.map, Direct.mapping,
+  \induction (p: NativePoints.Carrier) \return Composite.map p = Direct.mapping p \with {
+    | none: \refl(PointPoints.point)
+    | some: \fun (p: NativeFamily.Point) => \refl(PointPoints.inclusion (projection p))
+  });
+\definition factorization: \forall (u: PointFor.Carrier) -> pull u = Change.pull (PointPull.pull u) :=
+  \fun (u: PointFor.Carrier) => trans!{{NativeFor.Carrier}} _ _ _
+    (congr!{{Relative.Map NativeSupport.model PointSupport.model} {NativeFor.Carrier}}
+      (\fun (mapping: Relative.Map NativeSupport.model PointSupport.model) => Relative.Pullback[source := NativeSupport.model, target := PointSupport.model, f := mapping].map u)
+      Direct.mapping Composite.map (sym!{{Relative.Map NativeSupport.model PointSupport.model}} _ _ maps))
+    (Relative.PullbackComposition[source := NativeSupport.model, middle := PulledSupport.model, target := PointSupport.model,
+      first := First.mapping, second := Second.mapping].equation u);
+\definition changeAgreement: NativeFor.thom = Change.pull PulledFor.thom := Change.equation;
+\definition pointAgreement: PulledFor.thom = PointPull.pull PointFor.thom := PointPull.equation;
+\definition equation: NativeFor.thom = pull PointFor.thom := trans!{{NativeFor.Carrier}}
+  NativeFor.thom (Change.pull PulledFor.thom) (pull PointFor.thom) changeAgreement
+  (trans!{{NativeFor.Carrier}} (Change.pull PulledFor.thom) (Change.pull (PointPull.pull PointFor.thom)) (pull PointFor.thom)
+    (congr!{{PulledFor.Carrier} {NativeFor.Carrier}} Change.pull PulledFor.thom (PointPull.pull PointFor.thom) pointAgreement)
+    (sym!{{NativeFor.Carrier}} _ _ (factorization PointFor.thom)));
+\definition Total: \Set := NativeFamily.Point;
+\definition PointTotalCarrier: \Set := PointFamily.Point;
+\definition bundle: Bundles.Family[X := X, F := (\fun (_: X) => Bundles.Vector n)].Bundle := NativeBundle.bundle;
+\definition pointBundle: Bundles.Family[X := Point, F := (\fun (_: Point) => Bundles.Vector n)].Bundle := PointBundle.bundle;
+\definition pointCompact: topology.Topology[Carrier := Point].IsCompact pointTopology := PointFinite.compact;
+\definition pointHausdorff: topology.Topology[Carrier := Point].IsT2 pointTopology := PointFinite.hausdorff;
+\definition totalSpace: topology.Topology[Carrier := Total].Topology := NativeBundle.bundle.totalSpace;
+\definition pointTotalSpace: topology.Topology[Carrier := PointTotalCarrier].Topology := PointBundle.bundle.totalSpace;
+\definition Carrier: \Set := NativeFor.Carrier;
+\definition PointCarrier: \Set := PointFor.Carrier;
+\definition thom: Carrier := NativeFor.thom;
+\definition pointThom: PointCarrier := PointFor.thom;
+\import topological_k_theory.KTheory[].On[X := X, baseSpace := space, compact := compact, hausdorff := hausdorff].K0[] \as K;
+\definition forward[a: K.Carrier]: Carrier := NativeFor.forward a;
+\definition formula: thom = pull pointThom := equation;
+\definition baseLocal: topology.LocallyCompact[A := X].IsLocallyCompact space := topology.LocallyCompact[A := X].compactLocallyCompact space compact;
+\import Support.On[X := X, space := space, hausdorff := hausdorff, locallyCompact := baseLocal] \as Base;
+\import \root.Thom[].CompactCoefficient[X := X, space := space, compact := compact, hausdorff := hausdorff] \as Coefficient;
+\import NativeFor.Product[] \as NativeProduct;
+\import NativeProduct.Compactified[] \as Compactified;
+\import Relative.Smash[left := Base.model, right := NativeSupport.model] \as NativeSmash;
+\import Relative.Smash[left := Base.model, right := PointSupport.model] \as PointSmash;
+\import Relative.Identity[model := Base.model] \as BaseIdentity;
+\import NativeSmash.Mapping[targetLeft := Base.model, targetRight := PointSupport.model,
+  f := BaseIdentity.map, g := Direct.mapping] \as SmashMapping;
+\import Relative.Composition[source := NativeSupport.model, middle := NativeSmash.result, target := PointSmash.result,
+  first := Compactified.map, second := SmashMapping.map] \as ExternalPairing;
+\import Relative.Pullback[source := NativeSupport.model, target := PointSmash.result, f := ExternalPairing.map] \as ExternalPull;
+\import Relative.Pullback[source := NativeSupport.model, target := NativeSmash.result, f := Compactified.map] \as NativePair;
+\import Relative.Pullback[source := NativeSmash.result, target := PointSmash.result, f := SmashMapping.map] \as SmashPull;
+\import Relative.Pullback[source := Base.model, target := Base.model, f := BaseIdentity.map] \as BasePull;
+\definition external[a: K.Carrier][u: PointCarrier]: Carrier := ExternalPull.map (PointSmash.External[].product (Coefficient.forward a) u);
+\definition productFormula: \forall (a: K.Carrier)(u: PointCarrier) -> NativeProduct.multiply a (pull u) = external a u :=
+  \fun (a: K.Carrier)(u: PointCarrier) => trans!{Carrier} _ _ _ (Compactified.formula a (pull u))
+    (trans!{Carrier} _ _ _
+      (congr!{{Relative.Reduced[model := Base.model].Carrier} Carrier}
+        (\fun (v: Relative.Reduced[model := Base.model].Carrier) => NativePair.map (NativeSmash.External[].product v (pull u))) _ _
+        (sym!{{Relative.Reduced[model := Base.model].Carrier}} _ _ (Relative.PullbackIdentity[model := Base.model].equation (Coefficient.forward a))))
+      (trans!{Carrier} _ _ _
+        (congr!{{Relative.Reduced[model := NativeSmash.result].Carrier} Carrier} NativePair.map _ _
+          (sym!{{Relative.Reduced[model := NativeSmash.result].Carrier}} _ _ (SmashMapping.External[].naturality (Coefficient.forward a) u)))
+        (sym!{Carrier} _ _ (Relative.PullbackComposition[source := NativeSupport.model, middle := NativeSmash.result, target := PointSmash.result,
+          first := Compactified.map, second := SmashMapping.map].equation (PointSmash.External[].product (Coefficient.forward a) u)))));
+\definition forwardFormula: \forall (a: K.Carrier) -> forward a = external a pointThom :=
+  \fun (a: K.Carrier) => trans!{Carrier} _ _ _ (congr!{Carrier Carrier} (NativeProduct.multiply a) _ _ formula) (productFormula a pointThom);
+\import Support.OnePoint[X := X, space := space] \as BasePoints;
+\import std.Data[].Pair[] \as Pair;
+\definition externalOnFinite: \forall (p: Total) -> ExternalPairing.map (NativePoints.inclusion p) =
+  PointSmash.projection (Pair.pair BasePoints.Carrier PointPoints.Carrier (BasePoints.inclusion p.base) (PointPoints.inclusion (projection p))) :=
+  \fun (p: Total) => trans!{{PointSmash.result.Carrier}} _ _ _
+    (congr!{{NativeSmash.result.Carrier} {PointSmash.result.Carrier}} SmashMapping.map _ _ (Compactified.onFinite p))
+    (SmashMapping.onProjection (Pair.pair BasePoints.Carrier NativePoints.Carrier (BasePoints.inclusion p.base) (NativePoints.inclusion p)));
+\definition model: Relative.CompactPointed := NativeSupport.model;
+\definition baseModel: Relative.CompactPointed := Base.model;
+\definition pointModel: Relative.CompactPointed := PointSupport.model;
+\definition externalModel: Relative.CompactPointed := PointSmash.result;
+\definition externalMap: Relative.Map model externalModel := ExternalPairing.map;
+\definition coefficient[a: K.Carrier]: Relative.Reduced[model := baseModel].Carrier := Coefficient.forward a;
+\definition externalFormula: \forall (a: K.Carrier)(u: PointCarrier) -> external a u =
+  Relative.Pullback[source := model, target := externalModel, f := externalMap].map
+    (Relative.Smash[left := baseModel, right := pointModel].External[].product (coefficient a) u) :=
+  \fun (a: K.Carrier)(u: PointCarrier) => \refl(external a u);
+\definition totalHausdorff: topology.Topology[Carrier := Total].IsT2 totalSpace := NativeTotal.separated;
+\definition totalLocallyCompact: topology.LocallyCompact[A := Total].IsLocallyCompact totalSpace := NativeTotal.locallyCompact;
+\definition pointTotalHausdorff: topology.Topology[Carrier := PointTotalCarrier].IsT2 pointTotalSpace := PointTotal.separated;
+\definition pointTotalLocallyCompact: topology.LocallyCompact[A := PointTotalCarrier].IsLocallyCompact pointTotalSpace := PointTotal.locallyCompact;
+\definition pointUnique: \forall (p: Point) -> p = point := Fin.singletonValue;
+\module Equivalence;
+\definition externalEquivalence: Relative.Equivalence[source := model, target := externalModel].Data := Equivalence[].value;
+\module Isomorphism;

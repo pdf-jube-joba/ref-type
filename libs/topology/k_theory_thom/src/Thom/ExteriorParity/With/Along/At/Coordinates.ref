@@ -1,0 +1,102 @@
+\definition model: B.Bool^ -> Models.Bundle := \induction (side: B.Bool^) \return Models.Bundle \with {
+  | false: oddChoice.model
+  | true: evenChoice.model
+};
+\definition select: \forall (first, second: B.Bool^) -> Models.Map (model first) (model second) :=
+  \induction (first: B.Bool^) \return \forall (second: B.Bool^) -> Models.Map (model first) (model second) \with {
+    | false: \induction (second: B.Bool^) \return Models.Map oddChoice.model (model second) \with {
+      | false: Models.identity oddChoice.model
+      | true: Models.zero oddChoice.model evenChoice.model
+    }
+    | true: \induction (second: B.Bool^) \return Models.Map evenChoice.model (model second) \with {
+      | false: Models.zero evenChoice.model oddChoice.model
+      | true: Models.identity evenChoice.model
+    }
+  };
+\definition selectSame: \forall (side: B.Bool^)(x: X)(v: Models.Fiber (model side).ranks x) -> ((select side side).fiber x).apply v = v :=
+  \induction (side: B.Bool^) \return \forall (x: X)(v: Models.Fiber (model side).ranks x) -> ((select side side).fiber x).apply v = v \with {
+    | false: \fun (x: X)(v: Models.Fiber oddChoice.model.ranks x) => \refl(v)
+    | true: \fun (x: X)(v: Models.Fiber evenChoice.model.ranks x) => \refl(v)
+  };
+\module Inclusions;
+\definition Block[firstSide: B.Bool^][secondSide: B.Bool^]: \Set := Bundles.Morphisms[X := X, Y := X,
+  F := (\fun (x: X) => \parent.Slot[firstSide := firstSide, secondSide := secondSide].Fiber x),
+  G := Models.Fiber (model (ProductLabels.evenPair firstSide secondSide)).ranks,
+  source := \parent.Slot[firstSide := firstSide, secondSide := secondSide].bundle, target := Models.bundle (model (ProductLabels.evenPair firstSide secondSide)), f := (\fun (x: X) => x)].Map;
+\definition block: \forall (firstSide, secondSide: B.Bool^) -> Block firstSide secondSide :=
+  \induction (firstSide: B.Bool^) \return \forall (secondSide: B.Bool^) -> Block firstSide secondSide \with {
+    | false: \induction (secondSide: B.Bool^) \return Block B.Bool^::false secondSide \with {
+      | false: Inclusions[].oo
+      | true: Inclusions[].oe
+    }
+    | true: \induction (secondSide: B.Bool^) \return Block B.Bool^::true secondSide \with {
+      | false: Inclusions[].eo
+      | true: Inclusions[].ee
+    }
+  };
+\import \root.Thom[].ComplexProductTensorSum[X := X, space := left.baseSpace, term := firstTerm, differential := firstDifferential,
+  G := Models.Fiber (firstTerm N.Nat^::zero).ranks, bundle := Models.bundle (firstTerm N.Nat^::zero), same := (\refl(left.baseSpace))] \as FirstBuilder;
+\import \root.Thom[].ComplexProductTensorSum[X := X, space := left.baseSpace, term := secondTerm, differential := secondDifferential,
+  G := Models.Fiber (firstTerm N.Nat^::zero).ranks, bundle := Models.bundle (firstTerm N.Nat^::zero), same := (\refl(left.baseSpace))] \as SecondBuilder;
+\import std.Data[].FinSet[] \as Fin;
+\module Bidegree(p, q: N.Nat^, side: B.Bool^);
+\module Component(k: N.Nat^, side: B.Bool^, i: Fin.Fin (N.Nat^::succ k));
+\module Degree(k: N.Nat^, side: B.Bool^);
+\definition parts[side: B.Bool^]: Total.Components degree side (model side) :=
+  \fun (s: Total.Colored degree side) => Degree[k := Labels.degree degree s, side := side].map;
+\definition backwardCode[side: B.Bool^]: Models.Map (target side) (model side) := Total.assemble degree side (model side) (parts side);
+\import Bundles.Morphisms[X := X, Y := X, F := Models.Fiber (target B.Bool^::true).ranks, G := Models.Fiber (model B.Bool^::true).ranks,
+  source := Models.bundle (target B.Bool^::true), target := Models.bundle (model B.Bool^::true), f := (\fun (x: X) => x)]
+  .Composition[Z := X, H := Parity.Even, range := Parity.evenBundle, g := (\fun (x: X) => x)] \as EvenDecode;
+\definition backwardEven: Bundles.Morphisms[X := X, Y := X, F := Models.Fiber (target B.Bool^::true).ranks, G := Parity.Even,
+  source := Models.bundle (target B.Bool^::true), target := Parity.evenBundle, f := (\fun (x: X) => x)].Map := EvenDecode.compose (backwardCode B.Bool^::true) evenChoice.isomorphism.backward;
+\import Bundles.Morphisms[X := X, Y := X, F := Models.Fiber (target B.Bool^::false).ranks, G := Models.Fiber (model B.Bool^::false).ranks,
+  source := Models.bundle (target B.Bool^::false), target := Models.bundle (model B.Bool^::false), f := (\fun (x: X) => x)]
+  .Composition[Z := X, H := Parity.Odd, range := Parity.oddBundle, g := (\fun (x: X) => x)] \as OddDecode;
+\definition backwardOdd: Bundles.Morphisms[X := X, Y := X, F := Models.Fiber (target B.Bool^::false).ranks, G := Parity.Odd,
+  source := Models.bundle (target B.Bool^::false), target := Parity.oddBundle, f := (\fun (x: X) => x)].Map := OddDecode.compose (backwardCode B.Bool^::false) oddChoice.isomorphism.backward;
+\module Pairing(firstSide, secondSide: B.Bool^);
+
+\module LabelPlacement(s: Labels.Index n, t: Labels.Index m);
+
+\import Bundles.Morphisms[X := X, Y := X, F := Parity.Even, G := Models.Fiber (target B.Bool^::true).ranks,
+  source := Parity.evenBundle, target := Models.bundle (target B.Bool^::true), f := (\fun (x: X) => x)]
+  .Composition[Z := X, H := Models.Fiber (model B.Bool^::true).ranks, range := Models.bundle (model B.Bool^::true), g := (\fun (x: X) => x)] \as EvenCandidate;
+\definition candidateEven: Bundles.Morphisms[X := X, Y := X, F := Parity.Even, G := Models.Fiber (model B.Bool^::true).ranks,
+  source := Parity.evenBundle, target := Models.bundle (model B.Bool^::true), f := (\fun (x: X) => x)].Map := EvenCandidate.compose forwardEven (backwardCode B.Bool^::true);
+\import Bundles.Morphisms[X := X, Y := X, F := Models.Fiber (model B.Bool^::true).ranks, G := Parity.Even,
+  source := Models.bundle (model B.Bool^::true), target := Parity.evenBundle, f := (\fun (x: X) => x)]
+  .Composition[Z := X, H := Models.Fiber (target B.Bool^::true).ranks, range := Models.bundle (target B.Bool^::true), g := (\fun (x: X) => x)] \as EvenCode;
+\definition forwardCodeEven: Models.Map (model B.Bool^::true) (target B.Bool^::true) := EvenCode.compose evenChoice.isomorphism.backward forwardEven;
+
+\import Bundles.Morphisms[X := X, Y := X, F := Parity.Odd, G := Models.Fiber (target B.Bool^::false).ranks,
+  source := Parity.oddBundle, target := Models.bundle (target B.Bool^::false), f := (\fun (x: X) => x)]
+  .Composition[Z := X, H := Models.Fiber (model B.Bool^::false).ranks, range := Models.bundle (model B.Bool^::false), g := (\fun (x: X) => x)] \as OddCandidate;
+\definition candidateOdd: Bundles.Morphisms[X := X, Y := X, F := Parity.Odd, G := Models.Fiber (model B.Bool^::false).ranks,
+  source := Parity.oddBundle, target := Models.bundle (model B.Bool^::false), f := (\fun (x: X) => x)].Map := OddCandidate.compose forwardOdd (backwardCode B.Bool^::false);
+\import Bundles.Morphisms[X := X, Y := X, F := Models.Fiber (model B.Bool^::false).ranks, G := Parity.Odd,
+  source := Models.bundle (model B.Bool^::false), target := Parity.oddBundle, f := (\fun (x: X) => x)]
+  .Composition[Z := X, H := Models.Fiber (target B.Bool^::false).ranks, range := Models.bundle (target B.Bool^::false), g := (\fun (x: X) => x)] \as OddCode;
+\definition forwardCodeOdd: Models.Map (model B.Bool^::false) (target B.Bool^::false) := OddCode.compose oddChoice.isomorphism.backward forwardOdd;
+
+\definition forwardCode: \forall (side: B.Bool^) -> Models.Map (model side) (target side) := \induction (side: B.Bool^) \return Models.Map (model side) (target side) \with {
+  | false: forwardCodeOdd
+  | true: forwardCodeEven
+};
+\module Left(x: X);
+\definition codedLeft: \forall (side: B.Bool^)(x: X)(v: Models.Fiber (model side).ranks x) ->
+  ((backwardCode side).fiber x).apply (((forwardCode side).fiber x).apply v) = v :=
+  \induction (side: B.Bool^) \return \forall (x: X)(v: Models.Fiber (model side).ranks x) ->
+    ((backwardCode side).fiber x).apply (((forwardCode side).fiber x).apply v) = v \with {
+      | false: \fun (x: X)(v: Models.Fiber oddChoice.model.ranks x) => trans!{{Models.Fiber oddChoice.model.ranks x}} _ _ _
+        (Left[x := x].codedOdd ((oddChoice.isomorphism.backward.fiber x).apply v)) (oddChoice.isomorphism.rightInverse x v)
+      | true: \fun (x: X)(v: Models.Fiber evenChoice.model.ranks x) => trans!{{Models.Fiber evenChoice.model.ranks x}} _ _ _
+        (Left[x := x].codedEven ((evenChoice.isomorphism.backward.fiber x).apply v)) (evenChoice.isomorphism.rightInverse x v)
+    };
+\module Right(firstVanishing: \forall (p: N.Nat^) -> Logic.Not (Naturals.Le p n) -> \forall (y: X)(v: FirstForm p y) -> v = ((firstForms p).space y).zero,
+  secondVanishing: \forall (q: N.Nat^) -> Logic.Not (Naturals.Le q m) -> \forall (y: X)(v: SecondForm q y) -> v = ((secondForms q).space y).zero,
+  x: X);
+
+\module Isomorphisms(firstVanishing: \forall (p: N.Nat^) -> Logic.Not (Naturals.Le p n) -> \forall (y: X)(v: FirstForm p y) -> v = ((firstForms p).space y).zero,
+  secondVanishing: \forall (q: N.Nat^) -> Logic.Not (Naturals.Le q m) -> \forall (y: X)(v: SecondForm q y) -> v = ((secondForms q).space y).zero);
+\module Differential(evenCutoff: Spaces.Sign[].value n = C.Def[].one);

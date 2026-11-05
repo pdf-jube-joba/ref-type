@@ -1,0 +1,21 @@
+\import topological_k_theory.KTheory[].On[X := model.Carrier, baseSpace := (Relative.details model).topology, compact := (Relative.details model).compact, hausdorff := (Relative.details model).hausdorff].K0[] \as Ordinary;
+\import Relative.Pullback[source := Left.result, target := Right.result, f := Geometry.equivalence.forward] \as Change;
+\import Relative.Composition[source := model, middle := Left.result, target := Right.result,
+  first := Geometry.leftMap, second := Geometry.equivalence.forward] \as Composite;
+\definition mapsEqual: Composite.map = Geometry.rightMap :=
+  \axiom:funext(Composite.map, Geometry.rightMap, Geometry.onTriple);
+\definition pullFormula[v: Relative.Reduced[model := Right.result].Carrier]: LeftPull.map (Change.map v) = RightPull.map v :=
+  trans!{{Group.Carrier}} _ _ _
+    (sym!{{Group.Carrier}} _ _ (Relative.PullbackComposition[source := model, middle := Left.result, target := Right.result,
+      first := Geometry.leftMap, second := Geometry.equivalence.forward].equation v))
+    (congr!{{Relative.Map model Right.result} {Group.Carrier}}
+      (\fun (f: Relative.Map model Right.result) => Relative.Pullback[source := model, target := Right.result, f := f].map v) _ _ mapsEqual);
+\import \root.Thom[].TripleFaces[first := first, second := second, third := third].Quotient[].Injection[] \as Injection;
+\definition equation: \forall (a: A.Carrier)(b: B.Carrier)(c: C.Carrier) ->
+  Left.External[].product (AB.External[].product a b) c = Change.map (Right.External[].product a (BC.External[].product b c)) :=
+  \fun (a: A.Carrier)(b: B.Carrier)(c: C.Carrier) => Injection.leftInjective _ _ (eq_reason_in!{{Group.Carrier} _
+    "=" { Ring.mul (Ring.mul (APull.map a) (BPull.map b)) (CPull.map c) } "by" { leftFormula a b c }
+    "=" { Ring.mul (APull.map a) (Ring.mul (BPull.map b) (CPull.map c)) } "by" { Ordinary.ring.semiring.multiplicative.associative (APull.map a) (BPull.map b) (CPull.map c) }
+    "=" { RightPull.map (Right.External[].product a (BC.External[].product b c)) } "by" { sym!{{Group.Carrier}} _ _ (rightFormula a b c) }
+    "=" _ "by" { sym!{{Group.Carrier}} _ _ (pullFormula (Right.External[].product a (BC.External[].product b c))) }
+  });

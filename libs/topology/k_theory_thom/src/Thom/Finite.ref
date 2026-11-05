@@ -1,0 +1,71 @@
+\import Operations.Models[X := X, baseSpace := baseSpace] \as Models;
+\import Models.Chains[] \as Chains;
+\import std.Data[].Pair[] \as Pair;
+\definition parity[c: Chains.Complex]: Chains.Parity[c.head] := Chains.fold c.head c.data;
+\definition At[c: Chains.Complex][x: X]: \Set := Models.Fiber (parity c).even.ranks x;
+\definition Odd[c: Chains.Complex][x: X]: \Set := Models.Fiber (parity c).odd.ranks x;
+\definition Head[c: Chains.Complex][x: X]: \Set := Models.Fiber c.head.ranks x;
+\structure Partial[complex: Chains.Complex, domain: \Pow X]: \Set := {
+  projection: Models.Map (parity complex).even complex.head,
+  projectInclusion: \forall (x: X)(a: Head complex x) ->
+    (projection.fiber x).apply (((parity complex).inclusion.fiber x).apply a) = a,
+  projectBackward: \forall (x: X)(w: Odd complex x) ->
+    (projection.fiber x).apply (((parity complex).backward.fiber x).apply w) = ((Models.bundle complex.head).space x).zero,
+  headCycles: \forall (x: X) -> \In[X] domain x -> \forall (v: At complex x) ->
+    (((parity complex).forward.fiber x).apply v = ((Models.bundle (parity complex).odd).space x).zero) ->
+    ((parity complex).forward.fiber x).apply (((parity complex).inclusion.fiber x).apply ((projection.fiber x).apply v)) = ((Models.bundle (parity complex).odd).space x).zero,
+  evenExact: \forall (x: X) -> \In[X] domain x -> \forall (v: At complex x) ->
+    (((parity complex).forward.fiber x).apply v = ((Models.bundle (parity complex).odd).space x).zero) ->
+    \exists (w: Odd complex x \where ((Models.bundle (parity complex).even).space x).add
+      (((parity complex).inclusion.fiber x).apply ((projection.fiber x).apply v))
+      (((parity complex).backward.fiber x).apply w) = v),
+  oddExact: \forall (x: X) -> \In[X] domain x -> \forall (w: Odd complex x) ->
+    (((parity complex).backward.fiber x).apply w = ((Models.bundle (parity complex).even).space x).zero) ->
+    \exists (v: At complex x \where ((parity complex).forward.fiber x).apply v = w)
+};
+\module SquareStep(first: Models.Bundle, previous: Chains.Complex, differential: Models.Map first previous.head,
+  consecutive: \forall (x: X)(v: Models.Fiber first.ranks x) ->
+    ((parity previous).forward.fiber x).apply (((parity previous).inclusion.fiber x).apply ((differential.fiber x).apply v)) =
+      ((Models.bundle (parity previous).odd).space x).zero);
+\module Step(first: Models.Bundle, previous: Chains.Complex, domain: \Pow X, tail: Partial[previous, domain], differential: Models.Map first previous.head,
+  consecutive: \forall (x: X)(v: Models.Fiber first.ranks x) ->
+    ((parity previous).forward.fiber x).apply (((parity previous).inclusion.fiber x).apply ((differential.fiber x).apply v)) =
+      ((Models.bundle (parity previous).odd).space x).zero,
+  exactHead: \forall (x: X) -> \In[X] domain x -> \forall (a: Head previous x) ->
+    ((parity previous).forward.fiber x).apply (((parity previous).inclusion.fiber x).apply a) = ((Models.bundle (parity previous).odd).space x).zero ->
+    \exists (v: Models.Fiber first.ranks x \where (differential.fiber x).apply v = a));
+\module Finish(complex: Chains.Complex, domain: \Pow X, data: Partial[complex, domain],
+  headExact: \forall (x: X) -> \In[X] domain x -> \forall (a: Head complex x) ->
+    ((parity complex).forward.fiber x).apply (((parity complex).inclusion.fiber x).apply a) = ((Models.bundle (parity complex).odd).space x).zero ->
+    a = ((Models.bundle complex.head).space x).zero);
+\module Empty(domain: \Pow X);
+\module Family(term: N.Nat^ -> Models.Bundle, differential: \forall (k: N.Nat^) -> Models.Map (term (N.Nat^::succ k)) (term k), domain: \Pow X);
+
+\definition Iso[first, second: Models.Bundle]: \Set := Bundles.Isomorphisms[X := X,
+  F := Models.Fiber first.ranks, G := Models.Fiber second.ranks,
+  source := Models.bundle first, target := Models.bundle second].Isomorphism;
+\structure Comparison[sourceHead, targetHead: Models.Bundle, source: Chains.Parity[sourceHead], target: Chains.Parity[targetHead], headIso: Iso sourceHead targetHead]: \Set := {
+  even: Iso source.even target.even,
+  odd: Iso source.odd target.odd,
+  inclusion: \forall (x: X)(v: Models.Fiber sourceHead.ranks x) ->
+    (even.forward.fiber x).apply ((source.inclusion.fiber x).apply v) = (target.inclusion.fiber x).apply ((headIso.forward.fiber x).apply v),
+  forward: \forall (x: X)(v: Models.Fiber source.even.ranks x) ->
+    (target.forward.fiber x).apply ((even.forward.fiber x).apply v) = (odd.forward.fiber x).apply ((source.forward.fiber x).apply v),
+  backward: \forall (x: X)(v: Models.Fiber source.odd.ranks x) ->
+    (target.backward.fiber x).apply ((odd.forward.fiber x).apply v) = (even.forward.fiber x).apply ((source.backward.fiber x).apply v)
+};
+\module SumComparison(first, second, firstTarget, secondTarget: Models.Bundle,
+  firstIso: Iso first firstTarget, secondIso: Iso second secondTarget);
+\module ComparisonStep(first, second, firstTarget, secondTarget: Models.Bundle,
+  differential: Models.Map first second, targetDifferential: Models.Map firstTarget secondTarget,
+  source: Chains.Parity[second], target: Chains.Parity[secondTarget],
+  headIso: Iso first firstTarget, secondIso: Iso second secondTarget,
+  tail: Comparison[second, secondTarget, source, target, secondIso],
+  commutes: \forall (x: X)(v: Models.Fiber first.ranks x) ->
+    (targetDifferential.fiber x).apply ((headIso.forward.fiber x).apply v) = (secondIso.forward.fiber x).apply ((differential.fiber x).apply v));
+
+\module ZeroSum(first, second: Models.Bundle,
+  zero: \forall (x: X)(v: Models.Fiber first.ranks x) -> v = ((Models.bundle first).space x).zero);
+
+\module Rebase(Y: \Set, targetSpace: topology.Topology[Carrier := Y].Topology,
+  f: Y -> X, regular: topology.Continuity[A := Y, B := X].Continuous targetSpace baseSpace f);

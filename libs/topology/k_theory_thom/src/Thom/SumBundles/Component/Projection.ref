@@ -1,0 +1,41 @@
+\import topology.Topology[Carrier := X] \as Base;
+\import Bundles.Family[X := X, F := Fiber] \as SourceFamily;
+\import SourceFamily.Of[bundle := bundle] \as SourceOriginal;
+\import Bundles.Family[X := X, F := Tensor.Fiber] \as OutputFamily;
+\import FirstFamily.With[data := left] \as LeftCharts;
+\import SecondFamily.With[data := right] \as RightCharts;
+\import Bundles.Morphisms[X := X, Y := X, F := Fiber, G := Tensor.Fiber, source := bundle, target := Tensor.bundle sameBase, f := \fun (x: X) => x] \as Maps;
+\module At(x: X);
+\definition fiber[x: X]: Spaces.Linear[V := Fiber x, W := Tensor.Fiber x, source := fiberSpace x, target := Tensor.fiberSpace x].Map := At[x := x].map;
+\definition data: Maps.Data := Maps.Data { fiber := fiber };
+\structure Charts: \Set := {
+  first: LeftCharts.Chart, second: RightCharts.Chart,
+  firstEnumeration: Operations.ExteriorIndices[n := first.dimension, k := p].Enumeration,
+  secondEnumeration: Operations.ExteriorIndices[n := second.dimension, k := q].Enumeration
+};
+\definition common[c: Charts]: \Pow X := Base.Intersection c.first.domain c.second.domain;
+\definition domain[c: Charts]: \Pow SourceFamily.Point := { y: SourceFamily.Point \where Base.Member (common c) y.base };
+\definition commonOpen[c: Charts]: Base.IsOpenIn left.baseSpace (common c) :=
+  (Base.topologyLaws left.baseSpace).intersectionOpen c.first.domain c.second.domain
+    (\bysub(LeftCharts.ChartData, LeftCharts.Chart, c.first)).baseOpen
+    (\idelim right.baseSpace = left.baseSpace \with t: Base.Topology => Base.IsOpenIn t c.second.domain \by {
+      base: (\bysub(RightCharts.ChartData, RightCharts.Chart, c.second)).baseOpen,
+      equality: sym!{{Base.Topology}} _ _ sameBase
+    });
+\definition open[c: Charts]: topology.Topology[Carrier := SourceFamily.Point].IsOpenIn bundle.totalSpace (domain c) := SourceOriginal.projectionContinuous (common c) (commonOpen c);
+\definition covers: \forall (y: SourceFamily.Point) -> \exists (c: Charts \where \In[SourceFamily.Point] (domain c) y) := \block {
+  \fun (y: SourceFamily.Point) \then
+  \takefrom c: \Cast[LeftCharts.Chart] ({ c: LeftCharts.Chart \where Base.Member c.domain y.base }) \by First.locallyTrivial y.base \then
+  \takefrom d: \Cast[RightCharts.Chart] ({ d: RightCharts.Chart \where Base.Member d.domain y.base }) \by Second.locallyTrivial y.base \then
+  \takefrom e: Operations.ExteriorIndices[n := c.dimension, k := p].Enumeration \by Operations.ExteriorIndices[n := c.dimension, k := p].existsEnumeration \then
+  \takefrom f: Operations.ExteriorIndices[n := d.dimension, k := q].Enumeration \by Operations.ExteriorIndices[n := d.dimension, k := q].existsEnumeration \then
+  \return Logic.existsIntro[Charts, { chart: Charts \where \In[SourceFamily.Point] (domain chart) y }]
+    (Charts { first := c, second := d, firstEnumeration := e, secondEnumeration := f })
+    (Logic.And[_, _]::# (\bysub(LeftCharts.Chart, { c: LeftCharts.Chart \where Base.Member c.domain y.base }, c))
+      (\bysub(RightCharts.Chart, { d: RightCharts.Chart \where Base.Member d.domain y.base }, d)))
+};
+\module Local(c: Charts);
+\import topology.Continuity[A := SourceFamily.Point, B := OutputFamily.Point].Covered[I := Charts, domains := domain] \as Covered;
+\definition map: Maps.Map := \into[Maps.Data](data, Maps.Map) \by {
+  Covered.continuous bundle.totalSpace Tensor.topology (Maps.total data) open covers (\fun (c: Charts) => Local[c := c].continuous)
+};

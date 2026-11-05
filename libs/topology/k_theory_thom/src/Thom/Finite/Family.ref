@@ -1,0 +1,34 @@
+\definition data: \forall (n: N.Nat^) -> Chains.Data (term n) :=
+  \induction (n: N.Nat^) \return Chains.Data (term n) \with {
+    | zero: Chains.Data::cons (term N.Nat^::zero) Chains.empty (Models.zero (term N.Nat^::zero) Chains.empty) Chains.Data::nil
+    | succ: \fun (n: N.Nat^)(tail: Chains.Data (term n)) => Chains.Data::cons (term (N.Nat^::succ n)) (term n) (differential n) tail
+  };
+\definition diagram[n: N.Nat^]: Chains.Diagram := Chains.Diagram { head := term n, data := data n };
+\definition asComplex[n: N.Nat^][squareZero: Chains.SquareZero (diagram n)]: Chains.Complex :=
+  \into[Chains.Diagram](diagram n, Chains.Complex) \by { squareZero };
+\definition Closed: \forall (n: N.Nat^)(x: X) -> Models.Fiber (term n).ranks x -> \Prop :=
+  \induction (n: N.Nat^) \return \forall (x: X) -> Models.Fiber (term n).ranks x -> \Prop \with {
+    | zero: \fun (x: X)(a: Models.Fiber (term N.Nat^::zero).ranks x) => Logic.True
+    | succ: \fun (n: N.Nat^)(unused: _)(x: X)(a: Models.Fiber (term (N.Nat^::succ n)).ranks x) =>
+      ((differential n).fiber x).apply a = ((Models.bundle (term n)).space x).zero
+  };
+\module With(squareZero: \forall (n: N.Nat^)(x: X)(a: Models.Fiber (term (N.Nat^::succ (N.Nat^::succ n))).ranks x) ->
+    ((differential n).fiber x).apply (((differential (N.Nat^::succ n)).fiber x).apply a) = ((Models.bundle (term n)).space x).zero,
+  exact: \forall (n: N.Nat^)(x: X) -> \In[X] domain x -> \forall (a: Models.Fiber (term n).ranks x) -> Closed n x a ->
+    \exists (v: Models.Fiber (term (N.Nat^::succ n)).ranks x \where ((differential n).fiber x).apply v = a));
+
+\module Comparison(targetTerm: N.Nat^ -> Models.Bundle,
+  targetDifferential: \forall (k: N.Nat^) -> Models.Map (targetTerm (N.Nat^::succ k)) (targetTerm k),
+  isomorphism: \forall (k: N.Nat^) -> Iso (term k) (targetTerm k),
+  commutes: \forall (k: N.Nat^)(x: X)(v: Models.Fiber (term (N.Nat^::succ k)).ranks x) ->
+    ((targetDifferential k).fiber x).apply (((isomorphism (N.Nat^::succ k)).forward.fiber x).apply v) =
+    ((isomorphism k).forward.fiber x).apply (((differential k).fiber x).apply v));
+
+\module Padding(n: N.Nat^,
+  zeroOne: \forall (x: X)(v: Models.Fiber (term (N.Nat^::succ n)).ranks x) -> v = ((Models.bundle (term (N.Nat^::succ n))).space x).zero,
+  zeroTwo: \forall (x: X)(v: Models.Fiber (term (N.Nat^::succ (N.Nat^::succ n))).ranks x) -> v = ((Models.bundle (term (N.Nat^::succ (N.Nat^::succ n)))).space x).zero);
+
+\module Pullback(Y: \Set, targetSpace: topology.Topology[Carrier := Y].Topology,
+  f: Y -> X, regular: topology.Continuity[A := Y, B := X].Continuous targetSpace baseSpace f);
+
+\module Summands;

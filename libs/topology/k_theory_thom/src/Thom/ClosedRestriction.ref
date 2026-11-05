@@ -1,0 +1,92 @@
+\import std.Data[].Option[] \as Option;
+\import relative_k_theory.Relative[] \as Relative;
+\import compact_support_k.Support[] \as Support;
+\import Bundles.Family[X := X, F := F] \as Family;
+\import Family.Of[bundle := bundle] \as Original;
+\import topology.Topology[Carrier := X] \as Base;
+\import Base.Subspace[S := U] \as BaseSubset;
+\definition Y: \Set := BaseSubset.CarrierSet;
+\definition source: topology.Topology[Carrier := Y].Topology := BaseSubset.topology bundle.baseSpace;
+\definition sourceCompact: topology.Topology[Carrier := Y].IsCompact source := BaseSubset.Properties[].compact bundle.baseSpace (Base.Compactness[].closedCompact bundle.baseSpace compact U closed);
+\definition sourceHausdorff: topology.Topology[Carrier := Y].IsT2 source := BaseSubset.Properties[].hausdorff bundle.baseSpace hausdorff;
+\definition inclusion[y: Y]: X := y;
+\definition inclusionContinuous: topology.Continuity[A := Y, B := X].Continuous source bundle.baseSpace inclusion :=
+  topology.Continuity[A := Y, B := X].Corestriction[S := U].inclusionContinuous bundle.baseSpace;
+\import Original.Pullback[Y := Y, source := source, f := inclusion] \as Pullback;
+\definition Fiber[y: Y]: \Set := F y;
+\definition pulled: Bundles.Family[X := Y, F := Fiber].Bundle := Pullback.pulled inclusionContinuous;
+\import Bundles.Family[X := Y, F := Fiber] \as PulledFamily;
+\import \root.Thom[].TotalSpace[X := X, F := F, bundle := bundle, compact := compact, hausdorff := hausdorff] \as WholeTotal;
+\import \root.Thom[].TotalSpace[X := Y, F := Fiber, bundle := pulled, compact := sourceCompact, hausdorff := sourceHausdorff] \as PartTotal;
+\import WholeTotal.Pullback[Y := Y, source := source, sourceCompact := sourceCompact, f := inclusion, regular := inclusionContinuous] \as Proper;
+\import Support.On[X := Family.Point, space := bundle.totalSpace, hausdorff := WholeTotal.separated, locallyCompact := WholeTotal.locallyCompact] \as Whole;
+\import Support.On[X := PulledFamily.Point, space := pulled.totalSpace, hausdorff := PartTotal.separated, locallyCompact := PartTotal.locallyCompact] \as Part;
+\import Support.OnePoint[X := Family.Point, space := bundle.totalSpace] \as Range;
+\import Support.OnePoint[X := PulledFamily.Point, space := pulled.totalSpace] \as Domain;
+\import Support.Proper[A := PulledFamily.Point, B := Family.Point, source := pulled.totalSpace, target := bundle.totalSpace].With[f := Pullback.map, continuous := Proper.continuous, proper := Proper.proper] \as Extended;
+\definition wholeModel: Relative.CompactPointed := Whole.model;
+\definition partModel: Relative.CompactPointed := Part.model;
+\import topology.Topology[Carrier := Range.Carrier] \as RangeSpace;
+\definition Subset: \Pow Range.Carrier := { p: Range.Carrier \where
+  (\induction (p: Range.Carrier) \return \Prop \with {
+    | none: Range.point = Range.point
+    | some: \fun (p: Family.Point) => Base.Member U p.base
+  }) p };
+\definition subsetClosed: RangeSpace.IsClosedIn Range.topology Subset := Range.Open[RangeSpace.Complement Subset] {
+  traceOpen := Original.projectionContinuous (Base.Complement U) closed,
+  atInfinity := \fun (outside: Logic.Not (Range.point = Range.point)) => Logic.falseElim _ (outside (\refl(Range.point)))
+};
+\definition containsPoint: RangeSpace.Member Subset Range.point := \refl(Range.point);
+\import RangeSpace.Subspace[S := Subset] \as Subspace;
+\definition Carrier: \Set := Subspace.CarrierSet;
+\definition topology: topology.Topology[Carrier := Carrier].Topology := Subspace.topology Range.topology;
+\definition imageModel: Relative.CompactPointed := Relative.pack Carrier (Relative.PointedDetails[Carrier] {
+  topology := topology,
+  compact := Subspace.Properties[].compact Range.topology (RangeSpace.Compactness[].closedCompact Range.topology (Relative.details Whole.model).compact Subset subsetClosed),
+  hausdorff := Subspace.Properties[].hausdorff Range.topology (Relative.details Whole.model).hausdorff,
+  point := \into[Range.Carrier](Range.point, Subset) \by { containsPoint }
+});
+\definition map: Relative.Map partModel wholeModel := \into[Domain.Carrier -> Range.Carrier](Extended.extension, Relative.Map partModel wholeModel) \by {
+  algebraic_topology.Pointed[A := Domain.Carrier].Maps[B := Range.Carrier].Laws[Relative.pointed partModel, Relative.pointed wholeModel, Extended.extension] {
+    continuous := Extended.extensionContinuous, pointed := Extended.atInfinity
+  }
+};
+\definition corestrict[p: Domain.Carrier]: Carrier := \into[Range.Carrier](Extended.extension p, Subset) \by {
+  (\induction (p: Domain.Carrier) \return RangeSpace.Member Subset (Extended.extension p) \with {
+    | none: containsPoint
+    | some: \fun (p: PulledFamily.Point) => \bysub(X, U, p.base)
+  }) p
+};
+\definition corestrictContinuous: topology.Continuity[A := Domain.Carrier, B := Carrier].Continuous Domain.topology topology corestrict :=
+  topology.Continuity[A := Domain.Carrier, B := Range.Carrier].Corestriction[S := Subset].corestrictContinuous Domain.topology Range.topology corestrict Extended.extensionContinuous;
+\definition corestrictPointed: Relative.Map partModel imageModel := \into[Domain.Carrier -> Carrier](corestrict, Relative.Map partModel imageModel) \by {
+  algebraic_topology.Pointed[A := Domain.Carrier].Maps[B := Carrier].Laws[Relative.pointed partModel, Relative.pointed imageModel, corestrict] {
+    continuous := corestrictContinuous, pointed := \refl(Range.point)
+  }
+};
+\module Bijection;
+\definition equivalence: Relative.Equivalence[source := partModel, target := imageModel].Data :=
+  Relative.Equivalence[source := partModel, target := imageModel].FromMap[f := corestrictPointed, injective := Bijection[].injective, onto := Bijection[].onto].equivalence;
+\definition imageInclusion: Relative.Map imageModel wholeModel := \into[Carrier -> Range.Carrier]((\fun (p: Carrier) => p), Relative.Map imageModel wholeModel) \by {
+  algebraic_topology.Pointed[A := Carrier].Maps[B := Range.Carrier].Laws[Relative.pointed imageModel, Relative.pointed wholeModel, (\fun (p: Carrier) => p)] {
+    continuous := topology.Continuity[A := Carrier, B := Range.Carrier].Corestriction[S := Subset].inclusionContinuous Range.topology,
+    pointed := \refl(Range.point)
+  }
+};
+\definition factorization: \forall (p: partModel.Carrier) -> imageInclusion (equivalence.forward p) = map p := \fun (p: partModel.Carrier) => \refl(map p);
+\definition injective: \forall (p, q: partModel.Carrier) -> map p = map q -> p = q := Bijection[].injective;
+\import topology.Maps[A := partModel.Carrier, B := wholeModel.Carrier] \as Image;
+\import topology.Topology[Carrier := partModel.Carrier] \as DomainSpace;
+\definition imageEquation: Image.Image map DomainSpace.Whole = Subset :=
+  \axiom:setext(Image.Image map DomainSpace.Whole, Subset,
+    \fun (q: wholeModel.Carrier)(member: _) => Image.imageElim map DomainSpace.Whole q (RangeSpace.Member Subset q)
+      (\fun (p: partModel.Carrier)(whole: _)(same: map p = q) => \idelim map p = q \with r: wholeModel.Carrier => RangeSpace.Member Subset r \by {
+        base: \bysub(Range.Carrier, Subset, corestrict p), equality: same
+      }) member,
+    \block {
+      \fun (q: wholeModel.Carrier)(inside: RangeSpace.Member Subset q) \then
+      \let r: Carrier := \into[Range.Carrier](q, Subset) \by { inside } \then
+      \takefrom p: \Cast[partModel.Carrier] ({ p: partModel.Carrier \where corestrict p = r }) \by Bijection[].onto r \then
+      \return Logic.existsIntro[partModel.Carrier, { p: partModel.Carrier \where Logic.And[DomainSpace.Member DomainSpace.Whole p, map p = q] }] p
+        (Logic.And[_, _]::# (\refl(p)) (\bysub(partModel.Carrier, { p: partModel.Carrier \where corestrict p = r }, p)))
+    });

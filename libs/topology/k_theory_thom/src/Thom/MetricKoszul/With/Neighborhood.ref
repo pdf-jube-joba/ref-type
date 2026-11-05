@@ -1,0 +1,96 @@
+\import topology.Topology[Carrier := Total] \as Ambient;
+\import Ambient.Finite[] \as Finite;
+\import Real.SquareRoot[] \as Root;
+\import D.Arithmetic[].Prop[] \as RealLaws;
+\import Real.Estimates[].Product[] \as Bounds;
+\import metric_spaces.RealLine[] \as Line;
+\import \root.Thom[].TotalSpace[X := X, F := F, bundle := bundle, compact := compact, hausdorff := hausdorff] \as TotalGeometry;
+\import compact_support_k.Support[].OnePoint[X := Total, space := bundle.totalSpace] \as OnePoint;
+\import compact_support_k.Support[].On[X := Total, space := bundle.totalSpace, hausdorff := TotalGeometry.separated, locallyCompact := TotalGeometry.locallyCompact].Neighborhood[K := Koszul.ZeroSection, compact := TotalGeometry.zeroCompact] \as Support;
+\import topology.Topology[Carrier := OnePoint.Carrier] \as Space;
+\definition ball: \Pow Total := { p: Total \where D.Lt (Geometry.norm p) Real.one };
+\definition disk: \Pow Total := Geometry.ClosedBall;
+\definition ballOpen: Ambient.IsOpenIn bundle.totalSpace ball := Geometry.normContinuous (Line.Rays[].Below Real.one) (Line.Rays[].belowOpen Real.one);
+\definition ballInDisk: Ambient.Subset ball disk := \fun (p: Total)(inside: _) =>
+  D.leReplace (Real.mul (Geometry.norm p) (Geometry.norm p)) (squared p) (Real.mul Real.one Real.one) Real.one
+    (Geometry.normSquared p) (RealLaws.fieldMulOneLeft Real.one)
+    (Root.squareMonotone (Geometry.norm p) Real.one (Geometry.normNonnegative p) RealLaws.oneNonnegative (D.Order[].leOfLt _ _ inside));
+\definition containsZero[p: Total][zero: Ambient.Member Koszul.ZeroSection p]: Ambient.Member ball p :=
+  D.ltReplaceLeft Real.zero (Geometry.norm p) Real.one
+    (sym!{Real.Real} _ _ (trans!{Real.Real} _ _ _
+      (congr!{Total Real.Real} Geometry.norm p (Family.include p.base (bundle.space p.base).zero)
+        (trans!{Total} _ _ _ (sym!{Total} _ _ (Family.eta p)) (congr!{{F p.base} Total} (Family.include p.base) _ _ zero)))
+      (Geometry.zeroNorm p.base))) Bounds.onePositive;
+\definition inner: \Pow OnePoint.Carrier := OnePoint.lift ball;
+\definition envelope: \Pow OnePoint.Carrier := OnePoint.lift disk;
+\definition traceEnvelope: OnePoint.trace (Space.Complement envelope) = Ambient.Complement disk :=
+  \axiom:setext(OnePoint.trace (Space.Complement envelope), Ambient.Complement disk,
+    \fun (p: Total)(outside: Ambient.Member (OnePoint.trace (Space.Complement envelope)) p) => outside,
+    \fun (p: Total)(outside: Ambient.Member (Ambient.Complement disk) p) => outside);
+\definition remainderEnvelope: OnePoint.remainder (Space.Complement envelope) = disk :=
+  trans!{\Pow Total} _ _ _ (congr!{{\Pow Total} {\Pow Total}} Ambient.Complement _ _ traceEnvelope) (Finite.doubleComplement disk);
+\definition envelopeClosed: Space.IsClosedIn OnePoint.topology envelope := OnePoint.Open[Space.Complement envelope] {
+  traceOpen := topology.Maps[A := Total, B := Total].openTransport bundle.totalSpace (Ambient.Complement disk) (OnePoint.trace (Space.Complement envelope)) (sym!{\Pow Total} _ _ traceEnvelope) Geometry.diskClosed,
+  atInfinity := \fun (outside: _) => \idelim disk = OnePoint.remainder (Space.Complement envelope) \with K: \Pow Total => Ambient.IsCompactIn bundle.totalSpace K \by {
+    base: diskCompact, equality: sym!{\Pow Total} _ _ remainderEnvelope
+  }
+};
+\import topology.Maps[A := Total, B := OnePoint.Carrier] \as Images;
+\definition witness: Support.Witness := Space.Urysohn[].ShrinkData[OnePoint.topology, Support.image, Support.finitePart] {
+  inner := inner, envelope := envelope,
+  innerOpen := OnePoint.liftOpen ball ballOpen,
+  envelopeClosed := envelopeClosed,
+  contains := \fun (p: OnePoint.Carrier)(member: _) => Images.imageElim OnePoint.inclusion Koszul.ZeroSection p (Space.Member inner p)
+    (\fun (q: Total)(zero: _)(same: OnePoint.inclusion q = p) => \idelim OnePoint.inclusion q = p \with z: OnePoint.Carrier => Space.Member inner z \by { base: containsZero q zero, equality: same }) member,
+  enclosed := \induction (p: OnePoint.Carrier) \return Space.Member inner p -> Space.Member envelope p \with {
+    | none: \fun (impossible: Logic.False) => Logic.falseElim (Space.Member envelope OnePoint.point) impossible
+    | some: \fun (p: Total)(inside: _) => ballInDisk p inside
+  },
+  within := \induction (p: OnePoint.Carrier) \return Space.Member envelope p -> Space.Member Support.finitePart p \with {
+    | none: \fun (impossible: Logic.False) => impossible
+    | some: \fun (p: Total)(inside: _) => \refl(p)
+  }
+};
+\definition openEquation: Support.With[w := witness].openSet = ball := OnePoint.liftTrace ball;
+\definition compactEquation: Support.With[w := witness].compactSet = disk := remainderEnvelope;
+\definition boundary[p: Geometry.DiskBundle][outside: Logic.Not (Ambient.Member ball p)]: squared p = Real.one := \block {
+  \let unit: Geometry.norm p = Real.one := D.leAntisym _ _ (Geometry.Radial[].diskNorm p) (D.Order[].leOfNotLtReverse Real.one (Geometry.norm p) outside) \then
+  \return trans!{Real.Real} _ _ _ (sym!{Real.Real} _ _ (Geometry.normSquared p))
+    (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real Real.Real} Real.mul _ _ _ _ unit unit) (RealLaws.fieldMulOneLeft Real.one))
+};
+\definition sphereOutside[p: Total][unit: squared p = Real.one]: Logic.Not (Ambient.Member ball p) :=
+  \fun (inside: _) => D.Order[].ltNotEq (Geometry.norm p) Real.one inside
+    (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} Root.sqrt _ _ unit) Root.sqrtOne);
+\definition boundarySet: \Pow Geometry.DiskBundle := { p: Geometry.DiskBundle \where Logic.Not (Ambient.Member ball p) };
+\definition boundaryEquation: boundarySet = Geometry.Boundary := \axiom:setext(boundarySet, Geometry.Boundary,
+  \fun (p: Geometry.DiskBundle)(outside: _) => boundary p outside,
+  \fun (p: Geometry.DiskBundle)(unit: _) => sphereOutside p unit);
+\definition squaredBall: \Pow Total := { p: Total \where D.Lt (squared p) Real.one };
+\definition squaredBallOpen: Ambient.IsOpenIn bundle.totalSpace squaredBall := squaredContinuous (Line.Rays[].Below Real.one) (Line.Rays[].belowOpen Real.one);
+\definition squaredZero[p: Total][zero: Ambient.Member Koszul.ZeroSection p]: squared p = Real.zero :=
+  trans!{Real.Real} _ _ _
+    (congr!{Total Real.Real} squared p (Family.include p.base (bundle.space p.base).zero)
+      (trans!{Total} _ _ _ (sym!{Total} _ _ (Family.eta p)) (congr!{{F p.base} Total} (Family.include p.base) _ _ zero)))
+    (Geometry.zeroSquared p.base);
+\definition containsSquaredZero[p: Total][zero: Ambient.Member Koszul.ZeroSection p]: Ambient.Member squaredBall p :=
+  D.ltReplaceLeft Real.zero (squared p) Real.one (sym!{Real.Real} _ _ (squaredZero p zero)) Bounds.onePositive;
+\definition squaredInner: \Pow OnePoint.Carrier := OnePoint.lift squaredBall;
+\definition squareWitness: Support.Witness := Space.Urysohn[].ShrinkData[OnePoint.topology, Support.image, Support.finitePart] {
+  inner := squaredInner, envelope := envelope,
+  innerOpen := OnePoint.liftOpen squaredBall squaredBallOpen,
+  envelopeClosed := envelopeClosed,
+  contains := \fun (p: OnePoint.Carrier)(member: _) => Images.imageElim OnePoint.inclusion Koszul.ZeroSection p (Space.Member squaredInner p)
+    (\fun (q: Total)(zero: _)(same: OnePoint.inclusion q = p) => \idelim OnePoint.inclusion q = p \with z: OnePoint.Carrier => Space.Member squaredInner z \by { base: containsSquaredZero q zero, equality: same }) member,
+  enclosed := \induction (p: OnePoint.Carrier) \return Space.Member squaredInner p -> Space.Member envelope p \with {
+    | none: \fun (impossible: Logic.False) => Logic.falseElim (Space.Member envelope OnePoint.point) impossible
+    | some: \fun (p: Total)(inside: D.Lt (squared p) Real.one) => D.Order[].leOfLt (squared p) Real.one inside
+  },
+  within := witness.within
+};
+\definition squareOpenEquation: Support.With[w := squareWitness].openSet = squaredBall := OnePoint.liftTrace squaredBall;
+\definition squareCompactEquation: Support.With[w := squareWitness].compactSet = disk := remainderEnvelope;
+\definition squareBoundarySet: \Pow Geometry.DiskBundle := { p: Geometry.DiskBundle \where Logic.Not (Ambient.Member squaredBall p) };
+\definition squareBoundaryEquation: squareBoundarySet = Geometry.Boundary := \axiom:setext(squareBoundarySet, Geometry.Boundary,
+  \fun (p: Geometry.DiskBundle)(outside: Logic.Not (D.Lt (squared p) Real.one)) =>
+    D.leAntisym (squared p) Real.one (\bysub(Total, disk, p)) (D.Order[].leOfNotLtReverse Real.one (squared p) outside),
+  \fun (p: Geometry.DiskBundle)(unit: squared p = Real.one)(inside: D.Lt (squared p) Real.one) => D.Order[].ltNotEq (squared p) Real.one inside unit);

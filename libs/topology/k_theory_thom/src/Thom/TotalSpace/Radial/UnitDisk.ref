@@ -1,0 +1,40 @@
+\definition RadialCarrier: \Set := Carrier;
+\definition radialTopology: topology.Topology[Carrier := RadialCarrier].Topology := topology;
+\definition radialHomeomorphism: topology.Homeomorphism[A := Family.Point, B := RadialCarrier].Homeomorphism[bundle.totalSpace, radialTopology] := homeomorphism;
+\import topology.Topology[Carrier := Disk.DiskBundle] \as DiskSpace;
+\definition Interior: \Pow Disk.DiskBundle := DiskSpace.Complement Disk.Boundary;
+\import DiskSpace.Subspace[S := Interior] \as Unit;
+\definition UnitCarrier: \Set := Unit.CarrierSet;
+\definition unitTopology: topology.Topology[Carrier := UnitCarrier].Topology := Unit.topology Disk.diskTopology;
+\import Real.SquareRoot[] \as Root;
+\definition bound[p: RadialCarrier]: D.Le (Disk.squared p) Real.one :=
+  D.leReplace (Real.mul (Disk.norm p) (Disk.norm p)) (Disk.squared p) (Real.mul Real.one Real.one) Real.one
+    (Disk.normSquared p) (Laws.fieldMulOneLeft Real.one)
+    (Root.squareMonotone (Disk.norm p) Real.one (Disk.normNonnegative p) Laws.oneNonnegative (D.Order[].leOfLt _ _ (\bysub(Family.Point, OpenBall, p))));
+\definition normOnBoundary[p: Family.Point][boundary: Disk.squared p = Real.one]: Disk.norm p = Real.one :=
+  trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} Root.sqrt _ _ boundary) Root.sqrtOne;
+\definition forward[p: RadialCarrier]: UnitCarrier :=
+  \into[Disk.DiskBundle]((\into[Family.Point](p, Disk.ClosedBall) \by { bound p }), Interior) \by {
+    \fun (boundary: Disk.squared p = Real.one) => D.Order[].ltNotEq (Disk.norm p) Real.one (\bysub(Family.Point, OpenBall, p)) (normOnBoundary p boundary)
+  };
+\definition inside[p: UnitCarrier]: D.Lt (Disk.norm p) Real.one := D.Order[].ltOfLeNotEq (Disk.norm p) Real.one (Disk.Radial[].diskNorm p)
+  (\fun (same: Disk.norm p = Real.one) => (\bysub(Disk.DiskBundle, Interior, p))
+    (trans!{Real.Real} _ _ _ (sym!{Real.Real} _ _ (Disk.normSquared p))
+      (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real Real.Real} Real.mul _ _ _ _ same same) (Laws.fieldMulOneLeft Real.one))));
+\definition backward[p: UnitCarrier]: RadialCarrier := \into[Family.Point](p, OpenBall) \by { inside p };
+\definition forwardContinuous: topology.Continuity[A := RadialCarrier, B := UnitCarrier].Continuous radialTopology unitTopology forward :=
+  topology.Continuity[A := RadialCarrier, B := Disk.DiskBundle].Corestriction[S := Interior].corestrictContinuous radialTopology Disk.diskTopology forward
+    (topology.Continuity[A := RadialCarrier, B := Family.Point].Corestriction[S := Disk.ClosedBall].corestrictContinuous radialTopology bundle.totalSpace forward
+      (topology.Continuity[A := RadialCarrier, B := Family.Point].Corestriction[S := OpenBall].inclusionContinuous bundle.totalSpace));
+\definition backwardContinuous: topology.Continuity[A := UnitCarrier, B := RadialCarrier].Continuous unitTopology radialTopology backward :=
+  topology.Continuity[A := UnitCarrier, B := Family.Point].Corestriction[S := OpenBall].corestrictContinuous unitTopology bundle.totalSpace backward
+    (topology.Composition[A := UnitCarrier, B := Disk.DiskBundle, C := Family.Point].composeContinuous unitTopology Disk.diskTopology bundle.totalSpace (\fun (p: UnitCarrier) => p) (\fun (p: Disk.DiskBundle) => p)
+      (topology.Continuity[A := UnitCarrier, B := Disk.DiskBundle].Corestriction[S := Interior].inclusionContinuous Disk.diskTopology)
+      (topology.Continuity[A := Disk.DiskBundle, B := Family.Point].Corestriction[S := Disk.ClosedBall].inclusionContinuous bundle.totalSpace));
+\definition comparison: topology.Homeomorphism[A := RadialCarrier, B := UnitCarrier].Homeomorphism[radialTopology, unitTopology] :=
+  topology.Homeomorphism[A := RadialCarrier, B := UnitCarrier].Homeomorphism[radialTopology, unitTopology] {
+    forward := forward, backward := backward, leftInverse := \fun (p: RadialCarrier) => \refl(p), rightInverse := \fun (p: UnitCarrier) => \refl(p),
+    forwardContinuous := forwardContinuous, backwardContinuous := backwardContinuous
+  };
+\definition unitHomeomorphism: topology.Homeomorphism[A := Family.Point, B := UnitCarrier].Homeomorphism[bundle.totalSpace, unitTopology] :=
+  topology.Homeomorphism[A := Family.Point, B := RadialCarrier].Composition[C := UnitCarrier].compose bundle.totalSpace radialTopology unitTopology radialHomeomorphism comparison;

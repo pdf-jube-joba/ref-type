@@ -1,0 +1,30 @@
+\import compact_support_k.Support[].Homeomorphic[A := Point.Total, B := Plane.Carrier,
+  source := Trivial.topology, target := Plane.topology, h := homeomorphism].Extension[] \as Extension;
+\import compact_support_k.Support[].OnePoint[X := Point.Total, space := Trivial.topology] \as SourcePlus;
+\import compact_support_k.Support[].OnePoint[X := Plane.Carrier, space := Plane.topology] \as PlanePlus;
+\import \root.Thom[].Isomorphism[].PlanarSphere[].Compactification[] \as Sphere;
+\definition laws: topology.Homeomorphism[A := SourcePlus.Carrier, B := PlanePlus.Carrier].Laws[SourcePlus.topology, PlanePlus.topology, Extension.homeomorphism] :=
+  topology.Homeomorphism[A := SourcePlus.Carrier, B := PlanePlus.Carrier].laws SourcePlus.topology PlanePlus.topology Extension.homeomorphism;
+\import algebraic_topology.Pointed[A := Point.model.Carrier].Maps[B := Sphere.model.Carrier] \as Forward;
+\import algebraic_topology.Pointed[A := Sphere.model.Carrier].Maps[B := Point.model.Carrier] \as Backward;
+\definition forward: Relative.Map Point.model Sphere.model := \into[SourcePlus.Carrier -> PlanePlus.Carrier](Extension.homeomorphism.forward, Relative.Map Point.model Sphere.model) \by {
+  Forward.Laws[Relative.pointed Point.model, Relative.pointed Sphere.model, Extension.homeomorphism.forward] {
+    continuous := laws.forwardContinuous, pointed := \refl(PlanePlus.point)
+  }
+};
+\definition backward: Relative.Map Sphere.model Point.model := \into[PlanePlus.Carrier -> SourcePlus.Carrier](Extension.homeomorphism.backward, Relative.Map Sphere.model Point.model) \by {
+  Backward.Laws[Relative.pointed Sphere.model, Relative.pointed Point.model, Extension.homeomorphism.backward] {
+    continuous := laws.backwardContinuous, pointed := \refl(SourcePlus.point)
+  }
+};
+\definition planeEquivalence: Relative.Equivalence[source := Point.model, target := Sphere.model].Data :=
+  Relative.Equivalence[source := Point.model, target := Sphere.model].Data {
+    forward := forward, backward := backward, leftInverse := Extension.leftInverse, rightInverse := Extension.rightInverse
+  };
+\import \root.Thom[].Isomorphism[].PlanarSphere[] \as SphereModel;
+\import Relative.Equivalence[source := Point.model, target := SphereModel.sphere].Compose[middle := Sphere.model,
+  first := planeEquivalence, second := Sphere.equivalence] \as Comparison;
+\definition equivalence: Relative.Equivalence[source := Point.model, target := SphereModel.sphere].Data := Comparison.result;
+\definition onFinite: \forall (p: Point.Total) -> equivalence.forward (SourcePlus.inclusion p) =
+  SphereModel.Forward[].map (\root.Thom[].Isomorphism[].LinePlane[].forward p) :=
+  \fun (p: Point.Total) => Sphere.onFinite (\root.Thom[].Isomorphism[].LinePlane[].forward p);

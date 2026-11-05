@@ -1,0 +1,26 @@
+\import N.Basic[].Prop[] \as Naturals;
+\definition one: N.Nat^ := N.Nat^::succ N.Nat^::zero;
+\import Shuffle.Graded[p := p, q := one] \as Graded;
+\definition swap: \forall (b, f: Shuffle.Function) -> Shuffle.Homogeneous p f -> Shuffle.Homogeneous one b ->
+  Shuffle.product b f = Shuffle.scale (Sign.value p) (Shuffle.product f b) :=
+  \fun (b, f: Shuffle.Function)(hf: Shuffle.Homogeneous p f)(hb: Shuffle.Homogeneous one b) =>
+    \axiom:funext(Shuffle.product b f, Shuffle.scale (Sign.value p) (Shuffle.product f b), \fun (xs: Lists.List[Total]) =>
+      trans!{{C.Complex}} _ _ _ (Graded.commutative f b hf hb xs)
+        (congr!{{C.Complex} {C.Complex}} (\fun (s: C.Complex) => Op.mul s (Shuffle.product f b xs)) _ _
+          (congr!{{N.Nat^} {C.Complex}} Sign.value _ _ (Naturals.mulOneRight p))));
+\definition second: \forall (b, f, g: Shuffle.Function) -> Shuffle.Homogeneous p f -> Shuffle.Homogeneous one b ->
+  \forall (xs: Lists.List[Total]) -> Shuffle.product b (Shuffle.product f g) xs =
+    Op.mul (Sign.value p) (Shuffle.product f (Shuffle.product b g) xs) :=
+  \fun (b, f, g: Shuffle.Function)(hf: Shuffle.Homogeneous p f)(hb: Shuffle.Homogeneous one b)(xs: Lists.List[Total]) =>
+    trans!{{C.Complex}} _ _ _ (sym!{{C.Complex}} _ _ (Products.associative xs b f g))
+      (trans!{{C.Complex}} _ _ _
+        (congr!{{Shuffle.Function} {C.Complex}} (\fun (a: Shuffle.Function) => Shuffle.product a g xs) _ _ (swap b f hf hb))
+        (trans!{{C.Complex}} _ _ _ (Products.scalarLeft (Sign.value p) (Shuffle.product f b) g xs)
+          (congr!{{C.Complex} {C.Complex}} (Op.mul (Sign.value p)) _ _ (Products.associative xs f b g))));
+\definition equation: \forall (a, b, f, g: Shuffle.Function) -> Shuffle.Homogeneous p f -> Shuffle.Homogeneous one b ->
+  \forall (xs: Lists.List[Total]) -> Shuffle.product (Shuffle.plus a b) (Shuffle.product f g) xs =
+    Op.add (Shuffle.product (Shuffle.product a f) g xs) (Op.mul (Sign.value p) (Shuffle.product f (Shuffle.product b g) xs)) :=
+  \fun (a, b, f, g: Shuffle.Function)(hf: Shuffle.Homogeneous p f)(hb: Shuffle.Homogeneous one b)(xs: Lists.List[Total]) =>
+    trans!{{C.Complex}} _ _ _ (Products.additiveLeft a b (Shuffle.product f g) xs)
+      (congr!{{C.Complex} {C.Complex} {C.Complex}} Op.add _ _ _ _
+        (sym!{{C.Complex}} _ _ (Products.associative xs a f g)) (second b f g hf hb xs));

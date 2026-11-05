@@ -1,0 +1,80 @@
+\import \parent.At[c := c] \as Coefficients;
+\import LocalClass.With[contraction := c] \as Chosen;
+\import \parent.\parent.GeometryProof[] \as Geometry;
+\import \root.Thom[].Isomorphism[].NegativeNormalization[].Disk[] \as TargetDisk;
+\import \root.Thom[].Isomorphism[].NegativeNormalization[].Disk[].Boundary[] \as TargetBoundary;
+\import D2.Compactness[] \as CompactDisk;
+\import Relative.Pair[X := D2.Disk, space := D2.diskTopology, compact := CompactDisk.compact, hausdorff := TargetDisk.diskHausdorff,
+  subset := TargetDisk.boundary, closed := TargetDisk.boundaryClosed] \as TargetPair;
+\definition preserves: \forall (p: Local.Carrier) -> \In[Local.Carrier] Local.boundary p -> \In[D2.Disk] TargetDisk.boundary (g p) :=
+  \fun (p: Local.Carrier)(edge: \In[Local.Carrier] Local.boundary p) => trans!{{Real.Real}} _ _ _
+    (congr!{{D2.Disk} {Real.Real}} (\fun (v: D2.Disk) => D2.normSquared v) _ _ (Geometry.gBoundary (\into[Local.Carrier](p, Local.boundary) \by { edge })))
+    (Geometry.hBoundary (\into[Local.Carrier](p, Local.boundary) \by { edge }));
+\import TargetPair.Mapping[Y := Local.Carrier, source := Local.topology, sourceCompact := Local.compact, sourceHausdorff := Local.separated,
+  sourceSubset := Local.boundary, sourceClosed := Local.boundaryClosed, f := g, regular := Geometry.gContinuous, preserves := preserves] \as Mapping;
+\import Bundles.Trivial[X := D2.Disk, n := one, baseSpace := D2.diskTopology] \as TargetTrivial;
+\import TargetPair.BundleModel[F := (\fun (p: D2.Disk) => Bundles.Vector one)].From[original := TargetTrivial.bundle, same := \refl(D2.diskTopology)] \as TargetModel;
+\import Mapping.BundleTriples[F := (\fun (p: D2.Disk) => Bundles.Vector one), G := (\fun (p: D2.Disk) => Bundles.Vector one),
+  firstModel := TargetModel.model, secondModel := TargetModel.model] \as MappedBundles;
+\import MappedBundles.With[alpha := TargetDisk.inverseComparison] \as Mapped;
+\import Bundles.Trivial[X := Point.Total, n := one, baseSpace := Trivial.topology] \as GlobalOne;
+\import Bundles.Trivial[X := Local.Carrier, n := one, baseSpace := Local.topology] \as LocalOne;
+\import bundle_complements.Complements[].Over[K := C.Complex, field := C.Algebra[].field,
+  conjugation := linear_algebra.Hermitian[].Complex[].scalar, scalar := Scalars.scalar] \as Complements;
+\import Complements.PulledIsomorphism[X := Point.Total, Y := Local.Carrier, F := Chain.Even,
+  G := (\fun (p: Point.Total) => Bundles.Vector one), source := Chain.even, target := GlobalOne.bundle,
+  base := Local.topology, f := Local.inclusion, sourceRegular := Local.regular, targetRegular := Local.regular] \as EvenPull;
+\import Complements.PulledIsomorphism[X := Point.Total, Y := Local.Carrier, F := Chain.Odd,
+  G := (\fun (p: Point.Total) => Bundles.Vector one), source := Chain.odd, target := GlobalOne.bundle,
+  base := Local.topology, f := Local.inclusion, sourceRegular := Local.regular, targetRegular := Local.regular] \as OddPull;
+\import Operations.TrivialPullback[X := Point.Total, Y := Local.Carrier, n := one, original := Trivial.topology,
+  base := Local.topology, f := Local.inclusion, regular := Local.regular] \as LocalPull;
+\import Operations.TrivialPullback[X := D2.Disk, Y := Local.Carrier, n := one, original := D2.diskTopology,
+  base := Local.topology, f := g, regular := Geometry.gContinuous] \as TargetPull;
+\import Bundles.Isomorphisms[X := Local.Carrier, F := (\fun (p: Local.Carrier) => Bundles.Vector one),
+  G := (\fun (p: Local.Carrier) => Bundles.Vector one), source := TargetPull.pulled, target := LocalOne.bundle] \as Reverse;
+\import Bundles.Family[X := Point.Total, F := Chain.Even].Of[bundle := Chain.even].Restriction[U := Neighbor.compactSet] \as First;
+\import Bundles.Family[X := Point.Total, F := Chain.Odd].Of[bundle := Chain.odd].Restriction[U := Neighbor.compactSet] \as Second;
+\import Operations.IsomorphismComposition[X := Local.Carrier, F := LocalClass.FirstFiber,
+  G := (\fun (p: Local.Carrier) => Bundles.Vector one), H := (\fun (p: Local.Carrier) => Bundles.Vector one),
+  source := First.restricted, middle := LocalPull.pulled, target := LocalOne.bundle] \as PositiveStart;
+\import Operations.IsomorphismComposition[X := Local.Carrier, F := LocalClass.SecondFiber,
+  G := (\fun (p: Local.Carrier) => Bundles.Vector one), H := (\fun (p: Local.Carrier) => Bundles.Vector one),
+  source := Second.restricted, middle := LocalPull.pulled, target := LocalOne.bundle] \as NegativeStart;
+\import Operations.IsomorphismComposition[X := Local.Carrier, F := LocalClass.FirstFiber,
+  G := (\fun (p: Local.Carrier) => Bundles.Vector one), H := MappedBundles.FirstFiber,
+  source := First.restricted, middle := LocalOne.bundle, target := MappedBundles.firstBundle] \as PositiveFinish;
+\import Operations.IsomorphismComposition[X := Local.Carrier, F := LocalClass.SecondFiber,
+  G := (\fun (p: Local.Carrier) => Bundles.Vector one), H := MappedBundles.SecondFiber,
+  source := Second.restricted, middle := LocalOne.bundle, target := MappedBundles.secondBundle] \as NegativeFinish;
+\definition positive: Bundles.Isomorphisms[X := Local.Carrier, F := LocalClass.FirstFiber, G := MappedBundles.FirstFiber,
+  source := First.restricted, target := MappedBundles.firstBundle].Isomorphism :=
+  PositiveFinish.compose (PositiveStart.compose (EvenPull.isomorphism Forms.positive) LocalPull.isomorphism) (Reverse.inverse TargetPull.isomorphism);
+\definition negative: Bundles.Isomorphisms[X := Local.Carrier, F := LocalClass.SecondFiber, G := MappedBundles.SecondFiber,
+  source := Second.restricted, target := MappedBundles.secondBundle].Isomorphism :=
+  NegativeFinish.compose (NegativeStart.compose (OddPull.isomorphism Forms.negative) LocalPull.isomorphism) (Reverse.inverse TargetPull.isomorphism);
+\definition targetBoundary[p: Pair.A]: TargetPair.A := \into[D2.Disk](g p, TargetDisk.boundary) \by {
+  preserves p (\bysub(Local.Carrier, Local.boundary, p))
+};
+\definition scalarAction: \forall (p: Pair.A)(v: Bundles.Vector one) ->
+  (Mapped.comparison.forward.fiber p).apply v = (Bundles.coordinates one).smul (C.Def[].inv (TotalCoordinates.forward p)) v :=
+  \fun (p: Pair.A)(v: Bundles.Vector one) => trans!{{Bundles.Vector one}} _ _ _ (TargetBoundary.action (targetBoundary p) v)
+    (congr!{{C.Complex} {Bundles.Vector one}} (\fun (a: C.Complex) => (Bundles.coordinates one).smul (C.Def[].inv a) v) _ _ (Geometry.gCoordinatesOnBoundary p));
+\definition commutes: \forall (p: Pair.A)(v: LocalClass.FirstFiber p) ->
+  (Mapped.comparison.forward.fiber p).apply ((positive.forward.fiber p).apply v) =
+    (negative.forward.fiber p).apply ((Chosen.comparison.forward.fiber p).apply v) :=
+  \fun (p: Pair.A)(v: LocalClass.FirstFiber p) => trans!{{Bundles.Vector one}} _ _ _
+    (scalarAction p ((Forms.positive.forward.fiber p).apply v)) (sym!{{Bundles.Vector one}} _ _ (Coefficients.coefficient p v));
+\import Pair.BundleTriples[F := LocalClass.FirstFiber, G := LocalClass.SecondFiber,
+  firstModel := LocalClass.firstOnLocal, secondModel := LocalClass.secondOnLocal].To[
+  H := MappedBundles.FirstFiber, I := MappedBundles.SecondFiber,
+  newFirstModel := MappedBundles.firstModelOnSource, newSecondModel := MappedBundles.secondModelOnSource].With[
+  alpha := Chosen.comparison, beta := Mapped.comparison, positive := positive, negative := negative, commutes := commutes] \as Change;
+\definition equation: Chosen.localValue = Mapping.relative TargetDisk.diskBeta :=
+  trans!{{Quotient.Relative}} _ _ _ Change.reducedEquation
+    (trans!{{Quotient.Relative}} _ _ _ Mapped.reducedNaturality
+      (congr!{{TargetPair.Quotient[].Relative} {Quotient.Relative}} Mapping.relative _ _ TargetDisk.generatorEquation));
+\definition target: Relative.CompactPointed := TargetPair.Quotient[].model;
+\definition map: Relative.Map Quotient.model target := Mapping.quotientMap;
+\definition pull: Relative.Reduced[model := target].Carrier -> Quotient.Relative := Mapping.relative;
+\definition onProjection: \forall (p: Local.Carrier) -> map (Quotient.projection p) = TargetPair.Quotient[].projection (g p) := Mapping.onProjection;

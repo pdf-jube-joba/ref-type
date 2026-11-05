@@ -1,0 +1,39 @@
+\import Relative.Negative[original := ambient, degree := degree] \as Ambient;
+\import Relative.Negative[original := model, degree := degree] \as Union;
+\import Relative.Negative[original := secondModel, degree := degree] \as SecondK;
+\import Relative.Negative[original := MV.secondModel, degree := degree] \as TraceK;
+\import Relative.NegativeMap[source := model, target := ambient, f := j, degree := degree] \as Restriction;
+\import Relative.NegativeMap[source := secondModel, target := ambient, f := secondInclusion, degree := degree] \as SecondPull;
+\import Relative.Equivalence[source := MV.secondModel, target := secondModel].With[e := secondEquivalence].Negative[degree := degree] \as Change;
+\import Relative.Composition[source := MV.secondModel, middle := secondModel, target := ambient,
+  first := secondMap, second := secondInclusion] \as Composite;
+\import Extension.Equations[degree := degree] \as Equations;
+\import Relative.Composition[source := MV.secondModel, middle := model, target := ambient,
+  first := MV.secondInclusion, second := j] \as WholeSecond;
+\definition same: Composite.map = WholeSecond.map :=
+  \axiom:funext(Composite.map, WholeSecond.map, \fun (x: MV.secondModel.Carrier) => \refl(j (MV.secondInclusion x)));
+\definition comparison[v: Ambient.Carrier]: Change.forward (SecondPull.map v) = Equations.secondPull v :=
+  trans!{{TraceK.Carrier}} _ _ _
+    (congr!{{SecondK.Carrier} {TraceK.Carrier}} (\fun (w: SecondK.Carrier) => Change.forward w) _ _ (\refl(SecondPull.map v)))
+    (trans!{{TraceK.Carrier}} _ _ _
+      (congr!{{SecondK.Carrier -> TraceK.Carrier} {TraceK.Carrier}}
+        (\fun (f: SecondK.Carrier -> TraceK.Carrier) => f (SecondPull.map v)) _ _ Change.forwardEquality)
+      (trans!{{TraceK.Carrier}} _ _ _
+        (sym!{{TraceK.Carrier}} _ _ (Composite.Negative[degree := degree].equation v))
+        (Extension.change degree MV.secondModel ambient Composite.map WholeSecond.map same v)));
+\definition liftSecond:
+  (\forall (v: SecondK.Carrier) -> \exists (a: Ambient.Carrier \where SecondPull.map a = v)) ->
+  \forall (v: TraceK.Carrier) -> \exists (a: Ambient.Carrier \where Equations.secondPull a = v) := \block {
+    \fun (onto: _)(v: TraceK.Carrier) \then
+    \takefrom a: \Cast[Ambient.Carrier] ({ a: Ambient.Carrier \where SecondPull.map a = Change.backward v }) \by onto (Change.backward v) \then
+    \return Logic.existsIntro[Ambient.Carrier, { a: Ambient.Carrier \where Equations.secondPull a = v }] a
+      (trans!{{TraceK.Carrier}} _ _ _ (sym!{{TraceK.Carrier}} _ _ (comparison a))
+        (trans!{{TraceK.Carrier}} _ _ _
+          (congr!{{SecondK.Carrier} {TraceK.Carrier}} Change.forward _ _
+            (\bysub(Ambient.Carrier, { a: Ambient.Carrier \where SecondPull.map a = Change.backward v }, a)))
+          (Change.leftInverse v)))
+};
+\definition surjective:
+  (\forall (v: SecondK.Carrier) -> \exists (a: Ambient.Carrier \where SecondPull.map a = v)) ->
+  \forall (v: Union.Carrier) -> \exists (a: Ambient.Carrier \where Restriction.map a = v) :=
+  \fun (onto: _) => Extension.At[degree := degree].surjective (liftSecond onto);

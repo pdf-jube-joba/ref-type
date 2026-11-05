@@ -1,0 +1,21 @@
+\definition model[base: Relative.CompactPointed][n: N.Nat^]: Relative.CompactPointed :=
+  Relative.Smash[left := base, right := \root.Thom[].Isomorphism[].Point[n := n].model].result;
+\definition Carrier[base: Relative.CompactPointed][n: N.Nat^]: \Set := Relative.Reduced[model := model base n].Carrier;
+\definition group[base: Relative.CompactPointed][n: N.Nat^]: std.Alg[].Alg[].CommutativeGroup[Carrier base n] := Relative.Reduced[model := model base n].group;
+\definition Data[base: Relative.CompactPointed][n: N.Nat^]: \Set := Periodicity.Isomorphism[A := Relative.Reduced[model := base].Carrier,
+  B := Carrier base n, source := Relative.Reduced[model := base].group, target := group base n].Data;
+\structure State[n: N.Nat^]: \Set(1) := {
+  data: \forall (base: Relative.CompactPointed) -> Data base n,
+  product: \forall (base: Relative.CompactPointed)(a: Relative.Reduced[model := base].Carrier) ->
+    (data base).forward a = Relative.Smash[left := base, right := \root.Thom[].Isomorphism[].Point[n := n].model].External[].product
+      a \root.Thom[].Isomorphism[].Point[n := n].thom
+};
+\definition initial: State[N.Nat^::zero] := State[N.Nat^::zero] {
+  data := \fun (base: Relative.CompactPointed) => \root.Thom[].Isomorphism[].ExternalZero[base := base].isomorphism,
+  product := \fun (base: Relative.CompactPointed)(a: Relative.Reduced[model := base].Carrier) => \root.Thom[].Isomorphism[].ExternalZero[base := base].forwardProduct a
+};
+\module Step(n: N.Nat^, previous: State[n]);
+\definition state: \forall (n: N.Nat^) -> State[n] := \induction (n: N.Nat^) \return State[n] \with {
+  | zero: initial
+  | succ: \fun (n: N.Nat^)(previous: State[n]) => Step[n := n, previous := previous].state
+};

@@ -1,0 +1,40 @@
+\import topology.Homeomorphism[A := Total, B := Product.CarrierSet].Composition[C := External.Carrier] \as Compose;
+\definition interiorHomeomorphism: topology.Homeomorphism[A := Total, B := External.Carrier].Homeomorphism[totalSpace, External.topology] :=
+  Compose.compose totalSpace productTopology External.topology homeomorphism Coordinates.homeomorphism;
+\import Support.Homeomorphic[A := Total, B := External.Carrier, source := totalSpace, target := External.topology, h := interiorHomeomorphism].Extension[] \as Extension;
+\import Support.OnePoint[X := External.Carrier, space := External.topology] \as Range;
+\import algebraic_topology.Pointed[A := NativePoints.Carrier].Maps[B := Range.Carrier] \as Forward;
+\import algebraic_topology.Pointed[A := Range.Carrier].Maps[B := NativePoints.Carrier] \as Backward;
+\definition direct: Relative.Map model Complement.model := \into[NativePoints.Carrier -> Range.Carrier](Extension.homeomorphism.forward, Relative.Map model Complement.model) \by {
+  Forward.Laws[Relative.pointed model, Relative.pointed Complement.model, Extension.homeomorphism.forward] {
+    continuous := Extension.homeomorphism.forwardContinuous, pointed := \refl(Range.point)
+  }
+};
+\definition reverse: Relative.Map Complement.model model := \into[Range.Carrier -> NativePoints.Carrier](Extension.homeomorphism.backward, Relative.Map Complement.model model) \by {
+  Backward.Laws[Relative.pointed Complement.model, Relative.pointed model, Extension.homeomorphism.backward] {
+    continuous := Extension.homeomorphism.backwardContinuous, pointed := \refl(NativePoints.point)
+  }
+};
+\definition compactified: Relative.Equivalence[source := model, target := Complement.model].Data := Relative.Equivalence[source := model, target := Complement.model].Data {
+  forward := direct, backward := reverse, leftInverse := Extension.leftInverse, rightInverse := Extension.rightInverse
+};
+\import Relative.Equivalence[source := model, target := externalModel].Compose[middle := Complement.model, first := compactified,
+  second := Relative.Equivalence[source := externalModel, target := Complement.model].inverse Complement.equivalence] \as Comparison;
+\definition equivalence: Relative.Equivalence[source := model, target := externalModel].Data := Comparison.result;
+\definition onFinite: \forall (p: Total) -> equivalence.forward (NativePoints.inclusion p) = externalMap (NativePoints.inclusion p) :=
+  \fun (p: Total) => trans!{{externalModel.Carrier}} _ _ _
+    (Complement.backwardOnInterior (Coordinates.forward (forward p))) (sym!{{externalModel.Carrier}} _ _ (externalOnFinite p));
+\definition maps: equivalence.forward = externalMap := \axiom:funext(equivalence.forward, externalMap,
+  \induction (p: NativePoints.Carrier) \return equivalence.forward p = externalMap p \with {
+    | none: trans!{{externalModel.Carrier}} _ _ _
+      ((algebraic_topology.Pointed[A := model.Carrier].Maps[B := externalModel.Carrier].laws (Relative.pointed model) (Relative.pointed externalModel) equivalence.forward).pointed)
+      (sym!{{externalModel.Carrier}} _ _ ((algebraic_topology.Pointed[A := model.Carrier].Maps[B := externalModel.Carrier].laws (Relative.pointed model) (Relative.pointed externalModel) externalMap).pointed))
+    | some: onFinite
+  });
+\definition value: Relative.Equivalence[source := model, target := externalModel].Data := Relative.Equivalence[source := model, target := externalModel].Data {
+  forward := externalMap, backward := equivalence.backward,
+  leftInverse := \fun (p: model.Carrier) => trans!{{model.Carrier}} _ _ _
+    (congr!{{Relative.Map model externalModel} {model.Carrier}} (\fun (f: Relative.Map model externalModel) => equivalence.backward (f p)) _ _ (sym!{{Relative.Map model externalModel}} _ _ maps)) (equivalence.leftInverse p),
+  rightInverse := \fun (p: externalModel.Carrier) => trans!{{externalModel.Carrier}} _ _ _
+    (congr!{{Relative.Map model externalModel} {externalModel.Carrier}} (\fun (f: Relative.Map model externalModel) => f (equivalence.backward p)) _ _ (sym!{{Relative.Map model externalModel}} _ _ maps)) (equivalence.rightInverse p)
+};

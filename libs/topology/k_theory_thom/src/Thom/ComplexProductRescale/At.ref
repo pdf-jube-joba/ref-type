@@ -1,0 +1,43 @@
+\definition forward: Forward.Map := ForwardOperations.plus c.d (ForwardOperations.scale t Normal.k);
+\definition backward: Backward.Map := BackwardOperations.plus c.e (BackwardOperations.scale t Normal.h);
+\definition evenTotal[v: V]: even.add (c.e.apply (Normal.k.apply v)) (Normal.h.apply (c.d.apply v)) = v :=
+  trans!{V} _ _ _ (congr!{V V V} even.add _ _ _ _ (Normal.eK v) (Normal.hD v)) (Normal.laws.even v);
+\definition oddTotal[w: W]: odd.add (c.d.apply (Normal.h.apply w)) (Normal.k.apply (c.e.apply w)) = w :=
+  trans!{W} _ _ _ (congr!{W W W} odd.add _ _ _ _ (Normal.dH w) (Normal.kE w)) (Normal.laws.odd w);
+\definition left: \forall (v: V) -> backward.apply (forward.apply v) = even.smul t v :=
+  \fun (v: V) => trans!{V} _ _ _
+    (congr!{V V V} even.add _ _ _ _
+      (c.e.preservesAdd (c.d.apply v) (odd.smul t (Normal.k.apply v)))
+      (congr!{V V} (even.smul t) _ _ (Normal.h.preservesAdd (c.d.apply v) (odd.smul t (Normal.k.apply v)))))
+    (trans!{V} _ _ _
+      (congr!{V V V} even.add _ _ _ _
+        (congr!{V V V} even.add _ _ _ _ (Normal.laws.squareEven v) (c.e.preservesScale t (Normal.k.apply v)))
+        (congr!{V V} (even.smul t) _ _ (congr!{V V V} even.add _ _ _ _ (\refl(Normal.h.apply (c.d.apply v)))
+          (trans!{V} _ _ _ (Normal.h.preservesScale t (Normal.k.apply v))
+            (trans!{V} _ _ _ (congr!{V V} (even.smul t) _ _ (Normal.squareEven v)) (EvenLaws.scaleZero t))))))
+      (trans!{V} _ _ _
+        (congr!{V V V} even.add _ _ _ _
+          (EvenLaws.zeroLeft (even.smul t (c.e.apply (Normal.k.apply v))))
+          (congr!{V V} (even.smul t) _ _ (EvenLaws.zeroRight (Normal.h.apply (c.d.apply v)))))
+        (trans!{V} _ _ _
+          (sym!{V} _ _ (even.vectorAdd t (c.e.apply (Normal.k.apply v)) (Normal.h.apply (c.d.apply v))))
+          (congr!{V V} (even.smul t) _ _ (evenTotal v)))));
+\definition right: \forall (w: W) -> forward.apply (backward.apply w) = odd.smul t w :=
+  \fun (w: W) => trans!{W} _ _ _
+    (congr!{W W W} odd.add _ _ _ _
+      (c.d.preservesAdd (c.e.apply w) (even.smul t (Normal.h.apply w)))
+      (congr!{W W} (odd.smul t) _ _ (Normal.k.preservesAdd (c.e.apply w) (even.smul t (Normal.h.apply w)))))
+    (trans!{W} _ _ _
+      (congr!{W W W} odd.add _ _ _ _
+        (congr!{W W W} odd.add _ _ _ _ (Normal.laws.squareOdd w) (c.d.preservesScale t (Normal.h.apply w)))
+        (congr!{W W} (odd.smul t) _ _ (congr!{W W W} odd.add _ _ _ _ (\refl(Normal.k.apply (c.e.apply w)))
+          (trans!{W} _ _ _ (Normal.k.preservesScale t (Normal.h.apply w))
+            (trans!{W} _ _ _ (congr!{W W} (odd.smul t) _ _ (Normal.squareOdd w)) (OddLaws.scaleZero t))))))
+      (trans!{W} _ _ _
+        (congr!{W W W} odd.add _ _ _ _
+          (OddLaws.zeroLeft (odd.smul t (c.d.apply (Normal.h.apply w))))
+          (congr!{W W} (odd.smul t) _ _ (OddLaws.zeroRight (Normal.k.apply (c.e.apply w)))))
+        (trans!{W} _ _ _
+          (sym!{W} _ _ (odd.vectorAdd t (c.d.apply (Normal.h.apply w)) (Normal.k.apply (c.e.apply w))))
+          (congr!{W W} (odd.smul t) _ _ (oddTotal w)))));
+\module Invertible(nonzero: Scalar.NonZero t);

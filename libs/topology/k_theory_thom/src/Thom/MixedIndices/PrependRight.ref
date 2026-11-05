@@ -1,0 +1,29 @@
+\import \parent.AllParts[] \as Parts;
+\definition all: All.Holds (\fun (i: Fin.Fin Indices.total) => Naturals.Lt (Indices.right b) i) (joined tail.left tail.right) :=
+  \idelim xs = joined tail.left tail.right \with ys: Lists.List[Fin.Fin Indices.total] =>
+    All.Holds (\fun (i: Fin.Fin Indices.total) => Naturals.Lt (Indices.right b) i) ys \by {
+    base: above, equality: sym!{{Lists.List[Fin.Fin Indices.total]}} _ _ tail.equation
+  };
+\definition noLeft: \forall (left: Lists.List[Fin.Fin n])(right: Lists.List[Fin.Fin m]) ->
+  All.Holds (\fun (i: Fin.Fin Indices.total) => Naturals.Lt (Indices.right b) i) (joined left right) -> left = Lists.List[Fin.Fin n]::nil :=
+  \induction (left: Lists.List[Fin.Fin n]) \return \forall (right: Lists.List[Fin.Fin m]) ->
+    All.Holds (\fun (i: Fin.Fin Indices.total) => Naturals.Lt (Indices.right b) i) (joined left right) -> left = Lists.List[Fin.Fin n]::nil \with {
+      | nil: \fun (right: _)(all: _) => \refl(Lists.List[Fin.Fin n]::nil)
+      | cons: \fun (a: Fin.Fin n)(left: Lists.List[Fin.Fin n])(previous: _)(right: Lists.List[Fin.Fin m])(all: All.Holds (\fun (i: Fin.Fin Indices.total) => Naturals.Lt (Indices.right b) i) (joined (Lists.List[Fin.Fin n]::cons a left) right)) =>
+        Logic.falseElim _ (Naturals.ltIrrefl (Indices.right b) (NatOrder.ltTrans (Indices.right b) a (Indices.right b)
+          all.left (Naturals.ltLeTrans a n (Indices.right b) (Fin.bound n a) (Indices.rightAbove b))))
+    };
+\definition empty: tail.left = Lists.List[Fin.Fin n]::nil := noLeft tail.left tail.right all;
+\definition rightEquation: Lists.map (Fin.Fin m) (Fin.Fin Indices.total) Indices.right tail.right = xs :=
+  trans!{{Lists.List[Fin.Fin Indices.total]}} _ _ _
+    (sym!{{Lists.List[Fin.Fin Indices.total]}} _ _ (congr!{{Lists.List[Fin.Fin n]} {Lists.List[Fin.Fin Indices.total]}} (\fun (left: Lists.List[Fin.Fin n]) => joined left tail.right) _ _ empty)) tail.equation;
+\definition increasing: RightAll.Holds (\fun (c: Fin.Fin m) => Naturals.Lt b c) tail.right :=
+  RightAll.transform (\fun (c: Fin.Fin m) => Naturals.Lt (Indices.right b) (Indices.right c)) (\fun (c: Fin.Fin m) => Naturals.Lt b c) tail.right
+    (\fun (c: Fin.Fin m)(less: _) => NatOrder.ltCancelRight b c n less)
+    (Parts.rightAbove (Indices.right b) tail.left tail.right all);
+\definition result: Split (Lists.List[Fin.Fin Indices.total]::cons (Indices.right b) xs) := Split[Lists.List[Fin.Fin Indices.total]::cons (Indices.right b) xs] {
+  left := Lists.List[Fin.Fin n]::nil, right := Lists.List[Fin.Fin m]::cons b tail.right,
+  equation := congr!{{Lists.List[Fin.Fin Indices.total]} {Lists.List[Fin.Fin Indices.total]}} (Lists.List[Fin.Fin Indices.total]::cons (Indices.right b)) _ _ rightEquation,
+  leftIncreasing := Logic.True::intro,
+  rightIncreasing := Logic.And[_, _] { left := increasing, right := tail.rightIncreasing }
+};

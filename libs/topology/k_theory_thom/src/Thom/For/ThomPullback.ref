@@ -1,0 +1,37 @@
+\import \root.Thom[].For[X := X, F := F, bundle := bundle, compact := compact, hausdorff := hausdorff] \as OriginalFor;
+\import Original.Pullback[Y := Y, source := source, f := f] \as Pullback;
+\definition Fiber[y: Y]: \Set := F (f y);
+\definition pulled: Bundles.Family[X := Y, F := Fiber].Bundle := Pullback.pulled regular;
+\import \root.Thom[].Koszul[X := Y, F := Fiber, bundle := pulled] \as PulledKoszul;
+\import PulledKoszul.Coordinates[] \as PulledCoordinates;
+\import \root.Thom[].For[X := Y, F := Fiber, bundle := pulled, compact := sourceCompact, hausdorff := sourceHausdorff] \as Target;
+\import \root.Thom[].Naturality[X := X, F := F, bundle := bundle, Y := Y, source := source, f := f, regular := regular].Koszul[] \as Natural;
+\import \root.Thom[].TotalSpace[X := X, F := F, bundle := bundle, compact := compact, hausdorff := hausdorff]
+  .Pullback[Y := Y, source := source, sourceCompact := sourceCompact, f := f, regular := regular] \as Proper;
+\import \root.Thom[].TotalSpace[X := Y, F := Fiber, bundle := pulled, compact := sourceCompact, hausdorff := sourceHausdorff] \as TargetTotal;
+\import Bundles.Family[X := Y, F := Fiber].Of[bundle := pulled] \as PulledBundle;
+\import Operations.Models[X := Koszul.Total, baseSpace := bundle.totalSpace] \as Models;
+\import Operations.Models[X := PulledKoszul.Total, baseSpace := pulled.totalSpace] \as TargetModels;
+\import bundle_complements.Complements[].Over[K := C.Complex, field := C.Algebra[].field,
+  conjugation := linear_algebra.Hermitian[].Complex[].scalar, scalar := Scalars.scalar] \as Complements;
+\import relative_k_theory.Relative[] \as Relative;
+\import compact_support_k.Support[].On[X := PulledKoszul.Total, space := pulled.totalSpace,
+  hausdorff := TargetTotal.separated, locallyCompact := TargetTotal.locallyCompact] \as TargetSupport;
+\import TargetSupport.Pullback[Y := Koszul.Total, target := bundle.totalSpace, targetHausdorff := Total.separated,
+  targetLocallyCompact := Total.locallyCompact, f := Natural.total, continuous := Natural.continuous, proper := Proper.proper] \as CompactPull;
+\definition pull: Carrier -> Target.Carrier := Relative.Pullback[source := TargetSupport.model, target := Supported.model, f := CompactPull.mapping].map;
+\module Using(data: Data);
+\definition equation: Target.thom = pull OriginalFor.thom := \block {
+  \takefrom data: Data \by existence \then
+  \return trans!{{Target.Carrier}} _ _ _ (Target.formula Using[data := data].targetData)
+    (trans!{{Target.Carrier}} _ _ _ Using[data := data].equation
+      (congr!{Carrier {Target.Carrier}} pull _ _ (sym!{Carrier} _ _ (OriginalFor.formula data))))
+};
+\import \parent.ProductPullback[Y := Y, source := source, sourceCompact := sourceCompact,
+  sourceHausdorff := sourceHausdorff, f := f, regular := regular] \as Products;
+\import Target.Product[] \as TargetProduct;
+\import topological_k_theory.KTheory[].On[X := X, baseSpace := bundle.baseSpace, compact := compact, hausdorff := hausdorff]
+  .Pullback[Y := Y, space := source, sourceCompact := sourceCompact, sourceHausdorff := sourceHausdorff, f := f, regular := regular].K0[] \as OrdinaryPull;
+\definition forwardNaturality: \forall (a: K.Carrier) -> pull (OriginalFor.forward a) = Target.forward (OrdinaryPull.map a) :=
+  \fun (a: K.Carrier) => trans!{{Target.Carrier}} _ _ _ (Products.equation a OriginalFor.thom)
+    (congr!{{Target.Carrier} {Target.Carrier}} (TargetProduct.multiply (OrdinaryPull.map a)) _ _ (sym!{{Target.Carrier}} _ _ equation));

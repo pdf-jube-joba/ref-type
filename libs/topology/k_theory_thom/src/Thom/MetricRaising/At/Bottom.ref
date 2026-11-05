@@ -1,0 +1,29 @@
+\import Algebra.Cartan[k := N.Nat^::zero, v := p.vector, ell := Metric.covector p] \as Cartan;
+\import Forms.At[k := N.Nat^::zero] \as Target;
+\import Exterior.Components[k := N.Nat^::zero] \as Components;
+\import Forms.Contraction[k := N.Nat^::zero] \as Contract;
+\definition remainder[omega: Koszul.Term N.Nat^::zero p][xs: Lists.List[F p.base]]:
+  Shuffle.product (Algebra.series (Metric.covector p)) (Shuffle.shift p.vector (Exterior.component N.Nat^::zero omega)) xs = Op.zero :=
+  trans!{{C.Complex}} _ _ _
+    (Products.congruent (Algebra.series (Metric.covector p)) (Algebra.series (Metric.covector p))
+      (Shuffle.shift p.vector (Exterior.component N.Nat^::zero omega)) Shuffle.origin
+      (\fun (ys: Lists.List[F p.base]) => \refl(Algebra.series (Metric.covector p) ys))
+      (\fun (ys: Lists.List[F p.base]) => Exterior.ZeroHeads[].nonempty omega p.vector ys) xs)
+    (Products.zeroRight (Algebra.series (Metric.covector p)) xs);
+\definition raw[omega: Koszul.Term N.Nat^::zero p]: Contract.apply (Cartan.wedge omega) p.vector = Target.scale (coefficient p) omega :=
+  Components.ext _ _ (\axiom:funext(Exterior.component N.Nat^::zero (Contract.apply (Cartan.wedge omega) p.vector), Exterior.component N.Nat^::zero (Target.scale (coefficient p) omega),
+    \fun (xs: Lists.List[F p.base]) => trans!{{C.Complex}} _ _ _ (Cartan.equation omega xs)
+      (trans!{{C.Complex}} _ _ _
+        (congr!{{C.Complex} {C.Complex} {C.Complex}} Op.add _ _ _ _
+          (congr!{{C.Complex} {C.Complex}} (\fun (a: C.Complex) => Op.mul a (Exterior.component N.Nat^::zero omega xs)) _ _ (Metric.evaluation p))
+          (trans!{{C.Complex}} _ _ _ (congr!{{C.Complex} {C.Complex}} Op.neg _ _ (remainder omega xs)) Sign.negativeZero))
+        (trans!{{C.Complex}} _ _ _ (Laws.addZeroRight (Op.mul (coefficient p) (Exterior.component N.Nat^::zero omega xs)))
+          (sym!{{C.Complex}} _ _ (Components.scalar (coefficient p) omega xs))))));
+\import \parent.Raising[k := N.Nat^::zero] \as Raising;
+\definition equation: \forall (v: Vector N.Nat^::zero p) -> ((differential N.Nat^::zero).fiber p).apply (((raising N.Nat^::zero).fiber p).apply v) =
+  ((Models.bundle (model N.Nat^::zero)).space p).smul (coefficient p) v :=
+  \fun (v: Vector N.Nat^::zero p) => trans!{{Vector N.Nat^::zero p}} _ _ _ (Raising.after v)
+    (trans!{{Vector N.Nat^::zero p}} _ _ _
+      (congr!{{Koszul.Term N.Nat^::zero p} {Vector N.Nat^::zero p}} (Coordinates.encode N.Nat^::zero p).apply _ _ (raw ((Coordinates.decode N.Nat^::zero p).apply v)))
+      (trans!{{Vector N.Nat^::zero p}} _ _ _ ((Coordinates.encode N.Nat^::zero p).preservesScale (coefficient p) ((Coordinates.decode N.Nat^::zero p).apply v))
+        (congr!{{Vector N.Nat^::zero p} {Vector N.Nat^::zero p}} (((Models.bundle (model N.Nat^::zero)).space p).smul (coefficient p)) _ _ (Coordinates.encodeDecode N.Nat^::zero p v))));

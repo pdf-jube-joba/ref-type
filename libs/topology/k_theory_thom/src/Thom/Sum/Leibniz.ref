@@ -1,0 +1,69 @@
+\use Equality.eq_reason_in;
+\import N.Basic[].Prop[] \as Naturals;
+\definition firstDegree: N.Nat^ := N.Nat^::succ p;
+\definition secondDegree: N.Nat^ := N.Nat^::succ q;
+\definition outputDegree: N.Nat^ := Nat.add firstDegree q;
+\import \parent.At[p := firstDegree, q := secondDegree] \as Source;
+\import \parent.At[p := p, q := secondDegree] \as First;
+\import \parent.At[p := firstDegree, q := q] \as Second;
+\import Forms.Contraction[k := outputDegree] \as Differential;
+\import LeftForms.Contraction[k := p] \as LeftDifferential;
+\import RightForms.Contraction[k := q] \as RightDifferential;
+\import Forms.At[k := outputDegree] \as Result;
+\import Exterior.Components[k := outputDegree] \as Components;
+\import Exterior.SeriesShift[k := outputDegree] \as Shift;
+\definition equality: Nat.add p secondDegree = outputDegree := sym!{{N.Nat^}} _ _ (Naturals.addSuccLeft p q);
+\import Exterior.Regrade[k := Nat.add p secondDegree, l := outputDegree] \as Regrade;
+\definition first[omega: Left.Form firstDegree][eta: Right.Form secondDegree][v: V]: Exterior.Form outputDegree :=
+  Regrade.cast (First.apply (LeftDifferential.apply omega v) eta) equality;
+\definition second[omega: Left.Form firstDegree][eta: Right.Form secondDegree][w: W]: Exterior.Form outputDegree :=
+  Result.scale (Sign.value firstDegree) (Second.apply omega (RightDifferential.apply eta w));
+\definition firstSeries: \forall (omega: Left.Form firstDegree)(eta: Right.Form secondDegree)(v: V) ->
+  Exterior.component outputDegree (first omega eta v) = First.product (LeftDifferential.apply omega v) eta :=
+  \fun (omega: Left.Form firstDegree)(eta: Right.Form secondDegree)(v: V) => trans!{{Shuffle.Function}} _ _ _
+    (Regrade.series (First.apply (LeftDifferential.apply omega v) eta) equality)
+    (First.series (LeftDifferential.apply omega v) eta);
+\definition secondSeries: \forall (omega: Left.Form firstDegree)(eta: Right.Form secondDegree)(w: W)(xs: Lists.List[Total]) ->
+  Exterior.component outputDegree (second omega eta w) xs = Op.mul (Sign.value firstDegree) (Second.product omega (RightDifferential.apply eta w) xs) :=
+  \fun (omega: Left.Form firstDegree)(eta: Right.Form secondDegree)(w: W)(xs: Lists.List[Total]) => trans!{{C.Complex}} _ _ _
+    (Components.scalar (Sign.value firstDegree) (Second.apply omega (RightDifferential.apply eta w)) xs)
+    (congr!{{Shuffle.Function} {C.Complex}} (\fun (f: Shuffle.Function) => Op.mul (Sign.value firstDegree) (f xs)) _ _
+      (Second.series omega (RightDifferential.apply eta w)));
+\definition leftTerm: \forall (omega: Left.Form firstDegree)(eta: Right.Form secondDegree)(v: V)(w: W)(xs: Lists.List[Total]) ->
+  Shuffle.product (Shuffle.shift (Sum.make v w) (leftSeries firstDegree omega)) (rightSeries secondDegree eta) xs =
+  Exterior.component outputDegree (first omega eta v) xs :=
+  \fun (omega: Left.Form firstDegree)(eta: Right.Form secondDegree)(v: V)(w: W)(xs: Lists.List[Total]) => trans!{{C.Complex}} _ _ _
+    (Products.congruent (Shuffle.shift (Sum.make v w) (leftSeries firstDegree omega)) (leftSeries p (LeftDifferential.apply omega v))
+      (rightSeries secondDegree eta) (rightSeries secondDegree eta) (leftShift p omega v w)
+      (\fun (ys: Lists.List[Total]) => \refl(rightSeries secondDegree eta ys)) xs)
+    (sym!{{C.Complex}} _ _ (congr!{{Shuffle.Function} {C.Complex}} (\fun (f: Shuffle.Function) => f xs) _ _ (firstSeries omega eta v)));
+\definition rightTerm: \forall (omega: Left.Form firstDegree)(eta: Right.Form secondDegree)(v: V)(w: W)(xs: Lists.List[Total]) ->
+  Shuffle.product (Shuffle.twist (leftSeries firstDegree omega)) (Shuffle.shift (Sum.make v w) (rightSeries secondDegree eta)) xs =
+  Exterior.component outputDegree (second omega eta w) xs :=
+  \fun (omega: Left.Form firstDegree)(eta: Right.Form secondDegree)(v: V)(w: W)(xs: Lists.List[Total]) => eq_reason_in!{C.Complex _
+    "=" { Shuffle.product (Shuffle.scale (Sign.value firstDegree) (leftSeries firstDegree omega)) (rightSeries q (RightDifferential.apply eta w)) xs } "by" {
+      Products.congruent (Shuffle.twist (leftSeries firstDegree omega)) (Shuffle.scale (Sign.value firstDegree) (leftSeries firstDegree omega))
+        (Shuffle.shift (Sum.make v w) (rightSeries secondDegree eta)) (rightSeries q (RightDifferential.apply eta w))
+        (leftTwist firstDegree omega) (rightShift q eta v w) xs }
+    "=" { Op.mul (Sign.value firstDegree) (Second.product omega (RightDifferential.apply eta w) xs) } "by" {
+      Products.scalarLeft (Sign.value firstDegree) (leftSeries firstDegree omega) (rightSeries q (RightDifferential.apply eta w)) xs }
+    "=" _ "by" { sym!{{C.Complex}} _ _ (secondSeries omega eta w xs) }
+  };
+\definition equation: \forall (omega: Left.Form firstDegree)(eta: Right.Form secondDegree)(v: V)(w: W) ->
+  Differential.apply (Source.apply omega eta) (Sum.make v w) = Result.plus (first omega eta v) (second omega eta w) :=
+  \fun (omega: Left.Form firstDegree)(eta: Right.Form secondDegree)(v: V)(w: W) => Components.ext _ _
+    (\axiom:funext(Exterior.component outputDegree (Differential.apply (Source.apply omega eta) (Sum.make v w)),
+      Exterior.component outputDegree (Result.plus (first omega eta v) (second omega eta w)),
+      \fun (xs: Lists.List[Total]) => eq_reason_in!{C.Complex _
+        "=" { Exterior.component (N.Nat^::succ outputDegree) (Source.apply omega eta) (Lists.List[Total]::cons (Sum.make v w) xs) } "by" {
+          sym!{{C.Complex}} _ _ (Shift.atCons (Source.apply omega eta) (Sum.make v w) xs) }
+        "=" { Source.product omega eta (Lists.List[Total]::cons (Sum.make v w) xs) } "by" {
+          congr!{{Shuffle.Function} {C.Complex}} (\fun (f: Shuffle.Function) => f (Lists.List[Total]::cons (Sum.make v w) xs)) _ _ (Source.series omega eta) }
+        "=" { Op.add
+          (Shuffle.product (Shuffle.shift (Sum.make v w) (leftSeries firstDegree omega)) (rightSeries secondDegree eta) xs)
+          (Shuffle.product (Shuffle.twist (leftSeries firstDegree omega)) (Shuffle.shift (Sum.make v w) (rightSeries secondDegree eta)) xs) } "by" {
+          Source.differential omega eta v w xs }
+        "=" { Op.add (Exterior.component outputDegree (first omega eta v) xs) (Exterior.component outputDegree (second omega eta w) xs) } "by" {
+          congr!{{C.Complex} {C.Complex} {C.Complex}} Op.add _ _ _ _ (leftTerm omega eta v w xs) (rightTerm omega eta v w xs) }
+        "=" _ "by" { sym!{{C.Complex}} _ _ (Components.addition (first omega eta v) (second omega eta w) xs) }
+      }));

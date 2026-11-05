@@ -1,0 +1,40 @@
+\use Equality.eq_reason_in;
+\import relative_k_theory.Relative[] \as Relative;
+\import Relative.Smash[left := left, right := right] \as Smash;
+\import Relative.Composition[source := source, middle := Smash.model, target := Smash.result,
+  first := f, second := Smash.projection] \as Result;
+\import Relative.Composition[source := source, middle := Smash.model, target := left,
+  first := f, second := Smash.firstMap] \as First;
+\import Relative.Composition[source := source, middle := Smash.model, target := right,
+  first := f, second := Smash.secondMap] \as Second;
+\import Relative.Pullback[source := source, target := Smash.result, f := Result.map] \as Pull;
+\import Relative.Pullback[source := source, target := Smash.model, f := f] \as Whole;
+\import Relative.Pullback[source := source, target := left, f := First.map] \as LeftPull;
+\import Relative.Pullback[source := source, target := right, f := Second.map] \as RightPull;
+\import Relative.Pullback[source := Smash.model, target := left, f := Smash.firstMap] \as Left;
+\import Relative.Pullback[source := Smash.model, target := right, f := Smash.secondMap] \as Right;
+\import Relative.Reduced[model := source] \as Group;
+\import Group.Multiplication[] \as Multiplication;
+\import Relative.Reduced[model := left] \as LeftGroup;
+\import Relative.Reduced[model := right] \as RightGroup;
+\import Relative.PairIteration[pair := Smash.pair].Sequence[degree := N.Nat^::zero] \as Sequence;
+\import Relative.Pullback[source := Smash.model, target := Smash.result, f := Smash.projection] \as Projection;
+\definition formula: \forall (a: LeftGroup.Carrier)(b: RightGroup.Carrier) ->
+  Pull.map (Smash.External[].product a b) = Multiplication.mul (LeftPull.map a) (RightPull.map b) :=
+  \fun (a: LeftGroup.Carrier)(b: RightGroup.Carrier) => eq_reason_in!{{Group.Carrier} _
+    "=" { Whole.map (Smash.External[].forget (Smash.External[].product a b)) } "by" {
+      trans!{{Group.Carrier}} _ _ _
+        (Relative.PullbackComposition[source := source, middle := Smash.model, target := Smash.result,
+          first := f, second := Smash.projection].equation (Smash.External[].product a b))
+        (congr!{{Relative.Reduced[model := Smash.model].Carrier} {Group.Carrier}} Whole.map _ _
+          (sym!{{Relative.Reduced[model := Smash.model].Carrier}} _ _ (Sequence.forgetFormula (Smash.External[].product a b)))) }
+    "=" { Whole.map (Relative.Reduced[model := Smash.model].Multiplication[].mul (Left.map a) (Right.map b)) } "by" {
+      congr!{{Relative.Reduced[model := Smash.model].Carrier} {Group.Carrier}} Whole.map _ _ (Smash.External[].formula a b) }
+    "=" { Multiplication.mul (Whole.map (Left.map a)) (Whole.map (Right.map b)) } "by" {
+      Whole.Multiplication[].equation (Left.map a) (Right.map b) }
+    "=" _ "by" { congr!{{Group.Carrier} {Group.Carrier} {Group.Carrier}} Multiplication.mul _ _ _ _
+      (sym!{{Group.Carrier}} _ _ (Relative.PullbackComposition[source := source, middle := Smash.model, target := left,
+        first := f, second := Smash.firstMap].equation a))
+      (sym!{{Group.Carrier}} _ _ (Relative.PullbackComposition[source := source, middle := Smash.model, target := right,
+        first := f, second := Smash.secondMap].equation b)) }
+  };

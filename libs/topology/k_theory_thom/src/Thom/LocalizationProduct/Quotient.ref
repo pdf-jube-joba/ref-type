@@ -1,0 +1,40 @@
+\import \parent.CompactCoordinates[] \as Coordinates;
+\import WholePair.Mapping[Y := LocalProduct.Z, source := LocalProduct.topology, sourceCompact := LocalProduct.compactProduct,
+  sourceHausdorff := LocalProduct.hausdorffProduct, sourceSubset := LocalProduct.boundary, sourceClosed := LocalProduct.boundaryClosed,
+  f := Coordinates.forward, regular := Coordinates.forwardContinuous, preserves := Coordinates.preserves] \as Forward;
+\import LocalPair.Mapping[Y := WholeLocal.Carrier, source := WholeLocal.topology, sourceCompact := WholeLocal.compact,
+  sourceHausdorff := WholeLocal.separated, sourceSubset := WholeLocal.boundary, sourceClosed := WholeLocal.boundaryClosed,
+  f := Coordinates.backward, regular := Coordinates.backwardContinuous, preserves := Coordinates.reflects] \as Backward;
+\definition forward: Relative.Map LocalQ.model WholeQ.model := Forward.quotientMap;
+\definition backward: Relative.Map WholeQ.model LocalQ.model := Backward.quotientMap;
+\import Relative.Composition[source := LocalQ.model, middle := WholeQ.model, target := LocalQ.model, first := forward, second := backward] \as Left;
+\import Relative.Composition[source := WholeQ.model, middle := LocalQ.model, target := WholeQ.model, first := backward, second := forward] \as Right;
+\import Relative.Identity[model := LocalQ.model] \as LeftIdentity;
+\import Relative.Identity[model := WholeQ.model] \as RightIdentity;
+\definition leftOnOriginal: \forall (z: LocalProduct.Z) -> Left.map (LocalQ.projection z) = LeftIdentity.map (LocalQ.projection z) :=
+  \fun (z: LocalProduct.Z) => trans!{{LocalQ.Carrier}} _ _ _
+    (congr!{{WholeQ.Carrier} {LocalQ.Carrier}} backward _ _ (Forward.onProjection z))
+    (trans!{{LocalQ.Carrier}} _ _ _ (Backward.onProjection (Coordinates.forward z))
+      (congr!{{LocalProduct.Z} {LocalQ.Carrier}} LocalQ.projection _ _ (Coordinates.leftInverse z)));
+\definition rightOnOriginal: \forall (z: WholeLocal.Carrier) -> Right.map (WholeQ.projection z) = RightIdentity.map (WholeQ.projection z) :=
+  \fun (z: WholeLocal.Carrier) => trans!{{WholeQ.Carrier}} _ _ _
+    (congr!{{LocalQ.Carrier} {WholeQ.Carrier}} forward _ _ (Backward.onProjection z))
+    (trans!{{WholeQ.Carrier}} _ _ _ (Forward.onProjection (Coordinates.backward z))
+      (congr!{{WholeLocal.Carrier} {WholeQ.Carrier}} WholeQ.projection _ _ (Coordinates.rightInverse z)));
+\definition equivalence: Relative.Equivalence[source := LocalQ.model, target := WholeQ.model].Data :=
+  Relative.Equivalence[source := LocalQ.model, target := WholeQ.model].Data {
+    forward := forward, backward := backward,
+    leftInverse := LocalQ.MapsEqual[target := LocalQ.model].pointwise Left.map LeftIdentity.map leftOnOriginal,
+    rightInverse := WholeQ.MapsEqual[target := WholeQ.model].pointwise Right.map RightIdentity.map rightOnOriginal
+  };
+\import Relative.Smash[left := FirstQ.model, right := SecondQ.model] \as LocalSmash;
+\import LocalProduct.QuotientComparison[] \as Comparison;
+\import Relative.Composition[source := WholeQ.model, middle := LocalQ.model, target := LocalSmash.result,
+  first := backward, second := Comparison.equivalence.forward] \as IntoSmash;
+\definition map: Relative.Map WholeQ.model LocalSmash.result := IntoSmash.map;
+\definition onProjection: \forall (z: WholeLocal.Carrier) -> map (WholeQ.projection z) =
+  LocalSmash.projection (Pair.pair FirstQ.Carrier SecondQ.Carrier
+    (FirstQ.projection (Coordinates.first z)) (SecondQ.projection (Coordinates.second z))) :=
+  \fun (z: WholeLocal.Carrier) => trans!{{LocalSmash.result.Carrier}} _ _ _
+    (congr!{{LocalQ.Carrier} {LocalSmash.result.Carrier}} Comparison.equivalence.forward _ _ (Backward.onProjection z))
+    (Comparison.onProjection (Coordinates.backward z));

@@ -1,0 +1,28 @@
+\definition index: Direct.Bidegree := Direct.make p q decomposition;
+\import Spaces.Tensor[V := FirstForm p x, W := SecondForm q x, left := (firstForms p).space x, right := (secondForms q).space x] \as Tensor;
+\import Spaces.Linear[V := Native k x, W := Target side, source := (native k).space x, target := targetSpace side].Composition[U := Tensor.Carrier, domain := Tensor.space] \as Restrict;
+\definition firstRestriction: Spaces.Linear[V := Tensor.Carrier, W := Target side, source := Tensor.space, target := targetSpace side].Map := Restrict.compose composite Direct.At[d := index].injection;
+\definition secondRestriction: Spaces.Linear[V := Tensor.Carrier, W := Target side, source := Tensor.space, target := targetSpace side].Map := Restrict.compose embedding Direct.At[d := index].injection;
+\definition pure: \forall (omega: FirstForm p x)(eta: SecondForm q x) -> firstRestriction.apply (Tensor.tensor omega eta) = secondRestriction.apply (Tensor.tensor omega eta) :=
+  \fun (omega: FirstForm p x)(eta: SecondForm q x) => generators p q r side color decomposition omega eta;
+\definition values[omega: FirstForm p x][eta: SecondForm q x]: Target side := secondRestriction.apply (Tensor.tensor omega eta);
+\definition bilinear: Tensor.BilinearLaws[Target side, targetSpace side, values] := Tensor.BilinearLaws[Target side, targetSpace side, values] {
+  addLeft := \fun (omega, omega2: FirstForm p x)(eta: SecondForm q x) => trans!{{Target side}} _ _ _
+    (congr!{Tensor.Carrier {Target side}} secondRestriction.apply _ _ (Tensor.bilinear.addLeft omega omega2 eta))
+    (secondRestriction.preservesAdd (Tensor.tensor omega eta) (Tensor.tensor omega2 eta)),
+  addRight := \fun (omega: FirstForm p x)(eta, eta2: SecondForm q x) => trans!{{Target side}} _ _ _
+    (congr!{Tensor.Carrier {Target side}} secondRestriction.apply _ _ (Tensor.bilinear.addRight omega eta eta2))
+    (secondRestriction.preservesAdd (Tensor.tensor omega eta) (Tensor.tensor omega eta2)),
+  scaleLeft := \fun (a: C.Complex)(omega: FirstForm p x)(eta: SecondForm q x) => trans!{{Target side}} _ _ _
+    (congr!{Tensor.Carrier {Target side}} secondRestriction.apply _ _ (Tensor.bilinear.scaleLeft a omega eta))
+    (secondRestriction.preservesScale a (Tensor.tensor omega eta)),
+  scaleRight := \fun (a: C.Complex)(omega: FirstForm p x)(eta: SecondForm q x) => trans!{{Target side}} _ _ _
+    (congr!{Tensor.Carrier {Target side}} secondRestriction.apply _ _ (Tensor.bilinear.scaleRight a omega eta))
+    (secondRestriction.preservesScale a (Tensor.tensor omega eta))
+};
+\import Tensor.Universal[U := Target side, target := targetSpace side] \as Universal;
+\definition functionEquality: firstRestriction.apply = secondRestriction.apply := trans!{{Tensor.Carrier -> Target side}} _ _ _
+  (Universal.unique values bilinear firstRestriction pure)
+  (sym!{{Tensor.Carrier -> Target side}} _ _ (Universal.unique values bilinear secondRestriction (\fun (omega: FirstForm p x)(eta: SecondForm q x) => \refl(values omega eta))));
+\definition equation: \forall (v: Tensor.Carrier) -> firstRestriction.apply v = secondRestriction.apply v :=
+  \fun (v: Tensor.Carrier) => congr!{{Tensor.Carrier -> Target side} {Target side}} (\fun (f: Tensor.Carrier -> Target side) => f v) _ _ functionEquality;

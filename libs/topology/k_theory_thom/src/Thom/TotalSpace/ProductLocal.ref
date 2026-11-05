@@ -1,0 +1,19 @@
+\import topological_constructions.Product[A := A, B := B] \as Product;
+\import topology.Topology[Carrier := Product.CarrierSet] \as Space;
+\import topology.LocallyCompact[A := A] \as Left;
+\import topology.LocallyCompact[A := B] \as Right;
+\import topology.LocallyCompact[A := Product.CarrierSet] \as Local;
+\definition locallyCompact: Local.IsLocallyCompact (Product.topology left right) := \block {
+  \fun (p: Product.CarrierSet) \then
+  \takefrom a: Left.CompactNeighborhood[left, Pair.first A B p] \by first (Pair.first A B p) \then
+  \takefrom b: Right.CompactNeighborhood[right, Pair.second A B p] \by second (Pair.second A B p) \then
+  \return \exact(Local.CompactNeighborhood[Product.topology left right, p] {
+    openSet := Product.Rectangle a.openSet b.openSet,
+    compactSet := Product.Rectangle a.compactSet b.compactSet,
+    open := Space.generatedBasisOpen (Product.Basis left right) (Product.Rectangle a.openSet b.openSet)
+      (Product.Universal[X := Product.CarrierSet].rectangleBasisMember left right a.openSet b.openSet a.open b.open),
+    contains := Logic.And[_, _]::# a.contains b.contains,
+    enclosed := \fun (q: Product.CarrierSet)(inside: _) => Logic.And[_, _]::# (a.enclosed (Pair.first A B q) inside.left) (b.enclosed (Pair.second A B q) inside.right),
+    compact := Product.Compactness[].productCompactIn left right a.compactSet b.compactSet a.compact b.compact
+  }, Local.CompactNeighborhood[Product.topology left right, p])
+};

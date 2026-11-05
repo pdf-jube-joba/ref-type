@@ -1,0 +1,71 @@
+\import real.Analysis[] \as Real;
+\import dedekind_reals.DedekindReal[] \as D;
+\import D.Arithmetic[].Prop[] \as Laws;
+\import Real.Algebra[] \as Algebra;
+\import Real.Estimates[].Product[] \as Bounds;
+\import metric_spaces.RealLine[] \as Line;
+\use Equality.eq_reason_in;
+\import thom_spaces.Thom[].Over[K := C.Complex, field := C.Algebra[].field,
+  conjugation := linear_algebra.Hermitian[].Complex[].scalar, scalar := Scalars.scalar].For[X := X, F := F, bundle := bundle].With[metric := metric] \as Disk;
+\definition OpenBall: \Pow Family.Point := { p: Family.Point \where D.Lt (Disk.norm p) Real.one };
+\import Total.Subspace[S := OpenBall] \as Open;
+\definition Carrier: \Set := Open.CarrierSet;
+\definition topology: topology.Topology[Carrier := Carrier].Topology := Open.topology bundle.totalSpace;
+\definition open: Total.IsOpenIn bundle.totalSpace OpenBall := Disk.normContinuous (Line.Rays[].Below Real.one) (Line.Rays[].belowOpen Real.one);
+\module Compression(t: Real.Real, nonnegative: D.Le Real.zero t);
+\module Expansion(t: Real.Real, inside: D.Lt t Real.one);
+\definition coefficient[p: Family.Point]: Real.Real := Laws.fieldInv (Real.add Real.one (Disk.norm p));
+\definition forward[p: Family.Point]: Carrier := \into[Family.Point](Disk.scale (coefficient p) p, OpenBall) \by {
+  D.ltReplaceLeft (Real.mul (coefficient p) (Disk.norm p)) (Disk.norm (Disk.scale (coefficient p) p)) Real.one
+    (sym!{Real.Real} _ _ (Disk.normScale (coefficient p)
+      (D.Order[].leOfLt _ _ (Compression[t := Disk.norm p, nonnegative := Disk.normNonnegative p].positive)) p))
+    Compression[t := Disk.norm p, nonnegative := Disk.normNonnegative p].compressedInside
+};
+\definition inverseCoefficient[p: Carrier]: Real.Real := Laws.fieldInv (Real.sub Real.one (Disk.norm p));
+\definition backward[p: Carrier]: Family.Point := Disk.scale (inverseCoefficient p) p;
+\definition leftCoefficient[p: Family.Point]: Real.mul (inverseCoefficient (forward p)) (coefficient p) = Real.one := \block {
+  \let a: Real.Real := coefficient p \then
+  \let norm: Disk.norm (forward p) = Real.mul a (Disk.norm p) := Disk.normScale a
+    (D.Order[].leOfLt _ _ (Compression[t := Disk.norm p, nonnegative := Disk.normNonnegative p].positive)) p \then
+  \return eq_reason_in!{Real.Real _
+    "=" {Real.mul (Laws.fieldInv a) a} "by" { congr!{Real.Real Real.Real} (\fun (s: Real.Real) => Real.mul (Laws.fieldInv s) a) _ _
+      (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (Real.sub Real.one) _ _ norm)
+        Compression[t := Disk.norm p, nonnegative := Disk.normNonnegative p].gap) }
+    "=" Real.one "by" { Laws.fieldInverseNonzero a
+      (Real.Inverse[].positiveNonzero a (Compression[t := Disk.norm p, nonnegative := Disk.normNonnegative p].positive)) }
+  }
+};
+\definition rightCoefficient[p: Carrier]: Real.mul (coefficient (backward p)) (inverseCoefficient p) = Real.one := \block {
+  \let b: Real.Real := inverseCoefficient p \then
+  \let inside: D.Lt (Disk.norm p) Real.one := \bysub(Family.Point, OpenBall, p) \then
+  \let norm: Disk.norm (backward p) = Real.mul b (Disk.norm p) := Disk.normScale b
+    (D.Order[].leOfLt _ _ (Expansion[t := Disk.norm p, inside := inside].positive)) p \then
+  \return eq_reason_in!{Real.Real _
+    "=" {Real.mul (Laws.fieldInv b) b} "by" { congr!{Real.Real Real.Real} (\fun (s: Real.Real) => Real.mul (Laws.fieldInv s) b) _ _
+      (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (Real.add Real.one) _ _ norm)
+        Expansion[t := Disk.norm p, inside := inside].sum) }
+    "=" Real.one "by" { Laws.fieldInverseNonzero b
+      (Real.Inverse[].positiveNonzero b (Expansion[t := Disk.norm p, inside := inside].positive)) }
+  }
+};
+\definition leftInverse: \forall (p: Family.Point) -> backward (forward p) = p := \fun (p: Family.Point) =>
+  trans!{Family.Point} _ _ _ (Disk.scaleCompose (inverseCoefficient (forward p)) (coefficient p) p)
+    (trans!{Family.Point} _ _ _ (congr!{Real.Real Family.Point} (\fun (s: Real.Real) => Disk.scale s p) _ _ (leftCoefficient p)) (Disk.scaleOne p));
+\definition rightInverse: \forall (p: Carrier) -> forward (backward p) = p := \fun (p: Carrier) =>
+  trans!{Family.Point} _ _ _ (Disk.scaleCompose (coefficient (backward p)) (inverseCoefficient p) p)
+    (trans!{Family.Point} _ _ _ (congr!{Real.Real Family.Point} (\fun (s: Real.Real) => Disk.scale s p) _ _ (rightCoefficient p)) (Disk.scaleOne p));
+\module Continuity;
+\definition homeomorphism: topology.Homeomorphism[A := Family.Point, B := Carrier].Homeomorphism[bundle.totalSpace, topology] :=
+  topology.Homeomorphism[A := Family.Point, B := Carrier].Homeomorphism[bundle.totalSpace, topology] {
+    forward := forward, backward := backward, leftInverse := leftInverse, rightInverse := rightInverse,
+    forwardContinuous := Continuity[].forwardContinuous, backwardContinuous := Continuity[].backwardContinuous
+  };
+\definition overBase: \forall (p: Family.Point) -> (forward p).base = p.base := \fun (p: Family.Point) => \refl(p.base);
+\definition openSeparated: topology.Topology[Carrier := Carrier].IsT2 topology := Open.Properties[].hausdorff bundle.totalSpace separated;
+\definition proper: compact_support_k.Support[].Proper[A := Family.Point, B := Carrier, source := bundle.totalSpace, target := topology].IsProper forward :=
+  compact_support_k.Support[].Homeomorphic[A := Family.Point, B := Carrier, source := bundle.totalSpace, target := topology, h := homeomorphism].proper;
+\definition inverseHomeomorphism: topology.Homeomorphism[A := Carrier, B := Family.Point].Homeomorphism[topology, bundle.totalSpace] :=
+  topology.Homeomorphism[A := Family.Point, B := Carrier].Inverse[].inverse bundle.totalSpace topology homeomorphism;
+\definition openLocallyCompact: topology.LocallyCompact[A := Carrier].IsLocallyCompact topology :=
+  compact_support_k.Support[].Homeomorphic[A := Carrier, B := Family.Point, source := topology, target := bundle.totalSpace, h := inverseHomeomorphism].locallyCompact locallyCompact;
+\module UnitDisk;

@@ -1,0 +1,24 @@
+\import std.Data[].Pair[] \as P;
+\import Spaces.Linear[V := Source.SourceFiber x, W := Target.TargetFiber x, source := Source.sourceBundle.space x, target := Target.targetBundle.space x] \as Maps;
+\import Spaces.Linear[V := Target.SourceFiber x, W := Target.TargetFiber x, source := Target.sourceBundle.space x, target := Target.targetBundle.space x]
+  .Composition[U := Source.SourceFiber x, domain := Source.sourceBundle.space x] \as Before;
+\import Spaces.Linear[V := Source.TargetFiber x, W := Target.TargetFiber x, source := Source.targetBundle.space x, target := Target.targetBundle.space x]
+  .Composition[U := Source.SourceFiber x, domain := Source.sourceBundle.space x] \as After;
+\definition before: Maps.Map := Before.compose (Target.isomorphism.forward.fiber x) (fullIso.forward.fiber x);
+\definition after: Maps.Map := After.compose (totalIso.forward.fiber x) (Source.isomorphism.forward.fiber x);
+\import Operations.TensorEquality[V := Source.LeftFiber x, W := Source.RightFiber x, U := Target.TargetFiber x,
+  left := Source.leftBundle.space x, right := Source.rightBundle.space x, target := Target.targetBundle.space x] \as EqualityOnPure;
+\definition pureEquation: \forall (v: Source.LeftFiber x)(w: Source.RightFiber x) -> before.apply (Source.pure x v w) = after.apply (Source.pure x v w) :=
+  \fun (v: Source.LeftFiber x)(w: Source.RightFiber x) => trans!{{Target.TargetFiber x}} _ _ _
+    (congr!{{Target.SourceFiber x} {Target.TargetFiber x}} (Target.isomorphism.forward.fiber x).apply _ _ (Tensor.onPure firstIso secondIso x v w))
+    (trans!{{Target.TargetFiber x}} _ _ _ (Target.onPure x ((firstIso.forward.fiber x).apply v) ((secondIso.forward.fiber x).apply w))
+      (trans!{{Target.TargetFiber x}} _ _ _
+        (P.Prop[A := Target.Even x, B := Target.Odd x].pairCong _ _ _ _
+          (P.Prop[A := Target.EEFiber x, B := Target.OOFiber x].pairCong _ _ _ _
+            (sym!{{Target.EEFiber x}} _ _ (EE.onPure alpha0 beta0 x (P.first (E0 x) (E1 x) v) (P.first (F0 x) (F1 x) w)))
+            (sym!{{Target.OOFiber x}} _ _ (OO.onPure alpha1 beta1 x (P.second (E0 x) (E1 x) v) (P.second (F0 x) (F1 x) w))))
+          (P.Prop[A := Target.EOFiber x, B := Target.OEFiber x].pairCong _ _ _ _
+            (sym!{{Target.EOFiber x}} _ _ (EO.onPure alpha0 beta1 x (P.first (E0 x) (E1 x) v) (P.second (F0 x) (F1 x) w)))
+            (sym!{{Target.OEFiber x}} _ _ (OE.onPure alpha1 beta0 x (P.second (E0 x) (E1 x) v) (P.first (F0 x) (F1 x) w)))))
+        (congr!{{Source.TargetFiber x} {Target.TargetFiber x}} (totalIso.forward.fiber x).apply _ _ (sym!{{Source.TargetFiber x}} _ _ (Source.onPure x v w)))));
+\definition equation: \forall (v: Source.SourceFiber x) -> before.apply v = after.apply v := EqualityOnPure.pointwise before after pureEquation;

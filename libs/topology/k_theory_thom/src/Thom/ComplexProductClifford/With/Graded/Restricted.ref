@@ -1,0 +1,21 @@
+\import \parent.\parent.Invertible[nonzero := nonzero] \as Inverse;
+\import Spaces.Linear[V := Positive.Carrier, W := Negative.Carrier, source := Positive.induced, target := Negative.induced] \as Forward;
+\definition forward: Forward.Map := Forward.Map {
+  apply := \fun (t: Positive.Carrier) => \into[Tensor.Carrier](operator.apply t, negative.carrier) \by { positiveToNegative t },
+  preservesAdd := \fun (t, u: Positive.Carrier) => operator.preservesAdd t u,
+  preservesScale := \fun (a: C.Complex)(t: Positive.Carrier) => operator.preservesScale a t
+};
+\import Spaces.Linear[V := Negative.Carrier, W := Positive.Carrier, source := Negative.induced, target := Positive.induced] \as Backward;
+\definition backward: Backward.Map := Backward.Map {
+  apply := \fun (t: Negative.Carrier) => \into[Tensor.Carrier](Inverse.inverse.apply t, positive.carrier) \by {
+    positive.closedScale (Scalar.inv (Scalar.add c.a c.b)) (operator.apply t) (negativeToPositive t)
+  },
+  preservesAdd := \fun (t, u: Negative.Carrier) => Inverse.inverse.preservesAdd t u,
+  preservesScale := \fun (a: C.Complex)(t: Negative.Carrier) => Inverse.inverse.preservesScale a t
+};
+\definition isomorphism: Spaces.Isomorphism[V := Positive.Carrier, W := Negative.Carrier, source := Positive.induced, target := Negative.induced].Isomorphism :=
+  Spaces.Isomorphism[V := Positive.Carrier, W := Negative.Carrier, source := Positive.induced, target := Negative.induced].Isomorphism {
+    forward := forward, backward := backward,
+    leftInverse := \fun (t: Positive.Carrier) => Inverse.leftInverse t,
+    rightInverse := \fun (t: Negative.Carrier) => Inverse.rightInverse t
+  };

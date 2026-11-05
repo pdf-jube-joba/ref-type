@@ -1,0 +1,33 @@
+\definition k: N.Nat^ := Labels.degree degree r;
+\import \root.Thom[].Sum[V := F x, W := G x, left := left.space x, right := right.space x].DirectSum[k := k] \as Direct;
+\definition index: Direct.Bidegree := Direct.make p q decomposition;
+\import Spaces.Tensor[V := FirstForm p x, W := SecondForm q x, left := (firstForms p).space x, right := (secondForms q).space x] \as Tensor;
+\definition Carrier: \Set := Tensor.Carrier;
+\definition space: Spaces.VectorSpace Carrier := Tensor.space;
+\definition pure[omega: FirstForm p x][eta: SecondForm q x]: Carrier := Tensor.tensor omega eta;
+\definition included: Spaces.Linear[V := Carrier, W := Native k x, source := space, target := (native k).space x].Map := Direct.At[d := index].injection;
+\import Spaces.Linear[V := Native k x, W := Models.Fiber (totalTerm k).ranks x, source := (native k).space x, target := (Models.bundle (totalTerm k)).space x].Composition[U := Carrier, domain := space] \as Encode;
+\definition encoded: Spaces.Linear[V := Carrier, W := Models.Fiber (totalTerm k).ranks x, source := space, target := (Models.bundle (totalTerm k)).space x].Map := Encode.compose ((data.total k).isomorphism.forward.fiber x) included;
+\definition map[side: B.Bool^][color: Labels.even degree r = side]: Spaces.Linear[V := Carrier, W := Target side, source := space, target := targetSpace side].Map :=
+  Spaces.Linear[V := Models.Fiber (totalTerm k).ranks x, W := Target side, source := (Models.bundle (totalTerm k)).space x, target := targetSpace side].Composition[U := Carrier, domain := space]
+    .compose ((Total.at degree r side color).fiber x) encoded;
+\definition value[side: B.Bool^][color: Labels.even degree r = side][omega: FirstForm p x][eta: SecondForm q x]: Target side := (map side color).apply (pure omega eta);
+\import Spaces.Laws[V := FirstForm p x, space := (firstForms p).space x] \as FirstLaws;
+\import Spaces.Laws[V := SecondForm q x, space := (secondForms q).space x] \as SecondLaws;
+\import Spaces.Laws[V := Carrier, space := space] \as TensorLaws;
+\definition firstOrigin: FirstForm p x := ((firstForms p).space x).zero;
+\definition secondOrigin: SecondForm q x := ((secondForms q).space x).zero;
+\definition zeroFirst[eta: SecondForm q x]: pure firstOrigin eta = space.zero :=
+  trans!{Carrier} _ _ _ (congr!{{FirstForm p x} Carrier} (\fun (omega: FirstForm p x) => pure omega eta) _ _ (sym!{{FirstForm p x}} _ _ (FirstLaws.zeroScale firstOrigin)))
+    (trans!{Carrier} _ _ _ (Tensor.bilinear.scaleLeft Op.zero firstOrigin eta) (TensorLaws.zeroScale (pure firstOrigin eta)));
+\definition zeroSecond[omega: FirstForm p x]: pure omega secondOrigin = space.zero :=
+  trans!{Carrier} _ _ _ (congr!{{SecondForm q x} Carrier} (pure omega) _ _ (sym!{{SecondForm q x}} _ _ (SecondLaws.zeroScale secondOrigin)))
+    (trans!{Carrier} _ _ _ (Tensor.bilinear.scaleRight Op.zero omega secondOrigin) (TensorLaws.zeroScale (pure omega secondOrigin)));
+\definition firstZero[side: B.Bool^][color: Labels.even degree r = side][omega: FirstForm p x][eta: SecondForm q x][same: omega = firstOrigin]: Fixed side (value side color omega eta) :=
+  fromZero side (value side color omega eta)
+    (trans!{{Target side}} _ _ _ (congr!{Carrier {Target side}} (map side color).apply _ _
+      (trans!{Carrier} _ _ _ (congr!{{FirstForm p x} Carrier} (\fun (v: FirstForm p x) => pure v eta) _ _ same) (zeroFirst eta))) (map side color).preservesZero);
+\definition secondZero[side: B.Bool^][color: Labels.even degree r = side][omega: FirstForm p x][eta: SecondForm q x][same: eta = secondOrigin]: Fixed side (value side color omega eta) :=
+  fromZero side (value side color omega eta)
+    (trans!{{Target side}} _ _ _ (congr!{Carrier {Target side}} (map side color).apply _ _
+      (trans!{Carrier} _ _ _ (congr!{{SecondForm q x} Carrier} (pure omega) _ _ same) (zeroSecond omega))) (map side color).preservesZero);

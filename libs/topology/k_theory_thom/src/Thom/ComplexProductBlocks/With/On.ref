@@ -1,0 +1,31 @@
+\import topology.Topology[Carrier := X] \as Base;
+\definition A: \Set := \Cast[X] subset;
+\definition topology: topology.Topology[Carrier := A].Topology := Base.Subspace[S := subset].topology e0.baseSpace;
+\definition inclusion[x: A]: X := x;
+\definition regular: topology.Continuity[A := A, B := X].Continuous topology e0.baseSpace inclusion :=
+  topology.Continuity[A := A, B := X].Corestriction[S := subset].inclusionContinuous e0.baseSpace;
+\import Bundles.Family[X := X, F := Parity.Even].Of[bundle := Parity.evenBundle].Restriction[U := subset] \as Positive;
+\import Bundles.Family[X := X, F := Parity.Odd].Of[bundle := Parity.oddBundle].Restriction[U := subset] \as Negative;
+\definition Even[x: A]: \Set := Parity.Even x;
+\definition Odd[x: A]: \Set := Parity.Odd x;
+\definition evenBundle: Bundles.Family[X := A, F := Even].Bundle := Positive.restricted;
+\definition oddBundle: Bundles.Family[X := A, F := Odd].Bundle := Negative.restricted;
+\import Bundles.ArrowLaws[X := X, Y := X, F := Parity.Even, G := Parity.Odd, source := Parity.evenBundle, target := Parity.oddBundle,
+  f := (\fun (x: X) => x)].Pullback[Z := A, space := topology, g := inclusion].Of[a := forward, regular := regular] \as Forward;
+\import Bundles.ArrowLaws[X := X, Y := X, F := Parity.Odd, G := Parity.Even, source := Parity.oddBundle, target := Parity.evenBundle,
+  f := (\fun (x: X) => x)].Pullback[Z := A, space := topology, g := inclusion].Of[a := backward, regular := regular] \as Backward;
+\definition scalarRegular: topology.Continuity[A := A, B := C.Complex].Continuous topology Scalars.scalar.topological.space (\fun (x: A) => coefficient x) :=
+  topology.Continuity[A := X, B := C.Complex].Restriction[S := subset].restrictContinuous e0.baseSpace Scalars.scalar.topological.space coefficient coefficientContinuous;
+\definition reciprocal[x: A]: C.Complex := Scalar.inv (coefficient x);
+\definition reciprocalContinuous: topology.Continuity[A := A, B := C.Complex].Continuous topology Scalars.scalar.topological.space reciprocal :=
+  topological_algebra.Complex[].Functions[A := A].inverseContinuous topology (\fun (x: A) => coefficient x) scalarRegular nonzero;
+\import Operations.MapOperations[X := A, F := Odd, G := Even, source := oddBundle, target := evenBundle] \as Reverse;
+\definition inverse: Reverse.Map := Reverse.functionScale reciprocal Backward.map reciprocalContinuous;
+\module At(x: A);
+\definition isomorphism: Bundles.Isomorphisms[X := A, F := Even, G := Odd, source := evenBundle, target := oddBundle].Isomorphism :=
+  Bundles.Isomorphisms[X := A, F := Even, G := Odd, source := evenBundle, target := oddBundle].Isomorphism {
+    forward := Forward.map, backward := inverse,
+    leftInverse := \fun (x: A) => At[x := x].left, rightInverse := \fun (x: A) => At[x := x].right
+  };
+\definition formula: \forall (x: A)(v: Even x) -> (isomorphism.forward.fiber x).apply v = (forward.fiber x).apply v :=
+  \fun (x: A)(v: Even x) => \refl((forward.fiber x).apply v);

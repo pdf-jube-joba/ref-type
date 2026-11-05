@@ -1,0 +1,32 @@
+\definition lowerFirst: e1.baseSpace = f1.baseSpace := trans!{{Base.Topology}} _ _ _ (sym!{{Base.Topology}} _ _ sameE1) sameF1;
+\definition lowerSecond: e1.baseSpace = h1.baseSpace := trans!{{Base.Topology}} _ _ _ (sym!{{Base.Topology}} _ _ sameE1) sameH1;
+\import Operations.TensorDistribution[X := X, F := E0, G := F0, H := H0,
+  left := e0, middle := f0, right := h0, sameMiddle := sameF0, sameRight := sameH0] \as Upper;
+\import Operations.TensorDistribution[X := X, F := E1, G := F1, H := H1,
+  left := e1, middle := f1, right := h1, sameMiddle := lowerFirst, sameRight := lowerSecond] \as Lower;
+\import Operations.DirectSumIsomorphisms[X := X, F := Upper.SourceFiber, G := Lower.SourceFiber, A := Upper.TargetFiber, B := Lower.TargetFiber,
+  first := Upper.sourceBundle, second := Lower.sourceBundle, newFirst := Upper.targetBundle, newSecond := Lower.targetBundle,
+  sameSource := sameE1, sameTarget := sameE1] \as Rows;
+\definition rows: Bundles.Isomorphisms[X := X, F := Rows.SourceFiber, G := Rows.TargetFiber, source := Rows.sourceBundle, target := Rows.targetBundle].Isomorphism := Rows.isomorphism Upper.isomorphism Lower.isomorphism;
+\import Operations.DirectSumMiddleSwap[X := X, F := Original.EEFiber, G := Auxiliary.EEFiber, H := Original.OOFiber, I := Auxiliary.OOFiber,
+  first := Original.eeBundle, second := Auxiliary.eeBundle, third := Original.ooBundle, fourth := Auxiliary.ooBundle,
+  sameSecond := (\refl(e0.baseSpace)), sameThird := sameE1, sameFourth := sameE1] \as Shuffle;
+\import Operations.IsomorphismComposition[X := X, F := Source.Even, G := Rows.TargetFiber, H := Even.Fiber,
+  source := Source.evenBundle, middle := Rows.targetBundle, target := evenBundle] \as Compose;
+\definition isomorphism: Bundles.Isomorphisms[X := X, F := Source.Even, G := Even.Fiber, source := Source.evenBundle, target := evenBundle].Isomorphism := Compose.compose rows Shuffle.isomorphism;
+\import std.Data[].Pair[] \as P;
+\definition onPure: \forall (x: X)(a: E0 x)(u: StableEven.Fiber x)(b: E1 x)(v: StableOdd.Fiber x) ->
+  (isomorphism.forward.fiber x).apply (P.pair (Source.EEFiber x) (Source.OOFiber x) (Source.ee x a u) (Source.oo x b v)) =
+  P.pair (Original.Even x) (Auxiliary.Even x)
+    (P.pair (Original.EEFiber x) (Original.OOFiber x)
+      (Original.ee x a (P.first (F0 x) (H0 x) u)) (Original.oo x b (P.first (F1 x) (H1 x) v)))
+    (P.pair (Auxiliary.EEFiber x) (Auxiliary.OOFiber x)
+      (Auxiliary.ee x a (P.second (F0 x) (H0 x) u)) (Auxiliary.oo x b (P.second (F1 x) (H1 x) v))) :=
+  \fun (x: X)(a: E0 x)(u: StableEven.Fiber x)(b: E1 x)(v: StableOdd.Fiber x) =>
+    trans!{{Even.Fiber x}} _ _ _
+      (congr!{{Rows.TargetFiber x} {Even.Fiber x}} (Shuffle.isomorphism.forward.fiber x).apply _ _
+        (P.Prop[A := Upper.TargetFiber x, B := Lower.TargetFiber x].pairCong _ _ _ _
+          (Upper.forwardOnPure x a u) (Lower.forwardOnPure x b v)))
+      (Shuffle.formula x
+        (Original.ee x a (P.first (F0 x) (H0 x) u)) (Auxiliary.ee x a (P.second (F0 x) (H0 x) u))
+        (Original.oo x b (P.first (F1 x) (H1 x) v)) (Auxiliary.oo x b (P.second (F1 x) (H1 x) v)));

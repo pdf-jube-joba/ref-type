@@ -1,0 +1,37 @@
+\import \parent.Quotient[] \as Local;
+\import \parent.Diagram[] \as Diagram;
+\import Relative.Smash[left := FirstQ.model, right := SecondQ.model] \as LocalSmash;
+\import LocalProduct.QuotientComparison[] \as Comparison;
+\import Relative.Pullback[source := WholeQ.model, target := LocalQ.model, f := Local.backward] \as Reverse;
+\import Relative.Pullback[source := WholeQ.model, target := LocalSmash.result, f := Local.map] \as LocalPull;
+\import Relative.Pullback[source := Whole.model, target := GlobalSmash.result, f := Diagram.globalMap] \as GlobalPull;
+\import GlobalSmash.Mapping[targetLeft := FirstQ.model, targetRight := SecondQ.model, f := FirstLocal.collapse, g := SecondLocal.collapse] \as Change;
+\import Relative.Pullback[source := GlobalSmash.result, target := LocalSmash.result, f := Change.map] \as SmashPull;
+\import Relative.Composition[source := Whole.model, middle := WholeQ.model, target := LocalSmash.result,
+  first := WholeLocal.collapse, second := Local.map] \as Left;
+\import Relative.Composition[source := Whole.model, middle := GlobalSmash.result, target := LocalSmash.result,
+  first := Diagram.globalMap, second := Change.map] \as Right;
+\import Relative.Pullback[source := Whole.model, target := LocalSmash.result, f := Left.map] \as LeftPull;
+\import Relative.Pullback[source := Whole.model, target := LocalSmash.result, f := Right.map] \as RightPull;
+\import Relative.Reduced[model := Whole.model] \as Group;
+\definition product[a: FirstQ.Relative][b: SecondQ.Relative]: Group.Carrier := WholeLocal.extend (Reverse.map (LocalProduct.External[].product a b));
+\definition equation: \forall (a: FirstQ.Relative)(b: SecondQ.Relative) -> product a b =
+  GlobalPull.map (GlobalSmash.External[].product (FirstLocal.extend a) (SecondLocal.extend b)) :=
+  \fun (a: FirstQ.Relative)(b: SecondQ.Relative) => eq_reason_in!{{Group.Carrier} _
+    "=" { WholeLocal.extend (LocalPull.map (LocalSmash.External[].product a b)) } "by" {
+      congr!{{WholeQ.Relative} {Group.Carrier}} WholeLocal.extend _ _
+        (sym!{{WholeQ.Relative}} _ _ (Relative.PullbackComposition[source := WholeQ.model, middle := LocalQ.model,
+          target := LocalSmash.result, first := Local.backward, second := Comparison.equivalence.forward].equation (LocalSmash.External[].product a b))) }
+    "=" { LeftPull.map (LocalSmash.External[].product a b) } "by" {
+      sym!{{Group.Carrier}} _ _ (Relative.PullbackComposition[source := Whole.model, middle := WholeQ.model, target := LocalSmash.result,
+        first := WholeLocal.collapse, second := Local.map].equation (LocalSmash.External[].product a b)) }
+    "=" { RightPull.map (LocalSmash.External[].product a b) } "by" {
+      congr!{{Relative.Map Whole.model LocalSmash.result} {Group.Carrier}}
+        (\fun (f: Relative.Map Whole.model LocalSmash.result) => Relative.Pullback[source := Whole.model, target := LocalSmash.result, f := f].map (LocalSmash.External[].product a b))
+        _ _ Diagram.commutes }
+    "=" { GlobalPull.map (SmashPull.map (LocalSmash.External[].product a b)) } "by" {
+      Relative.PullbackComposition[source := Whole.model, middle := GlobalSmash.result, target := LocalSmash.result,
+        first := Diagram.globalMap, second := Change.map].equation (LocalSmash.External[].product a b) }
+    "=" _ "by" {
+      congr!{{Relative.Reduced[model := GlobalSmash.result].Carrier} {Group.Carrier}} GlobalPull.map _ _ (Change.External[].naturality a b) }
+  };

@@ -1,0 +1,21 @@
+\definition p: N.Nat^ := Labels.degree n s;
+\definition q: N.Nat^ := Labels.degree m t;
+\definition first: B.Bool^ := Labels.even n s;
+\definition second: B.Bool^ := Labels.even m t;
+\module With(firstSide, secondSide: B.Bool^);
+\definition Statement[firstSide, secondSide: B.Bool^][firstColor: first = firstSide][secondColor: second = secondSide]: \Prop :=
+  \forall (x: X)(v: Models.Fiber (firstTerm p).ranks x)(w: Models.Fiber (secondTerm q).ranks x) ->
+  ((With[firstSide := firstSide, secondSide := secondSide].map).fiber x).apply (Tensor.componentPure p q x v w) =
+  ((block firstSide secondSide).fiber x).apply (\parent.\parent.Slot[firstSide := firstSide, secondSide := secondSide].pure x
+    (((First.at n s firstSide firstColor).fiber x).apply v) (((Second.at m t secondSide secondColor).fiber x).apply w));
+\module Base;
+\definition equation: \forall (firstSide, secondSide: B.Bool^)(firstColor: first = firstSide)(secondColor: second = secondSide) -> Statement firstSide secondSide firstColor secondColor :=
+  \fun (firstSide, secondSide: B.Bool^)(firstColor: first = firstSide)(secondColor: second = secondSide) =>
+    (\idelim first = firstSide \with a: B.Bool^ => \forall (ca: first = a)(cb: second = secondSide) -> Statement a secondSide ca cb \by {
+      base: \fun (ca: first = first)(cb: second = secondSide) =>
+        (\idelim second = secondSide \with b: B.Bool^ => \forall (law: second = b) -> Statement first b ca law \by {
+          base: \fun (law: second = second) => Base[].equation ca law,
+          equality: cb
+        }) cb,
+      equality: firstColor
+    }) firstColor secondColor;

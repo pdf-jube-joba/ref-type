@@ -1,0 +1,27 @@
+\import std.Data[].Pair[] \as P;
+\import Sum.Of[same := sameBase] \as Split;
+\import Split.From[Y := X, H := Fiber, source := bundle, f := (\fun (x: X) => x)] \as Into;
+\import Bundles.Morphisms[X := X, Y := X, F := Fiber, G := G, source := bundle, target := second, f := (\fun (x: X) => x)]
+  .Composition[Z := X, H := F, range := first, g := (\fun (x: X) => x)] \as ToFirst;
+\import Bundles.Morphisms[X := X, Y := X, F := Fiber, G := F, source := bundle, target := first, f := (\fun (x: X) => x)]
+  .Composition[Z := X, H := G, range := second, g := (\fun (x: X) => x)] \as ToSecond;
+\definition operator: Bundles.Morphisms[X := X, Y := X, F := Fiber, G := Fiber, source := bundle, target := bundle, f := (\fun (x: X) => x)].Map :=
+  Into.pair (ToFirst.compose Split.secondMap e) (ToSecond.compose Split.firstMap d);
+\definition onParts: \forall (x: X)(v: Fiber x) -> (operator.fiber x).apply v =
+  P.pair (F x) (G x) ((e.fiber x).apply (P.second (F x) (G x) v)) ((d.fiber x).apply (P.first (F x) (G x) v)) :=
+  \fun (x: X)(v: Fiber x) => \refl((operator.fiber x).apply v);
+\import Operations.IdentityIsomorphism[X := X, F := F, bundle := first] \as PositiveIdentity;
+\import Operations.Negation[X := X, F := G, bundle := second] \as NegativeSign;
+\import Operations.DirectSumIsomorphisms[X := X, F := F, G := G, A := F, B := G,
+  first := first, second := second, newFirst := first, newSecond := second, sameSource := sameBase, sameTarget := sameBase] \as Pair;
+\definition gradingIso: Bundles.Isomorphisms[X := X, F := Fiber, G := Fiber, source := bundle, target := bundle].Isomorphism :=
+  Pair.isomorphism PositiveIdentity.isomorphism NegativeSign.isomorphism;
+\definition grading: Bundles.Morphisms[X := X, Y := X, F := Fiber, G := Fiber, source := bundle, target := bundle, f := (\fun (x: X) => x)].Map := gradingIso.forward;
+\definition gradingSquare: \forall (x: X)(v: Fiber x) -> (grading.fiber x).apply ((grading.fiber x).apply v) = v := gradingIso.leftInverse;
+\module At(x: X);
+\definition anticommutes: \forall (x: X)(v: Fiber x) -> (bundle.space x).add
+  ((grading.fiber x).apply ((operator.fiber x).apply v)) ((operator.fiber x).apply ((grading.fiber x).apply v)) = (bundle.space x).zero :=
+  \fun (x: X) => At[x := x].equation;
+\module Square(q: X -> C.Complex,
+  evenSquare: \forall (x: X)(v: F x) -> (e.fiber x).apply ((d.fiber x).apply v) = (first.space x).smul (q x) v,
+  oddSquare: \forall (x: X)(v: G x) -> (d.fiber x).apply ((e.fiber x).apply v) = (second.space x).smul (q x) v);

@@ -1,0 +1,20 @@
+\import Fin.Tuples[A := A] \as Extend;
+\definition k: N.Nat^ := Lists.length A tail;
+\definition tuple: Fin.Fin (N.Nat^::succ k) -> A := Tuple.tuple (Lists.List[A]::cons head tail);
+\definition zeroValue: value (tuple (Fin.zero k)) = value head := congr!{A N.Nat^} value _ _ (Extend.atZero k head (Tuple.tuple tail));
+\definition successorValue[i: Fin.Fin k]: value (tuple (Fin.succ k i)) = value (Tuple.tuple tail i) :=
+  congr!{A N.Nat^} value _ _ (Extend.atSuccessor k head (Tuple.tuple tail) i);
+\definition law[above: All.Holds (\fun (a: A) => Naturals.Lt (value head) (value a)) tail]
+  [increasing: \forall (i, j: Fin.Fin k) -> Naturals.Lt i j -> Naturals.Lt (value (Tuple.tuple tail i)) (value (Tuple.tuple tail j))]:
+  \forall (i, j: Fin.Fin (N.Nat^::succ k)) -> Naturals.Lt i j -> Naturals.Lt (value (tuple i)) (value (tuple j)) :=
+  Fin.cases k (\fun (i: Fin.Fin (N.Nat^::succ k)) => \forall (j: Fin.Fin (N.Nat^::succ k)) -> Naturals.Lt i j -> Naturals.Lt (value (tuple i)) (value (tuple j)))
+    (Fin.cases k (\fun (j: Fin.Fin (N.Nat^::succ k)) => Naturals.Lt (Fin.zero k) j -> Naturals.Lt (value (tuple (Fin.zero k))) (value (tuple j)))
+      (\fun (less: _) => Logic.falseElim _ (Naturals.ltIrrefl (Fin.zero k) less))
+      (\fun (j: Fin.Fin k)(less: _) => NatOrder.ltRespects _ _ _ _
+        (sym!{N.Nat^} _ _ zeroValue) (sym!{N.Nat^} _ _ (successorValue j))
+        (allAt (\fun (a: A) => Naturals.Lt (value head) (value a)) tail above j)))
+    (\fun (i: Fin.Fin k) => Fin.cases k
+      (\fun (j: Fin.Fin (N.Nat^::succ k)) => Naturals.Lt (Fin.succ k i) j -> Naturals.Lt (value (tuple (Fin.succ k i))) (value (tuple j)))
+      (\fun (less: _) => Logic.falseElim _ (Fin.zeroImpossible (Fin.succ k i) less))
+      (\fun (j: Fin.Fin k)(less: _) => NatOrder.ltRespects _ _ _ _
+        (sym!{N.Nat^} _ _ (successorValue i)) (sym!{N.Nat^} _ _ (successorValue j)) (increasing i j less)));

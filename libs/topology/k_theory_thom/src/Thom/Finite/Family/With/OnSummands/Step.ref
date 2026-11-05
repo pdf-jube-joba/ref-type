@@ -1,0 +1,27 @@
+\import \root.Thom[].Finite[X := X, baseSpace := baseSpace].SquareStep[first := term (N.Nat^::succ n),
+  previous := complex n, differential := differential n, consecutive := (valid n).consecutive] \as Build;
+\definition A[x: X]: \Set := Models.Fiber (term (N.Nat^::succ n)).ranks x;
+\definition Odd[x: X]: \Set := Models.Fiber (folded n).odd.ranks x;
+\definition Even[x: X]: \Set := Models.Fiber (folded n).even.ranks x;
+\definition head: \forall (x: X)(v: A x) -> ((boundary (N.Nat^::succ n) B.Bool^::true).fiber x).apply (((folded (N.Nat^::succ n)).inclusion.fiber x).apply v) =
+  ((headAction (N.Nat^::succ n)).fiber x).apply v := Build.forwardHead;
+\definition odd: \forall (x: X)(v: Odd x) -> ((boundary (N.Nat^::succ n) B.Bool^::true).fiber x).apply (((Summands.lift n B.Bool^::false).fiber x).apply v) =
+  ((folded n).backward.fiber x).apply v :=
+  \fun (x: X)(v: Odd x) => trans!{{Even x}} _ _ _ (Build.forwardJoin x ((Models.bundle (term (N.Nat^::succ n))).space x).zero v)
+    (trans!{{Even x}} _ _ _
+      (congr!{{Even x} {Even x}} (\fun (w: Even x) => ((Models.bundle (folded n).even).space x).add w (((folded n).backward.fiber x).apply v)) _ _
+        (trans!{{Even x}} _ _ _
+          (congr!{{Models.Fiber (term n).ranks x} {Even x}} ((folded n).inclusion.fiber x).apply _ _ ((differential n).fiber x).preservesZero)
+          ((folded n).inclusion.fiber x).preservesZero))
+      (Spaces.Laws[V := Even x, space := (Models.bundle (folded n).even).space x].zeroLeft (((folded n).backward.fiber x).apply v)));
+\definition even: \forall (x: X)(v: Even x) -> ((boundary (N.Nat^::succ n) B.Bool^::false).fiber x).apply (((Summands.lift n B.Bool^::true).fiber x).apply v) =
+  ((Summands.lift n B.Bool^::false).fiber x).apply (((folded n).forward.fiber x).apply v) := Build.backward;
+\definition law: \forall (side: B.Bool^)(x: X)(v: Models.Fiber (Summands.parity n side).ranks x) ->
+  ((boundary (N.Nat^::succ n) (Labels.flip side)).fiber x).apply (((Summands.lift n side).fiber x).apply v) =
+  ((Summands.lift n (Labels.flip side)).fiber x).apply (((boundary n side).fiber x).apply v) :=
+  \induction (side: B.Bool^) \return \forall (x: X)(v: Models.Fiber (Summands.parity n side).ranks x) ->
+    ((boundary (N.Nat^::succ n) (Labels.flip side)).fiber x).apply (((Summands.lift n side).fiber x).apply v) =
+    ((Summands.lift n (Labels.flip side)).fiber x).apply (((boundary n side).fiber x).apply v) \with {
+    | false: odd
+    | true: even
+  };

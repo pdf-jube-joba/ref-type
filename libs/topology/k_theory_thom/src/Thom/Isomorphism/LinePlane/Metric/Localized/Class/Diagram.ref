@@ -1,0 +1,69 @@
+\import \parent.Transport[c := c] \as LocalMap;
+\import \root.Thom[].Isomorphism[].LinePlane[].Compactification[] \as NativeSphere;
+\import \root.Thom[].Isomorphism[].PlanarSphere[] \as SphereModel;
+\import \root.Thom[].Isomorphism[].PlanarSphere[].Forward[] \as SphereForward;
+\import \root.Thom[].Isomorphism[].NegativeNormalization[] \as Negative;
+\import \root.Thom[].Isomorphism[].NegativeNormalization[].Disk[] \as TargetDisk;
+\import \parent.\parent.GeometryProof[] \as Geometry;
+\import algebraic_topology.Euclidean[].Dimension[n := N.Nat^::succ (N.Nat^::succ one)] \as Sphere;
+\import Sphere.Compactness[] \as SphereCompact;
+\import D2.Compactness[] \as DiskCompact;
+\import bundle_homotopy.Homotopy[].Over[K := C.Complex, field := C.Algebra[].field,
+  conjugation := linear_algebra.Hermitian[].Complex[].scalar, scalar := Scalars.scalar].Disks[d := N.Nat^::succ one].Hemispheres[] \as Halves;
+\import Halves.Cover[] \as Cover;
+\import dedekind_reals.DedekindReal[] \as R;
+\import R.Arithmetic[].Prop[] \as RealLaws;
+\import Relative.Pair[X := Sphere.Sphere, space := Sphere.sphereTopology, compact := SphereCompact.sphere,
+  hausdorff := SphereCompact.sphereHausdorff, subset := Cover.PositiveHalf, closed := Cover.positiveClosed] \as SpherePair;
+\import SpherePair.Quotient[] \as SphereQuotient;
+\import SpherePair.Mapping[Y := D2.Disk, source := D2.diskTopology, sourceCompact := DiskCompact.compact,
+  sourceHausdorff := TargetDisk.diskHausdorff, sourceSubset := TargetDisk.boundary, sourceClosed := TargetDisk.boundaryClosed,
+  f := Halves.negative, regular := Halves.negativeContinuous, preserves := TargetDisk.preserves] \as SphereMapping;
+\import Relative.Composition[source := Point.model, middle := Quotient.model, target := LocalMap.target,
+  first := Local.collapse, second := LocalMap.map] \as First;
+\import Relative.Composition[source := Point.model, middle := LocalMap.target, target := SphereQuotient.model,
+  first := First.map, second := SphereMapping.quotientMap] \as Image;
+\definition map: Relative.Map Point.model SphereQuotient.model := Image.map;
+\definition containsPoint: \In[Sphere.Sphere] Cover.PositiveHalf (Relative.details SphereModel.sphere).point :=
+  R.leReplaceRight Real.zero Real.one (SphereModel.Stereographic[].head (Relative.details SphereModel.sphere).point)
+    (sym!{{Real.Real}} _ _ SphereModel.Pole[].height) RealLaws.oneNonnegative;
+\definition projectedPoint: SphereQuotient.projection (Relative.details SphereModel.sphere).point = SphereQuotient.point :=
+  SphereQuotient.onSubset (\into[Sphere.Sphere]((Relative.details SphereModel.sphere).point, Cover.PositiveHalf) \by { containsPoint });
+\definition sphereProjection: Relative.Map SphereModel.sphere SphereQuotient.model :=
+  \into[Sphere.Sphere -> SphereQuotient.Carrier](SphereQuotient.projection, Relative.Map SphereModel.sphere SphereQuotient.model) \by {
+    algebraic_topology.Pointed[A := Sphere.Sphere].Maps[B := SphereQuotient.Carrier].Laws[
+      Relative.pointed SphereModel.sphere, Relative.pointed SphereQuotient.model, SphereQuotient.projection] {
+        continuous := SphereQuotient.continuous, pointed := projectedPoint
+      }
+  };
+\import Relative.Composition[source := Point.model, middle := SphereModel.sphere, target := SphereQuotient.model,
+  first := NativeSphere.equivalence.forward, second := sphereProjection] \as SphereImage;
+\module Inside(p: Point.Total, inside: \In[Point.Total] Neighbor.openSet p);
+\module Outside(p: Point.Total, outside: Logic.Not (\In[Point.Total] Neighbor.openSet p));
+\definition infinity: map Plus.point = SphereImage.map Plus.point :=
+  trans!{{SphereQuotient.Carrier}} _ _ _
+    ((algebraic_topology.Pointed[A := Point.model.Carrier].Maps[B := SphereQuotient.Carrier].laws
+      (Relative.pointed Point.model) (Relative.pointed SphereQuotient.model) map).pointed)
+    (sym!{{SphereQuotient.Carrier}} _ _
+      ((algebraic_topology.Pointed[A := Point.model.Carrier].Maps[B := SphereQuotient.Carrier].laws
+        (Relative.pointed Point.model) (Relative.pointed SphereQuotient.model) SphereImage.map).pointed));
+\definition equation: \forall (q: Point.model.Carrier) -> map q = SphereImage.map q :=
+  \induction (q: Point.model.Carrier) \return map q = SphereImage.map q \with {
+    | none: infinity
+    | some: \fun (p: Point.Total) => Logic.orElim[\In[Point.Total] Neighbor.openSet p, Logic.Not (\In[Point.Total] Neighbor.openSet p), map (Plus.inclusion p) = SphereImage.map (Plus.inclusion p)]
+      (std.Logic[].Classical[].excludedMiddle (\In[Point.Total] Neighbor.openSet p))
+      (\fun (inside: \In[Point.Total] Neighbor.openSet p) => Inside[p := p, inside := inside].equation)
+      (\fun (outside: Logic.Not (\In[Point.Total] Neighbor.openSet p)) => Outside[p := p, outside := outside].equation)
+  };
+\definition equality: map = SphereImage.map := \axiom:funext(map, SphereImage.map, equation);
+\definition target: Relative.CompactPointed := SphereQuotient.model;
+\definition firstMap: Relative.Map Point.model LocalMap.target := First.map;
+\definition diskMap: Relative.Map LocalMap.target target := SphereMapping.quotientMap;
+\definition sphereMap: Relative.Map Point.model target := SphereImage.map;
+\definition relativeBeta: Relative.Reduced[model := target].Carrier := Negative.relativeBeta;
+\definition diskBetaFormula: Relative.Pullback[source := LocalMap.target, target := target, f := diskMap].map relativeBeta = TargetDisk.diskBeta := \refl(TargetDisk.diskBeta);
+\import SpherePair.ForgetProjection[] \as Projection;
+\import topological_k_theory.KTheory[].On[X := Sphere.Sphere, baseSpace := Sphere.sphereTopology,
+  compact := SphereCompact.sphere, hausdorff := SphereCompact.sphereHausdorff] \as SphereTheory;
+\definition projectionBeta: Relative.Pullback[source := SphereModel.sphere, target := target, f := sphereProjection].map relativeBeta = periodic_k_theory.Periodicity[].beta :=
+  trans!{{SphereTheory.K0[].Carrier}} _ _ _ (Projection.equation Negative.relativeBeta) Negative.relativeBetaFormula;

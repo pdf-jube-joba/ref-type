@@ -1,0 +1,30 @@
+\definition projectionVector: \forall (p: RightFamily.Point) -> (Trivialization.projection p).vector = (iso.forward.fiber p.base).apply p.vector :=
+  \fun (p: RightFamily.Point) => congr!{{PointFamily.Point} {Bundles.Vector n}} (\fun (q: PointFamily.Point) => q.vector) _ _ (Trivialization.onFinite p);
+\definition vectorInverse[p: SumFamily.Point]: (backward (forward p)).vector = p.vector :=
+  Pair.Prop[A := F p.base, B := G p.base].ext (backward (forward p)).vector p.vector (\refl((Sum.first p).vector))
+    (trans!{{G p.base}}
+      ((iso.backward.fiber p.base).apply (Trivialization.projection (Sum.second p)).vector)
+      ((iso.backward.fiber p.base).apply ((iso.forward.fiber p.base).apply (Sum.second p).vector))
+      (Sum.second p).vector
+      (congr!{{Bundles.Vector n} {G p.base}} (iso.backward.fiber p.base).apply
+        (Trivialization.projection (Sum.second p)).vector ((iso.forward.fiber p.base).apply (Sum.second p).vector) (projectionVector (Sum.second p)))
+      (isoLaws.leftInverse p.base (Sum.second p).vector));
+\definition leftInverse: \forall (p: SumFamily.Point) -> backward (forward p) = p :=
+  \fun (p: SumFamily.Point) => trans!{{SumFamily.Point}} (backward (forward p)) (SumFamily.include p.base p.vector) p
+    (congr!{{Sum.Fiber p.base} {SumFamily.Point}} (SumFamily.include p.base) (backward (forward p)).vector p.vector (vectorInverse p)) (SumFamily.eta p);
+\definition pointEta: \forall (p: PointFamily.Point) -> PointFamily.include Standard.point p.vector = p :=
+  \fun (p: PointFamily.Point) => trans!{{PointFamily.Point}} (PointFamily.include Standard.point p.vector) (PointFamily.include p.base p.vector) p
+    (congr!{{Standard.Point} {PointFamily.Point}} (\fun (x: Standard.Point) => PointFamily.include x p.vector) Standard.point p.base (sym!{{Standard.Point}} p.base Standard.point (Fin.singletonValue p.base)))
+    (PointFamily.eta p);
+\definition secondInverse: \forall (z: Product.CarrierSet) -> Trivialization.projection (Sum.second (backward z)) = second z :=
+  \fun (z: Product.CarrierSet) => trans!{{PointFamily.Point}}
+    (Trivialization.projection (Sum.second (backward z)))
+    (PointFamily.include Standard.point ((iso.forward.fiber (base z)).apply ((iso.backward.fiber (base z)).apply (vector z)))) (second z)
+    (Trivialization.onFinite (Sum.second (backward z)))
+    (trans!{{PointFamily.Point}}
+      (PointFamily.include Standard.point ((iso.forward.fiber (base z)).apply ((iso.backward.fiber (base z)).apply (vector z))))
+      (PointFamily.include Standard.point (vector z)) (second z)
+      (congr!{{Bundles.Vector n} {PointFamily.Point}} (PointFamily.include Standard.point)
+        ((iso.forward.fiber (base z)).apply ((iso.backward.fiber (base z)).apply (vector z))) (vector z) (isoLaws.rightInverse (base z) (vector z))) (pointEta (second z)));
+\definition rightInverse: \forall (z: Product.CarrierSet) -> forward (backward z) = z :=
+  \fun (z: Product.CarrierSet) => Pair.Prop[A := LeftFamily.Point, B := PointFamily.Point].ext (forward (backward z)) z (LeftFamily.eta (first z)) (secondInverse z);

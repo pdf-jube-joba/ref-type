@@ -1,0 +1,72 @@
+\import relative_k_theory.Relative[] \as Relative;
+\import compact_support_k.Support[] \as Support;
+\import \root.Thom[].For[X := X, F := F, bundle := bundle, compact := compact, hausdorff := hausdorff] \as Theory;
+\import \root.Thom[].TrivialThom[X := X, space := bundle.baseSpace, compact := compact, hausdorff := hausdorff, n := n] \as Trivial;
+\import \root.Thom[].For[X := X, F := F, bundle := bundle, compact := compact, hausdorff := hausdorff]
+  .BundleIsomorphism[G := (\fun (_: X) => Bundles.Vector n), target := Trivial.bundle,
+    targetCompact := compact, targetHausdorff := hausdorff,
+    sameBase := (\refl(bundle.baseSpace)), iso := iso] \as Change;
+\import Bundles.Family[X := X, F := F] \as Family;
+\import Bundles.Family[X := Trivial.Point, F := (\fun (_: Trivial.Point) => Bundles.Vector n)] \as PointFamily;
+\import \root.Thom[].TotalSpace[X := X, F := F, bundle := bundle, compact := compact, hausdorff := hausdorff] \as TotalSpace;
+\definition Total: \Set := Family.Point;
+\definition Point: \Set := Trivial.Point;
+\definition point: Point := Trivial.point;
+\definition PointTotalCarrier: \Set := Trivial.PointTotalCarrier;
+\definition pointTotalSpace: topology.Topology[Carrier := PointTotalCarrier].Topology := Trivial.pointTotalSpace;
+\definition pointTotalHausdorff: topology.Topology[Carrier := PointTotalCarrier].IsT2 pointTotalSpace := Trivial.pointTotalHausdorff;
+\definition pointTotalLocallyCompact: topology.LocallyCompact[A := PointTotalCarrier].IsLocallyCompact pointTotalSpace := Trivial.pointTotalLocallyCompact;
+\definition homeomorphism: topology.Homeomorphism[A := Total, B := Trivial.Total].Homeomorphism[bundle.totalSpace, Trivial.totalSpace] := Change.totalHomeomorphism;
+\import Support.Homeomorphic[A := Total, B := Trivial.Total, source := bundle.totalSpace, target := Trivial.totalSpace, h := homeomorphism] \as Homeomorphism;
+\definition projection[p: Total]: PointTotalCarrier := Trivial.projection (homeomorphism.forward p);
+\definition g: Total -> PointTotalCarrier := projection;
+\definition onFinite: \forall (p: Total) -> projection p = PointFamily.include point ((iso.forward.fiber p.base).apply p.vector) :=
+  \fun (p: Total) => Trivial.onFinite (homeomorphism.forward p);
+\definition continuous: topology.Continuity[A := Total, B := PointTotalCarrier].Continuous bundle.totalSpace pointTotalSpace projection :=
+  topology.Composition[A := Total, B := Trivial.Total, C := PointTotalCarrier].composeContinuous bundle.totalSpace Trivial.totalSpace pointTotalSpace
+    homeomorphism.forward Trivial.projection homeomorphism.forwardContinuous Trivial.continuous;
+\definition proper: Support.Proper[A := Total, B := PointTotalCarrier, source := bundle.totalSpace, target := pointTotalSpace].IsProper projection :=
+  Support.ProperComposition[A := Total, B := Trivial.Total, C := PointTotalCarrier, firstSpace := bundle.totalSpace,
+    middleSpace := Trivial.totalSpace, lastSpace := pointTotalSpace, f := homeomorphism.forward, g := Trivial.projection,
+    firstContinuous := homeomorphism.forwardContinuous, secondContinuous := Trivial.continuous,
+    firstProper := Homeomorphism.proper, secondProper := Trivial.proper].proper;
+\import Support.On[X := Total, space := bundle.totalSpace, hausdorff := TotalSpace.separated, locallyCompact := TotalSpace.locallyCompact] \as Supported;
+\import Supported.Pullback[Y := PointTotalCarrier, target := pointTotalSpace, targetHausdorff := pointTotalHausdorff,
+  targetLocallyCompact := pointTotalLocallyCompact, f := projection, continuous := continuous, proper := proper] \as Direct;
+\import Supported.Pullback[Y := Trivial.Total, target := Trivial.totalSpace, targetHausdorff := Trivial.totalHausdorff,
+  targetLocallyCompact := Trivial.totalLocallyCompact, f := homeomorphism.forward,
+  continuous := homeomorphism.forwardContinuous, proper := Homeomorphism.proper] \as First;
+\import Support.On[X := Trivial.Total, space := Trivial.totalSpace, hausdorff := Trivial.totalHausdorff,
+  locallyCompact := Trivial.totalLocallyCompact] \as NativeSupport;
+\import NativeSupport.Pullback[Y := PointTotalCarrier, target := pointTotalSpace, targetHausdorff := pointTotalHausdorff,
+  targetLocallyCompact := pointTotalLocallyCompact, f := Trivial.projection, continuous := Trivial.continuous, proper := Trivial.proper] \as Second;
+\definition Carrier: \Set := Theory.Carrier;
+\definition PointCarrier: \Set := Trivial.PointCarrier;
+\definition thom: Carrier := Theory.thom;
+\definition pointThom: PointCarrier := Trivial.pointThom;
+\definition model: Relative.CompactPointed := Supported.model;
+\definition pointModel: Relative.CompactPointed := Trivial.pointModel;
+\definition pull: PointCarrier -> Carrier := Relative.Pullback[source := model, target := pointModel, f := Direct.mapping].map;
+\import Relative.Composition[source := model, middle := Trivial.model, target := pointModel,
+  first := First.mapping, second := Second.mapping] \as Composite;
+\import Support.OnePoint[X := Total, space := bundle.totalSpace] \as Points;
+\import Support.OnePoint[X := PointTotalCarrier, space := pointTotalSpace] \as PointPoints;
+\definition maps: Composite.map = Direct.mapping := \axiom:funext(Composite.map, Direct.mapping,
+  \induction (p: Points.Carrier) \return Composite.map p = Direct.mapping p \with {
+    | none: \refl(PointPoints.point)
+    | some: \fun (p: Total) => \refl(PointPoints.inclusion (projection p))
+  });
+\definition factorization: \forall (u: PointCarrier) -> pull u = Change.pull (Trivial.pull u) :=
+  \fun (u: PointCarrier) => trans!{Carrier} _ _ _
+    (congr!{{Relative.Map model pointModel} Carrier}
+      (\fun (mapping: Relative.Map model pointModel) => Relative.Pullback[source := model, target := pointModel, f := mapping].map u)
+      Direct.mapping Composite.map (sym!{{Relative.Map model pointModel}} _ _ maps))
+    (Relative.PullbackComposition[source := model, middle := Trivial.model, target := pointModel,
+      first := First.mapping, second := Second.mapping].equation u);
+\definition formula: thom = pull pointThom := trans!{Carrier} _ _ _ Change.equation
+  (trans!{Carrier} _ _ _ (congr!{{Trivial.Carrier} Carrier} Change.pull _ _ Trivial.formula) (sym!{Carrier} _ _ (factorization pointThom)));
+\definition equation: thom = pull pointThom := formula;
+\definition totalHausdorff: topology.Topology[Carrier := Total].IsT2 bundle.totalSpace := TotalSpace.separated;
+\definition totalLocallyCompact: topology.LocallyCompact[A := Total].IsLocallyCompact bundle.totalSpace := TotalSpace.locallyCompact;
+\definition pointUnique: \forall (p: Point) -> p = point := Trivial.pointUnique;
+\module Isomorphism;

@@ -1,0 +1,27 @@
+\import Models.Sum[first := term (N.Nat^::succ n), second := Summands.parity n B.Bool^::false] \as Sum;
+\import \parent.Part[head := term (N.Nat^::succ n), tail := Summands.parity n B.Bool^::false] \as Pairing;
+\import Spaces.Linear[V := Left (N.Nat^::succ n) B.Bool^::true x, W := U,
+  source := (leftBundle (N.Nat^::succ n) B.Bool^::true).space x, target := target]
+  .Composition[U := Left n B.Bool^::false x, domain := (leftBundle n B.Bool^::false).space x] \as Compose;
+\definition equation: Property (N.Nat^::succ n) :=
+  \induction (side: B.Bool^) \return \forall (first, second: Linear (N.Nat^::succ n) side) -> Agreement (N.Nat^::succ n) side first second ->
+    \forall (v: Left (N.Nat^::succ n) side x) -> first.apply v = second.apply v \with {
+      | false: \fun (first, second: Linear (N.Nat^::succ n) B.Bool^::false)(agreement: Agreement (N.Nat^::succ n) B.Bool^::false first second) =>
+        previous B.Bool^::true first second
+          (\fun (s: Labels.Index n)(tag: Labels.even n s = B.Bool^::true)(v: Models.Fiber (term (Labels.degree n s)).ranks x) =>
+            trans!{U} _ _ _
+              (congr!{{Left n B.Bool^::true x} U} first.apply _ _ (sym!{{Left n B.Bool^::true x}} _ _ (Summands.tailFormula n s B.Bool^::true tag x v)))
+              (trans!{U} _ _ _
+                (agreement (Labels.Index::tail n s) (congr!{{B.Bool^} {B.Bool^}} Labels.flip _ _ tag) v)
+                (congr!{{Left n B.Bool^::true x} U} second.apply _ _ (Summands.tailFormula n s B.Bool^::true tag x v))))
+      | true: \fun (first, second: Linear (N.Nat^::succ n) B.Bool^::true)(agreement: Agreement (N.Nat^::succ n) B.Bool^::true first second) =>
+        Pairing.compare first second
+          (\fun (a: Models.Fiber (term (N.Nat^::succ n)).ranks x) => agreement (Labels.Index::head (N.Nat^::succ n)) (\refl(B.Bool^::true)) a)
+          (previous B.Bool^::false (Compose.compose first (Sum.secondInclusion.fiber x)) (Compose.compose second (Sum.secondInclusion.fiber x))
+            (\fun (s: Labels.Index n)(tag: Labels.even n s = B.Bool^::false)(v: Models.Fiber (term (Labels.degree n s)).ranks x) =>
+              trans!{U} _ _ _
+                (congr!{{Left (N.Nat^::succ n) B.Bool^::true x} U} first.apply _ _ (sym!{{Left (N.Nat^::succ n) B.Bool^::true x}} _ _ (Summands.tailFormula n s B.Bool^::false tag x v)))
+                (trans!{U} _ _ _
+                  (agreement (Labels.Index::tail n s) (congr!{{B.Bool^} {B.Bool^}} Labels.flip _ _ tag) v)
+                  (congr!{{Left (N.Nat^::succ n) B.Bool^::true x} U} second.apply _ _ (Summands.tailFormula n s B.Bool^::false tag x v)))))
+    };

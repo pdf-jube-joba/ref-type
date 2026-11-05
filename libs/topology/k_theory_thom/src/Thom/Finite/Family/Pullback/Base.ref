@@ -1,0 +1,30 @@
+
+\import \root.Thom[].Finite[X := X, baseSpace := baseSpace].Empty[domain := domain] \as SourceEmpty;
+\import TargetFinite.Empty[domain := { y: Y \where \In[X] domain (f y) }] \as TargetEmpty;
+\definition emptyIso: Rebase.Iso Chains.empty TargetChains.empty := Bundles.Isomorphisms[X := Y,
+  F := (\fun (y: Y) => Models.Fiber Chains.empty.ranks (f y)), G := TargetModels.Fiber TargetChains.empty.ranks,
+  source := TargetModels.bundle (Rebase.pull Chains.empty), target := TargetModels.bundle TargetChains.empty].Isomorphism {
+    forward := TargetModels.zero (Rebase.pull Chains.empty) TargetChains.empty,
+    backward := TargetModels.zero TargetChains.empty (Rebase.pull Chains.empty),
+    leftInverse := \fun (y: Y)(v: Models.Fiber Chains.empty.ranks (f y)) => sym!{{Models.Fiber Chains.empty.ranks (f y)}} _ _ (SourceEmpty.zeroUnique (f y) v),
+    rightInverse := \fun (y: Y)(v: TargetModels.Fiber TargetChains.empty.ranks y) => sym!{{TargetModels.Fiber TargetChains.empty.ranks y}} _ _ (TargetEmpty.zeroUnique y v)
+  };
+\definition sourceEmpty: Chains.Parity[Chains.empty] := Chains.fold Chains.empty Chains.Data::nil;
+\definition targetEmpty: TargetChains.Parity[TargetChains.empty] := TargetChains.fold TargetChains.empty TargetChains.Data::nil;
+\definition emptyComparison: Rebase.Comparison[Chains.empty, TargetChains.empty, sourceEmpty, targetEmpty, emptyIso] :=
+  Rebase.Comparison[Chains.empty, TargetChains.empty, sourceEmpty, targetEmpty, emptyIso] {
+    even := emptyIso, odd := emptyIso,
+    inclusion := \fun (y: Y)(v: Models.Fiber Chains.empty.ranks (f y)) => \refl(((TargetModels.bundle TargetChains.empty).space y).zero),
+    forward := \fun (y: Y)(v: Models.Fiber Chains.empty.ranks (f y)) => \refl(((TargetModels.bundle TargetChains.empty).space y).zero),
+    backward := \fun (y: Y)(v: Models.Fiber Chains.empty.ranks (f y)) => \refl(((TargetModels.bundle TargetChains.empty).space y).zero)
+  };
+\definition commutes: \forall (y: Y)(v: Models.Fiber (term N.Nat^::zero).ranks (f y)) ->
+  ((TargetModels.zero (pulledTerm N.Nat^::zero) TargetChains.empty).fiber y).apply (((headIso N.Nat^::zero).forward.fiber y).apply v) =
+  (emptyIso.forward.fiber y).apply (((Models.zero (term N.Nat^::zero) Chains.empty).fiber (f y)).apply v) :=
+  \fun (y: Y)(v: Models.Fiber (term N.Nat^::zero).ranks (f y)) => \refl(((TargetModels.bundle TargetChains.empty).space y).zero);
+\import Rebase.Step[first := term N.Nat^::zero, second := Chains.empty,
+  firstTarget := pulledTerm N.Nat^::zero, secondTarget := TargetChains.empty,
+  differential := Models.zero (term N.Nat^::zero) Chains.empty, targetDifferential := TargetModels.zero (pulledTerm N.Nat^::zero) TargetChains.empty,
+  source := sourceEmpty, target := targetEmpty, headIso := headIso N.Nat^::zero, secondIso := emptyIso,
+  tail := emptyComparison, commutes := commutes] \as Build;
+\definition result: Result N.Nat^::zero := Build.result;

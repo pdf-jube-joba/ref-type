@@ -1,0 +1,27 @@
+\import relative_k_theory.Relative[] \as Relative;
+\import periodic_k_theory.Periodicity[] \as Periodicity;
+\import bundle_complements.Complements[].Over[K := C.Complex, field := C.Algebra[].field,
+  conjugation := linear_algebra.Hermitian[].Complex[].scalar, scalar := Scalars.scalar].For[X := X, F := F, bundle := bundle] \as Complement;
+\module WithEmbedding(embedding: Complement.Embedding);
+\definition injective: \forall (a, b: K.Carrier) -> forward a = forward b -> a = b := \block {
+  \takefrom embedding: Complement.Embedding \by Complement.embeddingExists compact hausdorff \then
+  \return WithEmbedding[embedding := embedding].injective
+};
+\definition preimages: \forall (u: Carrier) -> \exists (a: K.Carrier \where forward a = u) := \block {
+  \takefrom embedding: Complement.Embedding \by Complement.embeddingExists compact hausdorff \then
+  \return WithEmbedding[embedding := embedding].preimages
+};
+\definition Values[u: Carrier]: \Set := \Cast[K.Carrier] ({ a: K.Carrier \where forward a = u });
+\definition unique: \forall (u: Carrier)(a, b: Values u) -> a = b :=
+  \fun (u: Carrier)(a, b: Values u) => injective a b (trans!{Carrier} _ _ _
+    (\bysub(K.Carrier, { a: K.Carrier \where forward a = u }, a))
+    (sym!{Carrier} _ _ (\bysub(K.Carrier, { a: K.Carrier \where forward a = u }, b))));
+\definition chosen[u: Carrier]: Values u := \choice (Values u) \by { existence: preimages u, uniqueness: unique u };
+\definition backward[u: Carrier]: K.Carrier := chosen u;
+\definition leftInverse: \forall (a: K.Carrier) -> backward (forward a) = a :=
+  \fun (a: K.Carrier) => injective _ _ (\bysub(K.Carrier, { v: K.Carrier \where forward v = forward a }, chosen (forward a)));
+\definition rightInverse: \forall (u: Carrier) -> forward (backward u) = u :=
+  \fun (u: Carrier) => \bysub(K.Carrier, { a: K.Carrier \where forward a = u }, chosen u);
+\module Additivity;
+\definition data: Periodicity.Isomorphism[A := K.Carrier, B := Carrier, source := K.group,
+  target := Relative.Reduced[model := Supported.model].group].Data := Additivity[].data;

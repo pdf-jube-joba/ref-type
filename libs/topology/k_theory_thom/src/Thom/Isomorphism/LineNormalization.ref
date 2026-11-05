@@ -1,0 +1,70 @@
+\import bott_product.Bott[] \as BottClass;
+\definition one: N.Nat^ := BottClass.one;
+\definition two: N.Nat^ := BottClass.two;
+\import algebraic_topology.Euclidean[].Dimension[n := BottClass.three] \as Sphere;
+\import Sphere.Compactness[] \as Compactness;
+\import bundle_homotopy.Homotopy[].Examples[].CircleLine[] \as Native;
+\import bundle_homotopy.Homotopy[].Over[K := C.Complex, field := C.Algebra[].field,
+  conjugation := linear_algebra.Hermitian[].Complex[].scalar, scalar := Scalars.scalar] \as Homotopies;
+\import bundle_operations.Operations[].Over[K := C.Complex, field := C.Algebra[].field,
+  conjugation := linear_algebra.Hermitian[].Complex[].scalar, scalar := Scalars.scalar] \as BundleOperations;
+\import algebraic_topology.Euclidean[].Dimension[n := two] \as Plane;
+\import Homotopies.Disks[d := two] \as Disks;
+\import Disks.Hemispheres[] \as Halves;
+\import Halves.Cover[] \as Cover;
+\import Homotopies.ScalarUnits[n := one].Family[X := Plane.Sphere, source := Plane.sphereTopology,
+  a := Native.coefficient, regular := Native.regular, nonzero := Native.nonzero] \as Transition;
+\import Disks.Clutched[n := one, g := Transition.map, continuous := Transition.continuous] \as Clutched;
+\import Relative.Pair[X := Sphere.Sphere, space := Sphere.sphereTopology, compact := Compactness.sphere,
+  hausdorff := Compactness.sphereHausdorff, subset := Cover.NegativeHalf, closed := Cover.negativeClosed] \as Pair;
+\import Pair.Restriction[] \as Restriction;
+\import std.Data[].Bool[] \as Bool;
+\import Homotopies.ChartPullback[X := Sphere.Sphere, F := Clutched.Fiber, bundle := Clutched.bundle,
+  chart := Clutched.chart Bool.Bool^::true, Y := Pair.A, source := Pair.subspace,
+  f := Restriction.inclusion, continuous := Restriction.regular, inside := Cover.negativeInside] \as NegativeFrame;
+\import Bundles.Trivial[X := Sphere.Sphere, n := one, baseSpace := Sphere.sphereTopology] \as Trivial;
+\import BundleOperations.TrivialPullback[X := Sphere.Sphere, Y := Pair.A, n := one,
+  original := Sphere.sphereTopology, base := Pair.subspace, f := Restriction.inclusion, regular := Restriction.regular] \as TrivialPull;
+\import Bundles.Isomorphisms[X := Pair.A, F := (\fun (x: Pair.A) => Bundles.Vector one), G := (\fun (x: Pair.A) => Bundles.Vector one),
+  source := TrivialPull.pulled, target := Bundles.Trivial[X := Pair.A, n := one, baseSpace := Pair.subspace].bundle] \as TrivialInverse;
+\import BundleOperations.IsomorphismComposition[X := Pair.A, F := (\fun (x: Pair.A) => Clutched.Fiber x),
+  G := (\fun (x: Pair.A) => Bundles.Vector one), H := (\fun (x: Pair.A) => Bundles.Vector one),
+  source := NegativeFrame.pulledBundle, middle := Bundles.Trivial[X := Pair.A, n := one, baseSpace := Pair.subspace].bundle,
+  target := TrivialPull.pulled] \as Compose;
+\import Pair.FromBundles[F := Clutched.Fiber, G := (\fun (x: Sphere.Sphere) => Bundles.Vector one),
+  source := Clutched.bundle, target := Trivial.bundle, sourceSame := \refl(Sphere.sphereTopology), targetSame := \refl(Sphere.sphereTopology)] \as Represent;
+\definition comparison: Represent.OnSubset := Compose.compose NegativeFrame.isomorphism (TrivialInverse.inverse TrivialPull.isomorphism);
+\import topological_k_theory.KTheory[].On[X := Sphere.Sphere, baseSpace := Sphere.sphereTopology,
+  compact := Compactness.sphere, hausdorff := Compactness.sphereHausdorff] \as K;
+\import BundleOperations.ScalarLine[X := Sphere.Sphere, baseSpace := Sphere.sphereTopology] \as ScalarLine;
+\import K.Compare[F := (\fun (x: Sphere.Sphere) => Bundles.Vector one), G := (\fun (x: Sphere.Sphere) => C.Complex),
+  first := Trivial.bundle, second := ScalarLine.bundle, firstSame := \refl(Sphere.sphereTopology), secondSame := \refl(Sphere.sphereTopology)] \as OneClasses;
+\definition oneClass: Represent.negativeValue = K.Line[].value := OneClasses.ofIsomorphism ScalarLine.coordinateIsomorphism;
+\import Plane.Contraction[] \as PlaneContraction;
+\import algebraic_topology.Contraction[A := Plane.Disk, source := Plane.diskTopology].Transport[B := Pair.A].Over[target := Pair.subspace].Along[
+  homeomorphism := Cover.negativeHomeomorphism] \as TransferContraction;
+\definition contraction: algebraic_topology.Contraction[A := Pair.A, source := Pair.subspace].Data :=
+  TransferContraction.apply PlaneContraction.contraction;
+\import Pair.Exact[].Contractible[a0 := contraction.centre, homotopy := contraction.homotopy] \as Contractible;
+\import K.Ranks[].Reduced[point := contraction.centre] \as ReducedSphere;
+\definition beta: ReducedSphere.Carrier := \into[K.K0[].Carrier](BottClass.generator, ReducedSphere.Carrier) \by {
+  BottClass.Rank[].zero contraction.centre
+};
+\import Pair.Quotient[] \as Quotient;
+\definition relativeBeta: Quotient.Relative := Contractible.backward beta;
+\definition relativeBetaFormula: Contractible.forward relativeBeta = beta := Contractible.rightInverse beta;
+\import Pair.Group[] \as Group;
+\import Group.ToReduced[] \as ToReduced;
+\import Group.Forget[] \as Forget;
+\import Pair.ForgetProjection[] \as Projection;
+\module With(r: Represent.Result[comparison]);
+\import Pair.BundleModel[F := Clutched.Fiber].From[original := Clutched.bundle, same := \refl(Sphere.sphereTopology)] \as FirstModel;
+\import Pair.BundleModel[F := (\fun (x: Sphere.Sphere) => Bundles.Vector one)].From[original := Trivial.bundle, same := \refl(Sphere.sphereTopology)] \as SecondModel;
+\import Pair.BundleTriples[F := Clutched.Fiber, G := (\fun (x: Sphere.Sphere) => Bundles.Vector one),
+  firstModel := FirstModel.model, secondModel := SecondModel.model].With[alpha := comparison] \as Class;
+\definition normalization: Class.reduced = relativeBeta := \block {
+  \takefrom r: Represent.Result[comparison] \by Represent.existence comparison \then
+  \return trans!{{Quotient.Relative}} _ _ _
+    (congr!{{Group.Carrier} {Quotient.Relative}} ToReduced.map _ _ (Class.agreement r)) (With[r := r].normalization)
+};
+\module Positive;

@@ -1,0 +1,37 @@
+\definition p: N.Nat^ := Labels.degree n a;
+\definition q: N.Nat^ := Labels.degree m b;
+\definition firstSide: B.Bool^ := Labels.even n a;
+\definition secondSide: B.Bool^ := Labels.even m b;
+\definition sector: B.Bool^ := ProductLabels.evenPair firstSide secondSide;
+\definition label: Labels.Index degree := ProductLabels.join m b n a;
+\definition k: N.Nat^ := Labels.degree degree label;
+\definition decomposition: Nat.add p q = k := sym!{{N.Nat^}} _ _ (ProductLabels.joinDegree m b n a);
+\definition labelColor: Labels.even degree label = sector := ProductLabels.joinEven m b n a;
+\import \parent.Piece[r := label, p := p, q := q, decomposition := decomposition] \as NativePiece;
+\import \parent.\parent.\parent.Slot[firstSide := firstSide, secondSide := secondSide] \as Source;
+\definition firstLabel: First.Colored n firstSide := First.colored n a firstSide (\refl(firstSide));
+\definition secondLabel: Second.Colored m secondSide := Second.colored m b secondSide (\refl(secondSide));
+\import Source.Entry[s := firstLabel, t := secondLabel] \as Entry;
+\import Operations.Tensor[X := X, F := Models.Fiber (firstTerm p).ranks, G := Models.Fiber (secondTerm q).ranks,
+  left := Models.bundle (firstTerm p), right := Models.bundle (secondTerm q)] \as CodedTensor;
+\import Operations.Tensor[X := X, F := FirstForm p, G := SecondForm q, left := firstForms p, right := secondForms q] \as FormTensor;
+\import CodedTensor.Of[same := (\refl(left.baseSpace))].Mapping[Y := X, A := FirstForm p, B := SecondForm q,
+  leftTarget := firstForms p, rightTarget := secondForms q, f := (\fun (y: X) => y)].Of[targetSame := sameBase] \as Decode;
+\import \root.Thom[].SumBundles[X := X, F := F, G := G, left := left, right := right, sameBase := sameBase, k := k]
+  .Component[p := p, q := q, degree := decomposition] \as NativeComponent;
+\import NativeComponent.Identification[x := x] \as Identification;
+\module Pure(omega: FirstForm p x, eta: SecondForm q x);
+\definition AtLabel: \Prop := \forall (side: B.Bool^)(color: Labels.even degree label = side)(equal: Nat.add p q = k)(omega: FirstForm p x)(eta: SecondForm q x) ->
+  Fixed side (\parent.Piece[r := label, p := p, q := q, decomposition := equal].value side color omega eta);
+\definition atLabel: AtLabel := \fun (side: B.Bool^)(color: Labels.even degree label = side) =>
+  (\idelim sector = side \with c: B.Bool^ => \forall (law: Labels.even degree label = c)(equal: Nat.add p q = k)(omega: FirstForm p x)(eta: SecondForm q x) ->
+    Fixed c (\parent.Piece[r := label, p := p, q := q, decomposition := equal].value c law omega eta) \by {
+      base: \fun (law: Labels.even degree label = sector)(equal: Nat.add p q = k)(omega: FirstForm p x)(eta: SecondForm q x) => Pure[omega := omega, eta := eta].fixed,
+      equality: trans!{{B.Bool^}} _ _ _ (sym!{{B.Bool^}} _ _ labelColor) color
+    }) color;
+\definition result: Generator p q := \fun (r: Labels.Index degree)(side: B.Bool^)(color: Labels.even degree r = side)(equal: Nat.add p q = Labels.degree degree r) =>
+  (\idelim label = r \with t: Labels.Index degree => \forall (tag: Labels.even degree t = side)(equation: Nat.add p q = Labels.degree degree t)(omega: FirstForm p x)(eta: SecondForm q x) ->
+    Fixed side (\parent.Piece[r := t, p := p, q := q, decomposition := equation].value side tag omega eta) \by {
+      base: atLabel side,
+      equality: ProductLabels.degreeInjective degree label r (trans!{{N.Nat^}} _ _ _ (ProductLabels.joinDegree m b n a) equal)
+    }) color equal;

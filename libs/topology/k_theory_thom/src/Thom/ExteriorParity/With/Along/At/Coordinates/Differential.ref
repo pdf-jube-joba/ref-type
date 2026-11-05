@@ -1,0 +1,46 @@
+\import C.Def[] \as Op;
+\import Spaces.Sign[] \as Sign;
+\import \parent.\parent.\parent.Complexes[] \as Complexes;
+\import \root.Thom[].Finite[X := X, baseSpace := left.baseSpace].Family[term := firstTerm, differential := firstDifferential, domain := { y: X \where Logic.False }]
+  .With[squareZero := Complexes.firstSquare, exact := Complexes.firstExact].OnSummands[] \as FirstBoundary;
+\import \root.Thom[].Finite[X := X, baseSpace := left.baseSpace].Family[term := secondTerm, differential := secondDifferential, domain := { y: X \where Logic.False }]
+  .With[squareZero := Complexes.secondSquare, exact := Complexes.secondExact].OnSummands[] \as SecondBoundary;
+\import \root.Thom[].Finite[X := X, baseSpace := left.baseSpace].Family[term := totalTerm, differential := totalDifferential, domain := { y: X \where Logic.False }]
+  .With[squareZero := Complexes.totalSquare, exact := Complexes.totalExact].OnSummands[] \as TotalBoundary;
+\definition firstOperator[side: B.Bool^]: Models.Map (First.parity n side) (First.parity n (Labels.flip side)) := FirstBoundary.boundary n side;
+\definition secondOperator[side: B.Bool^]: Models.Map (Second.parity m side) (Second.parity m (Labels.flip side)) := SecondBoundary.boundary m side;
+\definition totalOperator[side: B.Bool^]: Models.Map (target side) (target (Labels.flip side)) := TotalBoundary.boundary degree side;
+\module Factory(firstForward: Models.Map (First.parity n B.Bool^::true) (First.parity n B.Bool^::false),
+  firstBackward: Models.Map (First.parity n B.Bool^::false) (First.parity n B.Bool^::true),
+  secondForward: Models.Map (Second.parity m B.Bool^::true) (Second.parity m B.Bool^::false),
+  secondBackward: Models.Map (Second.parity m B.Bool^::false) (Second.parity m B.Bool^::true));
+\import Factory[firstForward := firstOperator B.Bool^::true, firstBackward := firstOperator B.Bool^::false,
+  secondForward := secondOperator B.Bool^::true, secondBackward := secondOperator B.Bool^::false] \as Contraction;
+\definition coded[side: B.Bool^]: Models.Map (model side) (model (Labels.flip side)) := Contraction.coded side;
+\module NativeFold;
+\module Fold(x: X);
+\definition evenCommutes[x: X][v: Models.Fiber (model B.Bool^::true).ranks x]:
+  ((totalOperator B.Bool^::true).fiber x).apply (((forwardCode B.Bool^::true).fiber x).apply v) =
+  ((forwardCode B.Bool^::false).fiber x).apply (((coded B.Bool^::true).fiber x).apply v) :=
+  trans!{{Models.Fiber (target B.Bool^::false).ranks x}} _ _ _
+    (Fold[x := x].even ((evenChoice.isomorphism.backward.fiber x).apply v))
+    (congr!{{Parity.Odd x} {Models.Fiber (target B.Bool^::false).ranks x}} (forwardOdd.fiber x).apply _ _
+      (sym!{{Parity.Odd x}} _ _ (oddChoice.isomorphism.leftInverse x ((Contraction.forward.fiber x).apply ((evenChoice.isomorphism.backward.fiber x).apply v)))));
+
+\definition oddCommutes[x: X][v: Models.Fiber (model B.Bool^::false).ranks x]:
+  ((totalOperator B.Bool^::false).fiber x).apply (((forwardCode B.Bool^::false).fiber x).apply v) =
+  ((forwardCode B.Bool^::true).fiber x).apply (((coded B.Bool^::false).fiber x).apply v) :=
+  trans!{{Models.Fiber (target B.Bool^::true).ranks x}} _ _ _
+    (Fold[x := x].odd ((oddChoice.isomorphism.backward.fiber x).apply v))
+    (congr!{{Parity.Even x} {Models.Fiber (target B.Bool^::true).ranks x}} (forwardEven.fiber x).apply _ _
+      (sym!{{Parity.Even x}} _ _ (evenChoice.isomorphism.leftInverse x ((Contraction.backward.fiber x).apply ((oddChoice.isomorphism.backward.fiber x).apply v)))));
+
+\definition commutes: \forall (side: B.Bool^)(x: X)(v: Models.Fiber (model side).ranks x) ->
+  ((totalOperator side).fiber x).apply (((forwardCode side).fiber x).apply v) =
+  ((forwardCode (Labels.flip side)).fiber x).apply (((coded side).fiber x).apply v) :=
+  \induction (side: B.Bool^) \return \forall (x: X)(v: Models.Fiber (model side).ranks x) ->
+    ((totalOperator side).fiber x).apply (((forwardCode side).fiber x).apply v) =
+    ((forwardCode (Labels.flip side)).fiber x).apply (((coded side).fiber x).apply v) \with {
+      | false: oddCommutes
+      | true: evenCommutes
+    };

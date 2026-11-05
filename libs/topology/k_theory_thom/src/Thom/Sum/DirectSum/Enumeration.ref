@@ -1,0 +1,38 @@
+\import std.Data[].FinSet[] \as Fin;
+\import std.Data[].List[] \as Lists;
+\definition Index: \Set := Fin.Fin (N.Nat^::succ k);
+\definition p[i: Index]: N.Nat^ := i;
+\definition q[i: Index]: N.Nat^ := Nat.sub k (p i);
+\definition bound[i: Index]: Naturals.Le (p i) k :=
+  Naturals.leOfSuccSucc (p i) k (Naturals.succLeOfLt (N.Nat^::succ k) (p i) (Fin.bound (N.Nat^::succ k) i));
+\definition equation[i: Index]: Nat.add (p i) (q i) = k := Naturals.addSubOfLe (p i) k (bound i);
+\definition at[i: Index]: Bidegree := make (p i) (q i) (equation i);
+\definition index[d: Bidegree]: Index := \into[N.Nat^](d.p, { r: N.Nat^ \where Naturals.Lt r (N.Nat^::succ k) }) \by {
+  Naturals.ltOfSuccLe (N.Nat^::succ k) d.p (Naturals.leSuccSucc d.p k (leftBound d))
+};
+\definition inverse[d: Bidegree]: at (index d) = d := sameLeft (at (index d)) d (\refl(d.p));
+\definition injective[i, j: Index][same: at i = at j]: i = j := congr!{Bidegree {N.Nat^}} (\fun (d: Bidegree) => d.p) _ _ same;
+\definition labels: Lists.List[Bidegree] := Lists.map Index Bidegree at (Fin.elements (N.Nat^::succ k));
+\import Lists.Distinct[A := Index].Mapping[B := Bidegree] \as DistinctMap;
+\definition distinct: Lists.Distinct[A := Bidegree].Distinct labels := DistinctMap.preserves at injective (Fin.elements (N.Nat^::succ k)) (Fin.Enumeration[].distinct (N.Nat^::succ k));
+\import Lists.Membership[A := Index] \as Indices;
+\import Lists.Membership[A := Bidegree] \as Members;
+\definition memberMap: \forall (xs: Lists.List[Index])(i: Index) -> Indices.Occurs i xs -> Members.Occurs (at i) (Lists.map Index Bidegree at xs) :=
+  \induction (xs: Lists.List[Index]) \return \forall (i: Index) -> Indices.Occurs i xs -> Members.Occurs (at i) (Lists.map Index Bidegree at xs) \with {
+    | nil: \fun (i: Index)(member: Logic.False) => member
+    | cons: \fun (head: Index)(tail: Lists.List[Index])(previous: \forall (i: Index) -> Indices.Occurs i tail -> Members.Occurs (at i) (Lists.map Index Bidegree at tail))
+      (i: Index)(member: Logic.Or[i = head, Indices.Occurs i tail]) =>
+      Logic.orElim[i = head, Indices.Occurs i tail, Members.Occurs (at i) (Lists.map Index Bidegree at (Lists.List[Index]::cons head tail))] member
+        (\fun (same: i = head) => Logic.Or[_, _]::left (congr!{Index Bidegree} at _ _ same))
+        (\fun (rest: Indices.Occurs i tail) => Logic.Or[_, _]::right (previous i rest))
+  };
+\definition exhaustive[d: Bidegree]: Members.Occurs d labels :=
+  \idelim at (index d) = d \with e: Bidegree => Members.Occurs e labels \by {
+    base: memberMap (Fin.elements (N.Nat^::succ k)) (index d) (Fin.exhaustive (N.Nat^::succ k) (index d)), equality: inverse d
+  };
+\definition supported[v: Carrier]: module_theory.Module[].Over[R := C.Complex, ring := Spaces.ring].FinitelySupported[Index := Bidegree, family := family].Supports labels (coordinates v) :=
+  \fun (d: Bidegree)(missing: Logic.Not (\In[Bidegree] (Lists.Distinct[A := Bidegree].keys labels) d)) => Logic.falseElim[_] (missing (exhaustive d));
+\definition reconstruction[v: Carrier]: Support.combination labels (coordinates v) = v :=
+  Support.injective (Support.combination labels (coordinates v)) v (Support.recover labels distinct (coordinates v) (supported v));
+\module To(U: \Set, target: Spaces.VectorSpace U,
+  components: \forall (d: Bidegree) -> Modules.Hom[V := family.Carrier d, W := U, source := family.space d, target := target].Map);

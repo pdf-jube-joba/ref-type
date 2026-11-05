@@ -1,0 +1,34 @@
+\import N.Basic[].Prop[] \as Naturals;
+\import std.Logic[].Classical[] \as Classical;
+\definition label: Labels.Index n := Labels.rawLookup n p;
+\definition side: B.Bool^ := Labels.even n label;
+\definition target: Models.Bundle := Summands.parity n side;
+\definition Bound: \Prop := Naturals.Le p n;
+\import Bundles.Morphisms[X := X, Y := X, F := Models.Fiber (term p).ranks, G := Models.Fiber target.ranks,
+  source := Models.bundle (term p), target := Models.bundle target, f := (\fun (x: X) => x)] \as Maps;
+\module Within(bound: Bound);
+\structure Laws[a: Maps.Map]: \Prop := {
+  within: \forall (bound: Bound)(x: X)(v: Models.Fiber (term p).ranks x) ->
+    (a.fiber x).apply v = ((Within[bound := bound].map).fiber x).apply v,
+  outside: \forall (negative: Logic.Not Bound)(x: X)(v: Models.Fiber (term p).ranks x) ->
+    (a.fiber x).apply v = ((Models.bundle target).space x).zero
+};
+\definition Values: \Set := \Cast[Maps.Map] ({ a: Maps.Map \where Laws[a] });
+\module Positive(bound: Bound);
+\module Negative(negative: Logic.Not Bound);
+\definition existence: \exists Values := Logic.orElim[Bound, Logic.Not Bound, \exists Values] (Classical.excludedMiddle Bound)
+  (\fun (bound: Bound) => Positive[bound := bound].existence)
+  (\fun (negative: Logic.Not Bound) => Negative[negative := negative].existence);
+\definition uniqueness[first, second: Values]: first = second := Maps.ext first second
+  (\fun (x: X)(v: Models.Fiber (term p).ranks x) =>
+    Logic.orElim[Bound, Logic.Not Bound, (first.fiber x).apply v = (second.fiber x).apply v] (Classical.excludedMiddle Bound)
+      (\fun (bound: Bound) => trans!{{Models.Fiber target.ranks x}} _ _ _
+        ((\bysub(Maps.Map, { a: Maps.Map \where Laws[a] }, first)).within bound x v)
+        (sym!{{Models.Fiber target.ranks x}} _ _ ((\bysub(Maps.Map, { a: Maps.Map \where Laws[a] }, second)).within bound x v)))
+      (\fun (negative: Logic.Not Bound) => trans!{{Models.Fiber target.ranks x}} _ _ _
+        ((\bysub(Maps.Map, { a: Maps.Map \where Laws[a] }, first)).outside negative x v)
+        (sym!{{Models.Fiber target.ranks x}} _ _ ((\bysub(Maps.Map, { a: Maps.Map \where Laws[a] }, second)).outside negative x v))));
+\definition map: Values := \choice Values \by { existence: existence, uniqueness: uniqueness };
+\definition laws: Laws[map] := \bysub(Maps.Map, { a: Maps.Map \where Laws[a] }, map);
+\definition within[bound: Bound][x: X][v: Models.Fiber (term p).ranks x]: (map.fiber x).apply v = ((Within[bound := bound].map).fiber x).apply v := laws.within bound x v;
+\definition outside[negative: Logic.Not Bound][x: X][v: Models.Fiber (term p).ranks x]: (map.fiber x).apply v = ((Models.bundle target).space x).zero := laws.outside negative x v;

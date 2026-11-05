@@ -1,0 +1,35 @@
+\definition p: N.Nat^ := Labels.degree n s;
+\definition q: N.Nat^ := Labels.degree m t;
+\definition label: Labels.Index degree := ProductLabels.join m t n s;
+\definition k: N.Nat^ := Labels.degree degree label;
+\definition labelDegree: k = Nat.add p q := ProductLabels.joinDegree m t n s;
+\definition decomposition: Nat.add p q = k := sym!{N.Nat^} _ _ labelDegree;
+\definition labelParity: Labels.even degree label = side :=
+  trans!{{B.Bool^}} _ _ _ (ProductLabels.joinEven m t n s)
+    (congr!{{B.Bool^} {B.Bool^} {B.Bool^}} ProductLabels.evenPair _ _ _ _
+      (\bysub(Labels.Index n, First.Colored n firstSide, s)) (\bysub(Labels.Index m, Second.Colored m secondSide, t)));
+\import Operations.Tensor[X := X, F := Models.Fiber (firstTerm p).ranks, G := Models.Fiber (secondTerm q).ranks,
+  left := Models.bundle (firstTerm p), right := Models.bundle (secondTerm q)] \as Input;
+\import Operations.Tensor[X := X, F := FirstForm p, G := SecondForm q, left := firstForms p, right := secondForms q] \as Forms;
+\import Input.Of[same := (\refl(left.baseSpace))].Mapping[Y := X, A := FirstForm p, B := SecondForm q,
+  leftTarget := firstForms p, rightTarget := secondForms q, f := (\fun (x: X) => x)].Of[targetSame := sameBase] \as Decode;
+\definition decode: Bundles.Morphisms[X := X, Y := X, F := Input.Fiber, G := Forms.Fiber,
+  source := Input.bundle (\refl(left.baseSpace)), target := Forms.bundle sameBase, f := (\fun (x: X) => x)].Map :=
+  Decode.map (data.first p).isomorphism.backward (data.second q).isomorphism.backward;
+\import \root.Thom[].SumBundles[X := X, F := F, G := G, left := left, right := right, sameBase := sameBase, k := k]
+  .Component[p := p, q := q, degree := decomposition] \as NativeComponent;
+\import Bundles.Morphisms[X := X, Y := X, F := Input.Fiber, G := Forms.Fiber,
+  source := Input.bundle (\refl(left.baseSpace)), target := Forms.bundle sameBase, f := (\fun (x: X) => x)]
+  .Composition[Z := X, H := Native k, range := native k, g := (\fun (x: X) => x)] \as Include;
+\definition included: Bundles.Morphisms[X := X, Y := X, F := Input.Fiber, G := Native k,
+  source := Input.bundle (\refl(left.baseSpace)), target := native k, f := (\fun (x: X) => x)].Map := Include.compose decode NativeComponent.inclusion;
+\import Bundles.Morphisms[X := X, Y := X, F := Input.Fiber, G := Native k,
+  source := Input.bundle (\refl(left.baseSpace)), target := native k, f := (\fun (x: X) => x)]
+  .Composition[Z := X, H := Models.Fiber (totalTerm k).ranks, range := Models.bundle (totalTerm k), g := (\fun (x: X) => x)] \as Encode;
+\definition encoded: Bundles.Morphisms[X := X, Y := X, F := Input.Fiber, G := Models.Fiber (totalTerm k).ranks,
+  source := Input.bundle (\refl(left.baseSpace)), target := Models.bundle (totalTerm k), f := (\fun (x: X) => x)].Map := Encode.compose included (data.total k).isomorphism.forward;
+\definition fold: Models.Map (totalTerm k) (target side) := Total.at degree label side labelParity;
+\import Bundles.Morphisms[X := X, Y := X, F := Input.Fiber, G := Models.Fiber (totalTerm k).ranks,
+  source := Input.bundle (\refl(left.baseSpace)), target := Models.bundle (totalTerm k), f := (\fun (x: X) => x)]
+  .Composition[Z := X, H := Models.Fiber (target side).ranks, range := Models.bundle (target side), g := (\fun (x: X) => x)] \as Finish;
+\definition map: Tensor.ComponentMap p q (target side) := Finish.compose encoded fold;

@@ -1,0 +1,97 @@
+\import Bundles.Family[X := X, F := F] \as LeftFamily;
+\import Bundles.Family[X := X, F := G] \as RightFamily;
+\import Bundles.Family[X := X, F := Sum.Fiber] \as SumFamily;
+\import \root.Thom[].Naturality[X := LeftKoszul.Total, F := LeftKoszul.Fiber, bundle := LeftKoszul.pulled,
+  Y := Total, source := topology, f := first, regular := firstRegular] \as First;
+\import \root.Thom[].Naturality[X := RightKoszul.Total, F := RightKoszul.Fiber, bundle := RightKoszul.pulled,
+  Y := Total, source := topology, f := second, regular := secondRegular] \as Second;
+\definition FirstFiber[z: Total]: \Set := First.Fiber z;
+\definition SecondFiber[z: Total]: \Set := Second.Fiber z;
+\definition firstBundle: Bundles.Family[X := Total, F := FirstFiber].Bundle := First.pulled;
+\definition secondBundle: Bundles.Family[X := Total, F := SecondFiber].Bundle := Second.pulled;
+\import Operations.DirectSum[X := Total, F := FirstFiber, G := SecondFiber, left := firstBundle, right := secondBundle] \as GlobalSum;
+\definition GlobalFiber[z: Total]: \Set := GlobalSum.Fiber z;
+\definition globalBundle: Bundles.Family[X := Total, F := GlobalFiber].Bundle := GlobalSum.bundle (\refl(topology));
+\import GlobalSum.Of[same := (\refl(topology))].Pullback[Y := sumTotal, source := sumTopology, f := inclusion, regular := regular] \as PulledSum;
+\definition Fiber[p: sumTotal]: \Set := GlobalFiber (inclusion p);
+\definition sourceBundle: Bundles.Family[X := sumTotal, F := Fiber].Bundle := PulledSum.firstBundle;
+\definition TargetFiber[p: sumTotal]: \Set := SumKoszul.Fiber p;
+\definition targetBundle: Bundles.Family[X := sumTotal, F := TargetFiber].Bundle := SumKoszul.pulled;
+\definition firstDiagonal[p: sumTotal]: LeftKoszul.Total := first (inclusion p);
+\definition secondDiagonal[p: sumTotal]: RightKoszul.Total := second (inclusion p);
+\definition firstDiagonalRegular: topology.Continuity[A := sumTotal, B := LeftKoszul.Total].Continuous sumTopology left.totalSpace firstDiagonal :=
+  topology.Composition[A := sumTotal, B := Total, C := LeftKoszul.Total].composeContinuous sumTopology topology left.totalSpace inclusion first regular firstRegular;
+\definition secondDiagonalRegular: topology.Continuity[A := sumTotal, B := RightKoszul.Total].Continuous sumTopology right.totalSpace secondDiagonal :=
+  topology.Composition[A := sumTotal, B := Total, C := RightKoszul.Total].composeContinuous sumTopology topology right.totalSpace inclusion second regular secondRegular;
+\import Sum.Of[same := sameBase].Pullback[Y := sumTotal, source := sumTopology, f := SumFamily.projection, regular := SumFamily.Of[bundle := sum].projectionContinuous] \as Canonical;
+\definition FirstCanonical[p: sumTotal]: \Set := F p.base;
+\import Bundles.Family[X := LeftKoszul.Total, F := LeftKoszul.Fiber].Of[bundle := LeftKoszul.pulled].PullbackComposition[
+  Y := Total, Z := sumTotal, first := topology, second := sumTopology, f := first, g := inclusion]
+  .Of[fRegular := firstRegular, gRegular := regular] \as FirstOuter;
+\import LeftFamily.Of[bundle := left].PullbackComposition[Y := LeftKoszul.Total, Z := sumTotal,
+  first := left.totalSpace, second := sumTopology, f := LeftFamily.projection, g := firstDiagonal]
+  .Of[fRegular := LeftFamily.Of[bundle := left].projectionContinuous, gRegular := firstDiagonalRegular] \as FirstInner;
+\definition FirstNested[p: sumTotal]: \Set := First.Fiber (inclusion p);
+\definition FirstCanonicalBundle: Bundles.Family[X := sumTotal, F := FirstCanonical].Bundle := FirstInner.direct;
+\definition FirstNestedBundle: Bundles.Family[X := sumTotal, F := FirstNested].Bundle := FirstOuter.nested;
+\import Operations.IsomorphismComposition[X := sumTotal, F := FirstCanonical, G := FirstCanonical, H := FirstNested,
+  source := FirstCanonicalBundle, middle := FirstInner.nested, target := FirstNestedBundle] \as FirstCompose;
+\definition FirstToNested: Bundles.Isomorphisms[X := sumTotal, F := FirstCanonical, G := FirstNested,
+  source := FirstCanonicalBundle, target := FirstNestedBundle].Isomorphism := FirstCompose.compose FirstInner.isomorphism FirstOuter.isomorphism;
+\import Bundles.Isomorphisms[X := sumTotal, F := FirstCanonical, G := FirstNested,
+  source := FirstCanonicalBundle, target := FirstNestedBundle] \as FirstInverse;
+\definition FirstFromNested: Bundles.Isomorphisms[X := sumTotal, F := FirstNested, G := FirstCanonical,
+  source := FirstNestedBundle, target := FirstCanonicalBundle].Isomorphism := FirstInverse.inverse FirstToNested;
+\definition SecondCanonical[p: sumTotal]: \Set := G p.base;
+\import Bundles.Family[X := RightKoszul.Total, F := RightKoszul.Fiber].Of[bundle := RightKoszul.pulled].PullbackComposition[
+  Y := Total, Z := sumTotal, first := topology, second := sumTopology, f := second, g := inclusion]
+  .Of[fRegular := secondRegular, gRegular := regular] \as SecondOuter;
+\import RightFamily.Of[bundle := right].PullbackComposition[Y := RightKoszul.Total, Z := sumTotal,
+  first := right.totalSpace, second := sumTopology, f := RightFamily.projection, g := secondDiagonal]
+  .Of[fRegular := RightFamily.Of[bundle := right].projectionContinuous, gRegular := secondDiagonalRegular] \as SecondInner;
+\definition SecondNested[p: sumTotal]: \Set := Second.Fiber (inclusion p);
+\definition SecondCanonicalBundle: Bundles.Family[X := sumTotal, F := SecondCanonical].Bundle := SecondInner.direct;
+\definition SecondNestedBundle: Bundles.Family[X := sumTotal, F := SecondNested].Bundle := SecondOuter.nested;
+\import Operations.IsomorphismComposition[X := sumTotal, F := SecondCanonical, G := SecondCanonical, H := SecondNested,
+  source := SecondCanonicalBundle, middle := SecondInner.nested, target := SecondNestedBundle] \as SecondCompose;
+\definition SecondToNested: Bundles.Isomorphisms[X := sumTotal, F := SecondCanonical, G := SecondNested,
+  source := SecondCanonicalBundle, target := SecondNestedBundle].Isomorphism := SecondCompose.compose SecondInner.isomorphism SecondOuter.isomorphism;
+\import Bundles.Isomorphisms[X := sumTotal, F := SecondCanonical, G := SecondNested,
+  source := SecondCanonicalBundle, target := SecondNestedBundle] \as SecondInverse;
+\definition SecondFromNested: Bundles.Isomorphisms[X := sumTotal, F := SecondNested, G := SecondCanonical,
+  source := SecondNestedBundle, target := SecondCanonicalBundle].Isomorphism := SecondInverse.inverse SecondToNested;
+\import Operations.DirectSumIsomorphisms[X := sumTotal, F := FirstNested, G := SecondNested, A := FirstCanonical, B := SecondCanonical,
+  first := FirstNestedBundle, second := SecondNestedBundle, newFirst := FirstCanonicalBundle, newSecond := SecondCanonicalBundle,
+  sameSource := (\refl(sumTopology)), sameTarget := (\refl(sumTopology))] \as SumIso;
+\definition sumIsomorphism: Bundles.Isomorphisms[X := sumTotal, F := SumIso.SourceFiber, G := SumIso.TargetFiber,
+  source := SumIso.sourceBundle, target := SumIso.targetBundle].Isomorphism := SumIso.isomorphism FirstFromNested SecondFromNested;
+\import Bundles.Isomorphisms[X := sumTotal, F := TargetFiber, G := TargetFiber, source := Canonical.firstBundle, target := Canonical.secondBundle] \as CanonicalInverse;
+\import Operations.IsomorphismComposition[X := sumTotal, F := Fiber, G := Fiber, H := TargetFiber,
+  source := sourceBundle, middle := PulledSum.secondBundle, target := SumIso.targetBundle] \as FirstComposition;
+\definition toCanonicalSum: Bundles.Isomorphisms[X := sumTotal, F := Fiber, G := TargetFiber, source := sourceBundle, target := SumIso.targetBundle].Isomorphism :=
+  FirstComposition.compose PulledSum.isomorphism sumIsomorphism;
+\import Operations.IsomorphismComposition[X := sumTotal, F := Fiber, G := TargetFiber, H := TargetFiber,
+  source := sourceBundle, middle := SumIso.targetBundle, target := targetBundle] \as FinalComposition;
+\definition isomorphism: Bundles.Isomorphisms[X := sumTotal, F := Fiber, G := TargetFiber, source := sourceBundle, target := targetBundle].Isomorphism :=
+  FinalComposition.compose toCanonicalSum (CanonicalInverse.inverse Canonical.isomorphism);
+\definition forwardFormula: \forall (p: sumTotal)(v: Fiber p) -> (isomorphism.forward.fiber p).apply v = v :=
+  \fun (p: sumTotal)(v: Fiber p) => P.Prop[A := F p.base, B := G p.base].eta v;
+\definition backwardFormula: \forall (p: sumTotal)(v: TargetFiber p) -> (isomorphism.backward.fiber p).apply v = v :=
+  \fun (p: sumTotal)(v: TargetFiber p) => P.Prop[A := F p.base, B := G p.base].eta v;
+\import First.WithSection[section := LeftKoszul.tautological] \as FirstSection;
+\import Second.WithSection[section := RightKoszul.tautological] \as SecondSection;
+\import Bundles.Family[X := Total, F := FirstFiber].Of[bundle := firstBundle].Sections[] \as FirstSections;
+\import Bundles.Family[X := Total, F := SecondFiber].Of[bundle := secondBundle].Sections[] \as SecondSections;
+\import Bundles.Family[X := Total, F := GlobalFiber].Of[bundle := globalBundle].Sections[] \as GlobalSections;
+\definition globalSectionData: GlobalSections.SectionData := GlobalSections.SectionData {
+  value := \fun (z: Total) => P.pair (FirstFiber z) (SecondFiber z) (FirstSection.sectionOnPullback.value z) (SecondSection.sectionOnPullback.value z)
+};
+\definition globalSection: GlobalSections.Section := \into[GlobalSections.SectionData](globalSectionData, GlobalSections.Section) \by {
+  GlobalSum.Universal[Y := Total].continuous topology (GlobalSections.total globalSectionData)
+    (FirstSections.continuous FirstSection.sectionOnPullback) (SecondSections.continuous SecondSection.sectionOnPullback)
+};
+\import \root.Thom[].Naturality[X := Total, F := GlobalFiber, bundle := globalBundle, Y := sumTotal, source := sumTopology, f := inclusion, regular := regular] \as Diagonal;
+\import Diagonal.WithSection[section := globalSection] \as DiagonalSection;
+\definition sourceSection: Bundles.Family[X := sumTotal, F := Fiber].Of[bundle := sourceBundle].Sections[].Section := DiagonalSection.sectionOnPullback;
+\definition sectionFormula: \forall (p: sumTotal) -> (isomorphism.forward.fiber p).apply (sourceSection.value p) = SumKoszul.tautological.value p :=
+  \fun (p: sumTotal) => trans!{{TargetFiber p}} _ _ _ (forwardFormula p (sourceSection.value p)) (P.Prop[A := F p.base, B := G p.base].eta p.vector);

@@ -1,0 +1,53 @@
+\import module_theory.Module[].Over[R := C.Complex, ring := Spaces.ring] \as Modules;
+\import std.Data[].Nat[].Basic[].Prop[] \as Naturals;
+\structure Degrees: \Set := { p: N.Nat^, q: N.Nat^ };
+\definition Bidegree: \Set := \Cast[Degrees] ({ d: Degrees \where Nat.add d.p d.q = k });
+\definition degree[d: Bidegree]: Nat.add d.p d.q = k := \bysub(Degrees, { d: Degrees \where Nat.add d.p d.q = k }, d);
+\definition make[p, q: N.Nat^][equal: Nat.add p q = k]: Bidegree :=
+  \into[Degrees](Degrees::# p q, { d: Degrees \where Nat.add d.p d.q = k }) \by { equal };
+\definition degreesExt: \forall (d, e: Degrees) -> d.p = e.p -> d.q = e.q -> d = e :=
+  \induction (d: Degrees) \return \forall (e: Degrees) -> d.p = e.p -> d.q = e.q -> d = e \with {
+    | # : \fun (p, q: N.Nat^) => \induction (e: Degrees) \return p = e.p -> q = e.q -> Degrees::# p q = e \with {
+      | # : \fun (r, s: N.Nat^)(first: p = r)(second: q = s) => congr!{N.Nat^ N.Nat^ Degrees} (Degrees::#) p r q s first second
+    }
+  };
+\definition ext[d, e: Bidegree][sameP: d.p = e.p][sameQ: d.q = e.q]: d = e := degreesExt d e sameP sameQ;
+\definition leftBound[d: Bidegree]: Naturals.Le d.p k :=
+  \idelim Nat.add d.p d.q = k \with total: N.Nat^ => Naturals.Le d.p total \by { base: Naturals.leAddRight d.p d.q, equality: degree d };
+\definition rightBound[d: Bidegree]: Naturals.Le d.q k :=
+  \idelim Nat.add d.p d.q = k \with total: N.Nat^ => Naturals.Le d.q total \by { base: Naturals.leAddLeft d.p d.q, equality: degree d };
+\module Component(d: Bidegree);
+\definition family: Modules.Family[Bidegree] := Modules.Family[Bidegree] {
+  Carrier := \fun (d: Bidegree) => Component[d := d].Carrier,
+  space := \fun (d: Bidegree) => Component[d := d].space
+};
+\import Modules.DirectSum[Index := Bidegree, family := family] \as Native;
+\definition Carrier: \Set := Native.Carrier;
+\definition space: Spaces.VectorSpace Carrier := Native.space;
+\import Forms.At[k := k] \as Target;
+\import Native.To[W := Exterior.Form k, target := Target.vectorSpace] \as Universal;
+\definition components: Universal.Components := \fun (d: Bidegree) => Component[d := d].map;
+\definition nativeForward: Modules.Hom[V := Carrier, W := Exterior.Form k, source := space, target := Target.vectorSpace].Map := Universal.extension components;
+\definition forward: Spaces.Linear[V := Carrier, W := Exterior.Form k, source := space, target := Target.vectorSpace].Map :=
+  Spaces.Linear[V := Carrier, W := Exterior.Form k, source := space, target := Target.vectorSpace].Map {
+    apply := nativeForward.apply, preservesAdd := nativeForward.addition, preservesScale := nativeForward.scalar
+  };
+\import Native.FiniteSupport[] \as Support;
+\module At(d: Bidegree);
+\definition coordinates[x: Carrier]: \forall (d: Bidegree) -> family.Carrier d := Support.coordinates x;
+\definition extensionality[x, y: Carrier][same: \forall (d: Bidegree) -> coordinates x d = coordinates y d]: x = y :=
+  Support.injective x y (\axiom:funext(coordinates x, coordinates y, same));
+\import Native.Generated[] \as Generated;
+\definition sameLeft[d, e: Bidegree][same: d.p = e.p]: d = e :=
+  ext d e same (Naturals.addCancelLeft e.p d.q e.q
+    (trans!{N.Nat^} _ _ _
+      (sym!{N.Nat^} _ _ (congr!{N.Nat^ N.Nat^} (\fun (p: N.Nat^) => Nat.add p d.q) _ _ same))
+      (trans!{N.Nat^} _ _ _ (degree d) (sym!{N.Nat^} _ _ (degree e)))));
+\definition differentLeft[d, e: Bidegree][different: Logic.Not (d = e)]: Logic.Not (d.p = e.p) :=
+  \fun (same: d.p = e.p) => different (sameLeft d e same);
+\module InFrames(n, m: N.Nat^,
+  firstFrame: Bundles.Dimension[V := V, space := left].Frame n,
+  secondFrame: Bundles.Dimension[V := W, space := right].Frame m,
+  firstEnumeration: \forall (p: N.Nat^) -> Operations.ExteriorIndices[n := n, k := p].Enumeration,
+  secondEnumeration: \forall (q: N.Nat^) -> Operations.ExteriorIndices[n := m, k := q].Enumeration);
+\module Enumeration;

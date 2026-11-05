@@ -1,0 +1,55 @@
+\import real.Analysis[] \as Real;
+\import vector_bundles.Bundles[].Over[K := Real.Real, field := Real.Algebra[].field,
+  conjugation := linear_algebra.Hermitian[].Real[].scalar, scalar := vector_bundles.Bundles[].Real[].scalar] \as RealBundles;
+\import linear_algebra.Commutative[K := Real.Real, scalarRing := std.Alg[].Field[].fieldAsCommutativeRing Real.Real Real.Algebra[].field] \as RealSpaces;
+\import Charts.In[c := c] \as Chart;
+\import Base.Subspace[S := c.domain] \as BaseSubspace;
+\import Total.Subspace[S := { p: Family.Point \where Base.Member c.domain p.base }] \as TotalSubspace;
+\import bundle_operations.Operations[].Scalars[].RealCoordinates[n := c.dimension] \as Coordinates;
+\import algebraic_topology.Euclidean[].Dimension[n := Coordinates.dimension] \as E;
+\import topology.Homeomorphism[A := Bundles.Vector c.dimension, B := E.Coordinate] \as Homeomorphism;
+\import RealSpaces.Isomorphism[V := Bundles.Vector c.dimension, W := E.Coordinate,
+  source := Operations.RealScalars[V := Bundles.Vector c.dimension, space := Bundles.coordinates c.dimension].realSpace,
+  target := RealBundles.coordinates Coordinates.dimension] \as Frame;
+\definition frameLaws: Frame.Laws[Coordinates.frame] := Frame.laws Coordinates.frame;
+\definition coordinateHomeomorphism: Homeomorphism.Homeomorphism[Bundles.coordinateTopology c.dimension, E.topology] :=
+  Homeomorphism.Homeomorphism[Bundles.coordinateTopology c.dimension, E.topology] {
+    forward := Coordinates.frame.forward.apply, backward := Coordinates.frame.backward.apply,
+    leftInverse := frameLaws.leftInverse, rightInverse := frameLaws.rightInverse,
+    forwardContinuous := Coordinates.Topology[].forwardContinuous, backwardContinuous := Coordinates.Topology[].backwardContinuous
+  };
+\definition fiberLocallyCompact: topology.LocallyCompact[A := Bundles.Vector c.dimension].IsLocallyCompact (Bundles.coordinateTopology c.dimension) :=
+  compact_support_k.Support[].Homeomorphic[A := Bundles.Vector c.dimension, B := E.Coordinate,
+    source := Bundles.coordinateTopology c.dimension, target := E.topology, h := coordinateHomeomorphism].locallyCompact
+    \parent.EuclideanLocal[n := Coordinates.dimension].locallyCompact;
+\definition baseLocallyCompact: topology.LocallyCompact[A := Chart.BasePoint].IsLocallyCompact (BaseSubspace.topology bundle.baseSpace) :=
+  compact_support_k.Support[].OpenPart[M := X, space := bundle.baseSpace, compact := compact, hausdorff := hausdorff,
+    U := c.domain, open := (Original.chartLaws c).baseOpen].locallyCompact;
+\definition productLocallyCompact: topology.LocallyCompact[A := Chart.ProductPoint].IsLocallyCompact Chart.productTopology :=
+  \parent.ProductLocal[A := Chart.BasePoint, B := Bundles.Vector c.dimension, left := BaseSubspace.topology bundle.baseSpace,
+    right := Bundles.coordinateTopology c.dimension, first := baseLocallyCompact, second := fiberLocallyCompact].locallyCompact;
+\definition chartLocallyCompact: topology.LocallyCompact[A := Chart.TotalPoint].IsLocallyCompact Chart.localTopology :=
+  compact_support_k.Support[].Homeomorphic[A := Chart.TotalPoint, B := Chart.ProductPoint, source := Chart.localTopology,
+    target := Chart.productTopology, h := Chart.homeomorphism (Original.chartLaws c)].locallyCompact productLocallyCompact;
+\import topology.LocallyCompact[A := Family.Point] \as Local;
+\import topology.LocallyCompact[A := Chart.TotalPoint] \as ChartLocal;
+\definition neighborhood[p: Family.Point][inside: Base.Member c.domain p.base]: \exists Local.CompactNeighborhood[bundle.totalSpace, p] := \block {
+  \let q: Chart.TotalPoint := \into[Family.Point](p, { p: Family.Point \where Base.Member c.domain p.base }) \by { inside } \then
+  \takefrom n: ChartLocal.CompactNeighborhood[Chart.localTopology, q] \by chartLocallyCompact q \then
+  \return \exact(Local.CompactNeighborhood[bundle.totalSpace, p] {
+    openSet := TotalSubspace.Open[].image n.openSet,
+    compactSet := TotalSubspace.Open[].image n.compactSet,
+    open := TotalSubspace.Open[].imageOpen bundle.totalSpace (Original.chartLaws c).totalOpen n.openSet n.open,
+    contains := TotalSubspace.Open[].imageMember n.openSet q n.contains,
+    enclosed := \fun (x: Family.Point)(member: _) => TotalSubspace.Open[].imageElim n.openSet x
+      (Total.Member (TotalSubspace.Open[].image n.compactSet) x)
+      (\fun (y: Chart.TotalPoint)(inside: _)(same: y = x) => \idelim y = x \with z: Family.Point =>
+        Total.Member (TotalSubspace.Open[].image n.compactSet) z \by {
+        base: TotalSubspace.Open[].imageMember n.compactSet y (n.enclosed y inside), equality: same
+      }) member,
+    compact := topology.Compactness[A := Chart.TotalPoint, B := Family.Point].continuousImage Chart.localTopology bundle.totalSpace
+      TotalSubspace.Open[].inclusion
+      (topology.Continuity[A := Chart.TotalPoint, B := Family.Point].Corestriction[S := { p: Family.Point \where Base.Member c.domain p.base }].inclusionContinuous bundle.totalSpace)
+      n.compactSet n.compact
+  }, Local.CompactNeighborhood[bundle.totalSpace, p])
+};

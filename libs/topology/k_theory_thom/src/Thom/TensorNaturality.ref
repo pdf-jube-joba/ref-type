@@ -1,0 +1,24 @@
+\import Operations.TensorIsomorphisms[X := X, F := F, G := G, A := A, B := B,
+  first := first, second := second, newFirst := newFirst, newSecond := newSecond,
+  sameSource := sameSource, sameTarget := sameTarget] \as TensorIso;
+\import Operations.Tensor[X := X, F := F, G := G, left := first, right := second] \as Source;
+\import Operations.Tensor[X := X, F := A, G := B, left := newFirst, right := newSecond] \as Target;
+\definition sourceBundle: Bundles.Family[X := X, F := Source.Fiber].Bundle := Source.bundle sameSource;
+\definition targetBundle: Bundles.Family[X := X, F := Target.Fiber].Bundle := Target.bundle sameTarget;
+\definition isomorphism: Bundles.Isomorphisms[X := X, F := Source.Fiber, G := Target.Fiber, source := sourceBundle, target := targetBundle].Isomorphism := TensorIso.isomorphism firstIso secondIso;
+\definition onPure: \forall (x: X)(v: F x)(w: G x) ->
+  (isomorphism.forward.fiber x).apply (Source.pure x v w) = Target.pure x ((firstIso.forward.fiber x).apply v) ((secondIso.forward.fiber x).apply w) := TensorIso.onPure firstIso secondIso;
+\import Bundles.Morphisms[X := X, Y := X, F := F, G := F, source := first, target := first, f := (\fun (x: X) => x)] \as FirstMaps;
+\import Bundles.Morphisms[X := X, Y := X, F := G, G := G, source := second, target := second, f := (\fun (x: X) => x)] \as SecondMaps;
+\import Bundles.Morphisms[X := X, Y := X, F := A, G := A, source := newFirst, target := newFirst, f := (\fun (x: X) => x)] \as NewFirstMaps;
+\import Bundles.Morphisms[X := X, Y := X, F := B, G := B, source := newSecond, target := newSecond, f := (\fun (x: X) => x)] \as NewSecondMaps;
+\structure Data: \Set := {
+  sourceFirst: FirstMaps.Map, sourceSecond: SecondMaps.Map, sourceGrading: FirstMaps.Map,
+  targetFirst: NewFirstMaps.Map, targetSecond: NewSecondMaps.Map, targetGrading: NewFirstMaps.Map
+};
+\structure Laws[c: Data]: \Prop := {
+  first: \forall (x: X)(v: F x) -> (firstIso.forward.fiber x).apply ((c.sourceFirst.fiber x).apply v) = (c.targetFirst.fiber x).apply ((firstIso.forward.fiber x).apply v),
+  second: \forall (x: X)(v: G x) -> (secondIso.forward.fiber x).apply ((c.sourceSecond.fiber x).apply v) = (c.targetSecond.fiber x).apply ((secondIso.forward.fiber x).apply v),
+  grading: \forall (x: X)(v: F x) -> (firstIso.forward.fiber x).apply ((c.sourceGrading.fiber x).apply v) = (c.targetGrading.fiber x).apply ((firstIso.forward.fiber x).apply v)
+};
+\module With(c: Data, laws: Laws[c]);

@@ -1,0 +1,24 @@
+\definition leftAbove: \forall (low: Fin.Fin Indices.total)(left: Lists.List[Fin.Fin n])(right: Lists.List[Fin.Fin m]) ->
+  All.Holds (\fun (i: Fin.Fin Indices.total) => Naturals.Lt low i) (joined left right) ->
+  LeftAll.Holds (\fun (a: Fin.Fin n) => Naturals.Lt low (Indices.left a)) left :=
+  \fun (low: Fin.Fin Indices.total) => \induction (left: Lists.List[Fin.Fin n]) \return \forall (right: Lists.List[Fin.Fin m]) ->
+    All.Holds (\fun (i: Fin.Fin Indices.total) => Naturals.Lt low i) (joined left right) ->
+    LeftAll.Holds (\fun (a: Fin.Fin n) => Naturals.Lt low (Indices.left a)) left \with {
+      | nil: \fun (right: _)(all: _) => Logic.True::intro
+      | cons: \fun (a: Fin.Fin n)(left: Lists.List[Fin.Fin n])(previous: _)(right: Lists.List[Fin.Fin m])(all: All.Holds (\fun (i: Fin.Fin Indices.total) => Naturals.Lt low i) (joined (Lists.List[Fin.Fin n]::cons a left) right)) =>
+        Logic.And[_, _] { left := all.left, right := previous right all.right }
+    };
+\definition rightAbove: \forall (low: Fin.Fin Indices.total)(left: Lists.List[Fin.Fin n])(right: Lists.List[Fin.Fin m]) ->
+  All.Holds (\fun (i: Fin.Fin Indices.total) => Naturals.Lt low i) (joined left right) ->
+  RightAll.Holds (\fun (b: Fin.Fin m) => Naturals.Lt low (Indices.right b)) right :=
+  \fun (low: Fin.Fin Indices.total) => \induction (left: Lists.List[Fin.Fin n]) \return \forall (right: Lists.List[Fin.Fin m]) ->
+    All.Holds (\fun (i: Fin.Fin Indices.total) => Naturals.Lt low i) (joined left right) ->
+    RightAll.Holds (\fun (b: Fin.Fin m) => Naturals.Lt low (Indices.right b)) right \with {
+      | nil: \induction (right: Lists.List[Fin.Fin m]) \return
+          All.Holds (\fun (i: Fin.Fin Indices.total) => Naturals.Lt low i) (joined Lists.List[Fin.Fin n]::nil right) ->
+          RightAll.Holds (\fun (b: Fin.Fin m) => Naturals.Lt low (Indices.right b)) right \with {
+            | nil: \fun (all: _) => Logic.True::intro
+            | cons: \fun (b: Fin.Fin m)(right: Lists.List[Fin.Fin m])(previous: _)(all: All.Holds (\fun (i: Fin.Fin Indices.total) => Naturals.Lt low i) (joined Lists.List[Fin.Fin n]::nil (Lists.List[Fin.Fin m]::cons b right))) => Logic.And[_, _] { left := all.left, right := previous all.right }
+          }
+      | cons: \fun (a: Fin.Fin n)(left: Lists.List[Fin.Fin n])(previous: _)(right: Lists.List[Fin.Fin m])(all: All.Holds (\fun (i: Fin.Fin Indices.total) => Naturals.Lt low i) (joined (Lists.List[Fin.Fin n]::cons a left) right)) => previous right all.right
+    };

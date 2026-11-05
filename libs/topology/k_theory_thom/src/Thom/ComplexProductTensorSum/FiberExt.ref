@@ -1,0 +1,19 @@
+\definition Linear[n: N.Nat^][side: B.Bool^]: \Set := Spaces.Linear[V := Left n side x, W := U, source := (leftBundle n side).space x, target := target].Map;
+\definition Agreement[n: N.Nat^][side: B.Bool^][first, second: Linear n side]: \Prop :=
+  \forall (s: Labels.Index n)(tag: Labels.even n s = side)(v: Models.Fiber (term (Labels.degree n s)).ranks x) ->
+    first.apply (((Summands.at n s side tag).fiber x).apply v) = second.apply (((Summands.at n s side tag).fiber x).apply v);
+\definition Property[n: N.Nat^]: \Prop := \forall (side: B.Bool^)(first, second: Linear n side) -> Agreement n side first second ->
+  \forall (v: Left n side x) -> first.apply v = second.apply v;
+\import \root.Thom[].Finite[X := X, baseSpace := space].Empty[domain := { y: X \where Logic.False }] \as Empty;
+\definition zeroCompare[first, second: Spaces.Linear[V := Models.Fiber Chains.empty.ranks x, W := U,
+  source := (Models.bundle Chains.empty).space x, target := target].Map][v: Models.Fiber Chains.empty.ranks x]: first.apply v = second.apply v :=
+  trans!{U} _ _ _
+    (trans!{U} _ _ _ (congr!{{Models.Fiber Chains.empty.ranks x} U} first.apply _ _ (Empty.zeroUnique x v)) first.preservesZero)
+    (sym!{U} _ _ (trans!{U} _ _ _ (congr!{{Models.Fiber Chains.empty.ranks x} U} second.apply _ _ (Empty.zeroUnique x v)) second.preservesZero));
+\module Part(head, tail: Models.Bundle);
+\module Base;
+\module Next(n: N.Nat^, previous: Property n);
+\definition ext: \forall (n: N.Nat^) -> Property n := \induction (n: N.Nat^) \return Property n \with {
+  | zero: Base[].equation
+  | succ: \fun (n: N.Nat^)(previous: Property n) => Next[n := n, previous := previous].equation
+};

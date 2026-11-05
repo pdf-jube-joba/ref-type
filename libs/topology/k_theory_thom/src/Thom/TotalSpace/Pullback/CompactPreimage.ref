@@ -1,0 +1,65 @@
+\import Total.Subspace[S := K] \as Subspace;
+\definition KPoint: \Set := Subspace.CarrierSet;
+\definition kTopology: topology.Topology[Carrier := KPoint].Topology := Subspace.topology bundle.totalSpace;
+\definition kCompact: topology.Topology[Carrier := KPoint].IsCompact kTopology := Subspace.Properties[].compact bundle.totalSpace compactK;
+\import topological_constructions.Product[A := Y, B := KPoint] \as Product;
+\definition Container: \Set := Product.CarrierSet;
+\definition productTopology: topology.Topology[Carrier := Container].Topology := Product.topology source kTopology;
+\definition first[p: Container]: Y := Pair.first Y KPoint p;
+\definition second[p: Container]: Family.Point := Pair.second Y KPoint p;
+\definition firstContinuous: topology.Continuity[A := Container, B := Y].Continuous productTopology source first := Product.Maps[].firstContinuous source kTopology;
+\definition secondContinuous: topology.Continuity[A := Container, B := Family.Point].Continuous productTopology bundle.totalSpace second :=
+  topology.Composition[A := Container, B := KPoint, C := Family.Point].composeContinuous productTopology kTopology bundle.totalSpace (Pair.second Y KPoint) (\fun (p: KPoint) => p)
+    (Product.Maps[].secondContinuous source kTopology) (topology.Continuity[A := KPoint, B := Family.Point].Corestriction[S := K].inclusionContinuous bundle.totalSpace);
+\definition left[p: Container]: X := (second p).base;
+\definition right[p: Container]: X := f (first p);
+\definition leftContinuous: topology.Continuity[A := Container, B := X].Continuous productTopology bundle.baseSpace left :=
+  topology.Composition[A := Container, B := Family.Point, C := X].composeContinuous productTopology bundle.totalSpace bundle.baseSpace second Family.projection secondContinuous Original.projectionContinuous;
+\definition rightContinuous: topology.Continuity[A := Container, B := X].Continuous productTopology bundle.baseSpace right :=
+  topology.Composition[A := Container, B := Y, C := X].composeContinuous productTopology source bundle.baseSpace first f firstContinuous regular;
+\definition Graph: \Pow Container := { p: Container \where left p = right p };
+\import topology.Topology[Carrier := Container] \as ProductSpace;
+\definition graphClosed: ProductSpace.IsClosedIn productTopology Graph :=
+  thom_spaces.Thom[].CWType[].Separated[A := Container, B := X, source := productTopology, target := bundle.baseSpace,
+    hausdorff := hausdorff, f := left, g := right, first := leftContinuous, second := rightContinuous].closed;
+\definition graphCompact: ProductSpace.IsCompactIn productTopology Graph := ProductSpace.Compactness[].closedCompact productTopology
+  (Product.Compactness[].productCompact source kTopology sourceCompact kCompact) Graph graphClosed;
+\import ProductSpace.Subspace[S := Graph] \as GraphSpace;
+\definition Carrier: \Set := GraphSpace.CarrierSet;
+\definition graphTopology: topology.Topology[Carrier := Carrier].Topology := GraphSpace.topology productTopology;
+\definition compactGraph: topology.Topology[Carrier := Carrier].IsCompact graphTopology := GraphSpace.Properties[].compact productTopology graphCompact;
+\definition inclusionContinuous: topology.Continuity[A := Carrier, B := Container].Continuous graphTopology productTopology (\fun (p: Carrier) => p) :=
+  topology.Continuity[A := Carrier, B := Container].Corestriction[S := Graph].inclusionContinuous productTopology;
+\import Bundle.Universal[Z := Carrier] \as Universal;
+\definition cone: Universal.Cone := Universal.Cone {
+  base := \fun (p: Carrier) => first p, total := \fun (p: Carrier) => second p,
+  commutes := \fun (p: Carrier) => \bysub(Container, Graph, p)
+};
+\definition lift: Carrier -> Pulled.Point := Universal.lift cone;
+\definition liftContinuous: topology.Continuity[A := Carrier, B := Pulled.Point].Continuous graphTopology Bundle.topology lift :=
+  Universal.liftContinuous graphTopology cone
+    (topology.Composition[A := Carrier, B := Container, C := Y].composeContinuous graphTopology productTopology source (\fun (p: Carrier) => p) first inclusionContinuous firstContinuous)
+    (topology.Composition[A := Carrier, B := Container, C := Family.Point].composeContinuous graphTopology productTopology bundle.totalSpace (\fun (p: Carrier) => p) second inclusionContinuous secondContinuous);
+\import topology.Topology[Carrier := Carrier] \as Domain;
+\import topology.Topology[Carrier := Pulled.Point] \as Target;
+\import topology.Maps[A := Carrier, B := Pulled.Point] \as Image;
+\import topology.Maps[A := Pulled.Point, B := Family.Point] \as Preimage;
+\definition point[p: Pulled.Point][inside: Total.Member K (Bundle.map p)]: Carrier :=
+  \into[Container](Pair.pair Y KPoint p.base (\into[Family.Point](Bundle.map p, K) \by { inside }), Graph) \by { \refl(f p.base) };
+\definition liftPoint[p: Pulled.Point][inside: Total.Member K (Bundle.map p)]: lift (point p inside) = p :=
+  Bundle.jointInjective (lift (point p inside)) p (\refl(p.base)) (Universal.mapFormula cone (point p inside));
+\definition imageEquation: Image.Image lift Domain.Whole = Preimage.Preimage Bundle.map K :=
+  \axiom:setext(Image.Image lift Domain.Whole, Preimage.Preimage Bundle.map K,
+    \fun (p: Pulled.Point)(member: _) => Image.imageElim lift Domain.Whole p (Total.Member K (Bundle.map p))
+      (\fun (q: Carrier)(whole: _)(same: lift q = p) => \idelim second q = Bundle.map p \with z: Family.Point => Total.Member K z \by {
+        base: \bysub(Family.Point, K, Pair.second Y KPoint q),
+        equality: trans!{Family.Point} _ _ _ (sym!{Family.Point} _ _ (Universal.mapFormula cone q)) (congr!{Pulled.Point Family.Point} Bundle.map _ _ same)
+      }) member,
+    \fun (p: Pulled.Point)(inside: Total.Member K (Bundle.map p)) => Logic.existsIntro[Carrier,
+      { q: Carrier \where Logic.And[Domain.Member Domain.Whole q, lift q = p] }] (point p inside)
+      (Logic.And[_, _]::# (\refl(point p inside)) (liftPoint p inside)));
+\definition compact: Target.IsCompactIn Bundle.topology (Preimage.Preimage Bundle.map K) :=
+  \idelim Image.Image lift Domain.Whole = Preimage.Preimage Bundle.map K \with S: \Pow Pulled.Point => Target.IsCompactIn Bundle.topology S \by {
+    base: topology.Compactness[A := Carrier, B := Pulled.Point].continuousImage graphTopology Bundle.topology lift liftContinuous Domain.Whole compactGraph,
+    equality: imageEquation
+  };

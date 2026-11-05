@@ -1,0 +1,44 @@
+\definition h: BoundaryModels.Map SecondOdd.value SecondEven.value :=
+  BoundaryModels.compose SecondOdd.value FirstEven.value SecondEven.value
+    (BoundaryModels.compose SecondOdd.value FirstOdd.value FirstEven.value negativeBackward contraction.h) positiveForward;
+\definition k: BoundaryModels.Map SecondEven.value SecondOdd.value :=
+  BoundaryModels.compose SecondEven.value FirstOdd.value SecondOdd.value
+    (BoundaryModels.compose SecondEven.value FirstEven.value FirstOdd.value positiveBackward contraction.k) negativeForward;
+\module At(x: Pair.A);
+\definition transported: SecondAcyclic.Contraction := SecondAcyclic.Contraction {
+  h := h, k := k, laws := \fun (x: Pair.A) => At[x := x].laws
+};
+\import FirstAcyclic.Normalized[c := contraction] \as FirstNormal;
+\import SecondAcyclic.Normalized[c := transported] \as SecondNormal;
+\definition normalizedCommutes: \forall (x: Pair.A)(v: Source.Even x) ->
+  (SecondNormal.forward.fiber x).apply ((positive.forward.fiber x).apply v) =
+    (negative.forward.fiber x).apply ((FirstNormal.forward.fiber x).apply v) :=
+  \fun (x: Pair.A) => At[x := x].normalizedCommutes;
+\import Pair.BundleTriples[F := Source.Even, G := Source.Odd, firstModel := Source.firstModel, secondModel := Source.secondModel]
+  .To[H := Target.Even, I := Target.Odd, newFirstModel := Target.firstModel, newSecondModel := Target.secondModel]
+  .With[alpha := FirstNormal.isomorphism, beta := SecondNormal.isomorphism, positive := positive, negative := negative, commutes := normalizedCommutes] \as Change;
+\definition equation[firstExact: Source.Exact][secondExact: Target.Exact]:
+  Source.Supported[exact := firstExact].value = Target.Supported[exact := secondExact].value :=
+  trans!{{Pair.Quotient[].Relative}} _ _ _ (Source.Supported[exact := firstExact].agreement contraction)
+    (trans!{{Pair.Quotient[].Relative}} _ _ _ Change.reducedEquation
+      (sym!{{Pair.Quotient[].Relative}} _ _ (Target.Supported[exact := secondExact].agreement transported)));
+\definition exact: Target.Exact := \fun (x: Pair.A) => Logic.And[_, _] {
+  left := \fun (v: Target.Even x)(cycle: (SecondChain.parity.forward.fiber x).apply v = ((Models.bundle Target.odd).space x).zero) =>
+    Logic.existsIntro[Target.Odd x, { w: Target.Odd x \where (SecondChain.parity.backward.fiber x).apply w = v }]
+      ((k.fiber x).apply v)
+      (trans!{{Target.Even x}} _ _ _
+        (sym!{{Target.Even x}} _ _ (Spaces.Laws[V := Target.Even x, space := (Models.bundle Target.even).space x].zeroRight ((SecondChain.parity.backward.fiber x).apply ((k.fiber x).apply v))))
+        (trans!{{Target.Even x}} _ _ _
+          (congr!{{Target.Even x} {Target.Even x}} (((Models.bundle Target.even).space x).add ((SecondChain.parity.backward.fiber x).apply ((k.fiber x).apply v))) _ _
+            (sym!{{Target.Even x}} _ _ (trans!{{Target.Even x}} _ _ _ (congr!{{Target.Odd x} {Target.Even x}} (h.fiber x).apply _ _ cycle) (h.fiber x).preservesZero)))
+          (At[x := x].laws.even v))),
+  right := \fun (w: Target.Odd x)(cycle: (SecondChain.parity.backward.fiber x).apply w = ((Models.bundle Target.even).space x).zero) =>
+    Logic.existsIntro[Target.Even x, { v: Target.Even x \where (SecondChain.parity.forward.fiber x).apply v = w }]
+      ((h.fiber x).apply w)
+      (trans!{{Target.Odd x}} _ _ _
+        (sym!{{Target.Odd x}} _ _ (Spaces.Laws[V := Target.Odd x, space := (Models.bundle Target.odd).space x].zeroRight ((SecondChain.parity.forward.fiber x).apply ((h.fiber x).apply w))))
+        (trans!{{Target.Odd x}} _ _ _
+          (congr!{{Target.Odd x} {Target.Odd x}} (((Models.bundle Target.odd).space x).add ((SecondChain.parity.forward.fiber x).apply ((h.fiber x).apply w))) _ _
+            (sym!{{Target.Odd x}} _ _ (trans!{{Target.Odd x}} _ _ _ (congr!{{Target.Even x} {Target.Odd x}} (k.fiber x).apply _ _ cycle) (k.fiber x).preservesZero)))
+          (At[x := x].laws.odd w)))
+};
