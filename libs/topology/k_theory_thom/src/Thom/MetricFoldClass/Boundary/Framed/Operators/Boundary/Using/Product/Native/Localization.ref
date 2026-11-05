@@ -1,0 +1,29 @@
+\import \root.Thom[].LocalizationProduct[X := Koszul.Total, Y := \root.Thom[].Koszul[X := Y, F := G, bundle := otherBundle].Total,
+  firstSpace := totalTopology, secondSpace := OtherGeometry.totalTopology,
+  firstHausdorff := totalHausdorff, secondHausdorff := OtherGeometry.totalHausdorff,
+  firstLocallyCompact := totalLocallyCompact, secondLocallyCompact := OtherGeometry.totalLocallyCompact,
+  U := openSet, V := OtherGeometry.openSet, openU := openSetOpen, openV := OtherGeometry.openSetOpen,
+  L := compactSet, M := OtherGeometry.compactSet, compactL := compactSetCompact, compactM := OtherGeometry.compactSetCompact,
+  enclosedU := enclosed, enclosedV := OtherGeometry.enclosed] \as Geometry;
+\import compact_support_k.Support[].On[X := Geometry.Carrier, space := Geometry.topology, hausdorff := Geometry.hausdorff, locallyCompact := Geometry.locallyCompact] \as Whole;
+\import Whole.Localization[U := Geometry.openSet, open := Geometry.open, L := Geometry.compactSet, compactL := Geometry.compact, enclosed := Geometry.enclosed] \as WholeLocal;
+\import Geometry.Quotient[] \as Quotient;
+\import Relative.Pullback[source := WholeLocal.quotientModel, target := NativeQ.model, f := Quotient.backward] \as Reverse;
+\definition Carrier: \Set := Relative.Reduced[model := Whole.model].Carrier;
+\definition extension: NativeQ.Relative -> Carrier := \fun (a: NativeQ.Relative) => WholeLocal.extend (Reverse.map a);
+\definition extended: Relative.Reduced[model := Whole.model].Carrier := WholeLocal.extend (Reverse.map value);
+\import compact_support_k.Support[].On[X := \root.Thom[].Koszul[X := Y, F := G, bundle := otherBundle].Total, space := OtherGeometry.totalTopology,
+  hausdorff := OtherGeometry.totalHausdorff, locallyCompact := OtherGeometry.totalLocallyCompact] \as OtherSupport;
+\import Relative.Smash[left := Support.model, right := OtherSupport.model] \as GlobalSmash;
+\import Geometry.Diagram[] \as Diagram;
+\import Relative.Pullback[source := Whole.model, target := GlobalSmash.result, f := Diagram.globalMap] \as GlobalPull;
+\definition external: Relative.Reduced[model := Whole.model].Carrier := GlobalPull.map (GlobalSmash.External[].product supportedClass Other.supportedClass);
+\import Geometry.Classes[] \as Classes;
+\definition extensionEquation: extended = external :=
+  trans!{{Relative.Reduced[model := Whole.model].Carrier}} _ _ _
+    (congr!{{NativeQ.Relative} {Relative.Reduced[model := Whole.model].Carrier}} (\fun (a: NativeQ.Relative) => WholeLocal.extend (Reverse.map a)) _ _ equation)
+    (trans!{{Relative.Reduced[model := Whole.model].Carrier}} _ _ _ (Classes.equation relativeClass Other.relativeClass)
+      (congr!{{Relative.Reduced[model := Support.model].Carrier} {Relative.Reduced[model := OtherSupport.model].Carrier} {Relative.Reduced[model := Whole.model].Carrier}}
+        (\fun (a: Relative.Reduced[model := Support.model].Carrier)(b: Relative.Reduced[model := OtherSupport.model].Carrier) => GlobalPull.map (GlobalSmash.External[].product a b)) _ _ _ _
+        (sym!{Thom.Carrier} _ _ supportedEquation)
+        (sym!{{Relative.Reduced[model := OtherSupport.model].Carrier}} _ _ Other.supportedEquation)));

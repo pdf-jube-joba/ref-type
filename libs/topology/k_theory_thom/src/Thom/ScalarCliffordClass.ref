@@ -1,0 +1,48 @@
+\import \root.Thom[].RelativeComplex[X := X, space := space, compact := compact, hausdorff := hausdorff, subset := subset, closed := closed, complex := complex] \as Source;
+\import relative_k_theory.Relative[].Pair[X := X, space := space, compact := compact, hausdorff := hausdorff, subset := subset, closed := closed] \as Pair;
+\import Operations.Models[X := X, baseSpace := space] \as Models;
+\import Models.Chains[].Of[complex := complex] \as Chain;
+\import Models.Pullback[b := Source.even, Y := Pair.A, source := Pair.subspace, f := Source.inclusion, regular := Source.inclusionContinuous] \as P;
+\import Models.Pullback[b := Source.odd, Y := Pair.A, source := Pair.subspace, f := Source.inclusion, regular := Source.inclusionContinuous] \as Q;
+\import Models.PullbackMap[p := Source.even, q := Source.odd, Y := Pair.A, source := Pair.subspace, f := Source.inclusion, regular := Source.inclusionContinuous] \as D;
+\import Models.PullbackMap[p := Source.odd, q := Source.even, Y := Pair.A, source := Pair.subspace, f := Source.inclusion, regular := Source.inclusionContinuous] \as E;
+\import compact_support_k.Support[].CompactBundles[X := Pair.A, space := Pair.subspace, compact := Source.boundaryCompact, hausdorff := Source.boundaryHausdorff] \as Boundary;
+\definition Even[x: Pair.A]: \Set := Boundary.Fiber P.value x;
+\definition Odd[x: Pair.A]: \Set := Boundary.Fiber Q.value x;
+\definition d: Boundary.Map P.value Q.value := D.map Chain.parity.forward;
+\definition e: Boundary.Map Q.value P.value := E.map Chain.parity.backward;
+\import Boundary.Acyclic[p := P.value, q := Q.value, d := d, e := e] \as Acyclic;
+\import Operations.MapOperations[X := Pair.A, F := Even, G := Odd, source := Boundary.bundle P.value, target := Boundary.bundle Q.value] \as Forward;
+\import Operations.MapOperations[X := Pair.A, F := Odd, G := Even, source := Boundary.bundle Q.value, target := Boundary.bundle P.value] \as Backward;
+\import real.Analysis[] \as Real;
+\import dedekind_reals.DedekindReal[] \as Order;
+\import C.Def[] \as Scalar;
+\definition BoundaryCarrier: \Set := Pair.A;
+\definition boundaryTopology: topology.Topology[Carrier := BoundaryCarrier].Topology := Pair.subspace;
+\definition boundaryCompact: topology.Topology[Carrier := BoundaryCarrier].IsCompact boundaryTopology := Source.boundaryCompact;
+\definition boundaryHausdorff: topology.Topology[Carrier := BoundaryCarrier].IsT2 boundaryTopology := Source.boundaryHausdorff;
+\definition evenModel: Operations.Models[X := BoundaryCarrier, baseSpace := boundaryTopology].Bundle := P.value;
+\definition oddModel: Operations.Models[X := BoundaryCarrier, baseSpace := boundaryTopology].Bundle := Q.value;
+\definition evenBundle: Bundles.Family[X := BoundaryCarrier, F := Even].Bundle := Boundary.bundle P.value;
+\definition oddBundle: Bundles.Family[X := BoundaryCarrier, F := Odd].Bundle := Boundary.bundle Q.value;
+\structure Data: \Set := {
+  h: Boundary.Map Q.value P.value, k: Boundary.Map P.value Q.value,
+  q: Pair.A -> Real.Real,
+  continuous: metric_spaces.RealFunctions[A := Pair.A].Continuous Pair.subspace q,
+  positive: \forall (x: Pair.A) -> Order.Lt Real.zero (q x)
+};
+\definition forward[c: Data]: Boundary.Map P.value Q.value := Forward.add d c.k;
+\definition backward[c: Data]: Boundary.Map Q.value P.value := Backward.add e c.h;
+\structure Laws[c: Data]: \Prop := {
+  hk: \forall (x: Pair.A)(v: Even x) -> (c.h.fiber x).apply ((c.k.fiber x).apply v) = ((Boundary.bundle P.value).space x).zero,
+  kh: \forall (x: Pair.A)(v: Odd x) -> (c.k.fiber x).apply ((c.h.fiber x).apply v) = ((Boundary.bundle Q.value).space x).zero,
+  evenSquare: \forall (x: Pair.A)(v: Even x) -> ((backward c).fiber x).apply (((forward c).fiber x).apply v) = ((Boundary.bundle P.value).space x).smul (Scalar.ofReal (c.q x)) v,
+  oddSquare: \forall (x: Pair.A)(v: Odd x) -> ((forward c).fiber x).apply (((backward c).fiber x).apply v) = ((Boundary.bundle Q.value).space x).smul (Scalar.ofReal (c.q x)) v
+};
+\module With(c: Data, laws: Laws[c]);
+
+\module Transport(U, T: Pair.A -> \Set,
+  first: Bundles.Family[X := Pair.A, F := U].Bundle,
+  second: Bundles.Family[X := Pair.A, F := T].Bundle,
+  positive: Bundles.Isomorphisms[X := Pair.A, F := U, G := Even, source := first, target := evenBundle].Isomorphism,
+  negative: Bundles.Isomorphisms[X := Pair.A, F := T, G := Odd, source := second, target := oddBundle].Isomorphism);

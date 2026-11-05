@@ -1,0 +1,18 @@
+\import \root.Thom[].Finite[X := X, baseSpace := left.baseSpace] \as Finite;
+\definition domain: \Pow X := { x: X \where Logic.Not (section.value x = (sum.space x).zero) };
+\import Finite.Family[term := model, differential := differential, domain := domain] \as Sequence;
+\definition square: \forall (n: N.Nat^)(x: X)(v: Vector (N.Nat^::succ (N.Nat^::succ n)) x) ->
+  ((differential n).fiber x).apply (((differential (N.Nat^::succ n)).fiber x).apply v) = ((Models.bundle (model n)).space x).zero :=
+  \fun (n: N.Nat^)(x: X) => \parent.AtPoint[x := x].square n;
+\definition RawClosed[n: N.Nat^][x: X][v: Vector n x]: \Prop := Raw.Exact[x := x].Closed n ((decode n x).apply v);
+\definition rawClosed: \forall (n: N.Nat^)(x: X)(v: Vector n x) -> Sequence.Closed n x v -> RawClosed n x v :=
+  \induction (n: N.Nat^) \return \forall (x: X)(v: Vector n x) -> Sequence.Closed n x v -> RawClosed n x v \with {
+    | zero: \fun (x: X)(v: Vector N.Nat^::zero x)(closed: _) => Raw.Exact[x := x].closedAtZero ((decode N.Nat^::zero x).apply v)
+    | succ: \fun (n: N.Nat^)(unused: _)(x: X)(v: Vector (N.Nat^::succ n) x)(closed: _) =>
+      Raw.Exact[x := x].closedAtSuccessor n ((decode (N.Nat^::succ n) x).apply v) (\parent.AtPoint[x := x].rawClosed n v closed)
+  };
+\definition exact: \forall (n: N.Nat^)(x: X) -> \In[X] domain x -> \forall (v: Vector n x) -> Sequence.Closed n x v ->
+  \exists (w: Vector (N.Nat^::succ n) x \where ((differential n).fiber x).apply w = v) :=
+  \fun (n: N.Nat^)(x: X)(nonzero: \In[X] domain x)(v: Vector n x)(closed: _) => \parent.AtPoint[x := x].preimage n v nonzero (rawClosed n x v closed);
+\import Sequence.With[squareZero := square, exact := exact] \as Construction;
+\module At(n: N.Nat^, zeroAbove: \forall (x: X)(omega: Term n x) -> omega = ((term n).space x).zero);

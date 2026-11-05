@@ -1,0 +1,40 @@
+\import std.Data[].List[] \as Lists;
+\import C.Def[] \as Op;
+\import std.Logic[].Classical[] \as Classical;
+\use Logic.either;
+\import Operations.Alternating[X := X, F := F, bundle := left, k := p] \as LeftForms;
+\import Operations.Alternating[X := X, F := G, bundle := right, k := q] \as RightForms;
+\import Operations.DirectSum[X := X, F := LeftForms.Fiber, G := RightForms.Fiber, left := LeftForms.alternating, right := RightForms.alternating] \as Pairs;
+\import Bundles.Family[X := X, F := Pairs.Fiber] \as PairFamily;
+\import Bundles.Family[X := X, F := Alternating.Fiber] \as TargetFamily;
+\import Operations.Tensor[X := X, F := LeftForms.Fiber, G := RightForms.Fiber, left := LeftForms.alternating, right := RightForms.alternating] \as Tensor;
+\module At(x: X);
+\definition fiber[x: X]: Spaces.Linear[V := Tensor.Fiber x, W := Alternating.Fiber x, source := Tensor.fiberSpace x, target := Alternating.fiberSpace x].Map := At[x := x].fiber;
+\definition pureTotal[y: PairFamily.Point]: TargetFamily.Point := TargetFamily.include y.base
+  ((fiber y.base).apply (Tensor.pure y.base (Pairs.first y).vector (Pairs.second y).vector));
+\import bundle_operations.Operations[].Evaluations[K := C.Complex, X := X, E := TargetFamily.Point,
+  I := Alternating.TupleSection, scalarSpace := Scalars.scalar.topological.space, baseSpace := left.baseSpace,
+  projection := TargetFamily.projection, domains := Alternating.domains, open := \fun (s: Alternating.TupleSection) => s.open,
+  evaluate := Alternating.evaluate] \as Tests;
+\definition mapCompose[A, B, D: \Set][f: A -> B][g: B -> D]: \forall (xs: Lists.List[A]) ->
+  Lists.map B D g (Lists.map A B f xs) = Lists.map A D (\fun (x: A) => g (f x)) xs :=
+  \induction (xs: Lists.List[A]) \return Lists.map B D g (Lists.map A B f xs) = Lists.map A D (\fun (x: A) => g (f x)) xs \with {
+    | nil: \refl(Lists.List[D]::nil)
+    | cons: \fun (head: A)(tail: Lists.List[A])(previous: _) => congr!{{Lists.List[D]} {Lists.List[D]}} (Lists.List[D]::cons (g (f head))) _ _ previous
+  };
+\module Test(s: Alternating.TupleSection);
+\definition pureContinuous: topology.Continuity[A := PairFamily.Point, B := TargetFamily.Point].Continuous Pairs.topology Alternating.topology pureTotal :=
+  Tests.Universal[A := PairFamily.Point].continuous Pairs.topology pureTotal Pairs.projectionContinuous
+    (\fun (s: Alternating.TupleSection) => Test[s := s].continuous);
+\import Tensor.Of[same := sameBase].LinearFromPure[Y := X, H := Alternating.Fiber, target := Alternating.alternating, f := \fun (x: X) => x] \as Lift;
+\definition wedge: Bundles.Morphisms[X := X, Y := X, F := Tensor.Fiber, G := Alternating.Fiber,
+  source := Tensor.bundle sameBase, target := Alternating.alternating, f := \fun (x: X) => x].Map := Lift.map fiber pureContinuous;
+\import Bundles.Morphisms[X := X, Y := X, F := Tensor.Fiber, G := Alternating.Fiber,
+  source := Tensor.bundle sameBase, target := Alternating.alternating, f := \fun (x: X) => x].Composition[
+  Z := X, H := Fiber, range := bundle, g := \fun (x: X) => x] \as Composition;
+\definition inclusion: Bundles.Morphisms[X := X, Y := X, F := Tensor.Fiber, G := Fiber,
+  source := Tensor.bundle sameBase, target := bundle, f := \fun (x: X) => x].Map := Composition.compose wedge comparison.backward;
+\module Identification(x: X);
+\module Projection;
+\definition projection: Bundles.Morphisms[X := X, Y := X, F := Fiber, G := Tensor.Fiber,
+  source := bundle, target := Tensor.bundle sameBase, f := \fun (x: X) => x].Map := Projection[].map;

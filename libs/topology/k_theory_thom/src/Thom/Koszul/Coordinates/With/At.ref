@@ -1,0 +1,46 @@
+\use Equality.eq_reason_in;
+\import \root.Thom[].Koszul[X := X, F := F, bundle := bundle].At[p := p] \as OriginalAt;
+\import \root.Thom[].Algebra[V := Fiber p, space := pulled.space p] \as Algebra;
+\definition square: \forall (k: N.Nat^)(v: Vector (N.Nat^::succ (N.Nat^::succ k)) p) ->
+  ((differential k).fiber p).apply (((differential (N.Nat^::succ k)).fiber p).apply v) = ((Models.bundle (model k)).space p).zero :=
+  \fun (k: N.Nat^)(v: Vector (N.Nat^::succ (N.Nat^::succ k)) p) => eq_reason_in!{{Vector k p} _
+    "=" { (encode k p).apply ((\root.Thom[].Koszul[X := X, F := F, bundle := bundle].Degree[k := k].differential.fiber p).apply
+      ((\root.Thom[].Koszul[X := X, F := F, bundle := bundle].Degree[k := N.Nat^::succ k].differential.fiber p).apply
+        ((decode (N.Nat^::succ (N.Nat^::succ k)) p).apply v))) } "by" {
+      congr!{{Term (N.Nat^::succ k) p} {Vector k p}}
+        (\fun (omega: Term (N.Nat^::succ k) p) => (encode k p).apply ((\root.Thom[].Koszul[X := X, F := F, bundle := bundle].Degree[k := k].differential.fiber p).apply omega)) _ _
+        (decodeEncode (N.Nat^::succ k) p _) }
+    "=" { (encode k p).apply (((term k).space p).zero) } "by" {
+      congr!{{Term k p} {Vector k p}} (encode k p).apply _ _
+        (\root.Thom[].Koszul[X := X, F := F, bundle := bundle].Degree[k := k].squareZero p ((decode (N.Nat^::succ (N.Nat^::succ k)) p).apply v)) }
+    "=" _ "by" { (encode k p).preservesZero }
+  };
+\definition rawClosed: \forall (k: N.Nat^)(v: Vector (N.Nat^::succ k) p) ->
+  ((differential k).fiber p).apply v = ((Models.bundle (model k)).space p).zero ->
+  (\root.Thom[].Koszul[X := X, F := F, bundle := bundle].Degree[k := k].differential.fiber p).apply ((decode (N.Nat^::succ k) p).apply v) = ((term k).space p).zero :=
+  \fun (k: N.Nat^)(v: Vector (N.Nat^::succ k) p)(closed: _) => trans!{{Term k p}} _ _ _
+    (sym!{{Term k p}} _ _ (decodeEncode k p _))
+    (trans!{{Term k p}} _ _ _
+      (congr!{{Vector k p} {Term k p}} (decode k p).apply _ _ closed)
+      (decode k p).preservesZero);
+\definition preimage: \forall (k: N.Nat^)(v: Vector k p) -> Logic.Not (p.vector = (bundle.space p.base).zero) ->
+  Algebra.Closed k p.vector ((decode k p).apply v) ->
+  \exists (w: Vector (N.Nat^::succ k) p \where ((differential k).fiber p).apply w = v) := \block {
+  \fun (k: N.Nat^)(v: Vector k p)(nonzero: _)(closed: _) \then
+  \takefrom eta: \Cast[Term (N.Nat^::succ k) p] ({ eta: Term (N.Nat^::succ k) p \where
+    (\root.Thom[].Koszul[X := X, F := F, bundle := bundle].Degree[k := k].differential.fiber p).apply eta = (decode k p).apply v })
+    \by OriginalAt.exact k ((decode k p).apply v) nonzero closed \then
+  \return Logic.existsIntro[Vector (N.Nat^::succ k) p, { w: Vector (N.Nat^::succ k) p \where ((differential k).fiber p).apply w = v }]
+    ((encode (N.Nat^::succ k) p).apply eta)
+    (eq_reason_in!{{Vector k p} _
+      "=" { (encode k p).apply ((\root.Thom[].Koszul[X := X, F := F, bundle := bundle].Degree[k := k].differential.fiber p).apply eta) } "by" {
+        congr!{{Term (N.Nat^::succ k) p} {Vector k p}}
+          (\fun (omega: Term (N.Nat^::succ k) p) => (encode k p).apply ((\root.Thom[].Koszul[X := X, F := F, bundle := bundle].Degree[k := k].differential.fiber p).apply omega)) _ _
+          (decodeEncode (N.Nat^::succ k) p eta) }
+      "=" { (encode k p).apply ((decode k p).apply v) } "by" {
+        congr!{{Term k p} {Vector k p}} (encode k p).apply _ _
+          (\bysub(Term (N.Nat^::succ k) p, { eta: Term (N.Nat^::succ k) p \where
+            (\root.Thom[].Koszul[X := X, F := F, bundle := bundle].Degree[k := k].differential.fiber p).apply eta = (decode k p).apply v }, eta)) }
+      "=" v "by" { encodeDecode k p v }
+    })
+};

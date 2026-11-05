@@ -1,0 +1,381 @@
+\import std.Data[].Nat[] \as N;
+\import std.Data[].FinSet[] \as Fin;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\import complex.Complex[] \as C;
+\import vector_bundles.Bundles[].Complex[] \as Scalars;
+\import vector_bundles.Bundles[].Over[K := C.Complex, field := C.Algebra[].field,
+  conjugation := linear_algebra.Hermitian[].Complex[].scalar, scalar := Scalars.scalar] \as Bundles;
+\import bundle_operations.Operations[].Over[K := C.Complex, field := C.Algebra[].field,
+  conjugation := linear_algebra.Hermitian[].Complex[].scalar, scalar := Scalars.scalar] \as Operations;
+\import linear_algebra.Commutative[K := C.Complex, scalarRing := std.Alg[].Field[].fieldAsCommutativeRing C.Complex C.Algebra[].field] \as Spaces;
+\module Contraction(X: \Set, F: X -> \Set, bundle: Bundles.Family[X := X, F := F].Bundle,
+  section: Bundles.Family[X := X, F := F].Of[bundle := bundle].Sections[].Section, k: N.Nat^);
+\module Algebra(V: \Set, space: Spaces.VectorSpace V);
+\module Koszul(X: \Set, F: X -> \Set, bundle: Bundles.Family[X := X, F := F].Bundle);
+\module Sum(V, W: \Set, left: Spaces.VectorSpace V, right: Spaces.VectorSpace W);
+\module Isomorphism;
+\module Finite(X: \Set, baseSpace: topology.Topology[Carrier := X].Topology);
+\module RelativeComplex(X: \Set, space: topology.Topology[Carrier := X].Topology,
+  compact: topology.Topology[Carrier := X].IsCompact space, hausdorff: topology.Topology[Carrier := X].IsT2 space,
+  subset: \Pow X, closed: topology.Topology[Carrier := X].IsClosedIn space subset,
+  complex: Operations.Models[X := X, baseSpace := space].Chains[].Complex);
+\module TotalSpace(X: \Set, F: X -> \Set, bundle: Bundles.Family[X := X, F := F].Bundle,
+  compact: topology.Topology[Carrier := X].IsCompact bundle.baseSpace,
+  hausdorff: topology.Topology[Carrier := X].IsT2 bundle.baseSpace);
+\module Naturality(X: \Set, F: X -> \Set, bundle: Bundles.Family[X := X, F := F].Bundle,
+  Y: \Set, source: topology.Topology[Carrier := Y].Topology, f: Y -> X,
+  regular: topology.Continuity[A := Y, B := X].Continuous source bundle.baseSpace f);
+\module Complexification(X: \Set, F: X -> \Set,
+  bundle: vector_bundles.Bundles[].Over[K := real.Analysis[].Real, field := real.Analysis[].Algebra[].field,
+    conjugation := linear_algebra.Hermitian[].Real[].scalar, scalar := vector_bundles.Bundles[].Real[].scalar].Family[X := X, F := F].Bundle);
+\module MixedIndices(n, m: N.Nat^);
+\module MixedFrames(V, W: \Set, leftSpace: Spaces.VectorSpace V, rightSpace: Spaces.VectorSpace W, n, m: N.Nat^,
+  first: Bundles.Dimension[V := V, space := leftSpace].Frame n,
+  second: Bundles.Dimension[V := W, space := rightSpace].Frame m);
+\module Action(X: \Set, space: topology.Topology[Carrier := X].Topology,
+  compact: topology.Topology[Carrier := X].IsCompact space, hausdorff: topology.Topology[Carrier := X].IsT2 space,
+  subset: \Pow X, closed: topology.Topology[Carrier := X].IsClosedIn space subset,
+  B: \Set, baseSpace: topology.Topology[Carrier := B].Topology,
+  baseCompact: topology.Topology[Carrier := B].IsCompact baseSpace,
+  baseHausdorff: topology.Topology[Carrier := B].IsT2 baseSpace,
+  f: X -> B, regular: topology.Continuity[A := X, B := B].Continuous space baseSpace f);
+\module For(X: \Set, F: X -> \Set, bundle: Bundles.Family[X := X, F := F].Bundle,
+  compact: topology.Topology[Carrier := X].IsCompact bundle.baseSpace,
+  hausdorff: topology.Topology[Carrier := X].IsT2 bundle.baseSpace);
+\module CompactCoefficient(X: \Set, space: topology.Topology[Carrier := X].Topology,
+  compact: topology.Topology[Carrier := X].IsCompact space,
+  hausdorff: topology.Topology[Carrier := X].IsT2 space);
+\module GraphProper(A, B: \Set, source: topology.Topology[Carrier := A].Topology,
+  target: topology.Topology[Carrier := B].Topology, targetHausdorff: topology.Topology[Carrier := B].IsT2 target,
+  f: A -> B, regular: topology.Continuity[A := A, B := B].Continuous source target f);
+\module MayerVietoris(model: relative_k_theory.Relative[].CompactPointed, U, V: \Pow model.Carrier,
+  closedU: topology.Topology[Carrier := model.Carrier].IsClosedIn (relative_k_theory.Relative[].details model).topology U,
+  closedV: topology.Topology[Carrier := model.Carrier].IsClosedIn (relative_k_theory.Relative[].details model).topology V,
+  pointU: \In[model.Carrier] U (relative_k_theory.Relative[].details model).point,
+  pointV: \In[model.Carrier] V (relative_k_theory.Relative[].details model).point,
+  covers: \forall (x: model.Carrier) -> Logic.Or[\In[model.Carrier] U x, \In[model.Carrier] V x]);
+\module AcyclicPullback(X: \Set, space: topology.Topology[Carrier := X].Topology,
+  compact: topology.Topology[Carrier := X].IsCompact space, hausdorff: topology.Topology[Carrier := X].IsT2 space,
+  p, q: Operations.Models[X := X, baseSpace := space].Bundle,
+  d: Operations.Models[X := X, baseSpace := space].Map p q,
+  e: Operations.Models[X := X, baseSpace := space].Map q p,
+  Y: \Set, target: topology.Topology[Carrier := Y].Topology,
+  targetCompact: topology.Topology[Carrier := Y].IsCompact target,
+  targetHausdorff: topology.Topology[Carrier := Y].IsT2 target,
+  f: Y -> X, regular: topology.Continuity[A := Y, B := X].Continuous target space f);
+\module ComplexProduct(left, right: relative_k_theory.Relative[].CompactPointed);
+\module SumBundles(X: \Set, F, G: X -> \Set, left: Bundles.Family[X := X, F := F].Bundle,
+  right: Bundles.Family[X := X, F := G].Bundle, sameBase: left.baseSpace = right.baseSpace, k: N.Nat^);
+\module ModelSumPullback(X: \Set, space: topology.Topology[Carrier := X].Topology,
+  p, q: Operations.Models[X := X, baseSpace := space].Bundle,
+  Y: \Set, target: topology.Topology[Carrier := Y].Topology,
+  f: Y -> X, regular: topology.Continuity[A := Y, B := X].Continuous target space f);
+\module ClosedRestriction(X: \Set, F: X -> \Set, bundle: Bundles.Family[X := X, F := F].Bundle,
+  compact: topology.Topology[Carrier := X].IsCompact bundle.baseSpace,
+  hausdorff: topology.Topology[Carrier := X].IsT2 bundle.baseSpace,
+  U: \Pow X, closed: topology.Topology[Carrier := X].IsClosedIn bundle.baseSpace U);
+\module ThomCover(X: \Set, F: X -> \Set, bundle: Bundles.Family[X := X, F := F].Bundle,
+  compact: topology.Topology[Carrier := X].IsCompact bundle.baseSpace,
+  hausdorff: topology.Topology[Carrier := X].IsT2 bundle.baseSpace,
+  U, V: \Pow X, closedU: topology.Topology[Carrier := X].IsClosedIn bundle.baseSpace U,
+  closedV: topology.Topology[Carrier := X].IsClosedIn bundle.baseSpace V,
+  covers: \forall (x: X) -> Logic.Or[\In[X] U x, \In[X] V x]);
+\module FiniteProperPullback(X: \Set, space: topology.Topology[Carrier := X].Topology,
+  hausdorff: topology.Topology[Carrier := X].IsT2 space, locallyCompact: topology.LocallyCompact[A := X].IsLocallyCompact space,
+  Y: \Set, target: topology.Topology[Carrier := Y].Topology, targetHausdorff: topology.Topology[Carrier := Y].IsT2 target,
+  targetLocallyCompact: topology.LocallyCompact[A := Y].IsLocallyCompact target,
+  f: Y -> X, regular: topology.Continuity[A := Y, B := X].Continuous target space f,
+  proper: compact_support_k.Support[].Proper[A := Y, B := X, source := target, target := space].IsProper f);
+\module SumComplex(X: \Set, F, G: X -> \Set, left: Bundles.Family[X := X, F := F].Bundle,
+  right: Bundles.Family[X := X, F := G].Bundle, sameBase: left.baseSpace = right.baseSpace,
+  firstSection: Bundles.Family[X := X, F := F].Of[bundle := left].Sections[].Section,
+  secondSection: Bundles.Family[X := X, F := G].Of[bundle := right].Sections[].Section);
+\module ComplexProductChange(X: \Set, space: topology.Topology[Carrier := X].Topology,
+  compact: topology.Topology[Carrier := X].IsCompact space, hausdorff: topology.Topology[Carrier := X].IsT2 space,
+  subset: \Pow X, closed: topology.Topology[Carrier := X].IsClosedIn space subset,
+  first, second: Operations.Models[X := X, baseSpace := space].Chains[].Complex);
+\module FiveComparison;
+\module Cancellation(A, B, C, D: \Set, first: A -> B, second: B -> C, third: C -> D);
+\module Examples;
+\module FiberProduct(X: \Set, F, G: X -> \Set, left: Bundles.Family[X := X, F := F].Bundle,
+  right: Bundles.Family[X := X, F := G].Bundle, sameBase: left.baseSpace = right.baseSpace,
+  baseHausdorff: topology.Topology[Carrier := X].IsT2 left.baseSpace);
+\module FiberMultiply(X: \Set, F, G: X -> \Set, left: Bundles.Family[X := X, F := F].Bundle,
+  right: Bundles.Family[X := X, F := G].Bundle, sameBase: left.baseSpace = right.baseSpace,
+  compact: topology.Topology[Carrier := X].IsCompact left.baseSpace,
+  hausdorff: topology.Topology[Carrier := X].IsT2 left.baseSpace);
+\module SmashFibers(left, right: relative_k_theory.Relative[].CompactPointed);
+\module SmashAssociator(first, second, third: relative_k_theory.Relative[].CompactPointed);
+\module FiniteLabels;
+\module ComplexProductLabels;
+\module ExternalExpansion(source, left, right: relative_k_theory.Relative[].CompactPointed,
+  f: relative_k_theory.Relative[].Map source (relative_k_theory.Relative[].Smash[left := left, right := right].model));
+\module ComplexProductDistribution(X: \Set, F, G, H: X -> \Set,
+  first: Bundles.Family[X := X, F := F].Bundle, second: Bundles.Family[X := X, F := G].Bundle,
+  third: Bundles.Family[X := X, F := H].Bundle, sameSecond: first.baseSpace = second.baseSpace,
+  sameThird: first.baseSpace = third.baseSpace);
+\module ComplexProductBundles(left, right: relative_k_theory.Relative[].CompactPointed);
+\module ComplexProductClifford(V, W: \Set, firstSpace: Spaces.VectorSpace V, secondSpace: Spaces.VectorSpace W);
+\module WedgeOne(X: \Set, F: X -> \Set, bundle: Bundles.Family[X := X, F := F].Bundle,
+  ell: Bundles.Family[X := X, F := Operations.Alternating[X := X, F := F, bundle := bundle, k := N.Nat^::succ N.Nat^::zero].Fiber]
+    .Of[bundle := Operations.Alternating[X := X, F := F, bundle := bundle, k := N.Nat^::succ N.Nat^::zero].alternating].Sections[].Section,
+  k: N.Nat^);
+\module ComplexProductCliffordBundle(X: \Set, F, G: X -> \Set,
+  first: Bundles.Family[X := X, F := F].Bundle, second: Bundles.Family[X := X, F := G].Bundle,
+  sameBase: first.baseSpace = second.baseSpace);
+\module RetractingUnion(ambient: relative_k_theory.Relative[].CompactPointed,
+  U, V: \Pow ambient.Carrier,
+  closedU: topology.Topology[Carrier := ambient.Carrier].IsClosedIn (relative_k_theory.Relative[].details ambient).topology U,
+  closedV: topology.Topology[Carrier := ambient.Carrier].IsClosedIn (relative_k_theory.Relative[].details ambient).topology V,
+  pointU: \In[ambient.Carrier] U (relative_k_theory.Relative[].details ambient).point,
+  pointV: \In[ambient.Carrier] V (relative_k_theory.Relative[].details ambient).point,
+  reset: relative_k_theory.Relative[].Map ambient ambient,
+  landsU: \forall (x: ambient.Carrier) -> \In[ambient.Carrier] U (reset x),
+  fixesU: \forall (x: ambient.Carrier) -> \In[ambient.Carrier] U x -> reset x = x,
+  preservesV: \forall (x: ambient.Carrier) -> \In[ambient.Carrier] V x -> \In[ambient.Carrier] V (reset x));
+\module ComplexProductRescale(V, W: \Set, even: Spaces.VectorSpace V, odd: Spaces.VectorSpace W,
+  c: Operations.ContractingPair[V := V, W := W, even := even, odd := odd].Pair);
+\module ClosedRetract(ambient: relative_k_theory.Relative[].CompactPointed, subset: \Pow ambient.Carrier,
+  closed: topology.Topology[Carrier := ambient.Carrier].IsClosedIn (relative_k_theory.Relative[].details ambient).topology subset,
+  containsPoint: \In[ambient.Carrier] subset (relative_k_theory.Relative[].details ambient).point,
+  reset: relative_k_theory.Relative[].Map ambient ambient,
+  lands: \forall (x: ambient.Carrier) -> \In[ambient.Carrier] subset (reset x),
+  fixes: \forall (x: ambient.Carrier) -> \In[ambient.Carrier] subset x -> reset x = x);
+\module TripleFaces(first, second, third: relative_k_theory.Relative[].CompactPointed);
+\module ComplexProductRescaleBundle(X: \Set, space: topology.Topology[Carrier := X].Topology,
+  compact: topology.Topology[Carrier := X].IsCompact space, hausdorff: topology.Topology[Carrier := X].IsT2 space);
+\module ExternalAssociativity(first, second, third: relative_k_theory.Relative[].CompactPointed);
+\module KoszulIsomorphism(X: \Set, F, G: X -> \Set,
+  left: Bundles.Family[X := X, F := F].Bundle, right: Bundles.Family[X := X, F := G].Bundle,
+  sameBase: left.baseSpace = right.baseSpace,
+  iso: Bundles.Isomorphisms[X := X, F := F, G := G, source := left, target := right].Isomorphism);
+\module FiberAssociativity(X: \Set, F, G, H: X -> \Set,
+  first: Bundles.Family[X := X, F := F].Bundle, second: Bundles.Family[X := X, F := G].Bundle,
+  third: Bundles.Family[X := X, F := H].Bundle,
+  sameSecond: first.baseSpace = second.baseSpace, sameThird: first.baseSpace = third.baseSpace,
+  compact: topology.Topology[Carrier := X].IsCompact first.baseSpace,
+  hausdorff: topology.Topology[Carrier := X].IsT2 first.baseSpace);
+\module MetricKoszul(X: \Set, F: X -> \Set, bundle: Bundles.Family[X := X, F := F].Bundle,
+  compact: topology.Topology[Carrier := X].IsCompact bundle.baseSpace,
+  hausdorff: topology.Topology[Carrier := X].IsT2 bundle.baseSpace);
+\module ComplexProductCliffordClass(X: \Set, space: topology.Topology[Carrier := X].Topology,
+  compact: topology.Topology[Carrier := X].IsCompact space,
+  hausdorff: topology.Topology[Carrier := X].IsT2 space,
+  subset: \Pow X, closed: topology.Topology[Carrier := X].IsClosedIn space subset,
+  complex: Operations.Models[X := X, baseSpace := space].Chains[].Complex);
+\module FiberAction(X: \Set, F, G: X -> \Set,
+  left: Bundles.Family[X := X, F := F].Bundle, right: Bundles.Family[X := X, F := G].Bundle,
+  sameBase: left.baseSpace = right.baseSpace,
+  compact: topology.Topology[Carrier := X].IsCompact left.baseSpace,
+  hausdorff: topology.Topology[Carrier := X].IsT2 left.baseSpace);
+\module ComplexProductAuxiliaryScalar(X: \Set, space: topology.Topology[Carrier := X].Topology);
+\module LocalizationProduct(X, Y: \Set,
+  firstSpace: topology.Topology[Carrier := X].Topology, secondSpace: topology.Topology[Carrier := Y].Topology,
+  firstHausdorff: topology.Topology[Carrier := X].IsT2 firstSpace,
+  secondHausdorff: topology.Topology[Carrier := Y].IsT2 secondSpace,
+  firstLocallyCompact: topology.LocallyCompact[A := X].IsLocallyCompact firstSpace,
+  secondLocallyCompact: topology.LocallyCompact[A := Y].IsLocallyCompact secondSpace,
+  U: \Pow X, V: \Pow Y,
+  openU: topology.Topology[Carrier := X].IsOpenIn firstSpace U,
+  openV: topology.Topology[Carrier := Y].IsOpenIn secondSpace V,
+  L: \Pow X, M: \Pow Y,
+  compactL: topology.Topology[Carrier := X].IsCompactIn firstSpace L,
+  compactM: topology.Topology[Carrier := Y].IsCompactIn secondSpace M,
+  enclosedU: topology.Topology[Carrier := X].Subset U L,
+  enclosedV: topology.Topology[Carrier := Y].Subset V M);
+\module ComplexProductParity(X: \Set, F0, F1, G0, G1: X -> \Set,
+  e0: Bundles.Family[X := X, F := F0].Bundle, e1: Bundles.Family[X := X, F := F1].Bundle,
+  f0: Bundles.Family[X := X, F := G0].Bundle, f1: Bundles.Family[X := X, F := G1].Bundle,
+  sameE1: e0.baseSpace = e1.baseSpace, sameF0: e0.baseSpace = f0.baseSpace, sameF1: e0.baseSpace = f1.baseSpace);
+\module ComplexProductAuxiliary(X: \Set, H, F0, F1: X -> \Set,
+  auxiliary: Bundles.Family[X := X, F := H].Bundle,
+  first: Bundles.Family[X := X, F := F0].Bundle, second: Bundles.Family[X := X, F := F1].Bundle,
+  sameFirst: auxiliary.baseSpace = first.baseSpace, sameSecond: auxiliary.baseSpace = second.baseSpace);
+\module FramedClifford(X: \Set, space: topology.Topology[Carrier := X].Topology,
+  compact: topology.Topology[Carrier := X].IsCompact space,
+  hausdorff: topology.Topology[Carrier := X].IsT2 space,
+  subset: \Pow X, closed: topology.Topology[Carrier := X].IsClosedIn space subset);
+\module ComplexProductCartanStep(A, B, V, W: \Set,
+  firstSpace: Spaces.VectorSpace A, secondSpace: Spaces.VectorSpace B,
+  even: Spaces.VectorSpace V, odd: Spaces.VectorSpace W);
+\module MetricRaising(X: \Set, F: X -> \Set, bundle: Bundles.Family[X := X, F := F].Bundle,
+  compact: topology.Topology[Carrier := X].IsCompact bundle.baseSpace,
+  hausdorff: topology.Topology[Carrier := X].IsT2 bundle.baseSpace,
+  metric: \root.Thom[].MetricKoszul[X := X, F := F, bundle := bundle, compact := compact, hausdorff := hausdorff].Metric,
+  selection: \forall (k: N.Nat^) -> \root.Thom[].Koszul[X := X, F := F, bundle := bundle].Coordinates[].Choice k);
+\module TrivialThom(X: \Set, space: topology.Topology[Carrier := X].Topology,
+  compact: topology.Topology[Carrier := X].IsCompact space,
+  hausdorff: topology.Topology[Carrier := X].IsT2 space, n: N.Nat^);
+\module ComplexProductTensorSum(X: \Set, space: topology.Topology[Carrier := X].Topology,
+  term: N.Nat^ -> Operations.Models[X := X, baseSpace := space].Bundle,
+  differential: \forall (k: N.Nat^) -> Operations.Models[X := X, baseSpace := space].Map (term (N.Nat^::succ k)) (term k),
+  G: X -> \Set, bundle: Bundles.Family[X := X, F := G].Bundle, same: space = bundle.baseSpace);
+\module ExternalOrdinaryExpansion(source, left, right: relative_k_theory.Relative[].CompactPointed,
+  f: source.Carrier -> relative_k_theory.Relative[].Smash[left := left, right := right].model.Carrier,
+  regular: topology.Continuity[A := source.Carrier, B := relative_k_theory.Relative[].Smash[left := left, right := right].model.Carrier]
+    .Continuous (relative_k_theory.Relative[].details source).topology (relative_k_theory.Relative[].details (relative_k_theory.Relative[].Smash[left := left, right := right].model)).topology f);
+\module SmashUnitProduct(base: relative_k_theory.Relative[].CompactPointed);
+\module ComplexProductTensorDouble(X: \Set, space: topology.Topology[Carrier := X].Topology,
+  firstTerm, secondTerm: N.Nat^ -> Operations.Models[X := X, baseSpace := space].Bundle,
+  firstDifferential: \forall (k: N.Nat^) -> Operations.Models[X := X, baseSpace := space].Map (firstTerm (N.Nat^::succ k)) (firstTerm k),
+  secondDifferential: \forall (k: N.Nat^) -> Operations.Models[X := X, baseSpace := space].Map (secondTerm (N.Nat^::succ k)) (secondTerm k));
+\module MetricFold(X: \Set, F: X -> \Set, bundle: Bundles.Family[X := X, F := F].Bundle,
+  compact: topology.Topology[Carrier := X].IsCompact bundle.baseSpace,
+  hausdorff: topology.Topology[Carrier := X].IsT2 bundle.baseSpace,
+  metric: \root.Thom[].MetricKoszul[X := X, F := F, bundle := bundle, compact := compact, hausdorff := hausdorff].Metric,
+  selection: \forall (k: N.Nat^) -> \root.Thom[].Koszul[X := X, F := F, bundle := bundle].Coordinates[].Choice k);
+\module ExteriorParity(X: \Set, F, G: X -> \Set,
+  left: Bundles.Family[X := X, F := F].Bundle, right: Bundles.Family[X := X, F := G].Bundle,
+  sameBase: left.baseSpace = right.baseSpace);
+\module FiberTrivialization(X: \Set, F, G: X -> \Set,
+  left: Bundles.Family[X := X, F := F].Bundle, right: Bundles.Family[X := X, F := G].Bundle,
+  sameBase: left.baseSpace = right.baseSpace,
+  compact: topology.Topology[Carrier := X].IsCompact left.baseSpace,
+  hausdorff: topology.Topology[Carrier := X].IsT2 left.baseSpace, n: N.Nat^,
+  iso: Bundles.Isomorphisms[X := X, F := G, G := (\fun (_: X) => Bundles.Vector n), source := right,
+    target := Bundles.Trivial[X := X, n := n, baseSpace := right.baseSpace].bundle].Isomorphism);
+\module TrivializedThom(X: \Set, F: X -> \Set, bundle: Bundles.Family[X := X, F := F].Bundle,
+  compact: topology.Topology[Carrier := X].IsCompact bundle.baseSpace,
+  hausdorff: topology.Topology[Carrier := X].IsT2 bundle.baseSpace, n: N.Nat^,
+  iso: Bundles.Isomorphisms[X := X, F := F, G := (\fun (_: X) => Bundles.Vector n), source := bundle,
+    target := Bundles.Trivial[X := X, n := n, baseSpace := bundle.baseSpace].bundle].Isomorphism);
+\module ComplexProductAuxiliaryRight(X: \Set, F0, F1, H: X -> \Set,
+  first: Bundles.Family[X := X, F := F0].Bundle, second: Bundles.Family[X := X, F := F1].Bundle,
+  auxiliary: Bundles.Family[X := X, F := H].Bundle,
+  sameSecond: first.baseSpace = second.baseSpace, sameAuxiliary: first.baseSpace = auxiliary.baseSpace);
+\module KoszulProduct(X: \Set, F, G: X -> \Set,
+  left: Bundles.Family[X := X, F := F].Bundle, right: Bundles.Family[X := X, F := G].Bundle,
+  sameBase: left.baseSpace = right.baseSpace,
+  compact: topology.Topology[Carrier := X].IsCompact left.baseSpace,
+  hausdorff: topology.Topology[Carrier := X].IsT2 left.baseSpace);
+\module MetricFoldClass(X: \Set, F: X -> \Set, bundle: Bundles.Family[X := X, F := F].Bundle,
+  compact: topology.Topology[Carrier := X].IsCompact bundle.baseSpace,
+  hausdorff: topology.Topology[Carrier := X].IsT2 bundle.baseSpace,
+  metric: \root.Thom[].MetricKoszul[X := X, F := F, bundle := bundle, compact := compact, hausdorff := hausdorff].Metric,
+  data: \root.Thom[].For[X := X, F := F, bundle := bundle, compact := compact, hausdorff := hausdorff].Data);
+
+\module TensorRegroup(X: \Set, F, G, H: X -> \Set,
+  first: Bundles.Family[X := X, F := F].Bundle,
+  second: Bundles.Family[X := X, F := G].Bundle,
+  third: Bundles.Family[X := X, F := H].Bundle,
+  sameSecond: first.baseSpace = second.baseSpace,
+  sameThird: first.baseSpace = third.baseSpace);
+
+\module TensorParityRegroup(X: \Set, E0, E1, H0, H1, F0, F1: X -> \Set,
+  e0: Bundles.Family[X := X, F := E0].Bundle, e1: Bundles.Family[X := X, F := E1].Bundle,
+  h0: Bundles.Family[X := X, F := H0].Bundle, h1: Bundles.Family[X := X, F := H1].Bundle,
+  f0: Bundles.Family[X := X, F := F0].Bundle, f1: Bundles.Family[X := X, F := F1].Bundle,
+  sameE1: e0.baseSpace = e1.baseSpace, sameH0: e0.baseSpace = h0.baseSpace,
+  sameH1: e0.baseSpace = h1.baseSpace, sameF0: e0.baseSpace = f0.baseSpace, sameF1: e0.baseSpace = f1.baseSpace);
+
+\module TensorRightRegroup(X: \Set, F, G, H: X -> \Set,
+  first: Bundles.Family[X := X, F := F].Bundle,
+  second: Bundles.Family[X := X, F := G].Bundle,
+  third: Bundles.Family[X := X, F := H].Bundle,
+  sameSecond: first.baseSpace = second.baseSpace,
+  sameThird: first.baseSpace = third.baseSpace);
+
+\module TensorParityRightRegroup(X: \Set, E0, E1, F0, F1, H0, H1: X -> \Set,
+  e0: Bundles.Family[X := X, F := E0].Bundle, e1: Bundles.Family[X := X, F := E1].Bundle,
+  f0: Bundles.Family[X := X, F := F0].Bundle, f1: Bundles.Family[X := X, F := F1].Bundle,
+  h0: Bundles.Family[X := X, F := H0].Bundle, h1: Bundles.Family[X := X, F := H1].Bundle,
+  sameE1: e0.baseSpace = e1.baseSpace, sameF0: e0.baseSpace = f0.baseSpace,
+  sameF1: e0.baseSpace = f1.baseSpace, sameH0: e0.baseSpace = h0.baseSpace, sameH1: e0.baseSpace = h1.baseSpace);
+\module ComplexProductBlocks(X: \Set, F0, F1, G0, G1: X -> \Set,
+  e0: Bundles.Family[X := X, F := F0].Bundle, e1: Bundles.Family[X := X, F := F1].Bundle,
+  f0: Bundles.Family[X := X, F := G0].Bundle, f1: Bundles.Family[X := X, F := G1].Bundle,
+  sameE1: e0.baseSpace = e1.baseSpace, sameF0: e0.baseSpace = f0.baseSpace, sameF1: e0.baseSpace = f1.baseSpace);
+\module DirectSumIsomorphism(X: \Set, F, G: X -> \Set,
+  left: Bundles.Family[X := X, F := F].Bundle, right: Bundles.Family[X := X, F := G].Bundle,
+  sameBase: left.baseSpace = right.baseSpace,
+  compact: topology.Topology[Carrier := X].IsCompact left.baseSpace,
+  hausdorff: topology.Topology[Carrier := X].IsT2 left.baseSpace);
+
+\module GradedStabilization(X: \Set, E0, E1, H: X -> \Set,
+  even: Bundles.Family[X := X, F := E0].Bundle, odd: Bundles.Family[X := X, F := E1].Bundle,
+  auxiliary: Bundles.Family[X := X, F := H].Bundle,
+  sameOdd: even.baseSpace = odd.baseSpace, sameAuxiliary: even.baseSpace = auxiliary.baseSpace);
+
+\module TensorNaturality(X: \Set, F, G, A, B: X -> \Set,
+  first: Bundles.Family[X := X, F := F].Bundle, second: Bundles.Family[X := X, F := G].Bundle,
+  newFirst: Bundles.Family[X := X, F := A].Bundle, newSecond: Bundles.Family[X := X, F := B].Bundle,
+  sameSource: first.baseSpace = second.baseSpace, sameTarget: newFirst.baseSpace = newSecond.baseSpace,
+  firstIso: Bundles.Isomorphisms[X := X, F := F, G := A, source := first, target := newFirst].Isomorphism,
+  secondIso: Bundles.Isomorphisms[X := X, F := G, G := B, source := second, target := newSecond].Isomorphism);
+
+\module ParityNaturality(X: \Set, E0, E1, F0, F1, A0, A1, B0, B1: X -> \Set,
+  e0: Bundles.Family[X := X, F := E0].Bundle, e1: Bundles.Family[X := X, F := E1].Bundle,
+  f0: Bundles.Family[X := X, F := F0].Bundle, f1: Bundles.Family[X := X, F := F1].Bundle,
+  a0: Bundles.Family[X := X, F := A0].Bundle, a1: Bundles.Family[X := X, F := A1].Bundle,
+  b0: Bundles.Family[X := X, F := B0].Bundle, b1: Bundles.Family[X := X, F := B1].Bundle,
+  sameE1: e0.baseSpace = e1.baseSpace, sameF0: e0.baseSpace = f0.baseSpace, sameF1: e0.baseSpace = f1.baseSpace,
+  sameA1: a0.baseSpace = a1.baseSpace, sameB0: a0.baseSpace = b0.baseSpace, sameB1: a0.baseSpace = b1.baseSpace,
+  alpha0: Bundles.Isomorphisms[X := X, F := E0, G := A0, source := e0, target := a0].Isomorphism,
+  alpha1: Bundles.Isomorphisms[X := X, F := E1, G := A1, source := e1, target := a1].Isomorphism,
+  beta0: Bundles.Isomorphisms[X := X, F := F0, G := B0, source := f0, target := b0].Isomorphism,
+  beta1: Bundles.Isomorphisms[X := X, F := F1, G := B1, source := f1, target := b1].Isomorphism);
+\module ComplexProductParityPullback(X: \Set, F0, F1, G0, G1: X -> \Set,
+  e0: Bundles.Family[X := X, F := F0].Bundle, e1: Bundles.Family[X := X, F := F1].Bundle,
+  f0: Bundles.Family[X := X, F := G0].Bundle, f1: Bundles.Family[X := X, F := G1].Bundle,
+  sameE1: e0.baseSpace = e1.baseSpace, sameF0: e0.baseSpace = f0.baseSpace, sameF1: e0.baseSpace = f1.baseSpace,
+  Y: \Set, source: topology.Topology[Carrier := Y].Topology, f: Y -> X,
+  regular: topology.Continuity[A := Y, B := X].Continuous source e0.baseSpace f);
+
+\module DecompositionChange(X: \Set, F, G, E, O, A, B: X -> \Set,
+  sourceFull: Bundles.Family[X := X, F := F].Bundle, targetFull: Bundles.Family[X := X, F := G].Bundle,
+  sourceEven: Bundles.Family[X := X, F := E].Bundle, sourceOdd: Bundles.Family[X := X, F := O].Bundle,
+  targetEven: Bundles.Family[X := X, F := A].Bundle, targetOdd: Bundles.Family[X := X, F := B].Bundle,
+  sameSource: sourceEven.baseSpace = sourceOdd.baseSpace, sameTarget: targetEven.baseSpace = targetOdd.baseSpace,
+  sourceDecomposition: Bundles.Isomorphisms[X := X, F := F,
+    G := Operations.DirectSum[X := X, F := E, G := O, left := sourceEven, right := sourceOdd].Fiber,
+    source := sourceFull, target := Operations.DirectSum[X := X, F := E, G := O, left := sourceEven, right := sourceOdd].bundle sameSource].Isomorphism,
+  targetDecomposition: Bundles.Isomorphisms[X := X, F := G,
+    G := Operations.DirectSum[X := X, F := A, G := B, left := targetEven, right := targetOdd].Fiber,
+    source := targetFull, target := Operations.DirectSum[X := X, F := A, G := B, left := targetEven, right := targetOdd].bundle sameTarget].Isomorphism,
+  fullIso: Bundles.Isomorphisms[X := X, F := F, G := G, source := sourceFull, target := targetFull].Isomorphism,
+  evenIso: Bundles.Isomorphisms[X := X, F := E, G := A, source := sourceEven, target := targetEven].Isomorphism,
+  oddIso: Bundles.Isomorphisms[X := X, F := O, G := B, source := sourceOdd, target := targetOdd].Isomorphism,
+  coherence: \forall (x: X)(v: F x) -> (targetDecomposition.forward.fiber x).apply ((fullIso.forward.fiber x).apply v) =
+    std.Data[].Pair[].pair (A x) (B x)
+      ((evenIso.forward.fiber x).apply (std.Data[].Pair[].first (E x) (O x) ((sourceDecomposition.forward.fiber x).apply v)))
+      ((oddIso.forward.fiber x).apply (std.Data[].Pair[].second (E x) (O x) ((sourceDecomposition.forward.fiber x).apply v))));
+
+\module TensorStabilization(X: \Set, E0, E1, F0, F1, H: X -> \Set,
+  e0: Bundles.Family[X := X, F := E0].Bundle, e1: Bundles.Family[X := X, F := E1].Bundle,
+  f0: Bundles.Family[X := X, F := F0].Bundle, f1: Bundles.Family[X := X, F := F1].Bundle,
+  auxiliary: Bundles.Family[X := X, F := H].Bundle,
+  sameE1: e0.baseSpace = e1.baseSpace, sameF0: e0.baseSpace = f0.baseSpace,
+  sameF1: e0.baseSpace = f1.baseSpace, sameAuxiliary: e0.baseSpace = auxiliary.baseSpace);
+\module TensorRightStabilization(X: \Set, E0, E1, F0, F1, H: X -> \Set,
+  e0: Bundles.Family[X := X, F := E0].Bundle, e1: Bundles.Family[X := X, F := E1].Bundle,
+  f0: Bundles.Family[X := X, F := F0].Bundle, f1: Bundles.Family[X := X, F := F1].Bundle,
+  auxiliary: Bundles.Family[X := X, F := H].Bundle,
+  sameE1: e0.baseSpace = e1.baseSpace, sameF0: e0.baseSpace = f0.baseSpace,
+  sameF1: e0.baseSpace = f1.baseSpace, sameAuxiliary: e0.baseSpace = auxiliary.baseSpace);
+
+\module ExteriorParityPullback(A, B, Y: \Set, F: A -> \Set, G: B -> \Set,
+  left: Bundles.Family[X := A, F := F].Bundle, right: Bundles.Family[X := B, F := G].Bundle,
+  firstSelection: \forall (k: N.Nat^) -> \root.Thom[].Koszul[X := A, F := F, bundle := left].Coordinates[].Choice k,
+  secondSelection: \forall (k: N.Nat^) -> \root.Thom[].Koszul[X := B, F := G, bundle := right].Coordinates[].Choice k,
+  source: topology.Topology[Carrier := Y].Topology,
+  f: Y -> \root.Thom[].Koszul[X := A, F := F, bundle := left].Total,
+  g: Y -> \root.Thom[].Koszul[X := B, F := G, bundle := right].Total,
+  firstRegular: topology.Continuity[A := Y, B := \root.Thom[].Koszul[X := A, F := F, bundle := left].Total].Continuous source left.totalSpace f,
+  secondRegular: topology.Continuity[A := Y, B := \root.Thom[].Koszul[X := B, F := G, bundle := right].Total].Continuous source right.totalSpace g);
+\module ScalarCliffordClass(X: \Set, space: topology.Topology[Carrier := X].Topology,
+  compact: topology.Topology[Carrier := X].IsCompact space,
+  hausdorff: topology.Topology[Carrier := X].IsT2 space,
+  subset: \Pow X, closed: topology.Topology[Carrier := X].IsClosedIn space subset,
+  complex: Operations.Models[X := X, baseSpace := space].Chains[].Complex);
+
+\module TensorOperatorAdditivity(X: \Set, F, G: X -> \Set,
+  first: Bundles.Family[X := X, F := F].Bundle, second: Bundles.Family[X := X, F := G].Bundle,
+  sameBase: first.baseSpace = second.baseSpace);
+
+\module OddPairOperator(X: \Set, F, G: X -> \Set,
+  first: Bundles.Family[X := X, F := F].Bundle, second: Bundles.Family[X := X, F := G].Bundle,
+  sameBase: first.baseSpace = second.baseSpace);

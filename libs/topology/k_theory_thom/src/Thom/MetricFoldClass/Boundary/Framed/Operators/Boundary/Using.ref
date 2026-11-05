@@ -1,0 +1,116 @@
+\import Descend.Using[first := first, second := second] \as Actual;
+\import Actual.Total[] \as TotalOperator;
+\definition Base: \Set := Pair.Quotient[].Carrier;
+\definition baseTopology: topology.Topology[Carrier := Base].Topology := Pair.Quotient[].topology;
+\definition baseCompact: topology.Topology[Carrier := Base].IsCompact baseTopology := Pair.Quotient[].quotientCompact;
+\definition baseHausdorff: topology.Topology[Carrier := Base].IsT2 baseTopology := Pair.Quotient[].quotientHausdorff;
+\definition point: Base := Pair.Quotient[].point;
+\definition Even[q: Pair.Quotient[].Carrier]: \Set := Actual.PositiveFiber q;
+\definition Odd[q: Pair.Quotient[].Carrier]: \Set := Actual.NegativeFiber q;
+\definition evenBundle: Bundles.Family[X := Pair.Quotient[].Carrier, F := Even].Bundle := Actual.descendedPositive;
+\definition oddBundle: Bundles.Family[X := Pair.Quotient[].Carrier, F := Odd].Bundle := Actual.descendedNegative;
+\definition Fiber[q: Pair.Quotient[].Carrier]: \Set := TotalOperator.Fiber q;
+\definition bundle: Bundles.Family[X := Pair.Quotient[].Carrier, F := Fiber].Bundle := TotalOperator.bundle;
+\definition clifford: Bundles.Morphisms[X := Pair.Quotient[].Carrier, Y := Pair.Quotient[].Carrier, F := Fiber, G := Fiber,
+  source := bundle, target := bundle, f := (\fun (q: Pair.Quotient[].Carrier) => q)].Map := TotalOperator.operator;
+\definition grading: Bundles.Morphisms[X := Pair.Quotient[].Carrier, Y := Pair.Quotient[].Carrier, F := Fiber, G := Fiber,
+  source := bundle, target := bundle, f := (\fun (q: Pair.Quotient[].Carrier) => q)].Map := TotalOperator.grading;
+\definition coefficient[q: Pair.Quotient[].Carrier]: C.Complex := Descend.coefficient q;
+\definition coefficientContinuous: topology.Continuity[A := Base, B := C.Complex].Continuous baseTopology Scalars.scalar.topological.space coefficient := Descend.coefficientContinuous;
+\definition coefficientOnProjection: \forall (x: Local.Carrier) -> coefficient (Pair.Quotient[].projection x) = Metric.diagonal x := Descend.onProjection;
+\definition square: \forall (q: Pair.Quotient[].Carrier)(v: Fiber q) -> (clifford.fiber q).apply ((clifford.fiber q).apply v) = (bundle.space q).smul (coefficient q) v := TotalOperator.square;
+\definition gradingSquare: \forall (q: Pair.Quotient[].Carrier)(v: Fiber q) -> (grading.fiber q).apply ((grading.fiber q).apply v) = v := TotalOperator.gradingSquare;
+\definition anticommutes: \forall (q: Pair.Quotient[].Carrier)(v: Fiber q) -> (bundle.space q).add
+  ((grading.fiber q).apply ((clifford.fiber q).apply v)) ((clifford.fiber q).apply ((grading.fiber q).apply v)) = (bundle.space q).zero := TotalOperator.anticommutes;
+\definition relativeClass: Pair.Quotient[].Relative := class;
+\definition supportedClass: Thom.Carrier := Chosen.thom;
+\definition classFormula: Actual.difference = class := Actual.framedEquation;
+\definition localEquation: localValue = class := classEquation;
+\definition supportedEquation: Chosen.thom = Local.extend class :=
+  trans!{Thom.Carrier} _ _ _ equation (congr!{{Pair.Quotient[].Relative} {Thom.Carrier}} Local.extend _ _ classEquation);
+\import Actual.Comparison[] \as Comparison;
+\definition PositivePulled[x: Local.Carrier]: \Set := Comparison.PulledPositive x;
+\definition NegativePulled[x: Local.Carrier]: \Set := Comparison.PulledNegative x;
+\definition pulledPositive: Bundles.Family[X := Local.Carrier, F := PositivePulled].Bundle := Comparison.pulledPositiveBundle;
+\definition pulledNegative: Bundles.Family[X := Local.Carrier, F := NegativePulled].Bundle := Comparison.pulledNegativeBundle;
+\definition positive: Bundles.Isomorphisms[X := Local.Carrier, F := PositivePulled, G := PositiveFiber, source := pulledPositive, target := positiveBundle].Isomorphism := Comparison.positive;
+\definition negative: Bundles.Isomorphisms[X := Local.Carrier, F := NegativePulled, G := TrivialFiber, source := pulledNegative, target := Trivial.bundle].Isomorphism := Comparison.negative;
+\definition forwardCommutes: \forall (x: Local.Carrier)(v: PositivePulled x) ->
+  (negative.forward.fiber x).apply ((Actual.forward.fiber (Pair.Quotient[].projection x)).apply v) =
+  (forward.fiber x).apply ((positive.forward.fiber x).apply v) := Comparison.forwardCommutes;
+\definition backwardCommutes: \forall (x: Local.Carrier)(v: NegativePulled x) ->
+  (positive.forward.fiber x).apply ((Actual.backward.fiber (Pair.Quotient[].projection x)).apply v) =
+  (backward.fiber x).apply ((negative.forward.fiber x).apply v) := Comparison.backwardCommutes;
+\definition forward: Bundles.Morphisms[X := Pair.Quotient[].Carrier, Y := Pair.Quotient[].Carrier, F := Even, G := Odd,
+  source := evenBundle, target := oddBundle, f := (\fun (q: Pair.Quotient[].Carrier) => q)].Map := Actual.forward;
+\definition backward: Bundles.Morphisms[X := Pair.Quotient[].Carrier, Y := Pair.Quotient[].Carrier, F := Odd, G := Even,
+  source := oddBundle, target := evenBundle, f := (\fun (q: Pair.Quotient[].Carrier) => q)].Map := Actual.backward;
+\import Bundles.Isomorphisms[X := Local.Carrier, F := NegativeFiber, G := TrivialFiber, source := negativeBundle, target := Trivial.bundle] \as InvertTrivialization;
+\import Operations.IsomorphismComposition[X := Local.Carrier, F := NegativePulled, G := TrivialFiber, H := NegativeFiber,
+  source := pulledNegative, middle := Trivial.bundle, target := negativeBundle] \as NativeNegative;
+\definition nativeNegative: Bundles.Isomorphisms[X := Local.Carrier, F := NegativePulled, G := NegativeFiber, source := pulledNegative, target := negativeBundle].Isomorphism :=
+  NativeNegative.compose negative (InvertTrivialization.inverse trivialization);
+\definition nativeForwardCommutes: \forall (x: Local.Carrier)(v: PositivePulled x) ->
+  (nativeNegative.forward.fiber x).apply ((forward.fiber (Pair.Quotient[].projection x)).apply v) =
+  (stableForward.fiber x).apply ((positive.forward.fiber x).apply v) :=
+  \fun (x: Local.Carrier)(v: PositivePulled x) => trans!{{NegativeFiber x}} _ _ _
+    (congr!{{TrivialFiber x} {NegativeFiber x}} (trivialization.backward.fiber x).apply _ _ (Comparison.forwardCommutes x v))
+    (trivialization.leftInverse x ((stableForward.fiber x).apply ((positive.forward.fiber x).apply v)));
+\definition nativeBackwardCommutes: \forall (x: Local.Carrier)(v: NegativePulled x) ->
+  (positive.forward.fiber x).apply ((backward.fiber (Pair.Quotient[].projection x)).apply v) =
+  (stableBackward.fiber x).apply ((nativeNegative.forward.fiber x).apply v) := Comparison.backwardCommutes;
+\import real.Analysis[] \as Real;
+\import dedekind_reals.DedekindReal[] \as Order;
+\import Pair.Quotient[] \as Quotient;
+\definition norm[q: Quotient.Carrier]: Real.Real := C.re (coefficient q);
+\definition normContinuous: metric_spaces.RealFunctions[A := Quotient.Carrier].Continuous Quotient.topology norm :=
+  topological_algebra.Complex[].Functions[A := Quotient.Carrier].realContinuous Quotient.topology coefficient Descend.coefficientContinuous;
+\definition coefficientAtPoint: coefficient Quotient.point = Scalar.one := Descend.atPoint;
+\definition normAtPoint: norm Quotient.point = Real.one := congr!{{C.Complex} {Real.Real}} C.re _ _ coefficientAtPoint;
+\definition normOnProjection[x: Local.Carrier]: norm (Quotient.projection x) = Metric.squared x :=
+  congr!{{C.Complex} {Real.Real}} C.re _ _ (trans!{{C.Complex}} _ _ _ (Descend.onProjection x) (Metric.diagonalReal x));
+\structure ScalarProperties[q: Quotient.Carrier]: \Prop := {
+  real: coefficient q = Scalar.ofReal (norm q),
+  nonnegative: Order.Le Real.zero (norm q)
+};
+\definition propertiesAtPoint: ScalarProperties[Quotient.point] := ScalarProperties[Quotient.point] {
+  real := trans!{{C.Complex}} _ _ _ coefficientAtPoint (sym!{{C.Complex}} _ _ (congr!{{Real.Real} {C.Complex}} Scalar.ofReal _ _ normAtPoint)),
+  nonnegative := Order.leReplaceRight Real.zero Real.one (norm Quotient.point) (sym!{{Real.Real}} _ _ normAtPoint) Order.Arithmetic[].Prop[].oneNonnegative
+};
+\definition propertiesOnProjection[x: Local.Carrier]: ScalarProperties[Quotient.projection x] := ScalarProperties[Quotient.projection x] {
+  real := trans!{{C.Complex}} _ _ _ (Descend.onProjection x)
+    (trans!{{C.Complex}} _ _ _ (Metric.diagonalReal x) (congr!{{Real.Real} {C.Complex}} Scalar.ofReal _ _ (sym!{{Real.Real}} _ _ (normOnProjection x)))),
+  nonnegative := Order.leReplaceRight Real.zero (Metric.squared x) (norm (Quotient.projection x)) (sym!{{Real.Real}} _ _ (normOnProjection x)) (Metric.nonnegative x)
+};
+\definition properties: \forall (q: Quotient.Carrier) -> ScalarProperties[q] := \fun (q: Quotient.Carrier) =>
+  Logic.orElim[q = Quotient.point, Logic.Not (q = Quotient.point), ScalarProperties[q]]
+    (std.Logic[].Classical[].excludedMiddle (q = Quotient.point))
+    (\fun (same: _) => \idelim Quotient.point = q \with z: Quotient.Carrier => ScalarProperties[z] \by {
+      base: propertiesAtPoint, equality: sym!{{Quotient.Carrier}} _ _ same
+    })
+    (\block {
+      \fun (different: _) \then
+      \takefrom x: \Cast[Local.Carrier] ({ x: Local.Carrier \where Quotient.projection x = q }) \by Quotient.representative q different \then
+      \return \idelim Quotient.projection x = q \with z: Quotient.Carrier => ScalarProperties[z] \by {
+        base: propertiesOnProjection x, equality: \bysub(Local.Carrier, { x: Local.Carrier \where Quotient.projection x = q }, x)
+      }
+    });
+\definition coefficientReal: \forall (q: Quotient.Carrier) -> coefficient q = Scalar.ofReal (norm q) := \fun (q: Quotient.Carrier) => (properties q).real;
+\definition normNonnegative: \forall (q: Quotient.Carrier) -> Order.Le Real.zero (norm q) := \fun (q: Quotient.Carrier) => (properties q).nonnegative;
+\module NativeTotal;
+
+\definition StableEven[x: Disk]: \Set := PositiveFiber x;
+\definition StableOdd[x: Disk]: \Set := NegativeFiber x;
+\definition stableEvenBundle: Bundles.Family[X := Disk, F := StableEven].Bundle := positiveBundle;
+\definition stableOddBundle: Bundles.Family[X := Disk, F := StableOdd].Bundle := negativeBundle;
+\definition stableD: Bundles.Morphisms[X := Disk, Y := Disk, F := StableEven, G := StableOdd,
+  source := stableEvenBundle, target := stableOddBundle, f := (\fun (x: Disk) => x)].Map := stableForward;
+\definition stableE: Bundles.Morphisms[X := Disk, Y := Disk, F := StableOdd, G := StableEven,
+  source := stableOddBundle, target := stableEvenBundle, f := (\fun (x: Disk) => x)].Map := stableBackward;
+\module Product(Y: \Set, G: Y -> \Set, otherBundle: Bundles.Family[X := Y, F := G].Bundle,
+  otherCompact: topology.Topology[Carrier := Y].IsCompact otherBundle.baseSpace,
+  otherHausdorff: topology.Topology[Carrier := Y].IsT2 otherBundle.baseSpace,
+  otherMetric: \root.Thom[].MetricKoszul[X := Y, F := G, bundle := otherBundle, compact := otherCompact, hausdorff := otherHausdorff].Metric,
+  otherData: \root.Thom[].For[X := Y, F := G, bundle := otherBundle, compact := otherCompact, hausdorff := otherHausdorff].Data,
+  otherFactor: \root.Thom[].MetricFoldClass[X := Y, F := G, bundle := otherBundle, compact := otherCompact, hausdorff := otherHausdorff,
+    metric := otherMetric, data := otherData].Boundary[].Factor);

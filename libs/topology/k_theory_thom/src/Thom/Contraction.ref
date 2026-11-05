@@ -1,0 +1,33 @@
+\import Bundles.Family[X := X, F := F] \as Original;
+\import Original.Of[bundle := bundle].Sections[] \as Sections;
+\import Operations.Alternating[X := X, F := F, bundle := bundle, k := k] \as Target;
+\import Operations.Alternating[X := X, F := F, bundle := bundle, k := N.Nat^::succ k] \as Source;
+\import Bundles.Family[X := X, F := Source.Fiber] \as SourceFamily;
+\import Bundles.Family[X := X, F := Target.Fiber] \as TargetFamily;
+\import Bundles.Morphisms[X := X, Y := X, F := Source.Fiber, G := Target.Fiber,
+  source := Source.alternating, target := Target.alternating, f := \fun (x: X) => x] \as Maps;
+\import topology.Topology[Carrier := X] \as Base;
+\import Fin.Tuples[A := C.Complex] \as ScalarTuples;
+\definition fiber[x: X]: Spaces.Linear[V := Source.Fiber x, W := Target.Fiber x,
+  source := Source.fiberSpace x, target := Target.fiberSpace x].Map :=
+  Spaces.Linear[V := Source.Fiber x, W := Target.Fiber x, source := Source.fiberSpace x, target := Target.fiberSpace x].Map {
+    apply := \fun (omega: Source.Fiber x) => Spaces.Multilinear[V := F x, space := bundle.space x].Alternating[].Contraction[k := k].apply omega (section.value x),
+    preservesAdd := \fun (omega, eta: Source.Fiber x) => Spaces.Multilinear[V := F x, space := bundle.space x].Alternating[].Contraction[k := k].addition omega eta (section.value x),
+    preservesScale := \fun (a: C.Complex)(omega: Source.Fiber x) => Spaces.Multilinear[V := F x, space := bundle.space x].Alternating[].Contraction[k := k].scalar a omega (section.value x)
+  };
+\definition data: Maps.Data := Maps.Data { fiber := fiber };
+\import bundle_operations.Operations[].Evaluations[K := C.Complex, X := X, E := TargetFamily.Point,
+  I := Target.TupleSection, scalarSpace := Scalars.scalar.topological.space, baseSpace := bundle.baseSpace,
+  projection := TargetFamily.projection, domains := Target.domains, open := \fun (s: Target.TupleSection) => s.open,
+  evaluate := Target.evaluate] \as Evaluations;
+\module Test(s: Target.TupleSection);
+\definition map: Maps.Map := \into[Maps.Data](data, Maps.Map) \by {
+  Evaluations.Universal[A := SourceFamily.Point].continuous Source.topology (Maps.total data) Source.projectionContinuous
+    (\fun (s: Target.TupleSection) => Test[s := s].continuous)
+};
+\definition evaluation: \forall (x: X)(omega: Source.Fiber x)(arguments: Fin.Fin k -> F x) ->
+  ((map.fiber x).apply omega) arguments = omega (Fin.Tuples[A := F x].extend k (section.value x) arguments) :=
+  \fun (x: X)(omega: Source.Fiber x)(arguments: Fin.Fin k -> F x) => \refl(omega (Fin.Tuples[A := F x].extend k (section.value x) arguments));
+\definition squareZero: \forall (x: X)(omega: Operations.Alternating[X := X, F := F, bundle := bundle, k := N.Nat^::succ (N.Nat^::succ k)].Fiber x) ->
+  (map.fiber x).apply (Spaces.Multilinear[V := F x, space := bundle.space x].Alternating[].Contraction[k := N.Nat^::succ k].apply omega (section.value x)) = (Target.fiberSpace x).zero :=
+  \fun (x: X)(omega: _) => Spaces.Multilinear[V := F x, space := bundle.space x].Alternating[].Contraction[k := k].Square[].law omega (section.value x);

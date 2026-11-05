@@ -1,0 +1,26 @@
+
+\import Operations.Models[X := Y, baseSpace := targetSpace] \as TargetModels;
+\import TargetModels.Chains[] \as TargetChains;
+\import \root.Thom[].Finite[X := Y, baseSpace := targetSpace] \as TargetFinite;
+\definition pull[b: Models.Bundle]: TargetModels.Bundle := Models.Pullback[b := b, Y := Y, source := targetSpace, f := f, regular := regular].value;
+\definition map[p, q: Models.Bundle][a: Models.Map p q]: TargetModels.Map (pull p) (pull q) :=
+  Models.PullbackMap[p := p, q := q, Y := Y, source := targetSpace, f := f, regular := regular].map a;
+\definition Iso[p: Models.Bundle][q: TargetModels.Bundle]: \Set := TargetFinite.Iso (pull p) q;
+\structure Comparison[sourceHead: Models.Bundle, targetHead: TargetModels.Bundle,
+  source: Chains.Parity[sourceHead], target: TargetChains.Parity[targetHead], headIso: Iso sourceHead targetHead]: \Set := {
+  even: Iso source.even target.even,
+  odd: Iso source.odd target.odd,
+  inclusion: \forall (y: Y)(v: Models.Fiber sourceHead.ranks (f y)) ->
+    (even.forward.fiber y).apply ((source.inclusion.fiber (f y)).apply v) = (target.inclusion.fiber y).apply ((headIso.forward.fiber y).apply v),
+  forward: \forall (y: Y)(v: Models.Fiber source.even.ranks (f y)) ->
+    (target.forward.fiber y).apply ((even.forward.fiber y).apply v) = (odd.forward.fiber y).apply ((source.forward.fiber (f y)).apply v),
+  backward: \forall (y: Y)(v: Models.Fiber source.odd.ranks (f y)) ->
+    (target.backward.fiber y).apply ((odd.forward.fiber y).apply v) = (even.forward.fiber y).apply ((source.backward.fiber (f y)).apply v)
+};
+\module Step(first, second: Models.Bundle, firstTarget, secondTarget: TargetModels.Bundle,
+  differential: Models.Map first second, targetDifferential: TargetModels.Map firstTarget secondTarget,
+  source: Chains.Parity[second], target: TargetChains.Parity[secondTarget],
+  headIso: Iso first firstTarget, secondIso: Iso second secondTarget,
+  tail: Comparison[second, secondTarget, source, target, secondIso],
+  commutes: \forall (y: Y)(v: Models.Fiber first.ranks (f y)) ->
+    (targetDifferential.fiber y).apply ((headIso.forward.fiber y).apply v) = (secondIso.forward.fiber y).apply ((differential.fiber (f y)).apply v));

@@ -1,0 +1,43 @@
+\import Operations.DirectSum[X := X, F := F, G := (\fun (x: X) => Bundles.Vector n), left := left, right := Trivial.bundle] \as Direct;
+\import Bundles.Family[X := X, F := (\fun (x: X) => Bundles.Vector n)] \as TrivialFamily;
+\import topological_constructions.Product[A := First.Point, B := Bundles.Vector n] \as Product;
+\definition Carrier: \Set := Product.CarrierSet;
+\definition productTopology: topology.Topology[Carrier := Carrier].Topology := Product.topology left.totalSpace (Bundles.coordinateTopology n);
+\definition vector[p: TargetFamily.Point]: Bundles.Vector n := Pair.second (F p.base) (Bundles.Vector n) p.vector;
+\definition forward[p: TargetFamily.Point]: Carrier := Pair.pair First.Point (Bundles.Vector n) (Direct.first p) (vector p);
+\definition backward[p: Carrier]: TargetFamily.Point := TargetFamily.include (Pair.first First.Point (Bundles.Vector n) p).base
+  (Pair.pair (F (Pair.first First.Point (Bundles.Vector n) p).base) (Bundles.Vector n)
+    (Pair.first First.Point (Bundles.Vector n) p).vector (Pair.second First.Point (Bundles.Vector n) p));
+\definition vectorContinuous: topology.Continuity[A := TargetFamily.Point, B := Bundles.Vector n].Continuous targetBundle.totalSpace (Bundles.coordinateTopology n) vector :=
+  topology.Composition[A := TargetFamily.Point, B := TrivialFamily.Point, C := Bundles.Vector n].composeContinuous targetBundle.totalSpace Trivial.topology (Bundles.coordinateTopology n)
+    Direct.second (\fun (p: TrivialFamily.Point) => p.vector) Direct.secondContinuous Trivial.vectorContinuous;
+\definition forwardContinuous: topology.Continuity[A := TargetFamily.Point, B := Carrier].Continuous targetBundle.totalSpace productTopology forward :=
+  Product.Universal[X := TargetFamily.Point].pairContinuous targetBundle.totalSpace left.totalSpace (Bundles.coordinateTopology n) Direct.first vector Direct.firstContinuous vectorContinuous;
+\definition firstContinuous: topology.Continuity[A := Carrier, B := First.Point].Continuous productTopology left.totalSpace (\fun (p: Carrier) => Direct.first (backward p)) :=
+  \idelim (Pair.first First.Point (Bundles.Vector n)) = (\fun (p: Carrier) => Direct.first (backward p))
+    \with f: (Carrier -> First.Point) => topology.Continuity[A := Carrier, B := First.Point].Continuous productTopology left.totalSpace f \by {
+    base: Product.Maps[].firstContinuous left.totalSpace (Bundles.coordinateTopology n),
+    equality: \axiom:funext((Pair.first First.Point (Bundles.Vector n)), (\fun (p: Carrier) => Direct.first (backward p)), \fun (p: Carrier) => sym!{First.Point} _ _ (First.eta (Pair.first First.Point (Bundles.Vector n) p)))
+  };
+\import topological_constructions.Product[A := X, B := Bundles.Vector n] \as BaseProduct;
+\definition toBase[p: Carrier]: BaseProduct.CarrierSet := Pair.pair X (Bundles.Vector n) (Pair.first First.Point (Bundles.Vector n) p).base (Pair.second First.Point (Bundles.Vector n) p);
+\definition baseContinuous: topology.Continuity[A := Carrier, B := X].Continuous productTopology left.baseSpace (\fun (p: Carrier) => (Pair.first First.Point (Bundles.Vector n) p).base) :=
+  topology.Composition[A := Carrier, B := First.Point, C := X].composeContinuous productTopology left.totalSpace left.baseSpace (Pair.first First.Point (Bundles.Vector n)) First.projection
+    (Product.Maps[].firstContinuous left.totalSpace (Bundles.coordinateTopology n)) First.Of[bundle := left].projectionContinuous;
+\definition toBaseContinuous: topology.Continuity[A := Carrier, B := BaseProduct.CarrierSet].Continuous productTopology (BaseProduct.topology left.baseSpace (Bundles.coordinateTopology n)) toBase :=
+  BaseProduct.Universal[X := Carrier].pairContinuous productTopology left.baseSpace (Bundles.coordinateTopology n)
+    (\fun (p: Carrier) => (Pair.first First.Point (Bundles.Vector n) p).base) (Pair.second First.Point (Bundles.Vector n)) baseContinuous
+    (Product.Maps[].secondContinuous left.totalSpace (Bundles.coordinateTopology n));
+\definition secondContinuous: topology.Continuity[A := Carrier, B := TrivialFamily.Point].Continuous productTopology Trivial.topology (\fun (p: Carrier) => Direct.second (backward p)) :=
+  topology.Composition[A := Carrier, B := BaseProduct.CarrierSet, C := TrivialFamily.Point].composeContinuous productTopology (BaseProduct.topology left.baseSpace (Bundles.coordinateTopology n)) Trivial.topology
+    toBase Trivial.backward toBaseContinuous Trivial.backwardContinuous;
+\definition backwardContinuous: topology.Continuity[A := Carrier, B := TargetFamily.Point].Continuous productTopology targetBundle.totalSpace backward :=
+  Direct.Universal[Y := Carrier].continuous productTopology backward firstContinuous secondContinuous;
+\definition leftInverse[p: TargetFamily.Point]: backward (forward p) = p := trans!{TargetFamily.Point} _ _ _
+  (congr!{{TargetFiber p.base} TargetFamily.Point} (TargetFamily.include p.base) _ _ (Pair.Prop[A := F p.base, B := Bundles.Vector n].eta p.vector)) (TargetFamily.eta p);
+\definition rightInverse[p: Carrier]: forward (backward p) = p := Pair.Prop[A := First.Point, B := Bundles.Vector n].ext (forward (backward p)) p (First.eta (Pair.first First.Point (Bundles.Vector n) p)) (\refl(Pair.second First.Point (Bundles.Vector n) p));
+\definition homeomorphism: topology.Homeomorphism[A := TargetFamily.Point, B := Carrier].Homeomorphism[targetBundle.totalSpace, productTopology] :=
+  topology.Homeomorphism[A := TargetFamily.Point, B := Carrier].Homeomorphism[targetBundle.totalSpace, productTopology] {
+    forward := forward, backward := backward, leftInverse := leftInverse, rightInverse := rightInverse,
+    forwardContinuous := forwardContinuous, backwardContinuous := backwardContinuous
+  };

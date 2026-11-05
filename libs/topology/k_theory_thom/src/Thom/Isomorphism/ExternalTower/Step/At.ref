@@ -1,0 +1,61 @@
+\definition one: N.Nat^ := N.Nat^::succ N.Nat^::zero;
+\import \root.Thom[].Isomorphism[].Point[n := n] \as Point;
+\import \root.Thom[].Isomorphism[].Point[n := one] \as Line;
+\import \root.Thom[].Isomorphism[].Point[n := N.Nat^::succ n] \as Next;
+\import Relative.Smash[left := base, right := Point.model] \as First;
+\import Relative.Smash[left := Point.model, right := Line.model] \as Fibers;
+\import Relative.Smash[left := First.result, right := Line.model] \as Double;
+\import Relative.Smash[left := base, right := Fibers.result] \as Associated;
+\import Relative.Smash[left := base, right := Next.model] \as Target;
+\import \root.Thom[].Isomorphism[].PointSum[n := n] \as Sum;
+\import \root.Thom[].Isomorphism[].ExternalLine[base := First.result] \as LineProduct;
+\import \root.Thom[].SmashAssociator[first := base, second := Point.model, third := Line.model] \as Associate;
+\import Relative.Equivalence[source := Double.result, target := Associated.result].With[e := Associate.equivalence].Groups[] \as AssociateGroup;
+\import \root.Thom[].Isomorphism[].SmashRight[base := base, firstRight := Next.model, secondRight := Fibers.result, e := Sum.equivalence] \as Spaces;
+\import Relative.Equivalence[source := Target.result, target := Associated.result].With[e := Spaces.equivalence].Groups[] \as NativeGroup;
+\import Relative.Reduced[model := base] \as Base;
+\import Relative.Reduced[model := First.result] \as Initial;
+\import Relative.Reduced[model := Double.result] \as DoubleGroup;
+\import Relative.Reduced[model := Associated.result] \as AssociatedGroup;
+\import Relative.Reduced[model := Target.result] \as TargetGroup;
+\definition associate: Periodicity.Isomorphism[A := DoubleGroup.Carrier, B := AssociatedGroup.Carrier, source := DoubleGroup.group, target := AssociatedGroup.group].Data :=
+  Periodicity.Isomorphism[A := DoubleGroup.Carrier, B := AssociatedGroup.Carrier, source := DoubleGroup.group, target := AssociatedGroup.group].Data {
+    forward := AssociateGroup.backward, backward := AssociateGroup.forward,
+    leftInverse := AssociateGroup.leftInverse, rightInverse := AssociateGroup.rightInverse,
+    forwardAdd := AssociateGroup.backwardAdd, backwardAdd := AssociateGroup.forwardAdd,
+    forwardZero := AssociateGroup.backwardZero, backwardZero := AssociateGroup.forwardZero
+  };
+\definition native: Periodicity.Isomorphism[A := AssociatedGroup.Carrier, B := TargetGroup.Carrier, source := AssociatedGroup.group, target := TargetGroup.group].Data :=
+  Periodicity.Isomorphism[A := AssociatedGroup.Carrier, B := TargetGroup.Carrier, source := AssociatedGroup.group, target := TargetGroup.group].Data {
+    forward := NativeGroup.forward, backward := NativeGroup.backward,
+    leftInverse := NativeGroup.rightInverse, rightInverse := NativeGroup.leftInverse,
+    forwardAdd := NativeGroup.forwardAdd, backwardAdd := NativeGroup.backwardAdd,
+    forwardZero := NativeGroup.forwardZero, backwardZero := NativeGroup.backwardZero
+  };
+\import Periodicity.Isomorphism[A := Base.Carrier, B := Initial.Carrier, source := Base.group, target := Initial.group].Compose[
+  C := DoubleGroup.Carrier, last := DoubleGroup.group, first := previous.data base, second := LineProduct.isomorphism] \as FirstStep;
+\import Periodicity.Isomorphism[A := Base.Carrier, B := DoubleGroup.Carrier, source := Base.group, target := DoubleGroup.group].Compose[
+  C := AssociatedGroup.Carrier, last := AssociatedGroup.group, first := FirstStep.data, second := associate] \as SecondStep;
+\import Periodicity.Isomorphism[A := Base.Carrier, B := AssociatedGroup.Carrier, source := Base.group, target := AssociatedGroup.group].Compose[
+  C := TargetGroup.Carrier, last := TargetGroup.group, first := SecondStep.data, second := native] \as LastStep;
+\definition data: Data base (N.Nat^::succ n) := LastStep.data;
+\import \root.Thom[].ExternalAssociativity[first := base, second := Point.model, third := Line.model].Comparison[] \as ProductAssociativity;
+\import Relative.Identity[model := base] \as Identity;
+\import Target.Mapping[targetLeft := base, targetRight := Fibers.result, f := Identity.map, g := Sum.equivalence.forward] \as Mapping;
+\definition associatedProduct: \forall (a: Base.Carrier) ->
+  AssociateGroup.backward (LineProduct.isomorphism.forward ((previous.data base).forward a)) =
+    Associated.External[].product a (Fibers.External[].product Point.thom Line.thom) :=
+  \fun (a: Base.Carrier) => trans!{{AssociatedGroup.Carrier}} _ _ _
+    (congr!{{DoubleGroup.Carrier} {AssociatedGroup.Carrier}} AssociateGroup.backward _ _
+      (trans!{{DoubleGroup.Carrier}} _ _ _ (LineProduct.forwardProduct ((previous.data base).forward a))
+        (trans!{{DoubleGroup.Carrier}} _ _ _
+          (congr!{{Initial.Carrier} {DoubleGroup.Carrier}} (\fun (b: Initial.Carrier) => Double.External[].product b Line.thom) _ _ (previous.product base a))
+          (ProductAssociativity.equation a Point.thom Line.thom))))
+    (AssociateGroup.rightInverse (Associated.External[].product a (Fibers.External[].product Point.thom Line.thom)));
+\definition forwardProduct: \forall (a: Base.Carrier) -> data.forward a = Target.External[].product a Next.thom :=
+  \fun (a: Base.Carrier) => trans!{{TargetGroup.Carrier}} _ _ _
+    (congr!{{AssociatedGroup.Carrier} {TargetGroup.Carrier}} NativeGroup.forward _ _ (associatedProduct a))
+    (trans!{{TargetGroup.Carrier}} _ _ _ (Mapping.External[].naturality a (Fibers.External[].product Point.thom Line.thom))
+      (congr!{{Base.Carrier} {Relative.Reduced[model := Next.model].Carrier} {TargetGroup.Carrier}} Target.External[].product _ _ _ _
+        (Relative.PullbackIdentity[model := base].equation a)
+        (sym!{{Relative.Reduced[model := Next.model].Carrier}} _ _ Sum.Class[].equation)));

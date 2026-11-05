@@ -1,0 +1,41 @@
+\import First.At[q := q] \as PositiveAt;
+\import Second.At[q := q] \as NegativeAt;
+\import std.Logic[].Classical[] \as Classical;
+\import Spaces.Laws[V := Bundles.Vector n, space := Bundles.coordinates n] \as CoordinateLaws;
+\definition scalarOver[x: PositiveAt.Index]: coefficient q = c.coefficient x :=
+  trans!{{C.Complex}} _ _ _
+    (congr!{{Quotient.Carrier} {C.Complex}} coefficient _ _ (sym!{{Quotient.Carrier}} _ _ (\bysub(X, { x: X \where Quotient.projection x = q }, x))))
+    (onProjection x);
+\definition coordinateFixed: \forall (a: Bundles.Vector n) -> (Logic.Not (q = Quotient.point) -> a = (Bundles.coordinates n).zero) ->
+  a = (Bundles.coordinates n).smul (coefficient q) a :=
+  \fun (a: Bundles.Vector n)(outside: Logic.Not (q = Quotient.point) -> a = (Bundles.coordinates n).zero) =>
+    Logic.orElim[q = Quotient.point, Logic.Not (q = Quotient.point), a = (Bundles.coordinates n).smul (coefficient q) a]
+      (Classical.excludedMiddle (q = Quotient.point))
+      (\fun (same: q = Quotient.point) => sym!{{Bundles.Vector n}} _ _
+        (trans!{{Bundles.Vector n}} _ _ _
+          (congr!{{C.Complex} {Bundles.Vector n}} (\fun (r: C.Complex) => (Bundles.coordinates n).smul r a) _ _
+            (trans!{{C.Complex}} _ _ _ (congr!{{Quotient.Carrier} {C.Complex}} coefficient _ _ same) atPoint))
+          ((Bundles.coordinates n).scalarOne a)))
+      (\fun (different: Logic.Not (q = Quotient.point)) => trans!{{Bundles.Vector n}} _ _ _ (outside different)
+        (sym!{{Bundles.Vector n}} _ _ (trans!{{Bundles.Vector n}} _ _ _
+          (congr!{{Bundles.Vector n} {Bundles.Vector n}} ((Bundles.coordinates n).smul (coefficient q)) _ _ (outside different))
+          (CoordinateLaws.scaleZero (coefficient q)))));
+
+\definition evenLeft[v: PositiveFiber q]: PositiveFiber q := (backward.fiber q).apply ((forward.fiber q).apply v);
+\definition evenRight[v: PositiveFiber q]: PositiveFiber q := PositiveAt.space.smul (coefficient q) v;
+\definition evenAnchor: \forall (v: PositiveFiber q) -> PositiveAt.anchor (evenLeft v) = PositiveAt.anchor (evenRight v) :=
+  \fun (v: PositiveFiber q) => coordinateFixed (PositiveAt.anchor v) ((PositiveAt.laws v).outside);
+\definition evenSection: \forall (v: PositiveFiber q)(x: PositiveAt.Index) -> PositiveAt.section (evenLeft v) x = PositiveAt.section (evenRight v) x :=
+  \fun (v: PositiveFiber q)(x: PositiveAt.Index) => trans!{{F x}} _ _ _ (laws.evenSquare x (PositiveAt.section v x))
+    (congr!{{C.Complex} {F x}} (\fun (r: C.Complex) => (positiveBundle.space x).smul r (PositiveAt.section v x)) _ _ (sym!{{C.Complex}} _ _ (scalarOver x)));
+\definition evenSquare: \forall (v: PositiveFiber q) -> (backward.fiber q).apply ((forward.fiber q).apply v) = (descendedPositive.space q).smul (coefficient q) v :=
+  \fun (v: PositiveFiber q) => PositiveAt.ext (evenLeft v) (evenRight v) (evenAnchor v) (evenSection v);
+\definition oddLeft[v: NegativeFiber q]: NegativeFiber q := (forward.fiber q).apply ((backward.fiber q).apply v);
+\definition oddRight[v: NegativeFiber q]: NegativeFiber q := NegativeAt.space.smul (coefficient q) v;
+\definition oddAnchor: \forall (v: NegativeFiber q) -> NegativeAt.anchor (oddLeft v) = NegativeAt.anchor (oddRight v) :=
+  \fun (v: NegativeFiber q) => coordinateFixed (NegativeAt.anchor v) ((NegativeAt.laws v).outside);
+\definition oddSection: \forall (v: NegativeFiber q)(x: NegativeAt.Index) -> NegativeAt.section (oddLeft v) x = NegativeAt.section (oddRight v) x :=
+  \fun (v: NegativeFiber q)(x: NegativeAt.Index) => trans!{{G x}} _ _ _ (laws.oddSquare x (NegativeAt.section v x))
+    (congr!{{C.Complex} {G x}} (\fun (r: C.Complex) => (negativeBundle.space x).smul r (NegativeAt.section v x)) _ _ (sym!{{C.Complex}} _ _ (scalarOver x)));
+\definition oddSquare: \forall (v: NegativeFiber q) -> (forward.fiber q).apply ((backward.fiber q).apply v) = (descendedNegative.space q).smul (coefficient q) v :=
+  \fun (v: NegativeFiber q) => NegativeAt.ext (oddLeft v) (oddRight v) (oddAnchor v) (oddSection v);

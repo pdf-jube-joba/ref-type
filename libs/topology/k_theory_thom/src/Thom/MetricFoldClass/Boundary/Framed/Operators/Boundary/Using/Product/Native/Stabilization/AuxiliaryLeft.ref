@@ -1,0 +1,55 @@
+\import \parent.Normalized[] \as Normalized;
+\import \parent.\parent.\parent.\parent.\parent.\parent.\parent.\parent.Framed[r := r] \as LeftFrame;
+\definition Auxiliary[z: NativeProduct.Z]: \Set := LeftFrame.H (NativeProduct.first z);
+\import Bundles.Family[X := Disk, F := LeftFrame.H].Of[bundle := LeftFrame.auxiliaryBundle]
+  .Pullback[Y := NativeProduct.Z, source := NativeProduct.topology, f := NativeProduct.first] \as Pulled;
+\definition auxiliaryBundle: Bundles.Family[X := NativeProduct.Z, F := Auxiliary].Bundle := Pulled.pulled Sectors.firstRegular;
+\import \root.Thom[].ComplexProductAuxiliary[X := NativeProduct.Z, H := Auxiliary,
+  F0 := Normalized.SecondEven, F1 := Normalized.SecondOdd,
+  auxiliary := auxiliaryBundle, first := Normalized.SecondEvenBundle, second := Normalized.SecondOddBundle,
+  sameFirst := (\refl(NativeProduct.topology)), sameSecond := (\refl(NativeProduct.topology))] \as AuxiliarySymbol;
+\import \root.Thom[].ComplexProductParity[X := NativeProduct.Z, F0 := Auxiliary, F1 := Auxiliary,
+  G0 := Normalized.SecondEven, G1 := Normalized.SecondOdd,
+  e0 := auxiliaryBundle, e1 := auxiliaryBundle, f0 := Normalized.SecondEvenBundle, f1 := Normalized.SecondOddBundle,
+  sameE1 := (\refl(NativeProduct.topology)), sameF0 := (\refl(NativeProduct.topology)), sameF1 := (\refl(NativeProduct.topology))] \as AuxiliaryParity;
+\definition normContinuous: metric_spaces.RealFunctions[A := NativeProduct.Z].Continuous NativeProduct.topology secondNorm :=
+  topology.Composition[A := NativeProduct.Z, B := OtherGeometry.Disk, C := Real.Real].composeContinuous NativeProduct.topology OtherGeometry.diskTopology metric_spaces.RealLine[].topology
+    NativeProduct.second RightNative.nativeNorm Sectors.secondRegular RightNative.nativeNormContinuous;
+\definition data: AuxiliarySymbol.Data := AuxiliarySymbol.Data {
+  partner := Normalized.secondOperator, norm := secondNorm, continuous := normContinuous,
+  nonnegative := \fun (z: NativeProduct.Z) => RightNative.nativeNormNonnegative (NativeProduct.second z),
+  square := \fun (z: NativeProduct.Z)(v: Normalized.RightFiber z) => trans!{{Normalized.RightFiber z}} _ _ _
+    (RightNative.nativeSquare (NativeProduct.second z) v)
+    (congr!{{C.Complex} {Normalized.RightFiber z}} (\fun (q: C.Complex) => (Normalized.rightBundle.space z).smul q v) _ _ (RightNative.nativeCoefficientReal (NativeProduct.second z))),
+  anticommutes := \fun (z: NativeProduct.Z) => RightNative.nativeAnticommutes (NativeProduct.second z)
+};
+\definition radius[z: NativeProduct.Z]: Real.Real := LeftFrame.norm (NativeProduct.first z);
+\definition radiusContinuous: metric_spaces.RealFunctions[A := NativeProduct.Z].Continuous NativeProduct.topology radius :=
+  topology.Composition[A := NativeProduct.Z, B := Disk, C := Real.Real].composeContinuous NativeProduct.topology diskTopology metric_spaces.RealLine[].topology
+    NativeProduct.first LeftFrame.norm Sectors.firstRegular LeftFrame.normContinuous;
+\definition radiusOne[x: Pair.A]: LeftFrame.norm x = Real.one :=
+  trans!{{Real.Real}} _ _ _ (congr!{{Real.Real} {Real.Real}} Real.SquareRoot[].sqrt _ _ (LeftBoundary.squaredUnit x)) Real.SquareRoot[].sqrtOne;
+\definition boundary: \forall (z: NativeProduct.Z) -> \In[NativeProduct.Z] NativeProduct.boundary z -> Logic.Or[radius z = Real.one, secondNorm z = Real.one] :=
+  \fun (z: NativeProduct.Z)(member: _) => Logic.orElim[\In[Disk] diskBoundary (NativeProduct.first z), \In[OtherGeometry.Disk] OtherGeometry.diskBoundary (NativeProduct.second z), Logic.Or[radius z = Real.one, secondNorm z = Real.one]] member
+    (\fun (onLeft: _) => Logic.Or[_, _]::left (radiusOne (\into[Disk](NativeProduct.first z, diskBoundary) \by { onLeft })))
+    (\fun (onRight: _) => Logic.Or[_, _]::right (RightBoundary.squaredUnit (\into[OtherGeometry.Disk](NativeProduct.second z, OtherGeometry.diskBoundary) \by { onRight })));
+\import AuxiliarySymbol.With[data := data].Pair[compact := NativeProduct.compactProduct, hausdorff := NativeProduct.hausdorffProduct,
+  subset := NativeProduct.boundary, closed := NativeProduct.boundaryClosed].Homotopy[r := radius, rContinuous := radiusContinuous, boundary := boundary] \as Path;
+\import Path.Start[] \as Start;
+\definition Even[z: NativeProduct.Z]: \Set := AuxiliaryParity.Even z;
+\definition Odd[z: NativeProduct.Z]: \Set := AuxiliaryParity.Odd z;
+\definition evenBundle: Bundles.Family[X := NativeProduct.Z, F := Even].Bundle := AuxiliaryParity.evenBundle;
+\definition oddBundle: Bundles.Family[X := NativeProduct.Z, F := Odd].Bundle := AuxiliaryParity.oddBundle;
+\import NativePair.BundleModel[F := Even].From[original := evenBundle, same := (\refl(NativeProduct.topology))] \as Positive;
+\import NativePair.BundleModel[F := Odd].From[original := oddBundle, same := (\refl(NativeProduct.topology))] \as Negative;
+\definition evenModel: NativePair.BundleModel[F := Even].Bundle := Positive.model;
+\definition oddModel: NativePair.BundleModel[F := Odd].Bundle := Negative.model;
+\import NativePair.BundleTriples[F := Even, G := Odd, firstModel := evenModel, secondModel := oddModel] \as Triple;
+\definition comparison: Triple.OnSubset := Start.comparison;
+\definition value: NativeQ.Relative := Triple.With[alpha := comparison].reduced;
+\definition zero: value = NativeQ.group.base.unit := Path.zero;
+\import AuxiliarySymbol.With[data := data].AtCoefficient[coefficient := radius, continuous := radiusContinuous] \as Raw;
+\definition forward: Bundles.Morphisms[X := NativeProduct.Z, Y := NativeProduct.Z, F := Even, G := Odd,
+  source := evenBundle, target := oddBundle, f := (\fun (z: NativeProduct.Z) => z)].Map := Raw.rawForward;
+\definition formula: \forall (z: NativePair.A)(v: Even z) -> (comparison.forward.fiber z).apply v = (forward.fiber z).apply v := Start.agreement;
+\module Full;

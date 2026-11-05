@@ -1,0 +1,83 @@
+\use Equality.eq_reason_in;
+\import relative_k_theory.Relative[] \as Relative;
+\import compact_support_k.Support[] \as Support;
+\import std.Arithmetic[].Int[] \as I;
+\definition zero: I.Int^ := I.Int^::ofNat N.Nat^::zero;
+\import Original.Pullback[Y := Y, source := source, f := f] \as Bundle;
+\definition pulled: Bundles.Family[X := Y, F := (\fun (y: Y) => F (f y))].Bundle := Bundle.pulled regular;
+\import \root.Thom[].For[X := Y, F := (\fun (y: Y) => F (f y)), bundle := pulled, compact := sourceCompact, hausdorff := sourceHausdorff] \as Source;
+\import Bundles.Family[X := Y, F := (\fun (y: Y) => F (f y))] \as SourceFamily;
+\import \root.Thom[].TotalSpace[X := Y, F := (\fun (y: Y) => F (f y)), bundle := pulled, compact := sourceCompact, hausdorff := sourceHausdorff] \as SourceTotal;
+\import Support.On[X := SourceFamily.Point, space := pulled.totalSpace, hausdorff := SourceTotal.separated,
+  locallyCompact := SourceTotal.locallyCompact] \as SourceSupported;
+\import \root.Thom[].TotalSpace[X := X, F := F, bundle := bundle, compact := compact, hausdorff := hausdorff]
+  .Pullback[Y := Y, source := source, sourceCompact := sourceCompact, f := f, regular := regular] \as Proper;
+\import SourceSupported.Pullback[Y := Koszul.Total, target := bundle.totalSpace, targetHausdorff := Total.separated,
+  targetLocallyCompact := Total.locallyCompact, f := Bundle.map, continuous := Proper.continuous, proper := Proper.proper] \as TotalPullback;
+\import TotalPullback.At[degree := zero] \as Pull;
+\definition pullback: Carrier -> Source.Carrier := Pull.map;
+\import \parent.Product[] \as TargetProduct;
+\import TargetProduct.Compactified[] \as TargetCompactified;
+\import Source.Product[] \as SourceProduct;
+\import SourceProduct.Compactified[] \as SourceCompactified;
+\import \root.Thom[].CompactCoefficient[X := X, space := bundle.baseSpace, compact := compact, hausdorff := hausdorff]
+  .Pullback[Y := Y, source := source, sourceCompact := sourceCompact, sourceHausdorff := sourceHausdorff, f := f, regular := regular] \as CoefficientPullback;
+\definition sourceLocal: topology.LocallyCompact[A := Y].IsLocallyCompact source :=
+  topology.LocallyCompact[A := Y].compactLocallyCompact source sourceCompact;
+\import Support.On[X := Y, space := source, hausdorff := sourceHausdorff, locallyCompact := sourceLocal] \as SourceBase;
+\import Support.On[X := X, space := bundle.baseSpace, hausdorff := hausdorff,
+  locallyCompact := topology.LocallyCompact[A := X].compactLocallyCompact bundle.baseSpace compact] \as TargetBase;
+\import Relative.Smash[left := SourceBase.model, right := SourceSupported.model] \as SourceSmash;
+\import Relative.Smash[left := TargetBase.model, right := Supported.model] \as TargetSmash;
+\import SourceSmash.Mapping[targetLeft := TargetBase.model, targetRight := Supported.model,
+  f := CoefficientPullback.mapping, g := TotalPullback.mapping] \as SmashMapping;
+\import Relative.Composition[source := SourceSupported.model, middle := Supported.model, target := TargetSmash.result,
+  first := TotalPullback.mapping, second := TargetCompactified.map] \as Left;
+\import Relative.Composition[source := SourceSupported.model, middle := SourceSmash.result, target := TargetSmash.result,
+  first := SourceCompactified.map, second := SmashMapping.map] \as Right;
+\import algebraic_topology.Pointed[A := SourceSupported.model.Carrier].Maps[B := TargetSmash.result.Carrier] \as Maps;
+\import Support.OnePoint[X := SourceFamily.Point, space := pulled.totalSpace] \as Points;
+\import Support.OnePoint[X := Y, space := source] \as BasePoints;
+\import std.Data[].Pair[] \as Pair;
+\definition functions: Left.map = Right.map := \axiom:funext(Left.map, Right.map,
+  \induction (p: Points.Carrier) \return Left.map p = Right.map p \with {
+    | none: trans!{{TargetSmash.result.Carrier}} _ _ _
+      (Maps.laws (Relative.pointed SourceSupported.model) (Relative.pointed TargetSmash.result) Left.map).pointed
+      (sym!{{TargetSmash.result.Carrier}} _ _ (Maps.laws (Relative.pointed SourceSupported.model) (Relative.pointed TargetSmash.result) Right.map).pointed)
+    | some: \fun (p: SourceFamily.Point) => trans!{{TargetSmash.result.Carrier}} _ _ _
+      (TargetCompactified.onFinite (Bundle.map p))
+      (sym!{{TargetSmash.result.Carrier}} _ _ (trans!{{TargetSmash.result.Carrier}} _ _ _
+        (congr!{{SourceSmash.result.Carrier} {TargetSmash.result.Carrier}} SmashMapping.map _ _ (SourceCompactified.onFinite p))
+        (SmashMapping.onProjection (Pair.pair BasePoints.Carrier Points.Carrier (BasePoints.inclusion p.base) (Points.inclusion p)))))
+  });
+\import Relative.Pullback[source := SourceSupported.model, target := TargetSmash.result, f := Left.map] \as LeftPull;
+\import Relative.Pullback[source := SourceSupported.model, target := TargetSmash.result, f := Right.map] \as RightPull;
+\import Relative.Pullback[source := SourceSmash.result, target := TargetSmash.result, f := SmashMapping.map] \as ExternalPull;
+\import Relative.Pullback[source := SourceSupported.model, target := SourceSmash.result, f := SourceCompactified.map] \as SourcePairing;
+\import Relative.Pullback[source := Supported.model, target := TargetSmash.result, f := TargetCompactified.map] \as TargetPairing;
+\import Relative.Pullback[source := SourceBase.model, target := TargetBase.model, f := CoefficientPullback.mapping] \as BasePull;
+\import \root.Thom[].CompactCoefficient[X := X, space := bundle.baseSpace, compact := compact, hausdorff := hausdorff] \as TargetCoefficient;
+\import \root.Thom[].CompactCoefficient[X := Y, space := source, compact := sourceCompact, hausdorff := sourceHausdorff] \as SourceCoefficient;
+\import topological_k_theory.KTheory[].On[X := X, baseSpace := bundle.baseSpace, compact := compact, hausdorff := hausdorff]
+  .Pullback[Y := Y, space := source, sourceCompact := sourceCompact, sourceHausdorff := sourceHausdorff, f := f, regular := regular].K0[] \as OrdinaryPull;
+\definition equation: \forall (a: K.Carrier)(u: Carrier) -> pullback (TargetProduct.multiply a u) = SourceProduct.multiply (OrdinaryPull.map a) (pullback u) :=
+  \fun (a: K.Carrier)(u: Carrier) => eq_reason_in!{{Source.Carrier} _
+    "=" { Pull.map (TargetPairing.map (TargetSmash.External[].product (TargetCoefficient.forward a) u)) } "by" {
+      congr!{Carrier {Source.Carrier}} Pull.map _ _ (TargetCompactified.formula a u) }
+    "=" { LeftPull.map (TargetSmash.External[].product (TargetCoefficient.forward a) u) } "by" {
+      sym!{{Source.Carrier}} _ _ (Relative.PullbackComposition[source := SourceSupported.model, middle := Supported.model, target := TargetSmash.result,
+        first := TotalPullback.mapping, second := TargetCompactified.map].equation (TargetSmash.External[].product (TargetCoefficient.forward a) u)) }
+    "=" { RightPull.map (TargetSmash.External[].product (TargetCoefficient.forward a) u) } "by" {
+      congr!{{Relative.Map SourceSupported.model TargetSmash.result} {Source.Carrier}}
+        (\fun (h: Relative.Map SourceSupported.model TargetSmash.result) => Relative.Pullback[source := SourceSupported.model, target := TargetSmash.result, f := h].map (TargetSmash.External[].product (TargetCoefficient.forward a) u)) _ _ functions }
+    "=" { SourcePairing.map (ExternalPull.map (TargetSmash.External[].product (TargetCoefficient.forward a) u)) } "by" {
+      Relative.PullbackComposition[source := SourceSupported.model, middle := SourceSmash.result, target := TargetSmash.result,
+        first := SourceCompactified.map, second := SmashMapping.map].equation (TargetSmash.External[].product (TargetCoefficient.forward a) u) }
+    "=" { SourcePairing.map (SourceSmash.External[].product (BasePull.map (TargetCoefficient.forward a)) (Pull.map u)) } "by" {
+      congr!{{Relative.Reduced[model := SourceSmash.result].Carrier} {Source.Carrier}} SourcePairing.map _ _
+        (SmashMapping.External[].naturality (TargetCoefficient.forward a) u) }
+    "=" { SourcePairing.map (SourceSmash.External[].product (SourceCoefficient.forward (OrdinaryPull.map a)) (Pull.map u)) } "by" {
+      congr!{{SourceBase.At[degree := zero].Carrier} {Source.Carrier}}
+        (\fun (c: SourceBase.At[degree := zero].Carrier) => SourcePairing.map (SourceSmash.External[].product c (Pull.map u))) _ _ (CoefficientPullback.equation a) }
+    "=" _ "by" { sym!{{Source.Carrier}} _ _ (SourceCompactified.formula (OrdinaryPull.map a) (Pull.map u)) }
+  };

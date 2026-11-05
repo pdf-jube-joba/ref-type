@@ -1,0 +1,31 @@
+\import topology.Homeomorphism[A := A, B := target.Carrier] \as Homeomorphisms;
+\definition laws: Homeomorphisms.Laws[source, (Relative.details target).topology, h] :=
+  Homeomorphisms.laws source (Relative.details target).topology h;
+\definition compact: topology.Topology[Carrier := A].IsCompact source :=
+  topology.Compactness[A := target.Carrier, B := A].surjectiveImage (Relative.details target).topology source h.backward laws.backwardContinuous
+    (\fun (x: A) => Logic.existsIntro[target.Carrier, { y: target.Carrier \where h.backward y = x }] (h.forward x) (laws.leftInverse x))
+    (Relative.details target).compact;
+\import topological_constructions.Separation[].Pullback[A := A, B := target.Carrier, source := source,
+  target := (Relative.details target).topology, f := h.forward, continuous := laws.forwardContinuous] \as Separation;
+\definition hausdorff: topology.Topology[Carrier := A].IsT2 source :=
+  \fun (x, y: A)(different: Logic.Not (x = y)) => Separation.separate (Relative.details target).hausdorff x y
+    (\fun (same: h.forward x = h.forward y) => different
+      (trans!{A} _ _ _ (sym!{A} _ _ (laws.leftInverse x))
+        (trans!{A} _ _ _ (congr!{{target.Carrier} A} h.backward _ _ same) (laws.leftInverse y))));
+\definition model: Relative.CompactPointed := Relative.pack A (Relative.PointedDetails[A] {
+  topology := source, compact := compact, hausdorff := hausdorff, point := point
+});
+\import algebraic_topology.Pointed[A := A].Maps[B := target.Carrier] \as Forward;
+\import algebraic_topology.Pointed[A := target.Carrier].Maps[B := A] \as Backward;
+\definition forward: Relative.Map model target := \into[A -> target.Carrier](h.forward, Relative.Map model target) \by {
+  Forward.Laws[Relative.pointed model, Relative.pointed target, h.forward] { continuous := laws.forwardContinuous, pointed := preserves }
+};
+\definition backward: Relative.Map target model := \into[target.Carrier -> A](h.backward, Relative.Map target model) \by {
+  Backward.Laws[Relative.pointed target, Relative.pointed model, h.backward] {
+    continuous := laws.backwardContinuous,
+    pointed := trans!{A} _ _ _ (congr!{{target.Carrier} A} h.backward _ _ (sym!{{target.Carrier}} _ _ preserves)) (laws.leftInverse point)
+  }
+};
+\definition equivalence: Relative.Equivalence[source := model, target := target].Data := Relative.Equivalence[source := model, target := target].Data {
+  forward := forward, backward := backward, leftInverse := laws.leftInverse, rightInverse := laws.rightInverse
+};

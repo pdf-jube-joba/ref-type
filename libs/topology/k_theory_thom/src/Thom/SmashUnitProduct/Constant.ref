@@ -1,0 +1,34 @@
+\definition Point: \Set := Fin.Fin one;
+\import topology.Topology[Carrier := Point] \as PointSpace;
+\import KTheory.FiniteDiscrete[n := one] \as FinitePoint;
+\import FinitePoint.Computation[] \as PointComputation;
+\import KTheory.On[X := Point, baseSpace := PointSpace.Discrete, compact := FinitePoint.compact, hausdorff := FinitePoint.hausdorff] \as PointTheory;
+\import PointTheory.K0[] \as PointK;
+\import PointTheory.Ranks[] \as PointRanks;
+\definition fromPoint[p: Point]: Sphere.zero.Carrier := Sphere.live;
+\definition fromPointContinuous: topology.Continuity[A := Point, B := Sphere.zero.Carrier].Continuous PointSpace.Discrete (Relative.details Sphere.zero).topology fromPoint :=
+  topology.Maps[A := Point, B := Sphere.zero.Carrier].constantContinuous PointSpace.Discrete (Relative.details Sphere.zero).topology Sphere.live;
+\import Theory.Pullback[Y := Point, space := PointSpace.Discrete, sourceCompact := FinitePoint.compact, sourceHausdorff := FinitePoint.hausdorff,
+  f := fromPoint, regular := fromPointContinuous] \as FromPoint;
+\definition pointOne: FromPoint.K0[].map unit = PointK.one := PointComputation.injective _ _
+  (\axiom:funext(PointRanks.rank (FromPoint.K0[].map unit), PointRanks.rank PointK.one, \fun (p: Point) =>
+    trans!{{I.Int^}} _ _ _ (FromPoint.Ranks[].naturality unit p)
+      (trans!{{I.Int^}} _ _ _ liveRank
+        (sym!{{I.Int^}} _ _ (congr!{{Point -> I.Int^} {I.Int^}} (\fun (f: Point -> I.Int^) => f p) _ _ (PointRanks.One[].virtual))))));
+\definition toPoint[x: base.Carrier]: Point := Fin.zero zero;
+\definition toPointContinuous: topology.Continuity[A := base.Carrier, B := Point].Continuous (Relative.details base).topology PointSpace.Discrete toPoint :=
+  topology.Maps[A := base.Carrier, B := Point].constantContinuous (Relative.details base).topology PointSpace.Discrete (Fin.zero zero);
+\import PointTheory.Pullback[Y := base.Carrier, space := (Relative.details base).topology, sourceCompact := (Relative.details base).compact,
+  sourceHausdorff := (Relative.details base).hausdorff, f := toPoint, regular := toPointContinuous].K0[] \as ToPoint;
+\import FromPoint.Composition[Z := base.Carrier, nextSpace := (Relative.details base).topology, nextCompact := (Relative.details base).compact,
+  nextHausdorff := (Relative.details base).hausdorff, g := toPoint, nextRegular := toPointContinuous] \as Composition;
+\definition constant[x: base.Carrier]: Sphere.zero.Carrier := Sphere.live;
+\definition continuous: topology.Continuity[A := base.Carrier, B := Sphere.zero.Carrier].Continuous (Relative.details base).topology (Relative.details Sphere.zero).topology constant :=
+  topology.Maps[A := base.Carrier, B := Sphere.zero.Carrier].constantContinuous (Relative.details base).topology (Relative.details Sphere.zero).topology Sphere.live;
+\import Theory.Pullback[Y := base.Carrier, space := (Relative.details base).topology, sourceCompact := (Relative.details base).compact,
+  sourceHausdorff := (Relative.details base).hausdorff, f := constant, regular := continuous].K0[] \as Pull;
+\import algebra.Hom[A := PointK.Carrier, B := BaseK.Carrier] \as Maps;
+\import std.Alg[].Ring[] \as Rings;
+\definition equation: Pull.map unit = BaseK.one := trans!{{BaseK.Carrier}} _ _ _ (Composition.onK0 unit)
+  (trans!{{BaseK.Carrier}} _ _ _ (congr!{{PointK.Carrier} {BaseK.Carrier}} ToPoint.map _ _ pointOne)
+    (Maps.semiringLaws (Rings.ringAsSemiring PointK.Carrier PointK.ring) (Rings.ringAsSemiring BaseK.Carrier BaseK.ring) ToPoint.map).one);

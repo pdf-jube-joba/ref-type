@@ -1,0 +1,77 @@
+\import \root.Thom[].SumComplex[X := X, F := F, G := G, left := left, right := right, sameBase := sameBase,
+  firstSection := firstSection, secondSection := secondSection] \as Raw;
+\import Spaces.Sign[] \as Sign;
+\import C.Def[] \as Op;
+\definition firstLower: \forall (k: N.Nat^) -> FirstForm k x -> FirstForm (Nat.pred k) x :=
+  \induction (k: N.Nat^) \return FirstForm k x -> FirstForm (Nat.pred k) x \with {
+    | zero: \fun (v: FirstForm N.Nat^::zero x) => ((firstForms N.Nat^::zero).space x).zero
+    | succ: \fun (k: N.Nat^)(unused: _) => \fun (v: FirstForm (N.Nat^::succ k) x) =>
+      Spaces.Multilinear[V := F x, space := left.space x].Alternating[].Contraction[k := k].apply v (firstSection.value x)
+  };
+\definition secondLower: \forall (k: N.Nat^) -> SecondForm k x -> SecondForm (Nat.pred k) x :=
+  \induction (k: N.Nat^) \return SecondForm k x -> SecondForm (Nat.pred k) x \with {
+    | zero: \fun (v: SecondForm N.Nat^::zero x) => ((secondForms N.Nat^::zero).space x).zero
+    | succ: \fun (k: N.Nat^)(unused: _) => \fun (v: SecondForm (N.Nat^::succ k) x) =>
+      Spaces.Multilinear[V := G x, space := right.space x].Alternating[].Contraction[k := k].apply v (secondSection.value x)
+  };
+\definition nativeLower: \forall (k: N.Nat^) -> Native k x -> Native (Nat.pred k) x :=
+  \induction (k: N.Nat^) \return Native k x -> Native (Nat.pred k) x \with {
+    | zero: \fun (v: Native N.Nat^::zero x) => ((native N.Nat^::zero).space x).zero
+    | succ: \fun (k: N.Nat^)(unused: _) => (Raw.Degree[k := k].differential.fiber x).apply
+  };
+\definition codedLower: \forall (k: N.Nat^) -> Models.Map (totalTerm k) (totalTerm (Nat.pred k)) :=
+  \induction (k: N.Nat^) \return Models.Map (totalTerm k) (totalTerm (Nat.pred k)) \with {
+    | zero: Models.zero (totalTerm N.Nat^::zero) (totalTerm N.Nat^::zero)
+    | succ: \fun (k: N.Nat^)(unused: _) => totalDifferential k
+  };
+\definition encodedLower: \forall (k: N.Nat^)(v: Native k x) ->
+  ((codedLower k).fiber x).apply (((data.total k).isomorphism.forward.fiber x).apply v) =
+    ((data.total (Nat.pred k)).isomorphism.forward.fiber x).apply (nativeLower k v) :=
+  \induction (k: N.Nat^) \return \forall (v: Native k x) ->
+    ((codedLower k).fiber x).apply (((data.total k).isomorphism.forward.fiber x).apply v) =
+      ((data.total (Nat.pred k)).isomorphism.forward.fiber x).apply (nativeLower k v) \with {
+      | zero: \fun (v: Native N.Nat^::zero x) => sym!{{Models.Fiber (totalTerm N.Nat^::zero).ranks x}} _ _ ((data.total N.Nat^::zero).isomorphism.forward.fiber x).preservesZero
+      | succ: \fun (k: N.Nat^)(unused: _)(v: Native (N.Nat^::succ k) x) =>
+        congr!{{Native (N.Nat^::succ k) x} {Models.Fiber (totalTerm k).ranks x}}
+          (\fun (w: Native (N.Nat^::succ k) x) => ((data.total k).isomorphism.forward.fiber x).apply ((Raw.Degree[k := k].differential.fiber x).apply w)) _ _
+          ((data.total (N.Nat^::succ k)).isomorphism.leftInverse x v)
+    };
+\definition firstCodedLower: \forall (k: N.Nat^) -> Models.Map (firstTerm k) (firstTerm (Nat.pred k)) :=
+  \induction (k: N.Nat^) \return Models.Map (firstTerm k) (firstTerm (Nat.pred k)) \with {
+    | zero: Models.zero (firstTerm N.Nat^::zero) (firstTerm N.Nat^::zero)
+    | succ: \fun (k: N.Nat^)(unused: _) => firstDifferential k
+  };
+\definition encodedFirstLower: \forall (k: N.Nat^)(v: FirstForm k x) ->
+  ((firstCodedLower k).fiber x).apply (((data.first k).isomorphism.forward.fiber x).apply v) =
+    ((data.first (Nat.pred k)).isomorphism.forward.fiber x).apply (firstLower k v) :=
+  \induction (k: N.Nat^) \return \forall (v: FirstForm k x) ->
+    ((firstCodedLower k).fiber x).apply (((data.first k).isomorphism.forward.fiber x).apply v) =
+      ((data.first (Nat.pred k)).isomorphism.forward.fiber x).apply (firstLower k v) \with {
+      | zero: \fun (v: FirstForm N.Nat^::zero x) => sym!{{Models.Fiber (firstTerm N.Nat^::zero).ranks x}} _ _ ((data.first N.Nat^::zero).isomorphism.forward.fiber x).preservesZero
+      | succ: \fun (k: N.Nat^)(unused: _)(v: FirstForm (N.Nat^::succ k) x) =>
+        congr!{{FirstForm (N.Nat^::succ k) x} {Models.Fiber (firstTerm k).ranks x}}
+          (\fun (w: FirstForm (N.Nat^::succ k) x) => ((data.first k).isomorphism.forward.fiber x).apply (firstLower (N.Nat^::succ k) w)) _ _
+          ((data.first (N.Nat^::succ k)).isomorphism.leftInverse x v)
+    };
+\definition secondCodedLower: \forall (k: N.Nat^) -> Models.Map (secondTerm k) (secondTerm (Nat.pred k)) :=
+  \induction (k: N.Nat^) \return Models.Map (secondTerm k) (secondTerm (Nat.pred k)) \with {
+    | zero: Models.zero (secondTerm N.Nat^::zero) (secondTerm N.Nat^::zero)
+    | succ: \fun (k: N.Nat^)(unused: _) => secondDifferential k
+  };
+\definition encodedSecondLower: \forall (k: N.Nat^)(v: SecondForm k x) ->
+  ((secondCodedLower k).fiber x).apply (((data.second k).isomorphism.forward.fiber x).apply v) =
+    ((data.second (Nat.pred k)).isomorphism.forward.fiber x).apply (secondLower k v) :=
+  \induction (k: N.Nat^) \return \forall (v: SecondForm k x) ->
+    ((secondCodedLower k).fiber x).apply (((data.second k).isomorphism.forward.fiber x).apply v) =
+      ((data.second (Nat.pred k)).isomorphism.forward.fiber x).apply (secondLower k v) \with {
+      | zero: \fun (v: SecondForm N.Nat^::zero x) => sym!{{Models.Fiber (secondTerm N.Nat^::zero).ranks x}} _ _ ((data.second N.Nat^::zero).isomorphism.forward.fiber x).preservesZero
+      | succ: \fun (k: N.Nat^)(unused: _)(v: SecondForm (N.Nat^::succ k) x) =>
+        congr!{{SecondForm (N.Nat^::succ k) x} {Models.Fiber (secondTerm k).ranks x}}
+          (\fun (w: SecondForm (N.Nat^::succ k) x) => ((data.second k).isomorphism.forward.fiber x).apply (secondLower (N.Nat^::succ k) w)) _ _
+          ((data.second (N.Nat^::succ k)).isomorphism.leftInverse x v)
+    };
+\module Pure(k, p, q: N.Nat^, degree: Nat.add p q = k);
+\module Positive(p, q: N.Nat^);
+\module LeftZero(q: N.Nat^);
+\module RightZero(p: N.Nat^);
+\definition zero[v: Native N.Nat^::zero x]: nativeLower N.Nat^::zero v = ((native N.Nat^::zero).space x).zero := \refl(((native N.Nat^::zero).space x).zero);

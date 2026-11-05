@@ -1,0 +1,34 @@
+\import \parent.\parent.\parent.Summands[] \as Summands;
+\import \root.Thom[].FiniteLabels[] \as Labels;
+\import std.Data[].Bool[] \as B;
+\definition projectionHead: \forall (n: N.Nat^)(x: X)(v: Models.Fiber (term n).ranks x) ->
+  ((projection n).fiber x).apply (((Summands.at n (Labels.Index::head n) B.Bool^::true (\refl(B.Bool^::true))).fiber x).apply v) = v :=
+  \fun (n: N.Nat^)(x: X)(v: Models.Fiber (term n).ranks x) => (state n).partial.projectInclusion x v;
+\definition top: \forall (n: N.Nat^)(x: X)(v: Models.Fiber (term n).ranks x) ->
+  ((k n).fiber x).apply (((Summands.at n (Labels.Index::head n) B.Bool^::true (\refl(B.Bool^::true))).fiber x).apply v) = ((Models.bundle (folded n).odd).space x).zero := kHead;
+\module Step(n: N.Nat^);
+\definition direction[n: N.Nat^]: \forall (side: B.Bool^) -> Models.Map (Summands.parity n (Labels.flip side)) (Summands.parity n side) :=
+  \induction (side: B.Bool^) \return Models.Map (Summands.parity n (Labels.flip side)) (Summands.parity n side) \with {
+    | false: k n
+    | true: h n
+  };
+\import \parent.\parent.OnSummands[] \as Canonical;
+\definition nextInjection: \forall (n: N.Nat^)(s: Labels.Index n) -> Models.Map (term (N.Nat^::succ (Labels.degree n s))) (Summands.parity (N.Nat^::succ n) (Labels.even n s)) := Canonical.nextInjection;
+\definition nextAt[n: N.Nat^][s: Labels.Index n][side: B.Bool^][color: Labels.even n s = side]: Models.Map (term (N.Nat^::succ (Labels.degree n s))) (Summands.parity (N.Nat^::succ n) side) := Canonical.nextAt n s side color;
+\definition nextTail: \forall (n: N.Nat^)(s: Labels.Index n)(side: B.Bool^)(color: Labels.even n s = side)(x: X)(v: Models.Fiber (term (N.Nat^::succ (Labels.degree n s))).ranks x) ->
+  ((nextAt (N.Nat^::succ n) (Labels.Index::tail n s) (Labels.flip side) (congr!{{B.Bool^} {B.Bool^}} Labels.flip _ _ color)).fiber x).apply v =
+  ((Summands.lift (N.Nat^::succ n) side).fiber x).apply (((nextAt n s side color).fiber x).apply v) := Canonical.nextTail;
+\definition Action[n: N.Nat^][s: Labels.Index n][side: B.Bool^][color: Labels.even n s = side]: \Prop :=
+  \forall (x: X)(v: Models.Fiber (term (Labels.degree n s)).ranks x) ->
+    ((direction (N.Nat^::succ n) side).fiber x).apply
+      (((Summands.at (N.Nat^::succ n) (Labels.Index::tail n s) (Labels.flip side) (congr!{{B.Bool^} {B.Bool^}} Labels.flip _ _ color)).fiber x).apply v) =
+    ((nextAt n s side color).fiber x).apply (((raising (Labels.degree n s)).fiber x).apply v);
+\definition Statement[n: N.Nat^][s: Labels.Index n]: \Prop := \forall (side: B.Bool^)(color: Labels.even n s = side) -> Action n s side color;
+\module Head(n: N.Nat^);
+\module Tail(n: N.Nat^, s: Labels.Index n, previous: Statement n s);
+\definition onLabel: \forall (n: N.Nat^)(s: Labels.Index n) -> Statement n s :=
+  \induction (n: N.Nat^)(s: Labels.Index n) \return Statement n s \with {
+    | head: \fun (n: N.Nat^) => Head[n := n].result
+    | tail: \fun (n: N.Nat^)(s: Labels.Index n)(previous: Statement n s) => Tail[n := n, s := s, previous := previous].result
+  };
+\module Reindex;

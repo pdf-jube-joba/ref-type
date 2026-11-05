@@ -1,0 +1,27 @@
+\import Operations.DirectSum[X := NativeProduct.Z, F := SecondEven, G := SecondOdd, left := SecondEvenBundle, right := SecondOddBundle] \as Sum;
+\definition Fiber[z: NativeProduct.Z]: \Set := Sum.Fiber z;
+\definition bundle: Bundles.Family[X := NativeProduct.Z, F := Fiber].Bundle := Sum.bundle (\refl(NativeProduct.topology));
+\import Sum.Of[same := (\refl(NativeProduct.topology))] \as Split;
+\import Split.From[Y := NativeProduct.Z, H := Fiber, source := bundle, f := (\fun (z: NativeProduct.Z) => z)] \as Into;
+\import Bundles.Morphisms[X := NativeProduct.Z, Y := NativeProduct.Z, F := Fiber, G := SecondOdd,
+  source := bundle, target := SecondOddBundle, f := (\fun (z: NativeProduct.Z) => z)]
+  .Composition[Z := NativeProduct.Z, H := SecondEven, range := SecondEvenBundle, g := (\fun (z: NativeProduct.Z) => z)] \as ToEven;
+\import Bundles.Morphisms[X := NativeProduct.Z, Y := NativeProduct.Z, F := Fiber, G := SecondEven,
+  source := bundle, target := SecondEvenBundle, f := (\fun (z: NativeProduct.Z) => z)]
+  .Composition[Z := NativeProduct.Z, H := SecondOdd, range := SecondOddBundle, g := (\fun (z: NativeProduct.Z) => z)] \as ToOdd;
+\definition operator: Bundles.Morphisms[X := NativeProduct.Z, Y := NativeProduct.Z, F := Fiber, G := Fiber,
+  source := bundle, target := bundle, f := (\fun (z: NativeProduct.Z) => z)].Map := Into.pair (ToEven.compose Split.secondMap SecondE) (ToOdd.compose Split.firstMap SecondD);
+\import Operations.IdentityIsomorphism[X := NativeProduct.Z, F := SecondEven, bundle := SecondEvenBundle] \as PositiveIdentity;
+\import Operations.Negation[X := NativeProduct.Z, F := SecondOdd, bundle := SecondOddBundle] \as NegativeSign;
+\import Operations.DirectSumIsomorphisms[X := NativeProduct.Z, F := SecondEven, G := SecondOdd, A := SecondEven, B := SecondOdd,
+  first := SecondEvenBundle, second := SecondOddBundle, newFirst := SecondEvenBundle, newSecond := SecondOddBundle,
+  sameSource := (\refl(NativeProduct.topology)), sameTarget := (\refl(NativeProduct.topology))] \as PairMaps;
+\definition grading: Bundles.Isomorphisms[X := NativeProduct.Z, F := Fiber, G := Fiber, source := bundle, target := bundle].Isomorphism := PairMaps.isomorphism PositiveIdentity.isomorphism NegativeSign.isomorphism;
+\definition square: \forall (z: NativeProduct.Z)(v: Fiber z) -> (operator.fiber z).apply ((operator.fiber z).apply v) = (bundle.space z).smul (secondCoefficient z) v :=
+  \fun (z: NativeProduct.Z)(v: Fiber z) => P.Prop[A := SecondEven z, B := SecondOdd z].pairCong _ _ _ _
+    (RightFrame.nativeSquareEven (NativeProduct.second z) (P.first (SecondEven z) (SecondOdd z) v))
+    (RightFrame.nativeSquareOdd (NativeProduct.second z) (P.second (SecondEven z) (SecondOdd z) v));
+\module At(z: NativeProduct.Z);
+\definition anticommutes: \forall (z: NativeProduct.Z)(v: Fiber z) -> (bundle.space z).add
+  ((grading.forward.fiber z).apply ((operator.fiber z).apply v)) ((operator.fiber z).apply ((grading.forward.fiber z).apply v)) = (bundle.space z).zero :=
+  \fun (z: NativeProduct.Z) => At[z := z].equation;

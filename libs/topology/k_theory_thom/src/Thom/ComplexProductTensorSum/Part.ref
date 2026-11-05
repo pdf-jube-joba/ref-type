@@ -1,0 +1,52 @@
+\import std.Data[].Pair[] \as Pair;
+\import Models.Sum[first := head, second := tail] \as Fold;
+\definition A[x: X]: \Set := Models.Fiber head.ranks x;
+\definition B[x: X]: \Set := Models.Fiber tail.ranks x;
+\definition C[x: X]: \Set := Models.Fiber Fold.value.ranks x;
+\import \root.Thom[].ComplexProductDistribution[X := X, F := A, G := B, H := G,
+  first := Models.bundle head, second := Models.bundle tail, third := bundle, sameSecond := (\refl(space)), sameThird := same] \as Distribution;
+\import Operations.Tensor[X := X, F := C, G := G, left := Models.bundle Fold.value, right := bundle] \as Input;
+\import Input.Of[same := same].Mapping[Y := X, A := Fold.SourceFiber, B := G, leftTarget := Fold.source, rightTarget := bundle,
+  f := (\fun (x: X) => x)].Of[targetSame := same] \as Split;
+\import Bundles.Identity[X := X, F := G, bundle := bundle] \as Identity;
+\definition split: Bundles.Morphisms[X := X, Y := X, F := Input.Fiber, G := Distribution.SourceFiber,
+  source := Input.bundle same, target := Distribution.sourceBundle, f := (\fun (x: X) => x)].Map := Split.map Fold.isomorphism.backward Identity.map;
+\import Operations.Tensor[X := X, F := A, G := G, left := Models.bundle head, right := bundle] \as First;
+\import Operations.Tensor[X := X, F := B, G := G, left := Models.bundle tail, right := bundle] \as Second;
+\import Operations.DirectSum[X := X, F := First.Fiber, G := Second.Fiber, left := First.bundle same, right := Second.bundle same] \as Sum;
+\import Sum.Of[same := (\refl(space))].To[Y := X, H := Models.Fiber target.ranks, target := Models.bundle target, f := (\fun (x: X) => x)] \as Copair;
+\definition FirstMap: \Set := Bundles.Morphisms[X := X, Y := X, F := First.Fiber, G := Models.Fiber target.ranks,
+  source := First.bundle same, target := Models.bundle target, f := (\fun (x: X) => x)].Map;
+\definition SecondMap: \Set := Bundles.Morphisms[X := X, Y := X, F := Second.Fiber, G := Models.Fiber target.ranks,
+  source := Second.bundle same, target := Models.bundle target, f := (\fun (x: X) => x)].Map;
+\import Bundles.Morphisms[X := X, Y := X, F := Input.Fiber, G := Distribution.SourceFiber,
+  source := Input.bundle same, target := Distribution.sourceBundle, f := (\fun (x: X) => x)]
+  .Composition[Z := X, H := Distribution.TargetFiber, range := Distribution.targetBundle, g := (\fun (x: X) => x)] \as Start;
+\definition distributed: Bundles.Morphisms[X := X, Y := X, F := Input.Fiber, G := Distribution.TargetFiber,
+  source := Input.bundle same, target := Distribution.targetBundle, f := (\fun (x: X) => x)].Map := Start.compose split Distribution.isomorphism.forward;
+\import Bundles.Morphisms[X := X, Y := X, F := Input.Fiber, G := Distribution.TargetFiber,
+  source := Input.bundle same, target := Distribution.targetBundle, f := (\fun (x: X) => x)]
+  .Composition[Z := X, H := Models.Fiber target.ranks, range := Models.bundle target, g := (\fun (x: X) => x)] \as Finish;
+\definition map[first: FirstMap][second: SecondMap]: Bundles.Morphisms[X := X, Y := X, F := Input.Fiber, G := Models.Fiber target.ranks,
+  source := Input.bundle same, target := Models.bundle target, f := (\fun (x: X) => x)].Map := Finish.compose distributed (Copair.copair first second);
+\definition distributedOnPure[x: X][a: A x][b: B x][w: G x]:
+  (distributed.fiber x).apply (Input.pure x ((Fold.isomorphism.forward.fiber x).apply (Pair.pair (A x) (B x) a b)) w) =
+  Pair.pair (First.Fiber x) (Second.Fiber x) (First.pure x a w) (Second.pure x b w) :=
+  trans!{{Distribution.TargetFiber x}} _ _ _
+    (congr!{{Distribution.SourceFiber x} {Distribution.TargetFiber x}} (Distribution.isomorphism.forward.fiber x).apply _ _
+      (Split.onPure Fold.isomorphism.backward Identity.map x ((Fold.isomorphism.forward.fiber x).apply (Pair.pair (A x) (B x) a b)) w))
+    (trans!{{Distribution.TargetFiber x}} _ _ _
+      (congr!{{Distribution.SourceFiber x} {Distribution.TargetFiber x}} (Distribution.isomorphism.forward.fiber x).apply _ _
+        (congr!{{Fold.SourceFiber x} {Distribution.SourceFiber x}}
+          (\fun (u: Fold.SourceFiber x) => Operations.Tensor[X := X, F := Fold.SourceFiber, G := G, left := Fold.source, right := bundle].pure x u w) _ _
+            (Fold.isomorphism.leftInverse x (Pair.pair (A x) (B x) a b))))
+      (Distribution.onPure x (Pair.pair (A x) (B x) a b) w));
+\definition formula[first: FirstMap][second: SecondMap][x: X][a: A x][b: B x][w: G x]:
+  ((map first second).fiber x).apply (Input.pure x ((Fold.isomorphism.forward.fiber x).apply (Pair.pair (A x) (B x) a b)) w) =
+  ((Models.bundle target).space x).add ((first.fiber x).apply (First.pure x a w)) ((second.fiber x).apply (Second.pure x b w)) :=
+  congr!{{Distribution.TargetFiber x} {Models.Fiber target.ranks x}} ((Copair.copair first second).fiber x).apply _ _ (distributedOnPure x a b w);
+\module At(first: FirstMap, second: SecondMap, x: X);
+\definition onFirst[first: FirstMap][second: SecondMap][x: X][a: A x][w: G x]:
+  ((map first second).fiber x).apply (Input.pure x ((Fold.firstInclusion.fiber x).apply a) w) = (first.fiber x).apply (First.pure x a w) := At[first := first, second := second, x := x].onFirst a w;
+\definition onSecond[first: FirstMap][second: SecondMap][x: X][b: B x][w: G x]:
+  ((map first second).fiber x).apply (Input.pure x ((Fold.secondInclusion.fiber x).apply b) w) = (second.fiber x).apply (Second.pure x b w) := At[first := first, second := second, x := x].onSecond b w;

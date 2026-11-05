@@ -1,0 +1,35 @@
+\import \root.Thom[].Finite[X := X, baseSpace := baseSpace].Family[term := term, differential := differential, domain := domain].Summands[].Initial[] \as Initial;
+\import Models.Sum[first := term N.Nat^::zero, second := Chains.empty] \as Sum;
+\import \root.Thom[].Finite[X := X, baseSpace := baseSpace].Empty[domain := domain] \as Empty;
+\definition V[x: X]: \Set := Models.Fiber (folded N.Nat^::zero).even.ranks x;
+\definition space[x: X]: Spaces.VectorSpace (V x) := (Models.bundle (folded N.Nat^::zero).even).space x;
+\definition collapse: \forall (x: X)(v: V x) -> ((folded N.Nat^::zero).inclusion.fiber x).apply (((projection N.Nat^::zero).fiber x).apply v) = v :=
+  \fun (x: X)(v: V x) => trans!{{V x}} _ _ _
+    (congr!{{Models.Fiber Chains.empty.ranks x} {V x}} (Initial.join x (Initial.head x v)) _ _
+      (sym!{{Models.Fiber Chains.empty.ranks x}} _ _ (Empty.zeroUnique x (Initial.rest x v))))
+    (Initial.recover x v);
+\definition firstZero: \forall (x: X)(v: V x) -> (space x).add
+  (((folded N.Nat^::zero).backward.fiber x).apply (((k N.Nat^::zero).fiber x).apply v))
+  (((h N.Nat^::zero).fiber x).apply (((folded N.Nat^::zero).forward.fiber x).apply v)) = (space x).zero :=
+  \fun (x: X)(v: V x) => trans!{{V x}} _ _ _
+    (congr!{{V x} {V x}} (\fun (w: V x) => (space x).add w (space x).zero) _ _ (Sum.isomorphism.forward.fiber x).preservesZero)
+    (Spaces.Laws[V := V x, space := space x].zeroLeft (space x).zero);
+\definition even: \forall (x: X)(v: V x) -> Even N.Nat^::zero x v :=
+  \fun (x: X)(v: V x) => trans!{{V x}} _ _ _
+    (congr!{{V x} {V x}} (\fun (w: V x) => (space x).add w (((correction N.Nat^::zero).fiber x).apply v)) _ _ (firstZero x v))
+    (trans!{{V x}} _ _ _ (Spaces.Laws[V := V x, space := space x].zeroLeft _)
+      (trans!{{V x}} _ _ _
+        (congr!{{Models.Fiber (term N.Nat^::zero).ranks x} {V x}} ((folded N.Nat^::zero).inclusion.fiber x).apply _ _
+          (bottom x (((projection N.Nat^::zero).fiber x).apply v)))
+        (trans!{{V x}} _ _ _ (((folded N.Nat^::zero).inclusion.fiber x).preservesScale (coefficient x) (((projection N.Nat^::zero).fiber x).apply v))
+          (congr!{{V x} {V x}} ((space x).smul (coefficient x)) _ _ (collapse x v)))));
+\definition odd: \forall (x: X)(v: Models.Fiber (folded N.Nat^::zero).odd.ranks x) -> Odd N.Nat^::zero x v :=
+  \fun (x: X)(v: Models.Fiber (folded N.Nat^::zero).odd.ranks x) => trans!{{Models.Fiber Chains.empty.ranks x}} _ _ _
+    (trans!{{Models.Fiber Chains.empty.ranks x}} _ _ _
+      (congr!{{Models.Fiber Chains.empty.ranks x} {Models.Fiber Chains.empty.ranks x}} (\fun (w: Models.Fiber Chains.empty.ranks x) => ((Models.bundle Chains.empty).space x).add w ((Models.bundle Chains.empty).space x).zero) _ _
+        ((folded N.Nat^::zero).forward.fiber x).preservesZero)
+      (Spaces.Laws[V := Models.Fiber Chains.empty.ranks x, space := (Models.bundle Chains.empty).space x].zeroLeft _))
+    (sym!{{Models.Fiber Chains.empty.ranks x}} _ _ (trans!{{Models.Fiber Chains.empty.ranks x}} _ _ _
+      (congr!{{Models.Fiber Chains.empty.ranks x} {Models.Fiber Chains.empty.ranks x}} (((Models.bundle Chains.empty).space x).smul (coefficient x)) _ _ (Empty.zeroUnique x v))
+      (Spaces.Laws[V := Models.Fiber Chains.empty.ranks x, space := (Models.bundle Chains.empty).space x].scaleZero (coefficient x))));
+\definition result: State[N.Nat^::zero] := State[N.Nat^::zero] { even := even, odd := odd };

@@ -1,0 +1,26 @@
+\import Operations.DirectSum[X := X, F := Parity.EEFiber, G := Parity.OOFiber, left := Parity.eeBundle, right := Parity.ooBundle].Of[same := (\refl(left.baseSpace))].Inclusions[] \as Even;
+\import Operations.DirectSum[X := X, F := Parity.EOFiber, G := Parity.OEFiber, left := Parity.eoBundle, right := Parity.oeBundle].Of[same := (\refl(left.baseSpace))].Inclusions[] \as Odd;
+\definition ee[v: Parity.EEFiber x]: (forwardCodeEven.fiber x).apply (((block B.Bool^::true B.Bool^::true).fiber x).apply v) = (EE.forward.fiber x).apply v :=
+  trans!{{Target B.Bool^::true}} _ _ _
+    (congr!{{Parity.Even x} {Target B.Bool^::true}} (forwardEven.fiber x).apply _ _ (evenChoice.isomorphism.leftInverse x ((Even.first.fiber x).apply v)))
+    (EvenCopair.onFirst EE.forward OO.forward x v);
+\definition oo[v: Parity.OOFiber x]: (forwardCodeEven.fiber x).apply (((block B.Bool^::false B.Bool^::false).fiber x).apply v) = (OO.forward.fiber x).apply v :=
+  trans!{{Target B.Bool^::true}} _ _ _
+    (congr!{{Parity.Even x} {Target B.Bool^::true}} (forwardEven.fiber x).apply _ _ (evenChoice.isomorphism.leftInverse x ((Even.second.fiber x).apply v)))
+    (EvenCopair.onSecond EE.forward OO.forward x v);
+\definition eo[v: Parity.EOFiber x]: (forwardCodeOdd.fiber x).apply (((block B.Bool^::true B.Bool^::false).fiber x).apply v) = (EO.forward.fiber x).apply v :=
+  trans!{{Target B.Bool^::false}} _ _ _
+    (congr!{{Parity.Odd x} {Target B.Bool^::false}} (forwardOdd.fiber x).apply _ _ (oddChoice.isomorphism.leftInverse x ((Odd.first.fiber x).apply v)))
+    (OddCopair.onFirst EO.forward OE.forward x v);
+\definition oe[v: Parity.OEFiber x]: (forwardCodeOdd.fiber x).apply (((block B.Bool^::false B.Bool^::true).fiber x).apply v) = (OE.forward.fiber x).apply v :=
+  trans!{{Target B.Bool^::false}} _ _ _
+    (congr!{{Parity.Odd x} {Target B.Bool^::false}} (forwardOdd.fiber x).apply _ _ (oddChoice.isomorphism.leftInverse x ((Odd.second.fiber x).apply v)))
+    (OddCopair.onSecond EO.forward OE.forward x v);
+\definition Statement[firstSide, secondSide: B.Bool^]: \Prop := \forall (v: \parent.\parent.\parent.Slot[firstSide := firstSide, secondSide := secondSide].Fiber x) ->
+  ((forwardCode (ProductLabels.evenPair firstSide secondSide)).fiber x).apply (((block firstSide secondSide).fiber x).apply v) =
+  ((\parent.\parent.\parent.Slot[firstSide := firstSide, secondSide := secondSide].forward).fiber x).apply v;
+\definition equation: \forall (firstSide, secondSide: B.Bool^) -> Statement firstSide secondSide :=
+  \induction (firstSide: B.Bool^) \return \forall (secondSide: B.Bool^) -> Statement firstSide secondSide \with {
+    | false: \induction (secondSide: B.Bool^) \return Statement B.Bool^::false secondSide \with { | false: oo | true: oe }
+    | true: \induction (secondSide: B.Bool^) \return Statement B.Bool^::true secondSide \with { | false: eo | true: ee }
+  };

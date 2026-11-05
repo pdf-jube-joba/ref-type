@@ -1,0 +1,42 @@
+\import Relative.Identity[model := A.model] \as IdentityA;
+\import Relative.Identity[model := C.model] \as IdentityC;
+\import LeftSmash.Mapping[targetLeft := ABSmash.result, targetRight := C.model, f := MultiplyAB.mapping, g := IdentityC.map] \as LeftMapping;
+\import RightSmash.Mapping[targetLeft := A.model, targetRight := BCSmash.result, f := IdentityA.map, g := MultiplyBC.mapping] \as RightMapping;
+\import Relative.Composition[source := Source.model, middle := LeftSmash.result, target := LeftIterated.result,
+  first := MultiplyLeft.mapping, second := LeftMapping.map] \as LeftComposite;
+\import Relative.Composition[source := Target.model, middle := RightSmash.result, target := RightIterated.result,
+  first := MultiplyRight.mapping, second := RightMapping.map] \as RightComposite;
+\definition left: Relative.Map Source.model LeftIterated.result := LeftComposite.map;
+\definition right: Relative.Map Target.model RightIterated.result := RightComposite.map;
+\import Relative.Composition[source := Source.model, middle := LeftIterated.result, target := RightIterated.result,
+  first := left, second := SmashAssociator.equivalence.forward] \as LeftAssociated;
+\import Relative.Composition[source := Source.model, middle := Target.model, target := RightIterated.result,
+  first := association, second := right] \as RightAssociated;
+\import Support.OnePoint[X := SourceFamily.Point, space := Associator.sourceBundle.totalSpace] \as SourcePoints;
+\import Support.OnePoint[X := TargetFamily.Point, space := Associator.targetBundle.totalSpace] \as TargetPoints;
+\import Support.OnePoint[X := FirstFamily.Point, space := first.totalSpace] \as APoints;
+\import Support.OnePoint[X := SecondFamily.Point, space := second.totalSpace] \as BPoints;
+\import Support.OnePoint[X := ThirdFamily.Point, space := third.totalSpace] \as CPoints;
+\import Support.OnePoint[X := ABFamily.Point, space := (AB.bundle sameSecond).totalSpace] \as ABPoints;
+\import Support.OnePoint[X := BCFamily.Point, space := (BC.bundle lastBase).totalSpace] \as BCPoints;
+\definition ab[p: SourceFamily.Point]: ABFamily.Point := ABFamily.include p.base (Pair.first (AB.Fiber p.base) (H p.base) p.vector);
+\definition a[p: SourceFamily.Point]: FirstFamily.Point := FirstFamily.include p.base (Pair.first (F p.base) (G p.base) (ab p).vector);
+\definition b[p: SourceFamily.Point]: SecondFamily.Point := SecondFamily.include p.base (Pair.second (F p.base) (G p.base) (ab p).vector);
+\definition c[p: SourceFamily.Point]: ThirdFamily.Point := ThirdFamily.include p.base (Pair.second (AB.Fiber p.base) (H p.base) p.vector);
+\definition bc[p: SourceFamily.Point]: BCFamily.Point := BCFamily.include p.base (Pair.pair (G p.base) (H p.base) (b p).vector (c p).vector);
+\definition triple[p: SourceFamily.Point]: SmashAssociator.Triple := Pair.pair A.model.Carrier BCSmash.model.Carrier
+  (APoints.inclusion (a p)) (Pair.pair B.model.Carrier C.model.Carrier (BPoints.inclusion (b p)) (CPoints.inclusion (c p)));
+\import Support.Proper[A := SourceFamily.Point, B := TargetFamily.Point, source := Associator.sourceBundle.totalSpace,
+  target := Associator.targetBundle.totalSpace].With[f := homeomorphism.forward,
+  continuous := (topology.Homeomorphism[A := SourceFamily.Point, B := TargetFamily.Point].laws Associator.sourceBundle.totalSpace Associator.targetBundle.totalSpace homeomorphism).forwardContinuous,
+  proper := Homeomorphic.proper] \as Extension;
+\module Finite(p: SourceFamily.Point);
+\import algebraic_topology.Pointed[A := Source.model.Carrier].Maps[B := RightIterated.result.Carrier] \as Pointed;
+\definition equation: LeftAssociated.map = RightAssociated.map :=
+  \axiom:funext(LeftAssociated.map, RightAssociated.map,
+    \induction (point: SourcePoints.Carrier) \return LeftAssociated.map point = RightAssociated.map point \with {
+      | none: trans!{{RightIterated.result.Carrier}} _ _ _
+        (Pointed.laws (Relative.pointed Source.model) (Relative.pointed RightIterated.result) LeftAssociated.map).pointed
+        (sym!{{RightIterated.result.Carrier}} _ _ (Pointed.laws (Relative.pointed Source.model) (Relative.pointed RightIterated.result) RightAssociated.map).pointed)
+      | some: \fun (p: SourceFamily.Point) => Finite[p := p].equation
+    });

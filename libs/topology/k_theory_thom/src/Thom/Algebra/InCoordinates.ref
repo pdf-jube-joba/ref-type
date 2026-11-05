@@ -1,0 +1,37 @@
+\import std.Logic[].Classical[] \as Classical;
+\use Logic.either;
+\import Spaces.FiniteCoordinates[n := n].Exterior[] \as Coordinates;
+\import Forms.Precomposition[W := Operations.Vector n, target := Operations.coordinates n] \as Pullback;
+\import Forms.At[k := one] \as OneForms;
+\definition raw[i: Fin.Fin n]: Forms.Form one := Pullback.precompose one frame.forward (Coordinates.coordinate i);
+\definition rawEvaluation: \forall (i: Fin.Fin n)(v: V) -> evaluate (raw i) v = frame.forward.apply v i :=
+  \fun (i: Fin.Fin n)(v: V) => \refl(frame.forward.apply v i);
+\definition nonzeroCoordinate: \forall (v: V) -> Logic.Not (v = space.zero) ->
+  \exists (i: Fin.Fin n \where Logic.Not (frame.forward.apply v i = Op.zero)) :=
+  \fun (v: V)(nonzero: Logic.Not (v = space.zero)) => either!{{(Classical.excludedMiddle
+    (\exists (i: Fin.Fin n \where Logic.Not (frame.forward.apply v i = Op.zero))))} {\exists (i: Fin.Fin n \where Logic.Not (frame.forward.apply v i = Op.zero))}
+    {\fun (found: _) => found}
+    {\fun (none: _) => Logic.falseElim _ (nonzero
+      (trans!{V} _ _ _ (sym!{V} _ _ (frame.leftInverse v))
+        (trans!{V} _ _ _
+          (congr!{{Operations.Vector n} V} frame.backward.apply _ _
+            (\axiom:funext(frame.forward.apply v, (Operations.coordinates n).zero,
+              \fun (i: Fin.Fin n) => either!{{(Classical.excludedMiddle (frame.forward.apply v i = Op.zero))} {frame.forward.apply v i = Op.zero}
+                {\fun (zero: _) => zero}
+                {\fun (different: _) => Logic.falseElim _ (none
+                  (Logic.existsIntro[Fin.Fin n, { i: Fin.Fin n \where Logic.Not (frame.forward.apply v i = Op.zero) }] i different))}
+              })))
+          frame.backward.preservesZero)))
+    }};
+\definition normalized[v: V][i: Fin.Fin n][nonzero: Logic.Not (frame.forward.apply v i = Op.zero)]: Normalized v :=
+  \into[Forms.Form one](OneForms.scale (Op.inv (frame.forward.apply v i)) (raw i), Normalized v) \by {
+    trans!{{C.Complex}} _ _ _
+      (congr!{{C.Complex} {C.Complex}} (Op.mul (Op.inv (frame.forward.apply v i))) _ _ (rawEvaluation i v))
+      (Laws.inverseNonzero (frame.forward.apply v i) nonzero)
+  };
+\definition existence: \forall (v: V) -> Logic.Not (v = space.zero) -> \exists Normalized v := \block {
+  \fun (v: V)(nonzero: Logic.Not (v = space.zero)) \then
+  \takefrom i: \Cast[Fin.Fin n] ({ i: Fin.Fin n \where Logic.Not (frame.forward.apply v i = Op.zero) }) \by nonzeroCoordinate v nonzero \then
+  \return \exact(normalized v i (\bysub(Fin.Fin n, { i: Fin.Fin n \where Logic.Not (frame.forward.apply v i = Op.zero) }, i)), Normalized v)
+};
+\module Above(k: N.Nat^);

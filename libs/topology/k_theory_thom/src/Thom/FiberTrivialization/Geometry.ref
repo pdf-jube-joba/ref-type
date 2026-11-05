@@ -1,0 +1,45 @@
+\definition forwardContinuous: topology.Continuity[A := SumFamily.Point, B := Product.CarrierSet].Continuous sum.totalSpace productTopology forward :=
+  Product.Universal[X := SumFamily.Point].pairContinuous sum.totalSpace left.totalSpace PointBundle.bundle.totalSpace Sum.first
+    (\fun (p: SumFamily.Point) => Trivialization.projection (Sum.second p)) Sum.firstContinuous
+    (topology.Composition[A := SumFamily.Point, B := RightFamily.Point, C := PointFamily.Point].composeContinuous sum.totalSpace right.totalSpace PointBundle.bundle.totalSpace
+      Sum.second Trivialization.projection Sum.secondContinuous Trivialization.continuous);
+\definition first[z: Product.CarrierSet]: LeftFamily.Point := Pair.first LeftFamily.Point PointFamily.Point z;
+\definition second[z: Product.CarrierSet]: PointFamily.Point := Pair.second LeftFamily.Point PointFamily.Point z;
+\definition firstContinuous: topology.Continuity[A := Product.CarrierSet, B := LeftFamily.Point].Continuous productTopology left.totalSpace first := Product.Maps[].firstContinuous left.totalSpace PointBundle.bundle.totalSpace;
+\definition secondContinuous: topology.Continuity[A := Product.CarrierSet, B := PointFamily.Point].Continuous productTopology PointBundle.bundle.totalSpace second := Product.Maps[].secondContinuous left.totalSpace PointBundle.bundle.totalSpace;
+\definition base[z: Product.CarrierSet]: X := (first z).base;
+\definition baseContinuous: topology.Continuity[A := Product.CarrierSet, B := X].Continuous productTopology right.baseSpace base :=
+  \idelim left.baseSpace = right.baseSpace \with t: Base.Topology => topology.Continuity[A := Product.CarrierSet, B := X].Continuous productTopology t base \by {
+    base: topology.Composition[A := Product.CarrierSet, B := LeftFamily.Point, C := X].composeContinuous productTopology left.totalSpace left.baseSpace first LeftFamily.projection firstContinuous LeftFamily.Of[bundle := left].projectionContinuous,
+    equality: sameBase
+  };
+\definition vector[z: Product.CarrierSet]: Bundles.Vector n := (second z).vector;
+\definition vectorContinuous: topology.Continuity[A := Product.CarrierSet, B := Bundles.Vector n].Continuous productTopology (Operations.coordinateTopology n) vector :=
+  topology.Composition[A := Product.CarrierSet, B := PointFamily.Point, C := Bundles.Vector n].composeContinuous productTopology PointBundle.bundle.totalSpace (Operations.coordinateTopology n)
+    second (\fun (p: PointFamily.Point) => p.vector) secondContinuous PointBundle.vectorContinuous;
+\import topological_constructions.Product[A := X, B := Bundles.Vector n] \as CoordinatesProduct;
+\definition coordinates[z: Product.CarrierSet]: CoordinatesProduct.CarrierSet := Pair.pair X (Bundles.Vector n) (base z) (vector z);
+\definition coordinatesContinuous: topology.Continuity[A := Product.CarrierSet, B := CoordinatesProduct.CarrierSet].Continuous productTopology (CoordinatesProduct.topology right.baseSpace (Operations.coordinateTopology n)) coordinates :=
+  CoordinatesProduct.Universal[X := Product.CarrierSet].pairContinuous productTopology right.baseSpace (Operations.coordinateTopology n) base vector baseContinuous vectorContinuous;
+\definition trivialPoint[z: Product.CarrierSet]: TrivialFamily.Point := TrivialFamily.include (base z) (vector z);
+\definition trivialContinuous: topology.Continuity[A := Product.CarrierSet, B := TrivialFamily.Point].Continuous productTopology Trivial.bundle.totalSpace trivialPoint :=
+  topology.Composition[A := Product.CarrierSet, B := CoordinatesProduct.CarrierSet, C := TrivialFamily.Point].composeContinuous productTopology (CoordinatesProduct.topology right.baseSpace (Operations.coordinateTopology n)) Trivial.bundle.totalSpace
+    coordinates Trivial.backward coordinatesContinuous Trivial.backwardContinuous;
+\import Bundles.Morphisms[X := X, Y := X, F := (\fun (_: X) => Bundles.Vector n), G := G, source := Trivial.bundle, target := right, f := \fun (x: X) => x] \as Inverse;
+\definition rightPoint[z: Product.CarrierSet]: RightFamily.Point := Inverse.total iso.backward (trivialPoint z);
+\definition rightContinuous: topology.Continuity[A := Product.CarrierSet, B := RightFamily.Point].Continuous productTopology right.totalSpace rightPoint :=
+  topology.Composition[A := Product.CarrierSet, B := TrivialFamily.Point, C := RightFamily.Point].composeContinuous productTopology Trivial.bundle.totalSpace right.totalSpace
+    trivialPoint (Inverse.total iso.backward) trivialContinuous (Inverse.continuous iso.backward);
+\definition leftEquation: first = (\fun (z: Product.CarrierSet) => Sum.first (backward z)) :=
+  \axiom:funext(first, (\fun (z: Product.CarrierSet) => Sum.first (backward z)), \fun (z: Product.CarrierSet) => sym!{{LeftFamily.Point}} _ _ (LeftFamily.eta (first z)));
+\definition backwardContinuous: topology.Continuity[A := Product.CarrierSet, B := SumFamily.Point].Continuous productTopology sum.totalSpace backward :=
+  Sum.Universal[Y := Product.CarrierSet].continuous productTopology backward
+    (\idelim first = (\fun (z: Product.CarrierSet) => Sum.first (backward z)) \with f: (Product.CarrierSet -> LeftFamily.Point) => topology.Continuity[A := Product.CarrierSet, B := LeftFamily.Point].Continuous productTopology left.totalSpace f \by {
+      base: firstContinuous, equality: leftEquation
+    }) rightContinuous;
+\module Inverses;
+\definition homeomorphism: topology.Homeomorphism[A := SumFamily.Point, B := Product.CarrierSet].Homeomorphism[sum.totalSpace, productTopology] :=
+  topology.Homeomorphism[A := SumFamily.Point, B := Product.CarrierSet].Homeomorphism[sum.totalSpace, productTopology] {
+    forward := forward, backward := backward, leftInverse := Inverses[].leftInverse, rightInverse := Inverses[].rightInverse,
+    forwardContinuous := forwardContinuous, backwardContinuous := backwardContinuous
+  };

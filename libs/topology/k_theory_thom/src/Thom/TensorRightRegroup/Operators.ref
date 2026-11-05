@@ -1,0 +1,27 @@
+\import Bundles.Identity[X := X, F := G, bundle := second] \as FirstIdentity;
+\import Bundles.Identity[X := X, F := H, bundle := third] \as SecondIdentity;
+\import \parent.With[a := partner, b := FirstIdentity.map, c := SecondIdentity.map] \as First;
+\import \parent.With[a := grading, b := firstOperator, c := secondOperator] \as Second;
+\import Operations.MapOperations[X := X, F := SourceFiber, G := SourceFiber, source := sourceBundle, target := sourceBundle] \as SourceMaps;
+\import Operations.MapOperations[X := X, F := TargetFiber, G := TargetFiber, source := targetBundle, target := targetBundle] \as TargetMaps;
+\definition source: SourceMaps.Map := SourceMaps.add First.source Second.source;
+\definition target: TargetMaps.Map := TargetMaps.add First.target Second.target;
+\definition commutes: \forall (x: X)(v: SourceFiber x) ->
+  (isomorphism.forward.fiber x).apply ((source.fiber x).apply v) =
+  (target.fiber x).apply ((isomorphism.forward.fiber x).apply v) :=
+  \fun (x: X)(v: SourceFiber x) => trans!{{TargetFiber x}} _ _ _
+    ((isomorphism.forward.fiber x).preservesAdd ((First.source.fiber x).apply v) ((Second.source.fiber x).apply v))
+    (congr!{{TargetFiber x} {TargetFiber x} {TargetFiber x}} (targetBundle.space x).add _ _ _ _ (First.commutes x v) (Second.commutes x v));
+
+\import std.Data[].Pair[] \as Pair;
+\definition rightSame: second.baseSpace = third.baseSpace := trans!{{topology.Topology[Carrier := X].Topology}} _ _ _ (sym!{{topology.Topology[Carrier := X].Topology}} _ _ sameSecond) sameThird;
+\import Operations.DirectSum[X := X, F := G, G := H, left := second, right := third] \as Sum;
+\definition sum: Bundles.Family[X := X, F := Sum.Fiber].Bundle := Sum.bundle rightSame;
+\import Operations.Tensor[X := X, F := F, G := Sum.Fiber, left := first, right := sum] \as Source;
+\definition onPure: \forall (x: X)(v: F x)(w: Sum.Fiber x) -> (source.fiber x).apply (Source.pure x v w) = (sourceBundle.space x).add
+  (Source.pure x ((partner.fiber x).apply v) w)
+  (Source.pure x ((grading.fiber x).apply v) ((Second.block.fiber x).apply w)) :=
+  \fun (x: X)(v: F x)(w: Sum.Fiber x) => trans!{{SourceFiber x}} _ _ _
+    (congr!{{SourceFiber x} {SourceFiber x} {SourceFiber x}} (sourceBundle.space x).add _ _ _ _ (First.onPure x v w) (Second.onPure x v w))
+    (congr!{{SourceFiber x} {SourceFiber x}} (\fun (u: SourceFiber x) => (sourceBundle.space x).add u (Source.pure x ((grading.fiber x).apply v) ((Second.block.fiber x).apply w))) _ _
+      (congr!{{Sum.Fiber x} {SourceFiber x}} (Source.pure x ((partner.fiber x).apply v)) _ _ (Pair.Prop[A := G x, B := H x].eta w)));

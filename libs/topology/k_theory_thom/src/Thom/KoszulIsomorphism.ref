@@ -1,0 +1,32 @@
+\import \root.Thom[].Koszul[X := X, F := F, bundle := left] \as Source;
+\import \root.Thom[].Koszul[X := X, F := G, bundle := right] \as Target;
+\import Bundles.Family[X := X, F := F] \as SourceFamily;
+\import Bundles.Family[X := X, F := G] \as TargetFamily;
+\import SourceFamily.Of[bundle := left] \as OriginalSource;
+\import TargetFamily.Of[bundle := right] \as OriginalTarget;
+\import Bundles.Isomorphisms[X := X, F := F, G := G, source := left, target := right] \as BundlesComparison;
+\definition homeomorphism: topology.Homeomorphism[A := Source.Total, B := Target.Total].Homeomorphism[left.totalSpace, right.totalSpace] :=
+  BundlesComparison.homeomorphism iso;
+\definition total: Source.Total -> Target.Total := homeomorphism.forward;
+\definition continuous: topology.Continuity[A := Source.Total, B := Target.Total].Continuous left.totalSpace right.totalSpace total := homeomorphism.forwardContinuous;
+\definition proper: compact_support_k.Support[].Proper[A := Source.Total, B := Target.Total, source := left.totalSpace, target := right.totalSpace].IsProper total :=
+  compact_support_k.Support[].Homeomorphic[A := Source.Total, B := Target.Total, source := left.totalSpace, target := right.totalSpace, h := homeomorphism].proper;
+\definition projectionRegular: topology.Continuity[A := Source.Total, B := X].Continuous left.totalSpace right.baseSpace SourceFamily.projection :=
+  \idelim left.baseSpace = right.baseSpace \with space: topology.Topology[Carrier := X].Topology =>
+    topology.Continuity[A := Source.Total, B := X].Continuous left.totalSpace space SourceFamily.projection \by {
+    base: OriginalSource.projectionContinuous, equality: sameBase
+  };
+\import bundle_complements.Complements[].Over[K := C.Complex, field := C.Algebra[].field,
+  conjugation := linear_algebra.Hermitian[].Complex[].scalar, scalar := Scalars.scalar] \as Complements;
+\import Complements.PulledIsomorphism[X := X, Y := Source.Total, F := F, G := G, source := left, target := right,
+  base := left.totalSpace, f := SourceFamily.projection, sourceRegular := OriginalSource.projectionContinuous,
+  targetRegular := projectionRegular] \as Direct;
+\import OriginalTarget.PullbackComposition[Y := Target.Total, Z := Source.Total, first := right.totalSpace, second := left.totalSpace,
+  f := TargetFamily.projection, g := total].Of[fRegular := OriginalTarget.projectionContinuous, gRegular := continuous] \as Path;
+\definition Vector[p: Source.Total]: \Set := G p.base;
+\import Operations.IsomorphismComposition[X := Source.Total, F := Source.Fiber, G := Vector, H := Vector,
+  source := Source.pulled, middle := Path.direct, target := Path.nested] \as Compose;
+\definition vectorIso: Bundles.Isomorphisms[X := Source.Total, F := Source.Fiber, G := Vector,
+  source := Source.pulled, target := Path.nested].Isomorphism := Compose.compose (Direct.isomorphism iso) Path.isomorphism;
+\module Degree(k: N.Nat^);
+\module Differential(k: N.Nat^);

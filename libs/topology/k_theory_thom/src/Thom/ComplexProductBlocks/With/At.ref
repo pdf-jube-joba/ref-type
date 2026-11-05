@@ -1,0 +1,31 @@
+\import \root.Thom[].ComplexProductClifford[V := Parity.LeftFiber x, W := Parity.RightFiber x,
+  firstSpace := Parity.leftBundle.space x, secondSpace := Parity.rightBundle.space x] \as Algebra;
+\import Algebra.With[c := Clifford.fiberData operators x, laws := operatorLaws x] \as Fiber;
+\import Fiber.Graded[grading := Grading.rightGrading.forward.fiber x, gradingSquare := Grading.rightSquare x, anticommutes := laws.secondAnti x] \as Graded;
+\import Spaces.Isomorphism[V := Parity.SourceFiber x, W := Parity.TargetFiber x,
+  source := Parity.sourceBundle.space x, target := Parity.targetBundle.space x] \as Decompositions;
+\definition decomposition: Decompositions.Isomorphism := Decompositions.Isomorphism {
+  forward := Parity.isomorphism.forward.fiber x, backward := Parity.isomorphism.backward.fiber x,
+  leftInverse := Parity.isomorphism.leftInverse x, rightInverse := Parity.isomorphism.rightInverse x
+};
+\import Graded.Decomposed[U := Parity.Even x, T := Parity.Odd x, even := Parity.evenBundle.space x, odd := Parity.oddBundle.space x, decomposition := decomposition] \as Blocks;
+\definition compatible: Blocks.Compatible := Grading.compatible x;
+\import Blocks.With[compatible := compatible] \as Raw;
+\import Operations.TensorEquality[V := Parity.LeftFiber x, W := Parity.RightFiber x, U := Parity.SourceFiber x,
+  left := Parity.leftBundle.space x, right := Parity.rightBundle.space x, target := Parity.sourceBundle.space x] \as EqualityOnPure;
+\definition operatorEquation: \forall (z: Parity.SourceFiber x) -> (Symbol.operator.fiber x).apply z = Fiber.operator.apply z :=
+  EqualityOnPure.pointwise (Symbol.operator.fiber x) Fiber.operator
+    (\fun (v: Parity.LeftFiber x)(w: Parity.RightFiber x) => trans!{{Parity.SourceFiber x}} _ _ _
+      (Symbol.onPure x v w) (sym!{{Parity.SourceFiber x}} _ _ (Fiber.onPure v w)));
+\definition forwardEquation: \forall (v: Parity.Even x) -> (forward.fiber x).apply v = Raw.rawForward.apply v :=
+  \fun (v: Parity.Even x) => congr!{{Parity.SourceFiber x} {Parity.Odd x}} (projectOdd.fiber x).apply _ _ (operatorEquation ((embedEven.fiber x).apply v));
+\definition backwardEquation: \forall (v: Parity.Odd x) -> (backward.fiber x).apply v = Raw.rawBackward.apply v :=
+  \fun (v: Parity.Odd x) => congr!{{Parity.SourceFiber x} {Parity.Even x}} (projectEven.fiber x).apply _ _ (operatorEquation ((embedOdd.fiber x).apply v));
+\definition evenSquare: \forall (v: Parity.Even x) -> (backward.fiber x).apply ((forward.fiber x).apply v) = (Parity.evenBundle.space x).smul (coefficient x) v :=
+  \fun (v: Parity.Even x) => trans!{{Parity.Even x}} _ _ _
+    (congr!{{Parity.Odd x} {Parity.Even x}} (backward.fiber x).apply _ _ (forwardEquation v))
+    (trans!{{Parity.Even x}} _ _ _ (backwardEquation (Raw.rawForward.apply v)) (Raw.rawSquareLeft v));
+\definition oddSquare: \forall (v: Parity.Odd x) -> (forward.fiber x).apply ((backward.fiber x).apply v) = (Parity.oddBundle.space x).smul (coefficient x) v :=
+  \fun (v: Parity.Odd x) => trans!{{Parity.Odd x}} _ _ _
+    (congr!{{Parity.Even x} {Parity.Odd x}} (forward.fiber x).apply _ _ (backwardEquation v))
+    (trans!{{Parity.Odd x}} _ _ _ (forwardEquation (Raw.rawBackward.apply v)) (Raw.rawSquareRight v));

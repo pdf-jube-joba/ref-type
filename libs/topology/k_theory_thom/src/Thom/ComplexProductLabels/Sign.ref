@@ -1,0 +1,29 @@
+\import Spaces.Sign[] \as ScalarSign;
+\import C.Def[] \as Op;
+\import C.Prop[] \as Scalars;
+\definition color: B.Bool^ -> C.Complex := \induction (side: B.Bool^) \return C.Complex \with {
+  | false: Op.neg Op.one
+  | true: Op.one
+};
+\definition flipColor: \forall (side: B.Bool^) -> color (Labels.flip side) = Op.neg (color side) :=
+  \induction (side: B.Bool^) \return color (Labels.flip side) = Op.neg (color side) \with {
+    | false: sym!{{C.Complex}} _ _ (ScalarSign.doubleNegative Op.one)
+    | true: \refl(Op.neg Op.one)
+  };
+\definition equation: \forall (n: N.Nat^)(s: Labels.Index n) ->
+  color (Labels.even n s) = Op.mul (ScalarSign.value n) (ScalarSign.value (Labels.degree n s)) :=
+  \induction (n: N.Nat^)(s: Labels.Index n) \return
+    color (Labels.even n s) = Op.mul (ScalarSign.value n) (ScalarSign.value (Labels.degree n s)) \with {
+      | head: \fun (n: N.Nat^) => sym!{{C.Complex}} _ _ (ScalarSign.square n)
+      | tail: \fun (n: N.Nat^)(s: Labels.Index n)(previous: _) => trans!{{C.Complex}} _ _ _
+        (flipColor (Labels.even n s))
+        (trans!{{C.Complex}} _ _ _ (congr!{{C.Complex} {C.Complex}} Op.neg _ _ previous)
+          (ScalarSign.negativeProduct (ScalarSign.value n) (ScalarSign.value (Labels.degree n s))))
+    };
+\definition atEven[n: N.Nat^][cutoffEven: ScalarSign.value n = Op.one][s: Labels.Index n]:
+  color (Labels.even n s) = ScalarSign.value (Labels.degree n s) :=
+  trans!{{C.Complex}} _ _ _ (equation n s)
+    (trans!{{C.Complex}} _ _ _
+      (congr!{{C.Complex} {C.Complex}} (\fun (a: C.Complex) => Op.mul a (ScalarSign.value (Labels.degree n s))) _ _ cutoffEven)
+      (Scalars.mulOneLeft (ScalarSign.value (Labels.degree n s))));
+\definition doubleStep[n: N.Nat^]: ScalarSign.value (N.Nat^::succ (N.Nat^::succ n)) = ScalarSign.value n := ScalarSign.doubleNegative (ScalarSign.value n);

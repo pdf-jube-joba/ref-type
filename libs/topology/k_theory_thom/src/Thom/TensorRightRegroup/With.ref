@@ -1,0 +1,29 @@
+\import std.Data[].Pair[] \as P;
+\definition rightSame: second.baseSpace = third.baseSpace := trans!{{topology.Topology[Carrier := X].Topology}} _ _ _ (sym!{{topology.Topology[Carrier := X].Topology}} _ _ sameSecond) sameThird;
+\import Operations.DirectSum[X := X, F := G, G := H, left := second, right := third] \as Sum;
+\definition sum: Bundles.Family[X := X, F := Sum.Fiber].Bundle := Sum.bundle rightSame;
+\import Sum.Of[same := rightSame].Mapping[Y := X, A := G, B := H, leftTarget := second, rightTarget := third,
+  f := (\fun (x: X) => x), targetSame := rightSame] \as Block;
+\definition block: Bundles.Morphisms[X := X, Y := X, F := Sum.Fiber, G := Sum.Fiber, source := sum, target := sum, f := (\fun (x: X) => x)].Map := Block.map b c;
+\import Operations.Tensor[X := X, F := F, G := Sum.Fiber, left := first, right := sum] \as Source;
+\import Source.Of[same := sameSecond].Mapping[Y := X, A := F, B := Sum.Fiber, leftTarget := first, rightTarget := sum,
+  f := (\fun (x: X) => x)].Of[targetSame := sameSecond] \as SourceMapping;
+\definition source: Bundles.Morphisms[X := X, Y := X, F := SourceFiber, G := SourceFiber, source := sourceBundle, target := sourceBundle, f := (\fun (x: X) => x)].Map := SourceMapping.map a block;
+\import Operations.Tensor[X := X, F := F, G := G, left := first, right := second] \as Left;
+\import Operations.Tensor[X := X, F := F, G := H, left := first, right := third] \as Right;
+\definition leftBundle: Bundles.Family[X := X, F := Left.Fiber].Bundle := Left.bundle sameSecond;
+\definition rightBundle: Bundles.Family[X := X, F := Right.Fiber].Bundle := Right.bundle sameThird;
+\import Left.Of[same := sameSecond].Mapping[Y := X, A := F, B := G, leftTarget := first, rightTarget := second,
+  f := (\fun (x: X) => x)].Of[targetSame := sameSecond] \as LeftMapping;
+\import Right.Of[same := sameThird].Mapping[Y := X, A := F, B := H, leftTarget := first, rightTarget := third,
+  f := (\fun (x: X) => x)].Of[targetSame := sameThird] \as RightMapping;
+\import Operations.DirectSum[X := X, F := Left.Fiber, G := Right.Fiber, left := leftBundle, right := rightBundle]
+  .Of[same := (\refl(first.baseSpace))].Mapping[Y := X, A := Left.Fiber, B := Right.Fiber, leftTarget := leftBundle, rightTarget := rightBundle,
+    f := (\fun (x: X) => x), targetSame := (\refl(first.baseSpace))] \as TargetMapping;
+\definition target: Bundles.Morphisms[X := X, Y := X, F := TargetFiber, G := TargetFiber, source := targetBundle, target := targetBundle, f := (\fun (x: X) => x)].Map := TargetMapping.map (LeftMapping.map a b) (RightMapping.map a c);
+\definition onPure: \forall (x: X)(v: F x)(w: Sum.Fiber x) -> (source.fiber x).apply (Source.pure x v w) =
+  Source.pure x ((a.fiber x).apply v) ((block.fiber x).apply w) := SourceMapping.onPure a block;
+\module At(x: X);
+\definition commutes: \forall (x: X)(v: SourceFiber x) ->
+  (isomorphism.forward.fiber x).apply ((source.fiber x).apply v) =
+  (target.fiber x).apply ((isomorphism.forward.fiber x).apply v) := \fun (x: X) => At[x := x].equation;

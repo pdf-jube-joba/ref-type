@@ -1,0 +1,67 @@
+\import \parent.Fiber[x := x] \as Fiber;
+\import \root.Thom[].ComplexProductClifford[V := Parity.LeftFiber x, W := Parity.RightFiber x,
+  firstSpace := Parity.leftBundle.space x, secondSpace := Parity.rightBundle.space x] \as Algebra;
+\import Algebra.With[c := Clifford.fiberData operators x, laws := Fiber.laws] \as PointSymbol;
+\import PointSymbol.Graded[grading := Grading.rightGrading.forward.fiber x,
+  gradingSquare := Grading.rightSquare x, anticommutes := Fiber.scaledAnti] \as PointGraded;
+\import Bundles.Isomorphisms[X := X, F := Parity.SourceFiber, G := Parity.TargetFiber,
+  source := Parity.sourceBundle, target := Parity.targetBundle] \as Decompositions;
+\definition decomposition: Spaces.Isomorphism[V := Parity.SourceFiber x, W := Parity.TargetFiber x,
+  source := Parity.sourceBundle.space x, target := Parity.targetBundle.space x].Isomorphism :=
+  Spaces.Isomorphism[V := Parity.SourceFiber x, W := Parity.TargetFiber x,
+    source := Parity.sourceBundle.space x, target := Parity.targetBundle.space x].Isomorphism {
+    forward := Parity.isomorphism.forward.fiber x, backward := Parity.isomorphism.backward.fiber x,
+    leftInverse := (\bysub(Decompositions.Data, Decompositions.Isomorphism, Parity.isomorphism)).leftInverse x,
+    rightInverse := (\bysub(Decompositions.Data, Decompositions.Isomorphism, Parity.isomorphism)).rightInverse x
+  };
+\import PointGraded.Decomposed[U := Parity.Even x, T := Parity.Odd x, even := Parity.evenBundle.space x,
+  odd := Parity.oddBundle.space x, decomposition := decomposition] \as Decomposed;
+\definition compatible: Decomposed.Compatible := Grading.compatible x;
+\import Decomposed.With[compatible := compatible] \as Blocks;
+\import Symbol.At[x := x] \as Global;
+\import Operations.Tensor[X := X, F := Parity.LeftFiber, G := Parity.RightFiber,
+  left := Parity.leftBundle, right := Parity.rightBundle] \as Tensor;
+\import Tensor.Of[same := sameAuxiliary].Mapping[Y := X, A := Parity.LeftFiber, B := Parity.RightFiber,
+  leftTarget := Parity.leftBundle, rightTarget := Parity.rightBundle, f := (\fun (x: X) => x)].Of[targetSame := sameAuxiliary] \as Mapping;
+\import Bundles.Identity[X := X, F := Parity.RightFiber, bundle := Parity.rightBundle] \as Identity;
+\import Spaces.Tensor[V := Parity.LeftFiber x, W := Parity.RightFiber x,
+  left := Parity.leftBundle.space x, right := Parity.rightBundle.space x] \as Native;
+\import Operations.TensorEquality[V := Parity.LeftFiber x, W := Parity.RightFiber x, U := Parity.SourceFiber x,
+  left := Parity.leftBundle.space x, right := Parity.rightBundle.space x, target := Parity.sourceBundle.space x] \as EqualityOnPure;
+\definition fullEquation: \forall (v: Parity.SourceFiber x) -> (operator.fiber x).apply v = (rawTotal.fiber x).apply v :=
+  EqualityOnPure.pointwise (operator.fiber x) (rawTotal.fiber x)
+    (\fun (v: Parity.LeftFiber x)(w: Parity.RightFiber x) => trans!{{Parity.SourceFiber x}} _ _ _ (Symbol.onPure x v w)
+      (trans!{{Parity.SourceFiber x}} _ _ _
+        (congr!{{Parity.SourceFiber x} {Parity.SourceFiber x}} (\fun (z: Parity.SourceFiber x) => Native.plus (Native.tensor ((data.partner.fiber x).apply v) w) z) _ _
+          (Native.bilinear.scaleRight (scalar x) ((Grading.leftGrading.forward.fiber x).apply v) ((flip.fiber x).apply w)))
+        (sym!{{Parity.SourceFiber x}} _ _
+          (congr!{{Parity.SourceFiber x} {Parity.SourceFiber x} {Parity.SourceFiber x}} Native.plus _ _ _ _
+            (Mapping.onPure data.partner Identity.map x v w)
+            (congr!{{Parity.SourceFiber x} {Parity.SourceFiber x}} (Native.scale (scalar x)) _ _ (Mapping.onPure Grading.leftGrading.forward flip x v w))))));
+\definition forwardFormula[v: Parity.Even x]: Blocks.rawForward.apply v = (rawForward.fiber x).apply v :=
+  trans!{{Parity.Odd x}} _ _ _
+    (congr!{{Parity.SourceFiber x} {Parity.Odd x}} (Raw.projectOdd.fiber x).apply _ _
+      (trans!{{Parity.SourceFiber x}} _ _ _ (sym!{{Parity.SourceFiber x}} _ _ (Global.equation ((Raw.embedEven.fiber x).apply v))) (fullEquation ((Raw.embedEven.fiber x).apply v))))
+    (trans!{{Parity.Odd x}} _ _ _
+      ((Raw.projectOdd.fiber x).preservesAdd
+        ((Raw.left.fiber x).apply ((Raw.embedEven.fiber x).apply v))
+        ((Parity.sourceBundle.space x).smul (scalar x) ((Raw.right.fiber x).apply ((Raw.embedEven.fiber x).apply v))))
+      (congr!{{Parity.Odd x} {Parity.Odd x}} (\fun (z: Parity.Odd x) => (Parity.oddBundle.space x).add ((LeftBlock.forward.fiber x).apply v) z) _ _
+        ((Raw.projectOdd.fiber x).preservesScale (scalar x) ((Raw.right.fiber x).apply ((Raw.embedEven.fiber x).apply v)))));
+\definition backwardFormula[v: Parity.Odd x]: Blocks.rawBackward.apply v = (rawBackward.fiber x).apply v :=
+  trans!{{Parity.Even x}} _ _ _
+    (congr!{{Parity.SourceFiber x} {Parity.Even x}} (Raw.projectEven.fiber x).apply _ _
+      (trans!{{Parity.SourceFiber x}} _ _ _ (sym!{{Parity.SourceFiber x}} _ _ (Global.equation ((Raw.embedOdd.fiber x).apply v))) (fullEquation ((Raw.embedOdd.fiber x).apply v))))
+    (trans!{{Parity.Even x}} _ _ _
+      ((Raw.projectEven.fiber x).preservesAdd
+        ((Raw.left.fiber x).apply ((Raw.embedOdd.fiber x).apply v))
+        ((Parity.sourceBundle.space x).smul (scalar x) ((Raw.right.fiber x).apply ((Raw.embedOdd.fiber x).apply v))))
+      (congr!{{Parity.Even x} {Parity.Even x}} (\fun (z: Parity.Even x) => (Parity.evenBundle.space x).add ((LeftBlock.backward.fiber x).apply v) z) _ _
+        ((Raw.projectEven.fiber x).preservesScale (scalar x) ((Raw.right.fiber x).apply ((Raw.embedOdd.fiber x).apply v)))));
+\definition norm: C.Complex := Scalar.add (operators.a x) (operators.b x);
+\definition squareLeft[v: Parity.Even x]: (rawBackward.fiber x).apply ((rawForward.fiber x).apply v) = (Parity.evenBundle.space x).smul norm v :=
+  trans!{{Parity.Even x}} _ _ _ (sym!{{Parity.Even x}} _ _ (backwardFormula ((rawForward.fiber x).apply v)))
+    (trans!{{Parity.Even x}} _ _ _ (congr!{{Parity.Odd x} {Parity.Even x}} Blocks.rawBackward.apply _ _ (sym!{{Parity.Odd x}} _ _ (forwardFormula v))) (Blocks.rawSquareLeft v));
+\definition squareRight[v: Parity.Odd x]: (rawForward.fiber x).apply ((rawBackward.fiber x).apply v) = (Parity.oddBundle.space x).smul norm v :=
+  trans!{{Parity.Odd x}} _ _ _ (sym!{{Parity.Odd x}} _ _ (forwardFormula ((rawBackward.fiber x).apply v)))
+    (trans!{{Parity.Odd x}} _ _ _ (congr!{{Parity.Even x} {Parity.Odd x}} Blocks.rawForward.apply _ _ (sym!{{Parity.Even x}} _ _ (backwardFormula v))) (Blocks.rawSquareRight v));

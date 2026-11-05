@@ -1,0 +1,16 @@
+\import \parent.\parent.Other[a := a, b := b] \as MixedCoefficients;
+\import \parent.\parent.\parent.\parent.At[p := a, q := b] \as Other;
+\import Spaces.Tensor[V := Left.Form a, W := Right.Form b, left := LeftForms.At[k := a].vectorSpace, right := RightForms.At[k := b].vectorSpace] \as OtherTensor;
+\import Exterior.Regrade[k := Nat.add a b, l := k] \as OtherRegrade;
+\definition coefficientEquation: \forall (omega: Exterior.Form (Nat.add a b)) -> coefficient (convert.apply (OtherRegrade.cast omega otherDegree)) = MixedCoefficients.coefficient omega :=
+  \fun (omega: Exterior.Form (Nat.add a b)) => \axiom:funext(coefficient (convert.apply (OtherRegrade.cast omega otherDegree)), MixedCoefficients.coefficient omega,
+    \fun (index: Frame.Index) => trans!{{C.Complex}} _ _ _
+      (congr!{{Shuffle.Function} {C.Complex}} (\fun (f: Shuffle.Function) => f (arguments index)) _ _
+        (Regrade.series (OtherRegrade.cast omega otherDegree) (sym!{{N.Nat^}} _ _ degree)))
+      (congr!{{Shuffle.Function} {C.Complex}} (\fun (f: Shuffle.Function) => f (arguments index)) _ _ (OtherRegrade.series omega otherDegree)));
+\definition vanishes: \forall (different: Logic.Not (p = a))(t: OtherTensor.Carrier) ->
+  backward.apply (OtherRegrade.cast (Other.tensor.apply t) otherDegree) = Tensor.space.zero :=
+  \fun (different: Logic.Not (p = a))(t: OtherTensor.Carrier) => trans!{{Tensor.Carrier}} _ _ _
+    (congr!{{Coefficients.Vector} {Tensor.Carrier}} Frame.synthesis _ _
+      (trans!{{Coefficients.Vector}} _ _ _ (coefficientEquation (Other.tensor.apply t)) (MixedCoefficients.vanishes different t)))
+    (Frame.Decoding[].backward.preservesZero);

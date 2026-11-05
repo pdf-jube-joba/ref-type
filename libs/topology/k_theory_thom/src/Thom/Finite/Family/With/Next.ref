@@ -1,0 +1,34 @@
+\definition oldComplex: Chains.Complex := complex n;
+\definition consecutive: \forall (x: X)(v: Models.Fiber (term (N.Nat^::succ n)).ranks x) ->
+  ((parity oldComplex).forward.fiber x).apply (((parity oldComplex).inclusion.fiber x).apply (((differential n).fiber x).apply v)) =
+    ((Models.bundle (parity oldComplex).odd).space x).zero :=
+  \fun (x: X)(v: Models.Fiber (term (N.Nat^::succ n)).ranks x) =>
+    previous.backwardCriterion x (((differential n).fiber x).apply v) (closedDifferential n x v);
+\definition exactHead: \forall (x: X) -> \In[X] domain x -> \forall (a: Head oldComplex x) ->
+  ((parity oldComplex).forward.fiber x).apply (((parity oldComplex).inclusion.fiber x).apply a) = ((Models.bundle (parity oldComplex).odd).space x).zero ->
+  \exists (v: Models.Fiber (term (N.Nat^::succ n)).ranks x \where ((differential n).fiber x).apply v = a) :=
+  \fun (x: X)(member: \In[X] domain x)(a: Head oldComplex x)(closed: _) => exact n x member a (previous.forwardCriterion x a closed);
+\import \root.Thom[].Finite[X := X, baseSpace := baseSpace].Step[first := term (N.Nat^::succ n),
+  previous := oldComplex, domain := domain, tail := previous.partial, differential := differential n,
+  consecutive := consecutive, exactHead := exactHead] \as Build;
+\definition forwardCriterion: \forall (x: X)(a: Models.Fiber (term (N.Nat^::succ n)).ranks x) ->
+  (Build.next.forward.fiber x).apply ((Build.next.inclusion.fiber x).apply a) = ((Models.bundle Build.next.odd).space x).zero ->
+  Closed (N.Nat^::succ n) x a :=
+  \fun (x: X)(a: Models.Fiber (term (N.Nat^::succ n)).ranks x)(closed: _) =>
+    trans!{{Head oldComplex x}} _ _ _
+      (sym!{{Head oldComplex x}} _ _ (previous.partial.projectInclusion x (((differential n).fiber x).apply a)))
+      (trans!{{Head oldComplex x}} _ _ _
+        (congr!{{Build.W x} {Head oldComplex x}} (previous.partial.projection.fiber x).apply _ _
+          (trans!{{Build.W x}} _ _ _ (sym!{{Build.W x}} _ _ (Build.forwardHead x a)) closed))
+        (previous.partial.projection.fiber x).preservesZero);
+\definition backwardCriterion: \forall (x: X)(a: Models.Fiber (term (N.Nat^::succ n)).ranks x) -> Closed (N.Nat^::succ n) x a ->
+  (Build.next.forward.fiber x).apply ((Build.next.inclusion.fiber x).apply a) = ((Models.bundle Build.next.odd).space x).zero :=
+  \fun (x: X)(a: Models.Fiber (term (N.Nat^::succ n)).ranks x)(closed: _) =>
+    trans!{{Build.W x}} _ _ _ (Build.forwardHead x a)
+      (trans!{{Build.W x}} _ _ _ (congr!{{Head oldComplex x} {Build.W x}} ((parity oldComplex).inclusion.fiber x).apply _ _ closed)
+        ((parity oldComplex).inclusion.fiber x).preservesZero);
+\definition result: State[N.Nat^::succ n] := State[N.Nat^::succ n] {
+  partial := Build.Exact[].result,
+  forwardCriterion := forwardCriterion,
+  backwardCriterion := backwardCriterion
+};

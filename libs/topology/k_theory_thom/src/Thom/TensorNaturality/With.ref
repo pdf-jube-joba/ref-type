@@ -1,0 +1,21 @@
+\import Bundles.Identity[X := X, F := G, bundle := second] \as SourceIdentity;
+\import Bundles.Identity[X := X, F := B, bundle := newSecond] \as TargetIdentity;
+\import Source.Of[same := sameSource].Mapping[Y := X, A := F, B := G, leftTarget := first, rightTarget := second,
+  f := (\fun (x: X) => x)].Of[targetSame := sameSource] \as SourceMapping;
+\import Target.Of[same := sameTarget].Mapping[Y := X, A := A, B := B, leftTarget := newFirst, rightTarget := newSecond,
+  f := (\fun (x: X) => x)].Of[targetSame := sameTarget] \as TargetMapping;
+\import Operations.MapOperations[X := X, F := Source.Fiber, G := Source.Fiber, source := sourceBundle, target := sourceBundle] \as SourceMaps;
+\import Operations.MapOperations[X := X, F := Target.Fiber, G := Target.Fiber, source := targetBundle, target := targetBundle] \as TargetMaps;
+\definition source: SourceMaps.Map := SourceMaps.add (SourceMapping.map c.sourceFirst SourceIdentity.map) (SourceMapping.map c.sourceGrading c.sourceSecond);
+\definition target: TargetMaps.Map := TargetMaps.add (TargetMapping.map c.targetFirst TargetIdentity.map) (TargetMapping.map c.targetGrading c.targetSecond);
+\definition sourceOnPure[x: X][v: F x][w: G x]: (source.fiber x).apply (Source.pure x v w) = (sourceBundle.space x).add
+  (Source.pure x ((c.sourceFirst.fiber x).apply v) w) (Source.pure x ((c.sourceGrading.fiber x).apply v) ((c.sourceSecond.fiber x).apply w)) :=
+  congr!{{Source.Fiber x} {Source.Fiber x} {Source.Fiber x}} (sourceBundle.space x).add _ _ _ _
+    (SourceMapping.onPure c.sourceFirst SourceIdentity.map x v w) (SourceMapping.onPure c.sourceGrading c.sourceSecond x v w);
+\definition targetOnPure[x: X][v: A x][w: B x]: (target.fiber x).apply (Target.pure x v w) = (targetBundle.space x).add
+  (Target.pure x ((c.targetFirst.fiber x).apply v) w) (Target.pure x ((c.targetGrading.fiber x).apply v) ((c.targetSecond.fiber x).apply w)) :=
+  congr!{{Target.Fiber x} {Target.Fiber x} {Target.Fiber x}} (targetBundle.space x).add _ _ _ _
+    (TargetMapping.onPure c.targetFirst TargetIdentity.map x v w) (TargetMapping.onPure c.targetGrading c.targetSecond x v w);
+\module At(x: X);
+\definition commutes: \forall (x: X)(v: Source.Fiber x) -> (isomorphism.forward.fiber x).apply ((source.fiber x).apply v) =
+  (target.fiber x).apply ((isomorphism.forward.fiber x).apply v) := \fun (x: X) => At[x := x].equation;

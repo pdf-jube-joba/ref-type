@@ -1,0 +1,24 @@
+\definition k: N.Nat^ := Labels.degree degree r;
+\import \root.Thom[].Sum[V := F x, W := G x, left := left.space x, right := right.space x].DirectSum[k := k] \as Direct;
+\import Spaces.Linear[V := Models.Fiber (totalTerm k).ranks x, W := Target side,
+  source := (Models.bundle (totalTerm k)).space x, target := targetSpace side].Composition[U := Native k x, domain := (native k).space x] \as Encode;
+\definition embedding: Spaces.Linear[V := Native k x, W := Target side, source := (native k).space x, target := targetSpace side].Map :=
+  Encode.compose ((Total.at degree r side color).fiber x) ((data.total k).isomorphism.forward.fiber x);
+\import Spaces.Linear[V := Target side, W := Target side, source := targetSpace side, target := targetSpace side].Composition[U := Native k x, domain := (native k).space x] \as After;
+\definition composite: Spaces.Linear[V := Native k x, W := Target side, source := (native k).space x, target := targetSpace side].Map := After.compose ((candidate side).fiber x) embedding;
+\import Modules.Hom[V := Direct.Carrier, W := Target side, source := Direct.space, target := targetSpace side] \as NativeMaps;
+\definition firstMap: NativeMaps.Map := NativeMaps.Map { apply := composite.apply, addition := composite.preservesAdd, scalar := composite.preservesScale };
+\definition secondMap: NativeMaps.Map := NativeMaps.Map { apply := embedding.apply, addition := embedding.preservesAdd, scalar := embedding.preservesScale };
+\module Component(p, q: N.Nat^, decomposition: Nat.add p q = k);
+\module Factor(d: Direct.Bidegree);
+\import Modules.DirectSum[Index := Direct.Bidegree, family := Direct.family].To[W := Target side, target := targetSpace side] \as Determine;
+\definition equality: firstMap = secondMap := Determine.ext firstMap secondMap (\fun (d: Direct.Bidegree) => Factor[d := d].equation);
+\definition nativeEquation[u: Native k x]: composite.apply u = embedding.apply u :=
+  congr!{NativeMaps.Map {Target side}} (\fun (f: NativeMaps.Map) => f.apply u) _ _ equality;
+\definition equation: \forall (v: Models.Fiber (totalTerm k).ranks x) -> Fixed side (((Total.at degree r side color).fiber x).apply v) :=
+  \fun (v: Models.Fiber (totalTerm k).ranks x) => trans!{{Target side}} _ _ _
+    (congr!{{Models.Fiber (totalTerm k).ranks x} {Target side}}
+      (\fun (w: Models.Fiber (totalTerm k).ranks x) => ((candidate side).fiber x).apply (((Total.at degree r side color).fiber x).apply w)) _ _
+      (sym!{{Models.Fiber (totalTerm k).ranks x}} _ _ ((data.total k).isomorphism.rightInverse x v)))
+    (trans!{{Target side}} _ _ _ (nativeEquation (((data.total k).isomorphism.backward.fiber x).apply v))
+      (congr!{{Models.Fiber (totalTerm k).ranks x} {Target side}} ((Total.at degree r side color).fiber x).apply _ _ ((data.total k).isomorphism.rightInverse x v)));

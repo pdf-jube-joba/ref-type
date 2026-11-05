@@ -1,0 +1,59 @@
+\import \parent.\parent.\parent.At[p := a, q := b] \as Other;
+\import Spaces.Tensor[V := Left.Form a, W := Right.Form b, left := LeftForms.At[k := a].vectorSpace, right := RightForms.At[k := b].vectorSpace] \as OtherTensor;
+\import Forms.At[k := Nat.add a b] \as OtherForms;
+\import Spaces.Linear[V := Exterior.Form (Nat.add a b), W := Coefficients.Vector, source := OtherForms.vectorSpace, target := Coefficients.space] \as Maps;
+\definition coefficient[omega: Exterior.Form (Nat.add a b)]: Coefficients.Vector :=
+  \fun (index: Frame.Index) => Exterior.component (Nat.add a b) omega (arguments index);
+\definition coefficients: Maps.Map := Maps.Map {
+  apply := coefficient,
+  preservesAdd := \fun (omega, eta: Exterior.Form (Nat.add a b)) => \axiom:funext(coefficient (OtherForms.plus omega eta), Coefficients.plus (coefficient omega) (coefficient eta),
+    \fun (index: Frame.Index) => Exterior.Components[k := Nat.add a b].addition omega eta (arguments index)),
+  preservesScale := \fun (c: C.Complex)(omega: Exterior.Form (Nat.add a b)) => \axiom:funext(coefficient (OtherForms.scale c omega), Coefficients.scale c (coefficient omega),
+    \fun (index: Frame.Index) => Exterior.Components[k := Nat.add a b].scalar c omega (arguments index))
+};
+\definition onPair: \forall (omega: Left.Form a)(eta: Right.Form b)(index: Frame.Index) ->
+  coefficient (Other.apply omega eta) index =
+  Op.mul (Left.component a omega (firstList (Frame.i index))) (Right.component b eta (secondList (Frame.j index))) :=
+  \fun (omega: Left.Form a)(eta: Right.Form b)(index: Frame.Index) => trans!{{C.Complex}} _ _ _
+    (congr!{{Shuffle.Function} {C.Complex}} (\fun (f: Shuffle.Function) => f (arguments index)) _ _ (Other.series omega eta))
+    (Mixed.equation (firstList (Frame.i index)) (secondList (Frame.j index)) (Left.component a omega) (Right.component b eta)
+      (Spaces.Multilinear[V := V, space := left].ListSeries[k := a].linear (LeftForms.asMultilinear a omega))
+      (Spaces.Multilinear[V := W, space := right].ListSeries[k := b].linear (RightForms.asMultilinear b eta)));
+\definition wrongLeft: \forall (different: Logic.Not (p = a))(omega: Left.Form a)(eta: Right.Form b) ->
+  coefficient (Other.apply omega eta) = Coefficients.space.zero :=
+  \fun (different: Logic.Not (p = a))(omega: Left.Form a)(eta: Right.Form b) =>
+    \axiom:funext(coefficient (Other.apply omega eta), Coefficients.space.zero, \fun (index: Frame.Index) => trans!{{C.Complex}} _ _ _
+      (onPair omega eta index)
+      (trans!{{C.Complex}} _ _ _
+        (congr!{{C.Complex} {C.Complex}} (\fun (x: C.Complex) => Op.mul x (Right.component b eta (secondList (Frame.j index)))) _ _
+          (Spaces.Multilinear[V := V, space := left].ListSeries[k := a].outside omega (firstList (Frame.i index))
+            (\fun (equal: Lists.length V (firstList (Frame.i index)) = a) => different
+              (trans!{{N.Nat^}} _ _ _ (sym!{{N.Nat^}} _ _ (FirstLists.listLength p (firstArguments (Frame.i index)))) equal))))
+        (Laws.mulZeroLeft (Right.component b eta (secondList (Frame.j index))))));
+\import Maps.Composition[U := OtherTensor.Carrier, domain := OtherTensor.space] \as Composition;
+\definition onTensor: Spaces.Linear[V := OtherTensor.Carrier, W := Coefficients.Vector, source := OtherTensor.space, target := Coefficients.space].Map :=
+  Composition.compose coefficients Other.tensor;
+\import OtherTensor.Universal[U := Coefficients.Vector, target := Coefficients.space] \as Universal;
+\definition zeroBilinear: OtherTensor.BilinearLaws[Coefficients.Vector, Coefficients.space, \fun (omega: Left.Form a)(eta: Right.Form b) => Coefficients.space.zero] :=
+  OtherTensor.BilinearLaws[Coefficients.Vector, Coefficients.space, \fun (omega: Left.Form a)(eta: Right.Form b) => Coefficients.space.zero] {
+    addLeft := \fun (omega, omega2: Left.Form a)(eta: Right.Form b) => \axiom:funext(Coefficients.space.zero, Coefficients.plus Coefficients.space.zero Coefficients.space.zero, \fun (index: Frame.Index) => sym!{{C.Complex}} _ _ (Laws.addZeroLeft Op.zero)),
+    addRight := \fun (omega: Left.Form a)(eta, eta2: Right.Form b) => \axiom:funext(Coefficients.space.zero, Coefficients.plus Coefficients.space.zero Coefficients.space.zero, \fun (index: Frame.Index) => sym!{{C.Complex}} _ _ (Laws.addZeroLeft Op.zero)),
+    scaleLeft := \fun (c: C.Complex)(omega: Left.Form a)(eta: Right.Form b) => \axiom:funext(Coefficients.space.zero, Coefficients.scale c Coefficients.space.zero, \fun (index: Frame.Index) => sym!{{C.Complex}} _ _ (Laws.mulZeroRight c)),
+    scaleRight := \fun (c: C.Complex)(omega: Left.Form a)(eta: Right.Form b) => \axiom:funext(Coefficients.space.zero, Coefficients.scale c Coefficients.space.zero, \fun (index: Frame.Index) => sym!{{C.Complex}} _ _ (Laws.mulZeroRight c))
+  };
+\definition zeroMap: Spaces.Linear[V := OtherTensor.Carrier, W := Coefficients.Vector, source := OtherTensor.space, target := Coefficients.space].Map :=
+  Spaces.Linear[V := OtherTensor.Carrier, W := Coefficients.Vector, source := OtherTensor.space, target := Coefficients.space].Map {
+    apply := \fun (t: OtherTensor.Carrier) => Coefficients.space.zero,
+    preservesAdd := \fun (s, t: OtherTensor.Carrier) => \axiom:funext(Coefficients.space.zero, Coefficients.plus Coefficients.space.zero Coefficients.space.zero, \fun (index: Frame.Index) => sym!{{C.Complex}} _ _ (Laws.addZeroLeft Op.zero)),
+    preservesScale := \fun (c: C.Complex)(t: OtherTensor.Carrier) => \axiom:funext(Coefficients.space.zero, Coefficients.scale c Coefficients.space.zero, \fun (index: Frame.Index) => sym!{{C.Complex}} _ _ (Laws.mulZeroRight c))
+  };
+\definition vanishes: \forall (different: Logic.Not (p = a))(t: OtherTensor.Carrier) -> coefficient (Other.tensor.apply t) = Coefficients.space.zero :=
+  \fun (different: Logic.Not (p = a))(t: OtherTensor.Carrier) => congr!{{OtherTensor.Carrier -> Coefficients.Vector} {Coefficients.Vector}}
+    (\fun (f: OtherTensor.Carrier -> Coefficients.Vector) => f t) _ _
+    (trans!{{OtherTensor.Carrier -> Coefficients.Vector}} _ _ _
+      (Universal.unique (\fun (omega: Left.Form a)(eta: Right.Form b) => Coefficients.space.zero) zeroBilinear onTensor
+        (\fun (omega: Left.Form a)(eta: Right.Form b) => trans!{{Coefficients.Vector}} _ _ _
+          (congr!{{Exterior.Form (Nat.add a b)} {Coefficients.Vector}} coefficient _ _ (Other.onTensor omega eta)) (wrongLeft different omega eta)))
+      (sym!{{OtherTensor.Carrier -> Coefficients.Vector}} _ _
+        (Universal.unique (\fun (omega: Left.Form a)(eta: Right.Form b) => Coefficients.space.zero) zeroBilinear zeroMap
+          (\fun (omega: Left.Form a)(eta: Right.Form b) => \refl(Coefficients.space.zero)))));

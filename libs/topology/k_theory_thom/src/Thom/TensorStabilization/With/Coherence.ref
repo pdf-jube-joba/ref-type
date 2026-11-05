@@ -1,0 +1,60 @@
+\import std.Data[].Pair[] \as P;
+\import Operations.Tensor[X := X, F := Source.LeftFiber, G := Source.RightFiber, left := Source.leftBundle, right := Source.rightBundle] \as Native;
+\import Operations.Tensor[X := X, F := Original.LeftFiber, G := Source.RightFiber, left := Original.leftBundle, right := Source.rightBundle] \as OriginalTensor;
+\import Operations.Tensor[X := X, F := Auxiliary.LeftFiber, G := Source.RightFiber, left := Auxiliary.leftBundle, right := Source.rightBundle] \as AuxiliaryTensor;
+\definition a[v: Source.LeftFiber x]: E0 x := P.first (E0 x) (H x) (P.first (StableEven.Fiber x) (StableOdd.Fiber x) v);
+\definition h[v: Source.LeftFiber x]: H x := P.second (E0 x) (H x) (P.first (StableEven.Fiber x) (StableOdd.Fiber x) v);
+\definition b[v: Source.LeftFiber x]: E1 x := P.first (E1 x) (H x) (P.second (StableEven.Fiber x) (StableOdd.Fiber x) v);
+\definition j[v: Source.LeftFiber x]: H x := P.second (E1 x) (H x) (P.second (StableEven.Fiber x) (StableOdd.Fiber x) v);
+\definition c[w: Source.RightFiber x]: F0 x := P.first (F0 x) (F1 x) w;
+\definition z[w: Source.RightFiber x]: F1 x := P.second (F0 x) (F1 x) w;
+\definition raw[v: Source.LeftFiber x][w: Source.RightFiber x]: Distribution.TargetFiber x :=
+  P.pair (Original.SourceFiber x) (Auxiliary.SourceFiber x)
+    (OriginalTensor.pure x (P.pair (E0 x) (E1 x) (a v) (b v)) w)
+    (AuxiliaryTensor.pure x (P.pair (H x) (H x) (h v) (j v)) w);
+\definition fullOnPure: \forall (v: Source.LeftFiber x)(w: Source.RightFiber x) ->
+  (fullIso.forward.fiber x).apply (Native.pure x v w) = raw v w :=
+  \fun (v: Source.LeftFiber x)(w: Source.RightFiber x) => trans!{{Distribution.TargetFiber x}} _ _ _
+    (congr!{{Distribution.SourceFiber x} {Distribution.TargetFiber x}} (Distribution.isomorphism.forward.fiber x).apply _ _ (Naturality.onPure x v w))
+    (\root.Thom[].ComplexProductDistribution[X := X, F := Original.LeftFiber, G := Auxiliary.LeftFiber, H := Source.RightFiber,
+      first := Original.leftBundle, second := Auxiliary.leftBundle, third := Source.rightBundle, sameSecond := sameAuxiliary, sameThird := sameF0]
+      .onPure x ((FactorGeometry.isomorphism.forward.fiber x).apply v) w);
+\definition form[v: Source.LeftFiber x][w: Source.RightFiber x]: Shuffle.TargetFiber x := P.pair (Even.Fiber x) (Odd.Fiber x)
+  (P.pair (Original.Even x) (Auxiliary.Even x)
+    (P.pair (Original.EEFiber x) (Original.OOFiber x) (Original.ee x (a v) (c w)) (Original.oo x (b v) (z w)))
+    (P.pair (Auxiliary.EEFiber x) (Auxiliary.OOFiber x) (Auxiliary.ee x (h v) (c w)) (Auxiliary.oo x (j v) (z w))))
+  (P.pair (Original.Odd x) (Auxiliary.Odd x)
+    (P.pair (Original.EOFiber x) (Original.OEFiber x) (Original.eo x (a v) (z w)) (Original.oe x (b v) (c w)))
+    (P.pair (Auxiliary.EOFiber x) (Auxiliary.OEFiber x) (Auxiliary.eo x (h v) (z w)) (Auxiliary.oe x (j v) (c w))));
+\definition leftPure: \forall (v: Source.LeftFiber x)(w: Source.RightFiber x) ->
+  (targetDecomposition.forward.fiber x).apply ((fullIso.forward.fiber x).apply (Native.pure x v w)) = form v w :=
+  \fun (v: Source.LeftFiber x)(w: Source.RightFiber x) => trans!{{Shuffle.TargetFiber x}} _ _ _
+    (congr!{{Distribution.TargetFiber x} {Shuffle.TargetFiber x}} (targetDecomposition.forward.fiber x).apply _ _ (fullOnPure v w))
+    (trans!{{Shuffle.TargetFiber x}} _ _ _
+      (congr!{{Parts.TargetFiber x} {Shuffle.TargetFiber x}} (Shuffle.isomorphism.forward.fiber x).apply _ _
+        (P.Prop[A := Original.TargetFiber x, B := Auxiliary.TargetFiber x].pairCong _ _ _ _
+          (Original.onPure x (P.pair (E0 x) (E1 x) (a v) (b v)) w)
+          (Auxiliary.onPure x (P.pair (H x) (H x) (h v) (j v)) w)))
+      (Shuffle.formula x
+        (P.pair (Original.EEFiber x) (Original.OOFiber x) (Original.ee x (a v) (c w)) (Original.oo x (b v) (z w)))
+        (P.pair (Original.EOFiber x) (Original.OEFiber x) (Original.eo x (a v) (z w)) (Original.oe x (b v) (c w)))
+        (P.pair (Auxiliary.EEFiber x) (Auxiliary.OOFiber x) (Auxiliary.ee x (h v) (c w)) (Auxiliary.oo x (j v) (z w)))
+        (P.pair (Auxiliary.EOFiber x) (Auxiliary.OEFiber x) (Auxiliary.eo x (h v) (z w)) (Auxiliary.oe x (j v) (c w)))));
+\definition rightPure: \forall (v: Source.LeftFiber x)(w: Source.RightFiber x) ->
+  (totalIso.forward.fiber x).apply ((Source.isomorphism.forward.fiber x).apply (Native.pure x v w)) = form v w :=
+  \fun (v: Source.LeftFiber x)(w: Source.RightFiber x) => trans!{{Shuffle.TargetFiber x}} _ _ _
+    (congr!{{Source.TargetFiber x} {Shuffle.TargetFiber x}} (totalIso.forward.fiber x).apply _ _ (Source.onPure x v w))
+    (P.Prop[A := Even.Fiber x, B := Odd.Fiber x].pairCong _ _ _ _
+      (Sectors.Positive[].onPure x (P.first (StableEven.Fiber x) (StableOdd.Fiber x) v) (c w) (P.second (StableEven.Fiber x) (StableOdd.Fiber x) v) (z w))
+      (Sectors.Negative[].onPure x (P.first (StableEven.Fiber x) (StableOdd.Fiber x) v) (z w) (P.second (StableEven.Fiber x) (StableOdd.Fiber x) v) (c w)));
+\import Spaces.Linear[V := Source.SourceFiber x, W := Shuffle.TargetFiber x, source := Source.sourceBundle.space x, target := Shuffle.targetBundle.space x] \as Maps;
+\import Spaces.Linear[V := Distribution.TargetFiber x, W := Shuffle.TargetFiber x, source := Distribution.targetBundle.space x, target := Shuffle.targetBundle.space x]
+  .Composition[U := Source.SourceFiber x, domain := Source.sourceBundle.space x] \as Before;
+\import Spaces.Linear[V := Source.TargetFiber x, W := Shuffle.TargetFiber x, source := Source.targetBundle.space x, target := Shuffle.targetBundle.space x]
+  .Composition[U := Source.SourceFiber x, domain := Source.sourceBundle.space x] \as After;
+\definition before: Maps.Map := Before.compose (targetDecomposition.forward.fiber x) (fullIso.forward.fiber x);
+\definition after: Maps.Map := After.compose (totalIso.forward.fiber x) (Source.isomorphism.forward.fiber x);
+\import Operations.TensorEquality[V := Source.LeftFiber x, W := Source.RightFiber x, U := Shuffle.TargetFiber x,
+  left := Source.leftBundle.space x, right := Source.rightBundle.space x, target := Shuffle.targetBundle.space x] \as EqualityOnPure;
+\definition equation: \forall (v: Source.SourceFiber x) -> before.apply v = after.apply v := EqualityOnPure.pointwise before after
+  (\fun (v: Source.LeftFiber x)(w: Source.RightFiber x) => trans!{{Shuffle.TargetFiber x}} _ _ _ (leftPure v w) (sym!{{Shuffle.TargetFiber x}} _ _ (rightPure v w)));

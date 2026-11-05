@@ -1,0 +1,96 @@
+\import std.Data[].List[] \as Lists;
+\import N.Basic[].Def[] \as Nat;
+\import std.Data[].Pair[] \as Pair;
+\import C.Def[] \as Op;
+\import C.Prop[] \as Laws;
+\import std.Logic[].Classical[] \as Classical;
+\use Logic.either;
+\import Spaces.Sign[] \as Sign;
+\import Spaces.DirectSum[V := V, W := W, left := left, right := right] \as Sum;
+\definition Total: \Set := Sum.Carrier;
+\import Spaces.Exterior[V := V, space := left] \as Left;
+\import Spaces.Exterior[V := W, space := right] \as Right;
+\import Spaces.Exterior[V := Total, space := Sum.space] \as Exterior;
+\import Spaces.Multilinear[V := V, space := left].Alternating[] \as LeftForms;
+\import Spaces.Multilinear[V := W, space := right].Alternating[] \as RightForms;
+\import Spaces.Multilinear[V := Total, space := Sum.space].Alternating[] \as Forms;
+\import Spaces.Shuffle[I := V] \as LeftShuffle;
+\import Spaces.Shuffle[I := W] \as RightShuffle;
+\import Spaces.Shuffle[I := Total] \as Shuffle;
+\import Shuffle.Laws[] \as Products;
+\import Shuffle.Naturality[J := V] \as LeftSeries;
+\import Shuffle.Naturality[J := W] \as RightSeries;
+\definition first: Spaces.Linear[V := Total, W := V, source := Sum.space, target := left].Map :=
+  Spaces.Linear[V := Total, W := V, source := Sum.space, target := left].Map {
+    apply := Sum.first,
+    preservesAdd := \fun (x, y: Total) => \refl(left.add (Sum.first x) (Sum.first y)),
+    preservesScale := \fun (a: C.Complex)(x: Total) => \refl(left.smul a (Sum.first x))
+  };
+\definition second: Spaces.Linear[V := Total, W := W, source := Sum.space, target := right].Map :=
+  Spaces.Linear[V := Total, W := W, source := Sum.space, target := right].Map {
+    apply := Sum.second,
+    preservesAdd := \fun (x, y: Total) => \refl(right.add (Sum.second x) (Sum.second y)),
+    preservesScale := \fun (a: C.Complex)(x: Total) => \refl(right.smul a (Sum.second x))
+  };
+\definition fromLeft[k: N.Nat^][omega: Left.Form k]: Exterior.Form k :=
+  Forms.Precomposition[W := V, target := left].precompose k first omega;
+\definition fromRight[k: N.Nat^][omega: Right.Form k]: Exterior.Form k :=
+  Forms.Precomposition[W := W, target := right].precompose k second omega;
+\definition leftSeries[k: N.Nat^][omega: Left.Form k]: Shuffle.Function := LeftSeries.mapSeries Sum.first (Left.component k omega);
+\definition rightSeries[k: N.Nat^][omega: Right.Form k]: Shuffle.Function := RightSeries.mapSeries Sum.second (Right.component k omega);
+\definition fromLeftSeries: \forall (k: N.Nat^)(omega: Left.Form k) -> Exterior.component k (fromLeft k omega) = leftSeries k omega :=
+  \fun (k: N.Nat^)(omega: Left.Form k) => Exterior.Pullback[W := V, target := left].Components[k := k].law first omega;
+\definition fromRightSeries: \forall (k: N.Nat^)(omega: Right.Form k) -> Exterior.component k (fromRight k omega) = rightSeries k omega :=
+  \fun (k: N.Nat^)(omega: Right.Form k) => Exterior.Pullback[W := W, target := right].Components[k := k].law second omega;
+\definition leftShift: \forall (k: N.Nat^)(omega: Left.Form (N.Nat^::succ k))(v: V)(w: W)(xs: Lists.List[Total]) ->
+  Shuffle.shift (Sum.make v w) (leftSeries (N.Nat^::succ k) omega) xs =
+  leftSeries k (LeftForms.Contraction[k := k].apply omega v) xs :=
+  \fun (k: N.Nat^)(omega: Left.Form (N.Nat^::succ k))(v: V)(w: W)(xs: Lists.List[Total]) =>
+    Left.SeriesShift[k := k].atCons omega v (Lists.map Total V Sum.first xs);
+\definition rightShift: \forall (k: N.Nat^)(omega: Right.Form (N.Nat^::succ k))(v: V)(w: W)(xs: Lists.List[Total]) ->
+  Shuffle.shift (Sum.make v w) (rightSeries (N.Nat^::succ k) omega) xs =
+  rightSeries k (RightForms.Contraction[k := k].apply omega w) xs :=
+  \fun (k: N.Nat^)(omega: Right.Form (N.Nat^::succ k))(v: V)(w: W)(xs: Lists.List[Total]) =>
+    Right.SeriesShift[k := k].atCons omega w (Lists.map Total W Sum.second xs);
+\module At(p, q: N.Nat^);
+\definition twist: \forall (k: N.Nat^)(omega: Exterior.Form k)(xs: Lists.List[Total]) ->
+  Shuffle.twist (Exterior.component k omega) xs = Op.mul (Sign.value k) (Exterior.component k omega xs) :=
+  \fun (k: N.Nat^)(omega: Exterior.Form k)(xs: Lists.List[Total]) => either!{{(Classical.excludedMiddle (Lists.length Total xs = k))}
+    {Shuffle.twist (Exterior.component k omega) xs = Op.mul (Sign.value k) (Exterior.component k omega xs)}
+    {\fun (equal: Lists.length Total xs = k) => congr!{{C.Complex} {C.Complex}} (\fun (s: C.Complex) => Op.mul s (Exterior.component k omega xs)) _ _
+      (congr!{{N.Nat^} {C.Complex}} Sign.value _ _ equal)}
+    {\fun (different: Logic.Not (Lists.length Total xs = k)) => \block {
+      \let zero: Exterior.component k omega xs = Op.zero := Spaces.Multilinear[V := Total, space := Sum.space].ListSeries[k := k].outside omega xs different \then
+      \return trans!{{C.Complex}} _ _ _
+        (trans!{{C.Complex}} _ _ _ (congr!{{C.Complex} {C.Complex}} (Op.mul (Sign.value (Lists.length Total xs))) _ _ zero) (Laws.mulZeroRight (Sign.value (Lists.length Total xs))))
+        (sym!{{C.Complex}} _ _ (trans!{{C.Complex}} _ _ _ (congr!{{C.Complex} {C.Complex}} (Op.mul (Sign.value k)) _ _ zero) (Laws.mulZeroRight (Sign.value k))))
+    }}};
+\definition leftTwist: \forall (k: N.Nat^)(omega: Left.Form k)(xs: Lists.List[Total]) ->
+  Shuffle.twist (leftSeries k omega) xs = Op.mul (Sign.value k) (leftSeries k omega xs) :=
+  \fun (k: N.Nat^)(omega: Left.Form k)(xs: Lists.List[Total]) => trans!{{C.Complex}} _ _ _
+    (congr!{{Shuffle.Function} {C.Complex}} (\fun (f: Shuffle.Function) => Shuffle.twist f xs) _ _ (sym!{{Shuffle.Function}} _ _ (fromLeftSeries k omega)))
+    (trans!{{C.Complex}} _ _ _ (twist k (fromLeft k omega) xs)
+      (congr!{{Shuffle.Function} {C.Complex}} (\fun (f: Shuffle.Function) => Op.mul (Sign.value k) (f xs)) _ _ (fromLeftSeries k omega)));
+\module Leibniz(p, q: N.Nat^);
+\definition leftZeroShift: \forall (omega: Left.Form N.Nat^::zero)(v: V)(w: W)(xs: Lists.List[Total]) ->
+  Shuffle.shift (Sum.make v w) (leftSeries N.Nat^::zero omega) xs = Op.zero :=
+  \fun (omega: Left.Form N.Nat^::zero)(v: V)(w: W)(xs: Lists.List[Total]) =>
+    Left.ZeroHeads[].nonempty omega v (Lists.map Total V Sum.first xs);
+\definition rightZeroShift: \forall (omega: Right.Form N.Nat^::zero)(v: V)(w: W)(xs: Lists.List[Total]) ->
+  Shuffle.shift (Sum.make v w) (rightSeries N.Nat^::zero omega) xs = Op.zero :=
+  \fun (omega: Right.Form N.Nat^::zero)(v: V)(w: W)(xs: Lists.List[Total]) =>
+    Right.ZeroHeads[].nonempty omega w (Lists.map Total W Sum.second xs);
+\module LeibnizLeftZero(q: N.Nat^);
+\module LeibnizRightZero(p: N.Nat^);
+\module Mixed;
+\module SeriesWords(I, A: \Set, covector: A -> Spaces.Shuffle[I := I].Function);
+\module BasisWords(U: \Set, vectorSpace: Spaces.VectorSpace U, r: N.Nat^, frame: Bundles.Dimension[V := U, space := vectorSpace].Frame r);
+\module DirectSum(k: N.Nat^);
+\module Decomposition(n, m: N.Nat^, firstFrame: Bundles.Dimension[V := V, space := left].Frame n,
+  secondFrame: Bundles.Dimension[V := W, space := right].Frame m);
+\definition castSame: \forall (k: N.Nat^)(omega: Exterior.Form k) -> Exterior.Regrade[k := k, l := k].cast omega (\refl(k)) = omega :=
+  \fun (k: N.Nat^)(omega: Exterior.Form k) => Exterior.Components[k := k].ext _ _
+    (Exterior.Regrade[k := k, l := k].series omega (\refl(k)));
+\module ProductRule(p: N.Nat^);
+\module WedgeLeibniz(p, q: N.Nat^,
+  leftEll: Left.Form (N.Nat^::succ N.Nat^::zero), rightEll: Right.Form (N.Nat^::succ N.Nat^::zero));

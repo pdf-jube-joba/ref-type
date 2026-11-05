@@ -1,0 +1,24 @@
+\import \parent.\parent.At[p := d.p, q := d.q] \as Wedge;
+\import LeftForms.At[k := d.p] \as First;
+\import RightForms.At[k := d.q] \as Second;
+\import Spaces.Tensor[V := Left.Form d.p, W := Right.Form d.q, left := First.vectorSpace, right := Second.vectorSpace] \as Tensor;
+\definition Carrier: \Set := Tensor.Carrier;
+\definition space: Spaces.VectorSpace Carrier := Tensor.space;
+\import Exterior.Regrade[k := Nat.add d.p d.q, l := k] \as Regrade;
+\definition regraded: Spaces.Linear[V := Carrier, W := Exterior.Form k, source := space, target := Forms.At[k := k].vectorSpace].Map :=
+  Spaces.Linear[V := Carrier, W := Exterior.Form k, source := space, target := Forms.At[k := k].vectorSpace].Map {
+    apply := \fun (x: Carrier) => Regrade.cast (Wedge.tensor.apply x) (degree d),
+    preservesAdd := \fun (x, y: Carrier) => trans!{{Exterior.Form k}} _ _ _
+      (congr!{{Exterior.Form (Nat.add d.p d.q)} {Exterior.Form k}} (\fun (omega: Exterior.Form (Nat.add d.p d.q)) => Regrade.cast omega (degree d)) _ _
+        (Wedge.tensor.preservesAdd x y))
+      (Regrade.addition (Wedge.tensor.apply x) (Wedge.tensor.apply y) (degree d)),
+    preservesScale := \fun (a: C.Complex)(x: Carrier) => trans!{{Exterior.Form k}} _ _ _
+      (congr!{{Exterior.Form (Nat.add d.p d.q)} {Exterior.Form k}} (\fun (omega: Exterior.Form (Nat.add d.p d.q)) => Regrade.cast omega (degree d)) _ _
+        (Wedge.tensor.preservesScale a x))
+      (Regrade.scalar a (Wedge.tensor.apply x) (degree d))
+  };
+\definition map: Modules.Hom[V := Carrier, W := Exterior.Form k, source := space, target := Forms.At[k := k].vectorSpace].Map :=
+  Modules.Hom[V := Carrier, W := Exterior.Form k, source := space, target := Forms.At[k := k].vectorSpace].Map {
+    apply := regraded.apply, addition := regraded.preservesAdd, scalar := regraded.preservesScale
+  };
+\definition product[omega: Left.Form d.p][eta: Right.Form d.q]: Carrier := Tensor.tensor omega eta;

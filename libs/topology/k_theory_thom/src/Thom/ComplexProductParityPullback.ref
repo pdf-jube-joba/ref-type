@@ -1,0 +1,44 @@
+\import \root.Thom[].ComplexProductParity[X := X, F0 := F0, F1 := F1, G0 := G0, G1 := G1,
+  e0 := e0, e1 := e1, f0 := f0, f1 := f1, sameE1 := sameE1, sameF0 := sameF0, sameF1 := sameF1] \as Original;
+\import topology.Continuity[A := Y, B := X] \as Maps;
+\definition e1Regular: Maps.Continuous source e1.baseSpace f := \idelim e0.baseSpace = e1.baseSpace \with t: topology.Topology[Carrier := X].Topology => Maps.Continuous source t f \by { base: regular, equality: sameE1 };
+\definition f0Regular: Maps.Continuous source f0.baseSpace f := \idelim e0.baseSpace = f0.baseSpace \with t: topology.Topology[Carrier := X].Topology => Maps.Continuous source t f \by { base: regular, equality: sameF0 };
+\definition f1Regular: Maps.Continuous source f1.baseSpace f := \idelim e0.baseSpace = f1.baseSpace \with t: topology.Topology[Carrier := X].Topology => Maps.Continuous source t f \by { base: regular, equality: sameF1 };
+\import Bundles.Family[X := X, F := F0].Of[bundle := e0].Pullback[Y := Y, source := source, f := f] \as E0;
+\import Bundles.Family[X := X, F := F1].Of[bundle := e1].Pullback[Y := Y, source := source, f := f] \as E1;
+\import Bundles.Family[X := X, F := G0].Of[bundle := f0].Pullback[Y := Y, source := source, f := f] \as F0Pull;
+\import Bundles.Family[X := X, F := G1].Of[bundle := f1].Pullback[Y := Y, source := source, f := f] \as F1Pull;
+\import \root.Thom[].ComplexProductParity[X := Y,
+  F0 := (\fun (y: Y) => F0 (f y)), F1 := (\fun (y: Y) => F1 (f y)), G0 := (\fun (y: Y) => G0 (f y)), G1 := (\fun (y: Y) => G1 (f y)),
+  e0 := E0.pulled regular, e1 := E1.pulled e1Regular, f0 := F0Pull.pulled f0Regular, f1 := F1Pull.pulled f1Regular,
+  sameE1 := (\refl(source)), sameF0 := (\refl(source)), sameF1 := (\refl(source))] \as Target;
+\import Operations.Tensor[X := X, F := F0, G := G0, left := e0, right := f0].Of[same := sameF0].Pullback[Y := Y, source := source, f := f, regular := regular] \as EE;
+\import Operations.Tensor[X := X, F := F1, G := G1, left := e1, right := f1].Of[same := Original.e1f1].Pullback[Y := Y, source := source, f := f, regular := e1Regular] \as OO;
+\import Operations.Tensor[X := X, F := F0, G := G1, left := e0, right := f1].Of[same := sameF1].Pullback[Y := Y, source := source, f := f, regular := regular] \as EO;
+\import Operations.Tensor[X := X, F := F1, G := G0, left := e1, right := f0].Of[same := Original.e1f0].Pullback[Y := Y, source := source, f := f, regular := e1Regular] \as OE;
+\import Operations.DirectSum[X := X, F := Original.EEFiber, G := Original.OOFiber, left := Original.eeBundle, right := Original.ooBundle]
+  .Of[same := sameE1].Pullback[Y := Y, source := source, f := f, regular := regular] \as EvenPull;
+\import Operations.DirectSum[X := X, F := Original.EOFiber, G := Original.OEFiber, left := Original.eoBundle, right := Original.oeBundle]
+  .Of[same := sameE1].Pullback[Y := Y, source := source, f := f, regular := regular] \as OddPull;
+\definition Even[y: Y]: \Set := Original.Even (f y);
+\definition Odd[y: Y]: \Set := Original.Odd (f y);
+\definition sourceEven: Bundles.Family[X := Y, F := Even].Bundle := EvenPull.firstBundle;
+\definition sourceOdd: Bundles.Family[X := Y, F := Odd].Bundle := OddPull.firstBundle;
+\definition targetEven: Bundles.Family[X := Y, F := Even].Bundle := Target.evenBundle;
+\definition targetOdd: Bundles.Family[X := Y, F := Odd].Bundle := Target.oddBundle;
+\import Operations.DirectSumIsomorphisms[X := Y, F := (\fun (y: Y) => Original.EEFiber (f y)), G := (\fun (y: Y) => Original.OOFiber (f y)),
+  A := (\fun (y: Y) => Original.EEFiber (f y)), B := (\fun (y: Y) => Original.OOFiber (f y)),
+  first := EE.firstBundle, second := OO.firstBundle, newFirst := EE.secondBundle, newSecond := OO.secondBundle,
+  sameSource := (\refl(source)), sameTarget := (\refl(source))] \as EvenParts;
+\import Operations.DirectSumIsomorphisms[X := Y, F := (\fun (y: Y) => Original.EOFiber (f y)), G := (\fun (y: Y) => Original.OEFiber (f y)),
+  A := (\fun (y: Y) => Original.EOFiber (f y)), B := (\fun (y: Y) => Original.OEFiber (f y)),
+  first := EO.firstBundle, second := OE.firstBundle, newFirst := EO.secondBundle, newSecond := OE.secondBundle,
+  sameSource := (\refl(source)), sameTarget := (\refl(source))] \as OddParts;
+\import Operations.IsomorphismComposition[X := Y, F := Even, G := Even, H := Even, source := sourceEven, middle := EvenParts.sourceBundle, target := targetEven] \as EvenComposition;
+\import Operations.IsomorphismComposition[X := Y, F := Odd, G := Odd, H := Odd, source := sourceOdd, middle := OddParts.sourceBundle, target := targetOdd] \as OddComposition;
+\definition even: Bundles.Isomorphisms[X := Y, F := Even, G := Even, source := sourceEven, target := targetEven].Isomorphism := EvenComposition.compose EvenPull.isomorphism (EvenParts.isomorphism EE.isomorphism OO.isomorphism);
+\definition odd: Bundles.Isomorphisms[X := Y, F := Odd, G := Odd, source := sourceOdd, target := targetOdd].Isomorphism := OddComposition.compose OddPull.isomorphism (OddParts.isomorphism EO.isomorphism OE.isomorphism);
+\definition onEven: \forall (y: Y)(v: Even y) -> (even.forward.fiber y).apply v = v := \fun (y: Y)(v: Even y) => std.Data[].Pair[].Prop[A := Original.EEFiber (f y), B := Original.OOFiber (f y)].eta v;
+\definition onOdd: \forall (y: Y)(v: Odd y) -> (odd.forward.fiber y).apply v = v := \fun (y: Y)(v: Odd y) => std.Data[].Pair[].Prop[A := Original.EOFiber (f y), B := Original.OEFiber (f y)].eta v;
+\definition inverseEven: \forall (y: Y)(v: Even y) -> (even.backward.fiber y).apply v = v := \fun (y: Y)(v: Even y) => std.Data[].Pair[].Prop[A := Original.EEFiber (f y), B := Original.OOFiber (f y)].eta v;
+\definition inverseOdd: \forall (y: Y)(v: Odd y) -> (odd.backward.fiber y).apply v = v := \fun (y: Y)(v: Odd y) => std.Data[].Pair[].Prop[A := Original.EOFiber (f y), B := Original.OEFiber (f y)].eta v;

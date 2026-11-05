@@ -1,0 +1,28 @@
+\import Bundles.Family[X := X, F := F] \as FirstFamily;
+\import Bundles.Family[X := X, F := G] \as SecondFamily;
+\import FirstFamily.Of[bundle := left] \as First;
+\import SecondFamily.Of[bundle := right] \as Second;
+\import Operations.DirectSum[X := X, F := F, G := G, left := left, right := right] \as Sum;
+\definition sum: Bundles.Family[X := X, F := Sum.Fiber].Bundle := Sum.bundle sameBase;
+\import Operations.Alternating[X := X, F := Sum.Fiber, bundle := sum, k := k] \as Alternating;
+\definition Fiber[x: X]: \Set := \root.Thom[].Sum[V := F x, W := G x, left := left.space x, right := right.space x].DirectSum[k := k].Carrier;
+\definition fiberSpace[x: X]: Spaces.VectorSpace (Fiber x) := \root.Thom[].Sum[V := F x, W := G x, left := left.space x, right := right.space x].DirectSum[k := k].space;
+\module At(x: X);
+\import Operations.Transport[X := X, F := Alternating.Fiber, G := Fiber, source := Alternating.alternating,
+  space := fiberSpace, isomorphism := \fun (x: X) => At[x := x].inverse] \as Transport;
+/* The sum topology is obtained from the proved coefficient reconstruction.
+   Transport supplies the local frames and proves both total maps continuous. */
+\definition bundle: Bundles.Family[X := X, F := Fiber].Bundle := Transport.bundle;
+\import Bundles.Isomorphisms[X := X, F := Alternating.Fiber, G := Fiber, source := Alternating.alternating, target := bundle] \as Reverse;
+\definition comparison: Bundles.Isomorphisms[X := X, F := Fiber, G := Alternating.Fiber, source := bundle, target := Alternating.alternating].Isomorphism :=
+  Reverse.inverse Transport.Comparison[].comparison;
+\import Bundles.Morphisms[X := X, Y := X, F := Fiber, G := Alternating.Fiber, source := bundle, target := Alternating.alternating, f := \fun (x: X) => x] \as Forward;
+\import Bundles.Morphisms[X := X, Y := X, F := Alternating.Fiber, G := Fiber, source := Alternating.alternating, target := bundle, f := \fun (x: X) => x] \as Backward;
+\definition forwardContinuous: topology.Continuity[A := Bundles.Family[X := X, F := Fiber].Point, B := Bundles.Family[X := X, F := Alternating.Fiber].Point].Continuous
+  bundle.totalSpace Alternating.alternating.totalSpace (Forward.total comparison.forward) := Forward.continuous comparison.forward;
+\definition backwardContinuous: topology.Continuity[A := Bundles.Family[X := X, F := Alternating.Fiber].Point, B := Bundles.Family[X := X, F := Fiber].Point].Continuous
+  Alternating.alternating.totalSpace bundle.totalSpace (Backward.total comparison.backward) := Backward.continuous comparison.backward;
+\definition onFiber: \forall (x: X)(v: Fiber x) -> (comparison.forward.fiber x).apply v =
+  \root.Thom[].Sum[V := F x, W := G x, left := left.space x, right := right.space x].DirectSum[k := k].forward.apply v :=
+  \fun (x: X)(v: Fiber x) => \refl(\root.Thom[].Sum[V := F x, W := G x, left := left.space x, right := right.space x].DirectSum[k := k].forward.apply v);
+\module Component(p, q: N.Nat^, degree: N.Basic[].Def[].add p q = k);

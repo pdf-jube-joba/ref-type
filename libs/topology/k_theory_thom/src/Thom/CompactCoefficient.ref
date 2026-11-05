@@ -1,0 +1,89 @@
+\use Equality.eq_reason_in;
+\import relative_k_theory.Relative[] \as Relative;
+\import compact_support_k.Support[] \as Support;
+\import topology.Topology[Carrier := X] \as Base;
+\import std.Arithmetic[].Int[] \as I;
+\definition zero: I.Int^ := I.Int^::ofNat N.Nat^::zero;
+\definition local: topology.LocallyCompact[A := X].IsLocallyCompact space := topology.LocallyCompact[A := X].compactLocallyCompact space compact;
+\import Support.On[X := X, space := space, hausdorff := hausdorff, locallyCompact := local] \as Supported;
+\import Relative.Absolute[X := X, space := space, compact := compact, hausdorff := hausdorff] \as Absolute;
+\import Relative.Pair[X := X, space := space, compact := compact, hausdorff := hausdorff, subset := Base.Empty, closed := Absolute.emptyClosed] \as Pair;
+\import Support.ClosedPair[M := X, space := space, compact := compact, hausdorff := hausdorff, subset := Base.Empty, closed := Absolute.emptyClosed] \as Complement;
+\import Relative.Equivalence[source := Absolute.model, target := Pair.Quotient[].model].With[e := Absolute.equivalence].Groups[] \as AbsoluteGroups;
+\definition include[x: X]: Complement.Interior := \into[X](x, Base.Complement Base.Empty) \by { \fun (impossible: Logic.False) => impossible };
+\definition includeContinuous: topology.Continuity[A := X, B := Complement.Interior].Continuous space Complement.interiorTopology include :=
+  topology.Continuity[A := X, B := X].Corestriction[S := Base.Complement Base.Empty].corestrictContinuous space space include
+    (topology.Maps[A := X, B := X].Identity[].continuous space);
+\definition exclude[p: Complement.Interior]: X := p;
+\definition excludeContinuous: topology.Continuity[A := Complement.Interior, B := X].Continuous Complement.interiorTopology space exclude :=
+  topology.Continuity[A := Complement.Interior, B := X].Corestriction[S := Base.Complement Base.Empty].inclusionContinuous space;
+\definition homeomorphism: topology.Homeomorphism[A := X, B := Complement.Interior].Homeomorphism[space, Complement.interiorTopology] :=
+  topology.Homeomorphism[A := X, B := Complement.Interior].Homeomorphism[space, Complement.interiorTopology] {
+    forward := include, backward := exclude, leftInverse := \fun (x: X) => \refl(x), rightInverse := \fun (p: Complement.Interior) => \refl(p),
+    forwardContinuous := includeContinuous, backwardContinuous := excludeContinuous
+  };
+\import Support.Homeomorphic[A := X, B := Complement.Interior, source := space, target := Complement.interiorTopology, h := homeomorphism] \as Homeomorphism;
+\import Support.On[X := Complement.Interior, space := Complement.interiorTopology,
+  hausdorff := Complement.interiorHausdorff, locallyCompact := Complement.interiorLocallyCompact] \as Interior;
+\import Supported.Pullback[Y := Complement.Interior, target := Complement.interiorTopology,
+  targetHausdorff := Complement.interiorHausdorff, targetLocallyCompact := Complement.interiorLocallyCompact,
+  f := include, continuous := includeContinuous, proper := Homeomorphism.proper] \as Forward;
+\import Support.Homeomorphic[A := Complement.Interior, B := X, source := Complement.interiorTopology, target := space,
+  h := Homeomorphism.Extension[].reverse] \as ReverseHomeomorphism;
+\import Interior.Pullback[Y := X, target := space, targetHausdorff := hausdorff, targetLocallyCompact := local,
+  f := exclude, continuous := excludeContinuous, proper := ReverseHomeomorphism.proper] \as Backward;
+\definition equivalence: Relative.Equivalence[source := Supported.model, target := Complement.model].Data :=
+  Relative.Equivalence[source := Supported.model, target := Complement.model].Data {
+    forward := Forward.mapping, backward := Backward.mapping,
+    leftInverse := Homeomorphism.Extension[].leftInverse, rightInverse := Homeomorphism.Extension[].rightInverse
+  };
+\import Relative.Equivalence[source := Supported.model, target := Complement.model].With[e := equivalence].Groups[] \as Groups;
+\import topological_k_theory.KTheory[].On[X := X, baseSpace := space, compact := compact, hausdorff := hausdorff].K0[] \as K;
+\definition forward[a: K.Carrier]: Supported.At[degree := zero].Carrier :=
+  Groups.forward (Complement.At[degree := zero].toCompactSupport (AbsoluteGroups.backward (Absolute.forward a)));
+\definition backward[u: Supported.At[degree := zero].Carrier]: K.Carrier :=
+  Absolute.backward (AbsoluteGroups.forward (Complement.At[degree := zero].fromCompactSupport (Groups.backward u)));
+\definition leftInverse: \forall (a: K.Carrier) -> backward (forward a) = a :=
+  \fun (a: K.Carrier) => eq_reason_in!{{K.Carrier} _
+    "=" { Absolute.backward (AbsoluteGroups.forward (Complement.At[degree := zero].fromCompactSupport
+      (Complement.At[degree := zero].toCompactSupport (AbsoluteGroups.backward (Absolute.forward a))))) } "by" {
+      congr!{{Interior.At[degree := zero].Carrier} {K.Carrier}}
+        (\fun (u: Interior.At[degree := zero].Carrier) => Absolute.backward (AbsoluteGroups.forward (Complement.At[degree := zero].fromCompactSupport u))) _ _
+        (Groups.rightInverse (Complement.At[degree := zero].toCompactSupport (AbsoluteGroups.backward (Absolute.forward a)))) }
+    "=" { Absolute.backward (AbsoluteGroups.forward (AbsoluteGroups.backward (Absolute.forward a))) } "by" {
+      congr!{{Pair.Quotient[].Relative} {K.Carrier}} (\fun (u: Pair.Quotient[].Relative) => Absolute.backward (AbsoluteGroups.forward u)) _ _
+        (Complement.At[degree := zero].rightInverse (AbsoluteGroups.backward (Absolute.forward a))) }
+    "=" { Absolute.backward (Absolute.forward a) } "by" { congr!{{Relative.Reduced[model := Absolute.model].Carrier} {K.Carrier}} Absolute.backward _ _ (AbsoluteGroups.leftInverse (Absolute.forward a)) }
+    "=" a "by" { Absolute.leftInverse a }
+  };
+\definition rightInverse: \forall (u: Supported.At[degree := zero].Carrier) -> forward (backward u) = u :=
+  \fun (u: Supported.At[degree := zero].Carrier) => eq_reason_in!{{Supported.At[degree := zero].Carrier} _
+    "=" { Groups.forward (Complement.At[degree := zero].toCompactSupport (AbsoluteGroups.backward (AbsoluteGroups.forward (Complement.At[degree := zero].fromCompactSupport (Groups.backward u))))) } "by" {
+      congr!{{Relative.Reduced[model := Absolute.model].Carrier} {Supported.At[degree := zero].Carrier}}
+        (\fun (a: Relative.Reduced[model := Absolute.model].Carrier) => Groups.forward (Complement.At[degree := zero].toCompactSupport (AbsoluteGroups.backward a))) _ _
+        (Absolute.rightInverse (AbsoluteGroups.forward (Complement.At[degree := zero].fromCompactSupport (Groups.backward u)))) }
+    "=" { Groups.forward (Complement.At[degree := zero].toCompactSupport (Complement.At[degree := zero].fromCompactSupport (Groups.backward u))) } "by" {
+      congr!{{Pair.Quotient[].Relative} {Supported.At[degree := zero].Carrier}}
+        (\fun (a: Pair.Quotient[].Relative) => Groups.forward (Complement.At[degree := zero].toCompactSupport a)) _ _
+        (AbsoluteGroups.rightInverse (Complement.At[degree := zero].fromCompactSupport (Groups.backward u))) }
+    "=" { Groups.forward (Groups.backward u) } "by" { congr!{{Interior.At[degree := zero].Carrier} {Supported.At[degree := zero].Carrier}} Groups.forward _ _ (Complement.At[degree := zero].leftInverse (Groups.backward u)) }
+    "=" u "by" { Groups.leftInverse u }
+  };
+\definition additive: \forall (a, b: K.Carrier) -> forward (K.add a b) = Supported.At[degree := zero].group.base.op (forward a) (forward b) :=
+  \fun (a, b: K.Carrier) => eq_reason_in!{{Supported.At[degree := zero].Carrier} _
+    "=" { Groups.forward (Complement.At[degree := zero].toCompactSupport (AbsoluteGroups.backward
+      (Relative.Reduced[model := Absolute.model].group.base.op (Absolute.forward a) (Absolute.forward b)))) } "by" {
+      congr!{{Relative.Reduced[model := Absolute.model].Carrier} {Supported.At[degree := zero].Carrier}}
+        (\fun (u: Relative.Reduced[model := Absolute.model].Carrier) => Groups.forward (Complement.At[degree := zero].toCompactSupport (AbsoluteGroups.backward u))) _ _ (Absolute.Additive[].forwardAdd a b) }
+    "=" { Groups.forward (Complement.At[degree := zero].toCompactSupport (Pair.Quotient[].group.base.op (AbsoluteGroups.backward (Absolute.forward a)) (AbsoluteGroups.backward (Absolute.forward b)))) } "by" {
+      congr!{{Pair.Quotient[].Relative} {Supported.At[degree := zero].Carrier}} (\fun (u: Pair.Quotient[].Relative) => Groups.forward (Complement.At[degree := zero].toCompactSupport u)) _ _ (AbsoluteGroups.backwardAdd (Absolute.forward a) (Absolute.forward b)) }
+    "=" { Groups.forward (Interior.At[degree := zero].group.base.op (Complement.At[degree := zero].toCompactSupport (AbsoluteGroups.backward (Absolute.forward a))) (Complement.At[degree := zero].toCompactSupport (AbsoluteGroups.backward (Absolute.forward b)))) } "by" {
+      congr!{{Interior.At[degree := zero].Carrier} {Supported.At[degree := zero].Carrier}} Groups.forward _ _ (Complement.At[degree := zero].additive (AbsoluteGroups.backward (Absolute.forward a)) (AbsoluteGroups.backward (Absolute.forward b))) }
+    "=" _ "by" { Groups.forwardAdd _ _ }
+  };
+\module Compactified;
+\module Pullback(Y: \Set, source: topology.Topology[Carrier := Y].Topology,
+  sourceCompact: topology.Topology[Carrier := Y].IsCompact source,
+  sourceHausdorff: topology.Topology[Carrier := Y].IsT2 source,
+  f: Y -> X, regular: topology.Continuity[A := Y, B := X].Continuous source space f);
+\module Isomorphism;

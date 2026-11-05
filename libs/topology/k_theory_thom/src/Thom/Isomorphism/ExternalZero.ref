@@ -1,0 +1,33 @@
+\import periodic_k_theory.Periodicity[].SuspensionSphere[] \as Sphere;
+\import \parent.Point[n := N.Nat^::zero] \as Point;
+\import \parent.ZeroNormalization[] \as Normalization;
+\import \root.Thom[].SmashUnitProduct[base := base] \as Unit;
+\import Unit.Right[] \as UnitProduct;
+\import Relative.Smash[left := base, right := Sphere.zero] \as Source;
+\import Relative.Smash[left := base, right := Point.model] \as Target;
+\import \parent.SmashRight[base := base, firstRight := Sphere.zero, secondRight := Point.model, e := Normalization.equivalence] \as Spaces;
+\import Relative.Equivalence[source := Source.result, target := Target.result].With[e := Spaces.equivalence].Groups[] \as Change;
+\import Relative.Reduced[model := base] \as BaseGroup;
+\import Relative.Reduced[model := Source.result] \as Middle;
+\import Relative.Reduced[model := Target.result] \as Result;
+\definition transport: Periodicity.Isomorphism[A := Middle.Carrier, B := Result.Carrier, source := Middle.group, target := Result.group].Data :=
+  Periodicity.Isomorphism[A := Middle.Carrier, B := Result.Carrier, source := Middle.group, target := Result.group].Data {
+    forward := Change.backward, backward := Change.forward,
+    leftInverse := Change.leftInverse, rightInverse := Change.rightInverse,
+    forwardAdd := Change.backwardAdd, backwardAdd := Change.forwardAdd,
+    forwardZero := Change.backwardZero, backwardZero := Change.forwardZero
+  };
+\import Periodicity.Isomorphism[A := BaseGroup.Carrier, B := Middle.Carrier, source := BaseGroup.group, target := Middle.group].Compose[
+  C := Result.Carrier, last := Result.group, first := UnitProduct.isomorphism, second := transport] \as Composite;
+\definition isomorphism: Periodicity.Isomorphism[A := BaseGroup.Carrier, B := Result.Carrier, source := BaseGroup.group, target := Result.group].Data := Composite.data;
+\import Relative.Identity[model := base] \as Identity;
+\import Source.Mapping[targetLeft := base, targetRight := Point.model, f := Identity.map, g := Normalization.equivalence.forward] \as Mapping;
+\definition pulledProduct: \forall (a: BaseGroup.Carrier) -> Change.forward (Target.External[].product a Point.thom) = Source.External[].product a Unit.unit :=
+  \fun (a: BaseGroup.Carrier) => trans!{{Middle.Carrier}} _ _ _ (Mapping.External[].naturality a Point.thom)
+    (congr!{{BaseGroup.Carrier} {Relative.Reduced[model := Sphere.zero].Carrier} {Middle.Carrier}} Source.External[].product _ _ _ _
+      (Relative.PullbackIdentity[model := base].equation a) Normalization.equation);
+\definition forwardProduct: \forall (a: BaseGroup.Carrier) -> isomorphism.forward a = Target.External[].product a Point.thom :=
+  \fun (a: BaseGroup.Carrier) => trans!{{Result.Carrier}} _ _ _
+    (congr!{{Middle.Carrier} {Result.Carrier}} Change.backward _ _
+      (trans!{{Middle.Carrier}} _ _ _ (UnitProduct.forwardProduct a) (sym!{{Middle.Carrier}} _ _ (pulledProduct a))))
+    (Change.rightInverse (Target.External[].product a Point.thom));

@@ -1,0 +1,60 @@
+\import N.Basic[].Def[] \as Nat;
+\import N.Basic[].Prop[] \as Naturals;
+\import N.Order[].Prop[] \as NatOrder;
+\import std.Data[].List[] \as Lists;
+\import std.Data[].Sum[] \as Sum;
+\import Fin.Sum[m := n, n := m] \as Indices;
+\import Fin.FromList[A := Fin.Fin Indices.total] \as Tuples;
+\import Lists.All[A := Fin.Fin Indices.total] \as All;
+\import Lists.All[A := Fin.Fin n] \as LeftAll;
+\import Lists.All[A := Fin.Fin m] \as RightAll;
+\module Ordered(A: \Set, value: A -> N.Nat^);
+\import \root.Thom[].MixedIndices[n := n, m := m].Ordered[A := Fin.Fin Indices.total, value := Fin.value Indices.total] \as TotalOrder;
+\import \root.Thom[].MixedIndices[n := n, m := m].Ordered[A := Fin.Fin n, value := Fin.value n] \as LeftOrder;
+\import \root.Thom[].MixedIndices[n := n, m := m].Ordered[A := Fin.Fin m, value := Fin.value m] \as RightOrder;
+\definition joined[left: Lists.List[Fin.Fin n]][right: Lists.List[Fin.Fin m]]: Lists.List[Fin.Fin Indices.total] :=
+  Lists.append (Fin.Fin Indices.total) (Lists.map (Fin.Fin n) (Fin.Fin Indices.total) Indices.left left)
+    (Lists.map (Fin.Fin m) (Fin.Fin Indices.total) Indices.right right);
+\structure Split[xs: Lists.List[Fin.Fin Indices.total]]: \Set := {
+  left: Lists.List[Fin.Fin n], right: Lists.List[Fin.Fin m],
+  equation: joined left right = xs,
+  leftIncreasing: LeftOrder.Increasing left,
+  rightIncreasing: RightOrder.Increasing right
+};
+\module AllParts;
+\module PrependLeft(a: Fin.Fin n, xs: Lists.List[Fin.Fin Indices.total], tail: Split xs,
+  above: All.Holds (\fun (i: Fin.Fin Indices.total) => Naturals.Lt (Indices.left a) i) xs);
+\module PrependRight(b: Fin.Fin m, xs: Lists.List[Fin.Fin Indices.total], tail: Split xs,
+  above: All.Holds (\fun (i: Fin.Fin Indices.total) => Naturals.Lt (Indices.right b) i) xs);
+\module Cons(xs: Lists.List[Fin.Fin Indices.total], tail: Split xs);
+\definition split: \forall (xs: Lists.List[Fin.Fin Indices.total]) -> TotalOrder.Increasing xs -> \exists Split xs :=
+  \induction (xs: Lists.List[Fin.Fin Indices.total]) \return TotalOrder.Increasing xs -> \exists Split xs \with {
+    | nil: \fun (ordered: _) => \exact(Split[Lists.List[Fin.Fin Indices.total]::nil] {
+      left := Lists.List[Fin.Fin n]::nil, right := Lists.List[Fin.Fin m]::nil,
+      equation := \refl(Lists.List[Fin.Fin Indices.total]::nil),
+      leftIncreasing := Logic.True::intro, rightIncreasing := Logic.True::intro
+    }, Split (Lists.List[Fin.Fin Indices.total]::nil))
+    | cons: \fun (head: Fin.Fin Indices.total)(xs: Lists.List[Fin.Fin Indices.total])(previous: _)(ordered: TotalOrder.Increasing (Lists.List[Fin.Fin Indices.total]::cons head xs)) => \block {
+      \takefrom tail: Split xs \by previous ordered.right \then
+      \return Cons[xs := xs, tail := tail].result head ordered.left
+    }
+  };
+\definition tupleSplit[k: N.Nat^][f: Fin.Fin k -> Fin.Fin Indices.total]
+  [increasing: Fin.Ordering[].Increasing k Indices.total f]: \exists Split (Tuples.list k f) :=
+  split (Tuples.list k f) (TotalOrder.fromTuple k f increasing);
+\import Lists.Prop[A := Fin.Fin Indices.total] \as Lengths;
+\import Lists.Mapping[A := Fin.Fin n, B := Fin.Fin Indices.total].Prop[] \as LeftMap;
+\import Lists.Mapping[A := Fin.Fin m, B := Fin.Fin Indices.total].Prop[] \as RightMap;
+\definition degree[xs: Lists.List[Fin.Fin Indices.total]][parts: Split xs]:
+  Nat.add (Lists.length (Fin.Fin n) parts.left) (Lists.length (Fin.Fin m) parts.right) = Lists.length (Fin.Fin Indices.total) xs :=
+  trans!{N.Nat^} _ _ _
+    (sym!{N.Nat^} _ _ (congr!{N.Nat^ N.Nat^ N.Nat^} Nat.add _ _ _ _
+      (LeftMap.lengthMap Indices.left parts.left) (RightMap.lengthMap Indices.right parts.right)))
+    (trans!{N.Nat^} _ _ _ (sym!{N.Nat^} _ _
+      (Lengths.lengthAppend (Lists.map (Fin.Fin n) (Fin.Fin Indices.total) Indices.left parts.left)
+        (Lists.map (Fin.Fin m) (Fin.Fin Indices.total) Indices.right parts.right)))
+      (congr!{{Lists.List[Fin.Fin Indices.total]} N.Nat^} (Lists.length (Fin.Fin Indices.total)) _ _ parts.equation));
+\definition tupleDegree[k: N.Nat^][f: Fin.Fin k -> Fin.Fin Indices.total][parts: Split (Tuples.list k f)]:
+  Nat.add (Lists.length (Fin.Fin n) parts.left) (Lists.length (Fin.Fin m) parts.right) = k :=
+  trans!{N.Nat^} _ _ _ (degree (Tuples.list k f) parts) (Tuples.listLength k f);
+\module Of(xs: Lists.List[Fin.Fin Indices.total], parts: Split xs);

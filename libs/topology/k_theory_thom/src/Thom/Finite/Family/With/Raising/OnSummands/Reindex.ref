@@ -1,0 +1,45 @@
+\import \root.Thom[].ComplexProductLabels[] \as LabelLaws;
+\definition advance: \forall (n: N.Nat^)(s: Labels.Index n) -> Labels.Index (N.Nat^::succ n) :=
+  \induction (n: N.Nat^)(s: Labels.Index n) \return Labels.Index (N.Nat^::succ n) \with {
+    | head: \fun (n: N.Nat^) => Labels.Index::head (N.Nat^::succ n)
+    | tail: \fun (n: N.Nat^)(s: Labels.Index n)(previous: Labels.Index (N.Nat^::succ n)) => Labels.Index::tail (N.Nat^::succ n) previous
+  };
+\definition degree: \forall (n: N.Nat^)(s: Labels.Index n) -> Labels.degree (N.Nat^::succ n) (advance n s) = N.Nat^::succ (Labels.degree n s) :=
+  \induction (n: N.Nat^)(s: Labels.Index n) \return Labels.degree (N.Nat^::succ n) (advance n s) = N.Nat^::succ (Labels.degree n s) \with {
+    | head: \fun (n: N.Nat^) => \refl(N.Nat^::succ n)
+    | tail: \fun (n: N.Nat^)(s: Labels.Index n)(previous: Labels.degree (N.Nat^::succ n) (advance n s) = N.Nat^::succ (Labels.degree n s)) => previous
+  };
+\definition even: \forall (n: N.Nat^)(s: Labels.Index n) -> Labels.even (N.Nat^::succ n) (advance n s) = Labels.even n s :=
+  \induction (n: N.Nat^)(s: Labels.Index n) \return Labels.even (N.Nat^::succ n) (advance n s) = Labels.even n s \with {
+    | head: \fun (n: N.Nat^) => \refl(B.Bool^::true)
+    | tail: \fun (n: N.Nat^)(s: Labels.Index n)(previous: Labels.even (N.Nat^::succ n) (advance n s) = Labels.even n s) => congr!{{B.Bool^} {B.Bool^}} Labels.flip _ _ previous
+  };
+\definition lookup: \forall (n: N.Nat^)(s: Labels.Index n) -> advance n s = Labels.rawLookup (N.Nat^::succ n) (N.Nat^::succ (Labels.degree n s)) :=
+  \fun (n: N.Nat^)(s: Labels.Index n) => trans!{{Labels.Index (N.Nat^::succ n)}} _ _ _
+    (sym!{{Labels.Index (N.Nat^::succ n)}} _ _ (LabelLaws.lookupInverse (N.Nat^::succ n) (advance n s)))
+    (congr!{{N.Nat^} {Labels.Index (N.Nat^::succ n)}} (Labels.rawLookup (N.Nat^::succ n)) _ _ (degree n s));
+\definition cast[i, j: N.Nat^][same: i = j]: Models.Map (term i) (term j) :=
+  \idelim i = j \with k: N.Nat^ => Models.Map (term i) (term k) \by { base: Models.identity (term i), equality: same };
+\definition castSelf[i: N.Nat^][same: i = i]: cast i i same = Models.identity (term i) :=
+  \transporteq i \with j: N.Nat^ => Models.Map (term i) (term j) \by { base: Models.identity (term i) };
+\definition castValue[i: N.Nat^][same: i = i][x: X][v: Models.Fiber (term i).ranks x]: ((cast i i same).fiber x).apply v = v :=
+  congr!{{Models.Map (term i) (term i)} {Models.Fiber (term i).ranks x}} (\fun (f: Models.Map (term i) (term i)) => (f.fiber x).apply v) _ _ (castSelf i same);
+\definition map[n: N.Nat^][s: Labels.Index n][side: B.Bool^][color: Labels.even n s = side]: Models.Map (term (N.Nat^::succ (Labels.degree n s))) (Summands.parity (N.Nat^::succ n) side) :=
+  Models.compose (term (N.Nat^::succ (Labels.degree n s))) (term (Labels.degree (N.Nat^::succ n) (advance n s))) (Summands.parity (N.Nat^::succ n) side)
+    (cast (N.Nat^::succ (Labels.degree n s)) (Labels.degree (N.Nat^::succ n) (advance n s)) (sym!{{N.Nat^}} _ _ (degree n s)))
+    (Summands.at (N.Nat^::succ n) (advance n s) side (trans!{{B.Bool^}} _ _ _ (even n s) color));
+\definition tail: \forall (n: N.Nat^)(s: Labels.Index n)(side: B.Bool^)(color: Labels.even n s = side)(x: X)(v: Models.Fiber (term (N.Nat^::succ (Labels.degree n s))).ranks x) ->
+  ((map (N.Nat^::succ n) (Labels.Index::tail n s) (Labels.flip side) (congr!{{B.Bool^} {B.Bool^}} Labels.flip _ _ color)).fiber x).apply v =
+  ((Summands.lift (N.Nat^::succ n) side).fiber x).apply (((map n s side color).fiber x).apply v) :=
+  \fun (n: N.Nat^)(s: Labels.Index n)(side: B.Bool^)(color: Labels.even n s = side)(x: X)(v: Models.Fiber (term (N.Nat^::succ (Labels.degree n s))).ranks x) =>
+    Summands.tailFormula (N.Nat^::succ n) (advance n s) side (trans!{{B.Bool^}} _ _ _ (even n s) color) x
+      (((cast (N.Nat^::succ (Labels.degree n s)) (Labels.degree (N.Nat^::succ n) (advance n s)) (sym!{{N.Nat^}} _ _ (degree n s))).fiber x).apply v);
+\definition Valid[n: N.Nat^][s: Labels.Index n]: \Prop := \forall (side: B.Bool^)(color: Labels.even n s = side)(x: X)(v: Models.Fiber (term (N.Nat^::succ (Labels.degree n s))).ranks x) ->
+  ((nextAt n s side color).fiber x).apply v = ((map n s side color).fiber x).apply v;
+\module Head(n: N.Nat^);
+\module Tail(n: N.Nat^, s: Labels.Index n, previous: Valid n s);
+\definition formula: \forall (n: N.Nat^)(s: Labels.Index n) -> Valid n s :=
+  \induction (n: N.Nat^)(s: Labels.Index n) \return Valid n s \with {
+    | head: \fun (n: N.Nat^) => Head[n := n].result
+    | tail: \fun (n: N.Nat^)(s: Labels.Index n)(previous: Valid n s) => Tail[n := n, s := s, previous := previous].result
+  };

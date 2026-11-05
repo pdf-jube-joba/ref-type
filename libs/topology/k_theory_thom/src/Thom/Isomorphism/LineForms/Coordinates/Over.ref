@@ -1,0 +1,25 @@
+\import Bundles.Trivial[X := X, n := one, baseSpace := baseSpace] \as Original;
+\import Operations.Alternating[X := X, F := (\fun (x: X) => Bundles.Vector one), bundle := Original.bundle, k := k] \as FormsBundle;
+\import FormsBundle.In[c := Original.trivialization, enumeration := enumeration] \as Global;
+\definition dimension: Global.dimension = one := \refl(one);
+\import bundle_homotopy.Homotopy[].Over[K := C.Complex, field := C.Algebra[].field,
+  conjugation := linear_algebra.Hermitian[].Complex[].scalar, scalar := Scalars.scalar].ChartPullback[
+  X := X, F := FormsBundle.Fiber, bundle := FormsBundle.alternating, chart := Global.trivialization,
+  Y := X, source := baseSpace, f := (\fun (x: X) => x),
+  continuous := topology.Maps[A := X, B := X].Identity[].continuous baseSpace,
+  inside := (\fun (x: X) => \refl(x))] \as Chart;
+\import Bundles.Family[X := X, F := FormsBundle.Fiber].Of[bundle := FormsBundle.alternating].PullbackIdentity[] \as Identity;
+\import Operations.IsomorphismComposition[X := X, F := FormsBundle.Fiber, G := FormsBundle.Fiber,
+  H := (\fun (x: X) => Bundles.Vector one), source := FormsBundle.alternating,
+  middle := Chart.pulledBundle, target := Original.bundle] \as Composition;
+\definition isomorphism: Bundles.Isomorphisms[X := X, F := FormsBundle.Fiber, G := (\fun (x: X) => Bundles.Vector one),
+  source := FormsBundle.alternating, target := Original.bundle].Isomorphism := Composition.compose Identity.isomorphism Chart.isomorphism;
+\import linear_algebra.Commutative[K := C.Complex,
+  scalarRing := std.Alg[].Field[].fieldAsCommutativeRing C.Complex C.Algebra[].field] \as Vectors;
+\import Operations.FiniteIndex[A := Indices.Tuple, S := Indices.set, enumeration := enumeration] \as CoordinateIndices;
+\definition coefficientFormula: \forall (x: X)(omega: FormsBundle.Fiber x)(i: Fin.Fin one) ->
+  ((isomorphism.forward.fiber x).apply omega) i = omega (\fun (j: Fin.Fin k) => Vectors.FiniteCoordinates[n := one].vectors index) :=
+  \fun (x: X)(omega: FormsBundle.Fiber x)(i: Fin.Fin one) =>
+    congr!{{Indices.Tuple} {C.Complex}}
+      (\fun (t: Indices.Tuple) => omega (\fun (j: Fin.Fin k) => Vectors.FiniteCoordinates[n := one].vectors (t j)))
+      _ _ (unique (CoordinateIndices.enumerate i));

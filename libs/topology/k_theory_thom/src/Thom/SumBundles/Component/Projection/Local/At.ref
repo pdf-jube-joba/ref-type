@@ -1,0 +1,34 @@
+\import \root.Thom[].Sum[V := F y.base, W := G y.base, left := left.space y.base, right := right.space y.base] \as Algebra;
+\import Algebra.DirectSum[k := k] \as Direct;
+\definition index: Direct.Bidegree := Direct.make p q degree;
+\import Direct.At[d := index].InFrames[n := c.first.dimension, m := c.second.dimension,
+  firstFrame := c.first.frame (centerLeft y), secondFrame := c.second.frame (centerRight y),
+  firstEnumeration := c.firstEnumeration, secondEnumeration := c.secondEnumeration] \as Extraction;
+\import Algebra.At[p := p, q := q].InFrames[n := c.first.dimension, m := c.second.dimension,
+  firstFrame := c.first.frame (centerLeft y), secondFrame := c.second.frame (centerRight y),
+  firstEnumeration := c.firstEnumeration, secondEnumeration := c.secondEnumeration] \as Mixed;
+\import Mixed.Regraded[k := k, degree := degree] \as Regraded;
+\import Operations.AlternatingFrame[V := F y.base, space := left.space y.base, n := c.first.dimension, frame := c.first.frame (centerLeft y), k := p, enumeration := c.firstEnumeration] \as FirstFrame;
+\import Operations.AlternatingFrame[V := G y.base, space := right.space y.base, n := c.second.dimension, frame := c.second.frame (centerRight y), k := q, enumeration := c.secondEnumeration] \as SecondFrame;
+\import Operations.TensorFrame[V := LeftForms.Fiber y.base, W := RightForms.Fiber y.base,
+  left := LeftForms.fiberSpace y.base, right := RightForms.fiberSpace y.base,
+  n := leftDimension, m := rightDimension, first := FirstFrame.isomorphism, second := SecondFrame.isomorphism] \as Frame;
+\definition omega: Alternating.Fiber y.base := (comparison.forward.fiber y.base).apply y.vector;
+\definition coefficients: Spaces.Coordinates[I := Frame.Index].Vector := Mixed.coefficient (Regraded.convert.apply omega);
+\import Spaces.Sums[I := Fin.Fin leftDimension].Vector[V := Tensor.Fiber y.base, space := Tensor.fiberSpace y.base] \as LeftSums;
+\import Spaces.Sums[I := Fin.Fin rightDimension].Vector[V := Tensor.Fiber y.base, space := Tensor.fiberSpace y.base] \as RightSums;
+\import Spaces.Tensor[V := LeftForms.Fiber y.base, W := RightForms.Fiber y.base, left := LeftForms.fiberSpace y.base, right := RightForms.fiberSpace y.base] \as NativeTensor;
+\definition pureEquation[a: Fin.Fin leftDimension][b: Fin.Fin rightDimension]: pure a b y =
+  (Tensor.fiberSpace y.base).smul (coefficients (Frame.entry a b)) (NativeTensor.tensor (Frame.firstBasis.vectors a) (Frame.secondBasis.vectors b)) :=
+  trans!{{Tensor.Fiber y.base}} _ _ _ (NativeTensor.bilinear.scaleLeft (coefficient a b y) (leftBasis a y) (rightBasis b y))
+    (congr!{{C.Complex} {Tensor.Fiber y.base}} (\fun (z: C.Complex) => (Tensor.fiberSpace y.base).smul z (NativeTensor.tensor (leftBasis a y) (rightBasis b y))) _ _ \parent.Test[a := a, b := b].At[y := y].coefficient);
+\definition synthesis: vector y = Frame.synthesis coefficients :=
+  LeftSums.congruent (Fin.elements leftDimension) (\fun (a: Fin.Fin leftDimension) => row a y)
+    (\fun (a: Fin.Fin leftDimension) => Spaces.Sums[I := Fin.Fin rightDimension].Vector[V := Tensor.Fiber y.base, space := Tensor.fiberSpace y.base].sum (Fin.elements rightDimension)
+      (\fun (b: Fin.Fin rightDimension) => (Tensor.fiberSpace y.base).smul (coefficients (Frame.entry a b)) (NativeTensor.tensor (Frame.firstBasis.vectors a) (Frame.secondBasis.vectors b))))
+    (\fun (a: Fin.Fin leftDimension) => RightSums.congruent (Fin.elements rightDimension) (\fun (b: Fin.Fin rightDimension) => pure a b y)
+      (\fun (b: Fin.Fin rightDimension) => (Tensor.fiberSpace y.base).smul (coefficients (Frame.entry a b)) (NativeTensor.tensor (Frame.firstBasis.vectors a) (Frame.secondBasis.vectors b))) (pureEquation a));
+\definition recovered: Frame.synthesis coefficients = (fiber y.base).apply y.vector := Extraction.recovery y.vector;
+\definition formula: model y = Maps.total data y :=
+  congr!{{Tensor.Fiber y.base} {OutputFamily.Point}} (OutputFamily.include y.base) _ _
+    (trans!{{Tensor.Fiber y.base}} _ _ _ synthesis recovered);

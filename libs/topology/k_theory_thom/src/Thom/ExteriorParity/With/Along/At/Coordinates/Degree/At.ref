@@ -1,0 +1,35 @@
+\import module_theory.Module[].Over[R := C.Complex, ring := Spaces.ring] \as Modules;
+\import Modules.Sums[I := Index].Vector[V := Models.Fiber (model side).ranks x, space := (Models.bundle (model side)).space x] \as Sums;
+\definition fiberSum: \forall (xs: Lists.List[Index])(maps: Index -> Maps.Map)(v: Models.Fiber (totalTerm k).ranks x) ->
+  ((sum xs maps).fiber x).apply v = Sums.sum xs (\fun (i: Index) => ((maps i).fiber x).apply v) :=
+  \induction (xs: Lists.List[Index]) \return \forall (maps: Index -> Maps.Map)(v: Models.Fiber (totalTerm k).ranks x) ->
+    ((sum xs maps).fiber x).apply v = Sums.sum xs (\fun (i: Index) => ((maps i).fiber x).apply v) \with {
+      | nil: \fun (maps: Index -> Maps.Map)(v: Models.Fiber (totalTerm k).ranks x) => \refl(((Models.bundle (model side)).space x).zero)
+      | cons: \fun (head: Index)(tail: Lists.List[Index])
+        (previous: \forall (maps: Index -> Maps.Map)(v: Models.Fiber (totalTerm k).ranks x) -> ((sum tail maps).fiber x).apply v = Sums.sum tail (\fun (i: Index) => ((maps i).fiber x).apply v))
+        (maps: Index -> Maps.Map)(v: Models.Fiber (totalTerm k).ranks x) =>
+        congr!{{Models.Fiber (model side).ranks x} {Models.Fiber (model side).ranks x}}
+          (((Models.bundle (model side)).space x).add (((maps head).fiber x).apply v)) _ _ (previous maps v)
+    };
+\definition formula[v: Models.Fiber (totalTerm k).ranks x]: (map.fiber x).apply v = Sums.sum (Fin.elements (N.Nat^::succ k))
+  (\fun (i: Index) => ((components i).fiber x).apply v) := fiberSum (Fin.elements (N.Nat^::succ k)) components v;
+\import \root.Thom[].Sum[V := F x, W := G x, left := left.space x, right := right.space x].DirectSum[k := k] \as Direct;
+\import Direct.Enumeration[] \as Enumeration;
+\module Piece(d: Direct.Bidegree);
+\definition nativeComponents: \forall (d: Direct.Bidegree) -> Modules.Hom[V := Direct.family.Carrier d, W := Models.Fiber (model side).ranks x,
+  source := Direct.family.space d, target := (Models.bundle (model side)).space x].Map := \fun (d: Direct.Bidegree) => Piece[d := d].map;
+\import Enumeration.To[U := Models.Fiber (model side).ranks x, target := (Models.bundle (model side)).space x, components := nativeComponents] \as Extension;
+\module AtIndex(i: Index);
+\definition formulaNative[v: Native k x]: (map.fiber x).apply (((data.total k).isomorphism.forward.fiber x).apply v) = Extension.extension.apply v :=
+  trans!{{Models.Fiber (model side).ranks x}} _ _ _ (formula (((data.total k).isomorphism.forward.fiber x).apply v))
+    (trans!{{Models.Fiber (model side).ranks x}} _ _ _
+      (Sums.congruent (Fin.elements (N.Nat^::succ k))
+        (\fun (i: Index) => ((components i).fiber x).apply (((data.total k).isomorphism.forward.fiber x).apply v))
+        (\fun (i: Index) => (nativeComponents (Enumeration.at i)).apply (Direct.coordinates v (Enumeration.at i)))
+        (\fun (i: Index) => AtIndex[i := i].equation v))
+      (sym!{{Models.Fiber (model side).ranks x}} _ _ (Extension.formula v)));
+\definition onInjection[d: Direct.Bidegree][v: Direct.family.Carrier d]:
+  (map.fiber x).apply (((data.total k).isomorphism.forward.fiber x).apply (Direct.At[d := d].injection.apply v)) = (nativeComponents d).apply v :=
+  trans!{{Models.Fiber (model side).ranks x}} _ _ _ (formulaNative (Direct.At[d := d].injection.apply v))
+    (module_theory.Module[].Over[R := C.Complex, ring := Spaces.ring].DirectSum[Index := Direct.Bidegree, family := Direct.family]
+      .To[W := Models.Fiber (model side).ranks x, target := (Models.bundle (model side)).space x].onInjection nativeComponents d v);

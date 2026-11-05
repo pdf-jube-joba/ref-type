@@ -1,0 +1,21 @@
+\definition v: Models.Fiber (firstTerm p).ranks x := ((data.first p).isomorphism.forward.fiber x).apply omega;
+\definition w: Models.Fiber (secondTerm q).ranks x := ((data.second q).isomorphism.forward.fiber x).apply eta;
+\definition tensor: CodedTensor.Fiber x := Tensor.componentPure p q x v w;
+\definition folded: Source.Fiber x := Source.pure x
+  (((First.at n a firstSide (\refl(firstSide))).fiber x).apply v) (((Second.at m b secondSide (\refl(secondSide))).fiber x).apply w);
+\definition preimage: Code sector := ((block firstSide secondSide).fiber x).apply folded;
+\definition decoded: (Entry.decode.fiber x).apply tensor = FormTensor.pure x omega eta :=
+  trans!{{FormTensor.Fiber x}} _ _ _ (Decode.onPure (data.first p).isomorphism.backward (data.second q).isomorphism.backward x v w)
+    (congr!{{FirstForm p x} {SecondForm q x} {FormTensor.Fiber x}} (FormTensor.pure x) _ _ _ _
+      ((data.first p).isomorphism.leftInverse x omega) ((data.second q).isomorphism.leftInverse x eta));
+\definition encoded: (Entry.encoded.fiber x).apply tensor = NativePiece.encoded.apply (NativePiece.pure omega eta) :=
+  trans!{{Models.Fiber (totalTerm k).ranks x}} _ _ _
+    (congr!{{FormTensor.Fiber x} {Models.Fiber (totalTerm k).ranks x}}
+      (\fun (t: FormTensor.Fiber x) => ((data.total k).isomorphism.forward.fiber x).apply ((NativeComponent.inclusion.fiber x).apply t)) _ _ decoded)
+    (congr!{{Native k x} {Models.Fiber (totalTerm k).ranks x}} ((data.total k).isomorphism.forward.fiber x).apply _ _
+      (Identification.equation (NativePiece.pure omega eta)));
+\definition equation: ((forwardCode sector).fiber x).apply preimage = NativePiece.value sector labelColor omega eta :=
+  trans!{{Target sector}} _ _ _ (\parent.\parent.Blocks[].equation firstSide secondSide folded)
+    (trans!{{Target sector}} _ _ _ (Source.onPair firstLabel secondLabel x v w)
+      (congr!{{Models.Fiber (totalTerm k).ranks x} {Target sector}} ((Total.at degree label sector labelColor).fiber x).apply _ _ encoded));
+\definition fixed: Fixed sector (NativePiece.value sector labelColor omega eta) := fromImage sector preimage (NativePiece.value sector labelColor omega eta) equation;

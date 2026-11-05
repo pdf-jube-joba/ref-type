@@ -1,0 +1,46 @@
+\import Operations.Models[X := X, baseSpace := space] \as Models;
+\import Models.Chains[].Of[complex := complex] \as Chain;
+\import Relative.Pair[X := X, space := space, compact := compact, hausdorff := hausdorff, subset := subset, closed := closed] \as Pair;
+\import Pair.Quotient[] \as Quotient;
+\import Pair.Group[] \as Group;
+\import Group.Forget[] \as Forget;
+\import Forget.Empty[empty := empty] \as Empty;
+\import Group.ToReduced[] \as ToReduced;
+\import Pair.Comparison[] \as Comparison;
+\import Pair.ForgetProjection[] \as Projection;
+\import topological_k_theory.KTheory[].On[X := X, baseSpace := space, compact := compact, hausdorff := hausdorff] \as K;
+\definition unit: Quotient.Relative := ToReduced.map (Empty.inverse K.K0[].one);
+\definition unitFormula: Projection.projectionPull unit = K.K0[].one :=
+  trans!{{K.K0[].Carrier}} _ _ _ (Projection.onGroup (Empty.inverse K.K0[].one)) (Empty.rightInverse K.K0[].one);
+\definition injective: \forall (v, w: Quotient.Relative) -> Projection.projectionPull v = Projection.projectionPull w -> v = w :=
+  \fun (v, w: Quotient.Relative)(same: Projection.projectionPull v = Projection.projectionPull w) =>
+    trans!{{Quotient.Relative}} _ _ _ (sym!{{Quotient.Relative}} _ _ (Comparison.isomorphism.rightInverse v))
+      (trans!{{Quotient.Relative}} _ _ _
+        (congr!{{Group.Carrier} {Quotient.Relative}} Comparison.isomorphism.forward _ _
+          (Empty.injective (Comparison.isomorphism.backward v) (Comparison.isomorphism.backward w)
+            (trans!{{K.K0[].Carrier}} _ _ _ (sym!{{K.K0[].Carrier}} _ _ (Projection.equation v))
+              (trans!{{K.K0[].Carrier}} _ _ _ same (Projection.equation w)))))
+        (Comparison.isomorphism.rightInverse w));
+\import \root.Thom[].RelativeComplex[X := X, space := space, compact := compact, hausdorff := hausdorff,
+  subset := subset, closed := closed, complex := complex] \as RelativeComplex;
+\definition exact: RelativeComplex.Exact := \fun (x: Pair.A) => Logic.falseElim (Chain.ExactAt x) (empty x);
+\import RelativeComplex.Supported[exact := exact] \as Supported;
+\import Pair.Restriction[] \as Restriction;
+\import Models.Pullback[b := Chain.parity.even, Y := Pair.A, source := Pair.subspace,
+  f := Restriction.inclusion, regular := Restriction.regular] \as BoundaryEven;
+\import Models.Pullback[b := Chain.parity.odd, Y := Pair.A, source := Pair.subspace,
+  f := Restriction.inclusion, regular := Restriction.regular] \as BoundaryOdd;
+\import Models.PullbackMap[p := Chain.parity.even, q := Chain.parity.odd, Y := Pair.A, source := Pair.subspace,
+  f := Restriction.inclusion, regular := Restriction.regular] \as D;
+\import Models.PullbackMap[p := Chain.parity.odd, q := Chain.parity.even, Y := Pair.A, source := Pair.subspace,
+  f := Restriction.inclusion, regular := Restriction.regular] \as E;
+\import compact_support_k.Support[].CompactBundles[X := Pair.A, space := Pair.subspace,
+  compact := Restriction.compactSubset, hausdorff := Restriction.hausdorffSubset].Acyclic[
+  p := BoundaryEven.value, q := BoundaryOdd.value, d := D.map Chain.parity.forward, e := E.map Chain.parity.backward] \as Acyclic;
+\import Bundles.Trivial[X := X, n := N.Nat^::succ N.Nat^::zero, baseSpace := space] \as One;
+\import Bundles.Trivial[X := X, n := N.Nat^::zero, baseSpace := space] \as Zero;
+\module With(
+  positive: Bundles.Isomorphisms[X := X, F := Chain.Even, G := (\fun (x: X) => Bundles.Vector (N.Nat^::succ N.Nat^::zero)),
+    source := Chain.even, target := One.bundle].Isomorphism,
+  negative: Bundles.Isomorphisms[X := X, F := Chain.Odd, G := (\fun (x: X) => Bundles.Vector N.Nat^::zero),
+    source := Chain.odd, target := Zero.bundle].Isomorphism);

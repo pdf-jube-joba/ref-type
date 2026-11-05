@@ -1,0 +1,91 @@
+\use Equality.eq_reason_in;
+\import std.Arithmetic[].Int[] \as I;
+\definition zero: I.Int^ := I.Int^::ofNat N.Nat^::zero;
+\import compact_support_k.Support[] \as Support;
+\import relative_k_theory.Relative[] \as Relative;
+\import topology.Topology[Carrier := X] \as Base;
+\definition rightCompact: Base.IsCompact right.baseSpace := \idelim left.baseSpace = right.baseSpace
+  \with t: Base.Topology => Base.IsCompact t \by { base: compact, equality: sameBase };
+\definition rightHausdorff: Base.IsT2 right.baseSpace := \idelim left.baseSpace = right.baseSpace
+  \with t: Base.Topology => Base.IsT2 t \by { base: hausdorff, equality: sameBase };
+\import Operations.DirectSum[X := X, F := F, G := G, left := left, right := right] \as Sum;
+\definition sum: Bundles.Family[X := X, F := Sum.Fiber].Bundle := Sum.bundle sameBase;
+\import Bundles.Family[X := X, F := F] \as LeftFamily;
+\import Bundles.Family[X := X, F := G] \as RightFamily;
+\import Bundles.Family[X := X, F := Sum.Fiber] \as SumFamily;
+\import \root.Thom[].TotalSpace[X := X, F := F, bundle := left, compact := compact, hausdorff := hausdorff] \as LeftTotal;
+\import \root.Thom[].TotalSpace[X := X, F := G, bundle := right, compact := rightCompact, hausdorff := rightHausdorff] \as RightTotal;
+\import \root.Thom[].TotalSpace[X := X, F := Sum.Fiber, bundle := sum, compact := compact, hausdorff := hausdorff] \as SumTotal;
+\import Support.On[X := LeftFamily.Point, space := left.totalSpace, hausdorff := LeftTotal.separated, locallyCompact := LeftTotal.locallyCompact] \as Left;
+\import Support.On[X := RightFamily.Point, space := right.totalSpace, hausdorff := RightTotal.separated, locallyCompact := RightTotal.locallyCompact] \as Right;
+\import Support.On[X := SumFamily.Point, space := sum.totalSpace, hausdorff := SumTotal.separated, locallyCompact := SumTotal.locallyCompact] \as Result;
+\definition First: \Set := Left.At[degree := zero].Carrier;
+\definition Second: \Set := Right.At[degree := zero].Carrier;
+\definition Carrier: \Set := Result.At[degree := zero].Carrier;
+\import Left.Product[Y := RightFamily.Point, otherSpace := right.totalSpace,
+  otherHausdorff := RightTotal.separated, otherLocallyCompact := RightTotal.locallyCompact] \as External;
+\import External.Coordinates[] \as Coordinates;
+\import Relative.Smash[left := Left.model, right := Right.model] \as Smash;
+\import Support.ClosedPair[M := Smash.model.Carrier, space := Smash.topology, compact := Smash.compact, hausdorff := Smash.hausdorff,
+  subset := Smash.wedge, closed := Smash.wedgeClosed] \as Complement;
+\import \root.Thom[].FiberProduct[X := X, F := F, G := G, left := left, right := right,
+  sameBase := sameBase, baseHausdorff := hausdorff] \as Geometry;
+\import topological_constructions.Product[A := LeftFamily.Point, B := RightFamily.Point] \as Product;
+\import Support.Homeomorphic[A := Product.CarrierSet, B := External.Carrier, source := Product.topology left.totalSpace right.totalSpace,
+  target := External.topology, h := Coordinates.homeomorphism] \as Change;
+\definition inclusion[p: SumFamily.Point]: External.Carrier := Coordinates.forward (Geometry.inclusion p);
+\definition continuous: topology.Continuity[A := SumFamily.Point, B := External.Carrier].Continuous sum.totalSpace External.topology inclusion :=
+  topology.Composition[A := SumFamily.Point, B := Product.CarrierSet, C := External.Carrier].composeContinuous sum.totalSpace Geometry.productTopology External.topology
+    Geometry.inclusion Coordinates.forward Geometry.continuous Coordinates.forwardContinuous;
+\definition proper: Support.Proper[A := SumFamily.Point, B := External.Carrier, source := sum.totalSpace, target := External.topology].IsProper inclusion :=
+  Support.ProperComposition[A := SumFamily.Point, B := Product.CarrierSet, C := External.Carrier,
+    firstSpace := sum.totalSpace, middleSpace := Geometry.productTopology, lastSpace := External.topology,
+    f := Geometry.inclusion, g := Coordinates.forward, firstContinuous := Geometry.continuous, secondContinuous := Coordinates.forwardContinuous,
+    firstProper := Geometry.proper, secondProper := Change.proper].proper;
+\import Result.Pullback[Y := External.Carrier, target := External.topology, targetHausdorff := Complement.interiorHausdorff,
+  targetLocallyCompact := Complement.interiorLocallyCompact, f := inclusion, continuous := continuous, proper := proper] \as Pullback;
+\import Pullback.At[degree := zero] \as Pull;
+\definition multiply[a: First][b: Second]: Carrier := Pull.map (Complement.At[degree := zero].toCompactSupport (Smash.External[].product a b));
+\import Relative.Composition[source := Result.model, middle := Complement.model, target := Smash.result,
+  first := Pullback.mapping, second := Complement.equivalence.backward] \as Compactified;
+\definition mapping: Relative.Map Result.model Smash.result := Compactified.map;
+\import Relative.Pullback[source := Result.model, target := Smash.result, f := mapping] \as Native;
+\definition formula: \forall (a: First)(b: Second) -> multiply a b = Native.map (Smash.External[].product a b) :=
+  \fun (a: First)(b: Second) => sym!{Carrier} _ _
+    (Relative.PullbackComposition[source := Result.model, middle := Complement.model, target := Smash.result,
+      first := Pullback.mapping, second := Complement.equivalence.backward].equation (Smash.External[].product a b));
+\definition additiveLeft: \forall (a, c: First)(b: Second) -> multiply (Left.At[degree := zero].group.base.op a c) b =
+  Result.At[degree := zero].group.base.op (multiply a b) (multiply c b) :=
+  \fun (a, c: First)(b: Second) => eq_reason_in!{Carrier _
+    "=" { Native.map (Smash.External[].product (Left.At[degree := zero].group.base.op a c) b) } "by" { formula (Left.At[degree := zero].group.base.op a c) b }
+    "=" { Native.map (Relative.Reduced[model := Smash.result].group.base.op (Smash.External[].product a b) (Smash.External[].product c b)) } "by" {
+      congr!{{Relative.Reduced[model := Smash.result].Carrier} Carrier} Native.map _ _ (Smash.External[].additiveLeft a c b) }
+    "=" { Result.At[degree := zero].group.base.op (Native.map (Smash.External[].product a b)) (Native.map (Smash.External[].product c b)) } "by" {
+      Native.additive (Smash.External[].product a b) (Smash.External[].product c b) }
+    "=" _ "by" { congr!{Carrier Carrier Carrier} Result.At[degree := zero].group.base.op _ _ _ _ (sym!{Carrier} _ _ (formula a b)) (sym!{Carrier} _ _ (formula c b)) }
+  };
+\definition additiveRight: \forall (a: First)(b, c: Second) -> multiply a (Right.At[degree := zero].group.base.op b c) =
+  Result.At[degree := zero].group.base.op (multiply a b) (multiply a c) :=
+  \fun (a: First)(b, c: Second) => eq_reason_in!{Carrier _
+    "=" { Native.map (Smash.External[].product a (Right.At[degree := zero].group.base.op b c)) } "by" { formula a (Right.At[degree := zero].group.base.op b c) }
+    "=" { Native.map (Relative.Reduced[model := Smash.result].group.base.op (Smash.External[].product a b) (Smash.External[].product a c)) } "by" {
+      congr!{{Relative.Reduced[model := Smash.result].Carrier} Carrier} Native.map _ _ (Smash.External[].additiveRight a b c) }
+    "=" { Result.At[degree := zero].group.base.op (Native.map (Smash.External[].product a b)) (Native.map (Smash.External[].product a c)) } "by" {
+      Native.additive (Smash.External[].product a b) (Smash.External[].product a c) }
+    "=" _ "by" { congr!{Carrier Carrier Carrier} Result.At[degree := zero].group.base.op _ _ _ _ (sym!{Carrier} _ _ (formula a b)) (sym!{Carrier} _ _ (formula a c)) }
+  };
+\import Support.OnePoint[X := SumFamily.Point, space := sum.totalSpace] \as Points;
+\import Support.OnePoint[X := LeftFamily.Point, space := left.totalSpace] \as LeftPoints;
+\import Support.OnePoint[X := RightFamily.Point, space := right.totalSpace] \as RightPoints;
+\import std.Data[].Pair[] \as Pair;
+\definition onFinite: \forall (p: SumFamily.Point) -> mapping (Points.inclusion p) =
+  Smash.projection (Pair.pair LeftPoints.Carrier RightPoints.Carrier (LeftPoints.inclusion (Sum.first p)) (RightPoints.inclusion (Sum.second p))) :=
+  \fun (p: SumFamily.Point) => Complement.backwardOnInterior (inclusion p);
+\module Along(Y: \Set, target: topology.Topology[Carrier := Y].Topology,
+  targetHausdorff: topology.Topology[Carrier := Y].IsT2 target,
+  targetLocallyCompact: topology.LocallyCompact[A := Y].IsLocallyCompact target,
+  g: RightFamily.Point -> Y,
+  regular: topology.Continuity[A := RightFamily.Point, B := Y].Continuous right.totalSpace target g,
+  proper: Support.Proper[A := RightFamily.Point, B := Y, source := right.totalSpace, target := target].IsProper g);
+\module Proofs(otherSameBase: left.baseSpace = right.baseSpace, otherCompact: topology.Topology[Carrier := X].IsCompact left.baseSpace,
+  otherHausdorff: topology.Topology[Carrier := X].IsT2 left.baseSpace);

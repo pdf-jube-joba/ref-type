@@ -1,0 +1,26 @@
+\import std.Alg[].Alg[] \as Alg;
+\import algebra.Groups[].On[G := K.Carrier, group := Alg.asGroup K.Carrier K.group] \as Source;
+\import Relative.Reduced[model := Supported.model] \as Target;
+\import algebra.Groups[].On[G := Target.Carrier, group := Alg.asGroup Target.Carrier Target.group] \as Result;
+\definition injective: \forall (a, b: K.Carrier) -> forward a = forward b -> a = b :=
+  \fun (a, b: K.Carrier)(same: _) => trans!{{K.Carrier}} _ _ _ (sym!{{K.Carrier}} _ _ (leftInverse a))
+    (trans!{{K.Carrier}} _ _ _ (congr!{{Target.Carrier} {K.Carrier}} backward _ _ same) (leftInverse b));
+\definition idempotent: forward K.zero = Target.group.base.op (forward K.zero) (forward K.zero) :=
+  trans!{{Target.Carrier}} _ _ _
+    (congr!{{K.Carrier} {Target.Carrier}} forward _ _ (sym!{{K.Carrier}} _ _ (Source.oneLeft K.zero)))
+    (additive K.zero K.zero);
+\definition forwardZero: forward K.zero = Target.group.base.unit :=
+  sym!{{Target.Carrier}} _ _ (Result.cancelLeft (forward K.zero) Target.group.base.unit (forward K.zero)
+    (trans!{{Target.Carrier}} _ _ _ (Result.oneRight (forward K.zero)) idempotent));
+\definition backwardAdd: \forall (u, v: Target.Carrier) -> backward (Target.group.base.op u v) = K.add (backward u) (backward v) :=
+  \fun (u, v: Target.Carrier) => injective _ _
+    (trans!{{Target.Carrier}} _ _ _ (rightInverse (Target.group.base.op u v))
+      (sym!{{Target.Carrier}} _ _ (trans!{{Target.Carrier}} _ _ _ (additive (backward u) (backward v))
+        (congr!{{Target.Carrier} {Target.Carrier} {Target.Carrier}} Target.group.base.op _ _ _ _ (rightInverse u) (rightInverse v)))));
+\definition backwardZero: backward Target.group.base.unit = K.zero := injective _ _
+  (trans!{{Target.Carrier}} _ _ _ (rightInverse Target.group.base.unit) (sym!{{Target.Carrier}} _ _ forwardZero));
+\definition data: periodic_k_theory.Periodicity[].Isomorphism[A := K.Carrier, B := Target.Carrier, source := K.group, target := Target.group].Data :=
+  periodic_k_theory.Periodicity[].Isomorphism[A := K.Carrier, B := Target.Carrier, source := K.group, target := Target.group].Data {
+    forward := forward, backward := backward, leftInverse := leftInverse, rightInverse := rightInverse,
+    forwardAdd := additive, backwardAdd := backwardAdd, forwardZero := forwardZero, backwardZero := backwardZero
+  };

@@ -1,0 +1,38 @@
+\use Equality.eq_reason_in;
+\definition degree: N.Nat^ := Nat.add N.Nat^::zero q;
+\import \parent.At[p := N.Nat^::zero, q := N.Nat^::succ q] \as Source;
+\import \parent.At[p := N.Nat^::zero, q := q] \as Target;
+\import Forms.Contraction[k := degree] \as Differential;
+\import RightForms.Contraction[k := q] \as RightDifferential;
+\import Exterior.Components[k := degree] \as Components;
+\import Exterior.SeriesShift[k := degree] \as Shift;
+\definition leftTerm: \forall (omega: Left.Form N.Nat^::zero)(eta: Right.Form (N.Nat^::succ q))(v: V)(w: W)(xs: Lists.List[Total]) ->
+  Shuffle.product (Shuffle.shift (Sum.make v w) (leftSeries N.Nat^::zero omega)) (rightSeries (N.Nat^::succ q) eta) xs = Op.zero :=
+  \fun (omega: Left.Form N.Nat^::zero)(eta: Right.Form (N.Nat^::succ q))(v: V)(w: W)(xs: Lists.List[Total]) => trans!{{C.Complex}} _ _ _
+    (Products.congruent (Shuffle.shift (Sum.make v w) (leftSeries N.Nat^::zero omega)) Shuffle.origin
+      (rightSeries (N.Nat^::succ q) eta) (rightSeries (N.Nat^::succ q) eta) (leftZeroShift omega v w)
+      (\fun (ys: Lists.List[Total]) => \refl(rightSeries (N.Nat^::succ q) eta ys)) xs)
+    (Products.zeroLeft (rightSeries (N.Nat^::succ q) eta) xs);
+\definition rightTerm: \forall (omega: Left.Form N.Nat^::zero)(eta: Right.Form (N.Nat^::succ q))(v: V)(w: W)(xs: Lists.List[Total]) ->
+  Shuffle.product (Shuffle.twist (leftSeries N.Nat^::zero omega)) (Shuffle.shift (Sum.make v w) (rightSeries (N.Nat^::succ q) eta)) xs =
+  Target.product omega (RightDifferential.apply eta w) xs :=
+  \fun (omega: Left.Form N.Nat^::zero)(eta: Right.Form (N.Nat^::succ q))(v: V)(w: W)(xs: Lists.List[Total]) =>
+    Products.congruent (Shuffle.twist (leftSeries N.Nat^::zero omega)) (leftSeries N.Nat^::zero omega)
+      (Shuffle.shift (Sum.make v w) (rightSeries (N.Nat^::succ q) eta)) (rightSeries q (RightDifferential.apply eta w))
+      (\fun (ys: Lists.List[Total]) => trans!{{C.Complex}} _ _ _ (leftTwist N.Nat^::zero omega ys) (Laws.mulOneLeft (leftSeries N.Nat^::zero omega ys)))
+      (rightShift q eta v w) xs;
+\definition equation: \forall (omega: Left.Form N.Nat^::zero)(eta: Right.Form (N.Nat^::succ q))(v: V)(w: W) ->
+  Differential.apply (Source.apply omega eta) (Sum.make v w) = Target.apply omega (RightDifferential.apply eta w) :=
+  \fun (omega: Left.Form N.Nat^::zero)(eta: Right.Form (N.Nat^::succ q))(v: V)(w: W) => Components.ext _ _
+    (\axiom:funext(Exterior.component degree (Differential.apply (Source.apply omega eta) (Sum.make v w)),
+      Exterior.component degree (Target.apply omega (RightDifferential.apply eta w)),
+      \fun (xs: Lists.List[Total]) => eq_reason_in!{C.Complex _
+        "=" { Exterior.component (N.Nat^::succ degree) (Source.apply omega eta) (Lists.List[Total]::cons (Sum.make v w) xs) } "by" { sym!{{C.Complex}} _ _ (Shift.atCons (Source.apply omega eta) (Sum.make v w) xs) }
+        "=" { Source.product omega eta (Lists.List[Total]::cons (Sum.make v w) xs) } "by" { congr!{{Shuffle.Function} {C.Complex}} (\fun (f: Shuffle.Function) => f (Lists.List[Total]::cons (Sum.make v w) xs)) _ _ (Source.series omega eta) }
+        "=" { Op.add
+          (Shuffle.product (Shuffle.shift (Sum.make v w) (leftSeries N.Nat^::zero omega)) (rightSeries (N.Nat^::succ q) eta) xs)
+          (Shuffle.product (Shuffle.twist (leftSeries N.Nat^::zero omega)) (Shuffle.shift (Sum.make v w) (rightSeries (N.Nat^::succ q) eta)) xs) } "by" { Source.differential omega eta v w xs }
+        "=" { Op.add Op.zero (Target.product omega (RightDifferential.apply eta w) xs) } "by" { congr!{{C.Complex} {C.Complex} {C.Complex}} Op.add _ _ _ _ (leftTerm omega eta v w xs) (rightTerm omega eta v w xs) }
+        "=" { Target.product omega (RightDifferential.apply eta w) xs } "by" { Laws.addZeroLeft (Target.product omega (RightDifferential.apply eta w) xs) }
+        "=" _ "by" { sym!{{C.Complex}} _ _ (congr!{{Shuffle.Function} {C.Complex}} (\fun (f: Shuffle.Function) => f xs) _ _ (Target.series omega (RightDifferential.apply eta w))) }
+      }));

@@ -1,0 +1,43 @@
+\import Base.Subspace[S := s.domain] \as Domain;
+\definition inclusion[x: Domain.CarrierSet]: X := x;
+\definition inclusionContinuous: topology.Continuity[A := Domain.CarrierSet, B := X].Continuous
+  (Domain.topology bundle.baseSpace) bundle.baseSpace inclusion :=
+  topology.Continuity[A := Domain.CarrierSet, B := X].Corestriction[S := s.domain].inclusionContinuous bundle.baseSpace;
+\definition vectors[i: Fin.Fin (N.Nat^::succ k)][x: Domain.CarrierSet]: F x :=
+  Fin.Tuples[A := F x].extend k (section.value x) (\fun (j: Fin.Fin k) => s.value j x) i;
+\definition Regular[i: Fin.Fin (N.Nat^::succ k)]: \Prop :=
+  topology.Continuity[A := Domain.CarrierSet, B := Original.Point].Continuous
+    (Domain.topology bundle.baseSpace) bundle.totalSpace (\fun (x: Domain.CarrierSet) => Original.include x (vectors i x));
+\definition vectorContinuous: \forall (i: Fin.Fin (N.Nat^::succ k)) ->
+  topology.Continuity[A := Domain.CarrierSet, B := Original.Point].Continuous
+    (Domain.topology bundle.baseSpace) bundle.totalSpace (\fun (x: Domain.CarrierSet) => Original.include x (vectors i x)) :=
+  Fin.cases k Regular
+    (\idelim (\fun (x: Domain.CarrierSet) => Original.include x (section.value x)) =
+      (\fun (x: Domain.CarrierSet) => Original.include x (vectors (Fin.zero k) x))
+      \with g: (Domain.CarrierSet -> Original.Point) => topology.Continuity[A := Domain.CarrierSet, B := Original.Point].Continuous
+        (Domain.topology bundle.baseSpace) bundle.totalSpace g \by {
+        base: topology.Composition[A := Domain.CarrierSet, B := X, C := Original.Point].composeContinuous
+          (Domain.topology bundle.baseSpace) bundle.baseSpace bundle.totalSpace inclusion (Sections.total section)
+          inclusionContinuous (Sections.continuous section),
+        equality: \axiom:funext((\fun (x: Domain.CarrierSet) => Original.include x (section.value x)),
+          (\fun (x: Domain.CarrierSet) => Original.include x (vectors (Fin.zero k) x)), \fun (x: Domain.CarrierSet) => congr!{{F x} {Original.Point}} (Original.include x) _ _
+          (sym!{{F x}} _ _ (Fin.Tuples[A := F x].atZero k (section.value x) (\fun (j: Fin.Fin k) => s.value j x))))
+      })
+    (\fun (j: Fin.Fin k) => \idelim (\fun (x: Domain.CarrierSet) => Original.include x (s.value j x)) =
+      (\fun (x: Domain.CarrierSet) => Original.include x (vectors (Fin.succ k j) x))
+      \with g: (Domain.CarrierSet -> Original.Point) => topology.Continuity[A := Domain.CarrierSet, B := Original.Point].Continuous
+        (Domain.topology bundle.baseSpace) bundle.totalSpace g \by {
+        base: s.regular j,
+        equality: \axiom:funext((\fun (x: Domain.CarrierSet) => Original.include x (s.value j x)),
+          (\fun (x: Domain.CarrierSet) => Original.include x (vectors (Fin.succ k j) x)), \fun (x: Domain.CarrierSet) => congr!{{F x} {Original.Point}} (Original.include x) _ _
+          (sym!{{F x}} _ _ (Fin.Tuples[A := F x].atSuccessor k (section.value x) (\fun (j: Fin.Fin k) => s.value j x) j)))
+      });
+\definition test: Source.TupleSection := Source.TupleSection {
+  domain := s.domain, open := s.open, value := vectors, regular := vectorContinuous
+};
+\import bundle_operations.Operations[].Evaluations[K := C.Complex, X := X, E := SourceFamily.Point,
+  I := Source.TupleSection, scalarSpace := Scalars.scalar.topological.space, baseSpace := bundle.baseSpace,
+  projection := SourceFamily.projection, domains := Source.domains, open := \fun (s: Source.TupleSection) => s.open,
+  evaluate := Source.evaluate] \as SourceEvaluations;
+\definition continuous: Evaluations.Universal[A := SourceFamily.Point].At[i := s, f := Maps.total data].Regular Source.topology :=
+  SourceEvaluations.At[i := test].continuous;

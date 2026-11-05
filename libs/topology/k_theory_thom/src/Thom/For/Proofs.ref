@@ -1,0 +1,45 @@
+\import relative_k_theory.Relative[] \as Relative;
+\import compact_support_k.Support[] \as Support;
+\import \root.Thom[].For[X := X, F := F, bundle := bundle, compact := compact, hausdorff := hausdorff] \as FirstFor;
+\import \root.Thom[].For[X := X, F := F, bundle := bundle, compact := otherCompact, hausdorff := otherHausdorff] \as OtherFor;
+\import Original.PullbackIdentity[] \as Identity;
+\import FirstFor.ThomPullback[Y := X, source := bundle.baseSpace, sourceCompact := otherCompact,
+  sourceHausdorff := otherHausdorff, f := (\fun (x: X) => x), regular := Identity.regular] \as Pull;
+\import OtherFor.BundleIsomorphism[G := (\fun (x: X) => F x), target := Identity.target,
+  targetCompact := otherCompact, targetHausdorff := otherHausdorff, sameBase := (\refl(bundle.baseSpace)), iso := Identity.isomorphism] \as Change;
+\import \root.Thom[].TotalSpace[X := X, F := F, bundle := bundle, compact := otherCompact, hausdorff := otherHausdorff] \as OtherTotal;
+\import \root.Thom[].TotalSpace[X := X, F := (\fun (x: X) => F x), bundle := Identity.target, compact := otherCompact, hausdorff := otherHausdorff] \as PulledTotal;
+\import Support.On[X := Koszul.Total, space := bundle.totalSpace, hausdorff := OtherTotal.separated, locallyCompact := OtherTotal.locallyCompact] \as OtherSupport;
+\import Bundles.Family[X := X, F := (\fun (x: X) => F x)] \as PulledFamily;
+\import Support.On[X := PulledFamily.Point, space := Identity.target.totalSpace, hausdorff := PulledTotal.separated, locallyCompact := PulledTotal.locallyCompact] \as PulledSupport;
+\import Support.Homeomorphic[A := Koszul.Total, B := PulledFamily.Point, source := bundle.totalSpace, target := Identity.target.totalSpace, h := Change.totalHomeomorphism] \as Homeomorphism;
+\import OtherSupport.Pullback[Y := PulledFamily.Point, target := Identity.target.totalSpace, targetHausdorff := PulledTotal.separated,
+  targetLocallyCompact := PulledTotal.locallyCompact, f := Change.totalHomeomorphism.forward,
+  continuous := Change.totalHomeomorphism.forwardContinuous, proper := Homeomorphism.proper] \as First;
+\import \root.Thom[].Naturality[X := X, F := F, bundle := bundle, Y := X, source := bundle.baseSpace,
+  f := (\fun (x: X) => x), regular := Identity.regular].Koszul[] \as Natural;
+\import Total.Pullback[Y := X, source := bundle.baseSpace, sourceCompact := otherCompact, f := (\fun (x: X) => x), regular := Identity.regular] \as Proper;
+\import PulledSupport.Pullback[Y := Koszul.Total, target := bundle.totalSpace, targetHausdorff := Total.separated,
+  targetLocallyCompact := Total.locallyCompact, f := Natural.total, continuous := Natural.continuous, proper := Proper.proper] \as Second;
+\import Relative.Composition[source := OtherSupport.model, middle := PulledSupport.model, target := Supported.model,
+  first := First.mapping, second := Second.mapping] \as Composite;
+\import Relative.Identity[model := Supported.model] \as NativeIdentity;
+\import Support.OnePoint[X := Koszul.Total, space := bundle.totalSpace] \as Points;
+\import Bundles.Family[X := X, F := F] \as Family;
+\definition maps: Composite.map = NativeIdentity.map := \axiom:funext(Composite.map, NativeIdentity.map,
+  \induction (p: Points.Carrier) \return Composite.map p = NativeIdentity.map p \with {
+    | none: \refl(Points.point)
+    | some: \fun (p: Koszul.Total) => congr!{{Koszul.Total} {Points.Carrier}} Points.inclusion _ _ (Family.eta p)
+  });
+\definition identity: \forall (u: Carrier) -> Relative.Pullback[source := OtherSupport.model, target := Supported.model, f := Composite.map].map u = u :=
+  \fun (u: Carrier) => trans!{Carrier} _ _ _
+    (congr!{{Relative.Map OtherSupport.model Supported.model} Carrier}
+      (\fun (f: Relative.Map OtherSupport.model Supported.model) => Relative.Pullback[source := OtherSupport.model, target := Supported.model, f := f].map u) _ _ maps)
+    (Relative.PullbackIdentity[model := Supported.model].equation u);
+\definition equation: OtherFor.thom = FirstFor.thom := trans!{Carrier} _ _ _ Change.equation
+  (trans!{Carrier} _ _ _ (congr!{{Relative.Reduced[model := PulledSupport.model].Carrier} Carrier} Change.pull _ _ Pull.equation)
+    (trans!{Carrier} _ _ _
+      (sym!{Carrier} _ _ (Relative.PullbackComposition[source := OtherSupport.model, middle := PulledSupport.model, target := Supported.model,
+        first := First.mapping, second := Second.mapping].equation FirstFor.thom)) (identity FirstFor.thom)));
+\module Forward;
+\definition forwardAgreement: \forall (a: K.Carrier) -> OtherFor.forward a = FirstFor.forward a := Forward[].equation;

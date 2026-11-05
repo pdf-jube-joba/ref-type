@@ -1,0 +1,52 @@
+\import \parent.Plane[] \as Plane;
+\import \parent.Stereographic[] \as Stereo;
+\import \parent.Forward[] \as Forward;
+\import \parent.Pole[] \as Pole;
+\import topology.Topology[Carrier := sphere.Carrier] \as Ambient;
+\definition deleted: \Pow sphere.Carrier := Ambient.Complement (Ambient.Singleton (Relative.details sphere).point);
+\import Ambient.Subspace[S := deleted] \as Subspace;
+\definition Carrier: \Set := Subspace.CarrierSet;
+\definition topology: topology.Topology[Carrier := Carrier].Topology := Subspace.topology (Relative.details sphere).topology;
+\definition off: \forall (p: Carrier) -> Logic.Not (Stereo.head p = Real.one) :=
+  \fun (p: Carrier)(head: Stereo.head p = Real.one) => (\bysub(sphere.Carrier, deleted, p)) (Pole.characterizes p head);
+\definition forward[z: Plane.Carrier]: Carrier := \into[sphere.Carrier](Forward.map z, deleted) \by {
+  \fun (same: Forward.map z = (Relative.details sphere).point) => \parent.Interior[z := z].off
+    (trans!{{Real.Real}} _ _ _ (congr!{{sphere.Carrier} {Real.Real}} Stereo.head _ _ same) Pole.height)
+};
+\definition backward[p: Carrier]: Plane.Carrier := \parent.Candidate[p := p, off := off p].point;
+\definition leftInverse: \forall (z: Plane.Carrier) -> backward (forward z) = z :=
+  \fun (z: Plane.Carrier) => \parent.Interior[z := z].equation;
+\definition rightInverse: \forall (p: Carrier) -> forward (backward p) = p :=
+  \fun (p: Carrier) => \parent.Candidate[p := p, off := off p].equation;
+\definition forwardContinuous: topology.Continuity[A := Plane.Carrier, B := Carrier].Continuous Plane.topology topology forward :=
+  topology.Continuity[A := Plane.Carrier, B := sphere.Carrier].Corestriction[S := deleted].corestrictContinuous
+    Plane.topology (Relative.details sphere).topology forward Forward.continuous;
+\import metric_spaces.RealFunctions[A := Carrier] \as Functions;
+\import Sphere.Splitting[].Equator[] \as CoordinateFunctions;
+\import topology.Continuity[A := sphere.Carrier, B := Real.Real].Restriction[S := deleted] \as Restrictions;
+\definition headContinuous: Functions.Continuous topology (\fun (p: Carrier) => Stereo.head p) :=
+  Restrictions.restrictContinuous (Relative.details sphere).topology Line.topology Stereo.head
+    (CoordinateFunctions.coordinateContinuous (std.Data[].FinSet[].zero Bott.two));
+\definition xContinuous: Functions.Continuous topology (\fun (p: Carrier) => Stereo.x p) :=
+  Restrictions.restrictContinuous (Relative.details sphere).topology Line.topology Stereo.x
+    (CoordinateFunctions.coordinateContinuous (std.Data[].FinSet[].succ Bott.two (std.Data[].FinSet[].zero Bott.one)));
+\definition yContinuous: Functions.Continuous topology (\fun (p: Carrier) => Stereo.y p) :=
+  Restrictions.restrictContinuous (Relative.details sphere).topology Line.topology Stereo.y
+    (CoordinateFunctions.coordinateContinuous (std.Data[].FinSet[].succ Bott.two (std.Data[].FinSet[].succ Bott.one (std.Data[].FinSet[].zero N.Nat^::zero))));
+\definition gapContinuous: Functions.Continuous topology (\fun (p: Carrier) => Stereo.gap p) :=
+  Functions.subContinuous topology (\fun (p: Carrier) => Real.one) (\fun (p: Carrier) => Stereo.head p)
+    (Functions.constantContinuous topology Real.one) headContinuous;
+\definition inverseContinuous: Functions.Continuous topology (\fun (p: Carrier) => Laws.fieldInv (Stereo.gap p)) :=
+  Functions.Reciprocal[].continuous topology (\fun (p: Carrier) => Stereo.gap p) gapContinuous
+    (\fun (p: Carrier) => \parent.Candidate[p := p, off := off p].gapNonzero);
+\definition backwardContinuous: topology.Continuity[A := Carrier, B := Plane.Carrier].Continuous topology Plane.topology backward :=
+  topological_constructions.Product[A := Real.Real, B := Real.Real].Universal[X := Carrier].pairContinuous topology Line.topology Line.topology
+    (\fun (p: Carrier) => Real.mul (Laws.fieldInv (Stereo.gap p)) (Stereo.x p))
+    (\fun (p: Carrier) => Real.mul (Laws.fieldInv (Stereo.gap p)) (Stereo.y p))
+    (Functions.Product[].continuous topology _ _ inverseContinuous xContinuous)
+    (Functions.Product[].continuous topology _ _ inverseContinuous yContinuous);
+\definition homeomorphism: topology.Homeomorphism[A := Plane.Carrier, B := Carrier].Homeomorphism[Plane.topology, topology] :=
+  topology.Homeomorphism[A := Plane.Carrier, B := Carrier].Homeomorphism[Plane.topology, topology] {
+    forward := forward, backward := backward, leftInverse := leftInverse, rightInverse := rightInverse,
+    forwardContinuous := forwardContinuous, backwardContinuous := backwardContinuous
+  };

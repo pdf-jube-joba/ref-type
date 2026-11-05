@@ -1,0 +1,34 @@
+\definition A: \Set := Models.Fiber (term (N.Nat^::succ n)).ranks x;
+\definition B: \Set := Models.Fiber (term n).ranks x;
+\definition V: \Set := Models.Fiber (folded n).even.ranks x;
+\definition W: \Set := Models.Fiber (folded n).odd.ranks x;
+\definition U: \Set := Models.Fiber (folded (N.Nat^::succ n)).even.ranks x;
+\import \root.Thom[].ComplexProductCartanStep[A := A, B := B, V := V, W := W,
+  firstSpace := (Models.bundle (term (N.Nat^::succ n))).space x, secondSpace := (Models.bundle (term n)).space x,
+  even := (Models.bundle (folded n).even).space x, odd := (Models.bundle (folded n).odd).space x] \as CartanStep;
+\definition data: CartanStep.Data := CartanStep.Data {
+  i := (folded n).inclusion.fiber x, p := (projection n).fiber x,
+  d := (folded n).forward.fiber x, e := (folded n).backward.fiber x,
+  h := (h n).fiber x, k := (k n).fiber x,
+  l := (differential n).fiber x, r := (raising n).fiber x, t := (cycle (N.Nat^::succ n)).fiber x, lambda := coefficient x
+};
+\definition laws: CartanStep.Laws[data] := CartanStep.Laws[data] {
+  projection := (state n).partial.projectInclusion x,
+  vanishes := (state n).partial.projectBackward x,
+  raisingVanishes := kHead n x,
+  even := previous.even x, odd := previous.odd x,
+  head := \fun (v: A) => trans!{A} _ _ _
+    (Spaces.Laws[V := A, space := (Models.bundle (term (N.Nat^::succ n))).space x].comm
+      (((raising n).fiber x).apply (((differential n).fiber x).apply v)) (((cycle (N.Nat^::succ n)).fiber x).apply v))
+    (cartan n x v)
+};
+\import Models.Sum[first := term (N.Nat^::succ n), second := (folded n).odd] \as Sum;
+\import Spaces.DirectSum[V := A, W := W, left := (Models.bundle (term (N.Nat^::succ n))).space x, right := (Models.bundle (folded n).odd).space x] \as Raw;
+\definition isomorphism: Spaces.Isomorphism[V := Raw.Carrier, W := U, source := Raw.space, target := (Models.bundle (folded (N.Nat^::succ n)).even).space x].Isomorphism :=
+  Spaces.Isomorphism[V := Raw.Carrier, W := U, source := Raw.space, target := (Models.bundle (folded (N.Nat^::succ n)).even).space x].Isomorphism {
+    forward := Sum.isomorphism.forward.fiber x, backward := Sum.isomorphism.backward.fiber x,
+    leftInverse := Sum.isomorphism.leftInverse x, rightInverse := Sum.isomorphism.rightInverse x
+  };
+\import CartanStep.With[c := data, laws := laws].Transported[U := U, space := (Models.bundle (folded (N.Nat^::succ n)).even).space x, isomorphism := isomorphism] \as Transfer;
+\definition even: \forall (v: U) -> Even (N.Nat^::succ n) x v := Transfer.even;
+\definition odd: \forall (v: V) -> Odd (N.Nat^::succ n) x v := Transfer.odd;

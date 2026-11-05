@@ -1,0 +1,24 @@
+\import Bundles.Identity[X := X, F := G, bundle := second] \as Identity;
+\import Operations.MapOperations[X := X, F := F, G := F, source := first, target := first] \as FirstOps;
+\import Operations.MapOperations[X := X, F := G, G := G, source := second, target := second] \as SecondOps;
+\import Operations.MapOperations[X := X, F := Tensor.Fiber, G := Tensor.Fiber, source := bundle, target := bundle] \as Maps;
+\import Tensor.Of[same := sameBase].Mapping[Y := X, A := F, B := G, leftTarget := first, rightTarget := second,
+  f := (\fun (x: X) => x)].Of[targetSame := sameBase] \as Mapping;
+\definition combinedFirst: FirstMaps.Map := FirstOps.add firstD firstR;
+\definition combinedSecond: SecondMaps.Map := SecondOps.add secondD secondR;
+\definition combined: Maps.Map := Maps.add (Mapping.map combinedFirst Identity.map) (Mapping.map grading combinedSecond);
+\definition d: Maps.Map := Maps.add (Mapping.map firstD Identity.map) (Mapping.map grading secondD);
+\definition r: Maps.Map := Maps.add (Mapping.map firstR Identity.map) (Mapping.map grading secondR);
+\definition sum: Maps.Map := Maps.add d r;
+\definition combinedOnPure[x: X][v: F x][w: G x]: (combined.fiber x).apply (Tensor.pure x v w) = (bundle.space x).add
+  (Tensor.pure x ((combinedFirst.fiber x).apply v) w) (Tensor.pure x ((grading.fiber x).apply v) ((combinedSecond.fiber x).apply w)) :=
+  congr!{{Tensor.Fiber x} {Tensor.Fiber x} {Tensor.Fiber x}} (bundle.space x).add _ _ _ _ (Mapping.onPure combinedFirst Identity.map x v w) (Mapping.onPure grading combinedSecond x v w);
+\definition dOnPure[x: X][v: F x][w: G x]: (d.fiber x).apply (Tensor.pure x v w) = (bundle.space x).add
+  (Tensor.pure x ((firstD.fiber x).apply v) w) (Tensor.pure x ((grading.fiber x).apply v) ((secondD.fiber x).apply w)) :=
+  congr!{{Tensor.Fiber x} {Tensor.Fiber x} {Tensor.Fiber x}} (bundle.space x).add _ _ _ _ (Mapping.onPure firstD Identity.map x v w) (Mapping.onPure grading secondD x v w);
+\definition rOnPure[x: X][v: F x][w: G x]: (r.fiber x).apply (Tensor.pure x v w) = (bundle.space x).add
+  (Tensor.pure x ((firstR.fiber x).apply v) w) (Tensor.pure x ((grading.fiber x).apply v) ((secondR.fiber x).apply w)) :=
+  congr!{{Tensor.Fiber x} {Tensor.Fiber x} {Tensor.Fiber x}} (bundle.space x).add _ _ _ _ (Mapping.onPure firstR Identity.map x v w) (Mapping.onPure grading secondR x v w);
+\module At(x: X);
+\definition equation: \forall (x: X)(v: Tensor.Fiber x) -> (combined.fiber x).apply v = (bundle.space x).add ((d.fiber x).apply v) ((r.fiber x).apply v) :=
+  \fun (x: X) => At[x := x].equation;

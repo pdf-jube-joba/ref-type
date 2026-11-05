@@ -1,0 +1,46 @@
+\import ThomSpaces.Over[K := C.Complex, field := C.Algebra[].field,
+  conjugation := linear_algebra.Hermitian[].Complex[].scalar, scalar := Scalars.scalar].For[
+  X := X, F := (\fun (x: X) => Bundles.Vector n), bundle := Bundle.bundle].With[metric := metric] \as Source;
+\import Trivial.Compare[metric := metric] \as Compare;
+\import Bundles.Family[X := X, F := (\fun (x: X) => Bundles.Vector n)] \as Family;
+\import ThomSpaces.DiskSuspension[X := X, space := space, n := Trivial.dimension] \as OldDisk;
+\import ThomSpaces.Levels[A := Family.Point, B := OldDisk.Point, source := Bundle.topology, target := OldDisk.totalTopology,
+  q := Source.squared, r := OldDisk.squared, h := Compare.totalHomeomorphism,
+  forwardSquared := Compare.forwardSquared, backwardSquared := Compare.backwardSquared] \as Levels;
+\structure Comparison[d: N.Nat^]: \Set := {
+  homeomorphism: topology.Homeomorphism[A := Source.Thom, B := ThomSpaces.DiskSuspension[X := X, space := space, n := d].Carrier].Homeomorphism[
+    Source.thomTopology, ThomSpaces.DiskSuspension[X := X, space := space, n := d].topology],
+  pointed: homeomorphism.forward Source.point = ThomSpaces.DiskSuspension[X := X, space := space, n := d].pointed.basepoint
+};
+\definition comparison: Comparison[Bott.dimension n] :=
+  \idelim Trivial.dimension = Bott.dimension n \with d: N.Nat^ => Comparison[d] \by {
+    base: Comparison[Trivial.dimension] { homeomorphism := Compare.homeomorphism, pointed := Levels.thomPointed },
+    equality: dimension n
+  };
+\import \parent.\parent.Disk[].At[n := n] \as Disk;
+\import \root.Thom[].Isomorphism[].Model[A := Source.Thom, source := Source.thomTopology,
+  target := Disk.model, h := comparison.homeomorphism, point := Source.point, preserves := comparison.pointed] \as Model;
+\definition model: Relative.CompactPointed := Model.model;
+\import Relative.Equivalence[source := model, target := Disk.model].With[e := Model.equivalence].Groups[] \as Transport;
+\definition comparisonIsomorphism: Periodicity.Isomorphism[A := Relative.Reduced[model := Disk.model].Carrier,
+  B := Relative.Reduced[model := model].Carrier, source := Relative.Reduced[model := Disk.model].group,
+  target := Relative.Reduced[model := model].group].Data :=
+  Periodicity.Isomorphism[A := Relative.Reduced[model := Disk.model].Carrier,
+    B := Relative.Reduced[model := model].Carrier, source := Relative.Reduced[model := Disk.model].group,
+    target := Relative.Reduced[model := model].group].Data {
+    forward := Transport.forward, backward := Transport.backward,
+    leftInverse := Transport.rightInverse, rightInverse := Transport.leftInverse,
+    forwardAdd := Transport.forwardAdd, backwardAdd := Transport.backwardAdd,
+    forwardZero := Transport.forwardZero, backwardZero := Transport.backwardZero
+  };
+\definition isomorphism: Periodicity.Isomorphism[A := K.Carrier, B := Relative.Reduced[model := model].Carrier,
+  source := K.group, target := Relative.Reduced[model := model].group].Data :=
+  Periodicity.Isomorphism[A := K.Carrier, B := Relative.Reduced[model := Disk.model].Carrier,
+    source := K.group, target := Relative.Reduced[model := Disk.model].group].Compose[
+    C := Relative.Reduced[model := model].Carrier, last := Relative.Reduced[model := model].group,
+    first := Disk.isomorphism, second := comparisonIsomorphism].data;
+\definition forward: K.Carrier -> Relative.Reduced[model := model].Carrier := isomorphism.forward;
+\definition backward: Relative.Reduced[model := model].Carrier -> K.Carrier := isomorphism.backward;
+\definition leftInverse: \forall (a: K.Carrier) -> backward (forward a) = a := isomorphism.leftInverse;
+\definition rightInverse: \forall (a: Relative.Reduced[model := model].Carrier) -> forward (backward a) = a := isomorphism.rightInverse;
+\module Negative(degree: N.Nat^);

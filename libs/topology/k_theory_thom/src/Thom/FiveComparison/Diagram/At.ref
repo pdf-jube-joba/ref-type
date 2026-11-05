@@ -1,0 +1,32 @@
+\structure Commutative: \Prop := {
+  first: \forall (x: A.Carrier) -> b (s.first x) = t.first (a x),
+  second: \forall (x: B.Carrier) -> c (s.second x) = t.second (b x),
+  third: \forall (x: C.Carrier) -> d (s.third x) = t.third (c x),
+  fourth: \forall (x: D.Carrier) -> e (s.fourth x) = t.fourth (d x)
+};
+\import \parent.\parent.AsModule[A := A] \as AM;
+\import \parent.\parent.AsModule[A := B] \as BM;
+\import \parent.\parent.AsModule[A := C] \as CM;
+\import \parent.\parent.AsModule[A := D] \as DM;
+\import \parent.\parent.AsModule[A := E] \as EM;
+\import \parent.\parent.AsModule[A := A1] \as A1M;
+\import \parent.\parent.AsModule[A := B1] \as B1M;
+\import \parent.\parent.AsModule[A := C1] \as C1M;
+\import \parent.\parent.AsModule[A := D1] \as D1M;
+\import \parent.\parent.AsModule[A := E1] \as E1M;
+\import Modules.FiveLemma[A := AM.bundle, B := BM.bundle, C := CM.bundle, D := DM.bundle, E := EM.bundle,
+  A1 := A1M.bundle, B1 := B1M.bundle, C1 := C1M.bundle, D1 := D1M.bundle, E1 := E1M.bundle].Diagram[
+    s := Source.Linearized[s := s].sequence, t := Target.Linearized[s := t].sequence,
+    a := \parent.\parent.Linear[A := A, B := A1].convert a, b := \parent.\parent.Linear[A := B, B := B1].convert b,
+    c := \parent.\parent.Linear[A := C, B := C1].convert c, d := \parent.\parent.Linear[A := D, B := D1].convert d,
+    e := \parent.\parent.Linear[A := E, B := E1].convert e] \as Five;
+\definition diagram[h: Commutative]: Five.Commutative := Five.Commutative { first := h.first, second := h.second, third := h.third, last := h.fourth };
+\definition injective: Commutative -> Surjective A A1 a -> Injective B B1 b -> Injective D D1 d -> Injective C C1 c :=
+  \fun (h: _)(aOnto: _)(bInjective: _)(dInjective: _) => Five.injective (diagram h) aOnto bInjective dInjective;
+\definition onto: Commutative -> Surjective B B1 b -> Surjective D D1 d -> Injective E E1 e -> Surjective C C1 c :=
+  \fun (h: _)(bOnto: _)(dOnto: _)(eInjective: _) => Five.surjective (diagram h) bOnto dOnto eInjective;
+\definition bijective: Commutative -> Bijective[A, A1, a] -> Bijective[B, B1, b] -> Bijective[D, D1, d] -> Bijective[E, E1, e] -> Bijective[C, C1, c] :=
+  \fun (h: _)(first: _)(second: _)(fourth: _)(last: _) => Bijective[C, C1, c] {
+    injective := injective h first.onto second.injective fourth.injective,
+    onto := onto h second.onto fourth.onto last.injective
+  };

@@ -1,0 +1,56 @@
+\import \root.Thom[].Sum[V := F y.base, W := G y.base, left := left.space y.base, right := right.space y.base] \as Algebra;
+\import Algebra.At[p := p, q := q].InFrames[n := c.first.dimension, m := c.second.dimension,
+  firstFrame := c.first.frame (centerLeft y), secondFrame := c.second.frame (centerRight y),
+  firstEnumeration := c.firstEnumeration, secondEnumeration := c.secondEnumeration] \as Mixed;
+\import Operations.AlternatingFrame[V := F y.base, space := left.space y.base, n := c.first.dimension, frame := c.first.frame (centerLeft y), k := p, enumeration := c.firstEnumeration] \as OriginalFirst;
+\import Operations.AlternatingFrame[V := G y.base, space := right.space y.base, n := c.second.dimension, frame := c.second.frame (centerRight y), k := q, enumeration := c.secondEnumeration] \as OriginalSecond;
+\import Operations.TensorFrame[V := LeftForms.Fiber y.base, W := RightForms.Fiber y.base,
+  left := LeftForms.fiberSpace y.base, right := RightForms.fiberSpace y.base,
+  n := leftDimension, m := rightDimension, first := OriginalFirst.isomorphism, second := OriginalSecond.isomorphism] \as TensorFrame;
+\import Mixed.Regraded[k := k, degree := degree] \as Regraded;
+\import Spaces.Exterior[V := Sum.Fiber y.base, space := sum.space y.base] \as Exterior;
+\import Exterior.Regrade[k := k, l := N.Basic[].Def[].add p q] \as Regrade;
+\import Fin.FromList[A := Sum.Fiber y.base] \as VectorLists;
+\definition base: BasePoint := \into[X](y.base, common c) \by { \bysub(SourceFamily.Point, domain c, y) };
+\definition arguments: Fin.Fin k -> Sum.Fiber y.base := \fun (i: Fin.Fin k) => vector (selector i) base;
+\definition mapLeft: \forall (xs: Lists.List[Fin.Fin c.first.dimension]) ->
+  Lists.map Tag (Sum.Fiber y.base) (\fun (t: Tag) => vector t base) (Lists.map (Fin.Fin c.first.dimension) Tag Tags.Sum[Fin.Fin c.first.dimension, Fin.Fin c.second.dimension]::inl xs) =
+  Lists.map (F y.base) (Sum.Fiber y.base) Algebra.Mixed[].inLeft (Lists.map (Fin.Fin c.first.dimension) (F y.base) OriginalFirst.basis.vectors xs) :=
+  \induction (xs: Lists.List[Fin.Fin c.first.dimension]) \return
+    Lists.map Tag (Sum.Fiber y.base) (\fun (t: Tag) => vector t base) (Lists.map (Fin.Fin c.first.dimension) Tag Tags.Sum[Fin.Fin c.first.dimension, Fin.Fin c.second.dimension]::inl xs) =
+    Lists.map (F y.base) (Sum.Fiber y.base) Algebra.Mixed[].inLeft (Lists.map (Fin.Fin c.first.dimension) (F y.base) OriginalFirst.basis.vectors xs) \with {
+      | nil: \refl(Lists.List[Sum.Fiber y.base]::nil)
+      | cons: \fun (i: Fin.Fin c.first.dimension)(xs: Lists.List[Fin.Fin c.first.dimension])(previous: _) =>
+        congr!{{Lists.List[Sum.Fiber y.base]} {Lists.List[Sum.Fiber y.base]}} (Lists.List[Sum.Fiber y.base]::cons (Algebra.Mixed[].inLeft (OriginalFirst.basis.vectors i))) _ _ previous
+    };
+\definition mapRight: \forall (xs: Lists.List[Fin.Fin c.second.dimension]) ->
+  Lists.map Tag (Sum.Fiber y.base) (\fun (t: Tag) => vector t base) (Lists.map (Fin.Fin c.second.dimension) Tag Tags.Sum[Fin.Fin c.first.dimension, Fin.Fin c.second.dimension]::inr xs) =
+  Lists.map (G y.base) (Sum.Fiber y.base) Algebra.Mixed[].inRight (Lists.map (Fin.Fin c.second.dimension) (G y.base) OriginalSecond.basis.vectors xs) :=
+  \induction (xs: Lists.List[Fin.Fin c.second.dimension]) \return
+    Lists.map Tag (Sum.Fiber y.base) (\fun (t: Tag) => vector t base) (Lists.map (Fin.Fin c.second.dimension) Tag Tags.Sum[Fin.Fin c.first.dimension, Fin.Fin c.second.dimension]::inr xs) =
+    Lists.map (G y.base) (Sum.Fiber y.base) Algebra.Mixed[].inRight (Lists.map (Fin.Fin c.second.dimension) (G y.base) OriginalSecond.basis.vectors xs) \with {
+      | nil: \refl(Lists.List[Sum.Fiber y.base]::nil)
+      | cons: \fun (i: Fin.Fin c.second.dimension)(xs: Lists.List[Fin.Fin c.second.dimension])(previous: _) =>
+        congr!{{Lists.List[Sum.Fiber y.base]} {Lists.List[Sum.Fiber y.base]}} (Lists.List[Sum.Fiber y.base]::cons (Algebra.Mixed[].inRight (OriginalSecond.basis.vectors i))) _ _ previous
+    };
+\definition list: VectorLists.list k arguments = Mixed.arguments (TensorFrame.entry a b) :=
+  trans!{{Lists.List[Sum.Fiber y.base]}} _ _ _ (TagLists.Mapping[B := Sum.Fiber y.base].listMap k (\fun (t: Tag) => vector t base) selector)
+    (trans!{{Lists.List[Sum.Fiber y.base]}} _ _ _
+      (congr!{{Lists.List[Tag]} {Lists.List[Sum.Fiber y.base]}} (Lists.map Tag (Sum.Fiber y.base) (\fun (t: Tag) => vector t base)) _ _ (TagLists.listAt k tags length))
+      (trans!{{Lists.List[Sum.Fiber y.base]}} _ _ _
+        (Lists.Mapping[A := Tag, B := Sum.Fiber y.base].Prop[].mapAppend (\fun (t: Tag) => vector t base) leftTags rightTags)
+        (congr!{{Lists.List[Sum.Fiber y.base]} {Lists.List[Sum.Fiber y.base]} {Lists.List[Sum.Fiber y.base]}} (Lists.append (Sum.Fiber y.base)) _ _ _ _
+          (trans!{{Lists.List[Sum.Fiber y.base]}} _ _ _ (mapLeft (LeftLists.list p (LeftKeys.enumerate a)))
+            (congr!{{Lists.List[F y.base]} {Lists.List[Sum.Fiber y.base]}} (Lists.map (F y.base) (Sum.Fiber y.base) Algebra.Mixed[].inLeft) _ _
+              (sym!{{Lists.List[F y.base]}} _ _ (LeftLists.Mapping[B := F y.base].listMap p OriginalFirst.basis.vectors (LeftKeys.enumerate a)))))
+          (trans!{{Lists.List[Sum.Fiber y.base]}} _ _ _ (mapRight (RightLists.list q (RightKeys.enumerate b)))
+            (congr!{{Lists.List[G y.base]} {Lists.List[Sum.Fiber y.base]}} (Lists.map (G y.base) (Sum.Fiber y.base) Algebra.Mixed[].inRight) _ _
+              (sym!{{Lists.List[G y.base]}} _ _ (RightLists.Mapping[B := G y.base].listMap q OriginalSecond.basis.vectors (RightKeys.enumerate b))))))));
+\definition omega: Exterior.Form k := (comparison.forward.fiber y.base).apply y.vector;
+\definition coefficient: value y = Mixed.coefficient (Regraded.convert.apply omega) (TensorFrame.entry a b) :=
+  trans!{{C.Complex}} _ _ _
+    (sym!{{C.Complex}} _ _ (Spaces.Multilinear[V := Sum.Fiber y.base, space := sum.space y.base].ListSeries[k := k].onArguments omega arguments))
+    (trans!{{C.Complex}} _ _ _
+      (congr!{{Lists.List[Sum.Fiber y.base]} {C.Complex}} (Exterior.component k omega) _ _ list)
+      (sym!{{C.Complex}} _ _
+        (congr!{{Spaces.Shuffle[I := Sum.Fiber y.base].Function} {C.Complex}} (\fun (f: Spaces.Shuffle[I := Sum.Fiber y.base].Function) => f (Mixed.arguments (TensorFrame.entry a b))) _ _ (Regrade.series omega (sym!{{N.Nat^}} _ _ degree)))));

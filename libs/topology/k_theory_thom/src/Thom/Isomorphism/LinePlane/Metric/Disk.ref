@@ -1,0 +1,36 @@
+\import \root.Thom[].Isomorphism[].LinePlane[] \as TotalCoordinates;
+\import \root.Thom[].Isomorphism[].PlanarSphere[].Disk[] \as PlaneDisk;
+\import \root.Thom[].Isomorphism[].PlanarSphere[].Forward[] \as SphereForward;
+\import algebraic_topology.Euclidean[].Dimension[n := one] \as D1;
+\import algebraic_topology.Euclidean[].Dimension[n := N.Nat^::succ one] \as D2;
+\import D1.Splitting[] \as Split;
+\import dedekind_reals.DedekindReal[] \as R;
+\definition coordinates[z: Plane.Carrier]: D2.Coordinate := Split.join (Plane.x z) (\fun (i: D1.Index) => Plane.y z);
+\definition coordinateNorm: \forall (z: Plane.Carrier) -> D2.normSquared (coordinates z) = Plane.r2 z :=
+  \fun (z: Plane.Carrier) => SphereForward.norm2 (Plane.x z) (Plane.y z);
+\definition coordinatesInput: \forall (v: D2.Disk) -> coordinates (PlaneDisk.input v) = v :=
+  \fun (v: D2.Disk) => Split.ext _ _ (Split.headJoin (Plane.x (PlaneDisk.input v)) (\fun (_: D1.Index) => Plane.y (PlaneDisk.input v)))
+    (trans!{{D1.Coordinate}} _ _ _ (Split.tailJoin (Plane.x (PlaneDisk.input v)) (\fun (_: D1.Index) => Plane.y (PlaneDisk.input v)))
+      (\axiom:funext((\fun (_: D1.Index) => Plane.y (PlaneDisk.input v)), Split.tail v,
+        \fun (i: D1.Index) => congr!{{D1.Index} {Real.Real}} (Split.tail v) _ _ (sym!{{D1.Index}} _ _ (Fin.singletonValue i)))));
+\definition inputCoordinates: \forall (z: Plane.Carrier) -> std.Data[].Pair[].pair Real.Real Real.Real
+  (coordinates z (Fin.zero one)) (coordinates z (Fin.succ one (Fin.zero N.Nat^::zero))) = z :=
+  \fun (z: Plane.Carrier) => std.Data[].Pair[].Prop[A := Real.Real, B := Real.Real].ext _ _
+    (Split.headJoin (Plane.x z) (\fun (i: D1.Index) => Plane.y z))
+    (congr!{{D1.Coordinate} {Real.Real}} (\fun (v: D1.Coordinate) => v (Fin.zero N.Nat^::zero)) _ _
+      (Split.tailJoin (Plane.x z) (\fun (i: D1.Index) => Plane.y z)));
+\definition forward[p: Geometry.DiskBundle]: D2.Disk := \into[D2.Coordinate](coordinates (TotalCoordinates.forward p), D2.ClosedBall) \by {
+  R.leReplaceLeft (Model.squared p) (D2.normSquared (coordinates (TotalCoordinates.forward p))) Real.one
+    (sym!{{Real.Real}} _ _ (trans!{{Real.Real}} _ _ _ (coordinateNorm (TotalCoordinates.forward p)) (sym!{{Real.Real}} _ _ (squaredFormula p))))
+    (\bysub(Point.Total, Geometry.ClosedBall, p))
+};
+\definition backward[v: D2.Disk]: Geometry.DiskBundle := \into[Point.Total](TotalCoordinates.backward (PlaneDisk.input v), Geometry.ClosedBall) \by {
+  R.leReplaceLeft (D2.normSquared v) (Model.squared (TotalCoordinates.backward (PlaneDisk.input v))) Real.one
+    (sym!{{Real.Real}} _ _ (trans!{{Real.Real}} _ _ _ (squaredFormula (TotalCoordinates.backward (PlaneDisk.input v)))
+      (trans!{{Real.Real}} _ _ _ (congr!{{Plane.Carrier} {Real.Real}} Plane.r2 _ _ (TotalCoordinates.rightInverse (PlaneDisk.input v))) (PlaneDisk.normFormula v))))
+    (\bysub(D2.Coordinate, D2.ClosedBall, v))
+};
+\module GeometryProof;
+\definition homeomorphism: topology.Homeomorphism[A := Geometry.DiskBundle, B := D2.Disk].Homeomorphism[Geometry.diskTopology, D2.diskTopology] := GeometryProof[].homeomorphism;
+\definition normFormula: \forall (p: Geometry.DiskBundle) -> D2.normSquared (forward p) = Model.squared p :=
+  \fun (p: Geometry.DiskBundle) => trans!{{Real.Real}} _ _ _ (coordinateNorm (TotalCoordinates.forward p)) (sym!{{Real.Real}} _ _ (squaredFormula p));

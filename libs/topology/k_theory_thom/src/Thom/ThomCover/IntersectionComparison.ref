@@ -1,0 +1,33 @@
+\definition included[p: Meet.partModel.Carrier]: Space.Member Meet.Subset (Meet.map p) := \bysub(Compactification.Carrier, Meet.Subset, Meet.corestrict p);
+\definition forward[p: Meet.partModel.Carrier]: MV.intersectionModel.Carrier :=
+  \into[MV.secondModel.Carrier]((\into[Compactification.Carrier](Meet.map p, secondSet) \by { meetSecond (Meet.map p) (included p) }),
+    { q: MV.secondModel.Carrier \where Space.Member firstSet q }) \by { meetFirst (Meet.map p) (included p) };
+\definition forwardContinuous: topology.Continuity[A := Meet.partModel.Carrier, B := MV.intersectionModel.Carrier].Continuous
+  (Relative.details Meet.partModel).topology (Relative.details MV.intersectionModel).topology forward :=
+  topology.Continuity[A := Meet.partModel.Carrier, B := MV.secondModel.Carrier].Corestriction[S := { q: MV.secondModel.Carrier \where Space.Member firstSet q }].corestrictContinuous
+    (Relative.details Meet.partModel).topology (Relative.details MV.secondModel).topology forward
+    (topology.Continuity[A := Meet.partModel.Carrier, B := Compactification.Carrier].Corestriction[S := secondSet].corestrictContinuous
+      (Relative.details Meet.partModel).topology Compactification.topology forward
+      (algebraic_topology.Pointed[A := Meet.partModel.Carrier].Maps[B := Compactification.Carrier].laws (Relative.pointed Meet.partModel) (Relative.pointed model) Meet.map).continuous);
+\definition pointedMap: Relative.Map Meet.partModel MV.intersectionModel := \into[Meet.partModel.Carrier -> MV.intersectionModel.Carrier](forward, Relative.Map Meet.partModel MV.intersectionModel) \by {
+  algebraic_topology.Pointed[A := Meet.partModel.Carrier].Maps[B := MV.intersectionModel.Carrier].Laws[Relative.pointed Meet.partModel, Relative.pointed MV.intersectionModel, forward] {
+    continuous := forwardContinuous, pointed := \refl(Compactification.point)
+  }
+};
+\definition injective: \forall (p, q: Meet.partModel.Carrier) -> forward p = forward q -> p = q :=
+  \fun (p, q: Meet.partModel.Carrier)(same: _) => Meet.Bijection[].injective p q same;
+\definition asMeet[p: MV.intersectionModel.Carrier]: Meet.Carrier := \into[Compactification.Carrier](p, Meet.Subset) \by {
+  bothMeet p
+    (\bysub(MV.secondModel.Carrier, { q: MV.secondModel.Carrier \where Space.Member firstSet q }, p))
+    (\bysub(Compactification.Carrier, secondSet, p))
+};
+\definition onto: \forall (p: MV.intersectionModel.Carrier) -> \exists (q: Meet.partModel.Carrier \where forward q = p) := \block {
+  \fun (p: MV.intersectionModel.Carrier) \then
+  \takefrom q: \Cast[Meet.partModel.Carrier] ({ q: Meet.partModel.Carrier \where Meet.corestrict q = asMeet p }) \by Meet.Bijection[].onto (asMeet p) \then
+  \return Logic.existsIntro[Meet.partModel.Carrier, { q: Meet.partModel.Carrier \where forward q = p }] q
+    (\bysub(Meet.partModel.Carrier, { q: Meet.partModel.Carrier \where Meet.corestrict q = asMeet p }, q))
+};
+\definition equivalence: Relative.Equivalence[source := Meet.partModel, target := MV.intersectionModel].Data :=
+  Relative.Equivalence[source := Meet.partModel, target := MV.intersectionModel].FromMap[f := pointedMap, injective := injective, onto := onto].equivalence;
+\definition overWhole: \forall (p: Meet.partModel.Carrier) -> MV.secondInclusion (MV.intersectionToSecond (equivalence.forward p)) = Meet.map p :=
+  \fun (p: Meet.partModel.Carrier) => \refl(Meet.map p);

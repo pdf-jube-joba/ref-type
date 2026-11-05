@@ -1,0 +1,32 @@
+\import relative_k_theory.Relative[].Pair[X := X, space := auxiliary.baseSpace, compact := compact, hausdorff := hausdorff, subset := subset, closed := closed] \as Relative;
+\import Relative.BundleModel[F := Parity.Even].From[original := Parity.evenBundle, same := (\refl(auxiliary.baseSpace))] \as EvenModel;
+\import Relative.BundleModel[F := Parity.Odd].From[original := Parity.oddBundle, same := (\refl(auxiliary.baseSpace))] \as OddModel;
+\import Relative.BundleTriples[F := Parity.Even, G := Parity.Odd, firstModel := EvenModel.model, secondModel := OddModel.model] \as Triples;
+\import Relative.FromBundles[F := Parity.Even, G := Parity.Odd, source := Triples.first, target := Triples.second,
+  sourceSame := (\refl(auxiliary.baseSpace)), targetSame := (\refl(auxiliary.baseSpace))] \as Represent;
+\import \root.Thom[].ComplexProductAuxiliaryScalar[X := X, space := auxiliary.baseSpace]
+  .With[r := (\fun (x: X) => Real.one), b := data.norm, rContinuous := Functions.constantContinuous auxiliary.baseSpace Real.one,
+    bContinuous := data.continuous, nonnegative := data.nonnegative] \as ScalarEndpoint;
+\import \parent.AtCoefficient[coefficient := (\fun (x: X) => Real.one), continuous := Functions.constantContinuous auxiliary.baseSpace Real.one] \as AtOne;
+\definition inverseLaw[x: X]: Scalar.mul (ScalarEndpoint.endpointRho x)
+  (Scalar.ofReal (Real.add (Real.mul Real.one Real.one) (data.norm x))) = Scalar.one :=
+  trans!{{C.Complex}} _ _ _
+    (congr!{{C.Complex} {C.Complex}} (Scalar.mul (ScalarEndpoint.endpointRho x)) _ _
+      (congr!{{Real.Real} {C.Complex}} Scalar.ofReal _ _ (congr!{Real.Real Real.Real} (\fun (q: Real.Real) => Real.add q (data.norm x)) _ _ (Real.Algebra[].mulOneRight Real.one))))
+    (ScalarEndpoint.endpointReciprocal x);
+\import AtOne.Normalized[reciprocal := ScalarEndpoint.endpointRho, reciprocalContinuous := ScalarEndpoint.endpointRhoContinuous, inverseLaw := inverseLaw] \as Endpoint;
+\definition inclusion[x: Relative.A]: X := x;
+\definition inclusionContinuous: topology.Continuity[A := Relative.A, B := X].Continuous Relative.subspace auxiliary.baseSpace inclusion :=
+  topology.Continuity[A := Relative.A, B := X].Corestriction[S := subset].inclusionContinuous auxiliary.baseSpace;
+\import bundle_complements.Complements[].Over[K := C.Complex, field := C.Algebra[].field,
+  conjugation := Hermitian.scalar, scalar := Scalars.scalar]
+  .PulledIsomorphism[X := X, Y := Relative.A, F := Parity.Even, G := Parity.Odd, source := Parity.evenBundle, target := Parity.oddBundle,
+    base := Relative.subspace, f := inclusion, sourceRegular := inclusionContinuous, targetRegular := inclusionContinuous] \as Restriction;
+\definition endpointComparison: Triples.OnSubset := Restriction.isomorphism Endpoint.isomorphism;
+\definition endpointValue: Relative.Quotient[].Relative := Triples.With[alpha := endpointComparison].reduced;
+\definition endpointZero: endpointValue = Relative.Quotient[].group.base.unit :=
+  Triples.With[alpha := endpointComparison].Global[isomorphism := Endpoint.isomorphism,
+    agrees := (\fun (x: Relative.A)(v: Parity.Even x) => \refl((Endpoint.isomorphism.forward.fiber x).apply v))].reducedZero;
+
+\module Homotopy(r: X -> Real.Real, rContinuous: Functions.Continuous auxiliary.baseSpace r,
+  boundary: \forall (x: X) -> \In[X] subset x -> Logic.Or[r x = Real.one, data.norm x = Real.one]);

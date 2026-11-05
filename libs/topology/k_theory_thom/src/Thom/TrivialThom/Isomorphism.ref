@@ -1,0 +1,26 @@
+\import periodic_k_theory.Periodicity[] \as Periodicity;
+\import \root.Thom[].Isomorphism[].BottExternal[base := baseModel, n := n] \as Bott;
+\import Relative.Equivalence[source := model, target := externalModel].With[e := externalEquivalence].Groups[] \as Groups;
+\import Coefficient.Isomorphism[] \as CoefficientIso;
+\definition geometric: Periodicity.Isomorphism[A := Bott.Carrier, B := Carrier,
+  source := Bott.group, target := Relative.Reduced[model := model].group].Data :=
+  Periodicity.Isomorphism[A := Bott.Carrier, B := Carrier, source := Bott.group, target := Relative.Reduced[model := model].group].Data {
+    forward := Groups.forward, backward := Groups.backward, leftInverse := Groups.rightInverse, rightInverse := Groups.leftInverse,
+    forwardAdd := Groups.forwardAdd, backwardAdd := Groups.backwardAdd, forwardZero := Groups.forwardZero, backwardZero := Groups.backwardZero
+  };
+\import Periodicity.Isomorphism[A := K.Carrier, B := Relative.Reduced[model := baseModel].Carrier,
+  source := K.group, target := Relative.Reduced[model := baseModel].group].Compose[C := Bott.Carrier, last := Bott.group,
+    first := CoefficientIso.data, second := Bott.isomorphism] \as First;
+\import Periodicity.Isomorphism[A := K.Carrier, B := Bott.Carrier, source := K.group, target := Bott.group]
+  .Compose[C := Carrier, last := Relative.Reduced[model := model].group, first := First.data, second := geometric] \as Composite;
+\definition factorization: \forall (a: K.Carrier) -> forward a = Composite.data.forward a :=
+  \fun (a: K.Carrier) => trans!{Carrier} _ _ _ (forwardFormula a)
+    (congr!{{Bott.Carrier} Carrier} Groups.forward _ _ (sym!{{Bott.Carrier}} _ _ (Bott.forwardProduct (coefficient a))));
+\definition data: Periodicity.Isomorphism[A := K.Carrier, B := Carrier, source := K.group, target := Relative.Reduced[model := model].group].Data :=
+  Periodicity.Isomorphism[A := K.Carrier, B := Carrier, source := K.group, target := Relative.Reduced[model := model].group].Data {
+    forward := forward, backward := Composite.data.backward,
+    leftInverse := \fun (a: K.Carrier) => trans!{{K.Carrier}} _ _ _ (congr!{Carrier {K.Carrier}} Composite.data.backward _ _ (factorization a)) (Composite.data.leftInverse a),
+    rightInverse := \fun (u: Carrier) => trans!{Carrier} _ _ _ (factorization (Composite.data.backward u)) (Composite.data.rightInverse u),
+    forwardAdd := NativeFor.additive, backwardAdd := Composite.data.backwardAdd,
+    forwardZero := trans!{Carrier} _ _ _ (factorization K.zero) Composite.data.forwardZero, backwardZero := Composite.data.backwardZero
+  };

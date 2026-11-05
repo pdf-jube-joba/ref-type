@@ -1,0 +1,26 @@
+
+\import \root.Thom[].Finite[X := X, baseSpace := baseSpace].Rebase[Y := Y, targetSpace := targetSpace, f := f, regular := regular] \as Rebase;
+\import Operations.Models[X := Y, baseSpace := targetSpace] \as TargetModels;
+\import TargetModels.Chains[] \as TargetChains;
+\import \root.Thom[].Finite[X := Y, baseSpace := targetSpace] \as TargetFinite;
+\definition pulledTerm[k: N.Nat^]: TargetModels.Bundle := Rebase.pull (term k);
+\definition pulledDifferential[k: N.Nat^]: TargetModels.Map (pulledTerm (N.Nat^::succ k)) (pulledTerm k) := Rebase.map (term (N.Nat^::succ k)) (term k) (differential k);
+\import TargetFinite.Family[term := pulledTerm, differential := pulledDifferential, domain := { y: Y \where \In[X] domain (f y) }] \as Target;
+\definition pulledData[n: N.Nat^]: TargetChains.Data (pulledTerm n) := Target.data n;
+\definition pulledDiagram[n: N.Nat^]: TargetChains.Diagram := TargetChains.Diagram { head := pulledTerm n, data := pulledData n };
+\definition sourceParity[n: N.Nat^]: Chains.Parity[term n] := Chains.fold (term n) (data n);
+\definition targetParity[n: N.Nat^]: TargetChains.Parity[pulledTerm n] := TargetChains.fold (pulledTerm n) (Target.data n);
+\definition headIso[k: N.Nat^]: Rebase.Iso (term k) (pulledTerm k) := Bundles.Isomorphisms[X := Y,
+  F := TargetModels.Fiber (pulledTerm k).ranks, G := TargetModels.Fiber (pulledTerm k).ranks,
+  source := TargetModels.bundle (pulledTerm k), target := TargetModels.bundle (pulledTerm k)].Isomorphism {
+    forward := TargetModels.identity (pulledTerm k), backward := TargetModels.identity (pulledTerm k),
+    leftInverse := \fun (y: Y)(v: TargetModels.Fiber (pulledTerm k).ranks y) => \refl(v),
+    rightInverse := \fun (y: Y)(v: TargetModels.Fiber (pulledTerm k).ranks y) => \refl(v)
+  };
+\definition Result[n: N.Nat^]: \Set := Rebase.Comparison[term n, pulledTerm n, sourceParity n, targetParity n, headIso n];
+\module Base;
+\module Next(n: N.Nat^, previous: Result n);
+\definition value: \forall (n: N.Nat^) -> Result n := \induction (n: N.Nat^) \return Result n \with {
+  | zero: Base[].result
+  | succ: \fun (n: N.Nat^)(previous: Result n) => Next[n := n, previous := previous].result
+};

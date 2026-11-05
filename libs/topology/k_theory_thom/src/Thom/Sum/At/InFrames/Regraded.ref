@@ -1,0 +1,20 @@
+\import \parent.\parent.InFrames[n := n, m := m, firstFrame := firstFrame, secondFrame := secondFrame, firstEnumeration := firstEnumeration, secondEnumeration := secondEnumeration] \as Original;
+\import Forms.At[k := k] \as SourceForms;
+\import Exterior.Regrade[k := k, l := Nat.add p q] \as Regrade;
+\import Exterior.Regrade[k := Nat.add p q, l := k] \as Undo;
+\import Spaces.Linear[V := Exterior.Form k, W := Exterior.Form (Nat.add p q), source := SourceForms.vectorSpace, target := Result.vectorSpace] \as Maps;
+\definition convert: Maps.Map := Maps.Map {
+  apply := \fun (omega: Exterior.Form k) => Regrade.cast omega (sym!{{N.Nat^}} _ _ degree),
+  preservesAdd := \fun (omega, eta: Exterior.Form k) => Regrade.addition omega eta (sym!{{N.Nat^}} _ _ degree),
+  preservesScale := \fun (c: C.Complex)(omega: Exterior.Form k) => Regrade.scalar c omega (sym!{{N.Nat^}} _ _ degree)
+};
+\import Spaces.Linear[V := Exterior.Form (Nat.add p q), W := Tensor.Carrier, source := Result.vectorSpace, target := Tensor.space].Composition[U := Exterior.Form k, domain := SourceForms.vectorSpace] \as Composition;
+\definition backward: Spaces.Linear[V := Exterior.Form k, W := Tensor.Carrier, source := SourceForms.vectorSpace, target := Tensor.space].Map :=
+  Composition.compose (Original.backward) convert;
+\definition recover: \forall (omega: Exterior.Form (Nat.add p q)) -> convert.apply (Undo.cast omega degree) = omega :=
+  \fun (omega: Exterior.Form (Nat.add p q)) => Exterior.Components[k := Nat.add p q].ext _ _
+    (trans!{{Shuffle.Function}} _ _ _ (Regrade.series (Undo.cast omega degree) (sym!{{N.Nat^}} _ _ degree)) (Undo.series omega degree));
+\definition leftInverse: \forall (t: Tensor.Carrier) -> backward.apply (Undo.cast (tensor.apply t) degree) = t :=
+  \fun (t: Tensor.Carrier) => trans!{{Tensor.Carrier}} _ _ _
+    (congr!{{Exterior.Form (Nat.add p q)} {Tensor.Carrier}} (Original.backward).apply _ _ (recover (tensor.apply t))) (Original.leftInverse t);
+\module Other(a, b: N.Nat^, otherDegree: Nat.add a b = k);

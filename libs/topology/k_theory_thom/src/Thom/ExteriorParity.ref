@@ -1,0 +1,27 @@
+\import Operations.Models[X := X, baseSpace := left.baseSpace] \as Models;
+\definition FirstForm[k: N.Nat^][x: X]: \Set := Operations.Alternating[X := X, F := F, bundle := left, k := k].Fiber x;
+\definition firstForms[k: N.Nat^]: Bundles.Family[X := X, F := FirstForm k].Bundle := Operations.Alternating[X := X, F := F, bundle := left, k := k].alternating;
+\definition SecondForm[k: N.Nat^][x: X]: \Set := Operations.Alternating[X := X, F := G, bundle := right, k := k].Fiber x;
+\definition secondForms[k: N.Nat^]: Bundles.Family[X := X, F := SecondForm k].Bundle := Operations.Alternating[X := X, F := G, bundle := right, k := k].alternating;
+\definition Native[k: N.Nat^][x: X]: \Set := \root.Thom[].SumBundles[X := X, F := F, G := G, left := left, right := right, sameBase := sameBase, k := k].Fiber x;
+\definition native[k: N.Nat^]: Bundles.Family[X := X, F := Native k].Bundle := \root.Thom[].SumBundles[X := X, F := F, G := G, left := left, right := right, sameBase := sameBase, k := k].bundle;
+\definition FirstChoice[k: N.Nat^]: \Set := Models.From[F := FirstForm k, original := firstForms k].Result;
+\definition SecondChoice[k: N.Nat^]: \Set := Models.From[F := SecondForm k, original := secondForms k].Result;
+\definition NativeChoice[k: N.Nat^]: \Set := Models.From[F := Native k, original := native k].Result;
+\structure Data: \Set := {
+  first: \forall (k: N.Nat^) -> FirstChoice k,
+  second: \forall (k: N.Nat^) -> SecondChoice k,
+  total: \forall (k: N.Nat^) -> NativeChoice k
+};
+\definition existence: \exists Data := \block {
+  \takefrom first: (\forall (k: N.Nat^) -> FirstChoice k) \by \axiom:classicalIndefiniteChoice(N.Nat^, FirstChoice,
+    (\fun (k: N.Nat^) => Models.From[F := FirstForm k, original := firstForms k].existence (\refl(left.baseSpace)))) \then
+  \takefrom second: (\forall (k: N.Nat^) -> SecondChoice k) \by \axiom:classicalIndefiniteChoice(N.Nat^, SecondChoice,
+    (\fun (k: N.Nat^) => Models.From[F := SecondForm k, original := secondForms k].existence (sym!{{topology.Topology[Carrier := X].Topology}} _ _ sameBase))) \then
+  \takefrom total: (\forall (k: N.Nat^) -> NativeChoice k) \by \axiom:classicalIndefiniteChoice(N.Nat^, NativeChoice,
+    (\fun (k: N.Nat^) => Models.From[F := Native k, original := native k].existence (\refl(left.baseSpace)))) \then
+  \return \exact(Data { first := first, second := second, total := total }, Data)
+};
+\import Bundles.Family[X := X, F := F].Of[bundle := left].Sections[] \as FirstSections;
+\import Bundles.Family[X := X, F := G].Of[bundle := right].Sections[] \as SecondSections;
+\module With(data: Data);

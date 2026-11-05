@@ -1,0 +1,26 @@
+\import Bundles.Family[X := X, F := F] \as Family;
+\import Family.Of[bundle := bundle] \as Original;
+\definition Total: \Set := Family.Point;
+\definition Fiber[p: Total]: \Set := F p.base;
+\import Original.Pullback[Y := Total, source := bundle.totalSpace, f := Family.projection] \as Pullback;
+\definition pulled: Bundles.Family[X := Total, F := Fiber].Bundle := Pullback.pulled Original.projectionContinuous;
+\import Bundles.Family[X := Total, F := Fiber].Of[bundle := pulled].Sections[] \as Sections;
+\definition tautologicalData: Sections.SectionData := Sections.SectionData { value := \fun (p: Total) => p.vector };
+\definition tautological: Sections.Section := \into[Sections.SectionData](tautologicalData, Sections.Section) \by {
+  Pullback.Universal[Z := Total].continuous bundle.totalSpace (Sections.total tautologicalData)
+    (topology.Maps[A := Total, B := Total].Identity[].continuous bundle.totalSpace)
+    (\idelim (\fun (p: Total) => p) = (\fun (p: Total) => Pullback.map (Sections.total tautologicalData p))
+      \with f: (Total -> Total) => topology.Continuity[A := Total, B := Total].Continuous bundle.totalSpace bundle.totalSpace f \by {
+      base: topology.Maps[A := Total, B := Total].Identity[].continuous bundle.totalSpace,
+      equality: \axiom:funext((\fun (p: Total) => p), (\fun (p: Total) => Pullback.map (Sections.total tautologicalData p)),
+        \fun (p: Total) => sym!{Total} _ _ (Family.eta p))
+    })
+};
+\definition ZeroSection: \Pow Total := { p: Total \where p.vector = (bundle.space p.base).zero };
+\definition Outside: \Set := \Cast[Total] (topology.Topology[Carrier := Total].Complement ZeroSection);
+\definition Term[k: N.Nat^][p: Total]: \Set := Spaces.Multilinear[V := Fiber p, space := pulled.space p].Alternating[].Form k;
+\definition term[k: N.Nat^]: Bundles.Family[X := Total, F := Term k].Bundle := Operations.Alternating[X := Total, F := Fiber, bundle := pulled, k := k].alternating;
+\module Degree(k: N.Nat^);
+\module At(p: Total);
+\module Compact(compact: topology.Topology[Carrier := X].IsCompact bundle.baseSpace);
+\module Coordinates;

@@ -1,0 +1,77 @@
+\import Models.Sum[first := first, second := (parity previous).odd] \as Sum;
+\use Equality.eq_reason_in;
+\definition projection: Models.Map next.even first := Sum.firstProjection;
+\definition projectInclusion: \forall (x: X)(a: Core.A x) -> (projection.fiber x).apply ((next.inclusion.fiber x).apply a) = a :=
+  \fun (x: X)(a: Core.A x) => Core.headJoin x a (Core.oldOddSpace x).zero;
+\definition projectBackward: \forall (x: X)(w: Core.W x) -> (projection.fiber x).apply ((next.backward.fiber x).apply w) = (Core.firstSpace x).zero :=
+  \fun (x: X)(w: Core.W x) => Core.headJoin x (Core.firstSpace x).zero ((Core.old.forward.fiber x).apply w);
+\definition projectForward: \forall (x: X)(v: Core.V x) -> (tail.projection.fiber x).apply ((next.forward.fiber x).apply v) = (differential.fiber x).apply (Core.head x v) :=
+  \fun (x: X)(v: Core.V x) => eq_reason_in!{{Head previous x} _
+    "=" { ((Models.bundle previous.head).space x).add
+      ((tail.projection.fiber x).apply ((Core.old.inclusion.fiber x).apply ((differential.fiber x).apply (Core.head x v))))
+      ((tail.projection.fiber x).apply ((Core.old.backward.fiber x).apply (Core.rest x v))) } "by" { (tail.projection.fiber x).preservesAdd _ _ }
+    "=" { ((Models.bundle previous.head).space x).add ((differential.fiber x).apply (Core.head x v)) ((Models.bundle previous.head).space x).zero } "by" {
+      congr!{{Head previous x} {Head previous x} {Head previous x}} ((Models.bundle previous.head).space x).add _ _ _ _
+        (tail.projectInclusion x ((differential.fiber x).apply (Core.head x v))) (tail.projectBackward x (Core.rest x v)) }
+    "=" _ "by" { Spaces.Laws[V := Head previous x, space := (Models.bundle previous.head).space x].zeroRight ((differential.fiber x).apply (Core.head x v)) }
+  };
+\definition headZero: \forall (x: X)(v: Core.V x) -> (next.forward.fiber x).apply v = (Core.oddSpace x).zero ->
+  (differential.fiber x).apply (Core.head x v) = ((Models.bundle previous.head).space x).zero :=
+  \fun (x: X)(v: Core.V x)(closed: _) => trans!{{Head previous x}} _ _ _ (sym!{{Head previous x}} _ _ (projectForward x v))
+    (trans!{{Head previous x}} _ _ _ (congr!{{Core.W x} {Head previous x}} (tail.projection.fiber x).apply _ _ closed) (tail.projection.fiber x).preservesZero);
+\definition headCycles: \forall (x: X) -> \In[X] domain x -> \forall (v: Core.V x) -> (next.forward.fiber x).apply v = (Core.oddSpace x).zero ->
+  (next.forward.fiber x).apply ((next.inclusion.fiber x).apply ((projection.fiber x).apply v)) = (Core.oddSpace x).zero :=
+  \fun (x: X)(member: \In[X] domain x)(v: Core.V x)(closed: _) => trans!{{Core.W x}} _ _ _ (forwardHead x (Core.head x v))
+    (trans!{{Core.W x}} _ _ _ (congr!{{Head previous x} {Core.W x}} (Core.old.inclusion.fiber x).apply _ _ (headZero x v closed)) (Core.old.inclusion.fiber x).preservesZero);
+\definition restCycle: \forall (x: X)(v: Core.V x) -> (next.forward.fiber x).apply v = (Core.oddSpace x).zero ->
+  (Core.old.backward.fiber x).apply (Core.rest x v) = (Core.oddSpace x).zero :=
+  \fun (x: X)(v: Core.V x)(closed: _) => trans!{{Core.W x}} _ _ _
+    (sym!{{Core.W x}} _ _ (trans!{{Core.W x}} _ _ _
+      (congr!{{Core.W x} {Core.W x}} (\fun (a: Core.W x) => (Core.oddSpace x).add a ((Core.old.backward.fiber x).apply (Core.rest x v))) _ _
+        (trans!{{Core.W x}} _ _ _ (congr!{{Head previous x} {Core.W x}} (Core.old.inclusion.fiber x).apply _ _ (headZero x v closed)) (Core.old.inclusion.fiber x).preservesZero))
+      (Spaces.Laws[V := Core.W x, space := Core.oddSpace x].zeroLeft ((Core.old.backward.fiber x).apply (Core.rest x v))))) closed;
+\definition decompose: \forall (x: X)(a: Core.A x)(b: Core.B x) ->
+  (Core.evenSpace x).add (Core.join x a (Core.oldOddSpace x).zero) (Core.join x (Core.firstSpace x).zero b) = Core.join x a b :=
+  \fun (x: X)(a: Core.A x)(b: Core.B x) => trans!{{Core.V x}} _ _ _
+    (sym!{{Core.V x}} _ _ ((Sum.isomorphism.forward.fiber x).preservesAdd
+      (Pair.pair (Core.A x) (Core.B x) a (Core.oldOddSpace x).zero) (Pair.pair (Core.A x) (Core.B x) (Core.firstSpace x).zero b)))
+    (congr!{{Sum.SourceFiber x} {Core.V x}} (Sum.isomorphism.forward.fiber x).apply _ _
+      (Pair.Prop[A := Core.A x, B := Core.B x].pairCong _ _ _ _
+        (Spaces.Laws[V := Core.A x, space := Core.firstSpace x].zeroRight a) (Spaces.Laws[V := Core.B x, space := Core.oldOddSpace x].zeroLeft b)));
+\definition evenExact: \forall (x: X) -> \In[X] domain x -> \forall (v: Core.V x) -> (next.forward.fiber x).apply v = (Core.oddSpace x).zero ->
+  \exists (w: Core.W x \where (Core.evenSpace x).add ((next.inclusion.fiber x).apply ((projection.fiber x).apply v)) ((next.backward.fiber x).apply w) = v) := \block {
+  \fun (x: X)(member: \In[X] domain x)(v: Core.V x)(closed: _) \then
+  \takefrom w: \Cast[Core.W x] ({ w: Core.W x \where (Core.old.forward.fiber x).apply w = Core.rest x v }) \by tail.oddExact x member (Core.rest x v) (restCycle x v closed) \then
+  \return Logic.existsIntro[Core.W x, { w: Core.W x \where (Core.evenSpace x).add ((next.inclusion.fiber x).apply ((projection.fiber x).apply v)) ((next.backward.fiber x).apply w) = v }] w
+    (trans!{{Core.V x}} _ _ _
+      (congr!{{Core.V x} {Core.V x}} ((Core.evenSpace x).add ((next.inclusion.fiber x).apply ((projection.fiber x).apply v))) _ _
+        (congr!{{Core.B x} {Core.V x}} (Core.join x (Core.firstSpace x).zero) _ _ (\bysub(Core.W x, { w: Core.W x \where (Core.old.forward.fiber x).apply w = Core.rest x v }, w))))
+      (trans!{{Core.V x}} _ _ _ (decompose x (Core.head x v) (Core.rest x v)) (Core.recover x v)))
+};
+\definition forwardCycle: \forall (x: X)(w: Core.W x) -> (next.backward.fiber x).apply w = (Core.evenSpace x).zero ->
+  (Core.old.forward.fiber x).apply w = (Core.oldOddSpace x).zero :=
+  \fun (x: X)(w: Core.W x)(closed: _) => trans!{{Core.B x}} _ _ _
+    (sym!{{Core.B x}} _ _ (Core.restJoin x (Core.firstSpace x).zero ((Core.old.forward.fiber x).apply w)))
+    (trans!{{Core.B x}} _ _ _ (congr!{{Core.V x} {Core.B x}} (Core.rest x) _ _ closed)
+      (congr!{{Sum.SourceFiber x} {Core.B x}} (Pair.second (Core.A x) (Core.B x)) _ _ (Sum.isomorphism.backward.fiber x).preservesZero));
+\definition oddExact: \forall (x: X) -> \In[X] domain x -> \forall (w: Core.W x) -> (next.backward.fiber x).apply w = (Core.evenSpace x).zero ->
+  \exists (v: Core.V x \where (next.forward.fiber x).apply v = w) := \block {
+  \fun (x: X)(member: \In[X] domain x)(w: Core.W x)(closed: _) \then
+  \let cycle: (Core.old.forward.fiber x).apply w = (Core.oldOddSpace x).zero := forwardCycle x w closed \then
+  \takefrom b: \Cast[Core.B x] ({ b: Core.B x \where (Core.oddSpace x).add
+    ((Core.old.inclusion.fiber x).apply ((tail.projection.fiber x).apply w)) ((Core.old.backward.fiber x).apply b) = w }) \by tail.evenExact x member w cycle \then
+  \takefrom a: \Cast[Core.A x] ({ a: Core.A x \where (differential.fiber x).apply a = (tail.projection.fiber x).apply w })
+    \by exactHead x member ((tail.projection.fiber x).apply w) (tail.headCycles x member w cycle) \then
+  \return Logic.existsIntro[Core.V x, { v: Core.V x \where (next.forward.fiber x).apply v = w }] (Core.join x a b)
+    (trans!{{Core.W x}} _ _ _ (Core.forwardJoin x a b)
+      (trans!{{Core.W x}} _ _ _
+        (congr!{{Head previous x} {Core.W x}} (\fun (h: Head previous x) => (Core.oddSpace x).add ((Core.old.inclusion.fiber x).apply h) ((Core.old.backward.fiber x).apply b)) _ _
+          (\bysub(Core.A x, { a: Core.A x \where (differential.fiber x).apply a = (tail.projection.fiber x).apply w }, a)))
+        (\bysub(Core.B x, { b: Core.B x \where (Core.oddSpace x).add
+          ((Core.old.inclusion.fiber x).apply ((tail.projection.fiber x).apply w)) ((Core.old.backward.fiber x).apply b) = w }, b))))
+};
+\definition result: Partial[complex, domain] := Partial[complex, domain] {
+  projection := projection,
+  projectInclusion := projectInclusion, projectBackward := projectBackward,
+  headCycles := headCycles, evenExact := evenExact, oddExact := oddExact
+};

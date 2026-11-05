@@ -1,0 +1,34 @@
+\import \root.Thom[].FiberMultiply[X := X, F := F, G := G, left := left, right := right, sameBase := sameBase, compact := compact, hausdorff := hausdorff] \as Original;
+\import Support.On[X := Y, space := target, hausdorff := targetHausdorff, locallyCompact := targetLocallyCompact] \as Target;
+\import Right.Pullback[Y := Y, target := target, targetHausdorff := targetHausdorff,
+  targetLocallyCompact := targetLocallyCompact, f := g, continuous := regular, proper := proper] \as RightPull;
+\import RightPull.At[degree := zero] \as PullSecond;
+\import Relative.Identity[model := Left.model] \as Identity;
+\import Relative.Smash[left := Left.model, right := Target.model] \as TargetSmash;
+\import Smash.Mapping[targetLeft := Left.model, targetRight := Target.model,
+  f := Identity.map, g := RightPull.mapping] \as Change;
+\import Relative.Composition[source := Result.model, middle := Smash.result, target := TargetSmash.result,
+  first := mapping, second := Change.map] \as Combined;
+\definition map: Relative.Map Result.model TargetSmash.result := Combined.map;
+\import Relative.Pullback[source := Result.model, target := TargetSmash.result, f := map] \as CombinedPull;
+\import Relative.Pullback[source := Smash.result, target := TargetSmash.result, f := Change.map] \as SmashPull;
+\definition equation: \forall (a: First)(b: Target.At[degree := zero].Carrier) ->
+  multiply a (PullSecond.map b) = CombinedPull.map (TargetSmash.External[].product a b) :=
+  \fun (a: First)(b: Target.At[degree := zero].Carrier) => eq_reason_in!{Carrier _
+    "=" { Native.map (Smash.External[].product a (PullSecond.map b)) } "by" { formula a (PullSecond.map b) }
+    "=" { Native.map (Smash.External[].product (Relative.Pullback[source := Left.model, target := Left.model, f := Identity.map].map a) (PullSecond.map b)) } "by" {
+      congr!{First Carrier} (\fun (u: First) => Native.map (Smash.External[].product u (PullSecond.map b))) _ _
+        (sym!{First} _ _ (Relative.PullbackIdentity[model := Left.model].equation a)) }
+    "=" { Native.map (SmashPull.map (TargetSmash.External[].product a b)) } "by" {
+      congr!{{Relative.Reduced[model := Smash.result].Carrier} Carrier} Native.map _ _
+        (sym!{{Relative.Reduced[model := Smash.result].Carrier}} _ _ (Change.External[].naturality a b)) }
+    "=" _ "by" { sym!{Carrier} _ _ (Relative.PullbackComposition[source := Result.model, middle := Smash.result,
+      target := TargetSmash.result, first := mapping, second := Change.map].equation (TargetSmash.External[].product a b)) }
+  };
+\import Support.OnePoint[X := Y, space := target] \as TargetPoints;
+\definition onFinite: \forall (p: SumFamily.Point) -> map (Points.inclusion p) =
+  TargetSmash.projection (Pair.pair LeftPoints.Carrier TargetPoints.Carrier
+    (LeftPoints.inclusion (Sum.first p)) (TargetPoints.inclusion (g (Sum.second p)))) :=
+  \fun (p: SumFamily.Point) => trans!{{TargetSmash.result.Carrier}} _ _ _
+    (congr!{{Smash.result.Carrier} {TargetSmash.result.Carrier}} Change.map _ _ (Original.onFinite p))
+    (Change.onProjection (Pair.pair LeftPoints.Carrier RightPoints.Carrier (LeftPoints.inclusion (Sum.first p)) (RightPoints.inclusion (Sum.second p))));

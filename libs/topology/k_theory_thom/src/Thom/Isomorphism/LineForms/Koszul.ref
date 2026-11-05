@@ -1,0 +1,55 @@
+\import Bundles.Trivial[X := X, n := one, baseSpace := baseSpace] \as Original;
+\import \root.Thom[].Koszul[X := X, F := (\fun (x: X) => Bundles.Vector one), bundle := Original.bundle] \as Native;
+\import Native.Coordinates[] \as Coordinates;
+\import Bundles.Family[X := X, F := (\fun (x: X) => Bundles.Vector one) ] \as BundleFamily;
+\import Bundles.Family[X := X, F := (\fun (x: X) => Bundles.Vector one)].Of[bundle := Original.bundle] \as Family;
+\import Operations.Models[X := Native.Total, baseSpace := Original.bundle.totalSpace] \as Models;
+\import Models.Trivial[n := one] \as NonzeroModel;
+\import Models.Trivial[n := N.Nat^::zero] \as ZeroModel;
+\import \parent.Coordinates[k := N.Nat^::zero, ordered := zeroOrdered].Pullback[
+  X := X, Y := Native.Total, originalSpace := baseSpace, baseSpace := Original.bundle.totalSpace,
+  f := BundleFamily.projection, regular := Family.projectionContinuous] \as DegreeZero;
+\import \parent.Coordinates[k := one, ordered := oneOrdered].Pullback[
+  X := X, Y := Native.Total, originalSpace := baseSpace, baseSpace := Original.bundle.totalSpace,
+  f := BundleFamily.projection, regular := Family.projectionContinuous] \as DegreeOne;
+\definition zeroChoice: Coordinates.Choice N.Nat^::zero := Models.From[F := Native.Term N.Nat^::zero, original := Native.term N.Nat^::zero].Result {
+  model := NonzeroModel.value, isomorphism := DegreeZero.isomorphism
+};
+\definition oneChoice: Coordinates.Choice one := Models.From[F := Native.Term one, original := Native.term one].Result {
+  model := NonzeroModel.value, isomorphism := DegreeOne.isomorphism
+};
+\module Higher(n: N.Nat^);
+\definition successorSelection: \forall (k: N.Nat^) -> Coordinates.Choice (N.Nat^::succ k) :=
+  \induction (k: N.Nat^) \return Coordinates.Choice (N.Nat^::succ k) \with {
+    | zero: oneChoice
+    | succ: \fun (k: N.Nat^)(unused: Coordinates.Choice (N.Nat^::succ k)) => Higher[n := k].choice
+  };
+\definition selection: \forall (k: N.Nat^) -> Coordinates.Choice k :=
+  \induction (k: N.Nat^) \return Coordinates.Choice k \with {
+    | zero: zeroChoice
+    | succ: \fun (k: N.Nat^)(unused: Coordinates.Choice k) => successorSelection k
+  };
+\import Coordinates.With[selection := selection] \as Encoded;
+\import Encoded.Finite[].At[n := N.Nat^::succ one, zeroAbove := Higher[n := N.Nat^::zero].zero] \as Finite;
+\import \parent.ModelSums[X := Native.Total, baseSpace := Original.bundle.totalSpace].CapTwo[
+  first := NonzeroModel.value, second := NonzeroModel.value,
+  differential := Encoded.differential N.Nat^::zero, next := Encoded.differential one] \as Parity;
+\import Models.Chains[].Of[complex := Finite.complex] \as Chain;
+\definition positive: Bundles.Isomorphisms[X := Native.Total, F := Models.Fiber Chain.parity.even.ranks,
+  G := (\fun (p: Native.Total) => Bundles.Vector one),
+  source := Models.bundle Chain.parity.even, target := Models.bundle NonzeroModel.value].Isomorphism := Parity.positive;
+\definition negative: Bundles.Isomorphisms[X := Native.Total, F := Models.Fiber Chain.parity.odd.ranks,
+  G := (\fun (p: Native.Total) => Bundles.Vector one),
+  source := Models.bundle Chain.parity.odd, target := Models.bundle NonzeroModel.value].Isomorphism := Parity.negative;
+\definition evenZero: \forall (p: Native.Total)(v: Chain.Even p) ->
+  (Chain.parity.forward.fiber p).apply v = (Chain.odd.space p).zero := Parity.evenZero;
+\module At(p: Native.Total);
+\definition coefficient: \forall (p: Native.Total)(w: Chain.Odd p) ->
+  (positive.forward.fiber p).apply ((Chain.parity.backward.fiber p).apply w) =
+    (Bundles.coordinates one).smul (p.vector index) ((negative.forward.fiber p).apply w) :=
+  \fun (p: Native.Total)(w: Chain.Odd p) => trans!{{Bundles.Vector one}} _ _ _
+    (Parity.backwardFormula p w) (At[p := p].differentialFormula ((negative.forward.fiber p).apply w));
+\definition complex: Models.Chains[].Complex := Finite.complex;
+\definition exactOutside: \forall (p: Native.Outside) -> Models.Chains[].Of[complex := complex].ExactAt p := Finite.exactOutside;
+\module Compact(compact: topology.Topology[Carrier := X].IsCompact baseSpace,
+  hausdorff: topology.Topology[Carrier := X].IsT2 baseSpace);

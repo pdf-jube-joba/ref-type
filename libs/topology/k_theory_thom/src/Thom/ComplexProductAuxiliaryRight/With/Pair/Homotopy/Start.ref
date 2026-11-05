@@ -1,0 +1,29 @@
+\definition startCoefficient[x: Relative.A]: C.Complex := coefficient (Cylinder.at I.start x);
+\definition startCoefficientContinuous: topology.Continuity[A := Relative.A, B := C.Complex].Continuous Relative.subspace Scalars.scalar.topological.space startCoefficient :=
+  topology.Composition[A := Relative.A, B := Cylinder.Carrier, C := C.Complex].composeContinuous Relative.subspace (Cylinder.topology Relative.subspace) Scalars.scalar.topological.space
+    (Cylinder.at I.start) coefficient (Cylinder.atContinuous Relative.subspace I.start) coefficientContinuous;
+\definition rho[x: Relative.A]: C.Complex := Path.rho (Cylinder.at I.start x);
+\definition rhoContinuous: topology.Continuity[A := Relative.A, B := C.Complex].Continuous Relative.subspace Scalars.scalar.topological.space rho :=
+  topology.Composition[A := Relative.A, B := Cylinder.Carrier, C := C.Complex].composeContinuous Relative.subspace (Cylinder.topology Relative.subspace) Scalars.scalar.topological.space
+    (Cylinder.at I.start) Path.rho (Cylinder.atContinuous Relative.subspace I.start) Path.rhoContinuous;
+\import Operations.MapOperations[X := Relative.A, F := (\fun (x: Relative.A) => Parity.Even x), G := (\fun (x: Relative.A) => Parity.Odd x),
+  source := Represent.restrictedSource, target := Represent.restrictedTarget] \as Forward;
+\import Operations.MapOperations[X := Relative.A, F := (\fun (x: Relative.A) => Parity.Odd x), G := (\fun (x: Relative.A) => Parity.Even x),
+  source := Represent.restrictedTarget, target := Represent.restrictedSource] \as Backward;
+\definition forward: Forward.Map := Forward.add LF.restricted (Forward.functionScale startCoefficient RF.restricted startCoefficientContinuous);
+\definition backward: Backward.Map := Backward.add LB.restricted (Backward.functionScale startCoefficient RB.restricted startCoefficientContinuous);
+\definition inverse: Backward.Map := Backward.functionScale rho backward rhoContinuous;
+\definition comparison: Triples.OnSubset := BoundaryMaps.Isomorphism {
+  forward := forward, backward := inverse,
+  leftInverse := \fun (x: Relative.A) => \parent.At[z := Cylinder.at I.start x].left,
+  rightInverse := \fun (x: Relative.A) => \parent.At[z := Cylinder.at I.start x].right
+};
+\definition value: Relative.Quotient[].Relative := Triples.With[alpha := comparison].reduced;
+\definition formula[x: Relative.A][v: Parity.Even x]: (comparison.forward.fiber x).apply v =
+  (Parity.oddBundle.space x).add
+    ((LeftBlock.forward.fiber x).apply v) ((Parity.oddBundle.space x).smul (Scalar.ofReal (r x)) ((RightBlock.forward.fiber x).apply v)) :=
+  congr!{{C.Complex} {Parity.Odd x}} (\fun (a: C.Complex) => (Parity.oddBundle.space x).add
+    ((LeftBlock.forward.fiber x).apply v) ((Parity.oddBundle.space x).smul a ((RightBlock.forward.fiber x).apply v))) _ _
+      (congr!{Real.Real {C.Complex}} Scalar.ofReal _ _ (Path.coefficientStart x));
+
+\definition agreement[x: Relative.A][v: Parity.Even x]: (comparison.forward.fiber x).apply v = (Native.rawForward.fiber x).apply v := formula x v;

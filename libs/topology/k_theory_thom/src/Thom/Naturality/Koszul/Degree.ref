@@ -1,0 +1,40 @@
+\import Operations.Alternating[X := Total, F := Vector, bundle := firstBundle, k := k] \as First;
+\import Operations.Alternating[X := Total, F := Vector, bundle := secondBundle, k := k] \as Second;
+\import First.Contramap[G := Vector, target := secondBundle, sameBase := (\refl(pulled.totalSpace))] \as Forward;
+\import Second.Contramap[G := Vector, target := firstBundle, sameBase := (\refl(pulled.totalSpace))] \as Backward;
+\definition formsComparison: Bundles.Isomorphisms[X := Total, F := First.Fiber, G := Second.Fiber,
+  source := First.alternating, target := Second.alternating].Isomorphism :=
+  Bundles.Isomorphisms[X := Total, F := First.Fiber, G := Second.Fiber,
+    source := First.alternating, target := Second.alternating].Isomorphism {
+    forward := Backward.map tautologicalComparison.backward,
+    backward := Forward.map tautologicalComparison.forward,
+    leftInverse := \fun (p: Total)(omega: First.Fiber p) => Spaces.Multilinear[V := Vector p, space := firstBundle.space p].Alternating[].At[k := k].ext _ omega
+      (\fun (arguments: Fin.Fin k -> Vector p) => congr!{{Fin.Fin k -> Vector p} {C.Complex}} omega _ arguments
+        (\axiom:funext((\fun (i: Fin.Fin k) => arguments i), arguments, \fun (i: Fin.Fin k) => \refl(arguments i)))),
+    rightInverse := \fun (p: Total)(omega: Second.Fiber p) => Spaces.Multilinear[V := Vector p, space := secondBundle.space p].Alternating[].At[k := k].ext _ omega
+      (\fun (arguments: Fin.Fin k -> Vector p) => congr!{{Fin.Fin k -> Vector p} {C.Complex}} omega _ arguments
+        (\axiom:funext((\fun (i: Fin.Fin k) => arguments i), arguments, \fun (i: Fin.Fin k) => \refl(arguments i))))
+  };
+\import \root.Thom[].Naturality[X := OriginalKoszul.Total, F := OriginalKoszul.Fiber, bundle := OriginalKoszul.pulled,
+  Y := Total, source := pulled.totalSpace, f := total, regular := continuous].Degree[k := k] \as Pull;
+\definition Term[p: Total]: \Set := OriginalKoszul.Term k (total p);
+\definition sourceBundle: Bundles.Family[X := Total, F := Term].Bundle := Pull.first;
+\definition targetBundle: Bundles.Family[X := Total, F := Term].Bundle := PulledKoszul.term k;
+\import Operations.IsomorphismComposition[X := Total, F := Term, G := First.Fiber, H := Second.Fiber,
+  source := sourceBundle, middle := First.alternating, target := targetBundle] \as ComposeForms;
+\definition isomorphism: Bundles.Isomorphisms[X := Total, F := Term, G := Term, source := sourceBundle, target := targetBundle].Isomorphism :=
+  ComposeForms.compose Pull.isomorphism formsComparison;
+\definition onFiber: \forall (p: Total)(omega: Term p) -> (isomorphism.forward.fiber p).apply omega = omega :=
+  \fun (p: Total)(omega: Term p) => Spaces.Multilinear[V := Vector p, space := secondBundle.space p].Alternating[].At[k := k].ext _ omega
+    (\fun (arguments: Fin.Fin k -> Vector p) => congr!{{Fin.Fin k -> Vector p} {C.Complex}} omega _ arguments
+      (\axiom:funext((\fun (i: Fin.Fin k) => arguments i), arguments, \fun (i: Fin.Fin k) => \refl(arguments i))));
+\definition inverseOnFiber: \forall (p: Total)(omega: Term p) -> (isomorphism.backward.fiber p).apply omega = omega :=
+  \fun (p: Total)(omega: Term p) => Spaces.Multilinear[V := Vector p, space := firstBundle.space p].Alternating[].At[k := k].ext _ omega
+    (\fun (arguments: Fin.Fin k -> Vector p) => congr!{{Fin.Fin k -> Vector p} {C.Complex}} omega _ arguments
+      (\axiom:funext((\fun (i: Fin.Fin k) => arguments i), arguments, \fun (i: Fin.Fin k) => \refl(arguments i))));
+\definition contraction: \forall (p: Total)(omega: OriginalKoszul.Term (N.Nat^::succ k) (total p)) ->
+  (isomorphism.forward.fiber p).apply ((OriginalKoszul.Degree[k := k].differential.fiber (total p)).apply omega) =
+  (PulledKoszul.Degree[k := k].differential.fiber p).apply omega :=
+  \fun (p: Total)(omega: OriginalKoszul.Term (N.Nat^::succ k) (total p)) => trans!{{Term p}} _ _ _
+    (onFiber p ((OriginalKoszul.Degree[k := k].differential.fiber (total p)).apply omega))
+    (\refl((PulledKoszul.Degree[k := k].differential.fiber p).apply omega));

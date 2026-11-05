@@ -1,0 +1,88 @@
+\import \root.Thom[].FiniteLabels[] \as Labels;
+\import N.Basic[].Def[] \as Nat;
+\import N.Basic[].Prop[] \as Naturals;
+\import std.Data[].Bool[] \as B;
+\import Equality.Transport[A := N.Nat^] \as Transport;
+\definition reindex[n, m: N.Nat^][same: n = m][s: Labels.Index n]: Labels.Index m := Transport.cast Labels.Index n m same s;
+\definition reindexDegree[n, m: N.Nat^][same: n = m][s: Labels.Index n]: Labels.degree m (reindex n m same s) = Labels.degree n s :=
+  trans!{N.Nat^} _ _ _
+    (sym!{N.Nat^} _ _ (Transport.natural Labels.Index (\fun (n: N.Nat^) => N.Nat^) Labels.degree n m same s))
+    (Transport.Constant[C := N.Nat^].law n m (Labels.degree n s) same);
+\definition reindexEven[n, m: N.Nat^][same: n = m][s: Labels.Index n]: Labels.even m (reindex n m same s) = Labels.even n s :=
+  trans!{{B.Bool^}} _ _ _
+    (sym!{{B.Bool^}} _ _ (Transport.natural Labels.Index (\fun (n: N.Nat^) => B.Bool^) Labels.even n m same s))
+    (Transport.Constant[C := B.Bool^].law n m (Labels.even n s) same);
+\definition raise[n: N.Nat^]: \forall (m: N.Nat^) -> Labels.Index m -> Labels.Index (Nat.add n m) :=
+  \induction (m: N.Nat^)(s: Labels.Index m) \return Labels.Index (Nat.add n m) \with {
+    | head: \fun (m: N.Nat^) => Labels.Index::head (Nat.add n m)
+    | tail: \fun (m: N.Nat^)(s: Labels.Index m)(previous: _) => Labels.Index::tail (Nat.add n m) previous
+  };
+\definition raiseDegree[n: N.Nat^]: \forall (m: N.Nat^)(s: Labels.Index m) ->
+  Labels.degree (Nat.add n m) (raise n m s) = Nat.add n (Labels.degree m s) :=
+  \induction (m: N.Nat^)(s: Labels.Index m) \return
+    Labels.degree (Nat.add n m) (raise n m s) = Nat.add n (Labels.degree m s) \with {
+      | head: \fun (m: N.Nat^) => \refl(Nat.add n m)
+      | tail: \fun (m: N.Nat^)(s: Labels.Index m)(previous: _) => previous
+    };
+\definition raiseEven[n: N.Nat^]: \forall (m: N.Nat^)(s: Labels.Index m) -> Labels.even (Nat.add n m) (raise n m s) = Labels.even m s :=
+  \induction (m: N.Nat^)(s: Labels.Index m) \return Labels.even (Nat.add n m) (raise n m s) = Labels.even m s \with {
+    | head: \fun (m: N.Nat^) => \refl(B.Bool^::true)
+    | tail: \fun (m: N.Nat^)(s: Labels.Index m)(previous: _) => congr!{{B.Bool^} {B.Bool^}} Labels.flip _ _ previous
+  };
+\definition join: \forall (m: N.Nat^)(t: Labels.Index m)(n: N.Nat^)(s: Labels.Index n) -> Labels.Index (Nat.add n m) :=
+  \induction (m: N.Nat^)(t: Labels.Index m) \return \forall (n: N.Nat^)(s: Labels.Index n) -> Labels.Index (Nat.add n m) \with {
+    | head: \fun (m, n: N.Nat^)(s: Labels.Index n) => reindex (Nat.add m n) (Nat.add n m) (Naturals.addComm m n) (raise m n s)
+    | tail: \fun (m: N.Nat^)(t: Labels.Index m)(previous: _)(n: N.Nat^)(s: Labels.Index n) => Labels.Index::tail (Nat.add n m) (previous n s)
+  };
+\definition joinDegree: \forall (m: N.Nat^)(t: Labels.Index m)(n: N.Nat^)(s: Labels.Index n) ->
+  Labels.degree (Nat.add n m) (join m t n s) = Nat.add (Labels.degree n s) (Labels.degree m t) :=
+  \induction (m: N.Nat^)(t: Labels.Index m) \return \forall (n: N.Nat^)(s: Labels.Index n) ->
+    Labels.degree (Nat.add n m) (join m t n s) = Nat.add (Labels.degree n s) (Labels.degree m t) \with {
+      | head: \fun (m, n: N.Nat^)(s: Labels.Index n) => trans!{N.Nat^} _ _ _
+        (reindexDegree (Nat.add m n) (Nat.add n m) (Naturals.addComm m n) (raise m n s))
+        (trans!{N.Nat^} _ _ _ (raiseDegree m n s) (Naturals.addComm m (Labels.degree n s)))
+      | tail: \fun (m: N.Nat^)(t: Labels.Index m)(previous: _)(n: N.Nat^)(s: Labels.Index n) => previous n s
+    };
+\definition evenPair[a, b: B.Bool^]: B.Bool^ := B.Eqb.specification a b;
+\definition trueRight: \forall (a: B.Bool^) -> a = evenPair a B.Bool^::true := \induction (a: B.Bool^) \return a = evenPair a B.Bool^::true \with {
+  | false: \refl(B.Bool^::false)
+  | true: \refl(B.Bool^::true)
+};
+\definition flipRight: \forall (a, b: B.Bool^) -> Labels.flip (evenPair a b) = evenPair a (Labels.flip b) :=
+  \induction (a: B.Bool^) \return \forall (b: B.Bool^) -> Labels.flip (evenPair a b) = evenPair a (Labels.flip b) \with {
+    | false: \induction (b: B.Bool^) \return Labels.flip (evenPair B.Bool^::false b) = evenPair B.Bool^::false (Labels.flip b) \with {
+      | false: \refl(B.Bool^::false)
+      | true: \refl(B.Bool^::true)
+    }
+    | true: \induction (b: B.Bool^) \return Labels.flip (evenPair B.Bool^::true b) = evenPair B.Bool^::true (Labels.flip b) \with {
+      | false: \refl(B.Bool^::true)
+      | true: \refl(B.Bool^::false)
+    }
+  };
+\definition joinEven: \forall (m: N.Nat^)(t: Labels.Index m)(n: N.Nat^)(s: Labels.Index n) ->
+  Labels.even (Nat.add n m) (join m t n s) = evenPair (Labels.even n s) (Labels.even m t) :=
+  \induction (m: N.Nat^)(t: Labels.Index m) \return \forall (n: N.Nat^)(s: Labels.Index n) ->
+    Labels.even (Nat.add n m) (join m t n s) = evenPair (Labels.even n s) (Labels.even m t) \with {
+      | head: \fun (m, n: N.Nat^)(s: Labels.Index n) => trans!{{B.Bool^}} _ _ _
+        (reindexEven (Nat.add m n) (Nat.add n m) (Naturals.addComm m n) (raise m n s))
+        (trans!{{B.Bool^}} _ _ _ (raiseEven m n s) (trueRight (Labels.even n s)))
+      | tail: \fun (m: N.Nat^)(t: Labels.Index m)(previous: _)(n: N.Nat^)(s: Labels.Index n) => trans!{{B.Bool^}} _ _ _
+        (congr!{{B.Bool^} {B.Bool^}} Labels.flip _ _ (previous n s)) (flipRight (Labels.even n s) (Labels.even m t))
+    };
+\definition LookupHead[n: N.Nat^]: \Prop := Labels.rawLookup n n = Labels.Index::head n;
+\definition lookupHead: \forall (n: N.Nat^) -> LookupHead n := \induction (n: N.Nat^) \return LookupHead n \with {
+  | zero: \refl(Labels.Index::head N.Nat^::zero)
+  | succ: \fun (n: N.Nat^)(unused: LookupHead n) =>
+    congr!{{B.Bool^} {Labels.Index (N.Nat^::succ n)}} (Labels.branch n (Labels.rawLookup n) (N.Nat^::succ n)) _ _ (Naturals.eqbRefl (N.Nat^::succ n))
+};
+\module LookupTail(n: N.Nat^, s: Labels.Index n, previous: Labels.rawLookup n (Labels.degree n s) = s);
+\definition lookupInverse: \forall (n: N.Nat^)(s: Labels.Index n) -> Labels.rawLookup n (Labels.degree n s) = s :=
+  \induction (n: N.Nat^)(s: Labels.Index n) \return Labels.rawLookup n (Labels.degree n s) = s \with {
+    | head: lookupHead
+    | tail: \fun (n: N.Nat^)(s: Labels.Index n)(previous: Labels.rawLookup n (Labels.degree n s) = s) => LookupTail[n := n, s := s, previous := previous].equation
+  };
+\definition degreeInjective[n: N.Nat^][s, t: Labels.Index n][same: Labels.degree n s = Labels.degree n t]: s = t :=
+  trans!{{Labels.Index n}} _ _ _ (sym!{{Labels.Index n}} _ _ (lookupInverse n s))
+    (trans!{{Labels.Index n}} _ _ _ (congr!{N.Nat^ {Labels.Index n}} (Labels.rawLookup n) _ _ same) (lookupInverse n t));
+
+\module Sign;

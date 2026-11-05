@@ -1,0 +1,36 @@
+\import \parent.Point[n := N.Nat^::succ N.Nat^::zero] \as Point;
+\import \parent.LinePlane[].Compactification[] \as NativeSphere;
+\import \parent.LinePlane[].Normalization[] \as Normalization;
+\import Relative.Smash[left := base, right := Periodicity.sphere] \as Source;
+\import Relative.Smash[left := base, right := Point.model] \as Target;
+\import \parent.SmashRight[base := base, firstRight := Point.model, secondRight := Periodicity.sphere,
+  e := NativeSphere.equivalence] \as Spaces;
+\import Relative.Equivalence[source := Target.result, target := Source.result].With[e := Spaces.equivalence].Groups[] \as Change;
+\import Relative.Reduced[model := base] \as BaseGroup;
+\import Relative.Reduced[model := Source.result] \as Middle;
+\import Relative.Reduced[model := Target.result] \as Result;
+\import Periodicity.Reduced[model := base] \as Bott;
+\import Bott.Inverse[] \as Inverse;
+\definition bott: Periodicity.Isomorphism[A := BaseGroup.Carrier, B := Middle.Carrier, source := BaseGroup.group, target := Middle.group].Data :=
+  Periodicity.Isomorphism[A := BaseGroup.Carrier, B := Middle.Carrier, source := BaseGroup.group, target := Middle.group].Data {
+    forward := Bott.forward, backward := Inverse.backward,
+    leftInverse := Inverse.leftInverse, rightInverse := Inverse.rightInverse,
+    forwardAdd := Inverse.forwardAdd, backwardAdd := Inverse.backwardAdd,
+    forwardZero := Inverse.forwardZero, backwardZero := Inverse.backwardZero
+  };
+\definition transport: Periodicity.Isomorphism[A := Middle.Carrier, B := Result.Carrier, source := Middle.group, target := Result.group].Data :=
+  Periodicity.Isomorphism[A := Middle.Carrier, B := Result.Carrier, source := Middle.group, target := Result.group].Data {
+    forward := Change.forward, backward := Change.backward,
+    leftInverse := Change.rightInverse, rightInverse := Change.leftInverse,
+    forwardAdd := Change.forwardAdd, backwardAdd := Change.backwardAdd,
+    forwardZero := Change.forwardZero, backwardZero := Change.backwardZero
+  };
+\import Periodicity.Isomorphism[A := BaseGroup.Carrier, B := Middle.Carrier, source := BaseGroup.group, target := Middle.group].Compose[
+  C := Result.Carrier, last := Result.group, first := bott, second := transport] \as Composite;
+\definition isomorphism: Periodicity.Isomorphism[A := BaseGroup.Carrier, B := Result.Carrier, source := BaseGroup.group, target := Result.group].Data := Composite.data;
+\import Relative.Identity[model := base] \as Identity;
+\import Target.Mapping[targetLeft := base, targetRight := Periodicity.sphere, f := Identity.map, g := NativeSphere.equivalence.forward] \as Mapping;
+\definition forwardProduct: \forall (a: BaseGroup.Carrier) -> isomorphism.forward a = Target.External[].product a Point.thom :=
+  \fun (a: BaseGroup.Carrier) => trans!{{Result.Carrier}} _ _ _ (Mapping.External[].naturality a Periodicity.beta)
+    (congr!{{BaseGroup.Carrier} {Relative.Reduced[model := Point.model].Carrier} {Result.Carrier}} Target.External[].product _ _ _ _
+      (Relative.PullbackIdentity[model := base].equation a) (sym!{{Relative.Reduced[model := Point.model].Carrier}} _ _ Normalization.equation));

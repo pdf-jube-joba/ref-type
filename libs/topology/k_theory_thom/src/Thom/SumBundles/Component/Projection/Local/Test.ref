@@ -1,0 +1,72 @@
+\import std.Data[].Sum[] \as Tags;
+\definition Tag: \Set := Tags.Sum[Fin.Fin c.first.dimension, Fin.Fin c.second.dimension];
+\import Fin.FromList[A := Fin.Fin c.first.dimension] \as LeftLists;
+\import Fin.FromList[A := Fin.Fin c.second.dimension] \as RightLists;
+\import Fin.FromList[A := Tag] \as TagLists;
+\import Operations.ExteriorIndices[n := c.first.dimension, k := p] \as LeftIndices;
+\import Operations.ExteriorIndices[n := c.second.dimension, k := q] \as RightIndices;
+\import Operations.FiniteIndex[A := LeftIndices.Tuple, S := LeftIndices.set, enumeration := c.firstEnumeration] \as LeftKeys;
+\import Operations.FiniteIndex[A := RightIndices.Tuple, S := RightIndices.set, enumeration := c.secondEnumeration] \as RightKeys;
+\definition leftTags: Lists.List[Tag] := Lists.map (Fin.Fin c.first.dimension) Tag Tags.Sum[Fin.Fin c.first.dimension, Fin.Fin c.second.dimension]::inl (LeftLists.list p (LeftKeys.enumerate a));
+\definition rightTags: Lists.List[Tag] := Lists.map (Fin.Fin c.second.dimension) Tag Tags.Sum[Fin.Fin c.first.dimension, Fin.Fin c.second.dimension]::inr (RightLists.list q (RightKeys.enumerate b));
+\definition tags: Lists.List[Tag] := Lists.append Tag leftTags rightTags;
+\definition length: Lists.length Tag tags = k := trans!{{N.Nat^}} _ _ _
+  (Lists.Prop[A := Tag].lengthAppend leftTags rightTags)
+  (trans!{{N.Nat^}} _ _ _
+    (congr!{{N.Nat^} {N.Nat^} {N.Nat^}} N.Basic[].Def[].add _ _ _ _
+      (trans!{{N.Nat^}} _ _ _ (Lists.Mapping[A := Fin.Fin c.first.dimension, B := Tag].Prop[].lengthMap Tags.Sum[Fin.Fin c.first.dimension, Fin.Fin c.second.dimension]::inl (LeftLists.list p (LeftKeys.enumerate a))) (LeftLists.listLength p (LeftKeys.enumerate a)))
+      (trans!{{N.Nat^}} _ _ _ (Lists.Mapping[A := Fin.Fin c.second.dimension, B := Tag].Prop[].lengthMap Tags.Sum[Fin.Fin c.first.dimension, Fin.Fin c.second.dimension]::inr (RightLists.list q (RightKeys.enumerate b))) (RightLists.listLength q (RightKeys.enumerate b)))) degree);
+\definition selector: Fin.Fin k -> Tag := TagLists.at k tags length;
+\definition BasePoint: \Set := \Cast[X] (common c);
+\definition baseTopology: Base.Topology := left.baseSpace;
+\definition localBase: topology.Topology[Carrier := BasePoint].Topology := Base.Subspace[S := common c].topology baseTopology;
+\definition baseLeft[x: BasePoint]: \Cast[X] c.first.domain := \into[X](x, c.first.domain) \by { (\bysub(X, common c, x)).left };
+\definition baseRight[x: BasePoint]: \Cast[X] c.second.domain := \into[X](x, c.second.domain) \by { (\bysub(X, common c, x)).right };
+\definition baseRegular: topology.Continuity[A := BasePoint, B := X].Continuous localBase left.baseSpace (\fun (x: BasePoint) => x) := \fun (U: \Pow X)(open: _) => Base.Subspace[S := common c].traceOpen left.baseSpace U open;
+\definition leftRegular: topology.Continuity[A := BasePoint, B := \Cast[X] c.first.domain].Continuous localBase (Base.Subspace[S := c.first.domain].topology left.baseSpace) baseLeft :=
+  topology.Continuity[A := BasePoint, B := X].Corestriction[S := c.first.domain].corestrictContinuous localBase left.baseSpace baseLeft baseRegular;
+\definition rightRegular: topology.Continuity[A := BasePoint, B := \Cast[X] c.second.domain].Continuous localBase (Base.Subspace[S := c.second.domain].topology right.baseSpace) baseRight :=
+  topology.Continuity[A := BasePoint, B := X].Corestriction[S := c.second.domain].corestrictContinuous localBase right.baseSpace baseRight
+    (\idelim left.baseSpace = right.baseSpace \with t: Base.Topology => topology.Continuity[A := BasePoint, B := X].Continuous localBase t (\fun (x: BasePoint) => x) \by { base: baseRegular, equality: sameBase });
+\import Operations.Chart[X := X, F := F, bundle := left, chart := c.first] \as FirstChart;
+\import Operations.Chart[X := X, F := G, bundle := right, chart := c.second] \as SecondChart;
+\import Bundles.Family[X := X, F := Sum.Fiber] \as VectorFamily;
+\import Sum.Of[same := sameBase].Inclusions[] \as Inclusions;
+\definition leftVector[i: Fin.Fin c.first.dimension][x: BasePoint]: F x := (c.first.frame (baseLeft x)).backward.apply (Spaces.FiniteCoordinates[n := c.first.dimension].vectors i);
+\definition rightVector[j: Fin.Fin c.second.dimension][x: BasePoint]: G x := (c.second.frame (baseRight x)).backward.apply (Spaces.FiniteCoordinates[n := c.second.dimension].vectors j);
+\definition vector: Tag -> \forall (x: BasePoint) -> Sum.Fiber x := \induction (t: Tag) \return \forall (x: BasePoint) -> Sum.Fiber x \with {
+  | inl: \fun (i: Fin.Fin c.first.dimension)(x: BasePoint) => (Inclusions.first.fiber x).apply (leftVector i x)
+  | inr: \fun (j: Fin.Fin c.second.dimension)(x: BasePoint) => (Inclusions.second.fiber x).apply (rightVector j x)
+};
+\import Bundles.Morphisms[X := X, Y := X, F := F, G := Sum.Fiber, source := left, target := sum, f := \fun (x: X) => x] \as LeftInclusion;
+\import Bundles.Morphisms[X := X, Y := X, F := G, G := Sum.Fiber, source := right, target := sum, f := \fun (x: X) => x] \as RightInclusion;
+\definition regular: \forall (t: Tag) -> topology.Continuity[A := BasePoint, B := VectorFamily.Point].Continuous localBase sum.totalSpace (\fun (x: BasePoint) => VectorFamily.include x (vector t x)) :=
+  \induction (t: Tag) \return topology.Continuity[A := BasePoint, B := VectorFamily.Point].Continuous localBase sum.totalSpace (\fun (x: BasePoint) => VectorFamily.include x (vector t x)) \with {
+    | inl: \fun (i: Fin.Fin c.first.dimension) => topology.Composition[A := BasePoint, B := FirstFamily.Point, C := VectorFamily.Point].composeContinuous localBase left.totalSpace sum.totalSpace
+      (\fun (x: BasePoint) => FirstFamily.include x (leftVector i x)) (LeftInclusion.total Inclusions.first)
+      (FirstChart.Maps[Y := BasePoint, source := localBase].pointContinuous baseLeft (\fun (x: BasePoint) => Spaces.FiniteCoordinates[n := c.first.dimension].vectors i) leftRegular
+        (topology.Maps[A := BasePoint, B := Operations.Vector c.first.dimension].constantContinuous localBase (Operations.coordinateTopology c.first.dimension) (Spaces.FiniteCoordinates[n := c.first.dimension].vectors i)))
+      (LeftInclusion.continuous Inclusions.first)
+    | inr: \fun (j: Fin.Fin c.second.dimension) => topology.Composition[A := BasePoint, B := SecondFamily.Point, C := VectorFamily.Point].composeContinuous localBase right.totalSpace sum.totalSpace
+      (\fun (x: BasePoint) => SecondFamily.include x (rightVector j x)) (RightInclusion.total Inclusions.second)
+      (SecondChart.Maps[Y := BasePoint, source := localBase].pointContinuous baseRight (\fun (x: BasePoint) => Spaces.FiniteCoordinates[n := c.second.dimension].vectors j) rightRegular
+        (topology.Maps[A := BasePoint, B := Operations.Vector c.second.dimension].constantContinuous localBase (Operations.coordinateTopology c.second.dimension) (Spaces.FiniteCoordinates[n := c.second.dimension].vectors j)))
+      (RightInclusion.continuous Inclusions.second)
+  };
+\definition tester: Alternating.TupleSection := Alternating.TupleSection {
+  domain := common c, open := commonOpen c,
+  value := \fun (i: Fin.Fin k)(x: BasePoint) => vector (selector i) x,
+  regular := \fun (i: Fin.Fin k) => regular (selector i)
+};
+\definition point[y: Point]: \Cast[TargetFamily.Point] (Alternating.Domain tester) :=
+  \into[TargetFamily.Point](Forward.total comparison.forward y, Alternating.Domain tester) \by { \bysub(SourceFamily.Point, domain c, y) };
+\import topology.Continuity[A := SourceFamily.Point, B := TargetFamily.Point].Restriction[S := domain c] \as Restricted;
+\import topology.Continuity[A := Point, B := TargetFamily.Point].Corestriction[S := Alternating.Domain tester] \as Into;
+\definition pointContinuous: topology.Continuity[A := Point, B := \Cast[TargetFamily.Point] (Alternating.Domain tester)].Continuous topology
+  (topology.Topology[Carrier := TargetFamily.Point].Subspace[S := Alternating.Domain tester].topology Alternating.topology) point :=
+  Into.corestrictContinuous topology Alternating.topology point (Restricted.restrictContinuous bundle.totalSpace Alternating.topology (Forward.total comparison.forward) forwardContinuous);
+\definition value[y: Point]: C.Complex := Alternating.evaluate tester (point y);
+\definition continuous: topology.Continuity[A := Point, B := C.Complex].Continuous topology Scalars.scalar.topological.space value :=
+  topology.Composition[A := Point, B := \Cast[TargetFamily.Point] (Alternating.Domain tester), C := C.Complex].composeContinuous topology
+    (topology.Topology[Carrier := TargetFamily.Point].Subspace[S := Alternating.Domain tester].topology Alternating.topology) Scalars.scalar.topological.space point (Alternating.evaluate tester) pointContinuous Tests.At[i := tester].continuous;
+\module At(y: Point);

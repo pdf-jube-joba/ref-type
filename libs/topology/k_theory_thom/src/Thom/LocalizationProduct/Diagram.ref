@@ -1,0 +1,34 @@
+\import \parent.Quotient[] \as Local;
+\import Relative.Smash[left := FirstQ.model, right := SecondQ.model] \as LocalSmash;
+\import Whole.Pullback[Y := External.Carrier, target := External.topology, targetHausdorff := GlobalComplement.interiorHausdorff,
+  targetLocallyCompact := GlobalComplement.interiorLocallyCompact, f := Coordinates.forward,
+  continuous := Coordinates.forwardContinuous, proper := CoordinatesChange.proper] \as Change;
+\import Relative.Composition[source := Whole.model, middle := GlobalComplement.model, target := GlobalSmash.result,
+  first := Change.mapping, second := GlobalComplement.equivalence.backward] \as Global;
+\definition globalMap: Relative.Map Whole.model GlobalSmash.result := Global.map;
+\import Support.OnePoint[X := X, space := firstSpace] \as FirstPoints;
+\import Support.OnePoint[X := Y, space := secondSpace] \as SecondPoints;
+\import Support.OnePoint[X := Carrier, space := topology] \as Points;
+\definition globalOnFinite: \forall (p: Carrier) -> globalMap (Points.inclusion p) =
+  GlobalSmash.projection (Pair.pair FirstPoints.Carrier SecondPoints.Carrier
+    (FirstPoints.inclusion (Pair.first X Y p)) (SecondPoints.inclusion (Pair.second X Y p))) :=
+  \fun (p: Carrier) => GlobalComplement.backwardOnInterior (Coordinates.forward p);
+\import GlobalSmash.Mapping[targetLeft := FirstQ.model, targetRight := SecondQ.model,
+  f := FirstLocal.collapse, g := SecondLocal.collapse] \as Localize;
+\import Relative.Composition[source := Whole.model, middle := WholeQ.model, target := LocalSmash.result,
+  first := WholeLocal.collapse, second := Local.map] \as Left;
+\import Relative.Composition[source := Whole.model, middle := GlobalSmash.result, target := LocalSmash.result,
+  first := globalMap, second := Localize.map] \as Right;
+\module Inside(p: Carrier, inside: Base.Member openSet p);
+\module Outside(p: Carrier, outside: Logic.Not (Base.Member openSet p));
+\definition commutes: Left.map = Right.map := \axiom:funext(Left.map, Right.map,
+  \induction (p: Points.Carrier) \return Left.map p = Right.map p \with {
+    | none: trans!{{LocalSmash.result.Carrier}} _ _ _
+      (algebraic_topology.Pointed[A := Points.Carrier].Maps[B := LocalSmash.result.Carrier].laws
+        (Relative.pointed Whole.model) (Relative.pointed LocalSmash.result) Left.map).pointed
+      (sym!{{LocalSmash.result.Carrier}} _ _ (algebraic_topology.Pointed[A := Points.Carrier].Maps[B := LocalSmash.result.Carrier].laws
+        (Relative.pointed Whole.model) (Relative.pointed LocalSmash.result) Right.map).pointed)
+    | some: \fun (p: Carrier) => either!{{(Classical.excludedMiddle (Base.Member openSet p))} {Left.map (Points.inclusion p) = Right.map (Points.inclusion p)}
+      {\fun (inside: _) => Inside[p := p, inside := inside].equation}
+      {\fun (outside: _) => Outside[p := p, outside := outside].equation}}
+  });

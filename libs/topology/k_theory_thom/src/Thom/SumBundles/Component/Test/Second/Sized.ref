@@ -1,0 +1,33 @@
+\definition selector: Fin.Fin q -> Index := IndexLists.at q xs equal;
+\import Bundles.Family[X := X, F := RightForms.Fiber] \as FormFamily;
+\import Bundles.Family[X := X, F := G] \as VectorFamily;
+\import Bundles.Morphisms[X := X, Y := X, F := Sum.Fiber, G := G, source := sum, target := right, f := \fun (x: X) => x] \as Projection;
+\definition tester: RightForms.TupleSection := RightForms.TupleSection {
+  domain := s.domain, open := \idelim left.baseSpace = right.baseSpace \with t: Base.Topology => Base.IsOpenIn t s.domain \by { base: s.open, equality: sameBase },
+  value := \fun (i: Fin.Fin q)(x: \Cast[X] s.domain) => Spaces.DirectSum[V := F x, W := G x, left := left.space x, right := right.space x].second (s.value (selector i) x),
+  regular := \fun (i: Fin.Fin q) => \idelim left.baseSpace = right.baseSpace \with t: Base.Topology =>
+    topology.Continuity[A := \Cast[X] s.domain, B := VectorFamily.Point].Continuous (Base.Subspace[S := s.domain].topology t) right.totalSpace (\fun (x: \Cast[X] s.domain) => VectorFamily.include x (Spaces.DirectSum[V := F x, W := G x, left := left.space x, right := right.space x].second (s.value (selector i) x))) \by {
+      base: topology.Composition[A := \Cast[X] s.domain, B := Bundles.Family[X := X, F := Sum.Fiber].Point, C := VectorFamily.Point].composeContinuous
+      (Base.Subspace[S := s.domain].topology left.baseSpace) sum.totalSpace right.totalSpace
+      (\fun (x: \Cast[X] s.domain) => Bundles.Family[X := X, F := Sum.Fiber].include x (s.value (selector i) x))
+      (Projection.total Sum.Of[same := sameBase].secondMap) (s.regular (selector i)) (Projection.continuous Sum.Of[same := sameBase].secondMap), equality: sameBase
+    }
+};
+\import bundle_operations.Operations[].Evaluations[K := C.Complex, X := X, E := FormFamily.Point,
+  I := RightForms.TupleSection, scalarSpace := Scalars.scalar.topological.space, baseSpace := right.baseSpace,
+  projection := FormFamily.projection, domains := RightForms.domains, open := \fun (t: RightForms.TupleSection) => t.open, evaluate := RightForms.evaluate] \as Evaluations;
+\definition point[y: Point]: \Cast[FormFamily.Point] (RightForms.Domain tester) :=
+  \into[FormFamily.Point](Pairs.second y, RightForms.Domain tester) \by { \bysub(PairFamily.Point, Domain, y) };
+\import topology.Continuity[A := PairFamily.Point, B := FormFamily.Point].Restriction[S := Domain] \as Restrict;
+\import topology.Continuity[A := Point, B := FormFamily.Point].Corestriction[S := RightForms.Domain tester] \as Into;
+\definition pointContinuous: topology.Continuity[A := Point, B := \Cast[FormFamily.Point] (RightForms.Domain tester)].Continuous source
+  (topology.Topology[Carrier := FormFamily.Point].Subspace[S := RightForms.Domain tester].topology RightForms.topology) point :=
+  Into.corestrictContinuous source RightForms.topology point (Restrict.restrictContinuous Pairs.topology RightForms.topology Pairs.second Pairs.secondContinuous);
+\definition evaluation[y: Point]: C.Complex := RightForms.evaluate tester (point y);
+\definition regular: ScalarFunctions.Continuous source evaluation :=
+  topology.Composition[A := Point, B := \Cast[FormFamily.Point] (RightForms.Domain tester), C := C.Complex].composeContinuous source
+    (topology.Topology[Carrier := FormFamily.Point].Subspace[S := RightForms.Domain tester].topology RightForms.topology) Scalars.scalar.topological.space
+    point (RightForms.evaluate tester) pointContinuous Evaluations.At[i := tester].continuous;
+\module At(y: Point);
+\definition continuous: ScalarFunctions.Continuous source (secondValue xs) :=
+  ScalarFunctions.transport source evaluation (secondValue xs) (\fun (y: Point) => sym!{{C.Complex}} _ _ (At[y := y].equation)) regular;

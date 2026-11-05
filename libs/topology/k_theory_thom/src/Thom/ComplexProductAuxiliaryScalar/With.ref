@@ -1,0 +1,26 @@
+\definition affine[t, q: Real.Real]: Real.Real := Real.add (Real.mul (Real.sub Real.one t) q) t;
+\definition subZero: Real.sub Real.one Real.zero = Real.one := trans!{Real.Real} _ _ _
+  (sym!{Real.Real} _ _ (Laws.addZeroRight (Real.sub Real.one Real.zero))) (Real.Distance[].subAddCancel Real.one Real.zero);
+\definition affineZero[q: Real.Real]: affine Real.zero q = q := trans!{Real.Real} _ _ _
+  (congr!{Real.Real Real.Real} (\fun (a: Real.Real) => Real.add (Real.mul a q) Real.zero) _ _ subZero)
+  (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (\fun (a: Real.Real) => Real.add a Real.zero) _ _ (Laws.fieldMulOneLeft q)) (Laws.addZeroRight q));
+\definition affineEnd[q: Real.Real]: affine Real.one q = Real.one := trans!{Real.Real} _ _ _
+  (congr!{Real.Real Real.Real} (\fun (a: Real.Real) => Real.add (Real.mul a q) Real.one) _ _ (Laws.subSelf Real.one))
+  (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (\fun (a: Real.Real) => Real.add a Real.one) _ _ (Laws.fieldMulZeroLeft q)) (Laws.addZeroLeft Real.one));
+\definition affineUnit[t: Real.Real]: affine t Real.one = Real.one := trans!{Real.Real} _ _ _
+  (congr!{Real.Real Real.Real} (\fun (a: Real.Real) => Real.add a t) _ _ (Algebra.mulOneRight (Real.sub Real.one t))) (Real.Distance[].subAddCancel Real.one t);
+\definition positiveOnePlus[q: Real.Real][nonnegative: Order.Le Real.zero q]: Order.Lt Real.zero (Real.add Real.one q) :=
+  Order.ltLeTrans Real.zero Real.one (Real.add Real.one q) Bounds.onePositive (Algebra.leAddRight Real.one q nonnegative);
+\definition endpoint[x: X]: Real.Real := Real.add Real.one (b x);
+\definition endpointPositive[x: X]: Order.Lt Real.zero (endpoint x) := positiveOnePlus (b x) (nonnegative x);
+\definition endpointContinuous: Functions.Continuous space endpoint := Functions.sumContinuous space (\fun (x: X) => Real.one) b (Functions.constantContinuous space Real.one) bContinuous;
+\definition endpointScale[x: X]: C.Complex := Scalar.ofReal (endpoint x);
+\definition endpointScaleContinuous: topology.Continuity[A := X, B := C.Complex].Continuous space Scalars.scalar.topological.space endpointScale :=
+  hermitian_frames.Hermitian[].Over[K := C.Complex, field := C.Algebra[].field, scalar := Hermitian.scalar, topological := Scalars.scalar.topological].Functions[X := X].embedding space endpoint endpointContinuous;
+\definition endpointNonzero[x: X]: Scalar.NonZero (endpointScale x) := \fun (zero: _) => Real.Inverse[].positiveNonzero (endpoint x) (endpointPositive x)
+  (Geometry.embedInjective (endpoint x) Real.zero (trans!{{C.Complex}} _ _ _ zero (sym!{{C.Complex}} _ _ Hermitian.scalar.embedZero)));
+\definition endpointRho[x: X]: C.Complex := Scalar.inv (endpointScale x);
+\definition endpointRhoContinuous: topology.Continuity[A := X, B := C.Complex].Continuous space Scalars.scalar.topological.space endpointRho :=
+  topological_algebra.Complex[].Functions[A := X].inverseContinuous space endpointScale endpointScaleContinuous endpointNonzero;
+\definition endpointReciprocal[x: X]: Scalar.mul (endpointRho x) (endpointScale x) = Scalar.one := ComplexLaws.inverseNonzero (endpointScale x) (endpointNonzero x);
+\module Boundary(subset: \Pow X, boundary: \forall (x: X) -> \In[X] subset x -> Logic.Or[r x = Real.one, b x = Real.one]);

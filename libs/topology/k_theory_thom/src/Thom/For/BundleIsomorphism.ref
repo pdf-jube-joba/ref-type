@@ -1,0 +1,50 @@
+\import \root.Thom[].For[X := X, F := F, bundle := bundle, compact := compact, hausdorff := hausdorff] \as OriginalFor;
+\import \root.Thom[].For[X := X, F := G, bundle := target, compact := targetCompact, hausdorff := targetHausdorff] \as TargetFor;
+\import \root.Thom[].Koszul[X := X, F := G, bundle := target] \as TargetKoszul;
+\import TargetKoszul.Coordinates[] \as TargetCoordinates;
+\import Bundles.Family[X := X, F := G].Of[bundle := target] \as TargetBundle;
+\import \root.Thom[].KoszulIsomorphism[X := X, F := F, G := G, left := bundle, right := target, sameBase := sameBase, iso := iso] \as Natural;
+\definition totalHomeomorphism: topology.Homeomorphism[A := Koszul.Total, B := TargetKoszul.Total].Homeomorphism[bundle.totalSpace, target.totalSpace] := Natural.homeomorphism;
+\import \root.Thom[].TotalSpace[X := X, F := G, bundle := target, compact := targetCompact, hausdorff := targetHausdorff] \as TargetTotal;
+\import relative_k_theory.Relative[] \as Relative;
+\import compact_support_k.Support[].On[X := TargetKoszul.Total, space := target.totalSpace,
+  hausdorff := TargetTotal.separated, locallyCompact := TargetTotal.locallyCompact] \as TargetSupport;
+\import Supported.Pullback[Y := TargetKoszul.Total, target := target.totalSpace,
+  targetHausdorff := TargetTotal.separated, targetLocallyCompact := TargetTotal.locallyCompact,
+  f := Natural.total, continuous := Natural.continuous, proper := Natural.proper] \as CompactPull;
+\definition pull: TargetFor.Carrier -> Carrier := Relative.Pullback[source := Supported.model, target := TargetSupport.model, f := CompactPull.mapping].map;
+\definition zeroPreserved: \forall (p: Koszul.Total) -> \In[Koszul.Total] Koszul.ZeroSection p -> \In[TargetKoszul.Total] TargetKoszul.ZeroSection (Natural.total p) :=
+  \fun (p: Koszul.Total)(zero: _) => trans!{{G p.base}} _ _ _
+    (congr!{{F p.base} {G p.base}} (iso.forward.fiber p.base).apply _ _ zero) (iso.forward.fiber p.base).preservesZero;
+\definition zeroReflected: \forall (p: Koszul.Total) -> \In[TargetKoszul.Total] TargetKoszul.ZeroSection (Natural.total p) -> \In[Koszul.Total] Koszul.ZeroSection p :=
+  \fun (p: Koszul.Total)(zero: _) => trans!{{F p.base}} _ _ _ (sym!{{F p.base}} _ _ (iso.leftInverse p.base p.vector))
+    (trans!{{F p.base}} _ _ _ (congr!{{G p.base} {F p.base}} (iso.backward.fiber p.base).apply _ _ zero) (iso.backward.fiber p.base).preservesZero);
+\module Rank(x: X);
+\definition rankEquality: \forall (x: X) -> Original.rank x = TargetBundle.rank x := \fun (x: X) => Rank[x := x].equation;
+\import Operations.Models[X := TargetKoszul.Total, baseSpace := target.totalSpace] \as OldModels;
+\import Operations.Models[X := Koszul.Total, baseSpace := bundle.totalSpace] \as Models;
+\import bundle_complements.Complements[].Over[K := C.Complex, field := C.Algebra[].field,
+  conjugation := linear_algebra.Hermitian[].Complex[].scalar, scalar := Scalars.scalar] \as Complements;
+\module Using(data: TargetFor.Data);
+\definition equation: OriginalFor.thom = pull TargetFor.thom := \block {
+  \takefrom data: TargetFor.Data \by TargetFor.existence \then
+  \return trans!{Carrier} _ _ _ (OriginalFor.formula Using[data := data].sourceData)
+    (trans!{Carrier} _ _ _ Using[data := data].equation
+      (congr!{{TargetFor.Carrier} Carrier} pull _ _ (sym!{{TargetFor.Carrier}} _ _ (TargetFor.formula data))))
+};
+\module Product;
+\import topological_k_theory.KTheory[].On[X := X, baseSpace := target.baseSpace, compact := targetCompact, hausdorff := targetHausdorff].K0[] \as TargetK;
+\definition coefficient: TargetK.Carrier -> K.Carrier := Product[].coefficient;
+\import OriginalFor.Product[] \as SourceProduct;
+\definition forwardNaturality: \forall (a: TargetK.Carrier) -> pull (TargetFor.forward a) = OriginalFor.forward (coefficient a) :=
+  \fun (a: TargetK.Carrier) => trans!{Carrier} _ _ _ (Product[].equation a TargetFor.thom)
+    (congr!{Carrier Carrier} (SourceProduct.multiply (coefficient a)) _ _ (sym!{Carrier} _ _ equation));
+\module Inverse;
+\definition unpull: Carrier -> TargetFor.Carrier := Inverse[].backward;
+\definition pullUnpull: \forall (u: Carrier) -> pull (unpull u) = u := Inverse[].leftInverse;
+\definition unpullPull: \forall (u: TargetFor.Carrier) -> unpull (pull u) = u := Inverse[].rightInverse;
+\definition pullAdditive: \forall (u, v: TargetFor.Carrier) -> pull (Relative.Reduced[model := TargetSupport.model].group.base.op u v) =
+  Relative.Reduced[model := Supported.model].group.base.op (pull u) (pull v) :=
+  Relative.Pullback[source := Supported.model, target := TargetSupport.model, f := CompactPull.mapping].additive;
+\definition unpullAdditive: \forall (u, v: Carrier) -> unpull (Relative.Reduced[model := Supported.model].group.base.op u v) =
+  Relative.Reduced[model := TargetSupport.model].group.base.op (unpull u) (unpull v) := Inverse[].additive;

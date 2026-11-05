@@ -1,0 +1,30 @@
+\use Equality.eq_reason_in;
+\import Chains.Of[complex := complex] \as Complex;
+\definition exact: \forall (x: X) -> \In[X] domain x -> Complex.ExactAt x :=
+  \fun (x: X)(member: \In[X] domain x) => Logic.And[_, _]::#
+    (\block {
+      \fun (v: At complex x)(closed: _) \then
+      \takefrom w: \Cast[Odd complex x] ({ w: Odd complex x \where
+        ((Models.bundle (parity complex).even).space x).add
+          (((parity complex).inclusion.fiber x).apply ((data.projection.fiber x).apply v))
+          (((parity complex).backward.fiber x).apply w) = v }) \by data.evenExact x member v closed \then
+      \return Logic.existsIntro[Odd complex x, { w: Odd complex x \where ((parity complex).backward.fiber x).apply w = v }] w
+        (eq_reason_in!{{At complex x} _
+          "=" { ((Models.bundle (parity complex).even).space x).add
+            ((Models.bundle (parity complex).even).space x).zero (((parity complex).backward.fiber x).apply w) } "by" {
+            sym!{{At complex x}} _ _ (Spaces.Laws[V := At complex x, space := (Models.bundle (parity complex).even).space x].zeroLeft (((parity complex).backward.fiber x).apply w)) }
+          "=" { ((Models.bundle (parity complex).even).space x).add
+            (((parity complex).inclusion.fiber x).apply ((data.projection.fiber x).apply v))
+            (((parity complex).backward.fiber x).apply w) } "by" {
+            congr!{{At complex x} {At complex x}} (\fun (a: At complex x) => ((Models.bundle (parity complex).even).space x).add a (((parity complex).backward.fiber x).apply w)) _ _
+              (sym!{{At complex x}} _ _ (trans!{{At complex x}} _ _ _
+                (congr!{{Head complex x} {At complex x}} ((parity complex).inclusion.fiber x).apply _ _
+                  (headExact x member ((data.projection.fiber x).apply v) (data.headCycles x member v closed)))
+                ((parity complex).inclusion.fiber x).preservesZero)) }
+          "=" v "by" { \bysub(Odd complex x, { w: Odd complex x \where
+            ((Models.bundle (parity complex).even).space x).add
+              (((parity complex).inclusion.fiber x).apply ((data.projection.fiber x).apply v))
+              (((parity complex).backward.fiber x).apply w) = v }, w) }
+        })
+    })
+    (data.oddExact x member);

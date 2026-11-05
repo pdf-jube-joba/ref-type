@@ -1,0 +1,30 @@
+\import \root.Thom[].For[X := X, F := (\fun (x: X) => Bundles.Vector N.Nat^::zero), bundle := Original.bundle,
+  compact := compact, hausdorff := hausdorff] \as Canonical;
+\import \root.Thom[].TotalSpace[X := X, F := (\fun (x: X) => Bundles.Vector N.Nat^::zero), bundle := Original.bundle,
+  compact := compact, hausdorff := hausdorff] \as Topology;
+\import compact_support_k.Support[].On[X := Native.Total, space := Original.bundle.totalSpace,
+  hausdorff := Topology.separated, locallyCompact := Topology.locallyCompact] \as Supported;
+\import compact_support_k.Support[].OnePoint[X := Native.Total, space := Original.bundle.totalSpace] \as Plus;
+\import topological_k_theory.KTheory[].On[X := Supported.model.Carrier, baseSpace := (Relative.details Supported.model).topology,
+  compact := (Relative.details Supported.model).compact, hausdorff := (Relative.details Supported.model).hausdorff] \as CompactTheory;
+\definition rank: \forall (x: X) -> Family.rank x = N.Nat^::zero :=
+  \fun (x: X) => Family.rankFrame x N.Nat^::zero Original.identity;
+\definition rankBound: \forall (x: X) -> N.Basic[].Prop[].Le (Family.rank x) N.Nat^::zero :=
+  \fun (x: X) => \idelim N.Nat^::zero = Family.rank x \with n: N.Nat^ => N.Basic[].Prop[].Le n N.Nat^::zero \by {
+    base: N.Basic[].Prop[].leRefl N.Nat^::zero, equality: sym!{{N.Nat^}} _ _ (rank x)
+  };
+\definition data: Canonical.Data := Canonical.Data { bound := N.Nat^::zero, selection := selection, rankBound := rankBound };
+\definition normalization: Canonical.thom = Canonical.Using[data := data].thom := Canonical.formula data;
+\import \root.Thom[].Isomorphism[].FiniteUnit[X := Native.Total, space := Original.bundle.totalSpace,
+  hausdorff := Topology.separated, locallyCompact := Topology.locallyCompact,
+  complex := Finite.complex, K := Native.ZeroSection, compactK := Topology.zeroCompact,
+  exactOutside := Finite.exactOutside].With[positive := positive, negative := negative] \as Unit;
+\definition emptyUnique: \forall (v: Bundles.Vector N.Nat^::zero) -> v = (Bundles.coordinates N.Nat^::zero).zero :=
+  \fun (v: Bundles.Vector N.Nat^::zero) => \axiom:funext(v, (Bundles.coordinates N.Nat^::zero).zero,
+    \fun (i: Fin.Fin N.Nat^::zero) => Logic.falseElim _ (Fin.zeroImpossible i (Fin.bound N.Nat^::zero i)));
+\definition pointRank: \forall (p: Native.Total) ->
+  CompactTheory.Ranks[].rank Canonical.thom (Plus.inclusion p) = std.Arithmetic[].Int[].One.specification :=
+  \fun (p: Native.Total) => trans!{{std.Arithmetic[].Int[].Int^}} _ _ _
+    (congr!{{Canonical.Carrier} {std.Arithmetic[].Int[].Int^}}
+      (\fun (a: Canonical.Carrier) => CompactTheory.Ranks[].rank a (Plus.inclusion p)) _ _ (Canonical.formula data))
+    (Unit.pointRank p (emptyUnique p.vector));

@@ -1,0 +1,47 @@
+\definition one: N.Nat^ := N.Nat^::succ N.Nat^::zero;
+\import \parent.Point[n := n] \as Left;
+\import \parent.Point[n := one] \as Right;
+\import \parent.Point[n := N.Nat^::succ n] \as Next;
+\import topological_k_theory.KTheory[].FiniteDiscrete[n := one] \as Finite;
+\import Bundles.Trivial[X := Left.Base, n := n, baseSpace := Left.topology] \as LeftBundle;
+\import Bundles.Trivial[X := Left.Base, n := one, baseSpace := Left.topology] \as RightBundle;
+\import Bundles.Trivial[X := Left.Base, n := N.Nat^::succ n, baseSpace := Left.topology] \as NextBundle;
+\import Operations.DirectSum[X := Left.Base, F := (\fun (x: Left.Base) => Bundles.Vector n),
+  G := (\fun (x: Left.Base) => Bundles.Vector one), left := LeftBundle.bundle, right := RightBundle.bundle] \as Sum;
+\definition sum: Bundles.Family[X := Left.Base, F := Sum.Fiber].Bundle := Sum.bundle (\refl(Left.topology));
+\import Sum.In[c := LeftBundle.trivialization, d := RightBundle.trivialization] \as Chart;
+\import bundle_homotopy.Homotopy[].Over[K := C.Complex, field := C.Algebra[].field,
+  conjugation := linear_algebra.Hermitian[].Complex[].scalar, scalar := Scalars.scalar].ChartPullback[
+  X := Left.Base, F := Sum.Fiber, bundle := sum, chart := Chart.trivialization (\refl(Left.topology)),
+  Y := Left.Base, source := Left.topology, f := (\fun (x: Left.Base) => x),
+  continuous := topology.Maps[A := Left.Base, B := Left.Base].Identity[].continuous Left.topology,
+  inside := (\fun (x: Left.Base) => Logic.And[x = x, x = x]::# (\refl(x)) (\refl(x)))] \as Frame;
+\import Bundles.Family[X := Left.Base, F := Sum.Fiber].Of[bundle := sum].PullbackIdentity[] \as Identity;
+\import Bundles.Trivial[X := Left.Base, n := Fin.Sum[m := n, n := one].total, baseSpace := Left.topology] \as CoordinateBundle;
+\import Operations.IsomorphismComposition[X := Left.Base, F := Sum.Fiber, G := Sum.Fiber,
+  H := (\fun (x: Left.Base) => Bundles.Vector (Fin.Sum[m := n, n := one].total)),
+  source := sum, middle := Frame.pulledBundle, target := CoordinateBundle.bundle] \as Composition;
+\definition dimension: Fin.Sum[m := n, n := one].total = N.Nat^::succ n :=
+  trans!{{N.Nat^}} _ _ _ (N.Basic[].Prop[].addSuccLeft N.Nat^::zero n)
+    (congr!{{N.Nat^} {N.Nat^}} (\fun (k: N.Nat^) => N.Nat^::succ k) _ _ (N.Basic[].Prop[].addZeroLeft n));
+\definition Isomorphism[d: N.Nat^]: \Set := Bundles.Isomorphisms[X := Left.Base, F := Sum.Fiber,
+  G := (\fun (x: Left.Base) => Bundles.Vector d), source := sum,
+  target := Bundles.Trivial[X := Left.Base, n := d, baseSpace := Left.topology].bundle].Isomorphism;
+\definition isomorphism: Isomorphism (N.Nat^::succ n) :=
+  \idelim Fin.Sum[m := n, n := one].total = N.Nat^::succ n \with d: N.Nat^ => Isomorphism d \by {
+    base: Composition.compose Identity.isomorphism Frame.isomorphism, equality: dimension
+  };
+\import \root.Thom[].For[X := Left.Base, F := Sum.Fiber, bundle := sum, compact := Finite.compact, hausdorff := Finite.hausdorff]
+  .BundleIsomorphism[G := (\fun (x: Left.Base) => Bundles.Vector (N.Nat^::succ n)), target := NextBundle.bundle,
+    targetCompact := Finite.compact, targetHausdorff := Finite.hausdorff, sameBase := (\refl(Left.topology)), iso := isomorphism] \as Change;
+\import Operations.IdentityIsomorphism[X := Left.Base, F := (\fun (x: Left.Base) => Bundles.Vector one), bundle := RightBundle.bundle] \as RightIdentity;
+\import \root.Thom[].FiberTrivialization[X := Left.Base, F := (\fun (x: Left.Base) => Bundles.Vector n),
+  G := (\fun (x: Left.Base) => Bundles.Vector one), left := LeftBundle.bundle, right := RightBundle.bundle,
+  sameBase := (\refl(Left.topology)), compact := Finite.compact, hausdorff := Finite.hausdorff, n := one, iso := RightIdentity.isomorphism] \as Fiber;
+\definition source: Relative.CompactPointed := Next.model;
+\definition target: Relative.CompactPointed := Relative.Smash[left := Left.model, right := Right.model].result;
+\import Relative.Equivalence[source := source, target := target].Compose[middle := Fiber.sourceModel,
+  first := Relative.Equivalence[source := Fiber.sourceModel, target := source].inverse Change.Inverse[].equivalence,
+  second := Fiber.equivalence] \as Spaces;
+\definition equivalence: Relative.Equivalence[source := source, target := target].Data := Spaces.result;
+\module Class;

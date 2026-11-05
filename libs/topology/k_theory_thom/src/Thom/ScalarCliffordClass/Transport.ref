@@ -1,0 +1,23 @@
+\import \root.Thom[].ScalarCliffordClass[X := X, space := space, compact := compact, hausdorff := hausdorff, subset := subset, closed := closed, complex := complex] \as Original;
+\import Bundles.Morphisms[X := Pair.A, Y := Pair.A, F := U, G := T, source := first, target := second, f := (\fun (x: Pair.A) => x)] \as SourceForward;
+\import Bundles.Morphisms[X := Pair.A, Y := Pair.A, F := T, G := U, source := second, target := first, f := (\fun (x: Pair.A) => x)] \as SourceBackward;
+\import Operations.MapOperations[X := Pair.A, F := U, G := T, source := first, target := second] \as ForwardOperations;
+\import Operations.MapOperations[X := Pair.A, F := T, G := U, source := second, target := first] \as BackwardOperations;
+\structure SourceData: \Set := {
+  d: SourceForward.Map, e: SourceBackward.Map,
+  h: SourceBackward.Map, k: SourceForward.Map,
+  q: Pair.A -> Real.Real,
+  continuous: metric_spaces.RealFunctions[A := Pair.A].Continuous Pair.subspace q,
+  positive: \forall (x: Pair.A) -> Order.Lt Real.zero (q x)
+};
+\definition sourceForward[c: SourceData]: SourceForward.Map := ForwardOperations.add c.d c.k;
+\definition sourceBackward[c: SourceData]: SourceBackward.Map := BackwardOperations.add c.e c.h;
+\structure SourceLaws[c: SourceData]: \Prop := {
+  forwardCommutes: \forall (x: Pair.A)(v: U x) -> (d.fiber x).apply ((positive.forward.fiber x).apply v) = (negative.forward.fiber x).apply ((c.d.fiber x).apply v),
+  backwardCommutes: \forall (x: Pair.A)(v: T x) -> (e.fiber x).apply ((negative.forward.fiber x).apply v) = (positive.forward.fiber x).apply ((c.e.fiber x).apply v),
+  hk: \forall (x: Pair.A)(v: U x) -> (c.h.fiber x).apply ((c.k.fiber x).apply v) = (first.space x).zero,
+  kh: \forall (x: Pair.A)(v: T x) -> (c.k.fiber x).apply ((c.h.fiber x).apply v) = (second.space x).zero,
+  evenSquare: \forall (x: Pair.A)(v: U x) -> ((sourceBackward c).fiber x).apply (((sourceForward c).fiber x).apply v) = (first.space x).smul (Scalar.ofReal (c.q x)) v,
+  oddSquare: \forall (x: Pair.A)(v: T x) -> ((sourceForward c).fiber x).apply (((sourceBackward c).fiber x).apply v) = (second.space x).smul (Scalar.ofReal (c.q x)) v
+};
+\module With(c: SourceData, laws: SourceLaws[c]);

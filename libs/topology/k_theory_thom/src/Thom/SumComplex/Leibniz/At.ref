@@ -1,0 +1,81 @@
+\import \root.Thom[].Sum[V := F x, W := G x, left := left.space x, right := right.space x] \as Algebra;
+\import Algebra.Leibniz[p := p, q := q] \as Law;
+\import Algebra.DirectSum[k := N.Nat^::succ outputDegree] \as Source;
+\import Algebra.DirectSum[k := outputDegree] \as Target;
+\import Algebra.At[p := firstDegree, q := secondDegree] \as SourceProduct;
+\import Algebra.At[p := p, q := secondDegree] \as LeftProduct;
+\import Algebra.At[p := firstDegree, q := q] \as RightProduct;
+\definition sourceIndex: Source.Bidegree := Source.make firstDegree secondDegree (\refl(N.Nat^::succ outputDegree));
+\definition leftIndex: Target.Bidegree := Target.make p secondDegree Law.equality;
+\definition rightIndex: Target.Bidegree := Target.make firstDegree q (\refl(outputDegree));
+\import Source.Component[d := sourceIndex] \as SourceFactor;
+\import Target.Component[d := leftIndex] \as LeftFactor;
+\import Target.Component[d := rightIndex] \as RightFactor;
+\import Source.At[d := sourceIndex] \as SourceInclusion;
+\import Target.At[d := leftIndex] \as LeftInclusion;
+\import Target.At[d := rightIndex] \as RightInclusion;
+\definition pure[omega: Spaces.Exterior[V := F x, space := left.space x].Form firstDegree]
+  [eta: Spaces.Exterior[V := G x, space := right.space x].Form secondDegree]: Term (N.Nat^::succ outputDegree) x :=
+  SourceInclusion.injection.apply (SourceFactor.product omega eta);
+\definition leftTerm[omega: Spaces.Exterior[V := F x, space := left.space x].Form firstDegree]
+  [eta: Spaces.Exterior[V := G x, space := right.space x].Form secondDegree]: Term outputDegree x :=
+  LeftInclusion.injection.apply (LeftFactor.product
+    (Spaces.Multilinear[V := F x, space := left.space x].Alternating[].Contraction[k := p].apply omega (firstSection.value x)) eta);
+\definition rightTerm[omega: Spaces.Exterior[V := F x, space := left.space x].Form firstDegree]
+  [eta: Spaces.Exterior[V := G x, space := right.space x].Form secondDegree]: Term outputDegree x :=
+  RightInclusion.injection.apply (RightFactor.product omega
+    (Spaces.Multilinear[V := G x, space := right.space x].Alternating[].Contraction[k := q].apply eta (secondSection.value x)));
+\definition sourcePure: \forall (omega: Spaces.Exterior[V := F x, space := left.space x].Form firstDegree)
+  (eta: Spaces.Exterior[V := G x, space := right.space x].Form secondDegree) ->
+  Source.forward.apply (pure omega eta) = SourceProduct.apply omega eta :=
+  \fun (omega: Spaces.Exterior[V := F x, space := left.space x].Form firstDegree)
+    (eta: Spaces.Exterior[V := G x, space := right.space x].Form secondDegree) =>
+    trans!{{Form (N.Nat^::succ outputDegree) x}} _ _ _ (SourceInclusion.onInjection (SourceFactor.product omega eta))
+      (trans!{{Form (N.Nat^::succ outputDegree) x}} _ _ _
+        (congr!{{Form (N.Nat^::succ outputDegree) x} {Form (N.Nat^::succ outputDegree) x}}
+          (\fun (a: Form (N.Nat^::succ outputDegree) x) => Spaces.Exterior[V := Sum.Fiber x, space := sum.space x].Regrade[k := N.Nat^::succ outputDegree, l := N.Nat^::succ outputDegree].cast a (\refl(N.Nat^::succ outputDegree))) _ _
+          (SourceProduct.onTensor omega eta))
+        (Algebra.castSame (N.Nat^::succ outputDegree) (SourceProduct.apply omega eta)));
+\definition leftPure: \forall (omega: Spaces.Exterior[V := F x, space := left.space x].Form firstDegree)
+  (eta: Spaces.Exterior[V := G x, space := right.space x].Form secondDegree) ->
+  Target.forward.apply (leftTerm omega eta) = Law.first omega eta (firstSection.value x) :=
+  \fun (omega: Spaces.Exterior[V := F x, space := left.space x].Form firstDegree)
+    (eta: Spaces.Exterior[V := G x, space := right.space x].Form secondDegree) =>
+    trans!{{Form outputDegree x}} _ _ _ (LeftInclusion.onInjection (LeftFactor.product
+      (Spaces.Multilinear[V := F x, space := left.space x].Alternating[].Contraction[k := p].apply omega (firstSection.value x)) eta))
+      (congr!{{Spaces.Exterior[V := Sum.Fiber x, space := sum.space x].Form (Nat.add p secondDegree)} {Form outputDegree x}}
+        (\fun (a: Spaces.Exterior[V := Sum.Fiber x, space := sum.space x].Form (Nat.add p secondDegree)) =>
+          Spaces.Exterior[V := Sum.Fiber x, space := sum.space x].Regrade[k := Nat.add p secondDegree, l := outputDegree].cast a Law.equality) _ _
+        (LeftProduct.onTensor (Spaces.Multilinear[V := F x, space := left.space x].Alternating[].Contraction[k := p].apply omega (firstSection.value x)) eta));
+\definition rightPure: \forall (omega: Spaces.Exterior[V := F x, space := left.space x].Form firstDegree)
+  (eta: Spaces.Exterior[V := G x, space := right.space x].Form secondDegree) ->
+  Target.forward.apply (rightTerm omega eta) = RightProduct.apply omega
+    (Spaces.Multilinear[V := G x, space := right.space x].Alternating[].Contraction[k := q].apply eta (secondSection.value x)) :=
+  \fun (omega: Spaces.Exterior[V := F x, space := left.space x].Form firstDegree)
+    (eta: Spaces.Exterior[V := G x, space := right.space x].Form secondDegree) =>
+    trans!{{Form outputDegree x}} _ _ _ (RightInclusion.onInjection (RightFactor.product omega
+      (Spaces.Multilinear[V := G x, space := right.space x].Alternating[].Contraction[k := q].apply eta (secondSection.value x))))
+      (trans!{{Form outputDegree x}} _ _ _
+        (congr!{{Form outputDegree x} {Form outputDegree x}}
+          (\fun (a: Form outputDegree x) => Spaces.Exterior[V := Sum.Fiber x, space := sum.space x].Regrade[k := outputDegree, l := outputDegree].cast a (\refl(outputDegree))) _ _
+          (RightProduct.onTensor omega (Spaces.Multilinear[V := G x, space := right.space x].Alternating[].Contraction[k := q].apply eta (secondSection.value x))))
+        (Algebra.castSame outputDegree (RightProduct.apply omega (Spaces.Multilinear[V := G x, space := right.space x].Alternating[].Contraction[k := q].apply eta (secondSection.value x)))));
+\import C.Def[] \as Op;
+\import Spaces.Sign[] \as Sign;
+\definition equation: \forall (omega: Spaces.Exterior[V := F x, space := left.space x].Form firstDegree)
+  (eta: Spaces.Exterior[V := G x, space := right.space x].Form secondDegree) ->
+  (Boundary.differential.fiber x).apply (pure omega eta) = (Target.space).add (leftTerm omega eta) ((Target.space).smul (Sign.value firstDegree) (rightTerm omega eta)) :=
+  \fun (omega: Spaces.Exterior[V := F x, space := left.space x].Form firstDegree)
+    (eta: Spaces.Exterior[V := G x, space := right.space x].Form secondDegree) =>
+    \root.Thom[].SumBundles[X := X, F := F, G := G, left := left, right := right, sameBase := sameBase, k := outputDegree].At[x := x].injective _ _
+      (trans!{{Form outputDegree x}} _ _ _ (Boundary.chain x (pure omega eta))
+        (trans!{{Form outputDegree x}} _ _ _
+          (congr!{{Form (N.Nat^::succ outputDegree) x} {Form outputDegree x}}
+            (\root.Thom[].Contraction[X := X, F := Sum.Fiber, bundle := sum, section := section, k := outputDegree].map.fiber x).apply _ _ (sourcePure omega eta))
+          (trans!{{Form outputDegree x}} _ _ _ (Law.equation omega eta (firstSection.value x) (secondSection.value x))
+            (sym!{{Form outputDegree x}} _ _
+              (trans!{{Form outputDegree x}} _ _ _ (Target.forward.preservesAdd (leftTerm omega eta) (Target.space.smul (Sign.value firstDegree) (rightTerm omega eta)))
+                (congr!{{Form outputDegree x} {Form outputDegree x} {Form outputDegree x}} (Operations.Alternating[X := X, F := Sum.Fiber, bundle := sum, k := outputDegree].fiberSpace x).add _ _ _ _
+                  (leftPure omega eta)
+                  (trans!{{Form outputDegree x}} _ _ _ (Target.forward.preservesScale (Sign.value firstDegree) (rightTerm omega eta))
+                    (congr!{{Form outputDegree x} {Form outputDegree x}} ((Operations.Alternating[X := X, F := Sum.Fiber, bundle := sum, k := outputDegree].fiberSpace x).smul (Sign.value firstDegree)) _ _ (rightPure omega eta)))))))));

@@ -1,0 +1,37 @@
+\import Operations.DirectSumAssociator[X := X, F := F, G := G, H := F, left := left, middle := right, right := left,
+  sameMiddle := sameBase, sameRight := \refl(left.baseSpace)] \as Associate;
+\import Operations.DirectSum[X := X, F := G, G := F, left := right, right := left] \as Reverse;
+\definition reverseBase: right.baseSpace = left.baseSpace := sym!{{topology.Topology[Carrier := X].Topology}} _ _ sameBase;
+\definition reverseBundle: Bundles.Family[X := X, F := Reverse.Fiber].Bundle := Reverse.bundle reverseBase;
+\import Reverse.Of[same := reverseBase].Symmetry[] \as Swap;
+\import Bundles.Trivial[X := X, n := n, baseSpace := left.baseSpace] \as Trivial;
+\import Operations.IsomorphismComposition[X := X, F := Reverse.Fiber, G := Fiber, H := (\fun (x: X) => Bundles.Vector n), source := reverseBundle, middle := totalSum, target := Trivial.bundle] \as ReverseStable;
+\definition reverseStable: Bundles.Isomorphisms[X := X, F := Reverse.Fiber, G := (\fun (x: X) => Bundles.Vector n), source := reverseBundle, target := Trivial.bundle].Isomorphism := ReverseStable.compose Swap.isomorphism stable;
+\import Operations.IdentityIsomorphism[X := X, F := F, bundle := left] \as Identity;
+\import Operations.DirectSumIsomorphisms[X := X, F := F, G := Reverse.Fiber, A := F, B := (\fun (x: X) => Bundles.Vector n), first := left, second := reverseBundle,
+  newFirst := left, newSecond := Trivial.bundle, sameSource := sameBase, sameTarget := \refl(left.baseSpace)] \as ProductStable;
+\definition sourceBundle: Bundles.Family[X := X, F := Associate.SourceFiber].Bundle := Associate.sourceBundle;
+\definition TargetFiber[x: X]: \Set := ProductStable.TargetFiber x;
+\definition targetBundle: Bundles.Family[X := X, F := TargetFiber].Bundle := ProductStable.targetBundle;
+\import Operations.IsomorphismComposition[X := X, F := Associate.SourceFiber, G := Associate.TargetFiber, H := TargetFiber,
+  source := sourceBundle, middle := Associate.targetBundle, target := targetBundle] \as Compose;
+\definition isomorphism: Bundles.Isomorphisms[X := X, F := Associate.SourceFiber, G := TargetFiber, source := sourceBundle, target := targetBundle].Isomorphism :=
+  Compose.compose Associate.isomorphism (ProductStable.isomorphism Identity.isomorphism reverseStable);
+\definition SourceFiber[x: X]: \Set := Associate.SourceFiber x;
+\import Bundles.Family[X := X, F := SourceFiber] \as SourceFamily;
+\import Bundles.Family[X := X, F := TargetFiber] \as TargetFamily;
+\module TrivialFactor;
+\definition ProductCarrier: \Set := TrivialFactor[].Carrier;
+\definition productTopology: topology.Topology[Carrier := ProductCarrier].Topology := TrivialFactor[].productTopology;
+\definition homeomorphism: topology.Homeomorphism[A := SourceFamily.Point, B := ProductCarrier].Homeomorphism[sourceBundle.totalSpace, productTopology] :=
+  topology.Homeomorphism[A := SourceFamily.Point, B := TargetFamily.Point].Composition[C := ProductCarrier].compose
+    sourceBundle.totalSpace targetBundle.totalSpace productTopology
+    (Bundles.Isomorphisms[X := X, F := SourceFiber, G := TargetFiber, source := sourceBundle, target := targetBundle].homeomorphism isomorphism)
+    TrivialFactor[].homeomorphism;
+\definition firstFormula[p: SourceFamily.Point]: Pair.first First.Point (Bundles.Vector n) (homeomorphism.forward p) =
+  First.include p.base (Pair.first (F p.base) (G p.base) (Pair.first (Fiber p.base) (F p.base) p.vector)) := \refl(First.include p.base (Pair.first (F p.base) (G p.base) (Pair.first (Fiber p.base) (F p.base) p.vector)));
+\definition secondFormula[p: SourceFamily.Point]: Pair.second First.Point (Bundles.Vector n) (homeomorphism.forward p) =
+  (stable.forward.fiber p.base).apply (Pair.pair (F p.base) (G p.base)
+    (Pair.second (Fiber p.base) (F p.base) p.vector) (Pair.second (F p.base) (G p.base) (Pair.first (Fiber p.base) (F p.base) p.vector))) :=
+  \refl((stable.forward.fiber p.base).apply (Pair.pair (F p.base) (G p.base)
+    (Pair.second (Fiber p.base) (F p.base) p.vector) (Pair.second (F p.base) (G p.base) (Pair.first (Fiber p.base) (F p.base) p.vector))));

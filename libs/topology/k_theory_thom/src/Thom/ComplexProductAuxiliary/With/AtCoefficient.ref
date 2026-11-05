@@ -1,0 +1,30 @@
+\definition scalar[x: X]: C.Complex := Scalar.ofReal (coefficient x);
+\definition scalarContinuous: topology.Continuity[A := X, B := C.Complex].Continuous auxiliary.baseSpace Scalars.scalar.topological.space scalar :=
+  hermitian_frames.Hermitian[].Over[K := C.Complex, field := C.Algebra[].field, scalar := Hermitian.scalar, topological := Scalars.scalar.topological].Functions[X := X].embedding auxiliary.baseSpace coefficient continuous;
+\import Operations.MapOperations[X := X, F := Parity.LeftFiber, G := Parity.LeftFiber, source := Parity.leftBundle, target := Parity.leftBundle] \as AuxiliaryMaps;
+\definition firstOperator: AuxiliaryMaps.Map := AuxiliaryMaps.functionScale scalar flip scalarContinuous;
+\import \root.Thom[].ComplexProductCliffordBundle[X := X, F := Parity.LeftFiber, G := Parity.RightFiber,
+  first := Parity.leftBundle, second := Parity.rightBundle, sameBase := sameFirst] \as Clifford;
+\definition operators: Clifford.Data := Clifford.Data {
+  first := firstOperator, second := data.partner, grading := Grading.leftGrading.forward,
+  a := \fun (x: X) => Scalar.ofReal (Real.mul (coefficient x) (coefficient x)), b := \fun (x: X) => Scalar.ofReal (data.norm x)
+};
+\module Fiber(x: X);
+\definition laws: Clifford.Laws operators := \fun (x: X) => Fiber[x := x].laws;
+\import Clifford.With[c := operators, laws := laws] \as Symbol;
+\definition operator: Bundles.Morphisms[X := X, Y := X, F := Parity.SourceFiber, G := Parity.SourceFiber,
+  source := Parity.sourceBundle, target := Parity.sourceBundle, f := (\fun (x: X) => x)].Map := Symbol.operator;
+\import \parent.Raw[] \as Raw;
+\import Raw.Block[map := Raw.left] \as LeftBlock;
+\import Raw.Block[map := Raw.right] \as RightBlock;
+\import Operations.MapOperations[X := X, F := Parity.SourceFiber, G := Parity.SourceFiber, source := Parity.sourceBundle, target := Parity.sourceBundle] \as FullOperations;
+\definition rawTotal: FullOperations.Map := FullOperations.add (FullOperations.functionScale scalar Raw.left scalarContinuous) Raw.right;
+\import Operations.MapOperations[X := X, F := Parity.Even, G := Parity.Odd, source := Parity.evenBundle, target := Parity.oddBundle] \as ForwardOperations;
+\definition rawForward: ForwardOperations.Map := ForwardOperations.add (ForwardOperations.functionScale scalar LeftBlock.forward scalarContinuous) RightBlock.forward;
+\import Operations.MapOperations[X := X, F := Parity.Odd, G := Parity.Even, source := Parity.oddBundle, target := Parity.evenBundle] \as BackwardOperations;
+\definition rawBackward: BackwardOperations.Map := BackwardOperations.add (BackwardOperations.functionScale scalar LeftBlock.backward scalarContinuous) RightBlock.backward;
+\module BlockFiber(x: X);
+
+\module Normalized(reciprocal: X -> C.Complex,
+  reciprocalContinuous: topology.Continuity[A := X, B := C.Complex].Continuous auxiliary.baseSpace Scalars.scalar.topological.space reciprocal,
+  inverseLaw: \forall (x: X) -> Scalar.mul (reciprocal x) (Scalar.ofReal (Real.add (Real.mul (coefficient x) (coefficient x)) (data.norm x))) = Scalar.one);

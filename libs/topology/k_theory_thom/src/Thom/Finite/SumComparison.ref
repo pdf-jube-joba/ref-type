@@ -1,0 +1,57 @@
+
+\use Equality.eq_reason_in;
+\import Models.Sum[first := first, second := second] \as Source;
+\import Models.Sum[first := firstTarget, second := secondTarget] \as Target;
+\import Models.SumMap[p := first, q := firstTarget, r := second, s := secondTarget] \as Forward;
+\import Models.SumMap[p := firstTarget, q := first, r := secondTarget, s := second] \as Backward;
+\definition A[x: X]: \Set := Models.Fiber first.ranks x;
+\definition B[x: X]: \Set := Models.Fiber second.ranks x;
+\definition C[x: X]: \Set := Models.Fiber firstTarget.ranks x;
+\definition D[x: X]: \Set := Models.Fiber secondTarget.ranks x;
+\definition V[x: X]: \Set := Models.Fiber Source.value.ranks x;
+\definition W[x: X]: \Set := Models.Fiber Target.value.ranks x;
+\definition join[x: X][a: A x][b: B x]: V x := (Source.isomorphism.forward.fiber x).apply (Pair.pair (A x) (B x) a b);
+\definition targetJoin[x: X][a: C x][b: D x]: W x := (Target.isomorphism.forward.fiber x).apply (Pair.pair (C x) (D x) a b);
+\definition head[x: X][v: V x]: A x := Pair.first (A x) (B x) ((Source.isomorphism.backward.fiber x).apply v);
+\definition rest[x: X][v: V x]: B x := Pair.second (A x) (B x) ((Source.isomorphism.backward.fiber x).apply v);
+\definition targetHead[x: X][v: W x]: C x := Pair.first (C x) (D x) ((Target.isomorphism.backward.fiber x).apply v);
+\definition targetRest[x: X][v: W x]: D x := Pair.second (C x) (D x) ((Target.isomorphism.backward.fiber x).apply v);
+\definition recover: \forall (x: X)(v: V x) -> join x (head x v) (rest x v) = v :=
+  \fun (x: X)(v: V x) => trans!{{V x}} _ _ _
+    (congr!{{Source.SourceFiber x} {V x}} (Source.isomorphism.forward.fiber x).apply _ _ (Pair.Prop[A := A x, B := B x].eta ((Source.isomorphism.backward.fiber x).apply v)))
+    (Source.isomorphism.rightInverse x v);
+\definition targetRecover: \forall (x: X)(v: W x) -> targetJoin x (targetHead x v) (targetRest x v) = v :=
+  \fun (x: X)(v: W x) => trans!{{W x}} _ _ _
+    (congr!{{Target.SourceFiber x} {W x}} (Target.isomorphism.forward.fiber x).apply _ _ (Pair.Prop[A := C x, B := D x].eta ((Target.isomorphism.backward.fiber x).apply v)))
+    (Target.isomorphism.rightInverse x v);
+\definition forward: Models.Map Source.value Target.value := Forward.map firstIso.forward secondIso.forward;
+\definition backward: Models.Map Target.value Source.value := Backward.map firstIso.backward secondIso.backward;
+\definition formula: \forall (x: X)(a: A x)(b: B x) -> (forward.fiber x).apply (join x a b) =
+  targetJoin x ((firstIso.forward.fiber x).apply a) ((secondIso.forward.fiber x).apply b) := Forward.formula firstIso.forward secondIso.forward;
+\definition inverseFormula: \forall (x: X)(a: C x)(b: D x) -> (backward.fiber x).apply (targetJoin x a b) =
+  join x ((firstIso.backward.fiber x).apply a) ((secondIso.backward.fiber x).apply b) := Backward.formula firstIso.backward secondIso.backward;
+\definition leftInverse: \forall (x: X)(v: V x) -> (backward.fiber x).apply ((forward.fiber x).apply v) = v :=
+  \fun (x: X)(v: V x) => eq_reason_in!{{V x} _
+    "=" { (backward.fiber x).apply ((forward.fiber x).apply (join x (head x v) (rest x v))) } "by" {
+      congr!{{V x} {V x}} (\fun (z: V x) => (backward.fiber x).apply ((forward.fiber x).apply z)) _ _ (sym!{{V x}} _ _ (recover x v)) }
+    "=" { (backward.fiber x).apply (targetJoin x ((firstIso.forward.fiber x).apply (head x v)) ((secondIso.forward.fiber x).apply (rest x v))) } "by" {
+      congr!{{W x} {V x}} (backward.fiber x).apply _ _ (formula x (head x v) (rest x v)) }
+    "=" { join x ((firstIso.backward.fiber x).apply ((firstIso.forward.fiber x).apply (head x v))) ((secondIso.backward.fiber x).apply ((secondIso.forward.fiber x).apply (rest x v))) } "by" { inverseFormula x _ _ }
+    "=" { join x (head x v) (rest x v) } "by" { congr!{{A x} {B x} {V x}} (join x) _ _ _ _ (firstIso.leftInverse x (head x v)) (secondIso.leftInverse x (rest x v)) }
+    "=" _ "by" { recover x v }
+  };
+\definition rightInverse: \forall (x: X)(v: W x) -> (forward.fiber x).apply ((backward.fiber x).apply v) = v :=
+  \fun (x: X)(v: W x) => eq_reason_in!{{W x} _
+    "=" { (forward.fiber x).apply ((backward.fiber x).apply (targetJoin x (targetHead x v) (targetRest x v))) } "by" {
+      congr!{{W x} {W x}} (\fun (z: W x) => (forward.fiber x).apply ((backward.fiber x).apply z)) _ _ (sym!{{W x}} _ _ (targetRecover x v)) }
+    "=" { (forward.fiber x).apply (join x ((firstIso.backward.fiber x).apply (targetHead x v)) ((secondIso.backward.fiber x).apply (targetRest x v))) } "by" {
+      congr!{{V x} {W x}} (forward.fiber x).apply _ _ (inverseFormula x (targetHead x v) (targetRest x v)) }
+    "=" { targetJoin x ((firstIso.forward.fiber x).apply ((firstIso.backward.fiber x).apply (targetHead x v))) ((secondIso.forward.fiber x).apply ((secondIso.backward.fiber x).apply (targetRest x v))) } "by" { formula x _ _ }
+    "=" { targetJoin x (targetHead x v) (targetRest x v) } "by" { congr!{{C x} {D x} {W x}} (targetJoin x) _ _ _ _ (firstIso.rightInverse x (targetHead x v)) (secondIso.rightInverse x (targetRest x v)) }
+    "=" _ "by" { targetRecover x v }
+  };
+\definition isomorphism: Iso Source.value Target.value := Bundles.Isomorphisms[X := X,
+  F := Models.Fiber Source.value.ranks, G := Models.Fiber Target.value.ranks,
+  source := Models.bundle Source.value, target := Models.bundle Target.value].Isomorphism {
+  forward := forward, backward := backward, leftInverse := leftInverse, rightInverse := rightInverse
+};

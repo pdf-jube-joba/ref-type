@@ -1,0 +1,26 @@
+\import \parent.\parent.Using[data := data] \as First;
+\import Coordinates.With[selection := data.selection] \as OriginalModel;
+\module Degree(k: N.Nat^);
+\definition selection[k: N.Nat^]: PulledCoordinates.Choice k := Degree[k := k].choice;
+\definition rankBound: \forall (y: Y) -> Naturals.Le (PulledBundle.rank y) data.bound :=
+  \fun (y: Y) => \idelim Original.rank (f y) = PulledBundle.rank y \with rank: N.Nat^ => Naturals.Le rank data.bound \by {
+    base: data.rankBound (f y), equality: sym!{{N.Nat^}} _ _ (Pullback.Of[regular := regular].rank y)
+  };
+\definition targetData: Target.Data := Target.Data { bound := data.bound, selection := selection, rankBound := rankBound };
+\import \root.Thom[].For[X := Y, F := Fiber, bundle := pulled, compact := sourceCompact, hausdorff := sourceHausdorff].Using[data := targetData] \as Second;
+\import \root.Thom[].Finite[X := Koszul.Total, baseSpace := bundle.totalSpace].Family[
+  term := OriginalModel.model, differential := OriginalModel.differential,
+  domain := topology.Topology[Carrier := Koszul.Total].Complement Koszul.ZeroSection]
+  .Pullback[Y := PulledKoszul.Total, targetSpace := pulled.totalSpace, f := Natural.total, regular := Natural.continuous] \as Fold;
+\import Coordinates.With[selection := data.selection].Finite[].At[n := First.degree, zeroAbove := First.zeroAbove] \as FirstComplex;
+\import PulledCoordinates.With[selection := selection].Finite[].At[n := Second.degree, zeroAbove := Second.zeroAbove] \as SecondComplex;
+\import \root.Thom[].FiniteProperPullback[X := Koszul.Total, space := bundle.totalSpace,
+  hausdorff := Total.separated, locallyCompact := Total.locallyCompact, Y := PulledKoszul.Total, target := pulled.totalSpace,
+  targetHausdorff := TargetTotal.separated, targetLocallyCompact := TargetTotal.locallyCompact,
+  f := Natural.total, regular := Natural.continuous, proper := Proper.proper]
+  .Complexes[first := First.complex, second := Second.complex]
+  .With[positive := (Fold.value First.degree).even, negative := (Fold.value First.degree).odd,
+    commutesD := (Fold.value First.degree).forward, commutesE := (Fold.value First.degree).backward]
+  .Supported[K := Koszul.ZeroSection, compactK := Total.zeroCompact,
+    firstExact := FirstComplex.exactOutside, secondExact := SecondComplex.exactOutside] \as Classes;
+\definition equation: Second.thom = pull First.thom := Classes.equation;

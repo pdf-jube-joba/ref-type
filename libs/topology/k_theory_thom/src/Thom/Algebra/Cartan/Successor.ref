@@ -1,0 +1,31 @@
+\import \root.Thom[].Algebra[V := V, space := space].Cartan[k := N.Nat^::succ k, v := v, ell := ell] \as Next;
+\import Forms.Contraction[k := N.Nat^::succ k] \as NextContraction;
+\import Forms.At[k := N.Nat^::succ k] \as Target;
+\import Exterior.Components[k := N.Nat^::succ k] \as Components;
+\definition remainder: \forall (omega: Forms.Form (N.Nat^::succ k))(xs: Lists.List[V]) ->
+  Shuffle.product (series ell) (Shuffle.shift v (Exterior.component (N.Nat^::succ k) omega)) xs =
+  Exterior.component (N.Nat^::succ k) (wedge (Contract.apply omega v)) xs :=
+  \fun (omega: Forms.Form (N.Nat^::succ k))(xs: Lists.List[V]) => trans!{{C.Complex}} _ _ _
+    (Products.congruent (series ell) (series ell) (Shuffle.shift v (Exterior.component (N.Nat^::succ k) omega)) (Exterior.component k (Contract.apply omega v))
+      (\fun (ys: Lists.List[V]) => \refl(series ell ys)) (Exterior.SeriesShift[k := k].atCons omega v) xs)
+    (sym!{{C.Complex}} _ _ (congr!{{Shuffle.Function} {C.Complex}} (\fun (f: Shuffle.Function) => f xs) _ _ (component (Contract.apply omega v))));
+\definition equation: \forall (omega: Forms.Form (N.Nat^::succ k)) ->
+  Target.plus (NextContraction.apply (Next.wedge omega) v) (wedge (Contract.apply omega v)) = Target.scale (evaluate ell v) omega :=
+  \fun (omega: Forms.Form (N.Nat^::succ k)) => Components.ext _ _
+    (\axiom:funext(Exterior.component (N.Nat^::succ k) (Target.plus (NextContraction.apply (Next.wedge omega) v) (wedge (Contract.apply omega v))),
+      Exterior.component (N.Nat^::succ k) (Target.scale (evaluate ell v) omega), \fun (xs: Lists.List[V]) => \block {
+      \let a: C.Complex := Op.mul (evaluate ell v) (Exterior.component (N.Nat^::succ k) omega xs) \then
+      \let b: C.Complex := Exterior.component (N.Nat^::succ k) (wedge (Contract.apply omega v)) xs \then
+      \return eq_reason_in!{{C.Complex} _
+        "=" { Op.add (Exterior.component (N.Nat^::succ k) (NextContraction.apply (Next.wedge omega) v) xs) b } "by" {
+          Components.addition (NextContraction.apply (Next.wedge omega) v) (wedge (Contract.apply omega v)) xs }
+        "=" { Op.add (Op.add a (Op.neg (Shuffle.product (series ell) (Shuffle.shift v (Exterior.component (N.Nat^::succ k) omega)) xs))) b } "by" {
+          congr!{{C.Complex} {C.Complex}} (\fun (x: C.Complex) => Op.add x b) _ _ (Next.equation omega xs) }
+        "=" { Op.add (Op.add a (Op.neg b)) b } "by" {
+          congr!{{C.Complex} {C.Complex}} (\fun (x: C.Complex) => Op.add (Op.add a (Op.neg x)) b) _ _ (remainder omega xs) }
+        "=" { Op.add a (Op.add (Op.neg b) b) } "by" { Laws.addAssoc a (Op.neg b) b }
+        "=" { Op.add a Op.zero } "by" { congr!{{C.Complex} {C.Complex}} (Op.add a) _ _ (Laws.addNegLeft b) }
+        "=" a "by" { Laws.addZeroRight a }
+        "=" _ "by" { sym!{{C.Complex}} _ _ (Components.scalar (evaluate ell v) omega xs) }
+      }
+    }));

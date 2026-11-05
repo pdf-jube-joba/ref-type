@@ -1,0 +1,40 @@
+\import Models.Chains[] \as Chains;
+\definition data0: Chains.Data first := Chains.Data::cons first Chains.empty (Models.zero first Chains.empty) Chains.Data::nil;
+\definition data1: Chains.Data second := Chains.Data::cons second first differential data0;
+\definition data2: Chains.Data Chains.empty := Chains.Data::cons Chains.empty second next data1;
+\definition parity0: Chains.Parity[first] := Chains.fold first data0;
+\definition parity1: Chains.Parity[second] := Chains.fold second data1;
+\definition parity: Chains.Parity[Chains.empty] := Chains.fold Chains.empty data2;
+\import Models.Sum[first := first, second := Chains.empty] \as Sum0;
+\import Models.Sum[first := second, second := Chains.empty] \as Sum1;
+\import Models.Sum[first := Chains.empty, second := Sum0.value] \as Sum2;
+\import \parent.Of[first := first, second := Chains.empty] \as Geometry0;
+\import \parent.Of[first := second, second := Chains.empty] \as Geometry1;
+\import \parent.Of[first := Chains.empty, second := Sum0.value] \as Geometry2;
+\definition emptyUnique: \forall (x: X)(v: Models.Fiber Chains.empty.ranks x) -> v = ((Models.bundle Chains.empty).space x).zero :=
+  \fun (x: X)(v: Models.Fiber Chains.empty.ranks x) => \axiom:funext(v, ((Models.bundle Chains.empty).space x).zero,
+    \fun (i: Fin.Fin N.Nat^::zero) => Logic.falseElim _ (Fin.zeroImpossible i (Fin.bound N.Nat^::zero i)));
+\import Geometry0.ZeroRight[zero := emptyUnique] \as Remove0;
+\import Geometry1.ZeroRight[zero := emptyUnique] \as Remove1;
+\import Geometry2.ZeroLeft[zero := emptyUnique] \as Remove2;
+\import Bundles.Isomorphisms[X := X, F := Models.Fiber first.ranks, G := Models.Fiber Sum0.value.ranks,
+  source := Models.bundle first, target := Models.bundle Sum0.value] \as Reverse0;
+\import Bundles.Isomorphisms[X := X, F := Models.Fiber second.ranks, G := Models.Fiber Sum1.value.ranks,
+  source := Models.bundle second, target := Models.bundle Sum1.value] \as Reverse1;
+\import Bundles.Isomorphisms[X := X, F := Models.Fiber Sum0.value.ranks, G := Models.Fiber Sum2.value.ranks,
+  source := Models.bundle Sum0.value, target := Models.bundle Sum2.value] \as Reverse2;
+\import bundle_operations.Operations[].Over[K := C.Complex, field := C.Algebra[].field,
+  conjugation := linear_algebra.Hermitian[].Complex[].scalar, scalar := Scalars.scalar].IsomorphismComposition[
+  X := X, F := Models.Fiber Sum2.value.ranks, G := Models.Fiber Sum0.value.ranks, H := Models.Fiber first.ranks,
+  source := Models.bundle Sum2.value, middle := Models.bundle Sum0.value, target := Models.bundle first] \as PositiveComposition;
+\definition positive: Bundles.Isomorphisms[X := X, F := Models.Fiber parity.even.ranks, G := Models.Fiber first.ranks,
+  source := Models.bundle parity.even, target := Models.bundle first].Isomorphism :=
+  PositiveComposition.compose (Reverse2.inverse Remove2.isomorphism) (Reverse0.inverse Remove0.isomorphism);
+\definition negative: Bundles.Isomorphisms[X := X, F := Models.Fiber parity.odd.ranks, G := Models.Fiber second.ranks,
+  source := Models.bundle parity.odd, target := Models.bundle second].Isomorphism := Reverse1.inverse Remove1.isomorphism;
+\module At(x: X);
+\definition evenZero: \forall (x: X)(v: Models.Fiber parity.even.ranks x) -> (parity.forward.fiber x).apply v = ((Models.bundle parity.odd).space x).zero :=
+  \fun (x: X)(v: Models.Fiber parity.even.ranks x) => At[x := x].evenZero v;
+\definition backwardFormula: \forall (x: X)(w: Models.Fiber parity.odd.ranks x) ->
+  (positive.forward.fiber x).apply ((parity.backward.fiber x).apply w) = (differential.fiber x).apply ((negative.forward.fiber x).apply w) :=
+  \fun (x: X)(w: Models.Fiber parity.odd.ranks x) => At[x := x].backwardFormula w;

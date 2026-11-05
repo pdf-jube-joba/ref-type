@@ -1,0 +1,27 @@
+\definition overlap[p: DiskPair.A]: Disks.Overlap := \into[Sphere.Sphere](Halves.negative p, Disks.overlap) \by {
+  Logic.And[_, _]::#
+    (\idelim Halves.positive p = Halves.negative p \with s: Sphere.Sphere => \In[Sphere.Sphere] Disks.U s \by {
+      base: Halves.positiveInU p, equality: sym!{{Sphere.Sphere}} _ _ (hemisphereEquality p)
+    }) (Halves.negativeInV p)
+};
+\import bundle_operations.Operations[].Subset[E := Sphere.Sphere, U := Disks.overlap] \as OverlapEquality;
+\definition boundaryRecovery: \forall (p: DiskPair.A) -> Disks.boundary (overlap p) = circle p :=
+  \fun (p: DiskPair.A) => trans!{{Plane.Sphere}} _ _ _
+    (congr!{{Disks.Overlap} {Plane.Sphere}} Disks.boundary _ _ (OverlapEquality.equality (overlap p) (Disks.equatorPoint (circle p)) (Halves.negativeBoundary (circle p))))
+    (Disks.boundaryEquator (circle p));
+\definition multiplication: \forall (p: DiskPair.A)(v: Bundles.Vector one) ->
+  (Bundles.coordinates one).smul (Native.coefficient (circle p)) ((inverseComparison.forward.fiber p).apply v) = v :=
+  \fun (p: DiskPair.A)(v: Bundles.Vector one) => trans!{{Bundles.Vector one}} _ _ _
+    (sym!{{Bundles.Vector one}} _ _ (congr!{{Plane.Sphere} {Bundles.Vector one}}
+      (\fun (s: Plane.Sphere) => (Transition.map s).apply ((inverseComparison.forward.fiber p).apply v)) _ _ (boundaryRecovery p)))
+    (trans!{{Bundles.Vector one}} _ _ _
+      (sym!{{Bundles.Vector one}} _ _ (Clutched.FrameChange[x := overlap p].onFiber ((positiveBoundary.backward.fiber p).apply v)))
+      ((\bysub(PositiveMaps.Data, PositiveMaps.Isomorphism, positiveBoundary)).rightInverse p v));
+\import Homotopies.ScalarUnits[n := one] \as ScalarUnits;
+\definition action: \forall (p: DiskPair.A)(v: Bundles.Vector one) ->
+  (inverseComparison.forward.fiber p).apply v = (Bundles.coordinates one).smul (C.Def[].inv (Native.coefficient (circle p))) v :=
+  \fun (p: DiskPair.A)(v: Bundles.Vector one) => trans!{{Bundles.Vector one}} _ _ _
+    (sym!{{Bundles.Vector one}} _ _ (ScalarUnits.left (Native.coefficient (circle p)) (Native.nonzero (circle p))
+      ((inverseComparison.forward.fiber p).apply v)))
+    (congr!{{Bundles.Vector one} {Bundles.Vector one}} ((Bundles.coordinates one).smul (C.Def[].inv (Native.coefficient (circle p)))) _ _
+      (multiplication p v));

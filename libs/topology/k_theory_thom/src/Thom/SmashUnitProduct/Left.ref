@@ -1,0 +1,36 @@
+\import Periodicity.SmashUnit[model := base] \as Unit;
+\import Relative.Smash[left := Sphere.zero, right := base] \as Smash;
+\import topological_constructions.Product[A := Sphere.zero.Carrier, B := base.Carrier] \as Product;
+\definition liveContinuous: topology.Continuity[A := base.Carrier, B := Smash.model.Carrier].Continuous
+  (Relative.details base).topology Smash.topology Unit.live :=
+  Product.Universal[X := base.Carrier].pairContinuous (Relative.details base).topology (Relative.details Sphere.zero).topology (Relative.details base).topology
+    (\fun (x: base.Carrier) => Sphere.live) (\fun (x: base.Carrier) => x)
+    (topology.Maps[A := base.Carrier, B := Sphere.zero.Carrier].constantContinuous (Relative.details base).topology (Relative.details Sphere.zero).topology Sphere.live)
+    (topology.Maps[A := base.Carrier, B := base.Carrier].Identity[].continuous (Relative.details base).topology);
+\import \root.Thom[].ExternalOrdinaryExpansion[source := base, left := Sphere.zero, right := base,
+  f := Unit.live, regular := liveContinuous] \as Expansion;
+\import Relative.Pullback[source := base, target := Smash.result, f := Unit.inclusion] \as Pull;
+\import \parent.Constant[] \as Constant;
+\definition space: Relative.CompactPointed := Smash.result;
+\import Relative.Reduced[model := space] \as Result;
+\definition forward[a: Group.Carrier]: Result.Carrier := Smash.External[].product unit a;
+\definition backward: Result.Carrier -> Group.Carrier := Pull.map;
+\definition equation: \forall (a: Group.Carrier) -> backward (forward a) = a :=
+  \fun (a: Group.Carrier) => eq_reason_in!{{BaseK.Carrier} _
+    "=" { BaseK.mul BaseK.one a } "by" {
+      trans!{{BaseK.Carrier}} _ _ _ (Expansion.equation unit a)
+        (congr!{{BaseK.Carrier} {BaseK.Carrier} {BaseK.Carrier}} BaseK.mul _ _ _ _ Constant.equation (BaseTheory.IdentityPullback[].onK0 a)) }
+    "=" a "by" { BaseK.ring.semiring.multiplicative.leftIdentity a }
+  };
+\import Relative.Equivalence[source := base, target := space].With[e := Unit.inverse].Groups[] \as Change;
+\definition agreement[a: Group.Carrier]: forward a = Change.backward a :=
+  trans!{{Result.Carrier}} _ _ _ (sym!{{Result.Carrier}} _ _ (Change.rightInverse (forward a)))
+    (congr!{{Group.Carrier} {Result.Carrier}} Change.backward _ _ (equation a));
+\definition rightInverse: \forall (q: Result.Carrier) -> forward (backward q) = q :=
+  \fun (q: Result.Carrier) => trans!{{Result.Carrier}} _ _ _ (agreement (backward q)) (Change.rightInverse q);
+\definition isomorphism: Periodicity.Isomorphism[A := Group.Carrier, B := Result.Carrier, source := Group.group, target := Result.group].Data :=
+  Periodicity.Isomorphism[A := Group.Carrier, B := Result.Carrier, source := Group.group, target := Result.group].Data {
+    forward := forward, backward := backward, leftInverse := equation, rightInverse := rightInverse,
+    forwardAdd := Smash.External[].additiveRight unit, backwardAdd := Pull.additive,
+    forwardZero := Smash.External[].zeroRight unit, backwardZero := Pull.preservesZero
+  };

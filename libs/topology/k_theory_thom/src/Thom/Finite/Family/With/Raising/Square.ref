@@ -1,0 +1,19 @@
+\structure Valid[n: N.Nat^]: \Prop := {
+  even: \forall (x: X)(v: Models.Fiber (folded n).even.ranks x) -> ((h n).fiber x).apply (((k n).fiber x).apply v) = ((Models.bundle (folded n).even).space x).zero,
+  odd: \forall (x: X)(v: Models.Fiber (folded n).odd.ranks x) -> ((k n).fiber x).apply (((h n).fiber x).apply v) = ((Models.bundle (folded n).odd).space x).zero,
+  consecutive: \forall (x: X)(v: Models.Fiber (folded n).odd.ranks x) ->
+    ((raising n).fiber x).apply (((projection n).fiber x).apply (((h n).fiber x).apply v)) = ((Models.bundle (term (N.Nat^::succ n))).space x).zero
+};
+\definition initial: Valid[N.Nat^::zero] := Valid[N.Nat^::zero] {
+  even := \fun (x: X)(v: Models.Fiber (folded N.Nat^::zero).even.ranks x) => \refl(((Models.bundle (folded N.Nat^::zero).even).space x).zero),
+  odd := \fun (x: X)(v: Models.Fiber (folded N.Nat^::zero).odd.ranks x) => \refl(((Models.bundle (folded N.Nat^::zero).odd).space x).zero),
+  consecutive := \fun (x: X)(v: Models.Fiber (folded N.Nat^::zero).odd.ranks x) => trans!{{Models.Fiber (term (N.Nat^::succ N.Nat^::zero)).ranks x}} _ _ _
+    (congr!{{Models.Fiber (term N.Nat^::zero).ranks x} {Models.Fiber (term (N.Nat^::succ N.Nat^::zero)).ranks x}}
+      ((raising N.Nat^::zero).fiber x).apply _ _ ((projection N.Nat^::zero).fiber x).preservesZero)
+    ((raising N.Nat^::zero).fiber x).preservesZero
+};
+\module Next(n: N.Nat^, previous: Valid[n]);
+\definition valid: \forall (n: N.Nat^) -> Valid[n] := \induction (n: N.Nat^) \return Valid[n] \with {
+  | zero: initial
+  | succ: \fun (n: N.Nat^)(previous: Valid[n]) => Next[n := n, previous := previous].result
+};

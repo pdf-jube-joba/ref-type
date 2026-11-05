@@ -1,0 +1,39 @@
+\definition closedDifferential: \forall (n: N.Nat^)(x: X)(v: Models.Fiber (term (N.Nat^::succ n)).ranks x) ->
+  Closed n x (((differential n).fiber x).apply v) :=
+  \induction (n: N.Nat^) \return \forall (x: X)(v: Models.Fiber (term (N.Nat^::succ n)).ranks x) ->
+    Closed n x (((differential n).fiber x).apply v) \with {
+    | zero: \fun (x: X)(v: Models.Fiber (term (N.Nat^::succ N.Nat^::zero)).ranks x) => Logic.True::intro
+    | succ: \fun (n: N.Nat^)(unused: _) => squareZero n
+  };
+\definition folded[n: N.Nat^]: Chains.Parity[term n] := Chains.fold (term n) (data n);
+\definition Consecutive[n: N.Nat^]: \Prop := \forall (x: X)(a: Models.Fiber (term (N.Nat^::succ n)).ranks x) ->
+  ((folded n).forward.fiber x).apply (((folded n).inclusion.fiber x).apply (((differential n).fiber x).apply a)) = ((Models.bundle (folded n).odd).space x).zero;
+\structure Valid[n: N.Nat^]: \Prop := { square: Chains.SquareZero (diagram n), consecutive: Consecutive n };
+\module ProofBase;
+\module ProofNext(n: N.Nat^, previous: Valid[n]);
+\definition valid: \forall (n: N.Nat^) -> Valid[n] := \induction (n: N.Nat^) \return Valid[n] \with {
+  | zero: ProofBase[].result
+  | succ: \fun (n: N.Nat^)(previous: Valid[n]) => ProofNext[n := n, previous := previous].result
+};
+\definition complex[n: N.Nat^]: Chains.Complex := asComplex n (valid n).square;
+\structure State[n: N.Nat^]: \Set := {
+  partial: Partial[complex n, domain],
+  forwardCriterion: \forall (x: X)(a: Models.Fiber (term n).ranks x) ->
+    (((parity (complex n)).forward.fiber x).apply (((parity (complex n)).inclusion.fiber x).apply a) =
+      ((Models.bundle (parity (complex n)).odd).space x).zero) -> Closed n x a,
+  backwardCriterion: \forall (x: X)(a: Models.Fiber (term n).ranks x) -> Closed n x a ->
+    ((parity (complex n)).forward.fiber x).apply (((parity (complex n)).inclusion.fiber x).apply a) =
+      ((Models.bundle (parity (complex n)).odd).space x).zero
+};
+\module Base;
+\module Next(n: N.Nat^, previous: State[n]);
+\definition state: \forall (n: N.Nat^) -> State[n] :=
+  \induction (n: N.Nat^) \return State[n] \with {
+    | zero: Base[].result
+    | succ: \fun (n: N.Nat^)(previous: State[n]) => Next[n := n, previous := previous].result
+  };
+\module At(n: N.Nat^,
+  zeroAbove: \forall (x: X)(a: Models.Fiber (term n).ranks x) -> a = ((Models.bundle (term n)).space x).zero);
+\module Raising(raising: \forall (k: N.Nat^) -> Models.Map (term k) (term (N.Nat^::succ k)));
+
+\module OnSummands;

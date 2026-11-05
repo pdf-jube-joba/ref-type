@@ -1,0 +1,76 @@
+\import std.Data[].Pair[] \as P;
+\import Operations.DirectSum[X := X, F := E, G := O, left := sourceEven, right := sourceOdd]
+  .Of[same := sameSource] \as SourceSplit;
+\import SourceSplit.Inclusions[] \as SourceInclusions;
+\import Bundles.Morphisms[X := X, Y := X, F := E, G := SourceSum.Fiber,
+  source := sourceEven, target := sourceSum, f := (\fun (x: X) => x)]
+  .Composition[Z := X, H := F, range := sourceFull, g := (\fun (x: X) => x)] \as SourceEmbedding;
+\definition sourceEmbed: Bundles.Morphisms[X := X, Y := X, F := E, G := F,
+  source := sourceEven, target := sourceFull, f := (\fun (x: X) => x)].Map :=
+  SourceEmbedding.compose SourceInclusions.first sourceDecomposition.backward;
+\import Bundles.Morphisms[X := X, Y := X, F := F, G := SourceSum.Fiber,
+  source := sourceFull, target := sourceSum, f := (\fun (x: X) => x)]
+  .Composition[Z := X, H := O, range := sourceOdd, g := (\fun (x: X) => x)] \as SourceProjection;
+\definition sourceProject: Bundles.Morphisms[X := X, Y := X, F := F, G := O,
+  source := sourceFull, target := sourceOdd, f := (\fun (x: X) => x)].Map :=
+  SourceProjection.compose sourceDecomposition.forward SourceSplit.secondMap;
+\import Operations.DirectSum[X := X, F := A, G := B, left := targetEven, right := targetOdd]
+  .Of[same := sameTarget] \as TargetSplit;
+\import TargetSplit.Inclusions[] \as TargetInclusions;
+\import Bundles.Morphisms[X := X, Y := X, F := A, G := TargetSum.Fiber,
+  source := targetEven, target := targetSum, f := (\fun (x: X) => x)]
+  .Composition[Z := X, H := G, range := targetFull, g := (\fun (x: X) => x)] \as TargetEmbedding;
+\definition targetEmbed: Bundles.Morphisms[X := X, Y := X, F := A, G := G,
+  source := targetEven, target := targetFull, f := (\fun (x: X) => x)].Map :=
+  TargetEmbedding.compose TargetInclusions.first targetDecomposition.backward;
+\import Bundles.Morphisms[X := X, Y := X, F := G, G := TargetSum.Fiber,
+  source := targetFull, target := targetSum, f := (\fun (x: X) => x)]
+  .Composition[Z := X, H := B, range := targetOdd, g := (\fun (x: X) => x)] \as TargetProjection;
+\definition targetProject: Bundles.Morphisms[X := X, Y := X, F := G, G := B,
+  source := targetFull, target := targetOdd, f := (\fun (x: X) => x)].Map :=
+  TargetProjection.compose targetDecomposition.forward TargetSplit.secondMap;
+\definition embedEquation: \forall (x: X)(v: E x) ->
+  (targetEmbed.fiber x).apply ((evenIso.forward.fiber x).apply v) =
+  (fullIso.forward.fiber x).apply ((sourceEmbed.fiber x).apply v) :=
+  \fun (x: X)(v: E x) => trans!{{G x}} _ _ _
+    (congr!{{TargetSum.Fiber x} {G x}} (targetDecomposition.backward.fiber x).apply _ _
+      (P.Prop[A := A x, B := B x].pairCong _ _ _ _ (\refl((evenIso.forward.fiber x).apply v))
+        (sym!{{B x}} _ _ (oddIso.forward.fiber x).preservesZero)))
+    (trans!{{G x}} _ _ _
+      (congr!{{SourceSum.Fiber x} {G x}}
+        (\fun (w: SourceSum.Fiber x) => (targetDecomposition.backward.fiber x).apply ((totalIso.forward.fiber x).apply w)) _ _
+        (sym!{{SourceSum.Fiber x}} _ _ (sourceDecomposition.rightInverse x ((SourceInclusions.first.fiber x).apply v))))
+      (trans!{{G x}} _ _ _
+        (congr!{{TargetSum.Fiber x} {G x}} (targetDecomposition.backward.fiber x).apply _ _
+          (sym!{{TargetSum.Fiber x}} _ _ (commutes x ((sourceEmbed.fiber x).apply v))))
+        (targetDecomposition.leftInverse x ((fullIso.forward.fiber x).apply ((sourceEmbed.fiber x).apply v)))));
+\definition projectEquation: \forall (x: X)(v: F x) ->
+  (targetProject.fiber x).apply ((fullIso.forward.fiber x).apply v) =
+  (oddIso.forward.fiber x).apply ((sourceProject.fiber x).apply v) :=
+  \fun (x: X)(v: F x) => congr!{{TargetSum.Fiber x} {B x}} (TargetSplit.secondMap.fiber x).apply _ _ (commutes x v);
+\import Bundles.Morphisms[X := X, Y := X, F := E, G := F,
+  source := sourceEven, target := sourceFull, f := (\fun (x: X) => x)]
+  .Composition[Z := X, H := F, range := sourceFull, g := (\fun (x: X) => x)] \as SourceStart;
+\import Bundles.Morphisms[X := X, Y := X, F := E, G := F,
+  source := sourceEven, target := sourceFull, f := (\fun (x: X) => x)]
+  .Composition[Z := X, H := O, range := sourceOdd, g := (\fun (x: X) => x)] \as SourceEnd;
+\definition sourceBlock: Bundles.Morphisms[X := X, Y := X, F := E, G := O,
+  source := sourceEven, target := sourceOdd, f := (\fun (x: X) => x)].Map :=
+  SourceEnd.compose (SourceStart.compose sourceEmbed c) sourceProject;
+\import Bundles.Morphisms[X := X, Y := X, F := A, G := G,
+  source := targetEven, target := targetFull, f := (\fun (x: X) => x)]
+  .Composition[Z := X, H := G, range := targetFull, g := (\fun (x: X) => x)] \as TargetStart;
+\import Bundles.Morphisms[X := X, Y := X, F := A, G := G,
+  source := targetEven, target := targetFull, f := (\fun (x: X) => x)]
+  .Composition[Z := X, H := B, range := targetOdd, g := (\fun (x: X) => x)] \as TargetEnd;
+\definition targetBlock: Bundles.Morphisms[X := X, Y := X, F := A, G := B,
+  source := targetEven, target := targetOdd, f := (\fun (x: X) => x)].Map :=
+  TargetEnd.compose (TargetStart.compose targetEmbed d) targetProject;
+\definition equation: \forall (x: X)(v: E x) ->
+  (oddIso.forward.fiber x).apply ((sourceBlock.fiber x).apply v) =
+  (targetBlock.fiber x).apply ((evenIso.forward.fiber x).apply v) :=
+  \fun (x: X)(v: E x) => trans!{{B x}} _ _ _
+    (sym!{{B x}} _ _ (projectEquation x ((c.fiber x).apply ((sourceEmbed.fiber x).apply v))))
+    (trans!{{B x}} _ _ _
+      (congr!{{G x} {B x}} (targetProject.fiber x).apply _ _ (operatorCommutes x ((sourceEmbed.fiber x).apply v)))
+      (congr!{{G x} {B x}} (\fun (w: G x) => (targetProject.fiber x).apply ((d.fiber x).apply w)) _ _ (sym!{{G x}} _ _ (embedEquation x v))));

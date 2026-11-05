@@ -1,0 +1,21 @@
+\definition diagram: Chains.Diagram := Chains.Diagram { head := Chains.empty, data := Chains.Data::nil };
+\definition squareZero: Chains.SquareZero diagram := Logic.And[_, _]::#
+  (\fun (x: X)(v: Models.Fiber Chains.empty.ranks x) => \refl(((Models.bundle Chains.empty).space x).zero))
+  (\fun (x: X)(v: Models.Fiber Chains.empty.ranks x) => \refl(((Models.bundle Chains.empty).space x).zero));
+\definition complex: Chains.Complex := \into[Chains.Diagram](diagram, Chains.Complex) \by { squareZero };
+\definition zeroUnique: \forall (x: X)(v: Models.Fiber Chains.empty.ranks x) -> v = ((Models.bundle Chains.empty).space x).zero :=
+  \fun (x: X)(v: Models.Fiber Chains.empty.ranks x) => \axiom:funext(v, ((Models.bundle Chains.empty).space x).zero,
+    \fun (i: Fin.Fin N.Nat^::zero) => Logic.falseElim _ (Fin.zeroImpossible i (Fin.bound N.Nat^::zero i)));
+\definition result: Partial[complex, domain] := Partial[complex, domain] {
+  projection := Models.identity Chains.empty,
+  projectInclusion := \fun (x: X)(v: Head complex x) => \refl(v),
+  projectBackward := \fun (x: X)(v: Odd complex x) => \refl(((Models.bundle Chains.empty).space x).zero),
+  headCycles := \fun (x: X)(member: \In[X] domain x)(v: At complex x)(closed: _) => \refl(((Models.bundle Chains.empty).space x).zero),
+  evenExact := \fun (x: X)(member: \In[X] domain x)(v: At complex x)(closed: _) =>
+    Logic.existsIntro[Odd complex x, { w: Odd complex x \where ((Models.bundle (parity complex).even).space x).add
+      (((parity complex).inclusion.fiber x).apply v) (((parity complex).backward.fiber x).apply w) = v }]
+      ((Models.bundle Chains.empty).space x).zero (Spaces.Laws[V := At complex x, space := (Models.bundle Chains.empty).space x].zeroRight v),
+  oddExact := \fun (x: X)(member: \In[X] domain x)(w: Odd complex x)(closed: _) =>
+    Logic.existsIntro[At complex x, { v: At complex x \where ((parity complex).forward.fiber x).apply v = w }]
+      ((Models.bundle Chains.empty).space x).zero (sym!{{Odd complex x}} _ _ (zeroUnique x w))
+};

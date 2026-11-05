@@ -1,0 +1,62 @@
+\use Equality.eq_reason_in;
+\import \parent.Equations[degree := degree] \as Equation;
+\import \parent.Equations[degree := N.Nat^::succ degree] \as NextEquation;
+\import \parent.\parent.Sequence[degree := degree] \as MV;
+\import \parent.\parent.Sequence[degree := N.Nat^::succ degree] \as Next;
+\import Relative.Negative[original := ambient, degree := degree] \as Ambient;
+\import Relative.Negative[original := firstModel, degree := degree] \as FirstK;
+\import Relative.Negative[original := secondModel, degree := degree] \as SecondK;
+\import Relative.Negative[original := firstModel, degree := N.Nat^::succ degree] \as FirstNext;
+\import Relative.Negative[original := secondModel, degree := N.Nat^::succ degree] \as SecondNext;
+\import Relative.GroupCalculus[X := MV.Whole, group := MV.wholeGroup] \as WholeGroup;
+\import Relative.GroupCalculus[X := MV.Intersection, group := MV.intersectionGroup] \as IntersectionGroup;
+\import Relative.GroupCalculus[X := FirstK.Carrier, group := FirstK.group] \as FirstGroup;
+\import Relative.GroupCalculus[X := MV.IntersectionNext, group := MV.intersectionNextGroup] \as NextIntersection;
+\import Relative.GroupCalculus[X := SecondNext.Carrier, group := SecondNext.group] \as NextSecond;
+\import Relative.NegativeMap[source := intersectionModel, target := firstModel, f := intersectionToFirst, degree := degree] \as ToFirst;
+\import Relative.NegativeMap[source := intersectionModel, target := secondModel, f := intersectionToSecond, degree := degree] \as ToSecond;
+\import Relative.NegativeMap[source := intersectionModel, target := firstModel, f := intersectionToFirst, degree := N.Nat^::succ degree] \as NextToFirst;
+\import Relative.NegativeMap[source := intersectionModel, target := secondModel, f := intersectionToSecond, degree := N.Nat^::succ degree] \as NextToSecond;
+\import NextSecond.Mapping[Y := MV.IntersectionNext, target := MV.intersectionNextGroup, f := NextEquation.toSecond,
+  additive := NextToSecond.additive, preservesZero := NextToSecond.preservesZero] \as NextRestriction;
+\definition differencePreimage[z: MV.IntersectionNext]: Next.Pieces := Next.pieces FirstNext.group.base.unit (NextSecond.negate (NextEquation.lift z));
+\definition differenceReaches[z: MV.IntersectionNext]: Next.difference (differencePreimage z) = z := eq_reason_in!{{MV.IntersectionNext} _
+  "=" { NextIntersection.sub (NextEquation.toFirst FirstNext.group.base.unit) (NextEquation.toSecond (NextSecond.negate (NextEquation.lift z))) } "by" { Next.differenceFormula (differencePreimage z) }
+  "=" { NextIntersection.sub MV.intersectionNextGroup.base.unit (NextEquation.toSecond (NextSecond.negate (NextEquation.lift z))) } "by" { congr!{{MV.IntersectionNext} {MV.IntersectionNext}} (\fun (v: MV.IntersectionNext) => NextIntersection.sub v (NextEquation.toSecond (NextSecond.negate (NextEquation.lift z)))) _ _ NextToFirst.preservesZero }
+  "=" { NextIntersection.sub MV.intersectionNextGroup.base.unit (NextIntersection.negate (NextEquation.toSecond (NextEquation.lift z))) } "by" { congr!{{MV.IntersectionNext} {MV.IntersectionNext}} (NextIntersection.sub MV.intersectionNextGroup.base.unit) _ _ (NextRestriction.inverse (NextEquation.lift z)) }
+  "=" { NextIntersection.sub MV.intersectionNextGroup.base.unit (NextIntersection.negate z) } "by" { congr!{{MV.IntersectionNext} {MV.IntersectionNext}} (\fun (v: MV.IntersectionNext) => NextIntersection.sub MV.intersectionNextGroup.base.unit (NextIntersection.negate v)) _ _ (NextEquation.sectionPullback z) }
+  "=" { MV.intersectionNextGroup.base.op MV.intersectionNextGroup.base.unit z } "by" { congr!{{MV.IntersectionNext} {MV.IntersectionNext}} (MV.intersectionNextGroup.base.op MV.intersectionNextGroup.base.unit) _ _ (NextIntersection.negateNegate z) }
+  "=" z "by" { MV.intersectionNextGroup.group.monoid.leftIdentity z }
+};
+\definition boundaryZero[z: MV.IntersectionNext]: MV.boundary z = MV.wholeGroup.base.unit :=
+  \idelim Next.difference (differencePreimage z) = z \with v: MV.IntersectionNext => MV.boundary v = MV.wholeGroup.base.unit \by {
+    base: MV.Positive[].boundaryDifference (differencePreimage z), equality: differenceReaches z
+  };
+\definition kernel[v: MV.Whole]: MV.restriction v = MV.piecesGroup.base.unit -> v = MV.wholeGroup.base.unit := \block {
+  \fun (zero: _) \then
+  \takefrom z: \Cast[MV.IntersectionNext] ({ z: MV.IntersectionNext \where MV.boundary z = v }) \by (MV.exactWhole v).ltr zero \then
+  \return trans!{{MV.Whole}} _ _ _ (sym!{{MV.Whole}} _ _ (\bysub(MV.IntersectionNext, { z: MV.IntersectionNext \where MV.boundary z = v }, z))) (boundaryZero z)
+};
+\import WholeGroup.Mapping[Y := MV.Pieces, target := MV.piecesGroup, f := MV.restriction, additive := MV.restrictionAdd, preservesZero := MV.restrictionZero] \as Restriction;
+\import Relative.GroupCalculus[X := MV.Pieces, group := MV.piecesGroup] \as PiecesGroup;
+\definition jointlyInjective[v, w: MV.Whole]: (MV.restriction v).first = (MV.restriction w).first -> (MV.restriction v).second = (MV.restriction w).second -> v = w :=
+  \fun (first: _)(second: _) => WholeGroup.subEqual v w (kernel (WholeGroup.sub v w)
+    (trans!{{MV.Pieces}} _ _ _ (Restriction.difference v w)
+      (trans!{{MV.Pieces}} _ _ _ (congr!{{MV.Pieces} {MV.Pieces}} (\fun (p: MV.Pieces) => PiecesGroup.sub p (MV.restriction w)) _ _ (MV.piecesExt _ _ first second))
+        (PiecesGroup.subSelf (MV.restriction w)))));
+\definition agrees[v: MV.Whole]: Equation.toFirst (MV.restriction v).first = Equation.toSecond (MV.restriction v).second :=
+  IntersectionGroup.subEqual _ _ (trans!{{MV.Intersection}} _ _ _ (sym!{{MV.Intersection}} _ _ (MV.differenceFormula (MV.restriction v))) (MV.differenceRestriction v));
+\definition ambientAgrees[v: Ambient.Carrier]: Equation.toFirst (Equation.firstPull v) = Equation.toSecond (Equation.secondPull v) :=
+  trans!{{MV.Intersection}} _ _ _ (congr!{{FirstK.Carrier} {MV.Intersection}} Equation.toFirst _ _ (sym!{{FirstK.Carrier}} _ _ (Equation.firstFormula v)))
+    (trans!{{MV.Intersection}} _ _ _ (agrees (Equation.restrict v)) (congr!{{SecondK.Carrier} {MV.Intersection}} Equation.toSecond _ _ (Equation.secondFormula v)));
+\import FirstGroup.Mapping[Y := MV.Intersection, target := MV.intersectionGroup, f := Equation.toFirst, additive := ToFirst.additive, preservesZero := ToFirst.preservesZero] \as FirstRestriction;
+\module Lift(v: MV.Whole, x: Ambient.Carrier, onSecond: Equation.secondPull x = (MV.restriction v).second);
+\definition surjective:
+  (\forall (v: SecondK.Carrier) -> \exists (a: Ambient.Carrier \where Equation.secondPull a = v)) ->
+  \forall (v: MV.Whole) -> \exists (a: Ambient.Carrier \where Equation.restrict a = v) := \block {
+    \fun (liftSecond: _)(v: MV.Whole) \then
+    \takefrom x: \Cast[Ambient.Carrier] ({ x: Ambient.Carrier \where Equation.secondPull x = (MV.restriction v).second }) \by liftSecond (MV.restriction v).second \then
+    \return Logic.existsIntro[Ambient.Carrier, { a: Ambient.Carrier \where Equation.restrict a = v }]
+      Lift[v := v, x := x, onSecond := \bysub(Ambient.Carrier, { x: Ambient.Carrier \where Equation.secondPull x = (MV.restriction v).second }, x)].value
+      Lift[v := v, x := x, onSecond := \bysub(Ambient.Carrier, { x: Ambient.Carrier \where Equation.secondPull x = (MV.restriction v).second }, x)].equation
+  };

@@ -1,0 +1,43 @@
+\import Spaces.Exterior[V := F x, space := bundle.space x] \as Exterior;
+\import Spaces.Multilinear[V := F x, space := bundle.space x].Alternating[] \as Forms;
+\import \root.Thom[].Sum[V := F x, W := F x, left := bundle.space x, right := bundle.space x] \as Algebra;
+\import Algebra.At[p := one, q := k] \as Product;
+\import Spaces.Exterior[V := Sum.Fiber x, space := (Sum.bundle (\refl(bundle.baseSpace))).space x] \as SumExterior;
+\import Exterior.Pullback[W := Sum.Fiber x, target := (Sum.bundle (\refl(bundle.baseSpace))).space x] \as Pullback;
+\import Exterior.Degrees[p := one, q := k] \as Wedge;
+\import Exterior.Regrade[k := Nat.add one k, l := N.Nat^::succ k] \as Regrade;
+\import SumExterior.Regrade[k := Nat.add one k, l := N.Nat^::succ k] \as SumRegrade;
+\import Spaces.Shuffle[I := F x] \as Shuffle;
+\import Spaces.Shuffle[I := Sum.Fiber x] \as SumShuffle;
+\import Shuffle.Naturality[J := Sum.Fiber x] \as Mapping;
+\definition firstTuple[d: N.Nat^][arguments: Fin.Fin d -> F x]: Fin.Fin d -> F x :=
+  \fun (i: Fin.Fin d) => Algebra.first.apply ((diagonal.fiber x).apply (arguments i));
+\definition secondTuple[d: N.Nat^][arguments: Fin.Fin d -> F x]: Fin.Fin d -> F x :=
+  \fun (i: Fin.Fin d) => Algebra.second.apply ((diagonal.fiber x).apply (arguments i));
+\definition firstTupleIdentity[d: N.Nat^][arguments: Fin.Fin d -> F x]: firstTuple d arguments = arguments :=
+  \axiom:funext(firstTuple d arguments, arguments, \fun (i: Fin.Fin d) => \refl(arguments i));
+\definition secondTupleIdentity[d: N.Nat^][arguments: Fin.Fin d -> F x]: secondTuple d arguments = arguments :=
+  \axiom:funext(secondTuple d arguments, arguments, \fun (i: Fin.Fin d) => \refl(arguments i));
+\definition firstRecovery: Forms.Precomposition[W := Sum.Fiber x, target := (Sum.bundle (\refl(bundle.baseSpace))).space x].precompose one (diagonal.fiber x) (Algebra.fromLeft one (ell.value x)) = ell.value x :=
+  Forms.At[k := one].ext (Forms.Precomposition[W := Sum.Fiber x, target := (Sum.bundle (\refl(bundle.baseSpace))).space x].precompose one (diagonal.fiber x) (Algebra.fromLeft one (ell.value x))) (ell.value x) (\fun (arguments: Fin.Fin one -> F x) => congr!{{Fin.Fin one -> F x} {C.Complex}} (ell.value x) _ _ (firstTupleIdentity one arguments));
+\definition secondRecovery[omega: Source.Fiber x]: Forms.Precomposition[W := Sum.Fiber x, target := (Sum.bundle (\refl(bundle.baseSpace))).space x].precompose k (diagonal.fiber x) (Algebra.fromRight k omega) = omega :=
+  Forms.At[k := k].ext (Forms.Precomposition[W := Sum.Fiber x, target := (Sum.bundle (\refl(bundle.baseSpace))).space x].precompose k (diagonal.fiber x) (Algebra.fromRight k omega)) omega (\fun (arguments: Fin.Fin k -> F x) => congr!{{Fin.Fin k -> F x} {C.Complex}} omega _ _ (secondTupleIdentity k arguments));
+\definition pulledProduct[omega: Source.Fiber x]: Forms.Precomposition[W := Sum.Fiber x, target := (Sum.bundle (\refl(bundle.baseSpace))).space x].precompose (Nat.add one k) (diagonal.fiber x) (Product.apply (ell.value x) omega) = Wedge.wedge (ell.value x) omega :=
+  trans!{{Exterior.Form (Nat.add one k)}} _ _ _
+    (Pullback.Naturality[p := one, q := k].law (diagonal.fiber x) (Algebra.fromLeft one (ell.value x)) (Algebra.fromRight k omega))
+    (congr!{{Exterior.Form one} {Exterior.Form k} {Exterior.Form (Nat.add one k)}} Wedge.wedge _ _ _ _ firstRecovery (secondRecovery omega));
+\definition formula: \forall (omega: Source.Fiber x) -> (map.fiber x).apply omega = Regrade.cast (Wedge.wedge (ell.value x) omega) degree :=
+  \fun (omega: Source.Fiber x) => Exterior.Components[k := N.Nat^::succ k].ext _ _
+    (trans!{{Shuffle.Function}} _ _ _
+      (Pullback.Components[k := N.Nat^::succ k].law (diagonal.fiber x) ((toSum.fiber x).apply omega))
+      (trans!{{Shuffle.Function}} _ _ _
+        (congr!{{SumShuffle.Function} {Shuffle.Function}} (Mapping.mapSeries (diagonal.fiber x).apply) _ _
+          (trans!{{SumShuffle.Function}} _ _ _
+            (congr!{{SumExterior.Form (N.Nat^::succ k)} {SumShuffle.Function}} (\fun (a: SumExterior.Form (N.Nat^::succ k)) => SumExterior.component (N.Nat^::succ k) a) _ _
+              (Component.At[x := x].onPure (ell.value x) omega))
+            (SumRegrade.series (Product.apply (ell.value x) omega) degree)))
+        (trans!{{Shuffle.Function}} _ _ _
+          (sym!{{Shuffle.Function}} _ _ (Pullback.Components[k := Nat.add one k].law (diagonal.fiber x) (Product.apply (ell.value x) omega)))
+          (trans!{{Shuffle.Function}} _ _ _
+            (congr!{{Exterior.Form (Nat.add one k)} {Shuffle.Function}} (\fun (a: Exterior.Form (Nat.add one k)) => Exterior.component (Nat.add one k) a) _ _ (pulledProduct omega))
+            (sym!{{Shuffle.Function}} _ _ (Regrade.series (Wedge.wedge (ell.value x) omega) degree))))));

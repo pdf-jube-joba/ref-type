@@ -389,3 +389,43 @@ A11 の具体的な Atkinson 定理の適用は、余核の証明を作用素か
   \import \root.Test[].Outer[n := one].Accept[data := data] \as Result;
 }
 ```
+
+## K11: nested smash alias specialization
+
+With `first`, `second`, and `third` of type `Relative.CompactPointed`, the
+following scope is rejected by the normal checker. `Raw.second z` is inferred
+as `BC.result.Carrier`, although `Raw` explicitly uses `BC.model`. The wanted
+type is the Cartesian carrier underlying `BC.model`. Reproduction:
+
+```ref
+\module Example {
+\import relative_k_theory.Relative[] \as Relative;
+\module Test(first, second, third: Relative.CompactPointed) {
+\import Relative.Smash[left := first, right := second] \as AB;
+\import Relative.Smash[left := second, right := third] \as BC;
+\import Relative.Smash[left := AB.result, right := third] \as Left;
+\import Relative.Smash[left := first, right := BC.result] \as Right;
+\import Relative.Smash[left := first, right := BC.model] \as Raw;
+\definition Triple: \Set := Raw.model.Carrier;
+\definition a[z: Triple]: first.Carrier := Raw.first z;
+\definition b[z: Triple]: second.Carrier := BC.first (Raw.second z);
+}
+}
+```
+
+The explicit Cartesian carrier and projections below pass the normal checker.
+K11's smash associator uses this representation for its raw threefold product.
+
+```ref
+\module Example {
+\import relative_k_theory.Relative[] \as Relative;
+\module Test(first, second, third: Relative.CompactPointed) {
+\import std.Data[].Pair[] \as Pair;
+\definition Inner: \Set := Pair.Times^[second.Carrier, third.Carrier];
+\definition Triple: \Set := Pair.Times^[first.Carrier, Inner];
+\definition a[z: Triple]: first.Carrier := Pair.first first.Carrier Inner z;
+\definition b[z: Triple]: second.Carrier := Pair.first second.Carrier third.Carrier
+  (Pair.second first.Carrier Inner z);
+}
+}
+```

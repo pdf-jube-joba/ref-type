@@ -1,0 +1,27 @@
+\import bundle_operations.Operations[].Over[K := C.Complex, field := C.Algebra[].field,
+  conjugation := linear_algebra.Hermitian[].Complex[].scalar, scalar := Scalars.scalar] \as Operations;
+\definition degree: N.Nat^ := N.Nat^::succ (N.Nat^::succ n);
+\import Operations.ExteriorIndices[n := one, k := degree] \as Indices;
+\import std.Set[].FiniteSubset[A := Indices.Tuple].Enumeration[] \as Enumerations;
+\import std.Data[].List[] \as Lists;
+\import Lists.Distinct[A := Indices.Tuple] \as Distinct;
+\definition first: Fin.Fin degree := Fin.zero (N.Nat^::succ n);
+\definition second: Fin.Fin degree := Fin.succ (N.Nat^::succ n) (Fin.zero n);
+\definition noIncreasing: \forall (v: Indices.Tuple) -> Logic.Not (Fin.Ordering[].Increasing degree one v) :=
+  \fun (v: Indices.Tuple)(ordered: Fin.Ordering[].Increasing degree one v) =>
+    N.Basic[].Prop[].ltNe (v first) (v second) (ordered first second (\refl(std.Data[].Bool[].Bool^::true)))
+      (congr!{{Fin.Fin one} {N.Nat^}} (Fin.value one) _ _
+        (trans!{{Fin.Fin one}} _ _ _ (Fin.singletonValue (v first)) (sym!{{Fin.Fin one}} _ _ (Fin.singletonValue (v second)))));
+\definition enumeration: Indices.Enumeration := \into[Lists.List[Indices.Tuple]](Lists.List[Indices.Tuple]::nil, Indices.Enumeration) \by {
+  Enumerations.DistinctEnumerationLaws[Indices.set, Lists.List[Indices.Tuple]::nil] {
+    enumerates := Enumerations.Enumerates[Indices.set, Lists.List[Indices.Tuple]::nil] {
+      included := \fun (v: Indices.Tuple)(empty: Logic.False) => Logic.falseElim (\In[Indices.Tuple] Indices.set v) empty,
+      exhaustive := \fun (v: Indices.Tuple)(member: \In[Indices.Tuple] Indices.set v) => noIncreasing v member.right
+    },
+    distinct := Distinct.nil
+  }
+};
+\module Over(X: \Set, baseSpace: topology.Topology[Carrier := X].Topology);
+\module Pullback(X, Y: \Set, originalSpace: topology.Topology[Carrier := X].Topology,
+  baseSpace: topology.Topology[Carrier := Y].Topology, f: Y -> X,
+  regular: topology.Continuity[A := Y, B := X].Continuous baseSpace originalSpace f);

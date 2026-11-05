@@ -1,0 +1,18 @@
+\import topological_k_theory.KTheory[].On[X := X, baseSpace := bundle.baseSpace, compact := compact, hausdorff := hausdorff].IdentityPullback[] \as FirstIdentity;
+\import topological_k_theory.KTheory[].On[X := X, baseSpace := bundle.baseSpace, compact := otherCompact, hausdorff := otherHausdorff].IdentityPullback[] \as OtherIdentity;
+\import topological_k_theory.KTheory[].On[X := X, baseSpace := bundle.baseSpace, compact := compact, hausdorff := hausdorff]
+  .Pullback[Y := X, space := bundle.baseSpace, sourceCompact := otherCompact, sourceHausdorff := otherHausdorff,
+    f := (\fun (x: X) => x), regular := Identity.regular].K0[] \as Ordinary;
+\definition ordinaryIdentity: \forall (a: K.Carrier) -> Ordinary.map a = a := FirstIdentity.onK0;
+\definition changeIdentity: \forall (a: K.Carrier) -> Change.coefficient a = a := OtherIdentity.onK0;
+\definition compositeIdentity: \forall (a: K.Carrier) -> Change.coefficient (Ordinary.map a) = a :=
+  \fun (a: K.Carrier) => trans!{{K.Carrier}} _ _ _ (changeIdentity (Ordinary.map a)) (ordinaryIdentity a);
+\definition naturality: \forall (a: K.Carrier) -> Change.pull (Pull.pull (FirstFor.forward a)) = OtherFor.forward a :=
+  \fun (a: K.Carrier) => trans!{Carrier} _ _ _
+    (congr!{{Relative.Reduced[model := PulledSupport.model].Carrier} Carrier} Change.pull _ _ (Pull.forwardNaturality a))
+    (trans!{Carrier} _ _ _ (Change.forwardNaturality (Ordinary.map a)) (congr!{{K.Carrier} Carrier} OtherFor.forward _ _ (compositeIdentity a)));
+\definition equation: \forall (a: K.Carrier) -> OtherFor.forward a = FirstFor.forward a :=
+  \fun (a: K.Carrier) => trans!{Carrier} _ _ _ (sym!{Carrier} _ _ (naturality a))
+    (trans!{Carrier} _ _ _
+      (sym!{Carrier} _ _ (Relative.PullbackComposition[source := OtherSupport.model, middle := PulledSupport.model, target := Supported.model,
+        first := First.mapping, second := Second.mapping].equation (FirstFor.forward a))) (identity (FirstFor.forward a)));

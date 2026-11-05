@@ -1,0 +1,34 @@
+\import \parent.\parent.Step[n := n, previous := values n] \as RaisingStep;
+\import Models.Sum[first := term (N.Nat^::succ n), second := (folded n).odd] \as Sum;
+\definition A[x: X]: \Set := Models.Fiber (term (N.Nat^::succ n)).ranks x;
+\definition Odd[x: X]: \Set := Models.Fiber (folded n).odd.ranks x;
+\definition V[x: X]: \Set := Models.Fiber (folded (N.Nat^::succ n)).even.ranks x;
+\definition W[x: X]: \Set := Models.Fiber (folded n).even.ranks x;
+\definition projectionSecond: \forall (x: X)(v: Odd x) -> ((projection (N.Nat^::succ n)).fiber x).apply ((Sum.secondInclusion.fiber x).apply v) = ((Models.bundle (term (N.Nat^::succ n))).space x).zero :=
+  \fun (x: X)(v: Odd x) => congr!{{Sum.SourceFiber x} {A x}} (Pair.first (A x) (Odd x)) _ _
+    (Sum.isomorphism.leftInverse x (Pair.pair (A x) (Odd x) ((Models.bundle (term (N.Nat^::succ n))).space x).zero v));
+\definition restSecond: \forall (x: X)(v: Odd x) -> RaisingStep.rest x ((Sum.secondInclusion.fiber x).apply v) = v :=
+  \fun (x: X)(v: Odd x) => congr!{{Sum.SourceFiber x} {Odd x}} (Pair.second (A x) (Odd x)) _ _
+    (Sum.isomorphism.leftInverse x (Pair.pair (A x) (Odd x) ((Models.bundle (term (N.Nat^::succ n))).space x).zero v));
+\definition tailOdd: \forall (x: X)(v: Odd x) -> ((k (N.Nat^::succ n)).fiber x).apply (((Summands.lift n B.Bool^::false).fiber x).apply v) = ((h n).fiber x).apply v :=
+  \fun (x: X)(v: Odd x) => trans!{{W x}} _ _ _ (RaisingStep.kFormula x ((Sum.secondInclusion.fiber x).apply v))
+    (congr!{{Odd x} {W x}} ((h n).fiber x).apply _ _ (restSecond x v));
+\definition tailEven: \forall (x: X)(v: W x) -> ((h (N.Nat^::succ n)).fiber x).apply (((Summands.lift n B.Bool^::true).fiber x).apply v) =
+  RaisingStep.join x (((raising n).fiber x).apply (((projection n).fiber x).apply v)) (((k n).fiber x).apply v) := RaisingStep.hFormula;
+\definition headRaised: \forall (x: X)(v: Models.Fiber (term n).ranks x) ->
+  ((h (N.Nat^::succ n)).fiber x).apply (((folded n).inclusion.fiber x).apply v) =
+  (((folded (N.Nat^::succ n)).inclusion.fiber x).apply (((raising n).fiber x).apply v)) :=
+  \fun (x: X)(v: Models.Fiber (term n).ranks x) => trans!{{V x}} _ _ _ (RaisingStep.hFormula x (((folded n).inclusion.fiber x).apply v))
+    (congr!{{A x} {Odd x} {V x}} (RaisingStep.join x) _ _ _ _
+      (congr!{{Models.Fiber (term n).ranks x} {A x}} ((raising n).fiber x).apply _ _ ((state n).partial.projectInclusion x v)) (kHead n x v));
+\definition tailEvenZero: \forall (x: X)(v: W x) -> ((projection n).fiber x).apply v = ((Models.bundle (term n)).space x).zero ->
+  ((h (N.Nat^::succ n)).fiber x).apply v = (Sum.secondInclusion.fiber x).apply (((k n).fiber x).apply v) :=
+  \fun (x: X)(v: W x)(zero: _) => trans!{{V x}} _ _ _ (RaisingStep.hFormula x v)
+    (congr!{{A x} {V x}} (\fun (a: A x) => RaisingStep.join x a (((k n).fiber x).apply v)) _ _
+      (trans!{{A x}} _ _ _ (congr!{{Models.Fiber (term n).ranks x} {A x}} ((raising n).fiber x).apply _ _ zero) ((raising n).fiber x).preservesZero));
+\definition projectionTail: \forall (s: Labels.Index n)(color: Labels.even n s = B.Bool^::false)(x: X)(v: Models.Fiber (term (Labels.degree n s)).ranks x) ->
+  ((projection (N.Nat^::succ n)).fiber x).apply
+    (((Summands.at (N.Nat^::succ n) (Labels.Index::tail n s) B.Bool^::true (congr!{{B.Bool^} {B.Bool^}} Labels.flip _ _ color)).fiber x).apply v) = ((Models.bundle (term (N.Nat^::succ n))).space x).zero :=
+  \fun (s: Labels.Index n)(color: Labels.even n s = B.Bool^::false)(x: X)(v: Models.Fiber (term (Labels.degree n s)).ranks x) => trans!{{A x}} _ _ _
+    (congr!{{V x} {A x}} ((projection (N.Nat^::succ n)).fiber x).apply _ _ (Summands.tailFormula n s B.Bool^::false color x v))
+    (projectionSecond x (((Summands.at n s B.Bool^::false color).fiber x).apply v));

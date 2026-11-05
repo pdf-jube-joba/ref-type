@@ -1,0 +1,32 @@
+\import Models.Sum[first := term (N.Nat^::succ n), second := (folded n).odd] \as Sum;
+\definition A[x: X]: \Set := Models.Fiber (term (N.Nat^::succ n)).ranks x;
+\definition B[x: X]: \Set := Models.Fiber (folded n).odd.ranks x;
+\definition V[x: X]: \Set := Models.Fiber (folded (N.Nat^::succ n)).even.ranks x;
+\definition W[x: X]: \Set := Models.Fiber (folded n).even.ranks x;
+\definition join[x: X][a: A x][b: B x]: V x := (Sum.isomorphism.forward.fiber x).apply (Pair.pair (A x) (B x) a b);
+\definition head[x: X][v: V x]: A x := Pair.first (A x) (B x) ((Sum.isomorphism.backward.fiber x).apply v);
+\definition rest[x: X][v: V x]: B x := Pair.second (A x) (B x) ((Sum.isomorphism.backward.fiber x).apply v);
+\definition raisedHead: Models.Map (folded n).even (term (N.Nat^::succ n)) :=
+  Models.compose (folded n).even (term n) (term (N.Nat^::succ n)) (projection n) (raising n);
+\definition value: Data[N.Nat^::succ n] := Data[N.Nat^::succ n] {
+  h := Sum.From[domain := (folded n).even].pair raisedHead previous.k,
+  k := Models.compose Sum.value (folded n).odd (folded n).even Sum.secondProjection previous.h
+};
+\definition hFormula: \forall (x: X)(v: W x) -> (value.h.fiber x).apply v = join x
+  (((raising n).fiber x).apply (((projection n).fiber x).apply v)) ((previous.k.fiber x).apply v) :=
+  \fun (x: X)(v: W x) => \refl((value.h.fiber x).apply v);
+\definition kFormula: \forall (x: X)(v: V x) -> (value.k.fiber x).apply v = (previous.h.fiber x).apply (rest x v) :=
+  \fun (x: X)(v: V x) => \refl((value.k.fiber x).apply v);
+\definition headH: \forall (x: X)(v: W x) -> ((projection (N.Nat^::succ n)).fiber x).apply ((value.h.fiber x).apply v) =
+  ((raising n).fiber x).apply (((projection n).fiber x).apply v) :=
+  \fun (x: X)(v: W x) => congr!{{Sum.SourceFiber x} {A x}} (Pair.first (A x) (B x)) _ _
+    (Sum.isomorphism.leftInverse x (Pair.pair (A x) (B x) (((raising n).fiber x).apply (((projection n).fiber x).apply v)) ((previous.k.fiber x).apply v)));
+\definition restH: \forall (x: X)(v: W x) -> rest x ((value.h.fiber x).apply v) = (previous.k.fiber x).apply v :=
+  \fun (x: X)(v: W x) => congr!{{Sum.SourceFiber x} {B x}} (Pair.second (A x) (B x)) _ _
+    (Sum.isomorphism.leftInverse x (Pair.pair (A x) (B x) (((raising n).fiber x).apply (((projection n).fiber x).apply v)) ((previous.k.fiber x).apply v)));
+\definition kHead: \forall (x: X)(v: A x) -> (value.k.fiber x).apply (((folded (N.Nat^::succ n)).inclusion.fiber x).apply v) = ((Models.bundle (folded n).even).space x).zero :=
+  \fun (x: X)(v: A x) => trans!{{W x}} _ _ _
+    (congr!{{B x} {W x}} (previous.h.fiber x).apply _ _
+      (congr!{{Sum.SourceFiber x} {B x}} (Pair.second (A x) (B x)) _ _
+        (Sum.isomorphism.leftInverse x (Pair.pair (A x) (B x) v ((Models.bundle (folded n).odd).space x).zero))))
+    (previous.h.fiber x).preservesZero;

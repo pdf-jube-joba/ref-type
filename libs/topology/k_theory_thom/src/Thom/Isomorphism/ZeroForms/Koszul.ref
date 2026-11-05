@@ -1,0 +1,35 @@
+\import Bundles.Trivial[X := X, n := N.Nat^::zero, baseSpace := baseSpace] \as Original;
+\import \root.Thom[].Koszul[X := X, F := (\fun (x: X) => Bundles.Vector N.Nat^::zero), bundle := Original.bundle] \as Native;
+\import Native.Coordinates[] \as Coordinates;
+\import Bundles.Family[X := X, F := (\fun (x: X) => Bundles.Vector N.Nat^::zero) ] \as BundleFamily;
+\import Bundles.Family[X := X, F := (\fun (x: X) => Bundles.Vector N.Nat^::zero)].Of[bundle := Original.bundle] \as Family;
+\import Operations.Models[X := Native.Total, baseSpace := Original.bundle.totalSpace] \as Models;
+\import Models.Trivial[n := one] \as NonzeroModel;
+\import Models.Trivial[n := N.Nat^::zero] \as ZeroModel;
+\import \parent.DegreeZero[].Pullback[X := X, Y := Native.Total, originalSpace := baseSpace,
+  baseSpace := Original.bundle.totalSpace, f := BundleFamily.projection, regular := Family.projectionContinuous] \as DegreeZero;
+\definition zeroChoice: Coordinates.Choice N.Nat^::zero := Models.From[F := Native.Term N.Nat^::zero, original := Native.term N.Nat^::zero].Result {
+  model := NonzeroModel.value, isomorphism := DegreeZero.isomorphism
+};
+\module Higher(n: N.Nat^);
+\definition selection: \forall (k: N.Nat^) -> Coordinates.Choice k :=
+  \induction (k: N.Nat^) \return Coordinates.Choice k \with {
+    | zero: zeroChoice
+    | succ: \fun (k: N.Nat^)(unused: Coordinates.Choice k) => Higher[n := k].choice
+  };
+\import Coordinates.With[selection := selection] \as Encoded;
+\import Encoded.Finite[].At[n := N.Nat^::succ one, zeroAbove := Higher[n := one].zero] \as Finite;
+\import \root.Thom[].Isomorphism[].LineForms[].ModelSums[X := Native.Total, baseSpace := Original.bundle.totalSpace].CapTwo[
+  first := NonzeroModel.value, second := ZeroModel.value,
+  differential := Encoded.differential N.Nat^::zero, next := Encoded.differential one] \as Parity;
+\import Models.Chains[].Of[complex := Finite.complex] \as Chain;
+\definition positive: Bundles.Isomorphisms[X := Native.Total, F := Models.Fiber Chain.parity.even.ranks,
+  G := (\fun (p: Native.Total) => Bundles.Vector one),
+  source := Models.bundle Chain.parity.even, target := Models.bundle NonzeroModel.value].Isomorphism := Parity.positive;
+\definition negative: Bundles.Isomorphisms[X := Native.Total, F := Models.Fiber Chain.parity.odd.ranks,
+  G := (\fun (p: Native.Total) => Bundles.Vector N.Nat^::zero),
+  source := Models.bundle Chain.parity.odd, target := Models.bundle ZeroModel.value].Isomorphism := Parity.negative;
+\definition evenZero: \forall (p: Native.Total)(v: Chain.Even p) ->
+  (Chain.parity.forward.fiber p).apply v = (Chain.odd.space p).zero := Parity.evenZero;
+\module Compact(compact: topology.Topology[Carrier := X].IsCompact baseSpace,
+  hausdorff: topology.Topology[Carrier := X].IsT2 baseSpace);

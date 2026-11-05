@@ -1,0 +1,39 @@
+\import Operations.MapOperations[X := Local.Carrier, F := H, G := H, source := auxiliaryBundle, target := auxiliaryBundle] \as AuxiliaryMaps;
+\definition auxiliaryOperator: AuxiliaryMaps.Map := AuxiliaryMaps.functionScale radius Identity.isomorphism.forward radiusContinuous;
+\import Operations.DirectSum[X := Local.Carrier, F := In.FirstFiber, G := H,
+  left := Pair.BundleModel[F := In.FirstFiber].bundle In.firstOnLocal, right := auxiliaryBundle] \as PositiveSum;
+\import Operations.DirectSum[X := Local.Carrier, F := In.SecondFiber, G := H,
+  left := Pair.BundleModel[F := In.SecondFiber].bundle In.secondOnLocal, right := auxiliaryBundle] \as NegativeSum;
+\import PositiveSum.Of[same := (\refl(Local.topology))].Mapping[Y := Local.Carrier, A := In.SecondFiber, B := H,
+  leftTarget := Pair.BundleModel[F := In.SecondFiber].bundle In.secondOnLocal, rightTarget := auxiliaryBundle,
+  f := (\fun (x: Local.Carrier) => x), targetSame := (\refl(Local.topology))] \as ForwardSum;
+\import NegativeSum.Of[same := (\refl(Local.topology))].Mapping[Y := Local.Carrier, A := In.FirstFiber, B := H,
+  leftTarget := Pair.BundleModel[F := In.FirstFiber].bundle In.firstOnLocal, rightTarget := auxiliaryBundle,
+  f := (\fun (x: Local.Carrier) => x), targetSame := (\refl(Local.topology))] \as BackwardSum;
+\definition stableForward: Bundles.Morphisms[X := Local.Carrier, Y := Local.Carrier, F := PositiveFiber, G := NegativeFiber,
+  source := positiveBundle, target := negativeBundle, f := (\fun (x: Local.Carrier) => x)].Map := ForwardSum.map nativeForward auxiliaryOperator;
+\definition stableBackward: Bundles.Morphisms[X := Local.Carrier, Y := Local.Carrier, F := NegativeFiber, G := PositiveFiber,
+  source := negativeBundle, target := positiveBundle, f := (\fun (x: Local.Carrier) => x)].Map := BackwardSum.map nativeBackward auxiliaryOperator;
+\definition coefficient[x: Local.Carrier]: C.Complex := Metric.diagonal x;
+\definition coefficientContinuous: topology.Continuity[A := Local.Carrier, B := C.Complex].Continuous Local.topology Scalars.scalar.topological.space coefficient :=
+  topology.Composition[A := Local.Carrier, B := Koszul.Total, C := C.Complex].composeContinuous Local.topology bundle.totalSpace Scalars.scalar.topological.space Local.inclusion Metric.diagonal Local.regular Metric.diagonalContinuous;
+\import Bundles.Trivial[X := Local.Carrier, n := n, baseSpace := Local.topology] \as Trivial;
+\definition TrivialFiber[x: Local.Carrier]: \Set := Bundles.Vector n;
+\import Bundles.Morphisms[X := Local.Carrier, Y := Local.Carrier, F := PositiveFiber, G := NegativeFiber,
+  source := positiveBundle, target := negativeBundle, f := (\fun (x: Local.Carrier) => x)]
+  .Composition[Z := Local.Carrier, H := TrivialFiber, range := Trivial.bundle, g := (\fun (x: Local.Carrier) => x)] \as ComposeForward;
+\import Bundles.Morphisms[X := Local.Carrier, Y := Local.Carrier, F := TrivialFiber, G := NegativeFiber,
+  source := Trivial.bundle, target := negativeBundle, f := (\fun (x: Local.Carrier) => x)]
+  .Composition[Z := Local.Carrier, H := PositiveFiber, range := positiveBundle, g := (\fun (x: Local.Carrier) => x)] \as ComposeBackward;
+\definition forward: Bundles.Morphisms[X := Local.Carrier, Y := Local.Carrier, F := PositiveFiber, G := TrivialFiber,
+  source := positiveBundle, target := Trivial.bundle, f := (\fun (x: Local.Carrier) => x)].Map := ComposeForward.compose stableForward trivialization.forward;
+\definition backward: Bundles.Morphisms[X := Local.Carrier, Y := Local.Carrier, F := TrivialFiber, G := PositiveFiber,
+  source := Trivial.bundle, target := positiveBundle, f := (\fun (x: Local.Carrier) => x)].Map := ComposeBackward.compose trivialization.backward stableBackward;
+\import \root.Thom[].FramedClifford[X := Local.Carrier, space := Local.topology, compact := Local.compact, hausdorff := Local.separated,
+  subset := Local.boundary, closed := Local.boundaryClosed].Symbols[F := PositiveFiber, positiveModel := sourceModel, n := n] \as Symbols;
+\definition data: Symbols.Data := Symbols.Data { forward := forward, backward := backward, coefficient := coefficient, continuous := coefficientContinuous };
+\module At(x: Local.Carrier);
+\definition evenSquare: \forall (x: Local.Carrier)(v: PositiveFiber x) -> (backward.fiber x).apply ((forward.fiber x).apply v) = (positiveBundle.space x).smul (coefficient x) v := \fun (x: Local.Carrier) => At[x := x].even;
+\definition oddSquare: \forall (x: Local.Carrier)(v: TrivialFiber x) -> (forward.fiber x).apply ((backward.fiber x).apply v) = (Trivial.bundle.space x).smul (coefficient x) v := \fun (x: Local.Carrier) => At[x := x].odd;
+\definition laws: Symbols.Laws[data] := Symbols.Laws[data] { evenSquare := evenSquare, oddSquare := oddSquare, boundary := unit };
+\module Boundary;

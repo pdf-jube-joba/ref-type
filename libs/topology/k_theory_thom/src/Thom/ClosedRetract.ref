@@ -1,0 +1,34 @@
+\import relative_k_theory.Relative[] \as Relative;
+\definition pair: Relative.ClosedPointedPair := Relative.packPair ambient (Relative.ClosedPairDetails[ambient] {
+  subset := subset, closed := closed, containsPoint := containsPoint
+});
+\import Relative.PointedPair[pair := pair] \as Part;
+\definition model: Relative.CompactPointed := Part.subsetModel;
+\definition inclusion: Relative.Map model ambient := Part.inclusion;
+\definition r[x: ambient.Carrier]: model.Carrier := \into[ambient.Carrier](reset x, subset) \by { lands x };
+\definition map: Relative.Map ambient model := \into[ambient.Carrier -> model.Carrier](r, Relative.Map ambient model) \by {
+  algebraic_topology.Pointed[A := ambient.Carrier].Maps[B := model.Carrier].Laws[Relative.pointed ambient, Relative.pointed model, r] {
+    continuous := topology.Continuity[A := ambient.Carrier, B := ambient.Carrier].Corestriction[S := subset].corestrictContinuous
+      (Relative.details ambient).topology (Relative.details ambient).topology r
+      (algebraic_topology.Pointed[A := ambient.Carrier].Maps[B := ambient.Carrier].laws (Relative.pointed ambient) (Relative.pointed ambient) reset).continuous,
+    pointed := (algebraic_topology.Pointed[A := ambient.Carrier].Maps[B := ambient.Carrier].laws (Relative.pointed ambient) (Relative.pointed ambient) reset).pointed
+  }
+};
+\import Relative.Composition[source := model, middle := ambient, target := model, first := inclusion, second := map] \as Retraction;
+\import Relative.Identity[model := model] \as Identity;
+\definition equation: Retraction.map = Identity.map :=
+  \axiom:funext(Retraction.map, Identity.map, \fun (x: model.Carrier) => fixes x (\bysub(ambient.Carrier, subset, x)));
+\module At(degree: N.Nat^) {
+  \import Relative.Negative[original := model, degree := degree] \as Group;
+  \import Relative.Negative[original := ambient, degree := degree] \as Whole;
+  \import Relative.NegativeMap[source := model, target := ambient, f := inclusion, degree := degree] \as Pull;
+  \import Relative.NegativeMap[source := ambient, target := model, f := map, degree := degree] \as Lift;
+  \definition leftInverse[v: Group.Carrier]: Pull.map (Lift.map v) = v :=
+    trans!{{Group.Carrier}} _ _ _ (sym!{{Group.Carrier}} _ _ (Retraction.Negative[degree := degree].equation v))
+      (trans!{{Group.Carrier}} _ _ _
+        (congr!{{Relative.Map model model} {Group.Carrier}}
+          (\fun (f: Relative.Map model model) => Relative.NegativeMap[source := model, target := model, f := f, degree := degree].map v) _ _ equation)
+        (Identity.Negative[degree := degree].equation v));
+  \definition surjective: \forall (v: Group.Carrier) -> \exists (a: Whole.Carrier \where Pull.map a = v) :=
+    \fun (v: Group.Carrier) => Logic.existsIntro[Whole.Carrier, { a: Whole.Carrier \where Pull.map a = v }] (Lift.map v) (leftInverse v);
+}

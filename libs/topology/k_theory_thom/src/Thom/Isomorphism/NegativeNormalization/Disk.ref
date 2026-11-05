@@ -1,0 +1,95 @@
+\import Plane.Compactness[] \as DiskCompactness;
+\import \root.Thom[].Isomorphism[].NegativeNormalization[] \as Original;
+\import topology.Topology[Carrier := Plane.Coordinate] \as Ambient;
+\definition diskHausdorff: topology.Topology[Carrier := Plane.Disk].IsT2 Plane.diskTopology :=
+  Ambient.Subspace[S := Plane.ClosedBall].Properties[].hausdorff Plane.topology DiskCompactness.hausdorff;
+\definition boundary: \Pow Plane.Disk := { p: Plane.Disk \where \In[Plane.Coordinate] Plane.Boundary p };
+\definition inclusion[p: Plane.Disk]: Plane.Coordinate := p;
+\definition inclusionContinuous: topology.Continuity[A := Plane.Disk, B := Plane.Coordinate].Continuous Plane.diskTopology Plane.topology inclusion :=
+  topology.Continuity[A := Plane.Disk, B := Plane.Coordinate].Corestriction[S := Plane.ClosedBall].inclusionContinuous Plane.topology;
+\definition boundaryClosed: topology.Topology[Carrier := Plane.Disk].IsClosedIn Plane.diskTopology boundary :=
+  topology.Continuity[A := Plane.Disk, B := Plane.Coordinate].closedPreimage Plane.diskTopology Plane.topology inclusion inclusionContinuous
+    Plane.Boundary Plane.Geometry[].sphereClosed;
+\import Relative.Pair[X := Plane.Disk, space := Plane.diskTopology, compact := DiskCompactness.compact,
+  hausdorff := diskHausdorff, subset := boundary, closed := boundaryClosed] \as DiskPair;
+\definition circle[p: DiskPair.A]: Plane.Sphere := \into[Plane.Coordinate](p, Plane.Boundary) \by {
+  \bysub(Plane.Disk, boundary, p)
+};
+\definition hemisphereEquality: \forall (p: DiskPair.A) -> Halves.negative p = Halves.positive p :=
+  \fun (p: DiskPair.A) => trans!{{Sphere.Sphere}} _ _ _ (Halves.negativeBoundary (circle p))
+    (sym!{{Sphere.Sphere}} _ _ (Halves.positiveBoundary (circle p)));
+\definition preserves: \forall (p: Plane.Disk) -> \In[Plane.Disk] boundary p -> \In[Sphere.Sphere] Cover.PositiveHalf (Halves.negative p) :=
+  \fun (p: Plane.Disk)(edge: \In[Plane.Disk] boundary p) =>
+    \idelim Halves.positive p = Halves.negative p \with s: Sphere.Sphere => \In[Sphere.Sphere] Cover.PositiveHalf s \by {
+      base: \bysub(Sphere.Sphere, Cover.PositiveHalf, Cover.positivePoint p),
+      equality: sym!{{Sphere.Sphere}} _ _ (hemisphereEquality (\into[Plane.Disk](p, boundary) \by { edge }))
+    };
+\import Pair.Mapping[Y := Plane.Disk, source := Plane.diskTopology, sourceCompact := DiskCompactness.compact,
+  sourceHausdorff := diskHausdorff, sourceSubset := boundary, sourceClosed := boundaryClosed,
+  f := Halves.negative, regular := Halves.negativeContinuous, preserves := preserves] \as Mapping;
+\import Mapping.BundleTriples[F := Clutched.Fiber, G := (\fun (x: Sphere.Sphere) => Bundles.Vector one),
+  firstModel := FirstModel.model, secondModel := SecondModel.model] \as MappedBundles;
+\import MappedBundles.With[alpha := comparison] \as Mapped;
+\import DiskPair.BundleTriples[F := MappedBundles.FirstFiber, G := MappedBundles.SecondFiber,
+  firstModel := MappedBundles.firstModelOnSource, secondModel := MappedBundles.secondModelOnSource] \as PulledTriples;
+\import PulledTriples.With[alpha := Mapped.comparison] \as PulledClass;
+\definition diskBeta: DiskPair.Quotient[].Relative := Mapping.relative relativeBeta;
+\definition normalization: PulledClass.reduced = diskBeta :=
+  trans!{{DiskPair.Quotient[].Relative}} _ _ _ Mapped.reducedNaturality
+    (congr!{{Quotient.Relative} {DiskPair.Quotient[].Relative}} Mapping.relative _ _ Original.normalization);
+\import Bundles.Trivial[X := Plane.Disk, n := one, baseSpace := Plane.diskTopology] \as PlaneTrivial;
+\import BundleOperations.TrivialPullback[X := Sphere.Sphere, Y := Plane.Disk, n := one,
+  original := Sphere.sphereTopology, base := Plane.diskTopology, f := Halves.negative, regular := Halves.negativeContinuous] \as TrivialOnDisk;
+\import DiskPair.Restriction[] \as DiskRestriction;
+\import bundle_complements.Complements[].Over[K := C.Complex, field := C.Algebra[].field,
+  conjugation := linear_algebra.Hermitian[].Complex[].scalar, scalar := Scalars.scalar] \as Complements;
+\import Complements.PulledIsomorphism[X := Plane.Disk, Y := DiskPair.A,
+  F := MappedBundles.FirstFiber, G := (\fun (p: Plane.Disk) => Bundles.Vector one),
+  source := MappedBundles.firstBundle, target := PlaneTrivial.bundle,
+  base := DiskPair.subspace, f := DiskRestriction.inclusion,
+  sourceRegular := DiskRestriction.regular, targetRegular := DiskRestriction.regular] \as PositiveRestriction;
+\import Complements.PulledIsomorphism[X := Plane.Disk, Y := DiskPair.A,
+  F := MappedBundles.SecondFiber, G := (\fun (p: Plane.Disk) => Bundles.Vector one),
+  source := MappedBundles.secondBundle, target := PlaneTrivial.bundle,
+  base := DiskPair.subspace, f := DiskRestriction.inclusion,
+  sourceRegular := DiskRestriction.regular, targetRegular := DiskRestriction.regular] \as NegativeRestriction;
+\import Bundles.Family[X := Plane.Disk, F := MappedBundles.FirstFiber].Of[bundle := MappedBundles.firstBundle].Restriction[U := boundary] \as FirstBoundary;
+\import Bundles.Family[X := Plane.Disk, F := MappedBundles.SecondFiber].Of[bundle := MappedBundles.secondBundle].Restriction[U := boundary] \as SecondBoundary;
+\import Bundles.Family[X := Plane.Disk, F := (\fun (p: Plane.Disk) => Bundles.Vector one)].Of[bundle := PlaneTrivial.bundle].Restriction[U := boundary] \as CanonicalBoundary;
+\import Bundles.Isomorphisms[X := DiskPair.A, F := (\fun (p: DiskPair.A) => MappedBundles.FirstFiber p),
+  G := (\fun (p: DiskPair.A) => Bundles.Vector one), source := FirstBoundary.restricted, target := CanonicalBoundary.restricted] \as PositiveMaps;
+\definition positiveBoundary: PositiveMaps.Isomorphism := PositiveRestriction.isomorphism Clutched.negativeTrivialization;
+\definition negativeBoundary: Bundles.Isomorphisms[X := DiskPair.A, F := (\fun (p: DiskPair.A) => MappedBundles.SecondFiber p),
+  G := (\fun (p: DiskPair.A) => Bundles.Vector one), source := SecondBoundary.restricted, target := CanonicalBoundary.restricted].Isomorphism :=
+  NegativeRestriction.isomorphism TrivialOnDisk.isomorphism;
+\import BundleOperations.IsomorphismComposition[X := DiskPair.A,
+  F := (\fun (p: DiskPair.A) => Bundles.Vector one), G := (\fun (p: DiskPair.A) => MappedBundles.FirstFiber p),
+  H := (\fun (p: DiskPair.A) => MappedBundles.SecondFiber p), source := CanonicalBoundary.restricted,
+  middle := FirstBoundary.restricted, target := SecondBoundary.restricted] \as FirstComposition;
+\import BundleOperations.IsomorphismComposition[X := DiskPair.A,
+  F := (\fun (p: DiskPair.A) => Bundles.Vector one), G := (\fun (p: DiskPair.A) => MappedBundles.SecondFiber p),
+  H := (\fun (p: DiskPair.A) => Bundles.Vector one), source := CanonicalBoundary.restricted,
+  middle := SecondBoundary.restricted, target := CanonicalBoundary.restricted] \as FinalComposition;
+\definition inverseComparison: Bundles.Isomorphisms[X := DiskPair.A,
+  F := (\fun (p: DiskPair.A) => Bundles.Vector one), G := (\fun (p: DiskPair.A) => Bundles.Vector one),
+  source := CanonicalBoundary.restricted, target := CanonicalBoundary.restricted].Isomorphism :=
+  FinalComposition.compose (FirstComposition.compose (PositiveMaps.inverse positiveBoundary) Mapped.comparison) negativeBoundary;
+\definition commutes: \forall (p: DiskPair.A)(v: MappedBundles.FirstFiber p) ->
+  (inverseComparison.forward.fiber p).apply ((Clutched.negativeTrivialization.forward.fiber p).apply v) =
+    (TrivialOnDisk.isomorphism.forward.fiber p).apply ((Mapped.comparison.forward.fiber p).apply v) :=
+  \fun (p: DiskPair.A)(v: MappedBundles.FirstFiber p) =>
+    congr!{{MappedBundles.FirstFiber p} {Bundles.Vector one}}
+      (\fun (w: MappedBundles.FirstFiber p) => (negativeBoundary.forward.fiber p).apply ((Mapped.comparison.forward.fiber p).apply w)) _ _
+      ((\bysub(PositiveMaps.Data, PositiveMaps.Isomorphism, positiveBoundary)).leftInverse p v);
+\import DiskPair.BundleModel[F := (\fun (p: Plane.Disk) => Bundles.Vector one)].From[original := PlaneTrivial.bundle,
+  same := \refl(Plane.diskTopology)] \as CanonicalModel;
+\import DiskPair.BundleTriples[F := (\fun (p: Plane.Disk) => Bundles.Vector one), G := (\fun (p: Plane.Disk) => Bundles.Vector one),
+  firstModel := CanonicalModel.model, secondModel := CanonicalModel.model].With[alpha := inverseComparison] \as InverseClass;
+\import PulledTriples.To[H := (\fun (p: Plane.Disk) => Bundles.Vector one), I := (\fun (p: Plane.Disk) => Bundles.Vector one),
+  newFirstModel := CanonicalModel.model, newSecondModel := CanonicalModel.model].With[
+  alpha := Mapped.comparison, beta := inverseComparison, positive := Clutched.negativeTrivialization,
+  negative := TrivialOnDisk.isomorphism, commutes := commutes] \as Change;
+\definition generatorEquation: InverseClass.reduced = diskBeta := trans!{{DiskPair.Quotient[].Relative}} _ _ _
+  (sym!{{DiskPair.Quotient[].Relative}} _ _ Change.reducedEquation) normalization;
+\module Boundary;
+\definition z[p: Plane.Disk]: C.Complex := C.make (p (Fin.zero one)) (p (Fin.succ one (Fin.zero N.Nat^::zero)));

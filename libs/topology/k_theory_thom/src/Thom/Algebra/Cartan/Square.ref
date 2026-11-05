@@ -1,0 +1,27 @@
+\import \root.Thom[].Algebra[V := V, space := space].Cartan[k := N.Nat^::succ k, v := v, ell := ell] \as Next;
+\import \root.Thom[].Algebra[V := V, space := space].CovectorSquare[f := evaluate ell] \as CovectorSquare;
+\import \root.Thom[].Algebra[V := V, space := space] \as Original;
+\import Forms.At[k := N.Nat^::succ (N.Nat^::succ k)] \as Target;
+\import Exterior.Components[k := N.Nat^::succ (N.Nat^::succ k)] \as Components;
+\definition covector: \forall (xs: Lists.List[V]) -> Shuffle.product (series ell) (series ell) xs = Op.zero :=
+  \fun (xs: Lists.List[V]) => trans!{{C.Complex}} _ _ _
+    (Products.congruent (series ell) (Covectors.value (evaluate ell)) (series ell) (Covectors.value (evaluate ell))
+      (\fun (ys: Lists.List[V]) => congr!{{Shuffle.Function} {C.Complex}} (\fun (g: Shuffle.Function) => g ys) _ _ (Original.covector ell))
+      (\fun (ys: Lists.List[V]) => congr!{{Shuffle.Function} {C.Complex}} (\fun (g: Shuffle.Function) => g ys) _ _ (Original.covector ell)) xs)
+    (CovectorSquare.equation xs);
+\definition equation: \forall (omega: Forms.Form k) -> Next.wedge (wedge omega) = Target.origin :=
+  \fun (omega: Forms.Form k) => Components.ext _ _
+    (\axiom:funext(Exterior.component (N.Nat^::succ (N.Nat^::succ k)) (Next.wedge (wedge omega)),
+      Exterior.component (N.Nat^::succ (N.Nat^::succ k)) Target.origin, \fun (xs: Lists.List[V]) => eq_reason_in!{{C.Complex} _
+      "=" { Shuffle.product (series ell) (Exterior.component (N.Nat^::succ k) (wedge omega)) xs } "by" {
+        congr!{{Shuffle.Function} {C.Complex}} (\fun (f: Shuffle.Function) => f xs) _ _ (Next.component (wedge omega)) }
+      "=" { Shuffle.product (series ell) (Shuffle.product (series ell) (Exterior.component k omega)) xs } "by" {
+        congr!{{Shuffle.Function} {C.Complex}} (\fun (f: Shuffle.Function) => Shuffle.product (series ell) f xs) _ _ (component omega) }
+      "=" { Shuffle.product (Shuffle.product (series ell) (series ell)) (Exterior.component k omega) xs } "by" {
+        sym!{{C.Complex}} _ _ (Products.associative xs (series ell) (series ell) (Exterior.component k omega)) }
+      "=" { Shuffle.product Shuffle.origin (Exterior.component k omega) xs } "by" {
+        Products.congruent (Shuffle.product (series ell) (series ell)) Shuffle.origin (Exterior.component k omega) (Exterior.component k omega)
+          covector (\fun (ys: Lists.List[V]) => \refl(Exterior.component k omega ys)) xs }
+      "=" Op.zero "by" { Products.zeroLeft (Exterior.component k omega) xs }
+      "=" _ "by" { sym!{{C.Complex}} _ _ (Multilinear.ListSeries[k := N.Nat^::succ (N.Nat^::succ k)].zeroComponent xs) }
+    }));

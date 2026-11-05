@@ -1,0 +1,63 @@
+\import \parent.\parent.Lift[first := c.grading, second := grading] \as Parity;
+\definition parity: Maps.Map := Parity.map;
+\definition operatorOnPure[v: V][w: W]: operator.apply (Tensor.tensor v w) = Tensor.plus
+  (Tensor.tensor (c.first.apply v) w) (Tensor.tensor (c.grading.apply v) (c.second.apply w)) := onPure v w;
+\definition onPure[v: V][w: W]: parity.apply (Tensor.tensor v w) = Tensor.tensor (c.grading.apply v) (grading.apply w) := Parity.onPure v w;
+\definition operatorSquare[t: Tensor.Carrier]: operator.apply (operator.apply t) = Tensor.scale (Scalar.add c.a c.b) t := square t;
+\definition squareMap: Maps.Map := Maps.Composition[U := Tensor.Carrier, domain := Tensor.space].compose parity parity;
+\definition square: \forall (t: Tensor.Carrier) -> parity.apply (parity.apply t) = t :=
+  EqualityOnPure.pointwise squareMap identityTensor (\fun (v: V)(w: W) => trans!{{Tensor.Carrier}} _ _ _
+    (congr!{{Tensor.Carrier} {Tensor.Carrier}} parity.apply _ _ (Parity.onPure v w))
+    (trans!{{Tensor.Carrier}} _ _ _ (Parity.onPure (c.grading.apply v) (grading.apply w))
+      (congr!{V W {Tensor.Carrier}} Tensor.tensor _ _ _ _ (laws.gradingSquare v) (gradingSquare w))));
+\definition before: Maps.Map := Maps.Composition[U := Tensor.Carrier, domain := Tensor.space].compose parity operator;
+\definition after: Maps.Map := Maps.Composition[U := Tensor.Carrier, domain := Tensor.space].compose operator parity;
+\definition sum: Maps.Map := MapOperations.plus before after;
+\module Pure(v: V, w: W);
+\definition equation: \forall (t: Tensor.Carrier) -> Tensor.plus (parity.apply (operator.apply t)) (operator.apply (parity.apply t)) = Tensor.origin :=
+  EqualityOnPure.pointwise sum MapOperations.zeroMap (\fun (v: V)(w: W) => Pure[v := v, w := w].equation);
+\import Spaces.Subspace[V := Tensor.Carrier, space := Tensor.space] \as Subspaces;
+\import algebra.Group[].Of[Carrier := Tensor.Carrier,
+  group := std.Alg[].Ring[].ringModuleAsCommutativeGroup C.Complex Tensor.Carrier Spaces.ring Tensor.space] \as Group;
+\definition positive: Subspaces.Subspace := Subspaces.Subspace {
+  carrier := { t: Tensor.Carrier \where parity.apply t = t },
+  containsZero := parity.preservesZero,
+  closedAdd := \fun (t, u: Tensor.Carrier)(first: parity.apply t = t)(second: parity.apply u = u) =>
+    trans!{{Tensor.Carrier}} _ _ _ (parity.preservesAdd t u)
+      (congr!{{Tensor.Carrier} {Tensor.Carrier} {Tensor.Carrier}} Tensor.plus _ _ _ _ first second),
+  closedScale := \fun (a: C.Complex)(t: Tensor.Carrier)(same: parity.apply t = t) =>
+    trans!{{Tensor.Carrier}} _ _ _ (parity.preservesScale a t) (congr!{{Tensor.Carrier} {Tensor.Carrier}} (Tensor.scale a) _ _ same)
+};
+\definition negative: Subspaces.Subspace := Subspaces.Subspace {
+  carrier := { t: Tensor.Carrier \where parity.apply t = Tensor.space.neg t },
+  containsZero := trans!{{Tensor.Carrier}} _ _ _ parity.preservesZero (sym!{{Tensor.Carrier}} _ _ Group.negZero),
+  closedAdd := \fun (t, u: Tensor.Carrier)(first: parity.apply t = Tensor.space.neg t)(second: parity.apply u = Tensor.space.neg u) =>
+    trans!{{Tensor.Carrier}} _ _ _ (parity.preservesAdd t u)
+      (trans!{{Tensor.Carrier}} _ _ _
+        (congr!{{Tensor.Carrier} {Tensor.Carrier} {Tensor.Carrier}} Tensor.plus _ _ _ _ first second)
+        (sym!{{Tensor.Carrier}} _ _ (Group.negAdd t u))),
+  closedScale := \fun (a: C.Complex)(t: Tensor.Carrier)(same: parity.apply t = Tensor.space.neg t) =>
+    trans!{{Tensor.Carrier}} _ _ _ (parity.preservesScale a t)
+      (trans!{{Tensor.Carrier}} _ _ _ (congr!{{Tensor.Carrier} {Tensor.Carrier}} (Tensor.scale a) _ _ same) (TensorLaws.scaleNegative a t))
+};
+\import Subspaces.Of[subspace := positive] \as Positive;
+\import Subspaces.Of[subspace := negative] \as Negative;
+\definition positiveToNegative[t: Positive.Carrier]: Subspaces.Member negative (operator.apply t) :=
+  Group.inverseUnique (operator.apply t) (parity.apply (operator.apply t))
+    (trans!{{Tensor.Carrier}} _ _ _
+      (congr!{{Tensor.Carrier} {Tensor.Carrier}} (Tensor.plus (parity.apply (operator.apply t))) _ _
+        (sym!{{Tensor.Carrier}} _ _ (congr!{{Tensor.Carrier} {Tensor.Carrier}} operator.apply _ _ (\bysub(Tensor.Carrier, positive.carrier, t)))))
+      (equation t));
+\definition negativeToPositive[t: Negative.Carrier]: Subspaces.Member positive (operator.apply t) :=
+  Group.cancelRight (Tensor.space.neg (operator.apply t)) (parity.apply (operator.apply t)) (operator.apply t)
+    (trans!{{Tensor.Carrier}} _ _ _
+      (trans!{{Tensor.Carrier}} _ _ _
+        (congr!{{Tensor.Carrier} {Tensor.Carrier}} (Tensor.plus (parity.apply (operator.apply t))) _ _
+          (sym!{{Tensor.Carrier}} _ _ (trans!{{Tensor.Carrier}} _ _ _
+            (congr!{{Tensor.Carrier} {Tensor.Carrier}} operator.apply _ _ (\bysub(Tensor.Carrier, negative.carrier, t)))
+            (MapOperations.preservesNeg operator t))))
+        (equation t)) (sym!{{Tensor.Carrier}} _ _ (Group.inverseRight (operator.apply t))));
+\module Restricted(nonzero: Scalar.NonZero (Scalar.add c.a c.b));
+\module Decomposed(U, T: \Set, even: Spaces.VectorSpace U, odd: Spaces.VectorSpace T,
+  decomposition: Spaces.Isomorphism[V := Tensor.Carrier, W := Spaces.DirectSum[V := U, W := T, left := even, right := odd].Carrier,
+    source := Tensor.space, target := Spaces.DirectSum[V := U, W := T, left := even, right := odd].space].Isomorphism);

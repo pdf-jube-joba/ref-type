@@ -1,0 +1,117 @@
+
+\import topology.Topology[Carrier := X] \as Base;
+\definition space: Base.Topology := e0.baseSpace;
+\definition e1f0: e1.baseSpace = f0.baseSpace := trans!{{Base.Topology}} _ _ _ (sym!{{Base.Topology}} _ _ sameE1) sameF0;
+\definition e1f1: e1.baseSpace = f1.baseSpace := trans!{{Base.Topology}} _ _ _ (sym!{{Base.Topology}} _ _ sameE1) sameF1;
+\definition f0f1: f0.baseSpace = f1.baseSpace := trans!{{Base.Topology}} _ _ _ (sym!{{Base.Topology}} _ _ sameF0) sameF1;
+\import Operations.Tensor[X := X, F := F0, G := G0, left := e0, right := f0] \as NativeEE;
+\definition EEFiber[x: X]: \Set := NativeEE.Fiber x;
+\definition eeBundle: Bundles.Family[X := X, F := EEFiber].Bundle := NativeEE.bundle sameF0;
+\import Operations.Tensor[X := X, F := F1, G := G1, left := e1, right := f1] \as NativeOO;
+\definition OOFiber[x: X]: \Set := NativeOO.Fiber x;
+\definition ooBundle: Bundles.Family[X := X, F := OOFiber].Bundle := NativeOO.bundle e1f1;
+\import Operations.Tensor[X := X, F := F0, G := G1, left := e0, right := f1] \as NativeEO;
+\definition EOFiber[x: X]: \Set := NativeEO.Fiber x;
+\definition eoBundle: Bundles.Family[X := X, F := EOFiber].Bundle := NativeEO.bundle sameF1;
+\import Operations.Tensor[X := X, F := F1, G := G0, left := e1, right := f0] \as NativeOE;
+\definition OEFiber[x: X]: \Set := NativeOE.Fiber x;
+\definition oeBundle: Bundles.Family[X := X, F := OEFiber].Bundle := NativeOE.bundle e1f0;
+
+\import Operations.DirectSum[X := X, F := EEFiber, G := OOFiber, left := eeBundle, right := ooBundle] \as NativeEven;
+\import Operations.DirectSum[X := X, F := EOFiber, G := OEFiber, left := eoBundle, right := oeBundle] \as NativeOdd;
+\definition Even[x: X]: \Set := NativeEven.Fiber x;
+\definition Odd[x: X]: \Set := NativeOdd.Fiber x;
+\definition evenBundle: Bundles.Family[X := X, F := Even].Bundle := NativeEven.bundle sameE1;
+\definition oddBundle: Bundles.Family[X := X, F := Odd].Bundle := NativeOdd.bundle sameE1;
+
+\import std.Data[].Pair[] \as P;
+\import Operations.DirectSum[X := X, F := F0, G := F1,
+  left := e0, right := e1] \as LeftSum;
+\import Operations.DirectSum[X := X, F := G0, G := G1,
+  left := f0, right := f1] \as RightSum;
+\definition LeftFiber[x: X]: \Set := LeftSum.Fiber x;
+\definition RightFiber[x: X]: \Set := RightSum.Fiber x;
+\definition leftBundle: Bundles.Family[X := X, F := LeftFiber].Bundle := LeftSum.bundle sameE1;
+\definition rightBundle: Bundles.Family[X := X, F := RightFiber].Bundle := RightSum.bundle f0f1;
+\import Operations.Tensor[X := X, F := LeftFiber, G := RightFiber, left := leftBundle, right := rightBundle] \as Tensor;
+\definition SourceFiber[x: X]: \Set := Tensor.Fiber x;
+\definition sourceBundle: Bundles.Family[X := X, F := SourceFiber].Bundle := Tensor.bundle sameF0;
+\import Operations.DirectSum[X := X, F := Even, G := Odd, left := evenBundle, right := oddBundle] \as Total;
+\definition TargetFiber[x: X]: \Set := Total.Fiber x;
+\definition targetBundle: Bundles.Family[X := X, F := TargetFiber].Bundle := Total.bundle (\refl(space));
+\import \root.Thom[].ComplexProductDistribution[X := X,
+  F := F0, G := F1, H := RightFiber,
+  first := e0, second := e1, third := rightBundle, sameSecond := sameE1, sameThird := sameF0] \as LeftDistribution;
+\import Operations.TensorDistribution[X := X,
+  F := F0, G := G0, H := G1,
+  left := e0, middle := f0, right := f1, sameMiddle := sameF0, sameRight := sameF1] \as Upper;
+\import Operations.TensorDistribution[X := X,
+  F := F1, G := G0, H := G1,
+  left := e1, middle := f0, right := f1, sameMiddle := e1f0, sameRight := e1f1] \as Lower;
+
+\import Operations.DirectSumIsomorphisms[X := X, F := Upper.SourceFiber, G := Lower.SourceFiber,
+  A := Upper.TargetFiber, B := Lower.TargetFiber,
+  first := Upper.sourceBundle, second := Lower.sourceBundle, newFirst := Upper.targetBundle, newSecond := Lower.targetBundle,
+  sameSource := sameE1, sameTarget := sameE1] \as Rows;
+\definition rowIsomorphism: Bundles.Isomorphisms[X := X, F := Rows.SourceFiber, G := Rows.TargetFiber,
+  source := Rows.sourceBundle, target := Rows.targetBundle].Isomorphism := Rows.isomorphism Upper.isomorphism Lower.isomorphism;
+\import Operations.DirectSum[X := X, F := EEFiber, G := EOFiber, left := eeBundle, right := eoBundle] \as UpperSum;
+\import Operations.DirectSum[X := X, F := OEFiber, G := OOFiber, left := oeBundle, right := ooBundle] \as LowerSum;
+\import Operations.DirectSum[X := X, F := OOFiber, G := OEFiber, left := ooBundle, right := oeBundle] \as ReverseLower;
+\definition upperBundle: Bundles.Family[X := X, F := UpperSum.Fiber].Bundle := UpperSum.bundle (\refl(space));
+\definition lowerBundle: Bundles.Family[X := X, F := LowerSum.Fiber].Bundle := LowerSum.bundle (\refl(e1.baseSpace));
+\definition reverseLowerBundle: Bundles.Family[X := X, F := ReverseLower.Fiber].Bundle := ReverseLower.bundle (\refl(e1.baseSpace));
+\import Operations.IdentityIsomorphism[X := X, F := UpperSum.Fiber, bundle := upperBundle] \as UpperIdentity;
+\import LowerSum.Of[same := (\refl(e1.baseSpace))].Symmetry[] \as LowerFlip;
+\import Operations.DirectSumIsomorphisms[X := X, F := UpperSum.Fiber, G := LowerSum.Fiber,
+  A := UpperSum.Fiber, B := ReverseLower.Fiber,
+  first := upperBundle, second := lowerBundle, newFirst := upperBundle, newSecond := reverseLowerBundle,
+  sameSource := sameE1, sameTarget := sameE1] \as LastFlip;
+\definition flipIsomorphism: Bundles.Isomorphisms[X := X, F := LastFlip.SourceFiber, G := LastFlip.TargetFiber,
+  source := LastFlip.sourceBundle, target := LastFlip.targetBundle].Isomorphism := LastFlip.isomorphism UpperIdentity.isomorphism LowerFlip.isomorphism;
+\import Operations.DirectSumMiddleSwap[X := X, F := EEFiber, G := EOFiber, H := OOFiber, I := OEFiber,
+  first := eeBundle, second := eoBundle, third := ooBundle, fourth := oeBundle,
+  sameSecond := (\refl(space)), sameThird := sameE1, sameFourth := sameE1] \as Shuffle;
+\import Operations.IsomorphismComposition[X := X, F := SourceFiber, G := LeftDistribution.TargetFiber, H := Rows.TargetFiber,
+  source := sourceBundle, middle := LeftDistribution.targetBundle, target := Rows.targetBundle] \as FirstComposition;
+\definition start: FirstComposition.Isomorphism := FirstComposition.compose LeftDistribution.isomorphism rowIsomorphism;
+\import Operations.IsomorphismComposition[X := X, F := SourceFiber, G := Rows.TargetFiber, H := LastFlip.TargetFiber,
+  source := sourceBundle, middle := Rows.targetBundle, target := LastFlip.targetBundle] \as SecondComposition;
+\definition rearranged: SecondComposition.Isomorphism := SecondComposition.compose start flipIsomorphism;
+\import Operations.IsomorphismComposition[X := X, F := SourceFiber, G := LastFlip.TargetFiber, H := TargetFiber,
+  source := sourceBundle, middle := LastFlip.targetBundle, target := targetBundle] \as LastComposition;
+\definition isomorphism: LastComposition.Isomorphism := LastComposition.compose rearranged Shuffle.isomorphism;
+\import Operations.Tensor[X := X, F := F0, G := G0,
+  left := e0, right := f0] \as EETensor;
+\definition ee[x: X][v: F0 x][w: G0 x]: EEFiber x := EETensor.pure x v w;
+\import Operations.Tensor[X := X, F := F1, G := G1,
+  left := e1, right := f1] \as OOTensor;
+\definition oo[x: X][v: F1 x][w: G1 x]: OOFiber x := OOTensor.pure x v w;
+\import Operations.Tensor[X := X, F := F0, G := G1,
+  left := e0, right := f1] \as EOTensor;
+\definition eo[x: X][v: F0 x][w: G1 x]: EOFiber x := EOTensor.pure x v w;
+\import Operations.Tensor[X := X, F := F1, G := G0,
+  left := e1, right := f0] \as OETensor;
+\definition oe[x: X][v: F1 x][w: G0 x]: OEFiber x := OETensor.pure x v w;
+
+\definition pure[x: X][v: LeftFiber x][w: RightFiber x]: SourceFiber x := Tensor.pure x v w;
+\definition onPure: \forall (x: X)(v: LeftFiber x)(w: RightFiber x) ->
+  (isomorphism.forward.fiber x).apply (pure x v w) = P.pair (Even x) (Odd x)
+    (P.pair (EEFiber x) (OOFiber x)
+      (ee x (P.first (F0 x) (F1 x) v) (P.first (G0 x) (G1 x) w))
+      (oo x (P.second (F0 x) (F1 x) v) (P.second (G0 x) (G1 x) w)))
+    (P.pair (EOFiber x) (OEFiber x)
+      (eo x (P.first (F0 x) (F1 x) v) (P.second (G0 x) (G1 x) w))
+      (oe x (P.second (F0 x) (F1 x) v) (P.first (G0 x) (G1 x) w))) :=
+  \fun (x: X)(v: LeftFiber x)(w: RightFiber x) =>
+    trans!{{TargetFiber x}} _ _ _
+      (congr!{{LeftDistribution.TargetFiber x} {TargetFiber x}}
+        (\fun (z: LeftDistribution.TargetFiber x) => (Shuffle.forward.fiber x).apply (((LastFlip.forward UpperIdentity.isomorphism LowerFlip.isomorphism).fiber x).apply (((Rows.forward Upper.isomorphism Lower.isomorphism).fiber x).apply z))) _ _
+        (LeftDistribution.onPure x v w))
+      (congr!{{Rows.TargetFiber x} {TargetFiber x}}
+        (\fun (z: Rows.TargetFiber x) => (Shuffle.forward.fiber x).apply (((LastFlip.forward UpperIdentity.isomorphism LowerFlip.isomorphism).fiber x).apply z)) _ _
+        (P.Prop[A := Upper.TargetFiber x, B := Lower.TargetFiber x].pairCong _ _ _ _
+          (Upper.forwardOnPure x (P.first (F0 x) (F1 x) v) w)
+          (Lower.forwardOnPure x (P.second (F0 x) (F1 x) v) w)));
+
+\module Grading;

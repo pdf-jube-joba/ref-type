@@ -1,0 +1,42 @@
+\import topology.Topology[Carrier := X].Subspace[S := subset] \as Subspace;
+\definition A: \Set := Subspace.CarrierSet;
+\definition topology: topology.Topology[Carrier := A].Topology := Subspace.topology space;
+\import algebraic_topology.Interval[] \as I;
+\import algebraic_topology.Cylinder[A := A] \as Cylinder;
+\import metric_spaces.RealFunctions[A := Cylinder.Carrier] \as OnCylinder;
+\definition cylinderTopology: topology.Topology[Carrier := Cylinder.Carrier].Topology := Cylinder.topology topology;
+\definition coefficient[z: Cylinder.Carrier]: Real.Real := affine (Cylinder.time z) (r (Cylinder.point z));
+\definition norm[z: Cylinder.Carrier]: Real.Real := Real.add (Real.mul (coefficient z) (coefficient z)) (b (Cylinder.point z));
+\module At(z: Cylinder.Carrier);
+\definition positive[z: Cylinder.Carrier]: Order.Lt Real.zero (norm z) := At[z := z].positive;
+\definition timeContinuous: OnCylinder.Continuous cylinderTopology (\fun (z: Cylinder.Carrier) => Cylinder.time z) :=
+  topology.Composition[A := Cylinder.Carrier, B := I.Carrier, C := Real.Real].composeContinuous cylinderTopology I.topology Line.topology Cylinder.time (\fun (t: I.Carrier) => t)
+    (Cylinder.timeContinuous topology) I.inclusionContinuous;
+\definition rOnBoundary: metric_spaces.RealFunctions[A := A].Continuous topology (\fun (x: A) => r x) := topology.Continuity[A := X, B := Real.Real].Restriction[S := subset].restrictContinuous space Line.topology r rContinuous;
+\definition bOnBoundary: metric_spaces.RealFunctions[A := A].Continuous topology (\fun (x: A) => b x) := topology.Continuity[A := X, B := Real.Real].Restriction[S := subset].restrictContinuous space Line.topology b bContinuous;
+\definition rRegular: OnCylinder.Continuous cylinderTopology (\fun (z: Cylinder.Carrier) => r (Cylinder.point z)) :=
+  topology.Composition[A := Cylinder.Carrier, B := A, C := Real.Real].composeContinuous cylinderTopology topology Line.topology Cylinder.point (\fun (x: A) => r x) (Cylinder.pointContinuous topology) rOnBoundary;
+\definition bRegular: OnCylinder.Continuous cylinderTopology (\fun (z: Cylinder.Carrier) => b (Cylinder.point z)) :=
+  topology.Composition[A := Cylinder.Carrier, B := A, C := Real.Real].composeContinuous cylinderTopology topology Line.topology Cylinder.point (\fun (x: A) => b x) (Cylinder.pointContinuous topology) bOnBoundary;
+\definition coefficientContinuous: OnCylinder.Continuous cylinderTopology coefficient :=
+  OnCylinder.sumContinuous cylinderTopology (\fun (z: Cylinder.Carrier) => Real.mul (Real.sub Real.one (Cylinder.time z)) (r (Cylinder.point z))) (\fun (z: Cylinder.Carrier) => Cylinder.time z)
+    (OnCylinder.Product[].continuous cylinderTopology (\fun (z: Cylinder.Carrier) => Real.sub Real.one (Cylinder.time z)) (\fun (z: Cylinder.Carrier) => r (Cylinder.point z))
+      (OnCylinder.subContinuous cylinderTopology (\fun (z: Cylinder.Carrier) => Real.one) (\fun (z: Cylinder.Carrier) => Cylinder.time z) (OnCylinder.constantContinuous cylinderTopology Real.one) timeContinuous) rRegular) timeContinuous;
+\definition normContinuous: OnCylinder.Continuous cylinderTopology norm := OnCylinder.sumContinuous cylinderTopology
+  (\fun (z: Cylinder.Carrier) => Real.mul (coefficient z) (coefficient z)) (\fun (z: Cylinder.Carrier) => b (Cylinder.point z))
+  (OnCylinder.Product[].continuous cylinderTopology coefficient coefficient coefficientContinuous coefficientContinuous) bRegular;
+\definition scale[z: Cylinder.Carrier]: C.Complex := Scalar.ofReal (norm z);
+\definition scaleContinuous: topology.Continuity[A := Cylinder.Carrier, B := C.Complex].Continuous cylinderTopology Scalars.scalar.topological.space scale :=
+  hermitian_frames.Hermitian[].Over[K := C.Complex, field := C.Algebra[].field, scalar := Hermitian.scalar, topological := Scalars.scalar.topological].Functions[X := Cylinder.Carrier].embedding cylinderTopology norm normContinuous;
+\definition scaleNonzero[z: Cylinder.Carrier]: Scalar.NonZero (scale z) := \fun (zero: _) => Real.Inverse[].positiveNonzero (norm z) (positive z)
+  (Geometry.embedInjective (norm z) Real.zero (trans!{{C.Complex}} _ _ _ zero (sym!{{C.Complex}} _ _ Hermitian.scalar.embedZero)));
+\definition rho[z: Cylinder.Carrier]: C.Complex := Scalar.inv (scale z);
+\definition rhoContinuous: topology.Continuity[A := Cylinder.Carrier, B := C.Complex].Continuous cylinderTopology Scalars.scalar.topological.space rho :=
+  topological_algebra.Complex[].Functions[A := Cylinder.Carrier].inverseContinuous cylinderTopology scale scaleContinuous scaleNonzero;
+\definition reciprocal[z: Cylinder.Carrier]: Scalar.mul (rho z) (scale z) = Scalar.one := ComplexLaws.inverseNonzero (scale z) (scaleNonzero z);
+\definition coefficientStart[x: A]: coefficient (Cylinder.at I.start x) = r x := affineZero (r x);
+\definition coefficientEnd[x: A]: coefficient (Cylinder.at I.end x) = Real.one := affineEnd (r x);
+\definition end[x: A]: scale (Cylinder.at I.end x) = endpointScale x := congr!{Real.Real {C.Complex}} Scalar.ofReal _ _
+  (trans!{Real.Real} _ _ _
+    (congr!{Real.Real Real.Real} (\fun (q: Real.Real) => Real.add (Real.mul q q) (b x)) _ _ (coefficientEnd x))
+    (congr!{Real.Real Real.Real} (\fun (q: Real.Real) => Real.add q (b x)) _ _ (Laws.fieldMulOneLeft Real.one)));

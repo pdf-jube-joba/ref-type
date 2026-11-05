@@ -1,0 +1,42 @@
+\import algebraic_topology.Euclidean[].Dimension[n := n] \as E;
+\import real.Analysis[] \as Real;
+\import dedekind_reals.DedekindReal[] \as D;
+\import D.Arithmetic[].Prop[] \as Laws;
+\import metric_spaces.RealLine[] \as Line;
+\import metric_spaces.RealFunctions[A := E.Coordinate] \as Functions;
+\import topological_algebra.Coordinates[K := Real.Real, I := E.Index] \as Coordinates;
+\import topology.Topology[Carrier := E.Coordinate] \as Space;
+\import topology.LocallyCompact[A := E.Coordinate] \as Local;
+\import topology.Maps[A := E.Coordinate, B := E.Coordinate] \as Maps;
+\definition translate[p: E.Coordinate][x: E.Coordinate]: E.Coordinate := \fun (i: E.Index) => Real.add (p i) (x i);
+\definition difference[p: E.Coordinate][x: E.Coordinate]: E.Coordinate := \fun (i: E.Index) => Real.sub (x i) (p i);
+\definition translateContinuous[p: E.Coordinate]: topology.Continuity[A := E.Coordinate, B := E.Coordinate].Continuous E.topology E.topology (translate p) :=
+  Coordinates.Universal[A := E.Coordinate].continuous E.topology Line.topology (translate p) (\fun (i: E.Index) =>
+    Functions.sumContinuous E.topology (\fun (x: E.Coordinate) => p i) (\fun (x: E.Coordinate) => x i)
+      (Functions.constantContinuous E.topology (p i)) (Coordinates.evaluationContinuous Line.topology i));
+\definition differenceContinuous[p: E.Coordinate]: topology.Continuity[A := E.Coordinate, B := E.Coordinate].Continuous E.topology E.topology (difference p) :=
+  Coordinates.Universal[A := E.Coordinate].continuous E.topology Line.topology (difference p) (\fun (i: E.Index) =>
+    Functions.subContinuous E.topology (\fun (x: E.Coordinate) => x i) (\fun (x: E.Coordinate) => p i)
+      (Coordinates.evaluationContinuous Line.topology i) (Functions.constantContinuous E.topology (p i)));
+\definition normContinuous[p: E.Coordinate]: Functions.Continuous E.topology (\fun (x: E.Coordinate) => E.normSquared (difference p x)) :=
+  topology.Composition[A := E.Coordinate, B := E.Coordinate, C := Real.Real].composeContinuous E.topology E.topology Line.topology (difference p) E.normSquared
+    (differenceContinuous p) E.Geometry[].normSquaredContinuous;
+\definition selfDifference[p: E.Coordinate]: difference p p = E.Contraction[].zero :=
+  \axiom:funext(difference p p, E.Contraction[].zero, \fun (i: E.Index) => Laws.subSelf (p i));
+\definition centerNorm[p: E.Coordinate]: E.normSquared (difference p p) = Real.zero :=
+  trans!{Real.Real} _ _ _ (congr!{E.Coordinate Real.Real} E.normSquared _ _ (selfDifference p)) (E.Contraction[].zeroSum (Fin.elements n));
+\definition cancel[p, x: E.Coordinate]: translate p (difference p x) = x :=
+  \axiom:funext(translate p (difference p x), x, \fun (i: E.Index) => Real.Estimates[].addSubCancel (x i) (p i));
+\definition positiveOne: D.Lt Real.zero Real.one :=
+  Laws.ltOfRat D.zeroRat D.oneRat std.Arithmetic[].Rat[].Fractions[].Order[].zeroLtOne;
+\definition locallyCompact: Local.IsLocallyCompact E.topology := \fun (p: E.Coordinate) =>
+  \exact(Local.CompactNeighborhood[E.topology, p] {
+    openSet := { x: E.Coordinate \where D.Lt (E.normSquared (difference p x)) Real.one },
+    compactSet := Maps.Image (translate p) E.ClosedBall,
+    open := normContinuous p (Line.Rays[].Below Real.one) (Line.Rays[].belowOpen Real.one),
+    contains := D.ltReplaceLeft Real.zero (E.normSquared (difference p p)) Real.one (sym!{Real.Real} _ _ (centerNorm p)) positiveOne,
+    enclosed := \fun (x: E.Coordinate)(inside: D.Lt (E.normSquared (difference p x)) Real.one) =>
+      Logic.existsIntro[E.Coordinate, { v: E.Coordinate \where Logic.And[Space.Member E.ClosedBall v, translate p v = x] }] (difference p x)
+        (Logic.And[_, _]::# (D.Order[].leOfLt _ _ inside) (cancel p x)),
+    compact := topology.Compactness[A := E.Coordinate, B := E.Coordinate].continuousImage E.topology E.topology (translate p) (translateContinuous p) E.ClosedBall E.Compactness[].compactIn
+  }, Local.CompactNeighborhood[E.topology, p]);

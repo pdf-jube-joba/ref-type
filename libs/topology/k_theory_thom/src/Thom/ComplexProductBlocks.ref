@@ -1,0 +1,31 @@
+\import C.Def[] \as Scalar;
+\import \root.Thom[].ComplexProductParity[X := X, F0 := F0, F1 := F1, G0 := G0, G1 := G1,
+  e0 := e0, e1 := e1, f0 := f0, f1 := f1, sameE1 := sameE1, sameF0 := sameF0, sameF1 := sameF1] \as Parity;
+\import Parity.Grading[] \as Grading;
+\import Bundles.Morphisms[X := X, Y := X, F := Parity.LeftFiber, G := Parity.LeftFiber,
+  source := Parity.leftBundle, target := Parity.leftBundle, f := (\fun (x: X) => x)] \as FirstMaps;
+\import Bundles.Morphisms[X := X, Y := X, F := Parity.RightFiber, G := Parity.RightFiber,
+  source := Parity.rightBundle, target := Parity.rightBundle, f := (\fun (x: X) => x)] \as SecondMaps;
+\definition LeftFiber[x: X]: \Set := Parity.LeftFiber x;
+\definition RightFiber[x: X]: \Set := Parity.RightFiber x;
+\definition leftBundle: Bundles.Family[X := X, F := LeftFiber].Bundle := Parity.leftBundle;
+\definition rightBundle: Bundles.Family[X := X, F := RightFiber].Bundle := Parity.rightBundle;
+\definition Even[x: X]: \Set := Parity.Even x;
+\definition Odd[x: X]: \Set := Parity.Odd x;
+\definition evenBundle: Bundles.Family[X := X, F := Even].Bundle := Parity.evenBundle;
+\definition oddBundle: Bundles.Family[X := X, F := Odd].Bundle := Parity.oddBundle;
+\structure Data: \Set := {
+  first: FirstMaps.Map, second: SecondMaps.Map,
+  a: X -> C.Complex, b: X -> C.Complex,
+  aContinuous: topology.Continuity[A := X, B := C.Complex].Continuous e0.baseSpace Scalars.scalar.topological.space a,
+  bContinuous: topology.Continuity[A := X, B := C.Complex].Continuous e0.baseSpace Scalars.scalar.topological.space b
+};
+\structure Laws[c: Data]: \Prop := {
+  firstSquare: \forall (x: X)(v: Parity.LeftFiber x) -> (c.first.fiber x).apply ((c.first.fiber x).apply v) = (Parity.leftBundle.space x).smul (c.a x) v,
+  secondSquare: \forall (x: X)(v: Parity.RightFiber x) -> (c.second.fiber x).apply ((c.second.fiber x).apply v) = (Parity.rightBundle.space x).smul (c.b x) v,
+  firstAnti: \forall (x: X)(v: Parity.LeftFiber x) -> (Parity.leftBundle.space x).add
+    ((Grading.leftGrading.forward.fiber x).apply ((c.first.fiber x).apply v)) ((c.first.fiber x).apply ((Grading.leftGrading.forward.fiber x).apply v)) = (Parity.leftBundle.space x).zero,
+  secondAnti: \forall (x: X)(v: Parity.RightFiber x) -> (Parity.rightBundle.space x).add
+    ((Grading.rightGrading.forward.fiber x).apply ((c.second.fiber x).apply v)) ((c.second.fiber x).apply ((Grading.rightGrading.forward.fiber x).apply v)) = (Parity.rightBundle.space x).zero
+};
+\module With(c: Data, laws: Laws[c]);

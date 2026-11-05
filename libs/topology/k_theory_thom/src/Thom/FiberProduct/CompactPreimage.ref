@@ -1,0 +1,43 @@
+\import ProductSpace.Subspace[S := K] \as KPart;
+\definition KPoint: \Set := KPart.CarrierSet;
+\definition kTopology: topology.Topology[Carrier := KPoint].Topology := KPart.topology productTopology;
+\definition kCompact: topology.Topology[Carrier := KPoint].IsCompact kTopology := KPart.Properties[].compact productTopology compactK;
+\definition Trace: \Pow KPoint := KPart.Trace closedSubset;
+\definition traceClosed: topology.Topology[Carrier := KPoint].IsClosedIn kTopology Trace :=
+  topology.Continuity[A := KPoint, B := ProductCarrier].closedPreimage kTopology productTopology (\fun (p: KPoint) => p)
+    (topology.Continuity[A := KPoint, B := ProductCarrier].Corestriction[S := K].inclusionContinuous productTopology) closedSubset closed;
+\import topology.Topology[Carrier := KPoint] \as KSpace;
+\import KSpace.Subspace[S := Trace] \as TraceSpace;
+\definition Carrier: \Set := TraceSpace.CarrierSet;
+\definition topology: topology.Topology[Carrier := Carrier].Topology := TraceSpace.topology kTopology;
+\definition compactCarrier: topology.Topology[Carrier := Carrier].IsCompact topology := TraceSpace.Properties[].compact kTopology
+  (KSpace.Compactness[].closedCompact kTopology kCompact Trace traceClosed);
+\definition toClosed[p: Carrier]: ClosedCarrier := \into[ProductCarrier](p, closedSubset) \by { \bysub(KPoint, Trace, p) };
+\definition toClosedContinuous: topology.Continuity[A := Carrier, B := ClosedCarrier].Continuous topology closedTopology toClosed :=
+  topology.Continuity[A := Carrier, B := ProductCarrier].Corestriction[S := closedSubset].corestrictContinuous topology productTopology toClosed
+    (topology.Composition[A := Carrier, B := KPoint, C := ProductCarrier].composeContinuous topology kTopology productTopology (\fun (p: Carrier) => p) (\fun (p: KPoint) => p)
+      (topology.Continuity[A := Carrier, B := KPoint].Corestriction[S := Trace].inclusionContinuous kTopology)
+      (topology.Continuity[A := KPoint, B := ProductCarrier].Corestriction[S := K].inclusionContinuous productTopology));
+\definition lift[p: Carrier]: Total := join (toClosed p);
+\definition liftContinuous: topology.Continuity[A := Carrier, B := Total].Continuous topology totalSum.totalSpace lift :=
+  topology.Composition[A := Carrier, B := ClosedCarrier, C := Total].composeContinuous topology closedTopology totalSum.totalSpace toClosed join toClosedContinuous \parent.Continuity[].joinContinuous;
+\definition point[p: Total][inside: ProductSpace.Member K (inclusion p)]: Carrier :=
+  \into[KPoint]((\into[ProductCarrier](inclusion p, K) \by { inside }), Trace) \by { \refl(p.base) };
+\import topology.Topology[Carrier := Carrier] \as Domain;
+\import topology.Topology[Carrier := Total] \as Target;
+\import topology.Maps[A := Carrier, B := Total] \as Image;
+\import topology.Maps[A := Total, B := ProductCarrier] \as Preimage;
+\definition imageEquation: Image.Image lift Domain.Whole = Preimage.Preimage inclusion K :=
+  \axiom:setext(Image.Image lift Domain.Whole, Preimage.Preimage inclusion K,
+    \fun (p: Total)(member: _) => Image.imageElim lift Domain.Whole p (ProductSpace.Member K (inclusion p))
+      (\fun (q: Carrier)(whole: _)(same: lift q = p) => \idelim q = inclusion p \with r: ProductCarrier => ProductSpace.Member K r \by {
+        base: \bysub(ProductCarrier, K, q),
+        equality: trans!{ProductCarrier} _ _ _ (sym!{ProductCarrier} _ _ (inclusionFormula (toClosed q))) (congr!{Total ProductCarrier} inclusion _ _ same)
+      }) member,
+    \fun (p: Total)(inside: ProductSpace.Member K (inclusion p)) => Logic.existsIntro[Carrier, { q: Carrier \where Logic.And[Domain.Member Domain.Whole q, lift q = p] }]
+      (point p inside) (Logic.And[_, _]::# (\refl(point p inside)) (joinRestrict p)));
+\definition compact: Target.IsCompactIn totalSum.totalSpace (Preimage.Preimage inclusion K) :=
+  \idelim Image.Image lift Domain.Whole = Preimage.Preimage inclusion K \with S: \Pow Total => Target.IsCompactIn totalSum.totalSpace S \by {
+    base: topology.Compactness[A := Carrier, B := Total].continuousImage topology totalSum.totalSpace lift liftContinuous Domain.Whole compactCarrier,
+    equality: imageEquation
+  };

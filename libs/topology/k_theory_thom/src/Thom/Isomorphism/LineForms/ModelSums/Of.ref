@@ -1,0 +1,37 @@
+\import Models.Sum[first := first, second := second] \as Sum;
+\definition A[x: X]: \Set := Models.Fiber first.ranks x;
+\definition B[x: X]: \Set := Models.Fiber second.ranks x;
+\definition V[x: X]: \Set := Models.Fiber Sum.value.ranks x;
+\definition join[x: X][a: A x][b: B x]: V x := (Sum.isomorphism.forward.fiber x).apply (Pair.pair (A x) (B x) a b);
+\definition head[x: X][v: V x]: A x := Pair.first (A x) (B x) ((Sum.isomorphism.backward.fiber x).apply v);
+\definition rest[x: X][v: V x]: B x := Pair.second (A x) (B x) ((Sum.isomorphism.backward.fiber x).apply v);
+\definition headJoin: \forall (x: X)(a: A x)(b: B x) -> head x (join x a b) = a :=
+  \fun (x: X)(a: A x)(b: B x) => congr!{{Sum.SourceFiber x} {A x}} (Pair.first (A x) (B x)) _ _
+    (Sum.isomorphism.leftInverse x (Pair.pair (A x) (B x) a b));
+\definition restJoin: \forall (x: X)(a: A x)(b: B x) -> rest x (join x a b) = b :=
+  \fun (x: X)(a: A x)(b: B x) => congr!{{Sum.SourceFiber x} {B x}} (Pair.second (A x) (B x)) _ _
+    (Sum.isomorphism.leftInverse x (Pair.pair (A x) (B x) a b));
+\definition recover: \forall (x: X)(v: V x) -> join x (head x v) (rest x v) = v :=
+  \fun (x: X)(v: V x) => trans!{{V x}} _ _ _
+    (congr!{{Sum.SourceFiber x} {V x}} (Sum.isomorphism.forward.fiber x).apply _ _
+      (Pair.Prop[A := A x, B := B x].eta ((Sum.isomorphism.backward.fiber x).apply v)))
+    (Sum.isomorphism.rightInverse x v);
+\definition ext: \forall (x: X)(v, w: V x) -> head x v = head x w -> rest x v = rest x w -> v = w :=
+  \fun (x: X)(v, w: V x)(sameHead: head x v = head x w)(sameRest: rest x v = rest x w) =>
+    trans!{{V x}} _ _ _ (sym!{{V x}} _ _ (recover x v))
+      (trans!{{V x}} _ _ _ (congr!{{A x} {B x} {V x}} (join x) _ _ _ _ sameHead sameRest) (recover x w));
+\module ZeroLeft(zero: \forall (x: X)(a: A x) -> a = ((Models.bundle first).space x).zero);
+\module ZeroRight(zero: \forall (x: X)(b: B x) -> b = ((Models.bundle second).space x).zero);
+\module From(domain: Models.Bundle, f: Models.Map domain first, g: Models.Map domain second) {
+  \definition headFormula: \forall (x: X)(v: Models.Fiber domain.ranks x) ->
+    head x (((Sum.From[domain := domain].pair f g).fiber x).apply v) = (f.fiber x).apply v :=
+    \fun (x: X)(v: Models.Fiber domain.ranks x) => headJoin x ((f.fiber x).apply v) ((g.fiber x).apply v);
+  \definition restFormula: \forall (x: X)(v: Models.Fiber domain.ranks x) ->
+    rest x (((Sum.From[domain := domain].pair f g).fiber x).apply v) = (g.fiber x).apply v :=
+    \fun (x: X)(v: Models.Fiber domain.ranks x) => restJoin x ((f.fiber x).apply v) ((g.fiber x).apply v);
+}
+\module To(target: Models.Bundle, f: Models.Map first target, g: Models.Map second target) {
+  \definition formula: \forall (x: X)(v: V x) -> ((Sum.To[target := target].copair f g).fiber x).apply v =
+    ((Models.bundle target).space x).add ((f.fiber x).apply (head x v)) ((g.fiber x).apply (rest x v)) :=
+    \fun (x: X)(v: V x) => \refl(((Models.bundle target).space x).add ((f.fiber x).apply (head x v)) ((g.fiber x).apply (rest x v)));
+}

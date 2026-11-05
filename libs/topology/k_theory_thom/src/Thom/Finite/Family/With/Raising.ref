@@ -1,0 +1,34 @@
+\definition projection[n: N.Nat^]: Models.Map (folded n).even (term n) := (state n).partial.projection;
+\structure Data[n: N.Nat^]: \Set := { h: Models.Map (folded n).odd (folded n).even, k: Models.Map (folded n).even (folded n).odd };
+\definition initial: Data[N.Nat^::zero] := Data[N.Nat^::zero] {
+  h := Models.zero (folded N.Nat^::zero).odd (folded N.Nat^::zero).even,
+  k := Models.zero (folded N.Nat^::zero).even (folded N.Nat^::zero).odd
+};
+\module Step(n: N.Nat^, previous: Data[n]);
+\definition values: \forall (n: N.Nat^) -> Data[n] := \induction (n: N.Nat^) \return Data[n] \with {
+  | zero: initial
+  | succ: \fun (n: N.Nat^)(previous: Data[n]) => Step[n := n, previous := previous].value
+};
+\definition h[n: N.Nat^]: Models.Map (folded n).odd (folded n).even := (values n).h;
+\definition k[n: N.Nat^]: Models.Map (folded n).even (folded n).odd := (values n).k;
+\definition kHead: \forall (n: N.Nat^)(x: X)(v: Models.Fiber (term n).ranks x) ->
+  ((k n).fiber x).apply (((folded n).inclusion.fiber x).apply v) = ((Models.bundle (folded n).odd).space x).zero :=
+  \induction (n: N.Nat^) \return \forall (x: X)(v: Models.Fiber (term n).ranks x) ->
+    ((k n).fiber x).apply (((folded n).inclusion.fiber x).apply v) = ((Models.bundle (folded n).odd).space x).zero \with {
+    | zero: \fun (x: X)(v: Models.Fiber (term N.Nat^::zero).ranks x) => \refl(((Models.bundle (folded N.Nat^::zero).odd).space x).zero)
+    | succ: \fun (n: N.Nat^)(unused: _) => Step[n := n, previous := values n].kHead
+  };
+\module Square(raisingSquare: \forall (k: N.Nat^)(x: X)(v: Models.Fiber (term k).ranks x) ->
+  ((raising (N.Nat^::succ k)).fiber x).apply (((raising k).fiber x).apply v) = ((Models.bundle (term (N.Nat^::succ (N.Nat^::succ k)))).space x).zero);
+\definition cycle[n: N.Nat^]: Models.Map (term n) (term n) :=
+  Models.compose (term n) (term (N.Nat^::succ n)) (term n) (raising n) (differential n);
+\definition correctHead[n: N.Nat^]: Models.Map (term n) (folded n).even :=
+  Models.compose (term n) (term n) (folded n).even (cycle n) (folded n).inclusion;
+\definition correction[n: N.Nat^]: Models.Map (folded n).even (folded n).even :=
+  Models.compose (folded n).even (term n) (folded n).even (projection n) (correctHead n);
+\module Cartan(coefficient: X -> C.Complex,
+  bottom: \forall (x: X)(v: Models.Fiber (term N.Nat^::zero).ranks x) -> ((cycle N.Nat^::zero).fiber x).apply v = ((Models.bundle (term N.Nat^::zero)).space x).smul (coefficient x) v,
+  cartan: \forall (n: N.Nat^)(x: X)(v: Models.Fiber (term (N.Nat^::succ n)).ranks x) ->
+    ((Models.bundle (term (N.Nat^::succ n))).space x).add (((cycle (N.Nat^::succ n)).fiber x).apply v)
+      (((raising n).fiber x).apply (((differential n).fiber x).apply v)) = ((Models.bundle (term (N.Nat^::succ n))).space x).smul (coefficient x) v);
+\module OnSummands;

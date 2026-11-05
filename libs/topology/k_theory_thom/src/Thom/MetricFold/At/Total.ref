@@ -1,0 +1,42 @@
+\import std.Data[].Pair[] \as P;
+\import Operations.DirectSum[X := Koszul.Total, F := Even, G := Odd, left := (Models.bundle even), right := (Models.bundle odd)] \as Sum;
+\definition Fiber[q: Koszul.Total]: \Set := Sum.Fiber q;
+\definition bundle: Bundles.Family[X := Koszul.Total, F := Fiber].Bundle := Sum.bundle (\refl((Models.bundle even).baseSpace));
+\import Sum.Of[same := (\refl((Models.bundle even).baseSpace))] \as Split;
+\import Split.From[Y := Koszul.Total, H := Fiber, source := bundle, f := (\fun (q: Koszul.Total) => q)] \as Into;
+\import Bundles.Morphisms[X := Koszul.Total, Y := Koszul.Total, F := Fiber, G := Odd,
+  source := bundle, target := (Models.bundle odd), f := (\fun (q: Koszul.Total) => q)]
+  .Composition[Z := Koszul.Total, H := Even, range := (Models.bundle even), g := (\fun (q: Koszul.Total) => q)] \as ToPositive;
+\import Bundles.Morphisms[X := Koszul.Total, Y := Koszul.Total, F := Fiber, G := Even,
+  source := bundle, target := (Models.bundle even), f := (\fun (q: Koszul.Total) => q)]
+  .Composition[Z := Koszul.Total, H := Odd, range := (Models.bundle odd), g := (\fun (q: Koszul.Total) => q)] \as ToNegative;
+\definition positive: Bundles.Morphisms[X := Koszul.Total, Y := Koszul.Total, F := Fiber, G := Even,
+  source := bundle, target := (Models.bundle even), f := (\fun (q: Koszul.Total) => q)].Map := ToPositive.compose Split.secondMap cliffordBackward;
+\definition negative: Bundles.Morphisms[X := Koszul.Total, Y := Koszul.Total, F := Fiber, G := Odd,
+  source := bundle, target := (Models.bundle odd), f := (\fun (q: Koszul.Total) => q)].Map := ToNegative.compose Split.firstMap cliffordForward;
+\definition operator: Bundles.Morphisms[X := Koszul.Total, Y := Koszul.Total, F := Fiber, G := Fiber,
+  source := bundle, target := bundle, f := (\fun (q: Koszul.Total) => q)].Map := Into.pair positive negative;
+\import Bundles.Identity[X := Koszul.Total, F := Even, bundle := (Models.bundle even)] \as PositiveIdentity;
+\import Operations.Negation[X := Koszul.Total, F := Odd, bundle := (Models.bundle odd)] \as Minus;
+\import Operations.IdentityIsomorphism[X := Koszul.Total, F := Even, bundle := (Models.bundle even)] \as PositiveIso;
+\import Operations.DirectSumIsomorphisms[X := Koszul.Total, F := Even, G := Odd, A := Even, B := Odd,
+  first := (Models.bundle even), second := (Models.bundle odd), newFirst := (Models.bundle even), newSecond := (Models.bundle odd),
+  sameSource := (\refl((Models.bundle even).baseSpace)), sameTarget := (\refl((Models.bundle even).baseSpace))] \as GradedPair;
+\definition gradingIso: Bundles.Isomorphisms[X := Koszul.Total, F := Fiber, G := Fiber, source := bundle, target := bundle].Isomorphism :=
+  GradedPair.isomorphism PositiveIso.isomorphism Minus.isomorphism;
+\definition grading: Bundles.Morphisms[X := Koszul.Total, Y := Koszul.Total, F := Fiber, G := Fiber,
+  source := bundle, target := bundle, f := (\fun (q: Koszul.Total) => q)].Map := gradingIso.forward;
+\definition square: \forall (q: Koszul.Total)(v: Fiber q) -> (operator.fiber q).apply ((operator.fiber q).apply v) = (bundle.space q).smul (MetricRaising.coefficient q) v :=
+  \fun (q: Koszul.Total)(v: Fiber q) => P.Prop[A := Even q, B := Odd q].pairCong _ _ _ _
+    (evenSquare q (P.first (Even q) (Odd q) v))
+    (oddSquare q (P.second (Even q) (Odd q) v));
+\definition gradingSquare: \forall (q: Koszul.Total)(v: Fiber q) -> (grading.fiber q).apply ((grading.fiber q).apply v) = v := gradingIso.leftInverse;
+\definition gradingFormula: \forall (q: Koszul.Total)(v: Fiber q) -> (grading.fiber q).apply v =
+  P.pair (Even q) (Odd q) (P.first (Even q) (Odd q) v)
+    (((Models.bundle odd).space q).neg (P.second (Even q) (Odd q) v)) :=
+  \fun (q: Koszul.Total)(v: Fiber q) => congr!{{Odd q} {Fiber q}}
+    (P.pair (Even q) (Odd q) (P.first (Even q) (Odd q) v)) _ _ (Minus.formula q (P.second (Even q) (Odd q) v));
+\module At(q: Koszul.Total);
+\definition anticommutes: \forall (q: Koszul.Total)(v: Fiber q) -> (bundle.space q).add
+  ((grading.fiber q).apply ((operator.fiber q).apply v)) ((operator.fiber q).apply ((grading.fiber q).apply v)) = (bundle.space q).zero :=
+  \fun (q: Koszul.Total) => At[q := q].equation;

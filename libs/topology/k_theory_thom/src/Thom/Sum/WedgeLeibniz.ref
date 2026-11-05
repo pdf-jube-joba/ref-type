@@ -1,0 +1,82 @@
+\import N.Basic[].Prop[] \as Naturals;
+\definition one: N.Nat^ := N.Nat^::succ N.Nat^::zero;
+\definition outputDegree: N.Nat^ := N.Nat^::succ (Nat.add p q);
+\import Forms.At[k := one] \as Covectors;
+\definition ell: Exterior.Form one := Covectors.plus (fromLeft one leftEll) (fromRight one rightEll);
+\import \root.Thom[].Algebra[V := V, space := left].Cartan[k := p, v := left.zero, ell := leftEll] \as LeftWedge;
+\import \root.Thom[].Algebra[V := W, space := right].Cartan[k := q, v := right.zero, ell := rightEll] \as RightWedge;
+\import \root.Thom[].Algebra[V := Total, space := Sum.space].Cartan[k := Nat.add p q, v := Sum.space.zero, ell := ell] \as TotalWedge;
+\import \parent.At[p := p, q := q] \as Source;
+\import \parent.At[p := N.Nat^::succ p, q := q] \as First;
+\import \parent.At[p := p, q := N.Nat^::succ q] \as Second;
+\import Forms.At[k := outputDegree] \as Result;
+\import Exterior.Components[k := outputDegree] \as Components;
+\import Exterior.Regrade[k := Nat.add (N.Nat^::succ p) q, l := outputDegree] \as Regrade;
+\definition degree: Nat.add (N.Nat^::succ p) q = outputDegree := Naturals.addSuccLeft p q;
+\definition first[omega: Left.Form p][eta: Right.Form q]: Exterior.Form outputDegree :=
+  Regrade.cast (First.apply (LeftWedge.wedge omega) eta) degree;
+\definition second[omega: Left.Form p][eta: Right.Form q]: Exterior.Form outputDegree :=
+  Result.scale (Sign.value p) (Second.apply omega (RightWedge.wedge eta));
+\definition ellSeries: Exterior.component one ell = Shuffle.plus (leftSeries one leftEll) (rightSeries one rightEll) :=
+  \axiom:funext(Exterior.component one ell, Shuffle.plus (leftSeries one leftEll) (rightSeries one rightEll), \fun (xs: Lists.List[Total]) =>
+    trans!{{C.Complex}} _ _ _ (Exterior.Components[k := one].addition (fromLeft one leftEll) (fromRight one rightEll) xs)
+      (congr!{{C.Complex} {C.Complex} {C.Complex}} Op.add _ _ _ _
+        (congr!{{Shuffle.Function} {C.Complex}} (\fun (f: Shuffle.Function) => f xs) _ _ (fromLeftSeries one leftEll))
+        (congr!{{Shuffle.Function} {C.Complex}} (\fun (f: Shuffle.Function) => f xs) _ _ (fromRightSeries one rightEll))));
+\definition leftWedgeSeries: \forall (omega: Left.Form p) ->
+  leftSeries (N.Nat^::succ p) (LeftWedge.wedge omega) = Shuffle.product (leftSeries one leftEll) (leftSeries p omega) :=
+  \fun (omega: Left.Form p) => trans!{{Shuffle.Function}} _ _ _
+    (congr!{{LeftShuffle.Function} {Shuffle.Function}} (LeftSeries.mapSeries Sum.first) _ _ (LeftWedge.component omega))
+    (\axiom:funext(LeftSeries.mapSeries Sum.first (LeftShuffle.product (Left.component one leftEll) (Left.component p omega)),
+      Shuffle.product (leftSeries one leftEll) (leftSeries p omega),
+      \fun (xs: Lists.List[Total]) => sym!{{C.Complex}} _ _ (LeftSeries.productMap xs Sum.first (Left.component one leftEll) (Left.component p omega))));
+\definition rightWedgeSeries: \forall (eta: Right.Form q) ->
+  rightSeries (N.Nat^::succ q) (RightWedge.wedge eta) = Shuffle.product (rightSeries one rightEll) (rightSeries q eta) :=
+  \fun (eta: Right.Form q) => trans!{{Shuffle.Function}} _ _ _
+    (congr!{{RightShuffle.Function} {Shuffle.Function}} (RightSeries.mapSeries Sum.second) _ _ (RightWedge.component eta))
+    (\axiom:funext(RightSeries.mapSeries Sum.second (RightShuffle.product (Right.component one rightEll) (Right.component q eta)),
+      Shuffle.product (rightSeries one rightEll) (rightSeries q eta),
+      \fun (xs: Lists.List[Total]) => sym!{{C.Complex}} _ _ (RightSeries.productMap xs Sum.second (Right.component one rightEll) (Right.component q eta))));
+\definition firstSeries: \forall (omega: Left.Form p)(eta: Right.Form q)(xs: Lists.List[Total]) ->
+  Exterior.component outputDegree (first omega eta) xs = Shuffle.product (Shuffle.product (leftSeries one leftEll) (leftSeries p omega)) (rightSeries q eta) xs :=
+  \fun (omega: Left.Form p)(eta: Right.Form q)(xs: Lists.List[Total]) =>
+    trans!{{C.Complex}} _ _ _
+      (congr!{{Shuffle.Function} {C.Complex}} (\fun (f: Shuffle.Function) => f xs) _ _
+        (trans!{{Shuffle.Function}} _ _ _ (Regrade.series (First.apply (LeftWedge.wedge omega) eta) degree) (First.series (LeftWedge.wedge omega) eta)))
+      (congr!{{Shuffle.Function} {C.Complex}} (\fun (f: Shuffle.Function) => Shuffle.product f (rightSeries q eta) xs) _ _ (leftWedgeSeries omega));
+\definition secondSeries: \forall (omega: Left.Form p)(eta: Right.Form q)(xs: Lists.List[Total]) ->
+  Exterior.component outputDegree (second omega eta) xs = Op.mul (Sign.value p) (Shuffle.product (leftSeries p omega) (Shuffle.product (rightSeries one rightEll) (rightSeries q eta)) xs) :=
+  \fun (omega: Left.Form p)(eta: Right.Form q)(xs: Lists.List[Total]) =>
+    trans!{{C.Complex}} _ _ _ (Components.scalar (Sign.value p) (Second.apply omega (RightWedge.wedge eta)) xs)
+      (congr!{{C.Complex} {C.Complex}} (Op.mul (Sign.value p)) _ _
+        (trans!{{C.Complex}} _ _ _
+          (congr!{{Shuffle.Function} {C.Complex}} (\fun (f: Shuffle.Function) => f xs) _ _ (Second.series omega (RightWedge.wedge eta)))
+          (congr!{{Shuffle.Function} {C.Complex}} (\fun (g: Shuffle.Function) => Shuffle.product (leftSeries p omega) g xs) _ _ (rightWedgeSeries eta))));
+\definition leftHomogeneous[omega: Left.Form p]: Shuffle.Homogeneous p (leftSeries p omega) :=
+  \fun (xs: Lists.List[Total])(wrong: Logic.Not (Lists.length Total xs = p)) =>
+    trans!{{C.Complex}} _ _ _
+      (congr!{{Shuffle.Function} {C.Complex}} (\fun (f: Shuffle.Function) => f xs) _ _ (sym!{{Shuffle.Function}} _ _ (fromLeftSeries p omega)))
+      (Spaces.Multilinear[V := Total, space := Sum.space].ListSeries[k := p].outside (fromLeft p omega) xs wrong);
+\definition rightHomogeneous: Shuffle.Homogeneous one (rightSeries one rightEll) :=
+  \fun (xs: Lists.List[Total])(wrong: Logic.Not (Lists.length Total xs = one)) =>
+    trans!{{C.Complex}} _ _ _
+      (congr!{{Shuffle.Function} {C.Complex}} (\fun (f: Shuffle.Function) => f xs) _ _ (sym!{{Shuffle.Function}} _ _ (fromRightSeries one rightEll)))
+      (Spaces.Multilinear[V := Total, space := Sum.space].ListSeries[k := one].outside (fromRight one rightEll) xs wrong);
+\import \parent.ProductRule[p := p] \as Rule;
+\definition equation: \forall (omega: Left.Form p)(eta: Right.Form q) ->
+  TotalWedge.wedge (Source.apply omega eta) = Result.plus (first omega eta) (second omega eta) :=
+  \fun (omega: Left.Form p)(eta: Right.Form q) => Components.ext _ _
+    (\axiom:funext(Exterior.component outputDegree (TotalWedge.wedge (Source.apply omega eta)), Exterior.component outputDegree (Result.plus (first omega eta) (second omega eta)),
+      \fun (xs: Lists.List[Total]) => trans!{{C.Complex}} _ _ _
+        (congr!{{Shuffle.Function} {C.Complex}} (\fun (f: Shuffle.Function) => f xs) _ _ (TotalWedge.component (Source.apply omega eta)))
+        (trans!{{C.Complex}} _ _ _
+          (Products.congruent (Exterior.component one ell) (Shuffle.plus (leftSeries one leftEll) (rightSeries one rightEll))
+            (Exterior.component (Nat.add p q) (Source.apply omega eta)) (Source.product omega eta)
+            (\fun (ys: Lists.List[Total]) => congr!{{Shuffle.Function} {C.Complex}} (\fun (f: Shuffle.Function) => f ys) _ _ ellSeries)
+            (\fun (ys: Lists.List[Total]) => congr!{{Shuffle.Function} {C.Complex}} (\fun (f: Shuffle.Function) => f ys) _ _ (Source.series omega eta)) xs)
+          (trans!{{C.Complex}} _ _ _
+            (Rule.equation (leftSeries one leftEll) (rightSeries one rightEll) (leftSeries p omega) (rightSeries q eta) (leftHomogeneous omega) rightHomogeneous xs)
+            (trans!{{C.Complex}} _ _ _
+              (congr!{{C.Complex} {C.Complex} {C.Complex}} Op.add _ _ _ _
+                (sym!{{C.Complex}} _ _ (firstSeries omega eta xs)) (sym!{{C.Complex}} _ _ (secondSeries omega eta xs)))
+              (sym!{{C.Complex}} _ _ (Components.addition (first omega eta) (second omega eta) xs)))))));

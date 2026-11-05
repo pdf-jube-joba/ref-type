@@ -1,0 +1,24 @@
+\import \root.Thom[].Koszul[X := X, F := F, bundle := bundle] \as OriginalKoszul;
+\import \root.Thom[].Koszul[X := Y, F := Fiber, bundle := pulled] \as PulledKoszul;
+\definition Total: \Set := PulledKoszul.Total;
+\definition total[p: Total]: OriginalKoszul.Total := Pullback.map p;
+\definition continuous: topology.Continuity[A := Total, B := OriginalKoszul.Total].Continuous pulled.totalSpace bundle.totalSpace total := Pullback.mapContinuous;
+\import Bundles.Family[X := Y, F := Fiber] \as PulledFamily;
+\import Original.PullbackComposition[Y := Y, Z := Total, first := source, second := pulled.totalSpace,
+  f := f, g := PulledFamily.projection].Of[fRegular := regular,
+    gRegular := PulledFamily.Of[bundle := pulled].projectionContinuous] \as FromBase;
+\import Original.PullbackComposition[Y := OriginalKoszul.Total, Z := Total, first := bundle.totalSpace, second := pulled.totalSpace,
+  f := Family.projection, g := total].Of[fRegular := Original.projectionContinuous, gRegular := continuous] \as FromTotal;
+\definition Vector[p: Total]: \Set := F (f p.base);
+\definition firstBundle: Bundles.Family[X := Total, F := Vector].Bundle := FromTotal.nested;
+\definition secondBundle: Bundles.Family[X := Total, F := Vector].Bundle := FromBase.nested;
+\import Bundles.Isomorphisms[X := Total, F := Vector, G := Vector, source := FromTotal.direct, target := FromTotal.nested] \as Reverse;
+\import Operations.IsomorphismComposition[X := Total, F := Vector, G := Vector, H := Vector,
+  source := firstBundle, middle := FromTotal.direct, target := secondBundle] \as Compose;
+\definition tautologicalComparison: Bundles.Isomorphisms[X := Total, F := Vector, G := Vector, source := firstBundle, target := secondBundle].Isomorphism :=
+  Compose.compose (Reverse.inverse FromTotal.isomorphism) FromBase.isomorphism;
+\definition tautologicalFormula: \forall (p: Total) ->
+  (tautologicalComparison.forward.fiber p).apply (OriginalKoszul.tautological.value (total p)) = PulledKoszul.tautological.value p :=
+  \fun (p: Total) => \refl(p.vector);
+\module Degree(k: N.Nat^);
+\module Differential(k: N.Nat^);

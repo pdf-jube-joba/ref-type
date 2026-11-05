@@ -1,0 +1,46 @@
+\import std.Data[].Pair[] \as Pair;
+\definition reverseThird: third.baseSpace = first.baseSpace := sym!{{topology.Topology[Carrier := X].Topology}} _ _ sameThird;
+\definition thirdSecond: third.baseSpace = second.baseSpace := trans!{{topology.Topology[Carrier := X].Topology}} _ _ _ reverseThird sameSecond;
+\import Operations.DirectSum[X := X, F := F, G := G, left := first, right := second] \as Sum;
+\definition sum: Bundles.Family[X := X, F := Sum.Fiber].Bundle := Sum.bundle sameSecond;
+\import Operations.Tensor[X := X, F := Sum.Fiber, G := H, left := sum, right := third] \as Source;
+\definition sourceBundle: Bundles.Family[X := X, F := Source.Fiber].Bundle := Source.bundle sameThird;
+\import Source.Of[same := sameThird].Symmetry[] \as SourceFlip;
+\import Operations.TensorDistribution[X := X, F := H, G := F, H := G,
+  left := third, middle := first, right := second, sameMiddle := reverseThird, sameRight := thirdSecond] \as Distribution;
+\import Operations.Tensor[X := X, F := F, G := H, left := first, right := third] \as Left;
+\import Operations.Tensor[X := X, F := G, G := H, left := second, right := third] \as Right;
+\definition leftBundle: Bundles.Family[X := X, F := Left.Fiber].Bundle := Left.bundle sameThird;
+\definition rightBundle: Bundles.Family[X := X, F := Right.Fiber].Bundle := Right.bundle (sym!{{topology.Topology[Carrier := X].Topology}} _ _ thirdSecond);
+\import Operations.DirectSum[X := X, F := Left.Fiber, G := Right.Fiber, left := leftBundle, right := rightBundle] \as Target;
+\definition targetBundle: Bundles.Family[X := X, F := Target.Fiber].Bundle := Target.bundle sameSecond;
+\import Operations.Tensor[X := X, F := H, G := F, left := third, right := first] \as ReverseLeft;
+\import Operations.Tensor[X := X, F := H, G := G, left := third, right := second] \as ReverseRight;
+\import ReverseLeft.Of[same := reverseThird].Symmetry[] \as LeftFlip;
+\import ReverseRight.Of[same := thirdSecond].Symmetry[] \as RightFlip;
+\import Operations.DirectSumIsomorphisms[X := X, F := ReverseLeft.Fiber, G := ReverseRight.Fiber, A := Left.Fiber, B := Right.Fiber,
+  first := ReverseLeft.bundle reverseThird, second := ReverseRight.bundle thirdSecond,
+  newFirst := leftBundle, newSecond := rightBundle, sameSource := (\refl(third.baseSpace)), sameTarget := sameSecond] \as FlipPair;
+\import Operations.IsomorphismComposition[X := X, F := Source.Fiber, G := Distribution.SourceFiber, H := Distribution.TargetFiber,
+  source := sourceBundle, middle := Distribution.sourceBundle, target := Distribution.targetBundle] \as FirstComposition;
+\definition start: FirstComposition.Isomorphism := FirstComposition.compose SourceFlip.isomorphism Distribution.isomorphism;
+\import Operations.IsomorphismComposition[X := X, F := Source.Fiber, G := Distribution.TargetFiber, H := Target.Fiber,
+  source := sourceBundle, middle := Distribution.targetBundle, target := targetBundle] \as LastComposition;
+\definition isomorphism: LastComposition.Isomorphism := LastComposition.compose start (FlipPair.isomorphism LeftFlip.isomorphism RightFlip.isomorphism);
+\import Source.Of[same := sameThird].Transpose[] \as Transpose;
+\import ReverseLeft.Of[same := reverseThird].Transpose[] \as LeftTranspose;
+\import ReverseRight.Of[same := thirdSecond].Transpose[] \as RightTranspose;
+\definition onPure: \forall (x: X)(p: Sum.Fiber x)(w: H x) ->
+  (isomorphism.forward.fiber x).apply (Source.pure x p w) =
+    Pair.pair (Left.Fiber x) (Right.Fiber x)
+      (Left.pure x (Pair.first (F x) (G x) p) w) (Right.pure x (Pair.second (F x) (G x) p) w) :=
+  \fun (x: X)(p: Sum.Fiber x)(w: H x) => trans!{{Target.Fiber x}} _ _ _
+    (congr!{{Distribution.SourceFiber x} {Target.Fiber x}}
+      (\fun (v: Distribution.SourceFiber x) => ((FlipPair.forward LeftFlip.isomorphism RightFlip.isomorphism).fiber x).apply ((Distribution.forward.fiber x).apply v)) _ _ (Transpose.onPure x p w))
+    (trans!{{Target.Fiber x}} _ _ _
+      (congr!{{Distribution.TargetFiber x} {Target.Fiber x}}
+        ((FlipPair.forward LeftFlip.isomorphism RightFlip.isomorphism).fiber x).apply _ _ (Distribution.forwardOnPure x w p))
+      (Pair.Prop[A := Left.Fiber x, B := Right.Fiber x].pairCong _ _ _ _
+        (LeftTranspose.onPure x w (Pair.first (F x) (G x) p)) (RightTranspose.onPure x w (Pair.second (F x) (G x) p))));
+\definition SourceFiber[x: X]: \Set := Source.Fiber x;
+\definition TargetFiber[x: X]: \Set := Target.Fiber x;

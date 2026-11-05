@@ -1,0 +1,25 @@
+\import dedekind_reals.DedekindReal[] \as R;
+\definition intoDiskContinuous: topology.Continuity[A := Local.Carrier, B := Geometry.DiskBundle].Continuous Local.topology Geometry.diskTopology intoDisk :=
+  topology.Continuity[A := Local.Carrier, B := Point.Total].Corestriction[S := Geometry.ClosedBall].corestrictContinuous
+    Local.topology Trivial.topology intoDisk Local.regular;
+\definition hContinuous: topology.Continuity[A := Local.Carrier, B := D2.Disk].Continuous Local.topology D2.diskTopology h :=
+  topology.Composition[A := Local.Carrier, B := Geometry.DiskBundle, C := D2.Disk].composeContinuous
+    Local.topology Geometry.diskTopology D2.diskTopology intoDisk Round.forward intoDiskContinuous Round.GeometryProof[].forwardContinuous;
+\definition gContinuous: topology.Continuity[A := Local.Carrier, B := D2.Disk].Continuous Local.topology D2.diskTopology g :=
+  topology.Composition[A := Local.Carrier, B := D2.Disk, C := D2.Disk].composeContinuous
+    Local.topology D2.diskTopology D2.diskTopology h PlaneDisk.reparameter hContinuous PlaneDisk.reparameterContinuous;
+\definition boundarySquared: \forall (p: Pair.A) -> Model.squared p = Real.one :=
+  \fun (p: Pair.A) => R.leAntisym (Model.squared p) Real.one (\bysub(Point.Total, Geometry.ClosedBall, intoDisk p))
+    (R.Order[].leOfNotLtReverse Real.one (Model.squared p)
+      (\fun (inside: R.Lt (Model.squared p) Real.one) => (\bysub(Local.Carrier, Local.boundary, p))
+        (\idelim MetricNeighborhood.squaredBall = Neighbor.openSet \with U: \Pow Point.Total => \In[Point.Total] U p \by {
+          base: inside, equality: sym!{{\Pow Point.Total}} _ _ MetricNeighborhood.squareOpenEquation
+        })));
+\definition hBoundary: \forall (p: Pair.A) -> D2.normSquared (h p) = Real.one :=
+  \fun (p: Pair.A) => trans!{{Real.Real}} _ _ _ (Round.normFormula (intoDisk p)) (boundarySquared p);
+\definition gBoundary: \forall (p: Pair.A) -> g p = h p :=
+  \fun (p: Pair.A) => PlaneDisk.onBoundary (h p) (hBoundary p);
+\definition hCoordinates: \forall (p: Local.Carrier) -> PlaneDisk.input (h p) = TotalCoordinates.forward p :=
+  \fun (p: Local.Carrier) => Round.inputCoordinates (TotalCoordinates.forward p);
+\definition gCoordinatesOnBoundary: \forall (p: Pair.A) -> PlaneDisk.input (g p) = TotalCoordinates.forward p :=
+  \fun (p: Pair.A) => trans!{{Plane.Carrier}} _ _ _ (congr!{{D2.Disk} {Plane.Carrier}} PlaneDisk.input _ _ (gBoundary p)) (hCoordinates p);

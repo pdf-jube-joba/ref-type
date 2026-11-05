@@ -1,0 +1,63 @@
+\import \parent.Plane[] \as Plane;
+\import \parent.Scalar[] \as Identities;
+\definition norm2: \forall (a, b: Real.Real) -> D2.normSquared (Split1.join a (\fun (_: D1.Index) => b)) = Real.add (square a) (square b) :=
+  \fun (a, b: Real.Real) => trans!{{Real.Real}} _ _ _ (Split1.normJoin a (\fun (_: D1.Index) => b))
+    (congr!{{Real.Real} {Real.Real}} (Real.add (square a)) _ _ (Laws.addZeroRight (square b)));
+\definition normCoordinates: \forall (z: Plane.Carrier) -> Sphere.normSquared (Plane.coordinates z) =
+  Real.add (square (Plane.height z)) (Real.mul (square (Plane.weight z)) (Plane.r2 z)) :=
+  \fun (z: Plane.Carrier) => eq_reason_in!{{Real.Real} _
+    "=" _ "by" { Split2.normJoin (Plane.height z) (Split1.join (Real.mul (Plane.weight z) (Plane.x z)) (\fun (_: D1.Index) => Real.mul (Plane.weight z) (Plane.y z))) }
+    "=" _ "by" { congr!{{Real.Real} {Real.Real}} (Real.add (square (Plane.height z))) _ _
+      (norm2 (Real.mul (Plane.weight z) (Plane.x z)) (Real.mul (Plane.weight z) (Plane.y z))) }
+    "=" _ "by" { congr!{{Real.Real} {Real.Real}} (Real.add (square (Plane.height z))) _ _
+      (trans!{{Real.Real}} _ _ _
+        (congr!{{Real.Real} {Real.Real} {Real.Real}} Real.add _ _ _ _
+          (Algebra.mulFour (Plane.weight z) (Plane.x z) (Plane.weight z) (Plane.x z))
+          (Algebra.mulFour (Plane.weight z) (Plane.y z) (Plane.weight z) (Plane.y z)))
+        (sym!{{Real.Real}} _ _ (Laws.fieldMulAdd (square (Plane.weight z)) (square (Plane.x z)) (square (Plane.y z))))) }
+  };
+\definition unit: \forall (z: Plane.Carrier) -> Sphere.normSquared (Plane.coordinates z) = Real.one :=
+  \fun (z: Plane.Carrier) => eq_reason_in!{{Real.Real} _
+    "=" _ "by" { normCoordinates z }
+    "=" _ "by" { congr!{{Real.Real} {Real.Real} {Real.Real}} Real.add _ _ _ _
+      (Algebra.mulFour (Real.sub (Plane.r2 z) (square (Plane.gap z))) (Plane.inverse z) (Real.sub (Plane.r2 z) (square (Plane.gap z))) (Plane.inverse z))
+      (congr!{{Real.Real} {Real.Real}} (\fun (a: Real.Real) => Real.mul a (Plane.r2 z)) _ _
+        (Algebra.mulFour (double (Plane.gap z)) (Plane.inverse z) (double (Plane.gap z)) (Plane.inverse z))) }
+    "=" _ "by" { congr!{{Real.Real} {Real.Real} {Real.Real}} Real.add _ _ _ _
+      (Laws.fieldMulComm (square (Real.sub (Plane.r2 z) (square (Plane.gap z)))) (square (Plane.inverse z)))
+      (trans!{{Real.Real}} _ _ _
+        (congr!{{Real.Real} {Real.Real}} (\fun (a: Real.Real) => Real.mul a (Plane.r2 z)) _ _ (Laws.fieldMulComm (square (double (Plane.gap z))) (square (Plane.inverse z))))
+        (Laws.fieldMulAssoc (square (Plane.inverse z)) (square (double (Plane.gap z))) (Plane.r2 z))) }
+    "=" _ "by" { sym!{{Real.Real}} _ _ (Laws.fieldMulAdd (square (Plane.inverse z)) (square (Real.sub (Plane.r2 z) (square (Plane.gap z)))) (Real.mul (square (double (Plane.gap z))) (Plane.r2 z))) }
+    "=" _ "by" { congr!{{Real.Real} {Real.Real}} (Real.mul (square (Plane.inverse z))) _ _
+      (trans!{{Real.Real}} _ _ _
+        (congr!{{Real.Real} {Real.Real}} (Real.add (square (Real.sub (Plane.r2 z) (square (Plane.gap z))))) _ _
+          (trans!{{Real.Real}} _ _ _
+            (congr!{{Real.Real} {Real.Real}} (\fun (a: Real.Real) => Real.mul a (Plane.r2 z)) _ _ (Identities.squareDouble (Plane.gap z)))
+            (trans!{{Real.Real}} _ _ _ (Identities.doubleProduct (double (square (Plane.gap z))) (Plane.r2 z))
+              (trans!{{Real.Real}} _ _ _ (congr!{{Real.Real} {Real.Real}} double _ _ (Identities.doubleProduct (square (Plane.gap z)) (Plane.r2 z)))
+                (congr!{{Real.Real} {Real.Real}} (\fun (a: Real.Real) => double (double a)) _ _ (Laws.fieldMulComm (square (Plane.gap z)) (Plane.r2 z)))))))
+        (Identities.sumDifferenceSquares (Plane.r2 z) (square (Plane.gap z)))) }
+    "=" _ "by" { sym!{{Real.Real}} _ _ (Algebra.mulFour (Plane.inverse z) (Plane.denominator z) (Plane.inverse z) (Plane.denominator z)) }
+    "=" _ "by" { congr!{{Real.Real} {Real.Real} {Real.Real}} Real.mul _ _ _ _ (Plane.inverseLaw z) (Plane.inverseLaw z) }
+    "=" _ "by" { Laws.fieldMulOneLeft Real.one }
+  };
+\definition map[z: Plane.Carrier]: sphere.Carrier := \into[Sphere.Coordinate](Plane.coordinates z, Sphere.Boundary) \by { unit z };
+\definition continuous: topology.Continuity[A := Plane.Carrier, B := sphere.Carrier].Continuous Plane.topology (Relative.details sphere).topology map :=
+  topology.Continuity[A := Plane.Carrier, B := Sphere.Coordinate].Corestriction[S := Sphere.Boundary].corestrictContinuous Plane.topology Sphere.topology map Plane.coordinatesContinuous;
+\definition heightTimes: \forall (z: Plane.Carrier) -> Real.mul (Plane.height z) (Plane.denominator z) = Real.sub (Plane.r2 z) (square (Plane.gap z)) :=
+  \fun (z: Plane.Carrier) => trans!{{Real.Real}} _ _ _
+    (Laws.fieldMulAssoc (Real.sub (Plane.r2 z) (square (Plane.gap z))) (Plane.inverse z) (Plane.denominator z))
+    (trans!{{Real.Real}} _ _ _
+      (congr!{{Real.Real} {Real.Real}} (Real.mul (Real.sub (Plane.r2 z) (square (Plane.gap z)))) _ _ (Plane.inverseLaw z))
+      (Algebra.mulOneRight (Real.sub (Plane.r2 z) (square (Plane.gap z)))));
+\definition weightTimes: \forall (z: Plane.Carrier) -> Real.mul (Plane.weight z) (Plane.denominator z) = double (Plane.gap z) :=
+  \fun (z: Plane.Carrier) => trans!{{Real.Real}} _ _ _ (Laws.fieldMulAssoc (double (Plane.gap z)) (Plane.inverse z) (Plane.denominator z))
+    (trans!{{Real.Real}} _ _ _ (congr!{{Real.Real} {Real.Real}} (Real.mul (double (Plane.gap z))) _ _ (Plane.inverseLaw z)) (Algebra.mulOneRight (double (Plane.gap z))));
+\definition coordinateTimes: \forall (z: Plane.Carrier)(v: Real.Real) -> Real.mul (Real.mul (Plane.weight z) v) (Plane.denominator z) = Real.mul (double (Plane.gap z)) v :=
+  \fun (z: Plane.Carrier)(v: Real.Real) => eq_reason_in!{{Real.Real} _
+    "=" _ "by" { Laws.fieldMulAssoc (Plane.weight z) v (Plane.denominator z) }
+    "=" _ "by" { Algebra.mulSwap (Plane.weight z) v (Plane.denominator z) }
+    "=" _ "by" { congr!{{Real.Real} {Real.Real}} (Real.mul v) _ _ (weightTimes z) }
+    "=" _ "by" { Laws.fieldMulComm v (double (Plane.gap z)) }
+  };

@@ -1,0 +1,62 @@
+\import Exterior.Degrees[p := p, q := q] \as Wedge;
+\import Exterior.Bilinearity[p := p, q := q] \as Bilinear;
+\import LeftForms.At[k := p] \as FirstForms;
+\import RightForms.At[k := q] \as SecondForms;
+\import Forms.At[k := p] \as PulledFirst;
+\import Forms.At[k := q] \as PulledSecond;
+\import Forms.At[k := Nat.add p q] \as Result;
+\import Forms.Precomposition[W := V, target := left].At[k := p] \as FirstMap;
+\import Forms.Precomposition[W := W, target := right].At[k := q] \as SecondMap;
+\definition apply[omega: Left.Form p][eta: Right.Form q]: Exterior.Form (Nat.add p q) :=
+  Wedge.wedge (fromLeft p omega) (fromRight q eta);
+\definition product[omega: Left.Form p][eta: Right.Form q]: Shuffle.Function :=
+  Shuffle.product (leftSeries p omega) (rightSeries q eta);
+\definition series: \forall (omega: Left.Form p)(eta: Right.Form q) -> Exterior.component (Nat.add p q) (apply omega eta) = product omega eta :=
+  \fun (omega: Left.Form p)(eta: Right.Form q) => trans!{{Shuffle.Function}} _ _ _
+    (Wedge.componentWedge (fromLeft p omega) (fromRight q eta))
+    (congr!{{Shuffle.Function} {Shuffle.Function} {Shuffle.Function}} Shuffle.product _ _ _ _
+      (fromLeftSeries p omega) (fromRightSeries q eta));
+\definition differential: \forall (omega: Left.Form p)(eta: Right.Form q)(v: V)(w: W)(xs: Lists.List[Total]) ->
+  product omega eta (Lists.List[Total]::cons (Sum.make v w) xs) =
+  C.Def[].add
+    (Shuffle.product (Shuffle.shift (Sum.make v w) (leftSeries p omega)) (rightSeries q eta) xs)
+    (Shuffle.product (Shuffle.twist (leftSeries p omega)) (Shuffle.shift (Sum.make v w) (rightSeries q eta)) xs) :=
+  \fun (omega: Left.Form p)(eta: Right.Form q)(v: V)(w: W)(xs: Lists.List[Total]) =>
+    Shuffle.atCons (Sum.make v w) xs (leftSeries p omega) (rightSeries q eta);
+\definition additiveLeft: \forall (omega, theta: Left.Form p)(eta: Right.Form q) ->
+  apply (FirstForms.plus omega theta) eta = Result.plus (apply omega eta) (apply theta eta) :=
+  \fun (omega, theta: Left.Form p)(eta: Right.Form q) => trans!{{Exterior.Form (Nat.add p q)}} _ _ _
+    (congr!{{Exterior.Form p} {Exterior.Form (Nat.add p q)}} (\fun (a: Exterior.Form p) => Wedge.wedge a (fromRight q eta)) _ _
+      ((FirstMap.linear first).preservesAdd omega theta))
+    (Bilinear.additiveLeft (fromLeft p omega) (fromLeft p theta) (fromRight q eta));
+\definition additiveRight: \forall (omega: Left.Form p)(eta, theta: Right.Form q) ->
+  apply omega (SecondForms.plus eta theta) = Result.plus (apply omega eta) (apply omega theta) :=
+  \fun (omega: Left.Form p)(eta, theta: Right.Form q) => trans!{{Exterior.Form (Nat.add p q)}} _ _ _
+    (congr!{{Exterior.Form q} {Exterior.Form (Nat.add p q)}} (Wedge.wedge (fromLeft p omega)) _ _
+      ((SecondMap.linear second).preservesAdd eta theta))
+    (Bilinear.additiveRight (fromLeft p omega) (fromRight q eta) (fromRight q theta));
+\definition scalarLeft: \forall (a: C.Complex)(omega: Left.Form p)(eta: Right.Form q) ->
+  apply (FirstForms.scale a omega) eta = Result.scale a (apply omega eta) :=
+  \fun (a: C.Complex)(omega: Left.Form p)(eta: Right.Form q) => trans!{{Exterior.Form (Nat.add p q)}} _ _ _
+    (congr!{{Exterior.Form p} {Exterior.Form (Nat.add p q)}} (\fun (b: Exterior.Form p) => Wedge.wedge b (fromRight q eta)) _ _
+      ((FirstMap.linear first).preservesScale a omega))
+    (Bilinear.scalarLeft a (fromLeft p omega) (fromRight q eta));
+\definition scalarRight: \forall (a: C.Complex)(omega: Left.Form p)(eta: Right.Form q) ->
+  apply omega (SecondForms.scale a eta) = Result.scale a (apply omega eta) :=
+  \fun (a: C.Complex)(omega: Left.Form p)(eta: Right.Form q) => trans!{{Exterior.Form (Nat.add p q)}} _ _ _
+    (congr!{{Exterior.Form q} {Exterior.Form (Nat.add p q)}} (Wedge.wedge (fromLeft p omega)) _ _
+      ((SecondMap.linear second).preservesScale a eta))
+    (Bilinear.scalarRight a (fromLeft p omega) (fromRight q eta));
+\import Spaces.Tensor[V := Left.Form p, W := Right.Form q, left := FirstForms.vectorSpace, right := SecondForms.vectorSpace] \as Tensor;
+\definition bilinear: Tensor.BilinearLaws[Exterior.Form (Nat.add p q), Result.vectorSpace, apply] := Tensor.BilinearLaws[Exterior.Form (Nat.add p q), Result.vectorSpace, apply] {
+  addLeft := additiveLeft, addRight := additiveRight, scaleLeft := scalarLeft, scaleRight := scalarRight
+};
+\definition tensor: Spaces.Linear[V := Tensor.Carrier, W := Exterior.Form (Nat.add p q), source := Tensor.space, target := Result.vectorSpace].Map :=
+  Tensor.Universal[U := Exterior.Form (Nat.add p q), target := Result.vectorSpace].map apply bilinear;
+\definition onTensor: \forall (omega: Left.Form p)(eta: Right.Form q) -> tensor.apply (Tensor.tensor omega eta) = apply omega eta :=
+  \fun (omega: Left.Form p)(eta: Right.Form q) => Tensor.Universal[U := Exterior.Form (Nat.add p q), target := Result.vectorSpace].onTensor apply bilinear omega eta;
+\module InFrames(n, m: N.Nat^,
+  firstFrame: Bundles.Dimension[V := V, space := left].Frame n,
+  secondFrame: Bundles.Dimension[V := W, space := right].Frame m,
+  firstEnumeration: Operations.ExteriorIndices[n := n, k := p].Enumeration,
+  secondEnumeration: Operations.ExteriorIndices[n := m, k := q].Enumeration);

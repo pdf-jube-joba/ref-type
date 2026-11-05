@@ -1,0 +1,30 @@
+\definition forwardContinuous: topology.Continuity[A := Total, B := Product.CarrierSet].Continuous totalSpace productTopology forward :=
+  Product.Universal[X := Total].pairContinuous totalSpace space pointTotalSpace NativeFamily.projection projection NativeFamily.Of[bundle := bundle].projectionContinuous continuous;
+\definition first[z: Product.CarrierSet]: X := Pair.first X PointTotalCarrier z;
+\definition second[z: Product.CarrierSet]: PointTotalCarrier := Pair.second X PointTotalCarrier z;
+\definition firstContinuous: topology.Continuity[A := Product.CarrierSet, B := X].Continuous productTopology space first := Product.Maps[].firstContinuous space pointTotalSpace;
+\definition secondContinuous: topology.Continuity[A := Product.CarrierSet, B := PointTotalCarrier].Continuous productTopology pointTotalSpace second := Product.Maps[].secondContinuous space pointTotalSpace;
+\definition vector[z: Product.CarrierSet]: Bundles.Vector n := (second z).vector;
+\definition vectorContinuous: topology.Continuity[A := Product.CarrierSet, B := Bundles.Vector n].Continuous productTopology (Operations.coordinateTopology n) vector :=
+  topology.Composition[A := Product.CarrierSet, B := PointTotalCarrier, C := Bundles.Vector n].composeContinuous productTopology pointTotalSpace (Operations.coordinateTopology n)
+    second (\fun (p: PointTotalCarrier) => p.vector) secondContinuous PointBundle.vectorContinuous;
+\import topological_constructions.Product[A := X, B := Bundles.Vector n] \as Raw;
+\definition coordinates[z: Product.CarrierSet]: Raw.CarrierSet := Pair.pair X (Bundles.Vector n) (first z) (vector z);
+\definition coordinatesContinuous: topology.Continuity[A := Product.CarrierSet, B := Raw.CarrierSet].Continuous productTopology (Raw.topology space (Operations.coordinateTopology n)) coordinates :=
+  Raw.Universal[X := Product.CarrierSet].pairContinuous productTopology space (Operations.coordinateTopology n) first vector firstContinuous vectorContinuous;
+\definition backwardContinuous: topology.Continuity[A := Product.CarrierSet, B := Total].Continuous productTopology totalSpace backward :=
+  topology.Composition[A := Product.CarrierSet, B := Raw.CarrierSet, C := Total].composeContinuous productTopology (Raw.topology space (Operations.coordinateTopology n)) totalSpace
+    coordinates NativeBundle.backward coordinatesContinuous NativeBundle.backwardContinuous;
+\definition recover: \forall (p: PointTotalCarrier) -> PointFamily.include point p.vector = p :=
+  \fun (p: PointTotalCarrier) => trans!{PointTotalCarrier} _ _ _
+    (congr!{Point PointTotalCarrier} (\fun (q: Point) => PointFamily.include q p.vector) point p.base (sym!{Point} _ _ (pointUnique p.base))) (PointFamily.eta p);
+\definition leftInverse: \forall (p: Total) -> backward (forward p) = p := NativeFamily.eta;
+\definition rightInverse: \forall (z: Product.CarrierSet) -> forward (backward z) = z :=
+  \fun (z: Product.CarrierSet) => trans!{{Product.CarrierSet}} _ _ _
+    (congr!{PointTotalCarrier {Product.CarrierSet}} (Pair.pair X PointTotalCarrier (first z)) _ _ (recover (second z)))
+    (Pair.Prop[A := X, B := PointTotalCarrier].eta z);
+\definition homeomorphism: topology.Homeomorphism[A := Total, B := Product.CarrierSet].Homeomorphism[totalSpace, productTopology] :=
+  topology.Homeomorphism[A := Total, B := Product.CarrierSet].Homeomorphism[totalSpace, productTopology] {
+    forward := forward, backward := backward, leftInverse := leftInverse, rightInverse := rightInverse,
+    forwardContinuous := forwardContinuous, backwardContinuous := backwardContinuous
+  };

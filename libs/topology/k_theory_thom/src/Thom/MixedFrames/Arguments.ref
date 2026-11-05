@@ -1,0 +1,35 @@
+\import std.Data[].List[] \as L;
+\import L.Mapping[A := Fin.Fin Indices.total, B := Sum.Carrier].Prop[] \as Mapping;
+\import \root.Thom[].MixedIndices[n := n, m := m] \as Split;
+\definition left: \forall (xs: L.List[Fin.Fin n]) ->
+  L.map (Fin.Fin Indices.total) Sum.Carrier totalBasis.vectors (L.map (Fin.Fin n) (Fin.Fin Indices.total) Indices.left xs) =
+  L.map V Sum.Carrier inLeft (L.map (Fin.Fin n) V firstBasis.vectors xs) :=
+  \induction (xs: L.List[Fin.Fin n]) \return
+    L.map (Fin.Fin Indices.total) Sum.Carrier totalBasis.vectors (L.map (Fin.Fin n) (Fin.Fin Indices.total) Indices.left xs) =
+    L.map V Sum.Carrier inLeft (L.map (Fin.Fin n) V firstBasis.vectors xs) \with {
+      | nil: \refl(L.List[Sum.Carrier]::nil)
+      | cons: \fun (i: Fin.Fin n)(xs: L.List[Fin.Fin n])(previous: _) =>
+        congr!{{Sum.Carrier} {L.List[Sum.Carrier]} {L.List[Sum.Carrier]}} (L.List[Sum.Carrier]::cons) _ _ _ _ (leftVector i) previous
+    };
+\definition right: \forall (xs: L.List[Fin.Fin m]) ->
+  L.map (Fin.Fin Indices.total) Sum.Carrier totalBasis.vectors (L.map (Fin.Fin m) (Fin.Fin Indices.total) Indices.right xs) =
+  L.map W Sum.Carrier inRight (L.map (Fin.Fin m) W secondBasis.vectors xs) :=
+  \induction (xs: L.List[Fin.Fin m]) \return
+    L.map (Fin.Fin Indices.total) Sum.Carrier totalBasis.vectors (L.map (Fin.Fin m) (Fin.Fin Indices.total) Indices.right xs) =
+    L.map W Sum.Carrier inRight (L.map (Fin.Fin m) W secondBasis.vectors xs) \with {
+      | nil: \refl(L.List[Sum.Carrier]::nil)
+      | cons: \fun (i: Fin.Fin m)(xs: L.List[Fin.Fin m])(previous: _) =>
+        congr!{{Sum.Carrier} {L.List[Sum.Carrier]} {L.List[Sum.Carrier]}} (L.List[Sum.Carrier]::cons) _ _ _ _ (rightVector i) previous
+    };
+\definition equation[xs: L.List[Fin.Fin Indices.total]][parts: Split.Split xs]:
+  L.map (Fin.Fin Indices.total) Sum.Carrier totalBasis.vectors xs =
+  L.append Sum.Carrier (L.map V Sum.Carrier inLeft (L.map (Fin.Fin n) V firstBasis.vectors parts.left))
+    (L.map W Sum.Carrier inRight (L.map (Fin.Fin m) W secondBasis.vectors parts.right)) :=
+  trans!{{L.List[Sum.Carrier]}} _ _ _
+    (congr!{{L.List[Fin.Fin Indices.total]} {L.List[Sum.Carrier]}} (L.map (Fin.Fin Indices.total) Sum.Carrier totalBasis.vectors) _ _
+      (sym!{{L.List[Fin.Fin Indices.total]}} _ _ parts.equation))
+    (trans!{{L.List[Sum.Carrier]}} _ _ _
+      (Mapping.mapAppend totalBasis.vectors
+        (L.map (Fin.Fin n) (Fin.Fin Indices.total) Indices.left parts.left)
+        (L.map (Fin.Fin m) (Fin.Fin Indices.total) Indices.right parts.right))
+      (congr!{{L.List[Sum.Carrier]} {L.List[Sum.Carrier]} {L.List[Sum.Carrier]}} (L.append Sum.Carrier) _ _ _ _ (left parts.left) (right parts.right)));

@@ -1,0 +1,67 @@
+\import Spaces.DirectSum[V := U, W := T, left := even, right := odd] \as Split;
+\import Spaces.Isomorphism[V := Tensor.Carrier, W := Split.Carrier, source := Tensor.space, target := Split.space] \as Decomposition;
+\definition decompositionLaws: Decomposition.Laws[decomposition] := \bysub(Decomposition.Data, Decomposition.Isomorphism, decomposition);
+\definition Compatible: \Prop := \forall (z: Tensor.Carrier) -> decomposition.forward.apply (parity.apply z) =
+  Split.make (Split.first (decomposition.forward.apply z)) (odd.neg (Split.second (decomposition.forward.apply z)));
+\import Spaces.Linear[V := Tensor.Carrier, W := U, source := Tensor.space, target := even] \as EvenProjection;
+\definition projectEven: EvenProjection.Map := EvenProjection.Map {
+  apply := \fun (z: Tensor.Carrier) => Split.first (decomposition.forward.apply z),
+  preservesAdd := \fun (z, w: Tensor.Carrier) => congr!{{Split.Carrier} U} Split.first _ _ (decomposition.forward.preservesAdd z w),
+  preservesScale := \fun (a: C.Complex)(z: Tensor.Carrier) => congr!{{Split.Carrier} U} Split.first _ _ (decomposition.forward.preservesScale a z)
+};
+\import Spaces.Linear[V := Tensor.Carrier, W := T, source := Tensor.space, target := odd] \as OddProjection;
+\definition projectOdd: OddProjection.Map := OddProjection.Map {
+  apply := \fun (z: Tensor.Carrier) => Split.second (decomposition.forward.apply z),
+  preservesAdd := \fun (z, w: Tensor.Carrier) => congr!{{Split.Carrier} T} Split.second _ _ (decomposition.forward.preservesAdd z w),
+  preservesScale := \fun (a: C.Complex)(z: Tensor.Carrier) => congr!{{Split.Carrier} T} Split.second _ _ (decomposition.forward.preservesScale a z)
+};
+\import Spaces.Linear[V := U, W := Tensor.Carrier, source := even, target := Tensor.space] \as EvenInclusion;
+\import Spaces.Laws[V := U, space := even] \as EvenLaws;
+\import Spaces.Laws[V := T, space := odd] \as OddLaws;
+\definition embedEven: EvenInclusion.Map := EvenInclusion.Map {
+  apply := \fun (v: U) => decomposition.backward.apply (Split.make v odd.zero),
+  preservesAdd := \fun (v, w: U) => trans!{{Tensor.Carrier}} _ _ _
+    (congr!{{Split.Carrier} {Tensor.Carrier}} decomposition.backward.apply _ _
+      (std.Data[].Pair[].Prop[A := U, B := T].pairCong _ _ _ _ (\refl(even.add v w)) (sym!{T} _ _ (OddLaws.zeroLeft odd.zero))))
+    (decomposition.backward.preservesAdd (Split.make v odd.zero) (Split.make w odd.zero)),
+  preservesScale := \fun (a: C.Complex)(v: U) => trans!{{Tensor.Carrier}} _ _ _
+    (congr!{{Split.Carrier} {Tensor.Carrier}} decomposition.backward.apply _ _
+      (std.Data[].Pair[].Prop[A := U, B := T].pairCong _ _ _ _ (\refl(even.smul a v)) (sym!{T} _ _ (OddLaws.scaleZero a))))
+    (decomposition.backward.preservesScale a (Split.make v odd.zero))
+};
+\import Spaces.Linear[V := T, W := Tensor.Carrier, source := odd, target := Tensor.space] \as OddInclusion;
+\definition embedOdd: OddInclusion.Map := OddInclusion.Map {
+  apply := \fun (v: T) => decomposition.backward.apply (Split.make even.zero v),
+  preservesAdd := \fun (v, w: T) => trans!{{Tensor.Carrier}} _ _ _
+    (congr!{{Split.Carrier} {Tensor.Carrier}} decomposition.backward.apply _ _
+      (std.Data[].Pair[].Prop[A := U, B := T].pairCong _ _ _ _ (sym!{U} _ _ (EvenLaws.zeroLeft even.zero)) (\refl(odd.add v w))))
+    (decomposition.backward.preservesAdd (Split.make even.zero v) (Split.make even.zero w)),
+  preservesScale := \fun (a: C.Complex)(v: T) => trans!{{Tensor.Carrier}} _ _ _
+    (congr!{{Split.Carrier} {Tensor.Carrier}} decomposition.backward.apply _ _
+      (std.Data[].Pair[].Prop[A := U, B := T].pairCong _ _ _ _ (sym!{U} _ _ (EvenLaws.scaleZero a)) (\refl(odd.smul a v))))
+    (decomposition.backward.preservesScale a (Split.make even.zero v))
+};
+\definition evenDecode[v: U]: projectEven.apply (embedEven.apply v) = v := congr!{{Split.Carrier} U} Split.first _ _ (decompositionLaws.rightInverse (Split.make v odd.zero));
+\definition oddDecode[v: T]: projectOdd.apply (embedOdd.apply v) = v := congr!{{Split.Carrier} T} Split.second _ _ (decompositionLaws.rightInverse (Split.make even.zero v));
+\definition reconstruction[z: Tensor.Carrier]: Tensor.plus (embedEven.apply (projectEven.apply z)) (embedOdd.apply (projectOdd.apply z)) = z :=
+  trans!{{Tensor.Carrier}} _ _ _
+    (sym!{{Tensor.Carrier}} _ _ (decomposition.backward.preservesAdd (Split.make (projectEven.apply z) odd.zero) (Split.make even.zero (projectOdd.apply z))))
+    (trans!{{Tensor.Carrier}} _ _ _
+      (congr!{{Split.Carrier} {Tensor.Carrier}} decomposition.backward.apply _ _
+        (std.Data[].Pair[].Prop[A := U, B := T].ext _ _ (EvenLaws.zeroRight (projectEven.apply z)) (OddLaws.zeroLeft (projectOdd.apply z))))
+      (decompositionLaws.leftInverse z));
+\import real.Analysis[] \as Real;
+\import linear_algebra.Hermitian[].Complex[] \as Hermitian;
+\definition half: C.Complex := Hermitian.scalar.embed Real.half;
+\definition doubleHalf: Scalar.add half half = Scalar.one := trans!{{C.Complex}} _ _ _
+  (sym!{{C.Complex}} _ _ (Hermitian.scalar.embedAdd Real.half Real.half))
+  (trans!{{C.Complex}} _ _ _ (congr!{{Real.Real} {C.Complex}} Hermitian.scalar.embed _ _ Real.Estimates[].halfDouble) Hermitian.scalar.embedOne);
+\definition injective[z, w: Tensor.Carrier][same: decomposition.forward.apply z = decomposition.forward.apply w]: z = w :=
+  trans!{{Tensor.Carrier}} _ _ _ (sym!{{Tensor.Carrier}} _ _ (decompositionLaws.leftInverse z))
+    (trans!{{Tensor.Carrier}} _ _ _ (congr!{{Split.Carrier} {Tensor.Carrier}} decomposition.backward.apply _ _ same) (decompositionLaws.leftInverse w));
+\definition evenNegZero: even.neg even.zero = even.zero := trans!{U} _ _ _
+  (sym!{U} _ _ (EvenLaws.minusOneScale even.zero)) (EvenLaws.scaleZero (Scalar.neg Scalar.one));
+\definition oddNegZero: odd.neg odd.zero = odd.zero := trans!{T} _ _ _
+  (sym!{T} _ _ (OddLaws.minusOneScale odd.zero)) (OddLaws.scaleZero (Scalar.neg Scalar.one));
+\import Spaces.Linear[V := Tensor.Carrier, W := Split.Carrier, source := Tensor.space, target := Split.space].Operations[] \as DecompositionOperations;
+\module With(compatible: Compatible);

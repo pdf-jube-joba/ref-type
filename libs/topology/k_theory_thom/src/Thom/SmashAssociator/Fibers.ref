@@ -1,0 +1,39 @@
+\import \parent.Collapsed[] \as Collapsed;
+\definition leftSeparates: \forall (z, w: Triple) -> left z = left w ->
+  Logic.Or[z = w, Logic.And[LeftCollapsed z, LeftCollapsed w]] :=
+  \fun (z, w: Triple)(same: _) => Logic.orElim[_, _, Logic.Or[z = w, Logic.And[LeftCollapsed z, LeftCollapsed w]]]
+    (LeftFibers.separates (leftRaw z) (leftRaw w) same)
+    (\fun (equal: leftRaw z = leftRaw w) => Logic.orElim[_, _, Logic.Or[z = w, Logic.And[LeftCollapsed z, LeftCollapsed w]]]
+      (ABFibers.separates (ab z) (ab w) (congr!{{Left.model.Carrier} {AB.result.Carrier}} Left.first _ _ equal))
+      (\fun (equalAB: ab z = ab w) => Logic.Or[_, _]::left (ext z w
+        (congr!{{AB.model.Carrier} {first.Carrier}} AB.first _ _ equalAB)
+        (congr!{{AB.model.Carrier} {second.Carrier}} AB.second _ _ equalAB)
+        (congr!{{Left.model.Carrier} {third.Carrier}} Left.second _ _ equal)))
+      (\fun (both: Logic.And[\In[AB.model.Carrier] AB.wedge (ab z), \In[AB.model.Carrier] AB.wedge (ab w)]) => Logic.Or[_, _]::right (Logic.And[_, _]::#
+        (Logic.Or[_, _]::left both.left) (Logic.Or[_, _]::left both.right))))
+    (\fun (both: Logic.And[\In[Left.model.Carrier] Left.wedge (leftRaw z), \In[Left.model.Carrier] Left.wedge (leftRaw w)]) => Logic.Or[_, _]::right (Logic.And[_, _]::# (Collapsed.reflectLeft z both.left) (Collapsed.reflectLeft w both.right)));
+\definition rightSeparates: \forall (z, w: Triple) -> right z = right w ->
+  Logic.Or[z = w, Logic.And[RightCollapsed z, RightCollapsed w]] :=
+  \fun (z, w: Triple)(same: _) => Logic.orElim[_, _, Logic.Or[z = w, Logic.And[RightCollapsed z, RightCollapsed w]]]
+    (RightFibers.separates (rightRaw z) (rightRaw w) same)
+    (\fun (equal: rightRaw z = rightRaw w) => Logic.orElim[_, _, Logic.Or[z = w, Logic.And[RightCollapsed z, RightCollapsed w]]]
+      (BCFibers.separates (bc z) (bc w) (congr!{{Right.model.Carrier} {BC.result.Carrier}} Right.second _ _ equal))
+      (\fun (equalBC: bc z = bc w) => Logic.Or[_, _]::left (ext z w
+        (congr!{{Right.model.Carrier} {first.Carrier}} Right.first _ _ equal)
+        (congr!{{BC.model.Carrier} {second.Carrier}} BC.first _ _ equalBC)
+        (congr!{{BC.model.Carrier} {third.Carrier}} BC.second _ _ equalBC)))
+      (\fun (both: Logic.And[\In[BC.model.Carrier] BC.wedge (bc z), \In[BC.model.Carrier] BC.wedge (bc w)]) => Logic.Or[_, _]::right (Logic.And[_, _]::#
+        (Logic.Or[_, _]::right both.left) (Logic.Or[_, _]::right both.right))))
+    (\fun (both: Logic.And[\In[Right.model.Carrier] Right.wedge (rightRaw z), \In[Right.model.Carrier] Right.wedge (rightRaw w)]) => Logic.Or[_, _]::right (Logic.And[_, _]::# (Collapsed.reflectRight z both.left) (Collapsed.reflectRight w both.right)));
+\definition forward: \forall (z, w: Triple) -> left z = left w -> right z = right w :=
+  \fun (z, w: Triple)(same: _) => Logic.orElim[_, _, right z = right w] (leftSeparates z w same)
+    (\fun (equal: z = w) => congr!{Triple {Right.result.Carrier}} right z w equal)
+    (\fun (both: Logic.And[LeftCollapsed z, LeftCollapsed w]) => trans!{{Right.result.Carrier}} _ _ _
+      (Collapsed.collapseRight z (Collapsed.leftToRight z both.left))
+      (sym!{{Right.result.Carrier}} _ _ (Collapsed.collapseRight w (Collapsed.leftToRight w both.right))));
+\definition backward: \forall (z, w: Triple) -> right z = right w -> left z = left w :=
+  \fun (z, w: Triple)(same: _) => Logic.orElim[_, _, left z = left w] (rightSeparates z w same)
+    (\fun (equal: z = w) => congr!{Triple {Left.result.Carrier}} left z w equal)
+    (\fun (both: Logic.And[RightCollapsed z, RightCollapsed w]) => trans!{{Left.result.Carrier}} _ _ _
+      (Collapsed.collapseLeft z (Collapsed.rightToLeft z both.left))
+      (sym!{{Left.result.Carrier}} _ _ (Collapsed.collapseLeft w (Collapsed.rightToLeft w both.right))));

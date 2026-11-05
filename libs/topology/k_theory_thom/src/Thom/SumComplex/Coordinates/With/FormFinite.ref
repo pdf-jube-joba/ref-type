@@ -1,0 +1,22 @@
+\import \root.Thom[].Finite[X := X, baseSpace := left.baseSpace] \as Finite;
+\definition domain: \Pow X := { x: X \where Logic.Not (section.value x = (sum.space x).zero) };
+\import Finite.Family[term := formModel, differential := formDifferential, domain := domain] \as Sequence;
+\definition square: \forall (n: N.Nat^)(x: X)(v: FormVector (N.Nat^::succ (N.Nat^::succ n)) x) ->
+  ((formDifferential n).fiber x).apply (((formDifferential (N.Nat^::succ n)).fiber x).apply v) = ((Models.bundle (formModel n)).space x).zero :=
+  \fun (n: N.Nat^)(x: X) => \parent.FormAtPoint[x := x].square n;
+\definition RawClosed[n: N.Nat^][x: X][v: FormVector n x]: \Prop :=
+  \root.Thom[].Algebra[V := Sum.Fiber x, space := sum.space x].Closed n (section.value x) ((decodeForm n x).apply v);
+\definition rawClosed: \forall (n: N.Nat^)(x: X)(v: FormVector n x) -> Sequence.Closed n x v -> RawClosed n x v :=
+  \induction (n: N.Nat^) \return \forall (x: X)(v: FormVector n x) -> Sequence.Closed n x v -> RawClosed n x v \with {
+    | zero: \fun (x: X)(v: FormVector N.Nat^::zero x)(closed: _) =>
+      Raw.FormExact[x := x].closedAtZero ((decodeForm N.Nat^::zero x).apply v)
+    | succ: \fun (n: N.Nat^)(unused: _)(x: X)(v: FormVector (N.Nat^::succ n) x)(closed: _) =>
+      Raw.FormExact[x := x].closedAtSuccessor n ((decodeForm (N.Nat^::succ n) x).apply v)
+        (\parent.FormAtPoint[x := x].rawClosed n v closed)
+  };
+\definition exact: \forall (n: N.Nat^)(x: X) -> \In[X] domain x -> \forall (v: FormVector n x) -> Sequence.Closed n x v ->
+  \exists (w: FormVector (N.Nat^::succ n) x \where ((formDifferential n).fiber x).apply w = v) :=
+  \fun (n: N.Nat^)(x: X)(nonzero: \In[X] domain x)(v: FormVector n x)(closed: _) =>
+    \parent.FormAtPoint[x := x].preimage n v nonzero (rawClosed n x v closed);
+\import Sequence.With[squareZero := square, exact := exact] \as Construction;
+\module At(n: N.Nat^, zeroAbove: \forall (x: X)(omega: Form n x) -> omega = ((forms n).space x).zero);

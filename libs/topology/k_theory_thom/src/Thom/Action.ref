@@ -1,0 +1,60 @@
+\use Equality.eq_reason_in;
+\import relative_k_theory.Relative[] \as Relative;
+\import Relative.Pair[X := X, space := space, compact := compact, hausdorff := hausdorff, subset := subset, closed := closed] \as Pair;
+\import Relative.Absolute[X := B, space := baseSpace, compact := baseCompact, hausdorff := baseHausdorff] \as Absolute;
+\import topology.Topology[Carrier := B] \as Base;
+\import Relative.Pair[X := B, space := baseSpace, compact := baseCompact, hausdorff := baseHausdorff,
+  subset := Base.Empty, closed := Absolute.emptyClosed] \as BasePair;
+\import topological_k_theory.KTheory[].On[X := B, baseSpace := baseSpace, compact := baseCompact, hausdorff := baseHausdorff].K0[] \as K;
+\import Relative.Equivalence[source := Absolute.model, target := BasePair.Quotient[].model].With[e := Absolute.equivalence].Groups[] \as Coefficients;
+\definition coefficient[a: K.Carrier]: BasePair.Quotient[].Relative := Coefficients.backward (Absolute.forward a);
+\definition coefficientAdd: \forall (a, b: K.Carrier) -> coefficient (K.add a b) = BasePair.Quotient[].group.base.op (coefficient a) (coefficient b) :=
+  \fun (a, b: K.Carrier) => trans!{{BasePair.Quotient[].Relative}} _ _ _
+    (congr!{{Relative.Reduced[model := Absolute.model].Carrier} {BasePair.Quotient[].Relative}} Coefficients.backward _ _ (Absolute.Additive[].forwardAdd a b))
+    (Coefficients.backwardAdd (Absolute.forward a) (Absolute.forward b));
+\import BasePair.Product[Y := X, otherSpace := space, otherCompact := compact, otherHausdorff := hausdorff,
+  otherSubset := subset, otherClosed := closed] \as Product;
+\import Relative.Pair[X := Product.Z, space := Product.topology, compact := Product.compactProduct, hausdorff := Product.hausdorffProduct,
+  subset := Product.boundary, closed := Product.boundaryClosed] \as ProductPair;
+\import std.Data[].Pair[] \as Pairs;
+\import topological_constructions.Product[A := B, B := X] \as Cartesian;
+\definition diagonal[x: X]: Product.Z := Pairs.pair B X (f x) x;
+\definition diagonalContinuous: topology.Continuity[A := X, B := Product.Z].Continuous space Product.topology diagonal :=
+  Cartesian.Universal[X := X].pairContinuous space baseSpace space f (\fun (x: X) => x) regular
+    (topology.Maps[A := X, B := X].Identity[].continuous space);
+\definition preserves: \forall (x: X) -> \In[X] subset x -> \In[Product.Z] Product.boundary (diagonal x) :=
+  \fun (x: X)(member: _) => Logic.Or[_, _]::right member;
+\import ProductPair.Mapping[Y := X, source := space, sourceCompact := compact, sourceHausdorff := hausdorff,
+  sourceSubset := subset, sourceClosed := closed, f := diagonal, regular := diagonalContinuous, preserves := preserves] \as Pullback;
+\definition multiply[a: K.Carrier][u: Pair.Quotient[].Relative]: Pair.Quotient[].Relative :=
+  Pullback.relative (Product.External[].product (coefficient a) u);
+\definition additiveLeft: \forall (a, b: K.Carrier)(u: Pair.Quotient[].Relative) ->
+  multiply (K.add a b) u = Pair.Quotient[].group.base.op (multiply a u) (multiply b u) :=
+  \fun (a, b: K.Carrier)(u: Pair.Quotient[].Relative) => eq_reason_in!{{Pair.Quotient[].Relative} _
+    "=" { Pullback.relative (Product.External[].product (BasePair.Quotient[].group.base.op (coefficient a) (coefficient b)) u) } "by" {
+      congr!{{BasePair.Quotient[].Relative} {Pair.Quotient[].Relative}}
+        (\fun (c: BasePair.Quotient[].Relative) => Pullback.relative (Product.External[].product c u)) _ _ (coefficientAdd a b) }
+    "=" { Pullback.relative (Product.group.base.op (Product.External[].product (coefficient a) u) (Product.External[].product (coefficient b) u)) } "by" {
+      congr!{{Product.Relative} {Pair.Quotient[].Relative}} Pullback.relative _ _ (Product.External[].additiveLeft (coefficient a) (coefficient b) u) }
+    "=" _ "by" { Pullback.additive (Product.External[].product (coefficient a) u) (Product.External[].product (coefficient b) u) }
+  };
+\definition additiveRight: \forall (a: K.Carrier)(u, v: Pair.Quotient[].Relative) ->
+  multiply a (Pair.Quotient[].group.base.op u v) = Pair.Quotient[].group.base.op (multiply a u) (multiply a v) :=
+  \fun (a: K.Carrier)(u, v: Pair.Quotient[].Relative) => trans!{{Pair.Quotient[].Relative}} _ _ _
+    (congr!{{Product.Relative} {Pair.Quotient[].Relative}} Pullback.relative _ _ (Product.External[].additiveRight (coefficient a) u v))
+    (Pullback.additive (Product.External[].product (coefficient a) u) (Product.External[].product (coefficient a) v));
+\definition zeroLeft: \forall (u: Pair.Quotient[].Relative) -> multiply K.zero u = Pair.Quotient[].group.base.unit :=
+  \fun (u: Pair.Quotient[].Relative) => eq_reason_in!{{Pair.Quotient[].Relative} _
+    "=" { Pullback.relative (Product.External[].product BasePair.Quotient[].group.base.unit u) } "by" {
+      congr!{{BasePair.Quotient[].Relative} {Pair.Quotient[].Relative}}
+        (\fun (c: BasePair.Quotient[].Relative) => Pullback.relative (Product.External[].product c u)) _ _
+        (trans!{{BasePair.Quotient[].Relative}} _ _ _
+          (congr!{{Relative.Reduced[model := Absolute.model].Carrier} {BasePair.Quotient[].Relative}} Coefficients.backward _ _ Absolute.Additive[].forwardZero)
+          Coefficients.backwardZero) }
+    "=" { Pullback.relative Product.group.base.unit } "by" { congr!{{Product.Relative} {Pair.Quotient[].Relative}} Pullback.relative _ _ (Product.External[].zeroLeft u) }
+    "=" _ "by" { Pullback.preservesZero }
+  };
+\definition zeroRight: \forall (a: K.Carrier) -> multiply a Pair.Quotient[].group.base.unit = Pair.Quotient[].group.base.unit :=
+  \fun (a: K.Carrier) => trans!{{Pair.Quotient[].Relative}} _ _ _
+    (congr!{{Product.Relative} {Pair.Quotient[].Relative}} Pullback.relative _ _ (Product.External[].zeroRight (coefficient a)))
+    Pullback.preservesZero;

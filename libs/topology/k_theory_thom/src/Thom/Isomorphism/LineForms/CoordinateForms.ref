@@ -1,0 +1,36 @@
+\import Linear.FiniteCoordinates[n := one] \as Basis;
+\import Linear.Coordinates[I := Fin.Fin one].Kronecker[] \as Kronecker;
+\import Linear.Multilinear[V := Bundles.Vector one, space := Bundles.coordinates one] \as Forms;
+\import Forms.Alternating[] \as Alternate;
+\definition basis: Bundles.Vector one := Basis.vectors index;
+\definition constant[v: Bundles.Vector one]: Forms.Arguments one := \fun (i: Fin.Fin one) => v;
+\definition basisCoordinates: \forall (v: Bundles.Vector one) -> (Bundles.coordinates one).smul (v index) basis = v :=
+  \fun (v: Bundles.Vector one) => \axiom:funext((Bundles.coordinates one).smul (v index) basis, v,
+    \fun (i: Fin.Fin one) => trans!{{C.Complex}} _ _ _
+      (congr!{{C.Complex} {C.Complex}} (Scalar.mul (v index)) _ _
+        (Kronecker.equal index i (sym!{{Fin.Fin one}} _ _ (Fin.singletonValue i))))
+      (trans!{{C.Complex}} _ _ _ (Laws.mulOneRight (v index))
+        (congr!{{Fin.Fin one} {C.Complex}} v _ _ (sym!{{Fin.Fin one}} _ _ (Fin.singletonValue i)))));
+\definition updateConstant: \forall (v: Forms.Arguments one)(w: Bundles.Vector one) -> Forms.update one v index w = constant w :=
+  \fun (v: Forms.Arguments one)(w: Bundles.Vector one) => \axiom:funext(Forms.update one v index w, constant w,
+    \fun (i: Fin.Fin one) => trans!{{Bundles.Vector one}} _ _ _
+      (congr!{{Fin.Fin one} {Bundles.Vector one}} (Forms.update one v index w) _ _ (Fin.singletonValue i))
+      (Forms.Properties[].updateSelf one v index w));
+\definition homogeneous: \forall (omega: Alternate.Form one)(v: Bundles.Vector one) ->
+  omega (constant v) = Scalar.mul (v index) (omega (constant basis)) :=
+  \fun (omega: Alternate.Form one)(v: Bundles.Vector one) => trans!{{C.Complex}} _ _ _
+    (congr!{{Forms.Arguments one} {C.Complex}} omega _ _
+      (sym!{{Forms.Arguments one}} _ _ (trans!{{Forms.Arguments one}} _ _ _
+        (updateConstant (constant basis) ((Bundles.coordinates one).smul (v index) basis))
+        (congr!{{Bundles.Vector one} {Forms.Arguments one}} constant _ _ (basisCoordinates v)))))
+    (trans!{{C.Complex}} _ _ _
+      ((\bysub(Forms.Function one, Alternate.Form one, omega)).linear.scalar (constant basis) index (v index) basis)
+      (congr!{{C.Complex} {C.Complex}} (Scalar.mul (v index)) _ _
+        (congr!{{Forms.Arguments one} {C.Complex}} omega _ _ (updateConstant (constant basis) basis))));
+\definition extendZero: \forall (v: Bundles.Vector one)(arguments: Fin.Fin N.Nat^::zero -> Bundles.Vector one) ->
+  Fin.Tuples[A := Bundles.Vector one].extend N.Nat^::zero v arguments = constant v :=
+  \fun (v: Bundles.Vector one)(arguments: Fin.Fin N.Nat^::zero -> Bundles.Vector one) =>
+    \axiom:funext(Fin.Tuples[A := Bundles.Vector one].extend N.Nat^::zero v arguments, constant v,
+      \fun (i: Fin.Fin one) => trans!{{Bundles.Vector one}} _ _ _
+        (congr!{{Fin.Fin one} {Bundles.Vector one}} (Fin.Tuples[A := Bundles.Vector one].extend N.Nat^::zero v arguments) _ _ (Fin.singletonValue i))
+        (Fin.Tuples[A := Bundles.Vector one].atZero N.Nat^::zero v arguments));

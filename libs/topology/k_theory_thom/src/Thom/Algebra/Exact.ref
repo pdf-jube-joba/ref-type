@@ -1,0 +1,41 @@
+\use Equality.eq_reason_in;
+\import Exterior.Degrees[p := one, q := k] \as Wedge;
+\definition degree: Nat.add one k = N.Nat^::succ k := trans!{{N.Nat^}} _ _ _
+  (Naturals.addSuccLeft N.Nat^::zero k)
+  (congr!{{N.Nat^} {N.Nat^}} N.Nat^::succ _ _ (Naturals.addZeroLeft k));
+\import Exterior.Regrade[k := Nat.add one k, l := N.Nat^::succ k] \as Regrade;
+\import Exterior.SeriesShift[k := k] \as Shift;
+\import Exterior.Components[k := k] \as Components;
+\import Forms.Contraction[k := k] \as Contract;
+\definition primitive[omega: Forms.Form k]: Forms.Form (N.Nat^::succ k) := Regrade.cast (Wedge.wedge ell omega) degree;
+\definition primitiveSeries: \forall (omega: Forms.Form k) -> Exterior.component (N.Nat^::succ k) (primitive omega) = Shuffle.product (series ell) (Exterior.component k omega) :=
+  \fun (omega: Forms.Form k) => trans!{{Shuffle.Function}} _ _ _
+    (Regrade.series (Wedge.wedge ell omega) degree) (Wedge.componentWedge ell omega);
+\definition left: \forall (omega: Forms.Form k)(xs: Lists.List[V]) ->
+  Shuffle.product (Shuffle.shift v (series ell)) (Exterior.component k omega) xs = Exterior.component k omega xs :=
+  \fun (omega: Forms.Form k)(xs: Lists.List[V]) => eq_reason_in!{C.Complex _
+    "=" { Shuffle.product (Shuffle.shift v (Covectors.value (evaluate ell))) (Exterior.component k omega) xs } "by" {
+      congr!{{Shuffle.Function} {C.Complex}} (\fun (f: Shuffle.Function) => Shuffle.product (Shuffle.shift v f) (Exterior.component k omega) xs) _ _ (covector ell) }
+    "=" { Op.mul (evaluate ell v) (Exterior.component k omega xs) } "by" { Covectors.leftProduct (evaluate ell) (Exterior.component k omega) v xs }
+    "=" { Op.mul Op.one (Exterior.component k omega xs) } "by" { congr!{{C.Complex} {C.Complex}} (\fun (a: C.Complex) => Op.mul a (Exterior.component k omega xs)) _ _ normalized }
+    "=" _ "by" { Laws.mulOneLeft (Exterior.component k omega xs) }
+  };
+\definition right: \forall (omega: Forms.Form k) -> Closed k v omega -> \forall (xs: Lists.List[V]) ->
+  Shuffle.product (Shuffle.twist (series ell)) (Shuffle.shift v (Exterior.component k omega)) xs = Op.zero :=
+  \fun (omega: Forms.Form k)(closed: Closed k v omega)(xs: Lists.List[V]) => trans!{{C.Complex}} _ _ _
+    (Products.congruent (Shuffle.twist (series ell)) (Shuffle.twist (series ell))
+      (Shuffle.shift v (Exterior.component k omega)) Shuffle.origin
+      (\fun (ys: Lists.List[V]) => \refl(Shuffle.twist (series ell) ys)) closed xs)
+    (Products.zeroRight (Shuffle.twist (series ell)) xs);
+\definition equation: \forall (omega: Forms.Form k) -> Closed k v omega -> Contract.apply (primitive omega) v = omega :=
+  \fun (omega: Forms.Form k)(closed: Closed k v omega) => Components.ext _ _
+    (\axiom:funext(Exterior.component k (Contract.apply (primitive omega) v), Exterior.component k omega,
+      \fun (xs: Lists.List[V]) => eq_reason_in!{C.Complex _
+        "=" { Exterior.component (N.Nat^::succ k) (primitive omega) (Lists.List[V]::cons v xs) } "by" { sym!{{C.Complex}} _ _ (Shift.atCons (primitive omega) v xs) }
+        "=" { Shuffle.product (series ell) (Exterior.component k omega) (Lists.List[V]::cons v xs) } "by" {
+          congr!{{Shuffle.Function} {C.Complex}} (\fun (f: Shuffle.Function) => f (Lists.List[V]::cons v xs)) _ _ (primitiveSeries omega) }
+        "=" { Op.add (Shuffle.product (Shuffle.shift v (series ell)) (Exterior.component k omega) xs)
+          (Shuffle.product (Shuffle.twist (series ell)) (Shuffle.shift v (Exterior.component k omega)) xs) } "by" { Shuffle.atCons v xs (series ell) (Exterior.component k omega) }
+        "=" { Op.add (Exterior.component k omega xs) Op.zero } "by" { congr!{{C.Complex} {C.Complex} {C.Complex}} Op.add _ _ _ _ (left omega xs) (right omega closed xs) }
+        "=" _ "by" { Laws.addZeroRight (Exterior.component k omega xs) }
+      }));

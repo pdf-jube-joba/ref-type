@@ -1,0 +1,37 @@
+\import topology.Topology[Carrier := X] \as Base;
+\definition Domain: \Pow PairFamily.Point := { y: PairFamily.Point \where Base.Member s.domain y.base };
+\definition Point: \Set := \Cast[PairFamily.Point] Domain;
+\import topology.Topology[Carrier := PairFamily.Point].Subspace[S := Domain] \as Subspace;
+\definition source: topology.Topology[Carrier := Point].Topology := Subspace.topology Pairs.topology;
+\definition center[y: Point]: \Cast[X] s.domain := \into[X](y.base, s.domain) \by { \bysub(PairFamily.Point, Domain, y) };
+\definition Index: \Set := Fin.Fin k;
+\import Fin.FromList[A := Index] \as IndexLists;
+\definition indices: Lists.List[Index] := IndexLists.list k (\fun (i: Index) => i);
+\definition vector[y: Point][i: Index]: Sum.Fiber y.base := s.value i (center y);
+\definition firstValue[xs: Lists.List[Index]][y: Point]: C.Complex :=
+  Spaces.Exterior[V := F y.base, space := left.space y.base].component p (Pairs.first y).vector
+    (Lists.map (Sum.Fiber y.base) (F y.base) (Spaces.DirectSum[V := F y.base, W := G y.base, left := left.space y.base, right := right.space y.base].first)
+      (Lists.map Index (Sum.Fiber y.base) (vector y) xs));
+\definition secondValue[xs: Lists.List[Index]][y: Point]: C.Complex :=
+  Spaces.Exterior[V := G y.base, space := right.space y.base].component q (Pairs.second y).vector
+    (Lists.map (Sum.Fiber y.base) (G y.base) (Spaces.DirectSum[V := F y.base, W := G y.base, left := left.space y.base, right := right.space y.base].second)
+      (Lists.map Index (Sum.Fiber y.base) (vector y) xs));
+\import hermitian_frames.Hermitian[].Over[K := C.Complex, field := C.Algebra[].field,
+  scalar := linear_algebra.Hermitian[].Complex[].scalar, topological := Scalars.scalar.topological].Functions[X := Point] \as ScalarFunctions;
+\module First(xs: Lists.List[Index]);
+\module Second(xs: Lists.List[Index]);
+\import Spaces.Shuffle[I := Index] \as Shuffle;
+\import Spaces.Sums[I := Shuffle.Split] \as Sums;
+\import Operations.ScalarFunctions[X := Point] \as Functions;
+\definition term[split: Shuffle.Split][y: Point]: C.Complex := Op.mul split.weight (Op.mul (firstValue split.left y) (secondValue split.right y));
+\definition termContinuous[split: Shuffle.Split]: ScalarFunctions.Continuous source (term split) :=
+  ScalarFunctions.multiplication source (\fun (y: Point) => split.weight) (\fun (y: Point) => Op.mul (firstValue split.left y) (secondValue split.right y))
+    (ScalarFunctions.constant source split.weight)
+    (ScalarFunctions.multiplication source (firstValue split.left) (secondValue split.right) (First[xs := split.left].continuous) (Second[xs := split.right].continuous));
+\definition value[y: Point]: C.Complex := Alternating.evaluate s
+  (\into[TargetFamily.Point](pureTotal y, { z: TargetFamily.Point \where Base.Member s.domain z.base }) \by { \bysub(PairFamily.Point, Domain, y) });
+\module At(y: Point);
+\definition continuous: topology.Continuity[A := Point, B := C.Complex].Continuous source Scalars.scalar.topological.space value :=
+  ScalarFunctions.transport source (\fun (y: Point) => Sums.sum (Shuffle.partitions indices) (\fun (split: Shuffle.Split) => term split y)) value
+    (\fun (y: Point) => sym!{{C.Complex}} _ _ (At[y := y].equation))
+    (Functions.Sums[I := Shuffle.Split].continuous (Shuffle.partitions indices) source term termContinuous);

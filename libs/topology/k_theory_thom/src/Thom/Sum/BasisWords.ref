@@ -1,0 +1,60 @@
+\import Spaces.Shuffle[I := U] \as Series;
+\import Series.Boundary[].OneCovector[] \as Covectors;
+\import Spaces.Exterior[V := U, space := vectorSpace] \as Algebra;
+\import Spaces.FiniteCoordinates[n := r].Exterior[] \as Coordinates;
+\import Spaces.Shuffle[I := Operations.Vector r] \as CoordinateSeries;
+\import CoordinateSeries.Boundary[].OneCovector[] \as CoordinateCovectors;
+\import \parent.SeriesWords[I := Operations.Vector r, A := Fin.Fin r,
+  covector := \fun (i: Fin.Fin r) => CoordinateCovectors.value (\fun (v: Operations.Vector r) => v i)] \as CoordinateWords;
+\import \parent.SeriesWords[I := U, A := Fin.Fin r,
+  covector := \fun (i: Fin.Fin r) => Covectors.value (\fun (v: U) => frame.forward.apply v i)] \as Words;
+\import Fin.FromList[A := Fin.Fin r] \as IndexLists;
+\import Bundles.Dimension[V := U, space := vectorSpace].At[n := r] \as Dimension;
+\definition basis: Spaces.Finite[V := U, I := Fin.Fin r, space := vectorSpace].Basis := Dimension.basis frame;
+\import Spaces.FiniteExterior[V := U, space := vectorSpace, n := r, b := basis] \as ExteriorWords;
+\definition coordinateLaw: \forall (k: N.Nat^)(indices: Fin.Fin k -> Fin.Fin r) ->
+  Spaces.Exterior[V := Operations.Vector r, space := Operations.coordinates r].component k (Coordinates.word k indices) =
+    CoordinateWords.value (IndexLists.list k indices) :=
+  \induction (k: N.Nat^) \return \forall (indices: Fin.Fin k -> Fin.Fin r) ->
+    Spaces.Exterior[V := Operations.Vector r, space := Operations.coordinates r].component k (Coordinates.word k indices) = CoordinateWords.value (IndexLists.list k indices) \with {
+      | zero: \fun (indices: Fin.Fin N.Nat^::zero -> Fin.Fin r) => Spaces.Exterior[V := Operations.Vector r, space := Operations.coordinates r].Unit[].componentUnit
+      | succ: \fun (k: N.Nat^)(previous: _)(indices: Fin.Fin (N.Nat^::succ k) -> Fin.Fin r) =>
+        trans!{{CoordinateSeries.Function}} _ _ _ (Coordinates.SeriesStep[k := k].series indices)
+          (congr!{{CoordinateSeries.Function} {CoordinateSeries.Function}}
+            (CoordinateSeries.product (CoordinateCovectors.value (\fun (v: Operations.Vector r) => v (indices (Fin.zero k))))) _ _
+            (previous (\fun (i: Fin.Fin k) => indices (Fin.succ k i))))
+    };
+\import Series.Naturality[J := Operations.Vector r] \as Mapping;
+\definition covectorPullback: \forall (i: Fin.Fin r) ->
+  Mapping.mapSeries frame.forward.apply (CoordinateCovectors.value (\fun (v: Operations.Vector r) => v i)) =
+    Covectors.value (\fun (v: U) => frame.forward.apply v i) :=
+  \fun (i: Fin.Fin r) => \axiom:funext(Mapping.mapSeries frame.forward.apply (CoordinateCovectors.value (\fun (v: Operations.Vector r) => v i)), Covectors.value (\fun (v: U) => frame.forward.apply v i), \induction (xs: Lists.List[U]) \return
+    Mapping.mapSeries frame.forward.apply (CoordinateCovectors.value (\fun (v: Operations.Vector r) => v i)) xs = Covectors.value (\fun (v: U) => frame.forward.apply v i) xs \with {
+      | nil: \refl(Op.zero)
+      | cons: \fun (head: U)(tail: Lists.List[U])(previous: _) =>
+        (\induction (tail: Lists.List[U]) \return
+          Mapping.mapSeries frame.forward.apply (CoordinateCovectors.value (\fun (v: Operations.Vector r) => v i)) (Lists.List[U]::cons head tail) = Covectors.value (\fun (v: U) => frame.forward.apply v i) (Lists.List[U]::cons head tail) \with {
+            | nil: \refl(frame.forward.apply head i)
+            | cons: \fun (next: U)(rest: Lists.List[U])(previous: _) => \refl(Op.zero)
+          }) tail
+    });
+\definition pullbackWords: \forall (xs: Lists.List[Fin.Fin r]) -> Mapping.mapSeries frame.forward.apply (CoordinateWords.value xs) = Words.value xs :=
+  \induction (xs: Lists.List[Fin.Fin r]) \return Mapping.mapSeries frame.forward.apply (CoordinateWords.value xs) = Words.value xs \with {
+    | nil: \axiom:funext(Mapping.mapSeries frame.forward.apply CoordinateSeries.unit, Series.unit, \induction (arguments: Lists.List[U]) \return
+        Mapping.mapSeries frame.forward.apply CoordinateSeries.unit arguments = Series.unit arguments \with {
+          | nil: \refl(Op.one)
+          | cons: \fun (head: U)(tail: Lists.List[U])(previous: _) => \refl(Op.zero)
+        })
+    | cons: \fun (head: Fin.Fin r)(tail: Lists.List[Fin.Fin r])(previous: _) =>
+      trans!{{Series.Function}} _ _ _
+        (\axiom:funext(Mapping.mapSeries frame.forward.apply (CoordinateSeries.product (CoordinateCovectors.value (\fun (v: Operations.Vector r) => v head)) (CoordinateWords.value tail)), Series.product (Mapping.mapSeries frame.forward.apply (CoordinateCovectors.value (\fun (v: Operations.Vector r) => v head))) (Mapping.mapSeries frame.forward.apply (CoordinateWords.value tail)), \fun (arguments: Lists.List[U]) => sym!{{C.Complex}} _ _
+          (Mapping.productMap arguments frame.forward.apply (CoordinateCovectors.value (\fun (v: Operations.Vector r) => v head)) (CoordinateWords.value tail))))
+        (congr!{{Series.Function} {Series.Function} {Series.Function}} Series.product _ _ _ _ (covectorPullback head) previous)
+  };
+\definition series: \forall (k: N.Nat^)(indices: Fin.Fin k -> Fin.Fin r) ->
+  Algebra.component k (ExteriorWords.At[k := k].word indices) = Words.value (IndexLists.list k indices) :=
+  \fun (k: N.Nat^)(indices: Fin.Fin k -> Fin.Fin r) => trans!{{Series.Function}} _ _ _
+    (Algebra.Pullback[W := Operations.Vector r, target := Operations.coordinates r].Components[k := k].law frame.forward (Coordinates.word k indices))
+    (trans!{{Series.Function}} _ _ _
+      (congr!{{CoordinateSeries.Function} {Series.Function}} (Mapping.mapSeries frame.forward.apply) _ _ (coordinateLaw k indices))
+      (pullbackWords (IndexLists.list k indices)));

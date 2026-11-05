@@ -1,0 +1,60 @@
+\import thom_spaces.Thom[].Collapse[A := X, source := space, subset := subset] \as Geometry;
+\import Relative.Pair[X := X, space := space, compact := compact, hausdorff := hausdorff,
+  subset := subset, closed := closed].Quotient[] \as Pair;
+\import topology.Topology[Carrier := X] \as Base;
+\definition vanishes: \forall (x: X) -> \In[X] subset x -> Pair.projection x = Pair.point :=
+  \fun (x: X)(inside: \In[X] subset x) => Pair.onSubset (\into[X](x, subset) \by { inside });
+\import Geometry.Lift[B := Pair.Carrier, target := Pair.topology, basepoint := Pair.point,
+  f := Pair.projection, regular := Pair.continuous, vanishes := vanishes] \as Forward;
+\import topological_constructions.Coproduct[A := X, B := Pair.Point] \as Sum;
+\definition raw: Pair.Augmented -> Geometry.Carrier := Sum.Universal[C := Geometry.Carrier].copair Geometry.class
+  (\fun (u: Pair.Point) => Geometry.point);
+\definition onCollapsed: \forall (p: Pair.Augmented) -> \In[Pair.Augmented] Pair.collapsedPart p -> raw p = Geometry.point :=
+  \induction (p: Pair.Augmented) \return \In[Pair.Augmented] Pair.collapsedPart p -> raw p = Geometry.point \with {
+    | inl: \fun (x: X)(inside: \In[X] subset x) => Geometry.collapsed x inside
+    | inr: \fun (u: Pair.Point)(inside: _) => \refl(Geometry.point)
+  };
+\import algebraic_topology.Collapse[A := Pair.Augmented, subset := Pair.collapsedPart] \as Native;
+\import Native.Descent[B := Geometry.Carrier] \as Descent;
+\definition respects: Descent.Respects raw :=
+  \fun (p, q: Pair.Augmented)(related: Native.Related p q) => Logic.orElim[p = q,
+    Logic.And[\In[Pair.Augmented] Pair.collapsedPart p, \In[Pair.Augmented] Pair.collapsedPart q], raw p = raw q] related
+    (\fun (same: p = q) => congr!{{Pair.Augmented} {Geometry.Carrier}} raw _ _ same)
+    (\fun (both: Logic.And[\In[Pair.Augmented] Pair.collapsedPart p, \In[Pair.Augmented] Pair.collapsedPart q]) =>
+      trans!{{Geometry.Carrier}} _ _ _ (onCollapsed p both.left) (sym!{{Geometry.Carrier}} _ _ (onCollapsed q both.right)));
+\definition backward: Pair.Carrier -> Geometry.Carrier := Descent.apply raw respects;
+\definition onProjection: \forall (x: X) -> backward (Pair.projection x) = Geometry.class x :=
+  \fun (x: X) => Descent.onClass raw respects (Sum.inl x);
+\definition onPoint: backward Pair.point = Geometry.point := Descent.onClass raw respects (Sum.inr Pair.distinguished);
+\definition backwardContinuous: topology.Continuity[A := Pair.Carrier, B := Geometry.Carrier].Continuous Pair.topology Geometry.topology backward :=
+  Descent.continuous Pair.augmentedSpace Geometry.topology raw respects
+    (Sum.Universal[C := Geometry.Carrier].continuous space topology.Topology[Carrier := Pair.Point].Discrete Geometry.topology
+      Geometry.class (\fun (u: Pair.Point) => Geometry.point) Geometry.continuous
+      (topology.Maps[A := Pair.Point, B := Geometry.Carrier].constantContinuous
+        topology.Topology[Carrier := Pair.Point].Discrete Geometry.topology Geometry.point));
+\definition leftInverse: \forall (p: Geometry.Carrier) -> backward (Forward.apply p) = p :=
+  Geometry.induction (\fun (p: Geometry.Carrier) => backward (Forward.apply p) = p)
+    (trans!{{Geometry.Carrier}} _ _ _ (congr!{{Pair.Carrier} {Geometry.Carrier}} backward _ _ Forward.onPoint) onPoint)
+    (\fun (x: X) => trans!{{Geometry.Carrier}} _ _ _
+      (congr!{{Pair.Carrier} {Geometry.Carrier}} backward _ _ (Forward.onClass x)) (onProjection x));
+\definition rightInverse: \forall (p: Pair.Carrier) -> Forward.apply (backward p) = p :=
+  Native.induction (\fun (p: Pair.Carrier) => Forward.apply (backward p) = p)
+    (\induction (p: Pair.Augmented) \return Forward.apply (backward (Native.class p)) = Native.class p \with {
+      | inl: \fun (x: X) => trans!{{Pair.Carrier}} _ _ _
+        (congr!{{Geometry.Carrier} {Pair.Carrier}} Forward.apply _ _ (onProjection x)) (Forward.onClass x)
+      | inr: \fun (u: Pair.Point) => trans!{{Pair.Carrier}} _ _ _
+        (congr!{{Geometry.Carrier} {Pair.Carrier}} Forward.apply _ _ (Descent.onClass raw respects (Sum.inr u)))
+        (trans!{{Pair.Carrier}} _ _ _ Forward.onPoint
+          (sym!{{Pair.Carrier}} _ _ (Native.collapsed (Sum.inr u) (Sum.inr Pair.distinguished) (\refl(u)) (\refl(Pair.distinguished)))))
+    });
+\definition homeomorphism: topology.Homeomorphism[A := Geometry.Carrier, B := Pair.Carrier].Homeomorphism[Geometry.topology, Pair.topology] :=
+  topology.Homeomorphism[A := Geometry.Carrier, B := Pair.Carrier].Homeomorphism[Geometry.topology, Pair.topology] {
+    forward := Forward.apply, backward := backward, leftInverse := leftInverse, rightInverse := rightInverse,
+    forwardContinuous := Forward.continuous, backwardContinuous := backwardContinuous
+  };
+\import \parent.Model[A := Geometry.Carrier, source := Geometry.topology, target := Pair.model,
+  h := homeomorphism, point := Geometry.point, preserves := Forward.onPoint] \as Model;
+\definition model: Relative.CompactPointed := Model.model;
+\definition equivalence: Relative.Equivalence[source := model, target := Pair.model].Data := Model.equivalence;
+\definition forwardFormula: \forall (x: X) -> equivalence.forward (Geometry.class x) = Pair.projection x := Forward.onClass;
+\definition backwardFormula: \forall (x: X) -> equivalence.backward (Pair.projection x) = Geometry.class x := onProjection;

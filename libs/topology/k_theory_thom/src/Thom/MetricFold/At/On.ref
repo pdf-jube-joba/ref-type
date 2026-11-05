@@ -1,0 +1,42 @@
+\import C.Def[] \as Scalar;
+\import C.Prop[] \as ScalarLaws;
+\import Operations.Models[X := Y, baseSpace := source] \as Target;
+\import Models.Pullback[b := even, Y := Y, source := source, f := f, regular := regular] \as Positive;
+\import Models.Pullback[b := odd, Y := Y, source := source, f := f, regular := regular] \as Negative;
+\import Models.PullbackMap[p := even, q := odd, Y := Y, source := source, f := f, regular := regular] \as ForwardPull;
+\import Models.PullbackMap[p := odd, q := even, Y := Y, source := source, f := f, regular := regular] \as BackwardPull;
+\definition p: Target.Bundle := Positive.value;
+\definition q: Target.Bundle := Negative.value;
+\definition V[y: Y]: \Set := Target.Fiber p.ranks y;
+\definition W[y: Y]: \Set := Target.Fiber q.ranks y;
+\definition D: Target.Map p q := ForwardPull.map d;
+\definition E: Target.Map q p := BackwardPull.map e;
+\definition H: Target.Map q p := BackwardPull.map h;
+\definition K: Target.Map p q := ForwardPull.map k;
+\definition coefficient[y: Y]: C.Complex := MetricRaising.coefficient (f y);
+\definition coefficientContinuous: topology.Continuity[A := Y, B := C.Complex].Continuous source Scalars.scalar.topological.space coefficient :=
+  topology.Composition[A := Y, B := Koszul.Total, C := C.Complex].composeContinuous source bundle.totalSpace Scalars.scalar.topological.space f Metric.diagonal regular Metric.diagonalContinuous;
+\definition coefficientNonzero[y: Y]: Logic.Not (coefficient y = Scalar.zero) :=
+  Metric.nonzero (\into[Koszul.Total](f y, Koszul.Outside) \by { nonzero y });
+\definition reciprocal[y: Y]: C.Complex := Scalar.inv (coefficient y);
+\definition reciprocalContinuous: topology.Continuity[A := Y, B := C.Complex].Continuous source Scalars.scalar.topological.space reciprocal :=
+  topological_algebra.Complex[].Functions[A := Y].inverseContinuous source coefficient coefficientContinuous coefficientNonzero;
+\import Operations.MapOperations[X := Y, F := V, G := W, source := Target.bundle p, target := Target.bundle q] \as ForwardMaps;
+\import Operations.MapOperations[X := Y, F := W, G := V, source := Target.bundle q, target := Target.bundle p] \as BackwardMaps;
+\definition normalizedH: Target.Map q p := BackwardMaps.functionScale reciprocal H reciprocalContinuous;
+\definition normalizedK: Target.Map p q := ForwardMaps.functionScale reciprocal K reciprocalContinuous;
+\import compact_support_k.Support[].CompactBundles[X := Y, space := source, compact := sourceCompact, hausdorff := sourceHausdorff]
+  .Acyclic[p := p, q := q, d := D, e := E] \as Acyclic;
+\module Point(y: Y);
+\definition contraction: Acyclic.Contraction := Acyclic.Contraction {
+  h := normalizedH, k := normalizedK, laws := \fun (y: Y) => Point[y := y].laws
+};
+\definition hk: \forall (y: Y)(v: V y) -> (normalizedH.fiber y).apply ((normalizedK.fiber y).apply v) = ((Target.bundle p).space y).zero := \fun (y: Y) => Point[y := y].hk;
+\definition kh: \forall (y: Y)(v: W y) -> (normalizedK.fiber y).apply ((normalizedH.fiber y).apply v) = ((Target.bundle q).space y).zero := \fun (y: Y) => Point[y := y].kh;
+\import Acyclic.Normalized[c := contraction] \as Normalized;
+\definition hFixed: \forall (y: Y)(v: W y) -> (Normalized.h.fiber y).apply v = (normalizedH.fiber y).apply v := \fun (y: Y) => Point[y := y].hFixed;
+\definition kFixed: \forall (y: Y)(v: V y) -> (Normalized.k.fiber y).apply v = (normalizedK.fiber y).apply v := \fun (y: Y) => Point[y := y].kFixed;
+\definition restoreH: \forall (y: Y)(v: W y) -> ((Target.bundle p).space y).smul (coefficient y) ((normalizedH.fiber y).apply v) = (H.fiber y).apply v := \fun (y: Y) => Point[y := y].restoreH;
+\definition restoreK: \forall (y: Y)(v: V y) -> ((Target.bundle q).space y).smul (coefficient y) ((normalizedK.fiber y).apply v) = (K.fiber y).apply v := \fun (y: Y) => Point[y := y].restoreK;
+
+\module Unit(unit: \forall (y: Y) -> coefficient y = Scalar.one);

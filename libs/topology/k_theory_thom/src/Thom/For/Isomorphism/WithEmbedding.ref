@@ -1,0 +1,40 @@
+\import Complement.FromEmbedding[embedding := embedding].Complement[] \as Split;
+\definition OtherFiber[x: X]: \Set := Split.ComplementFiber x;
+\definition other: Bundles.Family[X := X, F := OtherFiber].Bundle := Split.complementBundle;
+\import Operations.DirectSum[X := X, F := F, G := OtherFiber, left := bundle, right := other] \as Sum;
+\definition sum: Bundles.Family[X := X, F := Sum.Fiber].Bundle := Sum.bundle (\refl(bundle.baseSpace));
+\import \root.Thom[].For[X := X, F := OtherFiber, bundle := other, compact := compact, hausdorff := hausdorff] \as OtherFor;
+\import \root.Thom[].For[X := X, F := Sum.Fiber, bundle := sum, compact := compact, hausdorff := hausdorff] \as SumFor;
+\import \root.Thom[].FiberMultiply[X := X, F := F, G := OtherFiber, left := bundle, right := other,
+  sameBase := (\refl(bundle.baseSpace)), compact := compact, hausdorff := hausdorff] \as Multiply;
+\import \root.Thom[].KoszulProduct[X := X, F := F, G := OtherFiber, left := bundle, right := other,
+  sameBase := (\refl(bundle.baseSpace)), compact := compact, hausdorff := hausdorff] \as KoszulProduct;
+\import \root.Thom[].FiberAction[X := X, F := F, G := OtherFiber, left := bundle, right := other,
+  sameBase := (\refl(bundle.baseSpace)), compact := compact, hausdorff := hausdorff] \as Action;
+\import \root.Thom[].TrivializedThom[X := X, F := Sum.Fiber, bundle := sum, compact := compact, hausdorff := hausdorff,
+  n := embedding.dimension, iso := Split.isomorphism].Isomorphism[] \as Trivialized;
+\import SumFor.Product[] \as SumAction;
+\import OtherFor.Proofs[otherCompact := Multiply.rightCompact, otherHausdorff := Multiply.rightHausdorff] \as OtherProofs;
+\definition productEquation: SumFor.thom = Multiply.multiply thom OtherFor.thom := trans!{{SumFor.Carrier}} _ _ _ KoszulProduct.equation
+  (congr!{{OtherFor.Carrier} {SumFor.Carrier}} (Multiply.multiply thom) _ _ OtherProofs.equation);
+\definition second[u: Carrier]: SumFor.Carrier := Multiply.multiply u OtherFor.thom;
+\definition composite: \forall (a: K.Carrier) -> second (forward a) = SumFor.forward a :=
+  \fun (a: K.Carrier) => trans!{{SumFor.Carrier}} _ _ _ (Action.equation a thom OtherFor.thom)
+    (congr!{{SumFor.Carrier} {SumFor.Carrier}} (SumAction.multiply a) _ _ (sym!{{SumFor.Carrier}} _ _ productEquation));
+\module Stable;
+\import \root.Thom[].Cancellation[A := K.Carrier, B := Carrier, C := SumFor.Carrier, D := Stable[].Carrier,
+  first := forward, second := second, third := Stable[].third] \as Cancellation;
+\definition compositeInverse: Cancellation.FirstInverse := Cancellation.FirstInverse {
+  inverse := Trivialized.data.backward,
+  leftInverse := \fun (a: K.Carrier) => trans!{{K.Carrier}} _ _ _ (congr!{{SumFor.Carrier} {K.Carrier}} Trivialized.data.backward _ _ (composite a)) (Trivialized.data.leftInverse a),
+  rightInverse := \fun (u: SumFor.Carrier) => trans!{{SumFor.Carrier}} _ _ _ (composite (Trivialized.data.backward u)) (Trivialized.data.rightInverse u)
+};
+\definition stableInverse: Cancellation.StableInverse := Cancellation.StableInverse {
+  inverse := Stable[].inverse, leftInverse := Stable[].leftInverse
+};
+\import Cancellation.With[composite := compositeInverse, stable := stableInverse] \as Inverse;
+\definition injective: \forall (a, b: K.Carrier) -> forward a = forward b -> a = b :=
+  \fun (a, b: K.Carrier)(same: forward a = forward b) => trans!{{K.Carrier}} _ _ _ (sym!{{K.Carrier}} _ _ (Inverse.leftInverse a))
+    (trans!{{K.Carrier}} _ _ _ (congr!{Carrier {K.Carrier}} Inverse.inverse _ _ same) (Inverse.leftInverse b));
+\definition preimages: \forall (u: Carrier) -> \exists (a: K.Carrier \where forward a = u) :=
+  \fun (u: Carrier) => Logic.existsIntro[K.Carrier, { a: K.Carrier \where forward a = u }] (Inverse.inverse u) (Inverse.rightInverse u);

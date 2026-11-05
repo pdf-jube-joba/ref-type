@@ -1,0 +1,74 @@
+\import topology.Topology[Carrier := X] \as Base;
+\import Bundles.Family[X := X, F := F].With[data := bundle] \as Charts;
+\import std.Set[].FiniteSubset[A := \Pow X] \as FiniteSets;
+\import N.Basic[].Prop[] \as Naturals;
+\import N.Order[].Prop[] \as Order;
+\use Logic.either;
+\definition Bounded[U: \Pow X]: \Prop := \exists (n: N.Nat^ \where
+  \forall (x: X) -> Base.Member U x -> Naturals.Le (Original.rank x) n);
+\definition boundedFamily: \Pow (\Pow X) := { U: \Pow X \where
+  Logic.And[Base.IsOpenIn bundle.baseSpace U, Bounded U] };
+\definition chartBounded[c: Charts.Chart]: Bounded c.domain :=
+  Logic.existsIntro[N.Nat^, { n: N.Nat^ \where \forall (x: X) -> Base.Member c.domain x -> Naturals.Le (Original.rank x) n }]
+    c.dimension (\fun (x: X)(member: _) => \idelim c.dimension = Original.rank x
+      \with n: N.Nat^ => Naturals.Le n c.dimension \by {
+      base: Naturals.leRefl c.dimension,
+      equality: sym!{{N.Nat^}} _ _ (Original.rankFrame x c.dimension (c.frame (\into[X](x, c.domain) \by { member })))
+    });
+\definition cover: Base.IsOpenCover[bundle.baseSpace, boundedFamily, Base.Whole] := Base.IsOpenCover[bundle.baseSpace, boundedFamily, Base.Whole] {
+  open := \fun (U: \Pow X)(member: Logic.And[Base.IsOpenIn bundle.baseSpace U, Bounded U]) => member.left,
+  covers := \block {
+    \fun (x: X)(whole: _) \then
+    \takefrom c: \Cast[Charts.Chart] ({ c: Charts.Chart \where Base.Member c.domain x }) \by Original.locallyTrivial x \then
+    \return Base.unionMemberOf boundedFamily c.domain x
+      (Logic.And[Base.IsOpenIn bundle.baseSpace c.domain, Bounded c.domain] { left := (Original.chartLaws c).baseOpen, right := chartBounded c })
+      (\bysub(Charts.Chart, { c: Charts.Chart \where Base.Member c.domain x }, c))
+  }
+};
+\definition BoundFamily[S: \Pow (\Pow X)]: \Prop :=
+  (\forall (U: \Pow X) -> \In[\Pow X] S U -> Bounded U) -> Bounded (Base.Union S);
+\definition emptyBound: BoundFamily FiniteSets.Empty := \fun (all: _) =>
+  Logic.existsIntro[N.Nat^, { n: N.Nat^ \where \forall (x: X) -> Base.Member (Base.Union FiniteSets.Empty) x -> Naturals.Le (Original.rank x) n }]
+    N.Nat^::zero (\fun (x: X)(member: _) => Base.unionMemberElim FiniteSets.Empty x
+      (Naturals.Le (Original.rank x) N.Nat^::zero)
+      (\fun (U: \Pow X)(empty: Logic.False)(inside: Base.Member U x) => Logic.falseElim _ empty) member);
+\definition insertBound: \forall (S: \Pow (\Pow X)) -> BoundFamily S -> \forall (U: \Pow X) -> BoundFamily (FiniteSets.Insert U S) := \block {
+  \fun (S: \Pow (\Pow X))(previous: BoundFamily S)(U: \Pow X)(all: _) \then
+  \takefrom n: \Cast[N.Nat^] ({ n: N.Nat^ \where \forall (x: X) -> Base.Member U x -> Naturals.Le (Original.rank x) n })
+    \by all U (FiniteSets.inInsertNew U S) \then
+  \takefrom m: \Cast[N.Nat^] ({ m: N.Nat^ \where \forall (x: X) -> Base.Member (Base.Union S) x -> Naturals.Le (Original.rank x) m })
+    \by previous (\fun (V: \Pow X)(member: _) => all V (FiniteSets.inInsertOld U S V member)) \then
+  \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where \forall (x: X) -> Base.Member (Base.Union (FiniteSets.Insert U S)) x -> Naturals.Le (Original.rank x) k }]
+    (Order.commonBound n m) (\fun (x: X)(member: _) => Base.unionMemberElim (FiniteSets.Insert U S) x
+      (Naturals.Le (Original.rank x) (Order.commonBound n m))
+      (\fun (V: \Pow X)(insideFamily: Logic.Or[V = U, \In[\Pow X] S V])(inside: Base.Member V x) =>
+        either!{insideFamily {Naturals.Le (Original.rank x) (Order.commonBound n m)}
+          {\fun (same: V = U) => Naturals.leTrans (Original.rank x) n (Order.commonBound n m)
+            ((\bysub(N.Nat^, { n: N.Nat^ \where \forall (x: X) -> Base.Member U x -> Naturals.Le (Original.rank x) n }, n)) x
+              (\idelim V = U \with W: \Pow X => Base.Member W x \by { base: inside, equality: same }))
+            (Order.leftLeCommonBound n m)}
+          {\fun (old: \In[\Pow X] S V) => Naturals.leTrans (Original.rank x) m (Order.commonBound n m)
+            ((\bysub(N.Nat^, { m: N.Nat^ \where \forall (x: X) -> Base.Member (Base.Union S) x -> Naturals.Le (Original.rank x) m }, m)) x
+              (Base.unionMemberOf S V x old inside)) (Order.rightLeCommonBound n m)}
+        }) member)
+};
+\definition finiteBound: \forall (S: FiniteSets.FiniteSubset) -> BoundFamily S :=
+  FiniteSets.induction ({ S: \Pow (\Pow X) \where BoundFamily S }) emptyBound insertBound;
+\definition rankBoundExists: \exists (n: N.Nat^ \where \forall (x: X) -> Naturals.Le (Original.rank x) n) := \block {
+  \takefrom finite: \Cast[FiniteSets.FiniteSubset] ({ S: FiniteSets.FiniteSubset \where Base.FiniteSubcover[boundedFamily, Base.Whole, S] })
+    \by compact boundedFamily cover \then
+  \let covering: Base.FiniteSubcover[boundedFamily, Base.Whole, finite] :=
+    \bysub(FiniteSets.FiniteSubset, { S: FiniteSets.FiniteSubset \where Base.FiniteSubcover[boundedFamily, Base.Whole, S] }, finite) \then
+  \takefrom n: \Cast[N.Nat^] ({ n: N.Nat^ \where \forall (x: X) -> Base.Member (Base.Union finite) x -> Naturals.Le (Original.rank x) n })
+    \by finiteBound finite (\fun (U: \Pow X)(member: _) => (covering.included U member).right) \then
+  \return Logic.existsIntro[N.Nat^, { n: N.Nat^ \where \forall (x: X) -> Naturals.Le (Original.rank x) n }] n
+    (\fun (x: X) => (\bysub(N.Nat^, { n: N.Nat^ \where \forall (x: X) -> Base.Member (Base.Union finite) x -> Naturals.Le (Original.rank x) n }, n)) x
+      (covering.covers x (\refl(x))))
+};
+\definition zeroAbove: \forall (n: N.Nat^) -> (\forall (x: X) -> Naturals.Le (Original.rank x) n) ->
+  \forall (k: N.Nat^) -> Naturals.Lt n k -> \forall (p: Total)(omega: Term k p) -> omega = ((term k).space p).zero := \block {
+  \fun (n: N.Nat^)(bound: _)(k: N.Nat^)(large: _)(p: Total)(omega: Term k p) \then
+  \takefrom frame: Original.Frame (Original.rank p.base) p.base \by \bysub(N.Nat^, Original.RankAt p.base, Original.rank p.base) \then
+  \return \root.Thom[].Algebra[V := Fiber p, space := pulled.space p].InCoordinates[n := Original.rank p.base, frame := frame].Above[k := k].vanishes omega
+    (Naturals.leLtTrans (Original.rank p.base) n k (bound p.base) large)
+};

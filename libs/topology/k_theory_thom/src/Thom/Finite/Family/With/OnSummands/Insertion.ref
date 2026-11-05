@@ -1,0 +1,136 @@
+\import N.Basic[].Def[] \as Nat;
+\import N.Basic[].Prop[] \as Naturals;
+\import \root.Thom[].ComplexProductLabels[] \as LabelLaws;
+\import \root.Thom[].ComplexProductTensorSum[X := X, space := baseSpace, term := term, differential := differential,
+  G := Models.Fiber (term N.Nat^::zero).ranks, bundle := Models.bundle (term N.Nat^::zero), same := (\refl(baseSpace))] \as Tensors;
+\definition cast[i, j: N.Nat^][same: i = j]: Models.Map (term i) (term j) :=
+  \idelim i = j \with k: N.Nat^ => Models.Map (term i) (term k) \by { base: Models.identity (term i), equality: same };
+\definition castSelf[i: N.Nat^][same: i = i]: cast i i same = Models.identity (term i) :=
+  \transporteq i \with j: N.Nat^ => Models.Map (term i) (term j) \by { base: Models.identity (term i) };
+\definition castIndependent[i, j: N.Nat^][first, second: i = j]: cast i j first = cast i j second :=
+  (\idelim i = j \with k: N.Nat^ => \forall (p, q: i = k) -> cast i k p = cast i k q \by {
+    base: \fun (p, q: i = i) => trans!{{Models.Map (term i) (term i)}} _ _ _ (castSelf i p) (sym!{{Models.Map (term i) (term i)}} _ _ (castSelf i q)),
+    equality: first
+  }) first second;
+\definition degreeInjection[n, p: N.Nat^][out: B.Bool^]: Models.Map (term p) (Summands.parity n out) :=
+  Models.compose (term p) (Summands.parity n (Labels.even n (Labels.rawLookup n p))) (Summands.parity n out)
+    Tensors.Insertion[n := n, p := p].map (Summands.select n (Labels.even n (Labels.rawLookup n p)) out);
+\definition placement[n, p: N.Nat^][s: Labels.Index n][same: p = Labels.degree n s][out: B.Bool^]: Models.Map (term p) (Summands.parity n out) :=
+  Models.compose (term p) (term (Labels.degree n s)) (Summands.parity n out) (cast p (Labels.degree n s) same)
+    (Models.compose (term (Labels.degree n s)) (Summands.parity n (Labels.even n s)) (Summands.parity n out)
+      (Summands.inclusion n s) (Summands.select n (Labels.even n s) out));
+\definition placementIndependent[n, p: N.Nat^][s: Labels.Index n][first, second: p = Labels.degree n s][out: B.Bool^][x: X][v: Models.Fiber (term p).ranks x]:
+  ((placement n p s first out).fiber x).apply v = ((placement n p s second out).fiber x).apply v :=
+  congr!{{Models.Map (term p) (term (Labels.degree n s))} {Models.Fiber (Summands.parity n out).ranks x}}
+    (\fun (a: Models.Map (term p) (term (Labels.degree n s))) =>
+      ((Summands.select n (Labels.even n s) out).fiber x).apply (((Summands.inclusion n s).fiber x).apply ((a.fiber x).apply v))) _ _
+    (castIndependent p (Labels.degree n s) first second);
+\definition within[n, p: N.Nat^][bound: Naturals.Le p n][out: B.Bool^][x: X][v: Models.Fiber (term p).ranks x]:
+  ((degreeInjection n p out).fiber x).apply v = ((placement n p (Labels.rawLookup n p) (sym!{{N.Nat^}} _ _ (Labels.lookupDegree n p bound)) out).fiber x).apply v :=
+  trans!{{Models.Fiber (Summands.parity n out).ranks x}} _ _ _
+    (congr!{{Models.Fiber (Summands.parity n (Labels.even n (Labels.rawLookup n p))).ranks x} {Models.Fiber (Summands.parity n out).ranks x}}
+      ((Summands.select n (Labels.even n (Labels.rawLookup n p)) out).fiber x).apply _ _ (Tensors.Insertion[n := n, p := p].within bound x v))
+    (congr!{{Models.Fiber (Summands.parity n (Labels.even n (Labels.rawLookup n p))).ranks x} {Models.Fiber (Summands.parity n out).ranks x}}
+      ((Summands.select n (Labels.even n (Labels.rawLookup n p)) out).fiber x).apply _ _
+      (Summands.selectSame n (Labels.even n (Labels.rawLookup n p)) x
+        (((Summands.inclusion n (Labels.rawLookup n p)).fiber x).apply
+          (((cast p (Labels.degree n (Labels.rawLookup n p)) (sym!{{N.Nat^}} _ _ (Labels.lookupDegree n p bound))).fiber x).apply v))));
+\definition onLabel[n, p: N.Nat^][bound: Naturals.Le p n][s: Labels.Index n][label: Labels.rawLookup n p = s][same: p = Labels.degree n s][out: B.Bool^][x: X][v: Models.Fiber (term p).ranks x]:
+  ((degreeInjection n p out).fiber x).apply v = ((placement n p s same out).fiber x).apply v :=
+  trans!{{Models.Fiber (Summands.parity n out).ranks x}} _ _ _ (within n p bound out x v)
+    ((\idelim Labels.rawLookup n p = s \with t: Labels.Index n => \forall (law: p = Labels.degree n t) ->
+      ((placement n p (Labels.rawLookup n p) (sym!{{N.Nat^}} _ _ (Labels.lookupDegree n p bound)) out).fiber x).apply v =
+      ((placement n p t law out).fiber x).apply v \by {
+      base: \fun (law: p = Labels.degree n (Labels.rawLookup n p)) => placementIndependent n p (Labels.rawLookup n p) (sym!{{N.Nat^}} _ _ (Labels.lookupDegree n p bound)) law out x v,
+      equality: label
+    }) same);
+\definition atLabel[n: N.Nat^][s: Labels.Index n][out: B.Bool^][x: X][v: Models.Fiber (term (Labels.degree n s)).ranks x]:
+  ((degreeInjection n (Labels.degree n s) out).fiber x).apply v =
+  ((Summands.select n (Labels.even n s) out).fiber x).apply (((Summands.inclusion n s).fiber x).apply v) :=
+  trans!{{Models.Fiber (Summands.parity n out).ranks x}} _ _ _
+    (onLabel n (Labels.degree n s) (Labels.degreeBound n s) s (LabelLaws.lookupInverse n s) (\refl(Labels.degree n s)) out x v)
+    (congr!{{Models.Map (term (Labels.degree n s)) (term (Labels.degree n s))} {Models.Fiber (Summands.parity n out).ranks x}}
+      (\fun (a: Models.Map (term (Labels.degree n s)) (term (Labels.degree n s))) =>
+        ((Summands.select n (Labels.even n s) out).fiber x).apply (((Summands.inclusion n s).fiber x).apply ((a.fiber x).apply v))) _ _
+      (castSelf (Labels.degree n s) (\refl(Labels.degree n s))));
+
+\import \parent.\parent.Raising[raising := (\fun (k: N.Nat^) => Models.zero (term k) (term (N.Nat^::succ k)))].OnSummands[].Reindex[] \as Advance;
+\definition nextInput[n: N.Nat^][s: Labels.Index n][x: X][v: Models.Fiber (term (N.Nat^::succ (Labels.degree n s))).ranks x]:
+  ((degreeInjection (N.Nat^::succ n) (N.Nat^::succ (Labels.degree n s)) (Labels.even n s)).fiber x).apply v = ((nextInjection n s).fiber x).apply v :=
+  trans!{{Models.Fiber (Summands.parity (N.Nat^::succ n) (Labels.even n s)).ranks x}} _ _ _
+    (onLabel (N.Nat^::succ n) (N.Nat^::succ (Labels.degree n s)) (Naturals.leSuccSucc (Labels.degree n s) n (Labels.degreeBound n s))
+      (Advance.advance n s) (sym!{{Labels.Index (N.Nat^::succ n)}} _ _ (Advance.lookup n s)) (sym!{{N.Nat^}} _ _ (Advance.degree n s)) (Labels.even n s) x v)
+    (trans!{{Models.Fiber (Summands.parity (N.Nat^::succ n) (Labels.even n s)).ranks x}} _ _ _
+      (sym!{{Models.Fiber (Summands.parity (N.Nat^::succ n) (Labels.even n s)).ranks x}} _ _ (Advance.formula n s (Labels.even n s) (\refl(Labels.even n s)) x v))
+      (Summands.selectSame (N.Nat^::succ n) (Labels.even n s) x (((nextInjection n s).fiber x).apply v)));
+\definition nextOutput[n: N.Nat^][s: Labels.Index n][x: X][v: Models.Fiber (term (Labels.degree n s)).ranks x]:
+  ((degreeInjection (N.Nat^::succ n) (Labels.degree n s) (Labels.flip (Labels.even n s))).fiber x).apply v =
+  ((Summands.inclusion (N.Nat^::succ n) (Labels.Index::tail n s)).fiber x).apply v :=
+  trans!{{Models.Fiber (Summands.parity (N.Nat^::succ n) (Labels.flip (Labels.even n s))).ranks x}} _ _ _
+    (atLabel (N.Nat^::succ n) (Labels.Index::tail n s) (Labels.flip (Labels.even n s)) x v)
+    (Summands.selectSame (N.Nat^::succ n) (Labels.flip (Labels.even n s)) x (((Summands.inclusion (N.Nat^::succ n) (Labels.Index::tail n s)).fiber x).apply v));
+\definition nextDegree[n: N.Nat^][s: Labels.Index n][x: X][v: Models.Fiber (term (N.Nat^::succ (Labels.degree n s))).ranks x]:
+  ((boundary (N.Nat^::succ n) (Labels.even n s)).fiber x).apply
+    (((degreeInjection (N.Nat^::succ n) (N.Nat^::succ (Labels.degree n s)) (Labels.even n s)).fiber x).apply v) =
+  ((degreeInjection (N.Nat^::succ n) (Labels.degree n s) (Labels.flip (Labels.even n s))).fiber x).apply (((differential (Labels.degree n s)).fiber x).apply v) :=
+  trans!{{Models.Fiber (Summands.parity (N.Nat^::succ n) (Labels.flip (Labels.even n s))).ranks x}} _ _ _
+    (congr!{{Models.Fiber (Summands.parity (N.Nat^::succ n) (Labels.even n s)).ranks x} {Models.Fiber (Summands.parity (N.Nat^::succ n) (Labels.flip (Labels.even n s))).ranks x}}
+      ((boundary (N.Nat^::succ n) (Labels.even n s)).fiber x).apply _ _ (nextInput n s x v))
+    (trans!{{Models.Fiber (Summands.parity (N.Nat^::succ n) (Labels.flip (Labels.even n s))).ranks x}} _ _ _
+      (nextOnInclusion n s x v)
+      (sym!{{Models.Fiber (Summands.parity (N.Nat^::succ n) (Labels.flip (Labels.even n s))).ranks x}} _ _ (nextOutput n s x (((differential (Labels.degree n s)).fiber x).apply v))));
+\definition side[n, k: N.Nat^]: B.Bool^ := Labels.even n (Labels.rawLookup n k);
+\definition lower: \forall (k: N.Nat^) -> Models.Map (term k) (term (Nat.pred k)) :=
+  \induction (k: N.Nat^) \return Models.Map (term k) (term (Nat.pred k)) \with {
+    | zero: Models.zero (term N.Nat^::zero) (term N.Nat^::zero)
+    | succ: \fun (k: N.Nat^)(unused: _) => differential k
+  };
+\definition Statement[n, k: N.Nat^]: \Prop := \forall (x: X)(v: Models.Fiber (term k).ranks x) ->
+  ((boundary n (side n k)).fiber x).apply (((degreeInjection n k (side n k)).fiber x).apply v) =
+  ((degreeInjection n (Nat.pred k) (Labels.flip (side n k))).fiber x).apply (((lower k).fiber x).apply v);
+\definition nextSide[n: N.Nat^][s: Labels.Index n]: side (N.Nat^::succ n) (N.Nat^::succ (Labels.degree n s)) = Labels.even n s :=
+  trans!{{B.Bool^}} _ _ _
+    (congr!{{Labels.Index (N.Nat^::succ n)} {B.Bool^}} (Labels.even (N.Nat^::succ n)) _ _ (sym!{{Labels.Index (N.Nat^::succ n)}} _ _ (Advance.lookup n s)))
+    (Advance.even n s);
+\definition nextCanonical[n: N.Nat^][s: Labels.Index n]: Statement (N.Nat^::succ n) (N.Nat^::succ (Labels.degree n s)) :=
+  \idelim Labels.even n s = side (N.Nat^::succ n) (N.Nat^::succ (Labels.degree n s)) \with b: B.Bool^ =>
+    \forall (x: X)(v: Models.Fiber (term (N.Nat^::succ (Labels.degree n s))).ranks x) ->
+    ((boundary (N.Nat^::succ n) b).fiber x).apply (((degreeInjection (N.Nat^::succ n) (N.Nat^::succ (Labels.degree n s)) b).fiber x).apply v) =
+    ((degreeInjection (N.Nat^::succ n) (Labels.degree n s) (Labels.flip b)).fiber x).apply (((differential (Labels.degree n s)).fiber x).apply v) \by {
+      base: nextDegree n s, equality: sym!{{B.Bool^}} _ _ (nextSide n s)
+    };
+\definition zero[n: N.Nat^]: Statement n N.Nat^::zero := \fun (x: X)(v: Models.Fiber (term N.Nat^::zero).ranks x) =>
+  trans!{{Models.Fiber (Summands.parity n (Labels.flip (side n N.Nat^::zero))).ranks x}} _ _ _
+    (congr!{{Models.Fiber (Summands.parity n (side n N.Nat^::zero)).ranks x} {Models.Fiber (Summands.parity n (Labels.flip (side n N.Nat^::zero))).ranks x}}
+      ((boundary n (side n N.Nat^::zero)).fiber x).apply _ _
+      (Summands.selectSame n (side n N.Nat^::zero) x ((Tensors.Insertion[n := n, p := N.Nat^::zero].map.fiber x).apply v)))
+    (trans!{{Models.Fiber (Summands.parity n (Labels.flip (side n N.Nat^::zero))).ranks x}} _ _ _
+      (congr!{{Models.Fiber (Summands.parity n (side n N.Nat^::zero)).ranks x} {Models.Fiber (Summands.parity n (Labels.flip (side n N.Nat^::zero))).ranks x}}
+        ((boundary n (side n N.Nat^::zero)).fiber x).apply _ _ (Tensors.Insertion[n := n, p := N.Nat^::zero].within (Naturals.zeroLe n) x v))
+      (trans!{{Models.Fiber (Summands.parity n (Labels.flip (side n N.Nat^::zero))).ranks x}} _ _ _
+        (zeroFormula n (Labels.rawLookup n N.Nat^::zero) (Labels.lookupDegree n N.Nat^::zero (Naturals.zeroLe n)) x
+          (((cast N.Nat^::zero (Labels.degree n (Labels.rawLookup n N.Nat^::zero)) (sym!{{N.Nat^}} _ _ (Labels.lookupDegree n N.Nat^::zero (Naturals.zeroLe n)))).fiber x).apply v))
+        (sym!{{Models.Fiber (Summands.parity n (Labels.flip (side n N.Nat^::zero))).ranks x}} _ _ ((degreeInjection n N.Nat^::zero (Labels.flip (side n N.Nat^::zero))).fiber x).preservesZero)));
+\definition result[n, k: N.Nat^][bound: Naturals.Le k n]: Statement n k :=
+  (\induction (n: N.Nat^) \return \forall (k: N.Nat^) -> Naturals.Le k n -> Statement n k \with {
+    | zero: \induction (k: N.Nat^) \return Naturals.Le k N.Nat^::zero -> Statement N.Nat^::zero k \with {
+      | zero: \fun (bound: _) => zero N.Nat^::zero
+      | succ: \fun (k: N.Nat^)(unused: _)(bound: _) => Logic.falseElim[Statement N.Nat^::zero (N.Nat^::succ k)]
+        (Naturals.succNeZero k (Naturals.leZeroEq (N.Nat^::succ k) bound))
+    }
+    | succ: \fun (n: N.Nat^)(unused: _) => \induction (k: N.Nat^) \return Naturals.Le k (N.Nat^::succ n) -> Statement (N.Nat^::succ n) k \with {
+      | zero: \fun (bound: _) => zero (N.Nat^::succ n)
+      | succ: \fun (k: N.Nat^)(unused: _)(bound: _) =>
+        \idelim Labels.degree n (Labels.rawLookup n k) = k \with j: N.Nat^ => Statement (N.Nat^::succ n) (N.Nat^::succ j) \by {
+          base: nextCanonical n (Labels.rawLookup n k), equality: Labels.lookupDegree n k (Naturals.leOfSuccSucc k n bound)
+        }
+    }
+  }) n k bound;
+\definition formula[n, k: N.Nat^][bound: Naturals.Le k n][x: X][v: Models.Fiber (term k).ranks x]:
+  ((boundary n (side n k)).fiber x).apply ((Tensors.Insertion[n := n, p := k].map.fiber x).apply v) =
+  ((degreeInjection n (Nat.pred k) (Labels.flip (side n k))).fiber x).apply (((lower k).fiber x).apply v) :=
+  trans!{{Models.Fiber (Summands.parity n (Labels.flip (side n k))).ranks x}} _ _ _
+    (congr!{{Models.Fiber (Summands.parity n (side n k)).ranks x} {Models.Fiber (Summands.parity n (Labels.flip (side n k))).ranks x}}
+      ((boundary n (side n k)).fiber x).apply _ _ (sym!{{Models.Fiber (Summands.parity n (side n k)).ranks x}} _ _
+        (Summands.selectSame n (side n k) x ((Tensors.Insertion[n := n, p := k].map.fiber x).apply v))))
+    (result n k bound x v);

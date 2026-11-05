@@ -1,0 +1,31 @@
+\import std.Data[].Nat[].Basic[].Def[] \as Nat;
+\import Bundles.Family[X := X, F := F].Of[bundle := left].Sections[] \as FirstSections;
+\import Bundles.Family[X := X, F := G].Of[bundle := right].Sections[] \as SecondSections;
+\import Operations.DirectSum[X := X, F := F, G := G, left := left, right := right] \as Sum;
+\definition sum: Bundles.Family[X := X, F := Sum.Fiber].Bundle := Sum.bundle sameBase;
+\import Bundles.Family[X := X, F := Sum.Fiber].Of[bundle := sum].Sections[] \as Sections;
+\definition sectionData: Sections.SectionData := Sections.SectionData {
+  value := \fun (x: X) => Spaces.DirectSum[V := F x, W := G x, left := left.space x, right := right.space x].make (firstSection.value x) (secondSection.value x)
+};
+\definition section: Sections.Section := \into[Sections.SectionData](sectionData, Sections.Section) \by {
+  Sum.Universal[Y := X].continuous left.baseSpace (Sections.total sectionData) (FirstSections.continuous firstSection)
+    (\idelim right.baseSpace = left.baseSpace \with source: topology.Topology[Carrier := X].Topology =>
+      topology.Continuity[A := X, B := Bundles.Family[X := X, F := G].Point].Continuous source right.totalSpace (SecondSections.total secondSection) \by {
+        base: SecondSections.continuous secondSection, equality: sym!{{topology.Topology[Carrier := X].Topology}} _ _ sameBase
+      })
+};
+\definition Term[k: N.Nat^][x: X]: \Set := \root.Thom[].SumBundles[X := X, F := F, G := G, left := left, right := right, sameBase := sameBase, k := k].Fiber x;
+\definition term[k: N.Nat^]: Bundles.Family[X := X, F := Term k].Bundle :=
+  \root.Thom[].SumBundles[X := X, F := F, G := G, left := left, right := right, sameBase := sameBase, k := k].bundle;
+\definition Form[k: N.Nat^][x: X]: \Set := Operations.Alternating[X := X, F := Sum.Fiber, bundle := sum, k := k].Fiber x;
+\definition forms[k: N.Nat^]: Bundles.Family[X := X, F := Form k].Bundle := Operations.Alternating[X := X, F := Sum.Fiber, bundle := sum, k := k].alternating;
+\definition comparison[k: N.Nat^]: Bundles.Isomorphisms[X := X, F := Term k, G := Form k, source := term k, target := forms k].Isomorphism :=
+  \root.Thom[].SumBundles[X := X, F := F, G := G, left := left, right := right, sameBase := sameBase, k := k].comparison;
+\module Degree(k: N.Nat^);
+\module Leibniz(p, q: N.Nat^);
+\module Pure(p, q: N.Nat^);
+\module LeibnizLeftZero(q: N.Nat^);
+\module LeibnizRightZero(p: N.Nat^);
+\module Exact(x: X);
+\module Coordinates;
+\module FormExact(x: X);

@@ -1,0 +1,54 @@
+\import relative_k_theory.Relative[] \as Relative;
+\import std.Data[].Pair[] \as Pair;
+\import Relative.Smash[left := first, right := second] \as AB;
+\import Relative.Smash[left := second, right := third] \as BC;
+\import Relative.Smash[left := AB.result, right := third] \as Left;
+\import Relative.Smash[left := first, right := BC.result] \as Right;
+\module Raw;
+\import .Raw[] \as RawModel;
+\definition Triple: \Set := RawModel.model.Carrier;
+\definition a[z: Triple]: first.Carrier := RawModel.first z;
+\definition b[z: Triple]: second.Carrier := BC.first (RawModel.second z);
+\definition c[z: Triple]: third.Carrier := BC.second (RawModel.second z);
+\definition ab[z: Triple]: AB.model.Carrier := Pair.pair first.Carrier second.Carrier (a z) (b z);
+\definition bc[z: Triple]: BC.model.Carrier := RawModel.second z;
+\definition leftRaw[z: Triple]: Left.model.Carrier := Pair.pair AB.result.Carrier third.Carrier (AB.projection (ab z)) (c z);
+\definition rightRaw[z: Triple]: Right.model.Carrier := Pair.pair first.Carrier BC.result.Carrier (a z) (BC.projection (bc z));
+\definition left[z: Triple]: Left.result.Carrier := Left.projection (leftRaw z);
+\definition right[z: Triple]: Right.result.Carrier := Right.projection (rightRaw z);
+\definition ext: \forall (z, w: Triple) -> a z = a w -> b z = b w -> c z = c w -> z = w :=
+  \fun (z, w: Triple)(equalA: _)(equalB: _)(equalC: _) => Pair.Prop[A := first.Carrier, B := BC.model.Carrier].ext z w equalA
+    (Pair.Prop[A := second.Carrier, B := third.Carrier].ext (bc z) (bc w) equalB equalC);
+\import \root.Thom[].SmashFibers[left := first, right := second] \as ABFibers;
+\import \root.Thom[].SmashFibers[left := second, right := third] \as BCFibers;
+\import \root.Thom[].SmashFibers[left := AB.result, right := third] \as LeftFibers;
+\import \root.Thom[].SmashFibers[left := first, right := BC.result] \as RightFibers;
+\definition LeftCollapsed[z: Triple]: \Prop := Logic.Or[\In[AB.model.Carrier] AB.wedge (ab z), c z = (Relative.details third).point];
+\definition RightCollapsed[z: Triple]: \Prop := Logic.Or[a z = (Relative.details first).point, \In[BC.model.Carrier] BC.wedge (bc z)];
+\module Collapsed;
+\module Fibers;
+\module Topology;
+\module Onto;
+\definition model: Relative.CompactPointed := RawModel.model;
+\definition leftModel: Relative.CompactPointed := Left.result;
+\definition rightModel: Relative.CompactPointed := Right.result;
+\definition leftMap: Relative.Map model leftModel :=
+  \into[Triple -> Left.result.Carrier](left, Relative.Map model leftModel) \by {
+    algebraic_topology.Pointed[A := Triple].Maps[B := Left.result.Carrier].Laws[Relative.pointed model, Relative.pointed leftModel, left] {
+      continuous := Topology[].leftContinuous, pointed := Collapsed[].leftPoint
+    }
+  };
+\definition rightMap: Relative.Map model rightModel :=
+  \into[Triple -> Right.result.Carrier](right, Relative.Map model rightModel) \by {
+    algebraic_topology.Pointed[A := Triple].Maps[B := Right.result.Carrier].Laws[Relative.pointed model, Relative.pointed rightModel, right] {
+      continuous := Topology[].rightContinuous, pointed := Collapsed[].rightPoint
+    }
+  };
+\import Relative.CommonQuotient[R := Triple, space := RawModel.topology, compact := RawModel.compact,
+  source := Left.result, target := Right.result, f := left, g := right,
+  fRegular := Topology[].leftContinuous, gRegular := Topology[].rightContinuous,
+  fOnto := Onto[].leftOnto, gOnto := Onto[].rightOnto,
+  forwardFibers := Fibers[].forward, backwardFibers := Fibers[].backward,
+  r0 := (Relative.details RawModel.model).point, sourcePoint := Collapsed[].leftPoint, targetPoint := Collapsed[].rightPoint] \as Comparison;
+\definition equivalence: Relative.Equivalence[source := Left.result, target := Right.result].Data := Comparison.equivalence;
+\definition onTriple: \forall (z: Triple) -> equivalence.forward (left z) = right z := Comparison.onSource;

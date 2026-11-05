@@ -1,0 +1,65 @@
+
+\import \root.Thom[].ComplexProductClifford[V := LeftFiber x, W := RightFiber x, firstSpace := leftBundle.space x, secondSpace := rightBundle.space x]
+  .Lift[first := leftGrading.forward.fiber x, second := rightGrading.forward.fiber x] \as Lift;
+\definition parity: Spaces.Linear[V := SourceFiber x, W := SourceFiber x, source := sourceBundle.space x, target := sourceBundle.space x].Map := Lift.map;
+\import Spaces.Linear[V := SourceFiber x, W := TargetFiber x, source := sourceBundle.space x, target := targetBundle.space x] \as Maps;
+\import Maps.Composition[U := SourceFiber x, domain := sourceBundle.space x] \as Before;
+\import Spaces.Linear[V := TargetFiber x, W := TargetFiber x, source := targetBundle.space x, target := targetBundle.space x]
+  .Composition[U := SourceFiber x, domain := sourceBundle.space x] \as After;
+\definition before: Maps.Map := Before.compose (isomorphism.forward.fiber x) parity;
+\definition after: Maps.Map := After.compose (targetGrading.forward.fiber x) (isomorphism.forward.fiber x);
+\import Operations.TensorEquality[V := LeftFiber x, W := RightFiber x, U := TargetFiber x,
+  left := leftBundle.space x, right := rightBundle.space x, target := targetBundle.space x] \as EqualityOnPure;
+\definition a[v: LeftFiber x]: F0 (Smash.first x) := P.first (F0 (Smash.first x)) (F1 (Smash.first x)) v;
+\definition b[v: LeftFiber x]: F1 (Smash.first x) := P.second (F0 (Smash.first x)) (F1 (Smash.first x)) v;
+\definition c[w: RightFiber x]: G0 (Smash.second x) := P.first (G0 (Smash.second x)) (G1 (Smash.second x)) w;
+\definition d[w: RightFiber x]: G1 (Smash.second x) := P.second (G0 (Smash.second x)) (G1 (Smash.second x)) w;
+\definition form[v: LeftFiber x][w: RightFiber x]: TargetFiber x := P.pair (Even x) (Odd x)
+  (P.pair (EEFiber x) (OOFiber x) (ee x (a v) (c w)) (oo x (b v) (d w)))
+  (P.pair (EOFiber x) (OEFiber x) (eo x (a v) (d w)) (oe x (b v) (c w)));
+\import Operations.TensorFactors[V := F1 (Smash.first x), W := G1 (Smash.second x), left := PE1.pulled.space x, right := PF1.pulled.space x] \as OOFactors;
+\import Spaces.Linear[V := F1 (Smash.first x), W := OOFiber x, source := PE1.pulled.space x, target := ooBundle.space x].Operations[] \as OOLeft;
+\import Spaces.Linear[V := G1 (Smash.second x), W := OOFiber x, source := PF1.pulled.space x, target := ooBundle.space x].Operations[] \as OORight;
+\import Operations.TensorFactors[V := F0 (Smash.first x), W := G1 (Smash.second x), left := PE0.pulled.space x, right := PF1.pulled.space x] \as EOFactors;
+\import Spaces.Linear[V := F0 (Smash.first x), W := EOFiber x, source := PE0.pulled.space x, target := eoBundle.space x].Operations[] \as EOLeft;
+\import Spaces.Linear[V := G1 (Smash.second x), W := EOFiber x, source := PF1.pulled.space x, target := eoBundle.space x].Operations[] \as EORight;
+\import Operations.TensorFactors[V := F1 (Smash.first x), W := G0 (Smash.second x), left := PE1.pulled.space x, right := PF0.pulled.space x] \as OEFactors;
+\import Spaces.Linear[V := F1 (Smash.first x), W := OEFiber x, source := PE1.pulled.space x, target := oeBundle.space x].Operations[] \as OELeft;
+\import Spaces.Linear[V := G0 (Smash.second x), W := OEFiber x, source := PF0.pulled.space x, target := oeBundle.space x].Operations[] \as OERight;
+
+\import algebra.Group[].Of[Carrier := OOFiber x,
+  group := std.Alg[].Ring[].ringModuleAsCommutativeGroup C.Complex (OOFiber x) Spaces.ring (ooBundle.space x)] \as OOGroup;
+\definition ooNeg: \forall (v: F1 (Smash.first x))(w: G1 (Smash.second x)) ->
+  oo x ((PE1.pulled.space x).neg v) ((PF1.pulled.space x).neg w) = oo x v w :=
+  \fun (v: F1 (Smash.first x))(w: G1 (Smash.second x)) => trans!{{OOFiber x}} _ _ _
+    (OOLeft.preservesNeg (OOFactors.second ((PF1.pulled.space x).neg w)) v)
+    (trans!{{OOFiber x}} _ _ _
+      (congr!{{OOFiber x} {OOFiber x}} (ooBundle.space x).neg _ _ (OORight.preservesNeg (OOFactors.first v) w))
+      (OOGroup.negNeg (oo x v w)));
+\definition eoNeg: \forall (v: F0 (Smash.first x))(w: G1 (Smash.second x)) -> eo x v ((PF1.pulled.space x).neg w) = (eoBundle.space x).neg (eo x v w) :=
+  \fun (v: F0 (Smash.first x))(w: G1 (Smash.second x)) => EORight.preservesNeg (EOFactors.first v) w;
+\definition oeNeg: \forall (v: F1 (Smash.first x))(w: G0 (Smash.second x)) -> oe x ((PE1.pulled.space x).neg v) w = (oeBundle.space x).neg (oe x v w) :=
+  \fun (v: F1 (Smash.first x))(w: G0 (Smash.second x)) => OELeft.preservesNeg (OEFactors.second w) v;
+\definition signForm: \forall (v: LeftFiber x)(w: RightFiber x) ->
+  form (P.pair (F0 (Smash.first x)) (F1 (Smash.first x)) (a v) ((PE1.pulled.space x).neg (b v)))
+    (P.pair (G0 (Smash.second x)) (G1 (Smash.second x)) (c w) ((PF1.pulled.space x).neg (d w))) =
+  P.pair (Even x) (Odd x) (P.first (Even x) (Odd x) (form v w)) ((oddBundle.space x).neg (P.second (Even x) (Odd x) (form v w))) :=
+  \fun (v: LeftFiber x)(w: RightFiber x) => P.Prop[A := Even x, B := Odd x].pairCong _ _ _ _
+    (P.Prop[A := EEFiber x, B := OOFiber x].pairCong _ _ _ _ (\refl(ee x (a v) (c w))) (ooNeg (b v) (d w)))
+    (P.Prop[A := EOFiber x, B := OEFiber x].pairCong _ _ _ _ (eoNeg (a v) (d w)) (oeNeg (b v) (c w)));
+\definition pureEquation: \forall (v: LeftFiber x)(w: RightFiber x) -> before.apply (pure x v w) = after.apply (pure x v w) :=
+  \fun (v: LeftFiber x)(w: RightFiber x) => trans!{{TargetFiber x}} _ _ _
+    (congr!{{SourceFiber x} {TargetFiber x}} (isomorphism.forward.fiber x).apply _ _ (Lift.onPure v w))
+    (trans!{{TargetFiber x}} _ _ _
+      (onPure x ((leftGrading.forward.fiber x).apply v) ((rightGrading.forward.fiber x).apply w))
+      (trans!{{TargetFiber x}} _ _ _
+        (congr!{{LeftFiber x} {RightFiber x} {TargetFiber x}} form _ _ _ _ (leftFormula x v) (rightFormula x w))
+        (trans!{{TargetFiber x}} _ _ _ (signForm v w)
+          (trans!{{TargetFiber x}} _ _ _
+            (congr!{{TargetFiber x} {TargetFiber x}} (\fun (z: TargetFiber x) => P.pair (Even x) (Odd x) (P.first (Even x) (Odd x) z) ((oddBundle.space x).neg (P.second (Even x) (Odd x) z))) _ _
+              (sym!{{TargetFiber x}} _ _ (onPure x v w)))
+            (sym!{{TargetFiber x}} _ _ (targetFormula x ((isomorphism.forward.fiber x).apply (pure x v w))))))));
+\definition compatible: \forall (z: SourceFiber x) -> (isomorphism.forward.fiber x).apply (parity.apply z) =
+  P.pair (Even x) (Odd x) (P.first (Even x) (Odd x) ((isomorphism.forward.fiber x).apply z))
+    ((oddBundle.space x).neg (P.second (Even x) (Odd x) ((isomorphism.forward.fiber x).apply z))) :=
+  \fun (z: SourceFiber x) => trans!{{TargetFiber x}} _ _ _ (EqualityOnPure.pointwise before after pureEquation z) (targetFormula x ((isomorphism.forward.fiber x).apply z));

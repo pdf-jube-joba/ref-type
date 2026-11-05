@@ -1,0 +1,76 @@
+\import std.Data[].Pair[] \as P;
+\import topology.Topology[Carrier := X] \as Base;
+\definition oddAuxiliary: odd.baseSpace = auxiliary.baseSpace := trans!{{Base.Topology}} _ _ _ (sym!{{Base.Topology}} _ _ sameOdd) sameAuxiliary;
+\import Operations.DirectSum[X := X, F := E0, G := H, left := even, right := auxiliary] \as StableEven;
+\import Operations.DirectSum[X := X, F := E1, G := H, left := odd, right := auxiliary] \as StableOdd;
+\definition stableEven: Bundles.Family[X := X, F := StableEven.Fiber].Bundle := StableEven.bundle sameAuxiliary;
+\definition stableOdd: Bundles.Family[X := X, F := StableOdd.Fiber].Bundle := StableOdd.bundle oddAuxiliary;
+\import Bundles.Identity[X := X, F := H, bundle := auxiliary] \as Identity;
+\definition auxiliaryContinuous: topology.Continuity[A := X, B := C.Complex].Continuous auxiliary.baseSpace Scalars.scalar.topological.space radius :=
+  \idelim even.baseSpace = auxiliary.baseSpace \with t: Base.Topology => topology.Continuity[A := X, B := C.Complex].Continuous t Scalars.scalar.topological.space radius \by { base: continuous, equality: sameAuxiliary };
+\import Operations.MapOperations[X := X, F := H, G := H, source := auxiliary, target := auxiliary] \as AuxiliaryMaps;
+\definition scalar: AuxiliaryMaps.Map := AuxiliaryMaps.functionScale radius Identity.map auxiliaryContinuous;
+\import StableEven.Of[same := sameAuxiliary].Mapping[Y := X, A := E1, B := H, leftTarget := odd, rightTarget := auxiliary,
+  f := (\fun (x: X) => x), targetSame := oddAuxiliary] \as StableForward;
+\import StableOdd.Of[same := oddAuxiliary].Mapping[Y := X, A := E0, B := H, leftTarget := even, rightTarget := auxiliary,
+  f := (\fun (x: X) => x), targetSame := sameAuxiliary] \as StableBackward;
+\definition stableForward: Bundles.Morphisms[X := X, Y := X, F := StableEven.Fiber, G := StableOdd.Fiber,
+  source := stableEven, target := stableOdd, f := (\fun (x: X) => x)].Map := StableForward.map d scalar;
+\definition stableBackward: Bundles.Morphisms[X := X, Y := X, F := StableOdd.Fiber, G := StableEven.Fiber,
+  source := stableOdd, target := stableEven, f := (\fun (x: X) => x)].Map := StableBackward.map e scalar;
+\import Operations.DirectSum[X := X, F := StableEven.Fiber, G := StableOdd.Fiber, left := stableEven, right := stableOdd]
+  .Of[same := sameOdd] \as SourceSplit;
+\import SourceSplit.From[Y := X, H := SourceFiber, source := sourceBundle, f := (\fun (x: X) => x)] \as SourcePair;
+\import Bundles.Morphisms[X := X, Y := X, F := SourceFiber, G := StableOdd.Fiber, source := sourceBundle, target := stableOdd, f := (\fun (x: X) => x)]
+  .Composition[Z := X, H := StableEven.Fiber, range := stableEven, g := (\fun (x: X) => x)] \as SourceEven;
+\import Bundles.Morphisms[X := X, Y := X, F := SourceFiber, G := StableEven.Fiber, source := sourceBundle, target := stableEven, f := (\fun (x: X) => x)]
+  .Composition[Z := X, H := StableOdd.Fiber, range := stableOdd, g := (\fun (x: X) => x)] \as SourceOdd;
+\definition sourceOperator: Bundles.Morphisms[X := X, Y := X, F := SourceFiber, G := SourceFiber, source := sourceBundle, target := sourceBundle, f := (\fun (x: X) => x)].Map :=
+  SourcePair.pair (SourceEven.compose SourceSplit.secondMap stableBackward) (SourceOdd.compose SourceSplit.firstMap stableForward);
+\import Operations.DirectSum[X := X, F := E0, G := E1, left := even, right := odd] \as Original;
+\definition original: Bundles.Family[X := X, F := Original.Fiber].Bundle := Original.bundle sameOdd;
+\import Original.Of[same := sameOdd] \as OriginalSplit;
+\import OriginalSplit.From[Y := X, H := Original.Fiber, source := original, f := (\fun (x: X) => x)] \as OriginalPair;
+\import Bundles.Morphisms[X := X, Y := X, F := Original.Fiber, G := E1, source := original, target := odd, f := (\fun (x: X) => x)]
+  .Composition[Z := X, H := E0, range := even, g := (\fun (x: X) => x)] \as OriginalEven;
+\import Bundles.Morphisms[X := X, Y := X, F := Original.Fiber, G := E0, source := original, target := even, f := (\fun (x: X) => x)]
+  .Composition[Z := X, H := E1, range := odd, g := (\fun (x: X) => x)] \as OriginalOdd;
+\definition originalOperator: Bundles.Morphisms[X := X, Y := X, F := Original.Fiber, G := Original.Fiber, source := original, target := original, f := (\fun (x: X) => x)].Map :=
+  OriginalPair.pair (OriginalEven.compose OriginalSplit.secondMap e) (OriginalOdd.compose OriginalSplit.firstMap d);
+\import Operations.DirectSum[X := X, F := H, G := H, left := auxiliary, right := auxiliary] \as Auxiliary;
+\definition auxiliaryBundle: Bundles.Family[X := X, F := Auxiliary.Fiber].Bundle := Auxiliary.bundle (\refl(auxiliary.baseSpace));
+\import Auxiliary.Of[same := (\refl(auxiliary.baseSpace))].Symmetry[] \as Flip;
+\import Operations.MapOperations[X := X, F := Auxiliary.Fiber, G := Auxiliary.Fiber, source := auxiliaryBundle, target := auxiliaryBundle] \as FlipMaps;
+\definition auxiliaryOperator: FlipMaps.Map := FlipMaps.functionScale radius Flip.isomorphism.forward auxiliaryContinuous;
+\import Operations.DirectSum[X := X, F := Original.Fiber, G := Auxiliary.Fiber, left := original, right := auxiliaryBundle]
+  .Of[same := sameAuxiliary].Mapping[Y := X, A := Original.Fiber, B := Auxiliary.Fiber, leftTarget := original, rightTarget := auxiliaryBundle,
+    f := (\fun (x: X) => x), targetSame := sameAuxiliary] \as TargetMapping;
+\definition targetOperator: Bundles.Morphisms[X := X, Y := X, F := TargetFiber, G := TargetFiber, source := targetBundle, target := targetBundle, f := (\fun (x: X) => x)].Map :=
+  TargetMapping.map originalOperator auxiliaryOperator;
+\definition commutes: \forall (x: X)(v: SourceFiber x) ->
+  (isomorphism.forward.fiber x).apply ((sourceOperator.fiber x).apply v) =
+  (targetOperator.fiber x).apply ((isomorphism.forward.fiber x).apply v) :=
+  \fun (x: X)(v: SourceFiber x) => \refl((isomorphism.forward.fiber x).apply ((sourceOperator.fiber x).apply v));
+
+\import Bundles.Identity[X := X, F := StableEven.Fiber, bundle := stableEven] \as StableIdentity;
+\import Operations.Negation[X := X, F := StableOdd.Fiber, bundle := stableOdd] \as StableSign;
+\import SourceSplit.Mapping[Y := X, A := StableEven.Fiber, B := StableOdd.Fiber, leftTarget := stableEven, rightTarget := stableOdd,
+  f := (\fun (x: X) => x), targetSame := sameOdd] \as SourceGrading;
+\definition sourceGrading: Bundles.Morphisms[X := X, Y := X, F := SourceFiber, G := SourceFiber, source := sourceBundle, target := sourceBundle, f := (\fun (x: X) => x)].Map :=
+  SourceGrading.map StableIdentity.map StableSign.isomorphism.forward;
+\import Bundles.Identity[X := X, F := E0, bundle := even] \as EvenIdentity;
+\import Operations.Negation[X := X, F := E1, bundle := odd] \as OddSign;
+\import OriginalSplit.Mapping[Y := X, A := E0, B := E1, leftTarget := even, rightTarget := odd,
+  f := (\fun (x: X) => x), targetSame := sameOdd] \as OriginalGrading;
+\definition originalGrading: Bundles.Morphisms[X := X, Y := X, F := Original.Fiber, G := Original.Fiber, source := original, target := original, f := (\fun (x: X) => x)].Map :=
+  OriginalGrading.map EvenIdentity.map OddSign.isomorphism.forward;
+\import Operations.Negation[X := X, F := H, bundle := auxiliary] \as AuxiliarySign;
+\import Auxiliary.Of[same := (\refl(auxiliary.baseSpace))].Mapping[Y := X, A := H, B := H, leftTarget := auxiliary, rightTarget := auxiliary,
+  f := (\fun (x: X) => x), targetSame := (\refl(auxiliary.baseSpace))] \as AuxiliaryGrading;
+\definition auxiliaryGrading: FlipMaps.Map := AuxiliaryGrading.map Identity.map AuxiliarySign.isomorphism.forward;
+\definition targetGrading: Bundles.Morphisms[X := X, Y := X, F := TargetFiber, G := TargetFiber, source := targetBundle, target := targetBundle, f := (\fun (x: X) => x)].Map :=
+  TargetMapping.map originalGrading auxiliaryGrading;
+\definition gradingCommutes: \forall (x: X)(v: SourceFiber x) ->
+  (isomorphism.forward.fiber x).apply ((sourceGrading.fiber x).apply v) =
+  (targetGrading.fiber x).apply ((isomorphism.forward.fiber x).apply v) :=
+  \fun (x: X)(v: SourceFiber x) => \refl((isomorphism.forward.fiber x).apply ((sourceGrading.fiber x).apply v));

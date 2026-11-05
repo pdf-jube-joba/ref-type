@@ -1,0 +1,38 @@
+\import topological_constructions.Product[A := FirstLocal.Carrier, B := SecondLocal.Carrier] \as Source;
+\definition forward[z: LocalProduct.Z]: WholeLocal.Carrier := \into[Carrier](Pair.pair X Y (LocalProduct.first z) (LocalProduct.second z), compactSet) \by {
+  Logic.And[_, _]::# (\bysub(X, L, LocalProduct.first z)) (\bysub(Y, M, LocalProduct.second z))
+};
+\definition first[z: WholeLocal.Carrier]: FirstLocal.Carrier := \into[X](Pair.first X Y z, L) \by { (\bysub(Carrier, compactSet, z)).left };
+\definition second[z: WholeLocal.Carrier]: SecondLocal.Carrier := \into[Y](Pair.second X Y z, M) \by { (\bysub(Carrier, compactSet, z)).right };
+\definition backward[z: WholeLocal.Carrier]: LocalProduct.Z := Pair.pair FirstLocal.Carrier SecondLocal.Carrier (first z) (second z);
+\definition leftInverse: \forall (z: LocalProduct.Z) -> backward (forward z) = z :=
+  \fun (z: LocalProduct.Z) => Pair.Prop[A := FirstLocal.Carrier, B := SecondLocal.Carrier].eta z;
+\definition rightInverse: \forall (z: WholeLocal.Carrier) -> forward (backward z) = z := \fun (z: WholeLocal.Carrier) => Pair.Prop[A := X, B := Y].eta z;
+\definition forwardContinuous: topology.Continuity[A := LocalProduct.Z, B := WholeLocal.Carrier].Continuous LocalProduct.topology WholeLocal.topology forward :=
+  topology.Continuity[A := LocalProduct.Z, B := Carrier].Corestriction[S := compactSet].corestrictContinuous LocalProduct.topology topology forward
+    (Cartesian.Universal[X := LocalProduct.Z].pairContinuous LocalProduct.topology firstSpace secondSpace
+      (\fun (z: LocalProduct.Z) => LocalProduct.first z) (\fun (z: LocalProduct.Z) => LocalProduct.second z)
+      (topology.Composition[A := LocalProduct.Z, B := FirstLocal.Carrier, C := X].composeContinuous
+        LocalProduct.topology FirstLocal.topology firstSpace LocalProduct.first FirstLocal.inclusion
+        (Source.Maps[].firstContinuous FirstLocal.topology SecondLocal.topology) FirstLocal.regular)
+      (topology.Composition[A := LocalProduct.Z, B := SecondLocal.Carrier, C := Y].composeContinuous
+        LocalProduct.topology SecondLocal.topology secondSpace LocalProduct.second SecondLocal.inclusion
+        (Source.Maps[].secondContinuous FirstLocal.topology SecondLocal.topology) SecondLocal.regular));
+\definition firstContinuous: topology.Continuity[A := WholeLocal.Carrier, B := FirstLocal.Carrier].Continuous WholeLocal.topology FirstLocal.topology first :=
+  topology.Continuity[A := WholeLocal.Carrier, B := X].Corestriction[S := L].corestrictContinuous WholeLocal.topology firstSpace first
+    (topology.Composition[A := WholeLocal.Carrier, B := Carrier, C := X].composeContinuous WholeLocal.topology topology firstSpace WholeLocal.inclusion (Pair.first X Y)
+      WholeLocal.regular (Cartesian.Maps[].firstContinuous firstSpace secondSpace));
+\definition secondContinuous: topology.Continuity[A := WholeLocal.Carrier, B := SecondLocal.Carrier].Continuous WholeLocal.topology SecondLocal.topology second :=
+  topology.Continuity[A := WholeLocal.Carrier, B := Y].Corestriction[S := M].corestrictContinuous WholeLocal.topology secondSpace second
+    (topology.Composition[A := WholeLocal.Carrier, B := Carrier, C := Y].composeContinuous WholeLocal.topology topology secondSpace WholeLocal.inclusion (Pair.second X Y)
+      WholeLocal.regular (Cartesian.Maps[].secondContinuous firstSpace secondSpace));
+\definition backwardContinuous: topology.Continuity[A := WholeLocal.Carrier, B := LocalProduct.Z].Continuous WholeLocal.topology LocalProduct.topology backward :=
+  Source.Universal[X := WholeLocal.Carrier].pairContinuous WholeLocal.topology FirstLocal.topology SecondLocal.topology first second firstContinuous secondContinuous;
+\definition preserves: \forall (z: LocalProduct.Z) -> \In[LocalProduct.Z] LocalProduct.boundary z -> \In[WholeLocal.Carrier] WholeLocal.boundary (forward z) :=
+  \fun (z: LocalProduct.Z)(member: _) => Logic.orElim[_, _, \In[WholeLocal.Carrier] WholeLocal.boundary (forward z)] member
+    (\fun (outside: Logic.Not (\In[X] U (LocalProduct.first z)))(inside: Logic.And[\In[X] U (LocalProduct.first z), \In[Y] V (LocalProduct.second z)]) => outside inside.left)
+    (\fun (outside: Logic.Not (\In[Y] V (LocalProduct.second z)))(inside: Logic.And[\In[X] U (LocalProduct.first z), \In[Y] V (LocalProduct.second z)]) => outside inside.right);
+\definition reflects: \forall (z: WholeLocal.Carrier) -> \In[WholeLocal.Carrier] WholeLocal.boundary z -> \In[LocalProduct.Z] LocalProduct.boundary (backward z) :=
+  \fun (z: WholeLocal.Carrier)(outside: _) => either!{{(Classical.excludedMiddle (\In[X] U (first z)))} {\In[LocalProduct.Z] LocalProduct.boundary (backward z)}
+    {\fun (inside: _) => Logic.Or[_, _]::right (\fun (secondInside: _) => outside (Logic.And[_, _]::# inside secondInside))}
+    {\fun (firstOutside: _) => Logic.Or[_, _]::left firstOutside}};

@@ -1,0 +1,29 @@
+\definition leftInverse: \forall (p: Geometry.DiskBundle) -> backward (forward p) = p :=
+  \fun (p: Geometry.DiskBundle) => trans!{{Point.Total}} _ _ _
+    (congr!{{Plane.Carrier} {Point.Total}} TotalCoordinates.backward _ _ (inputCoordinates (TotalCoordinates.forward p)))
+    (TotalCoordinates.leftInverse p);
+\definition rightInverse: \forall (v: D2.Disk) -> forward (backward v) = v :=
+  \fun (v: D2.Disk) => trans!{{D2.Coordinate}} _ _ _
+    (congr!{{Plane.Carrier} {D2.Coordinate}} coordinates _ _ (TotalCoordinates.rightInverse (PlaneDisk.input v))) (coordinatesInput v);
+\definition coordinatesContinuous: topology.Continuity[A := Plane.Carrier, B := D2.Coordinate].Continuous Plane.topology D2.topology coordinates :=
+  Split.Continuity[A := Plane.Carrier].joinContinuous Plane.topology Plane.x (\fun (z: Plane.Carrier)(i: D1.Index) => Plane.y z)
+    Plane.xContinuous (\fun (i: D1.Index) => Plane.yContinuous);
+\definition inclusionContinuous: topology.Continuity[A := Geometry.DiskBundle, B := Point.Total].Continuous Geometry.diskTopology Trivial.topology
+  (\fun (p: Geometry.DiskBundle) => p) :=
+  topology.Continuity[A := Point.Total, B := Point.Total].Corestriction[S := Geometry.ClosedBall].inclusionContinuous Trivial.topology;
+\definition forwardContinuous: topology.Continuity[A := Geometry.DiskBundle, B := D2.Disk].Continuous Geometry.diskTopology D2.diskTopology forward :=
+  topology.Continuity[A := Geometry.DiskBundle, B := D2.Coordinate].Corestriction[S := D2.ClosedBall].corestrictContinuous Geometry.diskTopology D2.topology forward
+    (topology.Composition[A := Geometry.DiskBundle, B := Plane.Carrier, C := D2.Coordinate].composeContinuous
+      Geometry.diskTopology Plane.topology D2.topology (\fun (p: Geometry.DiskBundle) => TotalCoordinates.forward p) coordinates
+      (topology.Composition[A := Geometry.DiskBundle, B := Point.Total, C := Plane.Carrier].composeContinuous
+        Geometry.diskTopology Trivial.topology Plane.topology (\fun (p: Geometry.DiskBundle) => p) TotalCoordinates.forward
+        inclusionContinuous TotalCoordinates.forwardContinuous) coordinatesContinuous);
+\definition backwardContinuous: topology.Continuity[A := D2.Disk, B := Geometry.DiskBundle].Continuous D2.diskTopology Geometry.diskTopology backward :=
+  topology.Continuity[A := D2.Disk, B := Point.Total].Corestriction[S := Geometry.ClosedBall].corestrictContinuous D2.diskTopology Trivial.topology backward
+    (topology.Composition[A := D2.Disk, B := Plane.Carrier, C := Point.Total].composeContinuous
+      D2.diskTopology Plane.topology Trivial.topology PlaneDisk.input TotalCoordinates.backward PlaneDisk.inputContinuous TotalCoordinates.backwardContinuous);
+\definition homeomorphism: topology.Homeomorphism[A := Geometry.DiskBundle, B := D2.Disk].Homeomorphism[Geometry.diskTopology, D2.diskTopology] :=
+  topology.Homeomorphism[A := Geometry.DiskBundle, B := D2.Disk].Homeomorphism[Geometry.diskTopology, D2.diskTopology] {
+    forward := forward, backward := backward, leftInverse := leftInverse, rightInverse := rightInverse,
+    forwardContinuous := forwardContinuous, backwardContinuous := backwardContinuous
+  };

@@ -1,0 +1,42 @@
+\import Models.Pullback[b := OriginalModel.model k, Y := PulledKoszul.Total, source := pulled.totalSpace,
+  f := Natural.total, regular := Natural.continuous] \as Model;
+\import \root.Thom[].Naturality[X := X, F := F, bundle := bundle, Y := Y, source := source, f := f, regular := regular].Koszul[].Degree[k := k] \as Term;
+\import Complements.PulledIsomorphism[X := Koszul.Total, Y := PulledKoszul.Total, F := Koszul.Term k,
+  G := Models.Fiber (OriginalModel.model k).ranks, source := Koszul.term k, target := Models.bundle (OriginalModel.model k),
+  base := pulled.totalSpace, f := Natural.total, sourceRegular := Natural.continuous, targetRegular := Natural.continuous] \as CoordinatePull;
+\import Bundles.Isomorphisms[X := PulledKoszul.Total, F := Term.Term, G := Term.Term,
+  source := Term.sourceBundle, target := Term.targetBundle] \as Reverse;
+\import Operations.IsomorphismComposition[X := PulledKoszul.Total, F := PulledKoszul.Term k, G := Term.Term,
+  H := TargetModels.Fiber Model.value.ranks, source := PulledKoszul.term k, middle := Term.sourceBundle,
+  target := TargetModels.bundle Model.value] \as Compose;
+\definition comparison: Compose.Isomorphism := Compose.compose (Reverse.inverse Term.isomorphism)
+  (CoordinatePull.isomorphism (data.selection k).isomorphism);
+\import Bundles.Morphisms[X := PulledKoszul.Total, Y := PulledKoszul.Total,
+  F := PulledKoszul.Term k, G := TargetModels.Fiber Model.value.ranks, source := PulledKoszul.term k,
+  target := TargetModels.bundle Model.value, f := \fun (p: PulledKoszul.Total) => p] \as Forward;
+\import Bundles.Morphisms[X := PulledKoszul.Total, Y := PulledKoszul.Total,
+  F := TargetModels.Fiber Model.value.ranks, G := PulledKoszul.Term k, source := TargetModels.bundle Model.value,
+  target := PulledKoszul.term k, f := \fun (p: PulledKoszul.Total) => p] \as Backward;
+\definition forwardData: Forward.Data := Forward.Data { fiber := \fun (p: PulledKoszul.Total) => OriginalModel.encode k (Natural.total p) };
+\definition backwardData: Backward.Data := Backward.Data { fiber := \fun (p: PulledKoszul.Total) => OriginalModel.decode k (Natural.total p) };
+\definition forwardFormula: \forall (p: PulledKoszul.Total)(v: PulledKoszul.Term k p) ->
+  (comparison.forward.fiber p).apply v = (forwardData.fiber p).apply v :=
+  \fun (p: PulledKoszul.Total)(v: PulledKoszul.Term k p) =>
+    congr!{{Term.Term p} {TargetModels.Fiber Model.value.ranks p}} (OriginalModel.encode k (Natural.total p)).apply _ _ (Term.inverseOnFiber p v);
+\definition backwardFormula: \forall (p: PulledKoszul.Total)(v: TargetModels.Fiber Model.value.ranks p) ->
+  (comparison.backward.fiber p).apply v = (backwardData.fiber p).apply v :=
+  \fun (p: PulledKoszul.Total)(v: TargetModels.Fiber Model.value.ranks p) => Term.onFiber p ((OriginalModel.decode k (Natural.total p)).apply v);
+\module Continuity;
+\definition forward: Forward.Map := \into[Forward.Data](forwardData, Forward.Map) \by { Continuity[].forward };
+\definition backward: Backward.Map := \into[Backward.Data](backwardData, Backward.Map) \by { Continuity[].backward };
+\definition isomorphism: Bundles.Isomorphisms[X := PulledKoszul.Total, F := PulledKoszul.Term k,
+  G := TargetModels.Fiber Model.value.ranks, source := PulledKoszul.term k, target := TargetModels.bundle Model.value].Isomorphism :=
+  Bundles.Isomorphisms[X := PulledKoszul.Total, F := PulledKoszul.Term k,
+    G := TargetModels.Fiber Model.value.ranks, source := PulledKoszul.term k, target := TargetModels.bundle Model.value].Isomorphism {
+    forward := forward, backward := backward,
+    leftInverse := \fun (p: PulledKoszul.Total)(v: PulledKoszul.Term k p) => OriginalModel.decodeEncode k (Natural.total p) v,
+    rightInverse := \fun (p: PulledKoszul.Total)(v: TargetModels.Fiber Model.value.ranks p) => OriginalModel.encodeDecode k (Natural.total p) v
+  };
+\definition choice: PulledCoordinates.Choice k := TargetModels.From[F := PulledKoszul.Term k, original := PulledKoszul.term k].Result {
+  model := Model.value, isomorphism := isomorphism
+};

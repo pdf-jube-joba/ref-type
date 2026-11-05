@@ -1,0 +1,57 @@
+\import \parent.Normalized[] \as Normalized;
+\import Normalized.Intermediate[] \as Intermediate;
+\import \parent.Original[] \as Original;
+\import \parent.AuxiliaryLeft[] \as Auxiliary;
+\import Auxiliary.Full[] \as AuxiliaryFull;
+\import \root.Thom[].TensorStabilization[X := NativeProduct.Z,
+  E0 := Original.FirstEven, E1 := Original.FirstOdd, F0 := Normalized.SecondEven, F1 := Normalized.SecondOdd, H := Auxiliary.Auxiliary,
+  e0 := Original.FirstEvenBundle, e1 := Original.FirstOddBundle, f0 := Normalized.SecondEvenBundle, f1 := Normalized.SecondOddBundle, auxiliary := Auxiliary.auxiliaryBundle,
+  sameE1 := (\refl(NativeProduct.topology)), sameF0 := (\refl(NativeProduct.topology)), sameF1 := (\refl(NativeProduct.topology)), sameAuxiliary := (\refl(NativeProduct.topology))]
+  .With[d := Original.FirstD, e := Original.FirstE, radius := Normalized.FirstRadius, continuous := Normalized.FirstRadiusContinuous, partner := Normalized.secondOperator] \as Decompose;
+\definition SumEven[z: NativeProduct.Z]: \Set := P.Times^[Intermediate.IntermediateEven z, Auxiliary.Even z];
+\definition SumOdd[z: NativeProduct.Z]: \Set := P.Times^[Intermediate.IntermediateOdd z, Auxiliary.Odd z];
+\definition sourceFormula: \forall (z: NativeProduct.Z)(v: Normalized.Even z) -> (Decompose.sourceForward.fiber z).apply v = (Normalized.forward.fiber z).apply v :=
+  \fun (z: NativeProduct.Z)(v: Normalized.Even z) => \refl((Normalized.forward.fiber z).apply v);
+\definition targetFormula: \forall (z: NativeProduct.Z)(v: SumEven z) -> (Decompose.targetForward.fiber z).apply v =
+  P.pair (Intermediate.IntermediateOdd z) (Auxiliary.Odd z)
+    ((Intermediate.intermediateForward.fiber z).apply (P.first (Intermediate.IntermediateEven z) (Auxiliary.Even z) v))
+    ((AuxiliaryFull.fullForward.fiber z).apply (P.second (Intermediate.IntermediateEven z) (Auxiliary.Even z) v)) :=
+  \fun (z: NativeProduct.Z)(v: SumEven z) => \refl((Decompose.targetForward.fiber z).apply v);
+\definition output[z: NativePair.A][v: SumEven z]: SumOdd z := P.pair (Intermediate.IntermediateOdd z) (Auxiliary.Odd z)
+  ((Intermediate.intermediateComparison.forward.fiber z).apply (P.first (Intermediate.IntermediateEven z) (Auxiliary.Even z) v))
+  ((Auxiliary.comparison.forward.fiber z).apply (P.second (Intermediate.IntermediateEven z) (Auxiliary.Even z) v));
+\definition split: \forall (z: NativePair.A)(v: Normalized.Even z) ->
+  (Decompose.negative.forward.fiber z).apply ((Normalized.comparison.forward.fiber z).apply v) = output z ((Decompose.positive.forward.fiber z).apply v) :=
+  \fun (z: NativePair.A)(v: Normalized.Even z) => trans!{{SumOdd z}} _ _ _
+    (congr!{{Normalized.Odd z} {SumOdd z}} (Decompose.negative.forward.fiber z).apply _ _
+      (trans!{{Normalized.Odd z}} _ _ _ (Normalized.formula z v) (sym!{{Normalized.Odd z}} _ _ (sourceFormula z v))))
+    (trans!{{SumOdd z}} _ _ _ (Decompose.forwardCommutes z v)
+      (trans!{{SumOdd z}} _ _ _ (targetFormula z ((Decompose.positive.forward.fiber z).apply v))
+        (P.Prop[A := Intermediate.IntermediateOdd z, B := Auxiliary.Odd z].pairCong _ _ _ _
+          (sym!{{Intermediate.IntermediateOdd z}} _ _ (Intermediate.intermediateFormula z (P.first (Intermediate.IntermediateEven z) (Auxiliary.Even z) ((Decompose.positive.forward.fiber z).apply v))))
+          (trans!{{Auxiliary.Odd z}} _ _ _ (AuxiliaryFull.formula z (P.second (Intermediate.IntermediateEven z) (Auxiliary.Even z) ((Decompose.positive.forward.fiber z).apply v)))
+            (sym!{{Auxiliary.Odd z}} _ _ (Auxiliary.formula z (P.second (Intermediate.IntermediateEven z) (Auxiliary.Even z) ((Decompose.positive.forward.fiber z).apply v))))))));
+\import Bundles.Isomorphisms[X := NativeProduct.Z, F := Normalized.Even, G := SumEven,
+  source := Normalized.evenBundle, target := Operations.DirectSum[X := NativeProduct.Z, F := Intermediate.IntermediateEven, G := Auxiliary.Even, left := Intermediate.intermediateEvenBundle, right := Auxiliary.evenBundle].bundle (\refl(NativeProduct.topology))] \as PositiveMaps;
+\import Bundles.Isomorphisms[X := NativeProduct.Z, F := Normalized.Odd, G := SumOdd,
+  source := Normalized.oddBundle, target := Operations.DirectSum[X := NativeProduct.Z, F := Intermediate.IntermediateOdd, G := Auxiliary.Odd, left := Intermediate.intermediateOddBundle, right := Auxiliary.oddBundle].bundle (\refl(NativeProduct.topology))] \as NegativeMaps;
+\import NativePair.BundleSum[F := Intermediate.IntermediateEven, G := Intermediate.IntermediateOdd, H := Auxiliary.Even, I := Auxiliary.Odd, J := Normalized.Even, L := Normalized.Odd,
+  firstModel := Intermediate.intermediateEvenModel, secondModel := Intermediate.intermediateOddModel, thirdModel := Auxiliary.evenModel, fourthModel := Auxiliary.oddModel,
+  fifthModel := Normalized.evenModel, sixthModel := Normalized.oddModel] \as Add;
+\definition witness: Add.Witness[Intermediate.intermediateComparison,Auxiliary.comparison,Normalized.comparison] := Add.Witness[Intermediate.intermediateComparison,Auxiliary.comparison,Normalized.comparison] {
+  positive := PositiveMaps.inverse Decompose.positive,
+  negative := NegativeMaps.inverse Decompose.negative,
+  agrees := \fun (z: NativePair.A)(a: Intermediate.IntermediateEven z)(b: Auxiliary.Even z) => trans!{{Normalized.Odd z}} _ _ _
+    (sym!{{Normalized.Odd z}} _ _ (Decompose.negative.leftInverse z ((Normalized.comparison.forward.fiber z).apply ((Decompose.positive.backward.fiber z).apply (P.pair (Intermediate.IntermediateEven z) (Auxiliary.Even z) a b)))))
+    (trans!{{Normalized.Odd z}} _ _ _
+      (congr!{{SumOdd z} {Normalized.Odd z}} (Decompose.negative.backward.fiber z).apply _ _
+        (split z ((Decompose.positive.backward.fiber z).apply (P.pair (Intermediate.IntermediateEven z) (Auxiliary.Even z) a b))))
+      (congr!{{SumEven z} {Normalized.Odd z}} (\fun (v: SumEven z) => (Decompose.negative.backward.fiber z).apply (output z v)) _ _
+        (Decompose.positive.rightInverse z (P.pair (Intermediate.IntermediateEven z) (Auxiliary.Even z) a b))))
+};
+\definition additive: NativeQ.group.base.op Intermediate.intermediateValue Auxiliary.value = Normalized.value :=
+  Add.With[alpha := Intermediate.intermediateComparison, beta := Auxiliary.comparison, gamma := Normalized.comparison, witness := witness].reducedEquation;
+\import algebra.Group[].Of[Carrier := NativeQ.Relative, group := NativeQ.group] \as Group;
+\definition equation: Normalized.value = Intermediate.intermediateValue := trans!{{NativeQ.Relative}} _ _ _
+  (sym!{{NativeQ.Relative}} _ _ additive)
+  (trans!{{NativeQ.Relative}} _ _ _ (congr!{{NativeQ.Relative} {NativeQ.Relative}} (NativeQ.group.base.op Intermediate.intermediateValue) _ _ Auxiliary.zero) (Group.zeroRight Intermediate.intermediateValue));

@@ -1,0 +1,63 @@
+\import \root.Thom[].ComplexProductAuxiliaryScalar[X := X, space := auxiliary.baseSpace]
+  .With[r := r, b := data.norm, rContinuous := rContinuous, bContinuous := data.continuous, nonnegative := data.nonnegative]
+  .Boundary[subset := subset, boundary := boundary] \as Path;
+\import algebraic_topology.Interval[] \as I;
+\import algebraic_topology.Cylinder[A := Relative.A] \as Cylinder;
+\import \parent.\parent.Raw[] \as Raw;
+\import Raw.Block[map := Raw.left] \as LeftBlock;
+\import Raw.Block[map := Raw.right] \as RightBlock;
+\module Pull(F, G: X -> \Set,
+  source: Bundles.Family[X := X, F := F].Bundle,
+  target: Bundles.Family[X := X, F := G].Bundle,
+  same: source.baseSpace = auxiliary.baseSpace,
+  map: Bundles.Morphisms[X := X, Y := X, F := F, G := G, source := source, target := target, f := (\fun (x: X) => x)].Map);
+\import Pull[F := Parity.Even, G := Parity.Odd, source := Parity.evenBundle, target := Parity.oddBundle, same := (\refl(auxiliary.baseSpace)), map := LeftBlock.forward] \as LF;
+\import Pull[F := Parity.Even, G := Parity.Odd, source := Parity.evenBundle, target := Parity.oddBundle, same := (\refl(auxiliary.baseSpace)), map := RightBlock.forward] \as RF;
+\import Pull[F := Parity.Odd, G := Parity.Even, source := Parity.oddBundle, target := Parity.evenBundle, same := (\refl(auxiliary.baseSpace)), map := LeftBlock.backward] \as LB;
+\import Pull[F := Parity.Odd, G := Parity.Even, source := Parity.oddBundle, target := Parity.evenBundle, same := (\refl(auxiliary.baseSpace)), map := RightBlock.backward] \as RB;
+\import Bundles.Family[X := Relative.A, F := (\fun (x: Relative.A) => Parity.Even x)].Of[bundle := Represent.restrictedSource]
+  .Pullback[Y := Cylinder.Carrier, source := Cylinder.topology Relative.subspace, f := Cylinder.point] \as Positive;
+\import Bundles.Family[X := Relative.A, F := (\fun (x: Relative.A) => Parity.Odd x)].Of[bundle := Represent.restrictedTarget]
+  .Pullback[Y := Cylinder.Carrier, source := Cylinder.topology Relative.subspace, f := Cylinder.point] \as Negative;
+\definition P: Bundles.Family[X := Cylinder.Carrier, F := (\fun (z: Cylinder.Carrier) => Parity.Even (Cylinder.point z))].Bundle := Positive.pulled (Cylinder.pointContinuous Relative.subspace);
+\definition Q: Bundles.Family[X := Cylinder.Carrier, F := (\fun (z: Cylinder.Carrier) => Parity.Odd (Cylinder.point z))].Bundle := Negative.pulled (Cylinder.pointContinuous Relative.subspace);
+\import Operations.MapOperations[X := Cylinder.Carrier, F := (\fun (z: Cylinder.Carrier) => Parity.Even (Cylinder.point z)),
+  G := (\fun (z: Cylinder.Carrier) => Parity.Odd (Cylinder.point z)), source := P, target := Q] \as Forward;
+\import Operations.MapOperations[X := Cylinder.Carrier, F := (\fun (z: Cylinder.Carrier) => Parity.Odd (Cylinder.point z)),
+  G := (\fun (z: Cylinder.Carrier) => Parity.Even (Cylinder.point z)), source := Q, target := P] \as Backward;
+\definition coefficient[z: Cylinder.Carrier]: C.Complex := Scalar.ofReal (Path.coefficient z);
+\definition coefficientContinuous: topology.Continuity[A := Cylinder.Carrier, B := C.Complex].Continuous (Cylinder.topology Relative.subspace) Scalars.scalar.topological.space coefficient :=
+  hermitian_frames.Hermitian[].Over[K := C.Complex, field := C.Algebra[].field, scalar := Hermitian.scalar, topological := Scalars.scalar.topological].Functions[X := Cylinder.Carrier]
+    .embedding (Cylinder.topology Relative.subspace) Path.coefficient Path.coefficientContinuous;
+\definition forward: Forward.Map := Forward.add (Forward.functionScale coefficient LF.cylinder coefficientContinuous) RF.cylinder;
+\definition backward: Backward.Map := Backward.add (Backward.functionScale coefficient LB.cylinder coefficientContinuous) RB.cylinder;
+\definition inverse: Backward.Map := Backward.functionScale Path.rho backward Path.rhoContinuous;
+\module At(z: Cylinder.Carrier);
+\definition isomorphism: Bundles.Isomorphisms[X := Cylinder.Carrier,
+  F := (\fun (z: Cylinder.Carrier) => Parity.Even (Cylinder.point z)), G := (\fun (z: Cylinder.Carrier) => Parity.Odd (Cylinder.point z)), source := P, target := Q].Isomorphism :=
+  Bundles.Isomorphisms[X := Cylinder.Carrier,
+    F := (\fun (z: Cylinder.Carrier) => Parity.Even (Cylinder.point z)), G := (\fun (z: Cylinder.Carrier) => Parity.Odd (Cylinder.point z)), source := P, target := Q].Isomorphism {
+    forward := forward, backward := inverse,
+    leftInverse := \fun (z: Cylinder.Carrier) => At[z := z].left,
+    rightInverse := \fun (z: Cylinder.Carrier) => At[z := z].right
+  };
+\import Bundles.Isomorphisms[X := Relative.A, F := (\fun (x: Relative.A) => Parity.Even x), G := (\fun (x: Relative.A) => Parity.Odd x),
+  source := Represent.restrictedSource, target := Represent.restrictedTarget] \as BoundaryMaps;
+\import \parent.\parent.AtCoefficient[coefficient := r, continuous := rContinuous] \as Native;
+\module Start;
+\import Start[] \as Initial;
+\import Triples.Homotopy[alpha := Initial.comparison, beta := endpointComparison] \as Comparison;
+\definition family: Comparison.Family := Comparison.Family {
+  isomorphism := isomorphism,
+  start := \fun (x: Relative.A)(v: Parity.Even x) => \refl((forward.fiber (Cylinder.at I.start x)).apply v),
+  end := \fun (x: Relative.A)(v: Parity.Even x) => trans!{{Parity.Odd x}} _ _ _
+    (congr!{{C.Complex} {Parity.Odd x}} (\fun (a: C.Complex) => (Parity.oddBundle.space x).add
+      ((Parity.oddBundle.space x).smul a ((LeftBlock.forward.fiber x).apply v)) ((RightBlock.forward.fiber x).apply v)) _ _
+        (congr!{Real.Real {C.Complex}} Scalar.ofReal _ _ (Path.coefficientEnd x)))
+    (sym!{{Parity.Odd x}} _ _ (Endpoint.forwardFormula x v))
+};
+\definition zero: Initial.value = Relative.Quotient[].group.base.unit :=
+  trans!{{Relative.Quotient[].Relative}} _ _ _ (Comparison.With[family := family].reducedEquation) endpointZero;
+
+\module Identified(alpha: Triples.OnSubset, agrees: \forall (x: Relative.A)(v: Parity.Even x) ->
+  (alpha.forward.fiber x).apply v = (Native.rawForward.fiber x).apply v);

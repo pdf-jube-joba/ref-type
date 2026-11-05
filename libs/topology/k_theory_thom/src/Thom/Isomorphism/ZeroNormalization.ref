@@ -1,0 +1,77 @@
+\import periodic_k_theory.Periodicity[].SuspensionSphere[] \as Sphere;
+\definition one: N.Nat^ := N.Nat^::succ N.Nat^::zero;
+\definition Point: \Set := Fin.Fin one;
+\import topology.Topology[Carrier := Point] \as Base;
+\import topological_k_theory.KTheory[].FiniteDiscrete[n := one] \as Finite;
+\import \root.Thom[].Isomorphism[].ZeroForms[].Koszul[X := Point, baseSpace := Base.Discrete] \as Forms;
+\import Forms.Compact[compact := Finite.compact, hausdorff := Finite.hausdorff] \as Canonical;
+\import Bundles.Trivial[X := Point, n := N.Nat^::zero, baseSpace := Base.Discrete] \as Bundle;
+\import Bundles.Family[X := Point, F := (\fun (x: Point) => Bundles.Vector N.Nat^::zero)] \as Family;
+\import \root.Thom[].Koszul[X := Point, F := (\fun (x: Point) => Bundles.Vector N.Nat^::zero), bundle := Bundle.bundle] \as Native;
+\import \root.Thom[].TotalSpace[X := Point, F := (\fun (x: Point) => Bundles.Vector N.Nat^::zero), bundle := Bundle.bundle,
+  compact := Finite.compact, hausdorff := Finite.hausdorff] \as Total;
+\import compact_support_k.Support[].On[X := Native.Total, space := Bundle.bundle.totalSpace,
+  hausdorff := Total.separated, locallyCompact := Total.locallyCompact] \as Support;
+\import compact_support_k.Support[].OnePoint[X := Native.Total, space := Bundle.bundle.totalSpace] \as Plus;
+\import \root.Thom[].For[X := Point, F := (\fun (x: Point) => Bundles.Vector N.Nat^::zero), bundle := Bundle.bundle,
+  compact := Finite.compact, hausdorff := Finite.hausdorff] \as Theory;
+\definition model: Relative.CompactPointed := Support.model;
+\definition point: Native.Total := Family.include (Fin.zero N.Nat^::zero) (Bundles.coordinates N.Nat^::zero).zero;
+\definition totalUnique: \forall (p: Native.Total) -> p = point :=
+  \fun (p: Native.Total) => trans!{{Native.Total}} _ _ _
+    (sym!{{Native.Total}} _ _ (Family.eta p))
+    (trans!{{Native.Total}} _ _ _
+      (congr!{{Bundles.Vector N.Nat^::zero} {Native.Total}} (Family.include p.base) _ _ (Canonical.emptyUnique p.vector))
+      (congr!{{Point} {Native.Total}} (\fun (x: Point) => Family.include x (Bundles.coordinates N.Nat^::zero).zero) _ _ (Fin.singletonValue p.base)));
+\definition forwardNatural: N.Nat^ -> model.Carrier :=
+  \induction (i: N.Nat^) \return model.Carrier \with {
+    | zero: Plus.point
+    | succ: \fun (i: N.Nat^)(previous: model.Carrier) => Plus.inclusion point
+  };
+\definition forward[i: Sphere.zero.Carrier]: model.Carrier := forwardNatural i;
+\definition backward: model.Carrier -> Sphere.zero.Carrier :=
+  \induction (q: model.Carrier) \return Sphere.zero.Carrier \with {
+    | none: (Relative.details Sphere.zero).point
+    | some: \fun (p: Native.Total) => Sphere.live
+  };
+\definition leftInverse: \forall (i: Sphere.zero.Carrier) -> backward (forward i) = i :=
+  Fin.cases one (\fun (i: Sphere.zero.Carrier) => backward (forward i) = i)
+    (\refl((Relative.details Sphere.zero).point))
+    (\fun (i: Fin.Fin one) => congr!{{Fin.Fin one} {Sphere.zero.Carrier}} (Fin.succ one) _ _ (sym!{{Fin.Fin one}} _ _ (Fin.singletonValue i)));
+\definition rightInverse: \forall (q: model.Carrier) -> forward (backward q) = q :=
+  \induction (q: model.Carrier) \return forward (backward q) = q \with {
+    | none: \refl(Plus.point)
+    | some: \fun (p: Native.Total) => congr!{{Native.Total} {model.Carrier}}
+      Plus.inclusion _ _ (sym!{{Native.Total}} _ _ (totalUnique p))
+  };
+\definition regular: topology.Continuity[A := Sphere.zero.Carrier, B := model.Carrier].Continuous
+  (Relative.details Sphere.zero).topology (Relative.details model).topology forward :=
+  \fun (U: \Pow model.Carrier)(open: topology.Topology[Carrier := model.Carrier].IsOpenIn (Relative.details model).topology U) =>
+    topology.Topology[Carrier := Sphere.zero.Carrier].discreteOpen (topology.Maps[A := Sphere.zero.Carrier, B := model.Carrier].Preimage forward U);
+\definition map: Relative.Map Sphere.zero model := \into[Sphere.zero.Carrier -> model.Carrier](forward, Relative.Map Sphere.zero model) \by {
+  algebraic_topology.Pointed[A := Sphere.zero.Carrier].Maps[B := model.Carrier].Laws[Relative.pointed Sphere.zero, Relative.pointed model, forward] {
+    continuous := regular, pointed := \refl(Plus.point)
+  }
+};
+\definition injective: \forall (i, j: Sphere.zero.Carrier) -> map i = map j -> i = j :=
+  \fun (i, j: Sphere.zero.Carrier)(same: map i = map j) => trans!{{Sphere.zero.Carrier}} _ _ _ (sym!{{Sphere.zero.Carrier}} _ _ (leftInverse i))
+    (trans!{{Sphere.zero.Carrier}} _ _ _ (congr!{{model.Carrier} {Sphere.zero.Carrier}} backward _ _ same) (leftInverse j));
+\definition onto: \forall (q: model.Carrier) -> \exists (i: Sphere.zero.Carrier \where map i = q) :=
+  \fun (q: model.Carrier) => Logic.existsIntro[Sphere.zero.Carrier, { i: Sphere.zero.Carrier \where map i = q }] (backward q) (rightInverse q);
+\definition equivalence: Relative.Equivalence[source := Sphere.zero, target := model].Data :=
+  Relative.Equivalence[source := Sphere.zero, target := model].FromMap[f := map, injective := injective, onto := onto].equivalence;
+\import Relative.Pullback[source := Sphere.zero, target := model, f := map] \as Pull;
+\definition thom: Relative.Reduced[model := Sphere.zero].Carrier := Pull.map Theory.thom;
+\import topological_k_theory.KTheory[].On[X := model.Carrier, baseSpace := (Relative.details model).topology,
+  compact := (Relative.details model).compact, hausdorff := (Relative.details model).hausdorff].Pullback[
+  Y := Sphere.zero.Carrier, space := (Relative.details Sphere.zero).topology,
+  sourceCompact := (Relative.details Sphere.zero).compact, sourceHausdorff := (Relative.details Sphere.zero).hausdorff,
+  f := map, regular := regular].Ranks[] \as Ranks;
+\import topological_k_theory.KTheory[].On[X := Sphere.zero.Carrier, baseSpace := (Relative.details Sphere.zero).topology,
+  compact := (Relative.details Sphere.zero).compact, hausdorff := (Relative.details Sphere.zero).hausdorff] \as ZeroTheory;
+\definition liveRank: ZeroTheory.Ranks[].rank thom Sphere.live = std.Arithmetic[].Int[].One.specification :=
+  trans!{{std.Arithmetic[].Int[].Int^}} _ _ _ (Ranks.naturality Theory.thom Sphere.live) (Canonical.pointRank point);
+\import \root.Thom[].SmashUnitProduct[base := Sphere.zero] \as Unit;
+\definition normalization: thom = Unit.unit := Unit.unique thom liveRank;
+\import \parent.Point[n := N.Nat^::zero] \as Actual;
+\definition equation: Pull.map Actual.thom = Unit.unit := normalization;

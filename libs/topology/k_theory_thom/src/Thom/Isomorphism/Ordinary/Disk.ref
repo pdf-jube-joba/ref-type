@@ -1,0 +1,54 @@
+\import thom_spaces.Thom[] \as Spaces;
+\import \root.Thom[].Isomorphism[].Ordinary[X := X, space := space, compact := compact, hausdorff := hausdorff] \as Ordinary;
+\import Spaces.Adjoin[A := X, source := space] \as Plus;
+\import topological_constructions.Coproduct[A := X, B := Spaces.Unit] \as PlusSum;
+\import Relative.Absolute[X := X, space := space, compact := compact, hausdorff := hausdorff] \as Absolute;
+\import topology.Topology[Carrier := X] \as Base;
+\import Relative.Pair[X := X, space := space, compact := compact, hausdorff := hausdorff,
+  subset := Base.Empty, closed := Absolute.emptyClosed].Quotient[] \as Empty;
+\import topological_constructions.Coproduct[A := X, B := Empty.Point] \as AbsoluteSum;
+\definition toAbsolute: Plus.Carrier -> Absolute.model.Carrier :=
+  PlusSum.Universal[C := Absolute.model.Carrier].copair Absolute.inclusion (\fun (u: Spaces.Unit) => (Relative.details Absolute.model).point);
+\definition toPlus: Absolute.model.Carrier -> Plus.Carrier :=
+  AbsoluteSum.Universal[C := Plus.Carrier].copair PlusSum.inl (\fun (p: Empty.Point) => Plus.point);
+\definition leftInverse: \forall (p: Plus.Carrier) -> toPlus (toAbsolute p) = p :=
+  \induction (p: Plus.Carrier) \return toPlus (toAbsolute p) = p \with {
+    | inl: \fun (x: X) => \refl(PlusSum.inl x)
+    | inr: \fun (u: Spaces.Unit) => congr!{{Spaces.Unit} {Plus.Carrier}} PlusSum.inr _ _ (sym!{{Spaces.Unit}} _ _ (Spaces.unitUnique u))
+  };
+\definition rightInverse: \forall (p: Absolute.model.Carrier) -> toAbsolute (toPlus p) = p :=
+  \induction (p: Absolute.model.Carrier) \return toAbsolute (toPlus p) = p \with {
+    | inl: \fun (x: X) => \refl(Absolute.inclusion x)
+    | inr: \fun (u: Empty.Point) => congr!{{Empty.Point} {Absolute.model.Carrier}} AbsoluteSum.inr _ _ (sym!{{Empty.Point}} _ _ (Fin.singletonValue u))
+  };
+\definition zero: topology.Homeomorphism[A := Plus.Carrier, B := Absolute.model.Carrier].Homeomorphism[Plus.topology, (Relative.details Absolute.model).topology] :=
+  topology.Homeomorphism[A := Plus.Carrier, B := Absolute.model.Carrier].Homeomorphism[Plus.topology, (Relative.details Absolute.model).topology] {
+    forward := toAbsolute, backward := toPlus, leftInverse := leftInverse, rightInverse := rightInverse,
+    forwardContinuous := PlusSum.Universal[C := Absolute.model.Carrier].continuous space topology.Topology[Carrier := Spaces.Unit].Discrete
+      (Relative.details Absolute.model).topology Absolute.inclusion (\fun (u: Spaces.Unit) => (Relative.details Absolute.model).point)
+      Absolute.inclusionContinuous (topology.Maps[A := Spaces.Unit, B := Absolute.model.Carrier].constantContinuous
+        topology.Topology[Carrier := Spaces.Unit].Discrete (Relative.details Absolute.model).topology (Relative.details Absolute.model).point),
+    backwardContinuous := AbsoluteSum.Universal[C := Plus.Carrier].continuous space topology.Topology[Carrier := Empty.Point].Discrete
+      Plus.topology PlusSum.inl (\fun (p: Empty.Point) => Plus.point)
+      (PlusSum.inlContinuous space topology.Topology[Carrier := Spaces.Unit].Discrete)
+      (topology.Maps[A := Empty.Point, B := Plus.Carrier].constantContinuous
+        topology.Topology[Carrier := Empty.Point].Discrete Plus.topology Plus.point)
+  };
+\definition Suspended[n: N.Nat^]: Relative.CompactPointed := Relative.iterate n Absolute.model;
+\definition Carrier[n: N.Nat^]: \Set := (Suspended n).Carrier;
+\definition pointed[n: N.Nat^]: algebraic_topology.Pointed[A := Carrier n].Space := Relative.pointed (Suspended n);
+\definition step[n: N.Nat^]: topology.Homeomorphism[
+  A := puppe_sequences.Puppe[].Suspension[A := Carrier n, source := pointed n].Carrier,
+  B := Carrier (N.Nat^::succ n)].Homeomorphism[
+  puppe_sequences.Puppe[].Suspension[A := Carrier n, source := pointed n].topology, (pointed (N.Nat^::succ n)).topology] :=
+  topology.Homeomorphism[A := Carrier (N.Nat^::succ n), B := Carrier (N.Nat^::succ n)].Homeomorphism[
+    (pointed (N.Nat^::succ n)).topology, (pointed (N.Nat^::succ n)).topology] {
+    forward := \fun (x: Carrier (N.Nat^::succ n)) => x, backward := \fun (x: Carrier (N.Nat^::succ n)) => x,
+    leftInverse := \fun (x: Carrier (N.Nat^::succ n)) => \refl(x), rightInverse := \fun (x: Carrier (N.Nat^::succ n)) => \refl(x),
+    forwardContinuous := topology.Maps[A := Carrier (N.Nat^::succ n), B := Carrier (N.Nat^::succ n)].Identity[].continuous (pointed (N.Nat^::succ n)).topology,
+    backwardContinuous := topology.Maps[A := Carrier (N.Nat^::succ n), B := Carrier (N.Nat^::succ n)].Identity[].continuous (pointed (N.Nat^::succ n)).topology
+  };
+\import Spaces.SuspensionPresentation[X := X, source := space, T := Carrier, spaces := pointed,
+  zero := zero, zeroPointed := \refl((Relative.details Absolute.model).point), step := step,
+  stepPointed := (\fun (n: N.Nat^) => \refl((pointed (N.Nat^::succ n)).basepoint))] \as Presentation;
+\module At(n: N.Nat^);

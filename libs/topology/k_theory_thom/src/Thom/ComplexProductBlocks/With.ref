@@ -1,0 +1,53 @@
+\import \root.Thom[].ComplexProductCliffordBundle[X := X, F := Parity.LeftFiber, G := Parity.RightFiber,
+  first := Parity.leftBundle, second := Parity.rightBundle, sameBase := sameF0] \as Clifford;
+\definition operators: Clifford.Data := Clifford.Data { first := c.first, second := c.second, grading := Grading.leftGrading.forward, a := c.a, b := c.b };
+\definition operatorLaws: Clifford.Laws operators := \fun (x: X) =>
+  \root.Thom[].ComplexProductClifford[V := Parity.LeftFiber x, W := Parity.RightFiber x, firstSpace := Parity.leftBundle.space x, secondSpace := Parity.rightBundle.space x].Laws[Clifford.fiberData operators x] {
+    firstSquare := laws.firstSquare x, secondSquare := laws.secondSquare x, gradingSquare := Grading.leftSquare x, anticommutes := laws.firstAnti x
+  };
+\import Clifford.With[c := operators, laws := operatorLaws] \as Symbol;
+\import Operations.DirectSum[X := X, F := Parity.Even, G := Parity.Odd, left := Parity.evenBundle, right := Parity.oddBundle].Of[same := (\refl(e0.baseSpace))] \as Split;
+\import Split.Inclusions[] \as Inclusions;
+\import Bundles.Morphisms[X := X, Y := X, F := Parity.Even, G := Parity.TargetFiber,
+  source := Parity.evenBundle, target := Parity.targetBundle, f := (\fun (x: X) => x)]
+  .Composition[Z := X, H := Parity.SourceFiber, range := Parity.sourceBundle, g := (\fun (x: X) => x)] \as EmbedEven;
+\definition embedEven: Bundles.Morphisms[X := X, Y := X, F := Parity.Even, G := Parity.SourceFiber,
+  source := Parity.evenBundle, target := Parity.sourceBundle, f := (\fun (x: X) => x)].Map := EmbedEven.compose Inclusions.first Parity.isomorphism.backward;
+\import Bundles.Morphisms[X := X, Y := X, F := Parity.Odd, G := Parity.TargetFiber,
+  source := Parity.oddBundle, target := Parity.targetBundle, f := (\fun (x: X) => x)]
+  .Composition[Z := X, H := Parity.SourceFiber, range := Parity.sourceBundle, g := (\fun (x: X) => x)] \as EmbedOdd;
+\definition embedOdd: Bundles.Morphisms[X := X, Y := X, F := Parity.Odd, G := Parity.SourceFiber,
+  source := Parity.oddBundle, target := Parity.sourceBundle, f := (\fun (x: X) => x)].Map := EmbedOdd.compose Inclusions.second Parity.isomorphism.backward;
+\import Bundles.Morphisms[X := X, Y := X, F := Parity.SourceFiber, G := Parity.TargetFiber,
+  source := Parity.sourceBundle, target := Parity.targetBundle, f := (\fun (x: X) => x)]
+  .Composition[Z := X, H := Parity.Even, range := Parity.evenBundle, g := (\fun (x: X) => x)] \as ProjectEven;
+\definition projectEven: Bundles.Morphisms[X := X, Y := X, F := Parity.SourceFiber, G := Parity.Even,
+  source := Parity.sourceBundle, target := Parity.evenBundle, f := (\fun (x: X) => x)].Map := ProjectEven.compose Parity.isomorphism.forward Split.firstMap;
+\import Bundles.Morphisms[X := X, Y := X, F := Parity.SourceFiber, G := Parity.TargetFiber,
+  source := Parity.sourceBundle, target := Parity.targetBundle, f := (\fun (x: X) => x)]
+  .Composition[Z := X, H := Parity.Odd, range := Parity.oddBundle, g := (\fun (x: X) => x)] \as ProjectOdd;
+\definition projectOdd: Bundles.Morphisms[X := X, Y := X, F := Parity.SourceFiber, G := Parity.Odd,
+  source := Parity.sourceBundle, target := Parity.oddBundle, f := (\fun (x: X) => x)].Map := ProjectOdd.compose Parity.isomorphism.forward Split.secondMap;
+\import Bundles.Morphisms[X := X, Y := X, F := Parity.Even, G := Parity.SourceFiber,
+  source := Parity.evenBundle, target := Parity.sourceBundle, f := (\fun (x: X) => x)]
+  .Composition[Z := X, H := Parity.SourceFiber, range := Parity.sourceBundle, g := (\fun (x: X) => x)] \as ForwardStart;
+\import Bundles.Morphisms[X := X, Y := X, F := Parity.Even, G := Parity.SourceFiber,
+  source := Parity.evenBundle, target := Parity.sourceBundle, f := (\fun (x: X) => x)]
+  .Composition[Z := X, H := Parity.Odd, range := Parity.oddBundle, g := (\fun (x: X) => x)] \as ForwardEnd;
+\definition forward: Bundles.Morphisms[X := X, Y := X, F := Parity.Even, G := Parity.Odd,
+  source := Parity.evenBundle, target := Parity.oddBundle, f := (\fun (x: X) => x)].Map := ForwardEnd.compose (ForwardStart.compose embedEven Symbol.operator) projectOdd;
+\import Bundles.Morphisms[X := X, Y := X, F := Parity.Odd, G := Parity.SourceFiber,
+  source := Parity.oddBundle, target := Parity.sourceBundle, f := (\fun (x: X) => x)]
+  .Composition[Z := X, H := Parity.SourceFiber, range := Parity.sourceBundle, g := (\fun (x: X) => x)] \as BackwardStart;
+\import Bundles.Morphisms[X := X, Y := X, F := Parity.Odd, G := Parity.SourceFiber,
+  source := Parity.oddBundle, target := Parity.sourceBundle, f := (\fun (x: X) => x)]
+  .Composition[Z := X, H := Parity.Even, range := Parity.evenBundle, g := (\fun (x: X) => x)] \as BackwardEnd;
+\definition backward: Bundles.Morphisms[X := X, Y := X, F := Parity.Odd, G := Parity.Even,
+  source := Parity.oddBundle, target := Parity.evenBundle, f := (\fun (x: X) => x)].Map := BackwardEnd.compose (BackwardStart.compose embedOdd Symbol.operator) projectEven;
+\definition coefficient[x: X]: C.Complex := Scalar.add (c.a x) (c.b x);
+\definition coefficientContinuous: topology.Continuity[A := X, B := C.Complex].Continuous e0.baseSpace Scalars.scalar.topological.space coefficient :=
+  topological_algebra.Complex[].Functions[A := X].additionContinuous e0.baseSpace c.a c.b c.aContinuous c.bContinuous;
+\module At(x: X);
+\definition evenSquare: \forall (x: X)(v: Parity.Even x) -> (backward.fiber x).apply ((forward.fiber x).apply v) = (Parity.evenBundle.space x).smul (coefficient x) v := \fun (x: X) => At[x := x].evenSquare;
+\definition oddSquare: \forall (x: X)(v: Parity.Odd x) -> (forward.fiber x).apply ((backward.fiber x).apply v) = (Parity.oddBundle.space x).smul (coefficient x) v := \fun (x: X) => At[x := x].oddSquare;
+\module On(subset: \Pow X, nonzero: \forall (x: \Cast[X] subset) -> Scalar.NonZero (coefficient x));

@@ -1,0 +1,43 @@
+\definition firstCast[i, j: N.Nat^][same: i = j]: Models.Map (firstTerm i) (firstTerm j) :=
+  \idelim i = j \with k: N.Nat^ => Models.Map (firstTerm i) (firstTerm k) \by { base: Models.identity (firstTerm i), equality: same };
+\definition secondCast[i, j: N.Nat^][same: i = j]: Models.Map (secondTerm i) (secondTerm j) :=
+  \idelim i = j \with k: N.Nat^ => Models.Map (secondTerm i) (secondTerm k) \by { base: Models.identity (secondTerm i), equality: same };
+\definition firstCastSelf[i: N.Nat^][same: i = i]: firstCast i i same = Models.identity (firstTerm i) :=
+  \transporteq i \with j: N.Nat^ => Models.Map (firstTerm i) (firstTerm j) \by { base: Models.identity (firstTerm i) };
+\definition firstCastValue[i: N.Nat^][same: i = i][x: X][v: Models.Fiber (firstTerm i).ranks x]: ((firstCast i i same).fiber x).apply v = v :=
+  congr!{{Models.Map (firstTerm i) (firstTerm i)} {Models.Fiber (firstTerm i).ranks x}} (\fun (f: Models.Map (firstTerm i) (firstTerm i)) => (f.fiber x).apply v) _ _ (firstCastSelf i same);
+\definition secondCastSelf[i: N.Nat^][same: i = i]: secondCast i i same = Models.identity (secondTerm i) :=
+  \transporteq i \with j: N.Nat^ => Models.Map (secondTerm i) (secondTerm j) \by { base: Models.identity (secondTerm i) };
+\definition secondCastValue[i: N.Nat^][same: i = i][x: X][v: Models.Fiber (secondTerm i).ranks x]: ((secondCast i i same).fiber x).apply v = v :=
+  congr!{{Models.Map (secondTerm i) (secondTerm i)} {Models.Fiber (secondTerm i).ranks x}} (\fun (f: Models.Map (secondTerm i) (secondTerm i)) => (f.fiber x).apply v) _ _ (secondCastSelf i same);
+\definition firstSide: B.Bool^ := Labels.even n a;
+\definition secondSide: B.Bool^ := Labels.even m b;
+\definition slot: B.Bool^ := ProductLabels.evenPair firstSide secondSide;
+\definition firstMap: Models.Map (firstTerm p) (First.parity n firstSide) := Models.compose (firstTerm p) (firstTerm (Labels.degree n a)) (First.parity n firstSide)
+  (firstCast p (Labels.degree n a) (sym!{N.Nat^} _ _ (\bysub(Labels.Index n, AlignedFirst, a)))) (First.at n a firstSide (\refl(firstSide)));
+\definition secondMap: Models.Map (secondTerm q) (Second.parity m secondSide) := Models.compose (secondTerm q) (secondTerm (Labels.degree m b)) (Second.parity m secondSide)
+  (secondCast q (Labels.degree m b) (sym!{N.Nat^} _ _ (\bysub(Labels.Index m, AlignedSecond, b)))) (Second.at m b secondSide (\refl(secondSide)));
+\import Coded.Of[same := (\refl(left.baseSpace))].Mapping[Y := X,
+  A := Models.Fiber (First.parity n firstSide).ranks, B := Models.Fiber (Second.parity m secondSide).ranks,
+  leftTarget := Models.bundle (First.parity n firstSide), rightTarget := Models.bundle (Second.parity m secondSide), f := (\fun (x: X) => x)]
+  .Of[targetSame := (\refl(left.baseSpace))] \as Insert;
+\definition inserted: Bundles.Morphisms[X := X, Y := X, F := Coded.Fiber, G := (\fun (x: X) => \parent.\parent.\parent.Slot[firstSide := firstSide, secondSide := secondSide].Fiber x),
+  source := Coded.bundle (\refl(left.baseSpace)), target := \parent.\parent.\parent.Slot[firstSide := firstSide, secondSide := secondSide].bundle, f := (\fun (x: X) => x)].Map := Insert.map firstMap secondMap;
+\import Bundles.Morphisms[X := X, Y := X, F := Coded.Fiber, G := (\fun (x: X) => \parent.\parent.\parent.Slot[firstSide := firstSide, secondSide := secondSide].Fiber x),
+  source := Coded.bundle (\refl(left.baseSpace)), target := \parent.\parent.\parent.Slot[firstSide := firstSide, secondSide := secondSide].bundle, f := (\fun (x: X) => x)]
+  .Composition[Z := X, H := Models.Fiber (model slot).ranks, range := Models.bundle (model slot), g := (\fun (x: X) => x)] \as Place;
+\definition placed: Bundles.Morphisms[X := X, Y := X, F := Coded.Fiber, G := Models.Fiber (model slot).ranks,
+  source := Coded.bundle (\refl(left.baseSpace)), target := Models.bundle (model slot), f := (\fun (x: X) => x)].Map := Place.compose inserted (block firstSide secondSide);
+\import Bundles.Morphisms[X := X, Y := X, F := Coded.Fiber, G := Models.Fiber (model slot).ranks,
+  source := Coded.bundle (\refl(left.baseSpace)), target := Models.bundle (model slot), f := (\fun (x: X) => x)]
+  .Composition[Z := X, H := Models.Fiber (model side).ranks, range := Models.bundle (model side), g := (\fun (x: X) => x)] \as Select;
+\definition map: Bundles.Morphisms[X := X, Y := X, F := Coded.Fiber, G := Models.Fiber (model side).ranks,
+  source := Coded.bundle (\refl(left.baseSpace)), target := Models.bundle (model side), f := (\fun (x: X) => x)].Map := Select.compose placed (select slot side);
+\definition foldedPure[x: X][v: Models.Fiber (First.parity n firstSide).ranks x][w: Models.Fiber (Second.parity m secondSide).ranks x]: \parent.\parent.\parent.Slot[firstSide := firstSide, secondSide := secondSide].Fiber x :=
+  Operations.Tensor[X := X, F := Models.Fiber (First.parity n firstSide).ranks, G := Models.Fiber (Second.parity m secondSide).ranks,
+    left := Models.bundle (First.parity n firstSide), right := Models.bundle (Second.parity m secondSide)].pure x v w;
+\definition onPure[x: X][v: Models.Fiber (firstTerm p).ranks x][w: Models.Fiber (secondTerm q).ranks x]:
+  (map.fiber x).apply (Coded.pure x v w) = ((select slot side).fiber x).apply (((block firstSide secondSide).fiber x).apply (foldedPure x ((firstMap.fiber x).apply v) ((secondMap.fiber x).apply w))) :=
+  congr!{{\parent.\parent.\parent.Slot[firstSide := firstSide, secondSide := secondSide].Fiber x} {Models.Fiber (model side).ranks x}}
+    (\fun (z: \parent.\parent.\parent.Slot[firstSide := firstSide, secondSide := secondSide].Fiber x) => ((select slot side).fiber x).apply (((block firstSide secondSide).fiber x).apply z)) _ _
+    (Insert.onPure firstMap secondMap x v w);

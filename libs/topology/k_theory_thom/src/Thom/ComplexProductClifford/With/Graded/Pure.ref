@@ -1,0 +1,35 @@
+\use Equality.eq_reason_in;
+\definition firstTerm: Tensor.Carrier := Tensor.tensor (c.grading.apply (c.first.apply v)) (grading.apply w);
+\definition secondTerm: Tensor.Carrier := Tensor.tensor (c.grading.apply (c.grading.apply v)) (grading.apply (c.second.apply w));
+\definition thirdTerm: Tensor.Carrier := Tensor.tensor (c.first.apply (c.grading.apply v)) (grading.apply w);
+\definition fourthTerm: Tensor.Carrier := Tensor.tensor (c.grading.apply (c.grading.apply v)) (c.second.apply (grading.apply w));
+\definition firstZero: Tensor.plus firstTerm thirdTerm = Tensor.origin :=
+  trans!{{Tensor.Carrier}} _ _ _
+    (sym!{{Tensor.Carrier}} _ _ (Tensor.bilinear.addLeft (c.grading.apply (c.first.apply v)) (c.first.apply (c.grading.apply v)) (grading.apply w)))
+    (trans!{{Tensor.Carrier}} _ _ _
+      (congr!{V {Tensor.Carrier}} (\fun (z: V) => Tensor.tensor z (grading.apply w)) _ _ (laws.anticommutes v)) (Factors.zeroLeft (grading.apply w)));
+\definition secondZero: Tensor.plus secondTerm fourthTerm = Tensor.origin :=
+  trans!{{Tensor.Carrier}} _ _ _
+    (sym!{{Tensor.Carrier}} _ _ (Tensor.bilinear.addRight (c.grading.apply (c.grading.apply v)) (grading.apply (c.second.apply w)) (c.second.apply (grading.apply w))))
+    (trans!{{Tensor.Carrier}} _ _ _
+      (congr!{W {Tensor.Carrier}} (Tensor.tensor (c.grading.apply (c.grading.apply v))) _ _ (anticommutes w)) (Factors.zeroRight (c.grading.apply (c.grading.apply v))));
+\definition parityOperator: parity.apply (operator.apply (Tensor.tensor v w)) = Tensor.plus firstTerm secondTerm :=
+  trans!{{Tensor.Carrier}} _ _ _
+    (congr!{{Tensor.Carrier} {Tensor.Carrier}} parity.apply _ _ (operatorOnPure v w))
+    (trans!{{Tensor.Carrier}} _ _ _
+      (parity.preservesAdd (Tensor.tensor (c.first.apply v) w) (Tensor.tensor (c.grading.apply v) (c.second.apply w)))
+      (congr!{{Tensor.Carrier} {Tensor.Carrier} {Tensor.Carrier}} Tensor.plus _ _ _ _
+        (Parity.onPure (c.first.apply v) w) (Parity.onPure (c.grading.apply v) (c.second.apply w))));
+\definition operatorParity: operator.apply (parity.apply (Tensor.tensor v w)) = Tensor.plus thirdTerm fourthTerm :=
+  trans!{{Tensor.Carrier}} _ _ _
+    (congr!{{Tensor.Carrier} {Tensor.Carrier}} operator.apply _ _ (Parity.onPure v w)) (operatorOnPure (c.grading.apply v) (grading.apply w));
+\definition equation: Tensor.plus (parity.apply (operator.apply (Tensor.tensor v w))) (operator.apply (parity.apply (Tensor.tensor v w))) = Tensor.origin :=
+  eq_reason_in!{{Tensor.Carrier} _
+    "=" { Tensor.plus (Tensor.plus firstTerm secondTerm) (Tensor.plus thirdTerm fourthTerm) } "by" {
+      congr!{{Tensor.Carrier} {Tensor.Carrier} {Tensor.Carrier}} Tensor.plus _ _ _ _ parityOperator operatorParity }
+    "=" { Tensor.plus (Tensor.plus firstTerm thirdTerm) (Tensor.plus secondTerm fourthTerm) } "by" {
+      TensorLaws.shuffle firstTerm secondTerm thirdTerm fourthTerm }
+    "=" { Tensor.plus Tensor.origin Tensor.origin } "by" {
+      congr!{{Tensor.Carrier} {Tensor.Carrier} {Tensor.Carrier}} Tensor.plus _ _ _ _ firstZero secondZero }
+    "=" _ "by" { TensorLaws.zeroLeft Tensor.origin }
+  };

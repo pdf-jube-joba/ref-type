@@ -1,0 +1,44 @@
+\import \parent.Point[n := N.Nat^::succ N.Nat^::zero] \as Point;
+\import \parent.PlanarSphere[].Plane[] \as Plane;
+\definition one: N.Nat^ := N.Nat^::succ N.Nat^::zero;
+\definition index: Fin.Fin one := Fin.zero N.Nat^::zero;
+\import Bundles.Trivial[X := Point.Base, n := one, baseSpace := Point.topology] \as Trivial;
+\import Bundles.Family[X := Point.Base, F := (\fun (x: Point.Base) => Bundles.Vector one)] \as Family;
+\import topological_constructions.Product[A := Point.Base, B := Bundles.Vector one] \as Product;
+\import topological_algebra.Coordinates[K := C.Complex, I := Fin.Fin one] \as Coordinates;
+\definition forward[p: Point.Total]: Plane.Carrier := p.vector index;
+\definition vector[z: Plane.Carrier]: Bundles.Vector one := \fun (i: Fin.Fin one) => z;
+\definition backward[z: Plane.Carrier]: Point.Total := Family.include Point.point (vector z);
+\definition vectorEquation: \forall (p: Point.Total) -> vector (forward p) = p.vector :=
+  \fun (p: Point.Total) => \axiom:funext(vector (forward p), p.vector,
+    \fun (i: Fin.Fin one) => congr!{{Fin.Fin one} {C.Complex}} p.vector _ _ (sym!{{Fin.Fin one}} _ _ (Fin.singletonValue i)));
+\definition leftInverse: \forall (p: Point.Total) -> backward (forward p) = p :=
+  \fun (p: Point.Total) => trans!{{Point.Total}} _ _ _
+    (congr!{{Point.Base} {Point.Total}} (\fun (x: Point.Base) => Family.include x (vector (forward p))) _ _ (sym!{{Point.Base}} _ _ (Fin.singletonValue p.base)))
+    (trans!{{Point.Total}} _ _ _ (congr!{{Bundles.Vector one} {Point.Total}} (Family.include p.base) _ _ (vectorEquation p)) (Family.eta p));
+\definition rightInverse: \forall (z: Plane.Carrier) -> forward (backward z) = z := \fun (z: Plane.Carrier) => \refl(z);
+\definition forwardContinuous: topology.Continuity[A := Point.Total, B := Plane.Carrier].Continuous Trivial.topology Plane.topology forward :=
+  topology.Composition[A := Point.Total, B := Bundles.Vector one, C := C.Complex].composeContinuous
+    Trivial.topology (Bundles.coordinateTopology one) Scalars.scalar.topological.space
+    (\fun (p: Point.Total) => p.vector) (\fun (v: Bundles.Vector one) => v index)
+    Trivial.vectorContinuous (Coordinates.evaluationContinuous Scalars.scalar.topological.space index);
+\definition vectorContinuous: topology.Continuity[A := Plane.Carrier, B := Bundles.Vector one].Continuous Plane.topology (Bundles.coordinateTopology one) vector :=
+  Coordinates.Universal[A := Plane.Carrier].continuous Plane.topology Scalars.scalar.topological.space vector
+    (\fun (i: Fin.Fin one) => topology.Maps[A := C.Complex, B := C.Complex].Identity[].continuous Scalars.scalar.topological.space);
+\definition pair[z: Plane.Carrier]: Product.CarrierSet := std.Data[].Pair[].pair Point.Base (Bundles.Vector one) Point.point (vector z);
+\definition pairContinuous: topology.Continuity[A := Plane.Carrier, B := Product.CarrierSet].Continuous Plane.topology
+  (Product.topology Point.topology (Bundles.coordinateTopology one)) pair :=
+  Product.Universal[X := Plane.Carrier].pairContinuous Plane.topology Point.topology (Bundles.coordinateTopology one)
+    (\fun (z: Plane.Carrier) => Point.point) vector
+    (topology.Maps[A := Plane.Carrier, B := Point.Base].constantContinuous Plane.topology Point.topology Point.point) vectorContinuous;
+\definition backwardContinuous: topology.Continuity[A := Plane.Carrier, B := Point.Total].Continuous Plane.topology Trivial.topology backward :=
+  topology.Composition[A := Plane.Carrier, B := Product.CarrierSet, C := Point.Total].composeContinuous
+    Plane.topology (Product.topology Point.topology (Bundles.coordinateTopology one)) Trivial.topology pair Trivial.backward pairContinuous Trivial.backwardContinuous;
+\definition homeomorphism: topology.Homeomorphism[A := Point.Total, B := Plane.Carrier].Homeomorphism[Trivial.topology, Plane.topology] :=
+  topology.Homeomorphism[A := Point.Total, B := Plane.Carrier].Homeomorphism[Trivial.topology, Plane.topology] {
+    forward := forward, backward := backward, leftInverse := leftInverse, rightInverse := rightInverse,
+    forwardContinuous := forwardContinuous, backwardContinuous := backwardContinuous
+  };
+\module Compactification;
+\module Metric;
+\module Normalization;

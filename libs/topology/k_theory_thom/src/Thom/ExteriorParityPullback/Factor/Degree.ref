@@ -1,0 +1,32 @@
+\import SourceModels.Pullback[b := Coordinates.model k, Y := Y, source := source, f := map, regular := regular] \as Model;
+\import Natural.Degree[k := k] \as Term;
+\import bundle_complements.Complements[].Over[K := C.Complex, field := C.Algebra[].field,
+  conjugation := linear_algebra.Hermitian[].Complex[].scalar, scalar := Scalars.scalar]
+  .PulledIsomorphism[X := Koszul.Total, Y := Y, F := Koszul.Term k, G := SourceModels.Fiber (Coordinates.model k).ranks,
+    source := Koszul.term k, target := SourceModels.bundle (Coordinates.model k), base := source, f := map,
+    sourceRegular := regular, targetRegular := regular] \as CoordinatePull;
+\import Bundles.Isomorphisms[X := Y, F := Term.First, G := Term.Second, source := Term.first, target := Term.second] \as Reverse;
+\import Operations.IsomorphismComposition[X := Y, F := Form k, G := Term.First,
+  H := Models.Fiber Model.value.ranks, source := forms k, middle := Term.first, target := Models.bundle Model.value] \as Compose;
+\definition comparison: Compose.Isomorphism := Compose.compose (Reverse.inverse Term.isomorphism) (CoordinatePull.isomorphism (selection k).isomorphism);
+\import Bundles.Morphisms[X := Y, Y := Y, F := Form k, G := Models.Fiber Model.value.ranks,
+  source := forms k, target := Models.bundle Model.value, f := (\fun (y: Y) => y)] \as Forward;
+\import Bundles.Morphisms[X := Y, Y := Y, F := Models.Fiber Model.value.ranks, G := Form k,
+  source := Models.bundle Model.value, target := forms k, f := (\fun (y: Y) => y)] \as Backward;
+\definition forwardData: Forward.Data := Forward.Data { fiber := \fun (y: Y) => Coordinates.encode k (map y) };
+\definition backwardData: Backward.Data := Backward.Data { fiber := \fun (y: Y) => Coordinates.decode k (map y) };
+\definition forwardFormula: \forall (y: Y)(v: Form k y) -> (comparison.forward.fiber y).apply v = (forwardData.fiber y).apply v :=
+  \fun (y: Y)(v: Form k y) => \refl((forwardData.fiber y).apply v);
+\definition backwardFormula: \forall (y: Y)(v: Models.Fiber Model.value.ranks y) -> (comparison.backward.fiber y).apply v = (backwardData.fiber y).apply v :=
+  \fun (y: Y)(v: Models.Fiber Model.value.ranks y) => \refl((backwardData.fiber y).apply v);
+\module Continuity;
+\definition forward: Forward.Map := \into[Forward.Data](forwardData, Forward.Map) \by { Continuity[].forward };
+\definition backward: Backward.Map := \into[Backward.Data](backwardData, Backward.Map) \by { Continuity[].backward };
+\definition isomorphism: Bundles.Isomorphisms[X := Y, F := Form k, G := Models.Fiber Model.value.ranks,
+  source := forms k, target := Models.bundle Model.value].Isomorphism := Bundles.Isomorphisms[X := Y, F := Form k, G := Models.Fiber Model.value.ranks,
+  source := forms k, target := Models.bundle Model.value].Isomorphism {
+    forward := forward, backward := backward,
+    leftInverse := \fun (y: Y)(v: Form k y) => Coordinates.decodeEncode k (map y) v,
+    rightInverse := \fun (y: Y)(v: Models.Fiber Model.value.ranks y) => Coordinates.encodeDecode k (map y) v
+  };
+\definition choice: Models.From[F := Form k, original := forms k].Result := Models.From[F := Form k, original := forms k].Result { model := Model.value, isomorphism := isomorphism };

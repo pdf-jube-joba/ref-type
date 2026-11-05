@@ -1,0 +1,54 @@
+\import topology.Topology[Carrier := Product.CarrierSet] \as ProductSpace;
+\import ProductSpace.Subspace[S := K] \as Subspace;
+\definition KPoint: \Set := Subspace.CarrierSet;
+\definition kTopology: topology.Topology[Carrier := KPoint].Topology := Subspace.topology productTopology;
+\definition kCompact: topology.Topology[Carrier := KPoint].IsCompact kTopology := Subspace.Properties[].compact productTopology compactK;
+\definition inclusionContinuous: topology.Continuity[A := KPoint, B := Product.CarrierSet].Continuous kTopology productTopology (\fun (p: KPoint) => p) :=
+  topology.Continuity[A := KPoint, B := Product.CarrierSet].Corestriction[S := K].inclusionContinuous productTopology;
+\definition first[p: KPoint]: B := Pair.first B A p;
+\definition second[p: KPoint]: A := Pair.second B A p;
+\definition firstContinuous: topology.Continuity[A := KPoint, B := B].Continuous kTopology target first :=
+  topology.Composition[A := KPoint, B := Product.CarrierSet, C := B].composeContinuous kTopology productTopology target (\fun (p: KPoint) => p) (Pair.first B A)
+    inclusionContinuous (Product.Maps[].firstContinuous target source);
+\definition secondContinuous: topology.Continuity[A := KPoint, B := A].Continuous kTopology source second :=
+  topology.Composition[A := KPoint, B := Product.CarrierSet, C := A].composeContinuous kTopology productTopology source (\fun (p: KPoint) => p) (Pair.second B A)
+    inclusionContinuous (Product.Maps[].secondContinuous target source);
+\definition mapped[p: KPoint]: B := f (second p);
+\definition mappedContinuous: topology.Continuity[A := KPoint, B := B].Continuous kTopology target mapped :=
+  topology.Composition[A := KPoint, B := A, C := B].composeContinuous kTopology source target second f secondContinuous regular;
+\definition Equalizer: \Pow KPoint := { p: KPoint \where first p = mapped p };
+\import topology.Topology[Carrier := KPoint] \as KSpace;
+\definition closed: KSpace.IsClosedIn kTopology Equalizer := thom_spaces.Thom[].CWType[].Separated[A := KPoint, B := B,
+  source := kTopology, target := target, hausdorff := targetHausdorff, f := first, g := mapped, first := firstContinuous, second := mappedContinuous].closed;
+\definition compactEqualizer: KSpace.IsCompactIn kTopology Equalizer := KSpace.Compactness[].closedCompact kTopology kCompact Equalizer closed;
+\import KSpace.Subspace[S := Equalizer] \as EqualizerSpace;
+\definition Carrier: \Set := EqualizerSpace.CarrierSet;
+\definition topology: topology.Topology[Carrier := Carrier].Topology := EqualizerSpace.topology kTopology;
+\definition compactCarrier: topology.Topology[Carrier := Carrier].IsCompact topology := EqualizerSpace.Properties[].compact kTopology compactEqualizer;
+\definition project[p: Carrier]: A := second p;
+\definition projectContinuous: topology.Continuity[A := Carrier, B := A].Continuous topology source project :=
+  topology.Composition[A := Carrier, B := KPoint, C := A].composeContinuous topology kTopology source (\fun (p: Carrier) => p) second
+    (topology.Continuity[A := Carrier, B := KPoint].Corestriction[S := Equalizer].inclusionContinuous kTopology) secondContinuous;
+\definition graphEquation[p: Carrier]: graph (project p) = p := Pair.Prop[A := B, B := A].ext (graph (project p)) p
+  (sym!{B} _ _ (\bysub(KPoint, Equalizer, p))) (\refl(project p));
+\definition point[x: A][inside: ProductSpace.Member K (graph x)]: Carrier :=
+  \into[KPoint]((\into[Product.CarrierSet](graph x, K) \by { inside }), Equalizer) \by { \refl(f x) };
+\import topology.Maps[A := Carrier, B := A] \as Image;
+\import topology.Maps[A := A, B := Product.CarrierSet] \as Preimage;
+\import topology.Topology[Carrier := Carrier] \as Domain;
+\import topology.Topology[Carrier := A] \as Target;
+\definition imageEquation: Image.Image project Domain.Whole = Preimage.Preimage graph K :=
+  \axiom:setext(Image.Image project Domain.Whole, Preimage.Preimage graph K,
+    \fun (x: A)(member: _) => Image.imageElim project Domain.Whole x (ProductSpace.Member K (graph x))
+      (\fun (p: Carrier)(whole: _)(same: project p = x) => \idelim project p = x \with y: A => ProductSpace.Member K (graph y) \by {
+        base: \idelim p = graph (project p) \with z: Product.CarrierSet => ProductSpace.Member K z \by {
+          base: \bysub(Product.CarrierSet, K, p), equality: sym!{Product.CarrierSet} _ _ (graphEquation p)
+        }, equality: same
+      }) member,
+    \fun (x: A)(inside: ProductSpace.Member K (graph x)) => Logic.existsIntro[Carrier, { p: Carrier \where Logic.And[Domain.Member Domain.Whole p, project p = x] }]
+      (point x inside) (Logic.And[_, _]::# (\refl(point x inside)) (\refl(x))));
+\definition compact: Target.IsCompactIn source (Preimage.Preimage graph K) :=
+  \idelim Image.Image project Domain.Whole = Preimage.Preimage graph K \with S: \Pow A => Target.IsCompactIn source S \by {
+    base: topology.Compactness[A := Carrier, B := A].continuousImage topology source project projectContinuous Domain.Whole compactCarrier,
+    equality: imageEquation
+  };

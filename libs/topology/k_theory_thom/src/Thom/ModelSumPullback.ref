@@ -1,0 +1,47 @@
+\import Operations.Models[X := X, baseSpace := space] \as Models;
+\import Operations.Models[X := Y, baseSpace := target] \as TargetModels;
+\import Models.Sum[first := p, second := q] \as Original;
+\import Models.Pullback[b := p, Y := Y, source := target, f := f, regular := regular] \as Positive;
+\import Models.Pullback[b := q, Y := Y, source := target, f := f, regular := regular] \as Negative;
+\import Models.Pullback[b := Original.value, Y := Y, source := target, f := f, regular := regular] \as Pull;
+\import TargetModels.Sum[first := Positive.value, second := Negative.value] \as Sum;
+\import Bundles.Family[X := X, F := Original.SourceFiber].Of[bundle := Original.source]
+  .Pullback[Y := Y, source := target, f := f] \as Raw;
+\import Bundles.ArrowLaws[X := X, Y := X, F := Original.SourceFiber, G := Models.Fiber Original.value.ranks,
+  source := Original.source, target := Models.bundle Original.value, f := \fun (x: X) => x]
+  .Pullback[Z := Y, space := target, g := f].Of[a := Original.isomorphism.forward, regular := regular] \as Encode;
+\import Bundles.ArrowLaws[X := X, Y := X, F := Models.Fiber Original.value.ranks, G := Original.SourceFiber,
+  source := Models.bundle Original.value, target := Original.source, f := \fun (x: X) => x]
+  .Pullback[Z := Y, space := target, g := f].Of[a := Original.isomorphism.backward, regular := regular] \as Decode;
+\definition RawFiber[y: Y]: \Set := Original.SourceFiber (f y);
+\definition pulledCoordinates: Bundles.Isomorphisms[X := Y, F := RawFiber, G := TargetModels.Fiber Pull.value.ranks,
+  source := Raw.pulled regular, target := TargetModels.bundle Pull.value].Isomorphism :=
+  Bundles.Isomorphisms[X := Y, F := RawFiber, G := TargetModels.Fiber Pull.value.ranks,
+    source := Raw.pulled regular, target := TargetModels.bundle Pull.value].Isomorphism {
+    forward := Encode.map, backward := Decode.map,
+    leftInverse := \fun (y: Y)(v: RawFiber y) => Original.isomorphism.leftInverse (f y) v,
+    rightInverse := \fun (y: Y)(v: TargetModels.Fiber Pull.value.ranks y) => Original.isomorphism.rightInverse (f y) v
+  };
+\import Operations.DirectSum[X := X, F := Models.Fiber p.ranks, G := Models.Fiber q.ranks,
+  left := Models.bundle p, right := Models.bundle q].Of[same := (\refl(space))]
+  .Pullback[Y := Y, source := target, f := f, regular := regular] \as RawSum;
+\import Bundles.Isomorphisms[X := Y, F := RawFiber, G := TargetModels.Fiber Pull.value.ranks,
+  source := Raw.pulled regular, target := TargetModels.bundle Pull.value] \as Reverse;
+\import Operations.IsomorphismComposition[X := Y, F := TargetModels.Fiber Pull.value.ranks, G := RawFiber, H := RawFiber,
+  source := TargetModels.bundle Pull.value, middle := Raw.pulled regular, target := Sum.source] \as Start;
+\definition start: Start.Isomorphism := Start.compose (Reverse.inverse pulledCoordinates) RawSum.isomorphism;
+\import Operations.IsomorphismComposition[X := Y, F := TargetModels.Fiber Pull.value.ranks, G := RawFiber,
+  H := TargetModels.Fiber Sum.value.ranks, source := TargetModels.bundle Pull.value, middle := Sum.source,
+  target := TargetModels.bundle Sum.value] \as Finish;
+\definition isomorphism: Bundles.Isomorphisms[X := Y, F := TargetModels.Fiber Pull.value.ranks,
+  G := TargetModels.Fiber Sum.value.ranks, source := TargetModels.bundle Pull.value,
+  target := TargetModels.bundle Sum.value].Isomorphism := Finish.compose start Sum.isomorphism;
+\import std.Data[].Pair[] \as Pair;
+\definition formula: \forall (y: Y)(v: Models.Fiber p.ranks (f y))(w: Models.Fiber q.ranks (f y)) ->
+  (isomorphism.forward.fiber y).apply ((Original.isomorphism.forward.fiber (f y)).apply
+    (Pair.pair (Models.Fiber p.ranks (f y)) (Models.Fiber q.ranks (f y)) v w)) =
+  (Sum.isomorphism.forward.fiber y).apply
+    (Pair.pair (Models.Fiber p.ranks (f y)) (Models.Fiber q.ranks (f y)) v w) :=
+  \fun (y: Y)(v: Models.Fiber p.ranks (f y))(w: Models.Fiber q.ranks (f y)) =>
+    congr!{{RawFiber y} {TargetModels.Fiber Sum.value.ranks y}} (Sum.isomorphism.forward.fiber y).apply _ _
+      (Original.isomorphism.leftInverse (f y) (Pair.pair (Models.Fiber p.ranks (f y)) (Models.Fiber q.ranks (f y)) v w));

@@ -1,0 +1,17 @@
+\import Bundles.Identity[X := X, F := G, bundle := second] \as Identity;
+\import Tensor.Of[same := sameBase].Mapping[Y := X, A := F, B := G, leftTarget := first, rightTarget := second, f := (\fun (x: X) => x)].Of[targetSame := sameBase] \as Mapping;
+\import Operations.MapOperations[X := X, F := Tensor.Fiber, G := Tensor.Fiber, source := bundle, target := bundle] \as MapOperations;
+\definition firstTerm: MapOperations.Map := Mapping.map c.first Identity.map;
+\definition secondTerm: MapOperations.Map := Mapping.map c.grading c.second;
+\definition operator: MapOperations.Map := MapOperations.add firstTerm secondTerm;
+\definition onPure[x: X][v: F x][w: G x]: (operator.fiber x).apply (Tensor.pure x v w) = (Tensor.fiberSpace x).add
+  (Tensor.pure x ((c.first.fiber x).apply v) w)
+  (Tensor.pure x ((c.grading.fiber x).apply v) ((c.second.fiber x).apply w)) :=
+  congr!{{Tensor.Fiber x} {Tensor.Fiber x} {Tensor.Fiber x}} (Tensor.fiberSpace x).add _ _ _ _
+    (Mapping.onPure c.first Identity.map x v w) (Mapping.onPure c.grading c.second x v w);
+\module At(x: X);
+\definition square[x: X][v: Tensor.Fiber x]:
+  (operator.fiber x).apply ((operator.fiber x).apply v) = (Tensor.fiberSpace x).smul (Scalar.add (c.a x) (c.b x)) v := At[x := x].square v;
+\module Normalized(reciprocal: X -> C.Complex,
+  continuous: topology.Continuity[A := X, B := C.Complex].Continuous first.baseSpace Scalars.scalar.topological.space reciprocal,
+  inverseLaw: \forall (x: X) -> Scalar.mul (reciprocal x) (Scalar.add (c.a x) (c.b x)) = Scalar.one);

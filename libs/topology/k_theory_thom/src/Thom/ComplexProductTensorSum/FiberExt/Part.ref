@@ -1,0 +1,33 @@
+\import Models.Sum[first := head, second := tail] \as Sum;
+\import std.Data[].Pair[] \as Pair;
+\definition A: \Set := Models.Fiber head.ranks x;
+\definition B: \Set := Models.Fiber tail.ranks x;
+\definition V: \Set := Models.Fiber Sum.value.ranks x;
+\definition Map: \Set := Spaces.Linear[V := V, W := U, source := (Models.bundle Sum.value).space x, target := target].Map;
+\definition split[a: A][b: B]: ((Models.bundle Sum.value).space x).add ((Sum.firstInclusion.fiber x).apply a) ((Sum.secondInclusion.fiber x).apply b) =
+  (Sum.isomorphism.forward.fiber x).apply (Pair.pair A B a b) :=
+  trans!{V} _ _ _
+    (sym!{V} _ _ ((Sum.isomorphism.forward.fiber x).preservesAdd
+      (Pair.pair A B a ((Models.bundle tail).space x).zero) (Pair.pair A B ((Models.bundle head).space x).zero b)))
+    (congr!{{Sum.SourceFiber x} V} (Sum.isomorphism.forward.fiber x).apply _ _
+      (Pair.Prop[A := A, B := B].pairCong _ _ _ _
+        (Spaces.Laws[V := A, space := (Models.bundle head).space x].zeroRight a)
+        (Spaces.Laws[V := B, space := (Models.bundle tail).space x].zeroLeft b)));
+\definition recover[v: V]: ((Models.bundle Sum.value).space x).add
+  ((Sum.firstInclusion.fiber x).apply ((Sum.firstProjection.fiber x).apply v))
+  ((Sum.secondInclusion.fiber x).apply ((Sum.secondProjection.fiber x).apply v)) = v :=
+  trans!{V} _ _ _ (split ((Sum.firstProjection.fiber x).apply v) ((Sum.secondProjection.fiber x).apply v))
+    (trans!{V} _ _ _
+      (congr!{{Sum.SourceFiber x} V} (Sum.isomorphism.forward.fiber x).apply _ _ (Pair.Prop[A := A, B := B].eta ((Sum.isomorphism.backward.fiber x).apply v)))
+      (Sum.isomorphism.rightInverse x v));
+\definition compare[first, second: Map]
+  [headAgreement: \forall (a: A) -> first.apply ((Sum.firstInclusion.fiber x).apply a) = second.apply ((Sum.firstInclusion.fiber x).apply a)]
+  [tailAgreement: \forall (b: B) -> first.apply ((Sum.secondInclusion.fiber x).apply b) = second.apply ((Sum.secondInclusion.fiber x).apply b)]
+  [v: V]: first.apply v = second.apply v :=
+  trans!{U} _ _ _ (congr!{V U} first.apply _ _ (sym!{V} _ _ (recover v)))
+    (trans!{U} _ _ _ (first.preservesAdd ((Sum.firstInclusion.fiber x).apply ((Sum.firstProjection.fiber x).apply v)) ((Sum.secondInclusion.fiber x).apply ((Sum.secondProjection.fiber x).apply v)))
+      (trans!{U} _ _ _
+        (congr!{U U U} target.add _ _ _ _ (headAgreement ((Sum.firstProjection.fiber x).apply v)) (tailAgreement ((Sum.secondProjection.fiber x).apply v)))
+        (trans!{U} _ _ _
+          (sym!{U} _ _ (second.preservesAdd ((Sum.firstInclusion.fiber x).apply ((Sum.firstProjection.fiber x).apply v)) ((Sum.secondInclusion.fiber x).apply ((Sum.secondProjection.fiber x).apply v))))
+          (congr!{V U} second.apply _ _ (recover v)))));

@@ -1,0 +1,132 @@
+\import \parent.\parent.Summands[] \as Summands;
+\import \root.Thom[].FiniteLabels[] \as Labels;
+\import std.Data[].Bool[] \as B;
+\definition boundary[n: N.Nat^]: \forall (side: B.Bool^) -> Models.Map (Summands.parity n side) (Summands.parity n (Labels.flip side)) :=
+  \induction (side: B.Bool^) \return Models.Map (Summands.parity n side) (Summands.parity n (Labels.flip side)) \with {
+    | false: (folded n).backward
+    | true: (folded n).forward
+  };
+\definition headAction: \forall (n: N.Nat^) -> Models.Map (term n) (Summands.parity n B.Bool^::false) :=
+  \induction (n: N.Nat^) \return Models.Map (term n) (Summands.parity n B.Bool^::false) \with {
+    | zero: Models.zero (term N.Nat^::zero) Chains.empty
+    | succ: \fun (n: N.Nat^)(previous: Models.Map (term n) (Summands.parity n B.Bool^::false)) =>
+      Models.compose (term (N.Nat^::succ n)) (term n) (folded n).even (differential n) (folded n).inclusion
+  };
+\definition lowerAction: \forall (n: N.Nat^)(s: Labels.Index n) -> Models.Map (term (Labels.degree n s)) (Summands.parity n (Labels.flip (Labels.even n s))) :=
+  \induction (n: N.Nat^)(s: Labels.Index n) \return Models.Map (term (Labels.degree n s)) (Summands.parity n (Labels.flip (Labels.even n s))) \with {
+    | head: \fun (n: N.Nat^) => headAction n
+    | tail: \fun (n: N.Nat^)(s: Labels.Index n)(previous: Models.Map (term (Labels.degree n s)) (Summands.parity n (Labels.flip (Labels.even n s)))) =>
+      Models.compose (term (Labels.degree n s)) (Summands.parity n (Labels.flip (Labels.even n s)))
+        (Summands.parity (N.Nat^::succ n) (Labels.flip (Labels.flip (Labels.even n s)))) previous (Summands.lift n (Labels.flip (Labels.even n s)))
+  };
+\definition nextInjection: \forall (n: N.Nat^)(s: Labels.Index n) -> Models.Map (term (N.Nat^::succ (Labels.degree n s))) (Summands.parity (N.Nat^::succ n) (Labels.even n s)) :=
+  \induction (n: N.Nat^)(s: Labels.Index n) \return Models.Map (term (N.Nat^::succ (Labels.degree n s))) (Summands.parity (N.Nat^::succ n) (Labels.even n s)) \with {
+    | head: \fun (n: N.Nat^) => (folded (N.Nat^::succ n)).inclusion
+    | tail: \fun (n: N.Nat^)(s: Labels.Index n)(previous: Models.Map (term (N.Nat^::succ (Labels.degree n s))) (Summands.parity (N.Nat^::succ n) (Labels.even n s))) =>
+      Models.compose (term (N.Nat^::succ (Labels.degree n s))) (Summands.parity (N.Nat^::succ n) (Labels.even n s))
+        (Summands.parity (N.Nat^::succ (N.Nat^::succ n)) (Labels.flip (Labels.even n s))) previous (Summands.lift (N.Nat^::succ n) (Labels.even n s))
+  };
+\definition nextAt[n: N.Nat^][s: Labels.Index n][side: B.Bool^][color: Labels.even n s = side]: Models.Map (term (N.Nat^::succ (Labels.degree n s))) (Summands.parity (N.Nat^::succ n) side) :=
+  Models.compose (term (N.Nat^::succ (Labels.degree n s))) (Summands.parity (N.Nat^::succ n) (Labels.even n s)) (Summands.parity (N.Nat^::succ n) side)
+    (nextInjection n s) (Summands.select (N.Nat^::succ n) (Labels.even n s) side);
+\definition nextTail: \forall (n: N.Nat^)(s: Labels.Index n)(side: B.Bool^)(color: Labels.even n s = side)(x: X)(v: Models.Fiber (term (N.Nat^::succ (Labels.degree n s))).ranks x) ->
+  ((nextAt (N.Nat^::succ n) (Labels.Index::tail n s) (Labels.flip side) (congr!{{B.Bool^} {B.Bool^}} Labels.flip _ _ color)).fiber x).apply v =
+  ((Summands.lift (N.Nat^::succ n) side).fiber x).apply (((nextAt n s side color).fiber x).apply v) :=
+  \fun (n: N.Nat^)(s: Labels.Index n)(side: B.Bool^)(color: Labels.even n s = side) =>
+    (\idelim Labels.even n s = side \with b: B.Bool^ => \forall (law: Labels.even n s = b)(x: X)(v: Models.Fiber (term (N.Nat^::succ (Labels.degree n s))).ranks x) ->
+      ((nextAt (N.Nat^::succ n) (Labels.Index::tail n s) (Labels.flip b) (congr!{{B.Bool^} {B.Bool^}} Labels.flip _ _ law)).fiber x).apply v =
+      ((Summands.lift (N.Nat^::succ n) b).fiber x).apply (((nextAt n s b law).fiber x).apply v) \by {
+        base: \fun (law: Labels.even n s = Labels.even n s)(x: X)(v: Models.Fiber (term (N.Nat^::succ (Labels.degree n s))).ranks x) =>
+          trans!{{Models.Fiber (Summands.parity (N.Nat^::succ (N.Nat^::succ n)) (Labels.flip (Labels.even n s))).ranks x}} _ _ _
+            (Summands.selectSame (N.Nat^::succ (N.Nat^::succ n)) (Labels.flip (Labels.even n s)) x (((nextInjection (N.Nat^::succ n) (Labels.Index::tail n s)).fiber x).apply v))
+            (congr!{{Models.Fiber (Summands.parity (N.Nat^::succ n) (Labels.even n s)).ranks x} {Models.Fiber (Summands.parity (N.Nat^::succ (N.Nat^::succ n)) (Labels.flip (Labels.even n s))).ranks x}}
+              ((Summands.lift (N.Nat^::succ n) (Labels.even n s)).fiber x).apply _ _
+              (sym!{{Models.Fiber (Summands.parity (N.Nat^::succ n) (Labels.even n s)).ranks x}} _ _ (Summands.selectSame (N.Nat^::succ n) (Labels.even n s) x (((nextInjection n s).fiber x).apply v)))),
+        equality: color
+      }) color;
+
+\module Step(n: N.Nat^);
+\definition emptyZero[x: X][v: Models.Fiber Chains.empty.ranks x]: v = ((Models.bundle Chains.empty).space x).zero :=
+  \axiom:funext(v, ((Models.bundle Chains.empty).space x).zero,
+    \fun (i: Fin.Fin N.Nat^::zero) => Logic.falseElim _ (Fin.zeroImpossible i (Fin.bound N.Nat^::zero i)));
+\definition headFormula: \forall (n: N.Nat^)(x: X)(v: Models.Fiber (term n).ranks x) ->
+  ((boundary n B.Bool^::true).fiber x).apply (((folded n).inclusion.fiber x).apply v) = ((headAction n).fiber x).apply v :=
+  \induction (n: N.Nat^) \return \forall (x: X)(v: Models.Fiber (term n).ranks x) ->
+    ((boundary n B.Bool^::true).fiber x).apply (((folded n).inclusion.fiber x).apply v) = ((headAction n).fiber x).apply v \with {
+    | zero: \fun (x: X)(v: Models.Fiber (term N.Nat^::zero).ranks x) => emptyZero x (((boundary N.Nat^::zero B.Bool^::true).fiber x).apply (((folded N.Nat^::zero).inclusion.fiber x).apply v))
+    | succ: \fun (n: N.Nat^)(previous: _) => Step[n := n].head
+  };
+\definition Statement[n: N.Nat^][s: Labels.Index n]: \Prop := \forall (x: X)(v: Models.Fiber (term (Labels.degree n s)).ranks x) ->
+  ((boundary n (Labels.even n s)).fiber x).apply (((Summands.inclusion n s).fiber x).apply v) = ((lowerAction n s).fiber x).apply v;
+\definition onInclusion: \forall (n: N.Nat^)(s: Labels.Index n) -> Statement n s :=
+  \induction (n: N.Nat^)(s: Labels.Index n) \return Statement n s \with {
+    | head: \fun (n: N.Nat^) => headFormula n
+    | tail: \fun (n: N.Nat^)(s: Labels.Index n)(previous: Statement n s)(x: X)(v: Models.Fiber (term (Labels.degree n s)).ranks x) =>
+      trans!{{Models.Fiber (Summands.parity (N.Nat^::succ n) (Labels.flip (Labels.flip (Labels.even n s)))).ranks x}} _ _ _
+        (Step[n := n].law (Labels.even n s) x (((Summands.inclusion n s).fiber x).apply v))
+        (congr!{{Models.Fiber (Summands.parity n (Labels.flip (Labels.even n s))).ranks x} {Models.Fiber (Summands.parity (N.Nat^::succ n) (Labels.flip (Labels.flip (Labels.even n s)))).ranks x}}
+          ((Summands.lift n (Labels.flip (Labels.even n s))).fiber x).apply _ _ (previous x v))
+  };
+\definition formula: \forall (n: N.Nat^)(s: Labels.Index n)(x: X)(v: Models.Fiber (term (Labels.degree n s)).ranks x) ->
+  ((boundary n (Labels.even n s)).fiber x).apply (((Summands.at n s (Labels.even n s) (\refl(Labels.even n s))).fiber x).apply v) = ((lowerAction n s).fiber x).apply v :=
+  \fun (n: N.Nat^)(s: Labels.Index n)(x: X)(v: Models.Fiber (term (Labels.degree n s)).ranks x) =>
+    trans!{{Models.Fiber (Summands.parity n (Labels.flip (Labels.even n s))).ranks x}} _ _ _
+      (congr!{{Models.Fiber (Summands.parity n (Labels.even n s)).ranks x} {Models.Fiber (Summands.parity n (Labels.flip (Labels.even n s))).ranks x}}
+        ((boundary n (Labels.even n s)).fiber x).apply _ _ (Summands.selectSame n (Labels.even n s) x (((Summands.inclusion n s).fiber x).apply v)))
+      (onInclusion n s x v);
+\definition atFormula: \forall (n: N.Nat^)(s: Labels.Index n)(side: B.Bool^)(color: Labels.even n s = side)(x: X)(v: Models.Fiber (term (Labels.degree n s)).ranks x) ->
+  ((boundary n side).fiber x).apply (((Summands.at n s side color).fiber x).apply v) =
+  ((Summands.select n (Labels.flip (Labels.even n s)) (Labels.flip side)).fiber x).apply (((lowerAction n s).fiber x).apply v) :=
+  \fun (n: N.Nat^)(s: Labels.Index n)(side: B.Bool^)(color: Labels.even n s = side) =>
+    (\idelim Labels.even n s = side \with b: B.Bool^ => \forall (law: Labels.even n s = b)(x: X)(v: Models.Fiber (term (Labels.degree n s)).ranks x) ->
+      ((boundary n b).fiber x).apply (((Summands.at n s b law).fiber x).apply v) =
+      ((Summands.select n (Labels.flip (Labels.even n s)) (Labels.flip b)).fiber x).apply (((lowerAction n s).fiber x).apply v) \by {
+      base: \fun (law: Labels.even n s = Labels.even n s)(x: X)(v: Models.Fiber (term (Labels.degree n s)).ranks x) =>
+        trans!{{Models.Fiber (Summands.parity n (Labels.flip (Labels.even n s))).ranks x}} _ _ _ (formula n s x v)
+          (sym!{{Models.Fiber (Summands.parity n (Labels.flip (Labels.even n s))).ranks x}} _ _
+            (Summands.selectSame n (Labels.flip (Labels.even n s)) x (((lowerAction n s).fiber x).apply v))),
+      equality: color
+    }) color;
+\definition zeroHead[n: N.Nat^][zero: n = N.Nat^::zero]: \forall (x: X)(v: Models.Fiber (term n).ranks x) ->
+  ((headAction n).fiber x).apply v = ((Models.bundle (Summands.parity n B.Bool^::false)).space x).zero :=
+  \idelim N.Nat^::zero = n \with k: N.Nat^ => \forall (x: X)(v: Models.Fiber (term k).ranks x) ->
+    ((headAction k).fiber x).apply v = ((Models.bundle (Summands.parity k B.Bool^::false)).space x).zero \by {
+    base: \fun (x: X)(v: Models.Fiber (term N.Nat^::zero).ranks x) => \refl(((Models.bundle Chains.empty).space x).zero),
+    equality: sym!{{N.Nat^}} _ _ zero
+  };
+\definition ZeroStatement[n: N.Nat^][s: Labels.Index n]: \Prop := Labels.degree n s = N.Nat^::zero ->
+  \forall (x: X)(v: Models.Fiber (term (Labels.degree n s)).ranks x) ->
+    ((lowerAction n s).fiber x).apply v = ((Models.bundle (Summands.parity n (Labels.flip (Labels.even n s)))).space x).zero;
+\definition onZero: \forall (n: N.Nat^)(s: Labels.Index n) -> ZeroStatement n s :=
+  \induction (n: N.Nat^)(s: Labels.Index n) \return ZeroStatement n s \with {
+    | head: \fun (n: N.Nat^) => zeroHead n
+    | tail: \fun (n: N.Nat^)(s: Labels.Index n)(previous: ZeroStatement n s)(zero: Labels.degree n s = N.Nat^::zero)(x: X)(v: Models.Fiber (term (Labels.degree n s)).ranks x) =>
+      trans!{{Models.Fiber (Summands.parity (N.Nat^::succ n) (Labels.flip (Labels.flip (Labels.even n s)))).ranks x}} _ _ _
+        (congr!{{Models.Fiber (Summands.parity n (Labels.flip (Labels.even n s))).ranks x} {Models.Fiber (Summands.parity (N.Nat^::succ n) (Labels.flip (Labels.flip (Labels.even n s)))).ranks x}}
+          ((Summands.lift n (Labels.flip (Labels.even n s))).fiber x).apply _ _ (previous zero x v))
+        ((Summands.lift n (Labels.flip (Labels.even n s))).fiber x).preservesZero
+  };
+\definition zeroFormula[n: N.Nat^][s: Labels.Index n][zero: Labels.degree n s = N.Nat^::zero][x: X][v: Models.Fiber (term (Labels.degree n s)).ranks x]:
+  ((boundary n (Labels.even n s)).fiber x).apply (((Summands.at n s (Labels.even n s) (\refl(Labels.even n s))).fiber x).apply v) =
+  ((Models.bundle (Summands.parity n (Labels.flip (Labels.even n s)))).space x).zero :=
+  trans!{{Models.Fiber (Summands.parity n (Labels.flip (Labels.even n s))).ranks x}} _ _ _ (formula n s x v) (onZero n s zero x v);
+\definition NextStatement[n: N.Nat^][s: Labels.Index n]: \Prop := \forall (x: X)(v: Models.Fiber (term (N.Nat^::succ (Labels.degree n s))).ranks x) ->
+  ((boundary (N.Nat^::succ n) (Labels.even n s)).fiber x).apply (((nextInjection n s).fiber x).apply v) =
+  ((Summands.inclusion (N.Nat^::succ n) (Labels.Index::tail n s)).fiber x).apply (((differential (Labels.degree n s)).fiber x).apply v);
+\definition nextOnInclusion: \forall (n: N.Nat^)(s: Labels.Index n) -> NextStatement n s :=
+  \induction (n: N.Nat^)(s: Labels.Index n) \return NextStatement n s \with {
+    | head: \fun (n: N.Nat^) => Step[n := n].head
+    | tail: \fun (n: N.Nat^)(s: Labels.Index n)(previous: NextStatement n s)(x: X)(v: Models.Fiber (term (N.Nat^::succ (Labels.degree n s))).ranks x) =>
+      trans!{{Models.Fiber (Summands.parity (N.Nat^::succ (N.Nat^::succ n)) (Labels.flip (Labels.flip (Labels.even n s)))).ranks x}} _ _ _
+        (Step[n := N.Nat^::succ n].law (Labels.even n s) x (((nextInjection n s).fiber x).apply v))
+        (congr!{{Models.Fiber (Summands.parity (N.Nat^::succ n) (Labels.flip (Labels.even n s))).ranks x} {Models.Fiber (Summands.parity (N.Nat^::succ (N.Nat^::succ n)) (Labels.flip (Labels.flip (Labels.even n s)))).ranks x}}
+          ((Summands.lift (N.Nat^::succ n) (Labels.flip (Labels.even n s))).fiber x).apply _ _ (previous x v))
+  };
+\definition nextFormula[n: N.Nat^][s: Labels.Index n][x: X][v: Models.Fiber (term (N.Nat^::succ (Labels.degree n s))).ranks x]:
+  ((boundary (N.Nat^::succ n) (Labels.even n s)).fiber x).apply (((nextInjection n s).fiber x).apply v) =
+  ((Summands.at (N.Nat^::succ n) (Labels.Index::tail n s) (Labels.flip (Labels.even n s)) (\refl(Labels.flip (Labels.even n s)))).fiber x).apply (((differential (Labels.degree n s)).fiber x).apply v) :=
+  trans!{{Models.Fiber (Summands.parity (N.Nat^::succ n) (Labels.flip (Labels.even n s))).ranks x}} _ _ _ (nextOnInclusion n s x v)
+    (sym!{{Models.Fiber (Summands.parity (N.Nat^::succ n) (Labels.flip (Labels.even n s))).ranks x}} _ _
+      (Summands.selectSame (N.Nat^::succ n) (Labels.flip (Labels.even n s)) x
+        (((Summands.inclusion (N.Nat^::succ n) (Labels.Index::tail n s)).fiber x).apply (((differential (Labels.degree n s)).fiber x).apply v))));
+\module Insertion;

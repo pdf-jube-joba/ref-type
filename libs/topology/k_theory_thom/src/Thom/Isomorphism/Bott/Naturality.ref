@@ -1,0 +1,26 @@
+\import \root.Thom[].Isomorphism[].Bott[base := other] \as Other;
+\import \root.Thom[].Isomorphism[].Bott[base := base] \as Source;
+\import Relative.Identity[model := Periodicity.sphere] \as SphereIdentity;
+\definition Map[n: N.Nat^]: \Set := Relative.Map (model n) (Other.model n);
+\definition induced: \forall (n: N.Nat^) -> Map n :=
+  \induction (n: N.Nat^) \return Map n \with {
+    | zero: f
+    | succ: \fun (n: N.Nat^)(previous: Map n) =>
+      Relative.Smash[left := model n, right := Periodicity.sphere].Mapping[
+        targetLeft := Other.model n, targetRight := Periodicity.sphere, f := previous, g := SphereIdentity.map].map
+  };
+\definition pullback[n: N.Nat^]: Other.Carrier n -> Carrier n := Relative.Pullback[
+  source := model n, target := Other.model n, f := induced n].map;
+\structure Equations[n: N.Nat^]: \Prop := {
+  forward: \forall (a: Other.Carrier N.Nat^::zero) -> pullback n (Other.forward n a) = Source.forward n (pullback N.Nat^::zero a),
+  backward: \forall (a: Other.Carrier n) -> pullback N.Nat^::zero (Other.backward n a) = Source.backward n (pullback n a)
+};
+\module Step(n: N.Nat^, previous: Equations[n]);
+\definition naturality: \forall (n: N.Nat^) -> Equations[n] :=
+  \induction (n: N.Nat^) \return Equations[n] \with {
+    | zero: Equations[N.Nat^::zero] {
+      forward := \fun (a: Other.Carrier N.Nat^::zero) => \refl(pullback N.Nat^::zero a),
+      backward := \fun (a: Other.Carrier N.Nat^::zero) => \refl(pullback N.Nat^::zero a)
+    }
+    | succ: \fun (n: N.Nat^)(previous: Equations[n]) => Step[n := n, previous := previous].equations
+  };

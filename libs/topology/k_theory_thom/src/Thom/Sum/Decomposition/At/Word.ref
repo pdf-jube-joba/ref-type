@@ -1,0 +1,39 @@
+\import Splitting.Of[xs := TotalLists.list k indices, parts := parts] \as Parts;
+\import Spaces.FiniteExterior[V := V, space := left, n := n, b := Frame.firstBasis].At[k := Parts.p] \as FirstWord;
+\import Spaces.FiniteExterior[V := W, space := right, n := m, b := Frame.secondBasis].At[k := Parts.q] \as SecondWord;
+\import \parent.\parent.\parent.At[p := Parts.p, q := Parts.q] \as Product;
+\import Fin.FromList[A := Fin.Fin n] \as LeftLists;
+\import Fin.FromList[A := Fin.Fin m] \as RightLists;
+\definition degree: Nat.add Parts.p Parts.q = k :=
+  trans!{{N.Nat^}} _ _ _ Parts.totalDegree (TotalLists.listLength k indices);
+\import Exterior.Regrade[k := Nat.add Parts.p Parts.q, l := k] \as Regrade;
+\definition splitSeries: TotalProduct.value (TotalLists.list k indices) = Product.product (FirstWord.word Parts.left) (SecondWord.word Parts.right) :=
+  trans!{{Shuffle.Function}} _ _ _
+    (congr!{{Lists.List[Fin.Fin Indices.total]} {Shuffle.Function}} TotalProduct.value _ _ (sym!{{Lists.List[Fin.Fin Indices.total]}} _ _ Parts.equation))
+    (trans!{{Shuffle.Function}} _ _ _
+      (TotalProduct.append (Lists.map (Fin.Fin n) (Fin.Fin Indices.total) Indices.left (LeftLists.list Parts.p Parts.left))
+        (Lists.map (Fin.Fin m) (Fin.Fin Indices.total) Indices.right (RightLists.list Parts.q Parts.right)))
+      (trans!{{Shuffle.Function}} _ _ _
+        (congr!{{Shuffle.Function} {Shuffle.Function} {Shuffle.Function}} Shuffle.product _ _ _ _
+          (leftProduct (LeftLists.list Parts.p Parts.left)) (rightProduct (RightLists.list Parts.q Parts.right)))
+        (congr!{{Shuffle.Function} {Shuffle.Function} {Shuffle.Function}} Shuffle.product _ _ _ _
+          (congr!{{LeftShuffle.Function} {Shuffle.Function}} (LeftSeries.mapSeries Sum.first) _ _ (sym!{{LeftShuffle.Function}} _ _ (LeftWords.series Parts.p Parts.left)))
+          (congr!{{RightShuffle.Function} {Shuffle.Function}} (RightSeries.mapSeries Sum.second) _ _ (sym!{{RightShuffle.Function}} _ _ (RightWords.series Parts.q Parts.right))))));
+\definition equation: TotalExterior.word indices = Regrade.cast (Product.apply (FirstWord.word Parts.left) (SecondWord.word Parts.right)) degree :=
+  Exterior.Components[k := k].ext _ _
+    (trans!{{Shuffle.Function}} _ _ _ (TotalWords.series k indices)
+      (trans!{{Shuffle.Function}} _ _ _ splitSeries
+        (trans!{{Shuffle.Function}} _ _ _
+          (sym!{{Shuffle.Function}} _ _ (Product.series (FirstWord.word Parts.left) (SecondWord.word Parts.right)))
+          (sym!{{Shuffle.Function}} _ _ (Regrade.series (Product.apply (FirstWord.word Parts.left) (SecondWord.word Parts.right)) degree)))));
+\definition bidegree: Direct.Bidegree := Direct.make Parts.p Parts.q degree;
+\import Direct.Component[d := bidegree] \as Component;
+\import Direct.At[d := bidegree] \as Inclusion;
+\definition preimage: Direct.Carrier := Inclusion.injection.apply (Component.product (FirstWord.word Parts.left) (SecondWord.word Parts.right));
+\definition onPreimage: Direct.forward.apply preimage = TotalExterior.word indices :=
+  trans!{{Exterior.Form k}} _ _ _
+    (Inclusion.onInjection (Component.product (FirstWord.word Parts.left) (SecondWord.word Parts.right)))
+    (trans!{{Exterior.Form k}} _ _ _
+      (congr!{{Exterior.Form (Nat.add Parts.p Parts.q)} {Exterior.Form k}} (\fun (omega: Exterior.Form (Nat.add Parts.p Parts.q)) => Regrade.cast omega degree) _ _
+        (Product.onTensor (FirstWord.word Parts.left) (SecondWord.word Parts.right)))
+      (sym!{{Exterior.Form k}} _ _ equation));

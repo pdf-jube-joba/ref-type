@@ -1,0 +1,51 @@
+\use Equality.eq_reason_in;
+\import N.Basic[].Prop[] \as Naturals;
+\import std.Data[].Bool[] \as Bool;
+\import Spaces.Multilinear[V := V, space := left] \as LeftMultilinear;
+\import Spaces.Multilinear[V := W, space := right] \as RightMultilinear;
+\import LeftShuffle.Vector[space := left] \as LeftLinear;
+\import RightShuffle.Vector[space := right] \as RightLinear;
+\definition inLeft[v: V]: Total := Sum.make v right.zero;
+\definition inRight[w: W]: Total := Sum.make left.zero w;
+\definition leftMap[f: LeftShuffle.Function]: Shuffle.Function := LeftSeries.mapSeries Sum.first f;
+\definition rightMap[g: RightShuffle.Function]: Shuffle.Function := RightSeries.mapSeries Sum.second g;
+\definition leftZeroHead: \forall (f: LeftShuffle.Function) -> LeftLinear.Linear f -> \forall (xs: Lists.List[V]) -> f (Lists.List[V]::cons left.zero xs) = Op.zero :=
+  \fun (f: LeftShuffle.Function)(linear: LeftLinear.Linear f)(xs: Lists.List[V]) => eq_reason_in!{C.Complex _
+    "=" { f (Lists.List[V]::cons (left.smul Op.zero left.zero) xs) } "by" {
+      congr!{{Lists.List[V]} {C.Complex}} f _ _ (congr!{V {Lists.List[V]}} (\fun (v: V) => Lists.List[V]::cons v xs) _ _ (sym!{V} _ _ (Spaces.Laws[V := V, space := left].zeroScale left.zero))) }
+    "=" { Op.mul Op.zero (f (Lists.List[V]::cons left.zero xs)) } "by" {
+      linear.scalar (Lists.List[V]::cons left.zero xs) N.Nat^::zero (\refl(Bool.Bool^::true)) Op.zero left.zero }
+    "=" _ "by" { Laws.mulZeroLeft (f (Lists.List[V]::cons left.zero xs)) }
+  };
+\definition rightZeroHead: \forall (g: RightShuffle.Function) -> RightLinear.Linear g -> \forall (xs: Lists.List[W]) -> g (Lists.List[W]::cons right.zero xs) = Op.zero :=
+  \fun (g: RightShuffle.Function)(linear: RightLinear.Linear g)(xs: Lists.List[W]) => eq_reason_in!{C.Complex _
+    "=" { g (Lists.List[W]::cons (right.smul Op.zero right.zero) xs) } "by" {
+      congr!{{Lists.List[W]} {C.Complex}} g _ _ (congr!{W {Lists.List[W]}} (\fun (w: W) => Lists.List[W]::cons w xs) _ _ (sym!{W} _ _ (Spaces.Laws[V := W, space := right].zeroScale right.zero))) }
+    "=" { Op.mul Op.zero (g (Lists.List[W]::cons right.zero xs)) } "by" {
+      linear.scalar (Lists.List[W]::cons right.zero xs) N.Nat^::zero (\refl(Bool.Bool^::true)) Op.zero right.zero }
+    "=" _ "by" { Laws.mulZeroLeft (g (Lists.List[W]::cons right.zero xs)) }
+  };
+\definition firstShift: \forall (f: LeftShuffle.Function)(v: V) -> Shuffle.shift (inLeft v) (leftMap f) = leftMap (LeftShuffle.shift v f) :=
+  \fun (f: LeftShuffle.Function)(v: V) => \refl(Shuffle.shift (inLeft v) (leftMap f));
+\definition secondShift: \forall (g: RightShuffle.Function)(w: W) -> Shuffle.shift (inRight w) (rightMap g) = rightMap (RightShuffle.shift w g) :=
+  \fun (g: RightShuffle.Function)(w: W) => \refl(Shuffle.shift (inRight w) (rightMap g));
+\definition zeroFirstShift: \forall (f: LeftShuffle.Function) -> LeftLinear.Linear f -> \forall (w: W)(xs: Lists.List[Total]) -> Shuffle.shift (inRight w) (leftMap f) xs = Op.zero :=
+  \fun (f: LeftShuffle.Function)(linear: LeftLinear.Linear f)(w: W)(xs: Lists.List[Total]) => leftZeroHead f linear (Lists.map Total V Sum.first xs);
+\definition zeroSecondShift: \forall (g: RightShuffle.Function) -> RightLinear.Linear g -> \forall (v: V)(xs: Lists.List[Total]) -> Shuffle.shift (inLeft v) (rightMap g) xs = Op.zero :=
+  \fun (g: RightShuffle.Function)(linear: RightLinear.Linear g)(v: V)(xs: Lists.List[Total]) => rightZeroHead g linear (Lists.map Total W Sum.second xs);
+\module RightStep(ys: Lists.List[W]);
+\definition onRight: \forall (ys: Lists.List[W])(f: LeftShuffle.Function)(g: RightShuffle.Function) -> LeftLinear.Linear f ->
+  Shuffle.product (leftMap f) (rightMap g) (Lists.map W Total inRight ys) = Op.mul (f Lists.List[V]::nil) (g ys) :=
+  \induction (ys: Lists.List[W]) \return \forall (f: LeftShuffle.Function)(g: RightShuffle.Function) -> LeftLinear.Linear f ->
+    Shuffle.product (leftMap f) (rightMap g) (Lists.map W Total inRight ys) = Op.mul (f Lists.List[V]::nil) (g ys) \with {
+      | nil: \fun (f: LeftShuffle.Function)(g: RightShuffle.Function)(linear: LeftLinear.Linear f) => Shuffle.atEmpty (leftMap f) (rightMap g)
+      | cons: \fun (w: W)(ys: Lists.List[W])(previous: _) => RightStep[ys := ys].step previous w
+    };
+\module LeftStep(xs: Lists.List[V]);
+\definition equation: \forall (xs: Lists.List[V])(ys: Lists.List[W])(f: LeftShuffle.Function)(g: RightShuffle.Function) -> LeftLinear.Linear f -> RightLinear.Linear g ->
+  Shuffle.product (leftMap f) (rightMap g) (Lists.append Total (Lists.map V Total inLeft xs) (Lists.map W Total inRight ys)) = Op.mul (f xs) (g ys) :=
+  \induction (xs: Lists.List[V]) \return \forall (ys: Lists.List[W])(f: LeftShuffle.Function)(g: RightShuffle.Function) -> LeftLinear.Linear f -> RightLinear.Linear g ->
+    Shuffle.product (leftMap f) (rightMap g) (Lists.append Total (Lists.map V Total inLeft xs) (Lists.map W Total inRight ys)) = Op.mul (f xs) (g ys) \with {
+      | nil: \fun (ys: Lists.List[W])(f: LeftShuffle.Function)(g: RightShuffle.Function)(first: LeftLinear.Linear f)(second: RightLinear.Linear g) => onRight ys f g first
+      | cons: \fun (v: V)(xs: Lists.List[V])(previous: _) => LeftStep[xs := xs].step previous v
+    };

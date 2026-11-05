@@ -1,0 +1,71 @@
+\import FirstBuilder.Insertion[n := n, p := p] \as FirstInsertion;
+\import SecondBuilder.Insertion[n := m, p := q] \as SecondInsertion;
+\definition firstSide: B.Bool^ := Labels.even n (Labels.rawLookup n p);
+\definition secondSide: B.Bool^ := Labels.even m (Labels.rawLookup m q);
+\definition slot: B.Bool^ := ProductLabels.evenPair firstSide secondSide;
+\import Operations.Tensor[X := X, F := FirstForm p, G := SecondForm q, left := firstForms p, right := secondForms q] \as Forms;
+\import Operations.Tensor[X := X, F := Models.Fiber (firstTerm p).ranks, G := Models.Fiber (secondTerm q).ranks,
+  left := Models.bundle (firstTerm p), right := Models.bundle (secondTerm q)] \as Coded;
+\import Forms.Of[same := sameBase].Mapping[Y := X, A := Models.Fiber (firstTerm p).ranks, B := Models.Fiber (secondTerm q).ranks,
+  leftTarget := Models.bundle (firstTerm p), rightTarget := Models.bundle (secondTerm q), f := (\fun (x: X) => x)].Of[targetSame := (\refl(left.baseSpace))] \as Encode;
+\definition encodeForms: Bundles.Morphisms[X := X, Y := X, F := Forms.Fiber, G := Coded.Fiber,
+  source := Forms.bundle sameBase, target := Coded.bundle (\refl(left.baseSpace)), f := (\fun (x: X) => x)].Map := Encode.map (data.first p).isomorphism.forward (data.second q).isomorphism.forward;
+\import Coded.Of[same := (\refl(left.baseSpace))].Mapping[Y := X,
+  A := Models.Fiber (First.parity n firstSide).ranks, B := Models.Fiber (Second.parity m secondSide).ranks,
+  leftTarget := Models.bundle (First.parity n firstSide), rightTarget := Models.bundle (Second.parity m secondSide), f := (\fun (x: X) => x)]
+  .Of[targetSame := (\refl(left.baseSpace))] \as Insert;
+\definition inserted: Bundles.Morphisms[X := X, Y := X, F := Coded.Fiber, G := (\fun (x: X) => \parent.\parent.Slot[firstSide := firstSide, secondSide := secondSide].Fiber x),
+  source := Coded.bundle (\refl(left.baseSpace)), target := \parent.\parent.Slot[firstSide := firstSide, secondSide := secondSide].bundle, f := (\fun (x: X) => x)].Map := Insert.map FirstInsertion.map SecondInsertion.map;
+\import Bundles.Morphisms[X := X, Y := X, F := Coded.Fiber, G := (\fun (x: X) => \parent.\parent.Slot[firstSide := firstSide, secondSide := secondSide].Fiber x),
+  source := Coded.bundle (\refl(left.baseSpace)), target := \parent.\parent.Slot[firstSide := firstSide, secondSide := secondSide].bundle, f := (\fun (x: X) => x)]
+  .Composition[Z := X, H := Models.Fiber (model slot).ranks, range := Models.bundle (model slot), g := (\fun (x: X) => x)] \as Place;
+\definition placed: Bundles.Morphisms[X := X, Y := X, F := Coded.Fiber, G := Models.Fiber (model slot).ranks,
+  source := Coded.bundle (\refl(left.baseSpace)), target := Models.bundle (model slot), f := (\fun (x: X) => x)].Map := Place.compose inserted (block firstSide secondSide);
+\definition Fiber[x: X]: \Set := Forms.Fiber x;
+\definition bundle: Bundles.Family[X := X, F := Fiber].Bundle := Forms.bundle sameBase;
+\import Bundles.Morphisms[X := X, Y := X, F := Coded.Fiber, G := Models.Fiber (model slot).ranks,
+  source := Coded.bundle (\refl(left.baseSpace)), target := Models.bundle (model slot), f := (\fun (x: X) => x)]
+  .Composition[Z := X, H := Models.Fiber (model side).ranks, range := Models.bundle (model side), g := (\fun (x: X) => x)] \as Select;
+\definition post: Bundles.Morphisms[X := X, Y := X, F := Coded.Fiber, G := Models.Fiber (model side).ranks,
+  source := Coded.bundle (\refl(left.baseSpace)), target := Models.bundle (model side), f := (\fun (x: X) => x)].Map := Select.compose placed (select slot side);
+\import Bundles.Morphisms[X := X, Y := X, F := Forms.Fiber, G := Coded.Fiber,
+  source := Forms.bundle sameBase, target := Coded.bundle (\refl(left.baseSpace)), f := (\fun (x: X) => x)]
+  .Composition[Z := X, H := Models.Fiber (model side).ranks, range := Models.bundle (model side), g := (\fun (x: X) => x)] \as Finish;
+\definition map: Bundles.Morphisms[X := X, Y := X, F := Fiber, G := Models.Fiber (model side).ranks,
+  source := bundle, target := Models.bundle (model side), f := (\fun (x: X) => x)].Map := Finish.compose encodeForms post;
+\definition AlignedFirst: \Set := \Cast[Labels.Index n] ({ a: Labels.Index n \where Labels.degree n a = p });
+\definition AlignedSecond: \Set := \Cast[Labels.Index m] ({ b: Labels.Index m \where Labels.degree m b = q });
+\module LabelMap(a: AlignedFirst, b: AlignedSecond);
+\definition labelMap[a: AlignedFirst][b: AlignedSecond]: Bundles.Morphisms[X := X, Y := X,
+  F := Coded.Fiber, G := Models.Fiber (model side).ranks, source := Coded.bundle (\refl(left.baseSpace)), target := Models.bundle (model side), f := (\fun (x: X) => x)].Map := LabelMap[a := a, b := b].map;
+\definition firstLabel[bound: Naturals.Le p n]: AlignedFirst := \into[Labels.Index n](Labels.rawLookup n p, AlignedFirst) \by { Labels.lookupDegree n p bound };
+\definition secondLabel[bound: Naturals.Le q m]: AlignedSecond := \into[Labels.Index m](Labels.rawLookup m q, AlignedSecond) \by { Labels.lookupDegree m q bound };
+\definition foldedPure[x: X][v: Models.Fiber (First.parity n firstSide).ranks x][w: Models.Fiber (Second.parity m secondSide).ranks x]: \parent.\parent.Slot[firstSide := firstSide, secondSide := secondSide].Fiber x :=
+  Operations.Tensor[X := X, F := Models.Fiber (First.parity n firstSide).ranks, G := Models.Fiber (Second.parity m secondSide).ranks,
+    left := Models.bundle (First.parity n firstSide), right := Models.bundle (Second.parity m secondSide)].pure x v w;
+\definition postPure[x: X][v: Models.Fiber (firstTerm p).ranks x][w: Models.Fiber (secondTerm q).ranks x]: (post.fiber x).apply (Coded.pure x v w) =
+  ((select slot side).fiber x).apply (((block firstSide secondSide).fiber x).apply (foldedPure x ((FirstInsertion.map.fiber x).apply v) ((SecondInsertion.map.fiber x).apply w))) :=
+  congr!{{\parent.\parent.Slot[firstSide := firstSide, secondSide := secondSide].Fiber x} {Models.Fiber (model side).ranks x}}
+    (\fun (z: \parent.\parent.Slot[firstSide := firstSide, secondSide := secondSide].Fiber x) => ((select slot side).fiber x).apply (((block firstSide secondSide).fiber x).apply z)) _ _
+    (Insert.onPure FirstInsertion.map SecondInsertion.map x v w);
+\definition postWithin[firstBound: Naturals.Le p n][secondBound: Naturals.Le q m][x: X]
+  [v: Models.Fiber (firstTerm p).ranks x][w: Models.Fiber (secondTerm q).ranks x]:
+  (post.fiber x).apply (Coded.pure x v w) = ((labelMap (firstLabel firstBound) (secondLabel secondBound)).fiber x).apply (Coded.pure x v w) :=
+  trans!{{Models.Fiber (model side).ranks x}} _ _ _ (postPure x v w)
+    (trans!{{Models.Fiber (model side).ranks x}} _ _ _
+      (congr!{{\parent.\parent.Slot[firstSide := firstSide, secondSide := secondSide].Fiber x} {Models.Fiber (model side).ranks x}}
+        (\fun (z: \parent.\parent.Slot[firstSide := firstSide, secondSide := secondSide].Fiber x) => ((select slot side).fiber x).apply (((block firstSide secondSide).fiber x).apply z)) _ _
+        (congr!{{Models.Fiber (First.parity n firstSide).ranks x} {Models.Fiber (Second.parity m secondSide).ranks x} {\parent.\parent.Slot[firstSide := firstSide, secondSide := secondSide].Fiber x}}
+          (foldedPure x) _ _ _ _ (FirstInsertion.within firstBound x v) (SecondInsertion.within secondBound x w)))
+      (sym!{{Models.Fiber (model side).ranks x}} _ _ (LabelMap[a := firstLabel firstBound, b := secondLabel secondBound].onPure x v w)));
+\import Operations.TensorIsomorphisms[X := X, F := FirstForm p, G := SecondForm q,
+  A := Models.Fiber (firstTerm p).ranks, B := Models.Fiber (secondTerm q).ranks,
+  first := firstForms p, second := secondForms q, newFirst := Models.bundle (firstTerm p), newSecond := Models.bundle (secondTerm q),
+  sameSource := sameBase, sameTarget := (\refl(left.baseSpace))] \as Coding;
+\definition decodeForms: Bundles.Morphisms[X := X, Y := X, F := Coded.Fiber, G := Fiber,
+  source := Coded.bundle (\refl(left.baseSpace)), target := bundle, f := (\fun (x: X) => x)].Map :=
+  Coding.backward (data.first p).isomorphism (data.second q).isomorphism;
+\definition encodeDecode[x: X][v: Coded.Fiber x]: (encodeForms.fiber x).apply ((decodeForms.fiber x).apply v) = v :=
+  (Coding.isomorphism (data.first p).isomorphism (data.second q).isomorphism).rightInverse x v;
+\definition onDecode[x: X][v: Coded.Fiber x]: (map.fiber x).apply ((decodeForms.fiber x).apply v) = (post.fiber x).apply v :=
+  congr!{{Coded.Fiber x} {Models.Fiber (model side).ranks x}} (post.fiber x).apply _ _ (encodeDecode x v);

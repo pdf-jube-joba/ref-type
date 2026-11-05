@@ -1,0 +1,52 @@
+\import \parent.Sectors[] \as Sectors;
+\import \parent.Stabilization[] \as Stable;
+\import Stable.Normalized[] \as Normal;
+\import \root.Thom[].ComplexProductParity[X := NativeProduct.Z,
+  F0 := Sectors.FirstEvenTarget, F1 := Sectors.FirstOddTarget, G0 := Sectors.SecondEvenTarget, G1 := Sectors.SecondOddTarget,
+  e0 := Sectors.FirstEvenTargetBundle, e1 := Sectors.FirstOddTargetBundle, f0 := Sectors.SecondEvenTargetBundle, f1 := Sectors.SecondOddTargetBundle,
+  sameE1 := (\refl(NativeProduct.topology)), sameF0 := (\refl(NativeProduct.topology)), sameF1 := (\refl(NativeProduct.topology))] \as Source;
+\import \root.Thom[].ComplexProductParity[X := NativeProduct.Z,
+  F0 := Normal.FirstEven, F1 := Normal.FirstOdd, G0 := Normal.SecondEven, G1 := Normal.SecondOdd,
+  e0 := Normal.FirstEvenBundle, e1 := Normal.FirstOddBundle, f0 := Normal.SecondEvenBundle, f1 := Normal.SecondOddBundle,
+  sameE1 := (\refl(NativeProduct.topology)), sameF0 := (\refl(NativeProduct.topology)), sameF1 := (\refl(NativeProduct.topology))] \as Target;
+\import \root.Thom[].ParityNaturality[X := NativeProduct.Z,
+  E0 := Sectors.FirstEvenTarget, E1 := Sectors.FirstOddTarget, F0 := Sectors.SecondEvenTarget, F1 := Sectors.SecondOddTarget,
+  A0 := Normal.FirstEven, A1 := Normal.FirstOdd, B0 := Normal.SecondEven, B1 := Normal.SecondOdd,
+  e0 := Sectors.FirstEvenTargetBundle, e1 := Sectors.FirstOddTargetBundle, f0 := Sectors.SecondEvenTargetBundle, f1 := Sectors.SecondOddTargetBundle,
+  a0 := Normal.FirstEvenBundle, a1 := Normal.FirstOddBundle, b0 := Normal.SecondEvenBundle, b1 := Normal.SecondOddBundle,
+  sameE1 := (\refl(NativeProduct.topology)), sameF0 := (\refl(NativeProduct.topology)), sameF1 := (\refl(NativeProduct.topology)),
+  sameA1 := (\refl(NativeProduct.topology)), sameB0 := (\refl(NativeProduct.topology)), sameB1 := (\refl(NativeProduct.topology)),
+  alpha0 := Normal.FirstEvenIso, alpha1 := Normal.FirstOddIso, beta0 := Normal.SecondEvenIso, beta1 := Normal.SecondOddIso] \as Change;
+\import Source.Grading[] \as SourceGrading;
+\import Target.Grading[] \as TargetGrading;
+\import \root.Thom[].TensorNaturality[X := NativeProduct.Z, F := Source.LeftFiber, G := Source.RightFiber, A := Target.LeftFiber, B := Target.RightFiber,
+  first := Source.leftBundle, second := Source.rightBundle, newFirst := Target.leftBundle, newSecond := Target.rightBundle,
+  sameSource := (\refl(NativeProduct.topology)), sameTarget := (\refl(NativeProduct.topology)), firstIso := Change.firstIso, secondIso := Change.secondIso] \as TensorChange;
+\definition data: TensorChange.Data := TensorChange.Data {
+  sourceFirst := Stable.firstOperator, sourceSecond := Stable.secondOperator, sourceGrading := SourceGrading.leftGrading.forward,
+  targetFirst := Normal.firstOperator, targetSecond := Normal.secondOperator, targetGrading := TargetGrading.leftGrading.forward
+};
+\definition laws: TensorChange.Laws[data] := TensorChange.Laws[data] {
+  first := \fun (z: NativeProduct.Z)(v: Source.LeftFiber z) => \refl((Normal.firstOperator.fiber z).apply ((Change.firstIso.forward.fiber z).apply v)),
+  second := \fun (z: NativeProduct.Z)(v: Source.RightFiber z) => \refl((Normal.secondOperator.fiber z).apply ((Change.secondIso.forward.fiber z).apply v)),
+  grading := \fun (z: NativeProduct.Z)(v: Source.LeftFiber z) => \refl((TargetGrading.leftGrading.forward.fiber z).apply ((Change.firstIso.forward.fiber z).apply v))
+};
+\import TensorChange.With[c := data, laws := laws] \as Tensor;
+\import Change.Blocks[c := Tensor.source, d := Tensor.target, operatorCommutes := Tensor.commutes] \as Blocks;
+\definition sourceFormula: \forall (z: NativeProduct.Z)(v: Stable.TensorEven z) -> (Blocks.sourceBlock.fiber z).apply v = (Stable.stableForward.fiber z).apply v :=
+  \fun (z: NativeProduct.Z)(v: Stable.TensorEven z) => \refl((Stable.stableForward.fiber z).apply v);
+\definition targetFormula: \forall (z: NativeProduct.Z)(v: Normal.Even z) -> (Blocks.targetBlock.fiber z).apply v = (Normal.forward.fiber z).apply v :=
+  \fun (z: NativeProduct.Z)(v: Normal.Even z) => \refl((Normal.forward.fiber z).apply v);
+\definition commutes: \forall (z: NativePair.A)(v: Stable.TensorEven z) ->
+  (Normal.comparison.forward.fiber z).apply ((Change.evenIso.forward.fiber z).apply v) =
+  (Change.oddIso.forward.fiber z).apply ((Stable.stableComparison.forward.fiber z).apply v) :=
+  \fun (z: NativePair.A)(v: Stable.TensorEven z) => trans!{{Normal.Odd z}} _ _ _
+    (Normal.formula z ((Change.evenIso.forward.fiber z).apply v))
+    (trans!{{Normal.Odd z}} _ _ _ (sym!{{Normal.Odd z}} _ _ (targetFormula z ((Change.evenIso.forward.fiber z).apply v)))
+      (trans!{{Normal.Odd z}} _ _ _ (sym!{{Normal.Odd z}} _ _ (Blocks.equation z v))
+        (congr!{{Stable.TensorOdd z} {Normal.Odd z}} (Change.oddIso.forward.fiber z).apply _ _
+          (trans!{{Stable.TensorOdd z}} _ _ _ (sourceFormula z v) (sym!{{Stable.TensorOdd z}} _ _ (Stable.stableForwardFormula z v))))));
+\import NativePair.BundleTriples[F := Stable.TensorEven, G := Stable.TensorOdd, firstModel := Stable.stableEvenModel, secondModel := Stable.stableOddModel]
+  .To[H := Normal.Even, I := Normal.Odd, newFirstModel := Normal.evenModel, newSecondModel := Normal.oddModel]
+  .With[alpha := Stable.stableComparison, beta := Normal.comparison, positive := Change.evenIso, negative := Change.oddIso, commutes := commutes] \as ClassChange;
+\definition equation: Stable.stableValue = Normal.value := ClassChange.reducedEquation;

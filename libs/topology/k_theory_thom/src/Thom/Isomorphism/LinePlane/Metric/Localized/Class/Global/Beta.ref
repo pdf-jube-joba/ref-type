@@ -1,0 +1,35 @@
+\import \parent.\parent.Transport[c := c] \as LocalMap;
+\import \parent.\parent.Diagram[c := c] \as Diagram;
+\import \root.Thom[].Isomorphism[].LinePlane[].Compactification[] \as NativeSphere;
+\import \root.Thom[].Isomorphism[].NegativeNormalization[].Disk[] \as TargetDisk;
+\import periodic_k_theory.Periodicity[] \as Periodicity;
+\import Relative.Pullback[source := Point.model, target := Periodicity.sphere, f := NativeSphere.equivalence.forward] \as SpherePull;
+\import Relative.Pullback[source := LocalMap.target, target := Diagram.target, f := Diagram.diskMap] \as DiskPull;
+\import Relative.Pullback[source := Point.model, target := Diagram.target, f := Diagram.map] \as CompositePull;
+\import Relative.Pullback[source := Point.model, target := Diagram.target, f := Diagram.sphereMap] \as GeometricPull;
+\definition localFormula: Point.thom = Local.extend (LocalMap.pull TargetDisk.diskBeta) :=
+  trans!{{Relative.Reduced[model := Support.model].Carrier}} _ _ _ Canonical.normalization (localized c);
+\definition expand: Local.extend (LocalMap.pull TargetDisk.diskBeta) = CompositePull.map Diagram.relativeBeta :=
+  trans!{{Relative.Reduced[model := Point.model].Carrier}} _ _ _
+    (congr!{{Relative.Reduced[model := LocalMap.target].Carrier} {Relative.Reduced[model := Point.model].Carrier}}
+      (\fun (a: Relative.Reduced[model := LocalMap.target].Carrier) => Local.extend (LocalMap.pull a)) _ _ (sym!{{Relative.Reduced[model := LocalMap.target].Carrier}} _ _ Diagram.diskBetaFormula))
+    (trans!{{Relative.Reduced[model := Point.model].Carrier}} _ _ _
+      (sym!{{Relative.Reduced[model := Point.model].Carrier}} _ _
+        (Relative.PullbackComposition[source := Point.model, middle := Quotient.model, target := LocalMap.target,
+          first := Local.collapse, second := LocalMap.map].equation (DiskPull.map Diagram.relativeBeta)))
+      (sym!{{Relative.Reduced[model := Point.model].Carrier}} _ _
+        (Relative.PullbackComposition[source := Point.model, middle := LocalMap.target, target := Diagram.target,
+          first := Diagram.firstMap, second := Diagram.diskMap].equation Diagram.relativeBeta)));
+\definition changed: CompositePull.map Diagram.relativeBeta = GeometricPull.map Diagram.relativeBeta :=
+  congr!{{Relative.Map Point.model Diagram.target} {Relative.Reduced[model := Point.model].Carrier}}
+    (\fun (f: Relative.Map Point.model Diagram.target) => Relative.Pullback[source := Point.model, target := Diagram.target, f := f].map Diagram.relativeBeta)
+    _ _ Diagram.equality;
+\definition geometric: GeometricPull.map Diagram.relativeBeta = SpherePull.map Periodicity.beta :=
+  trans!{{Relative.Reduced[model := Point.model].Carrier}} _ _ _
+    (Relative.PullbackComposition[source := Point.model, middle := Periodicity.sphere, target := Diagram.target,
+      first := NativeSphere.equivalence.forward, second := Diagram.sphereProjection].equation Diagram.relativeBeta)
+    (congr!{{Relative.Reduced[model := Periodicity.sphere].Carrier} {Relative.Reduced[model := Point.model].Carrier}} SpherePull.map _ _ Diagram.projectionBeta);
+\definition equation: Point.thom = SpherePull.map Periodicity.beta :=
+  trans!{{Relative.Reduced[model := Point.model].Carrier}} _ _ _ localFormula
+    (trans!{{Relative.Reduced[model := Point.model].Carrier}} _ _ _ expand
+      (trans!{{Relative.Reduced[model := Point.model].Carrier}} _ _ _ changed geometric));

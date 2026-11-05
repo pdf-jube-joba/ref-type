@@ -1,0 +1,44 @@
+\import Lists.All[A := A] \as All;
+\import Fin.FromList[A := A] \as Tuple;
+\definition Increasing: Lists.List[A] -> \Prop :=
+  \induction (xs: Lists.List[A]) \return \Prop \with {
+    | nil: Logic.True
+    | cons: \fun (head: A)(tail: Lists.List[A])(rest: \Prop) => Logic.And[
+      All.Holds (\fun (a: A) => Naturals.Lt (value head) (value a)) tail, rest]
+  };
+\definition fromTuple: \forall (k: N.Nat^)(f: Fin.Fin k -> A) ->
+  (\forall (i, j: Fin.Fin k) -> Naturals.Lt i j -> Naturals.Lt (value (f i)) (value (f j))) -> Increasing (Tuple.list k f) :=
+  \induction (k: N.Nat^) \return \forall (f: Fin.Fin k -> A) ->
+    (\forall (i, j: Fin.Fin k) -> Naturals.Lt i j -> Naturals.Lt (value (f i)) (value (f j))) -> Increasing (Tuple.list k f) \with {
+      | zero: \fun (f: _)(ordered: _) => Logic.True::intro
+      | succ: \fun (k: N.Nat^)(previous: _)(f: Fin.Fin (N.Nat^::succ k) -> A)(ordered: _) => Logic.And[_, _] {
+        left := Tuple.all k (\fun (i: Fin.Fin k) => f (Fin.succ k i))
+          (\fun (a: A) => Naturals.Lt (value (f (Fin.zero k))) (value a))
+          (\fun (i: Fin.Fin k) => ordered (Fin.zero k) (Fin.succ k i) (\refl(std.Data[].Bool[].Bool^::true))),
+        right := previous (\fun (i: Fin.Fin k) => f (Fin.succ k i))
+          (\fun (i, j: Fin.Fin k)(less: _) => ordered (Fin.succ k i) (Fin.succ k j) (Naturals.ltSuccSucc i j less))
+      }
+    };
+\import Lists.Membership[A := A] \as Member;
+\use Logic.either;
+\definition allMember[P: A -> \Prop][x: A]: \forall (xs: Lists.List[A]) -> All.Holds P xs -> Member.Occurs x xs -> P x :=
+  \induction (xs: Lists.List[A]) \return All.Holds P xs -> Member.Occurs x xs -> P x \with {
+    | nil: \fun (all: _)(occurs: _) => Logic.falseElim (P x) occurs
+    | cons: \fun (head: A)(tail: Lists.List[A])(previous: _)(all: All.Holds P (Lists.List[A]::cons head tail))(occurs: Member.Occurs x (Lists.List[A]::cons head tail)) =>
+      either!{occurs {P x}
+        {\fun (same: x = head) => \idelim head = x \with a: A => P a \by { base: all.left, equality: sym!{A} _ _ same }}
+        {\fun (inside: _) => previous all.right inside}}
+  };
+\definition allAt[P: A -> \Prop][xs: Lists.List[A]][all: All.Holds P xs][i: Fin.Fin (Lists.length A xs)]: P (Tuple.tuple xs i) :=
+  allMember P (Tuple.tuple xs i) xs all
+    (\idelim Tuple.list (Lists.length A xs) (Tuple.tuple xs) = xs \with ys: Lists.List[A] => Member.Occurs (Tuple.tuple xs i) ys \by {
+      base: Tuple.occurs (Lists.length A xs) (Tuple.tuple xs) i, equality: Tuple.listTuple xs
+    });
+\module Step(head: A, tail: Lists.List[A]);
+\definition toTuple: \forall (xs: Lists.List[A]) -> Increasing xs ->
+  \forall (i, j: Fin.Fin (Lists.length A xs)) -> Naturals.Lt i j -> Naturals.Lt (value (Tuple.tuple xs i)) (value (Tuple.tuple xs j)) :=
+  \induction (xs: Lists.List[A]) \return Increasing xs ->
+    \forall (i, j: Fin.Fin (Lists.length A xs)) -> Naturals.Lt i j -> Naturals.Lt (value (Tuple.tuple xs i)) (value (Tuple.tuple xs j)) \with {
+      | nil: \fun (ordered: _)(i, j: Fin.Fin N.Nat^::zero)(less: _) => Logic.falseElim _ (Fin.zeroImpossible i (Fin.bound N.Nat^::zero i))
+      | cons: \fun (head: A)(tail: Lists.List[A])(previous: _)(ordered: Increasing (Lists.List[A]::cons head tail)) => Step[head := head, tail := tail].law ordered.left (previous ordered.right)
+    };

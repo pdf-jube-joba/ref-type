@@ -1,0 +1,30 @@
+\import bundle_operations.Operations[].Over[K := C.Complex, field := C.Algebra[].field,
+  conjugation := linear_algebra.Hermitian[].Complex[].scalar, scalar := Scalars.scalar] \as Operations;
+\import Operations.ExteriorIndices[n := N.Nat^::zero, k := N.Nat^::zero] \as Indices;
+\import std.Set[].FiniteSubset[A := Indices.Tuple].Enumeration[] \as Enumerations;
+\import std.Data[].List[] \as Lists;
+\import Lists.Distinct[A := Indices.Tuple] \as Distinct;
+\definition tuple: Indices.Tuple := \fun (i: Fin.Fin N.Nat^::zero) => i;
+\definition unique: \forall (v: Indices.Tuple) -> v = tuple :=
+  \fun (v: Indices.Tuple) => \axiom:funext(v, tuple, \fun (i: Fin.Fin N.Nat^::zero) =>
+    Logic.falseElim (v i = tuple i) (Fin.zeroImpossible i (Fin.bound N.Nat^::zero i)));
+\definition ordered: Fin.Ordering[].Increasing N.Nat^::zero N.Nat^::zero tuple :=
+  \fun (i, j: Fin.Fin N.Nat^::zero)(less: N.Basic[].Prop[].Lt i j) =>
+    Logic.falseElim _ (Fin.zeroImpossible i (Fin.bound N.Nat^::zero i));
+\definition word: Lists.List[Indices.Tuple] := Lists.List[Indices.Tuple]::cons tuple Lists.List[Indices.Tuple]::nil;
+\definition enumeration: Indices.Enumeration := \into[Lists.List[Indices.Tuple]](word, Indices.Enumeration) \by {
+  Enumerations.DistinctEnumerationLaws[Indices.set, word] {
+    enumerates := Enumerations.Enumerates[Indices.set, word] {
+      included := \fun (v: Indices.Tuple)(occurs: Enumerations.Occurs v word) =>
+        \idelim tuple = v \with w: Indices.Tuple => \In[Indices.Tuple] Indices.set w \by {
+          base: Logic.And[_, _]::# (\refl(tuple)) ordered,
+          equality: sym!{{Indices.Tuple}} _ _ (unique v)
+        },
+      exhaustive := \fun (v: Indices.Tuple)(member: \In[Indices.Tuple] Indices.set v) => Logic.Or[_, _]::left (unique v)
+    },
+    distinct := Distinct.cons tuple Lists.List[Indices.Tuple]::nil (\fun (empty: Logic.False) => empty) Distinct.nil
+  }
+};
+\module Pullback(X, Y: \Set, originalSpace: topology.Topology[Carrier := X].Topology,
+  baseSpace: topology.Topology[Carrier := Y].Topology, f: Y -> X,
+  regular: topology.Continuity[A := Y, B := X].Continuous baseSpace originalSpace f);

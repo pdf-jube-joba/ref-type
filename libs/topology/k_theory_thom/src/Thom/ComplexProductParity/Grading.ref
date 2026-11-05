@@ -1,0 +1,54 @@
+
+\import Operations.IdentityIsomorphism[X := X, F := F0, bundle := e0] \as LeftIdentity;
+\import Operations.Negation[X := X, F := F1, bundle := e1] \as LeftNegative;
+\import Operations.IdentityIsomorphism[X := X, F := G0, bundle := f0] \as RightIdentity;
+\import Operations.Negation[X := X, F := G1, bundle := f1] \as RightNegative;
+\import Operations.DirectSumIsomorphisms[X := X,
+  F := F0, G := F1,
+  A := F0, B := F1,
+  first := e0, second := e1, newFirst := e0, newSecond := e1,
+  sameSource := sameE1, sameTarget := sameE1] \as LeftPair;
+\import Operations.DirectSumIsomorphisms[X := X,
+  F := G0, G := G1,
+  A := G0, B := G1,
+  first := f0, second := f1, newFirst := f0, newSecond := f1,
+  sameSource := f0f1, sameTarget := f0f1] \as RightPair;
+\definition leftGrading: Bundles.Isomorphisms[X := X, F := LeftFiber, G := LeftFiber, source := leftBundle, target := leftBundle].Isomorphism :=
+  LeftPair.isomorphism LeftIdentity.isomorphism LeftNegative.isomorphism;
+\definition rightGrading: Bundles.Isomorphisms[X := X, F := RightFiber, G := RightFiber, source := rightBundle, target := rightBundle].Isomorphism :=
+  RightPair.isomorphism RightIdentity.isomorphism RightNegative.isomorphism;
+\definition leftSquare: \forall (x: X)(v: LeftFiber x) -> (leftGrading.forward.fiber x).apply ((leftGrading.forward.fiber x).apply v) = v := leftGrading.leftInverse;
+\definition rightSquare: \forall (x: X)(v: RightFiber x) -> (rightGrading.forward.fiber x).apply ((rightGrading.forward.fiber x).apply v) = v := rightGrading.leftInverse;
+\definition leftFormula: \forall (x: X)(v: LeftFiber x) -> (leftGrading.forward.fiber x).apply v =
+  P.pair (F0 x) (F1 x) (P.first (F0 x) (F1 x) v)
+    ((e1.space x).neg (P.second (F0 x) (F1 x) v)) :=
+  \fun (x: X)(v: LeftFiber x) => congr!{{F1 x} {LeftFiber x}}
+    (P.pair (F0 x) (F1 x) (P.first (F0 x) (F1 x) v)) _ _
+    (LeftNegative.formula x (P.second (F0 x) (F1 x) v));
+\definition rightFormula: \forall (x: X)(v: RightFiber x) -> (rightGrading.forward.fiber x).apply v =
+  P.pair (G0 x) (G1 x) (P.first (G0 x) (G1 x) v)
+    ((f1.space x).neg (P.second (G0 x) (G1 x) v)) :=
+  \fun (x: X)(v: RightFiber x) => congr!{{G1 x} {RightFiber x}}
+    (P.pair (G0 x) (G1 x) (P.first (G0 x) (G1 x) v)) _ _
+    (RightNegative.formula x (P.second (G0 x) (G1 x) v));
+\import Operations.IdentityIsomorphism[X := X, F := Even, bundle := evenBundle] \as EvenIdentity;
+\import Operations.Negation[X := X, F := Odd, bundle := oddBundle] \as OddNegative;
+\import Operations.DirectSumIsomorphisms[X := X, F := Even, G := Odd, A := Even, B := Odd,
+  first := evenBundle, second := oddBundle, newFirst := evenBundle, newSecond := oddBundle,
+  sameSource := (\refl(space)), sameTarget := (\refl(space))] \as TotalPair;
+\definition targetGrading: Bundles.Isomorphisms[X := X, F := TargetFiber, G := TargetFiber, source := targetBundle, target := targetBundle].Isomorphism :=
+  TotalPair.isomorphism EvenIdentity.isomorphism OddNegative.isomorphism;
+\definition targetFormula: \forall (x: X)(v: TargetFiber x) -> (targetGrading.forward.fiber x).apply v =
+  P.pair (Even x) (Odd x) (P.first (Even x) (Odd x) v) ((oddBundle.space x).neg (P.second (Even x) (Odd x) v)) :=
+  \fun (x: X)(v: TargetFiber x) => congr!{{Odd x} {TargetFiber x}}
+    (P.pair (Even x) (Odd x) (P.first (Even x) (Odd x) v)) _ _ (OddNegative.formula x (P.second (Even x) (Odd x) v));
+\import Tensor.Of[same := sameF0].Mapping[Y := X, A := LeftFiber, B := RightFiber,
+  leftTarget := leftBundle, rightTarget := rightBundle, f := (\fun (x: X) => x)].Of[targetSame := sameF0] \as TensorMapping;
+\definition tensorGrading: Bundles.Morphisms[X := X, Y := X, F := SourceFiber, G := SourceFiber,
+  source := sourceBundle, target := sourceBundle, f := (\fun (x: X) => x)].Map := TensorMapping.map leftGrading.forward rightGrading.forward;
+\module At(x: X);
+\definition compatible: \forall (x: X)(z: SourceFiber x) ->
+  (isomorphism.forward.fiber x).apply (At[x := x].parity.apply z) = P.pair (Even x) (Odd x)
+    (P.first (Even x) (Odd x) ((isomorphism.forward.fiber x).apply z))
+    ((oddBundle.space x).neg (P.second (Even x) (Odd x) ((isomorphism.forward.fiber x).apply z))) :=
+  \fun (x: X) => At[x := x].compatible;

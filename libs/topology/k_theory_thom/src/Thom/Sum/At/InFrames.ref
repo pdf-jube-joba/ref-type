@@ -1,0 +1,65 @@
+\use Equality.eq_reason_in;
+\import \parent.\parent.Mixed[] \as Mixed;
+\import Operations.AlternatingFrame[V := V, space := left, n := n, frame := firstFrame, k := p, enumeration := firstEnumeration] \as First;
+\import Operations.AlternatingFrame[V := W, space := right, n := m, frame := secondFrame, k := q, enumeration := secondEnumeration] \as Second;
+\import Operations.ExteriorIndices[n := n, k := p] \as FirstIndices;
+\import Operations.ExteriorIndices[n := m, k := q] \as SecondIndices;
+\import Operations.FiniteIndex[A := FirstIndices.Tuple, S := FirstIndices.set, enumeration := firstEnumeration] \as FirstKeys;
+\import Operations.FiniteIndex[A := SecondIndices.Tuple, S := SecondIndices.set, enumeration := secondEnumeration] \as SecondKeys;
+\import Spaces.Finite[V := V, I := Fin.Fin n, space := left] \as FirstBasis;
+\import Spaces.Finite[V := W, I := Fin.Fin m, space := right] \as SecondBasis;
+\import Fin.FromList[A := V] \as FirstLists;
+\import Fin.FromList[A := W] \as SecondLists;
+\import Operations.TensorFrame[V := Left.Form p, W := Right.Form q, left := FirstForms.vectorSpace, right := SecondForms.vectorSpace,
+  n := First.dimension, m := Second.dimension, first := First.isomorphism, second := Second.isomorphism] \as Frame;
+\import Spaces.Coordinates[I := Frame.Index] \as Coefficients;
+\definition firstArguments[a: Fin.Fin First.dimension][i: Fin.Fin p]: V := First.basis.vectors (FirstKeys.enumerate a i);
+\definition secondArguments[b: Fin.Fin Second.dimension][i: Fin.Fin q]: W := Second.basis.vectors (SecondKeys.enumerate b i);
+\definition firstList[a: Fin.Fin First.dimension]: Lists.List[V] := FirstLists.list p (firstArguments a);
+\definition secondList[b: Fin.Fin Second.dimension]: Lists.List[W] := SecondLists.list q (secondArguments b);
+\definition arguments[index: Frame.Index]: Lists.List[Total] := Lists.append Total
+  (Lists.map V Total Mixed.inLeft (firstList (Frame.i index))) (Lists.map W Total Mixed.inRight (secondList (Frame.j index)));
+\definition coefficient[omega: Exterior.Form (Nat.add p q)]: Coefficients.Vector :=
+  \fun (index: Frame.Index) => Exterior.component (Nat.add p q) omega (arguments index);
+\import Spaces.Linear[V := Exterior.Form (Nat.add p q), W := Coefficients.Vector, source := Result.vectorSpace, target := Coefficients.space] \as CoefficientMaps;
+\definition coefficients: CoefficientMaps.Map := CoefficientMaps.Map {
+  apply := coefficient,
+  preservesAdd := \fun (omega, eta: Exterior.Form (Nat.add p q)) => \axiom:funext(coefficient (Result.plus omega eta), Coefficients.plus (coefficient omega) (coefficient eta),
+    \fun (index: Frame.Index) => Exterior.Components[k := Nat.add p q].addition omega eta (arguments index)),
+  preservesScale := \fun (a: C.Complex)(omega: Exterior.Form (Nat.add p q)) => \axiom:funext(coefficient (Result.scale a omega), Coefficients.scale a (coefficient omega),
+    \fun (index: Frame.Index) => Exterior.Components[k := Nat.add p q].scalar a omega (arguments index))
+};
+\definition onPair: \forall (omega: Left.Form p)(eta: Right.Form q) -> coefficient (apply omega eta) = Frame.outer omega eta :=
+  \fun (omega: Left.Form p)(eta: Right.Form q) => \axiom:funext(coefficient (apply omega eta), Frame.outer omega eta,
+    \fun (index: Frame.Index) => eq_reason_in!{C.Complex _
+      "=" { product omega eta (arguments index) } "by" { congr!{{Shuffle.Function} {C.Complex}} (\fun (f: Shuffle.Function) => f (arguments index)) _ _ (series omega eta) }
+      "=" { Op.mul (Left.component p omega (firstList (Frame.i index))) (Right.component q eta (secondList (Frame.j index))) } "by" {
+        Mixed.equation (firstList (Frame.i index)) (secondList (Frame.j index)) (Left.component p omega) (Right.component q eta)
+          (Spaces.Multilinear[V := V, space := left].ListSeries[k := p].linear (LeftForms.asMultilinear p omega))
+          (Spaces.Multilinear[V := W, space := right].ListSeries[k := q].linear (RightForms.asMultilinear q eta)) }
+      "=" _ "by" { congr!{{C.Complex} {C.Complex} {C.Complex}} Op.mul _ _ _ _
+        (Spaces.Multilinear[V := V, space := left].ListSeries[k := p].onArguments omega (firstArguments (Frame.i index)))
+        (Spaces.Multilinear[V := W, space := right].ListSeries[k := q].onArguments eta (secondArguments (Frame.j index))) }
+    });
+\import CoefficientMaps.Composition[U := Tensor.Carrier, domain := Tensor.space] \as CoefficientComposition;
+\definition tensorCoefficients: Spaces.Linear[V := Tensor.Carrier, W := Coefficients.Vector, source := Tensor.space, target := Coefficients.space].Map :=
+  CoefficientComposition.compose coefficients tensor;
+\import Tensor.Universal[U := Coefficients.Vector, target := Coefficients.space] \as Comparison;
+\definition coefficientEquation: tensorCoefficients.apply = Frame.forward.apply := trans!{{Tensor.Carrier -> Coefficients.Vector}} _ _ _
+  (Comparison.unique Frame.outer Frame.bilinear tensorCoefficients
+    (\fun (omega: Left.Form p)(eta: Right.Form q) => trans!{{Coefficients.Vector}} _ _ _
+      (congr!{{Exterior.Form (Nat.add p q)} {Coefficients.Vector}} coefficient _ _ (onTensor omega eta)) (onPair omega eta)))
+  (sym!{{Tensor.Carrier -> Coefficients.Vector}} _ _ (Comparison.unique Frame.outer Frame.bilinear Frame.forward (Comparison.onTensor Frame.outer Frame.bilinear)));
+\import Spaces.Linear[V := Coefficients.Vector, W := Tensor.Carrier, source := Coefficients.space, target := Tensor.space].Composition[U := Exterior.Form (Nat.add p q), domain := Result.vectorSpace] \as BackwardComposition;
+\definition backward: Spaces.Linear[V := Exterior.Form (Nat.add p q), W := Tensor.Carrier, source := Result.vectorSpace, target := Tensor.space].Map :=
+  BackwardComposition.compose Frame.Decoding[].backward coefficients;
+\definition leftInverse: \forall (t: Tensor.Carrier) -> backward.apply (tensor.apply t) = t :=
+  \fun (t: Tensor.Carrier) => trans!{{Tensor.Carrier}} _ _ _
+    (congr!{{Coefficients.Vector} {Tensor.Carrier}} Frame.synthesis _ _
+      (congr!{{Tensor.Carrier -> Coefficients.Vector} {Coefficients.Vector}} (\fun (f: Tensor.Carrier -> Coefficients.Vector) => f t) _ _ coefficientEquation))
+    (Frame.Reconstruction[].leftInverse t);
+\definition injective: \forall (s, t: Tensor.Carrier) -> tensor.apply s = tensor.apply t -> s = t :=
+  \fun (s, t: Tensor.Carrier)(same: _) => trans!{{Tensor.Carrier}} _ _ _ (sym!{{Tensor.Carrier}} _ _ (leftInverse s))
+    (trans!{{Tensor.Carrier}} _ _ _ (congr!{{Exterior.Form (Nat.add p q)} {Tensor.Carrier}} backward.apply _ _ same) (leftInverse t));
+\module Other(a, b: N.Nat^);
+\module Regraded(k: N.Nat^, degree: Nat.add p q = k);

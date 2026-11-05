@@ -1,0 +1,39 @@
+\import CoordinateFinite.At[n := n, zeroAbove := zeroAbove] \as Finite;
+\import Models.Chains[].Of[complex := Finite.complex] \as Chain;
+\definition even: Models.Bundle := Chain.parity.even;
+\definition odd: Models.Bundle := Chain.parity.odd;
+\definition Even[p: Koszul.Total]: \Set := Models.Fiber even.ranks p;
+\definition Odd[p: Koszul.Total]: \Set := Models.Fiber odd.ranks p;
+\definition d: Models.Map even odd := Chain.parity.forward;
+\definition e: Models.Map odd even := Chain.parity.backward;
+\definition dSquared: \forall (p: Koszul.Total)(v: Even p) -> (e.fiber p).apply ((d.fiber p).apply v) = ((Models.bundle even).space p).zero := Chain.squareZero.left;
+\definition eSquared: \forall (p: Koszul.Total)(v: Odd p) -> (d.fiber p).apply ((e.fiber p).apply v) = ((Models.bundle odd).space p).zero := Chain.squareZero.right;
+\definition h: Models.Map odd even := Raising.h n;
+\definition k: Models.Map even odd := Raising.k n;
+\definition hk: \forall (p: Koszul.Total)(v: Even p) -> (h.fiber p).apply ((k.fiber p).apply v) = ((Models.bundle even).space p).zero := (Squares.valid n).even;
+\definition kh: \forall (p: Koszul.Total)(v: Odd p) -> (k.fiber p).apply ((h.fiber p).apply v) = ((Models.bundle odd).space p).zero := (Squares.valid n).odd;
+\definition rawHK: \forall (p: Koszul.Total)(v: Even p) -> (h.fiber p).apply ((k.fiber p).apply v) = ((Models.bundle even).space p).zero := hk;
+\definition rawKH: \forall (p: Koszul.Total)(v: Odd p) -> (k.fiber p).apply ((h.fiber p).apply v) = ((Models.bundle odd).space p).zero := kh;
+\import Cartan.At[n := n, zeroAbove := Finite.zeroAboveCoordinates] \as Identity;
+\definition evenCartan: \forall (p: Koszul.Total)(v: Even p) -> ((Models.bundle even).space p).add
+  ((e.fiber p).apply ((k.fiber p).apply v)) ((h.fiber p).apply ((d.fiber p).apply v)) = ((Models.bundle even).space p).smul (MetricRaising.coefficient p) v := Identity.even;
+\definition oddCartan: \forall (p: Koszul.Total)(v: Odd p) -> ((Models.bundle odd).space p).add
+  ((d.fiber p).apply ((h.fiber p).apply v)) ((k.fiber p).apply ((e.fiber p).apply v)) = ((Models.bundle odd).space p).smul (MetricRaising.coefficient p) v := Identity.odd;
+\import Operations.MapOperations[X := Koszul.Total, F := Even, G := Odd, source := Models.bundle even, target := Models.bundle odd] \as Forward;
+\import Operations.MapOperations[X := Koszul.Total, F := Odd, G := Even, source := Models.bundle odd, target := Models.bundle even] \as Backward;
+\definition cliffordForward: Models.Map even odd := Forward.add d k;
+\definition cliffordBackward: Models.Map odd even := Backward.add e h;
+\module Point(p: Koszul.Total);
+\definition evenSquare: \forall (p: Koszul.Total)(v: Even p) -> (cliffordBackward.fiber p).apply ((cliffordForward.fiber p).apply v) = ((Models.bundle even).space p).smul (MetricRaising.coefficient p) v :=
+  \fun (p: Koszul.Total) => Point[p := p].evenSquare;
+\definition oddSquare: \forall (p: Koszul.Total)(v: Odd p) -> (cliffordForward.fiber p).apply ((cliffordBackward.fiber p).apply v) = ((Models.bundle odd).space p).smul (MetricRaising.coefficient p) v :=
+  \fun (p: Koszul.Total) => Point[p := p].oddSquare;
+
+\module On(Y: \Set, source: topology.Topology[Carrier := Y].Topology,
+  sourceCompact: topology.Topology[Carrier := Y].IsCompact source,
+  sourceHausdorff: topology.Topology[Carrier := Y].IsT2 source,
+  f: Y -> Koszul.Total,
+  regular: topology.Continuity[A := Y, B := Koszul.Total].Continuous source bundle.totalSpace f,
+  nonzero: \forall (y: Y) -> Logic.Not (\In[Koszul.Total] Koszul.ZeroSection (f y)));
+
+\module Total;

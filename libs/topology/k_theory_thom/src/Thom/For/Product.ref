@@ -1,0 +1,52 @@
+\use Equality.eq_reason_in;
+\import std.Arithmetic[].Int[] \as I;
+\definition zero: I.Int^ := I.Int^::ofNat N.Nat^::zero;
+\import compact_support_k.Support[] \as Support;
+\import relative_k_theory.Relative[] \as Relative;
+\import \root.Thom[].CompactCoefficient[X := X, space := bundle.baseSpace, compact := compact, hausdorff := hausdorff] \as Coefficient;
+\definition baseLocal: topology.LocallyCompact[A := X].IsLocallyCompact bundle.baseSpace :=
+  topology.LocallyCompact[A := X].compactLocallyCompact bundle.baseSpace compact;
+\import Support.On[X := X, space := bundle.baseSpace, hausdorff := hausdorff, locallyCompact := baseLocal] \as Base;
+\import Base.Product[Y := Koszul.Total, otherSpace := bundle.totalSpace, otherHausdorff := Total.separated,
+  otherLocallyCompact := Total.locallyCompact] \as External;
+\import Relative.Smash[left := Base.model, right := Supported.model] \as Smash;
+\import Support.ClosedPair[M := Smash.model.Carrier, space := Smash.topology, compact := Smash.compact, hausdorff := Smash.hausdorff,
+  subset := Smash.wedge, closed := Smash.wedgeClosed] \as Complement;
+\module Multiplication;
+\import \parent.Product[].Multiplication[] \as Multiplication;
+\import External.Coordinates[] \as Coordinates;
+\import topological_constructions.Product[A := X, B := Koszul.Total] \as Cartesian;
+\import \root.Thom[].GraphProper[A := Koszul.Total, B := X, source := bundle.totalSpace, target := bundle.baseSpace,
+  targetHausdorff := hausdorff, f := Bundles.Family[X := X, F := F].projection, regular := Original.projectionContinuous] \as Graph;
+\import Support.Homeomorphic[A := Cartesian.CarrierSet, B := External.Carrier, source := Cartesian.topology bundle.baseSpace bundle.totalSpace,
+  target := External.topology, h := Coordinates.homeomorphism] \as Change;
+\definition diagonal[p: Koszul.Total]: External.Carrier := Coordinates.forward (Graph.graph p);
+\definition continuous: topology.Continuity[A := Koszul.Total, B := External.Carrier].Continuous bundle.totalSpace External.topology diagonal :=
+  topology.Composition[A := Koszul.Total, B := Cartesian.CarrierSet, C := External.Carrier].composeContinuous bundle.totalSpace
+    Graph.productTopology External.topology Graph.graph Coordinates.forward Graph.continuous Coordinates.forwardContinuous;
+\definition proper: Support.Proper[A := Koszul.Total, B := External.Carrier, source := bundle.totalSpace, target := External.topology].IsProper diagonal :=
+  Support.ProperComposition[A := Koszul.Total, B := Cartesian.CarrierSet, C := External.Carrier,
+    firstSpace := bundle.totalSpace, middleSpace := Graph.productTopology, lastSpace := External.topology,
+    f := Graph.graph, g := Coordinates.forward, firstContinuous := Graph.continuous, secondContinuous := Coordinates.forwardContinuous,
+    firstProper := Graph.proper, secondProper := Change.proper].proper;
+\import Supported.Pullback[Y := External.Carrier, target := External.topology,
+  targetHausdorff := Complement.interiorHausdorff, targetLocallyCompact := Complement.interiorLocallyCompact,
+  f := diagonal, continuous := continuous, proper := proper] \as Pullback;
+\import Pullback.At[degree := zero] \as Restriction;
+\import topological_k_theory.KTheory[].On[X := X, baseSpace := bundle.baseSpace, compact := compact, hausdorff := hausdorff].K0[] \as K;
+\definition multiply[a: K.Carrier][u: Carrier]: Carrier := Restriction.map (Multiplication.external (Coefficient.forward a) u);
+\definition additiveLeft: \forall (a, b: K.Carrier)(u: Carrier) -> multiply (K.add a b) u = Supported.At[degree := zero].group.base.op (multiply a u) (multiply b u) :=
+  \fun (a, b: K.Carrier)(u: Carrier) => eq_reason_in!{Carrier _
+    "=" { Restriction.map (Multiplication.external (Base.At[degree := zero].group.base.op (Coefficient.forward a) (Coefficient.forward b)) u) } "by" {
+      congr!{{Base.At[degree := zero].Carrier} Carrier}
+        (\fun (c: Base.At[degree := zero].Carrier) => Restriction.map (Multiplication.external c u)) _ _ (Coefficient.additive a b) }
+    "=" { Restriction.map (Multiplication.group.base.op (Multiplication.external (Coefficient.forward a) u) (Multiplication.external (Coefficient.forward b) u)) } "by" {
+      congr!{{Multiplication.Carrier} Carrier} Restriction.map _ _ (Multiplication.additiveLeft (Coefficient.forward a) (Coefficient.forward b) u) }
+    "=" _ "by" { Restriction.additive (Multiplication.external (Coefficient.forward a) u) (Multiplication.external (Coefficient.forward b) u) }
+  };
+\definition additiveRight: \forall (a: K.Carrier)(u, v: Carrier) -> multiply a (Supported.At[degree := zero].group.base.op u v) =
+  Supported.At[degree := zero].group.base.op (multiply a u) (multiply a v) :=
+  \fun (a: K.Carrier)(u, v: Carrier) => trans!{Carrier} _ _ _
+    (congr!{{Multiplication.Carrier} Carrier} Restriction.map _ _ (Multiplication.additiveRight (Coefficient.forward a) u v))
+    (Restriction.additive (Multiplication.external (Coefficient.forward a) u) (Multiplication.external (Coefficient.forward a) v));
+\module Compactified;

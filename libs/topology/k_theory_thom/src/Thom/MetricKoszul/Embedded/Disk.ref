@@ -1,0 +1,51 @@
+\import Construction.Image[] \as Image;
+\import bundle_complements.Complements[].Over[K := C.Complex, field := C.Algebra[].field,
+  conjugation := linear_algebra.Hermitian[].Complex[].scalar, scalar := Scalars.scalar].Projection[X := X, n := n, baseSpace := bundle.baseSpace, P := Image.projection, regular := Image.regular] \as Projected;
+\import Bundles.Trivial[X := X, n := n, baseSpace := bundle.baseSpace] \as Trivial;
+\import Bundles.Family[X := X, F := (\fun (x: X) => Bundles.Vector n)] \as AmbientFamily;
+\import Bundles.Family[X := X, F := Image.ImageFiber] \as ImageFamily;
+\import Bundles.Morphisms[X := X, Y := X, F := (\fun (x: X) => Bundles.Vector n), G := Image.ImageFiber, source := Trivial.bundle, target := Image.imageBundle, f := (\fun (x: X) => x)] \as ProjectionMaps;
+\import Bundles.Morphisms[X := X, Y := X, F := Image.ImageFiber, G := F, source := Image.imageBundle, target := bundle, f := (\fun (x: X) => x)] \as BackwardMaps;
+\import Bundles.Isomorphisms[X := X, F := F, G := Image.ImageFiber, source := bundle, target := Image.imageBundle] \as Isomorphisms;
+\definition retract[p: AmbientFamily.Point]: Family.Point := BackwardMaps.total Image.isomorphism.backward (ProjectionMaps.total Projected.projectMap p);
+\definition retractContinuous: topology.Continuity[A := AmbientFamily.Point, B := Family.Point].Continuous Trivial.topology bundle.totalSpace retract :=
+  topology.Composition[A := AmbientFamily.Point, B := ImageFamily.Point, C := Family.Point].composeContinuous Trivial.topology Image.imageBundle.totalSpace bundle.totalSpace
+    (ProjectionMaps.total Projected.projectMap) (BackwardMaps.total Image.isomorphism.backward) (ProjectionMaps.continuous Projected.projectMap) (BackwardMaps.continuous Image.isomorphism.backward);
+\import \parent.Cube[] \as Box;
+\import topological_constructions.Product[A := X, B := Box.Carrier] \as Product;
+\definition Carrier: \Set := Product.CarrierSet;
+\definition topology: topology.Topology[Carrier := Carrier].Topology := Product.topology bundle.baseSpace Box.topology;
+\definition compactDomain: topology.Topology[Carrier := Carrier].IsCompact topology := Product.Compactness[].productCompact bundle.baseSpace Box.topology compact Box.compact;
+\definition ambient[p: Carrier]: AmbientFamily.Point := AmbientFamily.include (Pair.first X Box.Carrier p) (Box.vectors (Pair.second X Box.Carrier p));
+\import topological_constructions.Product[A := X, B := Bundles.Vector n] \as AmbientProduct;
+\definition pair[p: Carrier]: AmbientProduct.CarrierSet := Pair.pair X (Bundles.Vector n) (Pair.first X Box.Carrier p) (Box.vectors (Pair.second X Box.Carrier p));
+\definition pairContinuous: topology.Continuity[A := Carrier, B := AmbientProduct.CarrierSet].Continuous topology (AmbientProduct.topology bundle.baseSpace (Bundles.coordinateTopology n)) pair :=
+  AmbientProduct.Universal[X := Carrier].pairContinuous topology bundle.baseSpace (Bundles.coordinateTopology n) (Pair.first X Box.Carrier) (\fun (p: Carrier) => Box.vectors (Pair.second X Box.Carrier p))
+    (Product.Maps[].firstContinuous bundle.baseSpace Box.topology)
+    (topology.Composition[A := Carrier, B := Box.Carrier, C := Bundles.Vector n].composeContinuous topology Box.topology (Bundles.coordinateTopology n) (Pair.second X Box.Carrier) Box.vectors (Product.Maps[].secondContinuous bundle.baseSpace Box.topology) Box.continuous);
+\definition ambientContinuous: topology.Continuity[A := Carrier, B := AmbientFamily.Point].Continuous topology Trivial.topology ambient :=
+  topology.Composition[A := Carrier, B := AmbientProduct.CarrierSet, C := AmbientFamily.Point].composeContinuous topology (AmbientProduct.topology bundle.baseSpace (Bundles.coordinateTopology n)) Trivial.topology pair Trivial.backward pairContinuous Trivial.backwardContinuous;
+\definition map[p: Carrier]: Family.Point := retract (ambient p);
+\definition continuous: topology.Continuity[A := Carrier, B := Family.Point].Continuous topology bundle.totalSpace map :=
+  topology.Composition[A := Carrier, B := AmbientFamily.Point, C := Family.Point].composeContinuous topology Trivial.topology bundle.totalSpace ambient retract ambientContinuous retractContinuous;
+\import topology.Topology[Carrier := Carrier] \as Domain;
+\import topology.Topology[Carrier := Family.Point] \as Total;
+\import topology.Maps[A := Carrier, B := Family.Point] \as Maps;
+\definition containing: \Pow Family.Point := Maps.Image map Domain.Whole;
+\definition containingCompact: Total.IsCompactIn bundle.totalSpace containing := topology.Compactness[A := Carrier, B := Family.Point].continuousImage topology bundle.totalSpace map continuous Domain.Whole compactDomain;
+\definition retractEmbedding[p: Family.Point]: retract (AmbientFamily.include p.base ((embedding.map.fiber p.base).apply p.vector)) = p :=
+  trans!{Family.Point} _ _ _
+    (congr!{ImageFamily.Point Family.Point} (BackwardMaps.total Image.isomorphism.backward) _ _
+      (congr!{{Image.ImageFiber p.base} ImageFamily.Point} (ImageFamily.include p.base)
+        ((Projected.projectMap.fiber p.base).apply ((embedding.map.fiber p.base).apply p.vector))
+        ((Image.isomorphism.forward.fiber p.base).apply p.vector)
+        (Image.Comparison[].At[x := p.base].fixed p.vector)))
+    (Isomorphisms.leftInverse Image.isomorphism p);
+\definition contains: Total.Subset Geometry.ClosedBall containing := \fun (p: Family.Point)(bound: D.Le (Geometry.squared p) Real.one) =>
+  Logic.existsIntro[Carrier, { q: Carrier \where Logic.And[Domain.Member Domain.Whole q, map q = p] }]
+    (Pair.pair X Box.Carrier p.base (Box.point (\parent.Bounds[p := p].vector) (\parent.Bounds[p := p].inBox bound)))
+    (Logic.And[_, _]::# (\refl(Pair.pair X Box.Carrier p.base (Box.point (\parent.Bounds[p := p].vector) (\parent.Bounds[p := p].inBox bound))))
+      (trans!{Family.Point} _ _ _
+        (congr!{{Bundles.Vector n} Family.Point} (\fun (v: Bundles.Vector n) => retract (AmbientFamily.include p.base v)) _ _ (Box.pointEquation _ (\parent.Bounds[p := p].inBox bound)))
+        (retractEmbedding p)));
+\definition result: Total.IsCompactIn bundle.totalSpace Geometry.ClosedBall := Total.Compactness[].closedSubset bundle.totalSpace containing Geometry.ClosedBall containingCompact Geometry.diskClosed contains;

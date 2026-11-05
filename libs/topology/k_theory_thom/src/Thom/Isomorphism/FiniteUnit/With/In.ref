@@ -1,0 +1,59 @@
+\import Class.In[w := w] \as LocalClass;
+\import Neighborhood.With[w := w] \as Neighbor;
+\import Support.Localization[U := Neighbor.openSet, open := Neighbor.open, L := Neighbor.compactSet,
+  compactL := Neighbor.compact, enclosed := Neighbor.enclosed] \as Local;
+\import Relative.Pair[X := Local.Carrier, space := Local.topology, compact := Local.compact, hausdorff := Local.separated,
+  subset := Local.boundary, closed := Local.boundaryClosed].Quotient[] \as Quotient;
+\import Bundles.Family[X := X, F := Chain.Even].Of[bundle := Chain.even].Restriction[U := Neighbor.compactSet] \as First;
+\import Bundles.Family[X := X, F := Chain.Odd].Of[bundle := Chain.odd].Restriction[U := Neighbor.compactSet] \as Second;
+\import Bundles.Trivial[X := Local.Carrier, n := N.Nat^::succ N.Nat^::zero, baseSpace := Local.topology] \as LocalOne;
+\import Bundles.Trivial[X := Local.Carrier, n := N.Nat^::zero, baseSpace := Local.topology] \as LocalZero;
+\import topological_k_theory.KTheory[].On[X := Local.Carrier, baseSpace := Local.topology,
+  compact := Local.compact, hausdorff := Local.separated] \as LocalTheory;
+\import \root.Thom[].Isomorphism[].TrivialEuler[X := Local.Carrier, space := Local.topology,
+  compact := Local.compact, hausdorff := Local.separated, subset := Local.boundary, closed := Local.boundaryClosed] \as Euler;
+\import bundle_complements.Complements[].Over[K := C.Complex, field := C.Algebra[].field,
+  conjugation := linear_algebra.Hermitian[].Complex[].scalar, scalar := Scalars.scalar] \as Complements;
+\import Complements.PulledIsomorphism[X := X, Y := Local.Carrier, F := Chain.Even,
+  G := (\fun (x: X) => Bundles.Vector (N.Nat^::succ N.Nat^::zero)), source := Chain.even, target := One.bundle,
+  base := Local.topology, f := Local.inclusion, sourceRegular := Local.regular, targetRegular := Local.regular] \as PullEven;
+\import Complements.PulledIsomorphism[X := X, Y := Local.Carrier, F := Chain.Odd,
+  G := (\fun (x: X) => Bundles.Vector N.Nat^::zero), source := Chain.odd, target := Zero.bundle,
+  base := Local.topology, f := Local.inclusion, sourceRegular := Local.regular, targetRegular := Local.regular] \as PullOdd;
+\import Operations.TrivialPullback[X := X, Y := Local.Carrier, n := N.Nat^::succ N.Nat^::zero,
+  original := space, base := Local.topology, f := Local.inclusion, regular := Local.regular] \as OnePull;
+\import Operations.TrivialPullback[X := X, Y := Local.Carrier, n := N.Nat^::zero,
+  original := space, base := Local.topology, f := Local.inclusion, regular := Local.regular] \as ZeroPull;
+\import Operations.IsomorphismComposition[X := Local.Carrier, F := LocalClass.FirstFiber,
+  G := (\fun (x: Local.Carrier) => Bundles.Vector (N.Nat^::succ N.Nat^::zero)),
+  H := (\fun (x: Local.Carrier) => Bundles.Vector (N.Nat^::succ N.Nat^::zero)),
+  source := First.restricted, middle := OnePull.pulled, target := LocalOne.bundle] \as Positive;
+\import Operations.IsomorphismComposition[X := Local.Carrier, F := LocalClass.SecondFiber,
+  G := (\fun (x: Local.Carrier) => Bundles.Vector N.Nat^::zero), H := (\fun (x: Local.Carrier) => Bundles.Vector N.Nat^::zero),
+  source := Second.restricted, middle := ZeroPull.pulled, target := LocalZero.bundle] \as Negative;
+\definition localPositive: Bundles.Isomorphisms[X := Local.Carrier, F := LocalClass.FirstFiber,
+  G := (\fun (x: Local.Carrier) => Bundles.Vector (N.Nat^::succ N.Nat^::zero)),
+  source := First.restricted, target := LocalOne.bundle].Isomorphism :=
+  Positive.compose (PullEven.isomorphism positive) OnePull.isomorphism;
+\definition localNegative: Bundles.Isomorphisms[X := Local.Carrier, F := LocalClass.SecondFiber,
+  G := (\fun (x: Local.Carrier) => Bundles.Vector N.Nat^::zero),
+  source := Second.restricted, target := LocalZero.bundle].Isomorphism :=
+  Negative.compose (PullOdd.isomorphism negative) ZeroPull.isomorphism;
+\import topological_k_theory.KTheory[].On[X := Quotient.model.Carrier, baseSpace := (Relative.details Quotient.model).topology,
+  compact := (Relative.details Quotient.model).compact, hausdorff := (Relative.details Quotient.model).hausdorff] \as QuotientTheory;
+\import QuotientTheory.Pullback[Y := Support.model.Carrier, space := (Relative.details Support.model).topology,
+  sourceCompact := (Relative.details Support.model).compact, sourceHausdorff := (Relative.details Support.model).hausdorff,
+  f := Local.collapse, regular := (algebraic_topology.Pointed[A := Support.model.Carrier].Maps[B := Quotient.model.Carrier].laws
+    (Relative.pointed Support.model) (Relative.pointed Quotient.model) Local.collapse).continuous].Ranks[] \as ExtensionRanks;
+\import QuotientTheory.Pullback[Y := Local.Carrier, space := Local.topology, sourceCompact := Local.compact, sourceHausdorff := Local.separated,
+  f := Quotient.projection, regular := Quotient.continuous].Ranks[] \as ProjectionRanks;
+\module At(c: LocalClass.Contraction, x: X, member: \In[X] K x);
+\definition pointRank: \forall (x: X) -> \In[X] K x ->
+  CompactTheory.Ranks[].rank LocalClass.value (Plus.inclusion x) = std.Arithmetic[].Int[].One.specification := \block {
+  \fun (x: X)(member: \In[X] K x) \then
+  \takefrom c: LocalClass.Contraction \by LocalClass.contractions \then
+  \return trans!{{std.Arithmetic[].Int[].Int^}} _ _ _
+    (congr!{{Relative.Reduced[model := Support.model].Carrier} {std.Arithmetic[].Int[].Int^}}
+      (\fun (a: Relative.Reduced[model := Support.model].Carrier) => CompactTheory.Ranks[].rank a (Plus.inclusion x)) _ _ (LocalClass.agreement c))
+    (At[c := c, x := x, member := member].formula)
+};

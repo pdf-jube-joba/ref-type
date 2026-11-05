@@ -1,0 +1,82 @@
+\import \parent.Maps[] \as Maps;
+\import Relative.Reduced[model := A.model] \as AGroup;
+\import Relative.Reduced[model := B.model] \as BGroup;
+\import Relative.Reduced[model := C.model] \as CGroup;
+\import Relative.Reduced[model := Source.model] \as SourceGroup;
+\import Relative.Reduced[model := Target.model] \as TargetGroup;
+\import Relative.Reduced[model := ABSmash.result] \as ABGroup;
+\import Relative.Reduced[model := BCSmash.result] \as BCGroup;
+\import Relative.Reduced[model := LeftIterated.result] \as LeftGroup;
+\import Relative.Reduced[model := RightIterated.result] \as RightGroup;
+\import Relative.Identity[model := A.model] \as IdentityA;
+\import Relative.Identity[model := C.model] \as IdentityC;
+\import LeftSmash.Mapping[targetLeft := ABSmash.result, targetRight := C.model, f := MultiplyAB.mapping, g := IdentityC.map] \as LeftMapping;
+\import RightSmash.Mapping[targetLeft := A.model, targetRight := BCSmash.result, f := IdentityA.map, g := MultiplyBC.mapping] \as RightMapping;
+\import Relative.Pullback[source := ABSupport.model, target := ABSmash.result, f := MultiplyAB.mapping] \as ABPull;
+\import Relative.Pullback[source := BCSupport.model, target := BCSmash.result, f := MultiplyBC.mapping] \as BCPull;
+\import Relative.Pullback[source := A.model, target := A.model, f := IdentityA.map] \as APull;
+\import Relative.Pullback[source := C.model, target := C.model, f := IdentityC.map] \as CPull;
+\import Relative.Pullback[source := Source.model, target := LeftSmash.result, f := MultiplyLeft.mapping] \as LeftNative;
+\import Relative.Pullback[source := Target.model, target := RightSmash.result, f := MultiplyRight.mapping] \as RightNative;
+\import Relative.Pullback[source := LeftSmash.result, target := LeftIterated.result, f := LeftMapping.map] \as LeftMappingPull;
+\import Relative.Pullback[source := RightSmash.result, target := RightIterated.result, f := RightMapping.map] \as RightMappingPull;
+\import Relative.Pullback[source := Source.model, target := LeftIterated.result, f := Maps.left] \as LeftPull;
+\import Relative.Pullback[source := Target.model, target := RightIterated.result, f := Maps.right] \as RightPull;
+\import Relative.Pullback[source := Source.model, target := Target.model, f := association] \as AssociationPull;
+\import Relative.Pullback[source := LeftIterated.result, target := RightIterated.result, f := SmashAssociator.equivalence.forward] \as Reassociate;
+\import Relative.Composition[source := Source.model, middle := LeftIterated.result, target := RightIterated.result,
+  first := Maps.left, second := SmashAssociator.equivalence.forward] \as LeftAssociated;
+\import Relative.Composition[source := Source.model, middle := Target.model, target := RightIterated.result,
+  first := association, second := Maps.right] \as RightAssociated;
+\import Relative.Pullback[source := Source.model, target := RightIterated.result, f := LeftAssociated.map] \as LeftAssociatedPull;
+\import Relative.Pullback[source := Source.model, target := RightIterated.result, f := RightAssociated.map] \as RightAssociatedPull;
+\definition externalLeft[x: ABGroup.Carrier][c: CGroup.Carrier]:
+  LeftSmash.External[].product (ABPull.map x) c = LeftMappingPull.map (LeftIterated.External[].product x c) :=
+  trans!{{Relative.Reduced[model := LeftSmash.result].Carrier}} _ _ _
+    (congr!{{CGroup.Carrier} {Relative.Reduced[model := LeftSmash.result].Carrier}} (LeftSmash.External[].product (ABPull.map x)) _ _
+      (sym!{{CGroup.Carrier}} _ _ (Relative.PullbackIdentity[model := C.model].equation c)))
+    (sym!{{Relative.Reduced[model := LeftSmash.result].Carrier}} _ _ (LeftMapping.External[].naturality x c));
+\definition externalRight[a: AGroup.Carrier][x: BCGroup.Carrier]:
+  RightSmash.External[].product a (BCPull.map x) = RightMappingPull.map (RightIterated.External[].product a x) :=
+  trans!{{Relative.Reduced[model := RightSmash.result].Carrier}} _ _ _
+    (congr!{{AGroup.Carrier} {Relative.Reduced[model := RightSmash.result].Carrier}} (\fun (v: AGroup.Carrier) => RightSmash.External[].product v (BCPull.map x)) _ _
+      (sym!{{AGroup.Carrier}} _ _ (Relative.PullbackIdentity[model := A.model].equation a)))
+    (sym!{{Relative.Reduced[model := RightSmash.result].Carrier}} _ _ (RightMapping.External[].naturality a x));
+\definition leftFormula: \forall (a: AGroup.Carrier)(b: BGroup.Carrier)(c: CGroup.Carrier) ->
+  MultiplyLeft.multiply (MultiplyAB.multiply a b) c = LeftPull.map (LeftIterated.External[].product (ABSmash.External[].product a b) c) :=
+  \fun (a: AGroup.Carrier)(b: BGroup.Carrier)(c: CGroup.Carrier) => trans!{{SourceGroup.Carrier}} _ _ _
+    (MultiplyLeft.formula (MultiplyAB.multiply a b) c)
+    (trans!{{SourceGroup.Carrier}} _ _ _
+      (congr!{{Relative.Reduced[model := LeftSmash.result].Carrier} {SourceGroup.Carrier}} LeftNative.map _ _
+        (trans!{{Relative.Reduced[model := LeftSmash.result].Carrier}} _ _ _
+          (congr!{{MultiplyAB.Carrier} {Relative.Reduced[model := LeftSmash.result].Carrier}} (\fun (x: MultiplyAB.Carrier) => LeftSmash.External[].product x c) _ _ (MultiplyAB.formula a b))
+          (externalLeft (ABSmash.External[].product a b) c)))
+      (sym!{{SourceGroup.Carrier}} _ _ (Relative.PullbackComposition[source := Source.model, middle := LeftSmash.result, target := LeftIterated.result,
+        first := MultiplyLeft.mapping, second := LeftMapping.map].equation (LeftIterated.External[].product (ABSmash.External[].product a b) c))));
+\definition rightFormula: \forall (a: AGroup.Carrier)(b: BGroup.Carrier)(c: CGroup.Carrier) ->
+  MultiplyRight.multiply a (MultiplyBC.multiply b c) = RightPull.map (RightIterated.External[].product a (BCSmash.External[].product b c)) :=
+  \fun (a: AGroup.Carrier)(b: BGroup.Carrier)(c: CGroup.Carrier) => trans!{{TargetGroup.Carrier}} _ _ _
+    (MultiplyRight.formula a (MultiplyBC.multiply b c))
+    (trans!{{TargetGroup.Carrier}} _ _ _
+      (congr!{{Relative.Reduced[model := RightSmash.result].Carrier} {TargetGroup.Carrier}} RightNative.map _ _
+        (trans!{{Relative.Reduced[model := RightSmash.result].Carrier}} _ _ _
+          (congr!{{MultiplyBC.Carrier} {Relative.Reduced[model := RightSmash.result].Carrier}} (RightSmash.External[].product a) _ _ (MultiplyBC.formula b c))
+          (externalRight a (BCSmash.External[].product b c))))
+      (sym!{{TargetGroup.Carrier}} _ _ (Relative.PullbackComposition[source := Target.model, middle := RightSmash.result, target := RightIterated.result,
+        first := MultiplyRight.mapping, second := RightMapping.map].equation (RightIterated.External[].product a (BCSmash.External[].product b c)))));
+\import \root.Thom[].ExternalAssociativity[first := A.model, second := B.model, third := C.model].Comparison[] \as Associativity;
+\definition equation: \forall (a: AGroup.Carrier)(b: BGroup.Carrier)(c: CGroup.Carrier) ->
+  MultiplyLeft.multiply (MultiplyAB.multiply a b) c = AssociationPull.map (MultiplyRight.multiply a (MultiplyBC.multiply b c)) :=
+  \fun (a: AGroup.Carrier)(b: BGroup.Carrier)(c: CGroup.Carrier) => trans!{{SourceGroup.Carrier}} _ _ _ (leftFormula a b c)
+    (trans!{{SourceGroup.Carrier}} _ _ _
+      (congr!{{LeftGroup.Carrier} {SourceGroup.Carrier}} LeftPull.map _ _ (Associativity.equation a b c))
+      (trans!{{SourceGroup.Carrier}} _ _ _
+        (sym!{{SourceGroup.Carrier}} _ _ (Relative.PullbackComposition[source := Source.model, middle := LeftIterated.result, target := RightIterated.result,
+          first := Maps.left, second := SmashAssociator.equivalence.forward].equation (RightIterated.External[].product a (BCSmash.External[].product b c))))
+        (trans!{{SourceGroup.Carrier}} _ _ _
+          (congr!{{Relative.Map Source.model RightIterated.result} {SourceGroup.Carrier}}
+            (\fun (f: Relative.Map Source.model RightIterated.result) => Relative.Pullback[source := Source.model, target := RightIterated.result, f := f].map (RightIterated.External[].product a (BCSmash.External[].product b c))) _ _ Maps.equation)
+          (trans!{{SourceGroup.Carrier}} _ _ _
+            (Relative.PullbackComposition[source := Source.model, middle := Target.model, target := RightIterated.result,
+              first := association, second := Maps.right].equation (RightIterated.External[].product a (BCSmash.External[].product b c)))
+            (congr!{{TargetGroup.Carrier} {SourceGroup.Carrier}} AssociationPull.map _ _ (sym!{{TargetGroup.Carrier}} _ _ (rightFormula a b c)))))));

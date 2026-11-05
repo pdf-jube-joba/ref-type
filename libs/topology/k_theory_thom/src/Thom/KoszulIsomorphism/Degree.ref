@@ -1,0 +1,30 @@
+\import Operations.Alternating[X := Target.Total, F := Target.Fiber, bundle := Target.pulled, k := k]
+  .Pullback[Y := Source.Total, source := left.totalSpace, f := total, regular := continuous] \as Pull;
+\import Operations.Alternating[X := Source.Total, F := Vector, bundle := Path.nested, k := k] \as First;
+\import Operations.Alternating[X := Source.Total, F := Source.Fiber, bundle := Source.pulled, k := k] \as Second;
+\import Second.Contramap[G := Vector, target := Path.nested, sameBase := (\refl(left.totalSpace))] \as Forward;
+\import First.Contramap[G := Source.Fiber, target := Source.pulled, sameBase := (\refl(left.totalSpace))] \as Backward;
+\definition forward: Bundles.Morphisms[X := Source.Total, Y := Source.Total, F := First.Fiber, G := Second.Fiber,
+  source := First.alternating, target := Second.alternating, f := \fun (p: Source.Total) => p].Map := Forward.map vectorIso.forward;
+\definition backward: Bundles.Morphisms[X := Source.Total, Y := Source.Total, F := Second.Fiber, G := First.Fiber,
+  source := Second.alternating, target := First.alternating, f := \fun (p: Source.Total) => p].Map := Backward.map vectorIso.backward;
+\definition formsIso: Bundles.Isomorphisms[X := Source.Total, F := First.Fiber, G := Second.Fiber,
+  source := First.alternating, target := Second.alternating].Isomorphism :=
+  Bundles.Isomorphisms[X := Source.Total, F := First.Fiber, G := Second.Fiber,
+    source := First.alternating, target := Second.alternating].Isomorphism {
+    forward := forward, backward := backward,
+    leftInverse := \fun (p: Source.Total)(omega: First.Fiber p) => Spaces.Multilinear[V := Vector p, space := Path.nested.space p].Alternating[].At[k := k].ext ((backward.fiber p).apply ((forward.fiber p).apply omega)) omega
+      (\fun (arguments: Fin.Fin k -> Vector p) => congr!{{Fin.Fin k -> Vector p} {C.Complex}} omega
+        (\fun (i: Fin.Fin k) => (vectorIso.forward.fiber p).apply ((vectorIso.backward.fiber p).apply (arguments i))) arguments
+        (\axiom:funext((\fun (i: Fin.Fin k) => (vectorIso.forward.fiber p).apply ((vectorIso.backward.fiber p).apply (arguments i))), arguments, \fun (i: Fin.Fin k) => vectorIso.rightInverse p (arguments i)))),
+    rightInverse := \fun (p: Source.Total)(omega: Second.Fiber p) => Spaces.Multilinear[V := Source.Fiber p, space := Source.pulled.space p].Alternating[].At[k := k].ext ((forward.fiber p).apply ((backward.fiber p).apply omega)) omega
+      (\fun (arguments: Fin.Fin k -> Source.Fiber p) => congr!{{Fin.Fin k -> Source.Fiber p} {C.Complex}} omega
+        (\fun (i: Fin.Fin k) => (vectorIso.backward.fiber p).apply ((vectorIso.forward.fiber p).apply (arguments i))) arguments
+        (\axiom:funext((\fun (i: Fin.Fin k) => (vectorIso.backward.fiber p).apply ((vectorIso.forward.fiber p).apply (arguments i))), arguments, \fun (i: Fin.Fin k) => vectorIso.leftInverse p (arguments i))))
+  };
+\definition Fiber[p: Source.Total]: \Set := Target.Term k (total p);
+\definition pulled: Bundles.Family[X := Source.Total, F := Fiber].Bundle := Pull.firstBundle;
+\import Operations.IsomorphismComposition[X := Source.Total, F := Fiber, G := First.Fiber, H := Second.Fiber,
+  source := pulled, middle := First.alternating, target := Second.alternating] \as ComposeForms;
+\definition isomorphism: Bundles.Isomorphisms[X := Source.Total, F := Fiber, G := Source.Term k,
+  source := pulled, target := Source.term k].Isomorphism := ComposeForms.compose Pull.isomorphism formsIso;

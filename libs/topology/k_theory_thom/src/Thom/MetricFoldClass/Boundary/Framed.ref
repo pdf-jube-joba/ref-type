@@ -1,0 +1,79 @@
+\import Pair.FromBundles[F := In.FirstFiber, G := In.SecondFiber,
+  source := Pair.BundleModel[F := In.FirstFiber].bundle In.firstOnLocal, target := Pair.BundleModel[F := In.SecondFiber].bundle In.secondOnLocal,
+  sourceSame := (\refl(Local.topology)), targetSame := (\refl(Local.topology))] \as Represent;
+\import std.Data[].Pair[] \as P;
+\import topological_k_theory.KTheory[].On[X := Local.Carrier, baseSpace := Local.topology, compact := Local.compact, hausdorff := Local.separated] \as Absolute;
+\import bundle_complements.Complements[].Over[K := C.Complex, field := C.Algebra[].field,
+  conjugation := linear_algebra.Hermitian[].Complex[].scalar, scalar := Scalars.scalar] \as Complements;
+\import Complements.Projection[X := Local.Carrier, n := r.value.negative.dimension, baseSpace := Local.topology,
+  P := r.value.negative.projection, regular := r.value.negative.regular].Complement[] \as Split;
+\definition auxiliary: Pair.Presentation := Pair.Presentation { dimension := r.value.negative.dimension, projection := Split.Q, regular := Split.qRegular };
+\definition H[x: Local.Carrier]: \Set := Absolute.Fiber auxiliary x;
+\definition auxiliaryBundle: Bundles.Family[X := Local.Carrier, F := H].Bundle := Absolute.bundle auxiliary;
+\import Pair.BundleTriples[F := In.FirstFiber, G := In.SecondFiber, firstModel := In.firstOnLocal, secondModel := In.secondOnLocal].With[alpha := comparison] \as Native;
+\import Native.Framing[auxiliary := auxiliary, n := r.value.negative.dimension] \as Frame;
+\import Operations.IdentityIsomorphism[X := Local.Carrier, F := H, bundle := auxiliaryBundle] \as Identity;
+\import Operations.DirectSumIsomorphisms[X := Local.Carrier, F := In.SecondFiber, G := H,
+  A := Absolute.Fiber r.value.negative, B := H,
+  first := Pair.BundleModel[F := In.SecondFiber].bundle In.secondOnLocal, second := auxiliaryBundle,
+  newFirst := Absolute.bundle r.value.negative, newSecond := auxiliaryBundle,
+  sameSource := (\refl(Local.topology)), sameTarget := (\refl(Local.topology))] \as NegativeChange;
+\import Operations.IsomorphismComposition[X := Local.Carrier, F := NegativeChange.SourceFiber, G := NegativeChange.TargetFiber,
+  H := (\fun (x: Local.Carrier) => Bundles.Vector r.value.negative.dimension),
+  source := NegativeChange.sourceBundle, middle := NegativeChange.targetBundle,
+  target := Bundles.Trivial[X := Local.Carrier, n := r.value.negative.dimension, baseSpace := Local.topology].bundle] \as Trivialize;
+\definition trivialization: Frame.Trivialization := Trivialize.compose (NegativeChange.isomorphism r.negative Identity.isomorphism) Split.isomorphism;
+\import Frame.With[h := trivialization] \as Framing;
+\definition PositiveFiber[x: Local.Carrier]: \Set := P.Times^[In.FirstFiber x, H x];
+\definition NegativeFiber[x: Local.Carrier]: \Set := NegativeChange.SourceFiber x;
+\definition positiveBundle: Bundles.Family[X := Local.Carrier, F := PositiveFiber].Bundle := Frame.positiveBundle;
+\definition negativeBundle: Bundles.Family[X := Local.Carrier, F := NegativeFiber].Bundle := Frame.negativeBundle;
+\definition sourceModel: Pair.BundleModel[F := PositiveFiber].Bundle := Frame.model;
+\definition n: N.Nat^ := r.value.negative.dimension;
+\definition comparison: relative_k_theory.Relative[].Descent[X := Local.Carrier, F := PositiveFiber, bundle := positiveBundle, compact := Local.compact, hausdorff := Local.separated, subset := Local.boundary, closed := Local.boundaryClosed, dimension := n].OnSubset := Framing.comparison;
+\definition class: Pair.Quotient[].Relative := Framing.framed;
+\definition classEquation: localValue = class := Framing.equation;
+\import Operations.Models[X := Koszul.Total, baseSpace := bundle.totalSpace] \as Models;
+\import Models.PullbackMap[p := Fold.even, q := Fold.odd, Y := Local.Carrier, source := Local.topology, f := Local.inclusion, regular := Local.regular] \as ForwardPull;
+\import Models.PullbackMap[p := Fold.odd, q := Fold.even, Y := Local.Carrier, source := Local.topology, f := Local.inclusion, regular := Local.regular] \as BackwardPull;
+\definition nativeForward: Bundles.Morphisms[X := Local.Carrier, Y := Local.Carrier, F := In.FirstFiber, G := In.SecondFiber,
+  source := Pair.BundleModel[F := In.FirstFiber].bundle In.firstOnLocal, target := Pair.BundleModel[F := In.SecondFiber].bundle In.secondOnLocal,
+  f := (\fun (x: Local.Carrier) => x)].Map := ForwardPull.map Fold.cliffordForward;
+\definition nativeBackward: Bundles.Morphisms[X := Local.Carrier, Y := Local.Carrier, F := In.SecondFiber, G := In.FirstFiber,
+  source := Pair.BundleModel[F := In.SecondFiber].bundle In.secondOnLocal, target := Pair.BundleModel[F := In.FirstFiber].bundle In.firstOnLocal,
+  f := (\fun (x: Local.Carrier) => x)].Map := BackwardPull.map Fold.cliffordBackward;
+\import metric_spaces.RealFunctions[A := Local.Carrier] \as Functions;
+\definition norm[x: Local.Carrier]: real.Analysis[].Real := Geometry.norm x;
+\definition normContinuous: Functions.Continuous Local.topology norm :=
+  topology.Composition[A := Local.Carrier, B := Koszul.Total, C := real.Analysis[].Real].composeContinuous Local.topology bundle.totalSpace metric_spaces.RealLine[].topology Local.inclusion Geometry.norm Local.regular Geometry.normContinuous;
+\definition radius[x: Local.Carrier]: C.Complex := Scalar.ofReal (norm x);
+\definition radiusContinuous: topology.Continuity[A := Local.Carrier, B := C.Complex].Continuous Local.topology Scalars.scalar.topological.space radius :=
+  hermitian_frames.Hermitian[].Over[K := C.Complex, field := C.Algebra[].field, scalar := linear_algebra.Hermitian[].Complex[].scalar, topological := Scalars.scalar.topological].Functions[X := Local.Carrier].embedding Local.topology norm normContinuous;
+\definition radiusSquare[x: Local.Carrier]: Scalar.mul (radius x) (radius x) = Metric.diagonal x :=
+  trans!{{C.Complex}} _ _ _ (C.Prop[].ofRealMul (norm x) (norm x))
+    (trans!{{C.Complex}} _ _ _ (congr!{{real.Analysis[].Real} {C.Complex}} Scalar.ofReal _ _ (Geometry.normSquared x)) (sym!{{C.Complex}} _ _ (Metric.diagonalReal x)));
+\definition OriginalEven[x: Local.Carrier]: \Set := In.FirstFiber x;
+\definition OriginalOdd[x: Local.Carrier]: \Set := In.SecondFiber x;
+\definition originalEvenBundle: Bundles.Family[X := Local.Carrier, F := OriginalEven].Bundle := Pair.BundleModel[F := In.FirstFiber].bundle In.firstOnLocal;
+\definition originalOddBundle: Bundles.Family[X := Local.Carrier, F := OriginalOdd].Bundle := Pair.BundleModel[F := In.SecondFiber].bundle In.secondOnLocal;
+\definition nativeSquareEven: \forall (x: Local.Carrier)(v: OriginalEven x) ->
+  (nativeBackward.fiber x).apply ((nativeForward.fiber x).apply v) = (originalEvenBundle.space x).smul (Metric.diagonal x) v :=
+  \fun (x: Local.Carrier) => Fold.evenSquare x;
+\definition nativeSquareOdd: \forall (x: Local.Carrier)(v: OriginalOdd x) ->
+  (nativeForward.fiber x).apply ((nativeBackward.fiber x).apply v) = (originalOddBundle.space x).smul (Metric.diagonal x) v :=
+  \fun (x: Local.Carrier) => Fold.oddSquare x;
+\definition differential: Bundles.Morphisms[X := Local.Carrier, Y := Local.Carrier, F := OriginalEven, G := OriginalOdd,
+  source := originalEvenBundle, target := originalOddBundle, f := (\fun (p: Local.Carrier) => p)].Map := ForwardPull.map Fold.d;
+\definition codifferential: Bundles.Morphisms[X := Local.Carrier, Y := Local.Carrier, F := OriginalOdd, G := OriginalEven,
+  source := originalOddBundle, target := originalEvenBundle, f := (\fun (p: Local.Carrier) => p)].Map := BackwardPull.map Fold.e;
+\definition raisingEven: Bundles.Morphisms[X := Local.Carrier, Y := Local.Carrier, F := OriginalEven, G := OriginalOdd,
+  source := originalEvenBundle, target := originalOddBundle, f := (\fun (p: Local.Carrier) => p)].Map := ForwardPull.map Fold.k;
+\definition raisingOdd: Bundles.Morphisms[X := Local.Carrier, Y := Local.Carrier, F := OriginalOdd, G := OriginalEven,
+  source := originalOddBundle, target := originalEvenBundle, f := (\fun (p: Local.Carrier) => p)].Map := BackwardPull.map Fold.h;
+\definition differentialSquare: \forall (p: Local.Carrier)(v: OriginalEven p) -> (codifferential.fiber p).apply ((differential.fiber p).apply v) = (originalEvenBundle.space p).zero := \fun (p: Local.Carrier) => Fold.dSquared p;
+\definition codifferentialSquare: \forall (p: Local.Carrier)(v: OriginalOdd p) -> (differential.fiber p).apply ((codifferential.fiber p).apply v) = (originalOddBundle.space p).zero := \fun (p: Local.Carrier) => Fold.eSquared p;
+\definition raisingEvenSquare: \forall (p: Local.Carrier)(v: OriginalEven p) -> (raisingOdd.fiber p).apply ((raisingEven.fiber p).apply v) = (originalEvenBundle.space p).zero := \fun (p: Local.Carrier) => Fold.hk p;
+\definition raisingOddSquare: \forall (p: Local.Carrier)(v: OriginalOdd p) -> (raisingEven.fiber p).apply ((raisingOdd.fiber p).apply v) = (originalOddBundle.space p).zero := \fun (p: Local.Carrier) => Fold.kh p;
+\definition nativeForwardSum: \forall (p: Local.Carrier)(v: OriginalEven p) -> (nativeForward.fiber p).apply v = (originalOddBundle.space p).add ((differential.fiber p).apply v) ((raisingEven.fiber p).apply v) := \fun (p: Local.Carrier)(v: OriginalEven p) => \refl((nativeForward.fiber p).apply v);
+\definition nativeBackwardSum: \forall (p: Local.Carrier)(v: OriginalOdd p) -> (nativeBackward.fiber p).apply v = (originalEvenBundle.space p).add ((codifferential.fiber p).apply v) ((raisingOdd.fiber p).apply v) := \fun (p: Local.Carrier)(v: OriginalOdd p) => \refl((nativeBackward.fiber p).apply v);
+\module Operators;

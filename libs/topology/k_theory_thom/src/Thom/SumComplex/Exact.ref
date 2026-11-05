@@ -1,0 +1,45 @@
+\import \root.Thom[].Algebra[V := Sum.Fiber x, space := sum.space x] \as Algebra;
+\import Bundles.Family[X := X, F := Sum.Fiber].Of[bundle := sum] \as Original;
+\definition normalizedExists: Logic.Not (section.value x = (sum.space x).zero) -> \exists Algebra.Normalized (section.value x) := \block {
+  \fun (nonzero: Logic.Not (section.value x = (sum.space x).zero)) \then
+  \takefrom frame: Original.Frame (Original.rank x) x \by \bysub(N.Nat^, Original.RankAt x, Original.rank x) \then
+  \return Algebra.InCoordinates[n := Original.rank x, frame := frame].existence (section.value x) nonzero
+};
+\definition Closed[k: N.Nat^][omega: Term k x]: \Prop :=
+  Algebra.Closed k (section.value x) (((comparison k).forward.fiber x).apply omega);
+\module At(k: N.Nat^, ell: Spaces.Exterior[V := Sum.Fiber x, space := sum.space x].Form (N.Nat^::succ N.Nat^::zero),
+  normalized: ell (\fun (i: Fin.Fin (N.Nat^::succ N.Nat^::zero)) => section.value x) = C.Def[].one);
+\definition exact: \forall (k: N.Nat^)(omega: Term k x) -> Logic.Not (section.value x = (sum.space x).zero) -> Closed k omega ->
+  \exists (eta: Term (N.Nat^::succ k) x \where (\parent.Degree[k := k].differential.fiber x).apply eta = omega) := \block {
+  \fun (k: N.Nat^)(omega: Term k x)(nonzero: Logic.Not (section.value x = (sum.space x).zero))(closed: Closed k omega) \then
+  \takefrom ell: Algebra.Normalized (section.value x) \by normalizedExists nonzero \then
+  \return Logic.existsIntro[Term (N.Nat^::succ k) x, { eta: Term (N.Nat^::succ k) x \where (\parent.Degree[k := k].differential.fiber x).apply eta = omega }]
+    (At[k := k, ell := ell, normalized := \bysub(Spaces.Exterior[V := Sum.Fiber x, space := sum.space x].Form (N.Nat^::succ N.Nat^::zero), Algebra.Normalized (section.value x), ell)].primitive omega)
+    (At[k := k, ell := ell, normalized := \bysub(Spaces.Exterior[V := Sum.Fiber x, space := sum.space x].Form (N.Nat^::succ N.Nat^::zero), Algebra.Normalized (section.value x), ell)].equation omega closed)
+};
+\import Spaces.Exterior[V := Sum.Fiber x, space := sum.space x] \as Exterior;
+\import Spaces.Multilinear[V := Sum.Fiber x, space := sum.space x] \as Multilinear;
+\import std.Data[].List[] \as Lists;
+\definition closedAtZero: \forall (omega: Term N.Nat^::zero x) -> Closed N.Nat^::zero omega :=
+  \fun (omega: Term N.Nat^::zero x)(xs: Lists.List[Sum.Fiber x]) =>
+    Exterior.ZeroHeads[].nonempty (((comparison N.Nat^::zero).forward.fiber x).apply omega) (section.value x) xs;
+\definition closedAtSuccessor: \forall (k: N.Nat^)(omega: Term (N.Nat^::succ k) x) ->
+  (\parent.Degree[k := k].differential.fiber x).apply omega = ((term k).space x).zero -> Closed (N.Nat^::succ k) omega :=
+  \fun (k: N.Nat^)(omega: Term (N.Nat^::succ k) x)(closed: _)(xs: Lists.List[Sum.Fiber x]) =>
+    trans!{{C.Complex}} _ _ _
+      (Exterior.SeriesShift[k := k].atCons (((comparison (N.Nat^::succ k)).forward.fiber x).apply omega) (section.value x) xs)
+      (trans!{{C.Complex}} _ _ _
+        (congr!{{Form k x} {C.Complex}} (\fun (eta: Form k x) => Exterior.component k eta xs) _ _
+          (trans!{{Form k x}} _ _ _
+            (sym!{{Form k x}} _ _ (\parent.Degree[k := k].chain x omega))
+            (trans!{{Form k x}} _ _ _
+              (congr!{{Term k x} {Form k x}} ((comparison k).forward.fiber x).apply _ _ closed)
+              (((comparison k).forward.fiber x).preservesZero))))
+        (Multilinear.ListSeries[k := k].zeroComponent xs));
+\definition zeroAbove: \forall (n: N.Nat^)(frame: Original.Frame n x)(k: N.Nat^) -> N.Basic[].Prop[].Lt n k ->
+  \forall (omega: Term k x) -> omega = ((term k).space x).zero :=
+  \fun (n: N.Nat^)(frame: Original.Frame n x)(k: N.Nat^)(large: N.Basic[].Prop[].Lt n k)(omega: Term k x) =>
+    \root.Thom[].SumBundles[X := X, F := F, G := G, left := left, right := right, sameBase := sameBase, k := k].At[x := x].injective _ _
+      (trans!{{Form k x}} _ _ _
+        (Algebra.InCoordinates[n := n, frame := frame].Above[k := k].vanishes (((comparison k).forward.fiber x).apply omega) large)
+        (sym!{{Form k x}} _ _ (((comparison k).forward.fiber x).preservesZero)));

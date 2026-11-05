@@ -1,0 +1,88 @@
+\import \root.Thom[].GradedStabilization[X := X, E0 := E0, E1 := E1, H := H,
+  even := e0, odd := e1, auxiliary := auxiliary, sameOdd := sameE1, sameAuxiliary := sameAuxiliary] \as FactorGeometry;
+\import \root.Thom[].GradedStabilization[X := X, E0 := E0, E1 := E1, H := H,
+  even := e0, odd := e1, auxiliary := auxiliary, sameOdd := sameE1, sameAuxiliary := sameAuxiliary].With[d := d, e := e, radius := radius, continuous := continuous] \as Factor;
+\import Bundles.Identity[X := X, F := Source.RightFiber, bundle := Source.rightBundle] \as PartnerIdentity;
+\import Operations.IdentityIsomorphism[X := X, F := Source.RightFiber, bundle := Source.rightBundle] \as PartnerIso;
+\import \root.Thom[].TensorRegroup[X := X, F := Original.LeftFiber, G := Auxiliary.LeftFiber, H := Source.RightFiber,
+  first := Original.leftBundle, second := Auxiliary.leftBundle, third := Source.rightBundle,
+  sameSecond := sameAuxiliary, sameThird := sameF0] \as Distribution;
+\import Distribution.Operators[a := Factor.originalOperator, b := Factor.auxiliaryOperator,
+  firstGrading := Factor.originalGrading, secondGrading := Factor.auxiliaryGrading, partner := partner] \as Regroup;
+\import Operations.DirectSum[X := X, F := Original.LeftFiber, G := Auxiliary.LeftFiber,
+  left := Original.leftBundle, right := Auxiliary.leftBundle] \as Grouped;
+\definition grouped: Bundles.Family[X := X, F := Grouped.Fiber].Bundle := Grouped.bundle sameAuxiliary;
+\import \root.Thom[].TensorNaturality[X := X, F := Source.LeftFiber, G := Source.RightFiber, A := Grouped.Fiber, B := Source.RightFiber,
+  first := Source.leftBundle, second := Source.rightBundle, newFirst := grouped, newSecond := Source.rightBundle,
+  sameSource := sameF0, sameTarget := sameF0, firstIso := FactorGeometry.isomorphism, secondIso := PartnerIso.isomorphism] \as Naturality;
+\definition data: Naturality.Data := Naturality.Data {
+  sourceFirst := Factor.sourceOperator, sourceSecond := partner, sourceGrading := Factor.sourceGrading,
+  targetFirst := Factor.targetOperator, targetSecond := partner, targetGrading := Factor.targetGrading
+};
+\definition laws: Naturality.Laws[data] := Naturality.Laws[data] {
+  first := Factor.commutes, second := \fun (x: X)(v: Source.RightFiber x) => \refl((partner.fiber x).apply v), grading := Factor.gradingCommutes
+};
+\import Naturality.With[c := data, laws := laws] \as Transport;
+\import Operations.IsomorphismComposition[X := X, F := Source.SourceFiber, G := Distribution.SourceFiber, H := Distribution.TargetFiber,
+  source := Source.sourceBundle, middle := Distribution.sourceBundle, target := Distribution.targetBundle] \as Compose;
+\definition fullIso: Bundles.Isomorphisms[X := X, F := Source.SourceFiber, G := Distribution.TargetFiber,
+  source := Source.sourceBundle, target := Distribution.targetBundle].Isomorphism := Compose.compose Naturality.isomorphism Distribution.isomorphism;
+\definition sourceOperator: Bundles.Morphisms[X := X, Y := X, F := Source.SourceFiber, G := Source.SourceFiber,
+  source := Source.sourceBundle, target := Source.sourceBundle, f := (\fun (x: X) => x)].Map := Transport.source;
+\definition targetOperator: Bundles.Morphisms[X := X, Y := X, F := Distribution.TargetFiber, G := Distribution.TargetFiber,
+  source := Distribution.targetBundle, target := Distribution.targetBundle, f := (\fun (x: X) => x)].Map := Regroup.target;
+\definition operatorCommutes: \forall (x: X)(v: Source.SourceFiber x) ->
+  (fullIso.forward.fiber x).apply ((sourceOperator.fiber x).apply v) = (targetOperator.fiber x).apply ((fullIso.forward.fiber x).apply v) :=
+  \fun (x: X)(v: Source.SourceFiber x) => trans!{{Distribution.TargetFiber x}} _ _ _
+    (congr!{{Distribution.SourceFiber x} {Distribution.TargetFiber x}} (Distribution.isomorphism.forward.fiber x).apply _ _ (Transport.commutes x v))
+    (Regroup.commutes x ((Naturality.isomorphism.forward.fiber x).apply v));
+\import Operations.DirectSumIsomorphisms[X := X, F := Original.SourceFiber, G := Auxiliary.SourceFiber, A := Original.TargetFiber, B := Auxiliary.TargetFiber,
+  first := Original.sourceBundle, second := Auxiliary.sourceBundle, newFirst := Original.targetBundle, newSecond := Auxiliary.targetBundle,
+  sameSource := sameAuxiliary, sameTarget := sameAuxiliary] \as Parts;
+\definition parts: Bundles.Isomorphisms[X := X, F := Parts.SourceFiber, G := Parts.TargetFiber, source := Parts.sourceBundle, target := Parts.targetBundle].Isomorphism := Parts.isomorphism Original.isomorphism Auxiliary.isomorphism;
+\import Operations.DirectSumMiddleSwap[X := X, F := Original.Even, G := Original.Odd, H := Auxiliary.Even, I := Auxiliary.Odd,
+  first := Original.evenBundle, second := Original.oddBundle, third := Auxiliary.evenBundle, fourth := Auxiliary.oddBundle,
+  sameSecond := (\refl(e0.baseSpace)), sameThird := sameAuxiliary, sameFourth := sameAuxiliary] \as Shuffle;
+\import Operations.IsomorphismComposition[X := X, F := Distribution.TargetFiber, G := Parts.TargetFiber, H := Shuffle.TargetFiber,
+  source := Distribution.targetBundle, middle := Parts.targetBundle, target := Shuffle.targetBundle] \as TargetComposition;
+\definition targetDecomposition: Bundles.Isomorphisms[X := X, F := Distribution.TargetFiber, G := Shuffle.TargetFiber,
+  source := Distribution.targetBundle, target := Shuffle.targetBundle].Isomorphism := TargetComposition.compose parts Shuffle.isomorphism;
+\import Operations.DirectSum[X := X, F := Original.Even, G := Auxiliary.Even, left := Original.evenBundle, right := Auxiliary.evenBundle] \as Even;
+\import Operations.DirectSum[X := X, F := Original.Odd, G := Auxiliary.Odd, left := Original.oddBundle, right := Auxiliary.oddBundle] \as Odd;
+\definition evenBundle: Bundles.Family[X := X, F := Even.Fiber].Bundle := Even.bundle sameAuxiliary;
+\definition oddBundle: Bundles.Family[X := X, F := Odd.Fiber].Bundle := Odd.bundle sameAuxiliary;
+\definition positive: Bundles.Isomorphisms[X := X, F := Source.Even, G := Even.Fiber, source := Source.evenBundle, target := evenBundle].Isomorphism := Sectors.Positive[].isomorphism;
+\definition negative: Bundles.Isomorphisms[X := X, F := Source.Odd, G := Odd.Fiber, source := Source.oddBundle, target := oddBundle].Isomorphism := Sectors.Negative[].isomorphism;
+\import Operations.DirectSumIsomorphisms[X := X, F := Source.Even, G := Source.Odd, A := Even.Fiber, B := Odd.Fiber,
+  first := Source.evenBundle, second := Source.oddBundle, newFirst := evenBundle, newSecond := oddBundle,
+  sameSource := (\refl(e0.baseSpace)), sameTarget := (\refl(e0.baseSpace))] \as Total;
+\definition totalIso: Bundles.Isomorphisms[X := X, F := Source.TargetFiber, G := Shuffle.TargetFiber,
+  source := Source.targetBundle, target := Shuffle.targetBundle].Isomorphism := Total.isomorphism positive negative;
+\module Coherence(x: X);
+\definition coherence: \forall (x: X)(v: Source.SourceFiber x) -> (targetDecomposition.forward.fiber x).apply ((fullIso.forward.fiber x).apply v) =
+  (totalIso.forward.fiber x).apply ((Source.isomorphism.forward.fiber x).apply v) := \fun (x: X) => Coherence[x := x].equation;
+\import \root.Thom[].DecompositionChange[X := X, F := Source.SourceFiber, G := Distribution.TargetFiber, E := Source.Even, O := Source.Odd, A := Even.Fiber, B := Odd.Fiber,
+  sourceFull := Source.sourceBundle, targetFull := Distribution.targetBundle, sourceEven := Source.evenBundle, sourceOdd := Source.oddBundle,
+  targetEven := evenBundle, targetOdd := oddBundle, sameSource := (\refl(e0.baseSpace)), sameTarget := (\refl(e0.baseSpace)),
+  sourceDecomposition := Source.isomorphism, targetDecomposition := targetDecomposition, fullIso := fullIso,
+  evenIso := positive, oddIso := negative, coherence := coherence].Blocks[c := sourceOperator, d := targetOperator, operatorCommutes := operatorCommutes] \as Blocks;
+\definition sourceForward: Bundles.Morphisms[X := X, Y := X, F := Source.Even, G := Source.Odd,
+  source := Source.evenBundle, target := Source.oddBundle, f := (\fun (x: X) => x)].Map := Blocks.sourceBlock;
+\definition targetForward: Bundles.Morphisms[X := X, Y := X, F := Even.Fiber, G := Odd.Fiber,
+  source := evenBundle, target := oddBundle, f := (\fun (x: X) => x)].Map := Blocks.targetBlock;
+\definition forwardCommutes: \forall (x: X)(v: Source.Even x) -> (negative.forward.fiber x).apply ((sourceForward.fiber x).apply v) =
+  (targetForward.fiber x).apply ((positive.forward.fiber x).apply v) := Blocks.equation;
+
+\module OriginalRaw;
+\module AuxiliaryRaw;
+\import std.Data[].Pair[] \as Pair;
+\definition targetOperatorOnParts: \forall (x: X)(v: Distribution.TargetFiber x) -> (targetOperator.fiber x).apply v =
+  Pair.pair (Original.SourceFiber x) (Auxiliary.SourceFiber x)
+    ((OriginalRaw[].operator.fiber x).apply (Pair.first (Original.SourceFiber x) (Auxiliary.SourceFiber x) v))
+    ((AuxiliaryRaw[].operator.fiber x).apply (Pair.second (Original.SourceFiber x) (Auxiliary.SourceFiber x) v)) :=
+  \fun (x: X)(v: Distribution.TargetFiber x) => \refl((targetOperator.fiber x).apply v);
+\definition targetFormula: \forall (x: X)(v: Even.Fiber x) -> (targetForward.fiber x).apply v =
+  Pair.pair (Original.Odd x) (Auxiliary.Odd x)
+    ((OriginalRaw[].forward.fiber x).apply (Pair.first (Original.Even x) (Auxiliary.Even x) v))
+    ((AuxiliaryRaw[].forward.fiber x).apply (Pair.second (Original.Even x) (Auxiliary.Even x) v)) :=
+  \fun (x: X)(v: Even.Fiber x) => \refl((targetForward.fiber x).apply v);

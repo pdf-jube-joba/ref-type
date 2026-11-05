@@ -1,0 +1,50 @@
+\definition model: N.Nat^ -> Relative.CompactPointed :=
+  \induction (n: N.Nat^) \return Relative.CompactPointed \with {
+    | zero: base
+    | succ: \fun (n: N.Nat^)(previous: Relative.CompactPointed) =>
+      Relative.Smash[left := previous, right := Periodicity.sphere].result
+  };
+\definition Carrier[n: N.Nat^]: \Set := Relative.Reduced[model := model n].Carrier;
+\definition group[n: N.Nat^]: std.Alg[].Alg[].CommutativeGroup[Carrier n] := Relative.Reduced[model := model n].group;
+\definition Data[n: N.Nat^]: \Set := Periodicity.Isomorphism[A := Carrier N.Nat^::zero, B := Carrier n,
+  source := group N.Nat^::zero, target := group n].Data;
+\definition initial: Data N.Nat^::zero := Periodicity.Isomorphism[A := Carrier N.Nat^::zero, B := Carrier N.Nat^::zero,
+  source := group N.Nat^::zero, target := group N.Nat^::zero].Data {
+  forward := \fun (x: Carrier N.Nat^::zero) => x,
+  backward := \fun (x: Carrier N.Nat^::zero) => x,
+  leftInverse := \fun (x: Carrier N.Nat^::zero) => \refl(x),
+  rightInverse := \fun (x: Carrier N.Nat^::zero) => \refl(x),
+  forwardAdd := \fun (x, y: Carrier N.Nat^::zero) => \refl((group N.Nat^::zero).base.op x y),
+  backwardAdd := \fun (x, y: Carrier N.Nat^::zero) => \refl((group N.Nat^::zero).base.op x y),
+  forwardZero := \refl((group N.Nat^::zero).base.unit),
+  backwardZero := \refl((group N.Nat^::zero).base.unit)
+};
+\module Step(n: N.Nat^, previous: Data n);
+\definition isomorphism: \forall (n: N.Nat^) -> Data n :=
+  \induction (n: N.Nat^) \return Data n \with {
+    | zero: initial
+    | succ: \fun (n: N.Nat^)(previous: Data n) => Step[n := n, previous := previous].data
+  };
+\definition forward[n: N.Nat^]: Carrier N.Nat^::zero -> Carrier n := (isomorphism n).forward;
+\definition backward[n: N.Nat^]: Carrier n -> Carrier N.Nat^::zero := (isomorphism n).backward;
+\definition forwardProduct: \forall (n: N.Nat^)(a: Carrier N.Nat^::zero) ->
+  forward (N.Nat^::succ n) a = Relative.Smash[left := model n, right := Periodicity.sphere].External[].product
+    (forward n a) Periodicity.beta :=
+  \fun (n: N.Nat^)(a: Carrier N.Nat^::zero) => \refl(Periodicity.Reduced[model := model n].forward (forward n a));
+\definition leftInverse: \forall (n: N.Nat^)(a: Carrier N.Nat^::zero) -> backward n (forward n a) = a :=
+  \fun (n: N.Nat^)(a: Carrier N.Nat^::zero) => (isomorphism n).leftInverse a;
+\definition rightInverse: \forall (n: N.Nat^)(a: Carrier n) -> forward n (backward n a) = a :=
+  \fun (n: N.Nat^)(a: Carrier n) => (isomorphism n).rightInverse a;
+\module Naturality(other: Relative.CompactPointed, f: Relative.Map base other);
+\module Negative(degree: N.Nat^);
+\definition dimension: N.Nat^ -> N.Nat^ := \induction (n: N.Nat^) \return N.Nat^ \with {
+  | zero: N.Nat^::zero
+  | succ: \fun (n: N.Nat^)(previous: N.Nat^) => N.Nat^::succ (N.Nat^::succ previous)
+};
+\definition Suspended[n: N.Nat^]: Relative.CompactPointed := Relative.iterate (dimension n) base;
+\definition Comparison[n: N.Nat^]: \Set := Relative.Equivalence[source := Suspended n, target := model n].Data;
+\module ComparisonStep(n: N.Nat^, previous: Comparison n);
+\definition comparison: \forall (n: N.Nat^) -> Comparison n := \induction (n: N.Nat^) \return Comparison n \with {
+  | zero: Relative.Identity[model := base].equivalence
+  | succ: \fun (n: N.Nat^)(previous: Comparison n) => ComparisonStep[n := n, previous := previous].equivalence
+};

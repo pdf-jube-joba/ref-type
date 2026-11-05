@@ -1,0 +1,26 @@
+\import Relative.Identity[model := A.model] \as IdentityA;
+\import Relative.Identity[model := C.model] \as IdentityC;
+\import BC.Mapping[targetLeft := AB.result, targetRight := C.model, f := FirstGraph.map, g := IdentityC.map] \as LeftMapping;
+\import AS.Mapping[targetLeft := A.model, targetRight := BC.result, f := IdentityA.map, g := Multiply.mapping] \as RightMapping;
+\import Relative.Composition[source := Source.model, middle := BC.result, target := Left.result, first := Multiply.mapping, second := LeftMapping.map] \as LeftComposite;
+\import Relative.Composition[source := Source.model, middle := AS.result, target := Right.result, first := SumGraph.map, second := RightMapping.map] \as RightComposite;
+\definition leftMap: Relative.Map Source.model Left.result := LeftComposite.map;
+\definition rightMap: Relative.Map Source.model Right.result := RightComposite.map;
+\import Relative.Composition[source := Source.model, middle := Left.result, target := Right.result, first := leftMap, second := Associator.equivalence.forward] \as Associated;
+\import Support.OnePoint[X := X, space := left.baseSpace] \as BasePoints;
+\import Support.OnePoint[X := FirstFamily.Point, space := left.totalSpace] \as FirstPoints;
+\import Support.OnePoint[X := SecondFamily.Point, space := right.totalSpace] \as SecondPoints;
+\import Support.OnePoint[X := SumFamily.Point, space := sum.totalSpace] \as Points;
+\definition first[p: SumFamily.Point]: FirstFamily.Point := FirstFamily.include p.base (Pair.first (F p.base) (G p.base) p.vector);
+\definition second[p: SumFamily.Point]: SecondFamily.Point := SecondFamily.include p.base (Pair.second (F p.base) (G p.base) p.vector);
+\definition triple[p: SumFamily.Point]: Associator.Triple := Pair.pair A.model.Carrier BC.model.Carrier (BasePoints.inclusion p.base)
+  (Pair.pair B.model.Carrier C.model.Carrier (FirstPoints.inclusion (first p)) (SecondPoints.inclusion (second p)));
+\module Finite(p: SumFamily.Point);
+\import algebraic_topology.Pointed[A := Source.model.Carrier].Maps[B := Right.result.Carrier] \as Pointed;
+\definition equation: Associated.map = rightMap := \axiom:funext(Associated.map, rightMap,
+  \induction (point: Points.Carrier) \return Associated.map point = rightMap point \with {
+    | none: trans!{{Right.result.Carrier}} _ _ _
+      (Pointed.laws (Relative.pointed Source.model) (Relative.pointed Right.result) Associated.map).pointed
+      (sym!{{Right.result.Carrier}} _ _ (Pointed.laws (Relative.pointed Source.model) (Relative.pointed Right.result) rightMap).pointed)
+    | some: \fun (p: SumFamily.Point) => Finite[p := p].equation
+  });

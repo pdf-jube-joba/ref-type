@@ -1,0 +1,76 @@
+\import \parent.Sectors[] \as Sectors;
+\import \parent.\parent.\parent.NativeTotal[] \as LeftNative;
+\import Other.NativeTotal[] \as RightNative;
+\import \parent.\parent.\parent.\parent.\parent.\parent.Operators[] \as LeftOperators;
+\import OtherGeometry.Boundary[].Framed[r := otherFactor.representation].Operators[] \as RightOperators;
+\import \parent.\parent.\parent.\parent.\parent.\parent.\parent.\parent.Boundary[] \as LeftBoundary;
+\import OtherGeometry.Boundary[] \as RightBoundary;
+\import \root.Thom[].ComplexProductBlocks[X := NativeProduct.Z,
+  F0 := (\fun (z: NativeProduct.Z) => StableEven (NativeProduct.first z)), F1 := (\fun (z: NativeProduct.Z) => StableOdd (NativeProduct.first z)),
+  G0 := (\fun (z: NativeProduct.Z) => Other.StableEven (NativeProduct.second z)), G1 := (\fun (z: NativeProduct.Z) => Other.StableOdd (NativeProduct.second z)),
+  e0 := Sectors.FirstEvenTargetBundle, e1 := Sectors.FirstOddTargetBundle,
+  f0 := Sectors.SecondEvenTargetBundle, f1 := Sectors.SecondOddTargetBundle,
+  sameE1 := (\refl(NativeProduct.topology)), sameF0 := (\refl(NativeProduct.topology)), sameF1 := (\refl(NativeProduct.topology))] \as Blocks;
+\import \parent.Sectors[].Parity[].Operators[] \as SectorOperators;
+\definition firstOperator: Bundles.Morphisms[X := NativeProduct.Z, Y := NativeProduct.Z, F := Blocks.LeftFiber, G := Blocks.LeftFiber,
+  source := Blocks.leftBundle, target := Blocks.leftBundle, f := (\fun (z: NativeProduct.Z) => z)].Map := SectorOperators.targetFirst;
+\definition secondOperator: Bundles.Morphisms[X := NativeProduct.Z, Y := NativeProduct.Z, F := Blocks.RightFiber, G := Blocks.RightFiber,
+  source := Blocks.rightBundle, target := Blocks.rightBundle, f := (\fun (z: NativeProduct.Z) => z)].Map := SectorOperators.targetSecond;
+\definition firstCoefficient[z: NativeProduct.Z]: C.Complex := LeftNative.nativeCoefficient (NativeProduct.first z);
+\definition secondCoefficient[z: NativeProduct.Z]: C.Complex := RightNative.nativeCoefficient (NativeProduct.second z);
+\definition firstCoefficientContinuous: topology.Continuity[A := NativeProduct.Z, B := C.Complex].Continuous NativeProduct.topology Scalars.scalar.topological.space firstCoefficient :=
+  topology.Composition[A := NativeProduct.Z, B := Disk, C := C.Complex].composeContinuous NativeProduct.topology diskTopology Scalars.scalar.topological.space NativeProduct.first LeftNative.nativeCoefficient Sectors.firstRegular LeftOperators.coefficientContinuous;
+\definition secondCoefficientContinuous: topology.Continuity[A := NativeProduct.Z, B := C.Complex].Continuous NativeProduct.topology Scalars.scalar.topological.space secondCoefficient :=
+  topology.Composition[A := NativeProduct.Z, B := OtherGeometry.Disk, C := C.Complex].composeContinuous NativeProduct.topology OtherGeometry.diskTopology Scalars.scalar.topological.space NativeProduct.second RightNative.nativeCoefficient Sectors.secondRegular RightOperators.coefficientContinuous;
+\definition data: Blocks.Data := Blocks.Data { first := firstOperator, second := secondOperator,
+  a := firstCoefficient, b := secondCoefficient, aContinuous := firstCoefficientContinuous, bContinuous := secondCoefficientContinuous };
+\definition laws: Blocks.Laws[data] := Blocks.Laws[data] {
+  firstSquare := \fun (z: NativeProduct.Z) => LeftNative.nativeSquare (NativeProduct.first z),
+  secondSquare := \fun (z: NativeProduct.Z) => RightNative.nativeSquare (NativeProduct.second z),
+  firstAnti := \fun (z: NativeProduct.Z) => LeftNative.nativeAnticommutes (NativeProduct.first z),
+  secondAnti := \fun (z: NativeProduct.Z) => RightNative.nativeAnticommutes (NativeProduct.second z)
+};
+
+\import Blocks.With[c := data, laws := laws] \as StableSymbol;
+\definition firstNorm[z: NativeProduct.Z]: Real.Real := LeftNative.nativeNorm (NativeProduct.first z);
+\definition secondNorm[z: NativeProduct.Z]: Real.Real := RightNative.nativeNorm (NativeProduct.second z);
+\definition boundaryUnit: \forall (z: NativePair.A) -> Logic.Or[firstNorm z = Real.one, secondNorm z = Real.one] :=
+  \fun (z: NativePair.A) => Logic.orElim[\In[Disk] diskBoundary (NativeProduct.first z), \In[OtherGeometry.Disk] OtherGeometry.diskBoundary (NativeProduct.second z), Logic.Or[firstNorm z = Real.one, secondNorm z = Real.one]]
+    (\bysub(NativeProduct.Z, NativeProduct.boundary, z))
+    (\fun (member: _) => Logic.Or[_, _]::left (LeftBoundary.squaredUnit (\into[Disk](NativeProduct.first z, diskBoundary) \by { member })))
+    (\fun (member: _) => Logic.Or[_, _]::right (RightBoundary.squaredUnit (\into[OtherGeometry.Disk](NativeProduct.second z, OtherGeometry.diskBoundary) \by { member })));
+\definition normCoefficient[z: NativeProduct.Z]: StableSymbol.coefficient z = Scalar.ofReal (Real.add (firstNorm z) (secondNorm z)) :=
+  trans!{{C.Complex}} _ _ _
+    (congr!{{C.Complex} {C.Complex} {C.Complex}} Scalar.add _ _ _ _ (LeftNative.nativeCoefficientReal (NativeProduct.first z)) (RightNative.nativeCoefficientReal (NativeProduct.second z)))
+    (sym!{{C.Complex}} _ _ (C.Prop[].ofRealAdd (firstNorm z) (secondNorm z)));
+\definition positive: \forall (z: NativePair.A) -> Order.Lt Real.zero (Real.add (firstNorm z) (secondNorm z)) :=
+  \fun (z: NativePair.A) => Global.positiveIfOne (firstNorm z) (secondNorm z)
+    (LeftNative.nativeNormNonnegative (NativeProduct.first z)) (RightNative.nativeNormNonnegative (NativeProduct.second z)) (boundaryUnit z);
+\definition nonzero: \forall (z: NativePair.A) -> Scalar.NonZero (StableSymbol.coefficient z) :=
+  \fun (z: NativePair.A)(zero: _) => Real.Inverse[].positiveNonzero (Real.add (firstNorm z) (secondNorm z)) (positive z)
+    (C.Prop[].ofRealInjective (Real.add (firstNorm z) (secondNorm z)) Real.zero (trans!{{C.Complex}} _ _ _ (sym!{{C.Complex}} _ _ (normCoefficient z)) zero));
+\import StableSymbol.On[subset := NativeProduct.boundary, nonzero := nonzero] \as StableBoundary;
+\definition TensorEven[z: NativeProduct.Z]: \Set := Blocks.Even z;
+\definition TensorOdd[z: NativeProduct.Z]: \Set := Blocks.Odd z;
+\definition tensorEvenBundle: Bundles.Family[X := NativeProduct.Z, F := TensorEven].Bundle := Blocks.evenBundle;
+\definition tensorOddBundle: Bundles.Family[X := NativeProduct.Z, F := TensorOdd].Bundle := Blocks.oddBundle;
+\import NativePair.BundleModel[F := TensorEven].From[original := tensorEvenBundle, same := (\refl(NativeProduct.topology))] \as TensorEvenModel;
+\import NativePair.BundleModel[F := TensorOdd].From[original := tensorOddBundle, same := (\refl(NativeProduct.topology))] \as TensorOddModel;
+\definition stableEvenModel: NativePair.BundleModel[F := TensorEven].Bundle := TensorEvenModel.model;
+\definition stableOddModel: NativePair.BundleModel[F := TensorOdd].Bundle := TensorOddModel.model;
+\import NativePair.BundleTriples[F := TensorEven, G := TensorOdd, firstModel := stableEvenModel, secondModel := stableOddModel] \as StableTriple;
+\definition stableComparison: StableTriple.OnSubset := StableBoundary.isomorphism;
+\definition stableValue: NativeQ.Relative := StableTriple.With[alpha := stableComparison].reduced;
+\definition stableForward: Bundles.Morphisms[X := NativeProduct.Z, Y := NativeProduct.Z, F := TensorEven, G := TensorOdd,
+  source := tensorEvenBundle, target := tensorOddBundle, f := (\fun (z: NativeProduct.Z) => z)].Map := StableSymbol.forward;
+\definition stableForwardFormula: \forall (z: NativePair.A)(v: TensorEven z) ->
+  (stableComparison.forward.fiber z).apply v = (stableForward.fiber z).apply v := StableBoundary.formula;
+\module AuxiliaryLeft;
+\module Original;
+\module AuxiliaryRight;
+\module Normalized;
+\module AuxiliaryBundles;
+\module CancelLeft;
+\module CancelRight;
+\definition originalValue: NativeQ.Relative := Original[].Classes[].originalValue;
+\module Result;

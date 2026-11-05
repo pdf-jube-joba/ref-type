@@ -1,0 +1,46 @@
+\import std.Data[].Pair[] \as Pair;
+\import topology.Topology[Carrier := X] \as Base;
+\import Bundles.Family[X := X, F := F] \as Family;
+\import Family.Of[bundle := bundle] \as Original;
+\import Family.With[data := bundle] \as Charts;
+\import topology.Topology[Carrier := Family.Point] \as Total;
+\import bundle_complements.Complements[].Over[K := C.Complex, field := C.Algebra[].field,
+  conjugation := linear_algebra.Hermitian[].Complex[].scalar, scalar := Scalars.scalar].For[X := X, F := F, bundle := bundle] \as Complement;
+\module WithEmbedding(embedding: Complement.Embedding);
+\definition separated: Total.IsT2 bundle.totalSpace := \block {
+  \takefrom embedding: Complement.Embedding \by Complement.embeddingExists compact hausdorff \then
+  \return WithEmbedding[embedding := embedding].separated
+};
+\module EuclideanLocal(n: N.Nat^);
+\module ProductLocal(A, B: \Set, left: topology.Topology[Carrier := A].Topology, right: topology.Topology[Carrier := B].Topology,
+  first: topology.LocallyCompact[A := A].IsLocallyCompact left, second: topology.LocallyCompact[A := B].IsLocallyCompact right);
+\module InChart(c: Charts.Chart);
+\definition locallyCompact: topology.LocallyCompact[A := Family.Point].IsLocallyCompact bundle.totalSpace := \block {
+  \fun (p: Family.Point) \then
+  \takefrom c: \Cast[Charts.Chart] ({ c: Charts.Chart \where Base.Member c.domain p.base }) \by Original.locallyTrivial p.base \then
+  \return InChart[c := c].neighborhood p (\bysub(Charts.Chart, { c: Charts.Chart \where Base.Member c.domain p.base }, c))
+};
+\import \parent.Koszul[X := X, F := F, bundle := bundle] \as Koszul;
+\import Original.Sections[] \as Sections;
+\import topology.Maps[A := X, B := Family.Point] \as SectionMaps;
+\definition zeroImage: SectionMaps.Image (Sections.total Sections.zero) Base.Whole = Koszul.ZeroSection :=
+  \axiom:setext(SectionMaps.Image (Sections.total Sections.zero) Base.Whole, Koszul.ZeroSection,
+    \fun (p: Family.Point)(member: _) => SectionMaps.imageElim (Sections.total Sections.zero) Base.Whole p
+      (Total.Member Koszul.ZeroSection p)
+      (\fun (x: X)(whole: _)(same: Sections.total Sections.zero x = p) => \idelim Sections.total Sections.zero x = p
+        \with q: Family.Point => Total.Member Koszul.ZeroSection q \by { base: \refl((bundle.space x).zero), equality: same }) member,
+    \fun (p: Family.Point)(zero: p.vector = (bundle.space p.base).zero) =>
+      Logic.existsIntro[X, { x: X \where Logic.And[Base.Member Base.Whole x, Sections.total Sections.zero x = p] }] p.base
+        (Logic.And[_, _]::# (\refl(p.base))
+          (trans!{Family.Point} _ _ _ (congr!{{F p.base} Family.Point} (Family.include p.base) _ _ (sym!{{F p.base}} _ _ zero)) (Family.eta p))));
+\definition zeroCompact: Total.IsCompactIn bundle.totalSpace Koszul.ZeroSection :=
+  \idelim SectionMaps.Image (Sections.total Sections.zero) Base.Whole = Koszul.ZeroSection
+    \with S: \Pow Family.Point => Total.IsCompactIn bundle.totalSpace S \by {
+    base: topology.Compactness[A := X, B := Family.Point].continuousImage bundle.baseSpace bundle.totalSpace (Sections.total Sections.zero)
+      (Sections.continuous Sections.zero) Base.Whole compact,
+    equality: zeroImage
+  };
+\module Radial(metric: Complement.Metric);
+\module Pullback(Y: \Set, source: topology.Topology[Carrier := Y].Topology,
+  sourceCompact: topology.Topology[Carrier := Y].IsCompact source, f: Y -> X,
+  regular: topology.Continuity[A := Y, B := X].Continuous source bundle.baseSpace f);

@@ -1,0 +1,38 @@
+\import topology.Homeomorphism[A := SumFamily.Point, B := Product.CarrierSet].Composition[C := External.Carrier] \as Compose;
+\definition interiorHomeomorphism: topology.Homeomorphism[A := SumFamily.Point, B := External.Carrier].Homeomorphism[sum.totalSpace, External.topology] :=
+  Compose.compose sum.totalSpace productTopology External.topology homeomorphism Coordinates.homeomorphism;
+\import Support.Homeomorphic[A := SumFamily.Point, B := External.Carrier, source := sum.totalSpace, target := External.topology, h := interiorHomeomorphism].Extension[] \as Extension;
+\import Support.OnePoint[X := SumFamily.Point, space := sum.totalSpace] \as Domain;
+\import Support.OnePoint[X := External.Carrier, space := External.topology] \as Range;
+\import algebraic_topology.Pointed[A := Domain.Carrier].Maps[B := Range.Carrier] \as Forward;
+\import algebraic_topology.Pointed[A := Range.Carrier].Maps[B := Domain.Carrier] \as Backward;
+\definition direct: Relative.Map Source.model Complement.model := \into[Domain.Carrier -> Range.Carrier](Extension.homeomorphism.forward, Relative.Map Source.model Complement.model) \by {
+  Forward.Laws[Relative.pointed Source.model, Relative.pointed Complement.model, Extension.homeomorphism.forward] {
+    continuous := Extension.homeomorphism.forwardContinuous, pointed := \refl(Range.point)
+  }
+};
+\definition reverse: Relative.Map Complement.model Source.model := \into[Range.Carrier -> Domain.Carrier](Extension.homeomorphism.backward, Relative.Map Complement.model Source.model) \by {
+  Backward.Laws[Relative.pointed Complement.model, Relative.pointed Source.model, Extension.homeomorphism.backward] {
+    continuous := Extension.homeomorphism.backwardContinuous, pointed := \refl(Domain.point)
+  }
+};
+\definition compactified: Relative.Equivalence[source := Source.model, target := Complement.model].Data := Relative.Equivalence[source := Source.model, target := Complement.model].Data {
+  forward := direct, backward := reverse, leftInverse := Extension.leftInverse, rightInverse := Extension.rightInverse
+};
+\import Relative.Equivalence[source := Source.model, target := Smash.result].Compose[middle := Complement.model, first := compactified,
+  second := Relative.Equivalence[source := Smash.result, target := Complement.model].inverse Complement.equivalence] \as Comparison;
+\definition equivalence: Relative.Equivalence[source := Source.model, target := Smash.result].Data := Comparison.result;
+\import \root.Thom[].FiberMultiply[X := X, F := F, G := G, left := left, right := right, sameBase := sameBase, compact := compact, hausdorff := hausdorff]
+  .Along[Y := PointFamily.Point, target := PointBundle.bundle.totalSpace, targetHausdorff := PointTotal.separated, targetLocallyCompact := PointTotal.locallyCompact,
+    g := Trivialization.projection, regular := Trivialization.continuous, proper := Trivialization.proper] \as Along;
+\import Support.OnePoint[X := PointFamily.Point, space := PointBundle.bundle.totalSpace] \as PointPoints;
+\definition onFinite: \forall (p: SumFamily.Point) -> equivalence.forward (Domain.inclusion p) = Along.map (Domain.inclusion p) :=
+  \fun (p: SumFamily.Point) => trans!{{Smash.result.Carrier}} _ _ _
+    (Complement.backwardOnInterior (Coordinates.forward (forward p))) (sym!{{Smash.result.Carrier}} _ _ (Along.onFinite p));
+\definition maps: equivalence.forward = Along.map := \axiom:funext(equivalence.forward, Along.map,
+  \induction (p: Domain.Carrier) \return equivalence.forward p = Along.map p \with {
+    | none: trans!{{Smash.result.Carrier}} _ _ _
+      ((algebraic_topology.Pointed[A := Source.model.Carrier].Maps[B := Smash.result.Carrier].laws (Relative.pointed Source.model) (Relative.pointed Smash.result) equivalence.forward).pointed)
+      (sym!{{Smash.result.Carrier}} _ _ ((algebraic_topology.Pointed[A := Source.model.Carrier].Maps[B := Smash.result.Carrier].laws (Relative.pointed Source.model) (Relative.pointed Smash.result) Along.map).pointed))
+    | some: onFinite
+  });

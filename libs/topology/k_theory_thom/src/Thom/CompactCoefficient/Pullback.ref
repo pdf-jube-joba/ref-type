@@ -1,0 +1,71 @@
+\import \parent.Compactified[] \as Target;
+\import \root.Thom[].CompactCoefficient[X := Y, space := source, compact := sourceCompact, hausdorff := sourceHausdorff] \as Source;
+\import Source.Compactified[] \as Domain;
+\import Relative.Pullback[source := Supported.model, target := Absolute.model, f := Target.map] \as TargetPull;
+\import topology.Topology[Carrier := Y] \as SourceSpace;
+\definition proper: Support.Proper[A := Y, B := X, source := source, target := space].IsProper f :=
+  \fun (L: \Pow X)(compactL: Base.IsCompactIn space L) => SourceSpace.Compactness[].closedCompact source sourceCompact
+    (topology.Maps[A := Y, B := X].Preimage f L)
+    (topology.Continuity[A := Y, B := X].closedPreimage source space f regular L
+      (Base.Compactness[].compactClosed space hausdorff L compactL));
+\import topology.LocallyCompact[A := Y] \as Local;
+\definition sourceLocal: Local.IsLocallyCompact source := Local.compactLocallyCompact source sourceCompact;
+\import Support.On[X := Y, space := source, hausdorff := sourceHausdorff, locallyCompact := sourceLocal] \as Native;
+\import Native.Pullback[Y := X, target := space, targetHausdorff := hausdorff, targetLocallyCompact := local,
+  f := f, continuous := regular, proper := proper] \as Extension;
+\import Extension.At[degree := zero] \as SupportedPull;
+\definition mapping: Relative.Map Native.model Supported.model := Extension.mapping;
+\import Relative.Absolute[X := Y, space := source, compact := sourceCompact, hausdorff := sourceHausdorff] \as DomainAbsolute;
+\import Absolute.Mapping[Y := Y, source := source, sourceCompact := sourceCompact, sourceHausdorff := sourceHausdorff,
+  f := f, regular := regular] \as AbsoluteMap;
+\import Relative.Pullback[source := DomainAbsolute.model, target := Absolute.model, f := AbsoluteMap.map] \as AbsolutePull;
+\import Relative.Pullback[source := Native.model, target := DomainAbsolute.model, f := Domain.map] \as DomainPull;
+\import topological_k_theory.KTheory[].On[X := X, baseSpace := space, compact := compact, hausdorff := hausdorff]
+  .Pullback[Y := Y, space := source, sourceCompact := sourceCompact, sourceHausdorff := sourceHausdorff, f := f, regular := regular].K0[] \as OrdinaryPull;
+\import topological_k_theory.KTheory[].On[X := Y, baseSpace := source, compact := sourceCompact, hausdorff := sourceHausdorff].K0[] \as SourceK;
+\definition absoluteNaturality: \forall (a: K.Carrier) -> AbsolutePull.map (Absolute.forward a) = DomainAbsolute.forward (OrdinaryPull.map a) :=
+  \fun (a: K.Carrier) => eq_reason_in!{{Relative.Reduced[model := DomainAbsolute.model].Carrier} _
+    "=" { DomainAbsolute.forward (DomainAbsolute.backward (AbsolutePull.map (Absolute.forward a))) } "by" {
+      sym!{{Relative.Reduced[model := DomainAbsolute.model].Carrier}} _ _ (DomainAbsolute.rightInverse (AbsolutePull.map (Absolute.forward a))) }
+    "=" { DomainAbsolute.forward (OrdinaryPull.map (Absolute.backward (Absolute.forward a))) } "by" {
+      congr!{{SourceK.Carrier} {Relative.Reduced[model := DomainAbsolute.model].Carrier}} DomainAbsolute.forward _ _
+        (AbsoluteMap.Naturality[].backwardNaturality (Absolute.forward a)) }
+    "=" _ "by" { congr!{{K.Carrier} {Relative.Reduced[model := DomainAbsolute.model].Carrier}}
+      (\fun (b: K.Carrier) => DomainAbsolute.forward (OrdinaryPull.map b)) _ _ (Absolute.leftInverse a) }
+  };
+\import Relative.Composition[source := Native.model, middle := Supported.model, target := Absolute.model,
+  first := Extension.mapping, second := Target.map] \as Left;
+\import Relative.Composition[source := Native.model, middle := DomainAbsolute.model, target := Absolute.model,
+  first := Domain.map, second := AbsoluteMap.map] \as Right;
+\import Support.OnePoint[X := Y, space := source] \as Points;
+\import algebraic_topology.Pointed[A := Native.model.Carrier].Maps[B := Absolute.model.Carrier] \as Maps;
+\definition functions: Left.map = Right.map := \axiom:funext(Left.map, Right.map,
+  \induction (p: Points.Carrier) \return Left.map p = Right.map p \with {
+    | none: trans!{{Absolute.model.Carrier}} _ _ _
+      (Maps.laws (Relative.pointed Native.model) (Relative.pointed Absolute.model) Left.map).pointed
+      (sym!{{Absolute.model.Carrier}} _ _ (Maps.laws (Relative.pointed Native.model) (Relative.pointed Absolute.model) Right.map).pointed)
+    | some: \fun (y: Y) => trans!{{Absolute.model.Carrier}} _ _ _ (Target.onFinite (f y))
+      (sym!{{Absolute.model.Carrier}} _ _ (trans!{{Absolute.model.Carrier}} _ _ _
+        (congr!{{DomainAbsolute.model.Carrier} {Absolute.model.Carrier}} AbsoluteMap.map _ _ (Domain.onFinite y))
+        (AbsoluteMap.onOriginal y)))
+  });
+\import Relative.Pullback[source := Native.model, target := Absolute.model, f := Left.map] \as LeftPull;
+\import Relative.Pullback[source := Native.model, target := Absolute.model, f := Right.map] \as RightPull;
+\definition equation: \forall (a: K.Carrier) -> SupportedPull.map (forward a) = Source.forward (OrdinaryPull.map a) :=
+  \fun (a: K.Carrier) => eq_reason_in!{{Native.At[degree := zero].Carrier} _
+    "=" { SupportedPull.map (TargetPull.map (Absolute.forward a)) } "by" {
+      congr!{{Supported.At[degree := zero].Carrier} {Native.At[degree := zero].Carrier}} SupportedPull.map _ _ (Target.formula a) }
+    "=" { LeftPull.map (Absolute.forward a) } "by" { sym!{{Native.At[degree := zero].Carrier}} _ _
+      (Relative.PullbackComposition[source := Native.model, middle := Supported.model, target := Absolute.model,
+        first := Extension.mapping, second := Target.map].equation (Absolute.forward a)) }
+    "=" { RightPull.map (Absolute.forward a) } "by" {
+      congr!{{Relative.Map Native.model Absolute.model} {Native.At[degree := zero].Carrier}}
+        (\fun (h: Relative.Map Native.model Absolute.model) => Relative.Pullback[source := Native.model, target := Absolute.model, f := h].map (Absolute.forward a))
+        _ _ functions }
+    "=" { DomainPull.map (AbsolutePull.map (Absolute.forward a)) } "by" {
+      Relative.PullbackComposition[source := Native.model, middle := DomainAbsolute.model, target := Absolute.model,
+        first := Domain.map, second := AbsoluteMap.map].equation (Absolute.forward a) }
+    "=" { DomainPull.map (DomainAbsolute.forward (OrdinaryPull.map a)) } "by" {
+      congr!{{Relative.Reduced[model := DomainAbsolute.model].Carrier} {Native.At[degree := zero].Carrier}} DomainPull.map _ _ (absoluteNaturality a) }
+    "=" _ "by" { sym!{{Native.At[degree := zero].Carrier}} _ _ (Domain.formula (OrdinaryPull.map a)) }
+  };
