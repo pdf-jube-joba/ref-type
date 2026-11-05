@@ -71,3 +71,13 @@ Draft PR は [#75](https://github.com/pdf-jube-joba/ref-type/pull/75) である�
 [koszul-product-report.json.gz](koszul-product-report.json.gz) が元報告、[product-source-sha256.json.gz](product-source-sha256.json.gz) が入力全8,121ファイルのハッシュである。
 入力の全バイト列を checkout と `c96d11aad` の Git blob に照合した。
 一般 Thom 同型・任意階数 Bott 同型・公開 API 全体と通常の回帰・全体検査は引き続き検査中であり、K11 全体の完了はまだ宣言しない。
+
+## 公開 API の受理と最終検査中の保存
+
+数学ソースを `a7de32d335b2301f073a67f83eeb1d263cb464f8` に固定し、完了した K11 計画を削除した。
+無加工の `--module k_theory_thom` は、一般 Thom 同型・任意階数 Bott 同型・直和・自然性・合成・実束の複素化を含む3,471モジュールを受理した。
+`execution.source_steps` は13,024、実行646.7秒である。
+12 GiB の仮想メモリ上限で worker が一度 checkpoint から復旧し、2 worker・1 recovery で最終受理した。最終 worker は保存済み3,471モジュールを通常照合・再利用したため、最終 `checking.checked_steps` は0である。
+[public-target-report.json.gz](public-target-report.json.gz) にこの統計を含む元報告を保存する。
+[public-source-sha256.json.gz](public-source-sha256.json.gz) は入力全ファイルのハッシュであり、全バイト列を checkout と固定数学コミットの Git blob に照合した。
+固定ソースによる回帰・全リポジトリ検査は継続中である。これらの最終結果は別の固定ソース検査記録へ集約する。
