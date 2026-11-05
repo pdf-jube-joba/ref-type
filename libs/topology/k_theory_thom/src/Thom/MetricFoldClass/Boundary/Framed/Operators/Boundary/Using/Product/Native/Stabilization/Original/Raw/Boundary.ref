@@ -1,0 +1,35 @@
+\definition U[x: NativePair.A]: \Set := Parity.Even x;
+\definition T[x: NativePair.A]: \Set := Parity.Odd x;
+\import Bundles.Family[X := NativeProduct.Z, F := Parity.Even].Of[bundle := Parity.evenBundle].Restriction[U := NativeProduct.boundary] \as Positive;
+\import Bundles.Family[X := NativeProduct.Z, F := Parity.Odd].Of[bundle := Parity.oddBundle].Restriction[U := NativeProduct.boundary] \as Negative;
+\definition first: Bundles.Family[X := NativePair.A, F := U].Bundle := Positive.restricted;
+\definition second: Bundles.Family[X := NativePair.A, F := T].Bundle := Negative.restricted;
+\definition inclusion[x: NativePair.A]: NativeProduct.Z := x;
+\definition regular: topology.Continuity[A := NativePair.A, B := NativeProduct.Z].Continuous NativePair.subspace NativeProduct.topology inclusion :=
+  topology.Continuity[A := NativePair.A, B := NativeProduct.Z].Corestriction[S := NativeProduct.boundary].inclusionContinuous NativeProduct.topology;
+\import Bundles.ArrowLaws[X := NativeProduct.Z, Y := NativeProduct.Z, F := Parity.Even, G := Parity.Odd, source := Parity.evenBundle, target := Parity.oddBundle,
+  f := (\fun (z: NativeProduct.Z) => z)].Pullback[Z := NativePair.A, space := NativePair.subspace, g := inclusion].Of[a := dGlobal, regular := regular] \as DPull;
+\definition d: Bundles.Morphisms[X := NativePair.A, Y := NativePair.A, F := U, G := T, source := first, target := second, f := (\fun (x: NativePair.A) => x)].Map := DPull.map;
+\import Bundles.ArrowLaws[X := NativeProduct.Z, Y := NativeProduct.Z, F := Parity.Odd, G := Parity.Even, source := Parity.oddBundle, target := Parity.evenBundle,
+  f := (\fun (z: NativeProduct.Z) => z)].Pullback[Z := NativePair.A, space := NativePair.subspace, g := inclusion].Of[a := eGlobal, regular := regular] \as EPull;
+\definition e: Bundles.Morphisms[X := NativePair.A, Y := NativePair.A, F := T, G := U, source := second, target := first, f := (\fun (x: NativePair.A) => x)].Map := EPull.map;
+\import Bundles.ArrowLaws[X := NativeProduct.Z, Y := NativeProduct.Z, F := Parity.Odd, G := Parity.Even, source := Parity.oddBundle, target := Parity.evenBundle,
+  f := (\fun (z: NativeProduct.Z) => z)].Pullback[Z := NativePair.A, space := NativePair.subspace, g := inclusion].Of[a := hGlobal, regular := regular] \as HPull;
+\definition h: Bundles.Morphisms[X := NativePair.A, Y := NativePair.A, F := T, G := U, source := second, target := first, f := (\fun (x: NativePair.A) => x)].Map := HPull.map;
+\import Bundles.ArrowLaws[X := NativeProduct.Z, Y := NativeProduct.Z, F := Parity.Even, G := Parity.Odd, source := Parity.evenBundle, target := Parity.oddBundle,
+  f := (\fun (z: NativeProduct.Z) => z)].Pullback[Z := NativePair.A, space := NativePair.subspace, g := inclusion].Of[a := kGlobal, regular := regular] \as KPull;
+\definition k: Bundles.Morphisms[X := NativePair.A, Y := NativePair.A, F := U, G := T, source := first, target := second, f := (\fun (x: NativePair.A) => x)].Map := KPull.map;
+\definition q[x: NativePair.A]: Real.Real := qGlobal x;
+\definition continuous: metric_spaces.RealFunctions[A := NativePair.A].Continuous NativePair.subspace q :=
+  topology.Continuity[A := NativeProduct.Z, B := Real.Real].Restriction[S := NativeProduct.boundary].restrictContinuous NativeProduct.topology metric_spaces.RealLine[].topology qGlobal qContinuous;
+\definition positive: \forall (x: NativePair.A) -> Order.Lt Real.zero (q x) := qPositive;
+\import Operations.MapOperations[X := NativePair.A, F := U, G := T, source := first, target := second] \as Forward;
+\import Operations.MapOperations[X := NativePair.A, F := T, G := U, source := second, target := first] \as Backward;
+\definition sourceForward: Forward.Map := Forward.add d k;
+\definition sourceBackward: Backward.Map := Backward.add e h;
+\definition hk: \forall (x: NativePair.A)(v: U x) -> (h.fiber x).apply ((k.fiber x).apply v) = (first.space x).zero := \fun (x: NativePair.A) => \parent.Squares[z := x].hk;
+\definition kh: \forall (x: NativePair.A)(v: T x) -> (k.fiber x).apply ((h.fiber x).apply v) = (second.space x).zero := \fun (x: NativePair.A) => \parent.Squares[z := x].kh;
+\definition evenSquare: \forall (x: NativePair.A)(v: U x) -> (sourceBackward.fiber x).apply ((sourceForward.fiber x).apply v) = (first.space x).smul (Scalar.ofReal (q x)) v := \fun (x: NativePair.A) => \parent.Squares[z := x].evenSquare;
+\definition oddSquare: \forall (x: NativePair.A)(v: T x) -> (sourceForward.fiber x).apply ((sourceBackward.fiber x).apply v) = (second.space x).smul (Scalar.ofReal (q x)) v := \fun (x: NativePair.A) => \parent.Squares[z := x].oddSquare;
+\definition formula: \forall (x: NativePair.A)(v: U x) -> (Classes.originalComparison.forward.fiber x).apply v = (sourceForward.fiber x).apply v :=
+  \fun (x: NativePair.A)(v: U x) => trans!{{T x}} _ _ _ (Classes.originalFormula x v) (\parent.Additive[].forwardSum x v);

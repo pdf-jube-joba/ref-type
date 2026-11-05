@@ -1,0 +1,58 @@
+\import N.Basic[].Def[] \as Nat;
+\import N.Basic[].Prop[] \as Naturals;
+\import std.Data[].Bool[] \as B;
+\import Spaces.Sign[] \as Sign;
+\import C.Def[] \as Scalar;
+\import Operations.Models[X := Geometry.Total, baseSpace := Geometry.topology] \as GlobalModels;
+\import Operations.Models[X := Product.Z, baseSpace := Product.topology] \as Models;
+\import \root.Thom[].ExteriorParityPullback[A := X, B := X, Y := Geometry.Total, F := F, G := G, left := left, right := right,
+  firstSelection := firstData.selection, secondSelection := secondData.selection, source := Geometry.topology,
+  f := Geometry.first, g := Geometry.second, firstRegular := Geometry.firstRegular, secondRegular := Geometry.secondRegular] \as GlobalFrame;
+\definition totalSelection[k: N.Nat^]: \root.Thom[].ExteriorParity[X := Geometry.Total, F := Native.FirstFiber, G := Native.SecondFiber,
+  left := Native.firstBundle, right := Native.secondBundle, sameBase := (\refl(Geometry.topology))].NativeChoice k := (selection k).first;
+\import GlobalFrame.With[totalSelection := totalSelection] \as Global;
+\import \root.Thom[].ExteriorParity[X := Geometry.Total, F := Native.FirstFiber, G := Native.SecondFiber,
+  left := Native.firstBundle, right := Native.secondBundle, sameBase := (\refl(Geometry.topology))] \as ExteriorRoot;
+\import ExteriorRoot.With[data := Global.data].Along[firstSection := GlobalFrame.firstSection, secondSection := GlobalFrame.secondSection] \as Exterior;
+\import Exterior.At[n := firstDegree, m := secondDegree] \as Mixed;
+\definition globalFirstEven: GlobalModels.Bundle := Global.firstEvenModel firstDegree;
+\definition globalFirstOdd: GlobalModels.Bundle := Global.firstOddModel firstDegree;
+\definition globalSecondEven: GlobalModels.Bundle := Global.secondEvenModel secondDegree;
+\definition globalSecondOdd: GlobalModels.Bundle := Global.secondOddModel secondDegree;
+\import \root.Thom[].ComplexProductParity[X := Geometry.Total,
+  F0 := GlobalModels.Fiber globalFirstEven.ranks, F1 := GlobalModels.Fiber globalFirstOdd.ranks,
+  G0 := GlobalModels.Fiber globalSecondEven.ranks, G1 := GlobalModels.Fiber globalSecondOdd.ranks,
+  e0 := GlobalModels.bundle globalFirstEven, e1 := GlobalModels.bundle globalFirstOdd,
+  f0 := GlobalModels.bundle globalSecondEven, f1 := GlobalModels.bundle globalSecondOdd,
+  sameE1 := (\refl(Geometry.topology)), sameF0 := (\refl(Geometry.topology)), sameF1 := (\refl(Geometry.topology))] \as GlobalParity;
+\definition globalFirstD: GlobalModels.Map globalFirstEven globalFirstOdd := Global.firstD firstDegree;
+\definition globalFirstE: GlobalModels.Map globalFirstOdd globalFirstEven := Global.firstE firstDegree;
+\definition globalSecondD: GlobalModels.Map globalSecondEven globalSecondOdd := Global.secondD secondDegree;
+\definition globalSecondE: GlobalModels.Map globalSecondOdd globalSecondEven := Global.secondE secondDegree;
+\definition firstEvenOnDisk: Models.Bundle := GlobalModels.Pullback[b := globalFirstEven, Y := Product.Z, source := Product.topology, f := g, regular := gContinuous].value;
+\definition firstOddOnDisk: Models.Bundle := GlobalModels.Pullback[b := globalFirstOdd, Y := Product.Z, source := Product.topology, f := g, regular := gContinuous].value;
+\definition secondEvenOnDisk: Models.Bundle := GlobalModels.Pullback[b := globalSecondEven, Y := Product.Z, source := Product.topology, f := g, regular := gContinuous].value;
+\definition secondOddOnDisk: Models.Bundle := GlobalModels.Pullback[b := globalSecondOdd, Y := Product.Z, source := Product.topology, f := g, regular := gContinuous].value;
+\import Models.Chains[].Of[complex := Restricted.complex] \as Chain;
+\import \root.Thom[].Finite[X := Product.Z, baseSpace := Product.topology] \as Finite;
+\structure Data: \Set := {
+  positive: Bundles.Isomorphisms[X := Product.Z, F := Original.OriginalEven, G := Models.Fiber Restricted.even.ranks,
+    source := Original.originalEvenBundle, target := Models.bundle Restricted.even].Isomorphism,
+  negative: Bundles.Isomorphisms[X := Product.Z, F := Original.OriginalOdd, G := Models.Fiber Restricted.odd.ranks,
+    source := Original.originalOddBundle, target := Models.bundle Restricted.odd].Isomorphism,
+  forward: \forall (p: Product.Z)(v: Original.OriginalEven p) ->
+    (Chain.parity.forward.fiber p).apply ((positive.forward.fiber p).apply v) = (negative.forward.fiber p).apply ((Raw.dGlobal.fiber p).apply v),
+  backward: \forall (p: Product.Z)(v: Original.OriginalOdd p) ->
+    (Chain.parity.backward.fiber p).apply ((negative.forward.fiber p).apply v) = (positive.forward.fiber p).apply ((Raw.eGlobal.fiber p).apply v)
+};
+\module Factors;
+\module Bounds;
+\module With(evenChoice: GlobalModels.From[F := GlobalParity.Even, original := GlobalParity.evenBundle].Result,
+  oddChoice: GlobalModels.From[F := GlobalParity.Odd, original := GlobalParity.oddBundle].Result);
+\definition existence: \exists Data := \block {
+  \takefrom evenChoice: GlobalModels.From[F := GlobalParity.Even, original := GlobalParity.evenBundle].Result
+    \by GlobalModels.From[F := GlobalParity.Even, original := GlobalParity.evenBundle].existence (\refl(Geometry.topology)) \then
+  \takefrom oddChoice: GlobalModels.From[F := GlobalParity.Odd, original := GlobalParity.oddBundle].Result
+    \by GlobalModels.From[F := GlobalParity.Odd, original := GlobalParity.oddBundle].existence (\refl(Geometry.topology)) \then
+  \return \exact(With[evenChoice := evenChoice, oddChoice := oddChoice].data, Data)
+};

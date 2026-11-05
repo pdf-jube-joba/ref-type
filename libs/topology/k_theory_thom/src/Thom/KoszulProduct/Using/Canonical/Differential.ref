@@ -1,0 +1,21 @@
+\import N.Basic[].Def[] \as Nat;
+\import SumCoordinates.With[selection := selectionAt] \as Chosen;
+\import \root.Thom[].Finite[X := Geometry.sumTotal, baseSpace := Geometry.sumTopology] \as Finite;
+\definition term[k: N.Nat^]: Models.Bundle := Chosen.model k;
+\definition differential[k: N.Nat^]: Models.Map (term (N.Nat^::succ k)) (term k) := Chosen.differential k;
+\definition pulledDifferential[k: N.Nat^]: Models.Map (term (N.Nat^::succ k)) (term k) := SourceModels.PullbackMap[p := Encoded.model (N.Nat^::succ k), q := Encoded.model k, Y := Geometry.sumTotal, source := Geometry.sumTopology, f := Geometry.inclusion, regular := Geometry.regular].map (Encoded.differential k);
+\definition identity[k: N.Nat^]: Finite.Iso (term k) (term k) := Bundles.Isomorphisms[X := Geometry.sumTotal,
+  F := Models.Fiber (term k).ranks, G := Models.Fiber (term k).ranks, source := Models.bundle (term k), target := Models.bundle (term k)].Isomorphism {
+    forward := Models.identity (term k), backward := Models.identity (term k),
+    leftInverse := \fun (p: Geometry.sumTotal)(v: Models.Fiber (term k).ranks p) => \refl(v),
+    rightInverse := \fun (p: Geometry.sumTotal)(v: Models.Fiber (term k).ranks p) => \refl(v)
+  };
+\definition sectionEquation[p: Geometry.sumTotal]: Native.primalSection.value (Geometry.inclusion p) = SumKoszul.tautological.value p :=
+  trans!{{SumKoszul.Fiber p}} _ _ _
+    (sym!{{SumKoszul.Fiber p}} _ _ (Primal.forwardFormula p (Primal.sourceSection.value p))) (Primal.sectionFormula p);
+\module At(k: N.Nat^, p: Geometry.sumTotal);
+\definition equation[k: N.Nat^][p: Geometry.sumTotal][v: Models.Fiber (term (N.Nat^::succ k)).ranks p]:
+  ((differential k).fiber p).apply v = ((pulledDifferential k).fiber p).apply v := At[k := k, p := p].equation v;
+\definition commutes[k: N.Nat^][p: Geometry.sumTotal][v: Models.Fiber (term (N.Nat^::succ k)).ranks p]:
+  ((differential k).fiber p).apply (((identity (N.Nat^::succ k)).forward.fiber p).apply v) =
+    ((identity k).forward.fiber p).apply (((pulledDifferential k).fiber p).apply v) := equation k p v;

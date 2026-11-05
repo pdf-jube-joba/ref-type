@@ -1,0 +1,33 @@
+\import FirstBoundary.Insertion[] \as FirstLower;
+\import SecondBoundary.Insertion[] \as SecondLower;
+\import TotalBoundary.Insertion[] \as TotalLower;
+\import ProductLabels.Sign[] \as Color;
+\definition nativePure[k, p, q: N.Nat^][decomposition: Nat.add p q = k][x: X][omega: FirstForm p x][eta: SecondForm q x]: Native k x :=
+  \parent.\parent.\parent.\parent.NativeLeibniz[x := x].Pure[k := k, p := p, q := q, degree := decomposition].value omega eta;
+\definition placed[p, q: N.Nat^][firstSide, secondSide: B.Bool^][x: X][omega: FirstForm p x][eta: SecondForm q x]: Models.Fiber (target (ProductLabels.evenPair firstSide secondSide)).ranks x :=
+  (\parent.\parent.\parent.Slot[firstSide := firstSide, secondSide := secondSide].forward.fiber x).apply
+    (\parent.\parent.\parent.Slot[firstSide := firstSide, secondSide := secondSide].pure x
+      (((FirstLower.degreeInjection n p firstSide).fiber x).apply (((data.first p).isomorphism.forward.fiber x).apply omega))
+      (((SecondLower.degreeInjection m q secondSide).fiber x).apply (((data.second q).isomorphism.forward.fiber x).apply eta)));
+\definition included[k: N.Nat^][side: B.Bool^][x: X][v: Native k x]: Models.Fiber (target side).ranks x :=
+  ((TotalLower.degreeInjection degree k side).fiber x).apply (((data.total k).isomorphism.forward.fiber x).apply v);
+\module Include(k: N.Nat^, side: B.Bool^, x: X);
+\module Placement;
+\module Previous;
+\definition includedPure[k, p, q: N.Nat^][decomposition: Nat.add p q = k][side: B.Bool^][x: X][omega: FirstForm p x][eta: SecondForm q x]:
+  included k side x (nativePure k p q decomposition x omega eta) =
+  included (Nat.add p q) side x (nativePure (Nat.add p q) p q (\refl(Nat.add p q)) x omega eta) :=
+  (\idelim Nat.add p q = k \with j: N.Nat^ => \forall (law: Nat.add p q = j) ->
+    included j side x (nativePure j p q law x omega eta) =
+    included (Nat.add p q) side x (nativePure (Nat.add p q) p q (\refl(Nat.add p q)) x omega eta) \by {
+    base: \fun (law: Nat.add p q = Nat.add p q) => \refl(included (Nat.add p q) side x (nativePure (Nat.add p q) p q (\refl(Nat.add p q)) x omega eta)),
+    equality: decomposition
+  }) decomposition;
+\module Lower(x: X);
+\module Zero;
+\module Decoding(firstSide, secondSide: B.Bool^, s: First.Colored n firstSide, t: Second.Colored m secondSide, x: X,
+  v: Models.Fiber (firstTerm (Labels.degree n s)).ranks x, w: Models.Fiber (secondTerm (Labels.degree m t)).ranks x);
+\module EE;
+\module OO;
+\module EO;
+\module OE;

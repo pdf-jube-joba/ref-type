@@ -1,0 +1,17 @@
+\definition LeftFiber: \Set := Models.Fiber (First.parity n B.Bool^::false).ranks x;
+\definition RightFiber: \Set := Models.Fiber (Second.parity m secondSide).ranks x;
+\definition eSpace: Spaces.VectorSpace LeftFiber := (Models.bundle (First.parity n B.Bool^::false)).space x;
+\definition fSpace: Spaces.VectorSpace RightFiber := (Models.bundle (Second.parity m secondSide)).space x;
+\definition side: B.Bool^ := ProductLabels.evenPair B.Bool^::false secondSide;
+\definition Output: \Set := Models.Fiber (target side).ranks x;
+\definition outputSpace: Spaces.VectorSpace Output := (Models.bundle (target side)).space x;
+\import \parent.\parent.\parent.\parent.Slot[firstSide := B.Bool^::false, secondSide := secondSide] \as Source;
+\import Spaces.Tensor[V := LeftFiber, W := RightFiber, left := eSpace, right := fSpace] \as Raw;
+\import Spaces.Laws[V := LeftFiber, space := eSpace] \as Laws;
+\definition equation[v: LeftFiber][w: RightFiber]: (Source.forward.fiber x).apply (Source.pure x (eSpace.neg v) w) =
+  outputSpace.smul (Op.neg Op.one) ((Source.forward.fiber x).apply (Source.pure x v w)) :=
+  trans!{Output} _ _ _
+    (congr!{LeftFiber Output} (\fun (u: LeftFiber) => (Source.forward.fiber x).apply (Source.pure x u w)) _ _ (sym!{LeftFiber} _ _ (Laws.minusOneScale v)))
+    (trans!{Output} _ _ _
+      (congr!{{Source.Fiber x} Output} (Source.forward.fiber x).apply _ _ (Raw.bilinear.scaleLeft (Op.neg Op.one) v w))
+      ((Source.forward.fiber x).preservesScale (Op.neg Op.one) (Source.pure x v w)));

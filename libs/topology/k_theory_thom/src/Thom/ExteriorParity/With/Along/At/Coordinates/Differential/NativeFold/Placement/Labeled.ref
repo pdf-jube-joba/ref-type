@@ -1,0 +1,35 @@
+\definition p: N.Nat^ := Labels.degree n a;
+\definition q: N.Nat^ := Labels.degree m b;
+\definition firstSide: B.Bool^ := Labels.even n a;
+\definition secondSide: B.Bool^ := Labels.even m b;
+\definition sector: B.Bool^ := ProductLabels.evenPair firstSide secondSide;
+\definition label: Labels.Index degree := ProductLabels.join m b n a;
+\definition k: N.Nat^ := Labels.degree degree label;
+\definition decomposition: Nat.add p q = k := sym!{{N.Nat^}} _ _ (ProductLabels.joinDegree m b n a);
+\definition labelColor: Labels.even degree label = sector := ProductLabels.joinEven m b n a;
+\import \parent.\parent.\parent.\parent.\parent.Slot[firstSide := firstSide, secondSide := secondSide] \as Source;
+\definition firstLabel: First.Colored n firstSide := First.colored n a firstSide (\refl(firstSide));
+\definition secondLabel: Second.Colored m secondSide := Second.colored m b secondSide (\refl(secondSide));
+\import Source.Entry[s := firstLabel, t := secondLabel] \as Entry;
+\import Operations.Tensor[X := X, F := Models.Fiber (firstTerm p).ranks, G := Models.Fiber (secondTerm q).ranks,
+  left := Models.bundle (firstTerm p), right := Models.bundle (secondTerm q)] \as CodedTensor;
+\import Operations.Tensor[X := X, F := FirstForm p, G := SecondForm q, left := firstForms p, right := secondForms q] \as FormTensor;
+\import CodedTensor.Of[same := (\refl(left.baseSpace))].Mapping[Y := X, A := FirstForm p, B := SecondForm q,
+  leftTarget := firstForms p, rightTarget := secondForms q, f := (\fun (y: X) => y)].Of[targetSame := sameBase] \as Decode;
+\import \root.Thom[].SumBundles[X := X, F := F, G := G, left := left, right := right, sameBase := sameBase, k := k]
+  .Component[p := p, q := q, degree := decomposition] \as NativeComponent;
+\module Pure(x: X, omega: FirstForm p x, eta: SecondForm q x);
+
+\definition firstColor: FirstLower.side n p = firstSide := congr!{{Labels.Index n} {B.Bool^}} (Labels.even n) _ _ (ProductLabels.lookupInverse n a);
+\definition secondColor: SecondLower.side m q = secondSide := congr!{{Labels.Index m} {B.Bool^}} (Labels.even m) _ _ (ProductLabels.lookupInverse m b);
+\definition result: Statement p q := \fun (f, g: B.Bool^)(cf: FirstLower.side n p = f)(cg: SecondLower.side m q = g) =>
+  (\idelim firstSide = f \with i: B.Bool^ => \forall (j: B.Bool^) -> secondSide = j -> \forall (x: X)(omega: FirstForm p x)(eta: SecondForm q x) ->
+    placed p q i j x omega eta = included (Nat.add p q) (ProductLabels.evenPair i j) x (nativePure (Nat.add p q) p q (\refl(Nat.add p q)) x omega eta) \by {
+    base: \fun (j: B.Bool^)(law: secondSide = j) =>
+      \idelim secondSide = j \with h: B.Bool^ => \forall (x: X)(omega: FirstForm p x)(eta: SecondForm q x) ->
+        placed p q firstSide h x omega eta = included (Nat.add p q) (ProductLabels.evenPair firstSide h) x (nativePure (Nat.add p q) p q (\refl(Nat.add p q)) x omega eta) \by {
+        base: \fun (x: X)(omega: FirstForm p x)(eta: SecondForm q x) => Pure[x := x, omega := omega, eta := eta].canonical,
+        equality: law
+      },
+    equality: trans!{{B.Bool^}} _ _ _ (sym!{{B.Bool^}} _ _ firstColor) cf
+  }) g (trans!{{B.Bool^}} _ _ _ (sym!{{B.Bool^}} _ _ secondColor) cg);

@@ -1,0 +1,53 @@
+\import \parent.Differential[] \as D;
+\import N.Basic[].Def[] \as Nat;
+\import \root.Thom[].Finite[X := Geometry.Total, baseSpace := Geometry.topology]
+  .Family[term := Encoded.model, differential := Encoded.differential, domain := { z: Geometry.Total \where Logic.False }] \as SourceSequence;
+\import SourceSequence.Pullback[Y := Geometry.sumTotal, targetSpace := Geometry.sumTopology,
+  f := Geometry.inclusion, regular := Geometry.regular] \as Rebase;
+\import \root.Thom[].Finite[X := Geometry.sumTotal, baseSpace := Geometry.sumTopology] \as Finite;
+\import Finite.Family[term := Rebase.pulledTerm, differential := Rebase.pulledDifferential, domain := { p: Geometry.sumTotal \where Logic.False }]
+  .Comparison[targetTerm := D.term, targetDifferential := D.differential, isomorphism := D.identity, commutes := D.commutes] \as Comparison;
+\definition degree: N.Nat^ := Nat.add firstDegree secondDegree;
+\definition originalEven[n: N.Nat^]: SourceModels.Bundle := (Rebase.sourceParity n).even;
+\definition originalOdd[n: N.Nat^]: SourceModels.Bundle := (Rebase.sourceParity n).odd;
+\definition pulledEven[n: N.Nat^]: Models.Bundle := SourceModels.Pullback[b := originalEven n, Y := Geometry.sumTotal, source := Geometry.sumTopology,
+  f := Geometry.inclusion, regular := Geometry.regular].value;
+\definition pulledOdd[n: N.Nat^]: Models.Bundle := SourceModels.Pullback[b := originalOdd n, Y := Geometry.sumTotal, source := Geometry.sumTopology,
+  f := Geometry.inclusion, regular := Geometry.regular].value;
+\definition foldedEven[n: N.Nat^]: Models.Bundle := (Rebase.targetParity n).even;
+\definition foldedOdd[n: N.Nat^]: Models.Bundle := (Rebase.targetParity n).odd;
+\definition targetEven[n: N.Nat^]: Models.Bundle := (Comparison.targetParity n).even;
+\definition targetOdd[n: N.Nat^]: Models.Bundle := (Comparison.targetParity n).odd;
+\definition sourceEven: Models.Bundle := pulledEven degree;
+\definition sourceOdd: Models.Bundle := pulledOdd degree;
+\import SourceModels.PullbackMap[p := originalEven degree, q := originalOdd degree, Y := Geometry.sumTotal, source := Geometry.sumTopology,
+  f := Geometry.inclusion, regular := Geometry.regular] \as PullD;
+\import SourceModels.PullbackMap[p := originalOdd degree, q := originalEven degree, Y := Geometry.sumTotal, source := Geometry.sumTopology,
+  f := Geometry.inclusion, regular := Geometry.regular] \as PullE;
+\definition sourceForward: Models.Map sourceEven sourceOdd := PullD.map (Rebase.sourceParity degree).forward;
+\definition sourceBackward: Models.Map sourceOdd sourceEven := PullE.map (Rebase.sourceParity degree).backward;
+\structure Result[n: N.Nat^]: \Set := {
+  positive: Finite.Iso sourceEven (targetEven n), negative: Finite.Iso sourceOdd (targetOdd n),
+  forward: \forall (p: Geometry.sumTotal)(v: Models.Fiber sourceEven.ranks p) ->
+    ((Comparison.targetParity n).forward.fiber p).apply ((positive.forward.fiber p).apply v) =
+      (negative.forward.fiber p).apply ((sourceForward.fiber p).apply v),
+  backward: \forall (p: Geometry.sumTotal)(v: Models.Fiber sourceOdd.ranks p) ->
+    ((Comparison.targetParity n).backward.fiber p).apply ((negative.forward.fiber p).apply v) =
+      (positive.forward.fiber p).apply ((sourceBackward.fiber p).apply v)
+};
+\module At(n: N.Nat^);
+\definition base: Result degree := Result[degree] {
+  positive := At[n := degree].even, negative := At[n := degree].odd,
+  forward := At[n := degree].forward, backward := At[n := degree].backward
+};
+\definition result: Result Canonical.degree :=
+  \idelim degree = Canonical.degree \with n: N.Nat^ => Result n \by { base: base, equality: Cap.degreeEquation };
+\import Models.Chains[].Of[complex := Canonical.complex] \as TargetChain;
+\definition positive: Finite.Iso sourceEven TargetChain.parity.even := result.positive;
+\definition negative: Finite.Iso sourceOdd TargetChain.parity.odd := result.negative;
+\definition forward[p: Geometry.sumTotal][v: Models.Fiber sourceEven.ranks p]:
+  (TargetChain.parity.forward.fiber p).apply ((positive.forward.fiber p).apply v) =
+    (negative.forward.fiber p).apply ((sourceForward.fiber p).apply v) := result.forward p v;
+\definition backward[p: Geometry.sumTotal][v: Models.Fiber sourceOdd.ranks p]:
+  (TargetChain.parity.backward.fiber p).apply ((negative.forward.fiber p).apply v) =
+    (positive.forward.fiber p).apply ((sourceBackward.fiber p).apply v) := result.backward p v;

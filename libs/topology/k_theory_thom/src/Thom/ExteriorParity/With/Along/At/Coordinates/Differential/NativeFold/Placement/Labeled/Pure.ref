@@ -1,0 +1,34 @@
+\import NativeComponent.Identification[x := x] \as Identification;
+\definition v: Models.Fiber (firstTerm p).ranks x := ((data.first p).isomorphism.forward.fiber x).apply omega;
+\definition w: Models.Fiber (secondTerm q).ranks x := ((data.second q).isomorphism.forward.fiber x).apply eta;
+\definition tensor: CodedTensor.Fiber x := Tensor.componentPure p q x v w;
+\definition decoded: (Entry.decode.fiber x).apply tensor = FormTensor.pure x omega eta :=
+  trans!{{FormTensor.Fiber x}} _ _ _ (Decode.onPure (data.first p).isomorphism.backward (data.second q).isomorphism.backward x v w)
+    (congr!{{FirstForm p x} {SecondForm q x} {FormTensor.Fiber x}} (FormTensor.pure x) _ _ _ _
+      ((data.first p).isomorphism.leftInverse x omega) ((data.second q).isomorphism.leftInverse x eta));
+\definition encoded: (Entry.encoded.fiber x).apply tensor = ((data.total k).isomorphism.forward.fiber x).apply (nativePure k p q decomposition x omega eta) :=
+  trans!{{Models.Fiber (totalTerm k).ranks x}} _ _ _
+    (congr!{{FormTensor.Fiber x} {Models.Fiber (totalTerm k).ranks x}}
+      (\fun (t: FormTensor.Fiber x) => ((data.total k).isomorphism.forward.fiber x).apply ((NativeComponent.inclusion.fiber x).apply t)) _ _ decoded)
+    (congr!{{Native k x} {Models.Fiber (totalTerm k).ranks x}} ((data.total k).isomorphism.forward.fiber x).apply _ _
+      (Identification.equation (FormTensor.pure x omega eta)));
+\definition folded: Models.Fiber (target sector).ranks x := (Source.forward.fiber x).apply (Source.pure x
+  (((First.at n a firstSide (\refl(firstSide))).fiber x).apply v) (((Second.at m b secondSide (\refl(secondSide))).fiber x).apply w));
+\definition fromPlaced: placed p q firstSide secondSide x omega eta = folded :=
+  congr!{{Models.Fiber (First.parity n firstSide).ranks x} {Models.Fiber (Second.parity m secondSide).ranks x} {Models.Fiber (target sector).ranks x}}
+    (\fun (u: Models.Fiber (First.parity n firstSide).ranks x)(z: Models.Fiber (Second.parity m secondSide).ranks x) => (Source.forward.fiber x).apply (Source.pure x u z)) _ _ _ _
+      (FirstLower.atLabel n a firstSide x v) (SecondLower.atLabel m b secondSide x w);
+\definition equation[equal: Nat.add p q = k]: placed p q firstSide secondSide x omega eta =
+  included k sector x (nativePure k p q equal x omega eta) :=
+  trans!{{Models.Fiber (target sector).ranks x}} _ _ _ fromPlaced
+    (trans!{{Models.Fiber (target sector).ranks x}} _ _ _ (Source.onPair firstLabel secondLabel x v w)
+      (trans!{{Models.Fiber (target sector).ranks x}} _ _ _
+        (congr!{{Models.Fiber (totalTerm k).ranks x} {Models.Fiber (target sector).ranks x}} ((Total.at degree label sector labelColor).fiber x).apply _ _ encoded)
+        (sym!{{Models.Fiber (target sector).ranks x}} _ _ (TotalLower.atLabel degree label sector x (((data.total k).isomorphism.forward.fiber x).apply (nativePure k p q equal x omega eta))))));
+\definition canonical: placed p q firstSide secondSide x omega eta =
+  included (Nat.add p q) sector x (nativePure (Nat.add p q) p q (\refl(Nat.add p q)) x omega eta) :=
+  (\idelim k = Nat.add p q \with j: N.Nat^ => \forall (law: Nat.add p q = j) -> placed p q firstSide secondSide x omega eta =
+    included j sector x (nativePure j p q law x omega eta) \by {
+      base: equation,
+      equality: ProductLabels.joinDegree m b n a
+    }) (\refl(Nat.add p q));

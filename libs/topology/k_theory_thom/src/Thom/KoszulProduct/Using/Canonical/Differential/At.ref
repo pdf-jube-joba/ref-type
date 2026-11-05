@@ -1,0 +1,30 @@
+\definition z: Geometry.Total := Geometry.inclusion p;
+\import \root.Thom[].Contraction[X := Geometry.Total, F := Native.PrimalFiber, bundle := Native.primalBundle, section := Native.primalSection, k := k] \as Raw;
+\import SumKoszul.Degree[k := k] \as CanonicalRaw;
+\definition contractionEquation[omega: Native.Form (N.Nat^::succ k) z]:
+  (CanonicalRaw.differential.fiber p).apply omega = (Raw.map.fiber z).apply omega :=
+  congr!{{Native.PrimalFiber z} {Native.Form k z}}
+    (\fun (v: Native.PrimalFiber z) => Spaces.Multilinear[V := Native.PrimalFiber z, space := Native.primalBundle.space z].Alternating[].Contraction[k := k].apply omega v) _ _
+    (sym!{{Native.PrimalFiber z}} _ _ (sectionEquation p));
+\definition chain[omega: Native.Term (N.Nat^::succ k) z]:
+  ((Native.toForm k).forward.fiber z).apply (((Native.rawDifferential k).fiber z).apply omega) =
+    (Raw.map.fiber z).apply (((Native.toForm (N.Nat^::succ k)).forward.fiber z).apply omega) :=
+  (Native.toForm k).rightInverse z ((Raw.map.fiber z).apply (((Native.toForm (N.Nat^::succ k)).forward.fiber z).apply omega));
+\definition rawEquation[omega: Native.Term (N.Nat^::succ k) z]:
+  ((Native.toForm k).backward.fiber z).apply ((CanonicalRaw.differential.fiber p).apply (((Native.toForm (N.Nat^::succ k)).forward.fiber z).apply omega)) =
+    ((Native.rawDifferential k).fiber z).apply omega :=
+  trans!{{Native.Term k z}} _ _ _
+    (congr!{{Native.Form k z} {Native.Term k z}} ((Native.toForm k).backward.fiber z).apply _ _
+      (contractionEquation (((Native.toForm (N.Nat^::succ k)).forward.fiber z).apply omega)))
+    (trans!{{Native.Term k z}} _ _ _
+      (congr!{{Native.Form k z} {Native.Term k z}} ((Native.toForm k).backward.fiber z).apply _ _ (sym!{{Native.Form k z}} _ _ (chain omega)))
+      ((Native.toForm k).leftInverse z (((Native.rawDifferential k).fiber z).apply omega)));
+\definition equation[v: Models.Fiber (term (N.Nat^::succ k)).ranks p]:
+  ((differential k).fiber p).apply v = ((pulledDifferential k).fiber p).apply v :=
+  trans!{{Models.Fiber (term k).ranks p}} _ _ _
+    (congr!{{SumKoszul.Term (N.Nat^::succ k) p} {Models.Fiber (term k).ranks p}}
+      (\fun (omega: SumKoszul.Term (N.Nat^::succ k) p) => (Chosen.encode k p).apply ((CanonicalRaw.differential.fiber p).apply omega)) _ _
+      (\parent.\parent.At[k := N.Nat^::succ k].decodeFormula p v))
+    (trans!{{Models.Fiber (term k).ranks p}} _ _ _
+      (\parent.\parent.At[k := k].encodeFormula p ((CanonicalRaw.differential.fiber p).apply (((Native.toForm (N.Nat^::succ k)).forward.fiber z).apply ((Encoded.decode (N.Nat^::succ k) z).apply v))))
+      (congr!{{Native.Term k z} {Models.Fiber (term k).ranks p}} (Encoded.encode k z).apply _ _ (rawEquation ((Encoded.decode (N.Nat^::succ k) z).apply v))));

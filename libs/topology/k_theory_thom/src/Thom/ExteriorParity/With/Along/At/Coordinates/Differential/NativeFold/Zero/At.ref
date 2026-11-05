@@ -1,0 +1,31 @@
+\definition LeftFiber: \Set := Models.Fiber (First.parity n firstSide).ranks x;
+\definition RightFiber: \Set := Models.Fiber (Second.parity m secondSide).ranks x;
+\definition leftSpace: Spaces.VectorSpace LeftFiber := (Models.bundle (First.parity n firstSide)).space x;
+\definition rightSpace: Spaces.VectorSpace RightFiber := (Models.bundle (Second.parity m secondSide)).space x;
+\definition side: B.Bool^ := ProductLabels.evenPair firstSide secondSide;
+\definition Output: \Set := Models.Fiber (target side).ranks x;
+\definition outputSpace: Spaces.VectorSpace Output := (Models.bundle (target side)).space x;
+\import \parent.\parent.\parent.\parent.\parent.Slot[firstSide := firstSide, secondSide := secondSide] \as Source;
+\import Contraction.TensorZero[V := LeftFiber, W := RightFiber, first := leftSpace, second := rightSpace] \as TensorZero;
+\definition firstValue[omega: FirstForm p x]: LeftFiber := ((FirstLower.degreeInjection n p firstSide).fiber x).apply (((data.first p).isomorphism.forward.fiber x).apply omega);
+\definition secondValue[eta: SecondForm q x]: RightFiber := ((SecondLower.degreeInjection m q secondSide).fiber x).apply (((data.second q).isomorphism.forward.fiber x).apply eta);
+\definition firstOrigin: firstValue ((firstForms p).space x).zero = leftSpace.zero :=
+  trans!{LeftFiber} _ _ _
+    (congr!{{Models.Fiber (firstTerm p).ranks x} LeftFiber} ((FirstLower.degreeInjection n p firstSide).fiber x).apply _ _ ((data.first p).isomorphism.forward.fiber x).preservesZero)
+    ((FirstLower.degreeInjection n p firstSide).fiber x).preservesZero;
+\definition secondOrigin: secondValue ((secondForms q).space x).zero = rightSpace.zero :=
+  trans!{RightFiber} _ _ _
+    (congr!{{Models.Fiber (secondTerm q).ranks x} RightFiber} ((SecondLower.degreeInjection m q secondSide).fiber x).apply _ _ ((data.second q).isomorphism.forward.fiber x).preservesZero)
+    ((SecondLower.degreeInjection m q secondSide).fiber x).preservesZero;
+\definition first[eta: SecondForm q x]: placed p q firstSide secondSide x ((firstForms p).space x).zero eta = outputSpace.zero :=
+  trans!{Output} _ _ _
+    (congr!{LeftFiber Output} (\fun (u: LeftFiber) => (Source.forward.fiber x).apply (Source.pure x u (secondValue eta))) _ _ firstOrigin)
+    (trans!{Output} _ _ _
+      (congr!{{Source.Fiber x} Output} (Source.forward.fiber x).apply _ _ (TensorZero.leftZero (secondValue eta)))
+      (Source.forward.fiber x).preservesZero);
+\definition second[omega: FirstForm p x]: placed p q firstSide secondSide x omega ((secondForms q).space x).zero = outputSpace.zero :=
+  trans!{Output} _ _ _
+    (congr!{RightFiber Output} (\fun (u: RightFiber) => (Source.forward.fiber x).apply (Source.pure x (firstValue omega) u)) _ _ secondOrigin)
+    (trans!{Output} _ _ _
+      (congr!{{Source.Fiber x} Output} (Source.forward.fiber x).apply _ _ (TensorZero.rightZero (firstValue omega)))
+      (Source.forward.fiber x).preservesZero);

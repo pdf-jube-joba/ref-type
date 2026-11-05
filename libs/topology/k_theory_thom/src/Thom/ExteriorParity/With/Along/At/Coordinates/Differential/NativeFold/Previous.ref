@@ -1,0 +1,39 @@
+\definition tailSide[n: N.Nat^][s: Labels.Index n]: FirstLower.side (N.Nat^::succ n) (Labels.degree n s) = Labels.flip (Labels.even n s) :=
+  congr!{{Labels.Index (N.Nat^::succ n)} {B.Bool^}} (Labels.even (N.Nat^::succ n)) _ _ (ProductLabels.lookupInverse (N.Nat^::succ n) (Labels.Index::tail n s));
+\definition StepStatement[n, k: N.Nat^]: \Prop := FirstLower.side (N.Nat^::succ n) k = Labels.flip (FirstLower.side (N.Nat^::succ n) (N.Nat^::succ k));
+\definition step[n, k: N.Nat^][bound: Naturals.Le k n]: StepStatement n k :=
+  \idelim Labels.degree n (Labels.rawLookup n k) = k \with j: N.Nat^ => StepStatement n j \by {
+    base: trans!{{B.Bool^}} _ _ _ (tailSide n (Labels.rawLookup n k))
+      (congr!{{B.Bool^} {B.Bool^}} Labels.flip _ _ (sym!{{B.Bool^}} _ _ (FirstLower.nextSide n (Labels.rawLookup n k)))),
+    equality: Labels.lookupDegree n k bound
+  };
+\definition side[n, k: N.Nat^][bound: Naturals.Le (N.Nat^::succ k) n]: FirstLower.side n k = Labels.flip (FirstLower.side n (N.Nat^::succ k)) :=
+  (\induction (n: N.Nat^) \return Naturals.Le (N.Nat^::succ k) n -> FirstLower.side n k = Labels.flip (FirstLower.side n (N.Nat^::succ k)) \with {
+    | zero: \fun (bound: _) => Logic.falseElim[FirstLower.side N.Nat^::zero k = Labels.flip (FirstLower.side N.Nat^::zero (N.Nat^::succ k))]
+      (Naturals.succNeZero k (Naturals.leZeroEq (N.Nat^::succ k) bound))
+    | succ: \fun (n: N.Nat^)(unused: _)(bound: _) => step n k (Naturals.leOfSuccSucc k n bound)
+  }) n bound;
+\definition bound[n, k: N.Nat^][positive: Naturals.Le (N.Nat^::succ k) n]: Naturals.Le k n :=
+  Naturals.leTrans k (N.Nat^::succ k) n (Naturals.leSelfSucc k) positive;
+\definition label[p, q: N.Nat^]: Labels.Index degree := ProductLabels.join m (Labels.rawLookup m q) n (Labels.rawLookup n p);
+\definition labelDegree[p, q: N.Nat^][firstBound: Naturals.Le p n][secondBound: Naturals.Le q m]: Labels.degree degree (label p q) = Nat.add p q :=
+  trans!{{N.Nat^}} _ _ _ (ProductLabels.joinDegree m (Labels.rawLookup m q) n (Labels.rawLookup n p))
+    (congr!{{N.Nat^} {N.Nat^} {N.Nat^}} Nat.add _ _ _ _ (Labels.lookupDegree n p firstBound) (Labels.lookupDegree m q secondBound));
+\definition totalBound[p, q: N.Nat^][firstBound: Naturals.Le p n][secondBound: Naturals.Le q m]: Naturals.Le (Nat.add p q) degree :=
+  \idelim Labels.degree degree (label p q) = Nat.add p q \with j: N.Nat^ => Naturals.Le j degree \by {
+    base: Labels.degreeBound degree (label p q), equality: labelDegree p q firstBound secondBound
+  };
+\definition totalLabel[p, q: N.Nat^][firstBound: Naturals.Le p n][secondBound: Naturals.Le q m]: Labels.rawLookup degree (Nat.add p q) = label p q :=
+  trans!{{Labels.Index degree}} _ _ _
+    (congr!{{N.Nat^} {Labels.Index degree}} (Labels.rawLookup degree) _ _ (sym!{{N.Nat^}} _ _ (labelDegree p q firstBound secondBound)))
+    (ProductLabels.lookupInverse degree (label p q));
+\definition totalColor[p, q: N.Nat^][firstBound: Naturals.Le p n][secondBound: Naturals.Le q m][firstSide, secondSide: B.Bool^]
+  [firstColor: FirstLower.side n p = firstSide][secondColor: SecondLower.side m q = secondSide]:
+  TotalLower.side degree (Nat.add p q) = ProductLabels.evenPair firstSide secondSide :=
+  trans!{{B.Bool^}} _ _ _ (congr!{{Labels.Index degree} {B.Bool^}} (Labels.even degree) _ _ (totalLabel p q firstBound secondBound))
+    (trans!{{B.Bool^}} _ _ _ (ProductLabels.joinEven m (Labels.rawLookup m q) n (Labels.rawLookup n p))
+      (congr!{{B.Bool^} {B.Bool^} {B.Bool^}} ProductLabels.evenPair _ _ _ _ firstColor secondColor));
+\definition firstSign[p: N.Nat^][firstBound: Naturals.Le p n][firstSide: B.Bool^][firstColor: FirstLower.side n p = firstSide]: Sign.value p = Color.color firstSide :=
+  trans!{{C.Complex}} _ _ _ (sym!{{C.Complex}} _ _ (congr!{{N.Nat^} {C.Complex}} Sign.value _ _ (Labels.lookupDegree n p firstBound)))
+    (trans!{{C.Complex}} _ _ _ (sym!{{C.Complex}} _ _ (Color.atEven n evenCutoff (Labels.rawLookup n p)))
+      (congr!{{B.Bool^} {C.Complex}} Color.color _ _ firstColor));

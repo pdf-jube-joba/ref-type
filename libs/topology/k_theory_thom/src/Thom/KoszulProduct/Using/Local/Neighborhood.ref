@@ -1,0 +1,147 @@
+\import Support.On[X := Geometry.Total, space := Geometry.topology, hausdorff := Geometry.hausdorff,
+  locallyCompact := Geometry.locallyCompact] \as Whole;
+\import Whole.Neighborhood[K := Geometry.zeroSection, compact := Geometry.zeroCompact] \as Neighbors;
+\import Support.OnePoint[X := Geometry.Total, space := Geometry.topology] \as Plus;
+\import topology.Topology[Carrier := Geometry.Total] \as Ambient;
+\import Ambient.Finite[] \as Finite;
+\import topology.Topology[Carrier := Plus.Carrier] \as Space;
+\import LeftMetric.With[metric := firstMetric].Neighborhood[] \as FirstBall;
+\import RightMetric.With[metric := secondMetric].Neighborhood[] \as SecondBall;
+\definition firstContains: \forall (p: LeftKoszul.Total) -> \In[LeftKoszul.Total] LeftKoszul.ZeroSection p -> \In[LeftKoszul.Total] FirstFold.openSet p :=
+  \fun (p: LeftKoszul.Total)(zero: \In[LeftKoszul.Total] LeftKoszul.ZeroSection p) =>
+    \idelim FirstBall.ball = FirstFold.openSet \with U: \Pow LeftKoszul.Total => \In[LeftKoszul.Total] U p \by {
+      base: FirstBall.containsZero p zero, equality: sym!{{\Pow LeftKoszul.Total}} _ _ FirstBall.openEquation
+    };
+\definition secondContains: \forall (p: RightKoszul.Total) -> \In[RightKoszul.Total] RightKoszul.ZeroSection p -> \In[RightKoszul.Total] SecondFold.openSet p :=
+  \fun (p: RightKoszul.Total)(zero: \In[RightKoszul.Total] RightKoszul.ZeroSection p) =>
+    \idelim SecondBall.ball = SecondFold.openSet \with U: \Pow RightKoszul.Total => \In[RightKoszul.Total] U p \by {
+      base: SecondBall.containsZero p zero, equality: sym!{{\Pow RightKoszul.Total}} _ _ SecondBall.openEquation
+    };
+\definition containsZero: \forall (p: Geometry.Total) -> \In[Geometry.Total] Geometry.zeroSection p -> \In[Geometry.Total] Rectangle.openSet p :=
+  \fun (p: Geometry.Total)(zero: \In[Geometry.Total] Geometry.zeroSection p) => Logic.And[\In[LeftKoszul.Total] FirstFold.openSet (Geometry.first p), \In[RightKoszul.Total] SecondFold.openSet (Geometry.second p)] {
+    left := firstContains (Geometry.first p) zero.left, right := secondContains (Geometry.second p) zero.right
+  };
+\definition inner: \Pow Plus.Carrier := Plus.lift Rectangle.openSet;
+\definition envelope: \Pow Plus.Carrier := Plus.lift Rectangle.compactSet;
+\definition compactClosed: Ambient.IsClosedIn Geometry.topology Rectangle.compactSet := Ambient.Compactness[].compactClosed Geometry.topology Geometry.hausdorff Rectangle.compactSet Rectangle.compact;
+\definition traceEnvelope: Plus.trace (Space.Complement envelope) = Ambient.Complement Rectangle.compactSet :=
+  \axiom:setext(Plus.trace (Space.Complement envelope), Ambient.Complement Rectangle.compactSet,
+    \fun (p: Geometry.Total)(outside: Ambient.Member (Plus.trace (Space.Complement envelope)) p) => outside,
+    \fun (p: Geometry.Total)(outside: Ambient.Member (Ambient.Complement Rectangle.compactSet) p) => outside);
+\definition remainderEnvelope: Plus.remainder (Space.Complement envelope) = Rectangle.compactSet :=
+  trans!{{\Pow Geometry.Total}} _ _ _ (congr!{{\Pow Geometry.Total} {\Pow Geometry.Total}} Ambient.Complement _ _ traceEnvelope) (Finite.doubleComplement Rectangle.compactSet);
+\definition envelopeClosed: Space.IsClosedIn Plus.topology envelope := Plus.Open[Space.Complement envelope] {
+  traceOpen := topology.Maps[A := Geometry.Total, B := Geometry.Total].openTransport Geometry.topology (Ambient.Complement Rectangle.compactSet) (Plus.trace (Space.Complement envelope))
+    (sym!{{\Pow Geometry.Total}} _ _ traceEnvelope) compactClosed,
+  atInfinity := \fun (outside: Space.Member (Space.Complement envelope) Plus.point) =>
+    \idelim Rectangle.compactSet = Plus.remainder (Space.Complement envelope) \with K: \Pow Geometry.Total => Ambient.IsCompactIn Geometry.topology K \by {
+      base: Rectangle.compact, equality: sym!{{\Pow Geometry.Total}} _ _ remainderEnvelope
+    }
+};
+\import topology.Maps[A := Geometry.Total, B := Plus.Carrier] \as Images;
+\definition witness: Neighbors.Witness := Space.Urysohn[].ShrinkData[Plus.topology, Neighbors.image, Neighbors.finitePart] {
+  inner := inner, envelope := envelope, innerOpen := Plus.liftOpen Rectangle.openSet Rectangle.open, envelopeClosed := envelopeClosed,
+  contains := \fun (p: Plus.Carrier)(member: Space.Member Neighbors.image p) => Images.imageElim Plus.inclusion Geometry.zeroSection p (Space.Member inner p)
+    (\fun (q: Geometry.Total)(zero: \In[Geometry.Total] Geometry.zeroSection q)(same: Plus.inclusion q = p) =>
+      \idelim Plus.inclusion q = p \with z: Plus.Carrier => Space.Member inner z \by { base: containsZero q zero, equality: same }) member,
+  enclosed := \induction (p: Plus.Carrier) \return Space.Member inner p -> Space.Member envelope p \with {
+    | none: \fun (impossible: Logic.False) => Logic.falseElim (Space.Member envelope Plus.point) impossible
+    | some: \fun (p: Geometry.Total)(inside: \In[Geometry.Total] Rectangle.openSet p) => Rectangle.enclosed p inside
+  },
+  within := \induction (p: Plus.Carrier) \return Space.Member envelope p -> Space.Member Neighbors.finitePart p \with {
+    | none: \fun (impossible: Logic.False) => impossible
+    | some: \fun (p: Geometry.Total)(inside: \In[Geometry.Total] Rectangle.compactSet p) => \refl(p)
+  }
+};
+\import Neighbors.With[w := witness] \as Neighbor;
+\definition openEquation: Neighbor.openSet = Rectangle.openSet := Plus.liftTrace Rectangle.openSet;
+\definition compactEquation: Neighbor.compactSet = Rectangle.compactSet := remainderEnvelope;
+\import Whole.FiniteComplexes[].Of[complex := Encoded.complex]
+  .Supported[K := Geometry.zeroSection, compactK := Geometry.zeroCompact, exactOutside := Encoded.exactOutside] \as Supported;
+\import Supported.In[w := witness] \as In;
+\import Whole.Localization[U := Neighbor.openSet, open := Neighbor.open,
+  L := Neighbor.compactSet, compactL := Neighbor.compact, enclosed := Neighbor.enclosed] \as Actual;
+\import Whole.Localization[U := Rectangle.openSet, open := Rectangle.open,
+  L := Rectangle.compactSet, compactL := Rectangle.compact, enclosed := Rectangle.enclosed] \as Canonical;
+\import Relative.Pair[X := Actual.Carrier, space := Actual.topology, compact := Actual.compact, hausdorff := Actual.separated,
+  subset := Actual.boundary, closed := Actual.boundaryClosed] \as ActualPair;
+\import Relative.Pair[X := Canonical.Carrier, space := Canonical.topology, compact := Canonical.compact, hausdorff := Canonical.separated,
+  subset := Canonical.boundary, closed := Canonical.boundaryClosed] \as CanonicalPair;
+\definition shrinks: Ambient.Subset Neighbor.openSet Rectangle.openSet := \fun (p: Geometry.Total)(inside: Ambient.Member Neighbor.openSet p) =>
+  \idelim Neighbor.openSet = Rectangle.openSet \with U: \Pow Geometry.Total => Ambient.Member U p \by { base: inside, equality: openEquation };
+\definition included: Ambient.Subset Rectangle.compactSet Neighbor.compactSet := \fun (p: Geometry.Total)(inside: Ambient.Member Rectangle.compactSet p) =>
+  \idelim Rectangle.compactSet = Neighbor.compactSet \with L: \Pow Geometry.Total => Ambient.Member L p \by {
+    base: inside, equality: sym!{{\Pow Geometry.Total}} _ _ compactEquation
+  };
+\import Canonical.Refinement[V := Neighbor.openSet, openV := Neighbor.open, shrinks := shrinks,
+  M := Neighbor.compactSet, compactM := Neighbor.compact, enclosedV := Neighbor.enclosed, included := included] \as Refinement;
+\import ActualPair.Mapping[Y := Canonical.Carrier, source := Canonical.topology, sourceCompact := Canonical.compact,
+  sourceHausdorff := Canonical.separated, sourceSubset := Canonical.boundary, sourceClosed := Canonical.boundaryClosed,
+  f := Refinement.map, regular := Refinement.continuous, preserves := Refinement.preserves] \as Mapping;
+\import Rectangle.Quotient[] \as Quotient;
+\import Rectangle.CompactCoordinates[] \as Coordinates;
+\import Relative.Equivalence[source := ProductQ.model, target := CanonicalPair.Quotient[].model]
+  .With[e := Quotient.equivalence].Groups[] \as Groups;
+\definition Contraction: \Set := In.Contraction;
+\definition contractions: \exists Contraction := In.contractions;
+\definition localValue[c: Contraction]: ActualPair.Quotient[].Relative := In.With[contraction := c].localValue;
+\definition value[c: Contraction]: ProductQ.Relative := Groups.forward (Mapping.relative (localValue c));
+\definition equation: \forall (c: Contraction) -> Encoded.value = Localization.extension (value c) :=
+  \fun (c: Contraction) => trans!{{Geometry.Carrier}} _ _ _ (Supported.agreement witness)
+    (trans!{{Geometry.Carrier}} _ _ _ (In.agreement c)
+      (trans!{{Geometry.Carrier}} _ _ _ (sym!{{Geometry.Carrier}} _ _ (Refinement.equation (localValue c)))
+        (sym!{{Geometry.Carrier}} _ _
+          (congr!{{CanonicalPair.Quotient[].Relative} {Geometry.Carrier}} Canonical.extend _ _ (Groups.rightInverse (Mapping.relative (localValue c)))))));
+\definition map[p: Product.Z]: Actual.Carrier := Refinement.map (Coordinates.forward p);
+\definition continuous: topology.Continuity[A := Product.Z, B := Actual.Carrier].Continuous Product.topology Actual.topology map :=
+  topology.Composition[A := Product.Z, B := Canonical.Carrier, C := Actual.Carrier].composeContinuous Product.topology Canonical.topology Actual.topology
+    Coordinates.forward Refinement.map Coordinates.forwardContinuous Refinement.continuous;
+\definition preserves: \forall (p: Product.Z) -> \In[Product.Z] Product.boundary p -> \In[Actual.Carrier] Actual.boundary (map p) :=
+  \fun (p: Product.Z)(boundary: \In[Product.Z] Product.boundary p) => Refinement.preserves (Coordinates.forward p) (Coordinates.preserves p boundary);
+\import ActualPair.Mapping[Y := Product.Z, source := Product.topology, sourceCompact := Product.compactProduct,
+  sourceHausdorff := Product.hausdorffProduct, sourceSubset := Product.boundary, sourceClosed := Product.boundaryClosed,
+  f := map, regular := continuous, preserves := preserves] \as ProductMapping;
+\definition localModel: Relative.CompactPointed := ActualPair.Quotient[].model;
+\definition productModel: Relative.CompactPointed := ProductQ.model;
+\definition actualLocal: \Set := Actual.Carrier;
+\definition actualTopology: topology.Topology[Carrier := actualLocal].Topology := Actual.topology;
+\definition actualCompact: topology.Topology[Carrier := actualLocal].IsCompact actualTopology := Actual.compact;
+\definition actualHausdorff: topology.Topology[Carrier := actualLocal].IsT2 actualTopology := Actual.separated;
+\definition actualBoundary: \Pow actualLocal := Actual.boundary;
+\definition actualBoundaryClosed: topology.Topology[Carrier := actualLocal].IsClosedIn actualTopology actualBoundary := Actual.boundaryClosed;
+\import CanonicalPair.Mapping[Y := Product.Z, source := Product.topology, sourceCompact := Product.compactProduct,
+  sourceHausdorff := Product.hausdorffProduct, sourceSubset := Product.boundary, sourceClosed := Product.boundaryClosed,
+  f := Coordinates.forward, regular := Coordinates.forwardContinuous, preserves := Coordinates.preserves] \as BoxMapping;
+\import Relative.Composition[source := ProductQ.model, middle := CanonicalPair.Quotient[].model, target := localModel,
+  first := Quotient.forward, second := Mapping.quotientMap] \as Composite;
+\definition onProjection: \forall (p: Product.Z) -> Composite.map (ProductQ.projection p) = ProductMapping.quotientMap (ProductQ.projection p) :=
+  \fun (p: Product.Z) => trans!{{localModel.Carrier}} _ _ _
+    (congr!{{CanonicalPair.Quotient[].Carrier} {localModel.Carrier}} Mapping.quotientMap _ _ (BoxMapping.onProjection p))
+    (trans!{{localModel.Carrier}} _ _ _ (Mapping.onProjection (Coordinates.forward p)) (sym!{{localModel.Carrier}} _ _ (ProductMapping.onProjection p)));
+\definition mapEquation: Composite.map = ProductMapping.quotientMap :=
+  ProductQ.MapsEqual[target := localModel].pointwise Composite.map ProductMapping.quotientMap onProjection;
+\definition mappingFormula: \forall (c: Contraction) -> value c = ProductMapping.relative (localValue c) :=
+  \fun (c: Contraction) => trans!{{ProductQ.Relative}} _ _ _
+    (sym!{{ProductQ.Relative}} _ _ (Relative.PullbackComposition[source := ProductQ.model, middle := CanonicalPair.Quotient[].model, target := localModel,
+      first := Quotient.forward, second := Mapping.quotientMap].equation (localValue c)))
+    (congr!{{Relative.Map ProductQ.model localModel} {ProductQ.Relative}}
+      (\fun (f: Relative.Map ProductQ.model localModel) => Relative.Pullback[source := ProductQ.model, target := localModel, f := f].map (localValue c)) _ _ mapEquation);
+\definition boundary[p: ProductPair.A]: ActualPair.A := \into[Actual.Carrier](map p, Actual.boundary) \by {
+  preserves p (\bysub(Product.Z, Product.boundary, p))
+};
+\definition boundaryRegular: topology.Continuity[A := ProductPair.A, B := ActualPair.A].Continuous ProductPair.subspace ActualPair.subspace boundary :=
+  topology.Continuity[A := ProductPair.A, B := Actual.Carrier].Corestriction[S := Actual.boundary].corestrictContinuous ProductPair.subspace Actual.topology boundary
+    (topology.Composition[A := ProductPair.A, B := Product.Z, C := Actual.Carrier].composeContinuous ProductPair.subspace Product.topology Actual.topology
+      (\fun (p: ProductPair.A) => p) map
+      (topology.Continuity[A := ProductPair.A, B := Product.Z].Corestriction[S := Product.boundary].inclusionContinuous Product.topology) continuous);
+\definition underlying: \forall (p: Product.Z) -> Actual.inclusion (map p) = g p := \fun (p: Product.Z) => \refl(g p);
+\definition outside: \forall (p: ProductPair.A) -> Logic.Not (\In[Geometry.Total] Geometry.zeroSection (g p)) :=
+  \fun (p: ProductPair.A)(zero: \In[Geometry.Total] Geometry.zeroSection (g p)) =>
+    (\bysub(Geometry.Total, Ambient.Complement Geometry.zeroSection, In.outside (boundary p)))
+      (\idelim g p = Actual.inclusion (map p) \with z: Geometry.Total => \In[Geometry.Total] Geometry.zeroSection z \by {
+        base: zero, equality: sym!{{Geometry.Total}} _ _ (underlying p)
+      });
+\import \root.Thom[].RelativeComplex[X := Product.Z, space := Product.topology, compact := Product.compactProduct,
+  hausdorff := Product.hausdorffProduct, subset := Product.boundary, closed := Product.boundaryClosed, complex := Restricted.complex] \as RC;
+\definition restrictedExact: RC.Exact := \fun (p: ProductPair.A) => Restricted.exactOutside p (outside p);
+\definition restrictedValue: ProductQ.Relative := RC.Supported[exact := restrictedExact].value;

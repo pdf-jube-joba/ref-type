@@ -17,3 +17,30 @@
 \import Factory[firstForward := firstOperator B.Bool^::true, firstBackward := firstOperator B.Bool^::false,
   secondForward := secondOperator B.Bool^::true, secondBackward := secondOperator B.Bool^::false] \as Contraction;
 \definition coded[side: B.Bool^]: Models.Map (model side) (model (Labels.flip side)) := Contraction.coded side;
+\module NativeFold;
+\module Fold(x: X);
+\definition evenCommutes[x: X][v: Models.Fiber (model B.Bool^::true).ranks x]:
+  ((totalOperator B.Bool^::true).fiber x).apply (((forwardCode B.Bool^::true).fiber x).apply v) =
+  ((forwardCode B.Bool^::false).fiber x).apply (((coded B.Bool^::true).fiber x).apply v) :=
+  trans!{{Models.Fiber (target B.Bool^::false).ranks x}} _ _ _
+    (Fold[x := x].even ((evenChoice.isomorphism.backward.fiber x).apply v))
+    (congr!{{Parity.Odd x} {Models.Fiber (target B.Bool^::false).ranks x}} (forwardOdd.fiber x).apply _ _
+      (sym!{{Parity.Odd x}} _ _ (oddChoice.isomorphism.leftInverse x ((Contraction.forward.fiber x).apply ((evenChoice.isomorphism.backward.fiber x).apply v)))));
+
+\definition oddCommutes[x: X][v: Models.Fiber (model B.Bool^::false).ranks x]:
+  ((totalOperator B.Bool^::false).fiber x).apply (((forwardCode B.Bool^::false).fiber x).apply v) =
+  ((forwardCode B.Bool^::true).fiber x).apply (((coded B.Bool^::false).fiber x).apply v) :=
+  trans!{{Models.Fiber (target B.Bool^::true).ranks x}} _ _ _
+    (Fold[x := x].odd ((oddChoice.isomorphism.backward.fiber x).apply v))
+    (congr!{{Parity.Even x} {Models.Fiber (target B.Bool^::true).ranks x}} (forwardEven.fiber x).apply _ _
+      (sym!{{Parity.Even x}} _ _ (evenChoice.isomorphism.leftInverse x ((Contraction.backward.fiber x).apply ((oddChoice.isomorphism.backward.fiber x).apply v)))));
+
+\definition commutes: \forall (side: B.Bool^)(x: X)(v: Models.Fiber (model side).ranks x) ->
+  ((totalOperator side).fiber x).apply (((forwardCode side).fiber x).apply v) =
+  ((forwardCode (Labels.flip side)).fiber x).apply (((coded side).fiber x).apply v) :=
+  \induction (side: B.Bool^) \return \forall (x: X)(v: Models.Fiber (model side).ranks x) ->
+    ((totalOperator side).fiber x).apply (((forwardCode side).fiber x).apply v) =
+    ((forwardCode (Labels.flip side)).fiber x).apply (((coded side).fiber x).apply v) \with {
+      | false: oddCommutes
+      | true: evenCommutes
+    };

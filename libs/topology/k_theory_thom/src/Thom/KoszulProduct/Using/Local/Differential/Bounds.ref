@@ -1,0 +1,26 @@
+\import N.Order[].Prop[] \as Order;
+\definition beyond: \forall (n, p: N.Nat^) -> Logic.Not (Naturals.Le p n) -> Naturals.Lt n p :=
+  \induction (n: N.Nat^) \return \forall (p: N.Nat^) -> Logic.Not (Naturals.Le p n) -> Naturals.Lt n p \with {
+    | zero: \induction (p: N.Nat^) \return Logic.Not (Naturals.Le p N.Nat^::zero) -> Naturals.Lt N.Nat^::zero p \with {
+      | zero: \fun (negative: _) => Logic.falseElim _ (negative (Naturals.leRefl N.Nat^::zero))
+      | succ: \fun (p: N.Nat^)(unused: _)(negative: _) => \refl(B.Bool^::true)
+    }
+    | succ: \fun (n: N.Nat^)(previous: _) => \induction (p: N.Nat^) \return Logic.Not (Naturals.Le p (N.Nat^::succ n)) -> Naturals.Lt (N.Nat^::succ n) p \with {
+      | zero: \fun (negative: _) => Logic.falseElim _ (negative (Naturals.zeroLe (N.Nat^::succ n)))
+      | succ: \fun (p: N.Nat^)(unused: _)(negative: _) => previous p negative
+    }
+  };
+\definition firstDegreeEven: \forall (bound: N.Nat^) -> Sign.value (LeftFor.degreeOf bound) = Scalar.one :=
+  \induction (bound: N.Nat^) \return Sign.value (LeftFor.degreeOf bound) = Scalar.one \with {
+    | zero: Sign.doubleNegative Scalar.one
+    | succ: \fun (bound: N.Nat^)(previous: _) => trans!{{C.Complex}} _ _ _ (Sign.doubleNegative (Sign.value (LeftFor.degreeOf bound))) previous
+  };
+\definition evenCutoff: Sign.value firstDegree = Scalar.one := firstDegreeEven firstData.bound;
+\definition firstVanishing[p: N.Nat^][negative: Logic.Not (Naturals.Le p firstDegree)][z: Geometry.Total][omega: ExteriorRoot.FirstForm p z]:
+  omega = ((ExteriorRoot.firstForms p).space z).zero :=
+  LeftKoszul.Compact[compact := compact].zeroAbove firstData.bound firstData.rankBound p
+    (Order.ltTrans firstData.bound firstDegree p (LeftFor.degreeAbove firstData.bound) (beyond firstDegree p negative)) (Geometry.first z) omega;
+\definition secondVanishing[p: N.Nat^][negative: Logic.Not (Naturals.Le p secondDegree)][z: Geometry.Total][omega: ExteriorRoot.SecondForm p z]:
+  omega = ((ExteriorRoot.secondForms p).space z).zero :=
+  RightKoszul.Compact[compact := rightCompact].zeroAbove secondData.bound secondData.rankBound p
+    (Order.ltTrans secondData.bound secondDegree p (RightFor.degreeAbove secondData.bound) (beyond secondDegree p negative)) (Geometry.second z) omega;
