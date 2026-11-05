@@ -24,9 +24,10 @@ Dedekind 実数上の Lebesgue 測度、滑らかなコンパクト台関数、�
 
 `Linear[n].Generated.measure` は任意の可逆線形写像 \(L\) と任意集合 \(S\) に対し、
 \[
-\lambda_n(L(S))=|\det L|\lambda_n(S)
+\lambda_n^*(L(S))=|\det L|\lambda_n^*(S)
 \]
-を拡張非負実数の下切断として証明する。
+を外測度の拡張非負実数の下切断として証明する。
+可測集合では Lebesgue 測度の変換則となる。
 `measurable` は Lebesgue 可測性の保存を示す。
 `Elementary.Elimination.factorization` が零次元を含む有限初等変換分解を構成し、対角変換、せん断、合成の測度公式へ接続する。
 `OpenTransport` は同相写像の開集合上の定数倍則を外測度の外正則性で任意集合へ拡張し、Carathéodory 可測性を移す。
@@ -65,7 +66,7 @@ Dedekind 実数上の Lebesgue 測度、滑らかなコンパクト台関数、�
 `IntegrationByParts` は積の微分から境界付き部分積分を導く。
 Fubini の例外零集合を扱い、境界差の可積分性も結論に含む。
 `Bridge[n]` は積空間と \(\mathbb R^{n+1}\) の座標を結合し、Borel 集合上の測度比較と可積分代表の輸送を証明する。
-その `Strip`、`Rectangle`、`IntegrationByParts` の各 `For.theorem` と `Strip.HalfSpace.theorem` が実際の Euclid 測度による境界公式であり、`Permutation` は任意座標への置換版である。
+その `Strip`、`Rectangle`、`IntegrationByParts` の各 `For.theorem` と `Strip.HalfSpace.theorem` が実際の Euclid 測度による境界公式であり、`Permuted` は任意座標への置換版である。
 座標関数の Borel 可測性は明示する。
 
 ## 密度と最高次形式
