@@ -84,7 +84,7 @@ H_t(x)=((1-t)f(x),t g(x))\in\mathbb R^{a+b}
 
 `dimension`、`formula`、`recover` が次元の保存、前合成の式、逆微分同相による回収を与える。
 
-`Naturality.On.Comparison[left,right]` は任意の二つの存在定理の結果を比較し、安定化した埋め込み、両端の式、端の近傍を固定する滑らかな族を公開する。
+`Naturality.On.Comparison[left,right]` は任意の二つの存在定理の結果を比較し、安定化した埋め込み、両端の式、パラメータ区間の外側で端を固定する滑らかな族を公開する。
 
 `Examples.Point.exists` は零次元 Euclid 空間の一点に存在定理を適用する。
 
@@ -94,20 +94,20 @@ H_t(x)=((1-t)f(x),t g(x))\in\mathbb R^{a+b}
 
 ## 境界付き多様体と厳密な collar 整合性
 
-`NeatExistence[n].On[M].With[cover].Compact[compact].exists` は、次元が `1+n` のコンパクトな境界付き多様体に対して `Result` を構成する。
+`NeatExistence[n].On[M].With[cover].Compact[compact].exists` は、次元が \(1+n\) のコンパクトな境界付き多様体に対して `Result` を構成する。
 `cover` は既存の境界チャート被覆である。
 結果は有限次元 `dimension`、構成した collar と正の幅、および実際の `boundary_manifolds.Neat.Embedding` を持つ。
 標的 `HalfSpace[k].manifold` は Euclid 空間と非負半直線の積で、`HalfSpace.coordinates` とその逆が通常の有限次元半空間との座標同一視を与える。
 
 まず滑らかな double を構成し、元の多様体の片側包含が immersion であることを collar と内部の座標で証明する。
-double のコンパクト性と境界の空性から上の閉多様体定理を適用し、Euclid 埋め込み `e` を得る。
-collar 時間から構成した大域的な高さ `h` は境界上でちょうど零、内部で正であり、境界の内向き法線微分は正方向へ全射になる。
+double のコンパクト性と境界の空性から上の閉多様体定理を適用し、Euclid 埋め込み \(e\) を得る。
+collar 時間から構成した大域的な高さ \(h\) は境界上でちょうど零、内部で正であり、境界の内向き法線微分は正方向へ全射になる。
 
-さらに collar 内の時間を滑らかに潰す写像 `r` を構成する。
-十分狭い collar では `r(c(b,t))=b`、collar のコンパクトな台の外では `r` は恒等写像である。
-最終的な埋め込みは `x ↦ (e(r(x)),h(x))` である。
-`r` と `h` の組が点を分離し、その微分の組も単射になることを証明する。
-したがって `Result.compatible` は、ある正の幅の collar 上で厳密な積の式 `F(c(b,t))=(F_boundary(b),t)` を保証する。
+さらに collar 内の時間を滑らかに潰す写像 \(r\) を構成する。
+十分狭い collar では \(r(c(b,t))=b\)、collar のコンパクトな台の外では \(r\) は恒等写像である。
+最終的な埋め込みは \(x\mapsto(e(r(x)),h(x))\) である。
+\(r\) と \(h\) の組が点を分離し、その微分の組も単射になることを証明する。
+したがって `Result.compatible` は、ある正の幅の collar 上で厳密な積の式 \(F(c(b,t))=(F_{\partial}(b),t)\) を保証する。
 
 | API | 内容 |
 | --- | --- |
@@ -122,7 +122,6 @@ collar 時間から構成した大域的な高さ `h` は境界上でちょう�
 `Examples.Interval.Compactness.compact` は具体的な閉区間のコンパクト性を証明する。
 `Examples.Interval.Neat.exists` は存在定理をその区間に適用し、`Of[result]` は両端だけが標的境界に写ること、両端の像が異なること、厳密な collar 整合性を公開する。
 
-
 ## 検査
 
-固定ソースと通常キャッシュを用いた package・依存回帰・全体検査の記録は [benchmarks/records/compact-embeddings](../../../../benchmarks/records/compact-embeddings/README.md) にある。
+固定ソースと通常キャッシュを用いた package・依存回帰・全体検査の記録は [benchmarks/records/compact-embeddings](../../../benchmarks/records/compact-embeddings/README.md) にある。
