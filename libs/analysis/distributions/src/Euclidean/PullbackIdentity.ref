@@ -1,0 +1,21 @@
+\import \root.Euclidean[n := n] \as Base;
+\import calculus.Diffeomorphism[n := n, m := n].Identity[] \as Identity;
+\import Base.Pullback[U := U, V := U, e := Identity.value U] \as Pullback;
+\import Base.On[U := U] \as Local;
+\import change_of_variables.Examples[n := n].IdentityOn[U := U] \as Jacobian;
+\import std.Logic[].Classical[] \as Classical;
+\definition test[phi: Local.Test]: Pullback.test phi = phi := \axiom:funext(Pullback.test phi, phi, \fun (x: Point) =>
+  Logic.orElim (Sets.Member U.points x) (Logic.Not (Sets.Member U.points x)) (Pullback.test phi x = phi x)
+    (Classical.excludedMiddle (Sets.Member U.points x))
+    (\fun (member: _) => \block {
+      \let p: Open.Carrier U := \into[Point](x, U.points) \by { member } \then
+      \return eq_reason_in!{Real.Real _
+        "=" _ "by" { Pullback.inside phi p }
+        "=" _ "by" { congr!{Real.Real Real.Real} (\fun (r: Real.Real) => Real.mul r (phi p)) _ _ (Jacobian.absolute p) }
+        "=" _ "by" { Laws.fieldMulOneLeft (phi p) }
+      }
+    })
+    (\fun (outside: _) => trans!{Real.Real} _ _ _ (Pullback.outside phi x outside)
+      (sym!{Real.Real} _ _ (Support.zeroOutsideSupport Ambient.topology phi x (\fun (member: _) => outside (testWithin U phi x member))))));
+\definition distribution[T: Local.Distribution]: Pullback.apply T = T :=
+  Local.ext (Pullback.apply T) T (\fun (phi: Local.Test) => congr!{Local.Test Real.Real} T.eval _ _ (test phi));

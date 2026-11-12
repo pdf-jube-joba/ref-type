@@ -1,0 +1,39 @@
+\import \root.Euclidean[n := n] \as Distributions;
+\import Distributions.TestOperations[] \as Tests;
+\import Distributions.Regular[] \as Regular;
+\import Regular.For[f := left] \as Left;
+\import Regular.For[f := right] \as Right;
+\import calculus.Real[].Multivariable[n := n].Open[] \as Open;
+\import std.Data[].Nat[] \as N;
+\import euclidean_measure.Euclidean[n := n] \as Euclidean;
+\import euclidean_measure.Exhaustion[n := n] \as Exhaustion;
+\definition SamePairings: \Prop := \forall (test: E.SmoothCompact) -> Left.pair test = Right.pair test;
+\module Cutoff(test: E.SmoothCompact);
+\definition onCompact[K: CompactSet]: SamePairings -> M.Null E.measure ({ x: E.Point \where Logic.And[Sets.Member K x, Logic.Not (left x = right x)] }) :=
+  \fun (same: _) => \block {
+    \takefrom cutoff: Smooth.CompactCutoff[K := K, U := Open.whole].Data
+      \by Smooth.CompactCutoff[K := K, U := Open.whole].existsCutoff (compact K) (\fun (x: E.Point)(member: _) => \refl(x)) \then
+    \let test: E.SmoothCompact := \into[E.Function](cutoff.value, E.SmoothCompact) \by { E.SmoothCompactLaws[cutoff.value] {
+      smooth := \bysub(E.Function, { f: E.Function \where Smooth.IsSmooth f }, cutoff.value), compact := cutoff.supportCompact } } \then
+    \let result: M.Null E.measure ({ x: E.Point \where Logic.And[Sets.Member K x, Logic.Not (left x = right x)] }) := AE.nullSubset ({ x: E.Point \where Logic.And[Sets.Member K x, Logic.Not (left x = right x)] }) ({ x: E.Point \where Logic.Not (Left.integrand test x = Right.integrand test x) })
+      (\fun (x: E.Point)(member: Logic.And[Sets.Member K x, Logic.Not (left x = right x)])(equal: _) => member.right
+        (trans!{Real.Real} _ _ _
+          (sym!{Real.Real} _ _ (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (Real.mul (left x)) _ _ (cutoff.oneOn x member.left)) (Algebra.mulOneRight (left x))))
+          (trans!{Real.Real} _ _ _ equal (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (Real.mul (right x)) _ _ (cutoff.oneOn x member.left)) (Algebra.mulOneRight (right x))))))
+      (Cutoff[test := test].almost same) \then
+    \return result
+  };
+\definition boxes[k: N.Nat^]: CompactSet := \into[\Pow E.Point](Euclidean.points (Exhaustion.box k), CompactSet) \by { euclidean_measure.BoxCompact[n := n].compact (Exhaustion.box k) };
+\definition exceptions[k: N.Nat^]: \Pow E.Point := { x: E.Point \where Logic.And[Sets.Member (boxes k) x, Logic.Not (left x = right x)] };
+\definition injective: SamePairings -> M.AlmostEqual E.measure left right := \fun (same: _) =>
+  AE.nullSubset _ (M.union exceptions)
+    (\fun (x: E.Point)(different: _) => \block {
+      \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where Sets.Member (Euclidean.points (Exhaustion.box k)) x }) \by Exhaustion.covers x \then
+      \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where Sets.Member (exceptions k) x }] k
+        (Logic.And[_, _]::# (\bysub(N.Nat^, { k: N.Nat^ \where Sets.Member (Euclidean.points (Exhaustion.box k)) x }, k)) different)
+    })
+    (M.Continuity[mu := E.measure].nullUnion exceptions (\fun (k: N.Nat^) => onCompact (boxes k) same));
+\definition respects: M.AlmostEqual E.measure left right -> SamePairings := \fun (same: _)(test: E.SmoothCompact) =>
+  Null.integralAlmost (Left.representative test) (Right.representative test)
+    (L.binaryAlmost Real.mul left right test test same (AE.reflexive test));
+\definition equivalence: Logic.PropEquiv[SamePairings, M.AlmostEqual E.measure left right] := Logic.PropEquiv[_, _] { ltr := injective, rtl := respects };

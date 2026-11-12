@@ -1,0 +1,20 @@
+\definition function[f: Test]: Real.Real := Real.mul c (T.eval f);
+\definition bounded: LocallyBounded function := \fun (K: \Pow Point)(compact: _) => \block {
+  \takefrom m: \Cast[N.Nat^] ({ m: N.Nat^ \where \exists ( C: Nonnegative \where Bound T.eval K m C ) }) \by T.bound K compact \then
+  \takefrom C: \Cast[Nonnegative] ({ C: Nonnegative \where Bound T.eval K m C })
+    \by \bysub(N.Nat^, { m: N.Nat^ \where \exists ( C: Nonnegative \where Bound T.eval K m C ) }, m) \then
+  \let coefficient: Nonnegative := \into[Real.Real](Real.mul (Absolute.abs c) C, Nonnegative) \by {
+    Laws.fieldMulNonnegative _ _ (Absolute.absNonnegative c) (lp_spaces.Powers[].baseNonnegative C) } \then
+  \return Logic.existsIntro[N.Nat^, { j: N.Nat^ \where \exists ( B: Nonnegative \where Bound function K j B ) }] m
+    (Logic.existsIntro[Nonnegative, { B: Nonnegative \where Bound function K m B }] coefficient
+      (\fun (f: Test)(supported: _)(b: Nonnegative)(bound: _) => R.leReplaceLeft _ _ _ (sym!{Real.Real} _ _ (Absolute.absProduct c (T.eval f)))
+        (R.leReplaceRight _ _ _ (sym!{Real.Real} _ _ (Laws.fieldMulAssoc (Absolute.abs c) C b))
+          (Estimates.mulMonotone (Absolute.abs c) _ _ (Absolute.absNonnegative c)
+            ((\bysub(Nonnegative, { C: Nonnegative \where Bound T.eval K m C }, C)) f supported b bound)))))
+};
+\definition value: Distribution := Distribution {
+  eval := function,
+  additive := \fun (f, g: Test) => trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (Real.mul c) _ _ (T.additive f g)) (Laws.fieldMulAdd c (T.eval f) (T.eval g)),
+  homogeneous := \fun (a: Real.Real)(f: Test) => trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (Real.mul c) _ _ (T.homogeneous a f)) (Algebra.mulSwap c a (T.eval f)),
+  bound := bounded,
+};

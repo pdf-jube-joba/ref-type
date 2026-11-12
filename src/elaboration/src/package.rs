@@ -456,25 +456,15 @@ impl PackageChecker {
                     let cost = started.elapsed();
                     // Persistent pressure also arrives while serializing. Keep
                     // collection immediate, but do not let these signals cause
-                    // another expensive save at the very next boundary.
-                    minimum_save_spacing = if interval.is_some_and(|period| period.is_zero()) {
-                        Duration::ZERO
-                    } else {
-                        cost.saturating_mul(10)
-                    };
+                    // another expensive save at the very next boundary. Honor
+                    // the configured interval even when snapshots are costly.
+                    minimum_save_spacing = interval.map_or(Duration::ZERO, |period| {
+                        cost.saturating_mul(10).min(period)
+                    });
                     // A growing environment will not fit again after hitting the budget.
-                    // Successful writes adapt the cadence to keep checkpoint I/O bounded.
-                    interval = if failed {
-                        None
-                    } else {
-                        interval.map(|period| {
-                            if period.is_zero() {
-                                period
-                            } else {
-                                period.max(minimum_save_spacing)
-                            }
-                        })
-                    };
+                    if failed {
+                        interval = None;
+                    }
                     saved_at = Instant::now();
                 },
                 &mut |event| progress.borrow_mut()(PackageProgress::Step(event)),

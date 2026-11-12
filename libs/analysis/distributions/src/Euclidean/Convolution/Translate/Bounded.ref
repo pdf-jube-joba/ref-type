@@ -1,0 +1,18 @@
+\definition enlarged: ConvL.Nonnegative := ConvPowers.sum radius
+  (\into[ConvReal.Real](ConvGeometry.metric.distance ConvCoordinates.origin a, ConvL.Nonnegative) \by {
+    ConvGeometry.metric.nonnegative ConvCoordinates.origin a });
+\definition box: ConvE.Box := ConvBounds.box enlarged;
+\definition nonzeroWithin[y: ConvE.Point]: ConvLogic.Not (function y = ConvReal.zero) -> ConvSets.Member (ConvE.points box) y := \fun (nonzero: _) =>
+  ConvBounds.coordinateBound y enlarged
+    (ConvR.leReplaceRight _ _ _ (ConvLaws.addComm (ConvGeometry.metric.distance ConvCoordinates.origin a) radius)
+      (ConvR.leTrans _ _ _ (ConvGeometry.metric.triangle ConvCoordinates.origin a y)
+        (ConvEstimates.addLe _ _ _ _ (ConvR.leRefl (ConvGeometry.metric.distance ConvCoordinates.origin a))
+          (ConvR.leReplaceLeft _ _ _
+            (trans!{ConvReal.Real} _ _ _ (ConvGeometry.metric.symmetric ConvCoordinates.origin (ConvE.subPoint a y)) (ConvGeometry.difference a y))
+            (bound (ConvE.subPoint a y) (ConvSupport.nonzeroInSupport ConvAmbient.topology rho (ConvE.subPoint a y) nonzero))))));
+\definition outside[y: ConvE.Point]: ConvLogic.Not (ConvSets.Member (ConvE.points box) y) -> function y = ConvReal.zero := \fun (notIn: _) =>
+  ConvSets.Finite[].doubleNegElim (function y = ConvReal.zero) (\fun (nonzero: _) => notIn (nonzeroWithin y nonzero));
+\definition within: ConvSets.Subset (ConvSmooth.support function) (ConvE.points box) :=
+  ConvSupport.supportWithinClosed ConvAmbient.topology function (ConvE.points box) (ConvBoxes.pointsClosed box) outside;
+\definition compact: ConvSets.IsCompactIn ConvAmbient.topology (ConvSmooth.support function) :=
+  ConvSupport.compactSupportWithin ConvAmbient.topology function (ConvE.points box) (ConvBoxes.compact box) within;

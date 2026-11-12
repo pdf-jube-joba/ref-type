@@ -1,0 +1,37 @@
+\import \parent.LocalJets[W := U] \as Input;
+\import \parent.LocalJets[W := V] \as Output;
+\import PullbackOpen.Smooth[].Algebra[U := V] \as Coefficients;
+\import PullbackOpen.Smooth[].Derivative[].Linear[U := V] \as Differentiate;
+\import PullbackMaps.Composition[U := V, V := U, f := e.backward] \as Chain;
+\import Real.FiniteSums[] \as Sums;
+\definition Function: \Set := Coefficients.Function;
+\definition value[a: Function][f: Test]: Function := Coefficients.product a (Chain.function (Input.restriction f));
+\definition coefficient[a: Function][i,j: Fin.Fin n]: Function := Coefficients.product a (Chain.innerPartial j i);
+\definition term[a: Function][f: Test][i,j: Fin.Fin n]: Function := value (coefficient a i j) (Tests.partial f j);
+\definition chainPartial[f: Test][j: Fin.Fin n][x: PullbackOpen.Carrier V]:
+  Chain.scalar (Input.partial (Input.restriction f) j) x = Tests.partial f j (PullbackMaps.apply V U e.backward x) :=
+  congr!{Input.Function Real.Real} (\fun (h: Input.Function) => h (PullbackMaps.apply V U e.backward x)) _ _ (Input.restrictionPartial f j);
+\definition chainTerm[a: Function][f: Test][i,j: Fin.Fin n][x: PullbackOpen.Carrier V]:
+  Real.mul (a x) (Chain.term (Input.restriction f) i j x) = term a f i j x := eq_reason_in!{Real.Real _
+    "=" _ "by" { congr!{Real.Real Real.Real} (\fun (r: Real.Real) => Real.mul (a x) (Real.mul r (Chain.innerPartial j i x))) _ _ (chainPartial f j x) }
+    "=" _ "by" { congr!{Real.Real Real.Real} (Real.mul (a x)) _ _
+      (Laws.fieldMulComm (Tests.partial f j (PullbackMaps.apply V U e.backward x)) (Chain.innerPartial j i x)) }
+    "=" _ "by" { sym!{Real.Real} _ _ (Laws.fieldMulAssoc (a x) (Chain.innerPartial j i x)
+      (Tests.partial f j (PullbackMaps.apply V U e.backward x))) }
+  };
+\definition derivative[a: Function][f: Test][i: Fin.Fin n]: Output.partial (value a f) i =
+  Output.plus (value (Output.partial a i) f) (Output.sum n (term a f i)) :=
+  \axiom:funext(Output.partial (value a f) i, Output.plus (value (Output.partial a i) f) (Output.sum n (term a f i)),
+    \fun (x: PullbackOpen.Carrier V) => eq_reason_in!{Real.Real _
+      "=" _ "by" { congr!{Function Real.Real} (\fun (h: Function) => h x) _ _ (Differentiate.product i a (Chain.function (Input.restriction f))) }
+      "=" _ "by" { congr!{Real.Real Real.Real} (\fun (r: Real.Real) => Real.add (value (Output.partial a i) f x) (Real.mul (a x) r)) _ _
+        (Chain.derivative (Input.restriction f) i x) }
+      "=" _ "by" { congr!{Real.Real Real.Real} (Real.add (value (Output.partial a i) f x)) _ _
+        (sym!{Real.Real} _ _ (Sums.scalar n (a x) (\fun (j: Fin.Fin n) => Chain.term (Input.restriction f) i j x))) }
+      "=" _ "by" { congr!{Real.Real Real.Real} (Real.add (value (Output.partial a i) f x)) _ _
+        (Sums.congruent n (\fun (j: Fin.Fin n) => Real.mul (a x) (Chain.term (Input.restriction f) i j x))
+          (\fun (j: Fin.Fin n) => term a f i j x) (\fun (j: Fin.Fin n) => chainTerm a f i j x)) }
+      "=" _ "by" { congr!{Real.Real Real.Real} (Real.add (value (Output.partial a i) f x)) _ _
+        (sym!{Real.Real} _ _ (Output.sumValue n (term a f i) x)) }
+    });
+\module Estimate(H: \Pow (PullbackOpen.Carrier V), compact: topology.Topology[Carrier := PullbackOpen.Carrier V].IsCompactIn (PullbackOpen.Topology[].Of[U := V].topology) H);

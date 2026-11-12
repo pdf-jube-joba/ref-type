@@ -1,0 +1,28 @@
+\import \parent.Evaluation[T := T] \as Evaluation;
+\definition coefficient: Real.Real := Absolute.coefficient (Real.mul C c) Real.zero;
+\definition coefficientPositive: R.Lt Real.zero coefficient := Absolute.coefficientPositive (Real.mul C c) Real.zero;
+\definition productNonnegative: R.Le Real.zero (Real.mul C c) := Laws.fieldMulNonnegative C c (Powers.baseNonnegative C) (Powers.baseNonnegative c);
+\definition coefficientBound: R.Le (Real.mul C c) coefficient :=
+  R.leReplaceLeft _ _ _ (Absolute.absOfNonnegative (Real.mul C c) productNonnegative)
+    (Absolute.coefficientFirst (Real.mul C c) Real.zero);
+\definition derivative: ScalarDerivative.HasDerivativeAt (\fun (t: Real.Real) => T.eval (curve t)) at (T.eval target) :=
+  \fun (epsilon: Real.Real)(positive: _) => \block {
+    \let delta: Real.Real := Absolute.radius coefficient epsilon \then
+    \return Logic.existsIntro[Real.Real, { delta: Real.Real \where ScalarLimit.Control[ScalarDerivative.slope (\fun (t: Real.Real) => T.eval (curve t)) at, at, T.eval target, epsilon, delta] }] delta
+      (ScalarLimit.Control[ScalarDerivative.slope (\fun (t: Real.Real) => T.eval (curve t)) at, at, T.eval target, epsilon, delta] {
+        positive := Absolute.radiusPositive coefficient epsilon coefficientPositive positive,
+        estimate := \fun (t: Real.Real)(different: _)(near: _) => \block {
+          \let within: R.Lt (Real.distance t at) Real.one := R.ltLeTrans _ _ _ near (Absolute.radiusBelowOne coefficient epsilon) \then
+          \let first: R.Le (Absolute.abs (T.eval (error t))) (Real.mul (Real.mul C c) (Real.distance t at)) :=
+            R.leReplaceRight _ _ _ (sym!{Real.Real} _ _ (Laws.fieldMulAssoc C c (Real.distance t at)))
+              (bound (error t) (data.supported t different within) (rate c t) (errorBound t different within)) \then
+          \let second: R.Le (Real.mul (Real.mul C c) (Real.distance t at)) (Real.mul coefficient delta) :=
+            R.leTrans _ _ _
+              (R.leReplace _ _ _ _ (Laws.fieldMulComm (Real.distance t at) (Real.mul C c)) (Laws.fieldMulComm (Real.distance t at) coefficient)
+                (Estimates.mulMonotone (Real.distance t at) (Real.mul C c) coefficient (Distance.distanceNonnegative t at) coefficientBound))
+              (Estimates.mulMonotone coefficient (Real.distance t at) delta (Order.leOfLt _ _ coefficientPositive) (Order.leOfLt _ _ near)) \then
+          \return R.ltReplaceLeft _ _ _ (Evaluation.distance t)
+            (R.leLtTrans _ _ _ (R.leTrans _ _ _ first second) (Absolute.radiusSmall coefficient epsilon coefficientPositive positive))
+        },
+      })
+  };

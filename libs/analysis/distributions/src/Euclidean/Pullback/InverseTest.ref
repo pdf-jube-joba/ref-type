@@ -1,0 +1,24 @@
+\import \parent.Test[phi := phi] \as First;
+\import Change.Diffeomorphism[U := U, V := V, e := e].Compact[f := First.value, within := PullbackBase.testWithin V First.value] \as Second;
+\import Change.Jacobian[U := U, V := V, f := e.forward] \as ForwardJacobian;
+\definition inside[x: PullbackOpen.Carrier U]: Second.value x = phi x := eq_reason_in!{PullbackReal.Real _
+  "=" _ "by" { Second.inside x }
+  "=" _ "by" { congr!{PullbackReal.Real PullbackReal.Real} (PullbackReal.mul (ForwardJacobian.absolute x)) _ _
+    (First.inside (PullbackMaps.apply U V e.forward x)) }
+  "=" _ "by" { sym!{PullbackReal.Real} _ _ (PullbackLaws.fieldMulAssoc (ForwardJacobian.absolute x)
+    (InverseJacobian.absolute (PullbackMaps.apply U V e.forward x))
+    (phi (PullbackMaps.apply V U e.backward (PullbackMaps.apply U V e.forward x)))) }
+  "=" _ "by" { congr!{PullbackReal.Real PullbackReal.Real PullbackReal.Real} PullbackReal.mul _ _ _ _
+    (trans!{PullbackReal.Real} _ _ _ (PullbackLaws.fieldMulComm _ _) (ForwardJacobian.Inverse[e := e, agrees := \refl(e.forward)].cancellation x))
+    (congr!{{PullbackOpen.Carrier U} PullbackReal.Real} (\fun (p: PullbackOpen.Carrier U) => phi p) _ _ (e.leftInverse x)) }
+  "=" _ "by" { PullbackLaws.fieldMulOneLeft (phi x) }
+};
+\definition pointwise[x: PullbackLp.Point]: Second.value x = phi x :=
+  PullbackLogic.orElim (PullbackSets.Member U.points x) (PullbackLogic.Not (PullbackSets.Member U.points x)) (Second.value x = phi x)
+    (PullbackClassical.excludedMiddle (PullbackSets.Member U.points x))
+    (\fun (member: PullbackSets.Member U.points x) => inside (\into[PullbackLp.Point](x, U.points) \by { member }))
+    (\fun (away: PullbackLogic.Not (PullbackSets.Member U.points x)) => trans!{PullbackReal.Real} _ _ _ (Second.outside x away)
+      (sym!{PullbackReal.Real} _ _ (functional_analysis.Support[A := PullbackLp.Point].zeroOutsideSupport
+        topological_algebra.Euclidean[].Dimension[n := n].Topology[].topology phi x
+        (\fun (member: PullbackSets.Member (PullbackSmooth.support phi) x) => away (PullbackBase.testWithin U phi x member)))));
+\definition law: Second.value = phi := \axiom:funext(Second.value, phi, pointwise);

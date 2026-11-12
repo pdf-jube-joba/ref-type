@@ -1,0 +1,25 @@
+\import \root.Euclidean[n := n].Regular[] \as Regular;
+\import Regular.For[f := u] \as U;
+\import Regular.For[f := g] \as G;
+\import Regular.Sobolev[].Tests[] \as TestBridge;
+\import Local.Integral[mu := Transport.measure] \as Integral;
+\definition oldToPair: ExistingWeak u g d -> ByPairing u g d := \fun (old: _)(test: E.SmoothCompact) => \block {
+  \let legacy: On.Test := TestBridge.toOld test \then
+  \takefrom left: \Cast[Real.Real] ({ left: Real.Real \where \exists ( right: Real.Real \where Weak.WeakPairing[Restriction.function Open.whole u, Restriction.function Open.whole g, d, legacy, left, right] ) })
+    \by old legacy \then
+  \takefrom right: \Cast[Real.Real] ({ right: Real.Real \where Weak.WeakPairing[Restriction.function Open.whole u, Restriction.function Open.whole g, d, legacy, left, right] })
+    \by \bysub(Real.Real, { left: Real.Real \where \exists ( right: Real.Real \where Weak.WeakPairing[Restriction.function Open.whole u, Restriction.function Open.whole g, d, legacy, left, right] ) }, left) \then
+  \let pairing: Weak.WeakPairing[Restriction.function Open.whole u, Restriction.function Open.whole g, d, legacy, left, right] :=
+    \bysub(Real.Real, { right: Real.Real \where Weak.WeakPairing[Restriction.function Open.whole u, Restriction.function Open.whole g, d, legacy, left, right] }, right) \then
+  \let leftEqual: left = U.pair (TestOperations.jet d test) := Integral.integralUnique
+    (\fun (x: Open.Carrier Open.whole) => Real.mul (u x) (legacy.partials d x)) left (U.pair (TestOperations.jet d test)) pairing.source
+    (ToLocal.RealFunction[f := U.representative (TestOperations.jet d test)].hasIntegral) \then
+  \let rightEqual: right = G.pair test := Integral.integralUnique
+    (\fun (x: Open.Carrier Open.whole) => Real.mul (g x) (legacy.function x)) right (G.pair test) pairing.derivative
+    (ToLocal.RealFunction[f := G.representative test].hasIntegral) \then
+  \return trans!{Real.Real} _ _ _ (sym!{Real.Real} _ _ leftEqual)
+    (trans!{Real.Real} _ _ _ pairing.integrationByParts (congr!{Real.Real Real.Real} (Real.mul (Existing.sign (Existing.order d))) _ _ rightEqual))
+};
+\module Test(test: On.Test);
+\definition pairToOld: ByPairing u g d -> ExistingWeak u g d := \fun (pairing: _)(test: On.Test) => Test[test := test].weak pairing;
+\definition equivalence: Logic.PropEquiv[ExistingWeak u g d, ByPairing u g d] := Logic.PropEquiv[_, _] { ltr := oldToPair, rtl := pairToOld };

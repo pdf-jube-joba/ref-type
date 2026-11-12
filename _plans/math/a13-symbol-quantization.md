@@ -10,4 +10,4 @@
 ## 依存するタスク
 
 - [A06 Schwartz 空間と Fourier 変換](a06-schwartz-fourier.md)
-- [A08 分布と弱微分](a08-distributions.md)
+- [A08 分布と弱微分](../../libs/analysis/distributions/README.md)

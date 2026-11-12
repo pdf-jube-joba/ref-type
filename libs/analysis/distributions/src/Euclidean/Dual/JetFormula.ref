@@ -1,0 +1,15 @@
+\import functional_analysis.Sobolev[n := n] \as Sobolev;
+\import \root.Euclidean[n := n].JetBounds[] \as Jets;
+\definition theorem: \forall (d: Directions)(f: Test) -> (derivative d T).eval f = Real.mul (Sobolev.sign (order d)) (T.eval (Tests.jet d f)) :=
+  \induction (d: Directions) \return \forall (f: Test) -> (derivative d T).eval f = Real.mul (Sobolev.sign (order d)) (T.eval (Tests.jet d f)) \with {
+    | nil: \fun (f: Test) => sym!{Real.Real} _ _ (Laws.fieldMulOneLeft (T.eval f))
+    | cons: \fun (i: Fin.Fin n)(tail: Directions)(previous: _)(f: Test) => eq_reason_in!{Real.Real _
+      "=" _ "by" { congr!{Real.Real Real.Real} (Real.mul (Real.neg Real.one)) _ _ (previous (Tests.partial f i)) }
+      "=" _ "by" { congr!{Test Real.Real} (\fun (g: Test) => Real.mul (Real.neg Real.one) (Real.mul (Sobolev.sign (order tail)) (T.eval g))) _ _
+        (sym!{Test} _ _ (Jets.jetPartialCommute tail f i)) }
+      "=" _ "by" { sym!{Real.Real} _ _ (Laws.fieldMulAssoc (Real.neg Real.one) (Sobolev.sign (order tail)) (T.eval (Tests.jet (Directions::cons i tail) f))) }
+      "=" _ "by" { congr!{Real.Real Real.Real} (\fun (r: Real.Real) => Real.mul r (T.eval (Tests.jet (Directions::cons i tail) f))) _ _
+        (trans!{Real.Real} _ _ _ (Laws.fieldMulNegLeft Real.one (Sobolev.sign (order tail)))
+          (congr!{Real.Real Real.Real} Real.neg _ _ (Laws.fieldMulOneLeft (Sobolev.sign (order tail))))) }
+    }
+  };

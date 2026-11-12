@@ -65,6 +65,7 @@
 | [analysis/functional](analysis/functional/README.md) | `functional_analysis` | 実ノルム空間・Hilbert 空間、Arzelà–Ascoli・Riesz 表現・Hahn–Banach・開写像定理、コンパクト台、\(L^p\)・弱微分・Sobolev 空間の定義 |
 | [analysis/fourier_schwartz](analysis/fourier_schwartz/README.md) | `fourier_schwartz` | Schwartz 空間、Fourier 変換の諸公式・保存、Gaussian 変換、近似単位による反転公式 |
 | [analysis/fourier_l2](analysis/fourier_l2/README.md) | `fourier_l2` | Parseval、ユニタリ L² Fourier 変換、有界乗算作用素、重み付きノルムと整数階微分比較 |
+| [analysis/distributions](analysis/distributions/README.md) | `distributions` | 試験関数の位相、連続双対、局所可積分関数の単射、分布微分・台・平滑化、Sobolev 比較と微分同相の引き戻し |
 | [analysis/lp_spaces](analysis/lp_spaces/README.md) | `lp_spaces` | 実 Lp・L∞ の Banach 構造、実・複素 L2、稠密性、平行移動、畳み込み・近似単位 |
 | [analysis/measure_convergence](analysis/measure_convergence/README.md) | `measure_convergence` | 単調収束・Fatou・優収束、a.e. 同値類の積分、実・複素・有限次元の積分と級数交換 |
 | [analysis/complex_hilbert](analysis/complex_hilbert/README.md) | `complex_hilbert` | 作業中：複素 Riesz 表現、有界随伴、閉部分空間への直交射影と有限階数の因子分解 |

@@ -1,0 +1,28 @@
+\definition local: Open.ScalarFunction U := \fun (x: Open.Carrier U) => Real.mul (f x) (test x);
+\import Smooth.ZeroExtension[U := U, f := local] \as Extension;
+\definition testSmooth: Open.Smooth[].SmoothOn U (Restriction.function U test) :=
+  Restriction.localSmooth U Open.whole (\fun (x: Point)(member: _) => \refl(x))
+    (Restriction.function Open.whole test) (L.smoothCompactLaws test).smooth;
+\definition localSmooth: Open.Smooth[].SmoothOn U local :=
+  SmoothOperations.mulSmooth U f (Restriction.function U test) smooth testSmooth;
+\definition outsideTest[x: Open.Carrier U]: Logic.Not (Sets.Member (Smooth.support test) x) -> local x = Real.zero :=
+  \fun (absent: _) => trans!{Real.Real} _ _ _
+    (congr!{Real.Real Real.Real} (Real.mul (f x)) _ _ (Support.zeroOutsideSupport Ambient.topology test x absent)) (Laws.fieldMulZeroRight (f x));
+\definition outsideSupport[x: Point]: Logic.Not (Sets.Member (Smooth.support test) x) -> Extension.value x = Real.zero :=
+  \fun (absent: _) => either!{{(Classical.excludedMiddle (Sets.Member U.points x))} {Extension.value x = Real.zero}
+    {\fun (member: _) => \block {
+      \let point: Open.Carrier U := \into[Point](x, U.points) \by { member } \then
+      \return trans!{Real.Real} _ _ _ (Extension.inside point) (outsideTest point absent)
+    }}
+    {\fun (notIn: _) => Extension.outside x notIn}
+  };
+\definition support: Sets.Subset (Smooth.support Extension.value) (Smooth.support test) :=
+  Support.supportWithinClosed Ambient.topology Extension.value (Smooth.support test) (Support.supportClosed Ambient.topology test) outsideSupport;
+\definition value: Global.Test := \into[L.Function](Extension.value, Global.Test) \by {
+  L.SmoothCompactLaws[Extension.value] {
+    smooth := Extension.Closed[F := Smooth.support test].smooth (Support.supportClosed Ambient.topology test) (testWithin U test) outsideTest localSmooth,
+    compact := Support.compactSupportWithin Ambient.topology Extension.value (Smooth.support test) (L.smoothCompactLaws test).compact support,
+  }
+};
+\definition inside[x: Open.Carrier U]: value x = Real.mul (f x) (test x) := Extension.inside x;
+\definition outside[x: Point]: Logic.Not (Sets.Member U.points x) -> value x = Real.zero := Extension.outside x;

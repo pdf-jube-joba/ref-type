@@ -1,0 +1,40 @@
+\definition support[test: E.SmoothCompact]: CompactSet := \into[\Pow E.Point](Smooth.support test, CompactSet) \by { (E.smoothCompactLaws test).compact };
+\definition integrand[test: E.SmoothCompact]: E.Function := \fun (x: E.Point) => Real.mul (f x) (test x);
+\definition measurable[test: E.SmoothCompact]: M.IsMeasurable E.measure (integrand test) := Products.measurable f test (laws f).measurable
+  (Compact.continuousMeasurable test (Compact.smoothContinuous test (E.smoothCompactLaws test).smooth));
+\module Bounded(test: E.SmoothCompact, c: E.Nonnegative, bound: \forall (x: E.Point) -> R.Le (Product.abs (test x)) c);
+\definition integrable[test: E.SmoothCompact]: I.Integrable (integrand test) := \block {
+  \takefrom c: \Cast[E.Nonnegative] ({ c: E.Nonnegative \where \forall (x: E.Point) -> R.Le (Product.abs (test x)) c })
+    \by Compact.absoluteBound test (Compact.smoothContinuous test (E.smoothCompactLaws test).smooth) (E.smoothCompactLaws test).compact \then
+  \return Bounded[test := test, c := c, bound := \bysub(E.Nonnegative, { c: E.Nonnegative \where \forall (x: E.Point) -> R.Le (Product.abs (test x)) c }, c)].integrable
+};
+\definition representative[test: E.SmoothCompact]: I.Representatives := \into[E.Function](integrand test, I.Representatives) \by { integrable test };
+\definition pair[test: E.SmoothCompact]: Real.Real := I.integral (representative test);
+\definition integralLaw[test: E.SmoothCompact]: I.HasIntegral[integrand test, pair test] := I.integralLaw (representative test);
+\definition integralsPointwise[u, v: I.Representatives]: (\forall (x: E.Point) -> u x = v x) -> I.integral u = I.integral v := \fun (same: _) =>
+  Null.integralAlmost u v (AE.nullSubset _ Sets.Empty (\fun (x: E.Point)(different: _) => different (same x)) AE.nullEmpty);
+\definition add[left, right: E.SmoothCompact]: pair (Operations.add left right) = Real.add (pair left) (pair right) :=
+  trans!{Real.Real} _ _ _ (integralsPointwise (representative (Operations.add left right))
+    (IntegralLinear.addRepresentative (representative left) (representative right))
+    (\fun (x: E.Point) => Laws.fieldMulAdd (f x) (left x) (right x)))
+    (IntegralLinear.integralAdd (representative left) (representative right));
+\definition scale[c: Real.Real][test: E.SmoothCompact]: pair (Operations.scale c test) = Real.mul c (pair test) :=
+  trans!{Real.Real} _ _ _ (integralsPointwise (representative (Operations.scale c test)) (Scaling.scalarRepresentative c (representative test))
+    (\fun (x: E.Point) => trans!{Real.Real} _ _ _ (sym!{Real.Real} _ _ (Laws.fieldMulAssoc (f x) c (test x)))
+      (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (\fun (v: Real.Real) => Real.mul v (test x)) _ _ (Laws.fieldMulComm (f x) c)) (Laws.fieldMulAssoc c (f x) (test x)))))
+    (Scaling.integralScalar c (representative test));
+\module Estimate(K: CompactSet, test: E.SmoothCompact, within: Sets.Subset (Smooth.support test) K,
+  c: E.Nonnegative, bound: \forall (x: E.Point) -> R.Le (Product.abs (test x)) c);
+\import \root.Euclidean[n := n] \as Distributions;
+\import std.Data[].Nat[] \as N;
+\import N.Basic[].Prop[] \as Nat;
+\definition coefficient[K: CompactSet]: E.Nonnegative := \into[Real.Real](I.integral (Absolute.representative (restrict K f)), E.Nonnegative) \by { Absolute.absoluteIntegralNonnegative (restrict K f) };
+\definition bound: Distributions.LocallyBounded pair := \fun (K: \Pow E.Point)(compact: _) => \block {
+  \let compactSet: CompactSet := \into[\Pow E.Point](K, CompactSet) \by { compact } \then
+  \return Logic.existsIntro[N.Nat^, { m: N.Nat^ \where \exists ( C: E.Nonnegative \where Distributions.Bound pair K m C ) }] N.Nat^::zero
+    (Logic.existsIntro[E.Nonnegative, { C: E.Nonnegative \where Distributions.Bound pair K N.Nat^::zero C }] (coefficient compactSet)
+      (\fun (test: E.SmoothCompact)(within: _)(c: E.Nonnegative)(jets: Distributions.JetBound test N.Nat^::zero c) =>
+        Estimate[K := compactSet, test := test, within := within, c := c,
+          bound := jets Distributions.Directions::nil (Nat.leRefl N.Nat^::zero)].inequality))
+};
+\definition distribution: Distributions.Distribution := \into[Distributions.DistributionData](Distributions.DistributionData { eval := pair }, Distributions.Distribution) \by { Distributions.DistributionLaws[Distributions.DistributionData { eval := pair }] { additive := add, homogeneous := scale, bound := bound } };

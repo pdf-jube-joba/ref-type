@@ -1,0 +1,33 @@
+\import \root.Euclidean[n := n].TestOperations[] \as CDTests;
+\import \root.Euclidean[n := n].JetBounds[] \as CDBounds;
+\import \parent.Jets[] \as CDJets;
+\definition negative: ConvReal.Real := ConvReal.neg ConvReal.one;
+\definition inverse: ConvReal.Real := ConvLaws.fieldInv (ConvReal.sub t (a i));
+\definition shifted: ConvE.Point := ConvCoordinates.replace a i t;
+\definition translate[f: ConvL.SmoothCompact][b: ConvE.Point]: ConvL.SmoothCompact := \parent.Translate[rho := f, a := b].test;
+\definition errorFor[f: ConvL.SmoothCompact]: ConvL.SmoothCompact := CDTests.add
+  (CDTests.scale inverse (CDTests.add (translate f shifted) (CDTests.scale negative (translate f a))))
+  (CDTests.scale negative (translate (CDTests.partial f i) a));
+\definition error: ConvL.SmoothCompact := errorFor rho;
+\definition scalarExchange[c,s,x: ConvReal.Real]: ConvReal.mul c (ConvReal.mul s x) = ConvReal.mul s (ConvReal.mul c x) :=
+  trans!{ConvReal.Real} _ _ _ (sym!{ConvReal.Real} _ _ (ConvLaws.fieldMulAssoc c s x))
+    (trans!{ConvReal.Real} _ _ _ (congr!{ConvReal.Real ConvReal.Real} (\fun (v: ConvReal.Real) => ConvReal.mul v x) _ _ (ConvLaws.fieldMulComm c s))
+      (ConvLaws.fieldMulAssoc s c x));
+\definition linearError[s,x,y,z: ConvReal.Real]:
+  ConvReal.add (ConvReal.mul inverse (ConvReal.add (ConvReal.mul s x) (ConvReal.mul negative (ConvReal.mul s y)))) (ConvReal.mul negative (ConvReal.mul s z)) =
+  ConvReal.mul s (ConvReal.add (ConvReal.mul inverse (ConvReal.add x (ConvReal.mul negative y))) (ConvReal.mul negative z)) := eq_reason_in!{ConvReal.Real _
+    "=" _ "by" { congr!{ConvReal.Real ConvReal.Real ConvReal.Real} ConvReal.add _ _ _ _
+      (congr!{ConvReal.Real ConvReal.Real} (ConvReal.mul inverse) _ _
+        (trans!{ConvReal.Real} _ _ _
+          (congr!{ConvReal.Real ConvReal.Real} (ConvReal.add (ConvReal.mul s x)) _ _ (scalarExchange negative s y))
+          (sym!{ConvReal.Real} _ _ (ConvLaws.fieldMulAdd s x (ConvReal.mul negative y)))))
+      (scalarExchange negative s z) }
+    "=" _ "by" { congr!{ConvReal.Real ConvReal.Real} (\fun (v: ConvReal.Real) => ConvReal.add v (ConvReal.mul s (ConvReal.mul negative z))) _ _ (scalarExchange inverse s (ConvReal.add x (ConvReal.mul negative y))) }
+    "=" _ "by" { sym!{ConvReal.Real} _ _ (ConvLaws.fieldMulAdd s (ConvReal.mul inverse (ConvReal.add x (ConvReal.mul negative y))) (ConvReal.mul negative z)) }
+  };
+\module Jet(d: CDJets.CJDirections);
+\module Pointwise(f: ConvL.SmoothCompact, y: ConvE.Point);
+\module Support(radius: ConvL.Nonnegative,
+  radiusBound: \forall (x: ConvE.Point) -> ConvSets.Member (ConvSmooth.support rho) x -> ConvR.Le (ConvGeometry.metric.distance ConvCoordinates.origin x) radius);
+\module Bound(m: std.Data[].Nat[].Nat^, c: ConvL.Nonnegative,
+  bound: \root.Euclidean[n := n].JetBound rho (std.Data[].Nat[].Nat^::succ (std.Data[].Nat[].Nat^::succ m)) c);
