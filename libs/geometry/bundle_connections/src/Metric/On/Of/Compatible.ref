@@ -1,0 +1,28 @@
+\import \root.Local[n := n, r := r].On[U := U] \as Local;
+\definition derivative[i: Fin.Fin n][a, b: Fin.Fin r]: Functions.Function := Derivatives.apply i (coefficient a b);
+\definition halfDerivative[i: Fin.Fin n][a, b: Fin.Fin r]: Functions.Function := Functions.scale R.half (derivative i a b);
+\definition vector[i: Fin.Fin n][b: Fin.Fin r][x: Open.Carrier U]: E.Vector := \fun (a: Fin.Fin r) => halfDerivative i a b x;
+\definition gamma[i: Fin.Fin n][a, b: Fin.Fin r]: Functions.Function := \into[Open.ScalarFunction U]
+  ((\fun (x: Open.Carrier U) => (sharp x).apply (vector i b x) a), Functions.Predicate) \by {
+    Matrices.action U sharp inverseRegular (vector i b)
+      (\fun (a: Fin.Fin r) => \bysub(Open.ScalarFunction U, Functions.Predicate, halfDerivative i a b)) a
+  };
+\definition connection: Local.Connection := Local.Connection { coefficient := gamma };
+\definition column[i: Fin.Fin n][b: Fin.Fin r][x: Open.Carrier U]: E.Vector := \fun (a: Fin.Fin r) => gamma i a b x;
+\definition lower[i: Fin.Fin n][a, b: Fin.Fin r][x: Open.Carrier U]: R.Real := (flat x).apply (column i b x) a;
+\definition lowering: \forall (i: Fin.Fin n)(a, b: Fin.Fin r)(x: Open.Carrier U) -> lower i a b x = halfDerivative i a b x :=
+  \fun (i: Fin.Fin n)(a, b: Fin.Fin r)(x: Open.Carrier U) =>
+    trans!{{R.Real}} _ _ _
+      (congr!{{E.Vector} {R.Real}} (\fun (v: E.Vector) => (flat x).apply v a) _ _
+        (\axiom:funext(column i b x, (sharp x).apply (vector i b x), \fun (c: Fin.Fin r) => \refl(gamma i c b x))))
+      (congr!{{E.Vector} {R.Real}} (\fun (v: E.Vector) => v a) _ _ (right x (vector i b x)));
+\definition derivativeSymmetry: \forall (i: Fin.Fin n)(a, b: Fin.Fin r) -> derivative i a b = derivative i b a :=
+  \fun (i: Fin.Fin n)(a, b: Fin.Fin r) => congr!{{Functions.Function} {Functions.Function}} (Derivatives.apply i) _ _ (symmetric a b);
+\definition compatible: \forall (i: Fin.Fin n)(a, b: Fin.Fin r)(x: Open.Carrier U) ->
+  R.add (lower i a b x) (lower i b a x) = derivative i a b x :=
+  \fun (i: Fin.Fin n)(a, b: Fin.Fin r)(x: Open.Carrier U) => eq_reason_in!{{R.Real} _
+    "=" _ "by" { congr!{{R.Real} {R.Real} {R.Real}} R.add _ _ _ _ (lowering i a b x) (lowering i b a x) }
+    "=" _ "by" { congr!{{R.Real} {R.Real}} (R.add (halfDerivative i a b x)) _ _
+      (congr!{{Functions.Function} {R.Real}} (\fun (f: Functions.Function) => R.mul R.half (f x)) _ _ (derivativeSymmetry i b a)) }
+    "=" _ "by" { R.Estimates[].halfTwice (derivative i a b x) }
+  };

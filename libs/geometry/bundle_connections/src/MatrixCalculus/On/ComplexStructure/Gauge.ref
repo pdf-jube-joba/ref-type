@@ -1,0 +1,48 @@
+\definition twistLeft: \forall (A: Matrix1) -> twist (product01 T A) = product01 T (twist A) :=
+  \fun (A: Matrix1) => eq_reason_in!{Matrix1 _
+    "=" _ "by" { congr!{Matrix1 Matrix1} (\fun (X: Matrix1) => Linear.scale negativeOne (right X)) _ _ (sym!{Matrix1} _ _ (Algebra.assoc001 J T A)) }
+    "=" _ "by" { congr!{Matrix0 Matrix1} (\fun (m: Matrix0) => Linear.scale negativeOne (right (product01 m A))) _ _ commuting }
+    "=" _ "by" { congr!{Matrix1 Matrix1} (\fun (X: Matrix1) => Linear.scale negativeOne (right X)) _ _ (Algebra.assoc001 T J A) }
+    "=" _ "by" { congr!{Matrix1 Matrix1} (Linear.scale negativeOne) _ _ (Algebra.assoc010 T (left A) J) }
+    "=" _ "by" { sym!{Matrix1} _ _ (Linear.leftScale T negativeOne (right (left A))) }
+  };
+\definition twistRight: \forall (A: Matrix1) -> twist (product10 A T) = product10 (twist A) T :=
+  \fun (A: Matrix1) => eq_reason_in!{Matrix1 _
+    "=" _ "by" { congr!{Matrix1 Matrix1} (\fun (X: Matrix1) => Linear.scale negativeOne (right X)) _ _ (sym!{Matrix1} _ _ (Algebra.assoc010 J A T)) }
+    "=" _ "by" { congr!{Matrix1 Matrix1} (Linear.scale negativeOne) _ _ (Algebra.assoc100 (left A) T J) }
+    "=" _ "by" { congr!{Matrix0 Matrix1} (\fun (m: Matrix0) => Linear.scale negativeOne (product10 (left A) m)) _ _ (sym!{Matrix0} _ _ commuting) }
+    "=" _ "by" { congr!{Matrix1 Matrix1} (Linear.scale negativeOne) _ _ (sym!{Matrix1} _ _ (Algebra.assoc100 (left A) J T)) }
+    "=" _ "by" { sym!{Matrix1} _ _ (Linear.rightScale (right (left A)) negativeOne T) }
+  };
+\definition projectLeft: \forall (A: Matrix1) -> project (product01 T A) = product01 T (project A) :=
+  \fun (A: Matrix1) => eq_reason_in!{Matrix1 _
+    "=" _ "by" { congr!{Matrix1 Matrix1} (\fun (X: Matrix1) => Linear.scale R.half (plus (product01 T A) X)) _ _ (twistLeft A) }
+    "=" _ "by" { congr!{Matrix1 Matrix1} (Linear.scale R.half) _ _ (sym!{Matrix1} _ _ (Algebra.distribute T A (twist A))) }
+    "=" _ "by" { sym!{Matrix1} _ _ (Linear.leftScale T R.half (plus A (twist A))) }
+  };
+\definition projectRight: \forall (A: Matrix1) -> project (product10 A T) = product10 (project A) T :=
+  \fun (A: Matrix1) => eq_reason_in!{Matrix1 _
+    "=" _ "by" { congr!{Matrix1 Matrix1} (\fun (X: Matrix1) => Linear.scale R.half (plus (product10 A T) X)) _ _ (twistRight A) }
+    "=" _ "by" { congr!{Matrix1 Matrix1} (Linear.scale R.half) _ _ (sym!{Matrix1} _ _ (Linear.rightAdd A (twist A) T)) }
+    "=" _ "by" { sym!{Matrix1} _ _ (Linear.rightScale (plus A (twist A)) R.half T) }
+  };
+\definition derivativeCommutes: dMatrix J = Linear.origin -> left (dMatrix T) = right (dMatrix T) :=
+  \fun (constant: dMatrix J = Linear.origin) => eq_reason_in!{Matrix1 _
+    "=" _ "by" { sym!{Matrix1} _ _ (Laws.zeroLeft (left (dMatrix T))) }
+    "=" _ "by" { congr!{Matrix1 Matrix1} (\fun (X: Matrix1) => plus X (left (dMatrix T))) _ _ (sym!{Matrix1} _ _ (Linear.rightMap T).preservesZero) }
+    "=" _ "by" { congr!{Matrix1 Matrix1} (\fun (X: Matrix1) => plus (product10 X T) (left (dMatrix T))) _ _ (sym!{Matrix1} _ _ constant) }
+    "=" _ "by" { sym!{Matrix1} _ _ (productRule J T) }
+    "=" _ "by" { congr!{Matrix0 Matrix1} dMatrix _ _ commuting }
+    "=" _ "by" { productRule T J }
+    "=" _ "by" { congr!{Matrix1 Matrix1} (\fun (X: Matrix1) => plus (right (dMatrix T)) (product01 T X)) _ _ constant }
+    "=" _ "by" { congr!{Matrix1 Matrix1} (plus (right (dMatrix T))) _ _ (Linear.leftMap T).preservesZero }
+    "=" _ "by" { Laws.zeroRight (right (dMatrix T)) }
+  };
+\definition preserves: \forall (A, B: Matrix1) -> product01 T A = plus (dMatrix T) (product10 B T) ->
+  left (dMatrix T) = right (dMatrix T) -> product01 T (project A) = plus (dMatrix T) (product10 (project B) T) :=
+  \fun (A, B: Matrix1)(gauge: product01 T A = plus (dMatrix T) (product10 B T))(derivative: left (dMatrix T) = right (dMatrix T)) => eq_reason_in!{Matrix1 _
+    "=" _ "by" { sym!{Matrix1} _ _ (projectLeft A) }
+    "=" _ "by" { congr!{Matrix1 Matrix1} project _ _ gauge }
+    "=" _ "by" { map.preservesAdd (dMatrix T) (product10 B T) }
+    "=" _ "by" { congr!{Matrix1 Matrix1 Matrix1} plus _ _ _ _ (fixed (dMatrix T) derivative) (projectRight B) }
+  };

@@ -1,0 +1,34 @@
+\use Equality.eq_reason_in;
+\import \parent.\parent.\parent.\parent.Pair[i := i, j := j] \as First;
+\import Other.Pair[i := i, j := j] \as Second;
+\import Result.Pair[i := i, j := j] \as New;
+\import \parent.Pair[i := i, j := j] \as Coefficients;
+\import Charts.Transition[left := chart i, right := chart j] \as Domain;
+\import \root.TensorGauge[n := n, r := r, s := s].On[U := Domain.domain].Indexed[enumeration := enumeration] \as Gauge;
+\import \root.MatrixCalculus[n := n, r := Tensor.rank].On[U := Domain.domain] \as Matrix;
+\import Matrix.Linearity[] \as Linear;
+\import \root.MatrixCalculus[n := n, r := r].On[U := Domain.domain].Linearity[] \as FirstLinear;
+\import \root.MatrixCalculus[n := n, r := s].On[U := Domain.domain].Linearity[] \as SecondLinear;
+\import Euclidean.On[U := Domain.domain] \as Scalar;
+\import Spaces.Coordinates[I := Fin.Fin n] \as Vectors;
+\import Spaces.Multilinear[V := Vectors.Vector, space := Vectors.space] \as Multilinear;
+\definition source: New.source (data i) = Gauge.lift (First.source (connection i)) (Second.source (other i)) :=
+  Linear.ext (New.source (data i)) (Gauge.lift (First.source (connection i)) (Second.source (other i)))
+    (\fun (a, b: Fin.Fin Tensor.rank) => Scalar.ext one (New.source (data i) a b) (Gauge.lift (First.source (connection i)) (Second.source (other i)) a b)
+      (\fun (u: Open.Carrier Domain.domain)(arguments: Multilinear.Arguments one) => \refl(New.source (data i) a b u arguments)));
+\definition target: New.target (data j) = Gauge.lift (First.target (connection j)) (Second.target (other j)) :=
+  Linear.ext (New.target (data j)) (Gauge.lift (First.target (connection j)) (Second.target (other j)))
+    (\fun (a, b: Fin.Fin Tensor.rank) => Scalar.ext one (New.target (data j) a b) (Gauge.lift (First.target (connection j)) (Second.target (other j)) a b)
+      (\fun (u: Open.Carrier Domain.domain)(arguments: Multilinear.Arguments one) => \refl(New.target (data j) a b u arguments)));
+\import Gauge.Gauge[T := First.transition, A := First.source (connection i), C := First.target (connection j), S := Second.transition, B := Second.source (other i), D := Second.target (other j),
+  first := FirstLinear.ext (First.left (connection i)) (First.right (connection j)) (compatible connection i j),
+  second := SecondLinear.ext (Second.left (other i)) (Second.right (other j)) (Other.compatible other i j)] \as Law;
+\definition matrices: New.left (data i) = New.right (data j) := eq_reason_in!{Matrix.Matrix1 _
+  "=" _ "by" { congr!{Matrix.Matrix0 Matrix.Matrix1 Matrix.Matrix1} Matrix.product01 _ _ _ _ Coefficients.transition source }
+  "=" _ "by" { Law.law }
+  "=" _ "by" { congr!{Matrix.Matrix1 Matrix.Matrix1 Matrix.Matrix1} Matrix.plus _ _ _ _
+    (congr!{Matrix.Matrix0 Matrix.Matrix1} Matrix.dMatrix _ _ (sym!{Matrix.Matrix0} _ _ Coefficients.transition))
+    (congr!{Matrix.Matrix1 Matrix.Matrix0 Matrix.Matrix1} Matrix.product10 _ _ _ _ (sym!{Matrix.Matrix1} _ _ target) (sym!{Matrix.Matrix0} _ _ Coefficients.transition)) }
+};
+\definition law: New.Compatible (data i) (data j) := \fun (a, b: Fin.Fin Tensor.rank) =>
+  congr!{Matrix.Matrix1 {Scalar.Form one}} (\fun (A: Matrix.Matrix1) => A a b) _ _ matrices;

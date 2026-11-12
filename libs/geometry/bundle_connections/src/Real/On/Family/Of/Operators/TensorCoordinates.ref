@@ -1,0 +1,39 @@
+\import Spaces.Tensor[V := F x, W := W, left := space x, right := target] \as Tensor;
+\import Spaces.DependentProduct[I := Fin.Fin r, F := (\fun (a: Fin.Fin r) => W), familySpace := (\fun (a: Fin.Fin r) => target)] \as Product;
+\import Spaces.Finite[V := F x, I := Fin.Fin r, space := space x] \as Basis;
+\import vector_bundles.Bundles[].Over[K := R.Real, field := R.Algebra[].field, conjugation := linear_algebra.Hermitian[].Real[].scalar, scalar := vector_bundles.Bundles[].Real[].scalar] \as FiniteBundles;
+\definition basis: Basis.Basis := FiniteBundles.Dimension[V := F x, space := space x].At[n := r].basis frame;
+\definition value[v: F x][w: W]: Product.Carrier := \fun (a: Fin.Fin r) => target.smul (frame.forward.apply v a) w;
+\definition bilinear: Tensor.BilinearLaws[Product.Carrier, Product.space, value] := Tensor.BilinearLaws[Product.Carrier, Product.space, value] {
+  addLeft := \fun (v, z: F x)(w: W) => \axiom:funext(value ((space x).add v z) w, Product.add (value v w) (value z w), \fun (a: Fin.Fin r) =>
+    trans!{{W}} _ _ _ (congr!{{R.Real} {W}} (\fun (c: R.Real) => target.smul c w) _ _
+      (congr!{{Fin.Fin r -> R.Real} {R.Real}} (\fun (c: Fin.Fin r -> R.Real) => c a) _ _ (frame.forward.preservesAdd v z)))
+      (target.scalarAdd (frame.forward.apply v a) (frame.forward.apply z a) w)),
+  addRight := \fun (v: F x)(w, z: W) => \axiom:funext(value v (target.add w z), Product.add (value v w) (value v z), \fun (a: Fin.Fin r) => target.vectorAdd (frame.forward.apply v a) w z),
+  scaleLeft := \fun (c: R.Real)(v: F x)(w: W) => \axiom:funext(value ((space x).smul c v) w, Product.scale c (value v w), \fun (a: Fin.Fin r) =>
+    trans!{{W}} _ _ _ (congr!{{R.Real} {W}} (\fun (b: R.Real) => target.smul b w) _ _
+      (congr!{{Fin.Fin r -> R.Real} {R.Real}} (\fun (b: Fin.Fin r -> R.Real) => b a) _ _ (frame.forward.preservesScale c v)))
+      (target.scalarAssoc c (frame.forward.apply v a) w)),
+  scaleRight := \fun (c: R.Real)(v: F x)(w: W) => \axiom:funext(value v (target.smul c w), Product.scale c (value v w), \fun (a: Fin.Fin r) => Spaces.Laws[V := W, space := target].scaleComm (frame.forward.apply v a) c w)
+};
+\import Tensor.Universal[U := Product.Carrier, target := Product.space] \as Universal;
+\definition forward: Spaces.Linear[V := Tensor.Carrier, W := Product.Carrier, source := Tensor.space, target := Product.space].Map := Universal.map value bilinear;
+\definition onPure: \forall (v: F x)(w: W) -> forward.apply (Tensor.tensor v w) = value v w := Universal.onTensor value bilinear;
+\import Spaces.Sums[I := Fin.Fin r].Vector[V := Tensor.Carrier, space := Tensor.space] \as Sums;
+\definition synthesis[f: Product.Carrier]: Tensor.Carrier := Sums.sum (Fin.elements r) (\fun (a: Fin.Fin r) => Tensor.tensor (basis.vectors a) (f a));
+\import Spaces.Linear[V := Product.Carrier, W := Tensor.Carrier, source := Product.space, target := Tensor.space] \as Backward;
+\definition backward: Backward.Map := Backward.Map {
+  apply := synthesis,
+  preservesAdd := \fun (f, g: Product.Carrier) => trans!{{Tensor.Carrier}} _ _ _
+    (Sums.congruent (Fin.elements r) _ _ (\fun (a: Fin.Fin r) => Tensor.bilinear.addRight (basis.vectors a) (f a) (g a)))
+    (Sums.addition (Fin.elements r) _ _),
+  preservesScale := \fun (c: R.Real)(f: Product.Carrier) => trans!{{Tensor.Carrier}} _ _ _
+    (Sums.congruent (Fin.elements r) _ _ (\fun (a: Fin.Fin r) => Tensor.bilinear.scaleRight c (basis.vectors a) (f a)))
+    (Sums.scalar (Fin.elements r) c _)
+};
+\module Reconstruction;
+\definition injective: \forall (s, t: Tensor.Carrier) -> forward.apply s = forward.apply t -> s = t :=
+  \fun (s, t: Tensor.Carrier)(same: forward.apply s = forward.apply t) => trans!{{Tensor.Carrier}} _ _ _
+    (sym!{{Tensor.Carrier}} _ _ (Reconstruction[].law s))
+    (trans!{{Tensor.Carrier}} _ _ _ (congr!{{Product.Carrier} {Tensor.Carrier}} synthesis _ _ same) (Reconstruction[].law t));
+\module Projection(a: Fin.Fin r);

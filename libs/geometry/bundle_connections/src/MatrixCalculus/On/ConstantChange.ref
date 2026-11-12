@@ -1,0 +1,57 @@
+\import \parent.Associativity[] \as Algebra;
+\import \parent.Linearity[] \as Linear;
+\import \parent.Gauge[] \as Gauge;
+\import Spaces.Laws[V := Matrix1, space := Linear.space] \as Laws;
+\definition scalar[A: Matrix0]: Matrix0 := product00 (product00 P A) Q;
+\definition form[A: Matrix1]: Matrix1 := product10 (product01 P A) Q;
+\definition cancel: \forall (A: Matrix1) -> product01 Q (form A) = product10 A Q :=
+  \fun (A: Matrix1) => trans!{{Matrix1}} _ _ _ (sym!{{Matrix1}} _ _ (Algebra.assoc010 Q (product01 P A) Q))
+    (congr!{{Matrix1} {Matrix1}} (\fun (B: Matrix1) => product10 B Q) _ _ (Gauge.inverseAction Q P right A));
+\definition product01Law: \forall (A: Matrix0)(B: Matrix1) -> product01 (scalar A) (form B) = form (product01 A B) :=
+  \fun (A: Matrix0)(B: Matrix1) => eq_reason_in!{{Matrix1} _
+    "=" _ "by" { Algebra.assoc001 (product00 P A) Q (form B) }
+    "=" _ "by" { congr!{{Matrix1} {Matrix1}} (product01 (product00 P A)) _ _ (cancel B) }
+    "=" _ "by" { Algebra.assoc001 P A (product10 B Q) }
+    "=" _ "by" { congr!{{Matrix1} {Matrix1}} (product01 P) _ _ (sym!{{Matrix1}} _ _ (Algebra.assoc010 A B Q)) }
+    "=" _ "by" { sym!{{Matrix1}} _ _ (Algebra.assoc010 P (product01 A B) Q) }
+  };
+\definition cancelRight: \forall (A: Matrix1) -> product10 (form A) P = product01 P A :=
+  \fun (A: Matrix1) => eq_reason_in!{{Matrix1} _
+    "=" _ "by" { Algebra.assoc100 (product01 P A) Q P }
+    "=" _ "by" { congr!{{Matrix0} {Matrix1}} (product10 (product01 P A)) _ _ right }
+    "=" _ "by" { Linear.rightIdentity (product01 P A) }
+  };
+\definition product10Law: \forall (A: Matrix1)(B: Matrix0) -> product10 (form A) (scalar B) = form (product10 A B) :=
+  \fun (A: Matrix1)(B: Matrix0) => eq_reason_in!{{Matrix1} _
+    "=" _ "by" { sym!{{Matrix1}} _ _ (Algebra.assoc100 (form A) (product00 P B) Q) }
+    "=" _ "by" { congr!{{Matrix1} {Matrix1}} (\fun (C: Matrix1) => product10 C Q) _ _ (sym!{{Matrix1}} _ _ (Algebra.assoc100 (form A) P B)) }
+    "=" _ "by" { congr!{{Matrix1} {Matrix1}} (\fun (C: Matrix1) => product10 (product10 C B) Q) _ _ (cancelRight A) }
+    "=" _ "by" { congr!{{Matrix1} {Matrix1}} (\fun (C: Matrix1) => product10 C Q) _ _ (Algebra.assoc010 P A B) }
+  };
+\definition plusLaw: \forall (A, B: Matrix1) -> form (plus A B) = plus (form A) (form B) :=
+  \fun (A, B: Matrix1) => trans!{{Matrix1}} _ _ _
+    (congr!{{Matrix1} {Matrix1}} (\fun (C: Matrix1) => product10 C Q) _ _ (Algebra.distribute P A B))
+    (Linear.rightAdd (product01 P A) (product01 P B) Q);
+\definition derivativeLeft: \forall (A: Matrix0) -> dMatrix (product00 P A) = product01 P (dMatrix A) :=
+  \fun (A: Matrix0) => eq_reason_in!{{Matrix1} _
+    "=" _ "by" { productRule P A }
+    "=" _ "by" { congr!{{Matrix1} {Matrix1}} (\fun (B: Matrix1) => plus (product10 B A) (product01 P (dMatrix A))) _ _ constantP }
+    "=" _ "by" { congr!{{Matrix1} {Matrix1}} (\fun (B: Matrix1) => plus B (product01 P (dMatrix A))) _ _ (Linear.rightMap A).preservesZero }
+    "=" _ "by" { Laws.zeroLeft (product01 P (dMatrix A)) }
+  };
+\definition derivative: \forall (A: Matrix0) -> dMatrix (scalar A) = form (dMatrix A) :=
+  \fun (A: Matrix0) => eq_reason_in!{{Matrix1} _
+    "=" _ "by" { productRule (product00 P A) Q }
+    "=" _ "by" { congr!{{Matrix1} {Matrix1} {Matrix1}} plus _ _ _ _
+      (congr!{{Matrix1} {Matrix1}} (\fun (B: Matrix1) => product10 B Q) _ _ (derivativeLeft A))
+      (trans!{{Matrix1}} _ _ _ (congr!{{Matrix1} {Matrix1}} (product01 (product00 P A)) _ _ constantQ) (Linear.leftMap (product00 P A)).preservesZero) }
+    "=" _ "by" { Laws.zeroRight (form (dMatrix A)) }
+  };
+\definition gauge: \forall (T: Matrix0)(A, B: Matrix1) -> product01 T A = plus (dMatrix T) (product10 B T) ->
+  product01 (scalar T) (form A) = plus (dMatrix (scalar T)) (product10 (form B) (scalar T)) :=
+  \fun (T: Matrix0)(A, B: Matrix1)(compatible: _) => eq_reason_in!{{Matrix1} _
+    "=" _ "by" { product01Law T A }
+    "=" _ "by" { congr!{{Matrix1} {Matrix1}} form _ _ compatible }
+    "=" _ "by" { plusLaw (dMatrix T) (product10 B T) }
+    "=" _ "by" { congr!{{Matrix1} {Matrix1} {Matrix1}} plus _ _ _ _ (sym!{{Matrix1}} _ _ (derivative T)) (sym!{{Matrix1}} _ _ (product10Law B T)) }
+  };

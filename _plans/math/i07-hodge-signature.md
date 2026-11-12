@@ -10,6 +10,6 @@
 ## 依存するタスク
 
 - [A17 楕円作用素の解析的指数](a17-elliptic-fredholm.md)
-- [D01 接続と共変微分](d01-connections.md)
+- [接続と共変微分](../../libs/geometry/bundle_connections/README.md)
 - [D04 De Rham の比較定理](d04-de-rham-comparison.md)
 - [G12 Poincaré–Lefschetz 双対性](g12-poincare-duality.md)

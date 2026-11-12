@@ -1,0 +1,27 @@
+\import Charts.Transition[left := chart i, right := chart j] \as Domain;
+\import Bundle.Change[i := i, j := j] \as Inverse;
+\import Bundles.Using[I := I, data := bundle.atlas].Change[i := i, j := j] \as Original;
+\import DualBundles.Using[I := I, data := Dual.data].Change[i := i, j := j] \as New;
+\import \root.Complex[n := n, r := r].Conjugation[] \as Conjugation;
+\import Conjugation.Pairing[] \as Pairing;
+\import linear_algebra.Hermitian[].Over[K := C.Complex, field := C.Algebra[].field, scalar := linear_algebra.Hermitian[].Complex[].scalar].Sums[] \as Sums;
+\definition realSum: \forall (m: N.Nat^)(f: Fin.Fin m -> C.Complex) -> C.re (Sums.sum m f) = R.FiniteSums[].sum m (\fun (a: Fin.Fin m) => C.re (f a)) :=
+  \induction (m: N.Nat^) \return \forall (f: Fin.Fin m -> C.Complex) -> C.re (Sums.sum m f) = R.FiniteSums[].sum m (\fun (a: Fin.Fin m) => C.re (f a)) \with {
+    | zero: \fun (f: _) => \refl(R.zero)
+    | succ: \fun (m: N.Nat^)(previous: _)(f: Fin.Fin (N.Nat^::succ m) -> C.Complex) => congr!{{R.Real} {R.Real}} (R.add (C.re (f (Fin.zero m)))) _ _ (previous (\fun (a: Fin.Fin m) => f (Fin.succ m a)))
+  };
+\definition pairing[v, w: Vectors.Vector]: C.Complex := Sums.sum r (\fun (a: Fin.Fin r) => Op.mul (v a) (w a));
+\module At(u: Open.Carrier Domain.domain);
+\import Underlying.Pair[i := i, j := j] \as Old;
+\import TargetUnderlying.Pair[i := i, j := j] \as TargetPair;
+\import \parent.Local[U := Domain.domain] \as Local;
+\import Open.Smooth[].Algebra[U := Domain.domain] \as Functions;
+\import \root.MatrixCalculus[n := n, r := realRank].On[U := Domain.domain] \as Matrices;
+\import \root.Complex[n := n, r := r].Structure[] \as Structure;
+\import Conjugation.On[U := Domain.domain].DualAdjoint[] \as Adjoint;
+\definition transition: TargetPair.transition = Local.transpose Old.inverse :=
+  \axiom:funext(TargetPair.transition, Local.transpose Old.inverse, \fun (a: Fin.Fin realRank) =>
+    \axiom:funext(TargetPair.transition a, Local.transpose Old.inverse a, \fun (b: Fin.Fin realRank) =>
+      Functions.ext (TargetPair.transition a b) (Local.transpose Old.inverse a b) (\fun (u: Open.Carrier Domain.domain) =>
+        congr!{Matrices.Matrix0 {R.Real}} (\fun (A: Matrices.Matrix0) => A a b u) _ _
+          (Adjoint.law (Structure.realify (Inverse.backward u)) (Structure.realify (New.matrix u)) (At[u := u].realEvaluation)))));

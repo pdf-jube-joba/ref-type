@@ -1,0 +1,46 @@
+\import \parent.Associativity[] \as Algebra;
+\definition identity: Matrix0 := Algebra.identity;
+\definition inverseAction: \forall (P, B: Matrix0) -> product00 P B = identity -> \forall (X: Matrix1) -> product01 P (product01 B X) = X :=
+  \fun (P, B: Matrix0)(inverse: product00 P B = identity)(X: Matrix1) => eq_reason_in!{Matrix1 _
+    "=" _ "by" { sym!{Matrix1} _ _ (Algebra.assoc001 P B X) }
+    "=" _ "by" { congr!{Matrix0 Matrix1} (\fun (m: Matrix0) => product01 m X) _ _ inverse }
+    "=" _ "by" { Algebra.identityLeft X }
+  };
+\definition plusComm: \forall (X, Y: Matrix1) -> plus X Y = plus Y X :=
+  \fun (X, Y: Matrix1) => \axiom:funext(plus X Y, plus Y X, \fun (a: Fin.Fin r) => \axiom:funext(plus X Y a, plus Y X a,
+    \fun (b: Fin.Fin r) => OneForms.space.additive.commutative (X a b) (Y a b)));
+\definition affine: \forall (A, B, C, P, Q: Matrix0) -> product00 B A = C -> product00 P B = identity -> product00 C Q = identity ->
+  product01 A (product01 Q (dMatrix C)) = plus (dMatrix A) (product10 (product01 P (dMatrix B)) A) :=
+  \fun (A, B, C, P, Q: Matrix0)(cocycle: product00 B A = C)(left: product00 P B = identity)(right: product00 C Q = identity) => eq_reason_in!{Matrix1 _
+    "=" _ "by" { sym!{Matrix1} _ _ (inverseAction P B left (product01 A (product01 Q (dMatrix C)))) }
+    "=" _ "by" { congr!{Matrix1 Matrix1} (product01 P) _ _ (sym!{Matrix1} _ _ (Algebra.assoc001 B A (product01 Q (dMatrix C)))) }
+    "=" _ "by" { congr!{Matrix0 Matrix1} (\fun (m: Matrix0) => product01 P (product01 m (product01 Q (dMatrix C)))) _ _ cocycle }
+    "=" _ "by" { congr!{Matrix1 Matrix1} (product01 P) _ _ (sym!{Matrix1} _ _ (Algebra.assoc001 C Q (dMatrix C))) }
+    "=" _ "by" { congr!{Matrix0 Matrix1} (\fun (m: Matrix0) => product01 P (product01 m (dMatrix C))) _ _ right }
+    "=" _ "by" { congr!{Matrix1 Matrix1} (product01 P) _ _ (Algebra.identityLeft (dMatrix C)) }
+    "=" _ "by" { congr!{Matrix0 Matrix1} (\fun (m: Matrix0) => product01 P (dMatrix m)) _ _ (sym!{Matrix0} _ _ cocycle) }
+    "=" _ "by" { congr!{Matrix1 Matrix1} (product01 P) _ _ (productRule B A) }
+    "=" _ "by" { Algebra.distribute P (product10 (dMatrix B) A) (product01 B (dMatrix A)) }
+    "=" _ "by" { congr!{Matrix1 Matrix1 Matrix1} plus _ _ _ _
+      (sym!{Matrix1} _ _ (Algebra.assoc010 P (dMatrix B) A)) (inverseAction P B left (dMatrix A)) }
+    "=" _ "by" { plusComm (product10 (product01 P (dMatrix B)) A) (dMatrix A) }
+  };
+
+\definition reduce: \forall (A, B, C, P, Q: Matrix0) -> product00 B A = C -> product00 P B = identity -> product00 C Q = identity ->
+  \forall (X: Matrix1) -> product01 A (product01 Q X) = product01 P X :=
+  \fun (A, B, C, P, Q: Matrix0)(cocycle: product00 B A = C)(left: product00 P B = identity)(right: product00 C Q = identity)(X: Matrix1) => eq_reason_in!{Matrix1 _
+    "=" _ "by" { sym!{Matrix1} _ _ (inverseAction P B left (product01 A (product01 Q X))) }
+    "=" _ "by" { congr!{Matrix1 Matrix1} (product01 P) _ _ (sym!{Matrix1} _ _ (Algebra.assoc001 B A (product01 Q X))) }
+    "=" _ "by" { congr!{Matrix0 Matrix1} (\fun (m: Matrix0) => product01 P (product01 m (product01 Q X))) _ _ cocycle }
+    "=" _ "by" { congr!{Matrix1 Matrix1} (product01 P) _ _ (sym!{Matrix1} _ _ (Algebra.assoc001 C Q X)) }
+    "=" _ "by" { congr!{Matrix0 Matrix1} (\fun (m: Matrix0) => product01 P (product01 m X)) _ _ right }
+    "=" _ "by" { congr!{Matrix1 Matrix1} (product01 P) _ _ (Algebra.identityLeft X) }
+  };
+\definition homogeneous: \forall (A, B, C, P, Q: Matrix0) -> product00 B A = C -> product00 P B = identity -> product00 C Q = identity ->
+  \forall (H: Matrix1) -> product01 A (product01 Q (product10 H C)) = product10 (product01 P (product10 H B)) A :=
+  \fun (A, B, C, P, Q: Matrix0)(cocycle: product00 B A = C)(left: product00 P B = identity)(right: product00 C Q = identity)(H: Matrix1) => eq_reason_in!{Matrix1 _
+    "=" _ "by" { reduce A B C P Q cocycle left right (product10 H C) }
+    "=" _ "by" { congr!{Matrix0 Matrix1} (\fun (m: Matrix0) => product01 P (product10 H m)) _ _ (sym!{Matrix0} _ _ cocycle) }
+    "=" _ "by" { congr!{Matrix1 Matrix1} (product01 P) _ _ (sym!{Matrix1} _ _ (Algebra.assoc100 H B A)) }
+    "=" _ "by" { sym!{Matrix1} _ _ (Algebra.assoc010 P (product10 H B) A) }
+  };

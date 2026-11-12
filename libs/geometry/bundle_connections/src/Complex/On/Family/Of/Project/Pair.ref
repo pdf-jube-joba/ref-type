@@ -1,0 +1,22 @@
+\import \parent.\parent.Pair[i := i, j := j] \as Geometry;
+\import Underlying.Pair[i := i, j := j] \as Gauge;
+\import Charts.Transition[left := chart i, right := chart j] \as Transition;
+\import \root.Complex[n := n, r := r].Structure[].On[U := Transition.domain] \as Structure;
+\import \root.MatrixCalculus[n := n, r := realRank].On[U := Transition.domain] \as Matrices;
+\import Matrices.Linearity[] \as Linear;
+\import Matrices.ComplexStructure[J := Structure.matrix, square := Structure.squareMatrix] \as Projection;
+\definition commuting: Matrices.product00 Structure.matrix Gauge.transition = Matrices.product00 Gauge.transition Structure.matrix := sym!{{Matrices.Matrix0}} _ _ Geometry.commutation;
+\import Projection.Gauge[T := Gauge.transition, commuting := commuting] \as Preserve;
+\import \root.Complex[n := n, r := r].Transport[U := Transition.domain, V := (chart i).image].Restriction[included := Gauge.included] \as Restrict;
+\import \root.Complex[n := n, r := r].Transport[U := Transition.domain, V := (chart j).image].Pull[f := Gauge.map] \as Pull;
+\definition original: Gauge.left (connection i) = Gauge.right (connection j) :=
+  Linear.ext (Gauge.left (connection i)) (Gauge.right (connection j)) (Underlying.compatible connection i j);
+\definition equality: Gauge.left (data i) = Gauge.right (data j) := eq_reason_in!{{Matrices.Matrix1} _
+  "=" _ "by" { congr!{{Matrices.Matrix1} {Matrices.Matrix1}} (Matrices.product01 Gauge.transition) _ _ (Restrict.project (connection i).matrix) }
+  "=" _ "by" { Preserve.preserves (Gauge.source (connection i)) (Gauge.target (connection j)) original (Preserve.derivativeCommutes Structure.constant) }
+  "=" _ "by" { congr!{{Matrices.Matrix1} {Matrices.Matrix1}} (\fun (A: Matrices.Matrix1) => Matrices.plus (Matrices.dMatrix Gauge.transition) (Matrices.product10 A Gauge.transition)) _ _
+    (sym!{{Matrices.Matrix1}} _ _ (Pull.project (connection j).matrix)) }
+};
+\import euclidean_forms.Euclidean[n := n].On[U := Transition.domain] \as Scalar;
+\definition compatible: Gauge.Compatible (data i) (data j) := \fun (a, b: Fin.Fin realRank) =>
+  congr!{{Matrices.Matrix1} {Scalar.Form (N.Nat^::succ N.Nat^::zero)}} (\fun (A: Matrices.Matrix1) => A a b) _ _ equality;

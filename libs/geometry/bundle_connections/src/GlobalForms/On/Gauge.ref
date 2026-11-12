@@ -1,0 +1,63 @@
+\definition next: N.Nat^ := N.Nat^::succ k;
+\import \root.MatrixCalculus[n := n, r := r].On[U := U] \as M;
+\import \parent.Action[k := k] \as Action;
+\import \parent.Action[k := next] \as NextAction;
+\import \parent.WedgeAction[k := k] \as W;
+\import Scalar.At[k := k] \as Source;
+\import Scalar.At[k := next] \as Target;
+\import Scalar.At[k := one] \as One;
+\import Scalar.ExteriorDerivative[k := k] \as D;
+\import Spaces.Sums[I := Fin.Fin r].Vector[V := Scalar.Form k, space := Source.space] \as SourceSums;
+\import Spaces.Sums[I := Fin.Fin r].Vector[V := Scalar.Form next, space := Target.space] \as Sums;
+\import Spaces.Sums[I := Fin.Fin r].Vector[V := Scalar.Form one, space := One.space].Mapping[W := Scalar.Form next, target := Target.space] \as OneMapping;
+\import SourceSums.Mapping[W := Scalar.Form next, target := Target.space] \as SourceMapping;
+\import Sums.Mapping[W := Scalar.Form next, target := Target.space] \as Mapping;
+\import Spaces.Laws[V := Scalar.Form next, space := Target.space] \as Laws;
+\definition differential[omega: Forms.Form k][a: Fin.Fin r]: Scalar.Form next := D.apply (omega a);
+\definition covariant[A: M.Matrix1][omega: Forms.Form k]: Forms.Form next := Forms.At[k := next].plus (differential omega) (W.apply A omega);
+\definition collapse: \forall (f: Fin.Fin r -> Fin.Fin r -> Scalar.Form one)(omega: Forms.Form k) ->
+  Sums.sum (Fin.elements r) (\fun (b: Fin.Fin r) => Sums.sum (Fin.elements r) (\fun (c: Fin.Fin r) => W.term (f b c) (omega c))) =
+  Sums.sum (Fin.elements r) (\fun (c: Fin.Fin r) => W.term (M.sum1 r (\fun (b: Fin.Fin r) => f b c)) (omega c)) :=
+  \fun (f: Fin.Fin r -> Fin.Fin r -> Scalar.Form one)(omega: Forms.Form k) => trans!{{Scalar.Form next}} _ _ _
+    (Sums.exchange (Fin.elements r) (Fin.elements r) (\fun (b, c: Fin.Fin r) => W.term (f b c) (omega c)))
+    (Sums.congruent (Fin.elements r) _ _ (\fun (c: Fin.Fin r) => trans!{{Scalar.Form next}} _ _ _
+      (sym!{{Scalar.Form next}} _ _ (OneMapping.law (W.leftMap (omega c)) (Fin.elements r) (\fun (b: Fin.Fin r) => f b c)))
+      (congr!{{Scalar.Form one} {Scalar.Form next}} (\fun (theta: Scalar.Form one) => W.term theta (omega c)) _ _ (sym!{{Scalar.Form one}} _ _ (W.sumOne (\fun (b: Fin.Fin r) => f b c))))));
+\definition leftAssoc: \forall (T: M.Matrix0)(A: M.Matrix1)(omega: Forms.Form k) -> NextAction.apply T (W.apply A omega) = W.apply (M.product01 T A) omega :=
+  \fun (T: M.Matrix0)(A: M.Matrix1)(omega: Forms.Form k) => \axiom:funext(NextAction.apply T (W.apply A omega), W.apply (M.product01 T A) omega,
+    \fun (a: Fin.Fin r) => trans!{{Scalar.Form next}} _ _ _
+      (Sums.congruent (Fin.elements r) _ _ (\fun (b: Fin.Fin r) => trans!{{Scalar.Form next}} _ _ _
+        (Mapping.law (NextAction.map (T a b)) (Fin.elements r) (\fun (c: Fin.Fin r) => W.term (A b c) (omega c)))
+        (Sums.congruent (Fin.elements r) _ _ (\fun (c: Fin.Fin r) => sym!{{Scalar.Form next}} _ _ (W.factorLeft (T a b) (A b c) (omega c))))))
+      (collapse (\fun (b, c: Fin.Fin r) => One.multiply (T a b) (A b c)) omega));
+\definition rightAssoc: \forall (B: M.Matrix1)(T: M.Matrix0)(omega: Forms.Form k) -> W.apply B (Action.apply T omega) = W.apply (M.product10 B T) omega :=
+  \fun (B: M.Matrix1)(T: M.Matrix0)(omega: Forms.Form k) => \axiom:funext(W.apply B (Action.apply T omega), W.apply (M.product10 B T) omega,
+    \fun (a: Fin.Fin r) => trans!{{Scalar.Form next}} _ _ _
+      (Sums.congruent (Fin.elements r) _ _ (\fun (b: Fin.Fin r) => trans!{{Scalar.Form next}} _ _ _
+        (SourceMapping.law (W.rightMap (B a b)) (Fin.elements r) (\fun (c: Fin.Fin r) => Source.multiply (T b c) (omega c)))
+        (Sums.congruent (Fin.elements r) _ _ (\fun (c: Fin.Fin r) => trans!{{Scalar.Form next}} _ _ _
+          (W.factorRight (T b c) (B a b) (omega c)) (sym!{{Scalar.Form next}} _ _ (W.factorLeft (T b c) (B a b) (omega c)))))))
+      (collapse (\fun (b, c: Fin.Fin r) => One.multiply (T b c) (B a b)) omega));
+\definition productRule: \forall (T: M.Matrix0)(omega: Forms.Form k) -> differential (Action.apply T omega) = Forms.At[k := next].plus (W.apply (M.dMatrix T) omega) (NextAction.apply T (differential omega)) :=
+  \fun (T: M.Matrix0)(omega: Forms.Form k) => \axiom:funext(differential (Action.apply T omega), Forms.At[k := next].plus (W.apply (M.dMatrix T) omega) (NextAction.apply T (differential omega)),
+    \fun (a: Fin.Fin r) => eq_reason_in!{{Scalar.Form next} _
+      "=" _ "by" { SourceMapping.law D.map (Fin.elements r) (\fun (b: Fin.Fin r) => Source.multiply (T a b) (omega b)) }
+      "=" _ "by" { Sums.congruent (Fin.elements r) _ _ (\fun (b: Fin.Fin r) => \parent.Differential[k := k].law (T a b) (omega b)) }
+      "=" _ "by" { Sums.addition (Fin.elements r) (\fun (b: Fin.Fin r) => W.term (M.differential (T a b)) (omega b)) (\fun (b: Fin.Fin r) => Target.multiply (T a b) (D.apply (omega b))) }
+    });
+\definition law: \forall (T: M.Matrix0)(A, B: M.Matrix1) -> M.product01 T A = M.plus (M.dMatrix T) (M.product10 B T) ->
+  \forall (omega: Forms.Form k) -> covariant B (Action.apply T omega) = NextAction.apply T (covariant A omega) :=
+  \fun (T: M.Matrix0)(A, B: M.Matrix1)(gauge: M.product01 T A = M.plus (M.dMatrix T) (M.product10 B T))(omega: Forms.Form k) => \axiom:funext(covariant B (Action.apply T omega), NextAction.apply T (covariant A omega),
+    \fun (a: Fin.Fin r) => eq_reason_in!{{Scalar.Form next} _
+      "=" _ "by" { congr!{{Scalar.Form next} {Scalar.Form next} {Scalar.Form next}} Target.plus _ _ _ _
+        (congr!{{Forms.Form next} {Scalar.Form next}} (\fun (v: Forms.Form next) => v a) _ _ (productRule T omega))
+        (congr!{{Forms.Form next} {Scalar.Form next}} (\fun (v: Forms.Form next) => v a) _ _ (rightAssoc B T omega)) }
+      "=" _ "by" { \parent.Leibniz[p := k, q := N.Nat^::zero, connection := Forms.flat].rearrange (W.apply (M.dMatrix T) omega a) (NextAction.apply T (differential omega) a) (W.apply (M.product10 B T) omega a) }
+      "=" _ "by" { congr!{{Scalar.Form next} {Scalar.Form next}} (\fun (v: Scalar.Form next) => Target.plus v (NextAction.apply T (differential omega) a)) _ _
+        (sym!{{Scalar.Form next}} _ _ (congr!{{Forms.Form next} {Scalar.Form next}} (\fun (v: Forms.Form next) => v a) _ _ (W.matrixAddition (M.dMatrix T) (M.product10 B T) omega))) }
+      "=" _ "by" { congr!{{M.Matrix1} {Scalar.Form next}} (\fun (C: M.Matrix1) => Target.plus (W.apply C omega a) (NextAction.apply T (differential omega) a)) _ _ (sym!{{M.Matrix1}} _ _ gauge) }
+      "=" _ "by" { congr!{{Scalar.Form next} {Scalar.Form next}} (\fun (v: Scalar.Form next) => Target.plus v (NextAction.apply T (differential omega) a)) _ _
+        (sym!{{Scalar.Form next}} _ _ (congr!{{Forms.Form next} {Scalar.Form next}} (\fun (v: Forms.Form next) => v a) _ _ (leftAssoc T A omega))) }
+      "=" _ "by" { Laws.comm (NextAction.apply T (W.apply A omega) a) (NextAction.apply T (differential omega) a) }
+      "=" _ "by" { sym!{{Scalar.Form next}} _ _ (congr!{{Forms.Form next} {Scalar.Form next}} (\fun (v: Forms.Form next) => v a) _ _ (NextAction.addition T (differential omega) (W.apply A omega))) }
+    });

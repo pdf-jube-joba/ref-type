@@ -1,0 +1,39 @@
+\import Open.Smooth[].Algebra[U := U] \as Functions;
+\definition plus0[s, t: Matrices.Matrix0]: Matrices.Matrix0 := \fun (a, b: Fin.Fin r) => Functions.plus (s a b) (t a b);
+\definition scale0[f: Functions.Function][s: Matrices.Matrix0]: Matrices.Matrix0 := \fun (a, b: Fin.Fin r) => Functions.product f (s a b);
+\definition scale1[f: Functions.Function][s: Matrices.Matrix1]: Matrices.Matrix1 := \fun (a, b: Fin.Fin r) => One.multiply f (s a b);
+\definition tensor[f: Functions.Function][s: Matrices.Matrix0]: Matrices.Matrix1 := \fun (a, b: Fin.Fin r) => One.multiply (s a b) (Matrices.differential f);
+\definition scalarAdd: \forall (f, g: Functions.Function)(omega: Forms.Form one) -> One.multiply (Functions.plus f g) omega = One.plus (One.multiply f omega) (One.multiply g omega) :=
+  \fun (f, g: Functions.Function)(omega: Forms.Form one) => Forms.ext one _ _ (\fun (x: Open.Carrier U)(v: Spaces.Multilinear[V := Fin.Fin n -> R.Real, space := Spaces.Coordinates[I := Fin.Fin n].space].Arguments one) => Spaces.addMul (f x) (g x) (omega x v));
+\definition vectorAdd: \forall (f: Functions.Function)(omega, eta: Forms.Form one) -> One.multiply f (One.plus omega eta) = One.plus (One.multiply f omega) (One.multiply f eta) :=
+  \fun (f: Functions.Function)(omega, eta: Forms.Form one) => Forms.ext one _ _ (\fun (x: Open.Carrier U)(v: Spaces.Multilinear[V := Fin.Fin n -> R.Real, space := Spaces.Coordinates[I := Fin.Fin n].space].Arguments one) => Spaces.mulAdd (f x) (omega x v) (eta x v));
+\definition scalarAssoc: \forall (f, g: Functions.Function)(omega: Forms.Form one) -> One.multiply (Functions.product f g) omega = One.multiply f (One.multiply g omega) :=
+  \fun (f, g: Functions.Function)(omega: Forms.Form one) => Forms.ext one _ _ (\fun (x: Open.Carrier U)(v: Spaces.Multilinear[V := Fin.Fin n -> R.Real, space := Spaces.Coordinates[I := Fin.Fin n].space].Arguments one) => Spaces.mulAssoc (f x) (g x) (omega x v));
+\definition sumMultiply: \forall (m: N.Nat^)(f: Functions.Function)(omega: Fin.Fin m -> Forms.Form one) ->
+  Matrices.sum1 m (\fun (a: Fin.Fin m) => One.multiply f (omega a)) = One.multiply f (Matrices.sum1 m omega) :=
+  \fun (m: N.Nat^)(f: Functions.Function)(omega: Fin.Fin m -> Forms.Form one) => Forms.ext one _ _
+    (\fun (x: Open.Carrier U)(v: Spaces.Multilinear[V := Fin.Fin n -> R.Real, space := Spaces.Coordinates[I := Fin.Fin n].space].Arguments one) => eq_reason_in!{{R.Real} _
+      "=" _ "by" { Matrices.sum1Value m (\fun (a: Fin.Fin m) => One.multiply f (omega a)) x v }
+      "=" _ "by" { R.FiniteSums[].scalar m (f x) (\fun (a: Fin.Fin m) => omega a x v) }
+      "=" _ "by" { congr!{{R.Real} {R.Real}} (R.mul (f x)) _ _ (sym!{{R.Real}} _ _ (Matrices.sum1Value m omega x v)) }
+    });
+\definition correctionAdd: \forall (A: Matrices.Matrix1)(s, t: Matrices.Matrix0)(a, b: Fin.Fin r) ->
+  Matrices.product10 A (plus0 s t) a b = One.plus (Matrices.product10 A s a b) (Matrices.product10 A t a b) :=
+  \fun (A: Matrices.Matrix1)(s, t: Matrices.Matrix0)(a, b: Fin.Fin r) => trans!{{Forms.Form one}} _ _ _
+    (Matrices.sum1Congruent r _ _ (\fun (c: Fin.Fin r) => scalarAdd (s c b) (t c b) (A a c))) (Matrices.sum1Add r _ _);
+\definition correctionScale: \forall (A: Matrices.Matrix1)(f: Functions.Function)(s: Matrices.Matrix0)(a, b: Fin.Fin r) ->
+  Matrices.product10 A (scale0 f s) a b = One.multiply f (Matrices.product10 A s a b) :=
+  \fun (A: Matrices.Matrix1)(f: Functions.Function)(s: Matrices.Matrix0)(a, b: Fin.Fin r) => trans!{{Forms.Form one}} _ _ _
+    (Matrices.sum1Congruent r _ _ (\fun (c: Fin.Fin r) => scalarAssoc f (s c b) (A a c))) (sumMultiply r f _);
+\definition addition: \forall (A: Matrices.Matrix1)(s, t: Matrices.Matrix0) -> covariant A (plus0 s t) = Matrices.plus (covariant A s) (covariant A t) :=
+  \fun (A: Matrices.Matrix1)(s, t: Matrices.Matrix0) => ext _ _ (\fun (a, b: Fin.Fin r) => trans!{{Forms.Form one}} _ _ _
+    (congr!{{Forms.Form one} {Forms.Form one} {Forms.Form one}} One.plus _ _ _ _ (Matrices.dAdd (s a b) (t a b)) (correctionAdd A s t a b))
+    (Addition.shuffle (Matrices.differential (s a b)) (Matrices.differential (t a b)) (Matrices.product10 A s a b) (Matrices.product10 A t a b)));
+\definition leibniz: \forall (A: Matrices.Matrix1)(f: Functions.Function)(s: Matrices.Matrix0) ->
+  covariant A (scale0 f s) = Matrices.plus (tensor f s) (scale1 f (covariant A s)) :=
+  \fun (A: Matrices.Matrix1)(f: Functions.Function)(s: Matrices.Matrix0) => ext _ _ (\fun (a, b: Fin.Fin r) => eq_reason_in!{{Forms.Form one} _
+    "=" _ "by" { congr!{{Forms.Form one} {Forms.Form one} {Forms.Form one}} One.plus _ _ _ _ (Matrices.dProduct f (s a b)) (correctionScale A f s a b) }
+    "=" _ "by" { Addition.assoc (One.multiply (s a b) (Matrices.differential f)) (One.multiply f (Matrices.differential (s a b))) (One.multiply f (Matrices.product10 A s a b)) }
+    "=" _ "by" { congr!{{Forms.Form one} {Forms.Form one}} (One.plus (One.multiply (s a b) (Matrices.differential f))) _ _
+      (sym!{{Forms.Form one}} _ _ (vectorAdd f (Matrices.differential (s a b)) (Matrices.product10 A s a b))) }
+  });

@@ -1,0 +1,38 @@
+\import Spaces.Laws[V := Functions.Function, space := Functions.vectorSpace] \as Addition;
+\definition correction[i: Fin.Fin n][s: Section][a: Fin.Fin r]: Functions.Function :=
+  sum r (\fun (b: Fin.Fin r) => Functions.product (connection.coefficient i a b) (s b));
+\definition partial[i: Fin.Fin n][s: Section][a: Fin.Fin r]: Functions.Function :=
+  Functions.plus (Derivatives.apply i (s a)) (correction i s a);
+\definition correctionAdd: \forall (i: Fin.Fin n)(s, t: Section)(a: Fin.Fin r) ->
+  correction i (plus s t) a = Functions.plus (correction i s a) (correction i t a) :=
+  \fun (i: Fin.Fin n)(s, t: Section)(a: Fin.Fin r) => trans!{{Functions.Function}} _ _ _
+    (sumCongruent r _ _ (\fun (b: Fin.Fin r) => Functions.distributive (connection.coefficient i a b) (s b) (t b)))
+    (sumAdd r _ _);
+\definition addition: \forall (i: Fin.Fin n)(s, t: Section) -> partial i (plus s t) = plus (partial i s) (partial i t) :=
+  \fun (i: Fin.Fin n)(s, t: Section) => \axiom:funext(partial i (plus s t), plus (partial i s) (partial i t), \fun (a: Fin.Fin r) =>
+    trans!{{Functions.Function}} _ _ _
+      (congr!{{Functions.Function} {Functions.Function} {Functions.Function}} Functions.plus _ _ _ _
+        (Derivatives.addition i (s a) (t a)) (correctionAdd i s t a))
+      (Addition.shuffle (Derivatives.apply i (s a)) (Derivatives.apply i (t a)) (correction i s a) (correction i t a)));
+\definition exchangeProduct: \forall (a, f, b: Functions.Function) -> Functions.product a (Functions.product f b) = Functions.product f (Functions.product a b) :=
+  \fun (a, f, b: Functions.Function) => eq_reason_in!{{Functions.Function} _
+    "=" _ "by" { sym!{{Functions.Function}} _ _ (Functions.productAssociative a f b) }
+    "=" _ "by" { congr!{{Functions.Function} {Functions.Function}} (\fun (c: Functions.Function) => Functions.product c b) _ _ (Functions.productCommutative a f) }
+    "=" _ "by" { Functions.productAssociative f a b }
+  };
+\definition correctionProduct: \forall (i: Fin.Fin n)(f: Functions.Function)(s: Section)(a: Fin.Fin r) ->
+  correction i (multiply f s) a = Functions.product f (correction i s a) :=
+  \fun (i: Fin.Fin n)(f: Functions.Function)(s: Section)(a: Fin.Fin r) => trans!{{Functions.Function}} _ _ _
+    (sumCongruent r _ _ (\fun (b: Fin.Fin r) => exchangeProduct (connection.coefficient i a b) f (s b)))
+    (sumProduct r f _);
+\definition leibniz: \forall (i: Fin.Fin n)(f: Functions.Function)(s: Section) ->
+  partial i (multiply f s) = plus (multiply (Derivatives.apply i f) s) (multiply f (partial i s)) :=
+  \fun (i: Fin.Fin n)(f: Functions.Function)(s: Section) => \axiom:funext(partial i (multiply f s),
+    plus (multiply (Derivatives.apply i f) s) (multiply f (partial i s)), \fun (a: Fin.Fin r) => eq_reason_in!{{Functions.Function} _
+      "=" _ "by" { congr!{{Functions.Function} {Functions.Function} {Functions.Function}} Functions.plus _ _ _ _
+        (Derivatives.product i f (s a)) (correctionProduct i f s a) }
+      "=" _ "by" { Addition.assoc (Functions.product (Derivatives.apply i f) (s a)) (Functions.product f (Derivatives.apply i (s a))) (Functions.product f (correction i s a)) }
+      "=" _ "by" { congr!{{Functions.Function} {Functions.Function}} (Functions.plus (Functions.product (Derivatives.apply i f) (s a))) _ _
+        (sym!{{Functions.Function}} _ _ (Functions.distributive f (Derivatives.apply i (s a)) (correction i s a))) }
+    });
+\module Tensor(s: N.Nat^, other: \root.Local[n := n, r := s].On[U := U].Connection);

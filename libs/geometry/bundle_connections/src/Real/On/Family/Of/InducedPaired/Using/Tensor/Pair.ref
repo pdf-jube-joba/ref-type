@@ -1,0 +1,59 @@
+\import \parent.\parent.\parent.\parent.Pair[i := i, j := j] \as First;
+\import Other.Pair[i := i, j := j] \as Second;
+\import Result.Pair[i := i, j := j] \as New;
+\import Charts.Transition[left := chart i, right := chart j] \as Domain;
+\import Tensor.Change[i := i, j := j] \as Change;
+\import \root.TensorGauge[n := n, r := r, s := s].On[U := Domain.domain].Indexed[enumeration := enumeration] \as Gauge;
+\import \root.TensorIndex[r := r, s := s].Using[enumeration := enumeration] \as Index;
+\import Operations.PairIndices[n := r, m := s] \as Pairs;
+\import Operations.FiniteIndex[A := Pairs.Pair, S := Pairs.Whole, enumeration := enumeration] \as Coordinates;
+\import \root.MatrixCalculus[n := n, r := Tensor.rank].On[U := Domain.domain] \as Matrix;
+\import Euclidean.On[U := Domain.domain] \as Scalar;
+\import Open.Smooth[].Algebra[U := Domain.domain] \as Functions;
+\use Equality.eq_reason_in;
+\import R.FiniteSums[] \as Sums;
+\import R.FiniteSums[].Linear[] \as Finite;
+\import Spaces.FiniteCoordinateEnumeration[] \as Enumeration;
+\import \root.Metric[n := n, r := r].Basis[] \as LeftBasis;
+\import \root.Metric[n := n, r := s].Basis[] \as RightBasis;
+\import \root.Metric[n := n, r := Tensor.rank].Basis[] \as Basis;
+\import \root.TensorGauge[n := n, r := r, s := s].Finite[t := Tensor.rank] \as FiniteMatrix;
+\import Atlas.Change[i := i, j := j] \as LeftChange;
+\import OtherAtlas.Change[i := i, j := j] \as RightChange;
+\import std.Data[].Pair[].Prop[A := Fin.Fin r, B := Fin.Fin s] \as PairLaws;
+\import bundle_operations.Operations[].Subset[E := Pairs.Pair, U := Pairs.Whole] \as Subset;
+\definition entryEquality: \forall (c: Fin.Fin Tensor.rank) -> Change.entry (Index.row c) (Index.col c) = Coordinates.enumerate c :=
+  \fun (c: Fin.Fin Tensor.rank) => Subset.equality (Change.entry (Index.row c) (Index.col c)) (Coordinates.enumerate c) (PairLaws.eta (Coordinates.enumerate c));
+\definition constant: \forall (b, c: Fin.Fin Tensor.rank) -> Change.constant b (Index.row c) (Index.col c) = Finite.basis Tensor.rank b c :=
+  \fun (b, c: Fin.Fin Tensor.rank) => trans!{{R.Real}} _ _ _
+    (congr!{{Coordinates.Index} {R.Real}} (Coordinates.decode (Finite.basis Tensor.rank b)) _ _ (entryEquality c))
+    (congr!{{Fin.Fin Tensor.rank -> R.Real} {R.Real}} (\fun (v: Fin.Fin Tensor.rank -> R.Real) => v c) _ _ (Coordinates.isomorphism.rightInverse (Finite.basis Tensor.rank b)));
+\definition leftEntry: \forall (a, u: Fin.Fin r)(t: Open.Carrier Domain.domain) ->
+  (LeftChange.linear t).apply (Spaces.FiniteCoordinates[n := r].vectors u) a = First.transition a u t :=
+  \fun (a, u: Fin.Fin r)(t: Open.Carrier Domain.domain) => congr!{{Fin.Fin r -> R.Real} {R.Real}} (\fun (v: Fin.Fin r -> R.Real) => (LeftChange.linear t).apply v a) _ _ (sym!{{Fin.Fin r -> R.Real}} _ _ (LeftBasis.equal u));
+\definition rightEntry: \forall (a, u: Fin.Fin s)(t: Open.Carrier Domain.domain) ->
+  (RightChange.linear t).apply (Spaces.FiniteCoordinates[n := s].vectors u) a = Second.transition a u t :=
+  \fun (a, u: Fin.Fin s)(t: Open.Carrier Domain.domain) => congr!{{Fin.Fin s -> R.Real} {R.Real}} (\fun (v: Fin.Fin s -> R.Real) => (RightChange.linear t).apply v a) _ _ (sym!{{Fin.Fin s -> R.Real}} _ _ (RightBasis.equal u));
+\definition term: \forall (a, b, c: Fin.Fin Tensor.rank)(t: Open.Carrier Domain.domain) ->
+  Change.term a b (Index.row c) (Index.col c) t = R.mul (FiniteMatrix.identity b c) (Gauge.tensor0 First.transition Second.transition a c t) :=
+  \fun (a, b, c: Fin.Fin Tensor.rank)(t: Open.Carrier Domain.domain) => congr!{{R.Real} {R.Real} {R.Real}} R.mul _ _ _ _
+    (trans!{{R.Real}} _ _ _ (constant b c) (congr!{{Fin.Fin Tensor.rank -> R.Real} {R.Real}} (\fun (v: Fin.Fin Tensor.rank -> R.Real) => v c) _ _ (Basis.equal b)))
+    (congr!{{R.Real} {R.Real} {R.Real}} R.mul _ _ _ _ (leftEntry (Index.row a) (Index.row c) t) (rightEntry (Index.col a) (Index.col c) t));
+\definition entry: \forall (a, b: Fin.Fin Tensor.rank)(t: Open.Carrier Domain.domain) -> New.transition a b t = Gauge.tensor0 First.transition Second.transition a b t :=
+  \fun (a, b: Fin.Fin Tensor.rank)(t: Open.Carrier Domain.domain) => eq_reason_in!{{R.Real} {New.transition a b t}
+    "=" {Change.expression a b t} "by" { Change.formula a b t }
+    "=" {Sums.sum r (\fun (u: Fin.Fin r) => Spaces.Sums[I := Fin.Fin s].sum (Fin.elements s) (\fun (v: Fin.Fin s) => Change.term a b u v t))} "by" {
+      Enumeration.sumLaw r (\fun (u: Fin.Fin r) => Spaces.Sums[I := Fin.Fin s].sum (Fin.elements s) (\fun (v: Fin.Fin s) => Change.term a b u v t)) }
+    "=" {Sums.sum r (\fun (u: Fin.Fin r) => Sums.sum s (\fun (v: Fin.Fin s) => Change.term a b u v t))} "by" {
+      Sums.congruent r _ _ (\fun (u: Fin.Fin r) => Enumeration.sumLaw s (\fun (v: Fin.Fin s) => Change.term a b u v t)) }
+    "=" {Sums.sum Tensor.rank (\fun (c: Fin.Fin Tensor.rank) => Change.term a b (Index.row c) (Index.col c) t)} "by" {
+      sym!{{R.Real}} _ _ (Index.sum (\fun (u: Fin.Fin r)(v: Fin.Fin s) => Change.term a b u v t)) }
+    "=" {Sums.sum Tensor.rank (\fun (c: Fin.Fin Tensor.rank) => R.mul (FiniteMatrix.identity b c) (Gauge.tensor0 First.transition Second.transition a c t))} "by" {
+      Sums.congruent Tensor.rank _ _ (\fun (c: Fin.Fin Tensor.rank) => term a b c t) }
+    "=" {Gauge.tensor0 First.transition Second.transition a b t} "by" {
+      FiniteMatrix.extract b (\fun (c: Fin.Fin Tensor.rank) => Gauge.tensor0 First.transition Second.transition a c t) }
+  };
+\definition transition: New.transition = Gauge.tensor0 First.transition Second.transition :=
+  \axiom:funext(New.transition, Gauge.tensor0 First.transition Second.transition, \fun (a: Fin.Fin Tensor.rank) =>
+    \axiom:funext(New.transition a, Gauge.tensor0 First.transition Second.transition a, \fun (b: Fin.Fin Tensor.rank) =>
+      Functions.ext (New.transition a b) (Gauge.tensor0 First.transition Second.transition a b) (entry a b)));

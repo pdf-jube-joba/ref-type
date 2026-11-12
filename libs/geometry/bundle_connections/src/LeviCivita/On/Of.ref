@@ -1,0 +1,37 @@
+\import \root.LeviCivita[n := n].Scalars[] \as Scalars;
+\definition derivative[i, j, k: Index]: Functions.Function := Derivatives.apply i (metric.value j k);
+\definition derivativeSymmetry: \forall (i, j, k: Index) -> derivative i j k = derivative i k j :=
+  \fun (i, j, k: Index) => congr!{{Functions.Function} {Functions.Function}} (Derivatives.apply i) _ _ (metric.symmetric j k);
+\definition difference[f, g: Functions.Function]: Functions.Function := Functions.plus f (Functions.scale (R.neg R.one) g);
+\definition differenceValue: \forall (f, g: Functions.Function)(x: Open.Carrier U) -> difference f g x = R.sub (f x) (g x) :=
+  \fun (f, g: Functions.Function)(x: Open.Carrier U) => congr!{{R.Real} {R.Real}} (R.add (f x)) _ _
+    (trans!{{R.Real}} _ _ _ (Laws.fieldMulNegLeft R.one (g x)) (congr!{{R.Real} {R.Real}} R.neg _ _ (Laws.fieldMulOneLeft (g x))));
+\definition lower[i, j, k: Index]: Functions.Function := Functions.scale R.half
+  (difference (Functions.plus (derivative i j k) (derivative j i k)) (derivative k i j));
+\definition formula: \forall (i, j, k: Index)(x: Open.Carrier U) -> lower i j k x =
+  R.mul R.half (R.sub (R.add (derivative i j k x) (derivative j i k x)) (derivative k i j x)) :=
+  \fun (i, j, k: Index)(x: Open.Carrier U) => congr!{{R.Real} {R.Real}} (R.mul R.half) _ _
+    (differenceValue (Functions.plus (derivative i j k) (derivative j i k)) (derivative k i j) x);
+\definition torsionFree: \forall (i, j, k: Index) -> lower i j k = lower j i k :=
+  \fun (i, j, k: Index) => congr!{{Functions.Function} {Functions.Function}} (Functions.scale R.half) _ _
+    (congr!{{Functions.Function} {Functions.Function} {Functions.Function}} difference _ _ _ _
+      (Functions.ext _ _ (\fun (x: Open.Carrier U) => Laws.addComm (derivative i j k x) (derivative j i k x)))
+      (derivativeSymmetry k i j));
+\definition compatible: \forall (i, j, k: Index) -> Functions.plus (lower i j k) (lower i k j) = derivative i j k :=
+  \fun (i, j, k: Index) => Functions.ext _ _ (\fun (x: Open.Carrier U) => eq_reason_in!{{R.Real} _
+    "=" _ "by" { congr!{{R.Real} {R.Real} {R.Real}} R.add _ _ _ _ (formula i j k x) (formula i k j x) }
+    "=" _ "by" { congr!{{R.Real} {R.Real}} (R.add (R.mul R.half (R.sub (R.add (derivative i j k x) (derivative j i k x)) (derivative k i j x)))) _ _
+      (congr!{{R.Real} {R.Real}} (R.mul R.half) _ _
+        (congr!{{R.Real} {R.Real} {R.Real}} R.sub _ _ _ _
+          (congr!{{R.Real} {R.Real} {R.Real}} R.add _ _ _ _
+            (congr!{{Functions.Function} {R.Real}} (\fun (f: Functions.Function) => f x) _ _ (derivativeSymmetry i k j))
+            (\refl(derivative k i j x)))
+          (\refl(derivative j i k x)))) }
+    "=" _ "by" { Scalars.koszul (derivative i j k x) (derivative j i k x) (derivative k i j x) }
+  });
+\structure Laws[c: Tensor]: \Prop := {
+  torsionFree: \forall (i, j, k: Index) -> c i j k = c j i k,
+  compatible: \forall (i, j, k: Index) -> Functions.plus (c i j k) (c i k j) = derivative i j k,
+};
+\definition laws: Laws[lower] := Laws[lower] { torsionFree := torsionFree, compatible := compatible };
+\module Unique(c: Tensor, laws: Laws[c]);

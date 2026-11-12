@@ -1,0 +1,27 @@
+\import Underlying.Pair[i := i, j := j] \as Old;
+\import TargetUnderlying.Pair[i := i, j := j] \as New;
+\import Charts.Transition[left := chart i, right := chart j] \as Domain;
+\import \parent.Local[U := Domain.domain] \as Local;
+\import \parent.Coefficients[i := i, j := j] \as Coefficients;
+\import \root.MatrixCalculus[n := n, r := realRank].On[U := Domain.domain] \as Matrix;
+\import Matrix.Linearity[] \as Linear;
+\import \root.Induced[n := n, r := realRank].On[U := Domain.domain] \as Induced;
+\import \root.Complex[n := n, r := r].Conjugation[].On[U := Domain.domain] \as K;
+\import Matrix.ConstantChange[Q := K.matrix, P := K.matrix, left := K.squareMatrix, right := K.squareMatrix, constantQ := K.constant, constantP := K.constant] \as Change;
+\import \parent.Transport[U := Domain.domain, V := (chart i).image].Restriction[included := Old.included] \as Restrict;
+\import \parent.Transport[U := Domain.domain, V := (chart j).image].Pull[f := Old.map] \as Pull;
+\definition original: Old.left (connection i) = Old.right (connection j) := Linear.ext (Old.left (connection i)) (Old.right (connection j)) (Underlying.compatible connection i j);
+\import Induced.DualGauge[T := Old.transition, inverse := Old.inverse, A := Old.source (connection i), B := Old.target (connection j),
+  leftInverse := Old.Inverse[].left, rightInverse := Old.Inverse[].right, gauge := original] \as DualGauge;
+\definition source: New.source (data i) = Local.dual (Old.source (connection i)) := Restrict.dual ((connection i).matrix);
+\definition target: New.target (data j) = Local.dual (Old.target (connection j)) := Pull.dual ((connection j).matrix);
+\definition matrices: New.left (data i) = New.right (data j) := eq_reason_in!{{Matrix.Matrix1} _
+  "=" _ "by" { congr!{Matrix.Matrix0 Matrix.Matrix1 Matrix.Matrix1} Matrix.product01 _ _ _ _ Coefficients.transition source }
+  "=" _ "by" { Change.gauge (Induced.transpose0 Old.inverse) (Induced.dual (Old.source (connection i))) (Induced.dual (Old.target (connection j))) DualGauge.law }
+  "=" _ "by" { congr!{Matrix.Matrix1 Matrix.Matrix1 Matrix.Matrix1} Matrix.plus _ _ _ _
+    (congr!{Matrix.Matrix0 Matrix.Matrix1} Matrix.dMatrix _ _ (sym!{Matrix.Matrix0} _ _ Coefficients.transition))
+    (congr!{Matrix.Matrix1 Matrix.Matrix0 Matrix.Matrix1} Matrix.product10 _ _ _ _ (sym!{Matrix.Matrix1} _ _ target) (sym!{Matrix.Matrix0} _ _ Coefficients.transition)) }
+};
+\import euclidean_forms.Euclidean[n := n].On[U := Domain.domain] \as Scalar;
+\definition compatible: New.Compatible (data i) (data j) := \fun (a, b: Fin.Fin realRank) =>
+  congr!{Matrix.Matrix1 {Scalar.Form (N.Nat^::succ N.Nat^::zero)}} (\fun (A: Matrix.Matrix1) => A a b) _ _ matrices;

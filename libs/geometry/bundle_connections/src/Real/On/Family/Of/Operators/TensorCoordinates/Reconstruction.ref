@@ -1,0 +1,28 @@
+\import Spaces.Linear[V := F x, W := Tensor.Carrier, source := space x, target := Tensor.space] \as LeftMaps;
+\definition left[w: W]: LeftMaps.Map := LeftMaps.Map {
+  apply := \fun (v: F x) => Tensor.tensor v w,
+  preservesAdd := \fun (v, z: F x) => Tensor.bilinear.addLeft v z w,
+  preservesScale := \fun (a: R.Real)(v: F x) => Tensor.bilinear.scaleLeft a v w
+};
+\import Spaces.Sums[I := Fin.Fin r].Vector[V := F x, space := space x].Mapping[W := Tensor.Carrier, target := Tensor.space] \as Mapping;
+\definition onValue: \forall (v: F x)(w: W) -> synthesis (value v w) = Tensor.tensor v w :=
+  \fun (v: F x)(w: W) => trans!{{Tensor.Carrier}} _ _ _
+    (Sums.congruent (Fin.elements r)
+      (\fun (a: Fin.Fin r) => Tensor.tensor (basis.vectors a) (target.smul (frame.forward.apply v a) w))
+      (\fun (a: Fin.Fin r) => Tensor.space.smul (frame.forward.apply v a) (Tensor.tensor (basis.vectors a) w))
+      (\fun (a: Fin.Fin r) => Tensor.bilinear.scaleRight (frame.forward.apply v a) (basis.vectors a) w))
+    (trans!{{Tensor.Carrier}} _ _ _
+      (Sums.congruent (Fin.elements r)
+        (\fun (a: Fin.Fin r) => Tensor.space.smul (frame.forward.apply v a) (Tensor.tensor (basis.vectors a) w))
+        (\fun (a: Fin.Fin r) => Tensor.tensor ((space x).smul (frame.forward.apply v a) (basis.vectors a)) w)
+        (\fun (a: Fin.Fin r) => sym!{{Tensor.Carrier}} _ _ (Tensor.bilinear.scaleLeft (frame.forward.apply v a) (basis.vectors a) w)))
+      (trans!{{Tensor.Carrier}} _ _ _
+        (sym!{{Tensor.Carrier}} _ _ (Mapping.law (left w) (Fin.elements r) (\fun (a: Fin.Fin r) => (space x).smul (frame.forward.apply v a) (basis.vectors a))))
+        (congr!{{F x} {Tensor.Carrier}} (\fun (z: F x) => Tensor.tensor z w) _ _ (basis.reconstruction v))));
+\import Spaces.Linear[V := Tensor.Carrier, W := Tensor.Carrier, source := Tensor.space, target := Tensor.space] \as End;
+\import Backward.Composition[U := Tensor.Carrier, domain := Tensor.space] \as Compose;
+\definition composite: End.Map := Compose.compose backward forward;
+\definition identity: End.Map := End.Map { apply := \fun (t: Tensor.Carrier) => t, preservesAdd := \fun (s, t: Tensor.Carrier) => \refl(Tensor.plus s t), preservesScale := \fun (a: R.Real)(t: Tensor.Carrier) => \refl(Tensor.scale a t) };
+\definition law: \forall (t: Tensor.Carrier) -> backward.apply (forward.apply t) = t :=
+  bundle_operations.Operations[].Over[K := R.Real, field := R.Algebra[].field, conjugation := linear_algebra.Hermitian[].Real[].scalar, scalar := vector_bundles.Bundles[].Real[].scalar].TensorEquality[V := F x, W := W, U := Tensor.Carrier, left := space x, right := target, target := Tensor.space].pointwise composite identity
+    (\fun (v: F x)(w: W) => trans!{{Tensor.Carrier}} _ _ _ (congr!{{Product.Carrier} {Tensor.Carrier}} synthesis _ _ (onPure v w)) (onValue v w));

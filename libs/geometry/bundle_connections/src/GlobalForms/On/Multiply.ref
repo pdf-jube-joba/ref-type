@@ -1,0 +1,34 @@
+\definition zero: N.Nat^ := N.Nat^::zero;
+\import Open.Smooth[].Algebra[U := U] \as Functions;
+\import Scalar.DegreeZero[] \as Zero;
+\import Scalar.At[k := k] \as Values;
+\import Scalar.Wedge[p := zero, q := k] \as Product;
+\import Scalar.Regrade[k := Nat.add zero k, l := k] \as Degree;
+\import Spaces.Multilinear[V := Vectors.Vector, space := Vectors.space].Alternating[] \as Alternating;
+\import Alternating.At[k := zero] \as ZeroPoint;
+\import Exterior.Components[k := k] \as Components;
+\import Exterior.Components[k := Nat.add zero k] \as ProductComponents;
+\import Exterior.Bilinearity[p := zero, q := k] \as Bilinear;
+\import N.Basic[].Prop[] \as Naturals;
+\definition degree: Nat.add zero k = k := Naturals.addZeroLeft k;
+\definition zeroPoint: \forall (f: Functions.Function)(x: Open.Carrier U) -> Zero.apply f x = ZeroPoint.scale (f x) Exterior.unit :=
+  \fun (f: Functions.Function)(x: Open.Carrier U) => ZeroPoint.ext (Zero.apply f x) (ZeroPoint.scale (f x) Exterior.unit)
+    (\fun (arguments: Spaces.Multilinear[V := Vectors.Vector, space := Vectors.space].Arguments zero) => sym!{{R.Real}} _ _ (Spaces.mulOneRight (f x)));
+\definition law: \forall (f: Functions.Function)(omega: Scalar.Form k) -> Degree.cast (Product.apply (Zero.apply f) omega) degree = Values.multiply f omega :=
+  \fun (f: Functions.Function)(omega: Scalar.Form k) => \axiom:funext(Degree.cast (Product.apply (Zero.apply f) omega) degree, Values.multiply f omega,
+    \fun (x: Open.Carrier U) => Components.ext (Degree.cast (Product.apply (Zero.apply f) omega) degree x) (Values.multiply f omega x)
+      (\axiom:funext(Exterior.component k (Degree.cast (Product.apply (Zero.apply f) omega) degree x), Exterior.component k (Values.multiply f omega x),
+        \fun (xs: Lists.List[Vectors.Vector]) => eq_reason_in!{{R.Real} _
+          "=" _ "by" { congr!{{Shuffle.Function} {R.Real}} (\fun (h: Shuffle.Function) => h xs) _ _ (Degree.series (Product.apply (Zero.apply f) omega) degree x) }
+          "=" _ "by" { congr!{{Alternating.Form zero} {R.Real}} (\fun (z: Alternating.Form zero) => Exterior.component (Nat.add zero k) (Exterior.Degrees[p := zero, q := k].wedge z (omega x)) xs) _ _ (zeroPoint f x) }
+          "=" _ "by" { congr!{{Alternating.Form (Nat.add zero k)} {R.Real}} (\fun (z: Alternating.Form (Nat.add zero k)) => Exterior.component (Nat.add zero k) z xs) _ _ (Bilinear.scalarLeft (f x) Exterior.unit (omega x)) }
+          "=" _ "by" { ProductComponents.scalar (f x) (Exterior.Degrees[p := zero, q := k].wedge Exterior.unit (omega x)) xs }
+          "=" _ "by" { congr!{{R.Real} {R.Real}} (R.mul (f x)) _ _ (congr!{{Shuffle.Function} {R.Real}} (\fun (h: Shuffle.Function) => h xs) _ _ (Exterior.UnitLaws[k := k].left (omega x))) }
+          "=" _ "by" { sym!{{R.Real}} _ _ (Components.scalar (f x) (omega x) xs) }
+        })));
+\definition rightLaw: \forall (f: Functions.Function)(omega: Scalar.Form k) -> Scalar.Wedge[p := k, q := zero].apply omega (Zero.apply f) = Values.multiply f omega :=
+  \fun (f: Functions.Function)(omega: Scalar.Form k) => \axiom:funext(Scalar.Wedge[p := k, q := zero].apply omega (Zero.apply f), Values.multiply f omega,
+    \fun (x: Open.Carrier U) => trans!{{Alternating.Form k}} _ _ _
+      (congr!{{Alternating.Form zero} {Alternating.Form k}} (Exterior.Degrees[p := k, q := zero].wedge (omega x)) _ _ (zeroPoint f x))
+      (trans!{{Alternating.Form k}} _ _ _ (Exterior.Bilinearity[p := k, q := zero].scalarRight (f x) (omega x) Exterior.unit)
+        (congr!{{Alternating.Form k} {Alternating.Form k}} (Alternating.At[k := k].scale (f x)) _ _ (Exterior.UnitLaws[k := k].right (omega x)))));

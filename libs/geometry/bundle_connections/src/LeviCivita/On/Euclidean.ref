@@ -1,0 +1,24 @@
+\import \root.Metric[n := n, r := n].On[U := U].Standard[] \as Standard;
+\import \parent.Riemannian[metric := Standard.metric] \as LC;
+\import \root.Metric[n := n, r := n].On[U := U].Of[metric := Standard.metric] \as Musical;
+\import \parent.Of[metric := LC.coefficients] \as Lower;
+\import \root.Local[n := n, r := n].On[U := U] \as Local;
+\import linear_algebra.Hermitian[].Over[K := R.Real, field := R.Algebra[].field, scalar := linear_algebra.Hermitian[].Real[].scalar].Finite[n := n] \as E;
+\definition lowering: \forall (i, j, k: Index) -> LC.lower Local.flat i j k = Functions.origin :=
+  \fun (i, j, k: Index) => Functions.ext (LC.lower Local.flat i j k) Functions.origin (\fun (x: Open.Carrier U) =>
+    congr!{{E.Vector} {R.Real}} (\fun (v: E.Vector) => v k) _ _ (Musical.flat x).preservesZero);
+\definition constantCoefficient: \forall (j, k: Index) -> Musical.coefficient j k = Functions.constant (E.dot (E.basis j) (E.basis k)) :=
+  \fun (j, k: Index) => Functions.ext (Musical.coefficient j k) (Functions.constant (E.dot (E.basis j) (E.basis k))) (\fun (x: Open.Carrier U) => \refl(E.dot (E.basis j) (E.basis k)));
+\definition derivative: \forall (i, j, k: Index) -> Lower.derivative i j k = Functions.origin :=
+  \fun (i, j, k: Index) => trans!{{Functions.Function}} _ _ _
+    (congr!{{Functions.Function} {Functions.Function}} (Derivatives.apply i) _ _ (constantCoefficient j k))
+    (Derivatives.constant i (E.dot (E.basis j) (E.basis k)));
+\definition laws: LC.Laws[Local.flat] := LC.Laws[Local.flat] {
+  torsionFree := \fun (i, j, k: Index) => \refl(Functions.origin),
+  compatible := \fun (i, j, k: Index) => eq_reason_in!{{Functions.Function} _
+    "=" _ "by" { congr!{{Functions.Function} {Functions.Function} {Functions.Function}} Functions.plus _ _ _ _ (lowering i j k) (lowering i k j) }
+    "=" _ "by" { Functions.ext _ _ (\fun (x: Open.Carrier U) => Laws.addZeroLeft R.zero) }
+    "=" _ "by" { sym!{{Functions.Function}} _ _ (derivative i j k) }
+  },
+};
+\definition flat: LC.connection = Local.flat := LC.Unique[c := Local.flat, laws := laws].unique;

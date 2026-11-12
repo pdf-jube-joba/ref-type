@@ -1,0 +1,37 @@
+\import Open.Smooth[].Algebra[U := U] \as Functions;
+\import \root.MatrixCalculus[n := n, r := realRank].On[U := U] \as Matrices;
+\import R.FiniteSums[].Linear[] \as Finite;
+\import R.FiniteSums[] \as Sums;
+\definition matrix[a, b: Fin.Fin realRank]: Functions.Function := Functions.constant (J.apply (Finite.basis realRank b) a);
+\definition output[f: RealEnd.Map][a: Fin.Fin realRank]: Finite.Map realRank := Finite.Data[realRank] {
+  apply := \fun (v: RealVectors.Vector) => f.apply v a,
+  additive := \fun (v, w: RealVectors.Vector) => congr!{{RealVectors.Vector} {R.Real}} (\fun (z: RealVectors.Vector) => z a) _ _ (f.preservesAdd v w),
+  homogeneous := \fun (t: R.Real)(v: RealVectors.Vector) => congr!{{RealVectors.Vector} {R.Real}} (\fun (z: RealVectors.Vector) => z a) _ _ (f.preservesScale t v)
+};
+\definition evaluate: \forall (f: RealEnd.Map)(v: RealVectors.Vector)(a: Fin.Fin realRank) ->
+  f.apply v a = Sums.sum realRank (\fun (b: Fin.Fin realRank) => R.mul (f.apply (Finite.basis realRank b) a) (v b)) :=
+  \fun (f: RealEnd.Map)(v: RealVectors.Vector)(a: Fin.Fin realRank) => trans!{{R.Real}} _ _ _ (Finite.expansion realRank (output f a) v)
+    (Sums.congruent realRank _ _ (\fun (b: Fin.Fin realRank) => RealSpaces.mulComm (v b) (f.apply (Finite.basis realRank b) a)));
+\import RealSpaces.FiniteCoordinates[n := realRank] \as Standard;
+\import RealSpaces.Coordinates[I := Fin.Fin realRank].Kronecker[] \as Kronecker;
+\import \root.Metric[n := n, r := realRank].Basis[] \as BasisComparison;
+\definition squareEntry: \forall (a, b: Fin.Fin realRank)(u: Open.Carrier U) -> Matrices.product00 matrix matrix a b u = R.neg (Standard.vectors a b) :=
+  \fun (a, b: Fin.Fin realRank)(u: Open.Carrier U) => eq_reason_in!{{R.Real} _
+    "=" _ "by" { sym!{{R.Real}} _ _ (evaluate J (J.apply (Finite.basis realRank b)) a) }
+    "=" _ "by" { congr!{{RealVectors.Vector} {R.Real}} (\fun (v: RealVectors.Vector) => v a) _ _ (square (Finite.basis realRank b)) }
+    "=" _ "by" { congr!{{R.Real} {R.Real}} R.neg _ _
+      (trans!{{R.Real}} _ _ _ (congr!{{RealVectors.Vector} {R.Real}} (\fun (v: RealVectors.Vector) => v a) _ _ (BasisComparison.equal b)) (Kronecker.symmetric b a)) }
+  };
+
+\import Matrices.Linearity[] \as Linear;
+\definition squareMatrix: Matrices.product00 matrix matrix = Linear.scale0 (R.neg R.one) Matrices.Associativity[].identity :=
+  \axiom:funext(Matrices.product00 matrix matrix, Linear.scale0 (R.neg R.one) Matrices.Associativity[].identity, \fun (a: Fin.Fin realRank) =>
+    \axiom:funext(Matrices.product00 matrix matrix a, Linear.scale0 (R.neg R.one) Matrices.Associativity[].identity a, \fun (b: Fin.Fin realRank) =>
+      Functions.ext (Matrices.product00 matrix matrix a b) (Linear.scale0 (R.neg R.one) Matrices.Associativity[].identity a b)
+        (\fun (u: Open.Carrier U) => trans!{{R.Real}} _ _ _ (squareEntry a b u)
+          (sym!{{R.Real}} _ _ (RealSpaces.Laws[V := R.Real, space := RealSpaces.scalarSpace].minusOneScale (Standard.vectors a b))))));
+\definition constant: Matrices.dMatrix matrix = Linear.origin := Linear.ext (Matrices.dMatrix matrix) Linear.origin
+  (\fun (a, b: Fin.Fin realRank) => Linear.dConstant (J.apply (Finite.basis realRank b) a));
+\import Matrices.ComplexStructure[J := matrix, square := squareMatrix] \as Projection;
+\definition project: Matrices.Matrix1 -> Matrices.Matrix1 := Projection.project;
+\definition commutes: \forall (A: Matrices.Matrix1) -> Matrices.product01 matrix (project A) = Matrices.product10 (project A) matrix := Projection.commutes;

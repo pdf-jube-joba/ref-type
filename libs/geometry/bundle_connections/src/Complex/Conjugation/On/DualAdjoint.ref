@@ -1,0 +1,39 @@
+\import \root.Induced[n := n, r := realRank].On[U := U] \as Induced;
+\import R.FiniteSums[] \as Sums;
+\definition coefficient[f: RealEnd.Map][a, b: Fin.Fin realRank]: Functions.Function := Functions.constant (f.apply (Finite.basis realRank b) a);
+\definition transpose00: \forall (A, B: Matrices.Matrix0) -> Induced.transpose0 (Matrices.product00 A B) = Matrices.product00 (Induced.transpose0 B) (Induced.transpose0 A) :=
+  \fun (A, B: Matrices.Matrix0) => \axiom:funext(Induced.transpose0 (Matrices.product00 A B), Matrices.product00 (Induced.transpose0 B) (Induced.transpose0 A), \fun (a: Fin.Fin realRank) =>
+    \axiom:funext(Induced.transpose0 (Matrices.product00 A B) a, Matrices.product00 (Induced.transpose0 B) (Induced.transpose0 A) a, \fun (b: Fin.Fin realRank) =>
+      Functions.ext (Induced.transpose0 (Matrices.product00 A B) a b) (Matrices.product00 (Induced.transpose0 B) (Induced.transpose0 A) a b) (\fun (u: Open.Carrier U) => Sums.congruent realRank _ _ (\fun (c: Fin.Fin realRank) => RealSpaces.mulComm (A b c u) (B c a u)))));
+\definition transposeK: Induced.transpose0 matrix = matrix :=
+  \axiom:funext(Induced.transpose0 matrix, matrix, \fun (a: Fin.Fin realRank) => \axiom:funext(Induced.transpose0 matrix a, matrix a,
+    \fun (b: Fin.Fin realRank) => Functions.ext (Induced.transpose0 matrix a b) (matrix a b) (\fun (u: Open.Carrier U) => symmetricEntry b a)));
+\definition transposeTriple: \forall (A: Matrices.Matrix0) -> Induced.transpose0 (Matrices.product00 matrix (Matrices.product00 A matrix)) =
+  Matrices.product00 (Matrices.product00 matrix (Induced.transpose0 A)) matrix :=
+  \fun (A: Matrices.Matrix0) => eq_reason_in!{{Matrices.Matrix0} _
+    "=" _ "by" { transpose00 matrix (Matrices.product00 A matrix) }
+    "=" _ "by" { congr!{{Matrices.Matrix0} {Matrices.Matrix0} {Matrices.Matrix0}} Matrices.product00 _ _ _ _ (transpose00 A matrix) transposeK }
+    "=" _ "by" { congr!{{Matrices.Matrix0} {Matrices.Matrix0}} (\fun (T: Matrices.Matrix0) => Matrices.product00 (Matrices.product00 T (Induced.transpose0 A)) matrix) _ _ transposeK }
+  };
+\definition evaluateProduct: \forall (f, g: RealEnd.Map)(a, b: Fin.Fin realRank)(u: Open.Carrier U) -> Matrices.product00 (coefficient f) (coefficient g) a b u = f.apply (g.apply (Finite.basis realRank b)) a :=
+  \fun (f, g: RealEnd.Map)(a, b: Fin.Fin realRank)(u: Open.Carrier U) => sym!{{R.Real}} _ _ (J.evaluate f (g.apply (Finite.basis realRank b)) a);
+\definition evaluateTriple: \forall (f: RealEnd.Map)(a, b: Fin.Fin realRank)(u: Open.Carrier U) ->
+  Matrices.product00 matrix (Matrices.product00 (coefficient f) matrix) a b u = K.apply (f.apply (K.apply (Finite.basis realRank b))) a :=
+  \fun (f: RealEnd.Map)(a, b: Fin.Fin realRank)(u: Open.Carrier U) => trans!{{R.Real}} _ _ _
+    (Sums.congruent realRank _ _ (\fun (c: Fin.Fin realRank) => congr!{{R.Real} {R.Real}} (R.mul (matrix a c u)) _ _ (evaluateProduct f K c b u)))
+    (sym!{{R.Real}} _ _ (J.evaluate K (f.apply (K.apply (Finite.basis realRank b))) a));
+\definition law: \forall (f, g: RealEnd.Map) ->
+  (\forall (v, w: RealVectors.Vector) -> Pairing.dot (g.apply v) (K.apply w) = Pairing.dot v (K.apply (f.apply w))) ->
+  coefficient g = Matrices.product00 (Matrices.product00 matrix (Induced.transpose0 (coefficient f))) matrix :=
+  \fun (f, g: RealEnd.Map)(adjoint: \forall (v, w: RealVectors.Vector) -> Pairing.dot (g.apply v) (K.apply w) = Pairing.dot v (K.apply (f.apply w))) =>
+    trans!{{Matrices.Matrix0}} _ _ _
+      (\axiom:funext(coefficient g, Induced.transpose0 (Matrices.product00 matrix (Matrices.product00 (coefficient f) matrix)), \fun (a: Fin.Fin realRank) =>
+        \axiom:funext(coefficient g a, Induced.transpose0 (Matrices.product00 matrix (Matrices.product00 (coefficient f) matrix)) a, \fun (b: Fin.Fin realRank) =>
+          Functions.ext (coefficient g a b) (Induced.transpose0 (Matrices.product00 matrix (Matrices.product00 (coefficient f) matrix)) a b) (\fun (u: Open.Carrier U) => eq_reason_in!{{R.Real} _
+            "=" _ "by" { sym!{{R.Real}} _ _ (dotBasis (g.apply (Finite.basis realRank b)) a) }
+            "=" _ "by" { congr!{{RealVectors.Vector} {R.Real}} (Pairing.dot (g.apply (Finite.basis realRank b))) _ _ (sym!{{RealVectors.Vector}} _ _ (square (Finite.basis realRank a))) }
+            "=" _ "by" { adjoint (Finite.basis realRank b) (K.apply (Finite.basis realRank a)) }
+            "=" _ "by" { basisDot (K.apply (f.apply (K.apply (Finite.basis realRank a)))) b }
+            "=" _ "by" { sym!{{R.Real}} _ _ (evaluateTriple f b a u) }
+          }))))
+      (transposeTriple (coefficient f));

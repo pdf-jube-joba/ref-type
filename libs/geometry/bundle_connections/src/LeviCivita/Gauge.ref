@@ -1,0 +1,31 @@
+\import \root.MatrixCalculus[n := n, r := r].On[U := U] \as M;
+\import M.Associativity[] \as Products;
+\import euclidean_forms.Euclidean[n := n].On[U := U].At[k := N.Nat^::succ N.Nat^::zero] \as Forms;
+\import Open.Smooth[].Algebra[U := U] \as Functions;
+\import \root.Local[n := n, r := r].On[U := U] \as Local;
+\definition transpose0[A: M.Matrix0][a, b: Fin.Fin r]: Functions.Function := A b a;
+\definition transpose1[A: M.Matrix1][a, b: Fin.Fin r]: euclidean_forms.Euclidean[n := n].On[U := U].Form (N.Nat^::succ N.Nat^::zero) := A b a;
+\definition ext: \forall (A, B: M.Matrix1) -> (\forall (a, b: Fin.Fin r) -> A a b = B a b) -> A = B :=
+  \fun (A, B: M.Matrix1)(same: _) => \axiom:funext(A, B, \fun (a: Fin.Fin r) => \axiom:funext(A a, B a, same a));
+\definition transpose01: \forall (A: M.Matrix0)(B: M.Matrix1) -> transpose1 (M.product01 A B) = M.product10 (transpose1 B) (transpose0 A) :=
+  \fun (A: M.Matrix0)(B: M.Matrix1) => ext (transpose1 (M.product01 A B)) (M.product10 (transpose1 B) (transpose0 A)) (\fun (a, b: Fin.Fin r) => \refl(M.product01 A B b a));
+\definition transpose10: \forall (A: M.Matrix1)(B: M.Matrix0) -> transpose1 (M.product10 A B) = M.product01 (transpose0 B) (transpose1 A) :=
+  \fun (A: M.Matrix1)(B: M.Matrix0) => ext (transpose1 (M.product10 A B)) (M.product01 (transpose0 B) (transpose1 A)) (\fun (a, b: Fin.Fin r) => \refl(M.product10 A B b a));
+\definition transposeAdd: \forall (A, B: M.Matrix1) -> transpose1 (M.plus A B) = M.plus (transpose1 A) (transpose1 B) :=
+  \fun (A, B: M.Matrix1) => ext (transpose1 (M.plus A B)) (M.plus (transpose1 A) (transpose1 B)) (\fun (a, b: Fin.Fin r) => \refl(Forms.plus (A b a) (B b a)));
+\import euclidean_forms.Euclidean[n := n].On[U := U] \as Scalar;
+\definition multiplyAdd: \forall (f: Functions.Function)(A, B: Scalar.Form (N.Nat^::succ N.Nat^::zero)) ->
+  Forms.multiply f (Forms.plus A B) = Forms.plus (Forms.multiply f A) (Forms.multiply f B) :=
+  \fun (f: Functions.Function)(A, B: Scalar.Form (N.Nat^::succ N.Nat^::zero)) =>
+    Scalar.ext (N.Nat^::succ N.Nat^::zero) _ _ (\fun (x: Open.Carrier U)(v: _) => Laws.fieldMulAdd (f x) (A x v) (B x v));
+\definition rightDistribute: \forall (A, B: M.Matrix1)(C: M.Matrix0) -> M.product10 (M.plus A B) C = M.plus (M.product10 A C) (M.product10 B C) :=
+  \fun (A, B: M.Matrix1)(C: M.Matrix0) => ext (M.product10 (M.plus A B) C) (M.plus (M.product10 A C) (M.product10 B C)) (\fun (a, b: Fin.Fin r) => trans!{{euclidean_forms.Euclidean[n := n].On[U := U].Form (N.Nat^::succ N.Nat^::zero)}} _ _ _
+    (M.sum1Congruent r _ _ (\fun (c: Fin.Fin r) => multiplyAdd (C c b) (A a c) (B a c)))
+    (M.sum1Add r _ _));
+\definition plusAssoc: \forall (A, B, C: M.Matrix1) -> M.plus (M.plus A B) C = M.plus A (M.plus B C) :=
+  \fun (A, B, C: M.Matrix1) => ext (M.plus (M.plus A B) C) (M.plus A (M.plus B C)) (\fun (a, b: Fin.Fin r) => Forms.space.additive.group.monoid.associative (A a b) (B a b) (C a b));
+\definition plusComm: \forall (A, B: M.Matrix1) -> M.plus A B = M.plus B A := M.Gauge[].plusComm;
+\definition metric[J, h: M.Matrix0]: M.Matrix0 := M.product00 (M.product00 (transpose0 J) h) J;
+\definition Compatible[g: M.Matrix0][A: M.Matrix1]: \Prop := M.dMatrix g = M.plus (M.product10 (transpose1 A) g) (M.product01 g A);
+\module Transport(J, h: M.Matrix0, A, B: M.Matrix1,
+  gauge: M.product01 J A = M.plus (M.dMatrix J) (M.product10 B J), compatible: Compatible h B);

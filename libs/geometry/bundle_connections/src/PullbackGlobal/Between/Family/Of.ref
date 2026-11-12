@@ -1,0 +1,35 @@
+\definition Fiber[x: X.Point]: \Set := F (Maps.apply f x);
+\definition fiberSpace[x: X.Point]: Spaces.VectorSpace (Fiber x) := space (Maps.apply f x);
+\structure Index: \Set := {
+  chart: Chart,
+  target: I,
+  inside: \forall (x: SourceCharts.LocalPoint chart) -> TargetCharts.Contains (bundle.atlas.local target).chart (Maps.apply f x),
+};
+\import smooth_bundles.Real[n := n, r := r].On[M := X].Family[F := Fiber, space := fiberSpace] \as Result;
+\import tangent_bundles.FrameBundle[n := n, r := r].Over[M := X].Family[F := Fiber, space := fiberSpace] \as Frames;
+\definition targetPoint[i: Index][x: SourceCharts.LocalPoint i.chart]: TargetCharts.LocalPoint (bundle.atlas.local i.target).chart :=
+  \into[Y.Point](Maps.apply f x, (bundle.atlas.local i.target).chart.domain) \by { i.inside x };
+\definition local[i: Index]: Frames.Local := Frames.Local {
+  chart := i.chart, frame := \fun (x: SourceCharts.LocalPoint i.chart) => (bundle.atlas.local i.target).frame (targetPoint i x)
+};
+\module Refine(c: Chart, i: I);
+\definition covers: \forall (x: X.Point) -> \exists ( i: Index \where SourceCharts.Contains i.chart x ) :=
+  \fun (x: X.Point) => \block {
+    \takefrom original: \Cast[SourceCharts.Chart] ({ c: SourceCharts.Chart \where Logic.And[\In[SourceCharts.Chart] X.atlas.charts c, SourceCharts.Contains c x] }) \by X.atlas.covers x \then
+    \let evidence: Logic.And[\In[SourceCharts.Chart] X.atlas.charts original, SourceCharts.Contains original x] := \bysub(SourceCharts.Chart, { c: SourceCharts.Chart \where Logic.And[\In[SourceCharts.Chart] X.atlas.charts c, SourceCharts.Contains c x] }, original) \then
+    \let c: Chart := \into[SourceCharts.Chart](original, X.atlas.charts) \by { evidence.left } \then
+    \takefrom i: \Cast[I] ({ i: I \where TargetCharts.Contains (bundle.atlas.local i).chart (Maps.apply f x) }) \by bundle.atlas.covers (Maps.apply f x) \then
+    \return Logic.existsIntro[Index, { i: Index \where SourceCharts.Contains i.chart x }] (Refine[c := c, i := i].index)
+      (Refine[c := c, i := i].contains x evidence.right (\bysub(I, { i: I \where TargetCharts.Contains (bundle.atlas.local i).chart (Maps.apply f x) }, i)))
+  };
+\definition atlas: Frames.Data[Index] := Frames.Data[Index] { local := local, covers := covers };
+
+\import Frames.Using[I := Index, data := atlas] \as Atlas;
+\module In(i: Index);
+\module Change(i, j: Index);
+\definition pullback: Result.Bundle[Index] := Result.Bundle[Index] {
+  atlas := atlas, regular := \fun (i, j: Index) => Change[i := i, j := j].regular
+};
+
+\import \root.Real[n := m, r := r].On[M := Y].Family[F := F, space := space].Of[I := I, bundle := bundle] \as OriginalConnection;
+\module Connection(connection: OriginalConnection.Connection);

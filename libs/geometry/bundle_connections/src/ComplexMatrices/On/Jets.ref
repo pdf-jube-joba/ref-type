@@ -1,0 +1,24 @@
+\import \root.MatrixCalculus[n := n, r := r].On[U := U].Jets[] \as RealJets;
+\import Open.Smooth[].Derivative[].Linear[U := U] \as Derivatives;
+\definition Numeric: \Set := Fin.Fin r -> Fin.Fin r -> C.Complex;
+\definition real[A: Numeric]: RealJets.Numeric := \fun (a, b: Fin.Fin r) => C.re (A a b);
+\definition imaginary[A: Numeric]: RealJets.Numeric := \fun (a, b: Fin.Fin r) => C.im (A a b);
+\definition jet[A, D: Numeric][i: Fin.Fin n][x: Open.Carrier U]: Matrix0 :=
+  \fun (a, b: Fin.Fin r) => Functions.make (RealJets.jet (real A) (real D) i x a b) (RealJets.jet (imaginary A) (imaginary D) i x a b);
+\definition value: \forall (A, D: Numeric)(i: Fin.Fin n)(x: Open.Carrier U)(a, b: Fin.Fin r) -> jet A D i x a b x = A a b :=
+  \fun (A, D: Numeric)(i: Fin.Fin n)(x: Open.Carrier U)(a, b: Fin.Fin r) => C.Prop[].ext _ _
+    (RealJets.value (real A) (real D) i x a b) (RealJets.value (imaginary A) (imaginary D) i x a b);
+\definition realMake: \forall (f, g: RealFunctions.Function) -> Functions.real (Functions.make f g) = f :=
+  \fun (f, g: RealFunctions.Function) => RealFunctions.ext (Functions.real (Functions.make f g)) f (\fun (x: Open.Carrier U) => \refl(f x));
+\definition imaginaryMake: \forall (f, g: RealFunctions.Function) -> Functions.imaginary (Functions.make f g) = g :=
+  \fun (f, g: RealFunctions.Function) => RealFunctions.ext (Functions.imaginary (Functions.make f g)) g (\fun (x: Open.Carrier U) => \refl(g x));
+\definition partial: \forall (A, D: Numeric)(i: Fin.Fin n)(x: Open.Carrier U)(a, b: Fin.Fin r) -> Functions.derivative i (jet A D i x a b) x = D a b :=
+  \fun (A, D: Numeric)(i: Fin.Fin n)(x: Open.Carrier U)(a, b: Fin.Fin r) => C.Prop[].ext _ _
+    (trans!{{R.Real}} _ _ _
+      (congr!{{RealFunctions.Function} {R.Real}} (\fun (f: RealFunctions.Function) => Derivatives.apply i f x) _ _
+        (realMake (RealJets.jet (real A) (real D) i x a b) (RealJets.jet (imaginary A) (imaginary D) i x a b)))
+      (RealJets.partial (real A) (real D) i x a b))
+    (trans!{{R.Real}} _ _ _
+      (congr!{{RealFunctions.Function} {R.Real}} (\fun (f: RealFunctions.Function) => Derivatives.apply i f x) _ _
+        (imaginaryMake (RealJets.jet (real A) (real D) i x a b) (RealJets.jet (imaginary A) (imaginary D) i x a b)))
+      (RealJets.partial (imaginary A) (imaginary D) i x a b));

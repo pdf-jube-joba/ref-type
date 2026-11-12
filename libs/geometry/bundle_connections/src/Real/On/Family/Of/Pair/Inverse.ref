@@ -1,0 +1,35 @@
+\import Spaces.Coordinates[I := Fin.Fin r] \as Vectors;
+\import Spaces.Linear[V := Vectors.Vector, W := Vectors.Vector, source := Vectors.space, target := Vectors.space] \as Linear;
+\import R.FiniteSums[] \as Sums;
+\import \root.Metric[n := n, r := r].Basis[] \as BasisComparison;
+\import Spaces.Coordinates[I := Fin.Fin r].Kronecker[] \as Kronecker;
+\definition output[f: Linear.Map][a: Fin.Fin r]: Finite.Map r := Finite.Data[r] {
+  apply := \fun (v: Vectors.Vector) => f.apply v a,
+  additive := \fun (v, w: Vectors.Vector) => congr!{{Vectors.Vector} {R.Real}} (\fun (z: Vectors.Vector) => z a) _ _ (f.preservesAdd v w),
+  homogeneous := \fun (t: R.Real)(v: Vectors.Vector) => congr!{{Vectors.Vector} {R.Real}} (\fun (z: Vectors.Vector) => z a) _ _ (f.preservesScale t v),
+};
+\definition evaluate: \forall (f: Linear.Map)(v: Vectors.Vector)(a: Fin.Fin r) ->
+  f.apply v a = Sums.sum r (\fun (b: Fin.Fin r) => R.mul (f.apply (Finite.basis r b) a) (v b)) :=
+  \fun (f: Linear.Map)(v: Vectors.Vector)(a: Fin.Fin r) => trans!{{R.Real}} _ _ _ (Finite.expansion r (output f a) v)
+    (Sums.congruent r _ _ (\fun (b: Fin.Fin r) => Spaces.mulComm (v b) (f.apply (Finite.basis r b) a)));
+\definition basisIdentity: \forall (a, b: Fin.Fin r) -> Finite.basis r b a = Spaces.FiniteCoordinates[n := r].vectors a b :=
+  \fun (a, b: Fin.Fin r) => trans!{{R.Real}} _ _ _
+    (congr!{{Vectors.Vector} {R.Real}} (\fun (v: Vectors.Vector) => v a) _ _ (BasisComparison.equal b)) (Kronecker.symmetric b a);
+\definition left: Matrices.product00 inverse transition = Matrices.Associativity[].identity :=
+  \axiom:funext(Matrices.product00 inverse transition, Matrices.Associativity[].identity, \fun (a: Fin.Fin r) =>
+    \axiom:funext(Matrices.product00 inverse transition a, Matrices.Associativity[].identity a, \fun (b: Fin.Fin r) =>
+      Functions.ext (Matrices.product00 inverse transition a b) (Matrices.Associativity[].identity a b) (\fun (u: Open.Carrier Transition.domain) =>
+        trans!{{R.Real}} _ _ _
+          (trans!{{R.Real}} _ _ _
+            (sym!{{R.Real}} _ _ (evaluate (Reverse.backward u) ((Change.linear u).apply (Finite.basis r b)) a))
+            (congr!{{Vectors.Vector} {R.Real}} (\fun (v: Vectors.Vector) => v a) _ _ (Reverse.left u (Finite.basis r b))))
+          (basisIdentity a b))));
+\definition right: Matrices.product00 transition inverse = Matrices.Associativity[].identity :=
+  \axiom:funext(Matrices.product00 transition inverse, Matrices.Associativity[].identity, \fun (a: Fin.Fin r) =>
+    \axiom:funext(Matrices.product00 transition inverse a, Matrices.Associativity[].identity a, \fun (b: Fin.Fin r) =>
+      Functions.ext (Matrices.product00 transition inverse a b) (Matrices.Associativity[].identity a b) (\fun (u: Open.Carrier Transition.domain) =>
+        trans!{{R.Real}} _ _ _
+          (trans!{{R.Real}} _ _ _
+            (sym!{{R.Real}} _ _ (evaluate (Change.linear u) ((Reverse.backward u).apply (Finite.basis r b)) a))
+            (congr!{{Vectors.Vector} {R.Real}} (\fun (v: Vectors.Vector) => v a) _ _ (Reverse.right u (Finite.basis r b))))
+          (basisIdentity a b))));

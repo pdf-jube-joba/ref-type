@@ -1,0 +1,45 @@
+\import Bundles.Of[I := I, bundle := bundle] \as Bundle;
+\import tangent_bundles.FrameBundle[n := n, r := r].Over[M := M].Family[F := F, space := space].Using[I := I, data := bundle.atlas] \as Atlas;
+\definition chart[i: I]: \Cast[Charts.Chart] M.atlas.charts := (bundle.atlas.local i).chart;
+\definition LocalConnection[i: I]: \Set := \root.Forms[n := n, r := r].On[U := (chart i).image].Connection;
+\definition Data: \Set := \forall (i: I) -> LocalConnection i;
+\module Pair(i, j: I);
+\definition Compatible[data: Data]: \Prop := \forall (i, j: I) -> Pair[i := i, j := j].Compatible (data i) (data j);
+\definition Connection: \Set := \Cast[Data] ({ data: Data \where Compatible data });
+\definition compatible[connection: Connection]: Compatible connection := \bysub(Data, { data: Data \where Compatible data }, connection);
+\definition ext: \forall (left, right: Connection) -> (\forall (i: I) -> left i = right i) -> left = right :=
+  \fun (left, right: Connection)(same: _) => \axiom:funext(left, right, same);
+
+\import Bundle.Metrics[] \as Metrics;
+\import smooth_partitions.Manifold[n := n].On[M := M] \as Scalars;
+\import smooth_partitions.Scalars[A := M.Point, space := M.space].Using[calculus := Scalars.calculus] \as Functions;
+\import topology.Topology[Carrier := M.Point] \as Base;
+\module Partition(partition: Functions.SmoothPartition[Metrics.family], indices: Metrics.Selection partition);
+
+\module MetricLocal(metric: Metrics.Metric, i: I);
+\module Triple(i, j, k: I);
+\module Empty(noIndex: Logic.Not (\exists I));
+\use Logic.either;
+\definition existsConnection: \exists Connection := either!{{std.Logic[].Classical[].excludedMiddle (\exists I)} {\exists Connection}
+  {\fun (nonempty: \exists I) => \block {
+    \takefrom default: I \by nonempty \then
+    \takefrom partition: Functions.SmoothPartition[Metrics.family] \by Scalars.Partitions[family := Metrics.family].existsPartition Metrics.cover \then
+    \takefrom indices: Metrics.Selection partition \by Metrics.Select[default := default, partition := partition].exists \then
+    \return \exact(Partition[partition := partition, indices := indices].connection, Connection)
+  }}
+  {\fun (noIndex: Logic.Not (\exists I)) => \exact(Empty[noIndex := noIndex].connection, Connection)}};
+
+\module SectionCoordinates;
+
+\module Operators;
+\module WithMetric(metric: Metrics.Metric);
+
+\module InducedDual(connection: Connection);
+
+\import tangent_bundles.FrameBundle[n := n, r := r].Over[M := M].Family[F := F, space := space] \as FrameFamily;
+\module InducedPaired(s: N.Nat^, G: M.Point -> \Set, otherSpace: \forall (x: M.Point) -> Spaces.VectorSpace (G x),
+  otherFrame: \forall (i: I)(x: Charts.LocalPoint (chart i)) -> FrameFamily.ExtraFrameAt s G otherSpace x);
+
+\import bundle_operations.Operations[].Over[K := R.Real, field := R.Algebra[].field, conjugation := linear_algebra.Hermitian[].Real[].scalar, scalar := vector_bundles.Bundles[].Real[].scalar] \as InducedOperations;
+\module InducedExterior(k: N.Nat^, enumeration: InducedOperations.ExteriorIndices[n := r, k := k].Enumeration, connection: Connection);
+\module ValuedForms(k: N.Nat^);

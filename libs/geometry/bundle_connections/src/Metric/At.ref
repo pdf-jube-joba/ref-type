@@ -1,0 +1,39 @@
+\import Inner.Of[h := h] \as Form;
+\import Form.Matrix[k := r, map := Eigen.identity] \as Coordinates;
+\definition flat: End.Map := Coordinates.coordinates;
+\definition pairing: \forall (v, w: E.Vector) -> h.dot v w = E.dot v (flat.apply w) := Coordinates.adjoint;
+\definition injective: \forall (v, w: E.Vector) -> flat.apply v = flat.apply w -> v = w := \block {
+  \fun (v, w: E.Vector)(same: flat.apply v = flat.apply w) \then
+  \let zero: flat.apply (Form.subtract v w) = E.space.zero := trans!{{E.Vector}} _ _ _ (Form.linearSubtract flat v w)
+    (trans!{{E.Vector}} _ _ _ (congr!{{E.Vector} {E.Vector}} (\fun (u: E.Vector) => Form.subtract u (flat.apply w)) _ _ same)
+      (trans!{{E.Vector}} _ _ _ (VectorLaws.comm (flat.apply w) (E.space.neg (flat.apply w))) (VectorLaws.inverseLeft (flat.apply w)))) \then
+  \let vanishes: Form.subtract v w = E.space.zero := positive.definite (Form.subtract v w) (eq_reason_in!{{R.Real} _
+    "=" _ "by" { pairing (Form.subtract v w) (Form.subtract v w) }
+    "=" _ "by" { congr!{{E.Vector} {R.Real}} (E.dot (Form.subtract v w)) _ _ zero }
+    "=" _ "by" { E.zeroRight (Form.subtract v w) }
+  }) \then
+  \return eq_reason_in!{{E.Vector} v
+    "=" _ "by" { sym!{{E.Vector}} _ _ (Form.subtractAdd v w) }
+    "=" _ "by" { congr!{{E.Vector} {E.Vector}} (\fun (z: E.Vector) => E.space.add z w) _ _ vanishes }
+    "=" w "by" { VectorLaws.zeroLeft w }
+  }
+};
+\structure InverseLaws[f: End.Map]: \Prop := {
+  left: \forall (v: E.Vector) -> f.apply (flat.apply v) = v,
+  right: \forall (v: E.Vector) -> flat.apply (f.apply v) = v,
+};
+\definition Inverse: \Set := \Cast[End.Map] ({ f: End.Map \where InverseLaws[f] });
+\import Inner.Of[h := E.form] \as Standard;
+\import Standard.Gram[k := r] \as Gram;
+\module With(factor: Gram.Factorization[flat]);
+\definition exists: \exists Inverse := \block {
+  \takefrom factor: Gram.Factorization[flat] \by Standard.Algorithm[].exists r flat injective E.positive \then
+  \return \exact(With[factor := factor].inverse, Inverse)
+};
+\definition unique: \forall (f, g: Inverse) -> f = g := \fun (f, g: Inverse) => End.ext f g (\axiom:funext(f.apply, g.apply, \fun (v: E.Vector) =>
+  trans!{{E.Vector}} _ _ _
+    (congr!{{E.Vector} {E.Vector}} f.apply _ _ (sym!{{E.Vector}} _ _ ((\bysub(End.Map, Inverse, g)).right v)))
+    ((\bysub(End.Map, Inverse, f)).left (g.apply v))));
+\definition inverse: Inverse := \choice Inverse \by { existence: exists, uniqueness: unique };
+\definition left: \forall (v: E.Vector) -> inverse.apply (flat.apply v) = v := (\bysub(End.Map, Inverse, inverse)).left;
+\definition right: \forall (v: E.Vector) -> flat.apply (inverse.apply v) = v := (\bysub(End.Map, Inverse, inverse)).right;

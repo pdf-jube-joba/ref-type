@@ -1,0 +1,22 @@
+\definition compatibility[i, j, k: Index][x: Open.Carrier U]:
+  derivative i j k x = R.add (c i j k x) (c i k j x) :=
+  congr!{{Functions.Function} {R.Real}} (\fun (f: Functions.Function) => f x) _ _
+    (sym!{{Functions.Function}} _ _ (laws.compatible i j k));
+\definition symmetry[i, j, k: Index][x: Open.Carrier U]: c i j k x = c j i k x :=
+  congr!{{Functions.Function} {R.Real}} (\fun (f: Functions.Function) => f x) _ _ (laws.torsionFree i j k);
+\definition law: \forall (i, j, k: Index) -> lower i j k = c i j k :=
+  \fun (i, j, k: Index) => Functions.ext _ _ (\fun (x: Open.Carrier U) => eq_reason_in!{{R.Real} _
+    "=" _ "by" { formula i j k x }
+    "=" _ "by" { congr!{{R.Real} {R.Real}} (R.mul R.half) _ _
+      (congr!{{R.Real} {R.Real} {R.Real}} R.sub _ _ _ _
+        (congr!{{R.Real} {R.Real} {R.Real}} R.add _ _ _ _
+          (compatibility i j k x)
+          (trans!{{R.Real}} _ _ _ (compatibility j i k x)
+            (congr!{{R.Real} {R.Real}} (\fun (a: R.Real) => R.add a (c j k i x)) _ _ (symmetry j i k x))))
+        (trans!{{R.Real}} _ _ _ (compatibility k i j x)
+          (congr!{{R.Real} {R.Real} {R.Real}} R.add _ _ _ _ (symmetry k i j x) (symmetry k j i x)))) }
+    "=" _ "by" { congr!{{R.Real} {R.Real}} (R.mul R.half) _ _ (Scalars.doubled (c i j k x) (c i k j x) (c j k i x)) }
+    "=" _ "by" { Scalars.halfDouble (c i j k x) }
+  });
+\definition unique: lower = c := \axiom:funext(lower, c, \fun (i: Index) =>
+  \axiom:funext(lower i, c i, \fun (j: Index) => \axiom:funext(lower i j, c i j, law i j)));

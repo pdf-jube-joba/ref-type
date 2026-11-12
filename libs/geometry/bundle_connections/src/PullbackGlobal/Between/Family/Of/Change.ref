@@ -1,0 +1,55 @@
+\import \parent.In[i := i] \as First;
+\import \parent.In[i := j] \as Second;
+\import SourceCharts.Transition[left := i.chart, right := j.chart] \as SourceOverlap;
+\import TargetCharts.Transition[left := (bundle.atlas.local i.target).chart, right := (bundle.atlas.local j.target).chart] \as TargetOverlap;
+\import tangent_bundles.FrameBundle[n := m, r := r].Over[M := Y].Family[F := F, space := space].Using[I := I, data := bundle.atlas].Change[i := i.target, j := j.target] \as Old;
+\import Atlas.Change[i := i, j := j] \as New;
+\definition included: SourceOpen.Included SourceOverlap.domain i.chart.image := \fun (u: Fin.Fin n -> R.Real)(member: _) =>
+  SourceOverlap.inLeftImage (\into[Fin.Fin n -> R.Real](u, SourceOverlap.domain.points) \by { member });
+\import calculus.Maps[n := n, m := m].Restriction[U := SourceOverlap.domain, V := i.chart.image, W := (bundle.atlas.local i.target).chart.image] \as Restrict;
+\definition unrestricted: calculus.Maps[n := n, m := m].Map SourceOverlap.domain (bundle.atlas.local i.target).chart.image := Restrict.input included First.map;
+\definition inside: \forall (u: SourceOpen.Carrier SourceOverlap.domain) -> \In[Fin.Fin m -> R.Real] TargetOverlap.domain.points (unrestricted.apply u) :=
+  \fun (u: SourceOpen.Carrier SourceOverlap.domain) => TargetOverlap.intro (unrestricted.apply u)
+    (\idelim Maps.apply f (SourceCharts.point i.chart (SourceOverlap.leftCoordinate u)) = TargetCharts.point (bundle.atlas.local i.target).chart (unrestricted.apply u)
+      \with y: Y.Point => TargetCharts.Contains (bundle.atlas.local j.target).chart y \by {
+        base: j.inside (SourceOverlap.overlapPoint u),
+        equality: sym!{{Y.Point}} _ _ (First.returnsPoint (SourceOverlap.leftCoordinate u))
+      });
+\import calculus.Maps[n := n, m := m].Corestriction[U := SourceOverlap.domain, V := (bundle.atlas.local i.target).chart.image,
+  W := TargetOverlap.domain, f := unrestricted, inside := inside] \as Corestrict;
+\definition map: calculus.Maps[n := n, m := m].Map SourceOverlap.domain TargetOverlap.domain := Corestrict.map;
+\definition Common: \Set := \Cast[Y.Point] ({ y: Y.Point \where Logic.And[TargetCharts.Contains (bundle.atlas.local i.target).chart y, TargetCharts.Contains (bundle.atlas.local j.target).chart y] });
+\definition common[x: Common][v: Fin.Fin r -> R.Real]: Fin.Fin r -> R.Real :=
+  ((bundle.atlas.local j.target).frame (\into[Y.Point](x, (bundle.atlas.local j.target).chart.domain) \by {
+    (\bysub(Y.Point, { y: Y.Point \where Logic.And[TargetCharts.Contains (bundle.atlas.local i.target).chart y, TargetCharts.Contains (bundle.atlas.local j.target).chart y] }, x)).right
+  })).forward.apply
+  (((bundle.atlas.local i.target).frame (\into[Y.Point](x, (bundle.atlas.local i.target).chart.domain) \by {
+    (\bysub(Y.Point, { y: Y.Point \where Logic.And[TargetCharts.Contains (bundle.atlas.local i.target).chart y, TargetCharts.Contains (bundle.atlas.local j.target).chart y] }, x)).left
+  })).backward.apply v);
+\definition originalPoint[u: SourceOpen.Carrier SourceOverlap.domain]: Common :=
+  \into[Y.Point](Old.x (map.apply u), Common) \by {
+    Logic.And[TargetCharts.Contains (bundle.atlas.local i.target).chart (Old.x (map.apply u)), TargetCharts.Contains (bundle.atlas.local j.target).chart (Old.x (map.apply u))] {
+      left := \bysub(Y.Point, (bundle.atlas.local i.target).chart.domain, Old.x (map.apply u)),
+      right := TargetOverlap.inRightDomain (map.apply u)
+    }
+  };
+\definition newPoint[u: SourceOpen.Carrier SourceOverlap.domain]: Common :=
+  \into[Y.Point](Maps.apply f (New.x u), Common) \by {
+    Logic.And[TargetCharts.Contains (bundle.atlas.local i.target).chart (Maps.apply f (New.x u)), TargetCharts.Contains (bundle.atlas.local j.target).chart (Maps.apply f (New.x u))] {
+      left := i.inside (New.x u), right := j.inside (New.y u)
+    }
+  };
+\definition sameBase: \forall (u: SourceOpen.Carrier SourceOverlap.domain) -> originalPoint u = newPoint u :=
+  \fun (u: SourceOpen.Carrier SourceOverlap.domain) => First.returnsPoint (SourceOverlap.leftCoordinate u);
+\definition formula: \forall (u: SourceOpen.Carrier SourceOverlap.domain)(v: Fin.Fin r -> R.Real) -> (New.linear u).apply v = (Old.linear (map.apply u)).apply v :=
+  \fun (u: SourceOpen.Carrier SourceOverlap.domain)(v: Fin.Fin r -> R.Real) =>
+    congr!{Common {Fin.Fin r -> R.Real}} (\fun (x: Common) => common x v) (newPoint u) (originalPoint u)
+      (sym!{Common} _ _ (sameBase u));
+\import calculus.Maps[n := n, m := m].Composition[U := SourceOverlap.domain, V := TargetOverlap.domain, f := map] \as Composition;
+\import TargetOpen.Smooth[].Algebra[U := TargetOverlap.domain] \as Functions;
+\definition coefficient[a, b: Fin.Fin r]: Functions.Function :=
+  \into[TargetOpen.ScalarFunction TargetOverlap.domain](Old.coefficient a b, Functions.Predicate) \by { bundle.regular i.target j.target a b };
+\definition regular: New.Regular := \fun (a, b: Fin.Fin r) =>
+  smooth_partitions.Euclidean[n := n].smoothCongruent SourceOverlap.domain (\fun (u: SourceOpen.Carrier SourceOverlap.domain) => coefficient a b (map.apply u)) (New.coefficient a b)
+    (\fun (u: SourceOpen.Carrier SourceOverlap.domain) => sym!{{R.Real}} _ _ (congr!{{Fin.Fin r -> R.Real} {R.Real}} (\fun (v: Fin.Fin r -> R.Real) => v a) _ _ (formula u (R.FiniteSums[].Linear[].basis r b))))
+    (Composition.smooth (coefficient a b));

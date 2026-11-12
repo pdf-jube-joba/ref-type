@@ -1,0 +1,100 @@
+\import Spaces.Coordinates[I := Fin.Fin r] \as ComplexVectors;
+\import \root.Complex[n := n, r := r].Structure[].On[U := U] \as J;
+\import RealMatrices.Associativity[] \as RealAlgebra;
+\import Spaces.FiniteCoordinates[n := r] \as Standard;
+\import Reals.FiniteCoordinates[n := realRank] \as RealStandard;
+\import R.FiniteSums[] \as RSums;
+\import R.FiniteSums[].Linear[] \as Finite;
+\import \root.Metric[n := n, r := realRank].Basis[] \as BasisComparison;
+\import Reals.FiniteCoordinateEnumeration[] \as RealEnumeration;
+\definition Matrix: \Set := Fin.Fin r -> Fin.Fin r -> C.Complex;
+\definition RealMatrix: \Set := Fin.Fin realRank -> Fin.Fin realRank -> R.Real;
+\definition product[A, B: Matrix]: Matrix := \fun (a, b: Fin.Fin r) => Sums.sum r (\fun (c: Fin.Fin r) => Op.mul (A a c) (B c b));
+\definition realProduct: RealMatrix -> RealMatrix -> RealMatrix := RealAlgebra.product;
+\definition Action[A: Matrix][v: ComplexVectors.Vector]: ComplexVectors.Vector := \fun (a: Fin.Fin r) => Sums.sum r (\fun (b: Fin.Fin r) => Op.mul (A a b) (v b));
+\definition Map[A: Matrix]: End.Map := End.Map {
+  apply := Action A,
+  preservesAdd := \fun (v, w: ComplexVectors.Vector) => \axiom:funext(Action A (\fun (a: Fin.Fin r) => Op.add (v a) (w a)), (\fun (a: Fin.Fin r) => Op.add (Action A v a) (Action A w a)), \fun (a: Fin.Fin r) => trans!{{C.Complex}} _ _ _
+    (Sums.congruent r (\fun (b: Fin.Fin r) => Op.mul (A a b) (Op.add (v b) (w b))) (\fun (b: Fin.Fin r) => Op.add (Op.mul (A a b) (v b)) (Op.mul (A a b) (w b))) (\fun (b: Fin.Fin r) => Spaces.mulAdd (A a b) (v b) (w b)))
+    (Sums.addition r (\fun (b: Fin.Fin r) => Op.mul (A a b) (v b)) (\fun (b: Fin.Fin r) => Op.mul (A a b) (w b)))),
+  preservesScale := \fun (z: C.Complex)(v: ComplexVectors.Vector) => \axiom:funext(Action A (\fun (a: Fin.Fin r) => Op.mul z (v a)), (\fun (a: Fin.Fin r) => Op.mul z (Action A v a)), \fun (a: Fin.Fin r) => trans!{{C.Complex}} _ _ _
+    (Sums.congruent r (\fun (b: Fin.Fin r) => Op.mul (A a b) (Op.mul z (v b))) (\fun (b: Fin.Fin r) => Op.mul z (Op.mul (A a b) (v b))) (\fun (b: Fin.Fin r) => eq_reason_in!{{C.Complex} _
+      "=" _ "by" { sym!{{C.Complex}} _ _ (Spaces.mulAssoc (A a b) z (v b)) }
+      "=" _ "by" { congr!{{C.Complex} {C.Complex}} (\fun (c: C.Complex) => Op.mul c (v b)) _ _ (Spaces.mulComm (A a b) z) }
+      "=" _ "by" { Spaces.mulAssoc z (A a b) (v b) }
+    })) (Sums.scaleSum r z (\fun (b: Fin.Fin r) => Op.mul (A a b) (v b))))
+};
+\definition realAction[A: RealMatrix][v: RealVectors.Vector]: RealVectors.Vector := \fun (a: Fin.Fin realRank) => RSums.sum realRank (\fun (b: Fin.Fin realRank) => R.mul (A a b) (v b));
+\definition realMap[A: RealMatrix]: RealEnd.Map := RealEnd.Map {
+  apply := realAction A,
+  preservesAdd := \fun (v, w: RealVectors.Vector) => \axiom:funext(realAction A (\fun (a: Fin.Fin realRank) => R.add (v a) (w a)), (\fun (a: Fin.Fin realRank) => R.add (realAction A v a) (realAction A w a)), \fun (a: Fin.Fin realRank) => trans!{{R.Real}} _ _ _
+    (RSums.congruent realRank (\fun (b: Fin.Fin realRank) => R.mul (A a b) (R.add (v b) (w b))) (\fun (b: Fin.Fin realRank) => R.add (R.mul (A a b) (v b)) (R.mul (A a b) (w b))) (\fun (b: Fin.Fin realRank) => Reals.mulAdd (A a b) (v b) (w b)))
+    (RSums.addition realRank (\fun (b: Fin.Fin realRank) => R.mul (A a b) (v b)) (\fun (b: Fin.Fin realRank) => R.mul (A a b) (w b)))),
+  preservesScale := \fun (z: R.Real)(v: RealVectors.Vector) => \axiom:funext(realAction A (\fun (a: Fin.Fin realRank) => R.mul z (v a)), (\fun (a: Fin.Fin realRank) => R.mul z (realAction A v a)), \fun (a: Fin.Fin realRank) => trans!{{R.Real}} _ _ _
+    (RSums.congruent realRank (\fun (b: Fin.Fin realRank) => R.mul (A a b) (R.mul z (v b))) (\fun (b: Fin.Fin realRank) => R.mul z (R.mul (A a b) (v b))) (\fun (b: Fin.Fin realRank) => eq_reason_in!{{R.Real} _
+      "=" _ "by" { sym!{{R.Real}} _ _ (Reals.mulAssoc (A a b) z (v b)) }
+      "=" _ "by" { congr!{{R.Real} {R.Real}} (\fun (c: R.Real) => R.mul c (v b)) _ _ (Reals.mulComm (A a b) z) }
+      "=" _ "by" { Reals.mulAssoc z (A a b) (v b) }
+    })) (RSums.scalar realRank z (\fun (b: Fin.Fin realRank) => R.mul (A a b) (v b))))
+};
+
+\definition coefficient[f: End.Map]: Matrix := \fun (a, b: Fin.Fin r) => f.apply (Standard.vectors b) a;
+\definition realCoefficient[f: RealEnd.Map]: RealMatrix := \fun (a, b: Fin.Fin realRank) => f.apply (Finite.basis realRank b) a;
+\definition realExpansion: \forall (f: RealEnd.Map)(v: RealVectors.Vector) -> f.apply v = realAction (realCoefficient f) v :=
+  \fun (f: RealEnd.Map)(v: RealVectors.Vector) => \axiom:funext(f.apply v, realAction (realCoefficient f) v, \fun (a: Fin.Fin realRank) => J.evaluate f v a);
+\definition realColumn: \forall (A: RealMatrix)(a, b: Fin.Fin realRank) -> (realMap A).apply (Finite.basis realRank b) a = A a b :=
+  \fun (A: RealMatrix)(a, b: Fin.Fin realRank) => eq_reason_in!{{R.Real} _
+    "=" _ "by" { RSums.congruent realRank _ _ (\fun (c: Fin.Fin realRank) => congr!{{RealVectors.Vector} {R.Real}} (\fun (v: RealVectors.Vector) => R.mul (A a c) (v c)) _ _ (BasisComparison.equal b)) }
+    "=" _ "by" { sym!{{R.Real}} _ _ (RealEnumeration.sumLaw realRank (\fun (c: Fin.Fin realRank) => R.mul (A a c) (RealStandard.vectors b c))) }
+    "=" _ "by" { RealStandard.dualReconstruction (A a) b }
+  };
+\import Spaces.Finite[V := ComplexVectors.Vector, I := Fin.Fin r, space := ComplexVectors.space].Representation[W := ComplexVectors.Vector, J := Fin.Fin r, target := ComplexVectors.space] \as Representation;
+\definition expansion: \forall (f: End.Map)(v: ComplexVectors.Vector) -> f.apply v = Action (coefficient f) v :=
+  \fun (f: End.Map)(v: ComplexVectors.Vector) => trans!{{ComplexVectors.Vector}} _ _ _ (Representation.actionLaw Standard.basis Standard.basis f v)
+    (\axiom:funext(Spaces.Matrix[I := Fin.Fin r, J := Fin.Fin r].action (Fin.elements r) (coefficient f) v, Action (coefficient f) v,
+      \fun (a: Fin.Fin r) => Sums.enumeration r (\fun (b: Fin.Fin r) => Op.mul (coefficient f a b) (v b))));
+\definition column: \forall (A: Matrix)(a, b: Fin.Fin r) -> (Map A).apply (Standard.vectors b) a = A a b :=
+  \fun (A: Matrix)(a, b: Fin.Fin r) => trans!{{C.Complex}} _ _ _ (sym!{{C.Complex}} _ _ (Sums.enumeration r (\fun (c: Fin.Fin r) => Op.mul (A a c) (Standard.vectors b c))))
+    (Standard.dualReconstruction (A a) b);
+\definition realProductAction: \forall (A, B: RealMatrix)(v: RealVectors.Vector) -> realAction (realProduct A B) v = realAction A (realAction B v) :=
+  \fun (A, B: RealMatrix)(v: RealVectors.Vector) => \axiom:funext(realAction (realProduct A B) v, realAction A (realAction B v),
+    \fun (a: Fin.Fin realRank) => congr!{{RealAlgebra.Numeric} {R.Real}} (\fun (D: RealAlgebra.Numeric) => D a a) _ _ (RealAlgebra.associative A B (\fun (i, j: Fin.Fin realRank) => v i)));
+\definition recover[A: RealMatrix]: Matrix := \fun (a, b: Fin.Fin r) => Coordinates.decode (realAction A (Coordinates.encode (Standard.vectors b))) a;
+\definition encode[A: Matrix]: RealMatrix := realCoefficient (Structure.realify (Map A));
+\module Of(A: RealMatrix, commuting: \forall (v: RealVectors.Vector) -> (realMap A).apply (Structure.J.apply v) = Structure.J.apply ((realMap A).apply v));
+\definition encodedAction: \forall (A: Matrix)(v: RealVectors.Vector) -> realAction (encode A) v = (Structure.realify (Map A)).apply v :=
+  \fun (A: Matrix)(v: RealVectors.Vector) => sym!{{RealVectors.Vector}} _ _ (realExpansion (Structure.realify (Map A)) v);
+\definition encodedCommutes: \forall (A: Matrix)(v: RealVectors.Vector) -> realAction (encode A) (Structure.J.apply v) = Structure.J.apply (realAction (encode A) v) :=
+  \fun (A: Matrix)(v: RealVectors.Vector) => eq_reason_in!{{RealVectors.Vector} _
+    "=" _ "by" { encodedAction A (Structure.J.apply v) }
+    "=" _ "by" { Structure.commutes (Map A) v }
+    "=" _ "by" { congr!{{RealVectors.Vector} {RealVectors.Vector}} Structure.J.apply _ _ (sym!{{RealVectors.Vector}} _ _ (encodedAction A v)) }
+  };
+\definition roundTrip: \forall (A: Matrix) -> recover (encode A) = A :=
+  \fun (A: Matrix) => \axiom:funext(recover (encode A), A, \fun (a: Fin.Fin r) => \axiom:funext(recover (encode A) a, A a, \fun (b: Fin.Fin r) => eq_reason_in!{{C.Complex} _
+    "=" _ "by" { congr!{{RealVectors.Vector} {C.Complex}} (\fun (v: RealVectors.Vector) => Coordinates.decode v a) _ _ (encodedAction A (Coordinates.encode (Standard.vectors b))) }
+    "=" _ "by" { congr!{{ComplexVectors.Vector} {C.Complex}} (\fun (v: ComplexVectors.Vector) => v a) _ _ (Coordinates.decodeEncode ((Map A).apply (Coordinates.decode (Coordinates.encode (Standard.vectors b))))) }
+    "=" _ "by" { congr!{{ComplexVectors.Vector} {C.Complex}} (\fun (v: ComplexVectors.Vector) => (Map A).apply v a) _ _ (Coordinates.decodeEncode (Standard.vectors b)) }
+    "=" _ "by" { column A a b }
+  }));
+\definition JMatrix: RealMatrix := realCoefficient Structure.J;
+\definition Commuting[A: RealMatrix]: \Prop := \forall (v: RealVectors.Vector) -> realAction A (Structure.J.apply v) = Structure.J.apply (realAction A v);
+\definition fromMatrix: \forall (A: RealMatrix) -> realProduct JMatrix A = realProduct A JMatrix -> Commuting A :=
+  \fun (A: RealMatrix)(law: _)(v: RealVectors.Vector) => eq_reason_in!{{RealVectors.Vector} _
+    "=" _ "by" { congr!{{RealVectors.Vector} {RealVectors.Vector}} (realAction A) _ _ (realExpansion Structure.J v) }
+    "=" _ "by" { sym!{{RealVectors.Vector}} _ _ (realProductAction A JMatrix v) }
+    "=" _ "by" { congr!{{RealMatrix} {RealVectors.Vector}} (\fun (B: RealMatrix) => realAction B v) _ _ (sym!{{RealMatrix}} _ _ law) }
+    "=" _ "by" { realProductAction JMatrix A v }
+    "=" _ "by" { sym!{{RealVectors.Vector}} _ _ (realExpansion Structure.J (realAction A v)) }
+  };
+\definition toMatrix: \forall (A: RealMatrix) -> Commuting A -> realProduct JMatrix A = realProduct A JMatrix :=
+  \fun (A: RealMatrix)(law: Commuting A) => \axiom:funext(realProduct JMatrix A, realProduct A JMatrix, \fun (a: Fin.Fin realRank) =>
+    \axiom:funext(realProduct JMatrix A a, realProduct A JMatrix a, \fun (b: Fin.Fin realRank) => eq_reason_in!{{R.Real} _
+      "=" _ "by" { sym!{{R.Real}} _ _ (realColumn (realProduct JMatrix A) a b) }
+      "=" _ "by" { congr!{{RealVectors.Vector} {R.Real}} (\fun (v: RealVectors.Vector) => v a) _ _ (realProductAction JMatrix A (Finite.basis realRank b)) }
+      "=" _ "by" { congr!{{RealVectors.Vector} {R.Real}} (\fun (v: RealVectors.Vector) => v a) _ _ (sym!{{RealVectors.Vector}} _ _ (realExpansion Structure.J (realAction A (Finite.basis realRank b)))) }
+      "=" _ "by" { congr!{{RealVectors.Vector} {R.Real}} (\fun (v: RealVectors.Vector) => v a) _ _ (sym!{{RealVectors.Vector}} _ _ (law (Finite.basis realRank b))) }
+      "=" _ "by" { congr!{{RealVectors.Vector} {R.Real}} (\fun (v: RealVectors.Vector) => realAction A v a) _ _ (realExpansion Structure.J (Finite.basis realRank b)) }
+      "=" _ "by" { congr!{{RealVectors.Vector} {R.Real}} (\fun (v: RealVectors.Vector) => v a) _ _ (sym!{{RealVectors.Vector}} _ _ (realProductAction A JMatrix (Finite.basis realRank b))) }
+      "=" _ "by" { realColumn (realProduct A JMatrix) a b }
+    }));

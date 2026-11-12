@@ -1,0 +1,18 @@
+\import Bundle.Dual[] \as Dual;
+\import smooth_bundles.Complex[n := n, r := r].On[M := M].Family[F := Dual.Fiber, space := Dual.fiberSpace] \as DualBundles;
+\import DualBundles.Of[I := I, bundle := Dual.dual] \as DualBundle;
+\import \root.Complex[n := n, r := r].On[M := M].Family[F := Dual.Fiber, space := Dual.fiberSpace].Of[I := I, bundle := Dual.dual] \as Target;
+\import \root.Real[n := n, r := realRank].On[M := M].Family[F := Dual.Fiber, space := DualBundles.realSpace].Of[I := I, bundle := DualBundle.forget] \as TargetUnderlying;
+\module Local(U: Open.OpenSet);
+\definition data: TargetUnderlying.Data := \fun (i: I) => \root.Forms[n := n, r := realRank].On[U := (chart i).image].Connection {
+  matrix := Local[U := (chart i).image].dual ((connection i).matrix)
+};
+\module Transport(U, V: Open.OpenSet);
+
+\module Coefficients(i, j: I);
+\definition localLinear: \forall (i: I) -> Target.In[i := i].ComplexLinear (data i) :=
+  \fun (i: I) => \root.Complex[n := n, r := r].Conjugation[].On[U := (chart i).image].DualLinear[].complexLinear ((connection i).matrix) (complexLinear connection i);
+\module Pair(i, j: I);
+\definition compatibility: TargetUnderlying.Compatible data := \fun (i, j: I) => Pair[i := i, j := j].compatible;
+\definition underlying: TargetUnderlying.Connection := \into[TargetUnderlying.Data](data, TargetUnderlying.Connection) \by { compatibility };
+\definition value: Target.Connection := \into[TargetUnderlying.Connection](underlying, Target.Connection) \by { localLinear };

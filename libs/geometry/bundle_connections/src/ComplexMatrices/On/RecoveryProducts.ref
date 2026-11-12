@@ -1,0 +1,150 @@
+\import \parent.Numeric[] \as Numeric;
+\import \parent.Algebra[] \as Algebra;
+\import \parent.Recovery[] \as Recovery;
+\import \parent.Encoding[] \as Encoding;
+\import RealMatrices.Associativity[] \as RealAlgebra;
+\definition Commuting0[A: RealMatrices.Matrix0]: \Prop := \forall (x: Open.Carrier U) -> Numeric.Commuting (RealAlgebra.eval0 A x);
+\definition Commuting1[A: RealMatrices.Matrix1]: \Prop := \forall (x: Open.Carrier U)(v: Multilinear.Arguments one) -> Numeric.Commuting (RealAlgebra.eval1 A x v);
+\definition recover01: \forall (A: RealMatrices.Matrix0)(B: RealMatrices.Matrix1) -> Commuting0 A ->
+  Recovery.recover1 (RealMatrices.product01 A B) = product01 (Recovery.recover0 A) (Recovery.recover1 B) :=
+  \fun (A: RealMatrices.Matrix0)(B: RealMatrices.Matrix1)(commuting: Commuting0 A) => Algebra.matrixExt _ _
+    (\fun (x: Open.Carrier U)(v: Multilinear.Arguments one) => eq_reason_in!{Algebra.Numeric _
+      "=" _ "by" { Recovery.eval1 (RealMatrices.product01 A B) x v }
+      "=" _ "by" { congr!{{Numeric.RealMatrix} {Numeric.Matrix}} Numeric.recover _ _ (RealAlgebra.eval01 A B x v) }
+      "=" _ "by" { Numeric.Of[A := RealAlgebra.eval0 A x, commuting := commuting x].productLaw (RealAlgebra.eval1 B x v) }
+      "=" _ "by" { congr!{Algebra.Numeric Algebra.Numeric Algebra.Numeric} Algebra.product _ _ _ _
+        (sym!{Algebra.Numeric} _ _ (Recovery.eval0 A x)) (sym!{Algebra.Numeric} _ _ (Recovery.eval1 B x v)) }
+      "=" _ "by" { sym!{Algebra.Numeric} _ _ (Algebra.eval01 (Recovery.recover0 A) (Recovery.recover1 B) x v) }
+    });
+\definition recover10: \forall (A: RealMatrices.Matrix1)(B: RealMatrices.Matrix0) -> Commuting1 A ->
+  Recovery.recover1 (RealMatrices.product10 A B) = product10 (Recovery.recover1 A) (Recovery.recover0 B) :=
+  \fun (A: RealMatrices.Matrix1)(B: RealMatrices.Matrix0)(commuting: Commuting1 A) => Algebra.matrixExt _ _
+    (\fun (x: Open.Carrier U)(v: Multilinear.Arguments one) => eq_reason_in!{Algebra.Numeric _
+      "=" _ "by" { Recovery.eval1 (RealMatrices.product10 A B) x v }
+      "=" _ "by" { congr!{{Numeric.RealMatrix} {Numeric.Matrix}} Numeric.recover _ _ (RealAlgebra.eval10 A B x v) }
+      "=" _ "by" { Numeric.Of[A := RealAlgebra.eval1 A x v, commuting := commuting x v].productLaw (RealAlgebra.eval0 B x) }
+      "=" _ "by" { congr!{Algebra.Numeric Algebra.Numeric Algebra.Numeric} Algebra.product _ _ _ _
+        (sym!{Algebra.Numeric} _ _ (Recovery.eval1 A x v)) (sym!{Algebra.Numeric} _ _ (Recovery.eval0 B x)) }
+      "=" _ "by" { sym!{Algebra.Numeric} _ _ (Algebra.eval10 (Recovery.recover1 A) (Recovery.recover0 B) x v) }
+    });
+\definition roundTrip0: \forall (A: Matrix0) -> Recovery.recover0 (Encoding.encode0 A) = A :=
+  \fun (A: Matrix0) => \axiom:funext(Recovery.recover0 (Encoding.encode0 A), A, \fun (a: Fin.Fin r) =>
+    \axiom:funext(Recovery.recover0 (Encoding.encode0 A) a, A a, \fun (b: Fin.Fin r) =>
+      \axiom:funext(Recovery.recover0 (Encoding.encode0 A) a b, A a b, \fun (x: Open.Carrier U) =>
+        congr!{{Numeric.Matrix} {C.Complex}} (\fun (Z: Numeric.Matrix) => Z a b) _ _
+          (trans!{{Numeric.Matrix}} _ _ _ (Recovery.eval0 (Encoding.encode0 A) x) (Numeric.roundTrip (Algebra.eval0 A x))))));
+\definition roundTrip1: \forall (A: Matrix1) -> Recovery.recover1 (Encoding.encode1 A) = A :=
+  \fun (A: Matrix1) => Algebra.matrixExt (Recovery.recover1 (Encoding.encode1 A)) A
+    (\fun (x: Open.Carrier U)(v: Multilinear.Arguments one) => trans!{Algebra.Numeric} _ _ _
+      (Recovery.eval1 (Encoding.encode1 A) x v)
+      (trans!{Algebra.Numeric} _ _ _ (congr!{{Numeric.RealMatrix} {Numeric.Matrix}} Numeric.recover _ _ (Encoding.eval1 A x v)) (Numeric.roundTrip (Algebra.eval1 A x v))));
+\definition encodedCommutes0: \forall (A: Matrix0) -> Commuting0 (Encoding.encode0 A) :=
+  \fun (A: Matrix0)(x: Open.Carrier U) => Numeric.encodedCommutes (Algebra.eval0 A x);
+\definition encodedCommutes1: \forall (A: Matrix1) -> Commuting1 (Encoding.encode1 A) :=
+  \fun (A: Matrix1)(x: Open.Carrier U)(v: Multilinear.Arguments one) =>
+    \idelim Numeric.encode (Algebra.eval1 A x v) = RealAlgebra.eval1 (Encoding.encode1 A) x v
+      \with Z: Numeric.RealMatrix => Numeric.Commuting Z \by {
+        base: Numeric.encodedCommutes (Algebra.eval1 A x v), equality: sym!{{Numeric.RealMatrix}} _ _ (Encoding.eval1 A x v)
+      };
+\definition reconstruction0: \forall (A: RealMatrices.Matrix0) -> Commuting0 A -> Encoding.encode0 (Recovery.recover0 A) = A :=
+  \fun (A: RealMatrices.Matrix0)(commuting: Commuting0 A) => \axiom:funext(Encoding.encode0 (Recovery.recover0 A), A, \fun (a: Fin.Fin realRank) =>
+    \axiom:funext(Encoding.encode0 (Recovery.recover0 A) a, A a, \fun (b: Fin.Fin realRank) => RealFunctions.ext _ _
+      (\fun (x: Open.Carrier U) => congr!{{Numeric.RealMatrix} {R.Real}} (\fun (Z: Numeric.RealMatrix) => Z a b) _ _
+        (trans!{{Numeric.RealMatrix}} _ _ _ (congr!{{Numeric.Matrix} {Numeric.RealMatrix}} Numeric.encode _ _ (Recovery.eval0 A x))
+          (Numeric.Of[A := RealAlgebra.eval0 A x, commuting := commuting x].reconstruction)))));
+\definition reconstruction1: \forall (A: RealMatrices.Matrix1) -> Commuting1 A -> Encoding.encode1 (Recovery.recover1 A) = A :=
+  \fun (A: RealMatrices.Matrix1)(commuting: Commuting1 A) => RealAlgebra.ext (Encoding.encode1 (Recovery.recover1 A)) A
+    (\fun (x: Open.Carrier U)(v: Multilinear.Arguments one) => trans!{{Numeric.RealMatrix}} _ _ _ (Encoding.eval1 (Recovery.recover1 A) x v)
+      (trans!{{Numeric.RealMatrix}} _ _ _ (congr!{{Numeric.Matrix} {Numeric.RealMatrix}} Numeric.encode _ _ (Recovery.eval1 A x v))
+        (Numeric.Of[A := RealAlgebra.eval1 A x v, commuting := commuting x v].reconstruction)));
+\definition recoverGauge: \forall (T: RealMatrices.Matrix0)(A, B: RealMatrices.Matrix1) -> Commuting0 T -> Commuting1 B ->
+  RealMatrices.product01 T A = RealMatrices.plus (RealMatrices.dMatrix T) (RealMatrices.product10 B T) ->
+  product01 (Recovery.recover0 T) (Recovery.recover1 A) = plus (dMatrix (Recovery.recover0 T)) (product10 (Recovery.recover1 B) (Recovery.recover0 T)) :=
+  \fun (T: RealMatrices.Matrix0)(A, B: RealMatrices.Matrix1)(t: Commuting0 T)(b: Commuting1 B)(law: _) => eq_reason_in!{Matrix1 _
+    "=" _ "by" { sym!{Matrix1} _ _ (recover01 T A t) }
+    "=" _ "by" { congr!{RealMatrices.Matrix1 Matrix1} Recovery.recover1 _ _ law }
+    "=" _ "by" { Recovery.addition (RealMatrices.dMatrix T) (RealMatrices.product10 B T) }
+    "=" _ "by" { congr!{Matrix1 Matrix1 Matrix1} plus _ _ _ _ (sym!{Matrix1} _ _ (Recovery.derivative T)) (recover10 B T b) }
+  };
+\import \parent.Commutation[] \as Commutation;
+\import \root.Complex[n := n, r := r].Structure[].On[U := U] \as J;
+\import RealMatrices.Linearity[] \as RealLinear;
+\import Reals.Laws[V := RealMatrices.Matrix1, space := RealLinear.space] \as RealLaws;
+\definition scalarMatrix: \forall (A: RealMatrices.Matrix0) -> Commuting0 A -> RealMatrices.product00 J.matrix A = RealMatrices.product00 A J.matrix :=
+  \fun (A: RealMatrices.Matrix0)(commuting: Commuting0 A) => \axiom:funext(RealMatrices.product00 J.matrix A, RealMatrices.product00 A J.matrix,
+    \fun (a: Fin.Fin realRank) => \axiom:funext(RealMatrices.product00 J.matrix A a, RealMatrices.product00 A J.matrix a, \fun (b: Fin.Fin realRank) =>
+      RealFunctions.ext (RealMatrices.product00 J.matrix A a b) (RealMatrices.product00 A J.matrix a b)
+        (\fun (x: Open.Carrier U) => congr!{{Numeric.RealMatrix} {R.Real}} (\fun (Z: Numeric.RealMatrix) => Z a b) _ _ (Numeric.toMatrix (RealAlgebra.eval0 A x) (commuting x)))));
+\definition differentialCommutes: \forall (A: RealMatrices.Matrix0) -> Commuting0 A -> Commuting1 (RealMatrices.dMatrix A) :=
+  \fun (A: RealMatrices.Matrix0)(commuting: Commuting0 A) => Commutation.form (RealMatrices.dMatrix A) (eq_reason_in!{RealMatrices.Matrix1 _
+    "=" _ "by" { sym!{RealMatrices.Matrix1} _ _ (RealLaws.zeroLeft (RealMatrices.product01 J.matrix (RealMatrices.dMatrix A))) }
+    "=" _ "by" { congr!{RealMatrices.Matrix1 RealMatrices.Matrix1} (\fun (X: RealMatrices.Matrix1) => RealMatrices.plus X (RealMatrices.product01 J.matrix (RealMatrices.dMatrix A))) _ _
+      (sym!{RealMatrices.Matrix1} _ _ (trans!{RealMatrices.Matrix1} _ _ _
+        (congr!{RealMatrices.Matrix1 RealMatrices.Matrix1} (\fun (X: RealMatrices.Matrix1) => RealMatrices.product10 X A) _ _ J.constant)
+        ((RealLinear.rightMap A).preservesZero))) }
+    "=" _ "by" { sym!{RealMatrices.Matrix1} _ _ (RealMatrices.productRule J.matrix A) }
+    "=" _ "by" { congr!{RealMatrices.Matrix0 RealMatrices.Matrix1} RealMatrices.dMatrix _ _ (scalarMatrix A commuting) }
+    "=" _ "by" { RealMatrices.productRule A J.matrix }
+    "=" _ "by" { congr!{RealMatrices.Matrix1 RealMatrices.Matrix1} (RealMatrices.plus (RealMatrices.product10 (RealMatrices.dMatrix A) J.matrix)) _ _
+      (trans!{RealMatrices.Matrix1} _ _ _ (congr!{RealMatrices.Matrix1 RealMatrices.Matrix1} (RealMatrices.product01 A) _ _ J.constant) ((RealLinear.leftMap A).preservesZero)) }
+    "=" _ "by" { RealLaws.zeroRight (RealMatrices.product10 (RealMatrices.dMatrix A) J.matrix) }
+  });
+\definition encodeDerivative: \forall (A: Matrix0) -> Encoding.encode1 (dMatrix A) = RealMatrices.dMatrix (Encoding.encode0 A) :=
+  \fun (A: Matrix0) => eq_reason_in!{RealMatrices.Matrix1 _
+    "=" _ "by" { congr!{Matrix0 RealMatrices.Matrix1} (\fun (B: Matrix0) => Encoding.encode1 (dMatrix B)) _ _ (sym!{Matrix0} _ _ (roundTrip0 A)) }
+    "=" _ "by" { congr!{Matrix1 RealMatrices.Matrix1} Encoding.encode1 _ _ (Recovery.derivative (Encoding.encode0 A)) }
+    "=" _ "by" { reconstruction1 (RealMatrices.dMatrix (Encoding.encode0 A)) (differentialCommutes (Encoding.encode0 A) (encodedCommutes0 A)) }
+  };
+\definition productCommutes: \forall (A, B: Numeric.RealMatrix) -> Numeric.Commuting A -> Numeric.Commuting B -> Numeric.Commuting (Numeric.realProduct A B) :=
+  \fun (A, B: Numeric.RealMatrix)(first: Numeric.Commuting A)(second: Numeric.Commuting B)(v: RealVectors.Vector) => eq_reason_in!{{RealVectors.Vector} _
+    "=" _ "by" { Numeric.realProductAction A B (Structure.J.apply v) }
+    "=" _ "by" { congr!{{RealVectors.Vector} {RealVectors.Vector}} (Numeric.realAction A) _ _ (second v) }
+    "=" _ "by" { first (Numeric.realAction B v) }
+    "=" _ "by" { congr!{{RealVectors.Vector} {RealVectors.Vector}} Structure.J.apply _ _ (sym!{{RealVectors.Vector}} _ _ (Numeric.realProductAction A B v)) }
+  };
+\definition product01Commutes: \forall (A: RealMatrices.Matrix0)(B: RealMatrices.Matrix1) -> Commuting0 A -> Commuting1 B -> Commuting1 (RealMatrices.product01 A B) :=
+  \fun (A: RealMatrices.Matrix0)(B: RealMatrices.Matrix1)(first: Commuting0 A)(second: Commuting1 B)(x: Open.Carrier U)(v: Multilinear.Arguments one) =>
+    \idelim Numeric.realProduct (RealAlgebra.eval0 A x) (RealAlgebra.eval1 B x v) = RealAlgebra.eval1 (RealMatrices.product01 A B) x v
+      \with Z: Numeric.RealMatrix => Numeric.Commuting Z \by {
+        base: productCommutes (RealAlgebra.eval0 A x) (RealAlgebra.eval1 B x v) (first x) (second x v),
+        equality: sym!{{Numeric.RealMatrix}} _ _ (RealAlgebra.eval01 A B x v)
+      };
+\definition product10Commutes: \forall (A: RealMatrices.Matrix1)(B: RealMatrices.Matrix0) -> Commuting1 A -> Commuting0 B -> Commuting1 (RealMatrices.product10 A B) :=
+  \fun (A: RealMatrices.Matrix1)(B: RealMatrices.Matrix0)(first: Commuting1 A)(second: Commuting0 B)(x: Open.Carrier U)(v: Multilinear.Arguments one) =>
+    \idelim Numeric.realProduct (RealAlgebra.eval1 A x v) (RealAlgebra.eval0 B x) = RealAlgebra.eval1 (RealMatrices.product10 A B) x v
+      \with Z: Numeric.RealMatrix => Numeric.Commuting Z \by {
+        base: productCommutes (RealAlgebra.eval1 A x v) (RealAlgebra.eval0 B x) (first x v) (second x),
+        equality: sym!{{Numeric.RealMatrix}} _ _ (RealAlgebra.eval10 A B x v)
+      };
+\definition additionCommutes: \forall (A, B: RealMatrices.Matrix1) -> Commuting1 A -> Commuting1 B -> Commuting1 (RealMatrices.plus A B) :=
+  \fun (A, B: RealMatrices.Matrix1)(first: Commuting1 A)(second: Commuting1 B) => Commutation.form (RealMatrices.plus A B) (eq_reason_in!{RealMatrices.Matrix1 _
+    "=" _ "by" { RealAlgebra.distribute J.matrix A B }
+    "=" _ "by" { congr!{RealMatrices.Matrix1 RealMatrices.Matrix1 RealMatrices.Matrix1} RealMatrices.plus _ _ _ _ (Commutation.matrix A first) (Commutation.matrix B second) }
+    "=" _ "by" { sym!{RealMatrices.Matrix1} _ _ (RealLinear.rightAdd A B J.matrix) }
+  });
+\definition encode01: \forall (A: Matrix0)(B: Matrix1) -> Encoding.encode1 (product01 A B) = RealMatrices.product01 (Encoding.encode0 A) (Encoding.encode1 B) :=
+  \fun (A: Matrix0)(B: Matrix1) => eq_reason_in!{RealMatrices.Matrix1 _
+    "=" _ "by" { congr!{Matrix0 Matrix1 RealMatrices.Matrix1} (\fun (T: Matrix0)(X: Matrix1) => Encoding.encode1 (product01 T X)) _ _ _ _ (sym!{Matrix0} _ _ (roundTrip0 A)) (sym!{Matrix1} _ _ (roundTrip1 B)) }
+    "=" _ "by" { congr!{Matrix1 RealMatrices.Matrix1} Encoding.encode1 _ _ (sym!{Matrix1} _ _ (recover01 (Encoding.encode0 A) (Encoding.encode1 B) (encodedCommutes0 A))) }
+    "=" _ "by" { reconstruction1 (RealMatrices.product01 (Encoding.encode0 A) (Encoding.encode1 B)) (product01Commutes (Encoding.encode0 A) (Encoding.encode1 B) (encodedCommutes0 A) (encodedCommutes1 B)) }
+  };
+\definition encode10: \forall (A: Matrix1)(B: Matrix0) -> Encoding.encode1 (product10 A B) = RealMatrices.product10 (Encoding.encode1 A) (Encoding.encode0 B) :=
+  \fun (A: Matrix1)(B: Matrix0) => eq_reason_in!{RealMatrices.Matrix1 _
+    "=" _ "by" { congr!{Matrix1 Matrix0 RealMatrices.Matrix1} (\fun (X: Matrix1)(T: Matrix0) => Encoding.encode1 (product10 X T)) _ _ _ _ (sym!{Matrix1} _ _ (roundTrip1 A)) (sym!{Matrix0} _ _ (roundTrip0 B)) }
+    "=" _ "by" { congr!{Matrix1 RealMatrices.Matrix1} Encoding.encode1 _ _ (sym!{Matrix1} _ _ (recover10 (Encoding.encode1 A) (Encoding.encode0 B) (encodedCommutes1 A))) }
+    "=" _ "by" { reconstruction1 (RealMatrices.product10 (Encoding.encode1 A) (Encoding.encode0 B)) (product10Commutes (Encoding.encode1 A) (Encoding.encode0 B) (encodedCommutes1 A) (encodedCommutes0 B)) }
+  };
+\definition encodeAddition: \forall (A, B: Matrix1) -> Encoding.encode1 (plus A B) = RealMatrices.plus (Encoding.encode1 A) (Encoding.encode1 B) :=
+  \fun (A, B: Matrix1) => eq_reason_in!{RealMatrices.Matrix1 _
+    "=" _ "by" { congr!{Matrix1 Matrix1 RealMatrices.Matrix1} (\fun (X, Y: Matrix1) => Encoding.encode1 (plus X Y)) _ _ _ _ (sym!{Matrix1} _ _ (roundTrip1 A)) (sym!{Matrix1} _ _ (roundTrip1 B)) }
+    "=" _ "by" { congr!{Matrix1 RealMatrices.Matrix1} Encoding.encode1 _ _ (sym!{Matrix1} _ _ (Recovery.addition (Encoding.encode1 A) (Encoding.encode1 B))) }
+    "=" _ "by" { reconstruction1 (RealMatrices.plus (Encoding.encode1 A) (Encoding.encode1 B)) (additionCommutes (Encoding.encode1 A) (Encoding.encode1 B) (encodedCommutes1 A) (encodedCommutes1 B)) }
+  };
+\definition encodeGauge: \forall (T: Matrix0)(A, B: Matrix1) -> product01 T A = plus (dMatrix T) (product10 B T) ->
+  RealMatrices.product01 (Encoding.encode0 T) (Encoding.encode1 A) = RealMatrices.plus (RealMatrices.dMatrix (Encoding.encode0 T)) (RealMatrices.product10 (Encoding.encode1 B) (Encoding.encode0 T)) :=
+  \fun (T: Matrix0)(A, B: Matrix1)(law: _) => eq_reason_in!{RealMatrices.Matrix1 _
+    "=" _ "by" { sym!{RealMatrices.Matrix1} _ _ (encode01 T A) }
+    "=" _ "by" { congr!{Matrix1 RealMatrices.Matrix1} Encoding.encode1 _ _ law }
+    "=" _ "by" { encodeAddition (dMatrix T) (product10 B T) }
+    "=" _ "by" { congr!{RealMatrices.Matrix1 RealMatrices.Matrix1 RealMatrices.Matrix1} RealMatrices.plus _ _ _ _ (encodeDerivative T) (encode10 B T) }
+  };

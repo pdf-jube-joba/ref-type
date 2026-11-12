@@ -1,0 +1,61 @@
+\import Smooth.Algebra[U := U] \as Functions;
+\import Smooth.Derivative[].Linear[U := U] \as Derivatives;
+\definition Section: \Set := Fin.Fin r -> Functions.Function;
+\definition plus[s, t: Section]: Section := \fun (a: Fin.Fin r) => Functions.plus (s a) (t a);
+\definition multiply[f: Functions.Function][s: Section]: Section := \fun (a: Fin.Fin r) => Functions.product f (s a);
+\definition sum[m: N.Nat^][f: Fin.Fin m -> Functions.Function]: Functions.Function :=
+  \into[Open.ScalarFunction U](Smooth.Sums[].sum U m f, Functions.Predicate) \by {
+    Smooth.Sums[].smooth U m f (\fun (a: Fin.Fin m) => \bysub(Open.ScalarFunction U, Functions.Predicate, f a))
+  };
+\definition sumAdd: \forall (m: N.Nat^)(f, g: Fin.Fin m -> Functions.Function) ->
+  sum m (\fun (a: Fin.Fin m) => Functions.plus (f a) (g a)) = Functions.plus (sum m f) (sum m g) :=
+  \fun (m: N.Nat^)(f, g: _) => Functions.ext _ _ (\fun (x: Open.Carrier U) => Sums.addition m (\fun (a: Fin.Fin m) => f a x) (\fun (a: Fin.Fin m) => g a x));
+\definition sumProduct: \forall (m: N.Nat^)(c: Functions.Function)(f: Fin.Fin m -> Functions.Function) ->
+  sum m (\fun (a: Fin.Fin m) => Functions.product c (f a)) = Functions.product c (sum m f) :=
+  \fun (m: N.Nat^)(c: _)(f: _) => Functions.ext _ _ (\fun (x: Open.Carrier U) => Sums.scalar m (c x) (\fun (a: Fin.Fin m) => f a x));
+\definition sumCongruent: \forall (m: N.Nat^)(f, g: Fin.Fin m -> Functions.Function) ->
+  (\forall (a: Fin.Fin m) -> f a = g a) -> sum m f = sum m g :=
+  \fun (m: N.Nat^)(f, g: _)(same: _) => congr!{{Fin.Fin m -> Functions.Function} {Functions.Function}} (sum m) _ _ (\axiom:funext(f, g, same));
+\definition Matrix: \Set := Fin.Fin r -> Fin.Fin r -> Functions.Function;
+\structure Connection: \Set := { coefficient: Fin.Fin n -> Matrix };
+\definition flat: Connection := Connection { coefficient := \fun (i: Fin.Fin n)(a, b: Fin.Fin r) => Functions.origin };
+\module Of(connection: Connection);
+
+\definition sumDerivative: \forall (m: N.Nat^)(i: Fin.Fin n)(f: Fin.Fin m -> Functions.Function) ->
+  Derivatives.apply i (sum m f) = sum m (\fun (a: Fin.Fin m) => Derivatives.apply i (f a)) :=
+  \induction (m: N.Nat^) \return \forall (i: Fin.Fin n)(f: Fin.Fin m -> Functions.Function) ->
+    Derivatives.apply i (sum m f) = sum m (\fun (a: Fin.Fin m) => Derivatives.apply i (f a)) \with {
+    | zero: \fun (i: Fin.Fin n)(f: _) => Derivatives.constant i R.zero
+    | succ: \fun (m: N.Nat^)(previous: _)(i: Fin.Fin n)(f: _) => trans!{{Functions.Function}} _ _ _
+      (Derivatives.addition i (f (Fin.zero m)) (sum m (\fun (a: Fin.Fin m) => f (Fin.succ m a))))
+      (congr!{{Functions.Function} {Functions.Function}} (Functions.plus (Derivatives.apply i (f (Fin.zero m)))) _ _
+        (previous i (\fun (a: Fin.Fin m) => f (Fin.succ m a))))
+  };
+\definition sumExchange: \forall (p, q: N.Nat^)(f: Fin.Fin p -> Fin.Fin q -> Functions.Function) ->
+  sum p (\fun (a: Fin.Fin p) => sum q (f a)) = sum q (\fun (b: Fin.Fin q) => sum p (\fun (a: Fin.Fin p) => f a b)) :=
+  \fun (p, q: N.Nat^)(f: Fin.Fin p -> Fin.Fin q -> Functions.Function) => Functions.ext (sum p (\fun (a: Fin.Fin p) => sum q (f a))) (sum q (\fun (b: Fin.Fin q) => sum p (\fun (a: Fin.Fin p) => f a b))) (\fun (x: Open.Carrier U) => Sums.exchange p q (\fun (a: Fin.Fin p)(b: Fin.Fin q) => f a b x));
+\definition sumRightProduct: \forall (m: N.Nat^)(c: Functions.Function)(f: Fin.Fin m -> Functions.Function) ->
+  sum m (\fun (a: Fin.Fin m) => Functions.product (f a) c) = Functions.product (sum m f) c :=
+  \fun (m: N.Nat^)(c: Functions.Function)(f: _) => eq_reason_in!{{Functions.Function} _
+    "=" _ "by" { sumCongruent m _ _ (\fun (a: Fin.Fin m) => Functions.productCommutative (f a) c) }
+    "=" _ "by" { sumProduct m c f }
+    "=" _ "by" { Functions.productCommutative c (sum m f) }
+  };
+\definition productAddLeft: \forall (f, g, h: Functions.Function) -> Functions.product (Functions.plus f g) h = Functions.plus (Functions.product f h) (Functions.product g h) :=
+  \fun (f, g, h: Functions.Function) => Functions.ext _ _ (\fun (x: Open.Carrier U) => Spaces.addMul (f x) (g x) (h x));
+\definition pair[s, t: Section]: Functions.Function := sum r (\fun (a: Fin.Fin r) => Functions.product (s a) (t a));
+\definition pairAddLeft: \forall (s, t, u: Section) -> pair (plus s t) u = Functions.plus (pair s u) (pair t u) :=
+  \fun (s, t, u: Section) => trans!{{Functions.Function}} _ _ _
+    (sumCongruent r _ _ (\fun (a: Fin.Fin r) => productAddLeft (s a) (t a) (u a))) (sumAdd r _ _);
+\definition pairAddRight: \forall (s, t, u: Section) -> pair s (plus t u) = Functions.plus (pair s t) (pair s u) :=
+  \fun (s, t, u: Section) => trans!{{Functions.Function}} _ _ _
+    (sumCongruent r _ _ (\fun (a: Fin.Fin r) => Functions.distributive (s a) (t a) (u a))) (sumAdd r _ _);
+\definition partial[i: Fin.Fin n][s: Section]: Section := \fun (a: Fin.Fin r) => Derivatives.apply i (s a);
+\definition pairDerivative: \forall (i: Fin.Fin n)(s, t: Section) -> Derivatives.apply i (pair s t) = Functions.plus (pair (partial i s) t) (pair s (partial i t)) :=
+  \fun (i: Fin.Fin n)(s, t: Section) => eq_reason_in!{{Functions.Function} _
+    "=" _ "by" { sumDerivative r i _ }
+    "=" _ "by" { sumCongruent r _ _ (\fun (a: Fin.Fin r) => Derivatives.product i (s a) (t a)) }
+    "=" _ "by" { sumAdd r _ _ }
+  };
+\module Dual(connection: Connection);
+\module Flat;

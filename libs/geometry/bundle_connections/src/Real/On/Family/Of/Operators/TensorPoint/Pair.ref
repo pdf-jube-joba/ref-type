@@ -1,0 +1,62 @@
+\import \parent.At[i := i] \as Left;
+\import \parent.At[i := j] \as Right;
+\import \parent.\parent.TensorCoordinates[x := x, W := Cotensor, target := cotensorSpace, frame := Left.frame] \as LeftCoordinates;
+\import Tangent.Pair[left := Left.tangentChart, right := Right.tangentChart] \as Geometry;
+\import Tangent.ChartIsomorphism[chart := Left.tangentChart].Change[other := Right.tangentChart] \as Change;
+\import \parent.\parent.OnePair[i := i, j := j] \as Overlap;
+\import \parent.\parent.\parent.Pair[i := i, j := j] \as Gauge;
+\import Charts.Transition[left := chart i, right := chart j] \as Transition;
+\import \root.MatrixCalculus[n := n, r := r].On[U := Transition.domain] \as Matrices;
+\import Spaces.Sums[I := Fin.Fin r] \as ScalarSums;
+\import Spaces.FiniteCoordinateEnumeration[] \as Enumeration;
+\definition Common: \Set := \Cast[M.Point] ({ y: M.Point \where Logic.And[Charts.Contains (chart i) y, Charts.Contains (chart j) y] });
+\definition first[y: Common]: Charts.LocalPoint (chart i) := \into[M.Point](y, (chart i).domain) \by { (\bysub(M.Point, Common, y)).left };
+\definition second[y: Common]: Charts.LocalPoint (chart j) := \into[M.Point](y, (chart j).domain) \by { (\bysub(M.Point, Common, y)).right };
+\definition transitionEntry[y: Common][a, b: Fin.Fin r]: R.Real :=
+  ((bundle.atlas.local j).frame (second y)).forward.apply (((bundle.atlas.local i).frame (first y)).backward.apply (R.FiniteSums[].Linear[].basis r b)) a;
+\definition commonPoint: Common := \into[M.Point](x, Common) \by { Logic.And[_, _]::# (\bysub(I, Index, i)) (\bysub(I, Index, j)) };
+\definition returnedPoint: Common := \into[M.Point](Charts.point (chart i) (Transition.leftCoordinate Geometry.point), Common) \by {
+  Logic.And[_, _]::# (\bysub(M.Point, (chart i).domain, Charts.point (chart i) (Transition.leftCoordinate Geometry.point))) (\bysub(M.Point, (chart j).domain, Transition.overlapPoint Geometry.point))
+};
+\import \root.Metric[n := n, r := r].Basis[] \as BasisComparison;
+\definition frameCoefficient: \forall (a, b: Fin.Fin r) -> Gauge.transition a b Geometry.point = Right.frame.forward.apply (LeftCoordinates.basis.vectors b) a :=
+  \fun (a, b: Fin.Fin r) => trans!{{R.Real}} _ _ _
+    (congr!{{Common} {R.Real}} (\fun (y: Common) => transitionEntry y a b) returnedPoint commonPoint
+      (Charts.Of[chart := chart i].pointCoordinate Left.localPoint))
+    (congr!{{Fin.Fin r -> R.Real} {R.Real}} (\fun (v: Fin.Fin r -> R.Real) => Right.frame.forward.apply (Left.frame.backward.apply v) a) _ _ (BasisComparison.equal b));
+\import \parent.\parent.TensorCoordinates[x := x, W := Cotensor, target := cotensorSpace, frame := Right.frame] \as RightCoordinates;
+\import Spaces.Sums[I := Fin.Fin r].Vector[V := Cotensor, space := cotensorSpace] \as FormSums;
+\definition arguments[vs: Fin.Fin one -> Tangent.Vector]: Fin.Fin one -> Fin.Fin n -> R.Real :=
+  \fun (slot: Fin.Fin one) => Tangent.ChartIsomorphism[chart := Left.tangentChart].forward.apply (vs slot);
+\definition argumentAgreement: \forall (vs: Fin.Fin one -> Tangent.Vector) ->
+  (\fun (slot: Fin.Fin one) => Tangent.transform Left.tangentChart Right.tangentChart (arguments vs slot)) =
+  (\fun (slot: Fin.Fin one) => Tangent.ChartIsomorphism[chart := Right.tangentChart].forward.apply (vs slot)) :=
+  \fun (vs: Fin.Fin one -> Tangent.Vector) => \axiom:funext((\fun (slot: Fin.Fin one) => Tangent.transform Left.tangentChart Right.tangentChart (arguments vs slot)),
+    (\fun (slot: Fin.Fin one) => Tangent.ChartIsomorphism[chart := Right.tangentChart].forward.apply (vs slot)), \fun (slot: Fin.Fin one) => sym!{{Fin.Fin n -> R.Real}} _ _ (Change.coordinates (vs slot)));
+\definition sumAgreement: \forall (a: Fin.Fin r)(vs: Fin.Fin one -> Tangent.Vector) ->
+  ScalarSums.sum (Fin.elements r) (\fun (b: Fin.Fin r) => R.mul (Right.frame.forward.apply (LeftCoordinates.basis.vectors b) a) (Left.alpha b vs)) = Right.alpha a vs :=
+  \fun (a: Fin.Fin r)(vs: Fin.Fin one -> Tangent.Vector) => trans!{{R.Real}} _ _ _
+    (ScalarSums.Prop[].congruent (Fin.elements r) _ _ (\fun (b: Fin.Fin r) =>
+      congr!{{R.Real} {R.Real}} (\fun (c: R.Real) => R.mul c (Left.alpha b vs)) _ _ (sym!{{R.Real}} _ _ (frameCoefficient a b))))
+    (trans!{{R.Real}} _ _ _
+      (Enumeration.sumLaw r (\fun (b: Fin.Fin r) => R.mul (Gauge.transition a b Geometry.point) (Left.alpha b vs)))
+      (trans!{{R.Real}} _ _ _
+        (sym!{{R.Real}} _ _ (Matrices.value01 Gauge.transition (Overlap.source (omega i)) a a Geometry.point (arguments vs)))
+        (trans!{{R.Real}} _ _ _
+          (congr!{{Euclidean.On[U := Transition.domain].Form one} {R.Real}}
+            (\fun (local: Euclidean.On[U := Transition.domain].Form one) => local Geometry.point (arguments vs)) _ _
+            ((\bysub(OneData, { w: OneData \where OneCompatible w }, omega)) i j a a))
+          (trans!{{R.Real}} _ _ _
+            (congr!{{Open.Carrier (chart j).image} {R.Real}}
+              (\fun (u: Open.Carrier (chart j).image) => omega j a u (\fun (slot: Fin.Fin one) => Tangent.transform Left.tangentChart Right.tangentChart (arguments vs slot)))
+              _ _ Geometry.coordinateAgreement)
+            (congr!{{Fin.Fin one -> Fin.Fin n -> R.Real} {R.Real}} (omega j a (Tangent.coordinate Right.tangentChart)) _ _ (argumentAgreement vs))))));
+\definition coordinateAgreement: RightCoordinates.forward.apply Left.value = Right.alpha :=
+  \axiom:funext(RightCoordinates.forward.apply Left.value, Right.alpha, \fun (a: Fin.Fin r) => \axiom:funext(RightCoordinates.forward.apply Left.value a, Right.alpha a, \fun (vs: Fin.Fin one -> Tangent.Vector) => trans!{{R.Real}} _ _ _
+    (congr!{{Cotensor} {R.Real}} (\fun (beta: Cotensor) => beta vs) _ _ (RightCoordinates.Projection[a := a].onSum LeftCoordinates.basis.vectors Left.alpha))
+    (trans!{{R.Real}} _ _ _
+      (FormSums.Mapping[W := R.Real, target := Spaces.scalarSpace].law (Left.evaluation vs) (Fin.elements r)
+        (\fun (b: Fin.Fin r) => cotensorSpace.smul (Right.frame.forward.apply (LeftCoordinates.basis.vectors b) a) (Left.alpha b)))
+      (sumAgreement a vs))));
+\definition independent: Left.value = Right.value := RightCoordinates.injective Left.value Right.value
+  (trans!{{Fin.Fin r -> Cotensor}} _ _ _ coordinateAgreement (sym!{{Fin.Fin r -> Cotensor}} _ _ Right.recovery));

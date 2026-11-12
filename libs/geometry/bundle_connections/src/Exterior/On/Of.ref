@@ -1,0 +1,15 @@
+\import Operations.ExteriorIndices[n := r, k := k] \as Indices;
+\import Operations.FiniteIndex[A := Indices.Tuple, S := Indices.set, enumeration := enumeration] \as Coordinates;
+\definition rank: N.Nat^ := Coordinates.rank;
+\definition arguments[a: Fin.Fin rank]: Multilinear.Arguments k := \fun (slot: Fin.Fin k) => Basis.vectors (Coordinates.enumerate a slot);
+\definition entry[a, b: Fin.Fin rank][slot: Fin.Fin k][c: Fin.Fin r]: R.Real :=
+  Words.word k (Coordinates.enumerate b) (Multilinear.update k (arguments a) slot (Basis.vectors c));
+\definition coefficient[i: Fin.Fin n][a, b: Fin.Fin rank]: Functions.Function := Local.sum k (\fun (slot: Fin.Fin k) =>
+  Local.sum r (\fun (c: Fin.Fin r) => Functions.scale (entry a b slot c) (connection.coefficient i (Coordinates.enumerate a slot) c)));
+\import \root.Local[n := n, r := rank].On[U := U] \as Target;
+\definition exterior: Target.Connection := Target.Connection { coefficient := coefficient };
+\import Target.Of[connection := exterior] \as Operator;
+\definition covariant: Fin.Fin n -> Target.Section -> Target.Section := Operator.partial;
+\definition addition: \forall (i: Fin.Fin n)(s, t: Target.Section) -> covariant i (Target.plus s t) = Target.plus (covariant i s) (covariant i t) := Operator.addition;
+\definition leibniz: \forall (i: Fin.Fin n)(f: Functions.Function)(s: Target.Section) ->
+  covariant i (Target.multiply f s) = Target.plus (Target.multiply (Open.Smooth[].Derivative[].Linear[U := U].apply i f) s) (Target.multiply f (covariant i s)) := Operator.leibniz;

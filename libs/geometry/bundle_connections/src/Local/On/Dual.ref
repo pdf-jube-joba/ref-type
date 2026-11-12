@@ -1,0 +1,41 @@
+\definition dual: Connection := Connection { coefficient := \fun (i: Fin.Fin n)(a, b: Fin.Fin r) => Functions.scale (R.neg R.one) (connection.coefficient i b a) };
+\import \parent.Of[connection := connection] \as Original;
+\import \parent.Of[connection := dual] \as Induced;
+\import Spaces.Laws[V := Functions.Function, space := Functions.vectorSpace] \as Addition;
+\definition transpose[i: Fin.Fin n][s: Section][a: Fin.Fin r]: Functions.Function :=
+  sum r (\fun (b: Fin.Fin r) => Functions.product (connection.coefficient i b a) (s b));
+\definition transposePair: \forall (i: Fin.Fin n)(s, t: Section) -> pair (transpose i s) t = pair s (Original.correction i t) :=
+  \fun (i: Fin.Fin n)(s, t: Section) => eq_reason_in!{{Functions.Function} _
+    "=" _ "by" { sumCongruent r _ _ (\fun (a: Fin.Fin r) => sym!{{Functions.Function}} _ _ (sumRightProduct r (t a) (\fun (b: Fin.Fin r) => Functions.product (connection.coefficient i b a) (s b)))) }
+    "=" _ "by" { sumExchange r r (\fun (a, b: Fin.Fin r) => Functions.product (Functions.product (connection.coefficient i b a) (s b)) (t a)) }
+    "=" _ "by" { sumCongruent r _ _ (\fun (b: Fin.Fin r) => trans!{{Functions.Function}} _ _ _
+      (sumCongruent r _ _ (\fun (a: Fin.Fin r) => trans!{{Functions.Function}} _ _ _
+        (congr!{{Functions.Function} {Functions.Function}} (\fun (f: Functions.Function) => Functions.product f (t a)) _ _
+          (Functions.productCommutative (connection.coefficient i b a) (s b)))
+        (Functions.productAssociative (s b) (connection.coefficient i b a) (t a))))
+      (sumProduct r (s b) (\fun (a: Fin.Fin r) => Functions.product (connection.coefficient i b a) (t a)))) }
+  };
+\definition correction: \forall (i: Fin.Fin n)(s: Section)(a: Fin.Fin r) -> Induced.correction i s a = Functions.scale (R.neg R.one) (transpose i s a) :=
+  \fun (i: Fin.Fin n)(s: Section)(a: Fin.Fin r) => Functions.ext (Induced.correction i s a) (Functions.scale (R.neg R.one) (transpose i s a)) (\fun (x: Open.Carrier U) => trans!{{R.Real}} _ _ _
+    (Sums.congruent r _ _ (\fun (b: Fin.Fin r) => Spaces.mulAssoc (R.neg R.one) (connection.coefficient i b a x) (s b x)))
+    (Sums.scalar r (R.neg R.one) _));
+\definition correctionPair: \forall (i: Fin.Fin n)(s, t: Section) -> pair (Induced.correction i s) t = Functions.vectorSpace.neg (pair s (Original.correction i t)) :=
+  \fun (i: Fin.Fin n)(s, t: Section) => eq_reason_in!{{Functions.Function} _
+    "=" _ "by" { sumCongruent r _ _ (\fun (a: Fin.Fin r) => congr!{{Functions.Function} {Functions.Function}} (\fun (f: Functions.Function) => Functions.product f (t a)) _ _ (correction i s a)) }
+    "=" {Functions.scale (R.neg R.one) (pair (transpose i s) t)} "by" { Functions.ext (sum r (\fun (a: Fin.Fin r) => Functions.product (Functions.scale (R.neg R.one) (transpose i s a)) (t a))) (Functions.scale (R.neg R.one) (pair (transpose i s) t)) (\fun (x: Open.Carrier U) => trans!{{R.Real}} _ _ _
+      (Sums.congruent r _ _ (\fun (a: Fin.Fin r) => Spaces.mulAssoc (R.neg R.one) (transpose i s a x) (t a x))) (Sums.scalar r (R.neg R.one) _)) }
+    "=" _ "by" { congr!{{Functions.Function} {Functions.Function}} (Functions.scale (R.neg R.one)) _ _ (transposePair i s t) }
+    "=" _ "by" { Addition.minusOneScale (pair s (Original.correction i t)) }
+  };
+\definition pairing: \forall (i: Fin.Fin n)(s, t: Section) ->
+  Functions.plus (pair (Induced.partial i s) t) (pair s (Original.partial i t)) = Derivatives.apply i (pair s t) :=
+  \fun (i: Fin.Fin n)(s, t: Section) => eq_reason_in!{{Functions.Function} _
+    "=" _ "by" { congr!{{Functions.Function} {Functions.Function} {Functions.Function}} Functions.plus _ _ _ _
+      (pairAddLeft (partial i s) (Induced.correction i s) t) (pairAddRight s (partial i t) (Original.correction i t)) }
+    "=" _ "by" { Addition.shuffle (pair (partial i s) t) (pair (Induced.correction i s) t) (pair s (partial i t)) (pair s (Original.correction i t)) }
+    "=" _ "by" { congr!{{Functions.Function} {Functions.Function}} (Functions.plus (Functions.plus (pair (partial i s) t) (pair s (partial i t)))) _ _
+      (trans!{{Functions.Function}} _ _ _ (congr!{{Functions.Function} {Functions.Function}} (\fun (f: Functions.Function) => Functions.plus f (pair s (Original.correction i t))) _ _ (correctionPair i s t))
+        (Addition.inverseLeft (pair s (Original.correction i t)))) }
+    "=" _ "by" { Addition.zeroRight (Functions.plus (pair (partial i s) t) (pair s (partial i t))) }
+    "=" _ "by" { sym!{{Functions.Function}} _ _ (pairDerivative i s t) }
+  };

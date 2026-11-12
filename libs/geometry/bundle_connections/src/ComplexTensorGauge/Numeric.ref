@@ -1,0 +1,81 @@
+\import \root.ComplexTensorGauge[r := r, s := s].Finite[t := r] \as L;
+\import \root.ComplexTensorGauge[r := r, s := s].Finite[t := s] \as Rg;
+\definition Matrix: \Set := Fin.Fin r -> Fin.Fin s -> Fin.Fin r -> Fin.Fin s -> Z.Complex;
+\definition tensor[A: L.Matrix][B: Rg.Matrix][a: Fin.Fin r][b: Fin.Fin s][c: Fin.Fin r][d: Fin.Fin s]: Z.Complex := Op.mul (A a c) (B b d);
+\definition plus[A, B: Matrix][a: Fin.Fin r][b: Fin.Fin s][c: Fin.Fin r][d: Fin.Fin s]: Z.Complex := Op.add (A a b c d) (B a b c d);
+\definition product[A, B: Matrix][a: Fin.Fin r][b: Fin.Fin s][c: Fin.Fin r][d: Fin.Fin s]: Z.Complex :=
+  Sums.sum r (\fun (i: Fin.Fin r) => Sums.sum s (\fun (j: Fin.Fin s) => Op.mul (A a b i j) (B i j c d)));
+\definition lift[A: L.Matrix][B: Rg.Matrix]: Matrix := plus (tensor A Rg.identity) (tensor L.identity B);
+\definition ext: \forall (A, B: Matrix) -> (\forall (a: Fin.Fin r)(b: Fin.Fin s)(c: Fin.Fin r)(d: Fin.Fin s) -> A a b c d = B a b c d) -> A = B :=
+  \fun (A, B: Matrix)(same: _) => \axiom:funext(A, B, \fun (a: Fin.Fin r) => \axiom:funext(A a, B a, \fun (b: Fin.Fin s) =>
+    \axiom:funext(A a b, B a b, \fun (c: Fin.Fin r) => \axiom:funext(A a b c, B a b c, same a b c))));
+\definition mulFour: \forall (a, b, c, d: Z.Complex) -> Op.mul (Op.mul a b) (Op.mul c d) = Op.mul (Op.mul a c) (Op.mul b d) :=
+  \fun (a, b, c, d: Z.Complex) => eq_reason_in!{{Z.Complex} _
+    "=" _ "by" { Spaces.mulAssoc a b (Op.mul c d) }
+    "=" _ "by" { congr!{{Z.Complex} {Z.Complex}} (Op.mul a) _ _ (Spaces.Laws[V := Z.Complex, space := Spaces.scalarSpace].scaleComm b c d) }
+    "=" _ "by" { sym!{{Z.Complex}} _ _ (Spaces.mulAssoc a c (Op.mul b d)) }
+  };
+\definition separated: \forall (f: Fin.Fin r -> Z.Complex)(g: Fin.Fin s -> Z.Complex) -> Sums.sum r (\fun (i: Fin.Fin r) => Sums.sum s (\fun (j: Fin.Fin s) => Op.mul (f i) (g j))) = Op.mul (Sums.sum r f) (Sums.sum s g) :=
+  \fun (f: Fin.Fin r -> Z.Complex)(g: Fin.Fin s -> Z.Complex) => eq_reason_in!{{Z.Complex} {Sums.sum r (\fun (i: Fin.Fin r) => Sums.sum s (\fun (j: Fin.Fin s) => Op.mul (f i) (g j)))}
+    "=" {Sums.sum r (\fun (i: Fin.Fin r) => Op.mul (f i) (Sums.sum s g))} "by" { Sums.congruent r (\fun (i: Fin.Fin r) => Sums.sum s (\fun (j: Fin.Fin s) => Op.mul (f i) (g j))) (\fun (i: Fin.Fin r) => Op.mul (f i) (Sums.sum s g)) (\fun (i: Fin.Fin r) => Sums.scaleSum s (f i) g) }
+    "=" {Sums.sum r (\fun (i: Fin.Fin r) => Op.mul (Sums.sum s g) (f i))} "by" { Sums.congruent r (\fun (i: Fin.Fin r) => Op.mul (f i) (Sums.sum s g)) (\fun (i: Fin.Fin r) => Op.mul (Sums.sum s g) (f i)) (\fun (i: Fin.Fin r) => Spaces.mulComm (f i) (Sums.sum s g)) }
+    "=" {Op.mul (Sums.sum s g) (Sums.sum r f)} "by" { Sums.scaleSum r (Sums.sum s g) f }
+    "=" {Op.mul (Sums.sum r f) (Sums.sum s g)} "by" { Spaces.mulComm (Sums.sum s g) (Sums.sum r f) }
+  };
+\definition tensorProduct: \forall (A, C: L.Matrix)(B, D: Rg.Matrix) -> product (tensor A B) (tensor C D) = tensor (L.product A C) (Rg.product B D) :=
+  \fun (A, C: L.Matrix)(B, D: Rg.Matrix) => ext (product (tensor A B) (tensor C D)) (tensor (L.product A C) (Rg.product B D))
+    (\fun (a: Fin.Fin r)(b: Fin.Fin s)(c: Fin.Fin r)(d: Fin.Fin s) => trans!{{Z.Complex}} _ _ _
+      (Sums.congruent r
+        (\fun (i: Fin.Fin r) => Sums.sum s (\fun (j: Fin.Fin s) => Op.mul (Op.mul (A a i) (B b j)) (Op.mul (C i c) (D j d))))
+        (\fun (i: Fin.Fin r) => Sums.sum s (\fun (j: Fin.Fin s) => Op.mul (Op.mul (A a i) (C i c)) (Op.mul (B b j) (D j d))))
+        (\fun (i: Fin.Fin r) => Sums.congruent s (\fun (j: Fin.Fin s) => Op.mul (Op.mul (A a i) (B b j)) (Op.mul (C i c) (D j d))) (\fun (j: Fin.Fin s) => Op.mul (Op.mul (A a i) (C i c)) (Op.mul (B b j) (D j d))) (\fun (j: Fin.Fin s) => mulFour (A a i) (B b j) (C i c) (D j d))))
+      (separated (\fun (i: Fin.Fin r) => Op.mul (A a i) (C i c)) (\fun (j: Fin.Fin s) => Op.mul (B b j) (D j d))));
+\definition tensorAddLeft: \forall (A, C: L.Matrix)(B: Rg.Matrix) -> tensor (L.plus A C) B = plus (tensor A B) (tensor C B) :=
+  \fun (A, C: L.Matrix)(B: Rg.Matrix) => ext (tensor (L.plus A C) B) (plus (tensor A B) (tensor C B))
+    (\fun (a: Fin.Fin r)(b: Fin.Fin s)(c: Fin.Fin r)(d: Fin.Fin s) => Spaces.addMul (A a c) (C a c) (B b d));
+\definition tensorAddRight: \forall (A: L.Matrix)(B, D: Rg.Matrix) -> tensor A (Rg.plus B D) = plus (tensor A B) (tensor A D) :=
+  \fun (A: L.Matrix)(B, D: Rg.Matrix) => ext (tensor A (Rg.plus B D)) (plus (tensor A B) (tensor A D))
+    (\fun (a: Fin.Fin r)(b: Fin.Fin s)(c: Fin.Fin r)(d: Fin.Fin s) => Spaces.mulAdd (A a c) (B b d) (D b d));
+\definition productAddRight: \forall (A, B, C: Matrix) -> product A (plus B C) = plus (product A B) (product A C) :=
+  \fun (A, B, C: Matrix) => ext (product A (plus B C)) (plus (product A B) (product A C))
+    (\fun (a: Fin.Fin r)(b: Fin.Fin s)(c: Fin.Fin r)(d: Fin.Fin s) => eq_reason_in!{{Z.Complex} {Sums.sum r (\fun (i: Fin.Fin r) => Sums.sum s (\fun (j: Fin.Fin s) => Op.mul (A a b i j) (Op.add (B i j c d) (C i j c d))))}
+      "=" {Sums.sum r (\fun (i: Fin.Fin r) => Op.add (Sums.sum s (\fun (j: Fin.Fin s) => Op.mul (A a b i j) (B i j c d))) (Sums.sum s (\fun (j: Fin.Fin s) => Op.mul (A a b i j) (C i j c d))))} "by" { Sums.congruent r (\fun (i: Fin.Fin r) => Sums.sum s (\fun (j: Fin.Fin s) => Op.mul (A a b i j) (Op.add (B i j c d) (C i j c d)))) (\fun (i: Fin.Fin r) => Op.add (Sums.sum s (\fun (j: Fin.Fin s) => Op.mul (A a b i j) (B i j c d))) (Sums.sum s (\fun (j: Fin.Fin s) => Op.mul (A a b i j) (C i j c d)))) (\fun (i: Fin.Fin r) => trans!{{Z.Complex}} _ _ _
+        (Sums.congruent s (\fun (j: Fin.Fin s) => Op.mul (A a b i j) (Op.add (B i j c d) (C i j c d))) (\fun (j: Fin.Fin s) => Op.add (Op.mul (A a b i j) (B i j c d)) (Op.mul (A a b i j) (C i j c d))) (\fun (j: Fin.Fin s) => Spaces.mulAdd (A a b i j) (B i j c d) (C i j c d)))
+        (Sums.addition s (\fun (j: Fin.Fin s) => Op.mul (A a b i j) (B i j c d)) (\fun (j: Fin.Fin s) => Op.mul (A a b i j) (C i j c d)))) }
+      "=" {Op.add (Sums.sum r (\fun (i: Fin.Fin r) => Sums.sum s (\fun (j: Fin.Fin s) => Op.mul (A a b i j) (B i j c d)))) (Sums.sum r (\fun (i: Fin.Fin r) => Sums.sum s (\fun (j: Fin.Fin s) => Op.mul (A a b i j) (C i j c d))))} "by" { Sums.addition r (\fun (i: Fin.Fin r) => Sums.sum s (\fun (j: Fin.Fin s) => Op.mul (A a b i j) (B i j c d))) (\fun (i: Fin.Fin r) => Sums.sum s (\fun (j: Fin.Fin s) => Op.mul (A a b i j) (C i j c d))) }
+    });
+\definition productAddLeft: \forall (A, B, C: Matrix) -> product (plus A B) C = plus (product A C) (product B C) :=
+  \fun (A, B, C: Matrix) => ext (product (plus A B) C) (plus (product A C) (product B C))
+    (\fun (a: Fin.Fin r)(b: Fin.Fin s)(c: Fin.Fin r)(d: Fin.Fin s) => eq_reason_in!{{Z.Complex} {Sums.sum r (\fun (i: Fin.Fin r) => Sums.sum s (\fun (j: Fin.Fin s) => Op.mul (Op.add (A a b i j) (B a b i j)) (C i j c d)))}
+      "=" {Sums.sum r (\fun (i: Fin.Fin r) => Op.add (Sums.sum s (\fun (j: Fin.Fin s) => Op.mul (A a b i j) (C i j c d))) (Sums.sum s (\fun (j: Fin.Fin s) => Op.mul (B a b i j) (C i j c d))))} "by" { Sums.congruent r (\fun (i: Fin.Fin r) => Sums.sum s (\fun (j: Fin.Fin s) => Op.mul (Op.add (A a b i j) (B a b i j)) (C i j c d))) (\fun (i: Fin.Fin r) => Op.add (Sums.sum s (\fun (j: Fin.Fin s) => Op.mul (A a b i j) (C i j c d))) (Sums.sum s (\fun (j: Fin.Fin s) => Op.mul (B a b i j) (C i j c d)))) (\fun (i: Fin.Fin r) => trans!{{Z.Complex}} _ _ _
+        (Sums.congruent s (\fun (j: Fin.Fin s) => Op.mul (Op.add (A a b i j) (B a b i j)) (C i j c d)) (\fun (j: Fin.Fin s) => Op.add (Op.mul (A a b i j) (C i j c d)) (Op.mul (B a b i j) (C i j c d))) (\fun (j: Fin.Fin s) => Spaces.addMul (A a b i j) (B a b i j) (C i j c d)))
+        (Sums.addition s (\fun (j: Fin.Fin s) => Op.mul (A a b i j) (C i j c d)) (\fun (j: Fin.Fin s) => Op.mul (B a b i j) (C i j c d)))) }
+      "=" {Op.add (Sums.sum r (\fun (i: Fin.Fin r) => Sums.sum s (\fun (j: Fin.Fin s) => Op.mul (A a b i j) (C i j c d)))) (Sums.sum r (\fun (i: Fin.Fin r) => Sums.sum s (\fun (j: Fin.Fin s) => Op.mul (B a b i j) (C i j c d))))} "by" { Sums.addition r (\fun (i: Fin.Fin r) => Sums.sum s (\fun (j: Fin.Fin s) => Op.mul (A a b i j) (C i j c d))) (\fun (i: Fin.Fin r) => Sums.sum s (\fun (j: Fin.Fin s) => Op.mul (B a b i j) (C i j c d))) }
+    });
+\definition tensorLift: \forall (T, A: L.Matrix)(S, B: Rg.Matrix) -> product (tensor T S) (lift A B) = plus (tensor (L.product T A) S) (tensor T (Rg.product S B)) :=
+  \fun (T, A: L.Matrix)(S, B: Rg.Matrix) => eq_reason_in!{Matrix _
+    "=" _ "by" { productAddRight (tensor T S) (tensor A Rg.identity) (tensor L.identity B) }
+    "=" _ "by" { congr!{Matrix Matrix Matrix} plus _ _ _ _ (tensorProduct T A S Rg.identity) (tensorProduct T L.identity S B) }
+    "=" _ "by" { congr!{Matrix Matrix Matrix} plus _ _ _ _
+      (congr!{Rg.Matrix Matrix} (tensor (L.product T A)) _ _ (Rg.rightIdentity S))
+      (congr!{L.Matrix Matrix} (\fun (X: L.Matrix) => tensor X (Rg.product S B)) _ _ (L.rightIdentity T)) }
+  };
+\definition liftTensor: \forall (A, T: L.Matrix)(B, S: Rg.Matrix) -> product (lift A B) (tensor T S) = plus (tensor (L.product A T) S) (tensor T (Rg.product B S)) :=
+  \fun (A, T: L.Matrix)(B, S: Rg.Matrix) => eq_reason_in!{Matrix _
+    "=" _ "by" { productAddLeft (tensor A Rg.identity) (tensor L.identity B) (tensor T S) }
+    "=" _ "by" { congr!{Matrix Matrix Matrix} plus _ _ _ _ (tensorProduct A T Rg.identity S) (tensorProduct L.identity T B S) }
+    "=" _ "by" { congr!{Matrix Matrix Matrix} plus _ _ _ _
+      (congr!{Rg.Matrix Matrix} (tensor (L.product A T)) _ _ (Rg.leftIdentity S))
+      (congr!{L.Matrix Matrix} (\fun (X: L.Matrix) => tensor X (Rg.product B S)) _ _ (L.leftIdentity T)) }
+  };
+\definition gauge: \forall (T, A, C, dT: L.Matrix)(S, B, D, dS: Rg.Matrix) -> L.product T A = L.plus dT (L.product C T) -> Rg.product S B = Rg.plus dS (Rg.product D S) ->
+  product (tensor T S) (lift A B) = plus (plus (tensor dT S) (tensor T dS)) (product (lift C D) (tensor T S)) :=
+  \fun (T, A, C, dT: L.Matrix)(S, B, D, dS: Rg.Matrix)(first: L.product T A = L.plus dT (L.product C T))(second: Rg.product S B = Rg.plus dS (Rg.product D S)) => eq_reason_in!{Matrix _
+    "=" _ "by" { tensorLift T A S B }
+    "=" _ "by" { congr!{Matrix Matrix Matrix} plus _ _ _ _
+      (congr!{L.Matrix Matrix} (\fun (X: L.Matrix) => tensor X S) _ _ first)
+      (congr!{Rg.Matrix Matrix} (tensor T) _ _ second) }
+    "=" _ "by" { congr!{Matrix Matrix Matrix} plus _ _ _ _ (tensorAddLeft dT (L.product C T) S) (tensorAddRight T dS (Rg.product D S)) }
+    "=" _ "by" { ext (plus (plus (tensor dT S) (tensor (L.product C T) S)) (plus (tensor T dS) (tensor T (Rg.product D S)))) (plus (plus (tensor dT S) (tensor T dS)) (plus (tensor (L.product C T) S) (tensor T (Rg.product D S)))) (\fun (a: Fin.Fin r)(b: Fin.Fin s)(c: Fin.Fin r)(d: Fin.Fin s) => Spaces.Laws[V := Z.Complex, space := Spaces.scalarSpace].shuffle (tensor dT S a b c d) (tensor (L.product C T) S a b c d) (tensor T dS a b c d) (tensor T (Rg.product D S) a b c d)) }
+    "=" _ "by" { congr!{Matrix Matrix} (plus (plus (tensor dT S) (tensor T dS))) _ _ (sym!{Matrix} _ _ (liftTensor C T D S)) }
+  };
