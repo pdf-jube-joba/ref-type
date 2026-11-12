@@ -32,3 +32,7 @@ These checks supplement the pending formal scope and final package/aggregate che
 A separate read-only review found an ambient/subtype equality mismatch in both local standard-model fiber inverses.
 The repair uses the existing C02 `CWType.ListRefinement.ext` to lift equality of underlying base points before applying product extensionality.
 This source repair remains pending its local/full formal check.
+
+After the selected package check exposed rank lookup errors, a follow-up actual-API review confirmed `Family.Of[bundle].rankFrame` has direction `rank x = n`, and all direct-sum rank references now use that module.
+The follow-up also checked canonical comparison directions, mod-2 coefficient squares, chart rank transports, and zero-section import scopes against their definitions; no further concrete mismatch was found by reading.
+Formal direct-sum checking remains necessary and is in progress.
