@@ -42,7 +42,10 @@ The recovered checker SHA-256 is `cc0578470d23ba582931b065f1f1a68e9afe64068bf4e2
 `checker-source-sha256.json.gz` retains hashes for all 198 checker and Cargo input files at the integrated source commit.
 The immutable executable and working logs are under `/workspace/shared/g23-recovery`.
 Fresh source tests passed all 412 cases and aggregate-driver fixtures passed all 9 cases.
-The remaining fresh test and aggregate results are recorded with their exact reports when complete.
+Fresh Rust workspace tests passed 384 cases with no failed or ignored test.
+Clippy with warnings denied and workspace formatting also passed.
+`checks-summary.json` and `test-logs.json.gz` preserve the exact recovery results.
+The final aggregate result is recorded with its exact reports when complete.
 
 The full check adopts the already accepted A08/D01 15 GiB profile, including graph spill, from the current main's [D01 recovery record](../../d01-connections/recovery-20261112/README.md).
 It retains normal validated caches and checks all 14,486 current library targets.
