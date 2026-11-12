@@ -1,0 +1,31 @@
+\definition x: M.Point := Charts.point c (Transition.leftCoordinate u);
+\definition y: M.Point := Charts.point d (Transition.apply u);
+\definition targetArguments: Multilinear.Arguments one := \fun (q: Fin.Fin one) => (Pull.jacobian u).apply (arguments q);
+\definition weight[length: N.Nat^]: R.Real := Countable.prefix (Functions.FamilyValues partition.functions) x length;
+\definition derivative[a, b: Fin.Fin r]: R.Real := Matrices.dMatrix Gauge.transition a b u arguments;
+\definition source[length: N.Nat^][a, b: Fin.Fin r]: R.Real := \parent.\parent.Entry[j := i, a := a, b := b].prefix (Transition.leftCoordinate u) length arguments;
+\definition target[length: N.Nat^][a, b: Fin.Fin r]: R.Real := \parent.\parent.Entry[j := j, a := a, b := b].prefix (Transition.apply u) length targetArguments;
+\definition left[length: N.Nat^][a, b: Fin.Fin r]: R.Real := Sums.sum r (\fun (l: Fin.Fin r) => R.mul (Gauge.transition a l u) (source length l b));
+\definition termRight[length: N.Nat^][a, b: Fin.Fin r]: R.Real := Sums.sum r (\fun (l: Fin.Fin r) => R.mul (target length a l) (Gauge.transition l b u));
+\definition right[length: N.Nat^][a, b: Fin.Fin r]: R.Real := R.add (R.mul (weight length) (derivative a b)) (termRight length a b);
+\definition zero: \forall (a, b: Fin.Fin r) -> left N.Nat^::zero a b = right N.Nat^::zero a b :=
+  \fun (a, b: Fin.Fin r) => eq_reason_in!{{R.Real} _
+    "=" _ "by" { Sums.congruent r _ _ (\fun (l: Fin.Fin r) => Spaces.mulZeroRight (Gauge.transition a l u)) }
+    "=" _ "by" { Sums.zeroSum r }
+    "=" {R.add R.zero R.zero} "by" { sym!{{R.Real}} _ _ (Spaces.addZeroLeft R.zero) }
+    "=" _ "by" { congr!{{R.Real} {R.Real} {R.Real}} R.add _ _ _ _
+      (sym!{{R.Real}} _ _ (Spaces.mulZeroLeft (derivative a b)))
+      (sym!{{R.Real}} _ _ (trans!{{R.Real}} _ _ _ (Sums.congruent r _ _ (\fun (l: Fin.Fin r) => Spaces.mulZeroLeft (Gauge.transition l b u))) (Sums.zeroSum r))) }
+  };
+\module Step(length: N.Nat^, previous: \forall (a, b: Fin.Fin r) -> left length a b = right length a b);
+\definition prefixLaw: \forall (length: N.Nat^)(a, b: Fin.Fin r) -> left length a b = right length a b :=
+  \induction (length: N.Nat^) \return \forall (a, b: Fin.Fin r) -> left length a b = right length a b \with {
+    | zero: zero
+    | succ: \fun (length: N.Nat^)(previous: _) => Step[length := length, previous := previous].law
+  };
+\module Finite(neighborhood: Functions.FiniteNeighborhood[partition.functions, x]);
+\definition law: \forall (a, b: Fin.Fin r) -> Gauge.left (data i) a b u arguments = Gauge.right (data j) a b u arguments := \block {
+  \fun (a, b: Fin.Fin r) \then
+  \takefrom neighborhood: Functions.FiniteNeighborhood[partition.functions, x] \by partition.locallyFinite x \then
+  \return Finite[neighborhood := neighborhood].law a b
+};

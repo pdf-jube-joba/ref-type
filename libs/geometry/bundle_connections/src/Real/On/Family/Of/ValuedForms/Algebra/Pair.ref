@@ -1,0 +1,26 @@
+\import \parent.\parent.Pair[i := i, j := j] \as Overlap;
+\import \parent.\parent.\parent.Pair[i := i, j := j] \as Gauge;
+\import Charts.Transition[left := chart i, right := chart j] \as Transition;
+\import Euclidean.On[U := Transition.domain] \as Scalar;
+\import Spaces.Sums[I := Fin.Fin r].Prop[] \as Sums;
+\definition evaluation[omega: Form][a: Fin.Fin r][u: Open.Carrier Transition.domain][v: Fin.Fin k -> Fin.Fin n -> R.Real]:
+  Spaces.Sums[I := Fin.Fin r].sum (Fin.elements r) (\fun (b: Fin.Fin r) => R.mul (Gauge.transition a b u) (Overlap.source (omega i) b u v)) = Overlap.target (omega j) a u v :=
+  trans!{{R.Real}} _ _ _ (sym!{{R.Real}} _ _ (Overlap.value (omega i) a u v))
+    (congr!{{Scalar.Form k} {R.Real}} (\fun (alpha: Scalar.Form k) => alpha u v) _ _ (compatible omega i j a));
+\definition addition: \forall (omega, eta: Form) -> Overlap.Compatible (plusData omega eta i) (plusData omega eta j) :=
+  \fun (omega, eta: Form)(a: Fin.Fin r) => Scalar.ext k _ _ (\fun (u: Open.Carrier Transition.domain)(v: Fin.Fin k -> Fin.Fin n -> R.Real) =>
+    trans!{{R.Real}} _ _ _ (Overlap.value (plusData omega eta i) a u v)
+      (trans!{{R.Real}} _ _ _
+        (Sums.congruent (Fin.elements r) _ _ (\fun (b: Fin.Fin r) => Spaces.mulAdd (Gauge.transition a b u) (Overlap.source (omega i) b u v) (Overlap.source (eta i) b u v)))
+        (trans!{{R.Real}} _ _ _
+          (Sums.additive (Fin.elements r) (\fun (b: Fin.Fin r) => R.mul (Gauge.transition a b u) (Overlap.source (omega i) b u v))
+            (\fun (b: Fin.Fin r) => R.mul (Gauge.transition a b u) (Overlap.source (eta i) b u v)))
+          (congr!{{R.Real} {R.Real} {R.Real}} R.add _ _ _ _ (evaluation omega a u v) (evaluation eta a u v)))));
+\definition scalar: \forall (c: R.Real)(omega: Form) -> Overlap.Compatible (scaleData c omega i) (scaleData c omega j) :=
+  \fun (c: R.Real)(omega: Form)(a: Fin.Fin r) => Scalar.ext k _ _ (\fun (u: Open.Carrier Transition.domain)(v: Fin.Fin k -> Fin.Fin n -> R.Real) =>
+    trans!{{R.Real}} _ _ _ (Overlap.value (scaleData c omega i) a u v)
+      (trans!{{R.Real}} _ _ _
+        (Sums.congruent (Fin.elements r) _ _ (\fun (b: Fin.Fin r) => Spaces.Laws[V := R.Real, space := Spaces.scalarSpace].scaleComm (Gauge.transition a b u) c (Overlap.source (omega i) b u v)))
+        (trans!{{R.Real}} _ _ _
+          (Sums.multiplyLeft (Fin.elements r) c (\fun (b: Fin.Fin r) => R.mul (Gauge.transition a b u) (Overlap.source (omega i) b u v)))
+          (congr!{{R.Real} {R.Real}} (R.mul c) _ _ (evaluation omega a u v)))));

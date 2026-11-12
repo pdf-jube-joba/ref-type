@@ -1,0 +1,93 @@
+\import \parent.Linearity[] \as Linear;
+\import \parent.Associativity[] \as Algebra;
+\import Spaces.Laws[V := Matrix1, space := Linear.space] \as Laws;
+\import Spaces.Linear[V := Matrix1, W := Matrix1, source := Linear.space, target := Linear.space] \as Maps;
+\import dedekind_reals.DedekindReal[].Arithmetic[].Prop[] \as Reals;
+\definition negativeOne: R.Real := R.neg R.one;
+\definition left[A: Matrix1]: Matrix1 := product01 J A;
+\definition right[A: Matrix1]: Matrix1 := product10 A J;
+\definition twist[A: Matrix1]: Matrix1 := Linear.scale negativeOne (right (left A));
+\definition project[A: Matrix1]: Matrix1 := Linear.scale R.half (plus A (twist A));
+\definition doubleNegative: \forall (A: Matrix1) -> Linear.scale negativeOne (Linear.scale negativeOne A) = A :=
+  \fun (A: Matrix1) => eq_reason_in!{Matrix1 _
+    "=" _ "by" { sym!{Matrix1} _ _ (Linear.space.scalarAssoc negativeOne negativeOne A) }
+    "=" _ "by" { congr!{{R.Real} Matrix1} (\fun (c: R.Real) => Linear.scale c A) _ _ (Reals.fieldMulNegBoth R.one R.one) }
+    "=" _ "by" { congr!{{R.Real} Matrix1} (\fun (c: R.Real) => Linear.scale c A) _ _ (Spaces.mulOneLeft R.one) }
+    "=" _ "by" { Linear.space.scalarOne A }
+  };
+\definition leftSquare: \forall (A: Matrix1) -> left (left A) = Linear.scale negativeOne A :=
+  \fun (A: Matrix1) => eq_reason_in!{Matrix1 _
+    "=" _ "by" { sym!{Matrix1} _ _ (Algebra.assoc001 J J A) }
+    "=" _ "by" { congr!{Matrix0 Matrix1} (\fun (m: Matrix0) => product01 m A) _ _ square }
+    "=" _ "by" { Linear.leftScale0 negativeOne Algebra.identity A }
+    "=" _ "by" { congr!{Matrix1 Matrix1} (Linear.scale negativeOne) _ _ (Algebra.identityLeft A) }
+  };
+\definition rightSquare: \forall (A: Matrix1) -> right (right A) = Linear.scale negativeOne A :=
+  \fun (A: Matrix1) => eq_reason_in!{Matrix1 _
+    "=" _ "by" { Algebra.assoc100 A J J }
+    "=" _ "by" { congr!{Matrix0 Matrix1} (product10 A) _ _ square }
+    "=" _ "by" { Linear.rightScale0 negativeOne A Algebra.identity }
+    "=" _ "by" { congr!{Matrix1 Matrix1} (Linear.scale negativeOne) _ _ (Linear.rightIdentity A) }
+  };
+\definition leftTwist: \forall (A: Matrix1) -> left (twist A) = right A :=
+  \fun (A: Matrix1) => eq_reason_in!{Matrix1 _
+    "=" _ "by" { Linear.leftScale J negativeOne (right (left A)) }
+    "=" _ "by" { congr!{Matrix1 Matrix1} (Linear.scale negativeOne) _ _ (sym!{Matrix1} _ _ (Algebra.assoc010 J (left A) J)) }
+    "=" _ "by" { congr!{Matrix1 Matrix1} (\fun (X: Matrix1) => Linear.scale negativeOne (right X)) _ _ (leftSquare A) }
+    "=" _ "by" { congr!{Matrix1 Matrix1} (Linear.scale negativeOne) _ _ (Linear.rightScale A negativeOne J) }
+    "=" _ "by" { doubleNegative (right A) }
+  };
+\definition rightTwist: \forall (A: Matrix1) -> right (twist A) = left A :=
+  \fun (A: Matrix1) => eq_reason_in!{Matrix1 _
+    "=" _ "by" { Linear.rightScale (right (left A)) negativeOne J }
+    "=" _ "by" { congr!{Matrix1 Matrix1} (Linear.scale negativeOne) _ _ (rightSquare (left A)) }
+    "=" _ "by" { doubleNegative (left A) }
+  };
+\definition commutes: \forall (A: Matrix1) -> left (project A) = right (project A) :=
+  \fun (A: Matrix1) => eq_reason_in!{Matrix1 _
+    "=" _ "by" { Linear.leftScale J R.half (plus A (twist A)) }
+    "=" _ "by" { congr!{Matrix1 Matrix1} (Linear.scale R.half) _ _ (Algebra.distribute J A (twist A)) }
+    "=" _ "by" { congr!{Matrix1 Matrix1} (\fun (X: Matrix1) => Linear.scale R.half (plus (left A) X)) _ _ (leftTwist A) }
+    "=" _ "by" { congr!{Matrix1 Matrix1} (Linear.scale R.half) _ _ (Laws.comm (left A) (right A)) }
+    "=" _ "by" { congr!{Matrix1 Matrix1} (\fun (X: Matrix1) => Linear.scale R.half (plus (right A) X)) _ _ (sym!{Matrix1} _ _ (rightTwist A)) }
+    "=" _ "by" { congr!{Matrix1 Matrix1} (Linear.scale R.half) _ _ (sym!{Matrix1} _ _ (Linear.rightAdd A (twist A) J)) }
+    "=" _ "by" { sym!{Matrix1} _ _ (Linear.rightScale (plus A (twist A)) R.half J) }
+  };
+\definition twistMap: Maps.Map := Maps.Map {
+  apply := twist,
+  preservesAdd := \fun (A, B: Matrix1) => eq_reason_in!{Matrix1 _
+    "=" _ "by" { congr!{Matrix1 Matrix1} (\fun (X: Matrix1) => Linear.scale negativeOne (right X)) _ _ (Algebra.distribute J A B) }
+    "=" _ "by" { congr!{Matrix1 Matrix1} (Linear.scale negativeOne) _ _ (Linear.rightAdd (left A) (left B) J) }
+    "=" _ "by" { Linear.space.vectorAdd negativeOne (right (left A)) (right (left B)) }
+  },
+  preservesScale := \fun (c: R.Real)(A: Matrix1) => eq_reason_in!{Matrix1 _
+    "=" _ "by" { congr!{Matrix1 Matrix1} (\fun (X: Matrix1) => Linear.scale negativeOne (right X)) _ _ (Linear.leftScale J c A) }
+    "=" _ "by" { congr!{Matrix1 Matrix1} (Linear.scale negativeOne) _ _ (Linear.rightScale (left A) c J) }
+    "=" _ "by" { Laws.scaleComm negativeOne c (right (left A)) }
+  },
+};
+\definition map: Maps.Map := Maps.Map {
+  apply := project,
+  preservesAdd := \fun (A, B: Matrix1) => eq_reason_in!{Matrix1 _
+    "=" _ "by" { congr!{Matrix1 Matrix1} (\fun (X: Matrix1) => Linear.scale R.half (plus (plus A B) X)) _ _ (twistMap.preservesAdd A B) }
+    "=" _ "by" { congr!{Matrix1 Matrix1} (Linear.scale R.half) _ _ (Laws.shuffle A B (twist A) (twist B)) }
+    "=" _ "by" { Linear.space.vectorAdd R.half (plus A (twist A)) (plus B (twist B)) }
+  },
+  preservesScale := \fun (c: R.Real)(A: Matrix1) => eq_reason_in!{Matrix1 _
+    "=" _ "by" { congr!{Matrix1 Matrix1} (\fun (X: Matrix1) => Linear.scale R.half (plus (Linear.scale c A) X)) _ _ (twistMap.preservesScale c A) }
+    "=" _ "by" { congr!{Matrix1 Matrix1} (Linear.scale R.half) _ _ (sym!{Matrix1} _ _ (Linear.space.vectorAdd c A (twist A))) }
+    "=" _ "by" { Laws.scaleComm R.half c (plus A (twist A)) }
+  },
+};
+\definition fixedTwist: \forall (A: Matrix1) -> left A = right A -> twist A = A :=
+  \fun (A: Matrix1)(commuting: left A = right A) => eq_reason_in!{Matrix1 _
+    "=" _ "by" { congr!{Matrix1 Matrix1} (\fun (X: Matrix1) => Linear.scale negativeOne (right X)) _ _ commuting }
+    "=" _ "by" { congr!{Matrix1 Matrix1} (Linear.scale negativeOne) _ _ (rightSquare A) }
+    "=" _ "by" { doubleNegative A }
+  };
+\definition fixed: \forall (A: Matrix1) -> left A = right A -> project A = A :=
+  \fun (A: Matrix1)(commuting: left A = right A) => trans!{Matrix1} _ _ _
+    (congr!{Matrix1 Matrix1} (\fun (X: Matrix1) => Linear.scale R.half (plus A X)) _ _ (fixedTwist A commuting))
+    (Linear.ext (Linear.scale R.half (plus A A)) A (\fun (a, b: Fin.Fin r) => Scalar.ext one (OneForms.scale R.half (OneForms.plus (A a b) (A a b))) (A a b)
+      (\fun (x: Open.Carrier U)(v: Multilinear.Arguments one) => trans!{{R.Real}} _ _ _ (Spaces.mulAdd R.half (A a b x v) (A a b x v)) (R.Estimates[].halfTwice (A a b x v)))));
+\module Gauge(T: Matrix0, commuting: product00 J T = product00 T J);

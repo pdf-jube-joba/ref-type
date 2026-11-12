@@ -1,0 +1,26 @@
+\import TargetLC.Forms[c := TargetLC.connection] \as TargetCompatibility;
+\import \parent.\parent.MetricPullback[] \as PullbackMetric;
+\import \root.Forms[n := n, r := n].On[U := U].Coordinates[connection := Transform.value] \as CandidateForms;
+\definition targetCompatible: Gauge.Compatible (Transport.matrix0 TargetMetric.coefficient) (Transport.matrix1 TargetForms.matrix) :=
+  PullbackMetric.preservation TargetMetric.coefficient TargetForms.matrix (TargetCompatibility.compatibility TargetLC.laws);
+\import Gauge.Transport[J := jacobian, h := Transport.matrix0 TargetMetric.coefficient,
+  A := CandidateForms.matrix, B := Transport.matrix1 TargetForms.matrix,
+  gauge := Formula.gauge rightInverse, compatible := targetCompatible] \as Transported;
+\definition sourceCompatible: Gauge.Compatible SourceMetric.coefficient CandidateForms.matrix :=
+  \idelim Gauge.metric jacobian (Transport.matrix0 TargetMetric.coefficient) = SourceMetric.coefficient
+    \with g: M.Matrix0 => Gauge.Compatible g CandidateForms.matrix \by {
+      base: Transported.preservation, equality: sym!{M.Matrix0} _ _ metricLaw
+    };
+\definition laws: SourceLC.Laws[Transform.value] := SourceLC.Laws[Transform.value] {
+  torsionFree := Transform.Torsion[torsionFree := TargetLC.torsionFree].law,
+  compatible := SourceLC.Forms[c := Transform.value].recoverCompatibility sourceCompatible,
+};
+\definition unique: SourceLC.connection = Transform.value := SourceLC.Unique[c := Transform.value, laws := laws].unique;
+\import \root.LeviCivita[n := n].Components[U := U] \as Components;
+\definition matrixEquality: SourceForms.matrix = CandidateForms.matrix := Components.ext SourceForms.matrix CandidateForms.matrix
+  (\fun (i, a, b: Index) => trans!{{Functions.Function}} _ _ _ (SourceForms.recover i a b)
+    (trans!{{Functions.Function}} _ _ _
+      (congr!{{Source.Connection} {Functions.Function}} (\fun (c: Source.Connection) => c.coefficient i a b) _ _ unique)
+      (sym!{{Functions.Function}} _ _ (CandidateForms.recover i a b))));
+\definition naturality: M.product01 jacobian SourceForms.matrix = Formula.numerator := trans!{M.Matrix1} _ _ _
+  (congr!{M.Matrix1 M.Matrix1} (M.product01 jacobian) _ _ matrixEquality) (Formula.gauge rightInverse);

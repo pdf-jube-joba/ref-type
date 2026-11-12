@@ -1,0 +1,24 @@
+\import Maps.Coordinates[f := f, left := c, right := (bundle.atlas.local i).chart] \as Coordinates;
+\definition included: SourceOpen.Included Coordinates.domain c.image := \fun (u: Fin.Fin n -> R.Real)(member: _) =>
+  Coordinates.inLeftImage (\into[Fin.Fin n -> R.Real](u, Coordinates.domain.points) \by { member });
+\import manifolds.ChartRestriction[n := n].On[M := X].At[c := c, U := Coordinates.domain, included := included] \as Restricted;
+\definition inside: \forall (x: SourceCharts.LocalPoint Restricted.chart) -> TargetCharts.Contains (bundle.atlas.local i).chart (Maps.apply f x) :=
+  \fun (x: SourceCharts.LocalPoint Restricted.chart) => \idelim SourceCharts.point c (Coordinates.leftCoordinate (Restricted.forward x)) = x
+    \with y: X.Point => TargetCharts.Contains (bundle.atlas.local i).chart (Maps.apply f y) \by {
+      base: Coordinates.inRightDomain (Restricted.forward x),
+      equality: SourceCharts.Of[chart := c].pointCoordinate (Restricted.oldPoint x)
+    };
+\definition index: Index := Index { chart := Restricted.chart, target := i, inside := inside };
+\definition contains: \forall (x: X.Point) -> SourceCharts.Contains c x -> TargetCharts.Contains (bundle.atlas.local i).chart (Maps.apply f x) -> SourceCharts.Contains Restricted.chart x :=
+  \fun (x: X.Point)(left: SourceCharts.Contains c x)(right: TargetCharts.Contains (bundle.atlas.local i).chart (Maps.apply f x)) => \block {
+    \let point: SourceCharts.LocalPoint c := \into[X.Point](x, c.domain) \by { left } \then
+    \let coordinate: SourceOpen.Carrier c.image := SourceCharts.coordinate c point \then
+    \let member: \In[Fin.Fin n -> R.Real] Coordinates.domain.points coordinate := Coordinates.intro coordinate
+      (\idelim x = SourceCharts.point c coordinate \with y: X.Point => TargetCharts.Contains (bundle.atlas.local i).chart (Maps.apply f y) \by {
+        base: right, equality: sym!{{X.Point}} _ _ (SourceCharts.Of[chart := c].pointCoordinate point)
+      }) \then
+    \let u: SourceOpen.Carrier Coordinates.domain := \into[Fin.Fin n -> R.Real](coordinate, Coordinates.domain.points) \by { member } \then
+    \return \idelim SourceCharts.point c coordinate = x \with y: X.Point => SourceCharts.Contains Restricted.chart y \by {
+      base: Restricted.pointMember u, equality: SourceCharts.Of[chart := c].pointCoordinate point
+    }
+  };

@@ -1,0 +1,48 @@
+\import \root.Metric[n := n, r := n] \as Metrics;
+\import Metrics.On[U := U].Of[metric := metric] \as Musical;
+\import \root.Local[n := n, r := n].On[U := U] \as Local;
+\import linear_algebra.Hermitian[].Over[K := R.Real, field := R.Algebra[].field, scalar := linear_algebra.Hermitian[].Real[].scalar].Finite[n := n] \as E;
+\import calculus.MatrixFamily[d := n, p := n, q := n] \as Matrices;
+\definition coefficients: MetricCoefficients := MetricCoefficients { value := Musical.coefficient, symmetric := Musical.symmetric };
+\import \parent.Of[metric := coefficients] \as Lower;
+\definition vector[i, j: Index][x: Open.Carrier U]: E.Vector := \fun (k: Index) => Lower.lower i j k x;
+\definition vectorSmooth: \forall (i, j, k: Index) -> Smooth.SmoothOn U (\fun (x: Open.Carrier U) => vector i j x k) :=
+  \fun (i, j, k: Index) => \bysub(Open.ScalarFunction U, Functions.Predicate, Lower.lower i j k);
+\definition christoffel[i, a, j: Index]: Functions.Function := \into[Open.ScalarFunction U]
+  ((\fun (x: Open.Carrier U) => (Musical.sharp x).apply (vector i j x) a), Functions.Predicate) \by {
+    Matrices.action U Musical.sharp Musical.inverseRegular (vector i j) (vectorSmooth i j) a
+  };
+\definition connection: Local.Connection := Local.Connection { coefficient := christoffel };
+\definition column[c: Local.Connection][i, j: Index][x: Open.Carrier U]: E.Vector := \fun (a: Index) => c.coefficient i a j x;
+\definition columnSmooth: \forall (c: Local.Connection)(i, j, a: Index) -> Smooth.SmoothOn U (\fun (x: Open.Carrier U) => column c i j x a) :=
+  \fun (c: Local.Connection)(i, j, a: Index) => smooth_partitions.Euclidean[n := n].smoothCongruent U
+    (c.coefficient i a j) (\fun (x: Open.Carrier U) => column c i j x a)
+    (\fun (x: Open.Carrier U) => \refl(c.coefficient i a j x))
+    (\bysub(Open.ScalarFunction U, Functions.Predicate, c.coefficient i a j));
+\definition lower[c: Local.Connection][i, j, k: Index]: Functions.Function := \into[Open.ScalarFunction U]
+  ((\fun (x: Open.Carrier U) => (Musical.flat x).apply (column c i j x) k), Functions.Predicate) \by {
+    Matrices.action U Musical.flat Musical.regular (column c i j)
+      (columnSmooth c i j) k
+  };
+\definition lowering: \forall (i, j, k: Index) -> lower connection i j k = Lower.lower i j k :=
+  \fun (i, j, k: Index) => Functions.ext _ _ (\fun (x: Open.Carrier U) =>
+    trans!{{R.Real}} _ _ _
+      (congr!{{E.Vector} {R.Real}} (\fun (v: E.Vector) => (Musical.flat x).apply v k) _ _
+        (\axiom:funext(column connection i j x, (Musical.sharp x).apply (vector i j x), \fun (a: Index) => \refl(christoffel i a j x))))
+      (congr!{{E.Vector} {R.Real}} (\fun (v: E.Vector) => v k) _ _ (Musical.right x (vector i j x))));
+\definition torsionFree: \forall (i, j, a: Index) -> connection.coefficient i a j = connection.coefficient j a i :=
+  \fun (i, j, a: Index) => Functions.ext (connection.coefficient i a j) (connection.coefficient j a i) (\fun (x: Open.Carrier U) =>
+    congr!{{E.Vector} {R.Real}} (\fun (v: E.Vector) => (Musical.sharp x).apply v a) _ _
+      (\axiom:funext(vector i j x, vector j i x, \fun (k: Index) =>
+        congr!{{Functions.Function} {R.Real}} (\fun (f: Functions.Function) => f x) _ _ (Lower.torsionFree i j k))));
+\structure Laws[c: Local.Connection]: \Prop := {
+  torsionFree: \forall (i, j, a: Index) -> c.coefficient i a j = c.coefficient j a i,
+  compatible: \forall (i, j, k: Index) -> Functions.plus (lower c i j k) (lower c i k j) = Lower.derivative i j k,
+};
+\definition compatible: \forall (i, j, k: Index) -> Functions.plus (lower connection i j k) (lower connection i k j) = Lower.derivative i j k :=
+  \fun (i, j, k: Index) => trans!{{Functions.Function}} _ _ _
+    (congr!{{Functions.Function} {Functions.Function} {Functions.Function}} Functions.plus _ _ _ _ (lowering i j k) (lowering i k j))
+    (Lower.compatible i j k);
+\definition laws: Laws[connection] := Laws[connection] { torsionFree := torsionFree, compatible := compatible };
+\module Unique(c: Local.Connection, laws: Laws[c]);
+\module Forms(c: Local.Connection);

@@ -1,0 +1,18 @@
+\import Spaces.Linear[V := Tensor.Carrier, W := W, source := Tensor.space, target := target] \as Maps;
+\definition map: Maps.Map := Maps.Map {
+  apply := \fun (t: Tensor.Carrier) => forward.apply t a,
+  preservesAdd := \fun (s, t: Tensor.Carrier) => congr!{{Product.Carrier} {W}} (\fun (f: Product.Carrier) => f a) _ _ (forward.preservesAdd s t),
+  preservesScale := \fun (c: R.Real)(t: Tensor.Carrier) => congr!{{Product.Carrier} {W}} (\fun (f: Product.Carrier) => f a) _ _ (forward.preservesScale c t)
+};
+\import Spaces.Sums[I := Fin.Fin r].Vector[V := W, space := target] \as TargetSums;
+\definition onPure: \forall (v: F x)(w: W) -> map.apply (Tensor.tensor v w) = target.smul (frame.forward.apply v a) w :=
+  \fun (v: F x)(w: W) => congr!{{Product.Carrier} {W}} (\fun (f: Product.Carrier) => f a) _ _ (Universal.onTensor value bilinear v w);
+\definition onSum: \forall (vectors: Fin.Fin r -> F x)(values: Fin.Fin r -> W) ->
+  map.apply (Sums.sum (Fin.elements r) (\fun (b: Fin.Fin r) => Tensor.tensor (vectors b) (values b))) =
+  TargetSums.sum (Fin.elements r) (\fun (b: Fin.Fin r) => target.smul (frame.forward.apply (vectors b) a) (values b)) :=
+  \fun (vectors: Fin.Fin r -> F x)(values: Fin.Fin r -> W) => trans!{{W}} _ _ _
+    (Sums.Mapping[W := W, target := target].law map (Fin.elements r) (\fun (b: Fin.Fin r) => Tensor.tensor (vectors b) (values b)))
+    (TargetSums.congruent (Fin.elements r)
+      (\fun (b: Fin.Fin r) => map.apply (Tensor.tensor (vectors b) (values b)))
+      (\fun (b: Fin.Fin r) => target.smul (frame.forward.apply (vectors b) a) (values b))
+      (\fun (b: Fin.Fin r) => onPure (vectors b) (values b)));

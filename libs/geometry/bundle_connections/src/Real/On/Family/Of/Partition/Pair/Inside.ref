@@ -1,0 +1,39 @@
+\definition point: Open.Carrier Geometry.domain := \into[Vectors.Vector](u, Geometry.domain.points) \by {
+  Logic.And[_, _]::# (\bysub(Vectors.Vector, Transition.domain.points, u)) (DirectDomain.intro (Transition.leftCoordinate u) inside)
+};
+\import \parent.\parent.\parent.Pair[i := i, j := indices k] \as DirectGauge;
+\import \parent.\parent.\parent.Pair[i := j, j := indices k] \as SecondGauge;
+\definition sourceValue: \forall (a, b: Fin.Fin r)(arguments: Multilinear.Arguments one) -> source a b u arguments =
+  R.mul (weight u) (DirectGauge.pureGauge a b (Geometry.directPoint point) arguments) :=
+  \fun (a, b: Fin.Fin r)(arguments: Multilinear.Arguments one) =>
+    congr!{{Alternating.Form one} {R.Real}} (\fun (omega: Alternating.Form one) => omega arguments) _ _
+      (\parent.\parent.Term[k := k, j := i, a := a, b := b].inside (Geometry.directPoint point));
+\definition weightAgreement: partition.functions k (Charts.point d (SecondDomain.leftCoordinate (Geometry.intermediate point))) = weight u :=
+  congr!{{M.Point} {R.Real}} (partition.functions k) _ _ (Geometry.pointAgreement point);
+\definition targetValue: \forall (a, b: Fin.Fin r)(arguments: Multilinear.Arguments one) -> target a b u arguments =
+  R.mul (weight u) (SecondGauge.pureGauge a b (Geometry.intermediate point)
+    (\fun (q: Fin.Fin one) => (Pull.jacobian u).apply (arguments q))) :=
+  \fun (a, b: Fin.Fin r)(arguments: Multilinear.Arguments one) => trans!{{R.Real}} _ _ _
+    (congr!{{Alternating.Form one} {R.Real}} (\fun (omega: Alternating.Form one) => omega (\fun (q: Fin.Fin one) => (Pull.jacobian u).apply (arguments q))) _ _
+      (\parent.\parent.Term[k := k, j := j, a := a, b := b].inside (Geometry.intermediate point)))
+    (congr!{{R.Real} {R.Real}} (\fun (t: R.Real) => R.mul t (SecondGauge.pureGauge a b (Geometry.intermediate point)
+      (\fun (q: Fin.Fin one) => (Pull.jacobian u).apply (arguments q)))) _ _ weightAgreement);
+\definition law: \forall (a, b: Fin.Fin r)(arguments: Multilinear.Arguments one) -> Left a b u arguments = Right a b u arguments :=
+  \fun (a, b: Fin.Fin r)(arguments: Multilinear.Arguments one) => eq_reason_in!{{R.Real} _
+    "=" _ "by" { Sums.congruent r _ _ (\fun (l: Fin.Fin r) => trans!{{R.Real}} _ _ _
+      (congr!{{R.Real} {R.Real}} (R.mul (Gauge.transition a l u)) _ _ (sourceValue l b arguments))
+      (RealLaws.scaleComm (Gauge.transition a l u) (weight u) (DirectGauge.pureGauge l b (Geometry.directPoint point) arguments))) }
+    "=" _ "by" { Sums.scalar r (weight u) (\fun (l: Fin.Fin r) => R.mul (Gauge.transition a l u) (DirectGauge.pureGauge l b (Geometry.directPoint point) arguments)) }
+    "=" _ "by" { congr!{{R.Real} {R.Real}} (R.mul (weight u)) _ _ (Triple.Regular[].pointwise a b point arguments) }
+    "=" _ "by" { Spaces.mulAdd (weight u) (Matrices.dMatrix Gauge.transition a b u arguments)
+      (Sums.sum r (\fun (l: Fin.Fin r) => R.mul (SecondGauge.pureGauge a l (Geometry.intermediate point)
+        (\fun (q: Fin.Fin one) => (Pull.jacobian u).apply (arguments q))) (Gauge.transition l b u))) }
+    "=" _ "by" { congr!{{R.Real} {R.Real}} (R.add (R.mul (weight u) (Matrices.dMatrix Gauge.transition a b u arguments))) _ _
+      (trans!{{R.Real}} _ _ _
+        (sym!{{R.Real}} _ _ (Sums.scalar r (weight u) (\fun (l: Fin.Fin r) => R.mul (SecondGauge.pureGauge a l (Geometry.intermediate point)
+          (\fun (q: Fin.Fin one) => (Pull.jacobian u).apply (arguments q))) (Gauge.transition l b u))))
+        (Sums.congruent r _ _ (\fun (l: Fin.Fin r) => trans!{{R.Real}} _ _ _
+          (sym!{{R.Real}} _ _ (Spaces.mulAssoc (weight u) (SecondGauge.pureGauge a l (Geometry.intermediate point)
+            (\fun (q: Fin.Fin one) => (Pull.jacobian u).apply (arguments q))) (Gauge.transition l b u)))
+          (congr!{{R.Real} {R.Real}} (\fun (t: R.Real) => R.mul t (Gauge.transition l b u)) _ _ (sym!{{R.Real}} _ _ (targetValue a l arguments)))))) }
+  };

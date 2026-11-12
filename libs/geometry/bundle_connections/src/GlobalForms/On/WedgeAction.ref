@@ -1,0 +1,72 @@
+\definition next: N.Nat^ := N.Nat^::succ k;
+\import Scalar.At[k := one] \as One;
+\import Scalar.At[k := k] \as Source;
+\import Scalar.At[k := next] \as Target;
+\import Scalar.Wedge[p := one, q := k] \as Product;
+\import Scalar.Regrade[k := Nat.add one k, l := next] \as Degree;
+\import Scalar.ExteriorDerivative[k := k] \as D;
+\import Spaces.Linear[V := Scalar.Form one, W := Scalar.Form next, source := One.space, target := Target.space] \as LeftMaps;
+\import Spaces.Linear[V := Scalar.Form k, W := Scalar.Form next, source := Source.space, target := Target.space] \as RightMaps;
+\import Spaces.Sums[I := Fin.Fin r].Vector[V := Scalar.Form one, space := One.space] \as OneSums;
+\import Spaces.Sums[I := Fin.Fin r].Vector[V := Scalar.Form next, space := Target.space] \as Sums;
+\import Open.Smooth[].Algebra[U := U] \as Functions;
+\import Exterior.Components[k := next] \as Components;
+\import Exterior.Components[k := Nat.add one k] \as ProductComponents;
+\import Exterior.Bilinearity[p := one, q := k] \as Bilinear;
+\import Spaces.Multilinear[V := Vectors.Vector, space := Vectors.space].Alternating[] \as Alternating;
+\import \root.MatrixCalculus[n := n, r := r].On[U := U] \as M;
+\definition term[theta: Scalar.Form one][omega: Scalar.Form k]: Scalar.Form next := Degree.cast (Product.apply theta omega) D.degree;
+\definition leftMap[omega: Scalar.Form k]: LeftMaps.Map := LeftMaps.Map {
+  apply := \fun (theta: Scalar.Form one) => term theta omega,
+  preservesAdd := \fun (theta, eta: Scalar.Form one) => trans!{{Scalar.Form next}} _ _ _
+    (congr!{{Scalar.Form (Nat.add one k)} {Scalar.Form next}} (\fun (z: Scalar.Form (Nat.add one k)) => Degree.cast z D.degree) _ _ (Product.additiveLeft theta eta omega))
+    (Degree.addition (Product.apply theta omega) (Product.apply eta omega) D.degree),
+  preservesScale := \fun (a: R.Real)(theta: Scalar.Form one) => trans!{{Scalar.Form next}} _ _ _
+    (congr!{{Scalar.Form (Nat.add one k)} {Scalar.Form next}} (\fun (z: Scalar.Form (Nat.add one k)) => Degree.cast z D.degree) _ _ (Product.scalarLeft a theta omega))
+    (Degree.scalar a (Product.apply theta omega) D.degree),
+};
+\definition rightMap[theta: Scalar.Form one]: RightMaps.Map := RightMaps.Map {
+  apply := term theta,
+  preservesAdd := \fun (omega, eta: Scalar.Form k) => trans!{{Scalar.Form next}} _ _ _
+    (congr!{{Scalar.Form (Nat.add one k)} {Scalar.Form next}} (\fun (z: Scalar.Form (Nat.add one k)) => Degree.cast z D.degree) _ _ (Product.additiveRight theta omega eta))
+    (Degree.addition (Product.apply theta omega) (Product.apply theta eta) D.degree),
+  preservesScale := \fun (a: R.Real)(omega: Scalar.Form k) => trans!{{Scalar.Form next}} _ _ _
+    (congr!{{Scalar.Form (Nat.add one k)} {Scalar.Form next}} (\fun (z: Scalar.Form (Nat.add one k)) => Degree.cast z D.degree) _ _ (Product.scalarRight a theta omega))
+    (Degree.scalar a (Product.apply theta omega) D.degree),
+};
+\definition apply[A: M.Matrix1][omega: Forms.Form k][a: Fin.Fin r]: Scalar.Form next := Sums.sum (Fin.elements r) (\fun (b: Fin.Fin r) => term (A a b) (omega b));
+\definition matrixAddition: \forall (A, B: M.Matrix1)(omega: Forms.Form k) -> apply (M.plus A B) omega = Forms.At[k := next].plus (apply A omega) (apply B omega) :=
+  \fun (A, B: M.Matrix1)(omega: Forms.Form k) => \axiom:funext(apply (M.plus A B) omega, Forms.At[k := next].plus (apply A omega) (apply B omega),
+    \fun (a: Fin.Fin r) => trans!{{Scalar.Form next}} _ _ _
+      (Sums.congruent (Fin.elements r) _ _ (\fun (b: Fin.Fin r) => (leftMap (omega b)).preservesAdd (A a b) (B a b))) (Sums.addition (Fin.elements r) _ _));
+\definition sumOne: \forall (f: Fin.Fin r -> Scalar.Form one) -> M.sum1 r f = OneSums.sum (Fin.elements r) f :=
+  \fun (f: Fin.Fin r -> Scalar.Form one) => Scalar.ext one _ _
+    (\fun (x: Open.Carrier U)(v: Spaces.Multilinear[V := Vectors.Vector, space := Vectors.space].Arguments one) => eq_reason_in!{{R.Real} _
+      "=" _ "by" { M.sum1Value r f x v }
+      "=" _ "by" { sym!{{R.Real}} _ _ (Spaces.FiniteCoordinateEnumeration[].sumLaw r (\fun (a: Fin.Fin r) => f a x v)) }
+      "=" _ "by" { sym!{{R.Real}} _ _ (Scalar.Summation[k := one, I := Fin.Fin r].evaluateSum (Fin.elements r) f x v) }
+    });
+\definition factorLeft: \forall (f: Functions.Function)(theta: Scalar.Form one)(omega: Scalar.Form k) -> term (One.multiply f theta) omega = Target.multiply f (term theta omega) :=
+  \fun (f: Functions.Function)(theta: Scalar.Form one)(omega: Scalar.Form k) => \axiom:funext(term (One.multiply f theta) omega, Target.multiply f (term theta omega),
+    \fun (x: Open.Carrier U) => Components.ext (term (One.multiply f theta) omega x) (Target.multiply f (term theta omega) x)
+      (\axiom:funext(Exterior.component next (term (One.multiply f theta) omega x), Exterior.component next (Target.multiply f (term theta omega) x),
+        \fun (xs: Lists.List[Vectors.Vector]) => eq_reason_in!{{R.Real} _
+          "=" _ "by" { congr!{{Shuffle.Function} {R.Real}} (\fun (h: Shuffle.Function) => h xs) _ _ (Degree.series (Product.apply (One.multiply f theta) omega) D.degree x) }
+          "=" _ "by" { congr!{{Alternating.Form (Nat.add one k)} {R.Real}} (\fun (z: Alternating.Form (Nat.add one k)) => Exterior.component (Nat.add one k) z xs) _ _ (Bilinear.scalarLeft (f x) (theta x) (omega x)) }
+          "=" _ "by" { ProductComponents.scalar (f x) (Product.apply theta omega x) xs }
+          "=" _ "by" { congr!{{R.Real} {R.Real}} (R.mul (f x)) _ _ (sym!{{R.Real}} _ _
+            (congr!{{Shuffle.Function} {R.Real}} (\fun (h: Shuffle.Function) => h xs) _ _ (Degree.series (Product.apply theta omega) D.degree x))) }
+          "=" _ "by" { sym!{{R.Real}} _ _ (Components.scalar (f x) (term theta omega x) xs) }
+        })));
+\definition factorRight: \forall (f: Functions.Function)(theta: Scalar.Form one)(omega: Scalar.Form k) -> term theta (Source.multiply f omega) = Target.multiply f (term theta omega) :=
+  \fun (f: Functions.Function)(theta: Scalar.Form one)(omega: Scalar.Form k) => \axiom:funext(term theta (Source.multiply f omega), Target.multiply f (term theta omega),
+    \fun (x: Open.Carrier U) => Components.ext (term theta (Source.multiply f omega) x) (Target.multiply f (term theta omega) x)
+      (\axiom:funext(Exterior.component next (term theta (Source.multiply f omega) x), Exterior.component next (Target.multiply f (term theta omega) x),
+        \fun (xs: Lists.List[Vectors.Vector]) => eq_reason_in!{{R.Real} _
+          "=" _ "by" { congr!{{Shuffle.Function} {R.Real}} (\fun (h: Shuffle.Function) => h xs) _ _ (Degree.series (Product.apply theta (Source.multiply f omega)) D.degree x) }
+          "=" _ "by" { congr!{{Alternating.Form (Nat.add one k)} {R.Real}} (\fun (z: Alternating.Form (Nat.add one k)) => Exterior.component (Nat.add one k) z xs) _ _ (Bilinear.scalarRight (f x) (theta x) (omega x)) }
+          "=" _ "by" { ProductComponents.scalar (f x) (Product.apply theta omega x) xs }
+          "=" _ "by" { congr!{{R.Real} {R.Real}} (R.mul (f x)) _ _ (sym!{{R.Real}} _ _
+            (congr!{{Shuffle.Function} {R.Real}} (\fun (h: Shuffle.Function) => h xs) _ _ (Degree.series (Product.apply theta omega) D.degree x))) }
+          "=" _ "by" { sym!{{R.Real}} _ _ (Components.scalar (f x) (term theta omega x) xs) }
+        })));

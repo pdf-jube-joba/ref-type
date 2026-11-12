@@ -1,0 +1,26 @@
+\import Operations.DualFrame[V := F (Original.y u), space := space (Original.y u), n := r, frame := (bundle.atlas.local j).frame (Original.y u)] \as Frames;
+\definition evaluation: \forall (v, w: Vectors.Vector) -> pairing ((New.matrix u).apply v) w = pairing v ((Inverse.backward u).apply w) :=
+  \fun (v, w: Vectors.Vector) => eq_reason_in!{{C.Complex} _
+    "=" _ "by" { sym!{{C.Complex}} _ _ (Sums.enumeration r (\fun (a: Fin.Fin r) => Op.mul ((New.matrix u).apply v a) (w a))) }
+    "=" _ "by" { Spaces.Sums[I := Fin.Fin r].Prop[].congruent (Fin.elements r)
+      (\fun (a: Fin.Fin r) => Op.mul ((New.matrix u).apply v a) (w a))
+      (\fun (a: Fin.Fin r) => Op.mul ((New.matrix u).apply v a) (((bundle.atlas.local j).frame (Original.y u)).forward.apply (((bundle.atlas.local j).frame (Original.y u)).backward.apply w) a))
+      (\fun (a: Fin.Fin r) => congr!{{Vectors.Vector} {C.Complex}} (\fun (z: Vectors.Vector) => Op.mul ((New.matrix u).apply v a) (z a)) _ _
+        (sym!{{Vectors.Vector}} _ _ (((bundle.atlas.local j).frame (Original.y u)).rightInverse w))) }
+    "=" _ "by" { sym!{{C.Complex}} _ _ (Frames.evaluationFormula (((Dual.local i).frame (Original.x u)).backward.apply v) (((bundle.atlas.local j).frame (Original.y u)).backward.apply w)) }
+    "=" _ "by" { Dual.In[i := i, x := Original.x u].evaluation v (((bundle.atlas.local j).frame (Original.y u)).backward.apply w) }
+    "=" _ "by" { Sums.enumeration r (\fun (a: Fin.Fin r) => Op.mul (v a) ((Inverse.backward u).apply w a)) }
+  };
+\import \root.Complex[n := n, r := r].Structure[] \as Structure;
+\definition realEvaluation: \forall (v, w: RealVectors.Vector) ->
+  Pairing.dot ((Structure.realify (New.matrix u)).apply v) (Conjugation.K.apply w) =
+  Pairing.dot v (Conjugation.K.apply ((Structure.realify (Inverse.backward u)).apply w)) :=
+  \fun (v, w: RealVectors.Vector) => eq_reason_in!{{R.Real} _
+    "=" _ "by" { congr!{{RealVectors.Vector} {R.Real}} (\fun (z: RealVectors.Vector) => Pairing.dot ((Structure.realify (New.matrix u)).apply v) (Conjugation.K.apply z)) _ _ (sym!{{RealVectors.Vector}} _ _ (Coordinates.encodeDecode w)) }
+    "=" _ "by" { Pairing.twisted ((New.matrix u).apply (Coordinates.decode v)) (Coordinates.decode w) }
+    "=" _ "by" { sym!{{R.Real}} _ _ (realSum r (\fun (a: Fin.Fin r) => Op.mul ((New.matrix u).apply (Coordinates.decode v) a) (Coordinates.decode w a))) }
+    "=" _ "by" { congr!{{C.Complex} {R.Real}} C.re _ _ (evaluation (Coordinates.decode v) (Coordinates.decode w)) }
+    "=" _ "by" { realSum r (\fun (a: Fin.Fin r) => Op.mul (Coordinates.decode v a) ((Inverse.backward u).apply (Coordinates.decode w) a)) }
+    "=" _ "by" { sym!{{R.Real}} _ _ (Pairing.twisted (Coordinates.decode v) ((Inverse.backward u).apply (Coordinates.decode w))) }
+    "=" _ "by" { congr!{{RealVectors.Vector} {R.Real}} (\fun (z: RealVectors.Vector) => Pairing.dot z (Conjugation.K.apply ((Structure.realify (Inverse.backward u)).apply w))) _ _ (Coordinates.encodeDecode v) }
+  };

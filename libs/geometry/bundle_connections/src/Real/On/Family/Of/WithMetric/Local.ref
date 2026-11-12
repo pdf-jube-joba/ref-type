@@ -1,0 +1,44 @@
+\import \parent.\parent.MetricLocal[metric := metric, i := i] \as MetricLocal;
+\import \root.Metric[n := n, r := r].On[U := (chart i).image].Of[metric := MetricLocal.local] \as Native;
+\import Open.Smooth[].Algebra[U := (chart i).image] \as Functions;
+\import \root.MatrixCalculus[n := n, r := r].On[U := (chart i).image] \as Matrices;
+\definition g: Matrices.Matrix0 := Native.coefficient;
+\definition q[a, b: Fin.Fin r]: Functions.Function :=
+  \into[Open.ScalarFunction (chart i).image]((\fun (u: Open.Carrier (chart i).image) => (Native.sharp u).apply (Finite.basis r b) a), Functions.Predicate) \by { Native.inverseRegular a b };
+\definition symmetry: \forall (a, b: Fin.Fin r) -> g a b = g b a := Native.symmetric;
+\definition expansion: \forall (u: Open.Carrier (chart i).image)(v: E.Vector)(a: Fin.Fin r) ->
+  (Native.flat u).apply v a = Sums.sum r (\fun (b: Fin.Fin r) => R.mul (g a b u) (v b)) :=
+  \fun (u: Open.Carrier (chart i).image)(v: E.Vector)(a: Fin.Fin r) => trans!{{R.Real}} _ _ _ (evaluate (Native.flat u) v a)
+    (Sums.congruent r _ _ (\fun (b: Fin.Fin r) => congr!{{R.Real} {R.Real}} (\fun (s: R.Real) => R.mul s (v b)) _ _ (Native.basisFormula a b u)));
+\definition pairing: \forall (u: Open.Carrier (chart i).image)(v, w: E.Vector) ->
+  (MetricLocal.local.form u).dot v w = Sums.sum r (\fun (a: Fin.Fin r) => R.mul (v a) (Sums.sum r (\fun (b: Fin.Fin r) => R.mul (g a b u) (w b)))) :=
+  \fun (u: Open.Carrier (chart i).image)(v, w: E.Vector) => trans!{{R.Real}} _ _ _
+    (\root.Metric[n := n, r := r].At[h := MetricLocal.local.form u, positive := MetricLocal.local.positive u].pairing v w)
+    (Sums.congruent r _ _ (\fun (a: Fin.Fin r) => congr!{{R.Real} {R.Real}} (R.mul (v a)) _ _ (expansion u w a)));
+\definition coefficient: \forall (a, b: Fin.Fin r)(u: Open.Carrier (chart i).image) ->
+  (MetricLocal.local.form u).dot (Finite.basis r a) (Finite.basis r b) = g a b u :=
+  \fun (a, b: Fin.Fin r)(u: Open.Carrier (chart i).image) =>
+    congr!{{E.Vector} {E.Vector} {R.Real}} (MetricLocal.local.form u).dot _ _ _ _ (BasisComparison.equal a) (BasisComparison.equal b);
+\definition right: Matrices.product00 g q = Matrices.Associativity[].identity :=
+  \axiom:funext(Matrices.product00 g q, Matrices.Associativity[].identity, \fun (a: Fin.Fin r) =>
+    \axiom:funext(Matrices.product00 g q a, Matrices.Associativity[].identity a, \fun (b: Fin.Fin r) => Functions.ext
+      (Matrices.product00 g q a b) (Matrices.Associativity[].identity a b) (\fun (u: Open.Carrier (chart i).image) => eq_reason_in!{{R.Real} _
+        "=" _ "by" { sym!{{R.Real}} _ _ (expansion u ((Native.sharp u).apply (Finite.basis r b)) a) }
+        "=" _ "by" { congr!{{E.Vector} {R.Real}} (\fun (v: E.Vector) => v a) _ _ (Native.right u (Finite.basis r b)) }
+        "=" _ "by" { identityEntry a b }
+      })));
+\definition left: Matrices.product00 q g = Matrices.Associativity[].identity :=
+  \axiom:funext(Matrices.product00 q g, Matrices.Associativity[].identity, \fun (a: Fin.Fin r) =>
+    \axiom:funext(Matrices.product00 q g a, Matrices.Associativity[].identity a, \fun (b: Fin.Fin r) => Functions.ext
+      (Matrices.product00 q g a b) (Matrices.Associativity[].identity a b) (\fun (u: Open.Carrier (chart i).image) => eq_reason_in!{{R.Real} _
+        "=" _ "by" { Sums.congruent r _ _ (\fun (l: Fin.Fin r) => congr!{{R.Real} {R.Real}} (R.mul (q a l u)) _ _ (sym!{{R.Real}} _ _ (Native.basisFormula l b u))) }
+        "=" _ "by" { sym!{{R.Real}} _ _ (evaluate (Native.sharp u) ((Native.flat u).apply (Finite.basis r b)) a) }
+        "=" _ "by" { congr!{{E.Vector} {R.Real}} (\fun (v: E.Vector) => v a) _ _ (Native.left u (Finite.basis r b)) }
+        "=" _ "by" { identityEntry a b }
+      })));
+
+\import \root.LeviCivita[n := n].Gauge[r := r, U := (chart i).image] \as Transpose;
+\definition symmetric: Transpose.transpose0 g = g :=
+  \axiom:funext(Transpose.transpose0 g, g, \fun (a: Fin.Fin r) =>
+    \axiom:funext(Transpose.transpose0 g a, g a, \fun (b: Fin.Fin r) => symmetry b a));
+\module Correct(A: Matrices.Matrix1);

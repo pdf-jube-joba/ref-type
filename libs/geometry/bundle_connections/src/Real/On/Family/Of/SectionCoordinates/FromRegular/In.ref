@@ -1,0 +1,27 @@
+\import Atlas.InChart[i := i] \as Frame;
+\import calculus.Real[].Multivariable[n := r].Open[] \as FiberOpen;
+\import calculus.Maps[n := n, m := r] \as Coordinates;
+\definition value[u: Open.Carrier (chart i).image]: FiberOpen.Carrier FiberOpen.whole :=
+  \into[Fin.Fin r -> R.Real]((\fun (a: Fin.Fin r) => coefficient s i a u), FiberOpen.whole.points) \by { \refl(\fun (a: Fin.Fin r) => coefficient s i a u) };
+\definition coordinates: Coordinates.Map (chart i).image FiberOpen.whole :=
+  \into[Coordinates.Data[(chart i).image, FiberOpen.whole]](Coordinates.Data[(chart i).image, FiberOpen.whole] { apply := value },
+    { f: Coordinates.Data[(chart i).image, FiberOpen.whole] \where Coordinates.Laws[(chart i).image, FiberOpen.whole, f] }) \by {
+      Coordinates.Laws[(chart i).image, FiberOpen.whole, Coordinates.Data[(chart i).image, FiberOpen.whole] { apply := value }] { smooth := regular i }
+    };
+\import Blocks.Pair[d := n].On[U := (chart i).image, V := (chart i).image, W := FiberOpen.whole, f := calculus.Identity[n := n].map (chart i).image, g := coordinates] \as Pair;
+\import manifolds.EuclideanMap[n := n, m := Blocks.dimension].Between[U := (chart i).image, V := Frame.image] \as EuclideanMap;
+\import manifolds.ChartMap[n := Blocks.dimension].On[M := Bundle.manifold].At[chart := Construction.chart i] \as Parametrization;
+\import manifolds.Composition[n := n, m := Blocks.dimension, l := Blocks.dimension].Between[M := EuclideanMap.source, N := EuclideanMap.target, P := Bundle.manifold] \as Compose;
+\definition map: manifolds.SmoothMap[n := n, m := Blocks.dimension].Between[M := EuclideanMap.source, N := Bundle.manifold].Map :=
+  Compose.compose (EuclideanMap.map Pair.map) Parametrization.map;
+\definition rawValue[u: Open.Carrier (chart i).image]: Fin.Fin r -> R.Real := value u;
+\definition valueFormula: \forall (u: Open.Carrier (chart i).image) -> rawValue u = Frame.decode (Charts.point (chart i) u) (s.value (Charts.point (chart i) u)) :=
+  \fun (u: Open.Carrier (chart i).image) => \axiom:funext(rawValue u, Frame.decode (Charts.point (chart i) u) (s.value (Charts.point (chart i) u)), \fun (a: Fin.Fin r) => \refl(coefficient s i a u));
+\definition agrees: \forall (u: Open.Carrier (chart i).image) ->
+  manifolds.SmoothMap[n := n, m := Blocks.dimension].Between[M := EuclideanMap.source, N := Bundle.manifold].apply map u = Sections.total s (Charts.point (chart i) u) :=
+  \fun (u: Open.Carrier (chart i).image) => trans!{{Bundles.Point}} _ _ _
+    (Frame.pointJoined u (value u))
+    (congr!{{F (Charts.point (chart i) u)} {Bundles.Point}} (\fun (v: F (Charts.point (chart i) u)) => Bundles.include (Charts.point (chart i) u) v) _ _
+      (trans!{{F (Charts.point (chart i) u)}} _ _ _
+        (congr!{{Fin.Fin r -> R.Real} {F (Charts.point (chart i) u)}} (Frame.encode (Charts.point (chart i) u)) _ _ (valueFormula u))
+        (Frame.At[x := Charts.point (chart i) u].encodeDecode (s.value (Charts.point (chart i) u)))));

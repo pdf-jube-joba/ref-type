@@ -1,0 +1,23 @@
+\import Bundle.Pair[i := i, j := j] \as Change;
+\import Charts.Transition[left := Bundle.chart i, right := Bundle.chart j] \as Transition;
+\import Source.Pair[i := i, j := j] \as SourcePair;
+\import Target.Pair[i := i, j := j] \as TargetPair;
+\import ScalarForms.Pair[left := Bundle.chart i, right := Bundle.chart j] \as ScalarPair;
+\import euclidean_forms.Euclidean[n := n].On[U := Transition.domain] \as Scalar;
+\import euclidean_forms.Euclidean[n := n].Restriction[U := Transition.domain, V := (Bundle.chart i).image] \as Restrict;
+\import euclidean_forms.Euclidean[n := n].Pullback[m := n, U := Transition.domain, V := (Bundle.chart j).image, f := Change.map] \as Pull;
+\import \root.GlobalForms[n := n, r := r].On[U := Transition.domain].Wedge[p := p, q := q] \as Product;
+\import \root.GlobalForms[n := n, r := r].On[U := Transition.domain].Action[k := total] \as Action;
+\definition scalarCompatible: ScalarPair.Agreement q eta :=
+  (\bysub(ScalarForms.Family q, ScalarForms.Form q, eta)) (Bundle.chart i) (Bundle.chart j);
+\definition law: TargetPair.Compatible (local omega eta i) (local omega eta j) :=
+  \fun (a: Fin.Fin r) => eq_reason_in!{{Scalar.Form total} _
+    "=" _ "by" { congr!{{Fin.Fin r -> Scalar.Form total} {Scalar.Form total}} (\fun (v: Fin.Fin r -> Scalar.Form total) => Action.apply Change.transition v a) _ _
+      (\axiom:funext(TargetPair.source (local omega eta i), Product.apply (SourcePair.source (omega i)) (ScalarPair.restrict q eta),
+        \fun (b: Fin.Fin r) => Restrict.Product[p := p, q := q].law Change.included (omega i b) (eta (Bundle.chart i)))) }
+    "=" _ "by" { congr!{{Fin.Fin r -> Scalar.Form total} {Scalar.Form total}} (\fun (v: Fin.Fin r -> Scalar.Form total) => v a) _ _
+      (Product.action Change.transition (SourcePair.source (omega i)) (ScalarPair.restrict q eta)) }
+    "=" _ "by" { congr!{{Scalar.Form p} {Scalar.Form q} {Scalar.Form total}} Scalar.Wedge[p := p, q := q].apply _ _ _ _
+      (Source.compatible omega i j a) scalarCompatible }
+    "=" _ "by" { sym!{{Scalar.Form total}} _ _ (Pull.Product[p := p, q := q].law (omega j a) (eta (Bundle.chart j))) }
+  };

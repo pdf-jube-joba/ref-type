@@ -1,0 +1,38 @@
+\import RealEnd.Composition[U := Vectors.Vector, domain := Restricted.realSpace] \as Before;
+\import Reals.Linear[V := RealVectors.Vector, W := Vectors.Vector, source := RealVectors.space, target := Restricted.realSpace].Composition[U := Vectors.Vector, domain := Restricted.realSpace] \as After;
+\definition realMap: Reals.Linear[V := Vectors.Vector, W := Vectors.Vector, source := Restricted.realSpace, target := Restricted.realSpace].Map :=
+  After.compose RealCoordinates.frame.backward (Before.compose A RealCoordinates.frame.forward);
+\definition imaginary: \forall (v: Vectors.Vector) -> realMap.apply (Vectors.scale Op.i v) = Vectors.scale Op.i (realMap.apply v) :=
+  \fun (v: Vectors.Vector) => eq_reason_in!{{Vectors.Vector} _
+    "=" _ "by" { congr!{{Vectors.Vector} {Vectors.Vector}} (\fun (w: Vectors.Vector) => Coordinates.decode (A.apply (Coordinates.encode (Vectors.scale Op.i w)))) _ _ (sym!{{Vectors.Vector}} _ _ (Coordinates.decodeEncode v)) }
+    "=" _ "by" { congr!{{RealVectors.Vector} {Vectors.Vector}} Coordinates.decode _ _ (commuting (Coordinates.encode v)) }
+    "=" _ "by" { Coordinates.decodeEncode (Vectors.scale Op.i (Coordinates.decode (A.apply (Coordinates.encode v)))) }
+  };
+\import dedekind_reals.DedekindReal[].Arithmetic[].Prop[] \as Arithmetic;
+\definition imaginaryReal: \forall (a: R.Real) -> Op.mul Op.i (Op.ofReal a) = C.make R.zero a :=
+  \fun (a: R.Real) => C.Prop[].ext _ _
+    (trans!{{R.Real}} _ _ _ (congr!{{R.Real} {R.Real} {R.Real}} R.sub _ _ _ _ (Reals.mulZeroLeft a) (Reals.mulOneLeft R.zero)) (Arithmetic.subZeroRight R.zero))
+    (trans!{{R.Real}} _ _ _ (congr!{{R.Real} {R.Real} {R.Real}} R.add _ _ _ _ (Reals.mulZeroLeft R.zero) (Reals.mulOneLeft a)) (Reals.addZeroLeft a));
+\definition decomposition: \forall (z: C.Complex) -> Op.add (Op.ofReal (C.re z)) (Op.mul Op.i (Op.ofReal (C.im z))) = z :=
+  \fun (z: C.Complex) => trans!{{C.Complex}} _ _ _
+    (congr!{{C.Complex} {C.Complex}} (Op.add (Op.ofReal (C.re z))) _ _ (imaginaryReal (C.im z)))
+    (C.Prop[].ext _ _ (Reals.addZeroRight (C.re z)) (Reals.addZeroLeft (C.im z)));
+\definition split: \forall (z: C.Complex)(v: Vectors.Vector) -> Vectors.scale z v = Vectors.plus (Restricted.realSpace.smul (C.re z) v) (Vectors.scale Op.i (Restricted.realSpace.smul (C.im z) v)) :=
+  \fun (z: C.Complex)(v: Vectors.Vector) => eq_reason_in!{{Vectors.Vector} _
+    "=" _ "by" { congr!{{C.Complex} {Vectors.Vector}} (\fun (a: C.Complex) => Vectors.scale a v) _ _ (sym!{{C.Complex}} _ _ (decomposition z)) }
+    "=" _ "by" { Vectors.space.scalarAdd (Op.ofReal (C.re z)) (Op.mul Op.i (Op.ofReal (C.im z))) v }
+    "=" _ "by" { congr!{{Vectors.Vector} {Vectors.Vector}} (Vectors.plus (Restricted.realSpace.smul (C.re z) v)) _ _ (Vectors.space.scalarAssoc Op.i (Op.ofReal (C.im z)) v) }
+  };
+\definition homogeneous: \forall (z: C.Complex)(v: Vectors.Vector) -> realMap.apply (Vectors.scale z v) = Vectors.scale z (realMap.apply v) :=
+  \fun (z: C.Complex)(v: Vectors.Vector) => eq_reason_in!{{Vectors.Vector} _
+    "=" _ "by" { congr!{{Vectors.Vector} {Vectors.Vector}} realMap.apply _ _ (split z v) }
+    "=" _ "by" { realMap.preservesAdd (Restricted.realSpace.smul (C.re z) v) (Vectors.scale Op.i (Restricted.realSpace.smul (C.im z) v)) }
+    "=" _ "by" { congr!{{Vectors.Vector} {Vectors.Vector} {Vectors.Vector}} Vectors.plus _ _ _ _ (realMap.preservesScale (C.re z) v)
+      (trans!{{Vectors.Vector}} _ _ _ (imaginary (Restricted.realSpace.smul (C.im z) v)) (congr!{{Vectors.Vector} {Vectors.Vector}} (Vectors.scale Op.i) _ _ (realMap.preservesScale (C.im z) v))) }
+    "=" _ "by" { sym!{{Vectors.Vector}} _ _ (split z (realMap.apply v)) }
+  };
+\definition value: End.Map := End.Map { apply := realMap.apply, preservesAdd := realMap.preservesAdd, preservesScale := homogeneous };
+\definition recover: \forall (v: RealVectors.Vector) -> Coordinates.encode (value.apply (Coordinates.decode v)) = A.apply v :=
+  \fun (v: RealVectors.Vector) => trans!{{RealVectors.Vector}} _ _ _
+    (Coordinates.encodeDecode (A.apply (Coordinates.encode (Coordinates.decode v))))
+    (congr!{{RealVectors.Vector} {RealVectors.Vector}} A.apply _ _ (Coordinates.encodeDecode v));

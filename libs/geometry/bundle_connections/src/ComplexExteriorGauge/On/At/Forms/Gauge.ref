@@ -1,0 +1,97 @@
+\import Spaces.FiniteCoordinateEnumeration[] \as Enumeration;
+\import Reals.FiniteCoordinates[n := n] \as BaseBasis;
+\import Spaces.Sums[I := Fin.Fin r] \as EntrySums;
+\import Spaces.Sums[I := Fin.Fin rank] \as CoefficientSums;
+\import Spaces.Sums[I := Fin.Fin k].Prop[] \as SlotLaws;
+\import Spaces.Sums[I := Fin.Fin rank].Prop[] \as CoefficientLaws;
+\import Open.Smooth[].Algebra[U := U] \as RealFunctions;
+
+\definition basis[i: Fin.Fin n]: TangentMultilinear.Arguments one := \fun (slot: Fin.Fin one) => BaseBasis.vectors i;
+\definition formValue[P: Matrix.Matrix1][x: Open.Carrier U][v: TangentMultilinear.Arguments one]: Algebra.Numeric := \fun (a, b: Fin.Fin r) => Matrix.evaluate (P a b) x v;
+\definition liftValue: \forall (P: Matrix.Matrix1)(a, b: Fin.Fin rank)(x: Open.Carrier U)(v: TangentMultilinear.Arguments one) ->
+  ResultMatrix.evaluate (lift P a b) x v = Tangent.action (formValue P x v) a b :=
+  \fun (P: Matrix.Matrix1)(a, b: Fin.Fin rank)(x: Open.Carrier U)(v: TangentMultilinear.Arguments one) => eq_reason_in!{{C.Complex} { ResultMatrix.evaluate (lift P a b) x v }
+    "=" { Sums.sum k (\fun (slot: Fin.Fin k) => Sums.sum r (\fun (c: Fin.Fin r) => Op.mul (entry a b slot c) (Matrix.evaluate (P (Coordinates.enumerate a slot) c) x v))) } "by" { value P a b x v }
+    "=" { Spaces.Sums[I := Fin.Fin k].sum (Fin.elements k) (\fun (slot: Fin.Fin k) => Sums.sum r (\fun (c: Fin.Fin r) => Op.mul (entry a b slot c) (Matrix.evaluate (P (Coordinates.enumerate a slot) c) x v))) } "by" {
+      sym!{{C.Complex}} _ _ (Enumeration.sumLaw k (\fun (slot: Fin.Fin k) => Sums.sum r (\fun (c: Fin.Fin r) => Op.mul (entry a b slot c) (Matrix.evaluate (P (Coordinates.enumerate a slot) c) x v)))) }
+    "=" { Spaces.Sums[I := Fin.Fin k].sum (Fin.elements k) (\fun (slot: Fin.Fin k) => EntrySums.sum (Fin.elements r) (\fun (c: Fin.Fin r) => Op.mul (entry a b slot c) (Matrix.evaluate (P (Coordinates.enumerate a slot) c) x v))) } "by" {
+      SlotLaws.congruent (Fin.elements k)
+        (\fun (slot: Fin.Fin k) => Sums.sum r (\fun (c: Fin.Fin r) => Op.mul (entry a b slot c) (Matrix.evaluate (P (Coordinates.enumerate a slot) c) x v)))
+        (\fun (slot: Fin.Fin k) => EntrySums.sum (Fin.elements r) (\fun (c: Fin.Fin r) => Op.mul (entry a b slot c) (Matrix.evaluate (P (Coordinates.enumerate a slot) c) x v)))
+        (\fun (slot: Fin.Fin k) => sym!{{C.Complex}} _ _ (Enumeration.sumLaw r (\fun (c: Fin.Fin r) => Op.mul (entry a b slot c) (Matrix.evaluate (P (Coordinates.enumerate a slot) c) x v)))) }
+    "=" _ "by" { sym!{{C.Complex}} _ _ (Expansion.actionExpansion (formValue P x v) a b) }
+  };
+\definition differentialBasis: \forall (f: Functions.Function)(i: Fin.Fin n)(x: Open.Carrier U) -> Matrix.evaluate (Matrix.differential f) x (basis i) = Derivatives.apply i f x :=
+  \fun (f: Functions.Function)(i: Fin.Fin n)(x: Open.Carrier U) => Derivatives.differentialBasis f i x;
+\definition product01: \forall (P: Matrix.Matrix1)(a, b: Fin.Fin r)(x: Open.Carrier U)(v: TangentMultilinear.Arguments one) -> Matrix.evaluate (Matrix.product01 T P a b) x v = Algebra.product (Tangent.eval T x) (formValue P x v) a b :=
+  \fun (P: Matrix.Matrix1)(a, b: Fin.Fin r)(x: Open.Carrier U)(v: TangentMultilinear.Arguments one) => trans!{{C.Complex}} _ _ _
+    (Matrix.value01 T P a b x v) (sym!{{C.Complex}} _ _ (Enumeration.sumLaw r (\fun (c: Fin.Fin r) => Op.mul (T a c x) (Matrix.evaluate (P c b) x v))));
+\definition product10: \forall (P: Matrix.Matrix1)(a, b: Fin.Fin r)(x: Open.Carrier U)(v: TangentMultilinear.Arguments one) -> Matrix.evaluate (Matrix.product10 P T a b) x v = Algebra.product (formValue P x v) (Tangent.eval T x) a b :=
+  \fun (P: Matrix.Matrix1)(a, b: Fin.Fin r)(x: Open.Carrier U)(v: TangentMultilinear.Arguments one) => trans!{{C.Complex}} _ _ _
+    (Matrix.value10 P T a b x v) (sym!{{C.Complex}} _ _ (Enumeration.sumLaw r (\fun (c: Fin.Fin r) => Op.mul (Matrix.evaluate (P a c) x v) (T c b x))));
+\definition numericGauge: \forall (i: Fin.Fin n)(x: Open.Carrier U) -> Algebra.product (Tangent.eval T x) (formValue A x (basis i)) =
+  Tangent.plus (Tangent.partial T i x) (Algebra.product (formValue B x (basis i)) (Tangent.eval T x)) :=
+  \fun (i: Fin.Fin n)(x: Open.Carrier U) => Tangent.ext _ _ (\fun (a, b: Fin.Fin r) => eq_reason_in!{{C.Complex} _
+    "=" { Matrix.evaluate (Matrix.product01 T A a b) x (basis i) } "by" { sym!{{C.Complex}} _ _ (product01 A a b x (basis i)) }
+    "=" { Matrix.evaluate (Matrix.plus (Matrix.dMatrix T) (Matrix.product10 B T) a b) x (basis i) } "by" {
+      congr!{{Matrix.Matrix1} {C.Complex}} (\fun (P: Matrix.Matrix1) => Matrix.evaluate (P a b) x (basis i)) _ _ compatible }
+    "=" _ "by" { congr!{{C.Complex} {C.Complex} {C.Complex}} Op.add _ _ _ _ (differentialBasis (T a b) i x) (product10 B a b x (basis i)) }
+  });
+\definition leftValue: \forall (a, b: Fin.Fin rank)(x: Open.Carrier U)(v: TangentMultilinear.Arguments one) ->
+  ResultMatrix.evaluate (ResultMatrix.product01 (representation T) (lift A) a b) x v = CoefficientSums.sum (Fin.elements rank)
+    (\fun (c: Fin.Fin rank) => Op.mul (representation T a c x) (Tangent.action (formValue A x v) c b)) :=
+  \fun (a, b: Fin.Fin rank)(x: Open.Carrier U)(v: TangentMultilinear.Arguments one) => eq_reason_in!{{C.Complex} _
+    "=" _ "by" { ResultMatrix.value01 (representation T) (lift A) a b x v }
+    "=" { CoefficientSums.sum (Fin.elements rank) (\fun (c: Fin.Fin rank) => Op.mul (representation T a c x) (ResultMatrix.evaluate (lift A c b) x v)) } "by" {
+      sym!{{C.Complex}} _ _ (Enumeration.sumLaw rank (\fun (c: Fin.Fin rank) => Op.mul (representation T a c x) (ResultMatrix.evaluate (lift A c b) x v))) }
+    "=" _ "by" { CoefficientLaws.congruent (Fin.elements rank)
+      (\fun (c: Fin.Fin rank) => Op.mul (representation T a c x) (ResultMatrix.evaluate (lift A c b) x v))
+      (\fun (c: Fin.Fin rank) => Op.mul (representation T a c x) (Tangent.action (formValue A x v) c b))
+      (\fun (c: Fin.Fin rank) => congr!{{C.Complex} {C.Complex}} (Op.mul (representation T a c x)) _ _ (liftValue A c b x v)) }
+  };
+\definition rightValue: \forall (a, b: Fin.Fin rank)(x: Open.Carrier U)(v: TangentMultilinear.Arguments one) ->
+  ResultMatrix.evaluate (ResultMatrix.product10 (lift B) (representation T) a b) x v = CoefficientSums.sum (Fin.elements rank)
+    (\fun (c: Fin.Fin rank) => Op.mul (Tangent.action (formValue B x v) a c) (representation T c b x)) :=
+  \fun (a, b: Fin.Fin rank)(x: Open.Carrier U)(v: TangentMultilinear.Arguments one) => eq_reason_in!{{C.Complex} _
+    "=" _ "by" { ResultMatrix.value10 (lift B) (representation T) a b x v }
+    "=" { CoefficientSums.sum (Fin.elements rank) (\fun (c: Fin.Fin rank) => Op.mul (ResultMatrix.evaluate (lift B a c) x v) (representation T c b x)) } "by" {
+      sym!{{C.Complex}} _ _ (Enumeration.sumLaw rank (\fun (c: Fin.Fin rank) => Op.mul (ResultMatrix.evaluate (lift B a c) x v) (representation T c b x))) }
+    "=" _ "by" { CoefficientLaws.congruent (Fin.elements rank)
+      (\fun (c: Fin.Fin rank) => Op.mul (ResultMatrix.evaluate (lift B a c) x v) (representation T c b x))
+      (\fun (c: Fin.Fin rank) => Op.mul (Tangent.action (formValue B x v) a c) (representation T c b x))
+      (\fun (c: Fin.Fin rank) => congr!{{C.Complex} {C.Complex}} (\fun (z: C.Complex) => Op.mul z (representation T c b x)) _ _ (liftValue B a c x v)) }
+  };
+\definition basisLaw: \forall (a, b: Fin.Fin rank)(i: Fin.Fin n)(x: Open.Carrier U) ->
+  ResultMatrix.evaluate (ResultMatrix.product01 (representation T) (lift A) a b) x (basis i) =
+  ResultMatrix.evaluate (ResultMatrix.plus (ResultMatrix.dMatrix (representation T)) (ResultMatrix.product10 (lift B) (representation T)) a b) x (basis i) :=
+  \fun (a, b: Fin.Fin rank)(i: Fin.Fin n)(x: Open.Carrier U) => eq_reason_in!{{C.Complex} _
+    "=" _ "by" { leftValue a b x (basis i) }
+    "=" { Op.add (Derivatives.apply i (representation T a b) x) (CoefficientSums.sum (Fin.elements rank) (\fun (c: Fin.Fin rank) => Op.mul (Tangent.action (formValue B x (basis i)) a c) (representation T c b x))) } "by" {
+      Naturality.gauge T i x (formValue A x (basis i)) (formValue B x (basis i)) (numericGauge i x) a b }
+    "=" _ "by" { congr!{{C.Complex} {C.Complex} {C.Complex}} Op.add _ _ _ _
+      (sym!{{C.Complex}} _ _ (differentialBasis (representation T a b) i x)) (sym!{{C.Complex}} _ _ (rightValue a b x (basis i))) }
+  };
+\definition scalarExt: \forall (P, Q: Scalar.Form one) -> (\forall (i: Fin.Fin n)(x: Open.Carrier U) -> P x (basis i) = Q x (basis i)) -> P = Q :=
+  \fun (P, Q: Scalar.Form one)(same: _) => Scalar.coefficientExt one P Q (\fun (indices: Fin.Fin one -> Fin.Fin n) =>
+    RealFunctions.ext (Scalar.coefficient one P indices) (Scalar.coefficient one Q indices) (\fun (x: Open.Carrier U) => \block {
+      \let args: TangentMultilinear.Arguments one := \fun (slot: Fin.Fin one) => BaseBasis.vectors (indices slot) \then
+      \let normalized: args = basis (indices (Fin.zero N.Nat^::zero)) := \axiom:funext(args, basis (indices (Fin.zero N.Nat^::zero)), \fun (slot: Fin.Fin one) =>
+        congr!{{Fin.Fin one} {TangentVectors.Vector}} (\fun (j: Fin.Fin one) => BaseBasis.vectors (indices j)) _ _
+          (euclidean_forms.Euclidean[n := n].Covector[i := indices (Fin.zero N.Nat^::zero)].uniqueIndex slot)) \then
+      \return eq_reason_in!{{R.Real} { P x args }
+        "=" { P x (basis (indices (Fin.zero N.Nat^::zero))) } "by" { congr!{{TangentMultilinear.Arguments one} {R.Real}} (P x) _ _ normalized }
+        "=" { Q x (basis (indices (Fin.zero N.Nat^::zero))) } "by" { same (indices (Fin.zero N.Nat^::zero)) x }
+        "=" { Q x args } "by" { sym!{{R.Real}} _ _ (congr!{{TangentMultilinear.Arguments one} {R.Real}} (Q x) _ _ normalized) }
+      }
+    }));
+\definition formExt: \forall (P, Q: ResultMatrix.OneForm) ->
+  (\forall (i: Fin.Fin n)(x: Open.Carrier U) -> ResultMatrix.evaluate P x (basis i) = ResultMatrix.evaluate Q x (basis i)) -> P = Q :=
+  \fun (P, Q: ResultMatrix.OneForm)(same: _) => ResultMatrix.Algebra[].componentsExt P Q
+    (scalarExt P.real Q.real (\fun (i: Fin.Fin n)(x: Open.Carrier U) => congr!{{C.Complex} {R.Real}} C.re _ _ (same i x)))
+    (scalarExt P.imaginary Q.imaginary (\fun (i: Fin.Fin n)(x: Open.Carrier U) => congr!{{C.Complex} {R.Real}} C.im _ _ (same i x)));
+\definition law: ResultMatrix.product01 (representation T) (lift A) =
+  ResultMatrix.plus (ResultMatrix.dMatrix (representation T)) (ResultMatrix.product10 (lift B) (representation T)) := \block {
+  \let left: ResultMatrix.Matrix1 := ResultMatrix.product01 (representation T) (lift A) \then
+  \let right: ResultMatrix.Matrix1 := ResultMatrix.plus (ResultMatrix.dMatrix (representation T)) (ResultMatrix.product10 (lift B) (representation T)) \then
+  \return \axiom:funext(left, right, \fun (a: Fin.Fin rank) => \axiom:funext(left a, right a, \fun (b: Fin.Fin rank) => formExt (left a b) (right a b) (basisLaw a b)))
+};

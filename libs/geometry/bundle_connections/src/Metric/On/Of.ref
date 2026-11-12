@@ -1,0 +1,19 @@
+\definition flat[x: Open.Carrier U]: End.Map := \root.Metric[n := n, r := r].At[h := metric.form x, positive := metric.positive x].flat;
+\definition sharp[x: Open.Carrier U]: End.Map := \root.Metric[n := n, r := r].At[h := metric.form x, positive := metric.positive x].inverse;
+\definition left: \forall (x: Open.Carrier U)(v: E.Vector) -> (sharp x).apply ((flat x).apply v) = v :=
+  \fun (x: Open.Carrier U) => \root.Metric[n := n, r := r].At[h := metric.form x, positive := metric.positive x].left;
+\definition right: \forall (x: Open.Carrier U)(v: E.Vector) -> (flat x).apply ((sharp x).apply v) = v :=
+  \fun (x: Open.Carrier U) => \root.Metric[n := n, r := r].At[h := metric.form x, positive := metric.positive x].right;
+\definition basisFormula: \forall (a, b: Fin.Fin r)(x: Open.Carrier U) ->
+  (flat x).apply (linear_algebra.Euclidean[n := r].basis b) a = Coefficient metric.form a b x :=
+  \fun (a, b: Fin.Fin r)(x: Open.Carrier U) => congr!{{E.Vector} {R.Real}} ((metric.form x).dot (E.basis a)) _ _
+    (\root.Metric[n := n, r := r].Basis[].equal b);
+\definition regular: Matrices.Regular U flat := \fun (a, b: Fin.Fin r) =>
+  smooth_partitions.Euclidean[n := n].smoothCongruent U (Coefficient metric.form a b)
+    (\fun (x: Open.Carrier U) => (flat x).apply (linear_algebra.Euclidean[n := r].basis b) a)
+    (\fun (x: Open.Carrier U) => sym!{{R.Real}} _ _ (basisFormula a b x)) (metric.smooth a b);
+\definition inverseRegular: Matrices.Regular U sharp := calculus.InverseFamily[d := n, r := r].regular U flat sharp left right regular;
+\definition coefficient[a, b: Fin.Fin r]: Functions.Function := \into[Open.ScalarFunction U](Coefficient metric.form a b, Functions.Predicate) \by { metric.smooth a b };
+\definition symmetric: \forall (a, b: Fin.Fin r) -> coefficient a b = coefficient b a :=
+  \fun (a, b: Fin.Fin r) => Functions.ext (coefficient a b) (coefficient b a) (\fun (x: Open.Carrier U) => (metric.form x).symmetric (E.basis a) (E.basis b));
+\module Compatible;

@@ -1,0 +1,36 @@
+\definition derivativeIdentity: M.dMatrix Product.identity = Linear.origin := Linear.ext (M.dMatrix Product.identity) Linear.origin
+  (\fun (a, b: Fin.Fin r) => Linear.dConstant (Spaces.FiniteCoordinates[n := r].vectors a b));
+\definition inverseDerivative: M.plus (M.product10 (M.dMatrix T) inverse) (M.product01 T (M.dMatrix inverse)) = Linear.origin :=
+  eq_reason_in!{M.Matrix1 _
+    "=" _ "by" { sym!{M.Matrix1} _ _ (M.productRule T inverse) }
+    "=" _ "by" { congr!{M.Matrix0 M.Matrix1} M.dMatrix _ _ rightInverse }
+    "=" _ "by" derivativeIdentity
+  };
+\definition beforeCancel: M.product01 T (M.plus (M.dMatrix inverse) (M.product10 A inverse)) = B := eq_reason_in!{M.Matrix1 _
+  "=" _ "by" { Product.distribute T (M.dMatrix inverse) (M.product10 A inverse) }
+  "=" _ "by" { congr!{M.Matrix1 M.Matrix1} (M.plus (M.product01 T (M.dMatrix inverse))) _ _ (sym!{M.Matrix1} _ _ (Product.assoc010 T A inverse)) }
+  "=" _ "by" { congr!{M.Matrix1 M.Matrix1} (\fun (X: M.Matrix1) => M.plus (M.product01 T (M.dMatrix inverse)) (M.product10 X inverse)) _ _ gauge }
+  "=" _ "by" { congr!{M.Matrix1 M.Matrix1} (M.plus (M.product01 T (M.dMatrix inverse))) _ _ (Linear.rightAdd (M.dMatrix T) (M.product10 B T) inverse) }
+  "=" _ "by" { sym!{M.Matrix1} _ _ (Laws.assoc (M.product01 T (M.dMatrix inverse)) (M.product10 (M.dMatrix T) inverse) (M.product10 (M.product10 B T) inverse)) }
+  "=" _ "by" { congr!{M.Matrix1 M.Matrix1} (\fun (X: M.Matrix1) => M.plus X (M.product10 (M.product10 B T) inverse)) _ _
+    (trans!{M.Matrix1} _ _ _ (Laws.comm (M.product01 T (M.dMatrix inverse)) (M.product10 (M.dMatrix T) inverse)) inverseDerivative) }
+  "=" _ "by" { Laws.zeroLeft (M.product10 (M.product10 B T) inverse) }
+  "=" _ "by" { Product.assoc100 B T inverse }
+  "=" _ "by" { congr!{M.Matrix0 M.Matrix1} (M.product10 B) _ _ rightInverse }
+  "=" _ "by" { Linear.rightIdentity B }
+};
+\definition reverseGauge: M.product01 inverse B = M.plus (M.dMatrix inverse) (M.product10 A inverse) := eq_reason_in!{M.Matrix1 _
+  "=" _ "by" { congr!{M.Matrix1 M.Matrix1} (M.product01 inverse) _ _ (sym!{M.Matrix1} _ _ beforeCancel) }
+  "=" _ "by" { M.Gauge[].inverseAction inverse T leftInverse (M.plus (M.dMatrix inverse) (M.product10 A inverse)) }
+};
+\definition transposed: M.product10 (transpose1 B) (transpose0 inverse) = M.plus (M.dMatrix (transpose0 inverse)) (M.product01 (transpose0 inverse) (transpose1 A)) := eq_reason_in!{M.Matrix1 _
+  "=" _ "by" { sym!{M.Matrix1} _ _ (transpose01 inverse B) }
+  "=" _ "by" { congr!{M.Matrix1 M.Matrix1} transpose1 _ _ reverseGauge }
+  "=" _ "by" { transposeAdd (M.dMatrix inverse) (M.product10 A inverse) }
+  "=" _ "by" { congr!{M.Matrix1 M.Matrix1 M.Matrix1} M.plus _ _ _ _ (transposeDerivative inverse) (transpose10 A inverse) }
+};
+\definition law: M.product01 (transpose0 inverse) (dual A) = M.plus (M.dMatrix (transpose0 inverse)) (M.product10 (dual B) (transpose0 inverse)) := eq_reason_in!{M.Matrix1 _
+  "=" _ "by" { Linear.leftScale (transpose0 inverse) (R.neg R.one) (transpose1 A) }
+  "=" _ "by" { rearrange (M.product10 (transpose1 B) (transpose0 inverse)) (M.dMatrix (transpose0 inverse)) (M.product01 (transpose0 inverse) (transpose1 A)) transposed }
+  "=" _ "by" { congr!{M.Matrix1 M.Matrix1} (M.plus (M.dMatrix (transpose0 inverse))) _ _ (sym!{M.Matrix1} _ _ (Linear.rightScale (transpose1 B) (R.neg R.one) (transpose0 inverse))) }
+};

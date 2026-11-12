@@ -1,0 +1,66 @@
+\import \root.MatrixCalculus[n := n, r := r].On[U := U] \as M;
+\import M.Associativity[] \as Algebra;
+\import M.Linearity[] \as Linear;
+\import M.Gauge[] \as Inverse;
+\import \root.LeviCivita[n := n].Gauge[r := r, U := U] \as Transpose;
+\import Spaces.Laws[V := M.Matrix1, space := Linear.space] \as Laws;
+\import euclidean_forms.Euclidean[n := n].On[U := U] \as Scalar;
+\import Scalar.At[k := N.Nat^::succ N.Nat^::zero] \as Forms;
+\import Spaces.Coordinates[I := Fin.Fin n] \as Vectors;
+\import Spaces.Multilinear[V := Vectors.Vector, space := Vectors.space] \as Multilinear;
+\definition difference[A, B: M.Matrix1]: M.Matrix1 := M.plus A (Linear.negative B);
+\definition differenceCancel: \forall (A, B: M.Matrix1) -> M.plus (difference A B) B = A :=
+  \fun (A, B: M.Matrix1) => eq_reason_in!{M.Matrix1 _
+    "=" _ "by" { Laws.assoc A (Linear.negative B) B }
+    "=" _ "by" { congr!{M.Matrix1 M.Matrix1} (M.plus A) _ _ (Laws.inverseLeft B) }
+    "=" _ "by" { Laws.zeroRight A }
+  };
+\definition transposeScale: \forall (c: R.Real)(A: M.Matrix1) -> Transpose.transpose1 (Linear.scale c A) = Linear.scale c (Transpose.transpose1 A) :=
+  \fun (c: R.Real)(A: M.Matrix1) => Transpose.ext (Transpose.transpose1 (Linear.scale c A)) (Linear.scale c (Transpose.transpose1 A)) (\fun (a, b: Fin.Fin r) => \refl(Forms.scale c (A b a)));
+\definition transposeTwice: \forall (A: M.Matrix1) -> Transpose.transpose1 (Transpose.transpose1 A) = A :=
+  \fun (A: M.Matrix1) => Transpose.ext (Transpose.transpose1 (Transpose.transpose1 A)) A (\fun (a, b: Fin.Fin r) => \refl(A a b));
+\definition halfDouble: \forall (A: M.Matrix1) -> Linear.scale R.half (M.plus A A) = A :=
+  \fun (A: M.Matrix1) => Transpose.ext (Linear.scale R.half (M.plus A A)) A (\fun (a, b: Fin.Fin r) => Scalar.ext (N.Nat^::succ N.Nat^::zero)
+    (Forms.scale R.half (Forms.plus (A a b) (A a b))) (A a b)
+    (\fun (x: Open.Carrier U)(v: Multilinear.Arguments (N.Nat^::succ N.Nat^::zero)) =>
+      trans!{{R.Real}} _ _ _ (Spaces.mulAdd R.half (A a b x v) (A a b x v)) (R.Estimates[].halfTwice (A a b x v))));
+\definition cycle: \forall (A, B, C, D: M.Matrix1) -> M.plus (M.plus A B) (M.plus C D) = M.plus (M.plus B C) (M.plus D A) :=
+  \fun (A, B, C, D: M.Matrix1) => eq_reason_in!{M.Matrix1 _
+    "=" _ "by" { congr!{M.Matrix1 M.Matrix1} (\fun (X: M.Matrix1) => M.plus X (M.plus C D)) _ _ (Laws.comm A B) }
+    "=" _ "by" { Laws.shuffle B A C D }
+    "=" _ "by" { congr!{M.Matrix1 M.Matrix1} (M.plus (M.plus B C)) _ _ (Laws.comm A D) }
+  };
+\definition adjoint[g, q: M.Matrix0][A: M.Matrix1]: M.Matrix1 := M.product01 q (difference (M.dMatrix g) (M.product10 (Transpose.transpose1 A) g));
+\definition correct[g, q: M.Matrix0][A: M.Matrix1]: M.Matrix1 := Linear.scale R.half (M.plus A (adjoint g q A));
+\module Of(g, q: M.Matrix0, A: M.Matrix1, symmetric: Transpose.transpose0 g = g, inverse: M.product00 g q = Algebra.identity);
+
+\module Transport(T, h: M.Matrix0, A, B: M.Matrix1, gauge: M.product01 T A = M.plus (M.dMatrix T) (M.product10 B T));
+\module Naturality(g, q, h, p: M.Matrix0, A, B: M.Matrix1, T, L: M.Matrix0,
+  symmetricG: Transpose.transpose0 g = g, symmetricH: Transpose.transpose0 h = h,
+  rightG: M.product00 g q = Algebra.identity, rightH: M.product00 h p = Algebra.identity,
+  metricRelation: Transpose.metric T h = g,
+  leftK: M.product00 L (M.product00 (Transpose.transpose0 T) h) = Algebra.identity,
+  gauge: M.product01 T A = M.plus (M.dMatrix T) (M.product10 B T));
+
+\module Matrices;
+\module InverseMetric(T, S, h, p: M.Matrix0, rightT: M.product00 T S = Algebra.identity, leftH: M.product00 p h = Algebra.identity);
+
+\definition averageCompatible: \forall (g: M.Matrix0)(A, B: M.Matrix1) -> Transpose.Compatible g A -> Transpose.Compatible g B ->
+  Transpose.Compatible g (Linear.scale R.half (M.plus A B)) :=
+  \fun (g: M.Matrix0)(A, B: M.Matrix1)(left: Transpose.Compatible g A)(right: Transpose.Compatible g B) => sym!{M.Matrix1} _ _ (eq_reason_in!{M.Matrix1 _
+    "=" _ "by" { congr!{M.Matrix1 M.Matrix1} (\fun (X: M.Matrix1) => M.plus (M.product10 X g) (M.product01 g (Linear.scale R.half (M.plus A B)))) _ _ (transposeScale R.half (M.plus A B)) }
+    "=" _ "by" { congr!{M.Matrix1 M.Matrix1 M.Matrix1} M.plus _ _ _ _
+      (Linear.rightScale (Transpose.transpose1 (M.plus A B)) R.half g) (Linear.leftScale g R.half (M.plus A B)) }
+    "=" _ "by" { sym!{M.Matrix1} _ _ (Linear.space.vectorAdd R.half (M.product10 (Transpose.transpose1 (M.plus A B)) g) (M.product01 g (M.plus A B))) }
+    "=" _ "by" { congr!{M.Matrix1 M.Matrix1} (Linear.scale R.half) _ _
+      (congr!{M.Matrix1 M.Matrix1 M.Matrix1} M.plus _ _ _ _
+        (trans!{M.Matrix1} _ _ _ (congr!{M.Matrix1 M.Matrix1} (\fun (X: M.Matrix1) => M.product10 X g) _ _ (Transpose.transposeAdd A B))
+          (Linear.rightAdd (Transpose.transpose1 A) (Transpose.transpose1 B) g)) (Algebra.distribute g A B)) }
+    "=" _ "by" { congr!{M.Matrix1 M.Matrix1} (Linear.scale R.half) _ _
+      (Laws.shuffle (M.product10 (Transpose.transpose1 A) g) (M.product10 (Transpose.transpose1 B) g) (M.product01 g A) (M.product01 g B)) }
+    "=" _ "by" { congr!{M.Matrix1 M.Matrix1} (Linear.scale R.half) _ _
+      (congr!{M.Matrix1 M.Matrix1 M.Matrix1} M.plus _ _ _ _ (sym!{M.Matrix1} _ _ left) (sym!{M.Matrix1} _ _ right)) }
+    "=" _ "by" { halfDouble (M.dMatrix g) }
+  });
+\module Complex(g, J: M.Matrix0, square: M.product00 J J = Linear.scale0 (R.neg R.one) Algebra.identity,
+  constant: M.dMatrix J = Linear.origin, orthogonal: Transpose.metric J g = g);

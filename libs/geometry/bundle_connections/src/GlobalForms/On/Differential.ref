@@ -1,0 +1,57 @@
+\definition zero: N.Nat^ := N.Nat^::zero;
+\definition next: N.Nat^ := N.Nat^::succ k;
+\definition expanded: N.Nat^ := Nat.add zero k;
+\definition total: N.Nat^ := N.Nat^::succ expanded;
+\import Open.Smooth[].Algebra[U := U] \as Functions;
+\import Scalar.DegreeZero[] \as Zero;
+\import Scalar.At[k := k] \as Source;
+\import Scalar.At[k := next] \as Target;
+\import Scalar.ExteriorDerivative[k := k] \as D;
+\import Scalar.ExteriorDerivative[k := zero] \as DZero;
+\import Scalar.Wedge[p := zero, q := k] \as ZeroProduct;
+\import Scalar.Wedge[p := one, q := k] \as Product;
+\import Scalar.Regrade[k := Nat.add one k, l := next] \as Degree;
+\import \parent.Multiply[k := k] \as Multiply;
+\import \parent.Multiply[k := next] \as NextMultiply;
+\import Scalar.Leibniz[p := zero, q := k] \as Leibniz;
+\import Exterior.Components[k := total] \as TotalComponents;
+\import Exterior.Components[k := next] \as Components;
+\definition term[f: Functions.Function][omega: Scalar.Form k]: Scalar.Form next := Degree.cast (Product.apply (DZero.apply (Zero.apply f)) omega) D.degree;
+\definition expandedSeries: \forall (f: Functions.Function)(omega: Scalar.Form k)(x: Open.Carrier U) ->
+  Exterior.component next (D.apply (Source.multiply f omega) x) =
+  Exterior.component total (Scalar.ExteriorDerivative[k := expanded].apply (ZeroProduct.apply (Zero.apply f) omega) x) :=
+  \fun (f: Functions.Function)(omega: Scalar.Form k)(x: Open.Carrier U) => eq_reason_in!{{Shuffle.Function} _
+    "=" _ "by" { congr!{{Scalar.Form k} {Shuffle.Function}} (\fun (eta: Scalar.Form k) => Exterior.component next (D.apply eta x)) _ _ (sym!{{Scalar.Form k}} _ _ (Multiply.law f omega)) }
+    "=" _ "by" { congr!{{Scalar.Form next} {Shuffle.Function}} (\fun (eta: Scalar.Form next) => Exterior.component next (eta x)) _ _
+      (\parent.RegradeDerivative[k := expanded, l := k].law (ZeroProduct.apply (Zero.apply f) omega) Multiply.degree) }
+    "=" _ "by" { Scalar.Regrade[k := total, l := next].series (Scalar.ExteriorDerivative[k := expanded].apply (ZeroProduct.apply (Zero.apply f) omega))
+      (congr!{{N.Nat^} {N.Nat^}} N.Nat^::succ expanded k Multiply.degree) x }
+  };
+\definition leftSeries: \forall (f: Functions.Function)(omega: Scalar.Form k)(x: Open.Carrier U) ->
+  Exterior.component total (Leibniz.left (DZero.apply (Zero.apply f)) omega x) = Exterior.component next (term f omega x) :=
+  \fun (f: Functions.Function)(omega: Scalar.Form k)(x: Open.Carrier U) => trans!{{Shuffle.Function}} _ _ _
+    (Scalar.Regrade[k := Nat.add one k, l := total].series (Product.apply (DZero.apply (Zero.apply f)) omega) Leibniz.degree x)
+    (sym!{{Shuffle.Function}} _ _ (Degree.series (Product.apply (DZero.apply (Zero.apply f)) omega) D.degree x));
+\definition rightSeries: \forall (f: Functions.Function)(omega: Scalar.Form k)(x: Open.Carrier U) ->
+  Exterior.component total (Leibniz.right (Zero.apply f) (D.apply omega) x) = Exterior.component next (Target.multiply f (D.apply omega) x) :=
+  \fun (f: Functions.Function)(omega: Scalar.Form k)(x: Open.Carrier U) => trans!{{Shuffle.Function}} _ _ _
+    (sym!{{Shuffle.Function}} _ _ (Scalar.Regrade[k := Nat.add zero next, l := next].series (Scalar.Wedge[p := zero, q := next].apply (Zero.apply f) (D.apply omega)) NextMultiply.degree x))
+    (congr!{{Scalar.Form next} {Shuffle.Function}} (\fun (eta: Scalar.Form next) => Exterior.component next (eta x)) _ _ (NextMultiply.law f (D.apply omega)));
+\definition law: \forall (f: Functions.Function)(omega: Scalar.Form k) ->
+  D.apply (Source.multiply f omega) = Target.plus (term f omega) (Target.multiply f (D.apply omega)) :=
+  \fun (f: Functions.Function)(omega: Scalar.Form k) => \axiom:funext(D.apply (Source.multiply f omega), Target.plus (term f omega) (Target.multiply f (D.apply omega)),
+    \fun (x: Open.Carrier U) => Components.ext (D.apply (Source.multiply f omega) x) (Target.plus (term f omega) (Target.multiply f (D.apply omega)) x)
+      (\axiom:funext(Exterior.component next (D.apply (Source.multiply f omega) x), Exterior.component next (Target.plus (term f omega) (Target.multiply f (D.apply omega)) x),
+        \fun (xs: Lists.List[Vectors.Vector]) => eq_reason_in!{{R.Real} _
+          "=" _ "by" { congr!{{Shuffle.Function} {R.Real}} (\fun (h: Shuffle.Function) => h xs) _ _ (expandedSeries f omega x) }
+          "=" _ "by" { congr!{{Scalar.Form total} {R.Real}} (\fun (eta: Scalar.Form total) => Exterior.component total (eta x) xs) _ _ (Leibniz.law (Zero.apply f) omega) }
+          "=" _ "by" { TotalComponents.addition (Leibniz.left (DZero.apply (Zero.apply f)) omega x)
+            (Scalar.At[k := total].scale R.one (Leibniz.right (Zero.apply f) (D.apply omega)) x) xs }
+          "=" _ "by" { congr!{{R.Real} {R.Real}} (R.add (Exterior.component total (Leibniz.left (DZero.apply (Zero.apply f)) omega x) xs)) _ _
+            (trans!{{R.Real}} _ _ _ (TotalComponents.scalar R.one (Leibniz.right (Zero.apply f) (D.apply omega) x) xs)
+              (Spaces.mulOneLeft (Exterior.component total (Leibniz.right (Zero.apply f) (D.apply omega) x) xs))) }
+          "=" _ "by" { congr!{{R.Real} {R.Real} {R.Real}} R.add _ _ _ _
+            (congr!{{Shuffle.Function} {R.Real}} (\fun (h: Shuffle.Function) => h xs) _ _ (leftSeries f omega x))
+            (congr!{{Shuffle.Function} {R.Real}} (\fun (h: Shuffle.Function) => h xs) _ _ (rightSeries f omega x)) }
+          "=" _ "by" { sym!{{R.Real}} _ _ (Components.addition (term f omega x) (Target.multiply f (D.apply omega) x) xs) }
+        })));

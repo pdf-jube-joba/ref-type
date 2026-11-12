@@ -1,0 +1,38 @@
+\definition c: \Cast[Charts.Chart] M.atlas.charts := chart i;
+\definition d: \Cast[Charts.Chart] M.atlas.charts := chart j;
+\import Charts.Transition[left := c, right := d] \as Transition;
+\import Atlas.Change[i := i, j := j] \as Change;
+\import Euclidean.On[U := Transition.domain] \as Scalar;
+\import Scalar.At[k := one] \as OneForms;
+\import Scalar.DegreeZero[] \as ZeroForms;
+\import Scalar.ExteriorDerivative[k := zero] \as D;
+\import Scalar.Wedge[p := zero, q := one] \as LeftProduct;
+\import Scalar.Wedge[p := one, q := zero] \as RightProduct;
+\import Spaces.Sums[I := Fin.Fin r].Vector[V := Scalar.Form one, space := OneForms.space] \as Sum;
+\import Open.Smooth[].Algebra[U := Transition.domain] \as Functions;
+\definition transition[a, b: Fin.Fin r]: Functions.Function :=
+  \into[Open.ScalarFunction Transition.domain](Change.coefficient a b, Functions.Predicate) \by { bundle.regular i j a b };
+\definition matrix[a, b: Fin.Fin r]: Scalar.Form zero := ZeroForms.apply (transition a b);
+\import Bundle.Reverse[i := i, j := j] \as Reverse;
+\import R.FiniteSums[].Linear[] \as Finite;
+\definition inverse[a, b: Fin.Fin r]: Functions.Function :=
+  \into[Open.ScalarFunction Transition.domain]((\fun (u: Open.Carrier Transition.domain) => (Reverse.backward u).apply (Finite.basis r b) a), Functions.Predicate) \by {
+    Reverse.evaluate (Finite.basis r b) a
+  };
+\definition included: Open.Included Transition.domain c.image := \fun (x: Fin.Fin n -> R.Real)(inside: _) =>
+  Transition.inLeftImage (\into[Fin.Fin n -> R.Real](x, Transition.domain.points) \by { inside });
+\definition map: calculus.Maps[n := n, m := n].Map Transition.domain d.image :=
+  BaseAtlas.Pair[left := c, right := d].smoothMap
+    (M.atlas.compatible c d (\bysub(Charts.Chart, M.atlas.charts, c)) (\bysub(Charts.Chart, M.atlas.charts, d)));
+\import Euclidean.Restriction[U := Transition.domain, V := c.image] \as Restrict;
+\import Euclidean.Pullback[m := n, U := Transition.domain, V := d.image, f := map] \as Pull;
+\import \root.MatrixCalculus[n := n, r := r].On[U := Transition.domain] \as Matrices;
+\definition source[A: LocalConnection i]: Matrices.Matrix1 := \fun (a, b: Fin.Fin r) => Restrict.apply one included (A.matrix a b);
+\definition target[B: LocalConnection j]: Matrices.Matrix1 := \fun (a, b: Fin.Fin r) => Pull.apply one (B.matrix a b);
+\definition left[A: LocalConnection i]: Matrices.Matrix1 := Matrices.product01 transition (source A);
+\definition right[B: LocalConnection j]: Matrices.Matrix1 := Matrices.plus (Matrices.dMatrix transition) (Matrices.product10 (target B) transition);
+\definition Compatible[A: LocalConnection i][B: LocalConnection j]: \Prop :=
+  \forall (a, b: Fin.Fin r) -> left A a b = right B a b;
+
+\definition pureGauge: Matrices.Matrix1 := Matrices.product01 inverse (Matrices.dMatrix transition);
+\module Inverse;

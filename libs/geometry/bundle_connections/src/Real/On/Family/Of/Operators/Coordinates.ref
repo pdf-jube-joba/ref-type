@@ -1,0 +1,23 @@
+\import \root.Local[n := n, r := r].On[U := (chart i).image] \as Local;
+\import \root.Forms[n := n, r := r].On[U := (chart i).image].Coefficients[connection := A i] \as Coefficients;
+\import Local.Of[connection := Coefficients.local] \as Derivative;
+\import Open.Smooth[].Algebra[U := (chart i).image] \as Functions;
+\import euclidean_forms.Euclidean[n := n].On[U := (chart i).image] \as Scalar;
+\import \root.MatrixCalculus[n := n, r := r].On[U := (chart i).image] \as Matrices;
+\import linear_algebra.Commutative[K := R.Real, scalarRing := std.Alg[].Field[].fieldAsCommutativeRing R.Real (R.Algebra[].field)] \as Spaces;
+\import Spaces.FiniteCoordinates[n := n] \as Basis;
+\import Spaces.FiniteCoordinateEnumeration[] \as Enumeration;
+\import Open.Smooth[].Derivative[].Linear[U := (chart i).image] \as Partials;
+\definition differentialBasis: \forall (f: Functions.Function)(j: Fin.Fin n)(x: Open.Carrier (chart i).image) ->
+  (Open.Smooth[].Differential[].value (chart i).image f x).apply (Basis.vectors j) = Partials.apply j f x :=
+  \fun (f: Functions.Function)(j: Fin.Fin n)(x: Open.Carrier (chart i).image) => trans!{{R.Real}} _ _ _
+    (sym!{{R.Real}} _ _ (Enumeration.sumLaw n (\fun (k: Fin.Fin n) => R.mul (Partials.apply k f x) (Basis.vectors j k))))
+    (Basis.dualReconstruction (\fun (k: Fin.Fin n) => Partials.apply k f x) j);
+\definition localSection[s: Sections.Section]: Local.Section := Sections.local s i;
+\definition comparison: \forall (s: Sections.Section)(j: Fin.Fin n)(a: Fin.Fin r) ->
+  Scalar.coefficient one (covariant A s i a) (\fun (slot: Fin.Fin one) => j) = Derivative.partial j (localSection s) a :=
+  \fun (s: Sections.Section)(j: Fin.Fin n)(a: Fin.Fin r) => Functions.ext _ _ (\fun (x: Open.Carrier (chart i).image) =>
+    congr!{{R.Real} {R.Real} {R.Real}} R.add _ _ _ _
+      (trans!{{R.Real}} _ _ _ (Scalar.FunctionDifferential[].law (Sections.local s i a) x (\fun (slot: Fin.Fin one) => Basis.vectors j))
+        (differentialBasis (Sections.local s i a) j x))
+      (Matrices.value10 (A i).matrix (sectionMatrix s i) a a x (\fun (slot: Fin.Fin one) => Basis.vectors j)));

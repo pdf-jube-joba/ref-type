@@ -1,0 +1,39 @@
+\definition x: M.Point := Charts.point (chart i) u;
+\import \parent.\parent.\parent.\parent.TensorPoint[x := x, omega := omega] \as Point;
+\definition index: Point.Index := \into[I](i, Point.Index) \by { \bysub(M.Point, (chart i).domain, Charts.point (chart i) u) };
+\import Point.At[i := index] \as Local;
+\import Forms.At[i := i, x := Charts.point (chart i) u] \as Native;
+\import \parent.\parent.\parent.\parent.TensorCoordinates[x := x, W := Alternating.Fiber x, target := Alternating.fiberSpace x, frame := Local.frame] \as Coordinates;
+\import manifolds.Tangent[n := n].On[M := M].At[x := x] \as Tangent;
+\import Spaces.FiniteCoordinates[n := n] \as Basis;
+\definition arguments[a: Fin.Fin Forms.rank]: Fin.Fin one -> Tangent.Vector := \fun (slot: Fin.Fin one) =>
+  Tangent.ChartIsomorphism[chart := Local.tangentChart].backward.apply (Basis.vectors (Alternating.indices (Indices.col a) slot));
+\import Spaces.Linear[V := Forms.Fiber x, W := R.Real, source := Forms.fiberSpace x, target := Spaces.scalarSpace] \as Functionals;
+\definition contraction[a: Fin.Fin Forms.rank]: Functionals.Map := Functionals.Map {
+  apply := \fun (t: Forms.Fiber x) => Coordinates.forward.apply t (Indices.row a) (arguments a),
+  preservesAdd := \fun (s, t: Forms.Fiber x) => congr!{{Fin.Fin r -> Alternating.Fiber x} {R.Real}}
+    (\fun (f: Fin.Fin r -> Alternating.Fiber x) => f (Indices.row a) (arguments a)) _ _ (Coordinates.forward.preservesAdd s t),
+  preservesScale := \fun (c: R.Real)(t: Forms.Fiber x) => congr!{{Fin.Fin r -> Alternating.Fiber x} {R.Real}}
+    (\fun (f: Fin.Fin r -> Alternating.Fiber x) => f (Indices.row a) (arguments a)) _ _ (Coordinates.forward.preservesScale c t)
+};
+\definition coefficientLaw: \forall (a: Fin.Fin Forms.rank)(t: Forms.Fiber x) -> (Native.coefficient a).apply t = (contraction a).apply t :=
+  \fun (a: Fin.Fin Forms.rank) => Operations.TensorEquality[V := F x, W := Alternating.Fiber x, U := R.Real, left := space x, right := Alternating.fiberSpace x, target := Spaces.scalarSpace].pointwise (Native.coefficient a) (contraction a)
+    (\fun (v: F x)(alpha: Alternating.Fiber x) => trans!{{R.Real}} _ _ _ (Native.onPure a v alpha)
+      (sym!{{R.Real}} _ _ (congr!{{Fin.Fin r -> Alternating.Fiber x} {R.Real}}
+        (\fun (f: Fin.Fin r -> Alternating.Fiber x) => f (Indices.row a) (arguments a)) _ _ (Coordinates.onPure v alpha))));
+\definition argumentRecovery: \forall (a: Fin.Fin Forms.rank) ->
+  (\fun (slot: Fin.Fin one) => Tangent.ChartIsomorphism[chart := Local.tangentChart].forward.apply (arguments a slot)) =
+  (\fun (slot: Fin.Fin one) => Basis.vectors (Alternating.indices (Indices.col a) slot)) :=
+  \fun (a: Fin.Fin Forms.rank) => \axiom:funext((\fun (slot: Fin.Fin one) => Tangent.ChartIsomorphism[chart := Local.tangentChart].forward.apply (arguments a slot)),
+    (\fun (slot: Fin.Fin one) => Basis.vectors (Alternating.indices (Indices.col a) slot)), \fun (slot: Fin.Fin one) =>
+      Tangent.ChartIsomorphism[chart := Local.tangentChart].isomorphism.rightInverse (Basis.vectors (Alternating.indices (Indices.col a) slot)));
+\definition formula: \forall (a: Fin.Fin Forms.rank) -> FormSections.coefficient (data omega) i a u = coefficient a u :=
+  \fun (a: Fin.Fin Forms.rank) => trans!{{R.Real}} _ _ _
+    (coefficientLaw a Point.value)
+    (trans!{{R.Real}} _ _ _
+      (congr!{{Forms.Fiber x} {R.Real}} (contraction a).apply _ _ (Point.inChart index))
+      (trans!{{R.Real}} _ _ _
+        (congr!{{Fin.Fin r -> Alternating.Fiber x} {R.Real}} (\fun (f: Fin.Fin r -> Alternating.Fiber x) => f (Indices.row a) (arguments a)) _ _ Local.recovery)
+        (trans!{{R.Real}} _ _ _
+          (congr!{{Fin.Fin one -> Fin.Fin n -> R.Real} {R.Real}} (omega i (Indices.row a) (Tangent.coordinate Local.tangentChart)) _ _ (argumentRecovery a))
+          (congr!{{Open.Carrier (chart i).image} {R.Real}} (\fun (v: Open.Carrier (chart i).image) => coefficient a v) _ _ (Charts.Of[chart := chart i].coordinatePoint u)))));

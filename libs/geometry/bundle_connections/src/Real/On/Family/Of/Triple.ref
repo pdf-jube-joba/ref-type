@@ -1,0 +1,45 @@
+\definition c: \Cast[Charts.Chart] M.atlas.charts := chart i;
+\definition d: \Cast[Charts.Chart] M.atlas.charts := chart j;
+\definition e: \Cast[Charts.Chart] M.atlas.charts := chart k;
+\import Charts.Cocycle[left := c, middle := d, right := e] \as Geometry;
+\import Charts.Transition[left := c, right := d] \as FirstDomain;
+\import Charts.Transition[left := d, right := e] \as SecondDomain;
+\import Charts.Transition[left := c, right := e] \as DirectDomain;
+\import Atlas.Change[i := i, j := j] \as First;
+\import Atlas.Change[i := j, j := k] \as Second;
+\import Atlas.Change[i := i, j := k] \as Direct;
+\import Spaces.Coordinates[I := Fin.Fin r] \as Vectors;
+\import Spaces.Linear[V := Vectors.Vector, W := Vectors.Vector, source := Vectors.space, target := Vectors.space] \as Linear;
+\definition common: \Pow M.Point := Base.Intersection d.domain e.domain;
+\definition Common: \Set := \Cast[M.Point] common;
+\definition inMiddle[x: Common]: Charts.LocalPoint d := \into[M.Point](x, d.domain) \by { (\bysub(M.Point, common, x)).left };
+\definition inLast[x: Common]: Charts.LocalPoint e := \into[M.Point](x, e.domain) \by { (\bysub(M.Point, common, x)).right };
+\definition change[x: Common][v: Vectors.Vector]: Vectors.Vector := ((bundle.atlas.local k).frame (inLast x)).forward.apply
+  (((bundle.atlas.local j).frame (inMiddle x)).backward.apply v);
+\definition firstBase[u: Open.Carrier Geometry.domain]: Common :=
+  \into[M.Point](Charts.point c (FirstDomain.leftCoordinate (Geometry.firstPoint u)), common) \by {
+    Logic.And[_, _]::# (FirstDomain.inRightDomain (Geometry.firstPoint u)) (DirectDomain.inRightDomain (Geometry.directPoint u))
+  };
+\definition secondBase[u: Open.Carrier Geometry.domain]: Common :=
+  \into[M.Point](Charts.point d (SecondDomain.leftCoordinate (Geometry.intermediate u)), common) \by {
+    Logic.And[_, _]::# (\bysub(M.Point, d.domain, Second.x (Geometry.intermediate u))) (SecondDomain.inRightDomain (Geometry.intermediate u))
+  };
+\definition sameBase: \forall (u: Open.Carrier Geometry.domain) -> secondBase u = firstBase u :=
+  \fun (u: Open.Carrier Geometry.domain) => Geometry.pointAgreement u;
+\definition middleAgreement: \forall (u: Open.Carrier Geometry.domain)(v: Vectors.Vector) ->
+  (Second.linear (Geometry.intermediate u)).apply v = change (firstBase u) v :=
+  \fun (u: Open.Carrier Geometry.domain)(v: Vectors.Vector) =>
+    congr!{Common {Vectors.Vector}} (\fun (x: Common) => change x v) _ _ (sameBase u);
+\definition composition: \forall (u: Open.Carrier Geometry.domain)(v: Vectors.Vector) ->
+  (Second.linear (Geometry.intermediate u)).apply ((First.linear (Geometry.firstPoint u)).apply v) = (Direct.linear (Geometry.directPoint u)).apply v :=
+  \fun (u: Open.Carrier Geometry.domain)(v: Vectors.Vector) => trans!{{Vectors.Vector}} _ _ _
+    (middleAgreement u ((First.linear (Geometry.firstPoint u)).apply v))
+    (congr!{{F (First.x (Geometry.firstPoint u))} {Vectors.Vector}} ((bundle.atlas.local k).frame (inLast (firstBase u))).forward.apply _ _
+      (((bundle.atlas.local j).frame (inMiddle (firstBase u))).leftInverse
+        (((bundle.atlas.local i).frame (First.x (Geometry.firstPoint u))).backward.apply v)));
+\definition intermediateMap: calculus.Maps[n := n, m := n].Map Geometry.domain SecondDomain.domain :=
+  BaseAtlas.Cocycle[left := c, middle := d, right := e].firstMap
+    (M.atlas.compatible c d (\bysub(Charts.Chart, M.atlas.charts, c)) (\bysub(Charts.Chart, M.atlas.charts, d)));
+
+\module Matrices;
+\module Regular;

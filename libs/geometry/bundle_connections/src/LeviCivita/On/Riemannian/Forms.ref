@@ -1,0 +1,50 @@
+\import \root.MatrixCalculus[n := n, r := n].On[U := U] \as M;
+\import \root.LeviCivita[n := n].Components[U := U] \as Components;
+\import \root.LeviCivita[n := n].Gauge[r := n, U := U] \as Gauge;
+\import \root.Forms[n := n, r := n].On[U := U] \as BundleForms;
+\import R.FiniteSums[].Linear[] \as Finite;
+\import R.FiniteSums[] \as Sums;
+\definition metricMatrix: M.Matrix0 := Musical.coefficient;
+\definition matrix: M.Matrix1 := BundleForms.Coordinates[connection := c].matrix;
+\definition row[x: Open.Carrier U][k: Index]: Finite.Map n := Finite.Data[n] {
+  apply := \fun (v: E.Vector) => (Musical.flat x).apply v k,
+  additive := \fun (v, w: E.Vector) => congr!{{E.Vector} {R.Real}} (\fun (z: E.Vector) => z k) _ _ ((Musical.flat x).preservesAdd v w),
+  homogeneous := \fun (a: R.Real)(v: E.Vector) => congr!{{E.Vector} {R.Real}} (\fun (z: E.Vector) => z k) _ _ ((Musical.flat x).preservesScale a v),
+};
+\definition lowerFormula: \forall (i, j, k: Index) -> lower c i j k =
+  Local.sum n (\fun (a: Index) => Functions.product (c.coefficient i a j) (metricMatrix k a)) :=
+  \fun (i, j, k: Index) => Functions.ext (lower c i j k)
+    (Local.sum n (\fun (a: Index) => Functions.product (c.coefficient i a j) (metricMatrix k a)))
+    (\fun (x: Open.Carrier U) => trans!{{R.Real}} _ _ _ (Finite.expansion n (row x k) (column c i j x))
+      (Sums.congruent n _ _ (\fun (a: Index) => congr!{{R.Real} {R.Real}} (R.mul (c.coefficient i a j x)) _ _ (Musical.basisFormula k a x))));
+\definition rightExtract: \forall (i, a, b: Index) -> Components.extract (M.product01 metricMatrix (matrix)) i a b = lower c i b a :=
+  \fun (i, a, b: Index) => eq_reason_in!{{Functions.Function} {Components.extract (M.product01 metricMatrix matrix) i a b}
+    "=" {Local.sum n (\fun (k: Index) => Functions.product (metricMatrix a k) (Components.extract matrix i k b))} "by" { Components.product01 metricMatrix matrix i a b }
+    "=" {Local.sum n (\fun (k: Index) => Functions.product (metricMatrix a k) (c.coefficient i k b))} "by" { Local.sumCongruent n _ _ (\fun (k: Index) => congr!{{Functions.Function} {Functions.Function}} (Functions.product (metricMatrix a k)) _ _
+      (BundleForms.Coordinates[connection := c].recover i k b)) }
+    "=" {Local.sum n (\fun (k: Index) => Functions.product (c.coefficient i k b) (metricMatrix a k))} "by" { Local.sumCongruent n _ _ (\fun (k: Index) => Functions.productCommutative (metricMatrix a k) (c.coefficient i k b)) }
+    "=" {lower c i b a} "by" { sym!{{Functions.Function}} _ _ (lowerFormula i b a) }
+  };
+\definition leftExtract: \forall (i, a, b: Index) -> Components.extract (M.product10 (Gauge.transpose1 matrix) metricMatrix) i a b = lower c i a b :=
+  \fun (i, a, b: Index) => eq_reason_in!{{Functions.Function} {Components.extract (M.product10 (Gauge.transpose1 matrix) metricMatrix) i a b}
+    "=" {Local.sum n (\fun (k: Index) => Functions.product (Components.extract matrix i k a) (metricMatrix k b))} "by" { Components.product10 (Gauge.transpose1 matrix) metricMatrix i a b }
+    "=" {Local.sum n (\fun (k: Index) => Functions.product (c.coefficient i k a) (metricMatrix b k))} "by" { Local.sumCongruent n _ _ (\fun (k: Index) => congr!{{Functions.Function} {Functions.Function} {Functions.Function}} Functions.product _ _ _ _
+      (BundleForms.Coordinates[connection := c].recover i k a) (Musical.symmetric k b)) }
+    "=" {lower c i a b} "by" { sym!{{Functions.Function}} _ _ (lowerFormula i a b) }
+  };
+\definition expression: M.Matrix1 := M.plus (M.product10 (Gauge.transpose1 (matrix)) metricMatrix) (M.product01 metricMatrix (matrix));
+\definition expressionExtract: \forall (i, a, b: Index) -> Components.extract (expression) i a b = Functions.plus (lower c i a b) (lower c i b a) :=
+  \fun (i, a, b: Index) => trans!{{Functions.Function}} _ _ _
+    (Components.add (M.product10 (Gauge.transpose1 (matrix)) metricMatrix) (M.product01 metricMatrix (matrix)) i a b)
+    (congr!{{Functions.Function} {Functions.Function} {Functions.Function}} Functions.plus _ _ _ _ (leftExtract i a b) (rightExtract i a b));
+\definition compatibility: Laws[c] -> Gauge.Compatible metricMatrix matrix :=
+  \fun (laws: Laws[c]) => Components.ext (M.dMatrix metricMatrix) expression
+    (\fun (i, a, b: Index) => trans!{{Functions.Function}} _ _ _ (Components.differential metricMatrix i a b)
+      (trans!{{Functions.Function}} _ _ _ (sym!{{Functions.Function}} _ _ (laws.compatible i a b)) (sym!{{Functions.Function}} _ _ (expressionExtract i a b))));
+\definition recoverCompatibility: Gauge.Compatible metricMatrix matrix ->
+  \forall (i, a, b: Index) -> Functions.plus (lower c i a b) (lower c i b a) = Lower.derivative i a b :=
+  \fun (regular: Gauge.Compatible metricMatrix (matrix))(i, a, b: Index) => eq_reason_in!{{Functions.Function} _
+    "=" _ "by" { sym!{{Functions.Function}} _ _ (expressionExtract i a b) }
+    "=" _ "by" { congr!{M.Matrix1 {Functions.Function}} (\fun (A: M.Matrix1) => Components.extract A i a b) _ _ (sym!{M.Matrix1} _ _ regular) }
+    "=" _ "by" { Components.differential metricMatrix i a b }
+  };

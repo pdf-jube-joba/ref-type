@@ -1,0 +1,74 @@
+\import \parent.Local[i := i] \as Source;
+\import \parent.Local[i := j] \as Target;
+\import \parent.\parent.MetricLocal[metric := metric, i := i] \as SourceMetric;
+\import \parent.\parent.MetricLocal[metric := metric, i := j] \as TargetMetric;
+\import \parent.\parent.Pair[i := i, j := j] \as Gauge;
+\definition c: \Cast[Charts.Chart] M.atlas.charts := chart i;
+\definition d: \Cast[Charts.Chart] M.atlas.charts := chart j;
+\import Charts.Transition[left := c, right := d] \as Transition;
+\import Atlas.Change[i := i, j := j] \as Change;
+\import \root.Real[n := n, r := r].Transport[U := Transition.domain, V := c.image].Restriction[included := Gauge.included] \as Restrict;
+\import \root.Real[n := n, r := r].Transport[U := Transition.domain, V := d.image].Pull[f := Gauge.map] \as Pull;
+\import \root.MatrixCalculus[n := n, r := r].On[U := Transition.domain] \as Matrices;
+\import Matrices.Associativity[] \as Algebra;
+\import Open.Smooth[].Algebra[U := Transition.domain] \as Functions;
+\import \root.LeviCivita[n := n].Gauge[r := r, U := Transition.domain] \as MetricGauge;
+\definition g: Matrices.Matrix0 := Restrict.matrix0 Source.g;
+\definition h: Matrices.Matrix0 := Pull.matrix0 Target.g;
+\definition sourceInverse: Matrices.Matrix0 := Restrict.matrix0 Source.q;
+\definition targetInverse: Matrices.Matrix0 := Pull.matrix0 Target.q;
+\module TargetAt(x: Charts.LocalPoint d);
+\definition targetForm[x: Charts.LocalPoint d]: Inner.Form := TargetAt[x := x].form;
+\definition targetComparison: \forall (u: Open.Carrier Transition.domain) -> TargetMetric.local.form (Transition.apply u) = targetForm (Change.y u) :=
+  \fun (u: Open.Carrier Transition.domain) => congr!{{Charts.LocalPoint d} {Inner.Form}} targetForm _ _ (Charts.Of[chart := d].pointCoordinate (Change.y u));
+\definition targetCoordinates: \forall (u: Open.Carrier Transition.domain)(v: E.Vector) ->
+  ((bundle.atlas.local j).frame (Change.y u)).backward.apply ((Change.linear u).apply v) = ((bundle.atlas.local i).frame (Change.x u)).backward.apply v :=
+  \fun (u: Open.Carrier Transition.domain)(v: E.Vector) => ((bundle.atlas.local j).frame (Change.y u)).leftInverse (((bundle.atlas.local i).frame (Change.x u)).backward.apply v);
+\definition isometry: \forall (u: Open.Carrier Transition.domain)(v, w: E.Vector) ->
+  (SourceMetric.local.form (Transition.leftCoordinate u)).dot v w = (TargetMetric.local.form (Transition.apply u)).dot ((Change.linear u).apply v) ((Change.linear u).apply w) :=
+  \fun (u: Open.Carrier Transition.domain)(v, w: E.Vector) => trans!{{R.Real}} _ _ _
+    (sym!{{R.Real}} _ _ (congr!{{F (Change.x u)} {F (Change.x u)} {R.Real}} (metric.form (Change.x u)).dot _ _ _ _ (targetCoordinates u v) (targetCoordinates u w)))
+    (congr!{{Inner.Form} {R.Real}} (\fun (form: Inner.Form) => form.dot ((Change.linear u).apply v) ((Change.linear u).apply w)) _ _ (sym!{{Inner.Form}} _ _ (targetComparison u)));
+\definition relationEntry: \forall (a, b: Fin.Fin r)(u: Open.Carrier Transition.domain) ->
+  MetricGauge.metric Gauge.transition h a b u = g a b u :=
+  \fun (a, b: Fin.Fin r)(u: Open.Carrier Transition.domain) => eq_reason_in!{{R.Real} _
+    "=" _ "by" { congr!{{Algebra.Numeric} {R.Real}} (\fun (A: Algebra.Numeric) => A a b) _ _
+      (Algebra.associative (Algebra.eval0 (MetricGauge.transpose0 Gauge.transition) u) (Algebra.eval0 h u) (Algebra.eval0 Gauge.transition u)) }
+    "=" _ "by" { sym!{{R.Real}} _ _ (Target.pairing (Transition.apply u) ((Change.linear u).apply (Finite.basis r a)) ((Change.linear u).apply (Finite.basis r b))) }
+    "=" _ "by" { sym!{{R.Real}} _ _ (isometry u (Finite.basis r a) (Finite.basis r b)) }
+    "=" _ "by" { Source.coefficient a b (Transition.leftCoordinate u) }
+  };
+\definition metricRelation: g = MetricGauge.metric Gauge.transition h :=
+  \axiom:funext(g, MetricGauge.metric Gauge.transition h, \fun (a: Fin.Fin r) =>
+    \axiom:funext(g a, MetricGauge.metric Gauge.transition h a, \fun (b: Fin.Fin r) =>
+      Functions.ext (g a b) (MetricGauge.metric Gauge.transition h a b) (\fun (u: Open.Carrier Transition.domain) => sym!{{R.Real}} _ _ (relationEntry a b u))));
+
+\definition sourceRight: Matrices.product00 g sourceInverse = Algebra.identity :=
+  \axiom:funext(Matrices.product00 g sourceInverse, Algebra.identity, \fun (a: Fin.Fin r) =>
+    \axiom:funext(Matrices.product00 g sourceInverse a, Algebra.identity a, \fun (b: Fin.Fin r) =>
+      Functions.ext (Matrices.product00 g sourceInverse a b) (Algebra.identity a b) (\fun (u: Open.Carrier Transition.domain) =>
+        congr!{{\root.MatrixCalculus[n := n, r := r].On[U := c.image].Matrix0} {R.Real}} (\fun (P: \root.MatrixCalculus[n := n, r := r].On[U := c.image].Matrix0) => P a b (Transition.leftCoordinate u)) _ _ Source.right)));
+
+\definition targetRight: Matrices.product00 h targetInverse = Algebra.identity :=
+  \axiom:funext(Matrices.product00 h targetInverse, Algebra.identity, \fun (a: Fin.Fin r) =>
+    \axiom:funext(Matrices.product00 h targetInverse a, Algebra.identity a, \fun (b: Fin.Fin r) =>
+      Functions.ext (Matrices.product00 h targetInverse a b) (Algebra.identity a b) (\fun (u: Open.Carrier Transition.domain) =>
+        congr!{{\root.MatrixCalculus[n := n, r := r].On[U := d.image].Matrix0} {R.Real}} (\fun (P: \root.MatrixCalculus[n := n, r := r].On[U := d.image].Matrix0) => P a b (Transition.apply u)) _ _ Target.right)));
+
+\definition targetLeft: Matrices.product00 targetInverse h = Algebra.identity :=
+  \axiom:funext(Matrices.product00 targetInverse h, Algebra.identity, \fun (a: Fin.Fin r) =>
+    \axiom:funext(Matrices.product00 targetInverse h a, Algebra.identity a, \fun (b: Fin.Fin r) =>
+      Functions.ext (Matrices.product00 targetInverse h a b) (Algebra.identity a b) (\fun (u: Open.Carrier Transition.domain) =>
+        congr!{{\root.MatrixCalculus[n := n, r := r].On[U := d.image].Matrix0} {R.Real}} (\fun (P: \root.MatrixCalculus[n := n, r := r].On[U := d.image].Matrix0) => P a b (Transition.apply u)) _ _ Target.left)));
+
+\definition sourceSymmetric: MetricGauge.transpose0 g = g :=
+  \axiom:funext(MetricGauge.transpose0 g, g, \fun (a: Fin.Fin r) =>
+    \axiom:funext(MetricGauge.transpose0 g a, g a, \fun (b: Fin.Fin r) =>
+      Functions.ext (MetricGauge.transpose0 g a b) (g a b) (\fun (u: Open.Carrier Transition.domain) =>
+        congr!{{Open.ScalarFunction c.image} {R.Real}} (\fun (f: Open.ScalarFunction c.image) => f (Transition.leftCoordinate u)) _ _ (Source.symmetry b a))));
+
+\definition targetSymmetric: MetricGauge.transpose0 h = h :=
+  \axiom:funext(MetricGauge.transpose0 h, h, \fun (a: Fin.Fin r) =>
+    \axiom:funext(MetricGauge.transpose0 h a, h a, \fun (b: Fin.Fin r) =>
+      Functions.ext (MetricGauge.transpose0 h a b) (h a b) (\fun (u: Open.Carrier Transition.domain) =>
+        congr!{{Open.ScalarFunction d.image} {R.Real}} (\fun (f: Open.ScalarFunction d.image) => f (Transition.apply u)) _ _ (Target.symmetry b a))));

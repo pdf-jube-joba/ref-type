@@ -1,0 +1,44 @@
+\import \root.MatrixCalculus[n := n, r := n].On[U := U] \as M;
+\import euclidean_forms.Euclidean[n := n].On[U := U] \as Scalar;
+\import Open.Smooth[].Algebra[U := U] \as Functions;
+\import Open.Smooth[].Derivative[].Linear[U := U] \as Derivatives;
+\import linear_algebra.Commutative[K := R.Real, scalarRing := std.Alg[].Field[].fieldAsCommutativeRing R.Real (R.Algebra[].field)] \as Spaces;
+\import Spaces.FiniteCoordinates[n := n] \as Basis;
+\import Spaces.FiniteCoordinateEnumeration[] \as Enumeration;
+\import R.FiniteSums[] \as Sums;
+\import \root.Local[n := n, r := n].On[U := U] \as Local;
+\definition one: N.Nat^ := N.Nat^::succ N.Nat^::zero;
+\definition extract[A: M.Matrix1][i, a, b: Fin.Fin n]: Functions.Function := Scalar.coefficient one (A a b) (\fun (slot: Fin.Fin one) => i);
+\definition add: \forall (A, B: M.Matrix1)(i, a, b: Fin.Fin n) -> extract (M.plus A B) i a b = Functions.plus (extract A i a b) (extract B i a b) :=
+  \fun (A, B: M.Matrix1)(i, a, b: Fin.Fin n) => Functions.ext (extract (M.plus A B) i a b) (Functions.plus (extract A i a b) (extract B i a b))
+    (\fun (x: Open.Carrier U) => \refl(R.add (extract A i a b x) (extract B i a b x)));
+\definition product01: \forall (A: M.Matrix0)(B: M.Matrix1)(i, a, b: Fin.Fin n) -> extract (M.product01 A B) i a b =
+  Local.sum n (\fun (c: Fin.Fin n) => Functions.product (A a c) (extract B i c b)) :=
+  \fun (A: M.Matrix0)(B: M.Matrix1)(i, a, b: Fin.Fin n) => Functions.ext (extract (M.product01 A B) i a b)
+    (Local.sum n (\fun (c: Fin.Fin n) => Functions.product (A a c) (extract B i c b)))
+    (\fun (x: Open.Carrier U) => M.value01 A B a b x (\fun (slot: Fin.Fin one) => Basis.vectors i));
+\definition product10: \forall (A: M.Matrix1)(B: M.Matrix0)(i, a, b: Fin.Fin n) -> extract (M.product10 A B) i a b =
+  Local.sum n (\fun (c: Fin.Fin n) => Functions.product (extract A i a c) (B c b)) :=
+  \fun (A: M.Matrix1)(B: M.Matrix0)(i, a, b: Fin.Fin n) => Functions.ext (extract (M.product10 A B) i a b)
+    (Local.sum n (\fun (c: Fin.Fin n) => Functions.product (extract A i a c) (B c b)))
+    (\fun (x: Open.Carrier U) => M.value10 A B a b x (\fun (slot: Fin.Fin one) => Basis.vectors i));
+\definition differentialBasis: \forall (f: Functions.Function)(i: Fin.Fin n)(x: Open.Carrier U) ->
+  (Open.Smooth[].Differential[].value U f x).apply (Basis.vectors i) = Derivatives.apply i f x :=
+  \fun (f: Functions.Function)(i: Fin.Fin n)(x: Open.Carrier U) => trans!{{R.Real}} _ _ _
+    (sym!{{R.Real}} _ _ (Enumeration.sumLaw n (\fun (j: Fin.Fin n) => R.mul (Derivatives.apply j f x) (Basis.vectors i j))))
+    (Basis.dualReconstruction (\fun (j: Fin.Fin n) => Derivatives.apply j f x) i);
+\definition differential: \forall (A: M.Matrix0)(i, a, b: Fin.Fin n) -> extract (M.dMatrix A) i a b = Derivatives.apply i (A a b) :=
+  \fun (A: M.Matrix0)(i, a, b: Fin.Fin n) => Functions.ext (extract (M.dMatrix A) i a b) (Derivatives.apply i (A a b))
+    (\fun (x: Open.Carrier U) => trans!{{R.Real}} _ _ _
+      (Scalar.FunctionDifferential[].law (A a b) x (\fun (slot: Fin.Fin one) => Basis.vectors i))
+      (differentialBasis (A a b) i x));
+\definition singleton: \forall (omega: Scalar.Form one)(indices: Fin.Fin one -> Fin.Fin n) ->
+  Scalar.coefficient one omega indices = Scalar.coefficient one omega (\fun (slot: Fin.Fin one) => indices (Fin.zero N.Nat^::zero)) :=
+  \fun (omega: Scalar.Form one)(indices: Fin.Fin one -> Fin.Fin n) => congr!{{Fin.Fin one -> Fin.Fin n} {Functions.Function}} (Scalar.coefficient one omega) _ _
+    (\axiom:funext(indices, (\fun (slot: Fin.Fin one) => indices (Fin.zero N.Nat^::zero)), \fun (slot: Fin.Fin one) =>
+      congr!{{Fin.Fin one} {Fin.Fin n}} indices _ _ (euclidean_forms.Euclidean[n := n].Covector[i := indices (Fin.zero N.Nat^::zero)].uniqueIndex slot)));
+\definition ext: \forall (A, B: M.Matrix1) -> (\forall (i, a, b: Fin.Fin n) -> extract A i a b = extract B i a b) -> A = B :=
+  \fun (A, B: M.Matrix1)(same: _) => \axiom:funext(A, B, \fun (a: Fin.Fin n) => \axiom:funext(A a, B a,
+    \fun (b: Fin.Fin n) => Scalar.coefficientExt one (A a b) (B a b) (\fun (indices: Fin.Fin one -> Fin.Fin n) =>
+      trans!{{Functions.Function}} _ _ _ (singleton (A a b) indices)
+        (trans!{{Functions.Function}} _ _ _ (same (indices (Fin.zero N.Nat^::zero)) a b) (sym!{{Functions.Function}} _ _ (singleton (B a b) indices))))));

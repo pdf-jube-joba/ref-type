@@ -1,0 +1,22 @@
+\import \parent.\parent.\parent.Pair[k := length, i := i, j := j] \as Term;
+\definition leftStep: \forall (a, b: Fin.Fin r) -> left (N.Nat^::succ length) a b = R.add (left length a b) (Term.Left a b u arguments) :=
+  \fun (a, b: Fin.Fin r) => trans!{{R.Real}} _ _ _
+    (Sums.congruent r _ _ (\fun (l: Fin.Fin r) => Spaces.mulAdd (Gauge.transition a l u) (source length l b) (Term.source l b u arguments)))
+    (Sums.addition r (\fun (l: Fin.Fin r) => R.mul (Gauge.transition a l u) (source length l b))
+      (\fun (l: Fin.Fin r) => R.mul (Gauge.transition a l u) (Term.source l b u arguments)));
+\definition rightStep: \forall (a, b: Fin.Fin r) -> termRight (N.Nat^::succ length) a b =
+  R.add (termRight length a b) (Sums.sum r (\fun (l: Fin.Fin r) => R.mul (Term.target a l u arguments) (Gauge.transition l b u))) :=
+  \fun (a, b: Fin.Fin r) => trans!{{R.Real}} _ _ _
+    (Sums.congruent r _ _ (\fun (l: Fin.Fin r) => Spaces.addMul (target length a l) (Term.target a l u arguments) (Gauge.transition l b u)))
+    (Sums.addition r (\fun (l: Fin.Fin r) => R.mul (target length a l) (Gauge.transition l b u))
+      (\fun (l: Fin.Fin r) => R.mul (Term.target a l u arguments) (Gauge.transition l b u)));
+\definition law: \forall (a, b: Fin.Fin r) -> left (N.Nat^::succ length) a b = right (N.Nat^::succ length) a b :=
+  \fun (a, b: Fin.Fin r) => eq_reason_in!{{R.Real} _
+    "=" _ "by" { leftStep a b }
+    "=" _ "by" { congr!{{R.Real} {R.Real} {R.Real}} R.add _ _ _ _ (previous a b) (Term.law a b u arguments) }
+    "=" _ "by" { ArithmeticLaws.addFour (R.mul (weight length) (derivative a b)) (termRight length a b)
+      (R.mul (Term.weight u) (derivative a b)) (Sums.sum r (\fun (l: Fin.Fin r) => R.mul (Term.target a l u arguments) (Gauge.transition l b u))) }
+    "=" _ "by" { congr!{{R.Real} {R.Real} {R.Real}} R.add _ _ _ _
+      (sym!{{R.Real}} _ _ (Spaces.addMul (weight length) (Term.weight u) (derivative a b)))
+      (sym!{{R.Real}} _ _ (rightStep a b)) }
+  };

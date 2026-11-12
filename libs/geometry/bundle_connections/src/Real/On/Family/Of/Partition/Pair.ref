@@ -1,0 +1,32 @@
+\import \parent.\parent.Pair[i := i, j := j] \as Gauge;
+\definition c: \Cast[Charts.Chart] M.atlas.charts := chart i;
+\definition d: \Cast[Charts.Chart] M.atlas.charts := chart j;
+\definition e: \Cast[Charts.Chart] M.atlas.charts := chart (indices k);
+\import Charts.Transition[left := c, right := d] \as Transition;
+\import \parent.\parent.Triple[i := i, j := j, k := indices k] \as Triple;
+\import Charts.Cocycle[left := c, middle := d, right := e] \as Geometry;
+\import Charts.Transition[left := c, right := e] \as DirectDomain;
+\import Charts.Transition[left := d, right := e] \as SecondDomain;
+\import Euclidean.Pullback[m := n, U := Transition.domain, V := d.image, f := Gauge.map] \as Pull;
+\import \root.MatrixCalculus[n := n, r := r].On[U := Transition.domain] \as Matrices;
+\import R.FiniteSums[] \as Sums;
+\import Spaces.Laws[V := R.Real, space := Spaces.scalarSpace] \as RealLaws;
+\use Equality.eq_reason_in;
+\definition weight[u: Open.Carrier Transition.domain]: R.Real := partition.functions k (Charts.point c (Transition.leftCoordinate u));
+\definition source[a, b: Fin.Fin r][u: Open.Carrier Transition.domain][arguments: Multilinear.Arguments one]: R.Real :=
+  \parent.Term[k := k, j := i, a := a, b := b].value (Transition.leftCoordinate u) arguments;
+\definition target[a, b: Fin.Fin r][u: Open.Carrier Transition.domain][arguments: Multilinear.Arguments one]: R.Real :=
+  \parent.Term[k := k, j := j, a := a, b := b].value (Transition.apply u)
+    (\fun (q: Fin.Fin one) => (Pull.jacobian u).apply (arguments q));
+\definition Left[a, b: Fin.Fin r][u: Open.Carrier Transition.domain][arguments: Multilinear.Arguments one]: R.Real :=
+  Sums.sum r (\fun (l: Fin.Fin r) => R.mul (Gauge.transition a l u) (source l b u arguments));
+\definition Right[a, b: Fin.Fin r][u: Open.Carrier Transition.domain][arguments: Multilinear.Arguments one]: R.Real :=
+  R.add (R.mul (weight u) (Matrices.dMatrix Gauge.transition a b u arguments))
+    (Sums.sum r (\fun (l: Fin.Fin r) => R.mul (target a l u arguments) (Gauge.transition l b u)));
+\module Inside(u: Open.Carrier Transition.domain, inside: Charts.Contains e (Charts.point c (Transition.leftCoordinate u)));
+\module Outside(u: Open.Carrier Transition.domain, outside: Logic.Not (Charts.Contains e (Charts.point c (Transition.leftCoordinate u))));
+\definition law: \forall (a, b: Fin.Fin r)(u: Open.Carrier Transition.domain)(arguments: Multilinear.Arguments one) -> Left a b u arguments = Right a b u arguments :=
+  \fun (a, b: Fin.Fin r)(u: Open.Carrier Transition.domain)(arguments: Multilinear.Arguments one) =>
+    either!{{Classical.excludedMiddle (Charts.Contains e (Charts.point c (Transition.leftCoordinate u)))} {Left a b u arguments = Right a b u arguments}
+      {\fun (inside: _) => Inside[u := u, inside := inside].law a b arguments}
+      {\fun (outside: _) => Outside[u := u, outside := outside].law a b arguments}};

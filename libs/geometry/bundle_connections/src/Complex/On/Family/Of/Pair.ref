@@ -1,0 +1,44 @@
+\import Underlying.Pair[i := i, j := j] \as Gauge;
+\import Charts.Transition[left := chart i, right := chart j] \as Transition;
+\import Atlas.Change[i := i, j := j] \as Change;
+\import \root.Complex[n := n, r := r].Structure[] \as ComplexStructure;
+\import ComplexStructure.On[U := Transition.domain] \as Structure;
+\import \root.MatrixCalculus[n := n, r := realRank].On[U := Transition.domain] \as Matrices;
+\import Open.Smooth[].Algebra[U := Transition.domain] \as Functions;
+\import R.FiniteSums[].Linear[] \as Finite;
+\definition commutation: Matrices.product00 Gauge.transition Structure.matrix = Matrices.product00 Structure.matrix Gauge.transition :=
+  \axiom:funext(Matrices.product00 Gauge.transition Structure.matrix, Matrices.product00 Structure.matrix Gauge.transition, \fun (a: Fin.Fin realRank) =>
+    \axiom:funext(Matrices.product00 Gauge.transition Structure.matrix a, Matrices.product00 Structure.matrix Gauge.transition a, \fun (b: Fin.Fin realRank) =>
+      Functions.ext (Matrices.product00 Gauge.transition Structure.matrix a b) (Matrices.product00 Structure.matrix Gauge.transition a b)
+        (\fun (u: Open.Carrier Transition.domain) => eq_reason_in!{{R.Real} _
+          "=" _ "by" { sym!{{R.Real}} _ _ (Structure.evaluate (ComplexStructure.realify (Change.matrix u)) (ComplexStructure.J.apply (Finite.basis realRank b)) a) }
+          "=" _ "by" { congr!{{RealVectors.Vector} {R.Real}} (\fun (v: RealVectors.Vector) => v a) _ _ (ComplexStructure.commutes (Change.matrix u) (Finite.basis realRank b)) }
+          "=" _ "by" { Structure.evaluate ComplexStructure.J ((ComplexStructure.realify (Change.matrix u)).apply (Finite.basis realRank b)) a }
+        })));
+\import \root.ComplexMatrices[n := n, r := r].On[U := Transition.domain] \as ComplexMatrices;
+\import ComplexMatrices.Recovery[] \as Recovery;
+\import ComplexMatrices.Numeric[] \as Numeric;
+\import Spaces.FiniteCoordinates[n := r] \as Standard;
+\import \root.ComplexMetric[n := n, r := r].On[U := Transition.domain] \as ComplexFunctions;
+\import smooth_bundles.ComplexCalculus[n := n].On[U := Transition.domain] \as ComplexCalculus;
+\definition complexTransition[a, b: Fin.Fin r]: ComplexFunctions.Function := \into[ComplexCalculus.Function]
+  ((\fun (u: Open.Carrier Transition.domain) => (Change.matrix u).apply (Standard.vectors b) a), ComplexFunctions.Function) \by {
+    Change.fromReal (bundle.regular i j) (Standard.vectors b) a
+  };
+\definition recoveredTransition: Recovery.recover0 Gauge.transition = complexTransition :=
+  \axiom:funext(Recovery.recover0 Gauge.transition, complexTransition, \fun (a: Fin.Fin r) =>
+    \axiom:funext(Recovery.recover0 Gauge.transition a, complexTransition a, \fun (b: Fin.Fin r) =>
+      \axiom:funext(Recovery.recover0 Gauge.transition a b, complexTransition a b, \fun (u: Open.Carrier Transition.domain) => eq_reason_in!{{C.Complex} _
+        "=" _ "by" { congr!{{ComplexMatrices.Algebra[].Numeric} {C.Complex}} (\fun (A: ComplexMatrices.Algebra[].Numeric) => A a b) _ _ (Recovery.eval0 Gauge.transition u) }
+        "=" _ "by" { congr!{{RealVectors.Vector} {C.Complex}} (\fun (v: RealVectors.Vector) => Coordinates.decode v a) _ _
+          (sym!{{RealVectors.Vector}} _ _ (Numeric.realExpansion (ComplexStructure.realify (Change.matrix u)) (Coordinates.encode (Standard.vectors b)))) }
+        "=" _ "by" { congr!{{Vectors.Vector} {C.Complex}} (\fun (v: Vectors.Vector) => v a) _ _ (Coordinates.decodeEncode ((Change.matrix u).apply (Coordinates.decode (Coordinates.encode (Standard.vectors b))))) }
+        "=" _ "by" { congr!{{Vectors.Vector} {C.Complex}} (\fun (v: Vectors.Vector) => (Change.matrix u).apply v a) _ _ (Coordinates.decodeEncode (Standard.vectors b)) }
+      })));
+
+\import \root.ComplexMatrices[n := n, r := r].Transport[U := Transition.domain, V := (chart i).image].Restriction[included := Gauge.included] \as ComplexRestrict;
+\import \root.ComplexMatrices[n := n, r := r].Transport[U := Transition.domain, V := (chart j).image].Pull[f := Gauge.map] \as ComplexPull;
+\definition sourceComplex[A: ComplexLocal i]: ComplexMatrices.Matrix1 := ComplexRestrict.matrix1 A;
+\definition targetComplex[B: ComplexLocal j]: ComplexMatrices.Matrix1 := ComplexPull.matrix1 B;
+\definition ComplexCompatible[A: ComplexLocal i][B: ComplexLocal j]: \Prop :=
+  ComplexMatrices.product01 complexTransition (sourceComplex A) = ComplexMatrices.plus (ComplexMatrices.dMatrix complexTransition) (ComplexMatrices.product10 (targetComplex B) complexTransition);

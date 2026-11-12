@@ -1,0 +1,27 @@
+\import \root.TensorIndex[r := r, s := s].Using[enumeration := enumeration] \as Index;
+\import \root.MatrixCalculus[n := n, r := Index.rank].On[U := U] \as Target;
+\import Target.Associativity[] \as Algebra;
+\import Left.Associativity[] \as LeftAlgebra;
+\import Right.Associativity[] \as RightAlgebra;
+\import \parent.Numeric[] \as Numeric;
+\import Spaces.Coordinates[I := Fin.Fin n] \as Vectors;
+\import Spaces.Multilinear[V := Vectors.Vector, space := Vectors.space] \as Multilinear;
+\definition embed[A: Numeric.Matrix][a, b: Fin.Fin Index.rank]: R.Real := A (Index.row a) (Index.col a) (Index.row b) (Index.col b);
+\definition product: \forall (A, B: Numeric.Matrix) -> Algebra.product (embed A) (embed B) = embed (Numeric.product A B) :=
+  \fun (A, B: Numeric.Matrix) => Algebra.numericExt (Algebra.product (embed A) (embed B)) (embed (Numeric.product A B))
+    (\fun (a, b: Fin.Fin Index.rank) => Index.sum (\fun (i: Fin.Fin r)(j: Fin.Fin s) => R.mul (A (Index.row a) (Index.col a) i j) (B i j (Index.row b) (Index.col b))));
+\definition tensor0[A: Left.Matrix0][B: Right.Matrix0][a, b: Fin.Fin Index.rank]: Functions.Function :=
+  Functions.product (A (Index.row a) (Index.row b)) (B (Index.col a) (Index.col b));
+\definition tensor01[A: Left.Matrix0][B: Right.Matrix1][a, b: Fin.Fin Index.rank]: Forms.Form one :=
+  Covectors.multiply (A (Index.row a) (Index.row b)) (B (Index.col a) (Index.col b));
+\definition tensor10[A: Left.Matrix1][B: Right.Matrix0][a, b: Fin.Fin Index.rank]: Forms.Form one :=
+  Covectors.multiply (B (Index.col a) (Index.col b)) (A (Index.row a) (Index.row b));
+\definition lift[A: Left.Matrix1][B: Right.Matrix1]: Target.Matrix1 := Target.plus (tensor10 A RightAlgebra.identity) (tensor01 LeftAlgebra.identity B);
+\definition differential: \forall (A: Left.Matrix0)(B: Right.Matrix0) -> Target.dMatrix (tensor0 A B) = Target.plus (tensor10 (Left.dMatrix A) B) (tensor01 A (Right.dMatrix B)) :=
+  \fun (A: Left.Matrix0)(B: Right.Matrix0) => \axiom:funext(Target.dMatrix (tensor0 A B), Target.plus (tensor10 (Left.dMatrix A) B) (tensor01 A (Right.dMatrix B)),
+    \fun (a: Fin.Fin Index.rank) => \axiom:funext(Target.dMatrix (tensor0 A B) a, Target.plus (tensor10 (Left.dMatrix A) B) (tensor01 A (Right.dMatrix B)) a,
+      \fun (b: Fin.Fin Index.rank) => Target.dProduct (A (Index.row a) (Index.row b)) (B (Index.col a) (Index.col b))));
+\module At(x: Open.Carrier U, v: Multilinear.Arguments one);
+\module Gauge(T: Left.Matrix0, A, C: Left.Matrix1, S: Right.Matrix0, B, D: Right.Matrix1,
+  first: Left.product01 T A = Left.plus (Left.dMatrix T) (Left.product10 C T),
+  second: Right.product01 S B = Right.plus (Right.dMatrix S) (Right.product10 D S));

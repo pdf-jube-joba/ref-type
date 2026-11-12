@@ -1,0 +1,15 @@
+\module At(chart: Original.Chart);
+\definition data: Connections.Data := \fun (chart: Original.Chart) => At[chart := chart].formConnection;
+\module Pair(i, j: Original.Chart);
+\definition compatible: Connections.Compatible data := \fun (i, j: Original.Chart)(a, b: Fin.Fin n) =>
+  congr!{{\root.MatrixCalculus[n := n, r := n].On[U := manifolds.Dimension[n := n].Chart[M := M.Point, space := M.space].Transition[left := i, right := j].domain].Matrix1} {euclidean_forms.Euclidean[n := n].On[U := manifolds.Dimension[n := n].Chart[M := M.Point, space := M.space].Transition[left := i, right := j].domain].Form (N.Nat^::succ N.Nat^::zero)}}
+    (\fun (A: _) => A a b) _ _ (Pair[i := i, j := j].law);
+\definition connection: Connections.Connection := \into[Connections.Data](data, { d: Connections.Data \where Connections.Compatible d }) \by { compatible };
+\module Local(chart: Original.Chart, c: Connections.LocalConnection chart);
+\definition Laws[c: Connections.Connection]: \Prop := \forall (chart: Original.Chart) -> Local[chart := chart, c := c chart].Laws;
+\definition unique: \forall (c: Connections.Connection) -> Laws c -> c = connection :=
+  \fun (c: Connections.Connection)(laws: Laws c) => Connections.ext c connection (\fun (chart: Original.Chart) => Local[chart := chart, c := c chart].unique (laws chart));
+\definition laws: Laws connection := \fun (chart: Original.Chart) => At[chart := chart].recoveredLaws;
+\definition LeviCivitaConnection: \Set := \Cast[Connections.Connection] ({ c: Connections.Connection \where Laws c });
+\definition value: LeviCivitaConnection := \into[Connections.Connection](connection, { c: Connections.Connection \where Laws c }) \by { laws };
+\definition exists: \exists LeviCivitaConnection := \exact(value, LeviCivitaConnection);

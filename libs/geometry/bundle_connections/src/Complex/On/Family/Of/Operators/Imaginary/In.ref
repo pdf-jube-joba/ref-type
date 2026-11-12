@@ -1,0 +1,24 @@
+\import \root.Complex[n := n, r := r].Structure[] \as Structure;
+\import Structure.On[U := (chart i).image] \as J;
+\import \root.MatrixCalculus[n := n, r := realRank].On[U := (chart i).image] \as Matrices;
+\import Open.Smooth[].Algebra[U := (chart i).image] \as Functions;
+\definition transformed: Matrices.Matrix0 := Matrices.product00 J.matrix (RealOperators.sectionMatrix s i);
+\definition coordinate: \forall (u: Open.Carrier (chart i).image) ->
+  (\fun (a: Fin.Fin realRank) => Sections.coefficient data i a u) = Structure.J.apply (\fun (a: Fin.Fin realRank) => Sections.coefficient s i a u) :=
+  \fun (u: Open.Carrier (chart i).image) => eq_reason_in!{{RealVectors.Vector} _
+    "=" _ "by" { congr!{{Vectors.Vector} {RealVectors.Vector}} Coordinates.encode _ _
+      (((bundle.atlas.local i).frame (Charts.point (chart i) u)).forward.preservesScale Op.i (s.value (Charts.point (chart i) u))) }
+    "=" _ "by" { congr!{{Vectors.Vector} {RealVectors.Vector}} (\fun (v: Vectors.Vector) => Coordinates.encode (Vectors.scale Op.i v)) _ _
+      (sym!{{Vectors.Vector}} _ _ (Coordinates.decodeEncode (((bundle.atlas.local i).frame (Charts.point (chart i) u)).forward.apply (s.value (Charts.point (chart i) u))))) }
+  };
+\definition formula: \forall (a: Fin.Fin realRank)(u: Open.Carrier (chart i).image) -> Sections.coefficient data i a u = transformed a a u :=
+  \fun (a: Fin.Fin realRank)(u: Open.Carrier (chart i).image) => trans!{{R.Real}} _ _ _
+    (congr!{{RealVectors.Vector} {R.Real}} (\fun (v: RealVectors.Vector) => v a) _ _ (coordinate u))
+    (J.evaluate Structure.J (\fun (b: Fin.Fin realRank) => Sections.coefficient s i b u) a);
+\definition regular: \forall (a: Fin.Fin realRank) -> Open.Smooth[].SmoothOn (chart i).image (Sections.coefficient data i a) :=
+  \fun (a: Fin.Fin realRank) => \idelim (\fun (u: Open.Carrier (chart i).image) => transformed a a u) = Sections.coefficient data i a
+    \with f: Open.ScalarFunction (chart i).image => Open.Smooth[].SmoothOn (chart i).image f \by {
+      base: \bysub(Open.ScalarFunction (chart i).image, Functions.Predicate, transformed a a),
+      equality: \axiom:funext((\fun (u: Open.Carrier (chart i).image) => transformed a a u), Sections.coefficient data i a,
+        \fun (u: Open.Carrier (chart i).image) => sym!{{R.Real}} _ _ (formula a u))
+    };

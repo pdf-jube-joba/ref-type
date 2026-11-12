@@ -1,0 +1,41 @@
+\import std.Data[].Nat[] \as N;
+\import std.Data[].FinSet[] \as Fin;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.trans;
+\use Equality.congr;
+\definition zero: N.Nat^ := N.Nat^::zero;
+\definition one: N.Nat^ := N.Nat^::succ zero;
+\import real.Analysis[] \as R;
+\import manifolds.Dimension[n := zero].Examples[].Euclidean[] \as Base;
+\import smooth_bundles.Real[n := zero, r := zero].On[M := Base.smoothManifold].Trivial[] \as RealTrivial;
+\import linear_algebra.Euclidean[n := zero] \as Empty;
+\import \root.Real[n := zero, r := zero].On[M := Base.smoothManifold].Family[F := \fun (x: calculus.Real[].Multivariable[n := zero].Point) => Empty.Vector,
+  space := \fun (x: calculus.Real[].Multivariable[n := zero].Point) => Empty.space].Of[I := RealTrivial.Index, bundle := RealTrivial.bundle] \as RealBundle;
+\definition realZeroRank: \exists RealBundle.Connection := RealBundle.existsConnection;
+\import smooth_bundles.Complex[n := zero, r := zero] \as ComplexModel;
+\import ComplexModel.On[M := Base.smoothManifold].Trivial[] \as ComplexTrivial;
+\import \root.Complex[n := zero, r := zero].On[M := Base.smoothManifold].Family[F := \fun (x: calculus.Real[].Multivariable[n := zero].Point) => ComplexModel.Vector,
+  space := \fun (x: calculus.Real[].Multivariable[n := zero].Point) => ComplexModel.coordinates].Of[I := RealTrivial.Index, bundle := ComplexTrivial.bundle] \as ComplexBundle;
+\definition complexZeroRank: \exists ComplexBundle.Connection := ComplexBundle.existsConnection;
+\import calculus.Real[].Multivariable[n := one].Open[] \as Open;
+\import Open.Smooth[].Algebra[U := Open.whole] \as Functions;
+\import Open.Smooth[].Derivative[].Linear[U := Open.whole] \as Derivatives;
+\import \root.Local[n := one, r := one].On[U := Open.whole] \as Local;
+\definition index: Fin.Fin one := Fin.zero zero;
+\definition constantConnection: Local.Connection := Local.Connection {
+  coefficient := \fun (i, a, b: Fin.Fin one) => Functions.constant R.one,
+};
+\definition unit: Local.Section := \fun (a: Fin.Fin one) => Functions.constant R.one;
+\import Local.Of[connection := constantConnection] \as Operator;
+\import dedekind_reals.DedekindReal[].Arithmetic[].Prop[] \as Laws;
+\definition unitDerivative: Operator.partial index unit index = Functions.constant R.one :=
+  trans!{{Functions.Function}} _ _ _
+    (congr!{{Functions.Function} {Functions.Function}} (\fun (f: Functions.Function) => Functions.plus f (Operator.correction index unit index)) _ _ (Derivatives.constant index R.one))
+    (Functions.ext (Functions.plus Functions.origin (Operator.correction index unit index)) (Functions.constant R.one)
+      (\fun (x: Open.Carrier Open.whole) => trans!{{R.Real}} _ _ _ (Laws.addZeroLeft (R.add (R.mul R.one R.one) R.zero))
+        (trans!{{R.Real}} _ _ _ (Laws.addZeroRight (R.mul R.one R.one)) (Laws.fieldMulOneLeft R.one))));
+\definition constantFlat: Local.Of[connection := Local.flat].partial index unit = (\fun (a: Fin.Fin one) => Functions.origin) :=
+  Local.Flat[].constantParallel index (\fun (a: Fin.Fin one) => R.one);
+\import \root.Metric[n := one, r := one].On[U := Open.whole].Standard[] \as Metric;
+\definition euclideanLeviCivita: \root.LeviCivita[n := one].On[U := Open.whole].Riemannian[metric := Metric.metric].connection = Local.flat :=
+  \root.LeviCivita[n := one].On[U := Open.whole].Euclidean[].flat;

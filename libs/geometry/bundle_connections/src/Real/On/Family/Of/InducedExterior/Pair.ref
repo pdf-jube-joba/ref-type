@@ -1,0 +1,47 @@
+\use Equality.eq_reason_in;
+\import \parent.\parent.Pair[i := i, j := j] \as Old;
+\import Result.Pair[i := i, j := j] \as New;
+\import Charts.Transition[left := chart i, right := chart j] \as Domain;
+\import Alternating.Change[i := i, j := j] \as Change;
+\import DualBundle.Reverse[i := i, j := j] \as Reverse;
+\import tangent_bundles.FrameBundle[n := n, r := r].Over[M := M].Family[F := F, space := space].Using[I := I, data := bundle.atlas].Change[i := i, j := j] \as Original;
+\import Spaces.FiniteCoordinates[n := r] \as Standard;
+\import Spaces.Coordinates[I := Fin.Fin r] \as Vectors;
+\import Spaces.Sums[I := Fin.Fin r].Prop[] \as Sums;
+\import \root.Metric[n := n, r := r].Basis[] \as BasisComparison;
+\import \root.ExteriorGauge[n := n, r := r].On[U := Domain.domain].At[k := k, enumeration := enumeration] \as Gauge;
+\import Open.Smooth[].Algebra[U := Domain.domain] \as Functions;
+\definition reverse: \forall (a, b: Fin.Fin r)(u: Open.Carrier Domain.domain) -> (Reverse.backward u).apply (Standard.vectors a) b = Old.transition a b u :=
+  \fun (a, b: Fin.Fin r)(u: Open.Carrier Domain.domain) => eq_reason_in!{{R.Real} _
+    "=" _ "by" { Dual.In[i := j, x := Original.y u].evaluation (Standard.vectors a) (((bundle.atlas.local i).frame (Original.x u)).backward.apply (Standard.vectors b)) }
+    "=" _ "by" { Sums.congruent (Fin.elements r)
+      (\fun (l: Fin.Fin r) => R.mul (Standard.vectors a l) ((Original.linear u).apply (Standard.vectors b) l))
+      (\fun (l: Fin.Fin r) => R.mul ((Original.linear u).apply (Standard.vectors b) l) (Standard.vectors a l))
+      (\fun (l: Fin.Fin r) => Spaces.mulComm (Standard.vectors a l) ((Original.linear u).apply (Standard.vectors b) l)) }
+    "=" _ "by" { Standard.dualReconstruction ((Original.linear u).apply (Standard.vectors b)) a }
+    "=" _ "by" { congr!{{Vectors.Vector} {R.Real}} (\fun (v: Vectors.Vector) => (Original.linear u).apply v a) _ _ (sym!{{Vectors.Vector}} _ _ (BasisComparison.equal b)) }
+  };
+\import Spaces.Sums[I := Fin.Fin Exterior.rank].Prop[] \as RankSums;
+\import Spaces.FiniteCoordinates[n := Exterior.rank] \as RankBasis;
+\import \root.Metric[n := n, r := Exterior.rank].Basis[] \as RankComparison;
+\import InducedOperations.ExteriorIndices[n := r, k := k] \as Indices;
+\import InducedOperations.FiniteIndex[A := Indices.Tuple, S := Indices.set, enumeration := enumeration] \as Coordinates;
+\import Spaces.Multilinear[V := Vectors.Vector, space := Vectors.space] \as Multilinear;
+\definition arguments: \forall (a: Fin.Fin Exterior.rank)(u: Open.Carrier Domain.domain) ->
+  Change.arguments a u = Gauge.arguments Old.transition a u :=
+  \fun (a: Fin.Fin Exterior.rank)(u: Open.Carrier Domain.domain) =>
+    \axiom:funext(Change.arguments a u, Gauge.arguments Old.transition a u, \fun (slot: Fin.Fin k) =>
+      \axiom:funext(Change.arguments a u slot, Gauge.arguments Old.transition a u slot, \fun (c: Fin.Fin r) => reverse (Coordinates.enumerate a slot) c u));
+\definition transition: New.transition = Gauge.representation Old.transition :=
+  \axiom:funext(New.transition, Gauge.representation Old.transition, \fun (a: Fin.Fin Exterior.rank) =>
+    \axiom:funext(New.transition a, Gauge.representation Old.transition a, \fun (b: Fin.Fin Exterior.rank) =>
+      Functions.ext (New.transition a b) (Gauge.representation Old.transition a b) (\fun (u: Open.Carrier Domain.domain) => eq_reason_in!{{R.Real} _
+        "=" _ "by" { Change.formula a b u }
+        "=" _ "by" { RankSums.congruent (Fin.elements Exterior.rank)
+          (\fun (c: Fin.Fin Exterior.rank) => R.mul (R.FiniteSums[].Linear[].basis Exterior.rank b c) (Change.word c (Change.arguments a u)))
+          (\fun (c: Fin.Fin Exterior.rank) => R.mul (Change.word c (Change.arguments a u)) (RankBasis.vectors b c))
+          (\fun (c: Fin.Fin Exterior.rank) => trans!{{R.Real}} _ _ _ (Spaces.mulComm (R.FiniteSums[].Linear[].basis Exterior.rank b c) (Change.word c (Change.arguments a u)))
+            (congr!{{Fin.Fin Exterior.rank -> R.Real} {R.Real}} (\fun (v: Fin.Fin Exterior.rank -> R.Real) => R.mul (Change.word c (Change.arguments a u)) (v c)) _ _ (RankComparison.equal b))) }
+        "=" _ "by" { RankBasis.dualReconstruction (\fun (c: Fin.Fin Exterior.rank) => Change.word c (Change.arguments a u)) b }
+        "=" _ "by" { congr!{{Multilinear.Arguments k} {R.Real}} (Change.word b) _ _ (arguments a u) }
+      })));

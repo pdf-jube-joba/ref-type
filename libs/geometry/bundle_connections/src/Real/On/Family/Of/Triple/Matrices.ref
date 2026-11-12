@@ -1,0 +1,80 @@
+\import \root.MatrixCalculus[n := n, r := r].On[U := Geometry.domain] \as Algebra;
+\import Open.Smooth[].Algebra[U := Geometry.domain] \as Functions;
+\import \parent.\parent.Pair[i := i, j := j] \as FirstGauge;
+\import \parent.\parent.Pair[i := j, j := k] \as SecondGauge;
+\import \parent.\parent.Pair[i := i, j := k] \as DirectGauge;
+\import Bundle.Reverse[i := i, j := k] \as DirectReverse;
+\import Bundle.Reverse[i := j, j := k] \as SecondReverse;
+\import Open.Smooth[].Algebra[U := SecondDomain.domain] \as SecondFunctions;
+\import Euclidean.Pullback[m := n, U := Geometry.domain, V := SecondDomain.domain, f := intermediateMap] \as Pull;
+\import R.FiniteSums[].Linear[] \as Finite;
+\import R.FiniteSums[] \as Sums;
+\definition first[a, b: Fin.Fin r]: Functions.Function :=
+  \into[Open.ScalarFunction Geometry.domain]((\fun (u: Open.Carrier Geometry.domain) => FirstGauge.transition a b (Geometry.firstPoint u)), Functions.Predicate) \by {
+    Open.Restriction[].localSmooth Geometry.domain FirstDomain.domain Geometry.firstIncluded (FirstGauge.transition a b) (bundle.regular i j a b)
+  };
+\definition second[a, b: Fin.Fin r]: Functions.Function := Pull.DegreeZero[].compose (SecondGauge.transition a b);
+\definition direct[a, b: Fin.Fin r]: Functions.Function :=
+  \into[Open.ScalarFunction Geometry.domain]((\fun (u: Open.Carrier Geometry.domain) => DirectGauge.transition a b (Geometry.directPoint u)), Functions.Predicate) \by {
+    Open.Restriction[].localSmooth Geometry.domain DirectDomain.domain Geometry.directIncluded (DirectGauge.transition a b) (bundle.regular i k a b)
+  };
+\definition inverseDirect[a, b: Fin.Fin r]: Functions.Function :=
+  \into[Open.ScalarFunction Geometry.domain]((\fun (u: Open.Carrier Geometry.domain) => (DirectReverse.backward (Geometry.directPoint u)).apply (Finite.basis r b) a), Functions.Predicate) \by {
+    Open.Restriction[].localSmooth Geometry.domain DirectDomain.domain Geometry.directIncluded
+      (\fun (u: Open.Carrier DirectDomain.domain) => (DirectReverse.backward u).apply (Finite.basis r b) a)
+      (DirectReverse.evaluate (Finite.basis r b) a)
+  };
+\definition localInverseSecond[a, b: Fin.Fin r]: SecondFunctions.Function :=
+  \into[Open.ScalarFunction SecondDomain.domain]((\fun (u: Open.Carrier SecondDomain.domain) => (SecondReverse.backward u).apply (Finite.basis r b) a), SecondFunctions.Predicate) \by {
+    SecondReverse.evaluate (Finite.basis r b) a
+  };
+\definition inverseSecond[a, b: Fin.Fin r]: Functions.Function := Pull.DegreeZero[].compose (localInverseSecond a b);
+\definition output[f: Linear.Map][a: Fin.Fin r]: Finite.Map r := Finite.Data[r] {
+  apply := \fun (v: Vectors.Vector) => f.apply v a,
+  additive := \fun (v, w: Vectors.Vector) => congr!{{Vectors.Vector} {R.Real}} (\fun (z: Vectors.Vector) => z a) _ _ (f.preservesAdd v w),
+  homogeneous := \fun (t: R.Real)(v: Vectors.Vector) => congr!{{Vectors.Vector} {R.Real}} (\fun (z: Vectors.Vector) => z a) _ _ (f.preservesScale t v)
+};
+\definition evaluate: \forall (f: Linear.Map)(v: Vectors.Vector)(a: Fin.Fin r) ->
+  f.apply v a = Sums.sum r (\fun (b: Fin.Fin r) => R.mul (f.apply (Finite.basis r b) a) (v b)) :=
+  \fun (f: Linear.Map)(v: Vectors.Vector)(a: Fin.Fin r) => trans!{{R.Real}} _ _ _ (Finite.expansion r (output f a) v)
+    (Sums.congruent r _ _ (\fun (b: Fin.Fin r) => Spaces.mulComm (v b) (f.apply (Finite.basis r b) a)));
+\definition product: Algebra.product00 second first = direct :=
+  \axiom:funext(Algebra.product00 second first, direct, \fun (a: Fin.Fin r) =>
+    \axiom:funext(Algebra.product00 second first a, direct a, \fun (b: Fin.Fin r) => Functions.ext (Algebra.product00 second first a b) (direct a b)
+      (\fun (u: Open.Carrier Geometry.domain) => trans!{{R.Real}} _ _ _
+        (sym!{{R.Real}} _ _ (evaluate (Second.linear (Geometry.intermediate u)) ((First.linear (Geometry.firstPoint u)).apply (Finite.basis r b)) a))
+        (congr!{{Vectors.Vector} {R.Real}} (\fun (v: Vectors.Vector) => v a) _ _ (composition u (Finite.basis r b))))));
+\definition identity[a, b: Fin.Fin r]: Functions.Function := Functions.constant (Finite.basis r b a);
+\definition directLeft: Algebra.product00 inverseDirect direct = identity :=
+  \axiom:funext(Algebra.product00 inverseDirect direct, identity, \fun (a: Fin.Fin r) =>
+    \axiom:funext(Algebra.product00 inverseDirect direct a, identity a, \fun (b: Fin.Fin r) => Functions.ext (Algebra.product00 inverseDirect direct a b) (identity a b)
+      (\fun (u: Open.Carrier Geometry.domain) => trans!{{R.Real}} _ _ _
+        (sym!{{R.Real}} _ _ (evaluate (DirectReverse.backward (Geometry.directPoint u)) ((Direct.linear (Geometry.directPoint u)).apply (Finite.basis r b)) a))
+        (congr!{{Vectors.Vector} {R.Real}} (\fun (v: Vectors.Vector) => v a) _ _ (DirectReverse.left (Geometry.directPoint u) (Finite.basis r b))))));
+\definition directRight: Algebra.product00 direct inverseDirect = identity :=
+  \axiom:funext(Algebra.product00 direct inverseDirect, identity, \fun (a: Fin.Fin r) =>
+    \axiom:funext(Algebra.product00 direct inverseDirect a, identity a, \fun (b: Fin.Fin r) => Functions.ext (Algebra.product00 direct inverseDirect a b) (identity a b)
+      (\fun (u: Open.Carrier Geometry.domain) => trans!{{R.Real}} _ _ _
+        (sym!{{R.Real}} _ _ (evaluate (Direct.linear (Geometry.directPoint u)) ((DirectReverse.backward (Geometry.directPoint u)).apply (Finite.basis r b)) a))
+        (congr!{{Vectors.Vector} {R.Real}} (\fun (v: Vectors.Vector) => v a) _ _ (DirectReverse.right (Geometry.directPoint u) (Finite.basis r b))))));
+\definition secondLeft: Algebra.product00 inverseSecond second = identity :=
+  \axiom:funext(Algebra.product00 inverseSecond second, identity, \fun (a: Fin.Fin r) =>
+    \axiom:funext(Algebra.product00 inverseSecond second a, identity a, \fun (b: Fin.Fin r) => Functions.ext (Algebra.product00 inverseSecond second a b) (identity a b)
+      (\fun (u: Open.Carrier Geometry.domain) => trans!{{R.Real}} _ _ _
+        (sym!{{R.Real}} _ _ (evaluate (SecondReverse.backward (Geometry.intermediate u)) ((Second.linear (Geometry.intermediate u)).apply (Finite.basis r b)) a))
+        (congr!{{Vectors.Vector} {R.Real}} (\fun (v: Vectors.Vector) => v a) _ _ (SecondReverse.left (Geometry.intermediate u) (Finite.basis r b))))));
+
+\import \root.Metric[n := n, r := r].Basis[] \as BasisComparison;
+\import Spaces.FiniteCoordinates[n := r] \as Standard;
+\import Spaces.Coordinates[I := Fin.Fin r].Kronecker[] \as Kronecker;
+\definition identityComparison: identity = Algebra.Associativity[].identity :=
+  \axiom:funext(identity, Algebra.Associativity[].identity, \fun (a: Fin.Fin r) =>
+    \axiom:funext(identity a, Algebra.Associativity[].identity a, \fun (b: Fin.Fin r) => Functions.ext (identity a b) (Algebra.Associativity[].identity a b)
+      (\fun (u: Open.Carrier Geometry.domain) => trans!{{R.Real}} _ _ _
+        (congr!{{Vectors.Vector} {R.Real}} (\fun (v: Vectors.Vector) => v a) _ _ (BasisComparison.equal b))
+        (Kronecker.symmetric b a))));
+\definition affine: Algebra.product01 first (Algebra.product01 inverseDirect (Algebra.dMatrix direct)) =
+  Algebra.plus (Algebra.dMatrix first) (Algebra.product10 (Algebra.product01 inverseSecond (Algebra.dMatrix second)) first) :=
+  Algebra.Gauge[].affine first second direct inverseSecond inverseDirect product
+    (trans!{{Algebra.Matrix0}} _ _ _ secondLeft identityComparison)
+    (trans!{{Algebra.Matrix0}} _ _ _ directRight identityComparison);

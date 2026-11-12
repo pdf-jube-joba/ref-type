@@ -1,0 +1,36 @@
+\use Equality.eq_reason_in;
+\import \parent.\parent.Pair[i := i, j := j] \as Gauge;
+\import Charts.Transition[left := chart i, right := chart j] \as Transition;
+\import Atlas.Change[i := i, j := j] \as Change;
+\import Atlas.InChart[i := i] \as First;
+\import Atlas.InChart[i := j] \as Second;
+\import \root.Real[n := n, r := r].Transport[U := Transition.domain, V := (chart i).image].Restriction[included := Gauge.included] \as Restrict;
+\import \root.Real[n := n, r := r].Transport[U := Transition.domain, V := (chart j).image].Pull[f := Gauge.map] \as Pull;
+\import \root.MatrixCalculus[n := n, r := r].On[U := Transition.domain] \as Matrices;
+\import Open.Smooth[].Algebra[U := Transition.domain] \as Functions;
+\import R.FiniteSums[].Linear[] \as Finite;
+\import R.FiniteSums[] \as Sums;
+\import Spaces.Coordinates[I := Fin.Fin r] \as Vectors;
+\import Spaces.Linear[V := Vectors.Vector, W := Vectors.Vector, source := Vectors.space, target := Vectors.space] \as Linear;
+\definition source[a, b: Fin.Fin r]: Functions.Function := Restrict.scalar (local s i a);
+\definition target[a, b: Fin.Fin r]: Functions.Function := Pull.scalar (local s j a);
+\definition output[f: Linear.Map][a: Fin.Fin r]: Finite.Map r := Finite.Data[r] {
+  apply := \fun (v: Vectors.Vector) => f.apply v a,
+  additive := \fun (v, w: Vectors.Vector) => congr!{{Vectors.Vector} {R.Real}} (\fun (z: Vectors.Vector) => z a) _ _ (f.preservesAdd v w),
+  homogeneous := \fun (t: R.Real)(v: Vectors.Vector) => congr!{{Vectors.Vector} {R.Real}} (\fun (z: Vectors.Vector) => z a) _ _ (f.preservesScale t v)
+};
+\definition evaluate: \forall (f: Linear.Map)(v: Vectors.Vector)(a: Fin.Fin r) ->
+  f.apply v a = Sums.sum r (\fun (b: Fin.Fin r) => R.mul (f.apply (Finite.basis r b) a) (v b)) :=
+  \fun (f: Linear.Map)(v: Vectors.Vector)(a: Fin.Fin r) => trans!{{R.Real}} _ _ _ (Finite.expansion r (output f a) v)
+    (Sums.congruent r _ _ (\fun (b: Fin.Fin r) => Spaces.mulComm (v b) (f.apply (Finite.basis r b) a)));
+\definition sameBase: \forall (u: Open.Carrier Transition.domain) -> Charts.point (chart j) (Transition.apply u) = Change.y u :=
+  \fun (u: Open.Carrier Transition.domain) => Transition.returnsPoint u;
+\definition transformation: target = Matrices.product00 Gauge.transition source :=
+  \axiom:funext(target, Matrices.product00 Gauge.transition source, \fun (a: Fin.Fin r) => \axiom:funext(target a, Matrices.product00 Gauge.transition source a,
+    \fun (b: Fin.Fin r) => Functions.ext (target a b) (Matrices.product00 Gauge.transition source a b) (\fun (u: Open.Carrier Transition.domain) => eq_reason_in!{{R.Real} _
+      "=" {Second.decode (Change.y u) (s.value (Change.y u)) a} "by" {
+        congr!{{Charts.LocalPoint (chart j)} {R.Real}} (\fun (x: Charts.LocalPoint (chart j)) => Second.decode x (s.value x) a) _ _ (sameBase u) }
+      "=" {(Change.linear u).apply (First.decode (Change.x u) (s.value (Change.x u))) a} "by" {
+        sym!{{R.Real}} _ _ (congr!{{F (Change.x u)} {R.Real}} (\fun (v: F (Change.x u)) => Second.decode (Change.y u) v a) _ _ (First.At[x := Change.x u].encodeDecode (s.value (Change.x u)))) }
+      "=" _ "by" { evaluate (Change.linear u) (First.decode (Change.x u) (s.value (Change.x u))) a }
+    })));

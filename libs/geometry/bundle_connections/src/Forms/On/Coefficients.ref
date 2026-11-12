@@ -1,0 +1,18 @@
+\import \root.Local[n := n, r := r].On[U := U] \as Local;
+\import Open.Smooth[].Algebra[U := U] \as Functions;
+\definition coefficient[i: Fin.Fin n][a, b: Fin.Fin r]: Functions.Function :=
+  Scalar.coefficient one (connection.matrix a b) (\fun (slot: Fin.Fin one) => i);
+\definition local: Local.Connection := Local.Connection { coefficient := coefficient };
+\import \parent.Coordinates[connection := local] \as Reconstruction;
+\definition singleton: \forall (omega: Scalar.Form one)(indices: Fin.Fin one -> Fin.Fin n) ->
+  Scalar.coefficient one omega indices = Scalar.coefficient one omega (\fun (slot: Fin.Fin one) => indices (Fin.zero zero)) :=
+  \fun (omega: Scalar.Form one)(indices: Fin.Fin one -> Fin.Fin n) => congr!{{Fin.Fin one -> Fin.Fin n} {Functions.Function}} (Scalar.coefficient one omega) _ _
+    (\axiom:funext(indices, (\fun (slot: Fin.Fin one) => indices (Fin.zero zero)), \fun (slot: Fin.Fin one) =>
+      congr!{{Fin.Fin one} {Fin.Fin n}} indices _ _ (euclidean_forms.Euclidean[n := n].Covector[i := indices (Fin.zero zero)].uniqueIndex slot)));
+\definition recover: \forall (a, b: Fin.Fin r) -> Reconstruction.matrix a b = connection.matrix a b :=
+  \fun (a, b: Fin.Fin r) => Scalar.coefficientExt one (Reconstruction.matrix a b) (connection.matrix a b)
+    (\fun (indices: Fin.Fin one -> Fin.Fin n) => eq_reason_in!{{Functions.Function} _
+      "=" _ "by" { singleton (Reconstruction.matrix a b) indices }
+      "=" _ "by" { Reconstruction.recover (indices (Fin.zero zero)) a b }
+      "=" _ "by" { sym!{{Functions.Function}} _ _ (singleton (connection.matrix a b) indices) }
+    });

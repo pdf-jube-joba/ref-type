@@ -1,0 +1,43 @@
+\import Operations.FiniteIndex[A := Pair, S := PairsIndex.Whole, enumeration := enumeration] \as Coordinates;
+\definition rank: N.Nat^ := Coordinates.rank;
+\definition row[c: Fin.Fin rank]: Fin.Fin r := first (Coordinates.enumerate c);
+\definition col[c: Fin.Fin rank]: Fin.Fin s := second (Coordinates.enumerate c);
+\definition gridDelta: \forall (p: Pair) -> Sums.sum r (\fun (i: Fin.Fin r) => Sums.sum s (\fun (j: Fin.Fin s) => Delta.delta (pair i j) p)) = R.one :=
+  \fun (p: Pair) => eq_reason_in!{{R.Real} _
+    "=" _ "by" { Sums.congruent r (\fun (i: Fin.Fin r) => Sums.sum s (\fun (j: Fin.Fin s) => Delta.delta (pair i j) p)) (\fun (i: Fin.Fin r) => Sums.sum s (\fun (j: Fin.Fin s) => R.mul (Left.delta i (first p)) (Right.delta j (second p)))) (\fun (i: Fin.Fin r) => Sums.congruent s (\fun (j: Fin.Fin s) => Delta.delta (pair i j) p) (\fun (j: Fin.Fin s) => R.mul (Left.delta i (first p)) (Right.delta j (second p))) (\fun (j: Fin.Fin s) => deltaProduct (pair i j) p)) }
+    "=" _ "by" { Sums.congruent r (\fun (i: Fin.Fin r) => Sums.sum s (\fun (j: Fin.Fin s) => R.mul (Left.delta i (first p)) (Right.delta j (second p)))) (\fun (i: Fin.Fin r) => R.mul (Left.delta i (first p)) (Sums.sum s (\fun (j: Fin.Fin s) => Right.delta j (second p)))) (\fun (i: Fin.Fin r) => Sums.scalar s (Left.delta i (first p)) (\fun (j: Fin.Fin s) => Right.delta j (second p))) }
+    "=" _ "by" { Sums.congruent r (\fun (i: Fin.Fin r) => R.mul (Left.delta i (first p)) (Sums.sum s (\fun (j: Fin.Fin s) => Right.delta j (second p)))) (\fun (i: Fin.Fin r) => Left.delta i (first p)) (\fun (i: Fin.Fin r) => trans!{{R.Real}} _ _ _
+      (congr!{{R.Real} {R.Real}} (R.mul (Left.delta i (first p))) _ _ (rightSum (second p))) (Spaces.mulOneRight (Left.delta i (first p)))) }
+    "=" _ "by" { leftSum (first p) }
+  };
+\definition gridWeighted: \forall (p: Pair)(z: R.Real) -> Sums.sum r (\fun (i: Fin.Fin r) => Sums.sum s (\fun (j: Fin.Fin s) => R.mul (Delta.delta (pair i j) p) z)) = z :=
+  \fun (p: Pair)(z: R.Real) => eq_reason_in!{{R.Real} _
+    "=" _ "by" { Sums.congruent r _ _ (\fun (i: Fin.Fin r) => rightScalar s z (\fun (j: Fin.Fin s) => Delta.delta (pair i j) p)) }
+    "=" _ "by" { rightScalar r z (\fun (i: Fin.Fin r) => Sums.sum s (\fun (j: Fin.Fin s) => Delta.delta (pair i j) p)) }
+    "=" _ "by" { congr!{{R.Real} {R.Real}} (\fun (a: R.Real) => R.mul a z) _ _ (gridDelta p) }
+    "=" _ "by" { Spaces.mulOneLeft z }
+  };
+\definition expansion: \forall (f: Fin.Fin r -> Fin.Fin s -> R.Real)(i: Fin.Fin r)(j: Fin.Fin s) ->
+  Sums.sum rank (\fun (c: Fin.Fin rank) => R.mul (Delta.delta (pair i j) (Coordinates.enumerate c)) (f (row c) (col c))) = f i j :=
+  \fun (f: Fin.Fin r -> Fin.Fin s -> R.Real)(i: Fin.Fin r)(j: Fin.Fin s) => trans!{{R.Real}} _ _ _
+    (sym!{{R.Real}} _ _ (Enumeration.sumLaw rank (\fun (c: Fin.Fin rank) => R.mul (Delta.delta (pair i j) (Coordinates.enumerate c)) (f (row c) (col c)))))
+    (Coordinates.Laws[].interpolation (\fun (p: Pair) => f (first p) (second p)) (\into[Pair](pair i j, PairsIndex.Whole) \by { \refl(pair i j) }));
+\definition sum: \forall (f: Fin.Fin r -> Fin.Fin s -> R.Real) ->
+  Sums.sum rank (\fun (c: Fin.Fin rank) => f (row c) (col c)) = Sums.sum r (\fun (i: Fin.Fin r) => Sums.sum s (f i)) :=
+  \fun (f: Fin.Fin r -> Fin.Fin s -> R.Real) => \block {
+    \let term: Fin.Fin r -> Fin.Fin s -> Fin.Fin rank -> R.Real := \fun (i: Fin.Fin r)(j: Fin.Fin s)(c: Fin.Fin rank) => R.mul (Delta.delta (pair i j) (Coordinates.enumerate c)) (f (row c) (col c)) \then
+    \let expanded: Fin.Fin r -> Fin.Fin s -> R.Real := \fun (i: Fin.Fin r)(j: Fin.Fin s) => Sums.sum rank (term i j) \then
+    \let swapped: Fin.Fin r -> Fin.Fin rank -> R.Real := \fun (i: Fin.Fin r)(c: Fin.Fin rank) => Sums.sum s (\fun (j: Fin.Fin s) => term i j c) \then
+    \return sym!{{R.Real}} _ _ (eq_reason_in!{{R.Real} {Sums.sum r (\fun (i: Fin.Fin r) => Sums.sum s (f i))}
+      "=" {Sums.sum r (\fun (i: Fin.Fin r) => Sums.sum s (expanded i))} "by" {
+        Sums.congruent r (\fun (i: Fin.Fin r) => Sums.sum s (f i)) (\fun (i: Fin.Fin r) => Sums.sum s (expanded i))
+          (\fun (i: Fin.Fin r) => Sums.congruent s (f i) (expanded i) (\fun (j: Fin.Fin s) => sym!{{R.Real}} _ _ (expansion f i j))) }
+      "=" {Sums.sum r (\fun (i: Fin.Fin r) => Sums.sum rank (swapped i))} "by" {
+        Sums.congruent r (\fun (i: Fin.Fin r) => Sums.sum s (expanded i)) (\fun (i: Fin.Fin r) => Sums.sum rank (swapped i))
+          (\fun (i: Fin.Fin r) => Sums.exchange s rank (term i)) }
+      "=" {Sums.sum rank (\fun (c: Fin.Fin rank) => Sums.sum r (\fun (i: Fin.Fin r) => swapped i c))} "by" { Sums.exchange r rank swapped }
+      "=" {Sums.sum rank (\fun (c: Fin.Fin rank) => f (row c) (col c))} "by" {
+        Sums.congruent rank (\fun (c: Fin.Fin rank) => Sums.sum r (\fun (i: Fin.Fin r) => swapped i c)) (\fun (c: Fin.Fin rank) => f (row c) (col c))
+          (\fun (c: Fin.Fin rank) => gridWeighted (Coordinates.enumerate c) (f (row c) (col c))) }
+    })
+  };

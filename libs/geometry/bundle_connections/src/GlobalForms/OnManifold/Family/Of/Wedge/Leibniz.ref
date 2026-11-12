@@ -1,0 +1,21 @@
+\definition next: N.Nat^ := N.Nat^::succ total;
+\import Bundle.ValuedForms[k := next] \as Result;
+\import \parent.\parent.At[k := total] \as D;
+\import \parent.\parent.At[k := p] \as LeftD;
+\definition rightHandSide[i: I]: Result.LocalForm i :=
+  \root.Forms[n := n, r := r].On[U := (Bundle.chart i).image].At[k := next].plus
+    (\root.GlobalForms[n := n, r := r].On[U := (Bundle.chart i).image].Leibniz[p := p, q := q, connection := A i].left (LeftD.apply A omega i) (eta (Bundle.chart i)))
+    (\root.Forms[n := n, r := r].On[U := (Bundle.chart i).image].At[k := next].scale (Spaces.Sign[].value p)
+      (\root.GlobalForms[n := n, r := r].On[U := (Bundle.chart i).image].Leibniz[p := p, q := q, connection := A i].right (omega i) (ScalarForms.ExteriorDerivative[k := q].apply eta (Bundle.chart i))));
+\definition leftHandSide: Result.Data := D.apply A (apply omega eta);
+\definition dataLaw: leftHandSide = rightHandSide :=
+  \axiom:funext(leftHandSide, rightHandSide, \fun (i: I) =>
+    \root.GlobalForms[n := n, r := r].On[U := (Bundle.chart i).image].Leibniz[p := p, q := q, connection := A i].law (omega i) (eta (Bundle.chart i)));
+
+\definition rightCompatible: Result.Compatible rightHandSide :=
+  \idelim leftHandSide = rightHandSide \with rhs: Result.Data => Result.Compatible rhs
+    \by { base: Result.compatible (D.apply A (apply omega eta)), equality: dataLaw };
+\definition rightForm: Result.Form := \into[Result.Data](rightHandSide, Result.Form) \by { rightCompatible };
+\definition law: D.apply A (apply omega eta) = rightForm :=
+  \axiom:funext(D.apply A (apply omega eta), rightForm, \fun (i: I) =>
+    congr!{{Result.Data} {Result.LocalForm i}} (\fun (data: Result.Data) => data i) leftHandSide rightHandSide dataLaw);

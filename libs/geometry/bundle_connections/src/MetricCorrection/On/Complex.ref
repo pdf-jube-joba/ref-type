@@ -1,0 +1,15 @@
+\import M.ComplexStructure[J := J, square := square] \as Projection;
+\definition twistGauge: \forall (A: M.Matrix1) -> M.product01 J (Projection.twist A) = M.plus (M.dMatrix J) (M.product10 A J) :=
+  \fun (A: M.Matrix1) => eq_reason_in!{M.Matrix1 _
+    "=" _ "by" { Projection.leftTwist A }
+    "=" _ "by" { sym!{M.Matrix1} _ _ (Laws.zeroLeft (M.product10 A J)) }
+    "=" _ "by" { congr!{M.Matrix1 M.Matrix1} (\fun (X: M.Matrix1) => M.plus X (M.product10 A J)) _ _ (sym!{M.Matrix1} _ _ constant) }
+  };
+\definition twistCompatible: \forall (A: M.Matrix1) -> Transpose.Compatible g A -> Transpose.Compatible g (Projection.twist A) :=
+  \fun (A: M.Matrix1)(compatible: Transpose.Compatible g A) => \idelim Transpose.metric J g = g
+    \with h: M.Matrix0 => Transpose.Compatible h (Projection.twist A) \by {
+      base: Transpose.Transport[J := J, h := g, A := Projection.twist A, B := A, gauge := twistGauge A, compatible := compatible].preservation,
+      equality: orthogonal
+    };
+\definition preserves: \forall (A: M.Matrix1) -> Transpose.Compatible g A -> Transpose.Compatible g (Projection.project A) :=
+  \fun (A: M.Matrix1)(compatible: Transpose.Compatible g A) => averageCompatible g A (Projection.twist A) compatible (twistCompatible A compatible);

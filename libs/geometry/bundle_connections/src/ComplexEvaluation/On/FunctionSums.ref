@@ -1,0 +1,19 @@
+\import Spaces.Sums[I := I] \as Sums;
+\import Sums.Prop[] \as SumLaws;
+\import Calculus.Sums[I := I] \as SmoothSums;
+\definition function[xs: Lists.List[I]][f: I -> Functions.Function]: Functions.Function := \into[Calculus.Function]
+  ((\fun (x: Open.Carrier U) => Sums.sum xs (\fun (j: I) => f j x)), Functions.Function) \by {
+    SmoothSums.smooth xs (\fun (j: I) => f j) (\fun (j: I) => Functions.regular (f j))
+  };
+\definition congruent: \forall (xs: Lists.List[I])(f, g: I -> Functions.Function) -> (\forall (j: I) -> f j = g j) -> function xs f = function xs g :=
+  \fun (xs: Lists.List[I])(f, g: I -> Functions.Function)(same: _) => Functions.ext (function xs f) (function xs g) (\fun (x: Open.Carrier U) =>
+    SumLaws.congruent xs (\fun (j: I) => f j x) (\fun (j: I) => g j x) (\fun (j: I) => congr!{{Functions.Function} {C.Complex}} (\fun (h: Functions.Function) => h x) _ _ (same j)));
+\definition derivative: \forall (i: Fin.Fin n)(xs: Lists.List[I])(f: I -> Functions.Function) ->
+  Partials.derivative U (function xs f) i = function xs (\fun (j: I) => Partials.derivative U (f j) i) :=
+  \fun (i: Fin.Fin n) => \induction (xs: Lists.List[I]) \return \forall (f: I -> Functions.Function) ->
+    Partials.derivative U (function xs f) i = function xs (\fun (j: I) => Partials.derivative U (f j) i) \with {
+    | nil: \fun (f: I -> Functions.Function) => Functions.Linear[].constant i Op.zero
+    | cons: \fun (j: I)(xs: Lists.List[I])(previous: _)(f: I -> Functions.Function) => trans!{{Functions.Function}} _ _ _
+      (Functions.Linear[].addition i (f j) (function xs f))
+      (congr!{{Functions.Function} {Functions.Function}} (Functions.plus (Partials.derivative U (f j) i)) _ _ (previous f))
+  };

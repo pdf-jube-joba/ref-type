@@ -1,0 +1,70 @@
+\definition total: N.Nat^ := N.Nat^::succ (Nat.add p q);
+\definition next: N.Nat^ := N.Nat^::succ p;
+\import Forms.Covariant[k := p, connection := connection] \as LeftD;
+\import Forms.Covariant[k := Nat.add p q, connection := connection] \as D;
+\import Scalar.Leibniz[p := p, q := q] \as ScalarLaw;
+\import Scalar.Wedge[p := p, q := q] \as Product;
+\import Scalar.Wedge[p := next, q := q] \as LeftProduct;
+\import Scalar.Wedge[p := one, q := p] \as CorrectionProduct;
+\import Scalar.Wedge[p := one, q := Nat.add p q] \as TotalProduct;
+\import Scalar.Regrade[k := Nat.add one p, l := next] \as LeftCorrectionDegree;
+\import Scalar.Regrade[k := Nat.add one (Nat.add p q), l := total] \as TotalDegree;
+\import Scalar.Regrade[k := Nat.add next q, l := total] \as LeftDegree;
+\import Scalar.At[k := next] \as Left;
+\import Scalar.At[k := total] \as Result;
+\import Spaces.Laws[V := Scalar.Form total, space := Result.space] \as Laws;
+\import Spaces.Sign[] \as Sign;
+\import Shuffle.Laws[] \as ShuffleLaws;
+\import Exterior.Components[k := total] \as Components;
+\definition wedge[omega: Forms.Form p][eta: Scalar.Form q]: Forms.Form (Nat.add p q) :=
+  \fun (a: Fin.Fin r) => Product.apply (omega a) eta;
+\definition left[omega: Forms.Form next][eta: Scalar.Form q]: Forms.Form total :=
+  \fun (a: Fin.Fin r) => ScalarLaw.left (omega a) eta;
+\definition right[omega: Forms.Form p][eta: Scalar.Form (N.Nat^::succ q)]: Forms.Form total :=
+  \fun (a: Fin.Fin r) => ScalarLaw.right (omega a) eta;
+\definition term: \forall (a, b: Fin.Fin r)(omega: Forms.Form p)(eta: Scalar.Form q) ->
+  D.term a b (wedge omega eta) = ScalarLaw.left (LeftD.term a b omega) eta :=
+  \fun (a, b: Fin.Fin r)(omega: Forms.Form p)(eta: Scalar.Form q) => \axiom:funext(
+    D.term a b (wedge omega eta), ScalarLaw.left (LeftD.term a b omega) eta,
+    \fun (x: Open.Carrier U) => Components.ext (D.term a b (wedge omega eta) x) (ScalarLaw.left (LeftD.term a b omega) eta x)
+      (eq_reason_in!{{Shuffle.Function} _
+        "=" _ "by" { TotalDegree.series (TotalProduct.apply (connection.matrix a b) (Product.apply (omega b) eta)) Scalar.ExteriorDerivative[k := Nat.add p q].degree x }
+        "=" _ "by" { Exterior.Degrees[p := one, q := Nat.add p q].componentWedge (connection.matrix a b x) (Product.apply (omega b) eta x) }
+        "=" _ "by" { congr!{{Shuffle.Function} {Shuffle.Function}} (Shuffle.product (Exterior.component one (connection.matrix a b x))) _ _
+          (Exterior.Degrees[p := p, q := q].componentWedge (omega b x) (eta x)) }
+        "=" _ "by" { \axiom:funext(Shuffle.product (Exterior.component one (connection.matrix a b x)) (Shuffle.product (Exterior.component p (omega b x)) (Exterior.component q (eta x))), Shuffle.product (Shuffle.product (Exterior.component one (connection.matrix a b x)) (Exterior.component p (omega b x))) (Exterior.component q (eta x)), \fun (xs: Lists.List[Vectors.Vector]) => sym!{{R.Real}} _ _
+          (ShuffleLaws.associative xs (Exterior.component one (connection.matrix a b x)) (Exterior.component p (omega b x)) (Exterior.component q (eta x)))) }
+        "=" _ "by" { congr!{{Shuffle.Function} {Shuffle.Function}} (\fun (f: Shuffle.Function) => Shuffle.product f (Exterior.component q (eta x))) _ _
+          (sym!{{Shuffle.Function}} _ _ (trans!{{Shuffle.Function}} _ _ _
+            (LeftCorrectionDegree.series (CorrectionProduct.apply (connection.matrix a b) (omega b)) Scalar.ExteriorDerivative[k := p].degree x)
+            (Exterior.Degrees[p := one, q := p].componentWedge (connection.matrix a b x) (omega b x)))) }
+        "=" _ "by" { sym!{{Shuffle.Function}} _ _ (Exterior.Degrees[p := next, q := q].componentWedge (LeftD.term a b omega x) (eta x)) }
+        "=" _ "by" { sym!{{Shuffle.Function}} _ _ (LeftDegree.series (LeftProduct.apply (LeftD.term a b omega) eta) ScalarLaw.degree x) }
+      }));
+\import Spaces.Sums[I := Fin.Fin r].Vector[V := Scalar.Form total, space := Result.space] \as Sums;
+\import Spaces.Sums[I := Fin.Fin r].Vector[V := Scalar.Form next, space := Left.space].Mapping[W := Scalar.Form total, target := Result.space] \as Mapping;
+\definition correction: \forall (omega: Forms.Form p)(eta: Scalar.Form q)(a: Fin.Fin r) ->
+  D.correction (wedge omega eta) a = ScalarLaw.left (LeftD.correction omega a) eta :=
+  \fun (omega: Forms.Form p)(eta: Scalar.Form q)(a: Fin.Fin r) => trans!{{Scalar.Form total}} _ _ _
+    (Sums.congruent (Fin.elements r) (\fun (b: Fin.Fin r) => D.term a b (wedge omega eta))
+      (\fun (b: Fin.Fin r) => ScalarLaw.left (LeftD.term a b omega) eta) (\fun (b: Fin.Fin r) => term a b omega eta))
+    (sym!{{Scalar.Form total}} _ _ (Mapping.law (ScalarLaw.leftMap eta) (Fin.elements r) (\fun (b: Fin.Fin r) => LeftD.term a b omega)));
+\definition rearrange: \forall (a, b, c: Scalar.Form total) -> Result.plus (Result.plus a b) c = Result.plus (Result.plus a c) b :=
+  \fun (a, b, c: Scalar.Form total) => eq_reason_in!{{Scalar.Form total} _
+    "=" _ "by" { Laws.assoc a b c }
+    "=" _ "by" { congr!{{Scalar.Form total} {Scalar.Form total}} (Result.plus a) _ _ (Laws.comm b c) }
+    "=" _ "by" { sym!{{Scalar.Form total}} _ _ (Laws.assoc a c b) }
+  };
+\definition law: \forall (omega: Forms.Form p)(eta: Scalar.Form q) ->
+  D.apply (wedge omega eta) = Forms.At[k := total].plus (left (LeftD.apply omega) eta)
+    (Forms.At[k := total].scale (Sign.value p) (right omega (Scalar.ExteriorDerivative[k := q].apply eta))) :=
+  \fun (omega: Forms.Form p)(eta: Scalar.Form q) => \axiom:funext(D.apply (wedge omega eta),
+    Forms.At[k := total].plus (left (LeftD.apply omega) eta) (Forms.At[k := total].scale (Sign.value p) (right omega (Scalar.ExteriorDerivative[k := q].apply eta))),
+    \fun (a: Fin.Fin r) => eq_reason_in!{{Scalar.Form total} _
+      "=" _ "by" { congr!{{Scalar.Form total} {Scalar.Form total} {Scalar.Form total}} Result.plus _ _ _ _ (ScalarLaw.law (omega a) eta) (correction omega eta a) }
+      "=" _ "by" { rearrange (ScalarLaw.left (Scalar.ExteriorDerivative[k := p].apply (omega a)) eta)
+        (Result.scale (Sign.value p) (ScalarLaw.right (omega a) (Scalar.ExteriorDerivative[k := q].apply eta))) (ScalarLaw.left (LeftD.correction omega a) eta) }
+      "=" _ "by" { congr!{{Scalar.Form total} {Scalar.Form total}} (\fun (v: Scalar.Form total) => Result.plus v
+        (Result.scale (Sign.value p) (ScalarLaw.right (omega a) (Scalar.ExteriorDerivative[k := q].apply eta)))) _ _
+        (sym!{{Scalar.Form total}} _ _ ((ScalarLaw.leftMap eta).preservesAdd (Scalar.ExteriorDerivative[k := p].apply (omega a)) (LeftD.correction omega a))) }
+    });

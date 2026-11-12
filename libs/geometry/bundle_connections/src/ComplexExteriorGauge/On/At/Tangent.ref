@@ -1,0 +1,42 @@
+\import \parent.Algebra[] \as Algebra;
+\definition Numeric: \Set := Algebra.Numeric;
+\definition arguments[A: Numeric][a: Fin.Fin rank]: Multilinear.Arguments k := \fun (slot: Fin.Fin k) => A (Coordinates.enumerate a slot);
+\definition entry[A, D: Numeric][a, b: Fin.Fin rank][slot: Fin.Fin k]: C.Complex := word b (Multilinear.update k (arguments A a) slot (D (Coordinates.enumerate a slot)));
+\definition value[A, D: Numeric][a, b: Fin.Fin rank]: C.Complex := Sums.sum (Fin.elements k) (entry A D a b);
+\definition eval[T: Matrix.Matrix0][x: Open.Carrier U]: Numeric := \fun (a, b: Fin.Fin r) => T a b x;
+\definition partial[T: Matrix.Matrix0][i: Fin.Fin n][x: Open.Carrier U]: Numeric := \fun (a, b: Fin.Fin r) => Derivatives.apply i (T a b) x;
+\definition differential: \forall (T: Matrix.Matrix0)(i: Fin.Fin n)(a, b: Fin.Fin rank)(x: Open.Carrier U) ->
+  Derivatives.apply i (representation T a b) x = value (eval T x) (partial T i x) a b :=
+  \fun (T: Matrix.Matrix0)(i: Fin.Fin n)(a, b: Fin.Fin rank)(x: Open.Carrier U) => derivative T i a b x;
+\definition plus[A, B: Numeric]: Numeric := \fun (a, b: Fin.Fin r) => Op.add (A a b) (B a b);
+\definition zero: Numeric := \fun (a, b: Fin.Fin r) => Op.zero;
+\definition additive: \forall (A, D, E: Numeric)(a, b: Fin.Fin rank) -> value A (plus D E) a b = Op.add (value A D a b) (value A E a b) :=
+  \fun (A, D, E: Numeric)(a, b: Fin.Fin rank) => trans!{{C.Complex}}
+    (value A (plus D E) a b)
+    (Sums.sum (Fin.elements k) (\fun (slot: Fin.Fin k) => Op.add (entry A D a b slot) (entry A E a b slot)))
+    (Op.add (value A D a b) (value A E a b))
+    (SumLaws.congruent (Fin.elements k) (entry A (plus D E) a b) (\fun (slot: Fin.Fin k) => Op.add (entry A D a b slot) (entry A E a b slot))
+      (\fun (slot: Fin.Fin k) => ((\bysub(Multilinear.Function k, Alternating.Form k, word b)).linear).addition (arguments A a) slot (D (Coordinates.enumerate a slot)) (E (Coordinates.enumerate a slot))))
+    (SumLaws.additive (Fin.elements k) (entry A D a b) (entry A E a b));
+\definition zeroValue: \forall (A: Numeric)(a, b: Fin.Fin rank) -> value A zero a b = Op.zero :=
+  \fun (A: Numeric)(a, b: Fin.Fin rank) => trans!{{C.Complex}}
+    (value A zero a b) (Sums.sum (Fin.elements k) (\fun (slot: Fin.Fin k) => Op.zero)) Op.zero
+    (SumLaws.congruent (Fin.elements k) (entry A zero a b) (\fun (slot: Fin.Fin k) => Op.zero)
+      (\fun (slot: Fin.Fin k) => Multilinear.Properties[].zeroArgument k (Alternating.asMultilinear k (word b)) (arguments A a) slot))
+    (SumLaws.zeroSum (Fin.elements k));
+\definition ext: \forall (A, B: Numeric) -> (\forall (a, b: Fin.Fin r) -> A a b = B a b) -> A = B :=
+  \fun (A, B: Numeric)(same: _) => \axiom:funext(A, B, \fun (a: Fin.Fin r) => \axiom:funext(A a, B a, same a));
+\definition along: \forall (T: Matrix.Matrix0)(i: Fin.Fin n)(x: Open.Carrier U)(A, D: Numeric) -> eval T x = A -> partial T i x = D ->
+  \forall (a, b: Fin.Fin rank) -> Derivatives.apply i (representation T a b) x = value A D a b :=
+  \fun (T: Matrix.Matrix0)(i: Fin.Fin n)(x: Open.Carrier U)(A, D: Numeric)(base: eval T x = A)(direction: partial T i x = D)(a, b: Fin.Fin rank) => trans!{{C.Complex}}
+    (Derivatives.apply i (representation T a b) x) (value (eval T x) (partial T i x) a b) (value A D a b) (differential T i a b x)
+    (congr!{Numeric Numeric {C.Complex}} (\fun (B, E: Numeric) => value B E a b) (eval T x) A (partial T i x) D base direction);
+\definition representationAlong: \forall (T: Matrix.Matrix0)(x: Open.Carrier U)(A: Numeric) -> eval T x = A ->
+  \forall (a, b: Fin.Fin rank) -> representation T a b x = Algebra.value A a b :=
+  \fun (T: Matrix.Matrix0)(x: Open.Carrier U)(A: Numeric)(base: eval T x = A)(a, b: Fin.Fin rank) =>
+    congr!{Numeric {C.Complex}} (\fun (B: Numeric) => Algebra.value B a b) (eval T x) A base;
+\definition plusZeroLeft: \forall (A: Numeric) -> plus zero A = A :=
+  \fun (A: Numeric) => ext (plus zero A) A (\fun (a, b: Fin.Fin r) => Spaces.addZeroLeft (A a b));
+\definition plusZeroRight: \forall (A: Numeric) -> plus A zero = A :=
+  \fun (A: Numeric) => ext (plus A zero) A (\fun (a, b: Fin.Fin r) => Spaces.addZeroRight (A a b));
+\definition action[A: Numeric][a, b: Fin.Fin rank]: C.Complex := value Algebra.identity A a b;

@@ -1,0 +1,75 @@
+\use Equality.eq_reason;
+\definition one: N.Nat^ := N.Nat^::succ N.Nat^::zero;
+\import \root.MatrixCalculus[n := n, r := n].On[U := U] \as M;
+\import \root.LeviCivita[n := n].Components[U := U] \as Components;
+\import \root.Forms[n := n, r := n].On[U := U] \as SourceForms;
+\import \root.Forms[n := n, r := n].On[U := V].Coordinates[connection := connection] \as TargetCoordinates;
+\import euclidean_forms.Euclidean[n := n].On[U := U] \as Scalar;
+\import euclidean_forms.Euclidean[n := n].On[U := V] \as TargetScalar;
+\import euclidean_forms.Euclidean[n := n].Pullback[m := n, U := U, V := V, f := map] \as Pullback;
+\import linear_algebra.Commutative[K := R.Real, scalarRing := std.Alg[].Field[].fieldAsCommutativeRing R.Real (R.Algebra[].field)] \as Spaces;
+\import Spaces.FiniteCoordinates[n := n] \as Basis;
+\import Spaces.FiniteCoordinateEnumeration[] \as Enumeration;
+\import TargetScalar.Summation[k := one, I := Fin.Fin n] \as Evaluation;
+\import TargetScalar.At[k := one] \as TargetCovectors;
+\import TargetScalar.ExteriorDerivative[k := N.Nat^::zero] \as TargetD;
+\import R.FiniteSums[] \as Sums;
+\definition pulled[a, b: Index]: Scalar.Form one := Pullback.apply one (TargetCoordinates.matrix a b);
+\definition jacobianBasis: \forall (i, a: Index)(x: Open.Carrier U) -> (Pullback.jacobian x).apply (Basis.vectors i) a = jacobian a i x :=
+  \fun (i, a: Index)(x: Open.Carrier U) => Components.differentialBasis (Maps.coordinateFunction U V map a) i x;
+\definition extractPull: \forall (i, a, b: Index) -> Components.extract pulled i a b = Source.sum n
+  (\fun (l: Index) => Functions.product (Pull.function (connection.coefficient l a b)) (jacobian l i)) :=
+  \fun (i, a, b: Index) => Functions.ext (Components.extract pulled i a b)
+    (Source.sum n (\fun (l: Index) => Functions.product (Pull.function (connection.coefficient l a b)) (jacobian l i)))
+    (\fun (x: Open.Carrier U) => eq_reason_in!{{R.Real} _
+      "=" _ "by" { Evaluation.evaluateSum (Fin.elements n)
+        (\fun (l: Index) => TargetCovectors.multiply (connection.coefficient l a b) (TargetD.coordinate l))
+        (Maps.apply U V map x) (\fun (slot: Fin.Fin one) => (Pullback.jacobian x).apply (Basis.vectors i)) }
+      "=" _ "by" { Enumeration.sumLaw n (\fun (l: Index) => R.mul (connection.coefficient l a b (Maps.apply U V map x)) ((Pullback.jacobian x).apply (Basis.vectors i) l)) }
+      "=" _ "by" { Sums.congruent n _ _ (\fun (l: Index) => congr!{{R.Real} {R.Real}} (R.mul (connection.coefficient l a b (Maps.apply U V map x))) _ _ (jacobianBasis i l x)) }
+    });
+\definition rearrange: \forall (f, g, h: Functions.Function) -> Functions.product (Functions.product f g) h = Functions.product g (Functions.product f h) :=
+  \fun (f, g, h: Functions.Function) => trans!{{Functions.Function}} _ _ _
+    (congr!{{Functions.Function} {Functions.Function}} (\fun (u: Functions.Function) => Functions.product u h) _ _ (Functions.productCommutative f g))
+    (Functions.productAssociative g f h);
+\definition expanded[i, a, j, b, l: Index]: Functions.Function := Functions.product
+  (Functions.product (Pull.function (connection.coefficient l a b)) (jacobian l i)) (jacobian b j);
+\definition extractProduct: \forall (i, a, j: Index) -> Components.extract (M.product10 pulled jacobian) i a j = correction i j a :=
+  \fun (i, a, j: Index) => eq_reason!{
+    {Components.extract (M.product10 pulled jacobian) i a j}
+    "=" {Source.sum n (\fun (b: Index) => Functions.product (Components.extract pulled i a b) (jacobian b j))} "by" {
+      Components.product10 pulled jacobian i a j }
+    "=" {Source.sum n (\fun (b: Index) => Functions.product (Source.sum n (\fun (l: Index) => Functions.product (Pull.function (connection.coefficient l a b)) (jacobian l i))) (jacobian b j))} "by" {
+      Source.sumCongruent n _ _ (\fun (b: Index) => congr!{{Functions.Function} {Functions.Function}}
+        (\fun (f: Functions.Function) => Functions.product f (jacobian b j)) _ _ (extractPull i a b)) }
+    "=" {Source.sum n (\fun (b: Index) => Source.sum n (expanded i a j b))} "by" {
+      Source.sumCongruent n _ _ (\fun (b: Index) => sym!{{Functions.Function}} _ _
+        (Source.sumRightProduct n (jacobian b j) (\fun (l: Index) => Functions.product (Pull.function (connection.coefficient l a b)) (jacobian l i)))) }
+    "=" {Source.sum n (\fun (l: Index) => Source.sum n (\fun (b: Index) => expanded i a j b l))} "by" {
+      Source.sumExchange n n (expanded i a j) }
+    "=" {correction i j a} "by" { Source.sumCongruent n _ _ (\fun (l: Index) => Source.sumCongruent n _ _ (\fun (b: Index) =>
+      rearrange (Pull.function (connection.coefficient l a b)) (jacobian l i) (jacobian b j))) }
+  };
+\definition numerator: M.Matrix1 := M.plus (M.dMatrix jacobian) (M.product10 pulled jacobian);
+\definition extractNumerator: \forall (i, a, j: Index) -> Components.extract numerator i a j = covariantJacobian i j a :=
+  \fun (i, a, j: Index) => trans!{{Functions.Function}} _ _ _ (Components.add (M.dMatrix jacobian) (M.product10 pulled jacobian) i a j)
+    (congr!{{Functions.Function} {Functions.Function} {Functions.Function}} Functions.plus _ _ _ _ (Components.differential jacobian i a j) (extractProduct i a j));
+\definition matrix: M.Matrix1 := M.product01 inverse numerator;
+\definition extract: \forall (i, a, j: Index) -> Components.extract matrix i a j = coefficient i a j :=
+  \fun (i, a, j: Index) => trans!{{Functions.Function}} _ _ _ (Components.product01 inverse numerator i a j)
+    (Source.sumCongruent n _ _ (\fun (b: Index) => congr!{{Functions.Function} {Functions.Function}} (Functions.product (inverse a b)) _ _ (extractNumerator i b j)));
+\definition form: SourceForms.Connection := SourceForms.Connection { matrix := matrix };
+\import SourceForms.Coefficients[connection := form] \as Extraction;
+\import SourceForms.Coordinates[connection := value] \as Coordinates;
+\definition comparison: \forall (a, b: Index) -> Coordinates.matrix a b = matrix a b :=
+  \fun (a, b: Index) => Scalar.coefficientExt one (Coordinates.matrix a b) (matrix a b) (\fun (indices: Fin.Fin one -> Index) => eq_reason_in!{{Functions.Function} _
+    "=" _ "by" { Extraction.singleton (Coordinates.matrix a b) indices }
+    "=" _ "by" { Coordinates.recover (indices (Fin.zero N.Nat^::zero)) a b }
+    "=" _ "by" { sym!{{Functions.Function}} _ _ (extract (indices (Fin.zero N.Nat^::zero)) a b) }
+    "=" _ "by" { sym!{{Functions.Function}} _ _ (Extraction.singleton (matrix a b) indices) }
+  });
+\definition matrixComparison: Coordinates.matrix = matrix := \axiom:funext(Coordinates.matrix, matrix, \fun (a: Index) => \axiom:funext(Coordinates.matrix a, matrix a, comparison a));
+\definition gauge: M.product00 jacobian inverse = M.Associativity[].identity -> M.product01 jacobian Coordinates.matrix = numerator :=
+  \fun (rightInverse: M.product00 jacobian inverse = M.Associativity[].identity) => trans!{M.Matrix1} _ _ _
+    (congr!{M.Matrix1 M.Matrix1} (M.product01 jacobian) _ _ matrixComparison)
+    (M.Gauge[].inverseAction jacobian inverse rightInverse numerator);

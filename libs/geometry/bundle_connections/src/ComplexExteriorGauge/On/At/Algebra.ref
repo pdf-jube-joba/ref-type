@@ -1,0 +1,86 @@
+\import Spaces.Isomorphism[V := Vectors.Vector, W := Vectors.Vector, source := Vectors.space, target := Vectors.space] \as Isomorphisms;
+\definition frame: Isomorphisms.Isomorphism := Isomorphisms.Isomorphism {
+  forward := Basis.identity, backward := Basis.identity,
+  leftInverse := \fun (v: Vectors.Vector) => \refl(v),
+  rightInverse := \fun (v: Vectors.Vector) => \refl(v),
+};
+\import Operations.AlternatingFrame[V := Vectors.Vector, space := Vectors.space, n := r, frame := frame, k := k, enumeration := enumeration] \as Frame;
+\import Spaces.Sums[I := Fin.Fin rank] \as Coefficients;
+\import Coefficients.Prop[] \as CoefficientLaws;
+\definition standard[a: Fin.Fin rank]: Multilinear.Arguments k := \fun (slot: Fin.Fin k) => Basis.vectors (Coordinates.enumerate a slot);
+\definition frameWord: \forall (a: Fin.Fin rank)(args: Multilinear.Arguments k) -> Frame.word a args = word a args :=
+  \fun (a: Fin.Fin rank)(args: Multilinear.Arguments k) => congr!{{Multilinear.Arguments k} {C.Complex}} (word a)
+    (\fun (slot: Fin.Fin k) => args slot) args (\axiom:funext((\fun (slot: Fin.Fin k) => args slot), args, \fun (slot: Fin.Fin k) => \refl(args slot)));
+\definition expand: \forall (omega: Alternating.Form k)(args: Multilinear.Arguments k) ->
+  omega args = Coefficients.sum (Fin.elements rank) (\fun (a: Fin.Fin rank) => Op.mul (word a args) (omega (standard a))) :=
+  \fun (omega: Alternating.Form k)(args: Multilinear.Arguments k) => eq_reason_in!{{C.Complex} { omega args }
+    "=" { Frame.decode (Frame.encode omega) args } "by" { congr!{{Alternating.Form k} {C.Complex}} (\fun (f: Alternating.Form k) => f args) omega (Frame.decode (Frame.encode omega)) (sym!{{Alternating.Form k}} (Frame.decode (Frame.encode omega)) omega (Frame.Reconstruction[].leftInverse omega)) }
+    "=" { Coefficients.sum (Fin.elements rank) (\fun (a: Fin.Fin rank) => Op.mul (omega (standard a)) (Frame.word a args)) } "by" { Frame.evaluation (Frame.encode omega) args }
+    "=" { Coefficients.sum (Fin.elements rank) (\fun (a: Fin.Fin rank) => Op.mul (omega (standard a)) (word a args)) } "by" {
+      CoefficientLaws.congruent (Fin.elements rank) (\fun (a: Fin.Fin rank) => Op.mul (omega (standard a)) (Frame.word a args)) (\fun (a: Fin.Fin rank) => Op.mul (omega (standard a)) (word a args))
+        (\fun (a: Fin.Fin rank) => congr!{{C.Complex} {C.Complex}} (Op.mul (omega (standard a))) (Frame.word a args) (word a args) (frameWord a args)) }
+    "=" _ "by" { CoefficientLaws.congruent (Fin.elements rank) (\fun (a: Fin.Fin rank) => Op.mul (omega (standard a)) (word a args)) (\fun (a: Fin.Fin rank) => Op.mul (word a args) (omega (standard a))) (\fun (a: Fin.Fin rank) => Spaces.mulComm (omega (standard a)) (word a args)) }
+  };
+\import Spaces.Matrix[I := Fin.Fin r, J := Fin.Fin r] \as Matrices;
+\import Alternating.Precomposition[W := Vectors.Vector, target := Vectors.space] \as Pull;
+\definition Numeric: \Set := Matrices.Matrix;
+\import Spaces.Linear[V := Vectors.Vector, W := Vectors.Vector, source := Vectors.space, target := Vectors.space] \as Maps;
+\definition transposeMap[A: Numeric]: Maps.Map := Matrices.asLinear (Fin.elements r) (Matrices.transpose A);
+\definition rows[A: Numeric][args: Multilinear.Arguments k]: Multilinear.Arguments k := Pull.arguments k (transposeMap A) args;
+\definition pull[A: Numeric][omega: Alternating.Form k]: Alternating.Form k := Pull.precompose k (transposeMap A) omega;
+\definition rowBasis: \forall (A: Numeric)(j: Fin.Fin r) -> (transposeMap A).apply (Basis.vectors j) = A j :=
+  \fun (A: Numeric)(j: Fin.Fin r) => \axiom:funext((transposeMap A).apply (Basis.vectors j), A j, \fun (c: Fin.Fin r) => Basis.dualReconstruction (\fun (d: Fin.Fin r) => A d c) j);
+\definition standardRows: \forall (A: Numeric)(a: Fin.Fin rank) -> rows A (standard a) = (\fun (slot: Fin.Fin k) => A (Coordinates.enumerate a slot)) :=
+  \fun (A: Numeric)(a: Fin.Fin rank) => \axiom:funext(rows A (standard a), (\fun (slot: Fin.Fin k) => A (Coordinates.enumerate a slot)), \fun (slot: Fin.Fin k) => rowBasis A (Coordinates.enumerate a slot));
+\definition value[A: Numeric][a, b: Fin.Fin rank]: C.Complex := word b (\fun (slot: Fin.Fin k) => A (Coordinates.enumerate a slot));
+\definition pullCoefficient: \forall (A: Numeric)(a, b: Fin.Fin rank) -> pull A (word b) (standard a) = value A a b :=
+  \fun (A: Numeric)(a, b: Fin.Fin rank) => congr!{{Multilinear.Arguments k} {C.Complex}} (word b) _ _ (standardRows A a);
+\definition representationValue: \forall (T: Matrix.Matrix0)(a, b: Fin.Fin rank)(x: Open.Carrier U) -> representation T a b x = value (\fun (c, d: Fin.Fin r) => T c d x) a b :=
+  \fun (T: Matrix.Matrix0)(a, b: Fin.Fin rank)(x: Open.Carrier U) => \refl(representation T a b x);
+\import Spaces.Sums[I := Fin.Fin r] \as VectorSums;
+\import VectorSums.Prop[] \as VectorSumLaws;
+\definition product[A, B: Numeric]: Numeric := Matrices.Composition[H := Fin.Fin r].multiply (Fin.elements r) A B;
+\definition composeRows: \forall (A, B: Numeric)(a: Fin.Fin rank) -> rows B (\fun (slot: Fin.Fin k) => A (Coordinates.enumerate a slot)) = (\fun (slot: Fin.Fin k) => product A B (Coordinates.enumerate a slot)) :=
+  \fun (A, B: Numeric)(a: Fin.Fin rank) => \axiom:funext(rows B (\fun (slot: Fin.Fin k) => A (Coordinates.enumerate a slot)),
+    (\fun (slot: Fin.Fin k) => product A B (Coordinates.enumerate a slot)), \fun (slot: Fin.Fin k) =>
+      \axiom:funext((transposeMap B).apply (A (Coordinates.enumerate a slot)), product A B (Coordinates.enumerate a slot), \fun (c: Fin.Fin r) =>
+        VectorSumLaws.congruent (Fin.elements r) (\fun (d: Fin.Fin r) => Op.mul (B d c) (A (Coordinates.enumerate a slot) d))
+          (\fun (d: Fin.Fin r) => Op.mul (A (Coordinates.enumerate a slot) d) (B d c))
+          (\fun (d: Fin.Fin r) => Spaces.mulComm (B d c) (A (Coordinates.enumerate a slot) d))));
+\definition multiplicative: \forall (A, B: Numeric)(a, b: Fin.Fin rank) -> value (product A B) a b =
+  Coefficients.sum (Fin.elements rank) (\fun (c: Fin.Fin rank) => Op.mul (value A a c) (value B c b)) :=
+  \fun (A, B: Numeric)(a, b: Fin.Fin rank) => eq_reason_in!{{C.Complex} { value (product A B) a b }
+    "=" { pull B (word b) (\fun (slot: Fin.Fin k) => A (Coordinates.enumerate a slot)) } "by" {
+      congr!{{Multilinear.Arguments k} {C.Complex}} (word b) _ _ (sym!{{Multilinear.Arguments k}} _ _ (composeRows A B a)) }
+    "=" { Coefficients.sum (Fin.elements rank) (\fun (c: Fin.Fin rank) => Op.mul (value A a c) (pull B (word b) (standard c))) } "by" {
+      expand (pull B (word b)) (\fun (slot: Fin.Fin k) => A (Coordinates.enumerate a slot)) }
+    "=" _ "by" { CoefficientLaws.congruent (Fin.elements rank)
+      (\fun (c: Fin.Fin rank) => Op.mul (value A a c) (pull B (word b) (standard c)))
+      (\fun (c: Fin.Fin rank) => Op.mul (value A a c) (value B c b))
+      (\fun (c: Fin.Fin rank) => congr!{{C.Complex} {C.Complex}} (Op.mul (value A a c)) _ _ (pullCoefficient B c b)) }
+  };
+\definition identity: Numeric := \fun (a, b: Fin.Fin r) => Basis.vectors a b;
+\definition numericExt: \forall (A, B: Numeric) -> (\forall (a, b: Fin.Fin r) -> A a b = B a b) -> A = B :=
+  \fun (A, B: Numeric)(same: _) => \axiom:funext(A, B, \fun (a: Fin.Fin r) => \axiom:funext(A a, B a, same a));
+\definition identityLeft: \forall (A: Numeric) -> product identity A = A :=
+  \fun (A: Numeric) => numericExt (product identity A) A (\fun (a, b: Fin.Fin r) => trans!{{C.Complex}}
+    (product identity A a b) (VectorSums.sum (Fin.elements r) (\fun (c: Fin.Fin r) => Op.mul (A c b) (Basis.vectors a c))) (A a b)
+    (VectorSumLaws.congruent (Fin.elements r) (\fun (c: Fin.Fin r) => Op.mul (Basis.vectors a c) (A c b))
+      (\fun (c: Fin.Fin r) => Op.mul (A c b) (Basis.vectors a c)) (\fun (c: Fin.Fin r) => Spaces.mulComm (Basis.vectors a c) (A c b)))
+    (Basis.dualReconstruction (\fun (c: Fin.Fin r) => A c b) a));
+\definition identityRight: \forall (A: Numeric) -> product A identity = A :=
+  \fun (A: Numeric) => numericExt (product A identity) A (\fun (a, b: Fin.Fin r) => trans!{{C.Complex}}
+    (product A identity a b) (VectorSums.sum (Fin.elements r) (\fun (c: Fin.Fin r) => Op.mul (A a c) (Basis.vectors b c))) (A a b)
+    (VectorSumLaws.congruent (Fin.elements r) (\fun (c: Fin.Fin r) => Op.mul (A a c) (Basis.vectors c b))
+      (\fun (c: Fin.Fin r) => Op.mul (A a c) (Basis.vectors b c)) (\fun (c: Fin.Fin r) => congr!{{C.Complex} {C.Complex}} (Op.mul (A a c)) _ _ (Vectors.Kronecker[].symmetric c b)))
+    (Basis.dualReconstruction (A a) b));
+\definition zeroLeft: \forall (A: Numeric) -> product Matrices.zeroMatrix A = Matrices.zeroMatrix :=
+  \fun (A: Numeric) => numericExt (product Matrices.zeroMatrix A) Matrices.zeroMatrix (\fun (a, b: Fin.Fin r) => trans!{{C.Complex}}
+    (product Matrices.zeroMatrix A a b) (VectorSums.sum (Fin.elements r) (\fun (c: Fin.Fin r) => Op.zero)) Op.zero
+    (VectorSumLaws.congruent (Fin.elements r) (\fun (c: Fin.Fin r) => Op.mul Op.zero (A c b)) (\fun (c: Fin.Fin r) => Op.zero) (\fun (c: Fin.Fin r) => Spaces.mulZeroLeft (A c b)))
+    (VectorSumLaws.zeroSum (Fin.elements r)));
+\definition zeroRight: \forall (A: Numeric) -> product A Matrices.zeroMatrix = Matrices.zeroMatrix :=
+  \fun (A: Numeric) => numericExt (product A Matrices.zeroMatrix) Matrices.zeroMatrix (\fun (a, b: Fin.Fin r) => trans!{{C.Complex}}
+    (product A Matrices.zeroMatrix a b) (VectorSums.sum (Fin.elements r) (\fun (c: Fin.Fin r) => Op.zero)) Op.zero
+    (VectorSumLaws.congruent (Fin.elements r) (\fun (c: Fin.Fin r) => Op.mul (A a c) Op.zero) (\fun (c: Fin.Fin r) => Op.zero) (\fun (c: Fin.Fin r) => Spaces.mulZeroRight (A a c)))
+    (VectorSumLaws.zeroSum (Fin.elements r)));
