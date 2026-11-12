@@ -11,4 +11,4 @@
 
 - [滑らかな束・枠束・随伴束](../../libs/geometry/smooth_bundles/README.md)
 - [I10 複素スピノル表現](i10-spinor-representations.md)
-- [D01 接続と共変微分](d01-connections.md)
+- [接続と共変微分](../../libs/geometry/bundle_connections/README.md)

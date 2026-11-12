@@ -51,6 +51,9 @@
 `Operators.TensorForms.Using.derivative` は通常の切断の共変微分をこの切断型で返す。
 `GlobalForms.OnManifold.Family.Of.At[k].apply` は次数を一つ上げる大域共変外微分であり、`Native.Using` は結果を実際の束の切断型へ送る。
 `Operators.DegreeZero.comparison` は零次において通常の切断の共変微分と一致することを証明する。
+`GlobalForms.OnManifold.Family.Of.Wedge.Leibniz` は大域スカラー形式との次数付き Leibniz 則である。
+`GlobalForms.Complex.On.Family.Of.At` は複素束の実化上で束値形式を表し、複素構造の作用および複素スカラー倍と共変外微分の交換を証明する。
+`PullbackGlobal.Between.Family.Of.Connection.Valued[k].apply` は実際の引き戻し束上の束値形式を返し、`Naturality.law` は大域的な共変外微分との交換を証明する。
 
 `Real.On.Family.Of.InducedPaired.Using.Tensor.value` は B07 のテンソル積束上の誘導接続、`InducedExterior` は B07 の外冪束上の誘導接続を構成する。
 テンソル積の係数は \(A\otimes I+I\otimes B\) であり、任意の有限列挙に関して接続の変換則を証明する。

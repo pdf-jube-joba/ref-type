@@ -9,5 +9,5 @@
 
 ## 依存するタスク
 
-- [D01 接続と共変微分](d01-connections.md)
+- [接続と共変微分](../../libs/geometry/bundle_connections/README.md)
 - [L04 対称多項式と特性級数](l04-symmetric-series.md)
