@@ -33,9 +33,25 @@
 \import singular_cohomology.Calculations[A := Euclidean.Disk, source := Euclidean.diskTopology].With[coefficients := Cochains.integerCoefficients].Singleton[a := point] \as Singleton;
 \import Singleton.Zero[] \as Calculation;
 \import \root.RelativeMayerVietoris[].Pair[A := Euclidean.Disk, source := Euclidean.diskTopology, subset := boundary].Empty[empty := (\fun (v: \Cast[Euclidean.Disk] boundary) => empty v (\bysub(Euclidean.Disk, boundary, v)))].Ring[R := I.Int^, ring := Integers.commutativeRing].Degree[n := N.Nat^::zero] \as Empty;
-\import Modules.Isomorphism[V := I.Int^, W := Cochains.Cohomology[].Group N.Nat^::zero, source := Modules.scalarModule, target := Cochains.Cohomology[].moduleSpace N.Nat^::zero].Composition[U := Class, final := space] \as Composition;
+\import singular_cohomology.Cochains[A := Euclidean.Disk, source := Euclidean.diskTopology].With[coefficients := Cochains.integerCoefficients] \as AbsoluteCochains;
+\definition scalars: Modules.Bundle := Modules.Bundle { Carrier := I.Int^, space := Modules.scalarModule };
+\import \root.RelativeMayerVietoris[].IntegerLinear[] \as IntegerLinear;
+\import IntegerLinear.On[A := scalars, B := Cochains.integerCoefficients, f := (\fun (a: I.Int^) => a),
+  addition := (\fun (a, b: I.Int^) => \refl(Modules.scalarModule.add a b))] \as IntoCoefficients;
+\import IntegerLinear.On[A := Cochains.integerCoefficients, B := scalars, f := (\fun (a: I.Int^) => a),
+  addition := (\fun (a, b: I.Int^) => \refl(Modules.scalarModule.add a b))] \as FromCoefficients;
+\definition coefficientIsomorphism: Modules.Isomorphism[V := I.Int^, W := I.Int^, source := Modules.scalarModule, target := Cochains.integerCoefficients.space].Isomorphism :=
+  Modules.Isomorphism[V := I.Int^, W := I.Int^, source := Modules.scalarModule, target := Cochains.integerCoefficients.space].Isomorphism {
+    forward := IntoCoefficients.map, backward := FromCoefficients.map,
+    leftInverse := \fun (a: I.Int^) => \refl(a), rightInverse := \fun (a: I.Int^) => \refl(a)
+  };
+\import Modules.Isomorphism[V := I.Int^, W := I.Int^, source := Modules.scalarModule, target := Cochains.integerCoefficients.space]
+  .Composition[U := Cochains.Cohomology[].Group N.Nat^::zero, final := AbsoluteCochains.cohomologySpace N.Nat^::zero] \as ScalarComposition;
+\definition absoluteIsomorphism: Modules.Isomorphism[V := I.Int^, W := Cochains.Cohomology[].Group N.Nat^::zero, source := Modules.scalarModule, target := AbsoluteCochains.cohomologySpace N.Nat^::zero].Isomorphism :=
+  ScalarComposition.compose (Calculation.isomorphism unique) coefficientIsomorphism;
+\import Modules.Isomorphism[V := I.Int^, W := Cochains.Cohomology[].Group N.Nat^::zero, source := Modules.scalarModule, target := AbsoluteCochains.cohomologySpace N.Nat^::zero].Composition[U := Class, final := space] \as Composition;
 \definition isomorphism: Modules.Isomorphism[V := I.Int^, W := Class, source := Modules.scalarModule, target := space].Isomorphism :=
-  Composition.compose (Modules.Isomorphism[V := Class, W := Cochains.Cohomology[].Group N.Nat^::zero, source := space, target := Cochains.Cohomology[].moduleSpace N.Nat^::zero].Inverse[].inverse Empty.isomorphism) (Calculation.isomorphism unique);
+  Composition.compose (Modules.Isomorphism[V := Class, W := Cochains.Cohomology[].Group N.Nat^::zero, source := space, target := AbsoluteCochains.cohomologySpace N.Nat^::zero].Inverse[].inverse Empty.comparison) absoluteIsomorphism;
 \definition unitCochain: _ := Unit.cochain;
 \definition unitCycle: _ := Unit.cycle;
 \definition unitUnderlying: _ := Unit.underlying;

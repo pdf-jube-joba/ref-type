@@ -14,3 +14,7 @@ The final sign follows from the existing classification of integer automorphisms
 Closed faces are kept as separate family members until the comparison with the open-shell family; no open-cover theorem is applied directly to a closed-face union.
 
 This mathematical review does not establish checker acceptance of the unverified scopes or completion of C03.
+
+A follow-up review of the zero-dimensional repair confirms that the native and forgotten integer actions are connected by a proved identity-on-additive-groups isomorphism.
+The unit follows the actual additive empty-pair comparison, the ordinary unit cocycle and the singleton calculation.
+Its dedicated scope accepted in 44.07 seconds.
