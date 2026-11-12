@@ -648,8 +648,11 @@ impl MetaContext {
             })();
             match attempt {
                 Ok(true) => return Ok(Outcome::Solved),
-                Ok(false) => {}
-                Err(_) => self.rollback(snapshot)?,
+                // A blocked comparison of application heads does not justify
+                // equating their arguments: beta reduction can change the
+                // application spine. Discard speculative assignments before
+                // comparing the reduced terms.
+                Ok(false) | Err(_) => self.rollback(snapshot)?,
             }
         }
         let left = env.erased_head(self.zonk(&env.arena, left)?)?;

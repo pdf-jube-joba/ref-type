@@ -174,3 +174,48 @@ parameters = '''A: \VType, a: A'''
 \definition value: A := keep!{{a \of _}};
 \definition computation: \F(A) := keep!{{\return(a \of _)}};
 ```
+
+## 入れ子の等式計算と証明の型
+
+入れ子の合同則を経た中間式と交換則の引数を、等式計算の前後から推論する。
+
+```toml case
+id = "accept-macros.captured_proof_type_constraints"
+scope = "package"
+expect = "accept"
+```
+
+```ref file=src/root.ref
+\module Repro(V, K: \Set, add: V -> V -> V, scale: K -> V -> V, neg: V -> V,
+  unit, row, source, result: V, a, b: K,
+  comm: \forall (x, y: V) -> add x y = add y x,
+  join: source = add (scale a unit) row,
+  same: scale a unit = scale b unit,
+  negative: scale b unit = neg unit,
+  final: result = add row (neg unit)) {
+  \macro sym($A) :=
+    (\fun (law: \forall (a, b: $A) -> a = b -> b = a) => law)
+    (\fun (a, b: $A)(e: a = b) =>
+      \idelim a = b \with x: $A => x = a \by { base: \refl(a), equality: e });
+  \macro trans($A) :=
+    (\fun (law: \forall (a, b, c: $A) -> a = b -> b = c -> a = c) => law)
+    (\fun (a, b, c: $A)(ab: a = b)(bc: b = c) =>
+      \idelim b = c \with x: $A => a = x \by { base: ab, equality: bc });
+  \macro eq_reason_in($A, $a, ..steps) := \tmatch steps {
+    | () => \refl($a)
+    | ("=", $b, "by", $h, ..rest) =>
+        trans!{$A} $a $b _ $h (eq_reason_in!{$A $b ..rest})
+  };
+  \macro congr($A, $B) := \fun (f: $A -> $B)(a, b: $A)(same: a = b) =>
+    \idelim a = b \with x: $A => f a = f x \by { base: \refl(f a), equality: same };
+  \definition law: source = result := eq_reason_in!{V _
+    "=" _ "by" { join }
+    "=" _ "by" { congr!{V V} (\fun (w: V) => add w row) _ _ (eq_reason_in!{V _
+      "=" _ "by" { same }
+      "=" _ "by" { negative }
+    }) }
+    "=" _ "by" { comm _ _ }
+    "=" _ "by" { sym!{V} _ _ final }
+  };
+}
+```
