@@ -24,3 +24,11 @@ The chart reindex transports the whole frame family and chart laws with explicit
 The refined Subdomain interface still quantifies over every open included subdomain and forwards both proof conditions at each constructor.
 The normalized disk and chart helper scopes accepted separately.
 The actual integral product identification and sign scope subsequently accepted in 743.12 seconds; its detailed report was lost during the environment reset and the observation is distinguished from retained direct reports.
+
+A read-only post-recovery review at `8bb9c8b6b` found no concrete API mismatch in standard product coefficient change, mod-2 reduction, or the point example.
+It checked carrier/rank order, native integer versus coefficient-ring maps, the actual coefficient-change and sign chain, explicit cycle endpoints, and the point normalization/Gysin exports.
+These checks supplement the pending formal scope and final package/aggregate checks.
+
+A separate read-only review found an ambient/subtype equality mismatch in both local standard-model fiber inverses.
+The repair uses the existing C02 `CWType.ListRefinement.ext` to lift equality of underlying base points before applying product extensionality.
+This source repair remains pending its local/full formal check.
