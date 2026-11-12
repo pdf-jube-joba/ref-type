@@ -1,0 +1,33 @@
+\import Nonnegative.ZeroExtension[C := Whole.complex] \as WholeExtension;
+\import singular_cohomology.Calculations[A := Subspace.CarrierSet, source := Subspace.topology source].ChainEmpty[] \as EmptyChains;
+\import Chains.Quotient[C := SubExtension.complex, D := WholeExtension.complex].On[f := Relative.inclusionMap] \as Quotient;
+\module Degree(z: I.Int^) {
+  \import Modules.Hom[V := WholeExtension.Carrier z, W := Relative.Carrier z, source := WholeExtension.space z, target := Relative.space z] \as Projection;
+  \import Modules.Hom[V := SubExtension.Carrier z, W := WholeExtension.Carrier z, source := SubExtension.space z, target := WholeExtension.space z] \as Inclusion;
+  \definition inclusion: Inclusion.Map := Chains.Map[C := SubExtension.complex, D := WholeExtension.complex].At[k := z].linear Relative.inclusionMap;
+  \definition zeroKernel: \forall (x: WholeExtension.Carrier z) -> Relative.class z x = (Relative.space z).zero -> x = (WholeExtension.space z).zero := \block {
+    \fun (x: WholeExtension.Carrier z)(zero: Relative.class z x = (Relative.space z).zero) \then
+    \takefrom y: \Cast[SubExtension.Carrier z] ({ y: SubExtension.Carrier z \where Relative.inclusionMap.apply z y = x }) \by Relative.sequence.kernelImage z x zero \then
+    \return trans!{{WholeExtension.Carrier z}} _ _ _
+      (sym!{{WholeExtension.Carrier z}} _ _ (\bysub(SubExtension.Carrier z, { y: SubExtension.Carrier z \where Relative.inclusionMap.apply z y = x }, y)))
+      (trans!{{WholeExtension.Carrier z}} _ _ _
+        (congr!{{SubExtension.Carrier z} {WholeExtension.Carrier z}} (Relative.inclusionMap.apply z) _ _ (EmptyChains.integerZero z empty y))
+        (Inclusion.zeroPreserved inclusion))
+  };
+  \definition injective: \forall (x, y: WholeExtension.Carrier z) -> Relative.class z x = Relative.class z y -> x = y :=
+    Projection.injectiveOfZeroKernel Quotient.At[k := z].projection zeroKernel;
+}
+\import Chains.Map[C := WholeExtension.complex, D := Relative.complex].Invert[f := Quotient.projection] \as Inverse;
+\definition bijective: Inverse.Bijective := Inverse.Bijective {
+  injective := \fun (z: I.Int^) => Degree[z := z].injective,
+  onto := Relative.sequence.onto
+};
+\definition chainIsomorphism: _ := Inverse.isomorphism bijective;
+\module With(coefficients: Modules.Bundle) {
+  \import resolutions.HomComplex[].Over[R := I.Int^, ring := Integers.commutativeRing].IntegerIsomorphism[P := WholeExtension.complex, Q := Relative.complex, N := coefficients].On[e := chainIsomorphism] \as Comparison;
+  \definition cochainIsomorphism: _ := Comparison.isomorphism;
+  \module At(z: I.Int^) {
+    \definition isomorphism: _ := Comparison.At[z := z].isomorphism;
+  }
+}
+\module Ring(R: \Set, ring: std.Alg[].Ring[].CommutativeRing[R]);

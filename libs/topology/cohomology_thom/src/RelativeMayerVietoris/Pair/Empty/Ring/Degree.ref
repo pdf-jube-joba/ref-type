@@ -1,0 +1,28 @@
+\definition z: I.Int^ := I.Int^::ofNat n;
+\import Cochains.At[C := RelativeHom.complex, z := z] \as Source;
+\import Cochains.At[C := WholeHom.complex, z := z] \as Middle;
+\import Hom.ZeroExtension[P := Whole.complex, N := Product.integerCoefficients].Cohomology[n := n] \as Natural;
+\import Pair.Comparison[n := n].Cohomology[] \as Target;
+\import Modules.Isomorphism[V := Source.Cohomology, W := Middle.Cohomology, source := Source.cohomologySpace, target := Middle.cohomologySpace]
+  .Composition[U := Product.Cohomology[].Group n, final := singular_cohomology.Cochains[A := A, source := source].With[coefficients := Product.integerCoefficients].cohomologySpace n] \as Compose;
+\definition comparison: _ := Compose.compose Natural.isomorphism Ordinary.At[z := z].isomorphism;
+\import Forget.At[k := z] \as On;
+\definition onClass: \forall (h: Source.Closed) -> comparison.forward.apply (Source.classOf h) = Target.map.apply (Source.classOf h) :=
+  \fun (h: Source.Closed) => trans!{{Product.Cohomology[].Group n}} _ _ _
+    (congr!{Middle.Cohomology {Product.Cohomology[].Group n}} Natural.isomorphism.forward.apply _ _ (On.onClass Ordinary.cochainIsomorphism.forward h))
+    (trans!{{Product.Cohomology[].Group n}} _ _ _
+      (Natural.onClass ((On.cyclesMap Ordinary.cochainIsomorphism.forward).apply h))
+      (sym!{{Product.Cohomology[].Group n}} _ _ (Target.onClass h)));
+\definition law: \forall (q: Source.Cohomology) -> comparison.forward.apply q = Target.map.apply q :=
+  Source.classInduction (\fun (q: Source.Cohomology) => comparison.forward.apply q = Target.map.apply q) onClass;
+\import module_theory.Module[].Over[R := R, ring := std.Alg[].Ring[].commutativeRingAsRing R ring] \as RingModules;
+\import singular_cohomology.Relative[A := A, source := source, subset := subset].OverRing[R := R, ring := ring].With[coefficients := Product.coefficients] \as RelativeRing;
+\import chain_complexes.Integer[].Over[R := R, ring := std.Alg[].Ring[].commutativeRingAsRing R ring].At[C := RelativeRing.complex, z := z] \as RingSource;
+\import RingModules.Isomorphism[V := RingSource.Cohomology, W := Product.Cohomology[].Group n, source := RingSource.cohomologySpace, target := Product.Cohomology[].moduleSpace n].OfBijective[f := Target.map] \as Inverse;
+\definition injective: Inverse.Injective := \fun (x, y: Source.Cohomology)(same: Target.map.apply x = Target.map.apply y) =>
+  trans!{Source.Cohomology} _ _ _ (sym!{Source.Cohomology} _ _ (comparison.leftInverse x))
+    (trans!{Source.Cohomology} _ _ _ (congr!{{Product.Cohomology[].Group n} Source.Cohomology} comparison.backward.apply _ _
+      (trans!{{Product.Cohomology[].Group n}} _ _ _ (law x) (trans!{{Product.Cohomology[].Group n}} _ _ _ same (sym!{{Product.Cohomology[].Group n}} _ _ (law y))))) (comparison.leftInverse y));
+\definition onto: Inverse.Onto := \fun (q: Product.Cohomology[].Group n) => Logic.existsIntro[Source.Cohomology, { x: Source.Cohomology \where Target.map.apply x = q }]
+  (comparison.backward.apply q) (trans!{{Product.Cohomology[].Group n}} _ _ _ (sym!{{Product.Cohomology[].Group n}} _ _ (law (comparison.backward.apply q))) (comparison.rightInverse q));
+\definition isomorphism: _ := Inverse.isomorphism injective onto;

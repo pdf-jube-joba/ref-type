@@ -1,0 +1,26 @@
+\import module_theory.Module[].Over[R := R, ring := Rings.commutativeRingAsRing R ring] \as Modules;
+\import Theory.Product[p := p, n := N.Nat^::zero] \as Product;
+\import Theory.Degree[n := p] \as Output;
+\import Pair.Comparison[n := p].Cohomology[] \as Forget;
+\import EmptyRing.Degree[n := p] \as Comparison;
+\import Total.Cohomology[].Pullback[B := X, target := bundle.baseSpace] \as Projection;
+\import singular_cohomology.Equivalence[A := Disk.DiskBundle, B := X, source := Disk.diskTopology, target := bundle.baseSpace].With[coefficients := Base.integerCoefficients] \as Equivalence;
+\definition leftInverse: \forall (a: Base.Cohomology[].Group p) -> Output.zeroSection.apply (Product.apply a class) = a :=
+  \fun (a: Base.Cohomology[].Group p) => trans!{{Base.Cohomology[].Group p}} _ _ _ (Product.ZeroSection[].law a class)
+    (trans!{{Base.Cohomology[].Group p}} _ _ _
+      (congr!{{Base.Cohomology[].Group N.Nat^::zero} {Base.Cohomology[].Group p}} (Base.Cohomology[].Cup[p := p, q := N.Nat^::zero].apply a) _ _ euler)
+      (Base.Cohomology[].Unit[].Right[p := p].law a));
+\definition rightInverse: \forall (q: Output.Class) -> Product.apply (Output.zeroSection.apply q) class = q :=
+  \fun (q: Output.Class) => Comparison.injective _ q
+    (trans!{{Total.Cohomology[].Group p}} _ _ _
+      (Product.Forget[].law (Projection.apply p Disk.diskProjection Disk.diskProjectionContinuous (Output.zeroSection.apply q)) class)
+      (trans!{{Total.Cohomology[].Group p}} _ _ _
+        (congr!{{Total.Cohomology[].Group N.Nat^::zero} {Total.Cohomology[].Group p}}
+          (Total.Cohomology[].Cup[p := p, q := N.Nat^::zero].apply (Projection.apply p Disk.diskProjection Disk.diskProjectionContinuous (Output.zeroSection.apply q))) _ _ forgetClass)
+        (trans!{{Total.Cohomology[].Group p}} _ _ _
+          (Total.Cohomology[].Unit[].Right[p := p].law (Projection.apply p Disk.diskProjection Disk.diskProjectionContinuous (Output.zeroSection.apply q)))
+          (Equivalence.leftInverse Disk.Contraction[].equivalence p (Forget.map.apply q)))));
+\definition isomorphism: Modules.Isomorphism[V := Base.Cohomology[].Group p, W := Output.Class, source := Base.Cohomology[].moduleSpace p, target := Output.space].Isomorphism :=
+  Modules.Isomorphism[V := Base.Cohomology[].Group p, W := Output.Class, source := Base.Cohomology[].moduleSpace p, target := Output.space].Isomorphism {
+    forward := Product.linear class, backward := Output.zeroSection, leftInverse := leftInverse, rightInverse := rightInverse
+  };

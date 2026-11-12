@@ -27,3 +27,12 @@
 `restriction`、`difference`、`connecting` と、各項での `exactAtSum`、`exactAtIntersection`、`exactAtWhole` を公開する。
 境界部分に含まれない特異単体の自由加群基底から、小さい相対鎖の分裂短完全列を構成する。
 任意の整数加群への Hom を取り、小さい鎖との比較および直和との比較を通じて通常の相対コホモロジーへ移す。
+
+`Cohomology.Gluing[z]` は両開集合の整合する類の貼り合わせの存在を示し、直前の次数の共通部分の相対コホモロジーが消える場合に一意な `glue` を構成する。
+`Thom.Real.For.With.ChangeCoefficients[M, N, u].Degree[z].map` は係数加群の準同型による変更で、`Fiber[x, z].law` はファイバー制限との自然性を示す。
+`CoefficientChange.On[C, M, N, u].Along[D, f].At[z].law` はその一般の鎖写像に対する自然性である。
+
+`Thom.Real.For.With.ZeroRank[rankZero].Ring[R, ring]` はランク0の束の Thom 類 `class` を構成する。
+`Degree[p].isomorphism` の順写像は \(a\mapsto\pi^*a\smile u\)、逆写像は零切断への引き戻しである。
+`euler` はこの Thom 類の Euler 類が単位類であることを示す。
+`ZeroRank.With[M, z].isomorphism` は任意の整数加群係数と整数次数で底空間のコホモロジーへの比較を与える。

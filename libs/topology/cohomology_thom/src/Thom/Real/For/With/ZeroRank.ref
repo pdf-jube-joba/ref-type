@@ -1,0 +1,27 @@
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Data[].FinSet[] \as Fin;
+\import Bundles.Family[X := X, F := F] \as Family;
+\definition frameExists: \forall (x: X) -> \exists Bundle.Frame N.Nat^::zero x :=
+  \fun (x: X) => \idelim Bundle.rank x = N.Nat^::zero \with n: N.Nat^ => \exists Bundle.Frame n x \by {
+    base: \bysub(N.Nat^, Bundle.RankAt x, Bundle.rank x), equality: rankZero x
+  };
+\definition fiberZero: \forall (x: X)(v: F x) -> v = (bundle.space x).zero := \block {
+  \fun (x: X)(v: F x) \then
+  \takefrom frame: Bundle.Frame N.Nat^::zero x \by frameExists x \then
+  \let same: frame.forward.apply v = frame.forward.apply (bundle.space x).zero :=
+    \axiom:funext(frame.forward.apply v, frame.forward.apply (bundle.space x).zero,
+      \fun (i: Fin.Fin N.Nat^::zero) => Logic.falseElim _ (Fin.zeroImpossible i (Fin.bound N.Nat^::zero i))) \then
+  \return trans!{{F x}} _ _ _ (sym!{{F x}} _ _ (frame.leftInverse v))
+    (trans!{{F x}} _ _ _ (congr!{{Bundles.Vector N.Nat^::zero} {F x}} frame.backward.apply _ _ same) (frame.leftInverse (bundle.space x).zero))
+};
+\definition diskZero: \forall (p: Disk.DiskBundle) -> p = Disk.zeroSection p.base :=
+  \fun (p: Disk.DiskBundle) => trans!{Family.Point} _ _ _ (sym!{Family.Point} _ _ (Family.eta p))
+    (congr!{{F p.base} Family.Point} (Family.include p.base) _ _ (fiberZero p.base p.vector));
+\definition boundaryEmpty: \forall (p: \Cast[Disk.DiskBundle] Disk.Boundary) -> Logic.False :=
+  \fun (p: \Cast[Disk.DiskBundle] Disk.Boundary) => dedekind_reals.DedekindReal[].Arithmetic[].Prop[].zeroNeOne
+    (trans!{Reals.Real} _ _ _ (sym!{Reals.Real} _ _ (Disk.zeroSquared p.base))
+      (trans!{Reals.Real} _ _ _ (congr!{Family.Point Reals.Real} Disk.squared _ _ (sym!{Family.Point} _ _ (diskZero p)))
+        (\bysub(Disk.DiskBundle, Disk.Boundary, p))));
+\import \root.RelativeMayerVietoris[].Pair[A := Disk.DiskBundle, source := Disk.diskTopology, subset := Disk.Boundary].Empty[empty := boundaryEmpty] \as EmptyPair;
+\module With(coefficients: IntegerModules.Bundle, z: I.Int^);
+\module Ring(R: \Set, ring: Rings.CommutativeRing[R]);
