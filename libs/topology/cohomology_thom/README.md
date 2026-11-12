@@ -151,3 +151,13 @@ H^p(X;R)\longrightarrow H^{p+n}(X\times D^n,X\times\partial D^n;R),\qquad
 
 `CoefficientChange.FromIntegers[K, ring]` は整数加群の1へのスカラー作用から \(\mathbb Z\to K\) を構成する。
 `linear`、`multiply`、`unit` が加法・積・単位の保存を証明し、`OnSpace[A, source].morphism` は任意の係数環への標準係数変更を与える。
+
+`Oriented.Change[L, targetRing, morphism]` は元のファイバー生成元を係数写像で送り、同じチャートと符号で変更後の向き `targetOrientation` を構成する。
+`classLaw` は大域 Thom 類の係数変更、`Degree[p].law` と `inverseLaw` は Thom 同型の両方向の可換式、`eulerLaw` は Euler 類の係数変更を与える。
+局所標準円板の生成元から実際の計量ファイバーへの比較を経て、変更後の大域類の一意性を用いて証明する。
+
+`Thom.Real.For.With.Integral[n, orientation, complex]` は整数係数の公開入口である。
+`Coefficients[K, ring]` は標準準同型 \(\mathbb Z\to K\) による向きと Thom 類の変更、および Thom 同型と Euler 類の比較を与える。
+`Oriented.Integer.isomorphism z` は任意の整数次数で
+\(H^z(X;K)\cong H^{\operatorname{shift}(n,z)}(D(E),S(E);K)\) を与える。
+非負次数では実際の cup 積による同型を整数加群へ制限し、負次数では両群の消滅を用いる。

@@ -1,0 +1,36 @@
+\use std.Logic[].Equality[].eq_reason_in;
+\import BundleGeometry.Fiber[x := x] \as Actual;
+\import \parent.\parent.Fiber[x := x] \as Native;
+\import Geometry.Fiber[x := x].Ring[K := K, ring := ring] \as SourceFiber;
+\import Geometry.Fiber[x := x].Ring[K := L, ring := targetRing] \as TargetFiber;
+\definition SourceModels[k: N.Nat^]: \Set := SourceLocal.Model[n := k, U := c.domain].Data;
+\definition TargetModels[k: N.Nat^]: \Set := TargetLocal.Model[n := k, U := c.domain].Data;
+\definition SourceClasses[k: N.Nat^]: \Set := SourceLocal.Rank[n := k].FiberClass x;
+\definition TargetClasses[k: N.Nat^]: \Set := TargetLocal.Rank[n := k].FiberClass x;
+\definition sourceValue[k: N.Nat^][m: SourceModels k]: SourceClasses k := (SourceLocal.Rank[n := k].On[U := c.domain].restriction x).apply m.thomClass;
+\definition targetValue[k: N.Nat^][m: TargetModels k]: TargetClasses k := (TargetLocal.Rank[n := k].On[U := c.domain].restriction x).apply m.thomClass;
+\definition linear[k: N.Nat^]: _ := Change.Fiber[x := x, z := I.Int^::ofNat k].map;
+\definition map[k: N.Nat^]: SourceClasses k -> TargetClasses k := (linear k).apply;
+\definition native: map c.dimension (sourceValue c.dimension SourceChart.data) = targetValue c.dimension TargetChart.data :=
+  trans!{{TargetClasses c.dimension}} _ _ _ (congr!{{SourceClasses c.dimension} {TargetClasses c.dimension}} (map c.dimension) _ _ SourceFiber.Normalization[].normalized)
+    (trans!{{TargetClasses c.dimension}} _ _ _ Native.generator (sym!{{TargetClasses c.dimension}} _ _ TargetFiber.Normalization[].normalized));
+\definition positive: map n (sourceValue n Source.model) = targetValue n Target.model := eq_reason_in!{{TargetClasses n} _
+  "=" _ "by" { congr!{{SourceClasses n} {TargetClasses n}} (map n) _ _ (sym!{{SourceClasses n}} _ _ (Transport.natural SourceModels SourceClasses sourceValue c.dimension n same SourceChart.data)) }
+  "=" _ "by" { sym!{{TargetClasses n}} _ _ (Transport.natural SourceClasses TargetClasses map c.dimension n same (sourceValue c.dimension SourceChart.data)) }
+  "=" _ "by" { congr!{{TargetClasses c.dimension} {TargetClasses n}} (Transport.cast TargetClasses c.dimension n same) _ _ native }
+  "=" _ "by" { Transport.natural TargetModels TargetClasses targetValue c.dimension n same TargetChart.data }
+};
+\definition negativeSource[u: SourceClasses n]: SourceClasses n := Actual.Additive[coefficients := BaseProduct.integerCoefficients, z := I.Int^::ofNat n].space.neg u;
+\definition negativeTarget[u: TargetClasses n]: TargetClasses n := Actual.Additive[coefficients := TargetProduct.integerCoefficients, z := I.Int^::ofNat n].space.neg u;
+\definition negative: \forall (u: SourceClasses n) -> map n (negativeSource u) = negativeTarget (map n u) :=
+  IntegerModules.Hom[V := SourceClasses n, W := TargetClasses n, source := Actual.Additive[coefficients := BaseProduct.integerCoefficients, z := I.Int^::ofNat n].space, target := Actual.Additive[coefficients := TargetProduct.integerCoefficients, z := I.Int^::ofNat n].space].negativePreserved (linear n);
+\definition signed: \forall (reverse: std.Data[].Bool[].Bool^) -> map n (sourceValue n (Source.signed reverse)) = targetValue n (Target.signed reverse) :=
+  \induction (reverse: std.Data[].Bool[].Bool^) \return map n (sourceValue n (Source.signed reverse)) = targetValue n (Target.signed reverse) \with {
+    | false: positive
+    | true: eq_reason_in!{{TargetClasses n} _
+        "=" _ "by" { congr!{{SourceClasses n} {TargetClasses n}} (map n) _ _ (SourceDomain.negativeLaw x Source.model.thomClass) }
+        "=" _ "by" { negative (sourceValue n Source.model) }
+        "=" _ "by" { congr!{{TargetClasses n} {TargetClasses n}} negativeTarget _ _ positive }
+        "=" _ "by" { sym!{{TargetClasses n}} _ _ (TargetDomain.negativeLaw x Target.model.thomClass) }
+      }
+  };

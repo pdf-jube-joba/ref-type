@@ -1,0 +1,19 @@
+\import \root.Thom[].Real[].For[X := X, F := F, bundle := bundle].With[metric := metric] \as Geometry;
+\import singular_products.Cochains[A := X, source := bundle.baseSpace, R := K, ring := ring] \as BaseProduct;
+\import singular_cohomology.Cochains[A := X, source := bundle.baseSpace].With[coefficients := BaseProduct.integerCoefficients] \as BaseNatural;
+\import BaseNatural.Integer[] \as Base;
+\definition Relative[z: I.Int^]: \Set := Geometry.Additive[coefficients := BaseProduct.integerCoefficients].Degree[z := z].Class;
+\definition relativeSpace[z: I.Int^]: IntegerModules.Space (Relative z) := Geometry.Additive[coefficients := BaseProduct.integerCoefficients].Degree[z := z].space;
+\definition relativeFamily: IntegerModules.Family[I.Int^] := IntegerModules.Family[I.Int^] { Carrier := Relative, space := relativeSpace };
+\import \root.RelativeMayerVietoris[].Transport[Index := I.Int^, family := relativeFamily] \as Transport;
+\module At(z: I.Int^) {
+  \definition degree: I.Int^ := \root.LocalDisk[].shift n z;
+  \definition Iso: \Set := IntegerModules.Isomorphism[V := Base.cohomology z, W := Relative degree, source := Base.cohomologySpace z, target := relativeSpace degree].Isomorphism;
+}
+\module Positive(p: N.Nat^);
+\module Negative(k: N.Nat^);
+\definition isomorphism: \forall (z: I.Int^) -> At[z := z].Iso :=
+  \induction (z: I.Int^) \return At[z := z].Iso \with {
+    | ofNat: \fun (p: N.Nat^) => Positive[p := p].isomorphism
+    | negSucc: \fun (k: N.Nat^) => Negative[k := k].isomorphism
+  };
