@@ -83,3 +83,6 @@ H^p(X;R)\longrightarrow H^{p+n}(X\times D^n,X\times\partial D^n;R),\qquad
 
 `RelativeMayerVietoris.OpenCover.On.From.Along.With.Ordinary[z].law` は被覆を保つ対写像に対する通常の相対接続写像の自然性を与える。
 `RelativeSuspension.On.From.With.At[z].law` は相対懸垂同型と対写像の引き戻しの可換性を示す。
+
+`LocalDisk.On.From.Ring.canonical n` は連続な底写像による局所 Thom 類の引き戻しの自然性を与える。
+`From.Ring.Degree[n, p].law` は cup 積による局所 Thom 同型と引き戻しの可換性を示す。
