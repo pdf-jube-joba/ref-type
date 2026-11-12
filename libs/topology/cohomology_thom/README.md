@@ -226,3 +226,26 @@ H^z(X;R)\xrightarrow{\smile e}H^{z+n}(X;R)
 `With[M].sequence` と `At[z].connecting` は任意の整数加群と整数次数を扱う。
 `FamilyPair.InCover.With[M].quasiIsomorphism` は、細分のホモトピーと取り直し写像が各部分の族を保つことから得られる通常の鎖との比較である。
 二つの閉部分の和集合に含まれる全ての特異単体を、どちらか一方に含まれる単体と同一視する必要はない。
+
+
+`Local.Rank[n].Models.Orientation` はファイバー生成元と、全ての開部分への制限を備えた局所 Thom モデルをまとめる。
+`With.Modeled[K, ring, n, orientation, complex]` は、このデータから有限 Mayer–Vietoris 貼り合わせによって大域類を構成する。
+`class`、`normalized`、`uniqueNormalized`、`Degree[p].isomorphism`、`Below[k].zero` を公開し、`Models.Signed` は符号付きチャートによる向きとの比較を与える。
+
+`DirectSum.With.IntegralProduct[n, m, leftOrientation, rightOrientation, complex]` は、二つの整数 Thom 類の実際の積から直和のファイバー向き `orientation` を構成する。
+局所座標を通じた標準円板の積について、次数0の単位類と符号付き懸垂公式から生成性を証明する。
+閉じた二つの面は部分の族として別々に相対化し、開いた殻とのホモトピー比較を通じて `Ring.Product.apply` の積に同定する。
+
+| API | 内容 |
+| --- | --- |
+| `IntegralProduct.classLaw` | 二つの整数 Thom 類の積が、構成した直和の向きの大域 Thom 類に等しい。 |
+| `IntegralProduct.Degree[p].isomorphism` | その実際の類との cup 積による Thom 同型。 |
+| `IntegralProduct.Euler.law` | 直和の Euler 類と、二つの Euler 類の cup 積との比較。 |
+| `IntegralProduct.Compare[given, fiberLaw]` | 同じファイバー向きを持つ符号付きチャートの向きとの類・Euler 類・Thom 写像の比較。 |
+| `ModTwoProduct.canonicalProductLaw` | 二つの標準 mod 2 Thom 類の積が、直和の標準 mod 2 Thom 類に等しい。 |
+| `IntegralProduct.ModTwo.classLaw` | 構成した整数 Thom 類の係数変更が、直和の標準 mod 2 Thom 類に等しい。 |
+| `IntegralProduct.ModTwo.Degree[p].law` / `inverseLaw` | 順・逆 Thom 同型と標準の整数から mod 2 への係数変更の可換性。 |
+
+`DirectSum.With.Ring[K, ring].Change[L, targetRing, morphism].Product[n, m].law` は、任意の二つの相対類の実際の直和積と係数環の変更の可換性を示す。
+`Change.Euler[n].law` は、その零切断への引き戻しと係数変更の可換性を与える。
+`Compare` の `fiberLaw` は指定された二つの向きのファイバー上での一致であり、比較する大域 Thom 類の等式は結論として導く。
