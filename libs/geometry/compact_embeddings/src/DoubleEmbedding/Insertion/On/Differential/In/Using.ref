@@ -1,0 +1,28 @@
+\import Original.Using[representative := representative] \as Choice;
+\definition left: Domain.Chart := \into[SourceCharts.Chart](Choice.source, Domain.Chart) \by {
+  Domain.ChartLaws[Choice.source] { member := Local.leftMember x Choice.source, contains := Local.leftContains x Choice.source }
+};
+\definition right: Codomain.Chart := \into[TargetCharts.Chart](Choice.witness.right, Codomain.Chart) \by {
+  Codomain.ChartLaws[Choice.witness.right] { member := Local.rightMember (value x) Choice.witness.right, contains := Local.rightContains (value x) Choice.witness.right }
+};
+\import Maps.At[function := value, left := left, right := right, x := x, contains := Domain.contains left] \as Coordinates;
+\definition extension: Coordinates.Extension := Coordinates.Extension {
+  neighborhood := Choice.extension.neighborhood, included := Choice.extension.included,
+  contains := Choice.extension.contains, map := Choice.extension.map,
+  inside := Choice.extension.inside, agrees := Choice.extension.agrees
+};
+\import Coordinates.Using[e := extension] \as E;
+\import calculus.Identity[n := dimension] \as Identity;
+\import Calculus.Differential[U := extension.neighborhood, V := Open.whole, f := extension.map, a := E.center] \as Derivative;
+\definition matrix: D.InCharts[left := left, right := right].jacobian = Identity.linear := trans!{{calculus.Vector[n := dimension, m := dimension].LinearMap}} _ _ _
+  (Coordinates.ofExtension D.InCharts[left := left, right := right].smooth extension)
+  (trans!{{calculus.Vector[n := dimension, m := dimension].LinearMap}} _ _ _ (Derivative.Compare[W := extension.neighborhood, g := Identity.map extension.neighborhood].equal
+    (\axiom:funext((\fun (u: Open.Carrier extension.neighborhood) => Calculus.apply extension.neighborhood Open.whole extension.map u \of Model.Point),
+      (\fun (u: Open.Carrier extension.neighborhood) => Calculus.apply extension.neighborhood extension.neighborhood (Identity.map extension.neighborhood) u \of Model.Point), \fun (u: Open.Carrier extension.neighborhood) => \refl(u \of Model.Point))))
+    (Identity.At[U := extension.neighborhood, a := E.center].differential));
+\definition coordinates[v: Domain.Vector]: Codomain.Coordinate[chart := right].decode (D.value.apply v) = Domain.Coordinate[chart := left].decode v :=
+  trans!{Model.Point} _ _ _ (D.coordinates left right v)
+    (congr!{{calculus.Vector[n := dimension, m := dimension].LinearMap} {Model.Point}} (\fun (d: calculus.Vector[n := dimension, m := dimension].LinearMap) => d.apply (Domain.Coordinate[chart := left].decode v)) _ _ matrix);
+\definition injective[u, v: Domain.Vector]: D.value.apply u = D.value.apply v -> u = v := \fun (equal: _) => Domain.Coordinate[chart := left].injective u v
+  (trans!{Model.Point} _ _ _ (sym!{Model.Point} _ _ (coordinates u))
+    (trans!{Model.Point} _ _ _ (congr!{{Codomain.Vector} {Model.Point}} Codomain.Coordinate[chart := right].decode _ _ equal) (coordinates v)));

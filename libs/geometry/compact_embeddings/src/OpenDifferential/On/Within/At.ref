@@ -1,0 +1,26 @@
+\import boundary_manifolds.Tangent[n := n].On[M := Source.manifold].At[x := x] \as Domain;
+\import boundary_manifolds.Tangent[n := n].On[M := M].At[x := x] \as Codomain;
+\import boundary_manifolds.Differential[n := n, m := n].Between[M := Source.manifold, N := M].At[f := Source.Inclusion[].map, x := x] \as D;
+\module In(patch: Source.Patch, contains: Charts.Contains Source.For[patch := patch].chart x);
+\definition injective: \forall (u, v: Domain.Vector) -> D.value.apply u = D.value.apply v -> u = v := \block {
+  \fun (u, v: Domain.Vector)(equal: _) \then
+  \takefrom patch: \Cast[Source.Patch] ({ p: Source.Patch \where Charts.Contains Source.For[patch := p].chart x }) \by Source.covers x \then
+  \return In[patch := patch, contains := \bysub(Source.Patch, { p: Source.Patch \where Charts.Contains Source.For[patch := p].chart x }, patch)].injective u v equal
+};
+\definition onto: \forall (w: Codomain.Vector) -> \exists ( v: Domain.Vector \where D.value.apply v = w ) := \block {
+  \fun (w: Codomain.Vector) \then
+  \takefrom patch: \Cast[Source.Patch] ({ p: Source.Patch \where Charts.Contains Source.For[patch := p].chart x }) \by Source.covers x \then
+  \return In[patch := patch, contains := \bysub(Source.Patch, { p: Source.Patch \where Charts.Contains Source.For[patch := p].chart x }, patch)].onto w
+};
+\definition Values[w: Codomain.Vector]: \Set := \Cast[Domain.Vector] ({ v: Domain.Vector \where D.value.apply v = w });
+\definition unique[w: Codomain.Vector][u, v: Values w]: u = v := injective u v
+  (trans!{{Codomain.Vector}} _ _ _ (\bysub(Domain.Vector, { v: Domain.Vector \where D.value.apply v = w }, u))
+    (sym!{{Codomain.Vector}} _ _ (\bysub(Domain.Vector, { v: Domain.Vector \where D.value.apply v = w }, v))));
+\definition inverse[w: Codomain.Vector]: Values w := \choice Values w \by { existence: onto w, uniqueness: unique w };
+\definition rightInverse[w: Codomain.Vector]: D.value.apply (inverse w) = w := \bysub(Domain.Vector, { v: Domain.Vector \where D.value.apply v = w }, inverse w);
+\definition leftInverse[v: Domain.Vector]: inverse (D.value.apply v) = v := injective (inverse (D.value.apply v)) v (rightInverse (D.value.apply v));
+\import Domain.Cones[] \as SourceCones;
+\import Codomain.Cones[] \as TargetCones;
+\definition inverseTangential[w: Codomain.Vector]: TargetCones.Tangential w -> SourceCones.Tangential (inverse w) :=
+  \fun (tangent: _) => manifold_gluing.OpenManifoldCones[n := n].On[M := M].Within[U := U, open := open].At[x := x].reflectsTangential (inverse w)
+    (\idelim w = D.value.apply (inverse w) \with v: Codomain.Vector => TargetCones.Tangential v \by { base: tangent, equality: sym!{{Codomain.Vector}} _ _ (rightInverse w) });

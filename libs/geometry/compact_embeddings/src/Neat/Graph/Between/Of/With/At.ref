@@ -1,0 +1,48 @@
+\import \parent.\parent.At[x := x] \as Derivative;
+\import SourceTangent.At[x := x] \as Domain;
+\import FirstTangent.At[x := f.apply x] \as Left;
+\import HeightTangent.At[x := h.apply x] \as Right;
+\import boundary_manifolds.Tangent[n := dimension].On[M := target].At[x := map.apply x] \as Codomain;
+\import manifold_gluing.ProductDifferential[n := k, m := One.dimension].Of[M := E, N := halfLine].At[x := map.apply x] \as Components;
+\import Differential.At[f := map, x := x] \as D;
+\import HeightDerivative.At[f := h, x := x] \as Dh;
+\import Neat.At[f := map, x := x] \as N;
+\import Normal.At[f := h, x := x] \as H;
+\import \parent.\parent.\parent.ProductAt[y := map.apply x] \as ProductCones;
+\definition boundary: Logic.PropEquiv[Domain.Cones[].Boundary, Codomain.Cones[].Boundary] := Logic.PropEquiv[_, _] {
+  ltr := \fun (b: Domain.Cones[].Boundary) => Product.At[x := map.apply x].boundaryCriterion.rtl (Logic.Or[_, _]::right ((height.boundary x).ltr b)),
+  rtl := \fun (b: Codomain.Cones[].Boundary) => Logic.orElim (Left.Cones[].Boundary) (Right.Cones[].Boundary) (Domain.Cones[].Boundary)
+    (Product.At[x := map.apply x].boundaryCriterion.ltr b)
+    (\fun (b: Left.Cones[].Boundary) => Logic.falseElim _ (noBoundary (f.apply x) b))
+    ((height.boundary x).rtl),
+};
+\definition allLeft: \forall (v: Left.Vector) -> Left.Cones[].Tangential v := \block {
+  \let all: \forall (v: Left.Vector) -> Left.Cones[].Inward v := topology.Topology[Carrier := E.Point].Finite[].doubleNegElim
+    (\forall (v: Left.Vector) -> Left.Cones[].Inward v) (noBoundary (f.apply x)) \then
+  \return \fun (v: Left.Vector) => Logic.And[_, _]::# (all v) (all (Left.Operations[].negative v))
+};
+\definition secondDerivative: \forall (v: Domain.Vector) -> Components.second (D.value.apply v) = Dh.value.apply v := \fun (v: Domain.Vector) =>
+  trans!{Right.Vector} _ _ _
+    (congr!{Codomain.Vector Right.Vector} Components.second _ _ (manifold_gluing.PairDifferential[p := n, n := k, m := One.dimension].Between[P := M, M := E, N := halfLine].Of[f := f, g := h].At[x := x].law v))
+    (Components.secondPair (boundary_manifolds.Differential[n := n, m := k].Between[M := M, N := E].At[f := f, x := x].value.apply v) (Dh.value.apply v));
+\import manifold_gluing.ProductMaps[n := k, m := One.dimension].Of[M := E, N := halfLine] \as Projections;
+\import boundary_manifolds.Differential[n := dimension, m := One.dimension].Between[M := target, N := halfLine].At[f := Projections.Second[].map, x := map.apply x] \as Second;
+\definition difference: \forall (v: Domain.Vector)(w: Codomain.Vector) -> Components.second (N.difference v w) = H.difference v (Components.second w) :=
+  \fun (v: Domain.Vector)(w: Codomain.Vector) => trans!{Right.Vector} _ _ _ (Second.value.preservesAdd (D.value.apply v) (Codomain.Operations[].negative w))
+    (congr!{Right.Vector Right.Vector Right.Vector} Right.Operations[].plus _ _ _ _ (secondDerivative v) (Second.value.preservesScale (S.neg S.one) w));
+\definition normal: N.NormalOnto := \block {
+  \fun (w: Codomain.Vector) \then
+  \takefrom v: \Cast[Domain.Vector] ({ v: Domain.Vector \where Right.Cones[].Tangential (H.difference v (Components.second w)) }) \by height.normal x (Components.second w) \then
+  \return Logic.existsIntro[Domain.Vector, { v: Domain.Vector \where Codomain.Cones[].Tangential (N.difference v w) }] v
+    (ProductCones.join (N.difference v w) (allLeft (Components.first (N.difference v w)))
+      (\idelim H.difference v (Components.second w) = Components.second (N.difference v w) \with q: Right.Vector => Right.Cones[].Tangential q \by {
+        base: \bysub(Domain.Vector, { v: Domain.Vector \where Right.Cones[].Tangential (H.difference v (Components.second w)) }, v), equality: sym!{Right.Vector} _ _ (difference v w)
+      }))
+};
+\definition reflects[v: Domain.Vector]: Logic.PropEquiv[Domain.Cones[].Tangential v, Codomain.Cones[].Tangential (D.value.apply v)] := Logic.PropEquiv[_, _] {
+  ltr := manifold_gluing.DifferentialCones[n := n, m := dimension].Between[M := M, N := target].Of[f := map].At[x := x].tangential v,
+  rtl := \fun (member: Codomain.Cones[].Tangential (D.value.apply v)) => height.reflects x v
+    (\idelim Components.second (D.value.apply v) = Dh.value.apply v \with w: Right.Vector => Right.Cones[].Tangential w \by {
+      base: ProductCones.second (D.value.apply v) member, equality: secondDerivative v
+    }),
+};

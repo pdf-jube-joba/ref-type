@@ -1,0 +1,23 @@
+\import Model.Differential[].Def[] \as Linear;
+\import Open.Analysis[] \as Analysis;
+\definition projection: Linear.LinearMap := Linear.LinearMap {
+  apply := \fun (v: Model.Point) => v i,
+  additive := \fun (v, w: Model.Point) => \refl(Real.add (v i) (w i)),
+  homogeneous := \fun (r: Real.Real)(v: Model.Point) => \refl(Real.mul r (v i))
+};
+\definition function: Open.ScalarFunction Coordinates.domain := D.component (Indices.right i);
+\definition formula[u: Open.Carrier Coordinates.domain]: function u = u i := trans!{Real.Real} _ _ _
+  (Tuples.atRight (\fun (j: Fin.Fin one) => b (Charts.point sourceChart (Coordinates.leftCoordinate u)))
+    (coordinates (Charts.point sourceChart (Coordinates.leftCoordinate u))) i)
+  (congr!{{Model.Point} Real.Real} (\fun (v: Model.Point) => v i) _ _ (chartCoordinates (Coordinates.leftCoordinate u)));
+\definition law: Analysis.HasDifferentialAt Coordinates.domain function Jacobian.point projection :=
+  \idelim (\fun (u: Open.Carrier Coordinates.domain) => projection.apply u) = function
+    \with f: Open.ScalarFunction Coordinates.domain => Analysis.HasDifferentialAt Coordinates.domain f Jacobian.point projection \by {
+      base: Analysis.Linear[U := Coordinates.domain, d := projection].law Jacobian.point,
+      equality: \axiom:funext((\fun (u: Open.Carrier Coordinates.domain) => projection.apply u), function,
+        \fun (u: Open.Carrier Coordinates.domain) => sym!{Real.Real} _ _ (formula u))
+    };
+\definition equal: D.row (Indices.right i) = projection := Analysis.Differential[U := Coordinates.domain, f := function, a := Jacobian.point, d := D.row (Indices.right i)].uniqueness projection
+  (D.componentLaw (Indices.right i)) law;
+\definition apply[v: Model.Point]: D.value.apply v (Indices.right i) = v i :=
+  congr!{{Linear.LinearMap} Real.Real} (\fun (d: Linear.LinearMap) => d.apply v) _ _ equal;

@@ -1,0 +1,42 @@
+\import \parent.\parent.At[x := x].In[c := c, d := d] \as Patch;
+\definition left: Domain.Chart := \into[SourceCharts.Chart](Patch.left, Domain.Chart) \by {
+  Domain.ChartLaws[Patch.left] { member := Locality.leftMember x Patch.left, contains := Locality.leftContains x Patch.left }
+};
+\definition right: Codomain.Chart := \into[TargetCharts.Chart](Patch.right, Codomain.Chart) \by {
+  Codomain.ChartLaws[Patch.right] { member := Locality.rightMember (apply x) Patch.right, contains := Locality.rightContains (apply x) Patch.right }
+};
+\import Domain.Coordinate[chart := left] \as Decode;
+\import Codomain.Coordinate[chart := right] \as Encode;
+\import OldDomain.Coordinate[chart := c] \as OldDecode;
+\import OldCodomain.Coordinate[chart := d] \as OldEncode;
+\import manifolds.Differential[n := n, m := m].Between[M := M, N := N].At[f := f, x := Source.backward x] \as Old;
+\import Old.InCharts[left := c, right := d] \as OldCoordinates;
+\import boundary_manifolds.Differential[n := n, m := m].Between[M := source, N := target].At[f := map, x := x] \as New;
+\import New.InCharts[left := left, right := right] \as NewCoordinates;
+\import Maps.At[function := apply, left := left, right := right, x := x, contains := Domain.contains left] \as Local;
+\import calculus.Vector[n := n, m := m] \as Vectors;
+\definition extension: Local.Extension := Local.Extension {
+  neighborhood := Patch.extension.neighborhood, included := Patch.extension.included,
+  contains := Patch.extension.contains, map := Patch.extension.map,
+  inside := Patch.extension.inside, agrees := Patch.extension.agrees,
+};
+\definition jacobian: NewCoordinates.jacobian = OldCoordinates.jacobian := trans!{{Vectors.LinearMap}} _ _ _
+  (Local.ofExtension NewCoordinates.smooth extension) Patch.jacobian;
+\definition oldCoordinates[u: SourceModel.Point]: OldEncode.decode (Old.value.apply (OldDecode.encode u)) = OldCoordinates.jacobian.apply u :=
+  trans!{{TargetModel.Point}} _ _ _ (Old.coordinates c d (OldDecode.encode u))
+    (congr!{{SourceModel.Point} {TargetModel.Point}} OldCoordinates.jacobian.apply _ _ (OldDecode.decodeEncode u));
+\definition oldInjective[immersion: OldEmbeddings.IsImmersion f][u, v: SourceModel.Point]:
+  OldCoordinates.jacobian.apply u = OldCoordinates.jacobian.apply v -> u = v := \fun (same: _) =>
+  trans!{{SourceModel.Point}} _ _ _ (sym!{{SourceModel.Point}} _ _ (OldDecode.decodeEncode u))
+    (trans!{{SourceModel.Point}} _ _ _ (congr!{{OldDomain.Vector} {SourceModel.Point}} OldDecode.decode _ _
+      (immersion (Source.backward x) (OldDecode.encode u) (OldDecode.encode v)
+        (OldEncode.injective (Old.value.apply (OldDecode.encode u)) (Old.value.apply (OldDecode.encode v))
+          (trans!{{TargetModel.Point}} _ _ _ (oldCoordinates u) (trans!{{TargetModel.Point}} _ _ _ same (sym!{{TargetModel.Point}} _ _ (oldCoordinates v)))))))
+      (OldDecode.decodeEncode v));
+\definition coordinates[u: Domain.Vector]: Encode.decode (New.value.apply u) = OldCoordinates.jacobian.apply (Decode.decode u) :=
+  trans!{{TargetModel.Point}} _ _ _ (New.coordinates left right u)
+    (congr!{{Vectors.LinearMap} {TargetModel.Point}} (\fun (L: Vectors.LinearMap) => L.apply (Decode.decode u)) _ _ jacobian);
+\definition injective[immersion: OldEmbeddings.IsImmersion f][u, v: Domain.Vector]: New.value.apply u = New.value.apply v -> u = v :=
+  \fun (same: _) => Decode.injective u v (oldInjective immersion (Decode.decode u) (Decode.decode v)
+    (trans!{{TargetModel.Point}} _ _ _ (sym!{{TargetModel.Point}} _ _ (coordinates u))
+      (trans!{{TargetModel.Point}} _ _ _ (congr!{{Codomain.Vector} {TargetModel.Point}} Encode.decode _ _ same) (coordinates v))));

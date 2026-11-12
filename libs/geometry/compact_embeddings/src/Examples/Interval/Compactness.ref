@@ -1,0 +1,36 @@
+\import metric_spaces.RealLine[] \as Line;
+\import topology.Topology[Carrier := R.Real] \as Scalar;
+\definition interval: \Pow R.Real := Line.ClosedInterval (R.neg R.one) R.one;
+\import Scalar.Subspace[S := interval] \as Small;
+\definition topology: topology.Topology[Carrier := Small.CarrierSet].Topology := Small.topology Line.topology;
+\definition compactInterval: topology.Topology[Carrier := Small.CarrierSet].IsCompact topology := Small.Properties[].compact Line.topology
+  (Line.CompactIntervals[].intervalCompact (R.neg R.one) R.one);
+\import boundary_manifolds.Model[n := One.dimension] \as Model;
+\import topological_algebra.Euclidean[].Dimension[n := One.dimension].Topology[] \as Ambient;
+\import topological_algebra.Coordinates[K := R.Real, I := One.Index].Universal[A := Small.CarrierSet] \as Universal;
+\import topology.Continuity[A := R.Real, B := R.Real].Corestriction[S := interval] \as Inclusion;
+\definition coordinates[x: Small.CarrierSet]: Model.Point := \fun (i: One.Index) => x;
+\definition coordinatesContinuous: topology.Continuity[A := Small.CarrierSet, B := Model.Point].Continuous topology Ambient.topology coordinates :=
+  \fun (U: \Pow Model.Point)(open: _) => Universal.continuous topology Line.topology coordinates
+    (\fun (i: One.Index) => Inclusion.inclusionContinuous Line.topology) U (Ambient.metricOpen U open);
+\definition openValue[x: Small.CarrierSet]: Open.Carrier Open.whole := Interval.coordinate x;
+\definition openContinuous: topology.Continuity[A := Small.CarrierSet, B := Open.Carrier Open.whole].Continuous topology (Open.Topology[].Of[U := Open.whole].topology) openValue :=
+  topology.Continuity[A := Small.CarrierSet, B := Model.Point].Corestriction[S := Open.whole.points].corestrictContinuous topology Ambient.topology openValue coordinatesContinuous;
+\definition value[x: Small.CarrierSet]: Interval.manifold.Point := Interval.point x (\bysub(R.Real, interval, x));
+\definition continuous: topology.Continuity[A := Small.CarrierSet, B := Interval.manifold.Point].Continuous topology Interval.manifold.space value :=
+  topology.Continuity[A := Small.CarrierSet, B := Open.Carrier Open.whole].Corestriction[S := Sublevel.points].corestrictContinuous topology
+    (Open.Topology[].Of[U := Open.whole].topology) value openContinuous;
+\definition coordinateSame[y: Interval.manifold.Point]: Interval.coordinate (y One.index) = (y \of Open.Carrier Open.whole) :=
+  boundary_manifolds.Refinement[A := Model.Point].equality Open.whole.points (Interval.coordinate (y One.index)) y
+    (\axiom:funext((\fun (i: One.Index) => y One.index), (y \of Model.Point), \fun (i: One.Index) =>
+      congr!{One.Index R.Real} (\fun (j: One.Index) => y j) _ _ (sym!{One.Index} _ _ (Fin.singletonValue i))));
+\definition bounds[y: Interval.manifold.Point]: Interval.Bounds (y One.index) := Interval.toBounds (y One.index)
+  (\idelim (y \of Open.Carrier Open.whole) = Interval.coordinate (y One.index) \with z: Open.Carrier Open.whole => Order.Le R.zero (Disk.defining z) \by {
+    base: \bysub(Open.Carrier Open.whole, Sublevel.points, y), equality: sym!{{Open.Carrier Open.whole}} _ _ (coordinateSame y)
+  });
+\definition parameter[y: Interval.manifold.Point]: Small.CarrierSet := \into[R.Real](y One.index, interval) \by { bounds y };
+\definition onto[y: Interval.manifold.Point]: \exists ( x: Small.CarrierSet \where value x = y ) :=
+  Logic.existsIntro[Small.CarrierSet, { x: Small.CarrierSet \where value x = y }] (parameter y)
+    (Interval.equalCoordinate (value (parameter y)) y (\refl(y One.index)));
+\definition compact: topology.Topology[Carrier := Interval.manifold.Point].IsCompact Interval.manifold.space :=
+  topology.Compactness[A := Small.CarrierSet, B := Interval.manifold.Point].surjectiveImage topology Interval.manifold.space value continuous onto compactInterval;

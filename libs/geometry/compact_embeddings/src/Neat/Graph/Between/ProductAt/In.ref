@@ -1,0 +1,43 @@
+\import calculus.Blocks[n := k, m := One.dimension] \as Blocks;
+\import std.Data[].FinSet[].Sum[m := k, n := One.dimension] \as Indices;
+\import Indices.Tuples[A := S.Real] \as Tuples;
+\import boundary_manifolds.Product[n := k, m := One.dimension] \as Products;
+\import boundary_manifolds.Model[n := k] \as L;
+\import boundary_manifolds.Model[n := One.dimension] \as RModel;
+\import boundary_manifolds.Model[n := dimension] \as T;
+\import Components.InCharts[c := c, d := d] \as Coordinates;
+\import Left.Coordinate[chart := c] \as LC;
+\import Right.Coordinate[chart := d] \as RC;
+\import Total.Coordinate[chart := Coordinates.total] \as TC;
+\definition coordinates: \forall (v: Total.Vector) -> TC.decode v = Blocks.join (LC.decode (Components.first v)) (RC.decode (Components.second v)) :=
+  \fun (v: Total.Vector) => trans!{T.Point} _ _ _
+    (congr!{Total.Vector T.Point} TC.decode _ _ (sym!{Total.Vector} _ _ (Components.recover v)))
+    (Components.Coordinates[c := c, d := d].pairCoordinates (Components.first v) (Components.second v));
+\definition rawJoin: \forall (u: L.Point)(v: RModel.Point) -> L.Tangential c.constraints (Left.coordinate c) u -> RModel.Tangential d.constraints (Right.coordinate d) v ->
+  T.Tangential (Products.constraints c.constraints d.constraints) (Blocks.join (Left.coordinate c) (Right.coordinate d)) (Blocks.join u v) := \block {
+  \fun (u: L.Point)(v: RModel.Point)(left: L.Tangential c.constraints (Left.coordinate c) u)(right: RModel.Tangential d.constraints (Right.coordinate d) v) \then
+  \let at: \forall (s: Indices.Index) -> T.Active (Products.constraints c.constraints d.constraints) (Blocks.join (Left.coordinate c) (Right.coordinate d)) (Indices.inflate s) -> Blocks.join u v (Indices.inflate s) = S.zero :=
+    \induction (s: Indices.Index) \return T.Active (Products.constraints c.constraints d.constraints) (Blocks.join (Left.coordinate c) (Right.coordinate d)) (Indices.inflate s) -> Blocks.join u v (Indices.inflate s) = S.zero \with {
+      | inl: \fun (i: L.Coordinate)(active: T.Active (Products.constraints c.constraints d.constraints) (Blocks.join (Left.coordinate c) (Right.coordinate d)) (Indices.left i)) => trans!{S.Real} _ _ _ (Tuples.atLeft u v i)
+        (left i (Logic.And[_, _]::#
+          (\idelim Indices.split (Indices.left i) = Indices.Index::inl i \with s: Indices.Index => Products.Selected c.constraints d.constraints s \by { base: active.left, equality: Indices.splitInflate (Indices.Index::inl i) })
+          (trans!{S.Real} _ _ _ (sym!{S.Real} _ _ (Tuples.atLeft (Left.coordinate c) (Right.coordinate d) i)) active.right)))
+      | inr: \fun (i: RModel.Coordinate)(active: T.Active (Products.constraints c.constraints d.constraints) (Blocks.join (Left.coordinate c) (Right.coordinate d)) (Indices.right i)) => trans!{S.Real} _ _ _ (Tuples.atRight u v i)
+        (right i (Logic.And[_, _]::#
+          (\idelim Indices.split (Indices.right i) = Indices.Index::inr i \with s: Indices.Index => Products.Selected c.constraints d.constraints s \by { base: active.left, equality: Indices.splitInflate (Indices.Index::inr i) })
+          (trans!{S.Real} _ _ _ (sym!{S.Real} _ _ (Tuples.atRight (Left.coordinate c) (Right.coordinate d) i)) active.right)))
+    } \then
+  \return \fun (i: T.Coordinate)(active: _) => \idelim Indices.inflate (Indices.split i) = i \with j: T.Coordinate => Blocks.join u v j = S.zero \by {
+    base: at (Indices.split i) (\idelim i = Indices.inflate (Indices.split i) \with j: T.Coordinate => T.Active (Products.constraints c.constraints d.constraints) (Blocks.join (Left.coordinate c) (Right.coordinate d)) j \by { base: active, equality: sym!{T.Coordinate} _ _ (Indices.inflateSplit i) }),
+    equality: Indices.inflateSplit i
+  }
+};
+\definition join: \forall (v: Total.Vector) -> Left.Cones[].Tangential (Components.first v) -> Right.Cones[].Tangential (Components.second v) -> Total.Cones[].Tangential v :=
+  \fun (v: Total.Vector)(left: Left.Cones[].Tangential (Components.first v))(right: Right.Cones[].Tangential (Components.second v)) =>
+    Total.Cones[].Lineality[c := Coordinates.total, v := v].toIntrinsic
+      (\idelim Blocks.join (LC.decode (Components.first v)) (RC.decode (Components.second v)) = TC.decode v \with u: T.Point => T.Tangential Coordinates.total.constraints (Total.coordinate Coordinates.total) u \by {
+        base: rawJoin (LC.decode (Components.first v)) (RC.decode (Components.second v))
+          (Left.Cones[].Lineality[c := c, v := Components.first v].fromIntrinsic left)
+          (Right.Cones[].Lineality[c := d, v := Components.second v].fromIntrinsic right),
+        equality: sym!{T.Point} _ _ (coordinates v)
+      });

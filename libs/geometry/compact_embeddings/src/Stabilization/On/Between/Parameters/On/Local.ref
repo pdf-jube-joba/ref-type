@@ -1,0 +1,39 @@
+\import calculus.Real[].Multivariable[n := n].Open[] \as ChartOpen;
+\import calculus.Real[].Multivariable[n := a].Open[] \as LeftOpen;
+\import calculus.Real[].Multivariable[n := b].Open[] \as RightOpen;
+\import calculus.Real[].Multivariable[n := dimension].Open[] \as Output;
+\import calculus.Real[].Multivariable[n := parameterDimension].Open[] \as Open;
+\import Open.Smooth[].Operations[] \as Operations;
+\import DomainBlocks.On[U := U, V := c.image] \as Product;
+\definition domain: Open.OpenSet := Product.domain;
+\import calculus.Maps[n := parameterDimension, m := k].Composition[U := domain, V := U, f := Product.leftMap] \as ParameterPullback;
+\definition weight: Open.ScalarFunction domain := ParameterPullback.scalar s;
+\definition weightSmooth: Open.Smooth[].SmoothOn domain weight := ParameterPullback.smooth s;
+\import manifolds.EuclideanPair[n := a, m := b].From[p := n].On[X := M].Of[f := f, g := g].Local[c := c] \as Coordinates;
+\import calculus.Maps[n := parameterDimension, m := n].Composition[U := domain, V := c.image, f := Product.rightMap] \as Pullback;
+\import Pullback.After[l := a, W := LeftOpen.whole, g := Coordinates.first] \as First;
+\import Pullback.After[l := b, W := RightOpen.whole, g := Coordinates.second] \as Second;
+\import calculus.Maps[n := parameterDimension, m := a] \as L;
+\import calculus.Maps[n := parameterDimension, m := b] \as RMaps;
+\import calculus.Maps[n := parameterDimension, m := dimension] \as Result;
+\definition left: L.Map domain LeftOpen.whole := L.Map[domain, LeftOpen.whole] {
+  apply := \fun (u: Open.Carrier domain) => \into[Left.smoothManifold.Point]((\fun (i: Fin.Fin a) => R.mul (R.sub R.one (weight u)) (L.apply domain LeftOpen.whole First.compose u i)), LeftOpen.whole.points) \by {
+    \refl(\fun (i: Fin.Fin a) => R.mul (R.sub R.one (weight u)) (L.apply domain LeftOpen.whole First.compose u i)) },
+  smooth := \fun (i: Fin.Fin a) => Operations.mulSmooth domain (\fun (u: Open.Carrier domain) => R.sub R.one (weight u))
+    (\fun (u: Open.Carrier domain) => L.apply domain LeftOpen.whole First.compose u i)
+    (Operations.subSmooth domain (\fun (u: Open.Carrier domain) => R.one) weight (Operations.constantSmooth domain R.one) weightSmooth)
+    (First.compose.smooth i),
+};
+\definition right: RMaps.Map domain RightOpen.whole := RMaps.Map[domain, RightOpen.whole] {
+  apply := \fun (u: Open.Carrier domain) => \into[Right.smoothManifold.Point]((\fun (i: Fin.Fin b) => R.mul (weight u) (RMaps.apply domain RightOpen.whole Second.compose u i)), RightOpen.whole.points) \by {
+    \refl(\fun (i: Fin.Fin b) => R.mul (weight u) (RMaps.apply domain RightOpen.whole Second.compose u i)) },
+  smooth := \fun (i: Fin.Fin b) => Operations.mulSmooth domain weight
+    (\fun (u: Open.Carrier domain) => RMaps.apply domain RightOpen.whole Second.compose u i) weightSmooth (Second.compose.smooth i),
+};
+\import Blocks.Pair[d := parameterDimension].On[U := domain, V := LeftOpen.whole, W := RightOpen.whole, f := left, g := right] \as Pair;
+\import Blocks.On[U := LeftOpen.whole, V := RightOpen.whole] \as Range;
+\definition inside: \forall (u: Open.Carrier domain) -> \In[Target.smoothManifold.Point] Output.whole.points (Result.apply domain Range.domain Pair.map u) :=
+  \fun (u: Open.Carrier domain) => \refl(Result.apply domain Range.domain Pair.map u);
+\definition map: Result.Map domain Output.whole := Result.Corestriction[U := domain, V := Range.domain, W := Output.whole, f := Pair.map, inside := inside].map;
+\definition formula[u: Open.Carrier domain]: Result.apply domain Output.whole map u =
+  value (s (Product.leftPoint u)) (Charts.point c (Product.rightPoint u)) := \refl(value (s (Product.leftPoint u)) (Charts.point c (Product.rightPoint u)));

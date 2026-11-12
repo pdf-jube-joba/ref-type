@@ -1,0 +1,44 @@
+\import boundary_manifolds.Tangent[n := NormalRoot.dimension].On[M := Parameters.manifold].At[x := p] \as Domain;
+\import boundary_manifolds.Tangent[n := NormalRoot.dimension].On[M := Product.manifold].At[x := p] \as ProductTangent;
+\import boundary_manifolds.Tangent[n := NormalRoot.dimension].On[M := OriginalParameters.manifold].At[x := Rho.map.apply p] \as RhoTarget;
+\import boundary_manifolds.Tangent[n := NormalRoot.dimension].On[M := M].At[x := CollapseFactored.map.apply p] \as CollapseTarget;
+\import boundary_manifolds.Tangent[n := n].On[M := BoundaryModel.manifold].At[x := Product.first p] \as FirstTarget;
+\import boundary_manifolds.Tangent[n := One.dimension].On[M := Time.manifold].At[x := Product.second p] \as SecondTarget;
+\import boundary_manifolds.Tangent[n := One.dimension].On[M := Neat.halfLine].At[x := Projection.map.apply p] \as HeightTarget;
+\import boundary_manifolds.Differential[n := NormalRoot.dimension, m := NormalRoot.dimension].Between[M := Parameters.manifold, N := M] \as CD;
+\import boundary_manifolds.Differential[n := NormalRoot.dimension, m := NormalRoot.dimension].Between[M := Parameters.manifold, N := OriginalParameters.manifold].At[f := Rho.map, x := p] \as RD;
+\import boundary_manifolds.Differential[n := NormalRoot.dimension, m := NormalRoot.dimension].Between[M := Parameters.manifold, N := Product.manifold].At[f := Parameters.Inclusion[].map, x := p] \as ID;
+\import boundary_manifolds.Differential[n := NormalRoot.dimension, m := n].Between[M := Parameters.manifold, N := BoundaryModel.manifold] \as FD;
+\import boundary_manifolds.Differential[n := NormalRoot.dimension, m := One.dimension].Between[M := Parameters.manifold, N := Neat.halfLine] \as HD;
+\import manifold_gluing.ProductDifferential[n := n, m := One.dimension].Of[M := BoundaryModel.manifold, N := Time.manifold].At[x := p] \as PD;
+\import \root.OpenDifferential[n := NormalRoot.dimension].On[M := Product.manifold].Within[U := Window.points, open := Window.open].At[x := p] \as OpenD;
+\definition SameCollapse[f: CollarMaps.Map][u,v: Domain.Vector]: \Prop := CD.At[f := f, x := p].value.apply u = CD.At[f := f, x := p].value.apply v;
+\definition sameRho[u,v: Domain.Vector]: SameCollapse CollapseComposite.map u v -> RD.value.apply u = RD.value.apply v := \block {
+  \fun (same: _) \then
+  \let factored: SameCollapse CollapseFactored.map u v := \idelim CollapseComposite.map = CollapseFactored.map \with f: CollarMaps.Map => SameCollapse f u v \by { base: same, equality: collapseEqual } \then
+  \return \parent.OuterAt[q := Rho.map.apply p].injective _ _ (trans!{{CollapseTarget.Vector}} _ _ _ (sym!{{CollapseTarget.Vector}} _ _ (CollapseFactored.At[x := p].pointwise u)) (trans!{{CollapseTarget.Vector}} _ _ _ factored (CollapseFactored.At[x := p].pointwise v)))
+};
+\import boundary_manifolds.SmoothMap[n := NormalRoot.dimension, m := n].Between[M := Parameters.manifold, N := BoundaryModel.manifold] \as FirstMaps;
+\definition SameFirst[f: FirstMaps.Map][u,v: Domain.Vector]: \Prop := FD.At[f := f, x := p].value.apply u = FD.At[f := f, x := p].value.apply v;
+\definition first[u,v: Domain.Vector]: SameCollapse CollapseComposite.map u v -> PD.first (ID.value.apply u) = PD.first (ID.value.apply v) := \block {
+  \fun (same: _) \then
+  \let rhoSame: RD.value.apply u = RD.value.apply v := sameRho u v same \then
+  \let factored: SameFirst RhoFirst.map u v := trans!{{FirstTarget.Vector}} _ _ _ (RhoFirst.At[x := p].pointwise u) (trans!{{FirstTarget.Vector}} _ _ _ (congr!{{RhoTarget.Vector} {FirstTarget.Vector}} boundary_manifolds.Differential[n := NormalRoot.dimension, m := n].Between[M := OriginalParameters.manifold, N := BoundaryModel.manifold].At[f := OuterFirst.map, x := Rho.map.apply p].value.apply _ _ rhoSame) (sym!{{FirstTarget.Vector}} _ _ (RhoFirst.At[x := p].pointwise v))) \then
+  \let local: SameFirst LocalFirst.map u v := \idelim RhoFirst.map = LocalFirst.map \with f: FirstMaps.Map => SameFirst f u v \by { base: factored, equality: firstEqual } \then
+  \return trans!{{FirstTarget.Vector}} _ _ _ (sym!{{FirstTarget.Vector}} _ _ (LocalFirst.At[x := p].pointwise u)) (trans!{{FirstTarget.Vector}} _ _ _ local (LocalFirst.At[x := p].pointwise v))
+};
+\import RayInclusion.At[t := Product.second p] \as Ray;
+\import SecondTarget.Coordinate[chart := Ray.left] \as Decode;
+\import HeightTarget.Coordinate[chart := Ray.right] \as Encode;
+\import boundary_manifolds.Differential[n := One.dimension, m := One.dimension].Between[M := Time.manifold, N := Neat.halfLine].At[f := RayInclusion.map, x := Product.second p] \as RayD;
+\definition rayInjective[u,v: SecondTarget.Vector]: RayD.value.apply u = RayD.value.apply v -> u = v := \fun (same: _) => Decode.injective u v (trans!{{boundary_manifolds.Model[n := One.dimension].Point}} _ _ _ (sym!{{boundary_manifolds.Model[n := One.dimension].Point}} _ _ (Ray.coordinates u)) (trans!{{boundary_manifolds.Model[n := One.dimension].Point}} _ _ _ (congr!{{HeightTarget.Vector} {boundary_manifolds.Model[n := One.dimension].Point}} Encode.decode _ _ same) (Ray.coordinates v)));
+\definition SameHeight[f: LocalMaps.Map][u,v: Domain.Vector]: \Prop := HD.At[f := f, x := p].value.apply u = HD.At[f := f, x := p].value.apply v;
+\definition heightFormula[u: Domain.Vector]: HD.At[f := Projection.map, x := p].value.apply u = RayD.value.apply (PD.second (ID.value.apply u)) := trans!{{HeightTarget.Vector}} _ _ _ (Projection.At[x := p].pointwise u) (ProductHeight.At[x := p].pointwise (ID.value.apply u));
+\definition second[u,v: Domain.Vector]: SameHeight Composite.map u v -> PD.second (ID.value.apply u) = PD.second (ID.value.apply v) := \block {
+  \fun (same: _) \then
+  \let local: SameHeight Projection.map u v := \idelim Composite.map = Projection.map \with f: LocalMaps.Map => SameHeight f u v \by { base: same, equality: equal } \then
+  \return rayInjective _ _ (trans!{{HeightTarget.Vector}} _ _ _ (sym!{{HeightTarget.Vector}} _ _ (heightFormula u)) (trans!{{HeightTarget.Vector}} _ _ _ local (heightFormula v)))
+};
+\definition local[u,v: Domain.Vector]: SameCollapse CollapseComposite.map u v -> SameHeight Composite.map u v -> u = v := \fun (c: _)(h: _) => OpenD.injective u v (PD.injective _ _ (first u v c) (second u v h));
+\import \root.JointTransfer[p := NormalRoot.dimension, q := NormalRoot.dimension, r := NormalRoot.dimension, s := One.dimension].Between[A := Parameters.manifold, B := M, C := M, D := Neat.halfLine].Of[f := Collar.map, g := Collapse.map, h := map].At[x := p] \as Transfer;
+\definition joint: Joint (Collar.map.apply p) := Transfer.injective (Normal.At[p := p].collarOnto) local;

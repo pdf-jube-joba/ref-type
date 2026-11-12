@@ -1,0 +1,74 @@
+\import boundary_manifolds.SmoothMap[n := Nat.add One.dimension n, m := One.dimension].Between[M := Source.manifold, N := halfLine] \as LocalMaps;
+\import boundary_manifolds.SmoothMap[n := Nat.add One.dimension n, m := One.dimension].Between[M := M, N := halfLine] \as Maps;
+\definition time[x: Source.Point]: S.Real := Time.value (Product.second (Chart.backward x));
+\definition outsideCore[x: Source.Point]: Logic.Not (Space.Member Core.points x) -> R.Le Clamp.twice (time x) := \fun (outside: Logic.Not (Space.Member Core.points x)) =>
+  Order.leOfNotLtReverse Clamp.twice (time x) (\fun (small: R.Lt (time x) Clamp.twice) => outside
+    (\idelim Candidate.map.apply (Chart.backward x) = (x \of M.Point) \with y: M.Point => Space.Member Core.points y \by {
+      base: Core.contains (Chart.backward x) (Order.leOfLt (time x) Clamp.twice small), equality: Chart.rightValue x
+    }));
+\definition agrees: \forall (x: Source.Point) -> Logic.Not (Space.Member Core.points x) -> LocalMaps.apply localMap x = Maps.apply Constant.map x :=
+  \fun (x: Source.Point)(outside: Logic.Not (Space.Member Core.points x)) => LineModel.equality constraints Open.whole (LocalMaps.apply localMap x) constantPoint
+    (\axiom:funext((LocalMaps.apply localMap x \of LineModel.Point), (constantPoint \of LineModel.Point),
+      \fun (i: One.Index) => Clamp.upperValue (time x) (outsideCore x outside)));
+\import manifold_gluing.OpenSmoothExtension[n := Nat.add One.dimension n, m := One.dimension].Between[M := M, N := halfLine].Within[
+  U := Chart.image, K := Core.points, open := Chart.imageOpen, closed := Core.closed compact, included := Core.included].Of[f := localMap, g := Constant.map, agrees := agrees] \as Extension;
+\definition map: Maps.Map := Extension.map;
+\definition value[x: M.Point]: S.Real := Maps.apply map x One.index;
+\definition inCollar: \forall (x: Source.Point) -> value x = Clamp.value (time x) := \fun (x: Source.Point) =>
+  congr!{Ray.Point S.Real} (\fun (t: Ray.Point) => t One.index) _ _ (Extension.inside x);
+\definition away: \forall (x: M.Point) -> Logic.Not (Space.Member Core.points x) -> value x = Clamp.twice :=
+  \fun (x: M.Point)(outside: Logic.Not (Space.Member Core.points x)) => congr!{Ray.Point S.Real} (\fun (t: Ray.Point) => t One.index) _ _ (Extension.unchanged x outside);
+\definition nonnegative: \forall (x: M.Point) -> R.Le S.zero (value x) := \fun (x: M.Point) =>
+  (\bysub(Open.Carrier Open.whole, LineModel.region constraints Open.whole, Maps.apply map x)) One.index (\refl(One.index));
+\definition collarValue: \forall (x: Parameters.Point) -> value (Chart.forward x) = Clamp.value (Time.value (Product.second x)) := \fun (x: Parameters.Point) =>
+  trans!{S.Real} _ _ _ (inCollar (Chart.forward x))
+    (congr!{Parameters.Point S.Real} (\fun (p: Parameters.Point) => Clamp.value (Time.value (Product.second p))) _ _ (Chart.leftInverse x));
+\definition compatible: \forall (x: Parameters.Point) -> R.Le (Time.value (Product.second x)) radius -> value (Chart.forward x) = Time.value (Product.second x) :=
+  \fun (x: Parameters.Point)(near: R.Le (Time.value (Product.second x)) radius) => trans!{S.Real} _ _ _ (collarValue x) (Clamp.lowerValue (Time.value (Product.second x)) near);
+\import std.Data[].Pair[] \as Pair;
+\import boundary_manifolds.Tangent[n := Nat.add One.dimension n].On[M := M] \as Tangent;
+\import manifold_gluing.InwardNeighborhood[n := n].On[M := M].With[cover := cover].From[
+  h := construction.deformation.homotopy, active := construction.deformation.active] \as Inward;
+\definition boundaryPoint[x: Boundary.Point]: BoundaryModel.manifold.Point := ConvertedBoundary.forward x;
+\definition zeroParameter[b: BoundaryModel.manifold.Point]: Parameters.Point := \into[Product.Point](Pair.pair BoundaryModel.manifold.Point Time.Point b Time.zero, Window.points) \by { outerPositive };
+\definition zeroValue: \forall (b: BoundaryModel.manifold.Point) -> (Chart.forward (zeroParameter b) \of M.Point) = (b \of M.Point) :=
+  \fun (b: BoundaryModel.manifold.Point) => Inward.neighborhood.initial b;
+\definition boundaryZero: \forall (x: M.Point) -> Tangent.At[x := x].Cones[].Boundary -> value x = S.zero := \block {
+  \fun (x: M.Point)(boundary: Tangent.At[x := x].Cones[].Boundary) \then
+  \let b: BoundaryModel.manifold.Point := boundaryPoint (\into[M.Point](x, Boundary.points) \by { boundary }) \then
+  \return trans!{S.Real} _ _ _
+    (congr!{M.Point S.Real} value _ _ (sym!{M.Point} _ _ (zeroValue b)))
+    (trans!{S.Real} _ _ _ (collarValue (zeroParameter b)) Clamp.atZero)
+};
+\definition boundaryOfZeroTime: \forall (x: Source.Point) -> time x = S.zero -> Tangent.At[x := x].Cones[].Boundary := \block {
+  \fun (x: Source.Point)(zero: time x = S.zero) \then
+  \let p: Product.Point := Chart.backward x \then
+  \let b: BoundaryModel.manifold.Point := Product.first p \then
+  \let same: p = Pair.pair BoundaryModel.manifold.Point Time.Point b Time.zero := Pair.Prop[A := BoundaryModel.manifold.Point, B := Time.Point].ext p
+    (Pair.pair BoundaryModel.manifold.Point Time.Point b Time.zero) (\refl(b)) (manifold_gluing.ParameterLaws[].zero (Product.second p) zero) \then
+  \let equal: (x \of M.Point) = (b \of M.Point) := trans!{M.Point} _ _ _ (sym!{M.Point} _ _ (Chart.rightValue x))
+    (trans!{M.Point} _ _ _ (congr!{Product.Point M.Point} Candidate.map.apply _ _ same) (Inward.neighborhood.initial b)) \then
+  \return \idelim (b \of M.Point) = (x \of M.Point) \with y: M.Point => Tangent.At[x := y].Cones[].Boundary \by {
+    base: \bysub(M.Point, Boundary.points, b), equality: sym!{M.Point} _ _ equal
+  }
+};
+\definition zeroBoundaryInCollar: \forall (x: Source.Point) -> value x = S.zero -> Tangent.At[x := x].Cones[].Boundary :=
+  \fun (x: Source.Point)(zero: value x = S.zero) => Logic.orElim (time x = S.zero) (Logic.Not (time x = S.zero)) (Tangent.At[x := x].Cones[].Boundary)
+    (Classical.excludedMiddle (time x = S.zero)) (boundaryOfZeroTime x)
+    (\fun (notZero: Logic.Not (time x = S.zero)) => Logic.falseElim (Tangent.At[x := x].Cones[].Boundary)
+      (Order.ltNotEq S.zero (Clamp.value (time x))
+        (Clamp.strictlyPositive (time x) (Order.ltOfLeNotEq S.zero (time x) (Time.nonnegative (Product.second (Chart.backward x)))
+          (\fun (equal: S.zero = time x) => notZero (sym!{S.Real} _ _ equal))))
+        (sym!{S.Real} _ _ (trans!{S.Real} _ _ _ (sym!{S.Real} _ _ (inCollar x)) zero))));
+\definition zeroBoundary: \forall (x: M.Point) -> value x = S.zero -> Tangent.At[x := x].Cones[].Boundary :=
+  \fun (x: M.Point)(zero: value x = S.zero) => Logic.orElim (Space.Member Chart.image x) (Logic.Not (Space.Member Chart.image x)) (Tangent.At[x := x].Cones[].Boundary)
+    (Classical.excludedMiddle (Space.Member Chart.image x))
+    (\fun (member: Space.Member Chart.image x) => zeroBoundaryInCollar (\into[M.Point](x, Chart.image) \by { member }) zero)
+    (\fun (outside: Logic.Not (Space.Member Chart.image x)) => Logic.falseElim (Tangent.At[x := x].Cones[].Boundary)
+      (Order.ltNotEq S.zero Clamp.twice Clamp.twicePositive (sym!{S.Real} _ _
+        (trans!{S.Real} _ _ _ (sym!{S.Real} _ _ (away x (\fun (member: Space.Member Core.points x) => outside (Core.included x member)))) zero))));
+\definition zeroLocus: \forall (x: M.Point) -> Logic.PropEquiv[Tangent.At[x := x].Cones[].Boundary, value x = S.zero] :=
+  \fun (x: M.Point) => Logic.PropEquiv[_, _] { ltr := boundaryZero x, rtl := zeroBoundary x };
+\definition heightInCollar[x: Source.Point]: value x = Clamp.value (time x) := inCollar x;
+\definition linearRadius: S.Real := radius;
+\module Collapse;

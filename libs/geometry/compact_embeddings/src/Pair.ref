@@ -1,0 +1,39 @@
+\import std.Data[].Nat[] \as Nat;
+\import std.Data[].FinSet[] \as Fin;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\import manifolds.Dimension[n := n].Smooth[] \as Sources;
+\import manifolds.Dimension[n := a].Examples[].Euclidean[] \as Left;
+\import manifolds.Dimension[n := b].Examples[].Euclidean[] \as Right;
+\import calculus.Blocks[n := a, m := b] \as Blocks;
+\import std.Data[].FinSet[].Sum[m := a, n := b] \as Indices;
+\import topological_algebra.Euclidean[].Dimension[n := a] \as LeftPoints;
+\import topological_algebra.Euclidean[].Dimension[n := b] \as RightPoints;
+\definition dimension: Nat.Nat^ := Blocks.dimension;
+\import topological_algebra.Euclidean[].Dimension[n := dimension] \as TargetPoints;
+\import manifolds.Dimension[n := dimension].Examples[].Euclidean[] \as Target;
+\import calculus.Real[].Multivariable[n := dimension].Open[] \as Open;
+\import Open.Examples[] \as Examples;
+\import calculus.Real[].Multivariable[n := a].Open[] \as LeftOpen;
+\import calculus.Real[].Multivariable[n := b].Open[] \as RightOpen;
+\import calculus.Maps[n := dimension, m := a] \as L;
+\import calculus.Maps[n := dimension, m := b] \as R;
+\definition leftData: L.Data[Open.whole, LeftOpen.whole] := L.Data[Open.whole, LeftOpen.whole] {
+  apply := \fun (x: Open.Carrier Open.whole) => \into[LeftPoints.Point](Blocks.left x, LeftOpen.whole.points) \by { \refl(Blocks.left x) }
+};
+\definition leftCalculus: L.Map Open.whole LeftOpen.whole := \into[L.Data[Open.whole, LeftOpen.whole]](leftData, L.Map Open.whole LeftOpen.whole) \by {
+  L.Laws[Open.whole, LeftOpen.whole, leftData] { smooth := \fun (i: Fin.Fin a) => Examples.projectionSmooth Open.whole (Indices.left i) }
+};
+\definition rightData: R.Data[Open.whole, RightOpen.whole] := R.Data[Open.whole, RightOpen.whole] {
+  apply := \fun (x: Open.Carrier Open.whole) => \into[RightPoints.Point](Blocks.right x, RightOpen.whole.points) \by { \refl(Blocks.right x) }
+};
+\definition rightCalculus: R.Map Open.whole RightOpen.whole := \into[R.Data[Open.whole, RightOpen.whole]](rightData, R.Map Open.whole RightOpen.whole) \by {
+  R.Laws[Open.whole, RightOpen.whole, rightData] { smooth := \fun (i: Fin.Fin b) => Examples.projectionSmooth Open.whole (Indices.right i) }
+};
+\definition left: manifolds.SmoothMap[n := dimension, m := a].Between[M := Target.smoothManifold, N := Left.smoothManifold].Map :=
+  manifolds.EuclideanGlobal[n := dimension, m := a].Of[f := leftCalculus].map;
+\definition right: manifolds.SmoothMap[n := dimension, m := b].Between[M := Target.smoothManifold, N := Right.smoothManifold].Map :=
+  manifolds.EuclideanGlobal[n := dimension, m := b].Of[f := rightCalculus].map;
+\module On(M: Sources.Manifold);

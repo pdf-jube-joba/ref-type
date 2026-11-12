@@ -1,0 +1,40 @@
+\import manifolds.Tangent[n := n].On[M := M].At[x := x] \as Tangent;
+\import manifolds.Differential[n := n, m := dimension].Between[M := M, N := target].At[f := map, x := x] \as Differential;
+\import manifolds.Dimension[n := dimension].Examples[].Euclidean[] \as Euclidean;
+\import manifolds.Dimension[n := dimension].Chart[M := target.Point, space := target.space] \as TargetCharts;
+\import manifolds.Dimension[n := dimension].Atlas[M := target.Point, space := target.space] \as TargetAtlas;
+\import manifolds.Tangent[n := dimension].On[M := target].At[x := value x] \as TargetTangent;
+\definition localPoint: Charts.LocalPoint c := \into[M.Point](x, c.domain) \by { atOne x (oneOn x inside) };
+\definition coordinate: Open.Carrier Neighborhood.domain := \into[Model.Point](Charts.coordinate c localPoint, Neighborhood.domain.points) \by {
+  Neighborhood.contains (Charts.coordinate c localPoint) (\idelim x = Charts.point c (Charts.coordinate c localPoint) \with y: M.Point => Space.Member U y \by {
+    base: inside, equality: sym!{{M.Point}} _ _ (Geometry.pointCoordinate localPoint)
+  })
+};
+\definition contains: Charts.Contains chart x := \idelim Charts.point c (Restricted.originalCoordinate coordinate) = x \with y: M.Point => Charts.Contains chart y \by {
+  base: Restricted.pointMember coordinate, equality: Geometry.pointCoordinate localPoint
+};
+\definition sourceChart: Tangent.Chart := \into[Charts.Chart](chart, Tangent.Chart) \by {
+  Tangent.ChartLaws[chart] { member := \bysub(Charts.Chart, M.atlas.charts, chart), contains := contains }
+};
+\definition targetChart: TargetTangent.Chart := \into[TargetCharts.Chart](Euclidean.standard, TargetTangent.Chart) \by {
+  TargetTangent.ChartLaws[Euclidean.standard] {
+    member := TargetAtlas.includedInSaturation Euclidean.atlas Euclidean.standard (\refl(Euclidean.standard)), contains := \refl(value x)
+  }
+};
+\import Differential.InCharts[left := sourceChart, right := targetChart] \as Jacobian;
+\import Maps.Coordinates[f := map, left := sourceChart, right := targetChart] \as Coordinates;
+\import calculus.Maps[n := n, m := dimension].Differential[U := Coordinates.domain, V := targetChart.image, f := Jacobian.coordinateMap, a := Jacobian.point] \as D;
+\module Row(i: Fin.Fin n);
+\import Tangent.Coordinate[chart := sourceChart] \as Decode;
+\import TargetTangent.Coordinate[chart := targetChart] \as TargetDecode;
+\definition immersion: \forall (v, w: Tangent.Vector) -> Differential.value.apply v = Differential.value.apply w -> v = w := \block {
+  \fun (v, w: Tangent.Vector)(equal: _) \then
+  \let coordinatesEqual: D.value.apply (Decode.decode v) = D.value.apply (Decode.decode w) :=
+    trans!{{target.Point}} _ _ _ (sym!{{target.Point}} _ _ (Differential.coordinates sourceChart targetChart v))
+      (trans!{{target.Point}} _ _ _ (congr!{{TargetTangent.Vector} {target.Point}} TargetDecode.decode _ _ equal)
+        (Differential.coordinates sourceChart targetChart w)) \then
+  \return Decode.injective v w (\axiom:funext(Decode.decode v, Decode.decode w, \fun (i: Fin.Fin n) =>
+    trans!{Real.Real} _ _ _ (sym!{Real.Real} _ _ (Row[i := i].apply (Decode.decode v)))
+      (trans!{Real.Real} _ _ _ (congr!{{target.Point} Real.Real} (\fun (u: target.Point) => u (Indices.right i)) _ _ coordinatesEqual)
+        (Row[i := i].apply (Decode.decode w)))))
+};
