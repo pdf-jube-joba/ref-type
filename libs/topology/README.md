@@ -10,6 +10,7 @@
 | [constructions](constructions/README.md) | 積、商、直和、貼り合わせ、compact-open 位相 |
 | [algebra](algebra/README.md) | 位相的代数、座標空間と行列位相 |
 | [thom_spaces](thom_spaces/README.md) | 円板束・球面束、Thom 商、計量・懸垂・直和の比較、有限 CW 対型と相対特異理論 |
+| [cohomology_thom](cohomology_thom/README.md) | Thom 相対類の積・零切断、ファイバー制限と標準円板の生成元 |
 | [homotopy](homotopy/README.md) | ホモトピー、基点付き商、mapping cone、CW 対と標準単体 |
 | [singular](singular/README.md) | 特異鎖・余鎖、切除、積、有限モデルとの比較 |
 | [spheres](spheres/README.md) | 球面の向き、反転と円周の整数べき写像の次数 |

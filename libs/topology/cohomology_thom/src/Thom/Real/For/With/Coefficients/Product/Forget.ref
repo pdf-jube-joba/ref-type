@@ -1,0 +1,25 @@
+\import singular_cohomology.Cochains[A := Disk.DiskBundle, source := Disk.diskTopology].OverRing[R := R, ring := ring].With[coefficients := Base.coefficients] \as Ordinary;
+\import chain_complexes.Cochain[].Over[R := R, ring := Rings.commutativeRingAsRing R ring] \as Cochains;
+\import Cochains.At[C := Ordinary.complex, k := p] \as P;
+\import Cochains.At[C := Ordinary.complex, k := N.Basic[].Def[].add p n] \as O;
+\import Complexes.At[C := Relative.complex, z := I.Int^::ofNat n] \as Q;
+\import Pair.Comparison[n := n].Cohomology[] \as FN;
+\import Pair.Comparison[n := N.Basic[].Def[].add p n].Cohomology[] \as FO;
+\import Pair.RelativeCup[p := p, q := n] \as CochainCup;
+\import Total.Cohomology[].Cup[p := p, q := n] \as OrdinaryCup;
+\use Equality.eq_reason_in;
+\definition onClasses: \forall (a: P.CycleCarrier)(u: Q.Closed) ->
+  FO.map.apply (Cup.apply (P.classOf a) (Q.classOf u)) = OrdinaryCup.apply (P.classOf a) (FN.map.apply (Q.classOf u)) :=
+  \fun (a: P.CycleCarrier)(u: Q.Closed) => eq_reason_in!{O.Cohomology _
+    "=" _ "by" { congr!{Output.Class O.Cohomology} FO.map.apply _ _ (Cup.onClasses a u) }
+    "=" _ "by" { FO.onClass (Cup.cycle a u) }
+    "=" _ "by" { O.equalClass (FO.cycle (Cup.cycle a u)) (OrdinaryCup.cycle a (FN.cycle u)) (CochainCup.rightRestriction a u) }
+    "=" _ "by" { sym!{O.Cohomology} _ _ (OrdinaryCup.onClasses a (FN.cycle u)) }
+    "=" _ "by" { congr!{{Total.Cohomology[].Group n} O.Cohomology} (OrdinaryCup.apply (P.classOf a)) _ _ (sym!{{Total.Cohomology[].Group n}} _ _ (FN.onClass u)) }
+  };
+\definition law: \forall (a: Total.Cohomology[].Group p)(u: Input.Class) ->
+  FO.map.apply (Cup.apply a u) = OrdinaryCup.apply a (FN.map.apply u) :=
+  P.classInduction (\fun (a: Total.Cohomology[].Group p) => \forall (u: Input.Class) ->
+    FO.map.apply (Cup.apply a u) = OrdinaryCup.apply a (FN.map.apply u))
+    (\fun (a: P.CycleCarrier) => Q.classInduction (\fun (u: Input.Class) =>
+      FO.map.apply (Cup.apply (P.classOf a) u) = OrdinaryCup.apply (P.classOf a) (FN.map.apply u)) (onClasses a));
