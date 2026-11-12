@@ -1,0 +1,26 @@
+\import singular_cohomology.Simplices[A := B, source := source] \as Domain;
+\import singular_cohomology.Simplices[A := A, source := target] \as Target;
+\import singular_cohomology.Chains[A := B, source := source] \as Chains;
+\import singular_cohomology.Maps[A := B, B := A, source := source, target := target] \as Maps;
+\import singular_subdivision.Small[A := A, source := target, family := family] \as Small;
+\import Small.Simplices[] \as SmallSimplices;
+\import algebraic_topology.Simplex[] \as Simplex;
+\import std.Data[].FinSet[] \as Fin;
+\definition simplex[n: N.Nat^][sigma: Domain.Carrier n]: SmallSimplices.Carrier n :=
+  \into[Target.Carrier n](Maps.postcompose n f continuous sigma, SmallSimplices.Small n) \by {
+    \exact(SmallSimplices.Witness[n, Maps.postcompose n f continuous sigma] {
+      element := U, member := \bysub(\Pow A, family, U), contained := \fun (x: Simplex.Carrier n) => contained (sigma x)
+    }, SmallSimplices.Witness[n, Maps.postcompose n f continuous sigma])
+  };
+\import algebraic_topology.Semisimplicial[].Maps[X := Domain.object, Y := SmallSimplices.object] \as Simplicial;
+\definition simplicial: Simplicial.Map := Simplicial.Map {
+  apply := simplex,
+  faces := \fun (n: N.Nat^)(i: Fin.Fin (N.Nat^::succ (N.Nat^::succ n)))(sigma: Domain.Carrier (N.Nat^::succ n)) =>
+    \refl(Maps.postcompose n f continuous (Domain.face n i sigma))
+};
+\import singular_cohomology.SimplicialChains[].On[X := Domain.object].Mapping[Y := SmallSimplices.object] \as Native;
+\definition map: _ := Native.map simplicial;
+\module Degree(n: N.Nat^) {
+  \definition onGenerator: \forall (sigma: Domain.Carrier n) -> map.apply n (Chains.generator n sigma) = Small.generator n (simplex n sigma) :=
+    Native.At[n := n].onGenerator simplicial;
+}

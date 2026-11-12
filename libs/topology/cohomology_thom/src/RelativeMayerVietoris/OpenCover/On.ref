@@ -1,0 +1,56 @@
+\import Covers.On[cover := cover] \as Cover;
+\import Cover.Chains[] \as Absolute;
+\import topology.Topology[Carrier := A].Subspace[S := Cover.left] \as LeftSpace;
+\import topology.Topology[Carrier := A].Subspace[S := Cover.right] \as RightSpace;
+\import topology.Topology[Carrier := Absolute.Left].Subspace[S := Absolute.intersection] \as OverlapSpace;
+\definition Left: \Set := Absolute.Left;
+\definition Right: \Set := Absolute.Right;
+\definition Overlap: \Set := Absolute.Intersection;
+\definition leftTopology: topology.Topology[Carrier := Left].Topology := LeftSpace.topology source;
+\definition rightTopology: topology.Topology[Carrier := Right].Topology := RightSpace.topology source;
+\definition overlapTopology: topology.Topology[Carrier := Overlap].Topology := OverlapSpace.topology leftTopology;
+\definition leftPart: \Pow Left := { x: Left \where \In[A] subset x };
+\definition rightPart: \Pow Right := { x: Right \where \In[A] subset x };
+\definition overlapPart: \Pow Overlap := { x: Overlap \where \In[A] subset x };
+\import singular_cohomology.Relative[A := Left, source := leftTopology, subset := leftPart] \as L;
+\import singular_cohomology.Relative[A := Right, source := rightTopology, subset := rightPart] \as R;
+\import singular_cohomology.Relative[A := Overlap, source := overlapTopology, subset := overlapPart] \as O;
+\import \root.RelativeMayerVietoris[].Pair[A := Left, source := leftTopology, subset := leftPart] \as LeftBasis;
+\import \root.RelativeMayerVietoris[].Pair[A := Right, source := rightTopology, subset := rightPart] \as RightBasis;
+\import \root.RelativeMayerVietoris[].Pair[A := Overlap, source := overlapTopology, subset := overlapPart] \as OverlapBasis;
+\import \root.RelativeMayerVietoris[].SmallPair[A := A, source := source, cover := Cover.openCover, subset := subset] \as SmallPair;
+\import O.Maps[B := Left].Over[target := leftTopology, targetSubset := leftPart] \as IntoLeft;
+\import O.Maps[B := Right].Over[target := rightTopology, targetSubset := rightPart] \as IntoRight;
+\definition toLeft: IntoLeft.Map := \into[Overlap -> Left](Absolute.toLeft, IntoLeft.Map) \by {
+  IntoLeft.Laws[Absolute.toLeft] { continuous := Absolute.leftContinuous, contained := \fun (x: O.SubspaceCarrier) => \bysub(Overlap, overlapPart, x) }
+};
+\definition toRight: IntoRight.Map := \into[Overlap -> Right](Absolute.toRight, IntoRight.Map) \by {
+  IntoRight.Laws[Absolute.toRight] { continuous := Absolute.rightContinuous, contained := \fun (x: O.SubspaceCarrier) => \bysub(Overlap, overlapPart, x) }
+};
+\definition leftMap: Chains.Map[C := O.complex, D := L.complex].Map := IntoLeft.On[f := toLeft].Integer[].map;
+\definition rightMap: Chains.Map[C := O.complex, D := R.complex].Map := IntoRight.On[f := toRight].Integer[].map;
+\import L.Maps[B := A].Over[target := source, targetSubset := subset] \as LeftIntoWhole;
+\import R.Maps[B := A].Over[target := source, targetSubset := subset] \as RightIntoWhole;
+\definition leftInclusion: Left -> A := \fun (x: Left) => x;
+\definition rightInclusion: Right -> A := \fun (x: Right) => x;
+\definition leftPairMap: LeftIntoWhole.Map := \into[Left -> A](leftInclusion, LeftIntoWhole.Map) \by {
+  LeftIntoWhole.Laws[leftInclusion] {
+    continuous := topology.Continuity[A := Left, B := A].Corestriction[S := Cover.left].inclusionContinuous source,
+    contained := \fun (x: L.SubspaceCarrier) => \bysub(Left, leftPart, x)
+  }
+};
+\definition rightPairMap: RightIntoWhole.Map := \into[Right -> A](rightInclusion, RightIntoWhole.Map) \by {
+  RightIntoWhole.Laws[rightInclusion] {
+    continuous := topology.Continuity[A := Right, B := A].Corestriction[S := Cover.right].inclusionContinuous source,
+    contained := \fun (x: R.SubspaceCarrier) => \bysub(Right, rightPart, x)
+  }
+};
+\import SmallPair.From[B := Left, domain := leftTopology, part := leftPart].Along[f := leftPairMap, U := Absolute.leftElement,
+  contained := (\fun (x: Left) => \bysub(A, Cover.left, x))] \as LeftSmall;
+\import SmallPair.From[B := Right, domain := rightTopology, part := rightPart].Along[f := rightPairMap, U := Absolute.rightElement,
+  contained := (\fun (x: Right) => \bysub(A, Cover.right, x))] \as RightSmall;
+\import \root.RelativeMayerVietoris[].ChainSum[C := L.complex, D := R.complex] \as Sum;
+\import \root.RelativeMayerVietoris[].ChainNegative[C := O.complex, D := R.complex, f := rightMap] \as Negative;
+\definition inclusion: Chains.Map[C := O.complex, D := Sum.complex].Map := Sum.Pairing[E := O.complex, f := leftMap, g := Negative.map].map;
+\definition projection: Chains.Map[C := Sum.complex, D := SmallPair.complex].Map := Sum.Copairing[E := SmallPair.complex, f := LeftSmall.map, g := RightSmall.map].map;
+\module Degree(n: N.Nat^);

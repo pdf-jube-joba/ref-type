@@ -1,0 +1,52 @@
+\import Whole.Simplices[] \as Simplices;
+\import Sub.Simplices[] \as SubSimplices;
+\import algebraic_topology.Simplex[] \as Simplex;
+\definition index: I.Int^ := I.Int^::ofNat n;
+\definition function: SubSimplices.Carrier n -> Simplices.Carrier n := Included.Degree[n := n].postcompose;
+\import Modules.Free[Generators := SubSimplices.Carrier n].Reindex[TargetGenerators := Simplices.Carrier n].QuotientBasis[f := function] \as Basis;
+\import Split.On[pair := Included.pair].Positive[n := n] \as Raw;
+\import Modules.Isomorphism[V := Basis.Carrier, W := Raw.Carrier, source := Basis.space, target := Raw.space]
+  .Composition[U := Quotient.Carrier index, final := Quotient.space index] \as Composition;
+\definition rawIsomorphism: Modules.Isomorphism[V := Basis.Carrier, W := Quotient.Carrier index, source := Basis.space, target := Quotient.space index].Isomorphism :=
+  Composition.compose Raw.isomorphism Basis.isomorphism;
+\definition class[c: Whole.Carrier n]: Quotient.Carrier index := Quotient.At[k := index].class (WholeExtension.Positive[n := n].intro c);
+\definition rawOnGenerator: \forall (sigma: \Cast[Simplices.Carrier n] Basis.Complement) ->
+  rawIsomorphism.forward.apply (Basis.generator sigma) = class (Whole.generator n sigma) :=
+  \fun (sigma: \Cast[Simplices.Carrier n] Basis.Complement) => trans!{{Quotient.Carrier index}} _ _ _
+    (congr!{Raw.Carrier {Quotient.Carrier index}} Raw.isomorphism.forward.apply _ _ (Basis.forwardOnGenerator sigma))
+    (Raw.onClass (Whole.generator n sigma));
+\import Included.Degree[n := n].Lift[] \as Support;
+\definition boundary: \Pow (Simplices.Carrier n) := { sigma: Simplices.Carrier n \where Support.Contained sigma };
+\definition outside: \Pow (Simplices.Carrier n) := { sigma: Simplices.Carrier n \where Logic.Not (Support.Contained sigma) };
+\definition Generator: \Set := \Cast[Simplices.Carrier n] outside;
+\definition Complement: \Set := \Cast[Simplices.Carrier n] Basis.Complement;
+\definition intoComplement[sigma: Generator]: Complement := \into[Simplices.Carrier n](sigma, Basis.Complement) \by { \block {
+  \fun (exists: \exists Basis.Fiber sigma) \then
+  \takefrom tau: Basis.Fiber sigma \by exists \then
+  \return (\bysub(Simplices.Carrier n, outside, sigma))
+    (\idelim function tau = sigma \with rho: Simplices.Carrier n => Support.Contained rho \by {
+      base: \fun (x: Simplex.Carrier n) => \bysub(A, subset, tau x),
+      equality: \bysub(SubSimplices.Carrier n, Basis.Fiber sigma, tau)
+    })
+} };
+\definition fromComplement[sigma: Complement]: Generator := \into[Simplices.Carrier n](sigma, outside) \by {
+  \fun (contained: Support.Contained sigma) => (\bysub(Simplices.Carrier n, Basis.Complement, sigma))
+    (Logic.existsIntro[SubSimplices.Carrier n, { tau: SubSimplices.Carrier n \where function tau = sigma }]
+      (Support.lift sigma contained) (Support.law sigma contained))
+};
+\import Modules.Free[Generators := Generator] \as Free;
+\import Free.Reindex[TargetGenerators := Complement] \as Reindex;
+\import Reindex.Injection[f := intoComplement].Retraction[] \as Bijection;
+\definition injective: \forall (sigma, tau: Generator) -> intoComplement sigma = intoComplement tau -> sigma = tau :=
+  \fun (sigma, tau: Generator)(same: _) => same;
+\definition onto: Bijection.Onto := \fun (sigma: Complement) =>
+  Logic.existsIntro[Generator, { tau: Generator \where intoComplement tau = sigma }] (fromComplement sigma) (\refl(sigma));
+\definition basisComparison: Modules.Isomorphism[V := Free.Carrier, W := Basis.Carrier, source := Free.space, target := Basis.space].Isomorphism :=
+  Bijection.isomorphism injective onto;
+\definition isomorphism: Modules.Isomorphism[V := Free.Carrier, W := Quotient.Carrier index, source := Free.space, target := Quotient.space index].Isomorphism :=
+  Modules.Isomorphism[V := Free.Carrier, W := Basis.Carrier, source := Free.space, target := Basis.space]
+    .Composition[U := Quotient.Carrier index, final := Quotient.space index].compose rawIsomorphism basisComparison;
+\definition onGenerator: \forall (sigma: Generator) -> isomorphism.forward.apply (Free.generator sigma) = class (Whole.generator n sigma) :=
+  \fun (sigma: Generator) => trans!{{Quotient.Carrier index}} _ _ _
+    (congr!{Basis.Carrier {Quotient.Carrier index}} rawIsomorphism.forward.apply _ _ (Reindex.onGenerator intoComplement sigma))
+    (rawOnGenerator (intoComplement sigma));

@@ -1,0 +1,23 @@
+\import singular_cohomology.Simplices[A := SourceSubspace.CarrierSet, source := SourceSubspace.topology domain] \as Simplices;
+\import singular_cohomology.Maps[A := SourceSubspace.CarrierSet, B := B, source := SourceSubspace.topology domain, target := domain] \as SourceInclusion;
+\import Nonnegative.Map[C := SourceWhole.complex, D := Whole.complex].At[n := n] \as WholeMaps;
+\import Nonnegative.Map[C := SourceSub.complex, D := Sub.complex].At[n := n] \as SubMaps;
+\import Nonnegative.Map[C := Sub.complex, D := Whole.complex].At[n := n] \as InclusionMaps;
+\import Modules.Hom[V := SourceWhole.Carrier n, W := Whole.Carrier n, source := SourceWhole.space n, target := Whole.space n]
+  .Composition[U := SourceSub.Carrier n, domain := SourceSub.space n] \as First;
+\import Modules.Hom[V := Sub.Carrier n, W := Whole.Carrier n, source := Sub.space n, target := Whole.space n]
+  .Composition[U := SourceSub.Carrier n, domain := SourceSub.space n] \as Second;
+\definition first: _ := First.compose (WholeMaps.linear WholeMap.map) (SourceInclusion.At[n := n].push SourcePair.inclusion SourcePair.inclusionContinuous);
+\definition second: _ := Second.compose (InclusionMaps.linear Included.map) (SubMaps.linear SubMap.map);
+\definition onGenerator: \forall (sigma: Simplices.Carrier n) -> first.apply (SourceSub.generator n sigma) = second.apply (SourceSub.generator n sigma) :=
+  \fun (sigma: Simplices.Carrier n) => trans!{{Whole.Carrier n}} _ _ _
+    (congr!{{SourceWhole.Carrier n} {Whole.Carrier n}} (WholeMap.map.apply n) _ _
+      (SourceInclusion.At[n := n].onGenerator SourcePair.inclusion SourcePair.inclusionContinuous sigma))
+    (trans!{{Whole.Carrier n}} _ _ _ (WholeMap.Degree[n := n].onGenerator (SourceInclusion.postcompose n SourcePair.inclusion SourcePair.inclusionContinuous sigma))
+      (sym!{{Whole.Carrier n}} _ _ (trans!{{Whole.Carrier n}} _ _ _
+        (congr!{{Sub.Carrier n} {Whole.Carrier n}} (Included.map.apply n) _ _ (SubMap.Degree[n := n].onGenerator sigma))
+        (Included.Degree[n := n].onGenerator (SubMap.simplex n sigma)))));
+\import Modules.Hom[V := SourceSub.Carrier n, W := Whole.Carrier n, source := SourceSub.space n, target := Whole.space n] \as Maps;
+\definition equal: first = second := Modules.Free[Generators := Simplices.Carrier n].To[W := Whole.Carrier n, target := Whole.space n].ext first second onGenerator;
+\definition law: \forall (x: SourceSub.Carrier n) -> first.apply x = second.apply x :=
+  \fun (x: SourceSub.Carrier n) => congr!{Maps.Map {Whole.Carrier n}} (\fun (m: Maps.Map) => m.apply x) _ _ equal;
