@@ -1,0 +1,50 @@
+\definition boundary: \Pow Disk.DiskBundle := { p: Disk.DiskBundle \where Logic.Or[\In[Disk.DiskBundle] Disk.Boundary p, \In[X] U (Disk.diskProjection p)] };
+\definition neighborhood: \Pow Disk.DiskBundle := { p: Disk.DiskBundle \where Logic.Or[\In[Disk.DiskBundle] shell p, \In[X] U (Disk.diskProjection p)] };
+\import singular_cohomology.Relative[A := Disk.DiskBundle, source := Disk.diskTopology, subset := boundary].Maps[B := Disk.DiskBundle].Over[target := Disk.diskTopology, targetSubset := neighborhood] \as Forward;
+\import singular_cohomology.Relative[A := Disk.DiskBundle, source := Disk.diskTopology, subset := neighborhood].Maps[B := Disk.DiskBundle].Over[target := Disk.diskTopology, targetSubset := boundary] \as Backward;
+\definition forward: Forward.Map := \into[Disk.DiskBundle -> Disk.DiskBundle]((\fun (p: Disk.DiskBundle) => p), Forward.Map) \by {
+  Forward.Laws[(\fun (p: Disk.DiskBundle) => p)] {
+    continuous := topology.Maps[A := Disk.DiskBundle, B := Disk.DiskBundle].Identity[].continuous Disk.diskTopology,
+    contained := \fun (p: \Cast[Disk.DiskBundle] boundary) => either!{{\bysub(Disk.DiskBundle, boundary, p)} {\In[Disk.DiskBundle] neighborhood p}
+      {\fun (radial: \In[Disk.DiskBundle] Disk.Boundary p) => Logic.Or[_, _]::left (contains (\into[Disk.DiskBundle](p, Disk.Boundary) \by { radial }))}
+      {\fun (base: \In[X] U (Disk.diskProjection p)) => Logic.Or[_, _]::right base}}
+  }
+};
+\definition backward: Backward.Map := \into[Disk.DiskBundle -> Disk.DiskBundle](clip, Backward.Map) \by {
+  Backward.Laws[clip] {
+    continuous := clipContinuous,
+    contained := \fun (p: \Cast[Disk.DiskBundle] neighborhood) => either!{{\bysub(Disk.DiskBundle, neighborhood, p)} {\In[Disk.DiskBundle] boundary (clip p)}
+      {\fun (radial: \In[Disk.DiskBundle] shell p) => Logic.Or[_, _]::left (endsInBoundary (\into[Disk.DiskBundle](p, shell) \by { radial }))}
+      {\fun (base: \In[X] U (Disk.diskProjection p)) => Logic.Or[_, _]::right base}}
+  }
+};
+\definition preservesBoundary: \forall (t: J.Carrier)(p: \Cast[Disk.DiskBundle] boundary) -> \In[Disk.DiskBundle] boundary (homotopy (Cylinder.at t p)) :=
+  \fun (t: J.Carrier)(p: \Cast[Disk.DiskBundle] boundary) => either!{{\bysub(Disk.DiskBundle, boundary, p)} {\In[Disk.DiskBundle] boundary (homotopy (Cylinder.at t p))}
+    {\fun (radial: \In[Disk.DiskBundle] Disk.Boundary p) => Logic.Or[_, _]::left
+      (trans!{R.Real} _ _ _ (congr!{Disk.DiskBundle R.Real} (\fun (q: Disk.DiskBundle) => Disk.squared q) _ _ (fixed t (\into[Disk.DiskBundle](p, Disk.Boundary) \by { radial }))) radial)}
+    {\fun (base: \In[X] U (Disk.diskProjection p)) => Logic.Or[_, _]::right base}};
+\definition preservesNeighborhood: \forall (t: J.Carrier)(p: \Cast[Disk.DiskBundle] neighborhood) -> \In[Disk.DiskBundle] neighborhood (homotopy (Cylinder.at t p)) :=
+  \fun (t: J.Carrier)(p: \Cast[Disk.DiskBundle] neighborhood) => either!{{\bysub(Disk.DiskBundle, neighborhood, p)} {\In[Disk.DiskBundle] neighborhood (homotopy (Cylinder.at t p))}
+    {\fun (radial: \In[Disk.DiskBundle] shell p) => Logic.Or[_, _]::left (preservesShell t (\into[Disk.DiskBundle](p, shell) \by { radial }))}
+    {\fun (base: \In[X] U (Disk.diskProjection p)) => Logic.Or[_, _]::right base}};
+\import singular_cohomology.Relative[A := Disk.DiskBundle, source := Disk.diskTopology, subset := boundary].Equivalence[B := Disk.DiskBundle].Over[target := Disk.diskTopology, targetSubset := neighborhood] \as Equivalences;
+\import singular_cohomology.Relative[A := Disk.DiskBundle, source := Disk.diskTopology, subset := boundary].Maps[B := Disk.DiskBundle].Over[target := Disk.diskTopology, targetSubset := boundary] \as BoundaryEnd;
+\import singular_cohomology.Relative[A := Disk.DiskBundle, source := Disk.diskTopology, subset := neighborhood].Maps[B := Disk.DiskBundle].Over[target := Disk.diskTopology, targetSubset := neighborhood] \as NeighborhoodEnd;
+\definition boundaryClip: BoundaryEnd.Map := Forward.Composition[C := Disk.DiskBundle].Over[final := Disk.diskTopology, finalSubset := boundary].compose forward backward;
+\definition neighborhoodClip: NeighborhoodEnd.Map := Backward.Composition[C := Disk.DiskBundle].Over[final := Disk.diskTopology, finalSubset := neighborhood].compose backward forward;
+\import singular_cohomology.Relative[A := Disk.DiskBundle, source := Disk.diskTopology, subset := boundary].Identity[] \as BoundaryIdentity;
+\import singular_cohomology.Relative[A := Disk.DiskBundle, source := Disk.diskTopology, subset := neighborhood].Identity[] \as NeighborhoodIdentity;
+\definition equivalence: Equivalences.Equivalence := Equivalences.Equivalence {
+  forward := forward, backward := backward,
+  left := \into[Homotopies.Homotopy[Disk.diskTopology, Disk.diskTopology, clip, (\fun (p: Disk.DiskBundle) => p)]](reverse,
+    BoundaryEnd.Homotopy[f := boundaryClip, g := BoundaryIdentity.map].Homotopy) \by {
+      \fun (t: J.Carrier)(p: \Cast[Disk.DiskBundle] boundary) => preservesBoundary (J.reverse t) p
+    },
+  right := \into[Homotopies.Homotopy[Disk.diskTopology, Disk.diskTopology, clip, (\fun (p: Disk.DiskBundle) => p)]](reverse,
+    NeighborhoodEnd.Homotopy[f := neighborhoodClip, g := NeighborhoodIdentity.map].Homotopy) \by {
+      \fun (t: J.Carrier)(p: \Cast[Disk.DiskBundle] neighborhood) => preservesNeighborhood (J.reverse t) p
+    }
+};
+\module With(coefficients: IntegerModules.Bundle, z: I.Int^) {
+  \definition isomorphism: _ := Equivalences.On[e := equivalence].With[coefficients := coefficients].At[z := z].isomorphism;
+}

@@ -1,0 +1,19 @@
+\use std.Logic[].Equality[].eq_reason_in;
+\definition next: I.Int^ := chain_complexes.Integer[].next z;
+\import SourceStep.With[coefficients := coefficients, z := z] \as Source;
+\import TargetStep.With[coefficients := coefficients, z := z] \as Target;
+\import singular_cohomology.Relative[A := SourceDisk.DiskCarrier, source := SourceDisk.diskTopology, subset := SourceLower.boundary].With[coefficients := coefficients].At[z := z] \as Input;
+\import TargetPair.With[coefficients := coefficients].At[z := next] \as Output;
+\import singular_cohomology.Relative[A := SourceCylinder.Carrier, source := SourceSuspension.topology, subset := SourceSuspension.boundary].With[coefficients := coefficients].At[z := next] \as CylinderH;
+\import singular_cohomology.Relative[A := TargetCylinder.Carrier, source := TargetSuspension.topology, subset := TargetSuspension.boundary].With[coefficients := coefficients].At[z := next] \as TargetCylinderH;
+\import SourceCompose.On[f := SourceRound.forwardMap SourceStep.round, g := SourceBox.forwardMap SourceStep.cylinder].With[coefficients := coefficients] \as SourceTotal;
+\import TargetCompose.On[f := TargetRound.forwardMap TargetStep.round, g := TargetBox.forwardMap TargetStep.cylinder].With[coefficients := coefficients] \as TargetTotal;
+\import TargetPair.Maps[B := TargetCylinder.Carrier].Over[target := TargetSuspension.topology, targetSubset := TargetSuspension.boundary].On[f := targetTotal].Integer[].With[coefficients := coefficients].At[z := next] \as TargetTotalPull;
+\definition law: \forall (q: Input.Carrier) -> Higher.With[coefficients := coefficients, z := next].pullback.apply (Source.isomorphism.forward.apply q) = Target.isomorphism.forward.apply (Lower.With[coefficients := coefficients, z := z].pullback.apply q) :=
+  \fun (q: Input.Carrier) => eq_reason_in!{Output.Carrier _
+    "=" _ "by" { congr!{{SourcePair.With[coefficients := coefficients].At[z := next].Carrier} Output.Carrier} Higher.With[coefficients := coefficients, z := next].pullback.apply _ _ (sym!{{SourcePair.With[coefficients := coefficients].At[z := next].Carrier}} _ _ (SourceTotal.law next (Source.suspended.forward.apply q))) }
+    "=" _ "by" { sym!{Output.Carrier} _ _ (SourcePath.With[coefficients := coefficients].law next (Source.suspended.forward.apply q)) }
+    "=" _ "by" { TargetPath.With[coefficients := coefficients].law next (Source.suspended.forward.apply q) }
+    "=" _ "by" { congr!{TargetCylinderH.Carrier Output.Carrier} TargetTotalPull.induced.apply _ _ (SuspensionNatural.With[coefficients := coefficients].At[z := z].law q) }
+    "=" _ "by" { TargetTotal.law next (Target.suspended.forward.apply (Lower.With[coefficients := coefficients, z := z].pullback.apply q)) }
+  };

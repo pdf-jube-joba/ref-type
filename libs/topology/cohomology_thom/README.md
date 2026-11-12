@@ -199,3 +199,9 @@ H^z(X;R)\xrightarrow{\smile e}H^{z+n}(X;R)
 `Union.Cover.On[conditions].Cup[p, q].apply` は、二つの部分が和集合内で開いているとき、通常の \(H^p(A,\mathrm{first};K)\otimes H^q(A,\mathrm{second};K)\to H^{p+q}(A,\mathrm{first}\cup\mathrm{second};K)\) を構成する。
 `bilinear` は基礎の整数加群に関する双線形性で、`CommonIso.Cohomology.Canonical.law` が小さい鎖との比較を通常の余鎖による写像と同定する。
 鎖と開被覆の幾何は `singular_cap.Triple` を再利用し、係数と cup 積は指定された可換環を使う。
+
+`RelativeDisk.On[X, source, subset].With[M].isomorphism n z` は底空間の部分も相対化した円板の同型
+\(H^z(X,B;M)\cong H^{z+n}(X\times D^n,X\times\partial D^n\cup B\times D^n;M)\) を構成する。
+全ランクの相対懸垂から構成し、`From.With.law` は底空間の対写像に関する自然性を与える。
+`Thom.Real.For.With.Shell` は円板束の \(\|v\|>1/2\) という開部分と、零切断を固定する連続写像 `clip` を与える。
+`Shell.Over[U].equivalence` は球面境界に底空間部分 \(U\) を加えた対と、開いた殻に同じ部分を加えた対の実際の対ホモトピー同値である。

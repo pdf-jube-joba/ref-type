@@ -1,0 +1,66 @@
+\import real.Analysis[] \as R;
+\import dedekind_reals.DedekindReal[] \as D;
+\import D.Order[] \as Ord;
+\import D.Arithmetic[].Prop[] \as Laws;
+\import R.Algebra[] \as Algebra;
+\import algebraic_topology.Interval[] \as J;
+\import algebraic_topology.Cylinder[A := Disk.DiskBundle] \as Cylinder;
+\import Disk.Radial[].Motion[] \as Motion;
+\import Motion.Continuity[] \as Regular;
+\import Disk.ThomPair[].Collar[] \as Collar;
+\import Bundles.Family[X := X, F := F] \as Family;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.trans;
+\use Equality.sym;
+\use Equality.congr;
+\use Logic.either;
+\definition shell: \Pow Disk.DiskBundle := { p: Disk.DiskBundle \where D.Lt R.half (Disk.norm p) };
+\definition normContinuous: metric_spaces.RealFunctions[A := Disk.DiskBundle].Continuous Disk.diskTopology (\fun (p: Disk.DiskBundle) => Disk.norm p) :=
+  topology.Continuity[A := Family.Point, B := R.Real].Restriction[S := Disk.ClosedBall].restrictContinuous bundle.totalSpace metric_spaces.RealLine[].topology Disk.norm Disk.normContinuous;
+\definition open: topology.Topology[Carrier := Disk.DiskBundle].IsOpenIn Disk.diskTopology shell := normContinuous (metric_spaces.RealLine[].Rays[].Above R.half) (metric_spaces.RealLine[].Rays[].aboveOpen R.half);
+\definition boundaryNorm: \forall (p: \Cast[Disk.DiskBundle] Disk.Boundary) -> Disk.norm p = R.one :=
+  \fun (p: \Cast[Disk.DiskBundle] Disk.Boundary) => trans!{R.Real} _ _ _ (congr!{R.Real R.Real} R.SquareRoot[].sqrt _ _ (\bysub(Disk.DiskBundle, Disk.Boundary, p))) R.SquareRoot[].sqrtOne;
+\definition contains: \forall (p: \Cast[Disk.DiskBundle] Disk.Boundary) -> \In[Disk.DiskBundle] shell p :=
+  \fun (p: \Cast[Disk.DiskBundle] Disk.Boundary) => D.ltReplaceRight R.half R.one (Disk.norm p) (sym!{R.Real} _ _ (boundaryNorm p)) Collar.halfBelowOne;
+\definition homotopy: Cylinder.Carrier -> Disk.DiskBundle := Motion.point;
+\definition continuous: topology.Continuity[A := Cylinder.Carrier, B := Disk.DiskBundle].Continuous (Cylinder.topology Disk.diskTopology) Disk.diskTopology homotopy := Regular.pointContinuous;
+\definition start: \forall (p: Disk.DiskBundle) -> homotopy (Cylinder.at J.start p) = p :=
+  \fun (p: Disk.DiskBundle) => Motion.At[t := J.start, x := p].startPoint (\refl(J.start));
+\definition clip[p: Disk.DiskBundle]: Disk.DiskBundle := homotopy (Cylinder.at J.end p);
+\definition clipContinuous: topology.Continuity[A := Disk.DiskBundle, B := Disk.DiskBundle].Continuous Disk.diskTopology Disk.diskTopology clip :=
+  topology.Composition[A := Disk.DiskBundle, B := Cylinder.Carrier, C := Disk.DiskBundle].composeContinuous Disk.diskTopology (Cylinder.topology Disk.diskTopology) Disk.diskTopology (Cylinder.at J.end) homotopy (Cylinder.atContinuous Disk.diskTopology J.end) continuous;
+\definition overBase: \forall (t: J.Carrier)(p: Disk.DiskBundle) -> Disk.diskProjection (homotopy (Cylinder.at t p)) = Disk.diskProjection p :=
+  \fun (t: J.Carrier)(p: Disk.DiskBundle) => \refl(p.base);
+\definition fixed: \forall (t: J.Carrier)(p: \Cast[Disk.DiskBundle] Disk.Boundary) -> homotopy (Cylinder.at t p) = p :=
+  \fun (t: J.Carrier)(p: \Cast[Disk.DiskBundle] Disk.Boundary) => Motion.At[t := t, x := p].boundaryPoint (\bysub(Disk.DiskBundle, Disk.Boundary, p));
+\definition increasing: \forall (t: J.Carrier)(p: Disk.DiskBundle) -> D.Le (Disk.norm p) (Disk.norm (homotopy (Cylinder.at t p))) :=
+  \fun (t: J.Carrier)(p: Disk.DiskBundle) => D.leReplace (R.mul (Disk.norm p) R.one) (Disk.norm p)
+    (R.mul (Disk.norm p) puppe_sequences.Puppe[].Radial[t := t, r := Motion.radius p].coefficient) (Disk.norm (homotopy (Cylinder.at t p)))
+    (Algebra.mulOneRight (Disk.norm p))
+    (trans!{R.Real} _ _ _ (Laws.fieldMulComm (Disk.norm p) puppe_sequences.Puppe[].Radial[t := t, r := Motion.radius p].coefficient) (sym!{R.Real} _ _ (Collar.diskNormScale t p)))
+    (R.Estimates[].mulMonotone (Disk.norm p) R.one puppe_sequences.Puppe[].Radial[t := t, r := Motion.radius p].coefficient (Disk.normNonnegative p)
+      puppe_sequences.Puppe[].Radial[t := t, r := Motion.radius p].coefficientLower);
+\definition preservesShell: \forall (t: J.Carrier)(p: \Cast[Disk.DiskBundle] shell) -> \In[Disk.DiskBundle] shell (homotopy (Cylinder.at t p)) :=
+  \fun (t: J.Carrier)(p: \Cast[Disk.DiskBundle] shell) => D.ltLeTrans R.half (Disk.norm p) (Disk.norm (homotopy (Cylinder.at t p))) (\bysub(Disk.DiskBundle, shell, p)) (increasing t p);
+\definition endsInBoundary: \forall (p: \Cast[Disk.DiskBundle] shell) -> \In[Disk.DiskBundle] Disk.Boundary (clip p) :=
+  \fun (p: \Cast[Disk.DiskBundle] shell) => Motion.At[t := J.end, x := p].side
+    (R.Distance[].maxOfLe puppe_sequences.Puppe[].Radial[t := J.end, r := Motion.radius p].lower (Motion.radius p)
+      (D.leReplaceLeft R.half puppe_sequences.Puppe[].Radial[t := J.end, r := Motion.radius p].lower (Motion.radius p)
+        (sym!{R.Real} _ _ (Collar.endLower (Motion.radius p))) (Ord.leOfLt R.half (Motion.radius p) (\bysub(Disk.DiskBundle, shell, p)))));
+\import algebraic_topology.Homotopy[A := Disk.DiskBundle, B := Disk.DiskBundle] \as Homotopies;
+\definition deformation: Homotopies.Homotopy[Disk.diskTopology, Disk.diskTopology, (\fun (p: Disk.DiskBundle) => p), clip] :=
+  \into[Homotopies.Family](homotopy, Homotopies.Homotopy[Disk.diskTopology, Disk.diskTopology, (\fun (p: Disk.DiskBundle) => p), clip]) \by {
+    Homotopies.Laws[Disk.diskTopology, Disk.diskTopology, (\fun (p: Disk.DiskBundle) => p), clip, homotopy] {
+      continuous := continuous, start := start, end := \fun (p: Disk.DiskBundle) => \refl(clip p)
+    }
+  };
+\definition reverse: Homotopies.Homotopy[Disk.diskTopology, Disk.diskTopology, clip, (\fun (p: Disk.DiskBundle) => p)] :=
+  Homotopies.reverse Disk.diskTopology Disk.diskTopology (\fun (p: Disk.DiskBundle) => p) clip deformation;
+\import linear_algebra.Commutative[K := R.Real, scalarRing := std.Alg[].Field[].fieldAsCommutativeRing R.Real R.Algebra[].field] \as VectorSpaces;
+\definition fixesZero: \forall (t: J.Carrier)(x: X) -> homotopy (Cylinder.at t (Disk.zeroSection x)) = Disk.zeroSection x :=
+  \fun (t: J.Carrier)(x: X) => congr!{{F x} Family.Point} (Family.include x) _ _
+    (VectorSpaces.Laws[V := F x, space := bundle.space x].scaleZero
+      (linear_algebra.Hermitian[].Real[].scalar.embed puppe_sequences.Puppe[].Radial[t := t, r := Motion.radius (Disk.zeroSection x)].coefficient));
+\definition clipZero: \forall (x: X) -> clip (Disk.zeroSection x) = Disk.zeroSection x := \fun (x: X) => fixesZero J.end x;
+\module Over(U: \Pow X);

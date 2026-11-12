@@ -1,0 +1,16 @@
+\import \root.RelativeDisk[].On[X := X, source := source, subset := subset].With[coefficients := coefficients] \as Source;
+\import Other.With[coefficients := coefficients] \as Target;
+\import singular_cohomology.Relative[A := X, source := source, subset := subset].With[coefficients := coefficients] \as Input;
+\import BaseMaps.On[f := f].Integer[].With[coefficients := coefficients] \as BasePull;
+\definition Property[n: N.Nat^]: \Prop := \forall (z: I.Int^)(q: Input.At[z := z].Carrier) ->
+  \parent.Rank[n := n].With[coefficients := coefficients, z := shift n z].pullback.apply ((Source.isomorphism n z).forward.apply q) =
+  (Target.isomorphism n z).forward.apply (BasePull.At[z := z].induced.apply q);
+\definition law: \forall (n: N.Nat^) -> Property n :=
+  \induction (n: N.Nat^) \return Property n \with {
+      | zero: \fun (z: I.Int^)(q: Input.At[z := z].Carrier) => \parent.Zero[].With[coefficients := coefficients, z := z].law q
+      | succ: \fun (n: N.Nat^)(previous: Property n)(z: I.Int^)(q: Input.At[z := z].Carrier) =>
+        trans!{{Other.Dimension[n := N.Nat^::succ n].With[coefficients := coefficients, z := shift (N.Nat^::succ n) z].Group}} _ _ _
+          (\parent.Step[n := n].With[coefficients := coefficients, z := shift n z].law ((Source.isomorphism n z).forward.apply q))
+          (congr!{{Other.Dimension[n := n].With[coefficients := coefficients, z := shift n z].Group} {Other.Dimension[n := N.Nat^::succ n].With[coefficients := coefficients, z := shift (N.Nat^::succ n) z].Group}}
+            Other.Step[n := n].With[coefficients := coefficients, z := shift n z].isomorphism.forward.apply _ _ (previous z q))
+    };

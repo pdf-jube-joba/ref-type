@@ -1,0 +1,21 @@
+\import \parent.Rank[n := N.Nat^::zero] \as Rank;
+\import \root.RelativeDisk[].On[X := X, source := source, subset := subset].Zero[] \as SourceZero;
+\import Other.Zero[] \as TargetZero;
+\import thom_spaces.Thom[].DiskSuspension[X := X, space := source, n := N.Nat^::zero] \as SourceDisk;
+\import thom_spaces.Thom[].DiskSuspension[X := B, space := target, n := N.Nat^::zero] \as TargetDisk;
+\import \root.RelativeDisk[].On[X := X, source := source, subset := subset].Dimension[n := N.Nat^::zero] \as SourceDimension;
+\import Other.Dimension[n := N.Nat^::zero] \as TargetDimension;
+\import singular_cohomology.Relative[A := SourceDisk.DiskCarrier, source := SourceDisk.diskTopology, subset := SourceDimension.boundary].Homeomorphism[B := X].Over[target := source, targetSubset := subset] \as SourcePairs;
+\import singular_cohomology.Relative[A := TargetDisk.DiskCarrier, source := TargetDisk.diskTopology, subset := TargetDimension.boundary].Homeomorphism[B := B].Over[target := target, targetSubset := part] \as TargetPairs;
+\import singular_cohomology.Relative[A := TargetDisk.DiskCarrier, source := TargetDisk.diskTopology, subset := TargetDimension.boundary].Maps[B := SourceDisk.DiskCarrier].Over[target := SourceDisk.diskTopology, targetSubset := SourceDimension.boundary].Composition[C := X].Over[final := source, finalSubset := subset].On[f := Rank.pair, g := SourcePairs.forwardMap SourceZero.pair] \as SourceComposition;
+\import singular_cohomology.Relative[A := TargetDisk.DiskCarrier, source := TargetDisk.diskTopology, subset := TargetDimension.boundary].Maps[B := B].Over[target := target, targetSubset := part].Composition[C := X].Over[final := source, finalSubset := subset].On[f := TargetPairs.forwardMap TargetZero.pair, g := f] \as TargetComposition;
+\module With(coefficients: Modules.Bundle, z: I.Int^) {
+  \import singular_cohomology.Relative[A := X, source := source, subset := subset].With[coefficients := coefficients].At[z := z] \as Input;
+  \import singular_cohomology.Relative[A := TargetDisk.DiskCarrier, source := TargetDisk.diskTopology, subset := TargetDimension.boundary].With[coefficients := coefficients].At[z := z] \as Output;
+  \import BaseMaps.On[f := f].Integer[].With[coefficients := coefficients].At[z := z] \as BasePull;
+  \definition law: \forall (q: Input.Carrier) -> Rank.With[coefficients := coefficients, z := z].pullback.apply (SourceZero.With[coefficients := coefficients, z := z].isomorphism.forward.apply q) =
+    TargetZero.With[coefficients := coefficients, z := z].isomorphism.forward.apply (BasePull.induced.apply q) :=
+    \fun (q: Input.Carrier) => trans!{Output.Carrier} _ _ _
+      (sym!{Output.Carrier} _ _ (SourceComposition.With[coefficients := coefficients].law z q))
+      (TargetComposition.With[coefficients := coefficients].law z q);
+}
