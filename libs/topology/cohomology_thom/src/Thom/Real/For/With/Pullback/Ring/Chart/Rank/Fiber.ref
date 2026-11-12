@@ -1,0 +1,39 @@
+\import OldChart.Fiber[x := \parent.\parent.Fiber[y := y].oldPoint].Ring[K := R, ring := ring] \as SourceFiber;
+\import NewChart.Fiber[x := y].Ring[K := R, ring := ring] \as TargetFiber;
+\use std.Logic[].Equality[].eq_reason_in;
+\import \parent.\parent.Fiber[y := y] \as Native;
+\import \root.Thom[].Real[].For[X := X, F := F, bundle := bundle].With[metric := metric].Pullback[Y := Y, source := source, f := f, regular := regular].Fiber[y := y] \as Actual;
+\import OriginalGeometry.Fiber[x := f y] \as Old;
+\import PulledGeometry.Fiber[x := y] \as New;
+\import std.Logic[].Equality[].Transport[A := N.Nat^] \as RankTransport;
+\definition SourceModels[k: N.Nat^]: \Set := SourceLocal.Model[n := k, U := c.domain].Data;
+\definition TargetModels[k: N.Nat^]: \Set := TargetLocal.Model[n := k, U := chart.domain].Data;
+\definition SourceClasses[k: N.Nat^]: \Set := SourceLocal.Rank[n := k].FiberClass (f y);
+\definition TargetClasses[k: N.Nat^]: \Set := TargetLocal.Rank[n := k].FiberClass y;
+\definition sourceValue[k: N.Nat^][m: SourceModels k]: SourceClasses k := (SourceLocal.Rank[n := k].On[U := c.domain].restriction Native.oldPoint).apply m.thomClass;
+\definition targetValue[k: N.Nat^][m: TargetModels k]: TargetClasses k := (TargetLocal.Rank[n := k].On[U := chart.domain].restriction y).apply m.thomClass;
+\definition linear[k: N.Nat^]: _ := Actual.Ring[K := R, ring := ring].Degree[n := k].map;
+\definition map[k: N.Nat^]: SourceClasses k -> TargetClasses k := (linear k).apply;
+\definition native: map c.dimension (sourceValue c.dimension SourceLocal.Chart[c := c].data) = targetValue c.dimension TargetLocal.Chart[c := chart].data :=
+  trans!{{TargetClasses c.dimension}} _ _ _ (congr!{{SourceClasses c.dimension} {TargetClasses c.dimension}} (map c.dimension) _ _ SourceFiber.Normalization[].normalized)
+    (trans!{{TargetClasses c.dimension}} _ _ _ Native.generator (sym!{{TargetClasses c.dimension}} _ _ TargetFiber.Normalization[].normalized));
+\definition positive: map n (sourceValue n Source.model) = targetValue n Target.model := eq_reason_in!{{TargetClasses n} _
+  "=" _ "by" { congr!{{SourceClasses n} {TargetClasses n}} (map n) _ _ (sym!{{SourceClasses n}} _ _ (RankTransport.natural SourceModels SourceClasses sourceValue c.dimension n same SourceLocal.Chart[c := c].data)) }
+  "=" _ "by" { sym!{{TargetClasses n}} _ _ (RankTransport.natural SourceClasses TargetClasses map c.dimension n same (sourceValue c.dimension SourceLocal.Chart[c := c].data)) }
+  "=" _ "by" { congr!{{TargetClasses c.dimension} {TargetClasses n}} (RankTransport.cast TargetClasses c.dimension n same) _ _ native }
+  "=" _ "by" { RankTransport.natural TargetModels TargetClasses targetValue c.dimension n same TargetLocal.Chart[c := chart].data }
+};
+\definition negativeSource[u: SourceClasses n]: SourceClasses n := Old.Additive[coefficients := OldBase.integerCoefficients, z := I.Int^::ofNat n].space.neg u;
+\definition negativeTarget[u: TargetClasses n]: TargetClasses n := New.Additive[coefficients := NewBase.integerCoefficients, z := I.Int^::ofNat n].space.neg u;
+\definition negative: \forall (u: SourceClasses n) -> map n (negativeSource u) = negativeTarget (map n u) :=
+  IntegerModules.Hom[V := SourceClasses n, W := TargetClasses n, source := Old.Additive[coefficients := OldBase.integerCoefficients, z := I.Int^::ofNat n].space, target := New.Additive[coefficients := NewBase.integerCoefficients, z := I.Int^::ofNat n].space].negativePreserved (linear n);
+\definition signed: \forall (reverse: std.Data[].Bool[].Bool^) -> map n (sourceValue n (Source.signed reverse)) = targetValue n (Target.signed reverse) :=
+  \induction (reverse: std.Data[].Bool[].Bool^) \return map n (sourceValue n (Source.signed reverse)) = targetValue n (Target.signed reverse) \with {
+    | false: positive
+    | true: eq_reason_in!{{TargetClasses n} _
+        "=" _ "by" { congr!{{SourceClasses n} {TargetClasses n}} (map n) _ _ (SourceDomain.negativeLaw Native.oldPoint Source.model.thomClass) }
+        "=" _ "by" { negative (sourceValue n Source.model) }
+        "=" _ "by" { congr!{{TargetClasses n} {TargetClasses n}} negativeTarget _ _ positive }
+        "=" _ "by" { sym!{{TargetClasses n}} _ _ (TargetDomain.negativeLaw y Target.model.thomClass) }
+      }
+  };

@@ -187,3 +187,10 @@ H^z(X;R)\xrightarrow{\smile e}H^{z+n}(X;R)
 `Degree[z].higherLaw` は最後の Euler 項の次数の移し替えを与える。
 `Degree[z].Pullback.law` は二番目の写像が球面束の実際の射影による引き戻しであることを示す。
 `Integral.Gysin` と `ModTwo.Gysin` はそれぞれ整数係数と標準 mod 2 類に対する入口である。
+
+`Pullback.Fiber[y].Ring[K, ring].Degree[n].law` は引き戻し束の実ファイバー制限と元の束の実ファイバー制限の可換式である。
+`Pullback.Ring.Chart[c].Fiber[y].generator` は引き戻した実チャートの標準生成元が元の生成元の引き戻しに一致することを示す。
+局所制限束に入る輸送を明示的に比較した上で、動径同相による座標写像の可換性を証明する。
+`Pullback.Ring.Oriented[n, orientation, complex, sourceComplex].pulledOrientation` はこのファイバー写像から引き戻し束の符号付き向きを構成する。
+`classLaw`、`eulerLaw`、`Degree[p].law` と `inverseLaw` はそれぞれ大域 Thom 類、Euler 類、Thom 同型の順方向と逆方向の自然性を与える。
+`Pullback.ModTwo[n, constantRank, complex, sourceComplex]` は引き戻し束の標準 mod 2 類との比較を公開する。
