@@ -1,0 +1,19 @@
+\import std.Data[].Nat[] \as N;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.transport;
+\import \root.SmallSupport[A := A, source := source, cover := cover, family := family] \as Support;
+\import singular_cohomology.Chains[A := A, source := source] \as Whole;
+\import singular_subdivision.Small[A := A, source := source, family := family] \as Boundary;
+\import singular_subdivision.OpenCover[A := A, source := source].On[cover := cover] \as Cover;
+\import singular_subdivision.Small[A := A, source := source, family := topology.Topology[Carrier := A].OpenCovers[topology := source].family cover] \as Ambient;
+\definition Property[n: N.Nat^]: \Prop := \forall (x: Whole.Carrier n) -> Boundary.At[n := n].Image x -> Boundary.At[n := n].Image ((Cover.candidateMap n).apply x);
+\definition law: \forall (n: N.Nat^) -> Property n := \induction (n: N.Nat^) \return Property n \with {
+  | zero: Support.Candidate[n := N.Nat^::zero].Zero[].law
+  | succ: \fun (n: N.Nat^)(unused: Property n) => Support.Candidate[n := N.Nat^::succ n].Positive[k := n, same := \refl(N.Nat^::succ n)].law
+};
+\definition retraction: \forall (n: N.Nat^)(x: Whole.Carrier n) -> Boundary.At[n := n].Image x ->
+  Boundary.At[n := n].Image (Ambient.inclusion.apply n (Cover.retraction.apply n x)) :=
+  \fun (n: N.Nat^)(x: Whole.Carrier n)(member: Boundary.At[n := n].Image x) => transport!{{Whole.Carrier n}} Boundary.At[n := n].Image _ _
+    (sym!{{Whole.Carrier n}} _ _ (Cover.Compared[n := n].included x)) (law n x member);
