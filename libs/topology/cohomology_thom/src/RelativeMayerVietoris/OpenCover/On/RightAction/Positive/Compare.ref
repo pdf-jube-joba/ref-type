@@ -1,0 +1,30 @@
+\use std.Logic[].Equality[].eq_reason_in;
+\import Upper.Compare[].Cohomology[] \as Comparison;
+\import singular_cohomology.Relative[A := A, source := source, subset := WholeSpace.Empty].With[coefficients := WholeProduct.integerCoefficients] \as SourceWhole;
+\import IntegerCochains.At[C := SourceWhole.complex, z := inputDegree] \as WholeInput;
+\import IntegerCochains.Map[C := SourceWhole.complex, D := SourceSmallHom.complex].At[k := inputDegree] \as SourceAction;
+\import singular_subdivision.OpenCover[A := A, source := source].On[cover := Cover.openCover].Subspace[subset := WholeSpace.Empty].Relative[].With[coefficients := WholeProduct.integerCoefficients] \as SourceComparison;
+\definition Classes[k: N.Nat^]: \Set := IntegerCochains.At[C := SmallHom.complex, z := I.Int^::ofNat k].Cohomology;
+\definition classes[k: N.Nat^]: Closed k -> Classes k := IntegerCochains.At[C := SmallHom.complex, z := I.Int^::ofNat k].classOf;
+\definition family: Modules.Family[N.Nat^] := Modules.Family[N.Nat^] {
+  Carrier := Classes,
+  space := \fun (k: N.Nat^) => IntegerCochains.At[C := SmallHom.complex, z := I.Int^::ofNat k].cohomologySpace
+};
+\import \root.RelativeMayerVietoris[].Transport[Index := N.Nat^, family := family].At[m := Upper.total, n := total, same := same] \as Casting;
+\definition onClasses: \forall (u: Restriction.Cycle)(h: WholeInput.Closed) ->
+  apply u (Comparison.sourceIso.forward.apply (WholeInput.classOf h)) = Casting.forward.apply ((Comparison.smallMap u).apply (Comparison.sourceIso.forward.apply (WholeInput.classOf h))) :=
+  \fun (u: Restriction.Cycle)(h: WholeInput.Closed) => eq_reason_in!{Output.Cohomology _
+    "=" _ "by" { congr!{Input.Cohomology Output.Cohomology} (apply u) _ _ (SourceAction.onClass SourceComparison.restriction h) }
+    "=" _ "by" { onClass u ((SourceAction.cyclesMap SourceComparison.restriction).apply h) }
+    "=" _ "by" { sym!{Output.Cohomology} _ _ (Transport.natural Closed Classes classes Upper.total total same (Upper.Cycles[].cycle u ((SourceAction.cyclesMap SourceComparison.restriction).apply h))) }
+    "=" _ "by" { congr!{{Classes Upper.total} Output.Cohomology} Casting.forward.apply _ _ (sym!{{Classes Upper.total}} _ _ (Comparison.onClass u h)) }
+  };
+\definition onWholeClasses: \forall (u: Restriction.Cycle)(a: WholeInput.Cohomology) ->
+  apply u (Comparison.sourceIso.forward.apply a) = Casting.forward.apply ((Comparison.smallMap u).apply (Comparison.sourceIso.forward.apply a)) :=
+  \fun (u: Restriction.Cycle) => WholeInput.classInduction (\fun (a: WholeInput.Cohomology) => apply u (Comparison.sourceIso.forward.apply a) = Casting.forward.apply ((Comparison.smallMap u).apply (Comparison.sourceIso.forward.apply a))) (onClasses u);
+\definition law: \forall (u: Restriction.Cycle)(x: Input.Cohomology) -> apply u x = Casting.forward.apply ((Comparison.smallMap u).apply x) :=
+  \fun (u: Restriction.Cycle)(x: Input.Cohomology) => eq_reason_in!{Output.Cohomology _
+    "=" _ "by" { congr!{Input.Cohomology Output.Cohomology} (apply u) _ _ (sym!{Input.Cohomology} _ _ (Comparison.sourceIso.rightInverse x)) }
+    "=" _ "by" { onWholeClasses u (Comparison.sourceIso.backward.apply x) }
+    "=" _ "by" { congr!{Input.Cohomology Output.Cohomology} (\fun (v: Input.Cohomology) => Casting.forward.apply ((Comparison.smallMap u).apply v)) _ _ (Comparison.sourceIso.rightInverse x) }
+  };

@@ -31,3 +31,27 @@
     .Composition[U := \parent.At[n := total].Class, final := \parent.At[n := total].space].compose
       (Modules.Isomorphism[V := \parent.At[n := total].Class, W := MetricTheory.Degree[n := total].Class, source := \parent.At[n := total].space, target := MetricTheory.Degree[n := total].space].Inverse[].inverse Comparison.Degree[n := total].isomorphism)
       Metric.Degree[p := p].isomorphism;
+
+\definition absolute: Modules.Isomorphism[V := BaseProduct.Cohomology[].Group p, W := OpenProduct.Cohomology[].Group p, source := BaseProduct.Cohomology[].moduleSpace p, target := OpenProduct.Cohomology[].moduleSpace p].Isomorphism :=
+  Modules.Isomorphism[V := BaseProduct.Cohomology[].Group p, W := MetricProduct.Cohomology[].Group p, source := BaseProduct.Cohomology[].moduleSpace p, target := MetricProduct.Cohomology[].moduleSpace p].Composition[U := OpenProduct.Cohomology[].Group p, final := OpenProduct.Cohomology[].moduleSpace p].compose
+    (Modules.Isomorphism[V := OpenProduct.Cohomology[].Group p, W := MetricProduct.Cohomology[].Group p, source := OpenProduct.Cohomology[].moduleSpace p, target := MetricProduct.Cohomology[].moduleSpace p].Inverse[].inverse Comparison.Ordinary[n := p].isomorphism)
+    MetricTheory.ProjectionIso[p := p].isomorphism;
+\definition absoluteFormula: \forall (a: BaseProduct.Cohomology[].Group p) -> absolute.forward.apply a = Projection.apply p projection projectionContinuous a :=
+  \fun (a: BaseProduct.Cohomology[].Group p) => trans!{{OpenProduct.Cohomology[].Group p}} _ _ _
+    (congr!{{MetricProduct.Cohomology[].Group p} {OpenProduct.Cohomology[].Group p}} Comparison.Ordinary[n := p].isomorphism.backward.apply _ _ (sym!{{MetricProduct.Cohomology[].Group p}} _ _ (projectionLaw a)))
+    (Comparison.Ordinary[n := p].isomorphism.leftInverse (Projection.apply p projection projectionContinuous a));
+\import Modules.Hom[V := OpenProduct.Cohomology[].Group p, W := \parent.At[n := total].Class, source := OpenProduct.Cohomology[].moduleSpace p, target := \parent.At[n := total].space] \as ProductMaps;
+\definition ordinaryMap: ProductMaps.Map := ProductMaps.Map {
+  apply := \fun (a: OpenProduct.Cohomology[].Group p) => Cup.apply a class,
+  addition := \fun (a, b: OpenProduct.Cohomology[].Group p) => Cup.bilinear.addLeft a b class,
+  scalar := \fun (r: K)(a: OpenProduct.Cohomology[].Group p) => Cup.bilinear.scaleLeft r a class
+};
+\definition baseClasses: Modules.Bundle := Modules.Bundle { Carrier := BaseProduct.Cohomology[].Group p, space := BaseProduct.Cohomology[].moduleSpace p };
+\definition ordinaryClasses: Modules.Bundle := Modules.Bundle { Carrier := OpenProduct.Cohomology[].Group p, space := OpenProduct.Cohomology[].moduleSpace p };
+\definition relativeClasses: Modules.Bundle := Modules.Bundle { Carrier := \parent.At[n := total].Class, space := \parent.At[n := total].space };
+\definition square: \forall (a: BaseProduct.Cohomology[].Group p) -> ordinaryMap.apply (absolute.forward.apply a) = isomorphism.forward.apply a :=
+  \fun (a: BaseProduct.Cohomology[].Group p) => trans!{{\parent.At[n := total].Class}} _ _ _
+    (congr!{{OpenProduct.Cohomology[].Group p} {\parent.At[n := total].Class}} (\fun (b: OpenProduct.Cohomology[].Group p) => Cup.apply b class) _ _ (absoluteFormula a))
+    (sym!{{\parent.At[n := total].Class}} _ _ (formula a));
+\definition ordinaryIsomorphism: _ := Modules.IsomorphismSquare[A := baseClasses, B := relativeClasses, C := ordinaryClasses, D := relativeClasses].transport absolute
+  Modules.Identity[V := relativeClasses.Carrier, space := relativeClasses.space].isomorphism isomorphism ordinaryMap square;

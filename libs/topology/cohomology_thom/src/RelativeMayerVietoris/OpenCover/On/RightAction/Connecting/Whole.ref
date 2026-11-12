@@ -1,0 +1,17 @@
+\use std.Logic[].Equality[].eq_reason_in;
+\import std.Logic[].Equality[].Transport[A := N.Nat^] \as Transport;
+\import Upper.Compare[].Cohomology[] \as Multiplication;
+\import \root.RelativeMayerVietoris[].OpenCover[A := A, source := source, subset := subset].On[cover := cover].Cohomology[coefficients := WholeProduct.integerCoefficients].At[z := Product.outputDegree] \as TargetMV;
+\import SourceCover.Cohomology[coefficients := WholeProduct.integerCoefficients].At[z := Product.inputDegree] \as SourceMV;
+\definition SmallClasses[k: N.Nat^]: \Set := IntegerCochains.At[C := SmallHom.complex, z := I.Int^::ofNat k].Cohomology;
+\definition WholeClasses[k: N.Nat^]: \Set := IntegerCochains.At[C := WholeRelative.complex, z := I.Int^::ofNat k].Cohomology;
+\definition inverse[k: N.Nat^]: SmallClasses k -> WholeClasses k := WholeComparison.At[z := I.Int^::ofNat k].isomorphism.backward.apply;
+\import WholeComparison.At[z := Positive.outputDegree] \as TargetComparison;
+\definition apply[u: Restriction.Cycle][a: Multiplication.sourceClasses.Carrier]: WholeClasses Positive.total := Transport.cast WholeClasses Upper.total Positive.total Positive.same (Multiplication.whole u a);
+\definition law: \forall (u: Restriction.Cycle)(a: Input.Cohomology) -> TargetMV.connecting.apply (overlap u a) = apply u (SourceMV.connecting.apply a) :=
+  \fun (u: Restriction.Cycle)(a: Input.Cohomology) => eq_reason_in!{{WholeClasses Positive.total} _
+    "=" _ "by" { congr!{Output.Cohomology {WholeClasses Positive.total}} TargetComparison.isomorphism.backward.apply _ _ (\root.RelativeMayerVietoris[].OpenCover[A := A, source := source, subset := subset].On[cover := cover].RightAction[K := K, ring := ring].Connecting[p := p, q := q].law u a) }
+    "=" _ "by" { congr!{Output.Cohomology {WholeClasses Positive.total}} TargetComparison.isomorphism.backward.apply _ _ (Positive.Compare[].law u (SourceConnecting.connecting.apply a)) }
+    "=" _ "by" { sym!{{WholeClasses Positive.total}} _ _ (Transport.natural SmallClasses WholeClasses inverse Upper.total Positive.total Positive.same ((Multiplication.smallMap u).apply (SourceConnecting.connecting.apply a))) }
+    "=" _ "by" { congr!{{WholeClasses Upper.total} {WholeClasses Positive.total}} (Transport.cast WholeClasses Upper.total Positive.total Positive.same) _ _ (Multiplication.inverseConjugation u (SourceConnecting.connecting.apply a)) }
+  };

@@ -101,3 +101,9 @@ H^p(X;R)\longrightarrow H^{p+n}(X\times D^n,X\times\partial D^n;R),\qquad
 `RelativeMayerVietoris.OpenCover.On.RightAction[K, ring]` は空の対の列から相対列への、固定した右因子との cup 積を構成する。
 `Cup.SumAction.projection`、`Cup.Differential.law`、`Cup.Addition.law` は射影、微分、加法との整合性を示す。
 `Positive.linear` は境界保存による正次数のコホモロジー写像であり、`Connecting.law` は接続写像との比較を次数の移し替えを含めて与える。
+
+`RightAction.Cup.Compare.Cohomology` は小さい余鎖上の積を通常の相対 cup 積と同定する。
+`RightAction.Positive.Compare.law` と `Connecting.Whole.law` は次数の移し替えを含むコホモロジー・接続写像の比較を与える。
+`RelativeMayerVietoris.OpenCover.On.Cohomology.Vanishing[z].whole` は二つの部分と共通部分の直前次数の消滅から全体の消滅を示す。
+`Thom.Real.For.With.Coefficients.ProjectionIso[p]` は円板束の射影による絶対コホモロジー同型を公開する。
+`Chart.Open.Ring.Degree[p].ordinaryIsomorphism` は開円板対の絶対コホモロジーからの cup 同型であり、`Chart.Open.Additive.Negative[k].zero` はランク未満の全次数の消滅を与える。
