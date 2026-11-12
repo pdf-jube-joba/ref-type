@@ -1652,7 +1652,7 @@ impl<'a> TermParser<'a> {
             };
             value = SExp::Assign {
                 value: Box::new(value),
-                number,
+                kind: SurfaceMeta::Named(number),
                 span,
             };
         }
@@ -1828,13 +1828,17 @@ mod tests {
     #[test]
     fn assignment_captures_the_arrow_and_supports_chaining() {
         let SExp::Assign {
-            value, number: 2, ..
+            value,
+            kind: SurfaceMeta::Named(2),
+            ..
         } = complete(r"A -> B \assign _1 \assign _2")
         else {
             panic!("expected outer assignment");
         };
         let SExp::Assign {
-            value, number: 1, ..
+            value,
+            kind: SurfaceMeta::Named(1),
+            ..
         } = *value
         else {
             panic!("expected inner assignment");

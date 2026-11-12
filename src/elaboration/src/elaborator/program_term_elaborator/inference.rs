@@ -61,7 +61,6 @@ fn spine(arena: &Arena, context: &ProgramContext) -> Vec<ProgramArgument> {
         })
         .collect()
 }
-#[cfg(test)]
 fn argument_term(argument: ProgramArgument) -> Term {
     match argument {
         ProgramArgument::ValueType(ty) => Term::ValueType(ty),
@@ -310,7 +309,16 @@ impl ProgramScope {
         self.sync(environment);
         result.map(|_| ())
     }
-    #[cfg(test)]
+    pub(super) fn assign_surface(
+        &mut self,
+        environment: &GlobalEnvironment,
+        kind: SurfaceMeta,
+        span: SourceSpan,
+        value: Term,
+    ) -> Result<(), crate::error::Error> {
+        let (id, arguments) = self.fresh_meta(environment, kind, span, category(value))?;
+        self.assign(environment, id, &arguments, value)
+    }
     fn assign(
         &mut self,
         environment: &GlobalEnvironment,

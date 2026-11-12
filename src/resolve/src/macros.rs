@@ -320,21 +320,52 @@ pub(crate) fn instantiate_template(
 
 fn share_capture_holes(capture: &mut CaptureValue, expansion: u64, index: &mut u32) {
     let mut share = |node: &mut SExp| {
-        if let SExp::Meta {
-            kind: kind @ SurfaceMeta::Implicit,
-            ..
-        } = node
-        {
-            *kind = SurfaceMeta::Captured {
-                expansion,
-                index: *index,
+        // A forwarded capture already has its identity. Share the entire value:
+        // holes under its binders must be compared through those binders, rather
+        // than by intersecting the contexts of independently copied lambdas.
+        if matches!(
+            node,
+            SExp::Assign {
+                kind: SurfaceMeta::Captured { .. },
+                ..
+            }
+        ) {
+            return false;
+        }
+        let mut span = None;
+        walk_sexp_mut(node, &mut |child| {
+            if let SExp::Meta {
+                kind: SurfaceMeta::Implicit,
+                span: location,
+            } = child
+            {
+                span.get_or_insert(*location);
+            }
+        });
+        if let Some(span) = span {
+            let value = std::mem::replace(
+                node,
+                SExp::Meta {
+                    kind: SurfaceMeta::Implicit,
+                    span,
+                },
+            );
+            *node = SExp::Assign {
+                value: Box::new(value),
+                kind: SurfaceMeta::Captured {
+                    expansion,
+                    index: *index,
+                },
+                span,
             };
             *index += 1;
         }
-        true
+        false
     };
     match capture {
-        CaptureValue::Expression(exp) => walk_sexp_control(exp, &mut share),
+        CaptureValue::Expression(exp) => {
+            share(exp);
+        }
         CaptureValue::Token(token) => {
             walk_macro_exps_mut(std::slice::from_mut(token), &mut share, WalkOrder::Pre)
         }

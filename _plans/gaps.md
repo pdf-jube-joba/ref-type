@@ -318,7 +318,8 @@ Tor の比較同型では、親の比較写像と同型に区別できる別名�
 
 同じ capture を等式消去の始点・motive・基底で使うマクロに、`_` で項を渡したい。
 [23-01-macro-hole.ref](gaps/23-01-macro-hole.ref) は対応済みで、等式の証明と期待型から両端の項を推論する。
-capture した式の各穴は展開時に識別され、同じ capture を複製した位置では同じ contextual metavariable を使う。
+穴を含む capture の値は展開時に識別され、複製した各位置で同じ contextual metavariable と等置する。
+capture 内部の lambda は式全体の比較を通じて束縛変数を対応させる。
 名前付き穴とは別の識別子を使い、入れ子のマクロや token match へ渡しても共有を保つ。
 [23-02-bound-macro-hole.ref](gaps/23-02-bound-macro-hole.ref) のように、消去の前に項を lambda の引数として束縛する書き方も利用できる。
 
