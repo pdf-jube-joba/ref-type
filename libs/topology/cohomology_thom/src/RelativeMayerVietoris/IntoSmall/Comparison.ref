@@ -1,0 +1,18 @@
+\import singular_cohomology.Chains[A := A, source := target] \as TargetChains;
+\import double_complexes.NonnegativeChain[].Over[R := I.Int^, ring := Integers.ring] \as Nonnegative;
+\module At(n: N.Nat^) {
+  \import Nonnegative.Map[C := Small.complex, D := TargetChains.complex].At[n := n] \as Inclusion;
+  \import Nonnegative.Map[C := Chains.complex, D := Small.complex].At[n := n] \as Mapping;
+  \import Modules.Hom[V := Small.Carrier n, W := TargetChains.Carrier n, source := Small.space n, target := TargetChains.space n]
+    .Composition[U := Chains.Carrier n, domain := Chains.space n] \as Compose;
+  \definition first: _ := Compose.compose (Inclusion.linear Small.inclusion) (Mapping.linear map);
+  \definition second: _ := Maps.At[n := n].push f continuous;
+  \definition onGenerator: \forall (s: Domain.Carrier n) -> first.apply (Chains.generator n s) = second.apply (Chains.generator n s) :=
+    \fun (s: Domain.Carrier n) => trans!{{TargetChains.Carrier n}} _ _ _
+      (congr!{{Small.Carrier n} {TargetChains.Carrier n}} (Small.inclusion.apply n) _ _ (\parent.\parent.Degree[n := n].onGenerator s))
+      (trans!{{TargetChains.Carrier n}} _ _ _ (Small.At[n := n].onGenerator (simplex n s)) (sym!{{TargetChains.Carrier n}} _ _ (Maps.At[n := n].onGenerator f continuous s)));
+  \definition equality: first = second := Modules.Free[Generators := Domain.Carrier n].To[W := TargetChains.Carrier n, target := TargetChains.space n].ext first second onGenerator;
+  \definition law: \forall (x: Chains.Carrier n) -> Small.inclusion.apply n (map.apply n x) = (Maps.push f continuous).apply n x :=
+    \fun (x: Chains.Carrier n) => congr!{{Modules.Hom[V := Chains.Carrier n, W := TargetChains.Carrier n, source := Chains.space n, target := TargetChains.space n].Map} {TargetChains.Carrier n}}
+      (\fun (m: Modules.Hom[V := Chains.Carrier n, W := TargetChains.Carrier n, source := Chains.space n, target := TargetChains.space n].Map) => m.apply x) _ _ equality;
+}

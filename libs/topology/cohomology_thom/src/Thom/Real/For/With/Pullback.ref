@@ -1,0 +1,20 @@
+\import Bundles.Family[X := X, F := F] \as Family;
+\import Family.Of[bundle := bundle].Pullback[Y := Y, source := source, f := f] \as Pull;
+\import bundle_complements.Complements[].Over[K := Reals.Real, field := Reals.Algebra[].field, conjugation := linear_algebra.Hermitian[].Real[].scalar, scalar := vector_bundles.Bundles[].Real[].scalar]
+  .For[X := X, F := F, bundle := bundle].Pullback[Y := Y, source := source, f := f, regularBase := regular] \as Metrics;
+\definition pulledBundle: Bundles.Family[X := Y, F := (\fun (y: Y) => F (f y))].Bundle := Pull.pulled regular;
+\definition pulledMetric: _ := Metrics.metric metric;
+\import Bundles.Family[X := Y, F := (\fun (y: Y) => F (f y))] \as NewFamily;
+\import thom_spaces.Thom[].Over[K := Reals.Real, field := Reals.Algebra[].field, conjugation := linear_algebra.Hermitian[].Real[].scalar, scalar := vector_bundles.Bundles[].Real[].scalar]
+  .For[X := Y, F := (\fun (y: Y) => F (f y)), bundle := pulledBundle].With[metric := pulledMetric] \as NewDisk;
+\definition map[p: NewDisk.DiskBundle]: Disk.DiskBundle := \into[Family.Point](Pull.map p, Disk.ClosedBall) \by { \bysub(NewFamily.Point, NewDisk.ClosedBall, p) };
+\definition continuous: topology.Continuity[A := NewDisk.DiskBundle, B := Disk.DiskBundle].Continuous NewDisk.diskTopology Disk.diskTopology map :=
+  topology.Continuity[A := NewDisk.DiskBundle, B := Family.Point].Corestriction[S := Disk.ClosedBall].corestrictContinuous NewDisk.diskTopology bundle.totalSpace map
+    (topology.Continuity[A := NewFamily.Point, B := Family.Point].Restriction[S := NewDisk.ClosedBall].restrictContinuous pulledBundle.totalSpace bundle.totalSpace Pull.map Pull.mapContinuous);
+\definition boundary: \forall (p: \Cast[NewDisk.DiskBundle] NewDisk.Boundary) -> \In[Disk.DiskBundle] Disk.Boundary (map p) :=
+  \fun (p: \Cast[NewDisk.DiskBundle] NewDisk.Boundary) => \bysub(NewDisk.DiskBundle, NewDisk.Boundary, p);
+\definition projection: \forall (p: NewDisk.DiskBundle) -> Disk.diskProjection (map p) = f (NewDisk.diskProjection p) := \fun (p: NewDisk.DiskBundle) => \refl(f p.base);
+\definition section: \forall (y: Y) -> map (NewDisk.zeroSection y) = Disk.zeroSection (f y) := \fun (y: Y) => \refl(Disk.zeroSection (f y));
+\import singular_cohomology.Relative[A := NewDisk.DiskBundle, source := NewDisk.diskTopology, subset := NewDisk.Boundary].Maps[B := Disk.DiskBundle].Over[target := Disk.diskTopology, targetSubset := Disk.Boundary] \as Pairs;
+\definition pairMap: Pairs.Map := \into[NewDisk.DiskBundle -> Disk.DiskBundle](map, Pairs.Map) \by { Pairs.Laws[map] { continuous := continuous, contained := boundary } };
+\module Ring(R: \Set, ring: Rings.CommutativeRing[R]);

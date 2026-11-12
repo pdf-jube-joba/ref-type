@@ -1,0 +1,26 @@
+\import Included.Relative[] \as SmallComparison;
+\import PairMap.Integer[] \as Native;
+\import singular_cohomology.Relative[A := A, source := source, subset := subset] \as TargetPair;
+\import singular_cohomology.Chains[A := A, source := source] \as TargetWhole;
+\import Nonnegative.ZeroExtension[C := TargetWhole.complex] \as TargetExtension;
+\import Nonnegative.Map[C := Whole.complex, D := TargetWhole.complex].ZeroExtension[f := Whole.inclusion] \as Inclusion;
+\import singular_cohomology.Maps[A := B, B := A, source := domain, target := source] \as WholeMaps;
+\definition wholeLaw: \forall (z: I.Int^)(x: SourceWholeExtension.Carrier z) ->
+  Inclusion.map.apply z (WholeExtensionMap.map.apply z x) = (WholeMaps.integerPush f (PairMaps.laws f).continuous).apply z x :=
+  \induction (z: I.Int^) \return \forall (x: SourceWholeExtension.Carrier z) ->
+    Inclusion.map.apply z (WholeExtensionMap.map.apply z x) = (WholeMaps.integerPush f (PairMaps.laws f).continuous).apply z x \with {
+      | ofNat: \fun (n: N.Nat^)(x: SourceWholeExtension.Carrier (I.Int^::ofNat n)) => WholeMap.Comparison[].At[n := n].law x
+      | negSucc: \fun (n: N.Nat^)(x: SourceWholeExtension.Carrier (I.Int^::negSucc n)) => \refl((TargetExtension.space (I.Int^::negSucc n)).zero)
+    };
+\module At(z: I.Int^) {
+  \definition onClass: \forall (x: SourceWholeExtension.Carrier z) ->
+    SmallComparison.comparison.apply z (map.apply z (SourcePair.class z x)) = Native.map.apply z (SourcePair.class z x) :=
+    \fun (x: SourceWholeExtension.Carrier z) => trans!{{TargetPair.Carrier z}} _ _ _
+      (congr!{{complex.family.Carrier z} {TargetPair.Carrier z}} (SmallComparison.comparison.apply z) _ _ (\parent.\parent.At[z := z].onClass x))
+      (trans!{{TargetPair.Carrier z}} _ _ _ (SmallComparison.At[z := z].quotientOnClass (WholeExtensionMap.map.apply z x))
+        (trans!{{TargetPair.Carrier z}} _ _ _ (congr!{{TargetExtension.Carrier z} {TargetPair.Carrier z}} (TargetPair.class z) _ _ (wholeLaw z x))
+          (sym!{{TargetPair.Carrier z}} _ _ (Native.At[z := z].quotientOnClass x))));
+  \import Chains.Quotient[C := SourceSubExtension.complex, D := SourceWholeExtension.complex].On[f := SourcePair.inclusionMap].At[k := z] \as Source;
+  \definition law: \forall (x: SourcePair.Carrier z) -> SmallComparison.comparison.apply z (map.apply z x) = Native.map.apply z x :=
+    Source.induction (\fun (x: SourcePair.Carrier z) => SmallComparison.comparison.apply z (map.apply z x) = Native.map.apply z x) onClass;
+}

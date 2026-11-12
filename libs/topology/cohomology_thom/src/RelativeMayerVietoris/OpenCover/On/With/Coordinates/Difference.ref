@@ -1,0 +1,48 @@
+\use std.Logic[].Equality[].eq_reason_in;
+\import IntoLeft.On[f := toLeft].Integer[].With[coefficients := coefficients] \as LeftPull;
+\import IntoRight.On[f := toRight].Integer[].With[coefficients := coefficients] \as RightPull;
+\import Cochains.At[C := SumHom.complex, z := z] \as SumH;
+\import Cochains.At[C := LeftHom.complex, z := z] \as LeftH;
+\import Cochains.At[C := RightHom.complex, z := z] \as RightH;
+\import Cochains.At[C := IntersectionHom.complex, z := z] \as OverlapH;
+\import Cochains.Map[C := SumHom.complex, D := IntersectionHom.complex].At[k := z] \as Projection;
+\import Cochains.Map[C := LeftHom.complex, D := IntersectionHom.complex].At[k := z] \as LeftActions;
+\import Cochains.Map[C := RightHom.complex, D := IntersectionHom.complex].At[k := z] \as RightActions;
+\import Modules.Hom[V := R.Carrier z, W := coefficients.Carrier, source := R.space z, target := coefficients.space] \as RightLinear;
+\import Modules.Hom[V := OverlapH.Closed, W := OverlapH.Cohomology, source := OverlapH.cycleSpace, target := OverlapH.cohomologySpace] \as Classes;
+\import Modules.Biproduct[V := LeftH.Cohomology, W := RightH.Cohomology, left := LeftH.cohomologySpace, right := RightH.cohomologySpace] \as Pair;
+\import \root.RelativeMayerVietoris[].OpenCover[A := A, source := source, subset := subset].On[cover := cover].Cohomology[coefficients := coefficients].At[z := z] \as MV;
+\definition left: \forall (h: LeftHom.Carrier z) -> sequence.projection.apply z (SumCoordinates.firstInjection.apply z h) = LeftPull.pullback.apply z h :=
+  \fun (h: LeftHom.Carrier z) => IntersectionHom.At[z := z].ext
+    (sequence.projection.apply z (SumCoordinates.firstInjection.apply z h)) (LeftPull.pullback.apply z h)
+    (\fun (x: O.Carrier z) => \refl(h.apply (leftMap.apply z x)));
+\definition right: \forall (h: RightHom.Carrier z) -> sequence.projection.apply z (SumCoordinates.secondInjection.apply z h) = (IntersectionHom.space z).neg (RightPull.pullback.apply z h) :=
+  \fun (h: RightHom.Carrier z) => IntersectionHom.At[z := z].ext
+    (sequence.projection.apply z (SumCoordinates.secondInjection.apply z h)) ((IntersectionHom.space z).neg (RightPull.pullback.apply z h))
+    (\fun (x: O.Carrier z) => RightLinear.negativePreserved h (rightMap.apply z x));
+\definition cycles[x: LeftH.Closed][y: RightH.Closed]: OverlapH.Closed := OverlapH.cycleSpace.add
+  ((LeftActions.cyclesMap LeftPull.pullback).apply x) (OverlapH.cycleSpace.neg ((RightActions.cyclesMap RightPull.pullback).apply y));
+\definition cyclesLaw: \forall (x: LeftH.Closed)(y: RightH.Closed) ->
+  (Projection.cyclesMap sequence.projection).apply (SumCoordinates.At[z := z].cycles x y) = cycles x y :=
+  \fun (x: LeftH.Closed)(y: RightH.Closed) => trans!{{IntersectionHom.Carrier z}} _ _ _
+    (sequence.projection.addition z (SumCoordinates.firstInjection.apply z x) (SumCoordinates.secondInjection.apply z y))
+    (congr!{{IntersectionHom.Carrier z} {IntersectionHom.Carrier z} {IntersectionHom.Carrier z}} (IntersectionHom.space z).add _ _ _ _ (left x) (right y));
+\definition difference[a: LeftH.Cohomology][b: RightH.Cohomology]: OverlapH.Cohomology := OverlapH.cohomologySpace.add
+  ((LeftActions.induced LeftPull.pullback).apply a) (OverlapH.cohomologySpace.neg ((RightActions.induced RightPull.pullback).apply b));
+\definition onClasses: \forall (x: LeftH.Closed)(y: RightH.Closed) ->
+  MV.difference.apply (Pair.make (LeftH.classOf x) (RightH.classOf y)) = difference (LeftH.classOf x) (RightH.classOf y) :=
+  \fun (x: LeftH.Closed)(y: RightH.Closed) => eq_reason_in!{OverlapH.Cohomology {MV.difference.apply (Pair.make (LeftH.classOf x) (RightH.classOf y))}
+    "=" {(Projection.induced sequence.projection).apply (SumH.classOf (SumCoordinates.At[z := z].cycles x y))} "by" {
+      congr!{SumH.Cohomology OverlapH.Cohomology} (Projection.induced sequence.projection).apply _ _ (SumCoordinates.At[z := z].backwardOnClasses x y) }
+    "=" {OverlapH.classOf ((Projection.cyclesMap sequence.projection).apply (SumCoordinates.At[z := z].cycles x y))} "by" { Projection.onClass sequence.projection (SumCoordinates.At[z := z].cycles x y) }
+    "=" {OverlapH.classOf (cycles x y)} "by" { congr!{OverlapH.Closed OverlapH.Cohomology} OverlapH.classOf _ _ (cyclesLaw x y) }
+    "=" {OverlapH.cohomologySpace.add (OverlapH.classOf ((LeftActions.cyclesMap LeftPull.pullback).apply x)) (OverlapH.classOf (OverlapH.cycleSpace.neg ((RightActions.cyclesMap RightPull.pullback).apply y)))} "by" { OverlapH.classLinear.addition ((LeftActions.cyclesMap LeftPull.pullback).apply x) (OverlapH.cycleSpace.neg ((RightActions.cyclesMap RightPull.pullback).apply y)) }
+    "=" {OverlapH.cohomologySpace.add (OverlapH.classOf ((LeftActions.cyclesMap LeftPull.pullback).apply x)) (OverlapH.cohomologySpace.neg (OverlapH.classOf ((RightActions.cyclesMap RightPull.pullback).apply y)))} "by" {
+      congr!{OverlapH.Cohomology OverlapH.Cohomology} (OverlapH.cohomologySpace.add (OverlapH.classOf ((LeftActions.cyclesMap LeftPull.pullback).apply x))) _ _ (Classes.negativePreserved OverlapH.classLinear ((RightActions.cyclesMap RightPull.pullback).apply y)) }
+    "=" {difference (LeftH.classOf x) (RightH.classOf y)} "by" { congr!{OverlapH.Cohomology OverlapH.Cohomology OverlapH.Cohomology}
+      (\fun (a, b: OverlapH.Cohomology) => OverlapH.cohomologySpace.add a (OverlapH.cohomologySpace.neg b)) _ _ _ _
+      (sym!{OverlapH.Cohomology} _ _ (LeftActions.onClass LeftPull.pullback x)) (sym!{OverlapH.Cohomology} _ _ (RightActions.onClass RightPull.pullback y)) }
+  };
+\definition law: \forall (a: LeftH.Cohomology)(b: RightH.Cohomology) -> MV.difference.apply (Pair.make a b) = difference a b :=
+  LeftH.classInduction (\fun (a: LeftH.Cohomology) => \forall (b: RightH.Cohomology) -> MV.difference.apply (Pair.make a b) = difference a b)
+    (\fun (x: LeftH.Closed) => RightH.classInduction (\fun (b: RightH.Cohomology) => MV.difference.apply (Pair.make (LeftH.classOf x) b) = difference (LeftH.classOf x) b) (onClasses x));

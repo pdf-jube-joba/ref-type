@@ -1,0 +1,31 @@
+\use std.Logic[].Equality[].eq_reason_in;
+\import Cochains.At[C := WholeHom.complex, z := z] \as WholeH;
+\import Cochains.At[C := SmallHom.complex, z := z] \as SmallH;
+\import Cochains.At[C := SumHom.complex, z := z] \as SumH;
+\import Cochains.At[C := LeftHom.complex, z := z] \as LeftH;
+\import Cochains.At[C := RightHom.complex, z := z] \as RightH;
+\import Cochains.Map[C := WholeHom.complex, D := SmallHom.complex].At[k := z] \as SmallActions;
+\import Cochains.Map[C := SmallHom.complex, D := SumHom.complex].At[k := z] \as InclusionActions;
+\import Cochains.Map[C := SumHom.complex, D := LeftHom.complex].At[k := z] \as FirstActions;
+\import Cochains.Map[C := SumHom.complex, D := RightHom.complex].At[k := z] \as SecondActions;
+\import Cochains.Map[C := WholeHom.complex, D := LeftHom.complex].At[k := z] \as LeftActions;
+\import Cochains.Map[C := WholeHom.complex, D := RightHom.complex].At[k := z] \as RightActions;
+\import \root.RelativeMayerVietoris[].OpenCover[A := A, source := source, subset := subset].On[cover := cover].Cohomology[coefficients := coefficients].At[z := z] \as MV;
+\import Modules.Biproduct[V := LeftH.Cohomology, W := RightH.Cohomology, left := LeftH.cohomologySpace, right := RightH.cohomologySpace] \as Pair;
+\import std.Data[].Pair[].Prop[A := LeftH.Cohomology, B := RightH.Cohomology] \as Pairs;
+\definition restriction: WholeH.Cohomology -> Pair.Carrier := \fun (u: WholeH.Cohomology) =>
+  Pair.make ((LeftActions.induced LeftRestriction.pullback).apply u) ((RightActions.induced RightRestriction.pullback).apply u);
+\definition smallCycle[x: WholeH.Closed]: SmallH.Closed := (SmallActions.cyclesMap OrdinaryComparison.restriction).apply x;
+\definition sumCycle[x: WholeH.Closed]: SumH.Closed := (InclusionActions.cyclesMap sequence.inclusion).apply (smallCycle x);
+\definition onClass: \forall (x: WholeH.Closed) -> MV.restriction.apply (WholeH.classOf x) = restriction (WholeH.classOf x) :=
+  \fun (x: WholeH.Closed) => eq_reason_in!{Pair.Carrier {MV.restriction.apply (WholeH.classOf x)}
+    "=" {SumCoordinates.At[z := z].forward.apply ((InclusionActions.induced sequence.inclusion).apply (SmallH.classOf (smallCycle x)))} "by" { congr!{SmallH.Cohomology Pair.Carrier} (\fun (u: SmallH.Cohomology) => SumCoordinates.At[z := z].forward.apply ((InclusionActions.induced sequence.inclusion).apply u)) _ _ (SmallActions.onClass OrdinaryComparison.restriction x) }
+    "=" {SumCoordinates.At[z := z].forward.apply (SumH.classOf (sumCycle x))} "by" { congr!{SumH.Cohomology Pair.Carrier} SumCoordinates.At[z := z].forward.apply _ _ (InclusionActions.onClass sequence.inclusion (smallCycle x)) }
+    "=" {Pair.make (LeftH.classOf ((FirstActions.cyclesMap SumCoordinates.firstProjection).apply (sumCycle x))) (RightH.classOf ((SecondActions.cyclesMap SumCoordinates.secondProjection).apply (sumCycle x)))} "by" { SumCoordinates.At[z := z].forwardOnClass (sumCycle x) }
+    "=" {Pair.make (LeftH.classOf ((LeftActions.cyclesMap LeftRestriction.pullback).apply x)) (RightH.classOf ((RightActions.cyclesMap RightRestriction.pullback).apply x))} "by" { Pairs.ext _ _
+      (congr!{LeftH.Closed LeftH.Cohomology} LeftH.classOf ((FirstActions.cyclesMap SumCoordinates.firstProjection).apply (sumCycle x)) ((LeftActions.cyclesMap LeftRestriction.pullback).apply x) (\parent.At[z := z].left x))
+      (congr!{RightH.Closed RightH.Cohomology} RightH.classOf ((SecondActions.cyclesMap SumCoordinates.secondProjection).apply (sumCycle x)) ((RightActions.cyclesMap RightRestriction.pullback).apply x) (\parent.At[z := z].right x)) }
+    "=" {restriction (WholeH.classOf x)} "by" { Pairs.ext _ _ (sym!{LeftH.Cohomology} _ _ (LeftActions.onClass LeftRestriction.pullback x)) (sym!{RightH.Cohomology} _ _ (RightActions.onClass RightRestriction.pullback x)) }
+  };
+\definition law: \forall (u: WholeH.Cohomology) -> MV.restriction.apply u = restriction u :=
+  WholeH.classInduction (\fun (u: WholeH.Cohomology) => MV.restriction.apply u = restriction u) onClass;

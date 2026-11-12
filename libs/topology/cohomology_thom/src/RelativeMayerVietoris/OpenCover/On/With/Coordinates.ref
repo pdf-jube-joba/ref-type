@@ -1,0 +1,53 @@
+\import \root.RelativeMayerVietoris[].HomSum[C := L.complex, D := R.complex, coefficients := coefficients] \as SumCoordinates;
+\import Sum.Inclusions[] \as Arrows;
+\import Hom.Integer[P := L.complex, N := coefficients] \as LeftHom;
+\import Hom.Integer[P := R.complex, N := coefficients] \as RightHom;
+\import singular_cohomology.Relative[A := A, source := source, subset := subset] \as Whole;
+\import Hom.Integer[P := Whole.complex, N := coefficients] \as WholeHom;
+\import singular_subdivision.OpenCover[A := A, source := source].On[cover := Cover.openCover].Subspace[subset := subset].Relative[].With[coefficients := coefficients] \as OrdinaryComparison;
+\import LeftIntoWhole.On[f := leftPairMap].Integer[].With[coefficients := coefficients] \as LeftRestriction;
+\import RightIntoWhole.On[f := rightPairMap].Integer[].With[coefficients := coefficients] \as RightRestriction;
+\import Chains.ShortExact[A := O.complex, B := Sum.complex, C := SmallPair.complex].Cokernel[s := ChainSequence.sequence] \as QuotientComparison;
+\module At(z: I.Int^) {
+  \import Modules.Laws[V := SmallPair.complex.family.Carrier z, space := SmallPair.complex.family.space z] \as SmallLaws;
+  \import algebra.Group[].Of[Carrier := SmallPair.complex.family.Carrier z, group := SmallLaws.additive] \as SmallGroup;
+  \import Modules.Hom[V := L.Carrier z, W := SmallPair.complex.family.Carrier z, source := L.space z, target := SmallPair.complex.family.space z] \as LeftMaps;
+  \import Modules.Hom[V := R.Carrier z, W := SmallPair.complex.family.Carrier z, source := R.space z, target := SmallPair.complex.family.space z] \as RightMaps;
+  \definition inclusionOnChain: \forall (h: SmallHom.Carrier z)(x: Sum.Carrier z) ->
+    ((sequence.inclusion.apply z h).apply x) = h.apply (projection.apply z x) :=
+    \fun (h: SmallHom.Carrier z)(x: Sum.Carrier z) => congr!{{SmallPair.complex.family.Carrier z} coefficients.Carrier} h.apply _ _ (QuotientComparison.At[k := z].onClass x);
+  \definition leftChain: \forall (x: L.Carrier z) -> projection.apply z (Arrows.firstInjection.apply z x) = LeftSmall.map.apply z x :=
+    \fun (x: L.Carrier z) => trans!{{SmallPair.complex.family.Carrier z}} _ _ _
+      (congr!{{SmallPair.complex.family.Carrier z} {SmallPair.complex.family.Carrier z}}
+        (\fun (y: SmallPair.complex.family.Carrier z) => SmallGroup.add (LeftSmall.map.apply z x) y) _ _
+        (RightMaps.zeroPreserved (Chains.Map[C := R.complex, D := SmallPair.complex].At[k := z].linear RightSmall.map)))
+      (SmallGroup.zeroRight (LeftSmall.map.apply z x));
+  \definition rightChain: \forall (x: R.Carrier z) -> projection.apply z (Arrows.secondInjection.apply z x) = RightSmall.map.apply z x :=
+    \fun (x: R.Carrier z) => trans!{{SmallPair.complex.family.Carrier z}} _ _ _
+      (congr!{{SmallPair.complex.family.Carrier z} {SmallPair.complex.family.Carrier z}}
+        (\fun (y: SmallPair.complex.family.Carrier z) => SmallGroup.add y (RightSmall.map.apply z x)) _ _
+        (LeftMaps.zeroPreserved (Chains.Map[C := L.complex, D := SmallPair.complex].At[k := z].linear LeftSmall.map)))
+      (SmallGroup.zeroLeft (RightSmall.map.apply z x));
+  \definition left: \forall (h: WholeHom.Carrier z) ->
+    SumCoordinates.firstProjection.apply z (sequence.inclusion.apply z (OrdinaryComparison.restriction.apply z h)) = LeftRestriction.pullback.apply z h :=
+    \fun (h: WholeHom.Carrier z) => LeftHom.At[z := z].ext
+      (SumCoordinates.firstProjection.apply z (sequence.inclusion.apply z (OrdinaryComparison.restriction.apply z h))) (LeftRestriction.pullback.apply z h)
+      (\fun (x: L.Carrier z) => trans!{coefficients.Carrier} _ _ _
+        (inclusionOnChain (OrdinaryComparison.restriction.apply z h) (Arrows.firstInjection.apply z x))
+        (trans!{coefficients.Carrier} _ _ _
+          (congr!{{SmallPair.complex.family.Carrier z} coefficients.Carrier} (OrdinaryComparison.restriction.apply z h).apply _ _ (leftChain x))
+          (congr!{{Whole.Carrier z} coefficients.Carrier} h.apply _ _ (LeftSmall.Comparison[].At[z := z].law x))));
+  \definition right: \forall (h: WholeHom.Carrier z) ->
+    SumCoordinates.secondProjection.apply z (sequence.inclusion.apply z (OrdinaryComparison.restriction.apply z h)) = RightRestriction.pullback.apply z h :=
+    \fun (h: WholeHom.Carrier z) => RightHom.At[z := z].ext
+      (SumCoordinates.secondProjection.apply z (sequence.inclusion.apply z (OrdinaryComparison.restriction.apply z h))) (RightRestriction.pullback.apply z h)
+      (\fun (x: R.Carrier z) => trans!{coefficients.Carrier} _ _ _
+        (inclusionOnChain (OrdinaryComparison.restriction.apply z h) (Arrows.secondInjection.apply z x))
+        (trans!{coefficients.Carrier} _ _ _
+          (congr!{{SmallPair.complex.family.Carrier z} coefficients.Carrier} (OrdinaryComparison.restriction.apply z h).apply _ _ (rightChain x))
+          (congr!{{Whole.Carrier z} coefficients.Carrier} h.apply _ _ (RightSmall.Comparison[].At[z := z].law x))));
+}
+
+\module Cohomology(z: I.Int^);
+
+\module Difference(z: I.Int^);

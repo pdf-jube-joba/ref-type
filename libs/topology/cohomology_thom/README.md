@@ -46,3 +46,11 @@
 `shift` は整数次数に後続操作を \(n\) 回適用する。
 `With.Negative[n, k].zero` は負の底次数から得られる相対群の消滅を示す。
 `Ring[R, ring].Rank[n].localClass` はこの加法的比較による単位類の像で、`coordinateOfClass` と `unique` がその正規化を特徴付ける。
+
+`RelativePullback.On.To.Along.Cup.Cohomology.naturality` は対写像に対する相対 cup 積の自然性を与える。
+`Thom.Real.For.With.Pullback[Y, source, f, regular].Ring[R, ring]` は実際の引き戻し束と引き戻し計量を用いる。
+`Product[p, n].law` と `Degree[n].Euler.law` はそれぞれ積および零切断像と引き戻しの可換式である。
+
+`RelativeMayerVietoris.OpenCover.On.With.Coordinates.Cohomology[z].law` は列の制限写像を通常の二つの対写像による制限と同定する。
+`Coordinates.Difference[z].law` は次の写像を共通部分への制限の差と同定する。
+`Cohomology.Gluing[z].Ordinary` は通常の制限が一致する二つの局所類から、共通部分の直前の群の消滅を用いて一意な貼り合わせを構成し、`left`、`right`、`unique` を公開する。
