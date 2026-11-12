@@ -55,3 +55,12 @@ REF_TYPE_GRAPH_SPILL_DIR=/tmp python3 scripts/check_all.py --binary /workspace/s
 ```
 
 Only an accepted final driver report with complete target coverage and unchanged source/checker identities establishes full verification.
+
+## Current-main resource recovery
+
+The first recovered aggregate accepted 13,854 of 14,486 targets before the indivisible `k_theory_thom.Thom.Complexification.Compact.Isomorphism` scope reached its 15 GiB virtual-memory ceiling.
+Its exact failed report and worker reports remain in `full-progress`; this is incomplete verification, not a type error or an aggregate pass.
+The same checker and immutable scope snapshot accepted that dependency closure at 16 GiB with a 120-second checkpoint interval, preserving the existing cache.
+The accepted critical report covers 3,312 modules and records 448 source steps, one worker recovery at checkpoint 49,519, 39 lost steps, zero duplicate/replayed source steps, zero save failures and zero corrupt reads.
+The fresh process elapsed 770.356 seconds; peak RSS was 14,707,988 KiB and peak virtual memory 16,700,836 KiB.
+The final aggregate resumes through the normal validating cache with a 16 GiB worker ceiling; only its successful full report establishes complete coverage.
