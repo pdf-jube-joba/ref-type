@@ -1,0 +1,74 @@
+\definition Numeric: \Set := Fin.Fin r -> Fin.Fin r -> R.Real;
+\definition product[A, B: Numeric][a, b: Fin.Fin r]: R.Real := Sums.sum r (\fun (c: Fin.Fin r) => R.mul (A a c) (B c b));
+\definition eval0[A: Matrix0][x: Open.Carrier U]: Numeric := \fun (a, b: Fin.Fin r) => A a b x;
+\definition eval1[A: Matrix1][x: Open.Carrier U][v: Multilinear.Arguments one]: Numeric := \fun (a, b: Fin.Fin r) => A a b x v;
+\definition numericExt: \forall (A, B: Numeric) -> (\forall (a, b: Fin.Fin r) -> A a b = B a b) -> A = B :=
+  \fun (A, B: Numeric)(same: _) => \axiom:funext(A, B, \fun (a: Fin.Fin r) => \axiom:funext(A a, B a, same a));
+\definition ext: \forall (A, B: Matrix1) -> (\forall (x: Open.Carrier U)(v: Multilinear.Arguments one) -> eval1 A x v = eval1 B x v) -> A = B :=
+  \fun (A, B: Matrix1)(same: _) => \axiom:funext(A, B, \fun (a: Fin.Fin r) => \axiom:funext(A a, B a, \fun (b: Fin.Fin r) =>
+    Scalar.ext one (A a b) (B a b) (\fun (x: Open.Carrier U)(v: Multilinear.Arguments one) => congr!{Numeric {R.Real}} (\fun (m: Numeric) => m a b) _ _ (same x v))));
+\definition eval01: \forall (A: Matrix0)(B: Matrix1)(x: Open.Carrier U)(v: Multilinear.Arguments one) -> eval1 (product01 A B) x v = product (eval0 A x) (eval1 B x v) :=
+  \fun (A: Matrix0)(B: Matrix1)(x: Open.Carrier U)(v: Multilinear.Arguments one) => numericExt (eval1 (product01 A B) x v) (product (eval0 A x) (eval1 B x v)) (\fun (a, b: Fin.Fin r) => value01 A B a b x v);
+\definition eval10: \forall (A: Matrix1)(B: Matrix0)(x: Open.Carrier U)(v: Multilinear.Arguments one) -> eval1 (product10 A B) x v = product (eval1 A x v) (eval0 B x) :=
+  \fun (A: Matrix1)(B: Matrix0)(x: Open.Carrier U)(v: Multilinear.Arguments one) => numericExt (eval1 (product10 A B) x v) (product (eval1 A x v) (eval0 B x)) (\fun (a, b: Fin.Fin r) => value10 A B a b x v);
+\definition rightScalar: \forall (c: R.Real)(f: Fin.Fin r -> R.Real) -> Sums.sum r (\fun (a: Fin.Fin r) => R.mul (f a) c) = R.mul (Sums.sum r f) c :=
+  \fun (c: R.Real)(f: Fin.Fin r -> R.Real) => eq_reason_in!{{R.Real} _
+    "=" _ "by" { Sums.congruent r _ _ (\fun (a: Fin.Fin r) => Spaces.mulComm (f a) c) }
+    "=" _ "by" { Sums.scalar r c f }
+    "=" _ "by" { Spaces.mulComm c (Sums.sum r f) }
+  };
+\definition associative: \forall (A, B, C: Numeric) -> product (product A B) C = product A (product B C) :=
+  \fun (A, B, C: Numeric) => numericExt (product (product A B) C) (product A (product B C)) (\fun (a, b: Fin.Fin r) => eq_reason_in!{{R.Real} _
+    "=" _ "by" { Sums.congruent r
+      (\fun (c: Fin.Fin r) => R.mul (Sums.sum r (\fun (d: Fin.Fin r) => R.mul (A a d) (B d c))) (C c b))
+      (\fun (c: Fin.Fin r) => Sums.sum r (\fun (d: Fin.Fin r) => R.mul (R.mul (A a d) (B d c)) (C c b)))
+      (\fun (c: Fin.Fin r) => sym!{{R.Real}} _ _ (rightScalar (C c b) (\fun (d: Fin.Fin r) => R.mul (A a d) (B d c)))) }
+    "=" _ "by" { Sums.exchange r r (\fun (c, d: Fin.Fin r) => R.mul (R.mul (A a d) (B d c)) (C c b)) }
+    "=" _ "by" { Sums.congruent r
+      (\fun (d: Fin.Fin r) => Sums.sum r (\fun (c: Fin.Fin r) => R.mul (R.mul (A a d) (B d c)) (C c b)))
+      (\fun (d: Fin.Fin r) => R.mul (A a d) (Sums.sum r (\fun (c: Fin.Fin r) => R.mul (B d c) (C c b))))
+      (\fun (d: Fin.Fin r) => trans!{{R.Real}} _ _ _
+        (Sums.congruent r (\fun (c: Fin.Fin r) => R.mul (R.mul (A a d) (B d c)) (C c b))
+          (\fun (c: Fin.Fin r) => R.mul (A a d) (R.mul (B d c) (C c b)))
+          (\fun (c: Fin.Fin r) => Spaces.mulAssoc (A a d) (B d c) (C c b)))
+        (Sums.scalar r (A a d) (\fun (c: Fin.Fin r) => R.mul (B d c) (C c b)))) }
+  });
+\definition assoc001: \forall (A, B: Matrix0)(C: Matrix1) -> product01 (product00 A B) C = product01 A (product01 B C) :=
+  \fun (A, B: Matrix0)(C: Matrix1) => ext (product01 (product00 A B) C) (product01 A (product01 B C)) (\fun (x: Open.Carrier U)(v: Multilinear.Arguments one) => eq_reason_in!{Numeric _
+    "=" _ "by" { eval01 (product00 A B) C x v }
+    "=" _ "by" { associative (eval0 A x) (eval0 B x) (eval1 C x v) }
+    "=" _ "by" { congr!{Numeric Numeric} (product (eval0 A x)) _ _ (sym!{Numeric} _ _ (eval01 B C x v)) }
+    "=" _ "by" { sym!{Numeric} _ _ (eval01 A (product01 B C) x v) }
+  });
+\definition assoc010: \forall (A: Matrix0)(B: Matrix1)(C: Matrix0) -> product10 (product01 A B) C = product01 A (product10 B C) :=
+  \fun (A: Matrix0)(B: Matrix1)(C: Matrix0) => ext (product10 (product01 A B) C) (product01 A (product10 B C)) (\fun (x: Open.Carrier U)(v: Multilinear.Arguments one) => eq_reason_in!{Numeric _
+    "=" _ "by" { eval10 (product01 A B) C x v }
+    "=" _ "by" { congr!{Numeric Numeric} (\fun (m: Numeric) => product m (eval0 C x)) _ _ (eval01 A B x v) }
+    "=" _ "by" { associative (eval0 A x) (eval1 B x v) (eval0 C x) }
+    "=" _ "by" { congr!{Numeric Numeric} (product (eval0 A x)) _ _ (sym!{Numeric} _ _ (eval10 B C x v)) }
+    "=" _ "by" { sym!{Numeric} _ _ (eval01 A (product10 B C) x v) }
+  });
+\definition assoc100: \forall (A: Matrix1)(B, C: Matrix0) -> product10 (product10 A B) C = product10 A (product00 B C) :=
+  \fun (A: Matrix1)(B, C: Matrix0) => ext (product10 (product10 A B) C) (product10 A (product00 B C)) (\fun (x: Open.Carrier U)(v: Multilinear.Arguments one) => eq_reason_in!{Numeric _
+    "=" _ "by" { eval10 (product10 A B) C x v }
+    "=" _ "by" { congr!{Numeric Numeric} (\fun (m: Numeric) => product m (eval0 C x)) _ _ (eval10 A B x v) }
+    "=" _ "by" { associative (eval1 A x v) (eval0 B x) (eval0 C x) }
+    "=" _ "by" { sym!{Numeric} _ _ (eval10 A (product00 B C) x v) }
+  });
+\import Spaces.FiniteCoordinates[n := r] \as Basis;
+\import Spaces.FiniteCoordinateEnumeration[] \as Enumeration;
+\definition identity: Matrix0 := \fun (a, b: Fin.Fin r) => Functions.constant (Basis.vectors a b);
+\definition identityLeft: \forall (A: Matrix1) -> product01 identity A = A :=
+  \fun (A: Matrix1) => ext (product01 identity A) A (\fun (x: Open.Carrier U)(v: Multilinear.Arguments one) => numericExt (eval1 (product01 identity A) x v) (eval1 A x v) (\fun (a, b: Fin.Fin r) => eq_reason_in!{{R.Real} _
+    "=" _ "by" { value01 identity A a b x v }
+    "=" _ "by" { Sums.congruent r _ _ (\fun (c: Fin.Fin r) => Spaces.mulComm (Basis.vectors a c) (A c b x v)) }
+    "=" _ "by" { sym!{{R.Real}} _ _ (Enumeration.sumLaw r (\fun (c: Fin.Fin r) => R.mul (A c b x v) (Basis.vectors a c))) }
+    "=" _ "by" { Basis.dualReconstruction (\fun (c: Fin.Fin r) => A c b x v) a }
+  }));
+\definition distribute: \forall (A: Matrix0)(B, C: Matrix1) -> product01 A (plus B C) = plus (product01 A B) (product01 A C) :=
+  \fun (A: Matrix0)(B, C: Matrix1) => ext (product01 A (plus B C)) (plus (product01 A B) (product01 A C)) (\fun (x: Open.Carrier U)(v: Multilinear.Arguments one) => numericExt (eval1 (product01 A (plus B C)) x v) (eval1 (plus (product01 A B) (product01 A C)) x v) (\fun (a, b: Fin.Fin r) => eq_reason_in!{{R.Real} _
+    "=" _ "by" { value01 A (plus B C) a b x v }
+    "=" _ "by" { Sums.congruent r _ _ (\fun (c: Fin.Fin r) => Spaces.mulAdd (A a c x) (B c b x v) (C c b x v)) }
+    "=" _ "by" { Sums.addition r (\fun (c: Fin.Fin r) => R.mul (A a c x) (B c b x v)) (\fun (c: Fin.Fin r) => R.mul (A a c x) (C c b x v)) }
+    "=" _ "by" { congr!{{R.Real} {R.Real} {R.Real}} R.add _ _ _ _ (sym!{{R.Real}} _ _ (value01 A B a b x v)) (sym!{{R.Real}} _ _ (value01 A C a b x v)) }
+  }));

@@ -1,0 +1,62 @@
+\import \parent.Matrices[] \as Coefficients;
+\import \root.MatrixCalculus[n := n, r := r].On[U := Geometry.domain] \as Algebra;
+\import \parent.\parent.Pair[i := i, j := j] \as FirstGauge;
+\import \parent.\parent.Pair[i := j, j := k] \as SecondGauge;
+\import \parent.\parent.Pair[i := i, j := k] \as DirectGauge;
+\import \root.Real[n := n, r := r].Transport[U := Geometry.domain, V := DirectDomain.domain].Restriction[included := Geometry.directIncluded] \as DirectTransport;
+\import \root.Real[n := n, r := r].Transport[U := Geometry.domain, V := FirstDomain.domain].Restriction[included := Geometry.firstIncluded] \as FirstTransport;
+\import \root.Real[n := n, r := r].Transport[U := Geometry.domain, V := SecondDomain.domain].Pull[f := intermediateMap] \as SecondTransport;
+\import Euclidean.On[U := Geometry.domain] \as Scalar;
+\definition directGauge: Algebra.Matrix1 := DirectTransport.matrix1 DirectGauge.pureGauge;
+\definition secondGauge: Algebra.Matrix1 := SecondTransport.matrix1 SecondGauge.pureGauge;
+\definition directFormula: directGauge = Algebra.product01 Coefficients.inverseDirect (Algebra.dMatrix Coefficients.direct) :=
+  \axiom:funext(directGauge, Algebra.product01 Coefficients.inverseDirect (Algebra.dMatrix Coefficients.direct), \fun (a: Fin.Fin r) =>
+    \axiom:funext(directGauge a, Algebra.product01 Coefficients.inverseDirect (Algebra.dMatrix Coefficients.direct) a, \fun (b: Fin.Fin r) =>
+      DirectTransport.pureGaugeEntry DirectGauge.inverse DirectGauge.transition a b));
+\definition secondFormula: secondGauge = Algebra.product01 Coefficients.inverseSecond (Algebra.dMatrix Coefficients.second) :=
+  \axiom:funext(secondGauge, Algebra.product01 Coefficients.inverseSecond (Algebra.dMatrix Coefficients.second), \fun (a: Fin.Fin r) =>
+    \axiom:funext(secondGauge a, Algebra.product01 Coefficients.inverseSecond (Algebra.dMatrix Coefficients.second) a, \fun (b: Fin.Fin r) =>
+      SecondTransport.pureGaugeEntry SecondGauge.inverse SecondGauge.transition a b));
+\definition affine: Algebra.product01 Coefficients.first directGauge =
+  Algebra.plus (Algebra.dMatrix Coefficients.first) (Algebra.product10 secondGauge Coefficients.first) :=
+  trans!{{Algebra.Matrix1}} _ _ _
+    (congr!{{Algebra.Matrix1} {Algebra.Matrix1}} (Algebra.product01 Coefficients.first) _ _ directFormula)
+    (trans!{{Algebra.Matrix1}} _ _ _ Coefficients.affine
+      (congr!{{Algebra.Matrix1} {Algebra.Matrix1}} (\fun (g: Algebra.Matrix1) => Algebra.plus (Algebra.dMatrix Coefficients.first) (Algebra.product10 g Coefficients.first)) _ _
+        (sym!{{Algebra.Matrix1}} _ _ secondFormula)));
+\import Spaces.Coordinates[I := Fin.Fin n] \as TangentVectors;
+\import Spaces.Multilinear[V := TangentVectors.Vector, space := TangentVectors.space] \as TangentMultilinear;
+\import Spaces.Linear[V := TangentVectors.Vector, W := TangentVectors.Vector, source := TangentVectors.space, target := TangentVectors.space] \as TangentLinear;
+\import Euclidean.Pullback[m := n, U := FirstDomain.domain, V := d.image, f := FirstGauge.map] \as FirstPull;
+\import Euclidean.Pullback[m := n, U := Geometry.domain, V := SecondDomain.domain, f := intermediateMap] \as SecondPull;
+\import BaseAtlas.Geometry[atlas := M.atlas] \as AtlasGeometry;
+\definition atlasChart[q: \Cast[Charts.Chart] M.atlas.charts]: AtlasGeometry.Chart :=
+  \into[Charts.Chart](q, AtlasGeometry.Chart) \by { \bysub(Charts.Chart, M.atlas.charts, q) };
+\import AtlasGeometry.Triple[left := atlasChart c, middle := atlasChart d, right := atlasChart e] \as SmoothTriple;
+\definition jacobian: \forall (u: Open.Carrier Geometry.domain) -> SecondPull.jacobian u = FirstPull.jacobian (Geometry.firstPoint u) :=
+  \fun (u: Open.Carrier Geometry.domain) => SmoothTriple.At[a := u].firstJacobian;
+\definition secondValue: \forall (a, b: Fin.Fin r)(u: Open.Carrier Geometry.domain)(arguments: TangentMultilinear.Arguments one) ->
+  secondGauge a b u arguments = SecondGauge.pureGauge a b (Geometry.intermediate u)
+    (\fun (q: Fin.Fin one) => (FirstPull.jacobian (Geometry.firstPoint u)).apply (arguments q)) :=
+  \fun (a, b: Fin.Fin r)(u: Open.Carrier Geometry.domain)(arguments: TangentMultilinear.Arguments one) =>
+    congr!{{TangentLinear.Map} {R.Real}} (\fun (L: TangentLinear.Map) => SecondGauge.pureGauge a b (Geometry.intermediate u)
+      (\fun (q: Fin.Fin one) => L.apply (arguments q))) _ _ (jacobian u);
+\definition differentialValue: \forall (a, b: Fin.Fin r)(u: Open.Carrier Geometry.domain)(arguments: TangentMultilinear.Arguments one) ->
+  Algebra.dMatrix Coefficients.first a b u arguments =
+    (\root.MatrixCalculus[n := n, r := r].On[U := FirstDomain.domain].dMatrix FirstGauge.transition a b) (Geometry.firstPoint u) arguments :=
+  \fun (a, b: Fin.Fin r)(u: Open.Carrier Geometry.domain)(arguments: TangentMultilinear.Arguments one) =>
+    sym!{{R.Real}} _ _ (congr!{{Scalar.Form one} {R.Real}} (\fun (omega: Scalar.Form one) => omega u arguments) _ _ (FirstTransport.differential (FirstGauge.transition a b)));
+\import R.FiniteSums[] \as Sums;
+\use Equality.eq_reason_in;
+\definition pointwise: \forall (a, b: Fin.Fin r)(u: Open.Carrier Geometry.domain)(arguments: TangentMultilinear.Arguments one) ->
+  Sums.sum r (\fun (l: Fin.Fin r) => R.mul (FirstGauge.transition a l (Geometry.firstPoint u)) (DirectGauge.pureGauge l b (Geometry.directPoint u) arguments)) =
+  R.add ((\root.MatrixCalculus[n := n, r := r].On[U := FirstDomain.domain].dMatrix FirstGauge.transition a b) (Geometry.firstPoint u) arguments)
+    (Sums.sum r (\fun (l: Fin.Fin r) => R.mul (SecondGauge.pureGauge a l (Geometry.intermediate u)
+      (\fun (q: Fin.Fin one) => (FirstPull.jacobian (Geometry.firstPoint u)).apply (arguments q))) (FirstGauge.transition l b (Geometry.firstPoint u)))) :=
+  \fun (a, b: Fin.Fin r)(u: Open.Carrier Geometry.domain)(arguments: TangentMultilinear.Arguments one) => eq_reason_in!{{R.Real} _
+    "=" _ "by" { sym!{{R.Real}} _ _ (Algebra.value01 Coefficients.first directGauge a b u arguments) }
+    "=" _ "by" { congr!{{Algebra.Matrix1} {R.Real}} (\fun (A: Algebra.Matrix1) => A a b u arguments) _ _ affine }
+    "=" _ "by" { congr!{{R.Real} {R.Real} {R.Real}} R.add _ _ _ _ (differentialValue a b u arguments)
+      (trans!{{R.Real}} _ _ _ (Algebra.value10 secondGauge Coefficients.first a b u arguments)
+        (Sums.congruent r _ _ (\fun (l: Fin.Fin r) => congr!{{R.Real} {R.Real}} (\fun (v: R.Real) => R.mul v (FirstGauge.transition l b (Geometry.firstPoint u))) _ _ (secondValue a l u arguments)))) }
+  };

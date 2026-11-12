@@ -1,0 +1,28 @@
+\definition sourceOutside: Logic.Not (Base.Member (Functions.support (partition.functions k)) (Charts.point c (Transition.leftCoordinate u))) :=
+  \fun (member: _) => outside ((\bysub(I, { l: I \where Base.Subset (Functions.support (partition.functions k)) (chart l).domain }, indices k)) (Charts.point c (Transition.leftCoordinate u)) member);
+\definition targetOutside: Logic.Not (Base.Member (Functions.support (partition.functions k)) (Charts.point d (Transition.apply u))) :=
+  \fun (member: _) => sourceOutside (\idelim Charts.point d (Transition.apply u) = Charts.point c (Transition.leftCoordinate u)
+    \with x: M.Point => Base.Member (Functions.support (partition.functions k)) x \by { base: member, equality: Transition.returnsPoint u });
+\definition sourceZero: \forall (a, b: Fin.Fin r)(arguments: Multilinear.Arguments one) -> source a b u arguments = R.zero :=
+  \fun (a, b: Fin.Fin r)(arguments: Multilinear.Arguments one) => congr!{{Alternating.Form one} {R.Real}} (\fun (omega: Alternating.Form one) => omega arguments) _ _
+    (\parent.\parent.Term[k := k, j := i, a := a, b := b].zeroOffSupport (Transition.leftCoordinate u) sourceOutside);
+\definition targetZero: \forall (a, b: Fin.Fin r)(arguments: Multilinear.Arguments one) -> target a b u arguments = R.zero :=
+  \fun (a, b: Fin.Fin r)(arguments: Multilinear.Arguments one) => congr!{{Alternating.Form one} {R.Real}}
+    (\fun (omega: Alternating.Form one) => omega (\fun (q: Fin.Fin one) => (Pull.jacobian u).apply (arguments q))) _ _
+    (\parent.\parent.Term[k := k, j := j, a := a, b := b].zeroOffSupport (Transition.apply u) targetOutside);
+\definition weightZero: weight u = R.zero := Base.Finite[].doubleNegElim (weight u = R.zero)
+  (\fun (nonzero: _) => sourceOutside (Base.Closure[].contains M.space (Functions.Nonzero (partition.functions k)) (Charts.point c (Transition.leftCoordinate u)) nonzero));
+\definition leftZero: \forall (a, b: Fin.Fin r)(arguments: Multilinear.Arguments one) -> Left a b u arguments = R.zero :=
+  \fun (a, b: Fin.Fin r)(arguments: Multilinear.Arguments one) => trans!{{R.Real}} _ _ _
+    (Sums.congruent r _ _ (\fun (l: Fin.Fin r) => trans!{{R.Real}} _ _ _
+      (congr!{{R.Real} {R.Real}} (R.mul (Gauge.transition a l u)) _ _ (sourceZero l b arguments)) (Spaces.mulZeroRight (Gauge.transition a l u)))) (Sums.zeroSum r);
+\definition rightZero: \forall (a, b: Fin.Fin r)(arguments: Multilinear.Arguments one) -> Right a b u arguments = R.zero :=
+  \fun (a, b: Fin.Fin r)(arguments: Multilinear.Arguments one) => trans!{{R.Real}} _ _ _
+    (congr!{{R.Real} {R.Real} {R.Real}} R.add _ _ _ _
+      (trans!{{R.Real}} _ _ _ (congr!{{R.Real} {R.Real}} (\fun (t: R.Real) => R.mul t (Matrices.dMatrix Gauge.transition a b u arguments)) _ _ weightZero)
+        (Spaces.mulZeroLeft (Matrices.dMatrix Gauge.transition a b u arguments)))
+      (trans!{{R.Real}} _ _ _ (Sums.congruent r _ _ (\fun (l: Fin.Fin r) => trans!{{R.Real}} _ _ _
+        (congr!{{R.Real} {R.Real}} (\fun (t: R.Real) => R.mul t (Gauge.transition l b u)) _ _ (targetZero a l arguments)) (Spaces.mulZeroLeft (Gauge.transition l b u)))) (Sums.zeroSum r)))
+    (Spaces.addZeroLeft R.zero);
+\definition law: \forall (a, b: Fin.Fin r)(arguments: Multilinear.Arguments one) -> Left a b u arguments = Right a b u arguments :=
+  \fun (a, b: Fin.Fin r)(arguments: Multilinear.Arguments one) => trans!{{R.Real}} _ _ _ (leftZero a b arguments) (sym!{{R.Real}} _ _ (rightZero a b arguments));

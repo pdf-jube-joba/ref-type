@@ -1,0 +1,26 @@
+\import \parent.\parent.Pair[i := i, j := j] \as Geometry;
+\import \parent.\parent.\parent.Pair[i := i, j := j] \as Gauge;
+\import \parent.\parent.Local[i := i] \as Source;
+\import \parent.\parent.Local[i := j] \as Target;
+\import Charts.Transition[left := chart i, right := chart j] \as Transition;
+\import \root.MatrixCalculus[n := n, r := r].On[U := Transition.domain] \as Matrices;
+\import Matrices.Linearity[] \as Linear;
+\import \root.MetricCorrection[n := n, r := r].On[U := Transition.domain] \as Correction;
+\definition relation: \root.LeviCivita[n := n].Gauge[r := r, U := Transition.domain].metric Gauge.transition Geometry.h = Geometry.g := sym!{{Matrices.Matrix0}} _ _ Geometry.metricRelation;
+\import Correction.InverseMetric[T := Gauge.transition, S := Gauge.inverse, h := Geometry.h, p := Geometry.targetInverse, rightT := Gauge.Inverse[].right, leftH := Geometry.targetLeft] \as Inverse;
+\definition original: Gauge.left (connection i) = Gauge.right (connection j) := Linear.ext (Gauge.left (connection i)) (Gauge.right (connection j)) (compatible connection i j);
+\import Correction.Naturality[g := Geometry.g, q := Geometry.sourceInverse, h := Geometry.h, p := Geometry.targetInverse,
+  A := Gauge.source (connection i), B := Gauge.target (connection j), T := Gauge.transition, L := Inverse.value,
+  symmetricG := Geometry.sourceSymmetric, symmetricH := Geometry.targetSymmetric,
+  rightG := Geometry.sourceRight, rightH := Geometry.targetRight, metricRelation := relation, leftK := Inverse.law, gauge := original] \as Natural;
+\import \root.MetricCorrection[n := n, r := r].Between[U := Transition.domain, V := (chart i).image].Restriction[included := Gauge.included] \as Restrict;
+\import \root.MetricCorrection[n := n, r := r].Between[U := Transition.domain, V := (chart j).image].Pull[f := Gauge.map] \as Pull;
+\definition equality: Gauge.left (data i) = Gauge.right (data j) := eq_reason_in!{{Matrices.Matrix1} _
+  "=" _ "by" { congr!{{Matrices.Matrix1} {Matrices.Matrix1}} (Matrices.product01 Gauge.transition) _ _ (Restrict.law Source.g Source.q (connection i).matrix) }
+  "=" _ "by" Natural.law
+  "=" _ "by" { congr!{{Matrices.Matrix1} {Matrices.Matrix1}} (\fun (A: Matrices.Matrix1) => Matrices.plus (Matrices.dMatrix Gauge.transition) (Matrices.product10 A Gauge.transition)) _ _
+    (sym!{{Matrices.Matrix1}} _ _ (Pull.law Target.g Target.q (connection j).matrix)) }
+};
+\import Euclidean.On[U := Transition.domain] \as Scalar;
+\definition compatible: Gauge.Compatible (data i) (data j) := \fun (a, b: Fin.Fin r) =>
+  congr!{{Matrices.Matrix1} {Scalar.Form one}} (\fun (A: Matrices.Matrix1) => A a b) _ _ equality;

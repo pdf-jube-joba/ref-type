@@ -1,0 +1,42 @@
+\import \root.Complex[n := n, r := r].Structure[] \as Structure;
+\import RealSpaces.Linear[V := RealVectors.Vector, W := RealVectors.Vector, source := RealVectors.space, target := RealVectors.space] \as RealEnd;
+\import RealSpaces.Linear[V := Vectors.Vector, W := Vectors.Vector, source := Restricted.realSpace, target := Restricted.realSpace] \as Maps;
+\definition conjugate[v: Vectors.Vector]: Vectors.Vector := \fun (a: Fin.Fin r) => Op.conj (v a);
+\definition map: Maps.Map := Maps.Map {
+  apply := conjugate,
+  preservesAdd := \fun (v, w: Vectors.Vector) => \axiom:funext(conjugate (Vectors.plus v w), Vectors.plus (conjugate v) (conjugate w), \fun (a: Fin.Fin r) => C.Prop[].conjAdd (v a) (w a)),
+  preservesScale := \fun (c: R.Real)(v: Vectors.Vector) => \axiom:funext(conjugate (Restricted.realSpace.smul c v), Restricted.realSpace.smul c (conjugate v), \fun (a: Fin.Fin r) => trans!{{C.Complex}} _ _ _
+    (C.Prop[].conjMul (Op.ofReal c) (v a)) (congr!{{C.Complex} {C.Complex}} (\fun (z: C.Complex) => Op.mul z (Op.conj (v a))) _ _ (C.Prop[].conjOfReal c))),
+};
+\definition involution: \forall (v: Vectors.Vector) -> conjugate (conjugate v) = v :=
+  \fun (v: Vectors.Vector) => \axiom:funext(conjugate (conjugate v), v, \fun (a: Fin.Fin r) => C.Prop[].conjConj (v a));
+\import Maps.Composition[U := RealVectors.Vector, domain := RealVectors.space] \as Before;
+\import RealSpaces.Linear[V := Vectors.Vector, W := RealVectors.Vector, source := Restricted.realSpace, target := RealVectors.space].Composition[U := RealVectors.Vector, domain := RealVectors.space] \as After;
+\definition K: RealEnd.Map := After.compose RealCoordinates.frame.forward (Before.compose map RealCoordinates.frame.backward);
+\definition square: \forall (v: RealVectors.Vector) -> K.apply (K.apply v) = v :=
+  \fun (v: RealVectors.Vector) => eq_reason_in!{{RealVectors.Vector} _
+    "=" _ "by" { congr!{{Vectors.Vector} {RealVectors.Vector}} (\fun (w: Vectors.Vector) => Coordinates.encode (conjugate w)) _ _ (Coordinates.decodeEncode (conjugate (Coordinates.decode v))) }
+    "=" _ "by" { congr!{{Vectors.Vector} {RealVectors.Vector}} Coordinates.encode _ _ (involution (Coordinates.decode v)) }
+    "=" _ "by" { Coordinates.encodeDecode v }
+  };
+\import dedekind_reals.DedekindReal[].Arithmetic[].Prop[] \as Arithmetic;
+\import Spaces.Laws[V := C.Complex, space := Spaces.scalarSpace] \as ScalarLaws;
+\definition conjugateI: Op.conj Op.i = Op.neg Op.i := C.Prop[].ext (Op.conj Op.i) (Op.neg Op.i) (sym!{{R.Real}} _ _ Arithmetic.negZero) (\refl(R.neg R.one));
+\definition imaginary: \forall (v: Vectors.Vector) -> conjugate (Vectors.scale Op.i v) = Vectors.negative (Vectors.scale Op.i (conjugate v)) :=
+  \fun (v: Vectors.Vector) => \axiom:funext(conjugate (Vectors.scale Op.i v), Vectors.negative (Vectors.scale Op.i (conjugate v)), \fun (a: Fin.Fin r) => eq_reason_in!{{C.Complex} _
+    "=" _ "by" { C.Prop[].conjMul Op.i (v a) }
+    "=" _ "by" { congr!{{C.Complex} {C.Complex}} (\fun (z: C.Complex) => Op.mul z (Op.conj (v a))) _ _ conjugateI }
+    "=" _ "by" { Spaces.mulComm (Op.neg Op.i) (Op.conj (v a)) }
+    "=" _ "by" { ScalarLaws.scaleNegative (Op.conj (v a)) Op.i }
+    "=" _ "by" { congr!{{C.Complex} {C.Complex}} Op.neg _ _ (Spaces.mulComm (Op.conj (v a)) Op.i) }
+  });
+\definition anticommutes: \forall (v: RealVectors.Vector) -> K.apply (Structure.J.apply v) = RealVectors.negative (Structure.J.apply (K.apply v)) :=
+  \fun (v: RealVectors.Vector) => eq_reason_in!{{RealVectors.Vector} _
+    "=" _ "by" { congr!{{Vectors.Vector} {RealVectors.Vector}} (\fun (w: Vectors.Vector) => Coordinates.encode (conjugate w)) _ _ (Coordinates.decodeEncode (Vectors.scale Op.i (Coordinates.decode v))) }
+    "=" _ "by" { congr!{{Vectors.Vector} {RealVectors.Vector}} Coordinates.encode _ _ (imaginary (Coordinates.decode v)) }
+    "=" _ "by" { RealSpaces.Linear[V := Vectors.Vector, W := RealVectors.Vector, source := Restricted.realSpace, target := RealVectors.space].Operations[].preservesNeg RealCoordinates.frame.forward (Vectors.scale Op.i (conjugate (Coordinates.decode v))) }
+    "=" _ "by" { congr!{{Vectors.Vector} {RealVectors.Vector}} (\fun (w: Vectors.Vector) => RealVectors.negative (Coordinates.encode (Vectors.scale Op.i w))) _ _ (sym!{{Vectors.Vector}} _ _ (Coordinates.decodeEncode (conjugate (Coordinates.decode v)))) }
+  };
+\module On(U: Open.OpenSet);
+
+\module Pairing;

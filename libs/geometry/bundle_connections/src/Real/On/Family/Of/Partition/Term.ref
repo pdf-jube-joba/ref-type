@@ -1,0 +1,48 @@
+\definition c: \Cast[Charts.Chart] M.atlas.charts := chart j;
+\definition d: \Cast[Charts.Chart] M.atlas.charts := chart (indices k);
+\import Charts.Transition[left := c, right := d] \as Transition;
+\import \parent.\parent.Pair[i := j, j := indices k] \as Gauge;
+\import Bundle.Reverse[i := j, j := indices k] \as Reverse;
+\import Atlas.Change[i := j, j := indices k] \as Change;
+\import Euclidean.On[U := Transition.domain] \as Scalar;
+\import Scalar.At[k := one] \as OneForms;
+\import Scalar.DegreeZero[] \as ZeroForms;
+\import Scalar.ExteriorDerivative[k := zero] \as D;
+\import Scalar.Wedge[p := zero, q := one] \as Product;
+\import Spaces.Sums[I := Fin.Fin r].Vector[V := Scalar.Form one, space := OneForms.space] \as Sum;
+\import Open.Smooth[].Algebra[U := Transition.domain] \as LocalFunctions;
+\import Spaces.FiniteCoordinates[n := r] \as Basis;
+\definition pureGauge: Scalar.Form one := Gauge.pureGauge a b;
+\definition weight[t: Open.Carrier Transition.domain]: R.Real := partition.functions k (Charts.point c (Transition.leftCoordinate t));
+\definition weightSmooth: Smooth.SmoothOn Transition.domain weight := Open.Restriction[].localSmooth Transition.domain c.image Gauge.included
+  (Scalars.coordinates c (partition.functions k)) (Functions.regular (partition.functions k) c);
+\definition smoothWeight: LocalFunctions.Function := \into[Open.ScalarFunction Transition.domain](weight, LocalFunctions.Predicate) \by { weightSmooth };
+\definition expression: Scalar.Form one := OneForms.multiply smoothWeight pureGauge;
+\import std.Set[].Extension[A := Vectors.Vector, B := Alternating.Form one, domain := Transition.domain.points] \as Extension;
+\definition extended: Vectors.Vector -> Alternating.Form one := Extension.extend expression Covectors.origin;
+\definition value[u: Open.Carrier c.image]: Alternating.Form one := extended u;
+\definition inside: \forall (u: Open.Carrier Transition.domain) -> value (Transition.leftCoordinate u) = expression u :=
+  Extension.inside expression Covectors.origin;
+\definition support: \Pow M.Point := Functions.support (partition.functions k);
+\definition supportClosed: Base.IsClosedIn M.space support := Base.Closure[].closed M.space (Functions.Nonzero (partition.functions k));
+\definition included: Base.Subset support d.domain := \bysub(I,
+  { i: I \where Base.Subset support (bundle.atlas.local i).chart.domain }, indices k);
+\definition weightZero: \forall (x: M.Point) -> Logic.Not (Base.Member support x) -> partition.functions k x = R.zero :=
+  \fun (x: M.Point)(outside: _) => Base.Finite[].doubleNegElim (partition.functions k x = R.zero)
+    (\fun (nonzero: _) => outside (Base.Closure[].contains M.space (Functions.Nonzero (partition.functions k)) x nonzero));
+\definition zeroOffSupport: \forall (u: Open.Carrier c.image) -> Logic.Not (Base.Member support (Charts.point c u)) -> value u = Covectors.origin :=
+  \fun (u: Open.Carrier c.image)(outside: _) => either!{{Classical.excludedMiddle (\In[Vectors.Vector] Transition.domain.points u)} {value u = Covectors.origin}
+    {\fun (member: _) => \block {
+      \let local: Open.Carrier Transition.domain := \into[Vectors.Vector](u, Transition.domain.points) \by { member } \then
+      \return trans!{{Alternating.Form one}} _ _ _ (inside local)
+        (trans!{{Alternating.Form one}} _ _ _
+          (congr!{{R.Real} {Alternating.Form one}} (\fun (t: R.Real) => Covectors.scale t (pureGauge local)) _ _ (weightZero (Charts.point c u) outside))
+          (Spaces.Laws[V := Alternating.Form one, space := Covectors.vectorSpace].zeroScale (pureGauge local)))
+    }}
+    {\fun (outsideDomain: _) => Extension.outside expression Covectors.origin u outsideDomain}};
+\import Scalars.Neighborhood[c := c, U := Base.Complement support, open := supportClosed] \as Away;
+\module Evaluation(arguments: Multilinear.Arguments one);
+\definition smooth: Euclidean.On[U := c.image].SmoothFamily one value :=
+  \fun (arguments: Multilinear.Arguments one) => Evaluation[arguments := arguments].smooth;
+\definition form: Euclidean.On[U := c.image].Form one :=
+  \into[Euclidean.On[U := c.image].Family one](value, Euclidean.On[U := c.image].Form one) \by { smooth };

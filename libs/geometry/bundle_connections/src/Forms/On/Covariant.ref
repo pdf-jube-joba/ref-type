@@ -1,0 +1,40 @@
+\definition next: N.Nat^ := N.Nat^::succ k;
+\import Scalar.ExteriorDerivative[k := k] \as D;
+\import Scalar.At[k := k] \as Source;
+\import Scalar.At[k := next] \as Target;
+\import Scalar.Wedge[p := one, q := k] \as Product;
+\import Scalar.Regrade[k := Nat.add one k, l := next] \as Degree;
+\import Spaces.Sums[I := Fin.Fin r].Vector[V := Scalar.Form next, space := Target.space] \as Sums;
+\import Spaces.Laws[V := Scalar.Form next, space := Target.space] \as Laws;
+\import \parent.At[k := k] \as SourceForms;
+\import \parent.At[k := next] \as TargetForms;
+\definition term[a, b: Fin.Fin r][omega: Form k]: Scalar.Form next := Degree.cast (Product.apply (connection.matrix a b) (omega b)) D.degree;
+\definition correction[omega: Form k][a: Fin.Fin r]: Scalar.Form next := Sums.sum (Fin.elements r) (\fun (b: Fin.Fin r) => term a b omega);
+\definition apply[omega: Form k][a: Fin.Fin r]: Scalar.Form next := Target.plus (D.apply (omega a)) (correction omega a);
+\definition termAddition: \forall (a, b: Fin.Fin r)(omega, eta: Form k) -> term a b (SourceForms.plus omega eta) = Target.plus (term a b omega) (term a b eta) :=
+  \fun (a, b: Fin.Fin r)(omega, eta: Form k) => trans!{{Scalar.Form next}} _ _ _
+    (congr!{{Scalar.Form (Nat.add one k)} {Scalar.Form next}} (\fun (value: Scalar.Form (Nat.add one k)) => Degree.cast value D.degree) _ _
+      (Product.additiveRight (connection.matrix a b) (omega b) (eta b)))
+    (Degree.addition (Product.apply (connection.matrix a b) (omega b)) (Product.apply (connection.matrix a b) (eta b)) D.degree);
+\definition correctionAddition: \forall (omega, eta: Form k)(a: Fin.Fin r) -> correction (SourceForms.plus omega eta) a = Target.plus (correction omega a) (correction eta a) :=
+  \fun (omega, eta: Form k)(a: Fin.Fin r) => trans!{{Scalar.Form next}} _ _ _
+    (Sums.congruent (Fin.elements r) _ _ (\fun (b: Fin.Fin r) => termAddition a b omega eta))
+    (Sums.addition (Fin.elements r) _ _);
+\definition addition: \forall (omega, eta: Form k) -> apply (SourceForms.plus omega eta) = TargetForms.plus (apply omega) (apply eta) :=
+  \fun (omega, eta: Form k) => \axiom:funext(apply (SourceForms.plus omega eta), TargetForms.plus (apply omega) (apply eta),
+    \fun (a: Fin.Fin r) => trans!{{Scalar.Form next}} _ _ _
+      (congr!{{Scalar.Form next} {Scalar.Form next} {Scalar.Form next}} Target.plus _ _ _ _ (D.addition (omega a) (eta a)) (correctionAddition omega eta a))
+      (Laws.shuffle (D.apply (omega a)) (D.apply (eta a)) (correction omega a) (correction eta a)));
+\definition termScalar: \forall (c: R.Real)(a, b: Fin.Fin r)(omega: Form k) -> term a b (SourceForms.scale c omega) = Target.scale c (term a b omega) :=
+  \fun (c: R.Real)(a, b: Fin.Fin r)(omega: Form k) => trans!{{Scalar.Form next}} _ _ _
+    (congr!{{Scalar.Form (Nat.add one k)} {Scalar.Form next}} (\fun (value: Scalar.Form (Nat.add one k)) => Degree.cast value D.degree) _ _
+      (Product.scalarRight c (connection.matrix a b) (omega b)))
+    (Degree.scalar c (Product.apply (connection.matrix a b) (omega b)) D.degree);
+\definition correctionScalar: \forall (c: R.Real)(omega: Form k)(a: Fin.Fin r) -> correction (SourceForms.scale c omega) a = Target.scale c (correction omega a) :=
+  \fun (c: R.Real)(omega: Form k)(a: Fin.Fin r) => trans!{{Scalar.Form next}} _ _ _
+    (Sums.congruent (Fin.elements r) _ _ (\fun (b: Fin.Fin r) => termScalar c a b omega)) (Sums.scalar (Fin.elements r) c _);
+\definition scalar: \forall (c: R.Real)(omega: Form k) -> apply (SourceForms.scale c omega) = TargetForms.scale c (apply omega) :=
+  \fun (c: R.Real)(omega: Form k) => \axiom:funext(apply (SourceForms.scale c omega), TargetForms.scale c (apply omega),
+    \fun (a: Fin.Fin r) => trans!{{Scalar.Form next}} _ _ _
+      (congr!{{Scalar.Form next} {Scalar.Form next} {Scalar.Form next}} Target.plus _ _ _ _ (D.scalar c (omega a)) (correctionScalar c omega a))
+      (sym!{{Scalar.Form next}} _ _ (Target.space.vectorAdd c (D.apply (omega a)) (correction omega a))));

@@ -1,0 +1,20 @@
+\import Underlying.Pair[i := i, j := j] \as Change;
+\import Forms.Pair[i := i, j := j] \as FormPair;
+\import Charts.Transition[left := Underlying.chart i, right := Underlying.chart j] \as Transition;
+\import \root.Forms[n := n, r := rank].On[U := Transition.domain] \as LocalForms;
+\import \root.GlobalForms[n := n, r := rank].On[U := Transition.domain].Action[k := k] \as Action;
+\import Structure.On[U := Transition.domain] \as J;
+\import \root.GlobalForms[n := n, r := rank].Restriction[U := Transition.domain, V := (Underlying.chart i).image, included := Change.included].Constant[k := k, T := coefficients] \as Restrict;
+\import \root.GlobalForms[n := n, r := rank].Between[m := n, U := Transition.domain, V := (Underlying.chart j).image].Pull[f := Change.map].Constant[k := k, T := coefficients] \as Pull;
+\definition law: FormPair.Compatible (imaginaryData omega i) (imaginaryData omega j) :=
+  \fun (a: Fin.Fin rank) => congr!{{LocalForms.Form k} {euclidean_forms.Euclidean[n := n].On[U := Transition.domain].Form k}} (\fun (eta: LocalForms.Form k) => eta a) _ _
+    (eq_reason_in!{{LocalForms.Form k} _
+      "=" _ "by" { congr!{{LocalForms.Form k} {LocalForms.Form k}} (Action.apply Change.transition) _ _ (Restrict.law (omega i)) }
+      "=" _ "by" { Action.assoc Change.transition J.matrix (FormPair.source (omega i)) }
+      "=" _ "by" { congr!{{\root.MatrixCalculus[n := n, r := rank].On[U := Transition.domain].Matrix0} {LocalForms.Form k}}
+        (\fun (T: \root.MatrixCalculus[n := n, r := rank].On[U := Transition.domain].Matrix0) => Action.apply T (FormPair.source (omega i))) _ _ (Connections.Pair[i := i, j := j].commutation) }
+      "=" _ "by" { sym!{{LocalForms.Form k}} _ _ (Action.assoc J.matrix Change.transition (FormPair.source (omega i))) }
+      "=" _ "by" { congr!{{LocalForms.Form k} {LocalForms.Form k}} (Action.apply J.matrix) _ _
+        (\axiom:funext(FormPair.action (omega i), FormPair.target (omega j), Forms.compatible omega i j)) }
+      "=" _ "by" { sym!{{LocalForms.Form k}} _ _ (Pull.law (omega j)) }
+    });

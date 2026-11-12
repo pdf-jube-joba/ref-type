@@ -1,0 +1,16 @@
+\import Connections.MetricLocal[metric := metric, i := chart] \as Metric;
+\import \root.LeviCivita[n := n].On[U := chart.image].Riemannian[metric := Metric.local] \as Local;
+\definition connection: \root.Local[n := n, r := n].On[U := chart.image].Connection := Local.connection;
+\definition laws: Local.Laws[connection] := Local.laws;
+\definition formConnection: Connections.LocalConnection chart := \root.Forms[n := n, r := n].On[U := chart.image].Coordinates[connection := connection].value;
+\import \root.Local[n := n, r := n].On[U := chart.image] \as Coefficients;
+\import \root.Forms[n := n, r := n].On[U := chart.image].Coordinates[connection := connection] \as Coordinates;
+\import \root.Forms[n := n, r := n].On[U := chart.image].Coefficients[connection := formConnection] \as Extract;
+\import Open.Smooth[].Algebra[U := chart.image] \as Functions;
+\definition recovery: Extract.local = connection := congr!{{Fin.Fin n -> Coefficients.Matrix} {Coefficients.Connection}}
+  (\fun (values: Fin.Fin n -> Coefficients.Matrix) => Coefficients.Connection { coefficient := values }) _ _
+  (\axiom:funext(Extract.local.coefficient, connection.coefficient, \fun (i: Fin.Fin n) =>
+    \axiom:funext(Extract.local.coefficient i, connection.coefficient i, \fun (a: Fin.Fin n) =>
+      \axiom:funext(Extract.local.coefficient i a, connection.coefficient i a, \fun (b: Fin.Fin n) => Coordinates.recover i a b))));
+\definition recoveredLaws: Local.Laws[Extract.local] := \idelim connection = Extract.local
+  \with c: Coefficients.Connection => Local.Laws[c] \by { base: laws, equality: sym!{{Coefficients.Connection}} _ _ recovery };

@@ -1,0 +1,91 @@
+\import \parent.\parent.Change[i := i, j := j] \as Change;
+\import OriginalConnection.Pair[i := i.target, j := j.target] \as Old;
+\import ResultConnection.Pair[i := i, j := j] \as New;
+\import SourceCharts.Transition[left := i.chart, right := j.chart] \as Domain;
+\import TargetCharts.Transition[left := (bundle.atlas.local i.target).chart, right := (bundle.atlas.local j.target).chart] \as TargetDomain;
+\import \root.MatrixCalculus[n := m, r := r].On[U := TargetDomain.domain] \as TargetAlgebra;
+\import calculus.Maps[n := n, m := m].Corestriction[U := Domain.domain, V := (bundle.atlas.local i.target).chart.image, W := TargetDomain.domain, f := Change.unrestricted, inside := Change.inside] \as Corestrict;
+\import calculus.Maps[n := n, m := m].Restriction[U := Domain.domain, V := i.chart.image, W := (bundle.atlas.local i.target).chart.image] \as Restrict;
+\import euclidean_forms.Euclidean[n := n].Pullback[m := m, U := Domain.domain, V := TargetDomain.domain, f := Change.map] \as Pull;
+\import \root.PullbackGlobal[n := n, m := m, r := r].Transport[U := Domain.domain, V := TargetDomain.domain, f := Change.map] \as Transport;
+\import \root.MatrixCalculus[n := n, r := r].On[U := Domain.domain] \as Algebra;
+\import Algebra.Linearity[] \as Linear;
+\import euclidean_forms.Euclidean[n := n].On[U := Domain.domain] \as Scalar;
+\import Spaces.Coordinates[I := Fin.Fin n] \as Vectors;
+\import Spaces.Multilinear[V := Vectors.Vector, space := Vectors.space] \as Multilinear;
+\import Spaces.Coordinates[I := Fin.Fin m] \as TargetVectors;
+\import Spaces.Linear[V := Vectors.Vector, W := TargetVectors.Vector, source := Vectors.space, target := TargetVectors.space] \as Tangent;
+\definition one: Nat.Nat^ := Nat.Nat^::succ Nat.Nat^::zero;
+\definition transition: Transport.matrix0 Old.transition = New.transition :=
+  \axiom:funext(Transport.matrix0 Old.transition, New.transition, \fun (a: Fin.Fin r) =>
+    \axiom:funext(Transport.matrix0 Old.transition a, New.transition a, \fun (b: Fin.Fin r) =>
+      \axiom:funext(Transport.matrix0 Old.transition a b, New.transition a b, \fun (u: SourceOpen.Carrier Domain.domain) =>
+        sym!{{R.Real}} _ _ (congr!{{Fin.Fin r -> R.Real} {R.Real}} (\fun (v: Fin.Fin r -> R.Real) => v a) _ _
+          (Change.formula u (R.FiniteSums[].Linear[].basis r b))))));
+\import euclidean_forms.Euclidean[n := n].Pullback[m := m, U := i.chart.image, V := (bundle.atlas.local i.target).chart.image, f := \parent.\parent.In[i := i].map] \as FirstPull;
+\definition sourceJacobian: \forall (u: SourceOpen.Carrier Domain.domain) -> Pull.jacobian u = FirstPull.jacobian (Domain.leftCoordinate u) :=
+  \fun (u: SourceOpen.Carrier Domain.domain) => trans!{{Tangent.Map}} _ _ _
+    (Corestrict.differential u) (Restrict.differential Change.included (\parent.\parent.In[i := i].map) u);
+\definition sourceValue: \forall (a, b: Fin.Fin r)(u: SourceOpen.Carrier Domain.domain)(arguments: Multilinear.Arguments one) ->
+  Transport.matrix1 (Old.source (connection i.target)) a b u arguments =
+  (connection i.target).matrix a b (\parent.\parent.In[i := i].map.apply (Domain.leftCoordinate u)) (\fun (q: Fin.Fin one) => (Pull.jacobian u).apply (arguments q)) :=
+  \fun (a, b: Fin.Fin r)(u: SourceOpen.Carrier Domain.domain)(arguments: Multilinear.Arguments one) => \refl(Transport.matrix1 (Old.source (connection i.target)) a b u arguments);
+\definition source: Transport.matrix1 (Old.source (connection i.target)) = New.source (data i) :=
+  Linear.ext (Transport.matrix1 (Old.source (connection i.target))) (New.source (data i)) (\fun (a, b: Fin.Fin r) =>
+    Scalar.ext one (Transport.matrix1 (Old.source (connection i.target)) a b) (New.source (data i) a b)
+    (\fun (u: SourceOpen.Carrier Domain.domain)(arguments: Multilinear.Arguments one) =>
+      trans!{{R.Real}} _ _ _ (sourceValue a b u arguments)
+      (congr!{{Tangent.Map} {R.Real}} (\fun (d: Tangent.Map) => (connection i.target).matrix a b (\parent.\parent.In[i := i].map.apply (Domain.leftCoordinate u))
+        (\fun (q: Fin.Fin one) => d.apply (arguments q))) _ _ (sourceJacobian u))));
+\import calculus.Maps[n := n, m := m].Composition[U := Domain.domain, V := TargetDomain.domain, f := Change.map].After[l := m, W := (bundle.atlas.local j.target).chart.image, g := Old.map] \as OldComposite;
+\import calculus.Maps[n := n, m := n].Composition[U := Domain.domain, V := j.chart.image, f := New.map].After[l := m, W := (bundle.atlas.local j.target).chart.image, g := \parent.\parent.In[i := j].map] \as NewComposite;
+\definition oldPoint: \forall (u: SourceOpen.Carrier Domain.domain) -> TargetCharts.point (bundle.atlas.local j.target).chart (OldComposite.compose.apply u) = Maps.apply f (SourceCharts.point i.chart (Domain.leftCoordinate u)) :=
+  \fun (u: SourceOpen.Carrier Domain.domain) => trans!{{Y.Point}} _ _ _
+    (TargetDomain.returnsPoint (Change.map.apply u)) (\parent.\parent.In[i := i].returnsPoint (Domain.leftCoordinate u));
+\definition newPoint: \forall (u: SourceOpen.Carrier Domain.domain) -> TargetCharts.point (bundle.atlas.local j.target).chart (NewComposite.compose.apply u) = Maps.apply f (SourceCharts.point i.chart (Domain.leftCoordinate u)) :=
+  \fun (u: SourceOpen.Carrier Domain.domain) => trans!{{Y.Point}} _ _ _
+    (\parent.\parent.In[i := j].returnsPoint (New.map.apply u))
+    (congr!{{X.Point} {Y.Point}} (Maps.apply f) _ _ (Domain.returnsPoint u));
+\definition samePoint: \forall (u: SourceOpen.Carrier Domain.domain) -> TargetCharts.point (bundle.atlas.local j.target).chart (OldComposite.compose.apply u) = TargetCharts.point (bundle.atlas.local j.target).chart (NewComposite.compose.apply u) :=
+  \fun (u: SourceOpen.Carrier Domain.domain) => trans!{{Y.Point}} _ _ _ (oldPoint u) (sym!{{Y.Point}} _ _ (newPoint u));
+\definition sameMap: OldComposite.compose = NewComposite.compose :=
+  calculus.Maps[n := n, m := m].ext Domain.domain (bundle.atlas.local j.target).chart.image _ _
+    (\axiom:funext(OldComposite.compose.apply, NewComposite.compose.apply, \fun (u: SourceOpen.Carrier Domain.domain) =>
+      TargetCharts.Of[chart := (bundle.atlas.local j.target).chart].pointInjective _ _ (samePoint u)));
+\import euclidean_forms.Euclidean[n := n].Pullback[m := m, U := Domain.domain, V := TargetDomain.domain, f := Change.map].After[l := m, W := (bundle.atlas.local j.target).chart.image, g := Old.map] \as OldPull;
+\import euclidean_forms.Euclidean[n := n].Pullback[m := n, U := Domain.domain, V := j.chart.image, f := New.map].After[l := m, W := (bundle.atlas.local j.target).chart.image, g := \parent.\parent.In[i := j].map] \as NewPull;
+\definition target: Transport.matrix1 (Old.target (connection j.target)) = New.target (data j) :=
+  Linear.ext _ _ (\fun (a, b: Fin.Fin r) => eq_reason_in!{{Scalar.Form one} _
+    "=" _ "by" { sym!{{Scalar.Form one}} _ _ (OldPull.law one ((connection j.target).matrix a b)) }
+    "=" _ "by" { congr!{{calculus.Maps[n := n, m := m].Map Domain.domain (bundle.atlas.local j.target).chart.image} {Scalar.Form one}}
+      (\fun (g: calculus.Maps[n := n, m := m].Map Domain.domain (bundle.atlas.local j.target).chart.image) =>
+        euclidean_forms.Euclidean[n := n].Pullback[m := m, U := Domain.domain, V := (bundle.atlas.local j.target).chart.image, f := g].apply one ((connection j.target).matrix a b)) _ _ sameMap }
+    "=" _ "by" { NewPull.law one ((connection j.target).matrix a b) }
+  });
+\definition differential: Transport.matrix1 (TargetAlgebra.dMatrix Old.transition) = Algebra.dMatrix New.transition :=
+  trans!{{Algebra.Matrix1}} _ _ _
+    (Linear.ext _ _ (\fun (a, b: Fin.Fin r) => Transport.differential (Old.transition a b)))
+    (congr!{{Algebra.Matrix0} {Algebra.Matrix1}} Algebra.dMatrix _ _ transition);
+\definition left: Transport.matrix1 (Old.left (connection i.target)) = New.left (data i) :=
+  eq_reason_in!{{Algebra.Matrix1} _
+    "=" _ "by" { Transport.product01 Old.transition (Old.source (connection i.target)) }
+    "=" _ "by" { congr!{{Algebra.Matrix0} {Algebra.Matrix1}} (\fun (T: Algebra.Matrix0) => Algebra.product01 T (Transport.matrix1 (Old.source (connection i.target)))) _ _ transition }
+    "=" _ "by" { congr!{{Algebra.Matrix1} {Algebra.Matrix1}} (Algebra.product01 New.transition) _ _ source }
+  };
+\definition right: Transport.matrix1 (Old.right (connection j.target)) = New.right (data j) :=
+  eq_reason_in!{{Algebra.Matrix1} _
+    "=" _ "by" { Transport.plus (TargetAlgebra.dMatrix Old.transition) (TargetAlgebra.product10 (Old.target (connection j.target)) Old.transition) }
+    "=" _ "by" { congr!{{Algebra.Matrix1} {Algebra.Matrix1}} (\fun (A: Algebra.Matrix1) => Algebra.plus A (Transport.matrix1 (TargetAlgebra.product10 (Old.target (connection j.target)) Old.transition))) _ _ differential }
+    "=" _ "by" { congr!{{Algebra.Matrix1} {Algebra.Matrix1}} (Algebra.plus (Algebra.dMatrix New.transition)) _ _ (Transport.product10 (Old.target (connection j.target)) Old.transition) }
+    "=" _ "by" { congr!{{Algebra.Matrix1} {Algebra.Matrix1}} (\fun (A: Algebra.Matrix1) => Algebra.plus (Algebra.dMatrix New.transition) (Algebra.product10 A (Transport.matrix0 Old.transition))) _ _ target }
+    "=" _ "by" { congr!{{Algebra.Matrix0} {Algebra.Matrix1}} (\fun (T: Algebra.Matrix0) => Algebra.plus (Algebra.dMatrix New.transition) (Algebra.product10 (New.target (data j)) T)) _ _ transition }
+  };
+\definition gauge: New.left (data i) = New.right (data j) :=
+  eq_reason_in!{{Algebra.Matrix1} _
+    "=" _ "by" { sym!{{Algebra.Matrix1}} _ _ left }
+    "=" _ "by" { congr!{{TargetAlgebra.Matrix1} {Algebra.Matrix1}} Transport.matrix1 _ _
+      (TargetAlgebra.Linearity[].ext _ _ (OriginalConnection.compatible connection i.target j.target)) }
+    "=" _ "by" { right }
+  };
+\definition compatible: New.Compatible (data i) (data j) := \fun (a, b: Fin.Fin r) =>
+  congr!{{Algebra.Matrix1} {Scalar.Form one}} (\fun (A: Algebra.Matrix1) => A a b) _ _ gauge;

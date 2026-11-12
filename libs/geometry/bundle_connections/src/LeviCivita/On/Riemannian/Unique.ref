@@ -1,0 +1,24 @@
+\definition lowerTorsion: \forall (i, j, k: Index) -> lower c i j k = lower c j i k :=
+  \fun (i, j, k: Index) => Functions.ext (lower c i j k) (lower c j i k) (\fun (x: Open.Carrier U) =>
+    congr!{{E.Vector} {R.Real}} (\fun (v: E.Vector) => (Musical.flat x).apply v k) _ _
+      (\axiom:funext(column c i j x, column c j i x, \fun (a: Index) =>
+        congr!{{Functions.Function} {R.Real}} (\fun (f: Functions.Function) => f x) _ _ (laws.torsionFree i j a))));
+\definition lowerLaws: Lower.Laws[lower c] := Lower.Laws[lower c] { torsionFree := lowerTorsion, compatible := laws.compatible };
+\import Lower.Unique[c := lower c, laws := lowerLaws] \as Uniqueness;
+\definition coefficient: \forall (i, a, j: Index) -> connection.coefficient i a j = c.coefficient i a j :=
+  \fun (i, a, j: Index) => Functions.ext (connection.coefficient i a j) (c.coefficient i a j) (\fun (x: Open.Carrier U) => eq_reason_in!{{R.Real} _
+    "=" _ "by" { congr!{{E.Vector} {R.Real}} (\fun (v: E.Vector) => (Musical.sharp x).apply v a) _ _
+      (\axiom:funext(vector i j x, (Musical.flat x).apply (column c i j x), \fun (k: Index) =>
+        congr!{{Functions.Function} {R.Real}} (\fun (f: Functions.Function) => f x) _ _ (Uniqueness.law i j k))) }
+    "=" _ "by" { congr!{{E.Vector} {R.Real}} (\fun (v: E.Vector) => v a) _ _ (Musical.left x (column c i j x)) }
+  });
+\definition eta: \forall (d: Local.Connection) -> Local.Connection::# d.coefficient = d :=
+  \induction (d: Local.Connection) \return Local.Connection::# d.coefficient = d \with {
+    | # : \fun (a: Index -> Local.Matrix) => \refl(Local.Connection::# a)
+  };
+\definition unique: connection = c := trans!{{Local.Connection}} _ _ _
+  (congr!{{Index -> Local.Matrix} {Local.Connection}} Local.Connection::# _ _
+    (\axiom:funext(christoffel, c.coefficient, \fun (i: Index) =>
+      \axiom:funext(christoffel i, c.coefficient i, \fun (a: Index) =>
+        \axiom:funext(christoffel i a, c.coefficient i a, coefficient i a)))))
+  (eta c);

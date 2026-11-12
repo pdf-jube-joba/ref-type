@@ -1,0 +1,38 @@
+\import smooth_bundles.ComplexCalculus[n := n].On[U := U] \as Calculus;
+\import Smooth.Algebra[U := U] \as RealFunctions;
+\import Smooth.Derivative[].Linear[U := U] \as Derivatives;
+\definition Function: \Set := \Cast[Calculus.Function] ({ f: Calculus.Function \where Calculus.Smooth f });
+\definition regular[f: Function]: Calculus.Smooth f := \bysub(Calculus.Function, Function, f);
+\definition real[f: Function]: RealFunctions.Function := \into[Open.ScalarFunction U]
+  ((\fun (x: Open.Carrier U) => C.re (f x)), RealFunctions.Predicate) \by { (regular f).real };
+\definition imaginary[f: Function]: RealFunctions.Function := \into[Open.ScalarFunction U]
+  ((\fun (x: Open.Carrier U) => C.im (f x)), RealFunctions.Predicate) \by { (regular f).imaginary };
+\definition make[f, g: RealFunctions.Function]: Function := \into[Calculus.Function]
+  ((\fun (x: Open.Carrier U) => C.make (f x) (g x)), Function) \by {
+    Calculus.SmoothLaws[\fun (x: Open.Carrier U) => C.make (f x) (g x)] {
+      real := smooth_partitions.Euclidean[n := n].smoothCongruent U f
+        (\fun (x: Open.Carrier U) => C.re (C.make (f x) (g x)))
+        (\fun (x: Open.Carrier U) => sym!{{R.Real}} _ _ (C.Prop[].reMake (f x) (g x)))
+        (\bysub(Open.ScalarFunction U, RealFunctions.Predicate, f)),
+      imaginary := smooth_partitions.Euclidean[n := n].smoothCongruent U g
+        (\fun (x: Open.Carrier U) => C.im (C.make (f x) (g x)))
+        (\fun (x: Open.Carrier U) => sym!{{R.Real}} _ _ (C.Prop[].imMake (f x) (g x)))
+        (\bysub(Open.ScalarFunction U, RealFunctions.Predicate, g)),
+    }
+  };
+\definition derivative[i: Fin.Fin n][f: Function]: Function := make (Derivatives.apply i (real f)) (Derivatives.apply i (imaginary f));
+\definition conjugate[f: Function]: Function := \into[Calculus.Function]
+  ((\fun (x: Open.Carrier U) => Op.conj (f x)), Function) \by { Calculus.conjugate f (regular f) };
+\definition half[f: Function]: Function := make (RealFunctions.scale R.half (real f)) (RealFunctions.scale R.half (imaginary f));
+\definition Family: \Set := Open.Carrier U -> Inner.Form;
+\structure Metric: \Set := {
+  form: Family,
+  positive: \forall (x: Open.Carrier U) -> Inner.Positive[form x],
+  smooth: \forall (v, w: E.Vector) -> Calculus.Smooth (\fun (x: Open.Carrier U) => (form x).dot v w),
+};
+\definition Section: \Set := Fin.Fin r -> Function;
+\structure Connection: \Set := { coefficient: Fin.Fin n -> Fin.Fin r -> Fin.Fin r -> Function };
+\module DerivativeLaws;
+\module Of(metric: Metric);
+\module Coefficients(form: Family, positive: \forall (x: Open.Carrier U) -> Inner.Positive[form x],
+  smooth: \forall (a, b: Fin.Fin r) -> Calculus.Smooth (\fun (x: Open.Carrier U) => (form x).dot (E.basis a) (E.basis b)));

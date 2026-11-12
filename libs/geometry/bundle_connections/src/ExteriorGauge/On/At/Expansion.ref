@@ -1,0 +1,32 @@
+\import \parent.Algebra[] \as Algebra;
+\import \parent.Tangent[] \as Tangent;
+\import Spaces.Linear[V := Vectors.Vector, W := R.Real, source := Vectors.space, target := Spaces.scalarSpace] \as Maps;
+\import Spaces.Finite[V := Vectors.Vector, I := Fin.Fin r, space := Vectors.space] \as BasisSums;
+\import Spaces.Sums[I := Fin.Fin r] \as Entries;
+\import Entries.Prop[] \as EntryLaws;
+\import Entries.Vector[V := Vectors.Vector, space := Vectors.space].Mapping[W := R.Real, target := Spaces.scalarSpace] \as Mapping;
+\definition slotMap[b: Fin.Fin rank][args: Multilinear.Arguments k][slot: Fin.Fin k]: Maps.Map := Maps.Map {
+  apply := \fun (v: Vectors.Vector) => word b (Multilinear.update k args slot v),
+  preservesAdd := \fun (v, w: Vectors.Vector) => ((\bysub(Multilinear.Function k, Alternating.Form k, word b)).linear).addition args slot v w,
+  preservesScale := \fun (c: R.Real)(v: Vectors.Vector) => ((\bysub(Multilinear.Function k, Alternating.Form k, word b)).linear).scalar args slot c v,
+};
+\definition slotExpansion: \forall (b: Fin.Fin rank)(args: Multilinear.Arguments k)(slot: Fin.Fin k)(v: Vectors.Vector) ->
+  word b (Multilinear.update k args slot v) = Entries.sum (Fin.elements r) (\fun (c: Fin.Fin r) => R.mul (word b (Multilinear.update k args slot (Basis.vectors c))) (v c)) :=
+  \fun (b: Fin.Fin rank)(args: Multilinear.Arguments k)(slot: Fin.Fin k)(v: Vectors.Vector) => eq_reason_in!{{R.Real} { word b (Multilinear.update k args slot v) }
+    "=" { (slotMap b args slot).apply (BasisSums.synthesize Basis.basis v) } "by" {
+      congr!{{Vectors.Vector} {R.Real}} (slotMap b args slot).apply v (BasisSums.synthesize Basis.basis v) (sym!{{Vectors.Vector}} _ _ (Basis.reconstruction v)) }
+    "=" { Entries.sum (Fin.elements r) (\fun (c: Fin.Fin r) => (slotMap b args slot).apply (Vectors.scale (v c) (Basis.vectors c))) } "by" {
+      Mapping.law (slotMap b args slot) (Fin.elements r) (\fun (c: Fin.Fin r) => Vectors.scale (v c) (Basis.vectors c)) }
+    "=" _ "by" { EntryLaws.congruent (Fin.elements r)
+      (\fun (c: Fin.Fin r) => (slotMap b args slot).apply (Vectors.scale (v c) (Basis.vectors c)))
+      (\fun (c: Fin.Fin r) => R.mul (word b (Multilinear.update k args slot (Basis.vectors c))) (v c))
+      (\fun (c: Fin.Fin r) => trans!{{R.Real}} _ _ _ ((slotMap b args slot).preservesScale (v c) (Basis.vectors c))
+        (Spaces.mulComm (v c) (word b (Multilinear.update k args slot (Basis.vectors c))))) }
+  };
+\definition coefficient[a, b: Fin.Fin rank][slot: Fin.Fin k][c: Fin.Fin r]: R.Real := word b (Multilinear.update k (Algebra.standard a) slot (Basis.vectors c));
+\definition actionExpansion: \forall (A: Algebra.Numeric)(a, b: Fin.Fin rank) -> Tangent.action A a b =
+  Sums.sum (Fin.elements k) (\fun (slot: Fin.Fin k) => Entries.sum (Fin.elements r) (\fun (c: Fin.Fin r) => R.mul (coefficient a b slot c) (A (Coordinates.enumerate a slot) c))) :=
+  \fun (A: Algebra.Numeric)(a, b: Fin.Fin rank) => SumLaws.congruent (Fin.elements k)
+    (Tangent.entry Algebra.identity A a b)
+    (\fun (slot: Fin.Fin k) => Entries.sum (Fin.elements r) (\fun (c: Fin.Fin r) => R.mul (coefficient a b slot c) (A (Coordinates.enumerate a slot) c)))
+    (\fun (slot: Fin.Fin k) => slotExpansion b (Algebra.standard a) slot (A (Coordinates.enumerate a slot)));

@@ -1,0 +1,58 @@
+\import std.Data[].Nat[] \as N;
+\import std.Data[].FinSet[] \as Fin;
+\import std.Data[].Pair[] \as Pairs;
+\import std.Logic[].Equality[] \as Equality;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Classical[] \as Classical;
+\use Equality.trans;
+\use Equality.sym;
+\use Equality.congr;
+\use Equality.eq_reason_in;
+\use Logic.either;
+\import real.Analysis[] \as R;
+\import R.FiniteSums[] \as Sums;
+\import linear_algebra.Commutative[K := R.Real, scalarRing := std.Alg[].Field[].fieldAsCommutativeRing R.Real R.Algebra[].field] \as Spaces;
+\import bundle_operations.Operations[].Over[K := R.Real, field := R.Algebra[].field, conjugation := linear_algebra.Hermitian[].Real[].scalar, scalar := vector_bundles.Bundles[].Real[].scalar] \as Operations;
+\import Operations.PairIndices[n := r, m := s] \as PairsIndex;
+\definition Pair: \Set := PairsIndex.Pair;
+\definition first: Pair -> Fin.Fin r := Pairs.first (Fin.Fin r) (Fin.Fin s);
+\definition second: Pair -> Fin.Fin s := Pairs.second (Fin.Fin r) (Fin.Fin s);
+\definition pair: Fin.Fin r -> Fin.Fin s -> Pair := Pairs.pair (Fin.Fin r) (Fin.Fin s);
+\import Pairs.Prop[A := Fin.Fin r, B := Fin.Fin s] \as PairLaws;
+\import Spaces.Coordinates[I := Pair].Kronecker[] \as Delta;
+\import Spaces.Coordinates[I := Fin.Fin r].Kronecker[] \as Left;
+\import Spaces.Coordinates[I := Fin.Fin s].Kronecker[] \as Right;
+\import Spaces.FiniteCoordinateEnumeration[] \as Enumeration;
+\definition deltaProduct: \forall (p, q: Pair) -> Delta.delta p q = R.mul (Left.delta (first p) (first q)) (Right.delta (second p) (second q)) :=
+  \fun (p, q: Pair) => either!{{Classical.excludedMiddle (first p = first q)}
+    {Delta.delta p q = R.mul (Left.delta (first p) (first q)) (Right.delta (second p) (second q))}
+    {\fun (left: first p = first q) => either!{{Classical.excludedMiddle (second p = second q)}
+      {Delta.delta p q = R.mul (Left.delta (first p) (first q)) (Right.delta (second p) (second q))}
+      {\fun (right: second p = second q) => trans!{{R.Real}} _ _ _ (Delta.equal p q (PairLaws.ext p q left right))
+        (sym!{{R.Real}} _ _ (trans!{{R.Real}} _ _ _
+          (congr!{{R.Real} {R.Real} {R.Real}} R.mul _ _ _ _ (Left.equal (first p) (first q) left) (Right.equal (second p) (second q) right)) (Spaces.mulOneLeft R.one)))}
+      {\fun (right: Logic.Not (second p = second q)) => trans!{{R.Real}} _ _ _ (Delta.different p q (\fun (same: p = q) => right (PairLaws.secondCong p q same)))
+        (sym!{{R.Real}} _ _ (trans!{{R.Real}} _ _ _ (congr!{{R.Real} {R.Real}} (R.mul (Left.delta (first p) (first q))) _ _ (Right.different (second p) (second q) right))
+          (Spaces.mulZeroRight (Left.delta (first p) (first q)))))}}}
+    {\fun (left: Logic.Not (first p = first q)) => trans!{{R.Real}} _ _ _ (Delta.different p q (\fun (same: p = q) => left (PairLaws.firstCong p q same)))
+      (sym!{{R.Real}} _ _ (trans!{{R.Real}} _ _ _ (congr!{{R.Real} {R.Real}} (\fun (x: R.Real) => R.mul x (Right.delta (second p) (second q))) _ _
+        (Left.different (first p) (first q) left)) (Spaces.mulZeroLeft (Right.delta (second p) (second q)))))}};
+\definition rightScalar: \forall (m: N.Nat^)(c: R.Real)(f: Fin.Fin m -> R.Real) -> Sums.sum m (\fun (a: Fin.Fin m) => R.mul (f a) c) = R.mul (Sums.sum m f) c :=
+  \fun (m: N.Nat^)(c: R.Real)(f: Fin.Fin m -> R.Real) => eq_reason_in!{{R.Real} _
+    "=" _ "by" { Sums.congruent m _ _ (\fun (a: Fin.Fin m) => Spaces.mulComm (f a) c) }
+    "=" _ "by" { Sums.scalar m c f }
+    "=" _ "by" { Spaces.mulComm c (Sums.sum m f) }
+  };
+\definition leftSum: \forall (a: Fin.Fin r) -> Sums.sum r (\fun (b: Fin.Fin r) => Left.delta b a) = R.one :=
+  \fun (a: Fin.Fin r) => eq_reason_in!{{R.Real} _
+    "=" _ "by" { Sums.congruent r _ _ (\fun (b: Fin.Fin r) => trans!{{R.Real}} _ _ _ (Left.symmetric b a) (sym!{{R.Real}} _ _ (Spaces.mulOneLeft (Left.delta a b)))) }
+    "=" _ "by" { sym!{{R.Real}} _ _ (Enumeration.sumLaw r (\fun (b: Fin.Fin r) => R.mul R.one (Left.delta a b))) }
+    "=" _ "by" { Spaces.FiniteCoordinates[n := r].dualReconstruction (\fun (b: Fin.Fin r) => R.one) a }
+  };
+\definition rightSum: \forall (a: Fin.Fin s) -> Sums.sum s (\fun (b: Fin.Fin s) => Right.delta b a) = R.one :=
+  \fun (a: Fin.Fin s) => eq_reason_in!{{R.Real} _
+    "=" _ "by" { Sums.congruent s _ _ (\fun (b: Fin.Fin s) => trans!{{R.Real}} _ _ _ (Right.symmetric b a) (sym!{{R.Real}} _ _ (Spaces.mulOneLeft (Right.delta a b)))) }
+    "=" _ "by" { sym!{{R.Real}} _ _ (Enumeration.sumLaw s (\fun (b: Fin.Fin s) => R.mul R.one (Right.delta a b))) }
+    "=" _ "by" { Spaces.FiniteCoordinates[n := s].dualReconstruction (\fun (b: Fin.Fin s) => R.one) a }
+  };
+\module Using(enumeration: PairsIndex.Enumeration);

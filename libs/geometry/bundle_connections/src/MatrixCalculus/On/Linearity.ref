@@ -1,0 +1,66 @@
+\import \parent.Associativity[] \as Algebra;
+\import Spaces.DependentProduct[I := Fin.Fin r, F := \fun (a: Fin.Fin r) => Scalar.Form one, familySpace := \fun (a: Fin.Fin r) => OneForms.space] \as Rows;
+\import Spaces.DependentProduct[I := Fin.Fin r, F := \fun (a: Fin.Fin r) => Rows.Carrier, familySpace := \fun (a: Fin.Fin r) => Rows.space] \as Matrices;
+\definition space: Spaces.VectorSpace Matrix1 := Matrices.space;
+\definition scale: R.Real -> Matrix1 -> Matrix1 := space.smul;
+\definition origin: Matrix1 := space.zero;
+\definition negative: Matrix1 -> Matrix1 := space.neg;
+\definition scale0[c: R.Real][A: Matrix0]: Matrix0 := \fun (a, b: Fin.Fin r) => Functions.scale c (A a b);
+\import Spaces.Laws[V := Matrix1, space := space] \as Laws;
+\import Spaces.Laws[V := R.Real, space := Spaces.scalarSpace] \as Scalars;
+\import Spaces.Linear[V := Matrix1, W := Matrix1, source := space, target := space] \as Maps;
+\definition ext: \forall (A, B: Matrix1) -> (\forall (a, b: Fin.Fin r) -> A a b = B a b) -> A = B :=
+  \fun (A, B: Matrix1)(same: _) => \axiom:funext(A, B, \fun (a: Fin.Fin r) => \axiom:funext(A a, B a, same a));
+\definition sumScalar: \forall (m: N.Nat^)(c: R.Real)(f: Fin.Fin m -> Scalar.Form one) -> sum1 m (\fun (a: Fin.Fin m) => OneForms.scale c (f a)) = OneForms.scale c (sum1 m f) :=
+  \induction (m: N.Nat^) \return \forall (c: R.Real)(f: Fin.Fin m -> Scalar.Form one) -> sum1 m (\fun (a: Fin.Fin m) => OneForms.scale c (f a)) = OneForms.scale c (sum1 m f) \with {
+    | zero: \fun (c: R.Real)(f: _) => sym!{{Scalar.Form one}} _ _ (Spaces.Laws[V := Scalar.Form one, space := OneForms.space].scaleZero c)
+    | succ: \fun (m: N.Nat^)(previous: _)(c: R.Real)(f: _) => trans!{{Scalar.Form one}} _ _ _
+      (congr!{{Scalar.Form one} {Scalar.Form one}} (OneForms.plus (OneForms.scale c (f (Fin.zero m)))) _ _
+        (previous c (\fun (a: Fin.Fin m) => f (Fin.succ m a))))
+      (sym!{{Scalar.Form one}} _ _ (OneForms.space.vectorAdd c (f (Fin.zero m)) (sum1 m (\fun (a: Fin.Fin m) => f (Fin.succ m a)))))
+  };
+\definition multiplyScalar: \forall (f: Functions.Function)(c: R.Real)(A: Scalar.Form one) -> OneForms.multiply f (OneForms.scale c A) = OneForms.scale c (OneForms.multiply f A) :=
+  \fun (f: Functions.Function)(c: R.Real)(A: Scalar.Form one) => Scalar.ext one (OneForms.multiply f (OneForms.scale c A)) (OneForms.scale c (OneForms.multiply f A))
+    (\fun (x: Open.Carrier U)(v: Multilinear.Arguments one) => Scalars.scaleComm (f x) c (A x v));
+\definition scaleMultiply: \forall (c: R.Real)(f: Functions.Function)(A: Scalar.Form one) -> OneForms.multiply (Functions.scale c f) A = OneForms.scale c (OneForms.multiply f A) :=
+  \fun (c: R.Real)(f: Functions.Function)(A: Scalar.Form one) => Scalar.ext one (OneForms.multiply (Functions.scale c f) A) (OneForms.scale c (OneForms.multiply f A))
+    (\fun (x: Open.Carrier U)(v: Multilinear.Arguments one) => Spaces.mulAssoc c (f x) (A x v));
+\definition multiplyAdd: \forall (f: Functions.Function)(A, B: Scalar.Form one) -> OneForms.multiply f (OneForms.plus A B) = OneForms.plus (OneForms.multiply f A) (OneForms.multiply f B) :=
+  \fun (f: Functions.Function)(A, B: Scalar.Form one) => Scalar.ext one (OneForms.multiply f (OneForms.plus A B)) (OneForms.plus (OneForms.multiply f A) (OneForms.multiply f B))
+    (\fun (x: Open.Carrier U)(v: Multilinear.Arguments one) => Spaces.mulAdd (f x) (A x v) (B x v));
+\definition leftScale: \forall (A: Matrix0)(c: R.Real)(B: Matrix1) -> product01 A (scale c B) = scale c (product01 A B) :=
+  \fun (A: Matrix0)(c: R.Real)(B: Matrix1) => ext (product01 A (scale c B)) (scale c (product01 A B)) (\fun (a, b: Fin.Fin r) => trans!{{Scalar.Form one}} _ _ _
+    (sum1Congruent r _ _ (\fun (d: Fin.Fin r) => multiplyScalar (A a d) c (B d b))) (sumScalar r c _));
+\definition rightScale: \forall (A: Matrix1)(c: R.Real)(B: Matrix0) -> product10 (scale c A) B = scale c (product10 A B) :=
+  \fun (A: Matrix1)(c: R.Real)(B: Matrix0) => ext (product10 (scale c A) B) (scale c (product10 A B)) (\fun (a, b: Fin.Fin r) => trans!{{Scalar.Form one}} _ _ _
+    (sum1Congruent r _ _ (\fun (d: Fin.Fin r) => multiplyScalar (B d b) c (A a d))) (sumScalar r c _));
+\definition leftScale0: \forall (c: R.Real)(A: Matrix0)(B: Matrix1) -> product01 (scale0 c A) B = scale c (product01 A B) :=
+  \fun (c: R.Real)(A: Matrix0)(B: Matrix1) => ext (product01 (scale0 c A) B) (scale c (product01 A B)) (\fun (a, b: Fin.Fin r) => trans!{{Scalar.Form one}} _ _ _
+    (sum1Congruent r _ _ (\fun (d: Fin.Fin r) => scaleMultiply c (A a d) (B d b))) (sumScalar r c _));
+\definition rightScale0: \forall (c: R.Real)(A: Matrix1)(B: Matrix0) -> product10 A (scale0 c B) = scale c (product10 A B) :=
+  \fun (c: R.Real)(A: Matrix1)(B: Matrix0) => ext (product10 A (scale0 c B)) (scale c (product10 A B)) (\fun (a, b: Fin.Fin r) => trans!{{Scalar.Form one}} _ _ _
+    (sum1Congruent r _ _ (\fun (d: Fin.Fin r) => scaleMultiply c (B d b) (A a d))) (sumScalar r c _));
+\definition rightAdd: \forall (A, B: Matrix1)(C: Matrix0) -> product10 (plus A B) C = plus (product10 A C) (product10 B C) :=
+  \fun (A, B: Matrix1)(C: Matrix0) => ext (product10 (plus A B) C) (plus (product10 A C) (product10 B C)) (\fun (a, b: Fin.Fin r) => trans!{{Scalar.Form one}} _ _ _
+    (sum1Congruent r _ _ (\fun (d: Fin.Fin r) => multiplyAdd (C d b) (A a d) (B a d))) (sum1Add r _ _));
+\definition leftMap[A: Matrix0]: Maps.Map := Maps.Map { apply := product01 A, preservesAdd := Algebra.distribute A, preservesScale := leftScale A };
+\definition rightMap[B: Matrix0]: Maps.Map := Maps.Map {
+  apply := \fun (A: Matrix1) => product10 A B,
+  preservesAdd := \fun (A, C: Matrix1) => rightAdd A C B,
+  preservesScale := \fun (c: R.Real)(A: Matrix1) => rightScale A c B,
+};
+\import Spaces.FiniteCoordinates[n := r] \as Basis;
+\import Spaces.Coordinates[I := Fin.Fin r].Kronecker[] \as Kronecker;
+\import Spaces.FiniteCoordinateEnumeration[] \as Enumeration;
+\definition rightIdentity: \forall (A: Matrix1) -> product10 A Algebra.identity = A :=
+  \fun (A: Matrix1) => ext (product10 A Algebra.identity) A (\fun (a, b: Fin.Fin r) => Scalar.ext one (product10 A Algebra.identity a b) (A a b)
+    (\fun (x: Open.Carrier U)(v: Multilinear.Arguments one) => eq_reason_in!{{R.Real} _
+      "=" _ "by" { value10 A Algebra.identity a b x v }
+      "=" _ "by" { Sums.congruent r _ _ (\fun (c: Fin.Fin r) => congr!{{R.Real} {R.Real}} (R.mul (A a c x v)) _ _ (Kronecker.symmetric c b)) }
+      "=" _ "by" { sym!{{R.Real}} _ _ (Enumeration.sumLaw r (\fun (c: Fin.Fin r) => R.mul (A a c x v) (Basis.vectors b c))) }
+      "=" _ "by" { Basis.dualReconstruction (\fun (c: Fin.Fin r) => A a c x v) b }
+    }));
+\import Multilinear.Alternating[].DegreeZero[] \as ConstantForms;
+\definition dConstant: \forall (c: R.Real) -> differential (Functions.constant c) = OneForms.zero := \fun (c: R.Real) => D.constant (ConstantForms.constant c);
+
+\definition dIdentity: dMatrix Algebra.identity = origin := ext (dMatrix Algebra.identity) origin (\fun (a, b: Fin.Fin r) => dConstant (Basis.vectors a b));

@@ -1,0 +1,33 @@
+\import Spaces.Linear[V := Vectors.Vector, W := Vectors.Vector, source := Vectors.space, target := Vectors.space] \as End;
+\import RealSpaces.Linear[V := RealVectors.Vector, W := RealVectors.Vector, source := RealVectors.space, target := RealVectors.space] \as RealEnd;
+\import Restricted.Maps[W := Vectors.Vector, target := Vectors.space] \as Restrict;
+\import RealSpaces.Linear[V := Vectors.Vector, W := Vectors.Vector, source := Restricted.realSpace, target := Restricted.realSpace].Composition[U := RealVectors.Vector, domain := RealVectors.space] \as Before;
+\import RealSpaces.Linear[V := Vectors.Vector, W := RealVectors.Vector, source := Restricted.realSpace, target := RealVectors.space].Composition[U := RealVectors.Vector, domain := RealVectors.space] \as After;
+\definition realify[f: End.Map]: RealEnd.Map := After.compose RealCoordinates.frame.forward (Before.compose (Restrict.map f) RealCoordinates.frame.backward);
+\import Spaces.Laws[V := Vectors.Vector, space := Vectors.space] \as VectorLaws;
+\definition imaginary: End.Map := End.Map {
+  apply := Vectors.scale Op.i,
+  preservesAdd := \fun (v, w: Vectors.Vector) => Vectors.space.vectorAdd Op.i v w,
+  preservesScale := \fun (z: C.Complex)(v: Vectors.Vector) => VectorLaws.scaleComm Op.i z v,
+};
+\definition J: RealEnd.Map := realify imaginary;
+\definition square: \forall (v: RealVectors.Vector) -> J.apply (J.apply v) = RealVectors.negative v :=
+  \fun (v: RealVectors.Vector) => eq_reason_in!{{RealVectors.Vector} _
+    "=" _ "by" { congr!{{Vectors.Vector} {RealVectors.Vector}} (\fun (w: Vectors.Vector) => Coordinates.encode (Vectors.scale Op.i w)) _ _
+      (Coordinates.decodeEncode (Vectors.scale Op.i (Coordinates.decode v))) }
+    "=" _ "by" { congr!{{Vectors.Vector} {RealVectors.Vector}} Coordinates.encode _ _ (sym!{{Vectors.Vector}} _ _
+      (Vectors.space.scalarAssoc Op.i Op.i (Coordinates.decode v))) }
+    "=" _ "by" { congr!{{C.Complex} {RealVectors.Vector}} (\fun (z: C.Complex) => Coordinates.encode (Vectors.scale z (Coordinates.decode v))) _ _ C.Prop[].iSquared }
+    "=" _ "by" { congr!{{Vectors.Vector} {RealVectors.Vector}} Coordinates.encode _ _ (VectorLaws.minusOneScale (Coordinates.decode v)) }
+    "=" _ "by" { RealSpaces.Linear[V := Vectors.Vector, W := RealVectors.Vector, source := Restricted.realSpace, target := RealVectors.space].Operations[].preservesNeg RealCoordinates.frame.forward (Coordinates.decode v) }
+    "=" _ "by" { congr!{{RealVectors.Vector} {RealVectors.Vector}} RealVectors.negative _ _ (Coordinates.encodeDecode v) }
+  };
+\definition commutes: \forall (f: End.Map)(v: RealVectors.Vector) -> (realify f).apply (J.apply v) = J.apply ((realify f).apply v) :=
+  \fun (f: End.Map)(v: RealVectors.Vector) => eq_reason_in!{{RealVectors.Vector} _
+    "=" _ "by" { congr!{{Vectors.Vector} {RealVectors.Vector}} (\fun (w: Vectors.Vector) => Coordinates.encode (f.apply w)) _ _
+      (Coordinates.decodeEncode (Vectors.scale Op.i (Coordinates.decode v))) }
+    "=" _ "by" { congr!{{Vectors.Vector} {RealVectors.Vector}} Coordinates.encode _ _ (f.preservesScale Op.i (Coordinates.decode v)) }
+    "=" _ "by" { congr!{{Vectors.Vector} {RealVectors.Vector}} (\fun (w: Vectors.Vector) => Coordinates.encode (Vectors.scale Op.i w)) _ _
+      (sym!{{Vectors.Vector}} _ _ (Coordinates.decodeEncode (f.apply (Coordinates.decode v)))) }
+  };
+\module On(U: Open.OpenSet);

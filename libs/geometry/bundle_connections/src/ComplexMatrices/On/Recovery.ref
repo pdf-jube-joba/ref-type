@@ -1,0 +1,55 @@
+\import \parent.Numeric[] \as Numeric;
+\import \parent.Algebra[] \as Algebra;
+\import Fin.Sum[m := r, n := r] \as Indices;
+\import Spaces.FiniteCoordinates[n := r] \as Standard;
+\import \root.Local[n := n, r := realRank].On[U := U] \as RealLocal;
+\import R.FiniteSums[] \as RSums;
+\import RealMatrices.Associativity[] \as RealAlgebra;
+\definition basis[b: Fin.Fin r]: RealVectors.Vector := Coordinates.encode (Standard.vectors b);
+\definition weighted0[A: RealMatrices.Matrix0][a: Fin.Fin realRank][b: Fin.Fin r]: RealFunctions.Function :=
+  RealLocal.sum realRank (\fun (c: Fin.Fin realRank) => RealFunctions.scale (basis b c) (A a c));
+\definition weighted1[A: RealMatrices.Matrix1][a: Fin.Fin realRank][b: Fin.Fin r]: Scalar.Form one :=
+  RealMatrices.sum1 realRank (\fun (c: Fin.Fin realRank) => Forms.scale (basis b c) (A a c));
+\definition recover0[A: RealMatrices.Matrix0]: Matrix0 := \fun (a, b: Fin.Fin r) => Functions.make (weighted0 A (Indices.left a) b) (weighted0 A (Indices.right a) b);
+\definition recover1[A: RealMatrices.Matrix1]: Matrix1 := \fun (a, b: Fin.Fin r) => OneForm { real := weighted1 A (Indices.left a) b, imaginary := weighted1 A (Indices.right a) b };
+\definition weightedValue0: \forall (A: RealMatrices.Matrix0)(a: Fin.Fin realRank)(b: Fin.Fin r)(x: Open.Carrier U) ->
+  weighted0 A a b x = Numeric.realAction (RealAlgebra.eval0 A x) (basis b) a :=
+  \fun (A: RealMatrices.Matrix0)(a: Fin.Fin realRank)(b: Fin.Fin r)(x: Open.Carrier U) => RSums.congruent realRank _ _ (\fun (c: Fin.Fin realRank) => Reals.mulComm (basis b c) (A a c x));
+\definition weightedValue1: \forall (A: RealMatrices.Matrix1)(a: Fin.Fin realRank)(b: Fin.Fin r)(x: Open.Carrier U)(v: Multilinear.Arguments one) ->
+  weighted1 A a b x v = Numeric.realAction (RealAlgebra.eval1 A x v) (basis b) a :=
+  \fun (A: RealMatrices.Matrix1)(a: Fin.Fin realRank)(b: Fin.Fin r)(x: Open.Carrier U)(v: Multilinear.Arguments one) => trans!{{R.Real}} _ _ _
+    (RealMatrices.sum1Value realRank (\fun (c: Fin.Fin realRank) => Forms.scale (basis b c) (A a c)) x v)
+    (RSums.congruent realRank _ _ (\fun (c: Fin.Fin realRank) => Reals.mulComm (basis b c) (A a c x v)));
+\definition eval0: \forall (A: RealMatrices.Matrix0)(x: Open.Carrier U) -> Algebra.eval0 (recover0 A) x = Numeric.recover (RealAlgebra.eval0 A x) :=
+  \fun (A: RealMatrices.Matrix0)(x: Open.Carrier U) => Algebra.numericExt (Algebra.eval0 (recover0 A) x) (Numeric.recover (RealAlgebra.eval0 A x))
+    (\fun (a, b: Fin.Fin r) => congr!{{R.Real} {R.Real} {C.Complex}} C.make _ _ _ _ (weightedValue0 A (Indices.left a) b x) (weightedValue0 A (Indices.right a) b x));
+\definition eval1: \forall (A: RealMatrices.Matrix1)(x: Open.Carrier U)(v: Multilinear.Arguments one) -> Algebra.eval1 (recover1 A) x v = Numeric.recover (RealAlgebra.eval1 A x v) :=
+  \fun (A: RealMatrices.Matrix1)(x: Open.Carrier U)(v: Multilinear.Arguments one) => Algebra.numericExt (Algebra.eval1 (recover1 A) x v) (Numeric.recover (RealAlgebra.eval1 A x v))
+    (\fun (a, b: Fin.Fin r) => congr!{{R.Real} {R.Real} {C.Complex}} C.make _ _ _ _ (weightedValue1 A (Indices.left a) b x v) (weightedValue1 A (Indices.right a) b x v));
+\import Scalar.DegreeZero[] \as ZeroForms;
+\import Scalar.ExteriorDerivative[k := N.Nat^::zero] \as D;
+\definition dScale: \forall (c: R.Real)(f: RealFunctions.Function) -> RealMatrices.differential (RealFunctions.scale c f) = Forms.scale c (RealMatrices.differential f) :=
+  \fun (c: R.Real)(f: RealFunctions.Function) => trans!{{Scalar.Form one}} _ _ _
+    (congr!{{Scalar.Form N.Nat^::zero} {Scalar.Form one}} D.apply _ _ (ZeroForms.forward.preservesScale c f)) (D.scalar c (ZeroForms.apply f));
+\definition weightedDerivative: \forall (A: RealMatrices.Matrix0)(a: Fin.Fin realRank)(b: Fin.Fin r) -> RealMatrices.differential (weighted0 A a b) = weighted1 (RealMatrices.dMatrix A) a b :=
+  \fun (A: RealMatrices.Matrix0)(a: Fin.Fin realRank)(b: Fin.Fin r) => trans!{{Scalar.Form one}} _ _ _
+    (RealMatrices.dSum realRank (\fun (c: Fin.Fin realRank) => RealFunctions.scale (basis b c) (A a c)))
+    (RealMatrices.sum1Congruent realRank (\fun (c: Fin.Fin realRank) => RealMatrices.differential (RealFunctions.scale (basis b c) (A a c)))
+      (\fun (c: Fin.Fin realRank) => Forms.scale (basis b c) (RealMatrices.differential (A a c))) (\fun (c: Fin.Fin realRank) => dScale (basis b c) (A a c)));
+\definition derivative: \forall (A: RealMatrices.Matrix0) -> dMatrix (recover0 A) = recover1 (RealMatrices.dMatrix A) :=
+  \fun (A: RealMatrices.Matrix0) => \axiom:funext(dMatrix (recover0 A), recover1 (RealMatrices.dMatrix A), \fun (a: Fin.Fin r) =>
+    \axiom:funext(dMatrix (recover0 A) a, recover1 (RealMatrices.dMatrix A) a, \fun (b: Fin.Fin r) =>
+      Algebra.componentsExt (dMatrix (recover0 A) a b) (recover1 (RealMatrices.dMatrix A) a b)
+        (weightedDerivative A (Indices.left a) b) (weightedDerivative A (Indices.right a) b)));
+\definition weightedAdd: \forall (A, B: RealMatrices.Matrix1)(a: Fin.Fin realRank)(b: Fin.Fin r) -> weighted1 (RealMatrices.plus A B) a b = Forms.plus (weighted1 A a b) (weighted1 B a b) :=
+  \fun (A, B: RealMatrices.Matrix1)(a: Fin.Fin realRank)(b: Fin.Fin r) => trans!{{Scalar.Form one}} _ _ _
+    (RealMatrices.sum1Congruent realRank
+      (\fun (c: Fin.Fin realRank) => Forms.scale (basis b c) (Forms.plus (A a c) (B a c)))
+      (\fun (c: Fin.Fin realRank) => Forms.plus (Forms.scale (basis b c) (A a c)) (Forms.scale (basis b c) (B a c)))
+      (\fun (c: Fin.Fin realRank) => Forms.space.vectorAdd (basis b c) (A a c) (B a c)))
+    (RealMatrices.sum1Add realRank (\fun (c: Fin.Fin realRank) => Forms.scale (basis b c) (A a c)) (\fun (c: Fin.Fin realRank) => Forms.scale (basis b c) (B a c)));
+\definition addition: \forall (A, B: RealMatrices.Matrix1) -> recover1 (RealMatrices.plus A B) = plus (recover1 A) (recover1 B) :=
+  \fun (A, B: RealMatrices.Matrix1) => \axiom:funext(recover1 (RealMatrices.plus A B), plus (recover1 A) (recover1 B), \fun (a: Fin.Fin r) =>
+    \axiom:funext(recover1 (RealMatrices.plus A B) a, plus (recover1 A) (recover1 B) a, \fun (b: Fin.Fin r) =>
+      Algebra.componentsExt (recover1 (RealMatrices.plus A B) a b) (plus (recover1 A) (recover1 B) a b)
+        (weightedAdd A B (Indices.left a) b) (weightedAdd A B (Indices.right a) b)));

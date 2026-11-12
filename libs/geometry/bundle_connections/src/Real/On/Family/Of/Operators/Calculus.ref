@@ -1,0 +1,44 @@
+\use Equality.eq_reason_in;
+\import \root.MatrixCalculus[n := n, r := r].On[U := U] \as Matrices;
+\import Matrices.Associativity[] \as Algebra;
+\import Euclidean.On[U := U] \as Forms;
+\import Forms.At[k := one] \as One;
+\import Spaces.Laws[V := Forms.Form one, space := One.space] \as Addition;
+\definition covariant[A: Matrices.Matrix1][s: Matrices.Matrix0]: Matrices.Matrix1 := Matrices.plus (Matrices.dMatrix s) (Matrices.product10 A s);
+\definition ext: \forall (A, B: Matrices.Matrix1) -> (\forall (a, b: Fin.Fin r) -> A a b = B a b) -> A = B :=
+  \fun (A, B: Matrices.Matrix1)(same: _) => \axiom:funext(A, B, \fun (a: Fin.Fin r) => \axiom:funext(A a, B a, same a));
+\definition associate: \forall (A, B, C: Matrices.Matrix1) -> Matrices.plus (Matrices.plus A B) C = Matrices.plus A (Matrices.plus B C) :=
+  \fun (A, B, C: Matrices.Matrix1) => ext _ _ (\fun (a, b: Fin.Fin r) => Addition.assoc (A a b) (B a b) (C a b));
+\definition commute: \forall (A, B: Matrices.Matrix1) -> Matrices.plus A B = Matrices.plus B A :=
+  \fun (A, B: Matrices.Matrix1) => ext _ _ (\fun (a, b: Fin.Fin r) => Addition.comm (A a b) (B a b));
+\definition interchange: \forall (A, B, C: Matrices.Matrix1) -> Matrices.plus (Matrices.plus A B) C = Matrices.plus (Matrices.plus A C) B :=
+  \fun (A, B, C: Matrices.Matrix1) => eq_reason_in!{{Matrices.Matrix1} _
+    "=" _ "by" { associate A B C }
+    "=" _ "by" { congr!{{Matrices.Matrix1} {Matrices.Matrix1}} (Matrices.plus A) _ _ (commute B C) }
+    "=" _ "by" { sym!{{Matrices.Matrix1}} _ _ (associate A C B) }
+  };
+\definition distribute10: \forall (A, B: Matrices.Matrix1)(C: Matrices.Matrix0) -> Matrices.product10 (Matrices.plus A B) C = Matrices.plus (Matrices.product10 A C) (Matrices.product10 B C) :=
+  \fun (A, B: Matrices.Matrix1)(C: Matrices.Matrix0) => ext _ _ (\fun (a, b: Fin.Fin r) => Forms.ext one _ _
+    (\fun (x: Open.Carrier U)(v: Spaces.Multilinear[V := Fin.Fin n -> R.Real, space := Spaces.Coordinates[I := Fin.Fin n].space].Arguments one) => eq_reason_in!{{R.Real} _
+      "=" _ "by" { Matrices.value10 (Matrices.plus A B) C a b x v }
+      "=" _ "by" { R.FiniteSums[].congruent r _ _ (\fun (c: Fin.Fin r) => Spaces.addMul (A a c x v) (B a c x v) (C c b x)) }
+      "=" _ "by" { R.FiniteSums[].addition r (\fun (c: Fin.Fin r) => R.mul (A a c x v) (C c b x)) (\fun (c: Fin.Fin r) => R.mul (B a c x v) (C c b x)) }
+      "=" _ "by" { congr!{{R.Real} {R.Real} {R.Real}} R.add _ _ _ _ (sym!{{R.Real}} _ _ (Matrices.value10 A C a b x v)) (sym!{{R.Real}} _ _ (Matrices.value10 B C a b x v)) }
+    }));
+\definition gauge: \forall (T: Matrices.Matrix0)(A, B: Matrices.Matrix1) ->
+  Matrices.product01 T A = Matrices.plus (Matrices.dMatrix T) (Matrices.product10 B T) ->
+  \forall (s: Matrices.Matrix0) -> covariant B (Matrices.product00 T s) = Matrices.product01 T (covariant A s) :=
+  \fun (T: Matrices.Matrix0)(A, B: Matrices.Matrix1)(compatible: _)(s: Matrices.Matrix0) => eq_reason_in!{{Matrices.Matrix1} _
+    "=" _ "by" { congr!{{Matrices.Matrix1} {Matrices.Matrix1}} (\fun (v: Matrices.Matrix1) => Matrices.plus v (Matrices.product10 B (Matrices.product00 T s))) _ _ (Matrices.productRule T s) }
+    "=" _ "by" { interchange (Matrices.product10 (Matrices.dMatrix T) s) (Matrices.product01 T (Matrices.dMatrix s)) (Matrices.product10 B (Matrices.product00 T s)) }
+    "=" _ "by" { congr!{{Matrices.Matrix1} {Matrices.Matrix1}} (\fun (v: Matrices.Matrix1) => Matrices.plus (Matrices.plus (Matrices.product10 (Matrices.dMatrix T) s) v) (Matrices.product01 T (Matrices.dMatrix s))) _ _
+      (sym!{{Matrices.Matrix1}} _ _ (Algebra.assoc100 B T s)) }
+    "=" _ "by" { congr!{{Matrices.Matrix1} {Matrices.Matrix1}} (\fun (v: Matrices.Matrix1) => Matrices.plus v (Matrices.product01 T (Matrices.dMatrix s))) _ _
+      (sym!{{Matrices.Matrix1}} _ _ (distribute10 (Matrices.dMatrix T) (Matrices.product10 B T) s)) }
+    "=" _ "by" { congr!{{Matrices.Matrix1} {Matrices.Matrix1}} (\fun (v: Matrices.Matrix1) => Matrices.plus (Matrices.product10 v s) (Matrices.product01 T (Matrices.dMatrix s))) _ _
+      (sym!{{Matrices.Matrix1}} _ _ compatible) }
+    "=" _ "by" { congr!{{Matrices.Matrix1} {Matrices.Matrix1}} (\fun (v: Matrices.Matrix1) => Matrices.plus v (Matrices.product01 T (Matrices.dMatrix s))) _ _ (Algebra.assoc010 T A s) }
+    "=" _ "by" { sym!{{Matrices.Matrix1}} _ _ (Algebra.distribute T (Matrices.product10 A s) (Matrices.dMatrix s)) }
+    "=" _ "by" { congr!{{Matrices.Matrix1} {Matrices.Matrix1}} (Matrices.product01 T) _ _ (commute (Matrices.product10 A s) (Matrices.dMatrix s)) }
+  };
+\module Laws;

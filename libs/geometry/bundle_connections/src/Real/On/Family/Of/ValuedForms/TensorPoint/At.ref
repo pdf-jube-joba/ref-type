@@ -1,0 +1,32 @@
+\definition localPoint: Charts.LocalPoint (chart i) := \into[M.Point](x, (chart i).domain) \by { \bysub(I, Index, i) };
+\definition tangentChart: Tangent.Chart := \into[Charts.Chart](chart i, Tangent.Chart) \by {
+  Tangent.ChartLaws[chart i] { member := \bysub(Charts.Chart, M.atlas.charts, chart i), contains := \bysub(I, Index, i) }
+};
+\definition frame: Spaces.Isomorphism[V := F x, W := Fin.Fin r -> R.Real, source := space x, target := Spaces.Coordinates[I := Fin.Fin r].space].Isomorphism := (bundle.atlas.local i).frame localPoint;
+\import Spaces.Coordinates[I := Fin.Fin n] \as Vectors;
+\import Alternating.Precomposition[W := Vectors.Vector, target := Vectors.space] \as Precompose;
+\definition alpha[a: Fin.Fin r]: Cotensor := Precompose.precompose k (Tangent.ChartIsomorphism[chart := tangentChart].forward) (omega i a (Tangent.coordinate tangentChart));
+\import \parent.\parent.\parent.Operators[].TensorCoordinates[x := x, W := Cotensor, target := cotensorSpace, frame := frame] \as Coordinates;
+\definition value: Tensor.Carrier := Coordinates.synthesis alpha;
+\import Spaces.Sums[I := Fin.Fin r].Vector[V := Cotensor, space := cotensorSpace] \as FormSums;
+\import Spaces.Sums[I := Fin.Fin r] \as ScalarSums;
+\import Spaces.Coordinates[I := Fin.Fin r].Kronecker[] \as Delta;
+\import Spaces.Linear[V := Cotensor, W := R.Real, source := cotensorSpace, target := Spaces.scalarSpace] \as Evaluations;
+\definition evaluation[arguments: Fin.Fin k -> Tangent.Vector]: Evaluations.Map := Evaluations.Map {
+  apply := \fun (alpha: Cotensor) => alpha arguments,
+  preservesAdd := \fun (alpha, beta: Cotensor) => \refl(R.add (alpha arguments) (beta arguments)),
+  preservesScale := \fun (c: R.Real)(alpha: Cotensor) => \refl(R.mul c (alpha arguments))
+};
+\import Spaces.Finite[V := F x, I := Fin.Fin r, space := space x].Dimension[] \as Dimension;
+\definition recovery: Coordinates.forward.apply value = alpha :=
+  \axiom:funext(Coordinates.forward.apply value, alpha, \fun (a: Fin.Fin r) => \axiom:funext(Coordinates.forward.apply value a, alpha a,
+    \fun (arguments: Fin.Fin k -> Tangent.Vector) => trans!{{R.Real}} _ _ _
+      (congr!{{Cotensor} {R.Real}} (\fun (beta: Cotensor) => beta arguments) _ _ (Coordinates.Projection[a := a].onSum Coordinates.basis.vectors alpha))
+      (trans!{{R.Real}} _ _ _
+        (FormSums.Mapping[W := R.Real, target := Spaces.scalarSpace].law (evaluation arguments) (Fin.elements r)
+          (\fun (b: Fin.Fin r) => cotensorSpace.smul (frame.forward.apply (Coordinates.basis.vectors b) a) (alpha b)))
+        (trans!{{R.Real}} _ _ _
+          (ScalarSums.Prop[].congruent (Fin.elements r) _ _ (\fun (b: Fin.Fin r) => congr!{{R.Real} {R.Real}}
+            (\fun (c: R.Real) => R.mul c (alpha b arguments)) _ _ (Dimension.biorthogonal Coordinates.basis b a)))
+          (ScalarSums.Single[].extract (Fin.elements r) (Spaces.FiniteCoordinateEnumeration[].distinct r) a (Fin.exhaustive r a)
+            (\fun (b: Fin.Fin r) => alpha b arguments))))));

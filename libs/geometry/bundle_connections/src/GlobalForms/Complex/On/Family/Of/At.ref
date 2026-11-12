@@ -1,0 +1,30 @@
+\definition next: N.Nat^ := N.Nat^::succ k;
+\import Underlying.ValuedForms[k := k] \as Forms;
+\import Underlying.ValuedForms[k := next] \as NextForms;
+\definition Form: \Set := Forms.Form;
+\definition imaginaryData[omega: Form][i: I]: Forms.LocalForm i :=
+  \root.GlobalForms[n := n, r := rank].On[U := (Underlying.chart i).image].Action[k := k].apply
+    Structure.On[U := (Underlying.chart i).image].matrix (omega i);
+\module Pair(omega: Form, i: I, j: I);
+\definition imaginaryCompatible: \forall (omega: Form) -> Forms.Compatible (imaginaryData omega) :=
+  \fun (omega: Form)(i, j: I) => Pair[omega := omega, i := i, j := j].law;
+\definition imaginary[omega: Form]: Form :=
+  \into[Forms.Data](imaginaryData omega, { value: Forms.Data \where Forms.Compatible value }) \by { imaginaryCompatible omega };
+\definition apply[A: Connections.Connection][omega: Form]: NextForms.Form := RealForms.At[k := k].apply (Connections.forget A) omega;
+\module Local(A: Connections.Connection, omega: Form, i: I);
+\definition imaginaryLaw: \forall (A: Connections.Connection)(omega: Form) ->
+  apply A (imaginary omega) = \parent.At[k := next].imaginary (apply A omega) :=
+  \fun (A: Connections.Connection)(omega: Form) => \axiom:funext(apply A (imaginary omega), \parent.At[k := next].imaginary (apply A omega),
+    \fun (i: I) => Local[A := A, omega := omega, i := i].law);
+\import Forms.Algebra[] \as Algebra;
+\import NextForms.Algebra[] \as NextAlgebra;
+\definition scale[z: C.Complex][omega: Form]: Form := Algebra.plus (Algebra.scale (C.re z) omega) (Algebra.scale (C.im z) (imaginary omega));
+\definition scalarLaw: \forall (A: Connections.Connection)(z: C.Complex)(omega: Form) ->
+  apply A (scale z omega) = \parent.At[k := next].scale z (apply A omega) :=
+  \fun (A: Connections.Connection)(z: C.Complex)(omega: Form) => eq_reason_in!{{NextForms.Form} _
+    "=" _ "by" { Algebra.Differential[].addition (Connections.forget A) (Algebra.scale (C.re z) omega) (Algebra.scale (C.im z) (imaginary omega)) }
+    "=" _ "by" { congr!{{NextForms.Form} {NextForms.Form} {NextForms.Form}} NextAlgebra.plus _ _ _ _
+      (Algebra.Differential[].scalar (Connections.forget A) (C.re z) omega)
+      (Algebra.Differential[].scalar (Connections.forget A) (C.im z) (imaginary omega)) }
+    "=" _ "by" { congr!{{NextForms.Form} {NextForms.Form}} (\fun (eta: NextForms.Form) => NextAlgebra.plus (NextAlgebra.scale (C.re z) (apply A omega)) (NextAlgebra.scale (C.im z) eta)) _ _ (imaginaryLaw A omega) }
+  };

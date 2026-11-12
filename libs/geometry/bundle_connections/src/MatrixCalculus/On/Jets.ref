@@ -1,0 +1,36 @@
+\import Open.Projection[U := U] \as Projection;
+\import Open.Smooth[].Derivative[].Linear[U := U] \as Derivatives;
+\import Spaces.Laws[V := R.Real, space := Spaces.scalarSpace] \as Laws;
+\import std.Data[].Bool[] \as Bool;
+\import N.Basic[].Prop[] \as NatLaws;
+\definition Numeric: \Set := Fin.Fin r -> Fin.Fin r -> R.Real;
+\definition offset[i: Fin.Fin n][x: Open.Carrier U]: Functions.Function := Functions.plus (Projection.function i) (Functions.constant (R.neg (x i)));
+\definition jet[A, D: Numeric][i: Fin.Fin n][x: Open.Carrier U]: Matrix0 :=
+  \fun (a, b: Fin.Fin r) => Functions.plus (Functions.constant (A a b)) (Functions.scale (D a b) (offset i x));
+\definition offsetValue: \forall (i: Fin.Fin n)(x: Open.Carrier U) -> offset i x x = R.zero :=
+  \fun (i: Fin.Fin n)(x: Open.Carrier U) => trans!{{R.Real}} _ _ _ (Laws.comm (x i) (R.neg (x i))) (Laws.inverseLeft (x i));
+\definition value: \forall (A, D: Numeric)(i: Fin.Fin n)(x: Open.Carrier U)(a, b: Fin.Fin r) -> jet A D i x a b x = A a b :=
+  \fun (A, D: Numeric)(i: Fin.Fin n)(x: Open.Carrier U)(a, b: Fin.Fin r) => eq_reason_in!{{R.Real} _
+    "=" _ "by" { congr!{{R.Real} {R.Real}} (\fun (z: R.Real) => R.add (A a b) (R.mul (D a b) z)) _ _ (offsetValue i x) }
+    "=" _ "by" { congr!{{R.Real} {R.Real}} (R.add (A a b)) _ _ (Spaces.mulZeroRight (D a b)) }
+    "=" _ "by" { Laws.zeroRight (A a b) }
+  };
+\definition diagonal: \forall (i: Fin.Fin n) -> Projection.kronecker i i = R.one :=
+  \fun (i: Fin.Fin n) => congr!{Bool.Bool^ {R.Real}} (\fun (b: Bool.Bool^) => Bool.ite R.Real b R.one R.zero) _ _ (NatLaws.eqbRefl (Fin.value n i));
+\definition offsetPartial: \forall (i: Fin.Fin n)(x: Open.Carrier U) -> Derivatives.apply i (offset i x) = Functions.constant R.one :=
+  \fun (i: Fin.Fin n)(x: Open.Carrier U) => eq_reason_in!{{Functions.Function} _
+    "=" _ "by" { Derivatives.addition i (Projection.function i) (Functions.constant (R.neg (x i))) }
+    "=" _ "by" { congr!{{Functions.Function} {Functions.Function} {Functions.Function}} Functions.plus _ _ _ _ (Projection.partial i i) (Derivatives.constant i (R.neg (x i))) }
+    "=" _ "by" { Functions.ext (Functions.plus (Functions.constant (Projection.kronecker i i)) Functions.origin) (Functions.constant R.one)
+      (\fun (y: Open.Carrier U) => trans!{{R.Real}} _ _ _ (Laws.zeroRight (Projection.kronecker i i)) (diagonal i)) }
+  };
+\definition partial: \forall (A, D: Numeric)(i: Fin.Fin n)(x: Open.Carrier U)(a, b: Fin.Fin r) -> Derivatives.apply i (jet A D i x a b) x = D a b :=
+  \fun (A, D: Numeric)(i: Fin.Fin n)(x: Open.Carrier U)(a, b: Fin.Fin r) => eq_reason_in!{{R.Real} _
+    "=" _ "by" { congr!{{Functions.Function} {R.Real}} (\fun (f: Functions.Function) => f x) _ _ (Derivatives.addition i (Functions.constant (A a b)) (Functions.scale (D a b) (offset i x))) }
+    "=" _ "by" { congr!{{R.Real} {R.Real} {R.Real}} R.add _ _ _ _
+      (congr!{{Functions.Function} {R.Real}} (\fun (f: Functions.Function) => f x) _ _ (Derivatives.constant i (A a b)))
+      (congr!{{Functions.Function} {R.Real}} (\fun (f: Functions.Function) => f x) _ _ (Derivatives.scalar i (D a b) (offset i x))) }
+    "=" _ "by" { congr!{{Functions.Function} {R.Real}} (\fun (f: Functions.Function) => R.add R.zero (R.mul (D a b) (f x))) _ _ (offsetPartial i x) }
+    "=" _ "by" { Laws.zeroLeft (R.mul (D a b) R.one) }
+    "=" _ "by" { Spaces.mulOneRight (D a b) }
+  };

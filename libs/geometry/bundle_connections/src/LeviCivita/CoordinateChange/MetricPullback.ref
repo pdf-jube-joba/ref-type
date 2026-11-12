@@ -1,0 +1,20 @@
+\import \root.MatrixCalculus[n := n, r := n].On[U := U] \as Source;
+\import \root.MatrixCalculus[n := n, r := n].On[U := V] \as Target;
+\import \root.LeviCivita[n := n].Gauge[r := n, U := U] \as SourceGauge;
+\import \root.LeviCivita[n := n].Gauge[r := n, U := V] \as TargetGauge;
+\import \root.Real[n := n, r := n].Transport[U := U, V := V].Pull[f := map] \as Transport;
+\definition differential: \forall (g: Target.Matrix0) -> Source.dMatrix (Transport.matrix0 g) = Transport.matrix1 (Target.dMatrix g) :=
+  \fun (g: Target.Matrix0) => SourceGauge.ext (Source.dMatrix (Transport.matrix0 g)) (Transport.matrix1 (Target.dMatrix g))
+    (\fun (a, b: Index) => sym!{{euclidean_forms.Euclidean[n := n].On[U := U].Form (N.Nat^::succ N.Nat^::zero)}} _ _ (Transport.differential (g a b)));
+\definition transpose: \forall (A: Target.Matrix1) -> Transport.matrix1 (TargetGauge.transpose1 A) = SourceGauge.transpose1 (Transport.matrix1 A) :=
+  \fun (A: Target.Matrix1) => SourceGauge.ext (Transport.matrix1 (TargetGauge.transpose1 A)) (SourceGauge.transpose1 (Transport.matrix1 A))
+    (\fun (a, b: Index) => \refl(Transport.matrix1 A b a));
+\definition preservation: \forall (g: Target.Matrix0)(A: Target.Matrix1) -> TargetGauge.Compatible g A -> SourceGauge.Compatible (Transport.matrix0 g) (Transport.matrix1 A) :=
+  \fun (g: Target.Matrix0)(A: Target.Matrix1)(compatible: TargetGauge.Compatible g A) => eq_reason_in!{Source.Matrix1 _
+    "=" _ "by" { differential g }
+    "=" _ "by" { congr!{Target.Matrix1 Source.Matrix1} Transport.matrix1 _ _ compatible }
+    "=" _ "by" { Transport.plus (Target.product10 (TargetGauge.transpose1 A) g) (Target.product01 g A) }
+    "=" _ "by" { congr!{Source.Matrix1 Source.Matrix1 Source.Matrix1} Source.plus _ _ _ _
+      (Transport.product10 (TargetGauge.transpose1 A) g) (Transport.product01 g A) }
+    "=" _ "by" { congr!{Source.Matrix1 Source.Matrix1} (\fun (B: Source.Matrix1) => Source.plus (Source.product10 B (Transport.matrix0 g)) (Source.product01 (Transport.matrix0 g) (Transport.matrix1 A))) _ _ (transpose A) }
+  };

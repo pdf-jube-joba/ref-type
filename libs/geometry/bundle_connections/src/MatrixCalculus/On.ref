@@ -1,0 +1,78 @@
+\import Open.Smooth[].Algebra[U := U] \as Functions;
+\import \root.Local[n := n, r := r].On[U := U] \as Local;
+\import euclidean_forms.Euclidean[n := n].On[U := U] \as Scalar;
+\import Scalar.At[k := one] \as OneForms;
+\import Scalar.DegreeZero[] \as ZeroForms;
+\import Scalar.ExteriorDerivative[k := zero] \as D;
+\import Scalar.FunctionDifferential[] \as Differential;
+\definition Matrix0: \Set := Fin.Fin r -> Fin.Fin r -> Functions.Function;
+\definition Matrix1: \Set := Fin.Fin r -> Fin.Fin r -> Scalar.Form one;
+\definition plus[A, B: Matrix1]: Matrix1 := \fun (a, b: Fin.Fin r) => OneForms.plus (A a b) (B a b);
+\definition sum1: \forall (m: N.Nat^) -> (Fin.Fin m -> Scalar.Form one) -> Scalar.Form one :=
+  \induction (m: N.Nat^) \return (Fin.Fin m -> Scalar.Form one) -> Scalar.Form one \with {
+    | zero: \fun (f: Fin.Fin zero -> Scalar.Form one) => OneForms.zero
+    | succ: \fun (m: N.Nat^)(previous: _)(f: Fin.Fin (N.Nat^::succ m) -> Scalar.Form one) =>
+      OneForms.plus (f (Fin.zero m)) (previous (\fun (a: Fin.Fin m) => f (Fin.succ m a)))
+  };
+\definition sum1Value: \forall (m: N.Nat^)(f: Fin.Fin m -> Scalar.Form one)(x: Open.Carrier U)(v: Multilinear.Arguments one) ->
+  sum1 m f x v = Sums.sum m (\fun (a: Fin.Fin m) => f a x v) :=
+  \induction (m: N.Nat^) \return \forall (f: Fin.Fin m -> Scalar.Form one)(x: Open.Carrier U)(v: Multilinear.Arguments one) ->
+    sum1 m f x v = Sums.sum m (\fun (a: Fin.Fin m) => f a x v) \with {
+    | zero: \fun (f: _)(x: _)(v: _) => \refl(R.zero)
+    | succ: \fun (m: N.Nat^)(previous: _)(f: _)(x: _)(v: _) => congr!{{R.Real} {R.Real}} (R.add (f (Fin.zero m) x v)) _ _
+      (previous (\fun (a: Fin.Fin m) => f (Fin.succ m a)) x v)
+  };
+\definition sum1Add: \forall (m: N.Nat^)(f, g: Fin.Fin m -> Scalar.Form one) -> sum1 m (\fun (a: Fin.Fin m) => OneForms.plus (f a) (g a)) = OneForms.plus (sum1 m f) (sum1 m g) :=
+  \fun (m: N.Nat^)(f, g: Fin.Fin m -> Scalar.Form one) => Scalar.ext one _ _ (\fun (x: Open.Carrier U)(v: Multilinear.Arguments one) => eq_reason_in!{{R.Real} _
+    "=" _ "by" { sum1Value m _ x v }
+    "=" _ "by" { Sums.addition m (\fun (a: Fin.Fin m) => f a x v) (\fun (a: Fin.Fin m) => g a x v) }
+    "=" _ "by" { congr!{{R.Real} {R.Real} {R.Real}} R.add _ _ _ _ (sym!{{R.Real}} _ _ (sum1Value m f x v)) (sym!{{R.Real}} _ _ (sum1Value m g x v)) }
+  });
+\definition sum1Congruent: \forall (m: N.Nat^)(f, g: Fin.Fin m -> Scalar.Form one) -> (\forall (a: Fin.Fin m) -> f a = g a) -> sum1 m f = sum1 m g :=
+  \fun (m: N.Nat^)(f, g: _)(same: _) => congr!{{Fin.Fin m -> Scalar.Form one} {Scalar.Form one}} (sum1 m) _ _ (\axiom:funext(f, g, same));
+\definition product00[A, B: Matrix0][a, b: Fin.Fin r]: Functions.Function := Local.sum r (\fun (c: Fin.Fin r) => Functions.product (A a c) (B c b));
+\definition product01[A: Matrix0][B: Matrix1][a, b: Fin.Fin r]: Scalar.Form one := sum1 r (\fun (c: Fin.Fin r) => OneForms.multiply (A a c) (B c b));
+\definition product10[A: Matrix1][B: Matrix0][a, b: Fin.Fin r]: Scalar.Form one := sum1 r (\fun (c: Fin.Fin r) => OneForms.multiply (B c b) (A a c));
+\definition differential[f: Functions.Function]: Scalar.Form one := D.apply (ZeroForms.apply f);
+\definition dMatrix[A: Matrix0]: Matrix1 := \fun (a, b: Fin.Fin r) => differential (A a b);
+\definition dAdd: \forall (f, g: Functions.Function) -> differential (Functions.plus f g) = OneForms.plus (differential f) (differential g) :=
+  \fun (f, g: Functions.Function) => trans!{{Scalar.Form one}} _ _ _
+    (congr!{{Scalar.Form zero} {Scalar.Form one}} D.apply _ _ (ZeroForms.forward.preservesAdd f g)) (D.addition (ZeroForms.apply f) (ZeroForms.apply g));
+\definition dZero: differential Functions.origin = OneForms.zero := trans!{{Scalar.Form one}} _ _ _
+  (congr!{{Scalar.Form zero} {Scalar.Form one}} D.apply _ _ (ZeroForms.forward.preservesZero)) D.map.preservesZero;
+\definition dSum: \forall (m: N.Nat^)(f: Fin.Fin m -> Functions.Function) -> differential (Local.sum m f) = sum1 m (\fun (a: Fin.Fin m) => differential (f a)) :=
+  \induction (m: N.Nat^) \return \forall (f: Fin.Fin m -> Functions.Function) -> differential (Local.sum m f) = sum1 m (\fun (a: Fin.Fin m) => differential (f a)) \with {
+    | zero: \fun (f: _) => dZero
+    | succ: \fun (m: N.Nat^)(previous: _)(f: _) => trans!{{Scalar.Form one}} _ _ _
+      (dAdd (f (Fin.zero m)) (Local.sum m (\fun (a: Fin.Fin m) => f (Fin.succ m a))))
+      (congr!{{Scalar.Form one} {Scalar.Form one}} (OneForms.plus (differential (f (Fin.zero m)))) _ _ (previous (\fun (a: Fin.Fin m) => f (Fin.succ m a))))
+  };
+\definition dProduct: \forall (f, g: Functions.Function) -> differential (Functions.product f g) = OneForms.plus (OneForms.multiply g (differential f)) (OneForms.multiply f (differential g)) :=
+  \fun (f, g: Functions.Function) => Scalar.ext one _ _ (\fun (x: Open.Carrier U)(v: Multilinear.Arguments one) => eq_reason_in!{{R.Real} _
+    "=" _ "by" { Differential.law (Functions.product f g) x v }
+    "=" _ "by" { Open.Smooth[].Differential[].Operations[U := U].product f g x (v (Fin.zero zero)) }
+    "=" _ "by" { congr!{{R.Real} {R.Real} {R.Real}} R.add _ _ _ _
+      (congr!{{R.Real} {R.Real}} (R.mul (g x)) _ _ (sym!{{R.Real}} _ _ (Differential.law f x v)))
+      (congr!{{R.Real} {R.Real}} (R.mul (f x)) _ _ (sym!{{R.Real}} _ _ (Differential.law g x v))) }
+  });
+\definition productRule: \forall (A, B: Matrix0) -> dMatrix (product00 A B) = plus (product10 (dMatrix A) B) (product01 A (dMatrix B)) :=
+  \fun (A, B: Matrix0) => \axiom:funext(dMatrix (product00 A B), plus (product10 (dMatrix A) B) (product01 A (dMatrix B)), \fun (a: Fin.Fin r) =>
+    \axiom:funext(dMatrix (product00 A B) a, plus (product10 (dMatrix A) B) (product01 A (dMatrix B)) a, \fun (b: Fin.Fin r) => eq_reason_in!{{Scalar.Form one} _
+      "=" _ "by" { dSum r (\fun (c: Fin.Fin r) => Functions.product (A a c) (B c b)) }
+      "=" _ "by" { sum1Congruent r _ _ (\fun (c: Fin.Fin r) => dProduct (A a c) (B c b)) }
+      "=" _ "by" { sum1Add r _ _ }
+    }));
+\definition value01: \forall (A: Matrix0)(B: Matrix1)(a, b: Fin.Fin r)(x: Open.Carrier U)(v: Multilinear.Arguments one) -> product01 A B a b x v = Sums.sum r (\fun (c: Fin.Fin r) => R.mul (A a c x) (B c b x v)) :=
+  \fun (A: Matrix0)(B: Matrix1)(a, b: Fin.Fin r)(x: Open.Carrier U)(v: Multilinear.Arguments one) => sum1Value r _ x v;
+\definition value10: \forall (A: Matrix1)(B: Matrix0)(a, b: Fin.Fin r)(x: Open.Carrier U)(v: Multilinear.Arguments one) -> product10 A B a b x v = Sums.sum r (\fun (c: Fin.Fin r) => R.mul (A a c x v) (B c b x)) :=
+  \fun (A: Matrix1)(B: Matrix0)(a, b: Fin.Fin r)(x: Open.Carrier U)(v: Multilinear.Arguments one) => trans!{{R.Real}} _ _ _ (sum1Value r _ x v)
+    (Sums.congruent r _ _ (\fun (c: Fin.Fin r) => Spaces.mulComm (B c b x) (A a c x v)));
+\module Associativity;
+\module Gauge;
+\module Linearity;
+\module ComplexStructure(J: Matrix0, square: product00 J J = \root.MatrixCalculus[n := n, r := r].On[U := U].Linearity[].scale0 (R.neg R.one) (\root.MatrixCalculus[n := n, r := r].On[U := U].Associativity[].identity));
+
+\module Jets;
+
+\module ConstantChange(Q, P: Matrix0, left: product00 P Q = \root.MatrixCalculus[n := n, r := r].On[U := U].Associativity[].identity, right: product00 Q P = \root.MatrixCalculus[n := n, r := r].On[U := U].Associativity[].identity,
+  constantQ: dMatrix Q = \root.MatrixCalculus[n := n, r := r].On[U := U].Linearity[].origin, constantP: dMatrix P = \root.MatrixCalculus[n := n, r := r].On[U := U].Linearity[].origin);

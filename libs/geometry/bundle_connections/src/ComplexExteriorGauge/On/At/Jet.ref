@@ -1,0 +1,102 @@
+\import \parent.Algebra[] \as Algebra;
+\import \parent.Tangent[] \as Tangent;
+\import \parent.Products[] \as Products;
+\import Matrix.Jets[] \as Jets;
+\definition Numeric: \Set := Algebra.Numeric;
+\definition lift[A, D: Numeric]: Matrix.Matrix0 := Jets.jet A D i x;
+\definition base: \forall (A, D: Numeric) -> Tangent.eval (lift A D) x = A :=
+  \fun (A, D: Numeric) => Tangent.ext (Tangent.eval (lift A D) x) A (Jets.value A D i x);
+\definition direction: \forall (A, D: Numeric) -> Tangent.partial (lift A D) i x = D :=
+  \fun (A, D: Numeric) => Tangent.ext (Tangent.partial (lift A D) i x) D (Jets.partial A D i x);
+\definition differential: \forall (A, D: Numeric)(a, b: Fin.Fin rank) -> Derivatives.apply i (representation (lift A D) a b) x = Tangent.value A D a b :=
+  \fun (A, D: Numeric)(a, b: Fin.Fin rank) => Tangent.along (lift A D) i x A D (base A D) (direction A D) a b;
+\definition evaluation: \forall (A, D: Numeric)(a, b: Fin.Fin rank) -> representation (lift A D) a b x = Algebra.value A a b :=
+  \fun (A, D: Numeric)(a, b: Fin.Fin rank) => Tangent.representationAlong (lift A D) x A (base A D) a b;
+\definition productBase: \forall (A, B, D, E: Numeric) -> Tangent.eval (Products.multiply (lift A D) (lift B E)) x = Algebra.product A B :=
+  \fun (A, B, D, E: Numeric) => congr!{Numeric Numeric Numeric} Algebra.product
+    (Tangent.eval (lift A D) x) A (Tangent.eval (lift B E) x) B (base A D) (base B E);
+\definition productDirection: \forall (A, B, D, E: Numeric) -> Tangent.partial (Products.multiply (lift A D) (lift B E)) i x =
+  Tangent.plus (Algebra.product D B) (Algebra.product A E) :=
+  \fun (A, B, D, E: Numeric) => trans!{Numeric}
+    (Tangent.partial (Products.multiply (lift A D) (lift B E)) i x)
+    (Tangent.plus (Algebra.product (Tangent.partial (lift A D) i x) (Tangent.eval (lift B E) x)) (Algebra.product (Tangent.eval (lift A D) x) (Tangent.partial (lift B E) i x)))
+    (Tangent.plus (Algebra.product D B) (Algebra.product A E))
+    (Products.partialMatrix (lift A D) (lift B E) i x)
+    (congr!{Numeric Numeric Numeric} Tangent.plus
+      (Algebra.product (Tangent.partial (lift A D) i x) (Tangent.eval (lift B E) x)) (Algebra.product D B)
+      (Algebra.product (Tangent.eval (lift A D) x) (Tangent.partial (lift B E) i x)) (Algebra.product A E)
+      (congr!{Numeric Numeric Numeric} Algebra.product (Tangent.partial (lift A D) i x) D (Tangent.eval (lift B E) x) B (direction A D) (base B E))
+      (congr!{Numeric Numeric Numeric} Algebra.product (Tangent.eval (lift A D) x) A (Tangent.partial (lift B E) i x) E (base A D) (direction B E)));
+\import Spaces.Sums[I := Fin.Fin rank] \as Coefficients;
+\import Coefficients.Prop[] \as CoefficientLaws;
+\definition productRule: \forall (A, B, D, E: Numeric)(a, b: Fin.Fin rank) ->
+  Tangent.value (Algebra.product A B) (Tangent.plus (Algebra.product D B) (Algebra.product A E)) a b =
+  Coefficients.sum (Fin.elements rank) (\fun (c: Fin.Fin rank) => Op.add (Op.mul (Tangent.value A D a c) (Algebra.value B c b)) (Op.mul (Algebra.value A a c) (Tangent.value B E c b))) :=
+  \fun (A, B, D, E: Numeric)(a, b: Fin.Fin rank) => eq_reason_in!{{C.Complex}
+    { Tangent.value (Algebra.product A B) (Tangent.plus (Algebra.product D B) (Algebra.product A E)) a b }
+    "=" { Derivatives.apply i (representation (Products.multiply (lift A D) (lift B E)) a b) x } "by" {
+      sym!{{C.Complex}} _ _ (Tangent.along (Products.multiply (lift A D) (lift B E)) i x (Algebra.product A B)
+        (Tangent.plus (Algebra.product D B) (Algebra.product A E)) (productBase A B D E) (productDirection A B D E) a b) }
+    "=" { Coefficients.sum (Fin.elements rank) (\fun (c: Fin.Fin rank) => Op.add
+      (Op.mul (Derivatives.apply i (representation (lift A D) a c) x) (representation (lift B E) c b x))
+      (Op.mul (representation (lift A D) a c x) (Derivatives.apply i (representation (lift B E) c b) x))) } "by" {
+      Products.representationPartial (lift A D) (lift B E) i a b x }
+    "=" _ "by" { CoefficientLaws.congruent (Fin.elements rank)
+      (\fun (c: Fin.Fin rank) => Op.add (Op.mul (Derivatives.apply i (representation (lift A D) a c) x) (representation (lift B E) c b x))
+        (Op.mul (representation (lift A D) a c x) (Derivatives.apply i (representation (lift B E) c b) x)))
+      (\fun (c: Fin.Fin rank) => Op.add (Op.mul (Tangent.value A D a c) (Algebra.value B c b)) (Op.mul (Algebra.value A a c) (Tangent.value B E c b)))
+      (\fun (c: Fin.Fin rank) => congr!{{C.Complex} {C.Complex} {C.Complex}} Op.add _ _ _ _
+        (congr!{{C.Complex} {C.Complex} {C.Complex}} Op.mul _ _ _ _ (differential A D a c) (evaluation B E c b))
+        (congr!{{C.Complex} {C.Complex} {C.Complex}} Op.mul _ _ _ _ (evaluation A D a c) (differential B E c b))) }
+  };
+\definition rightDirection: \forall (T, A: Numeric) -> Tangent.plus (Algebra.product Tangent.zero Algebra.identity) (Algebra.product T A) = Algebra.product T A :=
+  \fun (T, A: Numeric) => trans!{Numeric} _ _ _
+    (congr!{Numeric Numeric} (\fun (Z: Numeric) => Tangent.plus Z (Algebra.product T A)) _ _ (Algebra.zeroLeft Algebra.identity))
+    (Tangent.plusZeroLeft (Algebra.product T A));
+\definition leftDirection: \forall (T, B: Numeric) -> Tangent.plus (Algebra.product B T) (Algebra.product Algebra.identity Tangent.zero) = Algebra.product B T :=
+  \fun (T, B: Numeric) => trans!{Numeric} _ _ _
+    (congr!{Numeric Numeric} (Tangent.plus (Algebra.product B T)) _ _ (Algebra.zeroRight Algebra.identity))
+    (Tangent.plusZeroRight (Algebra.product B T));
+\definition right: \forall (T, A: Numeric)(a, b: Fin.Fin rank) -> Tangent.value T (Algebra.product T A) a b =
+  Coefficients.sum (Fin.elements rank) (\fun (c: Fin.Fin rank) => Op.mul (Algebra.value T a c) (Tangent.action A c b)) :=
+  \fun (T, A: Numeric)(a, b: Fin.Fin rank) => eq_reason_in!{{C.Complex} { Tangent.value T (Algebra.product T A) a b }
+    "=" { Tangent.value (Algebra.product T Algebra.identity) (Tangent.plus (Algebra.product Tangent.zero Algebra.identity) (Algebra.product T A)) a b } "by" {
+      sym!{{C.Complex}} _ _ (congr!{Numeric Numeric {C.Complex}} (\fun (P, Q: Numeric) => Tangent.value P Q a b) _ _ _ _ (Algebra.identityRight T) (rightDirection T A)) }
+    "=" { Coefficients.sum (Fin.elements rank) (\fun (c: Fin.Fin rank) => Op.add (Op.mul (Tangent.value T Tangent.zero a c) (Algebra.value Algebra.identity c b)) (Op.mul (Algebra.value T a c) (Tangent.action A c b))) } "by" {
+      productRule T Algebra.identity Tangent.zero A a b }
+    "=" _ "by" { CoefficientLaws.congruent (Fin.elements rank)
+      (\fun (c: Fin.Fin rank) => Op.add (Op.mul (Tangent.value T Tangent.zero a c) (Algebra.value Algebra.identity c b)) (Op.mul (Algebra.value T a c) (Tangent.action A c b)))
+      (\fun (c: Fin.Fin rank) => Op.mul (Algebra.value T a c) (Tangent.action A c b))
+      (\fun (c: Fin.Fin rank) => eq_reason_in!{{C.Complex} _
+        "=" _ "by" { congr!{{C.Complex} {C.Complex}} (\fun (z: C.Complex) => Op.add (Op.mul z (Algebra.value Algebra.identity c b)) (Op.mul (Algebra.value T a c) (Tangent.action A c b))) _ _ (Tangent.zeroValue T a c) }
+        "=" _ "by" { congr!{{C.Complex} {C.Complex}} (\fun (z: C.Complex) => Op.add z (Op.mul (Algebra.value T a c) (Tangent.action A c b))) _ _ (Spaces.mulZeroLeft (Algebra.value Algebra.identity c b)) }
+        "=" _ "by" { Spaces.addZeroLeft (Op.mul (Algebra.value T a c) (Tangent.action A c b)) }
+      }) }
+  };
+\definition left: \forall (T, B: Numeric)(a, b: Fin.Fin rank) -> Tangent.value T (Algebra.product B T) a b =
+  Coefficients.sum (Fin.elements rank) (\fun (c: Fin.Fin rank) => Op.mul (Tangent.action B a c) (Algebra.value T c b)) :=
+  \fun (T, B: Numeric)(a, b: Fin.Fin rank) => eq_reason_in!{{C.Complex} { Tangent.value T (Algebra.product B T) a b }
+    "=" { Tangent.value (Algebra.product Algebra.identity T) (Tangent.plus (Algebra.product B T) (Algebra.product Algebra.identity Tangent.zero)) a b } "by" {
+      sym!{{C.Complex}} _ _ (congr!{Numeric Numeric {C.Complex}} (\fun (P, Q: Numeric) => Tangent.value P Q a b) _ _ _ _ (Algebra.identityLeft T) (leftDirection T B)) }
+    "=" { Coefficients.sum (Fin.elements rank) (\fun (c: Fin.Fin rank) => Op.add (Op.mul (Tangent.action B a c) (Algebra.value T c b)) (Op.mul (Algebra.value Algebra.identity a c) (Tangent.value T Tangent.zero c b))) } "by" {
+      productRule Algebra.identity T B Tangent.zero a b }
+    "=" _ "by" { CoefficientLaws.congruent (Fin.elements rank)
+      (\fun (c: Fin.Fin rank) => Op.add (Op.mul (Tangent.action B a c) (Algebra.value T c b)) (Op.mul (Algebra.value Algebra.identity a c) (Tangent.value T Tangent.zero c b)))
+      (\fun (c: Fin.Fin rank) => Op.mul (Tangent.action B a c) (Algebra.value T c b))
+      (\fun (c: Fin.Fin rank) => eq_reason_in!{{C.Complex} _
+        "=" _ "by" { congr!{{C.Complex} {C.Complex}} (\fun (z: C.Complex) => Op.add (Op.mul (Tangent.action B a c) (Algebra.value T c b)) (Op.mul (Algebra.value Algebra.identity a c) z)) _ _ (Tangent.zeroValue T c b) }
+        "=" _ "by" { congr!{{C.Complex} {C.Complex}} (Op.add (Op.mul (Tangent.action B a c) (Algebra.value T c b))) _ _ (Spaces.mulZeroRight (Algebra.value Algebra.identity a c)) }
+        "=" _ "by" { Spaces.addZeroRight (Op.mul (Tangent.action B a c) (Algebra.value T c b)) }
+      }) }
+  };
+\definition gauge: \forall (T, A, B, D: Numeric) -> Algebra.product T A = Tangent.plus D (Algebra.product B T) ->
+  \forall (a, b: Fin.Fin rank) ->
+  Coefficients.sum (Fin.elements rank) (\fun (c: Fin.Fin rank) => Op.mul (Algebra.value T a c) (Tangent.action A c b)) =
+  Op.add (Tangent.value T D a b) (Coefficients.sum (Fin.elements rank) (\fun (c: Fin.Fin rank) => Op.mul (Tangent.action B a c) (Algebra.value T c b))) :=
+  \fun (T, A, B, D: Numeric)(compatible: Algebra.product T A = Tangent.plus D (Algebra.product B T))(a, b: Fin.Fin rank) => eq_reason_in!{{C.Complex} _
+    "=" { Tangent.value T (Algebra.product T A) a b } "by" { sym!{{C.Complex}} _ _ (right T A a b) }
+    "=" { Tangent.value T (Tangent.plus D (Algebra.product B T)) a b } "by" {
+      congr!{Numeric {C.Complex}} (\fun (Z: Numeric) => Tangent.value T Z a b) _ _ compatible }
+    "=" { Op.add (Tangent.value T D a b) (Tangent.value T (Algebra.product B T) a b) } "by" { Tangent.additive T D (Algebra.product B T) a b }
+    "=" _ "by" { congr!{{C.Complex} {C.Complex}} (Op.add (Tangent.value T D a b)) _ _ (left T B a b) }
+  };

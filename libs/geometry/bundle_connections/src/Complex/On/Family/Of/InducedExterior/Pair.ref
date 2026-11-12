@@ -1,0 +1,32 @@
+\import \parent.\parent.Pair[i := i, j := j] \as Old;
+\import Underlying.Pair[i := i, j := j] \as OriginalReal;
+\import Result.Pair[i := i, j := j] \as New;
+\import \parent.Coefficients[i := i, j := j] \as Coefficients;
+\import Charts.Transition[left := chart i, right := chart j] \as Domain;
+\import \root.ComplexExteriorGauge[n := n, r := r].On[U := Domain.domain].At[k := k, enumeration := enumeration].Forms[] \as Lift;
+\import \root.ComplexExteriorGauge[n := n, r := r].On[U := (chart i).image].At[k := k, enumeration := enumeration].Forms[] \as FirstLift;
+\import \root.ComplexExteriorGauge[n := n, r := r].On[U := (chart j).image].At[k := k, enumeration := enumeration].Forms[] \as SecondLift;
+\import \root.ComplexMatrices[n := n, r := Exterior.rank].On[U := Domain.domain] \as Matrix;
+\import Matrix.Algebra[] \as Algebra;
+\import RealSpaces.Coordinates[I := Fin.Fin n] \as Vectors;
+\import RealSpaces.Multilinear[V := Vectors.Vector, space := Vectors.space] \as Multilinear;
+\import euclidean_forms.Euclidean[n := n].Pullback[m := n, U := Domain.domain, V := (chart j).image, f := OriginalReal.map] \as Pull;
+\definition one: N.Nat^ := N.Nat^::succ N.Nat^::zero;
+\definition source: New.sourceComplex (data i) = Lift.lift (Old.sourceComplex (OriginalCoefficients.data i)) :=
+  Algebra.matrixExt (New.sourceComplex (data i)) (Lift.lift (Old.sourceComplex (OriginalCoefficients.data i)))
+    (\fun (u: Open.Carrier Domain.domain)(v: Multilinear.Arguments one) => Algebra.numericExt (Algebra.eval1 (New.sourceComplex (data i)) u v) (Algebra.eval1 (Lift.lift (Old.sourceComplex (OriginalCoefficients.data i))) u v) (\fun (a, b: Fin.Fin Exterior.rank) => trans!{{C.Complex}} _ _ _
+      (FirstLift.value (OriginalCoefficients.data i) a b (Domain.leftCoordinate u) v)
+      (sym!{{C.Complex}} _ _ (Lift.value (Old.sourceComplex (OriginalCoefficients.data i)) a b u v))));
+\definition target: New.targetComplex (data j) = Lift.lift (Old.targetComplex (OriginalCoefficients.data j)) :=
+  Algebra.matrixExt (New.targetComplex (data j)) (Lift.lift (Old.targetComplex (OriginalCoefficients.data j)))
+    (\fun (u: Open.Carrier Domain.domain)(v: Multilinear.Arguments one) => Algebra.numericExt (Algebra.eval1 (New.targetComplex (data j)) u v) (Algebra.eval1 (Lift.lift (Old.targetComplex (OriginalCoefficients.data j))) u v) (\fun (a, b: Fin.Fin Exterior.rank) => trans!{{C.Complex}} _ _ _
+      (SecondLift.value (OriginalCoefficients.data j) a b (OriginalReal.map.apply u) (\fun (slot: Fin.Fin one) => (Pull.jacobian u).apply (v slot)))
+      (sym!{{C.Complex}} _ _ (Lift.value (Old.targetComplex (OriginalCoefficients.data j)) a b u v))));
+\import Lift.Gauge[T := Old.complexTransition, A := Old.sourceComplex (OriginalCoefficients.data i), B := Old.targetComplex (OriginalCoefficients.data j), compatible := OriginalCoefficients.compatible i j] \as Gauge;
+\definition law: New.ComplexCompatible (data i) (data j) := eq_reason_in!{{Matrix.Matrix1} _
+  "=" _ "by" { congr!{{Matrix.Matrix0} {Matrix.Matrix1} {Matrix.Matrix1}} Matrix.product01 _ _ _ _ Coefficients.transition source }
+  "=" _ "by" { Gauge.law }
+  "=" _ "by" { congr!{{Matrix.Matrix1} {Matrix.Matrix1} {Matrix.Matrix1}} Matrix.plus _ _ _ _
+    (congr!{{Matrix.Matrix0} {Matrix.Matrix1}} Matrix.dMatrix _ _ (sym!{{Matrix.Matrix0}} _ _ Coefficients.transition))
+    (congr!{{Matrix.Matrix1} {Matrix.Matrix0} {Matrix.Matrix1}} Matrix.product10 _ _ _ _ (sym!{{Matrix.Matrix1}} _ _ target) (sym!{{Matrix.Matrix0}} _ _ Coefficients.transition)) }
+};

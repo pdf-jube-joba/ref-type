@@ -1,0 +1,23 @@
+\definition exchange: \forall (f, g, h: Functions.Function) -> Functions.product f (Functions.product g h) = Functions.product h (Functions.product g f) :=
+  \fun (f, g, h: Functions.Function) => eq_reason_in!{{Functions.Function} _
+    "=" _ "by" { Functions.productCommutative f (Functions.product g h) }
+    "=" _ "by" { Functions.productAssociative g h f }
+    "=" _ "by" { congr!{{Functions.Function} {Functions.Function}} (Functions.product g) _ _ (Functions.productCommutative h f) }
+    "=" _ "by" { sym!{{Functions.Function}} _ _ (Functions.productAssociative g f h) }
+    "=" _ "by" { Functions.productCommutative (Functions.product g f) h }
+  };
+\definition termSymmetry: \forall (i, j, a, l, b: Index) -> term i j a l b = term j i a b l :=
+  \fun (i, j, a, l, b: Index) => trans!{{Functions.Function}} _ _ _
+    (congr!{{Functions.Function} {Functions.Function}} (\fun (f: Functions.Function) => Functions.product (jacobian l i) (Functions.product f (jacobian b j))) _ _
+      (congr!{{Open.Smooth[].Algebra[U := V].Function} {Functions.Function}} Pull.function _ _ (torsionFree l b a)))
+    (exchange (jacobian l i) (Pull.function (connection.coefficient b a l)) (jacobian b j));
+\definition correctionSymmetry: \forall (i, j, a: Index) -> correction i j a = correction j i a :=
+  \fun (i, j, a: Index) => trans!{{Functions.Function}} _ _ _
+    (Source.sumExchange n n (term i j a))
+    (Source.sumCongruent n _ _ (\fun (b: Index) => Source.sumCongruent n _ _ (\fun (l: Index) => termSymmetry i j a l b)));
+\definition numeratorSymmetry: \forall (i, j, a: Index) -> covariantJacobian i j a = covariantJacobian j i a :=
+  \fun (i, j, a: Index) => congr!{{Functions.Function} {Functions.Function} {Functions.Function}} Functions.plus _ _ _ _
+    (hessian a i j) (correctionSymmetry i j a);
+\definition law: \forall (i, j, a: Index) -> value.coefficient i a j = value.coefficient j a i :=
+  \fun (i, j, a: Index) => Source.sumCongruent n _ _ (\fun (b: Index) =>
+    congr!{{Functions.Function} {Functions.Function}} (Functions.product (inverse a b)) _ _ (numeratorSymmetry i j b));

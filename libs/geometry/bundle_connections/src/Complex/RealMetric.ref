@@ -1,0 +1,42 @@
+\import Operations.RealScalars[V := V, space := space] \as Restriction;
+\import Hermitian.Inner[V := V, space := space] \as Source;
+\import Source.Of[h := h] \as Properties;
+\import linear_algebra.Hermitian[].Over[K := R.Real, field := R.Algebra[].field, scalar := linear_algebra.Hermitian[].Real[].scalar].Inner[V := V, space := Restriction.realSpace] \as Target;
+\import dedekind_reals.DedekindReal[].Arithmetic[].Prop[] \as Arithmetic;
+\definition realScale: \forall (a: R.Real)(z: C.Complex) -> C.re (Op.mul (Op.ofReal a) z) = R.mul a (C.re z) :=
+  \fun (a: R.Real)(z: C.Complex) => trans!{{R.Real}} _ _ _
+    (congr!{{R.Real} {R.Real}} (R.sub (R.mul a (C.re z))) _ _ (RealSpaces.mulZeroLeft (C.im z)))
+    (Arithmetic.subZeroRight (R.mul a (C.re z)));
+\definition form: Target.Form := Target.Form {
+  dot := \fun (v, w: V) => C.re (h.dot v w),
+  symmetric := \fun (v, w: V) => congr!{{C.Complex} {R.Real}} C.re _ _ (h.symmetric v w),
+  zeroRight := \fun (v: V) => congr!{{C.Complex} {R.Real}} C.re _ _ (h.zeroRight v),
+  addRight := \fun (u, v, w: V) => congr!{{C.Complex} {R.Real}} C.re _ _ (h.addRight u v w),
+  scaleRight := \fun (a: R.Real)(v, w: V) => trans!{{R.Real}} _ _ _
+    (congr!{{C.Complex} {R.Real}} C.re _ _ (h.scaleRight (Op.ofReal a) v w)) (realScale a (h.dot v w)),
+};
+\definition positive: Source.Positive[h] -> Target.Positive[form] := \fun (positive: Source.Positive[h]) => Target.Positive[form] {
+  nonnegative := positive.nonnegative,
+  definite := Properties.squaredDefinite positive,
+};
+\definition unitImaginary: Op.mul (Op.conj Op.i) Op.i = Op.one := trans!{{C.Complex}} _ _ _ (C.Prop[].conjMulSelf Op.i)
+  (congr!{{R.Real} {C.Complex}} Op.ofReal _ _ (eq_reason_in!{{R.Real} _
+    "=" _ "by" { congr!{{R.Real} {R.Real} {R.Real}} R.add _ _ _ _ (RealSpaces.mulZeroLeft R.zero) (RealSpaces.mulOneLeft R.one) }
+    "=" _ "by" { RealSpaces.addZeroLeft R.one }
+  }));
+\definition imaginaryIsometry: \forall (v, w: V) -> h.dot (space.smul Op.i v) (space.smul Op.i w) = h.dot v w :=
+  \fun (v, w: V) => eq_reason_in!{{C.Complex} _
+    "=" _ "by" { Properties.scaleLeft Op.i v (space.smul Op.i w) }
+    "=" _ "by" { congr!{{C.Complex} {C.Complex}} (Op.mul (Op.conj Op.i)) _ _ (h.scaleRight Op.i v w) }
+    "=" _ "by" { sym!{{C.Complex}} _ _ (Spaces.mulAssoc (Op.conj Op.i) Op.i (h.dot v w)) }
+    "=" _ "by" { congr!{{C.Complex} {C.Complex}} (\fun (z: C.Complex) => Op.mul z (h.dot v w)) _ _ unitImaginary }
+    "=" _ "by" { Spaces.mulOneLeft (h.dot v w) }
+  };
+\definition isometry: \forall (v, w: V) -> form.dot (space.smul Op.i v) (space.smul Op.i w) = form.dot v w :=
+  \fun (v, w: V) => congr!{{C.Complex} {R.Real}} C.re _ _ (imaginaryIsometry v w);
+\definition realImaginary: \forall (v, w: V) -> form.dot v (space.smul Op.i w) = R.neg (C.im (h.dot v w)) :=
+  \fun (v, w: V) => eq_reason_in!{{R.Real} _
+    "=" _ "by" { congr!{{C.Complex} {R.Real}} C.re _ _ (h.scaleRight Op.i v w) }
+    "=" _ "by" { congr!{{R.Real} {R.Real} {R.Real}} R.sub _ _ _ _ (RealSpaces.mulZeroLeft (C.re (h.dot v w))) (RealSpaces.mulOneLeft (C.im (h.dot v w))) }
+    "=" _ "by" { RealSpaces.addZeroLeft (R.neg (C.im (h.dot v w))) }
+  };

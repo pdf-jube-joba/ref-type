@@ -1,0 +1,46 @@
+\import Charts.Transition[left := chart i, right := chart j] \as Domain;
+\import Alternating.Change[i := i, j := j] \as Change;
+\import DualBundle.Change[i := i, j := j] \as Reverse;
+\import Atlas.Change[i := i, j := j] \as Original;
+\import ExteriorBundles.Using[I := I, data := Exterior.exterior.atlas].Change[i := i, j := j] \as New;
+\import Spaces.FiniteCoordinates[n := r] \as Standard;
+\import Spaces.Sums[I := Fin.Fin r].Prop[] \as Sums;
+\import \root.ComplexExteriorGauge[n := n, r := r].On[U := Domain.domain].At[k := k, enumeration := enumeration] \as Gauge;
+\import \root.ComplexMetric[n := n, r := r].On[U := Domain.domain] \as Functions;
+\import smooth_bundles.ComplexCalculus[n := n].On[U := Domain.domain] \as Calculus;
+\definition original[a, b: Fin.Fin r]: Functions.Function := \into[Calculus.Function]
+  ((\fun (u: Open.Carrier Domain.domain) => (Original.matrix u).apply (Standard.vectors b) a), Functions.Function) \by { Bundle.Change[i := i, j := j].evaluate (Standard.vectors b) a };
+\import Spaces.FiniteCoordinates[n := Exterior.rank] \as RankBasis;
+\definition matrix[a, b: Fin.Fin Exterior.rank]: Functions.Function := \into[Calculus.Function]
+  ((\fun (u: Open.Carrier Domain.domain) => (New.matrix u).apply (RankBasis.vectors b) a), Functions.Function) \by { Alternating.smooth i j (RankBasis.vectors b) a };
+\definition reverse: \forall (a, b: Fin.Fin r)(u: Open.Carrier Domain.domain) -> (Reverse.backward u).apply (Standard.vectors a) b = original a b u :=
+  \fun (a, b: Fin.Fin r)(u: Open.Carrier Domain.domain) => eq_reason_in!{{C.Complex} _
+    "=" _ "by" { Dual.In[i := j, x := Original.y u].evaluation (Standard.vectors a) (((bundle.atlas.local i).frame (Original.x u)).backward.apply (Standard.vectors b)) }
+    "=" _ "by" { Sums.congruent (Fin.elements r)
+      (\fun (l: Fin.Fin r) => Op.mul (Standard.vectors a l) ((Original.matrix u).apply (Standard.vectors b) l))
+      (\fun (l: Fin.Fin r) => Op.mul ((Original.matrix u).apply (Standard.vectors b) l) (Standard.vectors a l))
+      (\fun (l: Fin.Fin r) => Spaces.mulComm (Standard.vectors a l) ((Original.matrix u).apply (Standard.vectors b) l)) }
+    "=" _ "by" { Standard.dualReconstruction ((Original.matrix u).apply (Standard.vectors b)) a }
+
+  };
+\import Spaces.Sums[I := Fin.Fin Exterior.rank].Prop[] \as RankSums;
+\import Operations.ExteriorIndices[n := r, k := k] \as Indices;
+\import Operations.FiniteIndex[A := Indices.Tuple, S := Indices.set, enumeration := enumeration] \as Coordinates;
+\import Spaces.Multilinear[V := Vectors.Vector, space := Vectors.space] \as Multilinear;
+\definition arguments: \forall (a: Fin.Fin Exterior.rank)(u: Open.Carrier Domain.domain) ->
+  Change.arguments a u = Gauge.arguments original a u :=
+  \fun (a: Fin.Fin Exterior.rank)(u: Open.Carrier Domain.domain) =>
+    \axiom:funext(Change.arguments a u, Gauge.arguments original a u, \fun (slot: Fin.Fin k) =>
+      \axiom:funext(Change.arguments a u slot, Gauge.arguments original a u slot, \fun (c: Fin.Fin r) => reverse (Coordinates.enumerate a slot) c u));
+\definition transition: matrix = Gauge.representation original :=
+  \axiom:funext(matrix, Gauge.representation original, \fun (a: Fin.Fin Exterior.rank) =>
+    \axiom:funext(matrix a, Gauge.representation original a, \fun (b: Fin.Fin Exterior.rank) =>
+      \axiom:funext(matrix a b, Gauge.representation original a b, \fun (u: Open.Carrier Domain.domain) => eq_reason_in!{{C.Complex} _
+        "=" _ "by" { Change.formula (RankBasis.vectors b) a u }
+        "=" _ "by" { RankSums.congruent (Fin.elements Exterior.rank)
+          (\fun (c: Fin.Fin Exterior.rank) => Op.mul (RankBasis.vectors b c) (Change.word c (Change.arguments a u)))
+          (\fun (c: Fin.Fin Exterior.rank) => Op.mul (Change.word c (Change.arguments a u)) (RankBasis.vectors b c))
+          (\fun (c: Fin.Fin Exterior.rank) => Spaces.mulComm (RankBasis.vectors b c) (Change.word c (Change.arguments a u))) }
+        "=" _ "by" { RankBasis.dualReconstruction (\fun (c: Fin.Fin Exterior.rank) => Change.word c (Change.arguments a u)) b }
+        "=" _ "by" { congr!{{Multilinear.Arguments k} {C.Complex}} (Change.word b) _ _ (arguments a u) }
+      })));

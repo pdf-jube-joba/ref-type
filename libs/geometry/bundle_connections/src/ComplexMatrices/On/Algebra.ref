@@ -1,0 +1,43 @@
+\definition componentsExt: \forall (A, B: OneForm) -> A.real = B.real -> A.imaginary = B.imaginary -> A = B :=
+  \induction (A: OneForm) \return \forall (B: OneForm) -> A.real = B.real -> A.imaginary = B.imaginary -> A = B \with {
+    | # : \fun (ar, ai: Scalar.Form one) => \induction (B: OneForm) \return ar = B.real -> ai = B.imaginary -> OneForm { real := ar, imaginary := ai } = B \with {
+      | # : \fun (br, bi: Scalar.Form one)(real: ar = br)(imaginary: ai = bi) => congr!{{Scalar.Form one} {Scalar.Form one} {OneForm}}
+        (\fun (x, y: Scalar.Form one) => OneForm { real := x, imaginary := y }) _ _ _ _ real imaginary
+    }
+  };
+\definition ext: \forall (A, B: OneForm) -> (\forall (x: Open.Carrier U)(v: Multilinear.Arguments one) -> evaluate A x v = evaluate B x v) -> A = B :=
+  \fun (A, B: OneForm)(same: _) => componentsExt A B
+    (Scalar.ext one A.real B.real (\fun (x: Open.Carrier U)(v: Multilinear.Arguments one) => congr!{{C.Complex} {R.Real}} C.re _ _ (same x v)))
+    (Scalar.ext one A.imaginary B.imaginary (\fun (x: Open.Carrier U)(v: Multilinear.Arguments one) => congr!{{C.Complex} {R.Real}} C.im _ _ (same x v)));
+\definition constant[z: C.Complex]: Functions.Function := \into[Calculus.Function]((\fun (x: Open.Carrier U) => z), Functions.Function) \by { Calculus.constant z };
+\definition Numeric: \Set := Fin.Fin r -> Fin.Fin r -> C.Complex;
+\definition numericExt: \forall (A, B: Numeric) -> (\forall (a, b: Fin.Fin r) -> A a b = B a b) -> A = B :=
+  \fun (A, B: Numeric)(same: _) => \axiom:funext(A, B, \fun (a: Fin.Fin r) => \axiom:funext(A a, B a, same a));
+\definition product[A, B: Numeric][a, b: Fin.Fin r]: C.Complex := Sums.sum r (\fun (c: Fin.Fin r) => Op.mul (A a c) (B c b));
+\definition eval0[A: Matrix0][x: Open.Carrier U]: Numeric := \fun (a, b: Fin.Fin r) => A a b x;
+\definition eval1[A: Matrix1][x: Open.Carrier U][v: Multilinear.Arguments one]: Numeric := \fun (a, b: Fin.Fin r) => evaluate (A a b) x v;
+\definition matrixExt: \forall (A, B: Matrix1) -> (\forall (x: Open.Carrier U)(v: Multilinear.Arguments one) -> eval1 A x v = eval1 B x v) -> A = B :=
+  \fun (A, B: Matrix1)(same: _) => \axiom:funext(A, B, \fun (a: Fin.Fin r) => \axiom:funext(A a, B a, \fun (b: Fin.Fin r) =>
+    ext (A a b) (B a b) (\fun (x: Open.Carrier U)(v: Multilinear.Arguments one) => congr!{Numeric {C.Complex}} (\fun (Z: Numeric) => Z a b) _ _ (same x v))));
+\definition eval01: \forall (A: Matrix0)(B: Matrix1)(x: Open.Carrier U)(v: Multilinear.Arguments one) -> eval1 (product01 A B) x v = product (eval0 A x) (eval1 B x v) :=
+  \fun (A: Matrix0)(B: Matrix1)(x: Open.Carrier U)(v: Multilinear.Arguments one) => numericExt (eval1 (product01 A B) x v) (product (eval0 A x) (eval1 B x v)) (\fun (a, b: Fin.Fin r) => value01 A B a b x v);
+\definition eval10: \forall (A: Matrix1)(B: Matrix0)(x: Open.Carrier U)(v: Multilinear.Arguments one) -> eval1 (product10 A B) x v = product (eval1 A x v) (eval0 B x) :=
+  \fun (A: Matrix1)(B: Matrix0)(x: Open.Carrier U)(v: Multilinear.Arguments one) => numericExt (eval1 (product10 A B) x v) (product (eval1 A x v) (eval0 B x)) (\fun (a, b: Fin.Fin r) => value10 A B a b x v);
+\import Scalar.DegreeZero[] \as ZeroForms;
+\import Scalar.At[k := N.Nat^::zero] \as ScalarZero;
+\import Scalar.ExteriorDerivative[k := N.Nat^::zero] \as D;
+\import Reals.Linear[V := RealFunctions.Function, W := Scalar.Form N.Nat^::zero, source := RealFunctions.vectorSpace, target := ScalarZero.space].Operations[] \as ZeroOperations;
+\import Reals.Linear[V := Scalar.Form N.Nat^::zero, W := Scalar.Form one, source := ScalarZero.space, target := Forms.space].Operations[] \as DOperations;
+\definition dNegative: \forall (f: RealFunctions.Function) -> RealMatrices.differential (RealFunctions.vectorSpace.neg f) = Forms.space.neg (RealMatrices.differential f) :=
+  \fun (f: RealFunctions.Function) => trans!{{Scalar.Form one}} _ _ _
+    (congr!{{Scalar.Form N.Nat^::zero} {Scalar.Form one}} D.apply _ _ (ZeroOperations.preservesNeg ZeroForms.forward f))
+    (DOperations.preservesNeg D.map (ZeroForms.apply f));
+\definition realProduct: \forall (f, g: Functions.Function) -> Functions.real (functionProduct f g) = RealFunctions.plus
+  (RealFunctions.product (Functions.real f) (Functions.real g)) (RealFunctions.vectorSpace.neg (RealFunctions.product (Functions.imaginary f) (Functions.imaginary g))) :=
+  \fun (f, g: Functions.Function) => RealFunctions.ext _ _ (\fun (x: Open.Carrier U) => \refl(C.re (Op.mul (f x) (g x))));
+\definition imaginaryProduct: \forall (f, g: Functions.Function) -> Functions.imaginary (functionProduct f g) = RealFunctions.plus
+  (RealFunctions.product (Functions.real f) (Functions.imaginary g)) (RealFunctions.product (Functions.imaginary f) (Functions.real g)) :=
+  \fun (f, g: Functions.Function) => RealFunctions.ext _ _ (\fun (x: Open.Carrier U) => \refl(C.im (Op.mul (f x) (g x))));
+\module Product(f, g: Functions.Function);
+\definition dProduct: \forall (f, g: Functions.Function) -> differential (functionProduct f g) = add (multiply g (differential f)) (multiply f (differential g)) :=
+  \fun (f, g: Functions.Function) => componentsExt _ _ (Product[f := f, g := g].real) (Product[f := f, g := g].imaginary);

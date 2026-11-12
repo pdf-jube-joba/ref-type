@@ -1,0 +1,36 @@
+\definition tensor: \forall (A: Left.Matrix0)(B: Right.Matrix0) -> Algebra.eval0 (tensor0 A B) x = embed (Numeric.tensor (LeftAlgebra.eval0 A x) (RightAlgebra.eval0 B x)) :=
+  \fun (A: Left.Matrix0)(B: Right.Matrix0) => \refl(Algebra.eval0 (tensor0 A B) x);
+\definition mixed01: \forall (A: Left.Matrix0)(B: Right.Matrix1) -> Algebra.eval1 (tensor01 A B) x v = embed (Numeric.tensor (LeftAlgebra.eval0 A x) (RightAlgebra.eval1 B x v)) :=
+  \fun (A: Left.Matrix0)(B: Right.Matrix1) => \refl(Algebra.eval1 (tensor01 A B) x v);
+\definition mixed10: \forall (A: Left.Matrix1)(B: Right.Matrix0) -> Algebra.eval1 (tensor10 A B) x v = embed (Numeric.tensor (LeftAlgebra.eval1 A x v) (RightAlgebra.eval0 B x)) :=
+  \fun (A: Left.Matrix1)(B: Right.Matrix0) => Algebra.numericExt (Algebra.eval1 (tensor10 A B) x v) (embed (Numeric.tensor (LeftAlgebra.eval1 A x v) (RightAlgebra.eval0 B x))) (\fun (a, b: Fin.Fin Index.rank) =>
+    Spaces.mulComm (B (Index.col a) (Index.col b) x) (Left.evaluate (A (Index.row a) (Index.row b)) x v));
+\definition addition: \forall (A, B: Target.Matrix1) -> Algebra.eval1 (Target.plus A B) x v = \fun (a, b: Fin.Fin Index.rank) => Op.add (Algebra.eval1 A x v a b) (Algebra.eval1 B x v a b) :=
+  \fun (A, B: Target.Matrix1) => \refl(Algebra.eval1 (Target.plus A B) x v);
+\definition liftValue: \forall (A: Left.Matrix1)(B: Right.Matrix1) -> Algebra.eval1 (lift A B) x v = embed (Numeric.lift (LeftAlgebra.eval1 A x v) (RightAlgebra.eval1 B x v)) :=
+  \fun (A: Left.Matrix1)(B: Right.Matrix1) => Algebra.numericExt (Algebra.eval1 (lift A B) x v) (embed (Numeric.lift (LeftAlgebra.eval1 A x v) (RightAlgebra.eval1 B x v))) (\fun (a, b: Fin.Fin Index.rank) =>
+    congr!{{Z.Complex} {Z.Complex}} (\fun (z: Z.Complex) => Op.add z (Target.evaluate (tensor01 leftIdentity B a b) x v)) _ _
+      (Spaces.mulComm (Rg.identity (Index.col a) (Index.col b)) (Left.evaluate (A (Index.row a) (Index.row b)) x v)));
+\definition derivative: \forall (T: Left.Matrix0)(S: Right.Matrix0) -> Algebra.eval1 (Target.dMatrix (tensor0 T S)) x v = embed
+  (Numeric.plus (Numeric.tensor (LeftAlgebra.eval1 (Left.dMatrix T) x v) (RightAlgebra.eval0 S x)) (Numeric.tensor (LeftAlgebra.eval0 T x) (RightAlgebra.eval1 (Right.dMatrix S) x v))) :=
+  \fun (T: Left.Matrix0)(S: Right.Matrix0) => trans!{Algebra.Numeric} _ _ _
+    (congr!{Target.Matrix1 Algebra.Numeric} (\fun (A: Target.Matrix1) => Algebra.eval1 A x v) _ _ (differential T S))
+    (Algebra.numericExt (Algebra.eval1 (Target.plus (tensor10 (Left.dMatrix T) S) (tensor01 T (Right.dMatrix S))) x v) (embed (Numeric.plus (Numeric.tensor (LeftAlgebra.eval1 (Left.dMatrix T) x v) (RightAlgebra.eval0 S x)) (Numeric.tensor (LeftAlgebra.eval0 T x) (RightAlgebra.eval1 (Right.dMatrix S) x v)))) (\fun (a, b: Fin.Fin Index.rank) => congr!{{Z.Complex} {Z.Complex}}
+      (\fun (z: Z.Complex) => Op.add z (Target.evaluate (tensor01 T (Right.dMatrix S) a b) x v)) _ _
+      (Spaces.mulComm (S (Index.col a) (Index.col b) x) (Left.evaluate (Left.dMatrix T (Index.row a) (Index.row b)) x v))));
+\definition leftProduct: \forall (T: Left.Matrix0)(S: Right.Matrix0)(A: Left.Matrix1)(B: Right.Matrix1) ->
+  Algebra.eval1 (Target.product01 (tensor0 T S) (lift A B)) x v = embed (Numeric.product
+    (Numeric.tensor (LeftAlgebra.eval0 T x) (RightAlgebra.eval0 S x)) (Numeric.lift (LeftAlgebra.eval1 A x v) (RightAlgebra.eval1 B x v))) :=
+  \fun (T: Left.Matrix0)(S: Right.Matrix0)(A: Left.Matrix1)(B: Right.Matrix1) => eq_reason_in!{Algebra.Numeric _
+    "=" _ "by" { Algebra.eval01 (tensor0 T S) (lift A B) x v }
+    "=" _ "by" { congr!{Algebra.Numeric Algebra.Numeric} (Algebra.product (Algebra.eval0 (tensor0 T S) x)) _ _ (liftValue A B) }
+    "=" _ "by" { product (Numeric.tensor (LeftAlgebra.eval0 T x) (RightAlgebra.eval0 S x)) (Numeric.lift (LeftAlgebra.eval1 A x v) (RightAlgebra.eval1 B x v)) }
+  };
+\definition rightProduct: \forall (C: Left.Matrix1)(D: Right.Matrix1)(T: Left.Matrix0)(S: Right.Matrix0) ->
+  Algebra.eval1 (Target.product10 (lift C D) (tensor0 T S)) x v = embed (Numeric.product
+    (Numeric.lift (LeftAlgebra.eval1 C x v) (RightAlgebra.eval1 D x v)) (Numeric.tensor (LeftAlgebra.eval0 T x) (RightAlgebra.eval0 S x))) :=
+  \fun (C: Left.Matrix1)(D: Right.Matrix1)(T: Left.Matrix0)(S: Right.Matrix0) => eq_reason_in!{Algebra.Numeric _
+    "=" _ "by" { Algebra.eval10 (lift C D) (tensor0 T S) x v }
+    "=" _ "by" { congr!{Algebra.Numeric Algebra.Numeric} (\fun (X: Algebra.Numeric) => Algebra.product X (Algebra.eval0 (tensor0 T S) x)) _ _ (liftValue C D) }
+    "=" _ "by" { product (Numeric.lift (LeftAlgebra.eval1 C x v) (RightAlgebra.eval1 D x v)) (Numeric.tensor (LeftAlgebra.eval0 T x) (RightAlgebra.eval0 S x)) }
+  };
