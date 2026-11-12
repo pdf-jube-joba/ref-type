@@ -1,0 +1,17 @@
+\import \parent.SeminormProperties[p := p] \as Properties;
+\definition continuous: Maps.Continuous topology Line.topology p.value := \fun (V: \Pow Real.Real)(open: _) =>
+  Space.openOfNeighborhoods topology (Maps.Preimage p.value V) (\fun (f: Test)(member: _) => \block {
+    \takefrom r: \Cast[Real.Real] (Metric.NeighborhoodRadius RealMetric.metric V (p.value f)) \by open (p.value f) member \then
+    \let conditions: Logic.And[R.Lt Real.zero r, Scalars.Subset (Metric.Ball RealMetric.metric (p.value f) r) V] :=
+      \bysub(Real.Real, Metric.NeighborhoodRadius RealMetric.metric V (p.value f), r) \then
+    \return Logic.existsIntro[\Pow Test, { S: \Pow Test \where Space.OpenNeighborhood[topology, f, Maps.Preimage p.value V, S] }] (Ball p f r)
+      (Space.OpenNeighborhood[topology, f, Maps.Preimage p.value V, Ball p f r] {
+        open := ballOpen p f r,
+        contains := centerInBall p f r conditions.left,
+        within := \fun (g: Test)(near: _) => conditions.right (p.value g)
+          (R.leLtTrans _ (p.value (difference g f)) r
+            (R.leReplaceLeft _ _ _ (Distance.distanceSymmetric (p.value g) (p.value f)) (Properties.distance g f)) near),
+      })
+  });
+\definition finalContinuous: Maps.Continuous Final.topology Line.topology p.value :=
+  \fun (V: \Pow Real.Real)(open: _) => finalFiner (Maps.Preimage p.value V) (continuous V open);

@@ -1,0 +1,54 @@
+\import lp_spaces.Powers[] \as Nonnegatives;
+\import Nonnegatives.Algebra[] \as NonnegativeAlgebra;
+\import Real.Algebra[] \as ScalarAlgebra;
+\definition row[i: Fin.Fin n]: Nonnegative := \into[Real.Real](Real.add (A i) (Sums.sum n (\fun (j: Fin.Fin n) => B i j)), Nonnegative) \by {
+  Laws.addNonnegative (A i) (Sums.sum n (\fun (j: Fin.Fin n) => B i j)) (Nonnegatives.baseNonnegative (A i))
+    (Sums.nonnegative n (\fun (j: Fin.Fin n) => B i j) (\fun (j: Fin.Fin n) => Nonnegatives.baseNonnegative (B i j)))
+};
+\definition rows: Nonnegative := \into[Real.Real](Sums.sum n (\fun (i: Fin.Fin n) => row i), Nonnegative) \by {
+  Sums.nonnegative n (\fun (i: Fin.Fin n) => row i) (\fun (i: Fin.Fin n) => Nonnegatives.baseNonnegative (row i))
+};
+\definition total: Nonnegative := NonnegativeAlgebra.sum C rows;
+\definition baseLe: R.Le C total := ScalarAlgebra.leAddRight C rows (Nonnegatives.baseNonnegative rows);
+\definition rowLe[i: Fin.Fin n]: R.Le (row i) total := R.leTrans _ _ _
+  (Sums.coordinateUpper n (\fun (j: Fin.Fin n) => row j) (\fun (j: Fin.Fin n) => Nonnegatives.baseNonnegative (row j)) i)
+  (R.leReplaceRight _ _ _ (Laws.addComm rows C) (ScalarAlgebra.leAddRight rows C (Nonnegatives.baseNonnegative C)));
+\definition expansion[f: Test][i: Fin.Fin n][d: Directions]: Output.reversed (Directions::cons i d) (value a f) =
+  Output.plus (Output.reversed d (value (Output.partial a i) f))
+    (Output.sum n (\fun (j: Fin.Fin n) => Output.reversed d (term a f i j))) := eq_reason_in!{Function _
+      "=" _ "by" { congr!{Function Function} (Output.reversed d) _ _ (derivative a f i) }
+      "=" _ "by" { Output.reversedAdd d (value (Output.partial a i) f) (Output.sum n (term a f i)) }
+      "=" _ "by" { congr!{Function Function} (Output.plus (Output.reversed d (value (Output.partial a i) f))) _ _
+        (Output.reversedSum d n (term a f i)) }
+    };
+\definition sumBound[f: Test][b: Nonnegative][i: Fin.Fin n][d: Directions][x: PullbackOpen.Carrier V]:
+  PullbackBase.JetBound f (N.Nat^::succ m) b -> Nat.Le (order d) m -> LocalSets.Member H x ->
+  R.Le (Absolute.abs (Output.sum n (\fun (j: Fin.Fin n) => Output.reversed d (term a f i j)) x))
+    (Real.mul (Sums.sum n (\fun (j: Fin.Fin n) => B i j)) b) := \fun (input: _)(small: _)(member: _) =>
+  R.leReplaceLeft _ _ _ (sym!{Real.Real} _ _ (congr!{Real.Real Real.Real} Absolute.abs _ _
+    (Output.sumValue n (\fun (j: Fin.Fin n) => Output.reversed d (term a f i j)) x)))
+  (R.leTrans _ _ _ (absSum n (\fun (j: Fin.Fin n) => Output.reversed d (term a f i j) x))
+    (R.leReplaceRight _ _ _
+      (trans!{Real.Real} _ _ _
+        (Sums.congruent n (\fun (j: Fin.Fin n) => Real.mul (B i j) b) (\fun (j: Fin.Fin n) => Real.mul b (B i j))
+          (\fun (j: Fin.Fin n) => Laws.fieldMulComm (B i j) b))
+        (trans!{Real.Real} _ _ _ (Sums.scalar n b (\fun (j: Fin.Fin n) => B i j)) (Laws.fieldMulComm b (Sums.sum n (\fun (j: Fin.Fin n) => B i j)))))
+      (Sums.comparison n (\fun (j: Fin.Fin n) => Absolute.abs (Output.reversed d (term a f i j) x))
+        (\fun (j: Fin.Fin n) => Real.mul (B i j) b)
+        (\fun (j: Fin.Fin n) => chainBounds i j (Tests.partial f j) b (inputPartial m f b j input) d small x member))));
+\definition estimate: Bound (N.Nat^::succ m) a total := \fun (f: Test)(b: Nonnegative)(input: _) =>
+  \induction (d: Directions) \return Nat.Le (order d) (N.Nat^::succ m) -> \forall (x: PullbackOpen.Carrier V) -> LocalSets.Member H x ->
+    R.Le (Absolute.abs (Output.reversed d (value a f) x)) (Real.mul total b) \with {
+      | nil: \fun (small: _)(x: PullbackOpen.Carrier V)(member: _) => R.leTrans _ _ _
+        (base f b (\fun (ds: Directions)(len: _)(y: Point) => input ds (Nat.leTrans _ _ _ len (Nat.zeroLe (N.Nat^::succ m))) y)
+          Directions::nil (Nat.leRefl N.Nat^::zero) x member) (rightMonotone b C total baseLe)
+      | cons: \fun (i: Fin.Fin n)(tail: Directions)(previous: _)(small: _)(x: PullbackOpen.Carrier V)(member: _) =>
+        R.leReplaceLeft _ _ _ (sym!{Real.Real} _ _ (congr!{Function Real.Real} (\fun (h: Function) => Absolute.abs (h x)) _ _ (expansion f i tail)))
+          (R.leTrans _ _ _ (absAdd (Output.reversed tail (value (Output.partial a i) f) x)
+            (Output.sum n (\fun (j: Fin.Fin n) => Output.reversed tail (term a f i j)) x))
+            (R.leTrans _ _ _
+              (Estimates.addLe _ _ _ _ (derivativeBounds i f b (inputWeaken m f b input) tail (Nat.leOfSuccSucc (order tail) m small) x member)
+                (sumBound f b i tail x input (Nat.leOfSuccSucc (order tail) m small) member))
+              (R.leReplaceLeft _ _ _ (ScalarAlgebra.mulAddRight (A i) (Sums.sum n (\fun (j: Fin.Fin n) => B i j)) b)
+                (rightMonotone b (row i) total (rowLe i)))))
+    };

@@ -1,0 +1,30 @@
+\definition patch: Source.Patch := Source.Patch { source := original, representative := representative };
+\import Source.For[patch := patch] \as Patch;
+\definition source: Local.SourceChart x := \into[SourceCharts.Chart](Patch.chart, Local.SourceChart x) \by {
+  Logic.And[_, _]::# (Logic.existsIntro[Source.Patch, { p: Source.Patch \where Patch.chart = Source.For[patch := p].chart }] patch (\refl(Patch.chart)))
+    (Logic.And[_, _]::# contains (\refl(Product.second x)))
+};
+\import Maps.At[function := value, left := source, right := destination, x := x, contains := Local.leftContains x source] \as Coordinates;
+\definition identity: Calculus.Map Patch.image Open.whole := Calculus.Map[Patch.image, Open.whole] {
+  apply := \fun (u: Open.Carrier Patch.image) => \into[Model.Point](u, Open.whole.points) \by { \refl(u \of Model.Point) },
+  smooth := \fun (i: Model.Coordinate) => Open.Examples[].projectionSmooth Patch.image i,
+};
+\definition inside[u: Model.Carrier source.constraints Patch.image]: TargetCharts.Contains destination (value (SourceCharts.point source u)) :=
+  Logic.And[_, _]::# (\bysub(B.Point, c.domain, BoundaryCharts.point c (Original.leftCoordinate (Patch.input u))))
+    (\refl(Signed.SmallTimes[].positive (time (SourceCharts.point source u))));
+\import calculus.Blocks[n := n, m := One.dimension] \as Blocks;
+\definition timeValue[t: Signed.SmallTimes[].Point]: (Signed.SmallTimes[].positive t \of boundary_manifolds.Model[n := One.dimension].Point) = (t \of boundary_manifolds.Model[n := One.dimension].Point) :=
+  Signed.rawEquality (Signed.SmallTimes[].positive t) t (\refl(Time.value t));
+\definition equal[u: Model.Carrier source.constraints Patch.image]:
+  (TargetCharts.coordinate destination (\into[SignedProduct.Point](value (SourceCharts.point source u), destination.domain) \by { inside u }) \of Model.Point) = (u \of Model.Point) :=
+  trans!{Model.Point} _ _ _
+    (congr!{{boundary_manifolds.Model[n := n].Point} {boundary_manifolds.Model[n := One.dimension].Point} {Model.Point}} Blocks.join _ _ _ _
+      (BoundaryCharts.coordinatePoint c (Original.leftCoordinate (Patch.input u)))
+      (timeValue (time (SourceCharts.point source u))))
+    (Blocks.recover u);
+\definition extension: Coordinates.Extension := Coordinates.Extension {
+  neighborhood := Patch.image, included := \fun (u: Model.Point)(member: _) => member,
+  contains := \bysub(Model.Point, Patch.image.points, Coordinates.source), map := identity, inside := inside,
+  agrees := \fun (u: Model.Carrier source.constraints Patch.image) => sym!{Model.Point} _ _ (equal u)
+};
+\definition witness: Local.Witness[x] := Local.Witness[x] { left := source, right := destination, extension := extension };

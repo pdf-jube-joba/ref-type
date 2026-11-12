@@ -1,0 +1,15 @@
+\import Tangent.At[x := x] \as Domain;
+\import boundary_manifolds.Differential[n := n, m := k].Between[M := M, N := E].At[f := f, x := x] \as First;
+\import boundary_manifolds.Differential[n := n, m := One.dimension].Between[M := M, N := halfLine].At[f := h, x := x] \as Second;
+\import Differential.At[f := map, x := x] \as D;
+\import manifold_gluing.PairDifferential[p := n, n := k, m := One.dimension].Between[P := M, M := E, N := halfLine].Of[f := f, g := h].At[x := x] \as Pair;
+\import manifold_gluing.ProductDifferential[n := k, m := One.dimension].Of[M := E, N := halfLine].At[x := Maps.apply map x] \as Components;
+\import boundary_manifolds.Tangent[n := k].On[M := E].At[x := f.apply x] \as FirstTangent;
+\import boundary_manifolds.Tangent[n := dimension].On[M := target].At[x := Maps.apply map x] \as Codomain;
+\definition firstDerivative: \forall (v: Domain.Vector) -> Components.first (D.value.apply v) = First.value.apply v := \fun (v: Domain.Vector) =>
+  trans!{FirstTangent.Vector} _ _ _ (congr!{Codomain.Vector FirstTangent.Vector} Components.first _ _ (Pair.law v))
+    (Components.firstPair (First.value.apply v) (Second.value.apply v));
+\definition immersion: \forall (u, v: Domain.Vector) -> D.value.apply u = D.value.apply v -> u = v :=
+  \fun (u, v: Domain.Vector)(same: D.value.apply u = D.value.apply v) => laws.immersion x u v
+    (trans!{FirstTangent.Vector} _ _ _ (sym!{FirstTangent.Vector} _ _ (firstDerivative u))
+      (trans!{FirstTangent.Vector} _ _ _ (congr!{Codomain.Vector FirstTangent.Vector} Components.first _ _ same) (firstDerivative v)));

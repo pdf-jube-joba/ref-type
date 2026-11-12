@@ -429,3 +429,38 @@ K11's smash associator uses this representation for its raw threefold product.
 }
 }
 ```
+
+
+## 依存する module 引数型の内部量化と後続定義のスコープ
+
+境界のない多様体を指定する条件を、module 引数の型へ直接書きたい。
+`boundary_manifolds`、`topology`、`std` を依存に持つ playground で、次の 8 行を検査すると、恒等写像の定義で `DefinitionLocalContextIsOutsideReferenceScope` により worker が panic する。
+
+こう書きたい版:
+
+```ref
+\module Test(n: std.Data[].Nat[].Nat^) {
+  \import std.Logic[].Proposition[] \as Logic;
+  \import boundary_manifolds.Dimension[n := n] \as Models;
+  \module On(M: Models.Manifold, noBoundary: \forall (x: M.Point) -> Logic.Not boundary_manifolds.Tangent[n := n].On[M := M].At[x := x].Cones[].Boundary) {
+    \import topology.Topology[Carrier := M.Point] \as Space;
+    \definition identity: Space.IsCompact M.space -> Space.IsCompact M.space := \fun (p: Space.IsCompact M.space) => p;
+  }
+}
+```
+
+現在は量化を含む条件に先に名前を付けると、同じ引数と結論で検査できる。
+
+こう書いている版:
+
+```ref
+\module Test(n: std.Data[].Nat[].Nat^) {
+  \import std.Logic[].Proposition[] \as Logic;
+  \import boundary_manifolds.Dimension[n := n] \as Models;
+  \definition NoBoundary[M: Models.Manifold]: \Prop := \forall (x: M.Point) -> Logic.Not boundary_manifolds.Tangent[n := n].On[M := M].At[x := x].Cones[].Boundary;
+  \module On(M: Models.Manifold, noBoundary: NoBoundary M) {
+    \import topology.Topology[Carrier := M.Point] \as Space;
+    \definition identity: Space.IsCompact M.space -> Space.IsCompact M.space := \fun (p: Space.IsCompact M.space) => p;
+  }
+}
+```

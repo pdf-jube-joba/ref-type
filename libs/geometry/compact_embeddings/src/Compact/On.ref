@@ -1,0 +1,36 @@
+\import smooth_partitions.Manifold[n := n].On[M := M] \as Scalars;
+\import smooth_partitions.Scalars[A := M.Point, space := M.space].Using[calculus := Scalars.calculus] \as Functions;
+\import topology.Topology[Carrier := M.Point] \as Space;
+\import manifolds.Dimension[n := n].Chart[M := M.Point, space := M.space] \as Charts;
+\import manifolds.Dimension[n := n].Atlas[M := M.Point, space := M.space] \as Atlas;
+\module AtDimension(d: N.Nat^);
+\definition Embedding[d: N.Nat^]: \Set := AtDimension[d := d].Embedding;
+\structure Result: \Set := {
+  dimension: N.Nat^,
+  embedding: Embedding dimension,
+};
+\definition Chart: \Set := \Cast[Charts.Chart] M.atlas.charts;
+\definition chartCover: \Pow (\Pow M.Point) := { U: \Pow M.Point \where \exists ( c: Chart \where c.domain = U ) };
+\definition cover: Space.IsOpenCover[M.space, chartCover, Space.Whole] := Space.IsOpenCover[M.space, chartCover, Space.Whole] {
+  open := \block {
+    \fun (U: \Pow M.Point)(member: Space.FamilyMember chartCover U) \then
+    \takefrom c: \Cast[Chart] ({ c: Chart \where c.domain = U }) \by member \then
+    \return \idelim c.domain = U \with V: \Pow M.Point => Space.IsOpenIn M.space V \by {
+      base: c.open, equality: \bysub(Chart, { c: Chart \where c.domain = U }, c)
+    }
+  },
+  covers := \block {
+    \fun (x: M.Point)(member: Space.Member Space.Whole x) \then
+    \takefrom c: \Cast[Charts.Chart] ({ c: Charts.Chart \where Logic.And[Atlas.Member M.atlas c, Charts.Contains c x] }) \by M.atlas.covers x \then
+    \let laws: Logic.And[Atlas.Member M.atlas c, Charts.Contains c x] := \bysub(Charts.Chart, { c: Charts.Chart \where Logic.And[Atlas.Member M.atlas c, Charts.Contains c x] }, c) \then
+    \let chart: Chart := \into[Charts.Chart](c, M.atlas.charts) \by { laws.left } \then
+    \return Space.unionMemberOf chartCover chart.domain x
+      (Logic.existsIntro[Chart, { c: Chart \where c.domain = chart.domain }] chart (\refl(chart.domain))) laws.right
+  },
+};
+\module Empty(empty: Logic.Not (\exists M.Point));
+\module Nonempty(compact: Space.IsCompact M.space);
+\definition exists[compact: Space.IsCompact M.space]: \exists Result := either!{{(Classical.excludedMiddle (\exists M.Point))} {\exists Result}
+  {\fun (nonempty: \exists M.Point) => Nonempty[compact := compact].exists nonempty}
+  {\fun (empty: Logic.Not (\exists M.Point)) => \exact(Empty[empty := empty].result, Result)}
+};

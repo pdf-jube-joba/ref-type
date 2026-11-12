@@ -1,0 +1,35 @@
+\definition k: N.Nat^ := embedded.dimension;
+\import manifolds.Dimension[n := k].Examples[].Euclidean[] \as Euclidean;
+\import boundary_manifolds.Boundaryless[n := k].Of[M := Euclidean.smoothManifold] \as Target;
+\import manifolds.Immersion[n := dimension, m := k].Between[M := Interior.ordinary, N := Euclidean.smoothManifold] \as OrdinaryEmbeddings;
+\import \root.Bridge[n := dimension, m := k].Between[M := Interior.ordinary, N := Euclidean.smoothManifold].Of[f := embedded.embedding].Embedded[
+  laws := OrdinaryEmbeddings.embeddingLaws embedded.embedding] \as Converted;
+\import \root.Neat[n := dimension].Composition[k := dimension, l := dimension].Between[M := M, N := DoubleModel.manifold, P := Interior.target].Of[f := DoubleModel.left, g := Interior.embedding] \as First;
+\import \root.Neat[n := dimension].Composition[k := dimension, l := k].Between[M := M, N := Interior.target, P := Target.manifold].Of[f := First.embedding, g := Converted.embedding] \as Full;
+\import Heights.From[construction := collar.collar].Of[width := collar.width].Compact[compact := compact] \as Height;
+\import Height.Collapse[] \as Collapse;
+\import \root.HeightNormal[n := n].On[M := M].With[cover := cover].From[result := collar, compact := compact] \as Normal;
+\import \root.CollapseDifferential[n := n].On[M := M].With[cover := cover].From[result := collar, compact := compact] \as Joint;
+\import manifold_gluing.SmoothChainRule[n := dimension, m := dimension, l := k].Between[M := M, N := M, P := Target.manifold].Of[f := Collapse.map, g := Full.embedding] \as Collapsed;
+\import \root.Neat[n := dimension].Graph[k := k].Between[M := M, E := Target.manifold] \as Graphs;
+\import Graphs.Of[f := Collapsed.map, h := Height.map] \as Graph;
+\import \root.HalfSpace[k := k] \as Half;
+\import boundary_manifolds.SmoothMap[n := dimension, m := Half.dimension].Between[M := M, N := Half.manifold] \as Maps;
+\import boundary_manifolds.Immersion[n := dimension, m := Half.dimension].Between[M := M, N := Half.manifold] \as Embeddings;
+\import boundary_manifolds.Immersion[n := dimension, m := k].Between[M := M, N := Target.manifold] \as FirstEmbeddings;
+\import boundary_manifolds.Tangent[n := dimension].On[M := M] \as Tangent;
+\module At(x: M.Point);
+\definition immersion: Embeddings.IsImmersion Graph.map := \fun (x: M.Point) => At[x := x].immersion;
+\import boundary_manifolds.Product[n := k, m := One.dimension].Of[M := Target.manifold, N := \root.Neat[n := n].halfLine] \as Product;
+\definition injective[x, y: M.Point]: Maps.apply Graph.map x = Maps.apply Graph.map y -> x = y := \fun (same: _) =>
+  Collapse.jointInjective x y
+    ((FirstEmbeddings.embeddingLaws Full.embedding).injective (Collapse.map.apply x) (Collapse.map.apply y)
+      (congr!{{Half.manifold.Point} {Target.manifold.Point}} Product.first _ _ same))
+    (congr!{{Half.manifold.Point} S.Real} (\fun (p: Half.manifold.Point) => Product.second p One.index) _ _ same);
+\definition embeddedGraph: Embeddings.Embedding := Graph.Compact[compact := compact, immersion := immersion, injective := injective].embedding;
+\definition heightLaws: Graphs.HeightLaws[Height.map] := Graphs.HeightLaws[Height.map] {
+  boundary := Normal.boundary, normal := Normal.normal, reflects := Normal.reflects,
+};
+\import Graph.With[embedded := Embeddings.embeddingLaws embeddedGraph, noBoundary := Half.noBoundary, height := heightLaws] \as Neat;
+\module Collar;
+\definition result: Result := Result { dimension := k, collar := collar, embedding := Neat.neat, compatible := Collar[].compatible };

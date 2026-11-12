@@ -1,0 +1,92 @@
+\import Open.Analysis[].Properties[] \as Uniqueness;
+\import Open.Analysis[].Operations[] \as Derivatives;
+\import Lists.Prop[A := Fin.Fin n] \as ListLaws;
+\definition zero: Test := Operations.zero;
+\definition add[f, g: Test]: Test := Operations.add f g;
+\definition scale[c: Real.Real][f: Test]: Test := Operations.scale c f;
+\definition partial[f: Test][i: Fin.Fin n]: Test := Operations.partial f i;
+\definition ext[f, g: Test]: (\forall (x: Point) -> f x = g x) -> f = g :=
+  \fun (same: _) => \axiom:funext(f, g, same);
+\definition partialLaw[f: Test][i: Fin.Fin n]: Analysis.HasPartialDerivative Open.whole
+  (Restriction.function Open.whole f) i (Restriction.function Open.whole (partial f i)) := Operations.Partial[f := f, i := i].law;
+\definition partialAdd[f, g: Test][i: Fin.Fin n]: partial (add f g) i = add (partial f i) (partial g i) :=
+  ext (partial (add f g) i) (add (partial f i) (partial g i)) (\fun (x: Point) => Uniqueness.partialUnique Open.whole (Restriction.function Open.whole (add f g)) i (Whole.point x) _ _
+    (partialLaw (add f g) i (Whole.point x))
+    (Derivatives.addPartial Open.whole (Restriction.function Open.whole f) (Restriction.function Open.whole g)
+      (Restriction.function Open.whole (partial f i)) (Restriction.function Open.whole (partial g i)) i
+      (partialLaw f i) (partialLaw g i) (Whole.point x)));
+\definition partialScale[c: Real.Real][f: Test][i: Fin.Fin n]: partial (scale c f) i = scale c (partial f i) :=
+  ext (partial (scale c f) i) (scale c (partial f i)) (\fun (x: Point) => Uniqueness.partialUnique Open.whole (Restriction.function Open.whole (scale c f)) i (Whole.point x) _ _
+    (partialLaw (scale c f) i (Whole.point x))
+    (Analysis.Scale[U := Open.whole, f := Restriction.function Open.whole f, i := i].partial c
+      (Restriction.function Open.whole (partial f i)) (partialLaw f i) (Whole.point x)));
+\definition partialZero[i: Fin.Fin n]: partial zero i = zero :=
+  ext (partial zero i) zero (\fun (x: Point) => Uniqueness.partialUnique Open.whole (Restriction.function Open.whole zero) i (Whole.point x) _ _
+    (partialLaw zero i (Whole.point x)) (Derivatives.constantPartial Open.whole Real.zero i (Whole.point x)));
+\definition partialSupport[f: Test][i: Fin.Fin n]: Sets.Subset (Smooth.support (partial f i)) (Smooth.support f) :=
+  Support.supportWithinClosed Ambient.topology (partial f i) (Smooth.support f) (Support.supportClosed Ambient.topology f)
+    (Operations.Partial[f := f, i := i].outside);
+\definition jet: Directions -> Test -> Test := \induction (d: Directions) \return Test -> Test \with {
+  | nil: \fun (f: Test) => f
+  | cons: \fun (i: Fin.Fin n)(tail: Directions)(previous: Test -> Test)(f: Test) => partial (previous f) i
+};
+\definition jetAdd: \forall (d: Directions)(f, g: Test) -> jet d (add f g) = add (jet d f) (jet d g) :=
+  \induction (d: Directions) \return \forall (f, g: Test) -> jet d (add f g) = add (jet d f) (jet d g) \with {
+    | nil: \fun (f, g: Test) => \refl(add f g)
+    | cons: \fun (i: Fin.Fin n)(tail: Directions)(previous: _)(f, g: Test) => trans!{Test} _ _ _
+      (congr!{Test Test} (\fun (h: Test) => partial h i) _ _ (previous f g)) (partialAdd (jet tail f) (jet tail g) i)
+  };
+\definition jetScale: \forall (d: Directions)(c: Real.Real)(f: Test) -> jet d (scale c f) = scale c (jet d f) :=
+  \induction (d: Directions) \return \forall (c: Real.Real)(f: Test) -> jet d (scale c f) = scale c (jet d f) \with {
+    | nil: \fun (c: Real.Real)(f: Test) => \refl(scale c f)
+    | cons: \fun (i: Fin.Fin n)(tail: Directions)(previous: _)(c: Real.Real)(f: Test) => trans!{Test} _ _ _
+      (congr!{Test Test} (\fun (h: Test) => partial h i) _ _ (previous c f)) (partialScale c (jet tail f) i)
+  };
+\definition jetZero: \forall (d: Directions) -> jet d zero = zero :=
+  \induction (d: Directions) \return jet d zero = zero \with {
+    | nil: \refl(zero)
+    | cons: \fun (i: Fin.Fin n)(tail: Directions)(previous: _) => trans!{Test} _ _ _
+      (congr!{Test Test} (\fun (h: Test) => partial h i) _ _ previous) (partialZero i)
+  };
+\definition jetSupport: \forall (d: Directions)(f: Test) -> Sets.Subset (Smooth.support (jet d f)) (Smooth.support f) :=
+  \induction (d: Directions) \return \forall (f: Test) -> Sets.Subset (Smooth.support (jet d f)) (Smooth.support f) \with {
+    | nil: \fun (f: Test)(x: Point)(member: _) => member
+    | cons: \fun (i: Fin.Fin n)(tail: Directions)(previous: _)(f: Test) => Sets.subsetTrans _ _ _ (partialSupport (jet tail f) i) (previous f)
+  };
+\definition shift[i: Fin.Fin n][d: Directions]: Directions := Lists.append (Fin.Fin n) d (Directions::cons i Directions::nil);
+\definition orderShift[i: Fin.Fin n][d: Directions]: order (shift i d) = N.Nat^::succ (order d) :=
+  trans!{N.Nat^} _ _ _ (ListLaws.lengthAppend d (Directions::cons i Directions::nil)) (Nat.addSuccRight (order d) N.Nat^::zero);
+\definition jetPartial[i: Fin.Fin n]: \forall (d: Directions)(f: Test) -> jet d (partial f i) = jet (shift i d) f :=
+  \induction (d: Directions) \return \forall (f: Test) -> jet d (partial f i) = jet (shift i d) f \with {
+    | nil: \fun (f: Test) => \refl(partial f i)
+    | cons: \fun (j: Fin.Fin n)(tail: Directions)(previous: _)(f: Test) => congr!{Test Test} (\fun (h: Test) => partial h j) _ _ (previous f)
+  };
+
+\definition zeroSupport: Sets.Subset (Smooth.support zero) Sets.Empty :=
+  Support.supportWithinClosed Ambient.topology zero Sets.Empty
+    (Sets.Compactness[].compactClosed Ambient.topology Ambient.hausdorff Sets.Empty (Sets.Compactness[].emptyCompact Ambient.topology))
+    (\fun (x: Point)(outside: _) => \refl(Real.zero));
+\definition scaleSupport[c: Real.Real][f: Test]: Sets.Subset (Smooth.support (scale c f)) (Smooth.support f) :=
+  Support.supportWithinClosed Ambient.topology (scale c f) (Smooth.support f) (Support.supportClosed Ambient.topology f)
+    (\fun (x: Point)(outside: _) => trans!{Real.Real} _ _ _
+      (congr!{Real.Real Real.Real} (Real.mul c) _ _ (Support.zeroOutsideSupport Ambient.topology f x outside)) (Laws.fieldMulZeroRight c));
+\definition addSupport[f, g: Test][K: \Pow Point]: Sets.IsClosedIn Ambient.topology K ->
+  Sets.Subset (Smooth.support f) K -> Sets.Subset (Smooth.support g) K -> Sets.Subset (Smooth.support (add f g)) K :=
+  \fun (closed: _)(left: _)(right: _) => Support.supportWithinClosed Ambient.topology (add f g) K closed
+    (\fun (x: Point)(outside: _) => trans!{Real.Real} _ _ _
+      (congr!{Real.Real Real.Real Real.Real} Real.add _ _ _ _
+        (Support.zeroOutsideSupport Ambient.topology f x (\fun (member: _) => outside (left x member)))
+        (Support.zeroOutsideSupport Ambient.topology g x (\fun (member: _) => outside (right x member))))
+      (Laws.addZeroLeft Real.zero));
+\definition productFunction[f, g: Test]: L.Function := \fun (x: Point) => Real.mul (f x) (g x);
+\definition productSupport[f, g: Test]: Sets.Subset (Smooth.support (productFunction f g)) (Smooth.support f) :=
+  Support.supportWithinClosed Ambient.topology (productFunction f g) (Smooth.support f) (Support.supportClosed Ambient.topology f)
+    (\fun (x: Point)(outside: _) => trans!{Real.Real} _ _ _
+      (congr!{Real.Real Real.Real} (\fun (r: Real.Real) => Real.mul r (g x)) _ _ (Support.zeroOutsideSupport Ambient.topology f x outside)) (Laws.fieldMulZeroLeft (g x)));
+\definition product[f, g: Test]: Test := \into[L.Function](productFunction f g, Test) \by {
+  L.SmoothCompactLaws[productFunction f g] {
+    smooth := Open.Smooth[].Operations[].mulSmooth Open.whole (Restriction.function Open.whole f) (Restriction.function Open.whole g)
+      (L.smoothCompactLaws f).smooth (L.smoothCompactLaws g).smooth,
+    compact := Support.compactSupportWithin Ambient.topology (productFunction f g) (Smooth.support f) (L.smoothCompactLaws f).compact (productSupport f g),
+  }
+};

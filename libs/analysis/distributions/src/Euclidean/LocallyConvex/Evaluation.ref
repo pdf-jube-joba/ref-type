@@ -1,0 +1,39 @@
+\import Final.Linear[t := T.eval, additive := T.additive, homogeneous := T.homogeneous] \as Linear;
+\definition value[f: Test]: Real.Real := Absolute.abs (T.eval f);
+\definition triangle[a,b: Real.Real]: R.Le (Absolute.abs (Real.add a b)) (Real.add (Absolute.abs a) (Absolute.abs b)) :=
+  R.leReplaceLeft _ _ _ (congr!{Real.Real Real.Real} (\fun (r: Real.Real) => Real.distance r (Real.add a b)) _ _ (Laws.addZeroLeft Real.zero))
+    (Estimates.distanceAdd Real.zero Real.zero a b);
+\definition seminorm: Seminorm := Seminorm {
+  value := value,
+  nonnegative := \fun (f: Test) => Absolute.absNonnegative (T.eval f),
+  triangle := \fun (f,g: Test) => R.leReplaceLeft _ _ _
+    (sym!{Real.Real} _ _ (congr!{Real.Real Real.Real} Absolute.abs _ _ (T.additive f g))) (triangle (T.eval f) (T.eval g)),
+  homogeneous := \fun (c: Real.Real)(f: Test) => trans!{Real.Real} _ _ _
+    (congr!{Real.Real Real.Real} Absolute.abs _ _ (T.homogeneous c f)) (Absolute.absProduct c (T.eval f)),
+};
+\definition bounded: LocallyBounded value := \fun (K: \Pow Point)(compact: _) => \block {
+  \takefrom m: \Cast[N.Nat^] ({ m: N.Nat^ \where \exists ( C: Nonnegative \where Bound T.eval K m C ) }) \by T.bound K compact \then
+  \takefrom C: \Cast[Nonnegative] ({ C: Nonnegative \where Bound T.eval K m C })
+    \by \bysub(N.Nat^, { m: N.Nat^ \where \exists ( C: Nonnegative \where Bound T.eval K m C ) }, m) \then
+  \return Logic.existsIntro[N.Nat^, { j: N.Nat^ \where \exists ( B: Nonnegative \where Bound value K j B ) }] m
+    (Logic.existsIntro[Nonnegative, { B: Nonnegative \where Bound value K m B }] C
+      (\fun (f: Test)(supported: _)(b: Nonnegative)(jets: _) => R.leReplaceLeft _ _ _
+        (sym!{Real.Real} _ _ (Absolute.absOfNonnegative (value f) (Absolute.absNonnegative (T.eval f))))
+        ((\bysub(Nonnegative, { C: Nonnegative \where Bound T.eval K m C }, C)) f supported b jets)))
+};
+\definition admissible: Admissible := \into[Seminorm](seminorm, Admissible) \by { bounded };
+\definition differenceValue[f,g: Test]: value (difference f g) = Real.distance (T.eval f) (T.eval g) :=
+  trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} Absolute.abs _ _ (Linear.evalDifference f g)) (Differences.absoluteDifference (T.eval f) (T.eval g));
+\definition continuous: Maps.Continuous topology Line.topology T.eval := \fun (V: \Pow Real.Real)(open: _) =>
+  Space.openOfNeighborhoods topology (Maps.Preimage T.eval V) (\fun (f: Test)(member: _) => \block {
+    \takefrom r: \Cast[Real.Real] (Metric.NeighborhoodRadius RealMetric.metric V (T.eval f)) \by open (T.eval f) member \then
+    \let conditions: Logic.And[R.Lt Real.zero r, Scalars.Subset (Metric.Ball RealMetric.metric (T.eval f) r) V] :=
+      \bysub(Real.Real, Metric.NeighborhoodRadius RealMetric.metric V (T.eval f), r) \then
+    \return Logic.existsIntro[\Pow Test, { S: \Pow Test \where Space.OpenNeighborhood[topology, f, Maps.Preimage T.eval V, S] }] (Ball admissible f r)
+      (Space.OpenNeighborhood[topology, f, Maps.Preimage T.eval V, Ball admissible f r] {
+        open := ballOpen admissible f r,
+        contains := centerInBall admissible f r conditions.left,
+        within := \fun (g: Test)(near: _) => conditions.right (T.eval g)
+          (R.ltReplaceLeft _ _ r (trans!{Real.Real} _ _ _ (differenceValue g f) (Distance.distanceSymmetric (T.eval g) (T.eval f))) near),
+      })
+  });

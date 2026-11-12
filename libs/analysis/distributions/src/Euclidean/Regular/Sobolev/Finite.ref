@@ -1,0 +1,72 @@
+\import lp_spaces.On[A := Open.Carrier Open.whole, mu := Transport.measure] \as LocalLp;
+\import LocalLp.Finite[p := p] \as LocalFinite;
+\import L.Finite[p := p] \as GlobalFinite;
+\import Local.Lp[mu := Transport.measure] \as ExistingLp;
+\import Local.Integral[mu := Transport.measure] \as LocalIntegral;
+\definition extend[f: LocalFinite.Representatives]: GlobalFinite.Representatives := \into[E.Function](Whole.function f, GlobalFinite.Representatives) \by {
+  GlobalFinite.hasMoment (Whole.function f)
+    (ToGlobal.measurable f (LocalFinite.properties f).measurable)
+    (I.finiteMono (GlobalFinite.moment (Whole.function f)) (Absolute.abs (Transport.extension (LocalFinite.momentRepresentative f)))
+      (GlobalFinite.momentNonnegative (Whole.function f))
+      (\fun (x: E.Point) => R.leReplaceRight _ _ _ (sym!{Real.Real} _ _ (Product.absOfNonnegative (GlobalFinite.moment (Whole.function f) x) (GlobalFinite.momentNonnegative (Whole.function f) x)))
+        (R.leRefl (GlobalFinite.moment (Whole.function f) x)))
+      (I.integralLaw (Transport.extension (LocalFinite.momentRepresentative f))).integrable.right)
+};
+\definition regular[f: Open.ScalarFunction Open.whole][moment: ExistingLp.HasFiniteMoment[f, p]]: Representatives :=
+  Regular.Lp[p := p].representative (extend (\into[Open.ScalarFunction Open.whole](f, LocalFinite.Representatives) \by { moment }));
+\import Distributions.Dual[] \as Dual;
+\import Regular.Sobolev[] \as Sobolev;
+\import Sobolev.Tests[] \as TestBridge;
+\import std.Data[].Nat[] \as N;
+\import N.Basic[].Prop[] \as Nat;
+\definition weakEquivalence[f, g: Open.ScalarFunction Open.whole][fm: ExistingLp.HasFiniteMoment[f, p]][gm: ExistingLp.HasFiniteMoment[g, p]][d: Existing.Directions]:
+  Logic.PropEquiv[Weak.WeakDerivative f g d, Dual.derivative d (distribution (regular f fm)) = distribution (regular g gm)] :=
+  \idelim Restriction.function Open.whole (regular g gm) = g \with h: Open.ScalarFunction Open.whole =>
+    Logic.PropEquiv[Weak.WeakDerivative f h d, Dual.derivative d (distribution (regular f fm)) = distribution (regular g gm)] \by {
+      base: \idelim Restriction.function Open.whole (regular f fm) = f \with h: Open.ScalarFunction Open.whole =>
+        Logic.PropEquiv[Weak.WeakDerivative h (Restriction.function Open.whole (regular g gm)) d, Dual.derivative d (distribution (regular f fm)) = distribution (regular g gm)] \by {
+          base: Sobolev.DistributionComparison[u := regular f fm, g := regular g gm, d := d].equivalence, equality: TestBridge.eta f },
+      equality: TestBridge.eta g
+    };
+\structure DistributionDerivatives[u: On.Functions, k: N.Nat^, derivatives: Existing.Directions -> On.Functions]: \Prop := {
+  function: derivatives Existing.Directions::nil = u,
+  integrable: \forall (d: Existing.Directions) -> Nat.Le (Existing.order d) k -> ExistingLp.HasFiniteMoment[derivatives d, p],
+  weak: \forall (d: Existing.Directions)(bound: Nat.Le (Existing.order d) k) ->
+    Dual.derivative d (distribution (regular (derivatives Existing.Directions::nil) (integrable Existing.Directions::nil (Nat.zeroLe k)))) =
+      distribution (regular (derivatives d) (integrable d bound)),
+};
+\definition fromExisting[u: On.Functions][k: N.Nat^][derivatives: Existing.Directions -> On.Functions]: Weak.Derivatives[u, k, p, derivatives] -> DistributionDerivatives[u, k, derivatives] :=
+  \fun (old: Weak.Derivatives[u, k, p, derivatives]) => DistributionDerivatives[u, k, derivatives] {
+    function := old.function, integrable := old.integrable,
+    weak := \fun (d: Existing.Directions)(bound: Nat.Le (Existing.order d) k) =>
+      (weakEquivalence (derivatives Existing.Directions::nil) (derivatives d) (old.integrable Existing.Directions::nil (Nat.zeroLe k)) (old.integrable d bound) d).ltr
+        (\idelim u = derivatives Existing.Directions::nil \with f: On.Functions => Weak.WeakDerivative f (derivatives d) d \by {
+          base: old.weak d bound, equality: sym!{On.Functions} _ _ old.function }),
+  };
+\definition toExisting[u: On.Functions][k: N.Nat^][derivatives: Existing.Directions -> On.Functions]: DistributionDerivatives[u, k, derivatives] -> Weak.Derivatives[u, k, p, derivatives] :=
+  \fun (data: DistributionDerivatives[u, k, derivatives]) => Weak.Derivatives[u, k, p, derivatives] {
+    function := data.function, integrable := data.integrable,
+    weak := \fun (d: Existing.Directions)(bound: Nat.Le (Existing.order d) k) =>
+      \idelim derivatives Existing.Directions::nil = u \with f: On.Functions => Weak.WeakDerivative f (derivatives d) d \by {
+        base: (weakEquivalence (derivatives Existing.Directions::nil) (derivatives d) (data.integrable Existing.Directions::nil (Nat.zeroLe k)) (data.integrable d bound) d).rtl (data.weak d bound),
+        equality: data.function },
+  };
+\definition HasDistributionDerivatives[u: On.Functions][k: N.Nat^]: \Prop :=
+  \exists ( derivatives: Existing.Directions -> On.Functions \where DistributionDerivatives[u, k, derivatives] );
+\definition equivalence[u: On.Functions][k: N.Nat^]: Logic.PropEquiv[Weak.HasWeakDerivatives u k p, HasDistributionDerivatives u k] := Logic.PropEquiv[_, _] {
+  ltr := \fun (exists: _) => \block {
+    \takefrom derivatives: \Cast[Existing.Directions -> On.Functions] ({ derivatives: Existing.Directions -> On.Functions \where Weak.Derivatives[u, k, p, derivatives] }) \by exists \then
+    \return Logic.existsIntro[Existing.Directions -> On.Functions, { derivatives: Existing.Directions -> On.Functions \where DistributionDerivatives[u, k, derivatives] }] derivatives
+      (fromExisting u k derivatives (\bysub(Existing.Directions -> On.Functions, { derivatives: Existing.Directions -> On.Functions \where Weak.Derivatives[u, k, p, derivatives] }, derivatives)))
+  },
+  rtl := \fun (exists: _) => \block {
+    \takefrom derivatives: \Cast[Existing.Directions -> On.Functions] ({ derivatives: Existing.Directions -> On.Functions \where DistributionDerivatives[u, k, derivatives] }) \by exists \then
+    \return Logic.existsIntro[Existing.Directions -> On.Functions, { derivatives: Existing.Directions -> On.Functions \where Weak.Derivatives[u, k, p, derivatives] }] derivatives
+      (toExisting u k derivatives (\bysub(Existing.Directions -> On.Functions, { derivatives: Existing.Directions -> On.Functions \where DistributionDerivatives[u, k, derivatives] }, derivatives)))
+  },
+};
+\definition representativePredicates[k: N.Nat^]: { u: On.Functions \where Weak.HasWeakDerivatives u k p } = { u: On.Functions \where HasDistributionDerivatives u k } :=
+  \axiom:setext({ u: On.Functions \where Weak.HasWeakDerivatives u k p }, { u: On.Functions \where HasDistributionDerivatives u k },
+    \fun (u: On.Functions) => (equivalence u k).ltr, \fun (u: On.Functions) => (equivalence u k).rtl);
+\definition DistributionRepresentatives[k: N.Nat^]: \Set := \Cast[On.Functions] ({ u: On.Functions \where HasDistributionDerivatives u k });
+\module Space(k: N.Nat^);

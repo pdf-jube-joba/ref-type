@@ -1,0 +1,85 @@
+\import \parent.Dual[] \as Dual;
+\import \parent.TestTopology[] \as TestTopology;
+\import smooth_partitions.Countable[A := Point] \as Countable;
+\import std.Logic[].Classical[] \as Classical;
+\definition Vanishes[T: Distribution][U: \Pow Point]: \Prop :=
+  \forall (f: Test) -> Sets.Subset (Smooth.support f) U -> T.eval f = Real.zero;
+\structure ZeroOpenLaws[T: Distribution, U: \Pow Point]: \Prop := {
+  open: Sets.IsOpenIn Ambient.topology U,
+  vanishes: Vanishes T U,
+};
+\definition ZeroOpen[T: Distribution]: \Pow (\Pow Point) := { U: \Pow Point \where ZeroOpenLaws[T, U] };
+\definition regularRegion[T: Distribution]: \Pow Point := Sets.Union (ZeroOpen T);
+\definition support[T: Distribution]: \Pow Point := Sets.Complement (regularRegion T);
+\definition regularOpen[T: Distribution]: Sets.IsOpenIn Ambient.topology (regularRegion T) :=
+  (Sets.topologyLaws Ambient.topology).unionOpen (ZeroOpen T)
+    (\fun (U: \Pow Point)(member: ZeroOpenLaws[T, U]) => member.open);
+\definition closed[T: Distribution]: Sets.IsClosedIn Ambient.topology (support T) :=
+  Sets.Finite[].openComplementClosed Ambient.topology (regularRegion T) (regularOpen T);
+\definition evalZero[T: Distribution]: T.eval Tests.zero = Real.zero :=
+  TestTopology.Linear[t := T.eval, additive := T.additive, homogeneous := T.homogeneous].evalZero;
+\definition emptyTest[f: Test]: Sets.Subset (Smooth.support f) Sets.Empty -> f = Tests.zero :=
+  \fun (empty: _) => Tests.ext f Tests.zero (\fun (x: Point) =>
+    Support.zeroOutsideSupport Ambient.topology f x (\fun (member: _) => empty x member));
+\definition vanishesEmpty[T: Distribution]: Vanishes T Sets.Empty :=
+  \fun (f: Test)(empty: _) => trans!{Real.Real} _ _ _ (congr!{Test Real.Real} T.eval _ _ (emptyTest f empty)) (evalZero T);
+\definition vanishesSubset[T: Distribution][U, V: \Pow Point]: Sets.Subset U V -> Vanishes T V -> Vanishes T U :=
+  \fun (subset: _)(vanishes: _)(f: Test)(supported: _) => vanishes f (Sets.subsetTrans _ _ _ supported subset);
+\module Decomposed(T: Distribution, f: Test, data: change_of_variables.Euclidean[n := n].Decomposition[family := ZeroOpen T, f := f].Data);
+\definition regularVanishes[T: Distribution]: Vanishes T (regularRegion T) :=
+  \fun (f: Test)(supported: _) => \block {
+    \takefrom data: change_of_variables.Euclidean[n := n].Decomposition[family := ZeroOpen T, f := f].Data
+      \by change_of_variables.Euclidean[n := n].Decomposition[family := ZeroOpen T, f := f].exists
+        (Sets.IsOpenCover[Ambient.topology, ZeroOpen T, Smooth.support f] {
+          covers := supported,
+          open := \fun (U: \Pow Point)(member: ZeroOpenLaws[T, U]) => member.open,
+        }) \then
+    \return Decomposed[T := T, f := f, data := data].vanishes
+  };
+\definition outsideSupport[T: Distribution][f: Test]: Sets.Disjoint (Smooth.support f) (support T) -> T.eval f = Real.zero :=
+  \fun (disjoint: _) => regularVanishes T f
+    (\fun (x: Point)(supported: _) => Sets.Finite[].doubleNegElim (Sets.Member (regularRegion T) x) (\fun (outside: _) => disjoint x supported outside));
+\definition least[T: Distribution][F: \Pow Point]: Sets.IsClosedIn Ambient.topology F -> Vanishes T (Sets.Complement F) -> Sets.Subset (support T) F :=
+  \fun (closed: _)(vanishes: _)(x: Point)(supported: _) => Sets.Finite[].doubleNegElim (Sets.Member F x)
+    (\fun (outside: _) => supported (Sets.unionMemberOf (ZeroOpen T) (Sets.Complement F) x
+      (ZeroOpenLaws[T, Sets.Complement F] { open := closed, vanishes := vanishes }) outside));
+\definition zeroSupport: support Dual.zero = Sets.Empty :=
+  \axiom:setext(support Dual.zero, Sets.Empty,
+    \fun (x: Point)(supported: _) => supported (Sets.unionMemberOf (ZeroOpen Dual.zero) Sets.Whole x
+      (ZeroOpenLaws[Dual.zero, Sets.Whole] { open := (Sets.topologyLaws Ambient.topology).wholeOpen,
+        vanishes := \fun (f: Test)(supported: _) => \refl(Real.zero) }) (\refl(x))),
+    \fun (x: Point)(empty: Logic.False) => Logic.falseElim _ empty);
+\definition emptySupport[T: Distribution]: support T = Sets.Empty -> T = Dual.zero :=
+  \fun (empty: _) => Dual.ext T Dual.zero (\fun (f: Test) => outsideSupport T f
+    (\fun (x: Point)(inTest: _)(inDistribution: _) => \idelim support T = Sets.Empty
+      \with S: \Pow Point => Sets.Member S x \by { base: inDistribution, equality: empty }));
+\definition zeroIffEmpty[T: Distribution]: Logic.PropEquiv[T = Dual.zero, support T = Sets.Empty] :=
+  Logic.PropEquiv[_, _] {
+    ltr := \fun (zero: _) => trans!{\Pow Point} _ _ _ (congr!{Distribution {\Pow Point}} (\fun (S: Distribution) => support S) T Dual.zero zero) zeroSupport,
+    rtl := emptySupport T,
+  };
+\definition derivativeVanishes[T: Distribution][U: \Pow Point][i: Fin.Fin n]: Vanishes T U -> Vanishes (Dual.partial T i) U :=
+  \fun (vanishes: _)(f: Test)(supported: _) => trans!{Real.Real} _ _ _
+    (congr!{Real.Real Real.Real} (Real.mul (Real.neg Real.one)) _ _
+      (vanishes (Tests.partial f i) (Sets.subsetTrans _ _ _ (Tests.partialSupport f i) supported)))
+    (Laws.fieldMulZeroRight (Real.neg Real.one));
+\definition partialSupport[T: Distribution][i: Fin.Fin n]: Sets.Subset (support (Dual.partial T i)) (support T) :=
+  \fun (x: Point)(supported: _)(regular: _) => supported
+    (Sets.unionMemberElim (ZeroOpen T) x (Sets.Member (regularRegion (Dual.partial T i)) x)
+      (\fun (U: \Pow Point)(member: ZeroOpenLaws[T, U])(inside: _) =>
+        Sets.unionMemberOf (ZeroOpen (Dual.partial T i)) U x
+          (ZeroOpenLaws[Dual.partial T i, U] { open := member.open, vanishes := derivativeVanishes T U i member.vanishes }) inside) regular);
+\definition derivativesSupport: \forall (d: Directions)(T: Distribution) -> Sets.Subset (support (Dual.derivative d T)) (support T) :=
+  \induction (d: Directions) \return \forall (T: Distribution) -> Sets.Subset (support (Dual.derivative d T)) (support T) \with {
+    | nil: \fun (T: Distribution)(x: Point)(member: _) => member
+    | cons: \fun (i: Fin.Fin n)(tail: Directions)(previous: _)(T: Distribution) =>
+      Sets.subsetTrans _ _ _ (partialSupport (Dual.derivative tail T) i) (previous T)
+  };
+\module Dirac(a: Point);
+\definition supportedIff[T: Distribution][F: \Pow Point]: Sets.IsClosedIn Ambient.topology F ->
+  Logic.PropEquiv[Sets.Subset (support T) F, Vanishes T (Sets.Complement F)] :=
+  \fun (closed: Sets.IsClosedIn Ambient.topology F) => Logic.PropEquiv[Sets.Subset (support T) F, Vanishes T (Sets.Complement F)] {
+    ltr := \fun (within: Sets.Subset (support T) F)(f: Test)(testWithin: Sets.Subset (Smooth.support f) (Sets.Complement F)) => outsideSupport T f
+      (\fun (x: Point)(inTest: Sets.Member (Smooth.support f) x)(inDistribution: Sets.Member (support T) x) => testWithin x inTest (within x inDistribution)),
+    rtl := least T F closed,
+  };

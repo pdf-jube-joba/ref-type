@@ -1,0 +1,78 @@
+\import \root.Euclidean[n := n] \as PullbackBase;
+\import calculus.Real[].Multivariable[n := n].Open[] \as PullbackOpen;
+\import calculus.Maps[n := n, m := n] \as PullbackMaps;
+\import calculus.Diffeomorphism[n := n, m := n] \as PullbackDiffeomorphisms;
+\import PullbackDiffeomorphisms.Inverse[U := U, V := V, f := e] \as Inverse;
+\import change_of_variables.Euclidean[n := n] \as Change;
+\import Change.Diffeomorphism[U := V, V := U, e := Inverse.inverse] \as Backward;
+\import Change.Jacobian[U := V, V := U, f := e.backward] \as InverseJacobian;
+\import lp_spaces.Euclidean[n := n] \as PullbackLp;
+\import smooth_partitions.Euclidean[n := n] \as PullbackSmooth;
+\import topology.Topology[Carrier := PullbackLp.Point] \as PullbackSets;
+\import real.Analysis[] \as PullbackReal;
+\import dedekind_reals.DedekindReal[].Arithmetic[].Prop[] \as PullbackLaws;
+\import std.Logic[].Proposition[] \as PullbackLogic;
+\import std.Logic[].Classical[] \as PullbackClassical;
+\import std.Logic[].Equality[] \as PullbackEquality;
+\use PullbackEquality.congr;
+\use PullbackEquality.trans;
+\use PullbackEquality.sym;
+\use PullbackEquality.eq_reason_in;
+\definition SourceTest: \Set := PullbackBase.TestOn U;
+\definition TargetTest: \Set := PullbackBase.TestOn V;
+\module Test(phi: SourceTest);
+\definition test[phi: SourceTest]: TargetTest := Test[phi := phi].value;
+\definition inside[phi: SourceTest][y: PullbackOpen.Carrier V]:
+  test phi y = PullbackReal.mul (InverseJacobian.absolute y) (phi (PullbackMaps.apply V U e.backward y)) := Test[phi := phi].inside y;
+\definition outside[phi: SourceTest][y: PullbackLp.Point]:
+  PullbackLogic.Not (PullbackSets.Member V.points y) -> test phi y = PullbackReal.zero := Test[phi := phi].outside y;
+\module InverseTest(phi: SourceTest);
+\definition inverseTest[phi: SourceTest]:
+  Change.Diffeomorphism[U := U, V := V, e := e].Compact[f := test phi, within := PullbackBase.testWithin V (test phi)].value = phi :=
+  InverseTest[phi := phi].law;
+\module LocalJets(W: PullbackOpen.OpenSet);
+\module Weighted;
+\module Stage(K: \Pow Point, compact: Sets.IsCompactIn Ambient.topology K, within: Sets.Subset K U.points);
+\import PullbackBase.On[U := U] \as Source;
+\import PullbackBase.On[U := V] \as Target;
+\definition testAdd[f,g: SourceTest]: test (Source.add f g) = Target.add (test f) (test g) :=
+  \axiom:funext(test (Source.add f g), Target.add (test f) (test g), \fun (y: Point) =>
+    Logic.orElim (Sets.Member V.points y) (Logic.Not (Sets.Member V.points y))
+      (test (Source.add f g) y = Target.add (test f) (test g) y) (PullbackClassical.excludedMiddle (Sets.Member V.points y))
+      (\fun (member: _) => \block {
+        \let p: PullbackOpen.Carrier V := \into[Point](y, V.points) \by { member } \then
+        \return eq_reason_in!{Real.Real _
+          "=" _ "by" { inside (Source.add f g) p }
+          "=" _ "by" { Laws.fieldMulAdd (InverseJacobian.absolute p) (f (PullbackMaps.apply V U e.backward p)) (g (PullbackMaps.apply V U e.backward p)) }
+          "=" _ "by" { congr!{Real.Real Real.Real Real.Real} Real.add _ _ _ _
+            (sym!{Real.Real} _ _ (inside f p)) (sym!{Real.Real} _ _ (inside g p)) }
+        }
+      })
+      (\fun (away: _) => eq_reason_in!{Real.Real _
+        "=" Real.zero "by" { outside (Source.add f g) y away }
+        "=" { Real.add Real.zero Real.zero } "by" { sym!{Real.Real} _ _ (Laws.addZeroLeft Real.zero) }
+        "=" _ "by" { congr!{Real.Real Real.Real Real.Real} Real.add _ _ _ _
+          (sym!{Real.Real} _ _ (outside f y away)) (sym!{Real.Real} _ _ (outside g y away)) }
+      }));
+\definition testScale[c: Real.Real][f: SourceTest]: test (Source.scale c f) = Target.scale c (test f) :=
+  \axiom:funext(test (Source.scale c f), Target.scale c (test f), \fun (y: Point) =>
+    Logic.orElim (Sets.Member V.points y) (Logic.Not (Sets.Member V.points y))
+      (test (Source.scale c f) y = Target.scale c (test f) y) (PullbackClassical.excludedMiddle (Sets.Member V.points y))
+      (\fun (member: _) => \block {
+        \let p: PullbackOpen.Carrier V := \into[Point](y, V.points) \by { member } \then
+        \return eq_reason_in!{Real.Real _
+          "=" _ "by" { inside (Source.scale c f) p }
+          "=" _ "by" { Real.Algebra[].mulSwap (InverseJacobian.absolute p) c (f (PullbackMaps.apply V U e.backward p)) }
+          "=" _ "by" { congr!{Real.Real Real.Real} (Real.mul c) _ _ (sym!{Real.Real} _ _ (inside f p)) }
+        }
+      })
+      (\fun (away: _) => eq_reason_in!{Real.Real _
+        "=" Real.zero "by" { outside (Source.scale c f) y away }
+        "=" { Real.mul c Real.zero } "by" { sym!{Real.Real} _ _ (Laws.fieldMulZeroRight c) }
+        "=" _ "by" { congr!{Real.Real Real.Real} (Real.mul c) _ _ (sym!{Real.Real} _ _ (outside f y away)) }
+      }));
+\module Distribution(T: Target.Distribution);
+\definition apply[T: Target.Distribution]: Source.Distribution := Distribution[T := T].value;
+\module InverseLaw;
+\module Composition(W: PullbackOpen.OpenSet, d: PullbackDiffeomorphisms.Diffeomorphism V W);
+\module SmoothRegular(f: PullbackOpen.ScalarFunction V, smooth: PullbackOpen.Smooth[].SmoothOn V f);

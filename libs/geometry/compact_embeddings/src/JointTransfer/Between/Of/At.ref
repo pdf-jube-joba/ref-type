@@ -1,0 +1,28 @@
+\import boundary_manifolds.Tangent[n := p].On[M := A].At[x := x] \as Source;
+\import boundary_manifolds.Tangent[n := q].On[M := B].At[x := F.apply f x] \as Middle;
+\import boundary_manifolds.Tangent[n := r].On[M := C].At[x := G.apply g (F.apply f x)] \as Left;
+\import boundary_manifolds.Tangent[n := s].On[M := D].At[x := H.apply h (F.apply f x)] \as Right;
+\import boundary_manifolds.Differential[n := p, m := q].Between[M := A, N := B].At[f := f, x := x] \as Df;
+\import boundary_manifolds.Differential[n := q, m := r].Between[M := B, N := C].At[f := g, x := F.apply f x] \as Dg;
+\import boundary_manifolds.Differential[n := q, m := s].Between[M := B, N := D].At[f := h, x := F.apply f x] \as Dh;
+\import boundary_manifolds.Differential[n := p, m := r].Between[M := A, N := C].At[f := first, x := x] \as Dgf;
+\import boundary_manifolds.Differential[n := p, m := s].Between[M := A, N := D].At[f := second, x := x] \as Dhf;
+\definition Onto: \Prop := \forall (w: Middle.Vector) -> \exists ( v: Source.Vector \where Df.value.apply v = w );
+\definition Joint: \Prop := \forall (u, v: Source.Vector) -> Dgf.value.apply u = Dgf.value.apply v -> Dhf.value.apply u = Dhf.value.apply v -> u = v;
+\definition injective[onto: Onto][joint: Joint][u, v: Middle.Vector]: Dg.value.apply u = Dg.value.apply v -> Dh.value.apply u = Dh.value.apply v -> u = v := \block {
+  \fun (firstSame: _)(secondSame: _) \then
+  \takefrom a: \Cast[Source.Vector] ({ a: Source.Vector \where Df.value.apply a = u }) \by onto u \then
+  \takefrom b: \Cast[Source.Vector] ({ b: Source.Vector \where Df.value.apply b = v }) \by onto v \then
+  \let left: Df.value.apply a = u := \bysub(Source.Vector, { a: Source.Vector \where Df.value.apply a = u }, a) \then
+  \let right: Df.value.apply b = v := \bysub(Source.Vector, { b: Source.Vector \where Df.value.apply b = v }, b) \then
+  \let firstEqual: Dgf.value.apply a = Dgf.value.apply b := trans!{{Left.Vector}} _ _ _ (FirstChain.At[x := x].pointwise a)
+    (trans!{{Left.Vector}} _ _ _ (congr!{{Middle.Vector} {Left.Vector}} Dg.value.apply _ _ left)
+      (trans!{{Left.Vector}} _ _ _ firstSame (trans!{{Left.Vector}} _ _ _
+        (congr!{{Middle.Vector} {Left.Vector}} Dg.value.apply _ _ (sym!{{Middle.Vector}} _ _ right)) (sym!{{Left.Vector}} _ _ (FirstChain.At[x := x].pointwise b))))) \then
+  \let secondEqual: Dhf.value.apply a = Dhf.value.apply b := trans!{{Right.Vector}} _ _ _ (SecondChain.At[x := x].pointwise a)
+    (trans!{{Right.Vector}} _ _ _ (congr!{{Middle.Vector} {Right.Vector}} Dh.value.apply _ _ left)
+      (trans!{{Right.Vector}} _ _ _ secondSame (trans!{{Right.Vector}} _ _ _
+        (congr!{{Middle.Vector} {Right.Vector}} Dh.value.apply _ _ (sym!{{Middle.Vector}} _ _ right)) (sym!{{Right.Vector}} _ _ (SecondChain.At[x := x].pointwise b))))) \then
+  \return trans!{{Middle.Vector}} _ _ _ (sym!{{Middle.Vector}} _ _ left)
+    (trans!{{Middle.Vector}} _ _ _ (congr!{{Source.Vector} {Middle.Vector}} Df.value.apply _ _ (joint a b firstEqual secondEqual)) right)
+};

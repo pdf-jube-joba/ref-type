@@ -1,0 +1,23 @@
+\import \parent.\parent.CommonSupport[rho := rho, a := a, radius := radius, radiusBound := radiusBound] \as CS;
+\definition K: \Pow ConvE.Point := ConvE.points CS.box;
+\definition estimates: Curve.EstimatesOn[K] := Curve.EstimatesOn[K] {
+  compact := ConvBoxes.compact CS.box,
+  supported := \fun (t: ConvReal.Real)(different: _)(near: _) =>
+    \idelim \parent.\parent.Difference[rho := rho, a := a, i := i, t := t].error = Curve.error t
+      \with f: ConvL.SmoothCompact => ConvSets.Subset (ConvSmooth.support f) K \by {
+        base: \parent.\parent.Difference[rho := rho, a := a, i := i, t := t].Support[radius := radius, radiusBound := radiusBound].within
+          (ConvR.Order[].leOfLt _ _ near), equality: sym!{ConvL.SmoothCompact} _ _ (errorEquality t) },
+  jets := \fun (m: std.Data[].Nat[].Nat^) => \block {
+    \takefrom c: \Cast[ConvL.Nonnegative] ({ c: ConvL.Nonnegative \where \root.Euclidean[n := n].JetBound rho (std.Data[].Nat[].Nat^::succ (std.Data[].Nat[].Nat^::succ m)) c })
+      \by CDB.existsBound (std.Data[].Nat[].Nat^::succ (std.Data[].Nat[].Nat^::succ m)) rho \then
+    \let bound: \root.Euclidean[n := n].JetBound rho (std.Data[].Nat[].Nat^::succ (std.Data[].Nat[].Nat^::succ m)) c :=
+      \bysub(ConvL.Nonnegative, { c: ConvL.Nonnegative \where \root.Euclidean[n := n].JetBound rho (std.Data[].Nat[].Nat^::succ (std.Data[].Nat[].Nat^::succ m)) c }, c) \then
+    \return ConvLogic.existsIntro[ConvL.Nonnegative, { c: ConvL.Nonnegative \where Curve.ErrorBound m c }] c
+      (\fun (t: ConvReal.Real)(different: _)(near: _) =>
+        \idelim \parent.\parent.Difference[rho := rho, a := a, i := i, t := t].error = Curve.error t
+          \with f: ConvL.SmoothCompact => \root.Euclidean[n := n].JetBound f m (Curve.rate c t) \by {
+            base: \parent.\parent.Difference[rho := rho, a := a, i := i, t := t].Bound[m := m, c := c, bound := bound].estimate different,
+            equality: sym!{ConvL.SmoothCompact} _ _ (errorEquality t) })
+  },
+};
+\definition derivative: calculus.Real[].Derivative[].Def[].HasDerivativeAt (\fun (t: ConvReal.Real) => T.eval (curve t)) (a i) (T.eval target) := Curve.derivative T K estimates;

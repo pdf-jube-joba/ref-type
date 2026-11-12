@@ -1,0 +1,22 @@
+\definition product: Test := SourceRegular.function phi;
+\definition within: Sets.Subset (Smooth.support product) U.points := Sets.subsetTrans _ _ _ (SourceRegular.support phi) (PullbackBase.testWithin U phi);
+\import Backward.Compact[f := product, within := within] \as Transported;
+\definition inside[y: PullbackOpen.Carrier V]: Transported.value y = TargetRegular.function (test phi) y := eq_reason_in!{Real.Real _
+  "=" _ "by" { Transported.inside y }
+  "=" _ "by" { congr!{Real.Real Real.Real} (Real.mul (InverseJacobian.absolute y)) _ _
+    (SourceRegular.inside phi (PullbackMaps.apply V U e.backward y)) }
+  "=" _ "by" { congr!{Real.Real Real.Real} (\fun (r: Real.Real) => Real.mul (InverseJacobian.absolute y) (Real.mul r (phi (PullbackMaps.apply V U e.backward y)))) _ _
+    (congr!{{PullbackOpen.Carrier V} Real.Real} f _ _ (e.rightInverse y)) }
+  "=" _ "by" { Real.Algebra[].mulSwap (InverseJacobian.absolute y) (f y) (phi (PullbackMaps.apply V U e.backward y)) }
+  "=" _ "by" { congr!{Real.Real Real.Real} (Real.mul (f y)) _ _ (sym!{Real.Real} _ _ (PullbackBase.Pullback[U := U, V := V, e := e].inside phi y)) }
+  "=" _ "by" { sym!{Real.Real} _ _ (TargetRegular.inside (test phi) y) }
+};
+\definition pointwise[x: Point]: Transported.representative x = TargetRegular.representative (test phi) x :=
+  Logic.orElim (Sets.Member V.points x) (Logic.Not (Sets.Member V.points x))
+    (Transported.representative x = TargetRegular.representative (test phi) x) (PullbackClassical.excludedMiddle (Sets.Member V.points x))
+    (\fun (member: _) => inside (\into[Point](x, V.points) \by { member }))
+    (\fun (away: _) => trans!{Real.Real} _ _ _ (Transported.outside x away) (sym!{Real.Real} _ _ (TargetRegular.outside (test phi) x away)));
+\definition law: TargetRegular.pair (test phi) = SourceRegular.pair phi :=
+  trans!{Real.Real} _ _ _
+    (sym!{Real.Real} _ _ (TargetRegular.integralsPointwise Transported.representative (TargetRegular.representative (test phi)) pointwise))
+    (change_of_variables.Change[].theorem n V U Inverse.inverse product within);

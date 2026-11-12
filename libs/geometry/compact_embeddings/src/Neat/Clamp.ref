@@ -1,0 +1,100 @@
+\import smooth_partitions.Exponential[].Step[] \as Step;
+\import Open.Smooth[] \as Smooth;
+\import Smooth.Algebra[U := Open.whole] \as F;
+\import Smooth.Operations[] \as Operations;
+\definition inverse: S.Real := Laws.fieldInv r;
+\definition inversePositive: R.Lt S.zero inverse := Bounds.invPositive r positive;
+\definition inverseNonnegative: R.Le S.zero inverse := Order.leOfLt S.zero inverse inversePositive;
+\definition productOne: S.mul inverse r = S.one := Laws.fieldInverseNonzero r (S.Inverse[].positiveNonzero r positive);
+\definition twice: S.Real := S.add r r;
+\definition twicePositive: R.Lt S.zero twice := R.ltLeTrans S.zero r twice positive
+  (Algebra.leAddRight r r (Order.leOfLt S.zero r positive));
+\definition argument[t: S.Real]: S.Real := S.add (S.neg S.one) (S.mul inverse t);
+\definition weight[t: S.Real]: S.Real := Step.value (argument t);
+\definition weightFunction: F.Function := \into[Open.ScalarFunction Open.whole]((\fun (x: Open.Carrier Open.whole) => weight (x One.index)), F.Predicate) \by {
+  Step.Affine[a := S.neg S.one, b := inverse].smoothPullback
+};
+\definition complement[t: S.Real]: S.Real := S.sub S.one (weight t);
+\definition complementNonnegative[t: S.Real]: R.Le S.zero (complement t) :=
+  R.leReplaceLeft (S.add (weight t) (S.neg (weight t))) S.zero (complement t) (Laws.addNegRight (weight t))
+    (Laws.addMonotoneRight (weight t) S.one (S.neg (weight t)) (Step.atMostOne (argument t)));
+\definition complementFunction: F.Function := \into[Open.ScalarFunction Open.whole]((\fun (x: Open.Carrier Open.whole) => complement (x One.index)), F.Predicate) \by {
+  Operations.subSmooth Open.whole (\fun (x: Open.Carrier Open.whole) => S.one) weightFunction
+    (Operations.constantSmooth Open.whole S.one) (\bysub(Open.ScalarFunction Open.whole, F.Predicate, weightFunction))
+};
+\definition coordinate: F.Function := \into[Open.ScalarFunction Open.whole]((\fun (x: Open.Carrier Open.whole) => x One.index), F.Predicate) \by {
+  Open.Examples[].projectionSmooth Open.whole One.index
+};
+\definition function: F.Function := F.plus (F.product coordinate complementFunction) (F.scale twice weightFunction);
+\definition value[t: S.Real]: S.Real := S.add (S.mul t (complement t)) (S.mul twice (weight t));
+\definition smooth: Smooth.SmoothOn Open.whole (\fun (x: Open.Carrier Open.whole) => value (x One.index)) := \bysub(Open.ScalarFunction Open.whole, F.Predicate, function);
+\definition nonnegative[t: S.Real]: R.Le S.zero t -> R.Le S.zero (value t) := \fun (nonnegative: R.Le S.zero t) =>
+  Laws.addNonnegative (S.mul t (complement t)) (S.mul twice (weight t))
+    (Laws.fieldMulNonnegative t (complement t) nonnegative (complementNonnegative t))
+    (Laws.fieldMulNonnegative twice (weight t) (Order.leOfLt S.zero twice twicePositive) (Step.nonnegative (argument t)));
+\definition below[t: S.Real]: R.Le t r -> R.Le (argument t) S.zero := \fun (bound: R.Le t r) =>
+  R.leReplaceRight (argument t) (S.add (S.neg S.one) S.one) S.zero (Laws.addNegLeft S.one)
+    (Laws.addMonotoneLeft (S.mul inverse t) S.one (S.neg S.one)
+      (R.leReplaceRight (S.mul inverse t) (S.mul inverse r) S.one productOne (Estimates.mulMonotone inverse t r inverseNonnegative bound)));
+\definition lowerValue[t: S.Real]: R.Le t r -> value t = t := \fun (bound: R.Le t r) => \block {
+  \let zero: weight t = S.zero := Step.zeroOn (argument t) (below t bound) \then
+  \return eq_reason!{
+    {value t} "=" {S.add (S.mul t (S.sub S.one S.zero)) (S.mul twice S.zero)} "by" {
+      congr!{S.Real S.Real} (\fun (w: S.Real) => S.add (S.mul t (S.sub S.one w)) (S.mul twice w)) _ _ zero }
+    "=" {S.add (S.mul t S.one) S.zero} "by" {
+      congr!{S.Real S.Real S.Real} S.add _ _ _ _
+        (congr!{S.Real S.Real} (S.mul t) _ _ (Laws.subZeroRight S.one)) (Laws.fieldMulZeroRight twice) }
+    "=" {S.mul t S.one} "by" { Laws.addZeroRight (S.mul t S.one) }
+    "=" t "by" { trans!{S.Real} _ _ _ (Laws.fieldMulComm t S.one) (Laws.fieldMulOneLeft t) }
+  }
+};
+\definition argumentTwice: argument twice = S.one := eq_reason!{
+  {argument twice} "=" {S.add (S.neg S.one) (S.add (S.mul inverse r) (S.mul inverse r))} "by" {
+    congr!{S.Real S.Real} (S.add (S.neg S.one)) _ _ (Laws.fieldMulAdd inverse r r) }
+  "=" {S.add (S.neg S.one) (S.add S.one S.one)} "by" {
+    congr!{S.Real S.Real} (\fun (a: S.Real) => S.add (S.neg S.one) (S.add a a)) _ _ productOne }
+  "=" {S.add (S.add (S.neg S.one) S.one) S.one} "by" { sym!{S.Real} _ _ (Laws.addAssoc (S.neg S.one) S.one S.one) }
+  "=" {S.add S.zero S.one} "by" { congr!{S.Real S.Real} (\fun (a: S.Real) => S.add a S.one) _ _ (Laws.addNegLeft S.one) }
+  "=" S.one "by" { Laws.addZeroLeft S.one }
+};
+\definition above[t: S.Real]: R.Le twice t -> R.Le S.one (argument t) := \fun (bound: R.Le twice t) =>
+  R.leReplaceLeft (argument twice) S.one (argument t) argumentTwice
+    (Laws.addMonotoneLeft (S.mul inverse twice) (S.mul inverse t) (S.neg S.one)
+      (Estimates.mulMonotone inverse twice t inverseNonnegative bound));
+\definition upperValue[t: S.Real]: R.Le twice t -> value t = twice := \fun (bound: R.Le twice t) => eq_reason!{
+  {value t} "=" {S.add (S.mul t (S.sub S.one S.one)) (S.mul twice S.one)} "by" {
+    congr!{S.Real S.Real} (\fun (w: S.Real) => S.add (S.mul t (S.sub S.one w)) (S.mul twice w)) _ _ (Step.oneOn (argument t) (above t bound)) }
+  "=" {S.add (S.mul t S.zero) twice} "by" {
+    congr!{S.Real S.Real S.Real} S.add _ _ _ _ (congr!{S.Real S.Real} (S.mul t) _ _ (Laws.addNegRight S.one)) (trans!{S.Real} _ _ _ (Laws.fieldMulComm twice S.one) (Laws.fieldMulOneLeft twice)) }
+  "=" {S.add S.zero twice} "by" { congr!{S.Real S.Real} (\fun (a: S.Real) => S.add a twice) _ _ (Laws.fieldMulZeroRight t) }
+  "=" twice "by" { Laws.addZeroLeft twice }
+};
+\definition zeroWeight[t: S.Real]: weight t = S.zero -> value t = t := \fun (zero: weight t = S.zero) => eq_reason!{
+  {value t} "=" {S.add (S.mul t (S.sub S.one S.zero)) (S.mul twice S.zero)} "by" {
+    congr!{S.Real S.Real} (\fun (w: S.Real) => S.add (S.mul t (S.sub S.one w)) (S.mul twice w)) _ _ zero }
+  "=" {S.add (S.mul t S.one) S.zero} "by" {
+    congr!{S.Real S.Real S.Real} S.add _ _ _ _ (congr!{S.Real S.Real} (S.mul t) _ _ (Laws.subZeroRight S.one)) (Laws.fieldMulZeroRight twice) }
+  "=" {S.mul t S.one} "by" { Laws.addZeroRight (S.mul t S.one) }
+  "=" t "by" { trans!{S.Real} _ _ _ (Laws.fieldMulComm t S.one) (Laws.fieldMulOneLeft t) }
+};
+\definition strictlyPositive[t: S.Real]: R.Lt S.zero t -> R.Lt S.zero (value t) := \fun (positiveT: R.Lt S.zero t) =>
+  Logic.orElim (weight t = S.zero) (Logic.Not (weight t = S.zero)) (R.Lt S.zero (value t)) (Classical.excludedMiddle (weight t = S.zero))
+    (\fun (zero: weight t = S.zero) => R.ltReplaceRight S.zero t (value t) (sym!{S.Real} _ _ (zeroWeight t zero)) positiveT)
+    (\fun (nonzero: Logic.Not (weight t = S.zero)) => R.ltLeTrans S.zero (S.mul twice (weight t)) (value t)
+      (Bounds.mulPositive twice (weight t) twicePositive
+        (Order.ltOfLeNotEq S.zero (weight t) (Step.nonnegative (argument t)) (\fun (same: S.zero = weight t) => nonzero (sym!{S.Real} _ _ same))))
+      (R.leReplaceRight (S.mul twice (weight t)) (S.add (S.mul twice (weight t)) (S.mul t (complement t))) (value t)
+        (Laws.addComm _ _) (Algebra.leAddRight (S.mul twice (weight t)) (S.mul t (complement t))
+          (Laws.fieldMulNonnegative t (complement t) (Order.leOfLt S.zero t positiveT) (complementNonnegative t)))));
+\definition atZero: value S.zero = S.zero := lowerValue S.zero (Order.leOfLt S.zero r positive);
+\import calculus.Maps[n := One.dimension, m := One.dimension] \as Maps;
+\definition ambient: Maps.Map Open.whole Open.whole := Maps.Map[Open.whole, Open.whole] {
+  apply := \fun (x: Open.Carrier Open.whole) => \into[LineModel.Point]((\fun (i: One.Index) => value (x One.index)), Open.whole.points) \by { \refl(\fun (i: One.Index) => value (x One.index)) },
+  smooth := \fun (i: One.Index) => smooth,
+};
+\definition preserves: \forall (x: Ray.Point) -> LineModel.Nonnegative constraints (Maps.apply Open.whole Open.whole ambient x) :=
+  \fun (x: Ray.Point) => LineModel.halfSpaceNonnegative One.index (Maps.apply Open.whole Open.whole ambient x)
+    (nonnegative (x One.index) ((\bysub(Open.Carrier Open.whole, LineModel.region constraints Open.whole, x)) One.index (\refl(One.index))));
+\definition map: boundary_manifolds.SmoothMap[n := One.dimension, m := One.dimension].Between[M := halfLine, N := halfLine].Map :=
+  boundary_manifolds.QuadrantMap[n := One.dimension, m := One.dimension].Of[C := constraints, D := constraints, U := Open.whole, V := Open.whole, f := ambient, preserves := preserves].map;
+\module Collapse;

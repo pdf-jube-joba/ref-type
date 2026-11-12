@@ -1,0 +1,40 @@
+\import boundary_manifolds.Product[n := n, m := One.dimension].Of[M := B, N := Time.manifold] \as Product;
+\import boundary_manifolds.Product[n := n, m := One.dimension].Of[M := B, N := Signed.manifold] \as SignedProduct;
+\import topology.Topology[Carrier := Product.Point] \as Space;
+\definition region: \Pow Product.Point := { x: Product.Point \where R.Lt (Time.value (Product.second x)) epsilon };
+\definition open: Space.IsOpenIn Product.topology region := topological_constructions.Product[A := B.Point, B := Time.Point].Maps[].secondContinuous
+  B.space Time.manifold.space Signed.SmallTimes[].points Signed.SmallTimes[].open;
+\import manifold_gluing.OpenManifold[n := dimension].On[M := Product.manifold].Within[U := region, open := open] \as Source;
+\definition time[x: Source.Point]: Signed.SmallTimes[].Point := \into[Time.Point](Product.second x, Signed.SmallTimes[].points) \by { \bysub(Product.Point, region, x) };
+\definition value[x: Source.Point]: SignedProduct.Point := Pair.pair B.Point Signed.Point (Product.first x) (Signed.SmallTimes[].positive (time x));
+\import topology.Continuity[A := Source.Point, B := B.Point] \as FirstContinuous;
+\definition firstContinuous: FirstContinuous.Continuous Source.topology B.space (\fun (x: Source.Point) => Product.first x) :=
+  topology.Continuity[A := Product.Point, B := B.Point].Restriction[S := region].restrictContinuous Product.topology B.space Product.first
+    (topological_constructions.Product[A := B.Point, B := Time.Point].Maps[].firstContinuous B.space Time.manifold.space);
+\definition timeContinuous: topology.Continuity[A := Source.Point, B := Signed.SmallTimes[].Point].Continuous Source.topology Signed.SmallTimes[].topology time :=
+  topology.Continuity[A := Source.Point, B := Time.Point].Corestriction[S := Signed.SmallTimes[].points].corestrictContinuous Source.topology Time.manifold.space time
+    (topology.Continuity[A := Product.Point, B := Time.Point].Restriction[S := region].restrictContinuous Product.topology Time.manifold.space Product.second
+      (topological_constructions.Product[A := B.Point, B := Time.Point].Maps[].secondContinuous B.space Time.manifold.space));
+\definition secondContinuous: topology.Continuity[A := Source.Point, B := Signed.Point].Continuous Source.topology Signed.manifold.space (\fun (x: Source.Point) => Signed.SmallTimes[].positive (time x)) :=
+  topology.Composition[A := Source.Point, B := Signed.SmallTimes[].Point, C := Signed.Point].composeContinuous Source.topology Signed.SmallTimes[].topology Signed.manifold.space time Signed.SmallTimes[].positive timeContinuous Signed.SmallTimes[].positiveContinuous;
+\definition continuous: topology.Continuity[A := Source.Point, B := SignedProduct.Point].Continuous Source.topology SignedProduct.topology value :=
+  topological_constructions.Product[A := B.Point, B := Signed.Point].Universal[X := Source.Point].pairContinuous Source.topology B.space Signed.manifold.space
+    (\fun (x: Source.Point) => Product.first x) (\fun (x: Source.Point) => Signed.SmallTimes[].positive (time x)) firstContinuous secondContinuous;
+\import boundary_manifolds.SmoothMap[n := dimension, m := dimension].Between[M := Source.manifold, N := SignedProduct.manifold] \as Maps;
+\import manifold_gluing.LocalSmoothMap[n := dimension, m := dimension].Between[M := Source.manifold, N := SignedProduct.manifold].Of[function := value] \as Local;
+\import Boundaries.Chart[M := B.Point, space := B.space] \as BoundaryCharts;
+\import Models.Chart[M := Product.Point, space := Product.topology] \as ProductCharts;
+\import Models.Chart[M := Source.Point, space := Source.topology] \as SourceCharts;
+\import Models.Chart[M := SignedProduct.Point, space := SignedProduct.topology] \as TargetCharts;
+\definition timeChart: Product.RightChart := \into[boundary_manifolds.Dimension[n := One.dimension].Chart[M := Time.Point, space := Time.manifold.space].Chart](Time.chart, Time.manifold.atlas.charts) \by { Time.chartMember };
+\import boundary_manifolds.Dimension[n := One.dimension].Quadrant[C := boundary_manifolds.Model[n := One.dimension].unconstrained, U := Signed.domain] \as SignedModel;
+\definition signedChart: SignedProduct.RightChart := \into[boundary_manifolds.Dimension[n := One.dimension].Chart[M := Signed.Point, space := Signed.manifold.space].Chart](SignedModel.chart, Signed.manifold.atlas.charts) \by { \refl(SignedModel.chart) };
+\module At(x: Source.Point, c: Product.LeftChart, contains: BoundaryCharts.Contains c (Product.first x));
+\definition local: \forall (x: Source.Point) -> \exists Local.Witness[x] := \block {
+  \fun (x: Source.Point) \then
+  \takefrom chosen: \Cast[BoundaryCharts.Chart] ({ c: BoundaryCharts.Chart \where Logic.And[\In[BoundaryCharts.Chart] B.atlas.charts c, BoundaryCharts.Contains c (Product.first x)] }) \by B.atlas.covers (Product.first x) \then
+  \let laws: Logic.And[\In[BoundaryCharts.Chart] B.atlas.charts chosen, BoundaryCharts.Contains chosen (Product.first x)] := \bysub(BoundaryCharts.Chart, { c: BoundaryCharts.Chart \where Logic.And[\In[BoundaryCharts.Chart] B.atlas.charts c, BoundaryCharts.Contains c (Product.first x)] }, chosen) \then
+  \return At[x := x, c := \into[BoundaryCharts.Chart](chosen, B.atlas.charts) \by { laws.left }, contains := laws.right].exists
+};
+\definition map: Maps.Map := Local.map continuous local;
+\module Differential(x: Source.Point);

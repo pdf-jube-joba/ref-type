@@ -1,0 +1,25 @@
+\import \root.Euclidean[n := n] \as CC;
+\import CC.TestOperations[] \as CCTests;
+\import CC.JetBounds[] \as CCJets;
+\import \parent.Jets[] \as CCTranslate;
+\import std.Data[].Nat[] \as CCN;
+\import CCN.Basic[].Prop[] \as CCNat;
+\import ConvOpen.Analysis[] \as CCAnalysis;
+\import ConvR.Order[] \as CCOrder;
+\import ConvReal.Distance[] \as CCDistance;
+\import ConvOpen.Restriction[] \as CCRestriction;
+\import ConvOpen.Whole[] \as CCWhole;
+\import real.Analysis[].FiniteSums[] \as CCSums;
+\definition scalar: ConvL.Function := \root.Euclidean[n := n].Convolution[].function T rho;
+\definition partialFunction[j: std.Data[].FinSet[].Fin n]: ConvL.Function := \root.Euclidean[n := n].Convolution[].function T (CCTests.partial rho j);
+\definition partials[j: std.Data[].FinSet[].Fin n]: CCAnalysis.HasPartialDerivative ConvOpen.whole
+  (CCRestriction.function ConvOpen.whole scalar) j (CCRestriction.function ConvOpen.whole (partialFunction j)) :=
+  \fun (x: ConvOpen.Carrier ConvOpen.whole) => \parent.Differentiation[T := T, rho := rho, a := x, i := j].partial;
+\module Bounded(radius: ConvL.Nonnegative,
+  radiusBound: \forall (x: ConvE.Point) -> ConvSets.Member (ConvSmooth.support rho) x -> ConvR.Le (ConvGeometry.metric.distance ConvCoordinates.origin x) radius);
+\definition continuous: CCAnalysis.ContinuousAt ConvOpen.whole (CCRestriction.function ConvOpen.whole scalar) (CCWhole.point a) := \block {
+  \takefrom r: \Cast[ConvL.Nonnegative] ({ r: ConvL.Nonnegative \where \forall (x: ConvE.Point) -> ConvSets.Member (ConvSmooth.support rho) x -> ConvR.Le (ConvGeometry.metric.distance ConvCoordinates.origin x) r })
+    \by ConvBounds.radiusBound (ConvSmooth.support rho) (ConvL.smoothCompactLaws rho).compact \then
+  \return Bounded[radius := r, radiusBound := \bysub(ConvL.Nonnegative,
+    { r: ConvL.Nonnegative \where \forall (x: ConvE.Point) -> ConvSets.Member (ConvSmooth.support rho) x -> ConvR.Le (ConvGeometry.metric.distance ConvCoordinates.origin x) r }, r)].continuous
+};

@@ -1,0 +1,28 @@
+\use Logic.either;
+\definition piecesVanish[k: N.Nat^]: T.eval (data.pieces k) = Real.zero :=
+  either!{{(data.refines k)} {T.eval (data.pieces k) = Real.zero}
+    {\fun (member: ZeroOpenLaws[T, data.domains k]) => member.vanishes (data.pieces k) (data.within k)}
+    {\fun (empty: data.domains k = Sets.Empty) => vanishesEmpty T (data.pieces k)
+      (\idelim data.domains k = Sets.Empty \with S: \Pow Point => Sets.Subset (Smooth.support (data.pieces k)) S
+        \by { base: data.within k, equality: empty })}
+  };
+\definition prefix: N.Nat^ -> Test := \induction (k: N.Nat^) \return Test \with {
+  | zero: Tests.zero
+  | succ: \fun (k: N.Nat^)(previous: Test) => Tests.add previous (data.pieces k)
+};
+\definition pointwise: \forall (k: N.Nat^)(x: Point) -> prefix k x = Countable.prefix (\fun (j: N.Nat^)(y: Point) => data.pieces j y) x k :=
+  \induction (k: N.Nat^) \return \forall (x: Point) -> prefix k x = Countable.prefix (\fun (j: N.Nat^)(y: Point) => data.pieces j y) x k \with {
+    | zero: \fun (x: Point) => \refl(Real.zero)
+    | succ: \fun (k: N.Nat^)(previous: _)(x: Point) => congr!{Real.Real Real.Real} (\fun (v: Real.Real) => Real.add v (data.pieces k x)) _ _ (previous x)
+  };
+\definition evalPrefix: \forall (k: N.Nat^) -> T.eval (prefix k) = Real.zero :=
+  \induction (k: N.Nat^) \return T.eval (prefix k) = Real.zero \with {
+    | zero: evalZero T
+    | succ: \fun (k: N.Nat^)(previous: _) => trans!{Real.Real} _ _ _ (T.additive (prefix k) (data.pieces k))
+      (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real Real.Real} Real.add _ _ _ _ previous (piecesVanish k)) (Laws.addZeroLeft Real.zero))
+  };
+\definition vanishes: T.eval f = Real.zero := trans!{Real.Real} _ _ _
+  (congr!{Test Real.Real} T.eval f (prefix data.size)
+    (Tests.ext f (prefix data.size) (\fun (x: Point) => sym!{Real.Real} _ _
+      (trans!{Real.Real} _ _ _ (pointwise data.size x) (data.pointwise x)))))
+  (evalPrefix data.size);

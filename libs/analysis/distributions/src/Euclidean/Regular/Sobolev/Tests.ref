@@ -1,0 +1,74 @@
+\import \root.Euclidean[n := n].TestOperations[] \as Tests;
+\import Open.Topology[].Of[U := Open.whole] \as LocalTopology;
+\import topology.Topology[Carrier := Open.Carrier Open.whole] \as LocalSets;
+\import functional_analysis.Support[A := Open.Carrier Open.whole] \as LocalSupport;
+\import Sets.Subspace[S := Open.whole.points] \as Subspace;
+\import topology.Maps[A := E.Point, B := Open.Carrier Open.whole] \as Forward;
+\import topology.Maps[A := Open.Carrier Open.whole, B := E.Point] \as Backward;
+\import topology.Compactness[A := E.Point, B := Open.Carrier Open.whole] \as ForwardCompact;
+\import topology.Compactness[A := Open.Carrier Open.whole, B := E.Point] \as BackwardCompact;
+\import Open.Smooth[] \as SmoothFunctions;
+\import Open.Analysis[] \as Analysis;
+\import Analysis.Properties[] \as Uniqueness;
+\import std.Data[].Nat[] \as N;
+\import std.Data[].FinSet[] \as Fin;
+\definition forwardContinuous: topology.Continuity[A := E.Point, B := Open.Carrier Open.whole].Continuous Ambient.topology LocalTopology.topology Whole.point :=
+  \fun (V: \Pow (Open.Carrier Open.whole))(open: _) => Subspace.openTraceElim Ambient.topology V (Sets.IsOpenIn Ambient.topology (Forward.Preimage Whole.point V))
+    (\fun (U: \Pow E.Point)(openU: _)(equal: _) => \idelim Subspace.Trace U = V
+      \with W: \Pow (Open.Carrier Open.whole) => Sets.IsOpenIn Ambient.topology (Forward.Preimage Whole.point W) \by {
+        base: \idelim U = Forward.Preimage Whole.point (Subspace.Trace U) \with W: \Pow E.Point => Sets.IsOpenIn Ambient.topology W \by {
+          base: openU, equality: \axiom:setext(U, Forward.Preimage Whole.point (Subspace.Trace U), \fun (x: E.Point)(member: _) => member, \fun (x: E.Point)(member: _) => member) },
+        equality: sym!{\Pow (Open.Carrier Open.whole)} _ _ equal })
+    (Subspace.openRepresentation Ambient.topology V open);
+\definition backwardContinuous: topology.Continuity[A := Open.Carrier Open.whole, B := E.Point].Continuous LocalTopology.topology Ambient.topology Transport.include :=
+  \fun (U: \Pow E.Point)(open: _) => Subspace.traceOpen Ambient.topology U open;
+\definition forwardCompact[f: E.SmoothCompact]: LocalSupport.HasCompactSupport LocalTopology.topology (Restriction.function Open.whole f) := \block {
+  \let K: \Pow (Open.Carrier Open.whole) := Forward.Image Whole.point (Smooth.support f) \then
+  \let compact: LocalSets.IsCompactIn LocalTopology.topology K := ForwardCompact.continuousImage Ambient.topology LocalTopology.topology Whole.point forwardContinuous (Smooth.support f) (E.smoothCompactLaws f).compact \then
+  \return LocalSupport.compactSupportWithin LocalTopology.topology (Restriction.function Open.whole f) K compact
+    (LocalSupport.supportWithinClosed LocalTopology.topology (Restriction.function Open.whole f) K
+      (LocalSets.Compactness[].compactClosed LocalTopology.topology (Subspace.Properties[].hausdorff Ambient.topology Ambient.hausdorff) K compact)
+      (\fun (x: Open.Carrier Open.whole)(outside: _) => Support.zeroOutsideSupport Ambient.topology f x
+        (\fun (member: _) => outside (Forward.imageMember Whole.point (Smooth.support f) x member))))
+};
+\definition toOld[f: E.SmoothCompact]: On.Test := On.Test {
+  function := Restriction.function Open.whole f,
+  partials := \fun (d: Existing.Directions) => Restriction.function Open.whole (Tests.jet d f),
+  value := \refl(Restriction.function Open.whole f),
+  derivative := \fun (d: Existing.Directions)(i: Fin.Fin n) => Tests.partialLaw (Tests.jet d f) i,
+  continuous := \fun (d: Existing.Directions) => SmoothFunctions.Properties[].continuous Open.whole (Restriction.function Open.whole (Tests.jet d f)) (E.smoothCompactLaws (Tests.jet d f)).smooth,
+  compactSupport := forwardCompact f,
+};
+\definition function[test: On.Test]: E.Function := Whole.function test.function;
+\definition eta[f: Open.ScalarFunction Open.whole]: Restriction.function Open.whole (Whole.function f) = f :=
+  \axiom:funext(Restriction.function Open.whole (Whole.function f), f, \fun (x: Open.Carrier Open.whole) => \refl(f x));
+\definition smooth[test: On.Test]: Smooth.IsSmooth (function test) := \fun (k: N.Nat^) =>
+  Logic.existsIntro[SmoothFunctions.PartialFamily Open.whole, { family: SmoothFunctions.PartialFamily Open.whole \where SmoothFunctions.ContDiffLaws[Open.whole, Restriction.function Open.whole (function test), k, family] }] test.partials
+    (SmoothFunctions.ContDiffLaws[Open.whole, Restriction.function Open.whole (function test), k, test.partials] {
+      partials := SmoothFunctions.PartialFamilyLaws[Open.whole, Restriction.function Open.whole (function test), k, test.partials] {
+        function := trans!{{Open.ScalarFunction Open.whole}} _ _ _ test.value (sym!{{Open.ScalarFunction Open.whole}} _ _ (eta test.function)),
+        derivative := \fun (d: Existing.Directions)(bound: _)(i: Fin.Fin n) => test.derivative d i,
+      },
+      continuous := \fun (d: Existing.Directions)(bound: _) => test.continuous d,
+    });
+\definition backwardCompact[test: On.Test]: Sets.IsCompactIn Ambient.topology (Smooth.support (function test)) := \block {
+  \let K: \Pow E.Point := Backward.Image Transport.include (LocalSupport.support LocalTopology.topology test.function) \then
+  \let compact: Sets.IsCompactIn Ambient.topology K := BackwardCompact.continuousImage LocalTopology.topology Ambient.topology Transport.include backwardContinuous
+    (LocalSupport.support LocalTopology.topology test.function) test.compactSupport \then
+  \return Support.compactSupportWithin Ambient.topology (function test) K compact
+    (Support.supportWithinClosed Ambient.topology (function test) K (Sets.Compactness[].compactClosed Ambient.topology Ambient.hausdorff K compact)
+      (\fun (x: E.Point)(outside: _) => LocalSupport.zeroOutsideSupport LocalTopology.topology test.function (Whole.point x)
+        (\fun (member: _) => outside (Backward.imageMember Transport.include (LocalSupport.support LocalTopology.topology test.function) (Whole.point x) member))))
+};
+\definition fromOld[test: On.Test]: E.SmoothCompact := \into[E.Function](function test, E.SmoothCompact) \by { E.SmoothCompactLaws[function test] { smooth := smooth test, compact := backwardCompact test } };
+\definition partials[test: On.Test]: \forall (d: Existing.Directions) -> Restriction.function Open.whole (Tests.jet d (fromOld test)) = test.partials d :=
+  \induction (d: Existing.Directions) \return Restriction.function Open.whole (Tests.jet d (fromOld test)) = test.partials d \with {
+    | nil: trans!{{Open.ScalarFunction Open.whole}} _ _ _ (eta test.function) (sym!{{Open.ScalarFunction Open.whole}} _ _ test.value)
+    | cons: \fun (i: Fin.Fin n)(tail: Existing.Directions)(previous: _) =>
+      \axiom:funext(Restriction.function Open.whole (Tests.jet (Existing.Directions::cons i tail) (fromOld test)), test.partials (Existing.Directions::cons i tail),
+        \fun (x: Open.Carrier Open.whole) => Uniqueness.partialUnique Open.whole (Restriction.function Open.whole (Tests.jet tail (fromOld test))) i x _ _
+          (Tests.partialLaw (Tests.jet tail (fromOld test)) i x)
+          ((\idelim test.partials tail = Restriction.function Open.whole (Tests.jet tail (fromOld test))
+            \with f: Open.ScalarFunction Open.whole => Analysis.HasPartialDerivative Open.whole f i (test.partials (Existing.Directions::cons i tail)) \by {
+              base: test.derivative tail i, equality: sym!{{Open.ScalarFunction Open.whole}} _ _ previous }) x))
+  };

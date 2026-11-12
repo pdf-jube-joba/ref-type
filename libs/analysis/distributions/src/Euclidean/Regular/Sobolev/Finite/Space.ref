@@ -1,0 +1,41 @@
+\import std.Set[].Quotient[A := DistributionRepresentatives k, Equivalent := \fun (f, g: DistributionRepresentatives k) => Local.AlmostEqual Transport.measure f g] \as New;
+\import std.Set[].Quotient[A := Weak.Representatives k p, Equivalent := \fun (f, g: Weak.Representatives k p) => Local.AlmostEqual Transport.measure f g] \as Old;
+\import Local.AlmostEverywhere[mu := Transport.measure] \as LocalAE;
+\import Weak.Space[k := k, p := p] \as ExistingSpace;
+\definition Carrier: \Set := New.Carrier;
+\definition toOld[f: DistributionRepresentatives k]: Weak.Representatives k p := \into[On.Functions](f, Weak.Representatives k p) \by {
+  (equivalence f k).rtl (\bysub(On.Functions, { u: On.Functions \where HasDistributionDerivatives u k }, f))
+};
+\definition fromOld[f: Weak.Representatives k p]: DistributionRepresentatives k := \into[On.Functions](f, DistributionRepresentatives k) \by {
+  (equivalence f k).ltr (\bysub(On.Functions, { u: On.Functions \where Weak.HasWeakDerivatives u k p }, f))
+};
+\definition newLaws: New.EquivalenceLaws := New.EquivalenceLaws {
+  refl := \fun (f: DistributionRepresentatives k) => LocalAE.reflexive f,
+  sym := \fun (f, g: DistributionRepresentatives k) => LocalAE.symmetric f g,
+  trans := \fun (f, g, h: DistributionRepresentatives k) => LocalAE.transitive f g h,
+};
+\definition oldLaws: Old.EquivalenceLaws := Old.EquivalenceLaws {
+  refl := \fun (f: Weak.Representatives k p) => LocalAE.reflexive f,
+  sym := \fun (f, g: Weak.Representatives k p) => LocalAE.symmetric f g,
+  trans := \fun (f, g, h: Weak.Representatives k p) => LocalAE.transitive f g h,
+};
+\import New.Maps[B := ExistingSpace.Wkp] \as Forward;
+\import Old.Maps[B := Carrier] \as Backward;
+\definition forwardClass[f: DistributionRepresentatives k]: ExistingSpace.Wkp := ExistingSpace.ofFunction (toOld f);
+\definition backwardClass[f: Weak.Representatives k p]: Carrier := New.class (fromOld f);
+\definition forwardRespects: Forward.Respects forwardClass := \fun (f, g: DistributionRepresentatives k)(same: _) => Old.classOfEq oldLaws (toOld f) (toOld g) same;
+\definition backwardRespects: Backward.Respects backwardClass := \fun (f, g: Weak.Representatives k p)(same: _) => New.classOfEq newLaws (fromOld f) (fromOld g) same;
+\definition toExisting: Carrier -> ExistingSpace.Wkp := Forward.value newLaws forwardClass forwardRespects;
+\definition fromExisting: ExistingSpace.Wkp -> Carrier := Backward.value oldLaws backwardClass backwardRespects;
+\definition toExistingClass[f: DistributionRepresentatives k]: toExisting (New.class f) = forwardClass f := Forward.onClass newLaws forwardClass forwardRespects f;
+\definition fromExistingClass[f: Weak.Representatives k p]: fromExisting (ExistingSpace.ofFunction f) = backwardClass f := Backward.onClass oldLaws backwardClass backwardRespects f;
+\definition fromToClass[f: DistributionRepresentatives k]: New.class (fromOld (toOld f)) = New.class f := New.classOfEq newLaws (fromOld (toOld f)) f (LocalAE.reflexive f);
+\definition toFromClass[f: Weak.Representatives k p]: Old.class (toOld (fromOld f)) = Old.class f := Old.classOfEq oldLaws (toOld (fromOld f)) f (LocalAE.reflexive f);
+\definition fromTo: \forall (x: Carrier) -> fromExisting (toExisting x) = x := New.induction (\fun (x: Carrier) => fromExisting (toExisting x) = x)
+  (\fun (f: DistributionRepresentatives k) => trans!{Carrier} _ _ _
+    (congr!{{ExistingSpace.Wkp} Carrier} fromExisting _ _ (toExistingClass f))
+    (trans!{Carrier} _ _ _ (fromExistingClass (toOld f)) (fromToClass f)));
+\definition toFrom: \forall (x: ExistingSpace.Wkp) -> toExisting (fromExisting x) = x := Old.induction (\fun (x: ExistingSpace.Wkp) => toExisting (fromExisting x) = x)
+  (\fun (f: Weak.Representatives k p) => trans!{{ExistingSpace.Wkp}} _ _ _
+    (congr!{Carrier {ExistingSpace.Wkp}} toExisting _ _ (fromExistingClass f))
+    (trans!{{ExistingSpace.Wkp}} _ _ _ (toExistingClass (fromOld f)) (toFromClass f)));

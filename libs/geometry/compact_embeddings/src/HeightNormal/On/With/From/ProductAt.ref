@@ -1,0 +1,26 @@
+\import boundary_manifolds.Tangent[n := n].On[M := BoundaryModel.manifold].At[x := Product.first y] \as Left;
+\import boundary_manifolds.Tangent[n := One.dimension].On[M := Time.manifold].At[x := Product.second y] \as Right;
+\import boundary_manifolds.Tangent[n := dimension].On[M := Product.manifold].At[x := y] \as Total;
+\import manifold_gluing.ProductDifferential[n := n, m := One.dimension].Of[M := BoundaryModel.manifold, N := Time.manifold].At[x := y] \as Components;
+\module In(c: Left.Chart, d: Right.Chart);
+\definition join: \forall (v: Total.Vector) -> Left.Cones[].Tangential (Components.first v) -> Right.Cones[].Tangential (Components.second v) -> Total.Cones[].Tangential v := \block {
+  \fun (v: Total.Vector)(left: Left.Cones[].Tangential (Components.first v))(right: Right.Cones[].Tangential (Components.second v)) \then
+  \takefrom c: Left.Chart \by Left.chartExists \then
+  \takefrom d: Right.Chart \by Right.chartExists \then
+  \return In[c := c, d := d].join v left right
+};
+\definition allLeft: \forall (v: Left.Vector) -> Left.Cones[].Tangential v := \block {
+  \let all: \forall (v: Left.Vector) -> Left.Cones[].Inward v := topology.Topology[Carrier := BoundaryModel.manifold.Point].Finite[].doubleNegElim
+    (\forall (v: Left.Vector) -> Left.Cones[].Inward v) (ConvertedBoundary.At[x := Product.first y].noBoundary) \then
+  \return \fun (v: Left.Vector) => Logic.And[_, _]::# (all v) (all (Left.Operations[].negative v))
+};
+\import boundary_manifolds.Tangent[n := One.dimension].On[M := Neat.halfLine].At[x := ProductHeight.map.apply y] \as Target;
+\import boundary_manifolds.Differential[n := dimension, m := One.dimension].Between[M := Product.manifold, N := Neat.halfLine].At[f := ProductHeight.map, x := y] \as D;
+\import RayInclusion.At[t := Product.second y] \as TimeD;
+\definition inverse[w: Target.Vector]: Total.Vector := Components.pair Left.Operations[].origin (TimeD.inverse w);
+\definition rightInverse[w: Target.Vector]: D.value.apply (inverse w) = w := trans!{{Target.Vector}} _ _ _ (ProductHeight.At[x := y].pointwise (inverse w))
+  (trans!{{Target.Vector}} _ _ _ (congr!{{Right.Vector} {Target.Vector}} (boundary_manifolds.Differential[n := One.dimension, m := One.dimension].Between[M := Time.manifold, N := Neat.halfLine].At[f := RayInclusion.map, x := Product.second y].value.apply) _ _ (Components.secondPair Left.Operations[].origin (TimeD.inverse w))) (TimeD.rightInverse w));
+\definition reflects[v: Total.Vector]: Target.Cones[].Tangential (D.value.apply v) -> Total.Cones[].Tangential v := \fun (tangent: _) =>
+  join v (allLeft (Components.first v)) (TimeD.reflects (Components.second v)
+    (\idelim D.value.apply v = boundary_manifolds.Differential[n := One.dimension, m := One.dimension].Between[M := Time.manifold, N := Neat.halfLine].At[f := RayInclusion.map, x := Product.second y].value.apply (Components.second v)
+      \with w: Target.Vector => Target.Cones[].Tangential w \by { base: tangent, equality: ProductHeight.At[x := y].pointwise v }));

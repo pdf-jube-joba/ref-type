@@ -1,0 +1,31 @@
+\definition oldLeft: Source.OldChart := \into[OldSourceCharts.Chart](c, M.atlas.charts) \by { Domain.member c };
+\definition oldRight: Target.OldChart := \into[OldTargetCharts.Chart](d, N.atlas.charts) \by { Codomain.member d };
+\import Source.InChart[c := oldLeft] \as LeftConversion;
+\import Target.InChart[c := oldRight] \as RightConversion;
+\import SourceConstruction.On[patch := LeftConversion.patch] \as Left;
+\import TargetConstruction.On[patch := RightConversion.patch] \as Right;
+\definition left: Locality.SourceChart x := \into[SourceCharts.Chart](Left.chart, Locality.SourceChart x) \by {
+  Logic.And[_, _]::# (Logic.existsIntro[SourceConstruction.Adapted, { p: SourceConstruction.Adapted \where Left.chart = SourceConstruction.On[patch := p].chart }]
+    LeftConversion.patch (\refl(Left.chart))) (Domain.contains c)
+};
+\definition right: Locality.TargetChart (apply x) := \into[TargetCharts.Chart](Right.chart, Locality.TargetChart (apply x)) \by {
+  Logic.And[_, _]::# (Logic.existsIntro[TargetConstruction.Adapted, { p: TargetConstruction.Adapted \where Right.chart = TargetConstruction.On[patch := p].chart }]
+    RightConversion.patch (\refl(Right.chart))) (Codomain.contains d)
+};
+\import manifolds.Differential[n := n, m := m].Between[M := M, N := N].At[f := f, x := Source.backward x].InCharts[left := c, right := d] \as OrdinaryDifferential;
+\import Ordinary.Coordinates[f := f, left := c, right := d] \as Coordinates;
+\definition domain: Open.OpenSet := Coordinates.domain;
+\definition included: Open.Included domain c.image := \fun (u: SourceModel.Point)(member: _) => Coordinates.inLeftImage (\into[SourceModel.Point](u, domain.points) \by { member });
+\definition inside: \forall (u: Open.Carrier domain) -> \In[TargetModel.Point] Output.whole.points (Calculus.apply domain d.image OrdinaryDifferential.coordinateMap u) :=
+  \fun (u: Open.Carrier domain) => \refl(Calculus.apply domain d.image OrdinaryDifferential.coordinateMap u);
+\import Calculus.Corestriction[U := domain, V := d.image, W := Output.whole, f := OrdinaryDifferential.coordinateMap, inside := inside] \as ExtensionMap;
+\import Maps.At[function := apply, left := left, right := right, x := x, contains := Locality.leftContains x left] \as Local;
+\definition extension: Local.Extension := Local.Extension {
+  neighborhood := domain, included := included,
+  contains := \bysub(SourceModel.Point, domain.points, OrdinaryDifferential.point),
+  map := ExtensionMap.map,
+  inside := \fun (u: SourceModel.Carrier left.constraints domain) => Coordinates.inRightDomain u,
+  agrees := \fun (u: SourceModel.Carrier left.constraints domain) => \refl(Calculus.apply domain Output.whole ExtensionMap.map u),
+};
+\definition witness: Locality.Witness[x] := Locality.Witness[x] { left := left, right := right, extension := extension };
+\definition jacobian: Local.Using[e := extension].jacobian = OrdinaryDifferential.jacobian := ExtensionMap.differential OrdinaryDifferential.point;

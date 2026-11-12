@@ -9,5 +9,5 @@
 
 ## 依存するタスク
 
-- [G05 コンパクト多様体の埋め込み](g05-compact-embeddings.md)
+- [G05 コンパクト多様体の埋め込み](../../libs/geometry/compact_embeddings/README.md)
 - [滑らかな束・枠束・随伴束](../../libs/geometry/smooth_bundles/README.md)

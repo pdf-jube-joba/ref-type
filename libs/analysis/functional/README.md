@@ -114,3 +114,5 @@ cargo run -p cli -- libs/analysis/functional --module functional_analysis.Exampl
 ```
 
 workspace の `libs/refcache/` を共有する。
+
+Euclid 空間全体の Lebesgue 測度では、[distributions](../distributions/README.md) が試験関数の変換、分布微分との同値、既存の \(W^{k,p}\) 商との相互に逆な比較を提供する。

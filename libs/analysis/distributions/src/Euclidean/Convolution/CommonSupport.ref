@@ -1,0 +1,33 @@
+\definition centerRadius: ConvL.Nonnegative := \into[ConvReal.Real](ConvReal.add (ConvGeometry.metric.distance ConvCoordinates.origin a) ConvReal.one, ConvL.Nonnegative) \by {
+  ConvLaws.addNonnegative _ _ (ConvGeometry.metric.nonnegative ConvCoordinates.origin a) (ConvLaws.oneNonnegative)
+};
+\definition enlarged: ConvL.Nonnegative := ConvPowers.sum radius centerRadius;
+\definition box: ConvE.Box := ConvBounds.box enlarged;
+\definition centerBound[b: ConvE.Point]: ConvR.Le (ConvGeometry.metric.distance b a) ConvReal.one ->
+  ConvR.Le (ConvGeometry.metric.distance ConvCoordinates.origin b) centerRadius := \fun (near: _) =>
+  ConvR.leTrans _ _ _ (ConvGeometry.metric.triangle ConvCoordinates.origin a b)
+    (ConvEstimates.addLe _ _ _ _ (ConvR.leRefl (ConvGeometry.metric.distance ConvCoordinates.origin a))
+      (ConvR.leReplaceLeft _ _ _ (ConvGeometry.metric.symmetric b a) near));
+\definition nonzeroWithin[f: ConvL.SmoothCompact][b: ConvE.Point]:
+  ConvSets.Subset (ConvSmooth.support f) (ConvSmooth.support rho) ->
+  ConvR.Le (ConvGeometry.metric.distance b a) ConvReal.one -> \forall (y: ConvE.Point) ->
+  ConvLogic.Not (f (ConvE.subPoint b y) = ConvReal.zero) -> ConvSets.Member (ConvE.points box) y :=
+  \fun (included: _)(near: _)(y: ConvE.Point)(nonzero: _) => ConvBounds.coordinateBound y enlarged
+    (ConvR.leReplaceRight _ _ _ (ConvLaws.addComm centerRadius radius)
+      (ConvR.leTrans _ _ _ (ConvGeometry.metric.triangle ConvCoordinates.origin b y)
+        (ConvEstimates.addLe _ _ _ _ (centerBound b near)
+          (ConvR.leReplaceLeft _ _ _
+            (trans!{ConvReal.Real} _ _ _ (ConvGeometry.metric.symmetric ConvCoordinates.origin (ConvE.subPoint b y)) (ConvGeometry.difference b y))
+            (radiusBound (ConvE.subPoint b y) (included (ConvE.subPoint b y)
+              (ConvSupport.nonzeroInSupport ConvAmbient.topology f (ConvE.subPoint b y) nonzero)))))));
+\definition within[f: ConvL.SmoothCompact][b: ConvE.Point]:
+  ConvSets.Subset (ConvSmooth.support f) (ConvSmooth.support rho) ->
+  ConvR.Le (ConvGeometry.metric.distance b a) ConvReal.one ->
+  ConvSets.Subset (ConvSmooth.support (\parent.Translate[rho := f, a := b].test)) (ConvE.points box) := \fun (included: _)(near: _) =>
+  ConvSupport.supportWithinClosed ConvAmbient.topology (\parent.Translate[rho := f, a := b].test) (ConvE.points box) (ConvBoxes.pointsClosed box)
+    (\fun (y: ConvE.Point)(outside: _) => ConvSets.Finite[].doubleNegElim _ (\fun (nonzero: _) => outside (nonzeroWithin f b included near y nonzero)));
+\definition center: ConvR.Le (ConvGeometry.metric.distance a a) ConvReal.one :=
+  ConvR.leReplaceLeft _ _ _ (sym!{ConvReal.Real} _ _ (ConvGeometry.metric.self a)) ConvLaws.oneNonnegative;
+\definition replaced[i: std.Data[].FinSet[].Fin n][t: ConvReal.Real]: ConvR.Le (ConvReal.distance t (a i)) ConvReal.one ->
+  ConvR.Le (ConvGeometry.metric.distance (ConvCoordinates.replace a i t) a) ConvReal.one := \fun (near: _) =>
+  ConvR.leTrans _ _ _ (calculus.Real[].Multivariable[n := n].Space[].Prop[].replaceDistanceUpper a i t) near;

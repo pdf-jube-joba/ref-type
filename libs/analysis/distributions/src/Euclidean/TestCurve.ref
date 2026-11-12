@@ -1,0 +1,33 @@
+\import calculus.Real[].Derivative[].Def[] \as ScalarDerivative;
+\import calculus.Real[].Limit[].Def[] \as ScalarLimit;
+\import Real.Algebra[] \as Algebra;
+\import Real.Distance[] \as Distance;
+\import R.Order[] \as Order;
+\import lp_spaces.Powers[] \as Powers;
+\definition error[t: Real.Real]: Test := Tests.add
+  (Tests.scale (Laws.fieldInv (Real.sub t at)) (Tests.add (curve t) (Tests.scale (Real.neg Real.one) (curve at))))
+  (Tests.scale (Real.neg Real.one) target);
+\definition rate[c: Nonnegative][t: Real.Real]: Nonnegative :=
+  \into[Real.Real](Real.mul c (Real.distance t at), Nonnegative) \by {
+    Laws.fieldMulNonnegative c (Real.distance t at) (Powers.baseNonnegative c) (Distance.distanceNonnegative t at)
+  };
+\definition ErrorBound[m: N.Nat^][c: Nonnegative]: \Prop :=
+  \forall (t: Real.Real) -> Logic.Not (t = at) -> R.Lt (Real.distance t at) Real.one -> JetBound (error t) m (rate c t);
+\structure EstimatesOn[K: \Pow Point]: \Prop := {
+  compact: Sets.IsCompactIn Ambient.topology K,
+  supported: \forall (t: Real.Real) -> Logic.Not (t = at) -> R.Lt (Real.distance t at) Real.one -> Sets.Subset (Smooth.support (error t)) K,
+  jets: \forall (m: N.Nat^) -> \exists ( c: Nonnegative \where ErrorBound m c ),
+};
+\module Evaluation(T: Distribution);
+\module Controlled(T: Distribution, K: \Pow Point, data: EstimatesOn[K], m: N.Nat^, C, c: Nonnegative,
+  bound: Bound T.eval K m C, errorBound: ErrorBound m c);
+\definition derivative[T: Distribution][K: \Pow Point]: EstimatesOn[K] ->
+  ScalarDerivative.HasDerivativeAt (\fun (t: Real.Real) => T.eval (curve t)) at (T.eval target) := \fun (data: _) => \block {
+    \takefrom m: \Cast[N.Nat^] ({ m: N.Nat^ \where \exists ( C: Nonnegative \where Bound T.eval K m C ) }) \by T.bound K data.compact \then
+    \takefrom C: \Cast[Nonnegative] ({ C: Nonnegative \where Bound T.eval K m C })
+      \by \bysub(N.Nat^, { m: N.Nat^ \where \exists ( C: Nonnegative \where Bound T.eval K m C ) }, m) \then
+    \takefrom c: \Cast[Nonnegative] ({ c: Nonnegative \where ErrorBound m c }) \by data.jets m \then
+    \return Controlled[T := T, K := K, data := data, m := m, C := C, c := c,
+      bound := \bysub(Nonnegative, { C: Nonnegative \where Bound T.eval K m C }, C),
+      errorBound := \bysub(Nonnegative, { c: Nonnegative \where ErrorBound m c }, c)].derivative
+  };

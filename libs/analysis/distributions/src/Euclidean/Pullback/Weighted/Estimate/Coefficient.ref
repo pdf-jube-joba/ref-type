@@ -1,0 +1,24 @@
+\definition absoluteFunction: PullbackOpen.ScalarFunction V := \fun (x: PullbackOpen.Carrier V) => Absolute.abs (a x);
+\definition smooth: PullbackOpen.Smooth[].SmoothOn V a :=
+  \bysub(PullbackOpen.ScalarFunction V, { h: PullbackOpen.ScalarFunction V \where PullbackOpen.Smooth[].SmoothOn V h }, a);
+\import PullbackOpen.Smooth[] \as Smoothness;
+\definition analytic: PullbackOpen.Analysis[].ContinuousOn V a := \block {
+  \takefrom derivatives: \Cast[Smoothness.PartialFamily V] ({ d: Smoothness.PartialFamily V \where Smoothness.ContDiffLaws[V, a, N.Nat^::zero, d] }) \by smooth N.Nat^::zero \then
+  \let laws: Smoothness.ContDiffLaws[V, a, N.Nat^::zero, derivatives] :=
+    \bysub(Smoothness.PartialFamily V, { d: Smoothness.PartialFamily V \where Smoothness.ContDiffLaws[V, a, N.Nat^::zero, d] }, derivatives) \then
+  \return \idelim derivatives Directions::nil = a \with h: PullbackOpen.ScalarFunction V => PullbackOpen.Analysis[].ContinuousOn V h \by {
+    base: laws.continuous Directions::nil (Nat.leRefl N.Nat^::zero), equality: (laws.partials).function
+  }
+};
+\definition topological: LocalFunctions.Continuous LocalTopology.topology a := LocalContinuity.topological a analytic;
+\definition absoluteContinuous: LocalFunctions.Continuous LocalTopology.topology absoluteFunction :=
+  Lattice.absoluteContinuous LocalTopology.topology a topological;
+\definition exists: \exists ( C: Nonnegative \where \forall (x: PullbackOpen.Carrier V) -> LocalSets.Member H x -> R.Le (Absolute.abs (a x)) C ) := \block {
+  \takefrom c: \Cast[Real.Real] ({ c: Real.Real \where Complete.UpperBound (Images.Image absoluteFunction H) c }) \by
+    Extrema.compactBounded (Images.Image absoluteFunction H) (CompactImages.continuousImage LocalTopology.topology Line.topology absoluteFunction absoluteContinuous H compact) \then
+  \let C: Nonnegative := \into[Real.Real](Real.Distance[].max Real.zero c, Nonnegative) \by { Real.Distance[].maxLeft Real.zero c } \then
+  \return Logic.existsIntro[Nonnegative, { C: Nonnegative \where \forall (x: PullbackOpen.Carrier V) -> LocalSets.Member H x -> R.Le (Absolute.abs (a x)) C }] C
+    (\fun (x: PullbackOpen.Carrier V)(member: _) => R.leTrans _ _ _
+      ((\bysub(Real.Real, { c: Real.Real \where Complete.UpperBound (Images.Image absoluteFunction H) c }, c)) (absoluteFunction x) (Images.imageMember absoluteFunction H x member))
+      (Real.Distance[].maxRight Real.zero c))
+};

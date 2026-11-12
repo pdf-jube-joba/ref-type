@@ -1,0 +1,149 @@
+\import \parent.TestOperations[] \as Tests;
+\import topology.Topology[Carrier := Test] \as Space;
+\import topology.Continuity[A := Test, B := Real.Real] \as Maps;
+\import topology.Topology[Carrier := Real.Real] \as Scalars;
+\import metric_spaces.RealLine[] \as Line;
+\import metric_spaces.RealMetric[] \as RealMetric;
+\import metric_spaces.MetricSpace[Carrier := Real.Real] \as Metric;
+\import Metric.Topology[] \as MetricTopology;
+\import N.Order[].Prop[] \as Natural;
+\import R.Order[] \as Order;
+\import Real.Distance[] \as Distance;
+\definition Supported[K: \Pow Point][f: Test]: \Prop := Sets.Subset (Smooth.support f) K;
+\definition Near[f, g: Test][m: N.Nat^][r: Real.Real]: \Prop :=
+  \forall (d: Directions) -> Nat.Le (order d) m -> \forall (x: Point) ->
+    R.Le (Real.distance (Tests.jet d f x) (Tests.jet d g x)) r;
+\structure Neighborhood[K: \Pow Point, S: \Pow Test, f: Test, m: N.Nat^, r: Real.Real]: \Prop := {
+  positive: R.Lt Real.zero r,
+  within: \forall (g: Test) -> Supported K g -> Near f g m r -> Space.Member S g,
+};
+\definition StageOpen[K: \Pow Point][S: \Pow Test]: \Prop :=
+  \forall (f: Test) -> Supported K f -> Space.Member S f ->
+    \exists ( m: N.Nat^ \where \exists ( r: Real.Real \where Neighborhood[K, S, f, m, r] ) );
+\definition IsOpen[S: \Pow Test]: \Prop :=
+  \forall (K: \Pow Point) -> Sets.IsCompactIn Ambient.topology K -> StageOpen K S;
+\definition nearWeaken[f, g: Test][m, k: N.Nat^][r, s: Real.Real]:
+  Nat.Le m k -> R.Le r s -> Near f g k r -> Near f g m s :=
+  \fun (mk: _)(rs: _)(near: _)(d: Directions)(dm: _)(x: Point) =>
+    R.leTrans _ _ _ (near d (Nat.leTrans (order d) m k dm mk) x) rs;
+\definition emptyOpen: IsOpen Space.Empty :=
+  \fun (K: \Pow Point)(compact: _)(f: Test)(supported: _)(empty: Logic.False) => Logic.falseElim _ empty;
+\definition wholeOpen: IsOpen Space.Whole :=
+  \fun (K: \Pow Point)(compact: _)(f: Test)(supported: _)(member: _) =>
+    Logic.existsIntro[N.Nat^, { m: N.Nat^ \where \exists ( r: Real.Real \where Neighborhood[K, Space.Whole, f, m, r] ) }] N.Nat^::zero
+      (Logic.existsIntro[Real.Real, { r: Real.Real \where Neighborhood[K, Space.Whole, f, N.Nat^::zero, r] }] Real.one
+        (Neighborhood[K, Space.Whole, f, N.Nat^::zero, Real.one] {
+          positive := Absolute.onePositive,
+          within := \fun (g: Test)(supported: _)(near: _) => \refl(g),
+        }));
+\definition unionOpen[family: \Pow (\Pow Test)]:
+  (\forall (S: \Pow Test) -> Space.FamilyMember family S -> IsOpen S) -> IsOpen (Space.Union family) :=
+  \fun (allOpen: _)(K: \Pow Point)(compact: _)(f: Test)(supported: _)(member: _) =>
+    Space.unionMemberElim family f _ (\fun (S: \Pow Test)(inFamily: _)(inS: _) => \block {
+      \takefrom m: \Cast[N.Nat^] ({ m: N.Nat^ \where \exists ( r: Real.Real \where Neighborhood[K, S, f, m, r] ) })
+        \by allOpen S inFamily K compact f supported inS \then
+      \takefrom r: \Cast[Real.Real] ({ r: Real.Real \where Neighborhood[K, S, f, m, r] })
+        \by \bysub(N.Nat^, { m: N.Nat^ \where \exists ( r: Real.Real \where Neighborhood[K, S, f, m, r] ) }, m) \then
+      \let h: Neighborhood[K, S, f, m, r] := \bysub(Real.Real, { r: Real.Real \where Neighborhood[K, S, f, m, r] }, r) \then
+      \return Logic.existsIntro[N.Nat^, { j: N.Nat^ \where \exists ( s: Real.Real \where Neighborhood[K, Space.Union family, f, j, s] ) }] m
+        (Logic.existsIntro[Real.Real, { s: Real.Real \where Neighborhood[K, Space.Union family, f, m, s] }] r
+          (Neighborhood[K, Space.Union family, f, m, r] {
+            positive := h.positive,
+            within := \fun (g: Test)(supported: _)(near: _) => Space.unionMemberOf family S g inFamily (h.within g supported near),
+          }))
+    }) member;
+\definition intersectionOpen[S, T: \Pow Test]: IsOpen S -> IsOpen T -> IsOpen (Space.Intersection S T) :=
+  \fun (sOpen: _)(tOpen: _)(K: \Pow Point)(compact: _)(f: Test)(supported: _)(member: _) => \block {
+    \takefrom m: \Cast[N.Nat^] ({ m: N.Nat^ \where \exists ( r: Real.Real \where Neighborhood[K, S, f, m, r] ) })
+      \by sOpen K compact f supported member.left \then
+    \takefrom r: \Cast[Real.Real] ({ r: Real.Real \where Neighborhood[K, S, f, m, r] })
+      \by \bysub(N.Nat^, { m: N.Nat^ \where \exists ( r: Real.Real \where Neighborhood[K, S, f, m, r] ) }, m) \then
+    \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where \exists ( s: Real.Real \where Neighborhood[K, T, f, k, s] ) })
+      \by tOpen K compact f supported member.right \then
+    \takefrom s: \Cast[Real.Real] ({ s: Real.Real \where Neighborhood[K, T, f, k, s] })
+      \by \bysub(N.Nat^, { k: N.Nat^ \where \exists ( s: Real.Real \where Neighborhood[K, T, f, k, s] ) }, k) \then
+    \let left: Neighborhood[K, S, f, m, r] := \bysub(Real.Real, { r: Real.Real \where Neighborhood[K, S, f, m, r] }, r) \then
+    \let right: Neighborhood[K, T, f, k, s] := \bysub(Real.Real, { s: Real.Real \where Neighborhood[K, T, f, k, s] }, s) \then
+    \let j: N.Nat^ := Natural.commonBound m k \then
+    \let q: Real.Real := Distance.min r s \then
+    \return Logic.existsIntro[N.Nat^, { j: N.Nat^ \where \exists ( q: Real.Real \where Neighborhood[K, Space.Intersection S T, f, j, q] ) }] j
+      (Logic.existsIntro[Real.Real, { q: Real.Real \where Neighborhood[K, Space.Intersection S T, f, j, q] }] q
+        (Neighborhood[K, Space.Intersection S T, f, j, q] {
+          positive := Absolute.minPositive r s left.positive right.positive,
+          within := \fun (g: Test)(supported: _)(near: _) => Space.intersectionMember S T g
+            (left.within g supported (nearWeaken f g m j q r (Natural.leftLeCommonBound m k) (Distance.minLeft r s) near))
+            (right.within g supported (nearWeaken f g k j q s (Natural.rightLeCommonBound m k) (Distance.minRight r s) near)),
+        }))
+  };
+\definition raw: Space.TopologyData := Space.TopologyData { openSets := { S: \Pow Test \where IsOpen S } };
+\definition laws: Space.TopologyLaws[raw] := Space.TopologyLaws[raw] {
+  emptyOpen := emptyOpen, wholeOpen := wholeOpen, unionOpen := unionOpen, intersectionOpen := intersectionOpen,
+};
+\definition topology: Space.Topology := \into[Space.TopologyData](raw, Space.Topology) \by { laws };
+\structure Control[t: Test -> Real.Real, K: \Pow Point, f: Test, epsilon: Real.Real, m: N.Nat^, delta: Real.Real]: \Prop := {
+  positive: R.Lt Real.zero delta,
+  small: \forall (g: Test) -> Supported K g -> Near f g m delta -> R.Lt (Real.distance (t f) (t g)) epsilon,
+};
+\definition StageContinuous[t: Test -> Real.Real]: \Prop :=
+  \forall (K: \Pow Point) -> Sets.IsCompactIn Ambient.topology K -> \forall (f: Test) -> Supported K f ->
+    \forall (epsilon: Real.Real) -> R.Lt Real.zero epsilon ->
+      \exists ( m: N.Nat^ \where \exists ( delta: Real.Real \where Control[t, K, f, epsilon, m, delta] ) );
+\definition continuous[t: Test -> Real.Real]: StageContinuous t -> Maps.Continuous topology Line.topology t :=
+  \fun (control: _)(V: \Pow Real.Real)(open: _)(K: \Pow Point)(compact: _)(f: Test)(supported: _)(member: _) => \block {
+    \takefrom epsilon: \Cast[Real.Real] (Metric.NeighborhoodRadius RealMetric.metric V (t f))
+      \by open (t f) member \then
+    \let ball: Logic.And[R.Lt Real.zero epsilon, Scalars.Subset (Metric.Ball RealMetric.metric (t f) epsilon) V] :=
+      \bysub(Real.Real, Metric.NeighborhoodRadius RealMetric.metric V (t f), epsilon) \then
+    \takefrom m: \Cast[N.Nat^] ({ m: N.Nat^ \where \exists ( delta: Real.Real \where Control[t, K, f, epsilon, m, delta] ) })
+      \by control K compact f supported epsilon ball.left \then
+    \takefrom delta: \Cast[Real.Real] ({ delta: Real.Real \where Control[t, K, f, epsilon, m, delta] })
+      \by \bysub(N.Nat^, { m: N.Nat^ \where \exists ( delta: Real.Real \where Control[t, K, f, epsilon, m, delta] ) }, m) \then
+    \let h: Control[t, K, f, epsilon, m, delta] := \bysub(Real.Real, { delta: Real.Real \where Control[t, K, f, epsilon, m, delta] }, delta) \then
+    \return Logic.existsIntro[N.Nat^, { m: N.Nat^ \where \exists ( delta: Real.Real \where Neighborhood[K, Maps.Preimage t V, f, m, delta] ) }] m
+      (Logic.existsIntro[Real.Real, { delta: Real.Real \where Neighborhood[K, Maps.Preimage t V, f, m, delta] }] delta
+        (Neighborhood[K, Maps.Preimage t V, f, m, delta] {
+          positive := h.positive,
+          within := \fun (g: Test)(supported: _)(near: _) => ball.right (t g) (h.small g supported near),
+        }))
+  };
+\definition stageContinuous[t: Test -> Real.Real]: Maps.Continuous topology Line.topology t -> StageContinuous t :=
+  \fun (continuous: _)(K: \Pow Point)(compact: _)(f: Test)(supported: _)(epsilon: Real.Real)(positive: _) => \block {
+    \let V: \Pow Real.Real := Metric.Ball RealMetric.metric (t f) epsilon \then
+    \let contains: Scalars.Member V (t f) := R.ltReplaceLeft Real.zero (Real.distance (t f) (t f)) epsilon
+      (sym!{Real.Real} _ _ (Distance.distanceSelf (t f))) positive \then
+    \takefrom m: \Cast[N.Nat^] ({ m: N.Nat^ \where \exists ( delta: Real.Real \where Neighborhood[K, Maps.Preimage t V, f, m, delta] ) })
+      \by continuous V (MetricTopology.ballOpenIn RealMetric.metric (t f) epsilon) K compact f supported contains \then
+    \takefrom delta: \Cast[Real.Real] ({ delta: Real.Real \where Neighborhood[K, Maps.Preimage t V, f, m, delta] })
+      \by \bysub(N.Nat^, { m: N.Nat^ \where \exists ( delta: Real.Real \where Neighborhood[K, Maps.Preimage t V, f, m, delta] ) }, m) \then
+    \let h: Neighborhood[K, Maps.Preimage t V, f, m, delta] := \bysub(Real.Real, { delta: Real.Real \where Neighborhood[K, Maps.Preimage t V, f, m, delta] }, delta) \then
+    \return Logic.existsIntro[N.Nat^, { m: N.Nat^ \where \exists ( delta: Real.Real \where Control[t, K, f, epsilon, m, delta] ) }] m
+      (Logic.existsIntro[Real.Real, { delta: Real.Real \where Control[t, K, f, epsilon, m, delta] }] delta
+        (Control[t, K, f, epsilon, m, delta] { positive := h.positive, small := h.within }))
+  };
+\definition characterization[t: Test -> Real.Real]: Logic.PropEquiv[Maps.Continuous topology Line.topology t, StageContinuous t] :=
+  Logic.PropEquiv[_, _] { ltr := stageContinuous t, rtl := continuous t };
+\module Linear(t: Test -> Real.Real,
+  additive: \forall (f, g: Test) -> t (Tests.add f g) = Real.add (t f) (t g),
+  homogeneous: \forall (c: Real.Real)(f: Test) -> t (Tests.scale c f) = Real.mul c (t f));
+\structure ContinuousDualLaws[data: DistributionData]: \Prop := {
+  additive: \forall (f, g: Test) -> data.eval (Tests.add f g) = Real.add (data.eval f) (data.eval g),
+  homogeneous: \forall (c: Real.Real)(f: Test) -> data.eval (Tests.scale c f) = Real.mul c (data.eval f),
+  continuous: Maps.Continuous topology Line.topology data.eval,
+};
+\definition ContinuousDual: \Set := \Cast[DistributionData] ({ data: DistributionData \where ContinuousDualLaws[data] });
+\definition toContinuous[T: Distribution]: ContinuousDual := \into[DistributionData](T, ContinuousDual) \by { \block {
+  \let laws: DistributionLaws[T] := \bysub(DistributionData, { data: DistributionData \where DistributionLaws[data] }, T) \then
+  \return ContinuousDualLaws[T] {
+    additive := laws.additive, homogeneous := laws.homogeneous,
+    continuous := Linear[t := T.eval, additive := laws.additive, homogeneous := laws.homogeneous].boundedContinuous laws.bound,
+  }
+} };
+\definition fromContinuous[T: ContinuousDual]: Distribution := \into[DistributionData](T, Distribution) \by { \block {
+  \let laws: ContinuousDualLaws[T] := \bysub(DistributionData, { data: DistributionData \where ContinuousDualLaws[data] }, T) \then
+  \return DistributionLaws[T] {
+    additive := laws.additive, homogeneous := laws.homogeneous,
+    bound := Linear[t := T.eval, additive := laws.additive, homogeneous := laws.homogeneous].continuousBounded laws.continuous,
+  }
+} };
+\definition fromTo[T: Distribution]: fromContinuous (toContinuous T) = T := \refl(T);
+\definition toFrom[T: ContinuousDual]: toContinuous (fromContinuous T) = T := \refl(T);

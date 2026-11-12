@@ -1,0 +1,21 @@
+\import manifolds.Dimension[n := N.Nat^::zero].Examples[].Euclidean[] \as Euclidean;
+\definition f[x: M.Point][i: Fin.Fin N.Nat^::zero]: Real.Real := Real.zero;
+\definition regular: \forall (i: Fin.Fin N.Nat^::zero) -> Scalars.IsSmooth (\fun (x: M.Point) => f x i) :=
+  \fun (i: Fin.Fin N.Nat^::zero) => Scalars.calculus.constant Real.zero;
+\import \root.WeightedChart[n := n].On[M := M].Vector[m := N.Nat^::zero].Of[f := f, regular := regular] \as Construct;
+\import manifolds.SmoothMap[n := n, m := N.Nat^::zero].Between[M := M, N := Euclidean.smoothManifold] \as Maps;
+\import manifolds.Immersion[n := n, m := N.Nat^::zero].Between[M := M, N := Euclidean.smoothManifold] \as Embeddings;
+\definition absurd[x: M.Point]: Logic.False := empty (\exact(x, M.Point));
+\definition compact: Space.IsCompact M.space := \fun (family: \Pow (\Pow M.Point))(cover: Space.IsOpenCover[M.space, family, Space.Whole]) =>
+  Logic.existsIntro[std.Set[].FiniteSubset[A := \Pow M.Point].FiniteSubset,
+    { F: std.Set[].FiniteSubset[A := \Pow M.Point].FiniteSubset \where Space.FiniteSubcover[family, Space.Whole, F] }]
+    (std.Set[].FiniteSubset[A := \Pow M.Point].empty) (Space.FiniteSubcover[family, Space.Whole, std.Set[].FiniteSubset[A := \Pow M.Point].empty] {
+      included := \fun (U: \Pow M.Point)(member: Logic.False) => Logic.falseElim _ member,
+      covers := \fun (x: M.Point)(inside: _) => Logic.falseElim _ (absurd x),
+    });
+\definition injective: \forall (x, y: M.Point) -> Maps.apply Construct.map x = Maps.apply Construct.map y -> x = y :=
+  \fun (x, y: M.Point)(equal: _) => Logic.falseElim (x = y) (absurd x);
+\definition immersion: Embeddings.IsImmersion Construct.map := \fun (x: M.Point)(u, v: manifolds.Tangent[n := n].On[M := M].Vector x)(equal: _) =>
+  Logic.falseElim (u = v) (absurd x);
+\definition result: Result := Result { dimension := N.Nat^::zero,
+  embedding := \root.CompactCriterion[n := n, m := N.Nat^::zero].Between[M := M, N := Euclidean.smoothManifold].Of[f := Construct.map, compact := compact, injective := injective].embedding immersion };

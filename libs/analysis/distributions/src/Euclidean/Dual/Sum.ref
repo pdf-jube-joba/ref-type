@@ -1,0 +1,33 @@
+\definition absoluteTriangle[a, b: Real.Real]: R.Le (Absolute.abs (Real.add a b)) (Real.add (Absolute.abs a) (Absolute.abs b)) :=
+  R.leReplaceLeft _ _ _ (congr!{Real.Real Real.Real} (\fun (r: Real.Real) => Real.distance r (Real.add a b)) _ _ (Laws.addZeroLeft Real.zero))
+    (Estimates.distanceAdd Real.zero Real.zero a b);
+\definition function[f: Test]: Real.Real := Real.add (S.eval f) (T.eval f);
+\definition bounded: LocallyBounded function := \fun (K: \Pow Point)(compact: _) => \block {
+  \takefrom m: \Cast[N.Nat^] ({ m: N.Nat^ \where \exists ( C: Nonnegative \where Bound S.eval K m C ) }) \by S.bound K compact \then
+  \takefrom C: \Cast[Nonnegative] ({ C: Nonnegative \where Bound S.eval K m C })
+    \by \bysub(N.Nat^, { m: N.Nat^ \where \exists ( C: Nonnegative \where Bound S.eval K m C ) }, m) \then
+  \takefrom j: \Cast[N.Nat^] ({ j: N.Nat^ \where \exists ( D: Nonnegative \where Bound T.eval K j D ) }) \by T.bound K compact \then
+  \takefrom D: \Cast[Nonnegative] ({ D: Nonnegative \where Bound T.eval K j D })
+    \by \bysub(N.Nat^, { j: N.Nat^ \where \exists ( D: Nonnegative \where Bound T.eval K j D ) }, j) \then
+  \let coefficient: Nonnegative := \into[Real.Real](Real.add C D, Nonnegative) \by {
+    Laws.addNonnegative C D (lp_spaces.Powers[].baseNonnegative C) (lp_spaces.Powers[].baseNonnegative D) } \then
+  \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where \exists ( B: Nonnegative \where Bound function K k B ) }] (Bounds.commonBound m j)
+    (Logic.existsIntro[Nonnegative, { B: Nonnegative \where Bound function K (Bounds.commonBound m j) B }] coefficient
+      (\fun (f: Test)(supported: _)(b: Nonnegative)(bound: _) => R.leTrans _ _ _ (absoluteTriangle (S.eval f) (T.eval f))
+        (R.leReplaceRight _ _ _ (sym!{Real.Real} _ _ (Algebra.mulAddRight C D b))
+          (Estimates.addLe _ _ _ _
+            ((\bysub(Nonnegative, { C: Nonnegative \where Bound S.eval K m C }, C)) f supported b
+              (\fun (d: Directions)(le: _) => bound d (Nat.leTrans (order d) m (Bounds.commonBound m j) le (Bounds.leftLeCommonBound m j))))
+            ((\bysub(Nonnegative, { D: Nonnegative \where Bound T.eval K j D }, D)) f supported b
+              (\fun (d: Directions)(le: _) => bound d (Nat.leTrans (order d) j (Bounds.commonBound m j) le (Bounds.rightLeCommonBound m j))))))))
+};
+\definition value: Distribution := Distribution {
+  eval := function,
+  additive := \fun (f, g: Test) => trans!{Real.Real} _ _ _
+    (congr!{Real.Real Real.Real Real.Real} Real.add _ _ _ _ (S.additive f g) (T.additive f g))
+    (Algebra.addFour (S.eval f) (S.eval g) (T.eval f) (T.eval g)),
+  homogeneous := \fun (c: Real.Real)(f: Test) => trans!{Real.Real} _ _ _
+    (congr!{Real.Real Real.Real Real.Real} Real.add _ _ _ _ (S.homogeneous c f) (T.homogeneous c f))
+    (sym!{Real.Real} _ _ (Laws.fieldMulAdd c (S.eval f) (T.eval f))),
+  bound := bounded,
+};

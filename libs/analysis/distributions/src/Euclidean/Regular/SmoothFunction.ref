@@ -1,0 +1,24 @@
+\import calculus.Real[].Multivariable[n := n].Open[] \as O;
+\import O.Whole[] \as Whole;
+\import O.Restriction[] \as Restriction;
+\import O.Smooth[].Algebra[U := O.whole] \as Functions;
+\import O.Smooth[].Derivative[].Linear[U := O.whole] \as Differential;
+\import change_of_variables.Euclidean[n := n].Compact[] \as Integrals;
+\import E.CompactBounds[] \as Bounds;
+\import metric_spaces.RealFunctions[A := E.Point] \as Continuous;
+\import Continuous.Lattice[] \as Lattice;
+\definition function: E.Function := Whole.function f;
+\definition localSmooth: O.Smooth[].SmoothOn O.whole f :=
+  \bysub(O.ScalarFunction O.whole, { g: O.ScalarFunction O.whole \where O.Smooth[].SmoothOn O.whole g }, f);
+\definition smooth: Smooth.IsSmooth function := Smooth.smoothCongruent O.whole f (Restriction.function O.whole function)
+  (\fun (x: O.Carrier O.whole) => \refl(f x)) localSmooth;
+\definition continuous: Continuous.Continuous Ambient.topology function := Compact.smoothContinuous function smooth;
+\definition measurable: M.IsMeasurable E.measure function := Compact.continuousMeasurable function continuous;
+\module Local(K: CompactSet);
+\definition representative: Representatives := \into[E.Function](function, Representatives) \by {
+  LocallyIntegrable[function] { measurable := measurable, local := \fun (K: CompactSet) => Local[K := K].integrable }
+};
+\module Derivative(i: std.Data[].FinSet[].Fin n);
+\definition derivative[i: std.Data[].FinSet[].Fin n]:
+  Dual.partial (distribution representative) i = distribution (\root.Euclidean[n := n].Regular[].SmoothFunction[f := Differential.apply i f].representative) :=
+  Derivative[i := i].law;

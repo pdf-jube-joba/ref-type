@@ -1,0 +1,87 @@
+\import Real.Algebra[] \as Algebra;
+\import \root.Euclidean[n := n] \as Euclidean;
+\definition negativeOne: Real.Real := Real.neg Real.one;
+\definition negativeOneMul[a: Real.Real]: Real.mul negativeOne a = Real.neg a :=
+  trans!{Real.Real} _ _ _ (Laws.fieldMulNegLeft Real.one a)
+    (congr!{Real.Real Real.Real} Real.neg _ _ (Laws.fieldMulOneLeft a));
+\definition difference[f, g: Test]: Test := Tests.add f (Tests.scale negativeOne g);
+\definition differenceValue[f, g: Test][x: Point]: difference f g x = Real.sub (f x) (g x) :=
+  congr!{Real.Real Real.Real} (Real.add (f x)) _ _ (negativeOneMul (g x));
+\definition differenceJet[d: Directions][f, g: Test][x: Point]: Tests.jet d (difference f g) x = Real.sub (Tests.jet d f x) (Tests.jet d g x) :=
+  eq_reason_in!{Real.Real _
+    "=" _ "by" { congr!{Test Real.Real} (\fun (h: Test) => h x) _ _ (Tests.jetAdd d f (Tests.scale negativeOne g)) }
+    "=" _ "by" { congr!{Test Real.Real} (\fun (h: Test) => Real.add (Tests.jet d f x) (h x)) _ _ (Tests.jetScale d negativeOne g) }
+    "=" _ "by" { congr!{Real.Real Real.Real} (Real.add (Tests.jet d f x)) _ _ (negativeOneMul (Tests.jet d g x)) }
+  };
+\definition absoluteDifference[a, b: Real.Real]: Absolute.abs (Real.sub a b) = Real.distance a b :=
+  trans!{Real.Real} _ _ _ (Distance.distanceSymmetric Real.zero (Real.sub a b)) (Estimates.distanceDifference a b);
+\definition differenceSupport[f, g: Test][K: \Pow Point]: Sets.IsCompactIn Ambient.topology K -> Supported K f -> Supported K g -> Supported K (difference f g) :=
+  \fun (compact: _)(left: _)(right: _) => Tests.addSupport f (Tests.scale negativeOne g) K
+    (Sets.Compactness[].compactClosed Ambient.topology Ambient.hausdorff K compact) left
+    (Sets.subsetTrans _ _ _ (Tests.scaleSupport negativeOne g) right);
+\definition differenceBound[f, g: Test][m: N.Nat^][b: Nonnegative]: Near f g m b -> JetBound (difference f g) m b :=
+  \fun (near: _)(d: Directions)(order: _)(x: Point) => R.leReplaceLeft _ _ _
+    (sym!{Real.Real} _ _ (trans!{Real.Real} _ _ _
+      (congr!{Real.Real Real.Real} Absolute.abs _ _ (differenceJet d f g x)) (absoluteDifference (Tests.jet d f x) (Tests.jet d g x))))
+    (near d order x);
+\definition evalDifference[f, g: Test]: t (difference f g) = Real.sub (t f) (t g) :=
+  eq_reason_in!{Real.Real _
+    "=" _ "by" { additive f (Tests.scale negativeOne g) }
+    "=" _ "by" { congr!{Real.Real Real.Real} (Real.add (t f)) _ _ (homogeneous negativeOne g) }
+    "=" _ "by" { congr!{Real.Real Real.Real} (Real.add (t f)) _ _ (negativeOneMul (t g)) }
+  };
+\definition evalZero: t Tests.zero = Real.zero :=
+  eq_reason_in!{Real.Real _
+    "=" _ "by" { congr!{Test Real.Real} t _ _ (Tests.ext Tests.zero (Tests.scale Real.zero Tests.zero)
+      (\fun (x: Point) => sym!{Real.Real} _ _ (Laws.fieldMulZeroLeft Real.zero))) }
+    "=" _ "by" { homogeneous Real.zero Tests.zero }
+    "=" _ "by" { Laws.fieldMulZeroLeft (t Tests.zero) }
+  };
+\definition zeroSupported[K: \Pow Point]: Supported K Tests.zero :=
+  \fun (x: Point)(member: _) => Logic.falseElim _ (Tests.zeroSupport x member);
+\definition boundedStage: LocallyBounded t -> StageContinuous t :=
+  \fun (bound: _)(K: \Pow Point)(compact: _)(f: Test)(supported: _)(epsilon: Real.Real)(positive: _) => \block {
+    \takefrom m: \Cast[N.Nat^] ({ m: N.Nat^ \where \exists ( C: Nonnegative \where Bound t K m C ) }) \by bound K compact \then
+    \takefrom C: \Cast[Nonnegative] ({ C: Nonnegative \where Bound t K m C })
+      \by \bysub(N.Nat^, { m: N.Nat^ \where \exists ( C: Nonnegative \where Bound t K m C ) }, m) \then
+    \let estimate: Bound t K m C := \bysub(Nonnegative, { C: Nonnegative \where Bound t K m C }, C) \then
+    \let D: Real.Real := Real.add C Real.one \then
+    \let dp: R.Lt Real.zero D := R.ltLeTrans Real.zero Real.one D Absolute.onePositive
+      (R.leReplaceLeft _ _ _ (Laws.addZeroLeft Real.one) (Laws.addMonotoneRight Real.zero C Real.one (lp_spaces.Powers[].baseNonnegative C))) \then
+    \let delta: Real.Real := Absolute.radius D epsilon \then
+    \let deltaPositive: R.Lt Real.zero delta := Absolute.radiusPositive D epsilon dp positive \then
+    \let b: Nonnegative := \into[Real.Real](delta, Nonnegative) \by { Order.leOfLt _ _ deltaPositive } \then
+    \return Logic.existsIntro[N.Nat^, { m: N.Nat^ \where \exists ( delta: Real.Real \where Control[t, K, f, epsilon, m, delta] ) }] m
+      (Logic.existsIntro[Real.Real, { delta: Real.Real \where Control[t, K, f, epsilon, m, delta] }] delta
+        (Control[t, K, f, epsilon, m, delta] {
+          positive := deltaPositive,
+          small := \fun (g: Test)(gSupported: _)(near: _) => R.leLtTrans _ (Real.mul C delta) epsilon
+            (R.leReplaceLeft _ _ _ (trans!{Real.Real} _ _ _
+              (congr!{Real.Real Real.Real} Absolute.abs _ _ (evalDifference f g)) (absoluteDifference (t f) (t g)))
+              (estimate (difference f g) (differenceSupport f g K compact supported gSupported) b (differenceBound f g m b near)))
+            (R.leLtTrans _ (Real.mul D delta) epsilon
+              (R.leReplace (Real.mul delta C) (Real.mul C delta) (Real.mul delta D) (Real.mul D delta)
+                (Laws.fieldMulComm delta C) (Laws.fieldMulComm delta D)
+                (Estimates.mulMonotone delta C D (Order.leOfLt _ _ deltaPositive) (Distance.leAddOfNonnegative C Real.one Laws.oneNonnegative)))
+              (Absolute.radiusSmall D epsilon dp positive)),
+        }))
+  };
+\definition boundedContinuous: LocallyBounded t -> Maps.Continuous topology Line.topology t :=
+  \fun (bound: _) => continuous t (boundedStage bound);
+\module Normalize(K: \Pow Point, compact: Sets.IsCompactIn Ambient.topology K, m: N.Nat^, delta: Real.Real,
+  control: Control[t, K, Tests.zero, Real.one, m, delta]);
+\definition continuousBounded: Maps.Continuous topology Line.topology t -> LocallyBounded t :=
+  \fun (continuous: _)(K: \Pow Point)(compact: _) => \block {
+    \takefrom m: \Cast[N.Nat^] ({ m: N.Nat^ \where \exists ( delta: Real.Real \where Control[t, K, Tests.zero, Real.one, m, delta] ) })
+      \by stageContinuous t continuous K compact Tests.zero (zeroSupported K) Real.one Absolute.onePositive \then
+    \takefrom delta: \Cast[Real.Real] ({ delta: Real.Real \where Control[t, K, Tests.zero, Real.one, m, delta] })
+      \by \bysub(N.Nat^, { m: N.Nat^ \where \exists ( delta: Real.Real \where Control[t, K, Tests.zero, Real.one, m, delta] ) }, m) \then
+    \let control: Control[t, K, Tests.zero, Real.one, m, delta] :=
+      \bysub(Real.Real, { delta: Real.Real \where Control[t, K, Tests.zero, Real.one, m, delta] }, delta) \then
+    \return Logic.existsIntro[N.Nat^, { m: N.Nat^ \where \exists ( C: Nonnegative \where Bound t K m C ) }] m
+      (Logic.existsIntro[Nonnegative, { C: Nonnegative \where Bound t K m C }]
+        (Normalize[K := K, compact := compact, m := m, delta := delta, control := control].coefficient)
+        (Normalize[K := K, compact := compact, m := m, delta := delta, control := control].bound))
+  };
+\definition dualCharacterization: Logic.PropEquiv[Maps.Continuous topology Line.topology t, LocallyBounded t] :=
+  Logic.PropEquiv[_, _] { ltr := continuousBounded, rtl := boundedContinuous };
