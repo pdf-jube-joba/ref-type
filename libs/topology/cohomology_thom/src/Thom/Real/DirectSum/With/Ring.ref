@@ -1,0 +1,52 @@
+\use std.Logic[].Proposition[].either;
+\import LeftGeometry.Shell[] \as LeftShell;
+\import RightGeometry.Shell[] \as RightShell;
+\import topology.Topology[Carrier := Carrier] \as Space;
+\definition firstShell: \Pow Carrier := { p: Carrier \where \In[LeftDisk.DiskBundle] LeftShell.shell (first p) };
+\definition secondShell: \Pow Carrier := { p: Carrier \where \In[RightDisk.DiskBundle] RightShell.shell (second p) };
+\definition firstOpen: Space.IsOpenIn topology firstShell := firstContinuous LeftShell.shell LeftShell.open;
+\definition secondOpen: Space.IsOpenIn topology secondShell := secondContinuous RightShell.shell RightShell.open;
+\import \root.MixedCup[A := Carrier, source := topology, first := firstShell, second := secondShell, K := K, ring := ring] \as Mixed;
+\import Mixed.Union[] \as Union;
+\import Union.Cover[] \as Cover;
+\import Space.Subspace[S := Union.subset] \as UnionSpace;
+\definition conditions: Cover.Conditions := Cover.Conditions {
+  leftOpen := UnionSpace.traceOpen topology firstShell firstOpen,
+  rightOpen := UnionSpace.traceOpen topology secondShell secondOpen
+};
+\import Cover.On[conditions := conditions] \as Products;
+\import singular_cohomology.Relative[A := Carrier, source := topology, subset := firstShell].Maps[B := LeftDisk.DiskBundle].Over[target := LeftDisk.diskTopology, targetSubset := LeftDisk.Boundary] \as LeftMaps;
+\import singular_cohomology.Relative[A := Carrier, source := topology, subset := secondShell].Maps[B := RightDisk.DiskBundle].Over[target := RightDisk.diskTopology, targetSubset := RightDisk.Boundary] \as RightMaps;
+\definition leftMap: LeftMaps.Map := \into[Carrier -> LeftDisk.DiskBundle]((\fun (p: Carrier) => LeftShell.clip (first p)), LeftMaps.Map) \by {
+  LeftMaps.Laws[(\fun (p: Carrier) => LeftShell.clip (first p))] {
+    continuous := topology.Composition[A := Carrier, B := LeftDisk.DiskBundle, C := LeftDisk.DiskBundle].composeContinuous topology LeftDisk.diskTopology LeftDisk.diskTopology first LeftShell.clip firstContinuous LeftShell.clipContinuous,
+    contained := \fun (p: \Cast[Carrier] firstShell) => LeftShell.endsInBoundary (\into[LeftDisk.DiskBundle](first p, LeftShell.shell) \by { \bysub(Carrier, firstShell, p) })
+  }
+};
+\definition rightMap: RightMaps.Map := \into[Carrier -> RightDisk.DiskBundle]((\fun (p: Carrier) => RightShell.clip (second p)), RightMaps.Map) \by {
+  RightMaps.Laws[(\fun (p: Carrier) => RightShell.clip (second p))] {
+    continuous := topology.Composition[A := Carrier, B := RightDisk.DiskBundle, C := RightDisk.DiskBundle].composeContinuous topology RightDisk.diskTopology RightDisk.diskTopology second RightShell.clip secondContinuous RightShell.clipContinuous,
+    contained := \fun (p: \Cast[Carrier] secondShell) => RightShell.endsInBoundary (\into[RightDisk.DiskBundle](second p, RightShell.shell) \by { \bysub(Carrier, secondShell, p) })
+  }
+};
+\definition contains: \forall (p: \Cast[Carrier] Box.Boundary) -> \In[Carrier] Union.subset p :=
+  \fun (p: \Cast[Carrier] Box.Boundary) => either!{{Box.Comparison[].boundaryToUnion p (\bysub(Carrier, Box.Boundary, p))} {\In[Carrier] Union.subset p}
+    {\fun (one: Box.first p = Reals.one) => std.Logic[].Proposition[].Or[_, _]::left (LeftShell.contains (\into[LeftDisk.DiskBundle](first p, LeftDisk.Boundary) \by { one }))}
+    {\fun (one: Box.second p = Reals.one) => std.Logic[].Proposition[].Or[_, _]::right (RightShell.contains (\into[RightDisk.DiskBundle](second p, RightDisk.Boundary) \by { one }))}};
+\import singular_cohomology.Relative[A := Carrier, source := topology, subset := Box.Boundary].Maps[B := Carrier].Over[target := topology, targetSubset := Union.subset] \as BoundaryMaps;
+\definition boundaryMap: BoundaryMaps.Map := \into[Carrier -> Carrier]((\fun (p: Carrier) => p), BoundaryMaps.Map) \by {
+  BoundaryMaps.Laws[(\fun (p: Carrier) => p)] { continuous := topology.Maps[A := Carrier, B := Carrier].Identity[].continuous topology, contained := contains }
+};
+\import \root.RelativePullback[].On[A := Carrier, source := topology, subset := firstShell, R := K, ring := ring].To[B := LeftDisk.DiskBundle, target := LeftDisk.diskTopology, part := LeftDisk.Boundary].Along[f := leftMap] \as LeftPull;
+\import \root.RelativePullback[].On[A := Carrier, source := topology, subset := secondShell, R := K, ring := ring].To[B := RightDisk.DiskBundle, target := RightDisk.diskTopology, part := RightDisk.Boundary].Along[f := rightMap] \as RightPull;
+\import \root.RelativePullback[].On[A := Carrier, source := topology, subset := Box.Boundary, R := K, ring := ring].To[B := Carrier, target := topology, part := Union.subset].Along[f := boundaryMap] \as BoundaryPull;
+\import \root.RelativePullback[].On[A := Disk.DiskBundle, source := Disk.diskTopology, subset := Disk.Boundary, R := K, ring := ring].To[B := Carrier, target := topology, part := Box.Boundary].Homeomorphism[data := pair] \as MetricPull;
+\import LeftGeometry.Coefficients[R := K, ring := ring] \as Left;
+\import RightGeometry.Coefficients[R := K, ring := ring] \as Right;
+\import Geometry.Coefficients[R := K, ring := ring] \as Target;
+\module Product(n, m: N.Nat^) {
+  \definition degree: N.Nat^ := N.Basic[].Def[].add n m;
+  \definition box[u: Left.Degree[n := n].Class][v: Right.Degree[n := m].Class]: _ :=
+    BoundaryPull.Degree[n := degree].map.apply (Products.Cup[p := n, q := m].apply (LeftPull.Degree[n := n].map.apply u) (RightPull.Degree[n := m].map.apply v));
+  \definition apply[u: Left.Degree[n := n].Class][v: Right.Degree[n := m].Class]: Target.Degree[n := degree].Class := MetricPull.Degree[n := degree].isomorphism.forward.apply (box u v);
+}

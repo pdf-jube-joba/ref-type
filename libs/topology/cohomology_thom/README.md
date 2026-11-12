@@ -210,3 +210,9 @@ H^z(X;R)\xrightarrow{\smile e}H^{z+n}(X;R)
 `MixedCup.From[Y, target, firstPart, secondPart, f, regular, firstContained, secondContained].Covers[conditions, newConditions].Cup[p, q].law` は二つの部分を保つ実際の写像による自然性である。
 `MixedCup.Change[L, targetRing, morphism].Covers[conditions].Cup[p, q].law` は係数環の変更と混合相対積の可換性を与える。
 いずれも通常の相対余鎖と共通消滅複体との比較を、余鎖の代表元で明示的に同定して証明する。
+
+`Thom.Real.DirectSum[X, F, G, left, right, same, leftMetric, rightMetric].With[metric]` は指定された直和束計量から箱型円板対への実際の同相を `pair` として公開する。
+`Additive[M, z].isomorphism` はその相対コホモロジー同型、`thomHomeomorphism` は反復 Thom 商への比較である。
+`Ring[K, ring].Product[n, m].apply u v` は二つの相対類の直和上の積を定義する。
+箱の各因子の開いた殻を連続な `clip` によって球面境界へ送り、二つの相対類を引き戻して混合相対 cup 積を取る。
+二つの殻の和集合は箱の境界を含むため、得られた類を箱の円板対へ制限し、指定された計量の円板対へ運ぶ。
