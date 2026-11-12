@@ -1,0 +1,23 @@
+\import \root.Euclidean[n := n].Dual[] \as D;
+\definition dirac[a: Point]: Distribution := Distribution {
+  eval := \fun (f: Test) => f a,
+  additive := \fun (f, g: Test) => \refl(Real.add (f a) (g a)),
+  homogeneous := \fun (c: Real.Real)(f: Test) => \refl(Real.mul c (f a)),
+  bound := \fun (K: \Pow Point)(compact: _) =>
+    Logic.existsIntro[N.Nat^, { m: N.Nat^ \where \exists ( C: Nonnegative \where Bound (\fun (f: Test) => f a) K m C ) }] N.Nat^::zero
+      (Logic.existsIntro[Nonnegative, { C: Nonnegative \where Bound (\fun (f: Test) => f a) K N.Nat^::zero C }]
+        (\into[Real.Real](Real.one, Nonnegative) \by { Laws.oneNonnegative })
+        (\fun (f: Test)(supported: _)(b: Nonnegative)(bound: _) =>
+          R.leReplaceRight _ _ _ (sym!{Real.Real} _ _ (Laws.fieldMulOneLeft b)) (bound Directions::nil (Nat.leRefl N.Nat^::zero) a))),
+};
+\definition diracDerivative[a: Point][i: Fin.Fin n][f: Test]:
+  (D.partial (dirac a) i).eval f = Real.neg (Tests.partial f i a) :=
+  trans!{Real.Real} _ _ _ (Laws.fieldMulNegLeft Real.one (Tests.partial f i a))
+    (congr!{Real.Real Real.Real} Real.neg _ _ (Laws.fieldMulOneLeft (Tests.partial f i a)));
+\definition diracConvergence[a: Point]: D.Converges (\fun (_: N.Nat^) => dirac a) (dirac a) :=
+  \fun (f: Test) => Sequence.constantConverges (f a);
+\definition derivativesOfDiracConverge[d: Directions][a: Point]:
+  D.Converges (\fun (_: N.Nat^) => D.derivative d (dirac a)) (D.derivative d (dirac a)) :=
+  D.derivativesConverge d (\fun (_: N.Nat^) => dirac a) (dirac a) (diracConvergence a);
+\module Smoothing;
+\module Pullback(U, V: Open.OpenSet, e: calculus.Diffeomorphism[n := n, m := n].Diffeomorphism U V);

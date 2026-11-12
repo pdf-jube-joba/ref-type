@@ -1,0 +1,23 @@
+\definition inImage[phi: SourceTest][b: Nonnegative][d: Directions][x: Point]: PullbackBase.JetBound phi m b -> Nat.Le (order d) m ->
+  Sets.Member image x -> R.Le (Absolute.abs (Tests.jet d (test phi) x)) (Real.mul C b) :=
+  \fun (input: _)(length: _)(member: _) => Images.imageElim forward DomainSets.Whole x
+    (R.Le (Absolute.abs (Tests.jet d (test phi) x)) (Real.mul C b))
+    (\fun (y: Domain.CarrierSet)(whole: _)(same: forward y = x) =>
+      \idelim forward y = x \with p: Point => R.Le (Absolute.abs (Tests.jet d (test phi) p)) (Real.mul C b) \by {
+        base: R.leReplaceLeft _ _ _ (sym!{Real.Real} _ _ (congr!{Real.Real Real.Real} Absolute.abs _ _ (localJet d phi (localForward y))))
+          (estimate phi b input (Lists.reverse (Fin.Fin n) d)
+            (\idelim order d = order (Lists.reverse (Fin.Fin n) d) \with k: N.Nat^ => Nat.Le k m \by {
+              base: length, equality: sym!{N.Nat^} _ _ (ListLaws.lengthReverse d)
+            }) (localForward y) (LocalImages.imageMember localForward DomainSets.Whole y whole)),
+        equality: same
+      }) member;
+\definition jetBound[phi: SourceTest][supported: Sets.Subset (Smooth.support phi) K][b: Nonnegative]:
+  PullbackBase.JetBound phi m b -> PullbackBase.JetBound (test phi) m (lp_spaces.Powers[].Algebra[].product C b) :=
+  \fun (input: _)(d: Directions)(length: _)(x: Point) => Logic.orElim (Sets.Member image x) (Logic.Not (Sets.Member image x))
+    (R.Le (Absolute.abs (Tests.jet d (test phi) x)) (Real.mul C b)) (PullbackClassical.excludedMiddle (Sets.Member image x))
+    (inImage phi b d x input length)
+    (\fun (away: _) => R.leReplaceLeft _ _ _ (sym!{Real.Real} _ _ (trans!{Real.Real} _ _ _
+      (congr!{Real.Real Real.Real} Absolute.abs _ _ (Support.zeroOutsideSupport Ambient.topology (Tests.jet d (test phi)) x
+        (\fun (member: _) => away (testSupport phi supported x (Tests.jetSupport d (test phi) x member)))))
+      (Real.Distance[].distanceSelf Real.zero)))
+      (Laws.fieldMulNonnegative C b (lp_spaces.Powers[].baseNonnegative C) (lp_spaces.Powers[].baseNonnegative b)));

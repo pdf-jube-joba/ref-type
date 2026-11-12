@@ -1,0 +1,15 @@
+\import \root.HalfSpace[k := result.dimension] \as HalfSpace;
+\import boundary_manifolds.SmoothMap[n := One.dimension, m := HalfSpace.dimension].Between[M := Interval.manifold, N := HalfSpace.manifold] \as Maps;
+\import boundary_manifolds.Neat[n := One.dimension, m := HalfSpace.dimension].Between[M := Interval.manifold, N := HalfSpace.manifold] \as Neat;
+\definition embedding: Neat.Embedding := result.embedding;
+\definition laws: Neat.Laws[embedding] := \bysub(Maps.Map, { f: Maps.Map \where Neat.Laws[f] }, embedding);
+\import boundary_manifolds.Tangent[n := HalfSpace.dimension].On[M := HalfSpace.manifold] \as Target;
+\definition boundary[x: Interval.manifold.Point]: Logic.PropEquiv[Target.At[x := Maps.apply embedding x].Cones[].Boundary, Logic.Or[x = Interval.left, x = Interval.right]] := Logic.PropEquiv[_, _] {
+  ltr := \fun (member: _) => Interval.At[x := x].criterion.ltr ((laws.boundary x).rtl member),
+  rtl := \fun (member: _) => (laws.boundary x).ltr (Interval.At[x := x].criterion.rtl member),
+};
+\definition distinct: Logic.Not (Interval.left = Interval.right) := \fun (same: _) => Order.ltNotLeReverse R.zero R.one R.Estimates[].Product[].onePositive
+  (Order.leReplaceLeft (R.neg R.one) R.one R.zero (congr!{{Interval.manifold.Point} R.Real} (\fun (x: Interval.manifold.Point) => x One.index) _ _ same) Interval.negativeOneNonpositive);
+\definition distinctImages: Logic.Not (Maps.apply embedding Interval.left = Maps.apply embedding Interval.right) :=
+  \fun (same: _) => distinct (laws.embedding.injective Interval.left Interval.right same);
+\definition collarCompatibility: Construction.Compatible result.dimension result.collar embedding := result.compatible;

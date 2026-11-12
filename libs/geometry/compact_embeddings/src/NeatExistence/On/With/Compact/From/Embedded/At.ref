@@ -1,0 +1,25 @@
+\import Tangent.At[x := x] \as Domain;
+\import boundary_manifolds.Differential[n := dimension, m := dimension].Between[M := M, N := M].At[f := Collapse.map, x := x] \as DR;
+\import boundary_manifolds.Differential[n := dimension, m := One.dimension].Between[M := M, N := \root.Neat[n := n].halfLine].At[f := Height.map, x := x] \as DH;
+\import boundary_manifolds.Differential[n := dimension, m := k].Between[M := M, N := Target.manifold].At[f := Full.embedding, x := Collapse.map.apply x] \as DE;
+\import boundary_manifolds.Differential[n := dimension, m := k].Between[M := M, N := Target.manifold].At[f := Collapsed.map, x := x] \as DF;
+\import boundary_manifolds.Differential[n := dimension, m := Half.dimension].Between[M := M, N := Half.manifold].At[f := Graph.map, x := x] \as D;
+\import boundary_manifolds.Tangent[n := Half.dimension].On[M := Half.manifold].At[x := Graph.map.apply x] \as Codomain;
+\import boundary_manifolds.Tangent[n := k].On[M := Target.manifold].At[x := Collapsed.map.apply x] \as FirstTangent;
+\import boundary_manifolds.Tangent[n := One.dimension].On[M := \root.Neat[n := n].halfLine].At[x := Height.map.apply x] \as SecondTangent;
+\import manifold_gluing.PairDifferential[p := dimension, n := k, m := One.dimension].Between[P := M, M := Target.manifold, N := \root.Neat[n := n].halfLine].Of[f := Collapsed.map, g := Height.map].At[x := x] \as PairDerivative;
+\import manifold_gluing.ProductDifferential[n := k, m := One.dimension].Of[M := Target.manifold, N := \root.Neat[n := n].halfLine].At[x := Graph.map.apply x] \as Components;
+\definition second[v: Domain.Vector]: Components.second (D.value.apply v) = DH.value.apply v :=
+  trans!{{SecondTangent.Vector}} _ _ _ (congr!{{Codomain.Vector} {SecondTangent.Vector}} Components.second _ _ (PairDerivative.law v))
+    (Components.secondPair (DF.value.apply v) (DH.value.apply v));
+\definition immersion[u, v: Domain.Vector]: D.value.apply u = D.value.apply v -> u = v := \block {
+  \fun (equal: _) \then
+  \let firstEqual: DF.value.apply u = DF.value.apply v := trans!{{FirstTangent.Vector}} _ _ _ (sym!{{FirstTangent.Vector}} _ _ (Graph.At[x := x].firstDerivative u))
+    (trans!{{FirstTangent.Vector}} _ _ _ (congr!{{Codomain.Vector} {FirstTangent.Vector}} Components.first _ _ equal) (Graph.At[x := x].firstDerivative v)) \then
+  \let rEqual: DR.value.apply u = DR.value.apply v := (FirstEmbeddings.embeddingLaws Full.embedding).immersion (Collapse.map.apply x) (DR.value.apply u) (DR.value.apply v)
+    (trans!{{FirstTangent.Vector}} _ _ _ (sym!{{FirstTangent.Vector}} _ _ (Collapsed.At[x := x].pointwise u))
+      (trans!{{FirstTangent.Vector}} _ _ _ firstEqual (Collapsed.At[x := x].pointwise v))) \then
+  \let hEqual: DH.value.apply u = DH.value.apply v := trans!{{SecondTangent.Vector}} _ _ _ (sym!{{SecondTangent.Vector}} _ _ (second u))
+    (trans!{{SecondTangent.Vector}} _ _ _ (congr!{{Codomain.Vector} {SecondTangent.Vector}} Components.second _ _ equal) (second v)) \then
+  \return Joint.joint x u v rEqual hEqual
+};

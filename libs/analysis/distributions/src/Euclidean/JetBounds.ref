@@ -1,0 +1,47 @@
+\import \root.Euclidean[n := n].TestOperations[] \as JetTests;
+\import L.Compact[p := lp_spaces.Powers[].one] \as Compact;
+\import calculus.Real[].Multivariable[n := n].Open[] \as JOpen;
+\import JOpen.Smooth[] \as LocalSmooth;
+\import calculus.Real[].Multivariable[n := n].Open[].Smooth[].Derivative[] \as D;
+\import LocalSmooth.Mixed[] \as Mixed;
+\import Real.Distance[] \as Distance;
+\import topological_algebra.Euclidean[].Dimension[n := n].Def[] \as Coordinates;
+\import topological_algebra.Euclidean[].Dimension[n := n].Norm[] \as Geometry;
+\import std.Data[].Bool[].Prop[] \as BoolLaws;
+\module MixedDerivative(f: Test, i, j: Fin.Fin n);
+\definition commute[f: Test][i, j: Fin.Fin n]: JetTests.partial (JetTests.partial f i) j = JetTests.partial (JetTests.partial f j) i :=
+  MixedDerivative[f := f, i := i, j := j].law;
+\definition jetPartialCommute: \forall (d: Directions)(f: Test)(i: Fin.Fin n) -> JetTests.partial (JetTests.jet d f) i = JetTests.jet d (JetTests.partial f i) :=
+  \induction (d: Directions) \return \forall (f: Test)(i: Fin.Fin n) -> JetTests.partial (JetTests.jet d f) i = JetTests.jet d (JetTests.partial f i) \with {
+    | nil: \fun (f: Test)(i: Fin.Fin n) => \refl(JetTests.partial f i)
+    | cons: \fun (j: Fin.Fin n)(tail: Directions)(previous: _)(f: Test)(i: Fin.Fin n) => trans!{Test} _ _ _
+      (commute (JetTests.jet tail f) j i)
+      (congr!{Test Test} (\fun (g: Test) => JetTests.partial g j) _ _ (previous f i))
+  };
+\definition scalarBound[f: Test]: \exists ( b: Nonnegative \where \forall (x: Point) -> R.Le (Absolute.abs (f x)) b ) :=
+  Compact.absoluteBound f (Compact.smoothContinuous f (L.smoothCompactLaws f).smooth) (L.smoothCompactLaws f).compact;
+\definition zeroOrder[f: Test][b: Nonnegative]: (\forall (x: Point) -> R.Le (Absolute.abs (f x)) b) -> JetBound f N.Nat^::zero b :=
+  \fun (bound: _) => \induction (d: Directions) \return Nat.Le (order d) N.Nat^::zero -> \forall (x: Point) -> R.Le (Absolute.abs (JetTests.jet d f x)) b \with {
+    | nil: \fun (_: _) => bound
+    | cons: \fun (i: Fin.Fin n)(tail: Directions)(previous: _)(impossible: _) => BoolLaws.absurd _ impossible
+  };
+\definition Choices[f: Test][m: N.Nat^]: \Set := \forall (i: Fin.Fin n) -> \Cast[Nonnegative] ({ b: Nonnegative \where JetBound (JetTests.partial f i) m b });
+\definition choicesExist[f: Test][m: N.Nat^]:
+  (\forall (i: Fin.Fin n) -> \exists ( b: Nonnegative \where JetBound (JetTests.partial f i) m b )) -> \exists Choices f m :=
+  \fun (each: _) => \axiom:classicalIndefiniteChoice(Fin.Fin n,
+    \fun (i: Fin.Fin n) => \Cast[Nonnegative] ({ b: Nonnegative \where JetBound (JetTests.partial f i) m b }), each);
+\module Step(f: Test, m: N.Nat^, b: Nonnegative, bound: \forall (x: Point) -> R.Le (Absolute.abs (f x)) b, choices: Choices f m);
+\definition existsBound: \forall (m: N.Nat^)(f: Test) -> \exists ( b: Nonnegative \where JetBound f m b ) :=
+  \induction (m: N.Nat^) \return \forall (f: Test) -> \exists ( b: Nonnegative \where JetBound f m b ) \with {
+    | zero: \fun (f: Test) => \block {
+      \takefrom b: \Cast[Nonnegative] ({ b: Nonnegative \where \forall (x: Point) -> R.Le (Absolute.abs (f x)) b }) \by scalarBound f \then
+      \return Logic.existsIntro[Nonnegative, { b: Nonnegative \where JetBound f N.Nat^::zero b }] b
+        (zeroOrder f b (\bysub(Nonnegative, { b: Nonnegative \where \forall (x: Point) -> R.Le (Absolute.abs (f x)) b }, b)))
+    }
+    | succ: \fun (m: N.Nat^)(previous: _)(f: Test) => \block {
+      \takefrom b: \Cast[Nonnegative] ({ b: Nonnegative \where \forall (x: Point) -> R.Le (Absolute.abs (f x)) b }) \by scalarBound f \then
+      \takefrom choices: Choices f m \by choicesExist f m (\fun (i: Fin.Fin n) => previous (JetTests.partial f i)) \then
+      \return Step[f := f, m := m, b := b,
+        bound := \bysub(Nonnegative, { b: Nonnegative \where \forall (x: Point) -> R.Le (Absolute.abs (f x)) b }, b), choices := choices].existsBound
+    }
+  };

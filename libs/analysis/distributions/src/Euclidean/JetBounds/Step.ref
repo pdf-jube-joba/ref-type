@@ -1,0 +1,22 @@
+\definition finiteBound: Real.Real := Coordinates.finiteMax n (\fun (i: Fin.Fin n) => choices i);
+\definition coefficient: Nonnegative := \into[Real.Real](Distance.max b finiteBound, Nonnegative) \by {
+  R.leTrans _ _ _ (lp_spaces.Powers[].baseNonnegative b) (Distance.maxLeft b finiteBound)
+};
+\definition coordinate[i: Fin.Fin n]: R.Le (choices i) coefficient := R.leTrans _ _ _
+  (R.leReplaceLeft _ _ _ (trans!{Real.Real} _ _ _ (Distance.distanceSymmetric (choices i) Real.zero)
+    (Absolute.absOfNonnegative (choices i) (lp_spaces.Powers[].baseNonnegative (choices i))))
+    (Geometry.finiteCoordinate n (\fun (i: Fin.Fin n) => choices i) i))
+  (Distance.maxRight b finiteBound);
+\definition estimate: JetBound f (N.Nat^::succ m) coefficient :=
+  \induction (d: Directions) \return Nat.Le (order d) (N.Nat^::succ m) -> \forall (x: Point) -> R.Le (Absolute.abs (JetTests.jet d f x)) coefficient \with {
+    | nil: \fun (_: _)(x: Point) => R.leTrans _ _ _ (bound x) (Distance.maxLeft b finiteBound)
+    | cons: \fun (i: Fin.Fin n)(tail: Directions)(previous: _)(length: _)(x: Point) =>
+      R.leReplaceLeft _ _ _
+        (congr!{Test Real.Real} (\fun (g: Test) => Absolute.abs (g x)) _ _ (sym!{Test} _ _ (jetPartialCommute tail f i)))
+        (R.leTrans _ _ _
+          ((\bysub(Nonnegative, { c: Nonnegative \where JetBound (JetTests.partial f i) m c }, choices i)) tail
+            (Nat.leOfSuccSucc (order tail) m length) x)
+          (coordinate i))
+  };
+\definition existsBound: \exists ( c: Nonnegative \where JetBound f (N.Nat^::succ m) c ) :=
+  Logic.existsIntro[Nonnegative, { c: Nonnegative \where JetBound f (N.Nat^::succ m) c }] coefficient estimate;

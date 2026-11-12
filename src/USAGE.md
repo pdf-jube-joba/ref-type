@@ -103,7 +103,8 @@ cargo run -p cli -- libs/std --source-snapshot work/std.json --module std.Data.N
 
 キャッシュは処理系・設定・ソース・manifest・依存入力・検査範囲を照合する。
 無変更なら結果を再利用し、後続 package の検査には依存環境を復元する。
-module 完了境界の checkpoint から途中再開でき、保存コストの約10倍以上を空けて次を保存する。
+module 完了境界の checkpoint から途中再開できる。
+保存コストに応じた待ち時間は、`--checkpoint-seconds` の指定間隔を上限とする。
 `--full-check` と入口の `--full-check-local` は、強制検査範囲について過去の検証世代の結果を引き継がずに再検査する。
 同じ実行の障害復旧では、その世代で保存した checkpoint を使う。
 `--full-check` は保存済みの検証結果を再利用しない新しい世代で開始し、その実行内で完了した宣言を後続の要求と共有する。

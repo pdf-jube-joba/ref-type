@@ -1,0 +1,19 @@
+\definition phi: E.SmoothCompact := TestBridge.fromOld test;
+\definition left: Real.Real := U.pair (TestOperations.jet d phi);
+\definition right: Real.Real := G.pair phi;
+\definition leftIntegral: Integral.HasIntegral[\fun (x: Open.Carrier Open.whole) => Real.mul (u x) (test.partials d x), left] :=
+  \idelim (\fun (x: Open.Carrier Open.whole) => Real.mul (u x) (TestOperations.jet d phi x)) = (\fun (x: Open.Carrier Open.whole) => Real.mul (u x) (test.partials d x))
+    \with f: Open.ScalarFunction Open.whole => Integral.HasIntegral[f, left] \by {
+      base: ToLocal.RealFunction[f := U.representative (TestOperations.jet d phi)].hasIntegral,
+      equality: \axiom:funext((\fun (x: Open.Carrier Open.whole) => Real.mul (u x) (TestOperations.jet d phi x)),
+        (\fun (x: Open.Carrier Open.whole) => Real.mul (u x) (test.partials d x)), \fun (x: Open.Carrier Open.whole) =>
+          congr!{Real.Real Real.Real} (Real.mul (u x)) _ _ (congr!{{Open.ScalarFunction Open.whole} Real.Real} (\fun (f: Open.ScalarFunction Open.whole) => f x) _ _ (TestBridge.partials test d)))
+    };
+\definition rightIntegral: Integral.HasIntegral[\fun (x: Open.Carrier Open.whole) => Real.mul (g x) (test.function x), right] :=
+  ToLocal.RealFunction[f := G.representative phi].hasIntegral;
+\definition weak: ByPairing u g d -> \exists ( l: Real.Real \where \exists ( r: Real.Real \where Weak.WeakPairing[Restriction.function Open.whole u, Restriction.function Open.whole g, d, test, l, r] ) ) :=
+  \fun (pairing: _) => Logic.existsIntro[Real.Real, { l: Real.Real \where \exists ( r: Real.Real \where Weak.WeakPairing[Restriction.function Open.whole u, Restriction.function Open.whole g, d, test, l, r] ) }] left
+    (Logic.existsIntro[Real.Real, { r: Real.Real \where Weak.WeakPairing[Restriction.function Open.whole u, Restriction.function Open.whole g, d, test, left, r] }] right
+      (Weak.WeakPairing[Restriction.function Open.whole u, Restriction.function Open.whole g, d, test, left, right] {
+        source := leftIntegral, derivative := rightIntegral, integrationByParts := pairing phi,
+      }));

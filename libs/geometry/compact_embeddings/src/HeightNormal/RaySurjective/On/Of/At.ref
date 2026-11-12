@@ -1,0 +1,22 @@
+\import boundary_manifolds.Tangent[n := p].On[M := A].At[x := x] \as Domain;
+\import boundary_manifolds.Tangent[n := One.dimension].On[M := Neat.halfLine].At[x := Maps.apply f x] \as Codomain;
+\import boundary_manifolds.Differential[n := p, m := One.dimension].Between[M := A, N := Neat.halfLine].At[f := f, x := x] \as D;
+\import boundary_manifolds.Neat[n := p, m := One.dimension].Between[M := A, N := Neat.halfLine].At[f := f, x := x] \as Normal;
+\definition chart: Codomain.Chart := \root.Neat[n := n].LineAt[t := Maps.apply f x].chart;
+\import Codomain.Coordinate[chart := chart] \as Decode;
+\import Codomain.CoordinateOperations[chart := chart] \as Linear;
+\import boundary_manifolds.Model[n := One.dimension] \as Model;
+\definition tangent[v: Domain.Vector][w: Codomain.Vector]: D.value.apply v = w -> Codomain.Cones[].Tangential (Normal.difference v w) :=
+  \fun (same: _) => Codomain.Cones[].Lineality[c := chart, v := Normal.difference v w].toIntrinsic
+    (\fun (i: One.Index)(active: _) => trans!{S.Real} _ _ _
+      (congr!{Model.Point S.Real} (\fun (z: Model.Point) => z i) _ _ (Linear.addition (D.value.apply v) (Codomain.Operations[].negative w)))
+      (trans!{S.Real} _ _ _ (congr!{S.Real S.Real S.Real} S.add _ _ _ _
+        (congr!{{Codomain.Vector} S.Real} (\fun (z: Codomain.Vector) => Decode.decode z i) _ _ same)
+        (congr!{Model.Point S.Real} (\fun (z: Model.Point) => z i) _ _ (Linear.negative w)))
+        (R.Arithmetic[].Prop[].subSelf (Decode.decode w i))));
+\definition normal[onto: \forall (w: Codomain.Vector) -> \exists ( v: Domain.Vector \where D.value.apply v = w )]: Normal.NormalOnto := \block {
+  \fun (w: Codomain.Vector) \then
+  \takefrom v: \Cast[Domain.Vector] ({ v: Domain.Vector \where D.value.apply v = w }) \by onto w \then
+  \return Logic.existsIntro[Domain.Vector, { v: Domain.Vector \where Codomain.Cones[].Tangential (Normal.difference v w) }] v
+    (tangent v w (\bysub(Domain.Vector, { v: Domain.Vector \where D.value.apply v = w }, v)))
+};

@@ -1,0 +1,36 @@
+\import smooth_partitions.Scalars[A := Point, space := Ambient.topology].Using[calculus := Smooth.ScalarCalculus[].calculus] \as SmoothScalars;
+\definition globalTest: Global.Test := \into[L.Function](cutoff.value, Global.Test) \by {
+  L.SmoothCompactLaws[cutoff.value] { smooth := SmoothScalars.regular cutoff.value, compact := cutoff.supportCompact }
+};
+\definition test: Test := \into[Global.Test](globalTest, Test) \by { cutoff.supportWithin };
+\definition localized: Global.Test := function test;
+\definition integrable: I.Representatives := Integrals.representative localized;
+\definition local: Regular.Representatives := Regular.fromIntegral integrable;
+\import Regular.For[f := local] \as Pairing;
+\definition agreement[phi: Test][supported: Sets.Subset (Smooth.support phi) K]: pair phi = Pairing.pair phi :=
+  integralsPointwise (representative phi) (Pairing.representative phi) (\fun (x: Point) =>
+    either!{{(Classical.excludedMiddle (Sets.Member (Smooth.support phi) x))}
+      {representative phi x = Real.mul (local x) (phi x)}
+      {\fun (member: _) => \block {
+        \let inK: Sets.Member K x := supported x member \then
+        \let point: Open.Carrier U := \into[Point](x, U.points) \by { within x inK } \then
+        \return eq_reason_in!{Real.Real _
+          "=" _ "by" { inside phi point }
+          "=" _ "by" { congr!{Real.Real Real.Real} (\fun (v: Real.Real) => Real.mul v (phi x)) _ _
+            (sym!{Real.Real} _ _ (trans!{Real.Real} _ _ _ (inside test point)
+              (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (Real.mul (f point)) _ _ (cutoff.oneOn x inK)) (Algebra.mulOneRight (f point))))) }
+        }
+      }}
+      {\fun (absent: _) => trans!{Real.Real} _ _ _ (\parent.Product[test := phi].outsideSupport x absent)
+        (sym!{Real.Real} _ _ (trans!{Real.Real} _ _ _
+          (congr!{Real.Real Real.Real} (Real.mul (local x)) _ _ (Support.zeroOutsideSupport Ambient.topology phi x absent)) (Laws.fieldMulZeroRight (local x))))}
+    });
+\definition compactSet: Regular.CompactSet := \into[\Pow Point](K, Regular.CompactSet) \by { compact };
+\definition coefficient: Nonnegative := Pairing.coefficient compactSet;
+\definition bound: \exists ( m: N.Nat^ \where \exists ( C: Nonnegative \where Bound pair K m C ) ) :=
+  Logic.existsIntro[N.Nat^, { m: N.Nat^ \where \exists ( C: Nonnegative \where Bound pair K m C ) }] N.Nat^::zero
+    (Logic.existsIntro[Nonnegative, { C: Nonnegative \where Bound pair K N.Nat^::zero C }] coefficient
+      (\fun (phi: Test)(supported: _)(b: Nonnegative)(jets: Global.JetBound phi N.Nat^::zero b) =>
+        R.leReplaceLeft _ _ _ (congr!{Real.Real Real.Real} Absolute.abs _ _ (sym!{Real.Real} _ _ (agreement phi supported)))
+          (Pairing.Estimate[K := compactSet, test := phi, within := supported, c := b,
+            bound := jets Directions::nil (Nat.leRefl N.Nat^::zero)].inequality)));

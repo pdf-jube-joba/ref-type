@@ -1,0 +1,28 @@
+\import \root.Euclidean[n := n].TestOperations[] \as CDT;
+\import calculus.Real[].Multivariable[n := n].Space[].Prop[] \as CDPoint;
+\import \root.Euclidean[n := n].JetBounds[] \as CDB;
+\definition curve[t: ConvReal.Real]: ConvL.SmoothCompact := \parent.Translate[rho := rho, a := ConvCoordinates.replace a i t].test;
+\definition target: ConvL.SmoothCompact := \parent.Translate[rho := CDT.partial rho i, a := a].test;
+\import \root.Euclidean[n := n].TestCurve[curve := curve, target := target, at := a i] \as Curve;
+\definition errorEquality[t: ConvReal.Real]: Curve.error t = \parent.Difference[rho := rho, a := a, i := i, t := t].error :=
+  congr!{ConvL.SmoothCompact ConvL.SmoothCompact}
+    (\fun (f: ConvL.SmoothCompact) => CDT.add
+      (CDT.scale (ConvLaws.fieldInv (ConvReal.sub t (a i))) (CDT.add (curve t) (CDT.scale (ConvReal.neg ConvReal.one) f)))
+      (CDT.scale (ConvReal.neg ConvReal.one) target)) _ _
+    (congr!{ConvE.Point ConvL.SmoothCompact} (\fun (b: ConvE.Point) => \parent.Translate[rho := rho, a := b].test) _ _ (CDPoint.replaceOriginal a i));
+\module Bounded(radius: ConvL.Nonnegative,
+  radiusBound: \forall (x: ConvE.Point) -> ConvSets.Member (ConvSmooth.support rho) x -> ConvR.Le (ConvGeometry.metric.distance ConvCoordinates.origin x) radius);
+\definition derivative: calculus.Real[].Derivative[].Def[].HasDerivativeAt (\fun (t: ConvReal.Real) => T.eval (curve t)) (a i) (T.eval target) := \block {
+  \takefrom r: \Cast[ConvL.Nonnegative] ({ r: ConvL.Nonnegative \where \forall (x: ConvE.Point) -> ConvSets.Member (ConvSmooth.support rho) x -> ConvR.Le (ConvGeometry.metric.distance ConvCoordinates.origin x) r })
+    \by ConvBounds.radiusBound (ConvSmooth.support rho) (ConvL.smoothCompactLaws rho).compact \then
+  \return Bounded[radius := r, radiusBound := \bysub(ConvL.Nonnegative,
+    { r: ConvL.Nonnegative \where \forall (x: ConvE.Point) -> ConvSets.Member (ConvSmooth.support rho) x -> ConvR.Le (ConvGeometry.metric.distance ConvCoordinates.origin x) r }, r)].derivative
+};
+\definition partial: ConvOpen.Analysis[].HasPartialDerivativeAt ConvOpen.whole
+  (ConvOpen.Restriction[].function ConvOpen.whole (\root.Euclidean[n := n].Convolution[].function T rho)) i (ConvOpen.Whole[].point a)
+  (\root.Euclidean[n := n].Convolution[].function T (CDT.partial rho i) a) := ConvOpen.Analysis[].Operations[].sectionPartial ConvOpen.whole
+    (ConvOpen.Restriction[].function ConvOpen.whole (\root.Euclidean[n := n].Convolution[].function T rho)) (ConvOpen.Whole[].point a) i
+    (\fun (t: ConvReal.Real) => T.eval (curve t)) (T.eval target)
+    (congr!{ConvE.Point ConvReal.Real} (\root.Euclidean[n := n].Convolution[].function T rho) _ _ (CDPoint.replaceOriginal a i))
+    (\fun (t: ConvReal.Real)(x: ConvOpen.Carrier ConvOpen.whole)(equal: _) =>
+      congr!{ConvE.Point ConvReal.Real} (\root.Euclidean[n := n].Convolution[].function T rho) _ _ (sym!{ConvE.Point} _ _ equal)) derivative;

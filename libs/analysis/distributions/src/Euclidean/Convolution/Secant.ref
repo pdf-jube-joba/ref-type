@@ -1,0 +1,59 @@
+\import ConvReal.Distance[] \as CSMetric;
+\import ConvR.Order[] \as CSOrder;
+\import calculus.Real[].Derivative[].Def[] \as CSDerivative;
+\import calculus.Real[].Derivative[].Operations[] \as CSDerivatives;
+\import lp_spaces.Powers[].Cuts[] \as CSCuts;
+\use ConvEquality.eq_reason_in;
+\module Interval(a, b: ConvReal.Real);
+\definition remainder[a, b: ConvReal.Real]: ConvReal.Real :=
+  ConvReal.sub (ConvReal.sub (f b) (f a)) (ConvReal.mul (d a) (ConvReal.sub b a));
+\definition remainderBound[a,b: ConvReal.Real]: ConvLogic.Not (b = a) ->
+  ConvR.Le (ConvReal.distance (remainder a b) ConvReal.zero)
+    (ConvReal.mul (ConvReal.mul c (ConvReal.distance b a)) (ConvReal.distance b a)) := \fun (different: _) =>
+  ConvLogic.orElim _ _ _ (CSOrder.leTotal a b)
+    (\fun (ordered: _) => Interval[a := a, b := b].forward (CSOrder.ltOfLeNotEq a b ordered (\fun (same: _) => different (sym!{ConvReal.Real} _ _ same))))
+    (\fun (ordered: _) => ConvR.leReplace _ _ _ _
+      (sym!{ConvReal.Real} _ _ (trans!{ConvReal.Real} _ _ _
+        (congr!{ConvReal.Real ConvReal.Real} (\fun (r: ConvReal.Real) => ConvReal.distance r ConvReal.zero) _ _ (ConvEstimates.incrementReversal (f b) (f a) b a (d a)))
+        (ConvEstimates.distanceNegZero _)))
+      (congr!{ConvReal.Real ConvReal.Real} (ConvReal.mul (ConvReal.mul c (ConvReal.distance b a))) _ _ (CSMetric.distanceSymmetric a b))
+      (Interval[a := b, b := a].backward (CSOrder.ltOfLeNotEq b a ordered different)));
+\definition error[a,b: ConvReal.Real]: ConvLogic.Not (b = a) ->
+  ConvReal.sub (CSDerivative.slope f a b) (d a) = ConvReal.mul (remainder a b) (ConvLaws.fieldInv (ConvReal.sub b a)) := \fun (different: _) => \block {
+  \let h: ConvReal.Real := ConvReal.sub b a \then
+  \let nonzero: ConvLogic.Not (h = ConvReal.zero) := \fun (zero: _) => different (CSMetric.subZeroEq b a zero) \then
+  \let cancelled: ConvReal.mul (ConvReal.mul (d a) h) (ConvLaws.fieldInv h) = d a := eq_reason_in!{ConvReal.Real _
+    "=" _ "by" { ConvLaws.fieldMulAssoc (d a) h (ConvLaws.fieldInv h) }
+    "=" _ "by" { congr!{ConvReal.Real ConvReal.Real} (ConvReal.mul (d a)) _ _
+      (trans!{ConvReal.Real} _ _ _ (ConvLaws.fieldMulComm h (ConvLaws.fieldInv h)) (ConvLaws.fieldInverseNonzero h nonzero)) }
+    "=" _ "by" { ConvAlgebra.mulOneRight (d a) }
+  } \then
+  \return sym!{ConvReal.Real} _ _ (trans!{ConvReal.Real} _ _ _
+    (ConvAlgebra.subMul (ConvReal.sub (f b) (f a)) (ConvReal.mul (d a) h) (ConvLaws.fieldInv h))
+    (congr!{ConvReal.Real ConvReal.Real} (ConvReal.sub (CSDerivative.slope f a b)) _ _ cancelled))
+};
+\definition estimate[a,b: ConvReal.Real]: ConvLogic.Not (b = a) ->
+  ConvR.Le (ConvReal.distance (CSDerivative.slope f a b) (d a)) (ConvReal.mul c (ConvReal.distance b a)) := \fun (different: _) => \block {
+  \let h: ConvReal.Real := ConvReal.sub b a \then
+  \let nonzero: ConvLogic.Not (h = ConvReal.zero) := \fun (zero: _) => different (CSMetric.subZeroEq b a zero) \then
+  \let inv: ConvReal.Real := ConvAbsolute.abs (ConvLaws.fieldInv h) \then
+  \let magnitude: ConvReal.distance (CSDerivative.slope f a b) (d a) = ConvReal.mul inv (ConvReal.distance (remainder a b) ConvReal.zero) := eq_reason_in!{ConvReal.Real _
+    "=" _ "by" { sym!{ConvReal.Real} _ _ (CSCuts.absDifference (CSDerivative.slope f a b) (d a)) }
+    "=" _ "by" { congr!{ConvReal.Real ConvReal.Real} ConvAbsolute.abs _ _ (error a b different) }
+    "=" _ "by" { ConvAbsolute.absProduct (remainder a b) (ConvLaws.fieldInv h) }
+    "=" _ "by" { ConvLaws.fieldMulComm _ _ }
+    "=" _ "by" { congr!{ConvReal.Real ConvReal.Real} (ConvReal.mul inv) _ _ (CSMetric.distanceSymmetric ConvReal.zero (remainder a b)) }
+  } \then
+  \let cancellation: ConvReal.mul inv (ConvReal.distance b a) = ConvReal.one := trans!{ConvReal.Real} _ _ _
+    (congr!{ConvReal.Real ConvReal.Real} (ConvReal.mul inv) _ _ (sym!{ConvReal.Real} _ _ (CSCuts.absDifference b a)))
+    (ConvAbsolute.inverseAbsCancellation h nonzero) \then
+  \let right: ConvReal.mul inv (ConvReal.mul (ConvReal.mul c (ConvReal.distance b a)) (ConvReal.distance b a)) = ConvReal.mul c (ConvReal.distance b a) := eq_reason_in!{ConvReal.Real _
+    "=" _ "by" { sym!{ConvReal.Real} _ _ (ConvLaws.fieldMulAssoc inv (ConvReal.mul c (ConvReal.distance b a)) (ConvReal.distance b a)) }
+    "=" _ "by" { congr!{ConvReal.Real ConvReal.Real} (\fun (v: ConvReal.Real) => ConvReal.mul v (ConvReal.distance b a)) _ _ (ConvLaws.fieldMulComm inv (ConvReal.mul c (ConvReal.distance b a))) }
+    "=" _ "by" { ConvLaws.fieldMulAssoc (ConvReal.mul c (ConvReal.distance b a)) inv (ConvReal.distance b a) }
+    "=" _ "by" { congr!{ConvReal.Real ConvReal.Real} (ConvReal.mul (ConvReal.mul c (ConvReal.distance b a))) _ _ cancellation }
+    "=" _ "by" { ConvAlgebra.mulOneRight _ }
+  } \then
+  \return ConvR.leReplace _ _ _ _ (sym!{ConvReal.Real} _ _ magnitude) right
+    (ConvEstimates.mulMonotone inv _ _ (ConvAbsolute.absNonnegative _) (remainderBound a b different))
+};

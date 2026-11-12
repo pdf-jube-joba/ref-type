@@ -1,0 +1,29 @@
+\definition y: N.Point := Maps.apply d.forward x;
+\definition z: M.Point := d.backward.apply y;
+\import Source.At[x := x] \as Domain;
+\import Target.At[x := y] \as Codomain;
+\import Source.At[x := z] \as Returned;
+\import boundary_manifolds.Differential[n := n, m := m].Between[M := M, N := N].At[f := d.forward, x := x] \as D;
+\import boundary_manifolds.Differential[n := m, m := n].Between[M := N, N := M].At[f := d.backward, x := y] \as D2;
+\import Forward.At[x := x] \as F;
+\import Backward.At[x := y] \as G;
+\import std.Logic[].Equality[].Transport[A := M.Point] \as Transport;
+\definition inverse[w: Codomain.Vector]: Domain.Vector := F.back w;
+\definition leftInverse[v: Domain.Vector]: inverse (D.value.apply v) = v := F.leftInverse v;
+\definition injective[u, v: Domain.Vector]: D.value.apply u = D.value.apply v -> u = v := \fun (equal: _) =>
+  trans!{{Domain.Vector}} _ _ _ (sym!{{Domain.Vector}} _ _ (leftInverse u))
+    (trans!{{Domain.Vector}} _ _ _ (congr!{{Codomain.Vector} {Domain.Vector}} inverse _ _ equal) (leftInverse v));
+\definition returnVector[v: Domain.Vector]: Returned.Vector := Transport.cast Source.Vector x z (sym!{{M.Point}} _ _ ((Diffeomorphisms.laws d).leftInverse x)) v;
+\definition returnInverse[w: Codomain.Vector]: returnVector (inverse w) = D2.value.apply w :=
+  Transport.castInverse Source.Vector z x ((Diffeomorphisms.laws d).leftInverse x) (D2.value.apply w);
+\definition inverseInjective[u, v: Codomain.Vector]: inverse u = inverse v -> u = v := \block {
+  \fun (equal: _) \then
+  \let same: D2.value.apply u = D2.value.apply v := trans!{{Returned.Vector}} _ _ _ (sym!{{Returned.Vector}} _ _ (returnInverse u))
+    (trans!{{Returned.Vector}} _ _ _ (congr!{{Domain.Vector} {Returned.Vector}} returnVector _ _ equal) (returnInverse v)) \then
+  \return trans!{{Codomain.Vector}} _ _ _ (sym!{{Codomain.Vector}} _ _ (G.leftInverse u))
+    (trans!{{Codomain.Vector}} _ _ _ (congr!{{Returned.Vector} {Codomain.Vector}} G.back _ _ same) (G.leftInverse v))
+};
+\definition rightInverse[w: Codomain.Vector]: D.value.apply (inverse w) = w := inverseInjective _ w (leftInverse (inverse w));
+\definition onto[w: Codomain.Vector]: \exists ( v: Domain.Vector \where D.value.apply v = w ) :=
+  Logic.existsIntro[Domain.Vector, { v: Domain.Vector \where D.value.apply v = w }] (inverse w) (rightInverse w);
+\definition inverseTangential[w: Codomain.Vector]: Codomain.Cones[].Tangential w -> Domain.Cones[].Tangential (inverse w) := F.backTangential w;

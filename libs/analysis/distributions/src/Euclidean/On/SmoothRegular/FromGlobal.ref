@@ -1,0 +1,17 @@
+\import Regular.For[f := g] \as Pairing;
+\definition pairAgrees[test: Test]: Pairing.pair test = pair test :=
+  integralsPointwise (Pairing.representative test) (representative test) (\fun (x: Point) =>
+    either!{{(Classical.excludedMiddle (Sets.Member U.points x))}
+      {Real.mul (g x) (test x) = representative test x}
+      {\fun (member: _) => \block {
+        \let point: Open.Carrier U := \into[Point](x, U.points) \by { member } \then
+        \return trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (\fun (v: Real.Real) => Real.mul v (test x)) _ _ (agreement point))
+          (sym!{Real.Real} _ _ (inside test point))
+      }}
+      {\fun (absent: _) => trans!{Real.Real} _ _ _
+        (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (Real.mul (g x)) _ _
+          (Support.zeroOutsideSupport Ambient.topology test x (\fun (member: _) => absent (testWithin U test x member)))) (Laws.fieldMulZeroRight (g x)))
+        (sym!{Real.Real} _ _ (outside test x absent))}
+    });
+\definition restriction: restrict (Regular.distribution g) = distribution :=
+  ext (restrict (Regular.distribution g)) distribution pairAgrees;

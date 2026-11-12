@@ -1,0 +1,37 @@
+\import Real.Algebra[] \as Algebra;
+\definition function[f: Test]: Real.Real := Real.mul (Real.neg Real.one) (T.eval (partial f i));
+\definition negativeValue[f: Test]: function f = Real.neg (T.eval (partial f i)) :=
+  trans!{Real.Real} _ _ _ (Laws.fieldMulNegLeft Real.one (T.eval (partial f i)))
+    (congr!{Real.Real Real.Real} Real.neg _ _ (Laws.fieldMulOneLeft (T.eval (partial f i))));
+\definition bounded: LocallyBounded function := \fun (K: \Pow Point)(compact: _)(within: _) => \block {
+  \takefrom m: \Cast[N.Nat^] ({ m: N.Nat^ \where \exists ( C: Nonnegative \where Bound T.eval K m C ) }) \by T.bound K compact within \then
+  \takefrom C: \Cast[Nonnegative] ({ C: Nonnegative \where Bound T.eval K m C })
+    \by \bysub(N.Nat^, { m: N.Nat^ \where \exists ( C: Nonnegative \where Bound T.eval K m C ) }, m) \then
+  \return Logic.existsIntro[N.Nat^, { j: N.Nat^ \where \exists ( B: Nonnegative \where Bound function K j B ) }] (N.Nat^::succ m)
+    (Logic.existsIntro[Nonnegative, { B: Nonnegative \where Bound function K (N.Nat^::succ m) B }] C
+      (\fun (f: Test)(supported: _)(b: Nonnegative)(bound: _) => R.leReplaceLeft _ _ _
+        (sym!{Real.Real} _ _ (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} Absolute.abs _ _ (negativeValue f)) (Absolute.absNeg (T.eval (partial f i)))))
+        ((\bysub(Nonnegative, { C: Nonnegative \where Bound T.eval K m C }, C)) (partial f i)
+          (Sets.subsetTrans _ _ _ (GO.partialSupport f i) supported) b
+          (\fun (d: Directions)(le: _)(x: Point) => R.leReplaceLeft _ _ _
+            (congr!{Global.Test Real.Real} (\fun (g: Global.Test) => Absolute.abs (g x)) _ _ (sym!{Global.Test} _ _ (GO.jetPartial i d f)))
+            (bound (GO.shift i d) (\idelim N.Nat^::succ (order d) = order (GO.shift i d)
+              \with k: N.Nat^ => Nat.Le k (N.Nat^::succ m) \by {
+                base: Nat.leSuccSucc (order d) m le, equality: sym!{N.Nat^} _ _ (GO.orderShift i d) }) x)))))
+};
+\definition testAdd[f, g: Test]: partial (add f g) i = add (partial f i) (partial g i) := GO.partialAdd f g i;
+\definition testScale[c: Real.Real][f: Test]: partial (scale c f) i = scale c (partial f i) := GO.partialScale c f i;
+\definition value: Distribution := Distribution {
+  eval := function,
+  additive := \fun (f, g: Test) => eq_reason_in!{Real.Real _
+    "=" _ "by" { congr!{Test Real.Real} (\fun (h: Test) => Real.mul (Real.neg Real.one) (T.eval h)) _ _ (testAdd f g) }
+    "=" _ "by" { congr!{Real.Real Real.Real} (Real.mul (Real.neg Real.one)) _ _ (T.additive (partial f i) (partial g i)) }
+    "=" _ "by" { Laws.fieldMulAdd (Real.neg Real.one) (T.eval (partial f i)) (T.eval (partial g i)) }
+  },
+  homogeneous := \fun (c: Real.Real)(f: Test) => eq_reason_in!{Real.Real _
+    "=" _ "by" { congr!{Test Real.Real} (\fun (h: Test) => Real.mul (Real.neg Real.one) (T.eval h)) _ _ (testScale c f) }
+    "=" _ "by" { congr!{Real.Real Real.Real} (Real.mul (Real.neg Real.one)) _ _ (T.homogeneous c (partial f i)) }
+    "=" _ "by" { Algebra.mulSwap (Real.neg Real.one) c (T.eval (partial f i)) }
+  },
+  bound := bounded,
+};

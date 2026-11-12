@@ -1,0 +1,29 @@
+/* A reflected translate of a test function is again a genuine test function. */
+\definition function: ConvL.Function := \fun (y: ConvE.Point) => rho (ConvE.subPoint a y);
+\definition mapData: ConvMaps.Data[ConvOpen.whole, ConvOpen.whole] := ConvMaps.Data[ConvOpen.whole, ConvOpen.whole] {
+  apply := \fun (y: ConvOpen.Carrier ConvOpen.whole) => ConvOpen.Whole[].point (ConvE.subPoint a y),
+};
+\definition map: ConvMaps.Map ConvOpen.whole ConvOpen.whole := \into[ConvMaps.Data[ConvOpen.whole, ConvOpen.whole]](mapData, ConvMaps.Map ConvOpen.whole ConvOpen.whole) \by {
+  ConvMaps.Laws[ConvOpen.whole, ConvOpen.whole, mapData] {
+    smooth := \fun (i: std.Data[].FinSet[].Fin n) => ConvSmoothOperations.subSmooth ConvOpen.whole
+      (\fun (y: ConvOpen.Carrier ConvOpen.whole) => a i) (\fun (y: ConvOpen.Carrier ConvOpen.whole) => y i)
+      (ConvSmoothOperations.constantSmooth ConvOpen.whole (a i)) (ConvOpen.Examples[].projectionSmooth ConvOpen.whole i),
+  }
+};
+\definition smooth: ConvSmooth.IsSmooth function := ConvMaps.Composition[U := ConvOpen.whole, V := ConvOpen.whole, f := map].smooth
+  (\into[ConvOpen.ScalarFunction ConvOpen.whole](ConvOpen.Restriction[].function ConvOpen.whole rho,
+    ConvOpen.Smooth[].Derivative[].Function ConvOpen.whole) \by { (ConvL.smoothCompactLaws rho).smooth });
+\module Bounded(radius: ConvL.Nonnegative,
+  bound: \forall (x: ConvE.Point) -> ConvSets.Member (ConvSmooth.support rho) x -> ConvR.Le (ConvGeometry.metric.distance ConvCoordinates.origin x) radius);
+\definition compact: ConvSets.IsCompactIn ConvAmbient.topology (ConvSmooth.support function) := \block {
+  \takefrom r: \Cast[ConvL.Nonnegative] ({ r: ConvL.Nonnegative \where \forall (x: ConvE.Point) -> ConvSets.Member (ConvSmooth.support rho) x -> ConvR.Le (ConvGeometry.metric.distance ConvCoordinates.origin x) r })
+    \by ConvBounds.radiusBound (ConvSmooth.support rho) (ConvL.smoothCompactLaws rho).compact \then
+  \return Bounded[radius := r, bound := \bysub(ConvL.Nonnegative,
+    { r: ConvL.Nonnegative \where \forall (x: ConvE.Point) -> ConvSets.Member (ConvSmooth.support rho) x -> ConvR.Le (ConvGeometry.metric.distance ConvCoordinates.origin x) r }, r)].compact
+};
+\definition test: ConvL.SmoothCompact := \into[ConvL.Function](function, ConvL.SmoothCompact) \by {
+  ConvL.SmoothCompactLaws[function] { smooth := smooth, compact := compact }
+};
+\definition involution[x: ConvE.Point]: ConvE.subPoint a (ConvE.subPoint a x) = x :=
+  \axiom:funext(ConvE.subPoint a (ConvE.subPoint a x), x, \fun (i: std.Data[].FinSet[].Fin n) => ConvAlgebra.subSub (a i) (x i));
+\module Partial(i: std.Data[].FinSet[].Fin n);

@@ -1,0 +1,29 @@
+\definition compositeImmersion: Composite.IsImmersion (Compose.compose f g) :=
+  \idelim h = Compose.compose f g \with k: H.Map => Composite.IsImmersion k \by {
+    base: (Composite.embeddingLaws h).immersion,
+    equality: sym!{{H.Map}} _ _ equal
+  };
+\definition formula[x: M.Point]: G.apply g (F.apply f x) = H.apply h x :=
+  congr!{{H.Map} {P.Point}} (\fun (k: H.Map) => H.apply k x) _ _ equal;
+\definition laws: First.EmbeddingLaws[f] := First.EmbeddingLaws[f] {
+  immersion := manifolds.ImmersionComposition[n := n, m := p, l := q].Between[M := M, N := N, P := P].firstOfComposite f g compositeImmersion,
+  injective := \fun (x, y: M.Point)(same: _) => (Composite.embeddingLaws h).injective x y
+    (trans!{{P.Point}} _ _ _ (sym!{{P.Point}} _ _ (formula x))
+      (trans!{{P.Point}} _ _ _ (congr!{{N.Point} {P.Point}} (G.apply g) _ _ same) (formula y))),
+  openLift := \block {
+    \fun (S: \Pow M.Point)(open: _) \then
+    \takefrom U: \Cast[\Pow P.Point] ({ U: \Pow P.Point \where Logic.And[TargetSpace.IsOpenIn P.space U, HTopology.Preimage (H.apply h) U = S] })
+      \by (Composite.embeddingLaws h).openLift S open \then
+    \let lift: Logic.And[TargetSpace.IsOpenIn P.space U, HTopology.Preimage (H.apply h) U = S] :=
+      \bysub(\Pow P.Point, { U: \Pow P.Point \where Logic.And[TargetSpace.IsOpenIn P.space U, HTopology.Preimage (H.apply h) U = S] }, U) \then
+    \let same: FTopology.Preimage (F.apply f) (GTopology.Preimage (G.apply g) U) = HTopology.Preimage (H.apply h) U :=
+      \axiom:setext((FTopology.Preimage (F.apply f) (GTopology.Preimage (G.apply g) U)), (HTopology.Preimage (H.apply h) U),
+        \fun (x: M.Point)(member: _) => \idelim G.apply g (F.apply f x) = H.apply h x \with y: P.Point => \In[P.Point] U y \by { base: member, equality: formula x },
+        \fun (x: M.Point)(member: _) => \idelim H.apply h x = G.apply g (F.apply f x) \with y: P.Point => \In[P.Point] U y \by { base: member, equality: sym!{{P.Point}} _ _ (formula x) }) \then
+    \return Logic.existsIntro[\Pow N.Point, { V: \Pow N.Point \where Logic.And[MiddleSpace.IsOpenIn N.space V, FTopology.Preimage (F.apply f) V = S] }]
+      (GTopology.Preimage (G.apply g) U) (Logic.And[_, _]::#
+        ((\bysub(G.Data, { k: G.Data \where G.Continuous k }, g)) U lift.left)
+        (trans!{{\Pow M.Point}} _ _ _ same lift.right))
+  },
+};
+\definition embedding: First.Embedding := \into[F.Map](f, First.Embedding) \by { laws };

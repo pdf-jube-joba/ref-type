@@ -1,0 +1,26 @@
+\definition D: Real.Real := Real.add C Real.one;
+\definition dp: R.Lt Real.zero D := R.ltLeTrans Real.zero Real.one D Absolute.onePositive
+  (R.leReplaceLeft _ _ _ (Laws.addZeroLeft Real.one) (Laws.addMonotoneRight Real.zero C Real.one (lp_spaces.Powers[].baseNonnegative C)));
+\definition delta: Real.Real := Absolute.radius D margin;
+\definition deltaPositive: R.Lt Real.zero delta := Absolute.radiusPositive D margin dp positive;
+\definition b: Nonnegative := \into[Real.Real](delta, Nonnegative) \by { Order.leOfLt _ _ deltaPositive };
+\definition small: R.Lt (Real.mul C delta) margin := R.leLtTrans _ (Real.mul D delta) margin
+  (R.leReplace (Real.mul delta C) (Real.mul C delta) (Real.mul delta D) (Real.mul D delta)
+    (Laws.fieldMulComm delta C) (Laws.fieldMulComm delta D)
+    (Estimates.mulMonotone delta C D (Order.leOfLt _ _ deltaPositive) (Distance.leAddOfNonnegative C Real.one Laws.oneNonnegative)))
+  (Absolute.radiusSmall D margin dp positive);
+\definition differenceSmall[g: Test]: Final.Supported K g -> Final.Near f g m delta -> R.Lt (p.value (difference g f)) margin :=
+  \fun (gSupported: _)(near: _) => R.leLtTrans _ (Real.mul C delta) margin
+    (R.leReplaceLeft _ _ _ (Absolute.absOfNonnegative (p.value (difference g f)) (p.nonnegative (difference g f)))
+      (estimate (difference g f) (Differences.differenceSupport g f K compact gSupported supported) b
+        (Differences.differenceBound g f m b (\fun (d: Directions)(order: _)(x: Point) =>
+          R.leReplaceLeft _ _ _ (Distance.distanceSymmetric (Tests.jet d f x) (Tests.jet d g x)) (near d order x))))) small;
+\definition neighborhood: Final.Neighborhood[K, Ball p center radius, f, m, delta] := Final.Neighborhood[K, Ball p center radius, f, m, delta] {
+  positive := deltaPositive,
+  within := \fun (g: Test)(gSupported: _)(near: _) => R.leLtTrans _ _ radius
+    (R.leReplaceLeft _ _ _ (sym!{Real.Real} _ _ (congr!{Test Real.Real} p.value _ _ (bridge g f center)))
+      (p.triangle (difference g f) (difference f center)))
+    (R.ltReplaceRight _ (Real.add margin (p.value (difference f center))) radius
+      (trans!{Real.Real} _ _ _ (Laws.addComm margin (p.value (difference f center))) (Estimates.addSubCancel radius (p.value (difference f center))))
+      (Laws.ltAddRight _ _ (p.value (difference f center)) (differenceSmall g gSupported near))),
+};
