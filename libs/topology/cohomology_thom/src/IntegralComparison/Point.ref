@@ -1,0 +1,33 @@
+\import std.Data[].Nat[] \as N;
+\import std.Arithmetic[].Int[] \as I;
+\import std.Arithmetic[].IntAlgebra[].Ring[] \as Integers;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.congr;
+\import module_theory.Module[].Over[R := I.Int^, ring := Integers.ring] \as Modules;
+\import thom_spaces.Thom[].CWType[].Point[] \as GeometryPoint;
+\import thom_spaces.Thom[].DiskSuspension[X := GeometryPoint.Carrier, space := GeometryPoint.topology, n := n] \as Disk;
+\import singular_products.Cochains[A := GeometryPoint.Carrier, source := GeometryPoint.topology, R := I.Int^, ring := Integers.commutativeRing] \as Product;
+\import \root.LocalDisk[].Point[K := I.Int^, ring := Integers.commutativeRing].Rank[n := n] \as Original;
+\import singular_cohomology.Relative[A := Disk.DiskCarrier, source := Disk.diskTopology, subset := Disk.boundary].With[coefficients := Product.integerCoefficients].At[z := I.Int^::ofNat n] \as H;
+\definition Class: \Set := H.Carrier;
+\definition space: Modules.Space Class := H.space;
+\definition scalars: Modules.Bundle := Modules.Bundle { Carrier := I.Int^, space := Modules.scalarModule };
+\definition cohomology: Modules.Bundle := Modules.Bundle { Carrier := Class, space := space };
+\import \root.RelativeMayerVietoris[].IntegerLinear[] \as IntegerLinear;
+\import IntegerLinear.On[A := scalars, B := cohomology,
+  f := (\fun (a: I.Int^) => Original.isomorphism.forward.apply a),
+  addition := (\fun (a, b: I.Int^) => Original.isomorphism.forward.addition a b)] \as Forward;
+\import IntegerLinear.On[A := cohomology, B := scalars,
+  f := (\fun (u: Class) => Original.isomorphism.backward.apply u),
+  addition := (\fun (u, v: Class) => Original.isomorphism.backward.addition u v)] \as Backward;
+\definition isomorphism: Modules.Isomorphism[V := I.Int^, W := Class, source := Modules.scalarModule, target := space].Isomorphism :=
+  Modules.Isomorphism[V := I.Int^, W := Class, source := Modules.scalarModule, target := space].Isomorphism {
+    forward := Forward.map,
+    backward := Backward.map,
+    leftInverse := Original.isomorphism.leftInverse,
+    rightInverse := Original.isomorphism.rightInverse
+  };
+\definition generator: Class := Original.generator;
+\definition normalized: isomorphism.forward.apply Integers.ring.one = generator := Original.normalized;
+\definition forwardLaw: \forall (a: I.Int^) -> isomorphism.forward.apply a = Original.isomorphism.forward.apply a := \fun (a: I.Int^) => \refl(Original.isomorphism.forward.apply a);
+\definition backwardLaw: \forall (u: Class) -> isomorphism.backward.apply u = Original.isomorphism.backward.apply u := \fun (u: Class) => \refl(Original.isomorphism.backward.apply u);
