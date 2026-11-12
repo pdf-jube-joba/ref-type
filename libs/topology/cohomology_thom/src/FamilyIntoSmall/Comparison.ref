@@ -1,0 +1,24 @@
+\use std.Logic[].Equality[].eq_reason_in;
+\import \root.FamilyPair[A := A, source := target, family := family] \as FinalPair;
+\definition preserves: \forall (n: N.Nat^)(sigma: SourceSimplices.Carrier n) ->
+  \In[singular_cohomology.Simplices[A := A, source := target].Carrier n] (Boundary.Simplices[].Small n) (Maps.postcompose n f regular sigma) :=
+  \fun (n: N.Nat^)(sigma: SourceSimplices.Carrier n) => Pullback.At[n := n].small regular sigma;
+\import \root.FamilyPairMap[A := B, B := A, source := source, target := target, sourceFamily := Pullback.pullbackFamily, targetFamily := family, f := f, regular := regular, preserves := preserves] \as ActualMap;
+\import singular_cohomology.Chains[A := A, source := target] \as FinalWhole;
+\import Nonnegative.ZeroExtension[C := FinalWhole.complex] \as FinalSpace;
+\import Nonnegative.Map[C := Ambient.complex, D := FinalWhole.complex].ZeroExtension[f := Ambient.inclusion] \as WholeInclusion;
+\import Chains.Quotient[C := SourceBoundaryExtension.complex, D := SourceSpace.complex].On[f := SourceInclusion.map] \as SourceQ;
+\definition included: \forall (z: I.Int^)(x: SourceSpace.Carrier z) -> WholeInclusion.map.apply z (WholeExtension.map.apply z x) = (Maps.integerPush f regular).apply z x :=
+  \induction (z: I.Int^) \return \forall (x: SourceSpace.Carrier z) -> WholeInclusion.map.apply z (WholeExtension.map.apply z x) = (Maps.integerPush f regular).apply z x \with {
+    | ofNat: \fun (n: N.Nat^)(x: SourceSpace.Carrier (I.Int^::ofNat n)) => congr!{{FinalWhole.Carrier n} {FinalSpace.Carrier (I.Int^::ofNat n)}} FinalSpace.Positive[n := n].intro _ _ (WholeInto.Comparison[].At[n := n].law x)
+    | negSucc: \fun (n: N.Nat^)(x: SourceSpace.Carrier (I.Int^::negSucc n)) => \refl((FinalSpace.space (I.Int^::negSucc n)).zero)
+  };
+\definition onClass: \forall (z: I.Int^)(x: SourceSpace.Carrier z) -> TargetPair.comparison.apply z (map.apply z (SourcePair.class z x)) = ActualMap.map.apply z (SourcePair.class z x) :=
+  \fun (z: I.Int^)(x: SourceSpace.Carrier z) => eq_reason_in!{{FinalPair.Carrier z} _
+    "=" _ "by" { congr!{{TargetPair.Carrier z} {FinalPair.Carrier z}} (TargetPair.comparison.apply z) _ _ (\parent.At[z := z].onClass x) }
+    "=" _ "by" { TargetPair.At[z := z].onClass (WholeExtension.map.apply z x) }
+    "=" _ "by" { congr!{{FinalSpace.Carrier z} {FinalPair.Carrier z}} (FinalPair.class z) _ _ (included z x) }
+    "=" _ "by" { sym!{{FinalPair.Carrier z}} _ _ (ActualMap.At[z := z].onClass x) }
+  };
+\definition law: \forall (z: I.Int^)(q: SourcePair.Carrier z) -> TargetPair.comparison.apply z (map.apply z q) = ActualMap.map.apply z q :=
+  \fun (z: I.Int^) => SourceQ.At[k := z].induction (\fun (q: SourcePair.Carrier z) => TargetPair.comparison.apply z (map.apply z q) = ActualMap.map.apply z q) (onClass z);
