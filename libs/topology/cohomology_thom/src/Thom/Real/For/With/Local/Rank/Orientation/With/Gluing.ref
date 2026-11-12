@@ -1,0 +1,62 @@
+\use Logic.either;
+\definition Good[Y: \Pow (\Pow X)]: \Prop := \forall (U: \Pow X) -> Base.FamilyMember Y U -> \exists Patch[U, orientation.fiber];
+\definition openUnion[Y: \Pow (\Pow X)][good: Good Y]: Base.IsOpenIn bundle.baseSpace (Base.Union Y) :=
+  (Base.topologyLaws bundle.baseSpace).unionOpen Y (\block {
+    \fun (U: \Pow X)(member: Base.FamilyMember Y U) \then
+    \takefrom patch: Patch[U, orientation.fiber] \by good U member \then
+    \return patchOpen U orientation.fiber patch
+  });
+\definition Property[Y: \Pow (\Pow X)]: \Prop := Good Y -> \exists Ranked.On[U := Base.Union Y].Given[g := orientation.fiber].Data;
+\definition emptyUnion: Base.Union Finite.Empty = Base.Empty := \axiom:setext(Base.Union Finite.Empty, Base.Empty,
+  (\fun (x: X)(member: Base.Member (Base.Union Finite.Empty) x) => Base.unionMemberElim Finite.Empty x Logic.False
+    (\fun (U: \Pow X)(member: Base.FamilyMember Finite.Empty U)(inside: Base.Member U x) => member) member),
+  (\fun (x: X)(member: Base.Member Base.Empty x) => Logic.falseElim _ member));
+\definition base: Property Finite.Empty := \fun (good: Good Finite.Empty) =>
+  \idelim Base.Empty = Base.Union Finite.Empty \with U: \Pow X => \exists Ranked.On[U := U].Given[g := orientation.fiber].Data \by {
+    base: \exact(Ranked.Empty[].data orientation.fiber, Ranked.On[U := Base.Empty].Given[g := orientation.fiber].Data),
+    equality: sym!{{\Pow X}} _ _ emptyUnion
+  };
+\definition inserted[U: \Pow X][Y: \Pow (\Pow X)]: Base.Union (Finite.Insert U Y) = Base.Finite[].Join U (Base.Union Y) :=
+  \axiom:setext(Base.Union (Finite.Insert U Y), Base.Finite[].Join U (Base.Union Y),
+    (\fun (x: X)(member: Base.Member (Base.Union (Finite.Insert U Y)) x) => Base.unionMemberElim (Finite.Insert U Y) x (Base.Member (Base.Finite[].Join U (Base.Union Y)) x)
+      (\fun (W: \Pow X)(member: Base.FamilyMember (Finite.Insert U Y) W)(inside: Base.Member W x) => either!{member {Base.Member (Base.Finite[].Join U (Base.Union Y)) x}
+        {\fun (same: W = U) => Logic.Or[_, _]::left (\idelim W = U \with V: \Pow X => Base.Member V x \by { base: inside, equality: same })}
+        {\fun (old: Base.FamilyMember Y W) => Logic.Or[_, _]::right (Base.unionMemberOf Y W x old inside)}
+      }) member),
+    (\fun (x: X)(member: Base.Member (Base.Finite[].Join U (Base.Union Y)) x) => either!{member {Base.Member (Base.Union (Finite.Insert U Y)) x}
+      {\fun (inside: Base.Member U x) => Base.unionMemberOf (Finite.Insert U Y) U x (Finite.inInsertNew U Y) inside}
+      {\fun (inside: Base.Member (Base.Union Y) x) => Base.unionMemberElim Y x (Base.Member (Base.Union (Finite.Insert U Y)) x)
+        (\fun (W: \Pow X)(old: Base.FamilyMember Y W)(member: Base.Member W x) => Base.unionMemberOf (Finite.Insert U Y) W x (Finite.inInsertOld U Y W old) member) inside}
+    }));
+\definition step: \forall (Y: \Pow (\Pow X)) -> Property Y -> \forall (U: \Pow X) -> Property (Finite.Insert U Y) := \block {
+  \fun (Y: \Pow (\Pow X))(previous: Property Y)(U: \Pow X)(good: Good (Finite.Insert U Y)) \then
+  \takefrom patch: Patch[U, orientation.fiber] \by good U (Finite.inInsertNew U Y) \then
+  \let oldGood: Good Y := \fun (W: \Pow X)(member: Base.FamilyMember Y W) => good W (Finite.inInsertOld U Y W member) \then
+  \takefrom old: Ranked.On[U := Base.Union Y].Given[g := orientation.fiber].Data \by previous oldGood \then
+  \let new: Ranked.On[U := U].Given[g := orientation.fiber].Data := patchData U orientation.fiber patch \then
+  \let meet: \Pow X := Base.Intersection U (Base.Union Y) \then
+  \let meetOpen: Base.IsOpenIn bundle.baseSpace meet := (Base.topologyLaws bundle.baseSpace).intersectionOpen U (Base.Union Y) (patchOpen U orientation.fiber patch) (openUnion Y oldGood) \then
+  \let meetIncluded: Base.Subset meet U := \fun (x: X)(member: Base.Member meet x) => member.left \then
+  \let overlap: Ranked.On[U := meet].Given[g := orientation.fiber].Data := refine U orientation.fiber patch meet meetOpen meetIncluded \then
+  \let result: Ranked.On[U := Base.Finite[].Join U (Base.Union Y)].Given[g := orientation.fiber].Data :=
+    Ranked.Union[U := U, V := Base.Union Y, openU := patchOpen U orientation.fiber patch, openV := openUnion Y oldGood].With[g := orientation.fiber, left := new, right := old, overlap := overlap].Result[].data \then
+  \return \idelim Base.Finite[].Join U (Base.Union Y) = Base.Union (Finite.Insert U Y) \with V: \Pow X => \exists Ranked.On[U := V].Given[g := orientation.fiber].Data \by {
+    base: \exact(result, Ranked.On[U := Base.Finite[].Join U (Base.Union Y)].Given[g := orientation.fiber].Data),
+    equality: sym!{{\Pow X}} _ _ (inserted U Y)
+  }
+};
+\definition onFinite: \forall (domains: Finite.FiniteSubset) -> Good (Finite.underlying domains) -> \exists Ranked.On[U := Base.Union (Finite.underlying domains)].Given[g := orientation.fiber].Data :=
+  Finite.induction ({ Y: \Pow (\Pow X) \where Property Y }) base step;
+\definition existsCompact: Base.IsCompact bundle.baseSpace -> \exists Ranked.On[U := Base.Whole].Given[g := orientation.fiber].Data := \block {
+  \fun (compact: Base.IsCompact bundle.baseSpace) \then
+  \takefrom domains: \Cast[Finite.FiniteSubset] ({ domains: Finite.FiniteSubset \where Base.FiniteSubcover[family, Base.Whole, domains] }) \by compact family cover \then
+  \let selected: Base.FiniteSubcover[family, Base.Whole, domains] := \bysub(Finite.FiniteSubset, { domains: Finite.FiniteSubset \where Base.FiniteSubcover[family, Base.Whole, domains] }, domains) \then
+  \takefrom result: Ranked.On[U := Base.Union (Finite.underlying domains)].Given[g := orientation.fiber].Data \by onFinite domains selected.included \then
+  \let same: Base.Union (Finite.underlying domains) = Base.Whole := \axiom:setext(Base.Union (Finite.underlying domains), Base.Whole,
+    (\fun (x: X)(member: Base.Member (Base.Union (Finite.underlying domains)) x) => \refl(x)), selected.covers) \then
+  \return \idelim Base.Union (Finite.underlying domains) = Base.Whole \with U: \Pow X => \exists Ranked.On[U := U].Given[g := orientation.fiber].Data \by {
+    base: \exact(result, Ranked.On[U := Base.Union (Finite.underlying domains)].Given[g := orientation.fiber].Data), equality: same
+  }
+};
+\definition existsFiniteCW[complex: algebraic_topology.CW[A := X].FiniteComplex[bundle.baseSpace]]: \exists Ranked.On[U := Base.Whole].Given[g := orientation.fiber].Data :=
+  existsCompact thom_spaces.Thom[].CWType[].CompactType[A := X, source := bundle.baseSpace].Native[complex := complex].compact;

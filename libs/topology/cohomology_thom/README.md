@@ -123,3 +123,20 @@ H^p(X;R)\longrightarrow H^{p+n}(X\times D^n,X\times\partial D^n;R),\qquad
 `Open.Ring.Fibers.detected` は実ファイバーへの制限が局所類を共同で検出することを示す。
 
 `Thom.Real.For.With.Atlas.existsFiniteCW` は、実際の有限 CW 構造のコンパクト性から有限個の束チャートの定義域による被覆を得る。
+
+`Thom.Real.For.With.Local[K, ring].Rank[n].Orientation.SignedOrientation` は実ファイバーの相対類と、その類が局所チャートの正規化された生成元またはその負に一致することからなる向きのデータである。
+チャートの次元は \(n\) と一致し、符号付き局所類は実際の円板対の構成から得る。
+小さい開集合への制限でファイバー値が保存されることを証明し、有限 CW 構造のコンパクト性から、このデータと整合する有限被覆を取る。
+空集合からの有限帰納法で、類・ファイバーによる検出・ランク未満の消滅・cup 同型を同時に貼り合わせる。
+
+`Thom.Real.For.With.Oriented[K, ring, n, orientation, complex]` は有限 CW 底空間上の大域的な公開入口である。
+
+| API | 内容 |
+| --- | --- |
+| `class` | \(H^n(D(E),S(E);K)\) の大域 Thom 類。 |
+| `normalized` | 元の円板束の各実ファイバーへの制限が指定された類と一致する。 |
+| `uniqueNormalized` | 同じファイバー値を持つ相対類の一意性。 |
+| `Degree[p].isomorphism` | \(H^p(X;K)\cong H^{p+n}(D(E),S(E);K)\)。順写像は実際の \(a\mapsto\pi^*a\smile u\)。 |
+| `euler` | 零切断への Thom 類の引き戻し。 |
+| `Degree[p].zeroSection` | Thom 同型の像を零切断へ引き戻すと Euler 類との積になる。 |
+| `Below[k].zero` | \(\operatorname{shift}(n,-k-1)\) 次の相対群の消滅。 |

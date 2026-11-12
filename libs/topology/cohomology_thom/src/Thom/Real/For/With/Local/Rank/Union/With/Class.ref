@@ -1,0 +1,40 @@
+\import \parent.Match[] \as Matching;
+\use std.Logic[].Equality[].eq_reason_in;
+\import IntegerModules.Biproduct[V := NativeLeft.At[z := I.Int^::ofNat n].Carrier, W := NativeRight.At[z := I.Int^::ofNat n].Carrier,
+  left := NativeLeft.At[z := I.Int^::ofNat n].space, right := NativeRight.At[z := I.Int^::ofNat n].space] \as Pair;
+\import std.Data[].Pair[].Prop[A := NativeLeft.At[z := I.Int^::ofNat n].Carrier, B := NativeRight.At[z := I.Int^::ofNat n].Carrier] \as Pairs;
+\import IntegerModules.Laws[V := Top.intersection.Carrier, space := Top.intersection.space] \as OverlapLaws;
+\import algebra.Group[].Of[Carrier := Top.intersection.Carrier, group := OverlapLaws.additive] \as OverlapGroup;
+\import Sequence.Pasting[z := I.Int^::ofNat n] \as Paste;
+\definition compatible: TopMaps.difference.apply (Pair.make leftClass rightClass) = Top.intersection.space.zero :=
+  eq_reason_in!{Top.intersection.Carrier _
+    "=" _ "by" { TopDifference.law leftClass rightClass }
+    "=" _ "by" { congr!{Top.intersection.Carrier Top.intersection.Carrier} (\fun (u: Top.intersection.Carrier) => OverlapGroup.add u (OverlapGroup.neg (Comparison.Degree[z := I.Int^::ofNat n].nativeOverlapRight.apply rightClass))) _ _ Matching.agreement }
+    "=" _ "by" { OverlapGroup.inverseRight (Comparison.Degree[z := I.Int^::ofNat n].nativeOverlapRight.apply rightClass) }
+  };
+\definition local: Paste.Local := \into[Top.directSum.Carrier](Pair.make leftClass rightClass, Paste.Compatible) \by { compatible };
+\definition class: Whole.Class := Paste.glue overlapPrevious local;
+\definition restrictions: Pair.make (Comparison.Degree[z := I.Int^::ofNat n].nativeLeft.apply class) (Comparison.Degree[z := I.Int^::ofNat n].nativeRight.apply class) = Pair.make leftClass rightClass :=
+  trans!{Pair.Carrier} _ _ _ (sym!{Pair.Carrier} _ _ (TopRestrictions.law class)) (Paste.restriction overlapPrevious local);
+\definition nativeLeftRestriction: Comparison.Degree[z := I.Int^::ofNat n].nativeLeft.apply class = leftClass := congr!{Pair.Carrier {NativeLeft.At[z := I.Int^::ofNat n].Carrier}} Pair.first _ _ restrictions;
+\definition nativeRightRestriction: Comparison.Degree[z := I.Int^::ofNat n].nativeRight.apply class = rightClass := congr!{Pair.Carrier {NativeRight.At[z := I.Int^::ofNat n].Carrier}} Pair.second _ _ restrictions;
+\definition leftRestriction: RestrictLeft.Ring[K := K, ring := ring].Degree[n := n].restriction.apply class = left.model.thomClass :=
+  trans!{Left.Class} _ _ _ (Comparison.Degree[z := I.Int^::ofNat n].leftLaw class)
+    (trans!{Left.Class} _ _ _ (congr!{{NativeLeft.At[z := I.Int^::ofNat n].Carrier} Left.Class} Comparison.Degree[z := I.Int^::ofNat n].leftComparison.forward.apply _ _ nativeLeftRestriction) leftFlat);
+\definition rightRestriction: RestrictRight.Ring[K := K, ring := ring].Degree[n := n].restriction.apply class = right.model.thomClass :=
+  trans!{Right.Class} _ _ _ (Comparison.Degree[z := I.Int^::ofNat n].rightLaw class)
+    (trans!{Right.Class} _ _ _ (congr!{{NativeRight.At[z := I.Int^::ofNat n].Carrier} Right.Class} Comparison.Degree[z := I.Int^::ofNat n].rightComparison.forward.apply _ _ nativeRightRestriction) rightFlat);
+\use Logic.either;
+\definition normalizedLeft: \forall (x: LeftDomain.BasePoint) -> (Whole.restriction RestrictLeft.Fiber[x := x].originalPoint).apply class = g x :=
+  \fun (x: LeftDomain.BasePoint) => trans!{{FiberClass x}} _ _ _
+    (sym!{{FiberClass x}} _ _ (RestrictLeft.Fiber[x := x].Ring[K := K, ring := ring].Degree[n := n].law class))
+    (trans!{{FiberClass x}} _ _ _ (congr!{Left.Class {FiberClass x}} (Left.restriction x).apply _ _ leftRestriction) (left.normalized x));
+\definition normalizedRight: \forall (x: RightDomain.BasePoint) -> (Whole.restriction RestrictRight.Fiber[x := x].originalPoint).apply class = g x :=
+  \fun (x: RightDomain.BasePoint) => trans!{{FiberClass x}} _ _ _
+    (sym!{{FiberClass x}} _ _ (RestrictRight.Fiber[x := x].Ring[K := K, ring := ring].Degree[n := n].law class))
+    (trans!{{FiberClass x}} _ _ _ (congr!{Right.Class {FiberClass x}} (Right.restriction x).apply _ _ rightRestriction) (right.normalized x));
+\definition normalized: Whole.Given[g := g].Normalized class :=
+  \fun (x: WholeDomain.BasePoint) => either!{{(\bysub(X, join, x))} {(Whole.restriction x).apply class = g x}
+    {\fun (inside: Base.Member U x) => normalizedLeft (\into[X](x, U) \by { inside })}
+    {\fun (inside: Base.Member V x) => normalizedRight (\into[X](x, V) \by { inside })}
+  };
