@@ -1,0 +1,50 @@
+\import Raw.Sphere[] \as Sphere;
+\definition d: I.Int^ := \root.LocalDisk[].shift n z;
+\definition next: I.Int^ := chain_complexes.Integer[].next z;
+\definition nextD: I.Int^ := chain_complexes.Integer[].next d;
+\definition degreeSame: nextD = \root.LocalDisk[].shift n next := sym!{I.Int^} _ _ (\root.LocalDisk[].shiftNext n z);
+\import PairSequence.LongExact[z := d] \as Exact;
+\import PairSequence.LongExact[z := nextD] \as Higher;
+\definition inclusion: IntegerModules.MapBetween (relative d) (disk d) := Geometry.Additive[coefficients := BaseProduct.integerCoefficients].Degree[z := d].forget;
+\definition restriction: IntegerModules.MapBetween (disk d) (boundary d) := Geometry.Additive[coefficients := BaseProduct.integerCoefficients].Degree[z := d].sphereRestriction;
+\definition higherInclusion: IntegerModules.MapBetween (relative nextD) (disk nextD) := Geometry.Additive[coefficients := BaseProduct.integerCoefficients].Degree[z := nextD].forget;
+\import IntegerModules.ExactPair[A := relative d, B := disk d, C := boundary d] \as First;
+\definition first: First.Sequence := First.Sequence {
+  first := inclusion, last := restriction, zero := Exact.inclusionProjectionZero, kernelImage := Exact.exactAtSpace
+};
+\import IntegerModules.ExactPair[A := disk d, B := boundary d, C := relative nextD] \as Middle;
+\definition middle: Middle.Sequence := Middle.Sequence {
+  first := restriction, last := Exact.connecting, zero := Exact.projectionConnectingZero, kernelImage := Exact.exactAtSubspace
+};
+\import IntegerModules.ExactPair[A := boundary d, B := relative nextD, C := disk nextD] \as Last;
+\definition last: Last.Sequence := Last.Sequence {
+  first := Exact.connecting, last := higherInclusion, zero := Exact.connectingInclusionZero, kernelImage := Exact.exactAtRelative
+};
+\definition thom: IntegerModules.Isomorphism[V := (relative d).Carrier, W := (base z).Carrier, source := (relative d).space, target := (base z).space].Isomorphism :=
+  IntegerModules.Isomorphism[V := (base z).Carrier, W := (relative d).Carrier, source := (base z).space, target := (relative d).space].Inverse[].inverse (Thom.isomorphism z);
+\definition higherThom: IntegerModules.Isomorphism[V := (relative nextD).Carrier, W := (base next).Carrier, source := (relative nextD).space, target := (base next).space].Isomorphism :=
+  IntegerModules.Isomorphism[V := (relative nextD).Carrier, W := (relative (\root.LocalDisk[].shift n next)).Carrier, source := (relative nextD).space, target := (relative (\root.LocalDisk[].shift n next)).space].Composition[U := (base next).Carrier, final := (base next).space].compose
+    (IntegerModules.Isomorphism[V := (base next).Carrier, W := (relative (\root.LocalDisk[].shift n next)).Carrier, source := (base next).space, target := (relative (\root.LocalDisk[].shift n next)).space].Inverse[].inverse (Thom.isomorphism next))
+    RelativeTransport.At[m := nextD, n := \root.LocalDisk[].shift n next, same := degreeSame].isomorphism;
+\definition diskComparison: _ := Geometry.Additive[coefficients := BaseProduct.integerCoefficients].Degree[z := d].diskComparison;
+\definition higherDiskComparison: _ := Geometry.Additive[coefficients := BaseProduct.integerCoefficients].Degree[z := nextD].diskComparison;
+\import First.Reindex[A1 := base z, B1 := base d, C1 := Sphere.group d, sequence := first, a := thom, b := diskComparison, c := Sphere.isomorphism d] \as ReindexedFirst;
+\import Middle.Reindex[A1 := base d, B1 := Sphere.group d, C1 := base next, sequence := middle, a := diskComparison, b := Sphere.isomorphism d, c := higherThom] \as ReindexedMiddle;
+\import Last.Reindex[A1 := Sphere.group d, B1 := base next, C1 := base nextD, sequence := last, a := Sphere.isomorphism d, b := higherThom, c := higherDiskComparison] \as ReindexedLast;
+\definition cupEuler: _ := ReindexedFirst.first;
+\definition pullback: _ := ReindexedFirst.last;
+\definition integration: _ := ReindexedMiddle.last;
+\definition higherCupEuler: _ := ReindexedLast.last;
+\import IntegerModules.ExactFive[A := base z, B := base d, C := Sphere.group d, D := base next, E := base nextD] \as Row;
+\definition sequence: Row.Sequence := Row.Sequence {
+  first := cupEuler, second := pullback, third := integration, last := higherCupEuler,
+  zeroB := ReindexedFirst.transported.zero, zeroC := ReindexedMiddle.transported.zero, zeroD := ReindexedLast.transported.zero,
+  kernelB := ReindexedFirst.transported.kernelImage, kernelC := ReindexedMiddle.transported.kernelImage, kernelD := ReindexedLast.transported.kernelImage
+};
+\import std.Logic[].Equality[].Transport[A := I.Int^] \as Casting;
+\definition higherLaw: \forall (a: (base next).Carrier) -> higherCupEuler.apply a = Casting.cast Base.cohomology (\root.LocalDisk[].shift n next) nextD (\root.LocalDisk[].shiftNext n z)
+    ((zeroSectionAt (\root.LocalDisk[].shift n next)).apply ((Thom.isomorphism next).forward.apply a)) :=
+  \fun (a: (base next).Carrier) => sym!{{(base nextD).Carrier}} _ _
+    (Casting.natural (\fun (k: I.Int^) => (relative k).Carrier) Base.cohomology (\fun (k: I.Int^) => (zeroSectionAt k).apply)
+      (\root.LocalDisk[].shift n next) nextD (\root.LocalDisk[].shiftNext n z) ((Thom.isomorphism next).forward.apply a));
+\module Pullback;

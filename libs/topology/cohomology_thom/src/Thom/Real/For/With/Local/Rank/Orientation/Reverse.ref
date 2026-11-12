@@ -1,0 +1,18 @@
+\import \root.Thom[].Real[].For[X := X, F := F, bundle := bundle].With[metric := metric].Local[K := K, ring := ring].Rank[n := n] \as Rank;
+\definition fiber: Rank.Fibers := \fun (x: X) => Rank.Fiber[x := x].space.neg (orientation.fiber x);
+\definition reversed: SignedOrientation := SignedOrientation {
+  fiber := fiber,
+  locally := \block {
+    \fun (x: X) \then
+    \takefrom local: LocalOrientation[x, orientation.fiber] \by orientation.locally x \then
+    \return \exact(LocalOrientation[x, fiber] {
+      chart := local.chart, contains := local.contains, rank := local.rank,
+      reverse := Local.Chart[c := local.chart].Rank[n := n, same := local.rank].flip local.reverse,
+      normalized := \fun (y: \Cast[X] local.chart.domain) => trans!{{Rank.FiberClass y}} _ _ _
+        (congr!{{Rank.On[U := local.chart.domain].Class} {Rank.FiberClass y}} (Rank.On[U := local.chart.domain].restriction y).apply _ _ (Local.Chart[c := local.chart].Rank[n := n, same := local.rank].reverseClass local.reverse))
+        (trans!{{Rank.FiberClass y}} _ _ _
+          (Rank.On[U := local.chart.domain].negativeLaw y (Local.Chart[c := local.chart].Rank[n := n, same := local.rank].signed local.reverse).thomClass)
+          (congr!{{Rank.FiberClass y} {Rank.FiberClass y}} Rank.Fiber[x := y].space.neg _ _ (local.normalized y)))
+    }, LocalOrientation[x, fiber])
+  }
+};
