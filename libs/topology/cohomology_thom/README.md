@@ -167,3 +167,23 @@ H^p(X;R)\longrightarrow H^{p+n}(X\times D^n,X\times\partial D^n;R),\qquad
 `Coefficients[R, ring].SphereSequence.Sphere.homeomorphism` は実際の球面束と円板束の境界部分空間を同定し、`isomorphism z` は境界部分の整数次数コホモロジーから球面束のコホモロジーへの同型である。
 `SphereSequence.zeroSectionAt z` は相対条件を忘れて零切断で引き戻す整数線形写像で、`Natural[t].law` が非負次数で通常の零切断写像との一致を示す。
 `SphereSequence.Functor.At[z].law` は整数次数の引き戻しが合成を保つことを示す。
+
+`Oriented.Reverse.reversed` は各ファイバー生成元と局所チャートの符号を反転した実際の向きを構成する。
+`classLaw` と `eulerLaw` は Thom 類と Euler 類の符号反転を、`Degree[p].law` と `inverseLaw` は Thom 同型の両方向の符号反転を与える。
+`ModTwo.Compare[given].classLaw` は任意の符号付き mod 2 向きから得られる類と標準 mod 2 類の一致を示す。
+`Integral.ModTwo.classLaw` と `eulerLaw` は整数類の標準係数変更が標準 mod 2 類と一致することを示す。
+
+`Oriented.Gysin.Degree[z].sequence` は実際の球面束について、整数次数の五項完全列
+\[
+H^z(X;R)\xrightarrow{\smile e}H^{z+n}(X;R)
+\xrightarrow{\pi^*}H^{z+n}(S(E);R)
+\xrightarrow{\pi_!}H^{z+1}(X;R)
+\xrightarrow{\smile e}H^{z+n+1}(X;R)
+\]
+を公開する。
+列の群と写像は整数加群として表し、次数 \(z+n\) は `LocalDisk.shift n z` で実装する。
+`cupEuler`、`pullback`、`integration`、`higherCupEuler` が四つの写像である。
+`Positive[p].law` は非負の底次数で最初の写像を Euler 類との cup 積と同定し、`Negative[k].law` は負の底次数を扱う。
+`Degree[z].higherLaw` は最後の Euler 項の次数の移し替えを与える。
+`Degree[z].Pullback.law` は二番目の写像が球面束の実際の射影による引き戻しであることを示す。
+`Integral.Gysin` と `ModTwo.Gysin` はそれぞれ整数係数と標準 mod 2 類に対する入口である。
