@@ -45,3 +45,8 @@ This confirms compatible checkpoint reuse, but does not identify when that check
 The earlier partial whole-repository coverage, including the last observation of 10,891/14,486 before disconnection, is not aggregate acceptance.
 The missing fixed-source verification is rerun through the normal driver, which validates cache inputs and checks misses.
 No additional checker run was launched to answer the cache-reuse question.
+
+The subsequent 15 GiB aggregate retry used the same binary and full source snapshot as the deliberately interrupted 12 GiB attempt.
+It reached 13,364 verified targets with zero newly checked targets and 13,364 reused targets, as preserved in [the cached-prefix report](https://github.com/pdf-jube-joba/ref-type/blob/b8587644c/benchmarks/records/d01-connections/recovery-20261112/full-15g-progress/summary.json).
+It then completed all 14,486 targets with 280 newly checked and 14,206 reused targets.
+These observations establish reuse across a bounded-memory retry within the surviving runtime; they do not establish which artifacts survived the earlier environment reset.
