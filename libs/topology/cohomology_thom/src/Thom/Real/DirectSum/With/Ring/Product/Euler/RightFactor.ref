@@ -1,0 +1,26 @@
+\import singular_cap.CochainPair[A := Carrier, source := topology, subset := secondShell, R := K, ring := ring].Comparison[n := m].Cohomology[] \as LocalForget;
+\import singular_cap.CochainPair[A := RightDisk.DiskBundle, source := RightDisk.diskTopology, subset := RightDisk.Boundary, R := K, ring := ring].Comparison[n := m].Cohomology[] \as Forget;
+\import singular_products.Cochains[A := RightDisk.DiskBundle, source := RightDisk.diskTopology, R := K, ring := ring] \as Total;
+\import BaseGroups.Pullback[B := RightDisk.DiskBundle, target := RightDisk.diskTopology] \as Pull;
+\import topology.Continuity[A := X, B := RightDisk.DiskBundle] \as Regular;
+\definition Arrows: \Set := \Cast[X -> RightDisk.DiskBundle] ({ f: X -> RightDisk.DiskBundle \where Regular.Continuous bundle.baseSpace RightDisk.diskTopology f });
+\definition current: Arrows := \into[X -> RightDisk.DiskBundle]((\fun (x: X) => rightMap (Zero.section x)), { f: X -> RightDisk.DiskBundle \where Regular.Continuous bundle.baseSpace RightDisk.diskTopology f }) \by {
+  topology.Composition[A := X, B := Carrier, C := RightDisk.DiskBundle].composeContinuous bundle.baseSpace topology RightDisk.diskTopology Zero.section rightMap Zero.continuous (RightMaps.laws rightMap).continuous
+};
+\definition zero: Arrows := \into[X -> RightDisk.DiskBundle](RightDisk.zeroSection, { f: X -> RightDisk.DiskBundle \where Regular.Continuous bundle.baseSpace RightDisk.diskTopology f }) \by {
+  topology.Composition[A := X, B := X, C := RightDisk.DiskBundle].composeContinuous bundle.baseSpace right.baseSpace RightDisk.diskTopology (\fun (x: X) => x) RightDisk.zeroSection Zero.identity RightDisk.zeroSectionContinuous
+};
+\definition sameArrow: current = zero := \axiom:funext(current, zero, Zero.clippedSecond);
+\definition pull[f: Arrows][u: Total.Cohomology[].Group m]: BaseGroups.Group m := Pull.apply m f
+  (\bysub(X -> RightDisk.DiskBundle, { f: X -> RightDisk.DiskBundle \where Regular.Continuous bundle.baseSpace RightDisk.diskTopology f }, f)) u;
+\import singular_cohomology.Maps[A := X, B := Carrier, source := bundle.baseSpace, target := topology].Composition[C := RightDisk.DiskBundle, final := RightDisk.diskTopology].Coefficients[M := Base.integerCoefficients] \as Composition;
+\import singular_cohomology.Maps[A := X, B := X, source := bundle.baseSpace, target := right.baseSpace].Composition[C := RightDisk.DiskBundle, final := RightDisk.diskTopology].Coefficients[M := Base.integerCoefficients] \as BaseComposition;
+\definition law: \forall (u: Right.Degree[n := m].Class) ->
+  Section.apply m Zero.section Zero.continuous (LocalForget.map.apply (RightPull.Degree[n := m].map.apply u)) = RightBasePull.apply m (\fun (x: X) => x) Zero.identity (Right.Degree[n := m].euler u) :=
+  \fun (u: Right.Degree[n := m].Class) => trans!{{BaseGroups.Group m}} _ _ _
+    (congr!{{BoxCochains.Cohomology[].Group m} {BaseGroups.Group m}} (Section.apply m Zero.section Zero.continuous) _ _ (RightPull.Degree[n := m].Forget[].law u))
+    (trans!{{BaseGroups.Group m}} _ _ _
+      (sym!{{BaseGroups.Group m}} _ _ (Composition.onCohomology Zero.section Zero.continuous rightMap (RightMaps.laws rightMap).continuous m (Forget.map.apply u)))
+      (trans!{{BaseGroups.Group m}} _ _ _
+        (congr!{Arrows {BaseGroups.Group m}} (\fun (f: Arrows) => pull f (Forget.map.apply u)) _ _ sameArrow)
+        (BaseComposition.onCohomology (\fun (x: X) => x) Zero.identity RightDisk.zeroSection RightDisk.zeroSectionContinuous m (Forget.map.apply u))));

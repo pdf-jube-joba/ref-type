@@ -1,0 +1,39 @@
+\use std.Logic[].Proposition[].either;
+\use std.Logic[].Equality[].eq_reason_in;
+\import \parent.\parent.Ring[K := K, ring := ring] \as Global;
+\import \root.MixedCup[A := BoxCarrier, source := boxTopology, first := firstShell, second := secondShell, K := K, ring := ring] \as Mixed;
+\import Mixed.Union[] \as Union;
+\import Union.Cover[] \as Cover;
+\import topology.Topology[Carrier := BoxCarrier].Subspace[S := Union.subset] \as UnionSpace;
+\definition conditions: Cover.Conditions := Cover.Conditions {
+  leftOpen := UnionSpace.traceOpen boxTopology firstShell firstOpen,
+  rightOpen := UnionSpace.traceOpen boxTopology secondShell secondOpen
+};
+\import Cover.On[conditions := conditions] \as Products;
+\import singular_cohomology.Relative[A := BoxCarrier, source := boxTopology, subset := firstShell].Maps[B := LeftActual.Carrier].Over[target := LeftActual.topology, targetSubset := LeftActual.boundary] \as LeftMaps;
+\import singular_cohomology.Relative[A := BoxCarrier, source := boxTopology, subset := secondShell].Maps[B := RightActual.Carrier].Over[target := RightActual.topology, targetSubset := RightActual.boundary] \as RightMaps;
+\definition leftMap: LeftMaps.Map := \into[BoxCarrier -> LeftActual.Carrier](clippedFirst, LeftMaps.Map) \by {
+  LeftMaps.Laws[clippedFirst] { continuous := clippedFirstContinuous, contained := \fun (p: \Cast[BoxCarrier] firstShell) => LeftShell.endsInBoundary (\into[LeftDisk.DiskBundle](firstCoordinate p, LeftShell.shell) \by { \bysub(BoxCarrier, firstShell, p) }) }
+};
+\definition rightMap: RightMaps.Map := \into[BoxCarrier -> RightActual.Carrier](clippedSecond, RightMaps.Map) \by {
+  RightMaps.Laws[clippedSecond] { continuous := clippedSecondContinuous, contained := \fun (p: \Cast[BoxCarrier] secondShell) => RightShell.endsInBoundary (\into[RightDisk.DiskBundle](secondCoordinate p, RightShell.shell) \by { \bysub(BoxCarrier, secondShell, p) }) }
+};
+\definition contains: \forall (p: \Cast[BoxCarrier] boundary) -> \In[BoxCarrier] Union.subset p :=
+  \fun (p: \Cast[BoxCarrier] boundary) => either!{{Box.Comparison[].boundaryToUnion p (\bysub(BoxCarrier, boundary, p))} {\In[BoxCarrier] Union.subset p}
+    {\fun (one: Box.first p = Reals.one) => std.Logic[].Proposition[].Or[_, _]::left (LeftShell.contains (\into[LeftDisk.DiskBundle](firstCoordinate p, LeftDisk.Boundary) \by { one }))}
+    {\fun (one: Box.second p = Reals.one) => std.Logic[].Proposition[].Or[_, _]::right (RightShell.contains (\into[RightDisk.DiskBundle](secondCoordinate p, RightDisk.Boundary) \by { one }))}};
+\import singular_cohomology.Relative[A := BoxCarrier, source := boxTopology, subset := boundary].Maps[B := BoxCarrier].Over[target := boxTopology, targetSubset := Union.subset] \as BoundaryMaps;
+\definition boundaryMap: BoundaryMaps.Map := \into[BoxCarrier -> BoxCarrier]((\fun (p: BoxCarrier) => p), BoundaryMaps.Map) \by {
+  BoundaryMaps.Laws[(\fun (p: BoxCarrier) => p)] { continuous := topology.Maps[A := BoxCarrier, B := BoxCarrier].Identity[].continuous boxTopology, contained := contains }
+};
+\import singular_cohomology.Relative[A := Actual.Carrier, source := Actual.topology, subset := Actual.boundary].Maps[B := BoxCarrier].Over[target := boxTopology, targetSubset := boundary].Composition[C := BoxCarrier].Over[final := boxTopology, finalSubset := Union.subset] \as Composition;
+\import singular_cohomology.Relative[A := Actual.Carrier, source := Actual.topology, subset := Actual.boundary].Maps[B := BoxCarrier].Over[target := boxTopology, targetSubset := Union.subset] \as FullMaps;
+\definition fullMap: FullMaps.Map := Composition.compose (FiberPairs.forwardMap pair) boundaryMap;
+\import \root.RelativePullback[].On[A := BoxCarrier, source := boxTopology, subset := firstShell, R := K, ring := ring].To[B := LeftActual.Carrier, target := LeftActual.topology, part := LeftActual.boundary].Along[f := leftMap] \as LeftPull;
+\import \root.RelativePullback[].On[A := BoxCarrier, source := boxTopology, subset := secondShell, R := K, ring := ring].To[B := RightActual.Carrier, target := RightActual.topology, part := RightActual.boundary].Along[f := rightMap] \as RightPull;
+\import \root.RelativePullback[].On[A := Actual.Carrier, source := Actual.topology, subset := Actual.boundary, R := K, ring := ring].To[B := BoxCarrier, target := boxTopology, part := Union.subset].Along[f := fullMap] \as FullPull;
+\import singular_products.Cochains[A := X, source := bundle.baseSpace, R := K, ring := ring] \as Base;
+\import LeftGeometry.Coefficients[R := K, ring := ring] \as OriginalLeft;
+\import RightGeometry.Coefficients[R := K, ring := ring] \as OriginalRight;
+\import Geometry.Coefficients[R := K, ring := ring] \as OriginalSum;
+\module Product(n, m: N.Nat^);

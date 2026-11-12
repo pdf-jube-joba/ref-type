@@ -216,3 +216,8 @@ H^z(X;R)\xrightarrow{\smile e}H^{z+n}(X;R)
 `Ring[K, ring].Product[n, m].apply u v` は二つの相対類の直和上の積を定義する。
 箱の各因子の開いた殻を連続な `clip` によって球面境界へ送り、二つの相対類を引き戻して混合相対 cup 積を取る。
 二つの殻の和集合は箱の境界を含むため、得られた類を箱の円板対へ制限し、指定された計量の円板対へ運ぶ。
+
+`DirectSum.With.Ring.Product[n, m].Euler.law` は任意の二つの相対類について、直和の積の零切断像がそれぞれの零切断像の cup 積になることを示す。
+右の底空間位相は `same` による恒等写像の引き戻しで揃える。
+`DirectSum.With.Fiber[x].Ring[K, ring].Product[n, m].Naturality.law` は大域積の実ファイバーへの制限が、二つの実ファイバーへの制限の積に等しいことを示す。
+`Fiber.homeomorphism` と `pair` は実際の直和計量ファイバーと箱型ファイバー対を比較する。

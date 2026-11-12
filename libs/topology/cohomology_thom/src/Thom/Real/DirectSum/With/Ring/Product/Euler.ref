@@ -1,0 +1,41 @@
+\use std.Logic[].Equality[].eq_reason_in;
+\import \parent.\parent.\parent.ZeroSection[] \as Zero;
+\import singular_products.Cochains[A := X, source := bundle.baseSpace, R := K, ring := ring] \as Base;
+\import Base.Cohomology[] \as BaseGroups;
+\import BaseGroups.Cup[p := n, q := m] \as Cup;
+\import BaseGroups.Pullback[B := X, target := right.baseSpace] \as RightBasePull;
+\import singular_products.Cochains[A := Carrier, source := topology, R := K, ring := ring] \as BoxCochains;
+\import BaseGroups.Pullback[B := Carrier, target := topology] \as Section;
+\import singular_products.Cochains[A := Disk.DiskBundle, source := Disk.diskTopology, R := K, ring := ring] \as SumCochains;
+\import BaseGroups.Pullback[B := Disk.DiskBundle, target := Disk.diskTopology] \as SumSection;
+\import singular_cap.CochainPair[A := Carrier, source := topology, subset := Union.subset, R := K, ring := ring].Comparison[n := degree].Cohomology[] \as Forget;
+\import singular_cohomology.Relative[A := Disk.DiskBundle, source := Disk.diskTopology, subset := Disk.Boundary].Maps[B := Carrier].Over[target := topology, targetSubset := Box.Boundary].Composition[C := Carrier].Over[final := topology, finalSubset := Union.subset] \as Composition;
+\import singular_cohomology.Relative[A := Disk.DiskBundle, source := Disk.diskTopology, subset := Disk.Boundary].Maps[B := Carrier].Over[target := topology, targetSubset := Union.subset] \as CombinedMaps;
+\definition combined: CombinedMaps.Map := Composition.compose (Pairs.forwardMap pair) boundaryMap;
+\import \root.RelativePullback[].On[A := Disk.DiskBundle, source := Disk.diskTopology, subset := Disk.Boundary, R := K, ring := ring].To[B := Carrier, target := topology, part := Union.subset].Along[f := combined] \as Pull;
+\definition mixed[u: Left.Degree[n := n].Class][v: Right.Degree[n := m].Class]: _ :=
+  Products.Cup[p := n, q := m].apply (LeftPull.Degree[n := n].map.apply u) (RightPull.Degree[n := m].map.apply v);
+\definition pullbackLaw: \forall (u: Left.Degree[n := n].Class)(v: Right.Degree[n := m].Class) -> apply u v = Pull.Degree[n := degree].map.apply (mixed u v) :=
+  \fun (u: Left.Degree[n := n].Class)(v: Right.Degree[n := m].Class) => sym!{{Target.Degree[n := degree].Class}} _ _
+    (Composition.On[f := Pairs.forwardMap pair, g := boundaryMap].With[coefficients := Base.integerCoefficients].law (I.Int^::ofNat degree) (mixed u v));
+\import singular_cohomology.Maps[A := X, B := Disk.DiskBundle, source := bundle.baseSpace, target := Disk.diskTopology].Composition[C := Carrier, final := topology].Coefficients[M := Base.integerCoefficients] \as SectionComposition;
+\import singular_cohomology.Relative[A := Carrier, source := topology, subset := Union.subset].With[coefficients := Base.integerCoefficients].At[z := I.Int^::ofNat degree] \as Input;
+\definition zeroSectionLaw: \forall (w: Input.Carrier) -> Target.Degree[n := degree].euler (Pull.Degree[n := degree].map.apply w) = Section.apply degree Zero.section Zero.continuous (Forget.map.apply w) :=
+  \fun (w: Input.Carrier) => trans!{{BaseGroups.Group degree}} _ _ _
+    (congr!{{SumCochains.Cohomology[].Group degree} {BaseGroups.Group degree}} (SumSection.apply degree Disk.zeroSection Disk.zeroSectionContinuous) _ _ (Pull.Degree[n := degree].Forget[].law w))
+    (sym!{{BaseGroups.Group degree}} _ _ (SectionComposition.onCohomology Disk.zeroSection Disk.zeroSectionContinuous combined (CombinedMaps.laws combined).continuous degree (Forget.map.apply w)));
+\module LeftFactor;
+\module RightFactor;
+\import \parent.Euler[].LeftFactor[] \as LeftFormula;
+\import \parent.Euler[].RightFactor[] \as RightFormula;
+\definition law: \forall (u: Left.Degree[n := n].Class)(v: Right.Degree[n := m].Class) ->
+  Target.Degree[n := degree].euler (apply u v) = Cup.apply (Left.Degree[n := n].euler u) (RightBasePull.apply m (\fun (x: X) => x) Zero.identity (Right.Degree[n := m].euler v)) :=
+  \fun (u: Left.Degree[n := n].Class)(v: Right.Degree[n := m].Class) => eq_reason_in!{{BaseGroups.Group degree} _
+    "=" _ "by" { congr!{{Target.Degree[n := degree].Class} {BaseGroups.Group degree}} Target.Degree[n := degree].euler _ _ (pullbackLaw u v) }
+    "=" _ "by" { zeroSectionLaw (mixed u v) }
+    "=" _ "by" { congr!{{BoxCochains.Cohomology[].Group degree} {BaseGroups.Group degree}} (Section.apply degree Zero.section Zero.continuous) _ _ (Products.Cup[p := n, q := m].Forget[].law (LeftPull.Degree[n := n].map.apply u) (RightPull.Degree[n := m].map.apply v)) }
+    "=" _ "by" { Section.Cup[p := n, q := m].law Zero.section Zero.continuous
+      (singular_cap.CochainPair[A := Carrier, source := topology, subset := firstShell, R := K, ring := ring].Comparison[n := n].Cohomology[].map.apply (LeftPull.Degree[n := n].map.apply u))
+      (singular_cap.CochainPair[A := Carrier, source := topology, subset := secondShell, R := K, ring := ring].Comparison[n := m].Cohomology[].map.apply (RightPull.Degree[n := m].map.apply v)) }
+    "=" _ "by" { congr!{{BaseGroups.Group n} {BaseGroups.Group m} {BaseGroups.Group degree}} Cup.apply _ _ _ _ (LeftFormula.law u) (RightFormula.law v) }
+  };

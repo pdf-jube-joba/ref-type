@@ -1,0 +1,53 @@
+\import Geometry.Fiber[x := x] \as Actual;
+\import LeftGeometry.Fiber[x := x] \as LeftActual;
+\import RightGeometry.Fiber[x := x] \as RightActual;
+\import LeftGeometry.Shell[] \as LeftShell;
+\import RightGeometry.Shell[] \as RightShell;
+\definition subset: \Pow Carrier := { p: Carrier \where p.base = x };
+\import topology.Topology[Carrier := Carrier].Subspace[S := subset] \as Subspace;
+\definition BoxCarrier: \Set := Subspace.CarrierSet;
+\definition boxTopology: topology.Topology[Carrier := BoxCarrier].Topology := Subspace.topology topology;
+\definition boundary: \Pow BoxCarrier := { p: BoxCarrier \where \In[Carrier] Box.Boundary p };
+\definition inclusion[p: BoxCarrier]: Carrier := p;
+\definition inclusionContinuous: topology.Continuity[A := BoxCarrier, B := Carrier].Continuous boxTopology topology inclusion :=
+  topology.Continuity[A := BoxCarrier, B := Carrier].Corestriction[S := subset].inclusionContinuous topology;
+\definition forward[p: Actual.Carrier]: BoxCarrier := \into[Carrier](Levels.diskHomeomorphism.forward p, subset) \by { \bysub(Disk.DiskBundle, Actual.subset, p) };
+\definition backward[p: BoxCarrier]: Actual.Carrier := \into[Disk.DiskBundle](Levels.diskHomeomorphism.backward p, Actual.subset) \by { \bysub(Carrier, subset, p) };
+\import topology.Homeomorphism[A := Disk.DiskBundle, B := Carrier] \as WholeHomeomorphism;
+\definition forwardContinuous: topology.Continuity[A := Actual.Carrier, B := BoxCarrier].Continuous Actual.topology boxTopology forward :=
+  topology.Continuity[A := Actual.Carrier, B := Carrier].Corestriction[S := subset].corestrictContinuous Actual.topology topology forward
+    (topology.Continuity[A := Disk.DiskBundle, B := Carrier].Restriction[S := Actual.subset].restrictContinuous Disk.diskTopology topology Levels.diskHomeomorphism.forward (WholeHomeomorphism.laws Disk.diskTopology topology Levels.diskHomeomorphism).forwardContinuous);
+\definition backwardContinuous: topology.Continuity[A := BoxCarrier, B := Actual.Carrier].Continuous boxTopology Actual.topology backward :=
+  topology.Continuity[A := BoxCarrier, B := Disk.DiskBundle].Corestriction[S := Actual.subset].corestrictContinuous boxTopology Disk.diskTopology backward
+    (topology.Continuity[A := Carrier, B := Disk.DiskBundle].Restriction[S := subset].restrictContinuous topology Disk.diskTopology Levels.diskHomeomorphism.backward (WholeHomeomorphism.laws Disk.diskTopology topology Levels.diskHomeomorphism).backwardContinuous);
+\definition homeomorphism: topology.Homeomorphism[A := Actual.Carrier, B := BoxCarrier].Homeomorphism[Actual.topology, boxTopology] :=
+  topology.Homeomorphism[A := Actual.Carrier, B := BoxCarrier].Homeomorphism[Actual.topology, boxTopology] {
+    forward := forward, backward := backward, forwardContinuous := forwardContinuous, backwardContinuous := backwardContinuous,
+    leftInverse := \fun (p: Actual.Carrier) => (WholeHomeomorphism.laws Disk.diskTopology topology Levels.diskHomeomorphism).leftInverse p,
+    rightInverse := \fun (p: BoxCarrier) => (WholeHomeomorphism.laws Disk.diskTopology topology Levels.diskHomeomorphism).rightInverse p
+  };
+\import singular_cohomology.Relative[A := Actual.Carrier, source := Actual.topology, subset := Actual.boundary].Homeomorphism[B := BoxCarrier].Over[target := boxTopology, targetSubset := boundary] \as FiberPairs;
+\definition pair: FiberPairs.Data := FiberPairs.Data {
+  homeomorphism := homeomorphism,
+  forwardPreserves := \fun (p: \Cast[Actual.Carrier] Actual.boundary) => Levels.preserves p (\bysub(Actual.Carrier, Actual.boundary, p)),
+  backwardPreserves := \fun (p: \Cast[BoxCarrier] boundary) => Levels.reversePreserves p (\bysub(BoxCarrier, boundary, p))
+};
+\definition firstCoordinate[p: BoxCarrier]: LeftDisk.DiskBundle := first p;
+\definition secondCoordinate[p: BoxCarrier]: RightDisk.DiskBundle := second p;
+\definition firstCoordinateContinuous: topology.Continuity[A := BoxCarrier, B := LeftDisk.DiskBundle].Continuous boxTopology LeftDisk.diskTopology firstCoordinate :=
+  topology.Continuity[A := Carrier, B := LeftDisk.DiskBundle].Restriction[S := subset].restrictContinuous topology LeftDisk.diskTopology first firstContinuous;
+\definition secondCoordinateContinuous: topology.Continuity[A := BoxCarrier, B := RightDisk.DiskBundle].Continuous boxTopology RightDisk.diskTopology secondCoordinate :=
+  topology.Continuity[A := Carrier, B := RightDisk.DiskBundle].Restriction[S := subset].restrictContinuous topology RightDisk.diskTopology second secondContinuous;
+\definition firstShell: \Pow BoxCarrier := { p: BoxCarrier \where \In[LeftDisk.DiskBundle] LeftShell.shell (firstCoordinate p) };
+\definition secondShell: \Pow BoxCarrier := { p: BoxCarrier \where \In[RightDisk.DiskBundle] RightShell.shell (secondCoordinate p) };
+\definition firstOpen: topology.Topology[Carrier := BoxCarrier].IsOpenIn boxTopology firstShell := firstCoordinateContinuous LeftShell.shell LeftShell.open;
+\definition secondOpen: topology.Topology[Carrier := BoxCarrier].IsOpenIn boxTopology secondShell := secondCoordinateContinuous RightShell.shell RightShell.open;
+\definition clippedFirst[p: BoxCarrier]: LeftActual.Carrier := \into[LeftDisk.DiskBundle](LeftShell.clip (firstCoordinate p), LeftActual.subset) \by { \bysub(Carrier, subset, p) };
+\definition clippedSecond[p: BoxCarrier]: RightActual.Carrier := \into[RightDisk.DiskBundle](RightShell.clip (secondCoordinate p), RightActual.subset) \by { \bysub(Carrier, subset, p) };
+\definition clippedFirstContinuous: topology.Continuity[A := BoxCarrier, B := LeftActual.Carrier].Continuous boxTopology LeftActual.topology clippedFirst :=
+  topology.Continuity[A := BoxCarrier, B := LeftDisk.DiskBundle].Corestriction[S := LeftActual.subset].corestrictContinuous boxTopology LeftDisk.diskTopology clippedFirst
+    (topology.Composition[A := BoxCarrier, B := LeftDisk.DiskBundle, C := LeftDisk.DiskBundle].composeContinuous boxTopology LeftDisk.diskTopology LeftDisk.diskTopology firstCoordinate LeftShell.clip firstCoordinateContinuous LeftShell.clipContinuous);
+\definition clippedSecondContinuous: topology.Continuity[A := BoxCarrier, B := RightActual.Carrier].Continuous boxTopology RightActual.topology clippedSecond :=
+  topology.Continuity[A := BoxCarrier, B := RightDisk.DiskBundle].Corestriction[S := RightActual.subset].corestrictContinuous boxTopology RightDisk.diskTopology clippedSecond
+    (topology.Composition[A := BoxCarrier, B := RightDisk.DiskBundle, C := RightDisk.DiskBundle].composeContinuous boxTopology RightDisk.diskTopology RightDisk.diskTopology secondCoordinate RightShell.clip secondCoordinateContinuous RightShell.clipContinuous);
+\module Ring(K: \Set, ring: Rings.CommutativeRing[K]);
