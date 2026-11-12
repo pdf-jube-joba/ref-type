@@ -1,0 +1,70 @@
+\definition continuous: topology.Continuity[A := B, B := A].Continuous target source f := (Maps.laws f).continuous;
+\import singular_cohomology.Relative[A := Other.Left, source := Other.leftTopology, subset := Other.leftPart] \as OtherL;
+\import singular_cohomology.Relative[A := Other.Right, source := Other.rightTopology, subset := Other.rightPart] \as OtherR;
+\import singular_cohomology.Relative[A := Other.Overlap, source := Other.overlapTopology, subset := Other.overlapPart] \as OtherO;
+\definition left[x: Other.Left]: Left := \into[A](f x, Cover.left) \by { leftContains x };
+\definition leftContinuous: topology.Continuity[A := Other.Left, B := Left].Continuous Other.leftTopology leftTopology left :=
+  topology.Continuity[A := Other.Left, B := A].Corestriction[S := Cover.left].corestrictContinuous Other.leftTopology source left
+    (topology.Continuity[A := B, B := A].Restriction[S := OtherCover.left].restrictContinuous target source f continuous);
+\import OtherL.Maps[B := Left].Over[target := leftTopology, targetSubset := leftPart] \as LeftMaps;
+\definition leftPair: LeftMaps.Map := \into[Other.Left -> Left](left, LeftMaps.Map) \by {
+  LeftMaps.Laws[left] { continuous := leftContinuous,
+    contained := \fun (x: OtherL.SubspaceCarrier) => (Maps.laws f).contained (\into[B](x, part) \by { \bysub(Other.Left, Other.leftPart, x) })
+  }
+};
+\import LeftMaps.On[f := leftPair].Integer[] \as LeftChain;
+\definition right[x: Other.Right]: Right := \into[A](f x, Cover.right) \by { rightContains x };
+\definition rightContinuous: topology.Continuity[A := Other.Right, B := Right].Continuous Other.rightTopology rightTopology right :=
+  topology.Continuity[A := Other.Right, B := A].Corestriction[S := Cover.right].corestrictContinuous Other.rightTopology source right
+    (topology.Continuity[A := B, B := A].Restriction[S := OtherCover.right].restrictContinuous target source f continuous);
+\import OtherR.Maps[B := Right].Over[target := rightTopology, targetSubset := rightPart] \as RightMaps;
+\definition rightPair: RightMaps.Map := \into[Other.Right -> Right](right, RightMaps.Map) \by {
+  RightMaps.Laws[right] { continuous := rightContinuous,
+    contained := \fun (x: OtherR.SubspaceCarrier) => (Maps.laws f).contained (\into[B](x, part) \by { \bysub(Other.Right, Other.rightPart, x) })
+  }
+};
+\import RightMaps.On[f := rightPair].Integer[] \as RightChain;
+\definition overlap[x: Other.Overlap]: Overlap := \into[Left](left (Other.toLeft x), Absolute.intersection) \by { rightContains (Other.toRight x) };
+\definition overlapContinuous: topology.Continuity[A := Other.Overlap, B := Overlap].Continuous Other.overlapTopology overlapTopology overlap :=
+  topology.Continuity[A := Other.Overlap, B := Left].Corestriction[S := Absolute.intersection].corestrictContinuous Other.overlapTopology leftTopology overlap
+    (topology.Composition[A := Other.Overlap, B := Other.Left, C := Left].composeContinuous Other.overlapTopology Other.leftTopology leftTopology Other.toLeft left
+      (singular_cohomology.Relative[A := Other.Overlap, source := Other.overlapTopology, subset := Other.overlapPart].Maps[B := Other.Left].Over[target := Other.leftTopology, targetSubset := Other.leftPart].laws Other.toLeft).continuous leftContinuous);
+\import OtherO.Maps[B := Overlap].Over[target := overlapTopology, targetSubset := overlapPart] \as OverlapMaps;
+\definition overlapMap: OverlapMaps.Map := \into[Other.Overlap -> Overlap](overlap, OverlapMaps.Map) \by {
+  OverlapMaps.Laws[overlap] { continuous := overlapContinuous,
+    contained := \fun (x: OtherO.SubspaceCarrier) => (Maps.laws f).contained (\into[B](x, part) \by { \bysub(Other.Overlap, Other.overlapPart, x) })
+  }
+};
+\import OverlapMaps.On[f := overlapMap].Integer[] \as OverlapChain;
+\import \root.RelativeMayerVietoris[].ChainSum[C := OtherL.complex, D := OtherR.complex] \as OtherSum;
+\import Chains.Map[C := OtherL.complex, D := L.complex].Composition[B := OtherSum.complex] \as LeftComposition;
+\import Chains.Map[C := OtherR.complex, D := R.complex].Composition[B := OtherSum.complex] \as RightComposition;
+\definition first: _ := LeftComposition.compose LeftChain.map OtherSum.Inclusions[].firstProjection;
+\definition second: _ := RightComposition.compose RightChain.map OtherSum.Inclusions[].secondProjection;
+\definition sumMap: _ := Sum.Pairing[E := OtherSum.complex, f := first, g := second].map;
+\import OtherO.Maps[B := Other.Left].Over[target := Other.leftTopology, targetSubset := Other.leftPart]
+  .Composition[C := Left].Over[final := leftTopology, finalSubset := leftPart].On[f := Other.toLeft, g := leftPair] \as LeftFirst;
+\import OverlapMaps.Composition[C := Left].Over[final := leftTopology, finalSubset := leftPart].On[f := overlapMap, g := toLeft] \as LeftSecond;
+\import Chains.Map[C := OtherO.complex, D := L.complex] \as LeftSquare;
+\import OtherO.Maps[B := Other.Left].Over[target := Other.leftTopology, targetSubset := Other.leftPart].On[f := Other.toLeft].Integer[] \as OtherLeftRestriction;
+\definition leftSquare: \forall (z: I.Int^)(x: OtherO.Carrier z) ->
+  LeftChain.map.apply z (OtherLeftRestriction.map.apply z x) = leftMap.apply z (OverlapChain.map.apply z x) :=
+  \fun (z: I.Int^)(x: OtherO.Carrier z) => trans!{{L.Carrier z}} _ _ _
+    (congr!{LeftSquare.Map {L.Carrier z}} (\fun (m: LeftSquare.Map) => m.apply z x) _ _ LeftFirst.chainLaw)
+    (sym!{{L.Carrier z}} _ _ (congr!{LeftSquare.Map {L.Carrier z}} (\fun (m: LeftSquare.Map) => m.apply z x) _ _ LeftSecond.chainLaw));
+\import OtherO.Maps[B := Other.Right].Over[target := Other.rightTopology, targetSubset := Other.rightPart]
+  .Composition[C := Right].Over[final := rightTopology, finalSubset := rightPart].On[f := Other.toRight, g := rightPair] \as RightFirst;
+\import OverlapMaps.Composition[C := Right].Over[final := rightTopology, finalSubset := rightPart].On[f := overlapMap, g := toRight] \as RightSecond;
+\import Chains.Map[C := OtherO.complex, D := R.complex] \as RightSquare;
+\import OtherO.Maps[B := Other.Right].Over[target := Other.rightTopology, targetSubset := Other.rightPart].On[f := Other.toRight].Integer[] \as OtherRightRestriction;
+\definition rightSquare: \forall (z: I.Int^)(x: OtherO.Carrier z) ->
+  RightChain.map.apply z (OtherRightRestriction.map.apply z x) = rightMap.apply z (OverlapChain.map.apply z x) :=
+  \fun (z: I.Int^)(x: OtherO.Carrier z) => trans!{{R.Carrier z}} _ _ _
+    (congr!{RightSquare.Map {R.Carrier z}} (\fun (m: RightSquare.Map) => m.apply z x) _ _ RightFirst.chainLaw)
+    (sym!{{R.Carrier z}} _ _ (congr!{RightSquare.Map {R.Carrier z}} (\fun (m: RightSquare.Map) => m.apply z x) _ _ RightSecond.chainLaw));
+\definition inclusionSquare: \forall (z: I.Int^)(x: OtherO.Carrier z) -> sumMap.apply z (Other.inclusion.apply z x) = inclusion.apply z (OverlapChain.map.apply z x) :=
+  \fun (z: I.Int^)(x: OtherO.Carrier z) => Sum.At[z := z].ext _ _ (leftSquare z x)
+    (trans!{{R.Carrier z}} _ _ _
+      (Modules.Hom[V := OtherR.Carrier z, W := R.Carrier z, source := OtherR.space z, target := R.space z].negativePreserved (Chains.Map[C := OtherR.complex, D := R.complex].At[k := z].linear RightChain.map) (OtherRightRestriction.map.apply z x))
+      (congr!{{R.Carrier z} {R.Carrier z}} (R.space z).neg _ _ (rightSquare z x)));
+\module With(coefficients: Modules.Bundle);

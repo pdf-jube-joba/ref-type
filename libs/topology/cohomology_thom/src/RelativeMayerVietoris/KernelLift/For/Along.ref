@@ -1,0 +1,54 @@
+\use std.Logic[].Equality[].eq_reason_in;
+\module At(z: I.Int^) {
+  \definition Values[x: A.family.Carrier z]: \Pow (A1.family.Carrier z) := { y: A1.family.Carrier z \where t.inclusion.apply z y = b.apply z (s.inclusion.apply z x) };
+  \definition Value[x: A.family.Carrier z]: \Set := \Cast[A1.family.Carrier z] (Values x);
+  \definition exists: \forall (x: A.family.Carrier z) -> \exists Value x :=
+    \fun (x: A.family.Carrier z) => t.kernelImage z (b.apply z (s.inclusion.apply z x))
+      (trans!{{C1.family.Carrier z}} _ _ _ (square z (s.inclusion.apply z x))
+        (trans!{{C1.family.Carrier z}} _ _ _ (congr!{{C.family.Carrier z} {C1.family.Carrier z}} (c.apply z) _ _ (s.zero z x))
+          (Modules.Hom[V := C.family.Carrier z, W := C1.family.Carrier z, source := C.family.space z, target := C1.family.space z].zeroPreserved (Right.At[k := z].linear c))));
+  \definition unique: \forall (x: A.family.Carrier z)(y, w: Value x) -> y = w :=
+    \fun (x: A.family.Carrier z)(y, w: Value x) => t.injective z y w
+      (trans!{{B1.family.Carrier z}} _ _ _ (\bysub(A1.family.Carrier z, Values x, y)) (sym!{{B1.family.Carrier z}} _ _ (\bysub(A1.family.Carrier z, Values x, w))));
+  \definition apply[x: A.family.Carrier z]: Value x := \choice Value x \by { existence: exists x, uniqueness: unique x };
+  \definition inclusion: \forall (x: A.family.Carrier z) -> t.inclusion.apply z (apply x) = b.apply z (s.inclusion.apply z x) :=
+    \fun (x: A.family.Carrier z) => \bysub(A1.family.Carrier z, Values x, apply x);
+  \definition addition: \forall (x, y: A.family.Carrier z) -> apply ((A.family.space z).add x y) = (A1.family.space z).add (apply x) (apply y) :=
+    \fun (x, y: A.family.Carrier z) => t.injective z _ _ (eq_reason_in!{{B1.family.Carrier z} _
+      "=" _ "by" { inclusion ((A.family.space z).add x y) }
+      "=" _ "by" { congr!{{B.family.Carrier z} {B1.family.Carrier z}} (b.apply z) _ _ (s.inclusion.addition z x y) }
+      "=" _ "by" { b.addition z (s.inclusion.apply z x) (s.inclusion.apply z y) }
+      "=" _ "by" { congr!{{B1.family.Carrier z} {B1.family.Carrier z} {B1.family.Carrier z}} (B1.family.space z).add _ _ _ _ (sym!{{B1.family.Carrier z}} _ _ (inclusion x)) (sym!{{B1.family.Carrier z}} _ _ (inclusion y)) }
+      "=" _ "by" { sym!{{B1.family.Carrier z}} _ _ (t.inclusion.addition z (apply x) (apply y)) }
+    });
+  \definition scalar: \forall (r: I.Int^)(x: A.family.Carrier z) -> apply ((A.family.space z).smul r x) = (A1.family.space z).smul r (apply x) :=
+    \fun (r: I.Int^)(x: A.family.Carrier z) => t.injective z _ _ (eq_reason_in!{{B1.family.Carrier z} _
+      "=" _ "by" { inclusion ((A.family.space z).smul r x) }
+      "=" _ "by" { congr!{{B.family.Carrier z} {B1.family.Carrier z}} (b.apply z) _ _ (s.inclusion.scalar z r x) }
+      "=" _ "by" { b.scalar z r (s.inclusion.apply z x) }
+      "=" _ "by" { congr!{{B1.family.Carrier z} {B1.family.Carrier z}} ((B1.family.space z).smul r) _ _ (sym!{{B1.family.Carrier z}} _ _ (inclusion x)) }
+      "=" _ "by" { sym!{{B1.family.Carrier z}} _ _ (t.inclusion.scalar z r (apply x)) }
+    });
+}
+\definition commutes: \forall (z: I.Int^)(x: A.family.Carrier z) -> At[z := chain_complexes.Integer[].next z].apply (A.differential.apply z x) = A1.differential.apply z (At[z := z].apply x) :=
+  \fun (z: I.Int^)(x: A.family.Carrier z) => t.injective (chain_complexes.Integer[].next z) _ _ (eq_reason_in!{{B1.family.Carrier (chain_complexes.Integer[].next z)} _
+    "=" _ "by" { At[z := chain_complexes.Integer[].next z].inclusion (A.differential.apply z x) }
+    "=" _ "by" { congr!{{B.family.Carrier (chain_complexes.Integer[].next z)} {B1.family.Carrier (chain_complexes.Integer[].next z)}} (b.apply (chain_complexes.Integer[].next z)) _ _ (sym!{{B.family.Carrier (chain_complexes.Integer[].next z)}} _ _ (s.inclusion.commutes z x)) }
+    "=" _ "by" { sym!{{B1.family.Carrier (chain_complexes.Integer[].next z)}} _ _ (b.commutes z (s.inclusion.apply z x)) }
+    "=" _ "by" { congr!{{B1.family.Carrier z} {B1.family.Carrier (chain_complexes.Integer[].next z)}} (B1.differential.apply z) _ _ (sym!{{B1.family.Carrier z}} _ _ (At[z := z].inclusion x)) }
+    "=" _ "by" { t.inclusion.commutes z (At[z := z].apply x) }
+  });
+\definition map: Cochains.Map[C := A, D := A1].Map := Cochains.Map[C := A, D := A1].Map {
+  apply := \fun (z: I.Int^) => At[z := z].apply,
+  addition := \fun (z: I.Int^) => At[z := z].addition,
+  scalar := \fun (z: I.Int^) => At[z := z].scalar,
+  commutes := \fun (z: I.Int^)(x: A.family.Carrier z) => sym!{{A1.family.Carrier (chain_complexes.Integer[].next z)}} _ _ (commutes z x)
+};
+\import Source.Morphism[A1 := A1, B1 := B1, C1 := C1].Diagram[s := s, t := t, a := map, b := b, c := c] \as Diagram;
+\definition diagram: Diagram.Commutative := Diagram.Commutative {
+  left := \fun (z: I.Int^)(x: A.family.Carrier z) => sym!{{B1.family.Carrier z}} _ _ (At[z := z].inclusion x),
+  right := square
+};
+\module Connecting(z: I.Int^) {
+  \definition naturality: _ := Diagram.At[k := z].naturality diagram;
+}
