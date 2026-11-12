@@ -11,13 +11,13 @@
       (congr!{{RealFunctions.Function} {R.Real}} (\fun (h: RealFunctions.Function) => h x) _ _ (Derivatives.addition i (Native.real f) (Native.real g))))
     (trans!{{R.Real}} _ _ _ (congr!{{RealFunctions.Function} {R.Real}} (\fun (h: RealFunctions.Function) => Derivatives.apply i h x) _ _ (imaginaryPlus f g))
       (congr!{{RealFunctions.Function} {R.Real}} (\fun (h: RealFunctions.Function) => h x) _ _ (Derivatives.addition i (Native.imaginary f) (Native.imaginary g)))));
-\definition constant: \forall (i: Fin.Fin n)(c: C.Complex) -> derivative i (\parent.constant c) = origin :=
+\definition constant: \forall (i: Fin.Fin n)(c: C.Complex) -> derivative i (\parent.\parent.Functions[].constant c) = origin :=
   \fun (i: Fin.Fin n)(c: C.Complex) => ext _ _ (\fun (x: Open.Carrier U) => C.Prop[].ext _ _
     (trans!{{R.Real}} _ _ _ (congr!{{RealFunctions.Function} {R.Real}} (\fun (h: RealFunctions.Function) => Derivatives.apply i h x)
-      (Native.real (\parent.constant c)) (RealFunctions.constant (C.re c)) (RealFunctions.ext _ _ (\fun (y: Open.Carrier U) => \refl(C.re c))))
+      (Native.real (\parent.\parent.Functions[].constant c)) (RealFunctions.constant (C.re c)) (RealFunctions.ext _ _ (\fun (y: Open.Carrier U) => \refl(C.re c))))
       (congr!{{RealFunctions.Function} {R.Real}} (\fun (h: RealFunctions.Function) => h x) _ _ (Derivatives.constant i (C.re c))))
     (trans!{{R.Real}} _ _ _ (congr!{{RealFunctions.Function} {R.Real}} (\fun (h: RealFunctions.Function) => Derivatives.apply i h x)
-      (Native.imaginary (\parent.constant c)) (RealFunctions.constant (C.im c)) (RealFunctions.ext _ _ (\fun (y: Open.Carrier U) => \refl(C.im c))))
+      (Native.imaginary (\parent.\parent.Functions[].constant c)) (RealFunctions.constant (C.im c)) (RealFunctions.ext _ _ (\fun (y: Open.Carrier U) => \refl(C.im c))))
       (congr!{{RealFunctions.Function} {R.Real}} (\fun (h: RealFunctions.Function) => h x) _ _ (Derivatives.constant i (C.im c)))));
 \import Reals.FiniteCoordinates[n := n] \as BaseBasis;
 \import Reals.FiniteCoordinateEnumeration[] \as Enumeration;
@@ -36,9 +36,9 @@
   };
 \definition differentialBasis: \forall (f: Function)(i: Fin.Fin n)(x: Open.Carrier U) -> Matrices.evaluate (Matrices.differential f) x (basis i) = derivative i f x :=
   \fun (f: Function)(i: Fin.Fin n)(x: Open.Carrier U) => C.Prop[].ext _ _ (realDifferential (Native.real f) i x) (realDifferential (Native.imaginary f) i x);
-\definition product: \forall (i: Fin.Fin n)(f, g: Function) -> derivative i (\parent.product f g) = plus (\parent.product (derivative i f) g) (\parent.product f (derivative i g)) :=
+\definition product: \forall (i: Fin.Fin n)(f, g: Function) -> derivative i (\parent.\parent.Functions[].product f g) = plus (\parent.\parent.Functions[].product (derivative i f) g) (\parent.\parent.Functions[].product f (derivative i g)) :=
   \fun (i: Fin.Fin n)(f, g: Function) => ext _ _ (\fun (x: Open.Carrier U) => eq_reason_in!{{C.Complex} _
-    "=" { Matrices.evaluate (Matrices.differential (\parent.product f g)) x (basis i) } "by" { sym!{{C.Complex}} _ _ (differentialBasis (\parent.product f g) i x) }
+    "=" { Matrices.evaluate (Matrices.differential (\parent.\parent.Functions[].product f g)) x (basis i) } "by" { sym!{{C.Complex}} _ _ (differentialBasis (\parent.\parent.Functions[].product f g) i x) }
     "=" { Op.add (Op.mul (g x) (Matrices.evaluate (Matrices.differential f) x (basis i))) (Op.mul (f x) (Matrices.evaluate (Matrices.differential g) x (basis i))) } "by" {
       congr!{{Matrices.OneForm} {C.Complex}} (\fun (h: Matrices.OneForm) => Matrices.evaluate h x (basis i)) _ _ (Matrices.Algebra[].dProduct f g) }
     "=" { Op.add (Op.mul (g x) (derivative i f x)) (Op.mul (f x) (derivative i g x)) } "by" { congr!{{C.Complex} {C.Complex} {C.Complex}} Op.add _ _ _ _
@@ -46,8 +46,14 @@
     "=" _ "by" { congr!{{C.Complex} {C.Complex}} (\fun (z: C.Complex) => Op.add z (Op.mul (f x) (derivative i g x))) _ _ (Spaces.mulComm (g x) (derivative i f x)) }
   });
 \definition scalar: \forall (i: Fin.Fin n)(c: C.Complex)(f: Function) -> derivative i (scale c f) = scale c (derivative i f) :=
-  \fun (i: Fin.Fin n)(c: C.Complex)(f: Function) => trans!{Function} _ _ _ (product i (\parent.constant c) f)
-    (ext _ _ (\fun (x: Open.Carrier U) => eq_reason_in!{{C.Complex} _
+  \fun (i: Fin.Fin n)(c: C.Complex)(f: Function) => trans!{Function}
+    (derivative i (scale c f))
+    (plus (\parent.\parent.Functions[].product (derivative i (\parent.\parent.Functions[].constant c)) f)
+      (\parent.\parent.Functions[].product (\parent.\parent.Functions[].constant c) (derivative i f)))
+    (scale c (derivative i f)) (product i (\parent.\parent.Functions[].constant c) f)
+    (ext (plus (\parent.\parent.Functions[].product (derivative i (\parent.\parent.Functions[].constant c)) f)
+      (\parent.\parent.Functions[].product (\parent.\parent.Functions[].constant c) (derivative i f)))
+      (scale c (derivative i f)) (\fun (x: Open.Carrier U) => eq_reason_in!{{C.Complex} _
       "=" { Op.add (Op.mul Op.zero (f x)) (Op.mul c (derivative i f x)) } "by" { congr!{{C.Complex} {C.Complex}} (\fun (z: C.Complex) => Op.add (Op.mul z (f x)) (Op.mul c (derivative i f x))) _ _
         (congr!{Function {C.Complex}} (\fun (h: Function) => h x) _ _ (constant i c)) }
       "=" { Op.add Op.zero (Op.mul c (derivative i f x)) } "by" { congr!{{C.Complex} {C.Complex}} (\fun (z: C.Complex) => Op.add z (Op.mul c (derivative i f x))) _ _ (Spaces.mulZeroLeft (f x)) }

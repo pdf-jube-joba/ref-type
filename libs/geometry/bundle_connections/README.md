@@ -37,7 +37,7 @@
 ## 束値形式と束演算
 
 `BundleForms[n,r].On[M].Family[F,space].Of[I,bundle].Alternating[k,enumeration].Tensor[enumeration]` は実際の滑らかな束 \(E\otimes\Lambda^kT^*M\) を構成する。
-`Form` はその B07 の滑らかな切断であり、零切断と純テンソル切断を持つ。
+`Form` はその B07 の滑らかな切断であり、零切断と各ファイバーの純テンソルを持つ。
 有限添字の列挙は [bundle_operations](../bundle_operations/README.md) の列挙型を使用する。
 `TensorIndex` はその列挙上の和と二重和の一致を証明する。
 
@@ -64,6 +64,10 @@
 複素一形式を実部・虚部の対で表し、複素構造と可換な実行列から複素係数を復元する。
 `ComplexTensorGauge` は複素有限和のテンソル積恒等式と接続行列の変換則を証明する。
 実化と複素テンソル積の階数を区別して扱う。
+`Complex.On.Family.Of.Coefficients` は複素接続の局所複素行列を取り出し、`FromCoefficients` は複素行列の変換則から大域接続を構成する。
+両方向の復元則と微分・積・引き戻しとの比較を証明する。
+`Complex.On.Family.Of.InducedPaired.Using.Tensor.value` と `InducedExterior.value` は B07 の実際の複素テンソル積束・外冪束上の誘導接続である。
+`ComplexEvaluation` は滑らかな複素多重線形形式を変化するベクトルに評価した関数の微分を証明し、`ComplexExteriorGauge` はこれを使って外冪表現の微分と枠変更の自然性を導く。
 
 ## 計量と Levi–Civita 接続
 

@@ -1,0 +1,26 @@
+\import \parent.\parent.Pair[i := i, j := j] \as Geometry;
+\import Underlying.Pair[i := i, j := j] \as RealGauge;
+\import Charts.Transition[left := chart i, right := chart j] \as Transition;
+\import \root.ComplexMatrices[n := n, r := r].On[U := Transition.domain] \as Matrices;
+\import Matrices.Encoding[] \as Encoding;
+\import Matrices.RecoveryProducts[] \as Products;
+\import Matrices.Commutation[] \as Commutation;
+\import \root.MatrixCalculus[n := n, r := realRank].On[U := Transition.domain] \as RealMatrices;
+\import \root.ComplexMatrices[n := n, r := r].Transport[U := Transition.domain, V := (chart i).image].Restriction[included := RealGauge.included] \as Restrict;
+\import \root.ComplexMatrices[n := n, r := r].Transport[U := Transition.domain, V := (chart j).image].Pull[f := RealGauge.map] \as Pull;
+\definition transition: Encoding.encode0 Geometry.complexTransition = RealGauge.transition := trans!{{RealMatrices.Matrix0}} _ _ _
+  (congr!{{Matrices.Matrix0} {RealMatrices.Matrix0}} Encoding.encode0 _ _ (sym!{{Matrices.Matrix0}} _ _ Geometry.recoveredTransition))
+  (Products.reconstruction0 RealGauge.transition (Commutation.scalar RealGauge.transition (sym!{{RealMatrices.Matrix0}} _ _ Geometry.commutation)));
+\definition encoded: RealMatrices.product01 (Encoding.encode0 Geometry.complexTransition) (Encoding.encode1 (Geometry.sourceComplex (data i))) =
+  RealMatrices.plus (RealMatrices.dMatrix (Encoding.encode0 Geometry.complexTransition)) (RealMatrices.product10 (Encoding.encode1 (Geometry.targetComplex (data j))) (Encoding.encode0 Geometry.complexTransition)) :=
+  Products.encodeGauge Geometry.complexTransition (Geometry.sourceComplex (data i)) (Geometry.targetComplex (data j)) (compatible i j);
+\definition equality: RealGauge.left (realData i) = RealGauge.right (realData j) := eq_reason_in!{{RealMatrices.Matrix1} _
+  "=" _ "by" { congr!{{RealMatrices.Matrix0} {RealMatrices.Matrix1} {RealMatrices.Matrix1}} RealMatrices.product01 _ _ _ _
+    (sym!{{RealMatrices.Matrix0}} _ _ transition) (sym!{{RealMatrices.Matrix1}} _ _ (Restrict.encode1 (data i))) }
+  "=" _ "by" encoded
+  "=" _ "by" { congr!{{RealMatrices.Matrix0} {RealMatrices.Matrix1} {RealMatrices.Matrix1}} (\fun (T: RealMatrices.Matrix0)(B: RealMatrices.Matrix1) => RealMatrices.plus (RealMatrices.dMatrix T) (RealMatrices.product10 B T)) _ _ _ _
+    transition (Pull.encode1 (data j)) }
+};
+\import euclidean_forms.Euclidean[n := n].On[U := Transition.domain] \as Scalar;
+\definition law: RealGauge.Compatible (realData i) (realData j) := \fun (a, b: Fin.Fin realRank) =>
+  congr!{{RealMatrices.Matrix1} {Scalar.Form (N.Nat^::succ N.Nat^::zero)}} (\fun (A: RealMatrices.Matrix1) => A a b) _ _ equality;

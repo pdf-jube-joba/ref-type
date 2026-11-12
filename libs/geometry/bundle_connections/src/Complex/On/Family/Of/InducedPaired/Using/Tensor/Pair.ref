@@ -1,0 +1,27 @@
+\import \parent.\parent.\parent.\parent.Pair[i := i, j := j] \as First;
+\import Other.Pair[i := i, j := j] \as Second;
+\import Result.Pair[i := i, j := j] \as New;
+\import \parent.Coefficients[i := i, j := j] \as Coefficients;
+\import Charts.Transition[left := chart i, right := chart j] \as Domain;
+\import \root.ComplexTensorGauge[r := r, s := s].Dimension[n := n].On[U := Domain.domain].Indexed[enumeration := enumeration] \as Gauge;
+\import \root.ComplexMatrices[n := n, r := Tensor.rank].On[U := Domain.domain] \as Matrix;
+\import Matrix.Algebra[] \as Algebra;
+\import RealSpaces.Coordinates[I := Fin.Fin n] \as Vectors;
+\import RealSpaces.Multilinear[V := Vectors.Vector, space := Vectors.space] \as Multilinear;
+\definition one: N.Nat^ := N.Nat^::succ N.Nat^::zero;
+\definition source: New.sourceComplex (data i) = Gauge.lift (First.sourceComplex (FirstCoefficients.data i)) (Second.sourceComplex (SecondCoefficients.data i)) :=
+  Algebra.matrixExt (New.sourceComplex (data i)) (Gauge.lift (First.sourceComplex (FirstCoefficients.data i)) (Second.sourceComplex (SecondCoefficients.data i)))
+    (\fun (u: Open.Carrier Domain.domain)(v: Multilinear.Arguments one) => Algebra.numericExt (Algebra.eval1 (New.sourceComplex (data i)) u v) (Algebra.eval1 (Gauge.lift (First.sourceComplex (FirstCoefficients.data i)) (Second.sourceComplex (SecondCoefficients.data i))) u v) (\fun (a, b: Fin.Fin Tensor.rank) => \refl(Matrix.evaluate (New.sourceComplex (data i) a b) u v)));
+\definition target: New.targetComplex (data j) = Gauge.lift (First.targetComplex (FirstCoefficients.data j)) (Second.targetComplex (SecondCoefficients.data j)) :=
+  Algebra.matrixExt (New.targetComplex (data j)) (Gauge.lift (First.targetComplex (FirstCoefficients.data j)) (Second.targetComplex (SecondCoefficients.data j)))
+    (\fun (u: Open.Carrier Domain.domain)(v: Multilinear.Arguments one) => Algebra.numericExt (Algebra.eval1 (New.targetComplex (data j)) u v) (Algebra.eval1 (Gauge.lift (First.targetComplex (FirstCoefficients.data j)) (Second.targetComplex (SecondCoefficients.data j))) u v) (\fun (a, b: Fin.Fin Tensor.rank) => \refl(Matrix.evaluate (New.targetComplex (data j) a b) u v)));
+\import Gauge.Gauge[T := First.complexTransition, A := First.sourceComplex (FirstCoefficients.data i), C := First.targetComplex (FirstCoefficients.data j),
+  S := Second.complexTransition, B := Second.sourceComplex (SecondCoefficients.data i), D := Second.targetComplex (SecondCoefficients.data j),
+  first := FirstCoefficients.compatible i j, second := SecondCoefficients.compatible i j] \as Law;
+\definition law: New.ComplexCompatible (data i) (data j) := eq_reason_in!{{Matrix.Matrix1} _
+  "=" _ "by" { congr!{{Matrix.Matrix0} {Matrix.Matrix1} {Matrix.Matrix1}} Matrix.product01 _ _ _ _ Coefficients.transition source }
+  "=" _ "by" { Law.law }
+  "=" _ "by" { congr!{{Matrix.Matrix1} {Matrix.Matrix1} {Matrix.Matrix1}} Matrix.plus _ _ _ _
+    (congr!{{Matrix.Matrix0} {Matrix.Matrix1}} Matrix.dMatrix _ _ (sym!{{Matrix.Matrix0}} _ _ Coefficients.transition))
+    (congr!{{Matrix.Matrix1} {Matrix.Matrix0} {Matrix.Matrix1}} Matrix.product10 _ _ _ _ (sym!{{Matrix.Matrix1}} _ _ target) (sym!{{Matrix.Matrix0}} _ _ Coefficients.transition)) }
+};

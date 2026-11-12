@@ -11,10 +11,11 @@
 \definition one: N.Nat^ := N.Nat^::succ N.Nat^::zero;
 \import linear_algebra.Hermitian[].Over[K := C.Complex, field := C.Algebra[].field, scalar := linear_algebra.Hermitian[].Complex[].scalar].Sums[] \as Sums;
 \definition entry: Fin.Fin rank -> Fin.Fin rank -> Fin.Fin k -> Fin.Fin r -> C.Complex := Expansion.coefficient;
-\definition lift[A: Matrix.Matrix1][a, b: Fin.Fin rank]: Matrix.OneForm := Matrix.sum k (\fun (slot: Fin.Fin k) =>
+\definition rawLift[A: Matrix.Matrix1][a, b: Fin.Fin rank]: Matrix.OneForm := Matrix.sum k (\fun (slot: Fin.Fin k) =>
   Matrix.sum r (\fun (c: Fin.Fin r) => Matrix.multiply (Functions.constant (entry a b slot c)) (A (Coordinates.enumerate a slot) c)));
+\definition lift[A: Matrix.Matrix1][a, b: Fin.Fin rank]: ResultMatrix.OneForm := ResultMatrix.OneForm { real := (rawLift A a b).real, imaginary := (rawLift A a b).imaginary };
 \definition value: \forall (A: Matrix.Matrix1)(a, b: Fin.Fin rank)(x: Open.Carrier U)(v: TangentMultilinear.Arguments one) ->
-  Matrix.evaluate (lift A a b) x v = Sums.sum k (\fun (slot: Fin.Fin k) => Sums.sum r (\fun (c: Fin.Fin r) => Op.mul (entry a b slot c) (Matrix.evaluate (A (Coordinates.enumerate a slot) c) x v))) :=
+  ResultMatrix.evaluate (lift A a b) x v = Sums.sum k (\fun (slot: Fin.Fin k) => Sums.sum r (\fun (c: Fin.Fin r) => Op.mul (entry a b slot c) (Matrix.evaluate (A (Coordinates.enumerate a slot) c) x v))) :=
   \fun (A: Matrix.Matrix1)(a, b: Fin.Fin rank)(x: Open.Carrier U)(v: TangentMultilinear.Arguments one) => trans!{{C.Complex}} _ _ _
     (Matrix.valueSum k (\fun (slot: Fin.Fin k) => Matrix.sum r (\fun (c: Fin.Fin r) => Matrix.multiply (Functions.constant (entry a b slot c)) (A (Coordinates.enumerate a slot) c))) x v)
     (Sums.congruent k

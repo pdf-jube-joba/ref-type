@@ -1,0 +1,31 @@
+\import \parent.\parent.Pair[i := i, j := j] \as Geometry;
+\import Underlying.Pair[i := i, j := j] \as RealGauge;
+\import Charts.Transition[left := chart i, right := chart j] \as Transition;
+\import \root.ComplexMatrices[n := n, r := r].On[U := Transition.domain] \as Matrices;
+\import Matrices.Recovery[] \as Recovery;
+\import Matrices.RecoveryProducts[] \as Products;
+\import Matrices.Commutation[] \as Commutation;
+\import \root.MatrixCalculus[n := n, r := realRank].On[U := Transition.domain] \as RealMatrices;
+\import \root.Complex[n := n, r := r].Structure[].On[U := Transition.domain] \as J;
+\import \root.Complex[n := n, r := r].Structure[].On[U := (chart j).image] \as TargetJ;
+\import \root.Real[n := n, r := realRank].Transport[U := Transition.domain, V := (chart j).image].Pull[f := RealGauge.map] \as RealPull;
+\import \root.ComplexMatrices[n := n, r := r].Transport[U := Transition.domain, V := (chart i).image].Restriction[included := RealGauge.included] \as Restrict;
+\import \root.ComplexMatrices[n := n, r := r].Transport[U := Transition.domain, V := (chart j).image].Pull[f := RealGauge.map] \as Pull;
+\definition commutingTransition: Products.Commuting0 RealGauge.transition := Commutation.scalar RealGauge.transition (sym!{{RealMatrices.Matrix0}} _ _ Geometry.commutation);
+\definition targetJ: RealMatrices.product01 J.matrix (RealGauge.target (connection j)) = RealMatrices.product10 (RealGauge.target (connection j)) J.matrix := eq_reason_in!{{RealMatrices.Matrix1} _
+  "=" _ "by" { sym!{{RealMatrices.Matrix1}} _ _ (RealPull.product01 TargetJ.matrix (connection j).matrix) }
+  "=" _ "by" { congr!{{\root.MatrixCalculus[n := n, r := realRank].On[U := (chart j).image].Matrix1} {RealMatrices.Matrix1}} RealPull.matrix1 _ _ (complexLinear connection j) }
+  "=" _ "by" { RealPull.product10 (connection j).matrix TargetJ.matrix }
+};
+\definition commutingTarget: Products.Commuting1 (RealGauge.target (connection j)) := Commutation.form (RealGauge.target (connection j)) targetJ;
+\definition original: RealGauge.left (connection i) = RealGauge.right (connection j) := RealMatrices.Linearity[].ext (RealGauge.left (connection i)) (RealGauge.right (connection j)) (Underlying.compatible (forget connection) i j);
+\definition recovered: Matrices.product01 (Recovery.recover0 RealGauge.transition) (Recovery.recover1 (RealGauge.source (connection i))) =
+  Matrices.plus (Matrices.dMatrix (Recovery.recover0 RealGauge.transition)) (Matrices.product10 (Recovery.recover1 (RealGauge.target (connection j))) (Recovery.recover0 RealGauge.transition)) :=
+  Products.recoverGauge RealGauge.transition (RealGauge.source (connection i)) (RealGauge.target (connection j)) commutingTransition commutingTarget original;
+\definition law: Geometry.ComplexCompatible (data i) (data j) := eq_reason_in!{{Matrices.Matrix1} _
+  "=" _ "by" { congr!{{Matrices.Matrix0} {Matrices.Matrix1} {Matrices.Matrix1}} Matrices.product01 _ _ _ _
+    (sym!{{Matrices.Matrix0}} _ _ Geometry.recoveredTransition) (sym!{{Matrices.Matrix1}} _ _ (Restrict.recover1 (connection i).matrix)) }
+  "=" _ "by" recovered
+  "=" _ "by" { congr!{{Matrices.Matrix0} {Matrices.Matrix1} {Matrices.Matrix1}} (\fun (T: Matrices.Matrix0)(B: Matrices.Matrix1) => Matrices.plus (Matrices.dMatrix T) (Matrices.product10 B T)) _ _ _ _
+    Geometry.recoveredTransition (Pull.recover1 (connection j).matrix) }
+};
