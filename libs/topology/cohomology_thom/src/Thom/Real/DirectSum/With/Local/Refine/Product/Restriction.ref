@@ -1,0 +1,65 @@
+\import LeftGeometry.Domain[U := U] \as LeftActual;
+\import RightGeometry.Domain[U := U] \as RightActual;
+\import LeftGeometry.Coefficients[R := K, ring := ring] \as OriginalLeft;
+\import RightGeometry.Coefficients[R := K, ring := ring] \as OriginalRight;
+\import Geometry.Coefficients[R := K, ring := ring] \as OriginalSum;
+\import \root.Thom[].Real[].DirectSum[X := X, F := F, G := G, left := left, right := right, same := same, leftMetric := leftMetric, rightMetric := rightMetric].With[metric := metric].Ring[K := K, ring := ring] \as Global;
+\definition LeftClass: \Set := LeftInput.Carrier;
+\definition RightClass: \Set := RightInput.Carrier;
+\definition Class: \Set := Actual.Ring[K := K, ring := ring].Degree[n := chart.dimension].Class;
+\use std.Logic[].Equality[].eq_reason_in;
+\import \root.Thom[].Real[].DirectSum[X := X, F := F, G := G, left := left, right := right, same := same, leftMetric := leftMetric, rightMetric := rightMetric].With[metric := metric] \as Whole;
+\import \root.MixedCup[A := Carrier, source := topology, first := Global.firstShell, second := Global.secondShell, K := K, ring := ring] \as OldMixed;
+\import OldMixed.Union[] \as OldUnion;
+\import OldUnion.Cover[].On[conditions := Global.conditions].Cup[p := c.dimension, q := d.dimension] \as OldCup;
+\import OldMixed.From[Y := Domain.BoxCarrier, target := Domain.boxTopology, firstPart := firstShell, secondPart := secondShell,
+  f := Domain.inclusion, regular := Domain.inclusionContinuous,
+  firstContained := (\fun (p: Domain.BoxCarrier)(inside: \In[Domain.BoxCarrier] firstShell p) => inside),
+  secondContained := (\fun (p: Domain.BoxCarrier)(inside: \In[Domain.BoxCarrier] secondShell p) => inside)] \as Along;
+\import \root.RelativePullback[].On[A := Domain.BoxCarrier, source := Domain.boxTopology, subset := firstShell, R := K, ring := ring].To[B := Carrier, target := topology, part := Global.firstShell].Along[f := Along.firstMap] \as FirstRestriction;
+\import \root.RelativePullback[].On[A := Domain.BoxCarrier, source := Domain.boxTopology, subset := secondShell, R := K, ring := ring].To[B := Carrier, target := topology, part := Global.secondShell].Along[f := Along.secondMap] \as SecondRestriction;
+\import \root.RelativePullback[].On[A := Domain.BoxCarrier, source := Domain.boxTopology, subset := Union.subset, R := K, ring := ring].To[B := Carrier, target := topology, part := OldUnion.subset].Along[f := Along.unionMap] \as UnionRestriction;
+\import \root.RelativePullback[].On[A := Carrier, source := topology, subset := Global.firstShell, R := K, ring := ring].To[B := LeftDisk.DiskBundle, target := LeftDisk.diskTopology, part := LeftDisk.Boundary].Along[f := Global.leftMap] \as OldLeftPull;
+\import \root.RelativePullback[].On[A := Carrier, source := topology, subset := Global.secondShell, R := K, ring := ring].To[B := RightDisk.DiskBundle, target := RightDisk.diskTopology, part := RightDisk.Boundary].Along[f := Global.rightMap] \as OldRightPull;
+\import singular_cohomology.Relative[A := Disk.DiskBundle, source := Disk.diskTopology, subset := Disk.Boundary].Homeomorphism[B := Carrier].Over[target := topology, targetSubset := Box.Boundary] \as GlobalPairs;
+\import singular_cohomology.Relative[A := Disk.DiskBundle, source := Disk.diskTopology, subset := Disk.Boundary].Maps[B := Carrier].Over[target := topology, targetSubset := Box.Boundary].Composition[C := Carrier].Over[final := topology, finalSubset := OldUnion.subset] \as GlobalComposition;
+\import singular_cohomology.Relative[A := Disk.DiskBundle, source := Disk.diskTopology, subset := Disk.Boundary].Maps[B := Carrier].Over[target := topology, targetSubset := OldUnion.subset] \as GlobalFullMaps;
+\definition globalFullMap: GlobalFullMaps.Map := GlobalComposition.compose (GlobalPairs.forwardMap Whole.pair) Global.boundaryMap;
+\import \root.RelativePullback[].On[A := Disk.DiskBundle, source := Disk.diskTopology, subset := Disk.Boundary, R := K, ring := ring].To[B := Carrier, target := topology, part := OldUnion.subset].Along[f := globalFullMap] \as GlobalFullPull;
+\definition oldMixed[u: OriginalLeft.Degree[n := c.dimension].Class][v: OriginalRight.Degree[n := d.dimension].Class]: _ := OldCup.apply (OldLeftPull.Degree[n := c.dimension].map.apply u) (OldRightPull.Degree[n := d.dimension].map.apply v);
+\definition globalFormula: \forall (u: OriginalLeft.Degree[n := c.dimension].Class)(v: OriginalRight.Degree[n := d.dimension].Class) -> Global.Product[n := c.dimension, m := d.dimension].apply u v = GlobalFullPull.Degree[n := chart.dimension].map.apply (oldMixed u v) :=
+  \fun (u: OriginalLeft.Degree[n := c.dimension].Class)(v: OriginalRight.Degree[n := d.dimension].Class) => sym!{{OriginalSum.Degree[n := chart.dimension].Class}} _ _
+    (GlobalComposition.On[f := GlobalPairs.forwardMap Whole.pair, g := Global.boundaryMap].With[coefficients := BaseProduct.integerCoefficients].law (I.Int^::ofNat chart.dimension) (oldMixed u v));
+\definition restrictLeft[u: OriginalLeft.Degree[n := c.dimension].Class]: LeftClass := LeftActual.Additive[coefficients := BaseProduct.integerCoefficients, z := I.Int^::ofNat c.dimension].restriction.apply u;
+\definition restrictRight[v: OriginalRight.Degree[n := d.dimension].Class]: RightClass := RightActual.Additive[coefficients := BaseProduct.integerCoefficients, z := I.Int^::ofNat d.dimension].restriction.apply v;
+\definition restrictSum[w: OriginalSum.Degree[n := chart.dimension].Class]: Class := Actual.Additive[coefficients := BaseProduct.integerCoefficients, z := I.Int^::ofNat chart.dimension].restriction.apply w;
+\module LeftComparison;
+\module RightComparison;
+\module TotalComparison;
+\import \parent.Restriction[].LeftComparison[] \as LeftSquare;
+\import \parent.Restriction[].RightComparison[] \as RightSquare;
+\import \parent.Restriction[].TotalComparison[] \as TotalSquare;
+\import singular_cohomology.Relative[A := Domain.BoxCarrier, source := Domain.boxTopology, subset := firstShell].With[coefficients := BaseProduct.integerCoefficients].At[z := I.Int^::ofNat c.dimension] \as LocalLeft;
+\import singular_cohomology.Relative[A := Domain.BoxCarrier, source := Domain.boxTopology, subset := secondShell].With[coefficients := BaseProduct.integerCoefficients].At[z := I.Int^::ofNat d.dimension] \as LocalRight;
+\import singular_cohomology.Relative[A := Domain.BoxCarrier, source := Domain.boxTopology, subset := Union.subset].With[coefficients := BaseProduct.integerCoefficients].At[z := I.Int^::ofNat chart.dimension] \as LocalOutput;
+\definition law: \forall (u: OriginalLeft.Degree[n := c.dimension].Class)(v: OriginalRight.Degree[n := d.dimension].Class) ->
+  restrictSum (Global.Product[n := c.dimension, m := d.dimension].apply u v) = apply (restrictLeft u) (restrictRight v) :=
+  \fun (u: OriginalLeft.Degree[n := c.dimension].Class)(v: OriginalRight.Degree[n := d.dimension].Class) => eq_reason_in!{Class _
+    "=" _ "by" { congr!{{OriginalSum.Degree[n := chart.dimension].Class} Class} restrictSum _ _ (globalFormula u v) }
+    "=" _ "by" { TotalSquare.law (oldMixed u v) }
+    "=" _ "by" { congr!{LocalOutput.Carrier Class} FullPull.Degree[n := chart.dimension].map.apply _ _
+      (Along.Covers[conditions := Global.conditions, newConditions := conditions].Cup[p := c.dimension, q := d.dimension].law (OldLeftPull.Degree[n := c.dimension].map.apply u) (OldRightPull.Degree[n := d.dimension].map.apply v)) }
+    "=" _ "by" { congr!{LocalLeft.Carrier LocalRight.Carrier Class}
+      (\fun (a: LocalLeft.Carrier)(b: LocalRight.Carrier) => FullPull.Degree[n := chart.dimension].map.apply (Cup.apply a b)) _ _ _ _ (LeftSquare.law u) (RightSquare.law v) }
+  };
+\import \parent.Comparison[] \as ModelComparison;
+\import \parent.LeftFactor[] \as LeftFactorClasses;
+\import \parent.RightFactor[] \as RightFactorClasses;
+\import algebraic_topology.Euclidean[].Dimension[n := chart.dimension] \as StandardTotal;
+\import \root.RelativePullback[].On[A := Actual.Carrier, source := Actual.topology, subset := Actual.boundary, R := K, ring := ring].To[B := StandardTotal.Disk, target := StandardTotal.diskTopology, part := ModelComparison.totalBoundary].Along[f := ModelComparison.roundMap] \as ModelPull;
+\definition formula: \forall (u: OriginalLeft.Degree[n := c.dimension].Class)(v: OriginalRight.Degree[n := d.dimension].Class)(a: LeftPoint.Class)(b: RightPoint.Class) ->
+  restrictLeft u = LeftFactorClasses.class a -> restrictRight v = RightFactorClasses.class b ->
+  restrictSum (Global.Product[n := c.dimension, m := d.dimension].apply u v) = ModelPull.Degree[n := chart.dimension].map.apply (StandardProduct.apply a b) :=
+  \fun (u: OriginalLeft.Degree[n := c.dimension].Class)(v: OriginalRight.Degree[n := d.dimension].Class)(a: LeftPoint.Class)(b: RightPoint.Class)(left: _)(right: _) =>
+    trans!{Class} _ _ _ (law u v)
+      (trans!{Class} _ _ _ (congr!{LeftClass RightClass Class} apply _ _ _ _ left right) (ModelComparison.law a b));

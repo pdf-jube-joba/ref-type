@@ -1,0 +1,40 @@
+\import \parent.LeftFactor[] \as LeftFactor;
+\import \parent.RightFactor[] \as RightFactor;
+\import \root.RelativePullback[].On[A := StandardProduct.Carrier, source := StandardProduct.topology, subset := StandardProduct.firstShell, R := K, ring := ring].To[B := First.Disk, target := First.diskTopology, part := LeftStandard.shell].Along[f := StandardProduct.leftMap] \as StandardLeftPull;
+\import \root.RelativePullback[].On[A := StandardProduct.Carrier, source := StandardProduct.topology, subset := StandardProduct.secondShell, R := K, ring := ring].To[B := Second.Disk, target := Second.diskTopology, part := RightStandard.shell].Along[f := StandardProduct.rightMap] \as StandardRightPull;
+\import singular_cohomology.Relative[A := Domain.BoxCarrier, source := Domain.boxTopology, subset := firstShell].With[coefficients := BaseProduct.integerCoefficients].At[z := I.Int^::ofNat c.dimension] \as LocalLeft;
+\import singular_cohomology.Relative[A := Domain.BoxCarrier, source := Domain.boxTopology, subset := secondShell].With[coefficients := BaseProduct.integerCoefficients].At[z := I.Int^::ofNat d.dimension] \as LocalRight;
+\import singular_cohomology.Relative[A := Domain.BoxCarrier, source := Domain.boxTopology, subset := Union.subset].With[coefficients := BaseProduct.integerCoefficients].At[z := I.Int^::ofNat chart.dimension] \as LocalUnion;
+\definition mixedLaw: \forall (a: LeftPoint.Class)(b: RightPoint.Class) -> Cup.apply (LeftPull.Degree[n := c.dimension].map.apply (LeftFactor.class a)) (RightPull.Degree[n := d.dimension].map.apply (RightFactor.class b)) = UnionPull.Degree[n := chart.dimension].map.apply (StandardProduct.mixed a b) :=
+  \fun (a: LeftPoint.Class)(b: RightPoint.Class) => trans!{LocalUnion.Carrier} _ _ _
+    (congr!{LocalLeft.Carrier LocalRight.Carrier LocalUnion.Carrier} Cup.apply _ _ _ _ (LeftFactor.law a) (RightFactor.law b))
+    (sym!{LocalUnion.Carrier} _ _ (Along.Covers[conditions := StandardProduct.conditions, newConditions := conditions].Cup[p := c.dimension, q := d.dimension].law
+      (StandardLeftPull.Degree[n := c.dimension].map.apply (LeftStandardClass.lift a)) (StandardRightPull.Degree[n := d.dimension].map.apply (RightStandardClass.lift b))));
+\import algebraic_topology.Euclidean[].Dimension[n := chart.dimension] \as Total;
+\definition round[p: Actual.Carrier]: Total.Disk := Pair.second BasePoint Total.Disk (productHomeomorphism.forward p);
+\definition roundContinuous: topology.Continuity[A := Actual.Carrier, B := Total.Disk].Continuous Actual.topology Total.diskTopology round :=
+  topology.Composition[A := Actual.Carrier, B := Standard.Carrier, C := Total.Disk].composeContinuous Actual.topology Standard.topology Total.diskTopology productHomeomorphism.forward (Pair.second BasePoint Total.Disk)
+    (topology.Homeomorphism[A := Actual.Carrier, B := Standard.Carrier].laws Actual.topology Standard.topology productHomeomorphism).forwardContinuous
+    (topological_constructions.Product[A := BasePoint, B := Total.Disk].Maps[].secondContinuous baseTopology Total.diskTopology);
+\definition totalBoundary: \Pow Total.Disk := { v: Total.Disk \where Total.normSquared v = Reals.one };
+\import singular_cohomology.Relative[A := Actual.Carrier, source := Actual.topology, subset := Actual.boundary].Maps[B := Total.Disk].Over[target := Total.diskTopology, targetSubset := totalBoundary] \as RoundMaps;
+\definition roundMap: RoundMaps.Map := \into[Actual.Carrier -> Total.Disk](round, RoundMaps.Map) \by {
+  RoundMaps.Laws[round] { continuous := roundContinuous, contained := \fun (p: \Cast[Actual.Carrier] Actual.boundary) => productPair.forwardPreserves p }
+};
+\import \root.RelativePullback[].On[A := Actual.Carrier, source := Actual.topology, subset := Actual.boundary, R := K, ring := ring].To[B := Total.Disk, target := Total.diskTopology, part := totalBoundary].Along[f := roundMap] \as RoundPull;
+\import singular_cohomology.Relative[A := Actual.Carrier, source := Actual.topology, subset := Actual.boundary].Maps[B := Domain.BoxCarrier].Over[target := Domain.boxTopology, targetSubset := Union.subset].Composition[C := StandardProduct.Carrier].Over[final := StandardProduct.topology, finalSubset := StandardUnion.subset] \as FirstComposition;
+\import RoundMaps.Composition[C := StandardProduct.Carrier].Over[final := StandardProduct.topology, finalSubset := StandardUnion.subset] \as SecondComposition;
+\import singular_cohomology.Relative[A := Actual.Carrier, source := Actual.topology, subset := Actual.boundary].Maps[B := StandardProduct.Carrier].Over[target := StandardProduct.topology, targetSubset := StandardUnion.subset] \as Maps;
+\import thom_spaces.Thom[].CWType[].DiskProduct[n := c.dimension, m := d.dimension] \as Disks;
+\definition points: \forall (p: Actual.Carrier) -> FirstComposition.compose fullMap Along.unionMap p = SecondComposition.compose roundMap StandardProduct.fullMap p :=
+  \fun (p: Actual.Carrier) => sym!{StandardProduct.Carrier} _ _ (Disks.laws.rightInverse (pointCoordinates (Domain.forward p)));
+\definition square: FirstComposition.compose fullMap Along.unionMap = SecondComposition.compose roundMap StandardProduct.fullMap := \axiom:funext(FirstComposition.compose fullMap Along.unionMap, SecondComposition.compose roundMap StandardProduct.fullMap, points);
+\import singular_cohomology.Relative[A := Actual.Carrier, source := Actual.topology, subset := Actual.boundary].With[coefficients := BaseProduct.integerCoefficients].At[z := I.Int^::ofNat chart.dimension] \as Output;
+\definition action[f: Maps.Map]: _ := Maps.On[f := f].Integer[].With[coefficients := BaseProduct.integerCoefficients].At[z := I.Int^::ofNat chart.dimension].induced;
+\definition law: \forall (a: LeftPoint.Class)(b: RightPoint.Class) -> apply (LeftFactor.class a) (RightFactor.class b) = RoundPull.Degree[n := chart.dimension].map.apply (StandardProduct.apply a b) :=
+  \fun (a: LeftPoint.Class)(b: RightPoint.Class) => eq_reason_in!{Output.Carrier _
+    "=" _ "by" { congr!{LocalUnion.Carrier Output.Carrier} FullPull.Degree[n := chart.dimension].map.apply _ _ (mixedLaw a b) }
+    "=" _ "by" { sym!{Output.Carrier} _ _ (FirstComposition.On[f := fullMap, g := Along.unionMap].With[coefficients := BaseProduct.integerCoefficients].law (I.Int^::ofNat chart.dimension) (StandardProduct.mixed a b)) }
+    "=" _ "by" { congr!{Maps.Map Output.Carrier} (\fun (f: Maps.Map) => (action f).apply (StandardProduct.mixed a b)) _ _ square }
+    "=" _ "by" { SecondComposition.On[f := roundMap, g := StandardProduct.fullMap].With[coefficients := BaseProduct.integerCoefficients].law (I.Int^::ofNat chart.dimension) (StandardProduct.mixed a b) }
+  };

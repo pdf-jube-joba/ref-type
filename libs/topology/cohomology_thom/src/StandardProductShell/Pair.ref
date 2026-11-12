@@ -1,0 +1,37 @@
+\definition closedUnion: \Pow Carrier := { p: Carrier \where Logic.Or[\In[Carrier] closedFirst p, \In[Carrier] closedSecond p] };
+\definition shellUnion: \Pow Carrier := { p: Carrier \where Logic.Or[\In[Carrier] shellFirst p, \In[Carrier] shellSecond p] };
+\import \root.StandardProductShell[n := n, m := m].Families[] \as Families;
+\import singular_cohomology.Relative[A := Carrier, source := topology, subset := closedUnion].Maps[B := Carrier].Over[target := topology, targetSubset := shellUnion] \as Forward;
+\import singular_cohomology.Relative[A := Carrier, source := topology, subset := shellUnion].Maps[B := Carrier].Over[target := topology, targetSubset := closedUnion] \as Backward;
+\definition intoShell: \forall (p: Carrier) -> \In[Carrier] closedUnion p -> \In[Carrier] shellUnion p :=
+  \fun (p: Carrier)(inside: _) => either!{inside {\In[Carrier] shellUnion p}
+    {\fun (left: \In[Carrier] closedFirst p) => Logic.Or[_, _]::left (Families.intoFirst p left)}
+    {\fun (right: \In[Carrier] closedSecond p) => Logic.Or[_, _]::right (Families.intoSecond p right)}};
+\definition intoBoundary: \forall (p: Carrier) -> \In[Carrier] shellUnion p -> \In[Carrier] closedUnion (clip p) :=
+  \fun (p: Carrier)(inside: _) => either!{inside {\In[Carrier] closedUnion (clip p)}
+    {\fun (left: \In[Carrier] shellFirst p) => Logic.Or[_, _]::left (LM.endsInBoundary (\into[Left.Disk](first p, L.shell) \by { left }))}
+    {\fun (right: \In[Carrier] shellSecond p) => Logic.Or[_, _]::right (RM.endsInBoundary (\into[Right.Disk](second p, R.shell) \by { right }))}};
+\definition forward: Forward.Map := \into[Carrier -> Carrier](identity, Forward.Map) \by { Forward.Laws[identity] { continuous := identityContinuous, contained := \fun (p: \Cast[Carrier] closedUnion) => intoShell p (\bysub(Carrier, closedUnion, p)) } };
+\definition backward: Backward.Map := \into[Carrier -> Carrier](clip, Backward.Map) \by { Backward.Laws[clip] { continuous := clipContinuous, contained := \fun (p: \Cast[Carrier] shellUnion) => intoBoundary p (\bysub(Carrier, shellUnion, p)) } };
+\definition closedPreserved: \forall (t: J.Carrier)(p: \Cast[Carrier] closedUnion) -> \In[Carrier] closedUnion (motion (Cylinder.at t p)) :=
+  \fun (t: J.Carrier)(p: \Cast[Carrier] closedUnion) => either!{{\bysub(Carrier, closedUnion, p)} {\In[Carrier] closedUnion (motion (Cylinder.at t p))}
+    {\fun (left: \In[Carrier] closedFirst p) => Logic.Or[_, _]::left (closedFirstPreserved t p left)}
+    {\fun (right: \In[Carrier] closedSecond p) => Logic.Or[_, _]::right (closedSecondPreserved t p right)}};
+\definition shellPreserved: \forall (t: J.Carrier)(p: \Cast[Carrier] shellUnion) -> \In[Carrier] shellUnion (motion (Cylinder.at t p)) :=
+  \fun (t: J.Carrier)(p: \Cast[Carrier] shellUnion) => either!{{\bysub(Carrier, shellUnion, p)} {\In[Carrier] shellUnion (motion (Cylinder.at t p))}
+    {\fun (left: \In[Carrier] shellFirst p) => Logic.Or[_, _]::left (shellFirstPreserved t p left)}
+    {\fun (right: \In[Carrier] shellSecond p) => Logic.Or[_, _]::right (shellSecondPreserved t p right)}};
+\definition reverse: Homotopies.Homotopy[topology, topology, clip, identity] := Homotopies.reverse topology topology identity clip deformation;
+\import singular_cohomology.Relative[A := Carrier, source := topology, subset := closedUnion].Equivalence[B := Carrier].Over[target := topology, targetSubset := shellUnion] \as Equivalences;
+\import singular_cohomology.Relative[A := Carrier, source := topology, subset := closedUnion].Maps[B := Carrier].Over[target := topology, targetSubset := closedUnion] \as ClosedEnd;
+\import singular_cohomology.Relative[A := Carrier, source := topology, subset := shellUnion].Maps[B := Carrier].Over[target := topology, targetSubset := shellUnion] \as OpenEnd;
+\import singular_cohomology.Relative[A := Carrier, source := topology, subset := closedUnion].Identity[] \as ClosedIdentity;
+\import singular_cohomology.Relative[A := Carrier, source := topology, subset := shellUnion].Identity[] \as OpenIdentity;
+\definition closedClip: ClosedEnd.Map := Forward.Composition[C := Carrier].Over[final := topology, finalSubset := closedUnion].compose forward backward;
+\definition openClip: OpenEnd.Map := Backward.Composition[C := Carrier].Over[final := topology, finalSubset := shellUnion].compose backward forward;
+\definition equivalence: Equivalences.Equivalence := Equivalences.Equivalence {
+  forward := forward, backward := backward,
+  left := \into[Homotopies.Homotopy[topology, topology, clip, identity]](reverse, ClosedEnd.Homotopy[f := closedClip, g := ClosedIdentity.map].Homotopy) \by { \fun (t: J.Carrier)(p: \Cast[Carrier] closedUnion) => closedPreserved (J.reverse t) p },
+  right := \into[Homotopies.Homotopy[topology, topology, clip, identity]](reverse, OpenEnd.Homotopy[f := openClip, g := OpenIdentity.map].Homotopy) \by { \fun (t: J.Carrier)(p: \Cast[Carrier] shellUnion) => shellPreserved (J.reverse t) p }
+};
+\module With(coefficients: Modules.Bundle, z: I.Int^) { \definition isomorphism: _ := Equivalences.On[e := equivalence].With[coefficients := coefficients].At[z := z].isomorphism; }

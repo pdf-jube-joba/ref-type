@@ -1,0 +1,49 @@
+\import \parent.First[] \as First;
+\import \parent.Second[] \as Second;
+\import \root.FamilyProduct[A := Closed.Carrier, source := Closed.topology, first := Closed.firstPart, second := Closed.secondPart, family := Closed.family,
+  firstMember := Closed.firstMember, secondMember := Closed.secondMember, classify := Closed.classify, K := K, ring := ring].Degree[p := n, q := m].Cohomology[] \as ClosedCup;
+\import singular_cohomology.Relative[A := Closed.Carrier, source := Closed.topology, subset := Closed.firstPart].With[coefficients := Coefficients.integerCoefficients].At[z := I.Int^::ofNat n] \as FirstH;
+\import singular_cohomology.Relative[A := Closed.Carrier, source := Closed.topology, subset := Closed.secondPart].With[coefficients := Coefficients.integerCoefficients].At[z := I.Int^::ofNat m] \as SecondH;
+\definition onFamily: \forall (a: LeftPoint.Class)(b: RightPoint.Class) -> familyIsomorphism.forward.apply (shellProduct a b) = Closed.apply a b :=
+  \fun (a: LeftPoint.Class)(b: RightPoint.Class) => trans!{Closed.Class} _ _ _
+    (Natural.Product[p := n, q := m].Cohomology[].law (firstClass a) (secondClass b))
+    (congr!{FirstH.Carrier SecondH.Carrier Closed.Class} ClosedCup.product _ _ _ _ (First.law a) (Second.law b));
+\import \root.FamilyPair[A := Closed.Carrier, source := Closed.topology, family := Bridge.shellFamily].With[coefficients := Coefficients.integerCoefficients] \as OpenCochains;
+\import chain_complexes.Integer[].Over[R := I.Int^, ring := Integers.ring] \as Integer;
+\import Integer.At[C := OpenCochains.complex, z := I.Int^::ofNat Closed.degree] \as OpenH;
+\definition inverseFamily: \forall (a: LeftPoint.Class)(b: RightPoint.Class) -> familyIsomorphism.backward.apply (Closed.apply a b) = shellProduct a b :=
+  \fun (a: LeftPoint.Class)(b: RightPoint.Class) => trans!{OpenH.Cohomology} _ _ _
+    (congr!{Closed.Class OpenH.Cohomology} familyIsomorphism.backward.apply _ _ (sym!{Closed.Class} _ _ (onFamily a b)))
+    (familyIsomorphism.leftInverse (shellProduct a b));
+\import \root.MixedCup[A := Closed.Carrier, source := Closed.topology, first := Bridge.shellFirst, second := Bridge.shellSecond, K := K, ring := ring] \as Mixed;
+\import Mixed.Union[].Cover[].On[conditions := Actual.conditions].CommonIso[].Cohomology[n := Closed.degree] \as UnionComparison;
+\import Mixed.CommonComplex[] \as CommonComplex;
+\import chain_complexes.Cochain[].Over[R := I.Int^, ring := Integers.ring].At[C := CommonComplex.complex, k := Closed.degree] \as CommonH;
+\import singular_cohomology.Relative[A := Closed.Carrier, source := Closed.topology, subset := PairGeometry.shellUnion].With[coefficients := Coefficients.integerCoefficients].At[z := I.Int^::ofNat Closed.degree] \as UnionH;
+\import Modules.Isomorphism[V := OpenH.Cohomology, W := CommonH.Cohomology, source := OpenH.cohomologySpace, target := CommonH.cohomologySpace].Composition[U := UnionH.Carrier, final := UnionH.space] \as OpenComposition;
+\definition openIsomorphism: Modules.Isomorphism[V := OpenH.Cohomology, W := UnionH.Carrier, source := OpenH.cohomologySpace, target := UnionH.space].Isomorphism :=
+  OpenComposition.compose (Modules.Isomorphism[V := UnionH.Carrier, W := CommonH.Cohomology, source := UnionH.space, target := CommonH.cohomologySpace].Inverse[].inverse UnionComparison.isomorphism) ShellCup.commonIsomorphism;
+\definition openLaw: \forall (a: LeftPoint.Class)(b: RightPoint.Class) -> openIsomorphism.forward.apply (shellProduct a b) = Actual.mixed a b :=
+  \fun (a: LeftPoint.Class)(b: RightPoint.Class) => congr!{CommonH.Cohomology UnionH.Carrier} UnionComparison.isomorphism.backward.apply _ _
+    (ShellCup.comparison (firstClass a) (secondClass b));
+\import singular_cohomology.Relative[A := Closed.Carrier, source := Closed.topology, subset := PairGeometry.closedUnion].With[coefficients := Coefficients.integerCoefficients].At[z := I.Int^::ofNat Closed.degree] \as BoundaryH;
+\import singular_cohomology.Relative[A := Total.Disk, source := Total.diskTopology, subset := \root.StandardShell[n := Closed.degree].boundary].With[coefficients := Coefficients.integerCoefficients].At[z := I.Int^::ofNat Closed.degree] \as Output;
+\import Bridge.Pair[].With[coefficients := Coefficients.integerCoefficients, z := I.Int^::ofNat Closed.degree] \as PairComparison;
+\import singular_cohomology.Relative[A := Total.Disk, source := Total.diskTopology, subset := \root.StandardShell[n := Closed.degree].boundary].Homeomorphism[B := Closed.Carrier].Over[target := Closed.topology, targetSubset := PairGeometry.closedUnion] \as RoundPairs;
+\definition roundIsomorphism: _ := RoundPairs.With[coefficients := Coefficients.integerCoefficients].At[z := I.Int^::ofNat Closed.degree].isomorphism Actual.roundPair;
+\import Modules.Isomorphism[V := Closed.Class, W := OpenH.Cohomology, source := Closed.space, target := OpenH.cohomologySpace].Composition[U := UnionH.Carrier, final := UnionH.space] \as Before;
+\definition toOpenUnion: Modules.Isomorphism[V := Closed.Class, W := UnionH.Carrier, source := Closed.space, target := UnionH.space].Isomorphism :=
+  Before.compose openIsomorphism (Modules.Isomorphism[V := OpenH.Cohomology, W := Closed.Class, source := OpenH.cohomologySpace, target := Closed.space].Inverse[].inverse familyIsomorphism);
+\import Modules.Isomorphism[V := Closed.Class, W := UnionH.Carrier, source := Closed.space, target := UnionH.space].Composition[U := BoundaryH.Carrier, final := BoundaryH.space] \as Middle;
+\definition toBoundary: Modules.Isomorphism[V := Closed.Class, W := BoundaryH.Carrier, source := Closed.space, target := BoundaryH.space].Isomorphism :=
+  Middle.compose PairComparison.isomorphism toOpenUnion;
+\import Modules.Isomorphism[V := Closed.Class, W := BoundaryH.Carrier, source := Closed.space, target := BoundaryH.space].Composition[U := Output.Carrier, final := Output.space] \as After;
+\definition isomorphism: Modules.Isomorphism[V := Closed.Class, W := Output.Carrier, source := Closed.space, target := Output.space].Isomorphism := After.compose roundIsomorphism toBoundary;
+\import singular_cohomology.Relative[A := Total.Disk, source := Total.diskTopology, subset := \root.StandardShell[n := Closed.degree].boundary].Maps[B := Closed.Carrier].Over[target := Closed.topology, targetSubset := PairGeometry.closedUnion].Composition[C := Closed.Carrier].Over[final := Closed.topology, finalSubset := PairGeometry.shellUnion] \as FullComposition;
+\import FullComposition.On[f := RoundPairs.forwardMap Actual.roundPair, g := Actual.boundaryMap].With[coefficients := Coefficients.integerCoefficients] \as FullLaw;
+\definition law: \forall (a: LeftPoint.Class)(b: RightPoint.Class) -> isomorphism.forward.apply (Closed.apply a b) = Actual.apply a b :=
+  \fun (a: LeftPoint.Class)(b: RightPoint.Class) => eq_reason_in!{Output.Carrier _
+    "=" _ "by" { congr!{OpenH.Cohomology Output.Carrier} (\fun (v: OpenH.Cohomology) => roundIsomorphism.forward.apply (PairComparison.isomorphism.forward.apply (openIsomorphism.forward.apply v))) _ _ (inverseFamily a b) }
+    "=" _ "by" { congr!{UnionH.Carrier Output.Carrier} (\fun (v: UnionH.Carrier) => roundIsomorphism.forward.apply (PairComparison.isomorphism.forward.apply v)) _ _ (openLaw a b) }
+    "=" _ "by" { sym!{Output.Carrier} _ _ (FullLaw.law (I.Int^::ofNat Closed.degree) (Actual.mixed a b)) }
+  };

@@ -1,0 +1,23 @@
+\import \parent.First[] \as First;
+\import \parent.Second[] \as Second;
+\import singular_cohomology.Relative[A := Total.Disk, source := Total.diskTopology, subset := TotalShell.boundary] \as OutputPair;
+\import singular_cohomology.Relative[A := Old.Carrier, source := Old.topology, subset := Union.subset] \as UnionPair;
+\import OutputPair.Maps[B := Old.Carrier].Over[target := Old.topology, targetSubset := Union.subset].On[f := Old.fullMap].Integer[] \as FullMap;
+\import \root.CoefficientChange[].On[C := UnionPair.complex, M := Source.integerCoefficients, N := Target.integerCoefficients, u := morphism.linear].Along[D := OutputPair.complex, f := FullMap.map].At[z := I.Int^::ofNat degree] \as Natural;
+\import \root.RelativePullback[].On[A := Total.Disk, source := Total.diskTopology, subset := TotalShell.boundary, R := L, ring := targetRing].To[B := New.Carrier, target := New.topology, part := Union.subset].Along[f := New.fullMap] \as Pull;
+\import OutputPair.With[coefficients := Target.integerCoefficients].At[z := I.Int^::ofNat degree] \as Output;
+\import MixedChange.Covers[conditions := Old.conditions].Cup[p := n, q := m] \as CupChange;
+\import \root.MixedCup[A := New.Carrier, source := New.topology, first := New.firstShell, second := New.secondShell, K := L, ring := targetRing].Union[].Cover[].On[conditions := New.conditions].Cup[p := n, q := m] \as NewCup;
+\import singular_cohomology.Relative[A := New.Carrier, source := New.topology, subset := New.firstShell].With[coefficients := Target.integerCoefficients].At[z := I.Int^::ofNat n] \as FirstH;
+\import singular_cohomology.Relative[A := New.Carrier, source := New.topology, subset := New.secondShell].With[coefficients := Target.integerCoefficients].At[z := I.Int^::ofNat m] \as SecondH;
+\import UnionPair.With[coefficients := Target.integerCoefficients].At[z := I.Int^::ofNat degree] \as UnionH;
+\definition law: \forall (a: LeftPoint.Class)(b: RightPoint.Class) -> map.apply (Old.apply a b) = New.apply (LeftChange.pointMap.apply a) (RightChange.pointMap.apply b) :=
+  \fun (a: LeftPoint.Class)(b: RightPoint.Class) => eq_reason_in!{Output.Carrier _
+    "=" _ "by" { Natural.law (Old.mixed a b) }
+    "=" _ "by" { congr!{UnionH.Carrier Output.Carrier} Pull.Degree[n := degree].map.apply _ _ (CupChange.law (First.old a) (Second.old b)) }
+    "=" _ "by" { congr!{UnionH.Carrier Output.Carrier} Pull.Degree[n := degree].map.apply _ _
+      (congr!{FirstH.Carrier SecondH.Carrier UnionH.Carrier} NewCup.apply _ _ _ _ (First.law a) (Second.law b)) }
+  };
+\definition generators: map.apply (Old.apply LeftPoint.generator RightPoint.generator) = New.apply NewLeftPoint.generator NewRightPoint.generator :=
+  trans!{Output.Carrier} _ _ _ (law LeftPoint.generator RightPoint.generator)
+    (congr!{NewLeftPoint.Class NewRightPoint.Class Output.Carrier} New.apply _ _ _ _ LeftChange.pointGenerator RightChange.pointGenerator);

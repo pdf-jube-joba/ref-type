@@ -1,0 +1,36 @@
+\import algebraic_topology.Interval[] \as J;
+\import algebraic_topology.Cylinder[A := Euclidean.Disk] \as Cylinder;
+\import algebraic_topology.Cylinder[A := Disk.DiskBundle] \as NativeCylinder;
+\definition intoNative[p: Cylinder.Carrier]: NativeCylinder.Carrier := NativeCylinder.at (Cylinder.time p) (backward (Cylinder.point p));
+\definition intoNativeContinuous: topology.Continuity[A := Cylinder.Carrier, B := NativeCylinder.Carrier].Continuous (Cylinder.topology Euclidean.diskTopology) (NativeCylinder.topology Disk.diskTopology) intoNative :=
+  topological_constructions.Product[A := J.Carrier, B := Disk.DiskBundle].Universal[X := Cylinder.Carrier].pairContinuous (Cylinder.topology Euclidean.diskTopology) J.topology Disk.diskTopology Cylinder.time (\fun (p: Cylinder.Carrier) => backward (Cylinder.point p))
+    (Cylinder.timeContinuous Euclidean.diskTopology)
+    (topology.Composition[A := Cylinder.Carrier, B := Euclidean.Disk, C := Disk.DiskBundle].composeContinuous (Cylinder.topology Euclidean.diskTopology) Euclidean.diskTopology Disk.diskTopology Cylinder.point backward (Cylinder.pointContinuous Euclidean.diskTopology) backwardContinuous);
+\definition motion[p: Cylinder.Carrier]: Euclidean.Disk := forward (Shell.homotopy (intoNative p));
+\definition continuous: topology.Continuity[A := Cylinder.Carrier, B := Euclidean.Disk].Continuous (Cylinder.topology Euclidean.diskTopology) Euclidean.diskTopology motion :=
+  topology.Composition[A := Cylinder.Carrier, B := Disk.DiskBundle, C := Euclidean.Disk].composeContinuous (Cylinder.topology Euclidean.diskTopology) Disk.diskTopology Euclidean.diskTopology (\fun (p: Cylinder.Carrier) => Shell.homotopy (intoNative p)) forward
+    (topology.Composition[A := Cylinder.Carrier, B := NativeCylinder.Carrier, C := Disk.DiskBundle].composeContinuous (Cylinder.topology Euclidean.diskTopology) (NativeCylinder.topology Disk.diskTopology) Disk.diskTopology intoNative Shell.homotopy intoNativeContinuous Shell.continuous) forwardContinuous;
+\definition start: \forall (v: Euclidean.Disk) -> motion (Cylinder.at J.start v) = v :=
+  \fun (v: Euclidean.Disk) => trans!{{Euclidean.Disk}} _ _ _ (congr!{{Disk.DiskBundle} {Euclidean.Disk}} forward _ _ (Shell.start (backward v))) (rightInverse v);
+\definition clip[v: Euclidean.Disk]: Euclidean.Disk := motion (Cylinder.at J.end v);
+\definition clipContinuous: topology.Continuity[A := Euclidean.Disk, B := Euclidean.Disk].Continuous Euclidean.diskTopology Euclidean.diskTopology clip :=
+  topology.Composition[A := Euclidean.Disk, B := Cylinder.Carrier, C := Euclidean.Disk].composeContinuous Euclidean.diskTopology (Cylinder.topology Euclidean.diskTopology) Euclidean.diskTopology (Cylinder.at J.end) motion (Cylinder.atContinuous Euclidean.diskTopology J.end) continuous;
+\definition fixed: \forall (t: J.Carrier)(v: \Cast[Euclidean.Disk] boundary) -> motion (Cylinder.at t v) = v :=
+  \fun (t: J.Carrier)(v: \Cast[Euclidean.Disk] boundary) => trans!{{Euclidean.Disk}} _ _ _
+    (congr!{{Disk.DiskBundle} {Euclidean.Disk}} forward _ _ (Shell.fixed t (\into[Disk.DiskBundle](backward v, Disk.Boundary) \by { boundaryPair.backwardPreserves v }))) (rightInverse v);
+\definition preservesShell: \forall (t: J.Carrier)(v: \Cast[Euclidean.Disk] shell) -> \In[Euclidean.Disk] shell (motion (Cylinder.at t v)) :=
+  \fun (t: J.Carrier)(v: \Cast[Euclidean.Disk] shell) => shellPair.forwardPreserves
+    (\into[Disk.DiskBundle](Shell.homotopy (NativeCylinder.at t (backward v)), Shell.shell) \by {
+      Shell.preservesShell t (\into[Disk.DiskBundle](backward v, Shell.shell) \by { shellPair.backwardPreserves v })
+    });
+\definition endsInBoundary: \forall (v: \Cast[Euclidean.Disk] shell) -> \In[Euclidean.Disk] boundary (clip v) :=
+  \fun (v: \Cast[Euclidean.Disk] shell) => boundaryPair.forwardPreserves
+    (\into[Disk.DiskBundle](Shell.clip (backward v), Disk.Boundary) \by {
+      Shell.endsInBoundary (\into[Disk.DiskBundle](backward v, Shell.shell) \by { shellPair.backwardPreserves v })
+    });
+\import algebraic_topology.Homotopy[A := Euclidean.Disk, B := Euclidean.Disk] \as Homotopies;
+\definition deformation: Homotopies.Homotopy[Euclidean.diskTopology, Euclidean.diskTopology, (\fun (v: Euclidean.Disk) => v), clip] :=
+  \into[Homotopies.Family](motion, Homotopies.Homotopy[Euclidean.diskTopology, Euclidean.diskTopology, (\fun (v: Euclidean.Disk) => v), clip]) \by {
+    Homotopies.Laws[Euclidean.diskTopology, Euclidean.diskTopology, (\fun (v: Euclidean.Disk) => v), clip, motion] { continuous := continuous, start := start, end := \fun (v: Euclidean.Disk) => \refl(clip v) }
+  };
+\definition reverse: Homotopies.Homotopy[Euclidean.diskTopology, Euclidean.diskTopology, clip, (\fun (v: Euclidean.Disk) => v)] := Homotopies.reverse Euclidean.diskTopology Euclidean.diskTopology (\fun (v: Euclidean.Disk) => v) clip deformation;

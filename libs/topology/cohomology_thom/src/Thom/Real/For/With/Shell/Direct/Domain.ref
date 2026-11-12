@@ -1,0 +1,47 @@
+\import \root.Thom[].Real[].For[X := X, F := F, bundle := bundle].With[metric := metric].Domain[U := U] \as Local;
+\definition localShell: \Pow Local.Carrier := { p: Local.Carrier \where \In[Disk.DiskBundle] shell p };
+\definition localClip[p: Local.Carrier]: Local.Carrier := \into[Disk.DiskBundle](clip p, Local.domain) \by { \bysub(Disk.DiskBundle, Local.domain, p) };
+\definition localClipContinuous: topology.Continuity[A := Local.Carrier, B := Local.Carrier].Continuous Local.topology Local.topology localClip :=
+  topology.Continuity[A := Local.Carrier, B := Disk.DiskBundle].Corestriction[S := Local.domain].corestrictContinuous Local.topology Disk.diskTopology localClip
+    (topology.Composition[A := Local.Carrier, B := Disk.DiskBundle, C := Disk.DiskBundle].composeContinuous Local.topology Disk.diskTopology Disk.diskTopology Local.inclusion clip Local.continuous clipContinuous);
+\import algebraic_topology.Cylinder[A := Local.Carrier] \as LocalCylinder;
+\definition intoCylinder[p: LocalCylinder.Carrier]: Cylinder.Carrier := Cylinder.at (LocalCylinder.time p) (LocalCylinder.point p);
+\definition intoCylinderContinuous: topology.Continuity[A := LocalCylinder.Carrier, B := Cylinder.Carrier].Continuous (LocalCylinder.topology Local.topology) (Cylinder.topology Disk.diskTopology) intoCylinder :=
+  topological_constructions.Product[A := J.Carrier, B := Disk.DiskBundle].Universal[X := LocalCylinder.Carrier].pairContinuous (LocalCylinder.topology Local.topology) J.topology Disk.diskTopology LocalCylinder.time (\fun (p: LocalCylinder.Carrier) => LocalCylinder.point p)
+    (LocalCylinder.timeContinuous Local.topology)
+    (topology.Composition[A := LocalCylinder.Carrier, B := Local.Carrier, C := Disk.DiskBundle].composeContinuous (LocalCylinder.topology Local.topology) Local.topology Disk.diskTopology LocalCylinder.point Local.inclusion (LocalCylinder.pointContinuous Local.topology) Local.continuous);
+\definition localHomotopy[p: LocalCylinder.Carrier]: Local.Carrier := \into[Disk.DiskBundle](homotopy (intoCylinder p), Local.domain) \by { \bysub(Disk.DiskBundle, Local.domain, LocalCylinder.point p) };
+\definition localHomotopyContinuous: topology.Continuity[A := LocalCylinder.Carrier, B := Local.Carrier].Continuous (LocalCylinder.topology Local.topology) Local.topology localHomotopy :=
+  topology.Continuity[A := LocalCylinder.Carrier, B := Disk.DiskBundle].Corestriction[S := Local.domain].corestrictContinuous (LocalCylinder.topology Local.topology) Disk.diskTopology localHomotopy
+    (topology.Composition[A := LocalCylinder.Carrier, B := Cylinder.Carrier, C := Disk.DiskBundle].composeContinuous (LocalCylinder.topology Local.topology) (Cylinder.topology Disk.diskTopology) Disk.diskTopology intoCylinder homotopy intoCylinderContinuous continuous);
+\import algebraic_topology.Homotopy[A := Local.Carrier, B := Local.Carrier] \as LocalHomotopies;
+\definition localDeformation: LocalHomotopies.Homotopy[Local.topology, Local.topology, (\fun (p: Local.Carrier) => p), localClip] :=
+  \into[LocalHomotopies.Family](localHomotopy, LocalHomotopies.Homotopy[Local.topology, Local.topology, (\fun (p: Local.Carrier) => p), localClip]) \by {
+    LocalHomotopies.Laws[Local.topology, Local.topology, (\fun (p: Local.Carrier) => p), localClip, localHomotopy] { continuous := localHomotopyContinuous, start := \fun (p: Local.Carrier) => start p, end := \fun (p: Local.Carrier) => \refl(localClip p) }
+  };
+\definition localReverse: LocalHomotopies.Homotopy[Local.topology, Local.topology, localClip, (\fun (p: Local.Carrier) => p)] := LocalHomotopies.reverse Local.topology Local.topology (\fun (p: Local.Carrier) => p) localClip localDeformation;
+\import singular_cohomology.Relative[A := Local.Carrier, source := Local.topology, subset := Local.boundary].Maps[B := Local.Carrier].Over[target := Local.topology, targetSubset := localShell] \as Forward;
+\import singular_cohomology.Relative[A := Local.Carrier, source := Local.topology, subset := localShell].Maps[B := Local.Carrier].Over[target := Local.topology, targetSubset := Local.boundary] \as Backward;
+\definition forward: Forward.Map := \into[Local.Carrier -> Local.Carrier]((\fun (p: Local.Carrier) => p), Forward.Map) \by {
+  Forward.Laws[(\fun (p: Local.Carrier) => p)] { continuous := topology.Maps[A := Local.Carrier, B := Local.Carrier].Identity[].continuous Local.topology, contained := \fun (p: \Cast[Local.Carrier] Local.boundary) => contains (\into[Disk.DiskBundle](p, Disk.Boundary) \by { \bysub(Local.Carrier, Local.boundary, p) }) }
+};
+\definition backward: Backward.Map := \into[Local.Carrier -> Local.Carrier](localClip, Backward.Map) \by {
+  Backward.Laws[localClip] { continuous := localClipContinuous, contained := \fun (p: \Cast[Local.Carrier] localShell) => endsInBoundary (\into[Disk.DiskBundle](p, shell) \by { \bysub(Local.Carrier, localShell, p) }) }
+};
+\import singular_cohomology.Relative[A := Local.Carrier, source := Local.topology, subset := Local.boundary].Equivalence[B := Local.Carrier].Over[target := Local.topology, targetSubset := localShell] \as Equivalences;
+\import singular_cohomology.Relative[A := Local.Carrier, source := Local.topology, subset := Local.boundary].Maps[B := Local.Carrier].Over[target := Local.topology, targetSubset := Local.boundary] \as BoundaryEnd;
+\import singular_cohomology.Relative[A := Local.Carrier, source := Local.topology, subset := localShell].Maps[B := Local.Carrier].Over[target := Local.topology, targetSubset := localShell] \as ShellEnd;
+\import singular_cohomology.Relative[A := Local.Carrier, source := Local.topology, subset := Local.boundary].Identity[] \as BoundaryIdentity;
+\import singular_cohomology.Relative[A := Local.Carrier, source := Local.topology, subset := localShell].Identity[] \as ShellIdentity;
+\definition boundaryClip: BoundaryEnd.Map := Forward.Composition[C := Local.Carrier].Over[final := Local.topology, finalSubset := Local.boundary].compose forward backward;
+\definition shellClip: ShellEnd.Map := Backward.Composition[C := Local.Carrier].Over[final := Local.topology, finalSubset := localShell].compose backward forward;
+\definition equivalence: Equivalences.Equivalence := Equivalences.Equivalence {
+  forward := forward, backward := backward,
+  left := \into[LocalHomotopies.Homotopy[Local.topology, Local.topology, localClip, (\fun (p: Local.Carrier) => p)]](localReverse, BoundaryEnd.Homotopy[f := boundaryClip, g := BoundaryIdentity.map].Homotopy) \by {
+    \fun (t: J.Carrier)(p: \Cast[Local.Carrier] Local.boundary) => trans!{R.Real} _ _ _ (congr!{Disk.DiskBundle R.Real} (\fun (q: Disk.DiskBundle) => Disk.squared q) _ _ (fixed (J.reverse t) (\into[Disk.DiskBundle](p, Disk.Boundary) \by { \bysub(Local.Carrier, Local.boundary, p) }))) (\bysub(Local.Carrier, Local.boundary, p))
+  },
+  right := \into[LocalHomotopies.Homotopy[Local.topology, Local.topology, localClip, (\fun (p: Local.Carrier) => p)]](localReverse, ShellEnd.Homotopy[f := shellClip, g := ShellIdentity.map].Homotopy) \by {
+    \fun (t: J.Carrier)(p: \Cast[Local.Carrier] localShell) => preservesShell (J.reverse t) (\into[Disk.DiskBundle](p, shell) \by { \bysub(Local.Carrier, localShell, p) })
+  }
+};
+\module With(coefficients: IntegerModules.Bundle, z: I.Int^) { \definition isomorphism: _ := Equivalences.On[e := equivalence].With[coefficients := coefficients].At[z := z].isomorphism; }

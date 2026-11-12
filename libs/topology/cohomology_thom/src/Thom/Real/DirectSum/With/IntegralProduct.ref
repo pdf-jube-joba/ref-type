@@ -1,0 +1,54 @@
+\import std.Arithmetic[].IntAlgebra[].Ring[] \as Integers;
+\import std.Data[].Bool[] \as B;
+\import std.Data[].Pair[] \as Pair;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.trans;
+\use Equality.sym;
+\use Equality.congr;
+\import Equality.Transport[A := N.Nat^] \as Transport;
+\import topology.Topology[Carrier := X] \as Base;
+\import LeftGeometry.Local[K := I.Int^, ring := Integers.commutativeRing].Rank[n := n].Orientation[] \as LeftOrientations;
+\import RightGeometry.Local[K := I.Int^, ring := Integers.commutativeRing].Rank[n := m].Orientation[] \as RightOrientations;
+\definition rightComplex: algebraic_topology.CW[A := X].FiniteComplex[right.baseSpace] := \idelim left.baseSpace = right.baseSpace \with space: Base.Topology => algebraic_topology.CW[A := X].FiniteComplex[space] \by { base: complex, equality: same };
+\import LeftGeometry.Oriented[K := I.Int^, ring := Integers.commutativeRing, n := n, orientation := leftOrientation, complex := complex] \as LeftClass;
+\import RightGeometry.Oriented[K := I.Int^, ring := Integers.commutativeRing, n := m, orientation := rightOrientation, complex := rightComplex] \as RightClass;
+\import \root.Thom[].Real[].DirectSum[X := X, F := F, G := G, left := left, right := right, same := same, leftMetric := leftMetric, rightMetric := rightMetric].With[metric := metric].Ring[K := I.Int^, ring := Integers.commutativeRing] \as Product;
+\definition degree: N.Nat^ := N.Basic[].Def[].add n m;
+\import Geometry.Local[K := I.Int^, ring := Integers.commutativeRing].Rank[n := degree] \as Rank;
+\import Rank.Models[] \as Models;
+\import Geometry.Coefficients[R := I.Int^, ring := Integers.commutativeRing] \as Theory;
+\import singular_products.Cochains[A := X, source := bundle.baseSpace, R := I.Int^, ring := Integers.commutativeRing] \as BaseProduct;
+\definition productClass: Theory.Degree[n := degree].Class := Product.Product[n := n, m := m].apply LeftClass.class RightClass.class;
+\definition fiber: Rank.Fibers := \fun (x: X) => Geometry.Fiber[x := x].Additive[coefficients := BaseProduct.integerCoefficients, z := I.Int^::ofNat degree].restriction.apply productClass;
+\import Bundles.Family[X := X, F := Fiber].With[data := bundle] \as SumBundle;
+\module At(x: X,
+  leftLocal: LeftOrientations.LocalOrientation[x, leftOrientation.fiber],
+  rightLocal: RightOrientations.LocalOrientation[x, rightOrientation.fiber]);
+\definition constantRank: \forall (x: X) -> SumBundle.rank x = degree := \block {
+  \fun (x: X) \then
+  \takefrom l: LeftOrientations.LocalOrientation[x, leftOrientation.fiber] \by leftOrientation.locally x \then
+  \takefrom r: RightOrientations.LocalOrientation[x, rightOrientation.fiber] \by rightOrientation.locally x \then
+  \return \parent.IntegralProduct[n := n, m := m, leftOrientation := leftOrientation, rightOrientation := rightOrientation, complex := complex].At[x := x, leftLocal := l, rightLocal := r].rank
+};
+\definition orientation: Models.Orientation := Models.Orientation {
+  fiber := fiber,
+  locally := \block {
+    \fun (x: X) \then
+    \takefrom l: LeftOrientations.LocalOrientation[x, leftOrientation.fiber] \by leftOrientation.locally x \then
+    \takefrom r: RightOrientations.LocalOrientation[x, rightOrientation.fiber] \by rightOrientation.locally x \then
+    \return \exact(\parent.IntegralProduct[n := n, m := m, leftOrientation := leftOrientation, rightOrientation := rightOrientation, complex := complex].At[x := x, leftLocal := l, rightLocal := r].local, Models.LocalOrientation[x, fiber])
+  }
+};
+\import Geometry.Modeled[K := I.Int^, ring := Integers.commutativeRing, n := degree, orientation := orientation, complex := complex] \as Global;
+\definition class: Theory.Degree[n := degree].Class := Global.class;
+\definition classLaw: productClass = class := Global.uniqueNormalized productClass (\fun (x: X) => \refl(fiber x));
+\definition normalized: _ := Global.normalized;
+\definition euler: _ := Global.euler;
+\module Degree(p: N.Nat^) { \definition isomorphism: _ := Global.Degree[p := p].isomorphism; \definition zeroSection: _ := Global.Degree[p := p].zeroSection; }
+\module Below(k: N.Nat^) { \definition zero: _ := Global.Below[k := k].zero; }
+\module Euler;
+\module Compare(given: Geometry.Local[K := I.Int^, ring := Integers.commutativeRing].Rank[n := degree].Orientation[].SignedOrientation,
+  fiberLaw: \forall (x: X) -> given.fiber x = fiber x);
+
+\module ModTwo;

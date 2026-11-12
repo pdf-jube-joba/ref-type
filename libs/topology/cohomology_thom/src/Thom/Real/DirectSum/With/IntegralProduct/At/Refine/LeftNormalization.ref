@@ -1,0 +1,26 @@
+\import LeftGeometry.Local[K := I.Int^, ring := Integers.commutativeRing] \as Theory;
+\definition contained: Base.Subset V c.domain := \fun (x: X)(inside: Base.Member V x) => Coordinates.inLeft x (included x inside);
+\import LeftGeometry.Chart[c := c].Restrict[U := V, open := openV, contained := contained] \as Restricted;
+\import Theory.Chart[c := c].Refine[U := V, open := openV, contained := contained].Rank[n := n, same := leftLocal.rank] \as Refined;
+\import Theory.Chart[c := Restricted.chart].Rank[n := n, same := leftLocal.rank].Reindex[] \as Reindex;
+\import Theory.Rank[n := n].On[U := V].Given[g := leftOrientation.fiber].Whole[] \as Whole;
+\definition data: Theory.Rank[n := n].On[U := V].Given[g := leftOrientation.fiber].Data := Refined.given leftOrientation.fiber leftLocal.reverse leftLocal.normalized;
+\definition LocalClasses[k: N.Nat^]: \Set := LeftGeometry.Domain[U := V].Ring[K := I.Int^, ring := Integers.commutativeRing].Degree[n := k].Class;
+\definition restriction[k: N.Nat^][u: LeftClasses k]: LocalClasses k := LeftGeometry.Domain[U := V].Additive[coefficients := BaseProduct.integerCoefficients, z := I.Int^::ofNat k].restriction.apply u;
+\definition nativeLaw: restriction c.dimension leftDown = (Reindex.nativeSigned leftLocal.reverse).thomClass :=
+  trans!{{LocalClasses c.dimension}} _ _ _
+    (sym!{{LocalClasses c.dimension}} _ _ (Transport.natural LeftClasses LocalClasses restriction n c.dimension (sym!{N.Nat^} _ _ leftLocal.rank) LeftClass.class))
+    (trans!{{LocalClasses c.dimension}} _ _ _
+      (congr!{{LocalClasses n} {LocalClasses c.dimension}} (Transport.cast LocalClasses n c.dimension (sym!{N.Nat^} _ _ leftLocal.rank)) _ _ (Whole.law data LeftClass.class LeftClass.normalized))
+      (trans!{{LocalClasses c.dimension}} _ _ _
+        (congr!{{LocalClasses n} {LocalClasses c.dimension}} (Transport.cast LocalClasses n c.dimension (sym!{N.Nat^} _ _ leftLocal.rank)) _ _ (sym!{{LocalClasses n}} _ _ (Reindex.classCast leftLocal.reverse)))
+        (Transport.castInverse LocalClasses c.dimension n leftLocal.rank (Reindex.nativeSigned leftLocal.reverse).thomClass)));
+\import LocalProduct.LeftFactor[] \as Factor;
+\import Factor.Canonical[] \as Canonical;
+\definition canonical: \forall (s: B.Bool^) -> Factor.class (Signs.signedLeft s LeftPoint.generator) = (Reindex.nativeSigned s).thomClass :=
+  \induction (s: B.Bool^) \return Factor.class (Signs.signedLeft s LeftPoint.generator) = (Reindex.nativeSigned s).thomClass \with {
+    | false: Canonical.canonical
+    | true: Canonical.negativeCanonical
+  };
+\definition law: restriction c.dimension leftDown = Factor.class (Signs.signedLeft leftLocal.reverse LeftPoint.generator) :=
+  trans!{{LocalClasses c.dimension}} _ _ _ nativeLaw (sym!{{LocalClasses c.dimension}} _ _ (canonical leftLocal.reverse));

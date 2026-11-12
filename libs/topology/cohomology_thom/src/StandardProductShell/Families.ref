@@ -1,0 +1,43 @@
+\import singular_cohomology.Relative[A := Left.Disk, source := Left.diskTopology, subset := L.boundary].Maps[B := Left.Disk].Over[target := Left.diskTopology, targetSubset := L.shell] \as LeftInclusion;
+\import singular_cohomology.Relative[A := Right.Disk, source := Right.diskTopology, subset := R.boundary].Maps[B := Right.Disk].Over[target := Right.diskTopology, targetSubset := R.shell] \as RightInclusion;
+\definition intoFirst: \forall (p: Carrier) -> \In[Carrier] closedFirst p -> \In[Carrier] shellFirst p :=
+  \fun (p: Carrier)(inside: _) => (LeftInclusion.laws L.include).contained (\into[Left.Disk](first p, L.boundary) \by { inside });
+\definition intoSecond: \forall (p: Carrier) -> \In[Carrier] closedSecond p -> \In[Carrier] shellSecond p :=
+  \fun (p: Carrier)(inside: _) => (RightInclusion.laws R.include).contained (\into[Right.Disk](second p, R.boundary) \by { inside });
+\import \root.ClassifiedFamilyMap[A := Carrier, B := Carrier, source := topology, target := topology,
+  sourceFirst := closedFirst, sourceSecond := closedSecond, targetFirst := shellFirst, targetSecond := shellSecond,
+  sourceFamily := closedFamily, targetFamily := shellFamily,
+  classify := (\fun (U: \Pow Carrier)(member: \In[\Pow Carrier] closedFamily U) => member),
+  targetFirstMember := Logic.Or[_, _]::left (\refl(shellFirst)), targetSecondMember := Logic.Or[_, _]::right (\refl(shellSecond)),
+  f := identity, regular := identityContinuous, firstContained := intoFirst, secondContained := intoSecond] \as Inclusion;
+\import \root.ClassifiedFamilyMap[A := Carrier, B := Carrier, source := topology, target := topology,
+  sourceFirst := shellFirst, sourceSecond := shellSecond, targetFirst := closedFirst, targetSecond := closedSecond,
+  sourceFamily := shellFamily, targetFamily := closedFamily,
+  classify := (\fun (U: \Pow Carrier)(member: \In[\Pow Carrier] shellFamily U) => member),
+  targetFirstMember := Logic.Or[_, _]::left (\refl(closedFirst)), targetSecondMember := Logic.Or[_, _]::right (\refl(closedSecond)),
+  f := clip, regular := clipContinuous,
+  firstContained := (\fun (p: Carrier)(inside: \In[Carrier] shellFirst p) => LM.endsInBoundary (\into[Left.Disk](first p, L.shell) \by { inside })),
+  secondContained := (\fun (p: Carrier)(inside: \In[Carrier] shellSecond p) => RM.endsInBoundary (\into[Right.Disk](second p, R.shell) \by { inside }))] \as Clipping;
+\definition closedPreserved: \forall (U: \Pow Carrier) -> \In[\Pow Carrier] closedFamily U -> \forall (t: J.Carrier)(p: Carrier) -> \In[Carrier] U p -> \In[Carrier] U (motion (Cylinder.at t p)) :=
+  \fun (U: \Pow Carrier)(member: \In[\Pow Carrier] closedFamily U) => either!{member {\forall (t: J.Carrier)(p: Carrier) -> \In[Carrier] U p -> \In[Carrier] U (motion (Cylinder.at t p))}
+    {\fun (same: U = closedFirst) => \idelim closedFirst = U \with V: \Pow Carrier => \forall (t: J.Carrier)(p: Carrier) -> \In[Carrier] V p -> \In[Carrier] V (motion (Cylinder.at t p)) \by { base: closedFirstPreserved, equality: sym!{\Pow Carrier} _ _ same }}
+    {\fun (same: U = closedSecond) => \idelim closedSecond = U \with V: \Pow Carrier => \forall (t: J.Carrier)(p: Carrier) -> \In[Carrier] V p -> \In[Carrier] V (motion (Cylinder.at t p)) \by { base: closedSecondPreserved, equality: sym!{\Pow Carrier} _ _ same }}};
+\definition shellPreserved: \forall (U: \Pow Carrier) -> \In[\Pow Carrier] shellFamily U -> \forall (t: J.Carrier)(p: Carrier) -> \In[Carrier] U p -> \In[Carrier] U (motion (Cylinder.at t p)) :=
+  \fun (U: \Pow Carrier)(member: \In[\Pow Carrier] shellFamily U) => either!{member {\forall (t: J.Carrier)(p: Carrier) -> \In[Carrier] U p -> \In[Carrier] U (motion (Cylinder.at t p))}
+    {\fun (same: U = shellFirst) => \idelim shellFirst = U \with V: \Pow Carrier => \forall (t: J.Carrier)(p: Carrier) -> \In[Carrier] V p -> \In[Carrier] V (motion (Cylinder.at t p)) \by { base: shellFirstPreserved, equality: sym!{\Pow Carrier} _ _ same }}
+    {\fun (same: U = shellSecond) => \idelim shellSecond = U \with V: \Pow Carrier => \forall (t: J.Carrier)(p: Carrier) -> \In[Carrier] V p -> \In[Carrier] V (motion (Cylinder.at t p)) \by { base: shellSecondPreserved, equality: sym!{\Pow Carrier} _ _ same }}};
+\import \root.FamilyHomotopy[A := Carrier, source := topology, family := closedFamily, f := identity, g := clip, h := deformation, preserves := closedPreserved] \as ClosedHomotopy;
+\import \root.FamilyHomotopy[A := Carrier, source := topology, family := shellFamily, f := identity, g := clip, h := deformation, preserves := shellPreserved] \as ShellHomotopy;
+\import \root.FamilyPairMap[A := Carrier, B := Carrier, source := topology, target := topology, sourceFamily := closedFamily, targetFamily := shellFamily, f := identity, regular := identityContinuous, preserves := Inclusion.preserves] \as Forward;
+\import \root.FamilyPairMap[A := Carrier, B := Carrier, source := topology, target := topology, sourceFamily := shellFamily, targetFamily := closedFamily, f := clip, regular := clipContinuous, preserves := Clipping.preserves] \as Backward;
+\import Forward.Composition[C := Carrier, final := topology, finalFamily := closedFamily, g := clip, regularG := clipContinuous, preservesG := Clipping.preserves] \as ClosedComposite;
+\import Backward.Composition[C := Carrier, final := topology, finalFamily := shellFamily, g := identity, regularG := identityContinuous, preservesG := Inclusion.preserves] \as ShellComposite;
+\import \root.FamilyPairMap[A := Carrier, B := Carrier, source := topology, target := topology, sourceFamily := closedFamily, targetFamily := closedFamily,
+  f := ClosedComposite.composed, regular := ClosedComposite.regularComposed, preserves := ClosedComposite.preservesComposed]
+  .Equal[g := clip, regularG := ClosedHomotopy.lastRegular, preservesG := ClosedHomotopy.Endpoints[].last, same := (\fun (p: Carrier) => \refl(clip p))] \as ClosedEquality;
+\import \root.FamilyPairMap[A := Carrier, B := Carrier, source := topology, target := topology, sourceFamily := shellFamily, targetFamily := shellFamily,
+  f := ShellComposite.composed, regular := ShellComposite.regularComposed, preserves := ShellComposite.preservesComposed]
+  .Equal[g := clip, regularG := ShellHomotopy.lastRegular, preservesG := ShellHomotopy.Endpoints[].last, same := (\fun (p: Carrier) => \refl(clip p))] \as ShellEquality;
+\definition forwardMap: _ := Forward.map;
+\definition backwardMap: _ := Backward.map;
+\module With(coefficients: Modules.Bundle);

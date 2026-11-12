@@ -1,0 +1,43 @@
+\import std.Data[].Nat[] \as N;
+\import std.Arithmetic[].Int[] \as I;
+\import std.Arithmetic[].IntAlgebra[].Ring[] \as Integers;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.trans;
+\use Equality.sym;
+\use Equality.congr;
+\use Equality.eq_reason_in;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Data[].Pair[] \as Pair;
+\import module_theory.Module[].Over[R := I.Int^, ring := Integers.ring] \as Modules;
+\import \root.StandardClosedProduct[n := n, m := N.Nat^::zero, K := I.Int^, ring := Integers.commutativeRing] \as Closed;
+\import \root.StandardZeroDisk[] \as Zero;
+\import algebraic_topology.Euclidean[].Dimension[n := n] \as Left;
+\import algebraic_topology.Euclidean[].Dimension[n := N.Nat^::zero] \as Right;
+\import \root.StandardShell[n := n] \as LeftShell;
+\import topological_constructions.Product[A := Left.Disk, B := Right.Disk] \as Product;
+\definition forward: Closed.Carrier -> Left.Disk := Closed.first;
+\definition backward[v: Left.Disk]: Closed.Carrier := Pair.pair Left.Disk Right.Disk v Zero.point;
+\definition forwardContinuous: topology.Continuity[A := Closed.Carrier, B := Left.Disk].Continuous Closed.topology Left.diskTopology forward := Product.Maps[].firstContinuous Left.diskTopology Right.diskTopology;
+\definition backwardContinuous: topology.Continuity[A := Left.Disk, B := Closed.Carrier].Continuous Left.diskTopology Closed.topology backward :=
+  Product.Universal[X := Left.Disk].pairContinuous Left.diskTopology Left.diskTopology Right.diskTopology (\fun (v: Left.Disk) => v) (\fun (_: Left.Disk) => Zero.point)
+    (topology.Maps[A := Left.Disk, B := Left.Disk].Identity[].continuous Left.diskTopology)
+    (topology.Maps[A := Left.Disk, B := Right.Disk].constantContinuous Left.diskTopology Right.diskTopology Zero.point);
+\definition homeomorphism: topology.Homeomorphism[A := Closed.Carrier, B := Left.Disk].Homeomorphism[Closed.topology, Left.diskTopology] :=
+  topology.Homeomorphism[A := Closed.Carrier, B := Left.Disk].Homeomorphism[Closed.topology, Left.diskTopology] {
+    forward := forward, backward := backward, forwardContinuous := forwardContinuous, backwardContinuous := backwardContinuous,
+    leftInverse := \fun (p: Closed.Carrier) => Pair.Prop[A := Left.Disk, B := Right.Disk].ext _ _ (\refl(forward p)) (sym!{{Right.Disk}} _ _ (Zero.unique (Closed.second p))),
+    rightInverse := \fun (v: Left.Disk) => \refl(v)
+  };
+\import singular_cohomology.Relative[A := Closed.Carrier, source := Closed.topology, subset := Closed.firstPart].Homeomorphism[B := Left.Disk].Over[target := Left.diskTopology, targetSubset := LeftShell.boundary] \as LeftPairs;
+\definition pair: LeftPairs.Data := LeftPairs.Data {
+  homeomorphism := homeomorphism,
+  forwardPreserves := \fun (p: \Cast[Closed.Carrier] Closed.firstPart) => \bysub(Closed.Carrier, Closed.firstPart, p),
+  backwardPreserves := \fun (v: \Cast[Left.Disk] LeftShell.boundary) => \bysub(Left.Disk, LeftShell.boundary, v)
+};
+\definition secondEmpty: \forall (p: Closed.Carrier) -> \In[Closed.Carrier] Closed.secondPart p -> Logic.False :=
+  \fun (p: Closed.Carrier)(inside: _) => Zero.empty (Closed.second p) inside;
+\import singular_products.Cochains[A := Closed.Carrier, source := Closed.topology, R := I.Int^, ring := Integers.commutativeRing] \as Coefficients;
+\import \root.FamilyProduct[A := Closed.Carrier, source := Closed.topology, first := Closed.firstPart, second := Closed.secondPart, family := Closed.family,
+  firstMember := Closed.firstMember, secondMember := Closed.secondMember, classify := Closed.classify, K := I.Int^, ring := Integers.commutativeRing].EmptySecond[empty := secondEmpty] \as Empty;
+\module Unit;
+\module At(e: Modules.Isomorphism[V := I.Int^, W := Closed.LeftClass, source := Modules.scalarModule, target := Closed.leftSpace].Isomorphism);

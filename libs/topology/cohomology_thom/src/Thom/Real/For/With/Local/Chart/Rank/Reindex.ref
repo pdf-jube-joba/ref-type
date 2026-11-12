@@ -1,0 +1,19 @@
+\import \root.Thom[].Real[].For[X := X, F := F, bundle := bundle].With[metric := metric] \as OriginalGeometry;
+\import Local.Chart[c := c] \as Original;
+\definition Families[k: N.Nat^]: \Set := Local.Model[n := k, U := c.domain].Data;
+\definition Classes[k: N.Nat^]: \Set := OriginalGeometry.Domain[U := c.domain].Ring[K := K, ring := ring].Degree[n := k].Class;
+\definition nativeSigned[b: B.Bool^]: Families c.dimension := \induction (b: B.Bool^) \return Families c.dimension \with {
+  | false: Original.data
+  | true: Local.Model[n := c.dimension, U := c.domain].Reverse[model := Original.data].data
+} b;
+\definition modelCast: \forall (b: B.Bool^) -> signed b = Transport.cast Families c.dimension n same (nativeSigned b) :=
+  \induction (b: B.Bool^) \return signed b = Transport.cast Families c.dimension n same (nativeSigned b) \with {
+    | false: \refl(model)
+    | true: sym!{{Families n}} _ _ (Transport.natural Families Families
+        (\fun (k: N.Nat^)(m: Families k) => Local.Model[n := k, U := c.domain].Reverse[model := m].data)
+        c.dimension n same Original.data)
+  };
+\definition classCast: \forall (b: B.Bool^) -> Transport.cast Classes c.dimension n same (nativeSigned b).thomClass = (signed b).thomClass :=
+  \fun (b: B.Bool^) => trans!{{Classes n}} _ _ _
+    (Transport.natural Families Classes (\fun (k: N.Nat^)(m: Families k) => m.thomClass) c.dimension n same (nativeSigned b))
+    (congr!{{Families n} {Classes n}} (\fun (m: Families n) => m.thomClass) _ _ (sym!{{Families n}} _ _ (modelCast b)));

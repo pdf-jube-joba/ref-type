@@ -1,0 +1,57 @@
+\import std.Data[].Nat[] \as N;
+\import std.Data[].Bool[] \as B;
+\import std.Arithmetic[].Int[] \as I;
+\import std.Arithmetic[].IntAlgebra[].Ring[] \as Integers;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.trans;
+\use Equality.sym;
+\use Equality.congr;
+\use Equality.eq_reason_in;
+\import std.Logic[].Proposition[] \as Logic;
+\use Logic.either;
+\import module_theory.Module[].Over[R := I.Int^, ring := Integers.ring] \as Modules;
+\import \root.StandardProduct[n := n, m := m, K := I.Int^, ring := Integers.commutativeRing] \as Actual;
+\import Actual.Signs[] \as Signs;
+\import \root.StandardClosedProduct[n := n, m := m, K := I.Int^, ring := Integers.commutativeRing] \as Closed;
+\import \root.StandardClosedIntegral[n := n].Rank[m := m] \as Primitive;
+\import \root.StandardProductIdentification[n := n, m := m, K := I.Int^, ring := Integers.commutativeRing].Product[] \as Identification;
+\definition degree: N.Nat^ := N.Basic[].Def[].add n m;
+\import \root.LocalDisk[].Point[K := I.Int^, ring := Integers.commutativeRing].Rank[n := n] \as LeftPoint;
+\import \root.LocalDisk[].Point[K := I.Int^, ring := Integers.commutativeRing].Rank[n := m] \as RightPoint;
+\import \root.LocalDisk[].Point[K := I.Int^, ring := Integers.commutativeRing].Rank[n := degree] \as TotalPoint;
+\import \root.StandardShell[n := degree] \as Shell;
+\import Shell.PointModel[] \as Coordinates;
+\import thom_spaces.Thom[].CWType[].Point[] \as Point;
+\import thom_spaces.Thom[].DiskSuspension[X := Point.Carrier, space := Point.topology, n := degree] \as PointDisk;
+\import algebraic_topology.Euclidean[].Dimension[n := degree] \as Euclidean;
+\import singular_products.Cochains[A := Euclidean.Disk, source := Euclidean.diskTopology, R := I.Int^, ring := Integers.commutativeRing] \as Coefficients;
+\import singular_cohomology.Relative[A := Euclidean.Disk, source := Euclidean.diskTopology, subset := Shell.boundary].With[coefficients := Coefficients.integerCoefficients].At[z := I.Int^::ofNat degree] \as H;
+\definition Class: \Set := H.Carrier;
+\definition space: Modules.Space Class := H.space;
+\definition product: Class := Actual.apply LeftPoint.generator RightPoint.generator;
+\definition canonical: Class := Shell.Ring[K := I.Int^, ring := Integers.commutativeRing].generator;
+\import Modules.Isomorphism[V := I.Int^, W := Closed.Class, source := Modules.scalarModule, target := Closed.space].Composition[U := Class, final := space] \as ProductComposition;
+\definition productIsomorphism: Modules.Isomorphism[V := I.Int^, W := Class, source := Modules.scalarModule, target := space].Isomorphism :=
+  ProductComposition.compose Identification.isomorphism Primitive.isomorphism;
+\definition productNormalized: productIsomorphism.forward.apply Integers.ring.one = product :=
+  trans!{Class} _ _ _ (congr!{Closed.Class Class} Identification.isomorphism.forward.apply _ _ Primitive.law) (Identification.law LeftPoint.generator RightPoint.generator);
+\import \root.RelativePullback[].On[A := Euclidean.Disk, source := Euclidean.diskTopology, subset := Shell.boundary, R := I.Int^, ring := Integers.commutativeRing].To[B := PointDisk.DiskCarrier, target := PointDisk.diskTopology, part := PointDisk.boundary].Homeomorphism[data := Coordinates.pair] \as Comparison;
+\import Modules.Isomorphism[V := I.Int^, W := TotalPoint.Class, source := Modules.scalarModule, target := TotalPoint.space].Composition[U := Class, final := space] \as CanonicalComposition;
+\definition canonicalIsomorphism: Modules.Isomorphism[V := I.Int^, W := Class, source := Modules.scalarModule, target := space].Isomorphism :=
+  CanonicalComposition.compose Comparison.Degree[n := degree].isomorphism TotalPoint.isomorphism;
+\definition canonicalNormalized: canonicalIsomorphism.forward.apply Integers.ring.one = canonical :=
+  congr!{TotalPoint.Class Class} Comparison.Degree[n := degree].isomorphism.forward.apply _ _ TotalPoint.normalized;
+\import Modules.Isomorphism[V := I.Int^, W := Class, source := Modules.scalarModule, target := space].Composition[U := I.Int^, final := Modules.scalarModule] \as ScalarComposition;
+\definition automorphism: Modules.Isomorphism[V := I.Int^, W := I.Int^, source := Modules.scalarModule, target := Modules.scalarModule].Isomorphism :=
+  ScalarComposition.compose (Modules.Isomorphism[V := I.Int^, W := Class, source := Modules.scalarModule, target := space].Inverse[].inverse canonicalIsomorphism) productIsomorphism;
+\definition coefficient: I.Int^ := automorphism.forward.apply Integers.ring.one;
+\definition negative[x: I.Int^]: B.Bool^ := \induction (x: I.Int^) \return B.Bool^ \with {
+  | ofNat: \fun (_: N.Nat^) => B.Bool^::false
+  | negSucc: \fun (_: N.Nat^) => B.Bool^::true
+} x;
+\definition reverse: B.Bool^ := negative coefficient;
+\definition coordinate: product = canonicalIsomorphism.forward.apply coefficient :=
+  trans!{Class} _ _ _ (sym!{Class} _ _ productNormalized) (sym!{Class} _ _ (canonicalIsomorphism.rightInverse (productIsomorphism.forward.apply Integers.ring.one)));
+\module Sign;
+\definition signedLaw: product = Signs.signedOutput reverse canonical := Sign[].law;
+\definition law: product = Signs.signedOutput reverse canonical := signedLaw;

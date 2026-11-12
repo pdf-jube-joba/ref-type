@@ -1,0 +1,73 @@
+\import std.Data[].Nat[] \as N;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.trans;
+\use Equality.sym;
+\use Equality.congr;
+\use Logic.either;
+\import std.Data[].Pair[] \as Pair;
+\import real.Analysis[] \as R;
+\import thom_spaces.Thom[].CWType[].Point[] \as Point;
+\import algebraic_topology.Interval[] \as J;
+\import algebraic_topology.Euclidean[].Dimension[n := m] \as Lower;
+\import algebraic_topology.Euclidean[].Dimension[n := N.Nat^::succ m] \as Higher;
+\import \root.StandardShell[n := m].PointModel[] \as LowerPoint;
+\import \root.StandardShell[n := N.Nat^::succ m].PointModel[] \as HigherPoint;
+\import thom_spaces.Thom[].DiskSuspension[X := Point.Carrier, space := Point.topology, n := m] \as LowerDisk;
+\import thom_spaces.Thom[].DiskSuspension[X := Point.Carrier, space := Point.topology, n := N.Nat^::succ m] \as HigherDisk;
+\import LowerDisk.Step[] \as Shape;
+\import \root.LocalDisk[].On[X := Point.Carrier, source := Point.topology].Step[n := m] \as Native;
+\import algebraic_topology.Cylinder[A := LowerDisk.DiskCarrier] \as PointCylinder;
+\import algebraic_topology.Cylinder[A := Lower.Disk] \as Cylinder;
+\definition topology: topology.Topology[Carrier := Cylinder.Carrier].Topology := Cylinder.topology Lower.diskTopology;
+\definition boundary: \Pow Cylinder.Carrier := { p: Cylinder.Carrier \where Logic.Or[Cylinder.time p = J.start, Logic.Or[Cylinder.time p = J.end, Lower.normSquared (Cylinder.point p) = R.one]] };
+\definition erase[p: PointCylinder.Carrier]: Cylinder.Carrier := Cylinder.at (PointCylinder.time p) (LowerPoint.backward (PointCylinder.point p));
+\definition fill[p: Cylinder.Carrier]: PointCylinder.Carrier := PointCylinder.at (Cylinder.time p) (LowerPoint.forward (Cylinder.point p));
+\definition eraseContinuous: topology.Continuity[A := PointCylinder.Carrier, B := Cylinder.Carrier].Continuous (PointCylinder.topology LowerDisk.diskTopology) topology erase :=
+  topological_constructions.Product[A := J.Carrier, B := Lower.Disk].Universal[X := PointCylinder.Carrier].pairContinuous (PointCylinder.topology LowerDisk.diskTopology) J.topology Lower.diskTopology PointCylinder.time (\fun (p: PointCylinder.Carrier) => LowerPoint.backward (PointCylinder.point p))
+    (PointCylinder.timeContinuous LowerDisk.diskTopology)
+    (topology.Composition[A := PointCylinder.Carrier, B := LowerDisk.DiskCarrier, C := Lower.Disk].composeContinuous (PointCylinder.topology LowerDisk.diskTopology) LowerDisk.diskTopology Lower.diskTopology PointCylinder.point LowerPoint.backward (PointCylinder.pointContinuous LowerDisk.diskTopology) LowerPoint.backwardContinuous);
+\definition fillContinuous: topology.Continuity[A := Cylinder.Carrier, B := PointCylinder.Carrier].Continuous topology (PointCylinder.topology LowerDisk.diskTopology) fill :=
+  topological_constructions.Product[A := J.Carrier, B := LowerDisk.DiskCarrier].Universal[X := Cylinder.Carrier].pairContinuous topology J.topology LowerDisk.diskTopology Cylinder.time (\fun (p: Cylinder.Carrier) => LowerPoint.forward (Cylinder.point p))
+    (Cylinder.timeContinuous Lower.diskTopology)
+    (topology.Composition[A := Cylinder.Carrier, B := Lower.Disk, C := LowerDisk.DiskCarrier].composeContinuous topology Lower.diskTopology LowerDisk.diskTopology Cylinder.point LowerPoint.forward (Cylinder.pointContinuous Lower.diskTopology) LowerPoint.forwardContinuous);
+\definition eraseHomeomorphism: topology.Homeomorphism[A := PointCylinder.Carrier, B := Cylinder.Carrier].Homeomorphism[PointCylinder.topology LowerDisk.diskTopology, topology] :=
+  topology.Homeomorphism[A := PointCylinder.Carrier, B := Cylinder.Carrier].Homeomorphism[PointCylinder.topology LowerDisk.diskTopology, topology] {
+    forward := erase, backward := fill, forwardContinuous := eraseContinuous, backwardContinuous := fillContinuous,
+    leftInverse := \fun (p: PointCylinder.Carrier) => Pair.Prop[A := J.Carrier, B := LowerDisk.DiskCarrier].ext (fill (erase p)) p (\refl(PointCylinder.time p))
+      ((topology.Homeomorphism[A := Lower.Disk, B := LowerDisk.DiskCarrier].laws Lower.diskTopology LowerDisk.diskTopology LowerPoint.homeomorphism).rightInverse (PointCylinder.point p)),
+    rightInverse := \fun (p: Cylinder.Carrier) => Pair.Prop[A := J.Carrier, B := Lower.Disk].ext (erase (fill p)) p (\refl(Cylinder.time p))
+      ((topology.Homeomorphism[A := Lower.Disk, B := LowerDisk.DiskCarrier].laws Lower.diskTopology LowerDisk.diskTopology LowerPoint.homeomorphism).leftInverse (Cylinder.point p))
+  };
+\definition pointHomeomorphism: topology.Homeomorphism[A := HigherDisk.DiskCarrier, B := PointCylinder.Carrier].Homeomorphism[HigherDisk.diskTopology, PointCylinder.topology LowerDisk.diskTopology] :=
+  topology.Homeomorphism[A := HigherDisk.DiskCarrier, B := Shape.BoxCarrier].Composition[C := PointCylinder.Carrier].compose HigherDisk.diskTopology Shape.boxTopology (PointCylinder.topology LowerDisk.diskTopology) Native.round.homeomorphism Native.cylinder.homeomorphism;
+\definition homeomorphism: topology.Homeomorphism[A := Higher.Disk, B := Cylinder.Carrier].Homeomorphism[Higher.diskTopology, topology] :=
+  topology.Homeomorphism[A := Higher.Disk, B := PointCylinder.Carrier].Composition[C := Cylinder.Carrier].compose Higher.diskTopology (PointCylinder.topology LowerDisk.diskTopology) topology
+    (topology.Homeomorphism[A := Higher.Disk, B := HigherDisk.DiskCarrier].Composition[C := PointCylinder.Carrier].compose Higher.diskTopology HigherDisk.diskTopology (PointCylinder.topology LowerDisk.diskTopology) HigherPoint.homeomorphism pointHomeomorphism) eraseHomeomorphism;
+\definition forward: Higher.Disk -> Cylinder.Carrier := homeomorphism.forward;
+\definition backward: Cylinder.Carrier -> Higher.Disk := homeomorphism.backward;
+\definition laws: topology.Homeomorphism[A := Higher.Disk, B := Cylinder.Carrier].Laws[Higher.diskTopology, topology, homeomorphism] := topology.Homeomorphism[A := Higher.Disk, B := Cylinder.Carrier].laws Higher.diskTopology topology homeomorphism;
+\import \root.RelativeSuspension[].On[A := LowerDisk.DiskCarrier, source := LowerDisk.diskTopology, subset := LowerDisk.boundary] \as Suspension;
+\definition erasedBoundary: \forall (p: PointCylinder.Carrier) -> \In[PointCylinder.Carrier] Suspension.boundary p -> \In[Cylinder.Carrier] boundary (erase p) :=
+  \fun (p: PointCylinder.Carrier)(inside: _) => either!{inside {\In[Cylinder.Carrier] boundary (erase p)}
+    {\fun (bottom: PointCylinder.time p = J.start) => Logic.Or[_, _]::left bottom}
+    {\fun (other: _) => either!{other {\In[Cylinder.Carrier] boundary (erase p)}
+      {\fun (top: PointCylinder.time p = J.end) => Logic.Or[_, _]::right (Logic.Or[_, _]::left top)}
+      {\fun (side: \In[LowerDisk.DiskCarrier] LowerDisk.boundary (PointCylinder.point p)) => Logic.Or[_, _]::right (Logic.Or[_, _]::right side)}}}};
+\definition filledBoundary: \forall (p: Cylinder.Carrier) -> \In[Cylinder.Carrier] boundary p -> \In[PointCylinder.Carrier] Suspension.boundary (fill p) :=
+  \fun (p: Cylinder.Carrier)(inside: _) => either!{inside {\In[PointCylinder.Carrier] Suspension.boundary (fill p)}
+    {\fun (bottom: Cylinder.time p = J.start) => Logic.Or[_, _]::left bottom}
+    {\fun (other: _) => either!{other {\In[PointCylinder.Carrier] Suspension.boundary (fill p)}
+      {\fun (top: Cylinder.time p = J.end) => Logic.Or[_, _]::right (Logic.Or[_, _]::left top)}
+      {\fun (side: Lower.normSquared (Cylinder.point p) = R.one) => Logic.Or[_, _]::right (Logic.Or[_, _]::right side)}}}};
+\definition sourceBoundary: \Pow Higher.Disk := { v: Higher.Disk \where Higher.normSquared v = R.one };
+\definition forwardBoundary: \forall (v: Higher.Disk) -> \In[Higher.Disk] sourceBoundary v -> \In[Cylinder.Carrier] boundary (forward v) :=
+  \fun (v: Higher.Disk)(inside: _) => erasedBoundary (pointHomeomorphism.forward (HigherPoint.forward v))
+    (Native.cylinder.forwardPreserves (\into[Shape.BoxCarrier](Native.round.homeomorphism.forward (HigherPoint.forward v), Shape.BoxBoundary) \by {
+      Native.round.forwardPreserves (\into[HigherDisk.DiskCarrier](HigherPoint.forward v, HigherDisk.boundary) \by { inside })
+    }));
+\definition backwardBoundary: \forall (p: Cylinder.Carrier) -> \In[Cylinder.Carrier] boundary p -> \In[Higher.Disk] sourceBoundary (backward p) :=
+  \fun (p: Cylinder.Carrier)(inside: _) => Native.round.backwardPreserves
+    (\into[Shape.BoxCarrier](Native.cylinder.homeomorphism.backward (fill p), Shape.BoxBoundary) \by {
+      Native.cylinder.backwardPreserves (\into[PointCylinder.Carrier](fill p, Suspension.boundary) \by { filledBoundary p inside })
+    });

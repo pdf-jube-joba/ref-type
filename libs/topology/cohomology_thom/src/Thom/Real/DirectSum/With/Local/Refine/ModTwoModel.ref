@@ -1,0 +1,47 @@
+\import algebra.Two[] \as Two;
+\import std.Arithmetic[].IntAlgebra[].Ring[] \as Integers;
+\import std.Data[].Bool[] \as B;
+\import module_theory.Module[].Over[R := I.Int^, ring := Integers.ring] \as IntegerModules;
+\import \parent.Ring[K := Two.Carrier, ring := Two.commutativeRing] \as LocalModel;
+\import \parent.StandardModel[].Ring[K := Two.Carrier, ring := Two.commutativeRing] \as StandardModel;
+\import StandardModel.Point[] \as PointModel;
+\import \parent.Product[K := Two.Carrier, ring := Two.commutativeRing] \as Product;
+\import Product.LeftFactor[] \as LeftFactor;
+\import Product.RightFactor[] \as RightFactor;
+\import Product.Comparison[] \as Comparison;
+\import \root.StandardProduct[n := c.dimension, m := d.dimension, K := Two.Carrier, ring := Two.commutativeRing] \as StandardProduct;
+\import StandardProduct.Signs[] \as Signs;
+\import \root.StandardProductModTwo[n := c.dimension, m := d.dimension] \as Primitive;
+\import \root.LocalDisk[].Point[K := Two.Carrier, ring := Two.commutativeRing].Rank[n := c.dimension] \as LeftPoint;
+\import \root.LocalDisk[].Point[K := Two.Carrier, ring := Two.commutativeRing].Rank[n := d.dimension] \as RightPoint;
+\import \root.StandardShell[n := chart.dimension].Ring[K := Two.Carrier, ring := Two.commutativeRing] \as TotalClasses;
+\import Geometry.Local[K := Two.Carrier, ring := Two.commutativeRing] \as LocalTheory;
+\import LocalTheory.Model[n := chart.dimension, U := U] \as Models;
+\import Geometry.Domain[U := U].Ring[K := Two.Carrier, ring := Two.commutativeRing].Degree[n := chart.dimension] \as Top;
+\definition primitiveReverse: B.Bool^ := B.Bool^::false;
+\definition primitiveLaw: StandardProduct.apply LeftPoint.generator RightPoint.generator = Signs.signedOutput primitiveReverse TotalClasses.generator := Primitive.law;
+\definition model[s: B.Bool^]: Models.Data := \induction (s: B.Bool^) \return Models.Data \with {
+  | false: LocalModel.data
+  | true: Models.Reverse[model := LocalModel.data].data
+} s;
+\definition sign[s, t: B.Bool^]: B.Bool^ := Signs.combine (Signs.combine s t) primitiveReverse;
+\definition signedModel[s, t: B.Bool^]: Models.Data := model (sign s t);
+\definition pullSigned: \forall (s: B.Bool^) -> PointModel.map.apply (Signs.signedOutput s TotalClasses.generator) = (model s).thomClass :=
+  \induction (s: B.Bool^) \return PointModel.map.apply (Signs.signedOutput s TotalClasses.generator) = (model s).thomClass \with {
+    | false: PointModel.law
+    | true: trans!{Top.Class} _ _ _
+        (IntegerModules.Hom[V := Signs.output.Carrier, W := Top.Class, source := Signs.output.space, target := Geometry.Domain[U := U].Additive[coefficients := singular_products.Cochains[A := X, source := bundle.baseSpace, R := Two.Carrier, ring := Two.commutativeRing].integerCoefficients, z := I.Int^::ofNat chart.dimension].space].negativePreserved PointModel.map TotalClasses.generator)
+        (congr!{Top.Class Top.Class} Top.space.neg _ _ PointModel.law)
+  };
+\definition classLaw: \forall (s, t: B.Bool^) ->
+  Product.apply (LeftFactor.class (Signs.signedLeft s LeftPoint.generator)) (RightFactor.class (Signs.signedRight t RightPoint.generator)) = (signedModel s t).thomClass :=
+  \fun (s, t: B.Bool^) => trans!{Top.Class} _ _ _
+    (Comparison.law (Signs.signedLeft s LeftPoint.generator) (Signs.signedRight t RightPoint.generator))
+    (trans!{Top.Class} _ _ _
+      (congr!{Signs.output.Carrier Top.Class} PointModel.map.apply _ _ (Signs.law s t LeftPoint.generator RightPoint.generator))
+      (trans!{Top.Class} _ _ _
+        (congr!{Signs.output.Carrier Top.Class} (\fun (a: Signs.output.Carrier) => PointModel.map.apply (Signs.signedOutput (Signs.combine s t) a)) _ _ primitiveLaw)
+        (trans!{Top.Class} _ _ _
+          (congr!{Signs.output.Carrier Top.Class} PointModel.map.apply _ _ (Signs.nested (Signs.combine s t) primitiveReverse TotalClasses.generator))
+          (pullSigned (sign s t)))));
+\module Fiber(x: Actual.BasePoint);

@@ -1,0 +1,27 @@
+\definition rightOpenV: Base.IsOpenIn right.baseSpace V := \idelim left.baseSpace = right.baseSpace \with space: Base.Topology => Base.IsOpenIn space V \by { base: openV, equality: same };
+\import RightGeometry.Local[K := I.Int^, ring := Integers.commutativeRing] \as Theory;
+\definition contained: Base.Subset V d.domain := \fun (x: X)(inside: Base.Member V x) => Coordinates.inRight x (included x inside);
+\import RightGeometry.Chart[c := d].Restrict[U := V, open := rightOpenV, contained := contained] \as Restricted;
+\import Theory.Chart[c := d].Refine[U := V, open := rightOpenV, contained := contained].Rank[n := m, same := rightLocal.rank] \as Refined;
+\import Theory.Chart[c := Restricted.chart].Rank[n := m, same := rightLocal.rank].Reindex[] \as Reindex;
+\import Theory.Rank[n := m].On[U := V].Given[g := rightOrientation.fiber].Whole[] \as Whole;
+\definition data: Theory.Rank[n := m].On[U := V].Given[g := rightOrientation.fiber].Data := Refined.given rightOrientation.fiber rightLocal.reverse rightLocal.normalized;
+\definition LocalClasses[k: N.Nat^]: \Set := RightGeometry.Domain[U := V].Ring[K := I.Int^, ring := Integers.commutativeRing].Degree[n := k].Class;
+\definition restriction[k: N.Nat^][u: RightClasses k]: LocalClasses k := RightGeometry.Domain[U := V].Additive[coefficients := BaseProduct.integerCoefficients, z := I.Int^::ofNat k].restriction.apply u;
+\definition nativeLaw: restriction d.dimension rightDown = (Reindex.nativeSigned rightLocal.reverse).thomClass :=
+  trans!{{LocalClasses d.dimension}} _ _ _
+    (sym!{{LocalClasses d.dimension}} _ _ (Transport.natural RightClasses LocalClasses restriction m d.dimension (sym!{N.Nat^} _ _ rightLocal.rank) RightClass.class))
+    (trans!{{LocalClasses d.dimension}} _ _ _
+      (congr!{{LocalClasses m} {LocalClasses d.dimension}} (Transport.cast LocalClasses m d.dimension (sym!{N.Nat^} _ _ rightLocal.rank)) _ _ (Whole.law data RightClass.class RightClass.normalized))
+      (trans!{{LocalClasses d.dimension}} _ _ _
+        (congr!{{LocalClasses m} {LocalClasses d.dimension}} (Transport.cast LocalClasses m d.dimension (sym!{N.Nat^} _ _ rightLocal.rank)) _ _ (sym!{{LocalClasses m}} _ _ (Reindex.classCast rightLocal.reverse)))
+        (Transport.castInverse LocalClasses d.dimension m rightLocal.rank (Reindex.nativeSigned rightLocal.reverse).thomClass)));
+\import LocalProduct.RightFactor[] \as Factor;
+\import Factor.Canonical[] \as Canonical;
+\definition canonical: \forall (s: B.Bool^) -> Factor.class (Signs.signedRight s RightPoint.generator) = (Reindex.nativeSigned s).thomClass :=
+  \induction (s: B.Bool^) \return Factor.class (Signs.signedRight s RightPoint.generator) = (Reindex.nativeSigned s).thomClass \with {
+    | false: Canonical.canonical
+    | true: Canonical.negativeCanonical
+  };
+\definition law: restriction d.dimension rightDown = Factor.class (Signs.signedRight rightLocal.reverse RightPoint.generator) :=
+  trans!{{LocalClasses d.dimension}} _ _ _ nativeLaw (sym!{{LocalClasses d.dimension}} _ _ (canonical rightLocal.reverse));

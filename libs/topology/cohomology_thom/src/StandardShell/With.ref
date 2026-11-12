@@ -1,0 +1,32 @@
+\import singular_cohomology.Relative[A := Disk.DiskBundle, source := Disk.diskTopology, subset := Shell.shell].With[coefficients := coefficients].At[z := z] \as SourceShell;
+\import singular_cohomology.Relative[A := Disk.DiskBundle, source := Disk.diskTopology, subset := Disk.Boundary].With[coefficients := coefficients].At[z := z] \as SourceBoundary;
+\import singular_cohomology.Relative[A := Euclidean.Disk, source := Euclidean.diskTopology, subset := shell].With[coefficients := coefficients].At[z := z] \as TargetShell;
+\import singular_cohomology.Relative[A := Euclidean.Disk, source := Euclidean.diskTopology, subset := boundary].With[coefficients := coefficients].At[z := z] \as TargetBoundary;
+\definition source: _ := Direct.With[coefficients := coefficients, z := z].isomorphism;
+\definition shellComparison: _ := ShellPairs.With[coefficients := coefficients].At[z := z].isomorphism shellPair;
+\definition boundaryComparison: _ := BoundaryPairs.With[coefficients := coefficients].At[z := z].isomorphism boundaryPair;
+\definition map: _ := Include.On[f := include].Integer[].With[coefficients := coefficients].At[z := z].induced;
+\definition action[f: DirectMaps.Map]: _ := DirectMaps.On[f := f].Integer[].With[coefficients := coefficients].At[z := z].induced;
+\definition squareLaw: \forall (v: TargetShell.Carrier) -> source.forward.apply (shellComparison.forward.apply v) = boundaryComparison.forward.apply (map.apply v) :=
+  \fun (v: TargetShell.Carrier) => trans!{SourceBoundary.Carrier} _ _ _
+    (sym!{SourceBoundary.Carrier} _ _ (FirstComposition.On[f := Direct.forward, g := ShellPairs.forwardMap shellPair].With[coefficients := coefficients].law z v))
+    (trans!{SourceBoundary.Carrier} _ _ _
+      (congr!{DirectMaps.Map SourceBoundary.Carrier} (\fun (f: DirectMaps.Map) => (action f).apply v) _ _ square)
+      (SecondComposition.On[f := BoundaryPairs.forwardMap boundaryPair, g := include].With[coefficients := coefficients].law z v));
+\definition inverseSquare: \forall (v: SourceShell.Carrier) -> map.apply (shellComparison.backward.apply v) = boundaryComparison.backward.apply (source.forward.apply v) :=
+  \fun (v: SourceShell.Carrier) => eq_reason_in!{TargetBoundary.Carrier _
+    "=" _ "by" { sym!{TargetBoundary.Carrier} _ _ (boundaryComparison.leftInverse (map.apply (shellComparison.backward.apply v))) }
+    "=" _ "by" { congr!{SourceBoundary.Carrier TargetBoundary.Carrier} boundaryComparison.backward.apply _ _ (sym!{SourceBoundary.Carrier} _ _ (squareLaw (shellComparison.backward.apply v))) }
+    "=" _ "by" { congr!{SourceShell.Carrier TargetBoundary.Carrier} (\fun (w: SourceShell.Carrier) => boundaryComparison.backward.apply (source.forward.apply w)) _ _ (shellComparison.rightInverse v) }
+  };
+\definition a: Modules.Bundle := Modules.Bundle { Carrier := SourceShell.Carrier, space := SourceShell.space };
+\definition b: Modules.Bundle := Modules.Bundle { Carrier := SourceBoundary.Carrier, space := SourceBoundary.space };
+\definition c: Modules.Bundle := Modules.Bundle { Carrier := TargetShell.Carrier, space := TargetShell.space };
+\definition d: Modules.Bundle := Modules.Bundle { Carrier := TargetBoundary.Carrier, space := TargetBoundary.space };
+\definition isomorphism: Modules.Isomorphism[V := TargetShell.Carrier, W := TargetBoundary.Carrier, source := TargetShell.space, target := TargetBoundary.space].Isomorphism :=
+  Modules.IsomorphismSquare[A := a, B := b, C := c, D := d].transport
+    (Modules.Isomorphism[V := TargetShell.Carrier, W := SourceShell.Carrier, source := TargetShell.space, target := SourceShell.space].Inverse[].inverse shellComparison)
+    (Modules.Isomorphism[V := TargetBoundary.Carrier, W := SourceBoundary.Carrier, source := TargetBoundary.space, target := SourceBoundary.space].Inverse[].inverse boundaryComparison)
+    source map inverseSquare;
+\definition lift[u: TargetBoundary.Carrier]: TargetShell.Carrier := isomorphism.backward.apply u;
+\definition normalized: \forall (u: TargetBoundary.Carrier) -> map.apply (lift u) = u := isomorphism.rightInverse;

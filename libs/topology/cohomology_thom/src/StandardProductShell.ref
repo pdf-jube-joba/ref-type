@@ -1,0 +1,76 @@
+\import std.Data[].Nat[] \as N;
+\import std.Arithmetic[].Int[] \as I;
+\import std.Arithmetic[].IntAlgebra[].Ring[] \as Integers;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.trans;
+\use Equality.sym;
+\use Equality.congr;
+\import std.Logic[].Proposition[] \as Logic;
+\use Logic.either;
+\import std.Data[].Pair[] \as Pair;
+\import module_theory.Module[].Over[R := I.Int^, ring := Integers.ring] \as Modules;
+\import algebraic_topology.Interval[] \as J;
+\import algebraic_topology.Euclidean[].Dimension[n := n] \as Left;
+\import algebraic_topology.Euclidean[].Dimension[n := m] \as Right;
+\import \root.StandardShell[n := n] \as L;
+\import \root.StandardShell[n := m] \as R;
+\import L.Motion[] \as LM;
+\import R.Motion[] \as RM;
+\import topological_constructions.Product[A := Left.Disk, B := Right.Disk] \as Product;
+\definition Carrier: \Set := Product.CarrierSet;
+\definition topology: topology.Topology[Carrier := Carrier].Topology := Product.topology Left.diskTopology Right.diskTopology;
+\definition first: Carrier -> Left.Disk := Pair.first Left.Disk Right.Disk;
+\definition second: Carrier -> Right.Disk := Pair.second Left.Disk Right.Disk;
+\definition closedFirst: \Pow Carrier := { p: Carrier \where \In[Left.Disk] L.boundary (first p) };
+\definition closedSecond: \Pow Carrier := { p: Carrier \where \In[Right.Disk] R.boundary (second p) };
+\definition shellFirst: \Pow Carrier := { p: Carrier \where \In[Left.Disk] L.shell (first p) };
+\definition shellSecond: \Pow Carrier := { p: Carrier \where \In[Right.Disk] R.shell (second p) };
+\definition closedFamily: \Pow (\Pow Carrier) := { U: \Pow Carrier \where Logic.Or[U = closedFirst, U = closedSecond] };
+\definition shellFamily: \Pow (\Pow Carrier) := { U: \Pow Carrier \where Logic.Or[U = shellFirst, U = shellSecond] };
+\definition identity[p: Carrier]: Carrier := p;
+\definition identityContinuous: topology.Continuity[A := Carrier, B := Carrier].Continuous topology topology identity := topology.Maps[A := Carrier, B := Carrier].Identity[].continuous topology;
+\definition clip[p: Carrier]: Carrier := Pair.pair Left.Disk Right.Disk (LM.clip (first p)) (RM.clip (second p));
+\definition clipContinuous: topology.Continuity[A := Carrier, B := Carrier].Continuous topology topology clip :=
+  Product.Universal[X := Carrier].pairContinuous topology Left.diskTopology Right.diskTopology (\fun (p: Carrier) => LM.clip (first p)) (\fun (p: Carrier) => RM.clip (second p))
+    (topology.Composition[A := Carrier, B := Left.Disk, C := Left.Disk].composeContinuous topology Left.diskTopology Left.diskTopology first LM.clip (Product.Maps[].firstContinuous Left.diskTopology Right.diskTopology) LM.clipContinuous)
+    (topology.Composition[A := Carrier, B := Right.Disk, C := Right.Disk].composeContinuous topology Right.diskTopology Right.diskTopology second RM.clip (Product.Maps[].secondContinuous Left.diskTopology Right.diskTopology) RM.clipContinuous);
+\import algebraic_topology.Cylinder[A := Carrier] \as Cylinder;
+\import algebraic_topology.Cylinder[A := Left.Disk] \as LC;
+\import algebraic_topology.Cylinder[A := Right.Disk] \as RC;
+\definition leftCylinder[p: Cylinder.Carrier]: LC.Carrier := LC.at (Cylinder.time p) (first (Cylinder.point p));
+\definition rightCylinder[p: Cylinder.Carrier]: RC.Carrier := RC.at (Cylinder.time p) (second (Cylinder.point p));
+\definition leftCylinderContinuous: topology.Continuity[A := Cylinder.Carrier, B := LC.Carrier].Continuous (Cylinder.topology topology) (LC.topology Left.diskTopology) leftCylinder :=
+  topological_constructions.Product[A := J.Carrier, B := Left.Disk].Universal[X := Cylinder.Carrier].pairContinuous (Cylinder.topology topology) J.topology Left.diskTopology Cylinder.time (\fun (p: Cylinder.Carrier) => first (Cylinder.point p))
+    (Cylinder.timeContinuous topology)
+    (topology.Composition[A := Cylinder.Carrier, B := Carrier, C := Left.Disk].composeContinuous (Cylinder.topology topology) topology Left.diskTopology Cylinder.point first (Cylinder.pointContinuous topology) (Product.Maps[].firstContinuous Left.diskTopology Right.diskTopology));
+\definition rightCylinderContinuous: topology.Continuity[A := Cylinder.Carrier, B := RC.Carrier].Continuous (Cylinder.topology topology) (RC.topology Right.diskTopology) rightCylinder :=
+  topological_constructions.Product[A := J.Carrier, B := Right.Disk].Universal[X := Cylinder.Carrier].pairContinuous (Cylinder.topology topology) J.topology Right.diskTopology Cylinder.time (\fun (p: Cylinder.Carrier) => second (Cylinder.point p))
+    (Cylinder.timeContinuous topology)
+    (topology.Composition[A := Cylinder.Carrier, B := Carrier, C := Right.Disk].composeContinuous (Cylinder.topology topology) topology Right.diskTopology Cylinder.point second (Cylinder.pointContinuous topology) (Product.Maps[].secondContinuous Left.diskTopology Right.diskTopology));
+\definition motion[p: Cylinder.Carrier]: Carrier := Pair.pair Left.Disk Right.Disk (LM.motion (leftCylinder p)) (RM.motion (rightCylinder p));
+\definition continuous: topology.Continuity[A := Cylinder.Carrier, B := Carrier].Continuous (Cylinder.topology topology) topology motion :=
+  Product.Universal[X := Cylinder.Carrier].pairContinuous (Cylinder.topology topology) Left.diskTopology Right.diskTopology (\fun (p: Cylinder.Carrier) => LM.motion (leftCylinder p)) (\fun (p: Cylinder.Carrier) => RM.motion (rightCylinder p))
+    (topology.Composition[A := Cylinder.Carrier, B := LC.Carrier, C := Left.Disk].composeContinuous (Cylinder.topology topology) (LC.topology Left.diskTopology) Left.diskTopology leftCylinder LM.motion leftCylinderContinuous LM.continuous)
+    (topology.Composition[A := Cylinder.Carrier, B := RC.Carrier, C := Right.Disk].composeContinuous (Cylinder.topology topology) (RC.topology Right.diskTopology) Right.diskTopology rightCylinder RM.motion rightCylinderContinuous RM.continuous);
+\import algebraic_topology.Homotopy[A := Carrier, B := Carrier] \as Homotopies;
+\definition deformation: Homotopies.Homotopy[topology, topology, identity, clip] := \into[Homotopies.Family](motion, Homotopies.Homotopy[topology, topology, identity, clip]) \by {
+  Homotopies.Laws[topology, topology, identity, clip, motion] {
+    continuous := continuous,
+    start := \fun (p: Carrier) => Pair.Prop[A := Left.Disk, B := Right.Disk].ext _ _ (LM.start (first p)) (RM.start (second p)),
+    end := \fun (p: Carrier) => \refl(clip p)
+  }
+};
+\definition closedFirstPreserved: \forall (t: J.Carrier)(p: Carrier) -> \In[Carrier] closedFirst p -> \In[Carrier] closedFirst (motion (Cylinder.at t p)) :=
+  \fun (t: J.Carrier)(p: Carrier)(inside: _) => \idelim first p = LM.motion (LC.at t (first p)) \with v: Left.Disk => \In[Left.Disk] L.boundary v \by {
+    base: inside, equality: sym!{{Left.Disk}} _ _ (LM.fixed t (\into[Left.Disk](first p, L.boundary) \by { inside }))
+  };
+\definition closedSecondPreserved: \forall (t: J.Carrier)(p: Carrier) -> \In[Carrier] closedSecond p -> \In[Carrier] closedSecond (motion (Cylinder.at t p)) :=
+  \fun (t: J.Carrier)(p: Carrier)(inside: _) => \idelim second p = RM.motion (RC.at t (second p)) \with v: Right.Disk => \In[Right.Disk] R.boundary v \by {
+    base: inside, equality: sym!{{Right.Disk}} _ _ (RM.fixed t (\into[Right.Disk](second p, R.boundary) \by { inside }))
+  };
+\definition shellFirstPreserved: \forall (t: J.Carrier)(p: Carrier) -> \In[Carrier] shellFirst p -> \In[Carrier] shellFirst (motion (Cylinder.at t p)) :=
+  \fun (t: J.Carrier)(p: Carrier)(inside: _) => LM.preservesShell t (\into[Left.Disk](first p, L.shell) \by { inside });
+\definition shellSecondPreserved: \forall (t: J.Carrier)(p: Carrier) -> \In[Carrier] shellSecond p -> \In[Carrier] shellSecond (motion (Cylinder.at t p)) :=
+  \fun (t: J.Carrier)(p: Carrier)(inside: _) => RM.preservesShell t (\into[Right.Disk](second p, R.shell) \by { inside });
+\module Families;
+\module Pair;

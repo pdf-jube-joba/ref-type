@@ -1,0 +1,41 @@
+\import std.Data[].Nat[] \as N;
+\import std.Arithmetic[].Int[] \as I;
+\import std.Arithmetic[].IntAlgebra[].Ring[] \as Integers;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.trans;
+\use Equality.sym;
+\use Equality.congr;
+\use Equality.eq_reason_in;
+\import module_theory.Module[].Over[R := I.Int^, ring := Integers.ring] \as Modules;
+\import Modules.Alternating[V := D.Carrier, space := D.space].Concatenation[] \as Signs;
+\import Modules.Isomorphism[V := A.Carrier, W := B.Carrier, source := A.space, target := B.space].Inverse[] \as SourceInverse;
+\import Modules.Isomorphism[V := B.Carrier, W := A.Carrier, source := B.space, target := A.space].Composition[U := C.Carrier, final := C.space] \as Before;
+\import Modules.Isomorphism[V := B.Carrier, W := C.Carrier, source := B.space, target := C.space].Composition[U := D.Carrier, final := D.space] \as After;
+\definition conjugate: Modules.Isomorphism[V := B.Carrier, W := D.Carrier, source := B.space, target := D.space].Isomorphism :=
+  After.compose targetIso (Before.compose lowerIso (SourceInverse.inverse sourceIso));
+\definition formula: \forall (x: B.Carrier) -> conjugate.forward.apply x = Signs.twist p (upper.apply x) :=
+  \fun (x: B.Carrier) => trans!{D.Carrier} _ _ _ (comparison (sourceIso.backward.apply x))
+    (congr!{B.Carrier D.Carrier} (\fun (v: B.Carrier) => Signs.twist p (upper.apply v)) _ _ (sourceIso.rightInverse x));
+\definition inverse[y: D.Carrier]: B.Carrier := conjugate.backward.apply (Signs.twist p y);
+\definition leftInverse: \forall (x: B.Carrier) -> inverse (upper.apply x) = x :=
+  \fun (x: B.Carrier) => trans!{B.Carrier} _ _ _
+    (congr!{D.Carrier B.Carrier} conjugate.backward.apply _ _ (sym!{D.Carrier} _ _ (formula x))) (conjugate.leftInverse x);
+\definition rightInverse: \forall (y: D.Carrier) -> upper.apply (inverse y) = y :=
+  \fun (y: D.Carrier) => eq_reason_in!{D.Carrier _
+    "=" _ "by" { sym!{D.Carrier} _ _ (Signs.involution p (upper.apply (inverse y))) }
+    "=" _ "by" { congr!{D.Carrier D.Carrier} (Signs.twist p) _ _ (sym!{D.Carrier} _ _ (formula (inverse y))) }
+    "=" _ "by" { congr!{D.Carrier D.Carrier} (Signs.twist p) _ _ (conjugate.rightInverse (Signs.twist p y)) }
+    "=" _ "by" { Signs.involution p y }
+  };
+\import Modules.Hom[V := D.Carrier, W := B.Carrier, source := D.space, target := B.space] \as BackwardMaps;
+\definition backward: BackwardMaps.Map := BackwardMaps.Map {
+  apply := inverse,
+  addition := \fun (x, y: D.Carrier) => trans!{B.Carrier} _ _ _
+    (congr!{D.Carrier B.Carrier} conjugate.backward.apply _ _ (Signs.twistAdd p x y)) (conjugate.backward.addition (Signs.twist p x) (Signs.twist p y)),
+  scalar := \fun (r: I.Int^)(x: D.Carrier) => trans!{B.Carrier} _ _ _
+    (congr!{D.Carrier B.Carrier} conjugate.backward.apply _ _ (Signs.twistScalar p r x)) (conjugate.backward.scalar r (Signs.twist p x))
+};
+\definition isomorphism: Modules.Isomorphism[V := B.Carrier, W := D.Carrier, source := B.space, target := D.space].Isomorphism :=
+  Modules.Isomorphism[V := B.Carrier, W := D.Carrier, source := B.space, target := D.space].Isomorphism {
+    forward := upper, backward := backward, leftInverse := leftInverse, rightInverse := rightInverse
+  };

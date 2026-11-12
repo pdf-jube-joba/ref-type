@@ -1,0 +1,24 @@
+\import singular_cohomology.Relative[A := Disk.DiskBundle, source := Disk.diskTopology, subset := Disk.Boundary].Maps[B := Disk.DiskBundle].Over[target := Disk.diskTopology, targetSubset := shell] \as Forward;
+\import singular_cohomology.Relative[A := Disk.DiskBundle, source := Disk.diskTopology, subset := shell].Maps[B := Disk.DiskBundle].Over[target := Disk.diskTopology, targetSubset := Disk.Boundary] \as Backward;
+\definition forward: Forward.Map := \into[Disk.DiskBundle -> Disk.DiskBundle]((\fun (p: Disk.DiskBundle) => p), Forward.Map) \by {
+  Forward.Laws[(\fun (p: Disk.DiskBundle) => p)] { continuous := topology.Maps[A := Disk.DiskBundle, B := Disk.DiskBundle].Identity[].continuous Disk.diskTopology, contained := contains }
+};
+\definition backward: Backward.Map := \into[Disk.DiskBundle -> Disk.DiskBundle](clip, Backward.Map) \by { Backward.Laws[clip] { continuous := clipContinuous, contained := endsInBoundary } };
+\import singular_cohomology.Relative[A := Disk.DiskBundle, source := Disk.diskTopology, subset := Disk.Boundary].Equivalence[B := Disk.DiskBundle].Over[target := Disk.diskTopology, targetSubset := shell] \as Equivalences;
+\import singular_cohomology.Relative[A := Disk.DiskBundle, source := Disk.diskTopology, subset := Disk.Boundary].Maps[B := Disk.DiskBundle].Over[target := Disk.diskTopology, targetSubset := Disk.Boundary] \as BoundaryEnd;
+\import singular_cohomology.Relative[A := Disk.DiskBundle, source := Disk.diskTopology, subset := shell].Maps[B := Disk.DiskBundle].Over[target := Disk.diskTopology, targetSubset := shell] \as ShellEnd;
+\import singular_cohomology.Relative[A := Disk.DiskBundle, source := Disk.diskTopology, subset := Disk.Boundary].Identity[] \as BoundaryIdentity;
+\import singular_cohomology.Relative[A := Disk.DiskBundle, source := Disk.diskTopology, subset := shell].Identity[] \as ShellIdentity;
+\definition boundaryClip: BoundaryEnd.Map := Forward.Composition[C := Disk.DiskBundle].Over[final := Disk.diskTopology, finalSubset := Disk.Boundary].compose forward backward;
+\definition shellClip: ShellEnd.Map := Backward.Composition[C := Disk.DiskBundle].Over[final := Disk.diskTopology, finalSubset := shell].compose backward forward;
+\definition equivalence: Equivalences.Equivalence := Equivalences.Equivalence {
+  forward := forward, backward := backward,
+  left := \into[Homotopies.Homotopy[Disk.diskTopology, Disk.diskTopology, clip, (\fun (p: Disk.DiskBundle) => p)]](reverse, BoundaryEnd.Homotopy[f := boundaryClip, g := BoundaryIdentity.map].Homotopy) \by {
+    \fun (t: J.Carrier)(p: \Cast[Disk.DiskBundle] Disk.Boundary) => trans!{R.Real} _ _ _ (congr!{Disk.DiskBundle R.Real} (\fun (q: Disk.DiskBundle) => Disk.squared q) _ _ (fixed (J.reverse t) p)) (\bysub(Disk.DiskBundle, Disk.Boundary, p))
+  },
+  right := \into[Homotopies.Homotopy[Disk.diskTopology, Disk.diskTopology, clip, (\fun (p: Disk.DiskBundle) => p)]](reverse, ShellEnd.Homotopy[f := shellClip, g := ShellIdentity.map].Homotopy) \by {
+    \fun (t: J.Carrier)(p: \Cast[Disk.DiskBundle] shell) => preservesShell (J.reverse t) p
+  }
+};
+\module With(coefficients: IntegerModules.Bundle, z: I.Int^) { \definition isomorphism: _ := Equivalences.On[e := equivalence].With[coefficients := coefficients].At[z := z].isomorphism; }
+\module Domain(U: \Pow X);

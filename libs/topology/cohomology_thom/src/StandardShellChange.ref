@@ -1,0 +1,56 @@
+\import std.Data[].Nat[] \as N;
+\import std.Arithmetic[].Int[] \as I;
+\import std.Arithmetic[].IntAlgebra[].Ring[] \as Integers;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.trans;
+\use Equality.sym;
+\use Equality.congr;
+\use Equality.eq_reason_in;
+\import module_theory.Module[].Over[R := I.Int^, ring := Integers.ring] \as Modules;
+\import \root.StandardShell[n := n] \as Geometry;
+\import Geometry.PointModel[] \as Coordinates;
+\import algebraic_topology.Euclidean[].Dimension[n := n] \as Disk;
+\import thom_spaces.Thom[].CWType[].Point[] \as Point;
+\import thom_spaces.Thom[].DiskSuspension[X := Point.Carrier, space := Point.topology, n := n] \as PointDisk;
+\import singular_products.Cochains[A := Point.Carrier, source := Point.topology, R := K, ring := ring] \as Source;
+\import singular_products.Cochains[A := Point.Carrier, source := Point.topology, R := L, ring := targetRing] \as Target;
+\import \root.LocalDisk[].Point[K := K, ring := ring].Rank[n := n] \as SourcePoint;
+\import \root.LocalDisk[].Point[K := L, ring := targetRing].Rank[n := n] \as TargetPoint;
+\import \root.LocalDisk[].On[X := Point.Carrier, source := Point.topology].Change[K := K, L := L, ring := ring, targetRing := targetRing, morphism := morphism] \as PointChange;
+\definition pointMap: _ := PointChange.Rank[n := n].map;
+\import Geometry.Ring[K := K, ring := ring] \as Old;
+\import Geometry.Ring[K := L, ring := targetRing] \as New;
+\import singular_cohomology.Relative[A := Disk.Disk, source := Disk.diskTopology, subset := Geometry.boundary] \as Boundary;
+\import singular_cohomology.Relative[A := Disk.Disk, source := Disk.diskTopology, subset := Geometry.shell] \as Shell;
+\import singular_cohomology.Relative[A := PointDisk.DiskCarrier, source := PointDisk.diskTopology, subset := PointDisk.boundary] \as PointPair;
+\import \root.CoefficientChange[].On[C := Boundary.complex, M := Source.integerCoefficients, N := Target.integerCoefficients, u := morphism.linear] \as BoundaryChange;
+\import \root.CoefficientChange[].On[C := Shell.complex, M := Source.integerCoefficients, N := Target.integerCoefficients, u := morphism.linear] \as ShellChange;
+\definition boundaryMap: _ := BoundaryChange.At[z := I.Int^::ofNat n].map;
+\definition shellMap: _ := ShellChange.At[z := I.Int^::ofNat n].map;
+\import Boundary.Homeomorphism[B := PointDisk.DiskCarrier].Over[target := PointDisk.diskTopology, targetSubset := PointDisk.boundary] \as Pairs;
+\import Boundary.Maps[B := PointDisk.DiskCarrier].Over[target := PointDisk.diskTopology, targetSubset := PointDisk.boundary].On[f := Pairs.forwardMap Coordinates.pair].Integer[] \as CoordinateMap;
+\import \root.CoefficientChange[].On[C := PointPair.complex, M := Source.integerCoefficients, N := Target.integerCoefficients, u := morphism.linear].Along[D := Boundary.complex, f := CoordinateMap.map].At[z := I.Int^::ofNat n] \as CoordinateChange;
+\definition boundaryLaw: \forall (a: SourcePoint.Class) -> boundaryMap.apply (Old.map a) = New.map (pointMap.apply a) := CoordinateChange.law;
+\import Boundary.Maps[B := Disk.Disk].Over[target := Disk.diskTopology, targetSubset := Geometry.shell].On[f := Geometry.include].Integer[] \as IncludeMap;
+\import ShellChange.Along[D := Boundary.complex, f := IncludeMap.map].At[z := I.Int^::ofNat n] \as IncludeChange;
+\import Geometry.With[coefficients := Source.integerCoefficients, z := I.Int^::ofNat n] \as OldComparison;
+\import Geometry.With[coefficients := Target.integerCoefficients, z := I.Int^::ofNat n] \as NewComparison;
+\import Shell.With[coefficients := Target.integerCoefficients].At[z := I.Int^::ofNat n] \as NewShell;
+\import Boundary.With[coefficients := Target.integerCoefficients].At[z := I.Int^::ofNat n] \as NewBoundary;
+\definition includeLaw: \forall (a: SourcePoint.Class) -> NewComparison.map.apply (shellMap.apply (Old.lift a)) = NewComparison.map.apply (New.lift (pointMap.apply a)) :=
+  \fun (a: SourcePoint.Class) => eq_reason_in!{NewBoundary.Carrier _
+    "=" _ "by" { sym!{NewBoundary.Carrier} _ _ (IncludeChange.law (Old.lift a)) }
+    "=" _ "by" { congr!{{Boundary.With[coefficients := Source.integerCoefficients].At[z := I.Int^::ofNat n].Carrier} NewBoundary.Carrier} boundaryMap.apply _ _ (Old.normalized a) }
+    "=" _ "by" { boundaryLaw a }
+    "=" _ "by" { sym!{NewBoundary.Carrier} _ _ (New.normalized (pointMap.apply a)) }
+  };
+\definition liftLaw: \forall (a: SourcePoint.Class) -> shellMap.apply (Old.lift a) = New.lift (pointMap.apply a) :=
+  \fun (a: SourcePoint.Class) => trans!{NewShell.Carrier} _ _ _
+    (sym!{NewShell.Carrier} _ _ (NewComparison.isomorphism.leftInverse (shellMap.apply (Old.lift a))))
+    (trans!{NewShell.Carrier} _ _ _ (congr!{NewBoundary.Carrier NewShell.Carrier} NewComparison.isomorphism.backward.apply _ _ (includeLaw a))
+      (NewComparison.isomorphism.leftInverse (New.lift (pointMap.apply a))));
+\definition pointGenerator: pointMap.apply SourcePoint.generator = TargetPoint.generator := PointChange.canonical n;
+\definition boundaryGenerator: boundaryMap.apply Old.generator = New.generator :=
+  trans!{NewBoundary.Carrier} _ _ _ (boundaryLaw SourcePoint.generator) (congr!{TargetPoint.Class NewBoundary.Carrier} New.map _ _ pointGenerator);
+\definition shellGenerator: shellMap.apply Old.shellGenerator = New.shellGenerator :=
+  trans!{NewShell.Carrier} _ _ _ (liftLaw SourcePoint.generator) (congr!{TargetPoint.Class NewShell.Carrier} New.lift _ _ pointGenerator);

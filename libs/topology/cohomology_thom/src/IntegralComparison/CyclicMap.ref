@@ -1,0 +1,38 @@
+\import std.Arithmetic[].Int[] \as I;
+\import std.Arithmetic[].IntAlgebra[].Ring[] \as Integers;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.trans;
+\use Equality.sym;
+\use Equality.congr;
+\use Equality.eq_reason_in;
+\import module_theory.Module[].Over[R := I.Int^, ring := Integers.ring] \as Modules;
+\definition one: I.Int^ := Integers.ring.one;
+\definition rightOne: \forall (r: I.Int^) -> Modules.scalarModule.smul r one = r :=
+  \fun (r: I.Int^) => trans!{I.Int^} _ _ _ (Integers.commutativeRing.mulCommutative r one) (Modules.scalarModule.scalarOne r);
+\definition sourceExpansion: \forall (r: I.Int^) -> eA.forward.apply r = A.space.smul r u :=
+  \fun (r: I.Int^) => trans!{A.Carrier} _ _ _
+    (sym!{A.Carrier} _ _ (congr!{I.Int^ A.Carrier} eA.forward.apply _ _ (rightOne r)))
+    (trans!{A.Carrier} _ _ _ (eA.forward.scalar r one) (congr!{A.Carrier A.Carrier} (A.space.smul r) _ _ sourceUnit));
+\definition targetExpansion: \forall (r: I.Int^) -> eB.forward.apply r = B.space.smul r (f.apply u) :=
+  \fun (r: I.Int^) => trans!{B.Carrier} _ _ _
+    (sym!{B.Carrier} _ _ (congr!{I.Int^ B.Carrier} eB.forward.apply _ _ (rightOne r)))
+    (trans!{B.Carrier} _ _ _ (eB.forward.scalar r one) (congr!{B.Carrier B.Carrier} (B.space.smul r) _ _ targetUnit));
+\definition onCoordinates: \forall (r: I.Int^) -> f.apply (eA.forward.apply r) = eB.forward.apply r :=
+  \fun (r: I.Int^) => eq_reason_in!{B.Carrier _
+    "=" _ "by" { congr!{A.Carrier B.Carrier} f.apply _ _ (sourceExpansion r) }
+    "=" _ "by" { f.scalar r u }
+    "=" _ "by" { sym!{B.Carrier} _ _ (targetExpansion r) }
+  };
+\import Modules.Isomorphism[V := I.Int^, W := A.Carrier, source := Modules.scalarModule, target := A.space].Inverse[] \as SourceInverse;
+\import Modules.Isomorphism[V := A.Carrier, W := I.Int^, source := A.space, target := Modules.scalarModule].Composition[U := B.Carrier, final := B.space] \as Composition;
+\definition conjugate: Modules.Isomorphism[V := A.Carrier, W := B.Carrier, source := A.space, target := B.space].Isomorphism :=
+  Composition.compose eB (SourceInverse.inverse eA);
+\definition formula: \forall (x: A.Carrier) -> f.apply x = conjugate.forward.apply x :=
+  \fun (x: A.Carrier) => trans!{B.Carrier} _ _ _
+    (sym!{B.Carrier} _ _ (congr!{A.Carrier B.Carrier} f.apply _ _ (eA.rightInverse x))) (onCoordinates (eA.backward.apply x));
+\definition isomorphism: Modules.Isomorphism[V := A.Carrier, W := B.Carrier, source := A.space, target := B.space].Isomorphism :=
+  Modules.Isomorphism[V := A.Carrier, W := B.Carrier, source := A.space, target := B.space].Isomorphism {
+    forward := f, backward := conjugate.backward,
+    leftInverse := \fun (x: A.Carrier) => trans!{A.Carrier} _ _ _ (congr!{B.Carrier A.Carrier} conjugate.backward.apply _ _ (formula x)) (conjugate.leftInverse x),
+    rightInverse := \fun (x: B.Carrier) => trans!{B.Carrier} _ _ _ (formula (conjugate.backward.apply x)) (conjugate.rightInverse x)
+  };

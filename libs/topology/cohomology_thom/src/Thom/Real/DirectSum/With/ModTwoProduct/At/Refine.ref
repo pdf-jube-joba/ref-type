@@ -1,0 +1,53 @@
+\definition c: _ := leftLocal.chart;
+\definition d: _ := rightLocal.chart;
+\import Coordinates.Refine[V := V, openV := openV, included := included] \as Shape;
+\import Shape.ModTwoModel[] \as Native;
+\import Shape.Ring[K := Two.Carrier, ring := Two.commutativeRing] \as NativeModel;
+\import Shape.Product[K := Two.Carrier, ring := Two.commutativeRing] \as LocalProduct;
+\import LocalProduct.Restriction[] \as Restriction;
+\import \root.StandardProduct[n := c.dimension, m := d.dimension, K := Two.Carrier, ring := Two.commutativeRing].Signs[] \as Signs;
+\import \root.LocalDisk[].Point[K := Two.Carrier, ring := Two.commutativeRing].Rank[n := c.dimension] \as LeftPoint;
+\import \root.LocalDisk[].Point[K := Two.Carrier, ring := Two.commutativeRing].Rank[n := d.dimension] \as RightPoint;
+\import Geometry.Domain[U := V] \as Domain;
+\import Geometry.Local[K := Two.Carrier, ring := Two.commutativeRing] \as LocalTheory;
+\definition Models[k: N.Nat^]: \Set := LocalTheory.Model[n := k, U := V].Data;
+\definition Classes[k: N.Nat^]: \Set := Domain.Ring[K := Two.Carrier, ring := Two.commutativeRing].Degree[n := k].Class;
+\definition LeftClasses[k: N.Nat^]: \Set := LeftGeometry.Coefficients[R := Two.Carrier, ring := Two.commutativeRing].Degree[n := k].Class;
+\definition RightClasses[k: N.Nat^]: \Set := RightGeometry.Coefficients[R := Two.Carrier, ring := Two.commutativeRing].Degree[n := k].Class;
+\definition SumClasses[k: N.Nat^]: \Set := Theory.Degree[n := k].Class;
+\definition leftDown: LeftClasses c.dimension := Transport.cast LeftClasses n c.dimension (sym!{N.Nat^} _ _ leftLocal.rank) LeftClass.class;
+\definition rightDown: RightClasses d.dimension := Transport.cast RightClasses m d.dimension (sym!{N.Nat^} _ _ rightLocal.rank) RightClass.class;
+\definition totalRank: Shape.chart.dimension = degree := congr!{N.Nat^ N.Nat^ N.Nat^} N.Basic[].Def[].add _ _ _ _ leftLocal.rank rightLocal.rank;
+\definition nativeModel: Models Shape.chart.dimension := Native.signedModel leftLocal.reverse rightLocal.reverse;
+\definition model: Models degree := Transport.cast Models Shape.chart.dimension degree totalRank nativeModel;
+\definition nativeProduct: SumClasses Shape.chart.dimension := Product.Product[n := c.dimension, m := d.dimension].apply leftDown rightDown;
+\module LeftNormalization;
+\module RightNormalization;
+\module RankTransport;
+\import \parent.Refine[V := V, openV := openV, included := included].LeftNormalization[] \as LeftNormal;
+\import \parent.Refine[V := V, openV := openV, included := included].RightNormalization[] \as RightNormal;
+\import \parent.Refine[V := V, openV := openV, included := included].RankTransport[] \as ProductRank;
+\definition nativeClassLaw: Domain.Additive[coefficients := BaseProduct.integerCoefficients, z := I.Int^::ofNat Shape.chart.dimension].restriction.apply nativeProduct = nativeModel.thomClass :=
+  trans!{{Classes Shape.chart.dimension}} _ _ _ (Restriction.law leftDown rightDown)
+    (trans!{{Classes Shape.chart.dimension}} _ _ _
+      (congr!{{LeftNormal.LocalClasses c.dimension} {RightNormal.LocalClasses d.dimension} {Classes Shape.chart.dimension}} LocalProduct.apply _ _ _ _ LeftNormal.law RightNormal.law)
+      (Native.classLaw leftLocal.reverse rightLocal.reverse));
+\definition restriction[k: N.Nat^][u: SumClasses k]: Classes k := Domain.Additive[coefficients := BaseProduct.integerCoefficients, z := I.Int^::ofNat k].restriction.apply u;
+\definition classLaw: restriction degree productClass = model.thomClass :=
+  trans!{{Classes degree}} _ _ _
+    (congr!{{SumClasses degree} {Classes degree}} (restriction degree) _ _ (sym!{{SumClasses degree}} _ _ ProductRank.law))
+    (trans!{{Classes degree}} _ _ _
+      (sym!{{Classes degree}} _ _ (Transport.natural SumClasses Classes restriction Shape.chart.dimension degree totalRank nativeProduct))
+      (trans!{{Classes degree}} _ _ _ (congr!{{Classes Shape.chart.dimension} {Classes degree}} (Transport.cast Classes Shape.chart.dimension degree totalRank) _ _ nativeClassLaw)
+        (Transport.natural Models Classes (\fun (k: N.Nat^)(m: Models k) => m.thomClass) Shape.chart.dimension degree totalRank nativeModel)));
+\definition normalized: Rank.On[U := V].Given[g := fiber].Normalized model.thomClass :=
+  \fun (y: Domain.BasePoint) => trans!{{Rank.FiberClass y}} _ _ _
+    (congr!{{Classes degree} {Rank.FiberClass y}} (Rank.On[U := V].restriction y).apply _ _ (sym!{{Classes degree}} _ _ classLaw))
+    (Domain.Fiber[x := y].With[coefficients := BaseProduct.integerCoefficients, z := I.Int^::ofNat degree].law productClass);
+\definition detected: Rank.On[U := V].Detects := \idelim Shape.chart.dimension = degree \with k: N.Nat^ => LocalTheory.Rank[n := k].On[U := V].Detects \by { base: NativeModel.detected, equality: totalRank };
+\definition data: Rank.On[U := V].Given[g := fiber].Data := Rank.On[U := V].Given[g := fiber].Data { model := model, normalized := normalized, detected := detected };
+\definition Generates[k: N.Nat^][m: Models k]: \Prop := \forall (y: Domain.BasePoint) -> LocalTheory.Rank[n := k].Fiber[x := y].Generator ((LocalTheory.Rank[n := k].On[U := V].restriction y).apply m.thomClass);
+\definition nativeGenerates: Generates Shape.chart.dimension nativeModel := \fun (y: Domain.BasePoint) => Native.Fiber[x := y].generates (Native.sign leftLocal.reverse rightLocal.reverse);
+\definition modelGenerates: Generates degree model := Transport.predicate Models Generates Shape.chart.dimension degree totalRank nativeModel nativeGenerates;
+\definition generates: \forall (y: \Cast[X] V) -> Rank.Fiber[x := y].Generator (fiber y) :=
+  \fun (y: \Cast[X] V) => \idelim (Rank.On[U := V].restriction y).apply model.thomClass = fiber y \with u: Rank.FiberClass y => Rank.Fiber[x := y].Generator u \by { base: modelGenerates y, equality: normalized y };

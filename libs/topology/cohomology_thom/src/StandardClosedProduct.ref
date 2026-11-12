@@ -1,0 +1,70 @@
+\import std.Data[].Nat[] \as N;
+\import std.Arithmetic[].Int[] \as I;
+\import std.Arithmetic[].IntAlgebra[].Ring[] \as Integers;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.trans;
+\use Equality.sym;
+\use Equality.congr;
+\use Equality.eq_reason_in;
+\import std.Data[].Pair[] \as Pair;
+\import module_theory.Module[].Over[R := I.Int^, ring := Integers.ring] \as Modules;
+\import real.Analysis[] \as R;
+\import algebraic_topology.Euclidean[].Dimension[n := n] \as Left;
+\import algebraic_topology.Euclidean[].Dimension[n := m] \as Right;
+\import topological_constructions.Product[A := Left.Disk, B := Right.Disk] \as Product;
+\definition Carrier: \Set := Product.CarrierSet;
+\definition topology: topology.Topology[Carrier := Carrier].Topology := Product.topology Left.diskTopology Right.diskTopology;
+\definition first[p: Carrier]: Left.Disk := Pair.first Left.Disk Right.Disk p;
+\definition second[p: Carrier]: Right.Disk := Pair.second Left.Disk Right.Disk p;
+\definition firstPart: \Pow Carrier := { p: Carrier \where Left.normSquared (first p) = R.one };
+\definition secondPart: \Pow Carrier := { p: Carrier \where Right.normSquared (second p) = R.one };
+\definition family: \Pow (\Pow Carrier) := { U: \Pow Carrier \where Logic.Or[U = firstPart, U = secondPart] };
+\definition firstMember: \In[\Pow Carrier] family firstPart := Logic.Or[_, _]::left (\refl(firstPart));
+\definition secondMember: \In[\Pow Carrier] family secondPart := Logic.Or[_, _]::right (\refl(secondPart));
+\definition classify: \forall (U: \Pow Carrier) -> \In[\Pow Carrier] family U -> Logic.Or[U = firstPart, U = secondPart] := \fun (U: \Pow Carrier)(member: \In[\Pow Carrier] family U) => member;
+\definition degree: N.Nat^ := N.Basic[].Def[].add n m;
+\import \root.StandardShell[n := n] \as LeftShell;
+\import \root.StandardShell[n := m] \as RightShell;
+\import LeftShell.Ring[K := K, ring := ring] \as LeftClasses;
+\import RightShell.Ring[K := K, ring := ring] \as RightClasses;
+\import \root.LocalDisk[].Point[K := K, ring := ring].Rank[n := n] \as LeftPoint;
+\import \root.LocalDisk[].Point[K := K, ring := ring].Rank[n := m] \as RightPoint;
+\import singular_products.Cochains[A := Carrier, source := topology, R := K, ring := ring] \as Coefficients;
+\import singular_cohomology.Relative[A := Carrier, source := topology, subset := firstPart].Maps[B := Left.Disk].Over[target := Left.diskTopology, targetSubset := LeftShell.boundary] \as FirstMaps;
+\definition firstMap: FirstMaps.Map := \into[Carrier -> Left.Disk](first, FirstMaps.Map) \by {
+  FirstMaps.Laws[first] { continuous := Product.Maps[].firstContinuous Left.diskTopology Right.diskTopology, contained := \fun (p: \Cast[Carrier] firstPart) => \bysub(Carrier, firstPart, p) }
+};
+\import singular_cohomology.Relative[A := Carrier, source := topology, subset := secondPart].Maps[B := Right.Disk].Over[target := Right.diskTopology, targetSubset := RightShell.boundary] \as SecondMaps;
+\definition secondMap: SecondMaps.Map := \into[Carrier -> Right.Disk](second, SecondMaps.Map) \by {
+  SecondMaps.Laws[second] { continuous := Product.Maps[].secondContinuous Left.diskTopology Right.diskTopology, contained := \fun (p: \Cast[Carrier] secondPart) => \bysub(Carrier, secondPart, p) }
+};
+\import \root.RelativePullback[].On[A := Carrier, source := topology, subset := firstPart, R := K, ring := ring].To[B := Left.Disk, target := Left.diskTopology, part := LeftShell.boundary].Along[f := firstMap] \as FirstPull;
+\import \root.RelativePullback[].On[A := Carrier, source := topology, subset := secondPart, R := K, ring := ring].To[B := Right.Disk, target := Right.diskTopology, part := RightShell.boundary].Along[f := secondMap] \as SecondPull;
+\import \root.FamilyProduct[A := Carrier, source := topology, first := firstPart, second := secondPart, family := family, firstMember := firstMember, secondMember := secondMember, classify := classify, K := K, ring := ring] \as FamilyProduct;
+\import FamilyProduct.Degree[p := n, q := m].Cohomology[] \as Cup;
+\import \root.FamilyPair[A := Carrier, source := topology, family := family].With[coefficients := Coefficients.integerCoefficients] \as Theory;
+\import chain_complexes.Integer[].Over[R := I.Int^, ring := Integers.ring].At[C := Theory.complex, z := I.Int^::ofNat degree] \as H;
+\definition Class: \Set := H.Cohomology;
+\definition space: Modules.Space Class := H.cohomologySpace;
+\definition left[a: LeftPoint.Class]: _ := FirstPull.Degree[n := n].map.apply (LeftClasses.map a);
+\definition right[b: RightPoint.Class]: _ := SecondPull.Degree[n := m].map.apply (RightClasses.map b);
+\definition apply[a: LeftPoint.Class][b: RightPoint.Class]: Class := Cup.product (left a) (right b);
+\definition generator: Class := apply LeftPoint.generator RightPoint.generator;
+\import singular_cohomology.Relative[A := Left.Disk, source := Left.diskTopology, subset := LeftShell.boundary].With[coefficients := Coefficients.integerCoefficients] \as LeftTheory;
+\import singular_cohomology.Relative[A := Right.Disk, source := Right.diskTopology, subset := RightShell.boundary].With[coefficients := Coefficients.integerCoefficients] \as RightTheory;
+\import chain_complexes.Integer[].Over[R := I.Int^, ring := Integers.ring] \as Integer;
+\import Integer.At[C := LeftTheory.complex, z := I.Int^::ofNat n] \as LeftH;
+\import Integer.At[C := RightTheory.complex, z := I.Int^::ofNat m] \as RightH;
+\definition LeftClass: \Set := LeftH.Cohomology;
+\definition RightClass: \Set := RightH.Cohomology;
+\definition leftSpace: Modules.Space LeftClass := LeftH.cohomologySpace;
+\definition rightSpace: Modules.Space RightClass := RightH.cohomologySpace;
+\definition raw[a: LeftClass][b: RightClass]: Class := Cup.product (FirstPull.Degree[n := n].map.apply a) (SecondPull.Degree[n := m].map.apply b);
+\definition firstPull: _ := FirstPull.Degree[n := n].map;
+\definition secondPull: _ := SecondPull.Degree[n := m].map;
+\import Modules.Hom[V := singular_cohomology.Relative[A := Carrier, source := topology, subset := secondPart].With[coefficients := Coefficients.integerCoefficients].At[z := I.Int^::ofNat m].Carrier, W := Class,
+  source := singular_cohomology.Relative[A := Carrier, source := topology, subset := secondPart].With[coefficients := Coefficients.integerCoefficients].At[z := I.Int^::ofNat m].space, target := space].Composition[U := RightClass, domain := rightSpace] \as RightComposition;
+\definition rightLinear[a: LeftClass]: Modules.Hom[V := RightClass, W := Class, source := rightSpace, target := space].Map :=
+  RightComposition.compose (Cup.rightLinear (firstPull.apply a)) secondPull;
+\module At(a: LeftClass);

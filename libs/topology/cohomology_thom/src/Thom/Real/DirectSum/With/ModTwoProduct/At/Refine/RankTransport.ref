@@ -1,0 +1,26 @@
+\import std.Data[].Pair[] \as Pair;
+\definition Index: \Set := Pair.Times^[N.Nat^, N.Nat^];
+\definition firstIndex: Index -> N.Nat^ := Pair.first N.Nat^ N.Nat^;
+\definition secondIndex: Index -> N.Nat^ := Pair.second N.Nat^ N.Nat^;
+\definition sumIndex[i: Index]: N.Nat^ := N.Basic[].Def[].add (firstIndex i) (secondIndex i);
+\import std.Logic[].Equality[].Transport[A := Index] \as Reindex;
+\import \root.IndexTransport[A := Index, B := N.Nat^, index := firstIndex] \as LeftIndex;
+\import \root.IndexTransport[A := Index, B := N.Nat^, index := secondIndex] \as RightIndex;
+\import \root.IndexTransport[A := Index, B := N.Nat^, index := sumIndex] \as TotalIndex;
+\definition native: Index := Pair.pair N.Nat^ N.Nat^ c.dimension d.dimension;
+\definition global: Index := Pair.pair N.Nat^ N.Nat^ n m;
+\definition sameRanks: native = global := Pair.Prop[A := N.Nat^, B := N.Nat^].ext native global leftLocal.rank rightLocal.rank;
+\definition left[i: Index]: \Set := LeftClasses (firstIndex i);
+\definition right[i: Index]: \Set := RightClasses (secondIndex i);
+\definition total[i: Index]: \Set := SumClasses (sumIndex i);
+\definition operation[i: Index]: left i -> right i -> total i := Product.Product[n := firstIndex i, m := secondIndex i].apply;
+\definition leftUp: Reindex.cast left native global sameRanks leftDown = LeftClass.class :=
+  trans!{{LeftClasses n}} _ _ _ (LeftIndex.law LeftClasses native global sameRanks leftDown)
+    (Transport.castInverse LeftClasses n c.dimension (sym!{N.Nat^} _ _ leftLocal.rank) LeftClass.class);
+\definition rightUp: Reindex.cast right native global sameRanks rightDown = RightClass.class :=
+  trans!{{RightClasses m}} _ _ _ (RightIndex.law RightClasses native global sameRanks rightDown)
+    (Transport.castInverse RightClasses m d.dimension (sym!{N.Nat^} _ _ rightLocal.rank) RightClass.class);
+\definition law: Transport.cast SumClasses Shape.chart.dimension degree totalRank nativeProduct = productClass :=
+  trans!{{SumClasses degree}} _ _ _ (sym!{{SumClasses degree}} _ _ (TotalIndex.law SumClasses native global sameRanks nativeProduct))
+    (trans!{{SumClasses degree}} _ _ _ (Reindex.binaryNatural left right total operation native global sameRanks leftDown rightDown)
+      (congr!{{LeftClasses n} {RightClasses m} {SumClasses degree}} (Product.Product[n := n, m := m].apply) _ _ _ _ leftUp rightUp));

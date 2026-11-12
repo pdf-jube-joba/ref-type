@@ -1,0 +1,59 @@
+\import std.Data[].Nat[] \as N;
+\import std.Arithmetic[].Int[] \as I;
+\import std.Arithmetic[].IntAlgebra[].Ring[] \as Integers;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.trans;
+\use Equality.sym;
+\use Equality.congr;
+\use Equality.eq_reason_in;
+\import module_theory.Module[].Over[R := I.Int^, ring := Integers.ring] \as Modules;
+\import \root.StandardClosedProduct[n := n, m := m, K := K, ring := ring] \as Lower;
+\import \root.StandardClosedProduct[n := n, m := N.Nat^::succ m, K := K, ring := ring] \as Higher;
+\import \root.StandardProductStep[n := n, m := m] \as Geometry;
+\import \root.StandardDiskStep[m := m] \as DiskGeometry;
+\import algebraic_topology.Euclidean[].Dimension[n := n] \as Left;
+\import algebraic_topology.Euclidean[].Dimension[n := m] \as Right;
+\import algebraic_topology.Euclidean[].Dimension[n := N.Nat^::succ m] \as Next;
+\import algebraic_topology.Cylinder[A := Lower.Carrier] \as Cylinder;
+\import algebraic_topology.Cylinder[A := Right.Disk] \as RightCylinder;
+\import \root.FamilySuspension[A := Lower.Carrier, source := Lower.topology, first := Lower.firstPart, second := Lower.secondPart] \as Suspension;
+\import Suspension.Product[K := K, ring := ring] \as SuspensionProduct;
+\import singular_products.Cochains[A := Lower.Carrier, source := Lower.topology, R := K, ring := ring] \as Coefficients;
+\import Suspension.With[coefficients := Coefficients.integerCoefficients] \as FamilySuspension;
+\import \root.FamilyHomeomorphism[A := Higher.Carrier, B := Cylinder.Carrier, source := Higher.topology, target := Geometry.targetTopology,
+  sourceFamily := Higher.family, targetFamily := Suspension.family, h := Geometry.homeomorphism,
+  preservesForward := Geometry.forwardPreservesSmall, preservesBackward := Geometry.backwardPreservesSmall] \as FamilyGeometry;
+\import \root.RelativeSuspension[].On[A := Right.Disk, source := Right.diskTopology, subset := { v: Right.Disk \where Right.normSquared v = real.Analysis[].one }] \as RightSuspension;
+\import singular_cohomology.Relative[A := Next.Disk, source := Next.diskTopology, subset := DiskGeometry.sourceBoundary].Homeomorphism[B := RightCylinder.Carrier].Over[target := DiskGeometry.topology, targetSubset := DiskGeometry.boundary] \as DiskPairs;
+\definition diskPair: DiskPairs.Data := DiskPairs.Data {
+  homeomorphism := DiskGeometry.homeomorphism,
+  forwardPreserves := (\fun (v: \Cast[Next.Disk] DiskGeometry.sourceBoundary) => DiskGeometry.forwardBoundary v (\bysub(Next.Disk, DiskGeometry.sourceBoundary, v))),
+  backwardPreserves := (\fun (p: \Cast[RightCylinder.Carrier] DiskGeometry.boundary) => DiskGeometry.backwardBoundary p (\bysub(RightCylinder.Carrier, DiskGeometry.boundary, p)))
+};
+\definition inputDegree: I.Int^ := I.Int^::ofNat m;
+\definition outputDegree: I.Int^ := I.Int^::ofNat (N.Nat^::succ m);
+\definition lowerDegree: I.Int^ := I.Int^::ofNat Lower.degree;
+\definition higherDegree: I.Int^ := I.Int^::ofNat Higher.degree;
+\import chain_complexes.Integer[].Over[R := I.Int^, ring := Integers.ring] \as Integer;
+\import singular_cohomology.Relative[A := RightCylinder.Carrier, source := DiskGeometry.topology, subset := DiskGeometry.boundary].With[coefficients := Coefficients.integerCoefficients] \as RightCylinderCochains;
+\import Integer.At[C := RightCylinderCochains.complex, z := outputDegree] \as RightCylinderH;
+\import Modules.Isomorphism[V := Lower.RightClass, W := RightCylinderH.Cohomology, source := Lower.rightSpace, target := RightCylinderH.cohomologySpace].Composition[U := Higher.RightClass, final := Higher.rightSpace] \as DiskComposition;
+\definition sourceIsomorphism: Modules.Isomorphism[V := Lower.RightClass, W := Higher.RightClass, source := Lower.rightSpace, target := Higher.rightSpace].Isomorphism :=
+  DiskComposition.compose (DiskPairs.With[coefficients := Coefficients.integerCoefficients].At[z := outputDegree].isomorphism diskPair)
+    RightSuspension.Covering[].With[coefficients := Coefficients.integerCoefficients].At[z := inputDegree].isomorphism;
+\import \root.FamilyPair[A := Cylinder.Carrier, source := Geometry.targetTopology, family := Suspension.family].With[coefficients := Coefficients.integerCoefficients] \as CylinderCochains;
+\import Integer.At[C := CylinderCochains.complex, z := higherDegree] \as CylinderH;
+\import Modules.Isomorphism[V := Lower.Class, W := CylinderH.Cohomology, source := Lower.space, target := CylinderH.cohomologySpace].Composition[U := Higher.Class, final := Higher.space] \as FamilyComposition;
+\definition targetIsomorphism: Modules.Isomorphism[V := Lower.Class, W := Higher.Class, source := Lower.space, target := Higher.space].Isomorphism :=
+  FamilyComposition.compose FamilyGeometry.With[coefficients := Coefficients.integerCoefficients].At[z := higherDegree].isomorphism FamilySuspension.At[z := lowerDegree].isomorphism;
+\import \root.FamilyProduct[A := Cylinder.Carrier, source := Geometry.targetTopology, first := Suspension.firstPart, second := Suspension.secondPart, family := Suspension.family,
+  firstMember := Logic.Or[Suspension.firstPart = Suspension.firstPart, Suspension.firstPart = Suspension.secondPart]::left (\refl(Suspension.firstPart)), secondMember := Logic.Or[Suspension.secondPart = Suspension.firstPart, Suspension.secondPart = Suspension.secondPart]::right (\refl(Suspension.secondPart)),
+  classify := (\fun (U: \Pow Cylinder.Carrier)(member: \In[\Pow Cylinder.Carrier] Suspension.family U) => member), K := K, ring := ring] \as CylinderProduct;
+\import CylinderProduct.From[Y := Higher.Carrier, target := Higher.topology, firstPart := Higher.firstPart, secondPart := Higher.secondPart, newFamily := Higher.family,
+  newFirstMember := Higher.firstMember, newSecondMember := Higher.secondMember, newClassify := Higher.classify,
+  f := Geometry.forward, regular := Geometry.forwardContinuous, firstContained := Geometry.firstForward, secondContained := Geometry.secondForward] \as Natural;
+\module First;
+\module Second;
+\module Comparison;
+\module At(a: Lower.LeftClass);
