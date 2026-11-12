@@ -64,3 +64,16 @@
 その `Compare.law` は通常の相対余鎖の制限との一致を、`Differential.law` は左因子が閉じている場合の符号付き Leibniz 公式を示す。
 `Product.Positive[p, q]` は右因子が正次数の場合にコホモロジーへ降下する。
 `Product.Connecting[p, q].Whole.law` は通常の相対 Mayer–Vietoris 接続写像に対する \(\delta(a|_{U\cap V}\smile b)=(-1)^p a\smile\delta b\) を与える。
+
+
+`RelativeSuspension.On.Covering.Product[K, ring].Cup[p, q].law` は相対懸垂と cup 積の符号付き比較を与える。
+`LocalDisk.On.Step[n].Product[K, ring, p, q].Base.onClasses` は円板の次数上昇を底空間からの引き戻しと比較する。
+
+`LocalDisk.On[X, source].Ring[R, ring].canonical n` はランク0の相対単位類から相対懸垂と円板同相で再帰的に構成した類である。
+`thomIsomorphism n p` は任意のランクと可換係数環について
+\[
+H^p(X;R)\longrightarrow H^{p+n}(X\times D^n,X\times\partial D^n;R),\qquad
+ a\longmapsto\pi^*a\smile\operatorname{canonical}(n)
+\]
+を順写像とする \(R\)-加群同型である。
+ランク0では空の境界を忘れる同型と円板の射影を用い、後続ランクでは円板の次数上昇同型と符号の対合性から単射性と全射性を帰納的に証明する。
