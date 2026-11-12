@@ -161,3 +161,9 @@ H^p(X;R)\longrightarrow H^{p+n}(X\times D^n,X\times\partial D^n;R),\qquad
 `Oriented.Integer.isomorphism z` は任意の整数次数で
 \(H^z(X;K)\cong H^{\operatorname{shift}(n,z)}(D(E),S(E);K)\) を与える。
 非負次数では実際の cup 積による同型を整数加群へ制限し、負次数では両群の消滅を用いる。
+
+`Additive[M].Degree[z].forget` と `sphereRestriction` は円板・球面対の長完全列の二つの写像を公開する。
+`forgetCycles` と `forgetOnClass` は前者を余鎖の代表元で計算する。
+`Coefficients[R, ring].SphereSequence.Sphere.homeomorphism` は実際の球面束と円板束の境界部分空間を同定し、`isomorphism z` は境界部分の整数次数コホモロジーから球面束のコホモロジーへの同型である。
+`SphereSequence.zeroSectionAt z` は相対条件を忘れて零切断で引き戻す整数線形写像で、`Natural[t].law` が非負次数で通常の零切断写像との一致を示す。
+`SphereSequence.Functor.At[z].law` は整数次数の引き戻しが合成を保つことを示す。

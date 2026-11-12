@@ -1,0 +1,28 @@
+\import \root.Thom[].Real[].For[X := X, F := F, bundle := bundle].With[metric := metric] \as Geometry;
+\import singular_products.Cochains[A := X, source := bundle.baseSpace, R := R, ring := ring] \as BaseProduct;
+\import singular_cohomology.Cochains[A := X, source := bundle.baseSpace].With[coefficients := BaseProduct.integerCoefficients].Integer[] \as Base;
+\import singular_cohomology.Relative[A := Disk.DiskBundle, source := Disk.diskTopology, subset := Disk.Boundary] \as Relative;
+\import Relative.With[coefficients := BaseProduct.integerCoefficients] \as RelativeGroups;
+\import RelativeGroups.PairSequence[] \as PairSequence;
+\import singular_cohomology.Cochains[A := Disk.DiskBundle, source := Disk.diskTopology].With[coefficients := BaseProduct.integerCoefficients].Integer[] \as Total;
+\import topology.Topology[Carrier := Disk.DiskBundle].Subspace[S := Disk.Boundary] \as Boundary;
+\import singular_cohomology.Cochains[A := Boundary.CarrierSet, source := Boundary.topology Disk.diskTopology].With[coefficients := BaseProduct.integerCoefficients].Integer[] \as BoundaryGroups;
+\import chain_complexes.Integer[].Over[R := I.Int^, ring := IntegerRing.ring] \as Complexes;
+\definition base[z: I.Int^]: IntegerModules.Bundle := IntegerModules.Bundle { Carrier := Base.cohomology z, space := Base.cohomologySpace z };
+\definition disk[z: I.Int^]: IntegerModules.Bundle := IntegerModules.Bundle { Carrier := Total.cohomology z, space := Total.cohomologySpace z };
+\definition relative[z: I.Int^]: IntegerModules.Bundle := IntegerModules.Bundle { Carrier := Geometry.Additive[coefficients := BaseProduct.integerCoefficients].Degree[z := z].Class, space := Geometry.Additive[coefficients := BaseProduct.integerCoefficients].Degree[z := z].space };
+\definition boundary[z: I.Int^]: IntegerModules.Bundle := IntegerModules.Bundle { Carrier := BoundaryGroups.cohomology z, space := BoundaryGroups.cohomologySpace z };
+\import \root.RelativeMayerVietoris[].Transport[Index := I.Int^, family := IntegerModules.Family[I.Int^] { Carrier := (\fun (z: I.Int^) => (relative z).Carrier), space := (\fun (z: I.Int^) => (relative z).space) }] \as RelativeTransport;
+\module Sphere;
+
+\definition zeroSectionAt[k: I.Int^]: IntegerModules.MapBetween (relative k) (base k) :=
+  IntegerModules.Hom[V := (disk k).Carrier, W := (base k).Carrier, source := (disk k).space, target := (base k).space].Composition[U := (relative k).Carrier, domain := (relative k).space].compose
+    Geometry.Additive[coefficients := BaseProduct.integerCoefficients].Degree[z := k].diskComparison.forward Geometry.Additive[coefficients := BaseProduct.integerCoefficients].Degree[z := k].forget;
+\module Natural(t: N.Nat^);
+
+\module Functor(A, B, C: \Set,
+  aSpace: topology.Topology[Carrier := A].Topology,
+  bSpace: topology.Topology[Carrier := B].Topology,
+  cSpace: topology.Topology[Carrier := C].Topology,
+  f: A -> B, fc: topology.Continuity[A := A, B := B].Continuous aSpace bSpace f,
+  g: B -> C, gc: topology.Continuity[A := B, B := C].Continuous bSpace cSpace g);

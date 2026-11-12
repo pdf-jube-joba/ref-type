@@ -1,0 +1,34 @@
+\import singular_cohomology.Chains[A := A, source := aSpace] \as AChains;
+\import singular_cohomology.Chains[A := B, source := bSpace] \as BChains;
+\import singular_cohomology.Chains[A := C, source := cSpace] \as CChains;
+\import double_complexes.NonnegativeChain[].Over[R := I.Int^, ring := IntegerRing.ring] \as Native;
+\import Native.ZeroExtension[C := AChains.complex] \as AExtension;
+\import Native.ZeroExtension[C := BChains.complex] \as BExtension;
+\import Native.ZeroExtension[C := CChains.complex] \as CExtension;
+\import singular_cohomology.Maps[A := A, B := B, source := aSpace, target := bSpace] \as First;
+\import singular_cohomology.Maps[A := B, B := C, source := bSpace, target := cSpace] \as Second;
+\import singular_cohomology.Maps[A := A, B := C, source := aSpace, target := cSpace] \as Direct;
+\definition composite[x: A]: C := g (f x);
+\definition regular: topology.Continuity[A := A, B := C].Continuous aSpace cSpace composite := topology.Composition[A := A, B := B, C := C].composeContinuous aSpace bSpace cSpace f g fc gc;
+\import IntegerModules.End[V := BaseProduct.integerCoefficients.Carrier, space := BaseProduct.integerCoefficients.space] \as Coefficients;
+\import First.Coefficients[M := BaseProduct.integerCoefficients, L := BaseProduct.integerCoefficients].Integer[f := f, continuous := fc, coefficientMap := Coefficients.identity] \as Left;
+\import Second.Coefficients[M := BaseProduct.integerCoefficients, L := BaseProduct.integerCoefficients].Integer[f := g, continuous := gc, coefficientMap := Coefficients.identity] \as Right;
+\import Direct.Coefficients[M := BaseProduct.integerCoefficients, L := BaseProduct.integerCoefficients].Integer[f := composite, continuous := regular, coefficientMap := Coefficients.identity] \as Both;
+\import resolutions.HomComplex[].Over[R := I.Int^, ring := IntegerRing.commutativeRing] \as Hom;
+\import Hom.IntegerComposition[P := AExtension.complex, Q := BExtension.complex, T := CExtension.complex, N := BaseProduct.integerCoefficients] \as Composition;
+\import chain_complexes.Chain[].Over[R := I.Int^, ring := IntegerRing.ring].Map[C := AExtension.complex, D := CExtension.complex] \as Maps;
+\import Hom.IntegerMapping[P := AExtension.complex, Q := CExtension.complex, N := BaseProduct.integerCoefficients, L := BaseProduct.integerCoefficients] \as Action;
+
+\import singular_cohomology.Cochains[A := A, source := aSpace].With[coefficients := BaseProduct.integerCoefficients].Integer[] \as Output;
+\import singular_cohomology.Cochains[A := B, source := bSpace].With[coefficients := BaseProduct.integerCoefficients].Integer[] \as Middle;
+\import singular_cohomology.Cochains[A := C, source := cSpace].With[coefficients := BaseProduct.integerCoefficients].Integer[] \as Input;
+\module At(z: I.Int^) {
+  \definition first: _ := Complexes.Map[C := Middle.complex, D := Output.complex].At[k := z].induced Left.signedMap;
+  \definition second: _ := Complexes.Map[C := Input.complex, D := Middle.complex].At[k := z].induced Right.signedMap;
+  \definition direct: _ := Complexes.Map[C := Input.complex, D := Output.complex].At[k := z].induced Both.signedMap;
+  \definition law: \forall (q: Input.cohomology z) -> direct.apply q = first.apply (second.apply q) :=
+    \fun (q: Input.cohomology z) => trans!{{Output.cohomology z}} _ _ _
+      (congr!{Maps.Map {Output.cohomology z}} (\fun (m: Maps.Map) => Action.On[f := m, u := Coefficients.identity].At[z := z].map.apply q) _ _
+        (sym!{Maps.Map} _ _ (First.Composition[C := C, final := cSpace].Integer[].law f fc g gc)))
+      (Composition.At[k := z].onCohomology (First.integerPush f fc) (Second.integerPush g gc) q);
+}
