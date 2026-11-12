@@ -135,7 +135,7 @@ B02 の束演算は C05 でも利用でき、A01 の後は A02 へ進められ�
 
 ## タスク一覧
 
-未完了71件、概算合計373千行。
+未完了70件、概算合計368千行。
 
 ### 線形代数と特性級数
 
@@ -195,7 +195,7 @@ B02 の束演算は C05 でも利用でき、A01 の後は A02 へ進められ�
 | [G02 逆関数・陰関数と正則値の局所形](../../libs/geometry/inverse_implicit/README.md)（実装済み） | 5 |
 | [G03 境界・角付き多様体](g03-boundary-manifolds.md) | 5 |
 | [G04 collar と境界の貼り合わせ](../../libs/geometry/manifold_gluing/README.md)（実装済み） | 5 |
-| [G05 コンパクト多様体の埋め込み](g05-compact-embeddings.md) | 5 |
+| [G05 コンパクト多様体の埋め込み](../../libs/geometry/compact_embeddings/README.md) | 5 |
 | [G06 管状近傍と collapse 写像](g06-tubular-neighborhoods.md) | 5 |
 | [G07 Sard の定理](g07-sard.md) | 6 |
 | [G08 滑らかな近似と相対横断性](g08-transversality.md) | 6 |
@@ -240,7 +240,6 @@ B02 の束演算は C05 でも利用でき、A01 の後は A02 へ進められ�
 | [A03 積測度と Fubini](a03-product-integration.md) | 5 |
 | [A05 Lp 空間のノルムと完備性](a05-lp-completeness.md) | 5 |
 | [A06 Schwartz 空間と Fourier 変換](a06-schwartz-fourier.md) | 6 |
-| [A08 分布と弱微分](a08-distributions.md) | 5 |
 | [A09 Euclid 空間の Sobolev 評価](a09-euclidean-sobolev.md) | 6 |
 | [A10 Rellich コンパクト性](a10-rellich.md) | 5 |
 | [A11 Fredholm 作用素と指数](a11-fredholm-operators.md) | 5 |

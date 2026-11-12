@@ -1,0 +1,19 @@
+\module At(x: M.Point);
+\definition immersion: Embeddings.IsImmersion map := \fun (x: M.Point) => At[x := x].immersion;
+\definition injective: \forall (x, y: M.Point) -> Maps.apply map x = Maps.apply map y -> x = y :=
+  \fun (x, y: M.Point)(same: Maps.apply map x = Maps.apply map y) => laws.injective x y
+    (congr!{Product.Point E.Point} Product.first _ _ same);
+\definition openLift: \forall (U: \Pow M.Point) -> Space.IsOpenIn M.space U ->
+  \exists ( V: \Pow Product.Point \where Logic.And[TargetSpace.IsOpenIn Product.topology V, Continuous.Preimage (Maps.apply map) V = U] ) := \block {
+  \fun (U: \Pow M.Point)(open: Space.IsOpenIn M.space U) \then
+  \takefrom V: \Cast[\Pow E.Point] ({ V: \Pow E.Point \where Logic.And[FirstSpace.IsOpenIn E.space V, FirstContinuous.Preimage (FirstMaps.apply f) V = U] })
+    \by laws.openLift U open \then
+  \let laws: Logic.And[FirstSpace.IsOpenIn E.space V, FirstContinuous.Preimage (FirstMaps.apply f) V = U] := \bysub(\Pow E.Point,
+    { V: \Pow E.Point \where Logic.And[FirstSpace.IsOpenIn E.space V, FirstContinuous.Preimage (FirstMaps.apply f) V = U] }, V) \then
+  \let W: \Pow Product.Point := { p: Product.Point \where \In[E.Point] V (Product.first p) } \then
+  \return Logic.existsIntro[\Pow Product.Point, { W: \Pow Product.Point \where Logic.And[TargetSpace.IsOpenIn Product.topology W, Continuous.Preimage (Maps.apply map) W = U] }] W
+    (Logic.And[_, _]::# (ProductTopology.Maps[].firstContinuous E.space Ray.topology V laws.left) laws.right)
+};
+\definition embedding: Embeddings.Embedding := \into[Maps.Map](map, Embeddings.Embedding) \by {
+  Embeddings.EmbeddingLaws[map] { immersion := immersion, injective := injective, openLift := openLift }
+};

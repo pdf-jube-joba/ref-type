@@ -1,0 +1,21 @@
+\definition difference[f, g: Test]: T.eval (Tests.add f (Tests.scale (Real.neg Real.one) g)) = Real.sub (T.eval f) (T.eval g) :=
+  eq_reason_in!{Real.Real _
+    "=" _ "by" { T.additive f (Tests.scale (Real.neg Real.one) g) }
+    "=" _ "by" { congr!{Real.Real Real.Real} (Real.add (T.eval f)) _ _ (T.homogeneous (Real.neg Real.one) g) }
+    "=" _ "by" { congr!{Real.Real Real.Real} (Real.add (T.eval f)) _ _ (trans!{Real.Real} _ _ _ (Laws.fieldMulNegLeft Real.one (T.eval g)) (congr!{Real.Real Real.Real} Real.neg _ _ (Laws.fieldMulOneLeft (T.eval g)))) }
+  };
+\definition value[t: Real.Real]: T.eval (error t) = Real.sub (ScalarDerivative.slope (\fun (t: Real.Real) => T.eval (curve t)) at t) (T.eval target) :=
+  eq_reason_in!{Real.Real _
+    "=" _ "by" { difference (Tests.scale (Laws.fieldInv (Real.sub t at)) (Tests.add (curve t) (Tests.scale (Real.neg Real.one) (curve at)))) target }
+    "=" _ "by" { congr!{Real.Real Real.Real} (\fun (r: Real.Real) => Real.sub r (T.eval target)) _ _
+      (T.homogeneous (Laws.fieldInv (Real.sub t at)) (Tests.add (curve t) (Tests.scale (Real.neg Real.one) (curve at)))) }
+    "=" _ "by" { congr!{Real.Real Real.Real} (\fun (r: Real.Real) => Real.sub (Real.mul (Laws.fieldInv (Real.sub t at)) r) (T.eval target)) _ _ (difference (curve t) (curve at)) }
+    "=" _ "by" { congr!{Real.Real Real.Real} (\fun (r: Real.Real) => Real.sub r (T.eval target)) _ _ (Laws.fieldMulComm (Laws.fieldInv (Real.sub t at)) (Real.sub (T.eval (curve t)) (T.eval (curve at)))) }
+  };
+\definition distance[t: Real.Real]: Absolute.abs (T.eval (error t)) =
+  Real.distance (ScalarDerivative.slope (\fun (t: Real.Real) => T.eval (curve t)) at t) (T.eval target) :=
+  eq_reason_in!{Real.Real _
+    "=" _ "by" { congr!{Real.Real Real.Real} Absolute.abs _ _ (value t) }
+    "=" _ "by" { Distance.distanceSymmetric Real.zero _ }
+    "=" _ "by" { Estimates.distanceDifference _ _ }
+  };

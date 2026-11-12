@@ -1,0 +1,32 @@
+\import \root.Euclidean[n := n].Pullback[U := U, V := V, e := e] \as First;
+\import PullbackDiffeomorphisms.Composition[U := U, V := V, f := e].After[l := n, W := W, g := d] \as Composite;
+\import \root.Euclidean[n := n].Pullback[U := V, V := W, e := d] \as Second;
+\import \root.Euclidean[n := n].Pullback[U := U, V := W, e := Composite.compose] \as Result;
+\import Change.Jacobian[U := W, V := V, f := d.backward] \as OuterJacobian;
+\import OuterJacobian.Composition[W := U, g := e.backward] \as CompositeJacobian;
+\definition inside[phi: SourceTest][z: PullbackOpen.Carrier W]: Result.test phi z = Second.test (test phi) z := eq_reason_in!{PullbackReal.Real _
+  "=" _ "by" { Result.inside phi z }
+  "=" _ "by" { congr!{PullbackReal.Real PullbackReal.Real}
+    (\fun (r: PullbackReal.Real) => PullbackReal.mul r (phi (PullbackMaps.apply W U Composite.compose.backward z))) _ _
+    (CompositeJacobian.absolute z) }
+  "=" _ "by" { congr!{PullbackReal.Real PullbackReal.Real}
+    (\fun (r: PullbackReal.Real) => PullbackReal.mul r (phi (PullbackMaps.apply W U Composite.compose.backward z))) _ _
+    (PullbackLaws.fieldMulComm (InverseJacobian.absolute (PullbackMaps.apply W V d.backward z)) (OuterJacobian.absolute z)) }
+  "=" _ "by" { PullbackLaws.fieldMulAssoc (OuterJacobian.absolute z)
+    (InverseJacobian.absolute (PullbackMaps.apply W V d.backward z)) (phi (PullbackMaps.apply W U Composite.compose.backward z)) }
+  "=" _ "by" { congr!{PullbackReal.Real PullbackReal.Real} (PullbackReal.mul (OuterJacobian.absolute z)) _ _
+    (sym!{PullbackReal.Real} _ _ (First.inside phi (PullbackMaps.apply W V d.backward z))) }
+  "=" _ "by" { sym!{PullbackReal.Real} _ _ (Second.inside (test phi) z) }
+};
+\definition pointwise[phi: SourceTest][z: PullbackLp.Point]: Result.test phi z = Second.test (test phi) z :=
+  PullbackLogic.orElim (PullbackSets.Member W.points z) (PullbackLogic.Not (PullbackSets.Member W.points z))
+    (Result.test phi z = Second.test (test phi) z) (PullbackClassical.excludedMiddle (PullbackSets.Member W.points z))
+    (\fun (member: PullbackSets.Member W.points z) => inside phi (\into[PullbackLp.Point](z, W.points) \by { member }))
+    (\fun (away: PullbackLogic.Not (PullbackSets.Member W.points z)) => trans!{PullbackReal.Real} _ _ _ (Result.outside phi z away)
+      (sym!{PullbackReal.Real} _ _ (Second.outside (test phi) z away)));
+\definition law[phi: SourceTest]: Result.test phi = Second.test (test phi) :=
+  \axiom:funext(Result.test phi, Second.test (test phi), pointwise phi);
+\import PullbackBase.On[U := W] \as Third;
+\definition distributions[T: Third.Distribution]: Result.apply T = First.apply (Second.apply T) :=
+  Source.ext (Result.apply T) (First.apply (Second.apply T))
+    (\fun (phi: SourceTest) => congr!{Third.Test Real.Real} T.eval _ _ (law phi));

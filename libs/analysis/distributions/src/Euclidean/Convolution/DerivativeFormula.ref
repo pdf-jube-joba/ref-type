@@ -1,0 +1,28 @@
+\import \root.Euclidean[n := n] \as CF;
+\import CF.TestOperations[] \as CFTests;
+\import CF.Dual[] \as CFDual;
+\import CF.JetBounds[] \as CFBounds;
+\import \parent.Jets[] \as CFJets;
+\import calculus.Real[].Derivative[].Operations[] \as CFNegation;
+\definition partial[T: CF.Distribution][rho: ConvL.SmoothCompact][i: std.Data[].FinSet[].Fin n][a: ConvE.Point]:
+  function (CFDual.partial T i) rho a = function T (CFTests.partial rho i) a := eq_reason_in!{ConvReal.Real _
+    "=" _ "by" { congr!{ConvL.SmoothCompact ConvReal.Real} (\fun (f: ConvL.SmoothCompact) => ConvReal.mul (ConvReal.neg ConvReal.one) (T.eval f)) _ _ (CFJets.partial rho a i) }
+    "=" _ "by" { congr!{ConvReal.Real ConvReal.Real} (ConvReal.mul (ConvReal.neg ConvReal.one)) _ _
+      (T.homogeneous (ConvReal.neg ConvReal.one) (CFJets.translate (CFTests.partial rho i) a)) }
+    "=" _ "by" { CFNegation.negativeScale (ConvReal.mul (ConvReal.neg ConvReal.one) (function T (CFTests.partial rho i) a)) }
+    "=" _ "by" { congr!{ConvReal.Real ConvReal.Real} ConvReal.neg _ _ (CFNegation.negativeScale (function T (CFTests.partial rho i) a)) }
+    "=" _ "by" { ConvLaws.negInvolutive (function T (CFTests.partial rho i) a) }
+  };
+\definition iterated: \forall (d: CF.Directions)(T: CF.Distribution)(rho: ConvL.SmoothCompact)(a: ConvE.Point) ->
+  function (CFDual.derivative d T) rho a = function T (CFTests.jet d rho) a :=
+  \induction (d: CF.Directions) \return \forall (T: CF.Distribution)(rho: ConvL.SmoothCompact)(a: ConvE.Point) ->
+    function (CFDual.derivative d T) rho a = function T (CFTests.jet d rho) a \with {
+    | nil: \fun (T: CF.Distribution)(rho: ConvL.SmoothCompact)(a: ConvE.Point) => \refl(function T rho a)
+    | cons: \fun (i: std.Data[].FinSet[].Fin n)(tail: CF.Directions)
+      (previous: \forall (T: CF.Distribution)(rho: ConvL.SmoothCompact)(a: ConvE.Point) -> function (CFDual.derivative tail T) rho a = function T (CFTests.jet tail rho) a)
+      (T: CF.Distribution)(rho: ConvL.SmoothCompact)(a: ConvE.Point) =>
+      trans!{ConvReal.Real} _ _ _ (partial (CFDual.derivative tail T) rho i a)
+        (trans!{ConvReal.Real} _ _ _ (previous T (CFTests.partial rho i) a)
+          (congr!{ConvL.SmoothCompact ConvReal.Real} (\fun (f: ConvL.SmoothCompact) => function T f a) _ _
+            (sym!{ConvL.SmoothCompact} _ _ (CFBounds.jetPartialCommute tail rho i))))
+  };

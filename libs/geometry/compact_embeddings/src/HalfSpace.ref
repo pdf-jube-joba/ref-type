@@ -1,0 +1,47 @@
+\import std.Data[].Nat[] \as N;
+\import N.Basic[].Def[] \as Nat;
+\import std.Data[].Pair[] \as Pair;
+\import std.Data[].FinSet[] \as Fin;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\import real.Analysis[] \as S;
+\import dedekind_reals.DedekindReal[] \as R;
+\import calculus.Real[].OneDimension[] \as One;
+\import manifolds.Dimension[n := k].Examples[].Euclidean[] \as Ordinary;
+\import boundary_manifolds.Boundaryless[n := k].Of[M := Ordinary.smoothManifold] \as Euclidean;
+\import \root.Neat[n := k] \as Height;
+\import boundary_manifolds.Product[n := k, m := One.dimension].Of[M := Euclidean.manifold, N := Height.halfLine] \as Product;
+\definition dimension: N.Nat^ := Nat.add One.dimension k;
+\import boundary_manifolds.Dimension[n := dimension] \as Models;
+\definition manifold: Models.Manifold := Product.manifold;
+\import calculus.Blocks[n := k, m := One.dimension] \as Blocks;
+\import Fin.Sum[m := k, n := One.dimension] \as Indices;
+\import boundary_manifolds.Model[n := dimension] \as Model;
+\import calculus.Real[].Multivariable[n := dimension].Open[] \as Open;
+\import boundary_manifolds.Model[n := One.dimension] \as LineModel;
+\import calculus.Real[].Multivariable[n := One.dimension].Open[] \as LineOpen;
+\definition normal: Fin.Fin dimension := Indices.right One.index;
+\definition constraints: Model.Constraints := Model.halfSpace normal;
+\definition Coordinates: \Set := Model.Carrier constraints Open.whole;
+\definition height[x: manifold.Point]: S.Real := Product.second x One.index;
+\definition nonnegative[x: manifold.Point]: R.Le S.zero (height x) :=
+  (\bysub(LineOpen.Carrier LineOpen.whole, LineModel.region Height.constraints LineOpen.whole, Product.second x)) One.index (\refl(One.index));
+\definition value[x: manifold.Point]: Model.Point := Blocks.join (Product.first x) (Product.second x);
+\definition last[x: manifold.Point]: value x normal = height x := Fin.Sum[m := k, n := One.dimension].Tuples[A := S.Real].atRight (Product.first x) (Product.second x) One.index;
+\definition coordinates[x: manifold.Point]: Coordinates := \into[Open.Carrier Open.whole](\into[Model.Point](value x, Open.whole.points) \by { \refl(value x) }, Model.region constraints Open.whole) \by {
+  Model.halfSpaceNonnegative normal (value x) (R.leReplaceRight S.zero (height x) (value x normal) (sym!{S.Real} _ _ (last x)) (nonnegative x))
+};
+\definition first[u: Coordinates]: Euclidean.manifold.Point := Euclidean.forward (Blocks.left u);
+\definition second[u: Coordinates]: Height.halfLine.Point := \into[LineOpen.Carrier LineOpen.whole](\into[LineModel.Point](Blocks.right u, LineOpen.whole.points) \by { \refl(Blocks.right u) }, LineModel.region Height.constraints LineOpen.whole) \by {
+  LineModel.halfSpaceNonnegative One.index (Blocks.right u) ((\bysub(Open.Carrier Open.whole, Model.region constraints Open.whole, u)) normal (\refl(normal)))
+};
+\definition point[u: Coordinates]: manifold.Point := Pair.pair Euclidean.manifold.Point Height.halfLine.Point (first u) (second u);
+\definition leftInverse[x: manifold.Point]: point (coordinates x) = x := Pair.Prop[A := Euclidean.manifold.Point, B := Height.halfLine.Point].ext _ _
+  (boundary_manifolds.Refinement[A := Ordinary.smoothManifold.Point].equality (topology.Topology[Carrier := Ordinary.smoothManifold.Point].Whole)
+    (first (coordinates x)) (Product.first x) (Blocks.leftJoin (Product.first x) (Product.second x)))
+  (LineModel.equality Height.constraints LineOpen.whole (second (coordinates x)) (Product.second x) (Blocks.rightJoin (Product.first x) (Product.second x)));
+\definition rightInverse[u: Coordinates]: coordinates (point u) = u := Model.equality constraints Open.whole (coordinates (point u)) u (Blocks.recover u);
+\definition boundaryCoordinate[x: manifold.Point]: coordinates x normal = height x := last x;
+\definition noBoundary[x: Euclidean.manifold.Point]: std.Logic[].Proposition[].Not boundary_manifolds.Tangent[n := k].On[M := Euclidean.manifold].At[x := x].Cones[].Boundary := Euclidean.At[x := x].noBoundary;

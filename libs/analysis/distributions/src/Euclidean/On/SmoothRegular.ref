@@ -1,0 +1,66 @@
+\import \root.Euclidean[n := n].Regular[] \as Regular;
+\import change_of_variables.Euclidean[n := n].Compact[] \as Integrals;
+\import functional_analysis.Measure[A := Point] \as M;
+\import M.Integral[mu := L.measure] \as I;
+\import I.Linear[] \as Linear;
+\import I.Scaling[] \as Scaling;
+\import lp_spaces.On[A := Point, mu := L.measure].One[].Norm[] \as IntegralEquality;
+\import Open.Smooth[].Operations[] \as SmoothOperations;
+\import std.Logic[].Classical[] \as Classical;
+\import Real.Algebra[] \as Algebra;
+\module Product(test: Test);
+\definition function[test: Test]: Global.Test := Product[test := test].value;
+\definition support[test: Test]: Sets.Subset (Smooth.support (function test)) (Smooth.support test) := Product[test := test].support;
+\definition inside[test: Test][x: Open.Carrier U]: function test x = Real.mul (f x) (test x) := Product[test := test].inside x;
+\definition outside[test: Test][x: Point]: Logic.Not (Sets.Member U.points x) -> function test x = Real.zero := Product[test := test].outside x;
+\definition representative[test: Test]: I.Representatives := Integrals.representative (function test);
+\definition pair[test: Test]: Real.Real := I.integral (representative test);
+\definition integralsPointwise[g, h: I.Representatives]: (\forall (x: Point) -> g x = h x) -> I.integral g = I.integral h :=
+  IntegralEquality.integralPointwise g h;
+\definition additive[left, right: Test]: pair (add left right) = Real.add (pair left) (pair right) :=
+  trans!{Real.Real} _ _ _
+    (integralsPointwise (representative (add left right)) (Linear.addRepresentative (representative left) (representative right))
+      (\fun (x: Point) => either!{{(Classical.excludedMiddle (Sets.Member U.points x))}
+        {representative (add left right) x = Real.add (representative left x) (representative right x)}
+        {\fun (member: _) => \block {
+          \let point: Open.Carrier U := \into[Point](x, U.points) \by { member } \then
+          \return eq_reason_in!{Real.Real _
+            "=" _ "by" { inside (add left right) point }
+            "=" _ "by" { Laws.fieldMulAdd (f point) (left x) (right x) }
+            "=" _ "by" { congr!{Real.Real Real.Real Real.Real} Real.add _ _ _ _
+              (sym!{Real.Real} _ _ (inside left point)) (sym!{Real.Real} _ _ (inside right point)) }
+          }
+        }}
+        {\fun (absent: _) => trans!{Real.Real} _ _ _ (outside (add left right) x absent)
+          (sym!{Real.Real} _ _ (trans!{Real.Real} _ _ _
+            (congr!{Real.Real Real.Real Real.Real} Real.add _ _ _ _ (outside left x absent) (outside right x absent))
+            (Laws.addZeroLeft Real.zero)))}
+      })) (Linear.integralAdd (representative left) (representative right));
+\definition homogeneous[c: Real.Real][test: Test]: pair (scale c test) = Real.mul c (pair test) :=
+  trans!{Real.Real} _ _ _
+    (integralsPointwise (representative (scale c test)) (Scaling.scalarRepresentative c (representative test))
+      (\fun (x: Point) => either!{{(Classical.excludedMiddle (Sets.Member U.points x))}
+        {representative (scale c test) x = Real.mul c (representative test x)}
+        {\fun (member: _) => \block {
+          \let point: Open.Carrier U := \into[Point](x, U.points) \by { member } \then
+          \return eq_reason_in!{Real.Real _
+            "=" _ "by" { inside (scale c test) point }
+            "=" _ "by" { Algebra.mulSwap (f point) c (test x) }
+            "=" _ "by" { congr!{Real.Real Real.Real} (Real.mul c) _ _ (sym!{Real.Real} _ _ (inside test point)) }
+          }
+        }}
+        {\fun (absent: _) => trans!{Real.Real} _ _ _ (outside (scale c test) x absent)
+          (sym!{Real.Real} _ _ (trans!{Real.Real} _ _ _
+            (congr!{Real.Real Real.Real} (Real.mul c) _ _ (outside test x absent)) (Laws.fieldMulZeroRight c)))}
+      })) (Scaling.integralScalar c (representative test));
+\module Cutoff(K: \Pow Point, compact: Sets.IsCompactIn Ambient.topology K, within: Sets.Subset K U.points,
+  cutoff: Smooth.CompactCutoff[K := K, U := U].Data);
+\definition bound: LocallyBounded pair := \fun (K: \Pow Point)(compact: _)(within: _) => \block {
+  \takefrom cutoff: Smooth.CompactCutoff[K := K, U := U].Data
+    \by Smooth.CompactCutoff[K := K, U := U].existsCutoff compact within \then
+  \return Cutoff[K := K, compact := compact, within := within, cutoff := cutoff].bound
+};
+\definition distribution: Distribution := Distribution {
+  eval := pair, additive := additive, homogeneous := homogeneous, bound := bound,
+};
+\module FromGlobal(g: Regular.Representatives, agreement: \forall (x: Open.Carrier U) -> g x = f x);

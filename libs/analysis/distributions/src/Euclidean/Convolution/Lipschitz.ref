@@ -1,0 +1,16 @@
+\import ConvReal.Distance[] \as CLMetric;
+\import ConvR.Order[] \as CLOrder;
+\import std.Logic[].Classical[] \as CLClassical;
+\module Interval(a,b: ConvReal.Real);
+\definition estimate[s,t: ConvReal.Real]: ConvR.Le (ConvReal.distance (f s) (f t)) (ConvReal.mul c (ConvReal.distance s t)) :=
+  ConvLogic.orElim _ _ _ (CLClassical.excludedMiddle (s = t))
+    (\fun (same: _) => \idelim t = s \with z: ConvReal.Real => ConvR.Le (ConvReal.distance (f z) (f t)) (ConvReal.mul c (ConvReal.distance z t)) \by {
+      base: ConvR.leReplace _ _ _ _ (sym!{ConvReal.Real} _ _ (CLMetric.distanceSelf (f t)))
+        (sym!{ConvReal.Real} _ _ (trans!{ConvReal.Real} _ _ _
+          (congr!{ConvReal.Real ConvReal.Real} (ConvReal.mul c) _ _ (CLMetric.distanceSelf t)) (ConvLaws.fieldMulZeroRight c))) (ConvR.leRefl ConvReal.zero),
+      equality: sym!{ConvReal.Real} _ _ same })
+    (\fun (different: _) => ConvLogic.orElim _ _ _ (CLOrder.leTotal t s)
+      (\fun (ordered: _) => Interval[a := t, b := s].estimate (CLOrder.ltOfLeNotEq t s ordered (\fun (same: _) => different (sym!{ConvReal.Real} _ _ same))))
+      (\fun (ordered: _) => ConvR.leReplace _ _ _ _ (CLMetric.distanceSymmetric (f t) (f s))
+        (congr!{ConvReal.Real ConvReal.Real} (ConvReal.mul c) _ _ (CLMetric.distanceSymmetric t s))
+        (Interval[a := s, b := t].estimate (CLOrder.ltOfLeNotEq s t ordered different))));

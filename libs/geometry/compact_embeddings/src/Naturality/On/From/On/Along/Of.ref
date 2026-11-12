@@ -1,0 +1,14 @@
+\import manifolds.Dimension[n := result.dimension].Examples[].Euclidean[] \as Target;
+\import manifolds.SmoothMap[n := n, m := result.dimension].Between[M := M, N := Target.smoothManifold] \as Original;
+\import manifolds.SmoothMap[n := p, m := result.dimension].Between[M := P, N := Target.smoothManifold] \as Maps;
+\import manifolds.Immersion[n := p, m := result.dimension].Between[M := P, N := Target.smoothManifold] \as Embeddings;
+\import manifolds.Composition[n := p, m := n, l := result.dimension].Between[M := P, N := M, P := Target.smoothManifold] \as Compose;
+\import manifolds.ImmersionComposition[n := p, m := n, l := result.dimension].Between[M := P, N := M, P := Target.smoothManifold] \as ComposeEmbeddings;
+\definition embedding: Embeddings.Embedding := \into[Maps.Map](Compose.compose d.forward result.embedding, Embeddings.Embedding) \by {
+  ComposeEmbeddings.embedding DomainEmbedding.embedding result.embedding
+};
+\definition transport: SourceCompact.Result := SourceCompact.Result { dimension := result.dimension, embedding := embedding };
+\definition dimension: transport.dimension = result.dimension := \refl(result.dimension);
+\definition formula[x: P.Point]: Maps.apply transport.embedding x = Original.apply result.embedding (Forward.apply d.forward x) := \refl(Original.apply result.embedding (Forward.apply d.forward x));
+\definition recover[x: M.Point]: Maps.apply transport.embedding (Backward.apply d.backward x) = Original.apply result.embedding x :=
+  congr!{{M.Point} {Target.smoothManifold.Point}} (Original.apply result.embedding) _ _ ((Diffeomorphisms.laws d).rightInverse x);

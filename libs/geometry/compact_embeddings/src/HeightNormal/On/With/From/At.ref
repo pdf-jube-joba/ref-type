@@ -1,0 +1,49 @@
+\import boundary_manifolds.Tangent[n := dimension].On[M := Parameters.manifold].At[x := p] \as Domain;
+\import boundary_manifolds.Tangent[n := dimension].On[M := Product.manifold].At[x := p] \as Middle;
+\import boundary_manifolds.Tangent[n := One.dimension].On[M := Neat.halfLine].At[x := Projection.map.apply p] \as Target;
+\import boundary_manifolds.Differential[n := dimension, m := One.dimension].Between[M := Parameters.manifold, N := Neat.halfLine] \as LocalDerivative;
+\import boundary_manifolds.Neat[n := dimension, m := One.dimension].Between[M := Parameters.manifold, N := Neat.halfLine] \as LocalNormal;
+\import \root.OpenDifferential[n := dimension].On[M := Product.manifold].Within[U := Window.points, open := Window.open].At[x := p] \as OpenD;
+\import \parent.ProductAt[y := p] \as ProductD;
+\definition inverse[w: Target.Vector]: Domain.Vector := OpenD.inverse (ProductD.inverse w);
+\definition rightInverse[w: Target.Vector]: LocalDerivative.At[f := Projection.map, x := p].value.apply (inverse w) = w :=
+  trans!{{Target.Vector}} _ _ _ (Projection.At[x := p].pointwise (inverse w))
+    (trans!{{Target.Vector}} _ _ _ (congr!{{Middle.Vector} {Target.Vector}}
+      boundary_manifolds.Differential[n := dimension, m := One.dimension].Between[M := Product.manifold, N := Neat.halfLine].At[f := ProductHeight.map, x := p].value.apply _ _
+        (OpenD.rightInverse (ProductD.inverse w))) (ProductD.rightInverse w));
+\definition onto[w: Target.Vector]: \exists ( v: Domain.Vector \where LocalDerivative.At[f := Projection.map, x := p].value.apply v = w ) :=
+  Logic.existsIntro[Domain.Vector, { v: Domain.Vector \where LocalDerivative.At[f := Projection.map, x := p].value.apply v = w }] (inverse w) (rightInverse w);
+\definition projectionNormal: LocalNormal.At[f := Projection.map, x := p].NormalOnto :=
+  \root.HeightNormal[n := n].RaySurjective[p := dimension].On[A := Parameters.manifold].Of[f := Projection.map].At[x := p].normal onto;
+\definition LocalReflects[f: LocalMaps.Map]: \Prop := \forall (v: Domain.Vector) ->
+  TargetTangent.At[x := f.apply p].Cones[].Tangential (LocalDerivative.At[f := f, x := p].value.apply v) -> Domain.Cones[].Tangential v;
+\definition projectionReflects: LocalReflects Projection.map := \fun (v: Domain.Vector)(tangent: _) =>
+  manifold_gluing.OpenManifoldCones[n := dimension].On[M := Product.manifold].Within[U := Window.points, open := Window.open].At[x := p].reflectsTangential v
+    (ProductD.reflects (boundary_manifolds.Differential[n := dimension, m := dimension].Between[M := Parameters.manifold, N := Product.manifold].At[f := Parameters.Inclusion[].map, x := p].value.apply v)
+      (\idelim LocalDerivative.At[f := Projection.map, x := p].value.apply v =
+        boundary_manifolds.Differential[n := dimension, m := One.dimension].Between[M := Product.manifold, N := Neat.halfLine].At[f := ProductHeight.map, x := p].value.apply
+          (boundary_manifolds.Differential[n := dimension, m := dimension].Between[M := Parameters.manifold, N := Product.manifold].At[f := Parameters.Inclusion[].map, x := p].value.apply v)
+        \with w: Target.Vector => Target.Cones[].Tangential w \by { base: tangent, equality: Projection.At[x := p].pointwise v }));
+\definition compositeNormal: LocalNormal.At[f := Composite.map, x := p].NormalOnto :=
+  \idelim Projection.map = Composite.map \with f: LocalMaps.Map => LocalNormal.At[f := f, x := p].NormalOnto \by { base: projectionNormal, equality: sym!{{LocalMaps.Map}} _ _ equal };
+\definition compositeReflects: LocalReflects Composite.map := \idelim Projection.map = Composite.map \with f: LocalMaps.Map => LocalReflects f \by {
+  base: projectionReflects, equality: sym!{{LocalMaps.Map}} _ _ equal
+};
+\import \root.DiffeomorphismDifferential[n := dimension, m := dimension].Between[M := Parameters.manifold, N := Image.manifold].Of[d := Collar.diffeomorphism].At[x := p] \as DiffeoD;
+\import \root.OpenDifferential[n := dimension].On[M := M].Within[U := Collar.image, open := Collar.imageOpen].At[x := Collar.forward p] \as ImageD;
+\import SourceTangent.At[x := Collar.map.apply p] \as Full;
+\definition collarInverse[w: Full.Vector]: Domain.Vector := DiffeoD.inverse (ImageD.inverse w);
+\definition collarChainInverse[w: Full.Vector]: boundary_manifolds.Differential[n := dimension, m := dimension].Between[M := Parameters.manifold, N := M].At[f := CollarChain.map, x := p].value.apply (collarInverse w) = w :=
+  trans!{{Full.Vector}} _ _ _ (CollarChain.At[x := p].pointwise (collarInverse w))
+    (trans!{{Full.Vector}} _ _ _ (congr!{{boundary_manifolds.Tangent[n := dimension].On[M := Image.manifold].Vector (Collar.forward p)} {Full.Vector}}
+      boundary_manifolds.Differential[n := dimension, m := dimension].Between[M := Image.manifold, N := M].At[f := Image.Inclusion[].map, x := Collar.forward p].value.apply _ _ (DiffeoD.rightInverse (ImageD.inverse w))) (ImageD.rightInverse w));
+\definition CollarOnto[f: CollarMaps.Map]: \Prop := \forall (w: SourceTangent.Vector (f.apply p)) -> \exists ( v: Domain.Vector \where boundary_manifolds.Differential[n := dimension, m := dimension].Between[M := Parameters.manifold, N := M].At[f := f, x := p].value.apply v = w );
+\definition collarChainOnto: CollarOnto CollarChain.map := \fun (w: Full.Vector) => Logic.existsIntro[Domain.Vector,
+  { v: Domain.Vector \where boundary_manifolds.Differential[n := dimension, m := dimension].Between[M := Parameters.manifold, N := M].At[f := CollarChain.map, x := p].value.apply v = w }]
+  (collarInverse w) (collarChainInverse w);
+\definition collarOnto: CollarOnto Collar.map := \idelim CollarChain.map = Collar.map \with f: CollarMaps.Map => CollarOnto f \by {
+  base: collarChainOnto, equality: collarEqual
+};
+\import \root.HeightNormal[n := n].Transfer[p := dimension, q := dimension, r := One.dimension].Between[A := Parameters.manifold, B := M, C := Neat.halfLine].Of[f := Collar.map, g := map].At[x := p] \as Transfer;
+\definition normal: Normal.At[f := map, x := Collar.map.apply p].NormalOnto := Transfer.normal compositeNormal;
+\definition reflects: Reflects (Collar.map.apply p) := Transfer.reflects collarOnto compositeReflects;

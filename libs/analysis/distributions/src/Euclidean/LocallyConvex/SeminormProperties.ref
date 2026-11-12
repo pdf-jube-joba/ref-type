@@ -1,0 +1,34 @@
+\definition recover[f,g: Test]: Tests.add (difference f g) g = f := Tests.ext (Tests.add (difference f g) g) f
+  (\fun (x: Point) => trans!{Real.Real} _ _ _
+    (congr!{Real.Real Real.Real} (\fun (a: Real.Real) => Real.add a (g x)) _ _ (Differences.differenceValue f g x))
+    (Distance.subAddCancel (f x) (g x)));
+\definition triangleDifference[f,g: Test]: R.Le (p.value f) (Real.add (p.value (difference f g)) (p.value g)) :=
+  R.leReplaceLeft _ _ _ (congr!{Test Real.Real} p.value _ _ (recover f g)) (p.triangle (difference f g) g);
+\definition negativeDifference[f,g: Test]: Tests.scale (Real.neg Real.one) (difference f g) = difference g f :=
+  Tests.ext (Tests.scale (Real.neg Real.one) (difference f g)) (difference g f) (\fun (x: Point) => eq_reason_in!{Real.Real _
+    "=" _ "by" { Differences.negativeOneMul (difference f g x) }
+    "=" _ "by" { congr!{Real.Real Real.Real} Real.neg _ _ (Differences.differenceValue f g x) }
+    "=" _ "by" { Algebra.negSub (f x) (g x) }
+    "=" _ "by" { sym!{Real.Real} _ _ (Differences.differenceValue g f x) }
+  });
+\definition symmetric[f,g: Test]: p.value (difference g f) = p.value (difference f g) := eq_reason_in!{Real.Real _
+  "=" _ "by" { congr!{Test Real.Real} p.value _ _ (sym!{Test} _ _ (negativeDifference f g)) }
+  "=" _ "by" { p.homogeneous (Real.neg Real.one) (difference f g) }
+  "=" _ "by" { congr!{Real.Real Real.Real} (\fun (r: Real.Real) => Real.mul r (p.value (difference f g))) _ _
+    (trans!{Real.Real} _ _ _ (Absolute.absNeg Real.one) (Absolute.absOfNonnegative Real.one Laws.oneNonnegative)) }
+  "=" _ "by" { Laws.fieldMulOneLeft (p.value (difference f g)) }
+};
+\definition lower[f,g: Test]: R.Le (Real.sub (p.value f) (p.value (difference f g))) (p.value g) :=
+  R.leReplaceRight _ _ _
+    (trans!{Real.Real} _ _ _
+      (congr!{Real.Real Real.Real} (\fun (r: Real.Real) => Real.add r (Real.neg (p.value (difference f g)))) _ _
+        (Laws.addComm (p.value (difference f g)) (p.value g)))
+      (Laws.addNegCancelRight (p.value (difference f g)) (p.value g)))
+    (Laws.addMonotoneRight _ _ (Real.neg (p.value (difference f g))) (triangleDifference f g));
+\definition upper[f,g: Test]: R.Le (p.value g) (Real.add (p.value f) (p.value (difference f g))) :=
+  R.leReplaceRight _ _ _
+    (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (\fun (r: Real.Real) => Real.add r (p.value f)) _ _ (symmetric f g))
+      (Laws.addComm (p.value (difference f g)) (p.value f)))
+    (triangleDifference g f);
+\definition distance[f,g: Test]: R.Le (Real.distance (p.value f) (p.value g)) (p.value (difference f g)) :=
+  Estimates.distanceLeOfInterval (p.value f) (p.value g) (p.value (difference f g)) (lower f g) (upper f g);

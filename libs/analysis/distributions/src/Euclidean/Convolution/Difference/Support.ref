@@ -1,0 +1,17 @@
+\import \parent.\parent.CommonSupport[rho := rho, a := a, radius := radius, radiusBound := radiusBound] \as CS;
+\definition K: \Pow ConvE.Point := ConvE.points CS.box;
+\definition closed: ConvSets.IsClosedIn ConvAmbient.topology K := ConvBoxes.pointsClosed CS.box;
+\definition compact: ConvSets.IsCompactIn ConvAmbient.topology K := ConvBoxes.compact CS.box;
+\definition center: ConvSets.Subset (ConvSmooth.support (translate rho a)) K :=
+  CS.within rho a (\fun (x: ConvE.Point)(member: _) => member) CS.center;
+\definition target: ConvSets.Subset (ConvSmooth.support (translate (CDTests.partial rho i) a)) K :=
+  CS.within (CDTests.partial rho i) a (CDTests.partialSupport rho i) CS.center;
+\definition shiftedWithin: ConvR.Le (ConvReal.distance t (a i)) ConvReal.one ->
+  ConvSets.Subset (ConvSmooth.support (translate rho shifted)) K := \fun (near: _) =>
+  CS.within rho shifted (\fun (x: ConvE.Point)(member: _) => member) (CS.replaced i t near);
+\definition within: ConvR.Le (ConvReal.distance t (a i)) ConvReal.one -> ConvSets.Subset (ConvSmooth.support error) K := \fun (near: _) =>
+  CDTests.addSupport _ _ K closed
+    (ConvSets.subsetTrans _ _ _ (CDTests.scaleSupport inverse _)
+      (CDTests.addSupport _ _ K closed (shiftedWithin near)
+        (ConvSets.subsetTrans _ _ _ (CDTests.scaleSupport negative (translate rho a)) center)))
+    (ConvSets.subsetTrans _ _ _ (CDTests.scaleSupport negative (translate (CDTests.partial rho i) a)) target);

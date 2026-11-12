@@ -1,0 +1,33 @@
+\definition s: ConvReal.Real := CDJets.sign d;
+\definition f: ConvL.SmoothCompact := CDTests.jet d rho;
+\definition translated[b: ConvE.Point]: CDTests.jet d (translate rho b) = CDTests.scale s (translate f b) := CDJets.law d rho b;
+\definition derivativeTranslated: CDTests.jet d (translate (CDTests.partial rho i) a) = CDTests.scale s (translate (CDTests.partial f i) a) :=
+  trans!{ConvL.SmoothCompact} _ _ _ (CDJets.law d (CDTests.partial rho i) a)
+    (congr!{ConvL.SmoothCompact ConvL.SmoothCompact} (\fun (h: ConvL.SmoothCompact) => CDTests.scale s (translate h a)) _ _
+      (sym!{ConvL.SmoothCompact} _ _ (CDBounds.jetPartialCommute d rho i)));
+\definition inner: ConvL.SmoothCompact := CDTests.add (translate rho shifted) (CDTests.scale negative (translate rho a));
+\definition innerJet: CDTests.jet d inner = CDTests.add (CDTests.scale s (translate f shifted)) (CDTests.scale negative (CDTests.scale s (translate f a))) :=
+  trans!{ConvL.SmoothCompact} _ _ _ (CDTests.jetAdd d (translate rho shifted) (CDTests.scale negative (translate rho a)))
+    (congr!{ConvL.SmoothCompact ConvL.SmoothCompact ConvL.SmoothCompact} CDTests.add _ _ _ _ (translated shifted)
+      (trans!{ConvL.SmoothCompact} _ _ _ (CDTests.jetScale d negative (translate rho a))
+        (congr!{ConvL.SmoothCompact ConvL.SmoothCompact} (CDTests.scale negative) _ _ (translated a))));
+\definition expanded: ConvL.SmoothCompact := CDTests.add
+  (CDTests.scale inverse (CDTests.add (CDTests.scale s (translate f shifted)) (CDTests.scale negative (CDTests.scale s (translate f a)))))
+  (CDTests.scale negative (CDTests.scale s (translate (CDTests.partial f i) a)));
+\definition expansion: CDTests.jet d error = expanded :=
+  trans!{ConvL.SmoothCompact} _ _ _ (CDTests.jetAdd d (CDTests.scale inverse inner) (CDTests.scale negative (translate (CDTests.partial rho i) a)))
+    (congr!{ConvL.SmoothCompact ConvL.SmoothCompact ConvL.SmoothCompact} CDTests.add _ _ _ _
+      (trans!{ConvL.SmoothCompact} _ _ _ (CDTests.jetScale d inverse inner)
+        (congr!{ConvL.SmoothCompact ConvL.SmoothCompact} (CDTests.scale inverse) _ _ innerJet))
+      (trans!{ConvL.SmoothCompact} _ _ _ (CDTests.jetScale d negative (translate (CDTests.partial rho i) a))
+        (congr!{ConvL.SmoothCompact ConvL.SmoothCompact} (CDTests.scale negative) _ _ derivativeTranslated)));
+\definition law: CDTests.jet d error = CDTests.scale s (errorFor f) :=
+  trans!{ConvL.SmoothCompact} _ _ _ expansion (CDTests.ext expanded (CDTests.scale s (errorFor f))
+    (\fun (y: ConvE.Point) => linearError s (f (ConvE.subPoint shifted y)) (f (ConvE.subPoint a y)) (CDTests.partial f i (ConvE.subPoint a y))));
+\definition absolute[y: ConvE.Point]: ConvAbsolute.abs (CDTests.jet d error y) = ConvAbsolute.abs (errorFor f y) :=
+  trans!{ConvReal.Real} _ _ _
+    (congr!{ConvL.SmoothCompact ConvReal.Real} (\fun (h: ConvL.SmoothCompact) => ConvAbsolute.abs (h y)) _ _ law)
+    (trans!{ConvReal.Real} _ _ _ (ConvAbsolute.absProduct s (errorFor f y))
+      (trans!{ConvReal.Real} _ _ _
+        (congr!{ConvReal.Real ConvReal.Real} (\fun (v: ConvReal.Real) => ConvReal.mul v (ConvAbsolute.abs (errorFor f y))) _ _ (CDJets.signAbs d))
+        (ConvLaws.fieldMulOneLeft _)));

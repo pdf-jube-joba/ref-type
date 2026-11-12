@@ -1,0 +1,20 @@
+\import boundary_manifolds.Product[n := n, m := One.dimension].Of[M := BoundaryModel.manifold, N := Time.manifold] \as Product;
+\import manifold_gluing.OpenManifold[n := dimension].On[M := Product.manifold].Within[U := Image.leftDomain, open := Image.leftOpen] \as Source;
+\import manifold_gluing.OpenManifold[n := dimension].On[M := M].Within[U := Collar.image, open := Collar.imageOpen] \as Range;
+\import manifold_gluing.SmoothChainRule[n := dimension, m := dimension, l := dimension].Between[M := Source.manifold, N := Range.manifold, P := M].Of[f := Collar.diffeomorphism.forward, g := Range.Inclusion[].map] \as Into;
+\import manifold_gluing.SmoothChainRule[n := dimension, m := dimension, l := dimension].Between[M := Source.manifold, N := M, P := manifold].Of[f := Into.map, g := Inclusions.left] \as Chain;
+\import manifold_gluing.SmoothChainRule[n := dimension, m := dimension, l := dimension].Between[M := Source.manifold, N := SignedProduct.manifold, P := manifold].Of[f := Insert.map, g := Inclusions.seam] \as OtherChain;
+\definition point: Source.Point := Collar.backward x;
+\import boundary_manifolds.Immersion[n := dimension, m := dimension].Between[M := Source.manifold, N := manifold] \as Composite;
+\module At(p: Source.Point);
+\definition otherImmersion: Composite.IsImmersion OtherChain.map := \fun (p: Source.Point) => At[p := p].otherInjective;
+\definition equal: Chain.map = OtherChain.map := manifold_gluing.SmoothMapExt[n := dimension, m := dimension].Between[M := Source.manifold, N := manifold].ext Chain.map OtherChain.map
+  (\fun (p: Source.Point) => sym!{{Seam.Point}} _ _ Image.LeftAt[x := p].value);
+\definition composite: Composite.IsImmersion Chain.map := \idelim OtherChain.map = Chain.map \with f: boundary_manifolds.SmoothMap[n := dimension, m := dimension].Between[M := Source.manifold, N := manifold].Map => Composite.IsImmersion f \by {
+  base: otherImmersion, equality: sym!{{boundary_manifolds.SmoothMap[n := dimension, m := dimension].Between[M := Source.manifold, N := manifold].Map}} _ _ equal
+};
+\import \root.DoubleEmbedding[n := n].Factor[P := Source.manifold, M := M, T := manifold].Of[g := Into.map, f := Inclusions.left].At[x := point] \as Factor;
+\definition atPoint: ImmersionAt (boundary_manifolds.SmoothMap[n := dimension, m := dimension].Between[M := Source.manifold, N := M].apply Into.map point) := Factor.injective At[p := point].onto (composite point);
+\definition injective: ImmersionAt x := \idelim (boundary_manifolds.SmoothMap[n := dimension, m := dimension].Between[M := Source.manifold, N := M].apply Into.map point) = (x \of M.Point) \with y: M.Point => ImmersionAt y \by {
+  base: atPoint, equality: Collar.rightValue x
+};

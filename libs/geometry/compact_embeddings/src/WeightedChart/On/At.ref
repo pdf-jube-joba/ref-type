@@ -1,0 +1,50 @@
+\import Scalars.OnOpen[U := c.domain, open := c.open] \as OnOpen;
+\import std.Set[].Extension[A := M.Point, B := Real.Real, domain := c.domain] \as Extension;
+\import Charts.Of[chart := c] \as Geometry;
+\definition supported[x: M.Point]: Logic.Not (b x = Real.zero) -> Space.Member c.domain x :=
+  \fun (nonzero: _) => within x (Closure.contains M.space (Scalars.Nonzero b) x nonzero);
+\definition zeroAway[x: M.Point]: Logic.Not (Space.Member (Scalars.support b) x) -> b x = Real.zero :=
+  \fun (outside: _) => Space.Finite[].doubleNegElim (b x = Real.zero)
+    (\fun (nonzero: _) => outside (Closure.contains M.space (Scalars.Nonzero b) x nonzero));
+\module Coordinate(i: Fin.Fin n);
+\definition coordinates[x: M.Point][i: Fin.Fin n]: Real.Real := Coordinate[i := i].value x;
+\definition value[x: M.Point]: topological_algebra.Euclidean[].Dimension[n := dimension].Point :=
+  Blocks.join (\fun (i: Fin.Fin one) => b x) (coordinates x);
+\import Fin.Sum[m := one, n := n] \as Indices;
+\import Indices.Tuples[A := Real.Real] \as Tuples;
+\definition regular: \forall (i: Fin.Fin dimension) -> Scalars.IsSmooth (\fun (x: M.Point) => value x i) :=
+  \fun (i: Fin.Fin dimension) =>
+    (\induction (j: Indices.Index) \return Scalars.IsSmooth (\fun (x: M.Point) => Tuples.evaluate (\fun (k: Fin.Fin one) => b x) (coordinates x) j) \with {
+      | inl: \fun (j: Fin.Fin one) => Functions.regular b
+      | inr: \fun (j: Fin.Fin n) => Coordinate[i := j].smooth
+    }) (Indices.split i);
+\import \parent.Vector[m := dimension].Of[f := value, regular := regular] \as Construct;
+\import manifolds.Dimension[n := dimension].Smooth[] \as Targets;
+\import manifolds.Dimension[n := dimension].Examples[].Euclidean[] \as Target;
+\definition target: Targets.Manifold := Target.smoothManifold;
+\import manifolds.SmoothMap[n := n, m := dimension].Between[M := M, N := target] \as Maps;
+\definition map: Maps.Map := Construct.map;
+\definition atOne[x: M.Point][oneAt: b x = Real.one]: Space.Member c.domain x := supported x
+  (\fun (zeroAt: b x = Real.zero) => Laws.zeroNeOne (trans!{Real.Real} _ _ _ (sym!{Real.Real} _ _ zeroAt) oneAt));
+\definition first: Fin.Fin one := Fin.zero N.Nat^::zero;
+\definition bumpEqual[x, y: M.Point]: value x = value y -> b x = b y := \fun (equal: _) => trans!{Real.Real} _ _ _
+  (sym!{Real.Real} _ _ (Tuples.atLeft (\fun (i: Fin.Fin one) => b x) (coordinates x) first))
+  (trans!{Real.Real} _ _ _ (congr!{{target.Point} Real.Real} (\fun (v: target.Point) => v (Indices.left first)) _ _ equal)
+    (Tuples.atLeft (\fun (i: Fin.Fin one) => b y) (coordinates y) first));
+\definition coordinatesAtOne[x: M.Point][oneAt: b x = Real.one]: coordinates x = Charts.coordinate c (\into[M.Point](x, c.domain) \by { atOne x oneAt }) :=
+  \axiom:funext(coordinates x, (Charts.coordinate c (\into[M.Point](x, c.domain) \by { atOne x oneAt })), \fun (i: Fin.Fin n) =>
+    trans!{Real.Real} _ _ _ (Coordinate[i := i].inside (\into[M.Point](x, c.domain) \by { atOne x oneAt }))
+      (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (\fun (r: Real.Real) => Real.mul r (Charts.coordinate c (\into[M.Point](x, c.domain) \by { atOne x oneAt }) i)) _ _ oneAt)
+        (Laws.fieldMulOneLeft _)));
+\definition injectiveAtOne[x, y: M.Point]: b x = Real.one -> value x = value y -> x = y := \block {
+  \fun (oneAt: _)(equal: _) \then
+  \let oneY: b y = Real.one := trans!{Real.Real} _ _ _ (sym!{Real.Real} _ _ (bumpEqual x y equal)) oneAt \then
+  \let p: Charts.LocalPoint c := \into[M.Point](x, c.domain) \by { atOne x oneAt } \then
+  \let q: Charts.LocalPoint c := \into[M.Point](y, c.domain) \by { atOne y oneY } \then
+  \let same: Charts.coordinate c p = Charts.coordinate c q := trans!{{Model.Point}} _ _ _ (sym!{{Model.Point}} _ _ (coordinatesAtOne x oneAt))
+    (trans!{{Model.Point}} _ _ _ (trans!{{Model.Point}} _ _ _ (sym!{{Model.Point}} _ _ (Blocks.rightJoin (\fun (i: Fin.Fin one) => b x) (coordinates x)))
+      (trans!{{Model.Point}} _ _ _ (congr!{{target.Point} {Model.Point}} Blocks.right _ _ equal) (Blocks.rightJoin (\fun (i: Fin.Fin one) => b y) (coordinates y)))) (coordinatesAtOne y oneY)) \then
+  \return trans!{{M.Point}} _ _ _ (sym!{{M.Point}} _ _ (Geometry.pointCoordinate p))
+    (trans!{{M.Point}} _ _ _ (congr!{{Open.Carrier c.image} {M.Point}} (Charts.point c) _ _ same) (Geometry.pointCoordinate q))
+};
+\module Plateau(U: \Pow M.Point, open: Space.IsOpenIn M.space U, oneOn: \forall (x: M.Point) -> Space.Member U x -> b x = Real.one);

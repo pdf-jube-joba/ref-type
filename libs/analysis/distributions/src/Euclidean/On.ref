@@ -1,0 +1,84 @@
+\use Logic.either;
+\import \root.Euclidean[n := n] \as Global;
+\import Global.TestOperations[] \as GO;
+\import Sets.Finite[] \as FiniteSets;
+\import Sets.Compactness[] \as Compactness;
+\definition Test: \Set := TestOn U;
+\definition zero: Test := \into[Global.Test](GO.zero, Test) \by {
+  \fun (x: Point)(member: _) => Logic.falseElim (Sets.Member U.points x) (GO.zeroSupport x member)
+};
+\definition sumSupport[f, g: Test]: Sets.Subset (Smooth.support (GO.add f g)) U.points := \block {
+  \let K: \Pow Point := FiniteSets.Join (Smooth.support f) (Smooth.support g) \then
+  \let compact: Sets.IsCompactIn Ambient.topology K := Compactness.joinCompact Ambient.topology (Smooth.support f) (Smooth.support g)
+    (L.smoothCompactLaws f).compact (L.smoothCompactLaws g).compact \then
+  \let support: Sets.Subset (Smooth.support (GO.add f g)) K := GO.addSupport f g K
+    (Compactness.compactClosed Ambient.topology Ambient.hausdorff K compact)
+    (\fun (x: Point)(member: _) => Logic.Or[_, _]::left member)
+    (\fun (x: Point)(member: _) => Logic.Or[_, _]::right member) \then
+  \return \fun (x: Point)(member: _) => either!{{(support x member)} {Sets.Member U.points x}
+    {\fun (left: _) => testWithin U f x left} {\fun (right: _) => testWithin U g x right}}
+};
+\definition add[f, g: Test]: Test := \into[Global.Test](GO.add f g, Test) \by { sumSupport f g };
+\definition scale[c: Real.Real][f: Test]: Test := \into[Global.Test](GO.scale c f, Test) \by {
+  Sets.subsetTrans _ _ _ (GO.scaleSupport c f) (testWithin U f)
+};
+\definition partial[f: Test][i: Fin.Fin n]: Test := \into[Global.Test](GO.partial f i, Test) \by {
+  Sets.subsetTrans _ _ _ (GO.partialSupport f i) (testWithin U f)
+};
+\definition jet[d: Directions][f: Test]: Test := \into[Global.Test](GO.jet d f, Test) \by {
+  Sets.subsetTrans _ _ _ (GO.jetSupport d f) (testWithin U f)
+};
+\definition Bound[value: Test -> Real.Real][K: \Pow Point][m: N.Nat^][C: Nonnegative]: \Prop :=
+  \forall (f: Test) -> Sets.Subset (Smooth.support f) K -> \forall (b: Nonnegative) -> Global.JetBound f m b ->
+    R.Le (Absolute.abs (value f)) (Real.mul C b);
+\definition LocallyBounded[value: Test -> Real.Real]: \Prop :=
+  \forall (K: \Pow Point) -> Sets.IsCompactIn Ambient.topology K -> Sets.Subset K U.points ->
+    \exists ( m: N.Nat^ \where \exists ( C: Nonnegative \where Bound value K m C ) );
+\structure DistributionData: \Set := { eval: Test -> Real.Real, };
+\structure DistributionLaws[data: DistributionData]: \Prop := {
+  additive: \forall (f, g: Test) -> data.eval (add f g) = Real.add (data.eval f) (data.eval g),
+  homogeneous: \forall (c: Real.Real)(f: Test) -> data.eval (scale c f) = Real.mul c (data.eval f),
+  bound: LocallyBounded data.eval,
+};
+\definition Distribution: \Set := \Cast[DistributionData] ({ data: DistributionData \where DistributionLaws[data] });
+\definition dataEta[d: DistributionData]: DistributionData::# d.eval = d :=
+  (\induction (data: DistributionData) \return DistributionData::# data.eval = data \with {
+    | # : \fun (value: Test -> Real.Real) => \refl(DistributionData::# value)
+  }) d;
+\definition ext[S, T: Distribution]: (\forall (f: Test) -> S.eval f = T.eval f) -> S = T :=
+  \fun (same: _) => eq_reason_in!{DistributionData S
+    "=" { DistributionData::# S.eval } "by" { sym!{DistributionData} _ _ (dataEta S) }
+    "=" { DistributionData::# T.eval } "by" { congr!{{Test -> Real.Real} DistributionData} DistributionData::# _ _ (\axiom:funext(S.eval, T.eval, same)) }
+    "=" T "by" { dataEta T }
+  };
+\definition restrict[T: Global.Distribution]: Distribution := Distribution {
+  eval := \fun (f: Test) => T.eval f,
+  additive := \fun (f, g: Test) => T.additive f g,
+  homogeneous := \fun (c: Real.Real)(f: Test) => T.homogeneous c f,
+  bound := \fun (K: \Pow Point)(compact: _)(within: _) => \block {
+    \takefrom m: \Cast[N.Nat^] ({ m: N.Nat^ \where \exists ( C: Nonnegative \where Global.Bound T.eval K m C ) }) \by T.bound K compact \then
+    \takefrom C: \Cast[Nonnegative] ({ C: Nonnegative \where Global.Bound T.eval K m C })
+      \by \bysub(N.Nat^, { m: N.Nat^ \where \exists ( C: Nonnegative \where Global.Bound T.eval K m C ) }, m) \then
+    \return Logic.existsIntro[N.Nat^, { j: N.Nat^ \where \exists ( B: Nonnegative \where Bound (\fun (f: Test) => T.eval f) K j B ) }] m
+      (Logic.existsIntro[Nonnegative, { B: Nonnegative \where Bound (\fun (f: Test) => T.eval f) K m B }] C
+        (\fun (f: Test) => (\bysub(Nonnegative, { C: Nonnegative \where Global.Bound T.eval K m C }, C)) f))
+  },
+};
+\module Topology;
+\module Derivative(T: Distribution, i: Fin.Fin n);
+\definition partialDistribution[T: Distribution][i: Fin.Fin n]: Distribution := Derivative[T := T, i := i].value;
+\definition derivative: Directions -> Distribution -> Distribution := \induction (d: Directions) \return Distribution -> Distribution \with {
+  | nil: \fun (T: Distribution) => T
+  | cons: \fun (i: Fin.Fin n)(tail: Directions)(previous: Distribution -> Distribution)(T: Distribution) => partialDistribution (previous T) i
+};
+\definition restrictDerivative[T: Global.Distribution][i: Fin.Fin n]:
+  restrict (Global.Dual[].partial T i) = partialDistribution (restrict T) i :=
+  ext (restrict (Global.Dual[].partial T i)) (partialDistribution (restrict T) i) (\fun (f: Test) => \refl(Real.mul (Real.neg Real.one) (T.eval (GO.partial f i))));
+\definition Converges[sequence: N.Nat^ -> Distribution][T: Distribution]: \Prop :=
+  \forall (f: Test) -> Sequence.Converges (\fun (k: N.Nat^) => (sequence k).eval f) (T.eval f);
+\definition partialConverges[sequence: N.Nat^ -> Distribution][T: Distribution][i: Fin.Fin n]: Converges sequence T ->
+  Converges (\fun (k: N.Nat^) => partialDistribution (sequence k) i) (partialDistribution T i) :=
+  \fun (converges: _)(f: Test) => Real.Sequence[].Operations[].scaleConverges (Real.neg Real.one)
+    (\fun (k: N.Nat^) => (sequence k).eval (partial f i)) (T.eval (partial f i)) (converges (partial f i));
+\module SmoothRegular(f: Open.ScalarFunction U, smooth: Open.Smooth[].SmoothOn U f);
+\module LocallyConvex;

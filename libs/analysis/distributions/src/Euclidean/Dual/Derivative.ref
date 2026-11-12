@@ -1,0 +1,23 @@
+\definition function[f: Test]: Real.Real := T.eval (Tests.partial f i);
+\definition bounded: LocallyBounded function := \fun (K: \Pow Point)(compact: _) => \block {
+  \takefrom m: \Cast[N.Nat^] ({ m: N.Nat^ \where \exists ( C: Nonnegative \where Bound T.eval K m C ) }) \by T.bound K compact \then
+  \takefrom C: \Cast[Nonnegative] ({ C: Nonnegative \where Bound T.eval K m C })
+    \by \bysub(N.Nat^, { m: N.Nat^ \where \exists ( C: Nonnegative \where Bound T.eval K m C ) }, m) \then
+  \return Logic.existsIntro[N.Nat^, { j: N.Nat^ \where \exists ( B: Nonnegative \where Bound function K j B ) }] (N.Nat^::succ m)
+    (Logic.existsIntro[Nonnegative, { B: Nonnegative \where Bound function K (N.Nat^::succ m) B }] C
+      (\fun (f: Test)(supported: _)(b: Nonnegative)(bound: _) =>
+        (\bysub(Nonnegative, { C: Nonnegative \where Bound T.eval K m C }, C)) (Tests.partial f i)
+          (Sets.subsetTrans _ _ _ (Tests.partialSupport f i) supported) b
+          (\fun (d: Directions)(le: _)(x: Point) => R.leReplaceLeft _ _ _
+            (congr!{Test Real.Real} (\fun (g: Test) => Absolute.abs (g x)) _ _ (sym!{Test} _ _ (Tests.jetPartial i d f)))
+            (bound (Tests.shift i d) (\idelim N.Nat^::succ (order d) = order (Tests.shift i d)
+              \with k: N.Nat^ => Nat.Le k (N.Nat^::succ m) \by {
+                base: Nat.leSuccSucc (order d) m le, equality: sym!{N.Nat^} _ _ (Tests.orderShift i d) }) x))))
+};
+\definition transpose: Distribution := Distribution {
+  eval := function,
+  additive := \fun (f, g: Test) => trans!{Real.Real} _ _ _ (congr!{Test Real.Real} T.eval _ _ (Tests.partialAdd f g i)) (T.additive (Tests.partial f i) (Tests.partial g i)),
+  homogeneous := \fun (c: Real.Real)(f: Test) => trans!{Real.Real} _ _ _ (congr!{Test Real.Real} T.eval _ _ (Tests.partialScale c f i)) (T.homogeneous c (Tests.partial f i)),
+  bound := bounded,
+};
+\definition value: Distribution := negative transpose;

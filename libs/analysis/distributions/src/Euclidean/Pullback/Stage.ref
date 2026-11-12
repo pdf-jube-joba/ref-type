@@ -1,0 +1,60 @@
+\import Sets.Subspace[S := K] \as Domain;
+\import Domain.Properties[] \as DomainProperties;
+\import topology.Topology[Carrier := Domain.CarrierSet] \as DomainSets;
+\import PullbackOpen.Topology[].Of[U := U] \as SourceTopology;
+\import PullbackOpen.Topology[].Of[U := V] \as TargetTopology;
+\import topology.Topology[Carrier := PullbackOpen.Carrier V] \as LocalSets;
+\import topology.Continuity[A := Domain.CarrierSet, B := Point].Corestriction[S := K] \as DomainInclusion;
+\import topology.Continuity[A := Domain.CarrierSet, B := Point].Corestriction[S := U.points] \as IntoSource;
+\import topology.Continuity[A := PullbackOpen.Carrier V, B := Point].Corestriction[S := V.points] \as TargetInclusion;
+\import topology.Composition[A := Domain.CarrierSet, B := PullbackOpen.Carrier U, C := PullbackOpen.Carrier V] \as LocalComposition;
+\import topology.Composition[A := Domain.CarrierSet, B := PullbackOpen.Carrier V, C := Point] \as AmbientComposition;
+\import topology.Maps[A := Domain.CarrierSet, B := PullbackOpen.Carrier V] \as LocalImages;
+\import topology.Maps[A := Domain.CarrierSet, B := Point] \as Images;
+\import topology.Compactness[A := Domain.CarrierSet, B := PullbackOpen.Carrier V] \as LocalCompactImages;
+\import topology.Compactness[A := Domain.CarrierSet, B := Point] \as CompactImages;
+\definition source[x: Domain.CarrierSet]: PullbackOpen.Carrier U := \into[Point](x, U.points) \by { within x (\bysub(Point, K, x)) };
+\definition localForward[x: Domain.CarrierSet]: PullbackOpen.Carrier V := PullbackMaps.apply U V e.forward (source x);
+\definition forward[x: Domain.CarrierSet]: Point := localForward x;
+\definition domainCompact: DomainSets.IsCompact (Domain.topology Ambient.topology) := DomainProperties.compact Ambient.topology compact;
+\definition sourceContinuous: topology.Continuity[A := Domain.CarrierSet, B := PullbackOpen.Carrier U].Continuous
+  (Domain.topology Ambient.topology) SourceTopology.topology source :=
+  IntoSource.corestrictContinuous (Domain.topology Ambient.topology) Ambient.topology source (DomainInclusion.inclusionContinuous Ambient.topology);
+\definition localContinuous: topology.Continuity[A := Domain.CarrierSet, B := PullbackOpen.Carrier V].Continuous
+  (Domain.topology Ambient.topology) TargetTopology.topology localForward :=
+  LocalComposition.composeContinuous (Domain.topology Ambient.topology) SourceTopology.topology TargetTopology.topology source (PullbackMaps.apply U V e.forward)
+    sourceContinuous (PullbackMaps.Topology[U := U, V := V].continuous e.forward);
+\definition continuous: topology.Continuity[A := Domain.CarrierSet, B := Point].Continuous
+  (Domain.topology Ambient.topology) Ambient.topology forward :=
+  AmbientComposition.composeContinuous (Domain.topology Ambient.topology) TargetTopology.topology Ambient.topology
+    localForward (\fun (x: PullbackOpen.Carrier V) => x) localContinuous (TargetInclusion.inclusionContinuous Ambient.topology);
+\definition image: \Pow Point := Images.Image forward DomainSets.Whole;
+\definition localImage: \Pow (PullbackOpen.Carrier V) := LocalImages.Image localForward DomainSets.Whole;
+\definition imageCompact: Sets.IsCompactIn Ambient.topology image :=
+  CompactImages.continuousImage (Domain.topology Ambient.topology) Ambient.topology forward continuous DomainSets.Whole domainCompact;
+\definition localCompact: LocalSets.IsCompactIn TargetTopology.topology localImage :=
+  LocalCompactImages.continuousImage (Domain.topology Ambient.topology) TargetTopology.topology localForward localContinuous DomainSets.Whole domainCompact;
+\definition imageWithin: Sets.Subset image V.points := \fun (x: Point)(member: _) => Images.imageElim forward DomainSets.Whole x (Sets.Member V.points x)
+  (\fun (y: Domain.CarrierSet)(whole: _)(same: forward y = x) => \idelim forward y = x \with p: Point => Sets.Member V.points p \by {
+    base: \bysub(Point, V.points, localForward y), equality: same
+  }) member;
+\module Test(phi: SourceTest, supported: Sets.Subset (Smooth.support phi) K);
+\import \parent.Weighted[] \as Weighted;
+\import \parent.LocalJets[W := V] \as Output;
+\import Backward.Regularity[] \as JacobianSmooth;
+\import Weighted.Estimate[H := localImage, compact := localCompact] \as Estimate;
+\definition testSupport[phi: SourceTest][supported: Sets.Subset (Smooth.support phi) K]: Sets.Subset (Smooth.support (test phi)) image :=
+  Test[phi := phi, supported := supported].support;
+\definition restriction[phi: SourceTest]: Output.restriction (test phi) = Weighted.value JacobianSmooth.absolute phi :=
+  \axiom:funext(Output.restriction (test phi), Weighted.value JacobianSmooth.absolute phi, \fun (y: PullbackOpen.Carrier V) => inside phi y);
+\import Lists.Prop[A := Fin.Fin n] \as ListLaws;
+\definition localJet[d: Directions][phi: SourceTest][y: PullbackOpen.Carrier V]:
+  Tests.jet d (test phi) y = Output.reversed (Lists.reverse (Fin.Fin n) d) (Weighted.value JacobianSmooth.absolute phi) y :=
+  congr!{Output.Function Real.Real} (\fun (h: Output.Function) => h y) _ _ (eq_reason_in!{Output.Function { Output.restriction (Tests.jet d (test phi)) }
+    "=" _ "by" { sym!{Output.Function} _ _ (Output.restrictionApply d (test phi)) }
+    "=" _ "by" { congr!{Output.Function Output.Function} (Output.apply d) _ _ (restriction phi) }
+    "=" _ "by" { congr!{Directions Output.Function} (\fun (ds: Directions) => Output.apply ds (Weighted.value JacobianSmooth.absolute phi)) _ _
+      (sym!{Directions} _ _ (ListLaws.reverseInvolutive d)) }
+    "=" _ "by" { sym!{Output.Function} _ _ (Output.reversedApply (Lists.reverse (Fin.Fin n) d) (Weighted.value JacobianSmooth.absolute phi)) }
+  });
+\module Bound(m: N.Nat^, C: Nonnegative, estimate: Estimate.Bound m JacobianSmooth.absolute C);

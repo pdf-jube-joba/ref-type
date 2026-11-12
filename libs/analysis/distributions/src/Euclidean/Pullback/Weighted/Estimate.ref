@@ -1,0 +1,92 @@
+\import topology.Topology[Carrier := PullbackOpen.Carrier V] \as LocalSets;
+\import PullbackOpen.Topology[].Of[U := V] \as LocalTopology;
+\import LocalTopology.Continuity[] \as LocalContinuity;
+\import metric_spaces.RealFunctions[A := PullbackOpen.Carrier V] \as LocalFunctions;
+\import LocalFunctions.Lattice[] \as Lattice;
+\import topology.Maps[A := PullbackOpen.Carrier V, B := Real.Real] \as Images;
+\import topology.Compactness[A := PullbackOpen.Carrier V, B := Real.Real] \as CompactImages;
+\import metric_spaces.RealLine[] \as Line;
+\import Line.CompactExtrema[] \as Extrema;
+\import R.Completeness[] \as Complete;
+\import PullbackOpen.Smooth[].Properties[] \as SmoothProperties;
+\import Fin.Choice[A := Nonnegative] \as Choice;
+\import Lists.Prop[A := Fin.Fin n] \as ListLaws;
+\import std.Data[].Bool[].Prop[] \as BoolLaws;
+\definition Bound[m: N.Nat^][a: Function][C: Nonnegative]: \Prop :=
+  \forall (f: Test)(b: Nonnegative) -> PullbackBase.JetBound f m b -> \forall (d: Directions) -> Nat.Le (order d) m ->
+    \forall (x: PullbackOpen.Carrier V) -> LocalSets.Member H x -> R.Le (Absolute.abs (Output.reversed d (value a f) x)) (Real.mul C b);
+\module Coefficient(a: Function);
+\definition coefficientBound[a: Function]: \exists ( C: Nonnegative \where \forall (x: PullbackOpen.Carrier V) -> LocalSets.Member H x -> R.Le (Absolute.abs (a x)) C ) := Coefficient[a := a].exists;
+\definition multiplyBound[x,y: Real.Real][C,b: Nonnegative]: R.Le (Absolute.abs x) C -> R.Le (Absolute.abs y) b ->
+  R.Le (Absolute.abs (Real.mul x y)) (Real.mul C b) := \fun (left: _)(right: _) =>
+  R.leReplaceLeft _ _ _ (sym!{Real.Real} _ _ (Absolute.absProduct x y))
+    (R.leTrans _ _ _ (Estimates.mulMonotone (Absolute.abs x) _ _ (Absolute.absNonnegative x) right)
+      (R.leReplace _ _ _ _ (Laws.fieldMulComm b (Absolute.abs x)) (Laws.fieldMulComm b C)
+        (Estimates.mulMonotone b _ _ (lp_spaces.Powers[].baseNonnegative b) left)));
+\definition rightMonotone[b: Nonnegative][x,y: Real.Real]: R.Le x y -> R.Le (Real.mul x b) (Real.mul y b) :=
+  \fun (le: _) => R.leReplace _ _ _ _ (Laws.fieldMulComm b x) (Laws.fieldMulComm b y)
+    (Estimates.mulMonotone b x y (lp_spaces.Powers[].baseNonnegative b) le);
+\definition absAdd[x,y: Real.Real]: R.Le (Absolute.abs (Real.add x y)) (Real.add (Absolute.abs x) (Absolute.abs y)) :=
+  R.leReplaceLeft _ _ _ (congr!{Real.Real Real.Real} (\fun (z: Real.Real) => Real.distance z (Real.add x y)) _ _ (Laws.addZeroLeft Real.zero))
+    (Estimates.distanceAdd Real.zero Real.zero x y);
+\definition absSum: \forall (k: N.Nat^)(f: Fin.Fin k -> Real.Real) ->
+  R.Le (Absolute.abs (Sums.sum k f)) (Sums.sum k (\fun (j: Fin.Fin k) => Absolute.abs (f j))) :=
+  \induction (k: N.Nat^) \return \forall (f: Fin.Fin k -> Real.Real) ->
+    R.Le (Absolute.abs (Sums.sum k f)) (Sums.sum k (\fun (j: Fin.Fin k) => Absolute.abs (f j))) \with {
+      | zero: \fun (f: _) => R.leReplaceLeft _ _ _ (sym!{Real.Real} _ _ (Real.Distance[].distanceSelf Real.zero)) (R.leRefl Real.zero)
+      | succ: \fun (k: N.Nat^)(previous: _)(f: _) => R.leTrans _ _ _
+        (absAdd (f (Fin.zero k)) (Sums.sum k (\fun (j: Fin.Fin k) => f (Fin.succ k j))))
+        (Estimates.addLe _ _ _ _ (R.leRefl (Absolute.abs (f (Fin.zero k)))) (previous (\fun (j: Fin.Fin k) => f (Fin.succ k j))))
+    };
+\definition zero[a: Function][C: Nonnegative]:
+  (\forall (x: PullbackOpen.Carrier V) -> LocalSets.Member H x -> R.Le (Absolute.abs (a x)) C) -> Bound N.Nat^::zero a C :=
+  \fun (bounded: _)(f: Test)(b: Nonnegative)(input: _) =>
+    \induction (d: Directions) \return Nat.Le (order d) N.Nat^::zero -> \forall (x: PullbackOpen.Carrier V) -> LocalSets.Member H x ->
+      R.Le (Absolute.abs (Output.reversed d (value a f) x)) (Real.mul C b) \with {
+        | nil: \fun (length: _)(x: PullbackOpen.Carrier V)(member: _) =>
+          multiplyBound (a x) (f (PullbackMaps.apply V U e.backward x)) C b (bounded x member)
+            (input Directions::nil (Nat.leRefl N.Nat^::zero) (PullbackMaps.apply V U e.backward x))
+        | cons: \fun (i: Fin.Fin n)(tail: Directions)(previous: _)(impossible: Nat.Le (N.Nat^::succ (order tail)) N.Nat^::zero) =>
+          Logic.falseElim _ (BoolLaws.absurd Logic.False impossible)
+      };
+\definition inputWeaken[m: N.Nat^][f: Test][b: Nonnegative]: PullbackBase.JetBound f (N.Nat^::succ m) b -> PullbackBase.JetBound f m b :=
+  \fun (bound: _)(d: Directions)(small: _)(x: Point) => bound d (Nat.leTrans _ _ _ small (Nat.leSelfSucc m)) x;
+\definition inputPartial[m: N.Nat^][f: Test][b: Nonnegative][i: Fin.Fin n]: PullbackBase.JetBound f (N.Nat^::succ m) b -> PullbackBase.JetBound (Tests.partial f i) m b :=
+  \fun (bound: _)(d: Directions)(small: _)(x: Point) => R.leReplaceLeft _ _ _
+    (sym!{Real.Real} _ _ (congr!{Test Real.Real} (\fun (g: Test) => Absolute.abs (g x)) _ _ (Tests.jetPartial i d f)))
+    (bound (Tests.shift i d) (\idelim N.Nat^::succ (order d) = order (Tests.shift i d) \with k: N.Nat^ => Nat.Le k (N.Nat^::succ m) \by {
+      base: Nat.leSuccSucc (order d) m small, equality: sym!{N.Nat^} _ _ (Tests.orderShift i d)
+    }) x);
+\module Step(m: N.Nat^, a: Function, C: Nonnegative, base: Bound N.Nat^::zero a C,
+  A: Fin.Fin n -> Nonnegative, B: Fin.Fin n -> Fin.Fin n -> Nonnegative,
+  derivativeBounds: \forall (i: Fin.Fin n) -> Bound m (Output.partial a i) (A i),
+  chainBounds: \forall (i,j: Fin.Fin n) -> Bound m (coefficient a i j) (B i j));
+\import Fin.Choice[A := Fin.Fin n -> Nonnegative] \as RowChoice;
+\definition first[m: N.Nat^][a: Function][A: Fin.Fin n -> Nonnegative]: \Prop :=
+  \forall (i: Fin.Fin n) -> Bound m (Output.partial a i) (A i);
+\definition second[m: N.Nat^][a: Function][B: Fin.Fin n -> Fin.Fin n -> Nonnegative]: \Prop :=
+  \forall (i,j: Fin.Fin n) -> Bound m (coefficient a i j) (B i j);
+\definition exists: \forall (m: N.Nat^)(a: Function) -> \exists ( C: Nonnegative \where Bound m a C ) :=
+  \induction (m: N.Nat^) \return \forall (a: Function) -> \exists ( C: Nonnegative \where Bound m a C ) \with {
+    | zero: \fun (a: Function) => \block {
+      \takefrom C: \Cast[Nonnegative] ({ C: Nonnegative \where \forall (x: PullbackOpen.Carrier V) -> LocalSets.Member H x -> R.Le (Absolute.abs (a x)) C }) \by coefficientBound a \then
+      \return Logic.existsIntro[Nonnegative, { C: Nonnegative \where Bound N.Nat^::zero a C }] C
+        (zero a C (\bysub(Nonnegative, { C: Nonnegative \where \forall (x: PullbackOpen.Carrier V) -> LocalSets.Member H x -> R.Le (Absolute.abs (a x)) C }, C)))
+    }
+    | succ: \fun (m: N.Nat^)(previous: \forall (a: Function) -> \exists ( C: Nonnegative \where Bound m a C ))(a: Function) => \block {
+      \takefrom C: \Cast[Nonnegative] ({ C: Nonnegative \where \forall (x: PullbackOpen.Carrier V) -> LocalSets.Member H x -> R.Le (Absolute.abs (a x)) C }) \by coefficientBound a \then
+      \let base: Bound N.Nat^::zero a C := zero a C (\bysub(Nonnegative, { C: Nonnegative \where \forall (x: PullbackOpen.Carrier V) -> LocalSets.Member H x -> R.Le (Absolute.abs (a x)) C }, C)) \then
+      \takefrom A: \Cast[Fin.Fin n -> Nonnegative] ({ A: Fin.Fin n -> Nonnegative \where first m a A }) \by
+        Choice.exists n (\fun (i: Fin.Fin n)(c: Nonnegative) => Bound m (Output.partial a i) c) (\fun (i: Fin.Fin n) => previous (Output.partial a i)) \then
+      \takefrom B: \Cast[Fin.Fin n -> Fin.Fin n -> Nonnegative] ({ B: Fin.Fin n -> Fin.Fin n -> Nonnegative \where second m a B }) \by
+        RowChoice.exists n (\fun (i: Fin.Fin n)(row: Fin.Fin n -> Nonnegative) => \forall (j: Fin.Fin n) -> Bound m (coefficient a i j) (row j))
+          (\fun (i: Fin.Fin n) => Choice.exists n (\fun (j: Fin.Fin n)(c: Nonnegative) => Bound m (coefficient a i j) c) (\fun (j: Fin.Fin n) => previous (coefficient a i j))) \then
+      \return Logic.existsIntro[Nonnegative, { c: Nonnegative \where Bound (N.Nat^::succ m) a c }]
+        (Step[m := m, a := a, C := C, base := base, A := A, B := B,
+          derivativeBounds := \bysub(Fin.Fin n -> Nonnegative, { A: Fin.Fin n -> Nonnegative \where first m a A }, A),
+          chainBounds := \bysub(Fin.Fin n -> Fin.Fin n -> Nonnegative, { B: Fin.Fin n -> Fin.Fin n -> Nonnegative \where second m a B }, B)].total)
+        (Step[m := m, a := a, C := C, base := base, A := A, B := B,
+          derivativeBounds := \bysub(Fin.Fin n -> Nonnegative, { A: Fin.Fin n -> Nonnegative \where first m a A }, A),
+          chainBounds := \bysub(Fin.Fin n -> Fin.Fin n -> Nonnegative, { B: Fin.Fin n -> Fin.Fin n -> Nonnegative \where second m a B }, B)].estimate)
+    }
+  };

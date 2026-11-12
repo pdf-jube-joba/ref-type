@@ -1,0 +1,18 @@
+\definition dimension: N.Nat^ := \root.WeightedChart[n := n].dimension;
+\import manifolds.Dimension[n := dimension].Examples[].Euclidean[] \as Euclidean;
+\import manifolds.SmoothMap[n := n, m := dimension].Between[M := M, N := Euclidean.smoothManifold] \as Maps;
+\module Block(k: N.Nat^);
+\definition blocks[k: N.Nat^]: Maps.Map := Block[k := k].map;
+\definition regions[k: N.Nat^]: \Pow M.Point := (bumps.values k).oneRegion;
+\import \root.Finite[n := n, d := dimension].On[M := M].Of[f := blocks, U := regions] \as Assembly;
+\definition separates: Assembly.BlockSeparates := \fun (k: N.Nat^)(x, y: M.Point)(member: Space.Member (regions k) x) =>
+  Block[k := k].separates x y member;
+\definition immerses: Assembly.BlockImmerses := \fun (k: N.Nat^)(x: M.Point)(member: Space.Member (regions k) x) =>
+  Block[k := k].immerses x member;
+\import Functions.Sequence[family := chartCover, bumps := bumps.values].FiniteCover[S := Space.Whole] \as Cover;
+\definition exists: \exists Result := \block {
+  \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where Space.Subset Space.Whole (Cover.region k) }) \by Cover.prefixExists compact bumps.covers \then
+  \let covered: Space.Subset Space.Whole (Assembly.region k) := \bysub(N.Nat^, { k: N.Nat^ \where Space.Subset Space.Whole (Cover.region k) }, k) \then
+  \return \exact(Result { dimension := \root.Finite[n := n, d := dimension].dimension k,
+    embedding := Assembly.Covered[k := k, result := Assembly.build separates immerses k, covers := covered, compact := compact].embedding }, Result)
+};

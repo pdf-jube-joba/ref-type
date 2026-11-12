@@ -1,0 +1,42 @@
+\import L.One[] \as One;
+\import L.Finite[p := lp_spaces.Powers[].one] \as F;
+\import L.Norm[p := lp_spaces.Powers[].one] \as Norm;
+\import E.Convolution[p := lp_spaces.Powers[].one] \as Convolution;
+\import \root.Euclidean[n := n].Convolution[] \as TestConvolution;
+\import \root.Euclidean[n := n].Regular[] \as Regular;
+\import Regular.For[f := fromIntegral left] \as Left;
+\import Regular.For[f := fromIntegral right] \as Right;
+\import functional_analysis.Metric[Carrier := F.Space] \as Metric;
+\import std.Data[].Nat[] \as N;
+\import std.Set[].Quotient[A := F.Representatives, Equivalent := \fun (f, g: F.Representatives) => M.AlmostEqual E.measure f g] \as Q;
+\definition SamePairings: \Prop := \forall (test: E.SmoothCompact) -> Left.pair test = Right.pair test;
+\definition convolve[rho: Convolution.Kernel][a: E.Point]: SamePairings -> Convolution.function (One.fromIntegral left) rho a = Convolution.function (One.fromIntegral right) rho a :=
+  \fun (same: _) => trans!{Real.Real} _ _ _
+    (Left.integralsPointwise (Convolution.section (One.fromIntegral left) rho a) (Left.representative (TestConvolution.Translate[rho := rho.function, a := a].test))
+      (\fun (x: E.Point) => \refl(Real.mul (left x) (rho.function (euclidean_measure.Euclidean[n := n].subPoint a x)))))
+    (trans!{Real.Real} _ _ _ (same (TestConvolution.Translate[rho := rho.function, a := a].test))
+      (Right.integralsPointwise (Right.representative (TestConvolution.Translate[rho := rho.function, a := a].test)) (Convolution.section (One.fromIntegral right) rho a)
+        (\fun (x: E.Point) => \refl(Real.mul (right x) (rho.function (euclidean_measure.Euclidean[n := n].subPoint a x))))));
+\import Convolution.Smoothing[identity := Convolution.approximateIdentity] \as Smoothing;
+\definition sequenceEqual[k: N.Nat^]: SamePairings -> Smoothing.value k (F.ofFunction (One.fromIntegral left)) = Smoothing.value k (F.ofFunction (One.fromIntegral right)) :=
+  \fun (same: _) => \block {
+    \let rho: Convolution.Kernel := Convolution.approximateIdentity.sequence k \then
+    \let normalized: Convolution.NormalizedLaw[rho] := Convolution.approximateIdentity.normalized k \then
+    \return trans!{F.Space} _ _ _ (Convolution.Operator[rho := rho, law := normalized].onClass (One.fromIntegral left))
+      (trans!{F.Space} _ _ _ (F.classPointwise
+        (Convolution.Operator[rho := rho, law := normalized].representative (One.fromIntegral left))
+        (Convolution.Operator[rho := rho, law := normalized].representative (One.fromIntegral right))
+        (\fun (a: E.Point) => convolve rho a same))
+        (sym!{F.Space} _ _ (Convolution.Operator[rho := rho, law := normalized].onClass (One.fromIntegral right))))
+  };
+\definition injective: SamePairings -> M.AlmostEqual E.measure left right := \fun (same: _) => \block {
+  \let a: F.Space := F.ofFunction (One.fromIntegral left) \then
+  \let b: F.Space := F.ofFunction (One.fromIntegral right) \then
+  \let equality: (\fun (k: N.Nat^) => Smoothing.value k b) = (\fun (k: N.Nat^) => Smoothing.value k a) :=
+    \axiom:funext((\fun (k: N.Nat^) => Smoothing.value k b), (\fun (k: N.Nat^) => Smoothing.value k a), \fun (k: N.Nat^) => sym!{F.Space} _ _ (sequenceEqual k same)) \then
+  \let second: Metric.Converges Norm.metric (\fun (k: N.Nat^) => Smoothing.value k a) b :=
+    \idelim (\fun (k: N.Nat^) => Smoothing.value k b) = (\fun (k: N.Nat^) => Smoothing.value k a)
+      \with sequence: (N.Nat^ -> F.Space) => Metric.Converges Norm.metric sequence b \by { base: Smoothing.convergence b, equality: equality } \then
+  \return Q.equivalentOfClassEq F.equivalence (One.fromIntegral left) (One.fromIntegral right)
+    (Metric.limitUnique Norm.metric (\fun (k: N.Nat^) => Smoothing.value k a) a b (Smoothing.convergence a) second)
+};

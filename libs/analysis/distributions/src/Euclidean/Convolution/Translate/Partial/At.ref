@@ -1,0 +1,39 @@
+\definition base: ConvE.Point := ConvE.subPoint a y;
+\definition point[t: ConvReal.Real]: ConvE.Point := ConvE.subPoint a (ConvCoordinates.replace y i t);
+\definition replaced[t: ConvReal.Real]: point t = ConvCoordinates.replace base i (ConvReal.sub (a i) t) :=
+  \axiom:funext(point t, ConvCoordinates.replace base i (ConvReal.sub (a i) t),
+    \fun (j: std.Data[].FinSet[].Fin n) => ConvLogic.orElim (i = j) (ConvLogic.Not (i = j)) _ (CTClassical.excludedMiddle (i = j))
+      (\fun (equal: _) => \idelim i = j \with k: std.Data[].FinSet[].Fin n => point t k = ConvCoordinates.replace base i (ConvReal.sub (a i) t) k \by {
+        base: trans!{ConvReal.Real} _ _ _
+          (congr!{ConvReal.Real ConvReal.Real} (ConvReal.sub (a i)) _ _ (CTPoint.replaceSame y i t))
+          (sym!{ConvReal.Real} _ _ (CTPoint.replaceSame base i (ConvReal.sub (a i) t))), equality: equal })
+      (\fun (different: _) => trans!{ConvReal.Real} _ _ _
+        (congr!{ConvReal.Real ConvReal.Real} (ConvReal.sub (a j)) _ _ (CTPoint.replaceDifferent y i j t different))
+        (sym!{ConvReal.Real} _ _ (CTPoint.replaceDifferent base i j (ConvReal.sub (a i) t) different))));
+\definition curve[t: ConvReal.Real]: ConvReal.Real := rho (point t);
+\import CTAnalysis.Section[U := ConvOpen.whole, f := ConvOpen.Restriction[].function ConvOpen.whole rho,
+  a := ConvOpen.Whole[].point base, i := i] \as CTSection;
+\definition derivative[t: ConvReal.Real]: CTDerivative.HasDerivativeAt curve t (ConvReal.neg (CTPartial.function (point t))) := \block {
+  \let shifted: ConvReal.Real -> ConvReal.Real := \fun (s: ConvReal.Real) => ConvReal.sub (a i) s \then
+  \let shiftedLaw: CTDerivative.HasDerivativeAt shifted t (ConvReal.neg ConvReal.one) :=
+    \idelim ConvReal.sub ConvReal.zero ConvReal.one = ConvReal.neg ConvReal.one \with v: ConvReal.Real => CTDerivative.HasDerivativeAt shifted t v \by {
+      base: CTDerivatives.subDerivative (\fun (_: ConvReal.Real) => a i) (\fun (s: ConvReal.Real) => s) t ConvReal.zero ConvReal.one
+        (CTBasic.constantDerivative (a i) t) (CTBasic.identityDerivative t), equality: ConvLaws.addZeroLeft (ConvReal.neg ConvReal.one) } \then
+  \let composed: ConvReal.Real -> ConvReal.Real := \fun (s: ConvReal.Real) => CTSection.value (shifted s) \then
+  \let chain: CTDerivative.HasDerivativeAt composed t (ConvReal.mul (CTPartial.function (point t)) (ConvReal.neg ConvReal.one)) :=
+    CTChain.derivative shifted CTSection.value t (ConvReal.neg ConvReal.one) (CTPartial.function (point t)) shiftedLaw
+      (CTSection.derivativeAt (shifted t) (ConvOpen.Whole[].point (point t)) (CTPartial.function (point t)) (replaced t) (CTPartial.law (ConvOpen.Whole[].point (point t)))) \then
+  \let simplified: CTDerivative.HasDerivativeAt composed t (ConvReal.neg (CTPartial.function (point t))) :=
+    \idelim ConvReal.mul (CTPartial.function (point t)) (ConvReal.neg ConvReal.one) = ConvReal.neg (CTPartial.function (point t))
+      \with v: ConvReal.Real => CTDerivative.HasDerivativeAt composed t v \by {
+        base: chain, equality: trans!{ConvReal.Real} _ _ _ (ConvLaws.fieldMulComm _ _) (CTDerivatives.negativeScale (CTPartial.function (point t))) } \then
+  \return \idelim composed = curve \with h: (ConvReal.Real -> ConvReal.Real) => CTDerivative.HasDerivativeAt h t (ConvReal.neg (CTPartial.function (point t))) \by {
+    base: simplified, equality: \axiom:funext(composed, curve, \fun (s: ConvReal.Real) =>
+      CTSection.agreement (shifted s) (ConvOpen.Whole[].point (point s)) (replaced s)) }
+};
+\definition law: CTAnalysis.HasPartialDerivativeAt ConvOpen.whole (ConvOpen.Restriction[].function ConvOpen.whole function) i (ConvOpen.Whole[].point y) (target y) :=
+  CTAnalysis.Operations[].sectionPartial ConvOpen.whole (ConvOpen.Restriction[].function ConvOpen.whole function) (ConvOpen.Whole[].point y) i curve (target y)
+    (congr!{ConvE.Point ConvReal.Real} function _ _ (CTPoint.replaceOriginal y i))
+    (\fun (t: ConvReal.Real)(x: ConvOpen.Carrier ConvOpen.whole)(equal: _) => congr!{ConvE.Point ConvReal.Real} function _ _ (sym!{ConvE.Point} _ _ equal))
+    (\idelim ConvReal.neg (CTPartial.function (point (y i))) = target y \with v: ConvReal.Real => CTDerivative.HasDerivativeAt curve (y i) v \by {
+      base: derivative (y i), equality: congr!{ConvE.Point ConvReal.Real} (\fun (z: ConvE.Point) => ConvReal.neg (CTPartial.function (ConvE.subPoint a z))) _ _ (CTPoint.replaceOriginal y i) });

@@ -1,0 +1,22 @@
+\import boundary_manifolds.Immersion[n := n, m := k].Between[M := M, N := E] \as FirstEmbeddings;
+\import boundary_manifolds.SmoothMap[n := n, m := One.dimension].Between[M := M, N := halfLine] \as Heights;
+\import boundary_manifolds.SmoothMap[n := n, m := k].Between[M := M, N := E] \as FirstMaps;
+\import boundary_manifolds.Product[n := k, m := One.dimension].Of[M := E, N := halfLine] \as Product;
+\definition dimension: std.Data[].Nat[].Nat^ := Nat.add One.dimension k;
+\import boundary_manifolds.Dimension[n := dimension] \as TargetModels;
+\definition target: TargetModels.Manifold := Product.manifold;
+\import boundary_manifolds.SmoothMap[n := n, m := dimension].Between[M := M, N := target] \as Maps;
+\import boundary_manifolds.Immersion[n := n, m := dimension].Between[M := M, N := target] \as Embeddings;
+\module Of(f: FirstMaps.Map, h: Heights.Map);
+\module ProductAt(y: Product.Point);
+\import boundary_manifolds.Tangent[n := n].On[M := M] \as SourceTangent;
+\import boundary_manifolds.Tangent[n := k].On[M := E] \as FirstTangent;
+\import boundary_manifolds.Tangent[n := One.dimension].On[M := halfLine] \as HeightTangent;
+\import boundary_manifolds.Differential[n := n, m := One.dimension].Between[M := M, N := halfLine] \as HeightDerivative;
+\import boundary_manifolds.Neat[n := n, m := One.dimension].Between[M := M, N := halfLine] \as Normal;
+\structure HeightLaws[h: Heights.Map]: \Prop := {
+  boundary: \forall (x: M.Point) -> Logic.PropEquiv[SourceTangent.At[x := x].Cones[].Boundary, HeightTangent.At[x := Heights.apply h x].Cones[].Boundary],
+  normal: \forall (x: M.Point) -> Normal.At[f := h, x := x].NormalOnto,
+  reflects: \forall (x: M.Point)(v: SourceTangent.Vector x) -> HeightTangent.At[x := Heights.apply h x].Cones[].Tangential (HeightDerivative.At[f := h, x := x].value.apply v) -> SourceTangent.At[x := x].Cones[].Tangential v,
+};
+\definition NoBoundary: \Prop := \forall (y: E.Point) -> Logic.Not FirstTangent.At[x := y].Cones[].Boundary;

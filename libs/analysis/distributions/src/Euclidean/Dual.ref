@@ -1,0 +1,60 @@
+\import N.Order[].Prop[] \as Bounds;
+\import real.Analysis[].Algebra[] \as Algebra;
+\import Real.Sequence[].Operations[] \as Limits;
+\definition dataEta[d: DistributionData]: DistributionData::# d.eval = d :=
+  (\induction (data: DistributionData) \return DistributionData::# data.eval = data \with {
+    | # : \fun (value: Test -> Real.Real) => \refl(DistributionData::# value)
+  }) d;
+\definition ext[S, T: Distribution]: (\forall (f: Test) -> S.eval f = T.eval f) -> S = T :=
+  \fun (same: _) => eq_reason_in!{DistributionData S
+    "=" { DistributionData::# S.eval } "by" { sym!{DistributionData} _ _ (dataEta S) }
+    "=" { DistributionData::# T.eval } "by" { congr!{{Test -> Real.Real} DistributionData} DistributionData::# _ _ (\axiom:funext(S.eval, T.eval, same)) }
+    "=" T "by" { dataEta T }
+  };
+\definition zero: Distribution := Distribution {
+  eval := \fun (f: Test) => Real.zero,
+  additive := \fun (f, g: Test) => sym!{Real.Real} _ _ (Laws.addZeroLeft Real.zero),
+  homogeneous := \fun (c: Real.Real)(f: Test) => sym!{Real.Real} _ _ (Laws.fieldMulZeroRight c),
+  bound := \fun (K: \Pow Point)(compact: _) => Logic.existsIntro[N.Nat^, { m: N.Nat^ \where \exists ( C: Nonnegative \where Bound (\fun (f: Test) => Real.zero) K m C ) }] N.Nat^::zero
+    (Logic.existsIntro[Nonnegative, { C: Nonnegative \where Bound (\fun (f: Test) => Real.zero) K N.Nat^::zero C }]
+      (\into[Real.Real](Real.zero, Nonnegative) \by { R.leRefl Real.zero })
+      (\fun (f: Test)(supported: _)(b: Nonnegative)(bounded: _) =>
+        R.leReplace _ _ _ _ (sym!{Real.Real} _ _ (Real.Distance[].distanceSelf Real.zero)) (sym!{Real.Real} _ _ (Laws.fieldMulZeroLeft b)) (R.leRefl Real.zero))),
+};
+\module Scaling(c: Real.Real, T: Distribution);
+\definition scale[c: Real.Real][T: Distribution]: Distribution := Scaling[c := c, T := T].value;
+\definition negative[T: Distribution]: Distribution := scale (Real.neg Real.one) T;
+\module Sum(S, T: Distribution);
+\definition add[S, T: Distribution]: Distribution := Sum[S := S, T := T].value;
+\module Derivative(T: Distribution, i: Fin.Fin n);
+\definition partial[T: Distribution][i: Fin.Fin n]: Distribution := Derivative[T := T, i := i].value;
+\definition derivative: Directions -> Distribution -> Distribution := \induction (d: Directions) \return Distribution -> Distribution \with {
+  | nil: \fun (T: Distribution) => T
+  | cons: \fun (i: Fin.Fin n)(tail: Directions)(previous: Distribution -> Distribution)(T: Distribution) => partial (previous T) i
+};
+\definition Converges[sequence: N.Nat^ -> Distribution][T: Distribution]: \Prop :=
+  \forall (f: Test) -> Sequence.Converges (\fun (k: N.Nat^) => (sequence k).eval f) (T.eval f);
+\definition partialConverges[sequence: N.Nat^ -> Distribution][T: Distribution][i: Fin.Fin n]: Converges sequence T ->
+  Converges (\fun (k: N.Nat^) => partial (sequence k) i) (partial T i) :=
+  \fun (converges: _)(f: Test) => Limits.scaleConverges (Real.neg Real.one)
+    (\fun (k: N.Nat^) => (sequence k).eval (Tests.partial f i)) (T.eval (Tests.partial f i)) (converges (Tests.partial f i));
+\definition derivativesConverge: \forall (d: Directions)(sequence: N.Nat^ -> Distribution)(T: Distribution) -> Converges sequence T ->
+  Converges (\fun (k: N.Nat^) => derivative d (sequence k)) (derivative d T) :=
+  \induction (d: Directions) \return \forall (sequence: N.Nat^ -> Distribution)(T: Distribution) -> Converges sequence T ->
+    Converges (\fun (k: N.Nat^) => derivative d (sequence k)) (derivative d T) \with {
+      | nil: \fun (sequence: N.Nat^ -> Distribution)(T: Distribution)(converges: _) => converges
+      | cons: \fun (i: Fin.Fin n)(tail: Directions)(previous: _)(sequence: N.Nat^ -> Distribution)(T: Distribution)(converges: _) =>
+        partialConverges (\fun (k: N.Nat^) => derivative tail (sequence k)) (derivative tail T) i (previous sequence T converges)
+    };
+\definition partialAdd[S, T: Distribution][i: Fin.Fin n]: partial (add S T) i = add (partial S i) (partial T i) :=
+  ext (partial (add S T) i) (add (partial S i) (partial T i)) (\fun (f: Test) => Laws.fieldMulAdd (Real.neg Real.one) (S.eval (Tests.partial f i)) (T.eval (Tests.partial f i)));
+\definition partialScale[c: Real.Real][T: Distribution][i: Fin.Fin n]: partial (scale c T) i = scale c (partial T i) :=
+  ext (partial (scale c T) i) (scale c (partial T i)) (\fun (f: Test) => Algebra.mulSwap (Real.neg Real.one) c (T.eval (Tests.partial f i)));
+\definition partialCommute[T: Distribution][i, j: Fin.Fin n]: partial (partial T i) j = partial (partial T j) i :=
+  ext (partial (partial T i) j) (partial (partial T j) i) (\fun (f: Test) => congr!{Test Real.Real}
+    (\fun (g: Test) => Real.mul (Real.neg Real.one) (Real.mul (Real.neg Real.one) (T.eval g))) _ _
+    (\root.Euclidean[n := n].JetBounds[].commute f j i));
+\definition convergesUnique[sequence: N.Nat^ -> Distribution][S, T: Distribution]: Converges sequence S -> Converges sequence T -> S = T :=
+  \fun (left: _)(right: _) => ext S T (\fun (f: Test) => Sequence.limitUnique
+    (\fun (k: N.Nat^) => (sequence k).eval f) (S.eval f) (T.eval f) (left f) (right f));
+\module JetFormula(T: Distribution);

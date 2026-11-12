@@ -1,0 +1,39 @@
+\definition a: Real.Real := Absolute.abs (t f);
+\definition positive: R.Lt Real.zero a := R.leLtTrans _ _ _
+  (Laws.fieldMulNonnegative coefficient b (lp_spaces.Powers[].baseNonnegative coefficient) (lp_spaces.Powers[].baseNonnegative b)) contrary;
+\definition nonzero: Logic.Not (a = Real.zero) :=
+  \fun (equal: _) => Order.ltNotEq Real.zero a positive (sym!{Real.Real} _ _ equal);
+\definition c: Real.Real := Laws.fieldInv a;
+\definition cPositive: R.Lt Real.zero c := Absolute.invPositive a positive;
+\definition cNonnegative: R.Le Real.zero c := Order.leOfLt _ _ cPositive;
+\definition cbSmall: R.Lt (Real.mul c b) delta :=
+  R.ltReplaceRight _ (Real.mul c (Real.mul delta a)) delta
+    (eq_reason_in!{Real.Real _
+      "=" _ "by" { Algebra.mulSwap c delta a }
+      "=" _ "by" { congr!{Real.Real Real.Real} (Real.mul delta) _ _ (Laws.fieldInverseNonzero a nonzero) }
+      "=" _ "by" { Algebra.mulOneRight delta }
+    })
+    (Absolute.mulStrict c b (Real.mul delta a) cPositive
+      (R.ltReplaceLeft _ b _ (cancel b) (Absolute.mulStrict delta (Real.mul coefficient b) a control.positive contrary)));
+\definition scaled: Test := Tests.scale c f;
+\definition scaledSupported: Supported K scaled := Sets.subsetTrans _ _ _ (Tests.scaleSupport c f) supported;
+\definition scaledNear: Near Tests.zero scaled m delta :=
+  \fun (d: Directions)(order: _)(x: Point) => R.leTrans _ (Real.mul c b) delta
+    (R.leReplaceLeft _ _ _
+      (sym!{Real.Real} _ _ (eq_reason_in!{Real.Real _
+        "=" _ "by" { congr!{Test Real.Real} (\fun (h: Test) => Real.distance (h x) (Tests.jet d scaled x)) _ _ (Tests.jetZero d) }
+        "=" _ "by" { congr!{Test Real.Real} (\fun (h: Test) => Absolute.abs (h x)) _ _ (Tests.jetScale d c f) }
+        "=" _ "by" { Absolute.absProduct c (Tests.jet d f x) }
+        "=" _ "by" { congr!{Real.Real Real.Real} (\fun (r: Real.Real) => Real.mul r (Absolute.abs (Tests.jet d f x))) _ _ (Absolute.absOfNonnegative c cNonnegative) }
+      }))
+      (Estimates.mulMonotone c _ b cNonnegative (jets d order x)))
+    (Order.leOfLt _ _ cbSmall);
+\definition scaledValue: Real.distance (t Tests.zero) (t scaled) = Real.one :=
+  eq_reason_in!{Real.Real _
+    "=" _ "by" { congr!{Real.Real Real.Real Real.Real} Real.distance _ _ _ _ evalZero (homogeneous c f) }
+    "=" _ "by" { Absolute.absProduct c (t f) }
+    "=" _ "by" { congr!{Real.Real Real.Real} (\fun (r: Real.Real) => Real.mul r a) _ _ (Absolute.absOfNonnegative c cNonnegative) }
+    "=" _ "by" { Laws.fieldInverseNonzero a nonzero }
+  };
+\definition contradiction: Logic.False := R.ltIrrefl Real.one
+  (R.ltReplaceLeft _ Real.one Real.one scaledValue (control.small scaled scaledSupported scaledNear));

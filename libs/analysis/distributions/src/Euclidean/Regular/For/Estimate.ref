@@ -1,0 +1,19 @@
+\definition local: I.Representatives := restrict K f;
+\definition coefficient: E.Nonnegative := \into[Real.Real](I.integral (Absolute.representative local), E.Nonnegative) \by { Absolute.absoluteIntegralNonnegative local };
+\definition dominator: I.Representatives := Scaling.representative c (Absolute.representative local);
+\definition dominated[x: E.Point]: R.Le (Product.abs (integrand test x)) (dominator x) :=
+  Logic.orElim _ _ _ (Classical.excludedMiddle (Sets.Member K x))
+    (\fun (member: _) => R.leReplace _ _ _ _
+      (sym!{Real.Real} _ _ (Product.absProduct (f x) (test x)))
+      (trans!{Real.Real} _ _ _ (Laws.fieldMulComm (Product.abs (f x)) c)
+        (congr!{Real.Real Real.Real} (Real.mul c) _ _ (sym!{Real.Real} _ _ (congr!{Real.Real Real.Real} Product.abs _ _ (inside K f x member)))))
+      (Estimates.mulMonotone (Product.abs (f x)) (Product.abs (test x)) c (Product.absNonnegative (f x)) (bound x)))
+    (\fun (absent: _) => R.leReplaceLeft Real.zero _ _
+      (sym!{Real.Real} _ _ (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} Product.abs _ _
+        (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (Real.mul (f x)) _ _ (Support.zeroOutsideSupport Ambient.topology test x (\fun (member: _) => absent (within x member)))) (Laws.fieldMulZeroRight (f x))))
+        (Distance.distanceSelf Real.zero)))
+      (Laws.fieldMulNonnegative c (Product.abs (local x)) (lp_spaces.Powers[].baseNonnegative c) (Product.absNonnegative (local x))));
+\definition inequality: R.Le (Product.abs (pair test)) (Real.mul coefficient c) :=
+  R.leTrans _ _ _ (Absolute.integralAbsBound (representative test))
+    (R.leReplaceRight _ _ _ (trans!{Real.Real} _ _ _ (Scaling.integralScale c (Absolute.representative local)) (Laws.fieldMulComm c coefficient))
+      (Absolute.integralMono (Absolute.representative (representative test)) dominator dominated));

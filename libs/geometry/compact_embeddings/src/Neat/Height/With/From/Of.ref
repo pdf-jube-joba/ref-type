@@ -1,0 +1,41 @@
+\definition outer: S.Real := S.mul S.half width.radius;
+\definition outerPositive: R.Lt S.zero outer := Estimates.halfOfPositive width.radius width.positive;
+\definition outerSmall: R.Lt outer width.radius := Estimates.halfStrict width.radius width.positive;
+\definition outerBounded: R.Lt outer S.one := R.ltLeTrans outer width.radius S.one outerSmall width.bounded;
+\definition middle: S.Real := S.mul S.half outer;
+\definition middlePositive: R.Lt S.zero middle := Estimates.halfOfPositive outer outerPositive;
+\definition middleSmall: R.Lt middle outer := Estimates.halfStrict outer outerPositive;
+\definition radius: S.Real := S.mul S.half middle;
+\definition radiusPositive: R.Lt S.zero radius := Estimates.halfOfPositive middle middlePositive;
+\definition within: \forall (t: Time.Point) -> R.Lt (Time.value t) outer -> \In[Time.Point] construction.regular.uniform.neighborhood t :=
+  \fun (t: Time.Point)(small: R.Lt (Time.value t) outer) => width.within t (Order.ltTrans (Time.value t) outer width.radius small outerSmall);
+\import \root.Neat[n := n].Clamp[r := radius, positive := radiusPositive] \as Clamp;
+\definition twiceMiddle: Clamp.twice = middle := Estimates.halfTwice middle;
+\definition twiceSmall: R.Lt Clamp.twice outer := R.ltReplaceLeft middle Clamp.twice outer (sym!{S.Real} _ _ twiceMiddle) middleSmall;
+\import manifold_gluing.CollarWindow[n := n].On[M := M].With[cover := cover].From[deformation := construction.deformation].Of[regular := construction.regular].At[
+  a := outer, positive := outerPositive, bounded := outerBounded, within := within] \as Window;
+\import Window.Core[r := Clamp.twice, positive := Clamp.twicePositive, small := twiceSmall] \as Core;
+\import manifold_gluing.CollarRestriction[n := n].On[M := M].With[cover := cover].From[deformation := construction.deformation].Of[regular := construction.regular].Within[
+  V := Window.points, open := Window.open, inside := Window.inside] \as Chart;
+\import manifold_gluing.OpenManifold[n := Nat.add One.dimension n].On[M := M].Within[U := Chart.image, open := Chart.imageOpen] \as Source;
+\import calculus.Maps[n := One.dimension, m := One.dimension] \as Calculus;
+\definition timeAmbient: Calculus.Map Time.domain Open.whole := Calculus.Map[Time.domain, Open.whole] {
+  apply := \fun (t: Open.Carrier Time.domain) => \into[LineModel.Point]((\fun (i: One.Index) => Clamp.value (t One.index)), Open.whole.points) \by { \refl(\fun (i: One.Index) => Clamp.value (t One.index)) },
+  smooth := \fun (i: One.Index) => Open.Restriction[].localSmooth Time.domain Open.whole (\fun (u: LineModel.Point)(member: _) => \refl(u))
+    (\fun (t: Open.Carrier Open.whole) => Clamp.value (t One.index)) Clamp.smooth,
+};
+\definition preserves: \forall (t: Time.Point) -> LineModel.Nonnegative constraints (Calculus.apply Time.domain Open.whole timeAmbient t) :=
+  \fun (t: Time.Point) => LineModel.halfSpaceNonnegative One.index (Calculus.apply Time.domain Open.whole timeAmbient t) (Clamp.nonnegative (Time.value t) (Time.nonnegative t));
+\definition timeMap: boundary_manifolds.SmoothMap[n := One.dimension, m := One.dimension].Between[M := Time.manifold, N := halfLine].Map :=
+  boundary_manifolds.QuadrantMap[n := One.dimension, m := One.dimension].Of[C := Time.constraints, D := constraints, U := Time.domain, V := Open.whole, f := timeAmbient, preserves := preserves].map;
+\import manifold_gluing.ProductMaps[n := n, m := One.dimension].Of[M := BoundaryModel.manifold, N := Time.manifold] \as Projections;
+\definition collarTime: boundary_manifolds.SmoothMap[n := Nat.add One.dimension n, m := One.dimension].Between[M := Source.manifold, N := Time.manifold].Map :=
+  boundary_manifolds.MapComposition[n := Nat.add One.dimension n, m := Nat.add One.dimension n, l := One.dimension].Between[M := Source.manifold, N := Product.manifold, P := Time.manifold].Of[f := Chart.inverseMap, g := Projections.Second[].map].map;
+\definition localMap: boundary_manifolds.SmoothMap[n := Nat.add One.dimension n, m := One.dimension].Between[M := Source.manifold, N := halfLine].Map :=
+  boundary_manifolds.MapComposition[n := Nat.add One.dimension n, m := One.dimension, l := One.dimension].Between[M := Source.manifold, N := Time.manifold, P := halfLine].Of[f := collarTime, g := timeMap].map;
+\definition constantPoint: Ray.Point := \into[Open.Carrier Open.whole](\into[LineModel.Point]((\fun (i: One.Index) => Clamp.twice), Open.whole.points) \by { \refl(\fun (i: One.Index) => Clamp.twice) }, LineModel.region constraints Open.whole) \by {
+  LineModel.halfSpaceNonnegative One.index (\fun (i: One.Index) => Clamp.twice) (Order.leOfLt S.zero Clamp.twice Clamp.twicePositive)
+};
+\import \root.Neat[n := Nat.add One.dimension n].Constant[M := M, c := constantPoint] \as Constant;
+\import manifold_gluing.OpenManifold[n := Nat.add One.dimension n].On[M := Product.manifold].Within[U := Window.points, open := Window.open] \as Parameters;
+\module Compact(compact: Space.IsCompact M.space);

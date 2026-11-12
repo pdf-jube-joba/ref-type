@@ -1,0 +1,27 @@
+\import boundary_manifolds.SmoothMap[n := n, m := k].Between[M := M, N := N] \as FirstMaps;
+\import boundary_manifolds.SmoothMap[n := k, m := l].Between[M := N, N := P] \as SecondMaps;
+\import boundary_manifolds.SmoothMap[n := n, m := l].Between[M := M, N := P] \as Maps;
+\import manifold_gluing.SmoothChainRule[n := n, m := k, l := l].Between[M := M, N := N, P := P].Of[f := f, g := g] \as Chain;
+\definition map: Maps.Map := Chain.map;
+\import topology.Topology[Carrier := M.Point] \as SourceSpace;
+\import topology.Topology[Carrier := N.Point] \as MiddleSpace;
+\import topology.Topology[Carrier := P.Point] \as TargetSpace;
+\import topology.Continuity[A := M.Point, B := N.Point] \as F;
+\import topology.Continuity[A := N.Point, B := P.Point] \as G;
+\import topology.Continuity[A := M.Point, B := P.Point] \as H;
+\module At(x: M.Point);
+\definition injective: \forall (x, y: M.Point) -> Maps.apply map x = Maps.apply map y -> x = y := \fun (x, y: M.Point)(equal: Maps.apply map x = Maps.apply map y) =>
+  (First.embeddingLaws f).injective x y ((Second.embeddingLaws g).injective (FirstMaps.apply f x) (FirstMaps.apply f y) equal);
+\definition openLift: \forall (S: \Pow M.Point) -> SourceSpace.IsOpenIn M.space S ->
+  \exists ( U: \Pow P.Point \where Logic.And[TargetSpace.IsOpenIn P.space U, H.Preimage (Maps.apply map) U = S] ) := \block {
+  \fun (S: \Pow M.Point)(open: SourceSpace.IsOpenIn M.space S) \then
+  \takefrom V: \Cast[\Pow N.Point] ({ V: \Pow N.Point \where Logic.And[MiddleSpace.IsOpenIn N.space V, F.Preimage (FirstMaps.apply f) V = S] }) \by (First.embeddingLaws f).openLift S open \then
+  \let first: Logic.And[MiddleSpace.IsOpenIn N.space V, F.Preimage (FirstMaps.apply f) V = S] := \bysub(\Pow N.Point, { V: \Pow N.Point \where Logic.And[MiddleSpace.IsOpenIn N.space V, F.Preimage (FirstMaps.apply f) V = S] }, V) \then
+  \takefrom U: \Cast[\Pow P.Point] ({ U: \Pow P.Point \where Logic.And[TargetSpace.IsOpenIn P.space U, G.Preimage (SecondMaps.apply g) U = V] }) \by (Second.embeddingLaws g).openLift V first.left \then
+  \let second: Logic.And[TargetSpace.IsOpenIn P.space U, G.Preimage (SecondMaps.apply g) U = V] := \bysub(\Pow P.Point, { U: \Pow P.Point \where Logic.And[TargetSpace.IsOpenIn P.space U, G.Preimage (SecondMaps.apply g) U = V] }, U) \then
+  \return Logic.existsIntro[\Pow P.Point, { U: \Pow P.Point \where Logic.And[TargetSpace.IsOpenIn P.space U, H.Preimage (Maps.apply map) U = S] }] U
+    (Logic.And[_, _]::# second.left (trans!{\Pow M.Point} _ _ _ (congr!{\Pow N.Point \Pow M.Point} (F.Preimage (FirstMaps.apply f)) _ _ second.right) first.right))
+};
+\definition embedding: Result.Embedding := \into[Maps.Map](map, Result.Embedding) \by {
+  Result.EmbeddingLaws[map] { immersion := \fun (x: M.Point) => At[x := x].immersion, injective := injective, openLift := openLift }
+};
