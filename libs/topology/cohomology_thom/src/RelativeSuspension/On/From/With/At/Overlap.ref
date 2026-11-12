@@ -1,0 +1,17 @@
+\use std.Logic[].Equality[].eq_reason_in;
+\import SourceComposition.On[f := SourcePairs.forwardMap SourceCover.pair, g := SourceMiddle.forward].With[coefficients := coefficients] \as SourceProject;
+\import TargetComposition.On[f := TargetPairs.forwardMap TargetCover.pair, g := TargetMiddle.forward].With[coefficients := coefficients] \as TargetProject;
+\import SourceOverlap.Maps[B := A].Over[target := source, targetSubset := subset].On[f := sourceProjection].Integer[].With[coefficients := coefficients].At[z := z] \as SourcePull;
+\import TargetOverlap.Maps[B := B].Over[target := target, targetSubset := part].On[f := targetProjection].Integer[].With[coefficients := coefficients].At[z := z] \as TargetPull;
+\import BaseMaps.On[f := f].Integer[].With[coefficients := coefficients].At[z := z] \as BasePull;
+\import TargetOverlap.Maps[B := MV.Overlap].Over[target := MV.overlapTopology, targetSubset := MV.overlapPart].On[f := CoverMapAction.overlapMap].Integer[].With[coefficients := coefficients].At[z := z] \as OverlapPull;
+\import singular_cohomology.Relative[A := A, source := source, subset := subset].With[coefficients := coefficients].At[z := z] \as Input;
+\import TargetOverlap.With[coefficients := coefficients].At[z := z] \as Output;
+\definition law: \forall (q: Input.Carrier) -> OverlapPull.induced.apply (SourceCover.With[coefficients := coefficients].Degree[z := z].overlapIsomorphism.forward.apply q) =
+  TargetCover.With[coefficients := coefficients].Degree[z := z].overlapIsomorphism.forward.apply (BasePull.induced.apply q) :=
+  \fun (q: Input.Carrier) => eq_reason_in!{Output.Carrier _
+    "=" _ "by" { congr!{{SourceOverlap.With[coefficients := coefficients].At[z := z].Carrier} Output.Carrier} OverlapPull.induced.apply _ _ (sym!{{SourceOverlap.With[coefficients := coefficients].At[z := z].Carrier}} _ _ (SourceProject.law z q)) }
+    "=" _ "by" { sym!{Output.Carrier} _ _ (OverlapComposition.With[coefficients := coefficients].law z q) }
+    "=" _ "by" { BaseComposition.With[coefficients := coefficients].law z q }
+    "=" _ "by" { TargetProject.law z (BasePull.induced.apply q) }
+  };

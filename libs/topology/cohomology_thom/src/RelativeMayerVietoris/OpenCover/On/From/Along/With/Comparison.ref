@@ -1,0 +1,91 @@
+\use std.Logic[].Equality[].eq_reason_in;
+\import singular_cohomology.Relative[A := A, source := source, subset := subset] \as Whole;
+\import Hom.Integer[P := Whole.complex, N := coefficients] \as SourceWhole;
+\import Hom.Integer[P := Domain.complex, N := coefficients] \as TargetWhole;
+\import WholeChain.With[coefficients := coefficients] \as WholePull;
+\import singular_subdivision.OpenCover[A := A, source := source].On[cover := Cover.openCover].Subspace[subset := subset].Relative[].With[coefficients := coefficients] \as SourceComparison;
+\import singular_subdivision.OpenCover[A := B, source := target].On[cover := OtherCover.openCover].Subspace[subset := part].Relative[].With[coefficients := coefficients] \as TargetComparison;
+\import \root.RelativeMayerVietoris[].HomSum[C := L.complex, D := R.complex, coefficients := coefficients] \as SourceCoordinates;
+\import \root.RelativeMayerVietoris[].HomSum[C := OtherL.complex, D := OtherR.complex, coefficients := coefficients] \as TargetCoordinates;
+\import LeftChain.With[coefficients := coefficients] \as LeftPull;
+\import SourceLeftWhole.With[coefficients := coefficients] \as SourceLeftPull;
+\import OtherLeftWhole.With[coefficients := coefficients] \as TargetLeftPull;
+\import Hom.Integer[P := OtherL.complex, N := coefficients] \as TargetLeftHom;
+\definition leftSum: \forall (z: I.Int^)(h: SourceSum.Carrier z) ->
+  TargetCoordinates.firstProjection.apply z (SumPull.map.apply z h) = LeftPull.pullback.apply z (SourceCoordinates.firstProjection.apply z h) :=
+  \fun (z: I.Int^)(h: SourceSum.Carrier z) => TargetLeftHom.At[z := z].ext
+    (TargetCoordinates.firstProjection.apply z (SumPull.map.apply z h))
+    (LeftPull.pullback.apply z (SourceCoordinates.firstProjection.apply z h))
+    (\fun (x: OtherL.Carrier z) => congr!{{Sum.Carrier z} coefficients.Carrier} h.apply _ _ (firstInjection z x));
+\definition leftWhole: \forall (z: I.Int^)(h: SourceWhole.Carrier z) ->
+  TargetLeftPull.pullback.apply z (WholePull.pullback.apply z h) = LeftPull.pullback.apply z (SourceLeftPull.pullback.apply z h) :=
+  \fun (z: I.Int^)(h: SourceWhole.Carrier z) => TargetLeftHom.At[z := z].ext (TargetLeftPull.pullback.apply z (WholePull.pullback.apply z h)) (LeftPull.pullback.apply z (SourceLeftPull.pullback.apply z h))
+    (\fun (x: OtherL.Carrier z) => congr!{{Whole.Carrier z} coefficients.Carrier} h.apply _ _ (leftWholeSquare z x));
+\import RightChain.With[coefficients := coefficients] \as RightPull;
+\import SourceRightWhole.With[coefficients := coefficients] \as SourceRightPull;
+\import OtherRightWhole.With[coefficients := coefficients] \as TargetRightPull;
+\import Hom.Integer[P := OtherR.complex, N := coefficients] \as TargetRightHom;
+\definition rightSum: \forall (z: I.Int^)(h: SourceSum.Carrier z) ->
+  TargetCoordinates.secondProjection.apply z (SumPull.map.apply z h) = RightPull.pullback.apply z (SourceCoordinates.secondProjection.apply z h) :=
+  \fun (z: I.Int^)(h: SourceSum.Carrier z) => TargetRightHom.At[z := z].ext
+    (TargetCoordinates.secondProjection.apply z (SumPull.map.apply z h))
+    (RightPull.pullback.apply z (SourceCoordinates.secondProjection.apply z h))
+    (\fun (x: OtherR.Carrier z) => congr!{{Sum.Carrier z} coefficients.Carrier} h.apply _ _ (secondInjection z x));
+\definition rightWhole: \forall (z: I.Int^)(h: SourceWhole.Carrier z) ->
+  TargetRightPull.pullback.apply z (WholePull.pullback.apply z h) = RightPull.pullback.apply z (SourceRightPull.pullback.apply z h) :=
+  \fun (z: I.Int^)(h: SourceWhole.Carrier z) => TargetRightHom.At[z := z].ext (TargetRightPull.pullback.apply z (WholePull.pullback.apply z h)) (RightPull.pullback.apply z (SourceRightPull.pullback.apply z h))
+    (\fun (x: OtherR.Carrier z) => congr!{{Whole.Carrier z} coefficients.Carrier} h.apply _ _ (rightWholeSquare z x));
+
+\module Degree(z: I.Int^) {
+  \definition left: \forall (h: SourceWhole.Carrier z) -> TargetCoordinates.firstProjection.apply z (SumPull.map.apply z (SourceSequence.sequence.inclusion.apply z (SourceComparison.restriction.apply z h))) =
+    TargetCoordinates.firstProjection.apply z (TargetSequence.sequence.inclusion.apply z (TargetComparison.restriction.apply z (WholePull.pullback.apply z h))) :=
+    \fun (h: SourceWhole.Carrier z) => eq_reason_in!{{TargetLeftHom.Carrier z} _
+      "=" _ "by" { leftSum z (SourceSequence.sequence.inclusion.apply z (SourceComparison.restriction.apply z h)) }
+      "=" _ "by" { congr!{{Hom.Integer[P := L.complex, N := coefficients].Carrier z} {TargetLeftHom.Carrier z}} (LeftPull.pullback.apply z) _ _ (SourceSequence.Coordinates[].At[z := z].left h) }
+      "=" _ "by" { sym!{{TargetLeftHom.Carrier z}} _ _ (leftWhole z h) }
+      "=" _ "by" { sym!{{TargetLeftHom.Carrier z}} _ _ (TargetSequence.Coordinates[].At[z := z].left (WholePull.pullback.apply z h)) }
+    };
+  \definition right: \forall (h: SourceWhole.Carrier z) -> TargetCoordinates.secondProjection.apply z (SumPull.map.apply z (SourceSequence.sequence.inclusion.apply z (SourceComparison.restriction.apply z h))) =
+    TargetCoordinates.secondProjection.apply z (TargetSequence.sequence.inclusion.apply z (TargetComparison.restriction.apply z (WholePull.pullback.apply z h))) :=
+    \fun (h: SourceWhole.Carrier z) => eq_reason_in!{{TargetRightHom.Carrier z} _
+      "=" _ "by" { rightSum z (SourceSequence.sequence.inclusion.apply z (SourceComparison.restriction.apply z h)) }
+      "=" _ "by" { congr!{{Hom.Integer[P := R.complex, N := coefficients].Carrier z} {TargetRightHom.Carrier z}} (RightPull.pullback.apply z) _ _ (SourceSequence.Coordinates[].At[z := z].right h) }
+      "=" _ "by" { sym!{{TargetRightHom.Carrier z}} _ _ (rightWhole z h) }
+      "=" _ "by" { sym!{{TargetRightHom.Carrier z}} _ _ (TargetSequence.Coordinates[].At[z := z].right (WholePull.pullback.apply z h)) }
+    };
+  \definition law: \forall (h: SourceWhole.Carrier z) -> smallMap.apply z (SourceComparison.restriction.apply z h) = TargetComparison.restriction.apply z (WholePull.pullback.apply z h) :=
+    \fun (h: SourceWhole.Carrier z) => TargetSequence.sequence.injective z _ _
+      (trans!{{TargetSum.Carrier z}} _ _ _ (Lift.At[z := z].inclusion (SourceComparison.restriction.apply z h))
+        (TargetCoordinates.ext z _ _ (left h) (right h)));
+}
+
+\module Cohomology(z: I.Int^) {
+  \import Cochains.At[C := SourceWhole.complex, z := z] \as Input;
+  \import Cochains.At[C := TargetSmall.complex, z := z] \as Output;
+  \import Cochains.At[C := TargetWhole.complex, z := z] \as WholeOutput;
+  \import Cochains.At[C := SourceSmall.complex, z := z] \as SmallInput;
+  \import Cochains.Map[C := SourceWhole.complex, D := SourceSmall.complex].At[k := z] \as SourceAction;
+  \import Cochains.Map[C := TargetWhole.complex, D := TargetSmall.complex].At[k := z] \as TargetAction;
+  \import Cochains.Map[C := SourceSmall.complex, D := TargetSmall.complex].At[k := z] \as SmallAction;
+  \import Cochains.Map[C := SourceWhole.complex, D := TargetWhole.complex].At[k := z] \as WholeAction;
+  \definition sourceIso: _ := SourceComparison.At[z := z].isomorphism;
+  \definition targetIso: _ := TargetComparison.At[z := z].isomorphism;
+  \definition small: _ := SmallAction.induced smallMap;
+  \definition whole: _ := WholeAction.induced WholePull.pullback;
+  \definition onClasses: \forall (h: Input.Closed) -> small.apply (sourceIso.forward.apply (Input.classOf h)) = targetIso.forward.apply (whole.apply (Input.classOf h)) :=
+    \fun (h: Input.Closed) => eq_reason_in!{Output.Cohomology _
+      "=" _ "by" { congr!{SmallInput.Cohomology Output.Cohomology} small.apply _ _ (SourceAction.onClass SourceComparison.restriction h) }
+      "=" _ "by" { SmallAction.onClass smallMap ((SourceAction.cyclesMap SourceComparison.restriction).apply h) }
+      "=" _ "by" { congr!{Output.Closed Output.Cohomology} Output.classOf ((SmallAction.cyclesMap smallMap).apply ((SourceAction.cyclesMap SourceComparison.restriction).apply h)) ((TargetAction.cyclesMap TargetComparison.restriction).apply ((WholeAction.cyclesMap WholePull.pullback).apply h)) (\parent.Degree[z := z].law h) }
+      "=" _ "by" { sym!{Output.Cohomology} _ _ (TargetAction.onClass TargetComparison.restriction ((WholeAction.cyclesMap WholePull.pullback).apply h)) }
+      "=" _ "by" { congr!{WholeOutput.Cohomology Output.Cohomology} targetIso.forward.apply _ _ (sym!{WholeOutput.Cohomology} _ _ (WholeAction.onClass WholePull.pullback h)) }
+    };
+  \definition law: \forall (x: Input.Cohomology) -> small.apply (sourceIso.forward.apply x) = targetIso.forward.apply (whole.apply x) :=
+    Input.classInduction (\fun (x: Input.Cohomology) => small.apply (sourceIso.forward.apply x) = targetIso.forward.apply (whole.apply x)) onClasses;
+  \definition inverse: \forall (x: SmallInput.Cohomology) -> targetIso.backward.apply (small.apply x) = whole.apply (sourceIso.backward.apply x) :=
+    \fun (x: SmallInput.Cohomology) => eq_reason_in!{WholeOutput.Cohomology _
+      "=" _ "by" { congr!{SmallInput.Cohomology WholeOutput.Cohomology} (\fun (v: SmallInput.Cohomology) => targetIso.backward.apply (small.apply v)) _ _ (sym!{SmallInput.Cohomology} _ _ (sourceIso.rightInverse x)) }
+      "=" _ "by" { congr!{Output.Cohomology WholeOutput.Cohomology} targetIso.backward.apply _ _ (law (sourceIso.backward.apply x)) }
+      "=" _ "by" { targetIso.leftInverse (whole.apply (sourceIso.backward.apply x)) }
+    };
+}

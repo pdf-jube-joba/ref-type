@@ -80,3 +80,6 @@ H^p(X;R)\longrightarrow H^{p+n}(X\times D^n,X\times\partial D^n;R),\qquad
 
 `LocalDisk.On.Change[K, L, ring, targetRing, morphism].canonical n` は係数環の単位的準同型が全ランクの局所 Thom 類を保つことを示す。
 `LocalDisk.On.Step.ChangeCoefficients.law` は円板の次数上昇同型と係数加群の変更の自然性を与える。
+
+`RelativeMayerVietoris.OpenCover.On.From.Along.With.Ordinary[z].law` は被覆を保つ対写像に対する通常の相対接続写像の自然性を与える。
+`RelativeSuspension.On.From.With.At[z].law` は相対懸垂同型と対写像の引き戻しの可換性を示す。
