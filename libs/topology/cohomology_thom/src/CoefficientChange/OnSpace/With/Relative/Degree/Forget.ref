@@ -1,0 +1,17 @@
+\import Cochains.At[C := SourceRelative.complex, z := I.Int^::ofNat n] \as Domain;
+\import Cochains.At[C := TargetRelative.complex, z := I.Int^::ofNat n] \as TargetDomain;
+\import SourcePair.Comparison[n := n].Cohomology[] \as Left;
+\import TargetPair.Comparison[n := n].Cohomology[] \as Right;
+\import Nonnegative.At[C := SourceOrdinary.complex, k := n] \as SourceH;
+\import Nonnegative.At[C := TargetOrdinary.complex, k := n] \as Output;
+\import \root.CoefficientChange[].OnSpace[A := A, source := source, R := R, S := S, ring := ring, targetRing := targetRing].With[morphism := morphism].Degree[n := n] \as OrdinaryChange;
+\definition onClasses: \forall (h: Domain.Closed) -> Right.map.apply (map.apply (Domain.classOf h)) = OrdinaryChange.map.apply (Left.map.apply (Domain.classOf h)) :=
+  \fun (h: Domain.Closed) => eq_reason_in!{Output.Cohomology _
+    "=" _ "by" { congr!{TargetDomain.Cohomology Output.Cohomology} Right.map.apply _ _ (onClass h) }
+    "=" _ "by" { Right.onClass (cycles.apply h) }
+    "=" _ "by" { Output.equalClass (Right.cycle (cycles.apply h)) (OrdinaryChange.cycles.apply (Left.cycle h)) (\parent.\parent.Compare[n := n].law h) }
+    "=" _ "by" { sym!{Output.Cohomology} _ _ (OrdinaryChange.onClass (Left.cycle h)) }
+    "=" _ "by" { congr!{SourceH.Cohomology Output.Cohomology} OrdinaryChange.map.apply _ _ (sym!{SourceH.Cohomology} _ _ (Left.onClass h)) }
+  };
+\definition law: \forall (q: Domain.Cohomology) -> Right.map.apply (map.apply q) = OrdinaryChange.map.apply (Left.map.apply q) :=
+  Domain.classInduction (\fun (q: Domain.Cohomology) => Right.map.apply (map.apply q) = OrdinaryChange.map.apply (Left.map.apply q)) onClasses;

@@ -1,0 +1,28 @@
+\import Nonnegative.At[C := SourceOrdinary.complex, k := p] \as P;
+\import Nonnegative.At[C := TargetOrdinary.complex, k := p] \as TargetP;
+\import Cochains.At[C := SourceRelative.complex, z := I.Int^::ofNat q] \as Q;
+\import Cochains.At[C := TargetRelative.complex, z := I.Int^::ofNat q] \as TargetQ;
+\import Cochains.At[C := SourceRelative.complex, z := I.Int^::ofNat total] \as SourceOutput;
+\import Cochains.At[C := TargetRelative.complex, z := I.Int^::ofNat total] \as Output;
+\import SourcePair.Cohomology[p := p, q := q].Right[] \as SourceProduct;
+\import TargetPair.Cohomology[p := p, q := q].Right[] \as TargetProduct;
+\import \root.CoefficientChange[].OnSpace[A := A, source := source, R := R, S := S, ring := ring, targetRing := targetRing].With[morphism := morphism].Degree[n := p] \as OrdinaryChange;
+\import Cochains.Map[C := SourceRelative.complex, D := TargetRelative.complex].At[k := I.Int^::ofNat total] \as Result;
+\import Cochains.Map[C := SourceRelative.complex, D := TargetRelative.complex].At[k := I.Int^::ofNat q] \as Input;
+\definition onClasses: \forall (a: P.CycleCarrier)(b: Q.Closed) ->
+  (Result.induced cochainMap).apply (SourceProduct.apply (P.classOf a) (Q.classOf b)) =
+  TargetProduct.apply (OrdinaryChange.map.apply (P.classOf a)) ((Input.induced cochainMap).apply (Q.classOf b)) :=
+  \fun (a: P.CycleCarrier)(b: Q.Closed) => eq_reason_in!{Output.Cohomology _
+    "=" _ "by" { congr!{SourceOutput.Cohomology Output.Cohomology} (Result.induced cochainMap).apply _ _ (SourceProduct.onClasses a b) }
+    "=" _ "by" { Result.onClass cochainMap (SourceProduct.cycle a b) }
+    "=" _ "by" { congr!{Output.Closed Output.Cohomology} Output.classOf
+      ((Result.cyclesMap cochainMap).apply (SourceProduct.cycle a b))
+      (TargetProduct.cycle (OrdinaryChange.cycles.apply a) ((Input.cyclesMap cochainMap).apply b)) (law a b) }
+    "=" _ "by" { sym!{Output.Cohomology} _ _ (TargetProduct.onClasses (OrdinaryChange.cycles.apply a) ((Input.cyclesMap cochainMap).apply b)) }
+    "=" _ "by" { congr!{TargetP.Cohomology TargetQ.Cohomology Output.Cohomology} TargetProduct.apply _ _ _ _
+      (sym!{TargetP.Cohomology} _ _ (OrdinaryChange.onClass a)) (sym!{TargetQ.Cohomology} _ _ (Input.onClass cochainMap b)) }
+  };
+\definition law: \forall (a: P.Cohomology)(b: Q.Cohomology) ->
+  (Result.induced cochainMap).apply (SourceProduct.apply a b) = TargetProduct.apply (OrdinaryChange.map.apply a) ((Input.induced cochainMap).apply b) :=
+  P.classInduction (\fun (a: P.Cohomology) => \forall (b: Q.Cohomology) -> (Result.induced cochainMap).apply (SourceProduct.apply a b) = TargetProduct.apply (OrdinaryChange.map.apply a) ((Input.induced cochainMap).apply b))
+    (\fun (a: P.CycleCarrier) => Q.classInduction (\fun (b: Q.Cohomology) => (Result.induced cochainMap).apply (SourceProduct.apply (P.classOf a) b) = TargetProduct.apply (OrdinaryChange.map.apply (P.classOf a)) ((Input.induced cochainMap).apply b)) (onClasses a));

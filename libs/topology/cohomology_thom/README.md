@@ -54,3 +54,8 @@
 `RelativeMayerVietoris.OpenCover.On.With.Coordinates.Cohomology[z].law` は列の制限写像を通常の二つの対写像による制限と同定する。
 `Coordinates.Difference[z].law` は次の写像を共通部分への制限の差と同定する。
 `Cohomology.Gluing[z].Ordinary` は通常の制限が一致する二つの局所類から、共通部分の直前の群の消滅を用いて一意な貼り合わせを構成し、`left`、`right`、`unique` を公開する。
+
+`CoefficientChange.OnSpace[A, source, R, S, ring, targetRing].Morphism` は整数線形な係数写像と積・単位の保存からなる環準同型である。
+`With[morphism].Cup.Cohomology.law` と `Relative[subset].Cup.Cohomology.law` は絶対・相対 cup 積との整合性を示す。
+`Unit.law`、`Along.Degree.law`、`Relative.Degree.Forget.law` はそれぞれ単位類、空間の引き戻し、相対条件を忘れる写像との可換式である。
+`RelativeMayerVietoris.OpenCover.On.ChangeCoefficients.At.law` と `RelativeSuspension.On.Covering.ChangeCoefficients.At.law` は接続写像および相対懸垂同型の係数変更自然性を示す。
