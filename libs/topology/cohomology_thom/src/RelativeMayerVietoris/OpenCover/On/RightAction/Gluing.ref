@@ -1,0 +1,28 @@
+\use std.Logic[].Equality[].eq_reason_in;
+\import std.Logic[].Equality[].Transport[A := N.Nat^] \as Transport;
+\import \parent.Native[p := p, q := q] \as Lower;
+\import \parent.Native[p := N.Nat^::succ p, q := q] \as Upper;
+\import \parent.Restriction[q := q] \as Restriction;
+\import SourceCover.Cohomology[coefficients := WholeProduct.integerCoefficients] \as SourceMV;
+\import \root.RelativeMayerVietoris[].OpenCover[A := A, source := source, subset := subset].On[cover := cover].Cohomology[coefficients := WholeProduct.integerCoefficients] \as TargetMV;
+\definition upperDegree: N.Nat^ := N.Nat^::succ Lower.total;
+\definition same: Upper.total = upperDegree := N.Basic[].Prop[].addSuccLeft p q;
+\definition Comparisons[k: N.Nat^]: \Set := \parent.Diagram[d := I.Int^::ofNat (N.Nat^::succ p), k := I.Int^::ofNat k].Comparison;
+\definition upper[u: Restriction.Cycle]: Comparisons upperDegree := Transport.cast Comparisons Upper.total upperDegree same (Upper.comparison u);
+\definition Local[k: N.Nat^][c: Comparisons k]: \Prop := \parent.Diagram[d := I.Int^::ofNat (N.Nat^::succ p), k := I.Int^::ofNat k].LocalIsomorphisms[c];
+\definition upperLocal[u: Restriction.Cycle][local: Local Upper.total (Upper.comparison u)]: Local upperDegree (upper u) :=
+  Transport.predicate Comparisons Local Upper.total upperDegree same (Upper.comparison u) local;
+\definition Whole[k: N.Nat^]: \Set := TargetMV.Degree[z := I.Int^::ofNat k].whole.Carrier;
+\definition Value: \Set := SourceMV.Degree[z := I.Int^::ofNat (N.Nat^::succ p)].whole.Carrier;
+\definition evaluate[k: N.Nat^][c: Comparisons k][a: Value]: Whole k := c.whole.apply a;
+\definition onValue: \forall (u: Restriction.Cycle)(a: Value) -> (upper u).whole.apply a = Transport.cast Whole Upper.total upperDegree same ((Upper.comparison u).whole.apply a) :=
+  \fun (u: Restriction.Cycle)(a: Value) => sym!{{Whole upperDegree}} _ _
+    (Transport.natural Comparisons Whole (\fun (k: N.Nat^)(c: Comparisons k) => evaluate k c a) Upper.total upperDegree same (Upper.comparison u));
+\import \parent.Connecting[p := p, q := q].Whole[] \as Connecting;
+\import SourceMV.At[z := I.Int^::ofNat p] \as Input;
+\import TargetMV.At[z := I.Int^::ofNat Lower.total] \as Output;
+\definition connecting: \forall (u: Restriction.Cycle)(a: SourceMV.Degree[z := I.Int^::ofNat p].intersection.Carrier) ->
+  (upper u).whole.apply (Input.connecting.apply a) = Output.connecting.apply ((Lower.comparison u).overlap.apply a) :=
+  \fun (u: Restriction.Cycle)(a: SourceMV.Degree[z := I.Int^::ofNat p].intersection.Carrier) => trans!{{Whole upperDegree}} _ _ _
+    (onValue u (Input.connecting.apply a)) (sym!{{Whole upperDegree}} _ _ (Connecting.law u a));
+\module With(u: Restriction.Cycle);

@@ -1,0 +1,51 @@
+\import Family.With[data := bundle] \as Charts;
+\import topology.Topology[Carrier := X] \as BaseSpace;
+\definition frame[x: \Cast[X] U]: Charts.Frame c.dimension x := c.frame (\into[X](x, c.domain) \by { contained x (\bysub(X, U, x)) });
+\definition data: Charts.ChartData := Charts.ChartData { domain := U, dimension := c.dimension, frame := frame };
+\import Charts.In[c := data] \as NewCoordinates;
+\import BaseSpace.Subspace[S := U] \as NewBase;
+\import topology.Topology[Carrier := Family.Point].Subspace[S := { p: Family.Point \where BaseSpace.Member U p.base }] \as NewTotal;
+\definition intoOriginal[p: NewCoordinates.TotalPoint]: Coordinates.TotalPoint := \into[Family.Point](p, { p: Family.Point \where BaseSpace.Member c.domain p.base }) \by {
+  contained p.base (\bysub(Family.Point, { p: Family.Point \where BaseSpace.Member U p.base }, p))
+};
+\definition intoOriginalContinuous: topology.Continuity[A := NewCoordinates.TotalPoint, B := Coordinates.TotalPoint].Continuous NewCoordinates.localTopology Coordinates.localTopology intoOriginal :=
+  topology.Continuity[A := NewCoordinates.TotalPoint, B := Family.Point].Corestriction[S := { p: Family.Point \where BaseSpace.Member c.domain p.base }].corestrictContinuous NewCoordinates.localTopology bundle.totalSpace intoOriginal
+    (topology.Continuity[A := NewCoordinates.TotalPoint, B := Family.Point].Corestriction[S := { p: Family.Point \where BaseSpace.Member U p.base }].inclusionContinuous bundle.totalSpace);
+\definition projectionContinuous: topology.Continuity[A := NewCoordinates.TotalPoint, B := NewCoordinates.BasePoint].Continuous NewCoordinates.localTopology (NewBase.topology bundle.baseSpace) NewCoordinates.base :=
+  topology.Continuity[A := NewCoordinates.TotalPoint, B := X].Corestriction[S := U].corestrictContinuous NewCoordinates.localTopology bundle.baseSpace NewCoordinates.base
+    (topology.Continuity[A := Family.Point, B := X].Restriction[S := { p: Family.Point \where BaseSpace.Member U p.base }].restrictContinuous bundle.totalSpace bundle.baseSpace Family.projection Bundle.projectionContinuous);
+\import topological_constructions.Product[A := Coordinates.BasePoint, B := Euclidean.Coordinate] \as OldProduct;
+\import topological_constructions.Product[A := NewCoordinates.BasePoint, B := Euclidean.Coordinate] \as NewProduct;
+\definition vectorContinuous: topology.Continuity[A := NewCoordinates.TotalPoint, B := Euclidean.Coordinate].Continuous NewCoordinates.localTopology Euclidean.topology
+  (\fun (p: NewCoordinates.TotalPoint) => (frame (NewCoordinates.base p)).forward.apply p.vector) :=
+  topology.Composition[A := NewCoordinates.TotalPoint, B := Coordinates.ProductPoint, C := Euclidean.Coordinate].composeContinuous NewCoordinates.localTopology Coordinates.productTopology Euclidean.topology
+    (\fun (p: NewCoordinates.TotalPoint) => Coordinates.forward (intoOriginal p)) (Pair.second Coordinates.BasePoint Euclidean.Coordinate)
+    (topology.Composition[A := NewCoordinates.TotalPoint, B := Coordinates.TotalPoint, C := Coordinates.ProductPoint].composeContinuous NewCoordinates.localTopology Coordinates.localTopology Coordinates.productTopology intoOriginal Coordinates.forward intoOriginalContinuous (Bundle.chartLaws c).forwardContinuous)
+    (OldProduct.Maps[].secondContinuous baseTopology Euclidean.topology);
+\definition forwardContinuous: topology.Continuity[A := NewCoordinates.TotalPoint, B := NewCoordinates.ProductPoint].Continuous NewCoordinates.localTopology NewCoordinates.productTopology NewCoordinates.forward :=
+  NewProduct.Universal[X := NewCoordinates.TotalPoint].pairContinuous NewCoordinates.localTopology (NewBase.topology bundle.baseSpace) Euclidean.topology NewCoordinates.base
+    (\fun (p: NewCoordinates.TotalPoint) => (frame (NewCoordinates.base p)).forward.apply p.vector) projectionContinuous vectorContinuous;
+\definition toBase[x: NewCoordinates.BasePoint]: Coordinates.BasePoint := \into[X](x, c.domain) \by { contained x (\bysub(X, U, x)) };
+\definition toBaseContinuous: topology.Continuity[A := NewCoordinates.BasePoint, B := Coordinates.BasePoint].Continuous (NewBase.topology bundle.baseSpace) baseTopology toBase :=
+  topology.Continuity[A := NewCoordinates.BasePoint, B := X].Corestriction[S := c.domain].corestrictContinuous (NewBase.topology bundle.baseSpace) bundle.baseSpace toBase
+    (topology.Continuity[A := NewCoordinates.BasePoint, B := X].Corestriction[S := U].inclusionContinuous bundle.baseSpace);
+\definition toProduct[p: NewCoordinates.ProductPoint]: Coordinates.ProductPoint := Pair.pair Coordinates.BasePoint Euclidean.Coordinate
+  (toBase (Pair.first NewCoordinates.BasePoint Euclidean.Coordinate p)) (Pair.second NewCoordinates.BasePoint Euclidean.Coordinate p);
+\definition toProductContinuous: topology.Continuity[A := NewCoordinates.ProductPoint, B := Coordinates.ProductPoint].Continuous NewCoordinates.productTopology Coordinates.productTopology toProduct :=
+  OldProduct.Universal[X := NewCoordinates.ProductPoint].pairContinuous NewCoordinates.productTopology baseTopology Euclidean.topology
+    (\fun (p: NewCoordinates.ProductPoint) => toBase (Pair.first NewCoordinates.BasePoint Euclidean.Coordinate p)) (Pair.second NewCoordinates.BasePoint Euclidean.Coordinate)
+    (topology.Composition[A := NewCoordinates.ProductPoint, B := NewCoordinates.BasePoint, C := Coordinates.BasePoint].composeContinuous NewCoordinates.productTopology (NewBase.topology bundle.baseSpace) baseTopology
+      (Pair.first NewCoordinates.BasePoint Euclidean.Coordinate) toBase (NewProduct.Maps[].firstContinuous (NewBase.topology bundle.baseSpace) Euclidean.topology) toBaseContinuous)
+    (NewProduct.Maps[].secondContinuous (NewBase.topology bundle.baseSpace) Euclidean.topology);
+\definition backwardAmbientContinuous: topology.Continuity[A := NewCoordinates.ProductPoint, B := Family.Point].Continuous NewCoordinates.productTopology bundle.totalSpace (\fun (p: NewCoordinates.ProductPoint) => NewCoordinates.backward p) :=
+  topology.Composition[A := NewCoordinates.ProductPoint, B := Coordinates.TotalPoint, C := Family.Point].composeContinuous NewCoordinates.productTopology Coordinates.localTopology bundle.totalSpace
+    (\fun (p: NewCoordinates.ProductPoint) => Coordinates.backward (toProduct p)) (\fun (p: Coordinates.TotalPoint) => p)
+    (topology.Composition[A := NewCoordinates.ProductPoint, B := Coordinates.ProductPoint, C := Coordinates.TotalPoint].composeContinuous NewCoordinates.productTopology Coordinates.productTopology Coordinates.localTopology toProduct Coordinates.backward toProductContinuous (Bundle.chartLaws c).backwardContinuous)
+    (topology.Continuity[A := Coordinates.TotalPoint, B := Family.Point].Corestriction[S := { p: Family.Point \where BaseSpace.Member c.domain p.base }].inclusionContinuous bundle.totalSpace);
+\definition laws: NewCoordinates.Laws := NewCoordinates.Laws {
+  baseOpen := open,
+  totalOpen := Bundle.projectionContinuous U open,
+  forwardContinuous := forwardContinuous,
+  backwardContinuous := topology.Continuity[A := NewCoordinates.ProductPoint, B := Family.Point].Corestriction[S := { p: Family.Point \where BaseSpace.Member U p.base }].corestrictContinuous NewCoordinates.productTopology bundle.totalSpace (\fun (p: NewCoordinates.ProductPoint) => NewCoordinates.backward p) backwardAmbientContinuous
+};
+\definition chart: Charts.Chart := \into[Charts.ChartData](data, Charts.Chart) \by { laws };

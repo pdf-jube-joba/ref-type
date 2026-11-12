@@ -1,0 +1,103 @@
+\definition total: N.Nat^ := N.Basic[].Def[].add p q;
+\import \root.RelativeMayerVietoris[].OpenCover[A := A, source := source, subset := subset].On[cover := cover].RightAction[K := K, ring := ring] \as Action;
+\import Action.Diagram[d := I.Int^::ofNat p, k := I.Int^::ofNat total] \as Diagram;
+\import Action.Restriction[q := q] \as Restriction;
+\import \root.RelativeAction[A := A, source := source, subset := subset, K := K, ring := ring] \as WholeAction;
+\import \root.RelativeAction[A := Left, source := leftTopology, subset := leftPart, K := K, ring := ring] \as LeftAction;
+\import \root.RelativeAction[A := Right, source := rightTopology, subset := rightPart, K := K, ring := ring] \as RightAction;
+\import \root.RelativeAction[A := Overlap, source := overlapTopology, subset := overlapPart, K := K, ring := ring] \as OverlapAction;
+\import WholeAction.Degree[p := p, q := q] \as W;
+\import LeftAction.Degree[p := p, q := q] \as LC;
+\import RightAction.Degree[p := p, q := q] \as RC;
+\import OverlapAction.Degree[p := p, q := q] \as OC;
+\import WholeAction.Along[B := Left, target := leftTopology, part := leftPart, f := leftPairMap] \as WL;
+\import WholeAction.Along[B := Right, target := rightTopology, part := rightPart, f := rightPairMap] \as WR;
+\import LeftAction.Along[B := Overlap, target := overlapTopology, part := overlapPart, f := toLeft] \as LO;
+\import RightAction.Along[B := Overlap, target := overlapTopology, part := overlapPart, f := toRight] \as RO;
+\import \root.RelativePullback[].On[A := Left, source := leftTopology, subset := leftPart, R := K, ring := ring].To[B := A, target := source, part := subset].Along[f := leftPairMap] \as WLPull;
+\import \root.RelativePullback[].On[A := Left, source := leftTopology, subset := topology.Topology[Carrier := Left].Empty, R := K, ring := ring].To[B := A, target := source, part := topology.Topology[Carrier := A].Empty].Along[f := WL.emptyMap] \as WLEmptyPull;
+\import \root.RelativePullback[].On[A := Right, source := rightTopology, subset := rightPart, R := K, ring := ring].To[B := A, target := source, part := subset].Along[f := rightPairMap] \as WRPull;
+\import \root.RelativePullback[].On[A := Right, source := rightTopology, subset := topology.Topology[Carrier := Right].Empty, R := K, ring := ring].To[B := A, target := source, part := topology.Topology[Carrier := A].Empty].Along[f := WR.emptyMap] \as WREmptyPull;
+\import \root.RelativePullback[].On[A := Overlap, source := overlapTopology, subset := overlapPart, R := K, ring := ring].To[B := Left, target := leftTopology, part := leftPart].Along[f := toLeft] \as LOPull;
+\import \root.RelativePullback[].On[A := Overlap, source := overlapTopology, subset := topology.Topology[Carrier := Overlap].Empty, R := K, ring := ring].To[B := Left, target := leftTopology, part := topology.Topology[Carrier := Left].Empty].Along[f := LO.emptyMap] \as LOEmptyPull;
+\import \root.RelativePullback[].On[A := Overlap, source := overlapTopology, subset := overlapPart, R := K, ring := ring].To[B := Right, target := rightTopology, part := rightPart].Along[f := toRight] \as ROPull;
+\import \root.RelativePullback[].On[A := Overlap, source := overlapTopology, subset := topology.Topology[Carrier := Overlap].Empty, R := K, ring := ring].To[B := Right, target := rightTopology, part := topology.Topology[Carrier := Right].Empty].Along[f := RO.emptyMap] \as ROEmptyPull;
+\import IntegerCochains.At[C := WholeRelative.complex, z := I.Int^::ofNat q] \as WH;
+\import IntegerCochains.At[C := LeftHom.complex, z := I.Int^::ofNat q] \as LH;
+\import IntegerCochains.At[C := RightHom.complex, z := I.Int^::ofNat q] \as RH;
+\import IntegerCochains.At[C := OverlapHom.complex, z := I.Int^::ofNat q] \as OH;
+\import IntegerCochains.Map[C := LeftHom.complex, D := OverlapHom.complex].At[k := I.Int^::ofNat q] \as LeftRestrictionAction;
+\definition factor[u: Restriction.Cycle]: W.Factor := WH.classOf u;
+\definition leftFactor[u: Restriction.Cycle]: LC.Factor := LH.classOf (Restriction.leftCycle u);
+\definition rightFactor[u: Restriction.Cycle]: RC.Factor := RH.classOf (Restriction.rightCycle u);
+\definition overlapCycle[u: Restriction.Cycle]: OH.Closed := (LeftRestrictionAction.cyclesMap LeftPull.pullback).apply (Restriction.leftCycle u);
+\definition overlapFactor[u: Restriction.Cycle]: OC.Factor := OH.classOf (overlapCycle u);
+\definition leftValue: \forall (u: Restriction.Cycle) -> WLPull.Degree[n := q].map.apply (factor u) = leftFactor u :=
+  \fun (u: Restriction.Cycle) => WLPull.Degree[n := q].onClass u;
+\definition rightValue: \forall (u: Restriction.Cycle) -> WRPull.Degree[n := q].map.apply (factor u) = rightFactor u :=
+  \fun (u: Restriction.Cycle) => WRPull.Degree[n := q].onClass u;
+\definition overlapLeftValue: \forall (u: Restriction.Cycle) -> LOPull.Degree[n := q].map.apply (leftFactor u) = overlapFactor u :=
+  \fun (u: Restriction.Cycle) => LOPull.Degree[n := q].onClass (Restriction.leftCycle u);
+\definition overlapRightValue: \forall (u: Restriction.Cycle) -> ROPull.Degree[n := q].map.apply (rightFactor u) = overlapFactor u :=
+  \fun (u: Restriction.Cycle) => trans!{OC.Factor} _ _ _
+    (ROPull.Degree[n := q].onClass (Restriction.rightCycle u))
+    (congr!{OH.Closed OC.Factor} OH.classOf (ROPull.Degree[n := q].cycles.apply (Restriction.rightCycle u)) (overlapCycle u) (sym!{OH.Closed} (overlapCycle u) (ROPull.Degree[n := q].cycles.apply (Restriction.rightCycle u)) (Restriction.agree u)));
+\import Modules.Biproduct[V := LC.Domain, W := RC.Domain, left := LC.domainSpace, right := RC.domainSpace] \as SourcePair;
+\import Modules.Biproduct[V := LC.Range, W := RC.Range, left := LC.rangeSpace, right := RC.rangeSpace] \as TargetPair;
+\import std.Data[].Pair[].Prop[A := LC.Range, B := RC.Range] \as PairEquality;
+\import Modules.Hom[V := SourcePair.Carrier, W := TargetPair.Carrier, source := SourcePair.space, target := TargetPair.space] \as PairMaps;
+\definition pairMap[u: Restriction.Cycle]: PairMaps.Map := PairMaps.Map {
+  apply := \fun (a: SourcePair.Carrier) => TargetPair.make (LC.apply (leftFactor u) (SourcePair.first a)) (RC.apply (rightFactor u) (SourcePair.second a)),
+  addition := \fun (a, b: SourcePair.Carrier) => PairEquality.ext _ _ ((LC.integerMap (leftFactor u)).addition (SourcePair.first a) (SourcePair.first b)) ((RC.integerMap (rightFactor u)).addition (SourcePair.second a) (SourcePair.second b)),
+  scalar := \fun (r: I.Int^)(a: SourcePair.Carrier) => PairEquality.ext _ _ ((LC.integerMap (leftFactor u)).scalar r (SourcePair.first a)) ((RC.integerMap (rightFactor u)).scalar r (SourcePair.second a))
+};
+\definition data[u: Restriction.Cycle]: Diagram.Data := Diagram.Data {
+  whole := W.integerMap (factor u), pair := pairMap u, overlap := OC.integerMap (overlapFactor u)
+};
+\import SourceCover.With[coefficients := WholeProduct.integerCoefficients].Coordinates[].Cohomology[z := I.Int^::ofNat p] \as SourceRestriction;
+\import MV.Coordinates[].Cohomology[z := I.Int^::ofNat total] \as TargetRestriction;
+\import SourceCover.Cohomology[coefficients := WholeProduct.integerCoefficients].At[z := I.Int^::ofNat p] \as SourceMV;
+\import \root.RelativeMayerVietoris[].OpenCover[A := A, source := source, subset := subset].On[cover := cover].Cohomology[coefficients := WholeProduct.integerCoefficients].At[z := I.Int^::ofNat total] \as TargetMV;
+\definition restriction: \forall (u: Restriction.Cycle)(a: W.Domain) -> (pairMap u).apply (SourceMV.restriction.apply a) = TargetMV.restriction.apply (W.apply (factor u) a) :=
+  \fun (u: Restriction.Cycle)(a: W.Domain) => eq_reason_in!{TargetPair.Carrier _
+    "=" _ "by" { congr!{SourcePair.Carrier TargetPair.Carrier} (pairMap u).apply _ _ (SourceRestriction.law a) }
+    "=" _ "by" { PairEquality.ext _ _
+      (trans!{LC.Range} _ _ _
+        (congr!{LC.Factor LC.Range} (\fun (v: LC.Factor) => LC.apply v (WLEmptyPull.Degree[n := p].map.apply a)) _ _ (sym!{LC.Factor} _ _ (leftValue u)))
+        (sym!{LC.Range} _ _ (WL.Degree[p := p, q := q].law (factor u) a)))
+      (trans!{RC.Range} _ _ _
+        (congr!{RC.Factor RC.Range} (\fun (v: RC.Factor) => RC.apply v (WREmptyPull.Degree[n := p].map.apply a)) _ _ (sym!{RC.Factor} _ _ (rightValue u)))
+        (sym!{RC.Range} _ _ (WR.Degree[p := p, q := q].law (factor u) a))) }
+    "=" _ "by" { sym!{TargetPair.Carrier} _ _ (TargetRestriction.law (W.apply (factor u) a)) }
+  };
+\import SourceCover.With[coefficients := WholeProduct.integerCoefficients].Coordinates[].Difference[z := I.Int^::ofNat p] \as SourceDifference;
+\import MV.Coordinates[].Difference[z := I.Int^::ofNat total] \as TargetDifference;
+\import Modules.Hom[V := OC.Domain, W := OC.Range, source := OC.domainSpace, target := OC.rangeSpace] \as OverlapMaps;
+\definition leftNaturality: \forall (u: Restriction.Cycle)(a: LC.Domain) ->
+  OC.apply (overlapFactor u) (LOEmptyPull.Degree[n := p].map.apply a) = LOPull.Degree[n := total].map.apply (LC.apply (leftFactor u) a) :=
+  \fun (u: Restriction.Cycle)(a: LC.Domain) => trans!{OC.Range} _ _ _
+    (congr!{OC.Factor OC.Range} (\fun (v: OC.Factor) => OC.apply v (LOEmptyPull.Degree[n := p].map.apply a)) _ _ (sym!{OC.Factor} _ _ (overlapLeftValue u)))
+    (sym!{OC.Range} _ _ (LO.Degree[p := p, q := q].law (leftFactor u) a));
+\definition rightNaturality: \forall (u: Restriction.Cycle)(a: RC.Domain) ->
+  OC.apply (overlapFactor u) (ROEmptyPull.Degree[n := p].map.apply a) = ROPull.Degree[n := total].map.apply (RC.apply (rightFactor u) a) :=
+  \fun (u: Restriction.Cycle)(a: RC.Domain) => trans!{OC.Range} _ _ _
+    (congr!{OC.Factor OC.Range} (\fun (v: OC.Factor) => OC.apply v (ROEmptyPull.Degree[n := p].map.apply a)) _ _ (sym!{OC.Factor} _ _ (overlapRightValue u)))
+    (sym!{OC.Range} _ _ (RO.Degree[p := p, q := q].law (rightFactor u) a));
+\definition differenceOnPair: \forall (u: Restriction.Cycle)(a: LC.Domain)(b: RC.Domain) ->
+  OC.apply (overlapFactor u) (SourceMV.difference.apply (SourcePair.make a b)) = TargetMV.difference.apply ((pairMap u).apply (SourcePair.make a b)) :=
+  \fun (u: Restriction.Cycle)(a: LC.Domain)(b: RC.Domain) => eq_reason_in!{OC.Range _
+    "=" _ "by" { congr!{OC.Domain OC.Range} (OC.apply (overlapFactor u)) _ _ (SourceDifference.law a b) }
+    "=" _ "by" { (OC.integerMap (overlapFactor u)).addition (LOEmptyPull.Degree[n := p].map.apply a) (OC.domainSpace.neg (ROEmptyPull.Degree[n := p].map.apply b)) }
+    "=" _ "by" { congr!{OC.Range OC.Range} (OC.rangeSpace.add (OC.apply (overlapFactor u) (LOEmptyPull.Degree[n := p].map.apply a))) _ _ (OverlapMaps.negativePreserved (OC.integerMap (overlapFactor u)) (ROEmptyPull.Degree[n := p].map.apply b)) }
+    "=" _ "by" { congr!{OC.Range OC.Range OC.Range} (\fun (c, e: OC.Range) => OC.rangeSpace.add c (OC.rangeSpace.neg e)) _ _ _ _ (leftNaturality u a) (rightNaturality u b) }
+    "=" _ "by" { sym!{OC.Range} _ _ (TargetDifference.law (LC.apply (leftFactor u) a) (RC.apply (rightFactor u) b)) }
+  };
+\definition difference: \forall (u: Restriction.Cycle)(a: SourcePair.Carrier) -> OC.apply (overlapFactor u) (SourceMV.difference.apply a) = TargetMV.difference.apply ((pairMap u).apply a) :=
+  \fun (u: Restriction.Cycle)(a: SourcePair.Carrier) => \idelim SourcePair.make (SourcePair.first a) (SourcePair.second a) = a
+    \with b: SourcePair.Carrier => OC.apply (overlapFactor u) (SourceMV.difference.apply b) = TargetMV.difference.apply ((pairMap u).apply b)
+    \by { base: differenceOnPair u (SourcePair.first a) (SourcePair.second a), equality: std.Data[].Pair[].Prop[A := LC.Domain, B := RC.Domain].eta a };
+\definition comparison[u: Restriction.Cycle]: Diagram.Comparison := \into[Diagram.Data](data u, Diagram.Comparison) \by {
+  Diagram.Laws[data u] { restriction := restriction u, difference := difference u }
+};
+
+\module Isomorphisms(u: Restriction.Cycle);

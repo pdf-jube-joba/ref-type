@@ -1,0 +1,34 @@
+\use std.Logic[].Equality[].eq_reason_in;
+\import std.Logic[].Proposition[] \as Logic;
+\import Modules.Hom[V := Input.whole.Carrier, W := Output.whole.Carrier, source := Input.whole.space, target := Output.whole.space] \as WholeMaps;
+\import Modules.Hom[V := Input.intersection.Carrier, W := Output.intersection.Carrier, source := Input.intersection.space, target := Output.intersection.space] \as OverlapMaps;
+\definition SourceDetection: \Prop := \forall (a, b: Input.whole.Carrier) -> InputMaps.restriction.apply a = InputMaps.restriction.apply b -> a = b;
+\definition TargetDetection: \Prop := \forall (a, b: Output.whole.Carrier) -> OutputMaps.restriction.apply a = OutputMaps.restriction.apply b -> a = b;
+\definition injective[source: SourceDetection][local: LocalIsomorphisms[c]]: Modules.Injective Input.whole Output.whole c.whole :=
+  \fun (a, b: Input.whole.Carrier)(same: c.whole.apply a = c.whole.apply b) => source a b
+    (local.pairInjective _ _ (eq_reason_in!{Output.directSum.Carrier _
+      "=" _ "by" { (laws c).restriction a }
+      "=" _ "by" { congr!{Output.whole.Carrier Output.directSum.Carrier} OutputMaps.restriction.apply _ _ same }
+      "=" _ "by" { sym!{Output.directSum.Carrier} _ _ ((laws c).restriction b) }
+    }));
+\definition surjective[target: TargetDetection][local: LocalIsomorphisms[c]]: Modules.Surjective Input.whole Output.whole c.whole := \block {
+  \fun (b: Output.whole.Carrier) \then
+  \takefrom y: \Cast[Input.directSum.Carrier] ({ y: Input.directSum.Carrier \where c.pair.apply y = OutputMaps.restriction.apply b }) \by local.pairSurjective (OutputMaps.restriction.apply b) \then
+  \let reaches: c.pair.apply y = OutputMaps.restriction.apply b := \bysub(Input.directSum.Carrier, { y: Input.directSum.Carrier \where c.pair.apply y = OutputMaps.restriction.apply b }, y) \then
+  \let closed: InputMaps.difference.apply y = Input.intersection.space.zero := local.overlapInjective _ _
+    (eq_reason_in!{Output.intersection.Carrier _
+      "=" _ "by" { (laws c).difference y }
+      "=" _ "by" { congr!{Output.directSum.Carrier Output.intersection.Carrier} OutputMaps.difference.apply _ _ reaches }
+      "=" _ "by" { OutputMaps.exactAtSum.zero b }
+      "=" _ "by" { sym!{Output.intersection.Carrier} _ _ (OverlapMaps.zeroPreserved c.overlap) }
+    }) \then
+  \takefrom a: \Cast[Input.whole.Carrier] ({ a: Input.whole.Carrier \where InputMaps.restriction.apply a = y }) \by InputMaps.exactAtSum.kernelImage y closed \then
+  \return Logic.existsIntro[Input.whole.Carrier, { a: Input.whole.Carrier \where c.whole.apply a = b }] a
+    (target (c.whole.apply a) b (eq_reason_in!{Output.directSum.Carrier _
+      "=" _ "by" { sym!{Output.directSum.Carrier} _ _ ((laws c).restriction a) }
+      "=" _ "by" { congr!{Input.directSum.Carrier Output.directSum.Carrier} c.pair.apply _ _ (\bysub(Input.whole.Carrier, { a: Input.whole.Carrier \where InputMaps.restriction.apply a = y }, a)) }
+      "=" _ "by" reaches
+    }))
+};
+\definition isomorphism[source: SourceDetection][target: TargetDetection][local: LocalIsomorphisms[c]]: _ :=
+  Modules.Isomorphism[V := Input.whole.Carrier, W := Output.whole.Carrier, source := Input.whole.space, target := Output.whole.space].OfBijective[f := c.whole].isomorphism (injective source local) (surjective target local);

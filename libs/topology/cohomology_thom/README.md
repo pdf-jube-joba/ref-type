@@ -107,3 +107,11 @@ H^p(X;R)\longrightarrow H^{p+n}(X\times D^n,X\times\partial D^n;R),\qquad
 `RelativeMayerVietoris.OpenCover.On.Cohomology.Vanishing[z].whole` は二つの部分と共通部分の直前次数の消滅から全体の消滅を示す。
 `Thom.Real.For.With.Coefficients.ProjectionIso[p]` は円板束の射影による絶対コホモロジー同型を公開する。
 `Chart.Open.Ring.Degree[p].ordinaryIsomorphism` は開円板対の絶対コホモロジーからの cup 同型であり、`Chart.Open.Additive.Negative[k].zero` はランク未満の全次数の消滅を与える。
+
+`RelativeAction[A, source, subset, K, ring].Degree[p, q]` は空の境界を持つ相対群から、固定した相対類との右 cup 積を取る写像を与える。
+`integerMap` と `ringMap` は同じ写像の整数線形・係数環線形な構造で、`Along.Degree.law` は対写像による引き戻しとの可換性を示す。
+
+`RelativeMayerVietoris.OpenCover.On.RightAction.Native[p, q]` は通常の相対群における制限・差写像の cup 積比較図式を構成する。
+`Diagram` はこの図式の次数をまとめて移すための構造であり、`Five` は Mayer–Vietoris 列から実際の五項完全列を構成する。
+`Gluing[p, q].With[u].isomorphism` は左右と共通部分での局所同型から、次数 \(p+1\) における cup 積の同型を導く。
+`Zero[q].With[u].isomorphism` は直前の共通部分の群の消滅を用いて次数0を扱う。

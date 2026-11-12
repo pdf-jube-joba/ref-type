@@ -1,0 +1,25 @@
+\import SourceCover.Cohomology[coefficients := WholeProduct.integerCoefficients] \as SourceMV;
+\import \root.RelativeMayerVietoris[].OpenCover[A := A, source := source, subset := subset].On[cover := cover].Cohomology[coefficients := WholeProduct.integerCoefficients] \as TargetMV;
+\import SourceMV.Degree[z := d] \as Input;
+\import TargetMV.Degree[z := k] \as Output;
+\import SourceMV.At[z := d] \as InputMaps;
+\import TargetMV.At[z := k] \as OutputMaps;
+\structure Data: \Set := {
+  whole: Modules.MapBetween Input.whole Output.whole,
+  pair: Modules.MapBetween Input.directSum Output.directSum,
+  overlap: Modules.MapBetween Input.intersection Output.intersection
+};
+\structure Laws[data: Data]: \Prop := {
+  restriction: \forall (a: Input.whole.Carrier) -> data.pair.apply (InputMaps.restriction.apply a) = OutputMaps.restriction.apply (data.whole.apply a),
+  difference: \forall (a: Input.directSum.Carrier) -> data.overlap.apply (InputMaps.difference.apply a) = OutputMaps.difference.apply (data.pair.apply a)
+};
+\definition Comparison: \Set := \Cast[Data] ({ data: Data \where Laws[data] });
+\definition laws[c: Comparison]: Laws[c] := \bysub(Data, { data: Data \where Laws[data] }, c);
+\structure LocalIsomorphisms[c: Data]: \Prop := {
+  pairInjective: Modules.Injective Input.directSum Output.directSum c.pair,
+  pairSurjective: Modules.Surjective Input.directSum Output.directSum c.pair,
+  overlapInjective: Modules.Injective Input.intersection Output.intersection c.overlap,
+  overlapSurjective: Modules.Surjective Input.intersection Output.intersection c.overlap
+};
+
+\module Short(c: Comparison);

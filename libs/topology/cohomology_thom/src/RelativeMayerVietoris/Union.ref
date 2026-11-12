@@ -1,0 +1,88 @@
+\import topology.Topology[Carrier := A] \as Top;
+\import std.Logic[].Proposition[] \as Logic;
+\definition domain: \Pow A := { x: A \where Logic.Or[Top.Member U x, Top.Member V x] };
+\definition intersection: \Pow A := { x: A \where Logic.And[Top.Member U x, Top.Member V x] };
+\import Top.Subspace[S := domain] \as Whole;
+\definition Carrier: \Set := Whole.CarrierSet;
+\definition topology: topology.Topology[Carrier := Carrier].Topology := Whole.topology source;
+\definition boundary: \Pow Carrier := { x: Carrier \where Top.Member subset x };
+\definition left: \Pow Carrier := { x: Carrier \where Top.Member U x };
+\definition right: \Pow Carrier := { x: Carrier \where Top.Member V x };
+\import singular_excision.MayerVietoris[A := Carrier].Over[source := topology] \as Covers;
+\definition cover: Covers.Cover := \into[Covers.Data](Covers.Data { left := left, right := right }, Covers.Cover) \by {
+  Covers.Laws[Covers.Data { left := left, right := right }] {
+    leftOpen := Whole.traceOpen source U openU,
+    rightOpen := Whole.traceOpen source V openV,
+    covered := \fun (x: Carrier) => \bysub(A, domain, x)
+  }
+};
+\import \root.RelativeMayerVietoris[].OpenCover[A := Carrier, source := topology, subset := boundary].On[cover := cover] \as Native;
+\import Top.Subspace[S := U] \as LeftSpace;
+\import Top.Subspace[S := V] \as RightSpace;
+\import Top.Subspace[S := intersection] \as OverlapSpace;
+\definition Left: \Set := LeftSpace.CarrierSet;
+\definition Right: \Set := RightSpace.CarrierSet;
+\definition Overlap: \Set := OverlapSpace.CarrierSet;
+\definition leftTopology: topology.Topology[Carrier := Left].Topology := LeftSpace.topology source;
+\definition rightTopology: topology.Topology[Carrier := Right].Topology := RightSpace.topology source;
+\definition overlapTopology: topology.Topology[Carrier := Overlap].Topology := OverlapSpace.topology source;
+\definition leftBoundary: \Pow Left := { x: Left \where Top.Member subset x };
+\definition rightBoundary: \Pow Right := { x: Right \where Top.Member subset x };
+\definition overlapBoundary: \Pow Overlap := { x: Overlap \where Top.Member subset x };
+\definition leftContained: Top.Subset U domain := \fun (x: A)(inside: Top.Member U x) => Logic.Or[_, _]::left inside;
+\definition rightContained: Top.Subset V domain := \fun (x: A)(inside: Top.Member V x) => Logic.Or[_, _]::right inside;
+\import LeftSpace.Inside[U := domain] \as LeftFlatten;
+\definition leftHomeomorphism: topology.Homeomorphism[A := Left, B := Native.Left].Homeomorphism[leftTopology, Native.leftTopology] := LeftFlatten.homeomorphism source leftContained;
+\import singular_cohomology.Relative[A := Left, source := leftTopology, subset := leftBoundary].Homeomorphism[B := Native.Left].Over[target := Native.leftTopology, targetSubset := Native.leftPart] \as LeftPairs;
+\definition leftPair: LeftPairs.Data := LeftPairs.Data {
+  homeomorphism := leftHomeomorphism,
+  forwardPreserves := \fun (x: \Cast[Left] leftBoundary) => \bysub(Left, leftBoundary, x),
+  backwardPreserves := \fun (x: \Cast[Native.Left] Native.leftPart) => \bysub(Native.Left, Native.leftPart, x)
+};
+\import RightSpace.Inside[U := domain] \as RightFlatten;
+\definition rightHomeomorphism: topology.Homeomorphism[A := Right, B := Native.Right].Homeomorphism[rightTopology, Native.rightTopology] := RightFlatten.homeomorphism source rightContained;
+\import singular_cohomology.Relative[A := Right, source := rightTopology, subset := rightBoundary].Homeomorphism[B := Native.Right].Over[target := Native.rightTopology, targetSubset := Native.rightPart] \as RightPairs;
+\definition rightPair: RightPairs.Data := RightPairs.Data {
+  homeomorphism := rightHomeomorphism,
+  forwardPreserves := \fun (x: \Cast[Right] rightBoundary) => \bysub(Right, rightBoundary, x),
+  backwardPreserves := \fun (x: \Cast[Native.Right] Native.rightPart) => \bysub(Native.Right, Native.rightPart, x)
+};
+\definition overlapToLeft[x: Overlap]: Left := \into[A](x, U) \by { (\bysub(A, intersection, x)).left };
+\definition overlapToLeftContinuous: topology.Continuity[A := Overlap, B := Left].Continuous overlapTopology leftTopology overlapToLeft :=
+  topology.Continuity[A := Overlap, B := A].Corestriction[S := U].corestrictContinuous overlapTopology source overlapToLeft
+    (topology.Continuity[A := Overlap, B := A].Corestriction[S := intersection].inclusionContinuous source);
+\definition nativeLeft[x: Overlap]: Native.Left := leftHomeomorphism.forward (overlapToLeft x);
+\definition nativeLeftContinuous: topology.Continuity[A := Overlap, B := Native.Left].Continuous overlapTopology Native.leftTopology nativeLeft :=
+  topology.Composition[A := Overlap, B := Left, C := Native.Left].composeContinuous overlapTopology leftTopology Native.leftTopology overlapToLeft leftHomeomorphism.forward overlapToLeftContinuous
+    (topology.Homeomorphism[A := Left, B := Native.Left].laws leftTopology Native.leftTopology leftHomeomorphism).forwardContinuous;
+\definition nativeIntersection: \Pow Native.Left := { x: Native.Left \where Top.Member V x };
+\definition overlapForward[x: Overlap]: Native.Overlap := \into[Native.Left](nativeLeft x, nativeIntersection) \by { (\bysub(A, intersection, x)).right };
+\definition overlapForwardContinuous: topology.Continuity[A := Overlap, B := Native.Overlap].Continuous overlapTopology Native.overlapTopology overlapForward :=
+  topology.Continuity[A := Overlap, B := Native.Left].Corestriction[S := nativeIntersection].corestrictContinuous overlapTopology Native.leftTopology overlapForward nativeLeftContinuous;
+\definition overlapBackward[x: Native.Overlap]: Overlap := \into[A](x, intersection) \by {
+  Logic.And[_, _]::# (\bysub(Carrier, left, x)) (\bysub(Native.Left, nativeIntersection, x))
+};
+\definition nativeInclusion[x: Native.Overlap]: A := x;
+\definition nativeWholeInclusion[x: Native.Overlap]: Carrier := x;
+\definition nativeWholeContinuous: topology.Continuity[A := Native.Overlap, B := Carrier].Continuous Native.overlapTopology topology nativeWholeInclusion :=
+  topology.Composition[A := Native.Overlap, B := Native.Left, C := Carrier].composeContinuous Native.overlapTopology Native.leftTopology topology
+    (\fun (x: Native.Overlap) => x) (\fun (x: Native.Left) => x)
+    (topology.Continuity[A := Native.Overlap, B := Native.Left].Corestriction[S := nativeIntersection].inclusionContinuous Native.leftTopology)
+    (topology.Continuity[A := Native.Left, B := Carrier].Corestriction[S := left].inclusionContinuous topology);
+\definition nativeInclusionContinuous: topology.Continuity[A := Native.Overlap, B := A].Continuous Native.overlapTopology source nativeInclusion :=
+  topology.Composition[A := Native.Overlap, B := Carrier, C := A].composeContinuous Native.overlapTopology topology source nativeWholeInclusion (\fun (x: Carrier) => x)
+    nativeWholeContinuous (topology.Continuity[A := Carrier, B := A].Corestriction[S := domain].inclusionContinuous source);
+\definition overlapBackwardContinuous: topology.Continuity[A := Native.Overlap, B := Overlap].Continuous Native.overlapTopology overlapTopology overlapBackward :=
+  topology.Continuity[A := Native.Overlap, B := A].Corestriction[S := intersection].corestrictContinuous Native.overlapTopology source overlapBackward nativeInclusionContinuous;
+\definition overlapHomeomorphism: topology.Homeomorphism[A := Overlap, B := Native.Overlap].Homeomorphism[overlapTopology, Native.overlapTopology] :=
+  topology.Homeomorphism[A := Overlap, B := Native.Overlap].Homeomorphism[overlapTopology, Native.overlapTopology] {
+    forward := overlapForward, backward := overlapBackward,
+    forwardContinuous := overlapForwardContinuous, backwardContinuous := overlapBackwardContinuous,
+    leftInverse := \fun (x: Overlap) => \refl(x), rightInverse := \fun (x: Native.Overlap) => \refl(x)
+  };
+\import singular_cohomology.Relative[A := Overlap, source := overlapTopology, subset := overlapBoundary].Homeomorphism[B := Native.Overlap].Over[target := Native.overlapTopology, targetSubset := Native.overlapPart] \as OverlapPairs;
+\definition overlapPair: OverlapPairs.Data := OverlapPairs.Data {
+  homeomorphism := overlapHomeomorphism,
+  forwardPreserves := \fun (x: \Cast[Overlap] overlapBoundary) => \bysub(Overlap, overlapBoundary, x),
+  backwardPreserves := \fun (x: \Cast[Native.Overlap] Native.overlapPart) => \bysub(Native.Overlap, Native.overlapPart, x)
+};
