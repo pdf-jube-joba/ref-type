@@ -77,3 +77,6 @@ H^p(X;R)\longrightarrow H^{p+n}(X\times D^n,X\times\partial D^n;R),\qquad
 \]
 を順写像とする \(R\)-加群同型である。
 ランク0では空の境界を忘れる同型と円板の射影を用い、後続ランクでは円板の次数上昇同型と符号の対合性から単射性と全射性を帰納的に証明する。
+
+`LocalDisk.On.Change[K, L, ring, targetRing, morphism].canonical n` は係数環の単位的準同型が全ランクの局所 Thom 類を保つことを示す。
+`LocalDisk.On.Step.ChangeCoefficients.law` は円板の次数上昇同型と係数加群の変更の自然性を与える。

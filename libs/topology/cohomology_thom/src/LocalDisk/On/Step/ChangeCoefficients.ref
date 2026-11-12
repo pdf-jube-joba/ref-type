@@ -1,0 +1,27 @@
+\use std.Logic[].Equality[].eq_reason_in;
+\definition next: I.Int^ := chain_complexes.Integer[].next z;
+\import \parent.With[coefficients := M, z := z] \as SourceStep;
+\import \parent.With[coefficients := N, z := z] \as TargetStep;
+\import singular_cohomology.Relative[A := Disk.DiskCarrier, source := Disk.diskTopology, subset := Disk.boundary] \as LowerPair;
+\import singular_cohomology.Relative[A := Higher.DiskCarrier, source := Higher.diskTopology, subset := Higher.boundary] \as HigherPair;
+\import singular_cohomology.Relative[A := Cylinder.Carrier, source := Cylinder.topology Disk.diskTopology, subset := Suspension.boundary] \as CylinderPair;
+\import singular_cohomology.Relative[A := Geometry.BoxCarrier, source := Geometry.boxTopology, subset := Geometry.BoxBoundary] \as BoxPair;
+\import \root.CoefficientChange[].On[C := LowerPair.complex, M := M, N := N, u := u] \as LowerChange;
+\import \root.CoefficientChange[].On[C := HigherPair.complex, M := M, N := N, u := u] \as HigherChange;
+\import \root.CoefficientChange[].On[C := CylinderPair.complex, M := M, N := N, u := u] \as CylinderChange;
+\import \root.CoefficientChange[].On[C := BoxPair.complex, M := M, N := N, u := u] \as BoxChange;
+\import BoxPair.Maps[B := Cylinder.Carrier].Over[target := Cylinder.topology Disk.diskTopology, targetSubset := Suspension.boundary].On[f := CylinderComparison.forwardMap cylinder].Integer[] \as BoxChain;
+\import HigherPair.Maps[B := Geometry.BoxCarrier].Over[target := Geometry.boxTopology, targetSubset := Geometry.BoxBoundary].On[f := RoundComparison.forwardMap round].Integer[] \as HigherChain;
+\import CylinderChange.Along[D := BoxPair.complex, f := BoxChain.map] \as BoxNatural;
+\import BoxChange.Along[D := HigherPair.complex, f := HigherChain.map] \as HigherNatural;
+\import Suspension.Covering[].ChangeCoefficients[M := M, N := N, u := u].At[z := z] \as SuspensionNatural;
+\import LowerPair.With[coefficients := M].At[z := z] \as Input;
+\import HigherPair.With[coefficients := N].At[z := next] \as Output;
+\import BoxPair.With[coefficients := N].At[z := next] \as TargetBox;
+\import CylinderPair.With[coefficients := N].At[z := next] \as TargetCylinder;
+\definition law: \forall (x: Input.Carrier) -> HigherChange.At[z := next].map.apply (SourceStep.isomorphism.forward.apply x) = TargetStep.isomorphism.forward.apply (LowerChange.At[z := z].map.apply x) :=
+  \fun (x: Input.Carrier) => eq_reason_in!{Output.Carrier _
+    "=" _ "by" { HigherNatural.At[z := next].law (SourceStep.toBox.forward.apply x) }
+    "=" _ "by" { congr!{TargetBox.Carrier Output.Carrier} (RoundComparison.With[coefficients := N].At[z := next].isomorphism round).forward.apply _ _ (BoxNatural.At[z := next].law (SourceStep.suspended.forward.apply x)) }
+    "=" _ "by" { congr!{TargetCylinder.Carrier Output.Carrier} (\fun (v: TargetCylinder.Carrier) => (RoundComparison.With[coefficients := N].At[z := next].isomorphism round).forward.apply ((CylinderComparison.With[coefficients := N].At[z := next].isomorphism cylinder).forward.apply v)) _ _ (SuspensionNatural.law x) }
+  };
