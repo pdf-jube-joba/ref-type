@@ -1,0 +1,24 @@
+\import Distributions.Dual[] \as Dual;
+\import \root.Euclidean[n := n].Regular[] \as Regular;
+\import Regular.For[f := u] \as U;
+\import Regular.For[f := g] \as G;
+\import Regular.Sobolev[].Comparison[u := u, g := g, d := d] \as Comparison;
+\definition pairToDistribution: ByPairing u g d -> Dual.derivative d (distribution u) = distribution g := \fun (pairing: _) =>
+  Dual.ext (Dual.derivative d (distribution u)) (distribution g) (\fun (test: E.SmoothCompact) =>
+    trans!{Real.Real} _ _ _ (Dual.JetFormula[T := distribution u].theorem d test)
+      (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (Real.mul (Existing.sign (Existing.order d))) _ _ (pairing test))
+        (signCancel (Existing.order d) (G.pair test))));
+\definition distributionToPair: Dual.derivative d (distribution u) = distribution g -> ByPairing u g d := \fun (same: _)(test: E.SmoothCompact) =>
+  trans!{Real.Real} _ _ _ (sym!{Real.Real} _ _ (signCancel (Existing.order d) (U.pair (TestOperations.jet d test))))
+    (congr!{Real.Real Real.Real} (Real.mul (Existing.sign (Existing.order d))) _ _
+      (trans!{Real.Real} _ _ _ (sym!{Real.Real} _ _ (Dual.JetFormula[T := distribution u].theorem d test))
+        (congr!{Distributions.Distribution Real.Real} (\fun (T: Distributions.Distribution) => T.eval test) _ _ same)));
+\definition equivalence: Logic.PropEquiv[ExistingWeak u g d, Dual.derivative d (distribution u) = distribution g] := Logic.PropEquiv[_, _] {
+  ltr := \fun (weak: _) => pairToDistribution (Comparison.oldToPair weak),
+  rtl := \fun (same: _) => Comparison.pairToOld (distributionToPair same),
+};
+\definition unique[h: Representatives]: ExistingWeak u g d -> ExistingWeak u h d -> M.AlmostEqual E.measure g h := \fun (left: _)(right: _) =>
+  Regular.Separation[left := g, right := h].injective (\fun (test: E.SmoothCompact) =>
+    congr!{Distributions.Distribution Real.Real} (\fun (T: Distributions.Distribution) => T.eval test) _ _
+      (trans!{Distributions.Distribution} _ _ _ (sym!{Distributions.Distribution} _ _ (equivalence.ltr left))
+        (Regular.Sobolev[].DistributionComparison[u := u, g := h, d := d].equivalence.ltr right)));

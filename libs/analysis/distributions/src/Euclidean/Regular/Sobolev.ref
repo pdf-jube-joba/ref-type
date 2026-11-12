@@ -1,0 +1,38 @@
+\import calculus.Real[].Multivariable[n := n].Open[] \as Open;
+\import Open.Restriction[] \as Restriction;
+\import Open.Whole[] \as Whole;
+\import functional_analysis.Sobolev[n := n] \as Existing;
+\import Existing.On[U := Open.whole] \as On;
+\module Measure;
+\import Measure[] \as Transport;
+\import On.WithMeasure[mu := Transport.measure] \as Weak;
+\import functional_analysis.Measure[A := Open.Carrier Open.whole] \as Local;
+\import product_integration.MeasureMap[A := Open.Carrier Open.whole, B := E.Point, source := Transport.measure, target := E.measure].On[map := Transport.backward] \as ToLocal;
+\import product_integration.MeasureMap[A := E.Point, B := Open.Carrier Open.whole, source := E.measure, target := Transport.measure].On[map := Transport.forward] \as ToGlobal;
+\module Tests;
+\import \root.Euclidean[n := n] \as Distributions;
+\import Distributions.TestOperations[] \as TestOperations;
+\import \root.Euclidean[n := n].Regular[] \as Regular;
+\definition ByPairing[u, g: Representatives][d: Existing.Directions]: \Prop := \forall (test: E.SmoothCompact) ->
+  Regular.For[f := u].pair (TestOperations.jet d test) = Real.mul (Existing.sign (Existing.order d)) (Regular.For[f := g].pair test);
+\definition ExistingWeak[u, g: Representatives][d: Existing.Directions]: \Prop :=
+  Weak.WeakDerivative (Restriction.function Open.whole u) (Restriction.function Open.whole g) d;
+\module Comparison(u, g: Representatives, d: Existing.Directions);
+\import std.Data[].Nat[] \as N;
+\definition signSquare: \forall (k: N.Nat^) -> Real.mul (Existing.sign k) (Existing.sign k) = Real.one :=
+  \induction (k: N.Nat^) \return Real.mul (Existing.sign k) (Existing.sign k) = Real.one \with {
+    | zero: Laws.fieldMulOneLeft Real.one
+    | succ: \fun (k: N.Nat^)(previous: _) => eq_reason_in!{Real.Real _
+      "=" _ "by" { Laws.fieldMulNegLeft (Existing.sign k) (Real.neg (Existing.sign k)) }
+      "=" _ "by" { congr!{Real.Real Real.Real} Real.neg _ _ (Laws.fieldMulNegRight (Existing.sign k) (Existing.sign k)) }
+      "=" _ "by" { Laws.negInvolutive (Real.mul (Existing.sign k) (Existing.sign k)) }
+      "=" _ "by" { previous }
+    }
+  };
+\definition signCancel[k: N.Nat^][x: Real.Real]: Real.mul (Existing.sign k) (Real.mul (Existing.sign k) x) = x := eq_reason_in!{Real.Real _
+  "=" _ "by" { sym!{Real.Real} _ _ (Laws.fieldMulAssoc (Existing.sign k) (Existing.sign k) x) }
+  "=" _ "by" { congr!{Real.Real Real.Real} (\fun (c: Real.Real) => Real.mul c x) _ _ (signSquare k) }
+  "=" _ "by" { Laws.fieldMulOneLeft x }
+};
+\module DistributionComparison(u, g: Representatives, d: Existing.Directions);
+\module Finite(p: functional_analysis.Powers[].Exponent);

@@ -1,0 +1,112 @@
+\import \root.Euclidean[n := n].TestTopology[] \as Final;
+\import \root.Euclidean[n := n].Dual[] \as Dual;
+\import Final.Linear[t := Dual.zero.eval, additive := Dual.zero.additive, homogeneous := Dual.zero.homogeneous] \as Differences;
+\import topology.Topology[Carrier := Test] \as Space;
+\import topology.Continuity[A := Test, B := Real.Real] \as Maps;
+\import topology.Topology[Carrier := Real.Real] \as Scalars;
+\import metric_spaces.RealLine[] \as Line;
+\import metric_spaces.RealMetric[] \as RealMetric;
+\import metric_spaces.MetricSpace[Carrier := Real.Real] \as Metric;
+\import Real.Algebra[] \as Algebra;
+\import Real.Distance[] \as Distance;
+\import R.Order[] \as Order;
+\structure SeminormData: \Set := { value: Test -> Real.Real, };
+\structure SeminormLaws[p: SeminormData]: \Prop := {
+  nonnegative: \forall (f: Test) -> R.Le Real.zero (p.value f),
+  triangle: \forall (f,g: Test) -> R.Le (p.value (Tests.add f g)) (Real.add (p.value f) (p.value g)),
+  homogeneous: \forall (c: Real.Real)(f: Test) -> p.value (Tests.scale c f) = Real.mul (Absolute.abs c) (p.value f),
+};
+\definition Seminorm: \Set := \Cast[SeminormData] ({ p: SeminormData \where SeminormLaws[p] });
+\definition Admissible: \Set := \Cast[Seminorm] ({ p: Seminorm \where LocallyBounded p.value });
+\definition bound[p: Admissible]: LocallyBounded p.value := \bysub(Seminorm, { p: Seminorm \where LocallyBounded p.value }, p);
+\definition difference[f,g: Test]: Test := Differences.difference f g;
+\definition Ball[p: Admissible][center: Test][radius: Real.Real]: \Pow Test :=
+  { f: Test \where R.Lt (p.value (difference f center)) radius };
+\definition Generators: \Pow (\Pow Test) := { S: \Pow Test \where
+  \exists ( p: Admissible \where \exists ( f: Test \where \exists ( r: Real.Real \where S = Ball p f r ) ) ) };
+\definition topology: Space.Topology := Space.generated Generators;
+\definition ballOpen[p: Admissible][f: Test][r: Real.Real]: Space.IsOpenIn topology (Ball p f r) :=
+  Space.generatedBasisOpen Generators (Ball p f r)
+    (Logic.existsIntro[Admissible, { q: Admissible \where \exists ( g: Test \where \exists ( s: Real.Real \where Ball p f r = Ball q g s ) ) }] p
+      (Logic.existsIntro[Test, { g: Test \where \exists ( s: Real.Real \where Ball p f r = Ball p g s ) }] f
+        (Logic.existsIntro[Real.Real, { s: Real.Real \where Ball p f r = Ball p f s }] r (\refl(Ball p f r)))));
+\definition zeroValue[p: Seminorm]: p.value Tests.zero = Real.zero := eq_reason_in!{Real.Real _
+  "=" _ "by" { congr!{Test Real.Real} p.value _ _ (Tests.ext Tests.zero (Tests.scale Real.zero Tests.zero)
+    (\fun (x: Point) => sym!{Real.Real} _ _ (Laws.fieldMulZeroLeft Real.zero))) }
+  "=" _ "by" { p.homogeneous Real.zero Tests.zero }
+  "=" _ "by" { congr!{Real.Real Real.Real} (\fun (r: Real.Real) => Real.mul r (p.value Tests.zero)) _ _ (Distance.distanceSelf Real.zero) }
+  "=" _ "by" { Laws.fieldMulZeroLeft (p.value Tests.zero) }
+};
+\definition differenceSelf[f: Test]: difference f f = Tests.zero := Tests.ext (difference f f) Tests.zero
+  (\fun (x: Point) => trans!{Real.Real} _ _ _ (Differences.differenceValue f f x) (Laws.subSelf (f x)));
+\definition centerInBall[p: Admissible][f: Test][r: Real.Real]: R.Lt Real.zero r -> Space.Member (Ball p f r) f :=
+  \fun (positive: _) => R.ltReplaceLeft Real.zero (p.value (difference f f)) r
+    (sym!{Real.Real} _ _ (trans!{Real.Real} _ _ _ (congr!{Test Real.Real} p.value _ _ (differenceSelf f)) (zeroValue p))) positive;
+\definition bridge[f,g,h: Test]: difference f h = Tests.add (difference f g) (difference g h) :=
+  Tests.ext (difference f h) (Tests.add (difference f g) (difference g h)) (\fun (x: Point) => eq_reason_in!{Real.Real _
+    "=" _ "by" { Differences.differenceValue f h x }
+    "=" _ "by" { sym!{Real.Real} _ _ (trans!{Real.Real} _ _ _ (Laws.addAssoc (f x) (Real.neg (g x)) (Real.sub (g x) (h x)))
+      (congr!{Real.Real Real.Real} (Real.add (f x)) _ _ (Laws.addNegCancelLeft (g x) (Real.neg (h x))))) }
+    "=" _ "by" { congr!{Real.Real Real.Real Real.Real} Real.add _ _ _ _
+      (sym!{Real.Real} _ _ (Differences.differenceValue f g x)) (sym!{Real.Real} _ _ (Differences.differenceValue g h x)) }
+  });
+\module BallStage(p: Admissible, center: Test, radius: Real.Real, K: \Pow Point,
+  compact: Sets.IsCompactIn Ambient.topology K, f: Test, supported: Final.Supported K f, member: Space.Member (Ball p center radius) f);
+\definition ballFinalOpen[p: Admissible][f: Test][r: Real.Real]: Space.IsOpenIn Final.topology (Ball p f r) :=
+  \fun (K: \Pow Point)(compact: _)(g: Test)(supported: _)(member: _) =>
+    BallStage[p := p, center := f, radius := r, K := K, compact := compact, f := g, supported := supported, member := member].neighborhood;
+\definition finalFiner: \forall (S: \Pow Test) -> Space.IsOpenIn topology S -> Space.IsOpenIn Final.topology S :=
+  Space.generatedLeast Generators Final.topology (\fun (S: \Pow Test)(member: _) => \block {
+    \takefrom p: \Cast[Admissible] ({ p: Admissible \where \exists ( f: Test \where \exists ( r: Real.Real \where S = Ball p f r ) ) }) \by member \then
+    \takefrom f: \Cast[Test] ({ f: Test \where \exists ( r: Real.Real \where S = Ball p f r ) })
+      \by \bysub(Admissible, { p: Admissible \where \exists ( f: Test \where \exists ( r: Real.Real \where S = Ball p f r ) ) }, p) \then
+    \takefrom r: \Cast[Real.Real] ({ r: Real.Real \where S = Ball p f r })
+      \by \bysub(Test, { f: Test \where \exists ( r: Real.Real \where S = Ball p f r ) }, f) \then
+    \return \idelim Ball p f r = S \with W: \Pow Test => Space.IsOpenIn Final.topology W \by {
+      base: ballFinalOpen p f r, equality: sym!{{\Pow Test}} _ _ (\bysub(Real.Real, { r: Real.Real \where S = Ball p f r }, r)) }
+  });
+\module Evaluation(T: Distribution);
+\structure ContinuousDualLaws[data: DistributionData]: \Prop := {
+  additive: \forall (f,g: Test) -> data.eval (Tests.add f g) = Real.add (data.eval f) (data.eval g),
+  homogeneous: \forall (c: Real.Real)(f: Test) -> data.eval (Tests.scale c f) = Real.mul c (data.eval f),
+  continuous: Maps.Continuous topology Line.topology data.eval,
+};
+\definition ContinuousDual: \Set := \Cast[DistributionData] ({ data: DistributionData \where ContinuousDualLaws[data] });
+\definition toContinuous[T: Distribution]: ContinuousDual := \into[DistributionData](T, ContinuousDual) \by { ContinuousDualLaws[T] {
+  additive := T.additive, homogeneous := T.homogeneous, continuous := Evaluation[T := T].continuous,
+} };
+\definition fromContinuous[T: ContinuousDual]: Distribution := \into[DistributionData](T, Distribution) \by { DistributionLaws[T] {
+  additive := T.additive, homogeneous := T.homogeneous,
+  bound := Final.Linear[t := T.eval, additive := T.additive, homogeneous := T.homogeneous].continuousBounded
+    (\fun (V: \Pow Real.Real)(open: _) => finalFiner (Maps.Preimage T.eval V) (T.continuous V open)),
+} };
+\definition fromTo[T: Distribution]: fromContinuous (toContinuous T) = T := \refl(T);
+\definition toFrom[T: ContinuousDual]: toContinuous (fromContinuous T) = T := \refl(T);
+\module Geometry(p: Admissible);
+\definition GeneratedBy[family: \Pow Seminorm]: \Pow (\Pow Test) := { S: \Pow Test \where
+  \exists ( p: Seminorm \where Logic.And[\In[Seminorm] family p,
+    \exists ( f: Test \where \exists ( r: Real.Real \where S = { g: Test \where R.Lt (p.value (difference g f)) r } ) )] ) };
+\definition finestForSeminorms[family: \Pow Seminorm]:
+  (\forall (p: Seminorm) -> \In[Seminorm] family p -> LocallyBounded p.value) ->
+  \forall (S: \Pow Test) -> Space.IsOpenIn (Space.generated (GeneratedBy family)) S -> Space.IsOpenIn topology S :=
+  \fun (compatible: _) => Space.generatedLeast (GeneratedBy family) topology (\fun (S: \Pow Test)(member: _) => \block {
+    \takefrom p: \Cast[Seminorm] ({ p: Seminorm \where Logic.And[\In[Seminorm] family p,
+      \exists ( f: Test \where \exists ( r: Real.Real \where S = { g: Test \where R.Lt (p.value (difference g f)) r } ) )] }) \by member \then
+    \let data: Logic.And[\In[Seminorm] family p, \exists ( f: Test \where \exists ( r: Real.Real \where S = { g: Test \where R.Lt (p.value (difference g f)) r } ) )] :=
+      \bysub(Seminorm, { p: Seminorm \where Logic.And[\In[Seminorm] family p, \exists ( f: Test \where \exists ( r: Real.Real \where S = { g: Test \where R.Lt (p.value (difference g f)) r } ) )] }, p) \then
+    \let admissible: Admissible := \into[Seminorm](p, Admissible) \by { compatible p data.left } \then
+    \takefrom f: \Cast[Test] ({ f: Test \where \exists ( r: Real.Real \where S = { g: Test \where R.Lt (p.value (difference g f)) r } ) }) \by data.right \then
+    \takefrom r: \Cast[Real.Real] ({ r: Real.Real \where S = { g: Test \where R.Lt (p.value (difference g f)) r } })
+      \by \bysub(Test, { f: Test \where \exists ( r: Real.Real \where S = { g: Test \where R.Lt (p.value (difference g f)) r } ) }, f) \then
+    \return \idelim Ball admissible f r = S \with W: \Pow Test => Space.IsOpenIn topology W \by {
+      base: ballOpen admissible f r,
+      equality: sym!{{\Pow Test}} _ _ (\bysub(Real.Real, { r: Real.Real \where S = { g: Test \where R.Lt (p.value (difference g f)) r } }, r)) }
+  });
+\module SeminormProperties(p: Seminorm);
+\module SeminormContinuity(p: Admissible);
+\module SeminormCharacterization(p: Seminorm);
+\definition finestForContinuousSeminorms[family: \Pow Seminorm]:
+  (\forall (p: Seminorm) -> \In[Seminorm] family p -> Final.StageContinuous p.value) ->
+  \forall (S: \Pow Test) -> Space.IsOpenIn (Space.generated (GeneratedBy family)) S -> Space.IsOpenIn topology S :=
+  \fun (compatible: _) => finestForSeminorms family
+    (\fun (p: Seminorm)(member: _) => SeminormCharacterization[p := p].continuousBounded (Final.continuous p.value (compatible p member)));

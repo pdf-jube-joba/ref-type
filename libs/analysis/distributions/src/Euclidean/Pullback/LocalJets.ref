@@ -1,0 +1,86 @@
+\import PullbackOpen.Smooth[] \as LocalSmooth;
+\import LocalSmooth.Algebra[U := W] \as LocalAlgebra;
+\import LocalSmooth.Derivative[] \as LocalDerivative;
+\import LocalDerivative.Linear[U := W] \as LocalLinear;
+\import PullbackOpen.Analysis[].Properties[] \as LocalUniqueness;
+\import PullbackOpen.Restriction[] \as LocalRestriction;
+\import LocalSmooth.Sums[] \as SmoothSums;
+\import Real.FiniteSums[] \as ScalarSums;
+\definition Function: \Set := LocalAlgebra.Function;
+\definition partial[f: Function][i: Fin.Fin n]: Function := LocalDerivative.derivative W f i;
+\definition apply: Directions -> Function -> Function := \induction (d: Directions) \return Function -> Function \with {
+  | nil: \fun (f: Function) => f
+  | cons: \fun (i: Fin.Fin n)(tail: Directions)(previous: Function -> Function)(f: Function) => partial (previous f) i
+};
+\definition reversed: Directions -> Function -> Function := \induction (d: Directions) \return Function -> Function \with {
+  | nil: \fun (f: Function) => f
+  | cons: \fun (i: Fin.Fin n)(tail: Directions)(previous: Function -> Function)(f: Function) => previous (partial f i)
+};
+\definition plus[f,g: Function]: Function := LocalAlgebra.plus f g;
+\definition applyAdd: \forall (d: Directions)(f,g: Function) -> apply d (plus f g) = plus (apply d f) (apply d g) :=
+  \induction (d: Directions) \return \forall (f,g: Function) -> apply d (plus f g) = plus (apply d f) (apply d g) \with {
+    | nil: \fun (f,g: Function) => \refl(plus f g)
+    | cons: \fun (i: Fin.Fin n)(tail: Directions)(previous: _)(f,g: Function) => trans!{Function} _ _ _
+      (congr!{Function Function} (\fun (h: Function) => partial h i) _ _ (previous f g)) (LocalLinear.addition i (apply tail f) (apply tail g))
+  };
+\definition reversedAdd: \forall (d: Directions)(f,g: Function) -> reversed d (plus f g) = plus (reversed d f) (reversed d g) :=
+  \induction (d: Directions) \return \forall (f,g: Function) -> reversed d (plus f g) = plus (reversed d f) (reversed d g) \with {
+    | nil: \fun (f,g: Function) => \refl(plus f g)
+    | cons: \fun (i: Fin.Fin n)(tail: Directions)(previous: _)(f,g: Function) => trans!{Function} _ _ _
+      (congr!{Function Function} (reversed tail) _ _ (LocalLinear.addition i f g)) (previous (partial f i) (partial g i))
+  };
+\definition applyShift[i: Fin.Fin n]: \forall (d: Directions)(f: Function) -> apply d (partial f i) = apply (Tests.shift i d) f :=
+  \induction (d: Directions) \return \forall (f: Function) -> apply d (partial f i) = apply (Tests.shift i d) f \with {
+    | nil: \fun (f: Function) => \refl(partial f i)
+    | cons: \fun (j: Fin.Fin n)(tail: Directions)(previous: _)(f: Function) => congr!{Function Function} (\fun (h: Function) => partial h j) _ _ (previous f)
+  };
+\definition reversedApply: \forall (d: Directions)(f: Function) -> reversed d f = apply (Lists.reverse (Fin.Fin n) d) f :=
+  \induction (d: Directions) \return \forall (f: Function) -> reversed d f = apply (Lists.reverse (Fin.Fin n) d) f \with {
+    | nil: \fun (f: Function) => \refl(f)
+    | cons: \fun (i: Fin.Fin n)(tail: Directions)(previous: _)(f: Function) => trans!{Function} _ _ _
+      (previous (partial f i)) (applyShift i (Lists.reverse (Fin.Fin n) tail) f)
+  };
+\definition restriction[f: Test]: Function := \into[PullbackOpen.ScalarFunction W](LocalRestriction.function W f, Function) \by {
+  LocalRestriction.localSmooth W PullbackOpen.whole (\fun (x: Point)(inside: _) => \refl(x))
+    (LocalRestriction.function PullbackOpen.whole f) (L.smoothCompactLaws f).smooth
+};
+\definition restrictionPartial[f: Test][i: Fin.Fin n]: partial (restriction f) i = restriction (Tests.partial f i) :=
+  \axiom:funext(partial (restriction f) i, restriction (Tests.partial f i), \fun (x: PullbackOpen.Carrier W) =>
+    LocalUniqueness.partialUnique W (restriction f) i x _ _
+      (LocalDerivative.partialLaw W (restriction f) i x)
+      (LocalRestriction.localPartial W PullbackOpen.whole (\fun (x: Point)(inside: _) => \refl(x))
+        (LocalRestriction.function PullbackOpen.whole f) (LocalRestriction.function PullbackOpen.whole (Tests.partial f i)) i (Tests.partialLaw f i) x));
+\definition restrictionApply: \forall (d: Directions)(f: Test) -> apply d (restriction f) = restriction (Tests.jet d f) :=
+  \induction (d: Directions) \return \forall (f: Test) -> apply d (restriction f) = restriction (Tests.jet d f) \with {
+    | nil: \fun (f: Test) => \refl(restriction f)
+    | cons: \fun (i: Fin.Fin n)(tail: Directions)(previous: _)(f: Test) => trans!{Function} _ _ _
+      (congr!{Function Function} (\fun (h: Function) => partial h i) _ _ (previous f)) (restrictionPartial (Tests.jet tail f) i)
+  };
+\definition sum: \forall (k: N.Nat^) -> (Fin.Fin k -> Function) -> Function :=
+  \induction (k: N.Nat^) \return (Fin.Fin k -> Function) -> Function \with {
+    | zero: \fun (family: Fin.Fin N.Nat^::zero -> Function) => LocalAlgebra.origin
+    | succ: \fun (k: N.Nat^)(previous: _)(family: Fin.Fin (N.Nat^::succ k) -> Function) => plus (family (Fin.zero k)) (previous (\fun (j: Fin.Fin k) => family (Fin.succ k j)))
+  };
+\definition sumValue: \forall (k: N.Nat^)(family: Fin.Fin k -> Function)(x: PullbackOpen.Carrier W) ->
+  sum k family x = ScalarSums.sum k (\fun (j: Fin.Fin k) => family j x) :=
+  \induction (k: N.Nat^) \return \forall (family: Fin.Fin k -> Function)(x: PullbackOpen.Carrier W) ->
+    sum k family x = ScalarSums.sum k (\fun (j: Fin.Fin k) => family j x) \with {
+      | zero: \fun (family: _)(x: PullbackOpen.Carrier W) => \refl(Real.zero)
+      | succ: \fun (k: N.Nat^)(previous: _)(family: _)(x: PullbackOpen.Carrier W) => congr!{Real.Real Real.Real} (Real.add (family (Fin.zero k) x)) _ _
+        (previous (\fun (j: Fin.Fin k) => family (Fin.succ k j)) x)
+    };
+\definition reversedZero: \forall (d: Directions) -> reversed d LocalAlgebra.origin = LocalAlgebra.origin :=
+  \induction (d: Directions) \return reversed d LocalAlgebra.origin = LocalAlgebra.origin \with {
+    | nil: \refl(LocalAlgebra.origin)
+    | cons: \fun (i: Fin.Fin n)(tail: Directions)(previous: _) => trans!{Function} _ _ _
+      (congr!{Function Function} (reversed tail) _ _ (LocalLinear.constant i Real.zero)) previous
+  };
+\definition reversedSum[d: Directions]: \forall (k: N.Nat^)(family: Fin.Fin k -> Function) ->
+  reversed d (sum k family) = sum k (\fun (j: Fin.Fin k) => reversed d (family j)) :=
+  \induction (k: N.Nat^) \return \forall (family: Fin.Fin k -> Function) ->
+    reversed d (sum k family) = sum k (\fun (j: Fin.Fin k) => reversed d (family j)) \with {
+      | zero: \fun (family: _) => reversedZero d
+      | succ: \fun (k: N.Nat^)(previous: _)(family: _) => trans!{Function} _ _ _
+        (reversedAdd d (family (Fin.zero k)) (sum k (\fun (j: Fin.Fin k) => family (Fin.succ k j))))
+        (congr!{Function Function} (plus (reversed d (family (Fin.zero k)))) _ _ (previous (\fun (j: Fin.Fin k) => family (Fin.succ k j))))
+    };

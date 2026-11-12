@@ -1,0 +1,53 @@
+\definition theta: ConvReal.Real := ConvReal.mul C b;
+\definition nonnegative: ConvR.Le ConvReal.zero theta := ConvLaws.fieldMulNonnegative C b (lp_spaces.Powers[].baseNonnegative C) (lp_spaces.Powers[].baseNonnegative b);
+\definition count: ConvReal.Real := CCSums.sum n (\fun (j: std.Data[].FinSet[].Fin n) => ConvReal.one);
+\definition countNonnegative: ConvR.Le ConvReal.zero count := CCSums.nonnegative n (\fun (j: std.Data[].FinSet[].Fin n) => ConvReal.one)
+  (\fun (j: std.Data[].FinSet[].Fin n) => ConvLaws.oneNonnegative);
+\definition coefficient: ConvReal.Real := ConvReal.mul count theta;
+\definition coefficientNonnegative: ConvR.Le ConvReal.zero coefficient := ConvLaws.fieldMulNonnegative count theta countNonnegative nonnegative;
+\definition firstJets[j: std.Data[].FinSet[].Fin n][x: ConvE.Point]: CC.JetBound (\root.Euclidean[n := n].Convolution[].Translate[rho := CCTests.partial rho j, a := x].test) m b :=
+  \fun (d: CC.Directions)(ordered: _)(y: ConvE.Point) => ConvR.leReplaceLeft _ _ _
+    (sym!{ConvReal.Real} _ _ (CCTranslate.absolute d (CCTests.partial rho j) x y))
+    (ConvR.leReplaceLeft _ _ _
+      (congr!{ConvL.SmoothCompact ConvReal.Real} (\fun (f: ConvL.SmoothCompact) => ConvAbsolute.abs (f (ConvE.subPoint x y))) _ _ (CCJets.jetPartialCommute d rho j))
+      (jets (CC.Directions::cons j d) (CCNat.leSuccSucc _ _ ordered) (ConvE.subPoint x y)));
+\definition partialBound[x: ConvE.Point][j: std.Data[].FinSet[].Fin n]: ConvR.Lt (ConvGeometry.metric.distance x a) ConvReal.one ->
+  ConvR.Le (ConvReal.distance (partialFunction j x) ConvReal.zero) theta := \fun (near: _) => ConvR.leReplaceLeft _ _ _
+    (CCDistance.distanceSymmetric ConvReal.zero (partialFunction j x))
+    (bound (\root.Euclidean[n := n].Convolution[].Translate[rho := CCTests.partial rho j, a := x].test)
+      (CS.within (CCTests.partial rho j) x (CCTests.partialSupport rho j) (CCOrder.leOfLt _ _ near)) b (firstJets j x));
+\definition ball: ConvOpen.BallInside[ConvOpen.whole.points, a, ConvReal.one] := ConvOpen.BallInside[ConvOpen.whole.points, a, ConvReal.one] {
+  positive := ConvAbsolute.onePositive, included := \fun (x: ConvE.Point)(near: _) => \refl(x),
+};
+\definition estimate[x: ConvE.Point]: ConvR.Lt (ConvGeometry.metric.distance x a) ConvReal.one ->
+  ConvR.Le (ConvReal.distance (scalar x) (scalar a)) (ConvReal.mul coefficient (ConvGeometry.metric.distance x a)) := \fun (near: _) =>
+  ConvOpen.C1[].Bounded[U := ConvOpen.whole, f := CCRestriction.function ConvOpen.whole scalar,
+    g := \fun (j: std.Data[].FinSet[].Fin n) => CCRestriction.function ConvOpen.whole (partialFunction j), a := CCWhole.point a, x := CCWhole.point x].estimate
+    ConvReal.one theta ball near nonnegative partials
+    (\fun (p: ConvOpen.Carrier ConvOpen.whole)(j: std.Data[].FinSet[].Fin n)(close: _) => partialBound p j (ConvR.leLtTrans _ _ _ close near));
+\definition upper: ConvReal.Real := ConvReal.add coefficient ConvReal.one;
+\definition upperPositive: ConvR.Lt ConvReal.zero upper := ConvR.leLtTrans _ _ _ coefficientNonnegative
+  (ConvReal.SquareRoot[].addPositive coefficient ConvReal.one ConvAbsolute.onePositive);
+\definition coefficientLe: ConvR.Le coefficient upper := ConvR.leReplaceLeft _ _ _ (ConvLaws.addZeroRight coefficient)
+  (ConvEstimates.addLe _ _ _ _ (ConvR.leRefl coefficient) ConvLaws.oneNonnegative);
+\definition continuous: CCAnalysis.ContinuousAt ConvOpen.whole (CCRestriction.function ConvOpen.whole scalar) (CCWhole.point a) :=
+  \fun (epsilon: ConvReal.Real)(positive: _) => \block {
+    \let r: ConvReal.Real := ConvAbsolute.radius upper epsilon \then
+    \let delta: ConvReal.Real := CCDistance.min ConvReal.one r \then
+    \return ConvLogic.existsIntro[ConvReal.Real, { delta: ConvReal.Real \where CCAnalysis.ContinuityControl[ConvOpen.whole, CCRestriction.function ConvOpen.whole scalar, CCWhole.point a, epsilon, delta] }] delta
+      (CCAnalysis.ContinuityControl[ConvOpen.whole, CCRestriction.function ConvOpen.whole scalar, CCWhole.point a, epsilon, delta] {
+        positive := ConvAbsolute.minPositive ConvReal.one r ConvAbsolute.onePositive (ConvAbsolute.radiusPositive upper epsilon upperPositive positive),
+        estimate := \fun (x: ConvOpen.Carrier ConvOpen.whole)(near: _) => \block {
+          \let distance: ConvReal.Real := ConvGeometry.metric.distance x a \then
+          \let nearOne: ConvR.Lt distance ConvReal.one := ConvR.ltLeTrans _ _ _ near (CCDistance.minLeft ConvReal.one r) \then
+          \let nearRadius: ConvR.Lt distance r := ConvR.ltLeTrans _ _ _ near (CCDistance.minRight ConvReal.one r) \then
+          \return ConvR.leLtTrans _ _ _
+            (ConvR.leTrans _ _ _ (estimate x nearOne)
+              (ConvR.leTrans _ _ _
+                (ConvR.leReplace _ _ _ _ (ConvLaws.fieldMulComm distance coefficient) (ConvLaws.fieldMulComm distance upper)
+                  (ConvEstimates.mulMonotone distance _ _ (ConvGeometry.metric.nonnegative x a) coefficientLe))
+                (ConvEstimates.mulMonotone upper _ _ (CCOrder.leOfLt _ _ upperPositive) (CCOrder.leOfLt _ _ nearRadius))))
+            (ConvAbsolute.radiusSmall upper epsilon upperPositive positive)
+        },
+      })
+  };

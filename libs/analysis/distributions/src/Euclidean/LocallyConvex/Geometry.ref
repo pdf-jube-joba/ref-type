@@ -1,0 +1,39 @@
+\definition differenceZero[f: Test]: difference f Tests.zero = f := Tests.ext (difference f Tests.zero) f
+  (\fun (x: Point) => trans!{Real.Real} _ _ _ (Differences.differenceValue f Tests.zero x)
+    (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (Real.add (f x)) _ _ Laws.negZero) (Laws.addZeroRight (f x))));
+\definition zeroBall[f: Test][r: Real.Real]: Logic.PropEquiv[Space.Member (Ball p Tests.zero r) f, R.Lt (p.value f) r] := Logic.PropEquiv[_, _] {
+  ltr := \fun (member: _) => R.ltReplaceLeft _ _ r (congr!{Test Real.Real} p.value _ _ (differenceZero f)) member,
+  rtl := \fun (member: _) => R.ltReplaceLeft _ _ r (sym!{Real.Real} _ _ (congr!{Test Real.Real} p.value _ _ (differenceZero f))) member,
+};
+\definition balanced[r: Real.Real][c: Real.Real][f: Test]: R.Le (Absolute.abs c) Real.one ->
+  Space.Member (Ball p Tests.zero r) f -> Space.Member (Ball p Tests.zero r) (Tests.scale c f) :=
+  \fun (unit: _)(member: _) => (zeroBall (Tests.scale c f) r).rtl
+    (R.leLtTrans _ (p.value f) r
+      (R.leReplaceLeft _ _ _ (sym!{Real.Real} _ _ (p.homogeneous c f))
+        (R.leReplaceRight _ _ _ (Laws.fieldMulOneLeft (p.value f))
+          (R.leReplace (Real.mul (p.value f) (Absolute.abs c)) (Real.mul (Absolute.abs c) (p.value f))
+            (Real.mul (p.value f) Real.one) (Real.mul Real.one (p.value f))
+            (Laws.fieldMulComm (p.value f) (Absolute.abs c)) (Laws.fieldMulComm (p.value f) Real.one)
+            (Estimates.mulMonotone (p.value f) (Absolute.abs c) Real.one (p.nonnegative f) unit))))
+      ((zeroBall f r).ltr member));
+\definition convex[r: Real.Real][a,b: Nonnegative][f,g: Test]: Real.add a b = Real.one ->
+  Space.Member (Ball p Tests.zero r) f -> Space.Member (Ball p Tests.zero r) g ->
+  Space.Member (Ball p Tests.zero r) (Tests.add (Tests.scale a f) (Tests.scale b g)) := \fun (unit: _)(left: _)(right: _) => \block {
+    \let M: Real.Real := Distance.max (p.value f) (p.value g) \then
+    \let ma: R.Le (p.value (Tests.scale a f)) (Real.mul a M) := R.leReplaceLeft _ _ _
+      (sym!{Real.Real} _ _ (trans!{Real.Real} _ _ _ (p.homogeneous a f)
+        (congr!{Real.Real Real.Real} (\fun (r: Real.Real) => Real.mul r (p.value f)) _ _ (Absolute.absOfNonnegative a (lp_spaces.Powers[].baseNonnegative a)))))
+      (Estimates.mulMonotone a (p.value f) M (lp_spaces.Powers[].baseNonnegative a) (Distance.maxLeft (p.value f) (p.value g))) \then
+    \let mb: R.Le (p.value (Tests.scale b g)) (Real.mul b M) := R.leReplaceLeft _ _ _
+      (sym!{Real.Real} _ _ (trans!{Real.Real} _ _ _ (p.homogeneous b g)
+        (congr!{Real.Real Real.Real} (\fun (r: Real.Real) => Real.mul r (p.value g)) _ _ (Absolute.absOfNonnegative b (lp_spaces.Powers[].baseNonnegative b)))))
+      (Estimates.mulMonotone b (p.value g) M (lp_spaces.Powers[].baseNonnegative b) (Distance.maxRight (p.value f) (p.value g))) \then
+    \return (zeroBall (Tests.add (Tests.scale a f) (Tests.scale b g)) r).rtl (R.leLtTrans _ M r
+      (R.leTrans _ _ _ (p.triangle (Tests.scale a f) (Tests.scale b g))
+        (R.leReplaceRight _ _ _ (eq_reason_in!{Real.Real _
+          "=" _ "by" { sym!{Real.Real} _ _ (Algebra.mulAddRight a b M) }
+          "=" _ "by" { congr!{Real.Real Real.Real} (\fun (r: Real.Real) => Real.mul r M) _ _ unit }
+          "=" _ "by" { Laws.fieldMulOneLeft M }
+        }) (Estimates.addLe _ _ _ _ ma mb)))
+      (Distance.maxLt (p.value f) (p.value g) r ((zeroBall f r).ltr left) ((zeroBall g r).ltr right)))
+  };

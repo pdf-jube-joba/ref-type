@@ -1,0 +1,21 @@
+\import \root.Euclidean[n := n].Examples[] \as Examples;
+\import Open.Topology[] \as OpenTopology;
+\import smooth_partitions.Scalars[A := Point, space := Ambient.topology].Using[calculus := Smooth.ScalarCalculus[].calculus] \as SmoothScalars;
+\definition distribution: Distribution := Examples.dirac a;
+\definition within: Sets.Subset (support distribution) (Sets.Singleton a) :=
+  least distribution (Sets.Singleton a) (Sets.Compactness[].hausdorffT1 Ambient.topology Ambient.hausdorff a)
+    (\fun (f: Test)(supported: _) => Support.zeroOutsideSupport Ambient.topology f a
+      (\fun (member: _) => supported a member (\refl(a))));
+\module InOpen(U: \Pow Point, member: ZeroOpenLaws[distribution, U], contains: Sets.Member U a);
+\definition contains: Sets.Member (support distribution) a :=
+  \fun (regular: _) => Sets.unionMemberElim (ZeroOpen distribution) a Logic.False
+    (\fun (U: \Pow Point)(member: ZeroOpenLaws[distribution, U])(inside: _) => InOpen[U := U, member := member, contains := inside].contradiction) regular;
+\definition singleton: support distribution = Sets.Singleton a :=
+  \axiom:setext(support distribution, Sets.Singleton a, within,
+    \fun (x: Point)(equal: x = a) => \idelim a = x \with y: Point => Sets.Member (support distribution) y
+      \by { base: contains, equality: sym!{Point} _ _ equal });
+\definition nonzero: Logic.Not (distribution = Dual.zero) :=
+  \fun (zero: _) => \block {
+    \let empty: support distribution = Sets.Empty := (zeroIffEmpty distribution).ltr zero \then
+    \return \idelim support distribution = Sets.Empty \with S: \Pow Point => Sets.Member S a \by { base: contains, equality: empty }
+  };

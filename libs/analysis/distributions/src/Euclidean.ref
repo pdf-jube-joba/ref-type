@@ -1,0 +1,65 @@
+\import lp_spaces.Euclidean[n := n] \as L;
+\import L.SmoothOperations[] \as Operations;
+\import smooth_partitions.Euclidean[n := n] \as Smooth;
+\import calculus.Real[].Multivariable[n := n].Open[] \as Open;
+\import Open.Restriction[] \as Restriction;
+\import Open.Whole[] \as Whole;
+\import Open.Analysis[] \as Analysis;
+\import functional_analysis.Support[A := L.Point] \as Support;
+\import topology.Topology[Carrier := L.Point] \as Sets;
+\import topological_algebra.Euclidean[].Dimension[n := n].Topology[] \as Ambient;
+\import real.Analysis[] \as Real;
+\import Real.Estimates[] \as Estimates;
+\import Estimates.Product[] \as Absolute;
+\import Real.Sequence[] \as Sequence;
+\import dedekind_reals.DedekindReal[] \as R;
+\import R.Arithmetic[].Prop[] \as Laws;
+\import std.Data[].Nat[] \as N;
+\import N.Basic[].Prop[] \as Nat;
+\import std.Data[].FinSet[] \as Fin;
+\import std.Data[].List[] \as Lists;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\use Equality.eq_reason_in;
+\definition Point: \Set := L.Point;
+\definition Test: \Set := L.SmoothCompact;
+\definition Directions: \Set := Lists.List[Fin.Fin n];
+\definition order[d: Directions]: N.Nat^ := Lists.length (Fin.Fin n) d;
+\definition Nonnegative: \Set := L.Nonnegative;
+\definition TestOn[U: Open.OpenSet]: \Set := \Cast[Test] ({ f: Test \where Sets.Subset (Smooth.support f) U.points });
+\definition testWithin[U: Open.OpenSet][f: TestOn U]: Sets.Subset (Smooth.support f) U.points :=
+  \bysub(Test, { f: Test \where Sets.Subset (Smooth.support f) U.points }, f);
+\module TestOperations;
+
+
+\import TestOperations[] \as Tests;
+\definition JetBound[f: Test][m: N.Nat^][b: Nonnegative]: \Prop :=
+  \forall (d: Directions) -> Nat.Le (order d) m -> \forall (x: Point) -> R.Le (Absolute.abs (Tests.jet d f x)) b;
+\definition Bound[value: Test -> Real.Real][K: \Pow Point][m: N.Nat^][C: Nonnegative]: \Prop :=
+  \forall (f: Test) -> Sets.Subset (Smooth.support f) K -> \forall (b: Nonnegative) -> JetBound f m b -> R.Le (Absolute.abs (value f)) (Real.mul C b);
+\definition LocallyBounded[value: Test -> Real.Real]: \Prop :=
+  \forall (K: \Pow Point) -> Sets.IsCompactIn Ambient.topology K -> \exists ( m: N.Nat^ \where \exists ( C: Nonnegative \where Bound value K m C ) );
+\structure DistributionData: \Set := {
+  eval: Test -> Real.Real,
+};
+\structure DistributionLaws[data: DistributionData]: \Prop := {
+  additive: \forall (f, g: Test) -> data.eval (Tests.add f g) = Real.add (data.eval f) (data.eval g),
+  homogeneous: \forall (c: Real.Real)(f: Test) -> data.eval (Tests.scale c f) = Real.mul c (data.eval f),
+  bound: LocallyBounded data.eval,
+};
+\definition Distribution: \Set := \Cast[DistributionData] ({ data: DistributionData \where DistributionLaws[data] });
+\module Convolution;
+\module Regular;
+\module On(U: Open.OpenSet);
+\module Pullback(U, V: Open.OpenSet, e: calculus.Diffeomorphism[n := n, m := n].Diffeomorphism U V);
+\module TestTopology;
+\module JetBounds;
+\module Dual;
+\module Examples;
+\module SupportTheory;
+\module TestCurve(curve: Real.Real -> Test, target: Test, at: Real.Real);
+\module PullbackIdentity(U: Open.OpenSet);
+\module LocallyConvex;

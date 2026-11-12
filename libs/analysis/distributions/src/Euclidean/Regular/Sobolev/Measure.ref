@@ -1,0 +1,47 @@
+\import functional_analysis.Measure[A := Open.Carrier Open.whole] \as Local;
+\import topology.Topology[Carrier := Open.Carrier Open.whole] \as LocalSets;
+\import M.Sigma[] \as Sigma;
+\import M.AlmostEverywhere[mu := E.measure] \as MeasureLaws;
+\import std.Data[].Nat[] \as N;
+\definition preimage[S: \Pow (Open.Carrier Open.whole)]: \Pow E.Point := { x: E.Point \where LocalSets.Member S (Whole.point x) };
+\definition sigmaData: Local.SigmaAlgebraData := Local.SigmaAlgebraData {
+  measurable := { S: \Pow (Open.Carrier Open.whole) \where M.Measurable E.measure.sigma (preimage S) },
+};
+\definition sigma: Local.SigmaAlgebra := \into[Local.SigmaAlgebraData](sigmaData, Local.SigmaAlgebra) \by { Local.SigmaAlgebraLaws[sigmaData] {
+  empty := (Sigma.laws E.measure.sigma).empty,
+  complement := \fun (S: \Pow (Open.Carrier Open.whole))(valid: _) => (Sigma.laws E.measure.sigma).complement (preimage S) valid,
+  countableUnion := \fun (family: N.Nat^ -> \Pow (Open.Carrier Open.whole))(valid: _) =>
+    (Sigma.laws E.measure.sigma).countableUnion (\fun (k: N.Nat^) => preimage (family k)) valid,
+} };
+\definition data: Local.MeasureData := Local.MeasureData { sigma := sigma, value := \fun (S: \Pow (Open.Carrier Open.whole)) => E.measure.value (preimage S) };
+\definition measure: Local.Measure := \into[Local.MeasureData](data, Local.Measure) \by { Local.MeasureLaws[data] {
+  nonnegative := \fun (S: \Pow (Open.Carrier Open.whole))(valid: _) => Local.NonnegativeValue[data.value S] {
+    negative := (MeasureLaws.laws.nonnegative (preimage S) valid).negative,
+    downward := (MeasureLaws.laws.nonnegative (preimage S) valid).downward,
+    rounded := (MeasureLaws.laws.nonnegative (preimage S) valid).rounded,
+  },
+  empty := MeasureLaws.laws.empty,
+  countableAdditivity := \fun (family: N.Nat^ -> \Pow (Open.Carrier Open.whole))(valid: _)(disjoint: Local.Disjoint family) =>
+    MeasureLaws.laws.countableAdditivity (\fun (k: N.Nat^) => preimage (family k)) valid
+      (\fun (i, j: N.Nat^)(different: _)(x: E.Point) => disjoint i j different (Whole.point x)),
+} };
+\import product_integration.MeasureMap[A := E.Point, B := Open.Carrier Open.whole, source := E.measure, target := measure] \as Forward;
+\definition forward: Forward.Data := Forward.Data { function := Whole.point,
+  measurable := \fun (S: \Pow (Open.Carrier Open.whole))(valid: _) => valid,
+  value := \fun (S: \Pow (Open.Carrier Open.whole))(valid: _) => \refl(E.measure.value (preimage S)),
+};
+\definition include[x: Open.Carrier Open.whole]: E.Point := x;
+\definition roundtrip[S: \Pow E.Point]: preimage ({ x: Open.Carrier Open.whole \where Sets.Member S (include x) }) = S :=
+  \axiom:setext(preimage ({ x: Open.Carrier Open.whole \where Sets.Member S (include x) }), S,
+    \fun (x: E.Point)(member: _) => member, \fun (x: E.Point)(member: _) => member);
+\import product_integration.MeasureMap[A := Open.Carrier Open.whole, B := E.Point, source := measure, target := E.measure] \as Backward;
+\definition backward: Backward.Data := Backward.Data { function := include,
+  measurable := \fun (S: \Pow E.Point)(valid: _) => \idelim S = preimage ({ x: Open.Carrier Open.whole \where Sets.Member S (include x) })
+    \with V: \Pow E.Point => M.Measurable E.measure.sigma V \by { base: valid, equality: sym!{\Pow E.Point} _ _ (roundtrip S) },
+  value := \fun (S: \Pow E.Point)(valid: _) => congr!{{\Pow E.Point} M.Value} E.measure.value _ _ (roundtrip S),
+};
+\import Local.Integral[mu := measure] \as Integral;
+\definition restriction[f: I.Representatives]: Integral.Representatives := Backward.On[map := backward].RealFunction[f := f].representative;
+\definition extension[f: Integral.Representatives]: I.Representatives := Forward.On[map := forward].RealFunction[f := f].representative;
+\definition restrictionIntegral[f: I.Representatives]: Integral.integral (restriction f) = I.integral f := Backward.On[map := backward].RealFunction[f := f].integral;
+\definition extensionIntegral[f: Integral.Representatives]: I.integral (extension f) = Integral.integral f := Forward.On[map := forward].RealFunction[f := f].integral;

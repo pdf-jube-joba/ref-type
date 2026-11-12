@@ -1,0 +1,46 @@
+\import \root.Euclidean[n := n].TestOperations[] \as CJTests;
+\import functional_analysis.Sobolev[n := n] \as CJSign;
+\import std.Data[].List[] \as CJLists;
+\import std.Data[].Nat[] \as CJNat;
+\definition CJDirections: \Set := CJLists.List[std.Data[].FinSet[].Fin n];
+\definition sign[d: CJDirections]: ConvReal.Real := CJSign.sign (CJLists.length (std.Data[].FinSet[].Fin n) d);
+\definition translate[rho: ConvL.SmoothCompact][a: ConvE.Point]: ConvL.SmoothCompact :=
+  \parent.Translate[rho := rho, a := a].test;
+\definition partial[rho: ConvL.SmoothCompact][a: ConvE.Point][i: std.Data[].FinSet[].Fin n]:
+  CJTests.partial (translate rho a) i = CJTests.scale (ConvReal.neg ConvReal.one) (translate (CJTests.partial rho i) a) :=
+  CJTests.ext _ _ (\fun (y: ConvE.Point) => trans!{ConvReal.Real} _ _ _
+    (\parent.Translate[rho := rho, a := a].Partial[i := i].pointwise y)
+    (sym!{ConvReal.Real} _ _ (calculus.Real[].Derivative[].Operations[].negativeScale (CJTests.partial rho i (ConvE.subPoint a y)))));
+\definition law: \forall (d: CJDirections)(rho: ConvL.SmoothCompact)(a: ConvE.Point) ->
+  CJTests.jet d (translate rho a) = CJTests.scale (sign d) (translate (CJTests.jet d rho) a) :=
+  \induction (d: CJDirections) \return \forall (rho: ConvL.SmoothCompact)(a: ConvE.Point) ->
+    CJTests.jet d (translate rho a) = CJTests.scale (sign d) (translate (CJTests.jet d rho) a) \with {
+    | nil: \fun (rho: ConvL.SmoothCompact)(a: ConvE.Point) => CJTests.ext (translate rho a) (CJTests.scale ConvReal.one (translate rho a))
+      (\fun (y: ConvE.Point) => sym!{ConvReal.Real} _ _ (ConvLaws.fieldMulOneLeft (rho (ConvE.subPoint a y))))
+    | cons: \fun (i: std.Data[].FinSet[].Fin n)(tail: CJDirections)(previous: \forall (f: ConvL.SmoothCompact)(b: ConvE.Point) -> CJTests.jet tail (translate f b) = CJTests.scale (sign tail) (translate (CJTests.jet tail f) b))(rho: ConvL.SmoothCompact)(a: ConvE.Point) => \block {
+      \let h: ConvL.SmoothCompact := CJTests.jet tail rho \then
+      \let first: CJTests.partial (CJTests.jet tail (translate rho a)) i = CJTests.scale (sign tail) (CJTests.partial (translate h a) i) :=
+        trans!{ConvL.SmoothCompact} _ _ _
+          (congr!{ConvL.SmoothCompact ConvL.SmoothCompact} (\fun (f: ConvL.SmoothCompact) => CJTests.partial f i) _ _ (previous rho a))
+          (CJTests.partialScale (sign tail) (translate h a) i) \then
+      \return CJTests.ext (CJTests.partial (CJTests.jet tail (translate rho a)) i) (CJTests.scale (ConvReal.neg (sign tail)) (translate (CJTests.partial h i) a)) (\fun (y: ConvE.Point) => trans!{ConvReal.Real} _ _ _
+        (congr!{ConvL.SmoothCompact ConvReal.Real} (\fun (f: ConvL.SmoothCompact) => f y) _ _ first)
+        (trans!{ConvReal.Real} _ _ _
+          (congr!{ConvReal.Real ConvReal.Real} (ConvReal.mul (sign tail)) _ _ (\parent.Translate[rho := h, a := a].Partial[i := i].pointwise y))
+          (trans!{ConvReal.Real} _ _ _ (ConvLaws.fieldMulNegRight (sign tail) (CJTests.partial h i (ConvE.subPoint a y)))
+            (sym!{ConvReal.Real} _ _ (ConvLaws.fieldMulNegLeft (sign tail) (CJTests.partial h i (ConvE.subPoint a y)))))))
+    }
+  };
+\definition signAbs: \forall (d: CJDirections) -> ConvAbsolute.abs (sign d) = ConvReal.one :=
+  \induction (d: CJDirections) \return ConvAbsolute.abs (sign d) = ConvReal.one \with {
+    | nil: ConvAbsolute.absOfNonnegative ConvReal.one (ConvLaws.oneNonnegative)
+    | cons: \fun (i: std.Data[].FinSet[].Fin n)(tail: CJDirections)(previous: _) => trans!{ConvReal.Real} _ _ _ (ConvAbsolute.absNeg (sign tail)) previous
+  };
+\definition absolute[d: CJDirections][rho: ConvL.SmoothCompact][a,y: ConvE.Point]:
+  ConvAbsolute.abs (CJTests.jet d (translate rho a) y) = ConvAbsolute.abs (CJTests.jet d rho (ConvE.subPoint a y)) :=
+  trans!{ConvReal.Real} _ _ _
+    (congr!{ConvL.SmoothCompact ConvReal.Real} (\fun (f: ConvL.SmoothCompact) => ConvAbsolute.abs (f y)) _ _ (law d rho a))
+    (trans!{ConvReal.Real} _ _ _ (ConvAbsolute.absProduct (sign d) (CJTests.jet d rho (ConvE.subPoint a y)))
+      (trans!{ConvReal.Real} _ _ _
+        (congr!{ConvReal.Real ConvReal.Real} (\fun (r: ConvReal.Real) => ConvReal.mul r (ConvAbsolute.abs (CJTests.jet d rho (ConvE.subPoint a y)))) _ _ (signAbs d))
+        (ConvLaws.fieldMulOneLeft _)));

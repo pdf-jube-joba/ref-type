@@ -1,0 +1,20 @@
+\import \parent.\parent.Stage[K := K, compact := compact, within := within] \as Stage;
+\import Backward.Regularity[] \as JacobianSmooth;
+\import \parent.\parent.Weighted[].Estimate[H := Stage.localImage, compact := Stage.localCompact] \as Estimate;
+\definition exists: \exists ( m: N.Nat^ \where \exists ( C: Nonnegative \where Source.Bound pairing K m C ) ) := \block {
+  \takefrom m: \Cast[N.Nat^] ({ m: N.Nat^ \where \exists ( D: Nonnegative \where Target.Bound T.eval Stage.image m D ) }) \by
+    T.bound Stage.image Stage.imageCompact Stage.imageWithin \then
+  \takefrom D: \Cast[Nonnegative] ({ D: Nonnegative \where Target.Bound T.eval Stage.image m D }) \by
+    \bysub(N.Nat^, { m: N.Nat^ \where \exists ( D: Nonnegative \where Target.Bound T.eval Stage.image m D ) }, m) \then
+  \takefrom C: \Cast[Nonnegative] ({ C: Nonnegative \where Estimate.Bound m JacobianSmooth.absolute C }) \by
+    Estimate.exists m JacobianSmooth.absolute \then
+  \let bound: Target.Bound T.eval Stage.image m D := \bysub(Nonnegative, { D: Nonnegative \where Target.Bound T.eval Stage.image m D }, D) \then
+  \let estimate: Estimate.Bound m JacobianSmooth.absolute C :=
+    \bysub(Nonnegative, { C: Nonnegative \where Estimate.Bound m JacobianSmooth.absolute C }, C) \then
+  \return Logic.existsIntro[N.Nat^, { m: N.Nat^ \where \exists ( B: Nonnegative \where Source.Bound pairing K m B ) }] m
+    (Logic.existsIntro[Nonnegative, { B: Nonnegative \where Source.Bound pairing K m B }] (lp_spaces.Powers[].Algebra[].product D C)
+      (\fun (f: SourceTest)(supported: _)(b: Nonnegative)(input: _) => R.leReplaceRight _ _ _
+        (sym!{Real.Real} _ _ (Laws.fieldMulAssoc D C b))
+        (bound (test f) (Stage.testSupport f supported) (lp_spaces.Powers[].Algebra[].product C b)
+          (Stage.Bound[m := m, C := C, estimate := estimate].jetBound f supported b input))))
+};

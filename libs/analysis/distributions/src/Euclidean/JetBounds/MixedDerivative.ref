@@ -1,0 +1,18 @@
+\import LocalSmooth.Algebra[U := Open.whole] \as F;
+\import D.Linear[U := Open.whole] \as Diff;
+\import Operations.Partial[f := f, i := i] \as P;
+\import Operations.Partial[f := JetTests.partial f i, i := j] \as PI;
+\import Operations.Partial[f := JetTests.partial f j, i := i] \as QJ;
+\definition bridgeI: PI.localFunction = Diff.apply i P.localFunction :=
+  F.ext PI.localFunction (Diff.apply i P.localFunction)
+    (\fun (x: Open.Carrier Open.whole) => \refl(PI.localFunction x));
+\definition bridgeJ: QJ.localFunction = Diff.apply j P.localFunction :=
+  F.ext QJ.localFunction (Diff.apply j P.localFunction)
+    (\fun (x: Open.Carrier Open.whole) => \refl(QJ.localFunction x));
+\definition law: JetTests.partial (JetTests.partial f i) j = JetTests.partial (JetTests.partial f j) i :=
+  JetTests.ext (JetTests.partial (JetTests.partial f i) j) (JetTests.partial (JetTests.partial f j) i)
+    (\fun (x: Point) => eq_reason_in!{Real.Real _
+      "=" _ "by" { congr!{F.Function Real.Real} (\fun (g: F.Function) => Diff.apply j g (Whole.point x)) _ _ bridgeI }
+      "=" _ "by" { LocalSmooth.Schwarz[U := Open.whole, f := P.localFunction, a := Whole.point x, i := j, j := i].Commutation[].law }
+      "=" _ "by" { sym!{Real.Real} _ _ (congr!{F.Function Real.Real} (\fun (g: F.Function) => Diff.apply i g (Whole.point x)) _ _ bridgeJ) }
+    });

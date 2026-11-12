@@ -1,0 +1,20 @@
+\import ConvOpen.Smooth[] \as CSSmooth;
+\import ConvOpen.Smooth[].Properties[] \as CSProperties;
+\import ConvOpen.Restriction[] \as CSRestriction;
+\import ConvOpen.Analysis[] \as CSAnalysis;
+\import std.Data[].Nat[] \as CSN;
+\import \root.Euclidean[n := n].Convolution[] \as CSConvolution;
+\definition continuous[rho: ConvL.SmoothCompact]: CSAnalysis.ContinuousOn ConvOpen.whole (CSRestriction.function ConvOpen.whole (function T rho)) :=
+  \fun (a: ConvOpen.Carrier ConvOpen.whole) => CSConvolution.Continuity[T := T, rho := rho, a := a].continuous;
+\definition partials[rho: ConvL.SmoothCompact][i: std.Data[].FinSet[].Fin n]: CSAnalysis.HasPartialDerivative ConvOpen.whole
+  (CSRestriction.function ConvOpen.whole (function T rho)) i (CSRestriction.function ConvOpen.whole (function T (ConvOperations.partial rho i))) :=
+  \fun (a: ConvOpen.Carrier ConvOpen.whole) => CSConvolution.Differentiation[T := T, rho := rho, a := a, i := i].partial;
+\definition allOrders: \forall (k: CSN.Nat^)(rho: ConvL.SmoothCompact) -> CSSmooth.ContDiffOn ConvOpen.whole k (CSRestriction.function ConvOpen.whole (function T rho)) :=
+  \induction (k: CSN.Nat^) \return \forall (rho: ConvL.SmoothCompact) -> CSSmooth.ContDiffOn ConvOpen.whole k (CSRestriction.function ConvOpen.whole (function T rho)) \with {
+    | zero: \fun (rho: ConvL.SmoothCompact) => CSProperties.zeroOfContinuous ConvOpen.whole (CSRestriction.function ConvOpen.whole (function T rho)) (continuous rho)
+    | succ: \fun (k: CSN.Nat^)(previous: \forall (rho: ConvL.SmoothCompact) -> CSSmooth.ContDiffOn ConvOpen.whole k (CSRestriction.function ConvOpen.whole (function T rho)))(rho: ConvL.SmoothCompact) =>
+      CSSmooth.Successor[U := ConvOpen.whole, f := CSRestriction.function ConvOpen.whole (function T rho),
+        g := \fun (i: std.Data[].FinSet[].Fin n) => CSRestriction.function ConvOpen.whole (function T (ConvOperations.partial rho i)), k := k].contDiff
+        (continuous rho) (partials rho) (\fun (i: std.Data[].FinSet[].Fin n) => previous (ConvOperations.partial rho i))
+  };
+\definition smooth[rho: ConvL.SmoothCompact]: ConvSmooth.IsSmooth (function T rho) := \fun (k: CSN.Nat^) => allOrders k rho;

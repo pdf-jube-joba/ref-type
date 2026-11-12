@@ -1,0 +1,19 @@
+\module Normalize(K: \Pow Point, compact: Sets.IsCompactIn Ambient.topology K, m: N.Nat^, delta: Real.Real,
+  control: Final.Control[p.value, K, Tests.zero, Real.one, m, delta]);
+\definition continuousBounded: Maps.Continuous Final.topology Line.topology p.value -> LocallyBounded p.value :=
+  \fun (continuous: _)(K: \Pow Point)(compact: _)(within: _) => \block {
+    \takefrom m: \Cast[N.Nat^] ({ m: N.Nat^ \where \exists ( delta: Real.Real \where Final.Control[p.value, K, Tests.zero, Real.one, m, delta] ) })
+      \by Final.stageContinuous p.value continuous K compact within Tests.zero (Differences.zeroSupported K) Real.one Absolute.onePositive \then
+    \takefrom delta: \Cast[Real.Real] ({ delta: Real.Real \where Final.Control[p.value, K, Tests.zero, Real.one, m, delta] })
+      \by \bysub(N.Nat^, { m: N.Nat^ \where \exists ( delta: Real.Real \where Final.Control[p.value, K, Tests.zero, Real.one, m, delta] ) }, m) \then
+    \let control: Final.Control[p.value, K, Tests.zero, Real.one, m, delta] :=
+      \bysub(Real.Real, { delta: Real.Real \where Final.Control[p.value, K, Tests.zero, Real.one, m, delta] }, delta) \then
+    \return Logic.existsIntro[N.Nat^, { j: N.Nat^ \where \exists ( C: Nonnegative \where Bound p.value K j C ) }] m
+      (Logic.existsIntro[Nonnegative, { C: Nonnegative \where Bound p.value K m C }]
+        (Normalize[K := K, compact := compact, m := m, delta := delta, control := control].coefficient)
+        (Normalize[K := K, compact := compact, m := m, delta := delta, control := control].bound))
+  };
+\definition boundedContinuous: LocallyBounded p.value -> Maps.Continuous Final.topology Line.topology p.value :=
+  \fun (bounded: _) => \parent.SeminormContinuity[p := \into[Seminorm](p, Admissible) \by { bounded }].finalContinuous;
+\definition equivalence: Logic.PropEquiv[Maps.Continuous Final.topology Line.topology p.value, LocallyBounded p.value] :=
+  Logic.PropEquiv[_, _] { ltr := continuousBounded, rtl := boundedContinuous };

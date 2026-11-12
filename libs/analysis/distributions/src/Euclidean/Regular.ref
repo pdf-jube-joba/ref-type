@@ -1,0 +1,86 @@
+\import lp_spaces.Euclidean[n := n] \as E;
+\import E.Compact[p := lp_spaces.Powers[].one] \as Compact;
+\import E.SmoothOperations[] \as Operations;
+\import smooth_partitions.Euclidean[n := n] \as Smooth;
+\import topological_algebra.Euclidean[].Dimension[n := n].Topology[] \as Ambient;
+\import topology.Topology[Carrier := E.Point] \as Sets;
+\import functional_analysis.Support[A := E.Point] \as Support;
+\import functional_analysis.Measure[A := E.Point] \as M;
+\import M.Integral[mu := E.measure] \as I;
+\import I.Absolute[] \as Absolute;
+\import I.Scaling[] \as Scaling;
+\import I.Linear[] \as IntegralLinear;
+\import I.Null[] \as Null;
+\import M.AlmostEverywhere[mu := E.measure] \as AE;
+\import lp_spaces.On[A := E.Point, mu := E.measure] \as L;
+\import L.Products[] \as Products;
+\import product_integration.Finiteness[A := E.Point, mu := E.measure] \as Finite;
+\import real.Analysis[] \as Real;
+\import Real.Algebra[] \as Algebra;
+\import Real.Estimates[] \as Estimates;
+\import Real.Estimates[].Product[] \as Product;
+\import Real.Distance[] \as Distance;
+\import dedekind_reals.DedekindReal[] \as R;
+\import R.Arithmetic[].Prop[] \as Laws;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Classical[] \as Classical;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\use Equality.eq_reason_in;
+\definition CompactSet: \Set := \Cast[\Pow E.Point] ({ K: \Pow E.Point \where Sets.IsCompactIn Ambient.topology K });
+\definition compact[K: CompactSet]: Sets.IsCompactIn Ambient.topology K := \bysub(\Pow E.Point, { K: \Pow E.Point \where Sets.IsCompactIn Ambient.topology K }, K);
+\definition finiteSet[K: CompactSet]: Finite.FiniteMeasurableSet := \into[\Pow E.Point](K, Finite.FiniteMeasurableSet) \by { E.CompactBounds[].finite K (compact K) };
+\definition indicator[K: CompactSet]: I.Representatives := Finite.Indicator[S := finiteSet K].representative;
+\definition restricted[K: CompactSet][f: E.Function]: E.Function := \fun (x: E.Point) => Real.mul (f x) (indicator K x);
+\definition inside[K: CompactSet][f: E.Function][x: E.Point]: Sets.Member K x -> restricted K f x = f x := \fun (member: _) => trans!{Real.Real} _ _ _
+  (congr!{Real.Real Real.Real} (Real.mul (f x)) _ _ (Finite.Indicator[S := finiteSet K].inside x member)) (Algebra.mulOneRight (f x));
+\definition outside[K: CompactSet][f: E.Function][x: E.Point]: Logic.Not (Sets.Member K x) -> restricted K f x = Real.zero := \fun (absent: _) => trans!{Real.Real} _ _ _
+  (congr!{Real.Real Real.Real} (Real.mul (f x)) _ _ (Finite.Indicator[S := finiteSet K].outside x absent)) (Laws.fieldMulZeroRight (f x));
+\structure LocallyIntegrable[f: E.Function]: \Prop := {
+  measurable: M.IsMeasurable E.measure f,
+  local: \forall (K: CompactSet) -> I.Integrable (restricted K f),
+};
+\definition Representatives: \Set := \Cast[E.Function] ({ f: E.Function \where LocallyIntegrable[f] });
+\definition laws[f: Representatives]: LocallyIntegrable[f] := \bysub(E.Function, { f: E.Function \where LocallyIntegrable[f] }, f);
+\definition restrict[K: CompactSet][f: Representatives]: I.Representatives := \into[E.Function](restricted K f, I.Representatives) \by { (laws f).local K };
+\definition restrictionBound[K: CompactSet][f: E.Function][x: E.Point]: R.Le (Product.abs (restricted K f x)) (Product.abs (f x)) :=
+  Logic.orElim _ _ _ (Classical.excludedMiddle (Sets.Member K x))
+    (\fun (member: _) => R.leReplaceLeft _ _ _ (sym!{Real.Real} _ _ (congr!{Real.Real Real.Real} Product.abs _ _ (inside K f x member))) (R.leRefl (Product.abs (f x))))
+    (\fun (absent: _) => R.leReplaceLeft Real.zero _ _ (sym!{Real.Real} _ _ (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} Product.abs _ _ (outside K f x absent)) (Distance.distanceSelf Real.zero))) (Product.absNonnegative (f x)));
+\definition fromIntegral[f: I.Representatives]: Representatives := \into[E.Function](f, Representatives) \by { LocallyIntegrable[f] {
+  measurable := (I.integralLaw f).integrable.left,
+  local := \fun (K: CompactSet) => Absolute.dominatedIntegrable (restricted K f) f
+    (Products.measurable f (indicator K) (I.integralLaw f).integrable.left (I.integralLaw (indicator K)).integrable.left)
+    (I.integralLaw f).integrable (restrictionBound K f),
+} };
+\module For(f: Representatives);
+\module Global(left, right: I.Representatives);
+\module Separation(left, right: Representatives);
+\import \root.Euclidean[n := n] \as Distributions;
+\import Distributions.Dual[] \as Dual;
+\import std.Set[].Quotient[A := Representatives, Equivalent := \fun (f, g: Representatives) => M.AlmostEqual E.measure f g] \as Quotient;
+\definition equivalence: Quotient.EquivalenceLaws := Quotient.EquivalenceLaws {
+  refl := \fun (f: Representatives) => AE.reflexive f,
+  sym := \fun (f, g: Representatives) => AE.symmetric f g,
+  trans := \fun (f, g, h: Representatives) => AE.transitive f g h,
+};
+\definition Space: \Set := Quotient.Carrier;
+\definition ofFunction[f: Representatives]: Space := Quotient.class f;
+\import Quotient.Maps[B := Distributions.Distribution] \as QuotientMap;
+\definition distribution[f: Representatives]: Distributions.Distribution := For[f := f].distribution;
+\definition respects: QuotientMap.Respects distribution := \fun (f, g: Representatives)(same: _) =>
+  Dual.ext (distribution f) (distribution g) (Separation[left := f, right := g].respects same);
+\definition embed: Space -> Distributions.Distribution := QuotientMap.value equivalence distribution respects;
+\definition embedClass[f: Representatives]: embed (ofFunction f) = distribution f := QuotientMap.onClass equivalence distribution respects f;
+\definition injective: \forall (a, b: Space) -> embed a = embed b -> a = b :=
+  Quotient.induction2 (\fun (a, b: Space) => embed a = embed b -> a = b)
+    (\fun (f, g: Representatives)(same: embed (ofFunction f) = embed (ofFunction g)) => Quotient.classOfEq equivalence f g
+      (Separation[left := f, right := g].injective (\fun (test: E.SmoothCompact) =>
+        congr!{Distributions.Distribution Real.Real} (\fun (T: Distributions.Distribution) => T.eval test) (distribution f) (distribution g)
+          (trans!{Distributions.Distribution} _ _ _ (sym!{Distributions.Distribution} _ _ (embedClass f))
+            (trans!{Distributions.Distribution} _ _ _ same (embedClass g))))));
+\module Sobolev;
+\module Lp(p: functional_analysis.Powers[].Exponent);
+\module SmoothFunction(f: calculus.Real[].Multivariable[n := n].Open[].Smooth[].Derivative[].Function calculus.Real[].Multivariable[n := n].Open[].whole);
