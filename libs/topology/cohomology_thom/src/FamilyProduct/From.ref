@@ -1,0 +1,32 @@
+\import std.Logic[].Proposition[] \as Logic;
+\use Logic.either;
+\import \root.FamilyProduct[A := A, source := source, first := first, second := second, family := family, firstMember := firstMember, secondMember := secondMember, classify := classify, K := K, ring := ring] \as Old;
+\import \root.FamilyProduct[A := Y, source := target, first := firstPart, second := secondPart, family := newFamily, firstMember := newFirstMember, secondMember := newSecondMember, classify := newClassify, K := K, ring := ring] \as New;
+\import \root.FamilyCommonModel[A := Y, source := target, first := firstPart, second := secondPart, family := newFamily, firstMember := newFirstMember, secondMember := newSecondMember, classify := newClassify, K := K, ring := ring] \as NewModel;
+\import Mixed.From[Y := Y, target := target, firstPart := firstPart, secondPart := secondPart, f := f, regular := regular, firstContained := firstContained, secondContained := secondContained] \as Natural;
+\import singular_subdivision.Small[A := Y, source := target, family := newFamily].Simplices[] \as NewBoundary;
+\import singular_subdivision.Small[A := A, source := source, family := family].Simplices[] \as OldBoundary;
+\import singular_cohomology.Maps[A := Y, B := A, source := target, target := source] \as Maps;
+\import algebraic_topology.Simplex[] \as Simplex;
+\definition preserves: \forall (n: N.Nat^)(sigma: NewBoundary.Carrier n) -> \In[singular_cohomology.Simplices[A := A, source := source].Carrier n] (OldBoundary.Small n) (Maps.postcompose n f regular sigma) := \block {
+  \fun (n: N.Nat^)(sigma: NewBoundary.Carrier n) \then
+  \takefrom witness: NewBoundary.Witness[n, sigma] \by NewBoundary.witness n sigma \then
+  \return either!{{newClassify witness.element witness.member} {\In[singular_cohomology.Simplices[A := A, source := source].Carrier n] (OldBoundary.Small n) (Maps.postcompose n f regular sigma)}
+    {\fun (same: witness.element = firstPart) => \exact(OldBoundary.Witness[n, Maps.postcompose n f regular sigma] {
+      element := first, member := firstMember,
+      contained := \fun (x: Simplex.Carrier n) => firstContained (sigma x) (\idelim witness.element = firstPart \with U: \Pow Y => \In[Y] U (sigma x) \by { base: witness.contained x, equality: same })
+    }, OldBoundary.Witness[n, Maps.postcompose n f regular sigma])}
+    {\fun (same: witness.element = secondPart) => \exact(OldBoundary.Witness[n, Maps.postcompose n f regular sigma] {
+      element := second, member := secondMember,
+      contained := \fun (x: Simplex.Carrier n) => secondContained (sigma x) (\idelim witness.element = secondPart \with U: \Pow Y => \In[Y] U (sigma x) \by { base: witness.contained x, equality: same })
+    }, OldBoundary.Witness[n, Maps.postcompose n f regular sigma])}}
+};
+\import \root.FamilyPair[A := A, source := source, family := family] \as OldPair;
+\import \root.FamilyPair[A := Y, source := target, family := newFamily] \as NewPair;
+\import \root.FamilyPairMap[A := Y, B := A, source := target, target := source, sourceFamily := newFamily, targetFamily := family, f := f, regular := regular, preserves := preserves] \as PairMap;
+\import Modules.End[V := K, space := Whole.integerCoefficients.space] \as Scalars;
+\import resolutions.HomComplex[].Over[R := I.Int^, ring := Integers.commutativeRing].IntegerMapping[P := NewPair.complex, Q := OldPair.complex, N := Whole.integerCoefficients, L := Whole.integerCoefficients].On[f := PairMap.map, u := Scalars.identity] \as Pull;
+\import \root.RelativePullback[].On[A := Y, source := target, subset := firstPart, R := K, ring := ring].To[B := A, target := source, part := first].Along[f := Natural.firstMap] \as FirstPull;
+\import \root.RelativePullback[].On[A := Y, source := target, subset := secondPart, R := K, ring := ring].To[B := A, target := source, part := second].Along[f := Natural.secondMap] \as SecondPull;
+\module Degree(n: N.Nat^);
+\module Product(p, q: N.Nat^);

@@ -1,0 +1,38 @@
+\use std.Logic[].Equality[].eq_reason_in;
+\import \parent.\parent.Ring[K := K, ring := ring] \as Model;
+\import module_theory.Module[].Over[R := K, ring := std.Alg[].Ring[].commutativeRingAsRing K ring] \as RingModules;
+\import \root.LocalDisk[].Point[K := K, ring := ring].Rank[n := chart.dimension] \as PointClass;
+\import \root.LocalDisk[].On[X := BasePoint, source := baseTopology].Ring[RingCarrier := K, ring := ring] \as StandardTheory;
+\import \root.LocalDisk[].On[X := BasePoint, source := baseTopology].From[B := Point.Carrier, target := Point.topology, f := constant, regular := constantContinuous].Ring[K := K, ring := ring] \as FillNatural;
+\import \root.RelativePullback[].On[A := ActualFiber.Carrier, source := ActualFiber.topology, subset := ActualFiber.boundary, R := K, ring := ring].To[B := PointDisk.DiskCarrier, target := PointDisk.diskTopology, part := PointDisk.boundary].Homeomorphism[data := fiberPair] \as Comparison;
+\import singular_products.Cochains[A := Point.Carrier, source := Point.topology, R := K, ring := ring] \as PointProduct;
+\import singular_cohomology.Relative[A := ActualFiber.Carrier, source := ActualFiber.topology, subset := ActualFiber.boundary].OverRing[R := K, ring := ring].With[coefficients := PointProduct.coefficients] \as Relative;
+\import chain_complexes.Integer[].Over[R := K, ring := std.Alg[].Ring[].commutativeRingAsRing K ring].At[C := Relative.complex, z := I.Int^::ofNat chart.dimension] \as H;
+\definition Class: \Set := H.Cohomology;
+\definition space: RingModules.Space Class := H.cohomologySpace;
+\definition isomorphism: RingModules.Isomorphism[V := K, W := Class, source := RingModules.scalarModule, target := space].Isomorphism :=
+  RingModules.Isomorphism[V := K, W := PointClass.Class, source := RingModules.scalarModule, target := PointClass.space].Composition[U := Class, final := space].compose Comparison.Degree[n := chart.dimension].isomorphism PointClass.isomorphism;
+\definition generator: Class := Comparison.Degree[n := chart.dimension].isomorphism.forward.apply PointClass.generator;
+\definition unit: isomorphism.forward.apply ring.base.one = generator := congr!{PointClass.Class Class} Comparison.Degree[n := chart.dimension].isomorphism.forward.apply _ _ PointClass.normalized;
+\import Geometry.Local[K := K, ring := ring].Rank[n := chart.dimension].Fiber[x := x] \as Ranked;
+\definition generates: Ranked.Generator generator := std.Logic[].Proposition[].existsIntro[
+  RingModules.Isomorphism[V := K, W := Class, source := RingModules.scalarModule, target := space].Isomorphism,
+  { e: RingModules.Isomorphism[V := K, W := Class, source := RingModules.scalarModule, target := space].Isomorphism \where e.forward.apply ring.base.one = generator }] isomorphism unit;
+\definition restriction: _ := LocalFiber.Ring[K := K, ring := ring].Degree[n := chart.dimension].restriction;
+\import singular_cohomology.Relative[A := ActualFiber.Carrier, source := ActualFiber.topology, subset := ActualFiber.boundary].Maps[B := Actual.Carrier].Over[target := Actual.topology, targetSubset := Actual.boundary].Composition[C := StandardDisk.DiskCarrier].Over[final := StandardDisk.diskTopology, finalSubset := StandardDisk.boundary] \as IntoStandard;
+\definition modelPair: _ := IntoStandard.compose LocalFiber.pairMap (Pairs.forwardMap pair);
+\import singular_cohomology.Relative[A := ActualFiber.Carrier, source := ActualFiber.topology, subset := ActualFiber.boundary].Maps[B := PointDisk.DiskCarrier].Over[target := PointDisk.diskTopology, targetSubset := PointDisk.boundary].Composition[C := StandardDisk.DiskCarrier].Over[final := StandardDisk.diskTopology, finalSubset := StandardDisk.boundary] \as Filled;
+\definition filledPair: _ := Filled.compose (FiberPairs.forwardMap fiberPair) Fill.pair;
+\import singular_cohomology.Relative[A := ActualFiber.Carrier, source := ActualFiber.topology, subset := ActualFiber.boundary].Maps[B := StandardDisk.DiskCarrier].Over[target := StandardDisk.diskTopology, targetSubset := StandardDisk.boundary] \as ModelMaps;
+\definition square: filledPair = modelPair := \axiom:funext(filledPair, modelPair, filled);
+\definition action[f: ModelMaps.Map]: _ := ModelMaps.On[f := f].Integer[].With[coefficients := PointProduct.integerCoefficients].At[z := I.Int^::ofNat chart.dimension].induced;
+\import \root.RelativePullback[].On[A := ActualFiber.Carrier, source := ActualFiber.topology, subset := ActualFiber.boundary, R := K, ring := ring].To[B := PointDisk.DiskCarrier, target := PointDisk.diskTopology, part := PointDisk.boundary].Along[f := FiberPairs.forwardMap fiberPair] \as ForwardPull;
+\definition normalized: restriction.apply Model.class = generator := eq_reason_in!{Class _
+  "=" _ "by" { congr!{{Geometry.Domain[U := U].Ring[K := K, ring := ring].Degree[n := chart.dimension].Class} Class} restriction.apply _ _ Model.classLaw }
+  "=" _ "by" { sym!{Class} _ _ (IntoStandard.On[f := LocalFiber.pairMap, g := Pairs.forwardMap pair].With[coefficients := PointProduct.integerCoefficients].law (I.Int^::ofNat chart.dimension) (StandardTheory.canonical chart.dimension)) }
+  "=" _ "by" { congr!{ModelMaps.Map Class} (\fun (f: ModelMaps.Map) => (action f).apply (StandardTheory.canonical chart.dimension)) _ _ (sym!{ModelMaps.Map} _ _ square) }
+  "=" _ "by" { Filled.On[f := FiberPairs.forwardMap fiberPair, g := Fill.pair].With[coefficients := PointProduct.integerCoefficients].law (I.Int^::ofNat chart.dimension) (StandardTheory.canonical chart.dimension) }
+  "=" _ "by" { congr!{PointClass.Class Class} ForwardPull.Degree[n := chart.dimension].map.apply _ _ (FillNatural.canonical chart.dimension) }
+};
+\definition modelGenerates: Ranked.Generator (restriction.apply Model.class) :=
+  \idelim generator = restriction.apply Model.class \with u: Class => Ranked.Generator u \by { base: generates, equality: sym!{Class} _ _ normalized };

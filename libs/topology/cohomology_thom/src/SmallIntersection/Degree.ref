@@ -1,0 +1,83 @@
+\import \parent.Simplices[] \as JointSimplices;
+\import Left.At[n := n] \as LeftDegree;
+\import Right.At[n := n] \as RightDegree;
+\import Modules.Free[Generators := RightSimplices.Carrier n].Subset[S := JointSimplices.selected n] \as Selection;
+\import Selection.Projection[] \as Projection;
+\definition projection: Modules.Hom[V := Right.Carrier n, W := Carrier n, source := Right.space n, target := space n].Map := Projection.map;
+\import Native.Mapping[Y := WholeSimplices.object].At[n := n] \as Mapping;
+\definition linear: Modules.Hom[V := Carrier n, W := Whole.Carrier n, source := space n, target := Whole.space n].Map := Mapping.push simplicialInclusion;
+\definition onGenerator: \forall (sigma: JointSimplices.Carrier n) -> linear.apply (generator n sigma) = Whole.generator n sigma := Mapping.onGenerator simplicialInclusion;
+\definition leftFunction[sigma: LeftSimplices.Carrier n]: WholeSimplices.Carrier n := sigma;
+\import Modules.Free[Generators := LeftSimplices.Carrier n].Reindex[TargetGenerators := WholeSimplices.Carrier n].Injection[f := leftFunction].Retraction[] \as LeftProjection;
+\import Modules.Hom[V := Left.Carrier n, W := Whole.Carrier n, source := Left.space n, target := Whole.space n].Composition[U := Whole.Carrier n, domain := Whole.space n] \as ComposeProjector;
+\definition projector: Modules.Hom[V := Whole.Carrier n, W := Whole.Carrier n, source := Whole.space n, target := Whole.space n].Map := ComposeProjector.compose LeftDegree.inclusion LeftDegree.retraction;
+\definition leftEmpty: \forall (sigma: RightSimplices.Carrier n) -> Logic.Not (\In[WholeSimplices.Carrier n] (LeftSimplices.Small n) sigma) -> Logic.Not (\exists LeftProjection.Fiber sigma) := \block {
+  \fun (sigma: RightSimplices.Carrier n)(outside: Logic.Not (\In[WholeSimplices.Carrier n] (LeftSimplices.Small n) sigma))(exists: \exists LeftProjection.Fiber sigma) \then
+  \takefrom tau: LeftProjection.Fiber sigma \by exists \then
+  \return outside (\idelim leftFunction tau = sigma \with value: WholeSimplices.Carrier n => \In[WholeSimplices.Carrier n] (LeftSimplices.Small n) value \by {
+    base: \bysub(WholeSimplices.Carrier n, LeftSimplices.Small n, tau), equality: \bysub(LeftSimplices.Carrier n, LeftProjection.Fiber sigma, tau)
+  })
+};
+\definition onRightGenerator: \forall (sigma: RightSimplices.Carrier n) -> linear.apply (projection.apply (Right.generator n sigma)) = projector.apply (Whole.generator n sigma) :=
+  \fun (sigma: RightSimplices.Carrier n) => either!{{Classical.excludedMiddle (\In[WholeSimplices.Carrier n] (LeftSimplices.Small n) sigma)} {linear.apply (projection.apply (Right.generator n sigma)) = projector.apply (Whole.generator n sigma)}
+    {\fun (inside: \In[WholeSimplices.Carrier n] (LeftSimplices.Small n) sigma) => eq_reason_in!{{Whole.Carrier n} _
+      "=" _ "by" { congr!{{Carrier n} {Whole.Carrier n}} linear.apply _ _ (Projection.onSelected (\into[RightSimplices.Carrier n](sigma, JointSimplices.selected n) \by { inside })) }
+      "=" _ "by" { onGenerator (\into[RightSimplices.Carrier n](sigma, JointSimplices.selected n) \by { inside }) }
+      "=" _ "by" { sym!{{Whole.Carrier n}} _ _ (LeftDegree.onGenerator (\into[WholeSimplices.Carrier n](sigma, LeftSimplices.Small n) \by { inside })) }
+      "=" _ "by" { congr!{{Left.Carrier n} {Whole.Carrier n}} LeftDegree.inclusion.apply _ _ (sym!{{Left.Carrier n}} _ _ (LeftProjection.generatorLaw LeftDegree.generatorInjection (\into[WholeSimplices.Carrier n](sigma, LeftSimplices.Small n) \by { inside }))) }
+    }}
+    {\fun (outside: Logic.Not (\In[WholeSimplices.Carrier n] (LeftSimplices.Small n) sigma)) => eq_reason_in!{{Whole.Carrier n} _
+      "=" _ "by" { congr!{{Carrier n} {Whole.Carrier n}} linear.apply _ _ (Projection.outside sigma outside) }
+      "=" _ "by" { Modules.Hom[V := Carrier n, W := Whole.Carrier n, source := space n, target := Whole.space n].zeroPreserved linear }
+      "=" _ "by" { sym!{{Whole.Carrier n}} _ _ (Modules.Hom[V := Left.Carrier n, W := Whole.Carrier n, source := Left.space n, target := Whole.space n].zeroPreserved LeftDegree.inclusion) }
+      "=" _ "by" { congr!{{Left.Carrier n} {Whole.Carrier n}} LeftDegree.inclusion.apply _ _ (sym!{{Left.Carrier n}} _ _ (LeftProjection.generatorOutside LeftDegree.generatorInjection sigma (leftEmpty sigma outside))) }
+    }}};
+\import Modules.Hom[V := Carrier n, W := Whole.Carrier n, source := space n, target := Whole.space n].Composition[U := Right.Carrier n, domain := Right.space n] \as LeftComposition;
+\import Modules.Hom[V := Whole.Carrier n, W := Whole.Carrier n, source := Whole.space n, target := Whole.space n].Composition[U := Right.Carrier n, domain := Right.space n] \as RightComposition;
+\import Modules.Free[Generators := RightSimplices.Carrier n].To[W := Whole.Carrier n, target := Whole.space n] \as Free;
+\definition equation: LeftComposition.compose linear projection = RightComposition.compose projector RightDegree.inclusion := Free.ext _ _
+  (\fun (sigma: RightSimplices.Carrier n) => trans!{{Whole.Carrier n}} _ _ _ (onRightGenerator sigma)
+    (congr!{{Whole.Carrier n} {Whole.Carrier n}} projector.apply _ _ (sym!{{Whole.Carrier n}} _ _ (RightDegree.onGenerator sigma))));
+\definition image: \forall (x: Whole.Carrier n) -> LeftDegree.Image x -> RightDegree.Image x -> \exists ( y: Carrier n \where linear.apply y = x ) := \block {
+  \fun (x: Whole.Carrier n)(leftMember: LeftDegree.Image x)(rightMember: RightDegree.Image x) \then
+  \takefrom y: \Cast[Right.Carrier n] ({ y: Right.Carrier n \where RightDegree.inclusion.apply y = x }) \by rightMember \then
+  \let same: RightDegree.inclusion.apply y = x := \bysub(Right.Carrier n, { y: Right.Carrier n \where RightDegree.inclusion.apply y = x }, y) \then
+  \return Logic.existsIntro[Carrier n, { z: Carrier n \where linear.apply z = x }] (projection.apply y) (eq_reason_in!{{Whole.Carrier n} _
+    "=" _ "by" { congr!{{Modules.Hom[V := Right.Carrier n, W := Whole.Carrier n, source := Right.space n, target := Whole.space n].Map} {Whole.Carrier n}} (\fun (f: Modules.Hom[V := Right.Carrier n, W := Whole.Carrier n, source := Right.space n, target := Whole.space n].Map) => f.apply y) _ _ equation }
+    "=" _ "by" { congr!{{Whole.Carrier n} {Whole.Carrier n}} projector.apply _ _ same }
+    "=" _ "by" { LeftDegree.imageRetract x leftMember }
+  })
+};
+\definition jointFunction[sigma: JointSimplices.Carrier n]: WholeSimplices.Carrier n := sigma;
+\import Modules.Free[Generators := JointSimplices.Carrier n].Reindex[TargetGenerators := WholeSimplices.Carrier n].Injection[f := jointFunction] \as JointInjection;
+\definition generatorInjective: JointInjection.Injective := \fun (sigma, tau: JointSimplices.Carrier n)(same: jointFunction sigma = jointFunction tau) => same;
+\definition injective: \forall (x, y: Carrier n) -> linear.apply x = linear.apply y -> x = y := JointInjection.injective generatorInjective;
+\import JointInjection.Retraction[] \as JointRetraction;
+\definition retraction: Modules.Hom[V := Whole.Carrier n, W := Carrier n, source := Whole.space n, target := space n].Map := JointRetraction.retraction generatorInjective;
+\definition retract: \forall (x: Carrier n) -> retraction.apply (linear.apply x) = x :=
+  \fun (x: Carrier n) => congr!{{Modules.Hom[V := Carrier n, W := Carrier n, source := space n, target := space n].Map} {Carrier n}}
+    (\fun (f: Modules.Hom[V := Carrier n, W := Carrier n, source := space n, target := space n].Map) => f.apply x) _ _ (JointRetraction.leftInverse generatorInjective);
+\import Modules.Hom[V := Left.Carrier n, W := Whole.Carrier n, source := Left.space n, target := Whole.space n].Composition[U := Carrier n, domain := space n] \as ComposeLeft;
+\import Modules.Hom[V := Right.Carrier n, W := Whole.Carrier n, source := Right.space n, target := Whole.space n].Composition[U := Carrier n, domain := space n] \as ComposeRight;
+\import Modules.Free[Generators := JointSimplices.Carrier n].To[W := Whole.Carrier n, target := Whole.space n] \as JointFree;
+\import Native.Mapping[Y := LeftSimplices.object].At[n := n] \as ToLeft;
+\import Native.Mapping[Y := RightSimplices.object].At[n := n] \as ToRight;
+\definition leftEquation: ComposeLeft.compose LeftDegree.inclusion (ToLeft.push simplicialLeft) = linear := JointFree.ext _ _
+  (\fun (sigma: JointSimplices.Carrier n) => eq_reason_in!{{Whole.Carrier n} _
+    "=" _ "by" { congr!{{Left.Carrier n} {Whole.Carrier n}} LeftDegree.inclusion.apply _ _ (ToLeft.onGenerator simplicialLeft sigma) }
+    "=" _ "by" { LeftDegree.onGenerator (simplicialLeft.apply n sigma) }
+    "=" _ "by" { sym!{{Whole.Carrier n}} _ _ (onGenerator sigma) }
+  });
+\definition rightEquation: ComposeRight.compose RightDegree.inclusion (ToRight.push simplicialRight) = linear := JointFree.ext _ _
+  (\fun (sigma: JointSimplices.Carrier n) => eq_reason_in!{{Whole.Carrier n} _
+    "=" _ "by" { congr!{{Right.Carrier n} {Whole.Carrier n}} RightDegree.inclusion.apply _ _ (ToRight.onGenerator simplicialRight sigma) }
+    "=" _ "by" { RightDegree.onGenerator (simplicialRight.apply n sigma) }
+    "=" _ "by" { sym!{{Whole.Carrier n}} _ _ (onGenerator sigma) }
+  });
+\definition leftLaw: \forall (x: Carrier n) -> Left.inclusion.apply n (left.apply n x) = inclusion.apply n x :=
+  \fun (x: Carrier n) => congr!{{Modules.Hom[V := Carrier n, W := Whole.Carrier n, source := space n, target := Whole.space n].Map} {Whole.Carrier n}}
+    (\fun (f: Modules.Hom[V := Carrier n, W := Whole.Carrier n, source := space n, target := Whole.space n].Map) => f.apply x) _ _ leftEquation;
+\definition rightLaw: \forall (x: Carrier n) -> Right.inclusion.apply n (right.apply n x) = inclusion.apply n x :=
+  \fun (x: Carrier n) => congr!{{Modules.Hom[V := Carrier n, W := Whole.Carrier n, source := space n, target := Whole.space n].Map} {Whole.Carrier n}}
+    (\fun (f: Modules.Hom[V := Carrier n, W := Whole.Carrier n, source := space n, target := Whole.space n].Map) => f.apply x) _ _ rightEquation;
+\definition projectionRetract: \forall (x: Carrier n) -> projection.apply (right.apply n x) = x := Projection.leftInverse;

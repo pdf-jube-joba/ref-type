@@ -1,0 +1,38 @@
+\import std.Data[].Nat[] \as N;
+\import std.Arithmetic[].Int[] \as I;
+\import std.Arithmetic[].IntAlgebra[].Ring[] \as Integers;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.trans;
+\use Equality.sym;
+\use Equality.congr;
+\import std.Logic[].Proposition[] \as Logic;
+\import module_theory.Module[].Over[R := I.Int^, ring := Integers.ring] \as Modules;
+\import double_complexes.NonnegativeChain[].Over[R := I.Int^, ring := Integers.ring] \as Nonnegative;
+\import chain_complexes.Chain[].Over[R := I.Int^, ring := Integers.ring] \as Chains;
+\import singular_cohomology.Chains[A := A, source := source] \as Whole;
+\import singular_cohomology.Simplices[A := A, source := source] \as Simplices;
+\import singular_subdivision.Small[A := A, source := source, family := family] \as Boundary;
+\import Nonnegative.SplitInjection[C := Boundary.complex, D := Whole.complex] \as Split;
+\definition pairData: Split.Data := Split.Data { inclusion := Boundary.inclusion, retraction := \fun (n: N.Nat^) => Boundary.At[n := n].retraction };
+\definition pair: Split.SplitInjection := \into[Split.Data](pairData, Split.SplitInjection) \by {
+  Split.Laws[pairData] { leftInverse := \fun (n: N.Nat^) => Boundary.At[n := n].retract }
+};
+\import Split.On[pair := pair] \as Pair;
+\import Nonnegative.ZeroExtension[C := Boundary.complex] \as BoundaryExtension;
+\import Nonnegative.ZeroExtension[C := Whole.complex] \as WholeExtension;
+\import Nonnegative.Map[C := Boundary.complex, D := Whole.complex].ZeroExtension[f := Boundary.inclusion] \as Inclusion;
+\import Chains.Quotient[C := BoundaryExtension.complex, D := WholeExtension.complex].On[f := Inclusion.map] \as Quotient;
+\definition complex: Chains.Complex := Quotient.complex;
+\definition Carrier[z: I.Int^]: \Set := Quotient.Carrier z;
+\definition space[z: I.Int^]: Modules.Space (Carrier z) := Quotient.space z;
+\definition class[z: I.Int^]: WholeExtension.Carrier z -> Carrier z := Quotient.At[k := z].class;
+\module Degree(n: N.Nat^);
+\import resolutions.HomComplex[].Over[R := I.Int^, ring := Integers.commutativeRing] \as Hom;
+\module With(coefficients: Modules.Bundle) {
+  \import Hom.Relative[subcomplex := Boundary.complex, wholecomplex := Whole.complex].On[pair := pair, coefficients := coefficients] \as Native;
+  \definition complex: chain_complexes.Integer[].Over[R := I.Int^, ring := Integers.ring].Complex := Native.complex;
+  \definition Carrier[z: I.Int^]: \Set := Native.Carrier z;
+  \definition space[z: I.Int^]: Modules.Space (Carrier z) := Native.space z;
+}
+\module InCover(cover: topology.Topology[Carrier := A].OpenCovers[topology := source].Cover);
+\module Negative(n: N.Nat^);

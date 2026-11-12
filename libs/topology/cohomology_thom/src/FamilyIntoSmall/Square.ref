@@ -1,0 +1,16 @@
+\import SourceBoundary.At[n := n] \as SourceDegree;
+\import SmallMaps.At[n := n] \as SmallDegree;
+\import singular_cohomology.SimplicialChains[].On[X := Joint.Simplices[].object].Mapping[Y := Ambient.Simplices[].object].At[n := n] \as TargetDegree;
+\import Modules.Hom[V := SourceWhole.Carrier n, W := Ambient.Carrier n, source := SourceWhole.space n, target := Ambient.space n] \as WholeMaps;
+\definition wholeLinear: WholeMaps.Map := WholeMaps.Map { apply := WholeInto.map.apply n, addition := WholeInto.map.addition n, scalar := WholeInto.map.scalar n };
+\import Modules.Hom[V := Joint.Carrier n, W := Ambient.Carrier n, source := Joint.space n, target := Ambient.space n] \as TargetMaps;
+\definition targetLinear: TargetMaps.Map := TargetMaps.Map { apply := Joint.right.apply n, addition := Joint.right.addition n, scalar := Joint.right.scalar n };
+\import WholeMaps.Composition[U := SourceBoundary.Carrier n, domain := SourceBoundary.space n] \as Before;
+\import TargetMaps.Composition[U := SourceBoundary.Carrier n, domain := SourceBoundary.space n] \as After;
+\import Modules.Free[Generators := SourceSimplices.Carrier n].To[W := Ambient.Carrier n, target := Ambient.space n] \as Free;
+\definition equation: Before.compose wholeLinear SourceDegree.inclusion = After.compose targetLinear (SmallDegree.push small) := Free.ext _ _
+  (\fun (sigma: SourceSimplices.Carrier n) => trans!{{Ambient.Carrier n}} _ _ _
+    (congr!{{SourceWhole.Carrier n} {Ambient.Carrier n}} wholeLinear.apply _ _ (SourceDegree.onGenerator sigma))
+    (trans!{{Ambient.Carrier n}} _ _ _ (WholeInto.Degree[n := n].onGenerator sigma)
+      (trans!{{Ambient.Carrier n}} _ _ _ (sym!{{Ambient.Carrier n}} _ _ (TargetDegree.onGenerator Joint.simplicialRight (small.apply n sigma)))
+        (congr!{{Joint.Carrier n} {Ambient.Carrier n}} targetLinear.apply _ _ (sym!{{Joint.Carrier n}} _ _ (SmallDegree.onGenerator small sigma))))));

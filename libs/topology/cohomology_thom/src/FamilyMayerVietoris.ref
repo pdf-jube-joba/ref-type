@@ -1,0 +1,66 @@
+\import std.Data[].Nat[] \as N;
+\import std.Arithmetic[].Int[] \as I;
+\import std.Arithmetic[].IntAlgebra[].Ring[] \as Integers;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.trans;
+\use Equality.sym;
+\use Equality.congr;
+\import module_theory.Module[].Over[R := I.Int^, ring := Integers.ring] \as Modules;
+\import chain_complexes.Chain[].Over[R := I.Int^, ring := Integers.ring] \as Chains;
+\import singular_excision.MayerVietoris[A := A].Over[source := source].On[cover := cover] \as Cover;
+\import Cover.Chains[] \as Absolute;
+\import topology.Topology[Carrier := A].Subspace[S := Cover.left] \as LeftSpace;
+\import topology.Topology[Carrier := A].Subspace[S := Cover.right] \as RightSpace;
+\import topology.Topology[Carrier := Absolute.Left].Subspace[S := Absolute.intersection] \as OverlapSpace;
+\definition Left: \Set := Absolute.Left;
+\definition Right: \Set := Absolute.Right;
+\definition Overlap: \Set := Absolute.Intersection;
+\definition leftTopology: topology.Topology[Carrier := Left].Topology := LeftSpace.topology source;
+\definition rightTopology: topology.Topology[Carrier := Right].Topology := RightSpace.topology source;
+\definition overlapTopology: topology.Topology[Carrier := Overlap].Topology := OverlapSpace.topology leftTopology;
+\definition leftInclusion[x: Left]: A := x;
+\definition rightInclusion[x: Right]: A := x;
+\definition overlapInclusion[x: Overlap]: A := x;
+\definition leftContinuous: topology.Continuity[A := Left, B := A].Continuous leftTopology source leftInclusion := topology.Continuity[A := Left, B := A].Corestriction[S := Cover.left].inclusionContinuous source;
+\definition rightContinuous: topology.Continuity[A := Right, B := A].Continuous rightTopology source rightInclusion := topology.Continuity[A := Right, B := A].Corestriction[S := Cover.right].inclusionContinuous source;
+\definition overlapContinuous: topology.Continuity[A := Overlap, B := A].Continuous overlapTopology source overlapInclusion :=
+  topology.Composition[A := Overlap, B := Left, C := A].composeContinuous overlapTopology leftTopology source Absolute.toLeft leftInclusion Absolute.leftContinuous leftContinuous;
+\import singular_subdivision.Small[A := A, source := source, family := family] \as Boundary;
+\import Boundary.Pullback[B := Left].Over[topology := leftTopology, f := leftInclusion] \as LeftPull;
+\import Boundary.Pullback[B := Right].Over[topology := rightTopology, f := rightInclusion] \as RightPull;
+\import Boundary.Pullback[B := Overlap].Over[topology := overlapTopology, f := overlapInclusion] \as OverlapPull;
+\import \root.FamilyPullback[A := Left, B := A, source := leftTopology, target := source, family := family, f := leftInclusion, regular := leftContinuous] \as LeftReflect;
+\import \root.FamilyPullback[A := Right, B := A, source := rightTopology, target := source, family := family, f := rightInclusion, regular := rightContinuous] \as RightReflect;
+\import \root.FamilyPullback[A := Overlap, B := A, source := overlapTopology, target := source, family := family, f := overlapInclusion, regular := overlapContinuous] \as OverlapReflect;
+\import \root.FamilyPair[A := Left, source := leftTopology, family := LeftPull.pullbackFamily] \as L;
+\import \root.FamilyPair[A := Right, source := rightTopology, family := RightPull.pullbackFamily] \as R;
+\import \root.FamilyPair[A := Overlap, source := overlapTopology, family := OverlapPull.pullbackFamily] \as O;
+\import \root.FamilyPair[A := A, source := source, family := family] \as Whole;
+\import Whole.InCover[cover := Cover.openCover] \as SmallPair;
+\import singular_subdivision.Small[A := Overlap, source := overlapTopology, family := OverlapPull.pullbackFamily].Simplices[] \as OverlapBoundary;
+\import singular_cohomology.Maps[A := Overlap, B := Left, source := overlapTopology, target := leftTopology] \as LeftMaps;
+\import singular_cohomology.Maps[A := Overlap, B := Right, source := overlapTopology, target := rightTopology] \as RightMaps;
+\definition leftPreserves: \forall (n: N.Nat^)(sigma: OverlapBoundary.Carrier n) ->
+  \In[singular_cohomology.Simplices[A := Left, source := leftTopology].Carrier n] (singular_subdivision.Small[A := Left, source := leftTopology, family := LeftPull.pullbackFamily].Simplices[].Small n) (LeftMaps.postcompose n Absolute.toLeft Absolute.leftContinuous sigma) :=
+  \fun (n: N.Nat^)(sigma: OverlapBoundary.Carrier n) => LeftReflect.Degree[n := n].reflects (LeftMaps.postcompose n Absolute.toLeft Absolute.leftContinuous sigma) (OverlapPull.At[n := n].small overlapContinuous sigma);
+\definition rightPreserves: \forall (n: N.Nat^)(sigma: OverlapBoundary.Carrier n) ->
+  \In[singular_cohomology.Simplices[A := Right, source := rightTopology].Carrier n] (singular_subdivision.Small[A := Right, source := rightTopology, family := RightPull.pullbackFamily].Simplices[].Small n) (RightMaps.postcompose n Absolute.toRight Absolute.rightContinuous sigma) :=
+  \fun (n: N.Nat^)(sigma: OverlapBoundary.Carrier n) => RightReflect.Degree[n := n].reflects (RightMaps.postcompose n Absolute.toRight Absolute.rightContinuous sigma) (OverlapPull.At[n := n].small overlapContinuous sigma);
+\import \root.FamilyPairMap[A := Overlap, B := Left, source := overlapTopology, target := leftTopology, sourceFamily := OverlapPull.pullbackFamily, targetFamily := LeftPull.pullbackFamily, f := Absolute.toLeft, regular := Absolute.leftContinuous, preserves := leftPreserves] \as LeftMap;
+\import \root.FamilyPairMap[A := Overlap, B := Right, source := overlapTopology, target := rightTopology, sourceFamily := OverlapPull.pullbackFamily, targetFamily := RightPull.pullbackFamily, f := Absolute.toRight, regular := Absolute.rightContinuous, preserves := rightPreserves] \as RightMap;
+\import \root.FamilyIntoSmall[A := A, B := Left, target := source, source := leftTopology, family := family, cover := Cover.openCover, f := leftInclusion, regular := leftContinuous,
+  U := Absolute.leftElement, contained := (\fun (x: Left) => \bysub(A, Cover.left, x))] \as LeftSmall;
+\import \root.FamilyIntoSmall[A := A, B := Right, target := source, source := rightTopology, family := family, cover := Cover.openCover, f := rightInclusion, regular := rightContinuous,
+  U := Absolute.rightElement, contained := (\fun (x: Right) => \bysub(A, Cover.right, x))] \as RightSmall;
+\import \root.RelativeMayerVietoris[].ChainSum[C := L.complex, D := R.complex] \as Sum;
+\import \root.RelativeMayerVietoris[].ChainNegative[C := O.complex, D := R.complex, f := RightMap.map] \as NegativeMap;
+\definition inclusion: Chains.Map[C := O.complex, D := Sum.complex].Map := Sum.Pairing[E := O.complex, f := LeftMap.map, g := NegativeMap.map].map;
+\definition projection: Chains.Map[C := Sum.complex, D := SmallPair.complex].Map := Sum.Copairing[E := SmallPair.complex, f := LeftSmall.map, g := RightSmall.map].map;
+\import \root.FamilyPair[A := Left, source := leftTopology, family := LeftPull.pullbackFamily] \as LeftBasis;
+\import \root.FamilyPair[A := Right, source := rightTopology, family := RightPull.pullbackFamily] \as RightBasis;
+\import \root.FamilyPair[A := Overlap, source := overlapTopology, family := OverlapPull.pullbackFamily] \as OverlapBasis;
+\module Degree(n: N.Nat^);
+\module Negative(n: N.Nat^);
+\module Exact;
+\module With(coefficients: Modules.Bundle);

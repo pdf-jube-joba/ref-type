@@ -1,0 +1,67 @@
+\import \parent.Parts[] \as Parts;
+\definition firstDisk[p: Domain.BoxCarrier]: First.Disk := Pair.second BasePoint First.Disk (Left.homeomorphism.forward (Parts.leftPart p));
+\definition secondDisk[p: Domain.BoxCarrier]: Second.Disk := Pair.second BasePoint Second.Disk (rightHomeomorphism.forward (Parts.rightPart p));
+\definition forward[p: Domain.BoxCarrier]: Blocks.Carrier := Pair.pair BasePoint Factors.CarrierSet (Parts.base p) (Pair.pair First.Disk Second.Disk (firstDisk p) (secondDisk p));
+\definition backward: Blocks.Carrier -> Domain.BoxCarrier := Parts.backward;
+\definition firstInputForward: \forall (p: Domain.BoxCarrier) -> Parts.leftInput (forward p) = Left.homeomorphism.forward (Parts.leftPart p) :=
+  \fun (p: Domain.BoxCarrier) => Pair.Prop[A := BasePoint, B := First.Disk].eta (Left.homeomorphism.forward (Parts.leftPart p));
+\definition secondInputForward: \forall (p: Domain.BoxCarrier) -> Parts.rightInput (forward p) = rightHomeomorphism.forward (Parts.rightPart p) :=
+  \fun (p: Domain.BoxCarrier) => Pair.Prop[A := BasePoint, B := Second.Disk].eta (rightHomeomorphism.forward (Parts.rightPart p));
+\definition firstInverse: \forall (p: Domain.BoxCarrier) -> Sum.first (backward (forward p)) = Sum.first p :=
+  \fun (p: Domain.BoxCarrier) => trans!{{Bundles.Family[X := X, F := F].Point}} _ _ _ (Parts.firstAssemble (forward p))
+    (trans!{{Bundles.Family[X := X, F := F].Point}} _ _ _
+      (congr!{Left.Carrier {LeftOpen.Carrier}} Left.homeomorphism.backward _ _ (firstInputForward p))
+      ((topology.Homeomorphism[A := LeftOpen.Carrier, B := Left.Carrier].laws LeftOpen.topology Left.topology Left.homeomorphism).leftInverse (Parts.leftPart p)));
+\definition secondInverse: \forall (p: Domain.BoxCarrier) -> Sum.second (backward (forward p)) = Sum.second p :=
+  \fun (p: Domain.BoxCarrier) => trans!{{Bundles.Family[X := X, F := G].Point}} _ _ _ (Parts.secondAssemble (forward p))
+    (trans!{{Bundles.Family[X := X, F := G].Point}} _ _ _
+      (congr!{Right.Carrier {RightOpen.Carrier}} rightHomeomorphism.backward _ _ (secondInputForward p))
+      ((RightHomeomorphisms.laws RightOpen.topology rightTargetTopology rightHomeomorphism).leftInverse (Parts.rightPart p)));
+\definition leftInverse: \forall (p: Domain.BoxCarrier) -> backward (forward p) = p :=
+  \fun (p: Domain.BoxCarrier) => \root.Thom[].Real[].DirectSum[X := X, F := F, G := G, left := left, right := right, same := same, leftMetric := leftMetric, rightMetric := rightMetric].PointEquality[p := backward (forward p), q := p, firstSame := firstInverse p, secondSame := secondInverse p].equation;
+\definition firstBackward: \forall (p: Blocks.Carrier) -> Left.homeomorphism.forward (Parts.leftPart (backward p)) = Parts.leftInput p :=
+  \fun (p: Blocks.Carrier) => trans!{Left.Carrier} _ _ _
+    (congr!{{LeftOpen.Carrier} Left.Carrier} Left.homeomorphism.forward _ _ (Parts.firstAssemble p))
+    ((topology.Homeomorphism[A := LeftOpen.Carrier, B := Left.Carrier].laws LeftOpen.topology Left.topology Left.homeomorphism).rightInverse (Parts.leftInput p));
+\definition secondBackward: \forall (p: Blocks.Carrier) -> rightHomeomorphism.forward (Parts.rightPart (backward p)) = Parts.rightInput p :=
+  \fun (p: Blocks.Carrier) => trans!{Right.Carrier} _ _ _
+    (congr!{{RightOpen.Carrier} Right.Carrier} rightHomeomorphism.forward _ _ (Parts.secondAssemble p))
+    ((RightHomeomorphisms.laws RightOpen.topology rightTargetTopology rightHomeomorphism).rightInverse (Parts.rightInput p));
+\definition rightInverse: \forall (p: Blocks.Carrier) -> forward (backward p) = p :=
+  \fun (p: Blocks.Carrier) => Pair.Prop[A := BasePoint, B := Factors.CarrierSet].ext (forward (backward p)) p (\refl(Pair.first BasePoint Factors.CarrierSet p))
+    (Pair.Prop[A := First.Disk, B := Second.Disk].ext _ _
+      (congr!{Left.Carrier First.Disk} (Pair.second BasePoint First.Disk) _ _ (firstBackward p))
+      (congr!{Right.Carrier Second.Disk} (Pair.second BasePoint Second.Disk) _ _ (secondBackward p)));
+\definition firstContinuous: topology.Continuity[A := Domain.BoxCarrier, B := First.Disk].Continuous Domain.boxTopology First.diskTopology firstDisk :=
+  topology.Composition[A := Domain.BoxCarrier, B := Left.Carrier, C := First.Disk].composeContinuous Domain.boxTopology Left.topology First.diskTopology (\fun (p: Domain.BoxCarrier) => Left.homeomorphism.forward (Parts.leftPart p)) (Pair.second BasePoint First.Disk)
+    (topology.Composition[A := Domain.BoxCarrier, B := LeftOpen.Carrier, C := Left.Carrier].composeContinuous Domain.boxTopology LeftOpen.topology Left.topology Parts.leftPart Left.homeomorphism.forward Parts.leftPartContinuous
+      (topology.Homeomorphism[A := LeftOpen.Carrier, B := Left.Carrier].laws LeftOpen.topology Left.topology Left.homeomorphism).forwardContinuous)
+    (topological_constructions.Product[A := BasePoint, B := First.Disk].Maps[].secondContinuous baseTopology First.diskTopology);
+\definition secondContinuous: topology.Continuity[A := Domain.BoxCarrier, B := Second.Disk].Continuous Domain.boxTopology Second.diskTopology secondDisk :=
+  topology.Composition[A := Domain.BoxCarrier, B := Right.Carrier, C := Second.Disk].composeContinuous Domain.boxTopology rightTargetTopology Second.diskTopology (\fun (p: Domain.BoxCarrier) => rightHomeomorphism.forward (Parts.rightPart p)) (Pair.second BasePoint Second.Disk)
+    (topology.Composition[A := Domain.BoxCarrier, B := RightOpen.Carrier, C := Right.Carrier].composeContinuous Domain.boxTopology RightOpen.topology rightTargetTopology Parts.rightPart rightHomeomorphism.forward Parts.rightPartContinuous
+      (RightHomeomorphisms.laws RightOpen.topology rightTargetTopology rightHomeomorphism).forwardContinuous)
+    (RightProduct.Maps[].secondContinuous baseTopology Second.diskTopology);
+\definition forwardContinuous: topology.Continuity[A := Domain.BoxCarrier, B := Blocks.Carrier].Continuous Domain.boxTopology Blocks.topology forward :=
+  topological_constructions.Product[A := BasePoint, B := Factors.CarrierSet].Universal[X := Domain.BoxCarrier].pairContinuous Domain.boxTopology baseTopology productTopology Parts.base (\fun (p: Domain.BoxCarrier) => Pair.pair First.Disk Second.Disk (firstDisk p) (secondDisk p)) Parts.baseContinuous
+    (Factors.Universal[X := Domain.BoxCarrier].pairContinuous Domain.boxTopology First.diskTopology Second.diskTopology firstDisk secondDisk firstContinuous secondContinuous);
+\definition homeomorphism: topology.Homeomorphism[A := Domain.BoxCarrier, B := Blocks.Carrier].Homeomorphism[Domain.boxTopology, Blocks.topology] :=
+  topology.Homeomorphism[A := Domain.BoxCarrier, B := Blocks.Carrier].Homeomorphism[Domain.boxTopology, Blocks.topology] {
+    forward := forward, backward := backward, forwardContinuous := forwardContinuous, backwardContinuous := Parts.backwardContinuous, leftInverse := leftInverse, rightInverse := rightInverse
+  };
+\use std.Logic[].Proposition[].either;
+\definition forwardBoundary: \forall (p: \Cast[Domain.BoxCarrier] Domain.boundary) -> \In[Blocks.Carrier] Blocks.boundary (forward p) :=
+  \fun (p: \Cast[Domain.BoxCarrier] Domain.boundary) => either!{{Box.Comparison[].boundaryToUnion p (\bysub(Domain.BoxCarrier, Domain.boundary, p))} {\In[Blocks.Carrier] Blocks.boundary (forward p)}
+    {\fun (one: Box.first p = Reals.one) => std.Logic[].Proposition[].Or[_, _]::left (Left.pair.forwardPreserves (\into[LeftOpen.Carrier](Parts.leftPart p, LeftOpen.boundary) \by { one }))}
+    {\fun (one: Box.second p = Reals.one) => std.Logic[].Proposition[].Or[_, _]::right (Right.pair.forwardPreserves (\into[RightOpen.Carrier](Parts.rightPart p, RightOpen.boundary) \by { one }))}};
+\definition backwardBoundary: \forall (p: \Cast[Blocks.Carrier] Blocks.boundary) -> \In[Domain.BoxCarrier] Domain.boundary (backward p) :=
+  \fun (p: \Cast[Blocks.Carrier] Blocks.boundary) => Box.Comparison[].unionToBoundary (backward p)
+    (either!{{\bysub(Blocks.Carrier, Blocks.boundary, p)} {std.Logic[].Proposition[].Or[Box.first (backward p) = Reals.one, Box.second (backward p) = Reals.one]}
+      {\fun (one: First.normSquared (Pair.first First.Disk Second.Disk (Pair.second BasePoint Factors.CarrierSet p)) = Reals.one) => std.Logic[].Proposition[].Or[_, _]::left
+        (trans!{Reals.Real} _ _ _ (congr!{{Bundles.Family[X := X, F := F].Point} Reals.Real} LeftDisk.squared _ _ (Parts.firstAssemble p))
+          (Left.pair.backwardPreserves (\into[Left.Carrier](Parts.leftInput p, Left.boundary) \by { one })))}
+      {\fun (one: Second.normSquared (Pair.second First.Disk Second.Disk (Pair.second BasePoint Factors.CarrierSet p)) = Reals.one) => std.Logic[].Proposition[].Or[_, _]::right
+        (trans!{Reals.Real} _ _ _ (congr!{{Bundles.Family[X := X, F := G].Point} Reals.Real} RightDisk.squared _ _ (Parts.secondAssemble p))
+          (Right.pair.backwardPreserves (\into[Right.Carrier](Parts.rightInput p, Right.boundary) \by { one })))}});
+\import singular_cohomology.Relative[A := Domain.BoxCarrier, source := Domain.boxTopology, subset := Domain.boundary].Homeomorphism[B := Blocks.Carrier].Over[target := Blocks.topology, targetSubset := Blocks.boundary] \as Pairs;
+\definition pair: Pairs.Data := Pairs.Data { homeomorphism := homeomorphism, forwardPreserves := forwardBoundary, backwardPreserves := backwardBoundary };

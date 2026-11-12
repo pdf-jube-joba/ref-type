@@ -1,0 +1,49 @@
+\import std.Data[].Nat[] \as N;
+\import std.Data[].FinSet[] \as Fin;
+\import std.Arithmetic[].Int[] \as I;
+\import std.Arithmetic[].IntAlgebra[].Ring[] \as Integers;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.trans;
+\use Equality.sym;
+\use Equality.congr;
+\import module_theory.Module[].Over[R := I.Int^, ring := Integers.ring] \as Modules;
+\import double_complexes.NonnegativeChain[].Over[R := I.Int^, ring := Integers.ring] \as Nonnegative;
+\import chain_complexes.Chain[].Over[R := I.Int^, ring := Integers.ring] \as Chains;
+\import topology.Topology[Carrier := A].OpenCovers[topology := target] \as Covers;
+\import singular_subdivision.Small[A := A, source := target, family := family] \as Boundary;
+\import Boundary.Pullback[B := B].Over[topology := source, f := f] \as Pullback;
+\import singular_subdivision.Small[A := B, source := source, family := Pullback.pullbackFamily] \as SourceBoundary;
+\import SourceBoundary.Simplices[] \as SourceSimplices;
+\import singular_cohomology.Chains[A := B, source := source] \as SourceWhole;
+\import singular_cohomology.Maps[A := B, B := A, source := source, target := target] \as Maps;
+\import \root.FamilyPair[A := B, source := source, family := Pullback.pullbackFamily] \as SourcePair;
+\import \root.FamilyPair[A := A, source := target, family := family].InCover[cover := cover] \as TargetPair;
+\import singular_subdivision.Small[A := A, source := target, family := Covers.family cover] \as Ambient;
+\import \root.SmallIntersection[A := A, source := target, leftFamily := family, rightFamily := Covers.family cover] \as Joint;
+\import \root.RelativeMayerVietoris[].IntoSmall[A := A, B := B, target := target, source := source, family := Covers.family cover, f := f, continuous := regular, U := U, contained := contained] \as WholeInto;
+\import algebraic_topology.Semisimplicial[].Maps[X := SourceSimplices.object, Y := Joint.Simplices[].object] \as Simplicial;
+\definition small: Simplicial.Map := Simplicial.Map {
+  apply := \fun (n: N.Nat^)(sigma: SourceSimplices.Carrier n) => \into[Ambient.Simplices[].Carrier n](WholeInto.simplex n sigma, Joint.Simplices[].selected n) \by { Pullback.At[n := n].small regular sigma },
+  faces := \fun (n: N.Nat^)(i: Fin.Fin (N.Nat^::succ (N.Nat^::succ n)))(sigma: SourceSimplices.Carrier (N.Nat^::succ n)) => \refl(Maps.postcompose n f regular (SourceSimplices.face n i sigma))
+};
+\import singular_cohomology.SimplicialChains[].On[X := SourceSimplices.object].Mapping[Y := Joint.Simplices[].object] \as SmallMaps;
+\definition smallMap: Nonnegative.Map[C := SourceBoundary.complex, D := Joint.complex].Map := SmallMaps.map small;
+\module Square(n: N.Nat^);
+\import Nonnegative.ZeroExtension[C := SourceBoundary.complex] \as SourceBoundaryExtension;
+\import Nonnegative.ZeroExtension[C := SourceWhole.complex] \as SourceSpace;
+\import Nonnegative.ZeroExtension[C := Joint.complex] \as TargetBoundary;
+\import Nonnegative.ZeroExtension[C := Ambient.complex] \as TargetSpace;
+\import Nonnegative.Map[C := SourceBoundary.complex, D := SourceWhole.complex].ZeroExtension[f := SourceBoundary.inclusion] \as SourceInclusion;
+\import Nonnegative.Map[C := Joint.complex, D := Ambient.complex].ZeroExtension[f := Joint.right] \as TargetInclusion;
+\import Nonnegative.Map[C := SourceBoundary.complex, D := Joint.complex].ZeroExtension[f := smallMap] \as SmallExtension;
+\import Nonnegative.Map[C := SourceWhole.complex, D := Ambient.complex].ZeroExtension[f := WholeInto.map] \as WholeExtension;
+\definition compatible: \forall (z: I.Int^)(x: SourceBoundaryExtension.Carrier z) -> WholeExtension.map.apply z (SourceInclusion.map.apply z x) = TargetInclusion.map.apply z (SmallExtension.map.apply z x) :=
+  \induction (z: I.Int^) \return \forall (x: SourceBoundaryExtension.Carrier z) -> WholeExtension.map.apply z (SourceInclusion.map.apply z x) = TargetInclusion.map.apply z (SmallExtension.map.apply z x) \with {
+    | ofNat: \fun (n: N.Nat^)(x: SourceBoundaryExtension.Carrier (I.Int^::ofNat n)) => congr!{{Modules.Hom[V := SourceBoundary.Carrier n, W := Ambient.Carrier n, source := SourceBoundary.space n, target := Ambient.space n].Map} {TargetSpace.Carrier (I.Int^::ofNat n)}}
+      (\fun (m: Modules.Hom[V := SourceBoundary.Carrier n, W := Ambient.Carrier n, source := SourceBoundary.space n, target := Ambient.space n].Map) => TargetSpace.Positive[n := n].intro (m.apply x)) _ _ Square[n := n].equation
+    | negSucc: \fun (n: N.Nat^)(x: SourceBoundaryExtension.Carrier (I.Int^::negSucc n)) => \refl((TargetSpace.space (I.Int^::negSucc n)).zero)
+  };
+\import Chains.QuotientMapping[C := SourceBoundaryExtension.complex, D := SourceSpace.complex, C1 := TargetBoundary.complex, D1 := TargetSpace.complex]
+  .On[f := SourceInclusion.map, g := TargetInclusion.map, a := SmallExtension.map, b := WholeExtension.map] \as QuotientMap;
+\definition map: Chains.Map[C := SourcePair.complex, D := TargetPair.complex].Map := QuotientMap.map compatible;
+\module At(z: I.Int^) { \definition onClass: _ := QuotientMap.At[k := z].onClass compatible; }

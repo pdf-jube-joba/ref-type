@@ -1,0 +1,31 @@
+\definition total: N.Nat^ := N.Basic[].Def[].add p q;
+\definition inputDegree: I.Int^ := I.Int^::ofNat q;
+\definition outputDegree: I.Int^ := I.Int^::ofNat total;
+\import Mixed.Cup[p := p, q := q].Both[] \as Product;
+\import Mixed.Common[n := total] \as Common;
+\import Model.ToSmall[n := total].Descent[] \as Into;
+\import Into.Linear[] \as Linear;
+\import Model.FromSmall[n := total].Apply[] \as From;
+\import SecondPair.Comparison[n := q].Linear[] \as SecondLinear;
+\import Whole.Cup[p := p, q := q].Bilinear[] \as Laws;
+\import FirstPair.Comparison[n := p] \as FirstComparison;
+\import SecondPair.Comparison[n := q] \as SecondComparison;
+\import Whole.Cup[p := p, q := q] \as WholeProduct;
+\definition apply[a: First.Carrier (I.Int^::ofNat p)][b: Second.Carrier inputDegree]: Target.Carrier outputDegree := Into.apply (Product.product a b);
+\definition formula: \forall (a: First.Carrier (I.Int^::ofNat p))(b: Second.Carrier inputDegree) -> From.apply (apply a b) = Product.product a b :=
+  \fun (a: First.Carrier (I.Int^::ofNat p))(b: Second.Carrier inputDegree) => From.fromTo (Product.product a b);
+\definition commonAdd: \forall (a: First.Carrier (I.Int^::ofNat p))(b, c: Second.Carrier inputDegree) ->
+  Product.product a ((Second.space inputDegree).add b c) = Common.space.add (Product.product a b) (Product.product a c) :=
+  \fun (a: First.Carrier (I.Int^::ofNat p))(b, c: Second.Carrier inputDegree) => trans!{{Whole.Carrier total}} _ _ _
+    (congr!{{Whole.Carrier q} {Whole.Carrier total}} (WholeProduct.apply (FirstComparison.from a)) _ _ (SecondLinear.addition b c))
+    (Laws.rightAdd (FirstComparison.from a) (SecondComparison.from b) (SecondComparison.from c));
+\definition addition: \forall (a: First.Carrier (I.Int^::ofNat p))(b, c: Second.Carrier inputDegree) ->
+  apply a ((Second.space inputDegree).add b c) = (Target.space outputDegree).add (apply a b) (apply a c) :=
+  \fun (a: First.Carrier (I.Int^::ofNat p))(b, c: Second.Carrier inputDegree) => trans!{{Target.Carrier outputDegree}} _ _ _
+    (congr!{Common.Carrier {Target.Carrier outputDegree}} Into.apply _ _ (commonAdd a b c))
+    (Linear.addition (Product.product a b) (Product.product a c));
+\definition input: Modules.Bundle := Modules.Bundle { Carrier := Second.Carrier inputDegree, space := Second.space inputDegree };
+\definition output: Modules.Bundle := Modules.Bundle { Carrier := Target.Carrier outputDegree, space := Target.space outputDegree };
+\definition linear[a: First.Carrier (I.Int^::ofNat p)]: Modules.MapBetween input output :=
+  IntegerLinear.On[A := input, B := output, f := apply a, addition := addition a].map;
+\module Differential;

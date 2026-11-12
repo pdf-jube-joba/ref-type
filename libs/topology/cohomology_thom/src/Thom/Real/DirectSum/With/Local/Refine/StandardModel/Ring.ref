@@ -1,0 +1,23 @@
+\use std.Logic[].Equality[].eq_reason_in;
+\import \parent.\parent.Ring[K := K, ring := ring] \as LocalModel;
+\import Standard.Ring[K := K, ring := ring] \as CoordinateModel;
+\import \root.LocalDisk[].On[X := BasePoint, source := baseTopology].Ring[RingCarrier := K, ring := ring] \as StandardTheory;
+\import singular_products.Cochains[A := BasePoint, source := baseTopology, R := K, ring := ring] \as BaseProduct;
+\import \root.RelativePullback[].On[A := Actual.Carrier, source := Actual.topology, subset := Actual.boundary, R := K, ring := ring].To[B := Standard.Carrier, target := Standard.topology, part := Standard.boundary].Homeomorphism[data := productPair] \as ProductComparison;
+\import \root.RelativePullback[].On[A := StandardDisk.DiskCarrier, source := StandardDisk.diskTopology, subset := StandardDisk.boundary, R := K, ring := ring].To[B := Standard.Carrier, target := Standard.topology, part := Standard.boundary].Homeomorphism[data := Standard.standardPair] \as StandardComparison;
+\import \root.RelativePullback[].On[A := Actual.Carrier, source := Actual.topology, subset := Actual.boundary, R := K, ring := ring].To[B := StandardDisk.DiskCarrier, target := StandardDisk.diskTopology, part := StandardDisk.boundary].Homeomorphism[data := pair] \as Comparison;
+\import singular_cohomology.Relative[A := StandardDisk.DiskCarrier, source := StandardDisk.diskTopology, subset := StandardDisk.boundary].Homeomorphism[B := Standard.Carrier].Over[target := Standard.topology, targetSubset := Standard.boundary] \as StandardPairs;
+\import singular_cohomology.Relative[A := Actual.Carrier, source := Actual.topology, subset := Actual.boundary].Maps[B := Standard.Carrier].Over[target := Standard.topology, targetSubset := Standard.boundary].Composition[C := StandardDisk.DiskCarrier].Over[final := StandardDisk.diskTopology, finalSubset := StandardDisk.boundary] \as Composition;
+\import singular_cohomology.Relative[A := Actual.Carrier, source := Actual.topology, subset := Actual.boundary].Maps[B := StandardDisk.DiskCarrier].Over[target := StandardDisk.diskTopology, targetSubset := StandardDisk.boundary] \as Direct;
+\definition square: Composition.compose (ProductPairs.forwardMap productPair) (StandardPairs.backwardMap Standard.standardPair) = Pairs.forwardMap pair := \refl(Pairs.forwardMap pair);
+\definition action[f: Direct.Map]: _ := Direct.On[f := f].Integer[].With[coefficients := BaseProduct.integerCoefficients].At[z := I.Int^::ofNat chart.dimension].induced;
+\import Geometry.Domain[U := U].Ring[K := K, ring := ring].Degree[n := chart.dimension] \as Top;
+\definition class: Top.Class := LocalModel.data.thomClass;
+\definition classLaw: class = Comparison.Degree[n := chart.dimension].isomorphism.forward.apply (StandardTheory.canonical chart.dimension) :=
+  eq_reason_in!{Top.Class _
+    "=" _ "by" { LocalModel.standardClassFormula }
+    "=" _ "by" { congr!{{singular_cohomology.Relative[A := Standard.Carrier, source := Standard.topology, subset := Standard.boundary].With[coefficients := BaseProduct.integerCoefficients].At[z := I.Int^::ofNat chart.dimension].Carrier} Top.Class} ProductComparison.Degree[n := chart.dimension].isomorphism.forward.apply _ _
+      (StandardComparison.Degree[n := chart.dimension].backwardFormula (StandardTheory.canonical chart.dimension)) }
+    "=" _ "by" { sym!{Top.Class} _ _ (Composition.On[f := ProductPairs.forwardMap productPair, g := StandardPairs.backwardMap Standard.standardPair].With[coefficients := BaseProduct.integerCoefficients].law (I.Int^::ofNat chart.dimension) (StandardTheory.canonical chart.dimension)) }
+    "=" _ "by" { congr!{Direct.Map Top.Class} (\fun (f: Direct.Map) => (action f).apply (StandardTheory.canonical chart.dimension)) _ _ square }
+  };

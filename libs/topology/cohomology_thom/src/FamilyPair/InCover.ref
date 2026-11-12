@@ -1,0 +1,37 @@
+\import \root.FamilyPair[A := A, source := source, family := family] \as ParentPair;
+\import topology.Topology[Carrier := A].OpenCovers[topology := source] \as Covers;
+\import singular_subdivision.Small[A := A, source := source, family := Covers.family cover] \as Ambient;
+\import singular_subdivision.OpenCover[A := A, source := source].On[cover := cover] \as Cover;
+\import \root.SmallIntersection[A := A, source := source, leftFamily := family, rightFamily := Covers.family cover] \as Joint;
+\import \root.SmallRefinement[A := A, source := source, cover := cover, family := family] \as Refinement;
+\import Nonnegative.SplitInjection[C := Joint.complex, D := Ambient.complex] \as SmallSplit;
+\definition pairData: SmallSplit.Data := SmallSplit.Data { inclusion := Joint.right, retraction := \fun (n: N.Nat^) => Joint.Degree[n := n].projection };
+\definition pair: SmallSplit.SplitInjection := \into[SmallSplit.Data](pairData, SmallSplit.SplitInjection) \by {
+  SmallSplit.Laws[pairData] { leftInverse := \fun (n: N.Nat^) => Joint.Degree[n := n].projectionRetract }
+};
+\import SmallSplit.On[pair := pair] \as SmallPair;
+\import Nonnegative.ZeroExtension[C := Joint.complex] \as JointExtension;
+\import Nonnegative.ZeroExtension[C := Ambient.complex] \as AmbientExtension;
+\import Nonnegative.Map[C := Joint.complex, D := Ambient.complex].ZeroExtension[f := Joint.right] \as SmallInclusion;
+\import Chains.Quotient[C := JointExtension.complex, D := AmbientExtension.complex].On[f := SmallInclusion.map] \as SmallQuotient;
+\definition complex: Chains.Complex := SmallQuotient.complex;
+\definition Carrier[z: I.Int^]: \Set := SmallQuotient.Carrier z;
+\definition space[z: I.Int^]: Modules.Space (Carrier z) := SmallQuotient.space z;
+\import Nonnegative.Map[C := Joint.complex, D := Boundary.complex].ZeroExtension[f := Refinement.forward] \as BoundaryMap;
+\import Nonnegative.Map[C := Ambient.complex, D := Whole.complex].ZeroExtension[f := Ambient.inclusion] \as WholeMap;
+\definition compatible: \forall (z: I.Int^)(x: JointExtension.Carrier z) -> WholeMap.map.apply z (SmallInclusion.map.apply z x) = Inclusion.map.apply z (BoundaryMap.map.apply z x) :=
+  \induction (z: I.Int^) \return \forall (x: JointExtension.Carrier z) -> WholeMap.map.apply z (SmallInclusion.map.apply z x) = Inclusion.map.apply z (BoundaryMap.map.apply z x) \with {
+    | ofNat: \fun (n: N.Nat^)(x: JointExtension.Carrier (I.Int^::ofNat n)) => trans!{{WholeExtension.Carrier (I.Int^::ofNat n)}} _ _ _
+      (congr!{{Whole.Carrier n} {WholeExtension.Carrier (I.Int^::ofNat n)}} WholeExtension.Positive[n := n].intro _ _ (Joint.Degree[n := n].rightLaw x))
+      (congr!{{Whole.Carrier n} {WholeExtension.Carrier (I.Int^::ofNat n)}} WholeExtension.Positive[n := n].intro _ _ (sym!{{Whole.Carrier n}} _ _ (Joint.Degree[n := n].leftLaw x)))
+    | negSucc: \fun (n: N.Nat^)(x: JointExtension.Carrier (I.Int^::negSucc n)) => \refl((WholeExtension.space (I.Int^::negSucc n)).zero)
+  };
+\import Chains.QuotientMapping[C := JointExtension.complex, D := AmbientExtension.complex, C1 := BoundaryExtension.complex, D1 := WholeExtension.complex]
+  .On[f := SmallInclusion.map, g := Inclusion.map, a := BoundaryMap.map, b := WholeMap.map] \as QuotientMap;
+\definition comparison: Chains.Map[C := complex, D := ParentPair.complex].Map := QuotientMap.map compatible;
+\import Nonnegative.Equivalence[C := Joint.complex, D := Boundary.complex].ZeroExtension[e := Refinement.equivalence] \as BoundaryEquivalence;
+\import Nonnegative.Equivalence[C := Ambient.complex, D := Whole.complex].ZeroExtension[e := Cover.equivalence] \as WholeEquivalence;
+\module With(coefficients: Modules.Bundle);
+\definition class[z: I.Int^]: AmbientExtension.Carrier z -> Carrier z := SmallQuotient.At[k := z].class;
+\module Degree(n: N.Nat^);
+\module Negative(n: N.Nat^);

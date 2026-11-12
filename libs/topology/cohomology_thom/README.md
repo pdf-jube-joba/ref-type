@@ -221,3 +221,8 @@ H^z(X;R)\xrightarrow{\smile e}H^{z+n}(X;R)
 右の底空間位相は `same` による恒等写像の引き戻しで揃える。
 `DirectSum.With.Fiber[x].Ring[K, ring].Product[n, m].Naturality.law` は大域積の実ファイバーへの制限が、二つの実ファイバーへの制限の積に等しいことを示す。
 `Fiber.homeomorphism` と `pair` は実際の直和計量ファイバーと箱型ファイバー対を比較する。
+
+`FamilyMayerVietoris[A, source, family, cover]` は、指定した部分の族に載る小さい特異鎖を相対化した Mayer–Vietoris 列である。
+`With[M].sequence` と `At[z].connecting` は任意の整数加群と整数次数を扱う。
+`FamilyPair.InCover.With[M].quasiIsomorphism` は、細分のホモトピーと取り直し写像が各部分の族を保つことから得られる通常の鎖との比較である。
+二つの閉部分の和集合に含まれる全ての特異単体を、どちらか一方に含まれる単体と同一視する必要はない。

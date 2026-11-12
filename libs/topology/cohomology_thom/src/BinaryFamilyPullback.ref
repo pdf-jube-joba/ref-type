@@ -1,0 +1,17 @@
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.trans;
+\use Equality.congr;
+\use Logic.either;
+\import topology.Maps[A := A, B := B] \as Sets;
+\definition original: \Pow (\Pow B) := { U: \Pow B \where Logic.Or[U = first, U = second] };
+\definition firstPart: \Pow A := Sets.Preimage f first;
+\definition secondPart: \Pow A := Sets.Preimage f second;
+\definition family: \Pow (\Pow A) := Sets.PullbackFamily f original;
+\definition firstMember: \In[\Pow A] family firstPart := Sets.pullbackMember f original first (Logic.Or[_, _]::left (\refl(first)));
+\definition secondMember: \In[\Pow A] family secondPart := Sets.pullbackMember f original second (Logic.Or[_, _]::right (\refl(second)));
+\definition classify: \forall (U: \Pow A) -> \In[\Pow A] family U -> Logic.Or[U = firstPart, U = secondPart] :=
+  \fun (U: \Pow A)(member: \In[\Pow A] family U) => Sets.pullbackElim f original U (Logic.Or[U = firstPart, U = secondPart])
+    (\fun (V: \Pow B)(inside: \In[\Pow B] original V)(same: U = Sets.Preimage f V) => either!{inside {Logic.Or[U = firstPart, U = secondPart]}
+      {\fun (left: V = first) => Logic.Or[_, _]::left (trans!{{\Pow A}} _ _ _ same (congr!{{\Pow B} {\Pow A}} (Sets.Preimage f) _ _ left))}
+      {\fun (right: V = second) => Logic.Or[_, _]::right (trans!{{\Pow A}} _ _ _ same (congr!{{\Pow B} {\Pow A}} (Sets.Preimage f) _ _ right))}}) member;

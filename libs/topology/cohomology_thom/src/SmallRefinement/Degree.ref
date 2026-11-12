@@ -1,0 +1,36 @@
+\import Boundary.At[n := n] \as BoundaryDegree;
+\import Boundary.At[n := N.Nat^::succ n] \as BoundaryHigher;
+\import Joint.Degree[n := n] \as JointDegree;
+\import Modules.Hom[V := Whole.Carrier n, W := Joint.Carrier n, source := Whole.space n, target := Joint.space n].Composition[U := Whole.Carrier n, domain := Whole.space n] \as First;
+\definition intermediate: Modules.Hom[V := Whole.Carrier n, W := Joint.Carrier n, source := Whole.space n, target := Joint.space n].Map := First.compose JointDegree.retraction (Cover.candidateMap n);
+\import Modules.Hom[V := Whole.Carrier n, W := Joint.Carrier n, source := Whole.space n, target := Joint.space n].Composition[U := Boundary.Carrier n, domain := Boundary.space n] \as Second;
+\definition backward: Modules.Hom[V := Boundary.Carrier n, W := Joint.Carrier n, source := Boundary.space n, target := Joint.space n].Map := Second.compose intermediate BoundaryDegree.inclusion;
+\definition included: \forall (x: Boundary.Carrier n) -> Joint.inclusion.apply n (backward.apply x) = (Cover.candidateMap n).apply (Boundary.inclusion.apply n x) := \block {
+  \fun (x: Boundary.Carrier n) \then
+  \let boundaryMember: BoundaryDegree.Image (Boundary.inclusion.apply n x) := Logic.existsIntro[Boundary.Carrier n, { y: Boundary.Carrier n \where BoundaryDegree.inclusion.apply y = Boundary.inclusion.apply n x }] x (\refl(Boundary.inclusion.apply n x)) \then
+  \takefrom y: \Cast[Joint.Carrier n] ({ y: Joint.Carrier n \where JointDegree.linear.apply y = (Cover.candidateMap n).apply (Boundary.inclusion.apply n x) })
+    \by JointDegree.image ((Cover.candidateMap n).apply (Boundary.inclusion.apply n x))
+      (Candidate.law n (Boundary.inclusion.apply n x) boundaryMember) (Cover.image n (Boundary.inclusion.apply n x)) \then
+  \let same: JointDegree.linear.apply y = (Cover.candidateMap n).apply (Boundary.inclusion.apply n x) :=
+    \bysub(Joint.Carrier n, { y: Joint.Carrier n \where JointDegree.linear.apply y = (Cover.candidateMap n).apply (Boundary.inclusion.apply n x) }, y) \then
+  \return eq_reason_in!{{Whole.Carrier n} _
+    "=" _ "by" { congr!{{Whole.Carrier n} {Whole.Carrier n}} (\fun (z: Whole.Carrier n) => JointDegree.linear.apply (JointDegree.retraction.apply z)) _ _ (sym!{{Whole.Carrier n}} _ _ same) }
+    "=" _ "by" { congr!{{Joint.Carrier n} {Whole.Carrier n}} JointDegree.linear.apply _ _ (JointDegree.retract y) }
+    "=" _ "by" { same }
+  }
+};
+\definition leftInverse: \forall (x: Joint.Carrier n) -> backward.apply (Joint.left.apply n x) = x :=
+  \fun (x: Joint.Carrier n) => JointDegree.injective _ _ (eq_reason_in!{{Whole.Carrier n} _
+    "=" _ "by" { included (Joint.left.apply n x) }
+    "=" _ "by" { congr!{{Whole.Carrier n} {Whole.Carrier n}} (Cover.candidateMap n).apply _ _ (JointDegree.leftLaw x) }
+    "=" _ "by" { congr!{{Whole.Carrier n} {Whole.Carrier n}} (Cover.candidateMap n).apply _ _ (sym!{{Whole.Carrier n}} _ _ (JointDegree.rightLaw x)) }
+    "=" _ "by" { Cover.CandidateSmall[].law n (Joint.right.apply n x) }
+    "=" _ "by" { JointDegree.rightLaw x }
+  });
+\import Modules.Hom[V := Whole.Carrier n, W := Whole.Carrier (N.Nat^::succ n), source := Whole.space n, target := Whole.space (N.Nat^::succ n)].Composition[U := Boundary.Carrier n, domain := Boundary.space n] \as HomotopyFirst;
+\definition ambientHomotopy: Modules.Hom[V := Boundary.Carrier n, W := Whole.Carrier (N.Nat^::succ n), source := Boundary.space n, target := Whole.space (N.Nat^::succ n)].Map := HomotopyFirst.compose (Cover.homotopyMap n) BoundaryDegree.inclusion;
+\import Modules.Hom[V := Whole.Carrier (N.Nat^::succ n), W := Boundary.Carrier (N.Nat^::succ n), source := Whole.space (N.Nat^::succ n), target := Boundary.space (N.Nat^::succ n)].Composition[U := Boundary.Carrier n, domain := Boundary.space n] \as HomotopySecond;
+\definition homotopy: Modules.Hom[V := Boundary.Carrier n, W := Boundary.Carrier (N.Nat^::succ n), source := Boundary.space n, target := Boundary.space (N.Nat^::succ n)].Map := HomotopySecond.compose BoundaryHigher.retraction ambientHomotopy;
+\definition homotopyIncluded: \forall (x: Boundary.Carrier n) -> Boundary.inclusion.apply (N.Nat^::succ n) (homotopy.apply x) = (Cover.homotopyMap n).apply (Boundary.inclusion.apply n x) :=
+  \fun (x: Boundary.Carrier n) => BoundaryHigher.imageRetract _ (Support.homotopyPreserves n (Boundary.inclusion.apply n x)
+    (Logic.existsIntro[Boundary.Carrier n, { y: Boundary.Carrier n \where BoundaryDegree.inclusion.apply y = Boundary.inclusion.apply n x }] x (\refl(Boundary.inclusion.apply n x))));

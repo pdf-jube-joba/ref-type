@@ -1,0 +1,31 @@
+\import Geometry.Local[K := K, ring := ring] \as Local;
+\import Local.Model[n := chart.dimension, U := U] \as Model;
+\import Local.Chart[c := chart] \as CanonicalModel;
+\import Model.Transport[model := CanonicalModel.data, homeomorphism := selfPair] \as Transported;
+\definition data: Model.Data := Transported.data;
+\definition detected: Local.Rank[n := chart.dimension].On[U := U].Detects := CanonicalModel.Rank[n := chart.dimension, same := \refl(chart.dimension)].detected;
+\import \root.RelativePullback[].On[A := Actual.Carrier, source := Actual.topology, subset := Actual.boundary, R := K, ring := ring].To[B := Standard.Carrier, target := Standard.topology, part := Standard.boundary].Homeomorphism[data := Standard.pair] \as StandardComparison;
+\import \root.RelativePullback[].On[A := Actual.Carrier, source := Actual.topology, subset := Actual.boundary, R := K, ring := ring].To[B := Standard.Carrier, target := Standard.topology, part := Standard.boundary].Homeomorphism[data := productPair] \as ProductComparison;
+\import singular_cohomology.Relative[A := Actual.Carrier, source := Actual.topology, subset := Actual.boundary].Homeomorphism[B := Standard.Carrier].Over[target := Standard.topology, targetSubset := Standard.boundary] \as StandardPairs;
+\import singular_cohomology.Relative[A := Actual.Carrier, source := Actual.topology, subset := Actual.boundary].Maps[B := Standard.Carrier].Over[target := Standard.topology, targetSubset := Standard.boundary].Composition[C := Actual.Carrier].Over[final := Actual.topology, finalSubset := Actual.boundary] \as Composition;
+\import singular_cohomology.Relative[A := Actual.Carrier, source := Actual.topology, subset := Actual.boundary].Maps[B := Actual.Carrier].Over[target := Actual.topology, targetSubset := Actual.boundary] \as Direct;
+\definition square: Composition.compose (ProductPairs.forwardMap productPair) (StandardPairs.backwardMap Standard.pair) = SelfPairs.forwardMap selfPair := \refl(SelfPairs.forwardMap selfPair);
+\import singular_products.Cochains[A := X, source := bundle.baseSpace, R := K, ring := ring] \as BaseProduct;
+\definition action[f: Direct.Map]: _ := Direct.On[f := f].Integer[].With[coefficients := BaseProduct.integerCoefficients].At[z := I.Int^::ofNat chart.dimension].induced;
+\definition coordinateClass: _ := StandardComparison.Degree[n := chart.dimension].isomorphism.backward.apply CanonicalModel.data.thomClass;
+\definition classFormula: data.thomClass = ProductComparison.Degree[n := chart.dimension].isomorphism.forward.apply coordinateClass :=
+  trans!{{Geometry.Domain[U := U].Ring[K := K, ring := ring].Degree[n := chart.dimension].Class}} _ _ _
+    (congr!{Direct.Map {Geometry.Domain[U := U].Ring[K := K, ring := ring].Degree[n := chart.dimension].Class}} (\fun (f: Direct.Map) => (action f).apply CanonicalModel.data.thomClass) _ _ (sym!{Direct.Map} _ _ square))
+    (trans!{{Geometry.Domain[U := U].Ring[K := K, ring := ring].Degree[n := chart.dimension].Class}} _ _ _
+      (Composition.On[f := ProductPairs.forwardMap productPair, g := StandardPairs.backwardMap Standard.pair].With[coefficients := BaseProduct.integerCoefficients].law (I.Int^::ofNat chart.dimension) CanonicalModel.data.thomClass)
+      (congr!{{singular_cohomology.Relative[A := Standard.Carrier, source := Standard.topology, subset := Standard.boundary].With[coefficients := BaseProduct.integerCoefficients].At[z := I.Int^::ofNat chart.dimension].Carrier} {Geometry.Domain[U := U].Ring[K := K, ring := ring].Degree[n := chart.dimension].Class}}
+        ProductComparison.Degree[n := chart.dimension].isomorphism.forward.apply _ _ (sym!{{singular_cohomology.Relative[A := Standard.Carrier, source := Standard.topology, subset := Standard.boundary].With[coefficients := BaseProduct.integerCoefficients].At[z := I.Int^::ofNat chart.dimension].Carrier}} _ _ (StandardComparison.Degree[n := chart.dimension].backwardFormula CanonicalModel.data.thomClass))));
+\import Standard.Ring[K := K, ring := ring] \as CoordinateModel;
+\definition coordinateLaw: coordinateClass = CoordinateModel.canonicalClass :=
+  trans!{{singular_cohomology.Relative[A := Standard.Carrier, source := Standard.topology, subset := Standard.boundary].With[coefficients := BaseProduct.integerCoefficients].At[z := I.Int^::ofNat chart.dimension].Carrier}} _ _ _
+    (congr!{{Geometry.Domain[U := U].Ring[K := K, ring := ring].Degree[n := chart.dimension].Class} {singular_cohomology.Relative[A := Standard.Carrier, source := Standard.topology, subset := Standard.boundary].With[coefficients := BaseProduct.integerCoefficients].At[z := I.Int^::ofNat chart.dimension].Carrier}}
+      StandardComparison.Degree[n := chart.dimension].isomorphism.backward.apply _ _ (sym!{{Geometry.Domain[U := U].Ring[K := K, ring := ring].Degree[n := chart.dimension].Class}} _ _ CoordinateModel.classLaw))
+    (StandardComparison.Degree[n := chart.dimension].isomorphism.leftInverse CoordinateModel.canonicalClass);
+\definition standardClassFormula: data.thomClass = ProductComparison.Degree[n := chart.dimension].isomorphism.forward.apply CoordinateModel.canonicalClass :=
+  trans!{{Geometry.Domain[U := U].Ring[K := K, ring := ring].Degree[n := chart.dimension].Class}} _ _ _ classFormula
+    (congr!{{singular_cohomology.Relative[A := Standard.Carrier, source := Standard.topology, subset := Standard.boundary].With[coefficients := BaseProduct.integerCoefficients].At[z := I.Int^::ofNat chart.dimension].Carrier} {Geometry.Domain[U := U].Ring[K := K, ring := ring].Degree[n := chart.dimension].Class}} ProductComparison.Degree[n := chart.dimension].isomorphism.forward.apply _ _ coordinateLaw);

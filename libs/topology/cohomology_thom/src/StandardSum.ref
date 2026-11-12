@@ -1,0 +1,40 @@
+\import std.Data[].Nat[] \as N;
+\import std.Data[].Pair[] \as Pair;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.congr;
+\import real.Analysis[] \as R;
+\import thom_spaces.Thom[].CWType[].DiskProduct[n := n, m := m] \as Disks;
+\import algebraic_topology.Euclidean[].Dimension[n := n] \as First;
+\import algebraic_topology.Euclidean[].Dimension[n := m] \as Second;
+\import algebraic_topology.Euclidean[].Dimension[n := N.Basic[].Def[].add n m] \as Total;
+\import topological_constructions.Product[A := First.Disk, B := Second.Disk] \as Factors;
+\import topological_constructions.Product[A := X, B := Factors.CarrierSet] \as Source;
+\import topological_constructions.Product[A := X, B := Total.Disk] \as Target;
+\definition Carrier: \Set := Source.CarrierSet;
+\definition topology: topology.Topology[Carrier := Carrier].Topology := Source.topology space Disks.productTopology;
+\definition TargetCarrier: \Set := Target.CarrierSet;
+\definition targetTopology: topology.Topology[Carrier := TargetCarrier].Topology := Target.topology space Total.diskTopology;
+\definition boundary: \Pow Carrier := { p: Carrier \where \In[Factors.CarrierSet] Disks.Boundary (Pair.second X Factors.CarrierSet p) };
+\definition targetBoundary: \Pow TargetCarrier := { p: TargetCarrier \where Total.normSquared (Pair.second X Total.Disk p) = R.one };
+\definition forward[p: Carrier]: TargetCarrier := Pair.pair X Total.Disk (Pair.first X Factors.CarrierSet p) (Disks.homeomorphism.backward (Pair.second X Factors.CarrierSet p));
+\definition backward[p: TargetCarrier]: Carrier := Pair.pair X Factors.CarrierSet (Pair.first X Total.Disk p) (Disks.homeomorphism.forward (Pair.second X Total.Disk p));
+\definition forwardContinuous: topology.Continuity[A := Carrier, B := TargetCarrier].Continuous topology targetTopology forward :=
+  Target.Universal[X := Carrier].pairContinuous topology space Total.diskTopology (Pair.first X Factors.CarrierSet) (\fun (p: Carrier) => Disks.homeomorphism.backward (Pair.second X Factors.CarrierSet p))
+    (Source.Maps[].firstContinuous space Disks.productTopology)
+    (topology.Composition[A := Carrier, B := Factors.CarrierSet, C := Total.Disk].composeContinuous topology Disks.productTopology Total.diskTopology (Pair.second X Factors.CarrierSet) Disks.homeomorphism.backward (Source.Maps[].secondContinuous space Disks.productTopology) Disks.laws.backwardContinuous);
+\definition backwardContinuous: topology.Continuity[A := TargetCarrier, B := Carrier].Continuous targetTopology topology backward :=
+  Source.Universal[X := TargetCarrier].pairContinuous targetTopology space Disks.productTopology (Pair.first X Total.Disk) (\fun (p: TargetCarrier) => Disks.homeomorphism.forward (Pair.second X Total.Disk p))
+    (Target.Maps[].firstContinuous space Total.diskTopology)
+    (topology.Composition[A := TargetCarrier, B := Total.Disk, C := Factors.CarrierSet].composeContinuous targetTopology Total.diskTopology Disks.productTopology (Pair.second X Total.Disk) Disks.homeomorphism.forward (Target.Maps[].secondContinuous space Total.diskTopology) Disks.laws.forwardContinuous);
+\definition homeomorphism: topology.Homeomorphism[A := Carrier, B := TargetCarrier].Homeomorphism[topology, targetTopology] :=
+  topology.Homeomorphism[A := Carrier, B := TargetCarrier].Homeomorphism[topology, targetTopology] {
+    forward := forward, backward := backward, forwardContinuous := forwardContinuous, backwardContinuous := backwardContinuous,
+    leftInverse := \fun (p: Carrier) => Pair.Prop[A := X, B := Factors.CarrierSet].ext (backward (forward p)) p (\refl(Pair.first X Factors.CarrierSet p)) (Disks.laws.rightInverse (Pair.second X Factors.CarrierSet p)),
+    rightInverse := \fun (p: TargetCarrier) => Pair.Prop[A := X, B := Total.Disk].ext (forward (backward p)) p (\refl(Pair.first X Total.Disk p)) (Disks.laws.leftInverse (Pair.second X Total.Disk p))
+  };
+\import singular_cohomology.Relative[A := Carrier, source := topology, subset := boundary].Homeomorphism[B := TargetCarrier].Over[target := targetTopology, targetSubset := targetBoundary] \as Pairs;
+\definition pair: Pairs.Data := Pairs.Data {
+  homeomorphism := homeomorphism,
+  forwardPreserves := \fun (p: \Cast[Carrier] boundary) => Disks.backwardBoundary (Pair.second X Factors.CarrierSet p) (\bysub(Carrier, boundary, p)),
+  backwardPreserves := \fun (p: \Cast[TargetCarrier] targetBoundary) => Disks.forwardBoundary (Pair.second X Total.Disk p) (\bysub(TargetCarrier, targetBoundary, p))
+};

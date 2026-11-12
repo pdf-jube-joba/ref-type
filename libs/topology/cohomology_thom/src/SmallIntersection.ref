@@ -1,0 +1,47 @@
+\import std.Data[].Nat[] \as N;
+\import std.Data[].FinSet[] \as Fin;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Classical[] \as Classical;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.trans;
+\use Equality.sym;
+\use Equality.congr;
+\use Equality.transport;
+\use Equality.eq_reason_in;
+\use Logic.either;
+\import std.Arithmetic[].Int[] \as I;
+\import std.Arithmetic[].IntAlgebra[].Ring[] \as Integers;
+\import module_theory.Module[].Over[R := I.Int^, ring := Integers.ring] \as Modules;
+\import singular_cohomology.Chains[A := A, source := source] \as Whole;
+\import singular_cohomology.Simplices[A := A, source := source] \as WholeSimplices;
+\import singular_subdivision.Small[A := A, source := source, family := leftFamily] \as Left;
+\import singular_subdivision.Small[A := A, source := source, family := rightFamily] \as Right;
+\import Left.Simplices[] \as LeftSimplices;
+\import Right.Simplices[] \as RightSimplices;
+\import algebraic_topology.Semisimplicial[] \as Semisimplicial;
+\import double_complexes.NonnegativeChain[].Over[R := I.Int^, ring := Integers.ring] \as Complexes;
+\module Simplices;
+\import singular_cohomology.SimplicialChains[].On[X := Simplices[].object] \as Native;
+\definition Carrier[n: N.Nat^]: \Set := Native.Carrier n;
+\definition space[n: N.Nat^]: Modules.Space (Carrier n) := Native.space n;
+\definition generator[n: N.Nat^]: Simplices[].Carrier n -> Carrier n := Native.generator n;
+\definition complex: Complexes.Complex := Native.complex;
+\import Semisimplicial.Maps[X := Simplices[].object, Y := WholeSimplices.object] \as IntoWhole;
+\definition simplicialInclusion: IntoWhole.Map := IntoWhole.Map {
+  apply := \fun (n: N.Nat^)(sigma: Simplices[].Carrier n) => sigma,
+  faces := \fun (n: N.Nat^)(i: Fin.Fin (N.Nat^::succ (N.Nat^::succ n)))(sigma: Simplices[].Carrier (N.Nat^::succ n)) => \refl(WholeSimplices.face n i sigma)
+};
+\definition inclusion: Complexes.Map[C := complex, D := Whole.complex].Map := Native.Mapping[Y := WholeSimplices.object].map simplicialInclusion;
+\import Semisimplicial.Maps[X := Simplices[].object, Y := LeftSimplices.object] \as IntoLeft;
+\definition simplicialLeft: IntoLeft.Map := IntoLeft.Map {
+  apply := \fun (n: N.Nat^)(sigma: Simplices[].Carrier n) => \into[WholeSimplices.Carrier n](sigma, LeftSimplices.Small n) \by { \bysub(RightSimplices.Carrier n, Simplices[].selected n, sigma) },
+  faces := \fun (n: N.Nat^)(i: Fin.Fin (N.Nat^::succ (N.Nat^::succ n)))(sigma: Simplices[].Carrier (N.Nat^::succ n)) => \refl(WholeSimplices.face n i sigma)
+};
+\definition left: Complexes.Map[C := complex, D := Left.complex].Map := Native.Mapping[Y := LeftSimplices.object].map simplicialLeft;
+\import Semisimplicial.Maps[X := Simplices[].object, Y := RightSimplices.object] \as IntoRight;
+\definition simplicialRight: IntoRight.Map := IntoRight.Map {
+  apply := \fun (n: N.Nat^)(sigma: Simplices[].Carrier n) => sigma,
+  faces := \fun (n: N.Nat^)(i: Fin.Fin (N.Nat^::succ (N.Nat^::succ n)))(sigma: Simplices[].Carrier (N.Nat^::succ n)) => \refl(WholeSimplices.face n i sigma)
+};
+\definition right: Complexes.Map[C := complex, D := Right.complex].Map := Native.Mapping[Y := RightSimplices.object].map simplicialRight;
+\module Degree(n: N.Nat^);

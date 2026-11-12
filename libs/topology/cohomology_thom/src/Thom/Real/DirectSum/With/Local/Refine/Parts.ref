@@ -1,0 +1,57 @@
+\import Bundles.Family[X := X, F := F] \as LeftFamily;
+\import Bundles.Family[X := X, F := G] \as RightFamily;
+\definition base[p: Domain.BoxCarrier]: BasePoint := \into[X](p.base, U) \by { \bysub(Carrier, Domain.subset, p) };
+\definition leftPart[p: Domain.BoxCarrier]: LeftOpen.Carrier := \into[LeftDisk.DiskBundle](first p, LeftOpen.domain) \by { \bysub(Carrier, Domain.subset, p) };
+\definition rightPart[p: Domain.BoxCarrier]: RightOpen.Carrier := \into[RightDisk.DiskBundle](second p, RightOpen.domain) \by { \bysub(Carrier, Domain.subset, p) };
+\definition leftPartContinuous: topology.Continuity[A := Domain.BoxCarrier, B := LeftOpen.Carrier].Continuous Domain.boxTopology LeftOpen.topology leftPart :=
+  topology.Continuity[A := Domain.BoxCarrier, B := LeftDisk.DiskBundle].Corestriction[S := LeftOpen.domain].corestrictContinuous Domain.boxTopology LeftDisk.diskTopology leftPart
+    (topology.Composition[A := Domain.BoxCarrier, B := Carrier, C := LeftDisk.DiskBundle].composeContinuous Domain.boxTopology topology LeftDisk.diskTopology Domain.inclusion first Domain.inclusionContinuous firstContinuous);
+\definition rightPartContinuous: topology.Continuity[A := Domain.BoxCarrier, B := RightOpen.Carrier].Continuous Domain.boxTopology RightOpen.topology rightPart :=
+  topology.Continuity[A := Domain.BoxCarrier, B := RightDisk.DiskBundle].Corestriction[S := RightOpen.domain].corestrictContinuous Domain.boxTopology RightDisk.diskTopology rightPart
+    (topology.Composition[A := Domain.BoxCarrier, B := Carrier, C := RightDisk.DiskBundle].composeContinuous Domain.boxTopology topology RightDisk.diskTopology Domain.inclusion second Domain.inclusionContinuous secondContinuous);
+\definition baseContinuous: topology.Continuity[A := Domain.BoxCarrier, B := BasePoint].Continuous Domain.boxTopology baseTopology base :=
+  topology.Composition[A := Domain.BoxCarrier, B := LeftOpen.Carrier, C := BasePoint].composeContinuous Domain.boxTopology LeftOpen.topology baseTopology leftPart LeftOpen.projection leftPartContinuous LeftOpen.projectionContinuous;
+\definition leftInput[p: Blocks.Carrier]: Left.Carrier := Pair.pair BasePoint First.Disk (Pair.first BasePoint Factors.CarrierSet p) (Pair.first First.Disk Second.Disk (Pair.second BasePoint Factors.CarrierSet p));
+\definition rightInput[p: Blocks.Carrier]: Right.Carrier := Pair.pair BasePoint Second.Disk (Pair.first BasePoint Factors.CarrierSet p) (Pair.second First.Disk Second.Disk (Pair.second BasePoint Factors.CarrierSet p));
+\definition leftBackward[p: Blocks.Carrier]: LeftOpen.Carrier := Left.homeomorphism.backward (leftInput p);
+\definition rightBackward[p: Blocks.Carrier]: RightOpen.Carrier := rightHomeomorphism.backward (rightInput p);
+\definition assemble[p: Blocks.Carrier]: Family.Point := Family.include (Pair.first BasePoint Factors.CarrierSet p)
+  (Pair.pair (F (Pair.first BasePoint Factors.CarrierSet p)) (G (Pair.first BasePoint Factors.CarrierSet p)) (leftBackward p).vector (rightBackward p).vector);
+\definition firstAssemble: \forall (p: Blocks.Carrier) -> Sum.first (assemble p) = leftBackward p := \fun (p: Blocks.Carrier) => LeftFamily.eta (leftBackward p);
+\definition secondAssemble: \forall (p: Blocks.Carrier) -> Sum.second (assemble p) = rightBackward p := \fun (p: Blocks.Carrier) => RightFamily.eta (rightBackward p);
+\definition inDisk: \forall (p: Blocks.Carrier) -> \In[Family.Point] Box.DiskSubset (assemble p) :=
+  \fun (p: Blocks.Carrier) => Reals.Distance[].maxLeast (Box.first (assemble p)) (Box.second (assemble p)) Reals.one
+    (D.leReplaceLeft (LeftDisk.squared (leftBackward p)) (Box.first (assemble p)) Reals.one (sym!{Reals.Real} _ _ (congr!{LeftFamily.Point Reals.Real} LeftDisk.squared _ _ (firstAssemble p))) (\bysub(LeftFamily.Point, LeftDisk.ClosedBall, leftBackward p)))
+    (D.leReplaceLeft (RightDisk.squared (rightBackward p)) (Box.second (assemble p)) Reals.one (sym!{Reals.Real} _ _ (congr!{RightFamily.Point Reals.Real} RightDisk.squared _ _ (secondAssemble p))) (\bysub(RightFamily.Point, RightDisk.ClosedBall, rightBackward p)));
+\definition backward[p: Blocks.Carrier]: Domain.BoxCarrier := \into[Carrier]((\into[Family.Point](assemble p, Box.DiskSubset) \by { inDisk p }), Domain.subset) \by { \bysub(X, U, Pair.first BasePoint Factors.CarrierSet p) };
+\import topological_constructions.Product[A := BasePoint, B := Factors.CarrierSet] \as Product;
+\import topological_constructions.Product[A := BasePoint, B := First.Disk] \as LeftProduct;
+\definition leftInputContinuous: topology.Continuity[A := Blocks.Carrier, B := Left.Carrier].Continuous Blocks.topology Left.topology leftInput :=
+  LeftProduct.Universal[X := Blocks.Carrier].pairContinuous Blocks.topology baseTopology First.diskTopology (Pair.first BasePoint Factors.CarrierSet) (\fun (p: Blocks.Carrier) => Pair.first First.Disk Second.Disk (Pair.second BasePoint Factors.CarrierSet p))
+    (Product.Maps[].firstContinuous baseTopology productTopology)
+    (topology.Composition[A := Blocks.Carrier, B := Factors.CarrierSet, C := First.Disk].composeContinuous Blocks.topology productTopology First.diskTopology (Pair.second BasePoint Factors.CarrierSet) (Pair.first First.Disk Second.Disk)
+      (Product.Maps[].secondContinuous baseTopology productTopology) (Factors.Maps[].firstContinuous First.diskTopology Second.diskTopology));
+\definition rightInputContinuous: topology.Continuity[A := Blocks.Carrier, B := Right.Carrier].Continuous Blocks.topology rightTargetTopology rightInput :=
+  RightProduct.Universal[X := Blocks.Carrier].pairContinuous Blocks.topology baseTopology Second.diskTopology (Pair.first BasePoint Factors.CarrierSet) (\fun (p: Blocks.Carrier) => Pair.second First.Disk Second.Disk (Pair.second BasePoint Factors.CarrierSet p))
+    (Product.Maps[].firstContinuous baseTopology productTopology)
+    (topology.Composition[A := Blocks.Carrier, B := Factors.CarrierSet, C := Second.Disk].composeContinuous Blocks.topology productTopology Second.diskTopology (Pair.second BasePoint Factors.CarrierSet) (Pair.second First.Disk Second.Disk)
+      (Product.Maps[].secondContinuous baseTopology productTopology) (Factors.Maps[].secondContinuous First.diskTopology Second.diskTopology));
+\definition leftBackwardContinuous: topology.Continuity[A := Blocks.Carrier, B := LeftFamily.Point].Continuous Blocks.topology left.totalSpace (\fun (p: Blocks.Carrier) => leftBackward p) :=
+  topology.Composition[A := Blocks.Carrier, B := LeftOpen.Carrier, C := LeftFamily.Point].composeContinuous Blocks.topology LeftOpen.topology left.totalSpace leftBackward (\fun (p: LeftOpen.Carrier) => p)
+    (topology.Composition[A := Blocks.Carrier, B := Left.Carrier, C := LeftOpen.Carrier].composeContinuous Blocks.topology Left.topology LeftOpen.topology leftInput Left.homeomorphism.backward leftInputContinuous
+      (topology.Homeomorphism[A := LeftOpen.Carrier, B := Left.Carrier].laws LeftOpen.topology Left.topology Left.homeomorphism).backwardContinuous) LeftOpen.familyContinuous;
+\definition rightBackwardContinuous: topology.Continuity[A := Blocks.Carrier, B := RightFamily.Point].Continuous Blocks.topology right.totalSpace (\fun (p: Blocks.Carrier) => rightBackward p) :=
+  topology.Composition[A := Blocks.Carrier, B := RightOpen.Carrier, C := RightFamily.Point].composeContinuous Blocks.topology RightOpen.topology right.totalSpace rightBackward (\fun (p: RightOpen.Carrier) => p)
+    (topology.Composition[A := Blocks.Carrier, B := Right.Carrier, C := RightOpen.Carrier].composeContinuous Blocks.topology rightTargetTopology RightOpen.topology rightInput rightHomeomorphism.backward rightInputContinuous
+      (RightHomeomorphisms.laws RightOpen.topology rightTargetTopology rightHomeomorphism).backwardContinuous) RightOpen.familyContinuous;
+\definition assembleContinuous: topology.Continuity[A := Blocks.Carrier, B := Family.Point].Continuous Blocks.topology bundle.totalSpace assemble :=
+  Sum.Universal[Y := Blocks.Carrier].continuous Blocks.topology assemble
+    (\idelim (\fun (p: Blocks.Carrier) => leftBackward p) = (\fun (p: Blocks.Carrier) => Sum.first (assemble p)) \with f: (Blocks.Carrier -> LeftFamily.Point) => topology.Continuity[A := Blocks.Carrier, B := LeftFamily.Point].Continuous Blocks.topology left.totalSpace f \by {
+      base: leftBackwardContinuous, equality: \axiom:funext((\fun (p: Blocks.Carrier) => leftBackward p), (\fun (p: Blocks.Carrier) => Sum.first (assemble p)), \fun (p: Blocks.Carrier) => sym!{LeftFamily.Point} _ _ (firstAssemble p))
+    })
+    (\idelim (\fun (p: Blocks.Carrier) => rightBackward p) = (\fun (p: Blocks.Carrier) => Sum.second (assemble p)) \with f: (Blocks.Carrier -> RightFamily.Point) => topology.Continuity[A := Blocks.Carrier, B := RightFamily.Point].Continuous Blocks.topology right.totalSpace f \by {
+      base: rightBackwardContinuous, equality: \axiom:funext((\fun (p: Blocks.Carrier) => rightBackward p), (\fun (p: Blocks.Carrier) => Sum.second (assemble p)), \fun (p: Blocks.Carrier) => sym!{RightFamily.Point} _ _ (secondAssemble p))
+    });
+\definition backwardContinuous: topology.Continuity[A := Blocks.Carrier, B := Domain.BoxCarrier].Continuous Blocks.topology Domain.boxTopology backward :=
+  topology.Continuity[A := Blocks.Carrier, B := Carrier].Corestriction[S := Domain.subset].corestrictContinuous Blocks.topology topology backward
+    (topology.Continuity[A := Blocks.Carrier, B := Family.Point].Corestriction[S := Box.DiskSubset].corestrictContinuous Blocks.topology bundle.totalSpace backward assembleContinuous);
