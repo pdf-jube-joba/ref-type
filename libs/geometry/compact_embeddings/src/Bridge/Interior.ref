@@ -1,0 +1,47 @@
+\import boundary_manifolds.Interior[n := n].Of[M := M] \as Interior;
+\import Interior.Build[] \as Ordinary;
+\definition ordinary: Sources.Manifold := Ordinary.manifold;
+\import boundary_manifolds.Boundaryless[n := n].Of[M := ordinary] \as Converted;
+\import manifold_gluing.InteriorInclusion[n := n].On[M := M] \as Inclusion;
+\definition target: BoundarySources.Manifold := Inclusion.manifold;
+\import topology.Topology[Carrier := M.Point] \as Space;
+\definition intrinsic[x: M.Point]: Interior.Point := \into[M.Point](x, Interior.points) \by { noBoundary x };
+\definition apply[x: M.Point]: target.Point := Converted.forward (intrinsic x);
+\import topology.Maps[A := M.Point, B := M.Point].Identity[] \as Identity;
+\definition intrinsicContinuous: topology.Continuity[A := M.Point, B := Interior.Point].Continuous M.space Interior.topology intrinsic :=
+  topology.Continuity[A := M.Point, B := M.Point].Corestriction[S := Interior.points].corestrictContinuous M.space M.space intrinsic (Identity.continuous M.space);
+\definition continuous: topology.Continuity[A := M.Point, B := target.Point].Continuous M.space target.space apply :=
+  topology.Composition[A := M.Point, B := Interior.Point, C := target.Point].composeContinuous M.space Interior.topology target.space intrinsic Converted.forward intrinsicContinuous
+    (topology.Homeomorphism[A := Interior.Point, B := target.Point].laws Interior.topology target.space Converted.comparison).forwardContinuous;
+\import manifold_gluing.LocalSmoothMap[n := n, m := n].Between[M := M, N := target].Of[function := apply] \as Locality;
+\module At(x: M.Point);
+\definition local: \forall (x: M.Point) -> \exists Locality.Witness[x] := \fun (x: M.Point) => At[x := x].exists;
+\import boundary_manifolds.SmoothMap[n := n, m := n].Between[M := M, N := target] \as Maps;
+\import boundary_manifolds.SmoothMap[n := n, m := n].Between[M := target, N := M] \as Backward;
+\definition map: Maps.Map := Locality.map continuous local;
+\definition leftInverse[x: M.Point]: Backward.apply Inclusion.map (Maps.apply map x) = x := \refl(x);
+\definition rightInverse[x: target.Point]: Maps.apply map (Backward.apply Inclusion.map x) = x := \refl(x);
+\import manifold_gluing.Diffeomorphism[n := n, m := n].Between[M := M, N := target] \as Diffeomorphisms;
+\definition diffeomorphism: Diffeomorphisms.Diffeomorphism := Diffeomorphisms.Diffeomorphism {
+  forward := map, backward := Inclusion.map, leftInverse := leftInverse, rightInverse := rightInverse,
+};
+\import manifold_gluing.SmoothLeftInverseCones[n := n, m := n].Between[M := M, N := target].From[f := map, g := Inclusion.map, inverse := leftInverse] \as Differential;
+\import boundary_manifolds.Tangent[n := n].On[M := M] \as Tangent;
+\import boundary_manifolds.Immersion[n := n, m := n].Between[M := M, N := target] \as Embeddings;
+\import topology.Topology[Carrier := target.Point] \as TargetSpace;
+\import topology.Continuity[A := M.Point, B := target.Point] \as ForwardTopology;
+\import topology.Continuity[A := target.Point, B := M.Point] \as BackwardTopology;
+\definition laws: Embeddings.EmbeddingLaws[map] := Embeddings.EmbeddingLaws[map] {
+  immersion := \fun (x: M.Point)(u, v: Tangent.Vector x)(same: _) => trans!{{Tangent.Vector x}} _ _ _
+    (sym!{{Tangent.Vector x}} _ _ (Differential.At[x := x].leftInverse u))
+    (trans!{{Tangent.Vector x}} _ _ _ (congr!{{boundary_manifolds.Tangent[n := n].On[M := target].Vector (apply x)} {Tangent.Vector x}}
+      Differential.At[x := x].back _ _ same) (Differential.At[x := x].leftInverse v)),
+  injective := \fun (x, y: M.Point)(same: _) => congr!{{target.Point} {M.Point}} (Backward.apply Inclusion.map) _ _ same,
+  openLift := \fun (S: \Pow M.Point)(open: _) => Logic.existsIntro[\Pow target.Point,
+    { U: \Pow target.Point \where Logic.And[TargetSpace.IsOpenIn target.space U, ForwardTopology.Preimage (Maps.apply map) U = S] }]
+    (BackwardTopology.Preimage (Backward.apply Inclusion.map) S) (Logic.And[_, _]::# (Inclusion.continuous S open)
+      (\axiom:setext((ForwardTopology.Preimage (Maps.apply map) (BackwardTopology.Preimage (Backward.apply Inclusion.map) S)), S,
+        \fun (x: M.Point)(member: _) => member, \fun (x: M.Point)(member: _) => member))),
+};
+\definition embedding: Embeddings.Embedding := \into[Maps.Map](map, Embeddings.Embedding) \by { laws };
+\module Compact;

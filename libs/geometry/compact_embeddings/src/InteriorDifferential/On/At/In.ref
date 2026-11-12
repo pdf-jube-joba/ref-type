@@ -1,0 +1,35 @@
+\import Inclusion.In[x := x, c := c, contains := contains] \as Forward;
+\import Interior.In[c := c] \as Face;
+\definition left: Domain.Chart := \into[SourceCharts.Chart](Forward.left, Domain.Chart) \by {
+  Domain.ChartLaws[Forward.left] { member := Forward.sourceMember, contains := contains }
+};
+\definition right: Codomain.Chart := \into[TargetCharts.Chart](c, Codomain.Chart) \by {
+  Codomain.ChartLaws[c] { member := \bysub(TargetCharts.Chart, M.atlas.charts, c), contains := contains }
+};
+\import boundary_manifolds.SmoothMap[n := n, m := n].Between[M := Inclusion.manifold, N := M] \as Maps;
+\import Maps.At[function := Inclusion.apply, left := left, right := right, x := x, contains := Domain.contains left] \as Local;
+\definition extension: Local.Extension := Local.Extension {
+  neighborhood := Forward.extension.neighborhood, included := Forward.extension.included,
+  contains := Forward.extension.contains, map := Forward.extension.map, inside := Forward.extension.inside, agrees := Forward.extension.agrees,
+};
+\import Local.Using[e := extension] \as E;
+\import calculus.Identity[n := n] \as Identity;
+\import Calculus.Differential[U := Face.image, V := Open.whole, f := Forward.identity, a := E.center] \as Derivative;
+\definition matrix: D.InCharts[left := left, right := right].jacobian = Identity.linear := trans!{{calculus.Vector[n := n, m := n].LinearMap}} _ _ _
+  (Local.ofExtension D.InCharts[left := left, right := right].smooth extension)
+  (trans!{{calculus.Vector[n := n, m := n].LinearMap}} _ _ _ (Derivative.Compare[W := Face.image, g := Identity.map Face.image].equal
+    (\axiom:funext((\fun (u: Open.Carrier Face.image) => Calculus.apply Face.image Open.whole Forward.identity u \of Model.Point),
+      (\fun (u: Open.Carrier Face.image) => Calculus.apply Face.image Face.image (Identity.map Face.image) u \of Model.Point), \fun (u: Open.Carrier Face.image) => \refl(u \of Model.Point)))) (Identity.At[U := Face.image, a := E.center].differential));
+\import Domain.Coordinate[chart := left] \as Left;
+\import Codomain.Coordinate[chart := right] \as Right;
+\definition coordinates[v: Domain.Vector]: Right.decode (D.value.apply v) = Left.decode v :=
+  trans!{{Model.Point}} _ _ _ (D.coordinates left right v)
+    (congr!{{calculus.Vector[n := n, m := n].LinearMap} {Model.Point}} (\fun (d: calculus.Vector[n := n, m := n].LinearMap) => d.apply (Left.decode v)) _ _ matrix);
+\definition injective[u, v: Domain.Vector]: D.value.apply u = D.value.apply v -> u = v := \fun (equal: _) => Left.injective u v
+  (trans!{{Model.Point}} _ _ _ (sym!{{Model.Point}} _ _ (coordinates u))
+    (trans!{{Model.Point}} _ _ _ (congr!{{Codomain.Vector} {Model.Point}} Right.decode _ _ equal) (coordinates v)));
+\definition inverse[w: Codomain.Vector]: Domain.Vector := Left.encode (Right.decode w);
+\definition rightInverse[w: Codomain.Vector]: D.value.apply (inverse w) = w := Right.injective _ _
+  (trans!{{Model.Point}} _ _ _ (coordinates (inverse w)) (Left.decodeEncode (Right.decode w)));
+\definition onto[w: Codomain.Vector]: \exists ( v: Domain.Vector \where D.value.apply v = w ) :=
+  Logic.existsIntro[Domain.Vector, { v: Domain.Vector \where D.value.apply v = w }] (inverse w) (rightInverse w);

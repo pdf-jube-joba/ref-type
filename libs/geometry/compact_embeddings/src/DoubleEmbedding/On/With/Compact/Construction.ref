@@ -1,0 +1,29 @@
+\import Collars.From[left := c.left, right := c.right].Using[leftRegular := c.leftRegular, rightRegular := c.rightRegular].At[
+  epsilon := c.parameters.epsilon, positive := c.parameters.positive, bounded := c.parameters.bounded,
+  leftWithin := c.parameters.leftWithin, rightWithin := c.parameters.rightWithin] \as Stage;
+\import Stage.Image[] \as Image;
+\import Image.Compact[leftCompact := compact, rightCompact := compact] \as ImageCompact;
+\import ImageCompact.Cover[] \as Cover;
+\definition manifold: Models.Manifold := Cover.manifold;
+\import Cover.Inclusions[] \as Inclusions;
+\import Cover.Mapping[m := dimension].Into[P := manifold] \as Members;
+\import manifold_gluing.SignedParameter[].At[epsilon := c.parameters.epsilon, positive := c.parameters.positive, bounded := c.parameters.bounded] \as Signed;
+\import boundary_manifolds.Product[n := n, m := One.dimension].Of[M := BoundaryModel.manifold, N := Signed.manifold] \as SignedProduct;
+\import \root.DoubleEmbedding[n := n].Transport[M := SignedProduct.manifold, P := manifold].Using[U := Image.image, open := Image.open, h := ImageCompact.homeomorphism].Of[
+  f := Inclusions.seam, values := \fun (p: SignedProduct.Point) => \refl(Stage.apply p), member := Members.seamMember] \as SeamImmersion;
+\import \root.DoubleEmbedding[n := n].Insertion[epsilon := c.parameters.epsilon, positive := c.parameters.positive, bounded := c.parameters.bounded].On[B := BoundaryModel.manifold] \as Insert;
+\import manifold_gluing.CollarRestriction[n := n].On[M := M].With[cover := cover].From[deformation := c.left].Of[regular := c.leftRegular].Within[
+  V := Image.leftDomain, open := Image.leftOpen, inside := Image.leftIncluded] \as Collar;
+\import boundary_manifolds.SmoothMap[n := dimension, m := dimension].Between[M := M, N := manifold] \as Maps;
+\import boundary_manifolds.Immersion[n := dimension, m := dimension].Between[M := M, N := manifold] \as Embeddings;
+\import boundary_manifolds.Tangent[n := dimension].On[M := M] \as Tangent;
+\definition ImmersionAt[x: M.Point]: \Prop := \forall (u, v: Tangent.Vector x) -> boundary_manifolds.Differential[n := dimension, m := dimension].Between[M := M, N := manifold].At[f := Inclusions.left, x := x].value.apply u = boundary_manifolds.Differential[n := dimension, m := dimension].Between[M := M, N := manifold].At[f := Inclusions.left, x := x].value.apply v -> u = v;
+\module CollarAt(x: Collar.Point);
+\import boundary_manifolds.Interior[n := dimension].Of[M := M] \as Interior;
+\module InteriorAt(x: M.Point, interior: \In[M.Point] Interior.points x);
+\import boundary_manifolds.Boundary[n := n].Of[M := M].Build[cover := cover] \as OrdinaryBoundary;
+\import boundary_manifolds.Boundaryless[n := n].Of[M := OrdinaryBoundary.manifold] \as BoundaryConverted;
+\definition immersion: Embeddings.IsImmersion Inclusions.left := \fun (x: M.Point) => Logic.orElim (\In[M.Point] Boundary.points x) (Logic.Not (\In[M.Point] Boundary.points x)) (ImmersionAt x)
+  (std.Logic[].Classical[].excludedMiddle (\In[M.Point] Boundary.points x))
+  (\fun (boundary: _) => CollarAt[x := \into[M.Point](x, Collar.image) \by { Image.leftBoundary (BoundaryConverted.forward (\into[M.Point](x, Boundary.points) \by { boundary })) }].injective)
+  (\fun (interior: _) => InteriorAt[x := x, interior := interior].injective);

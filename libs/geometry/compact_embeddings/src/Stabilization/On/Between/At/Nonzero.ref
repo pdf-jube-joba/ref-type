@@ -1,0 +1,13 @@
+\import manifolds.Composition[n := dimension, m := b, l := b].Between[M := Target.smoothManifold, N := Right.smoothManifold, P := Right.smoothManifold] \as ProjectionCompose;
+\definition projection: manifolds.SmoothMap[n := dimension, m := b].Between[M := Target.smoothManifold, N := Right.smoothManifold].Map :=
+  ProjectionCompose.compose RightProjection.map \root.Stabilization[n := n, a := a, b := b].Scale[d := b].At[c := Laws.fieldInv t].map;
+\import manifolds.Composition[n := n, m := dimension, l := b].Between[M := M, N := Target.smoothManifold, P := Right.smoothManifold] \as Compose;
+\definition recover[x: M.Point]: RightMaps.apply (Compose.compose map projection) x = RightMaps.apply g x :=
+  \axiom:funext((RightMaps.apply (Compose.compose map projection) x), (RightMaps.apply g x), \fun (i: Fin.Fin b) =>
+    trans!{R.Real} _ _ _ (congr!{R.Real R.Real} (R.mul (Laws.fieldInv t)) _ _
+      (congr!{{Right.smoothManifold.Point} R.Real} (\fun (v: Right.smoothManifold.Point) => v i) _ _ (Blocks.rightJoin (LeftMaps.apply left x) (RightMaps.apply right x))))
+      (trans!{R.Real} _ _ _ (sym!{R.Real} _ _ (Laws.fieldMulAssoc (Laws.fieldInv t) t (RightMaps.apply g x i)))
+        (trans!{R.Real} _ _ _ (congr!{R.Real R.Real} (\fun (c: R.Real) => R.mul c (RightMaps.apply g x i)) _ _ (Laws.fieldInverseNonzero t nonzero)) (Laws.fieldMulOneLeft (RightMaps.apply g x i)))));
+\definition equal: Compose.compose map projection = g := RightMaps.ext (Compose.compose map projection) g (\axiom:funext((RightMaps.apply (Compose.compose map projection)), (RightMaps.apply g), recover));
+\definition laws: Embeddings.EmbeddingLaws[map] := \root.Stabilization[n := n, a := a, b := b].Factor[p := dimension, q := b].Between[M := M, N := Target.smoothManifold, P := Right.smoothManifold].Of[
+  f := map, g := projection, h := g, equal := equal].laws;

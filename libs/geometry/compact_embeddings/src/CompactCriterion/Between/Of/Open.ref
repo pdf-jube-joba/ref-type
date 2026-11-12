@@ -1,0 +1,17 @@
+\definition closed: Source.IsClosedIn M.space (Source.Complement S) := SourceFinite.openComplementClosed M.space S open;
+\definition compactComplement: Source.IsCompactIn M.space (Source.Complement S) := SourceCompact.closedCompact M.space compact (Source.Complement S) closed;
+\definition imageClosed: Target.IsClosedIn N.space (Image.Image (Maps.apply f) (Source.Complement S)) :=
+  TargetCompact.compactClosed N.space N.hausdorff (Image.Image (Maps.apply f) (Source.Complement S))
+    (Compact.continuousImage M.space N.space (Maps.apply f) continuous (Source.Complement S) compactComplement);
+\definition lift: \Pow N.Point := Target.Complement (Image.Image (Maps.apply f) (Source.Complement S));
+\definition liftOpen: Target.IsOpenIn N.space lift := imageClosed;
+\definition equality: Image.Preimage (Maps.apply f) lift = S := \axiom:setext(Image.Preimage (Maps.apply f) lift, S,
+  (\fun (x: M.Point)(outside: Source.Member (Image.Preimage (Maps.apply f) lift) x) => SourceFinite.doubleNegElim (Source.Member S x)
+    (\fun (notIn: Logic.Not (Source.Member S x)) => outside (Image.imageMember (Maps.apply f) (Source.Complement S) x notIn))),
+  (\fun (x: M.Point)(inside: Source.Member S x)(member: Target.Member (Image.Image (Maps.apply f) (Source.Complement S)) (Maps.apply f x)) =>
+    Image.imageElim (Maps.apply f) (Source.Complement S) (Maps.apply f x) Logic.False
+      (\fun (y: M.Point)(outside: Logic.Not (Source.Member S y))(same: Maps.apply f y = Maps.apply f x) => outside
+        (\idelim x = y \with z: M.Point => Source.Member S z \by { base: inside, equality: sym!{{M.Point}} _ _ (injective y x same) })) member));
+\definition exists: \exists ( U: \Pow N.Point \where Logic.And[Target.IsOpenIn N.space U, Image.Preimage (Maps.apply f) U = S] ) :=
+  Logic.existsIntro[\Pow N.Point, { U: \Pow N.Point \where Logic.And[Target.IsOpenIn N.space U, Image.Preimage (Maps.apply f) U = S] }]
+    lift (Logic.And[_, _]::# liftOpen equality);

@@ -1,0 +1,29 @@
+\import topology.Continuity[A := M.Point, B := N.Point] \as OldTopology;
+\import topology.Continuity[A := M.Point, B := source.Point] \as SourceTopology;
+\import topology.Continuity[A := target.Point, B := N.Point] \as TargetTopology;
+\import topology.Continuity[A := source.Point, B := target.Point] \as MapTopology;
+\import boundary_manifolds.Tangent[n := n].On[M := source] \as Tangent;
+\definition embeddingLaws: Embeddings.EmbeddingLaws[map] := Embeddings.EmbeddingLaws[map] {
+  immersion := \fun (x: source.Point) => \parent.Differential[x := x].injective laws.immersion,
+  injective := \fun (x, y: source.Point)(same: _) => laws.injective (Source.backward x) (Source.backward y)
+    (congr!{{target.Point} {N.Point}} Target.backward _ _ same),
+  openLift := \block {
+    \fun (S: \Pow source.Point)(open: _) \then
+    \let U: \Pow M.Point := SourceTopology.Preimage Source.forward S \then
+    \let openU: OldSourceSpace.IsOpenIn M.space U :=
+      (topology.Homeomorphism[A := M.Point, B := source.Point].laws M.space source.space Source.comparison).forwardContinuous S open \then
+    \takefrom V: \Cast[\Pow N.Point] ({ V: \Pow N.Point \where Logic.And[OldTargetSpace.IsOpenIn N.space V, OldTopology.Preimage (Ordinary.apply f) V = U] })
+      \by laws.openLift U openU \then
+    \let lift: Logic.And[OldTargetSpace.IsOpenIn N.space V, OldTopology.Preimage (Ordinary.apply f) V = U] :=
+      \bysub(\Pow N.Point, { V: \Pow N.Point \where Logic.And[OldTargetSpace.IsOpenIn N.space V, OldTopology.Preimage (Ordinary.apply f) V = U] }, V) \then
+    \return Logic.existsIntro[\Pow target.Point, { W: \Pow target.Point \where Logic.And[TargetSpace.IsOpenIn target.space W, MapTopology.Preimage (Maps.apply map) W = S] }]
+      (TargetTopology.Preimage Target.backward V) (Logic.And[_, _]::#
+        ((topology.Homeomorphism[A := N.Point, B := target.Point].laws N.space target.space Target.comparison).backwardContinuous V lift.left)
+        (\axiom:setext((MapTopology.Preimage (Maps.apply map) (TargetTopology.Preimage Target.backward V)), S,
+          \fun (x: source.Point)(member: _) => \idelim OldTopology.Preimage (Ordinary.apply f) V = U
+            \with T: \Pow M.Point => \In[M.Point] T (Source.backward x) \by { base: member, equality: lift.right },
+          \fun (x: source.Point)(member: _) => \idelim U = OldTopology.Preimage (Ordinary.apply f) V
+            \with T: \Pow M.Point => \In[M.Point] T (Source.backward x) \by { base: member, equality: sym!{{\Pow M.Point}} _ _ lift.right })))
+  },
+};
+\definition embedding: Embeddings.Embedding := \into[Maps.Map](map, Embeddings.Embedding) \by { embeddingLaws };

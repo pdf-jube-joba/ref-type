@@ -1,0 +1,23 @@
+\import manifold_gluing.BoundaryInclusion[n := n].On[M := M].With[cover := cover] \as BoundaryModel;
+\import manifold_gluing.Parameter[] \as Time;
+\import boundary_manifolds.Product[n := n, m := One.dimension].Of[M := BoundaryModel.manifold, N := Time.manifold] \as Parameters;
+\import Heights.From[construction := collar.collar].Of[width := collar.width] \as HeightConstruction;
+\import \parent.\parent.\parent.Dimension[k := k].Collar[collar := collar] \as Specification;
+\definition radiusSmall: R.Le Collapse.radius HeightConstruction.radius := R.leTrans Collapse.radius Collapse.supportTime HeightConstruction.radius
+  (S.Algebra[].leAddRight Collapse.radius Collapse.radius (R.Order[].leOfLt S.zero Collapse.radius Collapse.positive))
+  (R.Order[].leOfLt Collapse.supportTime HeightConstruction.radius Collapse.supportSmall);
+\definition boundaryFixed[b: BoundaryModel.manifold.Point]: Collapse.map.apply (b \of M.Point) = (b \of M.Point) :=
+  trans!{M.Point} _ _ _ (congr!{M.Point M.Point} Collapse.map.apply _ _ (sym!{M.Point} _ _ (Height.zeroValue b)))
+    (Collapse.collapsed (Height.zeroParameter b) (R.Order[].leOfLt S.zero Collapse.radius Collapse.positive));
+\definition compatible: Specification.Compatible Graph.map := \fun (p: Collapse.parameters.Point)(small: R.Le (Time.value (Parameters.second p)) Collapse.radius) =>
+  Pair.Prop[A := Target.manifold.Point, B := \root.Neat[n := n].halfLine.Point].ext _ _
+    (trans!{{Target.manifold.Point}} _ _ _ (congr!{M.Point {Target.manifold.Point}} Full.embedding.apply _ _ (Collapse.collapsed p small))
+      (sym!{{Target.manifold.Point}} _ _ (congr!{M.Point {Target.manifold.Point}} Full.embedding.apply _ _ (boundaryFixed (Parameters.first p)))))
+    (boundary_manifolds.Model[n := One.dimension].equality (\root.Neat[n := n].constraints) (calculus.Real[].Multivariable[n := One.dimension].Open[].whole)
+      (Height.map.apply (Collapse.collarMap.apply p)) (\root.HeightNormal[n := n].TimeMap[].map.apply (Parameters.second p))
+      (\axiom:funext((Height.map.apply (Collapse.collarMap.apply p) \of boundary_manifolds.Model[n := One.dimension].Point),
+        (\root.HeightNormal[n := n].TimeMap[].map.apply (Parameters.second p) \of boundary_manifolds.Model[n := One.dimension].Point),
+        \fun (i: One.Index) => trans!{S.Real} _ _ _
+          (congr!{{One.Index} S.Real} (\fun (j: One.Index) => Height.map.apply (Collapse.collarMap.apply p) j) _ _ (std.Data[].FinSet[].singletonValue i))
+          (trans!{S.Real} _ _ _ (Height.compatible p (R.leTrans _ _ _ small radiusSmall))
+            (sym!{S.Real} _ _ (congr!{{One.Index} S.Real} (\fun (j: One.Index) => \root.HeightNormal[n := n].TimeMap[].map.apply (Parameters.second p) j) _ _ (std.Data[].FinSet[].singletonValue i)))))));

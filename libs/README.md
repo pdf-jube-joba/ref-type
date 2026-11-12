@@ -79,6 +79,7 @@
 | [geometry/manifolds](geometry/manifolds/README.md) | `manifolds` | アトラス、滑らかな写像、接空間と微分 |
 | [geometry/inverse_implicit](geometry/inverse_implicit/README.md) | `inverse_implicit` | 局所逆写像、パラメータ付き陰関数、定階数の局所座標、正則値部分多様体と接空間の核 |
 | [geometry/boundary_manifolds](geometry/boundary_manifolds/README.md) | `boundary_manifolds` | 半空間・象限チャート、接錐と座標不変な微分、境界・面の接束、neat embedding、積・区間・円板 |
+| [geometry/compact_embeddings](geometry/compact_embeddings/README.md) | `compact_embeddings` | 有限チャート・cutoff によるコンパクト多様体の埋め込み、collar と整合する neat embedding、安定化した相対埋め込みの族 |
 | [geometry/vector_bundles](geometry/vector_bundles/README.md) | `vector_bundles` | 一般の実・複素束、局所定数ランク、束写像・切断・引き戻しと普遍性 |
 | [geometry/bundle_operations](geometry/bundle_operations/README.md) | `bundle_operations` | Cocycle の貼り合わせ、直和・テンソル・双対・Hom・外冪、実化・複素化と引き戻し |
 | [geometry/smooth_bundles](geometry/smooth_bundles/README.md) | `smooth_bundles` | 実・複素滑らかな束と計量、双対・テンソル・外冪、枠束の滑らかな作用・局所微分同相、表現による随伴束、接束・法束との比較 |

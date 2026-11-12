@@ -1,0 +1,33 @@
+\import boundary_manifolds.Tangent[n := One.dimension].On[M := Time.manifold].At[x := t] \as Domain;
+\import boundary_manifolds.Tangent[n := One.dimension].On[M := Neat.halfLine].At[x := map.apply t] \as Codomain;
+\import boundary_manifolds.Dimension[n := One.dimension].Chart[M := Time.Point, space := Time.manifold.space] \as SourceCharts;
+\import boundary_manifolds.Dimension[n := One.dimension].Chart[M := Neat.halfLine.Point, space := Neat.halfLine.space] \as TargetCharts;
+\definition left: Domain.Chart := \into[SourceCharts.Chart](Time.chart, Domain.Chart) \by { Domain.ChartLaws[Time.chart] { member := Time.chartMember, contains := \refl(t) } };
+\definition right: Codomain.Chart := \root.Neat[n := n].LineAt[t := map.apply t].chart;
+\import Domain.Coordinate[chart := left] \as Decode;
+\import Codomain.Coordinate[chart := right] \as Encode;
+\import boundary_manifolds.Differential[n := One.dimension, m := One.dimension].Between[M := Time.manifold, N := Neat.halfLine].At[f := map, x := t] \as D;
+\import boundary_manifolds.SmoothMap[n := One.dimension, m := One.dimension].Between[M := Time.manifold, N := Neat.halfLine].At[
+  function := map.apply, left := left, right := right, x := t, contains := Domain.contains left] \as Local;
+\import Construct.At[x := t, contains := \refl(t)] \as Raw;
+\definition extension: Local.Extension := Local.Extension { neighborhood := Raw.extension.neighborhood, included := Raw.extension.included, contains := Raw.extension.contains,
+  map := Raw.extension.map, inside := Raw.extension.inside, agrees := Raw.extension.agrees };
+\import calculus.Identity[n := One.dimension] \as Identity;
+\import Calculus.Differential[U := Time.domain, V := Open.whole, f := ambient, a := t] \as AmbientDerivative;
+\definition matrix: D.InCharts[left := left, right := right].jacobian = Identity.linear := trans!{{calculus.Vector[n := One.dimension, m := One.dimension].LinearMap}} _ _ _
+  (Local.ofExtension D.InCharts[left := left, right := right].smooth extension)
+  (trans!{{calculus.Vector[n := One.dimension, m := One.dimension].LinearMap}} _ _ _ Raw.jacobian
+    (trans!{{calculus.Vector[n := One.dimension, m := One.dimension].LinearMap}} _ _ _ (AmbientDerivative.Compare[W := Time.domain, g := Identity.map Time.domain].equal
+      (\axiom:funext((\fun (u: Open.Carrier Time.domain) => Calculus.apply Time.domain Open.whole ambient u \of Model.Point),
+        (\fun (u: Open.Carrier Time.domain) => Calculus.apply Time.domain Time.domain (Identity.map Time.domain) u \of Model.Point),
+        \fun (u: Open.Carrier Time.domain) => \refl(u \of Model.Point)))) (Identity.At[U := Time.domain, a := t].differential)));
+\definition coordinates[v: Domain.Vector]: Encode.decode (D.value.apply v) = Decode.decode v := trans!{Model.Point} _ _ _ (D.coordinates left right v)
+  (congr!{{calculus.Vector[n := One.dimension, m := One.dimension].LinearMap} Model.Point} (\fun (L: calculus.Vector[n := One.dimension, m := One.dimension].LinearMap) => L.apply (Decode.decode v)) _ _ matrix);
+\definition inverse[w: Codomain.Vector]: Domain.Vector := Decode.encode (Encode.decode w);
+\definition rightInverse[w: Codomain.Vector]: D.value.apply (inverse w) = w := Encode.injective _ _
+  (trans!{Model.Point} _ _ _ (coordinates (inverse w)) (Decode.decodeEncode (Encode.decode w)));
+\definition reflects[v: Domain.Vector]: Codomain.Cones[].Tangential (D.value.apply v) -> Domain.Cones[].Tangential v := \fun (tangent: _) =>
+  Domain.Cones[].Lineality[c := left, v := v].toIntrinsic
+    (\idelim Encode.decode (D.value.apply v) = Decode.decode v \with u: Model.Point => Model.Tangential left.constraints (Domain.coordinate left) u \by {
+      base: Codomain.Cones[].Lineality[c := right, v := D.value.apply v].fromIntrinsic tangent, equality: coordinates v
+    });

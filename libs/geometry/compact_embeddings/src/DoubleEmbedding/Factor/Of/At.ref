@@ -1,0 +1,22 @@
+\import boundary_manifolds.Tangent[n := dimension].On[M := P].At[x := x] \as Domain;
+\import boundary_manifolds.Tangent[n := dimension].On[M := M].At[x := First.apply g x] \as Middle;
+\import boundary_manifolds.Tangent[n := dimension].On[M := T].At[x := Second.apply f (First.apply g x)] \as Target;
+\import boundary_manifolds.Differential[n := dimension, m := dimension].Between[M := P, N := M].At[f := g, x := x] \as D1;
+\import boundary_manifolds.Differential[n := dimension, m := dimension].Between[M := M, N := T].At[f := f, x := First.apply g x] \as D2;
+\import boundary_manifolds.Differential[n := dimension, m := dimension].Between[M := P, N := T].At[f := Chain.map, x := x] \as D;
+\definition injective:
+  (\forall (w: Middle.Vector) -> \exists (v: Domain.Vector \where D1.value.apply v = w)) ->
+  (\forall (u, v: Domain.Vector) -> D.value.apply u = D.value.apply v -> u = v) ->
+  \forall (u, v: Middle.Vector) -> D2.value.apply u = D2.value.apply v -> u = v := \block {
+  \fun (onto: _)(composite: _)(u, v: Middle.Vector)(equal: _) \then
+  \takefrom a: \Cast[Domain.Vector] ({ a: Domain.Vector \where D1.value.apply a = u }) \by onto u \then
+  \takefrom b: \Cast[Domain.Vector] ({ b: Domain.Vector \where D1.value.apply b = v }) \by onto v \then
+  \let left: D1.value.apply a = u := \bysub(Domain.Vector, { a: Domain.Vector \where D1.value.apply a = u }, a) \then
+  \let right: D1.value.apply b = v := \bysub(Domain.Vector, { b: Domain.Vector \where D1.value.apply b = v }, b) \then
+  \let same: a = b := composite a b (trans!{{Target.Vector}} _ _ _ (Chain.At[x := x].pointwise a)
+    (trans!{{Target.Vector}} _ _ _ (congr!{{Middle.Vector} {Target.Vector}} D2.value.apply _ _ left)
+      (trans!{{Target.Vector}} _ _ _ equal (trans!{{Target.Vector}} _ _ _ (congr!{{Middle.Vector} {Target.Vector}} D2.value.apply _ _ (sym!{{Middle.Vector}} _ _ right))
+        (sym!{{Target.Vector}} _ _ (Chain.At[x := x].pointwise b)))))) \then
+  \return trans!{{Middle.Vector}} _ _ _ (sym!{{Middle.Vector}} _ _ left)
+    (trans!{{Middle.Vector}} _ _ _ (congr!{{Domain.Vector} {Middle.Vector}} D1.value.apply _ _ same) right)
+};
