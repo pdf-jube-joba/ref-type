@@ -1,0 +1,68 @@
+\import \parent.Cup[p := p, q := q] \as Product;
+\import \parent.Cup[p := p, q := N.Nat^::succ q] \as Upper;
+\import \parent.Positive[p := p, q := q] \as Positive;
+\import \parent.Restriction[p := p] \as Restriction;
+\import IntegerCochains.ShortExact[A := SmallHom.complex, B := SumHom.complex, C := OverlapHom.complex] \as Exact;
+\import Exact.At[s := MV.sequence, k := Product.inputDegree] \as SourceConnecting;
+\import Exact.At[s := MV.sequence, k := Product.outputDegree] \as TargetConnecting;
+\import IntegerCochains.At[C := OverlapHom.complex, z := Product.inputDegree] \as Input;
+\import IntegerCochains.At[C := OverlapHom.complex, z := Product.outputDegree] \as TargetInput;
+\import IntegerCochains.At[C := SmallHom.complex, z := Positive.inputDegree] \as LowerH;
+\import IntegerCochains.At[C := SmallHom.complex, z := Positive.outputDegree] \as Output;
+\import OverlapCup.Cohomology[p := p, q := q].Right[] \as OverlapProduct;
+\import Modules.Alternating[V := Output.Closed, space := Output.cycleSpace].Concatenation[] \as ClosedSigns;
+\import Modules.Alternating[V := Output.Cohomology, space := Output.cohomologySpace].Concatenation[] \as Signs;
+\import Modules.Alternating[V := SmallHom.Carrier Positive.outputDegree, space := SmallHom.space Positive.outputDegree].Concatenation[] \as CochainSigns;
+\import Modules.Alternating[V := SumHom.Carrier Positive.outputDegree, space := SumHom.space Positive.outputDegree].Concatenation[] \as SumSigns;
+\import CochainSigns.Mapping[W := SumHom.Carrier Positive.outputDegree, target := SumHom.space Positive.outputDegree] \as InclusionSigns;
+\import IntegerCochains.Map[C := SmallHom.complex, D := SumHom.complex].At[k := Positive.outputDegree] \as Inclusion;
+\import ClosedSigns.Mapping[W := Output.Cohomology, target := Output.cohomologySpace] \as ClassSigns;
+\import ClosedSigns.Mapping[W := SmallHom.Carrier Positive.outputDegree, target := SmallHom.space Positive.outputDegree] \as CycleSigns;
+\definition cycleInclusion: Modules.Hom[V := Output.Closed, W := SmallHom.Carrier Positive.outputDegree, source := Output.cycleSpace, target := SmallHom.space Positive.outputDegree].Map :=
+  Modules.Hom[V := Output.Closed, W := SmallHom.Carrier Positive.outputDegree, source := Output.cycleSpace, target := SmallHom.space Positive.outputDegree].Map {
+    apply := \fun (x: Output.Closed) => x,
+    addition := \fun (x, y: Output.Closed) => \refl((SmallHom.space Positive.outputDegree).add x y),
+    scalar := \fun (r: I.Int^)(x: Output.Closed) => \refl((SmallHom.space Positive.outputDegree).smul r x),
+  };
+\definition onCycles: \forall (a: Restriction.Cycle)(x: Input.Closed) ->
+  TargetConnecting.delta (OverlapProduct.cycle (Restriction.overlapCycle a) x) = Signs.twist p (Positive.apply a (SourceConnecting.delta x)) := \block {
+  \fun (a: Restriction.Cycle)(x: Input.Closed) \then
+  \takefrom w: \Cast[SourceConnecting.Witness] ({ w: SourceConnecting.Witness \where SourceConnecting.WitnessLaws[x, SourceConnecting.delta x, w] })
+    \by \bysub(LowerH.Cohomology, SourceConnecting.Values x, SourceConnecting.delta x) \then
+  \let laws: SourceConnecting.WitnessLaws[x, SourceConnecting.delta x, w] := \bysub(SourceConnecting.Witness, { w: SourceConnecting.Witness \where SourceConnecting.WitnessLaws[x, SourceConnecting.delta x, w] }, w) \then
+  \let lift: SumHom.Carrier Product.outputDegree := Product.sumAction a w.lift \then
+  \let lower: Output.Closed := ClosedSigns.twist p (Upper.Cycles[].cycle a w.lower) \then
+  \let lifted: MV.sequence.projection.apply Product.outputDegree lift = OverlapProduct.cycle (Restriction.overlapCycle a) x :=
+    trans!{{OverlapHom.Carrier Product.outputDegree}} _ _ _ (Product.SumAction[].projection a w.lift)
+      (congr!{{OverlapHom.Carrier Product.inputDegree} {OverlapHom.Carrier Product.outputDegree}} (OverlapCup.RelativeCup[p := p, q := q].right (Restriction.overlap a)) _ _ laws.lifted) \then
+  \let differential: MV.sequence.inclusion.apply Positive.outputDegree lower = SumHom.complex.differential.apply Product.outputDegree lift :=
+    eq_reason_in!{{SumHom.Carrier Positive.outputDegree} _
+      "=" _ "by" { congr!{{SmallHom.Carrier Positive.outputDegree} {SumHom.Carrier Positive.outputDegree}} (MV.sequence.inclusion.apply Positive.outputDegree) _ _ (CycleSigns.law cycleInclusion p (Upper.Cycles[].cycle a w.lower)) }
+      "=" _ "by" { InclusionSigns.law (Inclusion.linear MV.sequence.inclusion) p (Upper.apply a w.lower) }
+      "=" _ "by" { congr!{{SumHom.Carrier Positive.outputDegree} {SumHom.Carrier Positive.outputDegree}} (SumSigns.twist p) _ _ (Upper.inclusion a w.lower) }
+      "=" _ "by" { congr!{{SumHom.Carrier Positive.inputDegree} {SumHom.Carrier Positive.outputDegree}} (\fun (v: SumHom.Carrier Positive.inputDegree) => SumSigns.twist p (Upper.sumAction a v)) _ _ laws.differential }
+      "=" _ "by" { sym!{{SumHom.Carrier Positive.outputDegree}} _ _ (Product.SumAction[].Differential[].law a w.lift) }
+    } \then
+  \return eq_reason_in!{Output.Cohomology _
+    "=" _ "by" { TargetConnecting.onLift (OverlapProduct.cycle (Restriction.overlapCycle a) x) lift lower lifted differential (\bysub(SmallHom.Carrier Positive.outputDegree, Output.cycles.carrier, lower)) }
+    "=" _ "by" { ClassSigns.law Output.classLinear p (Upper.Cycles[].cycle a w.lower) }
+    "=" _ "by" { congr!{Output.Cohomology Output.Cohomology} (Signs.twist p) _ _ (sym!{Output.Cohomology} _ _ (Positive.onClass a w.lower)) }
+    "=" _ "by" { congr!{LowerH.Cohomology Output.Cohomology} (\fun (v: LowerH.Cohomology) => Signs.twist p (Positive.apply a v)) _ _ laws.classValue }
+  }
+};
+
+\import singular_cohomology.Cochains[A := Overlap, source := overlapTopology].With[coefficients := WholeProduct.integerCoefficients] \as OverlapOrdinary;
+\import OrdinaryCochains.At[C := OverlapOrdinary.complex, k := p] \as AbsoluteOverlap;
+\definition overlapClass[a: Restriction.Cycle]: AbsoluteOverlap.Cohomology := AbsoluteOverlap.classOf (Restriction.overlapCycle a);
+\definition onClasses: \forall (a: Restriction.Cycle)(x: Input.Closed) ->
+  TargetConnecting.connecting.apply (OverlapProduct.apply (overlapClass a) (Input.classOf x)) = Signs.twist p (Positive.apply a (SourceConnecting.connecting.apply (Input.classOf x))) :=
+  \fun (a: Restriction.Cycle)(x: Input.Closed) => eq_reason_in!{Output.Cohomology _
+    "=" _ "by" { congr!{TargetInput.Cohomology Output.Cohomology} TargetConnecting.connecting.apply _ _ (OverlapProduct.onClasses (Restriction.overlapCycle a) x) }
+    "=" _ "by" { TargetConnecting.onClass (OverlapProduct.cycle (Restriction.overlapCycle a) x) }
+    "=" _ "by" { onCycles a x }
+    "=" _ "by" { congr!{LowerH.Cohomology Output.Cohomology} (\fun (v: LowerH.Cohomology) => Signs.twist p (Positive.apply a v)) _ _ (sym!{LowerH.Cohomology} _ _ (SourceConnecting.onClass x)) }
+  };
+\definition law: \forall (a: Restriction.Cycle)(x: Input.Cohomology) ->
+  TargetConnecting.connecting.apply (OverlapProduct.apply (overlapClass a) x) = Signs.twist p (Positive.apply a (SourceConnecting.connecting.apply x)) :=
+  \fun (a: Restriction.Cycle) => Input.classInduction (\fun (x: Input.Cohomology) => TargetConnecting.connecting.apply (OverlapProduct.apply (overlapClass a) x) = Signs.twist p (Positive.apply a (SourceConnecting.connecting.apply x))) (onClasses a);
+\module Whole;

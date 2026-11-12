@@ -59,3 +59,8 @@
 `With[morphism].Cup.Cohomology.law` と `Relative[subset].Cup.Cohomology.law` は絶対・相対 cup 積との整合性を示す。
 `Unit.law`、`Along.Degree.law`、`Relative.Degree.Forget.law` はそれぞれ単位類、空間の引き戻し、相対条件を忘れる写像との可換式である。
 `RelativeMayerVietoris.OpenCover.On.ChangeCoefficients.At.law` と `RelativeSuspension.On.Covering.ChangeCoefficients.At.law` は接続写像および相対懸垂同型の係数変更自然性を示す。
+
+`RelativeMayerVietoris.OpenCover.On.Product[K, ring].Cup[p, q]` は小さい相対余鎖に対する cup 積を構成する。
+その `Compare.law` は通常の相対余鎖の制限との一致を、`Differential.law` は左因子が閉じている場合の符号付き Leibniz 公式を示す。
+`Product.Positive[p, q]` は右因子が正次数の場合にコホモロジーへ降下する。
+`Product.Connecting[p, q].Whole.law` は通常の相対 Mayer–Vietoris 接続写像に対する \(\delta(a|_{U\cap V}\smile b)=(-1)^p a\smile\delta b\) を与える。

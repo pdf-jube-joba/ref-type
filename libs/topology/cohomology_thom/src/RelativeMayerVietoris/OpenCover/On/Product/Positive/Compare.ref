@@ -1,0 +1,22 @@
+\import singular_cohomology.Relative[A := A, source := source, subset := subset].With[coefficients := WholeProduct.integerCoefficients] \as WholeRelative;
+\import singular_subdivision.OpenCover[A := A, source := source].On[cover := Cover.openCover].Subspace[subset := subset].Relative[].With[coefficients := WholeProduct.integerCoefficients] \as Comparison;
+\import IntegerCochains.At[C := WholeRelative.complex, z := inputDegree] \as WholeInput;
+\import IntegerCochains.At[C := WholeRelative.complex, z := outputDegree] \as WholeOutput;
+\import OrdinaryCochains.At[C := WholeOrdinary.complex, k := p] \as Absolute;
+\import IntegerCochains.Map[C := WholeRelative.complex, D := SmallHom.complex].At[k := inputDegree] \as InputMap;
+\import IntegerCochains.Map[C := WholeRelative.complex, D := SmallHom.complex].At[k := outputDegree] \as OutputMap;
+\import WholeCup.Cohomology[p := p, q := N.Nat^::succ q].Right[] \as Product;
+\definition onClass: \forall (a: Restriction.Cycle)(h: WholeInput.Closed) ->
+  apply a ((InputMap.induced Comparison.restriction).apply (WholeInput.classOf h)) =
+  (OutputMap.induced Comparison.restriction).apply (Product.apply (Absolute.classOf a) (WholeInput.classOf h)) :=
+  \fun (a: Restriction.Cycle)(h: WholeInput.Closed) => eq_reason_in!{Output.Cohomology _
+    "=" _ "by" { congr!{Input.Cohomology Output.Cohomology} (apply a) _ _ (InputMap.onClass Comparison.restriction h) }
+    "=" _ "by" { \root.RelativeMayerVietoris[].OpenCover[A := A, source := source, subset := subset].On[cover := cover].Product[K := K, ring := ring].Positive[p := p, q := q].onClass a ((InputMap.cyclesMap Comparison.restriction).apply h) }
+    "=" _ "by" { congr!{Output.Closed Output.Cohomology} Output.classOf
+      (Upper.Cycles[].cycle a ((InputMap.cyclesMap Comparison.restriction).apply h)) ((OutputMap.cyclesMap Comparison.restriction).apply (Product.cycle a h)) (Upper.Compare[].law a h) }
+    "=" _ "by" { sym!{Output.Cohomology} _ _ (OutputMap.onClass Comparison.restriction (Product.cycle a h)) }
+    "=" _ "by" { congr!{WholeOutput.Cohomology Output.Cohomology} (OutputMap.induced Comparison.restriction).apply _ _ (sym!{WholeOutput.Cohomology} _ _ (Product.onClasses a h)) }
+  };
+\definition law: \forall (a: Restriction.Cycle)(h: WholeInput.Cohomology) ->
+  apply a ((InputMap.induced Comparison.restriction).apply h) = (OutputMap.induced Comparison.restriction).apply (Product.apply (Absolute.classOf a) h) :=
+  \fun (a: Restriction.Cycle) => WholeInput.classInduction (\fun (h: WholeInput.Cohomology) => apply a ((InputMap.induced Comparison.restriction).apply h) = (OutputMap.induced Comparison.restriction).apply (Product.apply (Absolute.classOf a) h)) (onClass a);

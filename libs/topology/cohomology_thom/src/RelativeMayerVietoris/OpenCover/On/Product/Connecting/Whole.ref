@@ -1,0 +1,27 @@
+\import \root.RelativeMayerVietoris[].OpenCover[A := A, source := source, subset := subset].On[cover := cover].Cohomology[coefficients := WholeProduct.integerCoefficients] \as WholeSequence;
+\import WholeSequence.At[z := Product.inputDegree] \as SourceMV;
+\import WholeSequence.At[z := Product.outputDegree] \as TargetMV;
+\import singular_cohomology.Relative[A := A, source := source, subset := subset].With[coefficients := WholeProduct.integerCoefficients] \as WholeRelative;
+\import IntegerCochains.At[C := WholeRelative.complex, z := Positive.inputDegree] \as SourceWhole;
+\import IntegerCochains.At[C := WholeRelative.complex, z := Positive.outputDegree] \as TargetWhole;
+\import OrdinaryCochains.At[C := WholeOrdinary.complex, k := p] \as Absolute;
+\import WholeCup.Cohomology[p := p, q := N.Nat^::succ q].Right[] \as WholeMultiplication;
+\definition sourceComparison: _ := SmallPair.With[coefficients := WholeProduct.integerCoefficients].At[z := Positive.inputDegree].comparison;
+\definition targetComparison: _ := SmallPair.With[coefficients := WholeProduct.integerCoefficients].At[z := Positive.outputDegree].comparison;
+\import Modules.Alternating[V := TargetWhole.Cohomology, space := TargetWhole.cohomologySpace].Concatenation[] \as WholeSigns;
+\import Signs.Mapping[W := TargetWhole.Cohomology, target := TargetWhole.cohomologySpace] \as ComparisonSigns;
+\definition multiplicationComparison: \forall (a: Restriction.Cycle)(x: Input.Cohomology) ->
+  targetComparison.backward.apply (Positive.apply a (SourceConnecting.connecting.apply x)) = WholeMultiplication.apply (Absolute.classOf a) (SourceMV.connecting.apply x) :=
+  \fun (a: Restriction.Cycle)(x: Input.Cohomology) => eq_reason_in!{TargetWhole.Cohomology _
+    "=" _ "by" { congr!{LowerH.Cohomology TargetWhole.Cohomology} (\fun (v: LowerH.Cohomology) => targetComparison.backward.apply (Positive.apply a v)) _ _ (sym!{LowerH.Cohomology} _ _ (sourceComparison.rightInverse (SourceConnecting.connecting.apply x))) }
+    "=" _ "by" { congr!{Output.Cohomology TargetWhole.Cohomology} targetComparison.backward.apply _ _ (Positive.Compare[].law a (SourceMV.connecting.apply x)) }
+    "=" _ "by" { targetComparison.leftInverse (WholeMultiplication.apply (Absolute.classOf a) (SourceMV.connecting.apply x)) }
+  };
+\definition law: \forall (a: Restriction.Cycle)(x: Input.Cohomology) ->
+  TargetMV.connecting.apply (OverlapProduct.apply (overlapClass a) x) = WholeSigns.twist p (WholeMultiplication.apply (Absolute.classOf a) (SourceMV.connecting.apply x)) :=
+  \fun (a: Restriction.Cycle)(x: Input.Cohomology) => trans!{TargetWhole.Cohomology} _ _ _
+    (congr!{Output.Cohomology TargetWhole.Cohomology} targetComparison.backward.apply _ _
+      (\root.RelativeMayerVietoris[].OpenCover[A := A, source := source, subset := subset].On[cover := cover].Product[K := K, ring := ring].Connecting[p := p, q := q].law a x))
+    (trans!{TargetWhole.Cohomology} _ _ _
+      (ComparisonSigns.law targetComparison.backward p (Positive.apply a (SourceConnecting.connecting.apply x)))
+      (congr!{TargetWhole.Cohomology TargetWhole.Cohomology} (WholeSigns.twist p) _ _ (multiplicationComparison a x)));
