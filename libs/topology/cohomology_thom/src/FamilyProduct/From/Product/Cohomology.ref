@@ -1,0 +1,32 @@
+\import \parent.\parent.Product[p := p, q := q] \as NaturalProduct;
+\import chain_complexes.Integer[].Over[R := I.Int^, ring := Integers.ring] \as Integer;
+\import OldProduct.Cohomology[] \as OldCohomology;
+\import NewProduct.Cohomology[] \as NewCohomology;
+\import Integer.At[C := First.complex, z := I.Int^::ofNat p] \as FirstH;
+\import Integer.At[C := Second.complex, z := I.Int^::ofNat q] \as SecondH;
+\import Integer.At[C := OldPair.With[coefficients := Whole.integerCoefficients].complex, z := I.Int^::ofNat total] \as OldH;
+\import Integer.At[C := NewPair.With[coefficients := Whole.integerCoefficients].complex, z := I.Int^::ofNat total] \as NewH;
+\import Integer.At[C := NewFirst.complex, z := I.Int^::ofNat p] \as NewFirstH;
+\import Integer.At[C := NewSecond.complex, z := I.Int^::ofNat q] \as NewSecondH;
+\import Integer.Map[C := OldPair.With[coefficients := Whole.integerCoefficients].complex, D := NewPair.With[coefficients := Whole.integerCoefficients].complex].At[k := I.Int^::ofNat total] \as Action;
+\definition onClasses: \forall (a: FirstH.Closed)(b: SecondH.Closed) ->
+  (Action.induced Pull.map).apply (OldCohomology.product (FirstH.classOf a) (SecondH.classOf b)) =
+  NewCohomology.product (FirstPull.Degree[n := p].map.apply (FirstH.classOf a)) (SecondPull.Degree[n := q].map.apply (SecondH.classOf b)) :=
+  \fun (a: FirstH.Closed)(b: SecondH.Closed) => eq_reason_in!{NewH.Cohomology _
+    "=" _ "by" { congr!{OldH.Cohomology NewH.Cohomology} (Action.induced Pull.map).apply _ _ (OldCohomology.onClasses a b) }
+    "=" _ "by" { Action.onClass Pull.map (OldCohomology.cycle a b) }
+    "=" _ "by" { congr!{NewH.Closed NewH.Cohomology} NewH.classOf
+      ((Action.cyclesMap Pull.map).apply (OldCohomology.cycle a b))
+      (NewCohomology.cycle (FirstPull.Degree[n := p].cycles.apply a) (SecondPull.Degree[n := q].cycles.apply b))
+      (NaturalProduct.law a b) }
+    "=" _ "by" { sym!{NewH.Cohomology} _ _ (NewCohomology.onClasses (FirstPull.Degree[n := p].cycles.apply a) (SecondPull.Degree[n := q].cycles.apply b)) }
+    "=" _ "by" { congr!{NewFirstH.Cohomology NewSecondH.Cohomology NewH.Cohomology} NewCohomology.product _ _ _ _
+      (sym!{NewFirstH.Cohomology} _ _ (FirstPull.Degree[n := p].onClass a)) (sym!{NewSecondH.Cohomology} _ _ (SecondPull.Degree[n := q].onClass b)) }
+  };
+\definition law: \forall (a: FirstH.Cohomology)(b: SecondH.Cohomology) ->
+  (Action.induced Pull.map).apply (OldCohomology.product a b) =
+  NewCohomology.product (FirstPull.Degree[n := p].map.apply a) (SecondPull.Degree[n := q].map.apply b) :=
+  FirstH.classInduction (\fun (a: FirstH.Cohomology) => \forall (b: SecondH.Cohomology) ->
+    (Action.induced Pull.map).apply (OldCohomology.product a b) = NewCohomology.product (FirstPull.Degree[n := p].map.apply a) (SecondPull.Degree[n := q].map.apply b))
+    (\fun (a: FirstH.Closed) => SecondH.classInduction (\fun (b: SecondH.Cohomology) =>
+      (Action.induced Pull.map).apply (OldCohomology.product (FirstH.classOf a) b) = NewCohomology.product (FirstPull.Degree[n := p].map.apply (FirstH.classOf a)) (SecondPull.Degree[n := q].map.apply b)) (onClasses a));

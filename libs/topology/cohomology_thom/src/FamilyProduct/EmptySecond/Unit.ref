@@ -1,0 +1,25 @@
+\import std.Data[].Nat[] \as N;
+\import std.Data[].FinSet[] \as Fin;
+\import algebraic_topology.Simplex[] \as Simplex;
+\import topology.Topology[Carrier := A].Subspace[S := second] \as Subspace;
+\import singular_cohomology.Relative[A := A, source := source, subset := second] \as Relative;
+\import singular_cohomology.Simplices[A := Relative.SubspaceCarrier, source := Subspace.topology source] \as Simplices;
+\import Modules.Free[Generators := Simplices.Carrier N.Nat^::zero].To[W := K, target := Whole.integerCoefficients.space] \as Free;
+\import Whole.Unit[] \as WholeUnit;
+\import SecondPair.Comparison[n := N.Nat^::zero] \as Comparison;
+\import SecondPair.Comparison[n := N.Nat^::succ N.Nat^::zero] \as Higher;
+\definition vanishes: SecondPair.Vanishes N.Nat^::zero WholeUnit.cochain :=
+  Free.ext _ _ (\fun (sigma: Simplices.Carrier N.Nat^::zero) => Logic.falseElim _
+    (empty (sigma Simplex.zeroPoint) (\bysub(A, second, sigma Simplex.zeroPoint))));
+\definition cochain: Second.Carrier (I.Int^::ofNat N.Nat^::zero) := Comparison.to (\into[Whole.Carrier N.Nat^::zero](WholeUnit.cochain, { h: Whole.Carrier N.Nat^::zero \where SecondPair.Vanishes N.Nat^::zero h }) \by { vanishes });
+\definition underlying: Comparison.from cochain = WholeUnit.cochain := Comparison.fromTo (\into[Whole.Carrier N.Nat^::zero](WholeUnit.cochain, { h: Whole.Carrier N.Nat^::zero \where SecondPair.Vanishes N.Nat^::zero h }) \by { vanishes });
+\import singular_cohomology.Cochains[A := A, source := source].With[coefficients := Whole.integerCoefficients] \as Plain;
+\definition closed: Second.complex.differential.apply (I.Int^::ofNat N.Nat^::zero) cochain = (Second.space (I.Int^::ofNat (N.Nat^::succ N.Nat^::zero))).zero := Higher.injective _ _ (eq_reason_in!{{Whole.Carrier (N.Nat^::succ N.Nat^::zero)} _
+  "=" _ "by" { Comparison.Commutes[].law cochain }
+  "=" _ "by" { congr!{{Whole.Carrier N.Nat^::zero} {Whole.Carrier (N.Nat^::succ N.Nat^::zero)}} (Plain.coboundary N.Nat^::zero) _ _ underlying }
+  "=" _ "by" { WholeUnit.Closed[].law }
+  "=" _ "by" { sym!{{Whole.Carrier (N.Nat^::succ N.Nat^::zero)}} _ _ Higher.zero }
+});
+\import chain_complexes.Integer[].Over[R := I.Int^, ring := Integers.ring].At[C := Second.complex, z := I.Int^::ofNat N.Nat^::zero] \as H;
+\definition cycle: H.Closed := H.cycle cochain closed;
+\definition class: H.Cohomology := H.classOf cycle;

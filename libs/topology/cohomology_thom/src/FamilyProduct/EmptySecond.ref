@@ -1,0 +1,41 @@
+\import std.Logic[].Proposition[] \as Logic;
+\use Logic.either;
+\import Mixed.Union[] \as Union;
+\import Union.Cover[] \as Cover;
+\import topology.Topology[Carrier := A] \as Top;
+\import singular_cohomology.Relative[A := A, source := source, subset := Union.subset] \as UnionRelative;
+\import topology.Topology[Carrier := UnionRelative.SubspaceCarrier] \as UnionTop;
+\import topology.Topology[Carrier := A].Subspace[S := Union.subset] \as UnionSpace;
+\definition firstOfUnion: \forall (x: A) -> \In[A] Union.subset x -> \In[A] first x :=
+  \fun (x: A)(inside: _) => either!{inside {\In[A] first x}
+    {\fun (left: \In[A] first x) => left}
+    {\fun (right: \In[A] second x) => Logic.falseElim _ (empty x right)}};
+\definition leftWhole: Cover.left = UnionTop.Whole := \axiom:setext(Cover.left, UnionTop.Whole,
+  (\fun (x: UnionRelative.SubspaceCarrier)(inside: \In[A] first x) => \refl(x)),
+  (\fun (x: UnionRelative.SubspaceCarrier)(inside: x = x) => firstOfUnion x (\bysub(A, Union.subset, x))));
+\definition rightEmpty: Cover.right = UnionTop.Empty := \axiom:setext(Cover.right, UnionTop.Empty,
+  (\fun (x: UnionRelative.SubspaceCarrier)(inside: \In[A] second x) => empty x inside),
+  (\fun (x: UnionRelative.SubspaceCarrier)(inside: Logic.False) => Logic.falseElim _ inside));
+\definition conditions: Cover.Conditions := Cover.Conditions {
+  leftOpen := \idelim UnionTop.Whole = Cover.left \with U: \Pow UnionRelative.SubspaceCarrier => UnionTop.IsOpenIn (UnionSpace.topology source) U \by {
+    base: (UnionTop.topologyLaws (UnionSpace.topology source)).wholeOpen, equality: sym!{{\Pow UnionRelative.SubspaceCarrier}} _ _ leftWhole
+  },
+  rightOpen := \idelim UnionTop.Empty = Cover.right \with U: \Pow UnionRelative.SubspaceCarrier => UnionTop.IsOpenIn (UnionSpace.topology source) U \by {
+    base: (UnionTop.topologyLaws (UnionSpace.topology source)).emptyOpen, equality: sym!{{\Pow UnionRelative.SubspaceCarrier}} _ _ rightEmpty
+  }
+};
+\import Cover.On[conditions := conditions] \as Covered;
+\import UnionRelative.Homeomorphism[B := A].Over[target := source, targetSubset := first] \as Pairs;
+\definition pair: Pairs.Data := Pairs.Data {
+  homeomorphism := topology.Homeomorphism[A := A, B := A].Homeomorphism[source, source] {
+    forward := (\fun (x: A) => x), backward := (\fun (x: A) => x),
+    leftInverse := (\fun (x: A) => \refl(x)), rightInverse := (\fun (x: A) => \refl(x)),
+    forwardContinuous := topology.Maps[A := A, B := A].Identity[].continuous source,
+    backwardContinuous := topology.Maps[A := A, B := A].Identity[].continuous source
+  },
+  forwardPreserves := (\fun (x: \Cast[A] Union.subset) => firstOfUnion x (\bysub(A, Union.subset, x))),
+  backwardPreserves := (\fun (x: \Cast[A] first) => Logic.Or[_, _]::left (\bysub(A, first, x)))
+};
+\import \root.RelativePullback[].On[A := A, source := source, subset := Union.subset, R := K, ring := ring].To[B := A, target := source, part := first].Along[f := Pairs.forwardMap pair] \as PairPull;
+\module Unit;
+\module Degree(p: N.Nat^);
