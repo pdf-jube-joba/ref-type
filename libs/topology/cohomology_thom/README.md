@@ -249,3 +249,9 @@ H^z(X;R)\xrightarrow{\smile e}H^{z+n}(X;R)
 `DirectSum.With.Ring[K, ring].Change[L, targetRing, morphism].Product[n, m].law` は、任意の二つの相対類の実際の直和積と係数環の変更の可換性を示す。
 `Change.Euler[n].law` は、その零切断への引き戻しと係数変更の可換性を与える。
 `Compare` の `fiberLaw` は指定された二つの向きのファイバー上での一致であり、比較する大域 Thom 類の等式は結論として導く。
+
+
+標準円板の比較では、係数環上の加群構造と、係数の忘却から得られる整数加群構造を区別する。
+`IntegralComparison.Point[n].isomorphism` は、実際の点円板の整数係数相対群をその整数加群構造で標準の整数加群と同定する。
+`normalized` は1の像が標準生成元になることを示し、`forwardLaw` と `backwardLaw` は環上の標準比較と同じ類を送ることを示す。
+`RelativePullback.On.To.Homeomorphism.Degree[n].native` は整数加群の同型、同じ次数の `isomorphism` は係数環上の加群の同型を与える。
