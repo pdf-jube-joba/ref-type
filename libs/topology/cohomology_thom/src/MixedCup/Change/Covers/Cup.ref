@@ -1,0 +1,31 @@
+\import \parent.\parent.Product[p := p, q := q] \as Product;
+\definition total: N.Nat^ := Product.total;
+\import Old.Union[].Cover[].On[conditions := conditions].Cup[p := p, q := q] \as OldCup;
+\import New.Union[].Cover[].On[conditions := newConditions].Cup[p := p, q := q] \as NewCup;
+\import Old.Union[].Cover[].On[conditions := conditions].CommonIso[].Cohomology[n := total] \as OldComparison;
+\import New.Union[].Cover[].On[conditions := newConditions].CommonIso[].Cohomology[n := total] \as NewComparison;
+\import OldComparison.Canonical[] \as OldCanonical;
+\import NewComparison.Canonical[] \as NewCanonical;
+\import \parent.\parent.Degree[n := total] \as Degree;
+\import New.Union[].Comparison[n := total].Cohomology[] \as NewCanonicalMap;
+\import chain_complexes.Integer[].Over[R := I.Int^, ring := Integers.ring] \as Integer;
+\import Integer.At[C := FirstCochains.complex, z := I.Int^::ofNat p] \as Left;
+\import Integer.At[C := SecondCochains.complex, z := I.Int^::ofNat q] \as Right;
+\definition image: \forall (a: Left.Cohomology)(b: Right.Cohomology) ->
+  NewComparison.isomorphism.forward.apply (UnionChange.Degree[n := total].map.apply (OldCup.apply a b)) = NewComparison.isomorphism.forward.apply (NewCup.apply (FirstChange.Degree[n := p].map.apply a) (SecondChange.Degree[n := q].map.apply b)) :=
+  \fun (a: Left.Cohomology)(b: Right.Cohomology) => eq_reason_in!{{NewCommon.At[n := total].cohomology} _
+    "=" _ "by" { NewCanonical.law (UnionChange.Degree[n := total].map.apply (OldCup.apply a b)) }
+    "=" _ "by" { sym!{{NewCommon.At[n := total].cohomology}} _ _ (Degree.law (OldCup.apply a b)) }
+    "=" _ "by" { congr!{{OldCommon.At[n := total].cohomology} {NewCommon.At[n := total].cohomology}} Degree.common.apply _ _ (sym!{{OldCommon.At[n := total].cohomology}} _ _ (OldCanonical.law (OldCup.apply a b))) }
+    "=" _ "by" { congr!{{OldCommon.At[n := total].cohomology} {NewCommon.At[n := total].cohomology}} Degree.common.apply _ _ (OldCup.comparison a b) }
+    "=" _ "by" { Product.law a b }
+    "=" _ "by" { sym!{{NewCommon.At[n := total].cohomology}} _ _ (NewCup.comparison (FirstChange.Degree[n := p].map.apply a) (SecondChange.Degree[n := q].map.apply b)) }
+  };
+\import singular_cohomology.Relative[A := A, source := source, subset := New.Union[].subset].With[coefficients := NewCochains.integerCoefficients].At[z := I.Int^::ofNat total] \as Output;
+\definition law: \forall (a: Left.Cohomology)(b: Right.Cohomology) ->
+  UnionChange.Degree[n := total].map.apply (OldCup.apply a b) = NewCup.apply (FirstChange.Degree[n := p].map.apply a) (SecondChange.Degree[n := q].map.apply b) :=
+  \fun (a: Left.Cohomology)(b: Right.Cohomology) => trans!{Output.Carrier} _ _ _
+    (sym!{Output.Carrier} _ _ (NewComparison.isomorphism.leftInverse (UnionChange.Degree[n := total].map.apply (OldCup.apply a b))))
+    (trans!{Output.Carrier} _ _ _
+      (congr!{{NewCommon.At[n := total].cohomology} Output.Carrier} NewComparison.isomorphism.backward.apply _ _ (image a b))
+      (NewComparison.isomorphism.leftInverse (NewCup.apply (FirstChange.Degree[n := p].map.apply a) (SecondChange.Degree[n := q].map.apply b))));

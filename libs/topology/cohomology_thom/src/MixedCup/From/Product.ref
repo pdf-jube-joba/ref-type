@@ -1,0 +1,41 @@
+\definition total: N.Nat^ := N.Basic[].Def[].add p q;
+\import Old.Cup[p := p, q := q].Both[] \as OldProduct;
+\import New.Cup[p := p, q := q].Both[] \as NewProduct;
+\import FirstPair.Comparison[n := p] \as FirstComparison;
+\import SecondPair.Comparison[n := q] \as SecondComparison;
+\import NewFirstPair.Comparison[n := p] \as NewFirstComparison;
+\import NewSecondPair.Comparison[n := q] \as NewSecondComparison;
+\import Cochains.Cup[p := p, q := q] \as Cup;
+\import NewCochains.Cup[p := p, q := q] \as NewCup;
+\definition cochainLaw: \forall (a: FirstCochains.Carrier (I.Int^::ofNat p))(b: SecondCochains.Carrier (I.Int^::ofNat q)) ->
+  commonMap.apply total (OldProduct.product a b) = NewProduct.product (FirstPull.pullback.apply (I.Int^::ofNat p) a) (SecondPull.pullback.apply (I.Int^::ofNat q) b) :=
+  \fun (a: FirstCochains.Carrier (I.Int^::ofNat p))(b: SecondCochains.Carrier (I.Int^::ofNat q)) => trans!{{NewCochains.Carrier total}} _ _ _
+    (Ordinary.Cup[p := p, q := q].law f regular (FirstComparison.from a) (SecondComparison.from b))
+    (congr!{{NewCochains.Carrier p} {NewCochains.Carrier q} {NewCochains.Carrier total}} NewCup.apply _ _ _ _
+      (sym!{{NewCochains.Carrier p}} _ _ (FirstPull.Compare[n := p].law a))
+      (sym!{{NewCochains.Carrier q}} _ _ (SecondPull.Compare[n := q].law b)));
+\import OldProduct.Cohomology[] \as OldCohomology;
+\import NewProduct.Cohomology[] \as NewCohomology;
+\import OldProduct.Closed[] \as OldClosed;
+\import NewProduct.Closed[] \as NewClosed;
+\import chain_complexes.Integer[].Over[R := I.Int^, ring := Integers.ring] \as Integer;
+\import Integer.At[C := FirstCochains.complex, z := I.Int^::ofNat p] \as Left;
+\import Integer.At[C := SecondCochains.complex, z := I.Int^::ofNat q] \as Right;
+\import Nonnegative.At[C := NewCommon.complex, k := total] \as Output;
+\import Nonnegative.Map[C := OldCommon.complex, D := NewCommon.complex].At[k := total] \as CommonAction;
+\import \parent.Degree[n := total] \as Degree;
+\definition onClasses: \forall (a: Left.Closed)(b: Right.Closed) ->
+  Degree.common.apply (OldCohomology.apply (Left.classOf a) (Right.classOf b)) = NewCohomology.apply (FirstPull.Degree[n := p].map.apply (Left.classOf a)) (SecondPull.Degree[n := q].map.apply (Right.classOf b)) :=
+  \fun (a: Left.Closed)(b: Right.Closed) => eq_reason_in!{Output.Cohomology _
+    "=" _ "by" { congr!{{OldCommon.At[n := total].cohomology} Output.Cohomology} Degree.common.apply _ _ (OldCohomology.onClasses a b) }
+    "=" _ "by" { Degree.commonOnClass (OldClosed.cycle a b) }
+    "=" _ "by" { Output.equalClass ((CommonAction.cyclesMap commonMap).apply (OldClosed.cycle a b)) (NewClosed.cycle (FirstPull.Degree[n := p].cycles.apply a) (SecondPull.Degree[n := q].cycles.apply b)) (cochainLaw a b) }
+    "=" _ "by" { sym!{Output.Cohomology} _ _ (NewCohomology.onClasses (FirstPull.Degree[n := p].cycles.apply a) (SecondPull.Degree[n := q].cycles.apply b)) }
+    "=" _ "by" { congr!{{singular_cohomology.Relative[A := Y, source := target, subset := firstPart].With[coefficients := Cochains.integerCoefficients].At[z := I.Int^::ofNat p].Carrier} {singular_cohomology.Relative[A := Y, source := target, subset := secondPart].With[coefficients := Cochains.integerCoefficients].At[z := I.Int^::ofNat q].Carrier} Output.Cohomology} NewCohomology.apply _ _ _ _
+      (sym!{{singular_cohomology.Relative[A := Y, source := target, subset := firstPart].With[coefficients := Cochains.integerCoefficients].At[z := I.Int^::ofNat p].Carrier}} _ _ (FirstPull.Degree[n := p].onClass a))
+      (sym!{{singular_cohomology.Relative[A := Y, source := target, subset := secondPart].With[coefficients := Cochains.integerCoefficients].At[z := I.Int^::ofNat q].Carrier}} _ _ (SecondPull.Degree[n := q].onClass b)) }
+  };
+\definition law: \forall (a: Left.Cohomology)(b: Right.Cohomology) ->
+  Degree.common.apply (OldCohomology.apply a b) = NewCohomology.apply (FirstPull.Degree[n := p].map.apply a) (SecondPull.Degree[n := q].map.apply b) :=
+  Left.classInduction (\fun (a: Left.Cohomology) => \forall (b: Right.Cohomology) -> Degree.common.apply (OldCohomology.apply a b) = NewCohomology.apply (FirstPull.Degree[n := p].map.apply a) (SecondPull.Degree[n := q].map.apply b))
+    (\fun (a: Left.Closed) => Right.classInduction (\fun (b: Right.Cohomology) => Degree.common.apply (OldCohomology.apply (Left.classOf a) b) = NewCohomology.apply (FirstPull.Degree[n := p].map.apply (Left.classOf a)) (SecondPull.Degree[n := q].map.apply b)) (onClasses a));

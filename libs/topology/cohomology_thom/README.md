@@ -205,3 +205,8 @@ H^z(X;R)\xrightarrow{\smile e}H^{z+n}(X;R)
 全ランクの相対懸垂から構成し、`From.With.law` は底空間の対写像に関する自然性を与える。
 `Thom.Real.For.With.Shell` は円板束の \(\|v\|>1/2\) という開部分と、零切断を固定する連続写像 `clip` を与える。
 `Shell.Over[U].equivalence` は球面境界に底空間部分 \(U\) を加えた対と、開いた殻に同じ部分を加えた対の実際の対ホモトピー同値である。
+
+`MixedCup.Union.Cover.On.Cup.Forget.law` は、相対条件を忘れた混合積が通常の cup 積になることを示す。
+`MixedCup.From[Y, target, firstPart, secondPart, f, regular, firstContained, secondContained].Covers[conditions, newConditions].Cup[p, q].law` は二つの部分を保つ実際の写像による自然性である。
+`MixedCup.Change[L, targetRing, morphism].Covers[conditions].Cup[p, q].law` は係数環の変更と混合相対積の可換性を与える。
+いずれも通常の相対余鎖と共通消滅複体との比較を、余鎖の代表元で明示的に同定して証明する。

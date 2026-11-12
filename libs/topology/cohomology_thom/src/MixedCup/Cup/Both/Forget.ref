@@ -1,0 +1,26 @@
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\import \parent.Cohomology[] \as Product;
+\import \parent.Closed[] \as Closed;
+\import \root.MixedCup[A := A, source := source, first := first, second := second, K := K, ring := ring].CommonComplex[] \as Common;
+\import Common.Forget[n := total] \as Forget;
+\import FirstComparison.Cohomology[] \as FirstForget;
+\import SecondComparison.Cohomology[] \as SecondForget;
+\import Cochains.Cohomology[].Cup[p := p, q := q] \as Ordinary;
+\import Cochains.Cohomology[] \as Absolute;
+\import chain_complexes.Integer[].Over[R := I.Int^, ring := Integers.ring] \as Integer;
+\import Integer.At[C := FirstCochains.complex, z := I.Int^::ofNat p] \as Left;
+\import Integer.At[C := SecondCochains.complex, z := I.Int^::ofNat q] \as Right;
+\definition onClasses: \forall (x: Left.Closed)(y: Right.Closed) ->
+  Forget.map.apply (Product.apply (Left.classOf x) (Right.classOf y)) = Ordinary.apply (FirstForget.map.apply (Left.classOf x)) (SecondForget.map.apply (Right.classOf y)) :=
+  \fun (x: Left.Closed)(y: Right.Closed) => trans!{{Absolute.Group total}} _ _ _
+    (congr!{{Common.At[n := total].cohomology} {Absolute.Group total}} Forget.map.apply _ _ (Product.onClasses x y))
+    (trans!{{Absolute.Group total}} _ _ _ (Forget.onClass (Closed.cycle x y))
+      (trans!{{Absolute.Group total}} _ _ _ (sym!{{Absolute.Group total}} _ _ (Ordinary.onClasses (FirstForget.cycle x) (SecondForget.cycle y)))
+        (congr!{{Absolute.Group p} {Absolute.Group q} {Absolute.Group total}} Ordinary.apply _ _ _ _ (sym!{{Absolute.Group p}} _ _ (FirstForget.onClass x)) (sym!{{Absolute.Group q}} _ _ (SecondForget.onClass y)))));
+\definition law: \forall (x: Left.Cohomology)(y: Right.Cohomology) ->
+  Forget.map.apply (Product.apply x y) = Ordinary.apply (FirstForget.map.apply x) (SecondForget.map.apply y) :=
+  Left.classInduction (\fun (x: Left.Cohomology) => \forall (y: Right.Cohomology) -> Forget.map.apply (Product.apply x y) = Ordinary.apply (FirstForget.map.apply x) (SecondForget.map.apply y))
+    (\fun (x: Left.Closed) => Right.classInduction (\fun (y: Right.Cohomology) => Forget.map.apply (Product.apply (Left.classOf x) y) = Ordinary.apply (FirstForget.map.apply (Left.classOf x)) (SecondForget.map.apply y)) (onClasses x));
