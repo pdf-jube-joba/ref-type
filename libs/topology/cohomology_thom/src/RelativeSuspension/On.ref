@@ -1,0 +1,37 @@
+\import algebraic_topology.Cylinder[A := A] \as Cylinder;
+\definition topology: topology.Topology[Carrier := Cylinder.Carrier].Topology := Cylinder.topology source;
+\definition boundary: \Pow Cylinder.Carrier := { p: Cylinder.Carrier \where
+  Logic.Or[Cylinder.time p = J.start, Logic.Or[Cylinder.time p = J.end, \In[A] subset (Cylinder.point p)]] };
+\definition left: \Pow Cylinder.Carrier := { p: Cylinder.Carrier \where Order.Lt (Cylinder.time p) R.one };
+\definition right: \Pow Cylinder.Carrier := { p: Cylinder.Carrier \where Order.Lt R.zero (Cylinder.time p) };
+\import metric_spaces.RealLine[] \as Line;
+\definition timeContinuous: topology.Continuity[A := Cylinder.Carrier, B := R.Real].Continuous topology Line.topology (\fun (p: Cylinder.Carrier) => Cylinder.time p) :=
+  topology.Composition[A := Cylinder.Carrier, B := J.Carrier, C := R.Real].composeContinuous topology J.topology Line.topology
+    Cylinder.time (\fun (t: J.Carrier) => t) (Cylinder.timeContinuous source) J.inclusionContinuous;
+\import singular_excision.MayerVietoris[A := Cylinder.Carrier].Over[source := topology] \as Covers;
+\definition data: Covers.Data := Covers.Data { left := left, right := right };
+\definition cover: Covers.Cover := \into[Covers.Data](data, Covers.Cover) \by {
+  Covers.Laws[data] {
+    leftOpen := timeContinuous (Line.Rays[].Below R.one) (Line.Rays[].belowOpen R.one),
+    rightOpen := timeContinuous (Line.Rays[].Above R.zero) (Line.Rays[].aboveOpen R.zero),
+    covered := \fun (p: Cylinder.Carrier) => either!{{Order.Order[].leTotal (Cylinder.time p) R.half}
+      {Logic.Or[\In[Cylinder.Carrier] left p, \In[Cylinder.Carrier] right p]}
+      {\fun (le: Order.Le (Cylinder.time p) R.half) => Logic.Or[_, _]::left (Order.leLtTrans (Cylinder.time p) R.half R.one le \parent.Interval[].halfBelowOne)}
+      {\fun (le: Order.Le R.half (Cylinder.time p)) => Logic.Or[_, _]::right (Order.ltLeTrans R.zero R.half (Cylinder.time p) \parent.Interval[].halfPositive le)}
+    }
+  }
+};
+
+\structure SliceData: \Set := {
+  times: \Pow J.Carrier,
+  centre: \Cast[J.Carrier] times,
+  part: \Pow A,
+  convex: \forall (s: J.Carrier)(t: \Cast[J.Carrier] times) -> \In[J.Carrier] times (Convex.blend s centre t),
+  projectsBoundary: \forall (t: \Cast[J.Carrier] times)(x: A) -> \In[Cylinder.Carrier] boundary (Cylinder.at t x) -> \In[A] part x,
+  sectionBoundary: \forall (x: \Cast[A] part) -> \In[Cylinder.Carrier] boundary (Cylinder.at centre x),
+  preservesBoundary: \forall (s: J.Carrier)(t: \Cast[J.Carrier] times)(x: A) -> \In[Cylinder.Carrier] boundary (Cylinder.at t x) ->
+    \In[Cylinder.Carrier] boundary (Cylinder.at (Convex.blend s centre t) x)
+};
+\module Slice(d: SliceData);
+\module Halves;
+\module Covering;

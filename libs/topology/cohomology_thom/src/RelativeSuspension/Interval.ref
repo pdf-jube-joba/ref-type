@@ -1,0 +1,25 @@
+\definition weighted: \forall (s: J.Carrier)(a: R.Real) -> R.add (R.mul (J.reverse s) a) (R.mul s a) = a :=
+  \fun (s: J.Carrier)(a: R.Real) => trans!{R.Real} _ _ _ (sym!{R.Real} _ _ (R.Algebra[].mulAddRight (J.reverse s) s a))
+    (trans!{R.Real} _ _ _ (congr!{R.Real R.Real} (\fun (v: R.Real) => R.mul v a) _ _ (Convex.weight s)) (Laws.fieldMulOneLeft a));
+\definition lower: \forall (s, t, u: J.Carrier)(a: R.Real) -> Order.Le a t -> Order.Le a u -> Order.Le a (Convex.blend s t u) :=
+  \fun (s, t, u: J.Carrier)(a: R.Real)(at: Order.Le a t)(au: Order.Le a u) =>
+    Order.leReplaceLeft _ a _ (weighted s a) (Estimates.addLe _ _ _ _
+      (Estimates.mulMonotone (J.reverse s) a t (J.bounds (J.reverse s)).left at)
+      (Estimates.mulMonotone s a u (J.bounds s).left au));
+\definition upper: \forall (s, t, u: J.Carrier)(a: R.Real) -> Order.Le t a -> Order.Le u a -> Order.Le (Convex.blend s t u) a :=
+  \fun (s, t, u: J.Carrier)(a: R.Real)(ta: Order.Le t a)(ua: Order.Le u a) =>
+    Order.leReplaceRight _ _ a (weighted s a) (Estimates.addLe _ _ _ _
+      (Estimates.mulMonotone (J.reverse s) t a (J.bounds (J.reverse s)).left ta)
+      (Estimates.mulMonotone s u a (J.bounds s).left ua));
+\definition positive: \forall (s, t, u: J.Carrier) -> Order.Lt R.zero t -> Order.Lt R.zero u -> Order.Lt R.zero (Convex.blend s t u) :=
+  \fun (s, t, u: J.Carrier)(pt: Order.Lt R.zero t)(pu: Order.Lt R.zero u) =>
+    Order.ltLeTrans R.zero (Distance.min t u) (Convex.blend s t u)
+      (Estimates.Product[].minPositive t u pt pu) (lower s t u (Distance.min t u) (Distance.minLeft t u) (Distance.minRight t u));
+\definition below: \forall (s, t, u: J.Carrier) -> Order.Lt t R.one -> Order.Lt u R.one -> Order.Lt (Convex.blend s t u) R.one :=
+  \fun (s, t, u: J.Carrier)(pt: Order.Lt t R.one)(pu: Order.Lt u R.one) =>
+    Order.leLtTrans (Convex.blend s t u) (Distance.max t u) R.one
+      (upper s t u (Distance.max t u) (Distance.maxLeft t u) (Distance.maxRight t u)) (Distance.maxLt t u R.one pt pu);
+\definition halfPositive: Order.Lt R.zero R.half := Order.ltReplaceRight R.zero (R.mul R.half R.one) R.half
+  (R.Algebra[].mulOneRight R.half) (Estimates.halfOfPositive R.one Estimates.Product[].onePositive);
+\definition halfBelowOne: Order.Lt R.half R.one := Order.ltReplaceLeft (R.mul R.half R.one) R.half R.one
+  (R.Algebra[].mulOneRight R.half) (Estimates.halfStrict R.one Estimates.Product[].onePositive);

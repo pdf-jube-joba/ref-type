@@ -1,0 +1,38 @@
+\import \parent.Halves[] \as Halves;
+\import \parent.Slice[d := Halves.left] \as Left;
+\import \parent.Slice[d := Halves.right] \as Right;
+\import \parent.Slice[d := Halves.overlap] \as Middle;
+\import \root.RelativeMayerVietoris[].OpenCover[A := Cylinder.Carrier, source := topology, subset := boundary].On[cover := cover] \as Native;
+\definition intersection: \Pow Native.Left := { p: Native.Left \where \In[Cylinder.Carrier] right p };
+\definition forward[p: Native.Overlap]: Middle.Carrier := \into[Cylinder.Carrier](p, Middle.region) \by {
+  Logic.And[_, _]::# (\bysub(Cylinder.Carrier, left, p)) (\bysub(Native.Left, intersection, p))
+};
+\definition toLeft[p: Middle.Carrier]: Native.Left := \into[Cylinder.Carrier](p, left) \by { (\bysub(Cylinder.Carrier, Middle.region, p)).left };
+\definition backward[p: Middle.Carrier]: Native.Overlap := \into[Native.Left](toLeft p, intersection) \by { (\bysub(Cylinder.Carrier, Middle.region, p)).right };
+\definition inclusion[p: Native.Overlap]: Cylinder.Carrier := p;
+\definition inclusionContinuous: topology.Continuity[A := Native.Overlap, B := Cylinder.Carrier].Continuous Native.overlapTopology topology inclusion :=
+  topology.Composition[A := Native.Overlap, B := Native.Left, C := Cylinder.Carrier].composeContinuous Native.overlapTopology Native.leftTopology topology
+    (\fun (p: Native.Overlap) => p) (\fun (p: Native.Left) => p)
+    (topology.Continuity[A := Native.Overlap, B := Native.Left].Corestriction[S := intersection].inclusionContinuous Native.leftTopology)
+    (topology.Continuity[A := Native.Left, B := Cylinder.Carrier].Corestriction[S := left].inclusionContinuous topology);
+\definition forwardContinuous: topology.Continuity[A := Native.Overlap, B := Middle.Carrier].Continuous Native.overlapTopology Middle.space forward :=
+  topology.Continuity[A := Native.Overlap, B := Cylinder.Carrier].Corestriction[S := Middle.region].corestrictContinuous Native.overlapTopology topology forward inclusionContinuous;
+\definition toLeftContinuous: topology.Continuity[A := Middle.Carrier, B := Native.Left].Continuous Middle.space Native.leftTopology toLeft :=
+  topology.Continuity[A := Middle.Carrier, B := Cylinder.Carrier].Corestriction[S := left].corestrictContinuous Middle.space topology toLeft
+    (topology.Continuity[A := Middle.Carrier, B := Cylinder.Carrier].Corestriction[S := Middle.region].inclusionContinuous topology);
+\definition backwardContinuous: topology.Continuity[A := Middle.Carrier, B := Native.Overlap].Continuous Middle.space Native.overlapTopology backward :=
+  topology.Continuity[A := Middle.Carrier, B := Native.Left].Corestriction[S := intersection].corestrictContinuous Middle.space Native.leftTopology backward toLeftContinuous;
+\import topology.Homeomorphism[A := Native.Overlap, B := Middle.Carrier] \as Homeomorphisms;
+\definition homeomorphism: Homeomorphisms.Homeomorphism[Native.overlapTopology, Middle.space] := Homeomorphisms.Homeomorphism[Native.overlapTopology, Middle.space] {
+  forward := forward, backward := backward,
+  leftInverse := \fun (p: Native.Overlap) => \refl(p), rightInverse := \fun (p: Middle.Carrier) => \refl(p),
+  forwardContinuous := forwardContinuous, backwardContinuous := backwardContinuous
+};
+\import singular_cohomology.Relative[A := Native.Overlap, source := Native.overlapTopology, subset := Native.overlapPart].Homeomorphism[B := Middle.Carrier].Over[target := Middle.space, targetSubset := Middle.part] \as Pairs;
+\definition pair: Pairs.Data := Pairs.Data {
+  homeomorphism := homeomorphism,
+  forwardPreserves := \fun (p: \Cast[Native.Overlap] Native.overlapPart) => \bysub(Native.Overlap, Native.overlapPart, p),
+  backwardPreserves := \fun (p: \Cast[Middle.Carrier] Middle.part) => \bysub(Middle.Carrier, Middle.part, p)
+};
+\import module_theory.Module[].Over[R := I.Int^, ring := Integers.ring] \as Modules;
+\module With(coefficients: Modules.Bundle);

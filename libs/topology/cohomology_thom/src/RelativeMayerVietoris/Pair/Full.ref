@@ -1,0 +1,35 @@
+\module Degree(n: N.Nat^) {
+  \import \parent.\parent.Degree[n := n] \as Basis;
+  \import Modules.Free[Generators := Basis.Generator] \as Free;
+  \import Free.To[W := Free.Carrier, target := Free.space] \as Universal;
+  \import Modules.End[V := Free.Carrier, space := Free.space] \as End;
+  \import Modules.Hom[V := Free.Carrier, W := Free.Carrier, source := Free.space, target := Free.space] \as Maps;
+  \definition impossible: \forall (s: Basis.Generator) -> Logic.False :=
+    \fun (s: Basis.Generator) => (\bysub(singular_cohomology.Simplices[A := A, source := source].Carrier n, Basis.outside, s))
+      (\fun (x: algebraic_topology.Simplex[].Carrier n) => full (s x));
+  \definition identityZero: End.identity = Maps.zeroMap := Universal.ext End.identity Maps.zeroMap
+    (\fun (s: Basis.Generator) => Logic.falseElim _ (impossible s));
+  \definition freeZero: \forall (x: Free.Carrier) -> x = Free.space.zero :=
+    \fun (x: Free.Carrier) => congr!{Maps.Map Free.Carrier} (\fun (f: Maps.Map) => f.apply x) _ _ identityZero;
+  \definition zero: \forall (x: Relative.Carrier (I.Int^::ofNat n)) -> x = (Relative.space (I.Int^::ofNat n)).zero :=
+    Modules.Isomorphism[V := Free.Carrier, W := Relative.Carrier (I.Int^::ofNat n), source := Free.space, target := Relative.space (I.Int^::ofNat n)].Vanishing[].targetZero Basis.isomorphism freeZero;
+}
+\definition zero: \forall (z: I.Int^)(x: Relative.Carrier z) -> x = (Relative.space z).zero :=
+  \induction (z: I.Int^) \return \forall (x: Relative.Carrier z) -> x = (Relative.space z).zero \with {
+    | ofNat: \fun (n: N.Nat^) => Degree[n := n].zero
+    | negSucc: \fun (n: N.Nat^) => \parent.Negative[n := n].zero
+  };
+\module With(coefficients: Modules.Bundle, z: I.Int^) {
+  \import resolutions.HomComplex[].Over[R := I.Int^, ring := Integers.commutativeRing].Integer[P := Relative.complex, N := coefficients] \as Hom;
+  \definition cochainZero: \forall (h: Hom.Carrier z) -> h = (Hom.space z).zero :=
+    \fun (h: Hom.Carrier z) => Hom.At[z := z].ext h (Hom.space z).zero
+      (\fun (x: Relative.Carrier z) => trans!{coefficients.Carrier} _ _ _
+        (congr!{{Relative.Carrier z} coefficients.Carrier} h.apply _ _ (zero z x)) (Hom.At[z := z].zeroPreserved h));
+  \import chain_complexes.Integer[].Over[R := I.Int^, ring := Integers.ring].At[C := Hom.complex, z := z] \as Cohomology;
+  \import Modules.Hom[V := Cohomology.Closed, W := Cohomology.Cohomology, source := Cohomology.cycleSpace, target := Cohomology.cohomologySpace] \as Classes;
+  \definition cohomologyZero: \forall (q: Cohomology.Cohomology) -> q = Cohomology.cohomologySpace.zero :=
+    Cohomology.classInduction (\fun (q: Cohomology.Cohomology) => q = Cohomology.cohomologySpace.zero)
+      (\fun (h: Cohomology.Closed) => trans!{Cohomology.Cohomology} _ _ _
+        (congr!{Cohomology.Closed Cohomology.Cohomology} Cohomology.classOf h Cohomology.cycleSpace.zero (cochainZero h))
+        (Classes.zeroPreserved Cohomology.classLinear));
+}

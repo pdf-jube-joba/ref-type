@@ -36,3 +36,13 @@
 `Degree[p].isomorphism` の順写像は \(a\mapsto\pi^*a\smile u\)、逆写像は零切断への引き戻しである。
 `euler` はこの Thom 類の Euler 類が単位類であることを示す。
 `ZeroRank.With[M, z].isomorphism` は任意の整数加群係数と整数次数で底空間のコホモロジーへの比較を与える。
+
+`RelativeSuspension.On[A, source, subset].Covering.With[M].At[z].isomorphism` は円柱対
+\((I\times A,\partial I\times A\cup I\times B)\) の相対コホモロジーを1次数ずらす同型である。
+開被覆は時刻が1未満・0より大きい二つの部分で、各部分対の変形収縮と共通部分対の比較を明示的に構成する。
+
+`LocalDisk.On[X, source].With[M].isomorphism n z` は
+\(H^z(X;M)\cong H^{\operatorname{shift}(n,z)}(X\times D^n,X\times\partial D^n;M)\) を与える。
+`shift` は整数次数に後続操作を \(n\) 回適用する。
+`With.Negative[n, k].zero` は負の底次数から得られる相対群の消滅を示す。
+`Ring[R, ring].Rank[n].localClass` はこの加法的比較による単位類の像で、`coordinateOfClass` と `unique` がその正規化を特徴付ける。

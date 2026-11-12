@@ -1,0 +1,78 @@
+\definition region: \Pow Cylinder.Carrier := { p: Cylinder.Carrier \where \In[J.Carrier] d.times (Cylinder.time p) };
+\import topology.Topology[Carrier := Cylinder.Carrier].Subspace[S := region] \as Subspace;
+\definition Carrier: \Set := Subspace.CarrierSet;
+\definition space: topology.Topology[Carrier := Carrier].Topology := Subspace.topology topology;
+\definition part: \Pow Carrier := { p: Carrier \where \In[Cylinder.Carrier] boundary p };
+\definition time[p: Carrier]: \Cast[J.Carrier] d.times := \into[J.Carrier](Cylinder.time p, d.times) \by { \bysub(Cylinder.Carrier, region, p) };
+\definition projection[p: Carrier]: A := Cylinder.point p;
+\definition section[x: A]: Carrier := \into[Cylinder.Carrier](Cylinder.at d.centre x, region) \by { \bysub(J.Carrier, d.times, d.centre) };
+\definition projectionContinuous: topology.Continuity[A := Carrier, B := A].Continuous space source projection :=
+  topology.Continuity[A := Cylinder.Carrier, B := A].Restriction[S := region].restrictContinuous topology source Cylinder.point (Cylinder.pointContinuous source);
+\definition sectionContinuous: topology.Continuity[A := A, B := Carrier].Continuous source space section :=
+  topology.Continuity[A := A, B := Cylinder.Carrier].Corestriction[S := region].corestrictContinuous source topology section (Cylinder.atContinuous source d.centre);
+\import singular_cohomology.Relative[A := Carrier, source := space, subset := part] \as SourcePair;
+\import singular_cohomology.Relative[A := A, source := source, subset := d.part] \as TargetPair;
+\import SourcePair.Maps[B := A].Over[target := source, targetSubset := d.part] \as Forward;
+\import TargetPair.Maps[B := Carrier].Over[target := space, targetSubset := part] \as Backward;
+\definition forward: Forward.Map := \into[Carrier -> A](projection, Forward.Map) \by {
+  Forward.Laws[projection] {
+    continuous := projectionContinuous,
+    contained := \fun (p: SourcePair.SubspaceCarrier) => d.projectsBoundary (time p) (Cylinder.point p) (\bysub(Carrier, part, p))
+  }
+};
+\definition backward: Backward.Map := \into[A -> Carrier](section, Backward.Map) \by {
+  Backward.Laws[section] { continuous := sectionContinuous, contained := d.sectionBoundary }
+};
+\import algebraic_topology.Cylinder[A := Carrier] \as Parameter;
+\import algebraic_topology.Homotopy[A := Carrier, B := Carrier] \as Homotopy;
+\definition family[p: Parameter.Carrier]: Carrier := \into[Cylinder.Carrier]
+  (Cylinder.at (Convex.blend (Parameter.time p) d.centre (time (Parameter.point p))) (projection (Parameter.point p)), region) \by {
+    d.convex (Parameter.time p) (time (Parameter.point p))
+  };
+\definition timeContinuous: topology.Continuity[A := Carrier, B := J.Carrier].Continuous space J.topology (\fun (p: Carrier) => time p) :=
+  topology.Continuity[A := Cylinder.Carrier, B := J.Carrier].Restriction[S := region].restrictContinuous topology J.topology Cylinder.time (Cylinder.timeContinuous source);
+\definition homotopyContinuous: topology.Continuity[A := Parameter.Carrier, B := Carrier].Continuous (Parameter.topology space) space family :=
+  topology.Continuity[A := Parameter.Carrier, B := Cylinder.Carrier].Corestriction[S := region].corestrictContinuous (Parameter.topology space) topology family
+    (topological_constructions.Product[A := J.Carrier, B := A].Universal[X := Parameter.Carrier].pairContinuous (Parameter.topology space) J.topology source
+      (\fun (p: Parameter.Carrier) => Convex.blend (Parameter.time p) d.centre (time (Parameter.point p)))
+      (\fun (p: Parameter.Carrier) => projection (Parameter.point p))
+      (Convex.Functions[A := Parameter.Carrier].continuous (Parameter.topology space) Parameter.time (\fun (_: Parameter.Carrier) => d.centre)
+        (\fun (p: Parameter.Carrier) => time (Parameter.point p)) (Parameter.timeContinuous space)
+        (topology.Maps[A := Parameter.Carrier, B := J.Carrier].constantContinuous (Parameter.topology space) J.topology d.centre)
+        (topology.Composition[A := Parameter.Carrier, B := Carrier, C := J.Carrier].composeContinuous (Parameter.topology space) space J.topology
+          Parameter.point (\fun (p: Carrier) => time p) (Parameter.pointContinuous space) timeContinuous))
+      (topology.Composition[A := Parameter.Carrier, B := Carrier, C := A].composeContinuous (Parameter.topology space) space source
+        Parameter.point projection (Parameter.pointContinuous space) projectionContinuous));
+\definition homotopy: Homotopy.Homotopy[space, space, (\fun (p: Carrier) => section (projection p)), (\fun (p: Carrier) => p)] :=
+  \into[Homotopy.Family](family, Homotopy.Homotopy[space, space, (\fun (p: Carrier) => section (projection p)), (\fun (p: Carrier) => p)]) \by {
+    Homotopy.Laws[space, space, (\fun (p: Carrier) => section (projection p)), (\fun (p: Carrier) => p), family] {
+      continuous := homotopyContinuous,
+      start := \fun (p: Carrier) => congr!{{J.Carrier} Cylinder.Carrier} (\fun (t: J.Carrier) => Cylinder.at t (projection p)) _ _ (Convex.atStart d.centre (time p)),
+      end := \fun (p: Carrier) => trans!{Cylinder.Carrier} _ _ _
+        (congr!{{J.Carrier} Cylinder.Carrier} (\fun (t: J.Carrier) => Cylinder.at t (projection p)) _ _ (Convex.atEnd d.centre (time p)))
+        (std.Data[].Pair[].Prop[A := J.Carrier, B := A].eta p)
+    }
+  };
+\import SourcePair.Equivalence[B := A].Over[target := source, targetSubset := d.part] \as Comparisons;
+\import SourcePair.Maps[B := Carrier].Over[target := space, targetSubset := part] \as SourceEnd;
+\import TargetPair.Maps[B := A].Over[target := source, targetSubset := d.part] \as TargetEnd;
+\import Forward.Composition[C := Carrier].Over[final := space, finalSubset := part] \as Left;
+\import Backward.Composition[C := A].Over[final := source, finalSubset := d.part] \as Right;
+\import SourceEnd.Homotopy[f := Left.compose forward backward, g := SourcePair.Identity[].map] \as LeftHomotopy;
+\import TargetEnd.Homotopy[f := Right.compose backward forward, g := TargetPair.Identity[].map] \as RightHomotopy;
+\definition equivalence: Comparisons.Equivalence := Comparisons.Equivalence {
+  forward := forward, backward := backward,
+  left := \into[LeftHomotopy.Family](homotopy, LeftHomotopy.Homotopy) \by {
+    \fun (s: J.Carrier)(p: SourcePair.SubspaceCarrier) => d.preservesBoundary s (time p) (projection p) (\bysub(Carrier, part, p))
+  },
+  right := \into[RightHomotopy.Family](algebraic_topology.Homotopy[A := A, B := A].constant source source (\fun (x: A) => x)
+    (topology.Maps[A := A, B := A].Identity[].continuous source), RightHomotopy.Homotopy) \by {
+      \fun (s: J.Carrier)(x: TargetPair.SubspaceCarrier) => \bysub(A, d.part, x)
+    }
+};
+\import Comparisons.On[e := equivalence] \as Singular;
+\import module_theory.Module[].Over[R := I.Int^, ring := Integers.ring] \as Modules;
+\module With(coefficients: Modules.Bundle, z: I.Int^) {
+  \import Singular.With[coefficients := coefficients].At[z := z] \as Comparison;
+  \definition isomorphism: _ := Comparison.isomorphism;
+}

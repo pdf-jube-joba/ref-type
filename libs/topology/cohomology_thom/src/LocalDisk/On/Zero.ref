@@ -1,0 +1,18 @@
+\import thom_spaces.Thom[].ZeroDiskSuspension[X := X, source := source] \as Geometry;
+\import \parent.Dimension[n := N.Nat^::zero] \as Disk;
+\import topology.Topology[Carrier := X] \as Base;
+\import singular_cohomology.Relative[A := Disk.Carrier, source := Disk.topology, subset := Disk.boundary].Homeomorphism[B := X].Over[target := source, targetSubset := Base.Empty] \as Pairs;
+\definition pair: Pairs.Data := Pairs.Data {
+  homeomorphism := Geometry.diskHomeomorphism,
+  forwardPreserves := \fun (p: \Cast[Disk.Carrier] Disk.boundary) => Geometry.forwardPreserves p (\bysub(Disk.Carrier, Disk.boundary, p)),
+  backwardPreserves := \fun (x: \Cast[X] Base.Empty) => Geometry.backwardPreserves x (\bysub(X, Base.Empty, x))
+};
+\import \root.RelativeMayerVietoris[].Pair[A := X, source := source, subset := Base.Empty].Empty[empty := (\fun (x: \Cast[X] Base.Empty) => \bysub(X, Base.Empty, x))] \as Empty;
+\module With(coefficients: Modules.Bundle, z: I.Int^) {
+  \import singular_cohomology.Cochains[A := X, source := source].With[coefficients := coefficients].Integer[] \as Absolute;
+  \import singular_cohomology.Relative[A := X, source := source, subset := Base.Empty].With[coefficients := coefficients].At[z := z] \as Relative;
+  \import \parent.\parent.Dimension[n := N.Nat^::zero].With[coefficients := coefficients, z := z] \as Target;
+  \definition fromAbsolute: _ := Modules.Isomorphism[V := Relative.Carrier, W := Absolute.cohomology z, source := Relative.space, target := Absolute.cohomologySpace z].Inverse[].inverse Empty.With[coefficients := coefficients].At[z := z].isomorphism;
+  \definition isomorphism: _ := Modules.Isomorphism[V := Absolute.cohomology z, W := Relative.Carrier, source := Absolute.cohomologySpace z, target := Relative.space]
+    .Composition[U := Target.Group, final := Target.space].compose (Pairs.With[coefficients := coefficients].At[z := z].isomorphism pair) fromAbsolute;
+}

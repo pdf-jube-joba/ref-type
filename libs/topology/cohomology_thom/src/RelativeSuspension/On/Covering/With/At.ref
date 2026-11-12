@@ -1,0 +1,21 @@
+\import \parent.Degree[z := z] \as Current;
+\import \parent.Degree[z := chain_complexes.Integer[].next z] \as Upper;
+\import Sequence.Degree[z := z] \as S;
+\import Sequence.Degree[z := chain_complexes.Integer[].next z] \as T;
+\import Sequence.At[z := z] \as Exact;
+\import Modules.Hom[V := S.directSum.Carrier, W := S.intersection.Carrier, source := S.directSum.space, target := S.intersection.space] \as Difference;
+\import Modules.Hom[V := S.intersection.Carrier, W := T.whole.Carrier, source := S.intersection.space, target := T.whole.space] \as Connecting;
+\definition zeroKernel: \forall (x: S.intersection.Carrier) -> Exact.connecting.apply x = T.whole.space.zero -> x = S.intersection.space.zero := \block {
+  \fun (x: S.intersection.Carrier)(zero: Exact.connecting.apply x = T.whole.space.zero) \then
+  \takefrom q: \Cast[S.directSum.Carrier] ({ q: S.directSum.Carrier \where Exact.difference.apply q = x }) \by Exact.exactAtIntersection.kernelImage x zero \then
+  \return trans!{S.intersection.Carrier} _ _ _ (sym!{S.intersection.Carrier} _ _ (\bysub(S.directSum.Carrier, { q: S.directSum.Carrier \where Exact.difference.apply q = x }, q)))
+    (trans!{S.intersection.Carrier} _ _ _ (congr!{S.directSum.Carrier S.intersection.Carrier} Exact.difference.apply _ _ (Current.sumZero q)) (Difference.zeroPreserved Exact.difference))
+};
+\import Modules.Isomorphism[V := S.intersection.Carrier, W := T.whole.Carrier, source := S.intersection.space, target := T.whole.space].OfBijective[f := Exact.connecting] \as Inverse;
+\definition injective: Inverse.Injective := Connecting.injectiveOfZeroKernel Exact.connecting zeroKernel;
+\definition onto: Inverse.Onto := \fun (x: T.whole.Carrier) => Exact.exactAtWhole.kernelImage x (Upper.sumZero (Sequence.At[z := chain_complexes.Integer[].next z].restriction.apply x));
+\definition connectingIsomorphism: _ := Inverse.isomorphism injective onto;
+\import singular_cohomology.Relative[A := A, source := source, subset := subset].With[coefficients := coefficients].At[z := z] \as Base;
+\definition isomorphism: Modules.Isomorphism[V := Base.Carrier, W := T.whole.Carrier, source := Base.space, target := T.whole.space].Isomorphism :=
+  Modules.Isomorphism[V := Base.Carrier, W := S.intersection.Carrier, source := Base.space, target := S.intersection.space]
+    .Composition[U := T.whole.Carrier, final := T.whole.space].compose connectingIsomorphism Current.overlapIsomorphism;
