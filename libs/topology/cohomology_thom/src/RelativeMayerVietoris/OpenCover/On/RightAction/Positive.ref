@@ -1,0 +1,54 @@
+\use std.Logic[].Equality[].eq_reason_in;
+\import std.Logic[].Equality[].Transport[A := N.Nat^] \as Transport;
+\import \parent.Cup[p := p, q := q] \as Lower;
+\import \parent.Cup[p := N.Nat^::succ p, q := q] \as Upper;
+\import \parent.Restriction[q := q] \as Restriction;
+\definition inputDegree: I.Int^ := I.Int^::ofNat (N.Nat^::succ p);
+\definition total: N.Nat^ := N.Nat^::succ Lower.total;
+\definition outputDegree: I.Int^ := I.Int^::ofNat total;
+\definition same: Upper.total = total := N.Basic[].Prop[].addSuccLeft p q;
+\import IntegerCochains.At[C := SourceSmallHom.complex, z := inputDegree] \as Input;
+\import IntegerCochains.At[C := SmallHom.complex, z := outputDegree] \as Output;
+\import Modules.Of[V := SourceSmallHom.Carrier inputDegree, space := SourceSmallHom.space inputDegree].Submodule[] \as SourceSubmodules;
+\import Modules.Of[V := SmallHom.Carrier outputDegree, space := SmallHom.space outputDegree].Submodule[] \as TargetSubmodules;
+\definition Raw[k: N.Nat^]: \Set := SmallHom.Carrier (I.Int^::ofNat k);
+\definition Closed[k: N.Nat^]: \Set := IntegerCochains.At[C := SmallHom.complex, z := I.Int^::ofNat k].Closed;
+\definition ambient[k: N.Nat^][h: Closed k]: Raw k := h;
+\definition cochains[u: Restriction.Cycle][h: Input.Closed]: Raw total := Transport.cast Raw Upper.total total same (Upper.apply u h);
+\definition cycle[u: Restriction.Cycle][h: Input.Closed]: Output.Closed := Transport.cast Closed Upper.total total same (Upper.Cycles[].cycle u h);
+\definition onAmbient: \forall (u: Restriction.Cycle)(h: Input.Closed) -> cochains u h = ambient total (cycle u h) :=
+  \fun (u: Restriction.Cycle)(h: Input.Closed) => Transport.natural Closed Raw ambient Upper.total total same (Upper.Cycles[].cycle u h);
+\definition boundary: \forall (u: Restriction.Cycle)(h: Input.Closed) -> SourceSubmodules.Member Input.boundaries h -> TargetSubmodules.Member Output.boundaries (cycle u h) := \block {
+  \fun (u: Restriction.Cycle)(h: Input.Closed)(member: SourceSubmodules.Member Input.boundaries h) \then
+  \takefrom lift: \Cast[SourceSmallHom.Carrier Lower.inputDegree] ({ v: SourceSmallHom.Carrier Lower.inputDegree \where SourceSmallHom.complex.differential.apply Lower.inputDegree v = h }) \by member \then
+  \return Logic.existsIntro[SmallHom.Carrier Lower.outputDegree, { v: SmallHom.Carrier Lower.outputDegree \where SmallHom.complex.differential.apply Lower.outputDegree v = cycle u h }]
+    (Lower.apply u lift) (eq_reason_in!{{SmallHom.Carrier outputDegree} _
+      "=" _ "by" { Lower.Differential[].law u lift }
+      "=" _ "by" { congr!{{SourceSmallHom.Carrier inputDegree} {SmallHom.Carrier outputDegree}} (Lower.Differential[].cast u) _ _ (\bysub(SourceSmallHom.Carrier Lower.inputDegree, { v: SourceSmallHom.Carrier Lower.inputDegree \where SourceSmallHom.complex.differential.apply Lower.inputDegree v = h }, lift)) }
+      "=" _ "by" { onAmbient u h }
+    })
+};
+
+\definition cycleAddition: \forall (u: Restriction.Cycle)(h, j: Input.Closed) -> cycle u (Input.cycleSpace.add h j) = Output.cycleSpace.add (cycle u h) (cycle u j) :=
+  \fun (u: Restriction.Cycle)(h, j: Input.Closed) => eq_reason_in!{{Raw total} _
+    "=" _ "by" { sym!{{Raw total}} _ _ (onAmbient u (Input.cycleSpace.add h j)) }
+    "=" _ "by" { congr!{{Raw Upper.total} {Raw total}} (Transport.cast Raw Upper.total total same) _ _ (Upper.Addition[].law u h j) }
+    "=" _ "by" { Transport.binaryNatural Raw Raw Raw (\fun (k: N.Nat^) => (SmallHom.space (I.Int^::ofNat k)).add) Upper.total total same (Upper.apply u h) (Upper.apply u j) }
+    "=" _ "by" { congr!{{Raw total} {Raw total} {Raw total}} (SmallHom.space outputDegree).add _ _ _ _ (onAmbient u h) (onAmbient u j) }
+  };
+\definition rawAddition: \forall (u: Restriction.Cycle)(h, j: Input.Closed) -> Output.classOf (cycle u (Input.cycleSpace.add h j)) = Output.cohomologySpace.add (Output.classOf (cycle u h)) (Output.classOf (cycle u j)) :=
+  \fun (u: Restriction.Cycle)(h, j: Input.Closed) => trans!{Output.Cohomology} _ _ _
+    (congr!{Output.Closed Output.Cohomology} Output.classOf _ _ (cycleAddition u h j))
+    (Output.classLinear.addition (cycle u h) (cycle u j));
+\definition sourceCycles: Modules.Bundle := Modules.Bundle { Carrier := Input.Closed, space := Input.cycleSpace };
+\definition targetClasses: Modules.Bundle := Modules.Bundle { Carrier := Output.Cohomology, space := Output.cohomologySpace };
+\import Modules.Of[V := Input.Closed, space := Input.cycleSpace].Submodule[].Quotient[S := Input.boundariesInside].To[W := Output.Cohomology, target := Output.cohomologySpace] \as Quotient;
+\module For(u: Restriction.Cycle) {
+  \definition raw: _ := \root.RelativeMayerVietoris[].IntegerLinear[].On[A := sourceCycles, B := targetClasses, f := (\fun (h: Input.Closed) => Output.classOf (cycle u h)), addition := rawAddition u].map;
+  \definition vanishes: Quotient.Vanishes raw := \fun (h: Input.Closed)(member: _) => Output.boundaryClassZero (cycle u h) (boundary u h member);
+  \definition map: _ := Quotient.descend raw vanishes;
+}
+\definition linear[u: Restriction.Cycle]: _ := For[u := u].map;
+\definition apply[u: Restriction.Cycle][x: Input.Cohomology]: Output.Cohomology := (linear u).apply x;
+\definition onClass: \forall (u: Restriction.Cycle)(h: Input.Closed) -> apply u (Input.classOf h) = Output.classOf (cycle u h) :=
+  \fun (u: Restriction.Cycle) => Quotient.onClass For[u := u].raw For[u := u].vanishes;

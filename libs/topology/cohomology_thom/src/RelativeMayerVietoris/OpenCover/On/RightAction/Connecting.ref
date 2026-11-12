@@ -1,0 +1,54 @@
+\use std.Logic[].Equality[].eq_reason_in;
+\import std.Logic[].Equality[].Transport[A := N.Nat^] \as Transport;
+\import \parent.Cup[p := p, q := q] \as Product;
+\import \parent.Cup[p := N.Nat^::succ p, q := q] \as Upper;
+\import \parent.Positive[p := p, q := q] \as Positive;
+\import \parent.Restriction[q := q] \as Restriction;
+\import Product.Differential[] \as Differential;
+\import Product.SumAction[].Differential[] \as SumDifferential;
+\import IntegerCochains.ShortExact[A := SourceSmallHom.complex, B := SourceSumHom.complex, C := SourceOverlapHom.complex].At[s := SourceSequence.sequence, k := Product.inputDegree] \as SourceConnecting;
+\import IntegerCochains.ShortExact[A := SmallHom.complex, B := SumHom.complex, C := OverlapHom.complex].At[s := MV.sequence, k := Product.outputDegree] \as TargetConnecting;
+\import IntegerCochains.At[C := SourceOverlapHom.complex, z := Product.inputDegree] \as Input;
+\import IntegerCochains.At[C := OverlapHom.complex, z := Product.outputDegree] \as TargetInput;
+\import IntegerCochains.At[C := SourceSmallHom.complex, z := Positive.inputDegree] \as LowerH;
+\import IntegerCochains.At[C := SmallHom.complex, z := Positive.outputDegree] \as Output;
+\import IntegerCochains.At[C := OverlapHom.complex, z := I.Int^::ofNat q] \as Fixed;
+\import IntegerCochains.Map[C := LeftHom.complex, D := OverlapHom.complex].At[k := I.Int^::ofNat q] \as OverlapAction;
+\definition overlapCycle[u: Restriction.Cycle]: Fixed.Closed := (OverlapAction.cyclesMap LeftPull.pullback).apply (Restriction.leftCycle u);
+\import SourceOverlapCup.Comparison[n := p].Cohomology[] \as Forget;
+\import OverlapCup.Cohomology[p := p, q := q].Right[] \as Cup;
+\definition overlap[u: Restriction.Cycle][a: Input.Cohomology]: TargetInput.Cohomology := Cup.apply (Forget.map.apply a) (Fixed.classOf (overlapCycle u));
+\definition onCycles: \forall (u: Restriction.Cycle)(x: Input.Closed) -> TargetConnecting.delta (Cup.cycle (Forget.cycle x) (overlapCycle u)) = Positive.apply u (SourceConnecting.delta x) := \block {
+  \fun (u: Restriction.Cycle)(x: Input.Closed) \then
+  \takefrom w: \Cast[SourceConnecting.Witness] ({ w: SourceConnecting.Witness \where SourceConnecting.WitnessLaws[x, SourceConnecting.delta x, w] })
+    \by \bysub(LowerH.Cohomology, SourceConnecting.Values x, SourceConnecting.delta x) \then
+  \let laws: SourceConnecting.WitnessLaws[x, SourceConnecting.delta x, w] := \bysub(SourceConnecting.Witness, { w: SourceConnecting.Witness \where SourceConnecting.WitnessLaws[x, SourceConnecting.delta x, w] }, w) \then
+  \let lift: SumHom.Carrier Product.outputDegree := Product.sumAction u w.lift \then
+  \let lower: Output.Closed := Positive.cycle u w.lower \then
+  \let lifted: MV.sequence.projection.apply Product.outputDegree lift = Cup.cycle (Forget.cycle x) (overlapCycle u) :=
+    trans!{{OverlapHom.Carrier Product.outputDegree}} _ _ _ (Product.SumAction[].projection u w.lift)
+      (congr!{{SourceOverlapHom.Carrier Product.inputDegree} {OverlapHom.Carrier Product.outputDegree}} (\fun (a: SourceOverlapHom.Carrier Product.inputDegree) => OverlapCup.RelativeCup[p := p, q := q].right (SourceOverlapCup.Comparison[n := p].from a) (Product.SumAction[].overlap u)) _ _ laws.lifted) \then
+  \let differential: MV.sequence.inclusion.apply Positive.outputDegree lower = SumHom.complex.differential.apply Product.outputDegree lift :=
+    eq_reason_in!{{SumHom.Carrier Positive.outputDegree} _
+      "=" _ "by" { congr!{{SmallHom.Carrier Positive.outputDegree} {SumHom.Carrier Positive.outputDegree}} (MV.sequence.inclusion.apply Positive.outputDegree) _ _ (sym!{{SmallHom.Carrier Positive.outputDegree}} _ _ (Positive.onAmbient u w.lower)) }
+      "=" _ "by" { sym!{{SumHom.Carrier Positive.outputDegree}} _ _ (Transport.natural Positive.Raw SumDifferential.SumRaw Differential.inclusionDegree Upper.total Positive.total Positive.same (Upper.apply u w.lower)) }
+      "=" _ "by" { congr!{{SumHom.Carrier Upper.outputDegree} {SumHom.Carrier Positive.outputDegree}} (Transport.cast SumDifferential.SumRaw Upper.total Positive.total Positive.same) _ _ (Upper.inclusion u w.lower) }
+      "=" _ "by" { congr!{{SourceSumHom.Carrier Positive.inputDegree} {SumHom.Carrier Positive.outputDegree}} (SumDifferential.cast u) _ _ laws.differential }
+      "=" _ "by" { sym!{{SumHom.Carrier Positive.outputDegree}} _ _ (SumDifferential.law u w.lift) }
+    } \then
+  \return eq_reason_in!{Output.Cohomology _
+    "=" _ "by" { TargetConnecting.onLift (Cup.cycle (Forget.cycle x) (overlapCycle u)) lift lower lifted differential (\bysub(SmallHom.Carrier Positive.outputDegree, Output.cycles.carrier, lower)) }
+    "=" _ "by" { sym!{Output.Cohomology} _ _ (Positive.onClass u w.lower) }
+    "=" _ "by" { congr!{LowerH.Cohomology Output.Cohomology} (Positive.apply u) _ _ laws.classValue }
+  }
+};
+\definition onClasses: \forall (u: Restriction.Cycle)(x: Input.Closed) -> TargetConnecting.connecting.apply (overlap u (Input.classOf x)) = Positive.apply u (SourceConnecting.connecting.apply (Input.classOf x)) :=
+  \fun (u: Restriction.Cycle)(x: Input.Closed) => eq_reason_in!{Output.Cohomology _
+    "=" _ "by" { congr!{TargetInput.Cohomology Output.Cohomology} TargetConnecting.connecting.apply _ _ (congr!{{OverlapProduct.Cohomology[].Group p} TargetInput.Cohomology} (\fun (a: OverlapProduct.Cohomology[].Group p) => Cup.apply a (Fixed.classOf (overlapCycle u))) _ _ (Forget.onClass x)) }
+    "=" _ "by" { congr!{TargetInput.Cohomology Output.Cohomology} TargetConnecting.connecting.apply _ _ (Cup.onClasses (Forget.cycle x) (overlapCycle u)) }
+    "=" _ "by" { TargetConnecting.onClass (Cup.cycle (Forget.cycle x) (overlapCycle u)) }
+    "=" _ "by" { onCycles u x }
+    "=" _ "by" { congr!{LowerH.Cohomology Output.Cohomology} (Positive.apply u) _ _ (sym!{LowerH.Cohomology} _ _ (SourceConnecting.onClass x)) }
+  };
+\definition law: \forall (u: Restriction.Cycle)(a: Input.Cohomology) -> TargetConnecting.connecting.apply (overlap u a) = Positive.apply u (SourceConnecting.connecting.apply a) :=
+  \fun (u: Restriction.Cycle) => Input.classInduction (\fun (a: Input.Cohomology) => TargetConnecting.connecting.apply (overlap u a) = Positive.apply u (SourceConnecting.connecting.apply a)) (onClasses u);

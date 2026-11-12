@@ -97,3 +97,7 @@ H^p(X;R)\longrightarrow H^{p+n}(X\times D^n,X\times\partial D^n;R),\qquad
 `Chart.Ring.Degree[p].isomorphism` と `formula` は cup 積による局所 Thom 同型を与える。
 `Chart.Open` は制限束の円板対を元の円板束のチャート対応開部分へ同定する。
 その `Ring.Degree[p].isomorphism`、`formula`、`Additive.below` は開部分上の同型と直前次数の消滅を公開する。
+
+`RelativeMayerVietoris.OpenCover.On.RightAction[K, ring]` は空の対の列から相対列への、固定した右因子との cup 積を構成する。
+`Cup.SumAction.projection`、`Cup.Differential.law`、`Cup.Addition.law` は射影、微分、加法との整合性を示す。
+`Positive.linear` は境界保存による正次数のコホモロジー写像であり、`Connecting.law` は接続写像との比較を次数の移し替えを含めて与える。
