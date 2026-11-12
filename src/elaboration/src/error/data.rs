@@ -257,6 +257,9 @@ impl diagnostics::DiagnosticError for Error {
             Self::IncompatibleMetaUses { number } => {
                 Data::new("elaboration.IncompatibleMetaUses").with("number", *number)
             }
+            Self::IncompatibleCapturedMetaUses => {
+                Data::new("elaboration.IncompatibleCapturedMetaUses")
+            }
         }
     }
 }

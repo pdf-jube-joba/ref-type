@@ -305,10 +305,41 @@ pub(crate) fn instantiate_template(
     depth: u16,
     identity: u64,
 ) -> Result<SExp, crate::error::Error> {
+    let mut captures = captures.clone();
+    let mut index = 0;
+    let mut ordered: Vec<_> = captures.iter_mut().collect();
+    ordered.sort_by_key(|(name, _)| *name);
+    for (_, capture) in ordered {
+        share_capture_holes(capture, identity, &mut index);
+    }
     let mut result = definition.template.clone();
     rename_template_binders(&mut result, identity);
-    instantiate_exp(&mut result, captures, depth)?;
+    instantiate_exp(&mut result, &captures, depth)?;
     Ok(result)
+}
+
+fn share_capture_holes(capture: &mut CaptureValue, expansion: u64, index: &mut u32) {
+    let mut share = |node: &mut SExp| {
+        if let SExp::Meta {
+            kind: kind @ SurfaceMeta::Implicit,
+            ..
+        } = node
+        {
+            *kind = SurfaceMeta::Captured {
+                expansion,
+                index: *index,
+            };
+            *index += 1;
+        }
+        true
+    };
+    match capture {
+        CaptureValue::Expression(exp) => walk_sexp_control(exp, &mut share),
+        CaptureValue::Token(token) => {
+            walk_macro_exps_mut(std::slice::from_mut(token), &mut share, WalkOrder::Pre)
+        }
+        CaptureValue::Sequence(tokens) => walk_macro_exps_mut(tokens, &mut share, WalkOrder::Pre),
+    }
 }
 
 fn instantiate_tokens(

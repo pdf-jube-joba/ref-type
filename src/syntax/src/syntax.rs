@@ -18,7 +18,15 @@ pub struct SourceSpan {
 }
 
 #[derive(
-    artifact::Relocate, serde::Serialize, serde::Deserialize, Debug, Clone, Copy, PartialEq, Eq,
+    artifact::Relocate,
+    serde::Serialize,
+    serde::Deserialize,
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Hash,
 )]
 pub enum SurfaceMeta {
     /// `_`: a fresh inference variable, solved by constraints.
@@ -28,6 +36,14 @@ pub enum SurfaceMeta {
     /// `_N`: occurrences with the same number share one metavariable within
     /// the current elaboration unit.
     Named(u32),
+    /// One caller hole, shared by every copy of its macro capture.
+    Captured { expansion: u64, index: u32 },
+}
+
+impl SurfaceMeta {
+    pub fn is_shared(self) -> bool {
+        matches!(self, Self::Named(_) | Self::Captured { .. })
+    }
 }
 
 /// A source file identity, retained together with the original text.

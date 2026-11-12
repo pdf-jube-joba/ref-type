@@ -68,7 +68,7 @@ pub(crate) struct ProgramScope {
     context: ProgramContext,
     value_type_bindings: Vec<(SymbolId, ValueType)>,
     metas: Vec<ProgramMeta>,
-    named_metas: HashMap<u32, MetaVarId>,
+    named_metas: HashMap<SurfaceMeta, MetaVarId>,
     sources: HashMap<Term, Vec<SourceSpan>>,
     has_runs: bool,
     constraints: Vec<ProgramConstraintRecord>,

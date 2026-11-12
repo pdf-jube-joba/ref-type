@@ -219,6 +219,7 @@ pub enum Error {
     IncompatibleMetaUses {
         number: u32,
     },
+    IncompatibleCapturedMetaUses,
 }
 
 impl Error {
@@ -520,6 +521,9 @@ impl std::fmt::Display for Error {
             }
             Self::IncompatibleMetaUses { number } => {
                 write!(f, "metavariable _{number} has incompatible uses")
+            }
+            Self::IncompatibleCapturedMetaUses => {
+                f.write_str("captured macro hole has incompatible uses")
             }
         }
     }
