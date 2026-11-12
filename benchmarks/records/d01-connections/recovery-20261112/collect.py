@@ -86,6 +86,7 @@ def driver(name, state, partial):
     print(name,r['outcome'],summary['counts'])
 
 def cli(name, report, snapshot, commit):
+    commit=command('git','rev-parse',commit)
     raw=report.read_bytes(); r=json.loads(raw); assert r['outcome']=='accepted'
     destination=OUT/name; destination.mkdir(exist_ok=True)
     ident=identity(snapshot,commit,destination)
