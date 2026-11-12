@@ -1,0 +1,62 @@
+\import \parent.Restriction[p := p] \as Restriction;
+\definition total: N.Nat^ := N.Basic[].Def[].add p q;
+\definition inputDegree: I.Int^ := I.Int^::ofNat q;
+\definition outputDegree: I.Int^ := I.Int^::ofNat total;
+\import LeftProduct.Degree[p := p, q := q] \as LP;
+\import RightProduct.Degree[p := p, q := q] \as RP;
+\import OverlapProduct.Degree[p := p, q := q] \as OP;
+\import SourceSequence.Coordinates[].Difference[z := inputDegree] \as InputDifference;
+\import MV.Coordinates[].Difference[z := outputDegree] \as OutputDifference;
+\import Modules.Laws[V := OverlapHom.Carrier outputDegree, space := OverlapHom.space outputDegree] \as OutputLaws;
+\import algebra.Group[].Of[Carrier := OverlapHom.Carrier outputDegree, group := OutputLaws.additive] \as OutputGroup;
+\definition leftInput[h: SourceSmallHom.Carrier inputDegree]: SourceLeftHom.Carrier inputDegree := SourceCoordinates.firstProjection.apply inputDegree (SourceSequence.sequence.inclusion.apply inputDegree h);
+\definition rightInput[h: SourceSmallHom.Carrier inputDegree]: SourceRightHom.Carrier inputDegree := SourceCoordinates.secondProjection.apply inputDegree (SourceSequence.sequence.inclusion.apply inputDegree h);
+\definition leftProduct[a: Restriction.Raw][h: SourceSmallHom.Carrier inputDegree]: LeftHom.Carrier outputDegree := LP.apply (Restriction.left a) (leftInput h);
+\definition rightProduct[a: Restriction.Raw][h: SourceSmallHom.Carrier inputDegree]: RightHom.Carrier outputDegree := RP.apply (Restriction.right a) (rightInput h);
+\definition sumProduct[a: Restriction.Raw][h: SourceSmallHom.Carrier inputDegree]: SumHom.Carrier outputDegree :=
+  (SumHom.space outputDegree).add (Coordinates.firstInjection.apply outputDegree (leftProduct a h)) (Coordinates.secondInjection.apply outputDegree (rightProduct a h));
+\definition overlapAgreement: \forall (a: Restriction.Raw)(h: SourceSmallHom.Carrier inputDegree) ->
+  LeftNatural.cochainMap.apply outputDegree (leftProduct a h) = RightNatural.cochainMap.apply outputDegree (rightProduct a h) :=
+  \fun (a: Restriction.Raw)(h: SourceSmallHom.Carrier inputDegree) => trans!{{OverlapHom.Carrier outputDegree}} _ _ _
+    (LeftNatural.Product[p := p, q := q].law (Restriction.left a) (leftInput h))
+    (trans!{{OverlapHom.Carrier outputDegree}} _ _ _
+      (congr!{{singular_cohomology.Relative[A := Overlap, source := overlapTopology, subset := OverlapFamily.firstPart].With[coefficients := WholeProduct.integerCoefficients].Carrier (I.Int^::ofNat p)} {SourceOverlapHom.Carrier inputDegree} {OverlapHom.Carrier outputDegree}}
+        OP.apply _ _ _ _ (Restriction.agree a) (InputDifference.inclusionAgreement h))
+      (sym!{{OverlapHom.Carrier outputDegree}} _ _ (RightNatural.Product[p := p, q := q].law (Restriction.right a) (rightInput h))));
+\definition killed: \forall (a: Restriction.Raw)(h: SourceSmallHom.Carrier inputDegree) ->
+  MV.sequence.projection.apply outputDegree (sumProduct a h) = (OverlapHom.space outputDegree).zero :=
+  \fun (a: Restriction.Raw)(h: SourceSmallHom.Carrier inputDegree) => trans!{{OverlapHom.Carrier outputDegree}} _ _ _
+    (MV.sequence.projection.addition outputDegree (Coordinates.firstInjection.apply outputDegree (leftProduct a h)) (Coordinates.secondInjection.apply outputDegree (rightProduct a h)))
+    (trans!{{OverlapHom.Carrier outputDegree}} _ _ _
+      (congr!{{OverlapHom.Carrier outputDegree} {OverlapHom.Carrier outputDegree} {OverlapHom.Carrier outputDegree}} OutputGroup.add _ _ _ _
+        (OutputDifference.left (leftProduct a h)) (OutputDifference.right (rightProduct a h)))
+      (trans!{{OverlapHom.Carrier outputDegree}} _ _ _
+        (congr!{{OverlapHom.Carrier outputDegree} {OverlapHom.Carrier outputDegree}} (\fun (x: OverlapHom.Carrier outputDegree) => OutputGroup.add x (OutputGroup.neg (RightNatural.cochainMap.apply outputDegree (rightProduct a h)))) _ _ (overlapAgreement a h))
+        (OutputGroup.inverseRight (RightNatural.cochainMap.apply outputDegree (rightProduct a h)))));
+\definition Values[a: Restriction.Raw][h: SourceSmallHom.Carrier inputDegree]: \Pow (SmallHom.Carrier outputDegree) :=
+  { v: SmallHom.Carrier outputDegree \where MV.sequence.inclusion.apply outputDegree v = sumProduct a h };
+\definition Value[a: Restriction.Raw][h: SourceSmallHom.Carrier inputDegree]: \Set := \Cast[SmallHom.Carrier outputDegree] (Values a h);
+\definition existence: \forall (a: Restriction.Raw)(h: SourceSmallHom.Carrier inputDegree) -> \exists Value a h :=
+  \fun (a: Restriction.Raw)(h: SourceSmallHom.Carrier inputDegree) => MV.sequence.kernelImage outputDegree (sumProduct a h) (killed a h);
+\definition uniqueness: \forall (a: Restriction.Raw)(h: SourceSmallHom.Carrier inputDegree)(v, w: Value a h) -> v = w :=
+  \fun (a: Restriction.Raw)(h: SourceSmallHom.Carrier inputDegree)(v, w: Value a h) => MV.sequence.injective outputDegree v w
+    (trans!{{SumHom.Carrier outputDegree}} _ _ _ (\bysub(SmallHom.Carrier outputDegree, Values a h, v)) (sym!{{SumHom.Carrier outputDegree}} _ _ (\bysub(SmallHom.Carrier outputDegree, Values a h, w))));
+\definition apply[a: Restriction.Raw][h: SourceSmallHom.Carrier inputDegree]: Value a h := \choice Value a h \by { existence: existence a h, uniqueness: uniqueness a h };
+\definition inclusion: \forall (a: Restriction.Raw)(h: SourceSmallHom.Carrier inputDegree) -> MV.sequence.inclusion.apply outputDegree (apply a h) = sumProduct a h :=
+  \fun (a: Restriction.Raw)(h: SourceSmallHom.Carrier inputDegree) => \bysub(SmallHom.Carrier outputDegree, Values a h, apply a h);
+
+\module Components;
+
+
+\definition sumLeft[a: Restriction.Raw][h: SourceSumHom.Carrier inputDegree]: LeftHom.Carrier outputDegree := LP.apply (Restriction.left a) (SourceCoordinates.firstProjection.apply inputDegree h);
+\definition sumRight[a: Restriction.Raw][h: SourceSumHom.Carrier inputDegree]: RightHom.Carrier outputDegree := RP.apply (Restriction.right a) (SourceCoordinates.secondProjection.apply inputDegree h);
+\definition sumAction[a: Restriction.Raw][h: SourceSumHom.Carrier inputDegree]: SumHom.Carrier outputDegree :=
+  (SumHom.space outputDegree).add (Coordinates.firstInjection.apply outputDegree (sumLeft a h)) (Coordinates.secondInjection.apply outputDegree (sumRight a h));
+\module SumAction;
+
+\module Differential;
+
+\module Linear;
+\module Difference;
+\module Cycles;
+\module Compare;

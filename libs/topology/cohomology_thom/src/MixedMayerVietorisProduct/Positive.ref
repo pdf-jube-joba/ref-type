@@ -1,0 +1,63 @@
+\import \parent.Cup[p := p, q := q] \as Lower;
+\import \parent.Cup[p := p, q := N.Nat^::succ q] \as Upper;
+\import \parent.Restriction[p := p] \as Restriction;
+\definition inputDegree: I.Int^ := I.Int^::ofNat (N.Nat^::succ q);
+\definition outputDegree: I.Int^ := I.Int^::ofNat (N.Nat^::succ Lower.total);
+\import IntegerCochains.At[C := SourceSmallHom.complex, z := inputDegree] \as Input;
+\import IntegerCochains.At[C := SmallHom.complex, z := outputDegree] \as Output;
+\import Modules.Of[V := SourceSmallHom.Carrier inputDegree, space := SourceSmallHom.space inputDegree].Submodule[] \as SourceSubmodules;
+\import Modules.Of[V := SmallHom.Carrier outputDegree, space := SmallHom.space outputDegree].Submodule[] \as TargetSubmodules;
+\import Modules.Alternating[V := SmallHom.Carrier Lower.outputDegree, space := SmallHom.space Lower.outputDegree].Concatenation[] \as BeforeSigns;
+\import Modules.Alternating[V := SmallHom.Carrier outputDegree, space := SmallHom.space outputDegree].Concatenation[] \as Signs;
+\import BeforeSigns.Mapping[W := SmallHom.Carrier outputDegree, target := SmallHom.space outputDegree] \as DifferentialSigns;
+\import IntegerCochains.At[C := SmallHom.complex, z := Lower.outputDegree] \as Differential;
+\definition boundary: \forall (a: Restriction.Cycle)(h: Input.Closed) -> SourceSubmodules.Member Input.boundaries h -> TargetSubmodules.Member Output.boundaries (Upper.apply a h) := \block {
+  \fun (a: Restriction.Cycle)(h: Input.Closed)(member: SourceSubmodules.Member Input.boundaries h) \then
+  \takefrom lift: \Cast[SourceSmallHom.Carrier Lower.inputDegree] ({ v: SourceSmallHom.Carrier Lower.inputDegree \where SourceSmallHom.complex.differential.apply Lower.inputDegree v = h }) \by member \then
+  \return Logic.existsIntro[SmallHom.Carrier Lower.outputDegree, { v: SmallHom.Carrier Lower.outputDegree \where SmallHom.complex.differential.apply Lower.outputDegree v = Upper.apply a h }]
+    (BeforeSigns.twist p (Lower.apply a lift))
+    (eq_reason_in!{{SmallHom.Carrier outputDegree} _
+      "=" _ "by" { DifferentialSigns.law Differential.differential p (Lower.apply a lift) }
+      "=" _ "by" { congr!{{SmallHom.Carrier outputDegree} {SmallHom.Carrier outputDegree}} (Signs.twist p) _ _ (Lower.Differential[].law a lift) }
+      "=" _ "by" { Signs.involution p (Upper.apply a (SourceSmallHom.complex.differential.apply Lower.inputDegree lift)) }
+      "=" _ "by" { congr!{{SourceSmallHom.Carrier inputDegree} {SmallHom.Carrier outputDegree}} (Upper.apply a) _ _ (\bysub(SourceSmallHom.Carrier Lower.inputDegree, { v: SourceSmallHom.Carrier Lower.inputDegree \where SourceSmallHom.complex.differential.apply Lower.inputDegree v = h }, lift)) }
+    })
+};
+\definition respects: \forall (a: Restriction.Cycle)(h, j: Input.Closed) -> Input.classOf h = Input.classOf j ->
+  Output.classOf (Upper.Cycles[].cycle a h) = Output.classOf (Upper.Cycles[].cycle a j) :=
+  \fun (a: Restriction.Cycle)(h, j: Input.Closed)(same: _) => Output.classEqual (Upper.Cycles[].cycle a h) (Upper.Cycles[].cycle a j)
+    (\idelim Upper.apply a (Input.cycleSpace.add h (Input.cycleSpace.neg j)) =
+      Output.cycleSpace.add (Upper.Cycles[].cycle a h) (Output.cycleSpace.neg (Upper.Cycles[].cycle a j))
+      \with v: SmallHom.Carrier outputDegree => TargetSubmodules.Member Output.boundaries v \by {
+        base: boundary a (Input.cycleSpace.add h (Input.cycleSpace.neg j)) (Input.classRelated h j same), equality: Upper.Difference[].law a h j
+      });
+\structure Witness[a: Restriction.Cycle, u: Input.Cohomology, v: Output.Cohomology, x: Input.Closed]: \Prop := {
+  represents: Input.classOf x = u,
+  value: Output.classOf (Upper.Cycles[].cycle a x) = v,
+};
+\definition Values[a: Restriction.Cycle][u: Input.Cohomology]: \Pow Output.Cohomology :=
+  { v: Output.Cohomology \where \exists ( x: Input.Closed \where Witness[a, u, v, x] ) };
+\definition Value[a: Restriction.Cycle][u: Input.Cohomology]: \Set := \Cast[Output.Cohomology] (Values a u);
+\definition witness[a: Restriction.Cycle][x: Input.Closed]: Value a (Input.classOf x) :=
+  \into[Output.Cohomology](Output.classOf (Upper.Cycles[].cycle a x), Values a (Input.classOf x)) \by {
+    Logic.existsIntro[Input.Closed, { y: Input.Closed \where Witness[a, Input.classOf x, Output.classOf (Upper.Cycles[].cycle a x), y] }] x
+      (Witness[a, Input.classOf x, Output.classOf (Upper.Cycles[].cycle a x), x] { represents := \refl(Input.classOf x), value := \refl(Output.classOf (Upper.Cycles[].cycle a x)) })
+  };
+\definition existence: \forall (a: Restriction.Cycle)(u: Input.Cohomology) -> \exists Value a u :=
+  \fun (a: Restriction.Cycle) => Input.classInduction (\fun (u: Input.Cohomology) => \exists Value a u)
+    (\fun (x: Input.Closed) => \exact(witness a x, Value a (Input.classOf x)));
+\definition uniqueness: \forall (a: Restriction.Cycle)(u: Input.Cohomology)(v, w: Value a u) -> v = w := \block {
+  \fun (a: Restriction.Cycle)(u: Input.Cohomology)(v, w: Value a u) \then
+  \takefrom x: \Cast[Input.Closed] ({ x: Input.Closed \where Witness[a, u, v, x] }) \by \bysub(Output.Cohomology, Values a u, v) \then
+  \takefrom y: \Cast[Input.Closed] ({ y: Input.Closed \where Witness[a, u, w, y] }) \by \bysub(Output.Cohomology, Values a u, w) \then
+  \let xl: Witness[a, u, v, x] := \bysub(Input.Closed, { x: Input.Closed \where Witness[a, u, v, x] }, x) \then
+  \let yl: Witness[a, u, w, y] := \bysub(Input.Closed, { y: Input.Closed \where Witness[a, u, w, y] }, y) \then
+  \return trans!{Output.Cohomology} _ _ _ (sym!{Output.Cohomology} _ _ xl.value)
+    (trans!{Output.Cohomology} _ _ _ (respects a x y (trans!{Input.Cohomology} _ _ _ xl.represents (sym!{Input.Cohomology} _ _ yl.represents))) yl.value)
+};
+\definition apply[a: Restriction.Cycle][u: Input.Cohomology]: Value a u := \choice Value a u \by { existence: existence a u, uniqueness: uniqueness a u };
+\definition onClass: \forall (a: Restriction.Cycle)(x: Input.Closed) -> apply a (Input.classOf x) = Output.classOf (Upper.Cycles[].cycle a x) :=
+  \fun (a: Restriction.Cycle)(x: Input.Closed) => sym!{Output.Cohomology} _ _ (\choiceeq witness a x \of Value a (Input.classOf x) \by { existence: existence a (Input.classOf x), uniqueness: uniqueness a (Input.classOf x) });
+
+
+\module Compare;

@@ -1,0 +1,24 @@
+\import std.Data[].Nat[] \as N;
+\import std.Arithmetic[].Int[] \as I;
+\import std.Logic[].Proposition[] \as Logic;
+\use Logic.either;
+\import singular_subdivision.Small[A := A, source := source, family := sourceFamily].Simplices[] \as NewBoundary;
+\import singular_subdivision.Small[A := B, source := target, family := targetFamily].Simplices[] \as OldBoundary;
+\import singular_cohomology.Maps[A := A, B := B, source := source, target := target] \as Maps;
+\import algebraic_topology.Simplex[] \as Simplex;
+\definition preserves: \forall (n: N.Nat^)(sigma: NewBoundary.Carrier n) -> \In[singular_cohomology.Simplices[A := B, source := target].Carrier n] (OldBoundary.Small n) (Maps.postcompose n f regular sigma) := \block {
+  \fun (n: N.Nat^)(sigma: NewBoundary.Carrier n) \then
+  \takefrom witness: NewBoundary.Witness[n, sigma] \by NewBoundary.witness n sigma \then
+  \return either!{{classify witness.element witness.member} {\In[singular_cohomology.Simplices[A := B, source := target].Carrier n] (OldBoundary.Small n) (Maps.postcompose n f regular sigma)}
+    {\fun (same: witness.element = sourceFirst) => \exact(OldBoundary.Witness[n, Maps.postcompose n f regular sigma] {
+      element := targetFirst, member := targetFirstMember,
+      contained := \fun (x: Simplex.Carrier n) => firstContained (sigma x) (\idelim witness.element = sourceFirst \with U: \Pow A => \In[A] U (sigma x) \by { base: witness.contained x, equality: same })
+    }, OldBoundary.Witness[n, Maps.postcompose n f regular sigma])}
+    {\fun (same: witness.element = sourceSecond) => \exact(OldBoundary.Witness[n, Maps.postcompose n f regular sigma] {
+      element := targetSecond, member := targetSecondMember,
+      contained := \fun (x: Simplex.Carrier n) => secondContained (sigma x) (\idelim witness.element = sourceSecond \with U: \Pow A => \In[A] U (sigma x) \by { base: witness.contained x, equality: same })
+    }, OldBoundary.Witness[n, Maps.postcompose n f regular sigma])}}
+};
+\import \root.FamilyPairMap[A := A, B := B, source := source, target := target, sourceFamily := sourceFamily, targetFamily := targetFamily, f := f, regular := regular, preserves := preserves] \as Native;
+\definition map: _ := Native.map;
+\module At(z: I.Int^) { \definition onClass: _ := Native.At[z := z].onClass; }

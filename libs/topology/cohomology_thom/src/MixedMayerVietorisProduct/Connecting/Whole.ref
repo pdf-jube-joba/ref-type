@@ -1,0 +1,30 @@
+\import SourceMV.Cohomology[coefficients := WholeProduct.integerCoefficients] \as WholeSourceSequence;
+\import WholeSourceSequence.At[z := Product.inputDegree] \as SourceWholeMV;
+\import singular_cohomology.Relative[A := A, source := source, subset := second].With[coefficients := WholeProduct.integerCoefficients] \as WholeSource;
+\import singular_cohomology.Relative[A := A, source := source, subset := first].With[coefficients := WholeProduct.integerCoefficients] \as WholeFirst;
+\import \root.FamilyPair[A := A, source := source, family := family].With[coefficients := WholeProduct.integerCoefficients] \as WholeTarget;
+\import IntegerCochains.At[C := WholeSource.complex, z := Positive.inputDegree] \as SourceWhole;
+\import IntegerCochains.At[C := WholeTarget.complex, z := Positive.outputDegree] \as TargetWhole;
+\import IntegerCochains.At[C := WholeFirst.complex, z := I.Int^::ofNat p] \as FirstH;
+\import WholeFamilyProduct.Degree[p := p, q := N.Nat^::succ q].Cohomology[] \as WholeMultiplication;
+\definition sourceComparison: _ := SourceSmallPair.With[coefficients := WholeProduct.integerCoefficients].At[z := Positive.inputDegree].comparison;
+\definition targetComparison: _ := TargetSmallPair.With[coefficients := WholeProduct.integerCoefficients].At[z := Positive.outputDegree].isomorphism;
+\definition connecting[x: TargetInput.Cohomology]: TargetWhole.Cohomology := targetComparison.backward.apply (TargetConnecting.connecting.apply x);
+\import Modules.Alternating[V := TargetWhole.Cohomology, space := TargetWhole.cohomologySpace].Concatenation[] \as WholeSigns;
+\import Signs.Mapping[W := TargetWhole.Cohomology, target := TargetWhole.cohomologySpace] \as ComparisonSigns;
+\definition multiplicationComparison: \forall (a: Restriction.Cycle)(x: Input.Cohomology) ->
+  targetComparison.backward.apply (Positive.apply a (SourceConnecting.connecting.apply x)) = WholeMultiplication.product (FirstH.classOf a) (SourceWholeMV.connecting.apply x) :=
+  \fun (a: Restriction.Cycle)(x: Input.Cohomology) => eq_reason_in!{TargetWhole.Cohomology _
+    "=" _ "by" { congr!{LowerH.Cohomology TargetWhole.Cohomology} (\fun (v: LowerH.Cohomology) => targetComparison.backward.apply (Positive.apply a v)) _ _ (sym!{LowerH.Cohomology} _ _ (sourceComparison.rightInverse (SourceConnecting.connecting.apply x))) }
+    "=" _ "by" { congr!{Output.Cohomology TargetWhole.Cohomology} targetComparison.backward.apply _ _ (Positive.Compare[].law a (SourceWholeMV.connecting.apply x)) }
+    "=" _ "by" { targetComparison.leftInverse (WholeMultiplication.product (FirstH.classOf a) (SourceWholeMV.connecting.apply x)) }
+  };
+\definition law: \forall (a: Restriction.Cycle)(x: Input.Cohomology) ->
+  targetComparison.backward.apply (TargetConnecting.connecting.apply (LocalProduct.product (overlapClass a) x)) =
+  WholeSigns.twist p (WholeMultiplication.product (FirstH.classOf a) (SourceWholeMV.connecting.apply x)) :=
+  \fun (a: Restriction.Cycle)(x: Input.Cohomology) => trans!{TargetWhole.Cohomology} _ _ _
+    (congr!{Output.Cohomology TargetWhole.Cohomology} targetComparison.backward.apply _ _
+      (\root.MixedMayerVietorisProduct[A := A, source := source, first := first, second := second, K := K, ring := ring, cover := cover].Connecting[p := p, q := q].law a x))
+    (trans!{TargetWhole.Cohomology} _ _ _
+      (ComparisonSigns.law targetComparison.backward p (Positive.apply a (SourceConnecting.connecting.apply x)))
+      (congr!{TargetWhole.Cohomology TargetWhole.Cohomology} (WholeSigns.twist p) _ _ (multiplicationComparison a x)));

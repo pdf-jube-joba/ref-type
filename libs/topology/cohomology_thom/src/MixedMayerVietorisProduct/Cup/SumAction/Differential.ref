@@ -1,0 +1,40 @@
+\definition higher: I.Int^ := I.Int^::ofNat (N.Nat^::succ total);
+\import \root.MixedMayerVietorisProduct[A := A, source := source, first := first, second := second, K := K, ring := ring, cover := cover].Cup[p := p, q := N.Nat^::succ q] \as Upper;
+\import LeftProduct.Degree[p := p, q := N.Nat^::succ q] \as UpperLeft;
+\import RightProduct.Degree[p := p, q := N.Nat^::succ q] \as UpperRight;
+\import Modules.Alternating[V := SumHom.Carrier higher, space := SumHom.space higher].Concatenation[] \as Signs;
+\import Modules.Alternating[V := LeftHom.Carrier higher, space := LeftHom.space higher].Concatenation[] \as LeftSigns;
+\import Modules.Alternating[V := RightHom.Carrier higher, space := RightHom.space higher].Concatenation[] \as RightSigns;
+\import Signs.Mapping[W := LeftHom.Carrier higher, target := LeftHom.space higher] \as LeftSignMap;
+\import Signs.Mapping[W := RightHom.Carrier higher, target := RightHom.space higher] \as RightSignMap;
+\import IntegerCochains.Map[C := SumHom.complex, D := LeftHom.complex].At[k := higher] \as First;
+\import IntegerCochains.Map[C := SumHom.complex, D := RightHom.complex].At[k := higher] \as Second;
+\definition leftLaw: \forall (a: Restriction.Cycle)(h: SourceSumHom.Carrier inputDegree) ->
+  Coordinates.firstProjection.apply higher (SumHom.complex.differential.apply outputDegree (sumAction a h)) =
+  Coordinates.firstProjection.apply higher (Signs.twist p (Upper.sumAction a (SourceSumHom.complex.differential.apply inputDegree h))) :=
+  \fun (a: Restriction.Cycle)(h: SourceSumHom.Carrier inputDegree) => eq_reason_in!{{LeftHom.Carrier higher} _
+    "=" _ "by" { sym!{{LeftHom.Carrier higher}} _ _ (Coordinates.firstProjection.commutes outputDegree (sumAction a h)) }
+    "=" _ "by" { congr!{{LeftHom.Carrier outputDegree} {LeftHom.Carrier higher}} (LeftHom.complex.differential.apply outputDegree) _ _ (left a h) }
+    "=" _ "by" { LP.Differential[].law (Restriction.left a) (SourceCoordinates.firstProjection.apply inputDegree h) (Restriction.leftClosed a) }
+    "=" _ "by" { congr!{{SourceLeftHom.Carrier (I.Int^::ofNat (N.Nat^::succ q))} {LeftHom.Carrier higher}}
+      (\fun (b: SourceLeftHom.Carrier (I.Int^::ofNat (N.Nat^::succ q))) => LeftSigns.twist p (UpperLeft.apply (Restriction.left a) b)) _ _
+      (SourceCoordinates.firstProjection.commutes inputDegree h) }
+    "=" _ "by" { congr!{{LeftHom.Carrier higher} {LeftHom.Carrier higher}} (LeftSigns.twist p) _ _ (sym!{{LeftHom.Carrier higher}} _ _ (Upper.SumAction[].left a (SourceSumHom.complex.differential.apply inputDegree h))) }
+    "=" _ "by" { sym!{{LeftHom.Carrier higher}} _ _ (LeftSignMap.law (First.linear Coordinates.firstProjection) p (Upper.sumAction a (SourceSumHom.complex.differential.apply inputDegree h))) }
+  };
+\definition rightLaw: \forall (a: Restriction.Cycle)(h: SourceSumHom.Carrier inputDegree) ->
+  Coordinates.secondProjection.apply higher (SumHom.complex.differential.apply outputDegree (sumAction a h)) =
+  Coordinates.secondProjection.apply higher (Signs.twist p (Upper.sumAction a (SourceSumHom.complex.differential.apply inputDegree h))) :=
+  \fun (a: Restriction.Cycle)(h: SourceSumHom.Carrier inputDegree) => eq_reason_in!{{RightHom.Carrier higher} _
+    "=" _ "by" { sym!{{RightHom.Carrier higher}} _ _ (Coordinates.secondProjection.commutes outputDegree (sumAction a h)) }
+    "=" _ "by" { congr!{{RightHom.Carrier outputDegree} {RightHom.Carrier higher}} (RightHom.complex.differential.apply outputDegree) _ _ (right a h) }
+    "=" _ "by" { RP.Differential[].law (Restriction.right a) (SourceCoordinates.secondProjection.apply inputDegree h) (Restriction.rightClosed a) }
+    "=" _ "by" { congr!{{SourceRightHom.Carrier (I.Int^::ofNat (N.Nat^::succ q))} {RightHom.Carrier higher}}
+      (\fun (b: SourceRightHom.Carrier (I.Int^::ofNat (N.Nat^::succ q))) => RightSigns.twist p (UpperRight.apply (Restriction.right a) b)) _ _
+      (SourceCoordinates.secondProjection.commutes inputDegree h) }
+    "=" _ "by" { congr!{{RightHom.Carrier higher} {RightHom.Carrier higher}} (RightSigns.twist p) _ _ (sym!{{RightHom.Carrier higher}} _ _ (Upper.SumAction[].right a (SourceSumHom.complex.differential.apply inputDegree h))) }
+    "=" _ "by" { sym!{{RightHom.Carrier higher}} _ _ (RightSignMap.law (Second.linear Coordinates.secondProjection) p (Upper.sumAction a (SourceSumHom.complex.differential.apply inputDegree h))) }
+  };
+\definition law: \forall (a: Restriction.Cycle)(h: SourceSumHom.Carrier inputDegree) ->
+  SumHom.complex.differential.apply outputDegree (sumAction a h) = Signs.twist p (Upper.sumAction a (SourceSumHom.complex.differential.apply inputDegree h)) :=
+  \fun (a: Restriction.Cycle)(h: SourceSumHom.Carrier inputDegree) => Coordinates.ext higher _ _ (leftLaw a h) (rightLaw a h);
