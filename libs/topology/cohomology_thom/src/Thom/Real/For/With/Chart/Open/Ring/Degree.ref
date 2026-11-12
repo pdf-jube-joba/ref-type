@@ -1,0 +1,33 @@
+\import \root.Thom[].Real[].For[X := BasePoint, F := (\fun (x: BasePoint) => F x), bundle := Pull.pulledBundle].With[metric := Pull.pulledMetric].Coefficients[R := K, ring := ring] \as MetricTheory;
+\use std.Logic[].Equality[].eq_reason_in;
+\definition total: N.Nat^ := N.Basic[].Def[].add p c.dimension;
+\import module_theory.Module[].Over[R := K, ring := std.Alg[].Ring[].commutativeRingAsRing K ring] \as Modules;
+\import singular_products.Cochains[A := BasePoint, source := baseTopology, R := K, ring := ring] \as BaseProduct;
+\import singular_products.Cochains[A := Carrier, source := topology, R := K, ring := ring] \as OpenProduct;
+\import singular_products.Cochains[A := NewDisk.DiskBundle, source := NewDisk.diskTopology, R := K, ring := ring] \as MetricProduct;
+\import OpenProduct.Cohomology[].Pullback[B := BasePoint, target := baseTopology] \as Projection;
+\import MetricProduct.Cohomology[].Pullback[B := Carrier, target := topology] \as Pull;
+\import MetricProduct.Cohomology[].Pullback[B := BasePoint, target := baseTopology] \as MetricProjection;
+\import singular_cap.CochainPair[A := Carrier, source := topology, subset := boundary, R := K, ring := ring].Cohomology[p := p, q := c.dimension].Right[] \as Cup;
+\import singular_cap.CochainPair[A := NewDisk.DiskBundle, source := NewDisk.diskTopology, subset := NewDisk.Boundary, R := K, ring := ring].Cohomology[p := p, q := c.dimension].Right[] \as MetricCup;
+\import \root.RelativePullback[].On[A := NewDisk.DiskBundle, source := NewDisk.diskTopology, subset := NewDisk.Boundary, R := K, ring := ring].To[B := Carrier, target := topology, part := boundary].Along[f := Pairs.forwardMap pair] \as PairPull;
+\import singular_cohomology.Maps[A := NewDisk.DiskBundle, B := Carrier, source := NewDisk.diskTopology, target := topology].Composition[C := BasePoint, final := baseTopology].Coefficients[M := BaseProduct.integerCoefficients] \as Compose;
+\definition projectionLaw: \forall (a: BaseProduct.Cohomology[].Group p) -> Pull.apply p forward forwardContinuous (Projection.apply p projection projectionContinuous a) = MetricProjection.apply p NewDisk.diskProjection NewDisk.diskProjectionContinuous a :=
+  \fun (a: BaseProduct.Cohomology[].Group p) => sym!{{MetricProduct.Cohomology[].Group p}} _ _ (Compose.onCohomology forward forwardContinuous projection projectionContinuous p a);
+\definition apply[a: BaseProduct.Cohomology[].Group p]: \parent.At[n := total].Class := Comparison.Degree[n := total].isomorphism.backward.apply (Metric.Degree[p := p].isomorphism.forward.apply a);
+\definition product[a: BaseProduct.Cohomology[].Group p]: \parent.At[n := total].Class := Cup.apply (Projection.apply p projection projectionContinuous a) class;
+\definition mappedProduct: \forall (a: BaseProduct.Cohomology[].Group p) -> Comparison.Degree[n := total].isomorphism.forward.apply (product a) = Metric.Degree[p := p].isomorphism.forward.apply a :=
+  \fun (a: BaseProduct.Cohomology[].Group p) => eq_reason_in!{{MetricTheory.Degree[n := total].Class} _
+    "=" _ "by" { PairPull.Cup[p := p, q := c.dimension].Cohomology[].naturality (Projection.apply p projection projectionContinuous a) class }
+    "=" _ "by" { congr!{{MetricProduct.Cohomology[].Group p} {MetricTheory.Degree[n := c.dimension].Class} {MetricTheory.Degree[n := total].Class}} MetricCup.apply _ _ _ _ (projectionLaw a) (Comparison.Degree[n := c.dimension].isomorphism.rightInverse Metric.class) }
+    "=" _ "by" { sym!{{MetricTheory.Degree[n := total].Class}} _ _ (Metric.Degree[p := p].formula a) }
+  };
+\definition formula: \forall (a: BaseProduct.Cohomology[].Group p) -> apply a = product a :=
+  \fun (a: BaseProduct.Cohomology[].Group p) => trans!{{\parent.At[n := total].Class}} _ _ _
+    (congr!{{MetricTheory.Degree[n := total].Class} {\parent.At[n := total].Class}} Comparison.Degree[n := total].isomorphism.backward.apply _ _ (sym!{{MetricTheory.Degree[n := total].Class}} _ _ (mappedProduct a)))
+    (Comparison.Degree[n := total].isomorphism.leftInverse (product a));
+\definition isomorphism: Modules.Isomorphism[V := BaseProduct.Cohomology[].Group p, W := \parent.At[n := total].Class, source := BaseProduct.Cohomology[].moduleSpace p, target := \parent.At[n := total].space].Isomorphism :=
+  Modules.Isomorphism[V := BaseProduct.Cohomology[].Group p, W := MetricTheory.Degree[n := total].Class, source := BaseProduct.Cohomology[].moduleSpace p, target := MetricTheory.Degree[n := total].space]
+    .Composition[U := \parent.At[n := total].Class, final := \parent.At[n := total].space].compose
+      (Modules.Isomorphism[V := \parent.At[n := total].Class, W := MetricTheory.Degree[n := total].Class, source := \parent.At[n := total].space, target := MetricTheory.Degree[n := total].space].Inverse[].inverse Comparison.Degree[n := total].isomorphism)
+      Metric.Degree[p := p].isomorphism;

@@ -1,0 +1,70 @@
+\use std.Logic[].Equality[].eq_reason_in;
+\import real.Analysis[] \as R;
+\import dedekind_reals.DedekindReal[] \as D;
+\import std.Data[].Pair[] \as Pair;
+\import Bundles.Family[X := X, F := F] \as Family;
+\import Family.With[data := bundle].In[c := c] \as Coordinates;
+\import Bundle.Restriction[U := c.domain] \as Restriction;
+\import topology.Topology[Carrier := X].Subspace[S := c.domain] \as Base;
+\definition BasePoint: \Set := Restriction.BasePoint;
+\definition baseTopology: topology.Topology[Carrier := BasePoint].Topology := Base.topology bundle.baseSpace;
+\definition inclusion[x: BasePoint]: X := x;
+\import \parent.Pullback[Y := BasePoint, source := baseTopology, f := inclusion, regular := Restriction.regular] \as Pull;
+\import Bundles.Family[X := BasePoint, F := (\fun (x: BasePoint) => F x)] \as NewFamily;
+\import thom_spaces.Thom[].Over[K := R.Real, field := R.Algebra[].field, conjugation := linear_algebra.Hermitian[].Real[].scalar, scalar := vector_bundles.Bundles[].Real[].scalar].For[X := BasePoint, F := (\fun (x: BasePoint) => F x), bundle := Pull.pulledBundle] \as Theory;
+\import Theory.With[metric := Pull.pulledMetric] \as NewDisk;
+\import algebraic_topology.Euclidean[].Dimension[n := c.dimension] \as Euclidean;
+\import thom_spaces.Thom[].DiskSuspension[X := BasePoint, space := baseTopology, n := c.dimension] \as Standard;
+\definition homeomorphism: topology.Homeomorphism[A := NewFamily.Point, B := Standard.Point].Homeomorphism[Pull.pulledBundle.totalSpace, Standard.totalTopology] :=
+  topology.Homeomorphism[A := NewFamily.Point, B := Coordinates.TotalPoint].Composition[C := Standard.Point].compose Pull.pulledBundle.totalSpace Coordinates.localTopology Standard.totalTopology Restriction.homeomorphism (Coordinates.homeomorphism (Bundle.chartLaws c));
+\definition coordinate[p: NewFamily.Point]: Euclidean.Coordinate := (c.frame p.base).forward.apply p.vector;
+\definition squared[p: NewFamily.Point]: R.Real := Euclidean.normSquared (coordinate p);
+\definition coordinateContinuous: topology.Continuity[A := NewFamily.Point, B := Euclidean.Coordinate].Continuous Pull.pulledBundle.totalSpace Euclidean.topology coordinate :=
+  topology.Composition[A := NewFamily.Point, B := Standard.Point, C := Euclidean.Coordinate].composeContinuous Pull.pulledBundle.totalSpace Standard.totalTopology Euclidean.topology homeomorphism.forward (Pair.second BasePoint Euclidean.Coordinate)
+    (topology.Homeomorphism[A := NewFamily.Point, B := Standard.Point].laws Pull.pulledBundle.totalSpace Standard.totalTopology homeomorphism).forwardContinuous
+    (topological_constructions.Product[A := BasePoint, B := Euclidean.Coordinate].Maps[].secondContinuous baseTopology Euclidean.topology);
+\definition squaredContinuous: metric_spaces.RealFunctions[A := NewFamily.Point].Continuous Pull.pulledBundle.totalSpace squared :=
+  topology.Composition[A := NewFamily.Point, B := Euclidean.Coordinate, C := R.Real].composeContinuous Pull.pulledBundle.totalSpace Euclidean.topology metric_spaces.RealLine[].topology coordinate Euclidean.normSquared coordinateContinuous Euclidean.Geometry[].normSquaredContinuous;
+\import thom_spaces.Thom[].Quadratic[].Over[X := BasePoint, F := (\fun (x: BasePoint) => F x), bundle := Pull.pulledBundle] \as Gauges;
+\definition gauge: Gauges.Gauge := Gauges.Gauge {
+  squared := squared, continuous := squaredContinuous,
+  nonnegative := \fun (p: NewFamily.Point) => Euclidean.Geometry[].normSquaredNonnegative (coordinate p),
+  zero := \fun (x: BasePoint) => trans!{R.Real} _ _ _
+    (congr!{Euclidean.Coordinate R.Real} Euclidean.normSquared _ _ ((c.frame x).forward.preservesZero))
+    (Euclidean.Contraction[].zeroSum (std.Data[].FinSet[].elements c.dimension)),
+  definite := \fun (p: NewFamily.Point)(zero: squared p = R.zero) => eq_reason_in!{{F p.base} _
+    "=" _ "by" { sym!{{F p.base}} _ _ ((c.frame p.base).leftInverse p.vector) }
+    "=" _ "by" { congr!{Euclidean.Coordinate {F p.base}} (c.frame p.base).backward.apply _ _ (Euclidean.Geometry[].normSquaredZero (coordinate p) zero) }
+    "=" _ "by" { (c.frame p.base).backward.preservesZero }
+  },
+  homogeneous := \fun (a: R.Real)(p: NewFamily.Point) => trans!{R.Real} _ _ _
+    (congr!{Euclidean.Coordinate R.Real} Euclidean.normSquared _ _ ((c.frame p.base).forward.preservesScale a p.vector))
+    (Euclidean.Contraction[].normScale a (coordinate p))
+};
+\definition metricGauge: Gauges.Gauge := Gauges.Gauge {
+  squared := NewDisk.squared, continuous := NewDisk.squaredContinuous, nonnegative := NewDisk.nonnegative, zero := NewDisk.zeroSquared,
+  definite := Theory.MetricGauge[metric := Pull.pulledMetric].data.definite,
+  homogeneous := NewDisk.squaredScale
+};
+\import Gauges.Change[left := metricGauge, right := gauge] \as Radial;
+\definition totalHomeomorphism: topology.Homeomorphism[A := NewFamily.Point, B := Standard.Point].Homeomorphism[Pull.pulledBundle.totalSpace, Standard.totalTopology] :=
+  topology.Homeomorphism[A := NewFamily.Point, B := NewFamily.Point].Composition[C := Standard.Point].compose Pull.pulledBundle.totalSpace Pull.pulledBundle.totalSpace Standard.totalTopology Radial.homeomorphism homeomorphism;
+\definition forwardSquared: \forall (p: NewFamily.Point) -> Standard.squared (totalHomeomorphism.forward p) = NewDisk.squared p := Radial.forwardSquared;
+\definition backwardSquared: \forall (p: Standard.Point) -> NewDisk.squared (totalHomeomorphism.backward p) = Standard.squared p :=
+  \fun (p: Standard.Point) => trans!{R.Real} _ _ _ (Radial.backwardSquared (homeomorphism.backward p))
+    (congr!{Standard.Point R.Real} Standard.squared _ _ ((topology.Homeomorphism[A := NewFamily.Point, B := Standard.Point].laws Pull.pulledBundle.totalSpace Standard.totalTopology homeomorphism).rightInverse p));
+\import thom_spaces.Thom[].Levels[A := NewFamily.Point, B := Standard.Point, source := Pull.pulledBundle.totalSpace, target := Standard.totalTopology,
+  q := NewDisk.squared, r := Standard.squared, h := totalHomeomorphism, forwardSquared := forwardSquared, backwardSquared := backwardSquared] \as Levels;
+\import singular_cohomology.Relative[A := NewDisk.DiskBundle, source := NewDisk.diskTopology, subset := NewDisk.Boundary].Homeomorphism[B := Standard.DiskCarrier].Over[target := Standard.diskTopology, targetSubset := Standard.boundary] \as Pairs;
+\definition pair: Pairs.Data := Pairs.Data {
+  homeomorphism := Levels.diskHomeomorphism,
+  forwardPreserves := \fun (p: \Cast[NewDisk.DiskBundle] NewDisk.Boundary) => Levels.preserves p (\bysub(NewDisk.DiskBundle, NewDisk.Boundary, p)),
+  backwardPreserves := \fun (p: \Cast[Standard.DiskCarrier] Standard.boundary) => Levels.reversePreserves p (\bysub(Standard.DiskCarrier, Standard.boundary, p))
+};
+\definition diskContinuous: topology.Continuity[A := NewDisk.DiskBundle, B := Standard.DiskCarrier].Continuous NewDisk.diskTopology Standard.diskTopology (Pairs.forwardMap pair) := (topology.Homeomorphism[A := NewDisk.DiskBundle, B := Standard.DiskCarrier].laws NewDisk.diskTopology Standard.diskTopology Levels.diskHomeomorphism).forwardContinuous;
+
+\module Ring(K: \Set, ring: std.Alg[].Ring[].CommutativeRing[K]);
+
+\module Additive(coefficients: IntegerModules.Bundle);
+
+\module Open;

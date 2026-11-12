@@ -92,3 +92,8 @@ H^p(X;R)\longrightarrow H^{p+n}(X\times D^n,X\times\partial D^n;R),\qquad
 `Ring.Fibers[n].Fiber[x]` は実際の円板対の写像によるファイバー制限を構成し、`value` が評価座標との一致を示す。
 `Fibers.detectedOnFibers` と `uniqueNormalized` はファイバー上の生成元による局所 Thom 類の一意性を示す。
 `RelativePullback.On.To.Homeomorphism.Degree[n].isomorphism` は対の同相に対する係数環上の線形同型である。
+
+`Thom.Real.For.With.Chart[c]` は実際の束の局所自明化から標準円板対への動径同相を構成する。
+`Chart.Ring.Degree[p].isomorphism` と `formula` は cup 積による局所 Thom 同型を与える。
+`Chart.Open` は制限束の円板対を元の円板束のチャート対応開部分へ同定する。
+その `Ring.Degree[p].isomorphism`、`formula`、`Additive.below` は開部分上の同型と直前次数の消滅を公開する。

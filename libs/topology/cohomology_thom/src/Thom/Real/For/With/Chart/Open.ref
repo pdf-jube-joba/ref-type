@@ -1,0 +1,52 @@
+\use std.Logic[].Equality[].eq_reason_in;
+\definition domain: \Pow Disk.DiskBundle := { p: Disk.DiskBundle \where \In[X] c.domain (Disk.diskProjection p) };
+\import topology.Topology[Carrier := Disk.DiskBundle].Subspace[S := domain] \as Space;
+\definition Carrier: \Set := Space.CarrierSet;
+\definition topology: topology.Topology[Carrier := Carrier].Topology := Space.topology Disk.diskTopology;
+\definition boundary: \Pow Carrier := { p: Carrier \where \In[Disk.DiskBundle] Disk.Boundary p };
+\definition forward[p: NewDisk.DiskBundle]: Carrier := \into[Disk.DiskBundle](Pull.map p, domain) \by { \bysub(X, c.domain, p.base) };
+\definition totalPart: \Pow Family.Point := { p: Family.Point \where \In[X] c.domain p.base };
+\import topology.Topology[Carrier := Family.Point].Subspace[S := totalPart] \as Total;
+\definition toTotal[p: Carrier]: Restriction.TotalPoint := \into[Family.Point](p, totalPart) \by { \bysub(Disk.DiskBundle, domain, p) };
+\definition normBackward: \forall (p: Carrier) -> NewDisk.squared (Restriction.backward (toTotal p)) = Disk.squared p :=
+  \fun (p: Carrier) => congr!{Restriction.TotalPoint R.Real} (\fun (v: Restriction.TotalPoint) => Disk.squared v) _ _
+    ((topology.Homeomorphism[A := NewFamily.Point, B := Restriction.TotalPoint].laws Pull.pulledBundle.totalSpace (Total.topology bundle.totalSpace) Restriction.homeomorphism).rightInverse (toTotal p));
+\definition backward[p: Carrier]: NewDisk.DiskBundle := \into[NewFamily.Point](Restriction.backward (toTotal p), NewDisk.ClosedBall) \by {
+  \idelim Disk.squared p = NewDisk.squared (Restriction.backward (toTotal p)) \with q: R.Real => D.Le q R.one \by {
+    base: \bysub(Family.Point, Disk.ClosedBall, p), equality: sym!{R.Real} _ _ (normBackward p)
+  }
+};
+\definition inclusion[p: Carrier]: Disk.DiskBundle := p;
+\definition inclusionContinuous: topology.Continuity[A := Carrier, B := Disk.DiskBundle].Continuous topology Disk.diskTopology inclusion := topology.Continuity[A := Carrier, B := Disk.DiskBundle].Corestriction[S := domain].inclusionContinuous Disk.diskTopology;
+\definition familyContinuous: topology.Continuity[A := Carrier, B := Family.Point].Continuous topology bundle.totalSpace (\fun (p: Carrier) => p) :=
+  topology.Composition[A := Carrier, B := Disk.DiskBundle, C := Family.Point].composeContinuous topology Disk.diskTopology bundle.totalSpace inclusion (\fun (p: Disk.DiskBundle) => p) inclusionContinuous
+    (topology.Continuity[A := Disk.DiskBundle, B := Family.Point].Corestriction[S := Disk.ClosedBall].inclusionContinuous bundle.totalSpace);
+\definition totalContinuous: topology.Continuity[A := Carrier, B := Restriction.TotalPoint].Continuous topology (Total.topology bundle.totalSpace) toTotal :=
+  topology.Continuity[A := Carrier, B := Family.Point].Corestriction[S := totalPart].corestrictContinuous topology bundle.totalSpace toTotal familyContinuous;
+\definition backwardFamilyContinuous: topology.Continuity[A := Carrier, B := NewFamily.Point].Continuous topology Pull.pulledBundle.totalSpace (\fun (p: Carrier) => Restriction.backward (toTotal p)) :=
+  topology.Composition[A := Carrier, B := Restriction.TotalPoint, C := NewFamily.Point].composeContinuous topology (Total.topology bundle.totalSpace) Pull.pulledBundle.totalSpace toTotal Restriction.backward totalContinuous Restriction.backwardContinuous;
+\definition backwardContinuous: topology.Continuity[A := Carrier, B := NewDisk.DiskBundle].Continuous topology NewDisk.diskTopology backward :=
+  topology.Continuity[A := Carrier, B := NewFamily.Point].Corestriction[S := NewDisk.ClosedBall].corestrictContinuous topology Pull.pulledBundle.totalSpace backward backwardFamilyContinuous;
+\definition forwardContinuous: topology.Continuity[A := NewDisk.DiskBundle, B := Carrier].Continuous NewDisk.diskTopology topology forward :=
+  topology.Continuity[A := NewDisk.DiskBundle, B := Disk.DiskBundle].Corestriction[S := domain].corestrictContinuous NewDisk.diskTopology Disk.diskTopology forward Pull.continuous;
+\definition homeomorphism: topology.Homeomorphism[A := NewDisk.DiskBundle, B := Carrier].Homeomorphism[NewDisk.diskTopology, topology] :=
+  topology.Homeomorphism[A := NewDisk.DiskBundle, B := Carrier].Homeomorphism[NewDisk.diskTopology, topology] {
+    forward := forward, backward := backward,
+    forwardContinuous := forwardContinuous, backwardContinuous := backwardContinuous,
+    leftInverse := \fun (p: NewDisk.DiskBundle) => (topology.Homeomorphism[A := NewFamily.Point, B := Restriction.TotalPoint].laws Pull.pulledBundle.totalSpace (Total.topology bundle.totalSpace) Restriction.homeomorphism).leftInverse p,
+    rightInverse := \fun (p: Carrier) => (topology.Homeomorphism[A := NewFamily.Point, B := Restriction.TotalPoint].laws Pull.pulledBundle.totalSpace (Total.topology bundle.totalSpace) Restriction.homeomorphism).rightInverse (toTotal p)
+  };
+\import singular_cohomology.Relative[A := NewDisk.DiskBundle, source := NewDisk.diskTopology, subset := NewDisk.Boundary].Homeomorphism[B := Carrier].Over[target := topology, targetSubset := boundary] \as Pairs;
+\definition pair: Pairs.Data := Pairs.Data {
+  homeomorphism := homeomorphism,
+  forwardPreserves := \fun (p: \Cast[NewDisk.DiskBundle] NewDisk.Boundary) => Pull.boundary p,
+  backwardPreserves := \fun (p: \Cast[Carrier] boundary) => trans!{R.Real} _ _ _ (normBackward p) (\bysub(Carrier, boundary, p))
+};
+\definition open: topology.Topology[Carrier := Disk.DiskBundle].IsOpenIn Disk.diskTopology domain := Disk.diskProjectionContinuous c.domain (Bundle.chartLaws c).baseOpen;
+
+\definition projection[p: Carrier]: BasePoint := \into[X](Disk.diskProjection p, c.domain) \by { \bysub(Disk.DiskBundle, domain, p) };
+\definition projectionContinuous: topology.Continuity[A := Carrier, B := BasePoint].Continuous topology baseTopology projection :=
+  topology.Continuity[A := Carrier, B := X].Corestriction[S := c.domain].corestrictContinuous topology bundle.baseSpace projection
+    (topology.Composition[A := Carrier, B := Disk.DiskBundle, C := X].composeContinuous topology Disk.diskTopology bundle.baseSpace inclusion Disk.diskProjection inclusionContinuous Disk.diskProjectionContinuous);
+\module Ring(K: \Set, ring: std.Alg[].Ring[].CommutativeRing[K]);
+\module Additive(coefficients: IntegerModules.Bundle);
