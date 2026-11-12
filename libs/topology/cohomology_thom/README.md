@@ -115,3 +115,11 @@ H^p(X;R)\longrightarrow H^{p+n}(X\times D^n,X\times\partial D^n;R),\qquad
 `Diagram` はこの図式の次数をまとめて移すための構造であり、`Five` は Mayer–Vietoris 列から実際の五項完全列を構成する。
 `Gluing[p, q].With[u].isomorphism` は左右と共通部分での局所同型から、次数 \(p+1\) における cup 積の同型を導く。
 `Zero[q].With[u].isomorphism` は直前の共通部分の群の消滅を用いて次数0を扱う。
+
+`Thom.Real.For.With.Chart[c].Restrict[U, open, contained].chart` は元のフレームを小さい開集合へ制限した実際の束チャートを構成する。
+`Chart.Fiber[x].fiberPair` は元の円板束の実ファイバーと、一点上の標準円板対との同相を与える。
+`Fiber.Ring[K, ring].generator` はこの同相で運んだ生成元で、`isomorphism` と `normalized` が係数環の1による正規化を示す。
+`Fiber.Ring.Normalization.normalized` はチャート上の Thom 類のファイバー制限がこの生成元であることを示す。
+`Open.Ring.Fibers.detected` は実ファイバーへの制限が局所類を共同で検出することを示す。
+
+`Thom.Real.For.With.Atlas.existsFiniteCW` は、実際の有限 CW 構造のコンパクト性から有限個の束チャートの定義域による被覆を得る。

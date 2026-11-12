@@ -1,0 +1,37 @@
+\import topology.Topology[Carrier := X] \as Base;
+\import std.Set[].FiniteSubset[A := \Pow X] \as Finite;
+\import Bundles.Family[X := X, F := F].With[data := bundle] \as Charts;
+\import std.Logic[].Proposition[] \as Logic;
+\definition family: \Pow (\Pow X) := { U: \Pow X \where \exists ( c: Charts.Chart \where c.domain = U ) };
+\definition open: \forall (U: \Pow X) -> Base.FamilyMember family U -> Base.IsOpenIn bundle.baseSpace U := \block {
+  \fun (U: \Pow X)(member: Base.FamilyMember family U) \then
+  \takefrom c: \Cast[Charts.Chart] ({ c: Charts.Chart \where c.domain = U }) \by member \then
+  \return \idelim c.domain = U \with V: \Pow X => Base.IsOpenIn bundle.baseSpace V \by {
+    base: (Bundle.chartLaws c).baseOpen, equality: \bysub(Charts.Chart, { c: Charts.Chart \where c.domain = U }, c)
+  }
+};
+\definition covered: Base.Covers family Base.Whole := \block {
+  \fun (x: X)(member: Base.Member Base.Whole x) \then
+  \takefrom c: \Cast[Charts.Chart] ({ c: Charts.Chart \where Base.Member c.domain x }) \by Bundle.locallyTrivial x \then
+  \return Base.unionMemberOf family c.domain x (Logic.existsIntro[Charts.Chart, { d: Charts.Chart \where d.domain = c.domain }] c (\refl(c.domain)))
+    (\bysub(Charts.Chart, { c: Charts.Chart \where Base.Member c.domain x }, c))
+};
+\definition cover: Base.IsOpenCover[bundle.baseSpace, family, Base.Whole] := Base.IsOpenCover[bundle.baseSpace, family, Base.Whole] {
+  open := open, covers := covered
+};
+\structure Data: \Set := { domains: Finite.FiniteSubset };
+\structure Laws[data: Data]: \Prop := {
+  included: \forall (U: \Pow X) -> Finite.Member data.domains U -> Base.FamilyMember family U,
+  covers: Base.Covers (Finite.underlying data.domains) Base.Whole
+};
+\definition Atlas: \Set := \Cast[Data] ({ data: Data \where Laws[data] });
+\definition existsCompact: Base.IsCompact bundle.baseSpace -> \exists Atlas := \block {
+  \fun (compact: Base.IsCompact bundle.baseSpace) \then
+  \takefrom domains: \Cast[Finite.FiniteSubset] ({ domains: Finite.FiniteSubset \where Base.FiniteSubcover[family, Base.Whole, domains] }) \by compact family cover \then
+  \let laws: Base.FiniteSubcover[family, Base.Whole, domains] := \bysub(Finite.FiniteSubset, { domains: Finite.FiniteSubset \where Base.FiniteSubcover[family, Base.Whole, domains] }, domains) \then
+  \return \exact(\into[Data](Data { domains := domains }, Atlas) \by {
+    Laws[Data { domains := domains }] { included := laws.included, covers := laws.covers }
+  }, Atlas)
+};
+\definition existsFiniteCW[complex: algebraic_topology.CW[A := X].FiniteComplex[bundle.baseSpace]]: \exists Atlas :=
+  existsCompact thom_spaces.Thom[].CWType[].CompactType[A := X, source := bundle.baseSpace].Native[complex := complex].compact;
