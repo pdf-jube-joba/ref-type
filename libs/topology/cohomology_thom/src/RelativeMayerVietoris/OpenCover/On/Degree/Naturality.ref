@@ -1,0 +1,20 @@
+\import \parent.SumComparison[] \as SumComparison;
+\import OverlapBasis.To[B := Left, target := leftTopology, part := leftPart].Along[f := toLeft,
+  reflects := (\fun (x: Overlap)(member: \In[Left] leftPart (toLeft x)) => member)].Degree[n := n] \as LeftNatural;
+\import OverlapBasis.To[B := Right, target := rightTopology, part := rightPart].Along[f := toRight,
+  reflects := (\fun (x: Overlap)(member: \In[Right] rightPart (toRight x)) => member)].Degree[n := n] \as RightNatural;
+\import LeftSmall.Reflects[reflects := (\fun (x: Left)(member: \In[A] subset (leftPairMap x)) => member)].Degree[n := n] \as LeftSmallNatural;
+\import RightSmall.Reflects[reflects := (\fun (x: Right)(member: \In[A] subset (rightPairMap x)) => member)].Degree[n := n] \as RightSmallNatural;
+\import Modules.Free[Generators := Generators.Overlap].Reindex[TargetGenerators := Generators.Right] \as RightPush;
+\definition inclusionSquare: \forall (x: OF.Carrier) -> inclusion.apply index (overlapIsomorphism.forward.apply x) = SumComparison.forward.apply (Free.inclusion.apply x) :=
+  \fun (x: OF.Carrier) => Sum.At[z := index].ext _ _ (LeftNatural.law x)
+    (trans!{{R.Carrier index}} _ _ _
+      (congr!{{R.Carrier index} {R.Carrier index}} (R.space index).neg _ _ (RightNatural.law x))
+      (sym!{{R.Carrier index}} _ _
+        (Modules.Hom[V := RF.Carrier, W := R.Carrier index, source := RF.space, target := R.space index].negativePreserved rightIsomorphism.forward
+          ((RightPush.push Generators.overRight).apply x))));
+\definition projectionSquare: \forall (x: FreeSum.Carrier) -> projection.apply index (SumComparison.forward.apply x) = wholeIsomorphism.forward.apply (Free.projection.apply x) :=
+  \fun (x: FreeSum.Carrier) => trans!{{SmallPair.complex.family.Carrier index}} _ _ _
+    (congr!{{SmallPair.complex.family.Carrier index} {SmallPair.complex.family.Carrier index} {SmallPair.complex.family.Carrier index}}
+      (SmallPair.complex.family.space index).add _ _ _ _ (LeftSmallNatural.law (FreeSum.first x)) (RightSmallNatural.law (FreeSum.second x)))
+    (sym!{{SmallPair.complex.family.Carrier index}} _ _ (wholeIsomorphism.forward.addition _ _));

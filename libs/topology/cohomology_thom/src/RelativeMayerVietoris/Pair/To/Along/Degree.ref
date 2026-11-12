@@ -1,0 +1,36 @@
+\use Equality.eq_reason_in;
+\import \parent.\parent.\parent.Degree[n := n] \as Source;
+\import \root.RelativeMayerVietoris[].Pair[A := B, source := target, subset := part].Degree[n := n] \as Target;
+\import singular_cohomology.Simplices[A := A, source := source] \as SourceSimplices;
+\import singular_cohomology.Simplices[A := B, source := target] \as TargetSimplices;
+\import singular_cohomology.Chains[A := A, source := source] \as SourceChains;
+\import singular_cohomology.Chains[A := B, source := target] \as TargetChains;
+\import singular_cohomology.Relative[A := B, source := target, subset := part] \as TargetRelative;
+\import algebraic_topology.Simplex[] \as Simplex;
+\definition generator[sigma: Source.Generator]: Target.Generator :=
+  \into[TargetSimplices.Carrier n](Maps.postcompose n f (PairMaps.laws f).continuous sigma, Target.outside) \by {
+    \fun (contained: \forall (x: Simplex.Carrier n) -> \In[B] part (f (sigma x))) =>
+      (\bysub(SourceSimplices.Carrier n, Source.outside, sigma)) (\fun (x: Simplex.Carrier n) => reflects (sigma x) (contained x))
+  };
+\import Modules.Free[Generators := Source.Generator] \as SF;
+\import Modules.Free[Generators := Target.Generator] \as TF;
+\import SF.Reindex[TargetGenerators := Target.Generator] \as Reindex;
+\definition onGenerator: \forall (sigma: Source.Generator) ->
+  map.apply (I.Int^::ofNat n) (Source.isomorphism.forward.apply (SF.generator sigma)) = Target.isomorphism.forward.apply (TF.generator (generator sigma)) :=
+  \fun (sigma: Source.Generator) => eq_reason_in!{{TargetRelative.Carrier (I.Int^::ofNat n)} _
+    "=" _ "by" { congr!{{Relative.Carrier (I.Int^::ofNat n)} {TargetRelative.Carrier (I.Int^::ofNat n)}} (map.apply (I.Int^::ofNat n)) _ _ (Source.onGenerator sigma) }
+    "=" _ "by" { Native.At[z := I.Int^::ofNat n].quotientOnClass (Nonnegative.ZeroExtension[C := SourceChains.complex].Positive[n := n].intro (SourceChains.generator n sigma)) }
+    "=" _ "by" { congr!{{TargetChains.Carrier n} {TargetRelative.Carrier (I.Int^::ofNat n)}} Target.class _ _ (Maps.At[n := n].onGenerator f (PairMaps.laws f).continuous sigma) }
+    "=" _ "by" { sym!{{TargetRelative.Carrier (I.Int^::ofNat n)}} _ _ (Target.onGenerator (generator sigma)) }
+  };
+\import Chains.Map[C := Relative.complex, D := TargetRelative.complex].At[k := I.Int^::ofNat n] \as Action;
+\import Modules.Hom[V := Relative.Carrier (I.Int^::ofNat n), W := TargetRelative.Carrier (I.Int^::ofNat n), source := Relative.space (I.Int^::ofNat n), target := TargetRelative.space (I.Int^::ofNat n)]
+  .Composition[U := SF.Carrier, domain := SF.space] \as First;
+\import Modules.Hom[V := TF.Carrier, W := TargetRelative.Carrier (I.Int^::ofNat n), source := TF.space, target := TargetRelative.space (I.Int^::ofNat n)]
+  .Composition[U := SF.Carrier, domain := SF.space] \as Second;
+\definition equation: First.compose (Action.linear map) Source.isomorphism.forward = Second.compose Target.isomorphism.forward (Reindex.push generator) :=
+  SF.To[W := TargetRelative.Carrier (I.Int^::ofNat n), target := TargetRelative.space (I.Int^::ofNat n)].ext _ _
+    (\fun (sigma: Source.Generator) => trans!{{TargetRelative.Carrier (I.Int^::ofNat n)}} _ _ _ (onGenerator sigma)
+      (congr!{TF.Carrier {TargetRelative.Carrier (I.Int^::ofNat n)}} Target.isomorphism.forward.apply _ _ (sym!{TF.Carrier} _ _ (Reindex.onGenerator generator sigma))));
+\definition law: \forall (x: SF.Carrier) -> map.apply (I.Int^::ofNat n) (Source.isomorphism.forward.apply x) = Target.isomorphism.forward.apply ((Reindex.push generator).apply x) :=
+  \fun (x: SF.Carrier) => congr!{{Modules.Hom[V := SF.Carrier, W := TargetRelative.Carrier (I.Int^::ofNat n), source := SF.space, target := TargetRelative.space (I.Int^::ofNat n)].Map} {TargetRelative.Carrier (I.Int^::ofNat n)}} (\fun (m: Modules.Hom[V := SF.Carrier, W := TargetRelative.Carrier (I.Int^::ofNat n), source := SF.space, target := TargetRelative.space (I.Int^::ofNat n)].Map) => m.apply x) _ _ equation;

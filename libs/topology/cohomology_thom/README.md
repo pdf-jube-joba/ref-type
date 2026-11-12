@@ -22,3 +22,8 @@
 `Integral.generator` は座標1の整数類であり、`reverseCoordinate` はその負の類の座標を計算する。
 
 `Thom.Real.For.Change[left, right].Additive[M, z].isomorphism` は計量変更の円板同相が球面境界を保つことから得られる相対コホモロジーの同型である。
+
+`RelativeMayerVietoris.OpenCover[A, source, subset].On[cover].Cohomology[coefficients].At[z]` は、開被覆に対する実際の相対特異コホモロジーの Mayer–Vietoris 列を与える。
+`restriction`、`difference`、`connecting` と、各項での `exactAtSum`、`exactAtIntersection`、`exactAtWhole` を公開する。
+境界部分に含まれない特異単体の自由加群基底から、小さい相対鎖の分裂短完全列を構成する。
+任意の整数加群への Hom を取り、小さい鎖との比較および直和との比較を通じて通常の相対コホモロジーへ移す。

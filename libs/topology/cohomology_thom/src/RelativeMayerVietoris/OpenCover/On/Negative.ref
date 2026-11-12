@@ -1,0 +1,24 @@
+\definition index: I.Int^ := I.Int^::negSucc n;
+\definition sumZero: \forall (x: Sum.Carrier index) -> x = (Sum.space index).zero :=
+  \fun (x: Sum.Carrier index) => Sum.At[z := index].ext _ _ (LeftBasis.Negative[n := n].zero (Sum.At[z := index].first x)) (RightBasis.Negative[n := n].zero (Sum.At[z := index].second x));
+\import Chains.Map[C := O.complex, D := Sum.complex].At[k := index] \as Inclusion;
+\import Chains.Map[C := Sum.complex, D := SmallPair.complex].At[k := index] \as Projection;
+\definition injective: \forall (x, y: O.Carrier index) -> inclusion.apply index x = inclusion.apply index y -> x = y :=
+  \fun (x, y: O.Carrier index)(same: _) => trans!{{O.Carrier index}} _ _ _ (OverlapBasis.Negative[n := n].zero x) (sym!{{O.Carrier index}} _ _ (OverlapBasis.Negative[n := n].zero y));
+\definition onto: \forall (x: SmallPair.complex.family.Carrier index) -> \exists ( y: Sum.Carrier index \where projection.apply index y = x ) :=
+  \fun (x: SmallPair.complex.family.Carrier index) => Logic.existsIntro[Sum.Carrier index, { y: Sum.Carrier index \where projection.apply index y = x }]
+    (Sum.space index).zero (trans!{{SmallPair.complex.family.Carrier index}} _ _ _
+      (Modules.Hom[V := Sum.Carrier index, W := SmallPair.complex.family.Carrier index, source := Sum.space index, target := SmallPair.complex.family.space index].zeroPreserved (Projection.linear projection))
+      (sym!{{SmallPair.complex.family.Carrier index}} _ _ (SmallPair.Negative[n := n].zero x)));
+\definition zero: \forall (x: O.Carrier index) -> projection.apply index (inclusion.apply index x) = (SmallPair.complex.family.space index).zero :=
+  \fun (x: O.Carrier index) => SmallPair.Negative[n := n].zero (projection.apply index (inclusion.apply index x));
+\definition kernelImage: \forall (y: Sum.Carrier index) -> projection.apply index y = (SmallPair.complex.family.space index).zero ->
+  \exists ( x: O.Carrier index \where inclusion.apply index x = y ) :=
+  \fun (y: Sum.Carrier index)(closed: _) => Logic.existsIntro[O.Carrier index, { x: O.Carrier index \where inclusion.apply index x = y }]
+    (O.space index).zero (trans!{{Sum.Carrier index}} _ _ _
+      (Modules.Hom[V := O.Carrier index, W := Sum.Carrier index, source := O.space index, target := Sum.space index].zeroPreserved (Inclusion.linear inclusion))
+      (sym!{{Sum.Carrier index}} _ _ (sumZero y)));
+\definition retraction: Modules.Hom[V := Sum.Carrier index, W := O.Carrier index, source := Sum.space index, target := O.space index].Map :=
+  Modules.Hom[V := Sum.Carrier index, W := O.Carrier index, source := Sum.space index, target := O.space index].zeroMap;
+\definition leftInverse: \forall (x: O.Carrier index) -> retraction.apply (inclusion.apply index x) = x :=
+  \fun (x: O.Carrier index) => sym!{{O.Carrier index}} _ _ (OverlapBasis.Negative[n := n].zero x);

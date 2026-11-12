@@ -1,0 +1,35 @@
+\use Equality.eq_reason_in;
+\import \root.RelativeMayerVietoris[].Pair[A := B, source := domain, subset := part].Degree[n := n] \as Source;
+\import \root.RelativeMayerVietoris[].SmallPair[A := A, source := source, cover := cover, subset := subset].Degree[n := n] \as Target;
+\import singular_cohomology.Simplices[A := B, source := domain] \as SourceSimplices;
+\import Whole.Simplices[] \as TargetSimplices;
+\import algebraic_topology.Simplex[] \as Simplex;
+\definition index: I.Int^ := I.Int^::ofNat n;
+\definition generator[sigma: Source.Generator]: Target.Generator :=
+  \into[TargetSimplices.Carrier n](WholeMap.simplex n sigma, Target.outside) \by {
+    \fun (contained: \forall (x: Simplex.Carrier n) -> \In[A] subset (f (sigma x))) =>
+      (\bysub(SourceSimplices.Carrier n, Source.outside, sigma)) (\fun (x: Simplex.Carrier n) => reflects (sigma x) (contained x))
+  };
+\import Modules.Free[Generators := Source.Generator] \as SF;
+\import Modules.Free[Generators := Target.Generator] \as TF;
+\import SF.Reindex[TargetGenerators := Target.Generator] \as Reindex;
+\definition onGenerator: \forall (sigma: Source.Generator) ->
+  map.apply index (Source.isomorphism.forward.apply (SF.generator sigma)) = Target.isomorphism.forward.apply (TF.generator (generator sigma)) :=
+  \fun (sigma: Source.Generator) => eq_reason_in!{{complex.family.Carrier index} _
+    "=" _ "by" { congr!{{SourcePair.Carrier index} {complex.family.Carrier index}} (map.apply index) _ _ (Source.onGenerator sigma) }
+    "=" _ "by" { \parent.\parent.At[z := index].onClass (SourceWholeExtension.Positive[n := n].intro (SourceWhole.generator n sigma)) }
+    "=" _ "by" { congr!{{Whole.Carrier n} {complex.family.Carrier index}} Target.class _ _ (WholeMap.Degree[n := n].onGenerator sigma) }
+    "=" _ "by" { sym!{{complex.family.Carrier index}} _ _ (Target.onGenerator (generator sigma)) }
+  };
+\import Chains.Map[C := SourcePair.complex, D := complex].At[k := index] \as Action;
+\import Modules.Hom[V := SourcePair.Carrier index, W := complex.family.Carrier index, source := SourcePair.space index, target := complex.family.space index]
+  .Composition[U := SF.Carrier, domain := SF.space] \as First;
+\import Modules.Hom[V := TF.Carrier, W := complex.family.Carrier index, source := TF.space, target := complex.family.space index]
+  .Composition[U := SF.Carrier, domain := SF.space] \as Second;
+\definition equation: First.compose (Action.linear map) Source.isomorphism.forward = Second.compose Target.isomorphism.forward (Reindex.push generator) :=
+  SF.To[W := complex.family.Carrier index, target := complex.family.space index].ext _ _
+    (\fun (sigma: Source.Generator) => trans!{{complex.family.Carrier index}} _ _ _ (onGenerator sigma)
+      (congr!{TF.Carrier {complex.family.Carrier index}} Target.isomorphism.forward.apply _ _ (sym!{TF.Carrier} _ _ (Reindex.onGenerator generator sigma))));
+\import Modules.Hom[V := SF.Carrier, W := complex.family.Carrier index, source := SF.space, target := complex.family.space index] \as Linear;
+\definition law: \forall (x: SF.Carrier) -> map.apply index (Source.isomorphism.forward.apply x) = Target.isomorphism.forward.apply ((Reindex.push generator).apply x) :=
+  \fun (x: SF.Carrier) => congr!{Linear.Map {complex.family.Carrier index}} (\fun (m: Linear.Map) => m.apply x) _ _ equation;
