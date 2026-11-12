@@ -1,0 +1,42 @@
+\use std.Logic[].Equality[].eq_reason_in;
+\import module_theory.Module[].Over[R := RingCarrier, ring := std.Alg[].Ring[].commutativeRingAsRing RingCarrier ring] \as RingModules;
+\import thom_spaces.Thom[].DiskSuspension[X := X, space := source, n := n] \as Disk;
+\import \root.RelativeUnit[A := Disk.DiskCarrier, source := Disk.diskTopology, subset := Disk.boundary, K := RingCarrier, ring := ring] \as Unit;
+\definition total: N.Nat^ := N.Basic[].Def[].add N.Nat^::zero n;
+\definition same: total = n := N.Basic[].Prop[].addZeroLeft n;
+\import Unit.TransportBetween[m := total, n := n, same := same] \as Cast;
+\import \parent.Cup[n := n, p := N.Nat^::zero] \as Product;
+\import \parent.Standard[n := n] \as Target;
+\import \root.LocalDisk[].On[X := X, source := source].Projection[n := n] \as Geometry;
+\import singular_products.Cochains[A := Disk.DiskCarrier, source := Disk.diskTopology, R := RingCarrier, ring := ring] \as DiskProduct;
+\import DiskProduct.Cohomology[].Pullback[B := X, target := source] \as Pull;
+\import singular_cap.CochainPair[A := Disk.DiskCarrier, source := Disk.diskTopology, subset := Disk.boundary, R := RingCarrier, ring := ring].Cohomology[p := N.Nat^::zero, q := n].Right[] \as Cup;
+\definition isomorphism: RingModules.Isomorphism[V := Base.Cohomology[].Group N.Nat^::zero, W := Target.Class, source := Base.Cohomology[].moduleSpace N.Nat^::zero, target := Target.space].Isomorphism :=
+  RingModules.Isomorphism[V := Base.Cohomology[].Group N.Nat^::zero, W := Product.Class, source := Base.Cohomology[].moduleSpace N.Nat^::zero, target := Product.space].Composition[U := Target.Class, final := Target.space]
+    .compose Cast.isomorphism (thomIsomorphism n N.Nat^::zero);
+\definition unit: isomorphism.forward.apply Base.Cohomology[].Unit[].class = canonical n :=
+  eq_reason_in!{Target.Class _
+    "=" _ "by" { congr!{{DiskProduct.Cohomology[].Group N.Nat^::zero} Target.Class} (\fun (v: DiskProduct.Cohomology[].Group N.Nat^::zero) => Cast.forward.apply (Cup.apply v (canonical n))) _ _ (Pull.Unit[].law Geometry.projection Geometry.continuous) }
+    "=" _ "by" { congr!{Product.Class Target.Class} Cast.forward.apply _ _ (Unit.Degree[n := n].law (canonical n)) }
+    "=" _ "by" { std.Logic[].Equality[].Transport[A := N.Nat^].castInverse Unit.Class n total (sym!{N.Nat^} total n same) (canonical n) }
+  };
+
+\import singular_cohomology.Zero[A := X, source := source].With[coefficients := Base.integerCoefficients].Functions[] \as Functions;
+\import algebraic_topology.PathComponent[A := X, source := source] \as Components;
+\definition evaluation[u: Target.Class][x: X]: RingCarrier := Functions.isomorphism.backward.apply (isomorphism.backward.apply u) (Components.class x);
+\definition detected: \forall (u, v: Target.Class) -> (\forall (x: X) -> evaluation u x = evaluation v x) -> u = v :=
+  \fun (u, v: Target.Class)(same: \forall (x: X) -> evaluation u x = evaluation v x) => trans!{Target.Class} _ _ _
+    (sym!{Target.Class} _ _ (isomorphism.rightInverse u))
+    (trans!{Target.Class} _ _ _
+      (congr!{{Base.Cohomology[].Group N.Nat^::zero} Target.Class} isomorphism.forward.apply _ _
+        (trans!{{Base.Cohomology[].Group N.Nat^::zero}} _ _ _
+          (sym!{{Base.Cohomology[].Group N.Nat^::zero}} _ _ (Functions.isomorphism.rightInverse (isomorphism.backward.apply u)))
+          (trans!{{Base.Cohomology[].Group N.Nat^::zero}} _ _ _
+            (congr!{Functions.Function {Base.Cohomology[].Group N.Nat^::zero}} Functions.isomorphism.forward.apply _ _
+              (\axiom:funext(Functions.isomorphism.backward.apply (isomorphism.backward.apply u), Functions.isomorphism.backward.apply (isomorphism.backward.apply v),
+                Components.induction (\fun (c: Components.Carrier) => Functions.isomorphism.backward.apply (isomorphism.backward.apply u) c = Functions.isomorphism.backward.apply (isomorphism.backward.apply v) c) same)))
+            (Functions.isomorphism.rightInverse (isomorphism.backward.apply v)))))
+      (isomorphism.rightInverse v));
+
+
+

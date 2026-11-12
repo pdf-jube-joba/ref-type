@@ -1,0 +1,23 @@
+\use std.Logic[].Equality[].eq_reason_in;
+\import thom_spaces.Thom[].DiskSuspension[X := X, space := source, n := n] \as SourceDisk;
+\import thom_spaces.Thom[].DiskSuspension[X := B, space := target, n := n] \as TargetDisk;
+\import \root.LocalDisk[].On[X := X, source := source].From[B := B, target := target, f := f, regular := regular].Rank[n := n] \as Rank;
+\import \root.RelativeUnit[A := SourceDisk.DiskCarrier, source := SourceDisk.diskTopology, subset := SourceDisk.boundary, K := K, ring := ring] \as SourceUnit;
+\import \root.RelativeUnit[A := TargetDisk.DiskCarrier, source := TargetDisk.diskTopology, subset := TargetDisk.boundary, K := K, ring := ring] \as TargetUnit;
+\import SourceTheory.Top[n := n] \as SourceTop;
+\import TargetTheory.Top[n := n] \as TargetTop;
+\import singular_products.Cochains[A := B, source := target, R := K, ring := ring].Cohomology[].Pullback[B := X, target := source] \as BasePull;
+\import \parent.Degree[n := n, p := N.Nat^::zero] \as Product;
+\import std.Logic[].Equality[].Transport[A := N.Nat^] \as Transport;
+\definition map[k: N.Nat^]: SourceUnit.Class k -> TargetUnit.Class k := Rank.With[coefficients := BaseProduct.integerCoefficients, z := I.Int^::ofNat k].pullback.apply;
+\definition law: \forall (a: BaseProduct.Cohomology[].Group N.Nat^::zero) -> map n (SourceTop.isomorphism.forward.apply a) = TargetTop.isomorphism.forward.apply (BasePull.apply N.Nat^::zero f regular a) :=
+  \fun (a: BaseProduct.Cohomology[].Group N.Nat^::zero) => trans!{{TargetTheory.Standard[n := n].Class}} _ _ _
+    (sym!{{TargetTheory.Standard[n := n].Class}} _ _ (Transport.natural SourceUnit.Class TargetUnit.Class map SourceTop.total n SourceTop.same ((SourceTheory.thomIsomorphism n N.Nat^::zero).forward.apply a)))
+    (congr!{{TargetTheory.Cup[n := n, p := N.Nat^::zero].Class} {TargetTheory.Standard[n := n].Class}}
+      TargetUnit.TransportBetween[m := TargetTop.total, n := n, same := TargetTop.same].forward.apply _ _ (Product.law a));
+\definition inverse: \forall (u: SourceTheory.Standard[n := n].Class) -> TargetTop.isomorphism.backward.apply (map n u) = BasePull.apply N.Nat^::zero f regular (SourceTop.isomorphism.backward.apply u) :=
+  \fun (u: SourceTheory.Standard[n := n].Class) => eq_reason_in!{{singular_products.Cochains[A := B, source := target, R := K, ring := ring].Cohomology[].Group N.Nat^::zero} _
+    "=" _ "by" { congr!{{SourceTheory.Standard[n := n].Class} {singular_products.Cochains[A := B, source := target, R := K, ring := ring].Cohomology[].Group N.Nat^::zero}} (\fun (v: SourceTheory.Standard[n := n].Class) => TargetTop.isomorphism.backward.apply (map n v)) _ _ (sym!{{SourceTheory.Standard[n := n].Class}} _ _ (SourceTop.isomorphism.rightInverse u)) }
+    "=" _ "by" { congr!{{TargetTheory.Standard[n := n].Class} {singular_products.Cochains[A := B, source := target, R := K, ring := ring].Cohomology[].Group N.Nat^::zero}} TargetTop.isomorphism.backward.apply _ _ (law (SourceTop.isomorphism.backward.apply u)) }
+    "=" _ "by" { TargetTop.isomorphism.leftInverse (BasePull.apply N.Nat^::zero f regular (SourceTop.isomorphism.backward.apply u)) }
+  };

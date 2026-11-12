@@ -1,0 +1,65 @@
+\use std.Logic[].Equality[].eq_reason_in;
+\import thom_spaces.Thom[].CWType[].Point[] \as Geometry;
+\import singular_products.Cochains[A := Geometry.Carrier, source := Geometry.topology, R := K, ring := ring] \as Product;
+\import singular_cohomology.Calculations[A := Geometry.Carrier, source := Geometry.topology].With[coefficients := Product.integerCoefficients].Singleton[a := Geometry.point] \as PointCalculation;
+\import PointCalculation.Zero[] \as Calculation;
+\import module_theory.Module[].Over[R := K, ring := std.Alg[].Ring[].commutativeRingAsRing K ring] \as RingModules;
+\import singular_cohomology.Cochains[A := Geometry.Carrier, source := Geometry.topology].OverRing[R := K, ring := ring].With[coefficients := Product.coefficients] \as Theory;
+\import chain_complexes.Cochain[].Over[R := K, ring := std.Alg[].Ring[].commutativeRingAsRing K ring].At[C := Theory.complex, k := N.Nat^::zero] \as H;
+\import RingModules.Hom[V := K, W := H.Cohomology, source := RingModules.scalarModule, target := H.cohomologySpace] \as Maps;
+\definition map: Maps.Map := Maps.Map {
+  apply := \fun (r: K) => H.cohomologySpace.smul r Product.Cohomology[].Unit[].class,
+  addition := \fun (r, s: K) => H.cohomologySpace.scalarAdd r s Product.Cohomology[].Unit[].class,
+  scalar := \fun (r, s: K) => H.cohomologySpace.scalarAssoc r s Product.Cohomology[].Unit[].class
+};
+\import singular_cohomology.Simplices[A := Geometry.Carrier, source := Geometry.topology] \as Simplices;
+\import Modules.Free[Generators := Simplices.Carrier N.Nat^::zero].To[W := K, target := Product.integerCoefficients.space] \as Free;
+\definition cycles: \forall (r: K) -> H.cycleSpace.smul r Product.Cohomology[].Unit[].cycle = Calculation.cycle r :=
+  \fun (r: K) => Free.ext _ _ (\fun (sigma: Simplices.Carrier N.Nat^::zero) => eq_reason_in!{K _
+    "=" _ "by" { congr!{K K} (ring.base.mul r) _ _ (Product.Unit[].onSimplex sigma) }
+    "=" _ "by" { Product.Unit[].rightOne r }
+    "=" _ "by" { sym!{K} _ _ (PointCalculation.onGenerator N.Nat^::zero r sigma) }
+  });
+\definition comparison: \forall (r: K) -> map.apply r = (Calculation.isomorphism Geometry.unique).forward.apply r :=
+  \fun (r: K) => trans!{H.Cohomology} _ _ _ (sym!{H.Cohomology} _ _ (H.classLinear.scalar r Product.Cohomology[].Unit[].cycle))
+    (congr!{H.CycleCarrier H.Cohomology} H.classOf _ _ (cycles r));
+\import RingModules.Isomorphism[V := K, W := H.Cohomology, source := RingModules.scalarModule, target := H.cohomologySpace].OfBijective[f := map] \as Inverse;
+\definition injective: Inverse.Injective := \fun (r, s: K)(same: map.apply r = map.apply s) => trans!{K} _ _ _
+  (sym!{K} _ _ ((Calculation.isomorphism Geometry.unique).leftInverse r))
+  (trans!{K} _ _ _
+    (congr!{H.Cohomology K} (Calculation.isomorphism Geometry.unique).backward.apply _ _
+      (trans!{H.Cohomology} _ _ _ (sym!{H.Cohomology} _ _ (comparison r)) (trans!{H.Cohomology} _ _ _ same (comparison s))))
+    ((Calculation.isomorphism Geometry.unique).leftInverse s));
+\definition onto: Inverse.Onto := \fun (u: H.Cohomology) => Logic.existsIntro[K, { r: K \where map.apply r = u }]
+  ((Calculation.isomorphism Geometry.unique).backward.apply u)
+  (trans!{H.Cohomology} _ _ _ (comparison ((Calculation.isomorphism Geometry.unique).backward.apply u)) ((Calculation.isomorphism Geometry.unique).rightInverse u));
+\definition isomorphism: _ := Inverse.isomorphism injective onto;
+\definition unit: map.apply ring.base.one = Product.Cohomology[].Unit[].class := H.cohomologySpace.scalarOne Product.Cohomology[].Unit[].class;
+\import \root.ZeroEvaluation[A := Geometry.Carrier, source := Geometry.topology, K := K, ring := ring] \as Evaluation;
+\definition valueOnScalar: \forall (r: K) -> Evaluation.value (map.apply r) Geometry.point = r :=
+  \fun (r: K) => eq_reason_in!{K _
+    "=" _ "by" { congr!{H.Cohomology K} (\fun (a: H.Cohomology) => Evaluation.value a Geometry.point) _ _ (comparison r) }
+    "=" _ "by" { Evaluation.onClasses (Calculation.cycle r) Geometry.point }
+    "=" _ "by" { PointCalculation.onGenerator N.Nat^::zero r (singular_cohomology.Zero[A := Geometry.Carrier, source := Geometry.topology].With[coefficients := Product.integerCoefficients].constant Geometry.point) }
+  };
+\definition value: \forall (a: H.Cohomology) -> isomorphism.backward.apply a = Evaluation.value a Geometry.point :=
+  \fun (a: H.Cohomology) => trans!{K} _ _ _
+    (sym!{K} _ _ (valueOnScalar (isomorphism.backward.apply a)))
+    (congr!{H.Cohomology K} (\fun (v: H.Cohomology) => Evaluation.value v Geometry.point) _ _ (isomorphism.rightInverse a));
+\module Rank(n: N.Nat^) {
+  \import \root.LocalDisk[].On[X := Geometry.Carrier, source := Geometry.topology].Ring[RingCarrier := K, ring := ring] \as Local;
+  \import Local.Top[n := n] \as Top;
+  \definition Class: \Set := Local.Standard[n := n].Class;
+  \definition space: _ := Local.Standard[n := n].space;
+  \definition generator: Class := Local.canonical n;
+  \definition isomorphism: RingModules.Isomorphism[V := K, W := Class, source := RingModules.scalarModule, target := space].Isomorphism :=
+    RingModules.Isomorphism[V := K, W := H.Cohomology, source := RingModules.scalarModule, target := H.cohomologySpace].Composition[U := Class, final := space].compose Top.isomorphism (Inverse.isomorphism injective onto);
+  \definition normalized: isomorphism.forward.apply ring.base.one = generator := trans!{Class} _ _ _
+    (congr!{H.Cohomology Class} Top.isomorphism.forward.apply _ _ unit) Top.unit;
+
+  \definition Generator[u: Class]: \Prop := \exists ( e: RingModules.Isomorphism[V := K, W := Class, source := RingModules.scalarModule, target := space].Isomorphism \where e.forward.apply ring.base.one = u );
+  \definition canonicalGenerator: Generator generator := Logic.existsIntro[
+    RingModules.Isomorphism[V := K, W := Class, source := RingModules.scalarModule, target := space].Isomorphism,
+    { e: RingModules.Isomorphism[V := K, W := Class, source := RingModules.scalarModule, target := space].Isomorphism \where e.forward.apply ring.base.one = generator }]
+    isomorphism normalized;
+}

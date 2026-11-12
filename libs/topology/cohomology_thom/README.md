@@ -86,3 +86,9 @@ H^p(X;R)\longrightarrow H^{p+n}(X\times D^n,X\times\partial D^n;R),\qquad
 
 `LocalDisk.On.From.Ring.canonical n` は連続な底写像による局所 Thom 類の引き戻しの自然性を与える。
 `From.Ring.Degree[n, p].law` は cup 積による局所 Thom 同型と引き戻しの可換性を示す。
+
+`LocalDisk.Point[K, ring].Rank[n]` は一点上の円板対の生成元と係数加群との同型を与える。
+`LocalDisk.On.Ring.Top[n]` は次数0からの正規化同型と点での評価座標を公開する。
+`Ring.Fibers[n].Fiber[x]` は実際の円板対の写像によるファイバー制限を構成し、`value` が評価座標との一致を示す。
+`Fibers.detectedOnFibers` と `uniqueNormalized` はファイバー上の生成元による局所 Thom 類の一意性を示す。
+`RelativePullback.On.To.Homeomorphism.Degree[n].isomorphism` は対の同相に対する係数環上の線形同型である。
