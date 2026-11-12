@@ -1,0 +1,32 @@
+\import boundary_manifolds.Tangent[n := p].On[M := A].At[x := x] \as Source;
+\import boundary_manifolds.Tangent[n := q].On[M := B].At[x := F.apply f x] \as Middle;
+\import boundary_manifolds.Tangent[n := r].On[M := C].At[x := G.apply g (F.apply f x)] \as Target;
+\import boundary_manifolds.Differential[n := p, m := q].Between[M := A, N := B].At[f := f, x := x] \as Df;
+\import boundary_manifolds.Differential[n := q, m := r].Between[M := B, N := C].At[f := g, x := F.apply f x] \as Dg;
+\import boundary_manifolds.Differential[n := p, m := r].Between[M := A, N := C].At[f := map, x := x] \as Dh;
+\import boundary_manifolds.Neat[n := p, m := r].Between[M := A, N := C].At[f := map, x := x] \as Composite;
+\import boundary_manifolds.Neat[n := q, m := r].Between[M := B, N := C].At[f := g, x := F.apply f x] \as Result;
+\definition difference[v: Source.Vector][w: Target.Vector]: Composite.difference v w = Result.difference (Df.value.apply v) w :=
+  congr!{{Target.Vector} {Target.Vector}} (\fun (z: Target.Vector) => Target.Operations[].plus z (Target.Operations[].negative w)) _ _ (Chain.At[x := x].pointwise v);
+\definition normal[normal: Composite.NormalOnto]: Result.NormalOnto := \block {
+  \fun (w: Target.Vector) \then
+  \takefrom v: \Cast[Source.Vector] ({ v: Source.Vector \where Target.Cones[].Tangential (Composite.difference v w) }) \by normal w \then
+  \return Logic.existsIntro[Middle.Vector, { v: Middle.Vector \where Target.Cones[].Tangential (Result.difference v w) }] (Df.value.apply v)
+    (\idelim Composite.difference v w = Result.difference (Df.value.apply v) w \with z: Target.Vector => Target.Cones[].Tangential z \by {
+      base: \bysub(Source.Vector, { v: Source.Vector \where Target.Cones[].Tangential (Composite.difference v w) }, v), equality: difference v w
+    })
+};
+\definition reflects[onto: \forall (w: Middle.Vector) -> \exists ( v: Source.Vector \where Df.value.apply v = w )]
+  [reflects: \forall (v: Source.Vector) -> Target.Cones[].Tangential (Dh.value.apply v) -> Source.Cones[].Tangential v]
+  [w: Middle.Vector]: Target.Cones[].Tangential (Dg.value.apply w) -> Middle.Cones[].Tangential w := \block {
+  \fun (tangent: _) \then
+  \takefrom v: \Cast[Source.Vector] ({ v: Source.Vector \where Df.value.apply v = w }) \by onto w \then
+  \let same: Df.value.apply v = w := \bysub(Source.Vector, { v: Source.Vector \where Df.value.apply v = w }, v) \then
+  \let composite: Dh.value.apply v = Dg.value.apply w := trans!{{Target.Vector}} _ _ _ (Chain.At[x := x].pointwise v)
+    (congr!{{Middle.Vector} {Target.Vector}} Dg.value.apply _ _ same) \then
+  \let vt: Source.Cones[].Tangential v := reflects v (\idelim Dg.value.apply w = Dh.value.apply v \with u: Target.Vector => Target.Cones[].Tangential u \by {
+    base: tangent, equality: sym!{{Target.Vector}} _ _ composite }) \then
+  \return \idelim Df.value.apply v = w \with u: Middle.Vector => Middle.Cones[].Tangential u \by {
+    base: manifold_gluing.DifferentialCones[n := p, m := q].Between[M := A, N := B].Of[f := f].At[x := x].tangential v vt, equality: same
+  }
+};

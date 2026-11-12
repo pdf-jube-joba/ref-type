@@ -1,0 +1,30 @@
+\definition region: N.Nat^ -> \Pow M.Point := \induction (k: N.Nat^) \return \Pow M.Point \with {
+  | zero: Space.Empty
+  | succ: \fun (k: N.Nat^)(previous: \Pow M.Point) => Finite.Join previous (U k)
+};
+\module AtSize(k: N.Nat^);
+\definition Map[k: N.Nat^]: \Set := AtSize[k := k].Map;
+\definition Point[k: N.Nat^]: \Set := AtSize[k := k].Point;
+\definition apply[k: N.Nat^][f: Map k]: M.Point -> Point k := AtSize[k := k].apply f;
+\definition Separates[k: N.Nat^][f: Map k]: \Prop := \forall (x, y: M.Point) -> Space.Member (region k) x -> apply k f x = apply k f y -> x = y;
+\definition Immerses[k: N.Nat^][f: Map k]: \Prop := AtSize[k := k].Immerses f (region k);
+\structure Result[k: N.Nat^]: \Set := {
+  map: Map k,
+  separates: Separates k map,
+  immerses: Immerses k map,
+};
+\definition BlockSeparates: \Prop := \forall (k: N.Nat^)(x, y: M.Point) -> Space.Member (U k) x -> BlockMaps.apply (f k) x = BlockMaps.apply (f k) y -> x = y;
+\definition BlockImmerses: \Prop := \forall (k: N.Nat^)(x: M.Point) -> Space.Member (U k) x -> \forall (u, v: Tangent.Vector x) ->
+  manifolds.Differential[n := n, m := d].Between[M := M, N := Block.smoothManifold].At[f := f k, x := x].value.apply u =
+  manifolds.Differential[n := n, m := d].Between[M := M, N := Block.smoothManifold].At[f := f k, x := x].value.apply v -> u = v;
+\module Step(k: N.Nat^, previous: Result k, separates: BlockSeparates, immerses: BlockImmerses);
+\definition build[separates: BlockSeparates][immerses: BlockImmerses]: \forall (k: N.Nat^) -> Result k :=
+  \induction (k: N.Nat^) \return Result k \with {
+    | zero: Result[N.Nat^::zero] {
+      map := f N.Nat^::zero,
+      separates := \fun (x, y: M.Point)(empty: Logic.False)(equal: _) => Logic.falseElim (x = y) empty,
+      immerses := \fun (x: M.Point)(empty: Logic.False)(u, v: Tangent.Vector x)(equal: _) => Logic.falseElim (u = v) empty,
+    }
+    | succ: \fun (k: N.Nat^)(previous: Result k) => Step[k := k, previous := previous, separates := separates, immerses := immerses].result
+  };
+\module Covered(k: N.Nat^, result: Result k, covers: Space.Subset Space.Whole (region k), compact: Space.IsCompact M.space);

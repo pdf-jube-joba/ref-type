@@ -1,0 +1,24 @@
+\import boundary_manifolds.Tangent[n := dimension].On[M := Source.manifold].At[x := p] \as Domain;
+\import boundary_manifolds.Tangent[n := dimension].On[M := SignedProduct.manifold].At[x := Insert.value p] \as Middle;
+\import boundary_manifolds.Tangent[n := dimension].On[M := manifold].At[x := Stage.apply (Insert.value p)] \as Target;
+\import boundary_manifolds.Differential[n := dimension, m := dimension].Between[M := Source.manifold, N := SignedProduct.manifold].At[f := Insert.map, x := p] \as D1;
+\import boundary_manifolds.Differential[n := dimension, m := dimension].Between[M := SignedProduct.manifold, N := manifold].At[f := Inclusions.seam, x := Insert.value p] \as D2;
+\import boundary_manifolds.Differential[n := dimension, m := dimension].Between[M := Source.manifold, N := manifold].At[f := OtherChain.map, x := p] \as D;
+\definition otherInjective[u, v: Domain.Vector]: D.value.apply u = D.value.apply v -> u = v := \fun (equal: _) => Insert.Differential[x := p].injective u v
+  (SeamImmersion.immersion (Insert.value p) (D1.value.apply u) (D1.value.apply v)
+    (trans!{{Target.Vector}} _ _ _ (sym!{{Target.Vector}} _ _ (OtherChain.At[x := p].pointwise u))
+      (trans!{{Target.Vector}} _ _ _ equal (OtherChain.At[x := p].pointwise v))));
+\import boundary_manifolds.Tangent[n := dimension].On[M := Range.manifold].At[x := Collar.diffeomorphism.forward.apply p] \as ImageTangent;
+\import boundary_manifolds.Tangent[n := dimension].On[M := M].At[x := Into.map.apply p] \as Ambient;
+\import \root.DiffeomorphismDifferential[n := dimension, m := dimension].Between[M := Source.manifold, N := Range.manifold].Of[d := Collar.diffeomorphism].At[x := p] \as Inverse;
+\import \root.OpenDifferential[n := dimension].On[M := M].Within[U := Collar.image, open := Collar.imageOpen].At[x := Collar.diffeomorphism.forward.apply p] \as OpenInverse;
+\import boundary_manifolds.Differential[n := dimension, m := dimension].Between[M := Source.manifold, N := M].At[f := Into.map, x := p] \as IntoDifferential;
+\import boundary_manifolds.Differential[n := dimension, m := dimension].Between[M := Source.manifold, N := Range.manifold].At[f := Collar.diffeomorphism.forward, x := p] \as Forward;
+\import boundary_manifolds.Differential[n := dimension, m := dimension].Between[M := Range.manifold, N := M].At[f := Range.Inclusion[].map, x := Collar.diffeomorphism.forward.apply p] \as Include;
+\definition lift[w: Ambient.Vector]: Domain.Vector := Inverse.inverse (OpenInverse.inverse w);
+\definition liftValue[w: Ambient.Vector]: IntoDifferential.value.apply (lift w) = w := trans!{{Ambient.Vector}} _ _ _
+  (Into.At[x := p].pointwise (lift w)) (trans!{{Ambient.Vector}} _ _ _
+    (congr!{{ImageTangent.Vector} {Ambient.Vector}} Include.value.apply _ _ (Inverse.rightInverse (OpenInverse.inverse w)))
+    (OpenInverse.rightInverse w));
+\definition onto[w: Ambient.Vector]: \exists (v: Domain.Vector \where IntoDifferential.value.apply v = w) :=
+  Logic.existsIntro[Domain.Vector, { v: Domain.Vector \where IntoDifferential.value.apply v = w }] (lift w) (liftValue w);

@@ -1,0 +1,101 @@
+\definition radius: S.Real := S.mul S.half (S.mul S.half linearRadius);
+\definition positive: R.Lt S.zero radius := Estimates.halfOfPositive (S.mul S.half linearRadius) (Estimates.halfOfPositive linearRadius radiusPositive);
+\import \root.Neat[n := n].Clamp[r := radius, positive := positive] \as Profile;
+\import Profile.Collapse[] \as TimeCollapse;
+\definition supportTime: S.Real := Profile.twice;
+\definition supportSmall: R.Lt supportTime linearRadius := R.ltReplaceLeft (S.mul S.half linearRadius) supportTime linearRadius
+  (sym!{S.Real} _ _ (Estimates.halfTwice (S.mul S.half linearRadius))) (Estimates.halfStrict linearRadius radiusPositive);
+\definition supportOuter: R.Lt supportTime outer := Order.ltTrans supportTime linearRadius outer supportSmall
+  (Order.ltTrans linearRadius middle outer (Estimates.halfStrict middle middlePositive) middleSmall);
+\import Window.Core[r := supportTime, positive := Profile.twicePositive, small := supportOuter] \as Support;
+\definition support: \Pow M.Point := Support.points;
+\definition supportClosed: Space.IsClosedIn M.space support := Support.closed compact;
+\import boundary_manifolds.SmoothMap[n := Nat.add One.dimension n, m := One.dimension].Between[M := Product.manifold, N := Time.manifold] \as ProductTimes;
+\definition rhoTime: ProductTimes.Map := boundary_manifolds.MapComposition[n := Nat.add One.dimension n, m := One.dimension, l := One.dimension].Between[M := Product.manifold, N := Time.manifold, P := Time.manifold].Of[f := Projections.Second[].map, g := TimeCollapse.map].map;
+\import manifold_gluing.ProductMaps[n := n, m := One.dimension].Of[M := BoundaryModel.manifold, N := Time.manifold].Pairing[p := Nat.add One.dimension n].From[P := Product.manifold].Using[f := Projections.First[].map, g := rhoTime] \as Rho;
+\definition parameterManifold: BoundaryModels.Manifold := Product.manifold;
+\definition parameters: BoundaryModels.Manifold := Parameters.manifold;
+\definition collarImage: BoundaryModels.Manifold := Source.manifold;
+\definition rhoMap: boundary_manifolds.SmoothMap[n := Nat.add One.dimension n, m := Nat.add One.dimension n].Between[M := Product.manifold, N := Product.manifold].Map := Rho.map;
+\definition firstValue[p: Product.Point]: Product.first (rhoMap.apply p) = Product.first p := \refl(Product.first p);
+\definition timeValue[p: Product.Point]: Time.value (Product.second (rhoMap.apply p)) = TimeCollapse.value (Time.value (Product.second p)) := \refl(TimeCollapse.value (Time.value (Product.second p)));
+\definition decreases[p: Product.Point]: R.Le (Time.value (Product.second (rhoMap.apply p))) (Time.value (Product.second p)) := TimeCollapse.atMostOriginal (Time.value (Product.second p)) (Time.nonnegative (Product.second p));
+\definition inside[p: Parameters.Point]: \In[Product.Point] Window.points (rhoMap.apply p) := R.leLtTrans _ _ outer (decreases p) (\bysub(Product.Point, Window.points, p));
+\import boundary_manifolds.MapComposition[n := Nat.add One.dimension n, m := Nat.add One.dimension n, l := Nat.add One.dimension n].Between[M := Parameters.manifold, N := Product.manifold, P := Product.manifold].Of[f := Parameters.Inclusion[].map, g := rhoMap] \as RestrictedRho;
+\import manifold_gluing.OpenCorestriction[n := Nat.add One.dimension n, m := Nat.add One.dimension n].Between[M := Parameters.manifold, N := Product.manifold].Into[U := Window.points, open := Window.open].Of[f := RestrictedRho.map, inside := inside] \as RhoInto;
+\definition rho: boundary_manifolds.SmoothMap[n := Nat.add One.dimension n, m := Nat.add One.dimension n].Between[M := Parameters.manifold, N := Parameters.manifold].Map := RhoInto.map;
+\import boundary_manifolds.MapComposition[n := Nat.add One.dimension n, m := Nat.add One.dimension n, l := Nat.add One.dimension n].Between[M := Source.manifold, N := Product.manifold, P := Product.manifold].Of[f := Chart.inverseMap, g := rhoMap] \as Collapsed;
+\definition localMap: boundary_manifolds.SmoothMap[n := Nat.add One.dimension n, m := Nat.add One.dimension n].Between[M := Source.manifold, N := M].Map :=
+  boundary_manifolds.MapComposition[n := Nat.add One.dimension n, m := Nat.add One.dimension n, l := Nat.add One.dimension n].Between[M := Source.manifold, N := Product.manifold, P := M].Of[f := Collapsed.map, g := Candidate.map].map;
+\import boundary_manifolds.MapIdentity[n := Nat.add One.dimension n].On[M := M] \as Identity;
+\definition outsideSupport[x: Source.Point]: Logic.Not (Space.Member support x) -> R.Le supportTime (time x) := \fun (outside: Logic.Not (Space.Member support x)) =>
+  Order.leOfNotLtReverse supportTime (time x) (\fun (small: R.Lt (time x) supportTime) => outside
+    (\idelim Candidate.map.apply (Chart.backward x) = (x \of M.Point) \with y: M.Point => Space.Member support y \by {
+      base: Support.contains (Chart.backward x) (Order.leOfLt (time x) supportTime small), equality: Chart.rightValue x
+    }));
+\definition rhoIdentity[p: Product.Point]: R.Le supportTime (Time.value (Product.second p)) -> rhoMap.apply p = p := \fun (large: _) =>
+  Pair.Prop[A := BoundaryModel.manifold.Point, B := Time.Point].ext (rhoMap.apply p) p (firstValue p) (TimeCollapse.identity (Product.second p) large);
+\definition agrees: \forall (x: Source.Point) -> Logic.Not (Space.Member support x) -> localMap.apply x = Identity.map.apply x := \fun (x: Source.Point)(outside: _) =>
+  trans!{M.Point} _ _ _ (congr!{Product.Point M.Point} Candidate.map.apply _ _ (rhoIdentity (Chart.backward x) (outsideSupport x outside))) (Chart.rightValue x);
+\import manifold_gluing.OpenSmoothExtension[n := Nat.add One.dimension n, m := Nat.add One.dimension n].Between[M := M, N := M].Within[
+  U := Chart.image, K := support, open := Chart.imageOpen, closed := supportClosed, included := Support.included].Of[f := localMap, g := Identity.map, agrees := agrees] \as Glue;
+\definition map: boundary_manifolds.SmoothMap[n := Nat.add One.dimension n, m := Nat.add One.dimension n].Between[M := M, N := M].Map := Glue.map;
+\definition inCollar[x: Source.Point]: map.apply x = Candidate.map.apply (rhoMap.apply (Chart.backward x)) := Glue.inside x;
+\definition unchanged[x: M.Point]: Logic.Not (Space.Member support x) -> map.apply x = x := Glue.unchanged x;
+\definition collarValue[p: Parameters.Point]: map.apply (Chart.forward p) = Candidate.map.apply (rhoMap.apply p) :=
+  trans!{M.Point} _ _ _ (inCollar (Chart.forward p))
+    (congr!{Parameters.Point M.Point} (\fun (q: Parameters.Point) => Candidate.map.apply (rhoMap.apply q)) _ _ (Chart.leftInverse p));
+\definition collarMap: boundary_manifolds.SmoothMap[n := Nat.add One.dimension n, m := Nat.add One.dimension n].Between[M := Parameters.manifold, N := M].Map := Chart.map;
+\definition collapsed[p: Parameters.Point]: R.Le (Time.value (Product.second p)) radius -> map.apply (Chart.forward p) = (Product.first p \of M.Point) := \fun (small: _) =>
+  trans!{M.Point} _ _ _ (collarValue p)
+    (trans!{M.Point} _ _ _ (congr!{Product.Point M.Point} Candidate.map.apply _ _
+      (Pair.Prop[A := BoundaryModel.manifold.Point, B := Time.Point].ext (rhoMap.apply p) (Pair.pair BoundaryModel.manifold.Point Time.Point (Product.first p) Time.zero)
+        (firstValue p) (TimeCollapse.zero (Product.second p) small))) (Inward.neighborhood.initial (Product.first p)));
+\definition supportBound[x: Source.Point]: Space.Member support x -> R.Le (time x) supportTime := \fun (member: Space.Member support x) =>
+  Support.detects (\into[Product.Point](Chart.backward x, Collar.domain) \by { Window.inside (Chart.backward x) (\bysub(Product.Point, Window.points, Chart.backward x)) })
+    (\idelim (x \of M.Point) = Candidate.map.apply (Chart.backward x) \with y: M.Point => Space.Member support y \by { base: member, equality: sym!{M.Point} _ _ (Chart.rightValue x) });
+\definition preservesSupport: \forall (x: M.Point) -> Space.Member support x -> Space.Member support (map.apply x) := \block {
+  \fun (x: M.Point)(member: Space.Member support x) \then
+  \let local: Source.Point := \into[M.Point](x, Chart.image) \by { Support.included x member } \then
+  \return \idelim Candidate.map.apply (rhoMap.apply (Chart.backward local)) = map.apply x \with y: M.Point => Space.Member support y \by {
+    base: Support.contains (rhoMap.apply (Chart.backward local)) (R.leTrans _ _ supportTime (decreases (Chart.backward local)) (supportBound local member)),
+    equality: sym!{M.Point} _ _ (inCollar local)
+  }
+};
+\definition reflectsSupport: \forall (x: M.Point) -> Space.Member support (map.apply x) -> Space.Member support x :=
+  \fun (x: M.Point)(member: Space.Member support (map.apply x)) => Logic.orElim (Space.Member support x) (Logic.Not (Space.Member support x)) (Space.Member support x)
+    (Classical.excludedMiddle (Space.Member support x)) (\fun (inside: Space.Member support x) => inside)
+    (\fun (outside: Logic.Not (Space.Member support x)) => \idelim map.apply x = x \with y: M.Point => Space.Member support y \by { base: member, equality: unchanged x outside });
+\definition sameSupport: \forall (x, y: M.Point) -> map.apply x = map.apply y -> Space.Member support x -> Space.Member support y :=
+  \fun (x, y: M.Point)(same: map.apply x = map.apply y)(member: Space.Member support x) => reflectsSupport y
+    (\idelim map.apply x = map.apply y \with z: M.Point => Space.Member support z \by { base: preservesSupport x member, equality: same });
+\definition heightOnSupport[x: Source.Point]: Space.Member support x -> value x = time x := \fun (member: Space.Member support x) =>
+  trans!{S.Real} _ _ _ (heightInCollar x) (Clamp.lowerValue (time x) (R.leTrans (time x) supportTime linearRadius (supportBound x member) (Order.leOfLt supportTime linearRadius supportSmall)));
+\definition firstOfEqual: \forall (x, y: Source.Point) -> map.apply x = map.apply y -> Product.first (Chart.backward x) = Product.first (Chart.backward y) := \block {
+  \fun (x, y: Source.Point)(same: map.apply x = map.apply y) \then
+  \let px: Parameters.Point := rho.apply (Chart.backward x) \then
+  \let py: Parameters.Point := rho.apply (Chart.backward y) \then
+  \let equal: (px \of Product.Point) = (py \of Product.Point) := Collar.injective
+    (\into[Product.Point](px, Collar.domain) \by { Window.inside px (\bysub(Product.Point, Window.points, px)) })
+    (\into[Product.Point](py, Collar.domain) \by { Window.inside py (\bysub(Product.Point, Window.points, py)) })
+    (trans!{M.Point} _ _ _ (sym!{M.Point} _ _ (inCollar x)) (trans!{M.Point} _ _ _ same (inCollar y))) \then
+  \return congr!{Product.Point BoundaryModel.manifold.Point} Product.first _ _ equal
+};
+\definition jointInSupport: \forall (x, y: Source.Point) -> Space.Member support x -> Space.Member support y -> map.apply x = map.apply y -> value x = value y -> (x \of M.Point) = (y \of M.Point) := \block {
+  \fun (x, y: Source.Point)(xm: Space.Member support x)(ym: Space.Member support y)(same: map.apply x = map.apply y)(heightSame: value x = value y) \then
+  \let times: time x = time y := trans!{S.Real} _ _ _ (sym!{S.Real} _ _ (heightOnSupport x xm)) (trans!{S.Real} _ _ _ heightSame (heightOnSupport y ym)) \then
+  \let parameters: (Chart.backward x \of Product.Point) = (Chart.backward y \of Product.Point) := Pair.Prop[A := BoundaryModel.manifold.Point, B := Time.Point].ext _ _
+    (firstOfEqual x y same) (manifold_gluing.ParameterLaws[].equality (Product.second (Chart.backward x)) (Product.second (Chart.backward y)) times) \then
+  \return trans!{M.Point} _ _ _ (sym!{M.Point} _ _ (Chart.rightValue x)) (trans!{M.Point} _ _ _ (congr!{Product.Point M.Point} Candidate.map.apply _ _ parameters) (Chart.rightValue y))
+};
+\definition jointInjective: \forall (x, y: M.Point) -> map.apply x = map.apply y -> value x = value y -> x = y :=
+  \fun (x, y: M.Point)(same: map.apply x = map.apply y)(heightSame: value x = value y) => Logic.orElim (Space.Member support x) (Logic.Not (Space.Member support x)) (x = y)
+    (Classical.excludedMiddle (Space.Member support x))
+    (\fun (member: Space.Member support x) => \block {
+      \let other: Space.Member support y := sameSupport x y same member \then
+      \return jointInSupport (\into[M.Point](x, Chart.image) \by { Support.included x member }) (\into[M.Point](y, Chart.image) \by { Support.included y other }) member other same heightSame
+    })
+    (\fun (outside: Logic.Not (Space.Member support x)) => \block {
+      \let otherOutside: Logic.Not (Space.Member support y) := \fun (member: Space.Member support y) => outside (sameSupport y x (sym!{M.Point} _ _ same) member) \then
+      \return trans!{M.Point} _ _ _ (sym!{M.Point} _ _ (unchanged x outside)) (trans!{M.Point} _ _ _ same (unchanged y otherOutside))
+    });

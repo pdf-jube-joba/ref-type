@@ -1,0 +1,22 @@
+\definition Choice[k: N.Nat^]: \Set := \Cast[Chart] ({ c: Chart \where Space.Subset (Scalars.support (bumps.values k).value) c.domain });
+\definition choiceExists[k: N.Nat^]: \exists Choice k := either!{{((bumps.values k).inCover)} {\exists Choice k}
+  {\block {
+    \fun (member: Space.FamilyMember chartCover (bumps.values k).openSet) \then
+    \takefrom c: \Cast[Chart] ({ c: Chart \where c.domain = (bumps.values k).openSet }) \by member \then
+    \return Logic.existsIntro[Chart, { c: Chart \where Space.Subset (Scalars.support (bumps.values k).value) c.domain }] c
+      (\idelim (bumps.values k).openSet = c.domain \with U: \Pow M.Point => Space.Subset (Scalars.support (bumps.values k).value) U \by {
+        base: (bumps.values k).supportWithin, equality: sym!{{\Pow M.Point}} _ _ (\bysub(Chart, { c: Chart \where c.domain = (bumps.values k).openSet }, c))
+      })
+  }}
+  {\fun (empty: (bumps.values k).openSet = Space.Empty) => Logic.existsIntro[Chart,
+    { c: Chart \where Space.Subset (Scalars.support (bumps.values k).value) c.domain }] default
+    (\fun (x: M.Point)(supported: Space.Member (Scalars.support (bumps.values k).value) x) => Logic.falseElim _
+      (\idelim (bumps.values k).openSet = Space.Empty \with U: \Pow M.Point => Space.Member U x \by {
+        base: (bumps.values k).supportWithin x supported, equality: empty
+      }))}
+};
+\module Using(charts: \forall (k: N.Nat^) -> Choice k);
+\definition exists: \exists Result := \block {
+  \takefrom charts: (\forall (k: N.Nat^) -> Choice k) \by \axiom:classicalIndefiniteChoice(N.Nat^, Choice, choiceExists) \then
+  \return Using[charts := charts].exists
+};

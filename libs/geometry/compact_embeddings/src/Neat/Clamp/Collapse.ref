@@ -1,0 +1,34 @@
+\definition value[t: S.Real]: S.Real := S.mul t (weight t);
+\definition function: F.Function := F.product coordinate weightFunction;
+\definition smooth: Smooth.SmoothOn Open.whole (\fun (x: Open.Carrier Open.whole) => value (x One.index)) := \bysub(Open.ScalarFunction Open.whole, F.Predicate, function);
+\definition nonnegative[t: S.Real]: R.Le S.zero t -> R.Le S.zero (value t) := \fun (nonnegative: R.Le S.zero t) =>
+  Laws.fieldMulNonnegative t (weight t) nonnegative (Step.nonnegative (argument t));
+\definition atMostOriginal[t: S.Real]: R.Le S.zero t -> R.Le (value t) t := \fun (nonnegative: R.Le S.zero t) =>
+  R.leReplaceRight (value t) (S.mul t S.one) t (trans!{S.Real} _ _ _ (Laws.fieldMulComm t S.one) (Laws.fieldMulOneLeft t))
+    (Estimates.mulMonotone t (weight t) S.one nonnegative (Step.atMostOne (argument t)));
+\definition lowerValue[t: S.Real]: R.Le t r -> value t = S.zero := \fun (bound: R.Le t r) =>
+  trans!{S.Real} _ _ _ (congr!{S.Real S.Real} (S.mul t) _ _ (Step.zeroOn (argument t) (below t bound))) (Laws.fieldMulZeroRight t);
+\definition upperValue[t: S.Real]: R.Le twice t -> value t = t := \fun (bound: R.Le twice t) =>
+  trans!{S.Real} _ _ _ (congr!{S.Real S.Real} (S.mul t) _ _ (Step.oneOn (argument t) (above t bound)))
+    (trans!{S.Real} _ _ _ (Laws.fieldMulComm t S.one) (Laws.fieldMulOneLeft t));
+\import manifold_gluing.Parameter[] \as Time;
+\definition belowOne[t: S.Real]: R.Lt t S.one -> R.Lt (value t) S.one := \fun (small: R.Lt t S.one) =>
+  Logic.orElim (R.Le t r) (Logic.Not (R.Le t r)) (R.Lt (value t) S.one) (Classical.excludedMiddle (R.Le t r))
+    (\fun (bound: R.Le t r) => R.ltReplaceLeft S.zero (value t) S.one (sym!{S.Real} _ _ (lowerValue t bound)) Bounds.onePositive)
+    (\fun (larger: Logic.Not (R.Le t r)) => R.leLtTrans (value t) t S.one
+      (atMostOriginal t (Order.leOfLt S.zero t (Order.ltTrans S.zero r t positive (Order.byContradiction (R.Lt r t) (\fun (notGreater: Logic.Not (R.Lt r t)) => larger (Order.leOfNotLtReverse t r notGreater)))))) small);
+\definition ambient: Maps.Map Time.domain Time.domain := Maps.Map[Time.domain, Time.domain] {
+  apply := \fun (t: Open.Carrier Time.domain) => \into[LineModel.Point]((\fun (i: One.Index) => value (t One.index)), Time.points) \by {
+    belowOne (t One.index) (\bysub(LineModel.Point, Time.points, t))
+  },
+  smooth := \fun (i: One.Index) => Open.Restriction[].localSmooth Time.domain Open.whole (\fun (u: LineModel.Point)(member: \In[LineModel.Point] Time.points u) => \refl(u))
+    (\fun (x: Open.Carrier Open.whole) => value (x One.index)) smooth,
+};
+\definition preserves: \forall (t: Time.Point) -> LineModel.Nonnegative Time.constraints (Maps.apply Time.domain Time.domain ambient t) :=
+  \fun (t: Time.Point) => LineModel.halfSpaceNonnegative One.index (Maps.apply Time.domain Time.domain ambient t) (nonnegative (Time.value t) (Time.nonnegative t));
+\definition map: boundary_manifolds.SmoothMap[n := One.dimension, m := One.dimension].Between[M := Time.manifold, N := Time.manifold].Map :=
+  boundary_manifolds.QuadrantMap[n := One.dimension, m := One.dimension].Of[C := Time.constraints, D := Time.constraints, U := Time.domain, V := Time.domain, f := ambient, preserves := preserves].map;
+\definition identity[t: Time.Point]: R.Le twice (Time.value t) -> map.apply t = t := \fun (bound: R.Le twice (Time.value t)) =>
+  manifold_gluing.ParameterLaws[].equality (map.apply t) t (upperValue (Time.value t) bound);
+\definition zero[t: Time.Point]: R.Le (Time.value t) r -> map.apply t = Time.zero := \fun (bound: R.Le (Time.value t) r) =>
+  manifold_gluing.ParameterLaws[].zero (map.apply t) (lowerValue (Time.value t) bound);
