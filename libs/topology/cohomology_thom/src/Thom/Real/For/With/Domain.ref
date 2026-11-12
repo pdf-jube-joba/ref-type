@@ -1,0 +1,32 @@
+\import topology.Topology[Carrier := X] \as Base;
+\definition domain: \Pow Disk.DiskBundle := { p: Disk.DiskBundle \where Base.Member U (Disk.diskProjection p) };
+\import topology.Topology[Carrier := Disk.DiskBundle].Subspace[S := domain] \as Subspace;
+\definition Carrier: \Set := Subspace.CarrierSet;
+\definition topology: topology.Topology[Carrier := Carrier].Topology := Subspace.topology Disk.diskTopology;
+\definition boundary: \Pow Carrier := { p: Carrier \where \In[Disk.DiskBundle] Disk.Boundary p };
+\definition inclusion[p: Carrier]: Disk.DiskBundle := p;
+\definition continuous: topology.Continuity[A := Carrier, B := Disk.DiskBundle].Continuous topology Disk.diskTopology inclusion :=
+  topology.Continuity[A := Carrier, B := Disk.DiskBundle].Corestriction[S := domain].inclusionContinuous Disk.diskTopology;
+\definition open[baseOpen: Base.IsOpenIn bundle.baseSpace U]: topology.Topology[Carrier := Disk.DiskBundle].IsOpenIn Disk.diskTopology domain := Disk.diskProjectionContinuous U baseOpen;
+\import Base.Subspace[S := U] \as BaseSubspace;
+\definition BasePoint: \Set := BaseSubspace.CarrierSet;
+\definition baseTopology: topology.Topology[Carrier := BasePoint].Topology := BaseSubspace.topology bundle.baseSpace;
+\definition projection[p: Carrier]: BasePoint := \into[X](Disk.diskProjection p, U) \by { \bysub(Disk.DiskBundle, domain, p) };
+\definition projectionContinuous: topology.Continuity[A := Carrier, B := BasePoint].Continuous topology baseTopology projection :=
+  topology.Continuity[A := Carrier, B := X].Corestriction[S := U].corestrictContinuous topology bundle.baseSpace projection
+    (topology.Composition[A := Carrier, B := Disk.DiskBundle, C := X].composeContinuous topology Disk.diskTopology bundle.baseSpace inclusion Disk.diskProjection continuous Disk.diskProjectionContinuous);
+\import singular_cohomology.Relative[A := Carrier, source := topology, subset := boundary] \as Pair;
+\import Pair.Maps[B := Disk.DiskBundle].Over[target := Disk.diskTopology, targetSubset := Disk.Boundary] \as Inclusions;
+\definition pairInclusion: Inclusions.Map := \into[Carrier -> Disk.DiskBundle](inclusion, Inclusions.Map) \by {
+  Inclusions.Laws[inclusion] { continuous := continuous, contained := \fun (p: Pair.SubspaceCarrier) => \bysub(Carrier, boundary, p) }
+};
+\module Additive(coefficients: IntegerModules.Bundle, z: I.Int^) {
+  \import Pair.With[coefficients := coefficients].At[z := z] \as Theory;
+  \definition Class: \Set := Theory.Carrier;
+  \definition space: IntegerModules.Space Class := Theory.space;
+  \definition restriction: _ := Inclusions.On[f := pairInclusion].Integer[].With[coefficients := coefficients].At[z := z].induced;
+}
+\module Fiber(x: BasePoint);
+\module Ring(K: \Set, ring: std.Alg[].Ring[].CommutativeRing[K]);
+
+\module Along(V: \Pow X, contained: topology.Topology[Carrier := X].Subset V U);

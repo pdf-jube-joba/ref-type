@@ -1,0 +1,26 @@
+\import topology.Topology[Carrier := X] \as Base;
+\import Geometry.Domain[U := Base.Empty] \as Domain;
+\import Local.Model[n := n, U := Base.Empty] \as Model;
+\import Local.Rank[n := n].On[U := Base.Empty] \as Here;
+\import Domain.Ring[K := K, ring := ring].Degree[n := n] \as Top;
+\import topology.Topology[Carrier := Domain.Carrier] \as EmptySpace;
+\definition empty: \forall (p: Domain.Carrier) -> std.Logic[].Proposition[].False := \fun (p: Domain.Carrier) => \bysub(Disk.DiskBundle, Domain.domain, p);
+\definition boundary: \forall (p: Domain.Carrier) -> \In[Domain.Carrier] Domain.boundary p :=
+  \fun (p: Domain.Carrier) => std.Logic[].Proposition[].falseElim _ (empty p);
+\import \root.RelativeMayerVietoris[].Pair[A := Domain.Carrier, source := Domain.topology, subset := Domain.boundary].Full[full := boundary] \as TargetFull;
+\import \root.RelativeMayerVietoris[].Pair[A := Domain.Carrier, source := Domain.topology, subset := EmptySpace.Empty].Full[full := empty] \as SourceFull;
+\definition thomClass: Top.Class := Top.space.zero;
+\module Degree(p: N.Nat^);
+\definition model: Model.Data := Model.Data {
+  thomClass := thomClass,
+  isomorphism := \fun (p: N.Nat^) => Degree[p := p].isomorphism,
+  formula := \fun (p: N.Nat^)(a: Domain.Ring[K := K, ring := ring].Cup[p := p, n := n].Domain) => \refl((Domain.Ring[K := K, ring := ring].Cup[p := p, n := n].map thomClass).apply a),
+  below := \fun (k: N.Nat^) => TargetFull.With[coefficients := BaseProduct.integerCoefficients, z := \root.LocalDisk[].shift n (I.Int^::negSucc k)].cohomologyZero
+};
+\definition data[g: Fibers]: Here.Given[g := g].Data := Here.Given[g := g].Data {
+  model := model,
+  normalized := \fun (x: Domain.BasePoint) => std.Logic[].Proposition[].falseElim _ (\bysub(X, Base.Empty, x)),
+  detected := \fun (a, b: Top.Class)(same: _) => trans!{Top.Class} _ _ _
+    (TargetFull.With[coefficients := BaseProduct.integerCoefficients, z := I.Int^::ofNat n].cohomologyZero a)
+    (sym!{Top.Class} _ _ (TargetFull.With[coefficients := BaseProduct.integerCoefficients, z := I.Int^::ofNat n].cohomologyZero b))
+};

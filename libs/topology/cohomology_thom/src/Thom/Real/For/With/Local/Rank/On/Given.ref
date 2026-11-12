@@ -1,0 +1,25 @@
+\import std.Logic[].Proposition[] \as Logic;
+\use std.Logic[].Equality[].eq_reason_in;
+\definition Normalized[u: Class]: \Prop := \forall (x: Domain.BasePoint) -> (restriction x).apply u = g x;
+\structure Data: \Set := {
+  model: Model.Data,
+  normalized: Normalized model.thomClass,
+  detected: Detects
+};
+\definition existence: \exists Data -> \exists ( u: Class \where Normalized u ) := \block {
+  \fun (existence: \exists Data) \then
+  \takefrom data: Data \by existence \then
+  \return Logic.existsIntro[Class, { u: Class \where Normalized u }] data.model.thomClass data.normalized
+};
+\definition unique: \exists Data -> \forall (u, v: \Cast[Class] ({ u: Class \where Normalized u })) -> u = v := \block {
+  \fun (existence: \exists Data)(u, v: \Cast[Class] ({ u: Class \where Normalized u })) \then
+  \takefrom data: Data \by existence \then
+  \return data.detected u v (\fun (x: Domain.BasePoint) => trans!{{FiberClass x}} _ _ _
+    ((\bysub(Class, { u: Class \where Normalized u }, u)) x)
+    (sym!{{FiberClass x}} _ _ ((\bysub(Class, { v: Class \where Normalized v }, v)) x)))
+};
+\definition class[exists: \exists Data]: \Cast[Class] ({ u: Class \where Normalized u }) :=
+  \choice \Cast[Class] ({ u: Class \where Normalized u }) \by { existence: existence exists, uniqueness: unique exists };
+\definition normalized[exists: \exists Data]: Normalized (class exists) := \bysub(Class, { u: Class \where Normalized u }, class exists);
+\definition agrees[exists: \exists Data][data: Data]: class exists = data.model.thomClass :=
+  data.detected (class exists) data.model.thomClass (\fun (x: Domain.BasePoint) => trans!{{FiberClass x}} _ _ _ (normalized exists x) (sym!{{FiberClass x}} _ _ (data.normalized x)));

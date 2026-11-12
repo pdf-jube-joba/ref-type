@@ -1,0 +1,31 @@
+\use std.Logic[].Equality[].eq_reason_in;
+\import RingCochains.At[C := RelativeRing.complex, z := I.Int^::ofNat q] \as FactorRing;
+\import RingModules.Laws[V := Factor, space := FactorRing.cohomologySpace] \as FactorLaws;
+\import RingModules.Laws[V := Range, space := ringRangeSpace] \as TargetLaws;
+\import algebra.Group[].Of[Carrier := Range, group := TargetLaws.additive] \as TargetGroup;
+\definition factor: Factor := FactorRing.cohomologySpace.neg u;
+\definition law: \forall (a: Domain) -> apply factor a = ringRangeSpace.neg (apply u a) :=
+  \fun (a: Domain) => eq_reason_in!{Range _
+    "=" _ "by" { congr!{Factor Range} (\fun (v: Factor) => apply v a) _ _ (sym!{Factor} _ _ (FactorLaws.negativeOne u)) }
+    "=" _ "by" { Cup.bilinear.scaleRight (ring.base.neg ring.base.one) (Forget.map.apply a) u }
+    "=" _ "by" { TargetLaws.negativeOne (apply u a) }
+  };
+\import RingModules.Hom[V := Range, W := Range, source := ringRangeSpace, target := ringRangeSpace] \as TargetMaps;
+\import RingModules.End[V := Range, space := ringRangeSpace] \as TargetEnd;
+\import RingModules.Isomorphism[V := Range, W := Range, source := ringRangeSpace, target := ringRangeSpace] \as TargetIso;
+\import RingModules.Isomorphism[V := Domain, W := Range, source := ringDomainSpace, target := ringRangeSpace] \as Isomorphisms;
+\definition negative: TargetIso.Isomorphism := TargetIso.Isomorphism {
+  forward := TargetMaps.negative TargetEnd.identity, backward := TargetMaps.negative TargetEnd.identity,
+  leftInverse := TargetGroup.negNeg, rightInverse := TargetGroup.negNeg
+};
+\definition composed[e: Isomorphisms.Isomorphism]: Isomorphisms.Isomorphism := Isomorphisms.Composition[U := Range, final := ringRangeSpace].compose negative e;
+\definition formula[e: Isomorphisms.Isomorphism][original: \forall (a: Domain) -> e.forward.apply a = apply u a]:
+  \forall (a: Domain) -> (composed e).forward.apply a = apply factor a :=
+  \fun (a: Domain) => trans!{Range} _ _ _ (congr!{Range Range} ringRangeSpace.neg _ _ (original a)) (sym!{Range} _ _ (law a));
+\definition isomorphism[e: Isomorphisms.Isomorphism][original: \forall (a: Domain) -> e.forward.apply a = apply u a]: Isomorphisms.Isomorphism :=
+  Isomorphisms.Isomorphism {
+    forward := ringMap factor, backward := (composed e).backward,
+    leftInverse := \fun (a: Domain) => trans!{Domain} _ _ _
+      (congr!{Range Domain} (composed e).backward.apply _ _ (sym!{Range} _ _ (formula e original a))) ((composed e).leftInverse a),
+    rightInverse := \fun (b: Range) => trans!{Range} _ _ _ (sym!{Range} _ _ (formula e original ((composed e).backward.apply b))) ((composed e).rightInverse b)
+  };
