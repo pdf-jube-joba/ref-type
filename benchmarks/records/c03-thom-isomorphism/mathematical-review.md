@@ -18,3 +18,9 @@ This mathematical review does not establish checker acceptance of the unverified
 A follow-up review of the zero-dimensional repair confirms that the native and forgotten integer actions are connected by a proved identity-on-additive-groups isomorphism.
 The unit follows the actual additive empty-pair comparison, the ordinary unit cocycle and the singleton calculation.
 Its dedicated scope accepted in 44.07 seconds.
+
+Supplementary independent reviews at source checkpoint `fea453097` confirm that all four geometric callers use the same normalized disk-product map and boundary order.
+The chart reindex transports the whole frame family and chart laws with explicit castRefl and ChartData eta, preserving the domain and literal normalized rank.
+The refined Subdomain interface still quantifies over every open included subdomain and forwards both proof conditions at each constructor.
+The normalized disk and chart helper scopes accepted separately.
+The actual integral product identification and sign scope subsequently accepted in 743.12 seconds; its detailed report was lost during the environment reset and the observation is distinguished from retained direct reports.
