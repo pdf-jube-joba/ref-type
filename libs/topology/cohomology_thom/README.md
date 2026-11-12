@@ -194,3 +194,8 @@ H^z(X;R)\xrightarrow{\smile e}H^{z+n}(X;R)
 `Pullback.Ring.Oriented[n, orientation, complex, sourceComplex].pulledOrientation` はこのファイバー写像から引き戻し束の符号付き向きを構成する。
 `classLaw`、`eulerLaw`、`Degree[p].law` と `inverseLaw` はそれぞれ大域 Thom 類、Euler 類、Thom 同型の順方向と逆方向の自然性を与える。
 `Pullback.ModTwo[n, constantRank, complex, sourceComplex]` は引き戻し束の標準 mod 2 類との比較を公開する。
+
+`MixedCup[A, source, first, second, K, ring].Cup[p, q].Both.Cohomology` は二つの相対余鎖の cup 積を、両部分で消える余鎖の複体へ降ろす。
+`Union.Cover.On[conditions].Cup[p, q].apply` は、二つの部分が和集合内で開いているとき、通常の \(H^p(A,\mathrm{first};K)\otimes H^q(A,\mathrm{second};K)\to H^{p+q}(A,\mathrm{first}\cup\mathrm{second};K)\) を構成する。
+`bilinear` は基礎の整数加群に関する双線形性で、`CommonIso.Cohomology.Canonical.law` が小さい鎖との比較を通常の余鎖による写像と同定する。
+鎖と開被覆の幾何は `singular_cap.Triple` を再利用し、係数と cup 積は指定された可換環を使う。
