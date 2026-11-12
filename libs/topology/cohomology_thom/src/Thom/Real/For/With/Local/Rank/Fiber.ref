@@ -1,0 +1,34 @@
+\import Geometry.Fiber[x := x] \as Actual;
+\import singular_cohomology.Relative[A := Actual.Carrier, source := Actual.topology, subset := Actual.boundary].OverRing[R := K, ring := ring].With[coefficients := BaseProduct.coefficients] \as Relative;
+\import chain_complexes.Integer[].Over[R := K, ring := std.Alg[].Ring[].commutativeRingAsRing K ring].At[C := Relative.complex, z := I.Int^::ofNat n] \as H;
+\import std.Logic[].Proposition[] \as Logic;
+\definition Class: \Set := FiberClass x;
+\definition space: Modules.Space Class := H.cohomologySpace;
+\import Modules.Isomorphism[V := K, W := Class, source := Modules.scalarModule, target := space] \as Isomorphisms;
+\definition Generator[u: Class]: \Prop := \exists ( e: Isomorphisms.Isomorphism \where e.forward.apply ring.base.one = u );
+\import Modules.Hom[V := K, W := Class, source := Modules.scalarModule, target := space] \as Maps;
+\definition nonzero: (ring.base.zero = ring.base.one -> Logic.False) -> \forall (u: Class) -> Generator u -> u = space.zero -> Logic.False := \block {
+  \fun (nontrivial: ring.base.zero = ring.base.one -> Logic.False)(u: Class)(generator: Generator u)(zero: u = space.zero) \then
+  \takefrom e: \Cast[Isomorphisms.Isomorphism] ({ e: Isomorphisms.Isomorphism \where e.forward.apply ring.base.one = u }) \by generator \then
+  \let normalized: e.forward.apply ring.base.one = u := \bysub(Isomorphisms.Isomorphism, { e: Isomorphisms.Isomorphism \where e.forward.apply ring.base.one = u }, e) \then
+  \let same: e.forward.apply ring.base.one = e.forward.apply ring.base.zero := trans!{Class} _ _ _ normalized (trans!{Class} _ _ _ zero (sym!{Class} _ _ (Maps.zeroPreserved e.forward))) \then
+  \let oneZero: ring.base.one = ring.base.zero := trans!{K} _ _ _ (sym!{K} _ _ (e.leftInverse ring.base.one))
+    (trans!{K} _ _ _ (congr!{Class K} e.backward.apply _ _ same) (e.leftInverse ring.base.zero)) \then
+  \return nontrivial (sym!{K} _ _ oneZero)
+};
+\import Modules.Laws[V := Class, space := space] \as Values;
+\import algebra.Group[].Of[Carrier := Class, group := Values.additive] \as Group;
+\import Modules.Hom[V := Class, W := Class, source := space, target := space] \as EndMaps;
+\import Modules.End[V := Class, space := space] \as End;
+\definition negative: Modules.Isomorphism[V := Class, W := Class, source := space, target := space].Isomorphism :=
+  Modules.Isomorphism[V := Class, W := Class, source := space, target := space].Isomorphism {
+    forward := EndMaps.negative End.identity, backward := EndMaps.negative End.identity,
+    leftInverse := Group.negNeg, rightInverse := Group.negNeg
+  };
+\definition negativeGenerator: \forall (u: Class) -> Generator u -> Generator (space.neg u) := \block {
+  \fun (u: Class)(generator: Generator u) \then
+  \takefrom e: \Cast[Isomorphisms.Isomorphism] ({ e: Isomorphisms.Isomorphism \where e.forward.apply ring.base.one = u }) \by generator \then
+  \let result: Isomorphisms.Isomorphism := Isomorphisms.Composition[U := Class, final := space].compose negative e \then
+  \return Logic.existsIntro[Isomorphisms.Isomorphism, { f: Isomorphisms.Isomorphism \where f.forward.apply ring.base.one = space.neg u }] result
+    (congr!{Class Class} space.neg _ _ (\bysub(Isomorphisms.Isomorphism, { e: Isomorphisms.Isomorphism \where e.forward.apply ring.base.one = u }, e)))
+};

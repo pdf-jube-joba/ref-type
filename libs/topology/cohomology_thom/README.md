@@ -140,3 +140,14 @@ H^p(X;R)\longrightarrow H^{p+n}(X\times D^n,X\times\partial D^n;R),\qquad
 | `euler` | 零切断への Thom 類の引き戻し。 |
 | `Degree[p].zeroSection` | Thom 同型の像を零切断へ引き戻すと Euler 類との積になる。 |
 | `Below[k].zero` | \(\operatorname{shift}(n,-k-1)\) 次の相対群の消滅。 |
+
+`Local.Rank[n].Fiber[x].Generator` は、係数環から実ファイバーの最上次相対群への加群同型が1をその類へ送ることを表す。
+`Orientation.generates` は符号付きチャートの局所整合性から、向きが指定する各ファイバー類が実際に生成元であることを示す。
+
+`Thom.Real.For.With.ModTwo[n, constantRank, complex]` は向きを引数に取らない。
+`algebra.Two` の二元体上では実ファイバーの生成元が一意であることを証明し、その一意な生成元を各ファイバーで選ぶ。
+正規化された局所チャートの類がこの選択と一致するため、有限 CW 底空間上で `class`、`euler`、`Degree[p].isomorphism` を構成できる。
+`normalized` と `uniqueNormalized` は元の円板束の実ファイバーに関する正規化と一意性を与える。
+
+`CoefficientChange.FromIntegers[K, ring]` は整数加群の1へのスカラー作用から \(\mathbb Z\to K\) を構成する。
+`linear`、`multiply`、`unit` が加法・積・単位の保存を証明し、`OnSpace[A, source].morphism` は任意の係数環への標準係数変更を与える。

@@ -1,0 +1,23 @@
+\import module_theory.Module[].Over[R := K, ring := std.Alg[].Ring[].commutativeRingAsRing K ring] \as RingModules;
+\import RingModules.AbelianHom[N := RingModules.Bundle { Carrier := K, space := RingModules.scalarModule }] \as Target;
+\import Modules.AbelianHom[N := Modules.Bundle { Carrier := I.Int^, space := Modules.scalarModule }] \as Source;
+\definition sourceCoefficients: Modules.Bundle := Source.coefficients;
+\definition targetCoefficients: Modules.Bundle := Target.coefficients;
+\definition apply[a: I.Int^]: K := targetCoefficients.space.smul a ring.base.one;
+\definition linear: Modules.MapBetween sourceCoefficients targetCoefficients :=
+  \root.RelativeMayerVietoris[].IntegerLinear[].On[A := sourceCoefficients, B := targetCoefficients, f := apply, addition := (\fun (a, b: I.Int^) => targetCoefficients.space.scalarAdd a b ring.base.one)].map;
+\definition unit: apply Integers.ring.one = ring.base.one := targetCoefficients.space.scalarOne ring.base.one;
+\definition left[a: I.Int^]: Modules.MapBetween targetCoefficients targetCoefficients :=
+  \root.RelativeMayerVietoris[].IntegerLinear[].On[A := targetCoefficients, B := targetCoefficients, f := (\fun (x: K) => ring.base.mul (apply a) x), addition := (\fun (x, y: K) => RingModules.scalarModule.vectorAdd (apply a) x y)].map;
+\definition oneRight[x: K]: ring.base.mul x ring.base.one = x := trans!{K} _ _ _ (ring.mulCommutative x ring.base.one) (RingModules.scalarModule.scalarOne x);
+\definition multiply: \forall (a, b: I.Int^) -> apply (Integers.ring.mul a b) = ring.base.mul (apply a) (apply b) :=
+  \fun (a, b: I.Int^) => eq_reason_in!{K _
+    "=" _ "by" { congr!{I.Int^ K} apply _ _ (Integers.commutativeRing.mulCommutative a b) }
+    "=" _ "by" { targetCoefficients.space.scalarAssoc b a ring.base.one }
+    "=" _ "by" { congr!{K K} (targetCoefficients.space.smul b) _ _ (sym!{K} _ _ (oneRight (apply a))) }
+    "=" _ "by" { sym!{K} _ _ ((left a).scalar b ring.base.one) }
+  };
+\module OnSpace(A: \Set, source: topology.Topology[Carrier := A].Topology) {
+  \import \root.CoefficientChange[].OnSpace[A := A, source := source, R := I.Int^, S := K, ring := Integers.commutativeRing, targetRing := ring] \as Maps;
+  \definition morphism: Maps.Morphism := Maps.Morphism { linear := linear, multiply := multiply, unit := unit };
+}

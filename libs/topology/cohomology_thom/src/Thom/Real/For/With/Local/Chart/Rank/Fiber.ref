@@ -1,0 +1,20 @@
+\import Geometry.Fiber[x := x].Ring[K := K, ring := ring] \as Actual;
+\import Local.Chart[c := c] \as Original;
+\import Local.Chart[c := c].Rank[n := n, same := same] \as RankedChart;
+\import Local.Rank[n := n].Fiber[x := x] \as Fiber;
+\definition Families[k: N.Nat^]: \Set := Local.Model[n := k, U := c.domain].Data;
+\definition IsGenerator[k: N.Nat^][m: Families k]: \Prop := Local.Rank[n := k].Fiber[x := x].Generator ((Local.Rank[n := k].On[U := c.domain].restriction x).apply m.thomClass);
+\definition native: IsGenerator c.dimension Original.data := std.Logic[].Proposition[].existsIntro[
+  Modules.Isomorphism[V := K, W := Local.Rank[n := c.dimension].FiberClass x, source := Modules.scalarModule, target := Local.Rank[n := c.dimension].Fiber[x := x].space].Isomorphism,
+  { e: Modules.Isomorphism[V := K, W := Local.Rank[n := c.dimension].FiberClass x, source := Modules.scalarModule, target := Local.Rank[n := c.dimension].Fiber[x := x].space].Isomorphism \where e.forward.apply ring.base.one = (Local.Rank[n := c.dimension].On[U := c.domain].restriction x).apply Original.data.thomClass }]
+  Actual.isomorphism (trans!{{Local.Rank[n := c.dimension].FiberClass x}} _ _ _ Actual.normalized (sym!{{Local.Rank[n := c.dimension].FiberClass x}} _ _ Actual.Normalization[].normalized));
+\definition positive: IsGenerator n model := Transport.predicate Families IsGenerator c.dimension n same Original.data native;
+\definition generates: \forall (reverse: std.Data[].Bool[].Bool^) -> Fiber.Generator ((Ranked.restriction x).apply (RankedChart.signed reverse).thomClass) :=
+  \induction (reverse: std.Data[].Bool[].Bool^) \return Fiber.Generator ((Ranked.restriction x).apply (RankedChart.signed reverse).thomClass) \with {
+    | false: positive
+    | true: \idelim Fiber.space.neg ((Ranked.restriction x).apply model.thomClass) = (Ranked.restriction x).apply (RankedChart.signed std.Data[].Bool[].Bool^::true).thomClass
+        \with u: Fiber.Class => Fiber.Generator u \by {
+          base: Fiber.negativeGenerator ((Ranked.restriction x).apply model.thomClass) positive,
+          equality: sym!{Fiber.Class} _ _ (Ranked.negativeLaw x model.thomClass)
+        }
+  };
