@@ -36,3 +36,9 @@ This source repair remains pending its local/full formal check.
 After the selected package check exposed rank lookup errors, a follow-up actual-API review confirmed `Family.Of[bundle].rankFrame` has direction `rank x = n`, and all direct-sum rank references now use that module.
 The follow-up also checked canonical comparison directions, mod-2 coefficient squares, chart rank transports, and zero-section import scopes against their definitions; no further concrete mismatch was found by reading.
 Formal direct-sum checking remains necessary and is in progress.
+
+Final substantive plan-coverage review at `e95106ec0` found concrete implementations and public APIs for every C03 requirement.
+The review checked fiber normalization, actual finite Mayer–Vietoris gluing and cup isomorphisms, arbitrary commutative unital coefficient changes, pullback/direct-sum/orientation/zero-section comparisons, and the Euler-identified Gysin sequence of the actual sphere bundle.
+The point example covers every rank and exposes normalization, reduction, reversal, Thom isomorphisms and Gysin sequences; package and dependent-plan documentation identify the actual APIs.
+Direct-sum orientation comparison assumes equality of fiber orientations and proves global class equality, so it does not assume the requested global theorem.
+No missing mathematical implementation or API blocker was found; the active and remaining direct-sum scopes plus final package/aggregate validation were still pending at review time.
