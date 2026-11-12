@@ -37,6 +37,9 @@ Consequently, the cause of the recovery target's cache misses cannot be distingu
 
 The B07 recovery counters demonstrate reuse of compatible cache in this runtime.
 They do not identify whether those artifacts came from an initial environment seed or the immediately preceding D01 dependency check.
+The already-running K11 recovery case subsequently accepted 3,312 modules, with 2,524 source-checked modules and one reported checkpoint resume.
+Its report records zero worker recoveries, lost steps, save failures and corrupt reads; `critical/summary.json` and its compressed original report retain the exact counters.
+This confirms compatible checkpoint reuse, but does not identify when that checkpoint was created.
 The earlier partial whole-repository coverage, including the last observation of 10,891/14,486 before disconnection, is not aggregate acceptance.
 The missing fixed-source verification is rerun through the normal driver, which validates cache inputs and checks misses.
 No additional checker run was launched to answer the cache-reuse question.
