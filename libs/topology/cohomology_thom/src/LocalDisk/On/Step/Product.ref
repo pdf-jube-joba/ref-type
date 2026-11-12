@@ -1,0 +1,56 @@
+\use std.Logic[].Equality[].eq_reason_in;
+\import singular_products.Cochains[A := Disk.DiskCarrier, source := Disk.diskTopology, R := K, ring := ring] \as LowerProduct;
+\import singular_products.Cochains[A := Cylinder.Carrier, source := Cylinder.topology Disk.diskTopology, R := K, ring := ring] \as CylinderProduct;
+\import singular_products.Cochains[A := Geometry.BoxCarrier, source := Geometry.boxTopology, R := K, ring := ring] \as BoxProduct;
+\import singular_products.Cochains[A := Higher.DiskCarrier, source := Higher.diskTopology, R := K, ring := ring] \as HigherProduct;
+\import singular_cap.CochainPair[A := Disk.DiskCarrier, source := Disk.diskTopology, subset := Disk.boundary, R := K, ring := ring] \as LowerCup;
+\import singular_cap.CochainPair[A := Cylinder.Carrier, source := Cylinder.topology Disk.diskTopology, subset := Suspension.boundary, R := K, ring := ring] \as CylinderCup;
+\import singular_cap.CochainPair[A := Geometry.BoxCarrier, source := Geometry.boxTopology, subset := Geometry.BoxBoundary, R := K, ring := ring] \as BoxCup;
+\import singular_cap.CochainPair[A := Higher.DiskCarrier, source := Higher.diskTopology, subset := Higher.boundary, R := K, ring := ring] \as HigherCup;
+\import \root.RelativePullback[].On[A := Geometry.BoxCarrier, source := Geometry.boxTopology, subset := Geometry.BoxBoundary, R := K, ring := ring]
+  .To[B := Cylinder.Carrier, target := Cylinder.topology Disk.diskTopology, part := Suspension.boundary].Along[f := CylinderComparison.forwardMap cylinder] \as CylinderPull;
+\import \root.RelativePullback[].On[A := Higher.DiskCarrier, source := Higher.diskTopology, subset := Higher.boundary, R := K, ring := ring]
+  .To[B := Geometry.BoxCarrier, target := Geometry.boxTopology, part := Geometry.BoxBoundary].Along[f := RoundComparison.forwardMap round] \as RoundPull;
+\definition total: N.Nat^ := N.Basic[].Def[].add p q;
+\definition next: N.Nat^ := N.Nat^::succ total;
+\import Suspension.Covering[].Product[K := K, ring := ring] \as SuspendedProduct;
+\import SuspendedProduct.Absolute[p := p] \as Absolute;
+\import singular_cohomology.Cochains[A := Disk.DiskCarrier, source := Disk.diskTopology].With[coefficients := LowerProduct.integerCoefficients] \as LowerOrdinary;
+\import singular_cohomology.Cochains[A := Cylinder.Carrier, source := Cylinder.topology Disk.diskTopology].With[coefficients := LowerProduct.integerCoefficients] \as CylinderOrdinary;
+\import chain_complexes.Cochain[].Over[R := I.Int^, ring := Integers.ring] \as Ordinary;
+\import Ordinary.At[C := LowerOrdinary.complex, k := p] \as LowerP;
+\import Ordinary.At[C := CylinderOrdinary.complex, k := p] \as CylinderP;
+\import LowerCup.Cohomology[p := p, q := q].Right[] \as LowerMultiplication;
+\import CylinderCup.Cohomology[p := p, q := N.Nat^::succ q].Right[] \as CylinderMultiplication;
+\import BoxCup.Cohomology[p := p, q := N.Nat^::succ q].Right[] \as BoxMultiplication;
+\import HigherCup.Cohomology[p := p, q := N.Nat^::succ q].Right[] \as HigherMultiplication;
+\import \parent.With[coefficients := LowerProduct.integerCoefficients, z := I.Int^::ofNat q] \as InputStep;
+\import \parent.With[coefficients := LowerProduct.integerCoefficients, z := I.Int^::ofNat total] \as OutputStep;
+\import singular_cohomology.Relative[A := Disk.DiskCarrier, source := Disk.diskTopology, subset := Disk.boundary].With[coefficients := LowerProduct.integerCoefficients].At[z := I.Int^::ofNat q] \as Input;
+\import singular_cohomology.Relative[A := Cylinder.Carrier, source := Cylinder.topology Disk.diskTopology, subset := Suspension.boundary].With[coefficients := LowerProduct.integerCoefficients].At[z := I.Int^::ofNat next] \as CylinderH;
+\import singular_cohomology.Relative[A := Geometry.BoxCarrier, source := Geometry.boxTopology, subset := Geometry.BoxBoundary].With[coefficients := LowerProduct.integerCoefficients].At[z := I.Int^::ofNat next] \as BoxH;
+\import singular_cohomology.Relative[A := Higher.DiskCarrier, source := Higher.diskTopology, subset := Higher.boundary].With[coefficients := LowerProduct.integerCoefficients].At[z := I.Int^::ofNat next] \as Output;
+\import Modules.Alternating[V := CylinderH.Carrier, space := CylinderH.space].Concatenation[] \as CylinderSigns;
+\import Modules.Alternating[V := BoxH.Carrier, space := BoxH.space].Concatenation[] \as BoxSigns;
+\import Modules.Alternating[V := Output.Carrier, space := Output.space].Concatenation[] \as Signs;
+\import CylinderSigns.Mapping[W := BoxH.Carrier, target := BoxH.space] \as ToBoxSigns;
+\import BoxSigns.Mapping[W := Output.Carrier, target := Output.space] \as ToRoundSigns;
+\import BoxProduct.Cohomology[].Pullback[B := Cylinder.Carrier, target := Cylinder.topology Disk.diskTopology] \as CylinderAbsolute;
+\import HigherProduct.Cohomology[].Pullback[B := Geometry.BoxCarrier, target := Geometry.boxTopology] \as RoundAbsolute;
+\definition boxAbsolute[a: Absolute.Cycle]: BoxProduct.Cohomology[].Group p := CylinderAbsolute.apply p (CylinderComparison.forwardMap cylinder) CylinderGeometry.forwardContinuous (CylinderP.classOf (Absolute.cylinderCycle a));
+\definition absolute[a: Absolute.Cycle]: HigherProduct.Cohomology[].Group p := RoundAbsolute.apply p (RoundComparison.forwardMap round) (topology.Homeomorphism[A := Higher.DiskCarrier, B := Geometry.BoxCarrier].laws Higher.diskTopology Geometry.boxTopology Levels.diskHomeomorphism).forwardContinuous (boxAbsolute a);
+\definition suspended[b: Input.Carrier]: _ := Suspension.Covering[].With[coefficients := LowerProduct.integerCoefficients].At[z := I.Int^::ofNat q].isomorphism.forward.apply b;
+\definition product: \forall (a: Absolute.Cycle)(b: Input.Carrier) ->
+  RoundPull.Degree[n := next].map.apply (CylinderPull.Degree[n := next].map.apply (CylinderMultiplication.apply (CylinderP.classOf (Absolute.cylinderCycle a)) (suspended b))) =
+  HigherMultiplication.apply (absolute a) (InputStep.isomorphism.forward.apply b) :=
+  \fun (a: Absolute.Cycle)(b: Input.Carrier) => trans!{Output.Carrier} _ _ _
+    (congr!{BoxH.Carrier Output.Carrier} RoundPull.Degree[n := next].map.apply _ _ (CylinderPull.Cup[p := p, q := N.Nat^::succ q].Cohomology[].naturality (CylinderP.classOf (Absolute.cylinderCycle a)) (suspended b)))
+    (RoundPull.Cup[p := p, q := N.Nat^::succ q].Cohomology[].naturality (boxAbsolute a) (CylinderPull.Degree[n := N.Nat^::succ q].map.apply (suspended b)));
+\definition law: \forall (a: Absolute.Cycle)(b: Input.Carrier) ->
+  OutputStep.isomorphism.forward.apply (LowerMultiplication.apply (LowerP.classOf a) b) = Signs.twist p (HigherMultiplication.apply (absolute a) (InputStep.isomorphism.forward.apply b)) :=
+  \fun (a: Absolute.Cycle)(b: Input.Carrier) => eq_reason_in!{Output.Carrier _
+    "=" _ "by" { congr!{CylinderH.Carrier Output.Carrier} (\fun (v: CylinderH.Carrier) => RoundPull.Degree[n := next].map.apply (CylinderPull.Degree[n := next].map.apply v)) _ _ (SuspendedProduct.Cup[p := p, q := q].law a b) }
+    "=" _ "by" { congr!{BoxH.Carrier Output.Carrier} RoundPull.Degree[n := next].map.apply _ _ (ToBoxSigns.law CylinderPull.Degree[n := next].map p (CylinderMultiplication.apply (CylinderP.classOf (Absolute.cylinderCycle a)) (suspended b))) }
+    "=" _ "by" { ToRoundSigns.law RoundPull.Degree[n := next].map p (CylinderPull.Degree[n := next].map.apply (CylinderMultiplication.apply (CylinderP.classOf (Absolute.cylinderCycle a)) (suspended b))) }
+    "=" _ "by" { congr!{Output.Carrier Output.Carrier} (Signs.twist p) _ _ (product a b) }
+  };

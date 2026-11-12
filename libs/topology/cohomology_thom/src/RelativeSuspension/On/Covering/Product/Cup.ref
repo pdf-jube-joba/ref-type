@@ -1,0 +1,32 @@
+\import \parent.Absolute[p := p] \as Absolute;
+\definition total: N.Nat^ := N.Basic[].Def[].add p q;
+\import BaseCup.Cohomology[p := p, q := q].Right[] \as SourceMultiplication;
+\import MiddleCup.Cohomology[p := p, q := q].Right[] \as MiddleMultiplication;
+\import OverlapCup.Cohomology[p := p, q := q].Right[] \as OverlapMultiplication;
+\import CylinderCup.Cohomology[p := p, q := N.Nat^::succ q].Right[] \as TargetMultiplication;
+\import singular_cohomology.Relative[A := A, source := source, subset := subset].With[coefficients := BaseProduct.integerCoefficients].At[z := I.Int^::ofNat q] \as BaseQ;
+\import singular_cohomology.Relative[A := Middle.Carrier, source := Middle.space, subset := Middle.part].With[coefficients := BaseProduct.integerCoefficients].At[z := I.Int^::ofNat total] \as MiddleTotal;
+\import singular_cohomology.Relative[A := Native.Overlap, source := Native.overlapTopology, subset := Native.overlapPart].With[coefficients := BaseProduct.integerCoefficients].At[z := I.Int^::ofNat total] \as OverlapTotal;
+\import singular_cohomology.Relative[A := Native.Overlap, source := Native.overlapTopology, subset := Native.overlapPart].With[coefficients := BaseProduct.integerCoefficients].At[z := I.Int^::ofNat q] \as OverlapQ;
+\import Cochains.At[C := BaseOrdinary.complex, k := p] \as BaseP;
+\import Cochains.At[C := OverlapOrdinary.complex, k := p] \as OverlapP;
+\import Cochains.At[C := CylinderOrdinary.complex, k := p] \as CylinderP;
+\import MiddleProduct.Cohomology[].Pullback[B := A, target := source] \as MiddleAbsolutePull;
+\import OverlapProduct.Cohomology[].Pullback[B := Middle.Carrier, target := Middle.space] \as OverlapAbsolutePull;
+\import MVProduct.Connecting[p := p, q := q] \as Connecting;
+\definition overlap: \forall (a: Absolute.Cycle)(b: BaseQ.Carrier) ->
+  Suspension.Degree[z := I.Int^::ofNat total].overlapIsomorphism.forward.apply (SourceMultiplication.apply (BaseP.classOf a) b) =
+  OverlapMultiplication.apply (Connecting.overlapClass (Absolute.cylinderCycle a)) (Suspension.Degree[z := I.Int^::ofNat q].overlapIsomorphism.forward.apply b) :=
+  \fun (a: Absolute.Cycle)(b: BaseQ.Carrier) => eq_reason_in!{OverlapTotal.Carrier _
+    "=" _ "by" { congr!{MiddleTotal.Carrier OverlapTotal.Carrier} OverlapPull.Degree[n := total].map.apply _ _ (MiddlePull.Cup[p := p, q := q].Cohomology[].naturality (BaseP.classOf a) b) }
+    "=" _ "by" { OverlapPull.Cup[p := p, q := q].Cohomology[].naturality (MiddleAbsolutePull.apply p Middle.forward Middle.projectionContinuous (BaseP.classOf a)) (MiddlePull.Degree[n := q].map.apply b) }
+    "=" _ "by" { congr!{OverlapP.Cohomology OverlapTotal.Carrier} (\fun (v: OverlapP.Cohomology) => OverlapMultiplication.apply v (Suspension.Degree[z := I.Int^::ofNat q].overlapIsomorphism.forward.apply b)) _ _ (Absolute.law a) }
+  };
+\import singular_cohomology.Relative[A := Cylinder.Carrier, source := topology, subset := boundary].With[coefficients := BaseProduct.integerCoefficients].At[z := I.Int^::ofNat (N.Nat^::succ total)] \as Output;
+\import Modules.Alternating[V := Output.Carrier, space := Output.space].Concatenation[] \as Signs;
+\definition law: \forall (a: Absolute.Cycle)(b: BaseQ.Carrier) ->
+  Suspension.At[z := I.Int^::ofNat total].isomorphism.forward.apply (SourceMultiplication.apply (BaseP.classOf a) b) =
+  Signs.twist p (TargetMultiplication.apply (CylinderP.classOf (Absolute.cylinderCycle a)) (Suspension.At[z := I.Int^::ofNat q].isomorphism.forward.apply b)) :=
+  \fun (a: Absolute.Cycle)(b: BaseQ.Carrier) => trans!{Output.Carrier} _ _ _
+    (congr!{OverlapTotal.Carrier Output.Carrier} (Native.Cohomology[coefficients := BaseProduct.integerCoefficients].At[z := I.Int^::ofNat total].connecting.apply) _ _ (overlap a b))
+    (Connecting.Whole[].law (Absolute.cylinderCycle a) (Suspension.Degree[z := I.Int^::ofNat q].overlapIsomorphism.forward.apply b));

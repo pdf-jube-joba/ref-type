@@ -1,0 +1,36 @@
+\import Cochains.At[C := BaseOrdinary.complex, k := p] \as Base;
+\import Cochains.At[C := CylinderOrdinary.complex, k := p] \as CylinderH;
+\import Cochains.At[C := MiddleOrdinary.complex, k := p] \as MiddleH;
+\import Cochains.At[C := OverlapOrdinary.complex, k := p] \as OverlapH;
+\import Cochains.Map[C := BaseOrdinary.complex, D := CylinderOrdinary.complex].At[k := p] \as ProjectionAction;
+\definition Cycle: \Set := Base.CycleCarrier;
+\definition cylinderCycle[a: Cycle]: CylinderH.CycleCarrier :=
+  (ProjectionAction.cyclesMap (ProjectionMaps.map Cylinder.point (Cylinder.pointContinuous source) Coefficients.identity)).apply a;
+\import MVProduct.Restriction[p := p] \as Restriction;
+\import OverlapProduct.Pullback[B := Native.Left, target := Native.leftTopology] \as OverlapLeft;
+\import LeftProduct.Pullback[B := Cylinder.Carrier, target := topology] \as LeftCylinder;
+\import singular_cohomology.Simplices[A := Native.Overlap, source := Native.overlapTopology] \as Simplices;
+\import singular_cohomology.Maps[A := Native.Overlap, B := Middle.Carrier, source := Native.overlapTopology, target := Middle.space] \as ToMiddle;
+\import singular_cohomology.Maps[A := Native.Overlap, B := Native.Left, source := Native.overlapTopology, target := Native.leftTopology] \as ToLeft;
+\import singular_cohomology.Maps[A := Native.Left, B := Cylinder.Carrier, source := Native.leftTopology, target := topology] \as IntoCylinder;
+\import Modules.Free[Generators := Simplices.Carrier p].To[W := K, target := BaseProduct.integerCoefficients.space] \as Free;
+\definition middleAlpha[a: BaseProduct.Carrier p]: MiddleProduct.Carrier p := MiddleAbsolute.apply p Middle.forward Middle.projectionContinuous a;
+\definition overlapAlpha[a: BaseProduct.Carrier p]: OverlapProduct.Carrier p := OverlapAbsolute.apply p (Pairs.forwardMap pair) overlapContinuous (middleAlpha a);
+\definition cochains: \forall (a: Cycle) -> overlapAlpha a = Restriction.overlap (cylinderCycle a) :=
+  \fun (a: Cycle) => Free.ext _ _ (\fun (sigma: Simplices.Carrier p) => trans!{K} _ _ _
+    (OverlapAbsolute.onSimplex p (Pairs.forwardMap pair) overlapContinuous (middleAlpha a) sigma)
+    (trans!{K} _ _ _ (MiddleAbsolute.onSimplex p Middle.forward Middle.projectionContinuous a (ToMiddle.postcompose p (Pairs.forwardMap pair) overlapContinuous sigma))
+      (sym!{K} _ _ (trans!{K} _ _ _
+        (OverlapLeft.onSimplex p Native.toLeft MVProduct.overlapLeftContinuous (Restriction.left (cylinderCycle a)) sigma)
+        (trans!{K} _ _ _
+          (LeftCylinder.onSimplex p Native.leftPairMap MVProduct.leftContinuous (cylinderCycle a) (ToLeft.postcompose p Native.toLeft MVProduct.overlapLeftContinuous sigma))
+          (ProjectionPull.onSimplex p Cylinder.point (Cylinder.pointContinuous source) a
+            (IntoCylinder.postcompose p Native.leftPairMap MVProduct.leftContinuous (ToLeft.postcompose p Native.toLeft MVProduct.overlapLeftContinuous sigma))))))));
+\import MiddleProduct.Cohomology[].Pullback[B := A, target := source] \as MiddlePull;
+\import OverlapProduct.Cohomology[].Pullback[B := Middle.Carrier, target := Middle.space] \as OverlapPull;
+\definition law: \forall (a: Cycle) -> OverlapPull.apply p (Pairs.forwardMap pair) overlapContinuous (MiddlePull.apply p Middle.forward Middle.projectionContinuous (Base.classOf a)) = OverlapH.classOf (Restriction.overlapCycle (cylinderCycle a)) :=
+  \fun (a: Cycle) => eq_reason_in!{OverlapH.Cohomology _
+    "=" _ "by" { congr!{MiddleH.Cohomology OverlapH.Cohomology} (OverlapPull.apply p (Pairs.forwardMap pair) overlapContinuous) _ _ (MiddlePull.At[n := p].onClass Middle.forward Middle.projectionContinuous a) }
+    "=" _ "by" { OverlapPull.At[n := p].onClass (Pairs.forwardMap pair) overlapContinuous (MiddlePull.At[n := p].cycle Middle.forward Middle.projectionContinuous a) }
+    "=" _ "by" { OverlapH.equalClass (OverlapPull.At[n := p].cycle (Pairs.forwardMap pair) overlapContinuous (MiddlePull.At[n := p].cycle Middle.forward Middle.projectionContinuous a)) (Restriction.overlapCycle (cylinderCycle a)) (cochains a) }
+  };
