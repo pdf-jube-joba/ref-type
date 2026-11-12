@@ -11,5 +11,5 @@
 
 - [K11 K 理論の Thom 同型](k11-k-thom.md)
 - [C09 Chern 指標と乗法的特性類](c09-chern-character-genera.md)
-- [C03 Thom 類と Thom 同型](c03-thom-isomorphism.md)
+- [C03 Thom 類と Thom 同型](../../libs/topology/cohomology_thom/README.md)
 - [C12 コンパクト台付きコホモロジー](c12-compact-support-cohomology.md)

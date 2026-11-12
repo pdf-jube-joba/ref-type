@@ -12,4 +12,4 @@
 
 - [C06 Chern 類](c06-chern-classes.md)
 - [C07 Stiefel–Whitney 類](c07-stiefel-whitney.md)
-- [C03 Thom 類と Thom 同型](c03-thom-isomorphism.md)
+- [C03 Thom 類と Thom 同型](../../libs/topology/cohomology_thom/README.md)

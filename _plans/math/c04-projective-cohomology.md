@@ -10,5 +10,5 @@
 ## 依存するタスク
 
 - [B05 有限 Grassmannian と普遍束](b05-grassmannians.md)
-- [C03 Thom 類と Thom 同型](c03-thom-isomorphism.md)
+- [C03 Thom 類と Thom 同型](../../libs/topology/cohomology_thom/README.md)
 - [B08 Grassmannian のセル分解](b08-grassmannian-cells.md)
