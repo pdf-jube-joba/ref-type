@@ -1,0 +1,29 @@
+\import euclidean_forms.Euclidean[n := n].Restriction[U := U, V := V] \as Restrict;
+\definition point[x: Open.Carrier U]: Open.Carrier V := Open.inclusion U V included x;
+\definition arguments[x: Open.Carrier U][v: Multilinear.Arguments one]: Multilinear.Arguments one := v;
+\definition scalar[g: TargetFunctions.Function]: SourceFunctions.Function := \into[Calculus.Function]
+  ((\fun (x: Open.Carrier U) => g (point x)), SourceFunctions.Function) \by {
+    Calculus.SmoothLaws[\fun (x: Open.Carrier U) => g (point x)] { real := Open.Restriction[].localSmooth U V included (TargetFunctions.real g) (\bysub(Open.ScalarFunction V, { h: Open.ScalarFunction V \where Open.Smooth[].SmoothOn V h }, TargetFunctions.real g)), imaginary := Open.Restriction[].localSmooth U V included (TargetFunctions.imaginary g) (\bysub(Open.ScalarFunction V, { h: Open.ScalarFunction V \where Open.Smooth[].SmoothOn V h }, TargetFunctions.imaginary g)) }
+  };
+\definition form[A: Target.OneForm]: Source.OneForm := Source.OneForm { real := Restrict.apply one included A.real, imaginary := Restrict.apply one included A.imaginary };
+\definition matrix0[A: Target.Matrix0]: Source.Matrix0 := \fun (a, b: Fin.Fin r) => scalar (A a b);
+\definition matrix1[A: Target.Matrix1]: Source.Matrix1 := \fun (a, b: Fin.Fin r) => form (A a b);
+\definition value: \forall (A: Target.OneForm)(x: Open.Carrier U)(v: Multilinear.Arguments one) -> Source.evaluate (form A) x v = Target.evaluate A (point x) (arguments x v) :=
+  \fun (A: Target.OneForm)(x: Open.Carrier U)(v: Multilinear.Arguments one) => \refl(Source.evaluate (form A) x v);
+\definition plus: \forall (A, B: Target.Matrix1) -> matrix1 (Target.plus A B) = Source.plus (matrix1 A) (matrix1 B) :=
+  \fun (A, B: Target.Matrix1) => SourceAlgebra.matrixExt _ _ (\fun (x: Open.Carrier U)(v: Multilinear.Arguments one) => \refl(SourceAlgebra.eval1 (matrix1 (Target.plus A B)) x v));
+\definition product01: \forall (A: Target.Matrix0)(B: Target.Matrix1) -> matrix1 (Target.product01 A B) = Source.product01 (matrix0 A) (matrix1 B) :=
+  \fun (A: Target.Matrix0)(B: Target.Matrix1) => SourceAlgebra.matrixExt (matrix1 (Target.product01 A B)) (Source.product01 (matrix0 A) (matrix1 B))
+    (\fun (x: Open.Carrier U)(v: Multilinear.Arguments one) => SourceAlgebra.numericExt _ _ (\fun (a, b: Fin.Fin r) => trans!{{C.Complex}} _ _ _
+      (Target.value01 A B a b (point x) (arguments x v)) (sym!{{C.Complex}} _ _ (Source.value01 (matrix0 A) (matrix1 B) a b x v))));
+\definition product10: \forall (A: Target.Matrix1)(B: Target.Matrix0) -> matrix1 (Target.product10 A B) = Source.product10 (matrix1 A) (matrix0 B) :=
+  \fun (A: Target.Matrix1)(B: Target.Matrix0) => SourceAlgebra.matrixExt (matrix1 (Target.product10 A B)) (Source.product10 (matrix1 A) (matrix0 B))
+    (\fun (x: Open.Carrier U)(v: Multilinear.Arguments one) => SourceAlgebra.numericExt _ _ (\fun (a, b: Fin.Fin r) => trans!{{C.Complex}} _ _ _
+      (Target.value10 A B a b (point x) (arguments x v)) (sym!{{C.Complex}} _ _ (Source.value10 (matrix1 A) (matrix0 B) a b x v))));
+\import \root.Real[n := n, r := realRank].Transport[U := U, V := V].Restriction[included := included] \as RealTransport;
+\definition differential: \forall (g: TargetFunctions.Function) -> form (Target.differential g) = Source.differential (scalar g) :=
+  \fun (g: TargetFunctions.Function) => SourceAlgebra.componentsExt _ _
+    (RealTransport.differential (TargetFunctions.real g)) (RealTransport.differential (TargetFunctions.imaginary g));
+\definition dMatrix: \forall (A: Target.Matrix0) -> matrix1 (Target.dMatrix A) = Source.dMatrix (matrix0 A) :=
+  \fun (A: Target.Matrix0) => \axiom:funext(matrix1 (Target.dMatrix A), Source.dMatrix (matrix0 A), \fun (a: Fin.Fin r) =>
+    \axiom:funext(matrix1 (Target.dMatrix A) a, Source.dMatrix (matrix0 A) a, \fun (b: Fin.Fin r) => differential (A a b)));

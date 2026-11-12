@@ -1,0 +1,22 @@
+\import \root.MatrixCalculus[n := n, r := r].On[U := (chart i).image] \as Matrices;
+\import \parent.\parent.Calculus[U := (chart i).image] \as Operator;
+\import Operator.Laws[] \as Laws;
+\import Euclidean.On[U := (chart i).image] \as Forms;
+\import Open.Smooth[].Algebra[U := (chart i).image] \as Functions;
+\definition localAdd: \forall (s, t: Sections.Section) -> sectionMatrix (SectionAlgebra.plus s t) i = Laws.plus0 (sectionMatrix s i) (sectionMatrix t i) :=
+  \fun (s, t: Sections.Section) => \axiom:funext(sectionMatrix (SectionAlgebra.plus s t) i, Laws.plus0 (sectionMatrix s i) (sectionMatrix t i),
+    \fun (a: Fin.Fin r) => \axiom:funext(sectionMatrix (SectionAlgebra.plus s t) i a, Laws.plus0 (sectionMatrix s i) (sectionMatrix t i) a,
+      \fun (b: Fin.Fin r) => SectionAlgebra.localAdd s t i a));
+\definition localMultiply: \forall (f: Scalars.Smooth)(s: Sections.Section) -> sectionMatrix (SectionAlgebra.multiply f s) i = Laws.scale0 (SectionAlgebra.scalarLocal f i) (sectionMatrix s i) :=
+  \fun (f: Scalars.Smooth)(s: Sections.Section) => \axiom:funext(sectionMatrix (SectionAlgebra.multiply f s) i, Laws.scale0 (SectionAlgebra.scalarLocal f i) (sectionMatrix s i),
+    \fun (a: Fin.Fin r) => \axiom:funext(sectionMatrix (SectionAlgebra.multiply f s) i a, Laws.scale0 (SectionAlgebra.scalarLocal f i) (sectionMatrix s i) a,
+      \fun (b: Fin.Fin r) => SectionAlgebra.localMultiply f s i a));
+\definition addition: \forall (A: Connection)(s, t: Sections.Section)(a: Fin.Fin r) -> covariant A (SectionAlgebra.plus s t) i a = plus (covariant A s) (covariant A t) i a :=
+  \fun (A: Connection)(s, t: Sections.Section)(a: Fin.Fin r) => trans!{{Forms.Form one}} _ _ _
+    (congr!{{Matrices.Matrix0} {Forms.Form one}} (\fun (v: Matrices.Matrix0) => Operator.covariant ((A i).matrix) v a a) _ _ (localAdd s t))
+    (congr!{{Matrices.Matrix1} {Forms.Form one}} (\fun (v: Matrices.Matrix1) => v a a) _ _ (Laws.addition ((A i).matrix) (sectionMatrix s i) (sectionMatrix t i)));
+\definition leibniz: \forall (A: Connection)(f: Scalars.Smooth)(s: Sections.Section)(a: Fin.Fin r) ->
+  covariant A (SectionAlgebra.multiply f s) i a = plus (tensor f s) (multiply f (covariant A s)) i a :=
+  \fun (A: Connection)(f: Scalars.Smooth)(s: Sections.Section)(a: Fin.Fin r) => trans!{{Forms.Form one}} _ _ _
+    (congr!{{Matrices.Matrix0} {Forms.Form one}} (\fun (v: Matrices.Matrix0) => Operator.covariant ((A i).matrix) v a a) _ _ (localMultiply f s))
+    (congr!{{Matrices.Matrix1} {Forms.Form one}} (\fun (v: Matrices.Matrix1) => v a a) _ _ (Laws.leibniz ((A i).matrix) (SectionAlgebra.scalarLocal f i) (sectionMatrix s i)));

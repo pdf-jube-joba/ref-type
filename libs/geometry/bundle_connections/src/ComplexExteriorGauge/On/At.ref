@@ -1,0 +1,56 @@
+\import Operations.ExteriorIndices[n := r, k := k] \as Indices;
+\import Operations.FiniteIndex[A := Indices.Tuple, S := Indices.set, enumeration := enumeration] \as Coordinates;
+\definition rank: N.Nat^ := Coordinates.rank;
+\import \root.ComplexMatrices[n := n, r := rank].On[U := U] \as ExteriorMatrix;
+\import Evaluation.Differential[k := k] \as CoefficientDerivative;
+\import Evaluation.ArgumentDifferential[k := k] \as ArgumentDerivative;
+\import Spaces.Sums[I := Fin.Fin k] \as Sums;
+\import Sums.Prop[] \as SumLaws;
+\definition word[b: Fin.Fin rank]: Alternating.Form k := Words.word k (Coordinates.enumerate b);
+\definition constant[b: Fin.Fin rank]: Evaluation.RegularFamily k :=
+  \into[Evaluation.Family k]((\fun (x: Open.Carrier U) => Alternating.asMultilinear k (word b)),
+    { omega: Evaluation.Family k \where Evaluation.CoefficientSmooth k omega }) \by {
+      \fun (indices: Fin.Fin k -> Fin.Fin r) => Calculus.constant (word b (\fun (slot: Fin.Fin k) => Basis.vectors (indices slot)))
+    };
+\definition arguments[T: Matrix.Matrix0][a: Fin.Fin rank]: Evaluation.RegularArguments k :=
+  \into[Evaluation.VariableArguments k]((\fun (x: Open.Carrier U)(slot: Fin.Fin k)(c: Fin.Fin r) => T (Coordinates.enumerate a slot) c x),
+    { args: Evaluation.VariableArguments k \where Evaluation.ArgumentSmooth k args }) \by {
+      \fun (slot: Fin.Fin k)(c: Fin.Fin r) => Evaluation.equalSmooth (T (Coordinates.enumerate a slot) c) (\fun (x: Open.Carrier U) => T (Coordinates.enumerate a slot) c x) (\fun (x: Open.Carrier U) => \refl(T (Coordinates.enumerate a slot) c x)) (\bysub(Calculus.Function, Functions.Function, T (Coordinates.enumerate a slot) c))
+    };
+\definition representation[T: Matrix.Matrix0][a, b: Fin.Fin rank]: Functions.Function := Evaluation.variableEvaluation k (constant b) (arguments T a);
+\definition constantDerivative: \forall (b: Fin.Fin rank)(i: Fin.Fin n)(x: Open.Carrier U)(args: Multilinear.Arguments k) ->
+  CoefficientDerivative.apply i (constant b) x args = Op.zero :=
+  \fun (b: Fin.Fin rank)(i: Fin.Fin n)(x: Open.Carrier U)(args: Multilinear.Arguments k) => trans!{{C.Complex}} _ _ _
+    (congr!{{Functions.Function} {C.Complex}} (\fun (f: Functions.Function) => Derivatives.apply i f x)
+      (Evaluation.evaluate k (constant b) args) (Functions.constant (word b args))
+      (Functions.ext (Evaluation.evaluate k (constant b) args) (Functions.constant (word b args)) (\fun (y: Open.Carrier U) => \refl(word b args))))
+    (congr!{{Functions.Function} {C.Complex}} (\fun (f: Functions.Function) => f x) _ _ (Derivatives.constant i (word b args)));
+\definition argumentDerivative: \forall (T: Matrix.Matrix0)(a: Fin.Fin rank)(i: Fin.Fin n)(x: Open.Carrier U)(slot: Fin.Fin k) ->
+  ArgumentDerivative.apply i (arguments T a) x slot = (\fun (c: Fin.Fin r) => Derivatives.apply i (T (Coordinates.enumerate a slot) c) x) :=
+  \fun (T: Matrix.Matrix0)(a: Fin.Fin rank)(i: Fin.Fin n)(x: Open.Carrier U)(slot: Fin.Fin k) =>
+    \axiom:funext(ArgumentDerivative.apply i (arguments T a) x slot,
+      (\fun (c: Fin.Fin r) => Derivatives.apply i (T (Coordinates.enumerate a slot) c) x), \fun (c: Fin.Fin r) =>
+        congr!{{Functions.Function} {C.Complex}} (\fun (f: Functions.Function) => Derivatives.apply i f x)
+          (ArgumentDerivative.coordinate (arguments T a) slot c) (T (Coordinates.enumerate a slot) c)
+          (Functions.ext (ArgumentDerivative.coordinate (arguments T a) slot c) (T (Coordinates.enumerate a slot) c) (\fun (y: Open.Carrier U) => \refl(T (Coordinates.enumerate a slot) c y))));
+\definition slotDerivative[T: Matrix.Matrix0][i: Fin.Fin n][a, b: Fin.Fin rank][x: Open.Carrier U][slot: Fin.Fin k]: C.Complex :=
+  word b (Multilinear.update k (arguments T a x) slot (\fun (c: Fin.Fin r) => Derivatives.apply i (T (Coordinates.enumerate a slot) c) x));
+\definition derivative: \forall (T: Matrix.Matrix0)(i: Fin.Fin n)(a, b: Fin.Fin rank)(x: Open.Carrier U) ->
+  Derivatives.apply i (representation T a b) x = Sums.sum (Fin.elements k) (slotDerivative T i a b x) :=
+  \fun (T: Matrix.Matrix0)(i: Fin.Fin n)(a, b: Fin.Fin rank)(x: Open.Carrier U) => eq_reason_in!{{C.Complex} { Derivatives.apply i (representation T a b) x }
+    "=" { Op.add (CoefficientDerivative.apply i (constant b) x (arguments T a x)) (Sums.sum (Fin.elements k) (Evaluation.slotTerm k (constant b) (arguments T a) i x)) } "by" { Evaluation.differentiation k (constant b) (arguments T a) i x }
+    "=" { Op.add Op.zero (Sums.sum (Fin.elements k) (Evaluation.slotTerm k (constant b) (arguments T a) i x)) } "by" { congr!{{C.Complex} {C.Complex}} (\fun (v: C.Complex) => Op.add v (Sums.sum (Fin.elements k) (Evaluation.slotTerm k (constant b) (arguments T a) i x))) (CoefficientDerivative.apply i (constant b) x (arguments T a x)) Op.zero
+      (constantDerivative b i x (arguments T a x)) }
+    "=" { Sums.sum (Fin.elements k) (Evaluation.slotTerm k (constant b) (arguments T a) i x) } "by" { Spaces.addZeroLeft (Sums.sum (Fin.elements k) (Evaluation.slotTerm k (constant b) (arguments T a) i x)) }
+    "=" { Sums.sum (Fin.elements k) (slotDerivative T i a b x) } "by" { SumLaws.congruent (Fin.elements k)
+      (Evaluation.slotTerm k (constant b) (arguments T a) i x) (slotDerivative T i a b x) (\fun (slot: Fin.Fin k) =>
+      congr!{{Vectors.Vector} {C.Complex}} (\fun (v: Vectors.Vector) => word b (Multilinear.update k (arguments T a x) slot v))
+        (ArgumentDerivative.apply i (arguments T a) x slot) (\fun (c: Fin.Fin r) => Derivatives.apply i (T (Coordinates.enumerate a slot) c) x) (argumentDerivative T a i x slot)) }
+  };
+\module Algebra;
+\module Tangent;
+\module Products;
+\module Jet(i: Fin.Fin n, x: Open.Carrier U);
+\module Expansion;
+\module Naturality;
+\module Covariant;

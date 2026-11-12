@@ -1,0 +1,40 @@
+\import \parent.Numeric[] \as Numeric;
+\import \parent.Algebra[] \as Algebra;
+\import RealMatrices.Associativity[] \as RealAlgebra;
+\import R.FiniteSums[].Linear[] \as Finite;
+\import Fin.Sum[m := r, n := r] \as Indices;
+\import Indices.Tuples[A := Scalar.Form one] \as FormTuples;
+\import Indices.Tuples[A := R.Real] \as RealTuples;
+\import Coordinates.On[U := U] \as CoordinateSmooth;
+\definition vector[b: Fin.Fin realRank]: Fin.Fin r -> C.Complex := Coordinates.decode (Finite.basis realRank b);
+\definition action0[A: Matrix0][b: Fin.Fin realRank][a: Fin.Fin r]: Functions.Function := functionSum r (\fun (c: Fin.Fin r) => functionProduct (A a c) (Algebra.constant (vector b c)));
+\definition action1[A: Matrix1][b: Fin.Fin realRank][a: Fin.Fin r]: OneForm := sum r (\fun (c: Fin.Fin r) => multiply (Algebra.constant (vector b c)) (A a c));
+\definition encode0[A: Matrix0][a, b: Fin.Fin realRank]: RealFunctions.Function :=
+  \into[Open.ScalarFunction U]((\fun (x: Open.Carrier U) => Numeric.encode (Algebra.eval0 A x) a b), RealFunctions.Predicate) \by {
+    CoordinateSmooth.encodeSmooth (\fun (x: Open.Carrier U)(c: Fin.Fin r) => action0 A b c x)
+      (\fun (c: Fin.Fin r) => Functions.regular (action0 A b c)) a
+  };
+\definition encode1[A: Matrix1][a, b: Fin.Fin realRank]: Scalar.Form one :=
+  FormTuples.join (\fun (c: Fin.Fin r) => (action1 A b c).real) (\fun (c: Fin.Fin r) => (action1 A b c).imaginary) a;
+\definition eval0: \forall (A: Matrix0)(x: Open.Carrier U) -> RealAlgebra.eval0 (encode0 A) x = Numeric.encode (Algebra.eval0 A x) :=
+  \fun (A: Matrix0)(x: Open.Carrier U) => \refl(RealAlgebra.eval0 (encode0 A) x);
+\definition actionValue: \forall (A: Matrix1)(b: Fin.Fin realRank)(a: Fin.Fin r)(x: Open.Carrier U)(v: Multilinear.Arguments one) ->
+  evaluate (action1 A b a) x v = Numeric.Action (Algebra.eval1 A x v) (vector b) a :=
+  \fun (A: Matrix1)(b: Fin.Fin realRank)(a: Fin.Fin r)(x: Open.Carrier U)(v: Multilinear.Arguments one) => trans!{{C.Complex}} _ _ _
+    (valueSum r (\fun (c: Fin.Fin r) => multiply (Algebra.constant (vector b c)) (A a c)) x v)
+    (Sums.congruent r (\fun (c: Fin.Fin r) => Op.mul (vector b c) (evaluate (A a c) x v))
+      (\fun (c: Fin.Fin r) => Op.mul (evaluate (A a c) x v) (vector b c)) (\fun (c: Fin.Fin r) => Spaces.mulComm (vector b c) (evaluate (A a c) x v)));
+\definition joinValue: \forall (f, g: Fin.Fin r -> Scalar.Form one)(a: Fin.Fin realRank)(x: Open.Carrier U)(v: Multilinear.Arguments one) ->
+  FormTuples.join f g a x v = RealTuples.join (\fun (c: Fin.Fin r) => f c x v) (\fun (c: Fin.Fin r) => g c x v) a :=
+  \fun (f, g: Fin.Fin r -> Scalar.Form one)(a: Fin.Fin realRank)(x: Open.Carrier U)(v: Multilinear.Arguments one) =>
+    (\induction (index: Indices.Index) \return FormTuples.evaluate f g index x v = RealTuples.evaluate (\fun (c: Fin.Fin r) => f c x v) (\fun (c: Fin.Fin r) => g c x v) index \with {
+      | inl: \fun (c: Fin.Fin r) => \refl(f c x v)
+      | inr: \fun (c: Fin.Fin r) => \refl(g c x v)
+    }) (Indices.split a);
+\definition eval1: \forall (A: Matrix1)(x: Open.Carrier U)(v: Multilinear.Arguments one) -> RealAlgebra.eval1 (encode1 A) x v = Numeric.encode (Algebra.eval1 A x v) :=
+  \fun (A: Matrix1)(x: Open.Carrier U)(v: Multilinear.Arguments one) => RealAlgebra.numericExt (RealAlgebra.eval1 (encode1 A) x v) (Numeric.encode (Algebra.eval1 A x v))
+    (\fun (a, b: Fin.Fin realRank) => trans!{{R.Real}} _ _ _
+      (joinValue (\fun (c: Fin.Fin r) => (action1 A b c).real) (\fun (c: Fin.Fin r) => (action1 A b c).imaginary) a x v)
+      (congr!{{Fin.Fin r -> C.Complex} {R.Real}} (\fun (w: Fin.Fin r -> C.Complex) => Coordinates.encode w a) _ _
+        (\axiom:funext((\fun (c: Fin.Fin r) => evaluate (action1 A b c) x v), Numeric.Action (Algebra.eval1 A x v) (vector b),
+          \fun (c: Fin.Fin r) => actionValue A b c x v))));

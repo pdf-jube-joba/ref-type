@@ -1,0 +1,20 @@
+\import linear_algebra.Commutative[K := R.Real, scalarRing := std.Alg[].Field[].fieldAsCommutativeRing R.Real (R.Algebra[].field)] \as RealSpaces;
+\import RealSpaces.Linear[V := RealFunctions.Function, W := RealFunctions.Function, source := RealFunctions.vectorSpace, target := RealFunctions.vectorSpace].Operations[] \as Operations;
+\definition realConjugate: \forall (f: Function) -> real (conjugate f) = real f :=
+  \fun (f: Function) => RealFunctions.ext (real (conjugate f)) (real f) (\fun (x: Open.Carrier U) => \refl(C.re (f x)));
+\definition imaginaryConjugate: \forall (f: Function) -> imaginary (conjugate f) = RealFunctions.vectorSpace.neg (imaginary f) :=
+  \fun (f: Function) => RealFunctions.ext (imaginary (conjugate f)) (RealFunctions.vectorSpace.neg (imaginary f))
+    (\fun (x: Open.Carrier U) => \refl(R.neg (C.im (f x))));
+\definition conjugation: \forall (i: Fin.Fin n)(f: Function) -> derivative i (conjugate f) = conjugate (derivative i f) :=
+  \fun (i: Fin.Fin n)(f: Function) => \axiom:funext(derivative i (conjugate f), conjugate (derivative i f),
+    \fun (x: Open.Carrier U) => C.Prop[].ext _ _
+      (congr!{{RealFunctions.Function} {R.Real}} (\fun (g: RealFunctions.Function) => Derivatives.apply i g x) _ _ (realConjugate f))
+      (trans!{{R.Real}} _ _ _
+        (congr!{{RealFunctions.Function} {R.Real}} (\fun (g: RealFunctions.Function) => Derivatives.apply i g x) _ _ (imaginaryConjugate f))
+        (congr!{{RealFunctions.Function} {R.Real}} (\fun (g: RealFunctions.Function) => g x) _ _
+          (Operations.preservesNeg (Derivatives.map i) (imaginary f)))));
+\definition halfConjugate: \forall (f: Function) -> half (conjugate f) = conjugate (half f) :=
+  \fun (f: Function) => \axiom:funext(half (conjugate f), conjugate (half f), \fun (x: Open.Carrier U) => C.Prop[].ext _ _
+    (\refl(R.mul R.half (C.re (f x)))) (Laws.fieldMulNegRight R.half (C.im (f x))));
+\definition twice: \forall (f: Function)(x: Open.Carrier U) -> Op.add (half f x) (half f x) = f x :=
+  \fun (f: Function)(x: Open.Carrier U) => C.Prop[].ext _ _ (R.Estimates[].halfTwice (C.re (f x))) (R.Estimates[].halfTwice (C.im (f x)));

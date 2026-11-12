@@ -1,0 +1,38 @@
+\use Equality.eq_reason_in;
+\import \parent.\parent.Pair[i := i, j := j] \as Old;
+\import Result.Pair[i := i, j := j] \as New;
+\import Charts.Transition[left := chart i, right := chart j] \as Domain;
+\import \parent.Forms[U := Domain.domain] \as Lift;
+\import \parent.Forms[U := (chart i).image] \as FirstLift;
+\import \parent.Forms[U := (chart j).image] \as SecondLift;
+\import \root.MatrixCalculus[n := n, r := Exterior.rank].On[U := Domain.domain] \as Matrix;
+\import Matrix.Linearity[] \as Linear;
+\import Euclidean.On[U := Domain.domain] \as Scalar;
+\import Spaces.Coordinates[I := Fin.Fin n] \as Vectors;
+\import Spaces.Multilinear[V := Vectors.Vector, space := Vectors.space] \as Multilinear;
+\import Euclidean.Pullback[m := n, U := Domain.domain, V := (chart j).image, f := Old.map] \as Pull;
+\definition source: New.source (data i) = Lift.lift (Old.source (connection i)) :=
+  Linear.ext (New.source (data i)) (Lift.lift (Old.source (connection i)))
+    (\fun (a, b: Fin.Fin Exterior.rank) => Scalar.ext one (New.source (data i) a b) (Lift.lift (Old.source (connection i)) a b)
+      (\fun (u: Open.Carrier Domain.domain)(v: Multilinear.Arguments one) => trans!{{R.Real}} _ _ _
+        (FirstLift.value ((connection i).matrix) a b (Domain.leftCoordinate u) v)
+        (sym!{{R.Real}} _ _ (Lift.value (Old.source (connection i)) a b u v))));
+\definition target: New.target (data j) = Lift.lift (Old.target (connection j)) :=
+  Linear.ext (New.target (data j)) (Lift.lift (Old.target (connection j)))
+    (\fun (a, b: Fin.Fin Exterior.rank) => Scalar.ext one (New.target (data j) a b) (Lift.lift (Old.target (connection j)) a b)
+      (\fun (u: Open.Carrier Domain.domain)(v: Multilinear.Arguments one) => trans!{{R.Real}} _ _ _
+        (SecondLift.value ((connection j).matrix) a b (Old.map.apply u) (\fun (slot: Fin.Fin one) => (Pull.jacobian u).apply (v slot)))
+        (sym!{{R.Real}} _ _ (Lift.value (Old.target (connection j)) a b u v))));
+\import \parent.Pair[i := i, j := j] \as Coefficients;
+\import \root.MatrixCalculus[n := n, r := r].On[U := Domain.domain].Linearity[] \as OriginalLinear;
+\definition original: Old.left (connection i) = Old.right (connection j) := OriginalLinear.ext (Old.left (connection i)) (Old.right (connection j)) (compatible connection i j);
+\import Lift.Gauge[T := Old.transition, A := Old.source (connection i), B := Old.target (connection j), compatible := original] \as Gauge;
+\definition matrices: New.left (data i) = New.right (data j) := eq_reason_in!{{Matrix.Matrix1} _
+  "=" _ "by" { congr!{Matrix.Matrix0 Matrix.Matrix1 Matrix.Matrix1} Matrix.product01 _ _ _ _ Coefficients.transition source }
+  "=" _ "by" { Gauge.law }
+  "=" _ "by" { congr!{Matrix.Matrix1 Matrix.Matrix1 Matrix.Matrix1} Matrix.plus _ _ _ _
+    (congr!{Matrix.Matrix0 Matrix.Matrix1} Matrix.dMatrix _ _ (sym!{Matrix.Matrix0} _ _ Coefficients.transition))
+    (congr!{Matrix.Matrix1 Matrix.Matrix0 Matrix.Matrix1} Matrix.product10 _ _ _ _ (sym!{Matrix.Matrix1} _ _ target) (sym!{Matrix.Matrix0} _ _ Coefficients.transition)) }
+};
+\definition law: New.Compatible (data i) (data j) := \fun (a, b: Fin.Fin Exterior.rank) =>
+  congr!{Matrix.Matrix1 {Scalar.Form one}} (\fun (A: Matrix.Matrix1) => A a b) _ _ matrices;

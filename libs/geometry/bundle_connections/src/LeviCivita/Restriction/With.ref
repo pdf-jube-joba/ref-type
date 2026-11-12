@@ -1,0 +1,39 @@
+\import Open.Smooth[].Algebra[U := U] \as Functions;
+\definition include[x: Open.Carrier U]: Open.Carrier V := \into[Fin.Fin n -> R.Real](x, V.points) \by { included x (\bysub(Fin.Fin n -> R.Real, U.points, x)) };
+\definition local: SourceMetric.Metric := SourceMetric.Metric {
+  form := \fun (x: Open.Carrier U) => metric.form (include x),
+  positive := \fun (x: Open.Carrier U) => metric.positive (include x),
+  smooth := \fun (a, b: Fin.Fin n) => Open.Restriction[].localSmooth U V included (TargetMetric.Coefficient metric.form a b) (metric.smooth a b),
+};
+\import \root.LeviCivita[n := n].On[U := V].Riemannian[metric := metric] \as TargetLC;
+\import \root.LeviCivita[n := n].On[U := U].Riemannian[metric := local] \as SourceLC;
+\import \root.Local[n := n, r := n].On[U := U] \as Local;
+\import \root.Forms[n := n, r := n].On[U := V].Coordinates[connection := TargetLC.connection] \as TargetForms;
+\definition connection: Local.Connection := Local.Connection { coefficient := \fun (i, a, b: Fin.Fin n) => Transport.scalar (TargetLC.connection.coefficient i a b) };
+\import \root.Forms[n := n, r := n].On[U := U].Coordinates[connection := connection] \as SourceForms;
+\definition extract: \forall (A: Target.Matrix1)(i, a, b: Fin.Fin n) -> SourceComponents.extract (Transport.matrix1 A) i a b = Transport.scalar (TargetComponents.extract A i a b) :=
+  \fun (A: Target.Matrix1)(i, a, b: Fin.Fin n) => Functions.ext (SourceComponents.extract (Transport.matrix1 A) i a b) (Transport.scalar (TargetComponents.extract A i a b))
+    (\fun (x: Open.Carrier U) => \refl(SourceComponents.extract (Transport.matrix1 A) i a b x));
+\definition matrix: SourceForms.matrix = Transport.matrix1 TargetForms.matrix := SourceComponents.ext SourceForms.matrix (Transport.matrix1 TargetForms.matrix)
+  (\fun (i, a, b: Fin.Fin n) => eq_reason_in!{{Functions.Function} _
+    "=" _ "by" { SourceForms.recover i a b }
+    "=" _ "by" { congr!{{Open.Smooth[].Algebra[U := V].Function} {Functions.Function}} Transport.scalar _ _ (sym!{{Open.Smooth[].Algebra[U := V].Function}} _ _ (TargetForms.recover i a b)) }
+    "=" _ "by" { sym!{{Functions.Function}} _ _ (extract TargetForms.matrix i a b) }
+  });
+\definition metricMatrix: SourceMetric.Of[metric := local].coefficient = Transport.matrix0 TargetMetric.Of[metric := metric].coefficient :=
+  \axiom:funext(SourceMetric.Of[metric := local].coefficient, Transport.matrix0 TargetMetric.Of[metric := metric].coefficient, \fun (a: Fin.Fin n) => \axiom:funext(SourceMetric.Of[metric := local].coefficient a, Transport.matrix0 TargetMetric.Of[metric := metric].coefficient a, \fun (b: Fin.Fin n) => Functions.ext (SourceMetric.Of[metric := local].coefficient a b) (Transport.matrix0 TargetMetric.Of[metric := metric].coefficient a b) (\fun (x: Open.Carrier U) => \refl(SourceMetric.Of[metric := local].coefficient a b x))));
+\definition compatible: SourceGauge.Compatible SourceMetric.Of[metric := local].coefficient SourceForms.matrix :=
+  \idelim Transport.matrix0 TargetMetric.Of[metric := metric].coefficient = SourceMetric.Of[metric := local].coefficient
+    \with g: Source.Matrix0 => SourceGauge.Compatible g SourceForms.matrix \by {
+      base: \idelim Transport.matrix1 TargetForms.matrix = SourceForms.matrix
+        \with A: Source.Matrix1 => SourceGauge.Compatible (Transport.matrix0 TargetMetric.Of[metric := metric].coefficient) A \by {
+          base: preservation TargetMetric.Of[metric := metric].coefficient TargetForms.matrix (TargetLC.Forms[c := TargetLC.connection].compatibility TargetLC.laws),
+          equality: sym!{Source.Matrix1} _ _ matrix
+        },
+      equality: sym!{Source.Matrix0} _ _ metricMatrix
+    };
+\definition laws: SourceLC.Laws[connection] := SourceLC.Laws[connection] {
+  torsionFree := \fun (i, j, a: Fin.Fin n) => congr!{{Open.Smooth[].Algebra[U := V].Function} {Functions.Function}} Transport.scalar _ _ (TargetLC.torsionFree i j a),
+  compatible := SourceLC.Forms[c := connection].recoverCompatibility compatible,
+};
+\definition unique: SourceLC.connection = connection := SourceLC.Unique[c := connection, laws := laws].unique;

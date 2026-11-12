@@ -1,0 +1,35 @@
+\import \root.MatrixCalculus[n := n, r := r].On[U := U] \as M;
+\import M.Associativity[] \as Product;
+\import M.Linearity[] \as Linear;
+\import Spaces.Laws[V := M.Matrix1, space := Linear.space] \as Laws;
+\import Open.Smooth[].Algebra[U := U] \as Functions;
+\import euclidean_forms.Euclidean[n := n].On[U := U] \as Scalar;
+\import Scalar.At[k := one] \as Forms;
+\definition transpose0[A: M.Matrix0][a, b: Fin.Fin r]: Functions.Function := A b a;
+\definition transpose1[A: M.Matrix1][a, b: Fin.Fin r]: Scalar.Form one := A b a;
+\definition dual[A: M.Matrix1]: M.Matrix1 := Linear.scale (R.neg R.one) (transpose1 A);
+\definition transpose01: \forall (A: M.Matrix0)(B: M.Matrix1) -> transpose1 (M.product01 A B) = M.product10 (transpose1 B) (transpose0 A) :=
+  \fun (A: M.Matrix0)(B: M.Matrix1) => Linear.ext (transpose1 (M.product01 A B)) (M.product10 (transpose1 B) (transpose0 A))
+    (\fun (a, b: Fin.Fin r) => \refl(M.product01 A B b a));
+\definition transpose10: \forall (A: M.Matrix1)(B: M.Matrix0) -> transpose1 (M.product10 A B) = M.product01 (transpose0 B) (transpose1 A) :=
+  \fun (A: M.Matrix1)(B: M.Matrix0) => Linear.ext (transpose1 (M.product10 A B)) (M.product01 (transpose0 B) (transpose1 A))
+    (\fun (a, b: Fin.Fin r) => \refl(M.product10 A B b a));
+\definition transposeAdd: \forall (A, B: M.Matrix1) -> transpose1 (M.plus A B) = M.plus (transpose1 A) (transpose1 B) :=
+  \fun (A, B: M.Matrix1) => \refl(M.plus (transpose1 A) (transpose1 B));
+\definition transposeDerivative: \forall (A: M.Matrix0) -> transpose1 (M.dMatrix A) = M.dMatrix (transpose0 A) :=
+  \fun (A: M.Matrix0) => \refl(M.dMatrix (transpose0 A));
+\definition rearrange: \forall (X, Y, Z: M.Matrix1) -> X = M.plus Y Z ->
+  Linear.scale (R.neg R.one) Z = M.plus Y (Linear.scale (R.neg R.one) X) :=
+  \fun (X, Y, Z: M.Matrix1)(same: X = M.plus Y Z) => Laws.cancelLeft Z _ _ (eq_reason_in!{M.Matrix1 _
+    "=" _ "by" { congr!{M.Matrix1 M.Matrix1} (M.plus Z) _ _ (Laws.minusOneScale Z) }
+    "=" _ "by" { Linear.space.additive.group.rightInverse Z }
+    "=" _ "by" { sym!{M.Matrix1} _ _ (Linear.space.additive.group.rightInverse X) }
+    "=" _ "by" { congr!{M.Matrix1 M.Matrix1} (\fun (A: M.Matrix1) => M.plus A (Linear.negative X)) _ _ same }
+    "=" _ "by" { congr!{M.Matrix1 M.Matrix1} (\fun (A: M.Matrix1) => M.plus A (Linear.negative X)) _ _ (Laws.comm Y Z) }
+    "=" _ "by" { Laws.assoc Z Y (Linear.negative X) }
+    "=" _ "by" { congr!{M.Matrix1 M.Matrix1} (\fun (A: M.Matrix1) => M.plus Z (M.plus Y A)) _ _ (sym!{M.Matrix1} _ _ (Laws.minusOneScale X)) }
+  });
+\module DualGauge(T, inverse: M.Matrix0, A, B: M.Matrix1,
+  leftInverse: M.product00 inverse T = Product.identity,
+  rightInverse: M.product00 T inverse = Product.identity,
+  gauge: M.product01 T A = M.plus (M.dMatrix T) (M.product10 B T));

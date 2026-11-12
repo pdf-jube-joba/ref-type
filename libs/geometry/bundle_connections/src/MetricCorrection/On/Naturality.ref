@@ -1,0 +1,57 @@
+\import \parent.Of[g := g, q := q, A := A, symmetric := symmetricG, inverse := rightG] \as Source;
+\import \parent.Of[g := h, q := p, A := B, symmetric := symmetricH, inverse := rightH] \as Target;
+\import \parent.Transport[T := T, h := h, A := A, B := B, gauge := gauge] \as Transport;
+\definition K: M.Matrix0 := M.product00 (Transpose.transpose0 T) h;
+\definition candidate: M.Matrix1 := M.plus (M.dMatrix T) (M.product10 Target.adjoint T);
+\definition U2: M.Matrix1 := M.product10 (M.product01 (Transpose.transpose0 T) (M.product01 h Target.adjoint)) T;
+\definition middle: M.plus U2 Transport.L2 = Transport.middle := eq_reason_in!{M.Matrix1 _
+  "=" _ "by" { sym!{M.Matrix1} _ _ (Linear.rightAdd (M.product01 (Transpose.transpose0 T) (M.product01 h Target.adjoint))
+    (M.product01 (Transpose.transpose0 T) (M.product10 (Transpose.transpose1 B) h)) T) }
+  "=" _ "by" { congr!{M.Matrix1 M.Matrix1} (\fun (X: M.Matrix1) => M.product10 X T) _ _
+    (sym!{M.Matrix1} _ _ (Algebra.distribute (Transpose.transpose0 T) (M.product01 h Target.adjoint) (M.product10 (Transpose.transpose1 B) h))) }
+  "=" _ "by" { congr!{M.Matrix1 M.Matrix1} (\fun (X: M.Matrix1) => M.product10 (M.product01 (Transpose.transpose0 T) X) T) _ _ Target.adjointIdentity }
+};
+\definition candidateLower: M.product01 K candidate = M.plus Transport.R1 U2 := eq_reason_in!{M.Matrix1 _
+  "=" _ "by" { Algebra.distribute K (M.dMatrix T) (M.product10 Target.adjoint T) }
+  "=" _ "by" { congr!{M.Matrix1 M.Matrix1} (M.plus Transport.R1) _ _
+    (trans!{M.Matrix1} _ _ _ (sym!{M.Matrix1} _ _ (Algebra.assoc010 K Target.adjoint T))
+      (congr!{M.Matrix1 M.Matrix1} (\fun (X: M.Matrix1) => M.product10 X T) _ _ (Algebra.assoc001 (Transpose.transpose0 T) h Target.adjoint))) }
+};
+\definition candidateIdentity: M.plus (M.product01 K candidate) (M.product10 (Transpose.transpose1 A) g) = M.dMatrix g := eq_reason_in!{M.Matrix1 _
+  "=" _ "by" { congr!{M.Matrix1 M.Matrix1 M.Matrix1} M.plus _ _ _ _ candidateLower
+    (trans!{M.Matrix1} _ _ _
+      (congr!{M.Matrix0 M.Matrix1} (M.product10 (Transpose.transpose1 A)) _ _ (sym!{M.Matrix0} _ _ metricRelation)) Transport.left) }
+  "=" _ "by" { Laws.shuffle Transport.R1 U2 Transport.L1 Transport.L2 }
+  "=" _ "by" { congr!{M.Matrix1 M.Matrix1} (M.plus (M.plus Transport.R1 Transport.L1)) _ _ middle }
+  "=" _ "by" { Laws.assoc Transport.R1 Transport.L1 Transport.middle }
+  "=" _ "by" { Laws.comm Transport.R1 (M.plus Transport.L1 Transport.middle) }
+  "=" _ "by" { sym!{M.Matrix1} _ _ Transport.derivative }
+  "=" _ "by" { congr!{M.Matrix0 M.Matrix1} M.dMatrix _ _ metricRelation }
+};
+\definition sourceLower: M.product01 K (M.product01 T Source.adjoint) = M.product01 g Source.adjoint :=
+  trans!{M.Matrix1} _ _ _ (sym!{M.Matrix1} _ _ (Algebra.assoc001 K T Source.adjoint))
+    (congr!{M.Matrix0 M.Matrix1} (\fun (X: M.Matrix0) => M.product01 X Source.adjoint) _ _ metricRelation);
+\definition lowerEqual: M.product01 K (M.product01 T Source.adjoint) = M.product01 K candidate :=
+  Laws.cancelLeft (M.product10 (Transpose.transpose1 A) g) _ _ (eq_reason_in!{M.Matrix1 _
+    "=" _ "by" { Laws.comm (M.product10 (Transpose.transpose1 A) g) (M.product01 K (M.product01 T Source.adjoint)) }
+    "=" _ "by" { congr!{M.Matrix1 M.Matrix1} (\fun (X: M.Matrix1) => M.plus X (M.product10 (Transpose.transpose1 A) g)) _ _ sourceLower }
+    "=" _ "by" { Source.adjointIdentity }
+    "=" _ "by" { sym!{M.Matrix1} _ _ candidateIdentity }
+    "=" _ "by" { Laws.comm (M.product01 K candidate) (M.product10 (Transpose.transpose1 A) g) }
+  });
+\definition adjointGauge: M.product01 T Source.adjoint = candidate := eq_reason_in!{M.Matrix1 _
+  "=" _ "by" { sym!{M.Matrix1} _ _ (Inverse.inverseAction L K leftK (M.product01 T Source.adjoint)) }
+  "=" _ "by" { congr!{M.Matrix1 M.Matrix1} (M.product01 L) _ _ lowerEqual }
+  "=" _ "by" { Inverse.inverseAction L K leftK candidate }
+};
+\definition law: M.product01 T Source.value = M.plus (M.dMatrix T) (M.product10 Target.value T) := eq_reason_in!{M.Matrix1 _
+  "=" _ "by" { Linear.leftScale T R.half (M.plus A Source.adjoint) }
+  "=" _ "by" { congr!{M.Matrix1 M.Matrix1} (Linear.scale R.half) _ _ (Algebra.distribute T A Source.adjoint) }
+  "=" _ "by" { congr!{M.Matrix1 M.Matrix1} (Linear.scale R.half) _ _
+    (congr!{M.Matrix1 M.Matrix1 M.Matrix1} M.plus _ _ _ _ gauge adjointGauge) }
+  "=" _ "by" { congr!{M.Matrix1 M.Matrix1} (Linear.scale R.half) _ _ (Laws.shuffle (M.dMatrix T) (M.product10 B T) (M.dMatrix T) (M.product10 Target.adjoint T)) }
+  "=" _ "by" { Linear.space.vectorAdd R.half (M.plus (M.dMatrix T) (M.dMatrix T)) (M.plus (M.product10 B T) (M.product10 Target.adjoint T)) }
+  "=" _ "by" { congr!{M.Matrix1 M.Matrix1 M.Matrix1} M.plus _ _ _ _ (halfDouble (M.dMatrix T))
+    (trans!{M.Matrix1} _ _ _ (congr!{M.Matrix1 M.Matrix1} (Linear.scale R.half) _ _ (sym!{M.Matrix1} _ _ (Linear.rightAdd B Target.adjoint T)))
+      (sym!{M.Matrix1} _ _ (Linear.rightScale (M.plus B Target.adjoint) R.half T))) }
+};

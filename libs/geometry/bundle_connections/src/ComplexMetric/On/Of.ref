@@ -1,0 +1,49 @@
+\definition flat[x: Open.Carrier U]: End.Map := \root.ComplexMetric[n := n, r := r].At[h := metric.form x, positive := metric.positive x].flat;
+\definition sharp[x: Open.Carrier U]: End.Map := \root.ComplexMetric[n := n, r := r].At[h := metric.form x, positive := metric.positive x].inverse;
+\definition left: \forall (x: Open.Carrier U)(v: E.Vector) -> (sharp x).apply ((flat x).apply v) = v :=
+  \fun (x: Open.Carrier U) => \root.ComplexMetric[n := n, r := r].At[h := metric.form x, positive := metric.positive x].left;
+\definition right: \forall (x: Open.Carrier U)(v: E.Vector) -> (flat x).apply ((sharp x).apply v) = v :=
+  \fun (x: Open.Carrier U) => \root.ComplexMetric[n := n, r := r].At[h := metric.form x, positive := metric.positive x].right;
+\import Spaces.Isomorphism[V := E.Vector, W := E.Vector, source := E.space, target := E.space] \as Isomorphisms;
+\definition isomorphism[x: Open.Carrier U]: Isomorphisms.Isomorphism := Isomorphisms.Isomorphism {
+  forward := flat x, backward := sharp x, leftInverse := left x, rightInverse := right x,
+};
+\import smooth_bundles.ComplexMatrix[d := n, p := r, q := r].On[U := U, A := flat] \as Forward;
+\import smooth_bundles.ComplexMatrix[d := n, p := r, q := r].On[U := U, A := sharp] \as Backward;
+\definition flatRegular: Forward.Regular := \fun (v: E.Vector)(a: Fin.Fin r) => metric.smooth (E.basis a) v;
+\definition inverseRegular: Backward.Regular := smooth_bundles.ComplexLinear[r := r].Smooth[d := n].inverse U isomorphism flatRegular;
+\definition coefficient[a, b: Fin.Fin r]: Function := \into[Calculus.Function]
+  ((\fun (x: Open.Carrier U) => (metric.form x).dot (E.basis a) (E.basis b)), Function) \by {
+    metric.smooth (E.basis a) (E.basis b)
+  };
+\definition symmetry: \forall (a, b: Fin.Fin r) -> coefficient a b = conjugate (coefficient b a) :=
+  \fun (a, b: Fin.Fin r) => \axiom:funext(coefficient a b, conjugate (coefficient b a), \fun (x: Open.Carrier U) =>
+    (metric.form x).symmetric (E.basis a) (E.basis b));
+\definition vector[i: Fin.Fin n][b: Fin.Fin r][x: Open.Carrier U]: E.Vector := \fun (a: Fin.Fin r) => half (derivative i (coefficient a b)) x;
+\definition gamma[i: Fin.Fin n][a, b: Fin.Fin r]: Function := \into[Calculus.Function]
+  ((\fun (x: Open.Carrier U) => (sharp x).apply (vector i b x) a), Function) \by {
+    Backward.action inverseRegular (vector i b) (\fun (a: Fin.Fin r) => regular (half (derivative i (coefficient a b)))) a
+  };
+\definition connection: Connection := Connection { coefficient := gamma };
+\definition column[i: Fin.Fin n][b: Fin.Fin r][x: Open.Carrier U]: E.Vector := \fun (a: Fin.Fin r) => gamma i a b x;
+\definition lower[i: Fin.Fin n][a, b: Fin.Fin r][x: Open.Carrier U]: C.Complex := (flat x).apply (column i b x) a;
+\definition lowering: \forall (i: Fin.Fin n)(a, b: Fin.Fin r)(x: Open.Carrier U) -> lower i a b x = half (derivative i (coefficient a b)) x :=
+  \fun (i: Fin.Fin n)(a, b: Fin.Fin r)(x: Open.Carrier U) => trans!{{C.Complex}} _ _ _
+    (congr!{{E.Vector} {C.Complex}} (\fun (v: E.Vector) => (flat x).apply v a) _ _
+      (\axiom:funext(column i b x, (sharp x).apply (vector i b x), \fun (c: Fin.Fin r) => \refl(gamma i c b x))))
+    (congr!{{E.Vector} {C.Complex}} (\fun (v: E.Vector) => v a) _ _ (right x (vector i b x)));
+\import \parent.DerivativeLaws[] \as Derivative;
+\definition derivativeSymmetry: \forall (i: Fin.Fin n)(a, b: Fin.Fin r) -> derivative i (coefficient a b) = conjugate (derivative i (coefficient b a)) :=
+  \fun (i: Fin.Fin n)(a, b: Fin.Fin r) => trans!{Function} _ _ _
+    (congr!{Function Function} (derivative i) _ _ (symmetry a b)) (Derivative.conjugation i (coefficient b a));
+\definition compatible: \forall (i: Fin.Fin n)(a, b: Fin.Fin r)(x: Open.Carrier U) ->
+  Op.add (lower i a b x) (Op.conj (lower i b a x)) = derivative i (coefficient a b) x :=
+  \fun (i: Fin.Fin n)(a, b: Fin.Fin r)(x: Open.Carrier U) => eq_reason_in!{{C.Complex} _
+    "=" _ "by" { congr!{{C.Complex} {C.Complex} {C.Complex}} Op.add _ _ _ _ (lowering i a b x)
+      (congr!{{C.Complex} {C.Complex}} Op.conj _ _ (lowering i b a x)) }
+    "=" _ "by" { congr!{{C.Complex} {C.Complex}} (Op.add (half (derivative i (coefficient a b)) x)) _ _
+      (congr!{Function {C.Complex}} (\fun (f: Function) => f x) _ _
+        (trans!{Function} _ _ _ (sym!{Function} _ _ (Derivative.halfConjugate (derivative i (coefficient b a))))
+          (congr!{Function Function} half _ _ (sym!{Function} _ _ (derivativeSymmetry i a b))))) }
+    "=" _ "by" { Derivative.twice (derivative i (coefficient a b)) x }
+  };

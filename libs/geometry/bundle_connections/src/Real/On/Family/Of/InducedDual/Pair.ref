@@ -1,0 +1,50 @@
+\use Equality.eq_reason_in;
+\import \parent.\parent.Pair[i := i, j := j] \as Old;
+\import Target.Pair[i := i, j := j] \as New;
+\import Charts.Transition[left := chart i, right := chart j] \as Domain;
+\import Euclidean.On[U := Domain.domain] \as Scalar;
+\import Open.Smooth[].Algebra[U := Domain.domain] \as Functions;
+\import \root.MatrixCalculus[n := n, r := r].On[U := Domain.domain] \as Matrix;
+\import Matrix.Linearity[] \as Linear;
+\import \root.Induced[n := n, r := r].On[U := Domain.domain] \as Algebra;
+\import Bundle.Reverse[i := i, j := j] \as Reverse;
+\import Dual.Change[i := i, j := j] \as Change;
+\import Spaces.Coordinates[I := Fin.Fin r] \as Vectors;
+\import Spaces.FiniteCoordinates[n := r] \as Standard;
+\import \root.Metric[n := n, r := r].Basis[] \as BasisComparison;
+\import R.FiniteSums[].Linear[] \as Finite;
+\import Spaces.Sums[I := Fin.Fin r].Prop[] \as Sums;
+\definition transition: New.transition = Algebra.transpose0 Old.inverse :=
+  \axiom:funext(New.transition, Algebra.transpose0 Old.inverse, \fun (a: Fin.Fin r) =>
+    \axiom:funext(New.transition a, Algebra.transpose0 Old.inverse a, \fun (b: Fin.Fin r) => Functions.ext (New.transition a b) (Old.inverse b a)
+      (\fun (u: Open.Carrier Domain.domain) => eq_reason_in!{{R.Real} _
+        "=" _ "by" { Change.formula a b u }
+        "=" _ "by" { Sums.congruent (Fin.elements r)
+          (\fun (l: Fin.Fin r) => R.mul (Finite.basis r b l) ((Reverse.backward u).apply (Standard.vectors a) l))
+          (\fun (l: Fin.Fin r) => R.mul ((Reverse.backward u).apply (Standard.vectors a) l) (Standard.vectors b l))
+          (\fun (l: Fin.Fin r) => trans!{{R.Real}} _ _ _ (Spaces.mulComm (Finite.basis r b l) ((Reverse.backward u).apply (Standard.vectors a) l))
+            (congr!{{Vectors.Vector} {R.Real}} (\fun (v: Vectors.Vector) => R.mul ((Reverse.backward u).apply (Standard.vectors a) l) (v l)) _ _ (BasisComparison.equal b))) }
+        "=" _ "by" { Standard.dualReconstruction ((Reverse.backward u).apply (Standard.vectors a)) b }
+        "=" _ "by" { congr!{{Vectors.Vector} {R.Real}} (\fun (v: Vectors.Vector) => (Reverse.backward u).apply v b) _ _ (sym!{{Vectors.Vector}} _ _ (BasisComparison.equal a)) }
+      })));
+\import Euclidean.Restriction[U := Domain.domain, V := (chart i).image] \as Restrict;
+\import Euclidean.Pullback[m := n, U := Domain.domain, V := (chart j).image, f := Old.map] \as Pull;
+\definition source: New.source (data i) = Algebra.dual (Old.source (connection i)) :=
+  Linear.ext (New.source (data i)) (Algebra.dual (Old.source (connection i))) (\fun (a, b: Fin.Fin r) =>
+    (Restrict.At[k := one].map Old.included).preservesScale (R.neg R.one) ((connection i).matrix b a));
+\definition target: New.target (data j) = Algebra.dual (Old.target (connection j)) :=
+  Linear.ext (New.target (data j)) (Algebra.dual (Old.target (connection j))) (\fun (a, b: Fin.Fin r) =>
+    Pull.At[k := one].scalar (R.neg R.one) ((connection j).matrix b a));
+\definition original: Matrix.product01 Old.transition (Old.source (connection i)) = Matrix.plus (Matrix.dMatrix Old.transition) (Matrix.product10 (Old.target (connection j)) Old.transition) :=
+  Linear.ext (Old.left (connection i)) (Old.right (connection j)) (compatible connection i j);
+\import Algebra.DualGauge[T := Old.transition, inverse := Old.inverse, A := Old.source (connection i), B := Old.target (connection j),
+  leftInverse := Old.Inverse[].left, rightInverse := Old.Inverse[].right, gauge := original] \as Gauge;
+\definition matrices: New.left (data i) = New.right (data j) := eq_reason_in!{Matrix.Matrix1 _
+  "=" _ "by" { congr!{Matrix.Matrix0 Matrix.Matrix1 Matrix.Matrix1} Matrix.product01 _ _ _ _ transition source }
+  "=" _ "by" { Gauge.law }
+  "=" _ "by" { congr!{Matrix.Matrix1 Matrix.Matrix1 Matrix.Matrix1} Matrix.plus _ _ _ _
+    (congr!{Matrix.Matrix0 Matrix.Matrix1} Matrix.dMatrix _ _ (sym!{Matrix.Matrix0} _ _ transition))
+    (congr!{Matrix.Matrix1 Matrix.Matrix0 Matrix.Matrix1} Matrix.product10 _ _ _ _ (sym!{Matrix.Matrix1} _ _ target) (sym!{Matrix.Matrix0} _ _ transition)) }
+};
+\definition law: New.Compatible (data i) (data j) := \fun (a, b: Fin.Fin r) =>
+  congr!{Matrix.Matrix1 {Scalar.Form one}} (\fun (A: Matrix.Matrix1) => A a b) _ _ matrices;

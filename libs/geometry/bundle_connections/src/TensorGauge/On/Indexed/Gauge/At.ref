@@ -1,0 +1,31 @@
+\import \parent.\parent.At[x := x, v := v] \as Evaluation;
+\definition t: L.Matrix := LeftAlgebra.eval0 T x;
+\definition a: L.Matrix := LeftAlgebra.eval1 A x v;
+\definition c: L.Matrix := LeftAlgebra.eval1 C x v;
+\definition dt: L.Matrix := LeftAlgebra.eval1 (Left.dMatrix T) x v;
+\definition s0: Rg.Matrix := RightAlgebra.eval0 S x;
+\definition b: Rg.Matrix := RightAlgebra.eval1 B x v;
+\definition d: Rg.Matrix := RightAlgebra.eval1 D x v;
+\definition ds: Rg.Matrix := RightAlgebra.eval1 (Right.dMatrix S) x v;
+\definition firstNumeric: L.product t a = L.plus dt (L.product c t) := eq_reason_in!{L.Matrix _
+  "=" _ "by" { sym!{L.Matrix} _ _ (LeftAlgebra.eval01 T A x v) }
+  "=" _ "by" { congr!{Left.Matrix1 L.Matrix} (\fun (M: Left.Matrix1) => LeftAlgebra.eval1 M x v) _ _ first }
+  "=" _ "by" { congr!{L.Matrix L.Matrix} (L.plus dt) _ _ (LeftAlgebra.eval10 C T x v) }
+};
+\definition secondNumeric: Rg.product s0 b = Rg.plus ds (Rg.product d s0) := eq_reason_in!{Rg.Matrix _
+  "=" _ "by" { sym!{Rg.Matrix} _ _ (RightAlgebra.eval01 S B x v) }
+  "=" _ "by" { congr!{Right.Matrix1 Rg.Matrix} (\fun (M: Right.Matrix1) => RightAlgebra.eval1 M x v) _ _ second }
+  "=" _ "by" { congr!{Rg.Matrix Rg.Matrix} (Rg.plus ds) _ _ (RightAlgebra.eval10 D S x v) }
+};
+\definition delta: Numeric.Matrix := Numeric.plus (Numeric.tensor dt s0) (Numeric.tensor t ds);
+\definition remainder: Numeric.Matrix := Numeric.product (Numeric.lift c d) (Numeric.tensor t s0);
+\definition rightValue: Algebra.eval1 (Target.plus (Target.dMatrix (tensor0 T S)) (Target.product10 (lift C D) (tensor0 T S))) x v = embed (Numeric.plus delta remainder) :=
+  Algebra.numericExt _ _ (\fun (i, j: Fin.Fin Index.rank) => congr!{{R.Real} {R.Real} {R.Real}} R.add _ _ _ _
+    (congr!{Algebra.Numeric {R.Real}} (\fun (M: Algebra.Numeric) => M i j) _ _ (Evaluation.derivative T S))
+    (congr!{Algebra.Numeric {R.Real}} (\fun (M: Algebra.Numeric) => M i j) _ _ (Evaluation.rightProduct C D T S)));
+\definition law: Algebra.eval1 (Target.product01 (tensor0 T S) (lift A B)) x v = Algebra.eval1 (Target.plus (Target.dMatrix (tensor0 T S)) (Target.product10 (lift C D) (tensor0 T S))) x v :=
+  eq_reason_in!{Algebra.Numeric _
+    "=" _ "by" { Evaluation.leftProduct T S A B }
+    "=" _ "by" { congr!{Numeric.Matrix Algebra.Numeric} embed _ _ (Numeric.gauge t a c dt s0 b d ds firstNumeric secondNumeric) }
+    "=" _ "by" { sym!{Algebra.Numeric} _ _ rightValue }
+  };

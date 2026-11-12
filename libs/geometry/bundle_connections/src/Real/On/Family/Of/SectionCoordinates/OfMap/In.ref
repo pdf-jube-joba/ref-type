@@ -1,0 +1,20 @@
+\import Fin.Sum[m := n, n := r] \as Indices;
+\import Atlas.InChart[i := i] \as Frame;
+\import Maps.Coordinates[f := Named.map, left := chart i, right := Construction.chart i] \as Coordinates;
+\definition included: Open.Included (chart i).image Coordinates.domain := \fun (u: Fin.Fin n -> R.Real)(member: _) =>
+  Coordinates.intro (\into[Fin.Fin n -> R.Real](u, (chart i).image.points) \by { member })
+    (\bysub(M.Point, (chart i).domain, Charts.point (chart i) (\into[Fin.Fin n -> R.Real](u, (chart i).image.points) \by { member })));
+\definition coordinateSmooth[a: Fin.Fin r]: Open.Smooth[].SmoothOn Coordinates.domain (\fun (u: Open.Carrier Coordinates.domain) => Coordinates.apply u (Indices.right a)) :=
+  (\bysub(Maps.ContinuousMap, { f: Maps.ContinuousMap \where Maps.Chartwise f }, Named.map)) (chart i) (Construction.chart i)
+    (\bysub(Charts.Chart, M.atlas.charts, chart i))
+    (\bysub(manifolds.Dimension[n := Blocks.dimension].Chart[M := Bundle.manifold.Point, space := Bundle.manifold.space].Chart,
+      Bundle.manifold.atlas.charts, Construction.chart i)) (Indices.right a);
+\definition smooth: \forall (a: Fin.Fin r) -> Open.Smooth[].SmoothOn (chart i).image (coefficient s i a) :=
+  \fun (a: Fin.Fin r) => smooth_partitions.Euclidean[n := n].smoothCongruent (chart i).image
+    (Open.restrict (chart i).image Coordinates.domain included (\fun (u: Open.Carrier Coordinates.domain) => Coordinates.apply u (Indices.right a)))
+    (coefficient s i a)
+    (\fun (u: Open.Carrier (chart i).image) => congr!{{Fin.Fin r -> R.Real} {R.Real}} (\fun (v: Fin.Fin r -> R.Real) => v a) _ _
+      (Blocks.rightJoin (Charts.coordinate (chart i) (Charts.point (chart i) u))
+        (((bundle.atlas.local i).frame (Charts.point (chart i) u)).forward.apply (s.value (Charts.point (chart i) u)))))
+    (Open.Restriction[].localSmooth (chart i).image Coordinates.domain included
+      (\fun (u: Open.Carrier Coordinates.domain) => Coordinates.apply u (Indices.right a)) (coordinateSmooth a));

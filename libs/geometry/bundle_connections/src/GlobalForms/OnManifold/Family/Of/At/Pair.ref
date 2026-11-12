@@ -1,0 +1,23 @@
+\import Bundle.Pair[i := i, j := j] \as Change;
+\import Charts.Transition[left := Bundle.chart i, right := Bundle.chart j] \as Transition;
+\import Source.Pair[i := i, j := j] \as SourcePair;
+\import Target.Pair[i := i, j := j] \as TargetPair;
+\import \root.GlobalForms[n := n, r := r].On[U := Transition.domain] \as Local;
+\import Local.Gauge[k := k] \as Gauge;
+\import Local.Action[k := k] \as Action;
+\import Local.Action[k := next] \as NextAction;
+\import \root.Forms[n := n, r := r].On[U := Transition.domain] \as Forms;
+\import \root.MatrixCalculus[n := n, r := r].On[U := Transition.domain] \as Matrices;
+\import \root.GlobalForms[n := n, r := r].Restriction[U := Transition.domain, V := (Bundle.chart i).image, included := Change.included] \as Restrict;
+\import \root.GlobalForms[n := n, r := r].Between[m := n, U := Transition.domain, V := (Bundle.chart j).image].Pull[f := Change.map] \as Pull;
+\definition gauge: Matrices.product01 Change.transition (Change.source (A i)) = Matrices.plus (Matrices.dMatrix Change.transition) (Matrices.product10 (Change.target (A j)) Change.transition) :=
+  \axiom:funext(Change.left (A i), Change.right (A j), \fun (a: Fin.Fin r) => \axiom:funext(Change.left (A i) a, Change.right (A j) a, \fun (b: Fin.Fin r) => Bundle.compatible A i j a b));
+\definition law: TargetPair.Compatible (local A omega i) (local A omega j) :=
+  \fun (a: Fin.Fin r) => congr!{{Forms.Form next} {euclidean_forms.Euclidean[n := n].On[U := Transition.domain].Form next}}
+    (\fun (eta: Forms.Form next) => eta a) _ _ (eq_reason_in!{{Forms.Form next} _
+      "=" _ "by" { congr!{{Forms.Form next} {Forms.Form next}} (NextAction.apply Change.transition) _ _ (sym!{{Forms.Form next}} _ _ (Restrict.At[k := k, A := A i].law (omega i))) }
+      "=" _ "by" { sym!{{Forms.Form next}} _ _ (Gauge.law Change.transition (Change.source (A i)) (Change.target (A j)) gauge (SourcePair.source (omega i))) }
+      "=" _ "by" { congr!{{Forms.Form k} {Forms.Form next}} (Gauge.covariant (Change.target (A j))) _ _
+        (\axiom:funext(SourcePair.action (omega i), SourcePair.target (omega j), Source.compatible omega i j)) }
+      "=" _ "by" { Pull.At[k := k, A := A j].law (omega j) }
+    });

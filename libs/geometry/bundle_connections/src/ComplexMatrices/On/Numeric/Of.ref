@@ -1,0 +1,18 @@
+\import \root.ComplexMatrices[n := n, r := r].Linearization[A := realMap A, commuting := commuting] \as Linear;
+\definition value: End.Map := Linear.value;
+\definition reconstruction: encode (recover A) = A :=
+  \axiom:funext(encode (recover A), A, \fun (a: Fin.Fin realRank) => \axiom:funext(encode (recover A) a, A a, \fun (b: Fin.Fin realRank) => eq_reason_in!{{R.Real} _
+    "=" _ "by" { congr!{{ComplexVectors.Vector} {R.Real}} (\fun (v: ComplexVectors.Vector) => Coordinates.encode v a) _ _ (sym!{{ComplexVectors.Vector}} _ _ (expansion value (Coordinates.decode (Finite.basis realRank b)))) }
+    "=" _ "by" { congr!{{RealVectors.Vector} {R.Real}} (\fun (v: RealVectors.Vector) => v a) _ _ (Linear.recover (Finite.basis realRank b)) }
+    "=" _ "by" { realColumn A a b }
+  }));
+\definition action: \forall (v: ComplexVectors.Vector) -> Coordinates.decode (realAction A (Coordinates.encode v)) = Action (recover A) v :=
+  \fun (v: ComplexVectors.Vector) => expansion value v;
+\definition productLaw: \forall (B: RealMatrix) -> recover (realProduct A B) = product (recover A) (recover B) :=
+  \fun (B: RealMatrix) => \axiom:funext(recover (realProduct A B), product (recover A) (recover B), \fun (a: Fin.Fin r) =>
+    \axiom:funext(recover (realProduct A B) a, product (recover A) (recover B) a, \fun (b: Fin.Fin r) => eq_reason_in!{{C.Complex} _
+      "=" _ "by" { congr!{{RealVectors.Vector} {C.Complex}} (\fun (v: RealVectors.Vector) => Coordinates.decode v a) _ _ (realProductAction A B (Coordinates.encode (Standard.vectors b))) }
+      "=" _ "by" { congr!{{RealVectors.Vector} {C.Complex}} (\fun (v: RealVectors.Vector) => Coordinates.decode (realAction A v) a) _ _
+        (sym!{{RealVectors.Vector}} _ _ (Coordinates.encodeDecode (realAction B (Coordinates.encode (Standard.vectors b))))) }
+      "=" _ "by" { congr!{{ComplexVectors.Vector} {C.Complex}} (\fun (v: ComplexVectors.Vector) => v a) _ _ (action (Coordinates.decode (realAction B (Coordinates.encode (Standard.vectors b))))) }
+    }));

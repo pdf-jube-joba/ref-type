@@ -1,0 +1,29 @@
+\use Equality.eq_reason_in;
+\import \root.MatrixCalculus[n := n, r := r].On[U := U] \as Matrix;
+\import \root.MatrixCalculus[n := n, r := Exterior.rank].On[U := U] \as ResultMatrix;
+\import Euclidean.On[U := U] \as Scalar;
+\import Scalar.At[k := one] \as Covectors;
+\import Spaces.Coordinates[I := Fin.Fin n] \as TangentVectors;
+\import Spaces.Multilinear[V := TangentVectors.Vector, space := TangentVectors.space] \as TangentMultilinear;
+\import Spaces.FiniteCoordinates[n := r] \as Basis;
+\import Basis.Exterior[] \as Words;
+\import Spaces.Coordinates[I := Fin.Fin r] \as Vectors;
+\import Spaces.Multilinear[V := Vectors.Vector, space := Vectors.space] \as Multilinear;
+\import InducedOperations.ExteriorIndices[n := r, k := k] \as Indices;
+\import InducedOperations.FiniteIndex[A := Indices.Tuple, S := Indices.set, enumeration := enumeration] \as Coordinates;
+\import R.FiniteSums[] \as Sums;
+\definition arguments[a: Fin.Fin Exterior.rank]: Multilinear.Arguments k := \fun (slot: Fin.Fin k) => Basis.vectors (Coordinates.enumerate a slot);
+\definition entry[a, b: Fin.Fin Exterior.rank][slot: Fin.Fin k][c: Fin.Fin r]: R.Real :=
+  Words.word k (Coordinates.enumerate b) (Multilinear.update k (arguments a) slot (Basis.vectors c));
+\definition lift[A: Matrix.Matrix1][a, b: Fin.Fin Exterior.rank]: Scalar.Form one := Matrix.sum1 k (\fun (slot: Fin.Fin k) =>
+  Matrix.sum1 r (\fun (c: Fin.Fin r) => Covectors.scale (entry a b slot c) (A (Coordinates.enumerate a slot) c)));
+\definition value: \forall (A: Matrix.Matrix1)(a, b: Fin.Fin Exterior.rank)(u: Open.Carrier U)(v: TangentMultilinear.Arguments one) ->
+  lift A a b u v = Sums.sum k (\fun (slot: Fin.Fin k) => Sums.sum r (\fun (c: Fin.Fin r) => R.mul (entry a b slot c) (A (Coordinates.enumerate a slot) c u v))) :=
+  \fun (A: Matrix.Matrix1)(a, b: Fin.Fin Exterior.rank)(u: Open.Carrier U)(v: TangentMultilinear.Arguments one) => trans!{{R.Real}} _ _ _
+    (Matrix.sum1Value k (\fun (slot: Fin.Fin k) => Matrix.sum1 r (\fun (c: Fin.Fin r) => Covectors.scale (entry a b slot c) (A (Coordinates.enumerate a slot) c))) u v)
+    (Sums.congruent k
+      (\fun (slot: Fin.Fin k) => Matrix.sum1 r (\fun (c: Fin.Fin r) => Covectors.scale (entry a b slot c) (A (Coordinates.enumerate a slot) c)) u v)
+      (\fun (slot: Fin.Fin k) => Sums.sum r (\fun (c: Fin.Fin r) => R.mul (entry a b slot c) (A (Coordinates.enumerate a slot) c u v)))
+      (\fun (slot: Fin.Fin k) => Matrix.sum1Value r (\fun (c: Fin.Fin r) => Covectors.scale (entry a b slot c) (A (Coordinates.enumerate a slot) c)) u v));
+\module Comparison(A: Matrix.Matrix1);
+\module Gauge(T: Matrix.Matrix0, A, B: Matrix.Matrix1, compatible: Matrix.product01 T A = Matrix.plus (Matrix.dMatrix T) (Matrix.product10 B T));

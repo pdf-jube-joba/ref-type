@@ -1,0 +1,43 @@
+\import smooth_bundles.ComplexCalculus[n := n].On[U := U] \as Calculus;
+\import smooth_bundles.ComplexEvaluation[d := n, r := r].On[U := U] \as SmoothEvaluation;
+\definition Family: N.Nat^ -> \Set := SmoothEvaluation.Family;
+\definition CoefficientSmooth: \forall (k: N.Nat^) -> Family k -> \Prop := SmoothEvaluation.CoefficientSmooth;
+\definition VariableArguments: N.Nat^ -> \Set := SmoothEvaluation.VariableArguments;
+\definition ArgumentSmooth: \forall (k: N.Nat^) -> VariableArguments k -> \Prop := SmoothEvaluation.ArgumentSmooth;
+\definition equalSmooth: \forall (f, g: Calculus.Function) -> (\forall (x: Open.Carrier U) -> f x = g x) -> Calculus.Smooth f -> Calculus.Smooth g := Calculus.equalSmooth;
+\definition law: \forall (k: N.Nat^)(omega: Family k)(arguments: VariableArguments k) -> CoefficientSmooth k omega -> ArgumentSmooth k arguments -> Calculus.Smooth (\fun (x: Open.Carrier U) => omega x (arguments x)) := SmoothEvaluation.law;
+\module Functions;
+\module Partials;
+\module FunctionSums(I: \Set);
+\import FunctionSums[I := Fin.Fin r] \as Sums;
+\definition RegularFamily[k: N.Nat^]: \Set := \Cast[Family k] ({ omega: Family k \where CoefficientSmooth k omega });
+\definition RegularArguments[k: N.Nat^]: \Set := \Cast[VariableArguments k] ({ arguments: VariableArguments k \where ArgumentSmooth k arguments });
+
+\definition evaluate[k: N.Nat^][omega: RegularFamily k][arguments: Multilinear.Arguments k]: Functions.Function :=
+  \into[Calculus.Function]((\fun (x: Open.Carrier U) => omega x arguments), { h: Calculus.Function \where Calculus.Smooth h }) \by {
+    law k omega (\fun (x: Open.Carrier U) => arguments) (\bysub(Family k, { omega: Family k \where CoefficientSmooth k omega }, omega))
+      (\fun (i: Fin.Fin k)(j: Fin.Fin r) => Calculus.constant (arguments i j))
+  };
+\definition variableEvaluation[k: N.Nat^][omega: RegularFamily k][arguments: RegularArguments k]: Functions.Function :=
+  \into[Calculus.Function]((\fun (x: Open.Carrier U) => omega x (arguments x)), { h: Calculus.Function \where Calculus.Smooth h }) \by {
+    law k omega arguments (\bysub(Family k, { omega: Family k \where CoefficientSmooth k omega }, omega))
+      (\bysub(VariableArguments k, { arguments: VariableArguments k \where ArgumentSmooth k arguments }, arguments))
+  };
+\module Differential(k: N.Nat^);
+\module ArgumentDifferential(k: N.Nat^);
+\definition slotTerm[k: N.Nat^][omega: RegularFamily k][arguments: RegularArguments k][i: Fin.Fin n][x: Open.Carrier U][slot: Fin.Fin k]: C.Complex :=
+  omega x (Multilinear.update k (arguments x) slot (ArgumentDifferential[k := k].apply i arguments x slot));
+\definition derivativeValue[k: N.Nat^][omega: RegularFamily k][arguments: RegularArguments k][i: Fin.Fin n][x: Open.Carrier U]: C.Complex :=
+  Spaces.add (Differential[k := k].apply i omega x (arguments x))
+    (Spaces.Sums[I := Fin.Fin k].sum (Fin.elements k) (slotTerm k omega arguments i x));
+\definition DifferentiationLaw[k: N.Nat^]: \Prop := \forall (omega: RegularFamily k)(arguments: RegularArguments k)(i: Fin.Fin n)(x: Open.Carrier U) ->
+  Partials.derivative U (variableEvaluation k omega arguments) i x = derivativeValue k omega arguments i x;
+\module DifferentiationZero;
+\module Contract(k: N.Nat^);
+\module DifferentiationStep(k: N.Nat^, omega: RegularFamily (N.Nat^::succ k));
+
+\definition differentiation: \forall (k: N.Nat^) -> DifferentiationLaw k :=
+  \induction (k: N.Nat^) \return DifferentiationLaw k \with {
+    | zero: DifferentiationZero[].law
+    | succ: \fun (k: N.Nat^)(previous: DifferentiationLaw k)(omega: RegularFamily (N.Nat^::succ k)) => DifferentiationStep[k := k, omega := omega].law previous
+  };

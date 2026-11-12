@@ -1,0 +1,38 @@
+\definition sourceTail: \forall (a, b: Fin.Fin r) -> \parent.\parent.\parent.Entry[j := i, a := a, b := b].Tail (Transition.leftCoordinate u) neighborhood.bound :=
+  \fun (a, b: Fin.Fin r)(k: N.Nat^)(later: _) => \parent.\parent.\parent.Term[k := k, j := i, a := a, b := b].zeroOffSupport (Transition.leftCoordinate u)
+    (neighborhood.avoids k later x neighborhood.contains);
+\definition targetTail: \forall (a, b: Fin.Fin r) -> \parent.\parent.\parent.Entry[j := j, a := a, b := b].Tail (Transition.apply u) neighborhood.bound :=
+  \fun (a, b: Fin.Fin r)(k: N.Nat^)(later: _) => \parent.\parent.\parent.Term[k := k, j := j, a := a, b := b].zeroOffSupport (Transition.apply u)
+    (\fun (member: _) => neighborhood.avoids k later x neighborhood.contains
+      (\idelim y = x \with point: M.Point => Base.Member (Functions.support (partition.functions k)) point \by { base: member, equality: Transition.returnsPoint u }));
+\definition weightTail: Countable.TailZero (Functions.FamilyValues partition.functions) x neighborhood.bound :=
+  \fun (k: N.Nat^)(later: _) => Base.Finite[].doubleNegElim (partition.functions k x = R.zero)
+    (\fun (nonzero: _) => neighborhood.avoids k later x neighborhood.contains (Base.Closure[].contains M.space (Functions.Nonzero (partition.functions k)) x nonzero));
+\definition total: weight neighborhood.bound = R.one := \block {
+  \takefrom length: \Cast[N.Nat^] ({ length: N.Nat^ \where Logic.And[
+    Countable.TailZero (Functions.FamilyValues partition.functions) x length, weight length = R.one] }) \by partition.normalized x \then
+  \let laws: Logic.And[Countable.TailZero (Functions.FamilyValues partition.functions) x length, weight length = R.one] := \bysub(N.Nat^,
+    { length: N.Nat^ \where Logic.And[Countable.TailZero (Functions.FamilyValues partition.functions) x length, weight length = R.one] }, length) \then
+  \return trans!{{R.Real}} _ _ _
+    (sym!{{R.Real}} _ _ (Countable.stable (Functions.FamilyValues partition.functions) x neighborhood.bound (NaturalOrder.commonBound neighborhood.bound length) weightTail (NaturalOrder.leftLeCommonBound neighborhood.bound length)))
+    (trans!{{R.Real}} _ _ _
+      (Countable.stable (Functions.FamilyValues partition.functions) x length (NaturalOrder.commonBound neighborhood.bound length) laws.left (NaturalOrder.rightLeCommonBound neighborhood.bound length)) laws.right)
+};
+\definition sourceValue: \forall (a, b: Fin.Fin r) -> matrix i a b (Transition.leftCoordinate u) arguments = source neighborhood.bound a b :=
+  \fun (a, b: Fin.Fin r) => congr!{{Alternating.Form one} {R.Real}} (\fun (omega: Alternating.Form one) => omega arguments) _ _
+    (\parent.\parent.\parent.Entry[j := i, a := a, b := b].formula (Transition.leftCoordinate u) neighborhood.bound (sourceTail a b));
+\definition targetValue: \forall (a, b: Fin.Fin r) -> matrix j a b (Transition.apply u) targetArguments = target neighborhood.bound a b :=
+  \fun (a, b: Fin.Fin r) => congr!{{Alternating.Form one} {R.Real}} (\fun (omega: Alternating.Form one) => omega targetArguments) _ _
+    (\parent.\parent.\parent.Entry[j := j, a := a, b := b].formula (Transition.apply u) neighborhood.bound (targetTail a b));
+\definition law: \forall (a, b: Fin.Fin r) -> Gauge.left (data i) a b u arguments = Gauge.right (data j) a b u arguments :=
+  \fun (a, b: Fin.Fin r) => eq_reason_in!{{R.Real} _
+    "=" _ "by" { Matrices.value01 Gauge.transition (Gauge.source (data i)) a b u arguments }
+    "=" {left neighborhood.bound a b} "by" { Sums.congruent r _ _ (\fun (l: Fin.Fin r) => congr!{{R.Real} {R.Real}} (R.mul (Gauge.transition a l u)) _ _ (sourceValue l b)) }
+    "=" {right neighborhood.bound a b} "by" { prefixLaw neighborhood.bound a b }
+    "=" {R.add (derivative a b) (termRight neighborhood.bound a b)} "by" { congr!{{R.Real} {R.Real}} (\fun (t: R.Real) => R.add t (termRight neighborhood.bound a b)) _ _
+      (trans!{{R.Real}} _ _ _ (congr!{{R.Real} {R.Real}} (\fun (t: R.Real) => R.mul t (derivative a b)) _ _ total) (Spaces.mulOneLeft (derivative a b))) }
+    "=" _ "by" { congr!{{R.Real} {R.Real}} (R.add (derivative a b)) _ _
+      (trans!{{R.Real}} _ _ _ (Sums.congruent r _ _ (\fun (l: Fin.Fin r) => congr!{{R.Real} {R.Real}} (\fun (t: R.Real) => R.mul t (Gauge.transition l b u)) _ _
+        (sym!{{R.Real}} _ _ (targetValue a l))))
+        (sym!{{R.Real}} _ _ (Matrices.value10 (Gauge.target (data j)) Gauge.transition a b u arguments))) }
+  };

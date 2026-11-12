@@ -1,0 +1,81 @@
+\import R.FiniteSums[] \as Sums;
+\import Fin.Sum[m := r, n := r] \as Indices;
+\import Indices.Tuples[A := R.Real] \as Tuples;
+\import RealSpaces.Laws[V := R.Real, space := RealSpaces.scalarSpace] \as Laws;
+\definition dot[v, w: RealVectors.Vector]: R.Real := Sums.sum realRank (\fun (a: Fin.Fin realRank) => R.mul (v a) (w a));
+\definition complexDot[v, w: Vectors.Vector]: R.Real := Sums.sum r (\fun (a: Fin.Fin r) => R.add (R.mul (C.re (v a)) (C.re (w a))) (R.mul (C.im (v a)) (C.im (w a))));
+\definition realPart: \forall (v: Vectors.Vector)(a: Fin.Fin r) -> Coordinates.encode v (Indices.left a) = C.re (v a) :=
+  \fun (v: Vectors.Vector)(a: Fin.Fin r) => Tuples.atLeft (\fun (b: Fin.Fin r) => C.re (v b)) (\fun (b: Fin.Fin r) => C.im (v b)) a;
+\definition imaginaryPart: \forall (v: Vectors.Vector)(a: Fin.Fin r) -> Coordinates.encode v (Indices.right a) = C.im (v a) :=
+  \fun (v: Vectors.Vector)(a: Fin.Fin r) => Tuples.atRight (\fun (b: Fin.Fin r) => C.re (v b)) (\fun (b: Fin.Fin r) => C.im (v b)) a;
+\definition pairing: \forall (v, w: Vectors.Vector) -> dot (Coordinates.encode v) (Coordinates.encode w) = complexDot v w :=
+  \fun (v, w: Vectors.Vector) => eq_reason_in!{{R.Real} _
+    "=" _ "by" { Sums.blocks r r (\fun (a: Fin.Fin realRank) => R.mul (Coordinates.encode v a) (Coordinates.encode w a)) }
+    "=" _ "by" { congr!{{R.Real} {R.Real} {R.Real}} R.add _ _ _ _
+      (Sums.congruent r _ _ (\fun (a: Fin.Fin r) => congr!{{R.Real} {R.Real} {R.Real}} R.mul _ _ _ _ (realPart v a) (realPart w a)))
+      (Sums.congruent r _ _ (\fun (a: Fin.Fin r) => congr!{{R.Real} {R.Real} {R.Real}} R.mul _ _ _ _ (imaginaryPart v a) (imaginaryPart w a))) }
+    "=" _ "by" { sym!{{R.Real}} _ _ (Sums.addition r (\fun (a: Fin.Fin r) => R.mul (C.re (v a)) (C.re (w a))) (\fun (a: Fin.Fin r) => R.mul (C.im (v a)) (C.im (w a)))) }
+  };
+\definition twisted: \forall (v, w: Vectors.Vector) -> dot (Coordinates.encode v) (K.apply (Coordinates.encode w)) = Sums.sum r (\fun (a: Fin.Fin r) => C.re (Op.mul (v a) (w a))) :=
+  \fun (v, w: Vectors.Vector) => eq_reason_in!{{R.Real} _
+    "=" _ "by" { congr!{{Vectors.Vector} {R.Real}} (\fun (z: Vectors.Vector) => dot (Coordinates.encode v) (Coordinates.encode (conjugate z))) _ _ (Coordinates.decodeEncode w) }
+    "=" _ "by" { pairing v (conjugate w) }
+    "=" _ "by" { Sums.congruent r _ _ (\fun (a: Fin.Fin r) => congr!{{R.Real} {R.Real}} (R.add (R.mul (C.re (v a)) (C.re (w a)))) _ _ (Laws.scaleNegative (C.im (v a)) (C.im (w a)))) }
+  };
+\definition symmetric: \forall (v, w: RealVectors.Vector) -> dot (K.apply v) w = dot v (K.apply w) :=
+  \fun (v, w: RealVectors.Vector) => eq_reason_in!{{R.Real} _
+    "=" _ "by" { congr!{{RealVectors.Vector} {R.Real}} (dot (K.apply v)) _ _ (sym!{{RealVectors.Vector}} _ _ (Coordinates.encodeDecode w)) }
+    "=" _ "by" { pairing (conjugate (Coordinates.decode v)) (Coordinates.decode w) }
+    "=" _ "by" { Sums.congruent r _ _ (\fun (a: Fin.Fin r) => congr!{{R.Real} {R.Real}} (R.add (R.mul (C.re (Coordinates.decode v a)) (C.re (Coordinates.decode w a)))) _ _
+      (trans!{{R.Real}} _ _ _ (RealSpaces.mulComm (R.neg (C.im (Coordinates.decode v a))) (C.im (Coordinates.decode w a)))
+        (trans!{{R.Real}} _ _ _ (Laws.scaleNegative (C.im (Coordinates.decode w a)) (C.im (Coordinates.decode v a)))
+          (trans!{{R.Real}} _ _ _ (congr!{{R.Real} {R.Real}} R.neg _ _ (RealSpaces.mulComm (C.im (Coordinates.decode w a)) (C.im (Coordinates.decode v a))))
+            (sym!{{R.Real}} _ _ (Laws.scaleNegative (C.im (Coordinates.decode v a)) (C.im (Coordinates.decode w a)))))))) }
+    "=" _ "by" { sym!{{R.Real}} _ _ (pairing (Coordinates.decode v) (conjugate (Coordinates.decode w))) }
+    "=" _ "by" { congr!{{RealVectors.Vector} {R.Real}} (\fun (z: RealVectors.Vector) => dot z (K.apply w)) _ _ (Coordinates.encodeDecode v) }
+  };
+\definition iReal: \forall (z: C.Complex) -> C.re (Op.mul Op.i z) = R.neg (C.im z) :=
+  \fun (z: C.Complex) => trans!{{R.Real}} _ _ _
+    (congr!{{R.Real} {R.Real} {R.Real}} R.sub _ _ _ _ (RealSpaces.mulZeroLeft (C.re z)) (RealSpaces.mulOneLeft (C.im z))) (Laws.zeroLeft (R.neg (C.im z)));
+\definition iImaginary: \forall (z: C.Complex) -> C.im (Op.mul Op.i z) = C.re z :=
+  \fun (z: C.Complex) => trans!{{R.Real}} _ _ _
+    (congr!{{R.Real} {R.Real} {R.Real}} R.add _ _ _ _ (RealSpaces.mulZeroLeft (C.im z)) (RealSpaces.mulOneLeft (C.re z))) (Laws.zeroLeft (C.re z));
+\definition negativeAdd: \forall (a, b: R.Real) -> R.neg (R.add a b) = R.add (R.neg a) (R.neg b) :=
+  \fun (a, b: R.Real) => eq_reason_in!{{R.Real} _
+    "=" _ "by" { sym!{{R.Real}} _ _ (Laws.minusOneScale (R.add a b)) }
+    "=" _ "by" { RealSpaces.mulAdd (R.neg R.one) a b }
+    "=" _ "by" { congr!{{R.Real} {R.Real} {R.Real}} R.add _ _ _ _ (Laws.minusOneScale a) (Laws.minusOneScale b) }
+  };
+\definition negativeSum: \forall (f: Fin.Fin r -> R.Real) -> Sums.sum r (\fun (a: Fin.Fin r) => R.neg (f a)) = R.neg (Sums.sum r f) :=
+  \fun (f: Fin.Fin r -> R.Real) => eq_reason_in!{{R.Real} _
+    "=" _ "by" { Sums.congruent r _ _ (\fun (a: Fin.Fin r) => sym!{{R.Real}} _ _ (Laws.minusOneScale (f a))) }
+    "=" _ "by" { Sums.scalar r (R.neg R.one) f }
+    "=" _ "by" { Laws.minusOneScale (Sums.sum r f) }
+  };
+\definition iTerm: \forall (v, w: C.Complex) ->
+  R.add (R.mul (C.re (Op.mul Op.i v)) (C.re w)) (R.mul (C.im (Op.mul Op.i v)) (C.im w)) =
+  R.neg (R.add (R.mul (C.re v) (C.re (Op.mul Op.i w))) (R.mul (C.im v) (C.im (Op.mul Op.i w)))) :=
+  \fun (v, w: C.Complex) => eq_reason_in!{{R.Real} _
+    "=" _ "by" { congr!{{R.Real} {R.Real} {R.Real}} R.add _ _ _ _
+      (congr!{{R.Real} {R.Real}} (\fun (z: R.Real) => R.mul z (C.re w)) _ _ (iReal v))
+      (congr!{{R.Real} {R.Real}} (\fun (z: R.Real) => R.mul z (C.im w)) _ _ (iImaginary v)) }
+    "=" _ "by" { congr!{{R.Real} {R.Real}} (\fun (z: R.Real) => R.add z (R.mul (C.re v) (C.im w))) _ _
+      (trans!{{R.Real}} _ _ _ (RealSpaces.mulComm (R.neg (C.im v)) (C.re w))
+        (trans!{{R.Real}} _ _ _ (Laws.scaleNegative (C.re w) (C.im v)) (congr!{{R.Real} {R.Real}} R.neg _ _ (RealSpaces.mulComm (C.re w) (C.im v))))) }
+    "=" _ "by" { Laws.comm (R.neg (R.mul (C.im v) (C.re w))) (R.mul (C.re v) (C.im w)) }
+    "=" _ "by" { congr!{{R.Real} {R.Real}} (\fun (z: R.Real) => R.add z (R.neg (R.mul (C.im v) (C.re w)))) _ _ (sym!{{R.Real}} _ _ (Arithmetic.negInvolutive (R.mul (C.re v) (C.im w)))) }
+    "=" _ "by" { sym!{{R.Real}} _ _ (negativeAdd (R.neg (R.mul (C.re v) (C.im w))) (R.mul (C.im v) (C.re w))) }
+    "=" _ "by" { congr!{{R.Real} {R.Real}} (\fun (z: R.Real) => R.neg (R.add z (R.mul (C.im v) (C.re w)))) _ _ (sym!{{R.Real}} _ _ (Laws.scaleNegative (C.re v) (C.im w))) }
+    "=" _ "by" { congr!{{R.Real} {R.Real} {R.Real}} (\fun (a, b: R.Real) => R.neg (R.add (R.mul (C.re v) a) (R.mul (C.im v) b))) _ _ _ _ (sym!{{R.Real}} _ _ (iReal w)) (sym!{{R.Real}} _ _ (iImaginary w)) }
+  };
+\definition iPair: \forall (v, w: Vectors.Vector) -> complexDot (Vectors.scale Op.i v) w = R.neg (complexDot v (Vectors.scale Op.i w)) :=
+  \fun (v, w: Vectors.Vector) => trans!{{R.Real}} _ _ _ (Sums.congruent r _ _ (\fun (a: Fin.Fin r) => iTerm (v a) (w a)))
+    (negativeSum (\fun (a: Fin.Fin r) => R.add (R.mul (C.re (v a)) (C.re (Op.mul Op.i (w a)))) (R.mul (C.im (v a)) (C.im (Op.mul Op.i (w a))))));
+\definition skew: \forall (v, w: RealVectors.Vector) -> dot (Structure.J.apply v) w = R.neg (dot v (Structure.J.apply w)) :=
+  \fun (v, w: RealVectors.Vector) => eq_reason_in!{{R.Real} _
+    "=" _ "by" { congr!{{RealVectors.Vector} {R.Real}} (dot (Structure.J.apply v)) _ _ (sym!{{RealVectors.Vector}} _ _ (Coordinates.encodeDecode w)) }
+    "=" _ "by" { pairing (Vectors.scale Op.i (Coordinates.decode v)) (Coordinates.decode w) }
+    "=" _ "by" { iPair (Coordinates.decode v) (Coordinates.decode w) }
+    "=" _ "by" { congr!{{R.Real} {R.Real}} R.neg _ _ (sym!{{R.Real}} _ _ (pairing (Coordinates.decode v) (Vectors.scale Op.i (Coordinates.decode w)))) }
+    "=" _ "by" { congr!{{RealVectors.Vector} {R.Real}} (\fun (z: RealVectors.Vector) => R.neg (dot z (Structure.J.apply w))) _ _ (Coordinates.encodeDecode v) }
+  };

@@ -1,0 +1,18 @@
+\import Scalar.At[k := one] \as Covectors;
+\import Scalar.ExteriorDerivative[k := zero] \as D;
+\import Spaces.Sums[I := Fin.Fin n].Vector[V := Scalar.Form one, space := Covectors.space] \as Sums;
+\definition matrix[a, b: Fin.Fin r]: Scalar.Form one := Sums.sum (Fin.elements n)
+  (\fun (i: Fin.Fin n) => Covectors.multiply (connection.coefficient i a b) (D.coordinate i));
+\definition value: Connection := Connection { matrix := matrix };
+
+\import Spaces.FiniteCoordinates[n := n] \as Basis;
+\import Scalar.Summation[k := one, I := Fin.Fin n] \as Evaluation;
+\import Open.Smooth[].Algebra[U := U] \as Functions;
+\definition recover: \forall (i: Fin.Fin n)(a, b: Fin.Fin r) ->
+  Scalar.coefficient one (matrix a b) (\fun (slot: Fin.Fin one) => i) = connection.coefficient i a b :=
+  \fun (i: Fin.Fin n)(a, b: Fin.Fin r) => Functions.ext
+    (Scalar.coefficient one (matrix a b) (\fun (slot: Fin.Fin one) => i)) (connection.coefficient i a b)
+    (\fun (x: Open.Carrier U) => trans!{{R.Real}} _ _ _
+      (Evaluation.evaluateSum (Fin.elements n) (\fun (j: Fin.Fin n) => Covectors.multiply (connection.coefficient j a b) (D.coordinate j)) x
+        (\fun (slot: Fin.Fin one) => Basis.vectors i))
+      (Basis.dualReconstruction (\fun (j: Fin.Fin n) => connection.coefficient j a b x) i));

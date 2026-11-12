@@ -1,0 +1,22 @@
+\import manifolds.Tangent[n := n].On[M := M].At[x := x] \as Tangent;
+\import Spaces.Multilinear[V := Tangent.Vector, space := Tangent.space].Alternating[] \as Alternating;
+\definition Cotensor: \Set := Alternating.Form one;
+\definition cotensorSpace: Spaces.VectorSpace Cotensor := Alternating.At[k := one].vectorSpace;
+\import Spaces.Tensor[V := F x, W := Cotensor, left := space x, right := cotensorSpace] \as Tensor;
+\definition Index: \Set := \Cast[I] ({ i: I \where Charts.Contains (chart i) x });
+\module At(i: Index);
+\module Pair(i, j: Index);
+\definition Values: \Pow Tensor.Carrier := { t: Tensor.Carrier \where \forall (i: Index) -> t = At[i := i].value };
+\definition ValueType: \Set := \Cast[Tensor.Carrier] Values;
+\definition exists: \exists ValueType := \block {
+  \takefrom i: Index \by bundle.atlas.covers x \then
+  \return \exact(\into[Tensor.Carrier](At[i := i].value, Values) \by { \fun (j: Index) => Pair[i := i, j := j].independent }, ValueType)
+};
+\definition unique: \forall (s, t: ValueType) -> s = t := \block {
+  \fun (s, t: ValueType) \then
+  \takefrom i: Index \by bundle.atlas.covers x \then
+  \return trans!{{Tensor.Carrier}} _ _ _ ((\bysub(Tensor.Carrier, Values, s)) i) (sym!{{Tensor.Carrier}} _ _ ((\bysub(Tensor.Carrier, Values, t)) i))
+};
+\definition value: Tensor.Carrier := \choice ValueType \by { existence: exists, uniqueness: unique };
+\definition inChart: \forall (i: Index) -> value = At[i := i].value :=
+  \fun (i: Index) => (\bysub(Tensor.Carrier, Values, (\choice ValueType \by { existence: exists, uniqueness: unique }))) i;

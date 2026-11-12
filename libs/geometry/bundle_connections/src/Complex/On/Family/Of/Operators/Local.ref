@@ -1,0 +1,22 @@
+\import \root.Complex[n := n, r := r].Structure[].On[U := (chart i).image] \as J;
+\import \root.MatrixCalculus[n := n, r := realRank].On[U := (chart i).image] \as Matrices;
+\import Matrices.Linearity[] \as Linear;
+\import RealSpaces.Laws[V := Matrices.Matrix1, space := Linear.space] \as Laws;
+\import RealOperators.Calculus[U := (chart i).image] \as Calculus;
+\import Open.Smooth[].Algebra[U := (chart i).image] \as Functions;
+\import \parent.Imaginary[s := s].In[i := i] \as Imaginary;
+\definition sectionMatrix: RealOperators.sectionMatrix (imaginary s) i = Matrices.product00 J.matrix (RealOperators.sectionMatrix s i) :=
+  \axiom:funext(RealOperators.sectionMatrix (imaginary s) i, Matrices.product00 J.matrix (RealOperators.sectionMatrix s i), \fun (a: Fin.Fin realRank) =>
+    \axiom:funext(RealOperators.sectionMatrix (imaginary s) i a, Matrices.product00 J.matrix (RealOperators.sectionMatrix s i) a, \fun (b: Fin.Fin realRank) =>
+      Functions.ext (RealOperators.sectionMatrix (imaginary s) i a b) (Matrices.product00 J.matrix (RealOperators.sectionMatrix s i) a b) (Imaginary.formula a)));
+\definition gauge: Matrices.product01 J.matrix (A i).matrix = Matrices.plus (Matrices.dMatrix J.matrix) (Matrices.product10 (A i).matrix J.matrix) := eq_reason_in!{{Matrices.Matrix1} _
+  "=" _ "by" { complexLinear A i }
+  "=" _ "by" { sym!{{Matrices.Matrix1}} _ _ (Laws.zeroLeft (Matrices.product10 (A i).matrix J.matrix)) }
+  "=" _ "by" { congr!{{Matrices.Matrix1} {Matrices.Matrix1}} (\fun (B: Matrices.Matrix1) => Matrices.plus B (Matrices.product10 (A i).matrix J.matrix)) _ _ (sym!{{Matrices.Matrix1}} _ _ J.constant) }
+};
+\definition matrixLaw: Calculus.covariant (A i).matrix (RealOperators.sectionMatrix (imaginary s) i) = Matrices.product01 J.matrix (Calculus.covariant (A i).matrix (RealOperators.sectionMatrix s i)) :=
+  trans!{{Matrices.Matrix1}} _ _ _ (congr!{{Matrices.Matrix0} {Matrices.Matrix1}} (Calculus.covariant (A i).matrix) _ _ sectionMatrix)
+    (Calculus.gauge J.matrix (A i).matrix (A i).matrix gauge (RealOperators.sectionMatrix s i));
+\import euclidean_forms.Euclidean[n := n].On[U := (chart i).image] \as Scalar;
+\definition imaginaryCovariant: \forall (a: Fin.Fin realRank) -> covariant A (imaginary s) i a = Matrices.product01 J.matrix (Calculus.covariant (A i).matrix (RealOperators.sectionMatrix s i)) a a :=
+  \fun (a: Fin.Fin realRank) => congr!{{Matrices.Matrix1} {Scalar.Form (N.Nat^::succ N.Nat^::zero)}} (\fun (B: Matrices.Matrix1) => B a a) _ _ matrixLaw;

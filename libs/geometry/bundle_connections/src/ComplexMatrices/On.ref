@@ -1,0 +1,55 @@
+\import \root.ComplexMetric[n := n, r := r].On[U := U] \as Functions;
+\import Open.Smooth[].Algebra[U := U] \as RealFunctions;
+\import euclidean_forms.Euclidean[n := n].On[U := U] \as Scalar;
+\import Scalar.At[k := one] \as Forms;
+\import \root.MatrixCalculus[n := n, r := realRank].On[U := U] \as RealMatrices;
+\import Reals.Coordinates[I := Fin.Fin n] \as Vectors;
+\import Reals.Multilinear[V := Vectors.Vector, space := Vectors.space] \as Multilinear;
+\structure OneForm: \Set := { real: Scalar.Form one, imaginary: Scalar.Form one };
+\definition evaluate[A: OneForm][x: Open.Carrier U][v: Multilinear.Arguments one]: C.Complex := C.make (A.real x v) (A.imaginary x v);
+\definition zero: OneForm := OneForm { real := Forms.zero, imaginary := Forms.zero };
+\definition add[A, B: OneForm]: OneForm := OneForm { real := Forms.plus A.real B.real, imaginary := Forms.plus A.imaginary B.imaginary };
+\definition negative[A: OneForm]: OneForm := OneForm { real := Forms.space.neg A.real, imaginary := Forms.space.neg A.imaginary };
+\definition multiply[f: Functions.Function][A: OneForm]: OneForm := OneForm {
+  real := Forms.plus (Forms.multiply (Functions.real f) A.real) (Forms.space.neg (Forms.multiply (Functions.imaginary f) A.imaginary)),
+  imaginary := Forms.plus (Forms.multiply (Functions.real f) A.imaginary) (Forms.multiply (Functions.imaginary f) A.real),
+};
+\definition differential[f: Functions.Function]: OneForm := OneForm {
+  real := RealMatrices.differential (Functions.real f), imaginary := RealMatrices.differential (Functions.imaginary f)
+};
+\definition sum: \forall (size: N.Nat^) -> (Fin.Fin size -> OneForm) -> OneForm :=
+  \induction (size: N.Nat^) \return (Fin.Fin size -> OneForm) -> OneForm \with {
+    | zero: \fun (f: Fin.Fin N.Nat^::zero -> OneForm) => zero
+    | succ: \fun (size: N.Nat^)(previous: (Fin.Fin size -> OneForm) -> OneForm)(f: Fin.Fin (N.Nat^::succ size) -> OneForm) => add (f (Fin.zero size)) (previous (\fun (a: Fin.Fin size) => f (Fin.succ size a)))
+  };
+\import smooth_bundles.ComplexCalculus[n := n].On[U := U] \as Calculus;
+\definition functionSum[size: N.Nat^][f: Fin.Fin size -> Functions.Function]: Functions.Function := \into[Calculus.Function]
+  ((\fun (x: Open.Carrier U) => Sums.sum size (\fun (a: Fin.Fin size) => f a x)), Functions.Function) \by {
+    Calculus.finiteSmooth size f (\fun (a: Fin.Fin size) => Functions.regular (f a))
+  };
+\definition functionProduct[f, g: Functions.Function]: Functions.Function := \into[Calculus.Function]
+  ((\fun (x: Open.Carrier U) => Op.mul (f x) (g x)), Functions.Function) \by { Calculus.times f g (Functions.regular f) (Functions.regular g) };
+\definition Matrix0: \Set := Fin.Fin r -> Fin.Fin r -> Functions.Function;
+\definition Matrix1: \Set := Fin.Fin r -> Fin.Fin r -> OneForm;
+\definition plus[A, B: Matrix1]: Matrix1 := \fun (a, b: Fin.Fin r) => add (A a b) (B a b);
+\definition product00[A, B: Matrix0]: Matrix0 := \fun (a, b: Fin.Fin r) => functionSum r (\fun (c: Fin.Fin r) => functionProduct (A a c) (B c b));
+\definition product01[A: Matrix0][B: Matrix1]: Matrix1 := \fun (a, b: Fin.Fin r) => sum r (\fun (c: Fin.Fin r) => multiply (A a c) (B c b));
+\definition product10[A: Matrix1][B: Matrix0]: Matrix1 := \fun (a, b: Fin.Fin r) => sum r (\fun (c: Fin.Fin r) => multiply (B c b) (A a c));
+\definition dMatrix[A: Matrix0]: Matrix1 := \fun (a, b: Fin.Fin r) => differential (A a b);
+\definition valueSum: \forall (size: N.Nat^)(f: Fin.Fin size -> OneForm)(x: Open.Carrier U)(v: Multilinear.Arguments one) -> evaluate (sum size f) x v = Sums.sum size (\fun (a: Fin.Fin size) => evaluate (f a) x v) :=
+  \induction (size: N.Nat^) \return \forall (f: Fin.Fin size -> OneForm)(x: Open.Carrier U)(v: Multilinear.Arguments one) -> evaluate (sum size f) x v = Sums.sum size (\fun (a: Fin.Fin size) => evaluate (f a) x v) \with {
+    | zero: \fun (f: _)(x: _)(v: _) => \refl(Op.zero)
+    | succ: \fun (size: N.Nat^)(previous: _)(f: _)(x: _)(v: _) => congr!{{C.Complex} {C.Complex}} (Op.add (evaluate (f (Fin.zero size)) x v)) _ _ (previous (\fun (a: Fin.Fin size) => f (Fin.succ size a)) x v)
+  };
+\definition value01: \forall (A: Matrix0)(B: Matrix1)(a, b: Fin.Fin r)(x: Open.Carrier U)(v: Multilinear.Arguments one) -> evaluate (product01 A B a b) x v = Sums.sum r (\fun (c: Fin.Fin r) => Op.mul (A a c x) (evaluate (B c b) x v)) :=
+  \fun (A: Matrix0)(B: Matrix1)(a, b: Fin.Fin r)(x: Open.Carrier U)(v: Multilinear.Arguments one) => valueSum r _ x v;
+\definition value10: \forall (A: Matrix1)(B: Matrix0)(a, b: Fin.Fin r)(x: Open.Carrier U)(v: Multilinear.Arguments one) -> evaluate (product10 A B a b) x v = Sums.sum r (\fun (c: Fin.Fin r) => Op.mul (evaluate (A a c) x v) (B c b x)) :=
+  \fun (A: Matrix1)(B: Matrix0)(a, b: Fin.Fin r)(x: Open.Carrier U)(v: Multilinear.Arguments one) => trans!{{C.Complex}} _ _ _ (valueSum r (\fun (c: Fin.Fin r) => multiply (B c b) (A a c)) x v)
+    (Sums.congruent r (\fun (c: Fin.Fin r) => Op.mul (B c b x) (evaluate (A a c) x v)) (\fun (c: Fin.Fin r) => Op.mul (evaluate (A a c) x v) (B c b x)) (\fun (c: Fin.Fin r) => Spaces.mulComm (B c b x) (evaluate (A a c) x v)));
+\module Algebra;
+
+\module Numeric;
+\module Jets;
+
+\module Recovery;
+\module Encoding;

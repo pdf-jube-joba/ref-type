@@ -1,0 +1,17 @@
+\import SourceScalar.At[k := k] \as SourceSpace;
+\import TargetScalar.At[k := k] \as TargetSpace;
+\import \root.GlobalForms[n := n, r := r].On[U := U].Action[k := k] \as SourceAction;
+\import \root.GlobalForms[n := m, r := r].On[U := V].Action[k := k] \as TargetAction;
+\import Open.Smooth[].Algebra[U := U] \as SourceFunctions;
+\import calculus.Real[].Multivariable[n := m].Open[].Smooth[].Algebra[U := V] \as TargetFunctions;
+\import Spaces.Multilinear[V := Fin.Fin n -> R.Real, space := Spaces.Coordinates[I := Fin.Fin n].space] \as Multilinear;
+\import Spaces.Sums[I := Fin.Fin r].Vector[V := SourceScalar.Form k, space := SourceSpace.space] \as Sums;
+\import Spaces.Sums[I := Fin.Fin r].Vector[V := TargetScalar.Form k, space := TargetSpace.space].Mapping[W := SourceScalar.Form k, target := SourceSpace.space] \as Mapping;
+\definition source[a, b: Fin.Fin r]: SourceFunctions.Function := SourceFunctions.constant (T a b);
+\definition target[a, b: Fin.Fin r]: TargetFunctions.Function := TargetFunctions.constant (T a b);
+\definition law: \forall (omega: Target.Form k) -> apply k (TargetAction.apply target omega) = SourceAction.apply source (apply k omega) :=
+  \fun (omega: Target.Form k) => \axiom:funext(apply k (TargetAction.apply target omega), SourceAction.apply source (apply k omega),
+    \fun (a: Fin.Fin r) => trans!{{SourceScalar.Form k}} _ _ _
+      (Mapping.law Pull.At[k := k].map (Fin.elements r) (\fun (b: Fin.Fin r) => TargetSpace.multiply (target a b) (omega b)))
+      (Sums.congruent (Fin.elements r) _ _ (\fun (b: Fin.Fin r) => SourceScalar.ext k _ _
+        (\fun (x: Open.Carrier U)(v: Multilinear.Arguments k) => \refl(R.mul (T a b) (Pull.apply k (omega b) x v))))));

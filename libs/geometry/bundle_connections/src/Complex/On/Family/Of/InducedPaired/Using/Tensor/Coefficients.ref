@@ -1,0 +1,53 @@
+\import Charts.Transition[left := chart i, right := chart j] \as Domain;
+\import Atlas.Change[i := i, j := j] \as LeftChange;
+\import OtherAtlas.Change[i := i, j := j] \as RightChange;
+\import Tensor.Change[i := i, j := j] \as Change;
+\import TensorBundles.Using[I := I, data := Tensor.data].Change[i := i, j := j] \as New;
+\import \root.ComplexTensorGauge[r := r, s := s].Dimension[n := n].On[U := Domain.domain].Indexed[enumeration := enumeration] \as Gauge;
+\import \root.ComplexTensorIndex[r := r, s := s].Using[enumeration := enumeration] \as Index;
+\import Operations.PairIndices[n := r, m := s] \as Pairs;
+\import Operations.FiniteIndex[A := Pairs.Pair, S := Pairs.Whole, enumeration := enumeration] \as Coordinates;
+\import \root.ComplexMetric[n := n, r := r].On[U := Domain.domain] \as Functions;
+\import smooth_bundles.ComplexCalculus[n := n].On[U := Domain.domain] \as Calculus;
+\import Spaces.FiniteCoordinates[n := r] \as LeftBasis;
+\import Spaces.FiniteCoordinates[n := s] \as RightBasis;
+\import Spaces.FiniteCoordinates[n := Tensor.rank] \as Basis;
+\definition left[a, b: Fin.Fin r]: Functions.Function := \into[Calculus.Function]
+  ((\fun (u: Open.Carrier Domain.domain) => (LeftChange.matrix u).apply (LeftBasis.vectors b) a), Functions.Function) \by { Bundle.Change[i := i, j := j].evaluate (LeftBasis.vectors b) a };
+\definition right[a, b: Fin.Fin s]: Functions.Function := \into[Calculus.Function]
+  ((\fun (u: Open.Carrier Domain.domain) => (RightChange.matrix u).apply (RightBasis.vectors b) a), Functions.Function) \by { regular i j (RightBasis.vectors b) a };
+\definition matrix[a, b: Fin.Fin Tensor.rank]: Functions.Function := \into[Calculus.Function]
+  ((\fun (u: Open.Carrier Domain.domain) => (New.matrix u).apply (Basis.vectors b) a), Functions.Function) \by { Tensor.smooth i j (Basis.vectors b) a };
+\import std.Data[].Pair[].Prop[A := Fin.Fin r, B := Fin.Fin s] \as PairLaws;
+\import bundle_operations.Operations[].Subset[E := Pairs.Pair, U := Pairs.Whole] \as Subset;
+\definition entryEquality: \forall (c: Fin.Fin Tensor.rank) -> Change.entry (Index.row c) (Index.col c) = Coordinates.enumerate c :=
+  \fun (c: Fin.Fin Tensor.rank) => Subset.equality (Change.entry (Index.row c) (Index.col c)) (Coordinates.enumerate c) (PairLaws.eta (Coordinates.enumerate c));
+\definition constant: \forall (b, c: Fin.Fin Tensor.rank) -> Change.constant (Basis.vectors b) (Index.row c) (Index.col c) = Basis.vectors b c :=
+  \fun (b, c: Fin.Fin Tensor.rank) => trans!{{C.Complex}} _ _ _
+    (congr!{{Coordinates.Index} {C.Complex}} (Coordinates.decode (Basis.vectors b)) _ _ (entryEquality c))
+    (congr!{{Fin.Fin Tensor.rank -> C.Complex} {C.Complex}} (\fun (v: Fin.Fin Tensor.rank -> C.Complex) => v c) _ _ (Coordinates.isomorphism.rightInverse (Basis.vectors b)));
+\import linear_algebra.Hermitian[].Over[K := C.Complex, field := C.Algebra[].field, scalar := linear_algebra.Hermitian[].Complex[].scalar].Sums[] \as Sums;
+\import Spaces.FiniteCoordinateEnumeration[] \as Enumeration;
+\import \root.ComplexTensorGauge[r := r, s := s].Finite[t := Tensor.rank] \as Finite;
+\definition term: \forall (a, b, c: Fin.Fin Tensor.rank)(u: Open.Carrier Domain.domain) ->
+  Change.term (Basis.vectors b) a (Index.row c) (Index.col c) u = Op.mul (Basis.vectors b c) (Gauge.tensor0 left right a c u) :=
+  \fun (a, b, c: Fin.Fin Tensor.rank)(u: Open.Carrier Domain.domain) => congr!{{C.Complex} {C.Complex}} (\fun (z: C.Complex) => Op.mul z (Gauge.tensor0 left right a c u)) _ _ (constant b c);
+\definition entry: \forall (a, b: Fin.Fin Tensor.rank)(u: Open.Carrier Domain.domain) -> matrix a b u = Gauge.tensor0 left right a b u :=
+  \fun (a, b: Fin.Fin Tensor.rank)(u: Open.Carrier Domain.domain) => eq_reason_in!{{C.Complex} _
+    "=" _ "by" { Change.formula (Basis.vectors b) a u }
+    "=" _ "by" { Enumeration.sumLaw r (\fun (v: Fin.Fin r) => Spaces.Sums[I := Fin.Fin s].sum (Fin.elements s) (\fun (w: Fin.Fin s) => Change.term (Basis.vectors b) a v w u)) }
+    "=" _ "by" { Sums.congruent r
+      (\fun (v: Fin.Fin r) => Spaces.Sums[I := Fin.Fin s].sum (Fin.elements s) (\fun (w: Fin.Fin s) => Change.term (Basis.vectors b) a v w u))
+      (\fun (v: Fin.Fin r) => Sums.sum s (\fun (w: Fin.Fin s) => Change.term (Basis.vectors b) a v w u))
+      (\fun (v: Fin.Fin r) => Enumeration.sumLaw s (\fun (w: Fin.Fin s) => Change.term (Basis.vectors b) a v w u)) }
+    "=" _ "by" { sym!{{C.Complex}} _ _ (Index.sum (\fun (v: Fin.Fin r)(w: Fin.Fin s) => Change.term (Basis.vectors b) a v w u)) }
+    "=" _ "by" { Sums.congruent Tensor.rank
+      (\fun (c: Fin.Fin Tensor.rank) => Change.term (Basis.vectors b) a (Index.row c) (Index.col c) u)
+      (\fun (c: Fin.Fin Tensor.rank) => Op.mul (Basis.vectors b c) (Gauge.tensor0 left right a c u))
+      (\fun (c: Fin.Fin Tensor.rank) => term a b c u) }
+    "=" _ "by" { Finite.extract b (\fun (c: Fin.Fin Tensor.rank) => Gauge.tensor0 left right a c u) }
+  };
+\definition transition: matrix = Gauge.tensor0 left right :=
+  \axiom:funext(matrix, Gauge.tensor0 left right, \fun (a: Fin.Fin Tensor.rank) =>
+    \axiom:funext(matrix a, Gauge.tensor0 left right a, \fun (b: Fin.Fin Tensor.rank) =>
+      \axiom:funext(matrix a b, Gauge.tensor0 left right a b, entry a b)));

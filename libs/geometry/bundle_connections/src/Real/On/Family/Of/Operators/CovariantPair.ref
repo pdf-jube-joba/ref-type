@@ -1,0 +1,22 @@
+\use Equality.eq_reason_in;
+\import \parent.\parent.Pair[i := i, j := j] \as Gauge;
+\import Charts.Transition[left := chart i, right := chart j] \as Transition;
+\import \root.MatrixCalculus[n := n, r := r].On[U := Transition.domain] \as Matrices;
+\import \parent.Calculus[U := Transition.domain] \as Operator;
+\import \parent.\parent.SectionCoordinates[].Pair[s := s, i := i, j := j] \as SectionPair;
+\import \parent.Transport[U := Transition.domain, V := (chart i).image].Restriction[included := Gauge.included] \as Restrict;
+\import \parent.Transport[U := Transition.domain, V := (chart j).image].Pull[f := Gauge.map] \as Pull;
+\import \root.Real[n := n, r := r].Transport[U := Transition.domain, V := (chart i).image].Restriction[included := Gauge.included] \as RawRestriction;
+\import \root.Real[n := n, r := r].Transport[U := Transition.domain, V := (chart j).image].Pull[f := Gauge.map] \as RawPull;
+\import \parent.OnePair[i := i, j := j] \as OnePair;
+\definition gauge: Matrices.product01 Gauge.transition (Gauge.source (A i)) = Matrices.plus (Matrices.dMatrix Gauge.transition) (Matrices.product10 (Gauge.target (A j)) Gauge.transition) :=
+  Operator.ext _ _ (compatible A i j);
+\definition matrixLaw: Matrices.product01 Gauge.transition (OnePair.source (covariantData A s i)) = OnePair.target (covariantData A s j) := eq_reason_in!{{Matrices.Matrix1} _
+  "=" _ "by" { congr!{{Matrices.Matrix1} {Matrices.Matrix1}} (Matrices.product01 Gauge.transition) _ _
+    (Restrict.law ((A i).matrix) (sectionMatrix s i)) }
+  "=" _ "by" { sym!{{Matrices.Matrix1}} _ _ (Operator.gauge Gauge.transition (Gauge.source (A i)) (Gauge.target (A j)) gauge SectionPair.source) }
+  "=" _ "by" { congr!{{Matrices.Matrix0} {Matrices.Matrix1}} (Operator.covariant (Gauge.target (A j))) _ _ (sym!{{Matrices.Matrix0}} _ _ SectionPair.transformation) }
+  "=" _ "by" { sym!{{Matrices.Matrix1}} _ _ (Pull.law ((A j).matrix) (sectionMatrix s j)) }
+};
+\definition law: OnePair.Compatible (covariantData A s i) (covariantData A s j) :=
+  \fun (a, b: Fin.Fin r) => congr!{{Matrices.Matrix1} {Euclidean.On[U := Transition.domain].Form one}} (\fun (T: Matrices.Matrix1) => T a b) _ _ matrixLaw;

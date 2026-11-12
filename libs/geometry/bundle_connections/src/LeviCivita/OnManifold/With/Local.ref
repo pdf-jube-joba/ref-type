@@ -1,0 +1,24 @@
+\import Connections.MetricLocal[metric := metric, i := chart] \as Metric;
+\import \root.LeviCivita[n := n].On[U := chart.image].Riemannian[metric := Metric.local] \as LC;
+\import \root.Local[n := n, r := n].On[U := chart.image] \as Coefficients;
+\import \root.Forms[n := n, r := n].On[U := chart.image] \as Forms;
+\import euclidean_forms.Euclidean[n := n].On[U := chart.image] \as Scalar;
+\import Forms.Coefficients[connection := c] \as Extract;
+\import Forms.Coordinates[connection := LC.connection] \as Canonical;
+\import Open.Smooth[].Algebra[U := chart.image] \as Functions;
+\definition Laws: \Prop := LC.Laws[Extract.local];
+\definition ext: \forall (A, B: Forms.Connection) -> A.matrix = B.matrix -> A = B :=
+  \induction (A: Forms.Connection) \return \forall (B: Forms.Connection) -> A.matrix = B.matrix -> A = B \with {
+    | # : \fun (a: Fin.Fin n -> Fin.Fin n -> Scalar.Form (N.Nat^::succ N.Nat^::zero)) => \induction (B: Forms.Connection) \return a = B.matrix -> Forms.Connection { matrix := a } = B \with {
+      | # : \fun (b: Fin.Fin n -> Fin.Fin n -> Scalar.Form (N.Nat^::succ N.Nat^::zero))(same: a = b) => congr!{{Fin.Fin n -> Fin.Fin n -> Scalar.Form (N.Nat^::succ N.Nat^::zero)} {Forms.Connection}}
+        (\fun (matrix: Fin.Fin n -> Fin.Fin n -> Scalar.Form (N.Nat^::succ N.Nat^::zero)) => Forms.Connection { matrix := matrix }) a b same
+    }
+  };
+\definition unique: Laws -> c = data chart := \fun (laws: Laws) => ext c (data chart)
+  (\axiom:funext(c.matrix, (data chart).matrix, \fun (a: Fin.Fin n) => \axiom:funext(c.matrix a, (data chart).matrix a,
+    \fun (b: Fin.Fin n) => Scalar.coefficientExt (N.Nat^::succ N.Nat^::zero) (c.matrix a b) ((data chart).matrix a b)
+      (\fun (indices: Fin.Fin (N.Nat^::succ N.Nat^::zero) -> Fin.Fin n) => trans!{{Functions.Function}} _ _ _ (Extract.singleton (c.matrix a b) indices)
+        (trans!{{Functions.Function}} _ _ _
+          (congr!{{Coefficients.Connection} {Functions.Function}} (\fun (d: Coefficients.Connection) => d.coefficient (indices (Fin.zero N.Nat^::zero)) a b) _ _ (sym!{{Coefficients.Connection}} _ _ (LC.Unique[c := Extract.local, laws := laws].unique)))
+          (trans!{{Functions.Function}} _ _ _ (sym!{{Functions.Function}} _ _ (Canonical.recover (indices (Fin.zero N.Nat^::zero)) a b))
+            (sym!{{Functions.Function}} _ _ (Extract.singleton ((data chart).matrix a b) indices))))))));

@@ -1,0 +1,33 @@
+\import \root.Real[n := n, r := r].Transport[U := U, V := V].Restriction[included := included] \as Transport;
+\definition transpose: \forall (A: Target.Matrix1) -> Transport.matrix1 (TargetTranspose.transpose1 A) = SourceTranspose.transpose1 (Transport.matrix1 A) :=
+  \fun (A: Target.Matrix1) => SourceLinear.ext (Transport.matrix1 (TargetTranspose.transpose1 A)) (SourceTranspose.transpose1 (Transport.matrix1 A))
+    (\fun (a, b: Fin.Fin r) => \refl(Transport.matrix1 A b a));
+\definition derivative: \forall (g: Target.Matrix0) -> Transport.matrix1 (Target.dMatrix g) = Source.dMatrix (Transport.matrix0 g) :=
+  \fun (g: Target.Matrix0) => SourceLinear.ext (Transport.matrix1 (Target.dMatrix g)) (Source.dMatrix (Transport.matrix0 g))
+    (\fun (a, b: Fin.Fin r) => Transport.differential (g a b));
+\definition negative: \forall (A: Target.Matrix1) -> Transport.matrix1 (TargetLinear.negative A) = SourceLinear.negative (Transport.matrix1 A) :=
+  \fun (A: Target.Matrix1) => eq_reason_in!{Source.Matrix1 _
+    "=" _ "by" { congr!{Target.Matrix1 Source.Matrix1} Transport.matrix1 _ _ (sym!{Target.Matrix1} _ _ (TargetLaws.minusOneScale A)) }
+    "=" _ "by" { Transport.scale (R.neg R.one) A }
+    "=" _ "by" { SourceLaws.minusOneScale (Transport.matrix1 A) }
+  };
+\definition difference: \forall (A, B: Target.Matrix1) -> Transport.matrix1 (TargetCorrection.difference A B) = SourceCorrection.difference (Transport.matrix1 A) (Transport.matrix1 B) :=
+  \fun (A, B: Target.Matrix1) => trans!{Source.Matrix1} _ _ _ (Transport.plus A (TargetLinear.negative B))
+    (congr!{Source.Matrix1 Source.Matrix1} (Source.plus (Transport.matrix1 A)) _ _ (negative B));
+\definition adjoint: \forall (g, q: Target.Matrix0)(A: Target.Matrix1) ->
+  Transport.matrix1 (TargetCorrection.adjoint g q A) = SourceCorrection.adjoint (Transport.matrix0 g) (Transport.matrix0 q) (Transport.matrix1 A) :=
+  \fun (g, q: Target.Matrix0)(A: Target.Matrix1) => eq_reason_in!{Source.Matrix1 _
+    "=" _ "by" { Transport.product01 q (TargetCorrection.difference (Target.dMatrix g) (Target.product10 (TargetTranspose.transpose1 A) g)) }
+    "=" _ "by" { congr!{Source.Matrix1 Source.Matrix1} (Source.product01 (Transport.matrix0 q)) _ _ (difference (Target.dMatrix g) (Target.product10 (TargetTranspose.transpose1 A) g)) }
+    "=" _ "by" { congr!{Source.Matrix1 Source.Matrix1} (Source.product01 (Transport.matrix0 q)) _ _
+      (congr!{Source.Matrix1 Source.Matrix1 Source.Matrix1} SourceCorrection.difference _ _ _ _ (derivative g)
+        (trans!{Source.Matrix1} _ _ _ (Transport.product10 (TargetTranspose.transpose1 A) g)
+          (congr!{Source.Matrix1 Source.Matrix1} (\fun (X: Source.Matrix1) => Source.product10 X (Transport.matrix0 g)) _ _ (transpose A)))) }
+  };
+\definition law: \forall (g, q: Target.Matrix0)(A: Target.Matrix1) ->
+  Transport.matrix1 (TargetCorrection.correct g q A) = SourceCorrection.correct (Transport.matrix0 g) (Transport.matrix0 q) (Transport.matrix1 A) :=
+  \fun (g, q: Target.Matrix0)(A: Target.Matrix1) => eq_reason_in!{Source.Matrix1 _
+    "=" _ "by" { Transport.scale R.half (Target.plus A (TargetCorrection.adjoint g q A)) }
+    "=" _ "by" { congr!{Source.Matrix1 Source.Matrix1} (SourceLinear.scale R.half) _ _ (Transport.plus A (TargetCorrection.adjoint g q A)) }
+    "=" _ "by" { congr!{Source.Matrix1 Source.Matrix1} (\fun (X: Source.Matrix1) => SourceLinear.scale R.half (Source.plus (Transport.matrix1 A) X)) _ _ (adjoint g q A) }
+  };

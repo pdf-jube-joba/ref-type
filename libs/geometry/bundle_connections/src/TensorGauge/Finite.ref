@@ -1,0 +1,22 @@
+\import Spaces.FiniteCoordinates[n := t] \as Basis;
+\import Spaces.Coordinates[I := Fin.Fin t].Kronecker[] \as Delta;
+\import Spaces.FiniteCoordinateEnumeration[] \as Enumeration;
+\definition Matrix: \Set := Fin.Fin t -> Fin.Fin t -> R.Real;
+\definition identity: Matrix := Basis.vectors;
+\definition product[A, B: Matrix][a, b: Fin.Fin t]: R.Real := Sums.sum t (\fun (c: Fin.Fin t) => R.mul (A a c) (B c b));
+\definition plus[A, B: Matrix][a, b: Fin.Fin t]: R.Real := R.add (A a b) (B a b);
+\definition ext: \forall (A, B: Matrix) -> (\forall (a, b: Fin.Fin t) -> A a b = B a b) -> A = B :=
+  \fun (A, B: Matrix)(same: _) => \axiom:funext(A, B, \fun (a: Fin.Fin t) => \axiom:funext(A a, B a, same a));
+\definition extract: \forall (i: Fin.Fin t)(f: Fin.Fin t -> R.Real) -> Sums.sum t (\fun (j: Fin.Fin t) => R.mul (identity i j) (f j)) = f i :=
+  \fun (i: Fin.Fin t)(f: Fin.Fin t -> R.Real) => eq_reason_in!{{R.Real} _
+    "=" _ "by" { Sums.congruent t _ _ (\fun (j: Fin.Fin t) => Spaces.mulComm (identity i j) (f j)) }
+    "=" _ "by" { sym!{{R.Real}} _ _ (Enumeration.sumLaw t (\fun (j: Fin.Fin t) => R.mul (f j) (identity i j))) }
+    "=" _ "by" { Basis.dualReconstruction f i }
+  };
+\definition leftIdentity: \forall (A: Matrix) -> product identity A = A :=
+  \fun (A: Matrix) => ext (product identity A) A (\fun (a, b: Fin.Fin t) => extract a (\fun (c: Fin.Fin t) => A c b));
+\definition rightIdentity: \forall (A: Matrix) -> product A identity = A :=
+  \fun (A: Matrix) => ext (product A identity) A (\fun (a, b: Fin.Fin t) => trans!{{R.Real}} _ _ _
+    (Sums.congruent t _ _ (\fun (c: Fin.Fin t) => trans!{{R.Real}} _ _ _
+      (congr!{{R.Real} {R.Real}} (R.mul (A a c)) _ _ (Delta.symmetric c b)) (Spaces.mulComm (A a c) (identity b c))))
+    (extract b (A a)));

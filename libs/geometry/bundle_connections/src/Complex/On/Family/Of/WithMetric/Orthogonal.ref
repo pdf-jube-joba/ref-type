@@ -1,0 +1,33 @@
+\import Underlying.WithMetric[metric := realMetric].Local[i := i] \as Real;
+\import Underlying.MetricLocal[metric := realMetric, i := i] \as Metric;
+\import \root.Complex[n := n, r := r].Structure[] \as Structure;
+\import Structure.On[U := (chart i).image] \as J;
+\import \root.LeviCivita[n := n].Gauge[r := realRank, U := (chart i).image] \as Gauge;
+\import \root.MatrixCalculus[n := n, r := realRank].On[U := (chart i).image] \as Matrices;
+\import Matrices.Associativity[] \as Algebra;
+\import Open.Smooth[].Algebra[U := (chart i).image] \as Functions;
+\import R.FiniteSums[].Linear[] \as Finite;
+\definition backward[u: Open.Carrier (chart i).image][v: RealVectors.Vector]: F (Charts.point (chart i) u) :=
+  ((bundle.atlas.local i).frame (Charts.point (chart i) u)).backward.apply (Coordinates.decode v);
+\definition imaginary: \forall (u: Open.Carrier (chart i).image)(v: RealVectors.Vector) -> backward u (Structure.J.apply v) = (space (Charts.point (chart i) u)).smul Op.i (backward u v) :=
+  \fun (u: Open.Carrier (chart i).image)(v: RealVectors.Vector) => trans!{{F (Charts.point (chart i) u)}} _ _ _
+    (congr!{{Vectors.Vector} {F (Charts.point (chart i) u)}} ((bundle.atlas.local i).frame (Charts.point (chart i) u)).backward.apply _ _
+      (Coordinates.decodeEncode (Vectors.scale Op.i (Coordinates.decode v))))
+    (((bundle.atlas.local i).frame (Charts.point (chart i) u)).backward.preservesScale Op.i (Coordinates.decode v));
+\definition isometry: \forall (u: Open.Carrier (chart i).image)(v, w: RealVectors.Vector) ->
+  (Metric.local.form u).dot (Structure.J.apply v) (Structure.J.apply w) = (Metric.local.form u).dot v w :=
+  \fun (u: Open.Carrier (chart i).image)(v, w: RealVectors.Vector) => trans!{{R.Real}} _ _ _
+    (congr!{{F (Charts.point (chart i) u)} {F (Charts.point (chart i) u)} {R.Real}} (data.form (Charts.point (chart i) u)).dot _ _ _ _ (imaginary u v) (imaginary u w))
+    (\root.Complex[n := n, r := r].RealMetric[V := F (Charts.point (chart i) u), space := space (Charts.point (chart i) u), h := metric.form (Charts.point (chart i) u)].isometry (backward u v) (backward u w));
+\definition entry: \forall (a, b: Fin.Fin realRank)(u: Open.Carrier (chart i).image) -> Gauge.metric J.matrix Real.g a b u = Real.g a b u :=
+  \fun (a, b: Fin.Fin realRank)(u: Open.Carrier (chart i).image) => eq_reason_in!{{R.Real} _
+    "=" _ "by" { congr!{{Algebra.Numeric} {R.Real}} (\fun (A: Algebra.Numeric) => A a b) _ _
+      (Algebra.associative (Algebra.eval0 (Gauge.transpose0 J.matrix) u) (Algebra.eval0 Real.g u) (Algebra.eval0 J.matrix u)) }
+    "=" _ "by" { sym!{{R.Real}} _ _ (Real.pairing u (Structure.J.apply (Finite.basis realRank a)) (Structure.J.apply (Finite.basis realRank b))) }
+    "=" _ "by" { isometry u (Finite.basis realRank a) (Finite.basis realRank b) }
+    "=" _ "by" { Real.coefficient a b u }
+  };
+\definition law: Gauge.metric J.matrix Real.g = Real.g :=
+  \axiom:funext(Gauge.metric J.matrix Real.g, Real.g, \fun (a: Fin.Fin realRank) =>
+    \axiom:funext(Gauge.metric J.matrix Real.g a, Real.g a, \fun (b: Fin.Fin realRank) =>
+      Functions.ext (Gauge.metric J.matrix Real.g a b) (Real.g a b) (entry a b)));

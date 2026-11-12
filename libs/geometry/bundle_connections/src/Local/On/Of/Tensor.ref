@@ -1,0 +1,40 @@
+\import \root.Local[n := n, r := s].On[U := U] \as Other;
+\import Other.Of[connection := other] \as OtherConnection;
+\definition TensorSection: \Set := Fin.Fin r -> Fin.Fin s -> Functions.Function;
+\definition pure[left: Section][right: Other.Section]: TensorSection := \fun (a: Fin.Fin r)(b: Fin.Fin s) => Functions.product (left a) (right b);
+\definition tensorPlus[u, v: TensorSection]: TensorSection := \fun (a: Fin.Fin r)(b: Fin.Fin s) => Functions.plus (u a b) (v a b);
+\definition leftTerm[i: Fin.Fin n][u: TensorSection][a: Fin.Fin r][b: Fin.Fin s]: Functions.Function :=
+  sum r (\fun (c: Fin.Fin r) => Functions.product (connection.coefficient i a c) (u c b));
+\definition rightTerm[i: Fin.Fin n][u: TensorSection][a: Fin.Fin r][b: Fin.Fin s]: Functions.Function :=
+  sum s (\fun (c: Fin.Fin s) => Functions.product (other.coefficient i b c) (u a c));
+\definition covariant[i: Fin.Fin n][u: TensorSection][a: Fin.Fin r][b: Fin.Fin s]: Functions.Function :=
+  Functions.plus (Derivatives.apply i (u a b)) (Functions.plus (leftTerm i u a b) (rightTerm i u a b));
+\definition leftPure: \forall (i: Fin.Fin n)(left: Section)(right: Other.Section)(a: Fin.Fin r)(b: Fin.Fin s) ->
+  leftTerm i (pure left right) a b = Functions.product (correction i left a) (right b) :=
+  \fun (i: Fin.Fin n)(left: Section)(right: Other.Section)(a: Fin.Fin r)(b: Fin.Fin s) => trans!{{Functions.Function}} _ _ _
+    (sumCongruent r (\fun (c: Fin.Fin r) => Functions.product (connection.coefficient i a c) (Functions.product (left c) (right b)))
+      (\fun (c: Fin.Fin r) => Functions.product (Functions.product (connection.coefficient i a c) (left c)) (right b))
+      (\fun (c: Fin.Fin r) => sym!{{Functions.Function}} _ _ (Functions.productAssociative (connection.coefficient i a c) (left c) (right b))))
+    (sumRightProduct r (right b) (\fun (c: Fin.Fin r) => Functions.product (connection.coefficient i a c) (left c)));
+\definition rightPure: \forall (i: Fin.Fin n)(left: Section)(right: Other.Section)(a: Fin.Fin r)(b: Fin.Fin s) ->
+  rightTerm i (pure left right) a b = Functions.product (left a) (OtherConnection.correction i right b) :=
+  \fun (i: Fin.Fin n)(left: Section)(right: Other.Section)(a: Fin.Fin r)(b: Fin.Fin s) => trans!{{Functions.Function}} _ _ _
+    (sumCongruent s (\fun (c: Fin.Fin s) => Functions.product (other.coefficient i b c) (Functions.product (left a) (right c)))
+      (\fun (c: Fin.Fin s) => Functions.product (left a) (Functions.product (other.coefficient i b c) (right c)))
+      (\fun (c: Fin.Fin s) => exchangeProduct (other.coefficient i b c) (left a) (right c)))
+    (sumProduct s (left a) (\fun (c: Fin.Fin s) => Functions.product (other.coefficient i b c) (right c)));
+\definition tensorRule: \forall (i: Fin.Fin n)(left: Section)(right: Other.Section) ->
+  covariant i (pure left right) = tensorPlus (pure (partial i left) right) (pure left (OtherConnection.partial i right)) :=
+  \fun (i: Fin.Fin n)(left: Section)(right: Other.Section) => \axiom:funext(covariant i (pure left right),
+    tensorPlus (pure (partial i left) right) (pure left (OtherConnection.partial i right)), \fun (a: Fin.Fin r) =>
+      \axiom:funext(covariant i (pure left right) a, tensorPlus (pure (partial i left) right) (pure left (OtherConnection.partial i right)) a,
+        \fun (b: Fin.Fin s) => eq_reason_in!{{Functions.Function} _
+          "=" _ "by" { congr!{{Functions.Function} {Functions.Function} {Functions.Function}} Functions.plus _ _ _ _
+            (Derivatives.product i (left a) (right b))
+            (congr!{{Functions.Function} {Functions.Function} {Functions.Function}} Functions.plus _ _ _ _ (leftPure i left right a b) (rightPure i left right a b)) }
+          "=" _ "by" { Addition.shuffle (Functions.product (Derivatives.apply i (left a)) (right b)) (Functions.product (left a) (Derivatives.apply i (right b)))
+            (Functions.product (correction i left a) (right b)) (Functions.product (left a) (OtherConnection.correction i right b)) }
+          "=" _ "by" { congr!{{Functions.Function} {Functions.Function} {Functions.Function}} Functions.plus _ _ _ _
+            (sym!{{Functions.Function}} _ _ (productAddLeft (Derivatives.apply i (left a)) (correction i left a) (right b)))
+            (sym!{{Functions.Function}} _ _ (Functions.distributive (left a) (Derivatives.apply i (right b)) (OtherConnection.correction i right b))) }
+        }));

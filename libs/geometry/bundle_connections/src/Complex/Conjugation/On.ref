@@ -1,0 +1,38 @@
+\import Open.Smooth[].Algebra[U := U] \as Functions;
+\import \root.MatrixCalculus[n := n, r := realRank].On[U := U] \as Matrices;
+\import Matrices.Linearity[] \as Linear;
+\import R.FiniteSums[].Linear[] \as Finite;
+\import Structure.On[U := U] \as J;
+\definition matrix[a, b: Fin.Fin realRank]: Functions.Function := Functions.constant (K.apply (Finite.basis realRank b) a);
+\definition constant: Matrices.dMatrix matrix = Linear.origin := Linear.ext (Matrices.dMatrix matrix) Linear.origin
+  (\fun (a, b: Fin.Fin realRank) => Linear.dConstant (K.apply (Finite.basis realRank b) a));
+\import \root.Complex[n := n, r := r].Conjugation[].Pairing[] \as Pairing;
+\import \root.TensorGauge[n := n, r := realRank, s := realRank].Finite[t := realRank] \as Numeric;
+\import \root.Metric[n := n, r := realRank].Basis[] \as BasisComparison;
+\import RealSpaces.Coordinates[I := Fin.Fin realRank].Kronecker[] \as Delta;
+\definition dotBasis: \forall (v: RealVectors.Vector)(a: Fin.Fin realRank) -> Pairing.dot v (Finite.basis realRank a) = v a :=
+  \fun (v: RealVectors.Vector)(a: Fin.Fin realRank) => eq_reason_in!{{R.Real} _
+    "=" _ "by" { congr!{{RealVectors.Vector} {R.Real}} (Pairing.dot v) _ _ (BasisComparison.equal a) }
+    "=" _ "by" { R.FiniteSums[].congruent realRank _ _ (\fun (b: Fin.Fin realRank) => RealSpaces.mulComm (v b) (Numeric.identity a b)) }
+    "=" _ "by" { Numeric.extract a v }
+  };
+\definition basisDot: \forall (v: RealVectors.Vector)(a: Fin.Fin realRank) -> Pairing.dot (Finite.basis realRank a) v = v a :=
+  \fun (v: RealVectors.Vector)(a: Fin.Fin realRank) => trans!{{R.Real}} _ _ _
+    (R.FiniteSums[].congruent realRank _ _ (\fun (b: Fin.Fin realRank) => RealSpaces.mulComm (Finite.basis realRank a b) (v b))) (dotBasis v a);
+\definition symmetricEntry: \forall (a, b: Fin.Fin realRank) -> K.apply (Finite.basis realRank b) a = K.apply (Finite.basis realRank a) b :=
+  \fun (a, b: Fin.Fin realRank) => eq_reason_in!{{R.Real} _
+    "=" _ "by" { sym!{{R.Real}} _ _ (dotBasis (K.apply (Finite.basis realRank b)) a) }
+    "=" _ "by" { Pairing.symmetric (Finite.basis realRank b) (Finite.basis realRank a) }
+    "=" _ "by" { basisDot (K.apply (Finite.basis realRank a)) b }
+  };
+\definition squareMatrix: Matrices.product00 matrix matrix = Matrices.Associativity[].identity :=
+  \axiom:funext(Matrices.product00 matrix matrix, Matrices.Associativity[].identity, \fun (a: Fin.Fin realRank) =>
+    \axiom:funext(Matrices.product00 matrix matrix a, Matrices.Associativity[].identity a, \fun (b: Fin.Fin realRank) =>
+      Functions.ext (Matrices.product00 matrix matrix a b) (Matrices.Associativity[].identity a b) (\fun (u: Open.Carrier U) => eq_reason_in!{{R.Real} _
+        "=" _ "by" { sym!{{R.Real}} _ _ (J.evaluate K (K.apply (Finite.basis realRank b)) a) }
+        "=" _ "by" { congr!{{RealVectors.Vector} {R.Real}} (\fun (v: RealVectors.Vector) => v a) _ _ (square (Finite.basis realRank b)) }
+        "=" _ "by" { congr!{{RealVectors.Vector} {R.Real}} (\fun (v: RealVectors.Vector) => v a) _ _ (BasisComparison.equal b) }
+        "=" _ "by" { Delta.symmetric b a }
+      })));
+\module DualLinear;
+\module DualAdjoint;

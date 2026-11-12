@@ -1,0 +1,48 @@
+\import \parent.Algebra[] \as Algebra;
+\import \parent.Tangent[] \as Tangent;
+\import euclidean_forms.Euclidean[n := n].On[U := U].FunctionSums[I := Fin.Fin r] \as Entries;
+\import euclidean_forms.Euclidean[n := n].On[U := U].FunctionSums[I := Fin.Fin rank] \as Coefficients;
+\import Spaces.Sums[I := Fin.Fin r] \as NumericEntries;
+\import NumericEntries.Prop[] \as EntryLaws;
+\import Spaces.Sums[I := Fin.Fin rank] \as NumericCoefficients;
+\import NumericCoefficients.Prop[] \as CoefficientLaws;
+\definition multiply[A, B: Matrix.Matrix0][a, b: Fin.Fin r]: Functions.Function :=
+  Entries.function (Fin.elements r) (\fun (c: Fin.Fin r) => Functions.product (A a c) (B c b));
+\definition value: \forall (A, B: Matrix.Matrix0)(x: Open.Carrier U) -> Tangent.eval (multiply A B) x = Algebra.product (Tangent.eval A x) (Tangent.eval B x) :=
+  \fun (A, B: Matrix.Matrix0)(x: Open.Carrier U) => \refl(Tangent.eval (multiply A B) x);
+\definition partial: \forall (A, B: Matrix.Matrix0)(i: Fin.Fin n)(a, b: Fin.Fin r)(x: Open.Carrier U) ->
+  Derivatives.apply i (multiply A B a b) x = R.add (Algebra.product (Tangent.partial A i x) (Tangent.eval B x) a b) (Algebra.product (Tangent.eval A x) (Tangent.partial B i x) a b) :=
+  \fun (A, B: Matrix.Matrix0)(i: Fin.Fin n)(a, b: Fin.Fin r)(x: Open.Carrier U) => eq_reason_in!{{R.Real} { Derivatives.apply i (multiply A B a b) x }
+    "=" { NumericEntries.sum (Fin.elements r) (\fun (c: Fin.Fin r) => Derivatives.apply i (Functions.product (A a c) (B c b)) x) } "by" {
+      congr!{{Functions.Function} {R.Real}} (\fun (f: Functions.Function) => f x) _ _ (Entries.derivative i (Fin.elements r) (\fun (c: Fin.Fin r) => Functions.product (A a c) (B c b))) }
+    "=" { NumericEntries.sum (Fin.elements r) (\fun (c: Fin.Fin r) => R.add (R.mul (Derivatives.apply i (A a c) x) (B c b x)) (R.mul (A a c x) (Derivatives.apply i (B c b) x))) } "by" {
+      EntryLaws.congruent (Fin.elements r) (\fun (c: Fin.Fin r) => Derivatives.apply i (Functions.product (A a c) (B c b)) x)
+      (\fun (c: Fin.Fin r) => R.add (R.mul (Derivatives.apply i (A a c) x) (B c b x)) (R.mul (A a c x) (Derivatives.apply i (B c b) x)))
+      (\fun (c: Fin.Fin r) => congr!{{Functions.Function} {R.Real}} (\fun (f: Functions.Function) => f x) _ _ (Derivatives.product i (A a c) (B c b))) }
+    "=" _ "by" { EntryLaws.additive (Fin.elements r)
+      (\fun (c: Fin.Fin r) => R.mul (Derivatives.apply i (A a c) x) (B c b x))
+      (\fun (c: Fin.Fin r) => R.mul (A a c x) (Derivatives.apply i (B c b) x)) }
+  };
+\definition representationProduct: \forall (A, B: Matrix.Matrix0)(a, b: Fin.Fin rank) -> representation (multiply A B) a b =
+  Coefficients.function (Fin.elements rank) (\fun (c: Fin.Fin rank) => Functions.product (representation A a c) (representation B c b)) :=
+  \fun (A, B: Matrix.Matrix0)(a, b: Fin.Fin rank) => Functions.ext (representation (multiply A B) a b)
+    (Coefficients.function (Fin.elements rank) (\fun (c: Fin.Fin rank) => Functions.product (representation A a c) (representation B c b)))
+    (\fun (x: Open.Carrier U) => Algebra.multiplicative (Tangent.eval A x) (Tangent.eval B x) a b);
+\definition representationPartial: \forall (A, B: Matrix.Matrix0)(i: Fin.Fin n)(a, b: Fin.Fin rank)(x: Open.Carrier U) ->
+  Derivatives.apply i (representation (multiply A B) a b) x = NumericCoefficients.sum (Fin.elements rank)
+    (\fun (c: Fin.Fin rank) => R.add (R.mul (Derivatives.apply i (representation A a c) x) (representation B c b x)) (R.mul (representation A a c x) (Derivatives.apply i (representation B c b) x))) :=
+  \fun (A, B: Matrix.Matrix0)(i: Fin.Fin n)(a, b: Fin.Fin rank)(x: Open.Carrier U) => eq_reason_in!{{R.Real} { Derivatives.apply i (representation (multiply A B) a b) x }
+    "=" { Derivatives.apply i (Coefficients.function (Fin.elements rank) (\fun (c: Fin.Fin rank) => Functions.product (representation A a c) (representation B c b))) x } "by" {
+      congr!{{Functions.Function} {R.Real}} (\fun (f: Functions.Function) => Derivatives.apply i f x) _ _ (representationProduct A B a b) }
+    "=" { NumericCoefficients.sum (Fin.elements rank) (\fun (c: Fin.Fin rank) => Derivatives.apply i (Functions.product (representation A a c) (representation B c b)) x) } "by" {
+      congr!{{Functions.Function} {R.Real}} (\fun (f: Functions.Function) => f x) _ _ (Coefficients.derivative i (Fin.elements rank) (\fun (c: Fin.Fin rank) => Functions.product (representation A a c) (representation B c b))) }
+    "=" _ "by" { CoefficientLaws.congruent (Fin.elements rank)
+      (\fun (c: Fin.Fin rank) => Derivatives.apply i (Functions.product (representation A a c) (representation B c b)) x)
+      (\fun (c: Fin.Fin rank) => R.add (R.mul (Derivatives.apply i (representation A a c) x) (representation B c b x)) (R.mul (representation A a c x) (Derivatives.apply i (representation B c b) x)))
+      (\fun (c: Fin.Fin rank) => congr!{{Functions.Function} {R.Real}} (\fun (f: Functions.Function) => f x) _ _ (Derivatives.product i (representation A a c) (representation B c b))) }
+  };
+\definition partialMatrix: \forall (A, B: Matrix.Matrix0)(i: Fin.Fin n)(x: Open.Carrier U) -> Tangent.partial (multiply A B) i x =
+  Tangent.plus (Algebra.product (Tangent.partial A i x) (Tangent.eval B x)) (Algebra.product (Tangent.eval A x) (Tangent.partial B i x)) :=
+  \fun (A, B: Matrix.Matrix0)(i: Fin.Fin n)(x: Open.Carrier U) => Tangent.ext (Tangent.partial (multiply A B) i x)
+    (Tangent.plus (Algebra.product (Tangent.partial A i x) (Tangent.eval B x)) (Algebra.product (Tangent.eval A x) (Tangent.partial B i x)))
+    (\fun (a, b: Fin.Fin r) => partial A B i a b x);

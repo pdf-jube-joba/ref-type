@@ -1,0 +1,35 @@
+\import Scalar.At[k := k] \as Values;
+\import Open.Smooth[].Algebra[U := U] \as Functions;
+\import Spaces.Multilinear[V := Vectors.Vector, space := Vectors.space] \as Multilinear;
+\import Spaces.Linear[V := Scalar.Form k, W := Scalar.Form k, source := Values.space, target := Values.space] \as Maps;
+\import Spaces.Sums[I := Fin.Fin r].Vector[V := Scalar.Form k, space := Values.space] \as Sums;
+\import \root.MatrixCalculus[n := n, r := r].On[U := U] \as M;
+\definition map[f: Functions.Function]: Maps.Map := Maps.Map {
+  apply := Values.multiply f,
+  preservesAdd := \fun (omega, eta: Scalar.Form k) => Scalar.ext k _ _ (\fun (x: Open.Carrier U)(v: Multilinear.Arguments k) => Spaces.mulAdd (f x) (omega x v) (eta x v)),
+  preservesScale := \fun (a: R.Real)(omega: Scalar.Form k) => Scalar.ext k _ _ (\fun (x: Open.Carrier U)(v: Multilinear.Arguments k) => Spaces.Laws[V := R.Real, space := Spaces.scalarSpace].scaleComm (f x) a (omega x v)),
+};
+\definition apply[T: M.Matrix0][omega: Forms.Form k][a: Fin.Fin r]: Scalar.Form k := Sums.sum (Fin.elements r) (\fun (b: Fin.Fin r) => Values.multiply (T a b) (omega b));
+\definition addition: \forall (T: M.Matrix0)(omega, eta: Forms.Form k) -> apply T (Forms.At[k := k].plus omega eta) = Forms.At[k := k].plus (apply T omega) (apply T eta) :=
+  \fun (T: M.Matrix0)(omega, eta: Forms.Form k) => \axiom:funext(apply T (Forms.At[k := k].plus omega eta), Forms.At[k := k].plus (apply T omega) (apply T eta),
+    \fun (a: Fin.Fin r) => trans!{{Scalar.Form k}} _ _ _ (Sums.congruent (Fin.elements r) _ _ (\fun (b: Fin.Fin r) => (map (T a b)).preservesAdd (omega b) (eta b))) (Sums.addition (Fin.elements r) _ _));
+\definition value: \forall (T: M.Matrix0)(omega: Forms.Form k)(a: Fin.Fin r)(x: Open.Carrier U)(v: Multilinear.Arguments k) ->
+  apply T omega a x v = R.FiniteSums[].sum r (\fun (b: Fin.Fin r) => R.mul (T a b x) (omega b x v)) :=
+  \fun (T: M.Matrix0)(omega: Forms.Form k)(a: Fin.Fin r)(x: Open.Carrier U)(v: Multilinear.Arguments k) => trans!{{R.Real}} _ _ _
+    (Scalar.Summation[k := k, I := Fin.Fin r].evaluateSum (Fin.elements r) (\fun (b: Fin.Fin r) => Values.multiply (T a b) (omega b)) x v)
+    (Spaces.FiniteCoordinateEnumeration[].sumLaw r (\fun (b: Fin.Fin r) => R.mul (T a b x) (omega b x v)));
+\import R.FiniteSums[] \as Finite;
+\import M.Associativity[] \as Numeric;
+\definition assoc: \forall (T, S: M.Matrix0)(omega: Forms.Form k) -> apply T (apply S omega) = apply (M.product00 T S) omega :=
+  \fun (T, S: M.Matrix0)(omega: Forms.Form k) => \axiom:funext(apply T (apply S omega), apply (M.product00 T S) omega,
+    \fun (a: Fin.Fin r) => Scalar.ext k (apply T (apply S omega) a) (apply (M.product00 T S) omega a)
+      (\fun (x: Open.Carrier U)(v: Multilinear.Arguments k) => eq_reason_in!{{R.Real} _
+        "=" _ "by" { value T (apply S omega) a x v }
+        "=" _ "by" { Finite.congruent r
+          (\fun (b: Fin.Fin r) => R.mul (T a b x) (apply S omega b x v))
+          (\fun (b: Fin.Fin r) => R.mul (T a b x) (Finite.sum r (\fun (c: Fin.Fin r) => R.mul (S b c x) (omega c x v))))
+          (\fun (b: Fin.Fin r) => congr!{{R.Real} {R.Real}} (R.mul (T a b x)) _ _ (value S omega b x v)) }
+        "=" _ "by" { sym!{{R.Real}} _ _ (congr!{{Numeric.Numeric} {R.Real}} (\fun (C: Numeric.Numeric) => C a a) _ _
+          (Numeric.associative (Numeric.eval0 T x) (Numeric.eval0 S x) (\fun (b, c: Fin.Fin r) => omega b x v))) }
+        "=" _ "by" { sym!{{R.Real}} _ _ (value (M.product00 T S) omega a x v) }
+      }));

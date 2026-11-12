@@ -1,0 +1,32 @@
+\import Open.Smooth[].Algebra[U := U] \as Functions;
+\import R.FiniteSums[] \as Sums;
+\import Spaces.FiniteCoordinates[n := r] \as Basis;
+\import Spaces.Coordinates[I := Fin.Fin r].Kronecker[] \as Kronecker;
+\import Spaces.FiniteCoordinateEnumeration[] \as Enumeration;
+\definition ext: \forall (A, B: M.Matrix0) -> (\forall (a, b: Fin.Fin r) -> A a b = B a b) -> A = B :=
+  \fun (A, B: M.Matrix0)(same: _) => \axiom:funext(A, B, \fun (a: Fin.Fin r) => \axiom:funext(A a, B a, same a));
+\definition assoc: \forall (A, B, C: M.Matrix0) -> M.product00 (M.product00 A B) C = M.product00 A (M.product00 B C) :=
+  \fun (A, B, C: M.Matrix0) => ext (M.product00 (M.product00 A B) C) (M.product00 A (M.product00 B C)) (\fun (a, b: Fin.Fin r) =>
+    Functions.ext (M.product00 (M.product00 A B) C a b) (M.product00 A (M.product00 B C) a b) (\fun (x: Open.Carrier U) =>
+      congr!{Algebra.Numeric {R.Real}} (\fun (m: Algebra.Numeric) => m a b) _ _ (Algebra.associative (Algebra.eval0 A x) (Algebra.eval0 B x) (Algebra.eval0 C x))));
+\definition identityLeft: \forall (A: M.Matrix0) -> M.product00 Algebra.identity A = A :=
+  \fun (A: M.Matrix0) => ext (M.product00 Algebra.identity A) A (\fun (a, b: Fin.Fin r) => Functions.ext (M.product00 Algebra.identity A a b) (A a b)
+    (\fun (x: Open.Carrier U) => eq_reason_in!{{R.Real} _
+      "=" _ "by" { Sums.congruent r _ _ (\fun (c: Fin.Fin r) => Spaces.mulComm (Basis.vectors a c) (A c b x)) }
+      "=" _ "by" { sym!{{R.Real}} _ _ (Enumeration.sumLaw r (\fun (c: Fin.Fin r) => R.mul (A c b x) (Basis.vectors a c))) }
+      "=" _ "by" { Basis.dualReconstruction (\fun (c: Fin.Fin r) => A c b x) a }
+    }));
+\definition identityRight: \forall (A: M.Matrix0) -> M.product00 A Algebra.identity = A :=
+  \fun (A: M.Matrix0) => ext (M.product00 A Algebra.identity) A (\fun (a, b: Fin.Fin r) => Functions.ext (M.product00 A Algebra.identity a b) (A a b)
+    (\fun (x: Open.Carrier U) => eq_reason_in!{{R.Real} _
+      "=" _ "by" { Sums.congruent r _ _ (\fun (c: Fin.Fin r) => congr!{{R.Real} {R.Real}} (R.mul (A a c x)) _ _ (Kronecker.symmetric c b)) }
+      "=" _ "by" { sym!{{R.Real}} _ _ (Enumeration.sumLaw r (\fun (c: Fin.Fin r) => R.mul (A a c x) (Basis.vectors b c))) }
+      "=" _ "by" { Basis.dualReconstruction (\fun (c: Fin.Fin r) => A a c x) b }
+    }));
+\definition transpose: \forall (A, B: M.Matrix0) -> Transpose.transpose0 (M.product00 A B) = M.product00 (Transpose.transpose0 B) (Transpose.transpose0 A) :=
+  \fun (A, B: M.Matrix0) => ext (Transpose.transpose0 (M.product00 A B)) (M.product00 (Transpose.transpose0 B) (Transpose.transpose0 A)) (\fun (a, b: Fin.Fin r) =>
+    Functions.ext (M.product00 A B b a) (M.product00 (Transpose.transpose0 B) (Transpose.transpose0 A) a b) (\fun (x: Open.Carrier U) =>
+      Sums.congruent r (\fun (c: Fin.Fin r) => R.mul (A b c x) (B c a x)) (\fun (c: Fin.Fin r) => R.mul (B c a x) (A b c x))
+        (\fun (c: Fin.Fin r) => Spaces.mulComm (A b c x) (B c a x))));
+\definition transposeIdentity: Transpose.transpose0 Algebra.identity = Algebra.identity := ext (Transpose.transpose0 Algebra.identity) Algebra.identity
+  (\fun (a, b: Fin.Fin r) => Functions.ext (Algebra.identity b a) (Algebra.identity a b) (\fun (x: Open.Carrier U) => Kronecker.symmetric b a));

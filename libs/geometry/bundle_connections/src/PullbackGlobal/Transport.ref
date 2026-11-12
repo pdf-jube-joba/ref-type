@@ -1,0 +1,67 @@
+\import std.Data[].Nat[] \as N;
+\definition zero: N.Nat^ := N.Nat^::zero;
+\definition one: N.Nat^ := N.Nat^::succ zero;
+\import \root.MatrixCalculus[n := n, r := r].On[U := U] \as Source;
+\import \root.MatrixCalculus[n := m, r := r].On[U := V] \as Target;
+\import SourceOpen.Smooth[].Algebra[U := U] \as SourceFunctions;
+\import TargetOpen.Smooth[].Algebra[U := V] \as TargetFunctions;
+\import euclidean_forms.Euclidean[n := n].On[U := U] \as SourceForms;
+\import euclidean_forms.Euclidean[n := m].On[U := V] \as TargetForms;
+\import SourceForms.At[k := one] \as SourceOne;
+\import TargetForms.At[k := one] \as TargetOne;
+\import SourceForms.DegreeZero[] \as SourceZero;
+\import TargetForms.DegreeZero[] \as TargetZero;
+\import SourceForms.ExteriorDerivative[k := zero] \as SourceD;
+\import Spaces.Coordinates[I := Fin.Fin n] \as Vectors;
+\import Spaces.Multilinear[V := Vectors.Vector, space := Vectors.space] \as Multilinear;
+\import euclidean_forms.Euclidean[n := n].Pullback[m := m, U := U, V := V, f := f] \as Pullback;
+\definition scalar: TargetFunctions.Function -> SourceFunctions.Function := Pullback.DegreeZero[].compose;
+\definition matrix0[A: Target.Matrix0]: Source.Matrix0 := \fun (a, b: Fin.Fin r) => scalar (A a b);
+\definition matrix1[A: Target.Matrix1]: Source.Matrix1 := \fun (a, b: Fin.Fin r) => Pullback.apply one (A a b);
+\definition sum: \forall (m: N.Nat^)(forms: Fin.Fin m -> TargetForms.Form one) ->
+  Pullback.apply one (Target.sum1 m forms) = Source.sum1 m (\fun (a: Fin.Fin m) => Pullback.apply one (forms a)) :=
+  \induction (m: N.Nat^) \return \forall (forms: Fin.Fin m -> TargetForms.Form one) ->
+    Pullback.apply one (Target.sum1 m forms) = Source.sum1 m (\fun (a: Fin.Fin m) => Pullback.apply one (forms a)) \with {
+    | zero: \fun (forms: _) => Pullback.At[k := one].map.preservesZero
+    | succ: \fun (m: N.Nat^)(previous: _)(forms: _) => trans!{{SourceForms.Form one}} _ _ _
+        (Pullback.At[k := one].addition (forms (Fin.zero m)) (Target.sum1 m (\fun (a: Fin.Fin m) => forms (Fin.succ m a))))
+        (congr!{{SourceForms.Form one} {SourceForms.Form one}} (SourceOne.plus (Pullback.apply one (forms (Fin.zero m)))) _ _
+          (previous (\fun (a: Fin.Fin m) => forms (Fin.succ m a))))
+  };
+\definition multiply: \forall (g: TargetFunctions.Function)(omega: TargetForms.Form one) ->
+  Pullback.apply one (TargetOne.multiply g omega) = SourceOne.multiply (scalar g) (Pullback.apply one omega) :=
+  \fun (g: TargetFunctions.Function)(omega: TargetForms.Form one) => SourceForms.ext one _ _
+    (\fun (x: SourceOpen.Carrier U)(arguments: Multilinear.Arguments one) => \refl(R.mul (scalar g x) (Pullback.apply one omega x arguments)));
+\definition differential: \forall (g: TargetFunctions.Function) -> Pullback.apply one (Target.differential g) = Source.differential (scalar g) :=
+  \fun (g: TargetFunctions.Function) => trans!{{SourceForms.Form one}} _ _ _
+    (sym!{{SourceForms.Form one}} _ _ (Pullback.DegreeZero[].onFunction g))
+    (congr!{{SourceForms.Form zero} {SourceForms.Form one}} SourceD.apply _ _ (Pullback.DegreeZero[].function g));
+\definition productEntry: \forall (A: Target.Matrix0)(B: Target.Matrix1)(a, b: Fin.Fin r) ->
+  matrix1 (Target.product01 A B) a b = Source.product01 (matrix0 A) (matrix1 B) a b :=
+  \fun (A: Target.Matrix0)(B: Target.Matrix1)(a, b: Fin.Fin r) => trans!{{SourceForms.Form one}} _ _ _
+    (sum r (\fun (l: Fin.Fin r) => TargetOne.multiply (A a l) (B l b)))
+    (Source.sum1Congruent r _ _ (\fun (l: Fin.Fin r) => multiply (A a l) (B l b)));
+\definition pureGaugeEntry: \forall (A, B: Target.Matrix0)(a, b: Fin.Fin r) ->
+  matrix1 (Target.product01 A (Target.dMatrix B)) a b = Source.product01 (matrix0 A) (Source.dMatrix (matrix0 B)) a b :=
+  \fun (A, B: Target.Matrix0)(a, b: Fin.Fin r) => trans!{{SourceForms.Form one}} _ _ _
+    (productEntry A (Target.dMatrix B) a b)
+    (Source.sum1Congruent r _ _ (\fun (l: Fin.Fin r) =>
+      congr!{{SourceForms.Form one} {SourceForms.Form one}} (SourceOne.multiply (scalar (A a l))) _ _ (differential (B l b))));
+
+\definition productRightEntry: \forall (A: Target.Matrix1)(B: Target.Matrix0)(a, b: Fin.Fin r) ->
+  matrix1 (Target.product10 A B) a b = Source.product10 (matrix1 A) (matrix0 B) a b :=
+  \fun (A: Target.Matrix1)(B: Target.Matrix0)(a, b: Fin.Fin r) => trans!{{SourceForms.Form one}} _ _ _
+    (sum r (\fun (l: Fin.Fin r) => TargetOne.multiply (B l b) (A a l)))
+    (Source.sum1Congruent r _ _ (\fun (l: Fin.Fin r) => multiply (B l b) (A a l)));
+\import Source.Linearity[] \as SourceLinear;
+\import Target.Linearity[] \as TargetLinear;
+\definition plus: \forall (A, B: Target.Matrix1) -> matrix1 (Target.plus A B) = Source.plus (matrix1 A) (matrix1 B) :=
+  \fun (A, B: Target.Matrix1) => SourceLinear.ext (matrix1 (Target.plus A B)) (Source.plus (matrix1 A) (matrix1 B))
+    (\fun (a, b: Fin.Fin r) => Pullback.At[k := one].addition (A a b) (B a b));
+\definition scale: \forall (c: R.Real)(A: Target.Matrix1) -> matrix1 (TargetLinear.scale c A) = SourceLinear.scale c (matrix1 A) :=
+  \fun (c: R.Real)(A: Target.Matrix1) => SourceLinear.ext (matrix1 (TargetLinear.scale c A)) (SourceLinear.scale c (matrix1 A))
+    (\fun (a, b: Fin.Fin r) => Pullback.At[k := one].scalar c (A a b));
+\definition product01: \forall (A: Target.Matrix0)(B: Target.Matrix1) -> matrix1 (Target.product01 A B) = Source.product01 (matrix0 A) (matrix1 B) :=
+  \fun (A: Target.Matrix0)(B: Target.Matrix1) => SourceLinear.ext (matrix1 (Target.product01 A B)) (Source.product01 (matrix0 A) (matrix1 B)) (productEntry A B);
+\definition product10: \forall (A: Target.Matrix1)(B: Target.Matrix0) -> matrix1 (Target.product10 A B) = Source.product10 (matrix1 A) (matrix0 B) :=
+  \fun (A: Target.Matrix1)(B: Target.Matrix0) => SourceLinear.ext (matrix1 (Target.product10 A B)) (Source.product10 (matrix1 A) (matrix0 B)) (productRightEntry A B);

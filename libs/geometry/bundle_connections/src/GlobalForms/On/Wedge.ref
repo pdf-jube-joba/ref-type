@@ -1,0 +1,21 @@
+\definition total: N.Nat^ := Nat.add p q;
+\import Scalar.Wedge[p := p, q := q] \as Product;
+\import Scalar.At[k := p] \as Source;
+\import Scalar.At[k := total] \as Target;
+\import \parent.Action[k := p] \as Action;
+\import \parent.Action[k := total] \as TotalAction;
+\import Open.Smooth[].Algebra[U := U] \as Functions;
+\import \root.MatrixCalculus[n := n, r := r].On[U := U] \as M;
+\import Spaces.Sums[I := Fin.Fin r].Vector[V := Scalar.Form total, space := Target.space] \as Sums;
+\import Spaces.Sums[I := Fin.Fin r].Vector[V := Scalar.Form p, space := Source.space].Mapping[W := Scalar.Form total, target := Target.space] \as Mapping;
+\definition apply[omega: Forms.Form p][eta: Scalar.Form q]: Forms.Form total := \fun (a: Fin.Fin r) => Product.apply (omega a) eta;
+\definition factor: \forall (f: Functions.Function)(omega: Scalar.Form p)(eta: Scalar.Form q) ->
+  Product.apply (Source.multiply f omega) eta = Target.multiply f (Product.apply omega eta) :=
+  \fun (f: Functions.Function)(omega: Scalar.Form p)(eta: Scalar.Form q) => \axiom:funext(Product.apply (Source.multiply f omega) eta, Target.multiply f (Product.apply omega eta),
+    \fun (x: Open.Carrier U) => Exterior.Bilinearity[p := p, q := q].scalarLeft (f x) (omega x) (eta x));
+\definition action: \forall (T: M.Matrix0)(omega: Forms.Form p)(eta: Scalar.Form q) ->
+  TotalAction.apply T (apply omega eta) = apply (Action.apply T omega) eta :=
+  \fun (T: M.Matrix0)(omega: Forms.Form p)(eta: Scalar.Form q) => \axiom:funext(TotalAction.apply T (apply omega eta), apply (Action.apply T omega) eta,
+    \fun (a: Fin.Fin r) => trans!{{Scalar.Form total}} _ _ _
+      (Sums.congruent (Fin.elements r) _ _ (\fun (b: Fin.Fin r) => sym!{{Scalar.Form total}} _ _ (factor (T a b) (omega b) eta)))
+      (sym!{{Scalar.Form total}} _ _ (Mapping.law (Product.leftLinear eta) (Fin.elements r) (\fun (b: Fin.Fin r) => Source.multiply (T a b) (omega b)))));

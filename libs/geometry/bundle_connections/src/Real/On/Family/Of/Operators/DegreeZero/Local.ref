@@ -1,0 +1,31 @@
+\import euclidean_forms.Euclidean[n := n].On[U := (chart i).image] \as Scalar;
+\import Scalar.At[k := one] \as One;
+\import \root.Forms[n := n, r := r].On[U := (chart i).image].Covariant[k := zero, connection := A i] \as D;
+\import \root.MatrixCalculus[n := n, r := r].On[U := (chart i).image] \as Matrices;
+\import \root.GlobalForms[n := n, r := r].On[U := (chart i).image].Multiply[k := one] \as Multiply;
+\import Scalar.ExteriorDerivative[k := zero] \as ScalarD;
+\definition term: \forall (s: Sections.Section)(a, b: Fin.Fin r) -> D.term a b (data s i) = One.multiply (Sections.local s i b) ((A i).matrix a b) :=
+  \fun (s: Sections.Section)(a, b: Fin.Fin r) => trans!{{Scalar.Form one}} _ _ _
+    (Scalar.RegradeIdentity[k := one].law (Scalar.Wedge[p := one, q := zero].apply ((A i).matrix a b) (data s i b)) ScalarD.degree)
+    (Multiply.rightLaw (Sections.local s i b) ((A i).matrix a b));
+\import Spaces.Sums[I := Fin.Fin r].Vector[V := Scalar.Form one, space := One.space] \as Sums;
+\import Spaces.Linear[V := Scalar.Form one, W := R.Real, source := One.space, target := Spaces.scalarSpace] \as Evaluations;
+\definition evaluation[u: Open.Carrier (chart i).image][arguments: Fin.Fin one -> Fin.Fin n -> R.Real]: Evaluations.Map := Evaluations.Map {
+  apply := \fun (omega: Scalar.Form one) => omega u arguments,
+  preservesAdd := \fun (omega, eta: Scalar.Form one) => \refl(R.add (omega u arguments) (eta u arguments)),
+  preservesScale := \fun (c: R.Real)(omega: Scalar.Form one) => \refl(R.mul c (omega u arguments))
+};
+\import Spaces.FiniteCoordinateEnumeration[] \as Enumeration;
+\definition correction: \forall (s: Sections.Section)(a: Fin.Fin r) -> D.correction (data s i) a = Matrices.product10 (A i).matrix (sectionMatrix s i) a a :=
+  \fun (s: Sections.Section)(a: Fin.Fin r) => trans!{{Scalar.Form one}} _ _ _
+    (Sums.congruent (Fin.elements r) (\fun (b: Fin.Fin r) => D.term a b (data s i))
+      (\fun (b: Fin.Fin r) => One.multiply (Sections.local s i b) ((A i).matrix a b)) (term s a))
+    (Scalar.ext one _ _ (\fun (u: Open.Carrier (chart i).image)(arguments: Fin.Fin one -> Fin.Fin n -> R.Real) => trans!{{R.Real}} _ _ _
+      (Sums.Mapping[W := R.Real, target := Spaces.scalarSpace].law (evaluation u arguments) (Fin.elements r)
+        (\fun (b: Fin.Fin r) => One.multiply (Sections.local s i b) ((A i).matrix a b)))
+      (trans!{{R.Real}} _ _ _
+        (Enumeration.sumLaw r (\fun (b: Fin.Fin r) => One.multiply (Sections.local s i b) ((A i).matrix a b) u arguments))
+        (sym!{{R.Real}} _ _ (Matrices.sum1Value r (\fun (b: Fin.Fin r) => One.multiply (Sections.local s i b) ((A i).matrix a b)) u arguments)))));
+\definition comparison: \forall (s: Sections.Section)(a: Fin.Fin r) -> D.apply (data s i) a = covariantData A s i a :=
+  \fun (s: Sections.Section)(a: Fin.Fin r) => congr!{{Scalar.Form one} {Scalar.Form one}}
+    (One.plus (Matrices.differential (Sections.local s i a))) _ _ (correction s a);

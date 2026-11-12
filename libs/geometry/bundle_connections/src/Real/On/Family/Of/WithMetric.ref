@@ -1,0 +1,33 @@
+\import linear_algebra.Hermitian[].Over[K := R.Real, field := R.Algebra[].field, scalar := linear_algebra.Hermitian[].Real[].scalar] \as Geometry;
+\import Geometry.Finite[n := r] \as E;
+\import Geometry.Inner[V := E.Vector, space := E.space] \as Inner;
+\import Spaces.Linear[V := E.Vector, W := E.Vector, source := E.space, target := E.space] \as End;
+\import R.FiniteSums[].Linear[] \as Finite;
+\import R.FiniteSums[] \as Sums;
+\import \root.Metric[n := n, r := r].Basis[] \as BasisComparison;
+\import Spaces.FiniteCoordinates[n := r] \as Standard;
+\import Spaces.Coordinates[I := Fin.Fin r].Kronecker[] \as Kronecker;
+\use Equality.eq_reason_in;
+\definition output[f: End.Map][a: Fin.Fin r]: Finite.Map r := Finite.Data[r] {
+  apply := \fun (v: E.Vector) => f.apply v a,
+  additive := \fun (v, w: E.Vector) => congr!{{E.Vector} {R.Real}} (\fun (z: E.Vector) => z a) _ _ (f.preservesAdd v w),
+  homogeneous := \fun (t: R.Real)(v: E.Vector) => congr!{{E.Vector} {R.Real}} (\fun (z: E.Vector) => z a) _ _ (f.preservesScale t v)
+};
+\definition evaluate: \forall (f: End.Map)(v: E.Vector)(a: Fin.Fin r) ->
+  f.apply v a = Sums.sum r (\fun (b: Fin.Fin r) => R.mul (f.apply (Finite.basis r b) a) (v b)) :=
+  \fun (f: End.Map)(v: E.Vector)(a: Fin.Fin r) => trans!{{R.Real}} _ _ _ (Finite.expansion r (output f a) v)
+    (Sums.congruent r _ _ (\fun (b: Fin.Fin r) => Spaces.mulComm (v b) (f.apply (Finite.basis r b) a)));
+\definition identityEntry: \forall (a, b: Fin.Fin r) -> Finite.basis r b a = Standard.vectors a b :=
+  \fun (a, b: Fin.Fin r) => trans!{{R.Real}} _ _ _
+    (congr!{{E.Vector} {R.Real}} (\fun (v: E.Vector) => v a) _ _ (BasisComparison.equal b)) (Kronecker.symmetric b a);
+\module Local(i: I);
+\module Pair(i, j: I);
+
+\definition MetricCompatible[connection: Connection]: \Prop := \forall (i: I) ->
+  \root.LeviCivita[n := n].Gauge[r := r, U := (chart i).image].Compatible (Local[i := i].g) (connection i).matrix;
+\definition CompatibleConnection: \Set := \Cast[Connection] ({ connection: Connection \where MetricCompatible connection });
+\module Correct(connection: Connection);
+\definition existsCompatible: \exists CompatibleConnection := \block {
+  \takefrom connection: Connection \by existsConnection \then
+  \return \exact(Correct[connection := connection].value, CompatibleConnection)
+};

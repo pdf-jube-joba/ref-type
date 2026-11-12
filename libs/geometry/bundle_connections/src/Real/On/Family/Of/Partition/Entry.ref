@@ -1,0 +1,63 @@
+\definition c: \Cast[Charts.Chart] M.atlas.charts := chart j;
+\definition term[k: N.Nat^]: Euclidean.On[U := c.image].Form one := \parent.Term[k := k, j := j, a := a, b := b].form;
+\definition prefix[u: Open.Carrier c.image]: N.Nat^ -> Alternating.Form one :=
+  \induction (length: N.Nat^) \return Alternating.Form one \with {
+    | zero: Covectors.origin
+    | succ: \fun (length: N.Nat^)(previous: Alternating.Form one) => Covectors.plus previous (term length u)
+  };
+\definition Tail[u: Open.Carrier c.image][length: N.Nat^]: \Prop :=
+  \forall (k: N.Nat^) -> Nat.Le length k -> term k u = Covectors.origin;
+\definition stableAdded: \forall (u: Open.Carrier c.image)(length: N.Nat^) -> Tail u length ->
+  \forall (m: N.Nat^) -> prefix u (Arithmetic.add length m) = prefix u length :=
+  \fun (u: Open.Carrier c.image)(length: N.Nat^)(tail: Tail u length) =>
+    \induction (m: N.Nat^) \return prefix u (Arithmetic.add length m) = prefix u length \with {
+      | zero: \refl(prefix u length)
+      | succ: \fun (m: N.Nat^)(previous: _) => trans!{{Alternating.Form one}} _ _ _
+          (congr!{{Alternating.Form one} {Alternating.Form one} {Alternating.Form one}} Covectors.plus _ _ _ _ previous
+            (tail (Arithmetic.add length m) (Nat.leAddRight length m))) (CovectorLaws.zeroRight (prefix u length))
+    };
+\definition stable: \forall (u: Open.Carrier c.image)(length, m: N.Nat^) -> Tail u length -> Nat.Le length m -> prefix u m = prefix u length :=
+  \fun (u: Open.Carrier c.image)(length, m: N.Nat^)(tail: Tail u length)(later: Nat.Le length m) =>
+    \idelim Arithmetic.add length (Arithmetic.sub m length) = m \with q: N.Nat^ => prefix u q = prefix u length \by {
+      base: stableAdded u length tail (Arithmetic.sub m length), equality: Nat.addSubOfLe length m later
+    };
+\definition finite: \forall (u: Open.Carrier c.image) -> \exists ( length: N.Nat^ \where Tail u length ) := \block {
+  \fun (u: Open.Carrier c.image) \then
+  \takefrom neighborhood: Functions.FiniteNeighborhood[partition.functions, Charts.point c u] \by partition.locallyFinite (Charts.point c u) \then
+  \return Logic.existsIntro[N.Nat^, { length: N.Nat^ \where Tail u length }] neighborhood.bound
+    (\fun (k: N.Nat^)(later: _) => \parent.Term[k := k, j := j, a := a, b := b].zeroOffSupport u
+      (neighborhood.avoids k later (Charts.point c u) neighborhood.contains))
+};
+\definition Law[u: Open.Carrier c.image][v: Alternating.Form one]: \Prop :=
+  \forall (length: N.Nat^) -> Tail u length -> v = prefix u length;
+\definition Choice[u: Open.Carrier c.image]: \Set := \Cast[Alternating.Form one] ({ v: Alternating.Form one \where Law u v });
+\definition existsValue: \forall (u: Open.Carrier c.image) -> \exists Choice u := \block {
+  \fun (u: Open.Carrier c.image) \then
+  \takefrom length: \Cast[N.Nat^] ({ length: N.Nat^ \where Tail u length }) \by finite u \then
+  \let tail: Tail u length := \bysub(N.Nat^, { length: N.Nat^ \where Tail u length }, length) \then
+  \return Logic.existsIntro[Alternating.Form one, { v: Alternating.Form one \where Law u v }] (prefix u length)
+    (\fun (m: N.Nat^)(tailM: Tail u m) => trans!{{Alternating.Form one}} _ _ _
+      (sym!{{Alternating.Form one}} _ _ (stable u length (NaturalOrder.commonBound length m) tail (NaturalOrder.leftLeCommonBound length m)))
+      (stable u m (NaturalOrder.commonBound length m) tailM (NaturalOrder.rightLeCommonBound length m)))
+};
+\definition uniqueValue: \forall (u: Open.Carrier c.image)(v, w: Choice u) -> v = w := \block {
+  \fun (u: Open.Carrier c.image)(v, w: Choice u) \then
+  \takefrom length: \Cast[N.Nat^] ({ length: N.Nat^ \where Tail u length }) \by finite u \then
+  \let tail: Tail u length := \bysub(N.Nat^, { length: N.Nat^ \where Tail u length }, length) \then
+  \return trans!{{Alternating.Form one}} _ _ _ (\bysub(Alternating.Form one, Choice u, v) length tail)
+    (sym!{{Alternating.Form one}} _ _ (\bysub(Alternating.Form one, Choice u, w) length tail))
+};
+\definition value[u: Open.Carrier c.image]: Choice u := \choice Choice u \by { existence: existsValue u, uniqueness: uniqueValue u };
+\definition formula[u: Open.Carrier c.image]: Law u (value u) := \bysub(Alternating.Form one, Choice u, value u);
+\definition prefixSmooth: \forall (arguments: Multilinear.Arguments one)(length: N.Nat^) -> Smooth.SmoothOn c.image (\fun (u: Open.Carrier c.image) => prefix u length arguments) :=
+  \fun (arguments: Multilinear.Arguments one) => \induction (length: N.Nat^) \return Smooth.SmoothOn c.image (\fun (u: Open.Carrier c.image) => prefix u length arguments) \with {
+    | zero: SmoothOperations.constantSmooth c.image R.zero
+    | succ: \fun (length: N.Nat^)(previous: _) => SmoothOperations.addSmooth c.image
+      (\fun (u: Open.Carrier c.image) => prefix u length arguments) (\fun (u: Open.Carrier c.image) => term length u arguments)
+      previous (\bysub(Euclidean.On[U := c.image].Family one, Euclidean.On[U := c.image].Form one, term length) arguments)
+  };
+\module Evaluation(arguments: Multilinear.Arguments one);
+\definition smooth: Euclidean.On[U := c.image].SmoothFamily one value :=
+  \fun (arguments: Multilinear.Arguments one) => Evaluation[arguments := arguments].smooth;
+\definition form: Euclidean.On[U := c.image].Form one :=
+  \into[Euclidean.On[U := c.image].Family one](value, Euclidean.On[U := c.image].Form one) \by { smooth };

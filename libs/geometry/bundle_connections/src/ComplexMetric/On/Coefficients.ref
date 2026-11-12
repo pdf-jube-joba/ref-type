@@ -1,0 +1,33 @@
+\import Spaces.Linear[V := E.Vector, W := C.Complex, source := E.space, target := Spaces.scalarSpace] \as Rows;
+\import Spaces.FiniteCoordinates[n := r] \as Basis;
+\import Spaces.Finite[V := E.Vector, I := Fin.Fin r, space := E.space].Prop[] \as Expansion;
+\import Geometry.Sums[] \as Sums;
+\definition row[x: Open.Carrier U][a: Fin.Fin r]: Rows.Map := Rows.Map {
+  apply := (form x).dot (E.basis a),
+  preservesAdd := (form x).addRight (E.basis a),
+  preservesScale := \fun (c: C.Complex)(v: E.Vector) => (form x).scaleRight c (E.basis a) v,
+};
+\definition rowFormula: \forall (a: Fin.Fin r)(w: E.Vector)(x: Open.Carrier U) ->
+  (form x).dot (E.basis a) w = Sums.sum r (\fun (b: Fin.Fin r) => Op.mul (w b) ((form x).dot (E.basis a) (E.basis b))) :=
+  \fun (a: Fin.Fin r)(w: E.Vector)(x: Open.Carrier U) => trans!{{C.Complex}} _ _ _
+    (Expansion.functionalExpansion Basis.basis (row x a) w) (Sums.enumeration r _);
+\definition rowSmooth: \forall (a: Fin.Fin r)(w: E.Vector) -> Calculus.Smooth (\fun (x: Open.Carrier U) => (form x).dot (E.basis a) w) :=
+  \fun (a: Fin.Fin r)(w: E.Vector) => Calculus.equalSmooth
+    (\fun (x: Open.Carrier U) => Sums.sum r (\fun (b: Fin.Fin r) => Op.mul (w b) ((form x).dot (E.basis a) (E.basis b))))
+    (\fun (x: Open.Carrier U) => (form x).dot (E.basis a) w)
+    (\fun (x: Open.Carrier U) => sym!{{C.Complex}} _ _ (rowFormula a w x))
+    (Calculus.finiteSmooth r (\fun (b: Fin.Fin r)(x: Open.Carrier U) => Op.mul (w b) ((form x).dot (E.basis a) (E.basis b)))
+      (\fun (b: Fin.Fin r) => Calculus.times (\fun (x: Open.Carrier U) => w b)
+        (\fun (x: Open.Carrier U) => (form x).dot (E.basis a) (E.basis b)) (Calculus.constant (w b)) (smooth a b)));
+\definition formula: \forall (v, w: E.Vector)(x: Open.Carrier U) ->
+  (form x).dot v w = Sums.sum r (\fun (a: Fin.Fin r) => Op.mul (Op.conj (v a)) ((form x).dot (E.basis a) w)) :=
+  \fun (v, w: E.Vector)(x: Open.Carrier U) => Inner.Of[h := form x].Matrix[k := r, map := Eigen.identity].adjoint v w;
+\definition regular: \forall (v, w: E.Vector) -> Calculus.Smooth (\fun (x: Open.Carrier U) => (form x).dot v w) :=
+  \fun (v, w: E.Vector) => Calculus.equalSmooth
+    (\fun (x: Open.Carrier U) => Sums.sum r (\fun (a: Fin.Fin r) => Op.mul (Op.conj (v a)) ((form x).dot (E.basis a) w)))
+    (\fun (x: Open.Carrier U) => (form x).dot v w)
+    (\fun (x: Open.Carrier U) => sym!{{C.Complex}} _ _ (formula v w x))
+    (Calculus.finiteSmooth r (\fun (a: Fin.Fin r)(x: Open.Carrier U) => Op.mul (Op.conj (v a)) ((form x).dot (E.basis a) w))
+      (\fun (a: Fin.Fin r) => Calculus.times (\fun (x: Open.Carrier U) => Op.conj (v a))
+        (\fun (x: Open.Carrier U) => (form x).dot (E.basis a) w) (Calculus.constant (Op.conj (v a))) (rowSmooth a w)));
+\definition metric: Metric := Metric { form := form, positive := positive, smooth := regular };

@@ -1,0 +1,16 @@
+\import \parent.Algebra[] \as Algebra;
+\import \parent.Tangent[] \as Tangent;
+\import Spaces.Sums[I := Fin.Fin rank] \as Coefficients;
+\definition factorDerivative[S: Matrix.Matrix0][A: Algebra.Numeric][i: Fin.Fin n][x: Open.Carrier U]: Algebra.Numeric :=
+  Tangent.plus (Tangent.partial S i x) (Algebra.product A (Tangent.eval S x));
+\definition exteriorMapRule: \forall (S: Matrix.Matrix0)(A: Algebra.Numeric)(i: Fin.Fin n)(x: Open.Carrier U)(a, b: Fin.Fin rank) ->
+  Op.add (Derivatives.apply i (representation S a b) x)
+    (Coefficients.sum (Fin.elements rank) (\fun (c: Fin.Fin rank) => Op.mul (Tangent.action A a c) (representation S c b x))) =
+  Tangent.value (Tangent.eval S x) (factorDerivative S A i x) a b :=
+  \fun (S: Matrix.Matrix0)(A: Algebra.Numeric)(i: Fin.Fin n)(x: Open.Carrier U)(a, b: Fin.Fin rank) => eq_reason_in!{{C.Complex} _
+    "=" { Op.add (Tangent.value (Tangent.eval S x) (Tangent.partial S i x) a b)
+      (Tangent.value (Tangent.eval S x) (Algebra.product A (Tangent.eval S x)) a b) } "by" {
+      congr!{{C.Complex} {C.Complex} {C.Complex}} Op.add _ _ _ _ (Tangent.differential S i a b x)
+        (sym!{{C.Complex}} _ _ (\parent.Jet[i := i, x := x].left (Tangent.eval S x) A a b)) }
+    "=" _ "by" { sym!{{C.Complex}} _ _ (Tangent.additive (Tangent.eval S x) (Tangent.partial S i x) (Algebra.product A (Tangent.eval S x)) a b) }
+  };

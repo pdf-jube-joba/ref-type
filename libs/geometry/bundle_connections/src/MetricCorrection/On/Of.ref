@@ -1,0 +1,50 @@
+\definition transposeTerm: M.Matrix1 := M.product10 (Transpose.transpose1 A) g;
+\definition adjoint: M.Matrix1 := M.product01 q (difference (M.dMatrix g) transposeTerm);
+\definition value: M.Matrix1 := Linear.scale R.half (M.plus A adjoint);
+\definition lowering: M.product01 g adjoint = difference (M.dMatrix g) transposeTerm := Inverse.inverseAction g q inverse (difference (M.dMatrix g) transposeTerm);
+\definition adjointIdentity: M.plus (M.product01 g adjoint) transposeTerm = M.dMatrix g :=
+  trans!{M.Matrix1} _ _ _ (congr!{M.Matrix1 M.Matrix1} (\fun (X: M.Matrix1) => M.plus X transposeTerm) _ _ lowering)
+    (differenceCancel (M.dMatrix g) transposeTerm);
+\definition transposeLowering: M.plus (M.product10 (Transpose.transpose1 adjoint) g) (M.product01 g A) = M.dMatrix g := eq_reason_in!{M.Matrix1 _
+  "=" _ "by" { congr!{M.Matrix0 M.Matrix1} (\fun (h: M.Matrix0) => M.plus (M.product10 (Transpose.transpose1 adjoint) h) (M.product01 h A)) _ _ (sym!{M.Matrix0} _ _ symmetric) }
+  "=" _ "by" { congr!{M.Matrix1 M.Matrix1 M.Matrix1} M.plus _ _ _ _
+    (sym!{M.Matrix1} _ _ (Transpose.transpose01 g adjoint))
+    (trans!{M.Matrix1} _ _ _
+      (congr!{M.Matrix1 M.Matrix1} (M.product01 (Transpose.transpose0 g)) _ _ (sym!{M.Matrix1} _ _ (transposeTwice A)))
+      (sym!{M.Matrix1} _ _ (Transpose.transpose10 (Transpose.transpose1 A) g))) }
+  "=" _ "by" { sym!{M.Matrix1} _ _ (Transpose.transposeAdd (M.product01 g adjoint) transposeTerm) }
+  "=" _ "by" { congr!{M.Matrix1 M.Matrix1} Transpose.transpose1 _ _ adjointIdentity }
+  "=" _ "by" { congr!{M.Matrix0 M.Matrix1} M.dMatrix _ _ symmetric }
+};
+\definition compatibility: Transpose.Compatible g value := sym!{M.Matrix1} _ _ (eq_reason_in!{M.Matrix1 _
+  "=" _ "by" { congr!{M.Matrix1 M.Matrix1} (\fun (X: M.Matrix1) => M.plus (M.product10 X g) (M.product01 g value)) _ _ (transposeScale R.half (M.plus A adjoint)) }
+  "=" _ "by" { congr!{M.Matrix1 M.Matrix1 M.Matrix1} M.plus _ _ _ _
+    (Linear.rightScale (Transpose.transpose1 (M.plus A adjoint)) R.half g) (Linear.leftScale g R.half (M.plus A adjoint)) }
+  "=" _ "by" { sym!{M.Matrix1} _ _ (Linear.space.vectorAdd R.half (M.product10 (Transpose.transpose1 (M.plus A adjoint)) g) (M.product01 g (M.plus A adjoint))) }
+  "=" _ "by" { congr!{M.Matrix1 M.Matrix1} (Linear.scale R.half) _ _
+    (congr!{M.Matrix1 M.Matrix1 M.Matrix1} M.plus _ _ _ _
+      (trans!{M.Matrix1} _ _ _ (congr!{M.Matrix1 M.Matrix1} (\fun (X: M.Matrix1) => M.product10 X g) _ _ (Transpose.transposeAdd A adjoint))
+        (Linear.rightAdd (Transpose.transpose1 A) (Transpose.transpose1 adjoint) g))
+      (Algebra.distribute g A adjoint)) }
+  "=" _ "by" { congr!{M.Matrix1 M.Matrix1} (Linear.scale R.half) _ _
+    (cycle transposeTerm (M.product10 (Transpose.transpose1 adjoint) g) (M.product01 g A) (M.product01 g adjoint)) }
+  "=" _ "by" { congr!{M.Matrix1 M.Matrix1} (Linear.scale R.half) _ _
+    (congr!{M.Matrix1 M.Matrix1 M.Matrix1} M.plus _ _ _ _ transposeLowering adjointIdentity) }
+  "=" _ "by" { halfDouble (M.dMatrix g) }
+});
+
+\definition fixed: M.product00 q g = Algebra.identity -> Transpose.Compatible g A -> value = A :=
+  \fun (leftInverse: M.product00 q g = Algebra.identity)(compatible: Transpose.Compatible g A) => \block {
+    \let equalLower: M.product01 g adjoint = M.product01 g A := Laws.cancelLeft transposeTerm _ _ (eq_reason_in!{M.Matrix1 _
+      "=" _ "by" { Laws.comm transposeTerm (M.product01 g adjoint) }
+      "=" _ "by" { adjointIdentity }
+      "=" _ "by" compatible
+    }) \then
+    \let equal: adjoint = A := eq_reason_in!{M.Matrix1 _
+      "=" _ "by" { sym!{M.Matrix1} _ _ (Inverse.inverseAction q g leftInverse adjoint) }
+      "=" _ "by" { congr!{M.Matrix1 M.Matrix1} (M.product01 q) _ _ equalLower }
+      "=" _ "by" { Inverse.inverseAction q g leftInverse A }
+    } \then
+    \return trans!{M.Matrix1} _ _ _ (congr!{M.Matrix1 M.Matrix1} (\fun (X: M.Matrix1) => Linear.scale R.half (M.plus A X)) _ _ equal)
+      (halfDouble A)
+  };

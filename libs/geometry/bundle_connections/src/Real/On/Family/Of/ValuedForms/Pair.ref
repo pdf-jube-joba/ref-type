@@ -1,0 +1,22 @@
+\import \parent.\parent.Pair[i := i, j := j] \as Gauge;
+\import Charts.Transition[left := chart i, right := chart j] \as Transition;
+\import Euclidean.Restriction[U := Transition.domain, V := (chart i).image] \as Restrict;
+\import Euclidean.Pullback[m := n, U := Transition.domain, V := (chart j).image, f := Gauge.map] \as Pull;
+\import Euclidean.On[U := Transition.domain] \as Scalar;
+\import Spaces.Sums[I := Fin.Fin r].Vector[V := Scalar.Form k, space := Scalar.At[k := k].space] \as Sums;
+\definition source[omega: LocalForm i][a: Fin.Fin r]: Scalar.Form k := Restrict.apply k Gauge.included (omega a);
+\definition target[omega: LocalForm j][a: Fin.Fin r]: Scalar.Form k := Pull.apply k (omega a);
+\definition action[omega: LocalForm i][a: Fin.Fin r]: Scalar.Form k :=
+  Sums.sum (Fin.elements r) (\fun (b: Fin.Fin r) => Scalar.At[k := k].multiply (Gauge.transition a b) (source omega b));
+\definition Compatible[left: LocalForm i][right: LocalForm j]: \Prop := \forall (a: Fin.Fin r) -> action left a = target right a;
+\import Spaces.Linear[V := Scalar.Form k, W := R.Real, source := Scalar.At[k := k].space, target := Spaces.scalarSpace] \as Evaluations;
+\definition evaluation[u: Open.Carrier Transition.domain][arguments: Fin.Fin k -> Fin.Fin n -> R.Real]: Evaluations.Map := Evaluations.Map {
+  apply := \fun (omega: Scalar.Form k) => omega u arguments,
+  preservesAdd := \fun (omega, eta: Scalar.Form k) => \refl(R.add (omega u arguments) (eta u arguments)),
+  preservesScale := \fun (c: R.Real)(omega: Scalar.Form k) => \refl(R.mul c (omega u arguments))
+};
+\definition value: \forall (omega: LocalForm i)(a: Fin.Fin r)(u: Open.Carrier Transition.domain)(arguments: Fin.Fin k -> Fin.Fin n -> R.Real) ->
+  action omega a u arguments = Spaces.Sums[I := Fin.Fin r].sum (Fin.elements r) (\fun (b: Fin.Fin r) => R.mul (Gauge.transition a b u) (source omega b u arguments)) :=
+  \fun (omega: LocalForm i)(a: Fin.Fin r)(u: Open.Carrier Transition.domain)(arguments: Fin.Fin k -> Fin.Fin n -> R.Real) =>
+    Sums.Mapping[W := R.Real, target := Spaces.scalarSpace].law (evaluation u arguments) (Fin.elements r)
+      (\fun (b: Fin.Fin r) => Scalar.At[k := k].multiply (Gauge.transition a b) (source omega b));

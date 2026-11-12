@@ -1,0 +1,76 @@
+\import \root.Induced[n := n, r := realRank].On[U := U] \as Induced;
+\import Matrices.Associativity[] \as Product;
+\import RealSpaces.Laws[V := R.Real, space := RealSpaces.scalarSpace] \as ScalarLaws;
+\import Matrices.ComplexStructure[J := J.matrix, square := J.squareMatrix] \as ComplexStructure;
+\definition negativeOne: R.Real := R.neg R.one;
+\definition skewEntry: \forall (a, b: Fin.Fin realRank) -> Structure.J.apply (Finite.basis realRank a) b = R.neg (Structure.J.apply (Finite.basis realRank b) a) :=
+  \fun (a, b: Fin.Fin realRank) => eq_reason_in!{{R.Real} _
+    "=" _ "by" { sym!{{R.Real}} _ _ (dotBasis (Structure.J.apply (Finite.basis realRank a)) b) }
+    "=" _ "by" { Pairing.skew (Finite.basis realRank a) (Finite.basis realRank b) }
+    "=" _ "by" { congr!{{R.Real} {R.Real}} R.neg _ _ (basisDot (Structure.J.apply (Finite.basis realRank b)) a) }
+  };
+\definition transposeJ: Induced.transpose0 J.matrix = Linear.scale0 negativeOne J.matrix :=
+  \axiom:funext(Induced.transpose0 J.matrix, Linear.scale0 negativeOne J.matrix, \fun (a: Fin.Fin realRank) =>
+    \axiom:funext(Induced.transpose0 J.matrix a, Linear.scale0 negativeOne J.matrix a, \fun (b: Fin.Fin realRank) => Functions.ext _ _ (\fun (u: Open.Carrier U) =>
+      trans!{{R.Real}} _ _ _ (skewEntry a b) (sym!{{R.Real}} _ _ (ScalarLaws.minusOneScale (J.matrix a b u))))));
+\definition antiMatrix: Matrices.product00 matrix J.matrix = Linear.scale0 negativeOne (Matrices.product00 J.matrix matrix) :=
+  \axiom:funext(Matrices.product00 matrix J.matrix, Linear.scale0 negativeOne (Matrices.product00 J.matrix matrix), \fun (a: Fin.Fin realRank) =>
+    \axiom:funext(Matrices.product00 matrix J.matrix a, Linear.scale0 negativeOne (Matrices.product00 J.matrix matrix) a, \fun (b: Fin.Fin realRank) =>
+      Functions.ext _ _ (\fun (u: Open.Carrier U) => eq_reason_in!{{R.Real} _
+        "=" _ "by" { sym!{{R.Real}} _ _ (J.evaluate K (Structure.J.apply (Finite.basis realRank b)) a) }
+        "=" _ "by" { congr!{{RealVectors.Vector} {R.Real}} (\fun (v: RealVectors.Vector) => v a) _ _ (anticommutes (Finite.basis realRank b)) }
+        "=" _ "by" { congr!{{R.Real} {R.Real}} R.neg _ _ (J.evaluate Structure.J (K.apply (Finite.basis realRank b)) a) }
+        "=" _ "by" { sym!{{R.Real}} _ _ (ScalarLaws.minusOneScale (Matrices.product00 J.matrix matrix a b u)) }
+      })));
+\definition reverseAnti: Matrices.product00 J.matrix matrix = Linear.scale0 negativeOne (Matrices.product00 matrix J.matrix) :=
+  \axiom:funext(Matrices.product00 J.matrix matrix, Linear.scale0 negativeOne (Matrices.product00 matrix J.matrix), \fun (a: Fin.Fin realRank) =>
+    \axiom:funext(Matrices.product00 J.matrix matrix a, Linear.scale0 negativeOne (Matrices.product00 matrix J.matrix) a, \fun (b: Fin.Fin realRank) =>
+      Functions.ext _ _ (\fun (u: Open.Carrier U) => eq_reason_in!{{R.Real} _
+        "=" _ "by" { sym!{{R.Real}} _ _ (Arithmetic.negInvolutive (Matrices.product00 J.matrix matrix a b u)) }
+        "=" _ "by" { congr!{{R.Real} {R.Real}} R.neg _ _ (sym!{{R.Real}} _ _ (ScalarLaws.minusOneScale (Matrices.product00 J.matrix matrix a b u))) }
+        "=" _ "by" { congr!{{Matrices.Matrix0} {R.Real}} (\fun (T: Matrices.Matrix0) => R.neg (T a b u)) _ _ (sym!{{Matrices.Matrix0}} _ _ antiMatrix) }
+        "=" _ "by" { sym!{{R.Real}} _ _ (ScalarLaws.minusOneScale (Matrices.product00 matrix J.matrix a b u)) }
+      })));
+\definition negativeInjective: \forall (A, B: Matrices.Matrix1) -> Linear.scale negativeOne A = Linear.scale negativeOne B -> A = B :=
+  \fun (A, B: Matrices.Matrix1)(same: Linear.scale negativeOne A = Linear.scale negativeOne B) => trans!{{Matrices.Matrix1}} _ _ _
+    (sym!{{Matrices.Matrix1}} _ _ (ComplexStructure.doubleNegative A))
+    (trans!{{Matrices.Matrix1}} _ _ _ (congr!{{Matrices.Matrix1} {Matrices.Matrix1}} (Linear.scale negativeOne) _ _ same) (ComplexStructure.doubleNegative B));
+\definition transposeCommutes: \forall (A: Matrices.Matrix1) -> Matrices.product01 J.matrix A = Matrices.product10 A J.matrix ->
+  Matrices.product01 J.matrix (Induced.transpose1 A) = Matrices.product10 (Induced.transpose1 A) J.matrix :=
+  \fun (A: Matrices.Matrix1)(commuting: Matrices.product01 J.matrix A = Matrices.product10 A J.matrix) => negativeInjective _ _ (eq_reason_in!{{Matrices.Matrix1} _
+    "=" _ "by" { sym!{{Matrices.Matrix1}} _ _ (Linear.leftScale0 negativeOne J.matrix (Induced.transpose1 A)) }
+    "=" _ "by" { congr!{{Matrices.Matrix0} {Matrices.Matrix1}} (\fun (T: Matrices.Matrix0) => Matrices.product01 T (Induced.transpose1 A)) _ _ (sym!{{Matrices.Matrix0}} _ _ transposeJ) }
+    "=" _ "by" { sym!{{Matrices.Matrix1}} _ _ (Induced.transpose10 A J.matrix) }
+    "=" _ "by" { congr!{{Matrices.Matrix1} {Matrices.Matrix1}} Induced.transpose1 _ _ (sym!{{Matrices.Matrix1}} _ _ commuting) }
+    "=" _ "by" { Induced.transpose01 J.matrix A }
+    "=" _ "by" { congr!{{Matrices.Matrix0} {Matrices.Matrix1}} (Matrices.product10 (Induced.transpose1 A)) _ _ transposeJ }
+    "=" _ "by" { Linear.rightScale0 negativeOne (Induced.transpose1 A) J.matrix }
+  });
+\definition dualCommutes: \forall (A: Matrices.Matrix1) -> Matrices.product01 J.matrix A = Matrices.product10 A J.matrix ->
+  Matrices.product01 J.matrix (Induced.dual A) = Matrices.product10 (Induced.dual A) J.matrix :=
+  \fun (A: Matrices.Matrix1)(commuting: Matrices.product01 J.matrix A = Matrices.product10 A J.matrix) => eq_reason_in!{{Matrices.Matrix1} _
+    "=" _ "by" { Linear.leftScale J.matrix negativeOne (Induced.transpose1 A) }
+    "=" _ "by" { congr!{{Matrices.Matrix1} {Matrices.Matrix1}} (Linear.scale negativeOne) _ _ (transposeCommutes A commuting) }
+    "=" _ "by" { sym!{{Matrices.Matrix1}} _ _ (Linear.rightScale (Induced.transpose1 A) negativeOne J.matrix) }
+  };
+\definition conjugate[A: Matrices.Matrix1]: Matrices.Matrix1 := Matrices.product10 (Matrices.product01 matrix A) matrix;
+\definition conjugateCommutes: \forall (A: Matrices.Matrix1) -> Matrices.product01 J.matrix A = Matrices.product10 A J.matrix ->
+  Matrices.product01 J.matrix (conjugate A) = Matrices.product10 (conjugate A) J.matrix :=
+  \fun (A: Matrices.Matrix1)(commuting: Matrices.product01 J.matrix A = Matrices.product10 A J.matrix) => eq_reason_in!{{Matrices.Matrix1} _
+    "=" _ "by" { sym!{{Matrices.Matrix1}} _ _ (Product.assoc010 J.matrix (Matrices.product01 matrix A) matrix) }
+    "=" _ "by" { congr!{{Matrices.Matrix1} {Matrices.Matrix1}} (\fun (B: Matrices.Matrix1) => Matrices.product10 B matrix) _ _ (sym!{{Matrices.Matrix1}} _ _ (Product.assoc001 J.matrix matrix A)) }
+    "=" _ "by" { congr!{{Matrices.Matrix0} {Matrices.Matrix1}} (\fun (T: Matrices.Matrix0) => Matrices.product10 (Matrices.product01 T A) matrix) _ _ reverseAnti }
+    "=" _ "by" { congr!{{Matrices.Matrix1} {Matrices.Matrix1}} (\fun (B: Matrices.Matrix1) => Matrices.product10 B matrix) _ _ (Linear.leftScale0 negativeOne (Matrices.product00 matrix J.matrix) A) }
+    "=" _ "by" { Linear.rightScale (Matrices.product01 (Matrices.product00 matrix J.matrix) A) negativeOne matrix }
+    "=" _ "by" { congr!{{Matrices.Matrix1} {Matrices.Matrix1}} (\fun (B: Matrices.Matrix1) => Linear.scale negativeOne (Matrices.product10 B matrix)) _ _ (Product.assoc001 matrix J.matrix A) }
+    "=" _ "by" { congr!{{Matrices.Matrix1} {Matrices.Matrix1}} (\fun (B: Matrices.Matrix1) => Linear.scale negativeOne (Matrices.product10 (Matrices.product01 matrix B) matrix)) _ _ commuting }
+    "=" _ "by" { congr!{{Matrices.Matrix1} {Matrices.Matrix1}} (\fun (B: Matrices.Matrix1) => Linear.scale negativeOne (Matrices.product10 B matrix)) _ _ (sym!{{Matrices.Matrix1}} _ _ (Product.assoc010 matrix A J.matrix)) }
+    "=" _ "by" { congr!{{Matrices.Matrix1} {Matrices.Matrix1}} (Linear.scale negativeOne) _ _ (Product.assoc100 (Matrices.product01 matrix A) J.matrix matrix) }
+    "=" _ "by" { sym!{{Matrices.Matrix1}} _ _ (Linear.rightScale0 negativeOne (Matrices.product01 matrix A) (Matrices.product00 J.matrix matrix)) }
+    "=" _ "by" { congr!{{Matrices.Matrix0} {Matrices.Matrix1}} (Matrices.product10 (Matrices.product01 matrix A)) _ _ (sym!{{Matrices.Matrix0}} _ _ antiMatrix) }
+    "=" _ "by" { sym!{{Matrices.Matrix1}} _ _ (Product.assoc100 (Matrices.product01 matrix A) matrix J.matrix) }
+  };
+\definition value[A: Matrices.Matrix1]: Matrices.Matrix1 := conjugate (Induced.dual A);
+\definition complexLinear: \forall (A: Matrices.Matrix1) -> Matrices.product01 J.matrix A = Matrices.product10 A J.matrix ->
+  Matrices.product01 J.matrix (value A) = Matrices.product10 (value A) J.matrix :=
+  \fun (A: Matrices.Matrix1)(commuting: Matrices.product01 J.matrix A = Matrices.product10 A J.matrix) => conjugateCommutes (Induced.dual A) (dualCommutes A commuting);

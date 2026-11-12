@@ -1,0 +1,28 @@
+\definition next: N.Nat^ := N.Nat^::succ k;
+\import Source.Covariant[k := k, connection := connection A] \as SourceD;
+\import Target.Covariant[k := k, connection := A] \as TargetD;
+\import SourceScalar.At[k := next] \as SourceForms;
+\import TargetScalar.At[k := next] \as TargetForms;
+\import Spaces.Sums[I := Fin.Fin r].Vector[V := TargetScalar.Form next, space := TargetForms.space] \as Sums;
+\import Sums.Mapping[W := SourceScalar.Form next, target := SourceForms.space] \as Mapping;
+\import SourceScalar.Wedge[p := one, q := k] \as SourceProduct;
+\import TargetScalar.Wedge[p := one, q := k] \as TargetProduct;
+\import SourceScalar.ExteriorDerivative[k := k] \as SourceDerivative;
+\import TargetScalar.ExteriorDerivative[k := k] \as TargetDerivative;
+\import SourceScalar.Regrade[k := Nat.add one k, l := next] \as SourceDegree;
+\import Spaces.Sums[I := Fin.Fin r].Vector[V := SourceScalar.Form next, space := SourceForms.space] \as SourceSums;
+\definition term: \forall (a, b: Fin.Fin r)(omega: Target.Form k) -> Pull.apply next (TargetD.term a b omega) = SourceD.term a b (form k omega) :=
+  \fun (a, b: Fin.Fin r)(omega: Target.Form k) => eq_reason_in!{{SourceScalar.Form next} _
+    "=" _ "by" { sym!{{SourceScalar.Form next}} _ _ (Pull.Regrade[k := Nat.add one k, l := next].law (TargetProduct.apply (A.matrix a b) (omega b)) TargetDerivative.degree) }
+    "=" _ "by" { congr!{{SourceScalar.Form (Nat.add one k)} {SourceScalar.Form next}}
+      (\fun (value: SourceScalar.Form (Nat.add one k)) => SourceDegree.cast value SourceDerivative.degree) _ _ (Pull.Product[p := one, q := k].law (A.matrix a b) (omega b)) }
+  };
+\definition correction: \forall (omega: Target.Form k)(a: Fin.Fin r) -> Pull.apply next (TargetD.correction omega a) = SourceD.correction (form k omega) a :=
+  \fun (omega: Target.Form k)(a: Fin.Fin r) => trans!{{SourceScalar.Form next}} _ _ _
+    (Mapping.law Pull.At[k := next].map (Fin.elements r) (\fun (b: Fin.Fin r) => TargetD.term a b omega))
+    (SourceSums.congruent (Fin.elements r) _ _ (\fun (b: Fin.Fin r) => term a b omega));
+\definition law: \forall (omega: Target.Form k) -> form next (TargetD.apply omega) = SourceD.apply (form k omega) :=
+  \fun (omega: Target.Form k) => \axiom:funext(form next (TargetD.apply omega), SourceD.apply (form k omega), \fun (a: Fin.Fin r) => trans!{{SourceScalar.Form next}} _ _ _
+    (Pull.At[k := next].addition (TargetDerivative.apply (omega a)) (TargetD.correction omega a))
+    (congr!{{SourceScalar.Form next} {SourceScalar.Form next} {SourceScalar.Form next}} SourceForms.plus _ _ _ _
+      (sym!{{SourceScalar.Form next}} _ _ (Pull.Naturality[k := k].law (omega a))) (correction omega a)));

@@ -1,0 +1,42 @@
+\import Connections.Pair[i := i, j := j] \as Pair;
+\import Connections.WithMetric[metric := metric].Pair[i := i, j := j] \as MetricPair;
+\import Connections.MetricLocal[metric := metric, i := i] \as SourceMetric;
+\import Connections.MetricLocal[metric := metric, i := j] \as TargetMetric;
+\import manifolds.Dimension[n := n].Chart[M := M.Point, space := M.space] \as Charts;
+\import Charts.Transition[left := i, right := j] \as Transition;
+\import \root.LeviCivita[n := n].Restriction[U := Transition.domain, V := i.image, included := Pair.included].With[metric := SourceMetric.local] \as Restriction;
+\import \root.LeviCivita[n := n].CoordinateChange[U := Transition.domain, V := j.image, map := Pair.map] \as Coordinate;
+\import Coordinate.Riemannian[sourceMetric := Restriction.local, targetMetric := TargetMetric.local, inverse := Pair.inverse] \as Riemannian;
+\import \root.MatrixCalculus[n := n, r := n].On[U := Transition.domain] \as Matrices;
+\import \root.LeviCivita[n := n].Gauge[r := n, U := Transition.domain] \as MetricGauge;
+\import \root.LeviCivita[n := n].Components[U := Transition.domain] \as Components;
+\import Open.Smooth[].Algebra[U := Transition.domain] \as Functions;
+\import Original.Frames[].Change[c := i, d := j] \as TangentChange;
+\import \root.Metric[n := n, r := n].Basis[] \as Basis;
+\definition transition: Pair.transition = Coordinate.jacobian :=
+  \axiom:funext(Pair.transition, Coordinate.jacobian, \fun (a: Fin.Fin n) => \axiom:funext(Pair.transition a, Coordinate.jacobian a,
+    \fun (b: Fin.Fin n) => Functions.ext (Pair.transition a b) (Coordinate.jacobian a b) (\fun (x: Open.Carrier Transition.domain) =>
+      trans!{{R.Real}} _ _ _ (TangentChange.At[t := x].coefficient a b)
+        (trans!{{R.Real}} _ _ _
+          (congr!{{Fin.Fin n -> R.Real} {R.Real}} (\fun (v: Fin.Fin n -> R.Real) => (calculus.Maps[n := n, m := n].Differential[U := Transition.domain, V := j.image, f := Pair.map, a := x].value).apply v a) _ _ (Basis.equal b))
+          (Components.differentialBasis (calculus.Maps[n := n, m := n].coordinateFunction Transition.domain j.image Pair.map a) b x)))));
+\definition rightInverse: Riemannian.RightInverse := trans!{Matrices.Matrix0} _ _ _
+  (congr!{Matrices.Matrix0 Matrices.Matrix0} (\fun (J: Matrices.Matrix0) => Matrices.product00 J Pair.inverse) _ _ (sym!{Matrices.Matrix0} _ _ transition)) Pair.Inverse[].right;
+\definition metricLaw: Riemannian.MetricLaw := trans!{Matrices.Matrix0} _ _ _ Restriction.metricMatrix
+  (trans!{Matrices.Matrix0} _ _ _ MetricPair.metricRelation
+    (congr!{Matrices.Matrix0 Matrices.Matrix0} (\fun (J: Matrices.Matrix0) => MetricGauge.metric J MetricPair.h) _ _ transition));
+\import \root.Forms[n := n, r := n].On[U := Transition.domain].Coordinates[connection := \root.LeviCivita[n := n].On[U := Transition.domain].Riemannian[metric := Restriction.local].connection] \as LocalForms;
+\import \root.Forms[n := n, r := n].On[U := Transition.domain].Coordinates[connection := Restriction.connection] \as RestrictedForms;
+\definition source: LocalForms.matrix = Pair.source (data i) := trans!{Matrices.Matrix1} _ _ _
+  (Components.ext LocalForms.matrix RestrictedForms.matrix (\fun (k, a, b: Fin.Fin n) =>
+    trans!{{Functions.Function}} _ _ _ (LocalForms.recover k a b)
+      (trans!{{Functions.Function}} _ _ _
+        (congr!{{\root.Local[n := n, r := n].On[U := Transition.domain].Connection} {Functions.Function}}
+          (\fun (c: \root.Local[n := n, r := n].On[U := Transition.domain].Connection) => c.coefficient k a b) _ _ Restriction.unique)
+        (sym!{{Functions.Function}} _ _ (RestrictedForms.recover k a b)))))
+  Restriction.matrix;
+\definition law: Pair.left (data i) = Pair.right (data j) := eq_reason_in!{Matrices.Matrix1 _
+  "=" _ "by" { congr!{Matrices.Matrix0 Matrices.Matrix1 Matrices.Matrix1} Matrices.product01 _ _ _ _ transition (sym!{Matrices.Matrix1} _ _ source) }
+  "=" _ "by" { Riemannian.naturality rightInverse metricLaw }
+  "=" _ "by" { congr!{Matrices.Matrix0 Matrices.Matrix1} (\fun (J: Matrices.Matrix0) => Matrices.plus (Matrices.dMatrix J) (Matrices.product10 (Pair.target (data j)) J)) _ _ (sym!{Matrices.Matrix0} _ _ transition) }
+};
