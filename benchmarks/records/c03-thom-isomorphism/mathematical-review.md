@@ -60,3 +60,9 @@ A read-only review of the resumed scope's silent finalization found no concrete 
 The elaborator calls `lower_all` after the final module event without per-declaration progress there; retirement follows only after lowering returns.
 Lowering traverses finite declaration collections, with registered-item skips and active-cycle rejection in the pending definition worklist.
 This justifies continuing the active worker, but supplies no time bound and does not establish acceptance.
+
+Two subsequent short stack samples located the active finalization in `ArtifactStore.collect` / `store_bytes`, called by result publication in `save_covered_results`.
+Thus the earlier source-only suggestion of silent lowering did not identify this observed running phase.
+Measured shared cache usage was 13,490,205,238 bytes, above the 12 GiB budget; publication calls collection whenever accounting remains above the budget, including when retained data is pinned.
+A resource-only continuation raises the cache budget to 20 GiB while retaining the 512 MiB graph residency and 16 GiB process ceiling.
+The interrupted comparison-degree scope remains unaccepted; the fixed-input aggregate must complete it normally.
