@@ -48,6 +48,8 @@ def arguments():
     parser.add_argument('--time-limit-seconds', type=int)
     parser.add_argument('--max-scope-targets', type=int, default=0,
                         help='split larger scopes before checking; 0 keeps automatic splitting')
+    parser.add_argument('--split-package', action='append', default=[], metavar='PACKAGE',
+                        help='restrict eager splitting to these packages (repeatable)')
     args = parser.parse_args()
     for name in ['memory_mib', 'initial_memory_mib', 'cache_budget_mib', 'min_free_mib', 'max_scope_targets']:
         if getattr(args, name) < 0:
@@ -178,7 +180,8 @@ def main():
             initial_memory = args.memory_mib
         report.update(targets=targets, source_sha256=digest(snapshot), cache_dir=str(cache),
                       memory_mib=args.memory_mib, initial_memory_mib=initial_memory,
-                      cache_budget_mib=args.cache_budget_mib)
+                      cache_budget_mib=args.cache_budget_mib,
+                      max_scope_targets=args.max_scope_targets, split_packages=args.split_package)
         save(attempt / 'targets.json', targets)
         package_entries = {}
         for path, text in source['files'].items():
@@ -202,7 +205,8 @@ def main():
             wanted = set(targets) if module is None else {t for t in targets if t == module or (not only and t.startswith(module + '.'))}
             if wanted <= verified:
                 continue
-            if args.max_scope_targets and len(wanted) > args.max_scope_targets:
+            eager = module is None or not args.split_package or module.split('.')[0] in args.split_package
+            if args.max_scope_targets and eager and len(wanted) > args.max_scope_targets:
                 if module is None:
                     pending[0:0] = list(roots)
                 else:
