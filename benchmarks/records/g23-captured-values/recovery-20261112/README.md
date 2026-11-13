@@ -64,3 +64,9 @@ The same checker and immutable scope snapshot accepted that dependency closure a
 The accepted critical report covers 3,312 modules and records 448 source steps, one worker recovery at checkpoint 49,519, 39 lost steps, zero duplicate/replayed source steps, zero save failures and zero corrupt reads.
 The fresh process elapsed 770.356 seconds; peak RSS was 14,707,988 KiB and peak virtual memory 16,700,836 KiB.
 The final aggregate resumes through the normal validating cache with a 16 GiB worker ceiling; only its successful full report establishes complete coverage.
+
+The final driver was configured with a 16 GiB address-space ceiling.
+After repeated bounded checkpoint-allocation failures, the running `Complexification` worker PID 29517 was adjusted through Linux `prlimit` to a 17 GiB soft address-space limit at `2026-11-13T00:10:09.919859Z`, without restarting the worker.
+The physical cgroup ceiling remained 16 GiB, and the checker and immutable source snapshot were unchanged.
+`address-space-adjustment.json` preserves the original and effective limits, exact worker request and process status.
+The original driver report retains the configured 16 GiB value; it must be interpreted together with this recorded per-worker adjustment.
