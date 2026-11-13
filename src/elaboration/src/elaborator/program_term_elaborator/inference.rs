@@ -61,7 +61,6 @@ fn spine(arena: &Arena, context: &ProgramContext) -> Vec<ProgramArgument> {
         })
         .collect()
 }
-#[cfg(test)]
 fn argument_term(argument: ProgramArgument) -> Term {
     match argument {
         ProgramArgument::ValueType(ty) => Term::ValueType(ty),
@@ -200,12 +199,15 @@ impl ProgramScope {
         let env = &environment.crate_env;
         let arena = env.arena();
         let arguments = spine(arena, &self.context);
-        if let SurfaceMeta::Named(number) = flavor
-            && let Some(source) = self.named_metas.get(&number).copied()
-        {
+        if let Some(source) = self.named_metas.get(&flavor).copied() {
             let existing = &mut self.metas[source.index()];
             if existing.category != category {
-                return Err(crate::error::Error::IncompatibleMetaUses { number });
+                return Err(match flavor {
+                    SurfaceMeta::Named(number) => {
+                        crate::error::Error::IncompatibleMetaUses { number }
+                    }
+                    _ => crate::error::Error::IncompatibleCapturedMetaUses,
+                });
             }
             let common = existing
                 .context
@@ -257,8 +259,8 @@ impl ProgramScope {
             solution: None,
             expected: None,
         });
-        if let SurfaceMeta::Named(n) = flavor {
-            self.named_metas.insert(n, source);
+        if flavor.is_shared() {
+            self.named_metas.insert(flavor, source);
         }
         self.sync(environment);
         Ok((source, arguments))
@@ -307,7 +309,16 @@ impl ProgramScope {
         self.sync(environment);
         result.map(|_| ())
     }
-    #[cfg(test)]
+    pub(super) fn assign_surface(
+        &mut self,
+        environment: &GlobalEnvironment,
+        kind: SurfaceMeta,
+        span: SourceSpan,
+        value: Term,
+    ) -> Result<(), crate::error::Error> {
+        let (id, arguments) = self.fresh_meta(environment, kind, span, category(value))?;
+        self.assign(environment, id, &arguments, value)
+    }
     fn assign(
         &mut self,
         environment: &GlobalEnvironment,

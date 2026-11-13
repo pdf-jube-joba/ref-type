@@ -6,6 +6,11 @@ fn boxed<T: Into<SExp>>(value: T) -> Box<SExp> {
 impl From<ValueTypeExp> for SExp {
     fn from(value: ValueTypeExp) -> Self {
         match value {
+            ValueTypeExp::Assign { value, kind, span } => Self::Assign {
+                value: Box::new((*value).into()),
+                kind,
+                span,
+            },
             ValueTypeExp::Deferred { expression } => *expression,
             ValueTypeExp::Checked { checks, body } => Self::Checked {
                 checks,
@@ -32,6 +37,11 @@ impl From<ValueTypeExp> for SExp {
 impl From<ComputationTypeExp> for SExp {
     fn from(value: ComputationTypeExp) -> Self {
         match value {
+            ComputationTypeExp::Assign { value, kind, span } => Self::Assign {
+                value: Box::new((*value).into()),
+                kind,
+                span,
+            },
             ComputationTypeExp::Deferred { expression } => *expression,
             ComputationTypeExp::Checked { checks, body } => Self::Checked {
                 checks,
@@ -51,6 +61,11 @@ impl From<ComputationTypeExp> for SExp {
 impl From<ValueTermExp> for SExp {
     fn from(value: ValueTermExp) -> Self {
         match value {
+            ValueTermExp::Assign { value, kind, span } => Self::Assign {
+                value: Box::new((*value).into()),
+                kind,
+                span,
+            },
             ValueTermExp::Reference { access } => Self::ProgramValueReference { access },
             ValueTermExp::Deferred { expression } => *expression,
             ValueTermExp::Checked { checks, body } => Self::Checked {
@@ -128,6 +143,15 @@ impl From<ValueTermExp> for SExp {
 impl From<ProgramFunctionExp> for SExp {
     fn from(value: ProgramFunctionExp) -> Self {
         match value {
+            ProgramFunctionExp::Assign {
+                function,
+                kind,
+                span,
+            } => Self::Assign {
+                value: Box::new((*function).into()),
+                kind,
+                span,
+            },
             ProgramFunctionExp::Access(access) => Self::AccessPath {
                 access,
                 parameters: Vec::new(),
@@ -153,6 +177,11 @@ impl From<ProgramFunctionExp> for SExp {
 impl From<ComputationTermExp> for SExp {
     fn from(value: ComputationTermExp) -> Self {
         match value {
+            ComputationTermExp::Assign { value, kind, span } => Self::Assign {
+                value: Box::new((*value).into()),
+                kind,
+                span,
+            },
             ComputationTermExp::Deferred { expression } => *expression,
             ComputationTermExp::Checked { checks, body } => Self::Checked {
                 checks,

@@ -18,7 +18,15 @@ pub struct SourceSpan {
 }
 
 #[derive(
-    artifact::Relocate, serde::Serialize, serde::Deserialize, Debug, Clone, Copy, PartialEq, Eq,
+    artifact::Relocate,
+    serde::Serialize,
+    serde::Deserialize,
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Hash,
 )]
 pub enum SurfaceMeta {
     /// `_`: a fresh inference variable, solved by constraints.
@@ -28,6 +36,14 @@ pub enum SurfaceMeta {
     /// `_N`: occurrences with the same number share one metavariable within
     /// the current elaboration unit.
     Named(u32),
+    /// An inferred caller capture value, shared by every copy of that capture.
+    Captured { expansion: u64, index: u32 },
+}
+
+impl SurfaceMeta {
+    pub fn is_shared(self) -> bool {
+        matches!(self, Self::Named(_) | Self::Captured { .. })
+    }
 }
 
 /// A source file identity, retained together with the original text.
@@ -285,6 +301,11 @@ pub struct RightBind {
 /// Shared queries retain `SExp` until elaboration selects a judgement.
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
 pub enum ValueTypeExp {
+    Assign {
+        value: Box<ValueTypeExp>,
+        kind: SurfaceMeta,
+        span: SourceSpan,
+    },
     Deferred {
         expression: Box<SExp>,
     },
@@ -305,6 +326,11 @@ pub enum ValueTypeExp {
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
 pub enum ComputationTypeExp {
+    Assign {
+        value: Box<ComputationTypeExp>,
+        kind: SurfaceMeta,
+        span: SourceSpan,
+    },
     Deferred {
         expression: Box<SExp>,
     },
@@ -321,6 +347,11 @@ pub enum ComputationTypeExp {
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
 pub enum ValueTermExp {
+    Assign {
+        value: Box<ValueTermExp>,
+        kind: SurfaceMeta,
+        span: SourceSpan,
+    },
     Deferred {
         expression: Box<SExp>,
     },
@@ -360,6 +391,11 @@ pub enum ValueTermExp {
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
 pub enum ComputationTermExp {
+    Assign {
+        value: Box<ComputationTermExp>,
+        kind: SurfaceMeta,
+        span: SourceSpan,
+    },
     Deferred {
         expression: Box<SExp>,
     },
@@ -434,6 +470,11 @@ pub enum ComputationTermExp {
 /// local value or global value/computation definition.
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
 pub enum ProgramFunctionExp {
+    Assign {
+        function: Box<ProgramFunctionExp>,
+        kind: SurfaceMeta,
+        span: SourceSpan,
+    },
     Access(LocalAccess),
     Associated {
         span: SourceSpan,
@@ -515,7 +556,7 @@ pub enum SExp {
     },
     Assign {
         value: Box<SExp>,
-        number: u32,
+        kind: SurfaceMeta,
         span: SourceSpan,
     },
     Meta {
@@ -824,6 +865,11 @@ impl TryFrom<SExp> for ValueTypeExp {
     type Error = crate::error::ConversionError;
     fn try_from(value: SExp) -> Result<Self, Self::Error> {
         match value {
+            SExp::Assign { value, kind, span } => Ok(Self::Assign {
+                value: Box::new((*value).try_into()?),
+                kind,
+                span,
+            }),
             expression @ (SExp::MemberAccess { .. } | SExp::MemberLiteral { .. }) => {
                 Ok(Self::Deferred {
                     expression: Box::new(expression),
@@ -862,6 +908,11 @@ impl TryFrom<SExp> for ComputationTypeExp {
     type Error = crate::error::ConversionError;
     fn try_from(value: SExp) -> Result<Self, Self::Error> {
         match value {
+            SExp::Assign { value, kind, span } => Ok(Self::Assign {
+                value: Box::new((*value).try_into()?),
+                kind,
+                span,
+            }),
             expression @ (SExp::MemberAccess { .. } | SExp::MemberLiteral { .. }) => {
                 Ok(Self::Deferred {
                     expression: Box::new(expression),
@@ -887,6 +938,11 @@ impl TryFrom<SExp> for ValueTermExp {
     fn try_from(value: SExp) -> Result<Self, Self::Error> {
         let (value, arguments) = decompose_surface_application(value);
         match value {
+            SExp::Assign { value, kind, span } if arguments.is_empty() => Ok(Self::Assign {
+                value: Box::new((*value).try_into()?),
+                kind,
+                span,
+            }),
             expression @ (SExp::MemberAccess { .. } | SExp::MemberLiteral { .. })
                 if arguments.is_empty() =>
             {
@@ -982,10 +1038,49 @@ impl TryFrom<SExp> for ValueTermExp {
     }
 }
 
+impl TryFrom<SExp> for ProgramFunctionExp {
+    type Error = crate::error::ConversionError;
+    fn try_from(value: SExp) -> Result<Self, Self::Error> {
+        Ok(match value {
+            SExp::Assign { value, kind, span } => Self::Assign {
+                function: Box::new((*value).try_into()?),
+                kind,
+                span,
+            },
+            SExp::AccessPath { access, parameters } if parameters.is_empty() => {
+                ProgramFunctionExp::Access(access)
+            }
+            SExp::AssociatedAccess { base, field, span } => {
+                let SExp::AccessPath { access, parameters } = *base else {
+                    return Err(crate::error::ConversionError::ExpectedAProgramDatatypeBeforeAssociatedAccess);
+                };
+                ProgramFunctionExp::Associated {
+                    span,
+                    datatype: access,
+                    item: field,
+                    parameters: parameters
+                        .into_iter()
+                        .map(TryInto::try_into)
+                        .collect::<Result<_, _>>()?,
+                }
+            }
+            expression @ SExp::Thunk { .. } => {
+                ProgramFunctionExp::Value(Box::new(expression.try_into()?))
+            }
+            expression => ProgramFunctionExp::Computation(Box::new(expression.try_into()?)),
+        })
+    }
+}
+
 impl TryFrom<SExp> for ComputationTermExp {
     type Error = crate::error::ConversionError;
     fn try_from(value: SExp) -> Result<Self, Self::Error> {
         match value {
+            SExp::Assign { value, kind, span } => Ok(Self::Assign {
+                value: Box::new((*value).try_into()?),
+                kind,
+                span,
+            }),
             expression @ (SExp::MemberAccess { .. } | SExp::MemberLiteral { .. }) => {
                 Ok(Self::Deferred {
                     expression: Box::new(expression),
@@ -1031,29 +1126,7 @@ impl TryFrom<SExp> for ComputationTermExp {
             }),
             expression @ SExp::App { .. } => {
                 let (head, arguments) = decompose_surface_application(expression);
-                let function = match head {
-                    SExp::AccessPath { access, parameters } if parameters.is_empty() => {
-                        ProgramFunctionExp::Access(access)
-                    }
-                    SExp::AssociatedAccess { base, field, span } => {
-                        let SExp::AccessPath { access, parameters } = *base else {
-                            return Err(crate::error::ConversionError::ExpectedAProgramDatatypeBeforeAssociatedAccess);
-                        };
-                        ProgramFunctionExp::Associated {
-                            span,
-                            datatype: access,
-                            item: field,
-                            parameters: parameters
-                                .into_iter()
-                                .map(TryInto::try_into)
-                                .collect::<Result<_, _>>()?,
-                        }
-                    }
-                    expression @ SExp::Thunk { .. } => {
-                        ProgramFunctionExp::Value(Box::new(expression.try_into()?))
-                    }
-                    expression => ProgramFunctionExp::Computation(Box::new(expression.try_into()?)),
-                };
+                let function = head.try_into()?;
                 Ok(Self::Application {
                     function,
                     arguments: arguments

@@ -50,6 +50,9 @@ tagged!{value "keep"}
 
 template の自由な名前は定義側、capture した式は呼出側の scope で解決する。
 マクロが導入する binder は呼出側の名前を捕捉しない。
+`_` を含む capture は、展開した各位置で推論する値を一つの contextual metavariable と等置する。
+capture 自体が lambda を含む場合は、その束縛の下で式全体を比較する。
+別々の capture と別々の呼び出しは独立して推論する。
 数式マクロは各括弧階層の列全体を照合し、候補が複数なら固定トークンが最も左にあるもの、次に呼び出しスコープからの距離、最後に各 module の導入位置の順で選ぶ。
 
 ## Token match と再帰

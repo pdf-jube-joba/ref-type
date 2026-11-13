@@ -403,6 +403,12 @@ impl LocalScope {
         expected: Exp,
         handler: &mut impl Handler,
     ) -> Result<Exp, ElaborationError> {
+        if let SExp::Assign { value, kind, span } = exp {
+            let value = self.elab_with_expected(value, expected, handler)?;
+            let meta = handler.fresh_meta(*kind, *span, &self.typing_binds)?;
+            handler.assign_meta(meta, value)?;
+            return Ok(value);
+        }
         if let SExp::Lam {
             bind: Bind::Named(bind),
             body,
@@ -932,14 +938,9 @@ impl LocalScope {
                 expression,
             } => handler.reflect_program_expression(*parameter, expression),
             SExp::Meta { kind, span } => handler.fresh_meta(*kind, *span, &self.typing_binds),
-            SExp::Assign {
-                value,
-                number,
-                span,
-            } => {
+            SExp::Assign { value, kind, span } => {
                 let value = self.elab_exp_rec(value, handler)?;
-                let meta =
-                    handler.fresh_meta(SurfaceMeta::Named(*number), *span, &self.typing_binds)?;
+                let meta = handler.fresh_meta(*kind, *span, &self.typing_binds)?;
                 handler.assign_meta(meta, value)?;
                 Ok(value)
             }

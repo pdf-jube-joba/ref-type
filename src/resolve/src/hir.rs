@@ -235,6 +235,11 @@ pub struct RightBind {
 /// Shared queries retain `SExp` until elaboration selects a judgement.
 #[derive(artifact::Relocate, serde::Serialize, serde::Deserialize, Debug, Clone)]
 pub enum ValueTypeExp {
+    Assign {
+        value: Box<ValueTypeExp>,
+        kind: SurfaceMeta,
+        span: SourceSpan,
+    },
     Deferred {
         expression: Box<SExp>,
     },
@@ -259,6 +264,11 @@ pub enum ValueTypeExp {
 
 #[derive(artifact::Relocate, serde::Serialize, serde::Deserialize, Debug, Clone)]
 pub enum ComputationTypeExp {
+    Assign {
+        value: Box<ComputationTypeExp>,
+        kind: SurfaceMeta,
+        span: SourceSpan,
+    },
     Deferred {
         expression: Box<SExp>,
     },
@@ -279,6 +289,11 @@ pub enum ComputationTypeExp {
 
 #[derive(artifact::Relocate, serde::Serialize, serde::Deserialize, Debug, Clone)]
 pub enum ValueTermExp {
+    Assign {
+        value: Box<ValueTermExp>,
+        kind: SurfaceMeta,
+        span: SourceSpan,
+    },
     Reference {
         access: LocalAccess,
     },
@@ -325,6 +340,11 @@ pub enum ValueTermExp {
 
 #[derive(artifact::Relocate, serde::Serialize, serde::Deserialize, Debug, Clone)]
 pub enum ComputationTermExp {
+    Assign {
+        value: Box<ComputationTermExp>,
+        kind: SurfaceMeta,
+        span: SourceSpan,
+    },
     Deferred {
         expression: Box<SExp>,
     },
@@ -411,6 +431,11 @@ pub enum ComputationTermExp {
 /// local value or global value/computation definition.
 #[derive(artifact::Relocate, serde::Serialize, serde::Deserialize, Debug, Clone)]
 pub enum ProgramFunctionExp {
+    Assign {
+        function: Box<ProgramFunctionExp>,
+        kind: SurfaceMeta,
+        span: SourceSpan,
+    },
     Access(LocalAccess),
     Associated {
         span: SourceSpan,
@@ -522,7 +547,7 @@ pub enum SExp {
     },
     Assign {
         value: Box<SExp>,
-        number: u32,
+        kind: SurfaceMeta,
         span: SourceSpan,
     },
     Meta {
@@ -838,6 +863,11 @@ impl TryFrom<SExp> for ValueTypeExp {
     type Error = syntax::error::ConversionError;
     fn try_from(value: SExp) -> Result<Self, Self::Error> {
         match value {
+            SExp::Assign { value, kind, span } => Ok(Self::Assign {
+                value: Box::new((*value).try_into()?),
+                kind,
+                span,
+            }),
             SExp::Checked { checks, body } => Ok(Self::Checked {
                 checks,
                 body: Box::new((*body).try_into()?),
@@ -875,6 +905,11 @@ impl TryFrom<SExp> for ComputationTypeExp {
     type Error = syntax::error::ConversionError;
     fn try_from(value: SExp) -> Result<Self, Self::Error> {
         match value {
+            SExp::Assign { value, kind, span } => Ok(Self::Assign {
+                value: Box::new((*value).try_into()?),
+                kind,
+                span,
+            }),
             SExp::Checked { checks, body } => Ok(Self::Checked {
                 checks,
                 body: Box::new((*body).try_into()?),
@@ -899,6 +934,11 @@ impl TryFrom<SExp> for ValueTermExp {
     fn try_from(value: SExp) -> Result<Self, Self::Error> {
         let (value, arguments) = decompose_surface_application(value);
         match value {
+            SExp::Assign { value, kind, span } if arguments.is_empty() => Ok(Self::Assign {
+                value: Box::new((*value).try_into()?),
+                kind,
+                span,
+            }),
             SExp::ProgramValueReference { access } if arguments.is_empty() => {
                 Ok(Self::Reference { access })
             }
@@ -980,10 +1020,52 @@ impl TryFrom<SExp> for ValueTermExp {
     }
 }
 
+impl TryFrom<SExp> for ProgramFunctionExp {
+    type Error = syntax::error::ConversionError;
+    fn try_from(value: SExp) -> Result<Self, Self::Error> {
+        Ok(match value {
+            SExp::Assign { value, kind, span } => Self::Assign {
+                function: Box::new((*value).try_into()?),
+                kind,
+                span,
+            },
+            SExp::AccessPath { access, parameters } if parameters.is_empty() => {
+                ProgramFunctionExp::Access(access)
+            }
+            SExp::AssociatedAccess { base, field, span } => {
+                let SExp::AccessPath { access, parameters } = *base else {
+                    return Err(syntax::error::ConversionError::ExpectedAProgramDatatypeBeforeAssociatedAccess);
+                };
+                ProgramFunctionExp::Associated {
+                    span,
+                    datatype: access,
+                    item: field,
+                    parameters: parameters
+                        .into_iter()
+                        .map(TryInto::try_into)
+                        .collect::<Result<_, _>>()?,
+                }
+            }
+            expression @ (SExp::Thunk { .. } | SExp::Checked { .. }) => {
+                match ValueTermExp::try_from(expression.clone()) {
+                    Ok(value) => ProgramFunctionExp::Value(Box::new(value)),
+                    Err(_) => ProgramFunctionExp::Computation(Box::new(expression.try_into()?)),
+                }
+            }
+            expression => ProgramFunctionExp::Computation(Box::new(expression.try_into()?)),
+        })
+    }
+}
+
 impl TryFrom<SExp> for ComputationTermExp {
     type Error = syntax::error::ConversionError;
     fn try_from(value: SExp) -> Result<Self, Self::Error> {
         match value {
+            SExp::Assign { value, kind, span } => Ok(Self::Assign {
+                value: Box::new((*value).try_into()?),
+                kind,
+                span,
+            }),
             SExp::Checked { checks, body } => {
                 let body = match Self::try_from((*body).clone()) {
                     Ok(body) => body,
@@ -1034,34 +1116,7 @@ impl TryFrom<SExp> for ComputationTermExp {
             }),
             expression @ SExp::App { .. } => {
                 let (head, arguments) = decompose_surface_application(expression);
-                let function = match head {
-                    SExp::AccessPath { access, parameters } if parameters.is_empty() => {
-                        ProgramFunctionExp::Access(access)
-                    }
-                    SExp::AssociatedAccess { base, field, span } => {
-                        let SExp::AccessPath { access, parameters } = *base else {
-                            return Err(syntax::error::ConversionError::ExpectedAProgramDatatypeBeforeAssociatedAccess);
-                        };
-                        ProgramFunctionExp::Associated {
-                            span,
-                            datatype: access,
-                            item: field,
-                            parameters: parameters
-                                .into_iter()
-                                .map(TryInto::try_into)
-                                .collect::<Result<_, _>>()?,
-                        }
-                    }
-                    expression @ (SExp::Thunk { .. } | SExp::Checked { .. }) => {
-                        match ValueTermExp::try_from(expression.clone()) {
-                            Ok(value) => ProgramFunctionExp::Value(Box::new(value)),
-                            Err(_) => {
-                                ProgramFunctionExp::Computation(Box::new(expression.try_into()?))
-                            }
-                        }
-                    }
-                    expression => ProgramFunctionExp::Computation(Box::new(expression.try_into()?)),
-                };
+                let function = head.try_into()?;
                 Ok(Self::Application {
                     function,
                     arguments: arguments

@@ -27,6 +27,11 @@ use crate::{
 use std::collections::{HashMap, HashSet};
 mod inference;
 
+enum ApplicationHead {
+    Value(Option<ValueType>),
+    Computation(ComputationTerm, Option<ComputationType>),
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum MetaCategory {
     ValueType,
@@ -68,7 +73,7 @@ pub(crate) struct ProgramScope {
     context: ProgramContext,
     value_type_bindings: Vec<(SymbolId, ValueType)>,
     metas: Vec<ProgramMeta>,
-    named_metas: HashMap<u32, MetaVarId>,
+    named_metas: HashMap<SurfaceMeta, MetaVarId>,
     sources: HashMap<Term, Vec<SourceSpan>>,
     has_runs: bool,
     constraints: Vec<ProgramConstraintRecord>,
@@ -351,6 +356,11 @@ impl ProgramScope {
                 }
                 self.elaborate_value_type_inner(body, environment)
             }
+            ValueTypeExp::Assign { value, kind, span } => {
+                let value = self.elaborate_value_type(value, environment)?;
+                self.assign_surface(environment, *kind, *span, Term::ValueType(value))?;
+                Ok(value)
+            }
             ValueTypeExp::Meta { kind, span } => {
                 let (metavariable, spine) =
                     self.fresh_meta(environment, *kind, *span, MetaCategory::ValueType)?;
@@ -480,6 +490,11 @@ impl ProgramScope {
                     self.check_member(value, ty, environment)?;
                 }
                 self.elaborate_computation_type_inner(body, environment)
+            }
+            ComputationTypeExp::Assign { value, kind, span } => {
+                let value = self.elaborate_computation_type(value, environment)?;
+                self.assign_surface(environment, *kind, *span, Term::ComputationType(value))?;
+                Ok(value)
             }
             ComputationTypeExp::Meta { kind, span } => {
                 let (metavariable, spine) =
@@ -617,6 +632,11 @@ impl ProgramScope {
                         idx: 0,
                         fields,
                     }))
+            }
+            ValueTermExp::Assign { value, kind, span } => {
+                let value = self.elaborate_value(value, environment)?;
+                self.assign_surface(environment, *kind, *span, Term::Value(value))?;
+                Ok(value)
             }
             ValueTermExp::Meta { kind, span } => {
                 let (metavariable, spine) =
@@ -813,6 +833,11 @@ impl ProgramScope {
         expected: ComputationType,
         environment: &mut GlobalEnvironment,
     ) -> Result<ComputationTerm, ElaborationError> {
+        if let ComputationTermExp::Assign { value, kind, span } = expression {
+            let value = self.elaborate_computation_expected(value, expected, environment)?;
+            self.assign_surface(environment, *kind, *span, Term::Computation(value))?;
+            return Ok(value);
+        }
         if let ComputationTermExp::Checked { checks, body } = expression {
             for (value, ty) in checks {
                 self.check_member(value, ty, environment)?;
@@ -1005,6 +1030,11 @@ impl ProgramScope {
                         definition: *definition,
                         parameters,
                     }))
+            }
+            ComputationTermExp::Assign { value, kind, span } => {
+                let value = self.elaborate_computation(value, environment)?;
+                self.assign_surface(environment, *kind, *span, Term::Computation(value))?;
+                Ok(value)
             }
             ComputationTermExp::Meta { kind, span } => {
                 let (metavariable, spine) =
@@ -1337,18 +1367,25 @@ impl ProgramScope {
         }
     }
 
-    fn elaborate_application(
+    fn elaborate_application_head(
         &mut self,
         function: &ProgramFunctionExp,
-        arguments: &[ValueTermExp],
         environment: &mut GlobalEnvironment,
-    ) -> Result<ComputationTerm, ElaborationError> {
-        enum Head {
-            Value(Option<ValueType>),
-            Computation(ComputationTerm, Option<ComputationType>),
-        }
+    ) -> Result<ApplicationHead, ElaborationError> {
+        use ApplicationHead as Head;
+        Ok(match function {
+            ProgramFunctionExp::Assign {
+                function,
+                kind,
+                span,
+            } => {
+                let head = self.elaborate_application_head(function, environment)?;
+                if let Head::Computation(value, _) = &head {
+                    self.assign_surface(environment, *kind, *span, Term::Computation(*value))?;
+                }
+                head
+            }
 
-        let head = match function {
             ProgramFunctionExp::Value(value) => {
                 let value = self.elaborate_value(value, environment)?;
                 let mut context = self.context.clone();
@@ -1495,7 +1532,17 @@ impl ProgramScope {
                     }
                 }
             }
-        };
+        })
+    }
+
+    fn elaborate_application(
+        &mut self,
+        function: &ProgramFunctionExp,
+        arguments: &[ValueTermExp],
+        environment: &mut GlobalEnvironment,
+    ) -> Result<ComputationTerm, ElaborationError> {
+        use ApplicationHead as Head;
+        let head = self.elaborate_application_head(function, environment)?;
 
         let arguments = arguments
             .iter()
