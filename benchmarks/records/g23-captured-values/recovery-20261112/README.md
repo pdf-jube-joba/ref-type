@@ -70,3 +70,23 @@ After repeated bounded checkpoint-allocation failures, the running `Complexifica
 The physical cgroup ceiling remained 16 GiB, and the checker and immutable source snapshot were unchanged.
 `address-space-adjustment.json` preserves the original and effective limits, exact worker request and process status.
 The original driver report retains the configured 16 GiB value; it must be interpreted together with this recorded per-worker adjustment.
+
+## Remaining-target preparation
+
+Independent review of the original reports confirmed that 132 accepted scopes from the first fixed-source aggregate cover 13,854 targets.
+The accepted critical closure adds 562 targets, producing an exact union of 14,416 of 14,486 targets.
+The running later aggregate's 13,807 accepted targets are a subset of that union.
+All loader files and aliases agree, and all 198 checker build inputs agree with the current checkout.
+The [verification-plan review](verification-plan-review-20261113.md) independently checked the report digests, coverage, input identity and normal validation flags.
+`remaining-plan.json.gz` preserves the exact prepared plan.
+
+The one-off `prepare_remaining.py` checks only uncovered module-own targets with the normal validating cache.
+Its lock excludes the previous aggregate; it retains each exact command, source snapshot digest and original CLI report.
+Its `prewarm-complete` outcome is only preparation.
+Integration still requires the unmodified `scripts/check_all.py` to independently accept all 14,486 targets and re-enumerate unchanged current source.
+The prepared profile uses a 17 GiB address-space ceiling, 120-second checkpoints and a 20 GiB disk-cache budget under the existing 16 GiB physical cgroup.
+
+About 6.95 GB of disk space was available after removing only inactive G23-specific Rust test/build intermediates.
+The prior `du` observation was 4,680,784 KiB; the per-path inventory sums can count hard links more than once.
+The verified release checker, all original verification logs and all mathematical cache directories were retained.
+`debug-intermediates-removal.json.gz` records the inventory and resulting free space.
