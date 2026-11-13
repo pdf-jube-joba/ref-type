@@ -1,4 +1,26 @@
-# G23 capture inference: recovered integration verification
+# G23 capture inference: accepted integration verification
+
+The unmodified standard driver accepted all **14,486 targets** at commit `9a7ab9c6978a9c708b99fef519d9831d29565c4b`, with exit code 0.
+It checked 6,311 target paths from source and reused 8,175 through the normal validating cache.
+All 107 CLI scopes were accepted, with zero save failures, corrupt reads, checkpoint resumes or worker recoveries.
+Elapsed time was 2,042.558 seconds, peak RSS 4,204,172 KiB and peak virtual memory 5,267,612 KiB.
+The successful run used a 17 GiB address-space ceiling and 20 GiB disk-cache budget under the existing 16 GiB physical cgroup.
+The [full original reports](full/summary.json) retain the exact driver and CLI outputs, input inventory and aliases.
+[Source reconciliation](source-reconciliation.json) binds all 13,179 loader inputs and 198 checker build inputs to the tested commit, reviewed source and current checkout.
+Subsequent evidence-only commits preserve those source identities.
+
+Fresh source tests passed 412 cases, Rust workspace tests passed 384 cases, and driver fixtures passed 9 cases.
+Clippy with warnings denied and workspace formatting passed.
+The [checker review](independent-review.md) found three issues that were fixed and no remaining blocking finding.
+The [verification-plan review](verification-plan-review-20261113.md) independently confirmed source identity and safe reuse of accepted reports; the final unmodified full driver independently met its required acceptance condition.
+
+The successful final command was:
+
+```sh
+REF_TYPE_GRAPH_SPILL_DIR=/tmp python3 scripts/check_all.py --binary /workspace/shared/g23-recovery/checker-final --state-dir /workspace/shared/g23-recovery/full-final --cache-dir /workspace/ref-type/libs/refcache --initial-memory-mib 17408 --memory-mib 17408 --cache-budget-mib 20480
+```
+
+## Preserved recovery history
 
 The restored PR source was `3b1c4086a3784f0773f56ba97a53ba7121962347`.
 Main `d9da7c0ace28ecab2cc83e8dcfef9258ee0235b4`, including merged D01, is integrated in `b52aa8afca2d251c845cd6580f32a15093dd088e`.
@@ -45,9 +67,9 @@ Fresh source tests passed all 412 cases and aggregate-driver fixtures passed all
 Fresh Rust workspace tests passed 384 cases with no failed or ignored test.
 Clippy with warnings denied and workspace formatting also passed.
 `checks-summary.json` and `test-logs.json.gz` preserve the exact recovery results.
-The final aggregate result is recorded with its exact reports when complete.
+The final accepted aggregate and its exact reports are in `full`.
 
-The full check adopts the already accepted A08/D01 15 GiB profile, including graph spill, from the current main's [D01 recovery record](../../d01-connections/recovery-20261112/README.md).
+The first recovered attempt adopted the already accepted A08/D01 15 GiB profile, including graph spill, from the current main's [D01 recovery record](../../d01-connections/recovery-20261112/README.md).
 It retains normal validated caches and checks all 14,486 current library targets.
 
 ```sh
@@ -83,10 +105,16 @@ The [verification-plan review](verification-plan-review-20261113.md) independent
 The one-off `prepare_remaining.py` checks only uncovered module-own targets with the normal validating cache.
 Its lock excludes the previous aggregate; it retains each exact command, source snapshot digest and original CLI report.
 Its `prewarm-complete` outcome is only preparation.
-Integration still requires the unmodified `scripts/check_all.py` to independently accept all 14,486 targets and re-enumerate unchanged current source.
+The final unmodified `scripts/check_all.py` independently accepted all 14,486 targets and re-enumerated unchanged current source, as recorded in `full`.
 The prepared profile uses a 17 GiB address-space ceiling, 120-second checkpoints and a 20 GiB disk-cache budget under the existing 16 GiB physical cgroup.
 
 About 6.95 GB of disk space was available after removing only inactive G23-specific Rust test/build intermediates.
 The prior `du` observation was 4,680,784 KiB; the per-path inventory sums can count hard links more than once.
 The verified release checker, all original verification logs and all mathematical cache directories were retained.
 `debug-intermediates-removal.json.gz` records the inventory and resulting free space.
+
+The remaining-target preparation completed all 70 uncovered target paths through 49 accepted CLI scopes in 4,508.248 seconds.
+Its original reports, commands, logs and observed exit code 0 are in `remaining`.
+That preparation was followed by the separate successful standard aggregate reported above.
+Historical incomplete attempts remain labelled `failed`, `running` observations or `interrupted`; their unfinished scopes are not aggregate acceptance.
+The interrupted `Complexification` CLI did not produce its own report before shutdown; its stderr, the aggregate report and that missing-report status are retained.
