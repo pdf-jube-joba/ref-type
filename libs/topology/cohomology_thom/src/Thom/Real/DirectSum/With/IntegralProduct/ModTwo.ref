@@ -1,0 +1,29 @@
+\import algebra.Two[] \as Two;
+\import \root.CoefficientChange[].FromIntegers[K := Two.Carrier, ring := Two.commutativeRing].OnSpace[A := X, source := bundle.baseSpace] \as Reduction;
+\import Product.Change[L := Two.Carrier, targetRing := Two.commutativeRing, morphism := Reduction.morphism] \as Change;
+\definition leftRank: \forall (x: X) -> Bundles.Family[X := X, F := F].Of[bundle := left].rank x = n := LeftOrientations.rank leftOrientation;
+\definition rightRank: \forall (x: X) -> Bundles.Family[X := X, F := G].Of[bundle := right].rank x = m := RightOrientations.rank rightOrientation;
+\import LeftGeometry.Integral[n := n, orientation := leftOrientation, complex := complex] \as LeftIntegral;
+\import RightGeometry.Integral[n := m, orientation := rightOrientation, complex := rightComplex] \as RightIntegral;
+\import LeftGeometry.ModTwo[n := n, constantRank := leftRank, complex := complex] \as LeftCanonical;
+\import RightGeometry.ModTwo[n := m, constantRank := rightRank, complex := rightComplex] \as RightCanonical;
+\import Geometry.ModTwo[n := degree, constantRank := constantRank, complex := complex] \as Canonical;
+\import \root.Thom[].Real[].DirectSum[X := X, F := F, G := G, left := left, right := right, same := same, leftMetric := leftMetric, rightMetric := rightMetric].With[metric := metric].ModTwoProduct[n := n, m := m, leftOrientation := LeftCanonical.orientation, rightOrientation := RightCanonical.orientation, complex := complex] \as TargetProduct;
+\import Geometry.Coefficients[R := Two.Carrier, ring := Two.commutativeRing] \as TargetTheory;
+\import LeftGeometry.Coefficients[R := Two.Carrier, ring := Two.commutativeRing].Degree[n := n] \as LeftTarget;
+\import RightGeometry.Coefficients[R := Two.Carrier, ring := Two.commutativeRing].Degree[n := m] \as RightTarget;
+\import \root.Thom[].Real[].DirectSum[X := X, F := F, G := G, left := left, right := right, same := same, leftMetric := leftMetric, rightMetric := rightMetric].With[metric := metric].Ring[K := Two.Carrier, ring := Two.commutativeRing].Product[n := n, m := m] \as ProductTarget;
+\definition map: _ := Change.map degree;
+\definition sourceClassLaw: productClass = class := classLaw;
+\definition classLaw: map.apply class = Canonical.class :=
+  trans!{{TargetTheory.Degree[n := degree].Class}} _ _ _
+    (congr!{{Theory.Degree[n := degree].Class} {TargetTheory.Degree[n := degree].Class}} map.apply _ _ (sym!{{Theory.Degree[n := degree].Class}} _ _ sourceClassLaw))
+    (trans!{{TargetTheory.Degree[n := degree].Class}} _ _ _ (Change.Product[n := n, m := m].law LeftClass.class RightClass.class)
+      (trans!{{TargetTheory.Degree[n := degree].Class}} _ _ _
+        (congr!{LeftTarget.Class RightTarget.Class {TargetTheory.Degree[n := degree].Class}} ProductTarget.apply _ _ _ _ LeftIntegral.ModTwo[].classLaw RightIntegral.ModTwo[].classLaw)
+        TargetProduct.canonicalProductLaw));
+\import singular_products.Cochains[A := X, source := bundle.baseSpace, R := Two.Carrier, ring := Two.commutativeRing] \as TargetBase;
+\definition eulerLaw: (Change.baseMap degree).apply euler = Canonical.euler :=
+  trans!{{TargetBase.Cohomology[].Group degree}} _ _ _ (Change.Euler[n := degree].law class)
+    (congr!{{TargetTheory.Degree[n := degree].Class} {TargetBase.Cohomology[].Group degree}} TargetTheory.Degree[n := degree].euler _ _ classLaw);
+\module Degree(p: N.Nat^);

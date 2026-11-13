@@ -1,0 +1,22 @@
+\use std.Logic[].Equality[].eq_reason_in;
+\import Rank.Fiber[x := x] \as Actual;
+\import Modules.Isomorphism[V := Two.Carrier, W := Actual.Class, source := Modules.scalarModule, target := Actual.space] \as Isomorphisms;
+\import Modules.Hom[V := Two.Carrier, W := Actual.Class, source := Modules.scalarModule, target := Actual.space] \as Maps;
+\definition unique: \forall (u, v: FiberGenerator x) -> u = v := \block {
+  \fun (u, v: FiberGenerator x) \then
+  \takefrom e: \Cast[Isomorphisms.Isomorphism] ({ e: Isomorphisms.Isomorphism \where e.forward.apply Two.one = u }) \by \bysub(Actual.Class, Generators x, u) \then
+  \let normal: e.forward.apply Two.one = u := \bysub(Isomorphisms.Isomorphism, { e: Isomorphisms.Isomorphism \where e.forward.apply Two.one = u }, e) \then
+  \let coordinate: Two.Carrier := e.backward.apply v \then
+  \let notZero: v = Actual.space.zero -> Logic.False := Actual.nonzero Two.nontrivial v (\bysub(Actual.Class, Generators x, v)) \then
+  \return B.cases (\fun (a: Two.Carrier) => coordinate = a -> u = v)
+    (\fun (same: coordinate = Two.zero) => Logic.falseElim (u = v) (notZero (eq_reason_in!{Actual.Class _
+      "=" _ "by" { sym!{Actual.Class} _ _ (e.rightInverse v) }
+      "=" _ "by" { congr!{Two.Carrier Actual.Class} e.forward.apply _ _ same }
+      "=" _ "by" { Maps.zeroPreserved e.forward }
+    })))
+    (\fun (same: coordinate = Two.one) => eq_reason_in!{Actual.Class _
+      "=" _ "by" { sym!{Actual.Class} _ _ normal }
+      "=" _ "by" { congr!{Two.Carrier Actual.Class} e.forward.apply _ _ (sym!{Two.Carrier} _ _ same) }
+      "=" _ "by" { e.rightInverse v }
+    }) coordinate (\refl(coordinate))
+};

@@ -1,0 +1,52 @@
+\import std.Data[].Nat[] \as N;
+\import std.Arithmetic[].Int[] \as I;
+\import std.Arithmetic[].IntAlgebra[].Ring[] \as Integers;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.trans;
+\use Equality.sym;
+\use Equality.congr;
+\use Equality.transport;
+\import std.Logic[].Proposition[] \as Logic;
+\import algebraic_topology.Interval[] \as J;
+\import algebraic_topology.Cylinder[A := A] \as Cylinder;
+\import algebraic_topology.Homotopy[A := A, B := A] \as Topological;
+\import module_theory.Module[].Over[R := I.Int^, ring := Integers.ring] \as Modules;
+\import singular_cohomology.Chains[A := A, source := source] \as Whole;
+\import singular_subdivision.Small[A := A, source := source, family := family] \as Boundary;
+\import Boundary.Simplices[] \as BoundarySimplices;
+\import singular_cohomology.Homotopy[A := A, B := A, source := source, target := source] \as Homotopies;
+\import singular_cohomology.Maps[A := A, B := A, source := source, target := source] \as Maps;
+\definition firstRegular: Maps.Continuous f := Homotopies.startContinuous f g h;
+\definition lastRegular: Maps.Continuous g := Homotopies.endContinuous f g h;
+\module Endpoints;
+\import \root.FamilyPairMap[A := A, B := A, source := source, target := source, sourceFamily := family, targetFamily := family,
+  f := f, regular := firstRegular, preserves := Endpoints[].first] \as Start;
+\import \root.FamilyPairMap[A := A, B := A, source := source, target := source, sourceFamily := family, targetFamily := family,
+  f := g, regular := lastRegular, preserves := Endpoints[].last] \as End;
+\import \root.FamilyPair[A := A, source := source, family := family] \as Pair;
+\import double_complexes.NonnegativeChain[].Over[R := I.Int^, ring := Integers.ring] \as Nonnegative;
+\import chain_complexes.Chain[].Over[R := I.Int^, ring := Integers.ring] \as Chains;
+\import Nonnegative.ZeroExtension[C := Boundary.complex] \as BoundaryExtension;
+\import Nonnegative.ZeroExtension[C := Whole.complex] \as WholeExtension;
+\import Nonnegative.Map[C := Boundary.complex, D := Whole.complex].ZeroExtension[f := Boundary.inclusion] \as Inclusion;
+\import Nonnegative.Map[C := Boundary.complex, D := Boundary.complex].ZeroExtension[f := Start.smallMap] \as StartBoundary;
+\import Nonnegative.Map[C := Boundary.complex, D := Boundary.complex].ZeroExtension[f := End.smallMap] \as EndBoundary;
+\import Nonnegative.Map[C := Whole.complex, D := Whole.complex].ZeroExtension[f := Maps.push f firstRegular] \as StartWhole;
+\import Nonnegative.Map[C := Whole.complex, D := Whole.complex].ZeroExtension[f := Maps.push g lastRegular] \as EndWhole;
+\import Chains.QuotientMapping[C := BoundaryExtension.complex, D := WholeExtension.complex, C1 := BoundaryExtension.complex, D1 := WholeExtension.complex]
+  .On[f := Inclusion.map, g := Inclusion.map, a := StartBoundary.map, b := StartWhole.map] \as StartSquare;
+\import Chains.QuotientMapping[C := BoundaryExtension.complex, D := WholeExtension.complex, C1 := BoundaryExtension.complex, D1 := WholeExtension.complex]
+  .On[f := Inclusion.map, g := Inclusion.map, a := EndBoundary.map, b := EndWhole.map] \as EndSquare;
+\import Chains.QuotientHomotopy[C := BoundaryExtension.complex, D := WholeExtension.complex, C1 := BoundaryExtension.complex, D1 := WholeExtension.complex]
+  .Along[a := Inclusion.map, b := Inclusion.map, f := EndWhole.map, g := StartWhole.map] \as Descent;
+\import Homotopies.Homology[f := f, g := g, h := h] \as IntegerHomotopy;
+\module Degree(n: N.Nat^);
+\module Image;
+\definition supported: Descent.SupportedHomotopy := Descent.SupportedHomotopy {
+  homotopy := IntegerHomotopy.integerHomotopy,
+  left := \fun (z: I.Int^) => EndSquare.At[k := z].preserves End.compatible,
+  right := \fun (z: I.Int^) => StartSquare.At[k := z].preserves Start.compatible,
+  preserves := Image[].law
+};
+\definition homotopy: Chains.Homotopy[C := Pair.complex, D := Pair.complex].Homotopy End.map Start.map := Descent.On[h := supported].homotopy;
+\module With(coefficients: Modules.Bundle);

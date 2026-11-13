@@ -1,0 +1,24 @@
+\import \parent.Degree[n := n] \as Input;
+\import \parent.Degree[n := N.Basic[].Def[].add p n] \as Output;
+\import Pair.Cohomology[p := p, q := n].Right[] \as Cup;
+\import Base.Cohomology[] \as BaseTheory;
+\definition apply[a: BaseTheory.Group p][u: Input.Class]: Output.Class :=
+  Cup.apply (Projection.apply p Disk.diskProjection Disk.diskProjectionContinuous a) u;
+\definition linear[u: Input.Class]: Modules.Hom[V := BaseTheory.Group p, W := Output.Class, source := BaseTheory.moduleSpace p, target := Output.space].Map :=
+  Modules.Hom[V := BaseTheory.Group p, W := Output.Class, source := BaseTheory.moduleSpace p, target := Output.space].Map {
+    apply := \fun (a: BaseTheory.Group p) => apply a u,
+    addition := \fun (a, b: BaseTheory.Group p) => trans!{Output.Class} _ _ _
+      (congr!{{Total.Cohomology[].Group p} Output.Class} (\fun (x: Total.Cohomology[].Group p) => Cup.apply x u) _ _
+        ((Projection.At[n := p].linear Disk.diskProjection Disk.diskProjectionContinuous).addition a b))
+      (Cup.bilinear.addLeft _ _ u),
+    scalar := \fun (r: R)(a: BaseTheory.Group p) => trans!{Output.Class} _ _ _
+      (congr!{{Total.Cohomology[].Group p} Output.Class} (\fun (x: Total.Cohomology[].Group p) => Cup.apply x u) _ _
+        ((Projection.At[n := p].linear Disk.diskProjection Disk.diskProjectionContinuous).scalar r a))
+      (Cup.bilinear.scaleLeft r _ u)
+  };
+\definition addClass: \forall (a: BaseTheory.Group p)(u, v: Input.Class) -> apply a (Input.space.add u v) = Output.space.add (apply a u) (apply a v) :=
+  \fun (a: BaseTheory.Group p)(u, v: Input.Class) => Cup.bilinear.addRight _ u v;
+\definition scaleClass: \forall (r: R)(a: BaseTheory.Group p)(u: Input.Class) -> apply a (Input.space.smul r u) = Output.space.smul r (apply a u) :=
+  \fun (r: R)(a: BaseTheory.Group p)(u: Input.Class) => Cup.bilinear.scaleRight r _ u;
+\module Forget;
+\module ZeroSection;

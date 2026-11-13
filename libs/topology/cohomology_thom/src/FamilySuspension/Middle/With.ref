@@ -1,0 +1,32 @@
+\import \root.FamilyPair[A := Carrier, source := space, family := family] \as OverlapPair;
+\import \root.FamilyPairMap[A := Carrier, B := A, source := space, target := source, sourceFamily := family, targetFamily := baseFamily,
+  f := projection, regular := projectionContinuous, preserves := Projection.preserves] \as ProjectionMap;
+\import \root.FamilyPairMap[A := A, B := Carrier, source := source, target := space, sourceFamily := baseFamily, targetFamily := family,
+  f := section, regular := sectionContinuous, preserves := Section.preserves] \as SectionMap;
+\import ProjectionMap.Composition[C := Carrier, final := space, finalFamily := family, g := section, regularG := sectionContinuous, preservesG := Section.preserves] \as OnOverlap;
+\import SectionMap.Composition[C := A, final := source, finalFamily := baseFamily, g := projection, regularG := projectionContinuous, preservesG := Projection.preserves] \as OnBase;
+\import Base.Identity[] \as BaseIdentity;
+\import OverlapPair.Identity[] \as OverlapIdentity;
+\import resolutions.HomComplex[].Over[R := I.Int^, ring := Integers.commutativeRing] \as Hom;
+\import Hom.Integer[P := Base.complex, N := coefficients] \as BaseCochains;
+\import Hom.Integer[P := OverlapPair.complex, N := coefficients] \as OverlapCochains;
+\module At(z: I.Int^) {
+  \import chain_complexes.Integer[].Over[R := I.Int^, ring := Integers.ring] \as Integer;
+  \import Integer.At[C := BaseCochains.complex, z := z] \as Input;
+  \import Integer.At[C := OverlapCochains.complex, z := z] \as Output;
+  \definition forward: _ := ProjectionMap.With[coefficients := coefficients].At[z := z].induced;
+  \definition backward: _ := SectionMap.With[coefficients := coefficients].At[z := z].induced;
+  \definition leftInverse: \forall (q: Input.Cohomology) -> backward.apply (forward.apply q) = q :=
+    \fun (q: Input.Cohomology) => trans!{Input.Cohomology} _ _ _
+      (sym!{Input.Cohomology} _ _ (OnBase.With[coefficients := coefficients].law z q))
+      (BaseIdentity.With[coefficients := coefficients].law z q);
+  \definition rightInverse: \forall (q: Output.Cohomology) -> forward.apply (backward.apply q) = q :=
+    \fun (q: Output.Cohomology) => trans!{Output.Cohomology} _ _ _
+      (sym!{Output.Cohomology} _ _ (OnOverlap.With[coefficients := coefficients].law z q))
+      (trans!{Output.Cohomology} _ _ _ (Comparison.With[coefficients := coefficients].At[z := z].law q)
+        (OverlapIdentity.With[coefficients := coefficients].law z q));
+  \definition isomorphism: Modules.Isomorphism[V := Input.Cohomology, W := Output.Cohomology, source := Input.cohomologySpace, target := Output.cohomologySpace].Isomorphism :=
+    Modules.Isomorphism[V := Input.Cohomology, W := Output.Cohomology, source := Input.cohomologySpace, target := Output.cohomologySpace].Isomorphism {
+      forward := forward, backward := backward, leftInverse := leftInverse, rightInverse := rightInverse
+    };
+}

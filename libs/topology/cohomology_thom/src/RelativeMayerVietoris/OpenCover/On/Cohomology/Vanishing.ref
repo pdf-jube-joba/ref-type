@@ -1,0 +1,38 @@
+\use std.Logic[].Equality[].eq_reason_in;
+\import L.With[coefficients := coefficients] \as LeftTheory;
+\import R.With[coefficients := coefficients] \as RightTheory;
+\import O.With[coefficients := coefficients] \as OverlapTheory;
+\import Whole.With[coefficients := coefficients] \as WholeTheory;
+\definition previous: I.Int^ := Degrees.previous z;
+\definition next: I.Int^ := Degrees.next previous;
+\import \parent.Degree[z := previous] \as Before;
+\import \parent.Degree[z := next] \as Current;
+\import \parent.At[z := previous] \as Exactness;
+\import Modules.Biproduct[V := LeftTheory.At[z := next].Carrier, W := RightTheory.At[z := next].Carrier, left := LeftTheory.At[z := next].space, right := RightTheory.At[z := next].space] \as Pair;
+\definition leftRightZero: (\forall (a: LeftTheory.At[z := next].Carrier) -> a = LeftTheory.At[z := next].space.zero) ->
+  (\forall (b: RightTheory.At[z := next].Carrier) -> b = RightTheory.At[z := next].space.zero) ->
+  \forall (a: Current.directSum.Carrier) -> a = Current.directSum.space.zero :=
+  \fun (leftZero: _)(rightZero: _)(a: Current.directSum.Carrier) => std.Data[].Pair[].Prop[A := LeftTheory.At[z := next].Carrier, B := RightTheory.At[z := next].Carrier].ext a Current.directSum.space.zero (leftZero (Pair.first a)) (rightZero (Pair.second a));
+\definition atNext: (\forall (a: LeftTheory.At[z := next].Carrier) -> a = LeftTheory.At[z := next].space.zero) ->
+  (\forall (b: RightTheory.At[z := next].Carrier) -> b = RightTheory.At[z := next].space.zero) ->
+  (\forall (c: OverlapTheory.At[z := previous].Carrier) -> c = OverlapTheory.At[z := previous].space.zero) ->
+  \forall (a: WholeTheory.At[z := next].Carrier) -> a = WholeTheory.At[z := next].space.zero := \block {
+  \fun (leftZero: _)(rightZero: _)(overlapZero: _)(a: WholeTheory.At[z := next].Carrier) \then
+  \takefrom x: \Cast[Before.intersection.Carrier] ({ x: Before.intersection.Carrier \where Exactness.exactAtWhole.first.apply x = a })
+    \by Exactness.exactAtWhole.kernelImage a (leftRightZero leftZero rightZero (Exactness.exactAtWhole.last.apply a)) \then
+  \return eq_reason_in!{Current.whole.Carrier _
+    "=" _ "by" { sym!{Current.whole.Carrier} _ _ (\bysub(Before.intersection.Carrier, { x: Before.intersection.Carrier \where Exactness.exactAtWhole.first.apply x = a }, x)) }
+    "=" _ "by" { congr!{Before.intersection.Carrier Current.whole.Carrier} Exactness.exactAtWhole.first.apply _ _ (overlapZero x) }
+    "=" _ "by" { Modules.Hom[V := Before.intersection.Carrier, W := Current.whole.Carrier, source := Before.intersection.space, target := Current.whole.space].zeroPreserved Exactness.exactAtWhole.first }
+  }
+};
+\definition whole: (\forall (a: LeftTheory.At[z := z].Carrier) -> a = LeftTheory.At[z := z].space.zero) ->
+  (\forall (b: RightTheory.At[z := z].Carrier) -> b = RightTheory.At[z := z].space.zero) ->
+  (\forall (c: OverlapTheory.At[z := previous].Carrier) -> c = OverlapTheory.At[z := previous].space.zero) ->
+  \forall (a: WholeTheory.At[z := z].Carrier) -> a = WholeTheory.At[z := z].space.zero :=
+  \idelim next = z \with w: I.Int^ =>
+    (\forall (a: LeftTheory.At[z := w].Carrier) -> a = LeftTheory.At[z := w].space.zero) ->
+    (\forall (b: RightTheory.At[z := w].Carrier) -> b = RightTheory.At[z := w].space.zero) ->
+    (\forall (c: OverlapTheory.At[z := previous].Carrier) -> c = OverlapTheory.At[z := previous].space.zero) ->
+    \forall (a: WholeTheory.At[z := w].Carrier) -> a = WholeTheory.At[z := w].space.zero
+  \by { base: atNext, equality: Degrees.nextPrevious z };

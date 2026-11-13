@@ -1,0 +1,21 @@
+\import Sum.At[z := index] \as Target;
+\definition sourceExt: \forall (x, y: FreeSum.Carrier) -> FreeSum.first x = FreeSum.first y -> FreeSum.second x = FreeSum.second y -> x = y :=
+  std.Data[].Pair[].Prop[A := LF.Carrier, B := RF.Carrier].ext;
+\import Modules.Hom[V := FreeSum.Carrier, W := Target.Carrier, source := FreeSum.space, target := Target.space] \as Forward;
+\import Modules.Hom[V := Target.Carrier, W := FreeSum.Carrier, source := Target.space, target := FreeSum.space] \as Backward;
+\definition forward: Forward.Map := Forward.Map {
+  apply := \fun (x: FreeSum.Carrier) => Target.make (leftIsomorphism.forward.apply (FreeSum.first x)) (rightIsomorphism.forward.apply (FreeSum.second x)),
+  addition := \fun (x, y: FreeSum.Carrier) => Target.ext _ _ (leftIsomorphism.forward.addition (FreeSum.first x) (FreeSum.first y)) (rightIsomorphism.forward.addition (FreeSum.second x) (FreeSum.second y)),
+  scalar := \fun (a: I.Int^)(x: FreeSum.Carrier) => Target.ext _ _ (leftIsomorphism.forward.scalar a (FreeSum.first x)) (rightIsomorphism.forward.scalar a (FreeSum.second x))
+};
+\definition backward: Backward.Map := Backward.Map {
+  apply := \fun (x: Target.Carrier) => FreeSum.make (leftIsomorphism.backward.apply (Target.first x)) (rightIsomorphism.backward.apply (Target.second x)),
+  addition := \fun (x, y: Target.Carrier) => sourceExt _ _ (leftIsomorphism.backward.addition (Target.first x) (Target.first y)) (rightIsomorphism.backward.addition (Target.second x) (Target.second y)),
+  scalar := \fun (a: I.Int^)(x: Target.Carrier) => sourceExt _ _ (leftIsomorphism.backward.scalar a (Target.first x)) (rightIsomorphism.backward.scalar a (Target.second x))
+};
+\definition isomorphism: Modules.Isomorphism[V := FreeSum.Carrier, W := Target.Carrier, source := FreeSum.space, target := Target.space].Isomorphism :=
+  Modules.Isomorphism[V := FreeSum.Carrier, W := Target.Carrier, source := FreeSum.space, target := Target.space].Isomorphism {
+    forward := forward, backward := backward,
+    leftInverse := \fun (x: FreeSum.Carrier) => sourceExt _ _ (leftIsomorphism.leftInverse (FreeSum.first x)) (rightIsomorphism.leftInverse (FreeSum.second x)),
+    rightInverse := \fun (x: Target.Carrier) => Target.ext _ _ (leftIsomorphism.rightInverse (Target.first x)) (rightIsomorphism.rightInverse (Target.second x))
+  };

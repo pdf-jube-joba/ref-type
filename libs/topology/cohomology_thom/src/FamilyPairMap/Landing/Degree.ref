@@ -1,0 +1,34 @@
+\definition index: I.Int^ := I.Int^::ofNat n;
+\import Maps.At[n := n] \as Push;
+\definition simplex[sigma: singular_cohomology.Simplices[A := A, source := source].Carrier n]: TargetSimplices.Carrier n :=
+  \into[singular_cohomology.Simplices[A := B, source := target].Carrier n](Maps.postcompose n f regular sigma, TargetSimplices.Small n) \by {
+    \exact(TargetSimplices.Witness[n, Maps.postcompose n f regular sigma] {
+      element := U, member := member, contained := \fun (x: Simplex.Carrier n) => contained (sigma x)
+    }, TargetSimplices.Witness[n, Maps.postcompose n f regular sigma])
+  };
+\definition onGenerator: \forall (sigma: singular_cohomology.Simplices[A := A, source := source].Carrier n) ->
+  TargetPair.class index (WholeExtension.map.apply index (SourceSpace.Positive[n := n].intro (SourceWhole.generator n sigma))) = (TargetPair.space index).zero :=
+  \fun (sigma: singular_cohomology.Simplices[A := A, source := source].Carrier n) => trans!{{TargetPair.Carrier index}} _ _ _
+    (congr!{{TargetSpace.Carrier index} {TargetPair.Carrier index}} (TargetPair.class index) _ _
+      (congr!{{TargetWhole.Carrier n} {TargetSpace.Carrier index}} TargetSpace.Positive[n := n].intro _ _ (Push.onGenerator f regular sigma)))
+    (trans!{{TargetPair.Carrier index}} _ _ _
+      (congr!{{TargetSpace.Carrier index} {TargetPair.Carrier index}} (TargetPair.class index) _ _
+        (congr!{{TargetWhole.Carrier n} {TargetSpace.Carrier index}} TargetSpace.Positive[n := n].intro _ _
+          (sym!{{TargetWhole.Carrier n}} _ _ (TargetSmall.At[n := n].onGenerator (simplex sigma)))))
+      (TargetQ.At[k := index].onImage (TargetBoundary.Positive[n := n].intro (TargetSmall.generator n (simplex sigma)))));
+\import Modules.Hom[V := TargetSpace.Carrier index, W := TargetPair.Carrier index, source := TargetSpace.space index, target := TargetPair.space index].Composition[U := SourceSpace.Carrier index, domain := SourceSpace.space index] \as Compose;
+\import Chains.Map[C := SourceSpace.complex, D := TargetSpace.complex].At[k := index] \as WholeAt;
+\definition quotientMap: Modules.Hom[V := SourceSpace.Carrier index, W := TargetPair.Carrier index, source := SourceSpace.space index, target := TargetPair.space index].Map :=
+  Compose.compose TargetQ.At[k := index].projection (WholeAt.linear WholeExtension.map);
+\import Modules.Free[Generators := singular_cohomology.Simplices[A := A, source := source].Carrier n].To[W := TargetPair.Carrier index, target := TargetPair.space index] \as Free;
+\import Modules.Hom[V := SourceSpace.Carrier index, W := TargetPair.Carrier index, source := SourceSpace.space index, target := TargetPair.space index] \as OutputMaps;
+\import OutputMaps.Composition[U := SourceWhole.Carrier n, domain := SourceWhole.space n] \as NaturalComposition;
+\import Modules.Hom[V := SourceWhole.Carrier n, W := TargetPair.Carrier index, source := SourceWhole.space n, target := TargetPair.space index] \as NaturalMaps;
+\definition naturalMap: NaturalMaps.Map := NaturalComposition.compose quotientMap SourceSpace.Positive[n := n].forward;
+\definition zeroNatural: \forall (x: SourceWhole.Carrier n) -> naturalMap.apply x = (TargetPair.space index).zero :=
+  \fun (x: SourceWhole.Carrier n) => congr!{NaturalMaps.Map {TargetPair.Carrier index}} (\fun (m: NaturalMaps.Map) => m.apply x) _ _
+    (Free.ext naturalMap NaturalMaps.zeroMap onGenerator);
+\definition zero: \forall (x: SourceSpace.Carrier index) -> TargetPair.class index (WholeExtension.map.apply index x) = (TargetPair.space index).zero :=
+  \fun (x: SourceSpace.Carrier index) => trans!{{TargetPair.Carrier index}} _ _ _
+    (sym!{{TargetPair.Carrier index}} _ _ (congr!{{SourceSpace.Carrier index} {TargetPair.Carrier index}} quotientMap.apply _ _ (SourceSpace.Positive[n := n].isomorphism.rightInverse x)))
+    (zeroNatural (SourceSpace.Positive[n := n].backward.apply x));

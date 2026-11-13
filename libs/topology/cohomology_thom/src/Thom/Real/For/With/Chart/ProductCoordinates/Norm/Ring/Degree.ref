@@ -1,0 +1,17 @@
+\import singular_cohomology.Relative[A := Carrier, source := topology, subset := targetShell].With[coefficients := Product.integerCoefficients].At[z := I.Int^::ofNat n] \as Input;
+\import singular_cohomology.Relative[A := Carrier, source := topology, subset := boundary].With[coefficients := Product.integerCoefficients].At[z := I.Int^::ofNat n] \as Boundary;
+\import singular_cohomology.Relative[A := Open.Carrier, source := Open.topology, subset := Open.boundary].With[coefficients := Product.integerCoefficients].At[z := I.Int^::ofNat n] \as Output;
+\import singular_cohomology.Relative[A := Open.Carrier, source := Open.topology, subset := sourceShell].With[coefficients := Product.integerCoefficients].At[z := I.Int^::ofNat n] \as ShellOutput;
+\definition action[f: Maps.Map]: _ := Maps.On[f := f].Integer[].With[coefficients := Product.integerCoefficients].At[z := I.Int^::ofNat n].induced;
+\definition inclusionLaw: \forall (v: Input.Carrier) -> SourceInclude.Degree[n := n].map.apply (ShellPull.Degree[n := n].map.apply v) = BoundaryPull.Degree[n := n].map.apply (TargetInclude.Degree[n := n].map.apply v) :=
+  \fun (v: Input.Carrier) => trans!{Output.Carrier} _ _ _
+    (sym!{Output.Carrier} _ _ (First.On[f := Direct.forward, g := ShellPairs.forwardMap pair].With[coefficients := Product.integerCoefficients].law (I.Int^::ofNat n) v))
+    (trans!{Output.Carrier} _ _ _ (congr!{Maps.Map Output.Carrier} (\fun (f: Maps.Map) => (action f).apply v) _ _ square)
+      (Second.On[f := BoundaryPairs.forwardMap Coordinates.pair, g := targetInclude].With[coefficients := Product.integerCoefficients].law (I.Int^::ofNat n) v));
+\definition clipLaw: \forall (v: Input.Carrier) -> SourceClip.Degree[n := n].map.apply (BoundaryPull.Degree[n := n].map.apply (TargetInclude.Degree[n := n].map.apply v)) = ShellPull.Degree[n := n].map.apply v :=
+  \fun (v: Input.Carrier) => trans!{ShellOutput.Carrier} _ _ _
+    (congr!{Output.Carrier ShellOutput.Carrier} SourceClip.Degree[n := n].map.apply _ _ (sym!{Output.Carrier} _ _ (inclusionLaw v)))
+    (Direct.With[coefficients := Product.integerCoefficients, z := I.Int^::ofNat n].isomorphism.leftInverse (ShellPull.Degree[n := n].map.apply v));
+\definition normalized: \forall (u: Boundary.Carrier)(v: Input.Carrier) -> TargetInclude.Degree[n := n].map.apply v = u -> SourceClip.Degree[n := n].map.apply (BoundaryPull.Degree[n := n].map.apply u) = ShellPull.Degree[n := n].map.apply v :=
+  \fun (u: Boundary.Carrier)(v: Input.Carrier)(normal: TargetInclude.Degree[n := n].map.apply v = u) => trans!{ShellOutput.Carrier} _ _ _
+    (congr!{Boundary.Carrier ShellOutput.Carrier} (\fun (w: Boundary.Carrier) => SourceClip.Degree[n := n].map.apply (BoundaryPull.Degree[n := n].map.apply w)) _ _ (sym!{Boundary.Carrier} _ _ normal)) (clipLaw v);

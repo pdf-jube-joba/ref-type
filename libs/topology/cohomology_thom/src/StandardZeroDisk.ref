@@ -1,0 +1,58 @@
+\import std.Data[].Nat[] \as N;
+\import std.Data[].FinSet[] \as Fin;
+\import std.Arithmetic[].Int[] \as I;
+\import std.Arithmetic[].IntAlgebra[].Ring[] \as Integers;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.trans;
+\use Equality.sym;
+\use Equality.congr;
+\use Equality.eq_reason_in;
+\import std.Logic[].Proposition[] \as Logic;
+\import module_theory.Module[].Over[R := I.Int^, ring := Integers.ring] \as Modules;
+\import real.Analysis[] \as R;
+\import dedekind_reals.DedekindReal[] \as Order;
+\import algebraic_topology.Euclidean[].Dimension[n := N.Nat^::zero] \as Euclidean;
+\definition point: Euclidean.Disk := \into[Euclidean.Coordinate]((\fun (i: Euclidean.Index) => R.zero), Euclidean.ClosedBall) \by { Order.Arithmetic[].Prop[].oneNonnegative };
+\definition wrap[v: Euclidean.Coordinate]: Euclidean.Disk := \into[Euclidean.Coordinate](v, Euclidean.ClosedBall) \by { Order.Arithmetic[].Prop[].oneNonnegative };
+\definition unique: \forall (v: Euclidean.Disk) -> v = point :=
+  \fun (v: Euclidean.Disk) => congr!{Euclidean.Coordinate {Euclidean.Disk}} wrap v (\fun (i: Euclidean.Index) => R.zero) (Euclidean.Geometry[].normSquaredZero v (\refl(R.zero)));
+\definition boundary: \Pow Euclidean.Disk := { v: Euclidean.Disk \where Euclidean.normSquared v = R.one };
+\definition empty: \forall (v: Euclidean.Disk) -> \In[Euclidean.Disk] boundary v -> Logic.False :=
+  \fun (v: Euclidean.Disk)(inside: R.zero = R.one) => Order.Arithmetic[].Prop[].zeroNeOne inside;
+\definition family: \Pow (\Pow Euclidean.Disk) := { U: \Pow Euclidean.Disk \where Logic.Or[U = boundary, U = boundary] };
+\import \root.FamilyProduct[A := Euclidean.Disk, source := Euclidean.diskTopology, first := boundary, second := boundary, family := family,
+  firstMember := Logic.Or[boundary = boundary, boundary = boundary]::left (\refl(boundary)), secondMember := Logic.Or[boundary = boundary, boundary = boundary]::right (\refl(boundary)),
+  classify := (\fun (U: \Pow Euclidean.Disk)(member: \In[\Pow Euclidean.Disk] family U) => member), K := I.Int^, ring := Integers.commutativeRing].EmptySecond[empty := empty] \as Product;
+\import Product.Unit[] \as Unit;
+\definition unit: _ := Unit.class;
+\import singular_products.Cochains[A := Euclidean.Disk, source := Euclidean.diskTopology, R := I.Int^, ring := Integers.commutativeRing] \as Cochains;
+\import singular_cohomology.Relative[A := Euclidean.Disk, source := Euclidean.diskTopology, subset := boundary].With[coefficients := Cochains.integerCoefficients] \as Relative;
+\import chain_complexes.Integer[].Over[R := I.Int^, ring := Integers.ring].At[C := Relative.complex, z := I.Int^::ofNat N.Nat^::zero] \as H;
+\definition Class: \Set := H.Cohomology;
+\definition space: Modules.Space Class := H.cohomologySpace;
+\import singular_cohomology.Calculations[A := Euclidean.Disk, source := Euclidean.diskTopology].With[coefficients := Cochains.integerCoefficients].Singleton[a := point] \as Singleton;
+\import Singleton.Zero[] \as Calculation;
+\import \root.RelativeMayerVietoris[].Pair[A := Euclidean.Disk, source := Euclidean.diskTopology, subset := boundary].Empty[empty := (\fun (v: \Cast[Euclidean.Disk] boundary) => empty v (\bysub(Euclidean.Disk, boundary, v)))].Ring[R := I.Int^, ring := Integers.commutativeRing].Degree[n := N.Nat^::zero] \as Empty;
+\import singular_cohomology.Cochains[A := Euclidean.Disk, source := Euclidean.diskTopology].With[coefficients := Cochains.integerCoefficients] \as AbsoluteCochains;
+\definition scalars: Modules.Bundle := Modules.Bundle { Carrier := I.Int^, space := Modules.scalarModule };
+\import \root.RelativeMayerVietoris[].IntegerLinear[] \as IntegerLinear;
+\import IntegerLinear.On[A := scalars, B := Cochains.integerCoefficients, f := (\fun (a: I.Int^) => a),
+  addition := (\fun (a, b: I.Int^) => \refl(Modules.scalarModule.add a b))] \as IntoCoefficients;
+\import IntegerLinear.On[A := Cochains.integerCoefficients, B := scalars, f := (\fun (a: I.Int^) => a),
+  addition := (\fun (a, b: I.Int^) => \refl(Modules.scalarModule.add a b))] \as FromCoefficients;
+\definition coefficientIsomorphism: Modules.Isomorphism[V := I.Int^, W := I.Int^, source := Modules.scalarModule, target := Cochains.integerCoefficients.space].Isomorphism :=
+  Modules.Isomorphism[V := I.Int^, W := I.Int^, source := Modules.scalarModule, target := Cochains.integerCoefficients.space].Isomorphism {
+    forward := IntoCoefficients.map, backward := FromCoefficients.map,
+    leftInverse := \fun (a: I.Int^) => \refl(a), rightInverse := \fun (a: I.Int^) => \refl(a)
+  };
+\import Modules.Isomorphism[V := I.Int^, W := I.Int^, source := Modules.scalarModule, target := Cochains.integerCoefficients.space]
+  .Composition[U := Cochains.Cohomology[].Group N.Nat^::zero, final := AbsoluteCochains.cohomologySpace N.Nat^::zero] \as ScalarComposition;
+\definition absoluteIsomorphism: Modules.Isomorphism[V := I.Int^, W := Cochains.Cohomology[].Group N.Nat^::zero, source := Modules.scalarModule, target := AbsoluteCochains.cohomologySpace N.Nat^::zero].Isomorphism :=
+  ScalarComposition.compose (Calculation.isomorphism unique) coefficientIsomorphism;
+\import Modules.Isomorphism[V := I.Int^, W := Cochains.Cohomology[].Group N.Nat^::zero, source := Modules.scalarModule, target := AbsoluteCochains.cohomologySpace N.Nat^::zero].Composition[U := Class, final := space] \as Composition;
+\definition isomorphism: Modules.Isomorphism[V := I.Int^, W := Class, source := Modules.scalarModule, target := space].Isomorphism :=
+  Composition.compose (Modules.Isomorphism[V := Class, W := Cochains.Cohomology[].Group N.Nat^::zero, source := space, target := AbsoluteCochains.cohomologySpace N.Nat^::zero].Inverse[].inverse Empty.comparison) absoluteIsomorphism;
+\definition unitCochain: _ := Unit.cochain;
+\definition unitCycle: _ := Unit.cycle;
+\definition unitUnderlying: _ := Unit.underlying;
+\module Normalization;

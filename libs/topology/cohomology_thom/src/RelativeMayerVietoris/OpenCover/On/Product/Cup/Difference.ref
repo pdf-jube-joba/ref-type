@@ -1,0 +1,24 @@
+\import Modules.Laws[V := SmallHom.Carrier inputDegree, space := SmallHom.space inputDegree] \as InputLaws;
+\import algebra.Group[].Of[Carrier := SmallHom.Carrier inputDegree, group := InputLaws.additive] \as InputGroup;
+\import Modules.Laws[V := SmallHom.Carrier outputDegree, space := SmallHom.space outputDegree] \as OutputLaws;
+\import algebra.Group[].Of[Carrier := SmallHom.Carrier outputDegree, group := OutputLaws.additive] \as ResultGroup;
+\import Modules.Laws[V := SumHom.Carrier outputDegree, space := SumHom.space outputDegree] \as SumLaws;
+\import algebra.Group[].Of[Carrier := SumHom.Carrier outputDegree, group := SumLaws.additive] \as SumGroup;
+\import Modules.Hom[V := SmallHom.Carrier inputDegree, W := SumHom.Carrier inputDegree, source := SmallHom.space inputDegree, target := SumHom.space inputDegree] \as InputMaps;
+\import Modules.Hom[V := SmallHom.Carrier outputDegree, W := SumHom.Carrier outputDegree, source := SmallHom.space outputDegree, target := SumHom.space outputDegree] \as OutputMaps;
+\import IntegerCochains.Map[C := SmallHom.complex, D := SumHom.complex].At[k := inputDegree] \as Input;
+\import IntegerCochains.Map[C := SmallHom.complex, D := SumHom.complex].At[k := outputDegree] \as Output;
+\import \parent.SumAction[].Difference[] \as SumDifference;
+\definition law: \forall (a: WholeProduct.Carrier p)(h, j: SmallHom.Carrier inputDegree) -> apply a (InputGroup.difference h j) = ResultGroup.difference (apply a h) (apply a j) :=
+  \fun (a: WholeProduct.Carrier p)(h, j: SmallHom.Carrier inputDegree) => MV.sequence.injective outputDegree _ _
+    (eq_reason_in!{{SumHom.Carrier outputDegree} _
+      "=" _ "by" { inclusion a (InputGroup.difference h j) }
+      "=" _ "by" { congr!{{SumHom.Carrier inputDegree} {SumHom.Carrier outputDegree}} (sumAction a) _ _ (InputMaps.differencePreserved (Input.linear MV.sequence.inclusion) h j) }
+      "=" _ "by" { SumDifference.law a (MV.sequence.inclusion.apply inputDegree h) (MV.sequence.inclusion.apply inputDegree j) }
+      "=" _ "by" { congr!{{SumHom.Carrier outputDegree} {SumHom.Carrier outputDegree} {SumHom.Carrier outputDegree}} SumGroup.difference _ _ _ _ (sym!{{SumHom.Carrier outputDegree}} _ _ (inclusion a h)) (sym!{{SumHom.Carrier outputDegree}} _ _ (inclusion a j)) }
+      "=" _ "by" { sym!{{SumHom.Carrier outputDegree}} _ _ (OutputMaps.differencePreserved (Output.linear MV.sequence.inclusion) (apply a h) (apply a j)) }
+    });
+\definition zero: \forall (a: WholeProduct.Carrier p) -> apply a (SmallHom.space inputDegree).zero = (SmallHom.space outputDegree).zero :=
+  \fun (a: WholeProduct.Carrier p) => trans!{{SmallHom.Carrier outputDegree}} _ _ _
+    (congr!{{SmallHom.Carrier inputDegree} {SmallHom.Carrier outputDegree}} (apply a) _ _ (sym!{{SmallHom.Carrier inputDegree}} _ _ (InputGroup.inverseRight InputGroup.zero)))
+    (trans!{{SmallHom.Carrier outputDegree}} _ _ _ (law a InputGroup.zero InputGroup.zero) (ResultGroup.inverseRight (apply a InputGroup.zero)));

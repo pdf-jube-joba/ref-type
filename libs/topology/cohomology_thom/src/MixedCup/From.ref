@@ -1,0 +1,44 @@
+\use std.Logic[].Proposition[].either;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\use Equality.eq_reason_in;
+\import \root.MixedCup[A := A, source := source, first := first, second := second, K := K, ring := ring] \as Old;
+\import \root.MixedCup[A := Y, source := target, first := firstPart, second := secondPart, K := K, ring := ring] \as New;
+\import singular_products.Cochains[A := Y, source := target, R := K, ring := ring] \as NewCochains;
+\import singular_cohomology.Cochains[A := Y, source := target].With[coefficients := Cochains.integerCoefficients] \as NewPlain;
+\import NewCochains.Pullback[B := A, target := source] \as Ordinary;
+\import singular_cohomology.Relative[A := Y, source := target, subset := firstPart].Maps[B := A].Over[target := source, targetSubset := first] \as FirstMaps;
+\import singular_cohomology.Relative[A := Y, source := target, subset := secondPart].Maps[B := A].Over[target := source, targetSubset := second] \as SecondMaps;
+\definition firstMap: FirstMaps.Map := \into[Y -> A](f, FirstMaps.Map) \by { FirstMaps.Laws[f] { continuous := regular, contained := \fun (y: \Cast[Y] firstPart) => firstContained y (\bysub(Y, firstPart, y)) } };
+\definition secondMap: SecondMaps.Map := \into[Y -> A](f, SecondMaps.Map) \by { SecondMaps.Laws[f] { continuous := regular, contained := \fun (y: \Cast[Y] secondPart) => secondContained y (\bysub(Y, secondPart, y)) } };
+\import \root.RelativePullback[].On[A := Y, source := target, subset := firstPart, R := K, ring := ring].To[B := A, target := source, part := first].Along[f := firstMap] \as FirstPull;
+\import \root.RelativePullback[].On[A := Y, source := target, subset := secondPart, R := K, ring := ring].To[B := A, target := source, part := second].Along[f := secondMap] \as SecondPull;
+\import singular_cohomology.Relative[A := Y, source := target, subset := New.Union[].subset].Maps[B := A].Over[target := source, targetSubset := Old.Union[].subset] \as UnionMaps;
+\definition unionMap: UnionMaps.Map := \into[Y -> A](f, UnionMaps.Map) \by {
+  UnionMaps.Laws[f] { continuous := regular, contained := \fun (y: \Cast[Y] New.Union[].subset) =>
+    either!{{\bysub(Y, New.Union[].subset, y)} {\In[A] Old.Union[].subset (f y)}
+      {\fun (inside: \In[Y] firstPart y) => std.Logic[].Proposition[].Or[\In[A] first (f y), \In[A] second (f y)]::left (firstContained y inside)}
+      {\fun (inside: \In[Y] secondPart y) => std.Logic[].Proposition[].Or[\In[A] first (f y), \In[A] second (f y)]::right (secondContained y inside)}}
+  }
+};
+\import \root.RelativePullback[].On[A := Y, source := target, subset := New.Union[].subset, R := K, ring := ring].To[B := A, target := source, part := Old.Union[].subset].Along[f := unionMap] \as UnionPull;
+\import singular_cap.CochainPair[A := Y, source := target, subset := firstPart, R := K, ring := ring] \as NewFirstPair;
+\import singular_cap.CochainPair[A := Y, source := target, subset := secondPart, R := K, ring := ring] \as NewSecondPair;
+\import Old.CommonComplex[] \as OldCommon;
+\import New.CommonComplex[] \as NewCommon;
+\import singular_cohomology.Maps[A := Y, B := A, source := target, target := source].Coefficients[M := Cochains.integerCoefficients, L := Cochains.integerCoefficients] \as OrdinaryNative;
+\import Modules.End[V := K, space := Cochains.integerCoefficients.space] \as Scalars;
+\definition absolute: _ := OrdinaryNative.map f regular Scalars.identity;
+\module Common(n: N.Nat^);
+\import chain_complexes.Cochain[].Over[R := I.Int^, ring := Integers.ring] \as Nonnegative;
+\definition commonMap: Nonnegative.Map[C := OldCommon.complex, D := NewCommon.complex].Map := Nonnegative.Map[C := OldCommon.complex, D := NewCommon.complex].Map {
+  apply := \fun (n: N.Nat^)(h: OldCommon.family.Carrier n) => Common[n := n].apply h,
+  addition := \fun (n: N.Nat^)(h, k: OldCommon.family.Carrier n) => absolute.addition n h k,
+  scalar := \fun (n: N.Nat^)(a: I.Int^)(h: OldCommon.family.Carrier n) => absolute.scalar n a h,
+  commutes := \fun (n: N.Nat^)(h: OldCommon.family.Carrier n) => absolute.commutes n h
+};
+\module Degree(n: N.Nat^);
+\module Product(p, q: N.Nat^);
+\module Covers(conditions: Old.Union[].Cover[].Conditions, newConditions: New.Union[].Cover[].Conditions);

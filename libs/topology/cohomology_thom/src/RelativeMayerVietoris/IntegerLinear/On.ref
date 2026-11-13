@@ -1,0 +1,25 @@
+\use std.Logic[].Equality[].eq_reason_in;
+\import Modules.Laws[V := A.Carrier, space := A.space] \as SourceLaws;
+\import Modules.Laws[V := B.Carrier, space := B.space] \as TargetLaws;
+\import algebra.Group[].Of[Carrier := B.Carrier, group := TargetLaws.additive] \as TargetGroup;
+\import \parent.Space[A := A] \as SourceAction;
+\import \parent.Space[A := B] \as TargetAction;
+\import module_theory.Module[].IntegerGroup[Carrier := A.Carrier, group := SourceLaws.additive] \as SourceIntegers;
+\import SourceIntegers.Mapping[B := B.Carrier, other := TargetLaws.additive] \as Conversion;
+\import algebra.Exact[A := A.Carrier, B := B.Carrier].Groups[source := SourceLaws.additive, target := TargetLaws.additive] \as Groups;
+\import algebra.Hom[A := A.Carrier, B := B.Carrier] \as GroupMaps;
+\definition zero: f A.space.zero = B.space.zero := sym!{B.Carrier} _ _
+  (TargetGroup.cancelLeft (f A.space.zero) B.space.zero (f A.space.zero)
+    (trans!{B.Carrier} _ _ _ (TargetGroup.zeroRight (f A.space.zero))
+      (trans!{B.Carrier} _ _ _ (sym!{B.Carrier} _ _ (congr!{A.Carrier B.Carrier} f _ _ (SourceLaws.zeroLeft A.space.zero))) (addition A.space.zero A.space.zero))));
+\definition additive: Groups.Map := \into[A.Carrier -> B.Carrier](f, Groups.Map) \by {
+  GroupMaps.MonoidLaws[Groups.domain, Groups.codomain, f] { unit := zero, operation := addition }
+};
+\definition scalar: \forall (a: I.Int^)(x: A.Carrier) -> f (A.space.smul a x) = B.space.smul a (f x) :=
+  \fun (a: I.Int^)(x: A.Carrier) => eq_reason_in!{B.Carrier _
+    "=" _ "by" { congr!{A.Carrier B.Carrier} f _ _ (SourceAction.law a x) }
+    "=" _ "by" { (Conversion.fromGroup additive).scalar a x }
+    "=" _ "by" { sym!{B.Carrier} _ _ (TargetAction.law a (f x)) }
+  };
+\definition map: Modules.Hom[V := A.Carrier, W := B.Carrier, source := A.space, target := B.space].Map :=
+  Modules.Hom[V := A.Carrier, W := B.Carrier, source := A.space, target := B.space].Map { apply := f, addition := addition, scalar := scalar };

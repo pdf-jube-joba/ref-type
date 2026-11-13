@@ -1,0 +1,41 @@
+\import \root.FamilyProduct[A := A, source := source, first := first, second := second, family := family, firstMember := firstMember, secondMember := secondMember, classify := classify, K := K, ring := ring].Degree[p := p, q := N.Nat^::zero] \as Product;
+\import Product.Cohomology[] \as Multiplication;
+\import Mixed.Cup[p := p, q := N.Nat^::zero].Both[] \as MixedProduct;
+\import MixedProduct.Cohomology[] \as CommonProduct;
+\import MixedProduct.Closed[] \as ProductClosed;
+\import FirstPair.Comparison[n := p] \as FirstComparison;
+\import Union.Comparison[n := p] \as Canonical;
+\import Canonical.Cohomology[] \as CanonicalCohomology;
+\import UnionComparison.Canonical[] \as CanonicalIsomorphism;
+\import Whole.Unit[].At[p := p] \as RightUnit;
+\import Whole.Cup[p := p, q := N.Nat^::zero] \as WholeCup;
+\import singular_cohomology.Simplices[A := A, source := source] \as Simplices;
+\import Whole.Pullback[B := A, target := source] \as WholePull;
+\import Modules.Free[Generators := Simplices.Carrier p].To[W := K, target := Whole.integerCoefficients.space] \as Free;
+\import singular_cohomology.Maps[A := A, B := A, source := source, target := source] \as IdentityMaps;
+\import singular_cohomology.Chains[A := A, source := source] \as WholeChains;
+\definition simplexIdentity: \forall (sigma: Simplices.Carrier p) -> IdentityMaps.postcompose p (Pairs.forwardMap pair) PairPull.continuous sigma = sigma :=
+  \fun (sigma: Simplices.Carrier p) => Simplices.ext p (IdentityMaps.postcompose p (Pairs.forwardMap pair) PairPull.continuous sigma) sigma
+    (\fun (x: algebraic_topology.Simplex[].Carrier p) => \refl(sigma x));
+\definition identity: \forall (a: First.Carrier z) -> WholePull.apply p (Pairs.forwardMap pair) PairPull.continuous (FirstComparison.from a) = FirstComparison.from a :=
+  \fun (a: First.Carrier z) => Free.ext (WholePull.apply p (Pairs.forwardMap pair) PairPull.continuous (FirstComparison.from a)) (FirstComparison.from a)
+    (\fun (sigma: Simplices.Carrier p) => trans!{K} _ _ _ (WholePull.onSimplex p (Pairs.forwardMap pair) PairPull.continuous (FirstComparison.from a) sigma)
+      (congr!{{Simplices.Carrier p} K} (\fun (s: Simplices.Carrier p) => (FirstComparison.from a).apply (WholeChains.generator p s)) _ _ (simplexIdentity sigma)));
+\definition raw: \forall (a: First.Carrier z) -> Canonical.apply (PairPull.pullback.apply z a) = MixedProduct.product a Unit.cochain :=
+  \fun (a: First.Carrier z) => trans!{{Whole.Carrier p}} _ _ _
+    (trans!{{Whole.Carrier p}} _ _ _ (PairPull.Compare[n := p].law a) (identity a))
+    (sym!{{Whole.Carrier p}} _ _ (trans!{{Whole.Carrier p}} _ _ _
+      (congr!{{Whole.Carrier N.Nat^::zero} {Whole.Carrier p}} (WholeCup.apply (FirstComparison.from a)) _ _ Unit.underlying)
+      (RightUnit.right (FirstComparison.from a))));
+\definition commonOnClass: \forall (a: Input.Closed) -> intoCommon.forward.apply (Input.classOf a) = CommonProduct.apply (Input.classOf a) Unit.class :=
+  \fun (a: Input.Closed) => eq_reason_in!{CommonH.Cohomology _
+    "=" _ "by" { CanonicalIsomorphism.law (PairPull.Degree[n := p].map.apply (Input.classOf a)) }
+    "=" _ "by" { congr!{UnionH.Cohomology CommonH.Cohomology} CanonicalCohomology.map.apply _ _ (PairPull.Degree[n := p].onClass a) }
+    "=" _ "by" { CanonicalCohomology.onClass (PairPull.Degree[n := p].cycles.apply a) }
+    "=" _ "by" { congr!{CommonH.CycleCarrier CommonH.Cohomology} CommonH.classOf (CanonicalCohomology.cycle (PairPull.Degree[n := p].cycles.apply a)) (ProductClosed.cycle a Unit.cycle) (raw a) }
+    "=" _ "by" { sym!{CommonH.Cohomology} _ _ (CommonProduct.onClasses a Unit.cycle) }
+  };
+\definition onClass: \forall (a: Input.Closed) -> isomorphism.forward.apply (Input.classOf a) = Multiplication.product (Input.classOf a) Unit.class :=
+  \fun (a: Input.Closed) => congr!{CommonH.Cohomology Output.Cohomology} commonIsomorphism.backward.apply _ _ (commonOnClass a);
+\definition law: \forall (a: Input.Cohomology) -> isomorphism.forward.apply a = Multiplication.product a Unit.class :=
+  Input.classInduction (\fun (a: Input.Cohomology) => isomorphism.forward.apply a = Multiplication.product a Unit.class) onClass;

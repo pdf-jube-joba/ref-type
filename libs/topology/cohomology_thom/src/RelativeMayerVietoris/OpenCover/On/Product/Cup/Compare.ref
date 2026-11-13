@@ -1,0 +1,30 @@
+\import singular_cohomology.Relative[A := A, source := source, subset := subset].With[coefficients := WholeProduct.integerCoefficients] \as WholeRelative;
+\import singular_subdivision.OpenCover[A := A, source := source].On[cover := Cover.openCover].Subspace[subset := subset].Relative[].With[coefficients := WholeProduct.integerCoefficients] \as SmallComparison;
+\import \root.RelativePullback[].On[A := Left, source := leftTopology, subset := leftPart, R := K, ring := ring].To[B := A, target := source, part := subset].Along[f := leftPairMap] \as LeftPull;
+\import \root.RelativePullback[].On[A := Right, source := rightTopology, subset := rightPart, R := K, ring := ring].To[B := A, target := source, part := subset].Along[f := rightPairMap] \as RightPull;
+\import WholeCup.RelativeCup[p := p, q := q] \as Product;
+\import \parent.Components[] \as Components;
+\definition left: \forall (a: WholeProduct.Carrier p)(h: WholeRelative.Carrier inputDegree) ->
+  Coordinates.firstProjection.apply outputDegree (MV.sequence.inclusion.apply outputDegree (apply a (SmallComparison.restriction.apply inputDegree h))) =
+  Coordinates.firstProjection.apply outputDegree (MV.sequence.inclusion.apply outputDegree (SmallComparison.restriction.apply outputDegree (Product.right a h))) :=
+  \fun (a: WholeProduct.Carrier p)(h: WholeRelative.Carrier inputDegree) => eq_reason_in!{{LeftHom.Carrier outputDegree} _
+    "=" _ "by" { congr!{{SumHom.Carrier outputDegree} {LeftHom.Carrier outputDegree}} (Coordinates.firstProjection.apply outputDegree) _ _ (inclusion a (SmallComparison.restriction.apply inputDegree h)) }
+    "=" _ "by" { Components.left a (SmallComparison.restriction.apply inputDegree h) }
+    "=" _ "by" { congr!{{LeftHom.Carrier inputDegree} {LeftHom.Carrier outputDegree}} (LP.right (Restriction.left a)) _ _ (MV.Coordinates[].At[z := inputDegree].left h) }
+    "=" _ "by" { sym!{{LeftHom.Carrier outputDegree}} _ _ (LeftPull.Cup[p := p, q := q].law a h) }
+    "=" _ "by" { sym!{{LeftHom.Carrier outputDegree}} _ _ (MV.Coordinates[].At[z := outputDegree].left (Product.right a h)) }
+  };
+\definition right: \forall (a: WholeProduct.Carrier p)(h: WholeRelative.Carrier inputDegree) ->
+  Coordinates.secondProjection.apply outputDegree (MV.sequence.inclusion.apply outputDegree (apply a (SmallComparison.restriction.apply inputDegree h))) =
+  Coordinates.secondProjection.apply outputDegree (MV.sequence.inclusion.apply outputDegree (SmallComparison.restriction.apply outputDegree (Product.right a h))) :=
+  \fun (a: WholeProduct.Carrier p)(h: WholeRelative.Carrier inputDegree) => eq_reason_in!{{RightHom.Carrier outputDegree} _
+    "=" _ "by" { congr!{{SumHom.Carrier outputDegree} {RightHom.Carrier outputDegree}} (Coordinates.secondProjection.apply outputDegree) _ _ (inclusion a (SmallComparison.restriction.apply inputDegree h)) }
+    "=" _ "by" { Components.right a (SmallComparison.restriction.apply inputDegree h) }
+    "=" _ "by" { congr!{{RightHom.Carrier inputDegree} {RightHom.Carrier outputDegree}} (RP.right (Restriction.right a)) _ _ (MV.Coordinates[].At[z := inputDegree].right h) }
+    "=" _ "by" { sym!{{RightHom.Carrier outputDegree}} _ _ (RightPull.Cup[p := p, q := q].law a h) }
+    "=" _ "by" { sym!{{RightHom.Carrier outputDegree}} _ _ (MV.Coordinates[].At[z := outputDegree].right (Product.right a h)) }
+  };
+\definition law: \forall (a: WholeProduct.Carrier p)(h: WholeRelative.Carrier inputDegree) ->
+  apply a (SmallComparison.restriction.apply inputDegree h) = SmallComparison.restriction.apply outputDegree (Product.right a h) :=
+  \fun (a: WholeProduct.Carrier p)(h: WholeRelative.Carrier inputDegree) => MV.sequence.injective outputDegree _ _
+    (Coordinates.ext outputDegree _ _ (left a h) (right a h));

@@ -1,0 +1,61 @@
+\use std.Logic[].Equality[].eq_reason_in;
+\import \parent.SumAction[] \as Components;
+\import Modules.Laws[V := SmallHom.Carrier outputDegree, space := SmallHom.space outputDegree] \as TargetLaws;
+\import algebra.Group[].Of[Carrier := SmallHom.Carrier outputDegree, group := TargetLaws.additive] \as TargetGroup;
+\import Modules.Laws[V := SourceSmallHom.Carrier inputDegree, space := SourceSmallHom.space inputDegree] \as SourceLaws;
+\import algebra.Group[].Of[Carrier := SourceSmallHom.Carrier inputDegree, group := SourceLaws.additive] \as SourceGroup;
+\definition leftAddition: \forall (u: Factor)(h, k: SourceSumHom.Carrier inputDegree) -> sumLeft u ((SourceSumHom.space inputDegree).add h k) = (LeftHom.space outputDegree).add (sumLeft u h) (sumLeft u k) :=
+  \fun (u: Factor)(h, k: SourceSumHom.Carrier inputDegree) => eq_reason_in!{{LeftHom.Carrier outputDegree} _
+    "=" _ "by" { congr!{{SourceLeftHom.Carrier inputDegree} {LeftHom.Carrier outputDegree}} (\fun (a: SourceLeftHom.Carrier inputDegree) => LP.right (LeftForget.from a) (Restriction.left u)) _ _ (SourceCoordinates.firstProjection.addition inputDegree h k) }
+    "=" _ "by" { congr!{{LeftProduct.Carrier p} {LeftHom.Carrier outputDegree}} (\fun (a: LeftProduct.Carrier p) => LP.right a (Restriction.left u)) _ _ (LeftForget.Linear[].addition (SourceCoordinates.firstProjection.apply inputDegree h) (SourceCoordinates.firstProjection.apply inputDegree k)) }
+    "=" _ "by" { LP.Bilinear[].rightLeftAdd (LeftForget.from (SourceCoordinates.firstProjection.apply inputDegree h)) (LeftForget.from (SourceCoordinates.firstProjection.apply inputDegree k)) (Restriction.left u) }
+  };
+\definition leftSum: \forall (u: Factor)(h, k: SourceSumHom.Carrier inputDegree) ->
+  Coordinates.firstProjection.apply outputDegree (sumAction u ((SourceSumHom.space inputDegree).add h k)) = Coordinates.firstProjection.apply outputDegree ((SumHom.space outputDegree).add (sumAction u h) (sumAction u k)) :=
+  \fun (u: Factor)(h, k: SourceSumHom.Carrier inputDegree) => eq_reason_in!{{LeftHom.Carrier outputDegree} _
+    "=" _ "by" { Components.left u ((SourceSumHom.space inputDegree).add h k) }
+    "=" _ "by" { leftAddition u h k }
+    "=" _ "by" { congr!{{LeftHom.Carrier outputDegree} {LeftHom.Carrier outputDegree} {LeftHom.Carrier outputDegree}} (LeftHom.space outputDegree).add _ _ _ _ (sym!{{LeftHom.Carrier outputDegree}} _ _ (Components.left u h)) (sym!{{LeftHom.Carrier outputDegree}} _ _ (Components.left u k)) }
+    "=" _ "by" { sym!{{LeftHom.Carrier outputDegree}} _ _ (Coordinates.firstProjection.addition outputDegree (sumAction u h) (sumAction u k)) }
+  };
+\definition rightAddition: \forall (u: Factor)(h, k: SourceSumHom.Carrier inputDegree) -> sumRight u ((SourceSumHom.space inputDegree).add h k) = (RightHom.space outputDegree).add (sumRight u h) (sumRight u k) :=
+  \fun (u: Factor)(h, k: SourceSumHom.Carrier inputDegree) => eq_reason_in!{{RightHom.Carrier outputDegree} _
+    "=" _ "by" { congr!{{SourceRightHom.Carrier inputDegree} {RightHom.Carrier outputDegree}} (\fun (a: SourceRightHom.Carrier inputDegree) => RP.right (RightForget.from a) (Restriction.right u)) _ _ (SourceCoordinates.secondProjection.addition inputDegree h k) }
+    "=" _ "by" { congr!{{RightProduct.Carrier p} {RightHom.Carrier outputDegree}} (\fun (a: RightProduct.Carrier p) => RP.right a (Restriction.right u)) _ _ (RightForget.Linear[].addition (SourceCoordinates.secondProjection.apply inputDegree h) (SourceCoordinates.secondProjection.apply inputDegree k)) }
+    "=" _ "by" { RP.Bilinear[].rightLeftAdd (RightForget.from (SourceCoordinates.secondProjection.apply inputDegree h)) (RightForget.from (SourceCoordinates.secondProjection.apply inputDegree k)) (Restriction.right u) }
+  };
+\definition rightSum: \forall (u: Factor)(h, k: SourceSumHom.Carrier inputDegree) ->
+  Coordinates.secondProjection.apply outputDegree (sumAction u ((SourceSumHom.space inputDegree).add h k)) = Coordinates.secondProjection.apply outputDegree ((SumHom.space outputDegree).add (sumAction u h) (sumAction u k)) :=
+  \fun (u: Factor)(h, k: SourceSumHom.Carrier inputDegree) => eq_reason_in!{{RightHom.Carrier outputDegree} _
+    "=" _ "by" { Components.right u ((SourceSumHom.space inputDegree).add h k) }
+    "=" _ "by" { rightAddition u h k }
+    "=" _ "by" { congr!{{RightHom.Carrier outputDegree} {RightHom.Carrier outputDegree} {RightHom.Carrier outputDegree}} (RightHom.space outputDegree).add _ _ _ _ (sym!{{RightHom.Carrier outputDegree}} _ _ (Components.right u h)) (sym!{{RightHom.Carrier outputDegree}} _ _ (Components.right u k)) }
+    "=" _ "by" { sym!{{RightHom.Carrier outputDegree}} _ _ (Coordinates.secondProjection.addition outputDegree (sumAction u h) (sumAction u k)) }
+  };
+\definition sumAddition: \forall (u: Factor)(h, k: SourceSumHom.Carrier inputDegree) -> sumAction u ((SourceSumHom.space inputDegree).add h k) = (SumHom.space outputDegree).add (sumAction u h) (sumAction u k) :=
+  \fun (u: Factor)(h, k: SourceSumHom.Carrier inputDegree) => Coordinates.ext outputDegree _ _ (leftSum u h k) (rightSum u h k);
+\definition law: \forall (u: Factor)(h, k: SourceSmallHom.Carrier inputDegree) -> apply u ((SourceSmallHom.space inputDegree).add h k) = (SmallHom.space outputDegree).add (apply u h) (apply u k) :=
+  \fun (u: Factor)(h, k: SourceSmallHom.Carrier inputDegree) => MV.sequence.injective outputDegree _ _ (eq_reason_in!{{SumHom.Carrier outputDegree} _
+    "=" _ "by" { inclusion u ((SourceSmallHom.space inputDegree).add h k) }
+    "=" _ "by" { congr!{{SourceSumHom.Carrier inputDegree} {SumHom.Carrier outputDegree}} (sumAction u) _ _ (SourceSequence.sequence.inclusion.addition inputDegree h k) }
+    "=" _ "by" { sumAddition u (SourceSequence.sequence.inclusion.apply inputDegree h) (SourceSequence.sequence.inclusion.apply inputDegree k) }
+    "=" _ "by" { congr!{{SumHom.Carrier outputDegree} {SumHom.Carrier outputDegree} {SumHom.Carrier outputDegree}} (SumHom.space outputDegree).add _ _ _ _ (sym!{{SumHom.Carrier outputDegree}} _ _ (inclusion u h)) (sym!{{SumHom.Carrier outputDegree}} _ _ (inclusion u k)) }
+    "=" _ "by" { sym!{{SumHom.Carrier outputDegree}} _ _ (MV.sequence.inclusion.addition outputDegree (apply u h) (apply u k)) }
+  });
+\definition zero: \forall (u: Factor) -> apply u (SourceSmallHom.space inputDegree).zero = (SmallHom.space outputDegree).zero :=
+  \fun (u: Factor) => sym!{{SmallHom.Carrier outputDegree}} _ _
+    (TargetGroup.cancelLeft (apply u SourceGroup.zero) TargetGroup.zero (apply u SourceGroup.zero)
+      (trans!{{SmallHom.Carrier outputDegree}} _ _ _ (TargetGroup.zeroRight (apply u SourceGroup.zero))
+        (trans!{{SmallHom.Carrier outputDegree}} _ _ _
+          (sym!{{SmallHom.Carrier outputDegree}} _ _ (congr!{{SourceSmallHom.Carrier inputDegree} {SmallHom.Carrier outputDegree}} (\fun (h: SourceSmallHom.Carrier inputDegree) => apply u h) _ _ (SourceGroup.zeroLeft SourceGroup.zero)))
+          (law u SourceGroup.zero SourceGroup.zero))));
+\definition negative: \forall (u: Factor)(h: SourceSmallHom.Carrier inputDegree) -> apply u (SourceGroup.neg h) = TargetGroup.neg (apply u h) :=
+  \fun (u: Factor)(h: SourceSmallHom.Carrier inputDegree) => TargetGroup.inverseUnique (apply u h) (apply u (SourceGroup.neg h))
+    (eq_reason_in!{{SmallHom.Carrier outputDegree} _
+      "=" _ "by" { sym!{{SmallHom.Carrier outputDegree}} _ _ (law u (SourceGroup.neg h) h) }
+      "=" _ "by" { congr!{{SourceSmallHom.Carrier inputDegree} {SmallHom.Carrier outputDegree}} (\fun (v: SourceSmallHom.Carrier inputDegree) => apply u v) _ _ (SourceGroup.inverseLeft h) }
+      "=" _ "by" { zero u }
+    });
+\definition difference: \forall (u: Factor)(h, k: SourceSmallHom.Carrier inputDegree) -> apply u (SourceGroup.difference h k) = TargetGroup.difference (apply u h) (apply u k) :=
+  \fun (u: Factor)(h, k: SourceSmallHom.Carrier inputDegree) => trans!{{SmallHom.Carrier outputDegree}} _ _ _ (law u h (SourceGroup.neg k))
+    (congr!{{SmallHom.Carrier outputDegree} {SmallHom.Carrier outputDegree}} (TargetGroup.add (apply u h)) _ _ (negative u k));

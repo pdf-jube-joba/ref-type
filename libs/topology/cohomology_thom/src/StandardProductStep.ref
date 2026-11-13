@@ -1,0 +1,83 @@
+\import std.Data[].Nat[] \as N;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.trans;
+\use Equality.congr;
+\use Equality.sym;
+\import std.Data[].Pair[] \as Pair;
+\import real.Analysis[] \as R;
+\import algebraic_topology.Interval[] \as J;
+\import algebraic_topology.Euclidean[].Dimension[n := n] \as Left;
+\import algebraic_topology.Euclidean[].Dimension[n := m] \as Right;
+\import algebraic_topology.Euclidean[].Dimension[n := N.Nat^::succ m] \as Higher;
+\import \root.StandardDiskStep[m := m] \as Step;
+\import algebraic_topology.Cylinder[A := Right.Disk] \as RightCylinder;
+\import topological_constructions.Product[A := Left.Disk, B := Right.Disk] \as Base;
+\import topological_constructions.Product[A := Left.Disk, B := Higher.Disk] \as Source;
+\definition Carrier: \Set := Source.CarrierSet;
+\definition topology: topology.Topology[Carrier := Carrier].Topology := Source.topology Left.diskTopology Higher.diskTopology;
+\definition baseTopology: topology.Topology[Carrier := Base.CarrierSet].Topology := Base.topology Left.diskTopology Right.diskTopology;
+\definition first: \Pow Carrier := { p: Carrier \where Left.normSquared (Pair.first Left.Disk Higher.Disk p) = R.one };
+\definition second: \Pow Carrier := { p: Carrier \where Higher.normSquared (Pair.second Left.Disk Higher.Disk p) = R.one };
+\definition family: \Pow (\Pow Carrier) := { U: \Pow Carrier \where Logic.Or[U = first, U = second] };
+\definition baseFirst: \Pow Base.CarrierSet := { p: Base.CarrierSet \where Left.normSquared (Pair.first Left.Disk Right.Disk p) = R.one };
+\definition baseSecond: \Pow Base.CarrierSet := { p: Base.CarrierSet \where Right.normSquared (Pair.second Left.Disk Right.Disk p) = R.one };
+\import \root.FamilySuspension[A := Base.CarrierSet, source := baseTopology, first := baseFirst, second := baseSecond] \as Suspension;
+\import algebraic_topology.Cylinder[A := Base.CarrierSet] \as Cylinder;
+\definition targetTopology: topology.Topology[Carrier := Cylinder.Carrier].Topology := Cylinder.topology baseTopology;
+\definition stage[p: Carrier]: RightCylinder.Carrier := Step.forward (Pair.second Left.Disk Higher.Disk p);
+\definition forward[p: Carrier]: Cylinder.Carrier := Cylinder.at (RightCylinder.time (stage p))
+  (Pair.pair Left.Disk Right.Disk (Pair.first Left.Disk Higher.Disk p) (RightCylinder.point (stage p)));
+\definition rightCylinder[p: Cylinder.Carrier]: RightCylinder.Carrier := RightCylinder.at (Cylinder.time p) (Pair.second Left.Disk Right.Disk (Cylinder.point p));
+\definition backward[p: Cylinder.Carrier]: Carrier := Pair.pair Left.Disk Higher.Disk (Pair.first Left.Disk Right.Disk (Cylinder.point p)) (Step.backward (rightCylinder p));
+\definition stageContinuous: topology.Continuity[A := Carrier, B := RightCylinder.Carrier].Continuous topology Step.topology stage :=
+  topology.Composition[A := Carrier, B := Higher.Disk, C := RightCylinder.Carrier].composeContinuous topology Higher.diskTopology Step.topology (Pair.second Left.Disk Higher.Disk) Step.forward
+    (Source.Maps[].secondContinuous Left.diskTopology Higher.diskTopology) Step.laws.forwardContinuous;
+\definition forwardContinuous: topology.Continuity[A := Carrier, B := Cylinder.Carrier].Continuous topology targetTopology forward :=
+  topological_constructions.Product[A := J.Carrier, B := Base.CarrierSet].Universal[X := Carrier].pairContinuous topology J.topology baseTopology (\fun (p: Carrier) => RightCylinder.time (stage p))
+    (\fun (p: Carrier) => Pair.pair Left.Disk Right.Disk (Pair.first Left.Disk Higher.Disk p) (RightCylinder.point (stage p)))
+    (topology.Composition[A := Carrier, B := RightCylinder.Carrier, C := J.Carrier].composeContinuous topology Step.topology J.topology stage RightCylinder.time stageContinuous (RightCylinder.timeContinuous Right.diskTopology))
+    (Base.Universal[X := Carrier].pairContinuous topology Left.diskTopology Right.diskTopology (Pair.first Left.Disk Higher.Disk) (\fun (p: Carrier) => RightCylinder.point (stage p))
+      (Source.Maps[].firstContinuous Left.diskTopology Higher.diskTopology)
+      (topology.Composition[A := Carrier, B := RightCylinder.Carrier, C := Right.Disk].composeContinuous topology Step.topology Right.diskTopology stage RightCylinder.point stageContinuous (RightCylinder.pointContinuous Right.diskTopology)));
+\definition rightCylinderContinuous: topology.Continuity[A := Cylinder.Carrier, B := RightCylinder.Carrier].Continuous targetTopology Step.topology rightCylinder :=
+  topological_constructions.Product[A := J.Carrier, B := Right.Disk].Universal[X := Cylinder.Carrier].pairContinuous targetTopology J.topology Right.diskTopology Cylinder.time (\fun (p: Cylinder.Carrier) => Pair.second Left.Disk Right.Disk (Cylinder.point p))
+    (Cylinder.timeContinuous baseTopology)
+    (topology.Composition[A := Cylinder.Carrier, B := Base.CarrierSet, C := Right.Disk].composeContinuous targetTopology baseTopology Right.diskTopology Cylinder.point (Pair.second Left.Disk Right.Disk) (Cylinder.pointContinuous baseTopology) (Base.Maps[].secondContinuous Left.diskTopology Right.diskTopology));
+\definition backwardContinuous: topology.Continuity[A := Cylinder.Carrier, B := Carrier].Continuous targetTopology topology backward :=
+  Source.Universal[X := Cylinder.Carrier].pairContinuous targetTopology Left.diskTopology Higher.diskTopology (\fun (p: Cylinder.Carrier) => Pair.first Left.Disk Right.Disk (Cylinder.point p)) (\fun (p: Cylinder.Carrier) => Step.backward (rightCylinder p))
+    (topology.Composition[A := Cylinder.Carrier, B := Base.CarrierSet, C := Left.Disk].composeContinuous targetTopology baseTopology Left.diskTopology Cylinder.point (Pair.first Left.Disk Right.Disk) (Cylinder.pointContinuous baseTopology) (Base.Maps[].firstContinuous Left.diskTopology Right.diskTopology))
+    (topology.Composition[A := Cylinder.Carrier, B := RightCylinder.Carrier, C := Higher.Disk].composeContinuous targetTopology Step.topology Higher.diskTopology rightCylinder Step.backward rightCylinderContinuous Step.laws.backwardContinuous);
+\definition rebuilt: \forall (p: Carrier) -> rightCylinder (forward p) = stage p := \fun (p: Carrier) => Pair.Prop[A := J.Carrier, B := Right.Disk].eta (stage p);
+\definition leftInverse: \forall (p: Carrier) -> backward (forward p) = p :=
+  \fun (p: Carrier) => Pair.Prop[A := Left.Disk, B := Higher.Disk].ext (backward (forward p)) p (\refl(Pair.first Left.Disk Higher.Disk p))
+    (trans!{{Higher.Disk}} _ _ _ (congr!{RightCylinder.Carrier {Higher.Disk}} Step.backward _ _ (rebuilt p)) (Step.laws.leftInverse (Pair.second Left.Disk Higher.Disk p)));
+\definition backStage: \forall (p: Cylinder.Carrier) -> stage (backward p) = rightCylinder p := \fun (p: Cylinder.Carrier) => Step.laws.rightInverse (rightCylinder p);
+\definition rightInverse: \forall (p: Cylinder.Carrier) -> forward (backward p) = p :=
+  \fun (p: Cylinder.Carrier) => Pair.Prop[A := J.Carrier, B := Base.CarrierSet].ext (forward (backward p)) p
+    (congr!{RightCylinder.Carrier {J.Carrier}} RightCylinder.time (stage (backward p)) (rightCylinder p) (backStage p))
+    (Pair.Prop[A := Left.Disk, B := Right.Disk].ext (Cylinder.point (forward (backward p))) (Cylinder.point p) (\refl(Pair.first Left.Disk Right.Disk (Cylinder.point p))) (congr!{RightCylinder.Carrier {Right.Disk}} RightCylinder.point (stage (backward p)) (rightCylinder p) (backStage p)));
+\definition homeomorphism: topology.Homeomorphism[A := Carrier, B := Cylinder.Carrier].Homeomorphism[topology, targetTopology] :=
+  topology.Homeomorphism[A := Carrier, B := Cylinder.Carrier].Homeomorphism[topology, targetTopology] {
+    forward := forward, backward := backward, forwardContinuous := forwardContinuous, backwardContinuous := backwardContinuous, leftInverse := leftInverse, rightInverse := rightInverse
+  };
+\definition firstForward: \forall (p: Carrier) -> \In[Carrier] first p -> \In[Cylinder.Carrier] Suspension.firstPart (forward p) := \fun (p: Carrier)(inside: _) => inside;
+\definition secondForward: \forall (p: Carrier) -> \In[Carrier] second p -> \In[Cylinder.Carrier] Suspension.secondPart (forward p) :=
+  \fun (p: Carrier)(inside: _) => Step.forwardBoundary (Pair.second Left.Disk Higher.Disk p) inside;
+\definition firstBackward: \forall (p: Cylinder.Carrier) -> \In[Cylinder.Carrier] Suspension.firstPart p -> \In[Carrier] first (backward p) := \fun (p: Cylinder.Carrier)(inside: _) => inside;
+\definition secondBackward: \forall (p: Cylinder.Carrier) -> \In[Cylinder.Carrier] Suspension.secondPart p -> \In[Carrier] second (backward p) :=
+  \fun (p: Cylinder.Carrier)(inside: _) => Step.backwardBoundary (rightCylinder p) inside;
+\import \root.ClassifiedFamilyMap[A := Carrier, B := Cylinder.Carrier, source := topology, target := targetTopology, sourceFirst := first, sourceSecond := second, targetFirst := Suspension.firstPart, targetSecond := Suspension.secondPart, sourceFamily := family, targetFamily := Suspension.family,
+  classify := (\fun (U: \Pow Carrier)(member: \In[\Pow Carrier] family U) => member),
+  targetFirstMember := Logic.Or[Suspension.firstPart = Suspension.firstPart, Suspension.firstPart = Suspension.secondPart]::left (\refl(Suspension.firstPart)),
+  targetSecondMember := Logic.Or[Suspension.secondPart = Suspension.firstPart, Suspension.secondPart = Suspension.secondPart]::right (\refl(Suspension.secondPart)),
+  f := forward, regular := forwardContinuous, firstContained := firstForward, secondContained := secondForward] \as Forward;
+\import \root.ClassifiedFamilyMap[A := Cylinder.Carrier, B := Carrier, source := targetTopology, target := topology, sourceFirst := Suspension.firstPart, sourceSecond := Suspension.secondPart, targetFirst := first, targetSecond := second, sourceFamily := Suspension.family, targetFamily := family,
+  classify := (\fun (U: \Pow Cylinder.Carrier)(member: \In[\Pow Cylinder.Carrier] Suspension.family U) => member),
+  targetFirstMember := Logic.Or[first = first, first = second]::left (\refl(first)),
+  targetSecondMember := Logic.Or[second = first, second = second]::right (\refl(second)),
+  f := backward, regular := backwardContinuous, firstContained := firstBackward, secondContained := secondBackward] \as Backward;
+\definition forwardMap: _ := Forward.map;
+\definition backwardMap: _ := Backward.map;
+\definition forwardPreservesSmall: _ := Forward.preserves;
+\definition backwardPreservesSmall: _ := Backward.preserves;

@@ -1,0 +1,23 @@
+\definition z: I.Int^ := I.Int^::ofNat n;
+\import \root.StandardShell[n := n] \as Shell;
+\import singular_cohomology.Relative[A := Lower.Carrier, source := Lower.topology, subset := Lower.firstPart] \as LowerPair;
+\import singular_cohomology.Relative[A := Higher.Carrier, source := Higher.topology, subset := Higher.firstPart] \as HigherPair;
+\import singular_cohomology.Relative[A := Cylinder.Carrier, source := Geometry.targetTopology, subset := Suspension.firstPart] \as CylinderPair;
+\import CylinderPair.Maps[B := Lower.Carrier].Over[target := Lower.topology, targetSubset := Lower.firstPart] \as CylinderMaps;
+\import CylinderMaps.Composition[C := Left.Disk].Over[final := Left.diskTopology, finalSubset := Shell.boundary] \as FirstComposition;
+\definition cylinderToLeft: CylinderPair.Maps[B := Left.Disk].Over[target := Left.diskTopology, targetSubset := Shell.boundary].Map :=
+  FirstComposition.compose SuspensionProduct.firstProjection Lower.firstMap;
+\import FirstComposition.On[f := SuspensionProduct.firstProjection, g := Lower.firstMap].With[coefficients := Coefficients.integerCoefficients] \as CylinderLaw;
+\import HigherPair.Maps[B := Cylinder.Carrier].Over[target := Geometry.targetTopology, targetSubset := Suspension.firstPart].Composition[C := Left.Disk].Over[final := Left.diskTopology, finalSubset := Shell.boundary] \as GeometryComposition;
+\import GeometryComposition.On[f := Natural.firstPairMap, g := cylinderToLeft].With[coefficients := Coefficients.integerCoefficients] \as GeometryLaw;
+\import CylinderMaps.On[f := SuspensionProduct.firstProjection].Integer[].With[coefficients := Coefficients.integerCoefficients] \as CylinderPull;
+\import \root.RelativePullback[].On[A := Higher.Carrier, source := Higher.topology, subset := Higher.firstPart, R := K, ring := ring].To[B := Cylinder.Carrier, target := Geometry.targetTopology, part := Suspension.firstPart].Along[f := Natural.firstPairMap] \as GeometryPull;
+\import CylinderPair.With[coefficients := Coefficients.integerCoefficients] \as CylinderCochains;
+\import HigherPair.With[coefficients := Coefficients.integerCoefficients] \as HigherCochains;
+\import Integer.At[C := CylinderCochains.complex, z := z] \as CylinderH;
+\import Integer.At[C := HigherCochains.complex, z := z] \as HigherH;
+\definition law: \forall (a: Lower.LeftClass) -> GeometryPull.Degree[n := n].map.apply (CylinderPull.At[z := z].induced.apply (Lower.firstPull.apply a)) = Higher.firstPull.apply a :=
+  \fun (a: Lower.LeftClass) => trans!{HigherH.Cohomology} _ _ _
+    (congr!{CylinderH.Cohomology HigherH.Cohomology} GeometryPull.Degree[n := n].map.apply _ _ (sym!{CylinderH.Cohomology} _ _ (CylinderLaw.law z a)))
+    (sym!{HigherH.Cohomology} _ _ (GeometryLaw.law z a));
+\definition cylinderAction: _ := CylinderPull.At[z := z].induced;

@@ -1,0 +1,20 @@
+\import singular_cohomology.Relative[A := A, source := source, subset := Halves.full].With[coefficients := coefficients].At[z := z] \as FullH;
+\import singular_cohomology.Relative[A := Left.Carrier, source := Left.space, subset := Left.part].With[coefficients := coefficients].At[z := z] \as LeftH;
+\import singular_cohomology.Relative[A := Right.Carrier, source := Right.space, subset := Right.part].With[coefficients := coefficients].At[z := z] \as RightH;
+\import singular_cohomology.Relative[A := A, source := source, subset := subset].With[coefficients := coefficients].At[z := z] \as BaseH;
+\import singular_cohomology.Relative[A := Middle.Carrier, source := Middle.space, subset := Middle.part].With[coefficients := coefficients].At[z := z] \as MiddleH;
+\import Sequence.Degree[z := z] \as Current;
+\definition leftZero: \forall (q: LeftH.Carrier) -> q = LeftH.space.zero :=
+  Modules.Isomorphism[V := FullH.Carrier, W := LeftH.Carrier, source := FullH.space, target := LeftH.space].Vanishing[].targetZero
+    Left.With[coefficients := coefficients, z := z].isomorphism FullPair.With[coefficients := coefficients, z := z].cohomologyZero;
+\definition rightZero: \forall (q: RightH.Carrier) -> q = RightH.space.zero :=
+  Modules.Isomorphism[V := FullH.Carrier, W := RightH.Carrier, source := FullH.space, target := RightH.space].Vanishing[].targetZero
+    Right.With[coefficients := coefficients, z := z].isomorphism FullPair.With[coefficients := coefficients, z := z].cohomologyZero;
+\import Modules.Biproduct[V := LeftH.Carrier, W := RightH.Carrier, left := LeftH.space, right := RightH.space] \as Sum;
+\definition sumZero: \forall (q: Current.directSum.Carrier) -> q = Current.directSum.space.zero :=
+  \fun (q: Current.directSum.Carrier) => std.Data[].Pair[].Prop[A := LeftH.Carrier, B := RightH.Carrier].ext q Sum.space.zero
+    (leftZero (Sum.first q)) (rightZero (Sum.second q));
+\definition overlapIsomorphism: Modules.Isomorphism[V := BaseH.Carrier, W := Current.intersection.Carrier, source := BaseH.space, target := Current.intersection.space].Isomorphism :=
+  Modules.Isomorphism[V := BaseH.Carrier, W := MiddleH.Carrier, source := BaseH.space, target := MiddleH.space]
+    .Composition[U := Current.intersection.Carrier, final := Current.intersection.space].compose
+      (Pairs.With[coefficients := coefficients].At[z := z].isomorphism pair) Middle.With[coefficients := coefficients, z := z].isomorphism;

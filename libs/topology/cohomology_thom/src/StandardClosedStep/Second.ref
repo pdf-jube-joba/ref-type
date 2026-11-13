@@ -1,0 +1,30 @@
+\import singular_cohomology.Relative[A := Higher.Carrier, source := Higher.topology, subset := Higher.secondPart] \as HigherPair;
+\import singular_cohomology.Relative[A := Cylinder.Carrier, source := Geometry.targetTopology, subset := Suspension.secondPart] \as CylinderPair;
+\import \root.StandardShell[n := N.Nat^::succ m] \as HigherShell;
+\import RightSuspension.From[B := Lower.Carrier, target := Lower.topology, part := Lower.secondPart, f := Lower.secondMap] \as SuspensionNatural;
+\import HigherPair.Maps[B := Cylinder.Carrier].Over[target := Geometry.targetTopology, targetSubset := Suspension.secondPart].Composition[C := RightCylinder.Carrier].Over[final := DiskGeometry.topology, finalSubset := DiskGeometry.boundary] \as FirstComposition;
+\import HigherPair.Maps[B := Next.Disk].Over[target := Next.diskTopology, targetSubset := HigherShell.boundary].Composition[C := RightCylinder.Carrier].Over[final := DiskGeometry.topology, finalSubset := DiskGeometry.boundary] \as SecondComposition;
+\definition firstMap: HigherPair.Maps[B := RightCylinder.Carrier].Over[target := DiskGeometry.topology, targetSubset := DiskGeometry.boundary].Map :=
+  FirstComposition.compose Natural.secondPairMap SuspensionNatural.cylinderPair;
+\definition secondMap: HigherPair.Maps[B := RightCylinder.Carrier].Over[target := DiskGeometry.topology, targetSubset := DiskGeometry.boundary].Map :=
+  SecondComposition.compose Higher.secondMap (DiskPairs.forwardMap diskPair);
+\definition same: firstMap = secondMap := \axiom:funext(firstMap, secondMap, Geometry.rebuilt);
+\import HigherPair.Maps[B := RightCylinder.Carrier].Over[target := DiskGeometry.topology, targetSubset := DiskGeometry.boundary] \as Maps;
+\definition action[f: Maps.Map]: _ := Maps.On[f := f].Integer[].With[coefficients := Coefficients.integerCoefficients].At[z := outputDegree].induced;
+\import FirstComposition.On[f := Natural.secondPairMap, g := SuspensionNatural.cylinderPair].With[coefficients := Coefficients.integerCoefficients] \as FirstLaw;
+\import SecondComposition.On[f := Higher.secondMap, g := DiskPairs.forwardMap diskPair].With[coefficients := Coefficients.integerCoefficients] \as SecondLaw;
+\import \root.RelativePullback[].On[A := Higher.Carrier, source := Higher.topology, subset := Higher.secondPart, R := K, ring := ring].To[B := Cylinder.Carrier, target := Geometry.targetTopology, part := Suspension.secondPart].Along[f := Natural.secondPairMap] \as GeometryPull;
+\import CylinderPair.With[coefficients := Coefficients.integerCoefficients] \as CylinderCochains;
+\import HigherPair.With[coefficients := Coefficients.integerCoefficients] \as HigherCochains;
+\import Integer.At[C := CylinderCochains.complex, z := outputDegree] \as CylinderH;
+\import Integer.At[C := HigherCochains.complex, z := outputDegree] \as HigherH;
+\definition suspended: _ := \root.RelativeSuspension[].On[A := Lower.Carrier, source := Lower.topology, subset := Lower.secondPart].Covering[].With[coefficients := Coefficients.integerCoefficients].At[z := inputDegree].isomorphism;
+\definition rightSuspended: _ := RightSuspension.Covering[].With[coefficients := Coefficients.integerCoefficients].At[z := inputDegree].isomorphism;
+\definition law: \forall (b: Lower.RightClass) -> GeometryPull.Degree[n := N.Nat^::succ m].map.apply (suspended.forward.apply (Lower.secondPull.apply b)) = Higher.secondPull.apply (sourceIsomorphism.forward.apply b) :=
+  \fun (b: Lower.RightClass) => eq_reason_in!{HigherH.Cohomology _
+    "=" _ "by" { congr!{CylinderH.Cohomology HigherH.Cohomology} GeometryPull.Degree[n := N.Nat^::succ m].map.apply _ _
+      (sym!{CylinderH.Cohomology} _ _ (SuspensionNatural.With[coefficients := Coefficients.integerCoefficients].At[z := inputDegree].law b)) }
+    "=" _ "by" { sym!{HigherH.Cohomology} _ _ (FirstLaw.law outputDegree (rightSuspended.forward.apply b)) }
+    "=" _ "by" { congr!{Maps.Map HigherH.Cohomology} (\fun (f: Maps.Map) => (action f).apply (rightSuspended.forward.apply b)) _ _ same }
+    "=" _ "by" { SecondLaw.law outputDegree (rightSuspended.forward.apply b) }
+  };

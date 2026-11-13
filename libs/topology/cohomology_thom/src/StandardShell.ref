@@ -1,0 +1,104 @@
+\import std.Data[].Nat[] \as N;
+\import std.Arithmetic[].Int[] \as I;
+\import std.Arithmetic[].IntAlgebra[].Ring[] \as Integers;
+\import module_theory.Module[].Over[R := I.Int^, ring := Integers.ring] \as Modules;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.trans;
+\use Equality.sym;
+\use Equality.congr;
+\use Equality.eq_reason_in;
+\import std.Data[].Pair[] \as Pair;
+\import real.Analysis[] \as R;
+\import dedekind_reals.DedekindReal[] \as D;
+\import thom_spaces.Thom[].CWType[].Point[] \as Point;
+\import vector_bundles.Bundles[].Over[K := R.Real, field := R.Algebra[].field, conjugation := linear_algebra.Hermitian[].Real[].scalar, scalar := vector_bundles.Bundles[].Real[].scalar] \as Bundles;
+\import Bundles.Trivial[X := Point.Carrier, n := n, baseSpace := Point.topology] \as Trivial;
+\definition Fiber[x: Point.Carrier]: \Set := Bundles.Vector n;
+\import bundle_complements.Complements[].Over[K := R.Real, field := R.Algebra[].field, conjugation := linear_algebra.Hermitian[].Real[].scalar, scalar := vector_bundles.Bundles[].Real[].scalar].For[X := Point.Carrier, F := Fiber, bundle := Trivial.bundle] \as Metrics;
+\import Bundles.Identity[X := Point.Carrier, F := Fiber, bundle := Trivial.bundle] \as Identity;
+\definition embedding: Metrics.Embedding := Metrics.Embedding { dimension := n, map := Identity.map, injective := \fun (x: Point.Carrier)(v, w: Fiber x)(same: (Identity.map.fiber x).apply v = (Identity.map.fiber x).apply w) => same };
+\definition metric: _ := Metrics.FromEmbedding[embedding := embedding].metric;
+\import \root.Thom[].Real[].For[X := Point.Carrier, F := Fiber, bundle := Trivial.bundle].With[metric := metric] \as Geometry;
+\import thom_spaces.Thom[].Over[K := R.Real, field := R.Algebra[].field, conjugation := linear_algebra.Hermitian[].Real[].scalar, scalar := vector_bundles.Bundles[].Real[].scalar].For[X := Point.Carrier, F := Fiber, bundle := Trivial.bundle].With[metric := metric] \as Disk;
+\import Geometry.Chart[c := Trivial.trivialization] \as Chart;
+\import Chart.Open[] \as Open;
+\import Chart.ProductCoordinates[] \as Coordinates;
+\import Coordinates.Norm[] \as Norm;
+\import Geometry.Shell[] \as Shell;
+\import Shell.Direct[] \as Direct;
+\import algebraic_topology.Euclidean[].Dimension[n := n] \as Euclidean;
+\definition BasePoint: \Set := Chart.BasePoint;
+\definition center: BasePoint := \into[Point.Carrier](Point.point, topology.Topology[Carrier := Point.Carrier].Whole) \by { \refl(Point.point) };
+\definition wrap[p: Disk.DiskBundle]: Open.Carrier := \into[Disk.DiskBundle](p, Open.domain) \by { \refl(p.base) };
+\definition wrapContinuous: topology.Continuity[A := Disk.DiskBundle, B := Open.Carrier].Continuous Disk.diskTopology Open.topology wrap :=
+  topology.Continuity[A := Disk.DiskBundle, B := Disk.DiskBundle].Corestriction[S := Open.domain].corestrictContinuous Disk.diskTopology Disk.diskTopology wrap (topology.Maps[A := Disk.DiskBundle, B := Disk.DiskBundle].Identity[].continuous Disk.diskTopology);
+\definition model[p: Disk.DiskBundle]: Coordinates.Carrier := Coordinates.homeomorphism.forward (wrap p);
+\definition forward[p: Disk.DiskBundle]: Euclidean.Disk := Pair.second BasePoint Euclidean.Disk (model p);
+\definition fill[v: Euclidean.Disk]: Coordinates.Carrier := Pair.pair BasePoint Euclidean.Disk center v;
+\definition backward[v: Euclidean.Disk]: Disk.DiskBundle := Coordinates.homeomorphism.backward (fill v);
+\definition forwardContinuous: topology.Continuity[A := Disk.DiskBundle, B := Euclidean.Disk].Continuous Disk.diskTopology Euclidean.diskTopology forward :=
+  topology.Composition[A := Disk.DiskBundle, B := Coordinates.Carrier, C := Euclidean.Disk].composeContinuous Disk.diskTopology Coordinates.topology Euclidean.diskTopology model (Pair.second BasePoint Euclidean.Disk)
+    (topology.Composition[A := Disk.DiskBundle, B := Open.Carrier, C := Coordinates.Carrier].composeContinuous Disk.diskTopology Open.topology Coordinates.topology wrap Coordinates.homeomorphism.forward wrapContinuous
+      (topology.Homeomorphism[A := Open.Carrier, B := Coordinates.Carrier].laws Open.topology Coordinates.topology Coordinates.homeomorphism).forwardContinuous)
+    (topological_constructions.Product[A := BasePoint, B := Euclidean.Disk].Maps[].secondContinuous Chart.baseTopology Euclidean.diskTopology);
+\definition fillContinuous: topology.Continuity[A := Euclidean.Disk, B := Coordinates.Carrier].Continuous Euclidean.diskTopology Coordinates.topology fill :=
+  topological_constructions.Product[A := BasePoint, B := Euclidean.Disk].Universal[X := Euclidean.Disk].pairContinuous Euclidean.diskTopology Chart.baseTopology Euclidean.diskTopology (\fun (v: Euclidean.Disk) => center) (\fun (v: Euclidean.Disk) => v)
+    (topology.Maps[A := Euclidean.Disk, B := BasePoint].constantContinuous Euclidean.diskTopology Chart.baseTopology center) (topology.Maps[A := Euclidean.Disk, B := Euclidean.Disk].Identity[].continuous Euclidean.diskTopology);
+\definition backwardContinuous: topology.Continuity[A := Euclidean.Disk, B := Disk.DiskBundle].Continuous Euclidean.diskTopology Disk.diskTopology backward :=
+  topology.Composition[A := Euclidean.Disk, B := Open.Carrier, C := Disk.DiskBundle].composeContinuous Euclidean.diskTopology Open.topology Disk.diskTopology (\fun (v: Euclidean.Disk) => Coordinates.homeomorphism.backward (fill v)) Open.inclusion
+    (topology.Composition[A := Euclidean.Disk, B := Coordinates.Carrier, C := Open.Carrier].composeContinuous Euclidean.diskTopology Coordinates.topology Open.topology fill Coordinates.homeomorphism.backward fillContinuous
+      (topology.Homeomorphism[A := Open.Carrier, B := Coordinates.Carrier].laws Open.topology Coordinates.topology Coordinates.homeomorphism).backwardContinuous) Open.inclusionContinuous;
+\definition baseWrap[x: Point.Carrier]: BasePoint := \into[Point.Carrier](x, topology.Topology[Carrier := Point.Carrier].Whole) \by { \refl(x) };
+\definition baseUnique: \forall (x: BasePoint) -> x = center := \fun (x: BasePoint) =>
+  congr!{Point.Carrier BasePoint} baseWrap x Point.point (Point.unique x);
+\definition filled: \forall (p: Disk.DiskBundle) -> fill (forward p) = model p :=
+  \fun (p: Disk.DiskBundle) => Pair.Prop[A := BasePoint, B := Euclidean.Disk].ext (fill (forward p)) (model p) (sym!{BasePoint} _ _ (baseUnique (Pair.first BasePoint Euclidean.Disk (model p)))) (\refl(forward p));
+\definition leftInverse: \forall (p: Disk.DiskBundle) -> backward (forward p) = p :=
+  \fun (p: Disk.DiskBundle) => trans!{{Disk.DiskBundle}} _ _ _
+    (congr!{Coordinates.Carrier {Disk.DiskBundle}} (\fun (v: Coordinates.Carrier) => Coordinates.homeomorphism.backward v) _ _ (filled p))
+    ((topology.Homeomorphism[A := Open.Carrier, B := Coordinates.Carrier].laws Open.topology Coordinates.topology Coordinates.homeomorphism).leftInverse (wrap p));
+\definition rightInverse: \forall (v: Euclidean.Disk) -> forward (backward v) = v :=
+  \fun (v: Euclidean.Disk) => congr!{Coordinates.Carrier {Euclidean.Disk}} (Pair.second BasePoint Euclidean.Disk) _ _
+    ((topology.Homeomorphism[A := Open.Carrier, B := Coordinates.Carrier].laws Open.topology Coordinates.topology Coordinates.homeomorphism).rightInverse (fill v));
+\definition homeomorphism: topology.Homeomorphism[A := Disk.DiskBundle, B := Euclidean.Disk].Homeomorphism[Disk.diskTopology, Euclidean.diskTopology] :=
+  topology.Homeomorphism[A := Disk.DiskBundle, B := Euclidean.Disk].Homeomorphism[Disk.diskTopology, Euclidean.diskTopology] {
+    forward := forward, backward := backward, forwardContinuous := forwardContinuous, backwardContinuous := backwardContinuous, leftInverse := leftInverse, rightInverse := rightInverse
+  };
+\definition forwardSquared: \forall (p: Disk.DiskBundle) -> Euclidean.normSquared (forward p) = Disk.squared p := \fun (p: Disk.DiskBundle) => Norm.squared (wrap p);
+\definition backwardSquared: \forall (v: Euclidean.Disk) -> Disk.squared (backward v) = Euclidean.normSquared v :=
+  \fun (v: Euclidean.Disk) => trans!{R.Real} _ _ _ (sym!{R.Real} _ _ (forwardSquared (backward v))) (congr!{{Euclidean.Disk} R.Real} (\fun (q: Euclidean.Disk) => Euclidean.normSquared q) _ _ (rightInverse v));
+\definition forwardNorm: \forall (p: Disk.DiskBundle) -> Euclidean.Geometry[].norm (forward p) = Disk.norm p := \fun (p: Disk.DiskBundle) => congr!{R.Real R.Real} R.SquareRoot[].sqrt _ _ (forwardSquared p);
+\definition backwardNorm: \forall (v: Euclidean.Disk) -> Disk.norm (backward v) = Euclidean.Geometry[].norm v := \fun (v: Euclidean.Disk) => congr!{R.Real R.Real} R.SquareRoot[].sqrt _ _ (backwardSquared v);
+\definition boundary: \Pow Euclidean.Disk := { v: Euclidean.Disk \where Euclidean.normSquared v = R.one };
+\definition shell: \Pow Euclidean.Disk := { v: Euclidean.Disk \where D.Lt R.half (Euclidean.Geometry[].norm v) };
+\definition normContinuous: metric_spaces.RealFunctions[A := Euclidean.Disk].Continuous Euclidean.diskTopology (\fun (v: Euclidean.Disk) => Euclidean.Geometry[].norm v) :=
+  topology.Continuity[A := Euclidean.Coordinate, B := R.Real].Restriction[S := Euclidean.ClosedBall].restrictContinuous Euclidean.topology metric_spaces.RealLine[].topology Euclidean.Geometry[].norm Euclidean.Geometry[].normContinuous;
+\definition open: topology.Topology[Carrier := Euclidean.Disk].IsOpenIn Euclidean.diskTopology shell := normContinuous (metric_spaces.RealLine[].Rays[].Above R.half) (metric_spaces.RealLine[].Rays[].aboveOpen R.half);
+\import singular_cohomology.Relative[A := Disk.DiskBundle, source := Disk.diskTopology, subset := Disk.Boundary].Homeomorphism[B := Euclidean.Disk].Over[target := Euclidean.diskTopology, targetSubset := boundary] \as BoundaryPairs;
+\definition boundaryPair: BoundaryPairs.Data := BoundaryPairs.Data {
+  homeomorphism := homeomorphism,
+  forwardPreserves := \fun (p: \Cast[Disk.DiskBundle] Disk.Boundary) => trans!{R.Real} _ _ _ (forwardSquared p) (\bysub(Disk.DiskBundle, Disk.Boundary, p)),
+  backwardPreserves := \fun (v: \Cast[Euclidean.Disk] boundary) => trans!{R.Real} _ _ _ (backwardSquared v) (\bysub(Euclidean.Disk, boundary, v))
+};
+\import singular_cohomology.Relative[A := Disk.DiskBundle, source := Disk.diskTopology, subset := Shell.shell].Homeomorphism[B := Euclidean.Disk].Over[target := Euclidean.diskTopology, targetSubset := shell] \as ShellPairs;
+\definition shellPair: ShellPairs.Data := ShellPairs.Data {
+  homeomorphism := homeomorphism,
+  forwardPreserves := \fun (p: \Cast[Disk.DiskBundle] Shell.shell) => D.ltReplaceRight R.half (Disk.norm p) (Euclidean.Geometry[].norm (forward p)) (sym!{R.Real} _ _ (forwardNorm p)) (\bysub(Disk.DiskBundle, Shell.shell, p)),
+  backwardPreserves := \fun (v: \Cast[Euclidean.Disk] shell) => D.ltReplaceRight R.half (Euclidean.Geometry[].norm v) (Disk.norm (backward v)) (sym!{R.Real} _ _ (backwardNorm v)) (\bysub(Euclidean.Disk, shell, v))
+};
+\import singular_cohomology.Relative[A := Euclidean.Disk, source := Euclidean.diskTopology, subset := boundary].Maps[B := Euclidean.Disk].Over[target := Euclidean.diskTopology, targetSubset := shell] \as Include;
+\definition include: Include.Map := \into[Euclidean.Disk -> Euclidean.Disk]((\fun (v: Euclidean.Disk) => v), Include.Map) \by {
+  Include.Laws[(\fun (v: Euclidean.Disk) => v)] { continuous := topology.Maps[A := Euclidean.Disk, B := Euclidean.Disk].Identity[].continuous Euclidean.diskTopology,
+    contained := \fun (v: \Cast[Euclidean.Disk] boundary) => D.ltReplaceRight R.half R.one (Euclidean.Geometry[].norm v)
+      (sym!{R.Real} _ _ (trans!{R.Real} _ _ _ (congr!{R.Real R.Real} R.SquareRoot[].sqrt _ _ (\bysub(Euclidean.Disk, boundary, v))) R.SquareRoot[].sqrtOne)) Disk.ThomPair[].Collar[].halfBelowOne
+  }
+};
+\import singular_cohomology.Relative[A := Disk.DiskBundle, source := Disk.diskTopology, subset := Disk.Boundary].Maps[B := Disk.DiskBundle].Over[target := Disk.diskTopology, targetSubset := Shell.shell].Composition[C := Euclidean.Disk].Over[final := Euclidean.diskTopology, finalSubset := shell] \as FirstComposition;
+\import singular_cohomology.Relative[A := Disk.DiskBundle, source := Disk.diskTopology, subset := Disk.Boundary].Maps[B := Euclidean.Disk].Over[target := Euclidean.diskTopology, targetSubset := boundary].Composition[C := Euclidean.Disk].Over[final := Euclidean.diskTopology, finalSubset := shell] \as SecondComposition;
+\import singular_cohomology.Relative[A := Disk.DiskBundle, source := Disk.diskTopology, subset := Disk.Boundary].Maps[B := Euclidean.Disk].Over[target := Euclidean.diskTopology, targetSubset := shell] \as DirectMaps;
+\definition square: FirstComposition.compose Direct.forward (ShellPairs.forwardMap shellPair) = SecondComposition.compose (BoundaryPairs.forwardMap boundaryPair) include := \refl(FirstComposition.compose Direct.forward (ShellPairs.forwardMap shellPair));
+\module With(coefficients: Modules.Bundle, z: I.Int^);
+\module PointModel;
+\module Ring(K: \Set, ring: std.Alg[].Ring[].CommutativeRing[K]);
+
+\module Motion;

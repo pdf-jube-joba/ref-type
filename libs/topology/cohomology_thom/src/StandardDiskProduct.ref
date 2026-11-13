@@ -1,0 +1,77 @@
+\import std.Data[].Nat[] \as N;
+\import std.Data[].Pair[] \as Pair;
+\import std.Logic[].Proposition[] \as Logic;
+\use Logic.either;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.trans;
+\use Equality.sym;
+\use Equality.congr;
+\import real.Analysis[] \as R;
+\import dedekind_reals.DedekindReal[] \as D;
+\definition dimension: N.Nat^ := N.Basic[].Def[].add n m;
+\import algebraic_topology.Euclidean[].Dimension[n := n] \as First;
+\import algebraic_topology.Euclidean[].Dimension[n := m] \as Second;
+\import algebraic_topology.Euclidean[].Dimension[n := dimension] \as Total;
+\import thom_spaces.Thom[].CWType[].DiskProduct[n := m, m := n] \as Native;
+\import topological_constructions.Product[A := First.Disk, B := Second.Disk] \as Product;
+\import topological_constructions.Product[A := Second.Disk, B := First.Disk] \as Swapped;
+\definition Carrier: \Set := Product.CarrierSet;
+\definition NativeCarrier: \Set := Swapped.CarrierSet;
+\definition productTopology: topology.Topology[Carrier := Carrier].Topology := Product.topology First.diskTopology Second.diskTopology;
+\definition Boundary: \Pow Carrier := { p: Carrier \where Logic.Or[
+  First.normSquared (Pair.first First.Disk Second.Disk p) = R.one,
+  Second.normSquared (Pair.second First.Disk Second.Disk p) = R.one] };
+\definition swap[p: NativeCarrier]: Carrier := Pair.pair First.Disk Second.Disk
+  (Pair.second Second.Disk First.Disk p) (Pair.first Second.Disk First.Disk p);
+\definition transpose[p: Carrier]: NativeCarrier := Pair.pair Second.Disk First.Disk
+  (Pair.second First.Disk Second.Disk p) (Pair.first First.Disk Second.Disk p);
+\definition swapTranspose: \forall (p: Carrier) -> swap (transpose p) = p :=
+  \fun (p: Carrier) => Pair.Prop[A := First.Disk, B := Second.Disk].eta p;
+\definition transposeSwap: \forall (p: NativeCarrier) -> transpose (swap p) = p :=
+  \fun (p: NativeCarrier) => Pair.Prop[A := Second.Disk, B := First.Disk].eta p;
+\definition swapContinuous: topology.Continuity[A := NativeCarrier, B := Carrier].Continuous Native.productTopology productTopology swap :=
+  Product.Universal[X := NativeCarrier].pairContinuous Native.productTopology First.diskTopology Second.diskTopology
+    (Pair.second Second.Disk First.Disk) (Pair.first Second.Disk First.Disk)
+    (Swapped.Maps[].secondContinuous Second.diskTopology First.diskTopology)
+    (Swapped.Maps[].firstContinuous Second.diskTopology First.diskTopology);
+\definition transposeContinuous: topology.Continuity[A := Carrier, B := NativeCarrier].Continuous productTopology Native.productTopology transpose :=
+  Swapped.Universal[X := Carrier].pairContinuous productTopology Second.diskTopology First.diskTopology
+    (Pair.second First.Disk Second.Disk) (Pair.first First.Disk Second.Disk)
+    (Product.Maps[].secondContinuous First.diskTopology Second.diskTopology)
+    (Product.Maps[].firstContinuous First.diskTopology Second.diskTopology);
+\definition forward[p: Total.Disk]: Carrier := swap (Native.homeomorphism.forward p);
+\definition backward[p: Carrier]: Total.Disk := Native.homeomorphism.backward (transpose p);
+\definition forwardContinuous: topology.Continuity[A := Total.Disk, B := Carrier].Continuous Total.diskTopology productTopology forward :=
+  topology.Composition[A := Total.Disk, B := NativeCarrier, C := Carrier].composeContinuous Total.diskTopology Native.productTopology productTopology
+    Native.homeomorphism.forward swap Native.laws.forwardContinuous swapContinuous;
+\definition backwardContinuous: topology.Continuity[A := Carrier, B := Total.Disk].Continuous productTopology Total.diskTopology backward :=
+  topology.Composition[A := Carrier, B := NativeCarrier, C := Total.Disk].composeContinuous productTopology Native.productTopology Total.diskTopology
+    transpose Native.homeomorphism.backward transposeContinuous Native.laws.backwardContinuous;
+\definition leftInverse: \forall (p: Total.Disk) -> backward (forward p) = p :=
+  \fun (p: Total.Disk) => trans!{{Total.Disk}} _ _ _
+    (congr!{NativeCarrier {Total.Disk}} Native.homeomorphism.backward _ _ (transposeSwap (Native.homeomorphism.forward p)))
+    (Native.laws.leftInverse p);
+\definition rightInverse: \forall (p: Carrier) -> forward (backward p) = p :=
+  \fun (p: Carrier) => trans!{Carrier} _ _ _
+    (congr!{NativeCarrier Carrier} swap _ _ (Native.laws.rightInverse (transpose p)))
+    (swapTranspose p);
+\definition homeomorphism: topology.Homeomorphism[A := Total.Disk, B := Carrier].Homeomorphism[Total.diskTopology, productTopology] :=
+  topology.Homeomorphism[A := Total.Disk, B := Carrier].Homeomorphism[Total.diskTopology, productTopology] {
+    forward := forward, backward := backward,
+    forwardContinuous := forwardContinuous, backwardContinuous := backwardContinuous,
+    leftInverse := leftInverse, rightInverse := rightInverse
+  };
+\definition laws: topology.Homeomorphism[A := Total.Disk, B := Carrier].Laws[Total.diskTopology, productTopology, homeomorphism] :=
+  topology.Homeomorphism[A := Total.Disk, B := Carrier].laws Total.diskTopology productTopology homeomorphism;
+\definition swapBoundary: \forall (p: NativeCarrier) -> \In[NativeCarrier] Native.Boundary p -> \In[Carrier] Boundary (swap p) :=
+  \fun (p: NativeCarrier)(inside: _) => either!{inside {\In[Carrier] Boundary (swap p)}
+    {\fun (second: Second.normSquared (Pair.first Second.Disk First.Disk p) = R.one) => Logic.Or[_, _]::right second}
+    {\fun (first: First.normSquared (Pair.second Second.Disk First.Disk p) = R.one) => Logic.Or[_, _]::left first}};
+\definition transposeBoundary: \forall (p: Carrier) -> \In[Carrier] Boundary p -> \In[NativeCarrier] Native.Boundary (transpose p) :=
+  \fun (p: Carrier)(inside: _) => either!{inside {\In[NativeCarrier] Native.Boundary (transpose p)}
+    {\fun (first: First.normSquared (Pair.first First.Disk Second.Disk p) = R.one) => Logic.Or[_, _]::right first}
+    {\fun (second: Second.normSquared (Pair.second First.Disk Second.Disk p) = R.one) => Logic.Or[_, _]::left second}};
+\definition forwardBoundary: \forall (p: Total.Disk) -> Total.normSquared p = R.one -> \In[Carrier] Boundary (homeomorphism.forward p) :=
+  \fun (p: Total.Disk)(inside: _) => swapBoundary (Native.homeomorphism.forward p) (Native.forwardBoundary p inside);
+\definition backwardBoundary: \forall (p: Carrier) -> \In[Carrier] Boundary p -> Total.normSquared (homeomorphism.backward p) = R.one :=
+  \fun (p: Carrier)(inside: _) => Native.backwardBoundary (transpose p) (transposeBoundary p inside);

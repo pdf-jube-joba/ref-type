@@ -1,0 +1,30 @@
+\import chain_complexes.Integer[].Over[R := I.Int^, ring := Integers.ring] \as Cochains;
+\import \root.FamilyPair[A := A, source := source, family := family] \as WholePair;
+\import Hom.Relative[subcomplex := Joint.complex, wholecomplex := Ambient.complex].On[pair := pair, coefficients := coefficients] \as SmallRelative;
+\import Hom.Integer[P := WholePair.complex, N := coefficients] \as WholeRelative;
+\import Hom.Integer[P := AmbientExtension.complex, N := coefficients] \as SmallWhole;
+\import Hom.Integer[P := JointExtension.complex, N := coefficients] \as SmallSub;
+\import Hom.Integer[P := WholeExtension.complex, N := coefficients] \as WholeWhole;
+\import Hom.Integer[P := BoundaryExtension.complex, N := coefficients] \as WholeSub;
+\import Modules.End[V := coefficients.Carrier, space := coefficients.space] \as Coefficients;
+\import Hom.IntegerMapping[P := SmallQuotient.complex, Q := WholePair.complex, N := coefficients, L := coefficients].On[f := comparison, u := Coefficients.identity] \as RelativePull;
+\import Hom.IntegerMapping[P := AmbientExtension.complex, Q := WholeExtension.complex, N := coefficients, L := coefficients].On[f := WholeMap.map, u := Coefficients.identity] \as WholePull;
+\import Hom.IntegerMapping[P := JointExtension.complex, Q := BoundaryExtension.complex, N := coefficients, L := coefficients].On[f := BoundaryMap.map, u := Coefficients.identity] \as BoundaryPull;
+\definition restriction: Cochains.Map[C := WholeRelative.complex, D := SmallRelative.complex].Map := RelativePull.map;
+\import Hom.Relative[subcomplex := Boundary.complex, wholecomplex := Whole.complex].On[pair := WholePair.pair, coefficients := coefficients].PairSequence[] \as SourceSequence;
+\import SmallRelative.PairSequence[] \as TargetSequence;
+\module Square(z: I.Int^);
+\import Cochains.ShortExact[A := WholeRelative.complex, B := WholeWhole.complex, C := WholeSub.complex]
+  .Morphism[A1 := SmallRelative.complex, B1 := SmallWhole.complex, C1 := SmallSub.complex]
+  .Diagram[s := SourceSequence.sequence, t := TargetSequence.sequence, a := restriction, b := WholePull.map, c := BoundaryPull.map] \as Diagram;
+\definition diagram: Diagram.Commutative := Diagram.Commutative {
+  left := \fun (z: I.Int^) => Square[z := z].inclusion,
+  right := \fun (z: I.Int^)(h: WholeWhole.Carrier z) => sym!{{SmallSub.Carrier z}} _ _ (Square[z := z].restriction h)
+};
+\import Hom.IntegerEquivalence[P := AmbientExtension.complex, Q := WholeExtension.complex, N := coefficients] \as WholeComparison;
+\import Hom.IntegerEquivalence[P := JointExtension.complex, Q := BoundaryExtension.complex, N := coefficients] \as BoundaryComparison;
+\definition quasiIsomorphism: Cochains.Map[C := WholeRelative.complex, D := SmallRelative.complex].QuasiIsomorphism restriction :=
+  Diagram.leftQuasiIsomorphism diagram (WholeComparison.quasiIsomorphism WholeEquivalence.equivalence) (BoundaryComparison.quasiIsomorphism BoundaryEquivalence.equivalence);
+\module At(z: I.Int^) {
+  \definition isomorphism: _ := Cochains.Map[C := WholeRelative.complex, D := SmallRelative.complex].At[k := z].Invert[f := restriction].isomorphism (quasiIsomorphism z);
+}

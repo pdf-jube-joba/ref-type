@@ -1,0 +1,16 @@
+\import std.Arithmetic[].Int[] \as I;
+\import std.Arithmetic[].IntAlgebra[].Ring[] \as Integers;
+\import std.Logic[].Proposition[] \as Logic;
+\import module_theory.Module[].Over[R := I.Int^, ring := Integers.ring] \as Modules;
+\definition Source: \Set := \Cast[G] S;
+\definition Target: \Set := \Cast[G] T;
+\definition forward[x: Source]: Target := \into[G](x, T) \by { toTarget x (\bysub(G, S, x)) };
+\definition backward[x: Target]: Source := \into[G](x, S) \by { toSource x (\bysub(G, T, x)) };
+\import Modules.Free[Generators := Source] \as SourceFree;
+\import Modules.Free[Generators := Target] \as TargetFree;
+\import SourceFree.Reindex[TargetGenerators := Target] \as Reindex;
+\import Reindex.Injection[f := forward].Retraction[] \as Inverse;
+\definition injective: \forall (x, y: Source) -> forward x = forward y -> x = y := \fun (x, y: Source)(same: _) => same;
+\definition onto: Inverse.Onto := \fun (x: Target) => Logic.existsIntro[Source, { y: Source \where forward y = x }] (backward x) (\refl(x));
+\definition isomorphism: Modules.Isomorphism[V := SourceFree.Carrier, W := TargetFree.Carrier, source := SourceFree.space, target := TargetFree.space].Isomorphism := Inverse.isomorphism injective onto;
+\definition onGenerator: \forall (x: Source) -> isomorphism.forward.apply (SourceFree.generator x) = TargetFree.generator (forward x) := Reindex.onGenerator forward;

@@ -1,0 +1,71 @@
+\import Suspension.Slice[d := Halves.overlap] \as Geometry;
+\import Suspension.Covering[] \as Covering;
+\definition Carrier: \Set := MV.Overlap;
+\definition space: topology.Topology[Carrier := Carrier].Topology := MV.overlapTopology;
+\definition inclusion[p: Carrier]: Cylinder.Carrier := p;
+\import \root.BinaryFamilyPullback[A := Carrier, B := Cylinder.Carrier, first := firstPart, second := secondPart, f := inclusion] \as Boundary;
+\definition firstRegion: \Pow Carrier := Boundary.firstPart;
+\definition secondRegion: \Pow Carrier := Boundary.secondPart;
+\definition family: \Pow (\Pow Carrier) := Boundary.family;
+\definition projection[p: Carrier]: A := Geometry.projection (Covering.forward p);
+\definition section[x: A]: Carrier := Covering.backward (Geometry.section x);
+\definition projectionContinuous: topology.Continuity[A := Carrier, B := A].Continuous space source projection :=
+  topology.Composition[A := Carrier, B := Geometry.Carrier, C := A].composeContinuous space Geometry.space source Covering.forward Geometry.projection Covering.forwardContinuous Geometry.projectionContinuous;
+\definition sectionContinuous: topology.Continuity[A := A, B := Carrier].Continuous source space section :=
+  topology.Composition[A := A, B := Geometry.Carrier, C := Carrier].composeContinuous source Geometry.space space Geometry.section Covering.backward Geometry.sectionContinuous Covering.backwardContinuous;
+\definition baseClassify: \forall (U: \Pow A) -> \In[\Pow A] baseFamily U -> Logic.Or[U = first, U = second] :=
+  \fun (U: \Pow A)(member: \In[\Pow A] baseFamily U) => member;
+\definition projectsSecond: \forall (p: Carrier) -> \In[Carrier] secondRegion p -> \In[A] second (projection p) :=
+  \fun (p: Carrier)(inside: _) => Halves.middleProjects (Geometry.time (Covering.forward p)) (projection p) inside;
+\import \root.ClassifiedFamilyMap[A := Carrier, B := A, source := space, target := source,
+  sourceFirst := firstRegion, sourceSecond := secondRegion, targetFirst := first, targetSecond := second, sourceFamily := family, targetFamily := baseFamily,
+  classify := Boundary.classify, targetFirstMember := Logic.Or[first = first, first = second]::left (\refl(first)), targetSecondMember := Logic.Or[second = first, second = second]::right (\refl(second)),
+  f := projection, regular := projectionContinuous,
+  firstContained := (\fun (p: Carrier)(inside: \In[Carrier] firstRegion p) => inside), secondContained := projectsSecond] \as Projection;
+\definition sectionSecond: \forall (x: A) -> \In[A] second x -> \In[Carrier] secondRegion (section x) :=
+  \fun (x: A)(inside: \In[A] second x) => Logic.Or[_, _]::right (Logic.Or[_, _]::right inside);
+\import \root.ClassifiedFamilyMap[A := A, B := Carrier, source := source, target := space,
+  sourceFirst := first, sourceSecond := second, targetFirst := firstRegion, targetSecond := secondRegion, sourceFamily := baseFamily, targetFamily := family,
+  classify := baseClassify, targetFirstMember := Boundary.firstMember, targetSecondMember := Boundary.secondMember,
+  f := section, regular := sectionContinuous,
+  firstContained := (\fun (x: A)(inside: \In[A] first x) => inside),
+  secondContained := sectionSecond] \as Section;
+\import algebraic_topology.Homotopy[A := Geometry.Carrier, B := Geometry.Carrier].Composition[C := Carrier] \as Precomposition;
+\import algebraic_topology.Homotopy[A := Carrier, B := Geometry.Carrier].Composition[C := Carrier] \as Postcomposition;
+\import algebraic_topology.Homotopy[A := Carrier, B := Geometry.Carrier] \as MiddleHomotopies;
+\import algebraic_topology.Homotopy[A := Carrier, B := Carrier] \as Homotopies;
+\definition precomposed: MiddleHomotopies.Homotopy[space, Geometry.space,
+  (\fun (p: Carrier) => Geometry.section (Geometry.projection (Covering.forward p))), Covering.forward] :=
+  Precomposition.precompose space Geometry.space Geometry.space
+    (\fun (p: Geometry.Carrier) => Geometry.section (Geometry.projection p)) (\fun (p: Geometry.Carrier) => p)
+    Geometry.homotopy Covering.forward Covering.forwardContinuous;
+\definition homotopy: Homotopies.Homotopy[space, space, (\fun (p: Carrier) => section (projection p)), (\fun (p: Carrier) => p)] :=
+  Postcomposition.postcompose space Geometry.space space
+    (\fun (p: Carrier) => Geometry.section (Geometry.projection (Covering.forward p))) Covering.forward
+    precomposed Covering.backward Covering.backwardContinuous;
+\definition firstPreserved: \forall (t: J.Carrier)(p: Carrier) -> \In[Carrier] firstRegion p ->
+  \In[Carrier] firstRegion (homotopy (algebraic_topology.Cylinder[A := Carrier].at t p)) :=
+  \fun (t: J.Carrier)(p: Carrier)(inside: _) => inside;
+\definition secondPreserved: \forall (t: J.Carrier)(p: Carrier) -> \In[Carrier] secondRegion p ->
+  \In[Carrier] secondRegion (homotopy (algebraic_topology.Cylinder[A := Carrier].at t p)) :=
+  \fun (t: J.Carrier)(p: Carrier)(inside: _) => Halves.overlap.preservesBoundary t (Geometry.time (Covering.forward p)) (projection p) inside;
+\definition preserves: \forall (U: \Pow Carrier) -> \In[\Pow Carrier] family U ->
+  \forall (t: J.Carrier)(p: Carrier) -> \In[Carrier] U p ->
+  \In[Carrier] U (homotopy (algebraic_topology.Cylinder[A := Carrier].at t p)) :=
+  \fun (U: \Pow Carrier)(member: \In[\Pow Carrier] family U)(t: J.Carrier)(p: Carrier)(inside: _) =>
+    either!{{Boundary.classify U member} {\In[Carrier] U (homotopy (algebraic_topology.Cylinder[A := Carrier].at t p))}
+      {\fun (same: U = firstRegion) => \idelim firstRegion = U
+        \with V: \Pow Carrier => \In[Carrier] V (homotopy (algebraic_topology.Cylinder[A := Carrier].at t p)) \by {
+          base: firstPreserved t p (\idelim U = firstRegion \with V: \Pow Carrier => \In[Carrier] V p \by { base: inside, equality: same }),
+          equality: sym!{{\Pow Carrier}} _ _ same
+        }}
+      {\fun (same: U = secondRegion) => \idelim secondRegion = U
+        \with V: \Pow Carrier => \In[Carrier] V (homotopy (algebraic_topology.Cylinder[A := Carrier].at t p)) \by {
+          base: secondPreserved t p (\idelim U = secondRegion \with V: \Pow Carrier => \In[Carrier] V p \by { base: inside, equality: same }),
+          equality: sym!{{\Pow Carrier}} _ _ same
+        }}}
+;
+\import \root.FamilyHomotopy[A := Carrier, source := space, family := family,
+  f := (\fun (p: Carrier) => section (projection p)), g := (\fun (p: Carrier) => p), h := homotopy, preserves := preserves] \as Comparison;
+\definition projectionSection: \forall (x: A) -> projection (section x) = x := \fun (x: A) => \refl(x);
+\module With(coefficients: Modules.Bundle);

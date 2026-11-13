@@ -1,0 +1,14 @@
+\import R.Degree[n := n] \as Model;
+\definition toTarget: \forall (sigma: RightSimplices.Carrier n) -> \In[RightSimplices.Carrier n] Generators.rightOutside sigma -> \In[RightSimplices.Carrier n] Model.outside sigma :=
+  \fun (sigma: RightSimplices.Carrier n)(outside: _)(small: _) => outside (RightPull.At[n := n].small rightContinuous (\into[RightSimplices.Carrier n](sigma, singular_subdivision.Small[A := Right, source := rightTopology, family := RightPull.pullbackFamily].Simplices[].Small n) \by { small }));
+\definition toSource: \forall (sigma: RightSimplices.Carrier n) -> \In[RightSimplices.Carrier n] Model.outside sigma -> \In[RightSimplices.Carrier n] Generators.rightOutside sigma :=
+  \fun (sigma: RightSimplices.Carrier n)(outside: _)(small: _) => outside (RightReflect.Degree[n := n].reflects sigma small);
+\import \root.FreeSubsetTransport[G := RightSimplices.Carrier n, S := Generators.rightOutside, T := Model.outside, toTarget := toTarget, toSource := toSource] \as Basis;
+\definition isomorphism: Modules.Isomorphism[V := RF.Carrier, W := R.Carrier index, source := RF.space, target := R.space index].Isomorphism :=
+  Modules.Isomorphism[V := RF.Carrier, W := Modules.Free[Generators := Model.Generator].Carrier, source := RF.space, target := Modules.Free[Generators := Model.Generator].space].Composition[U := R.Carrier index, final := R.space index].compose Model.isomorphism Basis.isomorphism;
+\import singular_cohomology.Chains[A := Right, source := rightTopology] \as Ordinary;
+\import double_complexes.NonnegativeChain[].Over[R := I.Int^, ring := Integers.ring].ZeroExtension[C := Ordinary.complex] \as Extension;
+\definition onGenerator: \forall (sigma: Generators.Right) -> isomorphism.forward.apply (RF.generator sigma) = R.class index (Extension.Positive[n := n].intro (Ordinary.generator n sigma)) :=
+  \fun (sigma: Generators.Right) => trans!{{R.Carrier index}} _ _ _
+    (congr!{{Modules.Free[Generators := Model.Generator].Carrier} {R.Carrier index}} Model.isomorphism.forward.apply _ _ (Basis.onGenerator sigma))
+    (Model.onGenerator (Basis.forward sigma));

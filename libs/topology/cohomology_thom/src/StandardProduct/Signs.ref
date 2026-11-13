@@ -1,0 +1,47 @@
+\import std.Data[].Bool[] \as B;
+\import module_theory.Module[].Over[R := I.Int^, ring := std.Arithmetic[].IntAlgebra[].Ring[].ring] \as Modules;
+\import commutative_algebra.Modules[R := I.Int^, ring := std.Arithmetic[].IntAlgebra[].Ring[].commutativeRing] \as Commutative;
+\import LeftClass.Linear[] \as LL;
+\import RightClass.Linear[] \as RL;
+\definition left: Modules.Bundle := Modules.Bundle { Carrier := LL.input.Carrier, space := LL.input.space };
+\definition right: Modules.Bundle := Modules.Bundle { Carrier := RL.input.Carrier, space := RL.input.space };
+\import singular_cohomology.Relative[A := Carrier, source := topology, subset := firstShell].With[coefficients := singular_products.Cochains[A := Carrier, source := topology, R := K, ring := ring].integerCoefficients].At[z := I.Int^::ofNat n] \as LeftShell;
+\import singular_cohomology.Relative[A := Carrier, source := topology, subset := secondShell].With[coefficients := singular_products.Cochains[A := Carrier, source := topology, R := K, ring := ring].integerCoefficients].At[z := I.Int^::ofNat m] \as RightShell;
+\import singular_cohomology.Relative[A := Total.Disk, source := Total.diskTopology, subset := { v: Total.Disk \where Total.normSquared v = R.one }].With[coefficients := singular_products.Cochains[A := Carrier, source := topology, R := K, ring := ring].integerCoefficients].At[z := I.Int^::ofNat degree] \as Output;
+\definition output: Modules.Bundle := Modules.Bundle { Carrier := Output.Carrier, space := Output.space };
+\import Modules.Hom[V := LL.output.Carrier, W := LeftShell.Carrier, source := LL.output.space, target := LeftShell.space].Composition[U := left.Carrier, domain := left.space] \as LeftComposition;
+\import Modules.Hom[V := RL.output.Carrier, W := RightShell.Carrier, source := RL.output.space, target := RightShell.space].Composition[U := right.Carrier, domain := right.space] \as RightComposition;
+\definition leftMap: _ := LeftComposition.compose LeftPull.Degree[n := n].map LL.linear;
+\definition rightMap: _ := RightComposition.compose RightPull.Degree[n := m].map RL.linear;
+\import Commutative.Bilinear[A := Cup.left, B := Cup.right, C := Cup.output].Precompose[D := left, E := right] \as Before;
+\import Commutative.Bilinear[A := left, B := right, C := Cup.output].Postcompose[D := output] \as After;
+\definition bilinear: Commutative.Bilinear[A := left, B := right, C := output].Map := After.apply (Before.apply Cup.bilinear leftMap rightMap) FullPull.Degree[n := degree].map;
+\definition formula: \forall (a: LeftPoint.Class)(b: RightPoint.Class) -> bilinear.apply a b = apply a b := \fun (a: LeftPoint.Class)(b: RightPoint.Class) => \refl(apply a b);
+\import Commutative.Bilinear[A := left, B := right, C := output].Properties[] \as Laws;
+\definition leftNegative: \forall (a: LeftPoint.Class)(b: RightPoint.Class) -> apply (left.space.neg a) b = output.space.neg (apply a b) := Laws.leftNegative bilinear;
+\definition rightNegative: \forall (a: LeftPoint.Class)(b: RightPoint.Class) -> apply a (right.space.neg b) = output.space.neg (apply a b) := Laws.rightNegative bilinear;
+\definition signedLeft[s: B.Bool^][a: LeftPoint.Class]: LeftPoint.Class := \induction (s: B.Bool^) \return LeftPoint.Class \with { | false: a | true: left.space.neg a } s;
+\definition signedRight[s: B.Bool^][b: RightPoint.Class]: RightPoint.Class := \induction (s: B.Bool^) \return RightPoint.Class \with { | false: b | true: right.space.neg b } s;
+\definition signedOutput[s: B.Bool^][a: Output.Carrier]: Output.Carrier := \induction (s: B.Bool^) \return Output.Carrier \with { | false: a | true: output.space.neg a } s;
+\definition flip[s: B.Bool^]: B.Bool^ := \induction (s: B.Bool^) \return B.Bool^ \with { | false: B.Bool^::true | true: B.Bool^::false } s;
+\definition combine[s, t: B.Bool^]: B.Bool^ := \induction (s: B.Bool^) \return B.Bool^ \with { | false: t | true: flip t } s;
+\import Modules.Laws[V := Output.Carrier, space := Output.space] \as Values;
+\import algebra.Group[].Of[Carrier := Output.Carrier, group := Values.additive] \as Group;
+\definition nested: \forall (s, t: B.Bool^)(a: Output.Carrier) -> signedOutput s (signedOutput t a) = signedOutput (combine s t) a :=
+  \induction (s: B.Bool^) \return \forall (t: B.Bool^)(a: Output.Carrier) -> signedOutput s (signedOutput t a) = signedOutput (combine s t) a \with {
+    | false: \fun (t: B.Bool^)(a: Output.Carrier) => \refl(signedOutput t a)
+    | true: \induction (t: B.Bool^) \return \forall (a: Output.Carrier) -> signedOutput B.Bool^::true (signedOutput t a) = signedOutput (combine B.Bool^::true t) a \with {
+      | false: \fun (a: Output.Carrier) => \refl(Output.space.neg a)
+      | true: Group.negNeg
+    }
+  };
+\definition law: \forall (s, t: B.Bool^)(a: LeftPoint.Class)(b: RightPoint.Class) -> apply (signedLeft s a) (signedRight t b) = signedOutput (combine s t) (apply a b) :=
+  \induction (s: B.Bool^) \return \forall (t: B.Bool^)(a: LeftPoint.Class)(b: RightPoint.Class) -> apply (signedLeft s a) (signedRight t b) = signedOutput (combine s t) (apply a b) \with {
+    | false: \induction (t: B.Bool^) \return \forall (a: LeftPoint.Class)(b: RightPoint.Class) -> apply a (signedRight t b) = signedOutput t (apply a b) \with {
+      | false: \fun (a: LeftPoint.Class)(b: RightPoint.Class) => \refl(apply a b)
+      | true: rightNegative
+    }
+    | true: \fun (t: B.Bool^)(a: LeftPoint.Class)(b: RightPoint.Class) => trans!{Output.Carrier} _ _ _ (leftNegative a (signedRight t b))
+      (trans!{Output.Carrier} _ _ _ (congr!{Output.Carrier Output.Carrier} Output.space.neg _ _ ((\induction (r: B.Bool^) \return apply a (signedRight r b) = signedOutput r (apply a b) \with { | false: \refl(apply a b) | true: rightNegative a b }) t))
+        (nested B.Bool^::true t (apply a b)))
+  };

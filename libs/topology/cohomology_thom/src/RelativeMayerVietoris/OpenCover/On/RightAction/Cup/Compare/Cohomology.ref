@@ -1,0 +1,41 @@
+\use std.Logic[].Equality[].eq_reason_in;
+\import \parent.\parent.Compare[] \as CochainComparison;
+\import IntegerCochains.At[C := SourceWhole.complex, z := inputDegree] \as Input;
+\import IntegerCochains.At[C := WholeRelative.complex, z := outputDegree] \as Output;
+\import IntegerCochains.At[C := WholeRelative.complex, z := I.Int^::ofNat q] \as Fixed;
+\import IntegerCochains.At[C := SourceSmallHom.complex, z := inputDegree] \as SmallInput;
+\import IntegerCochains.At[C := SmallHom.complex, z := outputDegree] \as SmallOutput;
+\import IntegerCochains.Map[C := SourceWhole.complex, D := SourceSmallHom.complex].At[k := inputDegree] \as SourceAction;
+\import IntegerCochains.Map[C := WholeRelative.complex, D := SmallHom.complex].At[k := outputDegree] \as TargetAction;
+\import SourceWholeCup.Comparison[n := p].Cohomology[] \as Forget;
+\import WholeCup.Cohomology[p := p, q := q].Right[] \as Cup;
+\import \parent.\parent.Cycles[] \as Cycles;
+\definition sourceIso: _ := SourceComparison.At[z := inputDegree].isomorphism;
+\definition targetIso: _ := WholeComparison.At[z := outputDegree].isomorphism;
+\definition whole[u: Restriction.Cycle][a: Input.Cohomology]: Output.Cohomology := Cup.apply (Forget.map.apply a) (Fixed.classOf u);
+\definition onWholeCycles: \forall (u: Restriction.Cycle)(h: Input.Closed) ->
+  SmallOutput.classOf (Cycles.cycle u ((SourceAction.cyclesMap SourceComparison.restriction).apply h)) = targetIso.forward.apply (whole u (Input.classOf h)) :=
+  \fun (u: Restriction.Cycle)(h: Input.Closed) => eq_reason_in!{SmallOutput.Cohomology _
+    "=" _ "by" { congr!{SmallOutput.Closed SmallOutput.Cohomology} SmallOutput.classOf (Cycles.cycle u ((SourceAction.cyclesMap SourceComparison.restriction).apply h)) ((TargetAction.cyclesMap WholeComparison.restriction).apply (Cup.cycle (Forget.cycle h) u)) (CochainComparison.law u h) }
+    "=" _ "by" { sym!{SmallOutput.Cohomology} _ _ (TargetAction.onClass WholeComparison.restriction (Cup.cycle (Forget.cycle h) u)) }
+    "=" _ "by" { congr!{Output.Cohomology SmallOutput.Cohomology} targetIso.forward.apply _ _ (sym!{Output.Cohomology} _ _ (Cup.onClasses (Forget.cycle h) u)) }
+    "=" _ "by" { congr!{{WholeProduct.Cohomology[].Group p} SmallOutput.Cohomology} (\fun (a: WholeProduct.Cohomology[].Group p) => targetIso.forward.apply (Cup.apply a (Fixed.classOf u))) _ _ (sym!{{WholeProduct.Cohomology[].Group p}} _ _ (Forget.onClass h)) }
+  };
+\definition addition: \forall (u: Restriction.Cycle)(a, b: Input.Cohomology) -> whole u (Input.cohomologySpace.add a b) = Output.cohomologySpace.add (whole u a) (whole u b) :=
+  \fun (u: Restriction.Cycle)(a, b: Input.Cohomology) => trans!{Output.Cohomology} _ _ _
+    (congr!{{WholeProduct.Cohomology[].Group p} Output.Cohomology} (\fun (c: WholeProduct.Cohomology[].Group p) => Cup.apply c (Fixed.classOf u)) _ _ (Forget.map.addition a b))
+    (Cup.bilinear.addLeft (Forget.map.apply a) (Forget.map.apply b) (Fixed.classOf u));
+\definition sourceClasses: Modules.Bundle := Modules.Bundle { Carrier := Input.Cohomology, space := Input.cohomologySpace };
+\definition targetClasses: Modules.Bundle := Modules.Bundle { Carrier := Output.Cohomology, space := Output.cohomologySpace };
+\definition wholeMap[u: Restriction.Cycle]: _ := \root.RelativeMayerVietoris[].IntegerLinear[].On[A := sourceClasses, B := targetClasses, f := whole u, addition := addition u].map;
+\import Modules.Hom[V := Output.Cohomology, W := SmallOutput.Cohomology, source := Output.cohomologySpace, target := SmallOutput.cohomologySpace].Composition[U := Input.Cohomology, domain := Input.cohomologySpace] \as IntoSmall;
+\definition wholeToSmall[u: Restriction.Cycle]: _ := IntoSmall.compose targetIso.forward (wholeMap u);
+\import Modules.Hom[V := Input.Cohomology, W := SmallOutput.Cohomology, source := Input.cohomologySpace, target := SmallOutput.cohomologySpace].Composition[U := SmallInput.Cohomology, domain := SmallInput.cohomologySpace] \as FromSmall;
+\definition smallMap[u: Restriction.Cycle]: _ := FromSmall.compose (wholeToSmall u) sourceIso.backward;
+\definition conjugation: \forall (u: Restriction.Cycle)(a: Input.Cohomology) -> (smallMap u).apply (sourceIso.forward.apply a) = targetIso.forward.apply (whole u a) :=
+  \fun (u: Restriction.Cycle)(a: Input.Cohomology) => congr!{Input.Cohomology SmallOutput.Cohomology} (\fun (b: Input.Cohomology) => targetIso.forward.apply (whole u b)) _ _ (sourceIso.leftInverse a);
+\definition onClass: \forall (u: Restriction.Cycle)(h: Input.Closed) -> (smallMap u).apply (sourceIso.forward.apply (Input.classOf h)) = SmallOutput.classOf (Cycles.cycle u ((SourceAction.cyclesMap SourceComparison.restriction).apply h)) :=
+  \fun (u: Restriction.Cycle)(h: Input.Closed) => trans!{SmallOutput.Cohomology} _ _ _ (conjugation u (Input.classOf h)) (sym!{SmallOutput.Cohomology} _ _ (onWholeCycles u h));
+
+\definition inverseConjugation: \forall (u: Restriction.Cycle)(a: SmallInput.Cohomology) -> targetIso.backward.apply ((smallMap u).apply a) = whole u (sourceIso.backward.apply a) :=
+  \fun (u: Restriction.Cycle)(a: SmallInput.Cohomology) => targetIso.leftInverse (whole u (sourceIso.backward.apply a));

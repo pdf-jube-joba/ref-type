@@ -1,0 +1,31 @@
+\import \parent.First[] \as First;
+\import \parent.Second[] \as Second;
+\import SuspensionProduct.Cup[p := n, q := m] \as SuspensionCup;
+\import CylinderProduct.Degree[p := n, q := N.Nat^::succ m].Cohomology[] \as CylinderCup;
+\import \root.FamilyProduct[A := Higher.Carrier, source := Higher.topology, first := Higher.firstPart, second := Higher.secondPart, family := Higher.family,
+  firstMember := Higher.firstMember, secondMember := Higher.secondMember, classify := Higher.classify, K := K, ring := ring].Degree[p := n, q := N.Nat^::succ m].Cohomology[] \as HigherCup;
+\import Modules.Alternating[V := CylinderH.Cohomology, space := CylinderH.cohomologySpace].Concatenation[] \as CylinderSigns;
+\import Modules.Alternating[V := Higher.Class, space := Higher.space].Concatenation[] \as Signs;
+\import CylinderSigns.Mapping[W := Higher.Class, target := Higher.space] \as SignMap;
+\import FamilyGeometry.With[coefficients := Coefficients.integerCoefficients].At[z := higherDegree] \as GeometryComparison;
+\import singular_cohomology.Relative[A := Cylinder.Carrier, source := Geometry.targetTopology, subset := Suspension.firstPart].With[coefficients := Coefficients.integerCoefficients] \as CylinderFirstCochains;
+\import singular_cohomology.Relative[A := Cylinder.Carrier, source := Geometry.targetTopology, subset := Suspension.secondPart].With[coefficients := Coefficients.integerCoefficients] \as CylinderSecondCochains;
+\import singular_cohomology.Relative[A := Higher.Carrier, source := Higher.topology, subset := Higher.firstPart].With[coefficients := Coefficients.integerCoefficients] \as HigherFirstCochains;
+\import singular_cohomology.Relative[A := Higher.Carrier, source := Higher.topology, subset := Higher.secondPart].With[coefficients := Coefficients.integerCoefficients] \as HigherSecondCochains;
+\import Integer.At[C := CylinderFirstCochains.complex, z := I.Int^::ofNat n] \as CylinderFirstH;
+\import Integer.At[C := CylinderSecondCochains.complex, z := outputDegree] \as CylinderSecondH;
+\import Integer.At[C := HigherFirstCochains.complex, z := I.Int^::ofNat n] \as HigherFirstH;
+\import Integer.At[C := HigherSecondCochains.complex, z := outputDegree] \as HigherSecondH;
+\definition law: \forall (a: Lower.LeftClass)(b: Lower.RightClass) ->
+  targetIsomorphism.forward.apply (Lower.raw a b) = Signs.twist n (Higher.raw a (sourceIsomorphism.forward.apply b)) :=
+  \fun (a: Lower.LeftClass)(b: Lower.RightClass) => eq_reason_in!{Higher.Class _
+    "=" _ "by" { congr!{CylinderH.Cohomology Higher.Class} GeometryComparison.isomorphism.forward.apply _ _
+      (SuspensionCup.onCohomology (Lower.firstPull.apply a) (Lower.secondPull.apply b)) }
+    "=" _ "by" { SignMap.law GeometryComparison.isomorphism.forward n
+      (CylinderCup.product (First.cylinderAction.apply (Lower.firstPull.apply a)) (Second.suspended.forward.apply (Lower.secondPull.apply b))) }
+    "=" _ "by" { congr!{Higher.Class Higher.Class} (Signs.twist n) _ _
+      (Natural.Product[p := n, q := N.Nat^::succ m].Cohomology[].law
+        (First.cylinderAction.apply (Lower.firstPull.apply a)) (Second.suspended.forward.apply (Lower.secondPull.apply b))) }
+    "=" _ "by" { congr!{Higher.Class Higher.Class} (Signs.twist n) _ _
+      (congr!{HigherFirstH.Cohomology HigherSecondH.Cohomology Higher.Class} HigherCup.product _ _ _ _ (First.law a) (Second.law b)) }
+  };

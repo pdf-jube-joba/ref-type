@@ -1,0 +1,21 @@
+\import singular_cap.CochainPair[A := Carrier, source := topology, subset := firstShell, R := K, ring := ring].Comparison[n := n].Cohomology[] \as LocalForget;
+\import singular_cap.CochainPair[A := LeftDisk.DiskBundle, source := LeftDisk.diskTopology, subset := LeftDisk.Boundary, R := K, ring := ring].Comparison[n := n].Cohomology[] \as Forget;
+\import singular_products.Cochains[A := LeftDisk.DiskBundle, source := LeftDisk.diskTopology, R := K, ring := ring] \as Total;
+\import BaseGroups.Pullback[B := LeftDisk.DiskBundle, target := LeftDisk.diskTopology] \as Pull;
+\import topology.Continuity[A := X, B := LeftDisk.DiskBundle] \as Regular;
+\definition Arrows: \Set := \Cast[X -> LeftDisk.DiskBundle] ({ f: X -> LeftDisk.DiskBundle \where Regular.Continuous bundle.baseSpace LeftDisk.diskTopology f });
+\definition current: Arrows := \into[X -> LeftDisk.DiskBundle]((\fun (x: X) => leftMap (Zero.section x)), { f: X -> LeftDisk.DiskBundle \where Regular.Continuous bundle.baseSpace LeftDisk.diskTopology f }) \by {
+  topology.Composition[A := X, B := Carrier, C := LeftDisk.DiskBundle].composeContinuous bundle.baseSpace topology LeftDisk.diskTopology Zero.section leftMap Zero.continuous (LeftMaps.laws leftMap).continuous
+};
+\definition zero: Arrows := \into[X -> LeftDisk.DiskBundle](LeftDisk.zeroSection, { f: X -> LeftDisk.DiskBundle \where Regular.Continuous bundle.baseSpace LeftDisk.diskTopology f }) \by { LeftDisk.zeroSectionContinuous };
+\definition sameArrow: current = zero := \axiom:funext(current, zero, Zero.clippedFirst);
+\definition pull[f: Arrows][u: Total.Cohomology[].Group n]: BaseGroups.Group n := Pull.apply n f
+  (\bysub(X -> LeftDisk.DiskBundle, { f: X -> LeftDisk.DiskBundle \where Regular.Continuous bundle.baseSpace LeftDisk.diskTopology f }, f)) u;
+\import singular_cohomology.Maps[A := X, B := Carrier, source := bundle.baseSpace, target := topology].Composition[C := LeftDisk.DiskBundle, final := LeftDisk.diskTopology].Coefficients[M := Base.integerCoefficients] \as Composition;
+\definition law: \forall (u: Left.Degree[n := n].Class) ->
+  Section.apply n Zero.section Zero.continuous (LocalForget.map.apply (LeftPull.Degree[n := n].map.apply u)) = Left.Degree[n := n].euler u :=
+  \fun (u: Left.Degree[n := n].Class) => trans!{{BaseGroups.Group n}} _ _ _
+    (congr!{{BoxCochains.Cohomology[].Group n} {BaseGroups.Group n}} (Section.apply n Zero.section Zero.continuous) _ _ (LeftPull.Degree[n := n].Forget[].law u))
+    (trans!{{BaseGroups.Group n}} _ _ _
+      (sym!{{BaseGroups.Group n}} _ _ (Composition.onCohomology Zero.section Zero.continuous leftMap (LeftMaps.laws leftMap).continuous n (Forget.map.apply u)))
+      (congr!{Arrows {BaseGroups.Group n}} (\fun (f: Arrows) => pull f (Forget.map.apply u)) _ _ sameArrow));

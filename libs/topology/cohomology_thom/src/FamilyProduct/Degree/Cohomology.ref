@@ -1,0 +1,47 @@
+\import chain_complexes.Integer[].Over[R := I.Int^, ring := Integers.ring] \as Integer;
+\import chain_complexes.Cochain[].Over[R := I.Int^, ring := Integers.ring] \as Nonnegative;
+\import Mixed.CommonComplex[] \as CommonComplex;
+\import Nonnegative.ZeroExtension[C := CommonComplex.complex] \as Extension;
+\import Model.CommonIso[].Maps[] \as Comparison;
+\import Extension.PositiveCohomology[n := total] \as Positive;
+\import Integer.Map[C := Extension.complex, D := Target.complex].At[k := outputDegree] \as Backward;
+\import Integer.At[C := First.complex, z := I.Int^::ofNat p] \as FirstH;
+\import Integer.At[C := Second.complex, z := inputDegree] \as SecondH;
+\import Integer.At[C := Target.complex, z := outputDegree] \as Output;
+\import Mixed.Cup[p := p, q := q].Both[].Closed[] \as Closed;
+\import Mixed.Cup[p := p, q := q].Both[].Cohomology[] \as CommonProduct;
+\import Nonnegative.At[C := CommonComplex.complex, k := total] \as Native;
+\definition cycle[a: FirstH.Closed][b: SecondH.Closed]: Output.Closed :=
+  (Backward.cyclesMap Comparison.backward).apply (Positive.toInteger (Closed.cycle a b));
+\definition formula: \forall (a: FirstH.Closed)(b: SecondH.Closed) -> cycle a b = apply a b :=
+  \fun (a: FirstH.Closed)(b: SecondH.Closed) => \refl(apply a b);
+\definition transport[x: Native.Cohomology]: Output.Cohomology :=
+  (Backward.induced Comparison.backward).apply (Positive.isomorphism.backward.apply x);
+\definition product[a: FirstH.Cohomology][b: SecondH.Cohomology]: Output.Cohomology := transport (CommonProduct.apply a b);
+\definition onClasses: \forall (a: FirstH.Closed)(b: SecondH.Closed) ->
+  product (FirstH.classOf a) (SecondH.classOf b) = Output.classOf (cycle a b) :=
+  \fun (a: FirstH.Closed)(b: SecondH.Closed) => eq_reason_in!{Output.Cohomology _
+    "=" _ "by" { congr!{Native.Cohomology Output.Cohomology} transport _ _ (CommonProduct.onClasses a b) }
+    "=" _ "by" { congr!{{Integer.At[C := Extension.complex, z := outputDegree].Cohomology} Output.Cohomology} (Backward.induced Comparison.backward).apply _ _ (Positive.onNaturalClass (Closed.cycle a b)) }
+    "=" _ "by" { Backward.onClass Comparison.backward (Positive.toInteger (Closed.cycle a b)) }
+  };
+\import Integer.At[C := Extension.complex, z := outputDegree] \as ExtendedH;
+\definition firstBundle: Modules.Bundle := Modules.Bundle { Carrier := FirstH.Cohomology, space := FirstH.cohomologySpace };
+\definition secondBundle: Modules.Bundle := Modules.Bundle { Carrier := SecondH.Cohomology, space := SecondH.cohomologySpace };
+\definition commonBundle: Modules.Bundle := Modules.Bundle { Carrier := Native.Cohomology, space := Native.cohomologySpace };
+\definition outputBundle: Modules.Bundle := Modules.Bundle { Carrier := Output.Cohomology, space := Output.cohomologySpace };
+\import Modules.Hom[V := ExtendedH.Cohomology, W := Output.Cohomology, source := ExtendedH.cohomologySpace, target := Output.cohomologySpace].Composition[U := Native.Cohomology, domain := Native.cohomologySpace] \as TransportComposition;
+\definition transportMap: Modules.Hom[V := Native.Cohomology, W := Output.Cohomology, source := Native.cohomologySpace, target := Output.cohomologySpace].Map :=
+  TransportComposition.compose (Backward.induced Comparison.backward) Positive.isomorphism.backward;
+\import commutative_algebra.Modules[R := I.Int^, ring := Integers.commutativeRing].Bilinear[A := firstBundle, B := secondBundle, C := commonBundle].Postcompose[D := outputBundle] \as Postcompose;
+\definition bilinear: _ := Postcompose.apply CommonProduct.bilinear transportMap;
+\definition rightLinear[a: FirstH.Cohomology]: Modules.Hom[V := SecondH.Cohomology, W := Output.Cohomology, source := SecondH.cohomologySpace, target := Output.cohomologySpace].Map :=
+  Modules.Hom[V := SecondH.Cohomology, W := Output.Cohomology, source := SecondH.cohomologySpace, target := Output.cohomologySpace].Map {
+    apply := product a, addition := bilinear.addRight a, scalar := \fun (r: I.Int^)(b: SecondH.Cohomology) => bilinear.scaleRight r a b
+  };
+\import Integer.Isomorphism[C := Target.complex, D := Extension.complex].On[e := Comparison.isomorphism].At[z := outputDegree] \as IntegerComparison;
+\import Modules.Isomorphism[V := Output.Cohomology, W := ExtendedH.Cohomology, source := Output.cohomologySpace, target := ExtendedH.cohomologySpace].Composition[U := Native.Cohomology, final := Native.cohomologySpace] \as CommonComposition;
+\definition commonIsomorphism: Modules.Isomorphism[V := Output.Cohomology, W := Native.Cohomology, source := Output.cohomologySpace, target := Native.cohomologySpace].Isomorphism :=
+  CommonComposition.compose Positive.isomorphism IntegerComparison.isomorphism;
+\definition comparison: \forall (a: FirstH.Cohomology)(b: SecondH.Cohomology) -> commonIsomorphism.forward.apply (product a b) = CommonProduct.apply a b :=
+  \fun (a: FirstH.Cohomology)(b: SecondH.Cohomology) => commonIsomorphism.rightInverse (CommonProduct.apply a b);

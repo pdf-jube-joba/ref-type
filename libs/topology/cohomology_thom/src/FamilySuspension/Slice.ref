@@ -1,0 +1,38 @@
+\import Suspension.Slice[d := d] \as Geometry;
+\definition inclusion[p: Geometry.Carrier]: Cylinder.Carrier := p;
+\import \root.BinaryFamilyPullback[A := Geometry.Carrier, B := Cylinder.Carrier, first := firstPart, second := secondPart, f := inclusion] \as Boundary;
+\definition firstRegion: \Pow Geometry.Carrier := Boundary.firstPart;
+\definition secondRegion: \Pow Geometry.Carrier := Boundary.secondPart;
+\definition family: \Pow (\Pow Geometry.Carrier) := Boundary.family;
+\definition start[p: Geometry.Carrier]: Geometry.Carrier := Geometry.section (Geometry.projection p);
+\definition finish[p: Geometry.Carrier]: Geometry.Carrier := p;
+\definition firstPreserved: \forall (t: J.Carrier)(p: Geometry.Carrier) -> \In[Geometry.Carrier] firstRegion p ->
+  \In[Geometry.Carrier] firstRegion (Geometry.homotopy (algebraic_topology.Cylinder[A := Geometry.Carrier].at t p)) :=
+  \fun (t: J.Carrier)(p: Geometry.Carrier)(inside: _) => inside;
+\definition secondPreserved: \forall (t: J.Carrier)(p: Geometry.Carrier) -> \In[Geometry.Carrier] secondRegion p ->
+  \In[Geometry.Carrier] secondRegion (Geometry.homotopy (algebraic_topology.Cylinder[A := Geometry.Carrier].at t p)) :=
+  \fun (t: J.Carrier)(p: Geometry.Carrier)(inside: _) => d.preservesBoundary t (Geometry.time p) (Geometry.projection p) inside;
+\definition preserves: \forall (U: \Pow Geometry.Carrier) -> \In[\Pow Geometry.Carrier] family U ->
+  \forall (t: J.Carrier)(p: Geometry.Carrier) -> \In[Geometry.Carrier] U p ->
+  \In[Geometry.Carrier] U (Geometry.homotopy (algebraic_topology.Cylinder[A := Geometry.Carrier].at t p)) :=
+  \fun (U: \Pow Geometry.Carrier)(member: \In[\Pow Geometry.Carrier] family U)(t: J.Carrier)(p: Geometry.Carrier)(inside: _) =>
+    either!{{Boundary.classify U member} {\In[Geometry.Carrier] U (Geometry.homotopy (algebraic_topology.Cylinder[A := Geometry.Carrier].at t p))}
+      {\fun (same: U = firstRegion) => \idelim firstRegion = U
+        \with V: \Pow Geometry.Carrier => \In[Geometry.Carrier] V (Geometry.homotopy (algebraic_topology.Cylinder[A := Geometry.Carrier].at t p)) \by {
+          base: firstPreserved t p (\idelim U = firstRegion \with V: \Pow Geometry.Carrier => \In[Geometry.Carrier] V p \by { base: inside, equality: same }),
+          equality: sym!{{\Pow Geometry.Carrier}} _ _ same
+        }}
+      {\fun (same: U = secondRegion) => \idelim secondRegion = U
+        \with V: \Pow Geometry.Carrier => \In[Geometry.Carrier] V (Geometry.homotopy (algebraic_topology.Cylinder[A := Geometry.Carrier].at t p)) \by {
+          base: secondPreserved t p (\idelim U = secondRegion \with V: \Pow Geometry.Carrier => \In[Geometry.Carrier] V p \by { base: inside, equality: same }),
+          equality: sym!{{\Pow Geometry.Carrier}} _ _ same
+        }}}
+;
+\import \root.FamilyHomotopy[A := Geometry.Carrier, source := Geometry.space, family := family, f := start, g := finish, h := Geometry.homotopy, preserves := preserves] \as Comparison;
+\definition homotopy: _ := Comparison.homotopy;
+\module With(coefficients: Modules.Bundle) {
+  \module At(z: I.Int^) {
+    \definition law: _ := Comparison.With[coefficients := coefficients].At[z := z].law;
+  }
+}
+\module Vanishing(sectionContained: \forall (x: A) -> \In[Cylinder.Carrier] secondPart (Cylinder.at d.centre x));

@@ -1,0 +1,30 @@
+\import Geometry.Domain[U := U] \as Actual;
+\definition subset: \Pow Carrier := { p: Carrier \where \In[X] U p.base };
+\import topology.Topology[Carrier := Carrier].Subspace[S := subset] \as Subspace;
+\definition BoxCarrier: \Set := Subspace.CarrierSet;
+\definition boxTopology: topology.Topology[Carrier := BoxCarrier].Topology := Subspace.topology topology;
+\definition boundary: \Pow BoxCarrier := { p: BoxCarrier \where \In[Carrier] Box.Boundary p };
+\definition inclusion[p: BoxCarrier]: Carrier := p;
+\definition inclusionContinuous: topology.Continuity[A := BoxCarrier, B := Carrier].Continuous boxTopology topology inclusion :=
+  topology.Continuity[A := BoxCarrier, B := Carrier].Corestriction[S := subset].inclusionContinuous topology;
+\definition forward[p: Actual.Carrier]: BoxCarrier := \into[Carrier](Levels.diskHomeomorphism.forward p, subset) \by { \bysub(Disk.DiskBundle, Actual.domain, p) };
+\definition backward[p: BoxCarrier]: Actual.Carrier := \into[Disk.DiskBundle](Levels.diskHomeomorphism.backward p, Actual.domain) \by { \bysub(Carrier, subset, p) };
+\import topology.Homeomorphism[A := Disk.DiskBundle, B := Carrier] \as WholeHomeomorphism;
+\definition forwardContinuous: topology.Continuity[A := Actual.Carrier, B := BoxCarrier].Continuous Actual.topology boxTopology forward :=
+  topology.Continuity[A := Actual.Carrier, B := Carrier].Corestriction[S := subset].corestrictContinuous Actual.topology topology forward
+    (topology.Continuity[A := Disk.DiskBundle, B := Carrier].Restriction[S := Actual.domain].restrictContinuous Disk.diskTopology topology Levels.diskHomeomorphism.forward (WholeHomeomorphism.laws Disk.diskTopology topology Levels.diskHomeomorphism).forwardContinuous);
+\definition backwardContinuous: topology.Continuity[A := BoxCarrier, B := Actual.Carrier].Continuous boxTopology Actual.topology backward :=
+  topology.Continuity[A := BoxCarrier, B := Disk.DiskBundle].Corestriction[S := Actual.domain].corestrictContinuous boxTopology Disk.diskTopology backward
+    (topology.Continuity[A := Carrier, B := Disk.DiskBundle].Restriction[S := subset].restrictContinuous topology Disk.diskTopology Levels.diskHomeomorphism.backward (WholeHomeomorphism.laws Disk.diskTopology topology Levels.diskHomeomorphism).backwardContinuous);
+\definition homeomorphism: topology.Homeomorphism[A := Actual.Carrier, B := BoxCarrier].Homeomorphism[Actual.topology, boxTopology] :=
+  topology.Homeomorphism[A := Actual.Carrier, B := BoxCarrier].Homeomorphism[Actual.topology, boxTopology] {
+    forward := forward, backward := backward, forwardContinuous := forwardContinuous, backwardContinuous := backwardContinuous,
+    leftInverse := \fun (p: Actual.Carrier) => (WholeHomeomorphism.laws Disk.diskTopology topology Levels.diskHomeomorphism).leftInverse p,
+    rightInverse := \fun (p: BoxCarrier) => (WholeHomeomorphism.laws Disk.diskTopology topology Levels.diskHomeomorphism).rightInverse p
+  };
+\import singular_cohomology.Relative[A := Actual.Carrier, source := Actual.topology, subset := Actual.boundary].Homeomorphism[B := BoxCarrier].Over[target := boxTopology, targetSubset := boundary] \as FiberPairs;
+\definition pair: FiberPairs.Data := FiberPairs.Data {
+  homeomorphism := homeomorphism,
+  forwardPreserves := \fun (p: \Cast[Actual.Carrier] Actual.boundary) => Levels.preserves p (\bysub(Actual.Carrier, Actual.boundary, p)),
+  backwardPreserves := \fun (p: \Cast[BoxCarrier] boundary) => Levels.reversePreserves p (\bysub(BoxCarrier, boundary, p))
+};

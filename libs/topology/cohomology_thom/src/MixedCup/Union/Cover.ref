@@ -1,0 +1,29 @@
+\import topology.Topology[Carrier := Relative.SubspaceCarrier] \as UnionTopology;
+\definition left: \Pow Relative.SubspaceCarrier := { x: Relative.SubspaceCarrier \where \In[A] first x };
+\definition right: \Pow Relative.SubspaceCarrier := { x: Relative.SubspaceCarrier \where \In[A] second x };
+\structure Conditions: \Prop := {
+  leftOpen: UnionTopology.IsOpenIn (Space.topology source) left,
+  rightOpen: UnionTopology.IsOpenIn (Space.topology source) right,
+};
+\import singular_excision.MayerVietoris[A := Relative.SubspaceCarrier].Over[source := Space.topology source] \as MV;
+\definition data: MV.Data := MV.Data { left := left, right := right };
+\definition cover[conditions: Conditions]: MV.Cover := \into[MV.Data](data, { d: MV.Data \where MV.Laws[d] }) \by {
+  MV.Laws[data] {
+    leftOpen := conditions.leftOpen,
+    rightOpen := conditions.rightOpen,
+    covered := \fun (x: Relative.SubspaceCarrier) => \bysub(A, subset, x),
+  }
+};
+\module On(conditions: Conditions) {
+  \import singular_cap.Triple[A := A, source := source, first := first, second := second].Union[].Cover[] \as GeometryCover;
+  \definition geometryConditions: GeometryCover.Conditions := GeometryCover.Conditions { leftOpen := conditions.leftOpen, rightOpen := conditions.rightOpen };
+  \import GeometryCover.On[conditions := geometryConditions] \as Geometry;
+  \import MV.On[cover := cover conditions] \as Covered;
+  \import singular_subdivision.Small[A := Relative.SubspaceCarrier, source := Space.topology source, family := Covered.family] \as Small;
+  \definition pair: _ := Geometry.pair;
+  \definition inclusion: _ := Geometry.inclusion;
+  \module ToSmall(n: N.Nat^);
+  \module FromSmall(n: N.Nat^);
+  \module CommonIso;
+  \module Cup(p, q: N.Nat^);
+}

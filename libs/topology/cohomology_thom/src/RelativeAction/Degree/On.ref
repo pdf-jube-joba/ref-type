@@ -1,0 +1,12 @@
+\import RingModules.Isomorphism[V := Domain, W := Range, source := ringDomainSpace, target := ringRangeSpace].OfBijective[f := ringMap u] \as Inverse;
+  \structure Bijective: \Prop := { injective: Inverse.Injective, onto: Inverse.Onto };
+  \definition isomorphism[b: Bijective]: _ := Inverse.isomorphism b.injective b.onto;
+\import RingModules.Isomorphism[V := Domain, W := Range, source := ringDomainSpace, target := ringRangeSpace] \as Isomorphisms;
+\definition witnessed[e: Isomorphisms.Isomorphism][formula: \forall (a: Domain) -> e.forward.apply a = apply u a]: Bijective := Bijective {
+  injective := \fun (a, b: Domain)(same: apply u a = apply u b) => trans!{Domain} _ _ _ (sym!{Domain} _ _ (e.leftInverse a))
+    (trans!{Domain} _ _ _
+      (congr!{Range Domain} e.backward.apply _ _ (trans!{Range} _ _ _ (formula a) (trans!{Range} _ _ _ same (sym!{Range} _ _ (formula b)))))
+      (e.leftInverse b)),
+  onto := \fun (b: Range) => std.Logic[].Proposition[].existsIntro[Domain, { a: Domain \where apply u a = b }] (e.backward.apply b)
+    (trans!{Range} _ _ _ (sym!{Range} _ _ (formula (e.backward.apply b))) (e.rightInverse b))
+};

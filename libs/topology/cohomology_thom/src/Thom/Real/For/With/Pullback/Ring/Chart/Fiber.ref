@@ -1,0 +1,33 @@
+\definition oldPoint: \Cast[X] c.domain := \into[X](f y, c.domain) \by { \bysub(Y, chart.domain, y) };
+\import OldChart.Fiber[x := oldPoint] \as OldCoordinates;
+\import NewChart.Fiber[x := y] \as NewCoordinates;
+\import OldCoordinates.Ring[K := R, ring := ring] \as OldGenerator;
+\import NewCoordinates.Ring[K := R, ring := ring] \as NewGenerator;
+\import \root.Thom[].Real[].For[X := X, F := F, bundle := bundle].With[metric := metric].Pullback[Y := Y, source := source, f := f, regular := regular].Fiber[y := y] \as Actual;
+\import thom_spaces.Thom[].CWType[].Point[] \as Point;
+\import thom_spaces.Thom[].DiskSuspension[X := Point.Carrier, space := Point.topology, n := c.dimension] \as PointDisk;
+\import std.Data[].Pair[] \as Pair;
+\import algebraic_topology.Euclidean[].Dimension[n := c.dimension] \as Euclidean;
+\definition normalCoordinates: \forall (p: \root.Thom[].Real[].For[X := Y, F := (\fun (y: Y) => F (f y)), bundle := pulledBundle].With[metric := pulledMetric].Fiber[x := y].Carrier) ->
+  OldChart.Open[].normalCoordinate (OldCoordinates.local (Actual.map p)) = NewChart.Open[].normalCoordinate (NewCoordinates.local p) :=
+  \fun (p: \root.Thom[].Real[].For[X := Y, F := (\fun (y: Y) => F (f y)), bundle := pulledBundle].With[metric := pulledMetric].Fiber[x := y].Carrier) => \refl(NewChart.Open[].normalCoordinate (NewCoordinates.local p));
+\definition coordinate: \forall (p: \root.Thom[].Real[].For[X := Y, F := (\fun (y: Y) => F (f y)), bundle := pulledBundle].With[metric := pulledMetric].Fiber[x := y].Carrier) -> OldCoordinates.forward (Actual.map p) = NewCoordinates.forward p :=
+  \fun (p: \root.Thom[].Real[].For[X := Y, F := (\fun (y: Y) => F (f y)), bundle := pulledBundle].With[metric := pulledMetric].Fiber[x := y].Carrier) =>
+    Pair.Prop[A := Point.Carrier, B := Euclidean.Coordinate].ext (OldCoordinates.forward (Actual.map p)) (NewCoordinates.forward p) (\refl(Point.point))
+      (trans!{Euclidean.Coordinate} _ _ _ (OldCoordinates.vectorFormula (Actual.map p))
+        (trans!{Euclidean.Coordinate} _ _ _ (normalCoordinates p) (sym!{Euclidean.Coordinate} _ _ (NewCoordinates.vectorFormula p))));
+\import OriginalGeometry.Fiber[x := f y] \as Old;
+\import PulledGeometry.Fiber[x := y] \as New;
+\import singular_cohomology.Relative[A := Old.Carrier, source := Old.topology, subset := Old.boundary].Homeomorphism[B := PointDisk.DiskCarrier].Over[target := PointDisk.diskTopology, targetSubset := PointDisk.boundary] \as OldPairs;
+\import singular_cohomology.Relative[A := New.Carrier, source := New.topology, subset := New.boundary].Homeomorphism[B := PointDisk.DiskCarrier].Over[target := PointDisk.diskTopology, targetSubset := PointDisk.boundary] \as NewPairs;
+\import singular_cohomology.Relative[A := New.Carrier, source := New.topology, subset := New.boundary].Maps[B := Old.Carrier].Over[target := Old.topology, targetSubset := Old.boundary].Composition[C := PointDisk.DiskCarrier].Over[final := PointDisk.diskTopology, finalSubset := PointDisk.boundary] \as Composition;
+\import singular_cohomology.Relative[A := New.Carrier, source := New.topology, subset := New.boundary].Maps[B := PointDisk.DiskCarrier].Over[target := PointDisk.diskTopology, targetSubset := PointDisk.boundary] \as Direct;
+\definition composed: Direct.Map := Composition.compose Actual.pairMap (OldPairs.forwardMap OldCoordinates.fiberPair);
+\definition coordinateMap: composed = NewPairs.forwardMap NewCoordinates.fiberPair :=
+  \axiom:funext(composed, NewPairs.forwardMap NewCoordinates.fiberPair, coordinate);
+\import \root.LocalDisk[].Point[K := R, ring := ring].Rank[n := c.dimension] \as PointGenerator;
+\definition pull[m: Direct.Map]: _ := Direct.On[f := m].Integer[].With[coefficients := OldBase.integerCoefficients].At[z := I.Int^::ofNat c.dimension].induced;
+\definition generator: Actual.Ring[K := R, ring := ring].Degree[n := c.dimension].map.apply OldGenerator.generator = NewGenerator.generator :=
+  trans!{NewGenerator.Class} _ _ _
+    (sym!{NewGenerator.Class} _ _ (Composition.On[f := Actual.pairMap, g := OldPairs.forwardMap OldCoordinates.fiberPair].With[coefficients := OldBase.integerCoefficients].law (I.Int^::ofNat c.dimension) PointGenerator.generator))
+    (congr!{Direct.Map NewGenerator.Class} (\fun (m: Direct.Map) => (pull m).apply PointGenerator.generator) _ _ coordinateMap);

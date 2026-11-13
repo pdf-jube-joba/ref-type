@@ -1,0 +1,53 @@
+\use std.Logic[].Equality[].eq_reason_in;
+\import \parent.\parent.\parent.Open[].Ring[K := K, ring := ring] \as OpenTheory;
+\import \parent.\parent.\parent.Ring[K := K, ring := ring] \as MetricTheory;
+\import \root.LocalDisk[].On[X := BasePoint, source := baseTopology].Ring[RingCarrier := K, ring := ring] \as StandardTheory;
+\import singular_products.Cochains[A := BasePoint, source := baseTopology, R := K, ring := ring] \as Product;
+\import singular_cohomology.Relative[A := NewDisk.DiskBundle, source := NewDisk.diskTopology, subset := NewDisk.Boundary].Homeomorphism[B := Open.Carrier].Over[target := Open.topology, targetSubset := Open.boundary] \as OpenPairs;
+\import \root.RelativePullback[].On[A := NewDisk.DiskBundle, source := NewDisk.diskTopology, subset := NewDisk.Boundary, R := K, ring := ring].To[B := Open.Carrier, target := Open.topology, part := Open.boundary].Homeomorphism[data := Open.pair] \as OpenComparison;
+\import \root.RelativePullback[].On[A := Actual.Carrier, source := Actual.topology, subset := Actual.boundary, R := K, ring := ring].To[B := Open.Carrier, target := Open.topology, part := Open.boundary].Along[f := localPair] \as LocalPull;
+\import \root.RelativePullback[].On[A := Open.Carrier, source := Open.topology, subset := Open.boundary, R := K, ring := ring].To[B := NewDisk.DiskBundle, target := NewDisk.diskTopology, part := NewDisk.Boundary].Along[f := OpenPairs.backwardMap Open.pair] \as BackPull;
+\import LocalMaps.Composition[C := NewDisk.DiskBundle].Over[final := NewDisk.diskTopology, finalSubset := NewDisk.Boundary] \as IntoMetric;
+\definition intoMetric: _ := IntoMetric.compose localPair (OpenPairs.backwardMap Open.pair);
+\import IntoMetric.On[f := localPair, g := OpenPairs.backwardMap Open.pair].With[coefficients := Product.integerCoefficients] \as IntoMetricLaw;
+\import singular_cohomology.Relative[A := Actual.Carrier, source := Actual.topology, subset := Actual.boundary].Maps[B := NewDisk.DiskBundle].Over[target := NewDisk.diskTopology, targetSubset := NewDisk.Boundary] \as MetricMaps;
+\import MetricMaps.Composition[C := Standard.DiskCarrier].Over[final := Standard.diskTopology, finalSubset := Standard.boundary] \as IntoStandard;
+\definition modelPair: _ := IntoStandard.compose intoMetric (Pairs.forwardMap pair);
+\import IntoStandard.On[f := intoMetric, g := Pairs.forwardMap pair].With[coefficients := Product.integerCoefficients] \as IntoStandardLaw;
+\import \root.RelativePullback[].On[A := Actual.Carrier, source := Actual.topology, subset := Actual.boundary, R := K, ring := ring].To[B := NewDisk.DiskBundle, target := NewDisk.diskTopology, part := NewDisk.Boundary].Along[f := intoMetric] \as MetricPull;
+\import \root.RelativePullback[].On[A := Actual.Carrier, source := Actual.topology, subset := Actual.boundary, R := K, ring := ring].To[B := Standard.DiskCarrier, target := Standard.diskTopology, part := Standard.boundary].Along[f := modelPair] \as ModelPull;
+\import \root.RelativePullback[].On[A := NewDisk.DiskBundle, source := NewDisk.diskTopology, subset := NewDisk.Boundary, R := K, ring := ring].To[B := Standard.DiskCarrier, target := Standard.diskTopology, part := Standard.boundary].Along[f := Pairs.forwardMap pair] \as StandardPull;
+\import singular_cohomology.Relative[A := Actual.Carrier, source := Actual.topology, subset := Actual.boundary].Maps[B := PointDisk.DiskCarrier].Over[target := PointDisk.diskTopology, targetSubset := PointDisk.boundary] \as PointMaps;
+\import PointMaps.Composition[C := Standard.DiskCarrier].Over[final := Standard.diskTopology, finalSubset := Standard.boundary] \as Filled;
+\definition filledPair: _ := Filled.compose (FiberPairs.forwardMap fiberPair) Fill.pair;
+\import singular_cohomology.Relative[A := Actual.Carrier, source := Actual.topology, subset := Actual.boundary].Maps[B := Standard.DiskCarrier].Over[target := Standard.diskTopology, targetSubset := Standard.boundary] \as ModelMaps;
+\definition filledSquare: filledPair = modelPair := \axiom:funext(filledPair, modelPair, filled);
+\import Filled.On[f := FiberPairs.forwardMap fiberPair, g := Fill.pair].With[coefficients := Product.integerCoefficients] \as FilledLaw;
+\import \root.RelativePullback[].On[A := Actual.Carrier, source := Actual.topology, subset := Actual.boundary, R := K, ring := ring].To[B := PointDisk.DiskCarrier, target := PointDisk.diskTopology, part := PointDisk.boundary].Along[f := FiberPairs.forwardMap fiberPair] \as ForwardPull;
+\import \root.RelativePullback[].On[A := PointDisk.DiskCarrier, source := PointDisk.diskTopology, subset := PointDisk.boundary, R := K, ring := ring].To[B := Standard.DiskCarrier, target := Standard.diskTopology, part := Standard.boundary].Along[f := Fill.pair] \as FillPull;
+\definition modelAction[f: ModelMaps.Map]: _ := ModelMaps.On[f := f].Integer[].With[coefficients := Product.integerCoefficients].At[z := I.Int^::ofNat c.dimension].induced;
+\import \root.LocalDisk[].On[X := BasePoint, source := baseTopology].From[B := Point.Carrier, target := Point.topology, f := constant, regular := constantContinuous].Ring[K := K, ring := ring] \as FillNatural;
+\definition restriction: _ := LocalPull.Degree[n := c.dimension].map;
+\definition normalized: restriction.apply OpenTheory.class = generator :=
+  eq_reason_in!{Class _
+    "=" _ "by" { congr!{{OpenTheory.At[n := c.dimension].Class} Class} restriction.apply _ _ (OpenComparison.Degree[n := c.dimension].backwardFormula MetricTheory.class) }
+    "=" _ "by" { sym!{Class} _ _ (IntoMetricLaw.law (I.Int^::ofNat c.dimension) MetricTheory.class) }
+    "=" _ "by" { sym!{Class} _ _ (IntoStandardLaw.law (I.Int^::ofNat c.dimension) (StandardTheory.canonical c.dimension)) }
+    "=" _ "by" { congr!{ModelMaps.Map Class} (\fun (f: ModelMaps.Map) => (modelAction f).apply (StandardTheory.canonical c.dimension)) modelPair filledPair (sym!{ModelMaps.Map} _ _ filledSquare) }
+    "=" _ "by" { FilledLaw.law (I.Int^::ofNat c.dimension) (StandardTheory.canonical c.dimension) }
+    "=" _ "by" { congr!{PointClass.Class Class} ForwardPull.Degree[n := c.dimension].map.apply _ _ (FillNatural.canonical c.dimension) }
+  };
+
+\import OpenTheory.Model[n := c.dimension] \as Model;
+\definition standardLaw: \forall (v: Model.Domain) -> restriction.apply (Model.isomorphism.forward.apply v) = ForwardPull.Degree[n := c.dimension].map.apply (FillPull.Degree[n := c.dimension].map.apply v) :=
+  \fun (v: Model.Domain) => eq_reason_in!{Class _
+    "=" _ "by" { congr!{{OpenTheory.At[n := c.dimension].Class} Class} restriction.apply _ _ (OpenComparison.Degree[n := c.dimension].backwardFormula (StandardPull.Degree[n := c.dimension].map.apply v)) }
+    "=" _ "by" { sym!{Class} _ _ (IntoMetricLaw.law (I.Int^::ofNat c.dimension) (StandardPull.Degree[n := c.dimension].map.apply v)) }
+    "=" _ "by" { sym!{Class} _ _ (IntoStandardLaw.law (I.Int^::ofNat c.dimension) v) }
+    "=" _ "by" { congr!{ModelMaps.Map Class} (\fun (f: ModelMaps.Map) => (modelAction f).apply v) modelPair filledPair (sym!{ModelMaps.Map} _ _ filledSquare) }
+    "=" _ "by" { FilledLaw.law (I.Int^::ofNat c.dimension) v }
+  };
+\definition wholeLaw: \forall (u: OpenTheory.At[n := c.dimension].Class) -> restriction.apply u = ForwardPull.Degree[n := c.dimension].map.apply (FillPull.Degree[n := c.dimension].map.apply (Model.isomorphism.backward.apply u)) :=
+  \fun (u: OpenTheory.At[n := c.dimension].Class) => trans!{Class} _ _ _
+    (congr!{{OpenTheory.At[n := c.dimension].Class} Class} restriction.apply u (Model.isomorphism.forward.apply (Model.isomorphism.backward.apply u)) (sym!{{OpenTheory.At[n := c.dimension].Class}} _ _ (Model.isomorphism.rightInverse u)))
+    (standardLaw (Model.isomorphism.backward.apply u));

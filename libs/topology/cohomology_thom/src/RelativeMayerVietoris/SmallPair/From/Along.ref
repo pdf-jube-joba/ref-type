@@ -1,0 +1,32 @@
+\import PairMaps.On[f := f] \as PairMap;
+\import \root.RelativeMayerVietoris[].IntoSmall[A := A, B := B, target := source, source := domain,
+  family := Covers.family cover, f := f, continuous := (PairMaps.laws f).continuous, U := U, contained := contained] \as WholeMap;
+\import topology.Maps[A := Subspace.CarrierSet, B := A] \as Sets;
+\definition V: \Cast[\Pow Subspace.CarrierSet] (SubCovers.family Included.restrictedCover) :=
+  \into[\Pow Subspace.CarrierSet](Sets.Preimage (\fun (x: Subspace.CarrierSet) => x) U, SubCovers.family Included.restrictedCover) \by {
+    Sets.pullbackMember (\fun (x: Subspace.CarrierSet) => x) (Covers.family cover) U (\bysub(\Pow A, Covers.family cover, U))
+  };
+\import \root.RelativeMayerVietoris[].IntoSmall[A := Subspace.CarrierSet, B := SourceSubspace.CarrierSet,
+  target := Subspace.topology source, source := SourceSubspace.topology domain,
+  family := SubCovers.family Included.restrictedCover, f := PairMap.restriction, continuous := PairMap.restrictionContinuous,
+  U := V, contained := (\fun (x: SourceSubspace.CarrierSet) => contained x)] \as SubMap;
+\module Square(n: N.Nat^);
+\import Nonnegative.ZeroExtension[C := SourceWhole.complex] \as SourceWholeExtension;
+\import Nonnegative.ZeroExtension[C := SourceSub.complex] \as SourceSubExtension;
+\import Nonnegative.Map[C := SourceWhole.complex, D := Whole.complex].ZeroExtension[f := WholeMap.map] \as WholeExtensionMap;
+\import Nonnegative.Map[C := SourceSub.complex, D := Sub.complex].ZeroExtension[f := SubMap.map] \as SubExtensionMap;
+\import Chains.QuotientMapping[C := SourceSubExtension.complex, D := SourceWholeExtension.complex,
+  C1 := SubExtension.complex, D1 := WholeExtension.complex]
+  .On[f := SourcePair.inclusionMap, g := Inclusion.map, a := SubExtensionMap.map, b := WholeExtensionMap.map] \as QuotientMap;
+\definition compatible: QuotientMap.Compatible :=
+  \induction (z: I.Int^) \return \forall (x: SourceSubExtension.Carrier z) ->
+    WholeExtensionMap.map.apply z (SourcePair.inclusionMap.apply z x) = Inclusion.map.apply z (SubExtensionMap.map.apply z x) \with {
+      | ofNat: \fun (n: N.Nat^)(x: SourceSubExtension.Carrier (I.Int^::ofNat n)) => Square[n := n].law x
+      | negSucc: \fun (n: N.Nat^)(x: SourceSubExtension.Carrier (I.Int^::negSucc n)) => \refl((WholeExtension.space (I.Int^::negSucc n)).zero)
+    };
+\definition map: Chains.Map[C := SourcePair.complex, D := complex].Map := QuotientMap.map compatible;
+\module At(z: I.Int^) {
+  \definition onClass: _ := QuotientMap.At[k := z].onClass compatible;
+}
+\module Reflects(reflects: \forall (b: B) -> \In[A] subset (f b) -> \In[B] part b);
+\module Comparison;

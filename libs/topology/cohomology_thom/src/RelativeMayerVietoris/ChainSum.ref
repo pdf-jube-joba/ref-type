@@ -1,0 +1,32 @@
+\module At(z: I.Int^) {
+  \import Modules.Biproduct[V := C.family.Carrier z, W := D.family.Carrier z, left := C.family.space z, right := D.family.space z] \as Pair;
+  \definition Carrier: \Set := Pair.Carrier;
+  \definition space: Modules.Space Carrier := Pair.space;
+  \definition make: C.family.Carrier z -> D.family.Carrier z -> Carrier := Pair.make;
+  \definition first: Carrier -> C.family.Carrier z := Pair.first;
+  \definition second: Carrier -> D.family.Carrier z := Pair.second;
+  \definition firstInjection: _ := Pair.firstInjection;
+  \definition secondInjection: _ := Pair.secondInjection;
+  \definition firstProjection: _ := Pair.firstProjection;
+  \definition secondProjection: _ := Pair.secondProjection;
+  \definition reconstruction: _ := Pair.reconstruction;
+  \definition ext: \forall (x, y: Carrier) -> first x = first y -> second x = second y -> x = y :=
+    std.Data[].Pair[].Prop[A := C.family.Carrier z, B := D.family.Carrier z].ext;
+}
+\definition Carrier[z: I.Int^]: \Set := At[z := z].Carrier;
+\definition space[z: I.Int^]: Modules.Space (Carrier z) := At[z := z].space;
+\definition family: Chains.Family := Chains.Family { Carrier := Carrier, space := space };
+\module Differential(z: I.Int^);
+\definition differential: Chains.DifferentialData[family] := Chains.DifferentialData[family] { apply := \fun (z: I.Int^) => Differential[z := z].map.apply };
+\definition complex: Chains.Complex := Chains.Complex {
+  family := family, differential := differential,
+  laws := Chains.DifferentialLaws[family, differential] {
+    addition := \fun (z: I.Int^) => Differential[z := z].map.addition,
+    scalar := \fun (z: I.Int^) => Differential[z := z].map.scalar,
+    squareZero := \fun (z: I.Int^)(x: Carrier z) => At[z := Degrees.previous (Degrees.previous z)].ext _ _
+      (C.laws.squareZero z (At[z := z].first x)) (D.laws.squareZero z (At[z := z].second x))
+  }
+};
+\module Pairing(E: Chains.Complex, f: Chains.Map[C := E, D := C].Map, g: Chains.Map[C := E, D := D].Map);
+\module Copairing(E: Chains.Complex, f: Chains.Map[C := C, D := E].Map, g: Chains.Map[C := D, D := E].Map);
+\module Inclusions;

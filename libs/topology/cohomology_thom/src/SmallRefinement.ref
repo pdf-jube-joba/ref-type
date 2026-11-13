@@ -1,0 +1,45 @@
+\import std.Data[].Nat[] \as N;
+\import std.Arithmetic[].Int[] \as I;
+\import std.Arithmetic[].IntAlgebra[].Ring[] \as Integers;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.trans;
+\use Equality.sym;
+\use Equality.congr;
+\use Equality.eq_reason_in;
+\import std.Logic[].Proposition[] \as Logic;
+\import module_theory.Module[].Over[R := I.Int^, ring := Integers.ring] \as Modules;
+\import double_complexes.NonnegativeChain[].Over[R := I.Int^, ring := Integers.ring] \as Complexes;
+\import topology.Topology[Carrier := A].OpenCovers[topology := source] \as Covers;
+\import singular_cohomology.Chains[A := A, source := source] \as Whole;
+\import singular_subdivision.Small[A := A, source := source, family := family] \as Boundary;
+\import singular_subdivision.Small[A := A, source := source, family := Covers.family cover] \as Ambient;
+\import singular_subdivision.OpenCover[A := A, source := source].On[cover := cover] \as Cover;
+\import \root.SmallSupport[A := A, source := source, cover := cover, family := family] \as Support;
+\import \root.CandidateSupport[A := A, source := source, cover := cover, family := family] \as Candidate;
+\import \root.SmallIntersection[A := A, source := source, leftFamily := family, rightFamily := Covers.family cover] \as Joint;
+\module Degree(n: N.Nat^);
+\module Commutes(n: N.Nat^);
+\definition forward: Complexes.Map[C := Joint.complex, D := Boundary.complex].Map := Joint.left;
+\definition backward: Complexes.Map[C := Boundary.complex, D := Joint.complex].Map := Complexes.Map[C := Boundary.complex, D := Joint.complex].Map {
+  apply := \fun (n: N.Nat^) => Degree[n := n].backward.apply,
+  addition := \fun (n: N.Nat^) => Degree[n := n].backward.addition,
+  scalar := \fun (n: N.Nat^) => Degree[n := n].backward.scalar,
+  commutes := \fun (n: N.Nat^) => Commutes[n := n].law
+};
+\definition leftInverse: \forall (n: N.Nat^)(x: Joint.Carrier n) -> backward.apply n (forward.apply n x) = x :=
+  \fun (n: N.Nat^) => Degree[n := n].leftInverse;
+\module Homotopy;
+\import Complexes.Equivalence[C := Joint.complex, D := Boundary.complex] \as Equivalences;
+\import Complexes.Homotopy[C := Joint.complex, D := Joint.complex] \as JointHomotopy;
+\import JointHomotopy.Reflexive[] \as Reflexive;
+\import Complexes.Map[C := Boundary.complex, D := Joint.complex].Composition[B := Joint.complex] \as LeftComposition;
+\import Complexes.End[C := Joint.complex] \as JointIdentity;
+\definition leftMap: LeftComposition.compose backward forward = JointIdentity.identity := Complexes.Map[C := Joint.complex, D := Joint.complex].ext _ _ leftInverse;
+\definition data: Equivalences.Data := Equivalences.Data { forward := forward, backward := backward, left := Reflexive.data, right := Homotopy[].data };
+\definition equivalence: Equivalences.Equivalence := \into[Equivalences.Data](data, Equivalences.Equivalence) \by {
+  Equivalences.Laws[data] {
+    left := JointHomotopy.replacementLaws JointIdentity.identity JointIdentity.identity (LeftComposition.compose backward forward) JointIdentity.identity Reflexive.data
+      (sym!{{Complexes.Map[C := Joint.complex, D := Joint.complex].Map}} _ _ leftMap) (\refl(JointIdentity.identity)) (Reflexive.laws JointIdentity.identity),
+    right := Homotopy[].laws
+  }
+};

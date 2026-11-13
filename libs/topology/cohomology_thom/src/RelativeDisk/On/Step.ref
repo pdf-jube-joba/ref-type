@@ -1,0 +1,44 @@
+\import thom_spaces.Thom[].DiskSuspension[X := X, space := source, n := n] \as Disk;
+\import Disk.Step[] \as Geometry;
+\import Geometry.Cylinder[] \as CylinderGeometry;
+\import thom_spaces.Thom[].DiskSuspension[X := X, space := source, n := N.Nat^::succ n] \as Higher;
+\import algebraic_topology.Euclidean[].Dimension[n := n] \as Euclidean;
+\import algebraic_topology.Euclidean[].Dimension[n := N.Nat^::succ n] \as HigherEuclidean;
+\import \root.LocalDisk[].On[X := X, source := source].Step[n := n] \as Original;
+\import \parent.Dimension[n := n] \as LowerPair;
+\import \parent.Dimension[n := N.Nat^::succ n] \as UpperPair;
+\definition boxBoundary: \Pow Geometry.BoxCarrier := { p: Geometry.BoxCarrier \where Logic.Or[\In[Geometry.BoxCarrier] Geometry.BoxBoundary p, \In[X] subset p.base] };
+\import singular_cohomology.Relative[A := Higher.DiskCarrier, source := Higher.diskTopology, subset := UpperPair.boundary].Homeomorphism[B := Geometry.BoxCarrier].Over[target := Geometry.boxTopology, targetSubset := boxBoundary] \as RoundComparison;
+\definition round: RoundComparison.Data := RoundComparison.Data {
+  homeomorphism := Original.round.homeomorphism,
+  forwardPreserves := \fun (p: \Cast[Higher.DiskCarrier] UpperPair.boundary) => either!{{\bysub(Higher.DiskCarrier, UpperPair.boundary, p)} {\In[Geometry.BoxCarrier] boxBoundary (Original.round.homeomorphism.forward p)}
+    {\fun (member: \In[Higher.DiskCarrier] Higher.boundary p) => Logic.Or[_, _]::left (Original.round.forwardPreserves (\into[Higher.DiskCarrier](p, Higher.boundary) \by { member }))}
+    {\fun (member: \In[X] subset (UpperPair.projection p)) => Logic.Or[_, _]::right member}},
+  backwardPreserves := \fun (p: \Cast[Geometry.BoxCarrier] boxBoundary) => either!{{\bysub(Geometry.BoxCarrier, boxBoundary, p)} {\In[Higher.DiskCarrier] UpperPair.boundary (Original.round.homeomorphism.backward p)}
+    {\fun (member: \In[Geometry.BoxCarrier] Geometry.BoxBoundary p) => Logic.Or[_, _]::left (Original.round.backwardPreserves (\into[Geometry.BoxCarrier](p, Geometry.BoxBoundary) \by { member }))}
+    {\fun (member: \In[X] subset p.base) => Logic.Or[_, _]::right member}}
+};
+\import algebraic_topology.Cylinder[A := Disk.DiskCarrier] \as Cylinder;
+\import \root.RelativeSuspension[].On[A := Disk.DiskCarrier, source := Disk.diskTopology, subset := LowerPair.boundary] \as Suspension;
+\import \root.RelativeSuspension[].On[A := Disk.DiskCarrier, source := Disk.diskTopology, subset := Disk.boundary] \as OldSuspension;
+\definition liftOld: \forall (p: Cylinder.Carrier) -> \In[Cylinder.Carrier] OldSuspension.boundary p -> \In[Cylinder.Carrier] Suspension.boundary p :=
+  \fun (p: Cylinder.Carrier)(member: \In[Cylinder.Carrier] OldSuspension.boundary p) => either!{member {\In[Cylinder.Carrier] Suspension.boundary p}
+    {\fun (start: Cylinder.time p = algebraic_topology.Interval[].start) => Logic.Or[_, _]::left start}
+    {\fun (other: _) => either!{other {\In[Cylinder.Carrier] Suspension.boundary p}
+      {\fun (end: Cylinder.time p = algebraic_topology.Interval[].end) => Logic.Or[_, _]::right (Logic.Or[_, _]::left end)}
+      {\fun (side: \In[Disk.DiskCarrier] Disk.boundary (Cylinder.point p)) => Logic.Or[_, _]::right (Logic.Or[_, _]::right (Logic.Or[_, _]::left side))}}}};
+\definition cylinderForward: \forall (p: \Cast[Geometry.BoxCarrier] boxBoundary) -> \In[Cylinder.Carrier] Suspension.boundary (CylinderGeometry.forward p) :=
+  \fun (p: \Cast[Geometry.BoxCarrier] boxBoundary) => either!{{\bysub(Geometry.BoxCarrier, boxBoundary, p)} {\In[Cylinder.Carrier] Suspension.boundary (CylinderGeometry.forward p)}
+    {\fun (member: \In[Geometry.BoxCarrier] Geometry.BoxBoundary p) => liftOld (CylinderGeometry.forward p) (CylinderGeometry.forwardPreserves p member)}
+    {\fun (member: \In[X] subset p.base) => Logic.Or[_, _]::right (Logic.Or[_, _]::right (Logic.Or[_, _]::right member))}};
+\definition cylinderBackward: \forall (p: \Cast[Cylinder.Carrier] Suspension.boundary) -> \In[Geometry.BoxCarrier] boxBoundary (CylinderGeometry.backward p) :=
+  \fun (p: \Cast[Cylinder.Carrier] Suspension.boundary) => either!{{\bysub(Cylinder.Carrier, Suspension.boundary, p)} {\In[Geometry.BoxCarrier] boxBoundary (CylinderGeometry.backward p)}
+    {\fun (start: Cylinder.time p = algebraic_topology.Interval[].start) => Logic.Or[_, _]::left (CylinderGeometry.backwardPreserves p (Logic.Or[_, _]::left start))}
+    {\fun (other: _) => either!{other {\In[Geometry.BoxCarrier] boxBoundary (CylinderGeometry.backward p)}
+      {\fun (end: Cylinder.time p = algebraic_topology.Interval[].end) => Logic.Or[_, _]::left (CylinderGeometry.backwardPreserves p (Logic.Or[_, _]::right (Logic.Or[_, _]::left end)))}
+      {\fun (side: \In[Disk.DiskCarrier] LowerPair.boundary (Cylinder.point p)) => either!{side {\In[Geometry.BoxCarrier] boxBoundary (CylinderGeometry.backward p)}
+        {\fun (radial: \In[Disk.DiskCarrier] Disk.boundary (Cylinder.point p)) => Logic.Or[_, _]::left (CylinderGeometry.backwardPreserves p (Logic.Or[_, _]::right (Logic.Or[_, _]::right radial)))}
+        {\fun (base: \In[X] subset (LowerPair.projection (Cylinder.point p))) => Logic.Or[_, _]::right base}}}}}};
+\import singular_cohomology.Relative[A := Geometry.BoxCarrier, source := Geometry.boxTopology, subset := boxBoundary].Homeomorphism[B := Cylinder.Carrier].Over[target := Cylinder.topology Disk.diskTopology, targetSubset := Suspension.boundary] \as CylinderComparison;
+\definition cylinder: CylinderComparison.Data := CylinderComparison.Data { homeomorphism := CylinderGeometry.homeomorphism, forwardPreserves := cylinderForward, backwardPreserves := cylinderBackward };
+\module With(coefficients: Modules.Bundle, z: I.Int^);

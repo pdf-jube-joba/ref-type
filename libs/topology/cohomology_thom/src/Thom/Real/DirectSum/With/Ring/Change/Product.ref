@@ -1,0 +1,33 @@
+\use std.Logic[].Equality[].eq_reason_in;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.congr;
+\import Old.Product[n := n, m := m] \as OldProduct;
+\import New.Product[n := n, m := m] \as NewProduct;
+\import OldProduct.Euler[] \as OldFormula;
+\import NewProduct.Euler[] \as NewFormula;
+\definition degree: N.Nat^ := N.Basic[].Def[].add n m;
+\import LeftGeometry.Coefficients[R := K, ring := ring].Degree[n := n] \as LeftInput;
+\import RightGeometry.Coefficients[R := K, ring := ring].Degree[n := m] \as RightInput;
+\import Geometry.Coefficients[R := L, ring := targetRing].Degree[n := degree] \as Output;
+\module First;
+\module Second;
+\import \parent.Product[n := n, m := m].First[] \as First;
+\import \parent.Product[n := n, m := m].Second[] \as Second;
+\import singular_cohomology.Relative[A := Disk.DiskBundle, source := Disk.diskTopology, subset := Disk.Boundary] \as OutputPair;
+\import singular_cohomology.Relative[A := Carrier, source := topology, subset := Union.subset] \as UnionPair;
+\import OutputPair.Maps[B := Carrier].Over[target := topology, targetSubset := Union.subset].On[f := OldFormula.combined].Integer[] \as FullMap;
+\import \root.CoefficientChange[].On[C := UnionPair.complex, M := Source.integerCoefficients, N := Target.integerCoefficients, u := morphism.linear].Along[D := OutputPair.complex, f := FullMap.map].At[z := I.Int^::ofNat degree] \as Natural;
+\import \root.RelativePullback[].On[A := Disk.DiskBundle, source := Disk.diskTopology, subset := Disk.Boundary, R := L, ring := targetRing].To[B := Carrier, target := topology, part := Union.subset].Along[f := NewFormula.combined] \as Pull;
+\import MixedChange.Covers[conditions := Old.conditions].Cup[p := n, q := m] \as CupChange;
+\import \root.MixedCup[A := Carrier, source := topology, first := New.firstShell, second := New.secondShell, K := L, ring := targetRing].Union[].Cover[].On[conditions := New.conditions].Cup[p := n, q := m] \as NewCup;
+\import UnionPair.With[coefficients := Target.integerCoefficients].At[z := I.Int^::ofNat degree] \as UnionH;
+\import singular_cohomology.Relative[A := Carrier, source := topology, subset := New.firstShell].With[coefficients := Target.integerCoefficients].At[z := I.Int^::ofNat n] \as FirstH;
+\import singular_cohomology.Relative[A := Carrier, source := topology, subset := New.secondShell].With[coefficients := Target.integerCoefficients].At[z := I.Int^::ofNat m] \as SecondH;
+\definition law: \forall (u: LeftInput.Class)(v: RightInput.Class) -> (map degree).apply (OldProduct.apply u v) = NewProduct.apply ((leftMap n).apply u) ((rightMap m).apply v) :=
+  \fun (u: LeftInput.Class)(v: RightInput.Class) => eq_reason_in!{Output.Class _
+    "=" _ "by" { congr!{{Geometry.Coefficients[R := K, ring := ring].Degree[n := degree].Class} Output.Class} (map degree).apply _ _ (OldFormula.pullbackLaw u v) }
+    "=" _ "by" { Natural.law (OldFormula.mixed u v) }
+    "=" _ "by" { congr!{UnionH.Carrier Output.Class} Pull.Degree[n := degree].map.apply _ _ (CupChange.law (First.old u) (Second.old v)) }
+    "=" _ "by" { congr!{UnionH.Carrier Output.Class} Pull.Degree[n := degree].map.apply _ _ (congr!{FirstH.Carrier SecondH.Carrier UnionH.Carrier} NewCup.apply _ _ _ _ (First.law u) (Second.law v)) }
+    "=" _ "by" { sym!{Output.Class} _ _ (NewFormula.pullbackLaw ((leftMap n).apply u) ((rightMap m).apply v)) }
+  };

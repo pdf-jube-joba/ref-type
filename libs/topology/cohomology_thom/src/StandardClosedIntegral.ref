@@ -1,0 +1,30 @@
+\import std.Data[].Nat[] \as N;
+\import std.Arithmetic[].Int[] \as I;
+\import std.Arithmetic[].IntAlgebra[].Ring[] \as Integers;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.trans;
+\use Equality.sym;
+\use Equality.congr;
+\import module_theory.Module[].Over[R := I.Int^, ring := Integers.ring] \as Modules;
+\import \root.StandardClosedProduct[n := n, m := N.Nat^::zero, K := I.Int^, ring := Integers.commutativeRing] \as Initial;
+\import \root.StandardShell[n := n] \as Shell;
+\import Shell.PointModel[] \as Coordinates;
+\import thom_spaces.Thom[].CWType[].Point[] \as Point;
+\import thom_spaces.Thom[].DiskSuspension[X := Point.Carrier, space := Point.topology, n := n] \as PointDisk;
+\import algebraic_topology.Euclidean[].Dimension[n := n] \as Disk;
+\import \root.LocalDisk[].Point[K := I.Int^, ring := Integers.commutativeRing].Rank[n := n] \as PointClass;
+\import \root.RelativePullback[].On[A := Disk.Disk, source := Disk.diskTopology, subset := Shell.boundary, R := I.Int^, ring := Integers.commutativeRing].To[B := PointDisk.DiskCarrier, target := PointDisk.diskTopology, part := PointDisk.boundary].Homeomorphism[data := Coordinates.pair] \as Comparison;
+\import \root.IntegralComparison[].Point[n := n] \as NativePoint;
+\import Modules.Isomorphism[V := I.Int^, W := NativePoint.Class, source := Modules.scalarModule, target := NativePoint.space].Composition[U := Initial.LeftClass, final := Initial.leftSpace] \as Composition;
+\definition leftIsomorphism: Modules.Isomorphism[V := I.Int^, W := Initial.LeftClass, source := Modules.scalarModule, target := Initial.leftSpace].Isomorphism :=
+  Composition.compose Comparison.Degree[n := n].native NativePoint.isomorphism;
+\definition left: Initial.LeftClass := leftIsomorphism.forward.apply Integers.ring.one;
+\definition normalized: left = Shell.Ring[K := I.Int^, ring := Integers.commutativeRing].generator :=
+  congr!{PointClass.Class Initial.LeftClass} Comparison.Degree[n := n].native.forward.apply _ _ NativePoint.normalized;
+\definition Property[m: N.Nat^]: \Prop := \root.StandardClosedProduct[n := n, m := m, K := I.Int^, ring := Integers.commutativeRing].At[a := left].Bijective;
+\definition bijective: \forall (m: N.Nat^) -> Property m :=
+  \induction (m: N.Nat^) \return Property m \with {
+    | zero: \root.StandardClosedBase[n := n].At[e := leftIsomorphism].bijective
+    | succ: \fun (m: N.Nat^)(previous: Property m) => \root.StandardClosedStep[n := n, m := m, K := I.Int^, ring := Integers.commutativeRing].At[a := left].bijective previous
+  };
+\module Rank(m: N.Nat^);

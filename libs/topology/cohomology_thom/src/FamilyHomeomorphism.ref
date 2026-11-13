@@ -1,0 +1,49 @@
+\import std.Data[].Nat[] \as N;
+\import std.Arithmetic[].Int[] \as I;
+\import std.Arithmetic[].IntAlgebra[].Ring[] \as Integers;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.trans;
+\use Equality.sym;
+\use Equality.congr;
+\import module_theory.Module[].Over[R := I.Int^, ring := Integers.ring] \as Modules;
+\import chain_complexes.Chain[].Over[R := I.Int^, ring := Integers.ring] \as Chains;
+\import topology.Homeomorphism[A := A, B := B] \as Homeomorphisms;
+\definition laws: Homeomorphisms.Laws[source, target, h] := Homeomorphisms.laws source target h;
+\import \root.FamilyPair[A := A, source := source, family := sourceFamily] \as Source;
+\import \root.FamilyPair[A := B, source := target, family := targetFamily] \as Target;
+\import \root.FamilyPairMap[A := A, B := B, source := source, target := target, sourceFamily := sourceFamily, targetFamily := targetFamily,
+  f := h.forward, regular := laws.forwardContinuous, preserves := preservesForward] \as Forward;
+\import \root.FamilyPairMap[A := B, B := A, source := target, target := source, sourceFamily := targetFamily, targetFamily := sourceFamily,
+  f := h.backward, regular := laws.backwardContinuous, preserves := preservesBackward] \as Backward;
+\import Forward.Composition[C := A, final := source, finalFamily := sourceFamily,
+  g := h.backward, regularG := laws.backwardContinuous, preservesG := preservesBackward] \as LeftComposition;
+\import Backward.Composition[C := B, final := target, finalFamily := targetFamily,
+  g := h.forward, regularG := laws.forwardContinuous, preservesG := preservesForward] \as RightComposition;
+\import singular_cohomology.Identity[A := A, source := source] \as SourceIdentity;
+\import singular_cohomology.Identity[A := B, source := target] \as TargetIdentity;
+\import \root.FamilyPairMap[A := A, B := A, source := source, target := source, sourceFamily := sourceFamily, targetFamily := sourceFamily,
+  f := LeftComposition.composed, regular := LeftComposition.regularComposed, preserves := LeftComposition.preservesComposed]
+  .Equal[g := SourceIdentity.function, regularG := SourceIdentity.continuous, preservesG := Source.Identity[].preserves,
+    same := laws.leftInverse] \as LeftEquality;
+\import \root.FamilyPairMap[A := B, B := B, source := target, target := target, sourceFamily := targetFamily, targetFamily := targetFamily,
+  f := RightComposition.composed, regular := RightComposition.regularComposed, preserves := RightComposition.preservesComposed]
+  .Equal[g := TargetIdentity.function, regularG := TargetIdentity.continuous, preservesG := Target.Identity[].preserves,
+    same := laws.rightInverse] \as RightEquality;
+\import Chains.Map[C := Source.complex, D := Source.complex] \as SourceMaps;
+\import Chains.Map[C := Target.complex, D := Target.complex] \as TargetMaps;
+\definition leftInverse: \forall (z: I.Int^)(x: Source.Carrier z) -> Backward.map.apply z (Forward.map.apply z x) = x :=
+  \fun (z: I.Int^)(x: Source.Carrier z) =>
+    congr!{SourceMaps.Map {Source.Carrier z}} (\fun (f: SourceMaps.Map) => f.apply z x) _ _
+      (trans!{SourceMaps.Map} _ _ _ LeftComposition.chainLaw
+        (trans!{SourceMaps.Map} _ _ _ LeftEquality.chainLaw Source.Identity[].chainLaw));
+\definition rightInverse: \forall (z: I.Int^)(x: Target.Carrier z) -> Forward.map.apply z (Backward.map.apply z x) = x :=
+  \fun (z: I.Int^)(x: Target.Carrier z) =>
+    congr!{TargetMaps.Map {Target.Carrier z}} (\fun (f: TargetMaps.Map) => f.apply z x) _ _
+      (trans!{TargetMaps.Map} _ _ _ RightComposition.chainLaw
+        (trans!{TargetMaps.Map} _ _ _ RightEquality.chainLaw Target.Identity[].chainLaw));
+\import Chains.Isomorphism[C := Source.complex, D := Target.complex] \as Isomorphisms;
+\definition data: Isomorphisms.Data := Isomorphisms.Data { forward := Forward.map, backward := Backward.map };
+\definition isomorphism: Isomorphisms.Isomorphism := \into[Isomorphisms.Data](data, Isomorphisms.Isomorphism) \by {
+  Isomorphisms.Laws[data] { leftInverse := leftInverse, rightInverse := rightInverse }
+};
+\module With(coefficients: Modules.Bundle);

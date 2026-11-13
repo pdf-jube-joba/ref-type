@@ -1,0 +1,58 @@
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\use Equality.eq_reason_in;
+\import \parent.Closed[] \as Closed;
+\import \root.MixedCup[A := A, source := source, first := first, second := second, K := K, ring := ring].CommonComplex[] \as CommonComplex;
+\import chain_complexes.Integer[].Over[R := I.Int^, ring := Integers.ring] \as IntegerComplexes;
+\import IntegerComplexes.At[C := FirstCochains.complex, z := I.Int^::ofNat p] \as FirstInput;
+\import IntegerComplexes.At[C := SecondCochains.complex, z := I.Int^::ofNat q] \as SecondInput;
+\import chain_complexes.Cochain[].Over[R := I.Int^, ring := Integers.ring].At[C := CommonComplex.complex, k := total] \as Output;
+\import FirstComparison.Linear[] \as FirstLinear;
+\import SecondComparison.Linear[] \as SecondLinear;
+\import Whole.Bilinear[] \as ProductLaws;
+\import commutative_algebra.Modules[R := I.Int^, ring := Integers.commutativeRing] \as Commutative;
+\definition firstCycles: Modules.Bundle := Modules.Bundle { Carrier := FirstInput.Closed, space := FirstInput.cycleSpace };
+\definition secondCycles: Modules.Bundle := Modules.Bundle { Carrier := SecondInput.Closed, space := SecondInput.cycleSpace };
+\definition output: Modules.Bundle := Modules.Bundle { Carrier := Output.Cohomology, space := Output.cohomologySpace };
+\import Commutative.Bilinear[A := firstCycles, B := secondCycles, C := output] \as Bilinear;
+\definition cycleAddLeft: \forall (x, y: FirstInput.Closed)(z: SecondInput.Closed) ->
+  Closed.cycle (FirstInput.cycleSpace.add x y) z = Output.cycleSpace.add (Closed.cycle x z) (Closed.cycle y z) :=
+  \fun (x, y: FirstInput.Closed)(z: SecondInput.Closed) => trans!{{Cochains.Carrier total}} _ _ _
+    (congr!{{Cochains.Carrier p} {Cochains.Carrier total}} (\fun (a: Cochains.Carrier p) => Whole.apply a (SecondComparison.from z)) _ _ (FirstLinear.addition x y))
+    (ProductLaws.leftAdd (FirstComparison.from x) (FirstComparison.from y) (SecondComparison.from z));
+\definition cycleAddRight: \forall (x: FirstInput.Closed)(y, z: SecondInput.Closed) ->
+  Closed.cycle x (SecondInput.cycleSpace.add y z) = Output.cycleSpace.add (Closed.cycle x y) (Closed.cycle x z) :=
+  \fun (x: FirstInput.Closed)(y, z: SecondInput.Closed) => trans!{{Cochains.Carrier total}} _ _ _
+    (congr!{{Cochains.Carrier q} {Cochains.Carrier total}} (Whole.apply (FirstComparison.from x)) _ _ (SecondLinear.addition y z))
+    (ProductLaws.rightAdd (FirstComparison.from x) (SecondComparison.from y) (SecondComparison.from z));
+\import \root.RelativeMayerVietoris[].IntegerLinear[] \as IntegerLinear;
+\definition outputCycles: Modules.Bundle := Modules.Bundle { Carrier := Output.CycleCarrier, space := Output.cycleSpace };
+\definition cycleScaleLeft: \forall (a: I.Int^)(x: FirstInput.Closed)(z: SecondInput.Closed) ->
+  Closed.cycle (FirstInput.cycleSpace.smul a x) z = Output.cycleSpace.smul a (Closed.cycle x z) :=
+  \fun (a: I.Int^)(x: FirstInput.Closed)(z: SecondInput.Closed) =>
+    IntegerLinear.On[A := firstCycles, B := outputCycles, f := (\fun (v: FirstInput.Closed) => Closed.cycle v z), addition := (\fun (v, w: FirstInput.Closed) => cycleAddLeft v w z)].scalar a x;
+\definition cycleScaleRight: \forall (a: I.Int^)(x: FirstInput.Closed)(z: SecondInput.Closed) ->
+  Closed.cycle x (SecondInput.cycleSpace.smul a z) = Output.cycleSpace.smul a (Closed.cycle x z) :=
+  \fun (a: I.Int^)(x: FirstInput.Closed)(z: SecondInput.Closed) =>
+    IntegerLinear.On[A := secondCycles, B := outputCycles, f := (\fun (v: SecondInput.Closed) => Closed.cycle x v), addition := (\fun (v, w: SecondInput.Closed) => cycleAddRight x v w)].scalar a z;
+\definition onCycles: Bilinear.Map := Bilinear.Map {
+  apply := \fun (x: FirstInput.Closed)(y: SecondInput.Closed) => Closed.onCycles x y,
+  addLeft := \fun (x, y: FirstInput.Closed)(z: SecondInput.Closed) => trans!{Output.Cohomology} _ _ _ (congr!{Output.CycleCarrier Output.Cohomology} Output.classOf _ _ (cycleAddLeft x y z)) (Output.classLinear.addition (Closed.cycle x z) (Closed.cycle y z)),
+  addRight := \fun (x: FirstInput.Closed)(y, z: SecondInput.Closed) => trans!{Output.Cohomology} _ _ _ (congr!{Output.CycleCarrier Output.Cohomology} Output.classOf _ _ (cycleAddRight x y z)) (Output.classLinear.addition (Closed.cycle x y) (Closed.cycle x z)),
+  scaleLeft := \fun (a: I.Int^)(x: FirstInput.Closed)(z: SecondInput.Closed) => trans!{Output.Cohomology} _ _ _ (congr!{Output.CycleCarrier Output.Cohomology} Output.classOf _ _ (cycleScaleLeft a x z)) (Output.classLinear.scalar a (Closed.cycle x z)),
+  scaleRight := \fun (a: I.Int^)(x: FirstInput.Closed)(z: SecondInput.Closed) => trans!{Output.Cohomology} _ _ _ (congr!{Output.CycleCarrier Output.Cohomology} Output.classOf _ _ (cycleScaleRight a x z)) (Output.classLinear.scalar a (Closed.cycle x z)),
+};
+\import \root.MixedCup[A := A, source := source, first := first, second := second, K := K, ring := ring].Boundaries[] \as Boundaries;
+\import Bilinear.Quotients[S := FirstInput.boundariesInside, T := SecondInput.boundariesInside] \as Quotients;
+\definition leftVanishes: Quotients.VanishesLeft onCycles :=
+  \fun (x: FirstInput.Closed)(y: SecondInput.Closed)(boundary: _) => Output.boundaryClassZero (Closed.cycle x y)
+    (Boundaries.left p q x y (\bysub(SecondCochains.Carrier (I.Int^::ofNat q), SecondInput.cycles.carrier, y)) boundary);
+\definition rightVanishes: Quotients.VanishesRight onCycles :=
+  \fun (x: FirstInput.Closed)(y: SecondInput.Closed)(boundary: _) => Output.boundaryClassZero (Closed.cycle x y)
+    (Boundaries.right p q x y (\bysub(FirstCochains.Carrier (I.Int^::ofNat p), FirstInput.cycles.carrier, x)) boundary);
+\definition bilinear: Quotients.QuotientMap := Quotients.descend onCycles leftVanishes rightVanishes;
+\definition apply: FirstInput.Cohomology -> SecondInput.Cohomology -> Output.Cohomology := bilinear.apply;
+\definition onClasses: \forall (x: FirstInput.Closed)(y: SecondInput.Closed) ->
+  apply (FirstInput.classOf x) (SecondInput.classOf y) = Output.classOf (Closed.cycle x y) := Quotients.onClasses onCycles leftVanishes rightVanishes;

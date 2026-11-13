@@ -1,0 +1,21 @@
+\import resolutions.HomComplex[].Over[R := I.Int^, ring := Integers.commutativeRing] \as Hom;
+\import Hom.Integer[P := SourcePair.complex, N := coefficients] \as SourceCochains;
+\import Hom.Integer[P := TargetPair.complex, N := coefficients] \as TargetCochains;
+\import Modules.End[V := coefficients.Carrier, space := coefficients.space] \as Scalars;
+\import Hom.IntegerMapping[P := SourcePair.complex, Q := TargetPair.complex, N := coefficients, L := coefficients].On[f := map, u := Scalars.identity] \as Pull;
+\definition cochainZero: \forall (z: I.Int^)(h: TargetCochains.Carrier z) -> Pull.map.apply z h = (SourceCochains.space z).zero :=
+  \fun (z: I.Int^)(h: TargetCochains.Carrier z) => SourceCochains.At[z := z].ext _ _
+    (\fun (x: SourcePair.Carrier z) => trans!{coefficients.Carrier} _ _ _
+      (congr!{{TargetPair.Carrier z} coefficients.Carrier} h.apply _ _ (zero z x))
+      (Modules.Hom[V := TargetPair.Carrier z, W := coefficients.Carrier, source := TargetPair.space z, target := coefficients.space].zeroPreserved h));
+\module At(z: I.Int^) {
+  \import chain_complexes.Integer[].Over[R := I.Int^, ring := Integers.ring] \as Integer;
+  \import Integer.At[C := TargetCochains.complex, z := z] \as Input;
+  \import Integer.At[C := SourceCochains.complex, z := z] \as Output;
+  \import Integer.Map[C := TargetCochains.complex, D := SourceCochains.complex].At[k := z] \as Action;
+  \definition law: \forall (x: Input.Cohomology) -> (Action.induced Pull.map).apply x = Output.cohomologySpace.zero :=
+    Input.classInduction (\fun (x: Input.Cohomology) => (Action.induced Pull.map).apply x = Output.cohomologySpace.zero)
+      (\fun (h: Input.Closed) => trans!{Output.Cohomology} _ _ _ (Action.onClass Pull.map h)
+        (trans!{Output.Cohomology} _ _ _ (congr!{Output.Closed Output.Cohomology} Output.classOf ((Action.cyclesMap Pull.map).apply h) Output.cycleSpace.zero (cochainZero z h))
+          (Modules.Hom[V := Output.Closed, W := Output.Cohomology, source := Output.cycleSpace, target := Output.cohomologySpace].zeroPreserved Output.classLinear)));
+}

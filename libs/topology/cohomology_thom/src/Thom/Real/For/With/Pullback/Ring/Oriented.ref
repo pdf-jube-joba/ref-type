@@ -1,0 +1,34 @@
+\import \root.Thom[].Real[].For[X := X, F := F, bundle := bundle].With[metric := metric] \as OldGeometry;
+\import \root.Thom[].Real[].For[X := Y, F := (\fun (y: Y) => F (f y)), bundle := pulledBundle].With[metric := pulledMetric] \as NewGeometry;
+\import OldGeometry.Pullback[Y := Y, source := source, f := f, regular := regular] \as BundleMap;
+\import BundleMap.Ring[R := R, ring := ring] \as Operations;
+\import OldGeometry.Local[K := R, ring := ring].Rank[n := n] \as SourceRank;
+\import NewGeometry.Local[K := R, ring := ring].Rank[n := n] \as TargetRank;
+\import SourceRank.Orientation[] \as SourceOrientation;
+\import TargetRank.Orientation[] \as TargetOrientation;
+\definition fiber: TargetRank.Fibers := \fun (y: Y) => BundleMap.Fiber[y := y].Ring[K := R, ring := ring].Degree[n := n].map.apply (orientation.fiber (f y));
+\definition pulledOrientation: TargetOrientation.SignedOrientation := TargetOrientation.SignedOrientation {
+  fiber := fiber,
+  locally := \block {
+    \fun (y: Y) \then
+    \takefrom local: SourceOrientation.LocalOrientation[f y, orientation.fiber] \by orientation.locally (f y) \then
+    \return \exact(TargetOrientation.LocalOrientation[y, fiber] {
+      chart := Operations.Chart[c := local.chart].chart,
+      contains := local.contains, rank := local.rank, reverse := local.reverse,
+      normalized := \fun (z: \Cast[Y] Operations.Chart[c := local.chart].chart.domain) => trans!{{TargetRank.FiberClass z}} _ _ _
+        (sym!{{TargetRank.FiberClass z}} _ _ (Operations.Chart[c := local.chart].Rank[n := n, same := local.rank].Fiber[y := z].signed local.reverse))
+        (congr!{{SourceRank.FiberClass (f z)} {TargetRank.FiberClass z}} BundleMap.Fiber[y := z].Ring[K := R, ring := ring].Degree[n := n].map.apply _ _
+          (local.normalized Operations.Chart[c := local.chart].Fiber[y := z].oldPoint))
+    }, TargetOrientation.LocalOrientation[y, fiber])
+  }
+};
+\import OldGeometry.Oriented[K := R, ring := ring, n := n, orientation := orientation, complex := complex] \as Source;
+\import NewGeometry.Oriented[K := R, ring := ring, n := n, orientation := pulledOrientation, complex := sourceComplex] \as Target;
+\definition class: _ := Target.class;
+\definition classLaw: Operations.Degree[n := n].pull Source.class = class := Target.uniqueNormalized (Operations.Degree[n := n].pull Source.class)
+  (\fun (y: Y) => trans!{{TargetRank.FiberClass y}} _ _ _ (BundleMap.Fiber[y := y].Ring[K := R, ring := ring].Degree[n := n].law Source.class)
+    (congr!{{SourceRank.FiberClass (f y)} {TargetRank.FiberClass y}} BundleMap.Fiber[y := y].Ring[K := R, ring := ring].Degree[n := n].map.apply _ _ (Source.normalized (f y))));
+\definition eulerLaw: Target.euler = BasePull.apply n f regular Source.euler := trans!{{NewBase.Cohomology[].Group n}} _ _ _
+  (congr!{{Pulled.Degree[n := n].Class} {NewBase.Cohomology[].Group n}} Pulled.Degree[n := n].zeroSection.apply _ _ (sym!{{Pulled.Degree[n := n].Class}} _ _ classLaw))
+  (Operations.Degree[n := n].Euler[].law Source.class);
+\module Degree(p: N.Nat^);

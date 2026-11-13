@@ -1,0 +1,67 @@
+\definition total: N.Nat^ := N.Basic[].Def[].add p q;
+\definition degree: I.Int^ := I.Int^::ofNat total;
+\import \parent.FirstClass[p := p] \as Alpha;
+\import BaseProduct.Degree[p := p, q := q].Cohomology[] \as BaseCup;
+\import TotalProduct.Degree[p := p, q := N.Nat^::succ q].Cohomology[] \as TotalCup;
+\import MixedMV.Connecting[p := p, q := q] \as Connecting;
+\import Connecting.Whole[] \as WholeConnecting;
+\import \root.FamilySuspension[A := A, source := source, first := first, second := second].With[coefficients := Coefficients.integerCoefficients] \as TargetSuspension;
+\import Suspension.Covering[].With[coefficients := Coefficients.integerCoefficients] \as SourceSuspension;
+\import Suspension.Covering[] \as Covering;
+\import Suspension.Slice[d := Halves.overlap] \as Geometry;
+\import singular_cohomology.Relative[A := A, source := source, subset := second].With[coefficients := Coefficients.integerCoefficients] \as BaseSecond;
+\import Integer.At[C := BaseSecond.complex, z := I.Int^::ofNat q] \as BaseQ;
+\import singular_cohomology.Relative[A := MV.Overlap, source := MV.overlapTopology, subset := Middle.secondRegion] \as OverlapSecond;
+\import OverlapSecond.With[coefficients := Coefficients.integerCoefficients] \as OverlapSecondCochains;
+\import Integer.At[C := OverlapSecondCochains.complex, z := I.Int^::ofNat q] \as OverlapQ;
+\import Integer.Map[C := BaseSecond.complex, D := OverlapSecondCochains.complex].At[k := I.Int^::ofNat q] \as SecondAction;
+\import singular_cohomology.Relative[A := MV.Overlap, source := MV.overlapTopology, subset := Middle.secondRegion].Homeomorphism[B := Geometry.Carrier].Over[target := Geometry.space, targetSubset := Geometry.part] \as SecondHomeomorphisms;
+\import OverlapSecond.Maps[B := Geometry.Carrier].Over[target := Geometry.space, targetSubset := Geometry.part].Composition[C := A].Over[final := source, finalSubset := second] \as SecondComposition;
+\import SecondComposition.On[f := SecondHomeomorphisms.forwardMap Covering.pair, g := Geometry.forward].With[coefficients := Coefficients.integerCoefficients] \as SecondLaw;
+\definition secondLaw: \forall (b: BaseQ.Cohomology) ->
+  SourceSuspension.Degree[z := I.Int^::ofNat q].overlapIsomorphism.forward.apply b = (SecondAction.induced OverlapNatural.secondPullback).apply b :=
+  \fun (b: BaseQ.Cohomology) => sym!{OverlapQ.Cohomology} _ _ (SecondLaw.law (I.Int^::ofNat q) b);
+\import \root.FamilyPair[A := A, source := source, family := baseFamily].With[coefficients := Coefficients.integerCoefficients] \as BaseFamilyCochains;
+\import \root.FamilyPair[A := MV.Overlap, source := MV.overlapTopology, family := Middle.family].With[coefficients := Coefficients.integerCoefficients] \as OverlapFamilyCochains;
+\import \root.FamilyPair[A := Cylinder.Carrier, source := Suspension.topology, family := family].With[coefficients := Coefficients.integerCoefficients] \as TotalFamilyCochains;
+\import Integer.At[C := BaseFamilyCochains.complex, z := degree] \as BaseTotal;
+\import Integer.At[C := OverlapFamilyCochains.complex, z := degree] \as OverlapTotal;
+\import Integer.At[C := TotalFamilyCochains.complex, z := I.Int^::ofNat (N.Nat^::succ total)] \as Output;
+\import Integer.Map[C := BaseFamilyCochains.complex, D := OverlapFamilyCochains.complex].At[k := degree] \as FamilyAction;
+\import \root.FamilyProduct[A := MV.Overlap, source := MV.overlapTopology, first := Middle.firstRegion, second := Middle.secondRegion, family := Middle.family,
+  firstMember := OverlapBoundary.firstMember, secondMember := OverlapBoundary.secondMember, classify := OverlapBoundary.classify, K := K, ring := ring].Degree[p := p, q := q].Cohomology[] \as OverlapCup;
+\import First.With[coefficients := Coefficients.integerCoefficients] \as BaseFirstCochains;
+\import CylinderFirst.With[coefficients := Coefficients.integerCoefficients] \as CylinderFirstCochains;
+\import singular_cohomology.Relative[A := MV.Overlap, source := MV.overlapTopology, subset := Middle.firstRegion].With[coefficients := Coefficients.integerCoefficients] \as OverlapFirstCochains;
+\import Integer.At[C := BaseFirstCochains.complex, z := I.Int^::ofNat p] \as FirstH;
+\import Integer.At[C := CylinderFirstCochains.complex, z := I.Int^::ofNat p] \as CylinderH;
+\import Integer.At[C := OverlapFirstCochains.complex, z := I.Int^::ofNat p] \as OverlapFirstH;
+\definition overlap: \forall (a: Alpha.Cycle)(b: BaseQ.Cohomology) ->
+  Middle.With[coefficients := Coefficients.integerCoefficients].At[z := degree].isomorphism.forward.apply (BaseCup.product (FirstH.classOf a) b) =
+  OverlapCup.product (Connecting.overlapClass (Alpha.cylinderCycle a)) (SourceSuspension.Degree[z := I.Int^::ofNat q].overlapIsomorphism.forward.apply b) :=
+  \fun (a: Alpha.Cycle)(b: BaseQ.Cohomology) => trans!{OverlapTotal.Cohomology} _ _ _
+    (OverlapNatural.Product[p := p, q := q].Cohomology[].law (FirstH.classOf a) b)
+    (congr!{{OverlapFirstH.Cohomology} OverlapQ.Cohomology OverlapTotal.Cohomology} OverlapCup.product _ _ _ _
+      (Alpha.law a) (sym!{OverlapQ.Cohomology} _ _ (secondLaw b)));
+\import Modules.Alternating[V := Output.Cohomology, space := Output.cohomologySpace].Concatenation[] \as Signs;
+\definition law: \forall (a: Alpha.Cycle)(b: BaseQ.Cohomology) ->
+  TargetSuspension.At[z := degree].isomorphism.forward.apply (BaseCup.product (FirstH.classOf a) b) =
+  Signs.twist p (TotalCup.product (CylinderH.classOf (Alpha.cylinderCycle a)) (SourceSuspension.At[z := I.Int^::ofNat q].isomorphism.forward.apply b)) :=
+  \fun (a: Alpha.Cycle)(b: BaseQ.Cohomology) => trans!{Output.Cohomology} _ _ _
+    (congr!{OverlapTotal.Cohomology Output.Cohomology}
+      WholeConnecting.connecting
+      _ _ (overlap a b))
+    (WholeConnecting.law (Alpha.cylinderCycle a) (SourceSuspension.Degree[z := I.Int^::ofNat q].overlapIsomorphism.forward.apply b));
+\import Integer.Map[C := BaseFirstCochains.complex, D := CylinderFirstCochains.complex].At[k := I.Int^::ofNat p] \as FirstAction;
+\definition onClasses: \forall (a: Alpha.Cycle)(b: BaseQ.Cohomology) ->
+  TargetSuspension.At[z := degree].isomorphism.forward.apply (BaseCup.product (FirstH.classOf a) b) =
+  Signs.twist p (TotalCup.product ((FirstAction.induced FirstProjection.pullback).apply (FirstH.classOf a)) (SourceSuspension.At[z := I.Int^::ofNat q].isomorphism.forward.apply b)) :=
+  \fun (a: Alpha.Cycle)(b: BaseQ.Cohomology) => trans!{Output.Cohomology} _ _ _ (law a b)
+    (congr!{CylinderH.Cohomology Output.Cohomology}
+      (\fun (v: CylinderH.Cohomology) => Signs.twist p (TotalCup.product v (SourceSuspension.At[z := I.Int^::ofNat q].isomorphism.forward.apply b))) _ _
+      (sym!{CylinderH.Cohomology} _ _ (FirstAction.onClass FirstProjection.pullback a)));
+\definition onCohomology: \forall (a: FirstH.Cohomology)(b: BaseQ.Cohomology) ->
+  TargetSuspension.At[z := degree].isomorphism.forward.apply (BaseCup.product a b) =
+  Signs.twist p (TotalCup.product ((FirstAction.induced FirstProjection.pullback).apply a) (SourceSuspension.At[z := I.Int^::ofNat q].isomorphism.forward.apply b)) :=
+  FirstH.classInduction (\fun (a: FirstH.Cohomology) => \forall (b: BaseQ.Cohomology) ->
+    TargetSuspension.At[z := degree].isomorphism.forward.apply (BaseCup.product a b) = Signs.twist p (TotalCup.product ((FirstAction.induced FirstProjection.pullback).apply a) (SourceSuspension.At[z := I.Int^::ofNat q].isomorphism.forward.apply b))) onClasses;

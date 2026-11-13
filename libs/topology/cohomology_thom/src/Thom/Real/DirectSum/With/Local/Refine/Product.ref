@@ -1,0 +1,71 @@
+\use std.Logic[].Equality[].eq_reason_in;
+\use std.Logic[].Proposition[].either;
+\import \parent.Parts[] \as Parts;
+\import \parent.Coordinates[] \as Coordinates;
+\import Left.Norm[] \as LeftNorm;
+\import Right.Norm[] \as RightNorm;
+\import LeftNorm.Ring[K := K, ring := ring] \as LeftNormRing;
+\import RightNorm.Ring[K := K, ring := ring] \as RightNormRing;
+\import LeftGeometry.Shell[] \as OriginalLeftShell;
+\import RightGeometry.Shell[] \as OriginalRightShell;
+\import OriginalLeftShell.Direct[].Domain[U := U] \as LeftDirect;
+\import OriginalRightShell.Direct[].Domain[U := U] \as RightDirect;
+\import \root.StandardShell[n := c.dimension] \as LeftStandard;
+\import \root.StandardShell[n := d.dimension] \as RightStandard;
+\import LeftStandard.Ring[K := K, ring := ring] \as LeftStandardClass;
+\import RightStandard.Ring[K := K, ring := ring] \as RightStandardClass;
+\import \root.StandardProduct[n := c.dimension, m := d.dimension, K := K, ring := ring] \as StandardProduct;
+\import \root.LocalDisk[].Point[K := K, ring := ring].Rank[n := c.dimension] \as LeftPoint;
+\import \root.LocalDisk[].Point[K := K, ring := ring].Rank[n := d.dimension] \as RightPoint;
+\import singular_products.Cochains[A := BasePoint, source := baseTopology, R := K, ring := ring] \as BaseProduct;
+\definition firstShell: \Pow Domain.BoxCarrier := { p: Domain.BoxCarrier \where \In[LeftOpen.Carrier] LeftNorm.sourceShell (Parts.leftPart p) };
+\definition secondShell: \Pow Domain.BoxCarrier := { p: Domain.BoxCarrier \where \In[RightOpen.Carrier] RightNorm.sourceShell (Parts.rightPart p) };
+\definition firstOpen: topology.Topology[Carrier := Domain.BoxCarrier].IsOpenIn Domain.boxTopology firstShell :=
+  (topology.Composition[A := Domain.BoxCarrier, B := LeftOpen.Carrier, C := LeftDisk.DiskBundle].composeContinuous Domain.boxTopology LeftOpen.topology LeftDisk.diskTopology Parts.leftPart LeftOpen.inclusion Parts.leftPartContinuous LeftOpen.inclusionContinuous) OriginalLeftShell.shell OriginalLeftShell.open;
+\definition secondOpen: topology.Topology[Carrier := Domain.BoxCarrier].IsOpenIn Domain.boxTopology secondShell :=
+  (topology.Composition[A := Domain.BoxCarrier, B := RightOpen.Carrier, C := RightDisk.DiskBundle].composeContinuous Domain.boxTopology RightOpen.topology RightDisk.diskTopology Parts.rightPart RightOpen.inclusion Parts.rightPartContinuous RightOpen.inclusionContinuous) OriginalRightShell.shell OriginalRightShell.open;
+\import \root.MixedCup[A := Domain.BoxCarrier, source := Domain.boxTopology, first := firstShell, second := secondShell, K := K, ring := ring] \as Mixed;
+\import Mixed.Union[] \as Union;
+\import Union.Cover[] \as Cover;
+\import topology.Topology[Carrier := Domain.BoxCarrier].Subspace[S := Union.subset] \as UnionSpace;
+\definition conditions: Cover.Conditions := Cover.Conditions { leftOpen := UnionSpace.traceOpen Domain.boxTopology firstShell firstOpen, rightOpen := UnionSpace.traceOpen Domain.boxTopology secondShell secondOpen };
+\import Cover.On[conditions := conditions].Cup[p := c.dimension, q := d.dimension] \as Cup;
+\definition pointCoordinates[p: Domain.BoxCarrier]: StandardProduct.Carrier := Pair.second BasePoint Factors.CarrierSet (Coordinates.forward p);
+\definition pointCoordinatesContinuous: topology.Continuity[A := Domain.BoxCarrier, B := StandardProduct.Carrier].Continuous Domain.boxTopology StandardProduct.topology pointCoordinates :=
+  topology.Composition[A := Domain.BoxCarrier, B := Blocks.Carrier, C := StandardProduct.Carrier].composeContinuous Domain.boxTopology Blocks.topology StandardProduct.topology Coordinates.forward (Pair.second BasePoint Factors.CarrierSet) Coordinates.forwardContinuous
+    (topological_constructions.Product[A := BasePoint, B := Factors.CarrierSet].Maps[].secondContinuous baseTopology productTopology);
+\import \root.MixedCup[A := StandardProduct.Carrier, source := StandardProduct.topology, first := StandardProduct.firstShell, second := StandardProduct.secondShell, K := K, ring := ring].From[Y := Domain.BoxCarrier, target := Domain.boxTopology, firstPart := firstShell, secondPart := secondShell,
+  f := pointCoordinates, regular := pointCoordinatesContinuous,
+  firstContained := (\fun (p: Domain.BoxCarrier)(inside: \In[Domain.BoxCarrier] firstShell p) => LeftNorm.pair.forwardPreserves (\into[LeftOpen.Carrier](Parts.leftPart p, LeftNorm.sourceShell) \by { inside })),
+  secondContained := (\fun (p: Domain.BoxCarrier)(inside: \In[Domain.BoxCarrier] secondShell p) => RightNorm.pair.forwardPreserves (\into[RightOpen.Carrier](Parts.rightPart p, RightNorm.sourceShell) \by { inside }))] \as Along;
+\import singular_cohomology.Relative[A := Domain.BoxCarrier, source := Domain.boxTopology, subset := firstShell].Maps[B := LeftOpen.Carrier].Over[target := LeftOpen.topology, targetSubset := LeftNorm.sourceShell] \as LeftPartMaps;
+\import singular_cohomology.Relative[A := Domain.BoxCarrier, source := Domain.boxTopology, subset := secondShell].Maps[B := RightOpen.Carrier].Over[target := RightOpen.topology, targetSubset := RightNorm.sourceShell] \as RightPartMaps;
+\definition leftPartMap: LeftPartMaps.Map := \into[Domain.BoxCarrier -> LeftOpen.Carrier](Parts.leftPart, LeftPartMaps.Map) \by { LeftPartMaps.Laws[Parts.leftPart] { continuous := Parts.leftPartContinuous, contained := \fun (p: \Cast[Domain.BoxCarrier] firstShell) => \bysub(Domain.BoxCarrier, firstShell, p) } };
+\definition rightPartMap: RightPartMaps.Map := \into[Domain.BoxCarrier -> RightOpen.Carrier](Parts.rightPart, RightPartMaps.Map) \by { RightPartMaps.Laws[Parts.rightPart] { continuous := Parts.rightPartContinuous, contained := \fun (p: \Cast[Domain.BoxCarrier] secondShell) => \bysub(Domain.BoxCarrier, secondShell, p) } };
+\import LeftPartMaps.Composition[C := LeftOpen.Carrier].Over[final := LeftOpen.topology, finalSubset := LeftOpen.boundary] \as LeftComposition;
+\import RightPartMaps.Composition[C := RightOpen.Carrier].Over[final := RightOpen.topology, finalSubset := RightOpen.boundary] \as RightComposition;
+\definition leftMap: _ := LeftComposition.compose leftPartMap LeftDirect.backward;
+\definition rightMap: _ := RightComposition.compose rightPartMap RightDirect.backward;
+\import \root.RelativePullback[].On[A := Domain.BoxCarrier, source := Domain.boxTopology, subset := firstShell, R := K, ring := ring].To[B := LeftOpen.Carrier, target := LeftOpen.topology, part := LeftOpen.boundary].Along[f := leftMap] \as LeftPull;
+\import \root.RelativePullback[].On[A := Domain.BoxCarrier, source := Domain.boxTopology, subset := secondShell, R := K, ring := ring].To[B := RightOpen.Carrier, target := RightOpen.topology, part := RightOpen.boundary].Along[f := rightMap] \as RightPull;
+\import \root.MixedCup[A := StandardProduct.Carrier, source := StandardProduct.topology, first := StandardProduct.firstShell, second := StandardProduct.secondShell, K := K, ring := ring] \as StandardMixed;
+\import StandardMixed.Union[] \as StandardUnion;
+\import \root.RelativePullback[].On[A := Domain.BoxCarrier, source := Domain.boxTopology, subset := Union.subset, R := K, ring := ring].To[B := StandardProduct.Carrier, target := StandardProduct.topology, part := StandardUnion.subset].Along[f := Along.unionMap] \as UnionPull;
+\definition contains: \forall (p: \Cast[Domain.BoxCarrier] Domain.boundary) -> \In[Domain.BoxCarrier] Union.subset p :=
+  \fun (p: \Cast[Domain.BoxCarrier] Domain.boundary) => either!{{Box.Comparison[].boundaryToUnion p (\bysub(Domain.BoxCarrier, Domain.boundary, p))} {\In[Domain.BoxCarrier] Union.subset p}
+    {\fun (one: Box.first p = Reals.one) => std.Logic[].Proposition[].Or[_, _]::left (OriginalLeftShell.contains (\into[LeftDisk.DiskBundle](first p, LeftDisk.Boundary) \by { one }))}
+    {\fun (one: Box.second p = Reals.one) => std.Logic[].Proposition[].Or[_, _]::right (OriginalRightShell.contains (\into[RightDisk.DiskBundle](second p, RightDisk.Boundary) \by { one }))}};
+\import singular_cohomology.Relative[A := Domain.BoxCarrier, source := Domain.boxTopology, subset := Domain.boundary].Maps[B := Domain.BoxCarrier].Over[target := Domain.boxTopology, targetSubset := Union.subset] \as BoundaryMaps;
+\definition boundaryMap: BoundaryMaps.Map := \into[Domain.BoxCarrier -> Domain.BoxCarrier]((\fun (p: Domain.BoxCarrier) => p), BoundaryMaps.Map) \by { BoundaryMaps.Laws[(\fun (p: Domain.BoxCarrier) => p)] { continuous := topology.Maps[A := Domain.BoxCarrier, B := Domain.BoxCarrier].Identity[].continuous Domain.boxTopology, contained := contains } };
+\import singular_cohomology.Relative[A := Actual.Carrier, source := Actual.topology, subset := Actual.boundary].Homeomorphism[B := Domain.BoxCarrier].Over[target := Domain.boxTopology, targetSubset := Domain.boundary] \as DomainPairs;
+\import singular_cohomology.Relative[A := Actual.Carrier, source := Actual.topology, subset := Actual.boundary].Maps[B := Domain.BoxCarrier].Over[target := Domain.boxTopology, targetSubset := Domain.boundary].Composition[C := Domain.BoxCarrier].Over[final := Domain.boxTopology, finalSubset := Union.subset] \as FullComposition;
+\definition fullMap: _ := FullComposition.compose (DomainPairs.forwardMap Domain.pair) boundaryMap;
+\import \root.RelativePullback[].On[A := Actual.Carrier, source := Actual.topology, subset := Actual.boundary, R := K, ring := ring].To[B := Domain.BoxCarrier, target := Domain.boxTopology, part := Union.subset].Along[f := fullMap] \as FullPull;
+\import singular_cohomology.Relative[A := LeftOpen.Carrier, source := LeftOpen.topology, subset := LeftOpen.boundary].With[coefficients := BaseProduct.integerCoefficients].At[z := I.Int^::ofNat c.dimension] \as LeftInput;
+\import singular_cohomology.Relative[A := RightOpen.Carrier, source := RightOpen.topology, subset := RightOpen.boundary].With[coefficients := BaseProduct.integerCoefficients].At[z := I.Int^::ofNat d.dimension] \as RightInput;
+\definition apply[u: LeftInput.Carrier][v: RightInput.Carrier]: _ := FullPull.Degree[n := chart.dimension].map.apply (Cup.apply (LeftPull.Degree[n := c.dimension].map.apply u) (RightPull.Degree[n := d.dimension].map.apply v));
+\module LeftFactor;
+\module RightFactor;
+\module Comparison;
+
+\module Restriction;

@@ -1,0 +1,52 @@
+\use std.Logic[].Equality[].eq_reason_in;
+\import Geometry.Fiber[x := x] \as ActualFiber;
+\import Actual.Fiber[x := x] \as LocalFiber;
+\import thom_spaces.Thom[].CWType[].ListRefinement[A := X, subset := U] \as BaseEquality;
+\import algebraic_topology.Euclidean[].Dimension[n := chart.dimension] \as Euclidean;
+\import thom_spaces.Thom[].CWType[].Point[] \as Point;
+\import thom_spaces.Thom[].DiskSuspension[X := Point.Carrier, space := Point.topology, n := chart.dimension] \as PointDisk;
+\definition constant[p: Point.Carrier]: BasePoint := x;
+\definition constantContinuous: topology.Continuity[A := Point.Carrier, B := BasePoint].Continuous Point.topology baseTopology constant := topology.Maps[A := Point.Carrier, B := BasePoint].constantContinuous Point.topology baseTopology x;
+\definition erase[b: BasePoint]: Point.Carrier := Point.point;
+\definition eraseContinuous: topology.Continuity[A := BasePoint, B := Point.Carrier].Continuous baseTopology Point.topology erase := topology.Maps[A := BasePoint, B := Point.Carrier].constantContinuous baseTopology Point.topology Point.point;
+\import \root.LocalDisk[].On[X := BasePoint, source := baseTopology].From[B := Point.Carrier, target := Point.topology, f := constant, regular := constantContinuous].Rank[n := chart.dimension] \as Fill;
+\import \root.LocalDisk[].On[X := Point.Carrier, source := Point.topology].From[B := BasePoint, target := baseTopology, f := erase, regular := eraseContinuous].Rank[n := chart.dimension] \as Erase;
+\definition model[p: ActualFiber.Carrier]: StandardDisk.DiskCarrier := Pairs.forwardMap pair (LocalFiber.map p);
+\definition modelContinuous: topology.Continuity[A := ActualFiber.Carrier, B := StandardDisk.DiskCarrier].Continuous ActualFiber.topology StandardDisk.diskTopology model :=
+  topology.Composition[A := ActualFiber.Carrier, B := Actual.Carrier, C := StandardDisk.DiskCarrier].composeContinuous ActualFiber.topology Actual.topology StandardDisk.diskTopology LocalFiber.map (Pairs.forwardMap pair) LocalFiber.continuous
+    (topology.Homeomorphism[A := Actual.Carrier, B := StandardDisk.DiskCarrier].laws Actual.topology StandardDisk.diskTopology homeomorphism).forwardContinuous;
+\definition forward[p: ActualFiber.Carrier]: PointDisk.DiskCarrier := Erase.map (model p);
+\definition forwardContinuous: topology.Continuity[A := ActualFiber.Carrier, B := PointDisk.DiskCarrier].Continuous ActualFiber.topology PointDisk.diskTopology forward :=
+  topology.Composition[A := ActualFiber.Carrier, B := StandardDisk.DiskCarrier, C := PointDisk.DiskCarrier].composeContinuous ActualFiber.topology StandardDisk.diskTopology PointDisk.diskTopology model Erase.map modelContinuous Erase.continuous;
+\definition fromModel[p: StandardDisk.DiskCarrier]: Disk.DiskBundle := Pairs.backwardMap pair p;
+\definition fromModelContinuous: topology.Continuity[A := StandardDisk.DiskCarrier, B := Disk.DiskBundle].Continuous StandardDisk.diskTopology Disk.diskTopology fromModel :=
+  topology.Composition[A := StandardDisk.DiskCarrier, B := Actual.Carrier, C := Disk.DiskBundle].composeContinuous StandardDisk.diskTopology Actual.topology Disk.diskTopology (Pairs.backwardMap pair) Actual.inclusion
+    (topology.Homeomorphism[A := Actual.Carrier, B := StandardDisk.DiskCarrier].laws Actual.topology StandardDisk.diskTopology homeomorphism).backwardContinuous Actual.continuous;
+\definition backward[p: PointDisk.DiskCarrier]: ActualFiber.Carrier := \into[Disk.DiskBundle](fromModel (Fill.map p), ActualFiber.subset) \by { \refl(x) };
+\definition backwardContinuous: topology.Continuity[A := PointDisk.DiskCarrier, B := ActualFiber.Carrier].Continuous PointDisk.diskTopology ActualFiber.topology backward :=
+  topology.Continuity[A := PointDisk.DiskCarrier, B := Disk.DiskBundle].Corestriction[S := ActualFiber.subset].corestrictContinuous PointDisk.diskTopology Disk.diskTopology backward
+    (topology.Composition[A := PointDisk.DiskCarrier, B := StandardDisk.DiskCarrier, C := Disk.DiskBundle].composeContinuous PointDisk.diskTopology StandardDisk.diskTopology Disk.diskTopology Fill.map fromModel Fill.continuous fromModelContinuous);
+\definition filled: \forall (p: ActualFiber.Carrier) -> Fill.map (forward p) = model p :=
+  \fun (p: ActualFiber.Carrier) => Pair.Prop[A := BasePoint, B := Euclidean.Coordinate].ext (Fill.map (forward p)) (model p)
+    (sym!{BasePoint} _ _ (BaseEquality.ext (Pair.first BasePoint Euclidean.Coordinate (model p)) x (\bysub(Disk.DiskBundle, ActualFiber.subset, p)))) (\refl(Pair.second BasePoint Euclidean.Coordinate (model p)));
+\definition leftInverse: \forall (p: ActualFiber.Carrier) -> backward (forward p) = p :=
+  \fun (p: ActualFiber.Carrier) => trans!{{Disk.DiskBundle}} _ _ _ (congr!{StandardDisk.DiskCarrier {Disk.DiskBundle}} fromModel _ _ (filled p))
+    ((topology.Homeomorphism[A := Actual.Carrier, B := StandardDisk.DiskCarrier].laws Actual.topology StandardDisk.diskTopology homeomorphism).leftInverse (LocalFiber.map p));
+\definition backModel: \forall (p: PointDisk.DiskCarrier) -> model (backward p) = Fill.map p :=
+  \fun (p: PointDisk.DiskCarrier) => (topology.Homeomorphism[A := Actual.Carrier, B := StandardDisk.DiskCarrier].laws Actual.topology StandardDisk.diskTopology homeomorphism).rightInverse (Fill.map p);
+\definition erased: \forall (p: PointDisk.DiskCarrier) -> Erase.map (Fill.map p) = p :=
+  \fun (p: PointDisk.DiskCarrier) => Pair.Prop[A := Point.Carrier, B := Euclidean.Coordinate].ext (Erase.map (Fill.map p)) p
+    (sym!{Point.Carrier} _ _ (Point.unique (Pair.first Point.Carrier Euclidean.Coordinate p))) (\refl(Pair.second Point.Carrier Euclidean.Coordinate p));
+\definition rightInverse: \forall (p: PointDisk.DiskCarrier) -> forward (backward p) = p :=
+  \fun (p: PointDisk.DiskCarrier) => trans!{PointDisk.DiskCarrier} _ _ _ (congr!{StandardDisk.DiskCarrier PointDisk.DiskCarrier} Erase.map _ _ (backModel p)) (erased p);
+\definition fiberHomeomorphism: topology.Homeomorphism[A := ActualFiber.Carrier, B := PointDisk.DiskCarrier].Homeomorphism[ActualFiber.topology, PointDisk.diskTopology] :=
+  topology.Homeomorphism[A := ActualFiber.Carrier, B := PointDisk.DiskCarrier].Homeomorphism[ActualFiber.topology, PointDisk.diskTopology] {
+    forward := forward, backward := backward, forwardContinuous := forwardContinuous, backwardContinuous := backwardContinuous, leftInverse := leftInverse, rightInverse := rightInverse
+  };
+\definition forwardBoundary: \forall (p: \Cast[ActualFiber.Carrier] ActualFiber.boundary) -> \In[PointDisk.DiskCarrier] PointDisk.boundary (forward p) :=
+  \fun (p: \Cast[ActualFiber.Carrier] ActualFiber.boundary) => pair.forwardPreserves (\into[Actual.Carrier](LocalFiber.map p, Actual.boundary) \by { \bysub(ActualFiber.Carrier, ActualFiber.boundary, p) });
+\definition backwardBoundary: \forall (p: \Cast[PointDisk.DiskCarrier] PointDisk.boundary) -> \In[ActualFiber.Carrier] ActualFiber.boundary (backward p) :=
+  \fun (p: \Cast[PointDisk.DiskCarrier] PointDisk.boundary) => pair.backwardPreserves (\into[StandardDisk.DiskCarrier](Fill.map p, StandardDisk.boundary) \by { \bysub(PointDisk.DiskCarrier, PointDisk.boundary, p) });
+\import singular_cohomology.Relative[A := ActualFiber.Carrier, source := ActualFiber.topology, subset := ActualFiber.boundary].Homeomorphism[B := PointDisk.DiskCarrier].Over[target := PointDisk.diskTopology, targetSubset := PointDisk.boundary] \as FiberPairs;
+\definition fiberPair: FiberPairs.Data := FiberPairs.Data { homeomorphism := fiberHomeomorphism, forwardPreserves := forwardBoundary, backwardPreserves := backwardBoundary };
+\module Ring(K: \Set, ring: Rings.CommutativeRing[K]);

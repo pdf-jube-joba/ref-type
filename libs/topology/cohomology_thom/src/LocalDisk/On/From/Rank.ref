@@ -1,0 +1,22 @@
+\import thom_spaces.Thom[].DiskSuspension[X := X, space := source, n := n] \as SourceDisk;
+\import thom_spaces.Thom[].DiskSuspension[X := B, space := target, n := n] \as TargetDisk;
+\import algebraic_topology.Euclidean[].Dimension[n := n] \as Coordinates;
+\import std.Data[].Pair[] \as Pair;
+\definition map[p: TargetDisk.DiskCarrier]: SourceDisk.DiskCarrier :=
+  \into[SourceDisk.Point](Pair.pair X Coordinates.Coordinate (f (Pair.first B Coordinates.Coordinate p)) (Pair.second B Coordinates.Coordinate p), SourceDisk.disk) \by { \bysub(TargetDisk.Point, TargetDisk.disk, p) };
+\definition continuous: topology.Continuity[A := TargetDisk.DiskCarrier, B := SourceDisk.DiskCarrier].Continuous TargetDisk.diskTopology SourceDisk.diskTopology map :=
+  topology.Continuity[A := TargetDisk.DiskCarrier, B := SourceDisk.Point].Corestriction[S := SourceDisk.disk].corestrictContinuous TargetDisk.diskTopology SourceDisk.totalTopology map
+    (topology.Continuity[A := TargetDisk.Point, B := SourceDisk.Point].Restriction[S := TargetDisk.disk].restrictContinuous TargetDisk.totalTopology SourceDisk.totalTopology
+      (\fun (p: TargetDisk.Point) => Pair.pair X Coordinates.Coordinate (f (Pair.first B Coordinates.Coordinate p)) (Pair.second B Coordinates.Coordinate p))
+      (topological_constructions.Product[A := X, B := Coordinates.Coordinate].Universal[X := TargetDisk.Point].pairContinuous TargetDisk.totalTopology source Coordinates.topology
+        (\fun (p: TargetDisk.Point) => f (Pair.first B Coordinates.Coordinate p)) (Pair.second B Coordinates.Coordinate)
+        (topology.Composition[A := TargetDisk.Point, B := B, C := X].composeContinuous TargetDisk.totalTopology target source (Pair.first B Coordinates.Coordinate) f
+          (topological_constructions.Product[A := B, B := Coordinates.Coordinate].Maps[].firstContinuous target Coordinates.topology) regular)
+        (topological_constructions.Product[A := B, B := Coordinates.Coordinate].Maps[].secondContinuous target Coordinates.topology)));
+\import singular_cohomology.Relative[A := TargetDisk.DiskCarrier, source := TargetDisk.diskTopology, subset := TargetDisk.boundary].Maps[B := SourceDisk.DiskCarrier].Over[target := SourceDisk.diskTopology, targetSubset := SourceDisk.boundary] \as Maps;
+\definition pair: Maps.Map := \into[TargetDisk.DiskCarrier -> SourceDisk.DiskCarrier](map, Maps.Map) \by {
+  Maps.Laws[map] { continuous := continuous, contained := \fun (p: \Cast[TargetDisk.DiskCarrier] TargetDisk.boundary) => \bysub(TargetDisk.DiskCarrier, TargetDisk.boundary, p) }
+};
+\module With(coefficients: Modules.Bundle, z: I.Int^) {
+  \definition pullback: _ := Maps.On[f := pair].Integer[].With[coefficients := coefficients].At[z := z].induced;
+}

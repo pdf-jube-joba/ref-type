@@ -1,0 +1,24 @@
+\import \parent.\parent.LeftBasis[] \as Input;
+\import SmallPair.Degree[n := n] \as Target;
+\import singular_cohomology.Chains[A := Left, source := leftTopology] \as SourceWhole;
+\import double_complexes.NonnegativeChain[].Over[R := I.Int^, ring := Integers.ring].ZeroExtension[C := SourceWhole.complex] \as SourceExtension;
+\import singular_subdivision.Small[A := A, source := source, family := Cover.family] \as Ambient;
+\import double_complexes.NonnegativeChain[].Over[R := I.Int^, ring := Integers.ring].ZeroExtension[C := Ambient.complex] \as TargetExtension;
+\import \root.RelativeMayerVietoris[].IntoSmall[A := A, B := Left, target := source, source := leftTopology, family := Cover.family,
+  f := leftInclusion, continuous := leftContinuous, U := Absolute.leftElement, contained := (\fun (x: Left) => \bysub(A, Cover.left, x))] \as Geometry;
+\import Modules.Free[Generators := Generators.Left].Reindex[TargetGenerators := Generators.Whole] \as Push;
+\import Modules.Hom[V := L.Carrier index, W := SmallPair.Carrier index, source := L.space index, target := SmallPair.space index].Composition[U := LF.Carrier, domain := LF.space] \as Before;
+\import Chains.Map[C := L.complex, D := SmallPair.complex].At[k := index] \as Map;
+\import Modules.Hom[V := WF.Carrier, W := SmallPair.Carrier index, source := WF.space, target := SmallPair.space index].Composition[U := LF.Carrier, domain := LF.space] \as After;
+\import Modules.Free[Generators := Generators.Left].To[W := SmallPair.Carrier index, target := SmallPair.space index] \as Free;
+\definition equation: Before.compose (Map.linear LeftSmall.map) leftIsomorphism.forward = After.compose wholeIsomorphism.forward (Push.push Generators.left) := Free.ext _ _
+  (\fun (sigma: Generators.Left) => trans!{{SmallPair.Carrier index}} _ _ _
+    (congr!{{L.Carrier index} {SmallPair.Carrier index}} (LeftSmall.map.apply index) _ _ (Input.onGenerator sigma))
+    (trans!{{SmallPair.Carrier index}} _ _ _ (LeftSmall.At[z := index].onClass (SourceExtension.Positive[n := n].intro (SourceWhole.generator n sigma)))
+      (trans!{{SmallPair.Carrier index}} _ _ _
+        (congr!{{Ambient.Carrier n} {SmallPair.Carrier index}} (\fun (x: Ambient.Carrier n) => SmallPair.class index (TargetExtension.Positive[n := n].intro x)) _ _ (Geometry.Degree[n := n].onGenerator sigma))
+        (trans!{{SmallPair.Carrier index}} _ _ _ (sym!{{SmallPair.Carrier index}} _ _ (Target.onGenerator (Generators.left sigma)))
+          (congr!{WF.Carrier {SmallPair.Carrier index}} wholeIsomorphism.forward.apply _ _ (sym!{WF.Carrier} _ _ (Push.onGenerator Generators.left sigma)))))));
+\definition law: \forall (x: LF.Carrier) -> LeftSmall.map.apply index (leftIsomorphism.forward.apply x) = wholeIsomorphism.forward.apply ((Push.push Generators.left).apply x) :=
+  \fun (x: LF.Carrier) => congr!{{Modules.Hom[V := LF.Carrier, W := SmallPair.Carrier index, source := LF.space, target := SmallPair.space index].Map} {SmallPair.Carrier index}}
+    (\fun (f: Modules.Hom[V := LF.Carrier, W := SmallPair.Carrier index, source := LF.space, target := SmallPair.space index].Map) => f.apply x) _ _ equation;

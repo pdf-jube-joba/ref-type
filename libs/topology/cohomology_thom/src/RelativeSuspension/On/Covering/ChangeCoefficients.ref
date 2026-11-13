@@ -1,0 +1,33 @@
+\use std.Logic[].Equality[].eq_reason_in;
+\import singular_cohomology.Relative[A := A, source := source, subset := subset] \as BasePair;
+\import singular_cohomology.Relative[A := Middle.Carrier, source := Middle.space, subset := Middle.part] \as MiddlePair;
+\import singular_cohomology.Relative[A := Native.Overlap, source := Native.overlapTopology, subset := Native.overlapPart] \as OverlapPair;
+\import singular_cohomology.Relative[A := Cylinder.Carrier, source := topology, subset := boundary] \as CylinderPair;
+\import MiddlePair.Maps[B := A].Over[target := source, targetSubset := subset].On[f := Middle.forward].Integer[] \as MiddleChain;
+\import OverlapPair.Maps[B := Middle.Carrier].Over[target := Middle.space, targetSubset := Middle.part].On[f := Pairs.forwardMap pair].Integer[] \as OverlapChain;
+\import \root.CoefficientChange[].On[C := BasePair.complex, M := M, N := N, u := u] \as BaseChange;
+\import \root.CoefficientChange[].On[C := MiddlePair.complex, M := M, N := N, u := u] \as MiddleChange;
+\import \root.CoefficientChange[].On[C := OverlapPair.complex, M := M, N := N, u := u] \as OverlapChange;
+\import \root.CoefficientChange[].On[C := CylinderPair.complex, M := M, N := N, u := u] \as CylinderChange;
+\import BaseChange.Along[D := MiddlePair.complex, f := MiddleChain.map] \as MiddleNatural;
+\import MiddleChange.Along[D := OverlapPair.complex, f := OverlapChain.map] \as OverlapNatural;
+\import Native.ChangeCoefficients[M := M, N := N, u := u] \as ConnectingNatural;
+\module At(z: I.Int^) {
+  \import \parent.\parent.With[coefficients := M] \as SourceTheory;
+  \import \parent.\parent.With[coefficients := N] \as TargetTheory;
+  \import BasePair.With[coefficients := M].At[z := z] \as Base;
+  \import OverlapPair.With[coefficients := M].At[z := z] \as SourceOverlap;
+  \import OverlapPair.With[coefficients := N].At[z := z] \as TargetOverlap;
+  \import MiddlePair.With[coefficients := N].At[z := z] \as TargetMiddle;
+  \import CylinderPair.With[coefficients := N].At[z := chain_complexes.Integer[].next z] \as Output;
+  \definition overlap: \forall (q: Base.Carrier) -> OverlapChange.At[z := z].map.apply (SourceTheory.Degree[z := z].overlapIsomorphism.forward.apply q) =
+    TargetTheory.Degree[z := z].overlapIsomorphism.forward.apply (BaseChange.At[z := z].map.apply q) :=
+    \fun (q: Base.Carrier) => trans!{TargetOverlap.Carrier} _ _ _
+      (OverlapNatural.At[z := z].law (Middle.With[coefficients := M, z := z].isomorphism.forward.apply q))
+      (congr!{TargetMiddle.Carrier TargetOverlap.Carrier} (Pairs.With[coefficients := N].At[z := z].isomorphism pair).forward.apply _ _ (MiddleNatural.At[z := z].law q));
+  \definition law: \forall (q: Base.Carrier) -> CylinderChange.At[z := chain_complexes.Integer[].next z].map.apply (SourceTheory.At[z := z].isomorphism.forward.apply q) =
+    TargetTheory.At[z := z].isomorphism.forward.apply (BaseChange.At[z := z].map.apply q) :=
+    \fun (q: Base.Carrier) => trans!{Output.Carrier} _ _ _
+      (sym!{Output.Carrier} _ _ (ConnectingNatural.At[z := z].law (SourceTheory.Degree[z := z].overlapIsomorphism.forward.apply q)))
+      (congr!{TargetOverlap.Carrier Output.Carrier} (Native.Cohomology[coefficients := N].At[z := z].connecting.apply) _ _ (overlap q));
+}

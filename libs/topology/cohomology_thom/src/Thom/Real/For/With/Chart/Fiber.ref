@@ -1,0 +1,80 @@
+\use std.Logic[].Equality[].eq_reason_in;
+\import \parent.Open[] \as Open;
+\import \parent.\parent.Fiber[x := x] \as Actual;
+\import thom_spaces.Thom[].CWType[].Point[] \as Point;
+\import thom_spaces.Thom[].DiskSuspension[X := Point.Carrier, space := Point.topology, n := c.dimension] \as PointDisk;
+\definition constant[p: Point.Carrier]: BasePoint := x;
+\definition constantContinuous: topology.Continuity[A := Point.Carrier, B := BasePoint].Continuous Point.topology baseTopology constant := topology.Maps[A := Point.Carrier, B := BasePoint].constantContinuous Point.topology baseTopology x;
+\definition erase[x: BasePoint]: Point.Carrier := Point.point;
+\definition eraseContinuous: topology.Continuity[A := BasePoint, B := Point.Carrier].Continuous baseTopology Point.topology erase := topology.Maps[A := BasePoint, B := Point.Carrier].constantContinuous baseTopology Point.topology Point.point;
+\import \root.LocalDisk[].On[X := BasePoint, source := baseTopology].From[B := Point.Carrier, target := Point.topology, f := constant, regular := constantContinuous].Rank[n := c.dimension] \as Fill;
+\import \root.LocalDisk[].On[X := Point.Carrier, source := Point.topology].From[B := BasePoint, target := baseTopology, f := erase, regular := eraseContinuous].Rank[n := c.dimension] \as Erase;
+\definition local[p: Actual.Carrier]: Open.Carrier := \into[Disk.DiskBundle](p, Open.domain) \by {
+  \idelim x = Disk.diskProjection p \with y: X => \In[X] c.domain y \by {
+    base: \bysub(X, c.domain, x), equality: sym!{X} _ _ (\bysub(Disk.DiskBundle, Actual.subset, p))
+  }
+};
+\definition localContinuous: topology.Continuity[A := Actual.Carrier, B := Open.Carrier].Continuous Actual.topology Open.topology local :=
+  topology.Continuity[A := Actual.Carrier, B := Disk.DiskBundle].Corestriction[S := Open.domain].corestrictContinuous Actual.topology Disk.diskTopology local Actual.continuous;
+\definition model[p: Actual.Carrier]: Standard.DiskCarrier := Pairs.forwardMap pair (Open.backward (local p));
+\definition modelContinuous: topology.Continuity[A := Actual.Carrier, B := Standard.DiskCarrier].Continuous Actual.topology Standard.diskTopology model :=
+  topology.Composition[A := Actual.Carrier, B := NewDisk.DiskBundle, C := Standard.DiskCarrier].composeContinuous Actual.topology NewDisk.diskTopology Standard.diskTopology
+    (\fun (p: Actual.Carrier) => Open.backward (local p)) (Pairs.forwardMap pair)
+    (topology.Composition[A := Actual.Carrier, B := Open.Carrier, C := NewDisk.DiskBundle].composeContinuous Actual.topology Open.topology NewDisk.diskTopology local Open.backward localContinuous Open.backwardContinuous) diskContinuous;
+\definition forward[p: Actual.Carrier]: PointDisk.DiskCarrier := Erase.map (model p);
+\definition forwardContinuous: topology.Continuity[A := Actual.Carrier, B := PointDisk.DiskCarrier].Continuous Actual.topology PointDisk.diskTopology forward :=
+  topology.Composition[A := Actual.Carrier, B := Standard.DiskCarrier, C := PointDisk.DiskCarrier].composeContinuous Actual.topology Standard.diskTopology PointDisk.diskTopology model Erase.map modelContinuous Erase.continuous;
+\definition fromModel[p: Standard.DiskCarrier]: Disk.DiskBundle := Open.forward (Pairs.backwardMap pair p);
+\definition fromModelContinuous: topology.Continuity[A := Standard.DiskCarrier, B := Disk.DiskBundle].Continuous Standard.diskTopology Disk.diskTopology fromModel :=
+  topology.Composition[A := Standard.DiskCarrier, B := NewDisk.DiskBundle, C := Disk.DiskBundle].composeContinuous Standard.diskTopology NewDisk.diskTopology Disk.diskTopology (Pairs.backwardMap pair)
+    (\fun (p: NewDisk.DiskBundle) => Open.forward p)
+    (topology.Homeomorphism[A := NewDisk.DiskBundle, B := Standard.DiskCarrier].laws NewDisk.diskTopology Standard.diskTopology Levels.diskHomeomorphism).backwardContinuous
+    (topology.Composition[A := NewDisk.DiskBundle, B := Open.Carrier, C := Disk.DiskBundle].composeContinuous NewDisk.diskTopology Open.topology Disk.diskTopology Open.forward Open.inclusion Open.forwardContinuous Open.inclusionContinuous);
+\definition backward[p: PointDisk.DiskCarrier]: Actual.Carrier := \into[Disk.DiskBundle](fromModel (Fill.map p), Actual.subset) \by { \refl(x) };
+\definition backwardContinuous: topology.Continuity[A := PointDisk.DiskCarrier, B := Actual.Carrier].Continuous PointDisk.diskTopology Actual.topology backward :=
+  topology.Continuity[A := PointDisk.DiskCarrier, B := Disk.DiskBundle].Corestriction[S := Actual.subset].corestrictContinuous PointDisk.diskTopology Disk.diskTopology backward
+    (topology.Composition[A := PointDisk.DiskCarrier, B := Standard.DiskCarrier, C := Disk.DiskBundle].composeContinuous PointDisk.diskTopology Standard.diskTopology Disk.diskTopology Fill.map fromModel Fill.continuous fromModelContinuous);
+\definition filled: \forall (p: Actual.Carrier) -> Fill.map (forward p) = model p :=
+  \fun (p: Actual.Carrier) => Pair.Prop[A := BasePoint, B := Euclidean.Coordinate].ext (Fill.map (forward p)) (model p)
+    (sym!{BasePoint} (Pair.first BasePoint Euclidean.Coordinate (model p)) x (\bysub(Disk.DiskBundle, Actual.subset, p)))
+    (\refl(Pair.second BasePoint Euclidean.Coordinate (model p)));
+\definition leftInverse: \forall (p: Actual.Carrier) -> backward (forward p) = p :=
+  \fun (p: Actual.Carrier) => eq_reason_in!{Disk.DiskBundle _
+    "=" _ "by" { congr!{Standard.DiskCarrier Disk.DiskBundle} fromModel _ _ (filled p) }
+    "=" _ "by" { congr!{NewDisk.DiskBundle Disk.DiskBundle} (\fun (v: NewDisk.DiskBundle) => Open.forward v) _ _ ((topology.Homeomorphism[A := NewDisk.DiskBundle, B := Standard.DiskCarrier].laws NewDisk.diskTopology Standard.diskTopology Levels.diskHomeomorphism).leftInverse (Open.backward (local p))) }
+    "=" _ "by" { (topology.Homeomorphism[A := NewDisk.DiskBundle, B := Open.Carrier].laws NewDisk.diskTopology Open.topology Open.homeomorphism).rightInverse (local p) }
+  };
+\definition backModel: \forall (p: PointDisk.DiskCarrier) -> model (backward p) = Fill.map p :=
+  \fun (p: PointDisk.DiskCarrier) => trans!{Standard.DiskCarrier} _ _ _
+    (congr!{NewDisk.DiskBundle Standard.DiskCarrier} (Pairs.forwardMap pair) _ _ ((topology.Homeomorphism[A := NewDisk.DiskBundle, B := Open.Carrier].laws NewDisk.diskTopology Open.topology Open.homeomorphism).leftInverse (Pairs.backwardMap pair (Fill.map p))))
+    ((topology.Homeomorphism[A := NewDisk.DiskBundle, B := Standard.DiskCarrier].laws NewDisk.diskTopology Standard.diskTopology Levels.diskHomeomorphism).rightInverse (Fill.map p));
+\definition erased: \forall (p: PointDisk.DiskCarrier) -> Erase.map (Fill.map p) = p :=
+  \fun (p: PointDisk.DiskCarrier) => Pair.Prop[A := Point.Carrier, B := Euclidean.Coordinate].ext (Erase.map (Fill.map p)) p
+    (sym!{Point.Carrier} _ _ (Point.unique (Pair.first Point.Carrier Euclidean.Coordinate p))) (\refl(Pair.second Point.Carrier Euclidean.Coordinate p));
+\definition rightInverse: \forall (p: PointDisk.DiskCarrier) -> forward (backward p) = p :=
+  \fun (p: PointDisk.DiskCarrier) => trans!{PointDisk.DiskCarrier} _ _ _ (congr!{Standard.DiskCarrier PointDisk.DiskCarrier} Erase.map _ _ (backModel p)) (erased p);
+\definition homeomorphism: topology.Homeomorphism[A := Actual.Carrier, B := PointDisk.DiskCarrier].Homeomorphism[Actual.topology, PointDisk.diskTopology] :=
+  topology.Homeomorphism[A := Actual.Carrier, B := PointDisk.DiskCarrier].Homeomorphism[Actual.topology, PointDisk.diskTopology] {
+    forward := forward, backward := backward, leftInverse := leftInverse, rightInverse := rightInverse,
+    forwardContinuous := forwardContinuous, backwardContinuous := backwardContinuous
+  };
+\definition modelBoundary[p: \Cast[Actual.Carrier] Actual.boundary]: \In[Standard.DiskCarrier] Standard.boundary (model p) :=
+  pair.forwardPreserves (\into[NewDisk.DiskBundle](Open.backward (local p), NewDisk.Boundary) \by {
+    Open.pair.backwardPreserves (\into[Open.Carrier](local p, Open.boundary) \by { \bysub(Actual.Carrier, Actual.boundary, p) })
+  });
+\definition backwardBoundary[p: \Cast[PointDisk.DiskCarrier] PointDisk.boundary]: \In[Actual.Carrier] Actual.boundary (backward p) :=
+  Open.pair.forwardPreserves (\into[NewDisk.DiskBundle](Pairs.backwardMap pair (Fill.map p), NewDisk.Boundary) \by {
+    pair.backwardPreserves (\into[Standard.DiskCarrier](Fill.map p, Standard.boundary) \by { \bysub(PointDisk.DiskCarrier, PointDisk.boundary, p) })
+  });
+\import singular_cohomology.Relative[A := Actual.Carrier, source := Actual.topology, subset := Actual.boundary].Homeomorphism[B := PointDisk.DiskCarrier].Over[target := PointDisk.diskTopology, targetSubset := PointDisk.boundary] \as FiberPairs;
+\definition fiberPair: FiberPairs.Data := FiberPairs.Data {
+  homeomorphism := homeomorphism, forwardPreserves := modelBoundary, backwardPreserves := backwardBoundary
+};
+\module Ring(K: \Set, ring: std.Alg[].Ring[].CommutativeRing[K]);
+\import singular_cohomology.Relative[A := Actual.Carrier, source := Actual.topology, subset := Actual.boundary].Maps[B := Open.Carrier].Over[target := Open.topology, targetSubset := Open.boundary] \as LocalMaps;
+\definition localPair: LocalMaps.Map := \into[Actual.Carrier -> Open.Carrier](local, LocalMaps.Map) \by {
+  LocalMaps.Laws[local] { continuous := localContinuous, contained := \fun (p: \Cast[Actual.Carrier] Actual.boundary) => \bysub(Actual.Carrier, Actual.boundary, p) }
+};
+\definition vectorFormula: \forall (p: Actual.Carrier) -> Pair.second Point.Carrier Euclidean.Coordinate (forward p) = Open.normalCoordinate (local p) :=
+  \fun (p: Actual.Carrier) => congr!{NewFamily.Point Euclidean.Coordinate}
+    (\fun (v: NewFamily.Point) => Pair.second BasePoint Euclidean.Coordinate (totalHomeomorphism.forward v)) _ _ (Open.backwardCanonical (local p));

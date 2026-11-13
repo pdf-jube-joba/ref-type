@@ -1,0 +1,45 @@
+\use std.Logic[].Equality[].eq_reason_in;
+\import \root.Thom[].Real[].DirectSum[X := X, F := F, G := G, left := left, right := right, same := same, leftMetric := leftMetric, rightMetric := rightMetric].With[metric := metric] \as Whole;
+\import \root.MixedCup[A := Carrier, source := topology, first := Global.firstShell, second := Global.secondShell, K := K, ring := ring] \as OldMixed;
+\import OldMixed.Union[] \as OldUnion;
+\import OldUnion.Cover[].On[conditions := Global.conditions].Cup[p := n, q := m] \as OldCup;
+\import OldMixed.From[Y := BoxCarrier, target := boxTopology, firstPart := firstShell, secondPart := secondShell,
+  f := inclusion, regular := inclusionContinuous,
+  firstContained := (\fun (p: BoxCarrier)(inside: \In[BoxCarrier] firstShell p) => inside),
+  secondContained := (\fun (p: BoxCarrier)(inside: \In[BoxCarrier] secondShell p) => inside)] \as Along;
+\import \root.RelativePullback[].On[A := BoxCarrier, source := boxTopology, subset := firstShell, R := K, ring := ring].To[B := Carrier, target := topology, part := Global.firstShell].Along[f := Along.firstMap] \as FirstRestriction;
+\import \root.RelativePullback[].On[A := BoxCarrier, source := boxTopology, subset := secondShell, R := K, ring := ring].To[B := Carrier, target := topology, part := Global.secondShell].Along[f := Along.secondMap] \as SecondRestriction;
+\import \root.RelativePullback[].On[A := BoxCarrier, source := boxTopology, subset := Union.subset, R := K, ring := ring].To[B := Carrier, target := topology, part := OldUnion.subset].Along[f := Along.unionMap] \as UnionRestriction;
+\import \root.RelativePullback[].On[A := Carrier, source := topology, subset := Global.firstShell, R := K, ring := ring].To[B := LeftDisk.DiskBundle, target := LeftDisk.diskTopology, part := LeftDisk.Boundary].Along[f := Global.leftMap] \as OldLeftPull;
+\import \root.RelativePullback[].On[A := Carrier, source := topology, subset := Global.secondShell, R := K, ring := ring].To[B := RightDisk.DiskBundle, target := RightDisk.diskTopology, part := RightDisk.Boundary].Along[f := Global.rightMap] \as OldRightPull;
+\import singular_cohomology.Relative[A := Disk.DiskBundle, source := Disk.diskTopology, subset := Disk.Boundary].Homeomorphism[B := Carrier].Over[target := topology, targetSubset := Box.Boundary] \as GlobalPairs;
+\import singular_cohomology.Relative[A := Disk.DiskBundle, source := Disk.diskTopology, subset := Disk.Boundary].Maps[B := Carrier].Over[target := topology, targetSubset := Box.Boundary].Composition[C := Carrier].Over[final := topology, finalSubset := OldUnion.subset] \as GlobalComposition;
+\import singular_cohomology.Relative[A := Disk.DiskBundle, source := Disk.diskTopology, subset := Disk.Boundary].Maps[B := Carrier].Over[target := topology, targetSubset := OldUnion.subset] \as GlobalFullMaps;
+\definition globalFullMap: GlobalFullMaps.Map := GlobalComposition.compose (GlobalPairs.forwardMap Whole.pair) Global.boundaryMap;
+\import \root.RelativePullback[].On[A := Disk.DiskBundle, source := Disk.diskTopology, subset := Disk.Boundary, R := K, ring := ring].To[B := Carrier, target := topology, part := OldUnion.subset].Along[f := globalFullMap] \as GlobalFullPull;
+\definition oldMixed[u: OriginalLeft.Degree[n := n].Class][v: OriginalRight.Degree[n := m].Class]: _ := OldCup.apply (OldLeftPull.Degree[n := n].map.apply u) (OldRightPull.Degree[n := m].map.apply v);
+\definition globalFormula: \forall (u: OriginalLeft.Degree[n := n].Class)(v: OriginalRight.Degree[n := m].Class) -> Global.Product[n := n, m := m].apply u v = GlobalFullPull.Degree[n := degree].map.apply (oldMixed u v) :=
+  \fun (u: OriginalLeft.Degree[n := n].Class)(v: OriginalRight.Degree[n := m].Class) => sym!{{OriginalSum.Degree[n := degree].Class}} _ _
+    (GlobalComposition.On[f := GlobalPairs.forwardMap Whole.pair, g := Global.boundaryMap].With[coefficients := Base.integerCoefficients].law (I.Int^::ofNat degree) (oldMixed u v));
+\definition restrictLeft[u: OriginalLeft.Degree[n := n].Class]: LeftClass := LeftActual.Additive[coefficients := Base.integerCoefficients, z := I.Int^::ofNat n].restriction.apply u;
+\definition restrictRight[v: OriginalRight.Degree[n := m].Class]: RightClass := RightActual.Additive[coefficients := Base.integerCoefficients, z := I.Int^::ofNat m].restriction.apply v;
+\definition restrictSum[w: OriginalSum.Degree[n := degree].Class]: Class := Actual.Additive[coefficients := Base.integerCoefficients, z := I.Int^::ofNat degree].restriction.apply w;
+\module LeftComparison;
+\module RightComparison;
+\module TotalComparison;
+\import \parent.Naturality[].LeftComparison[] \as LeftSquare;
+\import \parent.Naturality[].RightComparison[] \as RightSquare;
+\import \parent.Naturality[].TotalComparison[] \as TotalSquare;
+\import singular_cohomology.Relative[A := BoxCarrier, source := boxTopology, subset := firstShell].With[coefficients := Base.integerCoefficients].At[z := I.Int^::ofNat n] \as LocalLeft;
+\import singular_cohomology.Relative[A := BoxCarrier, source := boxTopology, subset := secondShell].With[coefficients := Base.integerCoefficients].At[z := I.Int^::ofNat m] \as LocalRight;
+\import singular_cohomology.Relative[A := BoxCarrier, source := boxTopology, subset := Union.subset].With[coefficients := Base.integerCoefficients].At[z := I.Int^::ofNat degree] \as LocalOutput;
+\definition law: \forall (u: OriginalLeft.Degree[n := n].Class)(v: OriginalRight.Degree[n := m].Class) ->
+  restrictSum (Global.Product[n := n, m := m].apply u v) = apply (restrictLeft u) (restrictRight v) :=
+  \fun (u: OriginalLeft.Degree[n := n].Class)(v: OriginalRight.Degree[n := m].Class) => eq_reason_in!{Class _
+    "=" _ "by" { congr!{{OriginalSum.Degree[n := degree].Class} Class} restrictSum _ _ (globalFormula u v) }
+    "=" _ "by" { TotalSquare.law (oldMixed u v) }
+    "=" _ "by" { congr!{LocalOutput.Carrier Class} FullPull.Degree[n := degree].map.apply _ _
+      (Along.Covers[conditions := Global.conditions, newConditions := conditions].Cup[p := n, q := m].law (OldLeftPull.Degree[n := n].map.apply u) (OldRightPull.Degree[n := m].map.apply v)) }
+    "=" _ "by" { congr!{LocalLeft.Carrier LocalRight.Carrier Class}
+      (\fun (a: LocalLeft.Carrier)(b: LocalRight.Carrier) => FullPull.Degree[n := degree].map.apply (Products.Cup[p := n, q := m].apply a b)) _ _ _ _ (LeftSquare.law u) (RightSquare.law v) }
+  };

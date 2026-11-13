@@ -1,0 +1,37 @@
+\import Local.Rank[n := n] \as Ranked;
+\import std.Logic[].Proposition[] \as Logic;
+\import topology.Topology[Carrier := X] \as Base;
+\structure SubdomainLaws[U, V: \Pow X]: \Prop := {
+  open: Base.IsOpenIn bundle.baseSpace V,
+  included: Base.Subset V U
+};
+\definition Subdomain[U: \Pow X]: \Set := \Cast[\Pow X] ({ V: \Pow X \where SubdomainLaws[U, V] });
+\definition subdomainLaws[U: \Pow X][V: Subdomain U]: SubdomainLaws[U, V] := \bysub(\Pow X, { W: \Pow X \where SubdomainLaws[U, W] }, V);
+\definition subdomainOpen[U: \Pow X][V: Subdomain U]: Base.IsOpenIn bundle.baseSpace V := (subdomainLaws U V).open;
+\definition subdomainIncluded[U: \Pow X][V: Subdomain U]: Base.Subset V U := (subdomainLaws U V).included;
+\structure Patch[U: \Pow X, g: Fibers]: \Set := {
+  open: Base.IsOpenIn bundle.baseSpace U,
+  refine: \forall (V: Subdomain U) -> Ranked.On[U := V].Given[g := g].Data,
+  generates: \forall (x: \Cast[X] U) -> Ranked.Fiber[x := x].Generator (g x)
+};
+\structure LocalOrientation[x: X, g: Fibers]: \Set := {
+  domain: \Pow X,
+  patch: Patch[domain, g],
+  contains: Base.Member domain x
+};
+\structure Orientation: \Set := {
+  fiber: Fibers,
+  locally: \forall (x: X) -> \exists LocalOrientation[x, fiber]
+};
+\definition patchOpen[U: \Pow X][g: Fibers][patch: Patch[U, g]]: Base.IsOpenIn bundle.baseSpace U := patch.open;
+\definition refine[U: \Pow X][g: Fibers][patch: Patch[U, g]][V: \Pow X][open: Base.IsOpenIn bundle.baseSpace V][included: Base.Subset V U]: Ranked.On[U := V].Given[g := g].Data := patch.refine
+  (\into[\Pow X](V, Subdomain U) \by { SubdomainLaws[U, V] { open := open, included := included } });
+\definition patchData[U: \Pow X][g: Fibers][patch: Patch[U, g]]: Ranked.On[U := U].Given[g := g].Data := refine U g patch U patch.open (\fun (x: X)(inside: Base.Member U x) => inside);
+\definition generates: \forall (orientation: Orientation)(x: X) -> Ranked.Fiber[x := x].Generator (orientation.fiber x) := \block {
+  \fun (orientation: Orientation)(x: X) \then
+  \takefrom local: LocalOrientation[x, orientation.fiber] \by orientation.locally x \then
+  \let generated: Ranked.Fiber[x := x].Generator (orientation.fiber x) := local.patch.generates (\into[X](x, local.domain) \by { local.contains }) \then
+  \return generated
+};
+\module With(orientation: Orientation);
+\module Signed(given: \root.Thom[].Real[].For[X := X, F := F, bundle := bundle].With[metric := metric].Local[K := K, ring := ring].Rank[n := n].Orientation[].SignedOrientation);

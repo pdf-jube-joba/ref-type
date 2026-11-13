@@ -1,0 +1,36 @@
+\import chain_complexes.Integer[] \as Degrees;
+\definition higher: I.Int^ := Degrees.next z;
+\import Integer.At[C := OverlapHom.complex, z := z] \as Input;
+\import Integer.At[C := SmallHom.complex, z := higher] \as SmallOutput;
+\import Integer.At[C := TotalHom.complex, z := higher] \as Output;
+\import Integer.At[C := BaseHom.complex, z := z] \as BaseH;
+\import Integer.At[C := SumHom.complex, z := z] \as SumH;
+\import Integer.At[C := SumHom.complex, z := higher] \as HigherSum;
+\import Integer.ShortExact[A := SmallHom.complex, B := SumHom.complex, C := OverlapHom.complex].At[s := Sequence.sequence, k := z] \as Connecting;
+\import Connecting.Exactness[] \as Exact;
+\import \parent.Degree[z := z] \as Current;
+\import \parent.Degree[z := higher] \as Upper;
+\import Modules.Hom[V := Input.Cohomology, W := SmallOutput.Cohomology, source := Input.cohomologySpace, target := SmallOutput.cohomologySpace] \as ConnectingMaps;
+\import Modules.Hom[V := SumH.Cohomology, W := Input.Cohomology, source := SumH.cohomologySpace, target := Input.cohomologySpace] \as DifferenceMaps;
+\import Integer.Map[C := SumHom.complex, D := OverlapHom.complex].At[k := z] \as Projection;
+\import Integer.Map[C := SmallHom.complex, D := SumHom.complex].At[k := higher] \as Inclusion;
+\definition difference: _ := Projection.induced Sequence.sequence.projection;
+\definition zeroKernel: \forall (x: Input.Cohomology) -> Connecting.connecting.apply x = SmallOutput.cohomologySpace.zero -> x = Input.cohomologySpace.zero := \block {
+  \fun (x: Input.Cohomology)(zero: _) \then
+  \takefrom q: \Cast[SumH.Cohomology] ({ q: SumH.Cohomology \where difference.apply q = x }) \by Exact.exactAtC x zero \then
+  \return trans!{Input.Cohomology} _ _ _ (sym!{Input.Cohomology} _ _ (\bysub(SumH.Cohomology, { q: SumH.Cohomology \where difference.apply q = x }, q)))
+    (trans!{Input.Cohomology} _ _ _ (congr!{SumH.Cohomology Input.Cohomology} difference.apply _ _ (Current.sumZero q))
+      (DifferenceMaps.zeroPreserved difference))
+};
+\import Modules.Isomorphism[V := Input.Cohomology, W := SmallOutput.Cohomology, source := Input.cohomologySpace, target := SmallOutput.cohomologySpace].OfBijective[f := Connecting.connecting] \as Inverse;
+\definition injective: Inverse.Injective := ConnectingMaps.injectiveOfZeroKernel Connecting.connecting zeroKernel;
+\definition onto: Inverse.Onto := \fun (x: SmallOutput.Cohomology) => Exact.exactAtALower x
+  (Upper.sumZero ((Inclusion.induced Sequence.sequence.inclusion).apply x));
+\definition connectingIsomorphism: _ := Inverse.isomorphism injective onto;
+\import Middle.With[coefficients := coefficients].At[z := z] \as MiddleComparison;
+\import Modules.Isomorphism[V := BaseH.Cohomology, W := Input.Cohomology, source := BaseH.cohomologySpace, target := Input.cohomologySpace].Composition[U := SmallOutput.Cohomology, final := SmallOutput.cohomologySpace] \as FirstComposition;
+\definition smallIsomorphism: Modules.Isomorphism[V := BaseH.Cohomology, W := SmallOutput.Cohomology, source := BaseH.cohomologySpace, target := SmallOutput.cohomologySpace].Isomorphism :=
+  FirstComposition.compose connectingIsomorphism MiddleComparison.isomorphism;
+\import Modules.Isomorphism[V := BaseH.Cohomology, W := SmallOutput.Cohomology, source := BaseH.cohomologySpace, target := SmallOutput.cohomologySpace].Composition[U := Output.Cohomology, final := Output.cohomologySpace] \as LastComposition;
+\definition isomorphism: Modules.Isomorphism[V := BaseH.Cohomology, W := Output.Cohomology, source := BaseH.cohomologySpace, target := Output.cohomologySpace].Isomorphism :=
+  LastComposition.compose (Modules.Isomorphism[V := Output.Cohomology, W := SmallOutput.Cohomology, source := Output.cohomologySpace, target := SmallOutput.cohomologySpace].Inverse[].inverse SmallComparison.At[z := higher].isomorphism) smallIsomorphism;

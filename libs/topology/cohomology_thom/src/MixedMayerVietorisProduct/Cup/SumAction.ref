@@ -1,0 +1,49 @@
+\import Modules.Laws[V := LeftHom.Carrier outputDegree, space := LeftHom.space outputDegree] \as LeftLaws;
+\import algebra.Group[].Of[Carrier := LeftHom.Carrier outputDegree, group := LeftLaws.additive] \as LeftGroup;
+\import Modules.Laws[V := RightHom.Carrier outputDegree, space := RightHom.space outputDegree] \as RightLaws;
+\import algebra.Group[].Of[Carrier := RightHom.Carrier outputDegree, group := RightLaws.additive] \as RightGroup;
+\definition left: \forall (a: Restriction.Raw)(h: SourceSumHom.Carrier inputDegree) ->
+  Coordinates.firstProjection.apply outputDegree (sumAction a h) = sumLeft a h :=
+  \fun (a: Restriction.Raw)(h: SourceSumHom.Carrier inputDegree) => trans!{{LeftHom.Carrier outputDegree}} _ _ _
+    (Coordinates.firstProjection.addition outputDegree (Coordinates.firstInjection.apply outputDegree (sumLeft a h)) (Coordinates.secondInjection.apply outputDegree (sumRight a h)))
+    (trans!{{LeftHom.Carrier outputDegree}} _ _ _
+      (congr!{{LeftHom.Carrier outputDegree} {LeftHom.Carrier outputDegree} {LeftHom.Carrier outputDegree}} LeftGroup.add _ _ _ _
+        (Coordinates.firstRoundtrip outputDegree (sumLeft a h)) (Coordinates.firstCross outputDegree (sumRight a h)))
+      (LeftGroup.zeroRight (sumLeft a h)));
+\definition right: \forall (a: Restriction.Raw)(h: SourceSumHom.Carrier inputDegree) ->
+  Coordinates.secondProjection.apply outputDegree (sumAction a h) = sumRight a h :=
+  \fun (a: Restriction.Raw)(h: SourceSumHom.Carrier inputDegree) => trans!{{RightHom.Carrier outputDegree}} _ _ _
+    (Coordinates.secondProjection.addition outputDegree (Coordinates.firstInjection.apply outputDegree (sumLeft a h)) (Coordinates.secondInjection.apply outputDegree (sumRight a h)))
+    (trans!{{RightHom.Carrier outputDegree}} _ _ _
+      (congr!{{RightHom.Carrier outputDegree} {RightHom.Carrier outputDegree} {RightHom.Carrier outputDegree}} RightGroup.add _ _ _ _
+        (Coordinates.secondCross outputDegree (sumLeft a h)) (Coordinates.secondRoundtrip outputDegree (sumRight a h)))
+      (RightGroup.zeroLeft (sumRight a h)));
+\import IntegerCochains.Map[C := SourceSumHom.complex, D := SourceLeftHom.complex].At[k := inputDegree] \as LeftProjection;
+\import IntegerCochains.Map[C := SourceSumHom.complex, D := SourceRightHom.complex].At[k := inputDegree] \as RightProjection;
+\import IntegerCochains.Map[C := LeftHom.complex, D := SumHom.complex].At[k := outputDegree] \as LeftInjection;
+\import IntegerCochains.Map[C := RightHom.complex, D := SumHom.complex].At[k := outputDegree] \as RightInjection;
+\import Modules.Hom[V := SourceLeftHom.Carrier inputDegree, W := LeftHom.Carrier outputDegree, source := SourceLeftHom.space inputDegree, target := LeftHom.space outputDegree].Composition[U := SourceSumHom.Carrier inputDegree, domain := SourceSumHom.space inputDegree] \as LeftBefore;
+\import Modules.Hom[V := LeftHom.Carrier outputDegree, W := SumHom.Carrier outputDegree, source := LeftHom.space outputDegree, target := SumHom.space outputDegree].Composition[U := SourceSumHom.Carrier inputDegree, domain := SourceSumHom.space inputDegree] \as LeftAfter;
+\import Modules.Hom[V := SourceRightHom.Carrier inputDegree, W := RightHom.Carrier outputDegree, source := SourceRightHom.space inputDegree, target := RightHom.space outputDegree].Composition[U := SourceSumHom.Carrier inputDegree, domain := SourceSumHom.space inputDegree] \as RightBefore;
+\import Modules.Hom[V := RightHom.Carrier outputDegree, W := SumHom.Carrier outputDegree, source := RightHom.space outputDegree, target := SumHom.space outputDegree].Composition[U := SourceSumHom.Carrier inputDegree, domain := SourceSumHom.space inputDegree] \as RightAfter;
+\import Modules.Hom[V := SourceSumHom.Carrier inputDegree, W := SumHom.Carrier outputDegree, source := SourceSumHom.space inputDegree, target := SumHom.space outputDegree] \as SumMaps;
+\definition linear[a: Restriction.Raw]: SumMaps.Map := SumMaps.plus
+  (LeftAfter.compose (LeftInjection.linear Coordinates.firstInjection) (LeftBefore.compose (LP.linear (Restriction.left a)) (LeftProjection.linear SourceCoordinates.firstProjection)))
+  (RightAfter.compose (RightInjection.linear Coordinates.secondInjection) (RightBefore.compose (RP.linear (Restriction.right a)) (RightProjection.linear SourceCoordinates.secondProjection)));
+\import Modules.Hom[V := SourceOverlapHom.Carrier inputDegree, W := OverlapHom.Carrier outputDegree, source := SourceOverlapHom.space inputDegree, target := OverlapHom.space outputDegree] \as CupMaps;
+\definition projection: \forall (a: Restriction.Raw)(h: SourceSumHom.Carrier inputDegree) ->
+  MV.sequence.projection.apply outputDegree (sumAction a h) = OP.apply (Restriction.overlap a) (SourceSequence.sequence.projection.apply inputDegree h) :=
+  \fun (a: Restriction.Raw)(h: SourceSumHom.Carrier inputDegree) => eq_reason_in!{{OverlapHom.Carrier outputDegree} _
+    "=" _ "by" { MV.sequence.projection.addition outputDegree (Coordinates.firstInjection.apply outputDegree (sumLeft a h)) (Coordinates.secondInjection.apply outputDegree (sumRight a h)) }
+    "=" _ "by" { congr!{{OverlapHom.Carrier outputDegree} {OverlapHom.Carrier outputDegree} {OverlapHom.Carrier outputDegree}} OutputGroup.add _ _ _ _ (OutputDifference.left (sumLeft a h)) (OutputDifference.right (sumRight a h)) }
+    "=" _ "by" { congr!{{OverlapHom.Carrier outputDegree} {OverlapHom.Carrier outputDegree} {OverlapHom.Carrier outputDegree}} OutputGroup.difference _ _ _ _
+      (LeftNatural.Product[p := p, q := q].law (Restriction.left a) (SourceCoordinates.firstProjection.apply inputDegree h))
+      (trans!{{OverlapHom.Carrier outputDegree}} _ _ _ (RightNatural.Product[p := p, q := q].law (Restriction.right a) (SourceCoordinates.secondProjection.apply inputDegree h))
+        (congr!{{singular_cohomology.Relative[A := Overlap, source := overlapTopology, subset := OverlapFamily.firstPart].With[coefficients := WholeProduct.integerCoefficients].Carrier (I.Int^::ofNat p)} {OverlapHom.Carrier outputDegree}}
+          (\fun (b: singular_cohomology.Relative[A := Overlap, source := overlapTopology, subset := OverlapFamily.firstPart].With[coefficients := WholeProduct.integerCoefficients].Carrier (I.Int^::ofNat p)) => OP.apply b (RightNatural.secondPullback.apply inputDegree (SourceCoordinates.secondProjection.apply inputDegree h))) _ _
+          (sym!{{singular_cohomology.Relative[A := Overlap, source := overlapTopology, subset := OverlapFamily.firstPart].With[coefficients := WholeProduct.integerCoefficients].Carrier (I.Int^::ofNat p)}} _ _ (Restriction.agree a)))) }
+    "=" _ "by" { sym!{{OverlapHom.Carrier outputDegree}} _ _ (CupMaps.differencePreserved (OP.linear (Restriction.overlap a)) (InputDifference.leftValue h) (InputDifference.rightValue h)) }
+    "=" _ "by" { congr!{{SourceOverlapHom.Carrier inputDegree} {OverlapHom.Carrier outputDegree}} (OP.apply (Restriction.overlap a)) _ _ (sym!{{SourceOverlapHom.Carrier inputDegree}} _ _ (InputDifference.cochains h)) }
+  };
+\module Differential;
+\module Difference;

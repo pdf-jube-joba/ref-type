@@ -1,0 +1,83 @@
+\import std.Data[].Pair[] \as Pair;
+\import topology.Topology[Carrier := X] \as Base;
+\import \root.Thom[].Real[].DirectSum[X := X, F := F, G := G, left := left, right := right, same := same, leftMetric := leftMetric, rightMetric := rightMetric].With[metric := metric].Local[c := c, d := d] \as Original;
+\import Geometry.Chart[c := Original.chart].Restrict[U := V, open := openV, contained := included] \as SumRestriction;
+\definition chart: _ := SumRestriction.chart;
+\definition U: \Pow X := V;
+\definition open: Base.IsOpenIn bundle.baseSpace U := openV;
+\definition rightOpen: Base.IsOpenIn right.baseSpace U := \idelim left.baseSpace = right.baseSpace \with space: Base.Topology => Base.IsOpenIn space U \by { base: open, equality: same };
+\definition inLeft: Base.Subset U c.domain := \fun (x: X)(member: Base.Member U x) => Original.inLeft x (included x member);
+\definition inRight: Base.Subset U d.domain := \fun (x: X)(member: Base.Member U x) => Original.inRight x (included x member);
+\import LeftGeometry.Chart[c := c].Restrict[U := U, open := open, contained := inLeft] \as LeftRestriction;
+\import RightGeometry.Chart[c := d].Restrict[U := U, open := rightOpen, contained := inRight] \as RightRestriction;
+\import LeftGeometry.Chart[c := LeftRestriction.chart] \as LeftChart;
+\import RightGeometry.Chart[c := RightRestriction.chart] \as RightChart;
+\import LeftChart.Open[] \as LeftOpen;
+\import RightChart.Open[] \as RightOpen;
+\import LeftChart.ProductCoordinates[] \as Left;
+\import RightChart.ProductCoordinates[] \as Right;
+\import Geometry.Chart[c := chart] \as Canonical;
+\import Canonical.ProductCoordinates[] \as Standard;
+\import \parent.\parent.Domain[U := U] \as Domain;
+\definition BasePoint: \Set := Canonical.BasePoint;
+\definition baseTopology: topology.Topology[Carrier := BasePoint].Topology := Canonical.baseTopology;
+\import algebraic_topology.Euclidean[].Dimension[n := c.dimension] \as First;
+\import algebraic_topology.Euclidean[].Dimension[n := d.dimension] \as Second;
+\import \root.StandardSum[X := BasePoint, space := baseTopology, n := c.dimension, m := d.dimension] \as Blocks;
+\import topological_constructions.Product[A := BasePoint, B := Second.Disk] \as RightProduct;
+\import Base.Subspace[S := U] \as BaseSubspace;
+\definition rightTargetTopology: topology.Topology[Carrier := Right.Carrier].Topology := RightProduct.topology baseTopology Second.diskTopology;
+\definition sameRightTarget: Right.topology = rightTargetTopology :=
+  congr!{Base.Topology {topology.Topology[Carrier := Right.Carrier].Topology}} (\fun (space: Base.Topology) => RightProduct.topology (BaseSubspace.topology space) Second.diskTopology) _ _ (sym!{Base.Topology} _ _ same);
+\import topology.Homeomorphism[A := RightOpen.Carrier, B := Right.Carrier] \as RightHomeomorphisms;
+\definition rightHomeomorphism: RightHomeomorphisms.Homeomorphism[RightOpen.topology, rightTargetTopology] := RightHomeomorphisms.Homeomorphism[RightOpen.topology, rightTargetTopology] {
+  forward := Right.homeomorphism.forward, backward := Right.homeomorphism.backward,
+  leftInverse := (RightHomeomorphisms.laws RightOpen.topology Right.topology Right.homeomorphism).leftInverse,
+  rightInverse := (RightHomeomorphisms.laws RightOpen.topology Right.topology Right.homeomorphism).rightInverse,
+  forwardContinuous := \idelim Right.topology = rightTargetTopology \with target: topology.Topology[Carrier := Right.Carrier].Topology => topology.Continuity[A := RightOpen.Carrier, B := Right.Carrier].Continuous RightOpen.topology target Right.homeomorphism.forward \by {
+    base: (RightHomeomorphisms.laws RightOpen.topology Right.topology Right.homeomorphism).forwardContinuous, equality: sameRightTarget
+  },
+  backwardContinuous := \idelim Right.topology = rightTargetTopology \with source: topology.Topology[Carrier := Right.Carrier].Topology => topology.Continuity[A := Right.Carrier, B := RightOpen.Carrier].Continuous source RightOpen.topology Right.homeomorphism.backward \by {
+    base: (RightHomeomorphisms.laws RightOpen.topology Right.topology Right.homeomorphism).backwardContinuous, equality: sameRightTarget
+  }
+};
+\import topological_constructions.Product[A := First.Disk, B := Second.Disk] \as Factors;
+\definition productTopology: topology.Topology[Carrier := Factors.CarrierSet].Topology := Factors.topology First.diskTopology Second.diskTopology;
+\module Parts;
+\module Coordinates;
+\import Geometry.Domain[U := U] \as Actual;
+\definition productHomeomorphism: topology.Homeomorphism[A := Actual.Carrier, B := Standard.Carrier].Homeomorphism[Actual.topology, Standard.topology] :=
+  topology.Homeomorphism[A := Actual.Carrier, B := Blocks.Carrier].Composition[C := Standard.Carrier].compose Actual.topology Blocks.topology Standard.topology
+    (topology.Homeomorphism[A := Actual.Carrier, B := Domain.BoxCarrier].Composition[C := Blocks.Carrier].compose Actual.topology Domain.boxTopology Blocks.topology Domain.homeomorphism Coordinates[].homeomorphism)
+    Blocks.homeomorphism;
+\import singular_cohomology.Relative[A := Actual.Carrier, source := Actual.topology, subset := Actual.boundary].Homeomorphism[B := Standard.Carrier].Over[target := Standard.topology, targetSubset := Standard.boundary] \as ProductPairs;
+\definition productPair: ProductPairs.Data := ProductPairs.Data {
+  homeomorphism := productHomeomorphism,
+  forwardPreserves := \fun (p: \Cast[Actual.Carrier] Actual.boundary) => Blocks.pair.forwardPreserves
+    (\into[Blocks.Carrier](Coordinates[].forward (Domain.forward p), Blocks.boundary) \by {
+      Coordinates[].pair.forwardPreserves (\into[Domain.BoxCarrier](Domain.forward p, Domain.boundary) \by { Domain.pair.forwardPreserves p })
+    }),
+  backwardPreserves := \fun (p: \Cast[Standard.Carrier] Standard.boundary) => Domain.pair.backwardPreserves
+    (\into[Domain.BoxCarrier](Coordinates[].backward (Blocks.backward p), Domain.boundary) \by {
+      Coordinates[].pair.backwardPreserves (\into[Blocks.Carrier](Blocks.backward p, Blocks.boundary) \by { Blocks.pair.backwardPreserves p })
+    })
+};
+\definition selfHomeomorphism: topology.Homeomorphism[A := Actual.Carrier, B := Actual.Carrier].Homeomorphism[Actual.topology, Actual.topology] :=
+  topology.Homeomorphism[A := Actual.Carrier, B := Standard.Carrier].Composition[C := Actual.Carrier].compose Actual.topology Standard.topology Actual.topology productHomeomorphism
+    (topology.Homeomorphism[A := Actual.Carrier, B := Standard.Carrier].Inverse[].inverse Actual.topology Standard.topology Standard.homeomorphism);
+\import singular_cohomology.Relative[A := Actual.Carrier, source := Actual.topology, subset := Actual.boundary].Homeomorphism[B := Actual.Carrier].Over[target := Actual.topology, targetSubset := Actual.boundary] \as SelfPairs;
+\definition selfPair: SelfPairs.Data := SelfPairs.Data {
+  homeomorphism := selfHomeomorphism,
+  forwardPreserves := \fun (p: \Cast[Actual.Carrier] Actual.boundary) => Standard.pair.backwardPreserves
+    (\into[Standard.Carrier](productHomeomorphism.forward p, Standard.boundary) \by { productPair.forwardPreserves p }),
+  backwardPreserves := \fun (p: \Cast[Actual.Carrier] Actual.boundary) => productPair.backwardPreserves
+    (\into[Standard.Carrier](Standard.homeomorphism.forward p, Standard.boundary) \by { Standard.pair.forwardPreserves p })
+};
+\module Ring(K: \Set, ring: Rings.CommutativeRing[K]);
+\module StandardModel;
+
+\module Product(K: \Set, ring: Rings.CommutativeRing[K]);
+
+\module IntegralModel;
+
+\module ModTwoModel;

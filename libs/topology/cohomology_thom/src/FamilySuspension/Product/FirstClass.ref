@@ -1,0 +1,37 @@
+\definition z: I.Int^ := I.Int^::ofNat p;
+\import First.With[coefficients := Coefficients.integerCoefficients] \as BaseCochains;
+\import CylinderFirst.With[coefficients := Coefficients.integerCoefficients] \as CylinderCochains;
+\import Integer.At[C := BaseCochains.complex, z := z] \as BaseH;
+\import Integer.At[C := CylinderCochains.complex, z := z] \as CylinderH;
+\import Integer.Map[C := BaseCochains.complex, D := CylinderCochains.complex].At[k := z] \as ProjectionAction;
+\definition Cycle: \Set := BaseH.Closed;
+\definition cylinderCycle[a: Cycle]: CylinderH.Closed := (ProjectionAction.cyclesMap FirstProjection.pullback).apply a;
+\import MixedMV.Restriction[p := p] \as Restriction;
+\import \root.RelativeMayerVietoris[].OpenCover[A := Cylinder.Carrier, source := Suspension.topology, subset := firstPart].On[cover := Suspension.cover] \as FirstMV;
+\import singular_cohomology.Relative[A := MV.Overlap, source := MV.overlapTopology, subset := Middle.firstRegion] \as OverlapFirst;
+\import singular_cohomology.Relative[A := MV.Left, source := MV.leftTopology, subset := { p: MV.Left \where \In[Cylinder.Carrier] firstPart p }] \as LeftFirst;
+\import OverlapFirst.Maps[B := MV.Left].Over[target := MV.leftTopology, targetSubset := FirstMV.leftPart] \as IntoLeft;
+\import IntoLeft.Composition[C := Cylinder.Carrier].Over[final := Suspension.topology, finalSubset := firstPart] \as IntoCylinderComposition;
+\definition intoCylinder: OverlapFirst.Maps[B := Cylinder.Carrier].Over[target := Suspension.topology, targetSubset := firstPart].Map :=
+  IntoCylinderComposition.compose FirstMV.toLeft FirstMV.leftPairMap;
+\import IntoCylinderComposition.On[f := FirstMV.toLeft, g := FirstMV.leftPairMap].With[coefficients := Coefficients.integerCoefficients] \as ToCylinderLaw;
+\import OverlapFirst.Maps[B := Cylinder.Carrier].Over[target := Suspension.topology, targetSubset := firstPart].Composition[C := A].Over[final := source, finalSubset := first] \as ToBaseComposition;
+\import ToBaseComposition.On[f := intoCylinder, g := firstProjection].With[coefficients := Coefficients.integerCoefficients] \as ToBaseLaw;
+
+\import IntoLeft.On[f := FirstMV.toLeft].Integer[].With[coefficients := Coefficients.integerCoefficients] \as LeftPull;
+\import LeftFirst.Maps[B := Cylinder.Carrier].Over[target := Suspension.topology, targetSubset := firstPart].On[f := FirstMV.leftPairMap].Integer[].With[coefficients := Coefficients.integerCoefficients] \as CylinderPull;
+\import OverlapFirst.Maps[B := Cylinder.Carrier].Over[target := Suspension.topology, targetSubset := firstPart].On[f := intoCylinder].Integer[].With[coefficients := Coefficients.integerCoefficients] \as OverlapCylinder;
+\import OverlapFirst.With[coefficients := Coefficients.integerCoefficients] \as OverlapCochains;
+\import LeftFirst.With[coefficients := Coefficients.integerCoefficients] \as LeftCochains;
+\import Integer.At[C := OverlapCochains.complex, z := z] \as OverlapH;
+\import Integer.At[C := LeftCochains.complex, z := z] \as LeftH;
+\import Integer.Map[C := BaseCochains.complex, D := OverlapCochains.complex].At[k := z] \as OverlapAction;
+\definition law: \forall (a: Cycle) ->
+  (OverlapAction.induced OverlapNatural.firstPullback).apply (BaseH.classOf a) = OverlapH.classOf (Restriction.overlapCycle (cylinderCycle a)) :=
+  \fun (a: Cycle) => eq_reason_in!{OverlapH.Cohomology _
+    "=" _ "by" { ToBaseLaw.law z (BaseH.classOf a) }
+    "=" _ "by" { congr!{CylinderH.Cohomology OverlapH.Cohomology} OverlapCylinder.At[z := z].induced.apply _ _ (ProjectionAction.onClass FirstProjection.pullback a) }
+    "=" _ "by" { ToCylinderLaw.law z (CylinderH.classOf (cylinderCycle a)) }
+    "=" _ "by" { congr!{LeftH.Cohomology OverlapH.Cohomology} LeftPull.At[z := z].induced.apply _ _ (CylinderPull.At[z := z].onClass (cylinderCycle a)) }
+    "=" _ "by" { LeftPull.At[z := z].onClass (Restriction.leftCycle (cylinderCycle a)) }
+  };

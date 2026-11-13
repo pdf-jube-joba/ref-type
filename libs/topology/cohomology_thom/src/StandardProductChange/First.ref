@@ -1,0 +1,13 @@
+\import singular_cohomology.Relative[A := Left.Disk, source := Left.diskTopology, subset := LeftShell.shell] \as DiskPair;
+\import singular_cohomology.Relative[A := Old.Carrier, source := Old.topology, subset := Old.firstShell] \as SourcePair;
+\import SourcePair.Maps[B := Left.Disk].Over[target := Left.diskTopology, targetSubset := LeftShell.shell].On[f := Old.leftMap].Integer[] \as Projection;
+\import \root.CoefficientChange[].On[C := DiskPair.complex, M := Source.integerCoefficients, N := Target.integerCoefficients, u := morphism.linear].Along[D := SourcePair.complex, f := Projection.map].At[z := I.Int^::ofNat n] \as Natural;
+\import \root.RelativePullback[].On[A := Old.Carrier, source := Old.topology, subset := Old.firstShell, R := K, ring := ring].To[B := Left.Disk, target := Left.diskTopology, part := LeftShell.shell].Along[f := Old.leftMap] \as OldPull;
+\import \root.RelativePullback[].On[A := New.Carrier, source := New.topology, subset := New.firstShell, R := L, ring := targetRing].To[B := Left.Disk, target := Left.diskTopology, part := LeftShell.shell].Along[f := New.leftMap] \as NewPull;
+\import SourcePair.With[coefficients := Target.integerCoefficients].At[z := I.Int^::ofNat n] \as Output;
+\import DiskPair.With[coefficients := Target.integerCoefficients].At[z := I.Int^::ofNat n] \as DiskOutput;
+\definition old[a: LeftPoint.Class]: _ := OldPull.Degree[n := n].map.apply (LeftShell.Ring[K := K, ring := ring].lift a);
+\definition changed[a: LeftPoint.Class]: _ := NewPull.Degree[n := n].map.apply (LeftShell.Ring[K := L, ring := targetRing].lift (LeftChange.pointMap.apply a));
+\definition law: \forall (a: LeftPoint.Class) -> FirstChange.Degree[n := n].map.apply (old a) = changed a :=
+  \fun (a: LeftPoint.Class) => trans!{Output.Carrier} _ _ _ (Natural.law (LeftShell.Ring[K := K, ring := ring].lift a))
+    (congr!{DiskOutput.Carrier Output.Carrier} NewPull.Degree[n := n].map.apply _ _ (LeftChange.liftLaw a));

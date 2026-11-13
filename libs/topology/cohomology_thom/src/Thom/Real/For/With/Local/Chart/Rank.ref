@@ -1,0 +1,29 @@
+\import std.Data[].Bool[] \as B;
+\import Local.Model[n := n, U := c.domain] \as RankedModel;
+\import Local.Rank[n := n].On[U := c.domain] \as Ranked;
+\definition model: RankedModel.Data := atRank n same;
+\definition detected: Ranked.Detects := \idelim c.dimension = n \with k: N.Nat^ => Local.Rank[n := k].On[U := c.domain].Detects \by {
+  base: Calculation.Fibers[].detected, equality: same
+};
+\definition signed[reverse: B.Bool^]: RankedModel.Data := \induction (reverse: B.Bool^) \return RankedModel.Data \with {
+  | false: model
+  | true: RankedModel.Reverse[model := model].data
+} reverse;
+\definition given[g: Local.Rank[n := n].Fibers][reverse: B.Bool^][normal: Ranked.Given[g := g].Normalized (signed reverse).thomClass]: Ranked.Given[g := g].Data :=
+  Ranked.Given[g := g].Data { model := signed reverse, normalized := normal, detected := detected };
+
+\module Fiber(x: Geometry.BasePoint);
+\definition flip: B.Bool^ -> B.Bool^ := \induction (b: B.Bool^) \return B.Bool^ \with {
+  | false: B.Bool^::true
+  | true: B.Bool^::false
+};
+\import \root.Thom[].Real[].For[X := X, F := F, bundle := bundle].With[metric := metric].Domain[U := c.domain].Ring[K := K, ring := ring].Degree[n := n] \as Top;
+\import Modules.Laws[V := Top.Class, space := Top.space] \as Values;
+\import algebra.Group[].Of[Carrier := Top.Class, group := Values.additive] \as Group;
+\definition reverseClass: \forall (b: B.Bool^) -> (signed (flip b)).thomClass = Top.space.neg (signed b).thomClass :=
+  \induction (b: B.Bool^) \return (signed (flip b)).thomClass = Top.space.neg (signed b).thomClass \with {
+    | false: \refl(Top.space.neg model.thomClass)
+    | true: sym!{{Top.Class}} _ _ (Group.negNeg model.thomClass)
+  };
+
+\module Reindex;

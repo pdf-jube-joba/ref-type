@@ -1,0 +1,26 @@
+\import resolutions.HomComplex[].Over[R := I.Int^, ring := Integers.commutativeRing] \as Hom;
+\import \root.FamilyPair[A := Carrier, source := topology, family := closedFamily] \as Closed;
+\import \root.FamilyPair[A := Carrier, source := topology, family := shellFamily] \as Open;
+\import Hom.Integer[P := Closed.complex, N := coefficients] \as ClosedCochains;
+\import Hom.Integer[P := Open.complex, N := coefficients] \as OpenCochains;
+\import Forward.With[coefficients := coefficients] \as ForwardPull;
+\import Backward.With[coefficients := coefficients] \as BackwardPull;
+\module At(z: I.Int^) {
+  \import ClosedCochains.Cohomology[z := z] \as ClosedDegree;
+  \import OpenCochains.Cohomology[z := z] \as OpenDegree;
+  \definition leftInverse: \forall (q: OpenDegree.Cohomology) -> (BackwardPull.At[z := z].induced).apply ((ForwardPull.At[z := z].induced).apply q) = q :=
+    \fun (q: OpenDegree.Cohomology) => trans!{OpenDegree.Cohomology} _ _ _
+      (sym!{OpenDegree.Cohomology} _ _ (ShellComposite.With[coefficients := coefficients].law z q))
+      (trans!{OpenDegree.Cohomology} _ _ _ (ShellEquality.With[coefficients := coefficients].law z q)
+        (trans!{OpenDegree.Cohomology} _ _ _ (sym!{OpenDegree.Cohomology} _ _ (ShellHomotopy.With[coefficients := coefficients].At[z := z].law q))
+          (Open.Identity[].With[coefficients := coefficients].law z q)));
+  \definition rightInverse: \forall (q: ClosedDegree.Cohomology) -> (ForwardPull.At[z := z].induced).apply ((BackwardPull.At[z := z].induced).apply q) = q :=
+    \fun (q: ClosedDegree.Cohomology) => trans!{ClosedDegree.Cohomology} _ _ _
+      (sym!{ClosedDegree.Cohomology} _ _ (ClosedComposite.With[coefficients := coefficients].law z q))
+      (trans!{ClosedDegree.Cohomology} _ _ _ (ClosedEquality.With[coefficients := coefficients].law z q)
+        (trans!{ClosedDegree.Cohomology} _ _ _ (sym!{ClosedDegree.Cohomology} _ _ (ClosedHomotopy.With[coefficients := coefficients].At[z := z].law q))
+          (Closed.Identity[].With[coefficients := coefficients].law z q)));
+  \import Modules.Isomorphism[V := OpenDegree.Cohomology, W := ClosedDegree.Cohomology, source := OpenDegree.cohomologySpace, target := ClosedDegree.cohomologySpace] \as Isomorphisms;
+  \definition data: Isomorphisms.Data := Isomorphisms.Data { forward := ForwardPull.At[z := z].induced, backward := BackwardPull.At[z := z].induced };
+  \definition isomorphism: Isomorphisms.Isomorphism := \into[Isomorphisms.Data](data, Isomorphisms.Isomorphism) \by { Isomorphisms.Laws[data] { leftInverse := leftInverse, rightInverse := rightInverse } };
+}

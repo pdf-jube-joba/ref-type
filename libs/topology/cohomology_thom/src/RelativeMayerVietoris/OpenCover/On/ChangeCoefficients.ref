@@ -1,0 +1,63 @@
+\use std.Logic[].Equality[].eq_reason_in;
+\import \parent.With[coefficients := M] \as SourceSequence;
+\import \parent.With[coefficients := N] \as TargetSequence;
+\import resolutions.HomComplex[].Over[R := I.Int^, ring := Integers.commutativeRing] \as Hom;
+\import chain_complexes.Integer[].Over[R := I.Int^, ring := Integers.ring] \as Cochains;
+\import chain_complexes.Integer[] \as Degrees;
+\import Hom.Integer[P := SmallPair.complex, N := M] \as SourceSmall;
+\import Hom.Integer[P := Sum.complex, N := M] \as SourceSum;
+\import Hom.Integer[P := O.complex, N := M] \as SourceOverlap;
+\import Hom.Integer[P := SmallPair.complex, N := N] \as TargetSmall;
+\import Hom.Integer[P := Sum.complex, N := N] \as TargetSum;
+\import Hom.Integer[P := O.complex, N := N] \as TargetOverlap;
+\import \root.CoefficientChange[].On[C := SmallPair.complex, M := M, N := N, u := u] \as ChangeSmall;
+\import \root.CoefficientChange[].On[C := Sum.complex, M := M, N := N, u := u] \as ChangeSum;
+\import \root.CoefficientChange[].On[C := O.complex, M := M, N := N, u := u] \as ChangeOverlap;
+\import Cochains.ShortExact[A := SourceSmall.complex, B := SourceSum.complex, C := SourceOverlap.complex]
+  .Morphism[A1 := TargetSmall.complex, B1 := TargetSum.complex, C1 := TargetOverlap.complex]
+  .Diagram[s := SourceSequence.sequence, t := TargetSequence.sequence, a := ChangeSmall.cochainMap, b := ChangeSum.cochainMap, c := ChangeOverlap.cochainMap] \as Diagram;
+\definition diagram: Diagram.Commutative := Diagram.Commutative {
+  left := \fun (z: I.Int^)(h: SourceSmall.Carrier z) => TargetSum.At[z := z].ext
+    (ChangeSum.cochainMap.apply z (SourceSequence.sequence.inclusion.apply z h))
+    (TargetSequence.sequence.inclusion.apply z (ChangeSmall.cochainMap.apply z h))
+    (\fun (x: Sum.Carrier z) => \refl(u.apply ((SourceSequence.sequence.inclusion.apply z h).apply x))),
+  right := \fun (z: I.Int^)(h: SourceSum.Carrier z) => TargetOverlap.At[z := z].ext
+    (TargetSequence.sequence.projection.apply z (ChangeSum.cochainMap.apply z h))
+    (ChangeOverlap.cochainMap.apply z (SourceSequence.sequence.projection.apply z h))
+    (\fun (x: O.Carrier z) => \refl(u.apply (h.apply (inclusion.apply z x)))),
+};
+\import singular_cohomology.Relative[A := A, source := source, subset := subset] \as Whole;
+\import Hom.Integer[P := Whole.complex, N := M] \as SourceWhole;
+\import Hom.Integer[P := Whole.complex, N := N] \as TargetWhole;
+\import \root.CoefficientChange[].On[C := Whole.complex, M := M, N := N, u := u] \as ChangeWhole;
+\import singular_subdivision.OpenCover[A := A, source := source].On[cover := Cover.openCover].Subspace[subset := subset].Relative[] \as Comparison;
+\import ChangeWhole.Along[D := SmallPair.complex, f := Comparison.comparison] \as CompareChange;
+\module ComparisonAt(z: I.Int^) {
+  \import Cochains.At[C := SourceSmall.complex, z := z] \as SourceH;
+  \import Cochains.At[C := TargetSmall.complex, z := z] \as TargetH;
+  \import Cochains.At[C := SourceWhole.complex, z := z] \as SourceWholeH;
+  \import Cochains.At[C := TargetWhole.complex, z := z] \as TargetWholeH;
+  \definition sourceComparison: _ := SmallPair.With[coefficients := M].At[z := z].comparison;
+  \definition targetComparison: _ := SmallPair.With[coefficients := N].At[z := z].comparison;
+  \definition inverse: \forall (q: SourceH.Cohomology) -> targetComparison.backward.apply (ChangeSmall.At[z := z].map.apply q) =
+    ChangeWhole.At[z := z].map.apply (sourceComparison.backward.apply q) :=
+    \fun (q: SourceH.Cohomology) => eq_reason_in!{TargetWholeH.Cohomology _
+      "=" _ "by" { congr!{SourceH.Cohomology TargetWholeH.Cohomology}
+        (\fun (v: SourceH.Cohomology) => targetComparison.backward.apply (ChangeSmall.At[z := z].map.apply v)) _ _ (sym!{SourceH.Cohomology} _ _ (sourceComparison.rightInverse q)) }
+      "=" _ "by" { congr!{TargetH.Cohomology TargetWholeH.Cohomology} targetComparison.backward.apply _ _ (CompareChange.At[z := z].law (sourceComparison.backward.apply q)) }
+      "=" _ "by" { targetComparison.leftInverse (ChangeWhole.At[z := z].map.apply (sourceComparison.backward.apply q)) }
+    };
+}
+\module At(z: I.Int^) {
+  \import \parent.\parent.Cohomology[coefficients := M].At[z := z] \as SourceMV;
+  \import \parent.\parent.Cohomology[coefficients := N].At[z := z] \as TargetMV;
+  \import Cochains.At[C := SourceOverlap.complex, z := z] \as SourceH;
+  \import Cochains.At[C := TargetSmall.complex, z := Degrees.next z] \as TargetSmallH;
+  \import Cochains.At[C := TargetWhole.complex, z := Degrees.next z] \as TargetH;
+  \definition small: _ := Diagram.At[k := z].naturality diagram;
+  \definition law: \forall (q: SourceH.Cohomology) -> TargetMV.connecting.apply (ChangeOverlap.At[z := z].map.apply q) =
+    ChangeWhole.At[z := Degrees.next z].map.apply (SourceMV.connecting.apply q) :=
+    \fun (q: SourceH.Cohomology) => trans!{TargetH.Cohomology} _ _ _
+      (congr!{TargetSmallH.Cohomology TargetH.Cohomology} (\parent.ComparisonAt[z := Degrees.next z].targetComparison.backward.apply) _ _ (small q))
+      (\parent.ComparisonAt[z := Degrees.next z].inverse (SourceSequence.At[z := z].connecting.apply q));
+}

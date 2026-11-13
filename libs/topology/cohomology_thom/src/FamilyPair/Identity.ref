@@ -1,0 +1,25 @@
+\import singular_cohomology.Identity[A := A, source := source] \as WholeIdentity;
+\import Boundary.Simplices[] \as BoundarySimplices;
+\import algebraic_topology.Simplex[] \as Simplex;
+\import singular_cohomology.Maps[A := A, B := A, source := source, target := source] \as Maps;
+\definition preserves: \forall (n: N.Nat^)(sigma: BoundarySimplices.Carrier n) ->
+  \In[Simplices.Carrier n] (BoundarySimplices.Small n) (Maps.postcompose n WholeIdentity.function WholeIdentity.continuous sigma) := \block {
+  \fun (n: N.Nat^)(sigma: BoundarySimplices.Carrier n) \then
+  \takefrom witness: BoundarySimplices.Witness[n, sigma] \by BoundarySimplices.witness n sigma \then
+  \return \exact(BoundarySimplices.Witness[n, Maps.postcompose n WholeIdentity.function WholeIdentity.continuous sigma] {
+    element := witness.element, member := witness.member, contained := \fun (x: Simplex.Carrier n) => witness.contained x
+  }, BoundarySimplices.Witness[n, Maps.postcompose n WholeIdentity.function WholeIdentity.continuous sigma])
+};
+\import \root.FamilyPairMap[A := A, B := A, source := source, target := source, sourceFamily := family, targetFamily := family,
+  f := WholeIdentity.function, regular := WholeIdentity.continuous, preserves := preserves] \as Mapping;
+\import Chains.End[C := complex] \as End;
+\import Chains.Map[C := complex, D := complex] \as RelativeMaps;
+\import Chains.Map[C := WholeExtension.complex, D := WholeExtension.complex] \as WholeMaps;
+\definition map: RelativeMaps.Map := Mapping.map;
+\definition onClass: \forall (z: I.Int^)(x: WholeExtension.Carrier z) -> map.apply z (class z x) = class z x :=
+  \fun (z: I.Int^)(x: WholeExtension.Carrier z) => trans!{{Carrier z}} _ _ _ (Mapping.At[z := z].onClass x)
+    (congr!{{WholeExtension.Carrier z} {Carrier z}} (class z) _ _
+      (congr!{WholeMaps.Map {WholeExtension.Carrier z}} (\fun (m: WholeMaps.Map) => m.apply z x) _ _ WholeIdentity.Integer[].law));
+\definition chainLaw: map = End.identity := RelativeMaps.ext map End.identity
+  (\fun (z: I.Int^) => Quotient.At[k := z].induction (\fun (q: Carrier z) => map.apply z q = q) (onClass z));
+\module With(coefficients: Modules.Bundle);

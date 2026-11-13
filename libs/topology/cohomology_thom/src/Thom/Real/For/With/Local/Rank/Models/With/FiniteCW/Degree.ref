@@ -1,0 +1,23 @@
+\import singular_products.Cochains[A := Disk.DiskBundle, source := Disk.diskTopology, R := K, ring := ring] \as Total;
+\import singular_cap.CochainPair[A := Disk.DiskBundle, source := Disk.diskTopology, subset := Disk.Boundary, R := K, ring := ring].Cohomology[p := p, q := n].Right[] \as Product;
+\import \root.RelativeAction[A := Disk.DiskBundle, source := Disk.diskTopology, subset := Disk.Boundary, K := K, ring := ring].Degree[p := p, q := n] \as Cup;
+\import topology.Topology[Carrier := Disk.DiskBundle] \as TotalSpace;
+\import \root.RelativeMayerVietoris[].Pair[A := Disk.DiskBundle, source := Disk.diskTopology, subset := TotalSpace.Empty].Empty[empty := (\fun (x: \Cast[Disk.DiskBundle] TotalSpace.Empty) => \bysub(Disk.DiskBundle, TotalSpace.Empty, x))].Ring[R := K, ring := ring].Degree[n := p] \as Empty;
+\import Modules.Isomorphism[V := Cup.Domain, W := Total.Cohomology[].Group p, source := Cup.ringDomainSpace, target := Total.Cohomology[].moduleSpace p] \as EmptyIso;
+\definition sourceComparison: Modules.Isomorphism[V := BaseProduct.Cohomology[].Group p, W := Cup.Domain, source := BaseProduct.Cohomology[].moduleSpace p, target := Cup.ringDomainSpace].Isomorphism :=
+  Modules.Isomorphism[V := BaseProduct.Cohomology[].Group p, W := Total.Cohomology[].Group p, source := BaseProduct.Cohomology[].moduleSpace p, target := Total.Cohomology[].moduleSpace p].Composition[U := Cup.Domain, final := Cup.ringDomainSpace].compose
+    (EmptyIso.Inverse[].inverse Empty.isomorphism) Original.ProjectionIso[p := p].isomorphism;
+\definition composed: Modules.Isomorphism[V := BaseProduct.Cohomology[].Group p, W := Cup.Range, source := BaseProduct.Cohomology[].moduleSpace p, target := Cup.ringRangeSpace].Isomorphism :=
+  Modules.Isomorphism[V := BaseProduct.Cohomology[].Group p, W := Cup.Domain, source := BaseProduct.Cohomology[].moduleSpace p, target := Cup.ringDomainSpace].Composition[U := Cup.Range, final := Cup.ringRangeSpace].compose (cupIsomorphism p) sourceComparison;
+\definition formula: \forall (a: BaseProduct.Cohomology[].Group p) -> composed.forward.apply a = Original.Product[p := p, n := n].apply a class :=
+  \fun (a: BaseProduct.Cohomology[].Group p) => congr!{{Total.Cohomology[].Group p} Cup.Range} (\fun (b: Total.Cohomology[].Group p) => Product.apply b class) _ _
+    (Empty.isomorphism.rightInverse (Original.ProjectionIso[p := p].isomorphism.forward.apply a));
+\definition isomorphism: Modules.Isomorphism[V := BaseProduct.Cohomology[].Group p, W := Original.Degree[n := N.Basic[].Def[].add p n].Class, source := BaseProduct.Cohomology[].moduleSpace p, target := Original.Degree[n := N.Basic[].Def[].add p n].space].Isomorphism :=
+  Modules.Isomorphism[V := BaseProduct.Cohomology[].Group p, W := Original.Degree[n := N.Basic[].Def[].add p n].Class, source := BaseProduct.Cohomology[].moduleSpace p, target := Original.Degree[n := N.Basic[].Def[].add p n].space].Isomorphism {
+    forward := Original.Product[p := p, n := n].linear class, backward := composed.backward,
+    leftInverse := \fun (a: BaseProduct.Cohomology[].Group p) => trans!{{BaseProduct.Cohomology[].Group p}} _ _ _
+      (congr!{Cup.Range {BaseProduct.Cohomology[].Group p}} composed.backward.apply _ _ (sym!{Cup.Range} _ _ (formula a))) (composed.leftInverse a),
+    rightInverse := \fun (u: Cup.Range) => trans!{Cup.Range} _ _ _ (sym!{Cup.Range} _ _ (formula (composed.backward.apply u))) (composed.rightInverse u)
+  };
+\definition zeroSection: \forall (a: BaseProduct.Cohomology[].Group p) -> Original.Degree[n := N.Basic[].Def[].add p n].euler (isomorphism.forward.apply a) = BaseProduct.Cohomology[].Cup[p := p, q := n].apply a euler :=
+  \fun (a: BaseProduct.Cohomology[].Group p) => Original.Product[p := p, n := n].ZeroSection[].law a class;

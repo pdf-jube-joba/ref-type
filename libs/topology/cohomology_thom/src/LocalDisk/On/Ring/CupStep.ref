@@ -1,0 +1,36 @@
+\use std.Logic[].Equality[].eq_reason_in;
+\import \parent.Cup[n := n, p := p] \as Lower;
+\import \parent.Cup[n := N.Nat^::succ n, p := p] \as Higher;
+\import \root.LocalDisk[].On[X := X, source := source].Step[n := n].With[coefficients := Base.integerCoefficients, z := I.Int^::ofNat (N.Basic[].Def[].add p n)] \as Step;
+\import \root.LocalDisk[].On[X := X, source := source].Step[n := n].Product[K := RingCarrier, ring := ring, p := p, q := n].Base[] \as Comparison;
+\import \root.LocalDisk[].On[X := X, source := source].Dimension[n := N.Nat^::succ n].With[coefficients := Base.integerCoefficients, z := I.Int^::ofNat (N.Basic[].Def[].add p (N.Nat^::succ n))] \as Target;
+\import Modules.Alternating[V := Target.Group, space := Target.space].Concatenation[] \as Signs;
+\definition comparison: \forall (a: Base.Cohomology[].Group p) -> Step.isomorphism.forward.apply (Lower.apply a) = Signs.twist p (Higher.apply a) :=
+  \fun (a: Base.Cohomology[].Group p) => Comparison.onClasses a (canonical n);
+\definition unsign: \forall (a: Base.Cohomology[].Group p) -> Higher.apply a = Signs.twist p (Step.isomorphism.forward.apply (Lower.apply a)) :=
+  \fun (a: Base.Cohomology[].Group p) => trans!{Higher.Class} _ _ _
+    (sym!{Higher.Class} _ _ (Signs.involution p (Higher.apply a)))
+    (congr!{Higher.Class Higher.Class} (Signs.twist p) _ _ (sym!{Higher.Class} _ _ (comparison a)));
+\definition inverse[previous: Lower.Bijective][y: Higher.Class]: Base.Cohomology[].Group p :=
+  (Lower.isomorphism previous).backward.apply (Step.isomorphism.backward.apply (Signs.twist p y));
+\definition leftInverse: \forall (previous: Lower.Bijective)(a: Base.Cohomology[].Group p) -> inverse previous (Higher.apply a) = a :=
+  \fun (previous: Lower.Bijective)(a: Base.Cohomology[].Group p) => eq_reason_in!{{Base.Cohomology[].Group p} _
+    "=" _ "by" { congr!{Higher.Class {Base.Cohomology[].Group p}} (\fun (y: Higher.Class) => (Lower.isomorphism previous).backward.apply (Step.isomorphism.backward.apply y)) _ _ (sym!{Higher.Class} _ _ (comparison a)) }
+    "=" _ "by" { congr!{Lower.Class {Base.Cohomology[].Group p}} (Lower.isomorphism previous).backward.apply _ _ (Step.isomorphism.leftInverse (Lower.apply a)) }
+    "=" _ "by" { (Lower.isomorphism previous).leftInverse a }
+  };
+\definition rightInverse: \forall (previous: Lower.Bijective)(y: Higher.Class) -> Higher.apply (inverse previous y) = y :=
+  \fun (previous: Lower.Bijective)(y: Higher.Class) => eq_reason_in!{Higher.Class _
+    "=" _ "by" { unsign (inverse previous y) }
+    "=" _ "by" { congr!{Lower.Class Higher.Class} (\fun (x: Lower.Class) => Signs.twist p (Step.isomorphism.forward.apply x)) _ _ ((Lower.isomorphism previous).rightInverse (Step.isomorphism.backward.apply (Signs.twist p y))) }
+    "=" _ "by" { congr!{Higher.Class Higher.Class} (Signs.twist p) _ _ (Step.isomorphism.rightInverse (Signs.twist p y)) }
+    "=" _ "by" { Signs.involution p y }
+  };
+\definition injective[previous: Lower.Bijective]: \forall (a, b: Base.Cohomology[].Group p) -> Higher.apply a = Higher.apply b -> a = b :=
+  \fun (a, b: Base.Cohomology[].Group p)(same: Higher.apply a = Higher.apply b) => trans!{{Base.Cohomology[].Group p}} _ _ _
+    (sym!{{Base.Cohomology[].Group p}} _ _ (leftInverse previous a))
+    (trans!{{Base.Cohomology[].Group p}} _ _ _ (congr!{Higher.Class {Base.Cohomology[].Group p}} (inverse previous) _ _ same) (leftInverse previous b));
+\definition bijective[previous: Lower.Bijective]: Higher.Bijective := Higher.Bijective {
+  injective := injective previous,
+  onto := \fun (y: Higher.Class) => Logic.existsIntro[Base.Cohomology[].Group p, { a: Base.Cohomology[].Group p \where Higher.apply a = y }] (inverse previous y) (rightInverse previous y)
+};

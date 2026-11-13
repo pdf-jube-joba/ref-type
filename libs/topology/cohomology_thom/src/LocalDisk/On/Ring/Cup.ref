@@ -1,0 +1,29 @@
+\import \root.LocalDisk[].On[X := X, source := source].Projection[n := n] \as Geometry;
+\import thom_spaces.Thom[].DiskSuspension[X := X, space := source, n := n] \as Disk;
+\import singular_products.Cochains[A := Disk.DiskCarrier, source := Disk.diskTopology, R := RingCarrier, ring := ring] \as Total;
+\import singular_cap.CochainPair[A := Disk.DiskCarrier, source := Disk.diskTopology, subset := Disk.boundary, R := RingCarrier, ring := ring] \as Pair;
+\import singular_cohomology.Relative[A := Disk.DiskCarrier, source := Disk.diskTopology, subset := Disk.boundary].OverRing[R := RingCarrier, ring := ring].With[coefficients := Base.coefficients] \as Relative;
+\import chain_complexes.Integer[].Over[R := RingCarrier, ring := std.Alg[].Ring[].commutativeRingAsRing RingCarrier ring].At[C := Relative.complex, z := I.Int^::ofNat (N.Basic[].Def[].add p n)] \as Output;
+\import Pair.Cohomology[p := p, q := n].Right[] \as Product;
+\import Total.Cohomology[].Pullback[B := X, target := source] \as Projection;
+\import module_theory.Module[].Over[R := RingCarrier, ring := std.Alg[].Ring[].commutativeRingAsRing RingCarrier ring] \as RingModules;
+\definition Class: \Set := Output.Cohomology;
+\definition space: _ := Output.cohomologySpace;
+\definition apply[a: Base.Cohomology[].Group p]: Class := Product.apply (Projection.apply p Geometry.projection Geometry.continuous a) (canonical n);
+\import RingModules.Hom[V := Base.Cohomology[].Group p, W := Class, source := Base.Cohomology[].moduleSpace p, target := space] \as Maps;
+\definition linear: Maps.Map := Maps.Map {
+  apply := apply,
+  addition := \fun (a, b: Base.Cohomology[].Group p) => trans!{Class} _ _ _
+    (congr!{{Total.Cohomology[].Group p} Class} (\fun (v: Total.Cohomology[].Group p) => Product.apply v (canonical n)) _ _ ((Projection.At[n := p].linear Geometry.projection Geometry.continuous).addition a b))
+    (Product.bilinear.addLeft _ _ (canonical n)),
+  scalar := \fun (r: RingCarrier)(a: Base.Cohomology[].Group p) => trans!{Class} _ _ _
+    (congr!{{Total.Cohomology[].Group p} Class} (\fun (v: Total.Cohomology[].Group p) => Product.apply v (canonical n)) _ _ ((Projection.At[n := p].linear Geometry.projection Geometry.continuous).scalar r a))
+    (Product.bilinear.scaleLeft r _ (canonical n))
+};
+\import RingModules.Isomorphism[V := Base.Cohomology[].Group p, W := Class, source := Base.Cohomology[].moduleSpace p, target := space].OfBijective[f := linear] \as Inverse;
+\structure Bijective: \Prop := {
+  injective: Inverse.Injective,
+  onto: Inverse.Onto
+};
+\definition Iso: \Set := RingModules.Isomorphism[V := Base.Cohomology[].Group p, W := Class, source := Base.Cohomology[].moduleSpace p, target := space].Isomorphism;
+\definition isomorphism[h: Bijective]: Iso := Inverse.isomorphism h.injective h.onto;

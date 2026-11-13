@@ -1,0 +1,19 @@
+\import Raw.Sphere[] \as Sphere;
+\import topology.Homeomorphism[A := Disk.SphereBundle, B := Boundary.CarrierSet] \as SphereHomeomorphisms;
+\definition sphereLift: Disk.SphereBundle -> Boundary.CarrierSet := Sphere.homeomorphism.forward;
+\definition sphereLiftContinuous: topology.Continuity[A := Disk.SphereBundle, B := Boundary.CarrierSet].Continuous Disk.sphereTopology (Boundary.topology Disk.diskTopology) sphereLift :=
+  (SphereHomeomorphisms.laws Disk.sphereTopology (Boundary.topology Disk.diskTopology) Sphere.homeomorphism).forwardContinuous;
+\import Raw.Functor[A := Disk.SphereBundle, B := Boundary.CarrierSet, C := Disk.DiskBundle,
+  aSpace := Disk.sphereTopology, bSpace := Boundary.topology Disk.diskTopology, cSpace := Disk.diskTopology,
+  f := sphereLift, fc := sphereLiftContinuous, g := Relative.inclusion, gc := Relative.inclusionContinuous].At[z := d] \as BoundaryFunctor;
+\import Raw.Functor[A := Disk.SphereBundle, B := Disk.DiskBundle, C := X,
+  aSpace := Disk.sphereTopology, bSpace := Disk.diskTopology, cSpace := bundle.baseSpace,
+  f := Disk.sphereInclusion, fc := Disk.sphereInclusionContinuous, g := Disk.diskProjection, gc := Disk.diskProjectionContinuous].At[z := d] \as ProjectionFunctor;
+\import IntegerModules.End[V := BaseProduct.integerCoefficients.Carrier, space := BaseProduct.integerCoefficients.space] \as Coefficients;
+\import singular_cohomology.Maps[A := Disk.SphereBundle, B := X, source := Disk.sphereTopology, target := bundle.baseSpace].Coefficients[M := BaseProduct.integerCoefficients, L := BaseProduct.integerCoefficients]
+  .Integer[f := Disk.sphereProjection, continuous := Disk.sphereProjectionContinuous, coefficientMap := Coefficients.identity] \as Projection;
+\import singular_cohomology.Cochains[A := Disk.SphereBundle, source := Disk.sphereTopology].With[coefficients := BaseProduct.integerCoefficients].Integer[] \as SphereGroups;
+\definition map: _ := Complexes.Map[C := Base.complex, D := SphereGroups.complex].At[k := d].induced Projection.signedMap;
+\definition law: \forall (a: (base d).Carrier) -> map.apply a = pullback.apply a :=
+  \fun (a: (base d).Carrier) => trans!{{(Sphere.group d).Carrier}} _ _ _ (ProjectionFunctor.law a)
+    (BoundaryFunctor.law (diskComparison.backward.apply a));

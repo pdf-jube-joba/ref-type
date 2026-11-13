@@ -1,0 +1,42 @@
+\import Bundles.Trivial[X := Base.Carrier, n := n, baseSpace := Base.topology] \as Trivial;
+\definition Fiber[x: Base.Carrier]: \Set := Bundles.Vector n;
+\import bundle_complements.Complements[].Over[K := R.Real, field := R.Algebra[].field, conjugation := linear_algebra.Hermitian[].Real[].scalar, scalar := vector_bundles.Bundles[].Real[].scalar].For[X := Base.Carrier, F := Fiber, bundle := Trivial.bundle] \as Metrics;
+\import Bundles.Identity[X := Base.Carrier, F := Fiber, bundle := Trivial.bundle] \as Identity;
+\definition embedding: Metrics.Embedding := Metrics.Embedding {
+  dimension := n, map := Identity.map,
+  injective := \fun (x: Base.Carrier)(v, w: Fiber x)(same: (Identity.map.fiber x).apply v = (Identity.map.fiber x).apply w) => same
+};
+\definition metric: _ := Metrics.FromEmbedding[embedding := embedding].metric;
+\import \root.Thom[].Real[].For[X := Base.Carrier, F := Fiber, bundle := Trivial.bundle].With[metric := metric] \as Geometry;
+\import Geometry.Local[K := I.Int^, ring := Integers.commutativeRing] \as Local;
+\import Local.Rank[n := n] \as Rank;
+\import Rank.Orientation[] \as Orientations;
+\import Local.Chart[c := Trivial.trivialization].Rank[n := n, same := \refl(n)] \as Chart;
+\import topology.Topology[Carrier := Base.Carrier] \as Space;
+\definition point[x: Base.Carrier]: \Cast[Base.Carrier] Space.Whole := \into[Base.Carrier](x, Space.Whole) \by { \refl(x) };
+\definition fiber: Rank.Fibers := \fun (x: Base.Carrier) => (Rank.On[U := Space.Whole].restriction (point x)).apply Chart.model.thomClass;
+\definition orientation: Orientations.SignedOrientation := Orientations.SignedOrientation {
+  fiber := fiber,
+  locally := \fun (x: Base.Carrier) => \exact(Orientations.LocalOrientation[x, fiber] {
+    chart := Trivial.trivialization, contains := \refl(x), rank := \refl(n), reverse := std.Data[].Bool[].Bool^::false,
+    normalized := \fun (y: \Cast[Base.Carrier] Space.Whole) => \refl(fiber y)
+  }, Orientations.LocalOrientation[x, fiber])
+};
+\import Geometry.Integral[n := n, orientation := orientation, complex := Base.complex] \as Integral;
+\definition class: _ := Integral.class;
+\definition normalized: _ := Integral.normalized Base.point;
+\import Geometry.Chart[c := Trivial.trivialization].Fiber[x := point Base.point].Ring[K := I.Int^, ring := Integers.commutativeRing] \as Generator;
+\import Local.Chart[c := Trivial.trivialization] \as NativeChart;
+\import Local.Model[n := n, U := Space.Whole] \as Model;
+\definition modelLaw: Chart.model = NativeChart.data := std.Logic[].Equality[].Transport[A := N.Nat^].castRefl NativeChart.Family n NativeChart.data;
+\definition fiberLaw: fiber Base.point = Generator.generator := trans!{Generator.Class} _ _ _
+  (congr!{Model.Data Generator.Class} (\fun (m: Model.Data) => (Rank.On[U := Space.Whole].restriction (point Base.point)).apply m.thomClass) _ _ modelLaw)
+  Generator.Normalization[].normalized;
+\import singular_products.Cochains[A := Base.Carrier, source := Base.topology, R := I.Int^, ring := Integers.commutativeRing] \as ExampleCoefficients;
+\import Geometry.Fiber[x := Base.point].Additive[coefficients := ExampleCoefficients.integerCoefficients, z := I.Int^::ofNat n] \as ActualFiber;
+\definition generatorLaw: (ActualFiber.restriction).apply class = Generator.generator :=
+  trans!{Generator.Class} _ (fiber Base.point) Generator.generator (Integral.normalized Base.point) fiberLaw;
+\definition moduloTwo: _ := Integral.ModTwo[].classLaw;
+\definition reverse: _ := Geometry.Oriented[K := I.Int^, ring := Integers.commutativeRing, n := n, orientation := orientation, complex := Base.complex].Reverse[].classLaw;
+\module Degree(p: N.Nat^) { \definition isomorphism: _ := Integral.Degree[p := p].isomorphism; }
+\module Gysin(z: I.Int^) { \definition sequence: _ := Integral.Gysin[].Degree[z := z].sequence; }

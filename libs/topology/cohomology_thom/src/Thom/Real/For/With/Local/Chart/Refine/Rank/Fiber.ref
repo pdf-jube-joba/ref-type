@@ -1,0 +1,27 @@
+\use std.Logic[].Equality[].eq_reason_in;
+\import Geometry.Fiber[x := originalPoint x].Ring[K := K, ring := ring] \as OldFiber;
+\import Geometry.Restrict[U := U, open := open, contained := contained].Ring[K := K, ring := ring].Fiber[x := x] \as Comparison;
+\import \root.Thom[].Real[].For[X := X, F := F, bundle := bundle].With[metric := metric].Chart[c := Restriction.chart].Fiber[x := x].Ring[K := K, ring := ring] \as NewFiber;
+\definition OriginalModels[k: N.Nat^]: \Set := Local.Model[n := k, U := c.domain].Data;
+\definition RestrictedModels[k: N.Nat^]: \Set := Local.Model[n := k, U := U].Data;
+\definition FiberClasses[k: N.Nat^]: \Set := Local.Rank[n := k].FiberClass x;
+\definition original[k: N.Nat^][m: OriginalModels k]: FiberClasses k := (Local.Rank[n := k].On[U := c.domain].restriction (originalPoint x)).apply m.thomClass;
+\definition restricted[k: N.Nat^][m: RestrictedModels k]: FiberClasses k := (Local.Rank[n := k].On[U := U].restriction x).apply m.thomClass;
+\definition native: original c.dimension OldChart.data = restricted c.dimension NewChart.data :=
+  trans!{{FiberClasses c.dimension}} _ _ _ OldFiber.Normalization[].normalized
+    (trans!{{FiberClasses c.dimension}} _ _ _ Comparison.generator (sym!{{FiberClasses c.dimension}} _ _ NewFiber.Normalization[].normalized));
+\definition positive: original n Old.model = restricted n New.model :=
+  eq_reason_in!{{FiberClasses n} _
+    "=" _ "by" { sym!{{FiberClasses n}} _ _ (Transport.natural OriginalModels FiberClasses original c.dimension n same OldChart.data) }
+    "=" _ "by" { congr!{{FiberClasses c.dimension} {FiberClasses n}} (Transport.cast FiberClasses c.dimension n same) _ _ native }
+    "=" _ "by" { Transport.natural RestrictedModels FiberClasses restricted c.dimension n same NewChart.data }
+  };
+\definition signed: \forall (reverse: std.Data[].Bool[].Bool^) -> original n (Old.signed reverse) = restricted n (New.signed reverse) :=
+  \induction (reverse: std.Data[].Bool[].Bool^) \return original n (Old.signed reverse) = restricted n (New.signed reverse) \with {
+    | false: positive
+    | true: eq_reason_in!{{FiberClasses n} _
+        "=" _ "by" { OldDomain.negativeLaw (originalPoint x) Old.model.thomClass }
+        "=" _ "by" { congr!{{FiberClasses n} {FiberClasses n}} (\root.Thom[].Real[].For[X := X, F := F, bundle := bundle].With[metric := metric].Fiber[x := x].Additive[coefficients := BaseProduct.integerCoefficients, z := I.Int^::ofNat n].space.neg) _ _ positive }
+        "=" _ "by" { sym!{{FiberClasses n}} _ _ (NewDomain.negativeLaw x New.model.thomClass) }
+      }
+  };

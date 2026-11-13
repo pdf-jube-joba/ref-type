@@ -1,0 +1,44 @@
+\import std.Data[].Nat[] \as N;
+\import std.Arithmetic[].Int[] \as I;
+\import std.Arithmetic[].IntAlgebra[].Ring[] \as Integers;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.trans;
+\use Equality.sym;
+\use Equality.congr;
+\import real.Analysis[] \as R;
+\import module_theory.Module[].Over[R := I.Int^, ring := Integers.ring] \as Modules;
+\definition shift: N.Nat^ -> I.Int^ -> I.Int^ := \induction (n: N.Nat^) \return I.Int^ -> I.Int^ \with {
+  | zero: \fun (z: I.Int^) => z
+  | succ: \fun (n: N.Nat^)(previous: I.Int^ -> I.Int^)(z: I.Int^) => chain_complexes.Integer[].next (previous z)
+};
+\module On(X: \Set, source: topology.Topology[Carrier := X].Topology);
+
+\module Point(K: \Set, ring: std.Alg[].Ring[].CommutativeRing[K]);
+
+\definition shiftPrevious: \forall (n: N.Nat^) -> shift n (I.Int^::negSucc N.Nat^::zero) = chain_complexes.Integer[].previous (I.Int^::ofNat n) :=
+  \induction (n: N.Nat^) \return shift n (I.Int^::negSucc N.Nat^::zero) = chain_complexes.Integer[].previous (I.Int^::ofNat n) \with {
+    | zero: \refl(I.Int^::negSucc N.Nat^::zero)
+    | succ: \fun (n: N.Nat^)(previous: shift n (I.Int^::negSucc N.Nat^::zero) = chain_complexes.Integer[].previous (I.Int^::ofNat n)) => trans!{I.Int^} _ _ _
+      (congr!{I.Int^ I.Int^} chain_complexes.Integer[].next _ _ previous) (chain_complexes.Integer[].nextPrevious (I.Int^::ofNat n))
+  };
+\definition previousShiftNegative: \forall (n, k: N.Nat^) -> chain_complexes.Integer[].previous (shift n (I.Int^::negSucc k)) = shift n (I.Int^::negSucc (N.Nat^::succ k)) :=
+  \induction (n: N.Nat^) \return \forall (k: N.Nat^) -> chain_complexes.Integer[].previous (shift n (I.Int^::negSucc k)) = shift n (I.Int^::negSucc (N.Nat^::succ k)) \with {
+    | zero: \fun (k: N.Nat^) => \refl(I.Int^::negSucc (N.Nat^::succ k))
+    | succ: \fun (n: N.Nat^)(previous: \forall (k: N.Nat^) -> chain_complexes.Integer[].previous (shift n (I.Int^::negSucc k)) = shift n (I.Int^::negSucc (N.Nat^::succ k)))(k: N.Nat^) =>
+        trans!{I.Int^} _ _ _ (chain_complexes.Integer[].previousNext (shift n (I.Int^::negSucc k)))
+          (trans!{I.Int^} _ _ _ (sym!{I.Int^} _ _ (chain_complexes.Integer[].nextPrevious (shift n (I.Int^::negSucc k))))
+            (congr!{I.Int^ I.Int^} chain_complexes.Integer[].next _ _ (previous k)))
+  };
+\definition shiftNatural: \forall (n, p: N.Nat^) -> shift n (I.Int^::ofNat p) = I.Int^::ofNat (N.Basic[].Def[].add p n) :=
+  \induction (n: N.Nat^) \return \forall (p: N.Nat^) -> shift n (I.Int^::ofNat p) = I.Int^::ofNat (N.Basic[].Def[].add p n) \with {
+    | zero: \fun (p: N.Nat^) => \refl(I.Int^::ofNat p)
+    | succ: \fun (n: N.Nat^)(previous: \forall (p: N.Nat^) -> shift n (I.Int^::ofNat p) = I.Int^::ofNat (N.Basic[].Def[].add p n))(p: N.Nat^) =>
+        congr!{I.Int^ I.Int^} chain_complexes.Integer[].next _ _ (previous p)
+  };
+\definition shiftNext: \forall (n: N.Nat^)(z: I.Int^) -> shift n (chain_complexes.Integer[].next z) = chain_complexes.Integer[].next (shift n z) :=
+  \induction (n: N.Nat^) \return \forall (z: I.Int^) -> shift n (chain_complexes.Integer[].next z) = chain_complexes.Integer[].next (shift n z) \with {
+    | zero: \fun (z: I.Int^) => \refl(chain_complexes.Integer[].next z)
+    | succ: \fun (n: N.Nat^)(previous: \forall (z: I.Int^) -> shift n (chain_complexes.Integer[].next z) = chain_complexes.Integer[].next (shift n z))(z: I.Int^) =>
+        congr!{I.Int^ I.Int^} chain_complexes.Integer[].next _ _ (previous z)
+  };

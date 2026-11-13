@@ -1,0 +1,85 @@
+\import std.Data[].Nat[] \as N;
+\import std.Arithmetic[].Int[] \as I;
+\import std.Arithmetic[].IntAlgebra[].Ring[] \as Integers;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.trans;
+\use Equality.sym;
+\use Equality.congr;
+\use Equality.eq_reason_in;
+\import module_theory.Module[].Over[R := I.Int^, ring := Integers.ring] \as Modules;
+\import singular_products.Cochains[A := A, source := source, R := K, ring := ring] \as WholeProduct;
+\definition family: \Pow (\Pow A) := { U: \Pow A \where Logic.Or[U = first, U = second] };
+\import singular_excision.MayerVietoris[A := A].Over[source := source].On[cover := cover] \as Cover;
+\import Cover.Chains[] \as Absolute;
+\import \root.RelativeMayerVietoris[].OpenCover[A := A, source := source, subset := second].On[cover := cover] \as SourceMV;
+\import \root.RelativeMayerVietoris[].OpenCover[A := A, source := source, subset := first].On[cover := cover] \as FirstMV;
+\import \root.FamilyMayerVietoris[A := A, source := source, family := family, cover := cover] \as TargetMV;
+\definition Left: \Set := SourceMV.Left;
+\definition Right: \Set := SourceMV.Right;
+\definition Overlap: \Set := SourceMV.Overlap;
+\definition leftTopology: topology.Topology[Carrier := Left].Topology := SourceMV.leftTopology;
+\definition rightTopology: topology.Topology[Carrier := Right].Topology := SourceMV.rightTopology;
+\definition overlapTopology: topology.Topology[Carrier := Overlap].Topology := SourceMV.overlapTopology;
+\definition leftInclusion[x: Left]: A := x;
+\definition rightInclusion[x: Right]: A := x;
+\definition overlapInclusion[x: Overlap]: A := x;
+\import \root.BinaryFamilyPullback[A := Left, B := A, first := first, second := second, f := leftInclusion] \as LeftFamily;
+\import \root.BinaryFamilyPullback[A := Right, B := A, first := first, second := second, f := rightInclusion] \as RightFamily;
+\import \root.BinaryFamilyPullback[A := Overlap, B := A, first := first, second := second, f := overlapInclusion] \as OverlapFamily;
+\import \root.FamilyProduct[A := Left, source := leftTopology, first := LeftFamily.firstPart, second := LeftFamily.secondPart, family := LeftFamily.family,
+  firstMember := LeftFamily.firstMember, secondMember := LeftFamily.secondMember, classify := LeftFamily.classify, K := K, ring := ring] \as LeftProduct;
+\import \root.FamilyProduct[A := Right, source := rightTopology, first := RightFamily.firstPart, second := RightFamily.secondPart, family := RightFamily.family,
+  firstMember := RightFamily.firstMember, secondMember := RightFamily.secondMember, classify := RightFamily.classify, K := K, ring := ring] \as RightProduct;
+\import \root.FamilyProduct[A := Overlap, source := overlapTopology, first := OverlapFamily.firstPart, second := OverlapFamily.secondPart, family := OverlapFamily.family,
+  firstMember := OverlapFamily.firstMember, secondMember := OverlapFamily.secondMember, classify := OverlapFamily.classify, K := K, ring := ring] \as OverlapProduct;
+\import LeftProduct.From[Y := Overlap, target := overlapTopology, firstPart := OverlapFamily.firstPart, secondPart := OverlapFamily.secondPart, newFamily := OverlapFamily.family,
+  newFirstMember := OverlapFamily.firstMember, newSecondMember := OverlapFamily.secondMember, newClassify := OverlapFamily.classify,
+  f := Absolute.toLeft, regular := Absolute.leftContinuous, firstContained := (\fun (x: Overlap)(member: \In[Overlap] OverlapFamily.firstPart x) => member),
+  secondContained := (\fun (x: Overlap)(member: \In[Overlap] OverlapFamily.secondPart x) => member)] \as LeftNatural;
+\import RightProduct.From[Y := Overlap, target := overlapTopology, firstPart := OverlapFamily.firstPart, secondPart := OverlapFamily.secondPart, newFamily := OverlapFamily.family,
+  newFirstMember := OverlapFamily.firstMember, newSecondMember := OverlapFamily.secondMember, newClassify := OverlapFamily.classify,
+  f := Absolute.toRight, regular := Absolute.rightContinuous, firstContained := (\fun (x: Overlap)(member: \In[Overlap] OverlapFamily.firstPart x) => member),
+  secondContained := (\fun (x: Overlap)(member: \In[Overlap] OverlapFamily.secondPart x) => member)] \as RightNatural;
+\import SourceMV.With[coefficients := WholeProduct.integerCoefficients] \as SourceSequence;
+\import TargetMV.With[coefficients := WholeProduct.integerCoefficients] \as MV;
+\import singular_cohomology.Relative[A := Left, source := leftTopology, subset := LeftFamily.secondPart] \as SourceLeft;
+\import singular_cohomology.Relative[A := Right, source := rightTopology, subset := RightFamily.secondPart] \as SourceRight;
+\import singular_cohomology.Relative[A := Overlap, source := overlapTopology, subset := OverlapFamily.secondPart] \as SourceOverlap;
+\import \root.FamilyPair[A := Left, source := leftTopology, family := LeftFamily.family] \as TargetLeft;
+\import \root.FamilyPair[A := Right, source := rightTopology, family := RightFamily.family] \as TargetRight;
+\import \root.FamilyPair[A := Overlap, source := overlapTopology, family := OverlapFamily.family] \as TargetOverlap;
+\import \root.RelativeMayerVietoris[].ChainSum[C := SourceLeft.complex, D := SourceRight.complex] \as SourceSum;
+\import \root.RelativeMayerVietoris[].ChainSum[C := TargetLeft.complex, D := TargetRight.complex] \as TargetSum;
+\import \root.RelativeMayerVietoris[].HomSum[C := SourceLeft.complex, D := SourceRight.complex, coefficients := WholeProduct.integerCoefficients] \as SourceCoordinates;
+\import \root.RelativeMayerVietoris[].HomSum[C := TargetLeft.complex, D := TargetRight.complex, coefficients := WholeProduct.integerCoefficients] \as Coordinates;
+\import resolutions.HomComplex[].Over[R := I.Int^, ring := Integers.commutativeRing] \as Hom;
+\import \root.RelativeMayerVietoris[].SmallPair[A := A, source := source, cover := Cover.openCover, subset := second] \as SourceSmallPair;
+\import \root.FamilyPair[A := A, source := source, family := family].InCover[cover := Cover.openCover] \as TargetSmallPair;
+\import Hom.Integer[P := SourceSmallPair.complex, N := WholeProduct.integerCoefficients] \as SourceSmallHom;
+\import Hom.Integer[P := TargetSmallPair.complex, N := WholeProduct.integerCoefficients] \as SmallHom;
+\import Hom.Integer[P := SourceSum.complex, N := WholeProduct.integerCoefficients] \as SourceSumHom;
+\import Hom.Integer[P := TargetSum.complex, N := WholeProduct.integerCoefficients] \as SumHom;
+\import Hom.Integer[P := SourceLeft.complex, N := WholeProduct.integerCoefficients] \as SourceLeftHom;
+\import Hom.Integer[P := SourceRight.complex, N := WholeProduct.integerCoefficients] \as SourceRightHom;
+\import Hom.Integer[P := SourceOverlap.complex, N := WholeProduct.integerCoefficients] \as SourceOverlapHom;
+\import Hom.Integer[P := TargetLeft.complex, N := WholeProduct.integerCoefficients] \as LeftHom;
+\import Hom.Integer[P := TargetRight.complex, N := WholeProduct.integerCoefficients] \as RightHom;
+\import Hom.Integer[P := TargetOverlap.complex, N := WholeProduct.integerCoefficients] \as OverlapHom;
+\import chain_complexes.Integer[].Over[R := I.Int^, ring := Integers.ring] \as IntegerCochains;
+\definition firstMember: \In[\Pow A] family first := Logic.Or[_, _]::left (\refl(first));
+\definition secondMember: \In[\Pow A] family second := Logic.Or[_, _]::right (\refl(second));
+\definition classify: \forall (U: \Pow A) -> \In[\Pow A] family U -> Logic.Or[U = first, U = second] := \fun (U: \Pow A)(member: \In[\Pow A] family U) => member;
+\import \root.FamilyProduct[A := A, source := source, first := first, second := second, family := family, firstMember := firstMember, secondMember := secondMember, classify := classify, K := K, ring := ring] \as WholeFamilyProduct;
+\import WholeFamilyProduct.From[Y := Left, target := leftTopology, firstPart := LeftFamily.firstPart, secondPart := LeftFamily.secondPart, newFamily := LeftFamily.family,
+  newFirstMember := LeftFamily.firstMember, newSecondMember := LeftFamily.secondMember, newClassify := LeftFamily.classify,
+  f := leftInclusion, regular := TargetMV.leftContinuous,
+  firstContained := (\fun (x: Left)(inside: \In[Left] LeftFamily.firstPart x) => inside), secondContained := (\fun (x: Left)(inside: \In[Left] LeftFamily.secondPart x) => inside)] \as LeftWholeNatural;
+\import WholeFamilyProduct.From[Y := Right, target := rightTopology, firstPart := RightFamily.firstPart, secondPart := RightFamily.secondPart, newFamily := RightFamily.family,
+  newFirstMember := RightFamily.firstMember, newSecondMember := RightFamily.secondMember, newClassify := RightFamily.classify,
+  f := rightInclusion, regular := TargetMV.rightContinuous,
+  firstContained := (\fun (x: Right)(inside: \In[Right] RightFamily.firstPart x) => inside), secondContained := (\fun (x: Right)(inside: \In[Right] RightFamily.secondPart x) => inside)] \as RightWholeNatural;
+\module Restriction(p: N.Nat^);
+\module Cup(p, q: N.Nat^);
+\module Positive(p, q: N.Nat^);
+\module Connecting(p, q: N.Nat^);

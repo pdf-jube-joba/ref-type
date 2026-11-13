@@ -1,0 +1,49 @@
+\import algebra.Two[] \as Two;
+\import std.Data[].Bool[] \as B;
+\import std.Logic[].Proposition[] \as Logic;
+\import \root.Thom[].Real[].For[X := X, F := F, bundle := bundle].With[metric := metric].Local[K := Two.Carrier, ring := Two.commutativeRing] \as Local;
+\import Local.Rank[n := n] \as Rank;
+\import Rank.Orientation[] \as Orientations;
+\import module_theory.Module[].Over[R := Two.Carrier, ring := std.Alg[].Ring[].commutativeRingAsRing Two.Carrier Two.commutativeRing] \as Modules;
+\definition Generators[x: X]: \Pow (Rank.FiberClass x) := { u: Rank.FiberClass x \where Rank.Fiber[x := x].Generator u };
+\definition FiberGenerator[x: X]: \Set := \Cast[Rank.FiberClass x] (Generators x);
+\module Fiber(x: X);
+\import Bundles.Family[X := X, F := F].With[data := bundle] \as Charts;
+\import topology.Topology[Carrier := X] \as Base;
+\definition existence: \forall (x: X) -> \exists FiberGenerator x := \block {
+  \fun (x: X) \then
+  \takefrom c: \Cast[Charts.Chart] ({ c: Charts.Chart \where Base.Member c.domain x }) \by Bundle.locallyTrivial x \then
+  \let point: \Cast[X] c.domain := \into[X](x, c.domain) \by { \bysub(Charts.Chart, { c: Charts.Chart \where Base.Member c.domain x }, c) } \then
+  \let same: c.dimension = n := trans!{N.Nat^} _ _ _ (sym!{N.Nat^} _ _ (Bundle.rankFrame x c.dimension (c.frame point))) (constantRank x) \then
+  \let u: Rank.FiberClass x := (Rank.On[U := c.domain].restriction point).apply Local.Chart[c := c].Rank[n := n, same := same].model.thomClass \then
+  \return \exact(\into[Rank.FiberClass x](u, Generators x) \by { Local.Chart[c := c].Rank[n := n, same := same].Fiber[x := point].positive }, FiberGenerator x)
+};
+\definition generator[x: X]: FiberGenerator x := \choice FiberGenerator x \by {
+  existence: existence x,
+  uniqueness: \parent.ModTwo[n := n, constantRank := constantRank, complex := complex].Fiber[x := x].unique
+};
+\definition fiber: Rank.Fibers := \fun (x: X) => generator x;
+\definition orientation: Orientations.SignedOrientation := Orientations.SignedOrientation {
+  fiber := fiber,
+  locally := \block {
+    \fun (x: X) \then
+    \takefrom c: \Cast[Charts.Chart] ({ c: Charts.Chart \where Base.Member c.domain x }) \by Bundle.locallyTrivial x \then
+    \let contains: Base.Member c.domain x := \bysub(Charts.Chart, { c: Charts.Chart \where Base.Member c.domain x }, c) \then
+    \let point: \Cast[X] c.domain := \into[X](x, c.domain) \by { contains } \then
+    \let same: c.dimension = n := trans!{N.Nat^} _ _ _ (sym!{N.Nat^} _ _ (Bundle.rankFrame x c.dimension (c.frame point))) (constantRank x) \then
+    \return \exact(Orientations.LocalOrientation[x, fiber] {
+      chart := c, contains := contains, rank := same, reverse := B.Bool^::false,
+      normalized := \fun (y: \Cast[X] c.domain) => \parent.ModTwo[n := n, constantRank := constantRank, complex := complex].Fiber[x := y].unique
+        (\into[Rank.FiberClass y]((Rank.On[U := c.domain].restriction y).apply Local.Chart[c := c].Rank[n := n, same := same].model.thomClass, Generators y) \by { Local.Chart[c := c].Rank[n := n, same := same].Fiber[x := y].positive }) (generator y)
+    }, Orientations.LocalOrientation[x, fiber])
+  }
+};
+\import \parent.Oriented[K := Two.Carrier, ring := Two.commutativeRing, n := n, orientation := orientation, complex := complex] \as Global;
+\definition class: _ := Global.class;
+\definition euler: _ := Global.euler;
+\definition normalized: _ := Global.normalized;
+\definition uniqueNormalized: _ := Global.uniqueNormalized;
+\module Degree(p: N.Nat^) { \definition isomorphism: _ := Global.Degree[p := p].isomorphism; \definition zeroSection: _ := Global.Degree[p := p].zeroSection; }
+\module Below(k: N.Nat^) { \definition zero: _ := Global.Below[k := k].zero; }
+\module Compare(given: Orientations.SignedOrientation);
+\module Gysin;

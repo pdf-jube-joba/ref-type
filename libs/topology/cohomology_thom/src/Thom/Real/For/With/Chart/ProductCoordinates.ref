@@ -1,0 +1,58 @@
+\import \parent.Open[] \as Open;
+\import topological_constructions.Product[A := BasePoint, B := Euclidean.Disk] \as Product;
+\definition Carrier: \Set := Product.CarrierSet;
+\definition topology: topology.Topology[Carrier := Carrier].Topology := Product.topology baseTopology Euclidean.diskTopology;
+\definition boundary: \Pow Carrier := { p: Carrier \where Euclidean.normSquared (Pair.second BasePoint Euclidean.Disk p) = R.one };
+\definition vector[p: Standard.DiskCarrier]: Euclidean.Disk := \into[Euclidean.Coordinate](Pair.second BasePoint Euclidean.Coordinate p, Euclidean.ClosedBall) \by { \bysub(Standard.Point, Standard.disk, p) };
+\definition fromStandard[p: Standard.DiskCarrier]: Carrier := Pair.pair BasePoint Euclidean.Disk (Pair.first BasePoint Euclidean.Coordinate p) (vector p);
+\definition toStandard[p: Carrier]: Standard.DiskCarrier := \into[Standard.Point](Pair.pair BasePoint Euclidean.Coordinate (Pair.first BasePoint Euclidean.Disk p) (Pair.second BasePoint Euclidean.Disk p), Standard.disk) \by { \bysub(Euclidean.Coordinate, Euclidean.ClosedBall, Pair.second BasePoint Euclidean.Disk p) };
+\definition vectorContinuous: topology.Continuity[A := Standard.DiskCarrier, B := Euclidean.Disk].Continuous Standard.diskTopology Euclidean.diskTopology vector :=
+  topology.Continuity[A := Standard.DiskCarrier, B := Euclidean.Coordinate].Corestriction[S := Euclidean.ClosedBall].corestrictContinuous Standard.diskTopology Euclidean.topology vector
+    (topology.Continuity[A := Standard.Point, B := Euclidean.Coordinate].Restriction[S := Standard.disk].restrictContinuous Standard.totalTopology Euclidean.topology (Pair.second BasePoint Euclidean.Coordinate)
+      (topological_constructions.Product[A := BasePoint, B := Euclidean.Coordinate].Maps[].secondContinuous baseTopology Euclidean.topology));
+\definition fromStandardContinuous: topology.Continuity[A := Standard.DiskCarrier, B := Carrier].Continuous Standard.diskTopology topology fromStandard :=
+  Product.Universal[X := Standard.DiskCarrier].pairContinuous Standard.diskTopology baseTopology Euclidean.diskTopology (\fun (p: Standard.DiskCarrier) => Pair.first BasePoint Euclidean.Coordinate p) vector
+    (topology.Continuity[A := Standard.Point, B := BasePoint].Restriction[S := Standard.disk].restrictContinuous Standard.totalTopology baseTopology (Pair.first BasePoint Euclidean.Coordinate)
+      (topological_constructions.Product[A := BasePoint, B := Euclidean.Coordinate].Maps[].firstContinuous baseTopology Euclidean.topology)) vectorContinuous;
+\definition toStandardContinuous: topology.Continuity[A := Carrier, B := Standard.DiskCarrier].Continuous topology Standard.diskTopology toStandard :=
+  topology.Continuity[A := Carrier, B := Standard.Point].Corestriction[S := Standard.disk].corestrictContinuous topology Standard.totalTopology toStandard
+    (topological_constructions.Product[A := BasePoint, B := Euclidean.Coordinate].Universal[X := Carrier].pairContinuous topology baseTopology Euclidean.topology (Pair.first BasePoint Euclidean.Disk) (\fun (p: Carrier) => Pair.second BasePoint Euclidean.Disk p)
+      (Product.Maps[].firstContinuous baseTopology Euclidean.diskTopology)
+      (topology.Composition[A := Carrier, B := Euclidean.Disk, C := Euclidean.Coordinate].composeContinuous topology Euclidean.diskTopology Euclidean.topology (Pair.second BasePoint Euclidean.Disk) (\fun (v: Euclidean.Disk) => v)
+        (Product.Maps[].secondContinuous baseTopology Euclidean.diskTopology) (topology.Continuity[A := Euclidean.Disk, B := Euclidean.Coordinate].Corestriction[S := Euclidean.ClosedBall].inclusionContinuous Euclidean.topology)));
+\definition standardHomeomorphism: topology.Homeomorphism[A := Standard.DiskCarrier, B := Carrier].Homeomorphism[Standard.diskTopology, topology] :=
+  topology.Homeomorphism[A := Standard.DiskCarrier, B := Carrier].Homeomorphism[Standard.diskTopology, topology] {
+    forward := fromStandard, backward := toStandard, forwardContinuous := fromStandardContinuous, backwardContinuous := toStandardContinuous,
+    leftInverse := \fun (p: Standard.DiskCarrier) => Pair.Prop[A := BasePoint, B := Euclidean.Coordinate].eta p,
+    rightInverse := \fun (p: Carrier) => Pair.Prop[A := BasePoint, B := Euclidean.Disk].eta p
+  };
+\definition coordinateHomeomorphism: topology.Homeomorphism[A := Open.Carrier, B := Standard.DiskCarrier].Homeomorphism[Open.topology, Standard.diskTopology] :=
+  topology.Homeomorphism[A := Open.Carrier, B := NewDisk.DiskBundle].Composition[C := Standard.DiskCarrier].compose Open.topology NewDisk.diskTopology Standard.diskTopology
+    (topology.Homeomorphism[A := NewDisk.DiskBundle, B := Open.Carrier].Inverse[].inverse NewDisk.diskTopology Open.topology Open.homeomorphism) Levels.diskHomeomorphism;
+\definition homeomorphism: topology.Homeomorphism[A := Open.Carrier, B := Carrier].Homeomorphism[Open.topology, topology] :=
+  topology.Homeomorphism[A := Open.Carrier, B := Standard.DiskCarrier].Composition[C := Carrier].compose Open.topology Standard.diskTopology topology coordinateHomeomorphism standardHomeomorphism;
+\import singular_cohomology.Relative[A := Open.Carrier, source := Open.topology, subset := Open.boundary].Homeomorphism[B := Carrier].Over[target := topology, targetSubset := boundary] \as ProductPairs;
+\definition pair: ProductPairs.Data := ProductPairs.Data {
+  homeomorphism := homeomorphism,
+  forwardPreserves := \fun (p: \Cast[Open.Carrier] Open.boundary) => Levels.preserves (Open.backward p) (Open.pair.backwardPreserves p),
+  backwardPreserves := \fun (p: \Cast[Carrier] boundary) => Open.pair.forwardPreserves
+    (\into[NewDisk.DiskBundle](Levels.backward (toStandard p), NewDisk.Boundary) \by { Levels.reversePreserves (toStandard p) (\bysub(Carrier, boundary, p)) })
+};
+\definition forwardBase: \forall (p: Open.Carrier) -> Pair.first BasePoint Euclidean.Disk (homeomorphism.forward p) = Open.projection p := \fun (p: Open.Carrier) => \refl(Open.projection p);
+\definition backwardBase: \forall (p: Carrier) -> Open.projection (homeomorphism.backward p) = Pair.first BasePoint Euclidean.Disk p := \fun (p: Carrier) => \refl(Pair.first BasePoint Euclidean.Disk p);
+\import singular_cohomology.Relative[A := Standard.DiskCarrier, source := Standard.diskTopology, subset := Standard.boundary].Homeomorphism[B := Carrier].Over[target := topology, targetSubset := boundary] \as StandardPairs;
+\definition standardPair: StandardPairs.Data := StandardPairs.Data {
+  homeomorphism := standardHomeomorphism,
+  forwardPreserves := \fun (p: \Cast[Standard.DiskCarrier] Standard.boundary) => \bysub(Standard.DiskCarrier, Standard.boundary, p),
+  backwardPreserves := \fun (p: \Cast[Carrier] boundary) => \bysub(Carrier, boundary, p)
+};
+\import singular_cohomology.Relative[A := Open.Carrier, source := Open.topology, subset := Open.boundary].Homeomorphism[B := Standard.DiskCarrier].Over[target := Standard.diskTopology, targetSubset := Standard.boundary] \as CoordinatePairs;
+\definition coordinatePair: CoordinatePairs.Data := CoordinatePairs.Data {
+  homeomorphism := coordinateHomeomorphism,
+  forwardPreserves := \fun (p: \Cast[Open.Carrier] Open.boundary) => Levels.preserves (Open.backward p) (Open.pair.backwardPreserves p),
+  backwardPreserves := \fun (p: \Cast[Standard.DiskCarrier] Standard.boundary) => Open.pair.forwardPreserves
+    (\into[NewDisk.DiskBundle](Levels.backward p, NewDisk.Boundary) \by { Levels.reversePreserves p (\bysub(Standard.DiskCarrier, Standard.boundary, p)) })
+};
+\module Ring(K: \Set, ring: std.Alg[].Ring[].CommutativeRing[K]);
+
+\module Norm;

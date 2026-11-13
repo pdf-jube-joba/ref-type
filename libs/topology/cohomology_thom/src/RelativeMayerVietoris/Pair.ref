@@ -1,0 +1,21 @@
+\import singular_cohomology.Relative[A := A, source := source, subset := subset] \as Relative;
+\import topology.Topology[Carrier := A].Subspace[S := subset] \as Subspace;
+\import singular_cohomology.Chains[A := A, source := source] \as Whole;
+\import singular_cohomology.Chains[A := Subspace.CarrierSet, source := Subspace.topology source] \as Sub;
+\import singular_cohomology.Maps[A := Subspace.CarrierSet, B := A, source := Subspace.topology source, target := source] \as Inclusion;
+\import double_complexes.NonnegativeChain[].Over[R := I.Int^, ring := Integers.ring] \as Nonnegative;
+\import Nonnegative.ZeroExtension[C := Sub.complex] \as SubExtension;
+\import Nonnegative.SplitInjection[C := Sub.complex, D := Whole.complex] \as Split;
+\definition inclusion: Nonnegative.Map[C := Sub.complex, D := Whole.complex].Map := Inclusion.push Relative.inclusion Relative.inclusionContinuous;
+\definition pair: Split.SplitInjection := \into[Split.Data](Split.Data {
+  inclusion := inclusion, retraction := \fun (n: N.Nat^) => Relative.Split[n := n].retraction
+}, Split.SplitInjection) \by {
+  Split.Laws[Split.Data { inclusion := inclusion, retraction := \fun (n: N.Nat^) => Relative.Split[n := n].retraction }] {
+    leftInverse := \fun (n: N.Nat^)(x: Sub.Carrier n) => Relative.Split[n := n].leftInverse (SubExtension.Positive[n := n].intro x)
+  }
+};
+\module Degree(n: N.Nat^);
+\module To(B: \Set, target: topology.Topology[Carrier := B].Topology, part: \Pow B);
+\module Negative(n: N.Nat^);
+\module Empty(empty: \forall (x: Subspace.CarrierSet) -> Logic.False);
+\module Full(full: \forall (x: A) -> \In[A] subset x);

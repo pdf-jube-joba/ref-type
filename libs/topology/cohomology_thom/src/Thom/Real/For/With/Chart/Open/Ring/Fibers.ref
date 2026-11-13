@@ -1,0 +1,26 @@
+\use std.Logic[].Equality[].eq_reason_in;
+\import \root.Thom[].Real[].For[X := X, F := F, bundle := bundle].With[metric := metric].Chart[c := c] \as Geometry;
+\import \root.Thom[].Real[].For[X := X, F := F, bundle := bundle].With[metric := metric].Chart[c := c].Open[].Ring[K := K, ring := ring] \as Here;
+\import \root.LocalDisk[].On[X := BasePoint, source := baseTopology].Ring[RingCarrier := K, ring := ring].Fibers[n := c.dimension] \as StandardFibers;
+\import \root.LocalDisk[].Point[K := K, ring := ring].Rank[n := c.dimension] \as PointClass;
+\import Here.Model[n := c.dimension] \as Model;
+\definition Class: \Set := Here.At[n := c.dimension].Class;
+\definition restriction[x: BasePoint]: _ := Geometry.Fiber[x := x].Ring[K := K, ring := ring].Normalization[].restriction;
+\definition comparison[x: BasePoint]: _ := Geometry.Fiber[x := x].Ring[K := K, ring := ring].pointComparison;
+\definition law: \forall (x: BasePoint)(u: Class) -> (restriction x).apply u = (comparison x).forward.apply (StandardFibers.Fiber[x := x].restriction.apply (Model.isomorphism.backward.apply u)) :=
+  \fun (x: BasePoint)(u: Class) => Geometry.Fiber[x := x].Ring[K := K, ring := ring].Normalization[].wholeLaw u;
+\definition pointwise: \forall (u, v: Class)(x: BasePoint) -> (restriction x).apply u = (restriction x).apply v ->
+  StandardFibers.Fiber[x := x].restriction.apply (Model.isomorphism.backward.apply u) = StandardFibers.Fiber[x := x].restriction.apply (Model.isomorphism.backward.apply v) :=
+  \fun (u, v: Class)(x: BasePoint)(same: _) => eq_reason_in!{PointClass.Class _
+    "=" _ "by" { sym!{PointClass.Class} _ _ ((comparison x).leftInverse (StandardFibers.Fiber[x := x].restriction.apply (Model.isomorphism.backward.apply u))) }
+    "=" _ "by" { congr!{{Geometry.Fiber[x := x].Ring[K := K, ring := ring].Class} PointClass.Class} (comparison x).backward.apply _ _ (sym!{{Geometry.Fiber[x := x].Ring[K := K, ring := ring].Class}} _ _ (law x u)) }
+    "=" _ "by" { congr!{{Geometry.Fiber[x := x].Ring[K := K, ring := ring].Class} PointClass.Class} (comparison x).backward.apply _ _ same }
+    "=" _ "by" { congr!{{Geometry.Fiber[x := x].Ring[K := K, ring := ring].Class} PointClass.Class} (comparison x).backward.apply _ _ (law x v) }
+    "=" _ "by" { (comparison x).leftInverse (StandardFibers.Fiber[x := x].restriction.apply (Model.isomorphism.backward.apply v)) }
+  };
+\definition detected: \forall (u, v: Class) -> (\forall (x: BasePoint) -> (restriction x).apply u = (restriction x).apply v) -> u = v :=
+  \fun (u, v: Class)(same: _) => eq_reason_in!{Class _
+    "=" _ "by" { sym!{Class} _ _ (Model.isomorphism.rightInverse u) }
+    "=" _ "by" { congr!{Model.Domain Class} Model.isomorphism.forward.apply _ _ (StandardFibers.detectedOnFibers (Model.isomorphism.backward.apply u) (Model.isomorphism.backward.apply v) (\fun (x: BasePoint) => pointwise u v x (same x))) }
+    "=" _ "by" { Model.isomorphism.rightInverse v }
+  };

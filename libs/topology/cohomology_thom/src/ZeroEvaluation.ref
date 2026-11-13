@@ -1,0 +1,28 @@
+\import std.Data[].Nat[] \as N;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.trans;
+\use Equality.sym;
+\use Equality.congr;
+\use Equality.eq_reason_in;
+\import singular_products.Cochains[A := A, source := source, R := K, ring := ring] \as Product;
+\import singular_cohomology.Zero[A := A, source := source].With[coefficients := Product.integerCoefficients] \as Zero;
+\import Zero.Functions[] \as Functions;
+\import algebraic_topology.PathComponent[A := A, source := source] \as Components;
+\import singular_cohomology.Cochains[A := A, source := source].With[coefficients := Product.integerCoefficients] \as Ordinary;
+\import chain_complexes.Cochain[].Over[R := std.Arithmetic[].Int[].Int^, ring := std.Arithmetic[].IntAlgebra[].Ring[].ring].At[C := Ordinary.complex, k := N.Nat^::zero] \as H;
+\definition value[a: H.Cohomology][x: A]: K := Functions.isomorphism.backward.apply a (Components.class x);
+\definition onClasses: \forall (h: H.CycleCarrier)(x: A) -> value (H.classOf h) x = Zero.value h x :=
+  \fun (h: H.CycleCarrier)(x: A) => eq_reason_in!{K _
+    "=" _ "by" { congr!{H.Cohomology K} (\fun (a: H.Cohomology) => value a x) _ _ (sym!{H.Cohomology} _ _ (congr!{H.CycleCarrier H.Cohomology} H.classOf _ _ (Functions.rightInverse h))) }
+    "=" _ "by" { congr!{Functions.Function K} (\fun (g: Functions.Function) => g (Components.class x)) _ _ (Functions.isomorphism.leftInverse (Functions.backward h)) }
+    "=" _ "by" { Functions.onClass h x }
+  };
+\definition detected: \forall (a, b: H.Cohomology) -> (\forall (x: A) -> value a x = value b x) -> a = b :=
+  \fun (a, b: H.Cohomology)(same: \forall (x: A) -> value a x = value b x) => trans!{H.Cohomology} _ _ _
+    (sym!{H.Cohomology} _ _ (Functions.isomorphism.rightInverse a))
+    (trans!{H.Cohomology} _ _ _
+      (congr!{Functions.Function H.Cohomology} Functions.isomorphism.forward.apply _ _
+        (\axiom:funext(Functions.isomorphism.backward.apply a, Functions.isomorphism.backward.apply b,
+          Components.induction (\fun (c: Components.Carrier) => Functions.isomorphism.backward.apply a c = Functions.isomorphism.backward.apply b c) same)))
+      (Functions.isomorphism.rightInverse b));
+\module Along(B: \Set, target: topology.Topology[Carrier := B].Topology, f: B -> A, regular: topology.Continuity[A := B, B := A].Continuous target source f);

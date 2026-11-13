@@ -1,0 +1,18 @@
+\import \root.ZeroEvaluation[A := A, source := source, K := K, ring := ring] \as Source;
+\import \root.ZeroEvaluation[A := B, source := target, K := K, ring := ring] \as Other;
+\import singular_products.Cochains[A := B, source := target, R := K, ring := ring] \as OtherProduct;
+\import OtherProduct.Cohomology[].Pullback[B := A, target := source] \as Pull;
+\import singular_cohomology.Cochains[A := B, source := target].With[coefficients := Product.integerCoefficients] \as OtherOrdinary;
+\import chain_complexes.Cochain[].Over[R := std.Arithmetic[].Int[].Int^, ring := std.Arithmetic[].IntAlgebra[].Ring[].ring].At[C := OtherOrdinary.complex, k := N.Nat^::zero] \as Output;
+\import singular_cohomology.Zero[A := B, source := target].With[coefficients := Product.integerCoefficients] \as OtherZero;
+\import singular_cohomology.Maps[A := B, B := A, source := target, target := source] \as Maps;
+\import OtherProduct.Pullback[B := A, target := source] \as CochainPull;
+\definition onClasses: \forall (h: H.CycleCarrier)(x: B) -> Other.value (Pull.apply N.Nat^::zero f regular (H.classOf h)) x = value (H.classOf h) (f x) :=
+  \fun (h: H.CycleCarrier)(x: B) => eq_reason_in!{K _
+    "=" _ "by" { congr!{Output.Cohomology K} (\fun (a: Output.Cohomology) => Other.value a x) _ _ (Pull.At[n := N.Nat^::zero].onClass f regular h) }
+    "=" _ "by" { Other.onClasses (Pull.At[n := N.Nat^::zero].cycle f regular h) x }
+    "=" _ "by" { CochainPull.onSimplex N.Nat^::zero f regular h (OtherZero.constant x) }
+    "=" _ "by" { sym!{K} _ _ (Source.onClasses h (f x)) }
+  };
+\definition law: \forall (a: H.Cohomology)(x: B) -> Other.value (Pull.apply N.Nat^::zero f regular a) x = value a (f x) :=
+  H.classInduction (\fun (a: H.Cohomology) => \forall (x: B) -> Other.value (Pull.apply N.Nat^::zero f regular a) x = value a (f x)) onClasses;

@@ -1,0 +1,15 @@
+\import thom_spaces.Thom[].ZeroDiskSuspension[X := X, source := source] \as Geometry;
+\import \parent.Dimension[n := N.Nat^::zero] \as Disk;
+\import singular_cohomology.Relative[A := Disk.Carrier, source := Disk.topology, subset := Disk.boundary].Homeomorphism[B := X].Over[target := source, targetSubset := subset] \as Pairs;
+\definition pair: Pairs.Data := Pairs.Data {
+  homeomorphism := Geometry.diskHomeomorphism,
+  forwardPreserves := \fun (p: \Cast[Disk.Carrier] Disk.boundary) => either!{{\bysub(Disk.Carrier, Disk.boundary, p)} {\In[X] subset (Geometry.forward p)}
+    {\fun (impossible: \In[Disk.Carrier] thom_spaces.Thom[].DiskSuspension[X := X, space := source, n := N.Nat^::zero].boundary p) => Logic.falseElim (\In[X] subset (Geometry.forward p)) (Geometry.forwardPreserves p impossible)}
+    {\fun (member: \In[X] subset (Disk.projection p)) => member}},
+  backwardPreserves := \fun (x: \Cast[X] subset) => Logic.Or[_, _]::right (\bysub(X, subset, x))
+};
+\module With(coefficients: Modules.Bundle, z: I.Int^) {
+  \import singular_cohomology.Relative[A := X, source := source, subset := subset].With[coefficients := coefficients].At[z := z] \as Base;
+  \import \parent.\parent.Dimension[n := N.Nat^::zero].With[coefficients := coefficients, z := z] \as Target;
+  \definition isomorphism: Modules.Isomorphism[V := Base.Carrier, W := Target.Group, source := Base.space, target := Target.space].Isomorphism := Pairs.With[coefficients := coefficients].At[z := z].isomorphism pair;
+}

@@ -1,0 +1,24 @@
+\import Old.Common[n := n] \as Input;
+\import New.Common[n := n] \as Output;
+\import FirstPair.Comparison[n := n] \as FirstComparison;
+\import SecondPair.Comparison[n := n] \as SecondComparison;
+\import NewFirstPair.Comparison[n := n] \as NewFirstComparison;
+\import NewSecondPair.Comparison[n := n] \as NewSecondComparison;
+\definition first[h: Input.Carrier]: NewFirstPair.Carrier n := NewFirstComparison.from (FirstChange.cochainMap.apply (I.Int^::ofNat n) (FirstComparison.to (Input.firstCochain h)));
+\definition second[h: Input.Carrier]: NewSecondPair.Carrier n := NewSecondComparison.from (SecondChange.cochainMap.apply (I.Int^::ofNat n) (SecondComparison.to (Input.secondCochain h)));
+\definition firstFormula: \forall (h: Input.Carrier) -> first h = Operations.apply n h :=
+  \fun (h: Input.Carrier) => trans!{{NewCochains.Carrier n}} _ _ _ (FirstChange.Compare[n := n].law (FirstComparison.to (Input.firstCochain h)))
+    (congr!{{Cochains.Carrier n} {NewCochains.Carrier n}} (Operations.apply n) _ _ (FirstComparison.fromTo (Input.firstCochain h)));
+\definition secondFormula: \forall (h: Input.Carrier) -> second h = Operations.apply n h :=
+  \fun (h: Input.Carrier) => trans!{{NewCochains.Carrier n}} _ _ _ (SecondChange.Compare[n := n].law (SecondComparison.to (Input.secondCochain h)))
+    (congr!{{Cochains.Carrier n} {NewCochains.Carrier n}} (Operations.apply n) _ _ (SecondComparison.fromTo (Input.secondCochain h)));
+\definition apply[h: Input.Carrier]: Output.Carrier := \into[NewCochains.Carrier n](Operations.apply n h, { a: NewCochains.Carrier n \where Output.Conditions[a] }) \by {
+  Output.Conditions[Operations.apply n h] {
+    first := \idelim first h = Operations.apply n h \with a: NewCochains.Carrier n => NewFirstPair.Vanishes n a \by {
+      base: \bysub(NewCochains.Carrier n, { a: NewCochains.Carrier n \where NewFirstPair.Vanishes n a }, first h), equality: firstFormula h
+    },
+    second := \idelim second h = Operations.apply n h \with a: NewCochains.Carrier n => NewSecondPair.Vanishes n a \by {
+      base: \bysub(NewCochains.Carrier n, { a: NewCochains.Carrier n \where NewSecondPair.Vanishes n a }, second h), equality: secondFormula h
+    }
+  }
+};

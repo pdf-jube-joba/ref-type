@@ -67,6 +67,40 @@ class RepositoryCheckTests(unittest.TestCase):
         self.accepted(result, repaired)
         self.assertTrue(repaired['newly_checked'])
 
+    def test_resume_preserves_only_accepted_identical_input_scopes(self):
+        marker = self.root / 'fail-client'
+        wrapper = self.root / 'cli-wrapper'
+        wrapper.write_text('#!/usr/bin/env python3\nimport os, sys\nfrom pathlib import Path\n'
+                           f'if Path({str(marker)!r}).exists() and "client" in sys.argv:\n    sys.exit(2)\n'
+                           f'os.execv({str(BINARY)!r}, [{str(BINARY)!r}, *sys.argv[1:]])\n')
+        wrapper.chmod(0o755)
+        marker.touch()
+        result, partial = self.run_check('--binary', str(wrapper))
+        self.assertNotEqual(result.returncode, 0)
+        self.assertTrue(partial['verified'])
+        self.assertLess(len(partial['verified']), len(partial['targets']))
+        donor = Path(json.loads((self.state / 'latest.json').read_text())['report'])
+        marker.unlink()
+        result, resumed = self.run_check('--binary', str(wrapper), '--resume-report', str(donor))
+        self.accepted(result, resumed)
+        self.assertEqual(resumed['inherited_target_count'], len(partial['verified']))
+        self.assertTrue(all(a['module'] == 'client' for a in resumed['attempts'] if not a.get('inherited')))
+        partial['verified'] = partial['targets']
+        donor.write_text(json.dumps(partial))
+        result, invalid = self.run_check('--binary', str(wrapper), '--resume-report', str(donor))
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('coverage differs', invalid['error'])
+
+    def test_resume_rejects_changed_mathematical_input(self):
+        result, original = self.run_check()
+        self.accepted(result, original)
+        donor = Path(json.loads((self.state / 'latest.json').read_text())['report'])
+        source = self.root / 'base/src/root.ref'
+        source.write_text(source.read_text() + r'\module Added {}')
+        result, changed = self.run_check('--resume-report', str(donor))
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('different binary, source or targets', changed['error'])
+
     def test_storage_failure_is_nonzero_and_distinct(self):
         cache = self.root / 'refcache'
         cache.mkdir()

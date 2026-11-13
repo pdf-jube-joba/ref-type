@@ -1,0 +1,31 @@
+\definition a: Closed.LeftClass := e.forward.apply Integers.ring.one;
+\import \parent.Unit[] \as Unit;
+\import singular_cohomology.Relative[A := Closed.Carrier, source := Closed.topology, subset := Closed.firstPart].With[coefficients := Coefficients.integerCoefficients] \as FirstCochains;
+\import chain_complexes.Integer[].Over[R := I.Int^, ring := Integers.ring].At[C := FirstCochains.complex, z := I.Int^::ofNat n] \as FirstH;
+\import Modules.Isomorphism[V := I.Int^, W := Closed.LeftClass, source := Modules.scalarModule, target := Closed.leftSpace].Composition[U := FirstH.Cohomology, final := FirstH.cohomologySpace] \as FirstComposition;
+\definition firstIso: _ := LeftPairs.With[coefficients := Coefficients.integerCoefficients].At[z := I.Int^::ofNat n].isomorphism pair;
+\definition intoFirst: Modules.Isomorphism[V := I.Int^, W := FirstH.Cohomology, source := Modules.scalarModule, target := FirstH.cohomologySpace].Isomorphism :=
+  FirstComposition.compose firstIso e;
+\import Modules.Isomorphism[V := I.Int^, W := FirstH.Cohomology, source := Modules.scalarModule, target := FirstH.cohomologySpace].Composition[U := Closed.Class, final := Closed.space] \as LastComposition;
+\definition outputIso: Modules.Isomorphism[V := I.Int^, W := Closed.Class, source := Modules.scalarModule, target := Closed.space].Isomorphism :=
+  LastComposition.compose Empty.Degree[p := n].isomorphism intoFirst;
+\import \root.FamilyProduct[A := Closed.Carrier, source := Closed.topology, first := Closed.firstPart, second := Closed.secondPart, family := Closed.family,
+  firstMember := Closed.firstMember, secondMember := Closed.secondMember, classify := Closed.classify, K := I.Int^, ring := Integers.commutativeRing].Degree[p := n, q := N.Nat^::zero].Cohomology[] \as Cup;
+\import singular_cohomology.Relative[A := Closed.Carrier, source := Closed.topology, subset := Closed.secondPart].With[coefficients := Coefficients.integerCoefficients] \as SecondCochains;
+\import chain_complexes.Integer[].Over[R := I.Int^, ring := Integers.ring].At[C := SecondCochains.complex, z := I.Int^::ofNat N.Nat^::zero] \as SecondH;
+\definition normalized: outputIso.forward.apply Integers.ring.one = Closed.raw a Zero.unit :=
+  trans!{Closed.Class} _ _ _ (Empty.Degree[p := n].Product[].law (Closed.firstPull.apply a))
+    (congr!{SecondH.Cohomology Closed.Class} (Cup.product (Closed.firstPull.apply a)) _ _ (sym!{SecondH.Cohomology} _ _ Unit.law));
+\definition input: Modules.Bundle := Modules.Bundle { Carrier := Closed.RightClass, space := Closed.rightSpace };
+\definition output: Modules.Bundle := Modules.Bundle { Carrier := Closed.Class, space := Closed.space };
+\import \root.IntegralComparison[].CyclicMap[A := input, B := output, f := Closed.rightLinear a, u := Zero.unit, eA := Zero.isomorphism, eB := outputIso,
+  sourceUnit := Zero.Normalization[].law, targetUnit := normalized] \as Calibrated;
+\definition isomorphism: Modules.Isomorphism[V := Closed.RightClass, W := Closed.Class, source := Closed.rightSpace, target := Closed.space].Isomorphism := Calibrated.isomorphism;
+\import Closed.At[a := a] \as Product;
+\definition injective: \forall (x, y: Closed.RightClass) -> Closed.raw a x = Closed.raw a y -> x = y :=
+  \fun (x, y: Closed.RightClass)(same: _) => trans!{Closed.RightClass} _ _ _ (sym!{Closed.RightClass} _ _ (isomorphism.leftInverse x))
+    (trans!{Closed.RightClass} _ _ _ (congr!{Closed.Class Closed.RightClass} isomorphism.backward.apply _ _ same) (isomorphism.leftInverse y));
+\definition bijective: Product.Bijective := Product.Bijective {
+  injective := injective,
+  onto := \fun (y: Closed.Class) => Logic.existsIntro[Closed.RightClass, { x: Closed.RightClass \where Closed.raw a x = y }] (isomorphism.backward.apply y) (isomorphism.rightInverse y)
+};

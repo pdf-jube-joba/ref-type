@@ -114,6 +114,7 @@
 | [topology/algebra](topology/algebra/README.md) | `topological_algebra` | 位相的代数、座標空間・行列位相、連続性判定 |
 | [topology/homotopy](topology/homotopy/README.md) | `algebraic_topology` | ホモトピー、基点付き商、mapping cone、有限 CW 対、標準単体の座標 |
 | [topology/thom_spaces](topology/thom_spaces/README.md) | `thom_spaces` | 円板束・球面束、Thom 商、計量変更・懸垂・直和の比較、有限 CW 対型と相対特異理論 |
+| [topology/cohomology_thom](topology/cohomology_thom/README.md) | `cohomology_thom` | Thom 相対類の積・零切断、ファイバー制限と標準円板の生成元 |
 | [topology/puppe_sequences](topology/puppe_sequences/README.md) | `puppe_sequences` | CW cofibration、基点付き cofiber の反復と suspension 比較、商比較、反変 Hom の完全性 |
 | [topology/fundamental](topology/fundamental/README.md) | `fundamental_groups` | 基本亜群・基本群、融合積の van Kampen の定理、単連結性 |
 | [topology/coverings](topology/coverings/README.md) | `covering_spaces` | 被覆の持ち上げ、部分群・共役類による分類、普遍被覆と deck 変換 |

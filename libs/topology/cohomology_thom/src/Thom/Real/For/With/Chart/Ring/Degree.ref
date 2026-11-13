@@ -1,0 +1,24 @@
+\use std.Logic[].Equality[].eq_reason_in;
+\definition total: N.Nat^ := N.Basic[].Def[].add p c.dimension;
+\import module_theory.Module[].Over[R := K, ring := std.Alg[].Ring[].commutativeRingAsRing K ring] \as Modules;
+\import singular_products.Cochains[A := BasePoint, source := baseTopology, R := K, ring := ring] \as BaseProduct;
+\import singular_products.Cochains[A := Standard.DiskCarrier, source := Standard.diskTopology, R := K, ring := ring] \as StandardProduct;
+\import singular_products.Cochains[A := NewDisk.DiskBundle, source := NewDisk.diskTopology, R := K, ring := ring] \as LocalProduct;
+\import \root.LocalDisk[].On[X := BasePoint, source := baseTopology].Projection[n := c.dimension] \as Projection;
+\import \root.RelativePullback[].On[A := NewDisk.DiskBundle, source := NewDisk.diskTopology, subset := NewDisk.Boundary, R := K, ring := ring].To[B := Standard.DiskCarrier, target := Standard.diskTopology, part := Standard.boundary].Along[f := Pairs.forwardMap pair] \as PairPull;
+\import LocalProduct.Cohomology[].Pullback[B := Standard.DiskCarrier, target := Standard.diskTopology] \as Pull;
+\import StandardProduct.Cohomology[].Pullback[B := BasePoint, target := baseTopology] \as StandardPull;
+\import LocalProduct.Cohomology[].Pullback[B := BasePoint, target := baseTopology] \as LocalPull;
+\import singular_cohomology.Maps[A := NewDisk.DiskBundle, B := Standard.DiskCarrier, source := NewDisk.diskTopology, target := Standard.diskTopology].Composition[C := BasePoint, final := baseTopology].Coefficients[M := BaseProduct.integerCoefficients] \as Composition;
+\import singular_cap.CochainPair[A := NewDisk.DiskBundle, source := NewDisk.diskTopology, subset := NewDisk.Boundary, R := K, ring := ring].Cohomology[p := p, q := c.dimension].Right[] \as Cup;
+\definition projection: \forall (a: BaseProduct.Cohomology[].Group p) -> Pull.apply p (Pairs.forwardMap pair) diskContinuous (StandardPull.apply p Projection.projection Projection.continuous a) = LocalPull.apply p NewDisk.diskProjection NewDisk.diskProjectionContinuous a :=
+  \fun (a: BaseProduct.Cohomology[].Group p) => sym!{{LocalProduct.Cohomology[].Group p}} _ _
+    (Composition.onCohomology (Pairs.forwardMap pair) (topology.Homeomorphism[A := NewDisk.DiskBundle, B := Standard.DiskCarrier].laws NewDisk.diskTopology Standard.diskTopology Levels.diskHomeomorphism).forwardContinuous Projection.projection Projection.continuous p a);
+\definition apply[a: BaseProduct.Cohomology[].Group p]: LocalTheory.Degree[n := total].Class := Comparison.Degree[n := total].isomorphism.forward.apply ((StandardTheory.thomIsomorphism c.dimension p).forward.apply a);
+\definition formula: \forall (a: BaseProduct.Cohomology[].Group p) -> apply a = LocalTheory.Product[p := p, n := c.dimension].apply a class :=
+  \fun (a: BaseProduct.Cohomology[].Group p) => trans!{{LocalTheory.Degree[n := total].Class}} _ _ _
+    (PairPull.Cup[p := p, q := c.dimension].Cohomology[].naturality (StandardPull.apply p Projection.projection Projection.continuous a) (StandardTheory.canonical c.dimension))
+    (congr!{{LocalProduct.Cohomology[].Group p} {LocalTheory.Degree[n := total].Class}} (\fun (v: LocalProduct.Cohomology[].Group p) => Cup.apply v class) _ _ (projection a));
+\definition isomorphism: Modules.Isomorphism[V := BaseProduct.Cohomology[].Group p, W := LocalTheory.Degree[n := total].Class, source := BaseProduct.Cohomology[].moduleSpace p, target := LocalTheory.Degree[n := total].space].Isomorphism :=
+  Modules.Isomorphism[V := BaseProduct.Cohomology[].Group p, W := StandardTheory.Cup[n := c.dimension, p := p].Class, source := BaseProduct.Cohomology[].moduleSpace p, target := StandardTheory.Cup[n := c.dimension, p := p].space].Composition[U := LocalTheory.Degree[n := total].Class, final := LocalTheory.Degree[n := total].space]
+    .compose Comparison.Degree[n := total].isomorphism (StandardTheory.thomIsomorphism c.dimension p);

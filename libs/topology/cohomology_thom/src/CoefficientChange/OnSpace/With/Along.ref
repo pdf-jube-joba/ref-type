@@ -1,0 +1,32 @@
+\import \root.CoefficientChange[].OnSpace[A := B, source := target, R := R, S := S, ring := ring, targetRing := targetRing] \as Other;
+\definition otherMorphism: Other.Morphism := Other.Morphism { linear := morphism.linear, multiply := morphism.multiply, unit := morphism.unit };
+\import Other.With[morphism := otherMorphism] \as There;
+\import singular_products.Cochains[A := B, source := target, R := R, ring := ring] \as ThereSource;
+\import singular_products.Cochains[A := B, source := target, R := S, ring := targetRing] \as ThereTarget;
+\import Source.Pullback[B := B, target := target] \as SourcePull;
+\import Target.Pullback[B := B, target := target] \as TargetPull;
+\module Degree(n: N.Nat^) {
+  \import Modules.Hom[V := OrdinaryChains.Carrier n, W := S, source := OrdinaryChains.space n, target := Target.integerCoefficients.space] \as Maps;
+  \definition cochains: \forall (h: ThereSource.Carrier n) -> apply n (SourcePull.apply n f regular h) = TargetPull.apply n f regular (There.apply n h) :=
+    \fun (h: ThereSource.Carrier n) => Maps.ext (apply n (SourcePull.apply n f regular h)) (TargetPull.apply n f regular (There.apply n h))
+      (\fun (x: OrdinaryChains.Carrier n) => \refl((apply n (SourcePull.apply n f regular h)).apply x));
+  \import singular_cohomology.Cochains[A := B, source := target].With[coefficients := ThereSource.integerCoefficients] \as ThereOrdinary;
+  \import Nonnegative.At[C := ThereOrdinary.complex, k := n] \as Domain;
+  \import Nonnegative.At[C := TargetOrdinary.complex, k := n] \as Output;
+  \import Nonnegative.At[C := SourceOrdinary.complex, k := n] \as Before;
+  \import singular_cohomology.Cochains[A := B, source := target].With[coefficients := ThereTarget.integerCoefficients] \as ThereTargetOrdinary;
+  \import Nonnegative.At[C := ThereTargetOrdinary.complex, k := n] \as ThereAfter;
+  \import Source.Cohomology[].Pullback[B := B, target := target] \as Left;
+  \import Target.Cohomology[].Pullback[B := B, target := target] \as Right;
+  \import \parent.\parent.Degree[n := n] \as Here;
+  \definition onClass: \forall (h: Domain.CycleCarrier) -> Here.map.apply (Left.apply n f regular (Domain.classOf h)) = Right.apply n f regular (There.Degree[n := n].map.apply (Domain.classOf h)) :=
+    \fun (h: Domain.CycleCarrier) => eq_reason_in!{Output.Cohomology _
+      "=" _ "by" { congr!{Before.Cohomology Output.Cohomology} Here.map.apply _ _ (Left.At[n := n].onClass f regular h) }
+      "=" _ "by" { Here.onClass (Left.At[n := n].cycle f regular h) }
+      "=" _ "by" { Output.equalClass (Here.cycles.apply (Left.At[n := n].cycle f regular h)) (Right.At[n := n].cycle f regular (There.Degree[n := n].cycles.apply h)) (cochains h) }
+      "=" _ "by" { sym!{Output.Cohomology} _ _ (Right.At[n := n].onClass f regular (There.Degree[n := n].cycles.apply h)) }
+      "=" _ "by" { congr!{ThereAfter.Cohomology Output.Cohomology} (Right.apply n f regular) _ _ (sym!{ThereAfter.Cohomology} _ _ (There.Degree[n := n].onClass h)) }
+    };
+  \definition law: \forall (h: Domain.Cohomology) -> Here.map.apply (Left.apply n f regular h) = Right.apply n f regular (There.Degree[n := n].map.apply h) :=
+    Domain.classInduction (\fun (h: Domain.Cohomology) => Here.map.apply (Left.apply n f regular h) = Right.apply n f regular (There.Degree[n := n].map.apply h)) onClass;
+}

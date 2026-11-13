@@ -1,0 +1,24 @@
+\import \parent.SumAction[] \as SumAction;
+\import IntegerCochains.Map[C := SourceSmallHom.complex, D := SourceSumHom.complex].At[k := inputDegree] \as SourceInclusion;
+\import Modules.Hom[V := SourceSumHom.Carrier inputDegree, W := SumHom.Carrier outputDegree, source := SourceSumHom.space inputDegree, target := SumHom.space outputDegree].Composition[U := SourceSmallHom.Carrier inputDegree, domain := SourceSmallHom.space inputDegree] \as Composition;
+\definition sumMap[a: Restriction.Raw]: Modules.Hom[V := SourceSmallHom.Carrier inputDegree, W := SumHom.Carrier outputDegree, source := SourceSmallHom.space inputDegree, target := SumHom.space outputDegree].Map :=
+  Composition.compose (SumAction.linear a) (SourceInclusion.linear SourceSequence.sequence.inclusion);
+\definition addition: \forall (a: Restriction.Raw)(h, j: SourceSmallHom.Carrier inputDegree) ->
+  apply a ((SourceSmallHom.space inputDegree).add h j) = (SmallHom.space outputDegree).add (apply a h) (apply a j) :=
+  \fun (a: Restriction.Raw)(h, j: SourceSmallHom.Carrier inputDegree) => MV.sequence.injective outputDegree _ _ (eq_reason_in!{{SumHom.Carrier outputDegree} _
+    "=" _ "by" { inclusion a ((SourceSmallHom.space inputDegree).add h j) }
+    "=" _ "by" { (sumMap a).addition h j }
+    "=" _ "by" { congr!{{SumHom.Carrier outputDegree} {SumHom.Carrier outputDegree} {SumHom.Carrier outputDegree}} (SumHom.space outputDegree).add _ _ _ _
+      (sym!{{SumHom.Carrier outputDegree}} _ _ (inclusion a h)) (sym!{{SumHom.Carrier outputDegree}} _ _ (inclusion a j)) }
+    "=" _ "by" { sym!{{SumHom.Carrier outputDegree}} _ _ (MV.sequence.inclusion.addition outputDegree (apply a h) (apply a j)) }
+  });
+\definition scalar: \forall (a: Restriction.Raw)(r: I.Int^)(h: SourceSmallHom.Carrier inputDegree) ->
+  apply a ((SourceSmallHom.space inputDegree).smul r h) = (SmallHom.space outputDegree).smul r (apply a h) :=
+  \fun (a: Restriction.Raw)(r: I.Int^)(h: SourceSmallHom.Carrier inputDegree) => MV.sequence.injective outputDegree _ _ (eq_reason_in!{{SumHom.Carrier outputDegree} _
+    "=" _ "by" { inclusion a ((SourceSmallHom.space inputDegree).smul r h) }
+    "=" _ "by" { (sumMap a).scalar r h }
+    "=" _ "by" { congr!{{SumHom.Carrier outputDegree} {SumHom.Carrier outputDegree}} ((SumHom.space outputDegree).smul r) _ _ (sym!{{SumHom.Carrier outputDegree}} _ _ (inclusion a h)) }
+    "=" _ "by" { sym!{{SumHom.Carrier outputDegree}} _ _ (MV.sequence.inclusion.scalar outputDegree r (apply a h)) }
+  });
+\import Modules.Hom[V := SourceSmallHom.Carrier inputDegree, W := SmallHom.Carrier outputDegree, source := SourceSmallHom.space inputDegree, target := SmallHom.space outputDegree] \as Maps;
+\definition map[a: Restriction.Raw]: Maps.Map := Maps.Map { apply := \fun (h: SourceSmallHom.Carrier inputDegree) => apply a h, addition := addition a, scalar := scalar a };

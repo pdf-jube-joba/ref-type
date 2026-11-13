@@ -9,5 +9,5 @@
 
 ## 依存するタスク
 
-- [C02 円板束・球面束と Thom 空間](c02-thom-spaces.md)
-- [C01 cap 積と相対積](c01-cap-products.md)
+- [C02 円板束・球面束と Thom 空間](../../libs/topology/thom_spaces/README.md)
+- [C01 cap 積と相対積](../../libs/topology/singular/cap/README.md)

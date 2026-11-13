@@ -1,0 +1,29 @@
+\use std.Logic[].Equality[].eq_reason_in;
+\definition total: N.Nat^ := N.Basic[].Def[].add p n;
+\import thom_spaces.Thom[].DiskSuspension[X := X, space := source, n := n] \as SourceDisk;
+\import thom_spaces.Thom[].DiskSuspension[X := B, space := target, n := n] \as TargetDisk;
+\import \root.LocalDisk[].On[X := X, source := source].From[B := B, target := target, f := f, regular := regular].Rank[n := n] \as Rank;
+\import \root.LocalDisk[].On[X := X, source := source].From[B := B, target := target, f := f, regular := regular].Ring[K := K, ring := ring] \as Classes;
+\import \root.LocalDisk[].On[X := X, source := source].Projection[n := n] \as SourceProjection;
+\import \root.LocalDisk[].On[X := B, source := target].Projection[n := n] \as TargetProjection;
+\import singular_products.Cochains[A := SourceDisk.DiskCarrier, source := SourceDisk.diskTopology, R := K, ring := ring] \as SourceProduct;
+\import singular_products.Cochains[A := TargetDisk.DiskCarrier, source := TargetDisk.diskTopology, R := K, ring := ring] \as TargetProduct;
+\import singular_products.Cochains[A := B, source := target, R := K, ring := ring] \as TargetBase;
+\import \root.RelativePullback[].On[A := TargetDisk.DiskCarrier, source := TargetDisk.diskTopology, subset := TargetDisk.boundary, R := K, ring := ring].To[B := SourceDisk.DiskCarrier, target := SourceDisk.diskTopology, part := SourceDisk.boundary].Along[f := Rank.pair] \as Pull;
+\import TargetBase.Cohomology[].Pullback[B := X, target := source] \as BasePull;
+\import TargetProduct.Cohomology[].Pullback[B := SourceDisk.DiskCarrier, target := SourceDisk.diskTopology] \as DiskPull;
+\import SourceProduct.Cohomology[].Pullback[B := X, target := source] \as SourcePull;
+\import TargetProduct.Cohomology[].Pullback[B := B, target := target] \as TargetPull;
+\import singular_cohomology.Maps[A := TargetDisk.DiskCarrier, B := SourceDisk.DiskCarrier, source := TargetDisk.diskTopology, target := SourceDisk.diskTopology].Composition[C := X, final := source].Coefficients[M := BaseProduct.integerCoefficients] \as SourceComposition;
+\import singular_cohomology.Maps[A := TargetDisk.DiskCarrier, B := B, source := TargetDisk.diskTopology, target := target].Composition[C := X, final := source].Coefficients[M := BaseProduct.integerCoefficients] \as TargetComposition;
+\definition projection: \forall (a: BaseProduct.Cohomology[].Group p) -> DiskPull.apply p Rank.map Rank.continuous (SourcePull.apply p SourceProjection.projection SourceProjection.continuous a) =
+  TargetPull.apply p TargetProjection.projection TargetProjection.continuous (BasePull.apply p f regular a) :=
+  \fun (a: BaseProduct.Cohomology[].Group p) => trans!{{TargetProduct.Cohomology[].Group p}} _ _ _
+    (sym!{{TargetProduct.Cohomology[].Group p}} _ _ (SourceComposition.onCohomology Rank.map Rank.continuous SourceProjection.projection SourceProjection.continuous p a))
+    (TargetComposition.onCohomology TargetProjection.projection TargetProjection.continuous f regular p a);
+\import singular_cap.CochainPair[A := TargetDisk.DiskCarrier, source := TargetDisk.diskTopology, subset := TargetDisk.boundary, R := K, ring := ring].Cohomology[p := p, q := n].Right[] \as Cup;
+\definition law: \forall (a: BaseProduct.Cohomology[].Group p) -> Pull.Degree[n := total].map.apply ((SourceTheory.thomIsomorphism n p).forward.apply a) =
+  (TargetTheory.thomIsomorphism n p).forward.apply (BasePull.apply p f regular a) :=
+  \fun (a: BaseProduct.Cohomology[].Group p) => trans!{{TargetTheory.Cup[n := n, p := p].Class}} _ _ _
+    (Pull.Cup[p := p, q := n].Cohomology[].naturality (SourcePull.apply p SourceProjection.projection SourceProjection.continuous a) (SourceTheory.canonical n))
+    (congr!{{TargetProduct.Cohomology[].Group p} {TargetTheory.Standard[n := n].Class} {TargetTheory.Cup[n := n, p := p].Class}} Cup.apply _ _ _ _ (projection a) (Classes.canonical n));

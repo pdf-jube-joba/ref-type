@@ -1,0 +1,35 @@
+\use std.Logic[].Equality[].eq_reason_in;
+\definition d: I.Int^ := I.Int^::ofNat t;
+\import singular_cohomology.Chains[A := Disk.DiskBundle, source := Disk.diskTopology] \as Chains;
+\import resolutions.HomComplex[].Over[R := I.Int^, ring := IntegerRing.commutativeRing] \as Hom;
+\import Hom.ZeroExtension[P := Chains.complex, N := BaseProduct.integerCoefficients].Cohomology[n := t] \as Natural;
+\import Hom.On[P := Chains.complex, N := BaseProduct.integerCoefficients].At[n := t] \as Cochains;
+\import Complexes.At[C := RelativeGroups.complex, z := d] \as H;
+\import Geometry.Additive[coefficients := BaseProduct.integerCoefficients].Degree[z := d] \as Native;
+\import singular_cap.CochainPair[A := Disk.DiskBundle, source := Disk.diskTopology, subset := Disk.Boundary, R := R, ring := ring].Comparison[n := t].Cohomology[] \as Forget;
+\import IntegerModules.End[V := BaseProduct.integerCoefficients.Carrier, space := BaseProduct.integerCoefficients.space] \as Coefficients;
+\import singular_cohomology.Maps[A := X, B := Disk.DiskBundle, source := bundle.baseSpace, target := Disk.diskTopology].Coefficients[M := BaseProduct.integerCoefficients, L := BaseProduct.integerCoefficients]
+  .Integer[f := Disk.zeroSection, continuous := Disk.zeroSectionContinuous, coefficientMap := Coefficients.identity].At[n := t] \as Section;
+\import Geometry.Coefficients[R := R, ring := ring].Degree[n := t] \as Top;
+\import singular_cohomology.Cochains[A := Disk.DiskBundle, source := Disk.diskTopology].With[coefficients := BaseProduct.integerCoefficients].Cohomology[n := t] \as NaturalH;
+\import singular_products.Cochains[A := X, source := bundle.baseSpace, R := R, ring := ring].Cohomology[].Pullback[B := Disk.DiskBundle, target := Disk.diskTopology] \as SectionPull;
+\definition inclusion: IntegerModules.MapBetween (relative d) (disk d) := Native.forget;
+\import double_complexes.NonnegativeChain[].Over[R := I.Int^, ring := IntegerRing.ring].ZeroExtension[C := Chains.complex].Positive[n := t] \as Positive;
+\definition cycleLaw: \forall (h: H.Closed) -> Natural.restrict (Native.forgetCycles.apply h) = Forget.cycle h :=
+  \fun (h: H.Closed) => Cochains.ext
+    (Natural.restrict (Native.forgetCycles.apply h)) (Forget.cycle h)
+    (\fun (c: Chains.Carrier t) => \refl(h.apply (Relative.class d (Positive.intro c))));
+\definition onClass: \forall (h: H.Closed) -> Total.At[n := t].isomorphism.forward.apply (inclusion.apply (H.classOf h)) = Forget.map.apply (H.classOf h) :=
+  \fun (h: H.Closed) => eq_reason_in!{{singular_products.Cochains[A := Disk.DiskBundle, source := Disk.diskTopology, R := R, ring := ring].Cohomology[].Group t} _
+    "=" _ "by" { congr!{{Total.cohomology d} {singular_products.Cochains[A := Disk.DiskBundle, source := Disk.diskTopology, R := R, ring := ring].Cohomology[].Group t}} Total.At[n := t].isomorphism.forward.apply _ _ (Native.forgetOnClass h) }
+    "=" _ "by" { Natural.onClass (Native.forgetCycles.apply h) }
+    "=" _ "by" { congr!{{NaturalH.Cycle} {singular_products.Cochains[A := Disk.DiskBundle, source := Disk.diskTopology, R := R, ring := ring].Cohomology[].Group t}} NaturalH.classOf _ _ (cycleLaw h) }
+    "=" _ "by" { sym!{{singular_products.Cochains[A := Disk.DiskBundle, source := Disk.diskTopology, R := R, ring := ring].Cohomology[].Group t}} _ _ (Forget.onClass h) }
+  };
+\definition forgetLaw: \forall (q: H.Cohomology) -> Total.At[n := t].isomorphism.forward.apply (inclusion.apply q) = Forget.map.apply q :=
+  H.classInduction (\fun (q: H.Cohomology) => Total.At[n := t].isomorphism.forward.apply (inclusion.apply q) = Forget.map.apply q) onClass;
+\definition law: \forall (q: H.Cohomology) -> Base.At[n := t].isomorphism.forward.apply
+  (Geometry.Additive[coefficients := BaseProduct.integerCoefficients].Degree[z := d].diskComparison.forward.apply (inclusion.apply q)) = Top.zeroSection.apply q :=
+  \fun (q: H.Cohomology) => trans!{{BaseProduct.Cohomology[].Group t}} _ _ _ (Section.law (inclusion.apply q))
+    (congr!{{singular_products.Cochains[A := Disk.DiskBundle, source := Disk.diskTopology, R := R, ring := ring].Cohomology[].Group t} {BaseProduct.Cohomology[].Group t}}
+      (SectionPull.At[n := t].linear Disk.zeroSection Disk.zeroSectionContinuous).apply _ _ (forgetLaw q));

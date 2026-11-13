@@ -1,0 +1,37 @@
+\definition total: N.Nat^ := N.Basic[].Def[].add p q;
+\import Cochains.At[C := EmptyRelative.complex, z := I.Int^::ofNat p] \as SourceH;
+\import Cochains.At[C := Relative.complex, z := I.Int^::ofNat total] \as TargetH;
+\import Cochains.At[C := Relative.complex, z := I.Int^::ofNat q] \as FixedH;
+\import RingCochains.At[C := EmptyRing.complex, z := I.Int^::ofNat p] \as SourceRing;
+\import RingCochains.At[C := RelativeRing.complex, z := I.Int^::ofNat total] \as TargetRing;
+\import EmptyCup.Comparison[n := p].Cohomology[] \as Forget;
+\import PairCup.Cohomology[p := p, q := q].Right[] \as Cup;
+\definition Domain: \Set := SourceH.Cohomology;
+\definition Range: \Set := TargetH.Cohomology;
+\definition Factor: \Set := FixedH.Cohomology;
+\definition domainSpace: Modules.Space Domain := SourceH.cohomologySpace;
+\definition rangeSpace: Modules.Space Range := TargetH.cohomologySpace;
+\definition apply[u: Factor][a: Domain]: Range := Cup.apply (Forget.map.apply a) u;
+\import RingModules.Hom[V := SourceRing.Cohomology, W := TargetRing.Cohomology, source := SourceRing.cohomologySpace, target := TargetRing.cohomologySpace] \as Maps;
+\definition ringMap[u: Factor]: Maps.Map := Maps.Map {
+  apply := apply u,
+  addition := \fun (a, b: Domain) => trans!{Range} _ _ _
+    (congr!{{Product.Cohomology[].Group p} Range} (\fun (c: Product.Cohomology[].Group p) => Cup.apply c u) _ _ (Forget.map.addition a b))
+    (Cup.bilinear.addLeft (Forget.map.apply a) (Forget.map.apply b) u),
+  scalar := \fun (r: K)(a: Domain) => trans!{Range} _ _ _
+    (congr!{{Product.Cohomology[].Group p} Range} (\fun (c: Product.Cohomology[].Group p) => Cup.apply c u) _ _ (Forget.map.scalar r a))
+    (Cup.bilinear.scaleLeft r (Forget.map.apply a) u)
+};
+\definition sourceClasses: Modules.Bundle := Modules.Bundle { Carrier := Domain, space := domainSpace };
+\definition targetClasses: Modules.Bundle := Modules.Bundle { Carrier := Range, space := rangeSpace };
+\definition integerMap[u: Factor]: _ := \root.RelativeMayerVietoris[].IntegerLinear[].On[A := sourceClasses, B := targetClasses, f := apply u, addition := (ringMap u).addition].map;
+\definition cycle[u: FixedH.Closed][a: SourceH.Closed]: TargetH.Closed := Cup.cycle (Forget.cycle a) u;
+\definition onClasses: \forall (u: FixedH.Closed)(a: SourceH.Closed) -> apply (FixedH.classOf u) (SourceH.classOf a) = TargetH.classOf (cycle u a) :=
+  \fun (u: FixedH.Closed)(a: SourceH.Closed) => trans!{Range} _ _ _
+    (congr!{{Product.Cohomology[].Group p} Range} (\fun (c: Product.Cohomology[].Group p) => Cup.apply c (FixedH.classOf u)) _ _ (Forget.onClass a))
+    (Cup.onClasses (Forget.cycle a) u);
+\definition ringDomainSpace: RingModules.Space Domain := SourceRing.cohomologySpace;
+\definition ringRangeSpace: RingModules.Space Range := TargetRing.cohomologySpace;
+\module On(u: Factor);
+
+\module Reverse(u: Factor);

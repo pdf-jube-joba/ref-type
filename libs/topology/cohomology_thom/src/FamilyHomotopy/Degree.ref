@@ -1,0 +1,30 @@
+\import Homotopies.At[n := n] \as Prism;
+\import algebraic_topology.Simplex[] \as Simplex;
+\import Simplex.Cylinder[n := n] \as GeometrySpace;
+\import singular_cohomology.CylinderChains[n := n] \as Geometry;
+\import Boundary.At[n := n] \as Lower;
+\import Boundary.At[n := N.Nat^::succ n] \as Higher;
+\module At(sigma: BoundarySimplices.Carrier n, witness: BoundarySimplices.Witness[n, sigma]);
+\definition onSimplex: \forall (sigma: BoundarySimplices.Carrier n) -> Higher.Image (Prism.onSimplex f g h sigma) := \block {
+  \fun (sigma: BoundarySimplices.Carrier n) \then
+  \takefrom witness: BoundarySimplices.Witness[n, sigma] \by BoundarySimplices.witness n sigma \then
+  \return At[sigma := sigma, witness := witness].law
+};
+\import Modules.Hom[V := Whole.Carrier n, W := Whole.Carrier (N.Nat^::succ n), source := Whole.space n, target := Whole.space (N.Nat^::succ n)].Composition[U := Boundary.Carrier n, domain := Boundary.space n] \as Composition;
+\definition map: Modules.Hom[V := Boundary.Carrier n, W := Whole.Carrier (N.Nat^::succ n), source := Boundary.space n, target := Whole.space (N.Nat^::succ n)].Map := Composition.compose (Prism.map f g h) Lower.inclusion;
+\definition onGenerator: \forall (sigma: BoundarySimplices.Carrier n) -> Higher.Image (map.apply (Boundary.generator n sigma)) :=
+  \fun (sigma: BoundarySimplices.Carrier n) => transport!{{Whole.Carrier (N.Nat^::succ n)}} Higher.Image _ _
+    (sym!{{Whole.Carrier (N.Nat^::succ n)}} _ _ (trans!{{Whole.Carrier (N.Nat^::succ n)}} _ _ _
+      (congr!{{Whole.Carrier n} {Whole.Carrier (N.Nat^::succ n)}} (Prism.map f g h).apply _ _ (Lower.onGenerator sigma)) (Prism.onGenerator f g h sigma))) (onSimplex sigma);
+\definition all: \forall (x: Boundary.Carrier n) -> Higher.Image (map.apply x) :=
+  Modules.Free[Generators := BoundarySimplices.Carrier n].Induction[].Into[W := Whole.Carrier (N.Nat^::succ n), target := Whole.space (N.Nat^::succ n)].law map Higher.submodule onGenerator;
+\definition integerImage: \forall (x: BoundaryExtension.Carrier (I.Int^::ofNat n)) ->
+  \exists ( y: BoundaryExtension.Carrier (I.Int^::ofNat (N.Nat^::succ n)) \where Inclusion.map.apply (I.Int^::ofNat (N.Nat^::succ n)) y = IntegerHomotopy.integerHomotopy.apply (I.Int^::ofNat n) (Inclusion.map.apply (I.Int^::ofNat n) x) ) := \block {
+  \fun (x: BoundaryExtension.Carrier (I.Int^::ofNat n)) \then
+  \takefrom y: \Cast[Boundary.Carrier (N.Nat^::succ n)] ({ y: Boundary.Carrier (N.Nat^::succ n) \where Higher.inclusion.apply y = map.apply x }) \by all x \then
+  \return Logic.existsIntro[BoundaryExtension.Carrier (I.Int^::ofNat (N.Nat^::succ n)),
+    { z: BoundaryExtension.Carrier (I.Int^::ofNat (N.Nat^::succ n)) \where Inclusion.map.apply (I.Int^::ofNat (N.Nat^::succ n)) z = IntegerHomotopy.integerHomotopy.apply (I.Int^::ofNat n) (Inclusion.map.apply (I.Int^::ofNat n) x) }]
+    (BoundaryExtension.Positive[n := N.Nat^::succ n].intro y)
+    (congr!{{Whole.Carrier (N.Nat^::succ n)} {WholeExtension.Carrier (I.Int^::ofNat (N.Nat^::succ n))}} WholeExtension.Positive[n := N.Nat^::succ n].intro _ _
+      (\bysub(Boundary.Carrier (N.Nat^::succ n), { y: Boundary.Carrier (N.Nat^::succ n) \where Higher.inclusion.apply y = map.apply x }, y)))
+};

@@ -1,0 +1,33 @@
+\import \parent.Degree[z := z] \as Lower;
+\import \parent.Degree[z := Degrees.next z] \as Current;
+\import \parent.At[z := z] \as Previous;
+\import \parent.At[z := Degrees.next z] \as Now;
+\definition Compatible: \Pow Current.directSum.Carrier := { x: Current.directSum.Carrier \where Now.difference.apply x = Current.intersection.space.zero };
+\definition Local: \Set := \Cast[Current.directSum.Carrier] Compatible;
+\definition Values[x: Local]: \Pow Current.whole.Carrier := { u: Current.whole.Carrier \where Now.restriction.apply u = x };
+\definition Lift[x: Local]: \Set := \Cast[Current.whole.Carrier] (Values x);
+\definition existence: \forall (x: Local) -> \exists Lift x :=
+  \fun (x: Local) => Now.exactAtSum.kernelImage x (\bysub(Current.directSum.Carrier, Compatible, x));
+\definition Vanishes: \Prop := \forall (x: Lower.intersection.Carrier) -> x = Lower.intersection.space.zero;
+\import Modules.Hom[V := Lower.intersection.Carrier, W := Current.whole.Carrier, source := Lower.intersection.space, target := Current.whole.space] \as Connecting;
+\import Modules.Hom[V := Current.whole.Carrier, W := Current.directSum.Carrier, source := Current.whole.space, target := Current.directSum.space] \as Restriction;
+\definition zeroKernel: Vanishes -> \forall (u: Current.whole.Carrier) -> Now.restriction.apply u = Current.directSum.space.zero -> u = Current.whole.space.zero := \block {
+  \fun (vanishes: Vanishes)(u: Current.whole.Carrier)(zero: Now.restriction.apply u = Current.directSum.space.zero) \then
+    \takefrom v: \Cast[Lower.intersection.Carrier] ({ v: Lower.intersection.Carrier \where Previous.connecting.apply v = u })
+      \by Previous.exactAtWhole.kernelImage u zero \then
+    \return trans!{Current.whole.Carrier} _ _ _
+      (sym!{Current.whole.Carrier} _ _ (\bysub(Lower.intersection.Carrier, { v: Lower.intersection.Carrier \where Previous.connecting.apply v = u }, v)))
+      (trans!{Current.whole.Carrier} _ _ _
+        (congr!{Lower.intersection.Carrier Current.whole.Carrier} Previous.connecting.apply _ _ (vanishes v))
+        (Connecting.zeroPreserved Previous.connecting))
+};
+\definition injective: Vanishes -> \forall (u, v: Current.whole.Carrier) -> Now.restriction.apply u = Now.restriction.apply v -> u = v :=
+  \fun (vanishes: Vanishes) => Restriction.injectiveOfZeroKernel Now.restriction (zeroKernel vanishes);
+\definition unique: Vanishes -> \forall (x: Local)(u, v: Lift x) -> u = v :=
+  \fun (vanishes: Vanishes)(x: Local)(u, v: Lift x) => injective vanishes u v
+    (trans!{Current.directSum.Carrier} _ _ _ (\bysub(Current.whole.Carrier, Values x, u)) (sym!{Current.directSum.Carrier} _ _ (\bysub(Current.whole.Carrier, Values x, v))));
+\definition glue[vanishes: Vanishes][x: Local]: Lift x := \choice Lift x \by { existence: existence x, uniqueness: unique vanishes x };
+\definition restriction: \forall (vanishes: Vanishes)(x: Local) -> Now.restriction.apply (glue vanishes x) = x :=
+  \fun (vanishes: Vanishes)(x: Local) => \bysub(Current.whole.Carrier, Values x, glue vanishes x);
+
+\module Ordinary;

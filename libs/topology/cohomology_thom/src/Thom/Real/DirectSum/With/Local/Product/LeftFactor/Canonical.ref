@@ -1,0 +1,63 @@
+\import thom_spaces.Thom[].CWType[].Point[] \as Point;
+\import thom_spaces.Thom[].DiskSuspension[X := Point.Carrier, space := Point.topology, n := c.dimension] \as PointDisk;
+\import LeftStandard.PointModel[] \as PointCoordinates;
+\import Left.Ring[K := K, ring := ring] \as ChartClasses;
+\import LeftOpen.Ring[K := K, ring := ring] \as ChartOpenClasses;
+\import \root.LocalDisk[].On[X := Point.Carrier, source := Point.topology].From[B := BasePoint, target := LeftChart.baseTopology,
+  f := (\fun (x: BasePoint) => Point.point), regular := topology.Maps[A := BasePoint, B := Point.Carrier].constantContinuous LeftChart.baseTopology Point.topology Point.point] \as Constant;
+\import thom_spaces.Thom[].DiskSuspension[X := BasePoint, space := LeftChart.baseTopology, n := c.dimension] \as StandardDisk;
+\import Constant.Rank[n := c.dimension] \as Rank;
+\import singular_cohomology.Relative[A := Left.Carrier, source := Left.topology, subset := Left.boundary].Maps[B := First.Disk].Over[target := First.diskTopology, targetSubset := LeftStandard.boundary] \as BoundaryProjectionMaps;
+\definition boundaryProjection: BoundaryProjectionMaps.Map := \into[Left.Carrier -> First.Disk]((Pair.second BasePoint First.Disk), BoundaryProjectionMaps.Map) \by {
+  BoundaryProjectionMaps.Laws[Pair.second BasePoint First.Disk] { continuous := topological_constructions.Product[A := BasePoint, B := First.Disk].Maps[].secondContinuous LeftChart.baseTopology First.diskTopology, contained := \fun (p: \Cast[Left.Carrier] Left.boundary) => \bysub(Left.Carrier, Left.boundary, p) }
+};
+\import \root.RelativePullback[].On[A := Left.Carrier, source := Left.topology, subset := Left.boundary, R := K, ring := ring].To[B := First.Disk, target := First.diskTopology, part := LeftStandard.boundary].Along[f := boundaryProjection] \as BoundaryProjectionPull;
+\import singular_cohomology.Relative[A := Left.Carrier, source := Left.topology, subset := Left.boundary].Maps[B := Left.Carrier].Over[target := Left.topology, targetSubset := LeftNorm.targetShell].Composition[C := First.Disk].Over[final := First.diskTopology, finalSubset := LeftStandard.shell] \as FirstComposition;
+\import BoundaryProjectionMaps.Composition[C := First.Disk].Over[final := First.diskTopology, finalSubset := LeftStandard.shell] \as SecondComposition;
+\import singular_cohomology.Relative[A := Left.Carrier, source := Left.topology, subset := Left.boundary].Maps[B := First.Disk].Over[target := First.diskTopology, targetSubset := LeftStandard.shell] \as ShellMaps;
+\definition inclusionSquare: FirstComposition.compose LeftNormRing.targetInclude projection = SecondComposition.compose boundaryProjection LeftStandard.include := \refl(FirstComposition.compose LeftNormRing.targetInclude projection);
+\import singular_cohomology.Relative[A := Left.Carrier, source := Left.topology, subset := Left.boundary].With[coefficients := BaseProduct.integerCoefficients].At[z := I.Int^::ofNat c.dimension] \as ProductBoundary;
+\definition shellAction[f: ShellMaps.Map]: _ := ShellMaps.On[f := f].Integer[].With[coefficients := BaseProduct.integerCoefficients].At[z := I.Int^::ofNat c.dimension].induced;
+\definition inclusionLaw: \forall (a: LeftPoint.Class) -> IncludePull.Degree[n := c.dimension].map.apply (ProjectionPull.Degree[n := c.dimension].map.apply (LeftStandardClass.lift a)) = BoundaryProjectionPull.Degree[n := c.dimension].map.apply (LeftStandardClass.map a) :=
+  \fun (a: LeftPoint.Class) => eq_reason_in!{ProductBoundary.Carrier _
+    "=" _ "by" { sym!{ProductBoundary.Carrier} _ _ (FirstComposition.On[f := LeftNormRing.targetInclude, g := projection].With[coefficients := BaseProduct.integerCoefficients].law (I.Int^::ofNat c.dimension) (LeftStandardClass.lift a)) }
+    "=" _ "by" { congr!{ShellMaps.Map ProductBoundary.Carrier} (\fun (f: ShellMaps.Map) => (shellAction f).apply (LeftStandardClass.lift a)) _ _ inclusionSquare }
+    "=" _ "by" { SecondComposition.On[f := boundaryProjection, g := LeftStandard.include].With[coefficients := BaseProduct.integerCoefficients].law (I.Int^::ofNat c.dimension) (LeftStandardClass.lift a) }
+    "=" _ "by" { congr!{{singular_cohomology.Relative[A := First.Disk, source := First.diskTopology, subset := LeftStandard.boundary].With[coefficients := BaseProduct.integerCoefficients].At[z := I.Int^::ofNat c.dimension].Carrier} ProductBoundary.Carrier} BoundaryProjectionPull.Degree[n := c.dimension].map.apply _ _ (LeftStandardClass.normalized a) }
+  };
+\import singular_cohomology.Relative[A := First.Disk, source := First.diskTopology, subset := LeftStandard.boundary].Homeomorphism[B := PointDisk.DiskCarrier].Over[target := PointDisk.diskTopology, targetSubset := PointDisk.boundary] \as PointPairs;
+\import singular_cohomology.Relative[A := LeftOpen.Carrier, source := LeftOpen.topology, subset := LeftOpen.boundary].Maps[B := Left.Carrier].Over[target := Left.topology, targetSubset := Left.boundary].Composition[C := First.Disk].Over[final := First.diskTopology, finalSubset := LeftStandard.boundary] \as ProjectComposition;
+\definition projectionMap: _ := ProjectComposition.compose (BoundaryPairs.forwardMap Left.pair) boundaryProjection;
+\import singular_cohomology.Relative[A := LeftOpen.Carrier, source := LeftOpen.topology, subset := LeftOpen.boundary].Maps[B := First.Disk].Over[target := First.diskTopology, targetSubset := LeftStandard.boundary].Composition[C := PointDisk.DiskCarrier].Over[final := PointDisk.diskTopology, finalSubset := PointDisk.boundary] \as PointComposition;
+\definition fullMap: _ := PointComposition.compose projectionMap (PointPairs.forwardMap PointCoordinates.pair);
+\import \root.RelativePullback[].On[A := LeftOpen.Carrier, source := LeftOpen.topology, subset := LeftOpen.boundary, R := K, ring := ring].To[B := First.Disk, target := First.diskTopology, part := LeftStandard.boundary].Along[f := projectionMap] \as ProjectionBoundaryPull;
+\import \root.RelativePullback[].On[A := LeftOpen.Carrier, source := LeftOpen.topology, subset := LeftOpen.boundary, R := K, ring := ring].To[B := PointDisk.DiskCarrier, target := PointDisk.diskTopology, part := PointDisk.boundary].Along[f := fullMap] \as FullPull;
+\definition classLaw: \forall (a: LeftPoint.Class) -> class a = FullPull.Degree[n := c.dimension].map.apply a :=
+  \fun (a: LeftPoint.Class) => eq_reason_in!{LeftInput.Carrier _
+    "=" _ "by" { congr!{ProductBoundary.Carrier LeftInput.Carrier} BoundaryPull.Degree[n := c.dimension].map.apply _ _ (inclusionLaw a) }
+    "=" _ "by" { sym!{LeftInput.Carrier} _ _ (ProjectComposition.On[f := BoundaryPairs.forwardMap Left.pair, g := boundaryProjection].With[coefficients := BaseProduct.integerCoefficients].law (I.Int^::ofNat c.dimension) (LeftStandardClass.map a)) }
+    "=" _ "by" { sym!{LeftInput.Carrier} _ _ (PointComposition.On[f := projectionMap, g := PointPairs.forwardMap PointCoordinates.pair].With[coefficients := BaseProduct.integerCoefficients].law (I.Int^::ofNat c.dimension) a) }
+  };
+\import singular_cohomology.Relative[A := LeftOpen.Carrier, source := LeftOpen.topology, subset := LeftOpen.boundary].Homeomorphism[B := StandardDisk.DiskCarrier].Over[target := StandardDisk.diskTopology, targetSubset := StandardDisk.boundary] \as CoordinatePairs;
+\import singular_cohomology.Relative[A := LeftOpen.Carrier, source := LeftOpen.topology, subset := LeftOpen.boundary].Maps[B := StandardDisk.DiskCarrier].Over[target := StandardDisk.diskTopology, targetSubset := StandardDisk.boundary].Composition[C := PointDisk.DiskCarrier].Over[final := PointDisk.diskTopology, finalSubset := PointDisk.boundary] \as CanonicalComposition;
+\import singular_cohomology.Relative[A := LeftOpen.Carrier, source := LeftOpen.topology, subset := LeftOpen.boundary].Maps[B := PointDisk.DiskCarrier].Over[target := PointDisk.diskTopology, targetSubset := PointDisk.boundary] \as Maps;
+\definition canonicalSquare: fullMap = CanonicalComposition.compose (CoordinatePairs.forwardMap Left.coordinatePair) Rank.pair := \refl(fullMap);
+\definition action[f: Maps.Map]: _ := Maps.On[f := f].Integer[].With[coefficients := BaseProduct.integerCoefficients].At[z := I.Int^::ofNat c.dimension].induced;
+\import \root.RelativePullback[].On[A := LeftOpen.Carrier, source := LeftOpen.topology, subset := LeftOpen.boundary, R := K, ring := ring].To[B := StandardDisk.DiskCarrier, target := StandardDisk.diskTopology, part := StandardDisk.boundary].Homeomorphism[data := Left.coordinatePair] \as CoordinatePull;
+\definition canonical: class LeftPoint.generator = ChartOpenClasses.class := eq_reason_in!{LeftInput.Carrier _
+  "=" _ "by" { classLaw LeftPoint.generator }
+  "=" _ "by" { congr!{Maps.Map LeftInput.Carrier} (\fun (f: Maps.Map) => (action f).apply LeftPoint.generator) _ _ canonicalSquare }
+  "=" _ "by" { CanonicalComposition.On[f := CoordinatePairs.forwardMap Left.coordinatePair, g := Rank.pair].With[coefficients := BaseProduct.integerCoefficients].law (I.Int^::ofNat c.dimension) LeftPoint.generator }
+  "=" _ "by" { congr!{{\root.LocalDisk[].On[X := BasePoint, source := LeftChart.baseTopology].Ring[RingCarrier := K, ring := ring].Standard[n := c.dimension].Class} LeftInput.Carrier} CoordinatePull.Degree[n := c.dimension].isomorphism.forward.apply _ _ (Constant.Ring[K := K, ring := ring].canonical c.dimension) }
+  "=" _ "by" { ChartClasses.coordinateLaw }
+};
+\import module_theory.Module[].Over[R := I.Int^, ring := std.Arithmetic[].IntAlgebra[].Ring[].ring] \as IntegerModules;
+\import singular_cohomology.Relative[A := PointDisk.DiskCarrier, source := PointDisk.diskTopology, subset := PointDisk.boundary].With[coefficients := BaseProduct.integerCoefficients].At[z := I.Int^::ofNat c.dimension] \as PointInput;
+\definition negative: \forall (a: LeftPoint.Class) -> class (PointInput.space.neg a) = LeftInput.space.neg (class a) :=
+  \fun (a: LeftPoint.Class) => eq_reason_in!{LeftInput.Carrier _
+    "=" _ "by" { classLaw (PointInput.space.neg a) }
+    "=" _ "by" { IntegerModules.Hom[V := PointInput.Carrier, W := LeftInput.Carrier, source := PointInput.space, target := LeftInput.space].negativePreserved FullPull.Degree[n := c.dimension].map a }
+    "=" _ "by" { congr!{LeftInput.Carrier LeftInput.Carrier} LeftInput.space.neg _ _ (sym!{LeftInput.Carrier} _ _ (classLaw a)) }
+  };
+\definition negativeCanonical: class (PointInput.space.neg LeftPoint.generator) = LeftInput.space.neg ChartOpenClasses.class :=
+  trans!{LeftInput.Carrier} _ _ _ (negative LeftPoint.generator) (congr!{LeftInput.Carrier LeftInput.Carrier} LeftInput.space.neg _ _ canonical);

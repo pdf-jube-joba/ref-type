@@ -1,0 +1,23 @@
+\import algebra.Two[] \as Two;
+\import \root.Thom[].Real[].For[X := X, F := F, bundle := bundle].With[metric := metric] \as OldGeometry;
+\import \root.Thom[].Real[].For[X := Y, F := (\fun (y: Y) => F (f y)), bundle := pulledBundle].With[metric := pulledMetric] \as NewGeometry;
+\import OldGeometry.ModTwo[n := n, constantRank := constantRank, complex := complex] \as Source;
+\definition pulledRank: \forall (y: Y) -> Bundles.Family[X := Y, F := (\fun (y: Y) => F (f y))].Of[bundle := pulledBundle].rank y = n :=
+  \fun (y: Y) => trans!{N.Nat^} _ _ _ (Pull.Of[regular := regular].rank y) (constantRank (f y));
+\import NewGeometry.ModTwo[n := n, constantRank := pulledRank, complex := sourceComplex] \as Target;
+\import OldGeometry.Pullback[Y := Y, source := source, f := f, regular := regular].Ring[R := Two.Carrier, ring := Two.commutativeRing] \as Operations;
+\import Operations.Oriented[n := n, orientation := Source.orientation, complex := complex, sourceComplex := sourceComplex] \as Oriented;
+\import Target.Compare[given := Oriented.pulledOrientation] \as Comparison;
+\import NewGeometry.Coefficients[R := Two.Carrier, ring := Two.commutativeRing] \as Theory;
+\definition classLaw: Operations.Degree[n := n].pull Source.class = Target.class := trans!{{Theory.Degree[n := n].Class}} _ _ _ Oriented.classLaw Comparison.classLaw;
+\definition eulerLaw: _ := trans!{{singular_products.Cochains[A := Y, source := source, R := Two.Carrier, ring := Two.commutativeRing].Cohomology[].Group n}} _ _ _
+  (sym!{{singular_products.Cochains[A := Y, source := source, R := Two.Carrier, ring := Two.commutativeRing].Cohomology[].Group n}} _ _ Comparison.eulerLaw) Oriented.eulerLaw;
+\module Degree(p: N.Nat^) {
+  \definition sum: N.Nat^ := N.Basic[].Def[].add p n;
+  \import singular_products.Cochains[A := X, source := bundle.baseSpace, R := Two.Carrier, ring := Two.commutativeRing] \as SourceBase;
+  \import singular_products.Cochains[A := Y, source := source, R := Two.Carrier, ring := Two.commutativeRing] \as TargetBase;
+  \import TargetBase.Cohomology[].Pullback[B := X, target := bundle.baseSpace] \as BasePull;
+  \definition law: \forall (a: SourceBase.Cohomology[].Group p) -> Operations.Degree[n := sum].pull (Source.Degree[p := p].isomorphism.forward.apply a) = Target.Degree[p := p].isomorphism.forward.apply (BasePull.apply p f regular a) :=
+    \fun (a: SourceBase.Cohomology[].Group p) => trans!{{Theory.Degree[n := sum].Class}} _ _ _ (Oriented.Degree[p := p].law a)
+      (congr!{{Theory.Degree[n := n].Class} {Theory.Degree[n := sum].Class}} (\fun (u: Theory.Degree[n := n].Class) => Theory.Product[p := p, n := n].apply (BasePull.apply p f regular a) u) _ _ Comparison.classLaw);
+}

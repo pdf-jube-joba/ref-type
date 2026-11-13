@@ -1,0 +1,22 @@
+\import \parent.\parent.LeftBasis[] \as Target;
+\import \parent.\parent.OverlapBasis[] \as Input;
+\import singular_cohomology.Chains[A := Overlap, source := overlapTopology] \as SourceWhole;
+\import singular_cohomology.Chains[A := Left, source := leftTopology] \as TargetWhole;
+\import double_complexes.NonnegativeChain[].Over[R := I.Int^, ring := Integers.ring].ZeroExtension[C := SourceWhole.complex] \as SourceExtension;
+\import double_complexes.NonnegativeChain[].Over[R := I.Int^, ring := Integers.ring].ZeroExtension[C := TargetWhole.complex] \as TargetExtension;
+\import Modules.Free[Generators := Generators.Overlap].Reindex[TargetGenerators := Generators.Left] \as Push;
+\import Modules.Hom[V := O.Carrier index, W := L.Carrier index, source := O.space index, target := L.space index].Composition[U := OF.Carrier, domain := OF.space] \as Before;
+\import Chains.Map[C := O.complex, D := L.complex].At[k := index] \as Map;
+\import Modules.Hom[V := LF.Carrier, W := L.Carrier index, source := LF.space, target := L.space index].Composition[U := OF.Carrier, domain := OF.space] \as After;
+\import Modules.Free[Generators := Generators.Overlap].To[W := L.Carrier index, target := L.space index] \as Free;
+\definition equation: Before.compose (Map.linear LeftMap.map) overlapIsomorphism.forward = After.compose leftIsomorphism.forward (Push.push Generators.overLeft) := Free.ext _ _
+  (\fun (sigma: Generators.Overlap) => trans!{{L.Carrier index}} _ _ _
+    (congr!{{O.Carrier index} {L.Carrier index}} (LeftMap.map.apply index) _ _ (Input.onGenerator sigma))
+    (trans!{{L.Carrier index}} _ _ _ (LeftMap.At[z := index].onClass (SourceExtension.Positive[n := n].intro (SourceWhole.generator n sigma)))
+      (trans!{{L.Carrier index}} _ _ _
+        (congr!{{TargetWhole.Carrier n} {L.Carrier index}} (\fun (x: TargetWhole.Carrier n) => L.class index (TargetExtension.Positive[n := n].intro x)) _ _ (LeftMaps.At[n := n].onGenerator Absolute.toLeft Absolute.leftContinuous sigma))
+        (trans!{{L.Carrier index}} _ _ _ (sym!{{L.Carrier index}} _ _ (Target.onGenerator (Generators.overLeft sigma)))
+          (congr!{LF.Carrier {L.Carrier index}} leftIsomorphism.forward.apply _ _ (sym!{LF.Carrier} _ _ (Push.onGenerator Generators.overLeft sigma)))))));
+\definition law: \forall (x: OF.Carrier) -> LeftMap.map.apply index (overlapIsomorphism.forward.apply x) = leftIsomorphism.forward.apply ((Push.push Generators.overLeft).apply x) :=
+  \fun (x: OF.Carrier) => congr!{{Modules.Hom[V := OF.Carrier, W := L.Carrier index, source := OF.space, target := L.space index].Map} {L.Carrier index}}
+    (\fun (f: Modules.Hom[V := OF.Carrier, W := L.Carrier index, source := OF.space, target := L.space index].Map) => f.apply x) _ _ equation;

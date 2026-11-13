@@ -1,0 +1,29 @@
+\import singular_cohomology.Maps[A := Overlap, B := Left, source := overlapTopology, target := leftTopology] \as LeftGeometry;
+\import singular_cohomology.Maps[A := Overlap, B := Right, source := overlapTopology, target := rightTopology] \as RightGeometry;
+\definition left[a: WholeProduct.Carrier p]: LeftProduct.Carrier p := WholeToLeft.apply p leftPairMap leftContinuous a;
+\definition right[a: WholeProduct.Carrier p]: RightProduct.Carrier p := WholeToRight.apply p rightPairMap rightContinuous a;
+\definition overlap[a: WholeProduct.Carrier p]: OverlapProduct.Carrier p := LeftToOverlap.apply p toLeft overlapLeftContinuous (left a);
+\import singular_cohomology.Simplices[A := Overlap, source := overlapTopology] \as Simplices;
+\import Modules.Free[Generators := Simplices.Carrier p].To[W := K, target := WholeProduct.integerCoefficients.space] \as Free;
+\definition agree: \forall (a: WholeProduct.Carrier p) -> overlap a = RightToOverlap.apply p toRight overlapRightContinuous (right a) :=
+  \fun (a: WholeProduct.Carrier p) => Free.ext _ _ (\fun (sigma: Simplices.Carrier p) => trans!{K} _ _ _
+    (LeftToOverlap.onSimplex p toLeft overlapLeftContinuous (left a) sigma)
+    (trans!{K} _ _ _
+      (WholeToLeft.onSimplex p leftPairMap leftContinuous a (LeftGeometry.postcompose p toLeft overlapLeftContinuous sigma))
+      (sym!{K} _ _ (trans!{K} _ _ _ (RightToOverlap.onSimplex p toRight overlapRightContinuous (right a) sigma)
+        (WholeToRight.onSimplex p rightPairMap rightContinuous a (RightGeometry.postcompose p toRight overlapRightContinuous sigma))))));
+
+\import OrdinaryCochains.At[C := WholeOrdinary.complex, k := p] \as WholeH;
+\definition Cycle: \Set := WholeH.CycleCarrier;
+\definition leftClosed: \forall (a: Cycle) -> LeftOrdinary.coboundary p (left a) = (LeftOrdinary.space (N.Nat^::succ p)).zero :=
+  OrdinaryCochains.Map[C := WholeOrdinary.complex, D := LeftOrdinary.complex].At[k := p].preservesClosed (LeftOrdinaryMaps.map leftPairMap leftContinuous Coefficients.identity);
+\definition rightClosed: \forall (a: Cycle) -> RightOrdinary.coboundary p (right a) = (RightOrdinary.space (N.Nat^::succ p)).zero :=
+  OrdinaryCochains.Map[C := WholeOrdinary.complex, D := RightOrdinary.complex].At[k := p].preservesClosed (RightOrdinaryMaps.map rightPairMap rightContinuous Coefficients.identity);
+
+\import singular_cohomology.Cochains[A := Overlap, source := overlapTopology].With[coefficients := WholeProduct.integerCoefficients] \as OverlapOrdinary;
+\import OrdinaryCochains.At[C := LeftOrdinary.complex, k := p] \as LeftH;
+\import OrdinaryCochains.At[C := OverlapOrdinary.complex, k := p] \as OverlapH;
+\import LeftGeometry.Coefficients[M := WholeProduct.integerCoefficients, L := WholeProduct.integerCoefficients] \as OverlapMaps;
+\import OrdinaryCochains.Map[C := LeftOrdinary.complex, D := OverlapOrdinary.complex].At[k := p] \as OverlapAction;
+\definition overlapCycle[a: Cycle]: OverlapH.CycleCarrier :=
+  (OverlapAction.cyclesMap (OverlapMaps.map toLeft overlapLeftContinuous Coefficients.identity)).apply (LeftH.cycle (left a) (leftClosed a));

@@ -1,0 +1,25 @@
+\import singular_cohomology.Relative[A := A, source := source, subset := subset] \as Pair;
+\import Pair.With[coefficients := Source.integerCoefficients] \as SourceRelative;
+\import Pair.With[coefficients := Target.integerCoefficients] \as TargetRelative;
+\import \root.CoefficientChange[].On[C := Pair.complex, M := Source.integerCoefficients, N := Target.integerCoefficients, u := morphism.linear] \as Change;
+\import singular_cap.CochainPair[A := A, source := source, subset := subset, R := R, ring := ring] \as SourcePair;
+\import singular_cap.CochainPair[A := A, source := source, subset := subset, R := S, ring := targetRing] \as TargetPair;
+\definition cochainMap: _ := Change.cochainMap;
+\module Degree(n: N.Nat^) {
+  \definition map: _ := Change.At[z := I.Int^::ofNat n].map;
+  \definition onClass: _ := Change.At[z := I.Int^::ofNat n].onClass;
+  \import Cochains.Map[C := SourceRelative.complex, D := TargetRelative.complex].At[k := I.Int^::ofNat n] \as Actions;
+  \definition cycles: _ := Actions.cyclesMap cochainMap;
+  \module Forget;
+}
+\module Compare(n: N.Nat^) {
+  \import SourcePair.Comparison[n := n] \as Left;
+  \import TargetPair.Comparison[n := n] \as Right;
+  \import Modules.Hom[V := OrdinaryChains.Carrier n, W := S, source := OrdinaryChains.space n, target := Target.integerCoefficients.space] \as Maps;
+  \definition law: \forall (h: SourceRelative.Carrier (I.Int^::ofNat n)) ->
+    Right.from (cochainMap.apply (I.Int^::ofNat n) h) = apply n (Left.from h) :=
+    \fun (h: SourceRelative.Carrier (I.Int^::ofNat n)) => Maps.ext
+      (Right.from (cochainMap.apply (I.Int^::ofNat n) h)) (apply n (Left.from h))
+      (\fun (x: OrdinaryChains.Carrier n) => \refl(morphism.linear.apply ((Left.from h).apply x)));
+}
+\module Cup(p, q: N.Nat^);

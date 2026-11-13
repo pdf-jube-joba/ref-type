@@ -1,0 +1,18 @@
+\import \root.FamilyPair[A := Geometry.Carrier, source := Geometry.space, family := family] \as Pair;
+\import \root.FamilyPairMap[A := Geometry.Carrier, B := Geometry.Carrier, source := Geometry.space, target := Geometry.space,
+  sourceFamily := family, targetFamily := family, f := start, regular := Comparison.firstRegular, preserves := Comparison.Endpoints[].first] \as Start;
+\import Start.Landing[U := secondRegion, member := Boundary.secondMember,
+  contained := (\fun (p: Geometry.Carrier) => sectionContained (Geometry.projection p))] \as Landing;
+\import Pair.Identity[] \as Identity;
+\module With(coefficients: Modules.Bundle) {
+  \import resolutions.HomComplex[].Over[R := I.Int^, ring := Integers.commutativeRing].Integer[P := Pair.complex, N := coefficients] \as Cochains;
+  \module At(z: I.Int^) {
+    \import chain_complexes.Integer[].Over[R := I.Int^, ring := Integers.ring].At[C := Cochains.complex, z := z] \as H;
+    \definition zero: \forall (q: H.Cohomology) -> q = H.cohomologySpace.zero :=
+      \fun (q: H.Cohomology) => trans!{H.Cohomology} _ _ _
+        (sym!{H.Cohomology} _ _ (Identity.With[coefficients := coefficients].law z q))
+        (trans!{H.Cohomology} _ _ _
+          (sym!{H.Cohomology} _ _ (Comparison.With[coefficients := coefficients].At[z := z].law q))
+          (Landing.With[coefficients := coefficients].At[z := z].law q));
+  }
+}

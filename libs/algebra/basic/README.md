@@ -44,3 +44,7 @@
 
 `LaurentPolynomial.Over.Universal` の `onConstant`・`onVariable`・`onInverseVariable` は、評価の生成元での計算法則を公開する。
 [uniform_approximation](../../analysis/uniform_approximation/README.md) は多項式・Laurent 環の帰納法と評価を使い、実際の環の元として一様近似を構成する。
+
+`Two` は Bool を台とする二元体である。
+加法は xor、乗法は and で、可換環・体の法則と \(0\ne1\) を証明している。
+整数加群としての演算と剰余環との比較は `cohomology_examples.Two` がこの共通の体構造を使う。

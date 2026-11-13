@@ -1,0 +1,61 @@
+\use Equality.eq_reason_in;
+\import \parent.SumComparison[] \as Comparison;
+\import \parent.Naturality[] \as Naturality;
+\definition sourceA: Modules.Bundle := Modules.Bundle { Carrier := OF.Carrier, space := OF.space };
+\definition sourceB: Modules.Bundle := Modules.Bundle { Carrier := FreeSum.Carrier, space := FreeSum.space };
+\definition sourceC: Modules.Bundle := Modules.Bundle { Carrier := WF.Carrier, space := WF.space };
+\definition targetA: Modules.Bundle := Modules.Bundle { Carrier := O.Carrier index, space := O.space index };
+\definition targetB: Modules.Bundle := Modules.Bundle { Carrier := Sum.Carrier index, space := Sum.space index };
+\definition targetC: Modules.Bundle := Modules.Bundle { Carrier := SmallPair.complex.family.Carrier index, space := SmallPair.complex.family.space index };
+\import Modules.ExactPair[A := sourceA, B := sourceB, C := sourceC] \as Original;
+\definition original: Original.Sequence := Original.Sequence {
+  first := Free.inclusion, last := Free.projection, zero := Free.sequence.zero, kernelImage := Free.sequence.kernelImage
+};
+\import Chains.Map[C := O.complex, D := Sum.complex].At[k := index] \as Inclusion;
+\import Chains.Map[C := Sum.complex, D := SmallPair.complex].At[k := index] \as Projection;
+\import Original.Transport[A1 := targetA, B1 := targetB, C1 := targetC, sequence := original,
+  f := Inclusion.linear inclusion, g := Projection.linear projection,
+  a := overlapIsomorphism, b := Comparison.isomorphism, c := wholeIsomorphism] \as Transport;
+\definition firstCommutes: Transport.FirstCommutes := \fun (x: OF.Carrier) => sym!{{Sum.Carrier index}} _ _ (Naturality.inclusionSquare x);
+\definition lastCommutes: Transport.LastCommutes := \fun (x: FreeSum.Carrier) => sym!{{SmallPair.complex.family.Carrier index}} _ _ (Naturality.projectionSquare x);
+\definition zero: _ := Transport.zero firstCommutes lastCommutes;
+\definition kernelImage: _ := Transport.kernelImage firstCommutes lastCommutes;
+\definition backwardSquare: \forall (x: O.Carrier index) -> Comparison.backward.apply (inclusion.apply index x) = Free.inclusion.apply (overlapIsomorphism.backward.apply x) :=
+  \fun (x: O.Carrier index) => trans!{FreeSum.Carrier} _ _ _
+    (congr!{{Sum.Carrier index} FreeSum.Carrier} Comparison.backward.apply _ _ (Transport.firstInverse firstCommutes x))
+    (Comparison.isomorphism.leftInverse (Free.inclusion.apply (overlapIsomorphism.backward.apply x)));
+\definition injective: \forall (x, y: O.Carrier index) -> inclusion.apply index x = inclusion.apply index y -> x = y :=
+  \fun (x, y: O.Carrier index)(same: _) => eq_reason_in!{{O.Carrier index} _
+    "=" _ "by" { sym!{{O.Carrier index}} _ _ (overlapIsomorphism.rightInverse x) }
+    "=" _ "by" { congr!{OF.Carrier {O.Carrier index}} overlapIsomorphism.forward.apply _ _
+      (Free.sequence.injective _ _ (eq_reason_in!{FreeSum.Carrier _
+        "=" _ "by" { sym!{FreeSum.Carrier} _ _ (backwardSquare x) }
+        "=" _ "by" { congr!{{Sum.Carrier index} FreeSum.Carrier} Comparison.backward.apply _ _ same }
+        "=" _ "by" { backwardSquare y }
+      })) }
+    "=" _ "by" { overlapIsomorphism.rightInverse y }
+  };
+\definition onto: \forall (z: targetC.Carrier) -> \exists ( y: targetB.Carrier \where projection.apply index y = z ) := \block {
+  \fun (z: targetC.Carrier) \then
+  \takefrom x: \Cast[FreeSum.Carrier] ({ x: FreeSum.Carrier \where Free.projection.apply x = wholeIsomorphism.backward.apply z })
+    \by Free.sequence.onto (wholeIsomorphism.backward.apply z) \then
+  \return Logic.existsIntro[targetB.Carrier, { y: targetB.Carrier \where projection.apply index y = z }] (Comparison.forward.apply x)
+    (eq_reason_in!{targetC.Carrier _
+      "=" _ "by" { Naturality.projectionSquare x }
+      "=" _ "by" { congr!{WF.Carrier targetC.Carrier} wholeIsomorphism.forward.apply _ _
+        (\bysub(FreeSum.Carrier, { x: FreeSum.Carrier \where Free.projection.apply x = wholeIsomorphism.backward.apply z }, x)) }
+      "=" _ "by" { wholeIsomorphism.rightInverse z }
+    })
+};
+\import Modules.Hom[V := FreeSum.Carrier, W := OF.Carrier, source := FreeSum.space, target := OF.space]
+  .Composition[U := targetB.Carrier, domain := targetB.space] \as First;
+\import Modules.Hom[V := OF.Carrier, W := targetA.Carrier, source := OF.space, target := targetA.space]
+  .Composition[U := targetB.Carrier, domain := targetB.space] \as Last;
+\definition retraction: Modules.Hom[V := targetB.Carrier, W := targetA.Carrier, source := targetB.space, target := targetA.space].Map :=
+  Last.compose overlapIsomorphism.forward (First.compose Free.Retraction[].map Comparison.backward);
+\definition leftInverse: \forall (x: targetA.Carrier) -> retraction.apply (inclusion.apply index x) = x :=
+  \fun (x: targetA.Carrier) => eq_reason_in!{targetA.Carrier _
+    "=" _ "by" { congr!{FreeSum.Carrier targetA.Carrier} (\fun (y: FreeSum.Carrier) => overlapIsomorphism.forward.apply (Free.Retraction[].map.apply y)) _ _ (backwardSquare x) }
+    "=" _ "by" { congr!{OF.Carrier targetA.Carrier} overlapIsomorphism.forward.apply _ _ (Free.Retraction[].leftInverse (overlapIsomorphism.backward.apply x)) }
+    "=" _ "by" { overlapIsomorphism.rightInverse x }
+  };

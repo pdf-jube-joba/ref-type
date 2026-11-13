@@ -1,0 +1,19 @@
+\import SourceLocal.Rank[n := n] \as SourceRank;
+\import TargetLocal.Rank[n := n] \as TargetRank;
+\import SourceRank.Orientation[] \as SourceOrientation;
+\import TargetRank.Orientation[] \as TargetOrientation;
+\definition fiber: TargetRank.Fibers := \fun (x: X) => Change.Fiber[x := x, z := I.Int^::ofNat n].map.apply (orientation.fiber x);
+\definition targetOrientation: TargetOrientation.SignedOrientation := TargetOrientation.SignedOrientation {
+  fiber := fiber,
+  locally := \block {
+    \fun (x: X) \then
+    \takefrom local: SourceOrientation.LocalOrientation[x, orientation.fiber] \by orientation.locally x \then
+    \return \exact(TargetOrientation.LocalOrientation[x, fiber] {
+      chart := local.chart, contains := local.contains, rank := local.rank, reverse := local.reverse,
+      normalized := \fun (y: \Cast[X] local.chart.domain) => trans!{{TargetRank.FiberClass y}} _ _ _
+        (sym!{{TargetRank.FiberClass y}} _ _ (\parent.Chart[c := local.chart].Rank[n := n, same := local.rank].Fiber[x := y].signed local.reverse))
+        (congr!{{SourceRank.FiberClass y} {TargetRank.FiberClass y}} Change.Fiber[x := y, z := I.Int^::ofNat n].map.apply _ _ (local.normalized y))
+    }, TargetOrientation.LocalOrientation[x, fiber])
+  }
+};
+\module FiniteCW(complex: algebraic_topology.CW[A := X].FiniteComplex[bundle.baseSpace]);

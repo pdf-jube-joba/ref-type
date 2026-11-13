@@ -1,0 +1,17 @@
+\import \parent.\parent.Degree[p := p] \as Thom;
+\definition sum: N.Nat^ := N.Basic[].Def[].add p n;
+\definition source: IntegerModules.Bundle := IntegerModules.Bundle { Carrier := BaseNatural.cohomology p, space := BaseNatural.cohomologySpace p };
+\definition target: IntegerModules.Bundle := IntegerModules.Bundle { Carrier := Relative (I.Int^::ofNat sum), space := relativeSpace (I.Int^::ofNat sum) };
+\definition forward: IntegerModules.MapBetween source target := \root.RelativeMayerVietoris[].IntegerLinear[].On[A := source, B := target, f := Thom.isomorphism.forward.apply, addition := Thom.isomorphism.forward.addition].map;
+\definition backward: IntegerModules.MapBetween target source := \root.RelativeMayerVietoris[].IntegerLinear[].On[A := target, B := source, f := Thom.isomorphism.backward.apply, addition := Thom.isomorphism.backward.addition].map;
+\definition natural: IntegerModules.Isomorphism[V := source.Carrier, W := target.Carrier, source := source.space, target := target.space].Isomorphism :=
+  IntegerModules.Isomorphism[V := source.Carrier, W := target.Carrier, source := source.space, target := target.space].Isomorphism {
+    forward := forward, backward := backward, leftInverse := Thom.isomorphism.leftInverse, rightInverse := Thom.isomorphism.rightInverse
+  };
+\definition same: \root.LocalDisk[].shift n (I.Int^::ofNat p) = I.Int^::ofNat sum := \root.LocalDisk[].shiftNatural n p;
+\definition reverseSame: I.Int^::ofNat sum = \root.LocalDisk[].shift n (I.Int^::ofNat p) := sym!{I.Int^} _ _ same;
+\definition atNatural: IntegerModules.Isomorphism[V := Base.cohomology (I.Int^::ofNat p), W := target.Carrier, source := Base.cohomologySpace (I.Int^::ofNat p), target := target.space].Isomorphism :=
+  IntegerModules.Isomorphism[V := Base.cohomology (I.Int^::ofNat p), W := source.Carrier, source := Base.cohomologySpace (I.Int^::ofNat p), target := source.space].Composition[U := target.Carrier, final := target.space].compose natural Base.At[n := p].isomorphism;
+\definition isomorphism: \parent.At[z := I.Int^::ofNat p].Iso :=
+  IntegerModules.Isomorphism[V := Base.cohomology (I.Int^::ofNat p), W := target.Carrier, source := Base.cohomologySpace (I.Int^::ofNat p), target := target.space].Composition[U := Relative (\root.LocalDisk[].shift n (I.Int^::ofNat p)), final := relativeSpace (\root.LocalDisk[].shift n (I.Int^::ofNat p))].compose
+    Transport.At[m := I.Int^::ofNat sum, n := \root.LocalDisk[].shift n (I.Int^::ofNat p), same := reverseSame].isomorphism atNatural;

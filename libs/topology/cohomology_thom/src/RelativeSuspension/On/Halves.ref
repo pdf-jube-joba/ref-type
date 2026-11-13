@@ -1,0 +1,66 @@
+\definition low: \Pow J.Carrier := { t: J.Carrier \where Order.Lt t R.one };
+\definition high: \Pow J.Carrier := { t: J.Carrier \where Order.Lt R.zero t };
+\definition middle: \Pow J.Carrier := { t: J.Carrier \where Logic.And[Order.Lt t R.one, Order.Lt R.zero t] };
+\definition full: \Pow A := { x: A \where x = x };
+\definition start: \Cast[J.Carrier] low := \into[J.Carrier](J.start, low) \by { Estimates.Product[].onePositive };
+\definition end: \Cast[J.Carrier] high := \into[J.Carrier](J.end, high) \by { Estimates.Product[].onePositive };
+\definition centre: \Cast[J.Carrier] middle := \into[J.Carrier](J.middle, middle) \by {
+  Logic.And[_, _]::# \parent.\parent.Interval[].halfBelowOne \parent.\parent.Interval[].halfPositive
+};
+\definition lowConvex: \forall (s: J.Carrier)(t: \Cast[J.Carrier] low) -> \In[J.Carrier] low (Convex.blend s start t) :=
+  \fun (s: J.Carrier)(t: \Cast[J.Carrier] low) => Order.leLtTrans (Convex.blend s start t) t R.one
+    (\parent.\parent.Interval[].upper s start t t (J.bounds t).left (Order.leRefl t)) (\bysub(J.Carrier, low, t));
+\definition highConvex: \forall (s: J.Carrier)(t: \Cast[J.Carrier] high) -> \In[J.Carrier] high (Convex.blend s end t) :=
+  \fun (s: J.Carrier)(t: \Cast[J.Carrier] high) => Order.ltLeTrans R.zero t (Convex.blend s end t)
+    (\bysub(J.Carrier, high, t)) (\parent.\parent.Interval[].lower s end t t (J.bounds t).right (Order.leRefl t));
+\definition middleConvex: \forall (s: J.Carrier)(t: \Cast[J.Carrier] middle) -> \In[J.Carrier] middle (Convex.blend s centre t) :=
+  \fun (s: J.Carrier)(t: \Cast[J.Carrier] middle) => Logic.And[_, _]::#
+    (\parent.\parent.Interval[].below s centre t \parent.\parent.Interval[].halfBelowOne (\bysub(J.Carrier, middle, t)).left)
+    (\parent.\parent.Interval[].positive s centre t \parent.\parent.Interval[].halfPositive (\bysub(J.Carrier, middle, t)).right);
+\definition lowPreserves: \forall (s: J.Carrier)(t: \Cast[J.Carrier] low)(x: A) -> \In[Cylinder.Carrier] boundary (Cylinder.at t x) ->
+  \In[Cylinder.Carrier] boundary (Cylinder.at (Convex.blend s start t) x) :=
+  \fun (s: J.Carrier)(t: \Cast[J.Carrier] low)(x: A)(inside: _) => either!{inside
+    {\In[Cylinder.Carrier] boundary (Cylinder.at (Convex.blend s start t) x)}
+    {\fun (atStart: t = J.start) => Logic.Or[_, _]::left (trans!{{J.Carrier}} _ _ _
+      (congr!{{J.Carrier} {J.Carrier}} (Convex.blend s start) _ _ atStart) (Convex.fixed s J.start))}
+    {\fun (other: Logic.Or[t = J.end, \In[A] subset x]) => either!{other
+      {\In[Cylinder.Carrier] boundary (Cylinder.at (Convex.blend s start t) x)}
+      {\fun (atEnd: t = J.end) => Logic.falseElim _ (Order.Order[].ltNotEq t R.one (\bysub(J.Carrier, low, t)) atEnd)}
+      {\fun (side: \In[A] subset x) => Logic.Or[_, _]::right (Logic.Or[_, _]::right side)}
+    }}
+  };
+\definition highPreserves: \forall (s: J.Carrier)(t: \Cast[J.Carrier] high)(x: A) -> \In[Cylinder.Carrier] boundary (Cylinder.at t x) ->
+  \In[Cylinder.Carrier] boundary (Cylinder.at (Convex.blend s end t) x) :=
+  \fun (s: J.Carrier)(t: \Cast[J.Carrier] high)(x: A)(inside: _) => either!{inside
+    {\In[Cylinder.Carrier] boundary (Cylinder.at (Convex.blend s end t) x)}
+    {\fun (atStart: t = J.start) => Logic.falseElim _ (Order.Order[].ltNotEq R.zero t (\bysub(J.Carrier, high, t)) (sym!{R.Real} _ _ atStart))}
+    {\fun (other: Logic.Or[t = J.end, \In[A] subset x]) => either!{other
+      {\In[Cylinder.Carrier] boundary (Cylinder.at (Convex.blend s end t) x)}
+      {\fun (atEnd: t = J.end) => Logic.Or[_, _]::right (Logic.Or[_, _]::left (trans!{{J.Carrier}} _ _ _
+        (congr!{{J.Carrier} {J.Carrier}} (Convex.blend s end) _ _ atEnd) (Convex.fixed s J.end)))}
+      {\fun (side: \In[A] subset x) => Logic.Or[_, _]::right (Logic.Or[_, _]::right side)}
+    }}
+  };
+\definition middleProjects: \forall (t: \Cast[J.Carrier] middle)(x: A) -> \In[Cylinder.Carrier] boundary (Cylinder.at t x) -> \In[A] subset x :=
+  \fun (t: \Cast[J.Carrier] middle)(x: A)(inside: _) => either!{inside {\In[A] subset x}
+    {\fun (atStart: t = J.start) => Logic.falseElim _ (Order.Order[].ltNotEq R.zero t (\bysub(J.Carrier, middle, t)).right (sym!{R.Real} _ _ atStart))}
+    {\fun (other: Logic.Or[t = J.end, \In[A] subset x]) => either!{other {\In[A] subset x}
+      {\fun (atEnd: t = J.end) => Logic.falseElim _ (Order.Order[].ltNotEq t R.one (\bysub(J.Carrier, middle, t)).left atEnd)}
+      {\fun (side: \In[A] subset x) => side}
+    }}
+  };
+\definition left: SliceData := SliceData {
+  times := low, centre := start, part := full, convex := lowConvex,
+  projectsBoundary := \fun (t: \Cast[J.Carrier] low)(x: A)(inside: _) => \refl(x),
+  sectionBoundary := \fun (x: \Cast[A] full) => Logic.Or[_, _]::left (\refl(J.start)), preservesBoundary := lowPreserves
+};
+\definition right: SliceData := SliceData {
+  times := high, centre := end, part := full, convex := highConvex,
+  projectsBoundary := \fun (t: \Cast[J.Carrier] high)(x: A)(inside: _) => \refl(x),
+  sectionBoundary := \fun (x: \Cast[A] full) => Logic.Or[_, _]::right (Logic.Or[_, _]::left (\refl(J.end))), preservesBoundary := highPreserves
+};
+\definition overlap: SliceData := SliceData {
+  times := middle, centre := centre, part := subset, convex := middleConvex, projectsBoundary := middleProjects,
+  sectionBoundary := \fun (x: \Cast[A] subset) => Logic.Or[_, _]::right (Logic.Or[_, _]::right (\bysub(A, subset, x))),
+  preservesBoundary := \fun (s: J.Carrier)(t: \Cast[J.Carrier] middle)(x: A)(inside: _) => Logic.Or[_, _]::right (Logic.Or[_, _]::right (middleProjects t x inside))
+};

@@ -1,0 +1,16 @@
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.congr;
+\use Equality.trans;
+\use Equality.sym;
+\import Equality.Transport[A := A] \as From;
+\import Equality.Transport[A := B] \as To;
+\definition law: \forall (F: B -> \Set)(a, b: A)(same: a = b)(v: F (index a)) ->
+  From.cast (\fun (i: A) => F (index i)) a b same v = To.cast F (index a) (index b) (congr!{A B} index a b same) v :=
+  \fun (F: B -> \Set)(a, b: A)(same: a = b)(v: F (index a)) =>
+    (\idelim a = b \with j: A => \forall (equal: a = j) ->
+      From.cast (\fun (i: A) => F (index i)) a j equal v = To.cast F (index a) (index j) (congr!{A B} index a j equal) v
+      \by {
+        base: \fun (equal: a = a) => trans!{{F (index a)}} _ _ _
+          (From.castRefl (\fun (i: A) => F (index i)) a v) (sym!{{F (index a)}} _ _ (To.castRefl F (index a) v)),
+        equality: same
+      }) same;

@@ -1,0 +1,16 @@
+\import singular_cohomology.Cochains[A := X, source := source].With[coefficients := coefficients].Integer[] \as Base;
+\module At(n: N.Nat^, z: I.Int^) {
+  \import \parent.\parent.Dimension[n := n].With[coefficients := coefficients, z := shift n z] \as Target;
+  \definition Iso: \Set := Modules.Isomorphism[V := Base.cohomology z, W := Target.Group, source := Base.cohomologySpace z, target := Target.space].Isomorphism;
+}
+\definition isomorphism: \forall (n: N.Nat^)(z: I.Int^) -> At[n := n, z := z].Iso :=
+  \induction (n: N.Nat^) \return \forall (z: I.Int^) -> At[n := n, z := z].Iso \with {
+    | zero: \fun (z: I.Int^) => \parent.Zero[].With[coefficients := coefficients, z := z].isomorphism
+    | succ: \fun (n: N.Nat^)(previous: \forall (z: I.Int^) -> At[n := n, z := z].Iso)(z: I.Int^) =>
+      Modules.Isomorphism[V := Base.cohomology z, W := \parent.Dimension[n := n].With[coefficients := coefficients, z := shift n z].Group,
+        source := Base.cohomologySpace z, target := \parent.Dimension[n := n].With[coefficients := coefficients, z := shift n z].space]
+        .Composition[U := \parent.Dimension[n := N.Nat^::succ n].With[coefficients := coefficients, z := shift (N.Nat^::succ n) z].Group,
+          final := \parent.Dimension[n := N.Nat^::succ n].With[coefficients := coefficients, z := shift (N.Nat^::succ n) z].space]
+        .compose \parent.Step[n := n].With[coefficients := coefficients, z := shift n z].isomorphism (previous z)
+  };
+\module Negative(n, k: N.Nat^);

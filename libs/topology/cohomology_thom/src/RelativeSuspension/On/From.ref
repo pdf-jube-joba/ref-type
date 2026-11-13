@@ -1,0 +1,57 @@
+\import \root.RelativeSuspension[].On[A := B, source := target, subset := part] \as Other;
+\import algebraic_topology.Cylinder[A := B] \as OtherCylinder;
+\import singular_cohomology.Relative[A := B, source := target, subset := part].Maps[B := A].Over[target := source, targetSubset := subset] \as BaseMaps;
+\definition continuous: topology.Continuity[A := B, B := A].Continuous target source f := (BaseMaps.laws f).continuous;
+\definition cylinderMap[p: OtherCylinder.Carrier]: Cylinder.Carrier := Cylinder.at (OtherCylinder.time p) (f (OtherCylinder.point p));
+\definition pointContinuous: topology.Continuity[A := OtherCylinder.Carrier, B := A].Continuous Other.topology source (\fun (p: OtherCylinder.Carrier) => f (OtherCylinder.point p)) :=
+  topology.Composition[A := OtherCylinder.Carrier, B := B, C := A].composeContinuous Other.topology target source OtherCylinder.point f (OtherCylinder.pointContinuous target) continuous;
+\definition cylinderContinuous: topology.Continuity[A := OtherCylinder.Carrier, B := Cylinder.Carrier].Continuous Other.topology topology cylinderMap :=
+  topological_constructions.Product[A := J.Carrier, B := A].Universal[X := OtherCylinder.Carrier].pairContinuous Other.topology J.topology source OtherCylinder.time (\fun (p: OtherCylinder.Carrier) => f (OtherCylinder.point p)) (OtherCylinder.timeContinuous target) pointContinuous;
+\import singular_cohomology.Relative[A := OtherCylinder.Carrier, source := Other.topology, subset := Other.boundary].Maps[B := Cylinder.Carrier].Over[target := topology, targetSubset := boundary] \as CylinderMaps;
+\definition boundaryPreserves: \forall (p: \Cast[OtherCylinder.Carrier] Other.boundary) -> \In[Cylinder.Carrier] boundary (cylinderMap p) :=
+  \fun (p: \Cast[OtherCylinder.Carrier] Other.boundary) => either!{{\bysub(OtherCylinder.Carrier, Other.boundary, p)} {\In[Cylinder.Carrier] boundary (cylinderMap p)}
+    {\fun (bottom: _) => Logic.Or[_, _]::left bottom}
+    {\fun (other: _) => either!{other {\In[Cylinder.Carrier] boundary (cylinderMap p)}
+      {\fun (top: _) => Logic.Or[_, _]::right (Logic.Or[_, _]::left top)}
+      {\fun (side: _) => Logic.Or[_, _]::right (Logic.Or[_, _]::right ((BaseMaps.laws f).contained (\into[B](OtherCylinder.point p, part) \by { side })))}
+    }}};
+\definition cylinderPair: CylinderMaps.Map := \into[OtherCylinder.Carrier -> Cylinder.Carrier](cylinderMap, CylinderMaps.Map) \by {
+  CylinderMaps.Laws[cylinderMap] { continuous := cylinderContinuous, contained := boundaryPreserves }
+};
+\import \root.RelativeMayerVietoris[].OpenCover[A := Cylinder.Carrier, source := topology, subset := boundary].On[cover := cover] \as MV;
+\import \root.RelativeMayerVietoris[].OpenCover[A := OtherCylinder.Carrier, source := Other.topology, subset := Other.boundary].On[cover := Other.cover] \as OtherMV;
+\import MV.From[B := OtherCylinder.Carrier, target := Other.topology, part := Other.boundary, otherCover := Other.cover]
+  .Along[f := cylinderPair, leftContains := (\fun (p: OtherMV.Left) => \bysub(OtherCylinder.Carrier, Other.left, p)), rightContains := (\fun (p: OtherMV.Right) => \bysub(OtherCylinder.Carrier, Other.right, p))] \as CoverMapAction;
+\import module_theory.Module[].Over[R := I.Int^, ring := Integers.ring] \as Modules;
+\import \root.RelativeSuspension[].On[A := A, source := source, subset := subset].Covering[] \as SourceCover;
+\import Other.Covering[] \as TargetCover;
+\import \root.RelativeSuspension[].On[A := A, source := source, subset := subset].Slice[d := \root.RelativeSuspension[].On[A := A, source := source, subset := subset].Halves[].overlap] \as SourceMiddle;
+\import Other.Slice[d := Other.Halves[].overlap] \as TargetMiddle;
+\import singular_cohomology.Relative[A := MV.Overlap, source := MV.overlapTopology, subset := MV.overlapPart] \as SourceOverlap;
+\import singular_cohomology.Relative[A := OtherMV.Overlap, source := OtherMV.overlapTopology, subset := OtherMV.overlapPart] \as TargetOverlap;
+\import SourceOverlap.Homeomorphism[B := SourceMiddle.Carrier].Over[target := SourceMiddle.space, targetSubset := SourceMiddle.part] \as SourcePairs;
+\import TargetOverlap.Homeomorphism[B := TargetMiddle.Carrier].Over[target := TargetMiddle.space, targetSubset := TargetMiddle.part] \as TargetPairs;
+\import SourceOverlap.Maps[B := SourceMiddle.Carrier].Over[target := SourceMiddle.space, targetSubset := SourceMiddle.part].Composition[C := A].Over[final := source, finalSubset := subset] \as SourceComposition;
+\import TargetOverlap.Maps[B := TargetMiddle.Carrier].Over[target := TargetMiddle.space, targetSubset := TargetMiddle.part].Composition[C := B].Over[final := target, finalSubset := part] \as TargetComposition;
+\definition sourceProjection: _ := SourceComposition.compose (SourcePairs.forwardMap SourceCover.pair) SourceMiddle.forward;
+\definition targetProjection: _ := TargetComposition.compose (TargetPairs.forwardMap TargetCover.pair) TargetMiddle.forward;
+\import TargetOverlap.Maps[B := MV.Overlap].Over[target := MV.overlapTopology, targetSubset := MV.overlapPart].Composition[C := A].Over[final := source, finalSubset := subset]
+  .On[f := CoverMapAction.overlapMap, g := sourceProjection] \as OverlapComposition;
+\import TargetOverlap.Maps[B := B].Over[target := target, targetSubset := part].Composition[C := A].Over[final := source, finalSubset := subset]
+  .On[f := targetProjection, g := f] \as BaseComposition;
+\module With(coefficients: Modules.Bundle) {
+  \import CoverMapAction.With[coefficients := coefficients] \as Action;
+  \definition connecting[z: I.Int^]: _ := Action.Ordinary[z := z].law;
+\module At(z: I.Int^) {
+  \module Overlap;
+  \import singular_cohomology.Relative[A := A, source := source, subset := subset].With[coefficients := coefficients].At[z := z] \as Input;
+  \import singular_cohomology.Relative[A := OtherCylinder.Carrier, source := Other.topology, subset := Other.boundary].With[coefficients := coefficients].At[z := chain_complexes.Integer[].next z] \as Output;
+  \import TargetOverlap.With[coefficients := coefficients].At[z := z] \as TargetOverlapH;
+  \import CylinderMaps.On[f := cylinderPair].Integer[].With[coefficients := coefficients].At[z := chain_complexes.Integer[].next z] \as CylinderPull;
+  \import BaseMaps.On[f := f].Integer[].With[coefficients := coefficients].At[z := z] \as BasePull;
+  \definition law: \forall (q: Input.Carrier) -> CylinderPull.induced.apply (SourceCover.With[coefficients := coefficients].At[z := z].isomorphism.forward.apply q) =
+    TargetCover.With[coefficients := coefficients].At[z := z].isomorphism.forward.apply (BasePull.induced.apply q) :=
+    \fun (q: Input.Carrier) => trans!{Output.Carrier} _ _ _
+      (sym!{Output.Carrier} _ _ (Action.Ordinary[z := z].law (SourceCover.With[coefficients := coefficients].Degree[z := z].overlapIsomorphism.forward.apply q)))
+      (congr!{TargetOverlapH.Carrier Output.Carrier} OtherMV.Cohomology[coefficients := coefficients].At[z := z].connecting.apply _ _ (Overlap[].law q));
+}}

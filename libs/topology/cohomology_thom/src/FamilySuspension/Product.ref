@@ -1,0 +1,27 @@
+\import singular_products.Cochains[A := A, source := source, R := K, ring := ring] \as Coefficients;
+\definition baseClassify: \forall (U: \Pow A) -> \In[\Pow A] baseFamily U -> Logic.Or[U = first, U = second] :=
+  \fun (U: \Pow A)(member: \In[\Pow A] baseFamily U) => member;
+\definition totalClassify: \forall (U: \Pow Cylinder.Carrier) -> \In[\Pow Cylinder.Carrier] family U -> Logic.Or[U = firstPart, U = secondPart] :=
+  \fun (U: \Pow Cylinder.Carrier)(member: \In[\Pow Cylinder.Carrier] family U) => member;
+\import \root.FamilyProduct[A := A, source := source, first := first, second := second, family := baseFamily,
+  firstMember := Logic.Or[first = first, first = second]::left (\refl(first)), secondMember := Logic.Or[second = first, second = second]::right (\refl(second)), classify := baseClassify, K := K, ring := ring] \as BaseProduct;
+\import \root.FamilyProduct[A := Cylinder.Carrier, source := Suspension.topology, first := firstPart, second := secondPart, family := family,
+  firstMember := Logic.Or[firstPart = firstPart, firstPart = secondPart]::left (\refl(firstPart)), secondMember := Logic.Or[secondPart = firstPart, secondPart = secondPart]::right (\refl(secondPart)), classify := totalClassify, K := K, ring := ring] \as TotalProduct;
+\import \parent.Middle[] \as Middle;
+\import \root.BinaryFamilyPullback[A := MV.Overlap, B := Cylinder.Carrier, first := firstPart, second := secondPart, f := MV.overlapInclusion] \as OverlapBoundary;
+\import BaseProduct.From[Y := MV.Overlap, target := MV.overlapTopology, firstPart := Middle.firstRegion, secondPart := Middle.secondRegion, newFamily := Middle.family,
+  newFirstMember := OverlapBoundary.firstMember, newSecondMember := OverlapBoundary.secondMember, newClassify := OverlapBoundary.classify,
+  f := Middle.projection, regular := Middle.projectionContinuous,
+  firstContained := (\fun (p: MV.Overlap)(inside: \In[MV.Overlap] Middle.firstRegion p) => inside), secondContained := Middle.projectsSecond] \as OverlapNatural;
+\import \root.MixedMayerVietorisProduct[A := Cylinder.Carrier, source := Suspension.topology, first := firstPart, second := secondPart, K := K, ring := ring, cover := Suspension.cover] \as MixedMV;
+\import singular_cohomology.Relative[A := A, source := source, subset := first] \as First;
+\import singular_cohomology.Relative[A := Cylinder.Carrier, source := Suspension.topology, subset := firstPart] \as CylinderFirst;
+\import CylinderFirst.Maps[B := A].Over[target := source, targetSubset := first] \as FirstProjections;
+\definition firstProjection: FirstProjections.Map := \into[Cylinder.Carrier -> A](Cylinder.point, FirstProjections.Map) \by {
+  FirstProjections.Laws[Cylinder.point] { continuous := Cylinder.pointContinuous source, contained := (\fun (p: CylinderFirst.SubspaceCarrier) => \bysub(Cylinder.Carrier, firstPart, p)) }
+};
+\import FirstProjections.On[f := firstProjection].Integer[] \as FirstProjectionChain;
+\import FirstProjectionChain.With[coefficients := Coefficients.integerCoefficients] \as FirstProjection;
+\import chain_complexes.Integer[].Over[R := I.Int^, ring := Integers.ring] \as Integer;
+\module FirstClass(p: N.Nat^);
+\module Cup(p, q: N.Nat^);

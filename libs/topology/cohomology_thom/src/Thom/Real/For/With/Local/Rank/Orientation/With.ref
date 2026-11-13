@@ -1,0 +1,23 @@
+\import std.Set[].FiniteSubset[A := \Pow X] \as Finite;
+\definition family: \Pow (\Pow X) := { U: \Pow X \where \exists Patch[U, orientation.fiber] };
+\definition open: \forall (U: \Pow X) -> Base.FamilyMember family U -> Base.IsOpenIn bundle.baseSpace U := \block {
+  \fun (U: \Pow X)(member: Base.FamilyMember family U) \then
+  \takefrom patch: Patch[U, orientation.fiber] \by member \then
+  \return patchOpen U orientation.fiber patch
+};
+\definition covered: Base.Covers family Base.Whole := \block {
+  \fun (x: X)(inside: Base.Member Base.Whole x) \then
+  \takefrom local: LocalOrientation[x, orientation.fiber] \by orientation.locally x \then
+  \let patch: Patch[local.chart.domain, orientation.fiber] := Patch[local.chart.domain, orientation.fiber] {
+    chart := local.chart, domain := \refl(local.chart.domain), rank := local.rank, reverse := local.reverse, normalized := local.normalized
+  } \then
+  \return Base.unionMemberOf family local.chart.domain x (\exact(patch, Patch[local.chart.domain, orientation.fiber])) local.contains
+};
+\definition cover: Base.IsOpenCover[bundle.baseSpace, family, Base.Whole] := Base.IsOpenCover[bundle.baseSpace, family, Base.Whole] { open := open, covers := covered };
+\definition existsCompact[compact: Base.IsCompact bundle.baseSpace]: \exists ( domains: Finite.FiniteSubset \where Base.FiniteSubcover[family, Base.Whole, domains] ) := compact family cover;
+\definition existsFiniteCW[complex: algebraic_topology.CW[A := X].FiniteComplex[bundle.baseSpace]]: \exists ( domains: Finite.FiniteSubset \where Base.FiniteSubcover[family, Base.Whole, domains] ) :=
+  existsCompact thom_spaces.Thom[].CWType[].CompactType[A := X, source := bundle.baseSpace].Native[complex := complex].compact;
+
+\module Gluing;
+
+\module FiniteCW(complex: algebraic_topology.CW[A := X].FiniteComplex[bundle.baseSpace]);

@@ -1,0 +1,25 @@
+\import singular_cohomology.Cochains[A := Disk.Carrier, source := Disk.topology].OverRing[R := K, ring := ring].With[coefficients := BaseProduct.coefficients] \as Ordinary;
+\import chain_complexes.Cochain[].Over[R := K, ring := std.Alg[].Ring[].commutativeRingAsRing K ring] \as Cochains;
+\import Cochains.At[C := Ordinary.complex, k := p] \as P;
+\import Cochains.At[C := Ordinary.complex, k := N.Basic[].Def[].add p N.Nat^::zero] \as O;
+\import RingCochains.At[C := Relative.complex, z := I.Int^::ofNat N.Nat^::zero] \as Q;
+\import Cup.Comparison[n := N.Nat^::zero].Cohomology[] \as FN;
+\import Cup.Comparison[n := N.Basic[].Def[].add p N.Nat^::zero].Cohomology[] \as FO;
+\import Cup.RelativeCup[p := p, q := N.Nat^::zero] \as CochainCup;
+\import DiskProduct.Cohomology[].Cup[p := p, q := N.Nat^::zero] \as OrdinaryCup;
+\use std.Logic[].Equality[].eq_reason_in;
+\definition onClasses: \forall (a: P.CycleCarrier)(u: Q.Closed) ->
+  FO.map.apply (Product.apply (P.classOf a) (Q.classOf u)) = OrdinaryCup.apply (P.classOf a) (FN.map.apply (Q.classOf u)) :=
+  \fun (a: P.CycleCarrier)(u: Q.Closed) => eq_reason_in!{O.Cohomology _
+    "=" _ "by" { congr!{Output.Cohomology O.Cohomology} FO.map.apply _ _ (Product.onClasses a u) }
+    "=" _ "by" { FO.onClass (Product.cycle a u) }
+    "=" _ "by" { O.equalClass (FO.cycle (Product.cycle a u)) (OrdinaryCup.cycle a (FN.cycle u)) (CochainCup.rightRestriction a u) }
+    "=" _ "by" { sym!{O.Cohomology} _ _ (OrdinaryCup.onClasses a (FN.cycle u)) }
+    "=" _ "by" { congr!{{DiskProduct.Cohomology[].Group N.Nat^::zero} O.Cohomology} (OrdinaryCup.apply (P.classOf a)) _ _ (sym!{{DiskProduct.Cohomology[].Group N.Nat^::zero}} _ _ (FN.onClass u)) }
+  };
+\definition law: \forall (a: DiskProduct.Cohomology[].Group p)(u: Top.Cohomology) ->
+  FO.map.apply (Product.apply a u) = OrdinaryCup.apply a (FN.map.apply u) :=
+  P.classInduction (\fun (a: DiskProduct.Cohomology[].Group p) => \forall (u: Top.Cohomology) ->
+    FO.map.apply (Product.apply a u) = OrdinaryCup.apply a (FN.map.apply u))
+    (\fun (a: P.CycleCarrier) => Q.classInduction (\fun (u: Top.Cohomology) =>
+      FO.map.apply (Product.apply (P.classOf a) u) = OrdinaryCup.apply (P.classOf a) (FN.map.apply u)) (onClasses a));

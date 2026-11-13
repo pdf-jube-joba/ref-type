@@ -1,0 +1,14 @@
+\import O.Degree[n := n] \as Model;
+\definition toTarget: \forall (sigma: OverlapSimplices.Carrier n) -> \In[OverlapSimplices.Carrier n] Generators.overlapOutside sigma -> \In[OverlapSimplices.Carrier n] Model.outside sigma :=
+  \fun (sigma: OverlapSimplices.Carrier n)(outside: _)(small: _) => outside (OverlapPull.At[n := n].small overlapContinuous (\into[OverlapSimplices.Carrier n](sigma, singular_subdivision.Small[A := Overlap, source := overlapTopology, family := OverlapPull.pullbackFamily].Simplices[].Small n) \by { small }));
+\definition toSource: \forall (sigma: OverlapSimplices.Carrier n) -> \In[OverlapSimplices.Carrier n] Model.outside sigma -> \In[OverlapSimplices.Carrier n] Generators.overlapOutside sigma :=
+  \fun (sigma: OverlapSimplices.Carrier n)(outside: _)(small: _) => outside (OverlapReflect.Degree[n := n].reflects sigma small);
+\import \root.FreeSubsetTransport[G := OverlapSimplices.Carrier n, S := Generators.overlapOutside, T := Model.outside, toTarget := toTarget, toSource := toSource] \as Basis;
+\definition isomorphism: Modules.Isomorphism[V := OF.Carrier, W := O.Carrier index, source := OF.space, target := O.space index].Isomorphism :=
+  Modules.Isomorphism[V := OF.Carrier, W := Modules.Free[Generators := Model.Generator].Carrier, source := OF.space, target := Modules.Free[Generators := Model.Generator].space].Composition[U := O.Carrier index, final := O.space index].compose Model.isomorphism Basis.isomorphism;
+\import singular_cohomology.Chains[A := Overlap, source := overlapTopology] \as Ordinary;
+\import double_complexes.NonnegativeChain[].Over[R := I.Int^, ring := Integers.ring].ZeroExtension[C := Ordinary.complex] \as Extension;
+\definition onGenerator: \forall (sigma: Generators.Overlap) -> isomorphism.forward.apply (OF.generator sigma) = O.class index (Extension.Positive[n := n].intro (Ordinary.generator n sigma)) :=
+  \fun (sigma: Generators.Overlap) => trans!{{O.Carrier index}} _ _ _
+    (congr!{{Modules.Free[Generators := Model.Generator].Carrier} {O.Carrier index}} Model.isomorphism.forward.apply _ _ (Basis.onGenerator sigma))
+    (Model.onGenerator (Basis.forward sigma));

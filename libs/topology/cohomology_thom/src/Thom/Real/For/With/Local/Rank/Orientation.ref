@@ -1,0 +1,49 @@
+\import Local.Rank[n := n] \as Ranked;
+\import std.Data[].Bool[] \as B;
+\import topology.Topology[Carrier := X] \as Base;
+\import Bundles.Family[X := X, F := F].With[data := bundle] \as Charts;
+\import std.Logic[].Proposition[] \as Logic;
+\structure LocalOrientation[x: X, g: Fibers]: \Set := {
+  chart: Charts.Chart,
+  contains: Base.Member chart.domain x,
+  rank: chart.dimension = n,
+  reverse: B.Bool^,
+  normalized: Ranked.On[U := chart.domain].Given[g := g].Normalized (Local.Chart[c := chart].Rank[n := n, same := rank].signed reverse).thomClass
+};
+\structure SignedOrientation: \Set := {
+  fiber: Fibers,
+  locally: \forall (x: X) -> \exists LocalOrientation[x, fiber]
+};
+\definition rank: \forall (orientation: SignedOrientation)(x: X) -> Bundle.rank x = n := \block {
+  \fun (orientation: SignedOrientation)(x: X) \then
+  \takefrom local: LocalOrientation[x, orientation.fiber] \by orientation.locally x \then
+  \return trans!{N.Nat^} _ _ _
+    (Bundle.rankFrame x local.chart.dimension (local.chart.frame (\into[X](x, local.chart.domain) \by { local.contains }))) local.rank
+};
+\structure Patch[U: \Pow X, g: Fibers]: \Set := {
+  chart: Charts.Chart,
+  domain: chart.domain = U,
+  rank: chart.dimension = n,
+  reverse: B.Bool^,
+  normalized: Ranked.On[U := chart.domain].Given[g := g].Normalized (Local.Chart[c := chart].Rank[n := n, same := rank].signed reverse).thomClass
+};
+\definition patchOpen[U: \Pow X][g: Fibers][patch: Patch[U, g]]: Base.IsOpenIn bundle.baseSpace U :=
+  \idelim patch.chart.domain = U \with V: \Pow X => Base.IsOpenIn bundle.baseSpace V \by { base: (Bundle.chartLaws patch.chart).baseOpen, equality: patch.domain };
+\definition patchContained[U: \Pow X][g: Fibers][patch: Patch[U, g]][V: \Pow X][included: Base.Subset V U]: Base.Subset V patch.chart.domain :=
+  \fun (x: X)(inside: Base.Member V x) => \idelim U = patch.chart.domain \with W: \Pow X => Base.Member W x \by { base: included x inside, equality: sym!{{\Pow X}} _ _ patch.domain };
+\definition refine[U: \Pow X][g: Fibers][patch: Patch[U, g]][V: \Pow X][open: Base.IsOpenIn bundle.baseSpace V][included: Base.Subset V U]: Ranked.On[U := V].Given[g := g].Data :=
+  Local.Chart[c := patch.chart].Refine[U := V, open := open, contained := patchContained U g patch V included].Rank[n := n, same := patch.rank].given g patch.reverse patch.normalized;
+\definition patchData[U: \Pow X][g: Fibers][patch: Patch[U, g]]: Ranked.On[U := U].Given[g := g].Data :=
+  refine U g patch U (patchOpen U g patch) (\fun (x: X)(inside: Base.Member U x) => inside);
+\module With(orientation: SignedOrientation);
+\definition generates: \forall (orientation: SignedOrientation)(x: X) -> Ranked.Fiber[x := x].Generator (orientation.fiber x) := \block {
+  \fun (orientation: SignedOrientation)(x: X) \then
+  \takefrom local: LocalOrientation[x, orientation.fiber] \by orientation.locally x \then
+  \let point: \Cast[X] local.chart.domain := \into[X](x, local.chart.domain) \by { local.contains } \then
+  \return \idelim (Ranked.On[U := local.chart.domain].restriction point).apply (Local.Chart[c := local.chart].Rank[n := n, same := local.rank].signed local.reverse).thomClass = orientation.fiber x
+    \with u: Ranked.FiberClass x => Ranked.Fiber[x := x].Generator u \by {
+      base: Local.Chart[c := local.chart].Rank[n := n, same := local.rank].Fiber[x := point].generates local.reverse,
+      equality: local.normalized point
+    }
+};
+\module Reverse(orientation: SignedOrientation);

@@ -1,0 +1,45 @@
+\import Family.With[data := bundle] \as Charts;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.trans;
+\use Equality.sym;
+\use Equality.congr;
+\import Equality.Transport[A := N.Nat^] \as Transport;
+\definition Frames[j: N.Nat^]: \Set := \forall (x: \Cast[X] c.domain) -> Charts.Frame j x;
+\definition frames[j: N.Nat^][equal: c.dimension = j]: Frames j := Transport.cast Frames c.dimension j equal c.frame;
+\definition dataAt[j: N.Nat^][equal: c.dimension = j]: Charts.ChartData := Charts.ChartData {
+  domain := c.domain, dimension := j, frame := frames j equal
+};
+\definition data: Charts.ChartData := dataAt k same;
+\definition chartEta: \forall (q: Charts.ChartData) -> Charts.ChartData { domain := q.domain, dimension := q.dimension, frame := q.frame } = q :=
+  \induction (q: Charts.ChartData) \return Charts.ChartData { domain := q.domain, dimension := q.dimension, frame := q.frame } = q \with {
+    | # : \fun (domain: \Pow X)(dimension: N.Nat^)(frame: \forall (x: \Cast[X] domain) -> Charts.Frame dimension x) =>
+      \refl(Charts.ChartData { domain := domain, dimension := dimension, frame := frame })
+  };
+\definition framesRefl: \forall (equal: c.dimension = c.dimension) -> frames c.dimension equal = c.frame :=
+  \fun (equal: c.dimension = c.dimension) => Transport.castRefl Frames c.dimension c.frame;
+\definition dataRefl: \forall (equal: c.dimension = c.dimension) -> dataAt c.dimension equal = c :=
+  \fun (equal: c.dimension = c.dimension) => trans!{{Charts.ChartData}}
+    (dataAt c.dimension equal) (Charts.ChartData { domain := c.domain, dimension := c.dimension, frame := c.frame }) c
+    (congr!{{Frames c.dimension} {Charts.ChartData}}
+      (\fun (frame: Frames c.dimension) => Charts.ChartData { domain := c.domain, dimension := c.dimension, frame := frame })
+      (frames c.dimension equal) c.frame (framesRefl equal))
+    (chartEta c);
+\import Charts.In[c := c] \as Original;
+\definition originalLaws: Original.Laws := Original.Laws {
+  baseOpen := (Bundle.chartLaws c).baseOpen,
+  totalOpen := (Bundle.chartLaws c).totalOpen,
+  forwardContinuous := (Bundle.chartLaws c).forwardContinuous,
+  backwardContinuous := (Bundle.chartLaws c).backwardContinuous
+};
+\definition nativeLaws: \forall (equal: c.dimension = c.dimension) -> Charts.In[c := dataAt c.dimension equal].Laws :=
+  \fun (equal: c.dimension = c.dimension) =>
+    \idelim c = dataAt c.dimension equal \with q: Charts.ChartData => Charts.In[c := q].Laws \by {
+      base: originalLaws, equality: sym!{{Charts.ChartData}} (dataAt c.dimension equal) c (dataRefl equal)
+    };
+\definition laws: Charts.In[c := data].Laws :=
+  (\idelim c.dimension = k \with j: N.Nat^ => \forall (equal: c.dimension = j) -> Charts.In[c := dataAt j equal].Laws \by {
+    base: nativeLaws, equality: same
+  }) same;
+\definition chart: Charts.Chart := \into[Charts.ChartData](data, Charts.Chart) \by { laws };
+\definition domain: chart.domain = c.domain := \refl(c.domain);
+\definition dimension: chart.dimension = k := \refl(k);

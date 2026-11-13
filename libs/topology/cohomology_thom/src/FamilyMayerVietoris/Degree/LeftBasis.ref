@@ -1,0 +1,14 @@
+\import L.Degree[n := n] \as Model;
+\definition toTarget: \forall (sigma: LeftSimplices.Carrier n) -> \In[LeftSimplices.Carrier n] Generators.leftOutside sigma -> \In[LeftSimplices.Carrier n] Model.outside sigma :=
+  \fun (sigma: LeftSimplices.Carrier n)(outside: _)(small: _) => outside (LeftPull.At[n := n].small leftContinuous (\into[LeftSimplices.Carrier n](sigma, singular_subdivision.Small[A := Left, source := leftTopology, family := LeftPull.pullbackFamily].Simplices[].Small n) \by { small }));
+\definition toSource: \forall (sigma: LeftSimplices.Carrier n) -> \In[LeftSimplices.Carrier n] Model.outside sigma -> \In[LeftSimplices.Carrier n] Generators.leftOutside sigma :=
+  \fun (sigma: LeftSimplices.Carrier n)(outside: _)(small: _) => outside (LeftReflect.Degree[n := n].reflects sigma small);
+\import \root.FreeSubsetTransport[G := LeftSimplices.Carrier n, S := Generators.leftOutside, T := Model.outside, toTarget := toTarget, toSource := toSource] \as Basis;
+\definition isomorphism: Modules.Isomorphism[V := LF.Carrier, W := L.Carrier index, source := LF.space, target := L.space index].Isomorphism :=
+  Modules.Isomorphism[V := LF.Carrier, W := Modules.Free[Generators := Model.Generator].Carrier, source := LF.space, target := Modules.Free[Generators := Model.Generator].space].Composition[U := L.Carrier index, final := L.space index].compose Model.isomorphism Basis.isomorphism;
+\import singular_cohomology.Chains[A := Left, source := leftTopology] \as Ordinary;
+\import double_complexes.NonnegativeChain[].Over[R := I.Int^, ring := Integers.ring].ZeroExtension[C := Ordinary.complex] \as Extension;
+\definition onGenerator: \forall (sigma: Generators.Left) -> isomorphism.forward.apply (LF.generator sigma) = L.class index (Extension.Positive[n := n].intro (Ordinary.generator n sigma)) :=
+  \fun (sigma: Generators.Left) => trans!{{L.Carrier index}} _ _ _
+    (congr!{{Modules.Free[Generators := Model.Generator].Carrier} {L.Carrier index}} Model.isomorphism.forward.apply _ _ (Basis.onGenerator sigma))
+    (Model.onGenerator (Basis.forward sigma));

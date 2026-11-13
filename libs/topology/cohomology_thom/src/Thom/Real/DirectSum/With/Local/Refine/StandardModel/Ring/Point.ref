@@ -1,0 +1,34 @@
+\import thom_spaces.Thom[].CWType[].Point[] \as Point;
+\import \root.LocalDisk[].Point[K := K, ring := ring].Rank[n := chart.dimension] \as PointClass;
+\import thom_spaces.Thom[].DiskSuspension[X := Point.Carrier, space := Point.topology, n := chart.dimension] \as PointDisk;
+\import algebraic_topology.Euclidean[].Dimension[n := chart.dimension] \as Euclidean;
+\import \root.StandardShell[n := chart.dimension] \as EuclideanModel;
+\import EuclideanModel.Ring[K := K, ring := ring] \as EuclideanClasses;
+\import EuclideanModel.PointModel[] \as PointCoordinates;
+\import \root.LocalDisk[].On[X := Point.Carrier, source := Point.topology].From[B := BasePoint, target := baseTopology,
+  f := (\fun (x: BasePoint) => Point.point), regular := topology.Maps[A := BasePoint, B := Point.Carrier].constantContinuous baseTopology Point.topology Point.point] \as Constant;
+\import Constant.Rank[n := chart.dimension] \as Rank;
+\definition round[p: Actual.Carrier]: Euclidean.Disk := Pair.second BasePoint Euclidean.Disk (productHomeomorphism.forward p);
+\definition roundContinuous: topology.Continuity[A := Actual.Carrier, B := Euclidean.Disk].Continuous Actual.topology Euclidean.diskTopology round :=
+  topology.Composition[A := Actual.Carrier, B := Standard.Carrier, C := Euclidean.Disk].composeContinuous Actual.topology Standard.topology Euclidean.diskTopology productHomeomorphism.forward (Pair.second BasePoint Euclidean.Disk)
+    (topology.Homeomorphism[A := Actual.Carrier, B := Standard.Carrier].laws Actual.topology Standard.topology productHomeomorphism).forwardContinuous
+    (topological_constructions.Product[A := BasePoint, B := Euclidean.Disk].Maps[].secondContinuous baseTopology Euclidean.diskTopology);
+\import singular_cohomology.Relative[A := Actual.Carrier, source := Actual.topology, subset := Actual.boundary].Maps[B := Euclidean.Disk].Over[target := Euclidean.diskTopology, targetSubset := EuclideanModel.boundary] \as RoundMaps;
+\definition roundMap: RoundMaps.Map := \into[Actual.Carrier -> Euclidean.Disk](round, RoundMaps.Map) \by {
+  RoundMaps.Laws[round] { continuous := roundContinuous, contained := \fun (p: \Cast[Actual.Carrier] Actual.boundary) => productPair.forwardPreserves p }
+};
+\import \root.RelativePullback[].On[A := Actual.Carrier, source := Actual.topology, subset := Actual.boundary, R := K, ring := ring].To[B := Euclidean.Disk, target := Euclidean.diskTopology, part := EuclideanModel.boundary].Along[f := roundMap] \as RoundPull;
+\import singular_cohomology.Relative[A := Euclidean.Disk, source := Euclidean.diskTopology, subset := EuclideanModel.boundary].Homeomorphism[B := PointDisk.DiskCarrier].Over[target := PointDisk.diskTopology, targetSubset := PointDisk.boundary] \as PointPairs;
+\import RoundMaps.Composition[C := PointDisk.DiskCarrier].Over[final := PointDisk.diskTopology, finalSubset := PointDisk.boundary] \as RoundComposition;
+\import singular_cohomology.Relative[A := Actual.Carrier, source := Actual.topology, subset := Actual.boundary].Maps[B := StandardDisk.DiskCarrier].Over[target := StandardDisk.diskTopology, targetSubset := StandardDisk.boundary].Composition[C := PointDisk.DiskCarrier].Over[final := PointDisk.diskTopology, finalSubset := PointDisk.boundary] \as BaseComposition;
+\import singular_cohomology.Relative[A := Actual.Carrier, source := Actual.topology, subset := Actual.boundary].Maps[B := PointDisk.DiskCarrier].Over[target := PointDisk.diskTopology, targetSubset := PointDisk.boundary] \as Maps;
+\definition square: RoundComposition.compose roundMap (PointPairs.forwardMap PointCoordinates.pair) = BaseComposition.compose (Pairs.forwardMap pair) Rank.pair := \refl(RoundComposition.compose roundMap (PointPairs.forwardMap PointCoordinates.pair));
+\definition action[f: Maps.Map]: _ := Maps.On[f := f].Integer[].With[coefficients := BaseProduct.integerCoefficients].At[z := I.Int^::ofNat chart.dimension].induced;
+\definition law: RoundPull.Degree[n := chart.dimension].map.apply EuclideanClasses.generator = class := eq_reason_in!{Top.Class _
+  "=" _ "by" { sym!{Top.Class} _ _ (RoundComposition.On[f := roundMap, g := PointPairs.forwardMap PointCoordinates.pair].With[coefficients := BaseProduct.integerCoefficients].law (I.Int^::ofNat chart.dimension) PointClass.generator) }
+  "=" _ "by" { congr!{Maps.Map Top.Class} (\fun (f: Maps.Map) => (action f).apply PointClass.generator) _ _ square }
+  "=" _ "by" { BaseComposition.On[f := Pairs.forwardMap pair, g := Rank.pair].With[coefficients := BaseProduct.integerCoefficients].law (I.Int^::ofNat chart.dimension) PointClass.generator }
+  "=" _ "by" { congr!{{StandardTheory.Standard[n := chart.dimension].Class} Top.Class} Comparison.Degree[n := chart.dimension].isomorphism.forward.apply _ _ (Constant.Ring[K := K, ring := ring].canonical chart.dimension) }
+  "=" _ "by" { sym!{Top.Class} _ _ classLaw }
+};
+\definition map: _ := RoundPull.Degree[n := chart.dimension].map;

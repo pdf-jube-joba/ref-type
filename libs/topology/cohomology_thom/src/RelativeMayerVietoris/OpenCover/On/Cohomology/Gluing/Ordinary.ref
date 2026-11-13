@@ -1,0 +1,41 @@
+\import \root.RelativeMayerVietoris[].OpenCover[A := A, source := source, subset := subset].On[cover := cover].Cohomology[coefficients := coefficients].Gluing[z := z] \as Abstract;
+\import Hom.Integer[P := L.complex, N := coefficients] \as LeftHom;
+\import Hom.Integer[P := R.complex, N := coefficients] \as RightHom;
+\import Cochains.At[C := LeftHom.complex, z := Degrees.next z] \as LeftH;
+\import Cochains.At[C := RightHom.complex, z := Degrees.next z] \as RightH;
+\import Cochains.At[C := IntersectionHom.complex, z := Degrees.next z] \as OverlapH;
+\import IntoLeft.On[f := toLeft].Integer[].With[coefficients := coefficients].At[z := Degrees.next z] \as IntoOverlapLeft;
+\import IntoRight.On[f := toRight].Integer[].With[coefficients := coefficients].At[z := Degrees.next z] \as IntoOverlapRight;
+\import LeftIntoWhole.On[f := leftPairMap].Integer[].With[coefficients := coefficients].At[z := Degrees.next z] \as IntoLeft;
+\import RightIntoWhole.On[f := rightPairMap].Integer[].With[coefficients := coefficients].At[z := Degrees.next z] \as IntoRight;
+\import Modules.Biproduct[V := LeftH.Cohomology, W := RightH.Cohomology, left := LeftH.cohomologySpace, right := RightH.cohomologySpace] \as Pair;
+\import std.Data[].Pair[].Prop[A := LeftH.Cohomology, B := RightH.Cohomology] \as Pairs;
+\import SmallSequence.Coordinates[].Cohomology[z := Degrees.next z] \as Restrictions;
+\import SmallSequence.Coordinates[].Difference[z := Degrees.next z] \as Differences;
+\import Modules.Laws[V := OverlapH.Cohomology, space := OverlapH.cohomologySpace] \as OverlapLaws;
+\import algebra.Group[].Of[Carrier := OverlapH.Cohomology, group := OverlapLaws.additive] \as OverlapGroup;
+\definition Matches[a: LeftH.Cohomology][b: RightH.Cohomology]: \Prop := IntoOverlapLeft.induced.apply a = IntoOverlapRight.induced.apply b;
+\definition compatible: \forall (a: LeftH.Cohomology)(b: RightH.Cohomology) -> Matches a b -> \In[Current.directSum.Carrier] Compatible (Pair.make a b) :=
+  \fun (a: LeftH.Cohomology)(b: RightH.Cohomology)(same: Matches a b) => trans!{OverlapH.Cohomology} _ _ _ (Differences.law a b)
+    (trans!{OverlapH.Cohomology} _ _ _
+      (congr!{OverlapH.Cohomology OverlapH.Cohomology} (\fun (c: OverlapH.Cohomology) => OverlapGroup.add c (OverlapGroup.neg (IntoOverlapRight.induced.apply b))) _ _ same)
+      (OverlapGroup.inverseRight (IntoOverlapRight.induced.apply b)));
+\definition local[a: LeftH.Cohomology][b: RightH.Cohomology][same: Matches a b]: Local :=
+  \into[Current.directSum.Carrier](Pair.make a b, Compatible) \by { compatible a b same };
+\definition glue[vanishes: Vanishes][a: LeftH.Cohomology][b: RightH.Cohomology][same: Matches a b]: Current.whole.Carrier :=
+  Abstract.glue vanishes (local a b same);
+\definition restrictions: \forall (vanishes: Vanishes)(a: LeftH.Cohomology)(b: RightH.Cohomology)(same: Matches a b) ->
+  Pair.make (IntoLeft.induced.apply (glue vanishes a b same)) (IntoRight.induced.apply (glue vanishes a b same)) = Pair.make a b :=
+  \fun (vanishes: Vanishes)(a: LeftH.Cohomology)(b: RightH.Cohomology)(same: Matches a b) => trans!{Pair.Carrier} _ _ _
+    (sym!{Pair.Carrier} _ _ (Restrictions.law (glue vanishes a b same))) (Abstract.restriction vanishes (local a b same));
+\definition left: \forall (vanishes: Vanishes)(a: LeftH.Cohomology)(b: RightH.Cohomology)(same: Matches a b) ->
+  IntoLeft.induced.apply (glue vanishes a b same) = a :=
+  \fun (vanishes: Vanishes)(a: LeftH.Cohomology)(b: RightH.Cohomology)(same: Matches a b) => congr!{Pair.Carrier LeftH.Cohomology} Pair.first _ _ (restrictions vanishes a b same);
+\definition right: \forall (vanishes: Vanishes)(a: LeftH.Cohomology)(b: RightH.Cohomology)(same: Matches a b) ->
+  IntoRight.induced.apply (glue vanishes a b same) = b :=
+  \fun (vanishes: Vanishes)(a: LeftH.Cohomology)(b: RightH.Cohomology)(same: Matches a b) => congr!{Pair.Carrier RightH.Cohomology} Pair.second _ _ (restrictions vanishes a b same);
+\definition unique: \forall (vanishes: Vanishes)(u, v: Current.whole.Carrier) ->
+  IntoLeft.induced.apply u = IntoLeft.induced.apply v -> IntoRight.induced.apply u = IntoRight.induced.apply v -> u = v :=
+  \fun (vanishes: Vanishes)(u, v: Current.whole.Carrier)(left: _)(right: _) => Abstract.injective vanishes u v
+    (trans!{Pair.Carrier} _ _ _ (Restrictions.law u)
+      (trans!{Pair.Carrier} _ _ _ (Pairs.ext _ _ left right) (sym!{Pair.Carrier} _ _ (Restrictions.law v))));

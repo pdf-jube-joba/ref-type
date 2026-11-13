@@ -1,0 +1,28 @@
+\import singular_cohomology.Cochains[A := B, source := target].OverRing[R := R, ring := ring].With[coefficients := Target.coefficients] \as TargetOrdinary;
+\import chain_complexes.Cochain[].Over[R := R, ring := std.Alg[].Ring[].commutativeRingAsRing R ring].At[C := TargetOrdinary.complex, k := p] \as P;
+\import IntegerCochains.At[C := RelativeTarget.complex, z := I.Int^::ofNat q] \as Q;
+\import IntegerCochains.At[C := RelativeSource.complex, z := I.Int^::ofNat total] \as Output;
+\import Source.Cohomology[].Pullback[B := B, target := target] \as Pull;
+\import SourceCup.Cohomology[p := p, q := q].Right[] \as SourceProduct;
+\import TargetCup.Cohomology[p := p, q := q].Right[] \as TargetProduct;
+\import \parent.\parent.Degree[n := total] \as Result;
+\import \parent.\parent.Degree[n := q] \as Input;
+\import singular_cohomology.Cochains[A := A, source := source].OverRing[R := R, ring := ring].With[coefficients := Source.coefficients] \as SourceOrdinary;
+\import chain_complexes.Cochain[].Over[R := R, ring := std.Alg[].Ring[].commutativeRingAsRing R ring].At[C := SourceOrdinary.complex, k := p] \as SourceP;
+\import IntegerCochains.At[C := RelativeSource.complex, z := I.Int^::ofNat q] \as SourceQ;
+\definition onClasses: \forall (a: P.CycleCarrier)(b: Q.Closed) ->
+  Result.map.apply (TargetProduct.apply (P.classOf a) (Q.classOf b)) =
+  SourceProduct.apply (Pull.apply p f continuous (P.classOf a)) (Input.map.apply (Q.classOf b)) :=
+  \fun (a: P.CycleCarrier)(b: Q.Closed) => eq_reason_in!{Output.Cohomology _
+    "=" _ "by" { congr!{{RelativeTarget.cohomology total} Output.Cohomology} Result.map.apply _ _ (TargetProduct.onClasses a b) }
+    "=" _ "by" { Result.onClass (TargetProduct.cycle a b) }
+    "=" _ "by" { congr!{Output.Closed Output.Cohomology} Output.classOf (Result.cycles.apply (TargetProduct.cycle a b))
+      (SourceProduct.cycle (Pull.At[n := p].cycle f continuous a) (Input.cycles.apply b)) (law a b) }
+    "=" _ "by" { sym!{Output.Cohomology} _ _ (SourceProduct.onClasses (Pull.At[n := p].cycle f continuous a) (Input.cycles.apply b)) }
+    "=" _ "by" { congr!{SourceP.Cohomology SourceQ.Cohomology Output.Cohomology} SourceProduct.apply _ _ _ _
+      (sym!{SourceP.Cohomology} _ _ (Pull.At[n := p].onClass f continuous a)) (sym!{SourceQ.Cohomology} _ _ (Input.onClass b)) }
+  };
+\definition naturality: \forall (a: P.Cohomology)(b: Q.Cohomology) ->
+  Result.map.apply (TargetProduct.apply a b) = SourceProduct.apply (Pull.apply p f continuous a) (Input.map.apply b) :=
+  P.classInduction (\fun (a: P.Cohomology) => \forall (b: Q.Cohomology) -> Result.map.apply (TargetProduct.apply a b) = SourceProduct.apply (Pull.apply p f continuous a) (Input.map.apply b))
+    (\fun (a: P.CycleCarrier) => Q.classInduction (\fun (b: Q.Cohomology) => Result.map.apply (TargetProduct.apply (P.classOf a) b) = SourceProduct.apply (Pull.apply p f continuous (P.classOf a)) (Input.map.apply b)) (onClasses a));

@@ -1,0 +1,52 @@
+\use std.Logic[].Equality[].eq_reason_in;
+\import \root.LocalDisk[].On[X := X, source := source].Projection[n := n] \as LowerProjection;
+\import \root.LocalDisk[].On[X := X, source := source].Projection[n := N.Nat^::succ n] \as HigherProjection;
+\import singular_products.Cochains[A := X, source := source, R := K, ring := ring] \as BaseProduct;
+\import singular_cohomology.Cochains[A := X, source := source].With[coefficients := BaseProduct.integerCoefficients] \as BaseOrdinary;
+\import Ordinary.At[C := BaseOrdinary.complex, k := p] \as BaseP;
+\import LowerProduct.Cohomology[].Pullback[B := X, target := source] \as LowerPull;
+\import HigherProduct.Cohomology[].Pullback[B := X, target := source] \as HigherPull;
+\import singular_cohomology.Maps[A := Disk.DiskCarrier, B := X, source := Disk.diskTopology, target := source].Coefficients[M := BaseProduct.integerCoefficients, L := BaseProduct.integerCoefficients] \as LowerMaps;
+\import Modules.End[V := K, space := BaseProduct.integerCoefficients.space] \as Coefficients;
+\import Ordinary.Map[C := BaseOrdinary.complex, D := LowerOrdinary.complex].At[k := p] \as LowerAction;
+\definition lowerCycle[a: BaseP.CycleCarrier]: LowerP.CycleCarrier := (LowerAction.cyclesMap (LowerMaps.map LowerProjection.projection LowerProjection.continuous Coefficients.identity)).apply a;
+\definition lowerClass: \forall (a: BaseP.CycleCarrier) -> LowerP.classOf (lowerCycle a) = LowerPull.apply p LowerProjection.projection LowerProjection.continuous (BaseP.classOf a) :=
+  \fun (a: BaseP.CycleCarrier) => sym!{LowerP.Cohomology} _ _ (LowerAction.onClass (LowerMaps.map LowerProjection.projection LowerProjection.continuous Coefficients.identity) a);
+\definition roundContinuous: _ := (topology.Homeomorphism[A := Higher.DiskCarrier, B := Geometry.BoxCarrier].laws Higher.diskTopology Geometry.boxTopology Levels.diskHomeomorphism).forwardContinuous;
+\import singular_cohomology.Maps[A := Cylinder.Carrier, B := Disk.DiskCarrier, source := Cylinder.topology Disk.diskTopology, target := Disk.diskTopology].Coefficients[M := BaseProduct.integerCoefficients, L := BaseProduct.integerCoefficients] \as CylinderMaps;
+\import singular_cohomology.Maps[A := Cylinder.Carrier, B := Disk.DiskCarrier, source := Cylinder.topology Disk.diskTopology, target := Disk.diskTopology].Composition[C := X, final := source].Coefficients[M := BaseProduct.integerCoefficients] \as ComposeCylinder;
+\import singular_cohomology.Maps[A := Geometry.BoxCarrier, B := Cylinder.Carrier, source := Geometry.boxTopology, target := Cylinder.topology Disk.diskTopology].Composition[C := X, final := source].Coefficients[M := BaseProduct.integerCoefficients] \as ComposeBox;
+\import singular_cohomology.Maps[A := Higher.DiskCarrier, B := Geometry.BoxCarrier, source := Higher.diskTopology, target := Geometry.boxTopology].Composition[C := X, final := source].Coefficients[M := BaseProduct.integerCoefficients] \as ComposeRound;
+\definition cylinderProjection[t: Cylinder.Carrier]: X := LowerProjection.projection (Cylinder.point t);
+\definition cylinderContinuous: _ := topology.Composition[A := Cylinder.Carrier, B := Disk.DiskCarrier, C := X].composeContinuous (Cylinder.topology Disk.diskTopology) Disk.diskTopology source Cylinder.point LowerProjection.projection (Cylinder.pointContinuous Disk.diskTopology) LowerProjection.continuous;
+\definition boxProjection[t: Geometry.BoxCarrier]: X := cylinderProjection (CylinderGeometry.forward t);
+\definition boxContinuous: _ := topology.Composition[A := Geometry.BoxCarrier, B := Cylinder.Carrier, C := X].composeContinuous Geometry.boxTopology (Cylinder.topology Disk.diskTopology) source CylinderGeometry.forward cylinderProjection CylinderGeometry.forwardContinuous cylinderContinuous;
+\import Ordinary.Map[C := LowerOrdinary.complex, D := CylinderOrdinary.complex].At[k := p] \as CylinderAction;
+\definition cylinderClass: \forall (a: BaseP.CycleCarrier) -> CylinderP.classOf (Absolute.cylinderCycle (lowerCycle a)) =
+  CylinderProduct.Cohomology[].Pullback[B := X, target := source].apply p cylinderProjection cylinderContinuous (BaseP.classOf a) :=
+  \fun (a: BaseP.CycleCarrier) => trans!{CylinderP.Cohomology} _ _ _
+    (sym!{CylinderP.Cohomology} _ _ (CylinderAction.onClass (CylinderMaps.map Cylinder.point (Cylinder.pointContinuous Disk.diskTopology) Coefficients.identity) (lowerCycle a)))
+    (trans!{CylinderP.Cohomology} _ _ _
+      (congr!{LowerP.Cohomology CylinderP.Cohomology} (CylinderProduct.Cohomology[].Pullback[B := Disk.DiskCarrier, target := Disk.diskTopology].apply p Cylinder.point (Cylinder.pointContinuous Disk.diskTopology)) _ _ (lowerClass a))
+      (sym!{CylinderP.Cohomology} _ _ (ComposeCylinder.onCohomology Cylinder.point (Cylinder.pointContinuous Disk.diskTopology) LowerProjection.projection LowerProjection.continuous p (BaseP.classOf a))));
+\definition absoluteClass: \forall (a: BaseP.CycleCarrier) -> absolute (lowerCycle a) = HigherPull.apply p HigherProjection.projection HigherProjection.continuous (BaseP.classOf a) :=
+  \fun (a: BaseP.CycleCarrier) => eq_reason_in!{{HigherProduct.Cohomology[].Group p} _
+    "=" _ "by" { congr!{CylinderP.Cohomology {HigherProduct.Cohomology[].Group p}} (\fun (v: CylinderP.Cohomology) => RoundAbsolute.apply p (RoundComparison.forwardMap round) roundContinuous (CylinderAbsolute.apply p (CylinderComparison.forwardMap cylinder) CylinderGeometry.forwardContinuous v)) _ _ (cylinderClass a) }
+    "=" _ "by" { congr!{{BoxProduct.Cohomology[].Group p} {HigherProduct.Cohomology[].Group p}} (RoundAbsolute.apply p (RoundComparison.forwardMap round) roundContinuous) _ _ (sym!{{BoxProduct.Cohomology[].Group p}} _ _ (ComposeBox.onCohomology CylinderGeometry.forward CylinderGeometry.forwardContinuous cylinderProjection cylinderContinuous p (BaseP.classOf a))) }
+    "=" _ "by" { sym!{{HigherProduct.Cohomology[].Group p}} _ _ (ComposeRound.onCohomology (RoundComparison.forwardMap round) roundContinuous boxProjection boxContinuous p (BaseP.classOf a)) }
+  };
+
+\definition onCycles: \forall (a: BaseP.CycleCarrier)(b: Input.Carrier) ->
+  OutputStep.isomorphism.forward.apply (LowerMultiplication.apply (LowerPull.apply p LowerProjection.projection LowerProjection.continuous (BaseP.classOf a)) b) =
+  Signs.twist p (HigherMultiplication.apply (HigherPull.apply p HigherProjection.projection HigherProjection.continuous (BaseP.classOf a)) (InputStep.isomorphism.forward.apply b)) :=
+  \fun (a: BaseP.CycleCarrier)(b: Input.Carrier) => eq_reason_in!{Output.Carrier _
+    "=" _ "by" { congr!{LowerP.Cohomology Output.Carrier} (\fun (v: LowerP.Cohomology) => OutputStep.isomorphism.forward.apply (LowerMultiplication.apply v b)) _ _ (sym!{LowerP.Cohomology} _ _ (lowerClass a)) }
+    "=" _ "by" { law (lowerCycle a) b }
+    "=" _ "by" { congr!{{HigherProduct.Cohomology[].Group p} Output.Carrier} (\fun (v: HigherProduct.Cohomology[].Group p) => Signs.twist p (HigherMultiplication.apply v (InputStep.isomorphism.forward.apply b))) _ _ (absoluteClass a) }
+  };
+\definition onClasses: \forall (a: BaseP.Cohomology)(b: Input.Carrier) ->
+  OutputStep.isomorphism.forward.apply (LowerMultiplication.apply (LowerPull.apply p LowerProjection.projection LowerProjection.continuous a) b) =
+  Signs.twist p (HigherMultiplication.apply (HigherPull.apply p HigherProjection.projection HigherProjection.continuous a) (InputStep.isomorphism.forward.apply b)) :=
+  BaseP.classInduction (\fun (a: BaseP.Cohomology) => \forall (b: Input.Carrier) ->
+    OutputStep.isomorphism.forward.apply (LowerMultiplication.apply (LowerPull.apply p LowerProjection.projection LowerProjection.continuous a) b) =
+    Signs.twist p (HigherMultiplication.apply (HigherPull.apply p HigherProjection.projection HigherProjection.continuous a) (InputStep.isomorphism.forward.apply b))) onCycles;

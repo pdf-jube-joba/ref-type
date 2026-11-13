@@ -1,0 +1,32 @@
+\import \parent.Gluing[] \as Gluing;
+\import Geometry.Domain[U := Base.Whole] \as WholeDomain;
+\import Ranked.On[U := Base.Whole].Given[g := orientation.fiber] \as Canonical;
+\import Geometry.Coefficients[R := K, ring := ring] \as Original;
+\definition everywhere[x: X]: Base.Member Base.Whole x := \refl(x);
+\import WholeDomain.Full[everywhere := everywhere] \as Comparison;
+\import Comparison.Ring[K := K, ring := ring] \as Full;
+\definition dataExists: \exists Canonical.Data := Gluing.existsFiniteCW complex;
+\definition domainClass: WholeDomain.Ring[K := K, ring := ring].Degree[n := n].Class := Canonical.class dataExists;
+\definition class: Original.Degree[n := n].Class := Full.Degree[n := n].from domainClass;
+\definition normalized: \forall (x: X) -> Geometry.Fiber[x := x].Additive[coefficients := BaseProduct.integerCoefficients, z := I.Int^::ofNat n].restriction.apply class = orientation.fiber x :=
+  \fun (x: X) => trans!{{Ranked.FiberClass x}} _ _ _ (Comparison.Fiber[x := x].Ring[K := K, ring := ring].Degree[n := n].law domainClass)
+    (Canonical.normalized dataExists Comparison.Fiber[x := x].point);
+\definition cupIsomorphism[p: N.Nat^]: _ := Full.Product[p := p, n := n].isomorphism domainClass (Canonical.isomorphism p dataExists) (Canonical.formula p dataExists);
+\definition euler: BaseProduct.Cohomology[].Group n := Original.Degree[n := n].euler class;
+\module Degree(p: N.Nat^);
+\use std.Logic[].Equality[].eq_reason_in;
+\definition OriginalNormalized[u: Original.Degree[n := n].Class]: \Prop := \forall (x: X) -> Geometry.Fiber[x := x].Additive[coefficients := BaseProduct.integerCoefficients, z := I.Int^::ofNat n].restriction.apply u = orientation.fiber x;
+\definition toDomain[u: Original.Degree[n := n].Class]: WholeDomain.Ring[K := K, ring := ring].Degree[n := n].Class := Full.Degree[n := n].isomorphism.backward.apply u;
+\definition inverse: \forall (u: Original.Degree[n := n].Class) -> Full.Degree[n := n].from (toDomain u) = u :=
+  \fun (u: Original.Degree[n := n].Class) => Full.Degree[n := n].isomorphism.rightInverse u;
+\definition normalizedPullback: \forall (u: Original.Degree[n := n].Class) -> OriginalNormalized u -> Canonical.Normalized (toDomain u) :=
+  \fun (u: Original.Degree[n := n].Class)(normal: OriginalNormalized u)(x: WholeDomain.BasePoint) => eq_reason_in!{{Ranked.FiberClass x} _
+    "=" _ "by" { sym!{{Ranked.FiberClass x}} _ _ (Comparison.Fiber[x := x].Ring[K := K, ring := ring].Degree[n := n].law (toDomain u)) }
+    "=" _ "by" { congr!{{Original.Degree[n := n].Class} {Ranked.FiberClass x}} Geometry.Fiber[x := x].Additive[coefficients := BaseProduct.integerCoefficients, z := I.Int^::ofNat n].restriction.apply _ _ (inverse u) }
+    "=" _ "by" { normal x }
+  };
+\definition uniqueNormalized: \forall (u: Original.Degree[n := n].Class) -> OriginalNormalized u -> u = class :=
+  \fun (u: Original.Degree[n := n].Class)(normal: OriginalNormalized u) => trans!{{Original.Degree[n := n].Class}} _ _ _
+    (sym!{{Original.Degree[n := n].Class}} _ _ (inverse u))
+    (congr!{{WholeDomain.Ring[K := K, ring := ring].Degree[n := n].Class} {Original.Degree[n := n].Class}} Full.Degree[n := n].from _ _ (Canonical.uniqueNormalized dataExists (toDomain u) (normalizedPullback u normal)));
+\module Below(k: N.Nat^);

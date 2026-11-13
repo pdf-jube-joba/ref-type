@@ -1,0 +1,77 @@
+\import Modules.FreePullback[Left := L, Right := R, Overlap := O, Whole := W] \as Original;
+\definition outside: \Pow W := { x: W \where Logic.Not (\In[W] boundary x) };
+\definition leftOutside: \Pow L := { x: L \where \In[W] outside (cover.left x) };
+\definition rightOutside: \Pow R := { x: R \where \In[W] outside (cover.right x) };
+\definition overlapOutside: \Pow O := { x: O \where \In[W] outside (cover.left (cover.overLeft x)) };
+\definition Whole: \Set := \Cast[W] outside;
+\definition Left: \Set := \Cast[L] leftOutside;
+\definition Right: \Set := \Cast[R] rightOutside;
+\definition Overlap: \Set := \Cast[O] overlapOutside;
+\definition left[x: Left]: Whole := \into[W](cover.left x, outside) \by { \bysub(L, leftOutside, x) };
+\definition right[x: Right]: Whole := \into[W](cover.right x, outside) \by { \bysub(R, rightOutside, x) };
+\definition overLeft[x: Overlap]: Left := \into[L](cover.overLeft x, leftOutside) \by { \bysub(O, overlapOutside, x) };
+\definition overRight[x: Overlap]: Right := \into[R](cover.overRight x, rightOutside) \by {
+  \idelim cover.left (cover.overLeft x) = cover.right (cover.overRight x)
+    \with y: W => \In[W] outside y \by { base: \bysub(O, overlapOutside, x), equality: (Original.laws cover).commutes x }
+};
+\import Modules.FreePullback[Left := Left, Right := Right, Overlap := Overlap, Whole := Whole] \as Restricted;
+\definition data: Restricted.Data := Restricted.Data { left := left, right := right, overLeft := overLeft, overRight := overRight };
+\definition leftInjective: \forall (x, y: Left) -> left x = left y -> x = y :=
+  \fun (x, y: Left)(same: _) => (Original.laws cover).leftInjective x y same;
+\definition overlapInjective: \forall (x, y: Overlap) -> overRight x = overRight y -> x = y :=
+  \fun (x, y: Overlap)(same: _) => (Original.laws cover).overlapInjective x y same;
+\definition commutes: \forall (x: Overlap) -> left (overLeft x) = right (overRight x) :=
+  \fun (x: Overlap) => (Original.laws cover).commutes x;
+\definition cartesian: \forall (x: Left)(y: Right) -> left x = right y ->
+  \exists ( z: Overlap \where Logic.And[overLeft z = x, overRight z = y] ) := \block {
+  \fun (x: Left)(y: Right)(same: _) \then
+  \takefrom z: \Cast[O] ({ z: O \where Logic.And[cover.overLeft z = x, cover.overRight z = y] })
+    \by (Original.laws cover).cartesian x y same \then
+  \let equal: Logic.And[cover.overLeft z = x, cover.overRight z = y] :=
+    \bysub(O, { z: O \where Logic.And[cover.overLeft z = x, cover.overRight z = y] }, z) \then
+  \let point: Overlap := \into[O](z, overlapOutside) \by {
+    \idelim x = cover.overLeft z \with v: L => \In[W] outside (cover.left v)
+      \by { base: \bysub(L, leftOutside, x), equality: sym!{L} _ _ equal.left }
+  } \then
+  \return Logic.existsIntro[Overlap, { z: Overlap \where Logic.And[overLeft z = x, overRight z = y] }] point equal
+};
+\definition square: Restricted.Square := \into[Restricted.Data](data, Restricted.Square) \by {
+  Restricted.Laws[data] { leftInjective := leftInjective, overlapInjective := overlapInjective, commutes := commutes, cartesian := cartesian }
+};
+\import Original.Covering[square := cover] \as OriginalCover;
+\definition rightInjective: \forall (x, y: Right) -> right x = right y -> x = y :=
+  \fun (x, y: Right)(same: _) => OriginalCover.unionLaws.rightInjective x y same;
+\definition LeftImage[w: Whole]: \Prop := \exists ( x: Left \where left x = w );
+\definition RightImage[w: Whole]: \Prop := \exists ( x: Right \where right x = w );
+\definition covered: \forall (w: Whole) -> Logic.Or[LeftImage w, RightImage w] := \block {
+  \fun (w: Whole) \then
+  \return either!{{OriginalCover.unionLaws.covered w} {Logic.Or[LeftImage w, RightImage w]}
+    {\block {
+      \fun (exists: \exists ( x: L \where cover.left x = w )) \then
+      \takefrom x: \Cast[L] ({ x: L \where cover.left x = w }) \by exists \then
+      \let same: cover.left x = w := \bysub(L, { x: L \where cover.left x = w }, x) \then
+      \let point: Left := \into[L](x, leftOutside) \by {
+        \idelim w = cover.left x \with v: W => \In[W] outside v \by {
+          base: \bysub(W, outside, w), equality: sym!{W} _ _ same
+        }
+      } \then
+      \return Logic.Or[LeftImage w, RightImage w]::left (Logic.existsIntro[Left, { x: Left \where left x = w }] point same)
+    }}
+    {\block {
+      \fun (exists: \exists ( x: R \where cover.right x = w )) \then
+      \takefrom x: \Cast[R] ({ x: R \where cover.right x = w }) \by exists \then
+      \let same: cover.right x = w := \bysub(R, { x: R \where cover.right x = w }, x) \then
+      \let point: Right := \into[R](x, rightOutside) \by {
+        \idelim w = cover.right x \with v: W => \In[W] outside v \by {
+          base: \bysub(W, outside, w), equality: sym!{W} _ _ same
+        }
+      } \then
+      \return Logic.Or[LeftImage w, RightImage w]::right (Logic.existsIntro[Right, { x: Right \where right x = w }] point same)
+    }}
+  }
+};
+\definition union: Restricted.Union := \into[Restricted.Square](square, Restricted.Union) \by {
+  Restricted.UnionLaws[square] { rightInjective := rightInjective, covered := covered }
+};
+\import Restricted.Covering[square := union] \as Cover;
+\definition sequence: _ := Cover.sequence;

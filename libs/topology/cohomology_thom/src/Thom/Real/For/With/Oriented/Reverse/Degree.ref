@@ -1,0 +1,31 @@
+\use std.Logic[].Equality[].eq_reason_in;
+\definition sum: N.Nat^ := N.Basic[].Def[].add p n;
+\import Geometry.Coefficients[R := K, ring := ring].Degree[n := sum] \as Output;
+\import Geometry.Coefficients[R := K, ring := ring].Product[p := p, n := n] \as Product;
+\import \parent.\parent.Degree[p := p] \as Source;
+\definition source: _ := Source.isomorphism;
+\definition target: _ := Target.Degree[p := p].isomorphism;
+\definition classMap[a: BaseProduct.Cohomology[].Group p]: RingModules.Hom[V := Top.Class, W := Output.Class, source := Top.space, target := Output.space].Map :=
+  RingModules.Hom[V := Top.Class, W := Output.Class, source := Top.space, target := Output.space].Map {
+    apply := Product.apply a,
+    addition := Product.addClass a,
+    scalar := \fun (r: K)(u: Top.Class) => Product.scaleClass r a u
+  };
+\definition law: \forall (a: BaseProduct.Cohomology[].Group p) -> target.forward.apply a = Output.space.neg (source.forward.apply a) :=
+  \fun (a: BaseProduct.Cohomology[].Group p) => trans!{{Output.Class}} _ _ _
+    (congr!{{Top.Class} {Output.Class}} (Product.apply a) _ _ classLaw)
+    (RingModules.Hom[V := Top.Class, W := Output.Class, source := Top.space, target := Output.space].negativePreserved (classMap a) class);
+\import RingModules.Laws[V := BaseProduct.Cohomology[].Group p, space := BaseProduct.Cohomology[].moduleSpace p] \as BaseLaws;
+\import algebra.Group[].Of[Carrier := BaseProduct.Cohomology[].Group p, group := BaseLaws.additive] \as BaseGroup;
+\definition composite: \forall (a: BaseProduct.Cohomology[].Group p) -> source.backward.apply (target.forward.apply a) = (BaseProduct.Cohomology[].moduleSpace p).neg a :=
+  \fun (a: BaseProduct.Cohomology[].Group p) => trans!{{BaseProduct.Cohomology[].Group p}} _ _ _
+    (congr!{{Output.Class} {BaseProduct.Cohomology[].Group p}} source.backward.apply _ _ (law a))
+    (trans!{{BaseProduct.Cohomology[].Group p}} _ _ _
+      (RingModules.Hom[V := Output.Class, W := BaseProduct.Cohomology[].Group p, source := Output.space, target := BaseProduct.Cohomology[].moduleSpace p].negativePreserved source.backward (source.forward.apply a))
+      (congr!{{BaseProduct.Cohomology[].Group p} {BaseProduct.Cohomology[].Group p}} (BaseProduct.Cohomology[].moduleSpace p).neg _ _ (source.leftInverse a)));
+\definition inverseLaw: \forall (u: Output.Class) -> target.backward.apply u = (BaseProduct.Cohomology[].moduleSpace p).neg (source.backward.apply u) :=
+  \fun (u: Output.Class) => eq_reason_in!{{BaseProduct.Cohomology[].Group p} _
+    "=" _ "by" { sym!{{BaseProduct.Cohomology[].Group p}} _ _ (BaseGroup.negNeg (target.backward.apply u)) }
+    "=" _ "by" { congr!{{BaseProduct.Cohomology[].Group p} {BaseProduct.Cohomology[].Group p}} (BaseProduct.Cohomology[].moduleSpace p).neg _ _ (sym!{{BaseProduct.Cohomology[].Group p}} _ _ (composite (target.backward.apply u))) }
+    "=" _ "by" { congr!{{Output.Class} {BaseProduct.Cohomology[].Group p}} (\fun (v: Output.Class) => (BaseProduct.Cohomology[].moduleSpace p).neg (source.backward.apply v)) _ _ (target.rightInverse u) }
+  };

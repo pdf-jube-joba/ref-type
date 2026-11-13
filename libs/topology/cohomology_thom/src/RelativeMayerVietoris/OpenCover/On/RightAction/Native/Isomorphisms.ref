@@ -1,0 +1,26 @@
+\import std.Logic[].Proposition[] \as Logic;
+\structure Local: \Prop := {
+  leftInjective: Modules.Injective LC.sourceClasses LC.targetClasses (LC.integerMap (leftFactor u)),
+  leftSurjective: Modules.Surjective LC.sourceClasses LC.targetClasses (LC.integerMap (leftFactor u)),
+  rightInjective: Modules.Injective RC.sourceClasses RC.targetClasses (RC.integerMap (rightFactor u)),
+  rightSurjective: Modules.Surjective RC.sourceClasses RC.targetClasses (RC.integerMap (rightFactor u)),
+  overlapInjective: Modules.Injective OC.sourceClasses OC.targetClasses (OC.integerMap (overlapFactor u)),
+  overlapSurjective: Modules.Surjective OC.sourceClasses OC.targetClasses (OC.integerMap (overlapFactor u))
+};
+\definition pairInjective: Local -> \forall (a, b: SourcePair.Carrier) -> (pairMap u).apply a = (pairMap u).apply b -> a = b :=
+  \fun (local: Local)(a, b: SourcePair.Carrier)(same: _) => std.Data[].Pair[].Prop[A := LC.Domain, B := RC.Domain].ext a b
+    (local.leftInjective (SourcePair.first a) (SourcePair.first b) (congr!{TargetPair.Carrier LC.Range} TargetPair.first _ _ same))
+    (local.rightInjective (SourcePair.second a) (SourcePair.second b) (congr!{TargetPair.Carrier RC.Range} TargetPair.second _ _ same));
+\definition pairSurjective: Local -> \forall (a: TargetPair.Carrier) -> \exists ( b: SourcePair.Carrier \where (pairMap u).apply b = a ) := \block {
+  \fun (local: Local)(a: TargetPair.Carrier) \then
+  \takefrom x: \Cast[LC.Domain] ({ x: LC.Domain \where LC.apply (leftFactor u) x = TargetPair.first a }) \by local.leftSurjective (TargetPair.first a) \then
+  \takefrom y: \Cast[RC.Domain] ({ y: RC.Domain \where RC.apply (rightFactor u) y = TargetPair.second a }) \by local.rightSurjective (TargetPair.second a) \then
+  \return Logic.existsIntro[SourcePair.Carrier, { b: SourcePair.Carrier \where (pairMap u).apply b = a }] (SourcePair.make x y)
+    (PairEquality.ext ((pairMap u).apply (SourcePair.make x y)) a
+      (\bysub(LC.Domain, { x: LC.Domain \where LC.apply (leftFactor u) x = TargetPair.first a }, x))
+      (\bysub(RC.Domain, { y: RC.Domain \where RC.apply (rightFactor u) y = TargetPair.second a }, y)))
+};
+\definition laws[local: Local]: Diagram.LocalIsomorphisms[comparison u] := Diagram.LocalIsomorphisms[comparison u] {
+  pairInjective := pairInjective local, pairSurjective := pairSurjective local,
+  overlapInjective := local.overlapInjective, overlapSurjective := local.overlapSurjective
+};

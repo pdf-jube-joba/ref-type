@@ -1,0 +1,43 @@
+\use std.Logic[].Equality[].eq_reason_in;
+\import RingCochains.At[C := Relative.complex, z := I.Int^::ofNat p] \as Output;
+\import Cup.Comparison[n := p].Cohomology[] \as Forget;
+\import Cup.Cohomology[p := p, q := N.Nat^::zero].Right[] \as Product;
+\module ForgetProduct;
+\import module_theory.Module[].Over[R := K, ring := std.Alg[].Ring[].commutativeRingAsRing K ring] \as RingModules;
+\definition apply[a: BaseProduct.Cohomology[].Group p]: Output.Cohomology := Product.apply (Pull.apply p Geometry.forward Geometry.forwardContinuous a) class;
+\definition backward[q: Output.Cohomology]: BaseProduct.Cohomology[].Group p := Push.apply p Geometry.backward Geometry.backwardContinuous (Forget.map.apply q);
+\definition forget: \forall (a: BaseProduct.Cohomology[].Group p) -> Forget.map.apply (apply a) = Pull.apply p Geometry.forward Geometry.forwardContinuous a :=
+  \fun (a: BaseProduct.Cohomology[].Group p) => eq_reason_in!{{DiskProduct.Cohomology[].Group p} _
+    "=" _ "by" { ForgetProduct[].law (Pull.apply p Geometry.forward Geometry.forwardContinuous a) class }
+    "=" _ "by" { congr!{{DiskProduct.Cohomology[].Group N.Nat^::zero} {DiskProduct.Cohomology[].Group p}} (DiskProduct.Cohomology[].Cup[p := p, q := N.Nat^::zero].apply (Pull.apply p Geometry.forward Geometry.forwardContinuous a)) _ _ forgetClass }
+    "=" _ "by" { DiskProduct.Cohomology[].Unit[].Right[p := p].law (Pull.apply p Geometry.forward Geometry.forwardContinuous a) }
+  };
+\definition leftInverse: \forall (a: BaseProduct.Cohomology[].Group p) -> backward (apply a) = a :=
+  \fun (a: BaseProduct.Cohomology[].Group p) => trans!{{BaseProduct.Cohomology[].Group p}} _ _ _
+    (congr!{{DiskProduct.Cohomology[].Group p} {BaseProduct.Cohomology[].Group p}} (Push.apply p Geometry.backward Geometry.backwardContinuous) _ _ (forget a))
+    (Equivalence.rightInverse equivalence p a);
+\definition rightInverse: \forall (q: Output.Cohomology) -> apply (backward q) = q :=
+  \fun (q: Output.Cohomology) => EmptyDisk.Degree[n := p].injective _ q
+    (trans!{{DiskProduct.Cohomology[].Group p}} _ _ _ (forget (backward q)) (Equivalence.leftInverse equivalence p (Forget.map.apply q)));
+\import RingModules.Hom[V := BaseProduct.Cohomology[].Group p, W := Output.Cohomology, source := BaseProduct.Cohomology[].moduleSpace p, target := Output.cohomologySpace] \as Maps;
+\definition linear: Maps.Map := Maps.Map {
+  apply := apply,
+  addition := \fun (a, b: BaseProduct.Cohomology[].Group p) => trans!{Output.Cohomology} _ _ _
+    (congr!{{DiskProduct.Cohomology[].Group p} Output.Cohomology} (\fun (v: DiskProduct.Cohomology[].Group p) => Product.apply v class) _ _ ((Pull.At[n := p].linear Geometry.forward Geometry.forwardContinuous).addition a b))
+    (Product.bilinear.addLeft _ _ class),
+  scalar := \fun (r: K)(a: BaseProduct.Cohomology[].Group p) => trans!{Output.Cohomology} _ _ _
+    (congr!{{DiskProduct.Cohomology[].Group p} Output.Cohomology} (\fun (v: DiskProduct.Cohomology[].Group p) => Product.apply v class) _ _ ((Pull.At[n := p].linear Geometry.forward Geometry.forwardContinuous).scalar r a))
+    (Product.bilinear.scaleLeft r _ class)
+};
+\import RingModules.Hom[V := Output.Cohomology, W := BaseProduct.Cohomology[].Group p, source := Output.cohomologySpace, target := BaseProduct.Cohomology[].moduleSpace p] \as BackwardMaps;
+\definition inverse: BackwardMaps.Map := BackwardMaps.Map {
+  apply := backward,
+  addition := \fun (x, y: Output.Cohomology) => trans!{{BaseProduct.Cohomology[].Group p}} _ _ _
+    (congr!{{DiskProduct.Cohomology[].Group p} {BaseProduct.Cohomology[].Group p}} (Push.apply p Geometry.backward Geometry.backwardContinuous) _ _ (Forget.map.addition x y))
+    ((Push.At[n := p].linear Geometry.backward Geometry.backwardContinuous).addition (Forget.map.apply x) (Forget.map.apply y)),
+  scalar := \fun (r: K)(x: Output.Cohomology) => trans!{{BaseProduct.Cohomology[].Group p}} _ _ _
+    (congr!{{DiskProduct.Cohomology[].Group p} {BaseProduct.Cohomology[].Group p}} (Push.apply p Geometry.backward Geometry.backwardContinuous) _ _ (Forget.map.scalar r x))
+    ((Push.At[n := p].linear Geometry.backward Geometry.backwardContinuous).scalar r (Forget.map.apply x))
+};
+\import RingModules.Isomorphism[V := BaseProduct.Cohomology[].Group p, W := Output.Cohomology, source := BaseProduct.Cohomology[].moduleSpace p, target := Output.cohomologySpace] \as Iso;
+\definition isomorphism: Iso.Isomorphism := Iso.Isomorphism { forward := linear, backward := inverse, leftInverse := leftInverse, rightInverse := rightInverse };

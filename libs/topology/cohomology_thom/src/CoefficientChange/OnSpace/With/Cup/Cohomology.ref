@@ -1,0 +1,22 @@
+\import Nonnegative.At[C := SourceOrdinary.complex, k := p] \as P;
+\import Nonnegative.At[C := SourceOrdinary.complex, k := q] \as Q;
+\import Nonnegative.At[C := SourceOrdinary.complex, k := SourceCup.total] \as SourceOutput;
+\import Nonnegative.At[C := TargetOrdinary.complex, k := p] \as TargetP;
+\import Nonnegative.At[C := TargetOrdinary.complex, k := q] \as TargetQ;
+\import Nonnegative.At[C := TargetOrdinary.complex, k := SourceCup.total] \as Output;
+\import Source.Cohomology[].Cup[p := p, q := q] \as Left;
+\import Target.Cohomology[].Cup[p := p, q := q] \as Right;
+\import \parent.\parent.Degree[n := p] \as InputLeft;
+\import \parent.\parent.Degree[n := q] \as InputRight;
+\import \parent.\parent.Degree[n := SourceCup.total] \as Result;
+\definition onClasses: \forall (a: P.CycleCarrier)(b: Q.CycleCarrier) -> Result.map.apply (Left.apply (P.classOf a) (Q.classOf b)) = Right.apply (InputLeft.map.apply (P.classOf a)) (InputRight.map.apply (Q.classOf b)) :=
+  \fun (a: P.CycleCarrier)(b: Q.CycleCarrier) => eq_reason_in!{Output.Cohomology _
+    "=" _ "by" { congr!{SourceOutput.Cohomology Output.Cohomology} Result.map.apply _ _ (Left.onClasses a b) }
+    "=" _ "by" { Result.onClass (Left.cycle a b) }
+    "=" _ "by" { congr!{Output.CycleCarrier Output.Cohomology} Output.classOf (Result.cycles.apply (Left.cycle a b)) (Right.cycle (InputLeft.cycles.apply a) (InputRight.cycles.apply b)) (law a b) }
+    "=" _ "by" { sym!{Output.Cohomology} _ _ (Right.onClasses (InputLeft.cycles.apply a) (InputRight.cycles.apply b)) }
+    "=" _ "by" { congr!{TargetP.Cohomology TargetQ.Cohomology Output.Cohomology} Right.apply _ _ _ _ (sym!{TargetP.Cohomology} _ _ (InputLeft.onClass a)) (sym!{TargetQ.Cohomology} _ _ (InputRight.onClass b)) }
+  };
+\definition law: \forall (a: P.Cohomology)(b: Q.Cohomology) -> Result.map.apply (Left.apply a b) = Right.apply (InputLeft.map.apply a) (InputRight.map.apply b) :=
+  P.classInduction (\fun (a: P.Cohomology) => \forall (b: Q.Cohomology) -> Result.map.apply (Left.apply a b) = Right.apply (InputLeft.map.apply a) (InputRight.map.apply b))
+    (\fun (a: P.CycleCarrier) => Q.classInduction (\fun (b: Q.Cohomology) => Result.map.apply (Left.apply (P.classOf a) b) = Right.apply (InputLeft.map.apply (P.classOf a)) (InputRight.map.apply b)) (onClasses a));

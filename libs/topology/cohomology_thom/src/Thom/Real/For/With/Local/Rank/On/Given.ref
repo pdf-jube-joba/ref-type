@@ -1,0 +1,54 @@
+\import std.Logic[].Proposition[] \as Logic;
+\use std.Logic[].Equality[].eq_reason_in;
+\definition Normalized[u: Class]: \Prop := \forall (x: Domain.BasePoint) -> (restriction x).apply u = g x;
+\structure Data: \Set := {
+  model: Model.Data,
+  normalized: Normalized model.thomClass,
+  detected: Detects
+};
+\definition existence: \exists Data -> \exists ( u: Class \where Normalized u ) := \block {
+  \fun (existence: \exists Data) \then
+  \takefrom data: Data \by existence \then
+  \return Logic.existsIntro[Class, { u: Class \where Normalized u }] data.model.thomClass data.normalized
+};
+\definition unique: \exists Data -> \forall (u, v: \Cast[Class] ({ u: Class \where Normalized u })) -> u = v := \block {
+  \fun (existence: \exists Data)(u, v: \Cast[Class] ({ u: Class \where Normalized u })) \then
+  \takefrom data: Data \by existence \then
+  \return data.detected u v (\fun (x: Domain.BasePoint) => trans!{{FiberClass x}} _ _ _
+    ((\bysub(Class, { u: Class \where Normalized u }, u)) x)
+    (sym!{{FiberClass x}} _ _ ((\bysub(Class, { v: Class \where Normalized v }, v)) x)))
+};
+\definition class[exists: \exists Data]: \Cast[Class] ({ u: Class \where Normalized u }) :=
+  \choice \Cast[Class] ({ u: Class \where Normalized u }) \by { existence: existence exists, uniqueness: unique exists };
+\definition normalized[exists: \exists Data]: Normalized (class exists) := \bysub(Class, { u: Class \where Normalized u }, class exists);
+\definition agrees[exists: \exists Data][data: Data]: class exists = data.model.thomClass :=
+  data.detected (class exists) data.model.thomClass (\fun (x: Domain.BasePoint) => trans!{{FiberClass x}} _ _ _ (normalized exists x) (sym!{{FiberClass x}} _ _ (data.normalized x)));
+\definition bijective: \forall (p: N.Nat^)(exists: \exists Data) -> Domain.Ring[K := K, ring := ring].Cup[p := p, n := n].With[u := class exists].Bijective := \block {
+  \fun (p: N.Nat^)(exists: \exists Data) \then
+  \takefrom data: Data \by exists \then
+  \return \idelim data.model.thomClass = class exists \with u: Class => Domain.Ring[K := K, ring := ring].Cup[p := p, n := n].With[u := u].Bijective \by {
+    base: \root.RelativeAction[A := Domain.Carrier, source := Domain.topology, subset := Domain.boundary, K := K, ring := ring].Degree[p := p, q := n].On[u := data.model.thomClass].witnessed (data.model.isomorphism p) (data.model.formula p),
+    equality: sym!{Class} _ _ (agrees exists data)
+  }
+};
+\definition isomorphism[p: N.Nat^][exists: \exists Data]: Domain.Ring[K := K, ring := ring].Cup[p := p, n := n].With[u := class exists].Iso :=
+  Domain.Ring[K := K, ring := ring].Cup[p := p, n := n].With[u := class exists].isomorphism (bijective p exists);
+\definition formula: \forall (p: N.Nat^)(exists: \exists Data)(a: Domain.Ring[K := K, ring := ring].Cup[p := p, n := n].Domain) ->
+  (isomorphism p exists).forward.apply a = (Domain.Ring[K := K, ring := ring].Cup[p := p, n := n].map (class exists)).apply a :=
+  \fun (p: N.Nat^)(exists: \exists Data)(a: Domain.Ring[K := K, ring := ring].Cup[p := p, n := n].Domain) => \refl((isomorphism p exists).forward.apply a);
+\definition below: \forall (exists: \exists Data)(k: N.Nat^)(a: Domain.Additive[coefficients := BaseProduct.integerCoefficients, z := \root.LocalDisk[].shift n (I.Int^::negSucc k)].Class) ->
+  a = Domain.Additive[coefficients := BaseProduct.integerCoefficients, z := \root.LocalDisk[].shift n (I.Int^::negSucc k)].space.zero := \block {
+  \fun (exists: \exists Data)(k: N.Nat^)(a: Domain.Additive[coefficients := BaseProduct.integerCoefficients, z := \root.LocalDisk[].shift n (I.Int^::negSucc k)].Class) \then
+  \takefrom data: Data \by exists \then
+  \return data.model.below k a
+};
+\definition detected: \exists Data -> Detects := \block {
+  \fun (exists: \exists Data) \then
+  \takefrom data: Data \by exists \then
+  \return data.detected
+};
+\definition uniqueNormalized: \forall (exists: \exists Data)(u: Class) -> Normalized u -> u = class exists :=
+  \fun (exists: \exists Data)(u: Class)(normal: Normalized u) => (detected exists) u (class exists)
+    (\fun (x: Domain.BasePoint) => trans!{{FiberClass x}} _ _ _ (normal x) (sym!{{FiberClass x}} _ _ (normalized exists x)));
+
+\module Whole;

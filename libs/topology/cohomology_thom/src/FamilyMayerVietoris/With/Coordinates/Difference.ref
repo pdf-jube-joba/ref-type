@@ -1,0 +1,27 @@
+\use std.Logic[].Equality[].eq_reason_in;
+\import Modules.Hom[V := R.Carrier z, W := coefficients.Carrier, source := R.space z, target := coefficients.space] \as RightLinear;
+\definition left: \forall (h: LeftHom.Carrier z) -> sequence.projection.apply z (SumCoordinates.firstInjection.apply z h) = LeftPull.map.apply z h :=
+  \fun (h: LeftHom.Carrier z) => IntersectionHom.At[z := z].ext
+    (sequence.projection.apply z (SumCoordinates.firstInjection.apply z h)) (LeftPull.map.apply z h)
+    (\fun (x: O.Carrier z) => \refl(h.apply (LeftMap.map.apply z x)));
+\definition right: \forall (h: RightHom.Carrier z) -> sequence.projection.apply z (SumCoordinates.secondInjection.apply z h) = (IntersectionHom.space z).neg (RightPull.map.apply z h) :=
+  \fun (h: RightHom.Carrier z) => IntersectionHom.At[z := z].ext
+    (sequence.projection.apply z (SumCoordinates.secondInjection.apply z h)) ((IntersectionHom.space z).neg (RightPull.map.apply z h))
+    (\fun (x: O.Carrier z) => RightLinear.negativePreserved h (RightMap.map.apply z x));
+\import Modules.Laws[V := IntersectionHom.Carrier z, space := IntersectionHom.space z] \as CochainLaws;
+\import algebra.Group[].Of[Carrier := IntersectionHom.Carrier z, group := CochainLaws.additive] \as CochainGroup;
+\definition leftValue[h: SumHom.Carrier z]: IntersectionHom.Carrier z := LeftPull.map.apply z (SumCoordinates.firstProjection.apply z h);
+\definition rightValue[h: SumHom.Carrier z]: IntersectionHom.Carrier z := RightPull.map.apply z (SumCoordinates.secondProjection.apply z h);
+\definition cochains: \forall (h: SumHom.Carrier z) -> sequence.projection.apply z h = CochainGroup.difference (leftValue h) (rightValue h) :=
+  \fun (h: SumHom.Carrier z) => eq_reason_in!{{IntersectionHom.Carrier z} _
+    "=" _ "by" { congr!{{SumHom.Carrier z} {IntersectionHom.Carrier z}} (sequence.projection.apply z) _ _ (sym!{{SumHom.Carrier z}} _ _ (SumCoordinates.reconstruction z h)) }
+    "=" _ "by" { sequence.projection.addition z (SumCoordinates.firstInjection.apply z (SumCoordinates.firstProjection.apply z h)) (SumCoordinates.secondInjection.apply z (SumCoordinates.secondProjection.apply z h)) }
+    "=" _ "by" { congr!{{IntersectionHom.Carrier z} {IntersectionHom.Carrier z} {IntersectionHom.Carrier z}} CochainGroup.add _ _ _ _ (left (SumCoordinates.firstProjection.apply z h)) (right (SumCoordinates.secondProjection.apply z h)) }
+  };
+\definition agree: \forall (h: SumHom.Carrier z) -> sequence.projection.apply z h = (IntersectionHom.space z).zero -> leftValue h = rightValue h :=
+  \fun (h: SumHom.Carrier z)(zero: _) => CochainGroup.cancelRight (CochainGroup.neg (rightValue h)) (leftValue h) (rightValue h)
+    (trans!{{IntersectionHom.Carrier z}} _ _ _ (sym!{{IntersectionHom.Carrier z}} _ _ (cochains h))
+      (trans!{{IntersectionHom.Carrier z}} _ _ _ zero (sym!{{IntersectionHom.Carrier z}} _ _ (CochainGroup.inverseRight (rightValue h)))));
+\definition inclusionAgreement: \forall (h: SmallHom.Carrier z) ->
+  leftValue (sequence.inclusion.apply z h) = rightValue (sequence.inclusion.apply z h) :=
+  \fun (h: SmallHom.Carrier z) => agree (sequence.inclusion.apply z h) (sequence.zero z h);

@@ -1,0 +1,34 @@
+\import \parent.\parent.Five[d := I.Int^::ofNat p, k := I.Int^::ofNat Lower.total].Along[lower := Lower.comparison u, upper := upper u] \as Five;
+\import \parent.\parent.Diagram[d := I.Int^::ofNat p, k := I.Int^::ofNat Lower.total] \as LowerDiagram;
+\import \parent.\parent.Diagram[d := I.Int^::ofNat (N.Nat^::succ p), k := I.Int^::ofNat Upper.total] \as UpperDiagram;
+\definition shiftedIsomorphism[localLower: LowerDiagram.LocalIsomorphisms[Lower.comparison u]][localUpper: UpperDiagram.LocalIsomorphisms[Upper.comparison u]]: _ :=
+  Five.isomorphism localLower (upperLocal u localUpper) (connecting u);
+\import \root.RelativeAction[A := A, source := source, subset := subset, K := K, ring := ring].Degree[p := N.Nat^::succ p, q := q] \as Multiplication;
+\import Multiplication.On[u := Upper.factor u] \as NativeCup;
+\definition nativeInjective[localLower: LowerDiagram.LocalIsomorphisms[Lower.comparison u]][localUpper: UpperDiagram.LocalIsomorphisms[Upper.comparison u]]:
+  \forall (a, b: Multiplication.Domain) -> Multiplication.apply (Upper.factor u) a = Multiplication.apply (Upper.factor u) b -> a = b :=
+  \fun (a, b: Multiplication.Domain)(sameValues: _) => eq_reason_in!{Multiplication.Domain _
+    "=" _ "by" { sym!{Multiplication.Domain} _ _ ((shiftedIsomorphism localLower localUpper).leftInverse a) }
+    "=" _ "by" { congr!{{Whole upperDegree} Multiplication.Domain} (shiftedIsomorphism localLower localUpper).backward.apply _ _
+      (trans!{{Whole upperDegree}} _ _ _ (onValue u a)
+        (trans!{{Whole upperDegree}} _ _ _ (congr!{{Whole Upper.total} {Whole upperDegree}} (Transport.cast Whole Upper.total upperDegree same) _ _ sameValues)
+          (sym!{{Whole upperDegree}} _ _ (onValue u b)))) }
+    "=" _ "by" { (shiftedIsomorphism localLower localUpper).leftInverse b }
+  };
+\definition nativeSurjective[localLower: LowerDiagram.LocalIsomorphisms[Lower.comparison u]][localUpper: UpperDiagram.LocalIsomorphisms[Upper.comparison u]]:
+  \forall (b: Multiplication.Range) -> \exists ( a: Multiplication.Domain \where Multiplication.apply (Upper.factor u) a = b ) := \block {
+  \fun (b: Multiplication.Range) \then
+  \let iso: Modules.Isomorphism[V := Value, W := Whole upperDegree, source := SourceMV.Degree[z := I.Int^::ofNat (N.Nat^::succ p)].whole.space, target := TargetMV.Degree[z := I.Int^::ofNat upperDegree].whole.space].Isomorphism := shiftedIsomorphism localLower localUpper \then
+  \let casted: Whole upperDegree := Transport.cast Whole Upper.total upperDegree same b \then
+  \let a: Multiplication.Domain := iso.backward.apply casted \then
+  \let reached: Transport.cast Whole Upper.total upperDegree same (Multiplication.apply (Upper.factor u) a) = casted :=
+    trans!{{Whole upperDegree}} _ _ _ (sym!{{Whole upperDegree}} _ _ (onValue u a)) (iso.rightInverse casted) \then
+  \return std.Logic[].Proposition[].existsIntro[Multiplication.Domain, { a: Multiplication.Domain \where Multiplication.apply (Upper.factor u) a = b }] a
+    (eq_reason_in!{Multiplication.Range _
+      "=" _ "by" { sym!{Multiplication.Range} _ _ (Transport.castInverse Whole Upper.total upperDegree same (Multiplication.apply (Upper.factor u) a)) }
+      "=" _ "by" { congr!{{Whole upperDegree} {Whole Upper.total}} (Transport.cast Whole upperDegree Upper.total (sym!{N.Nat^} _ _ same)) _ _ reached }
+      "=" _ "by" { Transport.castInverse Whole Upper.total upperDegree same b }
+    })
+};
+\definition isomorphism[localLower: LowerDiagram.LocalIsomorphisms[Lower.comparison u]][localUpper: UpperDiagram.LocalIsomorphisms[Upper.comparison u]]: _ :=
+  NativeCup.isomorphism (NativeCup.Bijective { injective := nativeInjective localLower localUpper, onto := nativeSurjective localLower localUpper });
