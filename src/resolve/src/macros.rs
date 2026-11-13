@@ -305,10 +305,72 @@ pub(crate) fn instantiate_template(
     depth: u16,
     identity: u64,
 ) -> Result<SExp, crate::error::Error> {
+    let mut captures = captures.clone();
+    let mut index = 0;
+    let mut ordered: Vec<_> = captures.iter_mut().collect();
+    ordered.sort_by_key(|(name, _)| *name);
+    for (_, capture) in ordered {
+        share_capture_holes(capture, identity, &mut index);
+    }
     let mut result = definition.template.clone();
     rename_template_binders(&mut result, identity);
-    instantiate_exp(&mut result, captures, depth)?;
+    instantiate_exp(&mut result, &captures, depth)?;
     Ok(result)
+}
+
+fn share_capture_holes(capture: &mut CaptureValue, expansion: u64, index: &mut u32) {
+    let mut share = |node: &mut SExp| {
+        // A forwarded capture already has its identity. Share the entire value:
+        // holes under its binders must be compared through those binders, rather
+        // than by intersecting the contexts of independently copied lambdas.
+        if matches!(
+            node,
+            SExp::Assign {
+                kind: SurfaceMeta::Captured { .. },
+                ..
+            }
+        ) {
+            return false;
+        }
+        let mut span = None;
+        walk_sexp_mut(node, &mut |child| {
+            if let SExp::Meta {
+                kind: SurfaceMeta::Implicit,
+                span: location,
+            } = child
+            {
+                span.get_or_insert(*location);
+            }
+        });
+        if let Some(span) = span {
+            let value = std::mem::replace(
+                node,
+                SExp::Meta {
+                    kind: SurfaceMeta::Implicit,
+                    span,
+                },
+            );
+            *node = SExp::Assign {
+                value: Box::new(value),
+                kind: SurfaceMeta::Captured {
+                    expansion,
+                    index: *index,
+                },
+                span,
+            };
+            *index += 1;
+        }
+        false
+    };
+    match capture {
+        CaptureValue::Expression(exp) => {
+            share(exp);
+        }
+        CaptureValue::Token(token) => {
+            walk_macro_exps_mut(std::slice::from_mut(token), &mut share, WalkOrder::Pre)
+        }
+        CaptureValue::Sequence(tokens) => walk_macro_exps_mut(tokens, &mut share, WalkOrder::Pre),
+    }
 }
 
 fn instantiate_tokens(

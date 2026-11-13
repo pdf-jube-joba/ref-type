@@ -1,0 +1,120 @@
+# G23 capture inference: accepted integration verification
+
+The unmodified standard driver accepted all **14,486 targets** at commit `9a7ab9c6978a9c708b99fef519d9831d29565c4b`, with exit code 0.
+It checked 6,311 target paths from source and reused 8,175 through the normal validating cache.
+All 107 CLI scopes were accepted, with zero save failures, corrupt reads, checkpoint resumes or worker recoveries.
+Elapsed time was 2,042.558 seconds, peak RSS 4,204,172 KiB and peak virtual memory 5,267,612 KiB.
+The successful run used a 17 GiB address-space ceiling and 20 GiB disk-cache budget under the existing 16 GiB physical cgroup.
+The [full original reports](full/summary.json) retain the exact driver and CLI outputs, input inventory and aliases.
+[Source reconciliation](source-reconciliation.json) binds all 13,179 loader inputs and 198 checker build inputs to the tested commit, reviewed source and current checkout.
+Subsequent evidence-only commits preserve those source identities.
+
+Fresh source tests passed 412 cases, Rust workspace tests passed 384 cases, and driver fixtures passed 9 cases.
+Clippy with warnings denied and workspace formatting passed.
+The [checker review](independent-review.md) found three issues that were fixed and no remaining blocking finding.
+The [verification-plan review](verification-plan-review-20261113.md) independently confirmed source identity and safe reuse of accepted reports; the final unmodified full driver independently met its required acceptance condition.
+
+The successful final command was:
+
+```sh
+REF_TYPE_GRAPH_SPILL_DIR=/tmp python3 scripts/check_all.py --binary /workspace/shared/g23-recovery/checker-final --state-dir /workspace/shared/g23-recovery/full-final --cache-dir /workspace/ref-type/libs/refcache --initial-memory-mib 17408 --memory-mib 17408 --cache-budget-mib 20480
+```
+
+## Preserved recovery history
+
+The restored PR source was `3b1c4086a3784f0773f56ba97a53ba7121962347`.
+Main `d9da7c0ace28ecab2cc83e8dcfef9258ee0235b4`, including merged D01, is integrated in `b52aa8afca2d251c845cd6580f32a15093dd088e`.
+The integration has the same `src` tree as the previously reviewed G23 checker: `06c6742985407363110054c7266a6a85131e5805`.
+Its tests, scripts and Cargo inputs are unchanged from that reviewed source.
+Its `libs` tree equals main: `fda10f6db37f287d0de47458b4f76d34eb34603f`.
+
+## Change and independent review
+
+Captures containing implicit holes now share constraints on the entire inferred value.
+Comparing copies of a lambda under its binders avoids the original per-hole identity scheme's incompatible local symbol identities.
+Assignment wrappers preserve expected judgements and Program application-head classification.
+The unifier also rolls back speculative application-congruence assignments when a comparison is blocked, before reducing a beta-redex whose application spine may differ.
+The previously failing Gram equality chain and its smaller beta-unification reproduction are covered by source regressions.
+Mathematical proofs were unchanged by G23.
+
+The [independent review](independent-review.md) records the three discovered issues, their fixes, the exact reviewed source, previous observed execution results and the post-recovery static confirmation.
+It found no remaining concrete blocking issue in the integrated checker.
+The reviewer did not rerun an aggregate during recovery.
+
+## Runtime recovery
+
+After reconnection, the actual root checkout was clean at `d2232bb8ec5ff43feb2323477c8815b10ee309a8`.
+The previous G23 worker processes, shared worktrees, local reports, snapshots and uncommitted records were absent.
+The existing `/workspace/ref-type/libs/refcache` directory remained present with about 6.9 GiB of logical data.
+It was preserved and is passed to the normal validating cache loader.
+Its presence alone does not identify which artifacts survived or establish compatibility with this checker.
+`cache-before-checks.json` records the observed initial state and available build revisions before mathematical checks.
+Measured accepted-report cache hits and misses will establish actual reuse.
+
+[Earlier transcript observations](observations-before-reset.json) distinguish observed historical results from unavailable original reports.
+The old 8 GiB aggregate had accepted 12,924 of 14,111 targets before a virtual-memory limit in periodic K theory.
+The unchanged checker accepted the limiting dependency closure at 12 GiB, peaking at 10,510,948 KiB virtual memory.
+The subsequent 12 GiB aggregate was last observed running at 12,859 of 14,111 targets before the environment reset.
+Neither historical aggregate establishes full acceptance.
+
+## Recovery build and verification
+
+The release build uses Rust `1.99.1 (58cf8f9c3 2026-10-13)` and locked offline dependencies.
+The recovered checker SHA-256 is `cc0578470d23ba582931b065f1f1a68e9afe64068bf4e24e0a050f73eeb1845c`.
+`checker-source-sha256.json.gz` retains hashes for all 198 checker and Cargo input files at the integrated source commit.
+The immutable executable and working logs are under `/workspace/shared/g23-recovery`.
+Fresh source tests passed all 412 cases and aggregate-driver fixtures passed all 9 cases.
+Fresh Rust workspace tests passed 384 cases with no failed or ignored test.
+Clippy with warnings denied and workspace formatting also passed.
+`checks-summary.json` and `test-logs.json.gz` preserve the exact recovery results.
+The final accepted aggregate and its exact reports are in `full`.
+
+The first recovered attempt adopted the already accepted A08/D01 15 GiB profile, including graph spill, from the current main's [D01 recovery record](../../d01-connections/recovery-20261112/README.md).
+It retains normal validated caches and checks all 14,486 current library targets.
+
+```sh
+REF_TYPE_GRAPH_SPILL_DIR=/tmp python3 scripts/check_all.py --binary /workspace/shared/g23-recovery/checker-final --state-dir /workspace/shared/g23-recovery/full --cache-dir /workspace/ref-type/libs/refcache --initial-memory-mib 15360 --memory-mib 15360 --cache-budget-mib 16384
+```
+
+Only an accepted final driver report with complete target coverage and unchanged source/checker identities establishes full verification.
+
+## Current-main resource recovery
+
+The first recovered aggregate accepted 13,854 of 14,486 targets before the indivisible `k_theory_thom.Thom.Complexification.Compact.Isomorphism` scope reached its 15 GiB virtual-memory ceiling.
+Its exact failed report and worker reports remain in `full-progress`; this is incomplete verification, not a type error or an aggregate pass.
+The same checker and immutable scope snapshot accepted that dependency closure at 16 GiB with a 120-second checkpoint interval, preserving the existing cache.
+The accepted critical report covers 3,312 modules and records 448 source steps, one worker recovery at checkpoint 49,519, 39 lost steps, zero duplicate/replayed source steps, zero save failures and zero corrupt reads.
+The fresh process elapsed 770.356 seconds; peak RSS was 14,707,988 KiB and peak virtual memory 16,700,836 KiB.
+The final aggregate resumes through the normal validating cache with a 16 GiB worker ceiling; only its successful full report establishes complete coverage.
+
+The final driver was configured with a 16 GiB address-space ceiling.
+After repeated bounded checkpoint-allocation failures, the running `Complexification` worker PID 29517 was adjusted through Linux `prlimit` to a 17 GiB soft address-space limit at `2026-11-13T00:10:09.919859Z`, without restarting the worker.
+The physical cgroup ceiling remained 16 GiB, and the checker and immutable source snapshot were unchanged.
+`address-space-adjustment.json` preserves the original and effective limits, exact worker request and process status.
+The original driver report retains the configured 16 GiB value; it must be interpreted together with this recorded per-worker adjustment.
+
+## Remaining-target preparation
+
+Independent review of the original reports confirmed that 132 accepted scopes from the first fixed-source aggregate cover 13,854 targets.
+The accepted critical closure adds 562 targets, producing an exact union of 14,416 of 14,486 targets.
+The running later aggregate's 13,807 accepted targets are a subset of that union.
+All loader files and aliases agree, and all 198 checker build inputs agree with the current checkout.
+The [verification-plan review](verification-plan-review-20261113.md) independently checked the report digests, coverage, input identity and normal validation flags.
+`remaining-plan.json.gz` preserves the exact prepared plan.
+
+The one-off `prepare_remaining.py` checks only uncovered module-own targets with the normal validating cache.
+Its lock excludes the previous aggregate; it retains each exact command, source snapshot digest and original CLI report.
+Its `prewarm-complete` outcome is only preparation.
+The final unmodified `scripts/check_all.py` independently accepted all 14,486 targets and re-enumerated unchanged current source, as recorded in `full`.
+The prepared profile uses a 17 GiB address-space ceiling, 120-second checkpoints and a 20 GiB disk-cache budget under the existing 16 GiB physical cgroup.
+
+About 6.95 GB of disk space was available after removing only inactive G23-specific Rust test/build intermediates.
+The prior `du` observation was 4,680,784 KiB; the per-path inventory sums can count hard links more than once.
+The verified release checker, all original verification logs and all mathematical cache directories were retained.
+`debug-intermediates-removal.json.gz` records the inventory and resulting free space.
+
+The remaining-target preparation completed all 70 uncovered target paths through 49 accepted CLI scopes in 4,508.248 seconds.
+Its original reports, commands, logs and observed exit code 0 are in `remaining`.
+That preparation was followed by the separate successful standard aggregate reported above.
+Historical incomplete attempts remain labelled `failed`, `running` observations or `interrupted`; their unfinished scopes are not aggregate acceptance.
+The interrupted `Complexification` CLI did not produce its own report before shutdown; its stderr, the aggregate report and that missing-report status are retained.

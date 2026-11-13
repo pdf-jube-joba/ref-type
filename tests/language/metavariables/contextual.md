@@ -247,3 +247,19 @@ expect = "reject"
 ```ref file=src/root.ref
 \module Repro { \inductive Unit: \Set := | unit: Unit; \module Pass(f: Unit -> Unit) {} \import \root.Repro[].Pass[f := \fun (x: _) => x] \as P; }
 ```
+
+## beta 簡約で application spine が変わる等式
+
+関数の頭がまだ一致していない段階で、外側の application の引数を等置してはならない。
+簡約後の等式から二つの穴を推論できる。
+
+```toml case
+id = "accept-metavariables.beta_spine_inference"
+scope = "module"
+expect = "accept"
+parameters = '''V: \Set, op: V -> V -> V, a, b: V'''
+```
+
+```ref
+\definition law: ((\fun (w: V) => op w b) a) = op a b := \refl(op _ _);
+```

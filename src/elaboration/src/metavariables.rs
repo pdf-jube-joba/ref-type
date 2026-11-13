@@ -41,7 +41,7 @@ pub(crate) struct MetaStore {
     reported: usize,
     current_context: ExpContext,
     entries: Vec<MetaEntry>,
-    named: HashMap<u32, MetaVarId>,
+    named: HashMap<SurfaceMeta, MetaVarId>,
     constraints: Vec<ConstraintRecord>,
     failure: Option<MetaState>,
     origins: Vec<SourceSpan>,
@@ -157,10 +157,7 @@ impl MetaStore {
     ) -> Result<Exp, crate::error::Error> {
         self.current_context = context.clone();
         let flavor = MetaFlavor::from(kind);
-        let existing = match flavor {
-            MetaFlavor::Named(n) => self.named.get(&n).copied(),
-            _ => None,
-        };
+        let existing = self.named.get(&kind).copied();
         let base = context.len().saturating_sub(scope_len);
         let source = if let Some(source) = existing {
             let entry = &mut self.entries[source.index()];
@@ -214,8 +211,8 @@ impl MetaStore {
                 principal: None,
                 inferred_type: None,
             });
-            if let MetaFlavor::Named(n) = flavor {
-                self.named.insert(n, source);
+            if kind.is_shared() {
+                self.named.insert(kind, source);
             }
             source
         };

@@ -458,9 +458,8 @@ impl PackageChecker {
                     // collection immediate, but do not let these signals cause
                     // another expensive save at the very next boundary. Honor
                     // the configured interval even when snapshots are costly.
-                    minimum_save_spacing = interval.map_or(Duration::ZERO, |period| {
-                        cost.saturating_mul(10).min(period)
-                    });
+                    minimum_save_spacing = interval
+                        .map_or(Duration::ZERO, |period| cost.saturating_mul(10).min(period));
                     // A growing environment will not fit again after hitting the budget.
                     if failed {
                         interval = None;

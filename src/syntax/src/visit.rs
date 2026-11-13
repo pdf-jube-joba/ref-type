@@ -195,6 +195,7 @@ visit_enum!(MacroExp {
 visit_struct!(RightBind { vars, ty });
 
 visit_enum!(ValueTypeExp {
+    Assign { value, kind, span },
     Deferred { expression },
     Meta { kind, span },
     Access { access, parameters },
@@ -203,6 +204,7 @@ visit_enum!(ValueTypeExp {
 });
 
 visit_enum!(ComputationTypeExp {
+    Assign { value, kind, span },
     Deferred { expression },
     Meta { kind, span },
     Return(value0),
@@ -210,6 +212,7 @@ visit_enum!(ComputationTypeExp {
 });
 
 visit_enum!(ValueTermExp {
+    Assign { value, kind, span },
     Deferred { expression },
     Ascribe { term, ty },
     Meta { kind, span },
@@ -222,6 +225,7 @@ visit_enum!(ValueTermExp {
 });
 
 visit_enum!(ComputationTermExp {
+    Assign { value, kind, span },
     Deferred { expression },
     Ascribe { term, ty },
     Meta { kind, span },
@@ -240,6 +244,7 @@ visit_enum!(ComputationTermExp {
 });
 
 visit_enum!(ProgramFunctionExp {
+    Assign { function, kind, span },
     Access(value0),
     Associated { span, datatype, item, parameters },
     Value(value0),
@@ -262,7 +267,7 @@ visit_enum!(SExp {
     MemberAccess { base, field, parameters, span },
     MemberLiteral { ty, fields },
     Ascribe { term, ty },
-    Assign { value, number, span },
+    Assign { value, kind, span },
     Meta { kind, span },
     AccessPath { access, parameters },
     AssociatedAccess { span, base, field },

@@ -23,7 +23,7 @@ impl MetaFlavor {
 impl From<SurfaceMeta> for MetaFlavor {
     fn from(value: SurfaceMeta) -> Self {
         match value {
-            SurfaceMeta::Implicit => Self::Implicit,
+            SurfaceMeta::Implicit | SurfaceMeta::Captured { .. } => Self::Implicit,
             SurfaceMeta::Goal => Self::Goal,
             SurfaceMeta::Named(number) => Self::Named(number),
         }

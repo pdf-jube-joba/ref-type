@@ -191,6 +191,7 @@ extend_enum!(MacroExp {
 extend_struct!(RightBind { vars, ty });
 
 extend_enum!(ValueTypeExp {
+    Assign { value, kind, span },
     Deferred { expression },
     Meta { kind, span },
     Access { access, parameters },
@@ -199,6 +200,7 @@ extend_enum!(ValueTypeExp {
 });
 
 extend_enum!(ComputationTypeExp {
+    Assign { value, kind, span },
     Deferred { expression },
     Meta { kind, span },
     Return(value0),
@@ -206,6 +208,7 @@ extend_enum!(ComputationTypeExp {
 });
 
 extend_enum!(ValueTermExp {
+    Assign { value, kind, span },
     Deferred { expression },
     Ascribe { term, ty },
     Meta { kind, span },
@@ -218,6 +221,7 @@ extend_enum!(ValueTermExp {
 });
 
 extend_enum!(ComputationTermExp {
+    Assign { value, kind, span },
     Deferred { expression },
     Ascribe { term, ty },
     Meta { kind, span },
@@ -236,6 +240,7 @@ extend_enum!(ComputationTermExp {
 });
 
 extend_enum!(ProgramFunctionExp {
+    Assign { function, kind, span },
     Access(value0),
     Associated { span, datatype, item, parameters },
     Value(value0),
@@ -258,7 +263,7 @@ extend_enum!(SExp {
     MemberAccess { base, field, parameters, span },
     MemberLiteral { ty, fields },
     Ascribe { term, ty },
-    Assign { value, number, span },
+    Assign { value, kind, span },
     Meta { kind, span },
     AccessPath { access, parameters },
     AssociatedAccess { span, base, field },
