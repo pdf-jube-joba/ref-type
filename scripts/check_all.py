@@ -46,8 +46,10 @@ def arguments():
     parser.add_argument('--cache-budget-mib', type=int, default=12288)
     parser.add_argument('--min-free-mib', type=int, default=256)
     parser.add_argument('--time-limit-seconds', type=int)
+    parser.add_argument('--max-scope-targets', type=int, default=0,
+                        help='split larger scopes before checking; 0 keeps automatic splitting')
     args = parser.parse_args()
-    for name in ['memory_mib', 'initial_memory_mib', 'cache_budget_mib', 'min_free_mib']:
+    for name in ['memory_mib', 'initial_memory_mib', 'cache_budget_mib', 'min_free_mib', 'max_scope_targets']:
         if getattr(args, name) < 0:
             parser.error(name.replace('_', '-') + ' must be nonnegative')
     return args
@@ -199,6 +201,13 @@ def main():
             module, only, memory = pending.pop(0)
             wanted = set(targets) if module is None else {t for t in targets if t == module or (not only and t.startswith(module + '.'))}
             if wanted <= verified:
+                continue
+            if args.max_scope_targets and len(wanted) > args.max_scope_targets:
+                if module is None:
+                    pending[0:0] = list(roots)
+                else:
+                    children = sorted({t[len(module) + 1:].split('.')[0] for t in wanted if t != module})
+                    pending[0:0] = [(module, True, memory)] + [(module + '.' + c, False, memory) for c in children]
                 continue
             sequence += 1
             label = f'{sequence:05d}-{module or "repository"}'
