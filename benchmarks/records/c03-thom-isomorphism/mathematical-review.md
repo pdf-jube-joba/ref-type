@@ -42,3 +42,9 @@ The review checked fiber normalization, actual finite Mayer–Vietoris gluing an
 The point example covers every rank and exposes normalization, reduction, reversal, Thom isomorphisms and Gysin sequences; package and dependent-plan documentation identify the actual APIs.
 Direct-sum orientation comparison assumes equality of fiber orientations and proves global class equality, so it does not assume the requested global theorem.
 No missing mathematical implementation or API blocker was found; the active and remaining direct-sum scopes plus final package/aggregate validation were still pending at review time.
+
+The final read-only operational review at `954119fc1` approved the bounded-scope routing and selective package splitting.
+Every eager partition retains the parent declarations and all immediate child subtrees; acceptance still requires CLI coverage of every requested scope and equality with the complete enumerated target set.
+All scoped commands use the same immutable source files and aliases, and final validation compares the source JSON, exact target list and checker binary.
+The reviewer confirmed no `.ref` or `.toml` changes since `c80d328`, and the Rust tree matches integrated main `c51c1971`.
+No checker was started or interrupted for this review; final aggregate acceptance remained pending.
