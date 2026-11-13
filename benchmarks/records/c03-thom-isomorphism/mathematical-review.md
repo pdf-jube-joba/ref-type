@@ -55,3 +55,8 @@ Only accepted saved CLI scopes with exit zero and no save failures contribute; t
 The interrupted scope contributes nothing, and the resumed driver still checks the remaining targets and validates complete coverage plus final source/checker identity.
 All eleven driver end-to-end checks passed, including partial-prefix continuation, forged aggregate coverage rejection and changed-source rejection.
 At this point the integrated aggregate has accepted 12,846 of 15,306 targets; final acceptance is still pending.
+
+A read-only review of the resumed scope's silent finalization found no concrete loop, deadlock or resource failure.
+The elaborator calls `lower_all` after the final module event without per-declaration progress there; retirement follows only after lowering returns.
+Lowering traverses finite declaration collections, with registered-item skips and active-cycle rejection in the pending definition worklist.
+This justifies continuing the active worker, but supplies no time bound and does not establish acceptance.
