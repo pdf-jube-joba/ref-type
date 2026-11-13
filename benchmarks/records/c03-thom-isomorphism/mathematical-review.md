@@ -66,3 +66,9 @@ Thus the earlier source-only suggestion of silent lowering did not identify this
 Measured shared cache usage was 13,490,205,238 bytes, above the 12 GiB budget; publication calls collection whenever accounting remains above the budget, including when retained data is pinned.
 A resource-only continuation raises the cache budget to 20 GiB while retaining the 512 MiB graph residency and 16 GiB process ceiling.
 The interrupted comparison-degree scope remains unaccepted; the fixed-input aggregate must complete it normally.
+
+The final independent differential review at `dccc39a29` approved the fixed mathematical sources and public APIs.
+The C03 source/docs diff from the previous coverage checkpoint `e95106ec0` through `c80d328` is empty; all `.ref` and `.toml` files remain identical to the final mathematical checkpoint.
+Registration, manifest dependencies and C04/C08/C11/C12/K12 links were checked against actual APIs.
+The reviewer revisited finite Mayer–Vietoris gluing, arbitrary ring coefficient delegation, direct sum, pullback, reversal, zero section, Euler and Gysin exports, finding no requested global theorem replaced by a hypothesis.
+This mathematical/API approval is separate from the still-pending complete aggregate acceptance.
