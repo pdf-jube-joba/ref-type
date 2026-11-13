@@ -48,3 +48,10 @@ Every eager partition retains the parent declarations and all immediate child su
 All scoped commands use the same immutable source files and aliases, and final validation compares the source JSON, exact target list and checker binary.
 The reviewer confirmed no `.ref` or `.toml` changes since `c80d328`, and the Rust tree matches integrated main `c51c1971`.
 No checker was started or interrupted for this review; final aggregate acceptance remained pending.
+
+An independent read-only review of exact-input continuation approved `--resume-report`.
+It requires equal checker digest, source digest and saved source content, and exact ordered target list.
+Only accepted saved CLI scopes with exit zero and no save failures contribute; their coverage is reconstructed and must equal the donor's verified set.
+The interrupted scope contributes nothing, and the resumed driver still checks the remaining targets and validates complete coverage plus final source/checker identity.
+All eleven driver end-to-end checks passed, including partial-prefix continuation, forged aggregate coverage rejection and changed-source rejection.
+At this point the integrated aggregate has accepted 12,846 of 15,306 targets; final acceptance is still pending.

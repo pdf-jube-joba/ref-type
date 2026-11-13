@@ -50,6 +50,7 @@ def arguments():
                         help='split larger scopes before checking; 0 keeps automatic splitting')
     parser.add_argument('--split-package', action='append', default=[], metavar='PACKAGE',
                         help='restrict eager splitting to these packages (repeatable)')
+    parser.add_argument('--resume-report', help='continue accepted scopes from an identical-input driver report')
     args = parser.parse_args()
     for name in ['memory_mib', 'initial_memory_mib', 'cache_budget_mib', 'min_free_mib', 'max_scope_targets']:
         if getattr(args, name) < 0:
@@ -199,6 +200,40 @@ def main():
         if not roots:
             raise Failure('no root modules in enumeration')
         verified, checked = set(), set()
+        if args.resume_report:
+            previous_path = Path(args.resume_report).resolve(strict=True)
+            previous = json.loads(previous_path.read_text())
+            previous_source = previous_path.parent / 'source.json'
+            if (previous.get('binary_sha256') != binary_digest
+                    or previous.get('source_sha256') != snapshot_digest
+                    or previous.get('targets') != targets
+                    or digest(previous_source) != snapshot_digest
+                    or json.loads(previous_source.read_text()) != source):
+                raise Failure('resume report has different binary, source or targets')
+            inherited = []
+            for scope in previous.get('attempts', []):
+                if scope.get('exit_code') != 0 or scope.get('outcome') != 'accepted':
+                    continue
+                result = json.loads(Path(scope['report']).read_text())
+                if result.get('outcome') != 'accepted' or result.get('storage', {}).get('save_failures', 0):
+                    raise Failure('resume scope has no accepted saved result')
+                coverage = {'.'.join(p) for p in result.get('verified_modules', [])}
+                name = scope['module']
+                wanted = set(targets) if name is None else {
+                    t for t in targets if t == name or (not scope['module_only'] and t.startswith(name + '.'))}
+                if not wanted <= coverage:
+                    raise Failure('resume scope has incomplete target coverage')
+                verified.update(coverage & set(targets))
+                checked.update('.'.join(p) for p in result.get('checked_modules', []))
+                inherited.append(dict(scope, inherited=True))
+            if verified != set(previous.get('verified', [])):
+                raise Failure('resume report coverage differs from its accepted scope results')
+            report.update(resumed_from=str(previous_path), inherited_target_count=len(verified),
+                          resumed_report_sha256=digest(previous_path),
+                          execution_metrics_scope='current invocation; inherited scope results retained in attempts',
+                          attempts=inherited, verified=sorted(verified),
+                          newly_checked=sorted(verified & checked), reused=sorted(verified - checked))
+            print(f'resumed accepted scopes: {len(verified)}/{len(targets)}', flush=True)
         sequence = 0
         while pending:
             module, only, memory = pending.pop(0)
@@ -287,7 +322,7 @@ def main():
         report['outcome'] = 'accepted'
         print(f'accepted: {len(targets)} targets; {len(verified & checked)} newly checked, {len(verified - checked)} reused')
         return 0
-    except (Failure, OSError, ValueError) as error:
+    except (Failure, OSError, ValueError, KeyError, TypeError) as error:
         report['outcome'] = 'interrupted' if interrupted else 'failed'
         report['error'] = str(error)
         print(str(error), file=sys.stderr)
