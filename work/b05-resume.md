@@ -7,7 +7,6 @@
 実・複素の `Model.Carrier`、コンパクト Hausdorff 性、各点のグラフ座標、普遍束・補束、直和・安定化・直交補の写像と引き戻し同型、射影空間と具体例を実装した。
 対象 full-check-local、依存閉包、bundle_complements 回帰はいずれも accepted、終了コード0、キャッシュ保存失敗0。
 workspace 全体の通常検査は中間実行で300秒の時間上限に達し未完了。
-詳細と検査 JSON は `benchmarks/records/grassmannians/README.md` を参照。
 
 ```sh
 cd /workspace/ref-type-b05

@@ -91,7 +91,7 @@ report の `source_steps` は完了したソース検査ステップ数、`dupli
 `checking.session.graph` の索引容量・常駐ページ量・退避量は、OS の RSS・仮想メモリ量とは別に記録する。
 `execution.heap_pageout_requested_bytes` はヒープのページ回収を要求した範囲の累計であり、実際の退避量やディスクI/O量とは異なる。
 
-式本文のみを退避していた旧方式の測定は [大規模検査の計測記録](../benchmarks/records/large-scale-checking/README.md)、ヒープ全体の退避は [再現用ベンチマーク](../benchmarks/heap_spill.py) を参照。
+ヒープ全体の退避は [再現用ベンチマーク](../benchmarks/heap_spill.py) を参照。
 
 編集を続けながら保存時点のソースを検査する場合は、snapshot を明示して実行する。
 保存時のファイル識別子と内容を使うため、別ディレクトリへソースをコピーせずに検査を固定し、変更していない依存のキャッシュを再利用できる。

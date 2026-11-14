@@ -16,7 +16,6 @@ cd /workspace/ref-type-l04
 workspace 共通の `libs/refcache/` を再利用する。
 処理系がない場合は `CARGO_TARGET_DIR=/workspace/ref-type/target cargo build -p cli --locked --offline` でビルドする。
 対象28 module・14,572ステップの再検査と、依存込み422 module のキャッシュ検査が成功済み。
-最終レポートは `benchmarks/records/characteristic-series/` に保存した。
 生成器の再実行による差分がないことと `git diff --check` も確認済み。
 
 初期の具体的な有理数証明では180秒の時間上限と stack overflow が発生した。

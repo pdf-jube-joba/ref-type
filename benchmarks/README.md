@@ -66,7 +66,7 @@ system allocatorを使い、GNU環境では未使用ページを返してから�
 
 レポートの既定の保存先は、名前付きケースでは `runs/<ケース名>/report.json`、その他の計測では `runs/<サブコマンド>/report.json` である。
 `--output` でレポートの保存先を指定でき、各実行のログと CLI レポートは、その隣の `<名前>-logs/` に保存する。
-比較結果の JSON・条件・考察は [records](records/README.md) に保存する。
+比較結果の JSON・実行条件・考察も `runs/` に保存する。
 
 `run` と `case` の既定は `--cache-mode off` で、checker の計測では CLI に `--no-cache` を渡す。
 `--cache-mode cold` は各実行に空の一時キャッシュを用意し、保存処理も計測する。

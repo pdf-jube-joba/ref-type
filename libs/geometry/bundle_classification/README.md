@@ -121,5 +121,3 @@
 ```ref
 \import bundle_classification.Classification[].Examples[].BoolLine[] \as Example;
 ```
-
-通常検査の記録は [検査記録](../../../benchmarks/records/bundle-classification/README.md) にまとめる。

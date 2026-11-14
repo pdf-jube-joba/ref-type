@@ -93,8 +93,3 @@ Thom 商の同相、球面境界の cofibration、実次元1・2の円板 suspen
 
 [Examples.Finite](src/Thom/Examples/Finite.ref) は一点上の実・複素の任意ランクの自明束で `pairFiniteType` を使う。
 ランク0、実・複素の直線、空の基底の例も公開する。
-
-A06・G03 を含む main との最終統合後の結果は [最終統合検査記録](../../../benchmarks/records/c02-thom-spaces/integration-all/README.md) を参照する。
-G03 統合時の結果は [G03 統合検査記録](../../../benchmarks/records/c02-thom-spaces/integration-g03/README.md) に保存している。
-C02 完成時のソース・対象・バイナリとキャッシュ計数は [完了時の検証記録](../../../benchmarks/records/c02-thom-spaces/completed/README.md) を参照する。
-途中の CW 基盤の検査は [CW 基盤の記録](../../../benchmarks/records/c02-thom-spaces/cw-foundations/README.md)、以前のソースの検査は [継続時の記録](../../../benchmarks/records/c02-thom-spaces/continuation/README.md) に残している。

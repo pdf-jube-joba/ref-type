@@ -63,5 +63,3 @@
 `DiffeomorphismCones` は実際の滑らかな逆写像から境界と接方向の保存を導く。
 `OpenManifoldCones` は開部分の包含について、境界の一致と、その微分による接方向・厳密な法線方向の判定を証明する。
 `OpenSmoothExtension` は開集合上の滑らかな写像と閉集合の外の写像が重なりで一致するとき、その実際の滑らかな接続を構成する。
-
-検査対象、checker、固定ソースとキャッシュの対応、終了コードと資源使用量は [検査記録](../../../benchmarks/records/manifold-gluing/README.md) にある。

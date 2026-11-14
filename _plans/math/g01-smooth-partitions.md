@@ -27,4 +27,3 @@
 通常検査は実装コミット `51799530317db36f73adc63a2d9b2aa743378414` で、対象と依存先の全 1,883 module、およびリポジトリ全体の全 10,233 module が成功した。
 全体は新規検査 9,538、再利用 695、保存失敗・破損読込 0、ソース一致を確認した。
 最後の `periodic_k_theory` は 10 GiB の仮想メモリ上限で worker を一度復旧し、checkpoint から再開して成功した。
-[検査記録](../../benchmarks/records/smooth-partitions/README.md) に集計を保存している。

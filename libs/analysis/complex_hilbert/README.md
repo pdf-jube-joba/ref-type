@@ -82,4 +82,3 @@ target/debug/cli libs/analysis/complex_hilbert --cache-stats --diagnostics compa
 ```
 
 workspace の `libs/refcache/` を共有する。
-対象・依存先・回帰検査の結果は [検査記録](../../../benchmarks/records/complex-hilbert/README.md) を参照。

@@ -10,7 +10,6 @@ A19 の計画要件を実装した。
 コンパクト作用素と有限階数近似の同値も証明した。
 
 ソース commit 8f29c194 の対象 full-check-local、依存先、functional_analysis.Metric.Geometry と metric_spaces.MetricSpace.Compactness の回帰検査はいずれも accepted、終了コード 0、キャッシュ保存失敗 0。
-結果と実行条件は benchmarks/records/complex-hilbert/README.md を参照。
 既存のキャッシュは workspace の libs/refcache を共有する。
 
 再検査する場合は、先に対象ソースと再開手順を commit・push し、同じ対象の検査プロセスがないことを確認する。

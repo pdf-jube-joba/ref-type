@@ -121,7 +121,3 @@ collar 時間から構成した大域的な高さ \(h\) は境界上でちょう
 
 `Examples.Interval.Compactness.compact` は具体的な閉区間のコンパクト性を証明する。
 `Examples.Interval.Neat.exists` は存在定理をその区間に適用し、`Of[result]` は両端だけが標的境界に写ること、両端の像が異なること、厳密な collar 整合性を公開する。
-
-## 検査
-
-固定ソースと通常キャッシュを用いた package・依存回帰・全体検査の記録は [benchmarks/records/compact-embeddings](../../../benchmarks/records/compact-embeddings/README.md) にある。

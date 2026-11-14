@@ -68,4 +68,3 @@ python3 scripts/check_all.py --initial-memory-mib 12288 --memory-mib 12288
 A06・Lp・複素 Hilbert 空間の回帰検査と、通常の全11,729対象の検査も終了コード0で完了した。
 通常全体検査は新規11,337・再利用392、保存失敗・破損読み取りは0、worker 回復は1である。
 最後の既存パッケージ `compact_support_k` はメモリ割当失敗後に checkpoint 35685 から再開し、全対象の受理を確認した。
-検査対象コミット、checker、対象一覧と全ソースの対応は [検査記録](../../../benchmarks/records/a07-plancherel/README.md) に保存する。

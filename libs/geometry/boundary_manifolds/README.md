@@ -71,5 +71,3 @@ cargo build -p cli --release --locked
 target/release/cli libs/geometry/boundary_manifolds --module boundary_manifolds --full-check-local --memory-mib 12288 --cache-stats
 python3 scripts/check_all.py --initial-memory-mib 12288 --memory-mib 12288 --cache-budget-mib 12288 --min-free-mib 512
 ```
-
-最終ソースの検査条件と結果は[検査記録](../../../benchmarks/records/boundary-manifolds/README.md)に記録する。

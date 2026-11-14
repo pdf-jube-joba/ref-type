@@ -28,4 +28,3 @@
 
 相対版は、境界全体の指定された開近傍に collar の像を収める定理である。
 既存の部分 collar と一致する拡張は、これより強い別の定理である。
-検査の対象コミット、checker、ソース snapshot と全体検査結果は [検査記録](../../benchmarks/records/manifold-gluing/README.md) に記録する。

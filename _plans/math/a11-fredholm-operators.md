@@ -26,4 +26,3 @@
 
 A11 全体、隔離キャッシュの具体例、A19 回帰は成功した。
 標準 `cargo build -p cli --release --locked && python3 scripts/check_all.py` も終了コード 0 で 9,887/9,887 対象を検証し、未検証・保存失敗は 0 だった。
-実装・検査ソースとの対応、所要時間、キャッシュ条件、過去の失敗記録は [検査記録](../../benchmarks/records/fredholm-operators/README.md) にまとめる。

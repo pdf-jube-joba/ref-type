@@ -95,7 +95,6 @@ Dedekind 実数上の Euclid 空間の試験関数、分布、局所可積分関
 ## 検査
 
 通常のキャッシュ付き checker で依存閉包、関連パッケージと登録済み workspace 全体を検査する。
-最終ソースと検査結果は [A08 検査記録](../../../benchmarks/records/a08-distributions/README.md) にまとめる。
 
 ```sh
 cargo build -p cli --release --locked

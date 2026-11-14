@@ -25,5 +25,3 @@
 | 積の境界面 | `Product` の積チャートと因子ごとの面の判定、内在的な境界の和集合則 |
 | 区間・円板・多様体と区間の積 | `Sublevel` の G02 局所形からの構成、`Disk`、`Interval`、`Cylinder`、`Examples` |
 | 境界なし多様体との比較 | `Boundaryless` の空の座標制約による構成と同相、`Interior` の既存の通常の多様体への制限 |
-
-検査の対象コミット、checker、ソース snapshot と全体検査結果は[検査記録](../../benchmarks/records/boundary-manifolds/README.md)に記録する。

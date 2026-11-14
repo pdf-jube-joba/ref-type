@@ -28,5 +28,3 @@
 正の形式の積の開性と、行列式束の積の連続性は局所自明化上の連続な係数から証明する。
 標準の向き付き自明束を足す安定化、引き戻し、因子の束同型、有限分類との自然性、および分類データの選択独立性を公開した。
 利用例は `Examples.Trivial.Naturality.Oriented` にある。
-
-通常検査の条件と結果は [検査記録](../../benchmarks/records/bundle-classification/README.md) に記載する。

@@ -27,5 +27,3 @@
 同型の基底写像が公開する安定化写像と一致することは `ambientMapFormula` と `dimensionMapFormula` が示す。
 
 検査と再開方法は `work/b05-resume.md` に記載する。
-
-対象と依存先の検査結果は [検査記録](../../../benchmarks/records/grassmannians/README.md) にある。

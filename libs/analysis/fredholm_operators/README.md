@@ -70,5 +70,3 @@ cargo build -p cli --release --locked
 target/release/cli libs/analysis/fredholm_operators --module fredholm_operators --full-check-local --diagnostics compact --cache-stats --time-limit-seconds 300 --report-json work/a11-target.json
 python3 scripts/check_all.py
 ```
-
-結果と再現条件は [検査記録](../../../benchmarks/records/fredholm-operators/README.md) に記録する。

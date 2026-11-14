@@ -24,9 +24,3 @@
 付着写像のセル近似、任意のセル付着の対比較、および部分複体の誘導位相の有限 CW 構造も証明した。
 球面境界の cofibration、Puppe 比較、付加点を切除した実際の円板・球面対の相対特異理論、および有限 CW 対モデルとの相対比較を接続した。
 ランク0と空の基底を含む実・複素の例を検査する。
-
-最終ソースと検査結果は [完了時の検証記録](../../benchmarks/records/c02-thom-spaces/completed/README.md) に保存する。
-
-G03 を含む main との統合後の最終検査は [統合検査記録](../../benchmarks/records/c02-thom-spaces/integration-g03/README.md) に保存する。
-
-A06・G03 を含む main との最終統合検査は [最終統合検査記録](../../benchmarks/records/c02-thom-spaces/integration-all/README.md) に保存する。

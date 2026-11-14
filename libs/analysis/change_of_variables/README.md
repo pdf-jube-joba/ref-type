@@ -81,7 +81,6 @@ Fubini の例外零集合を扱い、境界差の可積分性も結論に含む�
 ## 検査
 
 通常 release checker で対象、ソースからの局所再検査、依存の回帰、リポジトリ全体を検査する。
-最終ソース、命令、終了コード、対象数、キャッシュとメモリの記録は [A04 検査記録](../../../benchmarks/records/a04-change-of-variables/README.md) にまとめる。
 
 ```sh
 cargo build -p cli --release --locked
