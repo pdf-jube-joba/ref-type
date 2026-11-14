@@ -40,7 +40,7 @@ workspace 外は入力ディレクトリ、単独ファイルは親ディレク�
 | `--module NAME` | 指定した module・子 module と、その参照先の宣言を検証 |
 | `--module-only` | `--module` で指定した module 自身と参照先を検証 |
 | `--list-modules` | ソース module の検査用パスを一行ずつ表示 |
-| `--memory-mib N` | Linux で仮想メモリを制限。既定3072 MiB、0は起動時の上限を維持 |
+| `--memory-mib N` | Linux の常駐メモリの退避目標。既定3072 MiB、0はOSの回収に任せる |
 | `--time-limit-seconds N` | Linux のパッケージ検査全体の時間上限。省略時は制限なし |
 | `--parse-only` | 構文解析と外部 module・package の読み込み |
 | `--save-source-snapshot PATH` | 読み込んだソースと元のファイル識別子を JSON に保存 |
@@ -61,7 +61,7 @@ workspace 外は入力ディレクトリ、単独ファイルは親ディレク�
 | `--diagnostics compact` / `detailed` | 診断の詳しさを指定 |
 
 JSON の `execution` はソース検査の重複を `duplicate_source_steps`、復旧による再実行を `replayed_source_steps`、未保存の作業を `lost_steps` に分ける。
-中断・時間上限・メモリ上限はそれぞれ `interrupted`・`time-limit`・`memory-limit` として記録する。
+中断・時間上限・OSのメモリ不足や外部のSIGKILLによる終了は、それぞれ `interrupted`・`time-limit`・`memory-limit` として記録する。
 `last_module` と `last_checkpoint` は異常終了時の到達位置を示す。
 
 `--module` を省略すると入口と読み込んだ全依存の全 module を検査する。
@@ -72,22 +72,26 @@ JSON の `execution` はソース検査の重複を `duplicate_source_steps`、�
 
 Linux の package 検査は、一つの worker が検査セッションを保持し、supervisor が資源使用量と進捗を監視する。
 worker は依存先の検査済み宣言と名前空間を共有し、式グラフをページ単位で保存・退避する。
-資源上限のある worker は allocator の arena 予約単位を128 MiBにし、既定1 GiBの仮想アドレス予約による圧迫を抑える。
-`MIMALLOC_ARENA_RESERVE` が指定されていれば、その設定を使う。
-仮想メモリの使用量が指定上限の80%に達すると、supervisor がキャッシュの回収と checkpoint の保存を要求する。
+Linux の標準ビルドでは、supervisor と worker のヒープも一時ファイルに対応付ける。
+ソース読み込み、名前解決の表、式の索引、checkpoint の保存・復元用データも、アドレスを保ったままOSがディスクへ退避し、使用時に読み戻す。
+常駐メモリ量が退避目標の80%に達すると、キャッシュの回収を要求し、バックグラウンドでヒープのページ回収を進める。
+package の検査中はcheckpointの保存も要求する。
+退避目標は回収開始の目安であり、一時的に超過しても検査を継続する。
+単独の `.ref`、`--parse-only`、`--list-modules`、`--no-cache` でもヒープの退避を使う。
+退避ファイルはcacheと同じfilesystemに作り、cacheがtmpfsの場合は作業ディレクトリまたは実行ファイルのディレクトリにある実ディスクを使う。
+`REF_TYPE_GRAPH_SPILL_DIR` で退避先を指定できる。
+退避領域のディスク容量は割当時に予約し、プロセス終了時にはOSが一時ファイルを回収する。
+ディスク容量不足やfilesystemの障害、OSのOOM Killer、起動元が設定した資源制限によって継続できない場合はある。
+allocatorの計測用featureを有効にしたビルドは、計測対象のallocatorを使う。
 異常終了時は新しく公開された checkpoint があれば、同じ要求を再開する。
 中断時も公開済み checkpoint は通常の保存先へ引き継ぐ。
 指定した総時間制限と利用者の中断は自動再開の対象に含めない。
 source snapshot は実行中に固定され、ソースが変わると再実行を求める。
 report の `source_steps` は完了したソース検査ステップ数、`duplicate_source_steps` は実行内の再検査数、`lost_steps` は復旧時に checkpoint より後へ進んでいたステップ数を表す。
 `checking.session.graph` の索引容量・常駐ページ量・退避量は、OS の RSS・仮想メモリ量とは別に記録する。
+`execution.heap_pageout_requested_bytes` はヒープのページ回収を要求した範囲の累計であり、実際の退避量やディスクI/O量とは異なる。
 
-`finite_models` の依存を含む全体検査は8192 MiBで完走を確認しており、3072 MiBでは索引とfrontendの保持量が上限に達する。
-保存・復元のピークと他のライブラリの条件は [大規模検査の計測記録](../benchmarks/records/large-scale-checking/README.md) を参照。
-
-```sh
-target/debug/cli libs/topology/examples/finite_models --full-check --memory-mib 8192
-```
+式本文のみを退避していた旧方式の測定は [大規模検査の計測記録](../benchmarks/records/large-scale-checking/README.md)、ヒープ全体の退避は [再現用ベンチマーク](../benchmarks/heap_spill.py) を参照。
 
 編集を続けながら保存時点のソースを検査する場合は、snapshot を明示して実行する。
 保存時のファイル識別子と内容を使うため、別ディレクトリへソースをコピーせずに検査を固定し、変更していない依存のキャッシュを再利用できる。

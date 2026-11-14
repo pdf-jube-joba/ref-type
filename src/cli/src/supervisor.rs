@@ -1,4 +1,4 @@
-//! Keep the terminal and cancellation alive while bounded workers check a snapshot.
+//! Keep the terminal and cancellation alive while workers check a snapshot.
 use crate::{Args, progress, report};
 use anyhow::{Context, bail};
 use sema::{ModuleProgress, ProgressEvent, ProgressPlan, SourceSnapshot};
@@ -328,6 +328,7 @@ struct Outcome {
     status: ExitStatus,
     limited: bool,
     memory_limited: bool,
+    storage_failed: bool,
     timeout_hit: bool,
     cancelled: bool,
     events: Events,
@@ -343,11 +344,6 @@ fn execute(
     memory_mib: u64,
 ) -> anyhow::Result<Outcome> {
     let mut events = Events::new(&workspace.path("events.jsonl"))?;
-    // The allocator's 1 GiB default reservation is substantial under RLIMIT_AS.
-    // Smaller arenas leave virtual address space for live graphs and I/O buffers.
-    if memory_mib != 0 && std::env::var_os("MIMALLOC_ARENA_RESERVE").is_none() {
-        command.env("MIMALLOC_ARENA_RESERVE", "128M");
-    }
     if std::env::var_os("REF_TYPE_GRAPH_SPILL_DIR").is_none() {
         command.env("REF_TYPE_GRAPH_SPILL_DIR", &workspace.directory);
     }
@@ -433,11 +429,11 @@ fn execute(
                     .and_then(|value| value.split_whitespace().next()?.parse::<u64>().ok())
                     .unwrap_or(0)
             };
-            let virtual_kib = kib("VmSize:");
+            let resident_kib = kib("VmRSS:");
             resources.peak_virtual_kib = resources.peak_virtual_kib.max(kib("VmPeak:"));
             resources.peak_rss_kib = resources.peak_rss_kib.max(kib("VmHWM:"));
             if memory_mib != 0
-                && virtual_kib > memory_mib.saturating_mul(1024) * 4 / 5
+                && resident_kib > memory_mib.saturating_mul(1024).saturating_mul(4) / 5
                 && last_pressure.elapsed() >= Duration::from_secs(5)
             {
                 // SAFETY: signal only the live child; its handler sets an atomic.
@@ -481,7 +477,9 @@ fn execute(
     stderr.read_to_end(&mut tail)?;
     // The bounded suffix can start inside a UTF-8 diagnostic character.
     let tail = String::from_utf8_lossy(&tail);
-    let memory_limited = !timeout_hit
+    let storage_failed = tail.contains("ref-type: cannot extend heap spill storage");
+    let memory_limited = !storage_failed
+        && !timeout_hit
         && !cancelled
         && (status.signal() == Some(libc::SIGKILL)
             || (status.signal() == Some(libc::SIGABRT) && tail.contains("memory allocation of")));
@@ -490,6 +488,7 @@ fn execute(
         status,
         limited,
         memory_limited,
+        storage_failed,
         timeout_hit,
         cancelled,
         events,
@@ -696,6 +695,7 @@ pub fn run(args: &Args, display: &mut progress::Display) -> anyhow::Result<repor
             checking.session = outcome.events.session.clone();
         }
         if !outcome.status.success()
+            && !outcome.storage_failed
             && !outcome.cancelled
             && !outcome.timeout_hit
             && storage_errors == 0
@@ -720,9 +720,12 @@ pub fn run(args: &Args, display: &mut progress::Display) -> anyhow::Result<repor
             } else if outcome.timeout_hit {
                 incomplete = Some(report::Outcome::TimeLimit);
                 display.message("指定された総時間制限に達しました。検査は未完了です。");
+            } else if outcome.storage_failed {
+                incomplete = Some(report::Outcome::StorageFailure);
+                display.message("ヒープの退避領域を確保できませんでした。退避先の空き容量と filesystem を確認してください。検査は未完了です。");
             } else if outcome.limited {
                 incomplete = Some(report::Outcome::MemoryLimit);
-                display.message("指定範囲の検査がメモリ上限に達しました。新しい checkpoint がないため再起動を停止します。検査は未完了です。");
+                display.message("検査プロセスがメモリ不足または外部のSIGKILLで終了しました。新しい checkpoint がないため再起動を停止します。検査は未完了です。");
             } else {
                 display.message(&format!("検査失敗: {} ({})", label, outcome.status));
             }
@@ -743,6 +746,7 @@ pub fn run(args: &Args, display: &mut progress::Display) -> anyhow::Result<repor
             }
             Err(error) => return Err(error).context("worker did not finish its report"),
         };
+        resources.heap_pageout_requested_bytes += summary.execution.heap_pageout_requested_bytes;
         if summary.outcome == report::Outcome::InternalError {
             bail!("verification worker failed internally");
         }

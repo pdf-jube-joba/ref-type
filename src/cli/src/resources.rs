@@ -1,40 +1,55 @@
-//! Bound allocations before reading a project so a failed check leaves the host usable.
-#[cfg(target_os = "linux")]
-pub fn limit_memory(requested: Option<u64>) -> std::io::Result<()> {
-    let mib = requested.unwrap_or(3072);
-    if mib == 0 {
-        return Ok(());
+//! Cooperatively reclaim caches and page live heap objects to disk.
+pub fn initialize(directory: &std::path::Path, requested: Option<u64>) -> std::io::Result<()> {
+    #[cfg(all(
+        target_os = "linux",
+        not(any(
+            feature = "system-allocator",
+            feature = "large-allocation-profile",
+            feature = "small-allocation-profile"
+        ))
+    ))]
+    {
+        let directory = std::env::var_os("REF_TYPE_GRAPH_SPILL_DIR")
+            .map(std::path::PathBuf::from)
+            .unwrap_or_else(|| directory.to_owned());
+        crate::spill_allocator::initialize(&directory, requested)?;
     }
-    let bytes = mib.checked_mul(1024 * 1024).ok_or_else(|| {
-        std::io::Error::new(
-            std::io::ErrorKind::InvalidInput,
-            "memory limit is too large",
-        )
-    })?;
-    let mut limit = libc::rlimit {
-        rlim_cur: 0,
-        rlim_max: 0,
-    };
-    // SAFETY: getrlimit/setrlimit receive a valid pointer to a live rlimit.
-    if unsafe { libc::getrlimit(libc::RLIMIT_AS, &mut limit) } != 0 {
-        return Err(std::io::Error::last_os_error());
-    }
-    limit.rlim_cur = limit.rlim_cur.min(bytes);
-    if unsafe { libc::setrlimit(libc::RLIMIT_AS, &limit) } != 0 {
-        return Err(std::io::Error::last_os_error());
-    }
-    Ok(())
-}
+    #[cfg(any(
+        not(target_os = "linux"),
+        feature = "system-allocator",
+        feature = "large-allocation-profile",
+        feature = "small-allocation-profile"
+    ))]
+    let _ = directory;
 
-#[cfg(not(target_os = "linux"))]
-pub fn limit_memory(requested: Option<u64>) -> std::io::Result<()> {
+    #[cfg(not(target_os = "linux"))]
     if requested.is_some_and(|mib| mib != 0) {
         return Err(std::io::Error::new(
             std::io::ErrorKind::Unsupported,
             "--memory-mib is supported on Linux",
         ));
     }
+    let _ = requested;
     Ok(())
+}
+
+pub fn heap_pageout_requested_bytes() -> u64 {
+    #[cfg(all(
+        target_os = "linux",
+        not(any(
+            feature = "system-allocator",
+            feature = "large-allocation-profile",
+            feature = "small-allocation-profile"
+        ))
+    ))]
+    return crate::spill_allocator::pageout_bytes();
+    #[cfg(any(
+        not(target_os = "linux"),
+        feature = "system-allocator",
+        feature = "large-allocation-profile",
+        feature = "small-allocation-profile"
+    ))]
+    0
 }
 
 /// Called at a declaration boundary after releasing reconstructed caches.

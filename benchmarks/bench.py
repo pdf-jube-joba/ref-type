@@ -149,7 +149,6 @@ def measure(command, log, *, seconds, memory_mib, environment=None,
             progress_seconds=0, checkpoint=False, output_mib=8):
     """Run directly, retain wait4 resource usage, and stop through the supervisor."""
     def limits():
-        resource.setrlimit(resource.RLIMIT_AS, (memory_mib * 2**20,) * 2)
         cpu = math.ceil(seconds)
         resource.setrlimit(resource.RLIMIT_CPU, (cpu, cpu + 1))
         resource.setrlimit(resource.RLIMIT_CORE, (0, 0))

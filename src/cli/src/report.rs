@@ -29,6 +29,7 @@ pub struct Execution {
     pub cpu_micros: u64,
     pub elapsed_micros: u64,
     pub collection_requests: u64,
+    pub heap_pageout_requested_bytes: u64,
     pub source_steps: u64,
     pub duplicate_source_steps: u64,
     pub replayed_source_steps: u64,

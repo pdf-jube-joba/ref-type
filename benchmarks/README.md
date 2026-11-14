@@ -33,6 +33,7 @@ python3 benchmarks/bench.py run benchmarks/inputs/shared-bodies.ref --runs 3
 python3 benchmarks/bench.py libraries libs/category --binary target/release/cli
 python3 benchmarks/scaling.py --binary target/release/cli --depths 8 16 32 64
 python3 benchmarks/large_scale.py --binary target/release/cli --sizes 16 32 64 --runs 3
+python3 benchmarks/heap_spill.py --binary target/release/cli --memory-mib 32
 ```
 
 `libraries` の入力を省略すると、`libs/ref.toml` の package とその依存先を列挙する。
@@ -84,13 +85,14 @@ wall time、user time、system time、最大 RSS、終了状態、ソースの d
 | オプション | 名前付きケース以外の既定値と用途 |
 | --- | --- |
 | `--seconds` | 300秒。各実行の時間上限 |
-| `--memory-mib` | 3072 MiB。各プロセスの仮想メモリ上限 |
+| `--memory-mib` | 3072 MiB。checker の常駐メモリの退避目標 |
 | `--cache-mib` | 省略時は無制限。CLI のキャッシュ容量設定 |
 | `--output-mib` | 8 MiB。各実行のログ容量上限 |
 | `--batch-seconds` | 比較用の旧 CLI に渡す、検査範囲を分割するまでの秒数 |
 | `--progress-seconds` | 30秒。実行中の経過時間を表示する間隔 |
 
 中断や上限到達では supervisor に終了を通知し、子プロセスの回収を待ってから必要なら強制終了する。
+メモリはCLIの退避目標を指定し、管理はCLIとOSによる自動退避に任せる。
 最大 RSS は `wait4` が返す、子孫を含む個々のプロセスの最大値である。
 同時点のプロセス全体のメモリ合計ではない。
 

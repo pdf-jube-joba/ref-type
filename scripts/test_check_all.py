@@ -160,35 +160,20 @@ class RepositoryCheckTests(unittest.TestCase):
         self.accepted(result, resumed)
         self.assertTrue(resumed['reused'])
 
-    def test_worker_without_new_checkpoint_is_not_restarted(self):
+    def test_small_resident_target_does_not_stop_the_worker(self):
         report_file = self.root / 'memory.json'
         result = subprocess.run([str(BINARY), str(self.root / 'base'), '--memory-mib', '32',
                                  '--report-json', str(report_file)], capture_output=True, text=True, timeout=10)
         report = json.loads(report_file.read_text())
-        self.assertEqual(result.returncode, 2, result.stderr)
-        self.assertEqual(report['outcome'], 'memory-limit')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(report['outcome'], 'accepted')
         self.assertEqual(report['execution']['workers'], 1)
         self.assertEqual(report['execution']['recoveries'], 0)
-        self.assertEqual(report['execution']['last_checkpoint'], 0)
 
-    def test_impossible_memory_budget_terminates(self):
+    def test_repository_check_keeps_a_small_resident_target(self):
         result, report = self.run_check('--memory-mib', '32')
-        self.assertNotEqual(result.returncode, 0)
-        self.assertNotEqual(report['outcome'], 'accepted')
-        self.assertLess(len(report['attempts']), 10)
-
-    def test_small_initial_workers_recover_within_the_hard_budget(self):
-        result, report = self.run_check('--initial-memory-mib', '32', '--memory-mib', '512')
         self.accepted(result, report)
-        attempts = report['attempts']
-        self.assertTrue(any(a['outcome'] == 'memory-limit' for a in attempts))
-        self.assertTrue(all(a['memory_mib'] <= 512 for a in attempts))
-        scopes = {}
-        for attempt in attempts:
-            key = (attempt['module'], attempt['module_only'])
-            previous = scopes.get(key, 0)
-            self.assertGreater(attempt['memory_mib'], previous)
-            scopes[key] = attempt['memory_mib']
+        self.assertTrue(all(a['memory_mib'] == 32 for a in report['attempts']))
 
 
 if __name__ == '__main__':

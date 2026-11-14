@@ -14,7 +14,28 @@ use std::{cell::RefCell, io::IsTerminal, path::PathBuf, time::Duration};
     feature = "small-allocation-profile"
 )))]
 #[global_allocator]
+#[cfg(not(target_os = "linux"))]
 static ALLOCATOR: mimalloc::MiMalloc = mimalloc::MiMalloc;
+
+#[cfg(all(
+    target_os = "linux",
+    not(any(
+        feature = "system-allocator",
+        feature = "large-allocation-profile",
+        feature = "small-allocation-profile"
+    ))
+))]
+mod spill_allocator;
+#[cfg(all(
+    target_os = "linux",
+    not(any(
+        feature = "system-allocator",
+        feature = "large-allocation-profile",
+        feature = "small-allocation-profile"
+    ))
+))]
+#[global_allocator]
+static ALLOCATOR: spill_allocator::SpillAllocator = spill_allocator::SpillAllocator;
 
 #[cfg(any(
     feature = "large-allocation-profile",
@@ -39,7 +60,7 @@ struct Args {
     #[arg(long)]
     #[serde(default)]
     save_source_snapshot: Option<PathBuf>,
-    /// 検査プロセスの仮想メモリ上限 MiB（Linux の既定3072、0は既存の上限を維持）
+    /// 自動退避を始める常駐メモリ量の目安 MiB（Linux の既定3072、0はOSに回収を任せる）
     #[arg(long)]
     memory_mib: Option<u64>,
     /// 検査全体の時間上限（秒、省略時は制限なし）
@@ -118,7 +139,18 @@ fn main() -> anyhow::Result<()> {
     let args = Args::parse();
     #[cfg(target_os = "linux")]
     let args = supervisor::worker_arguments(args)?;
-    resources::limit_memory(args.memory_mib)?;
+    // Resolve a backing location without decoding a potentially large source
+    // snapshot. Paging must already cover loading and supervisor preparation.
+    let spill_directory = args
+        .cache_dir
+        .clone()
+        .map_or_else(|| sema::default_cache_directory(&args.path), Ok)?;
+    resources::initialize(&spill_directory, args.memory_mib).with_context(|| {
+        format!(
+            "initialize heap spill storage near {}",
+            spill_directory.display()
+        )
+    })?;
     let timing = if args.no_progress || args.parse_only {
         drop(timing);
         sema::timing::Session::start(false)
@@ -209,6 +241,7 @@ fn main() -> anyhow::Result<()> {
         .as_ref()
         .cloned()
         .unwrap_or_else(|_| report::Report::internal_error());
+    summary.execution.heap_pageout_requested_bytes += resources::heap_pageout_requested_bytes();
     #[cfg(target_os = "linux")]
     if supervised && supervisor::interrupted() {
         summary.outcome = report::Outcome::Interrupted;
