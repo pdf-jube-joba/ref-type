@@ -1,0 +1,69 @@
+\import std.Data[].FinSet[] \as Fin;
+\import Fin.Sum[m := n, n := n] \as Indices;
+\import real.Analysis[] \as R;
+\import complex.Complex[] \as C;
+\import metric_spaces.RealLine[] \as Line;
+\import Fin.Sum[m := n, n := n].Tuples[A := R.Real] \as Tuples;
+\import topological_algebra.Coordinates[K := R.Real, I := Fin.Fin Indices.total] \as Source;
+\import topological_algebra.Coordinates[K := C.Complex, I := Fin.Fin n] \as Target;
+\import topological_algebra.Complex[] \as Scalars;
+\import Scalars.Functions[A := Target.Carrier] \as Functions;
+\import std.Data[].Pair[].Prop[A := R.Real, B := R.Real] \as Pairs;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\definition forward[x: Source.Carrier][i: Fin.Fin n]: C.Complex := C.make (x (Indices.left i)) (x (Indices.right i));
+\definition backward[z: Target.Carrier]: Source.Carrier := Tuples.join (\fun (i: Fin.Fin n) => C.re (z i)) (\fun (i: Fin.Fin n) => C.im (z i));
+\definition leftInverse: \forall (x: Source.Carrier) -> backward (forward x) = x :=
+  \fun (x: Source.Carrier) => Tuples.recover x;
+\definition rightInverse: \forall (z: Target.Carrier) -> forward (backward z) = z :=
+  \fun (z: Target.Carrier) => \axiom:funext(forward (backward z), z, \fun (i: Fin.Fin n) => trans!{C.Complex} _ _ _
+    (congr!{R.Real R.Real C.Complex} C.make _ _ _ _
+      (Tuples.atLeft (\fun (j: Fin.Fin n) => C.re (z j)) (\fun (j: Fin.Fin n) => C.im (z j)) i)
+      (Tuples.atRight (\fun (j: Fin.Fin n) => C.re (z j)) (\fun (j: Fin.Fin n) => C.im (z j)) i))
+    (Pairs.eta (z i)));
+\definition forwardContinuous: topology.Continuity[A := Source.Carrier, B := Target.Carrier].Continuous
+  (Source.topology Line.topology) (Target.topology Scalars.topology) forward :=
+  Target.Universal[A := Source.Carrier].continuous (Source.topology Line.topology) Scalars.topology forward
+    (\fun (i: Fin.Fin n) => topological_constructions.Product[A := R.Real, B := R.Real].Universal[X := Source.Carrier].pairContinuous
+      (Source.topology Line.topology) Line.topology Line.topology
+      (Source.evaluate (Indices.left i)) (Source.evaluate (Indices.right i))
+      (Source.evaluationContinuous Line.topology (Indices.left i)) (Source.evaluationContinuous Line.topology (Indices.right i)));
+\definition coordinateContinuous: \forall (i: Fin.Fin Indices.total) ->
+  topology.Continuity[A := Target.Carrier, B := R.Real].Continuous (Target.topology Scalars.topology) Line.topology
+    (\fun (z: Target.Carrier) => backward z i) :=
+  \fun (i: Fin.Fin Indices.total) =>
+    \idelim Indices.inflate (Indices.split i) = i \with j: Fin.Fin Indices.total =>
+      topology.Continuity[A := Target.Carrier, B := R.Real].Continuous (Target.topology Scalars.topology) Line.topology
+        (\fun (z: Target.Carrier) => backward z j) \by {
+      base: (\induction (side: Indices.Index) \return
+        topology.Continuity[A := Target.Carrier, B := R.Real].Continuous (Target.topology Scalars.topology) Line.topology
+          (\fun (z: Target.Carrier) => backward z (Indices.inflate side)) \with {
+        | inl: \fun (j: Fin.Fin n) =>
+          \idelim (\fun (z: Target.Carrier) => C.re (z j)) = (\fun (z: Target.Carrier) => backward z (Indices.left j))
+            \with f: (Target.Carrier -> R.Real) => topology.Continuity[A := Target.Carrier, B := R.Real].Continuous
+              (Target.topology Scalars.topology) Line.topology f \by {
+                base: Functions.realContinuous (Target.topology Scalars.topology) (Target.evaluate j) (Target.evaluationContinuous Scalars.topology j),
+                equality: \axiom:funext((\fun (z: Target.Carrier) => C.re (z j)), (\fun (z: Target.Carrier) => backward z (Indices.left j)),
+                  \fun (z: Target.Carrier) => sym!{R.Real} _ _ (Tuples.atLeft (\fun (i: Fin.Fin n) => C.re (z i)) (\fun (i: Fin.Fin n) => C.im (z i)) j))
+              }
+        | inr: \fun (j: Fin.Fin n) =>
+          \idelim (\fun (z: Target.Carrier) => C.im (z j)) = (\fun (z: Target.Carrier) => backward z (Indices.right j))
+            \with f: (Target.Carrier -> R.Real) => topology.Continuity[A := Target.Carrier, B := R.Real].Continuous
+              (Target.topology Scalars.topology) Line.topology f \by {
+                base: Functions.imaginaryContinuous (Target.topology Scalars.topology) (Target.evaluate j) (Target.evaluationContinuous Scalars.topology j),
+                equality: \axiom:funext((\fun (z: Target.Carrier) => C.im (z j)), (\fun (z: Target.Carrier) => backward z (Indices.right j)),
+                  \fun (z: Target.Carrier) => sym!{R.Real} _ _ (Tuples.atRight (\fun (i: Fin.Fin n) => C.re (z i)) (\fun (i: Fin.Fin n) => C.im (z i)) j))
+              }
+      }) (Indices.split i),
+      equality: Indices.inflateSplit i
+    };
+\definition homeomorphism: topology.Homeomorphism[A := Source.Carrier, B := Target.Carrier].Homeomorphism[
+  Source.topology Line.topology, Target.topology Scalars.topology] :=
+  topology.Homeomorphism[A := Source.Carrier, B := Target.Carrier].Homeomorphism[
+    Source.topology Line.topology, Target.topology Scalars.topology] {
+    forward := forward, backward := backward, leftInverse := leftInverse, rightInverse := rightInverse,
+    forwardContinuous := forwardContinuous,
+    backwardContinuous := Source.Universal[A := Target.Carrier].continuous (Target.topology Scalars.topology) Line.topology backward coordinateContinuous,
+  };

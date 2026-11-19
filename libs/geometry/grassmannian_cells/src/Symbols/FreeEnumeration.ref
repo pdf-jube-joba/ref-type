@@ -1,0 +1,45 @@
+\import std.Set[].FiniteSubset[A := Slot] \as Slots;
+\import Slots.Enumeration[] \as Enumeration;
+\import Lists.Membership[A := Slot] \as Membership;
+\import Membership.Append[] \as Append;
+\import Fin.FromList[A := Slot] \as Listing;
+\import std.Logic[].Proposition[] \as Logic;
+\use Logic.either;
+\definition column[i: Fin.Fin n]: Lists.List[Slot] := Listing.list k (Slot::# i);
+\definition concatenate[rows: Lists.List[Fin.Fin n]]: Lists.List[Slot] :=
+  Lists.foldr (Fin.Fin n) (Lists.List[Slot]) (\fun (i: Fin.Fin n)(tail: Lists.List[Slot]) => Lists.append Slot (column i) tail)
+    Lists.List[Slot]::nil rows;
+\definition contains: \forall (rows: Lists.List[Fin.Fin n])(i: Fin.Fin n) -> Fin.Occurs n i rows ->
+  \forall (j: Fin.Fin k) -> Membership.Occurs (Slot::# i j) (concatenate rows) :=
+  \induction (rows: Lists.List[Fin.Fin n]) \return \forall (i: Fin.Fin n) -> Fin.Occurs n i rows ->
+    \forall (j: Fin.Fin k) -> Membership.Occurs (Slot::# i j) (concatenate rows) \with {
+      | nil: \fun (i: Fin.Fin n)(empty: Logic.False)(j: Fin.Fin k) => Logic.falseElim _ empty
+      | cons: \fun (head: Fin.Fin n)(tail: Lists.List[Fin.Fin n])(previous: _)(i: Fin.Fin n)(member: _)(j: Fin.Fin k) =>
+          either!{member {Membership.Occurs (Slot::# i j) (concatenate (Lists.List[Fin.Fin n]::cons head tail))}
+            {\fun (same: i = head) => Append.left (column head) (concatenate tail) (Slot::# i j)
+              (\idelim head = i \with r: Fin.Fin n => Membership.Occurs (Slot::# r j) (column head) \by {
+                base: Listing.occurs k (Slot::# head) j, equality: sym!{{Fin.Fin n}} _ _ same
+              })}
+            {\fun (old: _) => Append.right (column head) (concatenate tail) (Slot::# i j) (previous i old j)}
+          }
+    };
+\definition slots: Lists.List[Slot] := concatenate (Fin.elements n);
+\definition eta: \forall (slot: Slot) -> Slot::# slot.row slot.column = slot :=
+  \induction (slot: Slot) \return Slot::# slot.row slot.column = slot \with {
+    | # : \fun (i: Fin.Fin n)(j: Fin.Fin k) => \refl(Slot::# i j)
+  };
+\definition exhaustive: \forall (slot: Slot) -> Membership.Occurs slot slots :=
+  \fun (slot: Slot) => \idelim Slot::# slot.row slot.column = slot \with s: Slot => Membership.Occurs s slots \by {
+    base: contains (Fin.elements n) slot.row (Fin.exhaustive n slot.row) slot.column, equality: eta slot
+  };
+\definition allSlots: \Pow Slot := { slot: Slot \where slot = slot };
+\definition finiteSlots: Slots.Finite allSlots :=
+  \idelim Enumeration.Listed slots = allSlots \with S: \Pow Slot => Slots.Finite S \by {
+    base: Enumeration.listedFinite slots,
+    equality: \axiom:setext(Enumeration.Listed slots, allSlots,
+      \fun (slot: Slot)(member: _) => \refl(slot), \fun (slot: Slot)(member: _) => exhaustive slot)
+  };
+\import \root.FiniteRefinement[A := Slot, S := { slot: Slot \where FreeLaws[symbol, slot] }] \as Refined;
+\definition finite: std.Set[].FiniteSubset[A := Free symbol].Finite ({ slot: Free symbol \where slot = slot }) := Refined.finite finiteSlots;
+\definition indexExists: \exists \root.FiniteIndex[A := Free symbol].Data :=
+  \root.FiniteIndex[A := Free symbol].exists finite;

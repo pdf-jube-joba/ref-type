@@ -1,0 +1,22 @@
+\import \root.Rotations[K := Numbers.Complex, field := Numbers.Algebra[].field,
+  scalar := H.Complex[].scalar, topological := H.Complex[].topological, n := n, k := k, symbol := symbol] \as Rotations;
+\import \root.Reflection[K := Numbers.Complex, field := Numbers.Algebra[].field,
+  scalar := H.Complex[].scalar, topological := H.Complex[].topological, n := n].Conjugation[P := Grassmannian.projection Pivot[].base] \as Action;
+\import Action.Family[X := Rotations.Carrier, source := Rotations.topology, u := Rotations.unitary, continuous := Rotations.continuous] \as Family;
+\definition projection[A: Rotations.Carrier]: Ambient.Projection := Action.projection (Rotations.unitary A);
+\definition rank: \forall (A: Rotations.Carrier) -> Ambient.OnProjection[P := projection A].Rank[k := k].HasRank :=
+  \fun (A: Rotations.Carrier) => Action.rank k (Rotations.unitary A) (Grassmannian.rank Pivot[].base);
+\import Grassmannian.Family[Y := Rotations.Carrier, source := Rotations.topology, P := projection,
+  regularP := Family.regular, rankP := rank] \as Projected;
+\definition map: Rotations.Carrier -> Grassmannian.Carrier := Projected.map;
+\definition continuous: topology.Continuity[A := Rotations.Carrier, B := Grassmannian.Carrier].Continuous
+  Rotations.topology Grassmannian.topology map := Projected.continuous;
+\definition frame[A: Rotations.Carrier][j: Fin.Fin k]: Ambient.Vector :=
+  (Rotations.unitary A).forward.apply (Euclidean.basis (symbol.pivot j));
+\definition fixesFrame: \forall (A: Rotations.Carrier)(j: Fin.Fin k) -> (map A).map.apply (frame A j) = frame A j :=
+  \fun (A: Rotations.Carrier)(j: Fin.Fin k) => (Action.fixedImage (Rotations.unitary A) (frame A j)).rtl
+    (\idelim Euclidean.basis (symbol.pivot j) = (Rotations.unitary A).backward.apply (frame A j)
+      \with v: Euclidean.Vector => Pivot[].base.map.apply v = v \by {
+        base: Pivot[].fixesBasis j,
+        equality: sym!{{Euclidean.Vector}} _ _ ((Rotations.unitary A).leftInverse (Euclidean.basis (symbol.pivot j)))
+      });

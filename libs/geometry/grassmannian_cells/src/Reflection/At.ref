@@ -1,0 +1,77 @@
+\import Ambient.OnProjection[P := P] \as Split;
+\definition map: End.Map := Operations.plus Split.complement.map (Operations.negative P.map);
+\definition formula: \forall (v: E.Vector) -> map.apply v = Inner.subtract (Split.complement.map.apply v) (P.map.apply v) :=
+  \fun (v: E.Vector) => congr!{{E.Vector} {E.Vector}} (E.space.add (Split.complement.map.apply v)) _ _ (Laws.minusOneScale (P.map.apply v));
+\definition projected: \forall (v: E.Vector) -> P.map.apply (map.apply v) = E.space.neg (P.map.apply v) :=
+  \fun (v: E.Vector) => eq_reason_in!{{E.Vector} _
+    "=" _ "by" { congr!{{E.Vector} {E.Vector}} P.map.apply _ _ (formula v) }
+    "=" _ "by" { Inner.linearSubtract P.map (Split.complement.map.apply v) (P.map.apply v) }
+    "=" _ "by" { congr!{{E.Vector} {E.Vector} {E.Vector}} Inner.subtract _ _ _ _ (Split.annihilates v) (P.idempotent v) }
+    "=" _ "by" { Laws.zeroLeft (E.space.neg (P.map.apply v)) }
+  };
+\definition complementary: \forall (v: E.Vector) -> Split.complement.map.apply (map.apply v) = Split.complement.map.apply v :=
+  \fun (v: E.Vector) => eq_reason_in!{{E.Vector} _
+    "=" _ "by" { congr!{{E.Vector} {E.Vector}} Split.complement.map.apply _ _ (formula v) }
+    "=" _ "by" { Inner.linearSubtract Split.complement.map (Split.complement.map.apply v) (P.map.apply v) }
+    "=" _ "by" { congr!{{E.Vector} {E.Vector} {E.Vector}} Inner.subtract _ _ _ _ (Split.complement.idempotent v) (Split.annihilatesRight v) }
+    "=" _ "by" { subtractZero (Split.complement.map.apply v) }
+  };
+\definition involution: \forall (v: E.Vector) -> map.apply (map.apply v) = v :=
+  \fun (v: E.Vector) => eq_reason_in!{{E.Vector} _
+    "=" _ "by" { formula (map.apply v) }
+    "=" _ "by" { congr!{{E.Vector} {E.Vector} {E.Vector}} Inner.subtract _ _ _ _ (complementary v) (projected v) }
+    "=" _ "by" { congr!{{E.Vector} {E.Vector}} (E.space.add (Split.complement.map.apply v)) _ _ (negativeTwice (P.map.apply v)) }
+    "=" _ "by" { Laws.comm (Split.complement.map.apply v) (P.map.apply v) }
+    "=" _ "by" { Split.splitting v }
+  };
+\definition symmetric: \forall (v, w: E.Vector) -> E.dot (map.apply v) w = E.dot v (map.apply w) :=
+  \fun (v, w: E.Vector) => eq_reason_in!{K _
+    "=" _ "by" { congr!{{E.Vector} K} (\fun (x: E.Vector) => E.dot x w) _ _ (formula v) }
+    "=" _ "by" { Inner.addLeft (Split.complement.map.apply v) (E.space.neg (P.map.apply v)) w }
+    "=" _ "by" { congr!{K K K} Spaces.add _ _ _ _ (Split.complement.selfAdjoint v w)
+      (trans!{K} _ _ _ (Inner.negativeLeft (P.map.apply v) w) (congr!{K K} Spaces.neg _ _ (P.selfAdjoint v w))) }
+    "=" _ "by" { sym!{K} _ _ (Inner.dotSubtractRight v (Split.complement.map.apply w) (P.map.apply w)) }
+    "=" _ "by" { congr!{{E.Vector} K} (E.dot v) _ _ (sym!{{E.Vector}} _ _ (formula w)) }
+  };
+\definition unitary: Ambient.Unitary[].Carrier := \into[Isomorphisms.Isomorphism](Isomorphisms.Isomorphism {
+  forward := map, backward := map, leftInverse := involution, rightInverse := involution,
+}, Ambient.Unitary[].Carrier) \by {
+  \fun (v, w: E.Vector) => trans!{K} _ _ _ (symmetric v (map.apply w))
+    (congr!{{E.Vector} K} (E.dot v) _ _ (involution w))
+};
+\definition fixesKernel: \forall (v: E.Vector) -> P.map.apply v = E.space.zero -> map.apply v = v :=
+  \fun (v: E.Vector)(zero: _) => eq_reason_in!{{E.Vector} _
+    "=" _ "by" { formula v }
+    "=" _ "by" { congr!{{E.Vector} {E.Vector} {E.Vector}} Inner.subtract _ _ _ _
+      (trans!{{E.Vector}} _ _ _ (congr!{{E.Vector} {E.Vector}} (Inner.subtract v) _ _ zero) (subtractZero v)) zero }
+    "=" _ "by" { subtractZero v }
+  };
+\definition negatesImage: \forall (v: E.Vector) -> P.map.apply v = v -> map.apply v = E.space.neg v :=
+  \fun (v: E.Vector)(fixed: _) => eq_reason_in!{{E.Vector} _
+    "=" _ "by" { formula v }
+    "=" _ "by" { congr!{{E.Vector} {E.Vector} {E.Vector}} Inner.subtract _ _ _ _
+      (trans!{{E.Vector}} _ _ _ (congr!{{E.Vector} {E.Vector}} (Inner.subtract v) _ _ fixed) (subtractSelf v)) fixed }
+    "=" _ "by" { Laws.zeroLeft (E.space.neg v) }
+  };
+\definition nested: \forall (x, a: E.Vector) ->
+  Inner.subtract (Inner.subtract x a) a = Inner.subtract x (E.space.add a a) :=
+  \fun (x, a: E.Vector) => trans!{{E.Vector}} _ _ _
+    (Laws.assoc x (E.space.neg a) (E.space.neg a))
+    (congr!{{E.Vector} {E.Vector}} (E.space.add x) _ _ (sym!{{E.Vector}} _ _ (Split.negativeAddition a a)));
+\definition subtractSum: \forall (x, y: E.Vector) -> Inner.subtract x (E.space.add x y) = E.space.neg y :=
+  \fun (x, y: E.Vector) => eq_reason_in!{{E.Vector} _
+    "=" _ "by" { congr!{{E.Vector} {E.Vector}} (E.space.add x) _ _ (Split.negativeAddition x y) }
+    "=" _ "by" { sym!{{E.Vector}} _ _ (Laws.assoc x (E.space.neg x) (E.space.neg y)) }
+    "=" _ "by" { congr!{{E.Vector} {E.Vector}} (\fun (w: E.Vector) => E.space.add w (E.space.neg y)) _ _ (subtractSelf x) }
+    "=" _ "by" { Laws.zeroLeft (E.space.neg y) }
+  };
+\definition exchanges: \forall (x, y: E.Vector) -> P.map.apply (E.space.add x y) = E.space.add x y ->
+  P.map.apply x = P.map.apply y -> map.apply x = E.space.neg y :=
+  \fun (x, y: E.Vector)(fixed: _)(same: _) => eq_reason_in!{{E.Vector} _
+    "=" _ "by" { formula x }
+    "=" _ "by" { nested x (P.map.apply x) }
+    "=" _ "by" { congr!{{E.Vector} {E.Vector}} (Inner.subtract x) _ _
+      (trans!{{E.Vector}} _ _ _ (congr!{{E.Vector} {E.Vector}} (E.space.add (P.map.apply x)) _ _ same)
+        (trans!{{E.Vector}} _ _ _ (sym!{{E.Vector}} _ _ (P.map.preservesAdd x y)) fixed)) }
+    "=" _ "by" { subtractSum x y }
+  };

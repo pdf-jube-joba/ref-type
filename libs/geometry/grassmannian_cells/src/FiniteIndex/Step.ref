@@ -1,0 +1,20 @@
+\definition length: N.Nat^ := Lists.length A tail;
+\definition tuple: Fin.Fin (N.Nat^::succ length) -> A := Tuples.tuple (Lists.List[A]::cons head tail);
+\definition different: \forall (j: Fin.Fin length) -> Logic.Not (tuple (Fin.zero length) = tuple (Fin.succ length j)) :=
+  \fun (j: Fin.Fin length)(same: _) => fresh
+    (\idelim Tuples.tuple tail j = head \with a: A => Membership.Occurs a tail \by {
+      base: tupleOccurs tail j,
+      equality: trans!{A} _ _ _ (sym!{A} _ _ (Extend.atSuccessor length head (Tuples.tuple tail) j))
+        (trans!{A} _ _ _ (sym!{A} _ _ same) (Extend.atZero length head (Tuples.tuple tail)))
+    });
+\definition injective: Injective (Lists.List[A]::cons head tail) :=
+  Fin.cases length (\fun (i: Fin.Fin (N.Nat^::succ length)) => \forall (j: Fin.Fin (N.Nat^::succ length)) -> tuple i = tuple j -> i = j)
+    (Fin.cases length (\fun (j: Fin.Fin (N.Nat^::succ length)) => tuple (Fin.zero length) = tuple j -> Fin.zero length = j)
+      (\fun (same: _) => \refl(Fin.zero length))
+      (\fun (j: Fin.Fin length)(same: _) => Logic.falseElim _ (different j same)))
+    (\fun (i: Fin.Fin length) =>
+      Fin.cases length (\fun (j: Fin.Fin (N.Nat^::succ length)) => tuple (Fin.succ length i) = tuple j -> Fin.succ length i = j)
+        (\fun (same: _) => Logic.falseElim _ (different i (sym!{A} _ _ same)))
+        (\fun (j: Fin.Fin length)(same: _) => congr!{{Fin.Fin length} {Fin.Fin (N.Nat^::succ length)}} (Fin.succ length) _ _
+          (previous i j (trans!{A} _ _ _ (sym!{A} _ _ (Extend.atSuccessor length head (Tuples.tuple tail) i))
+            (trans!{A} _ _ _ same (Extend.atSuccessor length head (Tuples.tuple tail) j))))));

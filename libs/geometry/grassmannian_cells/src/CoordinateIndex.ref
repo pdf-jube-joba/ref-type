@@ -1,0 +1,18 @@
+\import topological_algebra.Coordinates[K := K, I := I] \as Source;
+\import topological_algebra.Coordinates[K := K, I := J] \as Target;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.congr;
+\definition forward[v: Source.Carrier][j: J]: K := v (index.backward j);
+\definition backward[w: Target.Carrier][i: I]: K := w (index.forward i);
+\definition leftInverse: \forall (v: Source.Carrier) -> backward (forward v) = v :=
+  \fun (v: Source.Carrier) => \axiom:funext(backward (forward v), v, \fun (i: I) => congr!{I K} v _ _ (index.leftInverse i));
+\definition rightInverse: \forall (w: Target.Carrier) -> forward (backward w) = w :=
+  \fun (w: Target.Carrier) => \axiom:funext(forward (backward w), w, \fun (j: J) => congr!{J K} w _ _ (index.rightInverse j));
+\definition homeomorphism: topology.Homeomorphism[A := Source.Carrier, B := Target.Carrier].Homeomorphism[Source.topology scalar, Target.topology scalar] :=
+  topology.Homeomorphism[A := Source.Carrier, B := Target.Carrier].Homeomorphism[Source.topology scalar, Target.topology scalar] {
+    forward := forward, backward := backward, leftInverse := leftInverse, rightInverse := rightInverse,
+    forwardContinuous := Target.Universal[A := Source.Carrier].continuous (Source.topology scalar) scalar forward
+      (\fun (j: J) => Source.evaluationContinuous scalar (index.backward j)),
+    backwardContinuous := Source.Universal[A := Target.Carrier].continuous (Target.topology scalar) scalar backward
+      (\fun (i: I) => Target.evaluationContinuous scalar (index.forward i)),
+  };

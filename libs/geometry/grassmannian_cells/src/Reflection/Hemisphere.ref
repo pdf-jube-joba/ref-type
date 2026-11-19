@@ -1,0 +1,62 @@
+\import real.Analysis[] \as R;
+\import dedekind_reals.DedekindReal[] \as Order;
+\import Order.Arithmetic[].Prop[] \as Arithmetic;
+\import std.Data[].FinSet[] \as Fin;
+\definition height[v: E.Vector]: R.Real := scalar.realPart (E.dot e v);
+\structure HemisphereLaws[v: E.Vector]: \Prop := {
+  unit: E.dot v v = Spaces.one,
+  real: E.dot e v = Geometry.embed (height v),
+  nonnegative: Order.Le R.zero (height v),
+};
+\definition Carrier: \Set := \Cast[E.Vector] ({ v: E.Vector \where HemisphereLaws[v] });
+\definition laws[v: Carrier]: HemisphereLaws[v] := \bysub(E.Vector, Carrier, v);
+\definition symmetric: \forall (v: Carrier) -> E.dot e v = E.dot v e :=
+  \fun (v: Carrier) => eq_reason_in!{K _
+    "=" _ "by" { (laws v).real }
+    "=" _ "by" { sym!{K} _ _ (scalar.conjugateReal (height v)) }
+    "=" _ "by" { congr!{K K} Geometry.conj _ _ (sym!{K} _ _ (laws v).real) }
+    "=" _ "by" { sym!{K} _ _ (E.symmetric v e) }
+  };
+\definition nonzero: \forall (v: Carrier) -> Logic.Not (E.space.add e v = E.space.zero) := \block {
+  \fun (v: Carrier)(zero: _) \then
+  \let scalarZero: Geometry.embed (R.add R.one (height v)) = Geometry.embed R.zero := eq_reason_in!{K _
+    "=" _ "by" { scalar.embedAdd R.one (height v) }
+    "=" _ "by" { congr!{K K K} Spaces.add _ _ _ _
+      (trans!{K} _ _ _ scalar.embedOne (sym!{K} _ _ eUnit)) (sym!{K} _ _ (laws v).real) }
+    "=" _ "by" { sym!{K} _ _ (E.addRight e e v) }
+    "=" _ "by" { congr!{{E.Vector} K} (E.dot e) _ _ zero }
+    "=" _ "by" { E.zeroRight e }
+    "=" _ "by" { sym!{K} _ _ scalar.embedZero }
+  } \then
+  \let sumZero: R.add R.one (height v) = R.zero := Geometry.embedInjective _ _ scalarZero \then
+  \let positive: Order.Lt R.zero (R.add R.one (height v)) :=
+    Order.ltLeTrans R.zero R.one (R.add R.one (height v)) R.Estimates[].Product[].onePositive
+      (R.Algebra[].leAddRight R.one (height v) (laws v).nonnegative) \then
+  \return Order.Order[].ltNotEq R.zero (R.add R.one (height v)) positive (sym!{R.Real} _ _ sumZero)
+};
+\definition rotation[v: Carrier]: Ambient.Unitary[].Carrier :=
+  \parent.Bisector[e := e, v := v, eUnit := eUnit, vUnit := (laws v).unit, symmetric := symmetric v, nonzero := nonzero v].unitary;
+\definition sendsAxis: \forall (v: Carrier) -> (rotation v).forward.apply e = v :=
+  \fun (v: Carrier) => \parent.Bisector[e := e, v := v, eUnit := eUnit, vUnit := (laws v).unit,
+    symmetric := symmetric v, nonzero := nonzero v].sendsAxis;
+\definition fixesOrthogonal: \forall (v: Carrier)(w: E.Vector) -> E.dot e w = Spaces.zero -> E.dot v w = Spaces.zero ->
+  (rotation v).forward.apply w = w :=
+  \fun (v: Carrier) => \parent.Bisector[e := e, v := v, eUnit := eUnit, vUnit := (laws v).unit,
+    symmetric := symmetric v, nonzero := nonzero v].fixesOrthogonal;
+\import topological_algebra.Coordinates[K := K, I := Fin.Fin n] \as Coordinates;
+\definition vectorTopology: topology.Topology[Carrier := E.Vector].Topology := Coordinates.topology topological.space;
+\definition topology: topology.Topology[Carrier := Carrier].Topology :=
+  topology.Topology[Carrier := E.Vector].Subspace[S := { v: E.Vector \where HemisphereLaws[v] }].topology vectorTopology;
+\definition vectorContinuous: Ambient.Families[X := Carrier].Continuous topology (\fun (v: Carrier) => v) :=
+  \fun (i: Fin.Fin n) => topology.Composition[A := Carrier, B := E.Vector, C := K].composeContinuous
+    topology vectorTopology topological.space (\fun (v: Carrier) => v) (Coordinates.evaluate i)
+    (topology.Continuity[A := Carrier, B := E.Vector].Corestriction[S := { v: E.Vector \where HemisphereLaws[v] }].inclusionContinuous vectorTopology)
+    (Coordinates.evaluationContinuous topological.space i);
+\import \parent.Families[X := Carrier].Bisectors[source := topology, e := \fun (_: Carrier) => e,
+  v := \fun (v: Carrier) => v, eUnit := \fun (_: Carrier) => eUnit, vUnit := \fun (v: Carrier) => (laws v).unit,
+  symmetric := symmetric, nonzero := nonzero, eContinuous := Ambient.Families[X := Carrier].constant topology e,
+  vContinuous := vectorContinuous] \as Family;
+\definition regular: Ambient.Unitary[].Families[X := Carrier].Regular topology rotation := Family.regular;
+\definition continuous: topology.Continuity[A := Carrier, B := Ambient.Unitary[].Carrier].Continuous topology Ambient.Unitary[].topology rotation :=
+  Family.continuous;
+\module Disk;

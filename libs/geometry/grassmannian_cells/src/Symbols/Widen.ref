@@ -1,0 +1,44 @@
+\import Fin.Sum[m := n, n := m] \as Indices;
+\import \root.Symbols[n := Indices.total, k := k] \as Target;
+\definition map[s: Symbol]: Target.Symbol := \into[Target.Data](
+  Target.Data { pivot := \fun (i: Fin.Fin k) => Indices.left (s.pivot i) }, Target.Symbol) \by { increasing s };
+\definition dimensionPreserved: \forall (s: Symbol) -> Target.dimension (map s) = dimension s :=
+  \fun (s: Symbol) => \refl(dimension s);
+\definition injective: \forall (s, t: Symbol) -> map s = map t -> s = t :=
+  \fun (s, t: Symbol)(same: _) => ext s t (\fun (i: Fin.Fin k) =>
+    congr!{{Target.Symbol} {N.Nat^}} (\fun (u: Target.Symbol) => u.pivot i) _ _ same);
+\definition free[s: Symbol][slot: Free s]: Target.Free (map s) :=
+  \into[Target.Slot](Target.Slot { row := Indices.left slot.row, column := slot.column }, Target.Free (map s)) \by {
+    Target.FreeLaws[map s, Target.Slot { row := Indices.left slot.row, column := slot.column }] {
+      below := (\bysub(Slot, Free s, slot)).below,
+      nonpivot := (\bysub(Slot, Free s, slot)).nonpivot,
+    }
+  };
+\definition oldRow: \forall (s: Symbol)(slot: Target.Free (map s)) -> Order.Lt slot.row n :=
+  \fun (s: Symbol)(slot: Target.Free (map s)) => N.Order[].Prop[].ltTrans slot.row (s.pivot slot.column) n
+    (\bysub(Target.Slot, Target.Free (map s), slot)).below (Fin.bound n (s.pivot slot.column));
+\definition restrict[s: Symbol][slot: Target.Free (map s)]: Free s :=
+  \into[Slot](Slot {
+    row := \into[N.Nat^](slot.row, Fin.Fin n) \by { oldRow s slot },
+    column := slot.column,
+  }, Free s) \by {
+    FreeLaws[s, Slot {
+      row := \into[N.Nat^](slot.row, Fin.Fin n) \by { oldRow s slot },
+      column := slot.column,
+    }] {
+      below := (\bysub(Target.Slot, Target.Free (map s), slot)).below,
+      nonpivot := (\bysub(Target.Slot, Target.Free (map s), slot)).nonpivot,
+    }
+  };
+\definition slotEta: \forall (slot: Slot) -> Slot { row := slot.row, column := slot.column } = slot :=
+  \induction (slot: Slot) \return Slot { row := slot.row, column := slot.column } = slot \with {
+    | # : \fun (row: Fin.Fin n)(column: Fin.Fin k) => \refl(Slot { row := row, column := column })
+  };
+\definition targetSlotEta: \forall (slot: Target.Slot) -> Target.Slot { row := slot.row, column := slot.column } = slot :=
+  \induction (slot: Target.Slot) \return Target.Slot { row := slot.row, column := slot.column } = slot \with {
+    | # : \fun (row: Fin.Fin Indices.total)(column: Fin.Fin k) => \refl(Target.Slot { row := row, column := column })
+  };
+\definition leftInverse: \forall (s: Symbol)(slot: Free s) -> restrict s (free s slot) = slot :=
+  \fun (s: Symbol)(slot: Free s) => slotEta slot;
+\definition rightInverse: \forall (s: Symbol)(slot: Target.Free (map s)) -> free s (restrict s slot) = slot :=
+  \fun (s: Symbol)(slot: Target.Free (map s)) => targetSlotEta slot;

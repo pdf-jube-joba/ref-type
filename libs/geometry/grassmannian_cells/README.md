@@ -67,15 +67,31 @@ B08 の途中実装である。
 `weakTopology` は開集合を有限 Grassmannian への引き戻しで特徴付ける。
 `WeakUnion.CommonTopology` により各段階が弱位相からも部分空間位相を持つことを示し、`Maps.exists`・`Spheres.sphereMap`・`Spheres.sphereHomotopy` は実際の有限 Grassmannian への連続な因子分解を返す。
 
+## 有限座標と閉じたパラメータ空間
+
+`FiniteIndex` は有限集合の相異なる列挙を有限添字集合との全単射へ変換する。
+`Symbols.FreeEnumeration` は自由成分の有限性を、`Symbols.Column.indexExists` は第 \(j\) 列の自由な行と \(\mathrm{Fin}(p_j-j)\) の全単射を構成する。
+`FiniteComplement` は単射の像を除いた有限集合の要素数を鳩の巣原理から計算する。
+`Canonical.FiniteCoordinates.exists` はセルと有限個の実座標または複素座標との同相を返し、複素の場合の `realExists` は実次元を二倍にした座標との同相を返す。
+
+`Symbols.Widen` と `Echelon.Widen` は標準包含に沿った記号と階段形を構成する。
+`AmbientReal.Cells`・`AmbientComplex.Cells` の `agrees` は射影の包含とセル座標の可換性を、`homeomorphism` は対応するセル全体への同相を記述する。
+
+`Reflection` は直交射影の像で符号を反転するユニタリ変換と、二つの反射を合成した連続な半球上の回転を構成する。
+`Rotations` は自由成分を各列の閉球に制限し、これらの回転を順に合成する。
+`Canonical.Characteristic.map` はそのユニタリ変換で座標平面の射影を共役した連続写像である。
+この段階では、閉球の積を一つの標準円板に同一視し、内部の同相と境界の次元低下を合わせた `FiniteComplex` の構成には接続していない。
+
 ## B08 の残り
 
-1. 自由成分の有限列挙と次元式の一致を証明する。
+1. 列ごとの自由成分の列挙を合わせ、全体の次元式との一致を証明する。
 2. 各セルの閉円板からの特性写像を構成し、境界が低次元セルへ入ることを証明して、既存の `algebraic_topology.CW.FiniteComplex` を構成する。
-3. 標準包含の胞体性と、向き付き Grassmannian の被覆に対する持ち上げた CW 構造を証明する。
+3. 標準包含のセル上の同相を CW 構造へ接続し、向き付き Grassmannian の被覆に対する持ち上げた CW 構造を証明する。
 
 ## 検査
 
-提出時点の全ソースの構文検査は終了コード0。
+階段形分解と安定化極限を追加した時点の構文検査は終了コード0。
+標準包含のセル上の同相、有限座標の列挙、反射と閉球上の回転の追補全体については、構文検査・型検査とも未実施である。
 型検査は初期実装に対して共有キャッシュ `libs/refcache` を使って実行し、300秒で終了要求、5秒の終了猶予後に強制停止された（終了コード137）。
 合否判定と JSON レポートは得られていない。
 その実行後に追加した有限段階化・自由座標の同相・包含の証明項も含め、提出時点の型検査は未完了である。

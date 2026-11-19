@@ -1,0 +1,32 @@
+\import topology.Topology[Carrier := X] \as Source;
+\import Ambient.Families[X := X] \as Vectors;
+\import Ambient.Families[X := X].Matrix[m := n] \as Matrices;
+\import Ambient.Unitary[].Families[X := X] \as Unitaries;
+\import Hermitian.Functions[X := X] \as Functions;
+\import std.Data[].FinSet[] \as Fin;
+\definition reflected[P: X -> Ambient.Projection][x: X]: Ambient.Unitary[].Carrier := \parent.At[P := P x].unitary;
+\definition reflectionRegular: \forall (source: Source.Topology)(P: X -> Ambient.Projection) ->
+  Matrices.Components source (\fun (x: X) => (P x).map) -> Unitaries.Regular source (reflected P) :=
+  \fun (source: Source.Topology)(P: X -> Ambient.Projection)(regular: _)(j: Fin.Fin n) =>
+    Vectors.addition source
+      (\fun (x: X) => E.space.add (E.basis j) (E.space.neg ((P x).map.apply (E.basis j))))
+      (\fun (x: X) => E.space.smul (Spaces.neg Spaces.one) ((P x).map.apply (E.basis j)))
+      (Vectors.addition source (\fun (_: X) => E.basis j)
+        (\fun (x: X) => E.space.neg ((P x).map.apply (E.basis j)))
+        (Vectors.constant source (E.basis j))
+        (Vectors.negative source (\fun (x: X) => (P x).map.apply (E.basis j)) (regular j)))
+      (Vectors.scale source (\fun (_: X) => Spaces.neg Spaces.one)
+        (\fun (x: X) => (P x).map.apply (E.basis j)) (Functions.constant source (Spaces.neg Spaces.one)) (regular j));
+\definition rankOneRegular: \forall (source: Source.Topology)(v: X -> E.Vector)
+  (unit: \forall (x: X) -> E.dot (v x) (v x) = Spaces.one) ->
+  Vectors.Continuous source v -> Matrices.Components source
+    (\fun (x: X) => Inner.Unit[v := v x, norm := unit x].rankOne) :=
+  \fun (source: Source.Topology)(v: X -> E.Vector)(unit: _)(regular: _)(j: Fin.Fin n) =>
+    Vectors.scale source (\fun (x: X) => E.dot (v x) (E.basis j)) v
+      (Vectors.dotContinuous source v (\fun (_: X) => E.basis j) regular (Vectors.constant source (E.basis j))) regular;
+\module Bisectors(source: Source.Topology, e, v: X -> E.Vector,
+  eUnit: \forall (x: X) -> E.dot (e x) (e x) = Spaces.one,
+  vUnit: \forall (x: X) -> E.dot (v x) (v x) = Spaces.one,
+  symmetric: \forall (x: X) -> E.dot (e x) (v x) = E.dot (v x) (e x),
+  nonzero: \forall (x: X) -> Logic.Not (E.space.add (e x) (v x) = E.space.zero),
+  eContinuous: Vectors.Continuous source e, vContinuous: Vectors.Continuous source v);

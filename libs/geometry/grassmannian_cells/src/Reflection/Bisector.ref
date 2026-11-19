@@ -1,0 +1,53 @@
+\definition sum: E.Vector := E.space.add e v;
+\import Inner.Normalize[v := sum, positive := Inner.positiveNorm E.positive sum nonzero] \as Normal;
+\import Inner.Unit[v := Normal.value, norm := Normal.unitNorm] \as Line;
+\import Inner.Unit[v := e, norm := eUnit] \as Axis;
+\definition bisectorProjection: Ambient.Projection := Ambient.Projection {
+  map := Line.rankOne, selfAdjoint := Line.symmetric, idempotent := Line.idempotent,
+};
+\definition axisProjection: Ambient.Projection := Ambient.Projection {
+  map := Axis.rankOne, selfAdjoint := Axis.symmetric, idempotent := Axis.idempotent,
+};
+\import \parent.At[P := bisectorProjection] \as Bisector;
+\import \parent.At[P := axisProjection] \as AxisReflection;
+\definition fixesSum: Line.rankOne.apply sum = sum := eq_reason_in!{{E.Vector} _
+  "=" _ "by" { congr!{{E.Vector} {E.Vector}} Line.rankOne.apply _ _ (sym!{{E.Vector}} _ _ Normal.recover) }
+  "=" _ "by" { Line.rankOne.preservesScale (Geometry.embed Normal.length) Normal.value }
+  "=" _ "by" { congr!{{E.Vector} {E.Vector}} (E.space.smul (Geometry.embed Normal.length)) _ _ Line.fixes }
+  "=" _ "by" { Normal.recover }
+};
+\definition equalProducts: E.dot sum e = E.dot sum v := eq_reason_in!{K _
+  "=" _ "by" { Inner.addLeft e v e }
+  "=" _ "by" { congr!{K K K} Spaces.add _ _ _ _ eUnit (sym!{K} _ _ symmetric) }
+  "=" _ "by" { Spaces.addComm Spaces.one (E.dot e v) }
+  "=" _ "by" { congr!{K K} (Spaces.add (E.dot e v)) _ _ (sym!{K} _ _ vUnit) }
+  "=" _ "by" { sym!{K} _ _ (Inner.addLeft e v v) }
+};
+\definition equalProjections: Line.rankOne.apply e = Line.rankOne.apply v :=
+  congr!{K {E.Vector}} (\fun (a: K) => E.space.smul a Normal.value) _ _
+    (trans!{K} _ _ _ (Inner.scaleLeft (Geometry.embed Normal.factor) sum e)
+      (trans!{K} _ _ _ (congr!{K K} (Spaces.mul (Geometry.conj (Geometry.embed Normal.factor))) _ _ equalProducts)
+        (sym!{K} _ _ (Inner.scaleLeft (Geometry.embed Normal.factor) sum v))));
+\definition unitary: Ambient.Unitary[].Carrier := Ambient.Unitary[].multiply Bisector.unitary AxisReflection.unitary;
+\definition sendsAxis: unitary.forward.apply e = v := eq_reason_in!{{E.Vector} _
+  "=" _ "by" { congr!{{E.Vector} {E.Vector}} Bisector.map.apply _ _ (AxisReflection.negatesImage e Axis.fixes) }
+  "=" _ "by" { Operations.preservesNeg Bisector.map e }
+  "=" _ "by" { congr!{{E.Vector} {E.Vector}} E.space.neg _ _ (Bisector.exchanges e v fixesSum equalProjections) }
+  "=" _ "by" { negativeTwice v }
+};
+\definition fixesOrthogonal: \forall (w: E.Vector) -> E.dot e w = Spaces.zero -> E.dot v w = Spaces.zero ->
+  unitary.forward.apply w = w := \block {
+  \fun (w: E.Vector)(first: _)(second: _) \then
+  \let axisZero: Axis.rankOne.apply w = E.space.zero := trans!{{E.Vector}} _ _ _
+    (congr!{K {E.Vector}} (\fun (a: K) => E.space.smul a e) _ _ first) (Laws.zeroScale e) \then
+  \let bisectorZero: Line.rankOne.apply w = E.space.zero := trans!{{E.Vector}} _ _ _
+    (congr!{K {E.Vector}} (\fun (a: K) => E.space.smul a Normal.value) _ _
+      (trans!{K} _ _ _ (Inner.scaleLeft (Geometry.embed Normal.factor) sum w)
+        (trans!{K} _ _ _ (congr!{K K} (Spaces.mul (Geometry.conj (Geometry.embed Normal.factor))) _ _
+          (trans!{K} _ _ _ (Inner.addLeft e v w)
+            (trans!{K} _ _ _ (congr!{K K K} Spaces.add _ _ _ _ first second) (Spaces.addZeroLeft Spaces.zero))))
+          (Spaces.mulZeroRight (Geometry.conj (Geometry.embed Normal.factor))))))
+    (Laws.zeroScale Normal.value) \then
+  \return trans!{{E.Vector}} _ _ _ (congr!{{E.Vector} {E.Vector}} Bisector.map.apply _ _ (AxisReflection.fixesKernel w axisZero))
+    (Bisector.fixesKernel w bisectorZero)
+};

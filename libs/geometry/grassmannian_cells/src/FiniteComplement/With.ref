@@ -1,0 +1,70 @@
+\import Fin.Sum[m := k, n := index.size] \as Indices;
+\import Indices.Tuples[A := Fin.Fin n] \as Tuples;
+\definition forward: Fin.Fin Indices.total -> Fin.Fin n := Tuples.join f (\fun (i: Fin.Fin index.size) => index.value.forward i);
+\definition left: \forall (i: Fin.Fin k) -> forward (Indices.left i) = f i :=
+  \fun (i: Fin.Fin k) => Tuples.atLeft f (\fun (j: Fin.Fin index.size) => index.value.forward j) i;
+\definition right: \forall (i: Fin.Fin index.size) -> forward (Indices.right i) = index.value.forward i :=
+  \fun (i: Fin.Fin index.size) => Tuples.atRight f (\fun (j: Fin.Fin index.size) => index.value.forward j) i;
+\definition cases: \forall (P: Fin.Fin Indices.total -> \Prop) ->
+  (\forall (i: Fin.Fin k) -> P (Indices.left i)) -> (\forall (i: Fin.Fin index.size) -> P (Indices.right i)) ->
+  \forall (i: Fin.Fin Indices.total) -> P i :=
+  \fun (P: Fin.Fin Indices.total -> \Prop)(left: _)(right: _)(i: Fin.Fin Indices.total) =>
+    \idelim Indices.inflate (Indices.split i) = i \with j: Fin.Fin Indices.total => P j \by {
+      base: (\induction (s: Indices.Index) \return P (Indices.inflate s) \with { | inl: left | inr: right }) (Indices.split i),
+      equality: Indices.inflateSplit i
+    };
+\definition cross: \forall (i: Fin.Fin k)(j: Fin.Fin index.size) -> Logic.Not (forward (Indices.left i) = forward (Indices.right j)) :=
+  \fun (i: Fin.Fin k)(j: Fin.Fin index.size)(same: _) => absent (index.value.forward j) i
+    (trans!{{Fin.Fin n}} _ _ _ (sym!{{Fin.Fin n}} _ _ (left i)) (trans!{{Fin.Fin n}} _ _ _ same (right j)));
+\definition oneToOne: \forall (i, j: Fin.Fin Indices.total) -> forward i = forward j -> i = j :=
+  cases (\fun (i: Fin.Fin Indices.total) => \forall (j: Fin.Fin Indices.total) -> forward i = forward j -> i = j)
+    (\fun (i: Fin.Fin k) =>
+      cases (\fun (j: Fin.Fin Indices.total) => forward (Indices.left i) = forward j -> Indices.left i = j)
+        (\fun (j: Fin.Fin k)(same: _) => congr!{{Fin.Fin k} {Fin.Fin Indices.total}} Indices.left _ _
+          (injective i j (trans!{{Fin.Fin n}} _ _ _ (sym!{{Fin.Fin n}} _ _ (left i)) (trans!{{Fin.Fin n}} _ _ _ same (left j)))))
+        (\fun (j: Fin.Fin index.size)(same: _) => Logic.falseElim _ (cross i j same)))
+    (\fun (i: Fin.Fin index.size) =>
+      cases (\fun (j: Fin.Fin Indices.total) => forward (Indices.right i) = forward j -> Indices.right i = j)
+        (\fun (j: Fin.Fin k)(same: _) => Logic.falseElim _ (cross j i (sym!{{Fin.Fin n}} _ _ same)))
+        (\fun (j: Fin.Fin index.size)(same: _) => congr!{{Fin.Fin index.size} {Fin.Fin Indices.total}} Indices.right _ _
+          (trans!{{Fin.Fin index.size}} _ _ _ (sym!{{Fin.Fin index.size}} _ _ (index.value.leftInverse i))
+            (trans!{{Fin.Fin index.size}} _ _ _
+              (congr!{Complement {Fin.Fin index.size}} index.value.backward _ _
+                (trans!{{Fin.Fin n}} _ _ _ (sym!{{Fin.Fin n}} _ _ (right i)) (trans!{{Fin.Fin n}} _ _ _ same (right j))))
+              (index.value.leftInverse j)))));
+\definition Preimage[x: Fin.Fin n]: \Set := \Cast[Fin.Fin Indices.total] ({ i: Fin.Fin Indices.total \where forward i = x });
+\definition onto: \forall (x: Fin.Fin n) -> \exists Preimage x :=
+  \fun (x: Fin.Fin n) => either!{{(Classical.excludedMiddle (\exists (i: Fin.Fin k \where f i = x)))} {\exists Preimage x}
+    {\block {
+      \fun (found: _) \then
+      \takefrom i: \Cast[Fin.Fin k] ({ i: Fin.Fin k \where f i = x }) \by found \then
+      \return \exact(\into[Fin.Fin Indices.total](Indices.left i, Preimage x) \by {
+        trans!{{Fin.Fin n}} _ _ _ (left i) (\bysub(Fin.Fin k, { i: Fin.Fin k \where f i = x }, i))
+      }, Preimage x)
+    }}
+    {\block {
+      \fun (none: _) \then
+      \let c: Complement := \into[Fin.Fin n](x, Complement) \by {
+        \fun (i: Fin.Fin k)(same: _) => none (Logic.existsIntro[Fin.Fin k, { i: Fin.Fin k \where f i = x }] i same)
+      } \then
+      \return \exact(\into[Fin.Fin Indices.total](Indices.right (index.value.backward c), Preimage x) \by {
+        trans!{{Fin.Fin n}} _ _ _ (right (index.value.backward c)) (index.value.rightInverse c)
+      }, Preimage x)
+    }}
+  };
+\definition unique: \forall (x: Fin.Fin n)(i, j: Preimage x) -> i = j :=
+  \fun (x: Fin.Fin n)(i, j: Preimage x) => oneToOne i j
+    (trans!{{Fin.Fin n}} _ _ _ (\bysub(Fin.Fin Indices.total, Preimage x, i)) (sym!{{Fin.Fin n}} _ _ (\bysub(Fin.Fin Indices.total, Preimage x, j))));
+\definition backward[x: Fin.Fin n]: Preimage x := \choice Preimage x \by { existence: onto x, uniqueness: unique x };
+\definition bijection: std.Data[].Bijection[A := Fin.Fin Indices.total, B := Fin.Fin n].Bijection :=
+  std.Data[].Bijection[A := Fin.Fin Indices.total, B := Fin.Fin n].Bijection {
+    forward := forward, backward := \fun (x: Fin.Fin n) => backward x,
+    leftInverse := \fun (i: Fin.Fin Indices.total) => oneToOne (backward (forward i)) i
+      (\bysub(Fin.Fin Indices.total, Preimage (forward i), backward (forward i))),
+    rightInverse := \fun (x: Fin.Fin n) => \bysub(Fin.Fin Indices.total, Preimage x, backward x),
+  };
+\definition totalCount: Indices.total = n := \root.FiniteCardinality[].equal Indices.total n bijection;
+\definition count: index.size = Nat.sub n k := trans!{{N.Nat^}} _ _ _ (sym!{{N.Nat^}} _ _ (Order.subAddCancel k index.size))
+  (congr!{{N.Nat^} {N.Nat^}} (\fun (s: N.Nat^) => Nat.sub s k) _ _ totalCount);
+\definition value: Bijection := Equality.Transport[A := N.Nat^].cast
+  (\fun (r: N.Nat^) => std.Data[].Bijection[A := Fin.Fin r, B := Complement].Bijection) index.size (Nat.sub n k) count index.value;
