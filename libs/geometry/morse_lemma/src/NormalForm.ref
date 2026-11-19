@@ -1,0 +1,51 @@
+/* Morse coordinates at a nondegenerate critical point. */
+\use std.Logic[].Equality[].eq_reason_in;
+\import std.Data[].Nat[] \as N;
+\import std.Data[].FinSet[] \as Fin;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.congr;
+\use Equality.sym;
+\use Equality.trans;
+\import real.Analysis[] \as R;
+\import R.Algebra[] \as Algebra;
+\import dedekind_reals.DedekindReal[].Arithmetic[].Prop[] \as Arithmetic;
+\import calculus.Real[].Multivariable[n := n].Open[] \as Open;
+\import Open.Smooth[] \as Smooth;
+\import calculus.Maps[n := n, m := n] \as Maps;
+\import calculus.Diffeomorphism[n := n, m := n] \as Diffeomorphisms;
+\import calculus.Identity[n := n] \as Identity;
+\import linear_algebra.Euclidean[n := n] \as E;
+\import linear_algebra.Commutative[K := R.Real, scalarRing := std.Alg[].Field[].fieldAsCommutativeRing R.Real Algebra.field] \as Spaces;
+\import Spaces.Linear[V := E.Vector, W := E.Vector, source := E.space, target := E.space] \as Linear;
+\import Linear.Composition[U := E.Vector, domain := E.space] \as Compose;
+\import matrix_invariants.Ring[K := R.Real, scalars := std.Alg[].Field[].fieldAsCommutativeRing R.Real Algebra.field].At[n := n] \as Matrices;
+\import Matrices.Representation[] \as Representation;
+\import matrix_invariants.Field[K := R.Real, field := Algebra.field].At[n := n] \as Inversion;
+\import \root.Euclidean[n := n].Function[U := U, f := f] \as Function;
+\import \root.Hadamard[n := n, U := U, f := f, a := a] \as Hadamard;
+\import \root.MatrixForm[n := n] \as MatrixForm;
+\import \root.Inertia[n := n] \as Inertia;
+\definition Point: \Set := E.Vector;
+\definition halfHessian: Matrices.Matrix := Function.halfHessian a;
+\definition hessianForm: Inertia.Form := MatrixForm.form halfHessian;
+\structure Local: \Set := {
+  normal: Inertia.NormalForm[hessianForm],
+  domain: Open.OpenSet,
+  target: Open.OpenSet,
+  included: Open.Included domain U,
+  contains: \In[Point] domain.points a,
+  containsOrigin: \In[Point] target.points E.space.zero,
+  equivalence: Diffeomorphisms.Diffeomorphism domain target,
+  center: \forall (i: Fin.Fin n) -> Maps.apply domain target equivalence.forward
+    (\into[Point](a, domain.points) \by { contains }) i = R.zero,
+  formula: \forall (x: Open.Carrier domain) -> f (Open.inclusion domain U included x) =
+    R.add (f a) (Inertia.standard normal.sign (Maps.apply domain target equivalence.forward x) (Maps.apply domain target equivalence.forward x)),
+};
+\module Taylor(taylor: Hadamard.Local);
+\definition localExistence: Function.Critical a -> Function.Nondegenerate a -> \exists Local := \block {
+  \fun (critical: Function.Critical a)(nondegenerate: Function.Nondegenerate a) \then
+  \takefrom taylor: Hadamard.Local \by Hadamard.localExistence critical \then
+  \return Taylor[taylor := taylor].exists nondegenerate
+};
+\module Indices(local: Local);

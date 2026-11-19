@@ -1,0 +1,71 @@
+\import calculus.Real[].OneDimension[] \as One;
+\import calculus.Real[].Multivariable[n := One.dimension].Open[] \as TimeOpen;
+\import calculus.Blocks[n := dimension, m := One.dimension] \as TimeSplit;
+\import Fin.Sum[m := dimension, n := One.dimension] \as TimeIndices;
+\definition totalDimension: N.Nat^ := TimeSplit.dimension;
+\import calculus.Real[].Multivariable[n := totalDimension].Open[] \as Total;
+\import Total.Smooth[] \as TotalSmooth;
+\import Total.Analysis[] \as Analysis;
+\import Analysis.Operations[] \as Analytic;
+\import calculus.Real[].Multivariable[n := totalDimension].Space[].Def[] \as TotalCoordinates;
+\import calculus.Real[].Multivariable[n := totalDimension].Space[].Prop[] \as TotalLaws;
+\import calculus.Maps[n := totalDimension, m := dimension] \as Homotopies;
+\import TimeSplit.On[U := domain, V := TimeOpen.whole] \as ProductDomain;
+\definition baseDomain: Open.OpenSet := domain;
+\definition source: Total.OpenSet := ProductDomain.domain;
+\import Homotopies.Composition[U := source, V := domain, f := ProductDomain.leftMap] \as Pullback;
+\definition start[k: Fin.Fin dimension]: TotalSmooth.SmoothFunction source :=
+  Pullback.function (\into[Open.ScalarFunction domain]((\fun (x: Open.Carrier domain) => origin x k), { g: Open.ScalarFunction domain \where Smooth.SmoothOn domain g }) \by { originRegular k });
+\definition shift[k: Fin.Fin dimension]: TotalSmooth.SmoothFunction source :=
+  Pullback.function (\into[Open.ScalarFunction domain]((\fun (x: Open.Carrier domain) => displacement x k), { g: Open.ScalarFunction domain \where Smooth.SmoothOn domain g }) \by { displacementRegular k });
+\definition clock: TotalSmooth.SmoothFunction source := Total.Projection[U := source].function (TimeIndices.right One.index);
+\import TotalSmooth.Algebra[U := source] \as FunctionAlgebra;
+\definition component[k: Fin.Fin dimension]: TotalSmooth.SmoothFunction source := FunctionAlgebra.plus (start k) (FunctionAlgebra.product clock (shift k));
+\definition value[z: Total.Carrier source]: Point := \fun (k: Fin.Fin dimension) => component k z;
+\definition wholeMap: Homotopies.Map source Open.whole := \into[Homotopies.Data[source, Open.whole]](Homotopies.Data[source, Open.whole] {
+  apply := \fun (z: Total.Carrier source) => \into[Point](value z, Open.whole.points) \by { \refl(value z) },
+}, { data: Homotopies.Data[source, Open.whole] \where Homotopies.Laws[source, Open.whole, data] }) \by {
+  Homotopies.Laws[source, Open.whole, Homotopies.Data[source, Open.whole]::#
+    (\fun (z: Total.Carrier source) => \into[Point](value z, Open.whole.points) \by { \refl(value z) })] {
+      smooth := \fun (k: Fin.Fin dimension) => \bysub(Total.ScalarFunction source, { g: Total.ScalarFunction source \where TotalSmooth.SmoothOn source g }, component k),
+    }
+};
+\import Homotopies.Preimage[U := source, W := Open.whole, V := U, f := wholeMap] \as Preimage;
+\definition intro[z: Total.Carrier source]: \In[Point] U.points (value z) -> \In[Fin.Fin totalDimension -> Real] Preimage.domain.points z := Preimage.intro z;
+\definition domain: Total.OpenSet := Preimage.domain;
+\definition included: Total.Included domain source := Preimage.included;
+\definition map: Homotopies.Map domain U := Preimage.map;
+\definition basePoint[z: Total.Carrier domain]: Open.Carrier baseDomain := ProductDomain.leftPoint (Preimage.input z);
+\definition pointValue[z: Total.Carrier domain]: Point := \fun (k: Fin.Fin dimension) => displacement (basePoint z) k;
+\definition timeIndex: Fin.Fin totalDimension := TimeIndices.right One.index;
+\definition valueFormula: \forall (z: Total.Carrier domain)(k: Fin.Fin dimension) -> Homotopies.apply domain U map z k =
+  R.add (origin (basePoint z) k) (R.mul (z timeIndex) (displacement (basePoint z) k)) := \fun (z: Total.Carrier domain)(k: Fin.Fin dimension) => \refl(component k (Preimage.input z));
+\definition sameBase: \forall (z, y: Total.Carrier domain)(t: Real) -> y = TotalCoordinates.replace z timeIndex t -> basePoint y = basePoint z :=
+  \fun (z, y: Total.Carrier domain)(t: Real)(same: _) => trans!{Point} _ _ _
+    (congr!{{Fin.Fin totalDimension -> Real} Point} TimeSplit.left _ _ same)
+    (trans!{Point} _ _ _ (congr!{{Fin.Fin totalDimension -> Real} Point} TimeSplit.left _ _ (Paths.replaceTime z t))
+      (TimeSplit.leftJoin (TimeSplit.left z) (Paths.time t)));
+\module Lift(g: Smooth.SmoothFunction baseDomain);
+\import Total.Restriction[] \as Restriction;
+\definition startFunction[k: Fin.Fin dimension]: TotalSmooth.SmoothFunction domain :=
+  \into[Total.ScalarFunction domain](Total.restrict domain source included (start k), { g: Total.ScalarFunction domain \where TotalSmooth.SmoothOn domain g }) \by {
+    Restriction.localSmooth domain source included (start k) (\bysub(Total.ScalarFunction source, { g: Total.ScalarFunction source \where TotalSmooth.SmoothOn source g }, start k))
+  };
+\definition shiftFunction[k: Fin.Fin dimension]: TotalSmooth.SmoothFunction domain :=
+  \into[Total.ScalarFunction domain](Total.restrict domain source included (shift k), { g: Total.ScalarFunction domain \where TotalSmooth.SmoothOn domain g }) \by {
+    Restriction.localSmooth domain source included (shift k) (\bysub(Total.ScalarFunction source, { g: Total.ScalarFunction source \where TotalSmooth.SmoothOn source g }, shift k))
+  };
+\definition clockFunction: TotalSmooth.SmoothFunction domain := Total.Projection[U := domain].function timeIndex;
+\module Differential;
+\module Along(g: Smooth.SmoothFunction U);
+\definition joinPoint[x: Open.Carrier baseDomain][t: Paths.Time]: Total.Carrier source :=
+  ProductDomain.joinPoint x (\into[Fin.Fin One.dimension -> Real](Paths.time t, TimeOpen.whole.points) \by { \refl(Paths.time t) });
+\definition joinValue: \forall (x: Open.Carrier baseDomain)(t: Paths.Time) -> value (joinPoint x t) =
+  Coordinates.addPoint (origin x) (Coordinates.scale t (displacement x)) :=
+  \fun (x: Open.Carrier baseDomain)(t: Paths.Time) => \axiom:funext(value (joinPoint x t), Coordinates.addPoint (origin x) (Coordinates.scale t (displacement x)),
+    \fun (k: Fin.Fin dimension) => congr!{Real Real Real} R.add _ _ _ _
+      (congr!{{Open.Carrier baseDomain} Real} (\fun (v: Open.Carrier baseDomain) => origin v k) (ProductDomain.leftPoint (joinPoint x t)) x (TimeSplit.leftJoin x (Paths.time t)))
+      (congr!{Real Real Real} R.mul _ _ _ _
+        (TimeIndices.Tuples[A := Real].atRight x (Paths.time t) One.index)
+        (congr!{{Open.Carrier baseDomain} Real} (\fun (v: Open.Carrier baseDomain) => displacement v k) (ProductDomain.leftPoint (joinPoint x t)) x (TimeSplit.leftJoin x (Paths.time t)))));
+\module Second;

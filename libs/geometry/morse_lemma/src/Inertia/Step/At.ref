@@ -1,0 +1,33 @@
+\import Higher.Of[h := h] \as H;
+\import Spaces.Laws[V := Higher.Vector, space := Higher.space] \as HigherLaws;
+\definition nonzero: Logic.Not (c.vector = Higher.space.zero) := \fun (zero: c.vector = Higher.space.zero) => c.nonzero
+  (trans!{{R.Real}} _ _ _ (congr!{{Higher.Vector} {R.Real}} (\fun (v: Higher.Vector) => h.form v c.vector) _ _ zero) (h.zeroLeft c.vector));
+\definition positiveVector: \Cast[Higher.Vector] ({ v: Higher.Vector \where Ordered.Lt R.zero (HigherE.squared v) }) :=
+  \into[Higher.Vector](c.vector, { v: Higher.Vector \where Ordered.Lt R.zero (HigherE.squared v) }) \by { HigherE.positive c.vector nonzero };
+\import HigherE.Normalization[v := positiveVector] \as Normalize;
+\import HigherE.OnProjection[P := HigherE.identityProjection] \as Identity;
+\definition unit: Identity.UnitIn := Identity.UnitIn { vector := Normalize.normalized, norm := Normalize.unitNorm, fixed := \refl(Normalize.normalized) };
+\definition recover: Higher.space.smul Normalize.length unit.vector = c.vector := eq_reason_in!{{Higher.Vector} _
+  "=" _ "by" { sym!{{Higher.Vector}} _ _ (Higher.space.scalarAssoc Normalize.length Normalize.factor c.vector) }
+  "=" _ "by" { congr!{{R.Real} {Higher.Vector}} (\fun (a: R.Real) => Higher.space.smul a c.vector) _ _
+    (trans!{{R.Real}} _ _ _ (Arithmetic.fieldMulComm Normalize.length Normalize.factor) Normalize.inverseLength) }
+  "=" _ "by" { Higher.space.scalarOne c.vector }
+};
+\definition unitNonisotropic: Logic.Not (h.form unit.vector unit.vector = R.zero) := \fun (zero: h.form unit.vector unit.vector = R.zero) => c.nonzero
+  (eq_reason_in!{{R.Real} _
+    "=" _ "by" { congr!{{Higher.Vector} {Higher.Vector} {R.Real}} h.form _ _ _ _ (sym!{{Higher.Vector}} _ _ recover) (sym!{{Higher.Vector}} _ _ recover) }
+    "=" _ "by" { h.scaleLeft Normalize.length unit.vector (Higher.space.smul Normalize.length unit.vector) }
+    "=" _ "by" { congr!{{R.Real} {R.Real}} (R.mul Normalize.length) _ _ (h.scaleRight Normalize.length unit.vector unit.vector) }
+    "=" _ "by" { congr!{{R.Real} {R.Real}} (R.mul Normalize.length) _ _
+      (trans!{{R.Real}} _ _ _ (congr!{{R.Real} {R.Real}} (R.mul Normalize.length) _ _ zero) (Arithmetic.fieldMulZeroRight Normalize.length)) }
+    "=" _ "by" { Arithmetic.fieldMulZeroRight Normalize.length }
+  });
+\import Identity.Unit[u := unit] \as Unit;
+\import HigherE.OnProjection[P := Unit.reduced].Rank[k := k] \as LowerRank;
+\definition frameExists: \exists LowerRank.Frame := HigherE.Resolution[].exists k Unit.reduced (Unit.traceDecrease k HigherE.identityTrace);
+\module With(frame: LowerRank.Frame);
+\definition normalFormExists: (\forall (g: Lower.Form) -> Lower.Symmetric g -> Lower.Nondegenerate g -> \exists Lower.NormalForm[g]) -> \exists Higher.NormalForm[h] := \block {
+  \fun (previous: \forall (g: Lower.Form) -> Lower.Symmetric g -> Lower.Nondegenerate g -> \exists Lower.NormalForm[g]) \then
+  \takefrom frame: LowerRank.Frame \by frameExists \then
+  \return With[frame := frame].normalFormExists previous
+};

@@ -1,0 +1,47 @@
+\definition p0: Parameters.Carrier rectangle.parameters := \into[Parameter](Split.left a, rectangle.parameters.points) \by { rectangle.containsLeft };
+\definition q0: Fibers.Carrier rectangle.values := \into[Vector](Split.right a, rectangle.values.points) \by { rectangle.containsRight };
+\import Split.FixedLeft[U := rectangle.values, V := domain, c := Split.left a] \as Section;
+\definition sectionInside: Section.Included := \fun (q: Fibers.Carrier rectangle.values) => rectangle.included (Split.join p0 q)
+  (Logic.And[_, _]::#
+    (\idelim p0 = Split.left (Split.join p0 q) \with t: Parameter => \In[Parameter] rectangle.parameters.points t \by {
+      base: rectangle.containsLeft, equality: sym!{Parameter} _ _ (Split.leftJoin p0 q)
+    })
+    (\idelim q = Split.right (Split.join p0 q) \with t: Vector => \In[Vector] rectangle.values.points t \by {
+      base: \bysub(Vector, rectangle.values.points, q), equality: sym!{Vector} _ _ (Split.rightJoin p0 q)
+    }));
+\definition originOnSection: \forall (q: Fibers.Carrier rectangle.values) -> Base.origin (Section.apply sectionInside q) = a :=
+  \fun (q: Fibers.Carrier rectangle.values) => branch.atBase (Base.parameterPoint (Section.apply sectionInside q))
+    (trans!{Parameter} _ _ _ (Base.parameterFormula (Section.apply sectionInside q)) (Split.leftJoin p0 q));
+\import Inclusions.Composition[U := rectangle.values, V := domain, f := Section.map sectionInside].After[l := n, W := Fibers.whole, g := map] \as Composition;
+\definition shift: Vector := \fun (i: Fin.Fin n) => R.neg (Split.right a i);
+\import calculus.Translation[n := n] \as Translation;
+\definition same: \forall (q: Fibers.Carrier rectangle.values) -> FiberMaps.apply rectangle.values Fibers.whole Composition.compose q =
+  FiberMaps.apply rectangle.values Fibers.whole (Translation.map rectangle.values shift) q :=
+  \fun (q: Fibers.Carrier rectangle.values) => \axiom:funext(FiberMaps.apply rectangle.values Fibers.whole Composition.compose q,
+    FiberMaps.apply rectangle.values Fibers.whole (Translation.map rectangle.values shift) q, \fun (i: Fin.Fin n) => eq_reason_in!{{R.Real} _
+    "=" {R.sub (q i) (a (Indices.right i))} "by" {
+      congr!{{R.Real} {R.Real} {R.Real}} R.sub _ _ _ _
+        (congr!{Vector {R.Real}} (\fun (z: Vector) => z i) _ _ (Split.rightJoin p0 q))
+        (congr!{Point {R.Real}} (\fun (z: Point) => z (Indices.right i)) _ _ (originOnSection q)) }
+    "=" _ "by" { Arithmetic.addComm (q i) (R.neg (a (Indices.right i))) }
+  });
+\definition derivative: FiberMaps.Differential[U := rectangle.values, V := Fibers.whole, f := Composition.compose, a := q0].value = Identity.linear :=
+  trans!{{FiberLinear.LinearMap}} _ _ _
+    (FiberMaps.Differential[U := rectangle.values, V := Fibers.whole, f := Composition.compose, a := q0].Compare[W := Fibers.whole, g := Translation.map rectangle.values shift].equal
+      (\axiom:funext((\fun (q: Fibers.Carrier rectangle.values) => FiberMaps.apply rectangle.values Fibers.whole Composition.compose q),
+        (\fun (q: Fibers.Carrier rectangle.values) => FiberMaps.apply rectangle.values Fibers.whole (Translation.map rectangle.values shift) q), same)))
+    (Translation.differential rectangle.values shift q0);
+\definition sectionCenter: Inclusions.apply rectangle.values domain (Section.map sectionInside) q0 = base := Split.recover a;
+\definition vertical: \forall (w: Vector) -> differential.apply (Inverse.vertical.apply w) = w :=
+  \fun (w: Vector) => eq_reason_in!{Vector _
+    "=" _ "by" { congr!{{FullLinear.LinearMap} Vector} (\fun (L: FullLinear.LinearMap) => L.apply (Inverse.vertical.apply w)) _ _
+      (congr!{{Open.Carrier domain} {FullLinear.LinearMap}} (\fun (x: Open.Carrier domain) => Gradients.Differential[U := domain, V := Fibers.whole, f := map, a := x].value) _ _
+        (sym!{{Open.Carrier domain}} _ _ sectionCenter)) }
+    "=" _ "by" { congr!{{calculus.Vector[n := n, m := dimension].LinearMap} Vector}
+      (\fun (L: calculus.Vector[n := n, m := dimension].LinearMap) => Gradients.Differential[U := domain, V := Fibers.whole, f := map,
+        a := Inclusions.apply rectangle.values domain (Section.map sectionInside) q0].value.apply (L.apply w)) _ _
+      (sym!{{calculus.Vector[n := n, m := dimension].LinearMap}} _ _
+        (Inverse.FixedLeftDerivative[U := rectangle.values, V := domain, c := Split.left a, included := sectionInside].jacobian q0)) }
+    "=" _ "by" { sym!{Vector} _ _ (congr!{{FiberLinear.LinearMap} Vector} (\fun (L: FiberLinear.LinearMap) => L.apply w) _ _ (Composition.At[a := q0].jacobian)) }
+    "=" w "by" { congr!{{FiberLinear.LinearMap} Vector} (\fun (L: FiberLinear.LinearMap) => L.apply w) _ _ derivative }
+  };

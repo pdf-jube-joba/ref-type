@@ -1,0 +1,37 @@
+\definition W: Open.OpenSet := taylor.domain;
+\definition centerPoint: Open.Carrier W := \into[Point](a, W.points) \by { taylor.contains };
+\definition A[x: Open.Carrier W]: Matrices.Matrix := \fun (i, j: Fin.Fin n) => taylor.coefficient i j x;
+\definition coefficient[i, j: Fin.Fin n]: Open.ScalarFunction W := taylor.coefficient i j;
+\import \root.Normalization[d := n, n := n].On[U := W].At[A := A, a := centerPoint] \as Normalization;
+\definition regular: \root.Normalization[d := n, n := n].On[U := W].Regular A :=
+  \fun (i, j: Fin.Fin n) => \idelim coefficient i j = (\fun (x: Open.Carrier W) => A x i j)
+    \with g: Open.ScalarFunction W => Smooth.SmoothOn W g \by {
+      base: \bysub(Open.ScalarFunction W, Smooth.SmoothFunction W, taylor.coefficient i j),
+      equality: \axiom:funext(coefficient i j, (\fun (x: Open.Carrier W) => A x i j), \fun (x: Open.Carrier W) => \refl(A x i j))
+    };
+\definition symmetric: Normalization.SymmetricFamily := \fun (x: Open.Carrier W)(i, j: Fin.Fin n) => taylor.symmetric i j x;
+\definition centerMatrix: A centerPoint = halfHessian := Matrices.Operations[].ext _ _ (\fun (i, j: Fin.Fin n) => eq_reason_in!{{R.Real} _
+  "=" _ "by" { taylor.center i j centerPoint (\refl(a)) }
+  "=" _ "by" { congr!{{R.Real} {R.Real}} (R.mul R.half) _ _ (sym!{{R.Real}} _ _ (Function.hessianEntriesValue a j i)) }
+  "=" _ "by" { congr!{{R.Real} {R.Real}} (R.mul R.half) _ _
+    (trans!{{R.Real}} _ _ _ (Function.hessianEntriesValue a j i)
+      (trans!{{R.Real}} _ _ _ (Function.hessianSymmetric a j i) (sym!{{R.Real}} _ _ (Function.hessianEntriesValue a i j)))) }
+});
+\definition halfSymmetric: MatrixForm.Symmetric halfHessian := \fun (i, j: Fin.Fin n) => eq_reason_in!{{R.Real} _
+  "=" _ "by" { sym!{{R.Real}} _ _ (Matrices.Operations[].entry _ _ centerMatrix i j) }
+  "=" _ "by" { taylor.symmetric i j centerPoint }
+  "=" _ "by" { Matrices.Operations[].entry _ _ centerMatrix j i }
+};
+\definition halfNonzero: Function.Nondegenerate a -> Inversion.Nonzero halfHessian := MatrixForm.halfNonzero (Function.hessianEntries a);
+\definition centerNonzero: Function.Nondegenerate a -> Inversion.Nonzero (A centerPoint) :=
+  \fun (nondegenerate: Function.Nondegenerate a) => \idelim halfHessian = A centerPoint \with M: Matrices.Matrix => Inversion.Nonzero M \by {
+    base: halfNonzero nondegenerate, equality: sym!{{Matrices.Matrix}} _ _ centerMatrix
+  };
+\module With(normalization: Normalization.Local, normal: Inertia.NormalForm[hessianForm]);
+\definition exists: Function.Nondegenerate a -> \exists Local := \block {
+  \fun (nondegenerate: Function.Nondegenerate a) \then
+  \takefrom normalization: Normalization.Local \by Normalization.localExistence regular symmetric (centerNonzero nondegenerate) \then
+  \takefrom normal: Inertia.NormalForm[hessianForm] \by Inertia.normalFormExists hessianForm (MatrixForm.symmetric halfHessian halfSymmetric)
+    (MatrixForm.nondegenerate halfHessian (halfNonzero nondegenerate)) \then
+  \return With[normalization := normalization, normal := normal].exists
+};

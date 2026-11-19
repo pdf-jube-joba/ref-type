@@ -1,0 +1,28 @@
+\import inverse_implicit.Euclidean[n := n] \as Inverse;
+\import Inverse.InverseFunction[U := U, f := gradientMap, a := a] \as GradientInverse;
+\definition isolated: Nondegenerate a -> Critical a -> \exists IsolatingNeighborhood[a] := \block {
+  \fun (nondegenerate: Nondegenerate a)(critical: Critical a) \then
+  \takefrom local: Inverse.LocalInverse[U, gradientMap, a] \by GradientInverse.localExistence nondegenerate \then
+  \let center: Open.Carrier local.domain := \into[Point](a, local.domain.points) \by { local.contains } \then
+  \return \exact(IsolatingNeighborhood[a] {
+    domain := local.domain, included := local.included, contains := local.contains,
+    unique := \block {
+      \fun (x: Open.Carrier local.domain)(stationary: Critical (Open.inclusion local.domain U local.included x)) \then
+      \let sameGradient: gradient (Open.inclusion local.domain U local.included x) = gradient a :=
+        trans!{Point} _ _ _ ((criticalIffGradientZero (Open.inclusion local.domain U local.included x)).ltr stationary)
+          (sym!{Point} _ _ ((criticalIffGradientZero a).ltr critical)) \then
+      \let sameImage: Maps.apply local.domain local.target local.equivalence.forward x =
+        Maps.apply local.domain local.target local.equivalence.forward center := eq_reason_in!{Point _
+          "=" _ "by" { local.forward x }
+          "=" _ "by" { sameGradient }
+          "=" _ "by" { sym!{Point} _ _ (local.forward center) }
+        } \then
+      \return eq_reason_in!{Point x
+        "=" _ "by" { sym!{{Open.Carrier local.domain}} _ _ (local.equivalence.leftInverse x) }
+        "=" _ "by" { congr!{{Open.Carrier local.target} Point}
+          (Maps.apply local.target local.domain local.equivalence.backward) _ _ sameImage }
+        "=" a "by" { local.equivalence.leftInverse center }
+      }
+    },
+  }, IsolatingNeighborhood[a])
+};

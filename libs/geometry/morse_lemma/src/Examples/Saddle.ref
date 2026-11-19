@@ -1,0 +1,92 @@
+/* f(u,v)=uv, with Hessian [[0,1],[1,0]]. */
+\definition dimension: N.Nat^ := N.Nat^::succ one;
+\definition first: Fin.Fin dimension := Fin.zero one;
+\definition second: Fin.Fin dimension := Fin.succ one (Fin.zero N.Nat^::zero);
+\import calculus.Real[].Multivariable[n := dimension].Open[] \as Open;
+\import Open.Smooth[] \as Smooth;
+\import Smooth.Algebra[U := Open.whole] \as Functions;
+\import Smooth.Derivative[] \as Partials;
+\import Partials.Linear[U := Open.whole] \as D;
+\import Open.Projection[U := Open.whole] \as Projection;
+\definition x: Functions.Function := Projection.function first;
+\definition y: Functions.Function := Projection.function second;
+\definition function: Functions.Function := Functions.product x y;
+\definition point: Open.Carrier Open.whole := \into[Fin.Fin dimension -> R.Real]((\fun (i: Fin.Fin dimension) => R.zero), Open.whole.points) \by {
+  \refl(\fun (i: Fin.Fin dimension) => R.zero)
+};
+\definition dx[i: Fin.Fin dimension]: R.Real := Projection.kronecker first i;
+\definition dy[i: Fin.Fin dimension]: R.Real := Projection.kronecker second i;
+\definition derivative: \forall (i: Fin.Fin dimension) -> D.apply i function =
+  Functions.plus (Functions.product (Functions.constant (dx i)) y) (Functions.product x (Functions.constant (dy i))) :=
+  \fun (i: Fin.Fin dimension) => trans!{{Functions.Function}} _ _ _ (D.product i x y)
+    (congr!{{Functions.Function} {Functions.Function} {Functions.Function}} Functions.plus _ _ _ _
+      (congr!{{Functions.Function} {Functions.Function}} (\fun (h: Functions.Function) => Functions.product h y) _ _ (Projection.partial first i))
+      (congr!{{Functions.Function} {Functions.Function}} (Functions.product x) _ _ (Projection.partial second i)));
+\definition firstValue: \forall (i: Fin.Fin dimension)(a: Open.Carrier Open.whole) -> D.apply i function a =
+  R.add (R.mul (dx i) (y a)) (R.mul (x a) (dy i)) :=
+  \fun (i: Fin.Fin dimension)(a: Open.Carrier Open.whole) => congr!{{Functions.Function} {R.Real}} (\fun (h: Functions.Function) => h a) _ _ (derivative i);
+\definition secondDerivative: \forall (i, j: Fin.Fin dimension) -> D.apply j (D.apply i function) =
+  Functions.plus
+    (Functions.plus (Functions.product Functions.origin y) (Functions.product (Functions.constant (dx i)) (Functions.constant (dy j))))
+    (Functions.plus (Functions.product (Functions.constant (dx j)) (Functions.constant (dy i))) (Functions.product x Functions.origin)) :=
+  \fun (i, j: Fin.Fin dimension) => eq_reason_in!{{Functions.Function} _
+    "=" _ "by" { congr!{{Functions.Function} {Functions.Function}} (D.apply j) _ _ (derivative i) }
+    "=" _ "by" { D.addition j (Functions.product (Functions.constant (dx i)) y) (Functions.product x (Functions.constant (dy i))) }
+    "=" _ "by" { congr!{{Functions.Function} {Functions.Function} {Functions.Function}} Functions.plus _ _ _ _
+      (D.product j (Functions.constant (dx i)) y) (D.product j x (Functions.constant (dy i))) }
+    "=" _ "by" { congr!{{Functions.Function} {Functions.Function} {Functions.Function}} Functions.plus _ _ _ _
+      (congr!{{Functions.Function} {Functions.Function} {Functions.Function}} Functions.plus _ _ _ _
+        (congr!{{Functions.Function} {Functions.Function}} (\fun (h: Functions.Function) => Functions.product h y) _ _ (D.constant j (dx i)))
+        (congr!{{Functions.Function} {Functions.Function}} (Functions.product (Functions.constant (dx i))) _ _ (Projection.partial second j)))
+      (congr!{{Functions.Function} {Functions.Function} {Functions.Function}} Functions.plus _ _ _ _
+        (congr!{{Functions.Function} {Functions.Function}} (\fun (h: Functions.Function) => Functions.product h (Functions.constant (dy i))) _ _ (Projection.partial first j))
+        (congr!{{Functions.Function} {Functions.Function}} (Functions.product x) _ _ (D.constant j (dy i)))) }
+  };
+\definition secondValue: \forall (i, j: Fin.Fin dimension)(a: Open.Carrier Open.whole) -> D.apply j (D.apply i function) a =
+  R.add (R.mul (dx i) (dy j)) (R.mul (dx j) (dy i)) :=
+  \fun (i, j: Fin.Fin dimension)(a: Open.Carrier Open.whole) => eq_reason_in!{{R.Real} _
+    "=" _ "by" { congr!{{Functions.Function} {R.Real}} (\fun (h: Functions.Function) => h a) _ _ (secondDerivative i j) }
+    "=" _ "by" { congr!{{R.Real} {R.Real} {R.Real}} R.add _ _ _ _
+      (trans!{{R.Real}} _ _ _ (congr!{{R.Real} {R.Real}} (\fun (t: R.Real) => R.add t (R.mul (dx i) (dy j))) _ _ (Laws.fieldMulZeroLeft (y a)))
+        (Laws.addZeroLeft (R.mul (dx i) (dy j))))
+      (trans!{{R.Real}} _ _ _ (congr!{{R.Real} {R.Real}} (R.add (R.mul (dx j) (dy i))) _ _ (Laws.fieldMulZeroRight (x a)))
+        (Laws.addZeroRight (R.mul (dx j) (dy i)))) }
+  };
+\import \root.Euclidean[n := dimension].Function[U := Open.whole, f := function] \as Morse;
+\definition critical: Morse.Critical point := \fun (i: Fin.Fin dimension) => eq_reason_in!{{R.Real} _
+  "=" _ "by" { firstValue i point }
+  "=" _ "by" { congr!{{R.Real} {R.Real} {R.Real}} R.add _ _ _ _ (Laws.fieldMulZeroRight (dx i)) (Laws.fieldMulZeroLeft (dy i)) }
+  "=" _ "by" { Laws.addZeroLeft R.zero }
+};
+\import matrix_invariants.Ring[K := R.Real,
+  scalars := std.Alg[].Field[].fieldAsCommutativeRing R.Real Algebra.field].At[n := dimension] \as Matrix;
+\import Matrix.Operations[] \as Operations;
+\import matrix_invariants.Field[K := R.Real, field := Algebra.field].At[n := dimension] \as Inversion;
+\definition H: Matrix.Matrix := Morse.hessianEntries point;
+\definition hessianValue: \forall (i, j: Fin.Fin dimension) -> H i j = R.add (R.mul (dx i) (dy j)) (R.mul (dx j) (dy i)) :=
+  \fun (i, j: Fin.Fin dimension) => trans!{{R.Real}} _ _ _ (Morse.hessianEntriesValue point i j) (secondValue i j point);
+\definition diagonalFirst: H first first = R.zero := trans!{{R.Real}} _ _ _ (hessianValue first first)
+  (trans!{{R.Real}} _ _ _ (congr!{{R.Real} {R.Real} {R.Real}} R.add _ _ _ _ (Laws.fieldMulZeroRight R.one) (Laws.fieldMulZeroRight R.one))
+    (Laws.addZeroLeft R.zero));
+\definition diagonalSecond: H second second = R.zero := trans!{{R.Real}} _ _ _ (hessianValue second second)
+  (trans!{{R.Real}} _ _ _ (congr!{{R.Real} {R.Real} {R.Real}} R.add _ _ _ _ (Laws.fieldMulZeroLeft R.one) (Laws.fieldMulZeroLeft R.one))
+    (Laws.addZeroLeft R.zero));
+\definition offDiagonal: H first second = R.one := trans!{{R.Real}} _ _ _ (hessianValue first second)
+  (trans!{{R.Real}} _ _ _ (congr!{{R.Real} {R.Real} {R.Real}} R.add _ _ _ _ (Laws.fieldMulOneLeft R.one) (Laws.fieldMulZeroLeft R.zero))
+    (Laws.addZeroRight R.one));
+\definition otherOffDiagonal: H second first = R.one := trans!{{R.Real}} _ _ _ (hessianValue second first)
+  (trans!{{R.Real}} _ _ _ (congr!{{R.Real} {R.Real} {R.Real}} R.add _ _ _ _ (Laws.fieldMulZeroLeft R.zero) (Laws.fieldMulOneLeft R.one))
+    (Laws.addZeroLeft R.one));
+\module MatrixInverse;
+\definition nondegenerate: Morse.Nondegenerate point := Inversion.nonzeroOfInverse H MatrixInverse[].inverse;
+\definition isolated: \exists Morse.IsolatingNeighborhood[point] := Morse.isolated point nondegenerate critical;
+\definition positivePoint: Open.Carrier Open.whole := \into[Fin.Fin dimension -> R.Real]((\fun (i: Fin.Fin dimension) => R.one), Open.whole.points) \by {
+  \refl(\fun (i: Fin.Fin dimension) => R.one)
+};
+\import std.Data[].Bool[] \as Bool;
+\definition negativeVector[i: Fin.Fin dimension]: R.Real := Bool.ite R.Real (N.Basic[].Def[].eqb i N.Nat^::zero) R.one (R.neg R.one);
+\definition negativePoint: Open.Carrier Open.whole := \into[Fin.Fin dimension -> R.Real](negativeVector, Open.whole.points) \by { \refl(negativeVector) };
+\definition positiveValue: function positivePoint = R.one := Laws.fieldMulOneLeft R.one;
+\definition negativeValue: function negativePoint = R.neg R.one := Laws.fieldMulOneLeft (R.neg R.one);
+\import \root.NormalForm[n := dimension, U := Open.whole, f := function, a := point] \as Coordinates;
+\definition normalFormExists: \exists Coordinates.Local := Coordinates.localExistence critical nondegenerate;

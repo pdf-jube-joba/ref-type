@@ -1,0 +1,50 @@
+\definition quadratic[v: Vector]: R.Real := h.form v v;
+\import Spaces.Laws[V := Vector, space := E.space] \as VectorLaws;
+\definition negLeft: \forall (v, w: Vector) -> h.form (E.space.neg v) w = R.neg (h.form v w) :=
+  \fun (v, w: Vector) => eq_reason_in!{{R.Real} _
+    "=" _ "by" { congr!{Vector {R.Real}} (\fun (x: Vector) => h.form x w) _ _ (sym!{Vector} _ _ (VectorLaws.minusOneScale v)) }
+    "=" _ "by" { h.scaleLeft (R.neg R.one) v w }
+    "=" _ "by" { Arithmetic.fieldMulNegLeft R.one (h.form v w) }
+    "=" _ "by" { congr!{{R.Real} {R.Real}} R.neg _ _ (Arithmetic.fieldMulOneLeft (h.form v w)) }
+  };
+\definition negRight: \forall (v, w: Vector) -> h.form v (E.space.neg w) = R.neg (h.form v w) :=
+  \fun (v, w: Vector) => eq_reason_in!{{R.Real} _
+    "=" _ "by" { congr!{Vector {R.Real}} (h.form v) _ _ (sym!{Vector} _ _ (VectorLaws.minusOneScale w)) }
+    "=" _ "by" { h.scaleRight (R.neg R.one) v w }
+    "=" _ "by" { Arithmetic.fieldMulNegLeft R.one (h.form v w) }
+    "=" _ "by" { congr!{{R.Real} {R.Real}} R.neg _ _ (Arithmetic.fieldMulOneLeft (h.form v w)) }
+  };
+\definition subLeft: \forall (v, w, x: Vector) -> h.form (E.difference v w) x = R.sub (h.form v x) (h.form w x) :=
+  \fun (v, w, x: Vector) => trans!{{R.Real}} _ _ _ (h.addLeft v (E.space.neg w) x)
+    (congr!{{R.Real} {R.Real}} (R.add (h.form v x)) _ _ (negLeft w x));
+\definition subRight: \forall (v, w, x: Vector) -> h.form v (E.difference w x) = R.sub (h.form v w) (h.form v x) :=
+  \fun (v, w, x: Vector) => trans!{{R.Real}} _ _ _ (h.addRight v w (E.space.neg x))
+    (congr!{{R.Real} {R.Real}} (R.add (h.form v w)) _ _ (negRight v x));
+\definition polar: Symmetric h -> \forall (v, w: Vector) -> quadratic (E.space.add v w) =
+  R.add (R.add (quadratic v) (quadratic w)) (R.add (h.form v w) (h.form v w)) :=
+  \fun (symmetric: Symmetric h)(v, w: Vector) => eq_reason_in!{{R.Real} _
+    "=" _ "by" { h.addLeft v w (E.space.add v w) }
+    "=" _ "by" { congr!{{R.Real} {R.Real} {R.Real}} R.add _ _ _ _ (h.addRight v v w) (h.addRight w v w) }
+    "=" _ "by" { congr!{{R.Real} {R.Real}} (R.add (R.add (quadratic v) (h.form v w))) _ _
+      (trans!{{R.Real}} _ _ _ (Arithmetic.addComm (h.form w v) (quadratic w)) (congr!{{R.Real} {R.Real}} (R.add (quadratic w)) _ _ (symmetric w v))) }
+    "=" _ "by" { Algebra.addFour (quadratic v) (h.form v w) (quadratic w) (h.form v w) }
+  };
+\definition polarizationZero: Symmetric h -> (\forall (v: Vector) -> quadratic v = R.zero) -> \forall (v, w: Vector) -> h.form v w = R.zero :=
+  \fun (symmetric: Symmetric h)(zero: \forall (v: Vector) -> quadratic v = R.zero)(v, w: Vector) =>
+    trans!{{R.Real}} _ _ _ (sym!{{R.Real}} _ _ (R.Estimates[].halfTwice (h.form v w)))
+      (trans!{{R.Real}} _ _ _ (sym!{{R.Real}} _ _ (Arithmetic.fieldMulAdd R.half (h.form v w) (h.form v w)))
+      (trans!{{R.Real}} _ _ _ (congr!{{R.Real} {R.Real}} (R.mul R.half) _ _
+        (eq_reason_in!{{R.Real} _
+          "=" _ "by" { sym!{{R.Real}} _ _ (Arithmetic.addZeroLeft (R.add (h.form v w) (h.form v w))) }
+          "=" _ "by" { congr!{{R.Real} {R.Real}} (\fun (a: R.Real) => R.add a (R.add (h.form v w) (h.form v w))) _ _
+            (sym!{{R.Real}} _ _ (trans!{{R.Real}} _ _ _ (congr!{{R.Real} {R.Real} {R.Real}} R.add _ _ _ _ (zero v) (zero w)) (Arithmetic.addZeroLeft R.zero))) }
+          "=" _ "by" { sym!{{R.Real}} _ _ (polar symmetric v w) }
+          "=" _ "by" { zero (E.space.add v w) }
+        })) (Arithmetic.fieldMulZeroRight R.half)));
+\structure Nonisotropic: \Set := { vector: Vector, nonzero: Logic.Not (quadratic vector = R.zero) };
+\definition nonisotropicExists: Symmetric h -> Nondegenerate h -> Logic.Not (\forall (v: Vector) -> v = E.space.zero) -> \exists Nonisotropic :=
+  \fun (symmetric: Symmetric h)(nondegenerate: Nondegenerate h)(nontrivial: Logic.Not (\forall (v: Vector) -> v = E.space.zero)) =>
+    Order.byContradiction (\exists Nonisotropic) (\fun (none: Logic.Not (\exists Nonisotropic)) => nontrivial
+      (\fun (v: Vector) => nondegenerate v (polarizationZero symmetric
+        (\fun (w: Vector) => Order.byContradiction (quadratic w = R.zero) (\fun (nonzero: _) =>
+          none (\exact(Nonisotropic { vector := w, nonzero := nonzero }, Nonisotropic)))) v)));

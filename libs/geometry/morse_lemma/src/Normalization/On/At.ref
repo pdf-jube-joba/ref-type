@@ -1,0 +1,29 @@
+\import matrix_invariants.Field[K := R.Real, field := Algebra.field].At[n := n] \as Inversion;
+\definition B: Matrices.Matrix := A a;
+\definition Point: \Set := Fin.Fin d -> R.Real;
+\definition SymmetricFamily: \Prop := \forall (x: Open.Carrier U) -> Symmetric (A x);
+\structure Local: \Set := {
+  domain: Open.OpenSet,
+  included: Open.Included domain U,
+  contains: \In[Point] domain.points a,
+  change: Open.Carrier domain -> Matrices.Matrix,
+  regular: \forall (i, j: Fin.Fin n) -> Smooth.SmoothOn domain (\fun (x: Open.Carrier domain) => change x i j),
+  center: change (\into[Point](a, domain.points) \by { contains }) = Matrices.identity,
+  formula: \forall (x: Open.Carrier domain) -> A (Open.inclusion domain U included x) =
+    Matrices.product (Matrices.transpose (change x)) (Matrices.product B (change x)),
+};
+\module With(regular: Regular A, symmetric: SymmetricFamily, nonzero: Inversion.Nonzero B);
+\definition localExistence: Regular A -> SymmetricFamily -> Inversion.Nonzero B -> \exists Local :=
+  \fun (regular: Regular A)(symmetric: SymmetricFamily)(nonzero: Inversion.Nonzero B) => With[regular := regular, symmetric := symmetric, nonzero := nonzero].exists;
+\structure InvertibleLocal: \Set := {
+  local: Local,
+  nonzero: \forall (x: Open.Carrier local.domain) -> Inversion.Nonzero (local.change x),
+};
+\module Restrict(local: Local);
+\definition withInvertible: \forall (local: Local) -> \exists InvertibleLocal :=
+  \fun (local: Local) => \exact(Restrict[local := local].value, InvertibleLocal);
+\definition localInvertibleExistence: Regular A -> SymmetricFamily -> Inversion.Nonzero B -> \exists InvertibleLocal := \block {
+  \fun (regular: Regular A)(symmetric: SymmetricFamily)(nonzero: Inversion.Nonzero B) \then
+  \takefrom local: Local \by localExistence regular symmetric nonzero \then
+  \return withInvertible local
+};

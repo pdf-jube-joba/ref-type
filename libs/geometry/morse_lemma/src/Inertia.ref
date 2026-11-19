@@ -1,0 +1,102 @@
+\use std.Logic[].Equality[].eq_reason_in;
+\import std.Data[].Nat[] \as N;
+\import std.Data[].FinSet[] \as Fin;
+\import std.Data[].Bool[] \as Bool;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Classical[] \as Classical;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\use Logic.either;
+\import real.Analysis[] \as R;
+\import R.Algebra[] \as Algebra;
+\import R.FiniteSums[] \as Sums;
+\import dedekind_reals.DedekindReal[] \as Ordered;
+\import Ordered.Order[] \as Order;
+\import Ordered.Arithmetic[].Prop[] \as Arithmetic;
+\import linear_algebra.Euclidean[n := n] \as E;
+\import linear_algebra.Commutative[K := R.Real, scalarRing := std.Alg[].Field[].fieldAsCommutativeRing R.Real Algebra.field] \as Spaces;
+\import Spaces.Form[V := E.Vector, space := E.space] \as Forms;
+\import Spaces.Linear[V := E.Vector, W := E.Vector, source := E.space, target := E.space] \as End;
+\import Spaces.Isomorphism[V := E.Vector, W := E.Vector, source := E.space, target := E.space] \as Isomorphisms;
+\definition Vector: \Set := E.Vector;
+\definition space: Spaces.VectorSpace Vector := E.space;
+\definition Isomorphism: \Set := Isomorphisms.Isomorphism;
+\definition Form: \Set := Forms.Bilinear;
+\definition Symmetric[h: Form]: \Prop := Forms.Symmetric h;
+\definition Nondegenerate[h: Form]: \Prop := Forms.Nondegenerate h;
+\definition Signs: \Set := Fin.Fin n -> Bool.Bool^;
+\definition coefficient[b: Bool.Bool^]: R.Real := Bool.ite R.Real b (R.neg R.one) R.one;
+\definition coefficientSquared: \forall (b: Bool.Bool^) -> R.mul (coefficient b) (coefficient b) = R.one :=
+  \induction (b: Bool.Bool^) \return R.mul (coefficient b) (coefficient b) = R.one \with {
+    | false: Arithmetic.fieldMulOneLeft R.one
+    | true: trans!{{R.Real}} _ _ _ (Arithmetic.fieldMulNegBoth R.one R.one) (Arithmetic.fieldMulOneLeft R.one)
+  };
+\definition signed[s: Signs]: End.Map := End.Map {
+  apply := \fun (v: Vector)(i: Fin.Fin n) => R.mul (coefficient (s i)) (v i),
+  preservesAdd := \fun (v, w: Vector) => \axiom:funext(
+    (\fun (i: Fin.Fin n) => R.mul (coefficient (s i)) (R.add (v i) (w i))),
+    (\fun (i: Fin.Fin n) => R.add (R.mul (coefficient (s i)) (v i)) (R.mul (coefficient (s i)) (w i))),
+    \fun (i: Fin.Fin n) => Arithmetic.fieldMulAdd (coefficient (s i)) (v i) (w i)),
+  preservesScale := \fun (a: R.Real)(v: Vector) => \axiom:funext(
+    (\fun (i: Fin.Fin n) => R.mul (coefficient (s i)) (R.mul a (v i))),
+    (\fun (i: Fin.Fin n) => R.mul a (R.mul (coefficient (s i)) (v i))),
+    \fun (i: Fin.Fin n) => Algebra.mulSwap (coefficient (s i)) a (v i)),
+};
+\definition signedSquared: \forall (s: Signs)(v: Vector) -> (signed s).apply ((signed s).apply v) = v :=
+  \fun (s: Signs)(v: Vector) => \axiom:funext((signed s).apply ((signed s).apply v), v, \fun (i: Fin.Fin n) => eq_reason_in!{{R.Real} _
+    "=" _ "by" { sym!{{R.Real}} _ _ (Arithmetic.fieldMulAssoc (coefficient (s i)) (coefficient (s i)) (v i)) }
+    "=" _ "by" { congr!{{R.Real} {R.Real}} (\fun (a: R.Real) => R.mul a (v i)) _ _ (coefficientSquared (s i)) }
+    "=" _ "by" { Arithmetic.fieldMulOneLeft (v i) }
+  });
+\definition standard[s: Signs][v, w: Vector]: R.Real := E.dot ((signed s).apply v) w;
+\definition standardSymmetric: \forall (s: Signs)(v, w: Vector) -> standard s v w = standard s w v :=
+  \fun (s: Signs)(v, w: Vector) => Sums.congruent n _ _ (\fun (i: Fin.Fin n) => eq_reason_in!{{R.Real} _
+    "=" _ "by" { Arithmetic.fieldMulAssoc (coefficient (s i)) (v i) (w i) }
+    "=" _ "by" { congr!{{R.Real} {R.Real}} (R.mul (coefficient (s i))) _ _ (Arithmetic.fieldMulComm (v i) (w i)) }
+    "=" _ "by" { sym!{{R.Real}} _ _ (Arithmetic.fieldMulAssoc (coefficient (s i)) (w i) (v i)) }
+  });
+\definition standardForm[s: Signs]: Form := Form {
+  form := standard s,
+  zeroLeft := \fun (w: Vector) => trans!{{R.Real}} _ _ _
+    (congr!{Vector {R.Real}} (\fun (v: Vector) => E.dot v w) _ _ (signed s).preservesZero) (E.form.zeroLeft w),
+  zeroRight := \fun (v: Vector) => E.form.zeroRight ((signed s).apply v),
+  addLeft := \fun (u, v, w: Vector) => trans!{{R.Real}} _ _ _
+    (congr!{Vector {R.Real}} (\fun (x: Vector) => E.dot x w) _ _ ((signed s).preservesAdd u v))
+    (E.form.addLeft ((signed s).apply u) ((signed s).apply v) w),
+  addRight := \fun (u, v, w: Vector) => E.form.addRight ((signed s).apply u) v w,
+  scaleLeft := \fun (a: R.Real)(v, w: Vector) => trans!{{R.Real}} _ _ _
+    (congr!{Vector {R.Real}} (\fun (x: Vector) => E.dot x w) _ _ ((signed s).preservesScale a v))
+    (E.form.scaleLeft a ((signed s).apply v) w),
+  scaleRight := \fun (a: R.Real)(v, w: Vector) => E.form.scaleRight a ((signed s).apply v) w,
+};
+\definition standardNondegenerate: \forall (s: Signs) -> Nondegenerate (standardForm s) :=
+  \fun (s: Signs)(v: Vector)(zero: \forall (w: Vector) -> standard s v w = R.zero) => eq_reason_in!{Vector _
+    "=" _ "by" { sym!{Vector} _ _ (signedSquared s v) }
+    "=" _ "by" { congr!{Vector Vector} (signed s).apply _ _ (E.separated ((signed s).apply v) (zero ((signed s).apply v))) }
+    "=" _ "by" { (signed s).preservesZero }
+  };
+\structure NormalForm[h: Form]: \Set := {
+  sign: Signs,
+  change: Isomorphisms.Isomorphism,
+  formula: \forall (v, w: Vector) -> h.form (change.forward.apply v) (change.forward.apply w) = standard sign v w,
+};
+\module Pullback(m: N.Nat^, h: Form, f: Spaces.Linear[V := \root.Inertia[n := m].Vector, W := Vector,
+  source := \root.Inertia[n := m].space, target := E.space].Map);
+\module Of(h: Form);
+\module Scalar(q: R.Real);
+\module Zero;
+\module Step(k: N.Nat^);
+\definition HasNormalForms[k: N.Nat^]: \Prop := \forall (h: \root.Inertia[n := k].Form) -> \root.Inertia[n := k].Symmetric h ->
+  \root.Inertia[n := k].Nondegenerate h -> \exists \root.Inertia[n := k].NormalForm[h];
+\definition allDimensions: \forall (k: N.Nat^) -> HasNormalForms k :=
+  \induction (k: N.Nat^) \return HasNormalForms k \with {
+    | zero: \fun (h: \root.Inertia[n := N.Nat^::zero].Form)(symmetric: _)(nondegenerate: _) =>
+      \exact(Zero[].normalForm h, \root.Inertia[n := N.Nat^::zero].NormalForm[h])
+    | succ: \fun (k: N.Nat^)(previous: HasNormalForms k) => Step[k := k].exists previous
+  };
+\definition normalFormExists: \forall (h: Form) -> Symmetric h -> Nondegenerate h -> \exists NormalForm[h] := allDimensions n;
+\module Normalized(h: Form, normal: NormalForm[h]);
+\module Examples;
+\module Index;

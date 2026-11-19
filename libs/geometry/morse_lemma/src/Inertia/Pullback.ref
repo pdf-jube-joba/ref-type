@@ -1,0 +1,31 @@
+\import \root.Inertia[n := m] \as Source;
+\definition form: Source.Form := Source.Form {
+  form := \fun (v, w: Source.Vector) => h.form (f.apply v) (f.apply w),
+  zeroLeft := \fun (w: Source.Vector) => trans!{{R.Real}} _ _ _
+    (congr!{Vector {R.Real}} (\fun (v: Vector) => h.form v (f.apply w)) _ _ f.preservesZero) (h.zeroLeft (f.apply w)),
+  zeroRight := \fun (v: Source.Vector) => trans!{{R.Real}} _ _ _
+    (congr!{Vector {R.Real}} (h.form (f.apply v)) _ _ f.preservesZero) (h.zeroRight (f.apply v)),
+  addLeft := \fun (u, v, w: Source.Vector) => trans!{{R.Real}} _ _ _
+    (congr!{Vector {R.Real}} (\fun (x: Vector) => h.form x (f.apply w)) _ _ (f.preservesAdd u v))
+    (h.addLeft (f.apply u) (f.apply v) (f.apply w)),
+  addRight := \fun (u, v, w: Source.Vector) => trans!{{R.Real}} _ _ _
+    (congr!{Vector {R.Real}} (h.form (f.apply u)) _ _ (f.preservesAdd v w))
+    (h.addRight (f.apply u) (f.apply v) (f.apply w)),
+  scaleLeft := \fun (a: R.Real)(v, w: Source.Vector) => trans!{{R.Real}} _ _ _
+    (congr!{Vector {R.Real}} (\fun (x: Vector) => h.form x (f.apply w)) _ _ (f.preservesScale a v))
+    (h.scaleLeft a (f.apply v) (f.apply w)),
+  scaleRight := \fun (a: R.Real)(v, w: Source.Vector) => trans!{{R.Real}} _ _ _
+    (congr!{Vector {R.Real}} (h.form (f.apply v)) _ _ (f.preservesScale a w))
+    (h.scaleRight a (f.apply v) (f.apply w)),
+};
+\definition symmetric: Symmetric h -> Source.Symmetric form := \fun (symmetric: Symmetric h)(v, w: Source.Vector) => symmetric (f.apply v) (f.apply w);
+\module Bijective(g: Spaces.Linear[V := Vector, W := Source.Vector, source := E.space, target := Source.space].Map,
+  left: \forall (v: Source.Vector) -> g.apply (f.apply v) = v, right: \forall (w: Vector) -> f.apply (g.apply w) = w) {
+  \definition nondegenerate: Nondegenerate h -> Source.Nondegenerate form :=
+    \fun (nondegenerate: Nondegenerate h)(v: Source.Vector)(zero: \forall (w: Source.Vector) -> form.form v w = R.zero) =>
+      trans!{{Source.Vector}} _ _ _ (sym!{{Source.Vector}} _ _ (left v))
+        (trans!{{Source.Vector}} _ _ _ (congr!{Vector {Source.Vector}} g.apply _ _
+          (nondegenerate (f.apply v) (\fun (w: Vector) => trans!{{R.Real}} _ _ _
+            (congr!{Vector {R.Real}} (h.form (f.apply v)) _ _ (sym!{Vector} _ _ (right w))) (zero (g.apply w)))))
+          g.preservesZero);
+}

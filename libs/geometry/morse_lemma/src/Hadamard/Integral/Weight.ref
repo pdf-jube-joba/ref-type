@@ -1,0 +1,61 @@
+\import \parent.Algebra[] \as IntegralAlgebra;
+\import topology.Continuity[A := Real, B := Real].Corestriction[S := Line.ClosedInterval Scalars.zero Scalars.one] \as Inclusion;
+\definition identity: Function := \into[Time -> Real]((\fun (t: Time) => t), { g: Time -> Real \where IsContinuous g }) \by {
+  Inclusion.inclusionContinuous Line.topology
+};
+\definition primitive[t: Real]: Real := Scalars.mul Scalars.half (Scalars.mul t t);
+\definition primitiveContinuous: Continuous.IsContinuous primitive :=
+  TimeFunctions.Product[].continuous topology (\fun (t: Time) => Scalars.half) (\fun (t: Time) => Scalars.mul t t)
+    (TimeFunctions.constantContinuous topology Scalars.half)
+    (TimeFunctions.Product[].continuous topology (\fun (t: Time) => t) (\fun (t: Time) => t)
+      (\bysub(Time -> Real, { g: Time -> Real \where IsContinuous g }, identity))
+      (\bysub(Time -> Real, { g: Time -> Real \where IsContinuous g }, identity)));
+\import calculus.Real[].Derivative[].Def[] \as Derivatives;
+\import calculus.Real[].Derivative[].Prop[] \as Basic;
+\import calculus.Real[].Derivative[].Operations[] \as DerivativeOperations;
+\import calculus.Real[].Derivative[].Product[] \as DerivativeProduct;
+\definition primitiveDerivative: \forall (t: Real) -> Derivatives.HasDerivativeAt primitive t t :=
+  \fun (t: Real) => \idelim Scalars.mul Scalars.half (Scalars.add (Scalars.mul Scalars.one t) (Scalars.mul t Scalars.one)) = t
+    \with d: Real => Derivatives.HasDerivativeAt primitive t d \by {
+      base: DerivativeOperations.scaleDerivative Scalars.half (\fun (s: Real) => Scalars.mul s s) t
+        (Scalars.add (Scalars.mul Scalars.one t) (Scalars.mul t Scalars.one))
+        (DerivativeProduct.derivative (\fun (s: Real) => s) (\fun (s: Real) => s) t Scalars.one Scalars.one (Basic.identityDerivative t) (Basic.identityDerivative t)),
+      equality: eq_reason_in!{Real _
+        "=" _ "by" { congr!{Real Real} (Scalars.mul Scalars.half) _ _ (congr!{Real Real Real} Scalars.add _ _ _ _ (Laws.fieldMulOneLeft t) (Scalars.Algebra[].mulOneRight t)) }
+        "=" _ "by" { Laws.fieldMulAdd Scalars.half t t }
+        "=" _ "by" { Bounds.halfTwice t }
+      }
+    };
+\import Continuous.Of[f := asFunction identity] \as Built;
+\import Built.Uniqueness[g := primitive] \as Unique;
+\definition primitiveLeft: primitive Scalars.zero = Scalars.zero := trans!{Real} _ _ _
+  (congr!{Real Real} (Scalars.mul Scalars.half) _ _ (Laws.fieldMulZeroLeft Scalars.zero)) (Laws.fieldMulZeroRight Scalars.half);
+\definition primitiveRight: primitive Scalars.one = Scalars.half := trans!{Real} _ _ _
+  (congr!{Real Real} (Scalars.mul Scalars.half) _ _ (Laws.fieldMulOneLeft Scalars.one)) (Scalars.Algebra[].mulOneRight Scalars.half);
+\definition identityLaw: value identity = Scalars.half := \block {
+  \let agreement: primitive Scalars.one = Scalars.add (primitive Scalars.zero) (Built.primitive Scalars.one) := Unique.agrees primitiveContinuous
+    (\fun (t: Real)(lower: _)(upper: _) => \idelim t = extend identity t \with d: Real => Derivatives.HasDerivativeAt primitive t d \by {
+      base: primitiveDerivative t,
+      equality: sym!{Real} _ _ (extensionLaw identity (\into[Real](t, Line.ClosedInterval Scalars.zero Scalars.one) \by {
+        Logic.And[_, _]::# (Order.leOfLt _ _ lower) (Order.leOfLt _ _ upper)
+      }))
+    }) Scalars.one interval.ordered (R.leRefl Scalars.one) \then
+  \let integralEquals: primitive Scalars.one = value identity := trans!{Real} _ _ _ agreement
+    (trans!{Real} _ _ _ (congr!{Real Real Real} Scalars.add _ _ _ _ primitiveLeft Built.primitiveRight) (Laws.addZeroLeft (value identity))) \then
+  \return trans!{Real} _ _ _ (sym!{Real} _ _ integralEquals) primitiveRight
+};
+\definition function: Function := IntegralAlgebra.subtraction (constant Scalars.one) identity;
+\definition formula: \forall (t: Time) -> function t = Scalars.sub Scalars.one t := IntegralAlgebra.subtractAt (constant Scalars.one) identity;
+\definition law: value function = Scalars.half := eq_reason_in!{Real _
+  "=" _ "by" { IntegralAlgebra.subLaw (constant Scalars.one) identity }
+  "=" _ "by" { congr!{Real Real Real} Scalars.sub _ _ _ _ (IntegralAlgebra.constantLaw Scalars.one) identityLaw }
+  "=" _ "by" { congr!{Real Real} (Scalars.sub Scalars.one) _ _ (sym!{Real} _ _ (Scalars.Algebra[].mulOneRight Scalars.half)) }
+  "=" _ "by" { Scalars.Inverse[].halfComplement Scalars.one }
+  "=" _ "by" { Scalars.Algebra[].mulOneRight Scalars.half }
+};
+\definition scaleLaw: \forall (c: Real) -> value (IntegralAlgebra.scaling c function) = Scalars.mul Scalars.half c :=
+  \fun (c: Real) => eq_reason_in!{Real _
+    "=" _ "by" { IntegralAlgebra.scaleLaw c function }
+    "=" _ "by" { congr!{Real Real} (Scalars.mul c) _ _ law }
+    "=" _ "by" { Laws.fieldMulComm c Scalars.half }
+  };

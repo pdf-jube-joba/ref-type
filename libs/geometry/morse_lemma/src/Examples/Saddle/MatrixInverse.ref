@@ -1,0 +1,52 @@
+\import linear_algebra.Commutative[K := R.Real, scalarRing := std.Alg[].Field[].fieldAsCommutativeRing R.Real Algebra.field].Coordinates[I := Fin.Fin dimension].Kronecker[] \as Delta;
+\definition cases[P: Fin.Fin dimension -> \Prop][head: P first][tail: P second]: \forall (i: Fin.Fin dimension) -> P i :=
+  Fin.cases one P head (\fun (i: Fin.Fin one) => \idelim second = Fin.succ one i \with j: Fin.Fin dimension => P j \by {
+    base: tail, equality: congr!{{Fin.Fin one} {Fin.Fin dimension}} (Fin.succ one) _ _ (sym!{{Fin.Fin one}} _ _ (Fin.singletonValue i))
+  });
+\definition ext: \forall (A, B: Matrix.Matrix) -> A first first = B first first -> A first second = B first second ->
+  A second first = B second first -> A second second = B second second -> A = B :=
+  \fun (A, B: Matrix.Matrix)(aa: A first first = B first first)(ab: A first second = B first second)
+    (ba: A second first = B second first)(bb: A second second = B second second) => Operations.ext A B
+    (cases (\fun (i: Fin.Fin dimension) => \forall (j: Fin.Fin dimension) -> A i j = B i j)
+      (cases (\fun (j: Fin.Fin dimension) => A first j = B first j) aa ab)
+      (cases (\fun (j: Fin.Fin dimension) => A second j = B second j) ba bb));
+\definition productValue: \forall (i, j: Fin.Fin dimension) -> Matrix.product H H i j =
+  R.add (R.mul (H i first) (H first j)) (R.mul (H i second) (H second j)) :=
+  \fun (i, j: Fin.Fin dimension) => congr!{{R.Real} {R.Real}}
+    (R.add (R.mul (H i first) (H first j))) _ _ (Laws.addZeroRight (R.mul (H i second) (H second j)));
+\definition same: Matrix.product H H = Matrix.identity := ext _ _
+  (eq_reason_in!{{R.Real} _
+    "=" _ "by" { productValue first first }
+    "=" _ "by" { congr!{{R.Real} {R.Real} {R.Real} {R.Real} {R.Real}}
+      (\fun (a, b, c, d: R.Real) => R.add (R.mul a b) (R.mul c d)) _ _ _ _ _ _ _ _ diagonalFirst diagonalFirst offDiagonal otherOffDiagonal }
+    "=" _ "by" { congr!{{R.Real} {R.Real} {R.Real}} R.add _ _ _ _ (Laws.fieldMulZeroLeft R.zero) (Laws.fieldMulOneLeft R.one) }
+    "=" _ "by" { Laws.addZeroLeft R.one }
+    "=" _ "by" { sym!{{R.Real}} _ _ (Delta.self first) }
+  })
+  (eq_reason_in!{{R.Real} _
+    "=" _ "by" { productValue first second }
+    "=" _ "by" { congr!{{R.Real} {R.Real} {R.Real} {R.Real} {R.Real}}
+      (\fun (a, b, c, d: R.Real) => R.add (R.mul a b) (R.mul c d)) _ _ _ _ _ _ _ _ diagonalFirst offDiagonal offDiagonal diagonalSecond }
+    "=" _ "by" { congr!{{R.Real} {R.Real} {R.Real}} R.add _ _ _ _ (Laws.fieldMulZeroLeft R.one) (Laws.fieldMulZeroRight R.one) }
+    "=" _ "by" { Laws.addZeroLeft R.zero }
+    "=" _ "by" { sym!{{R.Real}} _ _ (Delta.different second first (N.Basic[].Prop[].succNeZero N.Nat^::zero)) }
+  })
+  (eq_reason_in!{{R.Real} _
+    "=" _ "by" { productValue second first }
+    "=" _ "by" { congr!{{R.Real} {R.Real} {R.Real} {R.Real} {R.Real}}
+      (\fun (a, b, c, d: R.Real) => R.add (R.mul a b) (R.mul c d)) _ _ _ _ _ _ _ _ otherOffDiagonal diagonalFirst diagonalSecond otherOffDiagonal }
+    "=" _ "by" { congr!{{R.Real} {R.Real} {R.Real}} R.add _ _ _ _ (Laws.fieldMulZeroRight R.one) (Laws.fieldMulZeroLeft R.one) }
+    "=" _ "by" { Laws.addZeroLeft R.zero }
+    "=" _ "by" { sym!{{R.Real}} _ _ (Delta.different first second (N.Basic[].Prop[].zeroNeSucc N.Nat^::zero)) }
+  })
+  (eq_reason_in!{{R.Real} _
+    "=" _ "by" { productValue second second }
+    "=" _ "by" { congr!{{R.Real} {R.Real} {R.Real} {R.Real} {R.Real}}
+      (\fun (a, b, c, d: R.Real) => R.add (R.mul a b) (R.mul c d)) _ _ _ _ _ _ _ _ otherOffDiagonal offDiagonal diagonalSecond diagonalSecond }
+    "=" _ "by" { congr!{{R.Real} {R.Real} {R.Real}} R.add _ _ _ _ (Laws.fieldMulOneLeft R.one) (Laws.fieldMulZeroLeft R.zero) }
+    "=" _ "by" { Laws.addZeroRight R.one }
+    "=" _ "by" { sym!{{R.Real}} _ _ (Delta.self second) }
+  });
+\definition inverse: Operations.Inverse H := \into[Matrix.Matrix](H, Operations.Inverse H) \by {
+  Operations.InverseLaws[H, H] { left := same, right := same }
+};

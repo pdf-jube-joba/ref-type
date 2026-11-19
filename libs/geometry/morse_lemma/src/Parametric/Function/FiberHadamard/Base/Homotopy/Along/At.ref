@@ -1,0 +1,22 @@
+\import Homotopies.Differential[U := domain, V := U, f := map, a := z] \as Jacobian;
+\import Smooth.Differential[] \as Outer;
+\import calculus.Vector[n := totalDimension, m := dimension].Chain[U := domain, V := U,
+  f := Homotopies.apply domain U map, a := z, d := Jacobian.value, g := g,
+  e := Outer.value U g (Homotopies.apply domain U map z)] \as Chain;
+\definition scalarProduct: (Outer.value U g (Homotopies.apply domain U map z)).apply (pointValue z) = speed z := eq_reason_in!{Real _
+  "=" _ "by" { Sums.blocks p n (\fun (k: Fin.Fin dimension) => R.mul (Partials.derivative U g k (Homotopies.apply domain U map z)) (pointValue z k)) }
+  "=" _ "by" { congr!{Real Real Real} R.add _ _ _ _
+    (trans!{Real} _ _ _ (Sums.congruent p _ _ (\fun (i: Fin.Fin p) => trans!{Real} _ _ _
+      (congr!{Real Real} (R.mul (Partials.derivative U g (Indices.left i) (Homotopies.apply domain U map z))) _ _ (leftDisplacement (basePoint z) i))
+      (Laws.fieldMulZeroRight (Partials.derivative U g (Indices.left i) (Homotopies.apply domain U map z))))) (Sums.zeroSum p))
+    (\refl(speed z)) }
+  "=" _ "by" { Laws.addZeroLeft (speed z) }
+};
+\definition law: Analysis.HasPartialDerivativeAt domain function timeIndex z (speed z) :=
+  \idelim Chain.differential.apply (TotalCoordinates.basis timeIndex) = speed z
+    \with d: Real => Analysis.HasPartialDerivativeAt domain function timeIndex z d \by {
+      base: Analysis.Differential[U := domain, f := function, a := z, d := Chain.differential].Partial[i := timeIndex].law
+        (Chain.law Jacobian.vectorLaw (Outer.law U g (Homotopies.apply domain U map z))),
+      equality: trans!{Real} _ _ _
+        (congr!{Point Real} (Outer.value U g (Homotopies.apply domain U map z)).apply _ _ (\parent.\parent.Differential[].timeDifferential z)) scalarProduct
+    };

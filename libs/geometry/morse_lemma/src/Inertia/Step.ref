@@ -1,0 +1,18 @@
+\import \root.Inertia[n := k] \as Lower;
+\import \root.Inertia[n := N.Nat^::succ k] \as Higher;
+\import linear_algebra.Euclidean[n := k].Successor[] \as Split;
+\import linear_algebra.Euclidean[n := k] \as LowerE;
+\import linear_algebra.Euclidean[n := N.Nat^::succ k] \as HigherE;
+\module Pivot(h: Higher.Form, symmetric: Higher.Symmetric h, nonzero: Logic.Not (h.form Split.first Split.first = R.zero));
+\module At(h: Higher.Form, symmetric: Higher.Symmetric h, nondegenerate: Higher.Nondegenerate h, c: Higher.Of[h := h].Nonisotropic);
+\definition firstNonzero: Logic.Not (Split.first = Higher.space.zero) := \fun (zero: Split.first = Higher.space.zero) => Arithmetic.zeroNeOne
+  (sym!{{R.Real}} _ _ (trans!{{R.Real}} _ _ _ (sym!{{R.Real}} _ _ Split.firstHead)
+    (congr!{{Higher.Vector} {R.Real}} Split.head _ _ zero)));
+\definition exists: (\forall (g: Lower.Form) -> Lower.Symmetric g -> Lower.Nondegenerate g -> \exists Lower.NormalForm[g]) ->
+  \forall (h: Higher.Form) -> Higher.Symmetric h -> Higher.Nondegenerate h -> \exists Higher.NormalForm[h] := \block {
+  \fun (previous: \forall (g: Lower.Form) -> Lower.Symmetric g -> Lower.Nondegenerate g -> \exists Lower.NormalForm[g])
+    (h: Higher.Form)(symmetric: Higher.Symmetric h)(nondegenerate: Higher.Nondegenerate h) \then
+  \takefrom c: Higher.Of[h := h].Nonisotropic \by Higher.Of[h := h].nonisotropicExists symmetric nondegenerate
+    (\fun (trivial: \forall (v: Higher.Vector) -> v = Higher.space.zero) => firstNonzero (trivial Split.first)) \then
+  \return At[h := h, symmetric := symmetric, nondegenerate := nondegenerate, c := c].normalFormExists previous
+};

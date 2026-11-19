@@ -1,0 +1,48 @@
+\import Isomorphisms.Composition[U := Vector, domain := E.space] \as IsomorphismComposition;
+\definition comparison[left, right: NormalForm[h]]: Isomorphism := IsomorphismComposition.compose (Isomorphisms.inverse right.change) left.change;
+\definition congruent: \forall (left, right: NormalForm[h]) -> Congruent left.sign right.sign (comparison left right) :=
+  \fun (left, right: NormalForm[h])(v, w: Vector) => eq_reason_in!{{R.Real} _
+    "=" _ "by" { sym!{{R.Real}} _ _ (right.formula ((comparison left right).forward.apply v) ((comparison left right).forward.apply w)) }
+    "=" _ "by" { congr!{Vector Vector {R.Real}} h.form _ _ _ _
+      ((Isomorphisms.laws right.change).rightInverse (left.change.forward.apply v))
+      ((Isomorphisms.laws right.change).rightInverse (left.change.forward.apply w)) }
+    "=" _ "by" { left.formula v w }
+  };
+\definition negativeUnique: \forall (left, right: NormalForm[h]) -> negative left.sign = negative right.sign :=
+  \fun (left, right: NormalForm[h]) => negativeInvariant left.sign right.sign (comparison left right) (congruent left right);
+\definition positiveUnique: \forall (left, right: NormalForm[h]) -> positive left.sign = positive right.sign :=
+  \fun (left, right: NormalForm[h]) => positiveInvariant left.sign right.sign (comparison left right) (congruent left right);
+\definition HasNegative[k: N.Nat^]: \Prop := \exists ( normal: NormalForm[h] \where negative normal.sign = k );
+\definition HasPositive[k: N.Nat^]: \Prop := \exists ( normal: NormalForm[h] \where positive normal.sign = k );
+\definition negativeExists: Symmetric h -> Nondegenerate h -> \exists ( k: N.Nat^ \where HasNegative k ) := \block {
+  \fun (symmetric: Symmetric h)(nondegenerate: Nondegenerate h) \then
+  \takefrom normal: NormalForm[h] \by normalFormExists h symmetric nondegenerate \then
+  \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where HasNegative k }] (negative normal.sign)
+    (Logic.existsIntro[NormalForm[h], { chosen: NormalForm[h] \where negative chosen.sign = negative normal.sign }] normal (\refl(negative normal.sign)))
+};
+\definition positiveExists: Symmetric h -> Nondegenerate h -> \exists ( k: N.Nat^ \where HasPositive k ) := \block {
+  \fun (symmetric: Symmetric h)(nondegenerate: Nondegenerate h) \then
+  \takefrom normal: NormalForm[h] \by normalFormExists h symmetric nondegenerate \then
+  \return Logic.existsIntro[N.Nat^, { k: N.Nat^ \where HasPositive k }] (positive normal.sign)
+    (Logic.existsIntro[NormalForm[h], { chosen: NormalForm[h] \where positive chosen.sign = positive normal.sign }] normal (\refl(positive normal.sign)))
+};
+\definition negativeDetermined: \forall (k, l: N.Nat^) -> HasNegative k -> HasNegative l -> k = l := \block {
+  \fun (k, l: N.Nat^)(left: HasNegative k)(right: HasNegative l) \then
+  \takefrom a: \Cast[NormalForm[h]] ({ chosen: NormalForm[h] \where negative chosen.sign = k }) \by left \then
+  \takefrom b: \Cast[NormalForm[h]] ({ chosen: NormalForm[h] \where negative chosen.sign = l }) \by right \then
+  \return eq_reason_in!{{N.Nat^} k
+    "=" _ "by" { sym!{{N.Nat^}} _ _ (\bysub(NormalForm[h], { chosen: NormalForm[h] \where negative chosen.sign = k }, a)) }
+    "=" _ "by" { negativeUnique a b }
+    "=" l "by" { \bysub(NormalForm[h], { chosen: NormalForm[h] \where negative chosen.sign = l }, b) }
+  }
+};
+\definition positiveDetermined: \forall (k, l: N.Nat^) -> HasPositive k -> HasPositive l -> k = l := \block {
+  \fun (k, l: N.Nat^)(left: HasPositive k)(right: HasPositive l) \then
+  \takefrom a: \Cast[NormalForm[h]] ({ chosen: NormalForm[h] \where positive chosen.sign = k }) \by left \then
+  \takefrom b: \Cast[NormalForm[h]] ({ chosen: NormalForm[h] \where positive chosen.sign = l }) \by right \then
+  \return eq_reason_in!{{N.Nat^} k
+    "=" _ "by" { sym!{{N.Nat^}} _ _ (\bysub(NormalForm[h], { chosen: NormalForm[h] \where positive chosen.sign = k }, a)) }
+    "=" _ "by" { positiveUnique a b }
+    "=" l "by" { \bysub(NormalForm[h], { chosen: NormalForm[h] \where positive chosen.sign = l }, b) }
+  }
+};

@@ -1,0 +1,14 @@
+\import \parent.\parent.Along[g := Partials.derivative U f i] \as Along;
+\definition function: Total.ScalarFunction domain := Analytic.times domain Along.function (displacement i);
+\definition derivative: Total.ScalarFunction domain := \fun (z: Total.Carrier domain) => Scalars.mul (Along.speed z) (displacement i z);
+\definition smooth: TotalSmooth.SmoothOn domain derivative := Operations.mulSmooth domain Along.speed (displacement i)
+  Along.speedSmooth (\bysub(Total.ScalarFunction domain, { h: Total.ScalarFunction domain \where TotalSmooth.SmoothOn domain h }, displacement i));
+\definition partial: Analysis.HasPartialDerivative domain function timeIndex derivative :=
+  \fun (z: Total.Carrier domain) => \idelim Scalars.add (Scalars.mul (Along.speed z) (displacement i z))
+    (Scalars.mul (Along.function z) Scalars.zero) = derivative z
+    \with d: Real => Analysis.HasPartialDerivativeAt domain function timeIndex z d \by {
+      base: Analysis.Product[U := domain, f := Along.function, g := displacement i, i := timeIndex].partial
+        Along.speed (\fun (z: Total.Carrier domain) => Scalars.zero) Along.timePartial (displacementPartial i) z,
+      equality: trans!{Real} _ _ _ (congr!{Real Real} (Scalars.add (derivative z)) _ _ (Laws.fieldMulZeroRight (Along.function z)))
+        (Laws.addZeroRight (derivative z))
+    };

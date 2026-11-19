@@ -1,0 +1,43 @@
+/* f(t)=(t+t^2)^2. */
+\import calculus.Real[].Multivariable[n := one].Open[] \as Open;
+\import Open.Smooth[] \as Smooth;
+\import Smooth.Algebra[U := Open.whole] \as Functions;
+\import Smooth.Derivative[] \as Partials;
+\import Partials.Linear[U := Open.whole] \as D;
+\import Open.Projection[U := Open.whole] \as Projection;
+\definition index: Fin.Fin one := Fin.zero N.Nat^::zero;
+\definition point: Open.Carrier Open.whole := \into[Fin.Fin one -> R.Real]((\fun (i: Fin.Fin one) => R.zero), Open.whole.points) \by {
+  \refl(\fun (i: Fin.Fin one) => R.zero)
+};
+\definition coordinate: Functions.Function := Projection.function index;
+\import \parent.Square[n := one, U := Open.whole, g := coordinate] \as CoordinateSquare;
+\definition inner: Functions.Function := Functions.plus coordinate CoordinateSquare.function;
+\import \parent.Square[n := one, U := Open.whole, g := inner] \as Squared;
+\definition function: Functions.Function := Squared.function;
+\definition innerZero: inner point = R.zero := trans!{{R.Real}} _ _ _
+  (congr!{{R.Real} {R.Real}} (R.add R.zero) _ _ (Laws.fieldMulZeroLeft R.zero)) (Laws.addZeroLeft R.zero);
+\definition coordinateDerivative: \forall (i: Fin.Fin one) -> Partials.derivative Open.whole coordinate i point = R.one :=
+  \fun (i: Fin.Fin one) => eq_reason_in!{{R.Real} _
+    "=" _ "by" { congr!{{Fin.Fin one} {R.Real}} (\fun (j: Fin.Fin one) => Partials.derivative Open.whole coordinate j point) _ _ (Fin.singletonValue i) }
+    "=" _ "by" { congr!{{Functions.Function} {R.Real}} (\fun (h: Functions.Function) => h point) _ _ (Projection.partial index index) }
+    "=" R.one "by" { \refl(R.one) }
+  };
+\definition innerDerivative: \forall (i: Fin.Fin one) -> Partials.derivative Open.whole inner i point = R.one :=
+  \fun (i: Fin.Fin one) => eq_reason_in!{{R.Real} _
+    "=" _ "by" { congr!{{Functions.Function} {R.Real}} (\fun (h: Functions.Function) => h point) _ _ (D.addition i coordinate CoordinateSquare.function) }
+    "=" _ "by" { congr!{{R.Real} {R.Real} {R.Real}} R.add _ _ _ _ (coordinateDerivative i) (CoordinateSquare.derivativeAtZero i point (\refl(R.zero))) }
+    "=" R.one "by" { Laws.addZeroRight R.one }
+  };
+\import \root.Euclidean[n := one].Function[U := Open.whole, f := function] \as Morse;
+\definition critical: Morse.Critical point := \fun (i: Fin.Fin one) => Squared.derivativeAtZero i point innerZero;
+\definition hessian: \forall (i, j: Fin.Fin one) -> Morse.hessianEntries point i j = two :=
+  \fun (i, j: Fin.Fin one) => eq_reason_in!{{R.Real} _
+    "=" _ "by" { Morse.hessianEntriesValue point i j }
+    "=" _ "by" { Squared.hessianAtZero i j point innerZero }
+    "=" _ "by" { congr!{{R.Real} {R.Real} {R.Real}} (\fun (a, b: R.Real) => R.add (R.mul a b) (R.mul a b)) _ _ _ _ (innerDerivative i) (innerDerivative j) }
+    "=" two "by" { congr!{{R.Real} {R.Real} {R.Real}} R.add _ _ _ _ (Laws.fieldMulOneLeft R.one) (Laws.fieldMulOneLeft R.one) }
+  };
+\definition nondegenerate: Morse.Nondegenerate point := \parent.ScalarMatrix[].nonzero (Morse.hessianEntries point) hessian;
+\definition isolated: \exists Morse.IsolatingNeighborhood[point] := Morse.isolated point nondegenerate critical;
+\import \root.NormalForm[n := one, U := Open.whole, f := function, a := point] \as Coordinates;
+\definition normalFormExists: \exists Coordinates.Local := Coordinates.localExistence critical nondegenerate;

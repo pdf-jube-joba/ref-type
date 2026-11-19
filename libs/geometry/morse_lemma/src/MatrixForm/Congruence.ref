@@ -1,0 +1,26 @@
+\import Hermitian.Square[] \as Square;
+\import Hermitian.Matrices[] \as Adjoint;
+\import Spaces.Isomorphism[V := Vector, W := Vector, source := E.space, target := E.space] \as Isomorphisms;
+\definition transposeAdjoint: \forall (C: Matrix)(v, w: Vector) -> E.dot ((Matrices.linear (Matrices.transpose C)).apply v) w =
+  E.dot v ((Matrices.linear C).apply w) :=
+  \fun (C: Matrix)(v, w: Vector) => trans!{{R.Real}} _ _ _ (Adjoint.Adjoint[A := Matrices.transpose C].law v w)
+    (congr!{Matrix {R.Real}} (\fun (A: Matrix) => E.dot v ((Matrices.linear A).apply w)) _ _ (Matrices.transposeTwice C));
+\definition matrix[B, C: Matrix]: Matrix := Matrices.product (Matrices.transpose C) (Matrices.product B C);
+\definition formula: \forall (B, C: Matrix)(v, w: Vector) -> (form (matrix B C)).form v w =
+  (form B).form ((Matrices.linear C).apply v) ((Matrices.linear C).apply w) :=
+  \fun (B, C: Matrix)(v, w: Vector) => eq_reason_in!{{R.Real} _
+    "=" _ "by" { congr!{Vector {R.Real}} (\fun (x: Vector) => E.dot x w) _ _
+      (sym!{Vector} _ _ (Square.applyProduct (Matrices.transpose C) (Matrices.product B C) v)) }
+    "=" _ "by" { transposeAdjoint C ((Matrices.linear (Matrices.product B C)).apply v) w }
+    "=" _ "by" { congr!{Vector {R.Real}} (\fun (x: Vector) => E.dot x ((Matrices.linear C).apply w)) _ _
+      (sym!{Vector} _ _ (Square.applyProduct B C v)) }
+  };
+\module At(C: Matrix, nonzero: Inversion.Nonzero C) {
+  \definition nonsingular: Inversion.Nonsingular := \into[Matrix](C, Inversion.Nonsingular) \by { nonzero };
+  \import Square.Inverse[A := nonsingular] \as Inverse;
+  \definition isomorphism: Isomorphisms.Isomorphism := Isomorphisms.Isomorphism {
+    forward := Matrices.linear C, backward := Inverse.value, leftInverse := Inverse.left, rightInverse := Inverse.right,
+  };
+}
+\definition isomorphism[C: Inversion.Nonsingular]: Isomorphisms.Isomorphism :=
+  At[C := C, nonzero := \bysub(Matrix, Inversion.Nonsingular, C)].isomorphism;

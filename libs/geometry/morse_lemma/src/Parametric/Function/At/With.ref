@@ -1,0 +1,42 @@
+\definition target: Open.OpenSet := Split.product local.parameters local.values;
+\import Split.FixedRight[U := local.parameters, V := target, c := zero] \as Slice;
+\definition zeroInside: \In[Vector] local.values.points zero :=
+  \idelim gradient a = zero \with v: Vector => \In[Vector] local.values.points v \by {
+    base: local.containsValues, equality: (criticalIffGradientZero a).ltr critical
+  };
+\definition sliceInside: Slice.Included := \fun (t: Parameters.Carrier local.parameters) => Logic.And[_, _]::#
+  (\idelim t = Split.left (Split.join t zero) \with v: Parameter => \In[Parameter] local.parameters.points v \by {
+    base: \bysub(Parameter, local.parameters.points, t), equality: sym!{Parameter} _ _ (Split.leftJoin t zero)
+  })
+  (\idelim zero = Split.right (Split.join t zero) \with v: Vector => \In[Vector] local.values.points v \by {
+    base: zeroInside, equality: sym!{Vector} _ _ (Split.rightJoin t zero)
+  });
+\import Graphs.Composition[U := local.parameters, V := target, f := Slice.map sliceInside] \as Along;
+\definition graph: Graphs.Map local.parameters U := Along.After[l := dimension, W := U, g := local.graph].compose;
+\definition solution: Branches.Map local.parameters Fibers.whole := Along.After[l := n, W := Fibers.whole, g := local.solution].compose;
+\definition graphFormula: \forall (t: Parameters.Carrier local.parameters) -> Graphs.apply local.parameters U graph t =
+  Split.join t (Branches.apply local.parameters Fibers.whole solution t) :=
+  \fun (t: Parameters.Carrier local.parameters) => trans!{Point} _ _ _ (local.graphFormula (Slice.apply sliceInside t))
+    (congr!{Parameter Point} (\fun (v: Parameter) => Split.join v (Branches.apply local.parameters Fibers.whole solution t)) _ _ (Split.leftJoin t zero));
+\definition criticalAlong: \forall (t: Parameters.Carrier local.parameters) -> Critical (Graphs.apply local.parameters U graph t) :=
+  \fun (t: Parameters.Carrier local.parameters) => (criticalIffGradientZero (Graphs.apply local.parameters U graph t)).rtl
+    (trans!{Vector} _ _ _ (local.equation (Slice.apply sliceInside t)) (Split.rightJoin t zero));
+\definition branch: CriticalBranch[a] := CriticalBranch[a] {
+  parameters := local.parameters, containsParameters := local.containsParameters,
+  neighborhood := local.neighborhood, included := local.included, contains := local.contains,
+  branch := solution, graph := graph, graphFormula := graphFormula,
+  graphInside := \fun (t: Parameters.Carrier local.parameters) => local.graphInside (Slice.apply sliceInside t),
+  critical := criticalAlong,
+  atBase := \block {
+    \fun (t: Parameters.Carrier local.parameters)(same: t = Split.left a) \then
+    \let center: Open.Carrier local.neighborhood := \into[Point](a, local.neighborhood.points) \by { local.contains } \then
+    \return sym!{Point} _ _ (local.unique center (Slice.apply sliceInside t)
+      (trans!{Parameter} _ _ _ (sym!{Parameter} _ _ same) (sym!{Parameter} _ _ (Split.leftJoin t zero)))
+      (trans!{Vector} _ _ _ ((criticalIffGradientZero a).ltr critical) (sym!{Vector} _ _ (Split.rightJoin t zero))))
+  },
+  unique := \fun (x: Open.Carrier local.neighborhood)(t: Parameters.Carrier local.parameters)(sameParameter: Split.left x = t)
+    (stationary: Critical (Open.inclusion local.neighborhood U local.included x)) => local.unique x (Slice.apply sliceInside t)
+      (trans!{Parameter} _ _ _ sameParameter (sym!{Parameter} _ _ (Split.leftJoin t zero)))
+      (trans!{Vector} _ _ _ ((criticalIffGradientZero (Open.inclusion local.neighborhood U local.included x)).ltr stationary)
+        (sym!{Vector} _ _ (Split.rightJoin t zero))),
+};

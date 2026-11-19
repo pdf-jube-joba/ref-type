@@ -1,0 +1,22 @@
+\import \parent.Joint[] \as Joint;
+\definition zeroTime: Time := \into[Real](Scalars.zero, metric_spaces.RealLine[].ClosedInterval Scalars.zero Scalars.one) \by {
+  Logic.And[_, _]::# (R.leRefl Scalars.zero) Average.interval.ordered
+};
+\import Total.Analysis[].Section[U := Z, f := h, a := point x zeroTime, i := timeIndex] \as Section;
+\definition value: Real -> Real := Section.value;
+\definition replaced: \forall (t: Time) -> point x t = TotalCoordinates.replace (point x zeroTime) timeIndex t :=
+  \fun (t: Time) => sym!{{Fin.Fin dimension -> Real}} _ _ (trans!{{Fin.Fin dimension -> Real}} _ _ _
+    (replaceTime (point x zeroTime) t)
+    (congr!{Point {Fin.Fin dimension -> Real}} (\fun (v: Point) => Split.join v (time t)) _ _ (Split.leftJoin x (time zeroTime))));
+\definition agreement: \forall (t: Time) -> value t = h (point x t) :=
+  \fun (t: Time) => Section.agreement t (point x t) (replaced t);
+\import integration.Real[].Riemann[interval := Average.interval].Continuous[] \as Closed;
+\definition restricted: Time -> Real := Joint.section x;
+\definition continuous: Closed.IsContinuous value :=
+  \idelim restricted = (\fun (t: Time) => value t) \with q: (Time -> Real) => Average.IsContinuous q \by {
+    base: \bysub(Time -> Real, { q: Time -> Real \where Average.IsContinuous q }, Joint.section x),
+    equality: \axiom:funext(restricted, (\fun (t: Time) => value t), \fun (t: Time) => sym!{Real} _ _ (agreement t))
+  };
+\definition derivative: \forall (df: Total.ScalarFunction Z) -> Total.Analysis[].HasPartialDerivative Z h timeIndex df ->
+  \forall (t: Time) -> calculus.Real[].Derivative[].Def[].HasDerivativeAt value t (df (point x t)) :=
+  \fun (df: Total.ScalarFunction Z)(partial: _)(t: Time) => Section.derivativeAt t (point x t) (df (point x t)) (replaced t) (partial (point x t));

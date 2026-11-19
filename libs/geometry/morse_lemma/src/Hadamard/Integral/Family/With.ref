@@ -1,0 +1,36 @@
+\import ProductSpace.Universal[X := Time] \as TimePairs;
+\import topology.Maps[A := Time, B := X] \as ConstantMaps;
+\import topology.Maps[A := Time, B := Time] \as TimeMaps;
+\import topology.Topology[Carrier := Time] \as TimeSpace;
+\import topology.Continuity[A := Time, B := Time] \as TimeContinuity;
+\definition timeIdentity: TimeContinuity.Continuous topology topology (\fun (t: Time) => t) :=
+  \fun (V: \Pow Time)(open: TimeSpace.IsOpenIn topology V) =>
+    \idelim V = { t: Time \where \In[Time] V t } \with W: \Pow Time => TimeSpace.IsOpenIn topology W \by {
+      base: open,
+      equality: \axiom:setext(V, { t: Time \where \In[Time] V t },
+        \fun (t: Time)(inside: \In[Time] V t) => inside, \fun (t: Time)(inside: \In[Time] V t) => inside)
+    };
+\definition sectionContinuous: \forall (x: X) -> IsContinuous (\fun (t: Time) => g t x) :=
+  \fun (x: X) => topology.Composition[A := Time, B := Joint, C := Real].composeContinuous topology jointTopology Line.topology
+    (\fun (t: Time) => Pair.pair X Time x t) apply
+    (TimePairs.pairContinuous topology Source.topology topology (\fun (t: Time) => x) (\fun (t: Time) => t)
+      (ConstantMaps.constantContinuous topology Source.topology x) timeIdentity) continuous;
+\definition section[x: X]: Function := \into[Time -> Real]((\fun (t: Time) => g t x), { h: Time -> Real \where IsContinuous h }) \by {
+  sectionContinuous x
+};
+\definition average[x: X]: Real := value (section x);
+\module At(b: X, epsilon: Real);
+\definition continuousAverage: Analysis.ContinuousOn U average := \block {
+  \fun (b: X)(epsilon: Real)(positive: R.Lt Scalars.zero epsilon) \then
+  \let h: Real := Scalars.mul Scalars.half epsilon \then
+  \takefrom delta: \Cast[Real] ({ delta: Real \where At[b := b, epsilon := h].Control[delta] })
+    \by At[b := b, epsilon := h].exists (Bounds.halfOfPositive epsilon positive) \then
+  \let control: At[b := b, epsilon := h].Control[delta] := \bysub(Real, { delta: Real \where At[b := b, epsilon := h].Control[delta] }, delta) \then
+  \return Logic.existsIntro[Real, { delta: Real \where Analysis.ContinuityControl[U, average, b, epsilon, delta] }] delta
+    (Analysis.ContinuityControl[U, average, b, epsilon, delta] {
+      positive := control.positive,
+      estimate := \fun (x: X)(near: _) => R.leLtTrans _ h epsilon
+        (bound (section x) (section b) h (\fun (t: Time) => Order.leOfLt _ _ (control.estimate x t near)))
+        (Bounds.halfStrict epsilon positive),
+    })
+};

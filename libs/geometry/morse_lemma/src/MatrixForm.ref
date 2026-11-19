@@ -1,0 +1,56 @@
+\use std.Logic[].Equality[].eq_reason_in;
+\import std.Data[].FinSet[] \as Fin;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\import real.Analysis[] \as R;
+\import R.Algebra[] \as Algebra;
+\import linear_algebra.Euclidean[n := n] \as E;
+\import linear_algebra.Commutative[K := R.Real,
+  scalarRing := std.Alg[].Field[].fieldAsCommutativeRing R.Real Algebra.field] \as Spaces;
+\import Spaces.Form[V := E.Vector, space := E.space] \as Forms;
+\import matrix_invariants.Ring[K := R.Real,
+  scalars := std.Alg[].Field[].fieldAsCommutativeRing R.Real Algebra.field].At[n := n] \as Matrices;
+\import Matrices.Representation[] \as Representation;
+\import matrix_invariants.Field[K := R.Real, field := Algebra.field].At[n := n] \as Inversion;
+\import hermitian_frames.Hermitian[] \as H;
+\import H.Real[] \as RealHermitian;
+\import H.Over[K := R.Real, field := Algebra.field, scalar := RealHermitian.scalar,
+  topological := RealHermitian.topological].At[n := n] \as Hermitian;
+\definition Matrix: \Set := Matrices.Matrix;
+\definition Vector: \Set := E.Vector;
+\definition Symmetric[A: Matrix]: \Prop := \forall (i, j: Fin.Fin n) -> A i j = A j i;
+\definition form[A: Matrix]: Forms.Bilinear := Forms.Bilinear {
+  form := \fun (v, w: Vector) => E.dot ((Matrices.linear A).apply v) w,
+  zeroLeft := \fun (w: Vector) => trans!{{R.Real}} _ _ _
+    (congr!{Vector {R.Real}} (\fun (v: Vector) => E.dot v w) _ _ (Matrices.linear A).preservesZero) (E.form.zeroLeft w),
+  zeroRight := \fun (v: Vector) => E.form.zeroRight ((Matrices.linear A).apply v),
+  addLeft := \fun (u, v, w: Vector) => trans!{{R.Real}} _ _ _
+    (congr!{Vector {R.Real}} (\fun (x: Vector) => E.dot x w) _ _ ((Matrices.linear A).preservesAdd u v))
+    (E.form.addLeft ((Matrices.linear A).apply u) ((Matrices.linear A).apply v) w),
+  addRight := \fun (u, v, w: Vector) => E.form.addRight ((Matrices.linear A).apply u) v w,
+  scaleLeft := \fun (c: R.Real)(v, w: Vector) => trans!{{R.Real}} _ _ _
+    (congr!{Vector {R.Real}} (\fun (x: Vector) => E.dot x w) _ _ ((Matrices.linear A).preservesScale c v))
+    (E.form.scaleLeft c ((Matrices.linear A).apply v) w),
+  scaleRight := \fun (c: R.Real)(v, w: Vector) => E.form.scaleRight c ((Matrices.linear A).apply v) w,
+};
+\definition hermitian[A: Matrix][symmetric: Symmetric A]: Hermitian.Matrices[].Hermitian :=
+  \into[Matrix](A, Hermitian.Matrices[].Hermitian) \by {
+    Matrices.Operations[].ext _ _ (\fun (i, j: Fin.Fin n) => symmetric j i)
+  };
+\definition symmetric: \forall (A: Matrix) -> Symmetric A -> Forms.Symmetric (form A) :=
+  \fun (A: Matrix)(symmetric: Symmetric A)(v, w: Vector) => trans!{{R.Real}} _ _ _
+    (Hermitian.Matrices[].selfAdjoint (hermitian A symmetric) v w) (E.symmetric v ((Matrices.linear A).apply w));
+\module Of(A: Matrix);
+\definition nondegenerate: \forall (A: Matrix) -> Inversion.Nonzero A -> Forms.Nondegenerate (form A) :=
+  \fun (A: Matrix) => Of[A := A].nondegenerate;
+\import Spaces.Matrix[I := Fin.Fin n, J := Fin.Fin n] \as Arrays;
+\definition half[A: Matrix]: Matrix := Arrays.scale R.half A;
+\module Scaling;
+\definition halfNonzero: \forall (A: Matrix) -> Inversion.Nonzero A -> Inversion.Nonzero (half A) :=
+  \fun (A: Matrix) => Scaling[].halfNonzero A;
+\module Quadratic;
+\module Congruence;
+\module HalfCongruence;

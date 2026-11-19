@@ -1,0 +1,19 @@
+\module Direction(directions: Smooth.Directions);
+\definition averages[directions: Smooth.Directions]: Open.ScalarFunction U := Direction[directions := directions].average;
+\definition partial: \forall (directions: Smooth.Directions)(i: Index) ->
+  Analysis.HasPartialDerivative U (averages directions) i (averages (Smooth.Directions::cons i directions)) :=
+  \fun (directions: Smooth.Directions)(i: Index) =>
+    \parent.\parent.Differentiation[g := kernel.jet directions, h := kernel.jet (Smooth.Directions::cons i directions), i := i].With[
+      continuousG := kernel.joint directions, continuousH := kernel.joint (Smooth.Directions::cons i directions)].derivative (kernel.partial directions i);
+\definition continuous: \forall (directions: Smooth.Directions) -> Analysis.ContinuousOn U (averages directions) :=
+  \fun (directions: Smooth.Directions) => \parent.\parent.Family[g := kernel.jet directions].With[continuous := kernel.joint directions].continuousAverage;
+\definition smooth: Smooth.SmoothOn U (averages Smooth.Directions::nil) :=
+  \fun (k: N.Nat^) => Logic.existsIntro[Smooth.PartialFamily U, { d: Smooth.PartialFamily U \where Smooth.ContDiffLaws[U, averages Smooth.Directions::nil, k, d] }] averages
+    (Smooth.ContDiffLaws[U, averages Smooth.Directions::nil, k, averages] {
+      partials := Smooth.PartialFamilyLaws[U, averages Smooth.Directions::nil, k, averages] {
+        function := \refl(averages Smooth.Directions::nil),
+        derivative := \fun (directions: Smooth.Directions)(bound: _)(i: Index) => partial directions i,
+      },
+      continuous := \fun (directions: Smooth.Directions)(bound: _) => continuous directions,
+    });
+\definition average: Smooth.SmoothFunction U := \into[Open.ScalarFunction U](averages Smooth.Directions::nil, { h: Open.ScalarFunction U \where Smooth.SmoothOn U h }) \by { smooth };

@@ -1,0 +1,71 @@
+/* A smooth homotopy is averaged only in the closed time coordinate. */
+\import \parent.Integral[] \as Average;
+\import std.Logic[].Classical[] \as Classical;
+\use Logic.either;
+\import calculus.Real[].OneDimension[] \as One;
+\import calculus.Blocks[n := n, m := One.dimension] \as Split;
+\import Fin.Sum[m := n, n := One.dimension] \as Indices;
+\definition dimension: N.Nat^ := Split.dimension;
+\import calculus.Real[].Multivariable[n := dimension] \as TotalCalculus;
+\import TotalCalculus.Open[] \as Total;
+\import Total.Smooth[] \as TotalSmooth;
+\import TotalSmooth.Derivative[] \as TotalPartials;
+\import TotalCalculus.Space[].Def[] \as TotalCoordinates;
+\import TotalCalculus.Space[].Prop[] \as TotalLaws;
+\import calculus.Real[].Multivariable[n := n].Space[].Prop[] \as CoordinateLaws;
+\definition Time: \Set := Average.Time;
+\definition time[t: Real]: One.Index -> Real := \fun (i: One.Index) => t;
+\definition timeIndex: Fin.Fin dimension := Indices.right One.index;
+\definition leftReplace: \forall (z: Fin.Fin dimension -> Real)(i: Index)(s: Real) ->
+  Split.left (TotalCoordinates.replace z (Indices.left i) s) = Coordinates.replace (Split.left z) i s :=
+  \fun (z: Fin.Fin dimension -> Real)(i: Index)(s: Real) => \axiom:funext(Split.left (TotalCoordinates.replace z (Indices.left i) s), Coordinates.replace (Split.left z) i s, \fun (j: Index) =>
+    either!{{(Classical.excludedMiddle (i = j))}
+      {TotalCoordinates.replace z (Indices.left i) s (Indices.left j) = Coordinates.replace (Split.left z) i s j}
+      {\fun (same: i = j) => \idelim i = j \with k: Index =>
+        TotalCoordinates.replace z (Indices.left i) s (Indices.left k) = Coordinates.replace (Split.left z) i s k \by {
+          base: trans!{Real} _ _ _ (TotalLaws.replaceSame z (Indices.left i) s)
+            (sym!{Real} _ _ (CoordinateLaws.replaceSame (Split.left z) i s)), equality: same
+        }}
+      {\fun (different: Logic.Not (i = j)) => trans!{Real} _ _ _
+        (TotalLaws.replaceDifferent z (Indices.left i) (Indices.left j) s
+          (\fun (same: Indices.left i = Indices.left j) => different (Indices.leftInjective i j same)))
+        (sym!{Real} _ _ (CoordinateLaws.replaceDifferent (Split.left z) i j s different))}
+    });
+\definition rightReplace: \forall (z: Fin.Fin dimension -> Real)(i: Index)(s: Real) ->
+  Split.right (TotalCoordinates.replace z (Indices.left i) s) = Split.right z :=
+  \fun (z: Fin.Fin dimension -> Real)(i: Index)(s: Real) => \axiom:funext(Split.right (TotalCoordinates.replace z (Indices.left i) s), Split.right z, \fun (j: One.Index) =>
+    TotalLaws.replaceDifferent z (Indices.left i) (Indices.right j) s (Indices.different i j));
+\definition replaceSpatial: \forall (x: Point)(t: Real)(i: Index)(s: Real) ->
+  TotalCoordinates.replace (Split.join x (time t)) (Indices.left i) s = Split.join (Coordinates.replace x i s) (time t) :=
+  \fun (x: Point)(t: Real)(i: Index)(s: Real) => eq_reason_in!{{Fin.Fin dimension -> Real} _
+    "=" _ "by" { sym!{{Fin.Fin dimension -> Real}} _ _ (Split.recover (TotalCoordinates.replace (Split.join x (time t)) (Indices.left i) s)) }
+    "=" _ "by" { congr!{Point {One.Index -> Real} {Fin.Fin dimension -> Real}} Split.join _ _ _ _
+      (trans!{Point} _ _ _ (leftReplace (Split.join x (time t)) i s)
+        (congr!{Point Point} (\fun (v: Point) => Coordinates.replace v i s) _ _ (Split.leftJoin x (time t))))
+      (trans!{{One.Index -> Real}} _ _ _ (rightReplace (Split.join x (time t)) i s) (Split.rightJoin x (time t))) }
+  };
+\definition replaceTime: \forall (z: Fin.Fin dimension -> Real)(t: Real) ->
+  TotalCoordinates.replace z timeIndex t = Split.join (Split.left z) (time t) := \block {
+  \fun (z: Fin.Fin dimension -> Real)(t: Real) \then
+  \let left: Split.left (TotalCoordinates.replace z timeIndex t) = Split.left z :=
+    \axiom:funext(Split.left (TotalCoordinates.replace z timeIndex t), Split.left z, \fun (i: Index) => TotalLaws.replaceDifferent z timeIndex (Indices.left i) t
+      (\fun (same: timeIndex = Indices.left i) => Indices.different i One.index (sym!{{Fin.Fin dimension}} _ _ same))) \then
+  \let right: Split.right (TotalCoordinates.replace z timeIndex t) = time t :=
+    \axiom:funext(Split.right (TotalCoordinates.replace z timeIndex t), time t, \fun (i: One.Index) => trans!{Real} _ _ _
+      (congr!{{One.Index} Real} (Split.right (TotalCoordinates.replace z timeIndex t)) _ _ (Fin.singletonValue i)) (TotalLaws.replaceSame z timeIndex t)) \then
+  \return trans!{{Fin.Fin dimension -> Real}} _ _ _ (sym!{{Fin.Fin dimension -> Real}} _ _ (Split.recover (TotalCoordinates.replace z timeIndex t)))
+    (congr!{Point {One.Index -> Real} {Fin.Fin dimension -> Real}} Split.join _ _ _ _ left right)
+};
+\module Slice(W: Open.OpenSet, b: Open.Carrier W, Z: Total.OpenSet,
+  inside: \forall (x: Open.Carrier W)(t: Time) -> \In[Fin.Fin dimension -> Real] Z.points (Split.join x (time t)),
+  h: TotalSmooth.SmoothFunction Z);
+\module Fundamental(g: Real -> Real, h: Average.Function);
+\module Homotopy;
+\module Taylor(g, d: Real -> Real, e: Average.Function);
+\module Near(r: Real, ball: Open.BallInside[U.points, a, r]);
+\definition localExistence: Critical -> \exists Local := \block {
+  \fun (critical: Critical) \then
+  \takefrom r: \Cast[Real] ({ r: Real \where Open.BallInside[U.points, a, r] }) \by U.open a (\bysub(Point, U.points, a)) \then
+  \let ball: Open.BallInside[U.points, a, r] := \bysub(Real, { r: Real \where Open.BallInside[U.points, a, r] }, r) \then
+  \return \exact(Near[r := r, ball := ball].local critical, Local)
+};

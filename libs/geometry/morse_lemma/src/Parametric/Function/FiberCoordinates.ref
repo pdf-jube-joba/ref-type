@@ -1,0 +1,41 @@
+/* Smooth displacement from the critical branch, with identity fibre derivative. */
+\import calculus.Maps[n := dimension, m := p] \as Projections;
+\import calculus.Maps[n := n, m := n] \as FiberMaps;
+\import calculus.Maps[n := n, m := dimension] \as Inclusions;
+\import calculus.Vector[n := n, m := n] \as FiberLinear;
+\import calculus.Vector[n := dimension, m := n] \as FullLinear;
+\import calculus.Identity[n := n] \as Identity;
+\import topological_algebra.Euclidean[].Dimension[n := n].Def[] \as FiberCoordinates;
+\import dedekind_reals.DedekindReal[].Arithmetic[].Prop[] \as Arithmetic;
+\import calculus.Maps[n := dimension, m := dimension] \as Maps;
+\import calculus.Real[].Multivariable[n := dimension].Space[].Def[] \as Coordinates;
+\module Domain;
+\import .Domain[] \as Base;
+\definition domain: Open.OpenSet := Base.domain;
+\definition included: Open.Included domain U := Base.included;
+\definition contains: \In[Point] domain.points a := Base.contains;
+\definition base: Open.Carrier domain := Base.base;
+\definition parameter: Projections.Map domain branch.parameters := Base.parameter;
+\definition parameterFormula: \forall (x: Open.Carrier domain) -> Projections.apply domain branch.parameters parameter x = Split.left x := Base.parameterFormula;
+\definition value[x: Open.Carrier domain]: Vector := \fun (i: Fin.Fin n) => Base.displacement x (Indices.right i);
+\definition data: Gradients.Data[domain, Fibers.whole] := Gradients.Data[domain, Fibers.whole] {
+  apply := \fun (x: Open.Carrier domain) => \into[Vector](value x, Fibers.whole.points) \by { \refl(value x) },
+};
+\definition map: Gradients.Map domain Fibers.whole := \into[Gradients.Data[domain, Fibers.whole]](data, Gradients.Map domain Fibers.whole) \by {
+  Gradients.Laws[domain, Fibers.whole, data] { smooth := \fun (i: Fin.Fin n) => Base.displacementRegular (Indices.right i) }
+};
+\definition formula: \forall (x: Open.Carrier domain) -> Gradients.apply domain Fibers.whole map x =
+  FiberCoordinates.subPoint (Split.right x) (Branches.apply branch.parameters Fibers.whole branch.branch (Projections.apply domain branch.parameters parameter x)) :=
+  \fun (x: Open.Carrier domain) => \axiom:funext(value x, _, \fun (i: Fin.Fin n) => Base.rightDisplacement x i);
+\definition atBase: Gradients.apply domain Fibers.whole map base = zero := \axiom:funext(value base, zero,
+  \fun (i: Fin.Fin n) => trans!{{R.Real}} _ _ _
+    (congr!{{R.Real} {R.Real}} (R.sub (a (Indices.right i))) _ _
+      (congr!{Point {R.Real}} (\fun (z: Point) => z (Indices.right i)) _ _ Base.originAtBase))
+    (Arithmetic.subSelf (a (Indices.right i))));
+\definition differential: FullLinear.LinearMap := Gradients.Differential[U := domain, V := Fibers.whole, f := map, a := base].value;
+\module InRectangle(rectangle: Inverse.Rectangle[domain, base]);
+\definition vertical: \forall (w: Vector) -> differential.apply (Inverse.vertical.apply w) = w := \block {
+  \takefrom rectangle: Inverse.Rectangle[domain, base] \by Inverse.Neighborhood[U := domain, a := base].rectangleExists \then
+  \return InRectangle[rectangle := rectangle].vertical
+};
+\module Restrict(V: Open.OpenSet, subset: Open.Included V domain, containsPoint: \In[Point] V.points a);

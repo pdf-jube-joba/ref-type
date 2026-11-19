@@ -1,0 +1,50 @@
+\import calculus.Real[].Multivariable[n := dimension].Open[] \as Open;
+\import Open.Smooth[] \as Smooth;
+\import Smooth.Algebra[U := Open.whole] \as Functions;
+\import Smooth.Differential[] \as Differential;
+\import Differential.Operations[U := Open.whole] \as Derivatives;
+\import Smooth.Derivative[].Linear[U := Open.whole] \as Partials;
+\import R.FiniteSums[] \as Sums;
+\import R.Algebra[] \as Algebra;
+\import linear_algebra.Commutative[K := R.Real, scalarRing := std.Alg[].Field[].fieldAsCommutativeRing R.Real Algebra.field] \as Spaces;
+\import linear_algebra.Euclidean[n := dimension] \as Euclidean;
+\import calculus.Maps[n := dimension, m := dimension] \as Maps;
+\definition origin: Open.Carrier Open.whole := \into[Vector](Euclidean.space.zero, Open.whole.points) \by { \refl(Euclidean.space.zero) };
+\definition tangent[f: Functions.Function][v: Vector]: R.Real := (Differential.value Open.whole f origin).apply v;
+\definition addition: \forall (f, g: Functions.Function)(v: Vector) -> tangent (Functions.plus f g) v = R.add (tangent f v) (tangent g v) :=
+  \fun (f, g: Functions.Function)(v: Vector) => Derivatives.addition f g origin v;
+\definition product: \forall (f, g: Functions.Function)(v: Vector) -> tangent (Functions.product f g) v = R.add (R.mul (g origin) (tangent f v)) (R.mul (f origin) (tangent g v)) :=
+  \fun (f, g: Functions.Function)(v: Vector) => Derivatives.product f g origin v;
+\definition constant: \forall (c: R.Real)(v: Vector) -> tangent (Functions.constant c) v = R.zero :=
+  \fun (c: R.Real)(v: Vector) => trans!{{R.Real}} _ _ _
+    (Sums.congruent dimension _ _ (\fun (i: Fin.Fin dimension) => trans!{{R.Real}} _ _ _
+      (congr!{{Functions.Function} {R.Real}} (\fun (f: Functions.Function) => R.mul (f origin) (v i)) _ _ (Partials.constant i c))
+      (Spaces.mulZeroLeft (v i)))) (Sums.zeroSum dimension);
+\definition scalar: \forall (c: R.Real)(f: Functions.Function)(v: Vector) -> tangent (Functions.scale c f) v = R.mul c (tangent f v) :=
+  \fun (c: R.Real)(f: Functions.Function)(v: Vector) => eq_reason_in!{{R.Real} _
+    "=" _ "by" { product (Functions.constant c) f v }
+    "=" _ "by" { congr!{{R.Real} {R.Real}} (\fun (s: R.Real) => R.add (R.mul (f origin) s) (R.mul c (tangent f v))) _ _ (constant c v) }
+    "=" _ "by" { congr!{{R.Real} {R.Real}} (\fun (s: R.Real) => R.add s (R.mul c (tangent f v))) _ _ (Spaces.mulZeroRight (f origin)) }
+    "=" _ "by" { Spaces.addZeroLeft (R.mul c (tangent f v)) }
+  };
+\definition sum[m: N.Nat^][f: Fin.Fin m -> Functions.Function]: Functions.Function :=
+  \into[Open.ScalarFunction Open.whole]((\fun (x: Open.Carrier Open.whole) => Sums.sum m (\fun (i: Fin.Fin m) => f i x)), Smooth.SmoothFunction Open.whole) \by {
+    Smooth.Sums[].smooth Open.whole m f (\fun (i: Fin.Fin m) => \bysub(Open.ScalarFunction Open.whole, Smooth.SmoothFunction Open.whole, f i))
+  };
+\definition summation: \forall (m: N.Nat^)(f: Fin.Fin m -> Functions.Function)(v: Vector) -> tangent (sum m f) v = Sums.sum m (\fun (i: Fin.Fin m) => tangent (f i) v) :=
+  \induction (m: N.Nat^) \return \forall (f: Fin.Fin m -> Functions.Function)(v: Vector) -> tangent (sum m f) v = Sums.sum m (\fun (i: Fin.Fin m) => tangent (f i) v) \with {
+    | zero: \fun (f: Fin.Fin N.Nat^::zero -> Functions.Function)(v: Vector) => constant R.zero v
+    | succ: \fun (m: N.Nat^)(previous: _)(f: Fin.Fin (N.Nat^::succ m) -> Functions.Function)(v: Vector) => trans!{{R.Real}} _ _ _
+      (addition (f (Fin.zero m)) (sum m (\fun (i: Fin.Fin m) => f (Fin.succ m i))) v)
+      (congr!{{R.Real} {R.Real}} (R.add (tangent (f (Fin.zero m)) v)) _ _ (previous (\fun (i: Fin.Fin m) => f (Fin.succ m i)) v))
+  };
+\definition projection[i: Fin.Fin dimension]: Functions.Function :=
+  \into[Open.ScalarFunction Open.whole]((\fun (x: Open.Carrier Open.whole) => x i), Smooth.SmoothFunction Open.whole) \by { Open.Examples[].projectionSmooth Open.whole i };
+\definition projectionLaw: \forall (i: Fin.Fin dimension)(v: Vector) -> tangent (projection i) v = v i :=
+  \fun (i: Fin.Fin dimension)(v: Vector) => congr!{{calculus.Vector[n := dimension, m := dimension].LinearMap} {R.Real}}
+    (\fun (L: calculus.Vector[n := dimension, m := dimension].LinearMap) => L.apply v i) _ _
+    (calculus.Identity[n := dimension].At[U := Open.whole, a := origin].differential);
+\definition entry[i, j: Fin.Fin n]: Functions.Function := projection (square.address i j);
+\definition entryLaw: \forall (i, j: Fin.Fin n)(v: Vector) -> tangent (entry i j) v = unpack v i j :=
+  \fun (i, j: Fin.Fin n)(v: Vector) => projectionLaw (square.address i j) v;
+\module Listed(I: \Set);

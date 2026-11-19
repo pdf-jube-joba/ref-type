@@ -1,0 +1,47 @@
+\definition scalarNegative: \forall (b: Bool.Bool^)(x: R.Real) ->
+  R.mul (coefficient b) (R.mul (indicator b) x) = R.neg (R.mul (indicator b) x) :=
+  Bool.cases (\fun (b: Bool.Bool^) => \forall (x: R.Real) ->
+    R.mul (coefficient b) (R.mul (indicator b) x) = R.neg (R.mul (indicator b) x))
+    (\fun (x: R.Real) => eq_reason_in!{{R.Real} _
+      "=" _ "by" { Arithmetic.fieldMulOneLeft (R.mul R.zero x) }
+      "=" {R.zero} "by" { Arithmetic.fieldMulZeroLeft x }
+      "=" {R.neg R.zero} "by" { sym!{{R.Real}} _ _ Arithmetic.negZero }
+      "=" _ "by" { congr!{{R.Real} {R.Real}} R.neg _ _ (sym!{{R.Real}} _ _ (Arithmetic.fieldMulZeroLeft x)) }
+    })
+    (\fun (x: R.Real) => trans!{{R.Real}} _ _ _ (Arithmetic.fieldMulNegLeft R.one (R.mul R.one x))
+      (congr!{{R.Real} {R.Real}} R.neg _ _ (Arithmetic.fieldMulOneLeft (R.mul R.one x))));
+\definition signedNegative: \forall (v: Vector) -> (signed s).apply ((selected s).apply v) = E.space.neg ((selected s).apply v) :=
+  \fun (v: Vector) => \axiom:funext((signed s).apply ((selected s).apply v), E.space.neg ((selected s).apply v),
+    \fun (i: Fin.Fin n) => scalarNegative (s i) (v i));
+\definition negEnergy: \forall (v: Vector) -> E.dot (E.space.neg v) v = R.neg (E.squared v) :=
+  \fun (v: Vector) => eq_reason_in!{{R.Real} _
+    "=" _ "by" { congr!{Vector {R.Real}} (\fun (w: Vector) => E.dot w v) _ _ (sym!{Vector} _ _ (VectorLaws.minusOneScale v)) }
+    "=" _ "by" { E.form.scaleLeft (R.neg R.one) v v }
+    "=" _ "by" { Arithmetic.fieldMulNegLeft R.one (E.squared v) }
+    "=" _ "by" { congr!{{R.Real} {R.Real}} R.neg _ _ (Arithmetic.fieldMulOneLeft (E.squared v)) }
+  };
+\definition energy: \forall (v: Vector) -> standard s ((selected s).apply v) ((selected s).apply v) = R.neg (E.squared ((selected s).apply v)) :=
+  \fun (v: Vector) => trans!{{R.Real}} _ _ _
+    (congr!{Vector {R.Real}} (\fun (w: Vector) => E.dot w ((selected s).apply v)) _ _ (signedNegative v))
+    (negEnergy ((selected s).apply v));
+\definition fixedEnergy: \forall (v: Vector) -> (selected s).apply v = v -> standard s v v = R.neg (E.squared v) :=
+  \fun (v: Vector)(fixed: _) => \idelim (selected s).apply v = v
+    \with w: Vector => standard s w w = R.neg (E.squared w) \by { base: energy v, equality: fixed };
+\definition scalarPositive: \forall (b: Bool.Bool^)(x: R.Real) -> R.mul (indicator b) x = R.zero -> R.mul (coefficient b) x = x :=
+  Bool.cases (\fun (b: Bool.Bool^) => \forall (x: R.Real) -> R.mul (indicator b) x = R.zero -> R.mul (coefficient b) x = x)
+    (\fun (x: R.Real)(_: _) => Arithmetic.fieldMulOneLeft x)
+    (\fun (x: R.Real)(zero: R.mul R.one x = R.zero) => \block {
+      \let xZero: x = R.zero := trans!{{R.Real}} _ _ _ (sym!{{R.Real}} _ _ (Arithmetic.fieldMulOneLeft x)) zero \then
+      \return eq_reason_in!{{R.Real} _
+        "=" _ "by" { congr!{{R.Real} {R.Real}} (R.mul (R.neg R.one)) _ _ xZero }
+        "=" {R.zero} "by" { Arithmetic.fieldMulZeroRight (R.neg R.one) }
+        "=" x "by" { sym!{{R.Real}} _ _ xZero }
+      }
+    });
+\definition signedPositive: \forall (v: Vector) -> (selected s).apply v = E.space.zero -> (signed s).apply v = v :=
+  \fun (v: Vector)(zero: _) => \axiom:funext((signed s).apply v, v,
+    \fun (i: Fin.Fin n) => scalarPositive (s i) (v i) (congr!{Vector {R.Real}} (\fun (w: Vector) => w i) _ _ zero));
+\definition complementEnergy: \forall (v: Vector) -> (selected s).apply v = E.space.zero -> standard s v v = E.squared v :=
+  \fun (v: Vector)(zero: _) => congr!{Vector {R.Real}} (\fun (w: Vector) => E.dot w v) _ _ (signedPositive v zero);
+\definition complementNonnegative: \forall (v: Vector) -> (selected s).apply v = E.space.zero -> Ordered.Le R.zero (standard s v v) :=
+  \fun (v: Vector)(zero: _) => Ordered.leReplaceRight R.zero _ _ (sym!{{R.Real}} _ _ (complementEnergy v zero)) (E.nonnegative v);

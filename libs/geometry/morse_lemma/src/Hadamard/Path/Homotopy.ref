@@ -1,0 +1,83 @@
+\import calculus.Maps[n := dimension, m := n] \as Maps;
+\import TotalSmooth.Operations[] \as Operations;
+\definition value[z: Fin.Fin dimension -> Real][i: Index]: Real :=
+  Scalars.add (a i) (Scalars.mul (z timeIndex) (Scalars.sub (z (Indices.left i)) (a i)));
+\definition formula: \forall (x: Point)(t: Real) -> value (Split.join x (time t)) =
+  Coordinates.addPoint a (Coordinates.scale t (Coordinates.subPoint x a)) :=
+  \fun (x: Point)(t: Real) => \axiom:funext(value (Split.join x (time t)), Coordinates.addPoint a (Coordinates.scale t (Coordinates.subPoint x a)),
+    \fun (i: Index) => congr!{Real Real Real} (\fun (s, y: Real) => Scalars.add (a i) (Scalars.mul s (Scalars.sub y (a i)))) _ _ _ _
+      (congr!{{One.Index -> Real} Real} (\fun (v: One.Index -> Real) => v One.index) _ _ (Split.rightJoin x (time t)))
+      (congr!{Point Real} (\fun (v: Point) => v i) _ _ (Split.leftJoin x (time t))));
+\definition data: Maps.Data[Total.whole, Open.whole] := Maps.Data[Total.whole, Open.whole] {
+  apply := \fun (z: Total.Carrier Total.whole) => \into[Point](value z, Open.whole.points) \by { \refl(value z) },
+};
+\definition wholeMap: Maps.Map Total.whole Open.whole :=
+  \into[Maps.Data[Total.whole, Open.whole]](data,
+    { h: Maps.Data[Total.whole, Open.whole] \where Maps.Laws[Total.whole, Open.whole, h] }) \by {
+    Maps.Laws[Total.whole, Open.whole, data] {
+      smooth := \fun (i: Index) => Operations.addSmooth Total.whole (\fun (z: Total.Carrier Total.whole) => a i)
+        (\fun (z: Total.Carrier Total.whole) => Scalars.mul (z timeIndex) (Scalars.sub (z (Indices.left i)) (a i)))
+        (Operations.constantSmooth Total.whole (a i))
+        (Operations.mulSmooth Total.whole (\fun (z: Total.Carrier Total.whole) => z timeIndex)
+          (\fun (z: Total.Carrier Total.whole) => Scalars.sub (z (Indices.left i)) (a i))
+          (Total.Examples[].projectionSmooth Total.whole timeIndex)
+          (Operations.subSmooth Total.whole (\fun (z: Total.Carrier Total.whole) => z (Indices.left i))
+            (\fun (z: Total.Carrier Total.whole) => a i) (Total.Examples[].projectionSmooth Total.whole (Indices.left i))
+            (Operations.constantSmooth Total.whole (a i)))),
+    }
+  };
+\import Maps.Preimage[U := Total.whole, W := Open.whole, V := U, f := wholeMap] \as Preimage;
+\definition domain: Total.OpenSet := Preimage.domain;
+\definition map: Maps.Map domain U := Preimage.map;
+\definition intro[z: Fin.Fin dimension -> Real]: \In[Point] U.points (value z) -> \In[Fin.Fin dimension -> Real] domain.points z :=
+  \fun (inside: _) => Preimage.intro (\into[Fin.Fin dimension -> Real](z, Total.whole.points) \by { \refl(z) }) inside;
+\definition clock: TotalSmooth.SmoothFunction domain := Total.Projection[U := domain].function timeIndex;
+\definition displacement[i: Index]: TotalSmooth.SmoothFunction domain :=
+  \into[Total.ScalarFunction domain]((\fun (z: Total.Carrier domain) => Scalars.sub (z (Indices.left i)) (a i)),
+    { g: Total.ScalarFunction domain \where TotalSmooth.SmoothOn domain g }) \by {
+    Operations.subSmooth domain (\fun (z: Total.Carrier domain) => z (Indices.left i)) (\fun (z: Total.Carrier domain) => a i)
+      (Total.Examples[].projectionSmooth domain (Indices.left i)) (Operations.constantSmooth domain (a i))
+  };
+\definition displacementVector[z: Total.Carrier domain]: Point := \fun (i: Index) => displacement i z;
+\import Total.Analysis[] \as Analysis;
+\import Analysis.Operations[] \as Analytic;
+\import calculus.Real[].Derivative[].Prop[] \as Derivatives;
+\definition clockPartial: Analysis.HasPartialDerivative domain clock timeIndex (\fun (z: Total.Carrier domain) => Scalars.one) :=
+  \fun (z: Total.Carrier domain) => Analytic.sectionPartial domain clock z timeIndex (\fun (t: Real) => t) Scalars.one
+    (\refl(z timeIndex))
+    (\fun (t: Real)(y: Total.Carrier domain)(replaced: y = TotalCoordinates.replace z timeIndex t) =>
+      sym!{Real} _ _ (trans!{Real} _ _ _ (congr!{{Fin.Fin dimension -> Real} Real} (\fun (v: Fin.Fin dimension -> Real) => v timeIndex) _ _ replaced)
+        (TotalLaws.replaceSame z timeIndex t)))
+    (Derivatives.identityDerivative (z timeIndex));
+\definition displacementPartial: \forall (i: Index) -> Analysis.HasPartialDerivative domain (displacement i) timeIndex (\fun (z: Total.Carrier domain) => Scalars.zero) :=
+  \fun (i: Index)(z: Total.Carrier domain) => Analytic.sectionPartial domain (displacement i) z timeIndex (\fun (t: Real) => displacement i z) Scalars.zero
+    (\refl(displacement i z))
+    (\fun (t: Real)(y: Total.Carrier domain)(replaced: y = TotalCoordinates.replace z timeIndex t) =>
+      sym!{Real} _ _ (congr!{Real Real} (\fun (r: Real) => Scalars.sub r (a i)) _ _ (trans!{Real} _ _ _
+        (congr!{{Fin.Fin dimension -> Real} Real} (\fun (v: Fin.Fin dimension -> Real) => v (Indices.left i)) _ _ replaced)
+        (TotalLaws.replaceDifferent z timeIndex (Indices.left i) t
+          (\fun (same: timeIndex = Indices.left i) => Indices.different i One.index (sym!{{Fin.Fin dimension}} _ _ same))))))
+    (Derivatives.constantDerivative (displacement i z) (z timeIndex));
+\definition component[i: Index]: Total.ScalarFunction domain := \fun (z: Total.Carrier domain) => value z i;
+\definition componentPartial: \forall (i: Index) -> Analysis.HasPartialDerivative domain (component i) timeIndex (displacement i) :=
+  \fun (i: Index)(z: Total.Carrier domain) => \idelim
+    Scalars.add Scalars.zero (Scalars.add (Scalars.mul Scalars.one (displacement i z)) (Scalars.mul (clock z) Scalars.zero)) = displacement i z
+    \with d: Real => Analysis.HasPartialDerivativeAt domain (component i) timeIndex z d \by {
+      base: Analytic.addPartial domain (\fun (z: Total.Carrier domain) => a i) (Analytic.times domain clock (displacement i))
+        (\fun (z: Total.Carrier domain) => Scalars.zero) (Analytic.productDifferential domain clock (displacement i)
+          (\fun (z: Total.Carrier domain) => Scalars.one) (\fun (z: Total.Carrier domain) => Scalars.zero)) timeIndex
+        (Analytic.constantPartial domain (a i) timeIndex)
+        (Analysis.Product[U := domain, f := clock, g := displacement i, i := timeIndex].partial
+          (\fun (z: Total.Carrier domain) => Scalars.one) (\fun (z: Total.Carrier domain) => Scalars.zero) clockPartial (displacementPartial i)) z,
+      equality: eq_reason_in!{Real _
+        "=" _ "by" { Laws.addZeroLeft _ }
+        "=" _ "by" { congr!{Real Real Real} Scalars.add _ _ _ _ (Laws.fieldMulOneLeft (displacement i z)) (Laws.fieldMulZeroRight (clock z)) }
+        "=" _ "by" { Laws.addZeroRight (displacement i z) }
+      }
+    };
+\module At(z: Total.Carrier domain);
+\definition timeDifferential: \forall (z: Total.Carrier domain) ->
+  Maps.Differential[U := domain, V := U, f := map, a := z].value.apply (TotalCoordinates.basis timeIndex) = displacementVector z :=
+  \fun (z: Total.Carrier domain) => At[z := z].timeDifferential;
+\module Along(g: Smooth.SmoothFunction U);
+\module Second;

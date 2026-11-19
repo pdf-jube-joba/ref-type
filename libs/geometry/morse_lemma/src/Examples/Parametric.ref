@@ -1,0 +1,107 @@
+/* f(p,q)=(q-p^2)^2, whose critical point in each fiber is q=p^2. */
+\import calculus.Blocks[n := one, m := one] \as Split;
+\import Fin.Sum[m := one, n := one] \as Indices;
+\definition dimension: N.Nat^ := Split.dimension;
+\definition index: Fin.Fin one := Fin.zero N.Nat^::zero;
+\definition parameterIndex: Fin.Fin dimension := Indices.left index;
+\definition fiberIndex: Fin.Fin dimension := Indices.right index;
+\import calculus.Real[].Multivariable[n := dimension].Open[] \as Open;
+\import Open.Smooth[] \as Smooth;
+\import Smooth.Algebra[U := Open.whole] \as Functions;
+\import Smooth.Derivative[] \as Partials;
+\import Partials.Linear[U := Open.whole] \as D;
+\import Open.Projection[U := Open.whole] \as Projection;
+\definition p: Functions.Function := Projection.function parameterIndex;
+\definition q: Functions.Function := Projection.function fiberIndex;
+\import \parent.Square[n := dimension, U := Open.whole, g := p] \as ParameterSquare;
+\definition minusOne: R.Real := R.neg R.one;
+\definition negativeSquare: Functions.Function := Functions.scale minusOne ParameterSquare.function;
+\definition inner: Functions.Function := Functions.plus q negativeSquare;
+\import \parent.Square[n := dimension, U := Open.whole, g := inner] \as Squared;
+\definition function: Functions.Function := Squared.function;
+\definition point: Open.Carrier Open.whole := \into[Fin.Fin dimension -> R.Real]((\fun (i: Fin.Fin dimension) => R.zero), Open.whole.points) \by {
+  \refl(\fun (i: Fin.Fin dimension) => R.zero)
+};
+\definition negOneMul: \forall (a: R.Real) -> R.mul minusOne a = R.neg a := \fun (a: R.Real) =>
+  trans!{{R.Real}} _ _ _ (Laws.fieldMulNegLeft R.one a)
+    (congr!{{R.Real} {R.Real}} R.neg _ _ (Laws.fieldMulOneLeft a));
+\definition innerFormula: \forall (a: Open.Carrier Open.whole) -> inner a = R.sub (q a) (R.mul (p a) (p a)) :=
+  \fun (a: Open.Carrier Open.whole) => congr!{{R.Real} {R.Real}} (R.add (q a)) _ _ (negOneMul (R.mul (p a) (p a)));
+\definition innerZero: inner point = R.zero := trans!{{R.Real}} _ _ _ (innerFormula point)
+  (trans!{{R.Real}} _ _ _ (congr!{{R.Real} {R.Real}} (R.sub R.zero) _ _ (Laws.fieldMulZeroLeft R.zero)) (Laws.subSelf R.zero));
+\definition pDerivative: \forall (a: Open.Carrier Open.whole) -> Partials.derivative Open.whole p fiberIndex a = R.zero :=
+  \fun (a: Open.Carrier Open.whole) => trans!{{R.Real}} _ _ _
+    (congr!{{Functions.Function} {R.Real}} (\fun (h: Functions.Function) => h a) _ _ (Projection.partial parameterIndex fiberIndex)) (\refl(R.zero));
+\definition qDerivative: \forall (a: Open.Carrier Open.whole) -> Partials.derivative Open.whole q fiberIndex a = R.one :=
+  \fun (a: Open.Carrier Open.whole) => trans!{{R.Real}} _ _ _
+    (congr!{{Functions.Function} {R.Real}} (\fun (h: Functions.Function) => h a) _ _ (Projection.partial fiberIndex fiberIndex)) (\refl(R.one));
+\definition parameterSquareDerivative: \forall (a: Open.Carrier Open.whole) -> Partials.derivative Open.whole ParameterSquare.function fiberIndex a = R.zero :=
+  \fun (a: Open.Carrier Open.whole) => eq_reason_in!{{R.Real} _
+    "=" _ "by" { ParameterSquare.derivativeValue fiberIndex a }
+    "=" _ "by" { congr!{{R.Real} {R.Real}} (\fun (t: R.Real) => R.add (R.mul t (p a)) (R.mul (p a) t)) _ _ (pDerivative a) }
+    "=" _ "by" { congr!{{R.Real} {R.Real} {R.Real}} R.add _ _ _ _ (Laws.fieldMulZeroLeft (p a)) (Laws.fieldMulZeroRight (p a)) }
+    "=" _ "by" { Laws.addZeroLeft R.zero }
+  };
+\definition innerDerivative: \forall (a: Open.Carrier Open.whole) -> Partials.derivative Open.whole inner fiberIndex a = R.one :=
+  \fun (a: Open.Carrier Open.whole) => eq_reason_in!{{R.Real} _
+    "=" _ "by" { congr!{{Functions.Function} {R.Real}} (\fun (h: Functions.Function) => h a) _ _ (D.addition fiberIndex q negativeSquare) }
+    "=" _ "by" { congr!{{R.Real} {R.Real} {R.Real}} R.add _ _ _ _ (qDerivative a)
+      (congr!{{Functions.Function} {R.Real}} (\fun (h: Functions.Function) => h a) _ _ (D.scalar fiberIndex minusOne ParameterSquare.function)) }
+    "=" _ "by" { congr!{{R.Real} {R.Real}} (\fun (t: R.Real) => R.add R.one (R.mul minusOne t)) _ _ (parameterSquareDerivative a) }
+    "=" _ "by" { congr!{{R.Real} {R.Real}} (R.add R.one) _ _ (Laws.fieldMulZeroRight minusOne) }
+    "=" R.one "by" { Laws.addZeroRight R.one }
+  };
+\definition fiberDerivative: \forall (i: Fin.Fin one)(a: Open.Carrier Open.whole) -> Partials.derivative Open.whole inner (Indices.right i) a = R.one :=
+  \fun (i: Fin.Fin one)(a: Open.Carrier Open.whole) => trans!{{R.Real}} _ _ _
+    (congr!{{Fin.Fin one} {R.Real}} (\fun (j: Fin.Fin one) => Partials.derivative Open.whole inner (Indices.right j) a) _ _ (Fin.singletonValue i)) (innerDerivative a);
+\import \root.Parametric[p := one, n := one].Function[U := Open.whole, f := function] \as Morse;
+\definition critical: Morse.Critical point := \fun (i: Fin.Fin one) => Squared.derivativeAtZero (Indices.right i) point innerZero;
+\definition hessian: \forall (i, j: Fin.Fin one) -> Morse.At[a := point].entries i j = two :=
+  \fun (i, j: Fin.Fin one) => eq_reason_in!{{R.Real} _
+    "=" _ "by" { Morse.At[a := point].entriesValue i j }
+    "=" _ "by" { Squared.hessianAtZero (Indices.right i) (Indices.right j) point innerZero }
+    "=" _ "by" { congr!{{R.Real} {R.Real} {R.Real}} (\fun (a, b: R.Real) => R.add (R.mul a b) (R.mul a b)) _ _ _ _ (fiberDerivative i point) (fiberDerivative j point) }
+    "=" two "by" { congr!{{R.Real} {R.Real} {R.Real}} R.add _ _ _ _ (Laws.fieldMulOneLeft R.one) (Laws.fieldMulOneLeft R.one) }
+  };
+\definition nondegenerate: Morse.At[a := point].Nondegenerate := \parent.ScalarMatrix[].nonzero (Morse.At[a := point].entries) hessian;
+\definition branchExists: \exists Morse.CriticalBranch[point] := Morse.criticalBranchExists point nondegenerate critical;
+\definition derivativeFormula: \forall (a: Open.Carrier Open.whole) -> Partials.derivative Open.whole function fiberIndex a = R.add (inner a) (inner a) :=
+  \fun (a: Open.Carrier Open.whole) => eq_reason_in!{{R.Real} _
+    "=" _ "by" { Squared.derivativeValue fiberIndex a }
+    "=" _ "by" { congr!{{R.Real} {R.Real}} (\fun (t: R.Real) => R.add (R.mul t (inner a)) (R.mul (inner a) t)) _ _ (innerDerivative a) }
+    "=" _ "by" { congr!{{R.Real} {R.Real} {R.Real}} R.add _ _ _ _ (Laws.fieldMulOneLeft (inner a)) (Algebra.mulOneRight (inner a)) }
+  };
+\definition criticalEquation: \forall (a: Open.Carrier Open.whole) -> Morse.Critical a -> q a = R.mul (p a) (p a) := \block {
+  \fun (a: Open.Carrier Open.whole)(stationary: Morse.Critical a) \then
+  \let doubled: R.add (inner a) (inner a) = R.zero := trans!{{R.Real}} _ _ _ (sym!{{R.Real}} _ _ (derivativeFormula a)) (stationary index) \then
+  \let zero: inner a = R.zero := eq_reason_in!{{R.Real} _
+    "=" _ "by" { sym!{{R.Real}} _ _ (R.Estimates[].halfTwice (inner a)) }
+    "=" _ "by" { sym!{{R.Real}} _ _ (Laws.fieldMulAdd R.half (inner a) (inner a)) }
+    "=" _ "by" { congr!{{R.Real} {R.Real}} (R.mul R.half) _ _ doubled }
+    "=" R.zero "by" { Laws.fieldMulZeroRight R.half }
+  } \then
+  \return R.Distance[].subZeroEq (q a) (R.mul (p a) (p a))
+    (trans!{{R.Real}} _ _ _ (sym!{{R.Real}} _ _ (innerFormula a)) zero)
+};
+\import calculus.Real[].Multivariable[n := one].Open[] \as ParameterOpen;
+\import calculus.Maps[n := one, m := one] \as Branches;
+\import calculus.Maps[n := one, m := dimension] \as Graphs;
+\definition branchEquation: \forall (local: Morse.CriticalBranch[point])(t: ParameterOpen.Carrier local.parameters) ->
+  Branches.apply local.parameters ParameterOpen.whole local.branch t index = R.mul (t index) (t index) := \block {
+  \fun (local: Morse.CriticalBranch[point])(t: ParameterOpen.Carrier local.parameters) \then
+  \let branch: Fin.Fin one -> R.Real := Branches.apply local.parameters ParameterOpen.whole local.branch t \then
+  \let at: Open.Carrier Open.whole := Graphs.apply local.parameters Open.whole local.graph t \then
+  \let parameter: p at = t index := trans!{{R.Real}} _ _ _
+    (congr!{{Fin.Fin dimension -> R.Real} {R.Real}} (\fun (v: Fin.Fin dimension -> R.Real) => v parameterIndex) _ _ (local.graphFormula t))
+    (congr!{{Fin.Fin one -> R.Real} {R.Real}} (\fun (v: Fin.Fin one -> R.Real) => v index) _ _ (Split.leftJoin t branch)) \then
+  \let fiber: q at = branch index := trans!{{R.Real}} _ _ _
+    (congr!{{Fin.Fin dimension -> R.Real} {R.Real}} (\fun (v: Fin.Fin dimension -> R.Real) => v fiberIndex) _ _ (local.graphFormula t))
+    (congr!{{Fin.Fin one -> R.Real} {R.Real}} (\fun (v: Fin.Fin one -> R.Real) => v index) _ _ (Split.rightJoin t branch)) \then
+  \return eq_reason_in!{{R.Real} _
+    "=" _ "by" { sym!{{R.Real}} _ _ fiber }
+    "=" _ "by" { criticalEquation at (local.critical t) }
+    "=" _ "by" { congr!{{R.Real} {R.Real} {R.Real}} R.mul _ _ _ _ parameter parameter }
+  }
+};
+\import Morse.Morse[a := point] \as Coordinates;
+\definition normalFormExists: \exists Coordinates.Local := Coordinates.localExistence nondegenerate critical;

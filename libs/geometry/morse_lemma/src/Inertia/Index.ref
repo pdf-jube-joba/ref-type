@@ -1,0 +1,181 @@
+/* Sylvester's law via orthogonal projections and nonnegative traces. */
+\import linear_algebra.Real[].Dimension[] \as Dimension;
+\import Spaces.Laws[V := Vector, space := E.space] \as VectorLaws;
+\import End.Composition[U := Vector, domain := E.space] \as Compose;
+\import End.Operations[] \as Operations;
+\definition count: \forall (m: N.Nat^) -> (Fin.Fin m -> Bool.Bool^) -> N.Nat^ :=
+  \induction (m: N.Nat^) \return (Fin.Fin m -> Bool.Bool^) -> N.Nat^ \with {
+    | zero: \fun (s: Fin.Fin N.Nat^::zero -> Bool.Bool^) => N.Nat^::zero
+    | succ: \fun (m: N.Nat^)(previous: (Fin.Fin m -> Bool.Bool^) -> N.Nat^)(s: Fin.Fin (N.Nat^::succ m) -> Bool.Bool^) =>
+      Bool.ite N.Nat^ (s (Fin.zero m)) (N.Nat^::succ (previous (\fun (i: Fin.Fin m) => s (Fin.succ m i))))
+        (previous (\fun (i: Fin.Fin m) => s (Fin.succ m i)))
+  };
+\definition negative[s: Signs]: N.Nat^ := count n s;
+\definition opposite[s: Signs]: Signs := \fun (i: Fin.Fin n) => Bool.Neg.specification (s i);
+\definition positive[s: Signs]: N.Nat^ := negative (opposite s);
+\definition countTotal: \forall (m: N.Nat^)(s: Fin.Fin m -> Bool.Bool^) ->
+  N.Basic[].Def[].add (count m s) (count m (\fun (i: Fin.Fin m) => Bool.Neg.specification (s i))) = m :=
+  \induction (m: N.Nat^) \return \forall (s: Fin.Fin m -> Bool.Bool^) ->
+    N.Basic[].Def[].add (count m s) (count m (\fun (i: Fin.Fin m) => Bool.Neg.specification (s i))) = m \with {
+      | zero: \fun (s: Fin.Fin N.Nat^::zero -> Bool.Bool^) => \refl(N.Nat^::zero)
+      | succ: \fun (m: N.Nat^)(previous: _)(s: Fin.Fin (N.Nat^::succ m) -> Bool.Bool^) => Bool.cases
+        (\fun (b: Bool.Bool^) => N.Basic[].Def[].add
+          (Bool.ite N.Nat^ b (N.Nat^::succ (count m (\fun (i: Fin.Fin m) => s (Fin.succ m i)))) (count m (\fun (i: Fin.Fin m) => s (Fin.succ m i))))
+          (Bool.ite N.Nat^ (Bool.Neg.specification b)
+            (N.Nat^::succ (count m (\fun (i: Fin.Fin m) => Bool.Neg.specification (s (Fin.succ m i)))))
+            (count m (\fun (i: Fin.Fin m) => Bool.Neg.specification (s (Fin.succ m i))))) = N.Nat^::succ m)
+        (trans!{{N.Nat^}} _ _ _
+          (N.Basic[].Prop[].addSuccRight (count m (\fun (i: Fin.Fin m) => s (Fin.succ m i))) (count m (\fun (i: Fin.Fin m) => Bool.Neg.specification (s (Fin.succ m i)))))
+          (congr!{{N.Nat^} {N.Nat^}} N.Nat^::succ _ _ (previous (\fun (i: Fin.Fin m) => s (Fin.succ m i)))))
+        (trans!{{N.Nat^}} _ _ _
+          (N.Basic[].Prop[].addSuccLeft (count m (\fun (i: Fin.Fin m) => s (Fin.succ m i))) (count m (\fun (i: Fin.Fin m) => Bool.Neg.specification (s (Fin.succ m i)))))
+          (congr!{{N.Nat^} {N.Nat^}} N.Nat^::succ _ _ (previous (\fun (i: Fin.Fin m) => s (Fin.succ m i)))))
+        (s (Fin.zero m))
+    };
+\definition signatureDimension: \forall (s: Signs) -> N.Basic[].Def[].add (negative s) (positive s) = n := countTotal n;
+\definition indicator[b: Bool.Bool^]: R.Real := Bool.ite R.Real b R.one R.zero;
+\definition indicatorSquared: \forall (b: Bool.Bool^) -> R.mul (indicator b) (indicator b) = indicator b :=
+  Bool.cases (\fun (b: Bool.Bool^) => R.mul (indicator b) (indicator b) = indicator b)
+    (Arithmetic.fieldMulZeroLeft R.zero) (Arithmetic.fieldMulOneLeft R.one);
+\definition selected[s: Signs]: End.Map := End.Map {
+  apply := \fun (v: Vector)(i: Fin.Fin n) => R.mul (indicator (s i)) (v i),
+  preservesAdd := \fun (v, w: Vector) => \axiom:funext(
+    (\fun (i: Fin.Fin n) => R.mul (indicator (s i)) (R.add (v i) (w i))),
+    (\fun (i: Fin.Fin n) => R.add (R.mul (indicator (s i)) (v i)) (R.mul (indicator (s i)) (w i))),
+    \fun (i: Fin.Fin n) => Arithmetic.fieldMulAdd (indicator (s i)) (v i) (w i)),
+  preservesScale := \fun (a: R.Real)(v: Vector) => \axiom:funext(
+    (\fun (i: Fin.Fin n) => R.mul (indicator (s i)) (R.mul a (v i))),
+    (\fun (i: Fin.Fin n) => R.mul a (R.mul (indicator (s i)) (v i))),
+    \fun (i: Fin.Fin n) => Algebra.mulSwap (indicator (s i)) a (v i)),
+};
+\definition projection[s: Signs]: E.Projection := E.Projection {
+  map := selected s,
+  symmetric := \fun (v, w: Vector) => Sums.congruent n _ _ (\fun (i: Fin.Fin n) => eq_reason_in!{{R.Real} _
+    "=" _ "by" { Arithmetic.fieldMulAssoc (indicator (s i)) (v i) (w i) }
+    "=" _ "by" { Algebra.mulSwap (indicator (s i)) (v i) (w i) }
+  }),
+  idempotent := \fun (v: Vector) => \axiom:funext((selected s).apply ((selected s).apply v), (selected s).apply v,
+    \fun (i: Fin.Fin n) => eq_reason_in!{{R.Real} _
+      "=" _ "by" { sym!{{R.Real}} _ _ (Arithmetic.fieldMulAssoc (indicator (s i)) (indicator (s i)) (v i)) }
+      "=" _ "by" { congr!{{R.Real} {R.Real}} (\fun (a: R.Real) => R.mul a (v i)) _ _ (indicatorSquared (s i)) }
+    }),
+};
+\definition countSum: \forall (m: N.Nat^)(s: Fin.Fin m -> Bool.Bool^) ->
+  Sums.sum m (\fun (i: Fin.Fin m) => indicator (s i)) = Dimension.naturalScalar (count m s) :=
+  \induction (m: N.Nat^) \return \forall (s: Fin.Fin m -> Bool.Bool^) ->
+    Sums.sum m (\fun (i: Fin.Fin m) => indicator (s i)) = Dimension.naturalScalar (count m s) \with {
+      | zero: \fun (s: Fin.Fin N.Nat^::zero -> Bool.Bool^) => \refl(R.zero)
+      | succ: \fun (m: N.Nat^)(previous: _)(s: Fin.Fin (N.Nat^::succ m) -> Bool.Bool^) =>
+        Bool.cases (\fun (b: Bool.Bool^) => s (Fin.zero m) = b ->
+          Sums.sum (N.Nat^::succ m) (\fun (i: Fin.Fin (N.Nat^::succ m)) => indicator (s i)) =
+          Dimension.naturalScalar (count (N.Nat^::succ m) s))
+          (\fun (same: s (Fin.zero m) = Bool.Bool^::false) => \idelim Bool.Bool^::false = s (Fin.zero m)
+            \with b: Bool.Bool^ => R.add (indicator b) (Sums.sum m (\fun (i: Fin.Fin m) => indicator (s (Fin.succ m i)))) =
+              Dimension.naturalScalar (Bool.ite N.Nat^ b (N.Nat^::succ (count m (\fun (i: Fin.Fin m) => s (Fin.succ m i)))) (count m (\fun (i: Fin.Fin m) => s (Fin.succ m i)))) \by {
+                base: trans!{{R.Real}} _ _ _ (Arithmetic.addZeroLeft _) (previous (\fun (i: Fin.Fin m) => s (Fin.succ m i))),
+                equality: sym!{{Bool.Bool^}} _ _ same
+              })
+          (\fun (same: s (Fin.zero m) = Bool.Bool^::true) => \idelim Bool.Bool^::true = s (Fin.zero m)
+            \with b: Bool.Bool^ => R.add (indicator b) (Sums.sum m (\fun (i: Fin.Fin m) => indicator (s (Fin.succ m i)))) =
+              Dimension.naturalScalar (Bool.ite N.Nat^ b (N.Nat^::succ (count m (\fun (i: Fin.Fin m) => s (Fin.succ m i)))) (count m (\fun (i: Fin.Fin m) => s (Fin.succ m i)))) \by {
+                base: congr!{{R.Real} {R.Real}} (R.add R.one) _ _ (previous (\fun (i: Fin.Fin m) => s (Fin.succ m i))),
+                equality: sym!{{Bool.Bool^}} _ _ same
+              }) (s (Fin.zero m)) (\refl(s (Fin.zero m)))
+    };
+\definition rank: \forall (s: Signs) -> E.trace (projection s) = Dimension.naturalScalar (negative s) :=
+  \fun (s: Signs) => trans!{{R.Real}} _ _ _
+    (Sums.congruent n _ _ (\fun (i: Fin.Fin n) => trans!{{R.Real}} _ _ _
+      (congr!{{R.Real} {R.Real}} (R.mul (indicator (s i))) _ _ (E.basisDiagonal i)) (Algebra.mulOneRight (indicator (s i)))))
+    (countSum n s);
+\definition negativeFrameExists: \forall (s: Signs) -> \exists E.Resolution[].Frame (negative s) (projection s) :=
+  \fun (s: Signs) => E.Resolution[].exists (negative s) (projection s) (rank s);
+\module Selected(s: Signs);
+\module DimensionBound(k, l: N.Nat^);
+\definition Congruent[s, t: Signs][C: Isomorphism]: \Prop :=
+  \forall (v, w: Vector) -> standard t (C.forward.apply v) (C.forward.apply w) = standard s v w;
+\module Comparison(s, t: Signs, C: Isomorphism);
+\definition inverseCongruent: \forall (s, t: Signs)(C: Isomorphism) -> Congruent s t C -> Congruent t s (Isomorphisms.inverse C) :=
+  \fun (s, t: Signs)(C: Isomorphism)(congruent: Congruent s t C)(v, w: Vector) => eq_reason_in!{{R.Real} _
+    "=" _ "by" { sym!{{R.Real}} _ _ (congruent (C.backward.apply v) (C.backward.apply w)) }
+    "=" _ "by" { congr!{Vector Vector {R.Real}} (standard t) _ _ _ _ ((Isomorphisms.laws C).rightInverse v) ((Isomorphisms.laws C).rightInverse w) }
+  };
+\definition negativeInvariant: \forall (s, t: Signs)(C: Isomorphism) -> Congruent s t C -> negative s = negative t :=
+  \fun (s, t: Signs)(C: Isomorphism)(congruent: Congruent s t C) => Dimension.injective (negative s) (negative t)
+    (Ordered.leAntisym _ _ (Comparison[s := s, t := t, C := C].bound congruent)
+      (Comparison[s := t, t := s, C := Isomorphisms.inverse C].bound (inverseCongruent s t C congruent)));
+\definition oppositeCoefficient: \forall (b: Bool.Bool^) -> coefficient (Bool.Neg.specification b) = R.neg (coefficient b) :=
+  Bool.cases (\fun (b: Bool.Bool^) => coefficient (Bool.Neg.specification b) = R.neg (coefficient b))
+    (\refl(R.neg R.one)) (sym!{{R.Real}} _ _ (Arithmetic.negInvolutive R.one));
+\definition oppositeSigned: \forall (s: Signs)(v: Vector) -> (signed (opposite s)).apply v = E.space.neg ((signed s).apply v) :=
+  \fun (s: Signs)(v: Vector) => \axiom:funext((signed (opposite s)).apply v, E.space.neg ((signed s).apply v),
+    \fun (i: Fin.Fin n) => trans!{{R.Real}} _ _ _
+      (congr!{{R.Real} {R.Real}} (\fun (a: R.Real) => R.mul a (v i)) _ _ (oppositeCoefficient (s i)))
+      (Arithmetic.fieldMulNegLeft (coefficient (s i)) (v i)));
+\definition negativeDot: \forall (v, w: Vector) -> E.dot (E.space.neg v) w = R.neg (E.dot v w) :=
+  \fun (v, w: Vector) => eq_reason_in!{{R.Real} _
+    "=" _ "by" { congr!{Vector {R.Real}} (\fun (x: Vector) => E.dot x w) _ _ (sym!{Vector} _ _ (VectorLaws.minusOneScale v)) }
+    "=" _ "by" { E.form.scaleLeft (R.neg R.one) v w }
+    "=" _ "by" { Arithmetic.fieldMulNegLeft R.one (E.dot v w) }
+    "=" _ "by" { congr!{{R.Real} {R.Real}} R.neg _ _ (Arithmetic.fieldMulOneLeft (E.dot v w)) }
+  };
+\definition oppositeStandard: \forall (s: Signs)(v, w: Vector) -> standard (opposite s) v w = R.neg (standard s v w) :=
+  \fun (s: Signs)(v, w: Vector) => trans!{{R.Real}} _ _ _
+    (congr!{Vector {R.Real}} (\fun (x: Vector) => E.dot x w) _ _ (oppositeSigned s v)) (negativeDot ((signed s).apply v) w);
+\definition oppositeCongruent: \forall (s, t: Signs)(C: Isomorphism) -> Congruent s t C -> Congruent (opposite s) (opposite t) C :=
+  \fun (s, t: Signs)(C: Isomorphism)(congruent: Congruent s t C)(v, w: Vector) => eq_reason_in!{{R.Real} _
+    "=" _ "by" { oppositeStandard t (C.forward.apply v) (C.forward.apply w) }
+    "=" _ "by" { congr!{{R.Real} {R.Real}} R.neg _ _ (congruent v w) }
+    "=" _ "by" { sym!{{R.Real}} _ _ (oppositeStandard s v w) }
+  };
+\definition positiveInvariant: \forall (s, t: Signs)(C: Isomorphism) -> Congruent s t C -> positive s = positive t :=
+  \fun (s, t: Signs)(C: Isomorphism)(congruent: Congruent s t C) => negativeInvariant (opposite s) (opposite t) C (oppositeCongruent s t C congruent);
+\module Of(h: Form);
+\structure NonsingularLaws[h: Form]: \Prop := {
+  symmetric: Symmetric h,
+  nondegenerate: Nondegenerate h,
+};
+\definition NonsingularForm: \Set := \Cast[Form] ({ h: Form \where NonsingularLaws[h] });
+\module Classified(h: NonsingularForm);
+\definition negativeIndex[h: NonsingularForm]: N.Nat^ := Classified[h := h].negative;
+\definition positiveIndex[h: NonsingularForm]: N.Nat^ := Classified[h := h].positive;
+\definition negativeIndexOfNormal: \forall (h: NonsingularForm)(normal: NormalForm[h]) -> negativeIndex h = negative normal.sign :=
+  \fun (h: NonsingularForm)(normal: NormalForm[h]) => Of[h := h].negativeDetermined (negativeIndex h) (negative normal.sign)
+    Classified[h := h].negativeLaw
+    (Logic.existsIntro[NormalForm[h], { chosen: NormalForm[h] \where negative chosen.sign = negative normal.sign }] normal (\refl(negative normal.sign)));
+\definition positiveIndexOfNormal: \forall (h: NonsingularForm)(normal: NormalForm[h]) -> positiveIndex h = positive normal.sign :=
+  \fun (h: NonsingularForm)(normal: NormalForm[h]) => Of[h := h].positiveDetermined (positiveIndex h) (positive normal.sign)
+    Classified[h := h].positiveLaw
+    (Logic.existsIntro[NormalForm[h], { chosen: NormalForm[h] \where positive chosen.sign = positive normal.sign }] normal (\refl(positive normal.sign)));
+\definition indexDimension: \forall (h: NonsingularForm) -> N.Basic[].Def[].add (negativeIndex h) (positiveIndex h) = n := \block {
+  \fun (h: NonsingularForm) \then
+  \let laws: NonsingularLaws[h] := \bysub(Form, { h: Form \where NonsingularLaws[h] }, h) \then
+  \takefrom normal: NormalForm[h] \by normalFormExists h laws.symmetric laws.nondegenerate \then
+  \return trans!{{N.Nat^}} _ _ _
+    (congr!{{N.Nat^} {N.Nat^} {N.Nat^}} N.Basic[].Def[].add _ _ _ _ (negativeIndexOfNormal h normal) (positiveIndexOfNormal h normal))
+    (signatureDimension normal.sign)
+};
+\import Spaces.Eigen[V := Vector, space := E.space] \as Eigen;
+\definition identity: Isomorphism := Isomorphisms.Isomorphism {
+  forward := Eigen.identity, backward := Eigen.identity,
+  leftInverse := \fun (v: Vector) => \refl(v), rightInverse := \fun (v: Vector) => \refl(v),
+};
+\definition standardClassified[s: Signs]: NonsingularForm := \into[Form](standardForm s, NonsingularForm) \by {
+  NonsingularLaws[standardForm s] { symmetric := standardSymmetric s, nondegenerate := standardNondegenerate s }
+};
+\definition standardNormal[s: Signs]: NormalForm[standardForm s] := NormalForm[standardForm s] {
+  sign := s, change := identity, formula := \fun (v, w: Vector) => \refl(standard s v w),
+};
+\definition negativeIndexStandard: \forall (s: Signs) -> negativeIndex (standardClassified s) = negative s :=
+  \fun (s: Signs) => negativeIndexOfNormal (standardClassified s) (standardNormal s);
+\definition positiveIndexStandard: \forall (s: Signs) -> positiveIndex (standardClassified s) = positive s :=
+  \fun (s: Signs) => positiveIndexOfNormal (standardClassified s) (standardNormal s);
+\definition CongruentForms[h, g: Form][C: Isomorphism]: \Prop :=
+  \forall (v, w: Vector) -> g.form (C.forward.apply v) (C.forward.apply w) = h.form v w;
+\module FormComparison(h, g: Form, C: Isomorphism);
+\definition negativeIndexInvariant: \forall (h, g: NonsingularForm)(C: Isomorphism) -> CongruentForms h g C -> negativeIndex h = negativeIndex g :=
+  \fun (h, g: NonsingularForm)(C: Isomorphism)(congruent: CongruentForms h g C) => Of[h := g].negativeDetermined (negativeIndex h) (negativeIndex g)
+    (FormComparison[h := h, g := g, C := C].negative (negativeIndex h) congruent Classified[h := h].negativeLaw) Classified[h := g].negativeLaw;
+\definition positiveIndexInvariant: \forall (h, g: NonsingularForm)(C: Isomorphism) -> CongruentForms h g C -> positiveIndex h = positiveIndex g :=
+  \fun (h, g: NonsingularForm)(C: Isomorphism)(congruent: CongruentForms h g C) => Of[h := g].positiveDetermined (positiveIndex h) (positiveIndex g)
+    (FormComparison[h := h, g := g, C := C].positive (positiveIndex h) congruent Classified[h := h].positiveLaw) Classified[h := g].positiveLaw;
+\module Examples;

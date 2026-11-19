@@ -1,0 +1,39 @@
+\import calculus.Real[].Derivative[].Prop[] \as Derivatives;
+\definition clockPartial: Analysis.HasPartialDerivative domain clockFunction timeIndex (\fun (z: Total.Carrier domain) => R.one) :=
+  \fun (z: Total.Carrier domain) => Analytic.sectionPartial domain clockFunction z timeIndex (\fun (t: Real) => t) R.one
+    (\refl(z timeIndex))
+    (\fun (t: Real)(y: Total.Carrier domain)(same: y = TotalCoordinates.replace z timeIndex t) => sym!{Real} _ _
+      (trans!{Real} _ _ _ (congr!{{Fin.Fin totalDimension -> Real} Real} (\fun (v: Fin.Fin totalDimension -> Real) => v timeIndex) _ _ same) (TotalLaws.replaceSame z timeIndex t)))
+    (Derivatives.identityDerivative (z timeIndex));
+\definition startPartial: \forall (k: Fin.Fin dimension) -> Analysis.HasPartialDerivative domain (startFunction k) timeIndex (\fun (z: Total.Carrier domain) => R.zero) :=
+  \fun (k: Fin.Fin dimension)(z: Total.Carrier domain) => Analytic.sectionPartial domain (startFunction k) z timeIndex (\fun (t: Real) => startFunction k z) R.zero
+    (\refl(startFunction k z))
+    (\fun (t: Real)(y: Total.Carrier domain)(same: y = TotalCoordinates.replace z timeIndex t) => sym!{Real} _ _
+      (congr!{{Open.Carrier baseDomain} Real} (\fun (x: Open.Carrier baseDomain) => origin x k) _ _ (sameBase z y t same)))
+    (Derivatives.constantDerivative (startFunction k z) (z timeIndex));
+\definition shiftPartial: \forall (k: Fin.Fin dimension) -> Analysis.HasPartialDerivative domain (shiftFunction k) timeIndex (\fun (z: Total.Carrier domain) => R.zero) :=
+  \fun (k: Fin.Fin dimension)(z: Total.Carrier domain) => Analytic.sectionPartial domain (shiftFunction k) z timeIndex (\fun (t: Real) => shiftFunction k z) R.zero
+    (\refl(shiftFunction k z))
+    (\fun (t: Real)(y: Total.Carrier domain)(same: y = TotalCoordinates.replace z timeIndex t) => sym!{Real} _ _
+      (congr!{{Open.Carrier baseDomain} Real} (\fun (x: Open.Carrier baseDomain) => displacement x k) _ _ (sameBase z y t same)))
+    (Derivatives.constantDerivative (shiftFunction k z) (z timeIndex));
+\definition componentPartial: \forall (k: Fin.Fin dimension) -> Analysis.HasPartialDerivative domain
+  (\fun (z: Total.Carrier domain) => Homotopies.apply domain U map z k) timeIndex (shiftFunction k) :=
+  \fun (k: Fin.Fin dimension)(z: Total.Carrier domain) => \idelim
+    R.add R.zero (R.add (R.mul R.one (shiftFunction k z)) (R.mul (clockFunction z) R.zero)) = shiftFunction k z
+    \with e: Real => Analysis.HasPartialDerivativeAt domain (\fun (z: Total.Carrier domain) => Homotopies.apply domain U map z k) timeIndex z e \by {
+      base: Analytic.addPartial domain (startFunction k) (Analytic.times domain clockFunction (shiftFunction k))
+        (\fun (z: Total.Carrier domain) => R.zero)
+        (Analytic.productDifferential domain clockFunction (shiftFunction k) (\fun (z: Total.Carrier domain) => R.one) (\fun (z: Total.Carrier domain) => R.zero)) timeIndex
+        (startPartial k) (Analysis.Product[U := domain, f := clockFunction, g := shiftFunction k, i := timeIndex].partial
+          (\fun (z: Total.Carrier domain) => R.one) (\fun (z: Total.Carrier domain) => R.zero) clockPartial (shiftPartial k)) z,
+      equality: eq_reason_in!{Real _
+        "=" _ "by" { Laws.addZeroLeft _ }
+        "=" _ "by" { congr!{Real Real Real} R.add _ _ _ _ (Laws.fieldMulOneLeft (shiftFunction k z)) (Laws.fieldMulZeroRight (clockFunction z)) }
+        "=" _ "by" { Laws.addZeroRight (shiftFunction k z) }
+      }
+    };
+\module At(z: Total.Carrier domain);
+\definition timeDifferential: \forall (z: Total.Carrier domain) ->
+  Homotopies.Differential[U := domain, V := U, f := map, a := z].value.apply (TotalCoordinates.basis timeIndex) = pointValue z :=
+  \fun (z: Total.Carrier domain) => At[z := z].law;

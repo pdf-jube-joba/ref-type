@@ -1,0 +1,18 @@
+\definition Family: \Set := Open.Carrier U -> Matrices.Matrix;
+\definition Regular[A: Family]: \Prop := \forall (i, j: Fin.Fin n) -> Smooth.SmoothOn U (\fun (x: Open.Carrier U) => A x i j);
+\import linear_algebra.Euclidean[n := n] \as Fiber;
+\import matrix_invariants.Real[].At[n := n].Smooth[d := d] \as Comparison;
+\definition linearEntry: \forall (A: Matrices.Matrix)(i, j: Fin.Fin n) -> (Matrices.linear A).apply (Fiber.basis j) i = A i j :=
+  \fun (A: Matrices.Matrix)(i, j: Fin.Fin n) => trans!{{R.Real}} _ _ _
+    (congr!{{Fiber.Vector} {R.Real}} (\fun (v: Fiber.Vector) => (Matrices.linear A).apply v i) _ _ (Comparison.basisComparison j))
+    (congr!{{Fiber.Vector} {R.Real}} (\fun (v: Fiber.Vector) => v i) _ _ (Matrices.onBasis A j));
+\definition linearRegular: \forall (A: Family) -> Regular A -> calculus.MatrixFamily[d := d, p := n, q := n].Regular U (\fun (x: Open.Carrier U) => Matrices.linear (A x)) :=
+  \fun (A: Family)(regular: Regular A)(i, j: Fin.Fin n) =>
+    \idelim (\fun (x: Open.Carrier U) => A x i j) = (\fun (x: Open.Carrier U) => (Matrices.linear (A x)).apply (Fiber.basis j) i)
+      \with g: Open.ScalarFunction U => Smooth.SmoothOn U g \by {
+        base: regular i j,
+        equality: \axiom:funext((\fun (x: Open.Carrier U) => A x i j), (\fun (x: Open.Carrier U) => (Matrices.linear (A x)).apply (Fiber.basis j) i),
+          \fun (x: Open.Carrier U) => sym!{{R.Real}} _ _ (linearEntry (A x) i j))
+      };
+\module At(A: Family, a: Open.Carrier U);
+\module RegularDomain(A: Family, regular: Regular A);
