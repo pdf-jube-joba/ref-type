@@ -1,0 +1,65 @@
+\definition firstIntegral: Average.Function := \into[Time -> Real]((\fun (t: Time) => d t),
+  { h: Time -> Real \where Average.IsContinuous h }) \by { continuousD };
+\definition difference: Average.Function := Integrals.subtraction weighted firstIntegral;
+\definition remainder[t: Real]: Real := Scalars.mul (Scalars.sub Scalars.one t) (d t);
+\definition weight: Time -> Real := Weight.function;
+\definition continuous: Closed.IsContinuous remainder := TimeFunctions.Product[].continuous Average.topology
+  (\fun (t: Time) => Scalars.sub Scalars.one t) (\fun (t: Time) => d t)
+  (\idelim weight = (\fun (t: Time) => Scalars.sub Scalars.one t)
+    \with h: (Time -> Real) => Average.IsContinuous h \by {
+      base: \bysub(Time -> Real, { h: Time -> Real \where Average.IsContinuous h }, Weight.function),
+      equality: \axiom:funext(weight, (\fun (t: Time) => Scalars.sub Scalars.one t), Weight.formula)
+    }) continuousD;
+\definition derivative: Second -> \forall (t: Real) -> R.Lt Scalars.zero t -> R.Lt t Scalars.one ->
+  Derivative.HasDerivativeAt remainder t (Average.extend difference t) := \block {
+  \fun (second: Second)(t: Real)(lower: _)(upper: _) \then
+  \let s: Time := \into[Real](t, metric_spaces.RealLine[].ClosedInterval Scalars.zero Scalars.one) \by {
+    Logic.And[_, _]::# (Order.leOfLt _ _ lower) (Order.leOfLt _ _ upper)
+  } \then
+  \let weightDerivative: Derivative.HasDerivativeAt (\fun (r: Real) => Scalars.sub Scalars.one r) t (Scalars.neg Scalars.one) :=
+    \idelim Scalars.sub Scalars.zero Scalars.one = Scalars.neg Scalars.one \with q: Real =>
+      Derivative.HasDerivativeAt (\fun (r: Real) => Scalars.sub Scalars.one r) t q \by {
+        base: Derivatives.subDerivative (\fun (r: Real) => Scalars.one) (\fun (r: Real) => r) t Scalars.zero Scalars.one
+          (Basic.constantDerivative Scalars.one t) (Basic.identityDerivative t), equality: Laws.addZeroLeft (Scalars.neg Scalars.one)
+      } \then
+  \return \idelim Scalars.add (Scalars.mul (Scalars.neg Scalars.one) (d t))
+    (Scalars.mul (Scalars.sub Scalars.one t) (Average.extend e t)) = Average.extend difference t
+    \with q: Real => Derivative.HasDerivativeAt remainder t q \by {
+      base: ProductDerivative.derivative (\fun (r: Real) => Scalars.sub Scalars.one r) d t
+        (Scalars.neg Scalars.one) (Average.extend e t) weightDerivative (second t lower upper),
+      equality: eq_reason_in!{Real _
+        "=" _ "by" { congr!{Real Real Real} Scalars.add _ _ _ _
+          (trans!{Real} _ _ _ (Laws.fieldMulNegLeft Scalars.one (d t)) (congr!{Real Real} Scalars.neg _ _ (Laws.fieldMulOneLeft (d t))))
+          (congr!{Real Real} (Scalars.mul (Scalars.sub Scalars.one t)) _ _ (Average.extensionLaw e s)) }
+        "=" _ "by" { Laws.addComm (Scalars.neg (d t)) (Scalars.mul (Scalars.sub Scalars.one t) (e s)) }
+        "=" _ "by" { sym!{Real} _ _ (trans!{Real} _ _ _ (Integrals.subtractAt weighted firstIntegral s)
+          (congr!{Real Real} (\fun (q: Real) => Scalars.sub q (d t)) _ _
+            (congr!{Real Real} (\fun (q: Real) => Scalars.mul q (e s)) _ _ (Weight.formula s)))) }
+        "=" _ "by" { sym!{Real} _ _ (Average.extensionLaw difference s) }
+      }
+    }
+};
+\definition right: remainder Scalars.one = Scalars.zero := trans!{Real} _ _ _
+  (congr!{Real Real} (\fun (q: Real) => Scalars.mul q (d Scalars.one)) _ _ (Laws.subSelf Scalars.one)) (Laws.fieldMulZeroLeft (d Scalars.one));
+\definition left: remainder Scalars.zero = d Scalars.zero := trans!{Real} _ _ _
+  (congr!{Real Real} (\fun (q: Real) => Scalars.mul q (d Scalars.zero)) _ _ (Laws.subZeroRight Scalars.one)) (Laws.fieldMulOneLeft (d Scalars.zero));
+\definition weightedLaw: Second -> Average.value firstIntegral = Scalars.add (d Scalars.zero) (Average.value weighted) := \block {
+  \fun (second: Second) \then
+  \let identity: Scalars.zero = Scalars.add (d Scalars.zero) (Scalars.sub (Average.value weighted) (Average.value firstIntegral)) := eq_reason_in!{Real Scalars.zero
+    "=" _ "by" { sym!{Real} _ _ right }
+    "=" _ "by" { \parent.\parent.Fundamental[g := remainder, h := difference].law continuous (derivative second) }
+    "=" _ "by" { congr!{Real Real Real} Scalars.add _ _ _ _ left (Integrals.subLaw weighted firstIntegral) }
+  } \then
+  \return sym!{Real} _ _ (Distance.subZeroEq (Scalars.add (d Scalars.zero) (Average.value weighted)) (Average.value firstIntegral)
+    (trans!{Real} _ _ _ (Laws.addAssoc (d Scalars.zero) (Average.value weighted) (Scalars.neg (Average.value firstIntegral))) (sym!{Real} _ _ identity)))
+};
+\definition law: ContinuousG -> First -> Second ->
+  g Scalars.one = Scalars.add (g Scalars.zero) (Scalars.add (d Scalars.zero) (Average.value weighted)) :=
+  \fun (continuousG: ContinuousG)(first: First)(second: Second) => trans!{Real} _ _ _
+    (\parent.\parent.Fundamental[g := g, h := firstIntegral].law continuousG (\fun (t: Real)(lower: _)(upper: _) =>
+      \idelim d t = Average.extend firstIntegral t \with q: Real => Derivative.HasDerivativeAt g t q \by {
+        base: first t lower upper,
+        equality: sym!{Real} _ _ (Average.extensionLaw firstIntegral
+          (\into[Real](t, metric_spaces.RealLine[].ClosedInterval Scalars.zero Scalars.one) \by { Logic.And[_, _]::# (Order.leOfLt _ _ lower) (Order.leOfLt _ _ upper) }))
+      }))
+    (congr!{Real Real} (Scalars.add (g Scalars.zero)) _ _ (weightedLaw second));

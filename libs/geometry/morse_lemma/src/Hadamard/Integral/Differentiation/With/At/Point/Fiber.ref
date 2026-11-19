@@ -1,0 +1,53 @@
+\import Analysis.Section[U := U, f := g t, a := b, i := i] \as Section;
+\import Section.Interval[left := b i, right := z] \as Forward;
+\import Section.Interval[left := z, right := b i] \as Backward;
+\definition forwardContains: Forward.Contains := \fun (s: Forward.Closed) => contains s
+  (R.leTrans _ (b i) s (Distance.minLeft (b i) z) (\bysub(Real, Line.ClosedInterval (b i) z, s)).left)
+  (R.leTrans s z _ (\bysub(Real, Line.ClosedInterval (b i) z, s)).right (Distance.maxRight (b i) z));
+\definition backwardContains: Backward.Contains := \fun (s: Backward.Closed) => contains s
+  (R.leTrans _ z s (Distance.minRight (b i) z) (\bysub(Real, Line.ClosedInterval z (b i), s)).left)
+  (R.leTrans s (b i) _ (\bysub(Real, Line.ClosedInterval z (b i), s)).right (Distance.maxLeft (b i) z));
+\definition bounded: \forall (s: Real)(y: Open.Carrier U) -> Lower s -> Upper s -> y = Coordinates.replace b i s ->
+  R.Le (Scalars.distance (h t y) (h t b)) epsilon :=
+  \fun (s: Real)(y: Open.Carrier U)(lower: _)(upper: _)(same: _) => Order.leOfLt _ _ (uniform.estimate y t
+    (R.leLtTrans _ _ delta (R.leReplaceLeft (Coordinates.pointDistance (Coordinates.replace b i s) b) (Coordinates.pointDistance y b) _
+      (sym!{Real} _ _ (congr!{Point Real} (\fun (p: Point) => Coordinates.pointDistance p b) _ _ same))
+      (R.leReplaceLeft (Scalars.distance s (b i)) (Coordinates.pointDistance (Coordinates.replace b i s) b) _
+        (sym!{Real} _ _ (SpaceLaws.replaceDistance b i s)) (distanceBound s lower upper)))
+      (R.ltLeTrans _ radius delta near (Distance.minLeft delta rho))));
+\definition forwardBound: \forall (s: Forward.Closed) -> R.Le (Scalars.distance (Forward.coefficient (h t) s) (h t b)) epsilon :=
+  \fun (s: Forward.Closed) => R.leReplaceLeft (Scalars.distance (h t (Forward.point s forwardContains)) (h t b))
+    (Scalars.distance (Forward.coefficient (h t) s) (h t b)) epsilon
+    (sym!{Real} _ _ (congr!{Real Real} (\fun (r: Real) => Scalars.distance r (h t b)) _ _ (Forward.coefficientValue (h t) s forwardContains)))
+    (bounded s (Forward.point s forwardContains)
+      (R.leTrans _ (b i) s (Distance.minLeft (b i) z) (\bysub(Real, Line.ClosedInterval (b i) z, s)).left)
+      (R.leTrans s z _ (\bysub(Real, Line.ClosedInterval (b i) z, s)).right (Distance.maxRight (b i) z))
+      (\refl(Coordinates.replace b i s)));
+\definition backwardBound: \forall (s: Backward.Closed) -> R.Le (Scalars.distance (Backward.coefficient (h t) s) (h t b)) epsilon :=
+  \fun (s: Backward.Closed) => R.leReplaceLeft (Scalars.distance (h t (Backward.point s backwardContains)) (h t b))
+    (Scalars.distance (Backward.coefficient (h t) s) (h t b)) epsilon
+    (sym!{Real} _ _ (congr!{Real Real} (\fun (r: Real) => Scalars.distance r (h t b)) _ _ (Backward.coefficientValue (h t) s backwardContains)))
+    (bounded s (Backward.point s backwardContains)
+      (R.leTrans _ z s (Distance.minRight (b i) z) (\bysub(Real, Line.ClosedInterval z (b i), s)).left)
+      (R.leTrans s (b i) _ (\bysub(Real, Line.ClosedInterval z (b i), s)).right (Distance.maxLeft (b i) z))
+      (\refl(Coordinates.replace b i s)));
+\use Logic.either;
+\definition slopeBound: PartialLaw -> R.Le (Scalars.distance (Scalars.mul (Scalars.sub (g t x) (g t b)) (Laws.fieldInv (Scalars.sub z (b i)))) (h t b)) epsilon := \block {
+  \fun (partials: PartialLaw) \then
+  \let forward: R.Lt (b i) z -> R.Le (Scalars.distance (Derivatives.slope Section.value (b i) z) (h t b)) epsilon :=
+    \fun (ordered: _) => \parent.\parent.\parent.\parent.\parent.Secant[g := Section.value, d := Forward.coefficient (h t), l := b i, r := z, c := h t b, epsilon := epsilon].estimate
+      ordered (Forward.derivative (h t) forwardContains (partials t)) forwardBound \then
+  \let backward: R.Lt z (b i) -> R.Le (Scalars.distance (Derivatives.slope Section.value (b i) z) (h t b)) epsilon :=
+    \fun (ordered: _) => R.leReplaceLeft (Scalars.distance (Derivatives.slope Section.value z (b i)) (h t b))
+      (Scalars.distance (Derivatives.slope Section.value (b i) z) (h t b)) epsilon
+      (congr!{Real Real} (\fun (r: Real) => Scalars.distance r (h t b)) _ _ (sym!{Real} _ _ (reverseSlope Section.value z (b i) (\fun (same: b i = z) => different (sym!{Real} _ _ same)))))
+      (\parent.\parent.\parent.\parent.\parent.Secant[g := Section.value, d := Backward.coefficient (h t), l := z, r := b i, c := h t b, epsilon := epsilon].estimate
+        ordered (Backward.derivative (h t) backwardContains (partials t)) backwardBound) \then
+  \return R.leReplaceLeft (Scalars.distance (Derivatives.slope Section.value (b i) z) (h t b))
+    (Scalars.distance (Scalars.mul (Scalars.sub (g t x) (g t b)) (Laws.fieldInv (Scalars.sub z (b i)))) (h t b)) epsilon
+    (congr!{Real Real} (\fun (r: Real) => Scalars.distance r (h t b)) _ _ (Section.slopeAgreement z x replaced))
+    (either!{{(Order.ltTrichotomy (b i) z)} {R.Le (Scalars.distance (Derivatives.slope Section.value (b i) z) (h t b)) epsilon}
+      {forward}
+      {\fun (other: Logic.Or[b i = z, R.Lt z (b i)]) => either!{other {R.Le (Scalars.distance (Derivatives.slope Section.value (b i) z) (h t b)) epsilon}
+        {\fun (same: b i = z) => Logic.falseElim _ (different (sym!{Real} _ _ same))} {backward}}}})
+};

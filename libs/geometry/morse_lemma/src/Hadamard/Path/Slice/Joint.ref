@@ -1,0 +1,51 @@
+/* The spatial derivatives remain jointly continuous up to both time endpoints. */
+\import Open.Topology[].Of[U := W] \as Spatial;
+\definition X: \Set := Open.Carrier W;
+\import topological_constructions.Product[A := X, B := Time] \as Products;
+\import std.Data[].Pair[] \as Pair;
+\definition Domain: \Set := Products.CarrierSet;
+\definition topology: topology.Topology[Carrier := Domain].Topology := Products.topology Spatial.topology Integral.topology;
+\definition join[p: Domain]: Total.Carrier Z := point (Pair.first X Time p) (Pair.second X Time p);
+\import Space.Topology[] \as SpatialTopology;
+\import topological_algebra.Euclidean[].Dimension[n := dimension].Topology[] \as Ambient;
+\import topology.Continuity[A := Domain, B := Point] \as PointMaps;
+\import topology.Continuity[A := Real, B := Real].Corestriction[S := metric_spaces.RealLine[].ClosedInterval Scalars.zero Scalars.one] \as TimeInclusion;
+\import topology.Composition[A := Domain, B := X, C := Point] \as SpatialComposition;
+\definition spatialContinuous: PointMaps.Continuous topology SpatialTopology.topology (\fun (p: Domain) => Pair.first X Time p) :=
+  SpatialComposition.composeContinuous topology Spatial.topology SpatialTopology.topology
+    (Pair.first X Time) (\fun (x: X) => x) (Products.Maps[].firstContinuous Spatial.topology Integral.topology)
+    (topology.Continuity[A := Point, B := Point].Corestriction[S := W.points].inclusionContinuous SpatialTopology.topology);
+\import metric_spaces.RealLine[] \as Line;
+\definition timeContinuous: topology.Continuity[A := Domain, B := Real].Continuous topology Line.topology (\fun (p: Domain) => Pair.second X Time p) :=
+  topology.Composition[A := Domain, B := Time, C := Real].composeContinuous topology Integral.topology Line.topology
+    (Pair.second X Time) (\fun (t: Time) => t) (Products.Maps[].secondContinuous Spatial.topology Integral.topology)
+    (TimeInclusion.inclusionContinuous Line.topology);
+\import topological_algebra.Coordinates[K := Real, I := Fin.Fin dimension].Universal[A := Domain] \as Universal;
+\import metric_spaces.RealFunctions[A := Domain] \as Functions;
+\definition spatialComponent: \forall (i: Index) -> Functions.Continuous topology (\fun (p: Domain) => Pair.first X Time p i) :=
+  \fun (i: Index) => topology.Composition[A := Domain, B := Point, C := Real].composeContinuous topology SpatialTopology.topology Line.topology
+    (\fun (p: Domain) => Pair.first X Time p) (\fun (x: Point) => x i) spatialContinuous (SpatialTopology.coordinateContinuous i);
+\definition component: \forall (k: Fin.Fin dimension) -> Functions.Continuous topology (\fun (p: Domain) => join p k) :=
+  \fun (k: Fin.Fin dimension) =>
+    (\induction (s: Indices.Index) \return Functions.Continuous topology
+      (\fun (p: Domain) => Fin.Sum[m := n, n := One.dimension].Tuples[A := Real].evaluate (Pair.first X Time p) (time (Pair.second X Time p)) s) \with {
+      | inl: \fun (i: Index) => spatialComponent i
+      | inr: \fun (i: One.Index) => timeContinuous
+    }) (Indices.split k);
+\definition ambientContinuous: topology.Continuity[A := Domain, B := Fin.Fin dimension -> Real].Continuous topology Ambient.topology (\fun (p: Domain) => join p) :=
+  \fun (V: \Pow (Fin.Fin dimension -> Real))(open: _) => Universal.continuous topology Line.topology (\fun (p: Domain) => join p) component V (Ambient.metricOpen V open);
+\import Total.Topology[].Of[U := Z] \as Target;
+\definition continuous: topology.Continuity[A := Domain, B := Total.Carrier Z].Continuous topology Target.topology join :=
+  topology.Continuity[A := Domain, B := Fin.Fin dimension -> Real].Corestriction[S := Z.points].corestrictContinuous topology Ambient.topology join ambientContinuous;
+\definition joint: \forall (directions: Smooth.Directions) -> Integral.Family[g := jet directions].JointContinuous :=
+  \fun (directions: Smooth.Directions) => topology.Composition[A := Domain, B := Total.Carrier Z, C := Real].composeContinuous topology Target.topology Line.topology
+    join (iterated directions) continuous
+    (Target.Continuity[].topological (iterated directions) (TotalSmooth.Properties[].continuous Z (iterated directions)
+      (\bysub(Total.ScalarFunction Z, { h: Total.ScalarFunction Z \where TotalSmooth.SmoothOn Z h }, iterated directions))));
+\definition kernel: Integral.SmoothKernel[].Kernel := Integral.SmoothKernel[].Kernel {
+  jet := jet, joint := joint, partial := partial,
+};
+\definition average: Smooth.SmoothFunction W := Integral.SmoothKernel[].Of[kernel := kernel].average;
+\definition section[x: Open.Carrier W]: Integral.Function :=
+  Integral.Family[g := jet Smooth.Directions::nil].With[continuous := joint Smooth.Directions::nil].section x;
+\definition formula: \forall (x: Open.Carrier W) -> average x = Integral.value (section x) := \fun (x: Open.Carrier W) => \refl(Integral.value (section x));

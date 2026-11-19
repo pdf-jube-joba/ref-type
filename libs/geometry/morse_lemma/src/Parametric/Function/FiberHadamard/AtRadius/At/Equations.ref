@@ -1,0 +1,46 @@
+\import SecondSlice.Joint[] \as SecondJoint;
+\import Paths.Taylor[g := Curve.value, d := Speed.value, e := SecondJoint.section x] \as Taylor;
+\import calculus.Real[].Derivative[].Def[] \as Derivative;
+\definition first: Taylor.First := \fun (t: Real)(lower: D.Lt R.zero t)(upper: D.Lt t R.one) => \block {
+  \let time: Paths.Time := \into[Real](t, metric_spaces.RealLine[].ClosedInterval R.zero R.one) \by {
+    Logic.And[_, _]::# (Order.leOfLt _ _ lower) (Order.leOfLt _ _ upper)
+  } \then
+  \return \idelim First.speed (point time) = Speed.value t \with d: Real => Derivative.HasDerivativeAt Curve.value t d \by {
+    base: Curve.derivative First.speed First.timePartial time,
+    equality: sym!{Real} _ _ (Speed.agreement time)
+  }
+};
+\definition second: Taylor.Second := \fun (t: Real)(lower: D.Lt R.zero t)(upper: D.Lt t R.one) => \block {
+  \let time: Paths.Time := \into[Real](t, metric_spaces.RealLine[].ClosedInterval R.zero R.one) \by {
+    Logic.And[_, _]::# (Order.leOfLt _ _ lower) (Order.leOfLt _ _ upper)
+  } \then
+  \return \idelim Second.value (point time) = Average.extend (SecondJoint.section x) t
+    \with d: Real => Derivative.HasDerivativeAt Speed.value t d \by {
+      base: Speed.derivative Second.value Second.partial time,
+      equality: sym!{Real} _ _ (Average.extensionLaw (SecondJoint.section x) time)
+    }
+};
+\definition initial: Curve.value R.zero = f (Base.origin (basePoint x)) := trans!{Real} _ _ _ (Curve.agreement zeroTime)
+  (congr!{{Open.Carrier U} Real} f (HomotopyMaps.apply Homotopy.domain U Homotopy.map (point zeroTime)) (Base.origin (basePoint x)) atZero);
+\definition final: Curve.value R.one = f (Open.inclusion domain U included x) := trans!{Real} _ _ _ (Curve.agreement oneTime)
+  (congr!{{Open.Carrier U} Real} f (HomotopyMaps.apply Homotopy.domain U Homotopy.map (point oneTime)) (Open.inclusion domain U included x) atOne);
+\definition initialSpeed: Speed.value R.zero = R.zero := \block {
+  \let vanishes: \forall (i: Index) -> First.term i (point zeroTime) = R.zero := \fun (i: Index) => \block {
+    \let coefficient: First.coefficient i (point zeroTime) = R.zero := trans!{Real} _ _ _
+      (congr!{{Open.Carrier U} Real} (Partials.derivative U f (Indices.right i))
+        (HomotopyMaps.apply Homotopy.domain U Homotopy.map (point zeroTime)) (Base.origin (basePoint x)) atZero)
+      (Base.critical (basePoint x) i) \then
+    \return trans!{Real} _ _ _
+      (congr!{Real Real} (\fun (v: Real) => R.mul v (Homotopy.shiftFunction (Indices.right i) (point zeroTime)))
+        (First.coefficient i (point zeroTime)) R.zero coefficient)
+      (Laws.fieldMulZeroLeft (Homotopy.shiftFunction (Indices.right i) (point zeroTime)))
+  } \then
+  \return trans!{Real} _ _ _ (Speed.agreement zeroTime)
+    (trans!{Real} _ _ _ (Sums.congruent n (\fun (i: Index) => First.term i (point zeroTime)) (\fun (i: Index) => R.zero) vanishes) (Sums.zeroSum n))
+};
+\definition law: f (Open.inclusion domain U included x) = R.add (f (Base.origin (basePoint x))) (Average.value Taylor.weighted) := eq_reason_in!{Real _
+  "=" _ "by" { sym!{Real} _ _ final }
+  "=" _ "by" { Taylor.law Curve.continuous Speed.continuous first second }
+  "=" _ "by" { congr!{Real Real Real} R.add _ _ _ _ initial (congr!{Real Real} (\fun (r: Real) => R.add r (Average.value Taylor.weighted)) _ _ initialSpeed) }
+  "=" _ "by" { congr!{Real Real} (R.add (f (Base.origin (basePoint x)))) _ _ (Laws.addZeroLeft (Average.value Taylor.weighted)) }
+};

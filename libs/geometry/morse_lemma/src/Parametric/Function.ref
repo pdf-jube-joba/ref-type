@@ -1,0 +1,74 @@
+\definition derivative[i: Fin.Fin n]: Smooth.SmoothFunction U := Partials.derivative U f (Indices.right i);
+\definition gradient[x: Open.Carrier U]: Vector := \fun (i: Fin.Fin n) => derivative i x;
+\definition Critical[x: Open.Carrier U]: \Prop := \forall (i: Fin.Fin n) -> derivative i x = R.zero;
+\definition criticalIffGradientZero: \forall (x: Open.Carrier U) -> Logic.PropEquiv[Critical x, gradient x = zero] :=
+  \fun (x: Open.Carrier U) => Logic.PropEquiv[_, _] {
+    ltr := \fun (critical: Critical x) => \axiom:funext(gradient x, zero, critical),
+    rtl := \fun (equal: gradient x = zero)(i: Fin.Fin n) => congr!{Vector {R.Real}} (\fun (v: Vector) => v i) _ _ equal,
+  };
+\definition gradientRegular: \forall (i: Fin.Fin n) -> Smooth.SmoothOn U (\fun (x: Open.Carrier U) => gradient x i) :=
+  \fun (i: Fin.Fin n) => \idelim Partials.partial U f (Indices.right i) = (\fun (x: Open.Carrier U) => gradient x i)
+    \with g: Open.ScalarFunction U => Smooth.SmoothOn U g \by {
+      base: Partials.partialSmooth U f (Indices.right i),
+      equality: \axiom:funext(Partials.partial U f (Indices.right i), (\fun (x: Open.Carrier U) => gradient x i), \fun (x: Open.Carrier U) => \refl(gradient x i))
+    };
+\definition gradientMap: Gradients.Map U Fibers.whole :=
+  \into[Gradients.Data[U, Fibers.whole]](Gradients.Data[U, Fibers.whole] {
+    apply := \fun (x: Open.Carrier U) => \into[Vector](gradient x, Fibers.whole.points) \by { \refl(gradient x) },
+  }, { data: Gradients.Data[U, Fibers.whole] \where Gradients.Laws[U, Fibers.whole, data] }) \by {
+    Gradients.Laws[U, Fibers.whole, Gradients.Data[U, Fibers.whole]::#
+      (\fun (x: Open.Carrier U) => \into[Vector](gradient x, Fibers.whole.points) \by { \refl(gradient x) })] {
+      smooth := gradientRegular,
+    }
+  };
+\definition hessianEntry[x: Open.Carrier U][i, j: Fin.Fin n]: R.Real := Partials.derivative U (derivative i) (Indices.right j) x;
+\definition hessianSymmetric: \forall (x: Open.Carrier U)(i, j: Fin.Fin n) -> hessianEntry x i j = hessianEntry x j i :=
+  \fun (x: Open.Carrier U)(i, j: Fin.Fin n) => Smooth.Schwarz[U := U, f := f, a := x, i := Indices.right j, j := Indices.right i].Commutation[].law;
+\structure CriticalBranch[a: Open.Carrier U]: \Set := {
+  parameters: Parameters.OpenSet,
+  containsParameters: \In[Parameter] parameters.points (Split.left a),
+  neighborhood: Open.OpenSet,
+  included: Open.Included neighborhood U,
+  contains: \In[Point] neighborhood.points a,
+  branch: Branches.Map parameters Fibers.whole,
+  graph: Graphs.Map parameters U,
+  graphFormula: \forall (t: Parameters.Carrier parameters) -> Graphs.apply parameters U graph t =
+    Split.join t (Branches.apply parameters Fibers.whole branch t),
+  graphInside: \forall (t: Parameters.Carrier parameters) -> \In[Point] neighborhood.points (Graphs.apply parameters U graph t),
+  critical: \forall (t: Parameters.Carrier parameters) -> Critical (Graphs.apply parameters U graph t),
+  atBase: \forall (t: Parameters.Carrier parameters) -> t = Split.left a -> Graphs.apply parameters U graph t = a,
+  unique: \forall (x: Open.Carrier neighborhood)(t: Parameters.Carrier parameters) -> Split.left x = t ->
+    Critical (Open.inclusion neighborhood U included x) -> x = Graphs.apply parameters U graph t,
+};
+\module At(a: Open.Carrier U);
+\definition hessian[x: Open.Carrier U]: calculus.Vector[n := n, m := n].LinearMap := At[a := x].hessian;
+\import matrix_invariants.Ring[K := R.Real,
+  scalars := std.Alg[].Field[].fieldAsCommutativeRing R.Real R.Algebra[].field].At[n := n] \as Matrix;
+\definition hessianEntries[x: Open.Carrier U]: Matrix.Matrix := At[a := x].entries;
+\definition Nondegenerate[x: Open.Carrier U]: \Prop := At[a := x].Nondegenerate;
+\definition hessianEntriesRegular: \forall (i, j: Fin.Fin n) -> Smooth.SmoothOn U (\fun (x: Open.Carrier U) => hessianEntries x i j) :=
+  \fun (i, j: Fin.Fin n) => \idelim Partials.partial U (derivative i) (Indices.right j) = (\fun (x: Open.Carrier U) => hessianEntries x i j)
+    \with g: Open.ScalarFunction U => Smooth.SmoothOn U g \by {
+      base: Partials.partialSmooth U (derivative i) (Indices.right j),
+      equality: \axiom:funext(Partials.partial U (derivative i) (Indices.right j), (\fun (x: Open.Carrier U) => hessianEntries x i j),
+        \fun (x: Open.Carrier U) => sym!{{R.Real}} _ _ (At[a := x].entriesValue i j))
+    };
+\import \root.MatrixForm[n := n] \as MatrixForms;
+\import linear_algebra.Euclidean[n := n] \as FiberSpace;
+\import linear_algebra.Commutative[K := R.Real,
+  scalarRing := std.Alg[].Field[].fieldAsCommutativeRing R.Real R.Algebra[].field].Form[V := Vector, space := FiberSpace.space] \as Forms;
+\definition hessianForm[x: Open.Carrier U]: Forms.Bilinear := MatrixForms.form (hessianEntries x);
+\definition hessianFormSymmetric: \forall (x: Open.Carrier U) -> Forms.Symmetric (hessianForm x) :=
+  \fun (x: Open.Carrier U) => MatrixForms.symmetric (hessianEntries x) (\fun (i, j: Fin.Fin n) => eq_reason_in!{{R.Real} _
+    "=" _ "by" { At[a := x].entriesValue i j }
+    "=" _ "by" { hessianSymmetric x i j }
+    "=" _ "by" { sym!{{R.Real}} _ _ (At[a := x].entriesValue j i) }
+  });
+\definition hessianFormNondegenerate: \forall (x: Open.Carrier U) -> Nondegenerate x -> Forms.Nondegenerate (hessianForm x) :=
+  \fun (x: Open.Carrier U) => MatrixForms.nondegenerate (hessianEntries x);
+\definition criticalBranchExists: \forall (a: Open.Carrier U) -> At[a := a].Nondegenerate -> Critical a -> \exists CriticalBranch[a] :=
+  \fun (a: Open.Carrier U) => At[a := a].criticalBranchExists;
+\module FiberHadamard(a: Open.Carrier U, branch: CriticalBranch[a]);
+\module FiberCoordinates(a: Open.Carrier U, branch: CriticalBranch[a]);
+\module Morse(a: Open.Carrier U);
+\module Indices(a: Open.Carrier U);

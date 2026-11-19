@@ -1,0 +1,44 @@
+\import Maps.Differential[U := U, V := Target.whole, f := v, a := a] \as Input;
+\import Maps.Differential[U := U, V := Target.whole, f := map, a := a] \as Output;
+\import Smooth.Algebra[U := U] \as Functions;
+\import Differential.Operations[U := U] \as DifferentialOperations;
+\import \parent.\parent.FiniteSum[U := U] \as SumDifferential;
+\definition valueZero: v.apply a = E.space.zero -> map.apply a = E.space.zero :=
+  \fun (zero: v.apply a = E.space.zero) => trans!{{E.Vector}} _ _ _
+    (congr!{{E.Vector} {E.Vector}} (A a).apply _ _ zero) (A a).preservesZero;
+\definition coefficient[i, j: Fin.Fin n]: Functions.Function :=
+  \into[Open.ScalarFunction U]((\fun (x: Open.Carrier U) => (A x).apply (E.basis j) i),
+    { g: Open.ScalarFunction U \where Smooth.SmoothOn U g }) \by { regular i j };
+\definition term[i, j: Fin.Fin n]: Functions.Function := Functions.product (Input.component j) (coefficient i j);
+\definition coordinateSum: \forall (i: Fin.Fin n) -> Output.component i = SumDifferential.function n (term i) :=
+  \fun (i: Fin.Fin n) => Functions.ext (Output.component i) (SumDifferential.function n (term i))
+    (\fun (x: Open.Carrier U) => congr!{{Open.ScalarFunction U} {R.Real}} (\fun (f: Open.ScalarFunction U) => f x) _ _ (Action.formula i));
+\definition termDifferential: v.apply a = E.space.zero -> \forall (i, j: Fin.Fin n)(z: Domain.Vector) ->
+  (Differential.value U (term i j) a).apply z = R.mul ((A a).apply (E.basis j) i) (Input.value.apply z j) :=
+  \fun (zero: v.apply a = E.space.zero)(i, j: Fin.Fin n)(z: Domain.Vector) => eq_reason_in!{{R.Real} _
+    "=" _ "by" { DifferentialOperations.product (Input.component j) (coefficient i j) a z }
+    "=" _ "by" { congr!{{R.Real} {R.Real}} (R.add (R.mul ((A a).apply (E.basis j) i) (Input.value.apply z j))) _ _
+      (trans!{{R.Real}} _ _ _ (congr!{{R.Real} {R.Real}} (\fun (r: R.Real) => R.mul r ((Differential.value U (coefficient i j) a).apply z)) _ _
+        (congr!{{E.Vector} {R.Real}} (\fun (w: E.Vector) => w j) _ _ zero))
+        (Arithmetic.fieldMulZeroLeft ((Differential.value U (coefficient i j) a).apply z))) }
+    "=" _ "by" { Arithmetic.addZeroRight (R.mul ((A a).apply (E.basis j) i) (Input.value.apply z j)) }
+  };
+\definition componentDifferential: v.apply a = E.space.zero -> \forall (z: Domain.Vector)(i: Fin.Fin n) ->
+  Output.value.apply z i = (A a).apply (Input.value.apply z) i :=
+  \fun (zero: v.apply a = E.space.zero)(z: Domain.Vector)(i: Fin.Fin n) => eq_reason_in!{{R.Real} _
+    "=" _ "by" { congr!{{Functions.Function} {R.Real}} (\fun (f: Functions.Function) => (Differential.value U f a).apply z) _ _ (coordinateSum i) }
+    "=" _ "by" { SumDifferential.differential n (term i) a z }
+    "=" _ "by" { Sums.congruent n
+      (\fun (j: Fin.Fin n) => (Differential.value U (term i j) a).apply z)
+      (\fun (j: Fin.Fin n) => R.mul ((A a).apply (E.basis j) i) (Input.value.apply z j))
+      (\fun (j: Fin.Fin n) => termDifferential zero i j z) }
+    "=" _ "by" { Sums.congruent n
+      (\fun (j: Fin.Fin n) => R.mul ((A a).apply (E.basis j) i) (Input.value.apply z j))
+      (\fun (j: Fin.Fin n) => R.mul (Input.value.apply z j) ((A a).apply (E.basis j) i))
+      (\fun (j: Fin.Fin n) => Arithmetic.fieldMulComm ((A a).apply (E.basis j) i) (Input.value.apply z j)) }
+    "=" _ "by" { sym!{{R.Real}} _ _ (R.FiniteSums[].Linear[].expansion n (Action.row a i) (Input.value.apply z)) }
+  };
+\definition differential: v.apply a = E.space.zero -> Output.value = Compose.compose (A a) Input.value :=
+  \fun (zero: v.apply a = E.space.zero) => Linear.ext Output.value (Compose.compose (A a) Input.value)
+    (\axiom:funext(Output.value.apply, (Compose.compose (A a) Input.value).apply, \fun (z: Domain.Vector) =>
+      \axiom:funext(Output.value.apply z, (A a).apply (Input.value.apply z), componentDifferential zero z)));

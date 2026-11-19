@@ -1,0 +1,89 @@
+\definition derivative[i: Coordinate]: Smooth.SmoothFunction U := Partials.derivative U f i;
+\definition gradient[x: Open.Carrier U]: Point := \fun (i: Coordinate) => derivative i x;
+\definition Critical[x: Open.Carrier U]: \Prop := \forall (i: Coordinate) -> derivative i x = R.zero;
+\definition criticalIffGradientZero: \forall (x: Open.Carrier U) -> Logic.PropEquiv[Critical x, gradient x = E.space.zero] :=
+  \fun (x: Open.Carrier U) => Logic.PropEquiv[_, _] {
+    ltr := \fun (critical: Critical x) => \axiom:funext(gradient x, E.space.zero, critical),
+    rtl := \fun (zero: gradient x = E.space.zero)(i: Coordinate) => congr!{Point Real} (\fun (v: Point) => v i) _ _ zero,
+  };
+\definition DifferentialZero[x: Open.Carrier U]: \Prop := \forall (v: Point) -> (Differentials.value U f x).apply v = R.zero;
+\definition criticalIffDifferentialZero: \forall (x: Open.Carrier U) -> Logic.PropEquiv[Critical x, DifferentialZero x] :=
+  \fun (x: Open.Carrier U) => Logic.PropEquiv[_, _] {
+    ltr := \fun (critical: Critical x)(v: Point) => trans!{Real} _ _ _
+      (R.FiniteSums[].congruent n _ _ (\fun (i: Coordinate) => trans!{Real} _ _ _
+        (congr!{Real Real} (\fun (c: Real) => R.mul c (v i)) _ _ (critical i)) (Laws.fieldMulZeroLeft (v i))))
+      (R.FiniteSums[].zeroSum n),
+    rtl := \fun (zero: DifferentialZero x)(i: Coordinate) => trans!{Real} _ _ _
+      (Analysis.Properties[].partialUnique U f i x (derivative i x) ((Differentials.value U f x).apply (E.basis i))
+        (Partials.partialLaw U f i x)
+        (Analysis.Differential[U := U, f := f, a := x, d := Differentials.value U f x].Partial[i := i].law (Differentials.law U f x)))
+      (zero (E.basis i)),
+  };
+\definition gradientRegular: \forall (i: Coordinate) -> Smooth.SmoothOn U (\fun (x: Open.Carrier U) => gradient x i) :=
+  \fun (i: Coordinate) => \idelim Partials.partial U f i = (\fun (x: Open.Carrier U) => gradient x i)
+    \with g: Open.ScalarFunction U => Smooth.SmoothOn U g \by {
+      base: Partials.partialSmooth U f i,
+      equality: \axiom:funext(Partials.partial U f i, (\fun (x: Open.Carrier U) => gradient x i), \fun (x: Open.Carrier U) => \refl(gradient x i))
+    };
+\definition gradientMap: Maps.Map U Open.whole :=
+  \into[Maps.Data[U, Open.whole]](Maps.Data[U, Open.whole] {
+    apply := \fun (x: Open.Carrier U) => \into[Point](gradient x, Open.whole.points) \by { \refl(gradient x) },
+  }, { data: Maps.Data[U, Open.whole] \where Maps.Laws[U, Open.whole, data] }) \by {
+    Maps.Laws[U, Open.whole, Maps.Data[U, Open.whole]::#
+      (\fun (x: Open.Carrier U) => \into[Point](gradient x, Open.whole.points) \by { \refl(gradient x) })] {
+      smooth := gradientRegular,
+    }
+  };
+\definition hessian[x: Open.Carrier U]: Linear.Map := Maps.Differential[U := U, V := Open.whole, f := gradientMap, a := x].value;
+\definition hessianEntry[x: Open.Carrier U][i, j: Coordinate]: Real := Partials.derivative U (derivative i) j x;
+\definition hessianEntries[x: Open.Carrier U]: Matrix.Matrix := Representation.entries (hessian x);
+\definition Nondegenerate[x: Open.Carrier U]: \Prop := Inversion.Nonzero (hessianEntries x);
+\definition hessianSymmetric: \forall (x: Open.Carrier U)(i, j: Coordinate) -> hessianEntry x i j = hessianEntry x j i :=
+  \fun (x: Open.Carrier U)(i, j: Coordinate) => Smooth.Schwarz[U := U, f := f, a := x, i := j, j := i].Commutation[].law;
+\import inverse_implicit.Euclidean[n := n].Jacobian[U := U, f := gradientMap] \as HessianFamily;
+\definition gradientComponent: \forall (i: Coordinate) -> Maps.coordinateFunction U Open.whole gradientMap i = derivative i :=
+  \fun (i: Coordinate) => \axiom:funext(Maps.coordinateFunction U Open.whole gradientMap i, derivative i,
+    \fun (x: Open.Carrier U) => \refl(derivative i x));
+\definition hessianEntriesValue: \forall (x: Open.Carrier U)(i, j: Coordinate) -> hessianEntries x i j = hessianEntry x i j :=
+  \fun (x: Open.Carrier U)(i, j: Coordinate) => eq_reason_in!{Real _
+    "=" _ "by" { HessianFamily.Coordinate[j := i, i := j].entriesValue x }
+    "=" _ "by" { HessianFamily.Coordinate[j := i, i := j].value x }
+    "=" _ "by" { congr!{{Smooth.SmoothFunction U} Real} (\fun (g: Smooth.SmoothFunction U) => Partials.derivative U g j x) _ _ (gradientComponent i) }
+  };
+\definition hessianEntriesRegular: \forall (i, j: Coordinate) -> Smooth.SmoothOn U (\fun (x: Open.Carrier U) => hessianEntries x i j) :=
+  \fun (i, j: Coordinate) => \idelim Partials.partial U (derivative i) j = (\fun (x: Open.Carrier U) => hessianEntries x i j)
+    \with g: Open.ScalarFunction U => Smooth.SmoothOn U g \by {
+      base: Partials.partialSmooth U (derivative i) j,
+      equality: \axiom:funext(Partials.partial U (derivative i) j, (\fun (x: Open.Carrier U) => hessianEntries x i j),
+        \fun (x: Open.Carrier U) => sym!{Real} _ _ (hessianEntriesValue x i j))
+    };
+\import \root.MatrixForm[n := n] \as MatrixForms;
+\definition halfHessian[x: Open.Carrier U]: Matrix.Matrix := MatrixForms.half (hessianEntries x);
+\definition halfHessianNonzero: \forall (x: Open.Carrier U) -> Nondegenerate x -> Inversion.Nonzero (halfHessian x) :=
+  \fun (x: Open.Carrier U) => MatrixForms.halfNonzero (hessianEntries x);
+\definition hessianForm[x: Open.Carrier U]: Forms.Bilinear := MatrixForms.form (hessianEntries x);
+\definition hessianFormValue: \forall (x: Open.Carrier U)(v, w: Point) -> (hessianForm x).form v w = E.dot ((hessian x).apply v) w :=
+  \fun (x: Open.Carrier U)(v, w: Point) => congr!{{Linear.Map} Real} (\fun (L: Linear.Map) => E.dot (L.apply v) w) _ _ (Representation.linearEntries (hessian x));
+\definition hessianFormSymmetric: \forall (x: Open.Carrier U) -> Forms.Symmetric (hessianForm x) :=
+  \fun (x: Open.Carrier U) => MatrixForms.symmetric (hessianEntries x) (\fun (i, j: Coordinate) => eq_reason_in!{Real _
+    "=" _ "by" { hessianEntriesValue x i j }
+    "=" _ "by" { hessianSymmetric x i j }
+    "=" _ "by" { sym!{Real} _ _ (hessianEntriesValue x j i) }
+  });
+\definition hessianFormNondegenerate: \forall (x: Open.Carrier U) -> Nondegenerate x -> Forms.Nondegenerate (hessianForm x) :=
+  \fun (x: Open.Carrier U) => MatrixForms.nondegenerate (hessianEntries x);
+\definition nondegenerateDomain: Open.OpenSet := HessianFamily.domain;
+\definition nondegenerateIncluded: Open.Included nondegenerateDomain U := HessianFamily.included;
+\definition nondegenerateContains: \forall (x: Open.Carrier U) -> Nondegenerate x -> \In[Point] nondegenerateDomain.points x :=
+  \fun (x: Open.Carrier U) => HessianFamily.intro x;
+\definition nondegenerateOn: \forall (x: Open.Carrier nondegenerateDomain) -> Nondegenerate (Open.inclusion nondegenerateDomain U nondegenerateIncluded x) :=
+  HessianFamily.nonzero;
+\structure IsolatingNeighborhood[a: Open.Carrier U]: \Set := {
+  domain: Open.OpenSet,
+  included: Open.Included domain U,
+  contains: \In[Point] domain.points a,
+  unique: \forall (x: Open.Carrier domain) -> Critical (Open.inclusion domain U included x) -> x = a,
+};
+\module At(a: Open.Carrier U);
+\definition isolated: \forall (a: Open.Carrier U) -> Nondegenerate a -> Critical a -> \exists IsolatingNeighborhood[a] :=
+  \fun (a: Open.Carrier U) => At[a := a].isolated;

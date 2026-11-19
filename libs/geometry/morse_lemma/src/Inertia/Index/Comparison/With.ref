@@ -1,0 +1,40 @@
+\definition mapped: Inclusions.Map := End.Composition[U := Source.Vector, domain := Source.space].compose C.forward sourceFrame.value;
+\definition map: Maps.Map := Coordinates.Composition[U := Source.Vector, domain := Source.space].compose targetFrame.coordinate mapped;
+\definition selectedZero: \forall (v: Source.Vector) -> map.apply v = Target.space.zero -> (selected t).apply (mapped.apply v) = E.space.zero :=
+  \fun (v: Source.Vector)(zero: _) => eq_reason_in!{Vector _
+    "=" _ "by" { sym!{Vector} _ _ (targetFrame.reconstruction (mapped.apply v)) }
+    "=" _ "by" { congr!{{Target.Vector} Vector} targetFrame.value.apply _ _ zero }
+    "=" _ "by" { targetFrame.value.preservesZero }
+  };
+\definition energy: \forall (v: Source.Vector) -> standard t (mapped.apply v) (mapped.apply v) = R.neg (Source.squared v) :=
+  \fun (v: Source.Vector) => eq_reason_in!{{R.Real} _
+    "=" _ "by" { congruent (sourceFrame.value.apply v) (sourceFrame.value.apply v) }
+    "=" _ "by" { \parent.\parent.Selected[s := s].fixedEnergy (sourceFrame.value.apply v) (E.OnProjection[P := projection s].Rank[k := negative s].fixed sourceFrame v) }
+    "=" _ "by" { congr!{{R.Real} {R.Real}} R.neg _ _ (E.OnProjection[P := projection s].Rank[k := negative s].isometry sourceFrame v v) }
+  };
+\definition kernel: \forall (v: Source.Vector) -> map.apply v = Target.space.zero -> v = Source.space.zero := \block {
+  \fun (v: Source.Vector)(zero: _) \then
+  \let negativeNonnegative: Ordered.Le R.zero (R.neg (Source.squared v)) := Ordered.leReplaceRight R.zero _ _ (energy v)
+    (\parent.\parent.Selected[s := t].complementNonnegative (mapped.apply v) (selectedZero v zero)) \then
+  \let nonpositive: Ordered.Le (Source.squared v) R.zero := Ordered.leReplaceRight _ _ _ Arithmetic.negZero
+    (Ordered.leReplaceLeft _ _ _ (Arithmetic.negInvolutive (Source.squared v)) (Arithmetic.negAntitone R.zero (R.neg (Source.squared v)) negativeNonnegative)) \then
+  \return Source.separated v (Ordered.leAntisym _ _ nonpositive (Source.nonnegative v))
+};
+\import Maps.Operations[] \as MapOperations;
+\import Spaces.Laws[V := Source.Vector, space := Source.space] \as SourceLaws;
+\definition difference[v, w: Source.Vector]: map.apply (Source.difference v w) = Target.difference (map.apply v) (map.apply w) :=
+  trans!{{Target.Vector}} _ _ _ (map.preservesAdd v (Source.space.neg w))
+    (congr!{{Target.Vector} {Target.Vector}} (Target.space.add (map.apply v)) _ _ (MapOperations.preservesNeg map w));
+\definition injective: \forall (v, w: Source.Vector) -> map.apply v = map.apply w -> v = w := \block {
+  \fun (v, w: Source.Vector)(same: _) \then
+  \let zero: Source.difference v w = Source.space.zero := kernel (Source.difference v w)
+    (eq_reason_in!{{Target.Vector} _
+      "=" _ "by" { difference v w }
+      "=" _ "by" { congr!{{Target.Vector} {Target.Vector}} (\fun (z: Target.Vector) => Target.difference z (map.apply w)) _ _ same }
+      "=" _ "by" { Target.differenceSelf (map.apply w) }
+    }) \then
+  \return \axiom:funext(v, w, \fun (i: Fin.Fin (negative s)) => R.Distance[].subZeroEq (v i) (w i)
+    (congr!{{Source.Vector} {R.Real}} (\fun (z: Source.Vector) => z i) _ _ zero))
+};
+\definition bound: Ordered.Le (Dimension.naturalScalar (negative s)) (Dimension.naturalScalar (negative t)) :=
+  \parent.\parent.DimensionBound[k := negative s, l := negative t].bound map injective;

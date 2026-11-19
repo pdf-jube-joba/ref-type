@@ -1,0 +1,85 @@
+\import Higher.Scalar[q := q].With[data := data] \as Normalize;
+\import Spaces.Linear[V := Higher.Vector, W := Higher.Vector, source := Higher.space, target := Higher.space] \as Total;
+\import Total.Operations[] \as TotalOperations;
+\import Spaces.Linear[V := Higher.Vector, W := Lower.Vector, source := Higher.space, target := Lower.space] \as Tails;
+\import Spaces.Linear[V := Lower.Vector, W := Lower.Vector, source := Lower.space, target := Lower.space].Composition[U := Higher.Vector, domain := Higher.space] \as TailCompose;
+\import Spaces.Linear[V := Higher.Vector, W := R.Real, source := Higher.space, target := Spaces.scalarSpace] \as TotalRows;
+\import TotalRows.Operations[] \as TotalRowOperations;
+\import Rows.Composition[U := Higher.Vector, domain := Higher.space] \as CrossCompose;
+\import Embeddings.Composition[U := Higher.Vector, domain := Higher.space] \as ResidualCompose;
+\definition alphaMap: TotalRows.Map := TotalRowOperations.plus Split.headMap (CrossCompose.compose cross Split.tailMap);
+\definition rest: Tails.Map := TailCompose.compose lower.change.forward Split.tailMap;
+\definition first: Total.Map := Total.Map {
+  apply := \fun (v: Higher.Vector) => Higher.space.smul (R.mul Normalize.factor (Split.head v)) Split.first,
+  preservesAdd := \fun (v, w: Higher.Vector) => trans!{{Higher.Vector}} _ _ _
+    (congr!{{R.Real} {Higher.Vector}} (\fun (a: R.Real) => Higher.space.smul a Split.first) _ _ (Arithmetic.fieldMulAdd Normalize.factor (Split.head v) (Split.head w)))
+    (Higher.space.scalarAdd (R.mul Normalize.factor (Split.head v)) (R.mul Normalize.factor (Split.head w)) Split.first),
+  preservesScale := \fun (a: R.Real)(v: Higher.Vector) => trans!{{Higher.Vector}} _ _ _
+    (congr!{{R.Real} {Higher.Vector}} (\fun (b: R.Real) => Higher.space.smul b Split.first) _ _ (Algebra.mulSwap Normalize.factor a (Split.head v)))
+    (Higher.space.scalarAssoc a (R.mul Normalize.factor (Split.head v)) Split.first),
+};
+\definition forward: Total.Map := TotalOperations.plus first (ResidualCompose.compose residual rest);
+\definition backward: Total.Map := Split.Joining[V := Higher.Vector, source := Higher.space,
+  first := TotalRowOperations.scale data.length alphaMap,
+  rest := TailCompose.compose lower.change.backward Split.tailMap].map;
+\definition forwardHead: \forall (v: Higher.Vector) -> Split.head (forward.apply v) = R.sub (R.mul Normalize.factor (Split.head v)) (cross.apply (rest.apply v)) :=
+  \fun (v: Higher.Vector) => congr!{{R.Real} {R.Real} {R.Real}} R.add _ _ _ _
+    (trans!{{R.Real}} _ _ _ (congr!{{R.Real} {R.Real}} (R.mul (R.mul Normalize.factor (Split.head v))) _ _ Split.firstHead)
+      (Algebra.mulOneRight (R.mul Normalize.factor (Split.head v))))
+    (residualHead (rest.apply v));
+\definition forwardTail: \forall (v: Higher.Vector) -> Split.tail (forward.apply v) = rest.apply v :=
+  \fun (v: Higher.Vector) => trans!{{Lower.Vector}} _ _ _
+    (congr!{{Lower.Vector} {Lower.Vector} {Lower.Vector}} Lower.space.add _ _ _ _
+      (trans!{{Lower.Vector}} _ _ _ (congr!{{Lower.Vector} {Lower.Vector}} (Lower.space.smul (R.mul Normalize.factor (Split.head v))) _ _ Split.firstTail)
+        (Spaces.Laws[V := Lower.Vector, space := Lower.space].scaleZero (R.mul Normalize.factor (Split.head v))))
+      (residualTail (rest.apply v)))
+    (Spaces.Laws[V := Lower.Vector, space := Lower.space].zeroLeft (rest.apply v));
+\definition forwardAlpha: \forall (v: Higher.Vector) -> alpha (forward.apply v) = R.mul Normalize.factor (Split.head v) :=
+  \fun (v: Higher.Vector) => trans!{{R.Real}} _ _ _
+    (congr!{{R.Real} {R.Real} {R.Real}} R.add _ _ _ _ (forwardHead v) (congr!{{Lower.Vector} {R.Real}} cross.apply _ _ (forwardTail v)))
+    (R.Distance[].subAddCancel (R.mul Normalize.factor (Split.head v)) (cross.apply (rest.apply v)));
+\definition backwardHead: \forall (v: Higher.Vector) -> Split.head (backward.apply v) = R.mul data.length (alpha v) :=
+  \fun (v: Higher.Vector) => Split.joinHead _ _;
+\definition backwardTail: \forall (v: Higher.Vector) -> Split.tail (backward.apply v) = lower.change.backward.apply (Split.tail v) :=
+  \fun (v: Higher.Vector) => Split.joinTail _ _;
+\definition cancelLength: \forall (a: R.Real) -> R.mul data.length (R.mul Normalize.factor a) = a :=
+  \fun (a: R.Real) => eq_reason_in!{{R.Real} _
+    "=" _ "by" { Algebra.mulSwap data.length Normalize.factor a }
+    "=" _ "by" { sym!{{R.Real}} _ _ (Arithmetic.fieldMulAssoc Normalize.factor data.length a) }
+    "=" _ "by" { congr!{{R.Real} {R.Real}} (\fun (b: R.Real) => R.mul b a) _ _ Normalize.inverse }
+    "=" _ "by" { Arithmetic.fieldMulOneLeft a }
+  };
+\definition cancelFactor: \forall (a: R.Real) -> R.mul Normalize.factor (R.mul data.length a) = a :=
+  \fun (a: R.Real) => trans!{{R.Real}} _ _ _ (Algebra.mulSwap Normalize.factor data.length a) (cancelLength a);
+\definition leftInverse: \forall (v: Higher.Vector) -> backward.apply (forward.apply v) = v :=
+  \fun (v: Higher.Vector) => Split.ext _ _
+    (trans!{{R.Real}} _ _ _ (backwardHead (forward.apply v))
+      (trans!{{R.Real}} _ _ _ (congr!{{R.Real} {R.Real}} (R.mul data.length) _ _ (forwardAlpha v)) (cancelLength (Split.head v))))
+    (trans!{{Lower.Vector}} _ _ _ (backwardTail (forward.apply v))
+      (trans!{{Lower.Vector}} _ _ _ (congr!{{Lower.Vector} {Lower.Vector}} lower.change.backward.apply _ _ (forwardTail v))
+        ((Spaces.Isomorphism[V := Lower.Vector, W := Lower.Vector, source := Lower.space, target := Lower.space].laws lower.change).leftInverse (Split.tail v))));
+\definition rightInverse: \forall (v: Higher.Vector) -> forward.apply (backward.apply v) = v :=
+  \fun (v: Higher.Vector) => trans!{{Higher.Vector}} _ _ _
+    (congr!{{Higher.Vector} {Higher.Vector} {Higher.Vector}} Higher.space.add _ _ _ _
+      (congr!{{R.Real} {Higher.Vector}} (\fun (a: R.Real) => Higher.space.smul a Split.first) _ _
+        (trans!{{R.Real}} _ _ _ (congr!{{R.Real} {R.Real}} (R.mul Normalize.factor) _ _ (backwardHead v)) (cancelFactor (alpha v))))
+      (congr!{{Lower.Vector} {Higher.Vector}} residual.apply _ _
+        (trans!{{Lower.Vector}} _ _ _ (congr!{{Lower.Vector} {Lower.Vector}} lower.change.forward.apply _ _ (backwardTail v))
+          ((Spaces.Isomorphism[V := Lower.Vector, W := Lower.Vector, source := Lower.space, target := Lower.space].laws lower.change).rightInverse (Split.tail v)))))
+    (decomposition v);
+\definition change: Higher.Isomorphism := Higher.Isomorphism {
+  forward := forward, backward := backward, leftInverse := leftInverse, rightInverse := rightInverse,
+};
+\definition sign: Higher.Signs := Fin.Tuples[A := Bool.Bool^].extend k data.sign lower.sign;
+\definition signHead: sign (Fin.zero k) = data.sign := Fin.Tuples[A := Bool.Bool^].atZero k data.sign lower.sign;
+\definition signTail: \forall (i: Fin.Fin k) -> sign (Fin.succ k i) = lower.sign i := Fin.Tuples[A := Bool.Bool^].atSuccessor k data.sign lower.sign;
+\definition standardSplit: \forall (v, w: Higher.Vector) -> Higher.standard sign v w =
+  R.add (R.mul (R.mul (Higher.coefficient data.sign) (Split.head v)) (Split.head w)) (Lower.standard lower.sign (Split.tail v) (Split.tail w)) :=
+  \fun (v, w: Higher.Vector) => congr!{{R.Real} {R.Real} {R.Real}} R.add _ _ _ _
+    (congr!{{R.Real} {R.Real}} (\fun (a: R.Real) => R.mul (R.mul a (Split.head v)) (Split.head w)) _ _ (congr!{{Bool.Bool^} {R.Real}} Higher.coefficient _ _ signHead))
+    (Sums.congruent k _ _ (\fun (i: Fin.Fin k) => congr!{{R.Real} {R.Real}} (\fun (a: R.Real) => R.mul (R.mul a (Split.tail v i)) (Split.tail w i)) _ _
+      (congr!{{Bool.Bool^} {R.Real}} Higher.coefficient _ _ (signTail i))));
+\module Pair(v, w: Higher.Vector);
+\definition formula: \forall (v, w: Higher.Vector) -> h.form (forward.apply v) (forward.apply w) = Higher.standard sign v w :=
+  \fun (v, w: Higher.Vector) => Pair[v := v, w := w].formula;
+\definition normalForm: Higher.NormalForm[h] := Higher.NormalForm[h] { sign := sign, change := change, formula := formula };

@@ -1,0 +1,26 @@
+\import \parent.Along[g := f] \as First;
+\definition finitePartial: \forall (k: N.Nat^)(V: Total.OpenSet)(functions, derivatives: Fin.Fin k -> Total.ScalarFunction V)
+  (i: Fin.Fin dimension) -> (\forall (j: Fin.Fin k) -> Analysis.HasPartialDerivative V (functions j) i (derivatives j)) ->
+  Analysis.HasPartialDerivative V (\fun (z: Total.Carrier V) => Sums.sum k (\fun (j: Fin.Fin k) => functions j z)) i
+    (\fun (z: Total.Carrier V) => Sums.sum k (\fun (j: Fin.Fin k) => derivatives j z)) :=
+  \induction (k: N.Nat^) \return \forall (V: Total.OpenSet)(functions, derivatives: Fin.Fin k -> Total.ScalarFunction V)
+    (i: Fin.Fin dimension) -> (\forall (j: Fin.Fin k) -> Analysis.HasPartialDerivative V (functions j) i (derivatives j)) ->
+    Analysis.HasPartialDerivative V (\fun (z: Total.Carrier V) => Sums.sum k (\fun (j: Fin.Fin k) => functions j z)) i
+      (\fun (z: Total.Carrier V) => Sums.sum k (\fun (j: Fin.Fin k) => derivatives j z)) \with {
+    | zero: \fun (V: Total.OpenSet)(functions, derivatives: Fin.Fin N.Nat^::zero -> Total.ScalarFunction V)(i: Fin.Fin dimension)(laws: _) =>
+      Analytic.constantPartial V Scalars.zero i
+    | succ: \fun (k: N.Nat^)(previous: _)(V: Total.OpenSet)(functions, derivatives: Fin.Fin (N.Nat^::succ k) -> Total.ScalarFunction V)(i: Fin.Fin dimension)(laws: _) =>
+      Analytic.addPartial V (functions (Fin.zero k)) (\fun (z: Total.Carrier V) => Sums.sum k (\fun (j: Fin.Fin k) => functions (Fin.succ k j) z))
+        (derivatives (Fin.zero k)) (\fun (z: Total.Carrier V) => Sums.sum k (\fun (j: Fin.Fin k) => derivatives (Fin.succ k j) z)) i
+        (laws (Fin.zero k)) (previous V (\fun (j: Fin.Fin k) => functions (Fin.succ k j)) (\fun (j: Fin.Fin k) => derivatives (Fin.succ k j)) i
+          (\fun (j: Fin.Fin k) => laws (Fin.succ k j)))
+  };
+\module Term(i: Index);
+\definition value[z: Total.Carrier domain]: Real := Sums.sum n (\fun (i: Index) => Term[i := i].derivative z);
+\definition smooth: TotalSmooth.SmoothOn domain value := TotalSmooth.Sums[].smooth domain n
+  (\fun (i: Index) => Term[i := i].derivative) (\fun (i: Index) => Term[i := i].smooth);
+\definition function: TotalSmooth.SmoothFunction domain := \into[Total.ScalarFunction domain](value,
+  { h: Total.ScalarFunction domain \where TotalSmooth.SmoothOn domain h }) \by { smooth };
+\definition partial: Analysis.HasPartialDerivative domain First.speedFunction timeIndex value :=
+  finitePartial n domain (\fun (i: Index) => Term[i := i].function) (\fun (i: Index) => Term[i := i].derivative) timeIndex
+    (\fun (i: Index) => Term[i := i].partial);

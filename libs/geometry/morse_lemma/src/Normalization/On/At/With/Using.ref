@@ -1,0 +1,69 @@
+\import FamilyMaps.Preimage[U := U, W := Flat.whole, V := local.target, f := delta] \as Preimage;
+\import FamilyMaps.Composition[U := Preimage.domain, V := local.target, f := Preimage.map].After[l := Coordinates.dimension, W := local.domain, g := local.equivalence.backward] \as Composition;
+\definition domain: Open.OpenSet := Preimage.domain;
+\definition included: Open.Included domain U := Preimage.included;
+\definition imageContainsZero: \In[E.Vector] local.target.points E.space.zero :=
+  \idelim Polynomial.mapValue Calculus.origin = E.space.zero \with v: E.Vector => \In[E.Vector] local.target.points v \by {
+    base: local.containsImage, equality: Polynomial.center
+  };
+\definition contains: \In[Point] domain.points a := Preimage.intro a
+  (\idelim E.space.zero = deltaValue a \with v: E.Vector => \In[E.Vector] local.target.points v \by {
+    base: imageContainsZero, equality: sym!{{E.Vector}} _ _ deltaCenter
+  });
+\definition centerPoint: Open.Carrier domain := \into[Point](a, domain.points) \by { contains };
+\definition H[x: Open.Carrier domain]: Matrices.Matrix := Coordinates.unpack (FamilyMaps.apply domain local.domain Composition.compose x);
+\definition change[x: Open.Carrier domain]: Matrices.Matrix := Congruence.change (H x);
+\definition regularChange: \forall (i, j: Fin.Fin n) -> Smooth.SmoothOn domain (\fun (x: Open.Carrier domain) => change x i j) :=
+  \fun (i, j: Fin.Fin n) => Operations.addSmooth domain (\fun (x: Open.Carrier domain) => Matrices.identity i j)
+    (\fun (x: Open.Carrier domain) => FamilyMaps.apply domain local.domain Composition.compose x (Coordinates.square.address i j))
+    (Operations.constantSmooth domain (Matrices.identity i j))
+    ((\bysub(FamilyMaps.Data[domain, local.domain], FamilyMaps.Map domain local.domain, Composition.compose)).smooth (Coordinates.square.address i j));
+\definition input[x: Open.Carrier domain]: Open.Carrier U := Open.inclusion domain U included x;
+\definition lifted[x: Open.Carrier domain]: Flat.Carrier Flat.whole := Flat.inclusion local.domain Flat.whole local.included
+  (FamilyMaps.apply domain local.domain Composition.compose x);
+\definition equation: \forall (x: Open.Carrier domain) -> Polynomial.value (H x) = difference (input x) := \block {
+  \fun (x: Open.Carrier domain) \then
+  \let forward: E.Vector := Maps.apply local.domain local.target local.equivalence.forward (FamilyMaps.apply domain local.domain Composition.compose x) \then
+  \let right: forward = deltaValue (input x) := (\bysub(calculus.Diffeomorphism[n := Coordinates.dimension, m := Coordinates.dimension].Data[local.domain, local.target],
+    calculus.Diffeomorphism[n := Coordinates.dimension, m := Coordinates.dimension].Diffeomorphism local.domain local.target, local.equivalence)).rightInverse (Preimage.output x) \then
+  \let formula: Coordinates.pack (Polynomial.value (H x)) = Coordinates.pack (difference (input x)) := eq_reason_in!{{E.Vector} _
+    "=" _ "by" { sym!{{E.Vector}} _ _ (Polynomial.formula (lifted x)) }
+    "=" _ "by" { sym!{{E.Vector}} _ _ (local.forward (FamilyMaps.apply domain local.domain Composition.compose x)) }
+    "=" _ "by" { right }
+  } \then
+  \return eq_reason_in!{{Matrices.Matrix} _
+    "=" _ "by" { sym!{{Matrices.Matrix}} _ _ (Coordinates.unpackPack (Polynomial.value (H x))) }
+    "=" _ "by" { congr!{{E.Vector} {Matrices.Matrix}} Coordinates.unpack _ _ formula }
+    "=" _ "by" { Coordinates.unpackPack (difference (input x)) }
+  }
+};
+\definition differenceSymmetric: \forall (x: Open.Carrier domain) -> Symmetric (difference (input x)) :=
+  \fun (x: Open.Carrier domain)(i, j: Fin.Fin n) => congr!{{R.Real} {R.Real} {R.Real}} R.sub _ _ _ _ (symmetric (input x) i j) (symmetric a i j);
+\definition outputSymmetric: \forall (x: Open.Carrier domain) -> Symmetric (Polynomial.value (H x)) :=
+  \fun (x: Open.Carrier domain) => \idelim difference (input x) = Polynomial.value (H x) \with M: Matrices.Matrix => Symmetric M \by {
+    base: differenceSymmetric x, equality: sym!{{Matrices.Matrix}} _ _ (equation x)
+  };
+\definition formula: \forall (x: Open.Carrier domain) -> A (input x) = Matrices.product (Matrices.transpose (change x)) (Matrices.product B (change x)) :=
+  \fun (x: Open.Carrier domain) => eq_reason_in!{{Matrices.Matrix} _
+    "=" { Arrays.plus B (difference (input x)) } "by" { MatrixLaws.ext _ _ (\fun (i, j: Fin.Fin n) => sym!{{R.Real}} _ _
+      (trans!{{R.Real}} _ _ _ (Spaces.addComm (B i j) (R.sub (A (input x) i j) (B i j))) (R.Distance[].subAddCancel (A (input x) i j) (B i j)))) }
+    "=" { Arrays.plus B (Polynomial.value (H x)) } "by" { congr!{{Matrices.Matrix} {Matrices.Matrix}} (Arrays.plus B) _ _ (sym!{{Matrices.Matrix}} _ _ (equation x)) }
+    "=" _ "by" { sym!{{Matrices.Matrix}} _ _ (Congruence.expansion (symmetric a) (H x) (outputSymmetric x)) }
+  };
+\definition zeroDomain: Flat.Carrier local.domain := \into[E.Vector](E.space.zero, local.domain.points) \by { local.contains };
+\definition forwardZero: Maps.apply local.domain local.target local.equivalence.forward zeroDomain = Preimage.output centerPoint :=
+  trans!{{E.Vector}} _ _ _ (trans!{{E.Vector}} _ _ _ (local.forward zeroDomain) Polynomial.center) (sym!{{E.Vector}} _ _ deltaCenter);
+\definition inverseCenter: FamilyMaps.apply domain local.domain Composition.compose centerPoint = zeroDomain :=
+  trans!{{E.Vector}} _ _ _
+    (congr!{{Flat.Carrier local.target} {E.Vector}} (\fun (v: Flat.Carrier local.target) => Maps.apply local.target local.domain local.equivalence.backward v)
+      (Preimage.output centerPoint) (Maps.apply local.domain local.target local.equivalence.forward zeroDomain)
+      (sym!{{E.Vector}} _ _ forwardZero))
+    ((\bysub(calculus.Diffeomorphism[n := Coordinates.dimension, m := Coordinates.dimension].Data[local.domain, local.target],
+      calculus.Diffeomorphism[n := Coordinates.dimension, m := Coordinates.dimension].Diffeomorphism local.domain local.target, local.equivalence)).leftInverse zeroDomain);
+\definition center: change centerPoint = Matrices.identity := MatrixLaws.ext _ _ (\fun (i, j: Fin.Fin n) => trans!{{R.Real}} _ _ _
+  (congr!{{E.Vector} {R.Real}} (\fun (v: E.Vector) => R.add (Matrices.identity i j) (Coordinates.unpack v i j)) _ _ inverseCenter)
+  (Spaces.addZeroRight (Matrices.identity i j)));
+\definition value: Local := Local {
+  domain := domain, included := included, contains := contains,
+  change := change, regular := regularChange, center := center, formula := formula,
+};

@@ -1,0 +1,77 @@
+\import \parent.Base[] \as Base;
+\import Base.Homotopy[] \as Homotopy;
+\import calculus.Real[].OneDimension[] \as One;
+\import calculus.Blocks[n := dimension, m := One.dimension] \as TimeSplit;
+\import inverse_implicit.Euclidean[n := dimension] \as Euclidean;
+\import topological_algebra.Euclidean[].Dimension[n := dimension].Norm[] \as Norm;
+\definition halfRadius: Real := R.mul R.half rho;
+\definition radius: Real := R.mul R.half halfRadius;
+\definition radiusPositive: D.Lt R.zero radius := Bounds.halfOfPositive halfRadius (Bounds.halfOfPositive rho ball.positive);
+\definition bound: Real := R.add radius (R.add radius radius);
+\definition boundNonnegative: D.Le R.zero bound := Laws.addNonnegative radius (R.add radius radius) (Order.leOfLt _ _ radiusPositive)
+  (Laws.addNonnegative radius radius (Order.leOfLt _ _ radiusPositive) (Order.leOfLt _ _ radiusPositive));
+\definition boundSmall: D.Lt bound rho :=
+  D.ltReplaceLeft (R.add radius halfRadius) bound rho (sym!{Real} _ _ (congr!{Real Real} (R.add radius) _ _ (Bounds.halfTwice halfRadius)))
+    (D.ltReplaceRight (R.add radius halfRadius) (R.add halfRadius halfRadius) rho (Bounds.halfTwice rho)
+      (Laws.ltAddRight radius halfRadius halfRadius (Bounds.halfStrict halfRadius (Bounds.halfOfPositive rho ball.positive))));
+\definition ballDomain: Open.OpenSet := Euclidean.ball a radius;
+\import Maps.Preimage[U := Base.domain, W := U, V := ballDomain, f := Base.graph] \as OriginBall;
+\definition domain: Open.OpenSet := Open.intersection OriginBall.domain ballDomain;
+\definition includedBase: Open.Included domain Base.domain := \fun (x: Point)(inside: _) => OriginBall.included x (Open.intersectionLeft OriginBall.domain ballDomain x inside);
+\definition included: Open.Included domain U := \fun (x: Point)(inside: _) => Base.included x (includedBase x inside);
+\definition basePoint[x: Open.Carrier domain]: Open.Carrier Base.domain := Open.inclusion domain Base.domain includedBase x;
+\definition sourceNear: \forall (x: Open.Carrier domain) -> D.Lt (Coordinates.pointDistance x a) radius :=
+  \fun (x: Open.Carrier domain) => Euclidean.ofBall a radius (\into[Point](x, ballDomain.points) \by {
+    Open.intersectionRight OriginBall.domain ballDomain x (\bysub(Point, domain.points, x))
+  });
+\definition originNear: \forall (x: Open.Carrier domain) -> D.Lt (Coordinates.pointDistance (Base.origin (basePoint x)) a) radius :=
+  \fun (x: Open.Carrier domain) => Euclidean.ofBall a radius
+    (\into[Point](Base.origin (basePoint x), ballDomain.points) \by { OriginBall.inTarget
+      (\into[Point](x, OriginBall.domain.points) \by { Open.intersectionLeft OriginBall.domain ballDomain x (\bysub(Point, domain.points, x)) }) });
+\definition contains: \In[Point] domain.points a := Logic.And[_, _]::#
+  (OriginBall.intro Base.base (\idelim a = Base.origin Base.base \with x: Point => \In[Point] ballDomain.points x \by {
+    base: Euclidean.inBall a a radius (D.ltReplaceLeft R.zero (Coordinates.pointDistance a a) radius (sym!{Real} _ _ (Norm.distanceSelf a)) radiusPositive),
+    equality: sym!{Point} _ _ Base.originAtBase
+  }))
+  (Euclidean.inBall a a radius (D.ltReplaceLeft R.zero (Coordinates.pointDistance a a) radius (sym!{Real} _ _ (Norm.distanceSelf a)) radiusPositive));
+\definition base: Open.Carrier domain := \into[Point](a, domain.points) \by { contains };
+\module Segment(x: Open.Carrier domain, t: Paths.Time);
+\definition inside: \forall (x: Open.Carrier domain)(t: Paths.Time) ->
+  \In[Fin.Fin Paths.dimension -> Real] Homotopy.domain.points (TimeSplit.join x (Paths.time t)) :=
+  \fun (x: Open.Carrier domain)(t: Paths.Time) => Homotopy.intro (Homotopy.joinPoint (basePoint x) t)
+    (\idelim Segment[x := x, t := t].value = Homotopy.value (Homotopy.joinPoint (basePoint x) t)
+      \with v: Point => \In[Point] U.points v \by {
+        base: Segment[x := x, t := t].inside,
+        equality: sym!{Point} _ _ (Homotopy.joinValue (basePoint x) t)
+      });
+\import calculus.Real[].Multivariable[n := Paths.dimension].Open[] \as Total;
+\import Total.Smooth[] \as TotalSmooth;
+\import calculus.Maps[n := Paths.dimension, m := dimension].Composition[U := Homotopy.domain, V := U, f := Homotopy.map] \as Pullback;
+\definition clock: TotalSmooth.SmoothFunction Homotopy.domain := Total.Projection[U := Homotopy.domain].function Homotopy.timeIndex;
+\import TotalSmooth.Algebra[U := Homotopy.domain] \as Algebra;
+\definition weight: TotalSmooth.SmoothFunction Homotopy.domain := Algebra.plus (Algebra.constant R.one) (Algebra.scale (R.neg R.one) clock);
+\module Entry(i, j: Index);
+\definition coefficient[i, j: Index]: Smooth.SmoothFunction domain := Entry[i := i, j := j].average;
+\import Maps.Restriction[U := domain, V := Base.domain, W := U] \as Restriction;
+\import Projections.Restriction[U := domain, V := Base.domain, W := branch.parameters] \as RestrictParameters;
+\definition parameter: Projections.Map domain branch.parameters := RestrictParameters.input includedBase Base.parameter;
+\definition parameterFormula: \forall (x: Open.Carrier domain) -> Projections.apply domain branch.parameters parameter x = Split.left x :=
+  \fun (x: Open.Carrier domain) => Base.parameterFormula (basePoint x);
+\definition delta[x: Open.Carrier domain][i: Index]: Real := Delta x (Projections.apply domain branch.parameters parameter x) i;
+\module At(x: Open.Carrier domain);
+\definition symmetric: \forall (i, j: Index)(x: Open.Carrier domain) -> coefficient i j x = coefficient j i x :=
+  \fun (i, j: Index)(x: Open.Carrier domain) => Average.congruent (Entry[i := i, j := j].section x) (Entry[i := j, j := i].section x)
+    (\fun (t: Paths.Time) => eq_reason_in!{Real _
+      "=" _ "by" { At[x := x].Weighted[].entryValue i j t }
+      "=" _ "by" { congr!{Real Real} (R.mul (Average.Weight[].function t)) _ _
+        (hessianSymmetric (calculus.Maps[n := Paths.dimension, m := dimension].apply Homotopy.domain U Homotopy.map (At[x := x].point t)) i j) }
+      "=" _ "by" { sym!{Real} _ _ (At[x := x].Weighted[].entryValue j i t) }
+    });
+\definition result: Result := Result {
+  domain := domain, included := included, contains := contains,
+  parameter := parameter, parameterFormula := parameterFormula,
+  coefficient := coefficient, symmetric := symmetric,
+  formula := \fun (x: Open.Carrier domain) => trans!{Real} _ _ _ At[x := x].Equations[].law
+    (congr!{Real Real} (R.add (f (Base.origin (basePoint x)))) _ _ At[x := x].Weighted[].value),
+  center := \fun (i, j: Index)(x: Open.Carrier domain)(centered: _) => At[x := x].Center[centered := centered].law i j,
+};

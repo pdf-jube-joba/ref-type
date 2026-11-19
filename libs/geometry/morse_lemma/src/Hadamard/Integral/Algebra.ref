@@ -1,0 +1,105 @@
+\definition addition[g, h: Function]: Function := \into[Time -> Real]((\fun (t: Time) => Scalars.add (g t) (h t)),
+  { k: Time -> Real \where IsContinuous k }) \by {
+    TimeFunctions.sumContinuous topology g h
+      (\bysub(Time -> Real, { k: Time -> Real \where IsContinuous k }, g))
+      (\bysub(Time -> Real, { k: Time -> Real \where IsContinuous k }, h))
+  };
+\definition scaling[c: Real][g: Function]: Function := \into[Time -> Real]((\fun (t: Time) => Scalars.mul c (g t)),
+  { k: Time -> Real \where IsContinuous k }) \by {
+    TimeFunctions.Product[].continuous topology (\fun (t: Time) => c) g
+      (TimeFunctions.constantContinuous topology c) (\bysub(Time -> Real, { k: Time -> Real \where IsContinuous k }, g))
+  };
+\import std.Logic[].Classical[] \as Classical;
+\use Logic.either;
+\definition addExtension: \forall (g, h: Function)(t: Real) -> extend (addition g h) t = Scalars.add (extend g t) (extend h t) := \block {
+  \fun (g, h: Function)(t: Real) \then
+  \return either!{{(Classical.excludedMiddle (\In[Real] (Line.ClosedInterval Scalars.zero Scalars.one) t))} {extend (addition g h) t = Scalars.add (extend g t) (extend h t)}
+    {\fun (inside: _) => \block {
+      \let s: Time := \into[Real](t, Line.ClosedInterval Scalars.zero Scalars.one) \by { inside } \then
+      \return trans!{Real} _ _ _ (extensionLaw (addition g h) s)
+        (congr!{Real Real Real} Scalars.add _ _ _ _ (sym!{Real} _ _ (extensionLaw g s)) (sym!{Real} _ _ (extensionLaw h s)))
+    }}
+    {\fun (outside: Logic.Not (\In[Real] (Line.ClosedInterval Scalars.zero Scalars.one) t)) => eq_reason_in!{Real _
+      "=" _ "by" { Extension.outside (addition g h) Scalars.zero t outside }
+      "=" _ "by" { sym!{Real} _ _ (Laws.addZeroLeft Scalars.zero) }
+      "=" _ "by" { congr!{Real Real Real} Scalars.add _ _ _ _
+        (sym!{Real} _ _ (Extension.outside g Scalars.zero t outside)) (sym!{Real} _ _ (Extension.outside h Scalars.zero t outside)) }
+    }}
+  }
+};
+\definition sumCongruentOn: \forall (g, h: Real -> Real)(tags: Division.Tags)(l, r: Real) -> R.Le l r -> Division.Valid tags l r ->
+  (\forall (t: Real) -> R.Le l t -> R.Le t r -> g t = h t) -> Division.sum g tags l r = Division.sum h tags l r :=
+  \fun (g, h: _) => \induction (tags: Division.Tags) \return \forall (l, r: Real) -> R.Le l r -> Division.Valid tags l r ->
+    (\forall (t: Real) -> R.Le l t -> R.Le t r -> g t = h t) -> Division.sum g tags l r = Division.sum h tags l r \with {
+    | tag: \fun (t, l, r: Real)(ordered: R.Le l r)(valid: Logic.And[R.Le l t, R.Le t r])(same: _) => congr!{Real Real} (Scalars.mul (Scalars.sub r l)) _ _ (same t valid.left valid.right)
+    | split: \fun (left: Division.Tags)(first: _)(right: Division.Tags)(second: _)(l, r: Real)(ordered: R.Le l r)
+      (valid: Logic.And[Division.Valid left l (Scalars.midpoint l r), Division.Valid right (Scalars.midpoint l r) r])(same: _) =>
+      congr!{Real Real Real} Scalars.add _ _ _ _
+        (first l (Scalars.midpoint l r) (Bounds.midpointLeft l r ordered) valid.left (\fun (t: Real)(lower: _)(upper: _) =>
+          same t lower (R.leTrans _ _ _ upper (Bounds.midpointRight l r ordered))))
+        (second (Scalars.midpoint l r) r (Bounds.midpointRight l r ordered) valid.right (\fun (t: Real)(lower: _)(upper: _) =>
+          same t (R.leTrans _ _ _ (Bounds.midpointLeft l r ordered) lower) upper))
+  };
+\definition addLaw: \forall (g, h: Function) -> value (addition g h) = Scalars.add (value g) (value h) :=
+  \fun (g, h: Function) => Sequence.limitUnique (approximants (addition g h)) _ _ (converges (addition g h))
+    (SequenceOperations.congruent (\fun (k: N.Nat^) => Scalars.add (approximants g k) (approximants h k)) (approximants (addition g h)) _
+      (\fun (k: N.Nat^) => sym!{Real} _ _ (trans!{Real} _ _ _
+        (Division.sumCongruent _ _ (addExtension g h) (Division.leftTags k Scalars.zero Scalars.one) Scalars.zero Scalars.one)
+        (Division.sumAdd _ _ (Division.leftTags k Scalars.zero Scalars.one) Scalars.zero Scalars.one)))
+      (SequenceOperations.addConverges (approximants g) (approximants h) (value g) (value h) (converges g) (converges h)));
+\definition scaleExtension: \forall (c: Real)(g: Function)(t: Real) -> extend (scaling c g) t = Scalars.mul c (extend g t) :=
+  \fun (c: Real)(g: Function)(t: Real) => either!{{(Classical.excludedMiddle (\In[Real] (Line.ClosedInterval Scalars.zero Scalars.one) t))} {extend (scaling c g) t = Scalars.mul c (extend g t)}
+    {\fun (inside: _) => \block {
+      \let s: Time := \into[Real](t, Line.ClosedInterval Scalars.zero Scalars.one) \by { inside } \then
+      \return trans!{Real} _ _ _ (extensionLaw (scaling c g) s) (congr!{Real Real} (Scalars.mul c) _ _ (sym!{Real} _ _ (extensionLaw g s)))
+    }}
+    {\fun (outside: _) => eq_reason_in!{Real _
+      "=" _ "by" { Extension.outside (scaling c g) Scalars.zero t outside }
+      "=" _ "by" { sym!{Real} _ _ (Laws.fieldMulZeroRight c) }
+      "=" _ "by" { congr!{Real Real} (Scalars.mul c) _ _ (sym!{Real} _ _ (Extension.outside g Scalars.zero t outside)) }
+    }}
+  };
+\definition scaleLaw: \forall (c: Real)(g: Function) -> value (scaling c g) = Scalars.mul c (value g) :=
+  \fun (c: Real)(g: Function) => Sequence.limitUnique (approximants (scaling c g)) _ _ (converges (scaling c g))
+    (SequenceOperations.congruent (\fun (k: N.Nat^) => Scalars.mul c (approximants g k)) (approximants (scaling c g)) _
+      (\fun (k: N.Nat^) => sym!{Real} _ _ (trans!{Real} _ _ _
+        (Division.sumCongruent _ _ (scaleExtension c g) (Division.leftTags k Scalars.zero Scalars.one) Scalars.zero Scalars.one)
+        (DivisionBounds.sumScale c (extend g) (Division.leftTags k Scalars.zero Scalars.one) Scalars.zero Scalars.one)))
+      (SequenceOperations.scaleConverges c (approximants g) (value g) (converges g)));
+\definition constantLaw: \forall (c: Real) -> value (constant c) = c :=
+  \fun (c: Real) => Sequence.limitUnique (approximants (constant c)) _ _ (converges (constant c))
+    (SequenceOperations.congruent (\fun (k: N.Nat^) => c) (approximants (constant c)) c
+      (\fun (k: N.Nat^) => sym!{Real} _ _ (eq_reason_in!{Real _
+        "=" _ "by" { sumCongruentOn (extend (constant c)) (\fun (t: Real) => c) (Division.leftTags k Scalars.zero Scalars.one) Scalars.zero Scalars.one
+          interval.ordered (Division.leftTagsValid k Scalars.zero Scalars.one interval.ordered)
+          (\fun (t: Real)(lower: _)(upper: _) => extensionLaw (constant c)
+            (\into[Real](t, Line.ClosedInterval Scalars.zero Scalars.one) \by { Logic.And[_, _]::# lower upper })) }
+        "=" _ "by" { Division.sumConstant c (Division.leftTags k Scalars.zero Scalars.one) Scalars.zero Scalars.one }
+        "=" _ "by" { congr!{Real Real} (\fun (r: Real) => Scalars.mul r c) _ _ (Laws.subZeroRight Scalars.one) }
+        "=" _ "by" { Laws.fieldMulOneLeft c }
+      })) (Sequence.constantConverges c));
+\definition subtraction[g, h: Function]: Function := addition g (scaling (Scalars.neg Scalars.one) h);
+\definition subLaw: \forall (g, h: Function) -> value (subtraction g h) = Scalars.sub (value g) (value h) :=
+  \fun (g, h: Function) => trans!{Real} _ _ _ (addLaw g (scaling (Scalars.neg Scalars.one) h))
+    (congr!{Real Real} (Scalars.add (value g)) _ _ (trans!{Real} _ _ _ (scaleLaw (Scalars.neg Scalars.one) h) (trans!{Real} _ _ _ (Laws.fieldMulNegLeft Scalars.one (value h)) (congr!{Real Real} Scalars.neg _ _ (Laws.fieldMulOneLeft (value h))))));
+\definition subtractAt: \forall (g, h: Function)(t: Time) -> subtraction g h t = Scalars.sub (g t) (h t) :=
+  \fun (g, h: Function)(t: Time) => congr!{Real Real} (Scalars.add (g t)) _ _
+    (trans!{Real} _ _ _ (Laws.fieldMulNegLeft Scalars.one (h t)) (congr!{Real Real} Scalars.neg _ _ (Laws.fieldMulOneLeft (h t))));
+\definition summation[k: N.Nat^][family: Fin.Fin k -> Function]: Function :=
+  \into[Time -> Real]((\fun (t: Time) => Sums.sum k (\fun (j: Fin.Fin k) => family j t)), { g: Time -> Real \where IsContinuous g }) \by {
+    TimeFunctions.FiniteSums[].continuous topology k (\fun (j: Fin.Fin k)(t: Time) => family j t)
+      (\fun (j: Fin.Fin k) => \bysub(Time -> Real, { g: Time -> Real \where IsContinuous g }, family j))
+  };
+\definition sumLaw: \forall (k: N.Nat^)(family: Fin.Fin k -> Function) ->
+  value (summation k family) = Sums.sum k (\fun (j: Fin.Fin k) => value (family j)) :=
+  \induction (k: N.Nat^) \return \forall (family: Fin.Fin k -> Function) ->
+    value (summation k family) = Sums.sum k (\fun (j: Fin.Fin k) => value (family j)) \with {
+    | zero: \fun (family: _) => trans!{Real} _ _ _ (congruent (summation N.Nat^::zero family) (constant Scalars.zero) (\fun (t: Time) => \refl(Scalars.zero))) (constantLaw Scalars.zero)
+    | succ: \fun (k: N.Nat^)(previous: _)(family: Fin.Fin (N.Nat^::succ k) -> Function) => eq_reason_in!{Real _
+      "=" _ "by" { congruent (summation (N.Nat^::succ k) family)
+        (addition (family (Fin.zero k)) (summation k (\fun (j: Fin.Fin k) => family (Fin.succ k j))))
+        (\fun (t: Time) => \refl(Scalars.add (family (Fin.zero k) t) (Sums.sum k (\fun (j: Fin.Fin k) => family (Fin.succ k j) t)))) }
+      "=" _ "by" { addLaw (family (Fin.zero k)) (summation k (\fun (j: Fin.Fin k) => family (Fin.succ k j))) }
+      "=" _ "by" { congr!{Real Real} (Scalars.add (value (family (Fin.zero k)))) _ _ (previous (\fun (j: Fin.Fin k) => family (Fin.succ k j))) }
+    }
+  };

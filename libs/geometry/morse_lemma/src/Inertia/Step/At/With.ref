@@ -1,0 +1,32 @@
+\import Unit.Resolve[k := k].With[previous := frame] \as Basis;
+\definition change: Higher.Isomorphism := Higher.Isomorphism {
+  forward := Basis.value, backward := Basis.coordinate,
+  leftInverse := Basis.leftInverse, rightInverse := Basis.reconstruction,
+};
+\definition first: change.forward.apply Split.first = unit.vector := eq_reason_in!{{Higher.Vector} _
+  "=" _ "by" { congr!{{Higher.Vector} {Higher.Vector} {Higher.Vector}} Higher.space.add _ _ _ _
+    (trans!{{Higher.Vector}} _ _ _ (congr!{{R.Real} {Higher.Vector}} (\fun (a: R.Real) => Higher.space.smul a unit.vector) _ _ Split.firstHead)
+      (Higher.space.scalarOne unit.vector))
+    (trans!{{Higher.Vector}} _ _ _ (congr!{{Lower.Vector} {Higher.Vector}} frame.value.apply _ _ Split.firstTail) frame.value.preservesZero) }
+  "=" _ "by" { HigherLaws.zeroRight unit.vector }
+};
+\import Higher.Pullback[m := N.Nat^::succ k, h := h, f := change.forward] \as Pullback;
+\definition form: Higher.Form := Pullback.form;
+\definition formSymmetric: Higher.Symmetric form := Pullback.symmetric symmetric;
+\definition formNondegenerate: Higher.Nondegenerate form := Pullback.Bijective[g := change.backward, left := Basis.leftInverse, right := Basis.reconstruction].nondegenerate nondegenerate;
+\definition firstNonzero: Logic.Not (form.form Split.first Split.first = R.zero) := \fun (zero: _) => unitNonisotropic
+  (trans!{{R.Real}} _ _ _ (sym!{{R.Real}} _ _ (congr!{{Higher.Vector} {Higher.Vector} {R.Real}} h.form _ _ _ _ first first)) zero);
+\module Finish(normal: Higher.NormalForm[form]) {
+  \import Spaces.Isomorphism[V := Higher.Vector, W := Higher.Vector, source := Higher.space, target := Higher.space].Composition[U := Higher.Vector, domain := Higher.space] \as Composition;
+  \definition result: Higher.NormalForm[h] := Higher.NormalForm[h] {
+    sign := normal.sign, change := Composition.compose change normal.change,
+    formula := normal.formula,
+  };
+}
+\import \parent.\parent.Pivot[h := form, symmetric := formSymmetric, nonzero := firstNonzero] \as Pivot;
+\definition normalFormExists: (\forall (g: Lower.Form) -> Lower.Symmetric g -> Lower.Nondegenerate g -> \exists Lower.NormalForm[g]) -> \exists Higher.NormalForm[h] := \block {
+  \fun (previous: \forall (g: Lower.Form) -> Lower.Symmetric g -> Lower.Nondegenerate g -> \exists Lower.NormalForm[g]) \then
+  \takefrom data: Higher.Scalar[q := Pivot.q].Normalization \by Higher.Scalar[q := Pivot.q].exists firstNonzero \then
+  \takefrom lower: Lower.NormalForm[Pivot.form] \by previous Pivot.form Pivot.formSymmetric (Pivot.formNondegenerate formNondegenerate) \then
+  \return \exact(Finish[normal := Pivot.With[data := data, lower := lower].normalForm].result, Higher.NormalForm[h])
+};

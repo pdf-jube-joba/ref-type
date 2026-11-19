@@ -1,0 +1,44 @@
+\import std.Data[].Nat[] \as N;
+\import std.Data[].FinSet[] \as Fin;
+\import std.Data[].List[] \as Lists;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\use Equality.eq_reason_in;
+\import real.Analysis[] \as Scalars;
+\import dedekind_reals.DedekindReal[] \as R;
+\import R.Arithmetic[].Prop[] \as Laws;
+\import R.Order[] \as Order;
+\import Scalars.Distance[] \as Distance;
+\import Scalars.Estimates[] \as Bounds;
+\import Bounds.Product[] \as Product;
+\import Scalars.Sequence[] \as Sequence;
+\import Sequence.Operations[] \as SequenceOperations;
+\import calculus.Real[].Multivariable[n := n].Open[] \as Open;
+\import Open.Analysis[] \as Analysis;
+\import Open.Smooth[] \as Smooth;
+\import Smooth.Derivative[] \as Partials;
+\import topological_algebra.Euclidean[].Dimension[n := n] \as Space;
+\import Space.Def[] \as Coordinates;
+\definition Real: \Set := Scalars.Real;
+\definition Point: \Set := Space.Point;
+\definition Index: \Set := Fin.Fin n;
+\definition Critical: \Prop := \forall (i: Index) -> Partials.derivative U f i a = Scalars.zero;
+\import Scalars.FiniteSums[] \as Sums;
+\structure Local: \Set := {
+  domain: Open.OpenSet,
+  included: Open.Included domain U,
+  contains: \In[Point] domain.points a,
+  coefficient: Index -> Index -> Smooth.SmoothFunction domain,
+  symmetric: \forall (i, j: Index)(x: Open.Carrier domain) -> coefficient i j x = coefficient j i x,
+  formula: \forall (x: Open.Carrier domain) -> f (Open.inclusion domain U included x) =
+    Scalars.add (f a) (Sums.sum n (\fun (i: Index) => Sums.sum n (\fun (j: Index) =>
+      Scalars.mul (Scalars.mul (coefficient i j x) (Scalars.sub (x i) (a i))) (Scalars.sub (x j) (a j))))),
+  center: \forall (i, j: Index)(x: Open.Carrier domain) -> x = a -> coefficient i j x =
+    Scalars.mul Scalars.half (Partials.derivative U (Partials.derivative U f j) i a),
+};
+\module Integral;
+\module Path;
+\definition localExistence: Critical -> \exists Local := Path[].localExistence;

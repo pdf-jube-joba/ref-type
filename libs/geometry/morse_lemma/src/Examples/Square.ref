@@ -1,0 +1,46 @@
+/* The first two derivatives of a square at a zero of its factor. */
+\import calculus.Real[].Multivariable[n := n].Open[] \as Open;
+\import Open.Smooth[] \as Smooth;
+\import Smooth.Algebra[U := U] \as Functions;
+\import Smooth.Derivative[] \as Partials;
+\import Partials.Linear[U := U] \as D;
+\definition function: Functions.Function := Functions.product g g;
+\definition first[i: Fin.Fin n]: Functions.Function := Partials.derivative U g i;
+\definition second[i, j: Fin.Fin n]: Functions.Function := Partials.derivative U (first i) j;
+\definition derivative: \forall (i: Fin.Fin n) -> Partials.derivative U function i =
+  Functions.plus (Functions.product (first i) g) (Functions.product g (first i)) :=
+  \fun (i: Fin.Fin n) => D.product i g g;
+\definition derivativeValue: \forall (i: Fin.Fin n)(a: Open.Carrier U) -> Partials.derivative U function i a =
+  R.add (R.mul (first i a) (g a)) (R.mul (g a) (first i a)) :=
+  \fun (i: Fin.Fin n)(a: Open.Carrier U) => congr!{{Functions.Function} {R.Real}} (\fun (h: Functions.Function) => h a) _ _ (derivative i);
+\definition derivativeAtZero: \forall (i: Fin.Fin n)(a: Open.Carrier U) -> g a = R.zero -> Partials.derivative U function i a = R.zero :=
+  \fun (i: Fin.Fin n)(a: Open.Carrier U)(zero: g a = R.zero) => eq_reason_in!{{R.Real} _
+    "=" _ "by" { derivativeValue i a }
+    "=" _ "by" { congr!{{R.Real} {R.Real}} (\fun (t: R.Real) => R.add (R.mul (first i a) t) (R.mul t (first i a))) _ _ zero }
+    "=" _ "by" { congr!{{R.Real} {R.Real} {R.Real}} R.add _ _ _ _ (Laws.fieldMulZeroRight (first i a)) (Laws.fieldMulZeroLeft (first i a)) }
+    "=" _ "by" { Laws.addZeroLeft R.zero }
+  };
+\definition secondDerivative: \forall (i, j: Fin.Fin n) -> Partials.derivative U (Partials.derivative U function i) j =
+  Functions.plus
+    (Functions.plus (Functions.product (second i j) g) (Functions.product (first i) (first j)))
+    (Functions.plus (Functions.product (first j) (first i)) (Functions.product g (second i j))) :=
+  \fun (i, j: Fin.Fin n) => eq_reason_in!{{Functions.Function} _
+    "=" _ "by" { congr!{{Functions.Function} {Functions.Function}} (D.apply j) _ _ (derivative i) }
+    "=" _ "by" { D.addition j (Functions.product (first i) g) (Functions.product g (first i)) }
+    "=" _ "by" { congr!{{Functions.Function} {Functions.Function} {Functions.Function}} Functions.plus _ _ _ _
+      (D.product j (first i) g) (D.product j g (first i)) }
+  };
+\definition hessianAtZero: \forall (i, j: Fin.Fin n)(a: Open.Carrier U) -> g a = R.zero ->
+  Partials.derivative U (Partials.derivative U function i) j a =
+  R.add (R.mul (first i a) (first j a)) (R.mul (first i a) (first j a)) :=
+  \fun (i, j: Fin.Fin n)(a: Open.Carrier U)(zero: g a = R.zero) => eq_reason_in!{{R.Real} _
+    "=" _ "by" { congr!{{Functions.Function} {R.Real}} (\fun (h: Functions.Function) => h a) _ _ (secondDerivative i j) }
+    "=" _ "by" { congr!{{R.Real} {R.Real}} (\fun (t: R.Real) =>
+      R.add (R.add (R.mul (second i j a) t) (R.mul (first i a) (first j a)))
+        (R.add (R.mul (first j a) (first i a)) (R.mul t (second i j a)))) _ _ zero }
+    "=" _ "by" { congr!{{R.Real} {R.Real} {R.Real}} R.add _ _ _ _
+      (trans!{{R.Real}} _ _ _ (congr!{{R.Real} {R.Real}} (\fun (t: R.Real) => R.add t (R.mul (first i a) (first j a))) _ _ (Laws.fieldMulZeroRight (second i j a)))
+        (Laws.addZeroLeft (R.mul (first i a) (first j a))))
+      (trans!{{R.Real}} _ _ _ (congr!{{R.Real} {R.Real}} (R.add (R.mul (first j a) (first i a))) _ _ (Laws.fieldMulZeroLeft (second i j a)))
+        (trans!{{R.Real}} _ _ _ (Laws.addZeroRight (R.mul (first j a) (first i a))) (Laws.fieldMulComm (first j a) (first i a)))) }
+  };

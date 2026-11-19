@@ -1,0 +1,42 @@
+\import dedekind_reals.DedekindReal[].Arithmetic[].Prop[] \as Laws;
+\import Matrices.Operations[] \as Operations;
+\definition scaleScale: \forall (a, b: R.Real)(A: Matrix) -> Arrays.scale a (Arrays.scale b A) = Arrays.scale (R.mul a b) A :=
+  \fun (a, b: R.Real)(A: Matrix) => Operations.ext _ _ (\fun (i, j: Fin.Fin n) => sym!{{R.Real}} _ _ (Laws.fieldMulAssoc a b (A i j)));
+\definition scaleOne: \forall (A: Matrix) -> Arrays.scale R.one A = A :=
+  \fun (A: Matrix) => Operations.ext _ _ (\fun (i, j: Fin.Fin n) => Laws.fieldMulOneLeft (A i j));
+\definition product: \forall (a, b: R.Real)(A, B: Matrix) ->
+  Matrices.product (Arrays.scale a A) (Arrays.scale b B) = Arrays.scale (R.mul a b) (Matrices.product A B) :=
+  \fun (a, b: R.Real)(A, B: Matrix) => eq_reason_in!{Matrix _
+    "=" _ "by" { Operations.scaleLeft a A (Arrays.scale b B) }
+    "=" _ "by" { congr!{Matrix Matrix} (Arrays.scale a) _ _ (Operations.scaleRight b A B) }
+    "=" _ "by" { scaleScale a b (Matrices.product A B) }
+  };
+\definition inverseScale: \forall (A: Matrix)(inverse: Operations.Inverse A)(a, b: R.Real) -> R.mul a b = R.one ->
+  Operations.InverseLaws[Arrays.scale a A, Arrays.scale b inverse] :=
+  \fun (A: Matrix)(inverse: Operations.Inverse A)(a, b: R.Real)(cancel: R.mul a b = R.one) =>
+    Operations.InverseLaws[Arrays.scale a A, Arrays.scale b inverse] {
+      left := eq_reason_in!{Matrix _
+        "=" _ "by" { product b a inverse A }
+        "=" _ "by" { congr!{Matrix Matrix} (Arrays.scale (R.mul b a)) _ _ (Operations.inverseLaws A inverse).left }
+        "=" _ "by" { congr!{{R.Real} Matrix} (\fun (c: R.Real) => Arrays.scale c Matrices.identity) _ _
+          (trans!{{R.Real}} _ _ _ (Laws.fieldMulComm b a) cancel) }
+        "=" _ "by" { scaleOne Matrices.identity }
+      },
+      right := eq_reason_in!{Matrix _
+        "=" _ "by" { product a b A inverse }
+        "=" _ "by" { congr!{Matrix Matrix} (Arrays.scale (R.mul a b)) _ _ (Operations.inverseLaws A inverse).right }
+        "=" _ "by" { congr!{{R.Real} Matrix} (\fun (c: R.Real) => Arrays.scale c Matrices.identity) _ _ cancel }
+        "=" _ "by" { scaleOne Matrices.identity }
+      },
+    };
+\definition nonzero: \forall (A: Matrix)(a, b: R.Real) -> R.mul a b = R.one -> Inversion.Nonzero A -> Inversion.Nonzero (Arrays.scale a A) := \block {
+  \fun (A: Matrix)(a, b: R.Real)(cancel: R.mul a b = R.one)(nonzero: Inversion.Nonzero A) \then
+  \let inverse: Operations.Inverse A := Inversion.inverse (\into[Matrix](A, Inversion.Nonsingular) \by { nonzero }) \then
+  \return Inversion.nonzeroOfInverse (Arrays.scale a A)
+    (\into[Matrix](Arrays.scale b inverse, Operations.Inverse (Arrays.scale a A)) \by { inverseScale A inverse a b cancel })
+};
+\definition halfNonzero: \forall (A: Matrix) -> Inversion.Nonzero A -> Inversion.Nonzero (half A) :=
+  \fun (A: Matrix) => nonzero A R.half (R.add R.one R.one)
+    (trans!{{R.Real}} _ _ _ (Laws.fieldMulAdd R.half R.one R.one) (trans!{{R.Real}} _ _ _
+      (congr!{{R.Real} {R.Real} {R.Real}} R.add _ _ _ _ (Algebra.mulOneRight R.half) (Algebra.mulOneRight R.half))
+      R.Estimates[].halfDouble));

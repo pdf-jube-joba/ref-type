@@ -1,0 +1,94 @@
+\import Higher.Of[h := h] \as H;
+\import Spaces.Linear[V := Lower.Vector, W := R.Real, source := Lower.space, target := Spaces.scalarSpace] \as Rows;
+\import Rows.Operations[] \as RowOperations;
+\import Spaces.Linear[V := Lower.Vector, W := Higher.Vector, source := Lower.space, target := Higher.space] \as Embeddings;
+\import Embeddings.Operations[] \as EmbeddingOperations;
+\import Spaces.Laws[V := Higher.Vector, space := Higher.space] \as HigherLaws;
+\definition q: R.Real := h.form Split.first Split.first;
+\definition row: Rows.Map := Rows.Map {
+  apply := \fun (z: Lower.Vector) => h.form Split.first (Split.embedding.apply z),
+  preservesAdd := \fun (v, w: Lower.Vector) => trans!{{R.Real}} _ _ _
+    (congr!{{Higher.Vector} {R.Real}} (h.form Split.first) _ _ (Split.embedding.preservesAdd v w))
+    (h.addRight Split.first (Split.embedding.apply v) (Split.embedding.apply w)),
+  preservesScale := \fun (a: R.Real)(v: Lower.Vector) => trans!{{R.Real}} _ _ _
+    (congr!{{Higher.Vector} {R.Real}} (h.form Split.first) _ _ (Split.embedding.preservesScale a v))
+    (h.scaleRight a Split.first (Split.embedding.apply v)),
+};
+\definition cross: Rows.Map := RowOperations.scale (Arithmetic.fieldInv q) row;
+\definition column: Embeddings.Map := Embeddings.Map {
+  apply := \fun (z: Lower.Vector) => Higher.space.smul (cross.apply z) Split.first,
+  preservesAdd := \fun (v, w: Lower.Vector) => trans!{{Higher.Vector}} _ _ _
+    (congr!{{R.Real} {Higher.Vector}} (\fun (a: R.Real) => Higher.space.smul a Split.first) _ _ (cross.preservesAdd v w))
+    (Higher.space.scalarAdd (cross.apply v) (cross.apply w) Split.first),
+  preservesScale := \fun (a: R.Real)(v: Lower.Vector) => trans!{{Higher.Vector}} _ _ _
+    (congr!{{R.Real} {Higher.Vector}} (\fun (b: R.Real) => Higher.space.smul b Split.first) _ _ (cross.preservesScale a v))
+    (Higher.space.scalarAssoc a (cross.apply v) Split.first),
+};
+\definition residual: Embeddings.Map := EmbeddingOperations.plus Split.embedding (EmbeddingOperations.negative column);
+\definition residualFormula: \forall (z: Lower.Vector) -> residual.apply z = HigherE.difference (Split.embedding.apply z) (column.apply z) :=
+  \fun (z: Lower.Vector) => congr!{{Higher.Vector} {Higher.Vector}} (Higher.space.add (Split.embedding.apply z)) _ _ (HigherLaws.minusOneScale (column.apply z));
+\definition cancel: \forall (z: Lower.Vector) -> R.mul (cross.apply z) q = row.apply z :=
+  \fun (z: Lower.Vector) => eq_reason_in!{{R.Real} _
+    "=" _ "by" { Arithmetic.fieldMulAssoc (Arithmetic.fieldInv q) (row.apply z) q }
+    "=" _ "by" { Algebra.mulSwap (Arithmetic.fieldInv q) (row.apply z) q }
+    "=" _ "by" { congr!{{R.Real} {R.Real}} (R.mul (row.apply z)) _ _ (Arithmetic.fieldInverseNonzero q nonzero) }
+    "=" _ "by" { Algebra.mulOneRight (row.apply z) }
+  };
+\definition orthogonal: \forall (z: Lower.Vector) -> h.form Split.first (residual.apply z) = R.zero :=
+  \fun (z: Lower.Vector) => eq_reason_in!{{R.Real} _
+    "=" _ "by" { congr!{{Higher.Vector} {R.Real}} (h.form Split.first) _ _ (residualFormula z) }
+    "=" _ "by" { H.subRight Split.first (Split.embedding.apply z) (column.apply z) }
+    "=" _ "by" { congr!{{R.Real} {R.Real}} (R.sub (row.apply z)) _ _
+      (trans!{{R.Real}} _ _ _ (h.scaleRight (cross.apply z) Split.first Split.first) (cancel z)) }
+    "=" _ "by" { Arithmetic.subSelf (row.apply z) }
+  };
+\definition orthogonalLeft: \forall (z: Lower.Vector) -> h.form (residual.apply z) Split.first = R.zero :=
+  \fun (z: Lower.Vector) => trans!{{R.Real}} _ _ _ (symmetric (residual.apply z) Split.first) (orthogonal z);
+\definition residualTail: \forall (z: Lower.Vector) -> Split.tail (residual.apply z) = z :=
+  \fun (z: Lower.Vector) => eq_reason_in!{{Lower.Vector} _
+    "=" _ "by" { congr!{{Higher.Vector} {Lower.Vector}} Split.tail _ _ (residualFormula z) }
+    "=" _ "by" { congr!{{Lower.Vector} {Lower.Vector} {Lower.Vector}} LowerE.difference _ _ _ _
+      (Split.joinTail R.zero z)
+      (trans!{{Lower.Vector}} _ _ _ (congr!{{Lower.Vector} {Lower.Vector}} (Lower.space.smul (cross.apply z)) _ _ Split.firstTail)
+        (Spaces.Laws[V := Lower.Vector, space := Lower.space].scaleZero (cross.apply z))) }
+    "=" _ "by" { LowerE.differenceZero z }
+  };
+\definition residualHead: \forall (z: Lower.Vector) -> Split.head (residual.apply z) = R.neg (cross.apply z) :=
+  \fun (z: Lower.Vector) => eq_reason_in!{{R.Real} _
+    "=" _ "by" { congr!{{Higher.Vector} {R.Real}} Split.head _ _ (residualFormula z) }
+    "=" _ "by" { congr!{{R.Real} {R.Real} {R.Real}} R.sub _ _ _ _ (Split.joinHead R.zero z)
+      (trans!{{R.Real}} _ _ _ (congr!{{R.Real} {R.Real}} (R.mul (cross.apply z)) _ _ Split.firstHead) (Algebra.mulOneRight (cross.apply z))) }
+    "=" _ "by" { Arithmetic.addZeroLeft (R.neg (cross.apply z)) }
+  };
+\import Higher.Pullback[m := k, h := h, f := residual] \as Restriction;
+\definition form: Lower.Form := Restriction.form;
+\definition formSymmetric: Lower.Symmetric form := Restriction.symmetric symmetric;
+\definition alpha[x: Higher.Vector]: R.Real := R.add (Split.head x) (cross.apply (Split.tail x));
+\definition decomposition: \forall (x: Higher.Vector) -> Higher.space.add (Higher.space.smul (alpha x) Split.first) (residual.apply (Split.tail x)) = x :=
+  \fun (x: Higher.Vector) => Split.ext _ _
+    (eq_reason_in!{{R.Real} _
+      "=" _ "by" { congr!{{R.Real} {R.Real} {R.Real}} R.add _ _ _ _
+        (trans!{{R.Real}} _ _ _ (congr!{{R.Real} {R.Real}} (R.mul (alpha x)) _ _ Split.firstHead) (Algebra.mulOneRight (alpha x)))
+        (residualHead (Split.tail x)) }
+      "=" _ "by" { Arithmetic.addNegCancelRight (cross.apply (Split.tail x)) (Split.head x) }
+    })
+    (eq_reason_in!{{Lower.Vector} _
+      "=" _ "by" { congr!{{Lower.Vector} {Lower.Vector} {Lower.Vector}} Lower.space.add _ _ _ _
+        (trans!{{Lower.Vector}} _ _ _ (congr!{{Lower.Vector} {Lower.Vector}} (Lower.space.smul (alpha x)) _ _ Split.firstTail)
+          (Spaces.Laws[V := Lower.Vector, space := Lower.space].scaleZero (alpha x)))
+        (residualTail (Split.tail x)) }
+      "=" _ "by" { Spaces.Laws[V := Lower.Vector, space := Lower.space].zeroLeft (Split.tail x) }
+    });
+\definition formNondegenerate: Higher.Nondegenerate h -> Lower.Nondegenerate form :=
+  \fun (nondegenerate: Higher.Nondegenerate h)(z: Lower.Vector)(zero: \forall (w: Lower.Vector) -> form.form z w = R.zero) =>
+    trans!{{Lower.Vector}} _ _ _ (sym!{{Lower.Vector}} _ _ (residualTail z))
+      (congr!{{Higher.Vector} {Lower.Vector}} Split.tail _ _ (nondegenerate (residual.apply z) (\fun (x: Higher.Vector) => eq_reason_in!{{R.Real} _
+        "=" _ "by" { congr!{{Higher.Vector} {R.Real}} (h.form (residual.apply z)) _ _ (sym!{{Higher.Vector}} _ _ (decomposition x)) }
+        "=" _ "by" { h.addRight (residual.apply z) (Higher.space.smul (alpha x) Split.first) (residual.apply (Split.tail x)) }
+        "=" _ "by" { congr!{{R.Real} {R.Real} {R.Real}} R.add _ _ _ _
+          (trans!{{R.Real}} _ _ _ (h.scaleRight (alpha x) (residual.apply z) Split.first)
+            (trans!{{R.Real}} _ _ _ (congr!{{R.Real} {R.Real}} (R.mul (alpha x)) _ _ (orthogonalLeft z)) (Arithmetic.fieldMulZeroRight (alpha x))))
+          (zero (Split.tail x)) }
+        "=" _ "by" { Arithmetic.addZeroLeft R.zero }
+      })));
+\module With(data: Higher.Scalar[q := q].Normalization, lower: Lower.NormalForm[form]);

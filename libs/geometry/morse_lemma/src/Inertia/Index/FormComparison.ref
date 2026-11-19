@@ -1,0 +1,32 @@
+\import Isomorphisms.Composition[U := Vector, domain := E.space] \as Composition;
+\definition nondegenerate: CongruentForms h g C -> Nondegenerate g -> Nondegenerate h := \block {
+  \fun (congruent: CongruentForms h g C)(nondegenerate: Nondegenerate g)(v: Vector)(annihilates: \forall (w: Vector) -> h.form v w = R.zero) \then
+  \let zero: C.forward.apply v = E.space.zero := nondegenerate (C.forward.apply v) (\fun (w: Vector) => eq_reason_in!{{R.Real} {g.form (C.forward.apply v) w}
+    "=" {g.form (C.forward.apply v) (C.forward.apply (C.backward.apply w))} "by" { congr!{Vector {R.Real}} (g.form (C.forward.apply v)) _ _ (sym!{Vector} _ _ ((Isomorphisms.laws C).rightInverse w)) }
+    "=" {h.form v (C.backward.apply w)} "by" { congruent v (C.backward.apply w) }
+    "=" {R.zero} "by" { annihilates (C.backward.apply w) }
+  }) \then
+  \return eq_reason_in!{Vector v
+    "=" _ "by" { sym!{Vector} _ _ ((Isomorphisms.laws C).leftInverse v) }
+    "=" _ "by" { congr!{Vector Vector} C.backward.apply _ _ zero }
+    "=" _ "by" { C.backward.preservesZero }
+  }
+};
+\definition transport[normal: NormalForm[h]][congruent: CongruentForms h g C]: NormalForm[g] := NormalForm[g] {
+  sign := normal.sign,
+  change := Composition.compose C normal.change,
+  formula := \fun (v, w: Vector) => trans!{{R.Real}} _ _ _
+    (congruent (normal.change.forward.apply v) (normal.change.forward.apply w)) (normal.formula v w),
+};
+\definition negative: \forall (k: N.Nat^) -> CongruentForms h g C -> \parent.Of[h := h].HasNegative k -> \parent.Of[h := g].HasNegative k := \block {
+  \fun (k: N.Nat^)(congruent: CongruentForms h g C)(exists: \parent.Of[h := h].HasNegative k) \then
+  \takefrom normal: \Cast[NormalForm[h]] ({ normal: NormalForm[h] \where negative normal.sign = k }) \by exists \then
+  \return Logic.existsIntro[NormalForm[g], { chosen: NormalForm[g] \where negative chosen.sign = k }] (transport normal congruent)
+    (\bysub(NormalForm[h], { normal: NormalForm[h] \where negative normal.sign = k }, normal))
+};
+\definition positive: \forall (k: N.Nat^) -> CongruentForms h g C -> \parent.Of[h := h].HasPositive k -> \parent.Of[h := g].HasPositive k := \block {
+  \fun (k: N.Nat^)(congruent: CongruentForms h g C)(exists: \parent.Of[h := h].HasPositive k) \then
+  \takefrom normal: \Cast[NormalForm[h]] ({ normal: NormalForm[h] \where positive normal.sign = k }) \by exists \then
+  \return Logic.existsIntro[NormalForm[g], { chosen: NormalForm[g] \where positive chosen.sign = k }] (transport normal congruent)
+    (\bysub(NormalForm[h], { normal: NormalForm[h] \where positive normal.sign = k }, normal))
+};

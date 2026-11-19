@@ -1,0 +1,47 @@
+\definition W: Open.OpenSet := taylor.domain;
+\definition base: Open.Carrier W := \into[Point](a, W.points) \by { taylor.contains };
+\definition A[x: Open.Carrier W]: Matrix.Matrix := \fun (i, j: Fin.Fin n) => taylor.coefficient i j x;
+\definition coefficient[i, j: Fin.Fin n]: Open.ScalarFunction W := taylor.coefficient i j;
+\import \root.Normalization[d := dimension, n := n].On[U := W].At[A := A, a := base] \as Normalization;
+\definition regular: \root.Normalization[d := dimension, n := n].On[U := W].Regular A :=
+  \fun (i, j: Fin.Fin n) => \idelim coefficient i j = (\fun (x: Open.Carrier W) => A x i j)
+    \with g: Open.ScalarFunction W => Smooth.SmoothOn W g \by {
+      base: \bysub(Open.ScalarFunction W, Smooth.SmoothFunction W, taylor.coefficient i j),
+      equality: \axiom:funext(coefficient i j, (\fun (x: Open.Carrier W) => A x i j), \fun (x: Open.Carrier W) => \refl(A x i j))
+    };
+\definition symmetric: Normalization.SymmetricFamily := \fun (x: Open.Carrier W)(i, j: Fin.Fin n) => taylor.symmetric i j x;
+\definition graphAtBase: Graphs.apply branch.parameters U branch.graph (Projections.apply W branch.parameters taylor.parameter base) = a :=
+  branch.atBase (Projections.apply W branch.parameters taylor.parameter base) (taylor.parameterFormula base);
+\definition centerMatrix: A base = halfHessian := Matrix.Operations[].ext _ _ (\fun (i, j: Fin.Fin n) => trans!{{R.Real}} _ _ _
+  (taylor.center i j base (sym!{Point} _ _ graphAtBase))
+  (congr!{{R.Real} {R.Real}} (R.mul R.half) _ _ (sym!{{R.Real}} _ _ (\root.Parametric[p := p, n := n].Function[U := U, f := f].At[a := a].entriesValue i j))));
+\definition halfSymmetric: MatrixForm.Symmetric halfHessian := \fun (i, j: Fin.Fin n) => eq_reason_in!{{R.Real} _
+  "=" _ "by" { sym!{{R.Real}} _ _ (Matrix.Operations[].entry _ _ centerMatrix i j) }
+  "=" _ "by" { taylor.symmetric i j base }
+  "=" _ "by" { Matrix.Operations[].entry _ _ centerMatrix j i }
+};
+\definition halfNonzero: Nondegenerate a -> Inversion.Nonzero halfHessian := MatrixForm.halfNonzero (hessianEntries a);
+\definition centerNonzero: Nondegenerate a -> Inversion.Nonzero (A base) :=
+  \fun (nondegenerate: Nondegenerate a) => \idelim halfHessian = A base \with M: Matrix.Matrix => Inversion.Nonzero M \by {
+    base: halfNonzero nondegenerate, equality: sym!{{Matrix.Matrix}} _ _ centerMatrix
+  };
+\import \parent.\parent.FiberCoordinates[a := a, branch := branch] \as Displacement;
+\import Displacement.Domain[] \as Base;
+\import Projections.Preimage[U := U, W := Parameters.whole, V := branch.parameters, f := Base.leftMap] \as ParameterDomain;
+\definition includedDisplacement: Open.Included W Displacement.domain := \block {
+  \fun (x: Point)(member: \In[Point] W.points x) \then
+  \let y: Open.Carrier W := \into[Point](x, W.points) \by { member } \then
+  \let t: Parameters.Carrier branch.parameters := Projections.apply W branch.parameters taylor.parameter y \then
+  \return ParameterDomain.intro (Open.inclusion W U taylor.included y)
+    (\idelim t = Split.left x \with v: Parameter => \In[Parameter] branch.parameters.points v \by {
+      base: \bysub(Parameter, branch.parameters.points, t), equality: taylor.parameterFormula y
+    })
+};
+\module With(normalization: Normalization.Local, normal: Inertia.NormalForm[hessianHalfForm]);
+\definition exists: Nondegenerate a -> \exists Local := \block {
+  \fun (nondegenerate: Nondegenerate a) \then
+  \takefrom normalization: Normalization.Local \by Normalization.localExistence regular symmetric (centerNonzero nondegenerate) \then
+  \takefrom normal: Inertia.NormalForm[hessianHalfForm] \by Inertia.normalFormExists hessianHalfForm (MatrixForm.symmetric halfHessian halfSymmetric)
+    (MatrixForm.nondegenerate halfHessian (halfNonzero nondegenerate)) \then
+  \return With[normalization := normalization, normal := normal].exists
+};

@@ -1,0 +1,88 @@
+\import \root.Inertia[n := n] \as Inertia;
+\import std.Data[].Nat[] \as N;
+\import Inertia.Index[] \as Index;
+\import R.FiniteSums[] \as Sums;
+\import R.SquareRoot[] \as Root;
+\import dedekind_reals.DedekindReal[].Arithmetic[].Prop[] \as Arithmetic;
+\import Spaces.Eigen[V := Vector, space := E.space] \as Eigen;
+\import Spaces.Isomorphism[V := Vector, W := Vector, source := E.space, target := E.space] \as Isomorphisms;
+\definition factor: R.Real := Root.sqrt R.half;
+\definition squared: R.mul factor factor = R.half := Root.squareOfNonnegative R.half R.Estimates[].halfNonnegative;
+\definition halfScalarNonzero: Logic.Not (R.half = R.zero) := \fun (zero: R.half = R.zero) => Arithmetic.zeroNeOne (eq_reason_in!{{R.Real} {R.zero}
+  "=" _ "by" { sym!{{R.Real}} _ _ (Arithmetic.addZeroLeft R.zero) }
+  "=" _ "by" { congr!{{R.Real} {R.Real} {R.Real}} R.add _ _ _ _ (sym!{{R.Real}} _ _ zero) (sym!{{R.Real}} _ _ zero) }
+  "=" _ "by" { R.Estimates[].halfDouble }
+});
+\definition factorNonzero: Logic.Not (factor = R.zero) := \fun (zero: factor = R.zero) => halfScalarNonzero (eq_reason_in!{{R.Real} {R.half}
+  "=" _ "by" { sym!{{R.Real}} _ _ squared }
+  "=" _ "by" { congr!{{R.Real} {R.Real}} (\fun (a: R.Real) => R.mul a factor) _ _ zero }
+  "=" _ "by" { Arithmetic.fieldMulZeroLeft factor }
+});
+\definition inverse: R.mul (Arithmetic.fieldInv factor) factor = R.one := Arithmetic.fieldInverseNonzero factor factorNonzero;
+\definition cancel: \forall (a, b: R.Real)(v: Vector) -> R.mul a b = R.one -> E.space.smul a (E.space.smul b v) = v :=
+  \fun (a, b: R.Real)(v: Vector)(one: R.mul a b = R.one) => eq_reason_in!{Vector _
+    "=" _ "by" { sym!{Vector} _ _ (E.space.scalarAssoc a b v) }
+    "=" _ "by" { congr!{{R.Real} Vector} (\fun (c: R.Real) => E.space.smul c v) _ _ one }
+    "=" _ "by" { E.space.scalarOne v }
+  };
+\definition change: Isomorphisms.Isomorphism := Isomorphisms.Isomorphism {
+  forward := Eigen.scalar factor,
+  backward := Eigen.scalar (Arithmetic.fieldInv factor),
+  leftInverse := \fun (v: Vector) => cancel (Arithmetic.fieldInv factor) factor v inverse,
+  rightInverse := \fun (v: Vector) => cancel factor (Arithmetic.fieldInv factor) v
+    (trans!{{R.Real}} _ _ _ (Arithmetic.fieldMulComm factor (Arithmetic.fieldInv factor)) inverse),
+};
+\import \parent.Quadratic[] \as Quadratic;
+\definition linearScale: \forall (A: Matrix)(v: Vector) -> (Matrices.linear (half A)).apply v = E.space.smul R.half ((Matrices.linear A).apply v) :=
+  \fun (A: Matrix)(v: Vector) => \axiom:funext((Matrices.linear (half A)).apply v, E.space.smul R.half ((Matrices.linear A).apply v),
+    \fun (i: Fin.Fin n) => eq_reason_in!{{R.Real} _
+      "=" _ "by" { Quadratic.action (half A) v i }
+      "=" _ "by" { Sums.congruent n
+        (\fun (j: Fin.Fin n) => R.mul (v j) (R.mul R.half (A i j)))
+        (\fun (j: Fin.Fin n) => R.mul R.half (R.mul (v j) (A i j)))
+        (\fun (j: Fin.Fin n) => Algebra.mulSwap (v j) R.half (A i j)) }
+      "=" _ "by" { Sums.scalar n R.half (\fun (j: Fin.Fin n) => R.mul (v j) (A i j)) }
+      "=" _ "by" { congr!{{R.Real} {R.Real}} (R.mul R.half) _ _ (sym!{{R.Real}} _ _ (Quadratic.action A v i)) }
+    });
+\definition scaleFormula: \forall (A: Matrix)(v, w: Vector) -> (form (half A)).form v w = R.mul R.half ((form A).form v w) :=
+  \fun (A: Matrix)(v, w: Vector) => trans!{{R.Real}} _ _ _
+    (congr!{Vector {R.Real}} (\fun (x: Vector) => E.dot x w) _ _ (linearScale A v))
+    (E.form.scaleLeft R.half ((Matrices.linear A).apply v) w);
+\definition formula: \forall (A: Matrix) -> Index.CongruentForms (form (half A)) (form A) change :=
+  \fun (A: Matrix)(v, w: Vector) => eq_reason_in!{{R.Real} _
+    "=" _ "by" { (form A).scaleLeft factor v (E.space.smul factor w) }
+    "=" _ "by" { congr!{{R.Real} {R.Real}} (R.mul factor) _ _ ((form A).scaleRight factor v w) }
+    "=" _ "by" { sym!{{R.Real}} _ _ (Arithmetic.fieldMulAssoc factor factor ((form A).form v w)) }
+    "=" _ "by" { congr!{{R.Real} {R.Real}} (\fun (a: R.Real) => R.mul a ((form A).form v w)) _ _ squared }
+    "=" _ "by" { sym!{{R.Real}} _ _ (scaleFormula A v w) }
+  };
+\definition halfSymmetric: \forall (A: Matrix) -> Symmetric A -> Symmetric (half A) :=
+  \fun (A: Matrix)(symmetric: Symmetric A)(i, j: Fin.Fin n) => congr!{{R.Real} {R.Real}} (R.mul R.half) _ _ (symmetric i j);
+\module On(A: Matrix, symmetry: Symmetric A, nonzero: Inversion.Nonzero A) {
+  \definition raw: Index.NonsingularForm := \into[Inertia.Form](form A, Index.NonsingularForm) \by {
+    Index.NonsingularLaws[form A] { symmetric := symmetric A symmetry, nondegenerate := nondegenerate A nonzero }
+  };
+  \definition scaled: Index.NonsingularForm := \into[Inertia.Form](form (half A), Index.NonsingularForm) \by {
+    Index.NonsingularLaws[form (half A)] {
+      symmetric := symmetric (half A) (halfSymmetric A symmetry), nondegenerate := nondegenerate (half A) (halfNonzero A nonzero)
+    }
+  };
+  \definition negative: Index.negativeIndex scaled = Index.negativeIndex raw := Index.negativeIndexInvariant scaled raw change (formula A);
+  \definition positive: Index.positiveIndex scaled = Index.positiveIndex raw := Index.positiveIndexInvariant scaled raw change (formula A);
+}
+\definition negative: \forall (A: Matrix)(symmetry: Symmetric A)(nonzero: Inversion.Nonzero A) ->
+  Index.negativeIndex On[A := A, symmetry := symmetry, nonzero := nonzero].scaled =
+  Index.negativeIndex On[A := A, symmetry := symmetry, nonzero := nonzero].raw :=
+  \fun (A: Matrix)(symmetry: Symmetric A)(nonzero: Inversion.Nonzero A) => On[A := A, symmetry := symmetry, nonzero := nonzero].negative;
+\definition positive: \forall (A: Matrix)(symmetry: Symmetric A)(nonzero: Inversion.Nonzero A) ->
+  Index.positiveIndex On[A := A, symmetry := symmetry, nonzero := nonzero].scaled =
+  Index.positiveIndex On[A := A, symmetry := symmetry, nonzero := nonzero].raw :=
+  \fun (A: Matrix)(symmetry: Symmetric A)(nonzero: Inversion.Nonzero A) => On[A := A, symmetry := symmetry, nonzero := nonzero].positive;
+\definition normalNegative: \forall (A: Matrix)(symmetry: Symmetric A)(nonzero: Inversion.Nonzero A)(normal: Inertia.NormalForm[form (half A)]) ->
+  Index.negative normal.sign = Index.negativeIndex On[A := A, symmetry := symmetry, nonzero := nonzero].raw :=
+  \fun (A: Matrix)(symmetry: Symmetric A)(nonzero: Inversion.Nonzero A)(normal: Inertia.NormalForm[form (half A)]) => trans!{{N.Nat^}} _ _ _
+    (sym!{{N.Nat^}} _ _ (Index.negativeIndexOfNormal On[A := A, symmetry := symmetry, nonzero := nonzero].scaled normal)) (negative A symmetry nonzero);
+\definition normalPositive: \forall (A: Matrix)(symmetry: Symmetric A)(nonzero: Inversion.Nonzero A)(normal: Inertia.NormalForm[form (half A)]) ->
+  Index.positive normal.sign = Index.positiveIndex On[A := A, symmetry := symmetry, nonzero := nonzero].raw :=
+  \fun (A: Matrix)(symmetry: Symmetric A)(nonzero: Inversion.Nonzero A)(normal: Inertia.NormalForm[form (half A)]) => trans!{{N.Nat^}} _ _ _
+    (sym!{{N.Nat^}} _ _ (Index.positiveIndexOfNormal On[A := A, symmetry := symmetry, nonzero := nonzero].scaled normal)) (positive A symmetry nonzero);

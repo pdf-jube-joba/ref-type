@@ -1,0 +1,30 @@
+/* A scalar Hessian equal to 2 has the explicit inverse 1/2. */
+\import matrix_invariants.Ring[K := R.Real,
+  scalars := std.Alg[].Field[].fieldAsCommutativeRing R.Real Algebra.field].At[n := one] \as Matrix;
+\import Matrix.Operations[] \as Operations;
+\import matrix_invariants.Field[K := R.Real, field := Algebra.field].At[n := one] \as Inversion;
+\definition halfTwo: R.mul R.half two = R.one := trans!{{R.Real}} _ _ _
+  (Laws.fieldMulAdd R.half R.one R.one) (R.Estimates[].halfTwice R.one);
+\definition twoHalf: R.mul two R.half = R.one := trans!{{R.Real}} _ _ _ (Laws.fieldMulComm two R.half) halfTwo;
+\import linear_algebra.Commutative[K := R.Real, scalarRing := std.Alg[].Field[].fieldAsCommutativeRing R.Real Algebra.field].Coordinates[I := Fin.Fin one].Kronecker[] \as Delta;
+\definition identityEntry: \forall (i, j: Fin.Fin one) -> Matrix.identity i j = R.one :=
+  \fun (i, j: Fin.Fin one) => Delta.equal j i (trans!{{Fin.Fin one}} _ _ _ (Fin.singletonValue j) (sym!{{Fin.Fin one}} _ _ (Fin.singletonValue i)));
+\definition inverse[A: Matrix.Matrix][value: \forall (i, j: Fin.Fin one) -> A i j = two]: Operations.Inverse A :=
+  \into[Matrix.Matrix]((\fun (i, j: Fin.Fin one) => R.half), Operations.Inverse A) \by {
+    Operations.InverseLaws[A, (\fun (i, j: Fin.Fin one) => R.half)] {
+      left := Operations.ext _ _ (\fun (i, j: Fin.Fin one) => eq_reason_in!{{R.Real} _
+        "=" _ "by" { Laws.addZeroRight (R.mul R.half (A (Fin.zero N.Nat^::zero) j)) }
+        "=" _ "by" { congr!{{R.Real} {R.Real}} (R.mul R.half) _ _ (value (Fin.zero N.Nat^::zero) j) }
+        "=" _ "by" { halfTwo }
+        "=" _ "by" { sym!{{R.Real}} _ _ (identityEntry i j) }
+      }),
+      right := Operations.ext _ _ (\fun (i, j: Fin.Fin one) => eq_reason_in!{{R.Real} _
+        "=" _ "by" { Laws.addZeroRight (R.mul (A i (Fin.zero N.Nat^::zero)) R.half) }
+        "=" _ "by" { congr!{{R.Real} {R.Real}} (\fun (t: R.Real) => R.mul t R.half) _ _ (value i (Fin.zero N.Nat^::zero)) }
+        "=" _ "by" { twoHalf }
+        "=" _ "by" { sym!{{R.Real}} _ _ (identityEntry i j) }
+      }),
+    }
+  };
+\definition nonzero: \forall (A: Matrix.Matrix) -> (\forall (i, j: Fin.Fin one) -> A i j = two) -> Inversion.Nonzero A :=
+  \fun (A: Matrix.Matrix)(value: \forall (i, j: Fin.Fin one) -> A i j = two) => Inversion.nonzeroOfInverse A (inverse A value);

@@ -1,0 +1,50 @@
+\import R.FiniteSums[] \as Sums;
+\import Sums.Linear[] \as Finite;
+\import dedekind_reals.DedekindReal[].Arithmetic[].Prop[] \as Arithmetic;
+\import matrix_invariants.Real[].At[n := n].Smooth[d := n] \as Basis;
+\definition row[A: Matrix][i: Fin.Fin n]: Finite.Map n := Finite.Data[n] {
+  apply := \fun (v: Vector) => (Matrices.linear A).apply v i,
+  additive := \fun (v, w: Vector) => congr!{Vector {R.Real}} (\fun (x: Vector) => x i) _ _ ((Matrices.linear A).preservesAdd v w),
+  homogeneous := \fun (a: R.Real)(v: Vector) => congr!{Vector {R.Real}} (\fun (x: Vector) => x i) _ _ ((Matrices.linear A).preservesScale a v),
+};
+\definition action: \forall (A: Matrix)(v: Vector)(i: Fin.Fin n) -> (Matrices.linear A).apply v i =
+  Sums.sum n (\fun (j: Fin.Fin n) => R.mul (v j) (A i j)) :=
+  \fun (A: Matrix)(v: Vector)(i: Fin.Fin n) => trans!{{R.Real}} _ _ _ (Finite.expansion n (row A i) v)
+    (Sums.congruent n
+      (\fun (j: Fin.Fin n) => R.mul (v j) ((Matrices.linear A).apply (E.basis j) i))
+      (\fun (j: Fin.Fin n) => R.mul (v j) (A i j))
+      (\fun (j: Fin.Fin n) => congr!{{R.Real} {R.Real}} (R.mul (v j)) _ _
+        (trans!{{R.Real}} _ _ _ (congr!{Vector {R.Real}} (\fun (w: Vector) => (Matrices.linear A).apply w i) _ _ (Basis.basisComparison j))
+          (congr!{Vector {R.Real}} (\fun (w: Vector) => w i) _ _ (Matrices.onBasis A j)))));
+\definition rowFormula: \forall (A: Matrix)(v, w: Vector)(i: Fin.Fin n) -> R.mul ((Matrices.linear A).apply v i) (w i) =
+  Sums.sum n (\fun (j: Fin.Fin n) => R.mul (R.mul (A i j) (v j)) (w i)) :=
+  \fun (A: Matrix)(v, w: Vector)(i: Fin.Fin n) => eq_reason_in!{{R.Real} _
+    "=" _ "by" { congr!{{R.Real} {R.Real}} (\fun (a: R.Real) => R.mul a (w i)) _ _ (action A v i) }
+    "=" _ "by" { Arithmetic.fieldMulComm (Sums.sum n (\fun (j: Fin.Fin n) => R.mul (v j) (A i j))) (w i) }
+    "=" _ "by" { sym!{{R.Real}} _ _ (Sums.scalar n (w i) (\fun (j: Fin.Fin n) => R.mul (v j) (A i j))) }
+    "=" _ "by" { Sums.congruent n
+      (\fun (j: Fin.Fin n) => R.mul (w i) (R.mul (v j) (A i j)))
+      (\fun (j: Fin.Fin n) => R.mul (R.mul (A i j) (v j)) (w i))
+      (\fun (j: Fin.Fin n) => trans!{{R.Real}} _ _ _ (Arithmetic.fieldMulComm (w i) (R.mul (v j) (A i j)))
+        (congr!{{R.Real} {R.Real}} (\fun (a: R.Real) => R.mul a (w i)) _ _ (Arithmetic.fieldMulComm (v j) (A i j)))) }
+  };
+\definition bilinear: \forall (A: Matrix)(v, w: Vector) -> (form A).form v w =
+  Sums.sum n (\fun (i: Fin.Fin n) => Sums.sum n (\fun (j: Fin.Fin n) => R.mul (R.mul (A i j) (v j)) (w i))) :=
+  \fun (A: Matrix)(v, w: Vector) => Sums.congruent n
+    (\fun (i: Fin.Fin n) => R.mul ((Matrices.linear A).apply v i) (w i))
+    (\fun (i: Fin.Fin n) => Sums.sum n (\fun (j: Fin.Fin n) => R.mul (R.mul (A i j) (v j)) (w i)))
+    (rowFormula A v w);
+\definition formula: \forall (A: Matrix)(v: Vector) -> (form A).form v v =
+  Sums.sum n (\fun (i: Fin.Fin n) => Sums.sum n (\fun (j: Fin.Fin n) => R.mul (R.mul (A i j) (v i)) (v j))) :=
+  \fun (A: Matrix)(v: Vector) => trans!{{R.Real}} _ _ _ (bilinear A v v)
+    (Sums.congruent n
+      (\fun (i: Fin.Fin n) => Sums.sum n (\fun (j: Fin.Fin n) => R.mul (R.mul (A i j) (v j)) (v i)))
+      (\fun (i: Fin.Fin n) => Sums.sum n (\fun (j: Fin.Fin n) => R.mul (R.mul (A i j) (v i)) (v j)))
+      (\fun (i: Fin.Fin n) => Sums.congruent n
+        (\fun (j: Fin.Fin n) => R.mul (R.mul (A i j) (v j)) (v i))
+        (\fun (j: Fin.Fin n) => R.mul (R.mul (A i j) (v i)) (v j))
+        (\fun (j: Fin.Fin n) => eq_reason_in!{{R.Real} _
+          "=" _ "by" { Arithmetic.fieldMulAssoc (A i j) (v j) (v i) }
+          "=" _ "by" { congr!{{R.Real} {R.Real}} (R.mul (A i j)) _ _ (Arithmetic.fieldMulComm (v j) (v i)) }
+          "=" _ "by" { sym!{{R.Real}} _ _ (Arithmetic.fieldMulAssoc (A i j) (v i) (v j)) }
+        })));

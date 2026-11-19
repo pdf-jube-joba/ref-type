@@ -1,0 +1,32 @@
+\definition radius: Real := Distance.min delta rho;
+\module Point(z: Real, x: Open.Carrier U, replaced: x = Coordinates.replace b i z,
+  different: Logic.Not (z = b i), near: R.Lt (Scalars.distance z (b i)) radius);
+\import \parent.\parent.\parent.Algebra[] \as IntegralAlgebra;
+\definition control: PartialLaw -> R.Lt Scalars.zero epsilon -> Analysis.PartialControl[U, Left.average, b, i, Right.average b, Scalars.add epsilon epsilon, radius] :=
+  \fun (partials: PartialLaw)(positive: R.Lt Scalars.zero epsilon) => Analysis.PartialControl[U, Left.average, b, i, Right.average b, Scalars.add epsilon epsilon, radius] {
+    positive := Product.minPositive delta rho uniform.positive ball.positive,
+    estimate := \block {
+      \fun (z: Real)(x: Open.Carrier U)(replaced: x = Coordinates.replace b i z)(different: Logic.Not (z = b i))(near: _) \then
+      \let factor: Real := Laws.fieldInv (Scalars.sub z (b i)) \then
+      \let slope: Function := IntegralAlgebra.scaling factor (IntegralAlgebra.subtraction (Left.section x) (Left.section b)) \then
+      \let integrand: \forall (t: Time) -> slope t = Scalars.mul (Scalars.sub (g t x) (g t b)) factor :=
+        \fun (t: Time) => trans!{Real} _ _ _ (congr!{Real Real} (Scalars.mul factor) _ _ (IntegralAlgebra.subtractAt (Left.section x) (Left.section b) t))
+          (Laws.fieldMulComm factor (Scalars.sub (g t x) (g t b))) \then
+      \let slopeValue: value slope = Scalars.mul (Scalars.sub (Left.average x) (Left.average b)) factor :=
+        eq_reason_in!{Real _
+          "=" _ "by" { IntegralAlgebra.scaleLaw factor (IntegralAlgebra.subtraction (Left.section x) (Left.section b)) }
+          "=" _ "by" { congr!{Real Real} (Scalars.mul factor) _ _ (IntegralAlgebra.subLaw (Left.section x) (Left.section b)) }
+          "=" _ "by" { Laws.fieldMulComm factor (Scalars.sub (Left.average x) (Left.average b)) }
+        } \then
+      \let estimate: R.Le (Scalars.distance (value slope) (Right.average b)) epsilon := bound slope (Right.section b) epsilon
+        (\fun (t: Time) => R.leReplaceLeft (Scalars.distance (Scalars.mul (Scalars.sub (g t x) (g t b)) factor) (h t b))
+          (Scalars.distance (slope t) (h t b)) epsilon
+          (sym!{Real} _ _ (congr!{Real Real} (\fun (r: Real) => Scalars.distance r (h t b)) _ _ (integrand t)))
+          (Point[z := z, x := x, replaced := replaced, different := different, near := near].Fiber[t := t].slopeBound partials)) \then
+      \return R.leLtTrans _ epsilon (Scalars.add epsilon epsilon)
+        (R.leReplaceLeft (Scalars.distance (value slope) (Right.average b))
+          (Scalars.distance (Scalars.mul (Scalars.sub (Left.average x) (Left.average b)) factor) (Right.average b)) epsilon
+          (congr!{Real Real} (\fun (r: Real) => Scalars.distance r (Right.average b)) _ _ slopeValue) estimate)
+        (R.ltReplaceLeft (Scalars.add epsilon Scalars.zero) epsilon (Scalars.add epsilon epsilon) (Laws.addZeroRight epsilon) (Laws.ltAddLeft epsilon Scalars.zero epsilon positive))
+    },
+  };

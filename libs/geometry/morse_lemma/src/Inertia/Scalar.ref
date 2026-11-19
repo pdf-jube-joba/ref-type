@@ -1,0 +1,49 @@
+\import R.SquareRoot[] \as Root;
+\structure Normalization: \Set := {
+  sign: Bool.Bool^,
+  length: R.Real,
+  nonzero: Logic.Not (length = R.zero),
+  formula: q = R.mul (coefficient sign) (R.mul length length),
+};
+\definition rootNonzero: \forall (x: R.Real) -> Ordered.Le R.zero x -> Logic.Not (x = R.zero) -> Logic.Not (Root.sqrt x = R.zero) :=
+  \fun (x: R.Real)(nonnegative: _)(nonzero: _)(zero: Root.sqrt x = R.zero) => nonzero (eq_reason_in!{{R.Real} _
+    "=" _ "by" { sym!{{R.Real}} _ _ (Root.squareOfNonnegative x nonnegative) }
+    "=" _ "by" { congr!{{R.Real} {R.Real}} (\fun (r: R.Real) => R.mul r (Root.sqrt x)) _ _ zero }
+    "=" _ "by" { Arithmetic.fieldMulZeroLeft (Root.sqrt x) }
+  });
+\definition exists: Logic.Not (q = R.zero) -> \exists Normalization :=
+  \fun (nonzero: Logic.Not (q = R.zero)) => either!{{(Arithmetic.nonnegativeOrNegativeReal q)} {\exists Normalization}
+    {\fun (positive: Ordered.Le R.zero q) => \exact(Normalization {
+      sign := Bool.Bool^::false, length := Root.sqrt q,
+      nonzero := rootNonzero q positive nonzero,
+      formula := trans!{{R.Real}} _ _ _ (sym!{{R.Real}} _ _ (Root.squareOfNonnegative q positive))
+        (sym!{{R.Real}} _ _ (Arithmetic.fieldMulOneLeft (R.mul (Root.sqrt q) (Root.sqrt q)))),
+    }, Normalization)}
+    {\fun (negative: Ordered.Lt q R.zero) => \exact(Normalization {
+      sign := Bool.Bool^::true, length := Root.sqrt (R.neg q),
+      nonzero := rootNonzero (R.neg q) (Arithmetic.nonnegativeNegOfNegative q negative) (R.Inverse[].negNonzero q nonzero),
+      formula := eq_reason_in!{{R.Real} _
+        "=" _ "by" { sym!{{R.Real}} _ _ (Arithmetic.negInvolutive q) }
+        "=" _ "by" { congr!{{R.Real} {R.Real}} R.neg _ _ (sym!{{R.Real}} _ _ (Root.squareOfNonnegative (R.neg q) (Arithmetic.nonnegativeNegOfNegative q negative))) }
+        "=" _ "by" { congr!{{R.Real} {R.Real}} R.neg _ _ (sym!{{R.Real}} _ _ (Arithmetic.fieldMulOneLeft (R.mul (Root.sqrt (R.neg q)) (Root.sqrt (R.neg q))))) }
+        "=" _ "by" { sym!{{R.Real}} _ _ (Arithmetic.fieldMulNegLeft R.one (R.mul (Root.sqrt (R.neg q)) (Root.sqrt (R.neg q)))) }
+      },
+    }, Normalization)}
+  };
+\module With(data: Normalization) {
+  \definition factor: R.Real := Arithmetic.fieldInv data.length;
+  \definition inverse: R.mul factor data.length = R.one := Arithmetic.fieldInverseNonzero data.length data.nonzero;
+  \definition factorNonzero: Logic.Not (factor = R.zero) := \fun (zero: factor = R.zero) => Arithmetic.zeroNeOne (eq_reason_in!{{R.Real} {R.zero}
+    "=" _ "by" { sym!{{R.Real}} _ _ (Arithmetic.fieldMulZeroLeft data.length) }
+    "=" _ "by" { congr!{{R.Real} {R.Real}} (\fun (r: R.Real) => R.mul r data.length) _ _ (sym!{{R.Real}} _ _ zero) }
+    "=" _ "by" { inverse }
+  });
+  \definition normalized: R.mul (R.mul factor factor) q = coefficient data.sign := eq_reason_in!{{R.Real} _
+    "=" _ "by" { congr!{{R.Real} {R.Real}} (R.mul (R.mul factor factor)) _ _ data.formula }
+    "=" _ "by" { Algebra.mulSwap (R.mul factor factor) (coefficient data.sign) (R.mul data.length data.length) }
+    "=" _ "by" { congr!{{R.Real} {R.Real}} (R.mul (coefficient data.sign)) _ _ (Algebra.mulFour factor factor data.length data.length) }
+    "=" _ "by" { congr!{{R.Real} {R.Real}} (R.mul (coefficient data.sign)) _ _
+      (trans!{{R.Real}} _ _ _ (congr!{{R.Real} {R.Real} {R.Real}} R.mul _ _ _ _ inverse inverse) (Arithmetic.fieldMulOneLeft R.one)) }
+    "=" _ "by" { Algebra.mulOneRight (coefficient data.sign) }
+  };
+}

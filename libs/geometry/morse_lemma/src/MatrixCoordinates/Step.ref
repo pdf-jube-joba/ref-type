@@ -1,0 +1,60 @@
+\import Fin.Sum[m := n, n := previous.dimension] \as Split;
+\definition dimension: N.Nat^ := Split.total;
+\definition rowValue: Split.Index -> Fin.Fin (N.Nat^::succ m) :=
+  \induction (i: Split.Index) \return Fin.Fin (N.Nat^::succ m) \with {
+    | inl: \fun (j: Fin.Fin n) => Fin.zero m
+    | inr: \fun (k: Fin.Fin previous.dimension) => Fin.succ m (previous.row k)
+  };
+\definition columnValue: Split.Index -> Fin.Fin n :=
+  \induction (i: Split.Index) \return Fin.Fin n \with {
+    | inl: \fun (j: Fin.Fin n) => j
+    | inr: previous.column
+  };
+\definition row[i: Fin.Fin dimension]: Fin.Fin (N.Nat^::succ m) := rowValue (Split.split i);
+\definition column[i: Fin.Fin dimension]: Fin.Fin n := columnValue (Split.split i);
+\definition addressValue[j: Fin.Fin n]: Option.Option[Fin.Fin m] -> Fin.Fin dimension :=
+  \induction (i: Option.Option[Fin.Fin m]) \return Fin.Fin dimension \with {
+    | none: Split.left j
+    | some: \fun (k: Fin.Fin m) => Split.right (previous.address k j)
+  };
+\definition address[i: Fin.Fin (N.Nat^::succ m)][j: Fin.Fin n]: Fin.Fin dimension := addressValue j (Fin.split m i);
+\definition addressZero: \forall (j: Fin.Fin n) -> address (Fin.zero m) j = Split.left j :=
+  \fun (j: Fin.Fin n) => congr!{{Option.Option[Fin.Fin m]} {Fin.Fin dimension}} (addressValue j) _ _ (Fin.splitInflate m Option.Option[Fin.Fin m]::none);
+\definition addressSuccessor: \forall (i: Fin.Fin m)(j: Fin.Fin n) -> address (Fin.succ m i) j = Split.right (previous.address i j) :=
+  \fun (i: Fin.Fin m)(j: Fin.Fin n) => congr!{{Option.Option[Fin.Fin m]} {Fin.Fin dimension}} (addressValue j) _ _ (Fin.splitInflate m (Option.Option[Fin.Fin m]::some i));
+\definition rowLeft: \forall (j: Fin.Fin n) -> row (Split.left j) = Fin.zero m :=
+  \fun (j: Fin.Fin n) => congr!{{Split.Index} {Fin.Fin (N.Nat^::succ m)}} rowValue _ _ (Split.splitInflate (Sum.Sum[Fin.Fin n, Fin.Fin previous.dimension]::inl j));
+\definition rowRight: \forall (k: Fin.Fin previous.dimension) -> row (Split.right k) = Fin.succ m (previous.row k) :=
+  \fun (k: Fin.Fin previous.dimension) => congr!{{Split.Index} {Fin.Fin (N.Nat^::succ m)}} rowValue _ _ (Split.splitInflate (Sum.Sum[Fin.Fin n, Fin.Fin previous.dimension]::inr k));
+\definition columnLeft: \forall (j: Fin.Fin n) -> column (Split.left j) = j :=
+  \fun (j: Fin.Fin n) => congr!{{Split.Index} {Fin.Fin n}} columnValue _ _ (Split.splitInflate (Sum.Sum[Fin.Fin n, Fin.Fin previous.dimension]::inl j));
+\definition columnRight: \forall (k: Fin.Fin previous.dimension) -> column (Split.right k) = previous.column k :=
+  \fun (k: Fin.Fin previous.dimension) => congr!{{Split.Index} {Fin.Fin n}} columnValue _ _ (Split.splitInflate (Sum.Sum[Fin.Fin n, Fin.Fin previous.dimension]::inr k));
+\definition rowAddress: \forall (i: Fin.Fin (N.Nat^::succ m))(j: Fin.Fin n) -> row (address i j) = i :=
+  \fun (i: Fin.Fin (N.Nat^::succ m))(j: Fin.Fin n) => Fin.cases m (\fun (i: Fin.Fin (N.Nat^::succ m)) => row (address i j) = i)
+    (trans!{{Fin.Fin (N.Nat^::succ m)}} _ _ _ (congr!{{Fin.Fin dimension} {Fin.Fin (N.Nat^::succ m)}} row _ _ (addressZero j)) (rowLeft j))
+    (\fun (k: Fin.Fin m) => eq_reason_in!{{Fin.Fin (N.Nat^::succ m)} _
+      "=" _ "by" { congr!{{Fin.Fin dimension} {Fin.Fin (N.Nat^::succ m)}} row _ _ (addressSuccessor k j) }
+      "=" _ "by" { rowRight (previous.address k j) }
+      "=" _ "by" { congr!{{Fin.Fin m} {Fin.Fin (N.Nat^::succ m)}} (Fin.succ m) _ _ (previous.rowAddress k j) }
+    }) i;
+\definition columnAddress: \forall (i: Fin.Fin (N.Nat^::succ m))(j: Fin.Fin n) -> column (address i j) = j :=
+  \fun (i: Fin.Fin (N.Nat^::succ m))(j: Fin.Fin n) => Fin.cases m (\fun (i: Fin.Fin (N.Nat^::succ m)) => column (address i j) = j)
+    (trans!{{Fin.Fin n}} _ _ _ (congr!{{Fin.Fin dimension} {Fin.Fin n}} column _ _ (addressZero j)) (columnLeft j))
+    (\fun (k: Fin.Fin m) => eq_reason_in!{{Fin.Fin n} _
+      "=" _ "by" { congr!{{Fin.Fin dimension} {Fin.Fin n}} column _ _ (addressSuccessor k j) }
+      "=" _ "by" { columnRight (previous.address k j) }
+      "=" _ "by" { previous.columnAddress k j }
+    }) i;
+\definition onSplit: \forall (z: Split.Index) -> address (rowValue z) (columnValue z) = Split.inflate z :=
+  \induction (z: Split.Index) \return address (rowValue z) (columnValue z) = Split.inflate z \with {
+    | inl: addressZero
+    | inr: \fun (k: Fin.Fin previous.dimension) => trans!{{Fin.Fin dimension}} _ _ _ (addressSuccessor (previous.row k) (previous.column k))
+      (congr!{{Fin.Fin previous.dimension} {Fin.Fin dimension}} Split.right _ _ (previous.addressCoordinates k))
+  };
+\definition addressCoordinates: \forall (i: Fin.Fin dimension) -> address (row i) (column i) = i :=
+  \fun (i: Fin.Fin dimension) => trans!{{Fin.Fin dimension}} _ _ _ (onSplit (Split.split i)) (Split.inflateSplit i);
+\definition value: Encoding[N.Nat^::succ m] := Encoding[N.Nat^::succ m] {
+  dimension := dimension, row := row, column := column, address := address,
+  rowAddress := rowAddress, columnAddress := columnAddress, addressCoordinates := addressCoordinates,
+};

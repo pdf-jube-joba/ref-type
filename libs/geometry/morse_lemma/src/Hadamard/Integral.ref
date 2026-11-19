@@ -1,0 +1,58 @@
+/* The integral on [0,1], retaining continuous functions on the closed interval. */
+\import integration.Real[] \as Integrals;
+\import metric_spaces.RealLine[] \as Line;
+\definition interval: Integrals.Interval := Integrals.Interval {
+  left := Scalars.zero, right := Scalars.one, ordered := Order.leOfLt _ _ Product.onePositive,
+};
+\import Integrals.Riemann[interval := interval] \as Riemann;
+\import Riemann.Continuous[] \as Continuous;
+\import Riemann.Uniform[] \as Uniform;
+\import Integrals.Division[] \as Division;
+\import Division.Bounds[] \as DivisionBounds;
+\import std.Set[].Extension[A := Real, B := Real, domain := Line.ClosedInterval Scalars.zero Scalars.one] \as Extension;
+\definition Time: \Set := Continuous.Point;
+\definition topology: topology.Topology[Carrier := Time].Topology := Continuous.topology;
+\import metric_spaces.RealFunctions[A := Time] \as TimeFunctions;
+\definition IsContinuous[g: Time -> Real]: \Prop := TimeFunctions.Continuous topology g;
+\definition Function: \Set := \Cast[Time -> Real] ({ g: Time -> Real \where IsContinuous g });
+\definition extend[g: Time -> Real]: Real -> Real := Extension.extend g Scalars.zero;
+\definition extensionLaw: \forall (g: Time -> Real)(t: Time) -> extend g t = g t :=
+  \fun (g: Time -> Real)(t: Time) => Extension.inside g Scalars.zero t;
+\definition asFunction[g: Function]: Continuous.Function :=
+  \into[Real -> Real](extend g, { h: Real -> Real \where Continuous.IsContinuous h }) \by {
+    \idelim (\fun (t: Time) => g t) = Continuous.restrict (extend g) \with h: (Time -> Real) => IsContinuous h \by {
+      base: \bysub(Time -> Real, { g: Time -> Real \where IsContinuous g }, g),
+      equality: \axiom:funext((\fun (t: Time) => g t), Continuous.restrict (extend g), \fun (t: Time) => sym!{Real} _ _ (extensionLaw g t))
+    }
+  };
+\definition value[g: Function]: Real := Continuous.Of[f := asFunction g].value;
+\definition approximants[g: Function][k: N.Nat^]: Real := Division.sum (extend g) (Division.leftTags k Scalars.zero Scalars.one) Scalars.zero Scalars.one;
+\definition converges: \forall (g: Function) -> Sequence.Converges (approximants g) (value g) :=
+  \fun (g: Function) => Sequence.limitLaw (Uniform.Of[f := Continuous.Of[f := asFunction g].asUniform].sequence);
+\definition bound: \forall (g, h: Function)(c: Real) -> (\forall (t: Time) -> R.Le (Scalars.distance (g t) (h t)) c) ->
+  R.Le (Scalars.distance (value g) (value h)) c := \block {
+  \fun (g, h: Function)(c: Real)(pointwise: _) \then
+  \let comparison: R.Le (Scalars.distance (value g) (value h)) (Scalars.mul (Scalars.sub Scalars.one Scalars.zero) c) :=
+    Uniform.Comparison[f := Continuous.Of[f := asFunction g].asUniform, g := Continuous.Of[f := asFunction h].asUniform].integralBound c
+      (\fun (t: Real)(lower: _)(upper: _) => \block {
+        \let s: Time := \into[Real](t, Line.ClosedInterval Scalars.zero Scalars.one) \by { Logic.And[_, _]::# lower upper } \then
+        \return R.leReplaceLeft (Scalars.distance (g s) (h s)) (Scalars.distance (extend g t) (extend h t)) c
+          (sym!{Real} _ _ (congr!{Real Real Real} Scalars.distance _ _ _ _ (extensionLaw g s) (extensionLaw h s))) (pointwise s)
+      }) \then
+  \return R.leReplaceRight _ _ c
+    (trans!{Real} _ _ _ (congr!{Real Real} (\fun (r: Real) => Scalars.mul r c) _ _ (Laws.subZeroRight Scalars.one)) (Laws.fieldMulOneLeft c)) comparison
+};
+\definition congruent: \forall (g, h: Function) -> (\forall (t: Time) -> g t = h t) -> value g = value h :=
+  \fun (g, h: Function)(agrees: _) => Distance.distanceSeparated _ _ (R.leAntisym _ _
+    (bound g h Scalars.zero (\fun (t: Time) => R.leReplaceLeft Scalars.zero (Scalars.distance (g t) (h t)) Scalars.zero
+      (sym!{Real} _ _ (trans!{Real} _ _ _ (congr!{Real Real} (\fun (r: Real) => Scalars.distance r (h t)) _ _ (agrees t)) (Distance.distanceSelf (h t))))
+      (R.leRefl Scalars.zero))) (Distance.distanceNonnegative (value g) (value h)));
+\definition constant[c: Real]: Function := \into[Time -> Real]((\fun (t: Time) => c), { g: Time -> Real \where IsContinuous g }) \by {
+  TimeFunctions.constantContinuous topology c
+};
+\module Algebra;
+\module Family(g: Time -> Open.ScalarFunction U);
+\module Secant(g, d: Real -> Real, l, r, c, epsilon: Real);
+\module Differentiation(g, h: Time -> Open.ScalarFunction U, i: Index);
+\module SmoothKernel;
+\module Weight;

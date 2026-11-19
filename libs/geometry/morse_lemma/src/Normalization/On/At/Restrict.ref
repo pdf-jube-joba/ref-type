@@ -1,0 +1,20 @@
+\import \root.Normalization[d := d, n := n].On[U := local.domain].RegularDomain[A := local.change, regular := local.regular] \as Domain;
+\definition centerPoint: Open.Carrier local.domain := \into[Point](a, local.domain.points) \by { local.contains };
+\definition centerNonzero: Inversion.Nonzero (local.change centerPoint) := \fun (zero: Matrices.determinant (local.change centerPoint) = R.zero) =>
+  Order.Arithmetic[].Prop[].zeroNeOne (eq_reason_in!{{R.Real} R.zero
+    "=" _ "by" { sym!{{R.Real}} _ _ zero }
+    "=" _ "by" { congr!{{Matrices.Matrix} {R.Real}} Matrices.determinant _ _ local.center }
+    "=" R.one "by" { Matrices.atIdentity }
+  });
+\definition domain: Open.OpenSet := Domain.domain;
+\definition included: Open.Included domain U := \fun (x: Point)(member: _) => local.included x (Domain.included x member);
+\definition contains: \In[Point] domain.points a := Domain.intro centerPoint centerNonzero;
+\definition change[x: Open.Carrier domain]: Matrices.Matrix := local.change (Domain.input x);
+\definition restricted: Local := Local {
+  domain := domain, included := included, contains := contains, change := change,
+  regular := \fun (i, j: Fin.Fin n) => Open.Restriction[].localSmooth domain local.domain Domain.included
+    (\fun (x: Open.Carrier local.domain) => local.change x i j) (local.regular i j),
+  center := local.center,
+  formula := \fun (x: Open.Carrier domain) => local.formula (Domain.input x),
+};
+\definition value: InvertibleLocal := InvertibleLocal { local := restricted, nonzero := Domain.nonzero };
