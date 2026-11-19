@@ -12,7 +12,7 @@
 一般のベクトル束、管状近傍、境界付き多様体、特性類、K 理論は今回のタスクで構成する。
 既存の Lp・Sobolev は主に定義で、Euclid 空間の Lebesgue 測度、完備性、Fourier 解析、楕円正則性も実装範囲に含める。
 既存 API と重なる部分は実装時に比較して再利用する。
-完了した単位は公開 API の README に移し、未完了の単位を以下のタスク一覧に残す。
+公開 API は各ライブラリの README に記述し、以下のタスク一覧では実装進捗と完了確認の状況を追跡する。
 
 ## 到達点と証明の経路
 
@@ -72,7 +72,31 @@ flowchart TD
 定理の対象と仮定は命題内で量化し、構成データと法則を structure でまとめる。
 必要な直接依存、workspace member、README と小さい利用例を更新し、[共有キャッシュ](../../src/USAGE.md#検査とキャッシュ)で対象と依存閉包を検査する。
 上流の完了時には、その公開 API と検査結果を README に残し、下流タスクの依存リンクを対応する README に置き換えてから完了タスクを削除する。
-参照先がまだタスクファイルなら実装待ち、README に移っていれば利用可能な依存として扱う。
+個別計画の残存や README の有無だけでは、未着手・完了・依存 API の利用可否を判定しない。
+実装進捗は実コードと要件の対応で判断し、判明した残件と未確認の範囲を分けて記録する。
+型検査は別に、対象と依存閉包、対象ソースの commit または snapshot、checker、検査結果の参照先を記録する。
+完了への更新には要件・比較・利用例の充足と、その対象ソースを覆う検査通過の証跡を必要とする。
+証跡を確認できない場合は「検査未確認」とし、ソースやキャッシュの存在を通過の根拠にはしない。
+依存先は公開 API の内容・検査状況・下流で必要な範囲を照合して判断する。
+
+<a id="progress-and-checks"></a>
+
+## 実装進捗と検査状況
+
+2026-11-19、main の `dce3d353e75972c507928253d6c33420f6f55a0f` を読み取りで確認した範囲を記す。
+以下の2件には workspace 登録と実コードがあり、未着手ではないが、計画全体の完了確認は残っている。
+他のタスクの状態は今回再調査していない。
+
+| タスク | 実装進捗・確認残 | 型検査証跡 |
+| --- | --- | --- |
+| [G06](g06-tubular-neighborhoods.md#status) | 管状近傍、連続 collapse、境界保存、固定した lift 内の比較族、積・安定化の比較式を実装。neat embedding から `Extension` を得る接続、比較の一般性、安定化法束の Thom 空間との接続は確認残。README・独立例は未整備。 | 現行 G06 と依存閉包の通過は未確認。 |
+| [A09](a09-euclidean-sobolev.md#status) | 整数次数の Fourier モデル、双対性、Schwartz 上の弱微分比較、台を制限した乗算・座標変更、埋め込み・滑らかさの実コードと README あり。一般の \(H^k\) と \(W^{k,2}\) の比較、係数クラスの要件対応、独立例は確認残。 | 現行 A09 と依存閉包の通過は未確認。 |
+
+確認環境に残る `libs/refcache/.check-*` の3件の snapshot は、G06・A09 のソースと workspace 登録を含まず、終了 report もない。
+同環境の `/workspace/.ref-type-toolchain/std-nat.json` は `accepted` だが対象は `std` である。
+リポジトリ内の [既存全体 report](c01-integrated-workspace-report.json) は `internal-error` で、`verified_modules` は空である。
+これらは現行 G06・A09、または現行ライブラリ全体の通過証跡にはならない。
+この状況確認では型検査を実行しておらず、「検査未確認」は現行ソースの検査失敗を意味しない。
 
 ## 並列での割り当て
 
@@ -135,7 +159,9 @@ B02 の束演算は C05 でも利用でき、A01 の後は A02 へ進められ�
 
 ## タスク一覧
 
-未完了70件、概算合計368千行。
+追跡中70件、当初の設計見積もりの合計367千行。
+実装あり・確認残・状態未調査の単位を含み、この件数は未着手件数、見積もりは残作業量を表さない。
+確認した G06・A09 の状態は[実装進捗と検査状況](#progress-and-checks)に示す。
 
 ### 線形代数と特性級数
 
@@ -182,7 +208,7 @@ B02 の束演算は C05 でも利用でき、A01 の後は A02 へ進められ�
 | --- | ---: |
 | [K08 Bott の基本積定理](k08-bott-product.md) | 5 |
 | [K10 コンパクト台付き K 理論とシンボルの表示](k10-compact-support-k.md) | 6 |
-| [K11 K 理論の Thom 同型](k11-k-thom.md) | 5 |
+| [K11 K 理論の Thom 同型](../../libs/topology/k_theory_thom/README.md) | 5 |
 | [K12 Chern 指標と Thom 類の比較](k12-chern-character-thom.md) | 6 |
 
 ### 微分位相
@@ -196,7 +222,7 @@ B02 の束演算は C05 でも利用でき、A01 の後は A02 へ進められ�
 | [G03 境界・角付き多様体](g03-boundary-manifolds.md) | 5 |
 | [G04 collar と境界の貼り合わせ](../../libs/geometry/manifold_gluing/README.md)（実装済み） | 5 |
 | [G05 コンパクト多様体の埋め込み](../../libs/geometry/compact_embeddings/README.md) | 5 |
-| [G06 管状近傍と collapse 写像](g06-tubular-neighborhoods.md) | 5 |
+| [G06 管状近傍と collapse 写像](g06-tubular-neighborhoods.md#status)（実装あり・要件確認残・検査未確認） | 5 |
 | [G07 Sard の定理](g07-sard.md) | 6 |
 | [G08 滑らかな近似と相対横断性](g08-transversality.md) | 6 |
 | [G09 Morse 関数と非臨界区間](g09-morse-functions.md) | 5 |
@@ -220,7 +246,7 @@ B02 の束演算は C05 でも利用でき、A01 の後は A02 へ進められ�
 
 ### 接続と微分形式
 
-5件、概算25千行。
+4件、概算20千行。
 
 | タスク | 概算（千行） |
 | --- | ---: |
@@ -231,7 +257,7 @@ B02 の束演算は C05 でも利用でき、A01 の後は A02 へ進められ�
 
 ### 測度・関数解析・楕円作用素
 
-17件、概算93千行。
+16件、概算88千行。
 
 | タスク | 概算（千行） |
 | --- | ---: |
@@ -240,7 +266,7 @@ B02 の束演算は C05 でも利用でき、A01 の後は A02 へ進められ�
 | [A03 積測度と Fubini](a03-product-integration.md) | 5 |
 | [A05 Lp 空間のノルムと完備性](a05-lp-completeness.md) | 5 |
 | [A06 Schwartz 空間と Fourier 変換](a06-schwartz-fourier.md) | 6 |
-| [A09 Euclid 空間の Sobolev 評価](a09-euclidean-sobolev.md) | 6 |
+| [A09 Euclid 空間の Sobolev 評価](a09-euclidean-sobolev.md#status)（実装あり・要件確認残・検査未確認） | 6 |
 | [A10 Rellich コンパクト性](a10-rellich.md) | 5 |
 | [A11 Fredholm 作用素と指数](a11-fredholm-operators.md) | 5 |
 | [A12 束切断の Sobolev 空間](a12-bundle-sobolev.md) | 5 |
