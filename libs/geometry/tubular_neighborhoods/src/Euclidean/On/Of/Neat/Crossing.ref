@@ -1,0 +1,42 @@
+\definition horizontalLift: Lift := Lift { action := action,smooth := \fun (b: Normal.Local) => \parent.InChart[b := b].smooth,
+  definite := \fun (x: M.Point)(w: Normal.Fiber x)(vanishes: _) => \parent.Kernel[x := x,w := w,vanishes := vanishes].zero transverse };
+\import \parent.\parent.With[lift := horizontalLift] \as Extended;
+\definition factor[p: Normal.Point]: R.Real := R.add R.one (R.mul (height p.base) (p.vector j));
+\definition heightFormula[p: Normal.Point]: Extended.endpoint p j = R.mul (height p.base) (factor p) := eq_reason_in!{{R.Real} _
+  "=" _ "by" { congr!{{R.Real} {R.Real}} (R.add (height p.base)) _ _
+    (congr!{{R.Real} {R.Real}} (\fun (a: R.Real) => R.mul (R.mul a a) (p.vector j)) _ _ (vertical p.base)) }
+  "=" _ "by" { congr!{{R.Real} {R.Real} {R.Real}} R.add _ _ _ _ (sym!{{R.Real}} _ _ (R.Algebra[].mulOneRight _)) (Field.fieldMulAssoc _ _ _) }
+  "=" _ "by" { sym!{{R.Real}} _ _ (Field.fieldMulAdd _ _ _) }
+};
+\definition factorZero[x: M.Point]: factor (zero x) = R.one := trans!{{R.Real}} _ _ _
+  (congr!{{R.Real} {R.Real}} (R.add R.one) _ _ (Field.fieldMulZeroRight _)) (Field.addZeroRight _);
+\import topological_algebra.Euclidean[].Dimension[n := d].Topology[] \as Euclid;
+\import metric_spaces.RealFunctions[A := Normal.Point] \as Functions;
+\definition baseRegular: topology.Continuity[A := Normal.Point,B := M.Point].Continuous Normal.topology M.space Normal.projection :=
+  \idelim Normal.Projection[].map.apply = Normal.projection \with g: (Normal.Point -> M.Point) => topology.Continuity[A := Normal.Point,B := M.Point].Continuous Normal.topology M.space g \by {
+    base: \bysub(manifolds.SmoothMap[n := d,m := n].Between[M := Normal.manifold,N := M].Data,{ g: manifolds.SmoothMap[n := d,m := n].Between[M := Normal.manifold,N := M].Data \where manifolds.SmoothMap[n := d,m := n].Between[M := Normal.manifold,N := M].Continuous g },Normal.Projection[].map),
+    equality: Normal.Projection[].formula
+  };
+\definition heightRegular: metric_spaces.RealFunctions[A := M.Point].Continuous M.space height :=
+  topology.Composition[A := M.Point,B := E.Vector,C := R.Real].composeContinuous _ _ _ (Maps.apply e) (\fun (v: E.Vector) => v j)
+    (\bysub(Maps.Data,{ f: Maps.Data \where Maps.Continuous f },e)) (Euclid.coordinateContinuous j);
+\definition regular: Functions.Continuous Normal.topology factor := Functions.sumContinuous Normal.topology _ _ (Functions.constantContinuous _ R.one)
+  (Functions.Product[].continuous _ _ _
+    (topology.Composition[A := Normal.Point,B := M.Point,C := R.Real].composeContinuous _ _ _ Normal.projection height baseRegular heightRegular)
+    (topology.Composition[A := Normal.Point,B := E.Vector,C := R.Real].composeContinuous _ _ _ Normal.ambientVector (\fun (v: E.Vector) => v j)
+      (Extended.Disk[].vectorContinuous) (Euclid.coordinateContinuous j)));
+\definition Half: \Pow E.Vector := { y: E.Vector \where O.Le R.zero (y j) };
+\definition baseHalf: \Pow M.Point := { x: M.Point \where O.Le R.zero (height x) };
+\definition halfNormals: \Pow Normal.Point := { p: Normal.Point \where O.Le R.zero (height p.base) };
+\definition positiveRegion: \Pow Normal.Point := { p: Normal.Point \where O.Lt R.zero (factor p) };
+\definition positiveOpen: S.IsOpenIn Normal.topology positiveRegion := regular _ (metric_spaces.RealLine[].Rays[].aboveOpen R.zero);
+\structure Result: \Set := {
+  tube: Extended.Neighborhood,
+  positive: \forall (q: \Cast[Normal.Point] tube.domain) -> O.Lt R.zero (factor q),
+};
+\module In(t: Extended.Neighborhood);
+\definition exists[compact: BaseSpace.IsCompact M.space]: \exists Result := \block {
+  \takefrom t: Extended.Neighborhood \by Extended.Compact[compact := compact].exists \then
+  \return \exact(In[t := t].result,Result)
+};
+\module HalfTube(result: Result);

@@ -1,0 +1,33 @@
+\import Fourier.Weights[].Integer[m := k] \as Squared;
+\import Open.Smooth[].SquareRoot[U := Open.whole, f := Squared.smooth, positive := (\fun (x: Open.Carrier Open.whole) => Squared.positive x)] \as SmoothRoot;
+\import LE.Compact[p := PA.two] \as Compact;
+\definition value[x: Point]: Real.Real := Root.sqrt (E.weight k x);
+\definition square[x: Point]: Real.mul (value x) (value x) = E.weight k x :=
+  Root.squareOfNonnegative _ (E.weightNonnegative k x);
+\definition lower[x: Point]: R.Le Real.one (value x) :=
+  RO.leOfNotLtReverse _ _ (\fun (small: _) => R.ltNotLeReverse _ _
+    (Root.squareStrict _ _ (Root.nonnegative _) small)
+    (R.leReplace _ _ _ _ (sym!{Real.Real} _ _ (Laws.fieldMulOneLeft Real.one))
+      (sym!{Real.Real} _ _ (square x)) (Squared.lower x)));
+\definition positive[x: Point]: R.Lt Real.zero (value x) := R.ltLeTrans _ _ _ Product.onePositive (lower x);
+\definition smooth: E.Function := \into[Open.ScalarFunction Open.whole](SmoothRoot.value, E.Function) \by { SmoothRoot.smooth };
+\import Open.Smooth[].Reciprocal[U := Open.whole, f := smooth, nonzero := (\fun (x: Open.Carrier Open.whole) => Real.Inverse[].positiveNonzero _ (positive x))] \as Inverse;
+\definition inverse[x: Point]: Real.Real := Laws.fieldInv (value x);
+\definition inversePositive[x: Point]: R.Lt Real.zero (inverse x) := Product.invPositive _ (positive x);
+\definition inverseBound[x: Point]: R.Le (inverse x) Real.one := R.leReplaceRight _ _ _
+  (sym!{Real.Real} _ _ (Real.Inverse[].inverseUnique Real.one Real.one (Real.Inverse[].positiveNonzero _ Product.onePositive) (Laws.fieldMulOneLeft _)))
+  (Real.Inverse[].invAntitone _ _ Product.onePositive (positive x) (lower x));
+\definition reciprocal: Multiplication.Symbol := Multiplication.Symbol {
+  function := \fun (x: Point) => D.ofReal (inverse x),
+  measurable := Logic.And[_, _]::#
+    (Compact.continuousMeasurable inverse (Compact.smoothContinuous inverse Inverse.smooth))
+    (I.integralLaw I.Zero[].representative).integrable.left,
+  coefficient := \into[Real.Real](Real.one, Scaling.NonnegativeScalar) \by { Laws.oneNonnegative },
+  bound := \fun (x: Point) => R.leReplaceLeft _ _ _
+    (sym!{Real.Real} _ _ (trans!{Real.Real} _ _ _ (Scalars.realAxisAbs _) (Product.absOfNonnegative _ (RO.leOfLt _ _ (inversePositive x))))) (inverseBound x),
+};
+\definition weight: Fourier.Weights[].Weight := Fourier.Weights[].Weight {
+  function := value, lower := lower, reciprocal := reciprocal,
+  reciprocalValue := \fun (x: Point) => \refl(reciprocal.function x), reciprocalBound := reciprocal.bound,
+};
+\definition inverseSmooth: E.Function := \into[Open.ScalarFunction Open.whole](Inverse.value, E.Function) \by { Inverse.smooth };

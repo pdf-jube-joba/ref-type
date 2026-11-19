@@ -1,0 +1,76 @@
+\import S.Subspace[S := halfNormals] \as Normals;
+\import T.Subspace[S := Half] \as Space;
+\definition domain: \Pow Normals.CarrierSet := Normals.Trace result.tube.domain;
+\definition image: \Pow Space.CarrierSet := Space.Trace result.tube.image.points;
+\definition open: topology.Topology[Carrier := Normals.CarrierSet].IsOpenIn (Normals.topology Normal.topology) domain :=
+  Normals.traceOpen Normal.topology result.tube.domain result.tube.open;
+\definition imageOpen: topology.Topology[Carrier := Space.CarrierSet].IsOpenIn (Space.topology Bundle.ambient.space) image :=
+  Space.traceOpen Bundle.ambient.space _ (Open.Topology[].open result.tube.image);
+\definition section[x: \Cast[M.Point] baseHalf]: \In[Normals.CarrierSet] domain
+  (\into[Normal.Point](zero x,halfNormals) \by { \bysub(M.Point,baseHalf,x) }) := result.tube.section x;
+\definition sign[q: \Cast[Normal.Point] result.tube.domain]: Logic.PropEquiv[O.Le R.zero (height q.base),O.Le R.zero (Extended.endpoint q j)] := \block {
+  \let a: R.Real := factor q \then
+  \let pos: O.Lt R.zero a := result.positive q \then
+  \let undo: R.mul (Field.fieldInv a) (Extended.endpoint q j) = height q.base := eq_reason_in!{{R.Real} _
+    "=" _ "by" { congr!{{R.Real} {R.Real}} (R.mul (Field.fieldInv a)) _ _ (heightFormula q) }
+    "=" _ "by" { R.Algebra[].mulSwap _ _ _ }
+    "=" _ "by" { congr!{{R.Real} {R.Real}} (R.mul (height q.base)) _ _ (Field.fieldInverseNonzero _ (R.Inverse[].positiveNonzero _ pos)) }
+    "=" _ "by" { R.Algebra[].mulOneRight _ }
+  } \then
+  \return Logic.PropEquiv[_, _] {
+    ltr := \fun (h: _) => O.leReplaceRight _ _ _ (sym!{{R.Real}} _ _ (heightFormula q))
+      (Field.fieldMulNonnegative _ _ h (O.Order[].leOfLt _ _ pos)),
+    rtl := \fun (h: _) => O.leReplaceRight _ _ _ undo (Field.fieldMulNonnegative _ _
+      (O.Order[].leOfLt _ _ (R.Estimates[].Product[].invPositive _ pos)) h),
+  }
+};
+\definition boundary[q: \Cast[Normal.Point] result.tube.domain]: Logic.PropEquiv[height q.base = R.zero,Extended.endpoint q j = R.zero] := Logic.PropEquiv[_, _] {
+  ltr := \fun (h: _) => trans!{{R.Real}} _ _ _ (heightFormula q) (trans!{{R.Real}} _ _ _
+    (congr!{{R.Real} {R.Real}} (\fun (a: R.Real) => R.mul a (factor q)) _ _ h) (Field.fieldMulZeroLeft _)),
+  rtl := \fun (h: _) => cancel _ _ (R.Inverse[].positiveNonzero _ (result.positive q))
+    (trans!{{R.Real}} _ _ _ (Field.fieldMulComm _ _) (trans!{{R.Real}} _ _ _ (sym!{{R.Real}} _ _ (heightFormula q)) h)),
+};
+\import topology.Topology[Carrier := Normals.CarrierSet].Subspace[S := domain] \as U;
+\import topology.Topology[Carrier := Space.CarrierSet].Subspace[S := image] \as V;
+\definition fromSpace: topology.Structures[].Topology[U.CarrierSet] := U.topology (Normals.topology Normal.topology);
+\definition toSpace: topology.Structures[].Topology[V.CarrierSet] := V.topology (Space.topology Bundle.ambient.space);
+\definition normal[q: U.CarrierSet]: \Cast[Normal.Point] result.tube.domain := \into[Normal.Point](q,result.tube.domain) \by { \bysub(Normals.CarrierSet,domain,q) };
+\definition target[y: V.CarrierSet]: Open.Carrier result.tube.image := \into[E.Vector](y,result.tube.image.points) \by { \bysub(Space.CarrierSet,image,y) };
+\definition forwardHalf[q: U.CarrierSet]: Space.CarrierSet := \into[E.Vector](Extended.endpoint q,Half) \by {
+  (sign (normal q)).ltr (\bysub(Normal.Point,halfNormals,(q \of Normals.CarrierSet)))
+};
+\definition forward[q: U.CarrierSet]: V.CarrierSet := \into[Space.CarrierSet](forwardHalf q,image) \by { result.tube.into (normal q) };
+\definition inverseHalf[y: V.CarrierSet]: Normals.CarrierSet := \block {
+  \let p: Normal.Point := result.tube.inverse.apply (target y) \then
+  \let q: \Cast[Normal.Point] result.tube.domain := \into[Normal.Point](p,result.tube.domain) \by { result.tube.back (target y) } \then
+  \return \into[Normal.Point](p,halfNormals) \by { (sign q).rtl (O.leReplaceRight _ _ _
+    (sym!{{R.Real}} _ _ (congr!{{E.Vector} {R.Real}} (\fun (v: E.Vector) => v j) _ _ (result.tube.right (target y))))
+    (\bysub(E.Vector,Half,(y \of Space.CarrierSet)))) }
+};
+\definition backward[y: V.CarrierSet]: U.CarrierSet := \into[Normals.CarrierSet](inverseHalf y,domain) \by { result.tube.back (target y) };
+\definition normalContinuous: topology.Continuity[A := U.CarrierSet,B := Normal.Point].Continuous fromSpace Normal.topology (\fun (q: U.CarrierSet) => q) :=
+  topology.Composition[A := U.CarrierSet,B := Normals.CarrierSet,C := Normal.Point].composeContinuous _ _ _ _ _
+    (topology.Continuity[A := Normals.CarrierSet,B := Normals.CarrierSet].Corestriction[S := domain].inclusionContinuous _)
+    (topology.Continuity[A := Normal.Point,B := Normal.Point].Corestriction[S := halfNormals].inclusionContinuous _);
+\definition targetContinuous: topology.Continuity[A := V.CarrierSet,B := Open.Carrier result.tube.image].Continuous toSpace (Open.Topology[].Of[U := result.tube.image].topology) target :=
+  topology.Continuity[A := V.CarrierSet,B := E.Vector].Corestriction[S := result.tube.image.points].corestrictContinuous _ _ target
+    (topology.Composition[A := V.CarrierSet,B := Space.CarrierSet,C := E.Vector].composeContinuous _ _ _ _ _
+      (topology.Continuity[A := Space.CarrierSet,B := Space.CarrierSet].Corestriction[S := image].inclusionContinuous _)
+      (topology.Continuity[A := E.Vector,B := E.Vector].Corestriction[S := Half].inclusionContinuous _));
+\import topology.Homeomorphism[A := U.CarrierSet,B := V.CarrierSet] \as Homeo;
+\definition homeomorphism: Homeo.Homeomorphism[fromSpace,toSpace] := Homeo.Homeomorphism[fromSpace,toSpace] {
+  forward := forward,backward := backward,leftInverse := \fun (q: U.CarrierSet) => result.tube.left (normal q),
+  rightInverse := \fun (y: V.CarrierSet) => result.tube.right (target y),
+  forwardContinuous := topology.Continuity[A := U.CarrierSet,B := Space.CarrierSet].Corestriction[S := image].corestrictContinuous _ _ forward
+    (topology.Continuity[A := U.CarrierSet,B := E.Vector].Corestriction[S := Half].corestrictContinuous _ _ forwardHalf
+      (topology.Composition[A := U.CarrierSet,B := Normal.Point,C := E.Vector].composeContinuous _ _ _ _ Extended.endpoint normalContinuous Extended.continuous)),
+  backwardContinuous := topology.Continuity[A := V.CarrierSet,B := Normals.CarrierSet].Corestriction[S := domain].corestrictContinuous _ _ backward
+    (topology.Continuity[A := V.CarrierSet,B := Normal.Point].Corestriction[S := halfNormals].corestrictContinuous _ _ inverseHalf
+      (topology.Composition[A := V.CarrierSet,B := Open.Carrier result.tube.image,C := Normal.Point].composeContinuous _ _ _ target result.tube.inverse.apply
+        targetContinuous (Extended.Inside[t := result.tube].inverseContinuous))),
+};
+\definition SourcePoint: \Set := U.CarrierSet;
+\definition TargetPoint: \Set := V.CarrierSet;
+\definition center[x: \Cast[M.Point] baseHalf]: SourcePoint :=
+  \into[Normals.CarrierSet](\into[Normal.Point](zero x,halfNormals) \by { \bysub(M.Point,baseHalf,x) },domain) \by { section x };
+\definition centerFormula[x: \Cast[M.Point] baseHalf]: (forward (center x) \of E.Vector) = Maps.apply e x := Extended.atZero x;

@@ -1,0 +1,25 @@
+\import S.Subspace[S := c.tube] \as U;
+\import U.Open[] \as Include;
+\definition size[p: U.CarrierSet]: R.Real := squared (c.read p);
+\definition continuous: metric_spaces.RealFunctions[A := U.CarrierSet].Continuous (U.topology space) size :=
+  topology.Composition[A := U.CarrierSet,B := N,C := R.Real].composeContinuous _ normals Line.topology c.read squared c.continuous sizeContinuous;
+\definition strict: \Pow U.CarrierSet := { p: U.CarrierSet \where O.Lt (size p) R.one };
+\definition core: \Pow A := Include.image strict;
+\definition coreOpen: S.IsOpenIn space core := Include.imageOpen space c.open strict (continuous (Line.Rays[].Below R.one) (Line.Rays[].belowOpen R.one));
+\definition shell: \Pow A := Include.image ({ p: U.CarrierSet \where O.Le (size p) R.one });
+\definition inTube: S.Subset shell c.tube := Include.imageIncluded _;
+\definition input[p: \Cast[A] shell]: U.CarrierSet := \into[A](p,c.tube) \by { inTube p (\bysub(A,shell,p)) };
+\definition bounded[p: \Cast[A] shell]: O.Le (size (input p)) R.one := Include.imageElim _ p _ (\fun (q: U.CarrierSet)(h: _)(same: q = p) =>
+  \idelim q = input p \with z: U.CarrierSet => O.Le (size z) R.one \by { base: h,equality: same }) (\bysub(A,shell,p));
+\definition decode[p: \Cast[A] shell]: Disk := \into[N](c.read (input p),ball) \by { bounded p };
+\definition chart[closed: S.IsClosedIn space shell]: Collapse.Chart := Collapse.Chart {
+  shell := shell,closed := closed,core := core,open := coreOpen,
+  included := \fun (x: A)(h: _) => Include.imageElim strict x _ (\fun (q: U.CarrierSet)(less: _)(same: q = x) =>
+    \idelim q = x \with z: A => S.Member shell z \by { base: Include.imageMember _ q (O.Order[].leOfLt _ _ less),equality: same }) h,
+  read := decode, continuous := topology.Continuity[A := \Cast[A] shell,B := N].Corestriction[S := ball].corestrictContinuous _ normals decode
+    (topology.Composition[A := \Cast[A] shell,B := U.CarrierSet,C := N].composeContinuous _ _ normals input c.read
+      (topology.Continuity[A := \Cast[A] shell,B := A].Corestriction[S := c.tube].corestrictContinuous _ space input
+        (topology.Continuity[A := A,B := A].Corestriction[S := shell].inclusionContinuous space)) c.continuous),
+  seam := \fun (p: \Cast[A] shell)(out: _) => O.leAntisym _ _ (bounded p)
+    (O.Order[].leOfNotLtReverse _ _ (\fun (less: _) => out (Include.imageMember strict (input p) less))),
+};

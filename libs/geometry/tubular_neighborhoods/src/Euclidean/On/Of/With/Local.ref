@@ -1,0 +1,24 @@
+\definition undo[y: Open.Carrier p.image]: Normal.Point := TotalCharts.point p.chart (C.apply p.image p.chart.image p.change.backward y);
+\definition recover[q: TotalCharts.LocalPoint p.chart]: undo (\into[E.Vector](endpoint q,p.image.points) \by {
+  \idelim C.apply p.chart.image p.image p.change.forward (TotalCharts.coordinate p.chart q) = endpoint q \with v: E.Vector =>
+    \In[E.Vector] p.image.points v \by { base: \bysub(E.Vector,p.image.points,C.apply p.chart.image p.image p.change.forward (TotalCharts.coordinate p.chart q)), equality: p.formula q }
+}) = q := eq_reason_in!{Normal.Point _
+  "=" _ "by" { congr!{{Open.Carrier p.image} Normal.Point} undo _ _ (sym!{{E.Vector}} _ _ (p.formula q)) }
+  "=" _ "by" { congr!{{Open.Carrier p.chart.image} Normal.Point} (TotalCharts.point p.chart) _ _ (p.change.leftInverse (TotalCharts.coordinate p.chart q)) }
+  "=" _ "by" { TotalCharts.Of[chart := p.chart].pointCoordinate q }
+};
+\definition imageLaw[y: Open.Carrier p.image]: endpoint (undo y) = y := eq_reason_in!{{E.Vector} _
+  "=" _ "by" { sym!{{E.Vector}} _ _ (p.formula (TotalCharts.point p.chart (C.apply p.image p.chart.image p.change.backward y))) }
+  "=" _ "by" { congr!{{Open.Carrier p.chart.image} {E.Vector}} (C.apply p.chart.image p.image p.change.forward) _ _ (TotalCharts.Of[chart := p.chart].coordinatePoint _) }
+  "=" _ "by" { p.change.rightInverse y }
+};
+\definition safe: Shrink.Safe p.chart.domain := \fun (x,y: Normal.Point)(hx: _)(hy: _)(same: _) => \block {
+  \let a: TotalCharts.LocalPoint p.chart := \into[Normal.Point](x,p.chart.domain) \by { hx } \then
+  \let b: TotalCharts.LocalPoint p.chart := \into[Normal.Point](y,p.chart.domain) \by { hy } \then
+  \return trans!{Normal.Point} _ _ _ (sym!{Normal.Point} _ _ (recover a)) (trans!{Normal.Point} _ _ _ (congr!{{Open.Carrier p.image} Normal.Point} undo _ _ same) (recover b))
+};
+\import manifolds.EuclideanMap[n := d,m := d].Between[U := p.image,V := p.chart.image] \as CoordinateMaps;
+\import manifolds.ChartMap[n := d].On[M := Normal.manifold].At[chart := p.chart] \as ChartMap;
+\definition map: manifolds.SmoothMap[n := d,m := d].Between[M := CoordinateMaps.source,N := Normal.manifold].Map :=
+  manifolds.Composition[n := d,m := d,l := d].Between[M := CoordinateMaps.source,N := CoordinateMaps.target,P := Normal.manifold].compose
+    (CoordinateMaps.map p.change.backward) ChartMap.map;

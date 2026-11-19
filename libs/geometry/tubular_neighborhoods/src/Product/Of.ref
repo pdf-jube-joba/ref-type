@@ -1,0 +1,48 @@
+\definition shell: \Pow P.CarrierSet := P.Rectangle l.shell r.shell;
+\definition core: \Pow P.CarrierSet := P.Rectangle l.core r.core;
+\definition shellSpace: topology.Structures[].Topology[\Cast[P.CarrierSet] shell] := PS.Subspace[S := shell].topology ambient;
+\definition lpt[p: \Cast[P.CarrierSet] shell]: \Cast[A] l.shell := \into[A](Pair.first A B p,l.shell) \by { (\bysub(P.CarrierSet,shell,p)).left };
+\definition rpt[p: \Cast[P.CarrierSet] shell]: \Cast[B] r.shell := \into[B](Pair.second A B p,r.shell) \by { (\bysub(P.CarrierSet,shell,p)).right };
+\definition read[p: \Cast[P.CarrierSet] shell]: Q.CarrierSet := Pair.pair D F (l.read (lpt p)) (r.read (rpt p));
+\definition inc: topology.Continuity[A := \Cast[P.CarrierSet] shell,B := P.CarrierSet].Continuous shellSpace ambient (\fun (p: \Cast[P.CarrierSet] shell) => p) :=
+  topology.Continuity[A := P.CarrierSet,B := P.CarrierSet].Corestriction[S := shell].inclusionContinuous ambient;
+\definition chart: Total.Chart := Total.Chart {
+  shell := shell,closed := PS.Finite[].intersectionClosed ambient _ _
+    (topology.Continuity[A := P.CarrierSet,B := A].closedPreimage ambient a (Pair.first A B) (P.Maps[].firstContinuous a b) l.shell l.closed)
+    (topology.Continuity[A := P.CarrierSet,B := B].closedPreimage ambient b (Pair.second A B) (P.Maps[].secondContinuous a b) r.shell r.closed),
+  core := core,open := (PS.topologyLaws ambient).intersectionOpen _ _ (P.Maps[].firstContinuous a b l.core l.open) (P.Maps[].secondContinuous a b r.core r.open),
+  included := \fun (p: P.CarrierSet)(h: PS.Member core p) => Logic.And[_, _]::# (l.included _ h.left) (r.included _ h.right),read := read,
+  continuous := Q.Universal[X := \Cast[P.CarrierSet] shell].pairContinuous shellSpace d f _ _
+    (topology.Composition[A := \Cast[P.CarrierSet] shell,B := \Cast[A] l.shell,C := D].composeContinuous _ _ _ lpt l.read
+      (topology.Continuity[A := \Cast[P.CarrierSet] shell,B := A].Corestriction[S := l.shell].corestrictContinuous shellSpace a lpt
+        (topology.Composition[A := \Cast[P.CarrierSet] shell,B := P.CarrierSet,C := A].composeContinuous _ _ _ _ (Pair.first A B) inc (P.Maps[].firstContinuous a b))) l.continuous)
+    (topology.Composition[A := \Cast[P.CarrierSet] shell,B := \Cast[B] r.shell,C := F].composeContinuous _ _ _ rpt r.read
+      (topology.Continuity[A := \Cast[P.CarrierSet] shell,B := B].Corestriction[S := r.shell].corestrictContinuous shellSpace b rpt
+        (topology.Composition[A := \Cast[P.CarrierSet] shell,B := P.CarrierSet,C := B].composeContinuous _ _ _ _ (Pair.second A B) inc (P.Maps[].secondContinuous a b))) r.continuous),
+  seam := \fun (p: \Cast[P.CarrierSet] shell)(out: _) => Logic.orElim _ _ _ (Classical.excludedMiddle (AS.Member l.core (lpt p)))
+    (\fun (inside: _) => Logic.Or[_, _]::right (r.seam (rpt p) (\fun (h: _) => out (Logic.And[_, _]::# inside h))))
+    (\fun (absent: _) => Logic.Or[_, _]::left (l.seam (lpt p) absent)),
+};
+\import Total.Of[c := chart] \as Collapse;
+\import Left.Of[c := l] \as L;
+\import Right.Of[c := r] \as R;
+\definition collapse: P.CarrierSet -> TQ.Carrier := Collapse.map;
+\definition multiplicative[p: P.CarrierSet]: comparison (Collapse.map p) = pair (L.map (Pair.first A B p)) (R.map (Pair.second A B p)) :=
+  Logic.orElim _ _ _ (Classical.excludedMiddle (PS.Member shell p))
+    (\fun (inside: _) => \block {
+      \let q: \Cast[P.CarrierSet] shell := \into[P.CarrierSet](p,shell) \by { inside } \then
+      \return eq_reason_in!{Smash.Carrier _
+        "=" _ "by" { congr!{TQ.Carrier Smash.Carrier} comparison _ _ (Collapse.onDisk q) }
+        "=" _ "by" { Lift.onClass (read q) }
+        "=" _ "by" { congr!{LQ.Carrier RQ.Carrier Smash.Carrier} pair _ _ _ _ (sym!{LQ.Carrier} _ _ (L.onDisk (lpt q))) (sym!{RQ.Carrier} _ _ (R.onDisk (rpt q))) }
+      }
+    })
+    (\fun (out: _) => eq_reason_in!{Smash.Carrier _
+      "=" _ "by" { congr!{TQ.Carrier Smash.Carrier} comparison _ _ (Collapse.onExterior p (\fun (h: _) => out (chart.included p h))) }
+      "=" _ "by" { Lift.onPoint }
+      "=" _ "by" { Logic.orElim _ _ _ (Classical.excludedMiddle (AS.Member l.core (Pair.first A B p)))
+        (\fun (hx: _) => sym!{Smash.Carrier} _ _ (trans!{Smash.Carrier} _ _ _ (congr!{RQ.Carrier Smash.Carrier} (pair _) _ _
+          (R.onExterior _ (\fun (hy: _) => out (Logic.And[_, _]::# (l.included _ hx) (r.included _ hy))))) (Smash.rightCollapsed _)))
+        (\fun (absent: _) => sym!{Smash.Carrier} _ _ (trans!{Smash.Carrier} _ _ _ (congr!{LQ.Carrier Smash.Carrier}
+          (\fun (x: LQ.Carrier) => pair x (R.map (Pair.second A B p))) _ _ (L.onExterior _ absent)) (Smash.leftCollapsed _))) }
+    });

@@ -1,0 +1,47 @@
+\import E.Decay[] \as Shells;
+\import Shells.WeightBounds[] \as Bounds;
+\import Shells.Envelope[] \as Envelope;
+\import euclidean_measure.Exhaustion[n := n] \as Exhaustion;
+\import euclidean_measure.Euclidean[n := n] \as Measure;
+\import topological_algebra.Euclidean[].Dimension[n := n].Def[] \as Coordinates;
+\import topological_algebra.Euclidean[].Dimension[n := n].Norm[] \as GeometryOfPoints;
+\import fourier_schwartz.NaturalPowers[] \as Numeric;
+\import functional_analysis.Powers[] \as Powers;
+\import topology.Topology[Carrier := Point] \as Sets;
+\import N.Induction[] \as Induction;
+\definition radius[x: Point]: Real.Real := Root.sqrt (E.weightBase x);
+\definition square[x: Point]: Real.mul (radius x) (radius x) = E.weightBase x := Root.squareOfNonnegative _ (E.weightBaseNonnegative x);
+\definition radiusOne[x: Point]: R.Le Real.one (radius x) := \parent.Energy[].unsquare _ _ (Root.nonnegative _)
+  (R.leReplace _ _ _ _ (sym!{Real.Real} _ _ (Laws.fieldMulOneLeft _)) (sym!{Real.Real} _ _ (square x)) (Bounds.baseOne x));
+\definition normBound[x: Point]: R.Le (Coordinates.norm x) (radius x) := GeometryOfPoints.finiteUpper n x (radius x) (Root.nonnegative _)
+  (\fun (i: E.Coordinate) => R.leReplaceLeft _ _ _ (Real.Distance[].distanceSymmetric Real.zero (x i))
+    (\parent.Energy[].unsquare _ _ (Root.nonnegative _) (R.leReplace _ _ _ _
+      (sym!{Real.Real} _ _ (Scalars.squareAbs (x i))) (sym!{Real.Real} _ _ (square x))
+      (R.leTrans _ _ _ (Sum.coordinateUpper n _ (\fun (j: E.Coordinate) => Algebra.squareNonnegative (x j)) i)
+        (R.leReplaceRight _ _ _ (Laws.addComm _ _) (Algebra.leAddRight _ _ Laws.oneNonnegative))))));
+\definition powersGrow[x: Point]: \forall (j,k: N.Nat^) -> Nat.Le k j -> R.Le (Powers.power (radius x) k) (Powers.power (radius x) j) :=
+  \induction (j: N.Nat^) \return \forall (k: N.Nat^) -> Nat.Le k j -> R.Le (Powers.power (radius x) k) (Powers.power (radius x) j) \with {
+    | zero: \fun (k: N.Nat^)(bound: _) => R.leReplaceLeft _ _ _
+      (congr!{N.Nat^ Real.Real} (Powers.power (radius x)) _ _ (sym!{N.Nat^} _ _ (Nat.leZeroEq k bound))) (R.leRefl Real.one)
+    | succ: \fun (j: N.Nat^)(previous: _)(k: N.Nat^)(bound: _) => Logic.orElim _ _ _ (Induction.leCases k (N.Nat^::succ j) bound)
+      (\fun (less: _) => R.leTrans _ _ _ (previous k (Induction.belowSuccessor k j less))
+        (R.leReplace _ _ _ _ (Algebra.mulOneRight _) (Laws.fieldMulComm _ _) (Estimates.mulMonotone _ _ _
+          (Numeric.nonnegative _ (Root.nonnegative _) j) (radiusOne x))))
+      (\fun (same: _) => R.leReplaceLeft _ _ _ (congr!{N.Nat^ Real.Real} (Powers.power (radius x)) _ _ (sym!{N.Nat^} _ _ same)) (R.leRefl _))
+  };
+\definition shellBound[k: N.Nat^][x: Point]: Logic.Not (Sets.Member (Measure.points (Exhaustion.box k)) x) ->
+  R.Le (Powers.power (Exhaustion.radius k) Shells.degree) (E.weight p x) := \fun (outside: _) => \block {
+  \let lower: R.Le (Exhaustion.radius k) (radius x) := RO.leOfNotLtReverse _ _ (\fun (less: _) =>
+    outside (Bounds.insideByNorm k x (R.leTrans _ _ _ (normBound x) (RO.leOfLt _ _ less)))) \then
+  \return R.leTrans _ _ _ (Numeric.monotone _ _ (RO.leOfLt _ _ (Exhaustion.radiusPositive k)) lower Shells.degree)
+    (R.leReplaceRight _ _ _ (eq_reason_in!{Real.Real _
+      "=" _ "by" { Numeric.addition (radius x) p p }
+      "=" _ "by" { sym!{Real.Real} _ _ (Numeric.product (radius x) (radius x) p) }
+      "=" _ "by" { congr!{Real.Real Real.Real} (\fun (a: Real.Real) => Powers.power a p) _ _ (square x) }
+    }) (powersGrow x _ _ (Nat.succLeOfLt _ n range)))
+};
+\structure Data: \Set := {
+  function: Point -> Real.Real, measurable: M.IsMeasurable LE.measure function,
+  bound: \forall (x: Point) -> R.Le (Real.mul (E.weight p x) (Product.abs (function x))) Real.one,
+};
+\module Integrable(data: Data);

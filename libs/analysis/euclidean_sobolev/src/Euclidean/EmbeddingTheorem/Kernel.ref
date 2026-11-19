@@ -1,0 +1,51 @@
+\definition function: Point -> C.Complex := kernel d;
+\definition measurable: L2.Characterization[].Measurable function := Moments.measurable inverse Weight.reciprocal.measurable d;
+\definition inverseSquare[xi: Point]: D.normSq (inverse xi) = Real.mul (Weight.inverse xi) (Weight.inverse xi) := eq_reason_in!{Real.Real _
+  "=" _ "by" { congr!{Real.Real Real.Real} (Real.add (Real.mul (Weight.inverse xi) (Weight.inverse xi))) _ _ (Laws.fieldMulZeroLeft Real.zero) }
+  "=" _ "by" { Laws.addZeroRight _ }
+};
+\definition cancellation[xi: Point]: Real.mul (E.weight order xi) (D.normSq (inverse xi)) = Real.one := eq_reason_in!{Real.Real _
+  "=" _ "by" { congr!{Real.Real Real.Real Real.Real} Real.mul _ _ _ _ (sym!{Real.Real} _ _ (Weight.square xi)) (inverseSquare xi) }
+  "=" _ "by" { Algebra.mulFour _ _ _ _ }
+  "=" _ "by" { congr!{Real.Real Real.Real Real.Real} Real.mul _ _ _ _ (Weighted.cancel xi) (Weighted.cancel xi) }
+  "=" _ "by" { Laws.fieldMulOneLeft _ }
+};
+\definition decay[xi: Point]: R.Le (Real.mul (E.weight p xi) (Product.abs (D.normSq (function xi)))) Real.one := \block {
+  \let a: Real.Real := E.weight p xi \then
+  \let b: Real.Real := D.normSq (inverse xi) \then
+  \let bound: R.Le (Derivatives.symbolSquared d xi) (E.weight r xi) := R.leTrans _ _ _
+    (Derivatives.symbolBound xi d) (Derivatives.powerOrder xi r (Derivatives.order d) degree) \then
+  \return R.leReplace _ _ _ _ (sym!{Real.Real} _ _ (eq_reason_in!{Real.Real _
+    "=" _ "by" { congr!{Real.Real Real.Real} (Real.mul a) _ _ (Product.absOfNonnegative _ (CL.normSqNonnegative _)) }
+    "=" _ "by" { congr!{Real.Real Real.Real} (Real.mul a) _ _ (Moments.squared inverse xi d) }
+    "=" _ "by" { Algebra.mulSwap a (Derivatives.symbolSquared d xi) b }
+    "=" _ "by" { Laws.fieldMulComm _ _ }
+  })) (eq_reason_in!{Real.Real {Real.mul (Real.mul a b) (E.weight r xi)}
+    "=" _ "by" { Laws.fieldMulAssoc _ _ _ }
+    "=" _ "by" { congr!{Real.Real Real.Real} (Real.mul a) _ _ (Laws.fieldMulComm _ _) }
+    "=" _ "by" { sym!{Real.Real} _ _ (Laws.fieldMulAssoc _ _ _) }
+    "=" _ "by" { congr!{Real.Real Real.Real} (\fun (u: Real.Real) => Real.mul u b) _ _
+      (sym!{Real.Real} _ _ (Powers.addition (E.weightBase xi) p r)) }
+    "=" _ "by" { cancellation xi }
+  }) (Estimates.mulMonotone _ _ _ (Laws.fieldMulNonnegative a b (E.weightNonnegative p xi) (CL.normSqNonnegative _)) bound)
+};
+\definition squareData: Decay.Data := Decay.Data {
+  function := \fun (xi: Point) => D.normSq (function xi),
+  measurable := M.Functions[mu := LE.measure].addMeasurable _ _
+    (L.Products[].measurable _ _ measurable.left measurable.left)
+    (L.Products[].measurable _ _ measurable.right measurable.right), bound := decay,
+};
+\definition majorant: I.Representatives := Decay.Integrable[data := squareData].value;
+\definition component[g: Point -> Real.Real][valid: M.IsMeasurable LE.measure g]
+  [bound: \forall (xi: Point) -> R.Le (Real.mul (g xi) (g xi)) (D.normSq (function xi))]: F.Representatives :=
+  \into[Point -> Real.Real](g, F.Representatives) \by {
+    F.hasMoment g valid (I.finiteMono _ (I.Absolute[].abs majorant) (F.momentNonnegative g)
+      (\fun (xi: Point) => R.leReplace _ _ _ _
+        (sym!{Real.Real} _ _ (trans!{Real.Real} _ _ _ (PA.square (F.absolute g xi)) (Scalars.squareAbs (g xi))))
+        (sym!{Real.Real} _ _ (Product.absOfNonnegative _ (CL.normSqNonnegative (function xi)))) (bound xi))
+      (I.integralLaw majorant).integrable.right)
+  };
+\definition value: L2.Representatives := L2.join
+  (component (\fun (xi: Point) => C.re (function xi)) measurable.left (\fun (xi: Point) => Algebra.leAddRight _ _ (Algebra.squareNonnegative (C.im (function xi)))))
+  (component (\fun (xi: Point) => C.im (function xi)) measurable.right (\fun (xi: Point) => R.leReplaceRight _ _ _ (Laws.addComm _ _)
+    (Algebra.leAddRight _ _ (Algebra.squareNonnegative (C.re (function xi))))));

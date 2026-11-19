@@ -1,0 +1,44 @@
+\import \parent.Disk[] \as D;
+\import dedekind_reals.DedekindReal[] \as O;
+\import O.Arithmetic[].Prop[] \as Field;
+\import metric_spaces.RealLine[] \as Line;
+\import metric_spaces.MetricSpace[Carrier := R.Real] \as Metric;
+\import topological_constructions.Product[A := R.Real,B := D.Point] \as Parameters;
+\definition topology: topology.Structures[].Topology[Parameters.CarrierSet] := Parameters.topology Line.topology D.topology;
+\definition scalar: Parameters.CarrierSet -> R.Real := Pair.first R.Real D.Point;
+\definition vector: Parameters.CarrierSet -> D.Point := Pair.second R.Real D.Point;
+\definition normalContinuous: topology.Continuity[A := Parameters.CarrierSet,B := Normal.Point].Continuous topology Normal.topology (\fun (p: Parameters.CarrierSet) => vector p) :=
+  topology.Composition[A := Parameters.CarrierSet,B := D.Point,C := Normal.Point].composeContinuous _ _ _ vector (\fun (p: D.Point) => p)
+    (Parameters.Maps[].secondContinuous Line.topology D.topology) D.inclusion;
+\import D.Family[X := Parameters.CarrierSet,source := topology,a := scalar,q := \fun (p: Parameters.CarrierSet) => vector p,
+  scalar := Parameters.Maps[].firstContinuous Line.topology D.topology,regular := normalContinuous] \as Action;
+\structure Width: \Set := {
+  radius: R.Real, positive: O.Lt R.zero radius,
+  within: \forall (a: R.Real) -> O.Le R.zero a -> O.Le a radius -> \forall (p: D.Point) -> S.Member t.domain (D.scale a p),
+};
+\definition widths[compact: BaseSpace.IsCompact M.space]: \exists Width := \block {
+  \let region: \Pow Parameters.CarrierSet := { p: Parameters.CarrierSet \where S.Member t.domain (Action.scaled p) } \then
+  \takefrom tube: Parameters.Compactness[].Tube[Line.topology,R.zero,region,topology.Topology[Carrier := D.Point].Whole] \by
+    Parameters.Compactness[].tubeLemma Line.topology D.topology _ (D.compact compact) R.zero region (Action.continuous t.domain t.open)
+      (\fun (p: D.Point)(h: _) => \idelim zero p.base = D.scale R.zero p \with q: Normal.Point => S.Member t.domain q \by {
+        base: t.section p.base,equality: sym!{Normal.Point} _ _ (D.scaleZero p)
+      }) \then
+  \takefrom r: \Cast[R.Real] (Metric.NeighborhoodRadius metric_spaces.RealMetric[].metric tube.neighborhood R.zero) \by tube.open R.zero tube.contains \then
+  \let law: Logic.And[O.Lt R.zero r,topology.Topology[Carrier := R.Real].Subset (Metric.Ball metric_spaces.RealMetric[].metric R.zero r) tube.neighborhood] :=
+    \bysub(R.Real,Metric.NeighborhoodRadius metric_spaces.RealMetric[].metric tube.neighborhood R.zero,r) \then
+  \return \exact(Width { radius := R.mul R.half r,positive := R.Estimates[].halfOfPositive r law.left,
+    within := \fun (a: R.Real)(ap: _)(bound: _)(p: D.Point) => tube.within a (law.right a (O.ltReplaceLeft _ _ _
+      (sym!{{R.Real}} _ _ (R.Estimates[].Product[].absOfNonnegative a ap)) (O.leLtTrans _ _ _ bound (R.Estimates[].halfStrict r law.left)))) p (\refl(p))
+  },Width)
+};
+\definition inverseContinuous: topology.Continuity[A := Open.Carrier t.image,B := Normal.Point].Continuous (Open.Topology[].Of[U := t.image].topology) Normal.topology t.inverse.apply :=
+  \bysub(manifolds.SmoothMap[n := d,m := d].Between[M := manifolds.Dimension[n := d].Examples[].Euclidean[].Subspace[U := t.image].smoothManifold,N := Normal.manifold].Data,
+    { g: manifolds.SmoothMap[n := d,m := d].Between[M := manifolds.Dimension[n := d].Examples[].Euclidean[].Subspace[U := t.image].smoothManifold,N := Normal.manifold].Data \where manifolds.SmoothMap[n := d,m := d].Between[M := manifolds.Dimension[n := d].Examples[].Euclidean[].Subspace[U := t.image].smoothManifold,N := Normal.manifold].Continuous g }, t.inverse);
+\import algebraic_topology.Interval[] \as I;
+\import algebraic_topology.Cylinder[A := E.Vector] \as Cylinder;
+\import \root.Collapse[A := E.Vector,D := D.Point,space := Bundle.ambient.space,disk := D.topology,sphere := D.boundary] \as Collapse;
+\module Family(radius: I.Carrier -> R.Real, regular: metric_spaces.RealFunctions[A := I.Carrier].Continuous I.topology radius,
+  positive: \forall (s: I.Carrier) -> O.Lt R.zero (radius s), within: \forall (s: I.Carrier)(v: D.Point) -> S.Member t.domain (D.scale (radius s) v),
+  compact: BaseSpace.IsCompact M.space);
+\module At(r: R.Real,positive: O.Lt R.zero r,within: \forall (p: D.Point) -> S.Member t.domain (D.scale r p),compact: BaseSpace.IsCompact M.space);
+\module Interpolate(w: Width, a,b: R.Real, ap: O.Lt R.zero a, bp: O.Lt R.zero b, aw: O.Le a w.radius, bw: O.Le b w.radius, compact: BaseSpace.IsCompact M.space);

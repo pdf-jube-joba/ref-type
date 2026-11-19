@@ -1,0 +1,36 @@
+\import std.Data[].Nat[] \as Nat;
+\import std.Data[].Pair[] \as Pair;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Classical[] \as Classical;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\use Equality.eq_reason_in;
+\import topology.Topology[Carrier := A] \as S;
+\import topology.Topology[Carrier := B] \as T;
+\import topological_constructions.Product[A := A, B := A] \as Pairs;
+\import topology.Topology[Carrier := Pairs.CarrierSet] \as P;
+\import topology.Continuity[A := A, B := B] \as Maps;
+\definition pairSpace: P.Topology := Pairs.topology source source;
+\definition Safe[U: \Pow A]: \Prop := \forall (x,y: A) -> S.Member U x -> S.Member U y -> f x = f y -> x = y;
+\definition family: \Pow (\Pow A) := { U: \Pow A \where Logic.And[S.IsOpenIn source U, Safe U] };
+\definition local: \Pow A := S.Union family;
+\definition regionFamily: \Pow (\Pow Pairs.CarrierSet) := { V: \Pow Pairs.CarrierSet \where Logic.And[P.IsOpenIn pairSpace V,
+  \forall (x,y: A) -> P.Member V (Pair.pair A A x y) -> f x = f y -> x = y] };
+\definition region: \Pow Pairs.CarrierSet := P.Union regionFamily;
+\definition regionOpen: P.IsOpenIn pairSpace region := (P.topologyLaws pairSpace).unionOpen regionFamily (\fun (V: _)(h: _) => h.left);
+\definition safe[x,y: A]: P.Member region (Pair.pair A A x y) -> f x = f y -> x = y :=
+  P.unionMemberElim regionFamily (Pair.pair A A x y) (f x = f y -> x = y) (\fun (V: _)(law: P.FamilyMember regionFamily V)(member: _) => law.right x y member);
+\definition diagonal[x: A]: S.Member local x -> P.Member region (Pair.pair A A x x) :=
+  S.unionMemberElim family x _ (\fun (U: \Pow A)(law: S.FamilyMember family U)(h: _) =>
+    P.unionMemberOf regionFamily (Pairs.Rectangle U U) _ (Logic.And[_, _]::#
+      (P.generatedBasisOpen (Pairs.Basis source source) _ (Pairs.Universal[X := Pairs.CarrierSet].rectangleBasisMember source source U U law.left law.left))
+      (\fun (p,q: A)(inside: P.Member (Pairs.Rectangle U U) (Pair.pair A A p q)) => law.right p q inside.left inside.right))
+      (Logic.And[_, _]::# h h));
+\module OffDiagonal(continuous: Maps.Continuous source target f, hausdorff: T.IsT2 target);
+\structure Neighborhood[K: \Pow A]: \Set := {
+  domain: \Pow A, open: S.IsOpenIn source domain, covers: S.Subset K domain, injective: Safe domain,
+};
+\module Compact(K: \Pow A, compact: S.IsCompactIn source K, covered: S.Subset K local, initial: Safe K,
+  continuous: Maps.Continuous source target f, hausdorff: T.IsT2 target);

@@ -1,0 +1,60 @@
+\import Fourier.Integer[m := k] \as Even;
+\import E.Transform[].Preservation[] \as Polynomial;
+\definition frequency[f: S.Function]: L2.Representatives := Embedding.representative (Transform.forward f);
+\definition weighted[f: S.Function]: L2.Representatives := Divide.representative (Even.input f).weighted;
+\definition law[f: S.Function][xi: Point]: weighted f xi = D.scale (Bessel.value xi) (frequency f xi) := eq_reason_in!{C.Complex _
+  "=" _ "by" { Scalars.realProduct _ _ }
+  "=" _ "by" { congr!{C.Complex C.Complex} (D.scale (Bessel.inverse xi)) _ _ (Even.multiplier f xi) }
+  "=" _ "by" { Scalars.scaleCompose _ _ _ }
+  "=" _ "by" { congr!{Real.Real C.Complex} (\fun (a: Real.Real) => D.scale a (frequency f xi)) _ _ (eq_reason_in!{Real.Real _
+    "=" _ "by" { congr!{Real.Real Real.Real} (Real.mul (Bessel.inverse xi)) _ _ (sym!{Real.Real} _ _ (Bessel.square xi)) }
+    "=" _ "by" { sym!{Real.Real} _ _ (Laws.fieldMulAssoc _ _ _) }
+    "=" _ "by" { congr!{Real.Real Real.Real} (\fun (r: Real.Real) => Real.mul r (Bessel.value xi)) _ _
+      (Laws.fieldInverseNonzero _ (Real.Inverse[].positiveNonzero _ (Bessel.positive xi))) }
+    "=" _ "by" { Laws.fieldMulOneLeft _ }
+  }) }
+};
+\definition input[f: S.Function]: W.Input := W.Input { frequency := frequency f, weighted := weighted f, law := law f };
+\definition value[f: S.Function]: Positive := W.ofFunction (input f);
+\definition recovers[f: S.Function]: physical (value f) = Embedding.value f := eq_reason_in!{L2.Space _
+  "=" _ "by" { W.inputPhysical (input f) }
+  "=" _ "by" { congr!{L2.Space L2.Space} U.backward _ _ (sym!{L2.Space} _ _ (U.onSchwartz f)) }
+  "=" _ "by" { U.leftInverse (Embedding.value f) }
+};
+\definition energy[f: S.Function][xi: Point]: D.normSq (weighted f xi) = Real.mul (E.weight k xi) (D.normSq (frequency f xi)) := eq_reason_in!{Real.Real _
+  "=" _ "by" { congr!{C.Complex Real.Real} D.normSq _ _ (law f xi) }
+  "=" _ "by" { Derivatives.scaleSquared _ _ }
+  "=" _ "by" { congr!{Real.Real Real.Real} (\fun (r: Real.Real) => Real.mul r (D.normSq (frequency f xi))) _ _ (Bessel.square xi) }
+};
+\import L.Norm[p := PA.two] \as RealNorm;
+\definition derivativeBound[f: S.Function][d: E.Directions][degree: Nat.Le (Derivatives.order d) k]:
+  R.Le (L2.normValue (Embedding.value (Derivatives.iterated f d))) (norm (value f)) := \block {
+  \let g: S.Function := Derivatives.iterated f d \then
+  \let bound: \forall (xi: Point) -> R.Le (Abs.abs (frequency g xi)) (Abs.abs (weighted f xi)) := \fun (xi: Point) =>
+    Derivatives.squaredMonotone _ _ (R.leReplace _ _ _ _
+      (sym!{Real.Real} _ _ (Derivatives.fourierSquared f xi d)) (sym!{Real.Real} _ _ (energy f xi))
+      (R.leReplace _ _ _ _ (Laws.fieldMulComm _ _) (Laws.fieldMulComm _ _)
+        (Estimates.mulMonotone _ _ _ (CL.normSqNonnegative (frequency f xi))
+          (R.leTrans _ _ _ (Derivatives.symbolBound xi d) (Derivatives.powerOrder xi k (Derivatives.order d) degree))))) \then
+  \return R.leReplace _ _ _ _
+    (trans!{Real.Real} _ _ _ (sym!{Real.Real} _ _ (L2.normOfFunction (frequency g))) (Transform.norm g))
+    (sym!{Real.Real} _ _ (L2.normOfFunction (weighted f)))
+    (RealNorm.monotone (L2.modulusRepresentative (frequency g)) (L2.modulusRepresentative (weighted f))
+      (\fun (xi: Point) => R.leReplace _ _ _ _
+        (sym!{Real.Real} _ _ (Product.absOfNonnegative _ (Abs.nonnegative (frequency g xi))))
+        (sym!{Real.Real} _ _ (Product.absOfNonnegative _ (Abs.nonnegative (weighted f xi)))) (bound xi)))
+};
+\definition additive[f,g: S.Function]: value (S.add f g) = L2.add (value f) (value g) :=
+  injective _ _ (eq_reason_in!{L2.Space _
+    "=" _ "by" { recovers (S.add f g) }
+    "=" _ "by" { Embedding.add f g }
+    "=" _ "by" { congr!{L2.Space L2.Space L2.Space} L2.add _ _ _ _ (sym!{L2.Space} _ _ (recovers f)) (sym!{L2.Space} _ _ (recovers g)) }
+    "=" _ "by" { sym!{L2.Space} _ _ (W.additive (value f) (value g)) }
+  });
+\definition scalar[c: C.Complex][f: S.Function]: value (S.scale c f) = L2.scale c (value f) :=
+  injective _ _ (eq_reason_in!{L2.Space _
+    "=" _ "by" { recovers (S.scale c f) }
+    "=" _ "by" { Embedding.scale c f }
+    "=" _ "by" { congr!{L2.Space L2.Space} (L2.scale c) _ _ (sym!{L2.Space} _ _ (recovers f)) }
+    "=" _ "by" { sym!{L2.Space} _ _ (W.scalar c (value f)) }
+  });

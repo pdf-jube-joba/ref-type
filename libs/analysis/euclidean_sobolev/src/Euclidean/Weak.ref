@@ -1,0 +1,48 @@
+\import distributions.Euclidean[n := n] \as Dist;
+\import Dist.Regular[] \as Regular;
+\import Regular.Sobolev[] \as Comparison;
+\import Comparison.Measure[] \as Transport;
+\import functional_analysis.Sobolev[n := n].On[U := Open.whole] \as Whole;
+\import Whole.WithMeasure[mu := Transport.measure] \as Weak;
+\import L.Finite[p := PA.two] \as Global;
+\import functional_analysis.Measure[A := Open.Carrier Open.whole] \as LocalMeasure;
+\import lp_spaces.On[A := Open.Carrier Open.whole, mu := Transport.measure].Finite[p := PA.two] \as Local;
+\import LocalMeasure.Integral[mu := Transport.measure] \as LocalIntegral;
+\import product_integration.MeasureMap[A := Open.Carrier Open.whole, B := Point, source := Transport.measure, target := LE.measure].On[map := Transport.backward] \as Pull;
+\import E.Operations[] \as Ops;
+\import Dist.Dual[] \as Dual;
+\definition restrict[f: Global.Representatives]: Local.Representatives :=
+  \into[Whole.Functions](Open.Restriction[].function Open.whole f, Local.Representatives) \by {
+    Local.hasMoment _ (Pull.measurable f (Global.properties f).measurable)
+      (LocalIntegral.finiteMono _ (LocalIntegral.Absolute[].abs (Transport.restriction (Global.momentRepresentative f)))
+        (Local.momentNonnegative _)
+        (\fun (x: Open.Carrier Open.whole) => R.leReplaceRight _ _ _
+          (sym!{Real.Real} _ _ (Product.absOfNonnegative _ (Global.momentNonnegative f x))) (R.leRefl _))
+        (LocalIntegral.integralLaw (Transport.restriction (Global.momentRepresentative f))).integrable.right)
+  };
+\definition regular[f: E.Schwartz]: Regular.Representatives := Regular.SmoothFunction[f := f].representative;
+\definition distribution[f: E.Schwartz]: Dist.Distribution := Regular.distribution (regular f);
+\definition distributionJet[f: E.Schwartz]: \forall (d: E.Directions) ->
+  Dual.derivative d (distribution f) = distribution (Ops.iterated f d) :=
+  \induction (d: E.Directions) \return Dual.derivative d (distribution f) = distribution (Ops.iterated f d) \with {
+    | nil: \refl(distribution f)
+    | cons: \fun (i: E.Coordinate)(d: E.Directions)(previous: _) => trans!{Dist.Distribution} _ _ _
+      (congr!{Dist.Distribution Dist.Distribution} (\fun (T: Dist.Distribution) => Dual.partial T i) _ _ previous)
+      (Regular.SmoothFunction[f := Ops.iterated f d].derivative i)
+  };
+\definition derivatives[f: E.Schwartz][d: E.Directions]: Local.Representatives :=
+  restrict (Embedding.real (Ops.iterated f d));
+\definition weak[f: E.Schwartz][d: E.Directions]: Weak.WeakDerivative (derivatives f E.Directions::nil) (derivatives f d) d :=
+  Comparison.DistributionComparison[u := regular f, g := regular (Ops.iterated f d), d := d].equivalence.rtl (distributionJet f d);
+\definition representative[k: N.Nat^][f: E.Schwartz]: Weak.Representatives k PA.two :=
+  \into[Whole.Functions](derivatives f E.Directions::nil, Weak.Representatives k PA.two) \by {
+    Logic.existsIntro[E.Directions -> Whole.Functions, { jets: E.Directions -> Whole.Functions \where
+      Weak.Derivatives[derivatives f E.Directions::nil, k, PA.two, jets] }] (\fun (d: E.Directions) => derivatives f d)
+      (Weak.Derivatives[derivatives f E.Directions::nil, k, PA.two, (\fun (d: E.Directions) => derivatives f d)] {
+        function := \refl(derivatives f E.Directions::nil),
+        integrable := \fun (d: E.Directions)(bound: _) => Local.properties (derivatives f d),
+        weak := \fun (d: E.Directions)(bound: _) => weak f d,
+      })
+  };
+\definition ofSchwartz[k: N.Nat^][f: E.Schwartz]: Weak.Space[k := k, p := PA.two].Wkp :=
+  Weak.Space[k := k, p := PA.two].ofFunction (representative k f);

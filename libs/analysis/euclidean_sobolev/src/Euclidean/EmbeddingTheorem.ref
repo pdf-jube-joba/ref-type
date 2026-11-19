@@ -1,0 +1,37 @@
+\import \parent.Decay[p := p, range := range] \as Decay;
+\import \parent.Moments[] \as Moments;
+\import \parent.FourierIntegral[] \as Integral;
+\import fourier_schwartz.NaturalPowers[] \as Powers;
+\import L.Finite[p := PA.two] \as F;
+\import L.Holder[exponents := L.Hilbert[].exponents] \as Holder;
+\definition order: N.Nat^ := NatOps.add p r;
+\import \parent.Order[k := order] \as H;
+\import H.Weight[] \as Weight;
+\import Fourier.Weighted[weight := Weight.weight] \as Weighted;
+\definition inverse[xi: Point]: C.Complex := D.ofReal (Weight.inverse xi);
+\definition kernel[d: E.Directions]: Point -> C.Complex := Moments.apply inverse d;
+\module Kernel(d: E.Directions, degree: Nat.Le (Derivatives.order d) r);
+\definition phase[x: Point]: Multiplication.Symbol := Multiplication.Symbol {
+  function := \fun (xi: Point) => E.Kernel[].value xi x,
+  measurable := Logic.And[_, _]::# (FI.realKernel x).measurable (FI.imaginaryKernel x).measurable,
+  coefficient := \into[Real.Real](Real.one, Scaling.NonnegativeScalar) \by { Laws.oneNonnegative },
+  bound := \fun (xi: Point) => R.leReplaceLeft _ _ _ (sym!{Real.Real} _ _ (E.Kernel[].modulus xi x)) (R.leRefl Real.one),
+};
+\definition kernelNorm[d: E.Directions]: Real.Real :=
+  L2.normValue (L2.ofFunction Kernel[d := Moments.prefix r d, degree := Moments.bounded r d].value);
+\module For(data: Weighted.Input);
+\import std.Set[].Quotient[A := L2.Representatives, Equivalent := L2.Equivalent] \as Q;
+\import Multiplication.By[symbol := Weighted.reciprocal] \as Divide;
+\definition data[h: L2.Representatives]: Weighted.Input := Weighted.Input {
+  frequency := Divide.representative h, weighted := h, law := \fun (xi: Point) => sym!{C.Complex} _ _ (Weighted.recover h xi),
+};
+\structure Regular[f: Point -> C.Complex]: \Prop := {
+  real: Smooth.ContDiffOn Open.whole r (\fun (x: Open.Carrier Open.whole) => C.re (f x)),
+  imaginary: Smooth.ContDiffOn Open.whole r (\fun (x: Open.Carrier Open.whole) => C.im (f x)),
+};
+\definition theorem: \forall (h: H.Positive) -> \exists ( f: Point -> C.Complex \where Logic.And[Integral.InverseOf (H.physical h) f, Regular[f]] ) :=
+  Q.induction (\fun (h: H.Positive) => \exists ( f: Point -> C.Complex \where Logic.And[Integral.InverseOf (H.physical h) f, Regular[f]] ))
+    (\fun (v: L2.Representatives) =>
+      Logic.existsIntro[Point -> C.Complex, { f: Point -> C.Complex \where Logic.And[Integral.InverseOf (H.physical (L2.ofFunction v)) f, Regular[f]] }]
+        (For[data := data v].value) (Logic.And[_, _]::# (For[data := data v].inverse)
+          (Regular[For[data := data v].value] { real := For[data := data v].real, imaginary := For[data := data v].imaginary })));

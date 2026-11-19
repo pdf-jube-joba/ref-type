@@ -1,0 +1,23 @@
+\import normal_bundles.Stabilization[n := n,k := k] \as Sums;
+\import Sums.On[M := M].Of[i := Embeddings.asImmersion e] \as Stabilization;
+\import normal_bundles.Dimension[n := n,k := Nat.Nat^::succ k] \as Larger;
+\import Larger.On[M := M].Of[i := Stabilization.immersion] \as New;
+\import linear_algebra.Euclidean[n := Larger.ambientDimension] \as V;
+\definition endpointFormula[x: M.Point][v: Normal.Fiber x][a: R.Real]:
+  V.space.add (Stabilization.map.apply x) (New.ambientVector (New.include x (Stabilization.At[x := x].newNormal v a))) =
+    Sums.join (\parent.With[lift := straight].endpoint (Normal.include x v)) a := eq_reason_in!{{V.Vector} _
+  "=" _ "by" { congr!{{V.Vector} {V.Vector}} (\fun (u: V.Vector) => V.space.add u (Sums.join v a)) _ _ (Stabilization.inclusionFormula x) }
+  "=" _ "by" { sym!{{V.Vector}} _ _ (Sums.joinAddition (Maps.apply e x) v R.zero a) }
+  "=" _ "by" { congr!{{R.Real} {V.Vector}} (Sums.join (\parent.With[lift := straight].endpoint (Normal.include x v))) _ _ (dedekind_reals.DedekindReal[].Arithmetic[].Prop[].addZeroLeft a) }
+};
+\import \parent.With[lift := straight].Disk[] \as D;
+\import \root.Line[] \as Line;
+\import \root.Collapse[A := E.Vector,D := D.Point,space := Bundle.ambient.space,disk := D.topology,sphere := D.boundary] \as Original;
+\module Of(c: Original.Chart) {
+  \import \root.Product[A := E.Vector,B := R.Real,D := D.Point,F := Line.Disk,a := Bundle.ambient.space,b := metric_spaces.RealLine[].topology,
+    d := D.topology,f := Line.diskTopology,s := D.boundary,t := Line.edge] \as Suspension;
+  \import Suspension.Of[l := c,r := Line.chart] \as Stable;
+  \definition collapse: Suspension.AmbientPoint -> Suspension.Thom := Stable.collapse;
+  \definition suspension[p: Suspension.AmbientPoint]: Suspension.comparison (collapse p) =
+    Suspension.pair (Original.Of[c := c].map (Pair.first E.Vector R.Real p)) (Line.collapse (Pair.second E.Vector R.Real p)) := Stable.multiplicative p;
+}

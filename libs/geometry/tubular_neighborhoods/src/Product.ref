@@ -1,0 +1,42 @@
+\import std.Data[].Nat[] \as Nat;
+\import std.Data[].Pair[] \as Pair;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Classical[] \as Classical;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\use Equality.eq_reason_in;
+\import \root.Collapse[A := A,D := D,space := a,disk := d,sphere := s] \as Left;
+\import \root.Collapse[A := B,D := F,space := b,disk := f,sphere := t] \as Right;
+\import topology.Topology[Carrier := A] \as AS;
+\import topology.Topology[Carrier := B] \as BS;
+\import topological_constructions.Product[A := A,B := B] \as P;
+\import topological_constructions.Product[A := D,B := F] \as Q;
+\import topology.Topology[Carrier := P.CarrierSet] \as PS;
+\definition ambient: PS.Topology := P.topology a b;
+\definition disk: topology.Structures[].Topology[Q.CarrierSet] := Q.topology d f;
+\definition boundary: \Pow Q.CarrierSet := { q: Q.CarrierSet \where Logic.Or[\In[D] s (Pair.first D F q),\In[F] t (Pair.second D F q)] };
+\import \root.Collapse[A := P.CarrierSet,D := Q.CarrierSet,space := ambient,disk := disk,sphere := boundary] \as Total;
+\import thom_spaces.Thom[].Collapse[A := D,source := d,subset := s] \as LQ;
+\import thom_spaces.Thom[].Collapse[A := F,source := f,subset := t] \as RQ;
+\import thom_spaces.Thom[].Collapse[A := Q.CarrierSet,source := disk,subset := boundary] \as TQ;
+\import algebraic_topology.Smash[A := LQ.Carrier,B := RQ.Carrier].Of[left := LQ.pointed,right := RQ.pointed] \as Smash;
+\definition pair[x: LQ.Carrier][y: RQ.Carrier]: Smash.Carrier := Smash.class (Pair.pair LQ.Carrier RQ.Carrier x y);
+\definition value[q: Q.CarrierSet]: Smash.Carrier := pair (LQ.class (Pair.first D F q)) (RQ.class (Pair.second D F q));
+\import topological_constructions.Product[A := LQ.Carrier,B := RQ.Carrier] \as Targets;
+\definition regular: topology.Continuity[A := Q.CarrierSet,B := Smash.Carrier].Continuous disk Smash.topology value :=
+  topology.Composition[A := Q.CarrierSet,B := Targets.CarrierSet,C := Smash.Carrier].composeContinuous disk (Targets.topology LQ.topology RQ.topology) Smash.topology _ Smash.class
+    (Targets.Universal[X := Q.CarrierSet].pairContinuous disk _ _ _ _
+      (topology.Composition[A := Q.CarrierSet,B := D,C := LQ.Carrier].composeContinuous _ d _ (Pair.first D F) LQ.class (Q.Maps[].firstContinuous d f) LQ.continuous)
+      (topology.Composition[A := Q.CarrierSet,B := F,C := RQ.Carrier].composeContinuous _ f _ (Pair.second D F) RQ.class (Q.Maps[].secondContinuous d f) RQ.continuous))
+    (algebraic_topology.Collapse[A := Targets.CarrierSet,subset := Smash.Wedge].projectionContinuous _);
+\definition vanishes[q: Q.CarrierSet]: \In[Q.CarrierSet] boundary q -> value q = Smash.basepoint := \fun (edge: _) => Logic.orElim _ _ _ edge
+  (\fun (h: _) => trans!{Smash.Carrier} _ _ _ (congr!{LQ.Carrier Smash.Carrier} (\fun (x: LQ.Carrier) => pair x (RQ.class (Pair.second D F q))) _ _ (LQ.collapsed _ h)) (Smash.leftCollapsed _))
+  (\fun (h: _) => trans!{Smash.Carrier} _ _ _ (congr!{RQ.Carrier Smash.Carrier} (pair (LQ.class (Pair.first D F q))) _ _ (RQ.collapsed _ h)) (Smash.rightCollapsed _));
+\import TQ.Lift[B := Smash.Carrier,target := Smash.topology,basepoint := Smash.basepoint,f := value,regular := regular,vanishes := vanishes] \as Lift;
+\definition comparison: TQ.Carrier -> Smash.Carrier := Lift.apply;
+\definition comparisonContinuous: topology.Continuity[A := TQ.Carrier,B := Smash.Carrier].Continuous TQ.topology Smash.topology comparison := Lift.continuous;
+\definition AmbientPoint: \Set := P.CarrierSet;
+\definition Thom: \Set := TQ.Carrier;
+\module Of(l: Left.Chart,r: Right.Chart);

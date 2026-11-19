@@ -1,0 +1,33 @@
+\import std.Data[].Nat[] \as Nat;
+\import std.Data[].Pair[] \as Pair;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Classical[] \as Classical;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\use Equality.eq_reason_in;
+\import real.Analysis[] \as R;
+\import dedekind_reals.DedekindReal[] \as O;
+\import metric_spaces.RealLine[] \as Line;
+\import metric_spaces.RealFunctions[A := R.Real] \as Functions;
+\definition squared[x: R.Real]: R.Real := R.mul x x;
+\definition continuous: Functions.Continuous Line.topology squared := Functions.Product[].continuous Line.topology _ _
+  (topology.Maps[A := R.Real,B := R.Real].Identity[].continuous Line.topology) (topology.Maps[A := R.Real,B := R.Real].Identity[].continuous Line.topology);
+\import \root.DiskImage[A := R.Real,N := R.Real,space := Line.topology,normals := Line.topology,squared := squared] \as Model;
+\import topology.Topology[Carrier := R.Real] \as S;
+\definition ball: \Pow R.Real := Model.ball;
+\definition edge: \Pow Model.Disk := Model.sphere;
+\import \root.Collapse[A := R.Real,D := Model.Disk,space := Line.topology,disk := Model.disk,sphere := edge] \as C;
+\definition chart: C.Chart := C.Chart {
+  shell := ball,closed := topology.Continuity[A := R.Real,B := R.Real].closedPreimage _ _ squared continuous _ (Line.Rays[].atMostClosed R.one),
+  core := { x: R.Real \where O.Lt (squared x) R.one },open := continuous _ (Line.Rays[].belowOpen R.one),
+  included := \fun (x: R.Real)(lt: _) => O.Order[].leOfLt _ _ lt,read := \fun (x: Model.Disk) => x,
+  continuous := topology.Maps[A := Model.Disk,B := Model.Disk].Identity[].continuous Model.disk,
+  seam := \fun (x: Model.Disk)(outside: _) => O.leAntisym _ _ (\bysub(R.Real,ball,x)) (O.Order[].leOfNotLtReverse _ _ outside),
+};
+
+\definition Disk: \Set := Model.Disk;
+\definition diskTopology: topology.Structures[].Topology[Disk] := Model.disk;
+\definition Thom: \Set := thom_spaces.Thom[].Collapse[A := Disk,source := diskTopology,subset := edge].Carrier;
+\definition collapse: R.Real -> Thom := C.Of[c := chart].map;

@@ -1,0 +1,26 @@
+\import \root.Euclidean[n := n,k := k].On[M := M].Of[e := e].With[lift := lift].Local[p := p] \as L;
+\import T.Subspace[S := p.image.points].Open[] \as O;
+\definition pre: \Pow (Open.Carrier p.image) := { y: Open.Carrier p.image \where S.Member tube.domain (L.undo y) };
+\definition domain: Open.OpenSet := Open.Topology[].ofOpen (O.image pre) (O.imageOpen Bundle.ambient.space (Open.Topology[].open p.image) pre
+  ((\bysub(manifolds.SmoothMap[n := d,m := d].Between[M := manifolds.Dimension[n := d].Examples[].Euclidean[].Subspace[U := p.image].smoothManifold,N := Normal.manifold].Data,
+    { h: manifolds.SmoothMap[n := d,m := d].Between[M := manifolds.Dimension[n := d].Examples[].Euclidean[].Subspace[U := p.image].smoothManifold,N := Normal.manifold].Data \where manifolds.SmoothMap[n := d,m := d].Between[M := manifolds.Dimension[n := d].Examples[].Euclidean[].Subspace[U := p.image].smoothManifold,N := Normal.manifold].Continuous h }, L.map)) tube.domain tube.open));
+\definition included: Open.Included domain p.image := O.imageIncluded pre;
+\definition input[y: Open.Carrier domain]: Open.Carrier p.image := Open.inclusion domain p.image included y;
+\definition undo[y: Open.Carrier domain]: Normal.Point := L.undo (input y);
+\definition inside[y: Open.Carrier domain]: S.Member tube.domain (undo y) := O.imageElim pre y _
+  (\fun (v: Open.Carrier p.image)(h: _)(same: v = y) => \idelim v = input y \with z: Open.Carrier p.image => S.Member tube.domain (L.undo z) \by { base: h,equality: same })
+  (\bysub(E.Vector,domain.points,y));
+\definition equation[y: Open.Carrier domain]: endpoint (undo y) = y := L.imageLaw (input y);
+\definition forwardMember[q: TotalCharts.LocalPoint p.chart][member: S.Member tube.domain q]: T.Member domain.points (endpoint q) :=
+  \block {
+    \let y: Open.Carrier p.image := C.apply p.chart.image p.image p.change.forward (TotalCharts.coordinate p.chart q) \then
+    \return \idelim y = endpoint q \with v: E.Vector => T.Member domain.points v \by {
+      base: O.imageMember pre y (\idelim q = L.undo y \with a: Normal.Point => S.Member tube.domain a \by {
+        base: member, equality: sym!{Normal.Point} _ _ (trans!{Normal.Point} _ _ _ (congr!{{Open.Carrier p.image} Normal.Point} L.undo _ _ (p.formula q)) (L.recover q))
+      }), equality: p.formula q
+    }
+  };
+\import manifolds.EuclideanMap[n := d,m := d].Between[U := domain,V := p.image] \as Coordinates;
+\definition map: manifolds.SmoothMap[n := d,m := d].Between[M := Coordinates.source,N := Normal.manifold].Map :=
+  manifolds.Composition[n := d,m := d,l := d].Between[M := Coordinates.source,N := Coordinates.target,P := Normal.manifold].compose
+    (Coordinates.map (calculus.Identity[n := d].Between[U := domain,V := p.image].map included)) L.map;

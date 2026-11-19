@@ -1,0 +1,33 @@
+\definition first: Pairs.CarrierSet -> A := Pair.first A A;
+\definition second: Pairs.CarrierSet -> A := Pair.second A A;
+\definition Separated: \Pow Pairs.CarrierSet := { p: Pairs.CarrierSet \where Logic.Not (f (first p) = f (second p)) };
+\import topology.Continuity[A := Pairs.CarrierSet, B := B] \as PairMaps;
+\definition leftContinuous: PairMaps.Continuous pairSpace target (\fun (p: Pairs.CarrierSet) => f (first p)) :=
+  topology.Composition[A := Pairs.CarrierSet, B := A, C := B].composeContinuous pairSpace source target first f
+    (Pairs.Maps[].firstContinuous source source) continuous;
+\definition rightContinuous: PairMaps.Continuous pairSpace target (\fun (p: Pairs.CarrierSet) => f (second p)) :=
+  topology.Composition[A := Pairs.CarrierSet, B := A, C := B].composeContinuous pairSpace source target second f
+    (Pairs.Maps[].secondContinuous source source) continuous;
+\definition open: P.IsOpenIn pairSpace Separated := P.openOfNeighborhoods pairSpace Separated (\block {
+  \fun (p: Pairs.CarrierSet)(distinct: P.Member Separated p) \then
+  \takefrom U: \Cast[\Pow B] ({ U: \Pow B \where T.RegularChoice[target, T.Singleton (f (second p)), f (first p), U] })
+    \by hausdorff (f (first p)) (f (second p)) distinct \then
+  \let choice: T.RegularChoice[target, T.Singleton (f (second p)), f (first p), U] := \bysub(\Pow B,
+    { U: \Pow B \where T.RegularChoice[target, T.Singleton (f (second p)), f (first p), U] }, U) \then
+  \takefrom V: \Cast[\Pow B] ({ V: \Pow B \where T.NormalPartner[target, T.Singleton (f (second p)), U, V] }) \by choice.partner \then
+  \let last: T.NormalPartner[target, T.Singleton (f (second p)), U, V] := \bysub(\Pow B,
+    { V: \Pow B \where T.NormalPartner[target, T.Singleton (f (second p)), U, V] }, V) \then
+  \let W: \Pow Pairs.CarrierSet := P.Intersection (PairMaps.Preimage (\fun (q: Pairs.CarrierSet) => f (first q)) U)
+    (PairMaps.Preimage (\fun (q: Pairs.CarrierSet) => f (second q)) V) \then
+  \return Logic.existsIntro[\Pow Pairs.CarrierSet, { W: \Pow Pairs.CarrierSet \where P.OpenNeighborhood[pairSpace, p, Separated, W] }] W
+    (P.OpenNeighborhood[pairSpace, p, Separated, W] {
+      open := (P.topologyLaws pairSpace).intersectionOpen _ _ (leftContinuous U choice.open) (rightContinuous V last.open),
+      contains := Logic.And[_, _]::# choice.contains (last.covers (f (second p)) (\refl(f (second p)))),
+      within := \fun (q: Pairs.CarrierSet)(member: P.Member W q)(same: f (first q) = f (second q)) =>
+        last.disjoint (f (first q)) member.left (\idelim f (second q) = f (first q)
+          \with x: B => T.Member V x \by { base: member.right, equality: sym!{B} _ _ same }),
+    })
+});
+\definition included[x,y: A][different: Logic.Not (f x = f y)]: P.Member region (Pair.pair A A x y) :=
+  P.unionMemberOf regionFamily Separated _ (Logic.And[_, _]::# open
+    (\fun (p,q: A)(apart: Logic.Not (f p = f q))(same: _) => Logic.falseElim _ (apart same))) different;

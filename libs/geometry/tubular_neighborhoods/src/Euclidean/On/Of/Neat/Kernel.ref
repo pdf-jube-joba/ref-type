@@ -1,0 +1,35 @@
+\definition reduced: scaled x w = E.space.zero := E.separated _ (trans!{{R.Real}} _ _ _ (sym!{{R.Real}} _ _ (energy x w)) vanishes);
+\definition component[i: Fin.Fin d]: scaled x w i = R.zero := congr!{{E.Vector} {R.Real}} (\fun (v: E.Vector) => v i) _ _ reduced;
+\definition horizontal[i: Fin.Fin d][off: test i = Bool.Bool^::false]: w i = R.zero := eq_reason_in!{{R.Real} _
+  "=" _ "by" { sym!{{R.Real}} _ _ (Field.fieldMulOneLeft (w i)) }
+  "=" _ "by" { congr!{{Bool.Bool^} {R.Real}} (\fun (b: Bool.Bool^) => R.mul (Bool.ite R.Real b (height x) R.one) (w i)) _ _ (sym!{{Bool.Bool^}} _ _ off) }
+  "=" _ "by" { component i }
+};
+\definition multiple: w = E.space.smul (w j) (E.basis j) := \axiom:funext((w \of E.Vector),(E.space.smul (w j) (E.basis j)),\fun (i: Fin.Fin d) =>
+  Bool.cases (\fun (b: Bool.Bool^) => test i = b -> w i = R.mul (w j) (Bool.ite R.Real b R.one R.zero))
+    (\fun (off: _) => trans!{{R.Real}} _ _ _ (horizontal i off) (sym!{{R.Real}} _ _ (Field.fieldMulZeroRight _)))
+    (\fun (on: _) => trans!{{R.Real}} _ _ _ (congr!{{Fin.Fin d} {R.Real}} (w \of E.Vector) _ _ (NL.eqOfEqbTrue j i on)) (sym!{{R.Real}} _ _ (R.Algebra[].mulOneRight _)))
+    (test i) (\refl(test i)));
+\definition zero[transverse: Transverse]: w = E.space.zero := \block {
+  \let last: w j = R.zero := Logic.orElim _ _ _ (Classical.excludedMiddle (height x = R.zero))
+    (\block {
+      \fun (face: _) \then
+      \takefrom v: \Cast[Tangent.Vector x] ({ v: Tangent.Vector x \where Logic.Not ((Normal.At[x := x].differential.apply v) j = R.zero) }) \by transverse x face \then
+      \let u: E.Vector := Normal.At[x := x].differential.apply v \then
+      \return cancel (u j) (w j) (\bysub(Tangent.Vector x,{ v: Tangent.Vector x \where Logic.Not ((Normal.At[x := x].differential.apply v) j = R.zero) },v))
+        (eq_reason_in!{{R.Real} _
+          "=" _ "by" { Field.fieldMulComm _ _ }
+          "=" _ "by" { congr!{{R.Real} {R.Real}} (R.mul (w j)) _ _ (sym!{{R.Real}} _ _ (E.dotBasis j u)) }
+          "=" _ "by" { sym!{{R.Real}} _ _ (E.form.scaleLeft (w j) (E.basis j) u) }
+          "=" _ "by" { congr!{{E.Vector} {R.Real}} (\fun (a: E.Vector) => E.dot a u) _ _ (sym!{{E.Vector}} _ _ multiple) }
+          "=" _ "by" { (\bysub(E.Vector,(Normal.At[x := x].subspace).carrier,w)) v }
+        })
+    })
+    (\fun (nonzero: _) => cancel (height x) (w j) nonzero (trans!{{R.Real}} _ _ _
+      (congr!{{R.Real} {R.Real}} (\fun (s: R.Real) => R.mul s (w j)) _ _ (sym!{{R.Real}} _ _ (vertical x))) (component j))) \then
+  \return eq_reason_in!{{E.Vector} _
+    "=" _ "by" multiple
+    "=" _ "by" { congr!{{R.Real} {E.Vector}} (\fun (c: R.Real) => E.space.smul c (E.basis j)) _ _ last }
+    "=" _ "by" { Laws.zeroScale _ }
+  }
+};

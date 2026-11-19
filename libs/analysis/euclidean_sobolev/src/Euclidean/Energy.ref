@@ -1,0 +1,128 @@
+\import I.Linear[] \as Linear;
+\import product_integration.IntegralTools[A := Point, mu := LE.measure] \as Integrals;
+\import L.Holder[exponents := L.Hilbert[].exponents] \as Holder;
+\definition squared[x: L2.Space]: Real.Real := Real.mul (L2.normValue x) (L2.normValue x);
+\definition density[k: N.Nat^][f: S.Function]: I.Representatives := L2.squareSum (\parent.Order[k := k].Schwartz[].weighted f);
+\definition integrand[k: N.Nat^][f: S.Function][xi: Point]: density k f xi = Real.mul (E.weight k xi) (D.normSq (S.value (Transform.forward f) xi)) :=
+  trans!{Real.Real} _ _ _ (L2.squareSumLaw _ xi) (\parent.Order[k := k].Schwartz[].energy f xi);
+\definition squareIntegral[h: L2.Representatives]: I.integral (L2.squareSum h) = squared (L2.ofFunction h) := eq_reason_in!{Real.Real _
+  "=" _ "by" { Holder.integralPointwise _ (measure_convergence.On[A := Point, mu := LE.measure].Complex[].realPart (Inner.product h h))
+    (\fun (xi: Point) => trans!{Real.Real} _ _ _ (L2.squareSumLaw h xi)
+      (sym!{Real.Real} _ _ (congr!{C.Complex Real.Real} C.re _ _ (CL.conjMulSelf (h xi))))) }
+  "=" _ "by" { congr!{C.Complex Real.Real} C.re _ _ (sym!{C.Complex} _ _ (Inner.onClass h h)) }
+  "=" _ "by" { Inner.normSquared (L2.ofFunction h) }
+};
+\definition weakEnergy: N.Nat^ -> S.Function -> Real.Real := \induction (k: N.Nat^) \return S.Function -> Real.Real \with {
+  | zero: \fun (f: S.Function) => squared (Embedding.value f)
+  | succ: \fun (k: N.Nat^)(previous: _)(f: S.Function) =>
+    Real.add (previous f) (Sum.sum n (\fun (i: E.Coordinate) => previous (S.partial f i)))
+};
+\definition zero[f: S.Function]: I.integral (density N.Nat^::zero f) = weakEnergy N.Nat^::zero f := eq_reason_in!{Real.Real _
+  "=" _ "by" { Holder.integralPointwise _ (L2.squareSum (Embedding.representative (Transform.forward f)))
+    (\fun (xi: Point) => eq_reason_in!{Real.Real _
+      "=" _ "by" { integrand N.Nat^::zero f xi }
+      "=" _ "by" { Laws.fieldMulOneLeft _ }
+      "=" _ "by" { sym!{Real.Real} _ _ (L2.squareSumLaw _ xi) }
+    }) }
+  "=" _ "by" { squareIntegral (Embedding.representative (Transform.forward f)) }
+  "=" _ "by" { congr!{Real.Real Real.Real} (\fun (v: Real.Real) => Real.mul v v) _ _ (Transform.norm f) }
+};
+\definition step[k: N.Nat^][f: S.Function][xi: Point]: density (N.Nat^::succ k) f xi =
+  Real.add (density k f xi) (Integrals.sum n (\fun (i: E.Coordinate) => density k (S.partial f i)) xi) := \block {
+  \let z: Real.Real := D.normSq (S.value (Transform.forward f) xi) \then
+  \let a: Real.Real := Real.mul (E.weight k xi) z \then
+  \return eq_reason_in!{Real.Real _
+    "=" _ "by" { integrand (N.Nat^::succ k) f xi }
+    "=" _ "by" { Laws.fieldMulAssoc _ _ _ }
+    "=" _ "by" { sym!{Real.Real} _ _ (Fourier.Expansion[].coefficient a xi) }
+    "=" _ "by" { congr!{Real.Real Real.Real Real.Real} Real.add _ _ _ _ (sym!{Real.Real} _ _ (integrand k f xi))
+      (Sum.congruent n _ _ (\fun (i: E.Coordinate) => eq_reason_in!{Real.Real _
+        "=" _ "by" { Laws.fieldMulAssoc _ _ _ }
+        "=" _ "by" { congr!{Real.Real Real.Real} (Real.mul (E.weight k xi)) _ _ (Laws.fieldMulComm _ _) }
+        "=" _ "by" { congr!{Real.Real Real.Real} (Real.mul (E.weight k xi)) _ _ (sym!{Real.Real} _ _ (Derivatives.partialSquared f i xi)) }
+        "=" _ "by" { sym!{Real.Real} _ _ (integrand k (S.partial f i) xi) }
+      })) }
+    "=" _ "by" { congr!{Real.Real Real.Real} (Real.add (density k f xi)) _ _ (sym!{Real.Real} _ _ (Integrals.sumFunction n (\fun (i: E.Coordinate) => density k (S.partial f i)) xi)) }
+  }
+};
+\definition integral: \forall (k: N.Nat^)(f: S.Function) -> I.integral (density k f) = weakEnergy k f :=
+  \induction (k: N.Nat^) \return \forall (f: S.Function) -> I.integral (density k f) = weakEnergy k f \with {
+    | zero: zero
+    | succ: \fun (k: N.Nat^)(previous: _)(f: S.Function) => eq_reason_in!{Real.Real _
+      "=" _ "by" { Holder.integralPointwise _ (Linear.addRepresentative (density k f)
+        (Integrals.sum n (\fun (i: E.Coordinate) => density k (S.partial f i)))) (step k f) }
+      "=" _ "by" { Linear.integralAdd _ _ }
+      "=" _ "by" { congr!{Real.Real Real.Real Real.Real} Real.add _ _ _ _ (previous f)
+        (trans!{Real.Real} _ _ _ (Integrals.integralSum n (\fun (i: E.Coordinate) => density k (S.partial f i)))
+          (Sum.congruent n _ _ (\fun (i: E.Coordinate) => previous (S.partial f i)))) }
+    }
+  };
+\definition comparison[k: N.Nat^][f: S.Function]: squared (\parent.Order[k := k].Schwartz[].value f) = weakEnergy k f :=
+  trans!{Real.Real} _ _ _ (sym!{Real.Real} _ _ (squareIntegral (\parent.Order[k := k].Schwartz[].weighted f))) (integral k f);
+\definition norm[k: N.Nat^][f: S.Function]: Real.Real := L2.normValue (\parent.Order[k := k].Schwartz[].value f);
+\definition positive[k: N.Nat^][f: S.Function]: R.Le Real.zero (norm k f) := Geometry.nonnegative _;
+\definition sq[a: Real.Real]: Real.Real := Real.mul a a;
+\definition unsquare[a,b: Real.Real]: R.Le Real.zero b -> R.Le (sq a) (sq b) -> R.Le a b :=
+  \fun (bp: _)(bound: _) => RO.leOfNotLtReverse _ _ (\fun (less: _) => R.ltNotLeReverse _ _ (Root.squareStrict b a bp less) bound);
+\definition recurrence[k: N.Nat^][f: S.Function]: sq (norm (N.Nat^::succ k) f) =
+  Real.add (sq (norm k f)) (Sum.sum n (\fun (i: E.Coordinate) => sq (norm k (S.partial f i)))) :=
+  trans!{Real.Real} _ _ _ (comparison (N.Nat^::succ k) f)
+    (congr!{Real.Real Real.Real Real.Real} Real.add _ _ _ _ (sym!{Real.Real} _ _ (comparison k f))
+      (Sum.congruent n _ _ (\fun (i: E.Coordinate) => sym!{Real.Real} _ _ (comparison k (S.partial f i)))));
+\definition lower[k: N.Nat^][f: S.Function]: R.Le (norm k f) (norm (N.Nat^::succ k) f) :=
+  unsquare _ _ (positive _ f) (R.leReplaceRight _ _ _ (sym!{Real.Real} _ _ (recurrence k f))
+    (Algebra.leAddRight _ _ (Sum.nonnegative n _ (\fun (i: E.Coordinate) => Algebra.squareNonnegative _))));
+\definition lowerPartial[k: N.Nat^][f: S.Function][i: E.Coordinate]: R.Le (norm k (S.partial f i)) (norm (N.Nat^::succ k) f) :=
+  unsquare _ _ (positive _ f) (R.leReplaceRight _ _ _ (sym!{Real.Real} _ _ (recurrence k f)) (R.leTrans _ _ _
+    (Sum.coordinateUpper n _ (\fun (j: E.Coordinate) => Algebra.squareNonnegative (norm k (S.partial f j))) i)
+    (R.leReplaceRight _ _ _ (Laws.addComm _ _) (Algebra.leAddRight _ _ (Algebra.squareNonnegative _)))));
+\definition addSquares[a,b: Real.Real]: R.Le Real.zero a -> R.Le Real.zero b -> R.Le (Real.add (sq a) (sq b)) (sq (Real.add a b)) :=
+  \fun (ap: _)(bp: _) => R.leReplaceRight _ _ _ (sym!{Real.Real} _ _ (Algebra.squareAdd a b))
+    (Algebra.leAddRight _ _ (Laws.addNonnegative _ _ (Laws.fieldMulNonnegative _ _ ap bp) (Laws.fieldMulNonnegative _ _ ap bp)));
+\definition sumSquares: \forall (m: N.Nat^)(a: Fin.Fin m -> Real.Real) -> (\forall (j: Fin.Fin m) -> R.Le Real.zero (a j)) ->
+  R.Le (Sum.sum m (\fun (j: Fin.Fin m) => sq (a j))) (sq (Sum.sum m a)) :=
+  \induction (m: N.Nat^) \return \forall (a: Fin.Fin m -> Real.Real) -> (\forall (j: Fin.Fin m) -> R.Le Real.zero (a j)) ->
+    R.Le (Sum.sum m (\fun (j: Fin.Fin m) => sq (a j))) (sq (Sum.sum m a)) \with {
+    | zero: \fun (a: _)(ap: _) => Algebra.squareNonnegative Real.zero
+    | succ: \fun (m: N.Nat^)(previous: _)(a: _)(ap: _) => R.leTrans _ _ _
+      (Laws.addMonotoneLeft _ _ (sq (a (Fin.zero m))) (previous (\fun (j: Fin.Fin m) => a (Fin.succ m j)) (\fun (j: Fin.Fin m) => ap (Fin.succ m j))))
+      (addSquares _ _ (ap (Fin.zero m)) (Sum.nonnegative m _ (\fun (j: Fin.Fin m) => ap (Fin.succ m j))))
+  };
+\definition upper[k: N.Nat^][f: S.Function]: R.Le (norm (N.Nat^::succ k) f)
+  (Real.add (norm k f) (Sum.sum n (\fun (i: E.Coordinate) => norm k (S.partial f i)))) := \block {
+  \let a: E.Coordinate -> Real.Real := \fun (i: E.Coordinate) => norm k (S.partial f i) \then
+  \let ap: \forall (i: E.Coordinate) -> R.Le Real.zero (a i) := \fun (i: E.Coordinate) => positive k (S.partial f i) \then
+  \return unsquare _ _ (Laws.addNonnegative _ _ (positive k f) (Sum.nonnegative n a ap))
+    (R.leReplaceLeft _ _ _ (sym!{Real.Real} _ _ (recurrence k f)) (R.leTrans _ _ _
+      (Laws.addMonotoneLeft _ _ (sq (norm k f)) (sumSquares n a ap))
+      (addSquares _ _ (positive k f) (Sum.nonnegative n a ap))))
+};
+\definition gradeZero[f: S.Function]: norm N.Nat^::zero f = L2.normValue (Embedding.value f) :=
+  Root.squaresInjective _ _ (positive _ f) (Geometry.nonnegative _) (comparison N.Nat^::zero f);
+\definition pointwise[k: N.Nat^][f,g: S.Function]: (\forall (x: Point) -> S.value f x = S.value g x) -> norm k f = norm k g :=
+  \fun (same: _) => congr!{L2.Space Real.Real} L2.normValue _ _ (\parent.Order[k := k].injective _ _ (eq_reason_in!{L2.Space _
+    "=" _ "by" { \parent.Order[k := k].Schwartz[].recovers f }
+    "=" _ "by" { Embedding.pointwise f g same }
+    "=" _ "by" { sym!{L2.Space} _ _ (\parent.Order[k := k].Schwartz[].recovers g) }
+  }));
+\definition triangle[k: N.Nat^][f,g: S.Function]: R.Le (norm k (S.add f g)) (Real.add (norm k f) (norm k g)) :=
+  R.leReplaceLeft _ _ _ (sym!{Real.Real} _ _ (congr!{L2.Space Real.Real} L2.normValue _ _ (\parent.Order[k := k].Schwartz[].additive f g))) (Geometry.triangle _ _);
+\definition zeroNorm[k: N.Nat^]: norm k S.zero = Real.zero :=
+  \block {
+    \let h: L2.Space := \parent.Order[k := k].Schwartz[].value S.zero \then
+    \let same: norm k (S.scale D.zero S.zero) = norm k S.zero := pointwise k _ _ (\fun (x: Point) => trans!{C.Complex} _ _ _ (S.jetScale D.zero S.zero E.Directions::nil x) (CL.mulZeroLeft _)) \then
+    \return eq_reason_in!{Real.Real _
+      "=" _ "by" { sym!{Real.Real} _ _ same }
+      "=" _ "by" { congr!{L2.Space Real.Real} L2.normValue _ _ (\parent.Order[k := k].Schwartz[].scalar D.zero S.zero) }
+      "=" _ "by" { Geometry.homogeneous D.zero h }
+      "=" _ "by" { congr!{Real.Real Real.Real} (\fun (a: Real.Real) => Real.mul a (L2.normValue h)) _ _ complex_hilbert.Scalars[].absoluteZero }
+      "=" _ "by" { Laws.fieldMulZeroLeft _ }
+    }
+  };
+\definition sumBound[k: N.Nat^]: \forall (m: N.Nat^)(f: Fin.Fin m -> S.Function) ->
+  R.Le (norm k (Polynomial.sum m f)) (Sum.sum m (\fun (j: Fin.Fin m) => norm k (f j))) :=
+  \induction (m: N.Nat^) \return \forall (f: Fin.Fin m -> S.Function) -> R.Le (norm k (Polynomial.sum m f)) (Sum.sum m (\fun (j: Fin.Fin m) => norm k (f j))) \with {
+    | zero: \fun (f: _) => R.leReplaceLeft _ _ _ (sym!{Real.Real} _ _ (zeroNorm k)) (R.leRefl Real.zero)
+    | succ: \fun (m: N.Nat^)(previous: _)(f: _) => R.leTrans _ _ _ (triangle k (f (Fin.zero m)) (Polynomial.sum m (\fun (j: Fin.Fin m) => f (Fin.succ m j))))
+      (Laws.addMonotoneLeft _ _ _ (previous (\fun (j: Fin.Fin m) => f (Fin.succ m j))))
+  };

@@ -1,0 +1,48 @@
+\import \parent.OffDiagonal[continuous := continuous, hausdorff := hausdorff] \as Apart;
+\definition pairInside[x,y: A][hx: S.Member K x][hy: S.Member K y]: P.Member region (Pair.pair A A x y) :=
+  Logic.orElim _ _ _ (Classical.excludedMiddle (x = y))
+    (\fun (same: _) => \idelim x = y \with z: A => P.Member region (Pair.pair A A x z) \by { base: diagonal x (covered x hx), equality: same })
+    (\fun (different: _ ) => Apart.included x y (\fun (same: _) => different (initial x y hx hy same)));
+\import thom_spaces.Thom[].Tube[A := A, B := A] \as Tubes;
+\import std.Set[].FiniteSubset[A := \Pow A] \as Finite;
+\import Finite.Selection[B := \Pow A] \as Selection;
+\structure Partner[U,V: \Pow A]: \Prop := {
+  open: S.IsOpenIn source V, covers: S.Subset K V,
+  rectangle: \forall (x,y: A) -> S.Member U x -> S.Member V y -> P.Member region (Pair.pair A A x y),
+};
+\definition partners[U: \Pow A]: \Prop := \exists ( V: \Pow A \where Partner[U,V] );
+\definition cover: \Pow (\Pow A) := { U: \Pow A \where Logic.And[S.IsOpenIn source U, partners U] };
+\definition covers: S.IsOpenCover[source, cover, K] := S.IsOpenCover[source, cover, K] {
+  open := \fun (U: _)(member: S.FamilyMember cover U) => member.left,
+  covers := \block {
+    \fun (x: A)(hx: _) \then
+    \takefrom tube: Tubes.Tube[source, source, x, region, K] \by Tubes.tubeLemma source source K compact x region regionOpen (\fun (y: A)(hy: _) => pairInside x y hx hy) \then
+    \return S.unionMemberOf cover tube.neighborhood x (Logic.And[_, _]::# tube.open
+      (Logic.existsIntro[\Pow A, { V: \Pow A \where Partner[tube.neighborhood,V] }] tube.rightNeighborhood
+        (Partner[tube.neighborhood,tube.rightNeighborhood] { open := tube.rightOpen, covers := tube.covers,
+          rectangle := \fun (u,v: A)(hu: S.Member tube.neighborhood u)(hv: S.Member tube.rightNeighborhood v) => tube.within u hu v hv }))) tube.contains
+  },
+};
+\definition exists: \exists Neighborhood[K] := \block {
+  \takefrom finite: \Cast[Finite.FiniteSubset] ({ s: Finite.FiniteSubset \where S.FiniteSubcover[cover,K,s] }) \by compact cover covers \then
+  \let sub: S.FiniteSubcover[cover,K,finite] := \bysub(Finite.FiniteSubset, { s: Finite.FiniteSubset \where S.FiniteSubcover[cover,K,s] }, finite) \then
+  \let rel: \Pow A -> \Pow A -> \Prop := \fun (U,V: \Pow A) => Partner[U,V] \then
+  \takefrom choice: Selection.Selection[rel,finite] \by Selection.existsSelection rel finite (\fun (U: _)(inF: _) => (sub.included U inF).right) \then
+  \let props: \forall (V: \Pow A) -> Finite.Member choice.finite V -> Logic.And[S.IsOpenIn source V,S.Subset K V] :=
+    \fun (V: _)(inF: _) => Selection.includedElim rel finite choice V _ (\fun (U: _)(h: _)(p: Partner[U,V]) => Logic.And[_, _]::# p.open p.covers) inF \then
+  \let meet: \Pow A := S.Finite[].Meet choice.finite \then
+  \let U: \Pow A := S.Intersection (S.Union finite) meet \then
+  \return \exact(Neighborhood[K] {
+    domain := U, open := (S.topologyLaws source).intersectionOpen _ _
+      ((S.topologyLaws source).unionOpen finite (\fun (V: _)(h: _) => (sub.included V h).left))
+      (S.Finite[].meetOpen source choice.finite (\fun (V: _)(h: _) => (props V h).left)),
+    covers := \fun (x: A)(hx: _) => Logic.And[_, _]::# (sub.covers x hx) (\fun (V: _)(h: _) => (props V h).right x hx),
+    injective := \fun (x,y: A)(hx: S.Member U x)(hy: S.Member U y) => S.unionMemberElim finite x (f x = f y -> x = y)
+      (\block {
+        \fun (V: \Pow A)(h: _)(inside: _) \then
+        \takefrom W: Selection.CoveredWitness rel choice.finite V \by choice.covers V h \then
+        \let law: Logic.And[Finite.Member choice.finite W, Partner[V,W]] := \bysub(\Pow A, { W: \Pow A \where Logic.And[Finite.Member choice.finite W, Partner[V,W]] }, W) \then
+        \return safe x y (law.right.rectangle x y inside (hy.right W law.left))
+      }) hx.left,
+  }, Neighborhood[K])
+};
