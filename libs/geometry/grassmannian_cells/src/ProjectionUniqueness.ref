@@ -1,0 +1,27 @@
+\import hermitian_frames.Hermitian[].Over[K := K, field := field, scalar := scalar, topological := topological].At[n := n] \as At;
+\import linear_algebra.Hermitian[].Over[K := K, field := field, scalar := scalar].Finite[n := n] \as Euclidean;
+\import linear_algebra.Commutative[K := K, scalarRing := std.Alg[].Field[].fieldAsCommutativeRing K field] \as Linear;
+\import Linear.Linear[V := Euclidean.Vector, W := Euclidean.Vector, source := Euclidean.space, target := Euclidean.space] \as Maps;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\use Equality.eq_reason_in;
+\import std.Data[].FinSet[] \as Fin;
+\definition Fixed[P: At.Projection][v: At.Vector]: \Prop := P.map.apply v = v;
+\definition SameImage[P, Q: At.Projection]: \Prop := \forall (v: At.Vector) -> Logic.PropEquiv[Fixed P v, Fixed Q v];
+\definition unique: \forall (P, Q: At.Projection) -> SameImage P Q -> P.map = Q.map :=
+  \fun (P, Q: At.Projection)(same: SameImage P Q) => Maps.ext P.map Q.map
+    (\axiom:funext(P.map.apply, Q.map.apply, \fun (v: At.Vector) => \axiom:funext(P.map.apply v, Q.map.apply v,
+      \fun (i: Fin.Fin n) => eq_reason_in!{K _
+        "=" _ "by" { sym!{K} _ _ (Euclidean.dotBasis i (P.map.apply v)) }
+        "=" _ "by" { sym!{K} _ _ (P.selfAdjoint (Euclidean.basis i) v) }
+        "=" _ "by" { congr!{{At.Vector} K} (\fun (w: At.Vector) => At.dot w v) _ _
+          (sym!{{At.Vector}} _ _ ((same (P.map.apply (Euclidean.basis i))).ltr (P.idempotent (Euclidean.basis i)))) }
+        "=" _ "by" { Q.selfAdjoint (P.map.apply (Euclidean.basis i)) v }
+        "=" _ "by" { P.selfAdjoint (Euclidean.basis i) (Q.map.apply v) }
+        "=" _ "by" { congr!{{At.Vector} K} (At.dot (Euclidean.basis i)) _ _
+          ((same (Q.map.apply v)).rtl (Q.idempotent v)) }
+        "=" _ "by" { Euclidean.dotBasis i (Q.map.apply v) }
+      })));

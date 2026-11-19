@@ -1,0 +1,111 @@
+\import Graph.Reconstruction[].With[factors := factors] \as Restored;
+\definition restoredRepresents: \forall (A: Coordinates.Carrier) -> Represents A (Restored.value (graph A)) :=
+  \fun (A: Coordinates.Carrier)(v: Euclidean.Vector) => Logic.PropEquiv[_, _] {
+    ltr := \block {
+      \fun (fixed: _) \then
+      \takefrom w: \Cast[Coordinates.CoordinateVector]
+        ({ w: Coordinates.CoordinateVector \where (Graph.Reconstruction[].family (graph A)).apply w = v })
+        \by Restored.imageIsGraph (graph A) v fixed \then
+      \return Logic.existsIntro[Coordinates.CoordinateVector,
+        { w: Coordinates.CoordinateVector \where (Coordinates.linear A).apply w = v }] w
+        (trans!{{Euclidean.Vector}} _ _ _ (sym!{{Euclidean.Vector}} _ _ (familyFormula A w))
+          (\bysub(Coordinates.CoordinateVector, { w: Coordinates.CoordinateVector \where (Graph.Reconstruction[].family (graph A)).apply w = v }, w)))
+    },
+    rtl := \block {
+      \fun (member: _) \then
+      \takefrom w: \Cast[Coordinates.CoordinateVector]
+        ({ w: Coordinates.CoordinateVector \where (Coordinates.linear A).apply w = v }) \by member \then
+      \let same: (Graph.Reconstruction[].family (graph A)).apply w = v := trans!{{Euclidean.Vector}} _ _ _ (familyFormula A w)
+        (\bysub(Coordinates.CoordinateVector, { w: Coordinates.CoordinateVector \where (Coordinates.linear A).apply w = v }, w)) \then
+      \return \idelim (Graph.Reconstruction[].family (graph A)).apply w = v \with y: Euclidean.Vector => (Restored.value (graph A)).map.apply y = y \by {
+        base: Restored.realization.fixesGraph (graph A) w, equality: same
+      }
+    },
+  };
+\definition restoredEquals: \forall (A: Coordinates.Carrier) -> map A = Restored.value (graph A) :=
+  \fun (A: Coordinates.Carrier) => unique A (point A)
+    (\into[Grassmannian.Carrier](Restored.value (graph A), Point A) \by { restoredRepresents A });
+\definition inDomain: \forall (A: Coordinates.Carrier) -> \In[Grassmannian.Carrier] Graph.domain (map A) :=
+  \fun (A: Coordinates.Carrier) => \idelim Restored.value (graph A) = map A \with p: Grassmannian.Carrier => \In[Grassmannian.Carrier] Graph.domain p \by {
+    base: \bysub(Grassmannian.Carrier, Graph.domain, Restored.inverse (graph A)),
+    equality: sym!{{Grassmannian.Carrier}} _ _ (restoredEquals A)
+  };
+\definition cellInDomain: \forall (p: Cell) -> \In[Grassmannian.Carrier] Graph.domain p := \block {
+  \fun (p: Cell) \then
+  \takefrom A: \Cast[Coordinates.Carrier] ({ A: Coordinates.Carrier \where map A = p }) \by \bysub(Grassmannian.Carrier, cell, p) \then
+  \return \idelim map A = p \with q: Grassmannian.Carrier => \In[Grassmannian.Carrier] Graph.domain q \by {
+    base: inDomain A, equality: \bysub(Coordinates.Carrier, { A: Coordinates.Carrier \where map A = p }, A)
+  }
+};
+\definition local[p: Cell]: Graph.Local := \into[Grassmannian.Carrier](p, Graph.domain) \by { cellInDomain p };
+\definition localContinuous: topology.Continuity[A := Cell, B := Graph.Local].Continuous cellTopology Graph.localTopology local :=
+  topology.Continuity[A := Cell, B := Grassmannian.Carrier].Corestriction[S := Graph.domain].corestrictContinuous
+    cellTopology Grassmannian.topology local
+    (topology.Continuity[A := Cell, B := Grassmannian.Carrier].Corestriction[S := cell].inclusionContinuous Grassmannian.topology);
+\definition normalizedFormula: \forall (A: Coordinates.Carrier)(v: Coordinates.CoordinateVector) ->
+  (Graph.normalized (local (into A))).apply v = (Coordinates.linear A).apply v := \block {
+  \fun (A: Coordinates.Carrier)(v: Coordinates.CoordinateVector) \then
+  \let w: Euclidean.Vector := (Graph.normalized (local (into A))).apply v \then
+  \takefrom u: \Cast[Coordinates.CoordinateVector] ({ u: Coordinates.CoordinateVector \where (Coordinates.linear A).apply u = w })
+    \by (represents A w).ltr (Graph.normalizedFixed (local (into A)) v) \then
+  \let same: (Coordinates.linear A).apply u = w := \bysub(Coordinates.CoordinateVector,
+    { u: Coordinates.CoordinateVector \where (Coordinates.linear A).apply u = w }, u) \then
+  \let uv: u = v := trans!{{Coordinates.CoordinateVector}} _ _ _ (sym!{{Coordinates.CoordinateVector}} _ _ (Coordinates.leftInverse A u))
+    (trans!{{Coordinates.CoordinateVector}} _ _ _ (congr!{{Euclidean.Vector} {Coordinates.CoordinateVector}} sampling.apply _ _ same)
+      (Graph.centerCoordinates (local (into A)) v)) \then
+  \return trans!{{Euclidean.Vector}} _ _ _ (sym!{{Euclidean.Vector}} _ _ same)
+    (congr!{{Coordinates.CoordinateVector} {Euclidean.Vector}} (Coordinates.linear A).apply _ _ uv)
+};
+\definition read[p: Cell][i: Fin.Fin n][j: Fin.Fin k]: Numbers.Complex :=
+  (Graph.normalized (local p)).apply (Coordinates.basis j) i;
+\definition readInto: \forall (A: Coordinates.Carrier) -> read (into A) = A :=
+  \fun (A: Coordinates.Carrier) => \axiom:funext(read (into A), A, \fun (i: Fin.Fin n) => \axiom:funext(read (into A) i, A i,
+    \fun (j: Fin.Fin k) => trans!{Numbers.Complex} _ _ _
+      (congr!{{Euclidean.Vector} Numbers.Complex} (\fun (v: Euclidean.Vector) => v i) _ _ (normalizedFormula A (Coordinates.basis j)))
+      (Coordinates.onBasis A j i)));
+\definition readLaws: \forall (p: Cell) -> Coordinates.Laws[read p] := \block {
+  \fun (p: Cell) \then
+  \takefrom A: \Cast[Coordinates.Carrier] ({ A: Coordinates.Carrier \where into A = p }) \by onto p \then
+  \let same: read p = A := trans!{{Fin.Fin n -> Fin.Fin k -> Numbers.Complex}} _ _ _
+    (congr!{Cell {Fin.Fin n -> Fin.Fin k -> Numbers.Complex}} read _ _
+      (sym!{Cell} _ _ (\bysub(Coordinates.Carrier, { A: Coordinates.Carrier \where into A = p }, A)))) (readInto A) \then
+  \return \idelim A = read p \with M: (Fin.Fin n -> Fin.Fin k -> Numbers.Complex) => Coordinates.Laws[M] \by {
+    base: Coordinates.laws A, equality: sym!{{Fin.Fin n -> Fin.Fin k -> Numbers.Complex}} _ _ same
+  }
+};
+\definition decode[p: Cell]: Coordinates.Carrier := \into[Fin.Fin n -> Fin.Fin k -> Numbers.Complex](read p, Coordinates.Carrier) \by { readLaws p };
+\definition leftInverse: \forall (A: Coordinates.Carrier) -> decode (into A) = A := readInto;
+\definition rightInverse: \forall (p: Cell) -> into (decode p) = p := \block {
+  \fun (p: Cell) \then
+  \takefrom A: \Cast[Coordinates.Carrier] ({ A: Coordinates.Carrier \where into A = p }) \by onto p \then
+  \return \idelim into A = p \with q: Cell => into (decode q) = q \by {
+    base: congr!{{Coordinates.Carrier} Cell} into _ _ (leftInverse A),
+    equality: \bysub(Coordinates.Carrier, { A: Coordinates.Carrier \where into A = p }, A)
+  }
+};
+\import Hermitian.Functions[X := Graph.Local] \as LocalFunctions;
+\definition normalizedContinuous: \forall (v: Coordinates.CoordinateVector)(i: Fin.Fin n) ->
+  LocalFunctions.Continuous Graph.localTopology (\fun (p: Graph.Local) => (Graph.normalized p).apply v i) :=
+  \fun (v: Coordinates.CoordinateVector)(i: Fin.Fin n) => LocalFunctions.transport Graph.localTopology
+    (\fun (p: Graph.Local) => Linear.add (basis.value.apply v i) ((Graph.graph p).apply v i))
+    (\fun (p: Graph.Local) => (Graph.normalized p).apply v i)
+    (\fun (p: Graph.Local) => congr!{{Euclidean.Vector} Numbers.Complex} (\fun (w: Euclidean.Vector) => w i) _ _ (Graph.graphFormula p v))
+    (LocalFunctions.addition Graph.localTopology (\fun (_: Graph.Local) => basis.value.apply v i)
+      (\fun (p: Graph.Local) => (Graph.graph p).apply v i)
+      (LocalFunctions.constant Graph.localTopology (basis.value.apply v i)) (Graph.regular v i));
+\import topological_algebra.Matrix[K := Numbers.Complex, I := Fin.Fin n, J := Fin.Fin k] \as Matrices;
+\definition decodeContinuous: topology.Continuity[A := Cell, B := Coordinates.Carrier].Continuous cellTopology CoordinateSpace.topology decode :=
+  topological_constructions.Induced[A := Coordinates.Carrier, B := Matrices.Carrier].Universal[Z := Cell].continuous
+    cellTopology (Matrices.topology H.Complex[].topological.space) (\fun (A: Coordinates.Carrier) => A) decode
+    (Matrices.Universal[A := Cell].continuous cellTopology H.Complex[].topological.space read
+      (\fun (i: Fin.Fin n)(j: Fin.Fin k) => topology.Composition[A := Cell, B := Graph.Local, C := Numbers.Complex].composeContinuous
+        cellTopology Graph.localTopology H.Complex[].topological.space local
+        (\fun (p: Graph.Local) => (Graph.normalized p).apply (Coordinates.basis j) i) localContinuous (normalizedContinuous (Coordinates.basis j) i)));
+\definition homeomorphism: topology.Homeomorphism[A := Coordinates.Carrier, B := Cell].Homeomorphism[CoordinateSpace.topology, cellTopology] :=
+  topology.Homeomorphism[A := Coordinates.Carrier, B := Cell].Homeomorphism[CoordinateSpace.topology, cellTopology] {
+    forward := into, backward := decode, leftInverse := leftInverse, rightInverse := rightInverse,
+    forwardContinuous := intoContinuous, backwardContinuous := decodeContinuous,
+  };
+\definition freeHomeomorphism: topology.Homeomorphism[A := Free.Coordinates, B := Cell].Homeomorphism[ParameterSpace.topology, cellTopology] :=
+  topology.Homeomorphism[A := Free.Coordinates, B := Coordinates.Carrier].Composition[C := Cell].compose
+    ParameterSpace.topology CoordinateSpace.topology cellTopology ParameterSpace.homeomorphism homeomorphism;

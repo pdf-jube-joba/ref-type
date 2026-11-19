@@ -19,10 +19,27 @@ B08 の途中実装である。
 `containedUnique` は、同じ記号の二つの階段形について、一方の列空間が他方に含まれれば行列が等しいことを示す。
 `Topological` は行列成分からの誘導位相と自由成分の連続性を提供する。
 
+`Echelon.FreeCoordinates.fill` は任意の自由成分から階段形を構成する。
+各成分について、自由成分・その列の pivot・残りの3場合を分けて値を定義し、既存の階段形の条件を満たすことを示す。
+`readFill` と `fillRead` は自由成分の読み出しとの往復等式であり、`FreeCoordinates.Topological.homeomorphism` は積位相を持つ自由成分の空間との同相写像である。
+
 `Real[n, k, symbol].parametrizationExists` と `Complex[n, k, symbol].parametrizationExists` は、既存の連続 Gram–Schmidt 法から直交射影族を作り、`grassmannians.Real.Model`・`Complex.Model` への連続単射を構成する。
 `Parametrization.image` は、射影の固定部分空間と元の階段形の列空間が一致することを述べる。
 連続な正規直交化の選択は存在量化し、呼び出し元には仮定させない。
-逆写像の連続性、任意の Grassmannian の点の階段形表示、自由座標空間との同相は未実装である。
+`Real.Canonical`・`Complex.Canonical` は、直交射影が固定部分空間によって一意に決まることから正規直交化の選択に依存しない `map` を定義する。
+`Canonical.cell` はその像であり、Grassmannian の部分空間位相を持つ。
+`Canonical.Pivot` は pivot の標準座標平面とその基底を構成する。
+`Canonical.Pivot.homeomorphismExists` は、その基準点での既存のグラフ座標を用いて、自由成分の空間からセルへの同相写像を構成する。
+逆写像は、グラフ座標の正規化された列を読み出す写像であり、連続性も記述した。
+任意の Grassmannian の点がいずれかの記号のセルに含まれることは未実装である。
+
+## 周囲次元の包含
+
+`AmbientReal[n, k, m]`・`AmbientComplex[n, k, m]` は、末尾に \(m\) 個の零座標を加える標準包含を階数 \(k\) のまま構成する。
+既存の安定化の終域の階数 \(0+k\) を `RankTransportReal`・`RankTransportComplex` で \(k\) に移送し、行列成分と連続性が移送で保たれることを示す。
+元のブロックへの制限が元の射影を復元することから単射性を示す。
+`ClosedEmbedding` はコンパクト性と Hausdorff 性から像への同相写像と像の閉性を構成し、各 `Ambient` がこれを適用する。
+これらの包含とセルの付着写像との比較は未実装である。
 
 ## 弱位相と有限段階化
 
@@ -43,7 +60,7 @@ B08 の途中実装である。
 
 ## B08 の残り
 
-1. 自由成分から階段形を作る逆写像、階段形表示の存在、Schubert セルとの同相を構成する。
+1. 自由成分の有限列挙と次元式の一致、任意の Grassmannian の点の階段形表示、異なる記号のセルの非交叉を証明する。
 2. 各セルの閉円板からの特性写像を構成し、境界が低次元セルへ入ることを証明して、既存の `algebraic_topology.CW.FiniteComplex` を構成する。
 3. 標準包含の胞体性と、向き付き Grassmannian の被覆に対する持ち上げた CW 構造を証明する。
 4. 安定化の具体的な直極限を構成し、各有限段階の埋め込みを証明して有限段階化補題を適用する。
@@ -53,7 +70,8 @@ B08 の途中実装である。
 提出時点の全ソースの構文検査は終了コード0。
 型検査は初期実装に対して共有キャッシュ `libs/refcache` を使って実行し、300秒で終了要求、5秒の終了猶予後に強制停止された（終了コード137）。
 合否判定と JSON レポートは得られていない。
-その実行後に追加した有限段階化の証明項も含め、提出時点の型検査は未完了である。
+その実行後に追加した有限段階化・自由座標の同相・包含の証明項も含め、提出時点の型検査は未完了である。
+自由座標の同相・包含を追加した追補では、型検査を実行していない。
 
 ```sh
 target/release/cli libs/geometry/grassmannian_cells --parse-only --diagnostics compact

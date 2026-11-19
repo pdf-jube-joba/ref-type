@@ -87,7 +87,7 @@
 | [geometry/bundle_complements](geometry/bundle_complements/README.md) | `bundle_complements` | 有限分割からの計量・有限埋め込み、直交補束、連続射影の像と同型類の集合 |
 | [geometry/bundle_extension](geometry/bundle_extension/README.md) | `bundle_extension` | Tietze、閉部分空間上の束・写像・同型の近傍延長、縮小比較と安定化 |
 | [geometry/grassmannians](geometry/grassmannians/README.md) | `grassmannians` | 有限 Grassmannian、グラフ座標、普遍束と安定化 |
-| [geometry/grassmannian_cells](geometry/grassmannian_cells/README.md) | `grassmannian_cells` | 作業中・型検査未完了：Schubert 階段形の射影表示、弱位相の増大列の有限段階化 |
+| [geometry/grassmannian_cells](geometry/grassmannian_cells/README.md) | `grassmannian_cells` | 作業中・型検査未完了：Schubert セルの自由座標、標準包含の閉埋め込み、弱位相の増大列の有限段階化 |
 | [geometry/bundle_homotopy](geometry/bundle_homotopy/README.md) | `bundle_homotopy` | 束のホモトピー比較、cofibration に沿う相対延長、球面の clutching と gauge による同型判定 |
 | [geometry/bundle_classification](geometry/bundle_classification/README.md) | `bundle_classification` | 実・複素束の有限分類写像、安定化ホモトピー分類、向き付き・枠付き束と自然性 |
 | [geometry/tangent_bundles](geometry/tangent_bundles/README.md) | `tangent_bundles` | 接束の全空間、接写像、関手則、滑らかなファイバー演算 |

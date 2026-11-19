@@ -1,0 +1,26 @@
+\import topology.Topology[Carrier := A] \as Source;
+\import topology.Topology[Carrier := B] \as Target;
+\import topology.Maps[A := A, B := B] \as Sets;
+\import std.Logic[].Proposition[] \as Logic;
+\definition image: \Pow B := Sets.Image f Source.Whole;
+\definition Carrier: \Set := \Cast[B] image;
+\import Target.Subspace[S := image] \as Subspace;
+\definition topology: topology.Topology[Carrier := Carrier].Topology := Subspace.topology target;
+\definition into[x: A]: Carrier := \into[B](f x, image) \by { Sets.imageMember f Source.Whole x (\refl(x)) };
+\definition intoContinuous: topology.Continuity[A := A, B := Carrier].Continuous source topology into :=
+  topology.Continuity[A := A, B := B].Corestriction[S := image].corestrictContinuous source target into continuous;
+\definition onto: \forall (y: Carrier) -> \exists ( x: A \where into x = y ) := \block {
+  \fun (y: Carrier) \then
+  \takefrom x: \Cast[A] ({ x: A \where Logic.And[\In[A] Source.Whole x, f x = y] }) \by \bysub(B, image, y) \then
+  \return Logic.existsIntro[A, { x: A \where into x = y }] x
+    (\bysub(A, { x: A \where Logic.And[\In[A] Source.Whole x, f x = y] }, x)).right
+};
+\definition imageHausdorff: topology.Topology[Carrier := Carrier].IsT2 topology := Subspace.Properties[].hausdorff target hausdorff;
+\import topological_constructions.CompactQuotient[A := A, B := Carrier, source := source, target := topology, q := into] \as Quotient;
+\definition quotient: topological_constructions.Quotient[A := A, B := Carrier].IsQuotientMap[source, topology, into] :=
+  Quotient.quotientMap compact imageHausdorff intoContinuous onto;
+\definition homeomorphism: topology.Homeomorphism[A := A, B := Carrier].Homeomorphism[source, topology] :=
+  topology.Homeomorphism[A := A, B := Carrier].OfQuotient[f := into].homeomorphism source topology
+    (\fun (x, y: A)(same: into x = into y) => injective x y same) onto intoContinuous quotient.reflectsOpen;
+\definition closed: Target.IsClosedIn target image := Target.Compactness[].compactClosed target hausdorff image
+  (topology.Compactness[A := A, B := B].continuousImage source target f continuous Source.Whole compact);

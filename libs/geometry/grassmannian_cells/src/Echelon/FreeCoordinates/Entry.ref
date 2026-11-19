@@ -1,0 +1,44 @@
+\structure ValueLaws[v: K]: \Prop := {
+  free: \forall (proof: Free i j) -> v = z (freeSlot i j proof),
+  pivot: i = symbol.pivot j -> v = Linear.one,
+  otherwise: Logic.Not (Free i j) -> Logic.Not (i = symbol.pivot j) -> v = Linear.zero,
+};
+\definition Value: \Set := \Cast[K] ({ v: K \where ValueLaws[v] });
+\definition existence: \exists Value := either!{{(Classical.excludedMiddle (Free i j))} {\exists Value}
+  {\fun (free: Free i j) => \exact(\into[K](z (freeSlot i j free), Value) \by {
+    ValueLaws[z (freeSlot i j free)] {
+      free := \fun (other: Free i j) => \refl(z (freeSlot i j free)),
+      pivot := \fun (same: _) => Logic.falseElim _ (freeNotOwn i j free same),
+      otherwise := \fun (notFree: _)(notPivot: _) => Logic.falseElim _ (notFree free),
+    }
+  }, Value)}
+  {\fun (notFree: Logic.Not (Free i j)) => either!{{(Classical.excludedMiddle (i = symbol.pivot j))} {\exists Value}
+    {\fun (same: _) => \exact(\into[K](Linear.one, Value) \by {
+      ValueLaws[Linear.one] {
+        free := \fun (free: _) => Logic.falseElim _ (notFree free),
+        pivot := \fun (other: _) => \refl(Linear.one),
+        otherwise := \fun (absent: _)(notPivot: _) => Logic.falseElim _ (notPivot same),
+      }
+    }, Value)}
+    {\fun (notPivot: _) => \exact(\into[K](Linear.zero, Value) \by {
+      ValueLaws[Linear.zero] {
+        free := \fun (free: _) => Logic.falseElim _ (notFree free),
+        pivot := \fun (same: _) => Logic.falseElim _ (notPivot same),
+        otherwise := \fun (absent: _)(different: _) => \refl(Linear.zero),
+      }
+    }, Value)}
+  }}
+};
+\definition uniqueness: \forall (v, w: Value) -> v = w :=
+  \fun (v, w: Value) => either!{{(Classical.excludedMiddle (Free i j))} {v = w}
+    {\fun (free: _) => trans!{K} _ _ _ ((\bysub(K, Value, v)).free free)
+      (sym!{K} _ _ ((\bysub(K, Value, w)).free free))}
+    {\fun (notFree: _) => either!{{(Classical.excludedMiddle (i = symbol.pivot j))} {v = w}
+      {\fun (same: _) => trans!{K} _ _ _ ((\bysub(K, Value, v)).pivot same)
+        (sym!{K} _ _ ((\bysub(K, Value, w)).pivot same))}
+      {\fun (notPivot: _) => trans!{K} _ _ _ ((\bysub(K, Value, v)).otherwise notFree notPivot)
+        (sym!{K} _ _ ((\bysub(K, Value, w)).otherwise notFree notPivot))}
+    }}
+  };
+\definition value: Value := \choice Value \by { existence: existence, uniqueness: uniqueness };
+\definition laws: ValueLaws[value] := \bysub(K, Value, value);
