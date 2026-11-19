@@ -1,0 +1,23 @@
+\structure Factorization[f: Y -> X]: \Set := {
+  stage: N.Nat^,
+  map: Y -> Stage stage,
+  continuous: topology.Continuity[A := Y, B := Stage stage].Continuous source (spaces stage) map,
+  agrees: \forall (y: Y) -> inclusion stage (map y) = f y,
+};
+\definition exists: \forall (f: Y -> X) -> Continuous.Continuous source topology f -> Source.IsCompact source ->
+  \exists Factorization[f] := \block {
+  \fun (f: Y -> X)(continuous: _)(compact: _) \then
+  \takefrom n: \Cast[N.Nat^] ({ n: N.Nat^ \where LandsIn f n }) \by boundedImage f continuous compact \then
+  \let lands: LandsIn f n := \bysub(N.Nat^, { n: N.Nat^ \where LandsIn f n }, n) \then
+  \return \exact(Factorization[f] {
+    stage := n,
+    map := \parent.Into[f := f, continuous := continuous, n := n, lands := lands].map,
+    continuous := \idelim Space.Subspace[S := stages n].topology topology = spaces n
+      \with target: topology.Topology[Carrier := Stage n].Topology =>
+        topology.Continuity[A := Y, B := Stage n].Continuous source target (\parent.Into[f := f, continuous := continuous, n := n, lands := lands].map) \by {
+          base: \parent.Into[f := f, continuous := continuous, n := n, lands := lands].subspaceContinuous,
+          equality: sym!{{topology.Topology[Carrier := Stage n].Topology}} _ _ (induced n)
+        },
+    agrees := \parent.Into[f := f, continuous := continuous, n := n, lands := lands].agrees,
+  }, Factorization[f])
+};

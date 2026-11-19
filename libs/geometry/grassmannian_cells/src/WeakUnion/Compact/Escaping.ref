@@ -1,0 +1,83 @@
+\definition Tail[n: N.Nat^]: \Pow X :=
+  { x: X \where \exists ( i: N.Nat^ \where Logic.And[Order.Le n i, f i = x] ) };
+\definition OpenPart[n: N.Nat^]: \Pow X := Space.Complement (Tail n);
+\definition indexBound: \forall (i, m: N.Nat^) -> \In[X] (stages m) (f i) -> Order.Lt i m :=
+  \fun (i, m: N.Nat^)(member: _) =>
+    \match NatOrder.trichotomy i m \in std.Logic[].Order[].Trichotomy
+      \return (\fun (_: NatOrder.Trichotomy i m) => Order.Lt i m) \with {
+      | less im: im
+      | equal same: Logic.falseElim (Order.Lt i m) (outside i
+          (\idelim m = i \with j: N.Nat^ => \In[X] (stages j) (f i) \by { base: member, equality: sym!{N.Nat^} _ _ same }))
+      | greater mi: Logic.falseElim (Order.Lt i m) (outside i (ascending m i
+          (Order.leTrans m (N.Nat^::succ m) i (Order.leSelfSucc m) (Order.succLeOfLt i m mi)) (f i) member))
+    };
+\module TraceClosed(n, m: N.Nat^);
+\definition open: \forall (n: N.Nat^) -> Space.IsOpenIn topology (OpenPart n) :=
+  \fun (n, m: N.Nat^) => TraceClosed[n := n, m := m].closed;
+\definition family: \Pow (\Pow X) := { U: \Pow X \where \exists ( n: N.Nat^ \where U = OpenPart n ) };
+\definition covers: Space.IsOpenCover[topology, family, S] := Space.IsOpenCover[topology, family, S] {
+  open := \block {
+    \fun (U: \Pow X)(member: _) \then
+    \takefrom n: \Cast[N.Nat^] ({ n: N.Nat^ \where U = OpenPart n }) \by member \then
+    \return \idelim OpenPart n = U \with V: \Pow X => Space.IsOpenIn topology V \by {
+      base: open n, equality: sym!{\Pow X} _ _ (\bysub(N.Nat^, { n: N.Nat^ \where U = OpenPart n }, n))
+    }
+  },
+  covers := \block {
+    \fun (x: X)(member: \In[X] S x) \then
+    \takefrom n: \Cast[N.Nat^] ({ n: N.Nat^ \where \In[X] (stages n) x }) \by exhaustive x \then
+    \return Space.unionMemberOf family (OpenPart n) x
+      (Logic.existsIntro[N.Nat^, { i: N.Nat^ \where OpenPart n = OpenPart i }] n (\refl(OpenPart n)))
+      (\block {
+        \fun (tail: \In[X] (Tail n) x) \then
+        \takefrom i: \Cast[N.Nat^] ({ i: N.Nat^ \where Logic.And[Order.Le n i, f i = x] }) \by tail \then
+        \let evidence: Logic.And[Order.Le n i, f i = x] := \bysub(N.Nat^, { i: N.Nat^ \where Logic.And[Order.Le n i, f i = x] }, i) \then
+        \return outside i (ascending n i evidence.left (f i)
+          (\idelim x = f i \with y: X => \In[X] (stages n) y \by {
+            base: \bysub(N.Nat^, { n: N.Nat^ \where \In[X] (stages n) x }, n), equality: sym!{X} _ _ evidence.right
+          }))
+      })
+  },
+};
+\import std.Set[].FiniteSubset[A := \Pow X] \as Families;
+\definition Avoids[finite: \Pow (\Pow X)][n: N.Nat^]: \Prop :=
+  \forall (U: \Pow X) -> \In[\Pow X] finite U -> Logic.Not (\In[X] U (f n));
+\definition finiteBound: \forall (finite: Families.FiniteSubset) ->
+  (\forall (U: \Pow X) -> Families.Member finite U -> \In[\Pow X] family U) ->
+  \exists ( n: N.Nat^ \where \forall (m: N.Nat^) -> Order.Le n m -> Avoids finite m ) :=
+  Families.induction
+    ({ finite: \Pow (\Pow X) \where (\forall (U: \Pow X) -> \In[\Pow X] finite U -> \In[\Pow X] family U) ->
+      \exists ( n: N.Nat^ \where \forall (m: N.Nat^) -> Order.Le n m -> Avoids finite m ) })
+    (\fun (included: _) => Logic.existsIntro[N.Nat^,
+      { n: N.Nat^ \where \forall (m: N.Nat^) -> Order.Le n m -> Avoids Families.Empty m }] N.Nat^::zero
+      (\fun (m: N.Nat^)(later: _)(U: \Pow X)(impossible: Logic.False) => Logic.falseElim _ impossible))
+    (\block {
+      \fun (finite: \Pow (\Pow X))(previous: _)(U: \Pow X)(included: _) \then
+      \takefrom a: \Cast[N.Nat^] ({ n: N.Nat^ \where \forall (m: N.Nat^) -> Order.Le n m -> Avoids finite m })
+        \by previous (\fun (V: \Pow X)(member: _) => included V (Families.inInsertOld U finite V member)) \then
+      \takefrom b: \Cast[N.Nat^] ({ n: N.Nat^ \where U = OpenPart n }) \by included U (Families.inInsertNew U finite) \then
+      \return Logic.existsIntro[N.Nat^,
+        { n: N.Nat^ \where \forall (m: N.Nat^) -> Order.Le n m -> Avoids (Families.Insert U finite) m }]
+        (NatOrder.commonBound a b)
+        (\fun (m: N.Nat^)(later: _)(V: \Pow X)(member: _) => either!{member {Logic.Not (\In[X] V (f m))}
+          {\fun (same: V = U)(inV: _) =>
+            (\idelim V = OpenPart b \with W: \Pow X => \In[X] W (f m) \by {
+              base: inV, equality: trans!{\Pow X} _ _ _ same (\bysub(N.Nat^, { n: N.Nat^ \where U = OpenPart n }, b))
+            }) (Logic.existsIntro[N.Nat^, { i: N.Nat^ \where Logic.And[Order.Le b i, f i = f m] }] m
+              (Logic.And[_, _]::# (Order.leTrans b (NatOrder.commonBound a b) m (NatOrder.rightLeCommonBound a b) later) (\refl(f m))))}
+          {\fun (old: _) => (\bysub(N.Nat^, { n: N.Nat^ \where \forall (m: N.Nat^) -> Order.Le n m -> Avoids finite m }, a)) m
+            (Order.leTrans a (NatOrder.commonBound a b) m (NatOrder.leftLeCommonBound a b) later) V old}
+        })
+    });
+\definition contradiction: Space.IsCompactIn topology S -> Logic.False := \block {
+  \fun (compact: _) \then
+  \takefrom finite: \Cast[Families.FiniteSubset] ({ finite: Families.FiniteSubset \where Space.FiniteSubcover[family, S, finite] })
+    \by compact family covers \then
+  \let cover: Space.FiniteSubcover[family, S, finite] := \bysub(Families.FiniteSubset,
+    { finite: Families.FiniteSubset \where Space.FiniteSubcover[family, S, finite] }, finite) \then
+  \takefrom n: \Cast[N.Nat^] ({ n: N.Nat^ \where \forall (m: N.Nat^) -> Order.Le n m -> Avoids finite m }) \by finiteBound finite cover.included \then
+  \return Space.unionMemberElim finite (f n) Logic.False
+    (\fun (U: \Pow X)(member: _)(inU: _) =>
+      (\bysub(N.Nat^, { n: N.Nat^ \where \forall (m: N.Nat^) -> Order.Le n m -> Avoids finite m }, n)) n (Order.leRefl n) U member inU)
+    (cover.covers (f n) (inside n))
+};

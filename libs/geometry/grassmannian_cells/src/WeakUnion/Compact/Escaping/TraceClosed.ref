@@ -1,0 +1,79 @@
+\import topology.Topology[Carrier := Stage m] \as Source;
+\import Source.Finite[] \as Finite;
+\definition Point[r: N.Nat^]: \Pow (Stage m) :=
+  { x: Stage m \where Logic.And[Order.Le n r, f r = x] };
+\definition emptyClosed: Source.IsClosedIn (spaces m) Source.Empty :=
+  \idelim Source.Whole = Source.Complement Source.Empty \with U: \Pow (Stage m) => Source.IsOpenIn (spaces m) U \by {
+    base: (Source.topologyLaws (spaces m)).wholeOpen,
+    equality: \axiom:setext(Source.Whole, Source.Complement Source.Empty,
+      \fun (x: Stage m)(self: _) (impossible: Logic.False) => impossible,
+      \fun (x: Stage m)(outside: _) => \refl(x))
+  };
+\definition pointClosed: \forall (r: N.Nat^) -> Source.IsClosedIn (spaces m) (Point r) :=
+  \fun (r: N.Nat^) => either!{{(Classical.excludedMiddle (\exists \Cast[Stage m] (Point r)))} {Source.IsClosedIn (spaces m) (Point r)}
+    {\block {
+      \fun (exists: _) \then
+      \takefrom a: \Cast[Stage m] (Point r) \by exists \then
+      \let data: Logic.And[Order.Le n r, f r = a] := \bysub(Stage m, Point r, a) \then
+      \return \idelim Source.Singleton a = Point r \with U: \Pow (Stage m) => Source.IsClosedIn (spaces m) U \by {
+        base: separated m a,
+        equality: \axiom:setext(Source.Singleton a, Point r,
+          \fun (x: Stage m)(same: x = a) => Logic.And[_, _]::# data.left
+            (trans!{X} _ _ _ data.right (sym!{X} _ _ same)),
+          \fun (x: Stage m)(member: Logic.And[Order.Le n r, f r = x]) =>
+            trans!{X} _ _ _ (sym!{X} _ _ member.right) data.right)
+      }
+    }}
+    {\fun (empty: Logic.Not (\exists \Cast[Stage m] (Point r))) =>
+      \idelim Source.Empty = Point r \with U: \Pow (Stage m) => Source.IsClosedIn (spaces m) U \by {
+        base: emptyClosed,
+        equality: \axiom:setext(Source.Empty, Point r,
+          \fun (x: Stage m)(impossible: Logic.False) => Logic.falseElim _ impossible,
+          \fun (x: Stage m)(member: _) => empty (\exact(\into[Stage m](x, Point r) \by { member }, \Cast[Stage m] (Point r))))
+      }}
+  };
+\definition prefix: N.Nat^ -> \Pow (Stage m) :=
+  \induction (r: N.Nat^) \return \Pow (Stage m) \with {
+    | zero: Source.Empty
+    | succ: \fun (r: N.Nat^)(previous: \Pow (Stage m)) => Finite.Join previous (Point r)
+  };
+\definition prefixClosed: \forall (r: N.Nat^) -> Source.IsClosedIn (spaces m) (prefix r) :=
+  \induction (r: N.Nat^) \return Source.IsClosedIn (spaces m) (prefix r) \with {
+    | zero: emptyClosed
+    | succ: \fun (r: N.Nat^)(previous: _) => Finite.joinClosed (spaces m) (prefix r) (Point r) previous (pointClosed r)
+  };
+\definition prefixMember: \forall (r, i: N.Nat^) -> Order.Lt i r ->
+  \forall (x: Stage m) -> \In[Stage m] (Point i) x -> \In[Stage m] (prefix r) x :=
+  \induction (r: N.Nat^) \return \forall (i: N.Nat^) -> Order.Lt i r ->
+    \forall (x: Stage m) -> \In[Stage m] (Point i) x -> \In[Stage m] (prefix r) x \with {
+    | zero: \fun (i: N.Nat^)(less: _)(x: Stage m)(member: _) => Logic.falseElim _ (NatOrder.ltZero i less)
+    | succ: \fun (r: N.Nat^)(previous: _)(i: N.Nat^)(less: _)(x: Stage m)(member: _) =>
+      either!{{(N.Induction[].leCases i r (N.Induction[].belowSuccessor i r less))} {\In[Stage m] (prefix (N.Nat^::succ r)) x}
+        {\fun (lower: _) => Logic.Or[_, _]::left (previous i lower x member)}
+        {\fun (same: i = r) => Logic.Or[_, _]::right
+          (\idelim i = r \with j: N.Nat^ => \In[Stage m] (Point j) x \by { base: member, equality: same })}
+      }
+  };
+\definition prefixTail: \forall (r: N.Nat^)(x: Stage m) -> \In[Stage m] (prefix r) x -> \In[X] (Tail n) x :=
+  \induction (r: N.Nat^) \return \forall (x: Stage m) -> \In[Stage m] (prefix r) x -> \In[X] (Tail n) x \with {
+    | zero: \fun (x: Stage m)(impossible: Logic.False) => Logic.falseElim _ impossible
+    | succ: \fun (r: N.Nat^)(previous: _)(x: Stage m)(member: _) => either!{member {\In[X] (Tail n) x}
+      {previous x}
+      {\fun (point: _) => Logic.existsIntro[N.Nat^, { i: N.Nat^ \where Logic.And[Order.Le n i, f i = x] }] r point}
+    }
+  };
+\definition same: prefix m = Trace m (Tail n) :=
+  \axiom:setext(prefix m, Trace m (Tail n), prefixTail m, \block {
+    \fun (x: Stage m)(tail: \In[X] (Tail n) x) \then
+    \takefrom i: \Cast[N.Nat^] ({ i: N.Nat^ \where Logic.And[Order.Le n i, f i = x] }) \by tail \then
+    \let data: Logic.And[Order.Le n i, f i = x] := \bysub(N.Nat^, { i: N.Nat^ \where Logic.And[Order.Le n i, f i = x] }, i) \then
+    \let less: Order.Lt i m := indexBound i m
+      (\idelim x = f i \with y: X => \In[X] (stages m) y \by {
+        base: \bysub(X, stages m, x), equality: sym!{X} _ _ data.right
+      }) \then
+    \return prefixMember m i less x data
+  });
+\definition closed: Source.IsClosedIn (spaces m) (Trace m (Tail n)) :=
+  \idelim prefix m = Trace m (Tail n) \with U: \Pow (Stage m) => Source.IsClosedIn (spaces m) U \by {
+    base: prefixClosed m, equality: same
+  };
