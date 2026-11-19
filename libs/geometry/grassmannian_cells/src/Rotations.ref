@@ -7,6 +7,7 @@
 \use Equality.trans;
 \use Equality.congr;
 \use Equality.eq_reason_in;
+\use Logic.either;
 \import real.Analysis[] \as R;
 \import dedekind_reals.DedekindReal[] \as Order;
 \import hermitian_frames.Hermitian[].Over[K := K, field := field, scalar := scalar, topological := topological] \as Hermitian;
@@ -74,3 +75,43 @@
               (previous v (\fun (i: Fin.Fin k)(member: _) => all i (Logic.Or[_, _]::right member))))
             (all j (Logic.Or[_, _]::left (\refl(j))))
     };
+\import \root.FiniteOrder[].At[A := Fin.Fin k, value := \fun (i: Fin.Fin k) => i] \as Ordered;
+\import N.Basic[].Prop[] \as Natural;
+\module HighStep(A: Carrier, head: Fin.Fin k, tail: Lists.List[Fin.Fin k],
+  ordered: Ordered.Ordered (Lists.List[Fin.Fin k]::cons head tail));
+\definition HighCoordinates[A: Carrier][indices: Lists.List[Fin.Fin k]]: \Prop :=
+  Ordered.Ordered indices -> \forall (j: Fin.Fin k) -> Fin.Occurs k j indices ->
+  \forall (r: Fin.Fin n) -> Natural.Le (symbol.pivot j) r ->
+    (product A indices).forward.apply (axis j) r = (rotation A j).forward.apply (axis j) r;
+\definition highCoordinates: \forall (A: Carrier)(indices: Lists.List[Fin.Fin k]) -> HighCoordinates A indices :=
+  \fun (A: Carrier) => \induction (indices: Lists.List[Fin.Fin k]) \return HighCoordinates A indices \with {
+    | nil: \fun (ordered: _)(j: Fin.Fin k)(empty: Logic.False)(r: Fin.Fin n)(above: _) => Logic.falseElim _ empty
+    | cons: \fun (head: Fin.Fin k)(tail: Lists.List[Fin.Fin k])(previous: HighCoordinates A tail)
+      (ordered: Ordered.Ordered (Lists.List[Fin.Fin k]::cons head tail))(j: Fin.Fin k)(member: _) =>
+        either!{member {\forall (r: Fin.Fin n) -> Natural.Le (symbol.pivot j) r ->
+          (product A (Lists.List[Fin.Fin k]::cons head tail)).forward.apply (axis j) r = (rotation A j).forward.apply (axis j) r}
+          {\fun (same: j = head) =>
+            \idelim head = j \with i: Fin.Fin k => \forall (r: Fin.Fin n) -> Natural.Le (symbol.pivot i) r ->
+              (product A (Lists.List[Fin.Fin k]::cons head tail)).forward.apply (axis i) r = (rotation A i).forward.apply (axis i) r \by {
+                base: HighStep[A := A, head := head, tail := tail, ordered := ordered].atHead,
+                equality: sym!{{Fin.Fin k}} _ _ same
+              }}
+          {\fun (old: _) => HighStep[A := A, head := head, tail := tail, ordered := ordered].inTail previous j old}
+        }
+  };
+\definition diagonal: \forall (A: Carrier)(j: Fin.Fin k) ->
+  (unitary A).forward.apply (axis j) (symbol.pivot j) = Geometry.embed (Column[j := j].radius A) :=
+  \fun (A: Carrier)(j: Fin.Fin k) => trans!{K} _ _ _
+    (highCoordinates A (Fin.elements k) (\root.FiniteOrder[].elements k) j (Fin.exhaustive k j) (symbol.pivot j) (Natural.leRefl (symbol.pivot j)))
+    (Column[j := j].ownCoordinate A);
+\definition above: \forall (A: Carrier)(j: Fin.Fin k)(r: Fin.Fin n) -> Natural.Lt (symbol.pivot j) r ->
+  (unitary A).forward.apply (axis j) r = Linear.zero :=
+  \fun (A: Carrier)(j: Fin.Fin k)(r: Fin.Fin n)(above: _) => trans!{K} _ _ _
+    (highCoordinates A (Fin.elements k) (\root.FiniteOrder[].elements k) j (Fin.exhaustive k j) r
+      (Natural.leTrans (symbol.pivot j) (N.Nat^::succ (symbol.pivot j)) r
+        (Natural.leSelfSucc (symbol.pivot j)) (Natural.succLeOfLt r (symbol.pivot j) above)))
+    (Column[j := j].axisAboveImage A r above);
+\definition boundaryPivot: \forall (A: Carrier)(j: Fin.Fin k) -> Inner.squared (A j) = R.one ->
+  (unitary A).forward.apply (axis j) (symbol.pivot j) = Linear.zero :=
+  \fun (A: Carrier)(j: Fin.Fin k)(boundary: _) => trans!{K} _ _ _ (diagonal A j)
+    (trans!{K} _ _ _ (congr!{R.Real K} Geometry.embed _ _ (Column[j := j].boundaryRadius A boundary)) scalar.embedZero);
