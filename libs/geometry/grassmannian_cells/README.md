@@ -31,7 +31,12 @@ B08 の途中実装である。
 `Canonical.Pivot` は pivot の標準座標平面とその基底を構成する。
 `Canonical.Pivot.homeomorphismExists` は、その基準点での既存のグラフ座標を用いて、自由成分の空間からセルへの同相写像を構成する。
 逆写像は、グラフ座標の正規化された列を読み出す写像であり、連続性も記述した。
-任意の Grassmannian の点がいずれかの記号のセルに含まれることは未実装である。
+`Reduction` は最大の非零行を選び、列の入れ替えと三角同型でその行を正規化して、階数を1減らす帰納法を記述する。
+得られた pivot 列を並べ替え、元の単射線形写像と像が一致する階段形を返す。
+`DecompositionReal`・`DecompositionComplex` は各射影の階数の基底にこれを適用し、セルの網羅性を与える。
+`Echelon.Comparison` は像の包含から pivot 集合の包含を導き、有限順序集合の剛性から記号の一致を示す。
+`DecompositionReal.disjoint`・`DecompositionComplex.disjoint` は異なる記号のセルの非交叉を述べる。
+`Symbols.Enumeration` は記号の集合の有限性と重複しない列挙の存在を記述する。
 
 ## 周囲次元の包含
 
@@ -56,14 +61,17 @@ B08 の途中実装である。
 `Maps.Embedded[induced].exists` は、段階の位相が全体からの部分空間位相と一致する場合に、連続な有限段階への因子分解を返す。
 `Spheres[d, induced].sphereMap` と `sphereHomotopy` は、それぞれ \(S^d\) と \([0,1]\times S^d\) のコンパクト性を使った特殊化である。
 ホモトピー全体を一つの段階に収める。
-この一般補題を Grassmannian の安定化極限に適用する具体的な集合・包含・位相比較は未実装である。
+`StableReal[k]`・`StableComplex[k]` は、有限射影行列を自然数で添字付けた無限行列へ零で延長した像の合併を構成する。
+`AmbientReal.Entries`・`AmbientComplex.Entries` は、この表示が標準包含と可換であることを示す。
+各有限段階の逆写像は有限行列部分の読み出しから連続になり、`FiniteStage.homeomorphism` は元の有限 Grassmannian との同相を与える。
+`weakTopology` は開集合を有限 Grassmannian への引き戻しで特徴付ける。
+`WeakUnion.CommonTopology` により各段階が弱位相からも部分空間位相を持つことを示し、`Maps.exists`・`Spheres.sphereMap`・`Spheres.sphereHomotopy` は実際の有限 Grassmannian への連続な因子分解を返す。
 
 ## B08 の残り
 
-1. 自由成分の有限列挙と次元式の一致、任意の Grassmannian の点の階段形表示、異なる記号のセルの非交叉を証明する。
+1. 自由成分の有限列挙と次元式の一致を証明する。
 2. 各セルの閉円板からの特性写像を構成し、境界が低次元セルへ入ることを証明して、既存の `algebraic_topology.CW.FiniteComplex` を構成する。
 3. 標準包含の胞体性と、向き付き Grassmannian の被覆に対する持ち上げた CW 構造を証明する。
-4. 安定化の具体的な直極限を構成し、各有限段階の埋め込みを証明して有限段階化補題を適用する。
 
 ## 検査
 

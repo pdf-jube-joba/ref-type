@@ -1,0 +1,22 @@
+\import N.Basic[].Prop[] \as Order;
+\import Linear.Sums[I := Fin.Fin (N.Nat^::succ k)].Prop[] \as Sums;
+\import Linear.Finite[V := Domain.Vector, I := Fin.Fin (N.Nat^::succ k), space := Domain.space].Prop[] \as Expansion;
+\definition basisZero: \forall (i: Fin.Fin n) -> Order.Lt maximum.index i ->
+  \forall (j: Fin.Fin (N.Nat^::succ k)) -> A.apply (Domain.basis j) i = Linear.zero :=
+  \fun (i: Fin.Fin n)(above: _)(j: Fin.Fin (N.Nat^::succ k)) =>
+    either!{{(Classical.excludedMiddle (A.apply (Domain.basis j) i = Linear.zero))} {A.apply (Domain.basis j) i = Linear.zero}
+      {\fun (equal: _) => equal}
+      {\fun (nonzero: _) => Logic.falseElim _
+        (Order.ltIrrefl maximum.index (Order.ltLeTrans maximum.index i maximum.index above
+          (maximum.bound i (Logic.existsIntro[Fin.Fin (N.Nat^::succ k),
+            { j: Fin.Fin (N.Nat^::succ k) \where Logic.Not (A.apply (Domain.basis j) i = Linear.zero) }] j nonzero))))}
+    };
+\definition vanishes: \forall (i: Fin.Fin n) -> Order.Lt maximum.index i -> \forall (v: Domain.Vector) -> A.apply v i = Linear.zero :=
+  \fun (i: Fin.Fin n)(above: _)(v: Domain.Vector) => trans!{K} _ _ _ (Expansion.functionalExpansion Basis.basis (row A i) v)
+    (trans!{K} _ _ _
+      (Sums.congruent (Fin.elements (N.Nat^::succ k))
+        (\fun (j: Fin.Fin (N.Nat^::succ k)) => Linear.mul (v j) (A.apply (Domain.basis j) i))
+        (\fun (_: Fin.Fin (N.Nat^::succ k)) => Linear.zero)
+        (\fun (j: Fin.Fin (N.Nat^::succ k)) => trans!{K} _ _ _
+          (congr!{K K} (Linear.mul (v j)) _ _ (basisZero i above j)) (Linear.mulZeroRight (v j))))
+      (Sums.zeroSum (Fin.elements (N.Nat^::succ k))));

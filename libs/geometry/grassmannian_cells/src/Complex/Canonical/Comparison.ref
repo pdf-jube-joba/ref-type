@@ -1,0 +1,24 @@
+\import \root.Complex[n := n, k := k, symbol := other].Canonical[] \as Other;
+\import \root.Echelon[K := Numbers.Complex, field := Numbers.Algebra[].field, n := n, k := k, symbol := other] \as OtherCoordinates;
+\import Coordinates.Comparison[other := other] \as Echelons;
+\definition symbolOfEqualMaps: \forall (A: Coordinates.Carrier)(B: OtherCoordinates.Carrier) -> map A = Other.map B -> symbol = other :=
+  \fun (A: Coordinates.Carrier)(B: OtherCoordinates.Carrier)(same: _) => Echelons.symbolUnique A B
+    (\fun (v: Coordinates.CoordinateVector) => (Other.represents B ((Coordinates.linear A).apply v)).ltr
+      (\idelim map A = Other.map B \with p: Grassmannian.Carrier => p.map.apply ((Coordinates.linear A).apply v) = (Coordinates.linear A).apply v \by {
+        base: (represents A ((Coordinates.linear A).apply v)).rtl
+          (Logic.existsIntro[Coordinates.CoordinateVector,
+            { w: Coordinates.CoordinateVector \where (Coordinates.linear A).apply w = (Coordinates.linear A).apply v }] v
+            (\refl((Coordinates.linear A).apply v))),
+        equality: same
+      }));
+\definition commonPoint: \forall (p: Grassmannian.Carrier) -> \In[Grassmannian.Carrier] cell p -> \In[Grassmannian.Carrier] Other.cell p -> symbol = other := \block {
+  \fun (p: Grassmannian.Carrier)(first: _)(second: _) \then
+  \takefrom A: \Cast[Coordinates.Carrier] ({ A: Coordinates.Carrier \where map A = p }) \by first \then
+  \takefrom B: \Cast[OtherCoordinates.Carrier] ({ B: OtherCoordinates.Carrier \where Other.map B = p }) \by second \then
+  \return symbolOfEqualMaps A B (trans!{{Grassmannian.Carrier}} _ _ _
+    (\bysub(Coordinates.Carrier, { A: Coordinates.Carrier \where map A = p }, A))
+    (sym!{{Grassmannian.Carrier}} _ _ (\bysub(OtherCoordinates.Carrier, { B: OtherCoordinates.Carrier \where Other.map B = p }, B))))
+};
+\definition disjoint: Logic.Not (symbol = other) -> \forall (p: Grassmannian.Carrier) ->
+  \In[Grassmannian.Carrier] cell p -> Logic.Not (\In[Grassmannian.Carrier] Other.cell p) :=
+  \fun (different: _)(p: Grassmannian.Carrier)(first: _)(second: _) => different (commonPoint p first second);

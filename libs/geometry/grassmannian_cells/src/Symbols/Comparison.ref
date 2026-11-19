@@ -1,0 +1,37 @@
+\import N.Order[].Prop[] \as NaturalOrder;
+\import Fin.Ordering[].Rigidity[] \as Rigidity;
+\definition Included: \Prop := \forall (i: Fin.Fin k) -> \exists (j: Fin.Fin k \where t.pivot j = s.pivot i);
+\definition Match[i: Fin.Fin k]: \Set := \Cast[Fin.Fin k] ({ j: Fin.Fin k \where t.pivot j = s.pivot i });
+\definition matchUnique: \forall (i: Fin.Fin k)(a, b: Match i) -> a = b :=
+  \fun (i: Fin.Fin k)(a, b: Match i) => injective t a b
+    (trans!{{Fin.Fin n}} _ _ _ (\bysub(Fin.Fin k, Match i, a))
+      (sym!{{Fin.Fin n}} _ _ (\bysub(Fin.Fin k, Match i, b))));
+\definition reindex[included: Included][i: Fin.Fin k]: Match i :=
+  \choice Match i \by { existence: included i, uniqueness: matchUnique i };
+\definition agrees[included: Included][i: Fin.Fin k]: t.pivot (reindex included i) = s.pivot i :=
+  \bysub(Fin.Fin k, Match i, reindex included i);
+\definition reflectsOrder: \forall (i, j: Fin.Fin k) -> Order.Lt (t.pivot i) (t.pivot j) -> Order.Lt i j :=
+  \fun (i, j: Fin.Fin k)(less: _) =>
+    \match NaturalOrder.trichotomy i j \in std.Logic[].Order[].Trichotomy
+      \return (\fun (_: NaturalOrder.Trichotomy i j) => Order.Lt i j) \with {
+      | less ij: ij
+      | equal same: Logic.falseElim _ (Order.ltNe (t.pivot i) (t.pivot j) less
+          (congr!{{Fin.Fin k} {Fin.Fin n}} t.pivot _ _ same))
+      | greater ji: Logic.falseElim _ (NaturalOrder.ltAsym (t.pivot i) (t.pivot j) less (increasing t j i ji))
+    };
+\definition ordered: \forall (included: Included)(i, j: Fin.Fin k) -> Order.Lt i j -> Order.Lt (reindex included i) (reindex included j) :=
+  \fun (included: Included)(i, j: Fin.Fin k)(less: _) => reflectsOrder (reindex included i) (reindex included j)
+    (\idelim s.pivot i = t.pivot (reindex included i) \with a: Fin.Fin n => Order.Lt a (t.pivot (reindex included j)) \by {
+      base: \idelim s.pivot j = t.pivot (reindex included j) \with b: Fin.Fin n => Order.Lt (s.pivot i) b \by {
+        base: increasing s i j less, equality: sym!{{Fin.Fin n}} _ _ (agrees included j)
+      },
+      equality: sym!{{Fin.Fin n}} _ _ (agrees included i)
+    });
+\definition identity: \forall (included: Included) -> reindex included = (\fun (i: Fin.Fin k) => i) :=
+  \fun (included: Included) => Rigidity.rigid k
+    (\into[Fin.Fin k -> Fin.Fin k](reindex included, Rigidity.Endomorphism k) \by { ordered included });
+\definition equal: Included -> s = t :=
+  \fun (included: Included) => ext s t (\fun (i: Fin.Fin k) =>
+    trans!{{Fin.Fin n}} _ _ _ (sym!{{Fin.Fin n}} _ _ (agrees included i))
+      (congr!{{Fin.Fin k} {Fin.Fin n}} t.pivot _ _
+        (congr!{{Fin.Fin k -> Fin.Fin k} {Fin.Fin k}} (\fun (f: Fin.Fin k -> Fin.Fin k) => f i) _ _ (identity included))));

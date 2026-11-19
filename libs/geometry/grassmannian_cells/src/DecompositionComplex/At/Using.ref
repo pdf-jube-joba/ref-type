@@ -1,0 +1,29 @@
+\import \root.Echelon[K := Numbers.Complex, field := Numbers.Algebra[].field, n := n, k := k, symbol := form.symbol] \as Echelon;
+\import \root.Complex[n := n, k := k, symbol := form.symbol].Canonical[] \as Canonical;
+\definition represents: Canonical.Represents form.matrix p := \fun (v: Ambient.Vector) => Logic.PropEquiv[_, _] {
+  ltr := \block {
+    \fun (fixed: _) \then
+    \takefrom w: \Cast[Domain.Vector] ({ w: Domain.Vector \where (Echelon.linear form.matrix).apply w = basis.value.apply (basis.coordinate.apply v) })
+      \by form.backward (basis.coordinate.apply v) \then
+    \return Logic.existsIntro[Domain.Vector, { w: Domain.Vector \where (Echelon.linear form.matrix).apply w = v }] w
+      (trans!{{Ambient.Vector}} _ _ _
+        (\bysub(Domain.Vector, { w: Domain.Vector \where (Echelon.linear form.matrix).apply w = basis.value.apply (basis.coordinate.apply v) }, w))
+        (trans!{{Ambient.Vector}} _ _ _ (basis.reconstruction v) fixed))
+  },
+  rtl := \block {
+    \fun (member: _) \then
+    \takefrom w: \Cast[Domain.Vector] ({ w: Domain.Vector \where (Echelon.linear form.matrix).apply w = v }) \by member \then
+    \takefrom u: \Cast[Domain.Vector] ({ u: Domain.Vector \where basis.value.apply u = (Echelon.linear form.matrix).apply w }) \by form.forward w \then
+    \let same: basis.value.apply u = v := trans!{{Ambient.Vector}} _ _ _
+      (\bysub(Domain.Vector, { u: Domain.Vector \where basis.value.apply u = (Echelon.linear form.matrix).apply w }, u))
+      (\bysub(Domain.Vector, { w: Domain.Vector \where (Echelon.linear form.matrix).apply w = v }, w)) \then
+    \return \idelim basis.value.apply u = v \with x: Ambient.Vector => p.map.apply x = x \by {
+      base: Rank.fixed basis u, equality: same
+    }
+  },
+};
+\definition agrees: Canonical.map form.matrix = p := Canonical.unique form.matrix (Canonical.point form.matrix)
+  (\into[Grassmannian.Carrier](p, Canonical.Point form.matrix) \by { represents });
+\definition representation: Representation[p] := Representation[p] {
+  symbol := form.symbol, matrix := form.matrix, agrees := agrees,
+};

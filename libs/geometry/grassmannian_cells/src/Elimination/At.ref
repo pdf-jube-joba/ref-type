@@ -1,0 +1,82 @@
+\import Fin.Transposition[n := N.Nat^::succ k, a := Fin.zero k, b := column] \as Swap;
+\definition swap: End.Map := End.Map {
+  apply := \fun (v: Domain.Vector)(i: Fin.Fin (N.Nat^::succ k)) => v (Swap.apply i),
+  preservesAdd := \fun (v, w: Domain.Vector) => \refl(Domain.space.add (\fun (i: Fin.Fin (N.Nat^::succ k)) => v (Swap.apply i))
+    (\fun (i: Fin.Fin (N.Nat^::succ k)) => w (Swap.apply i))),
+  preservesScale := \fun (a: K)(v: Domain.Vector) => \refl(Domain.space.smul a (\fun (i: Fin.Fin (N.Nat^::succ k)) => v (Swap.apply i))),
+};
+\definition swapTwice: \forall (v: Domain.Vector) -> swap.apply (swap.apply v) = v :=
+  \fun (v: Domain.Vector) => \axiom:funext(swap.apply (swap.apply v), v,
+    \fun (i: Fin.Fin (N.Nat^::succ k)) => congr!{{Fin.Fin (N.Nat^::succ k)} K} v _ _ (Swap.involution i));
+\definition swapIsomorphism: Isomorphisms.Isomorphism := Isomorphisms.Isomorphism {
+  forward := swap, backward := swap, leftInverse := swapTwice, rightInverse := swapTwice,
+};
+\definition firstCoordinates: \forall (i: Fin.Fin (N.Nat^::succ k)) -> Split.first i = Domain.basis (Fin.zero k) i :=
+  Fin.cases k (\fun (i: Fin.Fin (N.Nat^::succ k)) => Split.first i = Domain.basis (Fin.zero k) i)
+    (trans!{K} _ _ _ Split.firstHead (sym!{K} _ _ (Delta.self (Fin.zero k))))
+    (\fun (i: Fin.Fin k) => trans!{K} _ _ _
+      (congr!{{Lower.Vector} K} (\fun (v: Lower.Vector) => v i) _ _ Split.firstTail)
+      (sym!{K} _ _ (Delta.different (Fin.zero k) (Fin.succ k i) (\fun (equal: _) => N.Basic[].Prop[].zeroNeSucc i equal))));
+\definition swappedFirst: swap.apply Split.first = Domain.basis column :=
+  \axiom:funext(swap.apply Split.first, Domain.basis column, \fun (i: Fin.Fin (N.Nat^::succ k)) =>
+    trans!{K} _ _ _ (firstCoordinates (Swap.apply i))
+      (either!{{(Classical.excludedMiddle (column = i))} {Domain.basis (Fin.zero k) (Swap.apply i) = Domain.basis column i}
+        {\fun (equal: _) => trans!{K} _ _ _
+          (Delta.equal (Fin.zero k) (Swap.apply i) (trans!{{Fin.Fin (N.Nat^::succ k)}} _ _ _
+            (sym!{{Fin.Fin (N.Nat^::succ k)}} _ _ Swap.onSecond) (congr!{{Fin.Fin (N.Nat^::succ k)} {Fin.Fin (N.Nat^::succ k)}} Swap.apply _ _ equal)))
+          (sym!{K} _ _ (Delta.equal column i equal))}
+        {\fun (different: _) => trans!{K} _ _ _
+          (Delta.different (Fin.zero k) (Swap.apply i) (\fun (equal: _) => different
+            (trans!{{Fin.Fin (N.Nat^::succ k)}} _ _ _ (sym!{{Fin.Fin (N.Nat^::succ k)}} _ _ Swap.onFirst)
+              (trans!{{Fin.Fin (N.Nat^::succ k)}} _ _ _ (congr!{{Fin.Fin (N.Nat^::succ k)} {Fin.Fin (N.Nat^::succ k)}} Swap.apply _ _ equal) (Swap.involution i)))))
+          (sym!{K} _ _ (Delta.different column i different))}
+      }));
+\definition swappedRow: Rows.Map := Rows.Composition[U := Domain.Vector, domain := Domain.space].compose (row A pivot) swap;
+\definition alpha: K := swappedRow.apply Split.first;
+\definition alphaNonzero: Logic.Not (alpha = Linear.zero) :=
+  \fun (zero: _) => nonzero (trans!{K} _ _ _
+    (sym!{K} _ _ (congr!{{Domain.Vector} K} (row A pivot).apply _ _ swappedFirst)) zero);
+\definition tailRow: TailRows.Map := Rows.Composition[U := Lower.Vector, domain := Lower.space].compose swappedRow Split.embedding;
+\definition identity: LowerIsomorphisms.Isomorphism := LowerIsomorphisms.Isomorphism {
+  forward := Linear.FiniteCoordinates[n := k].identity, backward := Linear.FiniteCoordinates[n := k].identity,
+  leftInverse := \fun (v: Lower.Vector) => \refl(v), rightInverse := \fun (v: Lower.Vector) => \refl(v),
+};
+\import Split.Triangular[l := alpha, nonzero := alphaNonzero, row := tailRow, lower := identity] \as Triangular;
+\definition rowFormula: \forall (v: Domain.Vector) -> swappedRow.apply v = Split.head (Triangular.forward.apply v) :=
+  \fun (v: Domain.Vector) => trans!{K} _ _ _
+    (congr!{{Domain.Vector} K} swappedRow.apply _ _ (sym!{{Domain.Vector}} _ _ (Split.decompose v)))
+    (trans!{K} _ _ _ (swappedRow.preservesAdd (Domain.space.smul (Split.head v) Split.first) (Split.embedding.apply (Split.tail v)))
+      (trans!{K} _ _ _ (congr!{K K} (\fun (a: K) => Linear.add a (tailRow.apply (Split.tail v))) _ _
+        (trans!{K} _ _ _ (swappedRow.preservesScale (Split.head v) Split.first) (Linear.mulComm (Split.head v) alpha)))
+        (sym!{K} _ _ (Split.joinHead (Linear.add (Linear.mul alpha (Split.head v)) (tailRow.apply (Split.tail v))) (Split.tail v)))));
+\definition change: Isomorphisms.Isomorphism :=
+  Isomorphisms.Composition[U := Domain.Vector, domain := Domain.space].compose swapIsomorphism (Isomorphisms.inverse Triangular.isomorphism);
+\definition normalized: Maps.Map := Maps.Composition[U := Domain.Vector, domain := Domain.space].compose A change.forward;
+\definition normalizedRow: \forall (v: Domain.Vector) -> normalized.apply v pivot = Split.head v :=
+  \fun (v: Domain.Vector) => trans!{K} _ _ _ (rowFormula (Triangular.backward.apply v))
+    (congr!{{Domain.Vector} K} Split.head _ _ (Triangular.rightInverse v));
+\import Linear.Linear[V := Lower.Vector, W := Ambient.Vector, source := Lower.space, target := Ambient.space] \as LowerMaps;
+\definition lower: LowerMaps.Map := Maps.Composition[U := Lower.Vector, domain := Lower.space].compose normalized Split.embedding;
+\definition lowerRow: \forall (v: Lower.Vector) -> lower.apply v pivot = Linear.zero :=
+  \fun (v: Lower.Vector) => trans!{K} _ _ _ (normalizedRow (Split.embedding.apply v)) (Split.joinHead Linear.zero v);
+\definition direction: Ambient.Vector := normalized.apply Split.first;
+\definition directionPivot: direction pivot = Linear.one := trans!{K} _ _ _ (normalizedRow Split.first) Split.firstHead;
+\definition lowerInjective: Injective A -> \forall (v, w: Lower.Vector) -> lower.apply v = lower.apply w -> v = w :=
+  \fun (injective: Injective A)(v, w: Lower.Vector)(same: _) => trans!{{Lower.Vector}} _ _ _
+    (sym!{{Lower.Vector}} _ _ (Split.joinTail Linear.zero v))
+    (trans!{{Lower.Vector}} _ _ _
+      (congr!{{Domain.Vector} {Lower.Vector}} Split.tail _ _
+        (Isomorphisms.injective change _ _ (injective _ _ same))) (Split.joinTail Linear.zero w));
+\definition decomposition: \forall (v: Domain.Vector) ->
+  normalized.apply v = Ambient.space.add (Ambient.space.smul (Split.head v) direction) (lower.apply (Split.tail v)) :=
+  \fun (v: Domain.Vector) => trans!{{Ambient.Vector}} _ _ _
+    (congr!{{Domain.Vector} {Ambient.Vector}} normalized.apply _ _ (sym!{{Domain.Vector}} _ _ (Split.decompose v)))
+    (trans!{{Ambient.Vector}} _ _ _ (normalized.preservesAdd (Domain.space.smul (Split.head v) Split.first) (Split.embedding.apply (Split.tail v)))
+      (congr!{{Ambient.Vector} {Ambient.Vector}} (\fun (w: Ambient.Vector) => Ambient.space.add w (lower.apply (Split.tail v))) _ _
+        (normalized.preservesScale (Split.head v) Split.first)));
+\definition joined: \forall (a: K)(v: Lower.Vector) -> normalized.apply (Split.join a v) =
+  Ambient.space.add (Ambient.space.smul a direction) (lower.apply v) :=
+  \fun (a: K)(v: Lower.Vector) => trans!{{Ambient.Vector}} _ _ _ (decomposition (Split.join a v))
+    (congr!{{Ambient.Vector} {Ambient.Vector} {Ambient.Vector}} Ambient.space.add _ _ _ _
+      (congr!{K {Ambient.Vector}} (\fun (b: K) => Ambient.space.smul b direction) _ _ (Split.joinHead a v))
+      (congr!{{Lower.Vector} {Ambient.Vector}} lower.apply _ _ (Split.joinTail a v)));

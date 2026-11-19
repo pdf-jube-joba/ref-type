@@ -1,0 +1,28 @@
+\structure Laws[v: K]: \Prop := {
+  inside: \forall (first: Order.Lt i n)(second: Order.Lt j n) -> v = A (index i first) (index j second),
+  outside: Logic.Not (Inside i j) -> v = zero,
+};
+\definition Value: \Set := \Cast[K] ({ v: K \where Laws[v] });
+\definition existence: \exists Value := either!{{(Classical.excludedMiddle (Inside i j))} {\exists Value}
+  {\fun (inside: Inside i j) => \exact(\into[K](A (index i inside.left) (index j inside.right), Value) \by {
+    Laws[A (index i inside.left) (index j inside.right)] {
+      inside := \fun (first: _)(second: _) => \refl(A (index i inside.left) (index j inside.right)),
+      outside := \fun (absent: _) => Logic.falseElim _ (absent inside),
+    }
+  }, Value)}
+  {\fun (outside: Logic.Not (Inside i j)) => \exact(\into[K](zero, Value) \by {
+    Laws[zero] {
+      inside := \fun (first: _)(second: _) => Logic.falseElim _ (outside (Logic.And[_, _]::# first second)),
+      outside := \fun (absent: _) => \refl(zero),
+    }
+  }, Value)}
+};
+\definition uniqueness: \forall (v, w: Value) -> v = w :=
+  \fun (v, w: Value) => either!{{(Classical.excludedMiddle (Inside i j))} {v = w}
+    {\fun (inside: Inside i j) => trans!{K} _ _ _ ((\bysub(K, Value, v)).inside inside.left inside.right)
+      (sym!{K} _ _ ((\bysub(K, Value, w)).inside inside.left inside.right))}
+    {\fun (outside: Logic.Not (Inside i j)) => trans!{K} _ _ _ ((\bysub(K, Value, v)).outside outside)
+      (sym!{K} _ _ ((\bysub(K, Value, w)).outside outside))}
+  };
+\definition value: Value := \choice Value \by { existence: existence, uniqueness: uniqueness };
+\definition laws: Laws[value] := \bysub(K, Value, value);

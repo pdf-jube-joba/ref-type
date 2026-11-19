@@ -1,0 +1,48 @@
+\import Linear.Coordinates[I := Fin.Fin (N.Nat^::succ k)].Kronecker[] \as UpperDelta;
+\import Linear.Coordinates[I := Fin.Fin k].Kronecker[] \as LowerDelta;
+\import std.Logic[].Classical[] \as Classical;
+\use Logic.either;
+\definition successorEntries: \forall (i, j: Fin.Fin k) -> Domain.basis (Fin.succ k j) (Fin.succ k i) = Lower.basis j i :=
+  \fun (i, j: Fin.Fin k) => either!{{(Classical.excludedMiddle (j = i))} {Domain.basis (Fin.succ k j) (Fin.succ k i) = Lower.basis j i}
+    {\fun (equal: _) => trans!{K} _ _ _ (UpperDelta.equal (Fin.succ k j) (Fin.succ k i)
+      (congr!{{Fin.Fin k} {Fin.Fin (N.Nat^::succ k)}} (Fin.succ k) _ _ equal)) (sym!{K} _ _ (LowerDelta.equal j i equal))}
+    {\fun (different: _) => trans!{K} _ _ _ (UpperDelta.different (Fin.succ k j) (Fin.succ k i)
+      (\fun (equal: _) => different (Order.succInjective j i equal))) (sym!{K} _ _ (LowerDelta.different j i different))}
+  };
+\definition successorBasis: \forall (j: Fin.Fin k) -> Domain.basis (Fin.succ k j) = Split.embedding.apply (Lower.basis j) :=
+  \fun (j: Fin.Fin k) => Split.ext _ _
+    (trans!{K} _ _ _ (UpperDelta.different (Fin.succ k j) (Fin.zero k) (\fun (same: _) => Order.succNeZero j same))
+      (sym!{K} _ _ (Split.joinHead Linear.zero (Lower.basis j))))
+    (trans!{{Lower.Vector}} _ _ _ (\axiom:funext(Split.tail (Domain.basis (Fin.succ k j)), Lower.basis j,
+      \fun (i: Fin.Fin k) => successorEntries i j)) (sym!{{Lower.Vector}} _ _ (Split.joinTail Linear.zero (Lower.basis j))));
+\definition correctionZero: \forall (v: Lower.Vector) -> correction.apply (Split.embedding.apply v) = Lower.space.zero :=
+  \fun (v: Lower.Vector) => trans!{{Lower.Vector}} _ _ _
+    (congr!{K {Lower.Vector}} (\fun (a: K) => Lower.space.smul a q) _ _ (Split.joinHead Linear.zero v)) (LowerLaws.zeroScale q);
+\definition restEmbedding: \forall (v: Lower.Vector) -> rest.apply (Split.embedding.apply v) = v :=
+  \fun (v: Lower.Vector) => trans!{{Lower.Vector}} _ _ _
+    (congr!{{Lower.Vector} {Lower.Vector} {Lower.Vector}} Lower.space.add _ _ _ _ (Split.joinTail Linear.zero v)
+      (trans!{{Lower.Vector}} _ _ _ (congr!{{Lower.Vector} {Lower.Vector}} (Lower.space.smul (Linear.neg Linear.one)) _ _ (correctionZero v))
+        (LowerLaws.scaleZero (Linear.neg Linear.one)))) (LowerLaws.zeroRight v);
+\definition valueEmbedding: \forall (v: Lower.Vector) -> value.apply (Split.embedding.apply v) = lower.value.apply v :=
+  \fun (v: Lower.Vector) => trans!{{Ambient.Vector}} _ _ _
+    (congr!{{Ambient.Vector} {Ambient.Vector} {Ambient.Vector}} Ambient.space.add _ _ _ _
+      (trans!{{Ambient.Vector}} _ _ _
+        (congr!{K {Ambient.Vector}} (\fun (a: K) => Ambient.space.smul a Normal.direction) _ _ (Split.joinHead Linear.zero v))
+        (AmbientLaws.zeroScale Normal.direction))
+      (congr!{{Lower.Vector} {Ambient.Vector}} lower.value.apply _ _ (restEmbedding v))) (AmbientLaws.zeroLeft (lower.value.apply v));
+\definition successorValue: \forall (j: Fin.Fin k) -> value.apply (Domain.basis (Fin.succ k j)) = lower.value.apply (Lower.basis j) :=
+  \fun (j: Fin.Fin k) => trans!{{Ambient.Vector}} _ _ _
+    (congr!{{Domain.Vector} {Ambient.Vector}} value.apply _ _ (successorBasis j)) (valueEmbedding (Lower.basis j));
+\definition above: \forall (i: Fin.Fin n)(j: Fin.Fin (N.Nat^::succ k)) -> Order.Lt (pivots j) i -> value.apply (Domain.basis j) i = Linear.zero :=
+  \fun (i: Fin.Fin n) => Fin.cases k
+    (\fun (j: Fin.Fin (N.Nat^::succ k)) => Order.Lt (pivots j) i -> value.apply (Domain.basis j) i = Linear.zero)
+    (\fun (bound: _) => support i
+      (\idelim pivots (Fin.zero k) = maximum.index \with p: Fin.Fin n => Order.Lt p i \by {
+        base: bound, equality: Fin.Tuples[A := Fin.Fin n].atZero k maximum.index lower.pivot
+      }) (Domain.basis (Fin.zero k)))
+    (\fun (j: Fin.Fin k)(bound: _) => trans!{K} _ _ _
+      (congr!{{Ambient.Vector} K} (\fun (v: Ambient.Vector) => v i) _ _ (successorValue j))
+      ((LowerRank.laws lower).above i j
+        (\idelim pivots (Fin.succ k j) = lower.pivot j \with p: Fin.Fin n => Order.Lt p i \by {
+          base: bound, equality: Fin.Tuples[A := Fin.Fin n].atSuccessor k maximum.index lower.pivot j
+        })));

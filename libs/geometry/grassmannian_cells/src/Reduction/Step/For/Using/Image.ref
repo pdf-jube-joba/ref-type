@@ -1,0 +1,41 @@
+\definition undoRest: \forall (a: K)(v: Lower.Vector) ->
+  rest.apply (Split.join a (Lower.space.add v (Lower.space.smul a q))) = v := \block {
+  \fun (a: K)(v: Lower.Vector) \then
+  \let aq: Lower.Vector := Lower.space.smul a q \then
+  \return trans!{{Lower.Vector}} _ _ _ (restFormula (Split.join a (Lower.space.add v aq)))
+    (trans!{{Lower.Vector}} _ _ _
+      (congr!{{Lower.Vector} {Lower.Vector} {Lower.Vector}} LowerInner.subtract _ _ _ _ (Split.joinTail a (Lower.space.add v aq))
+        (congr!{K {Lower.Vector}} (\fun (b: K) => Lower.space.smul b q) _ _ (Split.joinHead a (Lower.space.add v aq))))
+      (trans!{{Lower.Vector}} _ _ _ (LowerLaws.assoc v aq (Lower.space.neg aq))
+        (trans!{{Lower.Vector}} _ _ _
+          (congr!{{Lower.Vector} {Lower.Vector}} (Lower.space.add v) _ _
+            (trans!{{Lower.Vector}} _ _ _ (LowerLaws.comm aq (Lower.space.neg aq)) (LowerLaws.inverseLeft aq)))
+          (LowerLaws.zeroRight v))))
+};
+\definition forward: \forall (v: Domain.Vector) -> \exists (w: Domain.Vector \where A.apply w = value.apply v) := \block {
+  \fun (v: Domain.Vector) \then
+  \takefrom w: \Cast[Lower.Vector] ({ w: Lower.Vector \where Normal.lower.apply w = lower.value.apply (rest.apply v) })
+    \by (LowerRank.image Normal.lower lower).forward (rest.apply v) \then
+  \return Logic.existsIntro[Domain.Vector, { w: Domain.Vector \where A.apply w = value.apply v }]
+    (Normal.change.forward.apply (Split.join (Split.head v) w))
+    (trans!{{Ambient.Vector}} _ _ _ (Normal.joined (Split.head v) w)
+      (congr!{{Ambient.Vector} {Ambient.Vector}} (Ambient.space.add (Ambient.space.smul (Split.head v) Normal.direction)) _ _
+        (\bysub(Lower.Vector, { w: Lower.Vector \where Normal.lower.apply w = lower.value.apply (rest.apply v) }, w))))
+};
+\definition backward: \forall (v: Domain.Vector) -> \exists (w: Domain.Vector \where value.apply w = A.apply v) := \block {
+  \fun (v: Domain.Vector) \then
+  \let x: Domain.Vector := Normal.change.backward.apply v \then
+  \let a: K := Split.head x \then
+  \takefrom w: \Cast[Lower.Vector] ({ w: Lower.Vector \where lower.value.apply w = Normal.lower.apply (Split.tail x) })
+    \by (LowerRank.image Normal.lower lower).backward (Split.tail x) \then
+  \let point: Domain.Vector := Split.join a (Lower.space.add w (Lower.space.smul a q)) \then
+  \return Logic.existsIntro[Domain.Vector, { w: Domain.Vector \where value.apply w = A.apply v }] point
+    (trans!{{Ambient.Vector}} _ _ _
+      (congr!{{Ambient.Vector} {Ambient.Vector} {Ambient.Vector}} Ambient.space.add _ _ _ _
+        (congr!{K {Ambient.Vector}} (\fun (b: K) => Ambient.space.smul b Normal.direction) _ _
+          (Split.joinHead a (Lower.space.add w (Lower.space.smul a q))))
+        (trans!{{Ambient.Vector}} _ _ _ (congr!{{Lower.Vector} {Ambient.Vector}} lower.value.apply _ _ (undoRest a w))
+          (\bysub(Lower.Vector, { w: Lower.Vector \where lower.value.apply w = Normal.lower.apply (Split.tail x) }, w))))
+      (trans!{{Ambient.Vector}} _ _ _ (sym!{{Ambient.Vector}} _ _ (Normal.decomposition x))
+        (congr!{{Domain.Vector} {Ambient.Vector}} A.apply _ _ (Normal.change.rightInverse v))))
+};

@@ -1,0 +1,48 @@
+\definition coefficient[v: Domain.Vector][l: Fin.Fin k]: K := Linear.mul (B (symbol.pivot j) l) (v l);
+\definition zeroTerm: \forall (v: Domain.Vector) -> (Other.linear B).apply v = (linear A).apply (basis j) ->
+  (\forall (l: Fin.Fin k) -> Logic.Not (other.pivot l = symbol.pivot j)) ->
+  \forall (l: Fin.Fin k) -> coefficient v l = Linear.zero := \block {
+  \fun (v: Domain.Vector)(same: _)(absent: _)(l: Fin.Fin k) \then
+  \return \match NaturalOrder.trichotomy (other.pivot l) (symbol.pivot j) \in std.Logic[].Order[].Trichotomy
+    \return (\fun (_: NaturalOrder.Trichotomy (other.pivot l) (symbol.pivot j)) => coefficient v l = Linear.zero) \with {
+    | less below: trans!{K} _ _ _
+        (congr!{K K} (\fun (a: K) => Linear.mul a (v l)) _ _ ((Other.laws B).above (symbol.pivot j) l below))
+        (Linear.mulZeroLeft (v l))
+    | equal equal: Logic.falseElim _ (absent l equal)
+    | greater above: \block {
+      \let coordinate: v l = A (other.pivot l) j := trans!{K} _ _ _
+        (sym!{K} _ _ (congr!{{Domain.Vector} K} (\fun (w: Domain.Vector) => w l) _ _ (Other.leftInverse B v)))
+        (trans!{K} _ _ _ (congr!{{Ambient.Vector} K} (\fun (w: Ambient.Vector) => w (other.pivot l)) _ _ same)
+          (onBasis A j (other.pivot l))) \then
+      \return trans!{K} _ _ _
+        (congr!{K K} (Linear.mul (B (symbol.pivot j) l)) _ _
+          (trans!{K} _ _ _ coordinate ((laws A).above (other.pivot l) j above)))
+        (Linear.mulZeroRight (B (symbol.pivot j) l))
+    }
+  }
+};
+\definition pivotExists: Contained A B -> \exists (l: Fin.Fin k \where other.pivot l = symbol.pivot j) := \block {
+  \fun (contained: Contained A B) \then
+  \takefrom v: \Cast[Domain.Vector] ({ v: Domain.Vector \where (Other.linear B).apply v = (linear A).apply (basis j) })
+    \by contained (basis j) \then
+  \let same: (Other.linear B).apply v = (linear A).apply (basis j) :=
+    \bysub(Domain.Vector, { v: Domain.Vector \where (Other.linear B).apply v = (linear A).apply (basis j) }, v) \then
+  \return either!{{(Classical.excludedMiddle (\exists (l: Fin.Fin k \where other.pivot l = symbol.pivot j)))}
+    {\exists (l: Fin.Fin k \where other.pivot l = symbol.pivot j)}
+    {\fun (found: _) => found}
+    {\block {
+      \fun (none: _) \then
+      \let absent: \forall (l: Fin.Fin k) -> Logic.Not (other.pivot l = symbol.pivot j) :=
+        \fun (l: Fin.Fin k)(equal: _) => none (Logic.existsIntro[Fin.Fin k,
+          { l: Fin.Fin k \where other.pivot l = symbol.pivot j }] l equal) \then
+      \let zero: (Other.linear B).apply v (symbol.pivot j) = Linear.zero := trans!{K} _ _ _
+        (SumLaws.congruent (Fin.elements k) (coefficient v) (\fun (_: Fin.Fin k) => Linear.zero) (zeroTerm v same absent))
+        (SumLaws.zeroSum (Fin.elements k)) \then
+      \let one: (Other.linear B).apply v (symbol.pivot j) = Linear.one := trans!{K} _ _ _
+        (congr!{{Ambient.Vector} K} (\fun (w: Ambient.Vector) => w (symbol.pivot j)) _ _ same)
+        (trans!{K} _ _ _ (onBasis A j (symbol.pivot j))
+          (trans!{K} _ _ _ ((laws A).pivot j j) (Delta.self j))) \then
+      \return Logic.falseElim _ (field.nontrivial (trans!{K} _ _ _ (sym!{K} _ _ zero) one))
+    }}
+  }
+};
