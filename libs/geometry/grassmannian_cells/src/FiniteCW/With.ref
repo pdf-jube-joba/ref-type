@@ -17,12 +17,24 @@
     (\forall (cell: CW.CellData) -> CW.CellMember cells cell -> CW.CellLaws[space, cell]) ->
     (\forall (cell: CW.CellData) -> CW.CellMember cells cell -> CW.DiskOpen cell.dimension (CW.Pullback cell U)) ->
     Space.IsClosedIn space (excluded cells U) \with {
-    | nil: \fun (U: \Pow A)(laws: _)(open: _) => emptyClosed
-    | cons: \fun (head: CW.CellData)(tail: CW.Cells)(previous: _)(U: \Pow A)(laws: _)(open: _) =>
+    | nil: \fun (U: \Pow A)
+        (laws: \forall (cell: CW.CellData) -> CW.CellMember Lists.List[CW.CellData]::nil cell -> CW.CellLaws[space, cell])
+        (open: \forall (cell: CW.CellData) -> CW.CellMember Lists.List[CW.CellData]::nil cell -> CW.DiskOpen cell.dimension (CW.Pullback cell U)) => emptyClosed
+    | cons: \fun (head: CW.CellData)(tail: CW.Cells)
+        (previous: \forall (U: \Pow A) ->
+          (\forall (cell: CW.CellData) -> CW.CellMember tail cell -> CW.CellLaws[space, cell]) ->
+          (\forall (cell: CW.CellData) -> CW.CellMember tail cell -> CW.DiskOpen cell.dimension (CW.Pullback cell U)) ->
+          Space.IsClosedIn space (excluded tail U))
+        (U: \Pow A)
+        (laws: \forall (cell: CW.CellData) -> CW.CellMember (Lists.List[CW.CellData]::cons head tail) cell -> CW.CellLaws[space, cell])
+        (open: \forall (cell: CW.CellData) -> CW.CellMember (Lists.List[CW.CellData]::cons head tail) cell -> CW.DiskOpen cell.dimension (CW.Pullback cell U)) =>
         Space.Finite[].joinClosed space (Bad head U) (excluded tail U)
-          Cell[cell := head, laws := laws head (Logic.Or[_, _]::left (\refl(head))), U := U, open := open head (Logic.Or[_, _]::left (\refl(head)))].closed
-          (previous U (\fun (cell: CW.CellData)(old: _) => laws cell (Logic.Or[_, _]::right old))
-            (\fun (cell: CW.CellData)(old: _) => open cell (Logic.Or[_, _]::right old)))
+          Cell[cell := head, laws := laws head (Logic.Or[head = head, CW.CellMember tail head]::left (\refl(head))),
+            U := U, open := open head (Logic.Or[head = head, CW.CellMember tail head]::left (\refl(head)))].closed
+          (previous U (\fun (cell: CW.CellData)(old: CW.CellMember tail cell) =>
+              laws cell (Logic.Or[cell = head, CW.CellMember tail cell]::right old))
+            (\fun (cell: CW.CellData)(old: CW.CellMember tail cell) =>
+              open cell (Logic.Or[cell = head, CW.CellMember tail cell]::right old)))
   };
 \definition outside: \forall (cells: CW.Cells)(U: \Pow A)(x: A) -> \In[A] (excluded cells U) x -> Logic.Not (\In[A] U x) :=
   \induction (cells: CW.Cells) \return \forall (U: \Pow A)(x: A) -> \In[A] (excluded cells U) x -> Logic.Not (\In[A] U x) \with {
@@ -38,10 +50,15 @@
   \forall (x: A) -> \In[A] (Bad cell U) x -> \In[A] (excluded cells U) x :=
   \induction (cells: CW.Cells) \return \forall (U: \Pow A)(cell: CW.CellData) -> CW.CellMember cells cell ->
     \forall (x: A) -> \In[A] (Bad cell U) x -> \In[A] (excluded cells U) x \with {
-    | nil: \fun (U: \Pow A)(cell: CW.CellData)(empty: Logic.False)(x: A)(bad: _) => Logic.falseElim _ empty
-    | cons: \fun (head: CW.CellData)(tail: CW.Cells)(previous: _)(U: \Pow A)(cell: CW.CellData)(member: _)(x: A)(bad: _) => Logic.orElim[_, _, _] member
-      (\fun (same: _) => Logic.Or[_, _]::left (\idelim cell = head \with c: CW.CellData => \In[A] (Bad c U) x \by { base: bad, equality: same }))
-      (\fun (old: _) => Logic.Or[_, _]::right (previous U cell old x bad))
+    | nil: \fun (U: \Pow A)(cell: CW.CellData)(empty: Logic.False)(x: A)(bad: \In[A] (Bad cell U) x) => Logic.falseElim _ empty
+    | cons: \fun (head: CW.CellData)(tail: CW.Cells)
+      (previous: \forall (U: \Pow A)(cell: CW.CellData) -> CW.CellMember tail cell ->
+        \forall (x: A) -> \In[A] (Bad cell U) x -> \In[A] (excluded tail U) x)
+      (U: \Pow A)(cell: CW.CellData)(member: CW.CellMember (Lists.List[CW.CellData]::cons head tail) cell)
+      (x: A)(bad: \In[A] (Bad cell U) x) =>
+      Logic.orElim[cell = head, CW.CellMember tail cell, \In[A] (excluded (Lists.List[CW.CellData]::cons head tail) U) x] member
+        (\fun (same: cell = head) => Logic.Or[_, _]::left (\idelim cell = head \with c: CW.CellData => \In[A] (Bad c U) x \by { base: bad, equality: same }))
+        (\fun (old: CW.CellMember tail cell) => Logic.Or[_, _]::right (previous U cell old x bad))
   };
 \definition excludedIsComplement[U: \Pow A]: excluded data.cells U = Space.Complement U :=
   \axiom:setext(excluded data.cells U, Space.Complement U, outside data.cells U,

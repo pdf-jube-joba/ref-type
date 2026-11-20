@@ -1,3 +1,5 @@
+\import \root.Reflection[K := K, field := field, scalar := scalar, topological := topological, n := n].Hemisphere[e := e, eUnit := eUnit] \as HemisphereParent;
+\import \root.Reflection[K := K, field := field, scalar := scalar, topological := topological, n := n] \as ReflectionParent;
 \import R.SquareRoot[] \as Root;
 \structure DiskLaws[u: E.Vector]: \Prop := {
   orthogonal: E.dot e u = Spaces.zero,
@@ -66,12 +68,11 @@
   }
 };
 \definition read[v: Carrier]: E.Vector := Inner.subtract v (E.space.smul (Geometry.embed (height v)) e);
-\module Inverse(v: Carrier);
 \definition readLift: \forall (u: Disk) -> read (lift u) = u :=
   \fun (u: Disk) => trans!{{E.Vector}} _ _ _
     (congr!{R.Real {E.Vector}} (\fun (t: R.Real) => Inner.subtract (vector u) (E.space.smul (Geometry.embed t) e)) _ _ (heightFormula u))
     (trans!{{E.Vector}} _ _ _ (Laws.assoc u (E.space.smul (Geometry.embed (radius u)) e) (E.space.neg (E.space.smul (Geometry.embed (radius u)) e)))
-      (trans!{{E.Vector}} _ _ _ (congr!{{E.Vector} {E.Vector}} (E.space.add u) _ _ (\parent.\parent.subtractSelf (E.space.smul (Geometry.embed (radius u)) e))) (Laws.zeroRight u)));
+      (trans!{{E.Vector}} _ _ _ (congr!{{E.Vector} {E.Vector}} (E.space.add u) _ _ (ReflectionParent.subtractSelf (E.space.smul (Geometry.embed (radius u)) e))) (Laws.zeroRight u)));
 \definition injective: \forall (u, v: Disk) -> lift u = lift v -> u = v :=
   \fun (u, v: Disk)(same: _) => trans!{{E.Vector}} _ _ _ (sym!{{E.Vector}} _ _ (readLift u))
     (trans!{{E.Vector}} _ _ _ (congr!{Carrier {E.Vector}} read _ _ same) (readLift v));
@@ -97,15 +98,15 @@
   Vectors.addition topology (\fun (u: Disk) => u) (\fun (u: Disk) => E.space.smul (Geometry.embed (radius u)) e)
     inclusionContinuous (Vectors.scale topology (\fun (u: Disk) => Geometry.embed (radius u)) (\fun (_: Disk) => e)
       (Functions.embedding topology radius radiusContinuous) (Vectors.constant topology e));
-\definition liftContinuous: topology.Continuity[A := Disk, B := Carrier].Continuous topology \parent.topology lift :=
+\definition liftContinuous: topology.Continuity[A := Disk, B := Carrier].Continuous topology HemisphereParent.topology lift :=
   topology.Continuity[A := Disk, B := E.Vector].Corestriction[S := { v: E.Vector \where HemisphereLaws[v] }].corestrictContinuous
     topology vectorTopology lift (Coordinates.Universal[A := Disk].continuous topology topological.space vector vectorContinuous);
-\definition rotation[u: Disk]: Ambient.Unitary[].Carrier := \parent.rotation (lift u);
+\definition rotation[u: Disk]: Ambient.Unitary[].Carrier := HemisphereParent.rotation (lift u);
 \definition rotationContinuous: topology.Continuity[A := Disk, B := Ambient.Unitary[].Carrier].Continuous topology Ambient.Unitary[].topology rotation :=
-  topology.Composition[A := Disk, B := Carrier, C := Ambient.Unitary[].Carrier].composeContinuous topology \parent.topology Ambient.Unitary[].topology
-    lift \parent.rotation liftContinuous \parent.continuous;
+  topology.Composition[A := Disk, B := Carrier, C := Ambient.Unitary[].Carrier].composeContinuous topology HemisphereParent.topology Ambient.Unitary[].topology
+    lift HemisphereParent.rotation liftContinuous HemisphereParent.continuous;
 \definition sendsAxis: \forall (u: Disk) -> (rotation u).forward.apply e = vector u :=
-  \fun (u: Disk) => \parent.sendsAxis (lift u);
+  \fun (u: Disk) => HemisphereParent.sendsAxis (lift u);
 \definition onBoundary: \forall (u: Disk) -> Inner.squared u = R.one -> radius u = R.zero :=
   \fun (u: Disk)(boundary: _) => trans!{R.Real} _ _ _
     (congr!{R.Real R.Real} Root.sqrt _ _ (trans!{R.Real} _ _ _
@@ -115,3 +116,4 @@
     (congr!{K {E.Vector}} (\fun (a: K) => E.space.add u (E.space.smul a e)) _ _
       (trans!{K} _ _ _ (congr!{R.Real K} Geometry.embed _ _ (onBoundary u boundary)) scalar.embedZero))
     (trans!{{E.Vector}} _ _ _ (congr!{{E.Vector} {E.Vector}} (E.space.add u) _ _ (Laws.zeroScale e)) (Laws.zeroRight u));
+\module Inverse(v: Carrier);

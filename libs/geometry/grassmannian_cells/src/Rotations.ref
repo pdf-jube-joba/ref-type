@@ -44,11 +44,6 @@
   \fun (A: Carrier)(i, j: Fin.Fin k) => (laws A).support j (symbol.pivot i)
     (\fun (free: Free (symbol.pivot i) j) => free.nonpivot i (\refl(symbol.pivot i)));
 \module Column(j: Fin.Fin k);
-\module Parameters;
-\module Replace(j: Fin.Fin k, v: E.Vector,
-  support: \forall (i: Fin.Fin n) -> Logic.Not (Free i j) -> v i = Linear.zero,
-  bounded: Order.Le (Inner.squared v) R.one);
-\module FromFrame;
 \definition rotation[A: Carrier][j: Fin.Fin k]: Unitary.Carrier := Column[j := j].rotation A;
 \definition product[A: Carrier][indices: Lists.List[Fin.Fin k]]: Unitary.Carrier :=
   Lists.foldr (Fin.Fin k) Unitary.Carrier (\fun (j: Fin.Fin k)(rest: Unitary.Carrier) => Unitary.multiply (rotation A j) rest)
@@ -79,7 +74,6 @@
   Families.continuous topology unitary regular;
 \definition Interior[A: Carrier]: \Prop := \forall (j: Fin.Fin k) -> Order.Lt (Inner.squared (A j)) R.one;
 \definition Boundary[A: Carrier]: \Prop := \exists (j: Fin.Fin k \where Inner.squared (A j) = R.one);
-\module FrameInjectivity;
 \definition fixes: \forall (A: Carrier)(indices: Lists.List[Fin.Fin k])(v: E.Vector) ->
   (\forall (j: Fin.Fin k) -> Lists.Membership[A := Fin.Fin k].Occurs j indices -> (rotation A j).forward.apply v = v) ->
   (product A indices).forward.apply v = v :=
@@ -95,12 +89,12 @@
     };
 \import \root.FiniteOrder[].At[A := Fin.Fin k, value := \fun (i: Fin.Fin k) => i] \as Ordered;
 \import N.Basic[].Prop[] \as Natural;
-\module HighStep(A: Carrier, head: Fin.Fin k, tail: Lists.List[Fin.Fin k],
-  ordered: Ordered.Ordered (Lists.List[Fin.Fin k]::cons head tail));
 \definition HighCoordinates[A: Carrier][indices: Lists.List[Fin.Fin k]]: \Prop :=
   Ordered.Ordered indices -> \forall (j: Fin.Fin k) -> Fin.Occurs k j indices ->
   \forall (r: Fin.Fin n) -> Natural.Le (symbol.pivot j) r ->
     (product A indices).forward.apply (axis j) r = (rotation A j).forward.apply (axis j) r;
+\module HighStep(A: Carrier, head: Fin.Fin k, tail: Lists.List[Fin.Fin k],
+  ordered: Ordered.Ordered (Lists.List[Fin.Fin k]::cons head tail));
 \definition highCoordinates: \forall (A: Carrier)(indices: Lists.List[Fin.Fin k]) -> HighCoordinates A indices :=
   \fun (A: Carrier) => \induction (indices: Lists.List[Fin.Fin k]) \return HighCoordinates A indices \with {
     | nil: \fun (ordered: _)(j: Fin.Fin k)(empty: Logic.False)(r: Fin.Fin n)(above: _) => Logic.falseElim _ empty
@@ -133,3 +127,9 @@
   (unitary A).forward.apply (axis j) (symbol.pivot j) = Linear.zero :=
   \fun (A: Carrier)(j: Fin.Fin k)(boundary: _) => trans!{K} _ _ _ (diagonal A j)
     (trans!{K} _ _ _ (congr!{R.Real K} Geometry.embed _ _ (Column[j := j].boundaryRadius A boundary)) scalar.embedZero);
+\module Parameters;
+\module Replace(j: Fin.Fin k, v: E.Vector,
+  support: \forall (i: Fin.Fin n) -> Logic.Not (Free i j) -> v i = Linear.zero,
+  bounded: Order.Le (Inner.squared v) R.one);
+\module FrameInjectivity;
+\module FromFrame;

@@ -1,11 +1,12 @@
+\import \root.Complex[n := n, k := k, symbol := symbol].Canonical[] \as CanonicalParent;
 \import \root.Rotations[K := Numbers.Complex, field := Numbers.Algebra[].field,
   scalar := H.Complex[].scalar, topological := H.Complex[].topological, n := n, k := k, symbol := symbol] \as Rotations;
 \import \root.Reflection[K := Numbers.Complex, field := Numbers.Algebra[].field,
-  scalar := H.Complex[].scalar, topological := H.Complex[].topological, n := n].Conjugation[P := Grassmannian.projection Pivot[].base] \as Action;
+  scalar := H.Complex[].scalar, topological := H.Complex[].topological, n := n].Conjugation[P := Grassmannian.projection \parent.Pivot[].base] \as Action;
 \import Action.Family[X := Rotations.Carrier, source := Rotations.topology, u := Rotations.unitary, continuous := Rotations.continuous] \as Family;
 \definition projection[A: Rotations.Carrier]: Ambient.Projection := Action.projection (Rotations.unitary A);
 \definition rank: \forall (A: Rotations.Carrier) -> Ambient.OnProjection[P := projection A].Rank[k := k].HasRank :=
-  \fun (A: Rotations.Carrier) => Action.rank k (Rotations.unitary A) (Grassmannian.rank Pivot[].base);
+  \fun (A: Rotations.Carrier) => Action.rank k (Rotations.unitary A) (Grassmannian.rank \parent.Pivot[].base);
 \import Grassmannian.Family[Y := Rotations.Carrier, source := Rotations.topology, P := projection,
   regularP := Family.regular, rankP := rank] \as Projected;
 \definition map: Rotations.Carrier -> Grassmannian.Carrier := Projected.map;
@@ -16,8 +17,8 @@
 \definition fixesFrame: \forall (A: Rotations.Carrier)(j: Fin.Fin k) -> (map A).map.apply (frame A j) = frame A j :=
   \fun (A: Rotations.Carrier)(j: Fin.Fin k) => (Action.fixedImage (Rotations.unitary A) (frame A j)).rtl
     (\idelim Euclidean.basis (symbol.pivot j) = (Rotations.unitary A).backward.apply (frame A j)
-      \with v: Euclidean.Vector => Pivot[].base.map.apply v = v \by {
-        base: Pivot[].fixesBasis j,
+      \with v: Euclidean.Vector => \parent.Pivot[].base.map.apply v = v \by {
+        base: \parent.Pivot[].fixesBasis j,
         equality: sym!{{Euclidean.Vector}} _ _ ((Rotations.unitary A).leftInverse (Euclidean.basis (symbol.pivot j)))
       });
 
@@ -35,7 +36,7 @@
   \takefrom index: Symbols.FreeCount[symbol := symbol].Bijection \by Symbols.FreeCount[symbol := symbol].exists \then
   \return \exact(Disk[index := index].value, DiskData)
 };
-\module StandardDisk(disk: DiskData);
+
 
 \import \root.TriangularGram[K := Numbers.Complex, field := Numbers.Algebra[].field, scalar := H.Complex[].scalar, n := n] \as Triangular;
 \definition triangularLaws: \forall (A: Coordinates.Carrier) -> Triangular.At[k := k].Laws[symbol, Coordinates.linear A] :=
@@ -59,14 +60,14 @@
 };
 \definition interiorSurjective: \forall (p: Cell) -> \exists InteriorPreimage[p] := \block {
   \fun (p: Cell) \then
-  \takefrom A: \Cast[Coordinates.Carrier] ({ A: Coordinates.Carrier \where \parent.into A = p }) \by \parent.onto p \then
+  \takefrom A: \Cast[Coordinates.Carrier] ({ A: Coordinates.Carrier \where CanonicalParent.into A = p }) \by CanonicalParent.onto p \then
   \takefrom factor: Triangular.At[k := k].Factorization[symbol, Coordinates.linear A] \by triangularFrameExists A \then
-  \takefrom presentation: Rotations.FromFrame[].Presentation[Fin.elements k, Frame[A := A, factor := factor].frame]
+  \takefrom presentation: Rotations.FromFrame[].Presentation[Fin.elements k, (\fun (j: Fin.Fin k) => Frame[A := A, factor := factor].frame j)]
     \by Frame[A := A, factor := factor].presentationExists \then
   \return \exact(InteriorPreimage[p] {
     parameter := presentation.parameter, inside := presentation.interior,
     image := trans!{{Grassmannian.Carrier}} _ _ _ (Frame[A := A, factor := factor].Using[presentation := presentation].mapEquality)
-      (\bysub(Coordinates.Carrier, { A: Coordinates.Carrier \where \parent.into A = p }, A)),
+      (\bysub(Coordinates.Carrier, { A: Coordinates.Carrier \where CanonicalParent.into A = p }, A)),
   }, InteriorPreimage[p])
 };
 
@@ -101,5 +102,8 @@
   lower: std.Data[].Nat[].Basic[].Prop[].Lt (Symbols.complexDimension symbol) cellDimension,
   contains: \In[Grassmannian.Carrier] (\root.Complex[n := n, k := k, symbol := symbol].Canonical[].cell) p,
 };
+\module Boundary(parameter: Rotations.Carrier);
 \definition boundaryLower: \forall (parameter: Rotations.Carrier) -> Rotations.Boundary parameter -> \exists BoundaryImage[map parameter] :=
-  \fun (parameter: Rotations.Carrier)(boundary: _) => Algebra[parameter := parameter].boundaryLower boundary;
+  \fun (parameter: Rotations.Carrier)(boundary: _) => Boundary[parameter := parameter].exists boundary;
+
+\module StandardDisk(disk: DiskData);

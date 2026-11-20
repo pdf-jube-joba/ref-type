@@ -35,8 +35,14 @@
 \definition slotEta: \forall (s: Symbols.Free symbol) -> slot s.row s.column = s :=
   \fun (s: Symbols.Free symbol) => Symbols.FreeEnumeration[symbol := symbol].eta s;
 \definition readFill: \forall (z: Coordinates)(s: Symbols.Free symbol) -> fill z s.column s.row = z s :=
-  \fun (z: Coordinates)(s: Symbols.Free symbol) => trans!{K} _ _ _
-    (atFree z s.row s.column (\bysub(Symbols.Slot, Symbols.Free symbol, s))) (congr!{{Symbols.Free symbol} K} z _ _ (slotEta s));
+  \fun (z: Coordinates)(s: Symbols.Free symbol) => \block {
+    \let free: Free s.row s.column := \idelim s = slot s.row s.column
+      \with t: Symbols.Slot => Symbols.FreeLaws[symbol, t] \by {
+        base: \bysub(Symbols.Slot, Symbols.Free symbol, s), equality: sym!{{Symbols.Slot}} _ _ (slotEta s)
+      } \then
+    \return trans!{K} _ _ _ (atFree z s.row s.column free)
+      (congr!{{Symbols.Free symbol} K} z (freeSlot s.row s.column free) s (slotEta s))
+  };
 \definition fillRead: \forall (A: Carrier) -> fill (read A) = A :=
   \fun (A: Carrier) => \axiom:funext(fill (read A), A, \fun (j: Fin.Fin k) => \axiom:funext(fill (read A) j, A j,
     \fun (i: Fin.Fin n) => either!{{(Classical.excludedMiddle (Free i j))} {fill (read A) j i = A j i}

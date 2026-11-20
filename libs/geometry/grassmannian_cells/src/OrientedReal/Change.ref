@@ -1,25 +1,26 @@
 \import linear_algebra.Hermitian[].Over[K := R.Real, field := R.Algebra[].field, scalar := H.Real[].scalar].Finite[n := n] \as AmbientCoordinates;
-\import Linear.Linear[V := Domain.Vector, W := Domain.Vector, source := Domain.space, target := Domain.space] \as End;
-\import End.Composition[U := Ambient.Vector, domain := AmbientCoordinates.space] \as Composition;
-\import lie_algebras.Field[K := R.Real, field := R.Algebra[].field].Endomorphisms[V := Domain.Vector, space := Domain.space] \as Endomorphisms;
+\import Linear.Linear[V := FrameCoordinates.Vector, W := FrameCoordinates.Vector, source := FrameCoordinates.space, target := FrameCoordinates.space] \as End;
+\import Linear.Linear[V := Ambient.Vector, W := FrameCoordinates.Vector, source := AmbientCoordinates.space, target := FrameCoordinates.space]
+  .Composition[U := FrameCoordinates.Vector, domain := FrameCoordinates.space] \as Composition;
+\import lie_algebras.Field[K := R.Real, field := R.Algebra[].field].Endomorphisms[V := FrameCoordinates.Vector, space := FrameCoordinates.space] \as Endomorphisms;
 \import algebra.Groups[].Units[A := Endomorphisms.Carrier, ring := Endomorphisms.ring] \as Units;
 \import lie_groups.Euclidean[n := k] \as Orthogonal;
 \import Ambient.OnProjection[P := Base.projection p].Rank[k := k] \as Rank;
 \definition map: End.Map := Composition.compose f.basis.coordinate g.basis.value;
 \definition reverse: End.Map := Composition.compose g.basis.coordinate f.basis.value;
-\definition reconstruct: \forall (v: Domain.Vector) -> f.basis.value.apply (map.apply v) = g.basis.value.apply v :=
-  \fun (v: Domain.Vector) => trans!{{Ambient.Vector}} _ _ _ (f.basis.reconstruction (g.basis.value.apply v)) (Rank.fixed g.basis v);
-\definition reverseReconstruct: \forall (v: Domain.Vector) -> g.basis.value.apply (reverse.apply v) = f.basis.value.apply v :=
-  \fun (v: Domain.Vector) => trans!{{Ambient.Vector}} _ _ _ (g.basis.reconstruction (f.basis.value.apply v)) (Rank.fixed f.basis v);
-\definition left: \forall (v: Domain.Vector) -> reverse.apply (map.apply v) = v := \fun (v: Domain.Vector) =>
-  trans!{{Domain.Vector}} _ _ _ (congr!{{Ambient.Vector} {Domain.Vector}} g.basis.coordinate.apply _ _ (reconstruct v)) (g.basis.leftInverse v);
-\definition right: \forall (v: Domain.Vector) -> map.apply (reverse.apply v) = v := \fun (v: Domain.Vector) =>
-  trans!{{Domain.Vector}} _ _ _ (congr!{{Ambient.Vector} {Domain.Vector}} f.basis.coordinate.apply _ _ (reverseReconstruct v)) (f.basis.leftInverse v);
+\definition reconstruct: \forall (v: FrameCoordinates.Vector) -> f.basis.value.apply (map.apply v) = g.basis.value.apply v :=
+  \fun (v: FrameCoordinates.Vector) => trans!{{Ambient.Vector}} _ _ _ (f.basis.reconstruction (g.basis.value.apply v)) (Rank.fixed g.basis v);
+\definition reverseReconstruct: \forall (v: FrameCoordinates.Vector) -> g.basis.value.apply (reverse.apply v) = f.basis.value.apply v :=
+  \fun (v: FrameCoordinates.Vector) => trans!{{Ambient.Vector}} _ _ _ (g.basis.reconstruction (f.basis.value.apply v)) (Rank.fixed f.basis v);
+\definition left: \forall (v: FrameCoordinates.Vector) -> reverse.apply (map.apply v) = v := \fun (v: FrameCoordinates.Vector) =>
+  trans!{{FrameCoordinates.Vector}} _ _ _ (congr!{{Ambient.Vector} {FrameCoordinates.Vector}} g.basis.coordinate.apply _ _ (reconstruct v)) (g.basis.leftInverse v);
+\definition right: \forall (v: FrameCoordinates.Vector) -> map.apply (reverse.apply v) = v := \fun (v: FrameCoordinates.Vector) =>
+  trans!{{FrameCoordinates.Vector}} _ _ _ (congr!{{Ambient.Vector} {FrameCoordinates.Vector}} f.basis.coordinate.apply _ _ (reverseReconstruct v)) (f.basis.leftInverse v);
 \definition unit: Units.Unit := Units.Unit { value := map, inverse := reverse,
   left := Endomorphisms.ext _ _ left, right := Endomorphisms.ext _ _ right,
 };
 \definition orthogonal: Orthogonal.O := \into[Units.Unit](unit, Orthogonal.O) \by {
-  \fun (v, w: Domain.Vector) => eq_reason_in!{R.Real _
+  \fun (v, w: FrameCoordinates.Vector) => eq_reason_in!{R.Real _
     "=" _ "by" { sym!{R.Real} _ _ (f.isometry (map.apply v) (map.apply w)) }
     "=" _ "by" { congr!{{Ambient.Vector} {Ambient.Vector} R.Real} Ambient.dot _ _ _ _ (reconstruct v) (reconstruct w) }
     "=" _ "by" { g.isometry v w }
@@ -28,10 +29,20 @@
 \definition sign: Signs.Carrier := \into[R.Real](Top.determinant map, Signs.predicate) \by { lie_groups.OrthogonalOrientation[].determinantSign k orthogonal };
 \definition self: f = g -> sign = Signs.positive := \fun (same: f = g) => trans!{R.Real} _ _ _
   (congr!{{End.Map} R.Real} Top.determinant _ _ (Endomorphisms.ext map Endomorphisms.one
-    (\fun (v: Domain.Vector) => trans!{{Domain.Vector}} _ _ _
-      (congr!{{Frame p} {Domain.Vector}} (\fun (h: Frame p) => f.basis.coordinate.apply (h.basis.value.apply v)) _ _ (sym!{{Frame p}} _ _ same)) (f.basis.leftInverse v)))) Top.atIdentity;
-\definition compose: \forall (h: Frame p) -> transition p f h = Signs.product sign (transition p g h) := \fun (h: Frame p) => trans!{R.Real} _ _ _
-  (congr!{{End.Map} R.Real} Top.determinant _ _ (Endomorphisms.ext _ _ (\fun (v: Domain.Vector) =>
-    congr!{{Ambient.Vector} {Domain.Vector}} f.basis.coordinate.apply _ _
-      (sym!{{Ambient.Vector}} _ _ (trans!{{Ambient.Vector}} _ _ _ (g.basis.reconstruction (h.basis.value.apply v)) (Rank.fixed h.basis v))))))
-  (Top.multiplicative map (Composition.compose g.basis.coordinate h.basis.value));
+    (\fun (v: FrameCoordinates.Vector) => trans!{{FrameCoordinates.Vector}} _ _ _
+      (congr!{{Frame p} {FrameCoordinates.Vector}} (\fun (h: Frame p) => f.basis.coordinate.apply (h.basis.value.apply v)) _ _ (sym!{{Frame p}} _ _ same)) (f.basis.leftInverse v)))) Top.atIdentity;
+\definition compose: \forall (h: Frame p) -> \parent.Change[p := p, f := f, g := h].sign = Signs.product sign (\parent.Change[p := p, f := g, g := h].sign)  := \fun (h: Frame p) => \block {
+  \let direct: End.Map := Composition.compose f.basis.coordinate h.basis.value \then
+  \let second: End.Map := Composition.compose g.basis.coordinate h.basis.value \then
+  \let combined: End.Map := Endomorphisms.mul map second \then
+  \let same: direct = combined := Endomorphisms.ext direct combined (\fun (v: FrameCoordinates.Vector) =>
+    congr!{{Ambient.Vector} {FrameCoordinates.Vector}} f.basis.coordinate.apply
+      (h.basis.value.apply v) (g.basis.value.apply (g.basis.coordinate.apply (h.basis.value.apply v)))
+      (sym!{{Ambient.Vector}} _ _ (trans!{{Ambient.Vector}}
+        (g.basis.value.apply (g.basis.coordinate.apply (h.basis.value.apply v)))
+        (p.map.apply (h.basis.value.apply v)) (h.basis.value.apply v)
+        (g.basis.reconstruction (h.basis.value.apply v)) (Rank.fixed h.basis v)))) \then
+  \return trans!{R.Real} (Top.determinant direct) (Top.determinant combined)
+    (R.mul (Top.determinant map) (Top.determinant second))
+    (congr!{{End.Map} R.Real} Top.determinant direct combined same) (Top.multiplicative map second)
+};
